@@ -1,11 +1,10 @@
 # $FreeBSD$
-#
 
 PROG=	ssh-add
-SRCS=	ssh-add.c
+CFLAGS+=-I${SSHDIR}
 
-LDADD+=	${LIBSSH} -lcrypto
-DPADD+= ${LIBSSH} ${LIBCRYPTO}
+DPADD=	${LIBSSH} ${LIBCRYPTO}
+LDADD=	-lssh -lcrypto
 
 .include <bsd.prog.mk>
 

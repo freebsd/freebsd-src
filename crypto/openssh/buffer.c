@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: buffer.c,v 1.13 2001/04/12 19:15:24 markus Exp $");
+RCSID("$OpenBSD: buffer.c,v 1.16 2002/06/26 08:54:18 markus Exp $");
 
 #include "xmalloc.h"
 #include "buffer.h"
@@ -53,11 +53,11 @@ buffer_clear(Buffer *buffer)
 /* Appends data to the buffer, expanding it if necessary. */
 
 void
-buffer_append(Buffer *buffer, const char *data, u_int len)
+buffer_append(Buffer *buffer, const void *data, u_int len)
 {
-	char *cp;
-	buffer_append_space(buffer, &cp, len);
-	memcpy(cp, data, len);
+	void *p;
+	p = buffer_append_space(buffer, len);
+	memcpy(p, data, len);
 }
 
 /*
@@ -66,9 +66,14 @@ buffer_append(Buffer *buffer, const char *data, u_int len)
  * to the allocated region.
  */
 
-void
-buffer_append_space(Buffer *buffer, char **datap, u_int len)
+void *
+buffer_append_space(Buffer *buffer, u_int len)
 {
+	void *p;
+
+	if (len > 0x100000)
+		fatal("buffer_append_space: len %u not supported", len);
+
 	/* If the buffer is empty, start using it from the beginning. */
 	if (buffer->offset == buffer->end) {
 		buffer->offset = 0;
@@ -77,9 +82,9 @@ buffer_append_space(Buffer *buffer, char **datap, u_int len)
 restart:
 	/* If there is enough space to store all data, store it now. */
 	if (buffer->end + len < buffer->alloc) {
-		*datap = buffer->buf + buffer->end;
+		p = buffer->buf + buffer->end;
 		buffer->end += len;
-		return;
+		return p;
 	}
 	/*
 	 * If the buffer is quite empty, but all data is at the end, move the
@@ -94,8 +99,12 @@ restart:
 	}
 	/* Increase the size of the buffer and retry. */
 	buffer->alloc += len + 32768;
+	if (buffer->alloc > 0xa00000)
+		fatal("buffer_append_space: alloc %u not supported",
+		    buffer->alloc);
 	buffer->buf = xrealloc(buffer->buf, buffer->alloc);
 	goto restart;
+	/* NOTREACHED */
 }
 
 /* Returns the number of bytes of data in the buffer. */
@@ -109,7 +118,7 @@ buffer_len(Buffer *buffer)
 /* Gets data from the beginning of the buffer. */
 
 void
-buffer_get(Buffer *buffer, char *buf, u_int len)
+buffer_get(Buffer *buffer, void *buf, u_int len)
 {
 	if (len > buffer->end - buffer->offset)
 		fatal("buffer_get: trying to get more bytes %d than in buffer %d",
@@ -140,7 +149,7 @@ buffer_consume_end(Buffer *buffer, u_int bytes)
 
 /* Returns a pointer to the first used byte in the buffer. */
 
-char *
+void *
 buffer_ptr(Buffer *buffer)
 {
 	return buffer->buf + buffer->offset;
@@ -152,7 +161,7 @@ void
 buffer_dump(Buffer *buffer)
 {
 	int i;
-	u_char *ucp = (u_char *) buffer->buf;
+	u_char *ucp = buffer->buf;
 
 	for (i = buffer->offset; i < buffer->end; i++) {
 		fprintf(stderr, "%02x", ucp[i]);

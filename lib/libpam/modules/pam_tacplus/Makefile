@@ -22,19 +22,12 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
-
-PAMDIR=		${.CURDIR}/../../../../contrib/libpam
+# $FreeBSD$
 
 LIB=		pam_tacplus
-SHLIB_NAME=	pam_tacplus.so
 SRCS=		pam_tacplus.c
-CFLAGS+=	-Wall
-CFLAGS+=	-I${PAMDIR}/libpam/include
-CFLAGS+=	-I${.CURDIR}/../../libpam
-DPADD+=		${LIBTACPLUS}
-LDADD+=		-ltacplus
-INTERNALLIB=	yes
-INTERNALSTATICLIB=yes
+DPADD=		${LIBTACPLUS}
+LDADD=		-ltacplus
+MAN=		pam_tacplus.8
 
 .include <bsd.lib.mk>

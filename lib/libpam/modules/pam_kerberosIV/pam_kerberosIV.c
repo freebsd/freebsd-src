@@ -35,7 +35,7 @@
 #define PAM_SM_AUTH
 #include <security/pam_modules.h>
 
-#include "pam_mod_misc.h"
+#include <security/pam_mod_misc.h>
 
 #define PASSWORD_PROMPT	"Password:"
 
@@ -50,6 +50,7 @@ PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
     const char **argv)
 {
+	struct options options;
 	int retval;
 	const char *user;
 	char *principal;
@@ -57,16 +58,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 	const char *password;
 	char localhost[MAXHOSTNAMELEN + 1];
 	struct passwd *pwd;
-	int options;
 	int i;
 
-	options = 0;
-	for (i = 0;  i < argc;  i++)
-		pam_std_option(&options, argv[i]);
+	pam_std_option(&options, NULL, argc, argv);
 	if ((retval = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS)
 		return retval;
 	if ((retval = pam_get_pass(pamh, &password, PASSWORD_PROMPT,
-	    options)) != PAM_SUCCESS)
+	    &options)) != PAM_SUCCESS)
 		return retval;
 	if (gethostname(localhost, sizeof localhost - 1) == -1)
 		return PAM_SYSTEM_ERR;

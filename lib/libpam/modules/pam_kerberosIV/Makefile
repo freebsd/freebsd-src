@@ -24,10 +24,8 @@
 #
 #	$FreeBSD$
 
-PAMDIR=		${.CURDIR}/../../../../contrib/libpam
 
 LIB=		pam_kerberosIV
-SHLIB_NAME=	pam_kerberosIV.so
 SRCS=		pam_kerberosIV.c klogin.c
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
@@ -41,7 +39,5 @@ LDADD+=		-lcrypto
 .endif
 DPADD+=		${LIBCOM_ERR}
 LDADD+=		-lcom_err
-INTERNALLIB=	yes
-INTERNALSTATICLIB=yes
 
 .include <bsd.lib.mk>

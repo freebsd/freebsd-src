@@ -1,13 +1,10 @@
-# This is ssh client systemwide configuration file.  This file provides 
-# defaults for users, and the values can be changed in per-user configuration
-# files or on the command line.
-#
-#	$OpenBSD: ssh_config,v 1.10 2001/04/03 21:19:38 todd Exp $
-# $FreeBSD$
+#	$OpenBSD: ssh_config,v 1.15 2002/06/20 20:03:34 stevesk Exp $
+#	$FreeBSD$
 
-# This is ssh client systemwide configuration file.  See ssh(1) for more
-# information.  This file provides defaults for users, and the values can
-# be changed in per-user configuration files or on the command line.
+# This is the ssh client system-wide configuration file.  See
+# ssh_config(5) for more information.  This file provides defaults for
+# users, and the values can be changed in per-user configuration files
+# or on the command line.
 
 # Configuration data is parsed as follows:
 #  1. command line options
@@ -23,18 +20,18 @@ Host *
 #   ForwardAgent no
 #   ForwardX11 no
 #   RhostsAuthentication no
-#   RhostsRSAAuthentication yes
+#   RhostsRSAAuthentication no
 #   RSAAuthentication yes
 #   PasswordAuthentication yes
-#   FallBackToRsh no
-#   UseRsh no
 #   BatchMode no
 #   CheckHostIP yes
-#   StrictHostKeyChecking yes
+#   StrictHostKeyChecking ask
 #   IdentityFile ~/.ssh/identity
-#   IdentityFile ~/.ssh/id_dsa
 #   IdentityFile ~/.ssh/id_rsa
+#   IdentityFile ~/.ssh/id_dsa
 #   Port 22
   Protocol 1,2
-#   Cipher blowfish
+#   Cipher 3des
+#   Ciphers aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour,aes192-cbc,aes256-cbc
 #   EscapeChar ~
+#   VersionAddendum FreeBSD-20020629

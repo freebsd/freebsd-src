@@ -1,11 +1,11 @@
 # $FreeBSD$
-#
 
 PROG=	sftp
-SRCS=   sftp.c sftp-client.c sftp-int.c sftp-common.c sftp-glob.c scp-common.c
+SRCS=   sftp.c sftp-client.c sftp-int.c sftp-common.c sftp-glob.c
+CFLAGS+=-I${SSHDIR}
 
-LDADD+=	${LIBSSH} -lcrypto
-DPADD+=	${LIBSSH} ${LIBCRYPTO}
+DPADD=	${LIBSSH} ${LIBCRYPTO}
+LDADD=	-lssh -lcrypto
 
 .include <bsd.prog.mk>
 

@@ -1,11 +1,10 @@
-.\"	$OpenBSD: ssh-keyscan.1,v 1.5 2001/04/18 16:21:05 ian Exp $
+.\"	$OpenBSD: ssh-keyscan.1,v 1.14 2002/02/13 08:33:47 mpech Exp $
 .\"
 .\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
 .\"
 .\" Modification and redistribution in source and binary forms is
 .\" permitted provided that due credit is given to the author and the
-.\" OpenBSD project (for instance by leaving this copyright notice
-.\" intact).
+.\" OpenBSD project by leaving this copyright notice intact.
 .\"
 .Dd January 1, 1996
 .Dt SSH-KEYSCAN 1
@@ -15,9 +14,13 @@
 .Nd gather ssh public keys
 .Sh SYNOPSIS
 .Nm ssh-keyscan
-.Op Fl t Ar timeout
-.Op Ar -- | host | addrlist namelist
-.Op Fl f Ar files ...
+.Op Fl v46
+.Op Fl p Ar port
+.Op Fl T Ar timeout
+.Op Fl t Ar type
+.Op Fl f Ar file
+.Op Ar host | addrlist namelist
+.Op Ar ...
 .Sh DESCRIPTION
 .Nm
 is a utility for gathering the public ssh host keys of a number of
@@ -32,46 +35,76 @@ scripts.
 uses non-blocking socket I/O to contact as many hosts as possible in
 parallel, so it is very efficient.  The keys from a domain of 1,000
 hosts can be collected in tens of seconds, even when some of those
-hosts are down or do not run ssh.  You do not need login access to the
-machines you are scanning, nor does the scanning process involve
-any encryption.
-.Sh SECURITY
-If you make an ssh_known_hosts file using
-.Nm
-without verifying the keys, you will be vulnerable to
-.I man in the middle
-attacks.
-On the other hand, if your security model allows such a risk,
-.Nm
-can help you detect tampered keyfiles or man in the middle attacks which
-have begun after you created your ssh_known_hosts file.
-.Sh OPTIONS
+hosts are down or do not run ssh.  For scanning, one does not need
+login access to the machines that are being scanned, nor does the
+scanning process involve any encryption.
+.Pp
+The options are as follows:
 .Bl -tag -width Ds
-.It Fl t
-Set the timeout for connection attempts.  If 
+.It Fl p Ar port
+Port to connect to on the remote host.
+.It Fl T Ar timeout
+Set the timeout for connection attempts.  If
 .Pa timeout
 seconds have elapsed since a connection was initiated to a host or since the
 last time anything was read from that host, then the connection is
 closed and the host in question considered unavailable.  Default is 5
 seconds.
-.It Fl f
-Read hosts or 
+.It Fl t Ar type
+Specifies the type of the key to fetch from the scanned hosts.
+The possible values are
+.Dq rsa1
+for protocol version 1 and
+.Dq rsa
+or
+.Dq dsa
+for protocol version 2.
+Multiple values may be specified by separating them with commas.
+The default is
+.Dq rsa1 .
+.It Fl f Ar filename
+Read hosts or
 .Pa addrlist namelist
 pairs from this file, one per line.
 If
 .Pa -
 is supplied instead of a filename,
 .Nm
-will read hosts or 
+will read hosts or
 .Pa addrlist namelist
 pairs from the standard input.
+.It Fl v
+Verbose mode.
+Causes
+.Nm
+to print debugging messages about its progress.
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
 .El
+.Sh SECURITY
+If a ssh_known_hosts file is constructed using
+.Nm
+without verifying the keys, users will be vulnerable to
+.I man in the middle
+attacks.
+On the other hand, if the security model allows such a risk,
+.Nm
+can help in the detection of tampered keyfiles or man in the middle
+attacks which have begun after the ssh_known_hosts file was created.
 .Sh EXAMPLES
 .Pp
-Print the host key for machine
+Print the
+.Pa rsa1
+host key for machine
 .Pa hostname :
 .Bd -literal
-ssh-keyscan hostname
+$ ssh-keyscan hostname
 .Ed
 .Pp
 Find all hosts from the file
@@ -79,26 +112,43 @@ Find all hosts from the file
 which have new or different keys from those in the sorted file
 .Pa ssh_known_hosts :
 .Bd -literal
-$ ssh-keyscan -f ssh_hosts | sort -u - ssh_known_hosts | \e\ 
-	diff ssh_known_hosts -
+$ ssh-keyscan -t rsa,dsa -f ssh_hosts | \e\ 
+	sort -u - ssh_known_hosts | diff ssh_known_hosts -
+.Ed
+.Sh FILES
+.Pa Input format:
+.Bd -literal
+1.2.3.4,1.2.4.4 name.my.domain,name,n.my.domain,n,1.2.3.4,1.2.4.4
 .Ed
 .Pp
-.Sh FILES
-.Pp
-.Pa Input format:
-1.2.3.4,1.2.4.4 name.my.domain,name,n.my.domain,n,1.2.3.4,1.2.4.4
-.Pp
-.Pa Output format:
+.Pa Output format for rsa1 keys:
+.Bd -literal
 host-or-namelist bits exponent modulus
+.Ed
 .Pp
-.Pa /etc/ssh_known_hosts
+.Pa Output format for rsa and dsa keys:
+.Bd -literal
+host-or-namelist keytype base64-encoded-key
+.Ed
+.Pp
+Where
+.Pa keytype
+is either
+.Dq ssh-rsa
+or
+.Dq ssh-dsa .
+.Pp
+.Pa /etc/ssh/ssh_known_hosts
 .Sh BUGS
 It generates "Connection closed by remote host" messages on the consoles
-of all the machines it scans.
+of all the machines it scans if the server is older than version 2.9.
 This is because it opens a connection to the ssh port, reads the public
 key, and drops the connection as soon as it gets the key.
 .Sh SEE ALSO
 .Xr ssh 1 ,
 .Xr sshd 8
-.Sh AUTHOR
+.Sh AUTHORS
 David Mazieres <dm@lcs.mit.edu>
+wrote the initial version, and
+Wayne Davison <wayned@users.sourceforge.net>
+added support for protocol version 2.

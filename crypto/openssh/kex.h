@@ -1,7 +1,7 @@
-/*	$OpenBSD: kex.h,v 1.22 2001/04/04 20:25:37 markus Exp $	*/
+/*	$OpenBSD: kex.h,v 1.31 2002/05/16 22:02:50 markus Exp $	*/
 
 /*
- * Copyright (c) 2000 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -71,13 +71,15 @@ struct Enc {
 	char	*name;
 	Cipher	*cipher;
 	int	enabled;
+	u_int	key_len;
+	u_int	block_size;
 	u_char	*key;
 	u_char	*iv;
 };
 struct Mac {
 	char	*name;
 	int	enabled;
-	EVP_MD	*md;
+	const EVP_MD	*md;
 	int	mac_len;
 	u_char	*key;
 	int	key_len;
@@ -107,24 +109,25 @@ struct Kex {
 	int	flags;
 	char	*client_version_string;
 	char	*server_version_string;
-	int	(*check_host_key)(Key *hostkey);
-	Key	*(*load_host_key)(int type);
+	int	(*verify_host_key)(Key *);
+	Key	*(*load_host_key)(int);
+	int	(*host_key_index)(Key *);
 };
 
-Kex	*kex_setup(char *proposal[PROPOSAL_MAX]);
-void	kex_finish(Kex *kex);
+Kex	*kex_setup(char *[PROPOSAL_MAX]);
+void	 kex_finish(Kex *);
 
-void	kex_send_kexinit(Kex *kex);
-void	kex_input_kexinit(int type, int plen, void *ctxt);
-void	kex_derive_keys(Kex *k, u_char *hash, BIGNUM *shared_secret);
+void	 kex_send_kexinit(Kex *);
+void	 kex_input_kexinit(int, u_int32_t, void *);
+void	 kex_derive_keys(Kex *, u_char *, BIGNUM *);
 
-void	kexdh(Kex *);
-void	kexgex(Kex *);
+void	 kexdh(Kex *);
+void	 kexgex(Kex *);
 
-Newkeys *kex_get_newkeys(int mode);
+Newkeys *kex_get_newkeys(int);
 
 #if defined(DEBUG_KEX) || defined(DEBUG_KEXDH)
-void	dump_digest(char *msg, u_char *digest, int len);
+void	dump_digest(char *, u_char *, int);
 #endif
 
 #endif

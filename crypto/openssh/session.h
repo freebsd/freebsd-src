@@ -1,7 +1,8 @@
-/*	$OpenBSD: session.h,v 1.6 2001/03/21 11:43:45 markus Exp $	*/
+/*	$OpenBSD: session.h,v 1.18 2002/06/23 21:06:41 deraadt Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
- * Copyright (c) 2000 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,11 +27,46 @@
 #ifndef SESSION_H
 #define SESSION_H
 
-void	do_authenticated(Authctxt *ac);
+#define TTYSZ 64
+typedef struct Session Session;
+struct Session {
+	int	used;
+	int	self;
+	struct passwd *pw;
+	Authctxt *authctxt;
+	pid_t	pid;
+	/* tty */
+	char	*term;
+	int	ptyfd, ttyfd, ptymaster;
+	u_int	row, col, xpixel, ypixel;
+	char	tty[TTYSZ];
+	/* last login */
+	char	hostname[MAXHOSTNAMELEN];
+	time_t	last_login_time;
+	/* X11 */
+	u_int	display_number;
+	char	*display;
+	u_int	screen;
+	char	*auth_display;
+	char	*auth_proto;
+	char	*auth_data;
+	int	single_connection;
+	/* proto 2 */
+	int	chanid;
+	int	is_subsystem;
+};
 
-int	session_open(int id);
-void	session_input_channel_req(int id, void *arg);
-void	session_close_by_pid(pid_t pid, int status);
-void	session_close_by_channel(int id, void *arg);
+void	 do_authenticated(Authctxt *);
 
+int	 session_open(Authctxt*, int);
+int	 session_input_channel_req(Channel *, const char *);
+void	 session_close_by_pid(pid_t, int);
+void	 session_close_by_channel(int, void *);
+void	 session_destroy_all(void (*)(Session *));
+void	 session_pty_cleanup2(void *);
+
+Session	*session_new(void);
+Session	*session_by_tty(char *);
+void	 session_close(Session *);
+void	 do_setusercontext(struct passwd *);
 #endif

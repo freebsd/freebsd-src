@@ -1,5 +1,7 @@
+/*	$OpenBSD: compat.h,v 1.32 2002/04/10 08:21:47 markus Exp $	*/
+
 /*
- * Copyright (c) 1999 Markus Friedl.  All rights reserved.
+ * Copyright (c) 1999, 2000, 2001 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -21,8 +23,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* RCSID("$FreeBSD$"); */
-/* RCSID("$OpenBSD: compat.h,v 1.23 2001/04/12 19:15:24 markus Exp $"); */
 
 #ifndef COMPAT_H
 #define COMPAT_H
@@ -32,29 +32,35 @@
 #define	SSH_PROTO_1_PREFERRED	0x02
 #define	SSH_PROTO_2		0x04
 
-#define SSH_BUG_SIGBLOB		0x0001
-#define SSH_BUG_PKSERVICE	0x0002
-#define SSH_BUG_HMAC		0x0004
-#define SSH_BUG_X11FWD		0x0008
-#define SSH_OLD_SESSIONID	0x0010
-#define SSH_BUG_PKAUTH		0x0020
-#define SSH_BUG_DEBUG		0x0040
-#define SSH_BUG_BANNER		0x0080
-#define SSH_BUG_IGNOREMSG	0x0100
-#define SSH_BUG_PKOK		0x0200
-#define SSH_BUG_PASSWORDPAD	0x0400
-#define SSH_BUG_SCANNER		0x0800
-#define SSH_BUG_BIGENDIANAES	0x1000
-#define SSH_BUG_RSASIGMD5	0x2000
-#define SSH_OLD_DHGEX		0x4000
-#define SSH_BUG_NOREKEY		0x8000
-#define SSH_BUG_HBSERVICE	0x10000
+#define SSH_BUG_SIGBLOB		0x00000001
+#define SSH_BUG_PKSERVICE	0x00000002
+#define SSH_BUG_HMAC		0x00000004
+#define SSH_BUG_X11FWD		0x00000008
+#define SSH_OLD_SESSIONID	0x00000010
+#define SSH_BUG_PKAUTH		0x00000020
+#define SSH_BUG_DEBUG		0x00000040
+#define SSH_BUG_BANNER		0x00000080
+#define SSH_BUG_IGNOREMSG	0x00000100
+#define SSH_BUG_PKOK		0x00000200
+#define SSH_BUG_PASSWORDPAD	0x00000400
+#define SSH_BUG_SCANNER		0x00000800
+#define SSH_BUG_BIGENDIANAES	0x00001000
+#define SSH_BUG_RSASIGMD5	0x00002000
+#define SSH_OLD_DHGEX		0x00004000
+#define SSH_BUG_NOREKEY		0x00008000
+#define SSH_BUG_HBSERVICE	0x00010000
+#define SSH_BUG_OPENFAILURE	0x00020000
+#define SSH_BUG_DERIVEKEY	0x00040000
+#define SSH_BUG_DUMMYCHAN	0x00100000
+#define SSH_BUG_EXTEOF		0x00200000
+#define SSH_BUG_K5USER		0x00400000
 
-void    enable_compat13(void);
-void    enable_compat20(void);
-void    compat_datafellows(const char *s);
-int	proto_spec(const char *spec);
-char	*compat_cipher_proposal(char *cipher_prop);
+void     enable_compat13(void);
+void     enable_compat20(void);
+void     compat_datafellows(const char *);
+int	 proto_spec(const char *);
+char	*compat_cipher_proposal(char *);
+
 extern int compat13;
 extern int compat20;
 extern int datafellows;

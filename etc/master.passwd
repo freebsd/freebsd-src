@@ -10,6 +10,7 @@ kmem:*:5:65533::0:0:KMem Sandbox:/:/sbin/nologin
 games:*:7:13::0:0:Games pseudo-user:/usr/games:/sbin/nologin
 news:*:8:8::0:0:News Subsystem:/:/sbin/nologin
 man:*:9:9::0:0:Mister Man Pages:/usr/share/man:/sbin/nologin
+sshd:*:22:22::0:0:Secure Shell Daemon:/var/empty:/sbin/nologin
 smmsp:*:25:25::0:0:Sendmail Submission User:/var/spool/clientmqueue:/sbin/nologin
 mailnull:*:26:26::0:0:Sendmail Default User:/var/spool/mqueue:/sbin/nologin
 bind:*:53:53::0:0:Bind Sandbox:/:/sbin/nologin

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 1999 Dug Song.  All rights reserved.
+ * Copyright (c) 2002 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,188 +26,132 @@
 #include "includes.h"
 #include "uuencode.h"
 
-RCSID("$OpenBSD: radix.c,v 1.15 2001/01/16 23:58:09 deraadt Exp $");
+RCSID("$OpenBSD: radix.c,v 1.21 2002/06/19 00:27:55 deraadt Exp $");
 
 #ifdef AFS
 #include <krb.h>
 
-typedef u_char my_u_char;
-typedef u_int my_u_int32_t;
-typedef u_short my_u_short;
-
-/* Nasty macros from BIND-4.9.2 */
-
-#define GETSHORT(s, cp) { \
-	register my_u_char *t_cp = (my_u_char *)(cp); \
-	(s) = (((my_u_short)t_cp[0]) << 8) \
-	    | (((my_u_short)t_cp[1])) \
-	    ; \
-	(cp) += 2; \
-}
-
-#define GETLONG(l, cp) { \
-	register my_u_char *t_cp = (my_u_char *)(cp); \
-	(l) = (((my_u_int32_t)t_cp[0]) << 24) \
-	    | (((my_u_int32_t)t_cp[1]) << 16) \
-	    | (((my_u_int32_t)t_cp[2]) << 8) \
-	    | (((my_u_int32_t)t_cp[3])) \
-	    ; \
-	(cp) += 4; \
-}
-
-#define PUTSHORT(s, cp) { \
-	register my_u_short t_s = (my_u_short)(s); \
-	register my_u_char *t_cp = (my_u_char *)(cp); \
-	*t_cp++ = t_s >> 8; \
-	*t_cp   = t_s; \
-	(cp) += 2; \
-}
-
-#define PUTLONG(l, cp) { \
-	register my_u_int32_t t_l = (my_u_int32_t)(l); \
-	register my_u_char *t_cp = (my_u_char *)(cp); \
-	*t_cp++ = t_l >> 24; \
-	*t_cp++ = t_l >> 16; \
-	*t_cp++ = t_l >> 8; \
-	*t_cp   = t_l; \
-	(cp) += 4; \
-}
-
-#define GETSTRING(s, p, p_l) {			\
-    register char *p_targ = (p) + p_l;		\
-    register char *s_c = (s);			\
-    register char *p_c = (p);			\
-    while (*p_c && (p_c < p_targ)) {		\
-	*s_c++ = *p_c++;			\
-    }						\
-    if (p_c == p_targ) {			\
-	return 1;				\
-    }						\
-    *s_c = *p_c++;				\
-    (p_l) = (p_l) - (p_c - (p));		\
-    (p) = p_c;					\
-}
-
+#include <radix.h>
+#include "bufaux.h"
 
 int
 creds_to_radix(CREDENTIALS *creds, u_char *buf, size_t buflen)
 {
-	char *p, *s;
-	int len;
-	char temp[2048];
+	Buffer b;
+	int ret;
 
-	p = temp;
-	*p++ = 1;		/* version */
-	s = creds->service;
-	while (*s)
-		*p++ = *s++;
-	*p++ = *s;
-	s = creds->instance;
-	while (*s)
-		*p++ = *s++;
-	*p++ = *s;
-	s = creds->realm;
-	while (*s)
-		*p++ = *s++;
-	*p++ = *s;
+	buffer_init(&b);
 
-	s = creds->pname;
-	while (*s)
-		*p++ = *s++;
-	*p++ = *s;
-	s = creds->pinst;
-	while (*s)
-		*p++ = *s++;
-	*p++ = *s;
+	buffer_put_char(&b, 1);	/* version */
+
+	buffer_append(&b, creds->service, strlen(creds->service));
+	buffer_put_char(&b, '\0');
+	buffer_append(&b, creds->instance, strlen(creds->instance));
+	buffer_put_char(&b, '\0');
+	buffer_append(&b, creds->realm, strlen(creds->realm));
+	buffer_put_char(&b, '\0');
+	buffer_append(&b, creds->pname, strlen(creds->pname));
+	buffer_put_char(&b, '\0');
+	buffer_append(&b, creds->pinst, strlen(creds->pinst));
+	buffer_put_char(&b, '\0');
+
 	/* Null string to repeat the realm. */
-	*p++ = '\0';
+	buffer_put_char(&b, '\0');
 
-	PUTLONG(creds->issue_date, p);
-	{
-		u_int endTime;
-		endTime = (u_int) krb_life_to_time(creds->issue_date,
-							  creds->lifetime);
-		PUTLONG(endTime, p);
-	}
+	buffer_put_int(&b, creds->issue_date);
+	buffer_put_int(&b, krb_life_to_time(creds->issue_date,
+	    creds->lifetime));
+	buffer_append(&b, creds->session, sizeof(creds->session));
+	buffer_put_short(&b, creds->kvno);
 
-	memcpy(p, &creds->session, sizeof(creds->session));
-	p += sizeof(creds->session);
+	/* 32 bit size + data */
+	buffer_put_string(&b, creds->ticket_st.dat, creds->ticket_st.length);
 
-	PUTSHORT(creds->kvno, p);
-	PUTLONG(creds->ticket_st.length, p);
+	ret = uuencode(buffer_ptr(&b), buffer_len(&b), (char *)buf, buflen);
 
-	memcpy(p, creds->ticket_st.dat, creds->ticket_st.length);
-	p += creds->ticket_st.length;
-	len = p - temp;
-
-	return (uuencode((u_char *)temp, len, (char *)buf, buflen));
+	buffer_free(&b);
+	return ret;
 }
+
+#define GETSTRING(b, t, tlen) \
+	do { \
+		int i, found = 0; \
+		for (i = 0; i < tlen; i++) { \
+			if (buffer_len(b) == 0) \
+				goto done; \
+			t[i] = buffer_get_char(b); \
+			if (t[i] == '\0') { \
+				found = 1; \
+				break; \
+			} \
+		} \
+		if (!found) \
+			goto done; \
+	} while(0)
 
 int
 radix_to_creds(const char *buf, CREDENTIALS *creds)
 {
+	Buffer b;
+	char c, version, *space, *p;
+	u_int endTime;
+	int len, blen, ret;
 
-	char *p;
-	int len, tl;
-	char version;
-	char temp[2048];
+	ret = 0;
+	blen = strlen(buf);
 
-	len = uudecode(buf, (u_char *)temp, sizeof(temp));
-	if (len < 0)
+	/* sanity check for size */
+	if (blen > 8192)
 		return 0;
 
-	p = temp;
+	buffer_init(&b);
+	space = buffer_append_space(&b, blen);
 
 	/* check version and length! */
+	len = uudecode(buf, space, blen);
 	if (len < 1)
-		return 0;
-	version = *p;
-	p++;
-	len--;
+		goto done;
 
-	GETSTRING(creds->service, p, len);
-	GETSTRING(creds->instance, p, len);
-	GETSTRING(creds->realm, p, len);
+	version = buffer_get_char(&b);
 
-	GETSTRING(creds->pname, p, len);
-	GETSTRING(creds->pinst, p, len);
+	GETSTRING(&b, creds->service, sizeof creds->service);
+	GETSTRING(&b, creds->instance, sizeof creds->instance);
+	GETSTRING(&b, creds->realm, sizeof creds->realm);
+	GETSTRING(&b, creds->pname, sizeof creds->pname);
+	GETSTRING(&b, creds->pinst, sizeof creds->pinst);
+
+	if (buffer_len(&b) == 0)
+		goto done;
+
 	/* Ignore possibly different realm. */
-	while (*p && len)
-		p++, len--;
-	if (len == 0)
-		return 0;
-	p++, len--;
+	while (buffer_len(&b) > 0 && (c = buffer_get_char(&b)) != '\0')
+		;
 
-	/* Enough space for remaining fixed-length parts? */
-	if (len < (4 + 4 + sizeof(creds->session) + 2 + 4))
-		return 0;
+	if (buffer_len(&b) == 0)
+		goto done;
 
-	GETLONG(creds->issue_date, p);
-	len -= 4;
-	{
-		u_int endTime;
-		GETLONG(endTime, p);
-		len -= 4;
-		creds->lifetime = krb_time_to_life(creds->issue_date, endTime);
-	}
+	creds->issue_date = buffer_get_int(&b);
 
-	memcpy(&creds->session, p, sizeof(creds->session));
-	p += sizeof(creds->session);
-	len -= sizeof(creds->session);
+	endTime = buffer_get_int(&b);
+	creds->lifetime = krb_time_to_life(creds->issue_date, endTime);
 
-	GETSHORT(creds->kvno, p);
-	len -= 2;
-	GETLONG(creds->ticket_st.length, p);
-	len -= 4;
+	len = buffer_len(&b);
+	if (len < sizeof(creds->session))
+		goto done;
+	memcpy(&creds->session, buffer_ptr(&b), sizeof(creds->session));
+	buffer_consume(&b, sizeof(creds->session));
 
-	tl = creds->ticket_st.length;
-	if (tl < 0 || tl > len || tl > sizeof(creds->ticket_st.dat))
-		return 0;
+	creds->kvno = buffer_get_short(&b);
 
-	memcpy(creds->ticket_st.dat, p, tl);
-	p += tl;
-	len -= tl;
+	p = buffer_get_string(&b, &len);
+	if (len < 0 || len > sizeof(creds->ticket_st.dat))
+		goto done;
+	memcpy(&creds->ticket_st.dat, p, len);
+	creds->ticket_st.length = len;
 
-	return 1;
+	ret = 1;
+done:
+	buffer_free(&b);
+	return ret;
 }
 #endif /* AFS */

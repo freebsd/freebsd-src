@@ -1,11 +1,10 @@
 # $FreeBSD$
-#
 
 PROG=	scp
-SRCS=	scp.c scp-common.c
+CFLAGS+=-I${SSHDIR}
 
-LDADD+=	${LIBSSH} -lcrypto -lutil -lz
-DPADD+=	${LIBSSH} ${LIBCRYPTO} ${LIBUTIL} ${LIBZ}
+DPADD=	${LIBSSH}
+LDADD=	-lssh
 
 .include <bsd.prog.mk>
 

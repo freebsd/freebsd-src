@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.24 2001/04/10 09:13:21 itojun Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.35 2002/06/24 13:12:23 markus Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -42,11 +42,12 @@
 .Nd authentication agent
 .Sh SYNOPSIS
 .Nm ssh-agent
-.Ar command
-.Ar args ...
+.Op Fl a Ar bind_address
+.Op Fl c Li | Fl s
+.Op Fl d
+.Op Ar command Op Ar args ...
 .Nm ssh-agent
 .Op Fl c Li | Fl s
-.Nm ssh-agent
 .Fl k
 .Sh DESCRIPTION
 .Nm
@@ -64,6 +65,11 @@ machines using
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl a Ar bind_address
+Bind the agent to the unix-domain socket
+.Ar bind_address .
+The default is
+.Pa /tmp/ssh-XXXXXXXX/agent.<ppid> .
 .It Fl c
 Generate C-shell commands on
 .Dv stdout .
@@ -80,6 +86,10 @@ does not look like it's a csh style of shell.
 Kill the current agent (given by the
 .Ev SSH_AGENT_PID
 environment variable).
+.It Fl d
+Debug mode.  When this option is specified
+.Nm
+will not fork.
 .El
 .Pp
 If a commandline is given, this is executed as a subprocess of the agent.
@@ -90,9 +100,11 @@ Keys are added using
 .Xr ssh-add 1 .
 When executed without arguments,
 .Xr ssh-add 1
-adds the
-.Pa $HOME/.ssh/identity
-file.
+adds the files
+.Pa $HOME/.ssh/id_rsa ,
+.Pa $HOME/.ssh/id_dsa
+and
+.Pa $HOME/.ssh/identity .
 If the identity has a passphrase,
 .Xr ssh-add 1
 asks for the passphrase (using a small X11 application if running
@@ -112,9 +124,9 @@ remote logins, and the user can thus use the privileges given by the
 identities anywhere in the network in a secure way.
 .Pp
 There are two main ways to get an agent setup:
-Either you let the agent
-start a new subcommand into which some environment variables are exported, or
-you let the agent print the needed shell commands (either
+Either the agent starts a new subcommand into which some environment
+variables are exported, or the agent prints the needed shell commands
+(either
 .Xr sh 1
 or
 .Xr csh 1
@@ -123,8 +135,12 @@ Later
 .Xr ssh 1
 looks at these variables and uses them to establish a connection to the agent.
 .Pp
+The agent will never send a private key over its request channel.
+Instead, operations that require a private key will be performed
+by the agent, and the result will be returned to the requester.
+This way, private keys are not exposed to clients using the agent.
+.Pp
 A unix-domain socket is created
-.Pq Pa /tmp/ssh-XXXXXXXX/agent.<pid> ,
 and the name of this socket is stored in the
 .Ev SSH_AUTH_SOCK
 environment
@@ -135,7 +151,7 @@ user.
 .Pp
 The
 .Ev SSH_AGENT_PID
-environment variable holds the agent's PID.
+environment variable holds the agent's process ID.
 .Pp
 The agent exits automatically when the command given on the command
 line terminates.
@@ -143,20 +159,11 @@ line terminates.
 .Bl -tag -width Ds
 .It Pa $HOME/.ssh/identity
 Contains the protocol version 1 RSA authentication identity of the user.
-This file should not be readable by anyone but the user.
-It is possible to
-specify a passphrase when generating the key; that passphrase will be
-used to encrypt the private part of this file.
-This file is not used by
-.Nm
-but is normally added to the agent using
-.Xr ssh-add 1
-at login time.
 .It Pa $HOME/.ssh/id_dsa
 Contains the protocol version 2 DSA authentication identity of the user.
 .It Pa $HOME/.ssh/id_rsa
 Contains the protocol version 2 RSA authentication identity of the user.
-.It Pa /tmp/ssh-XXXXXXXX/agent.<pid>
+.It Pa /tmp/ssh-XXXXXXXX/agent.<ppid>
 Unix-domain sockets used to contain the connection to the
 authentication agent.
 These sockets should only be readable by the owner.

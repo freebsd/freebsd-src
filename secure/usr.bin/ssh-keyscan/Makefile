@@ -1,11 +1,10 @@
 # $FreeBSD$
-#
 
 PROG=	ssh-keyscan
-SRCS=	ssh-keyscan.c
+CFLAGS+=-I${SSHDIR}
 
-LDADD+=	${LIBSSH} -lcrypto
-DPADD+=	${LIBSSH} ${LIBCRYPTO}
+DPADD=	${LIBSSH} ${LIBCRYPTO} ${LIBZ}
+LDADD=	-lssh -lcrypto -lz
 
 .include <bsd.prog.mk>
 
