@@ -270,8 +270,7 @@ main(argc, argv)
 			break;
 		case 'v':
 		case 'i':		/* Backward compatibility. */
-			fprintf(stderr, "vnode mode not supported\n");
-			exit(1);
+			errx(1, "vnode mode not supported");
 #if 0
 			vnodeflag = 1;
 			break;

@@ -77,7 +77,8 @@ The following options are available:
 .It Fl n
 Print devices out by major/minor instead of name.
 .It Fl k
-Print sizes in kilobytes, regardless of the setting of the BLOCKSIZE
+Print sizes in kilobytes, regardless of the setting of the
+.Ev BLOCKSIZE
 environment variable.
 .It Fl T
 Print the number of used and free slots in the several system tables
@@ -382,7 +383,9 @@ default source of tables
 .Ra K. Thompson
 .Re
 .Sh BUGS
-Does not understand NFS swap servers.
+Does not understand
+.Tn NFS
+swap servers.
 .Sh HISTORY
 The
 .Nm pstat
