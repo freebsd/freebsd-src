@@ -62,9 +62,10 @@ GNU-format tar archives,
 POSIX octet-oriented cpio archives.
 .El
 The library automatically detects archives compressed with
-.Xr gzip 1
+.Xr gzip 1 ,
+.Xr bzip2 1 ,
 or
-.Xr bzip2 1
+.Xr compress 1
 and decompresses them transparently.
 .Pp
 When writing an archive, you can specify the compression
@@ -279,7 +280,6 @@ and
 .Fn archive_error_string
 functions can be used to obtain more information.
 .Sh ENVIRONMENT
-The library currently obeys no environment variables.
 There are character set conversions within the
 .Xr archive_entry
 functions that are impacted by the currently-selected locale.
@@ -318,5 +318,3 @@ old tar formats do not support large device numbers.
 .Pp
 The library cannot write pre-POSIX tar archives.
 The support for GNU tar format is incomplete.
-.Pp
-Support for ACLs is still evolving and subject to change.
