@@ -12,14 +12,14 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.95 1998/08/11 19:08:42 bde Exp $
+ *	$Id: ip_fw.c,v 1.96 1998/08/23 03:07:14 wollman Exp $
  */
 
 /*
  * Implement IP packet firewall
  */
 
-#ifndef IPFIREWALL_MODULE
+#if !defined(KLD_MODULE) && !defined(IPFIREWALL_MODULE)
 #include "opt_ipfw.h"
 #include "opt_ipdivert.h"
 #include "opt_inet.h"
@@ -99,11 +99,6 @@ static int	tcpflg_match __P((struct tcphdr *tcp, struct ip_fw *f));
 static int	icmptype_match __P((struct icmp *  icmp, struct ip_fw * f));
 static void	ipfw_report __P((struct ip_fw *f, struct ip *ip,
 				struct ifnet *rif, struct ifnet *oif));
-
-#ifdef IPFIREWALL_MODULE
-static ip_fw_chk_t *old_chk_ptr;
-static ip_fw_ctl_t *old_ctl_ptr;
-#endif
 
 static int	ip_fw_chk __P((struct ip **pip, int hlen,
 			struct ifnet *oif, u_int16_t *cookie, struct mbuf **m,
@@ -1107,7 +1102,10 @@ ip_fw_init(void)
 #endif
 }
 
-#ifdef IPFIREWALL_MODULE
+static ip_fw_chk_t *old_chk_ptr;
+static ip_fw_ctl_t *old_ctl_ptr;
+
+#if defined(IPFIREWALL_MODULE) && !defined(KLD_MODULE)
 
 #include <sys/exec.h>
 #include <sys/sysent.h>
@@ -1154,4 +1152,48 @@ ipfw_mod(struct lkm_table *lkmtp, int cmd, int ver)
 	MOD_DISPATCH(ipfw, lkmtp, cmd, ver,
 		ipfw_load, ipfw_unload, lkm_nullcmd);
 }
+#else
+static int
+ipfw_modevent(module_t mod, modeventtype_t type, void *unused)
+{
+	int s;
+	
+	switch (type) {
+	case MOD_LOAD:
+		s = splnet();
+
+		old_chk_ptr = ip_fw_chk_ptr;
+		old_ctl_ptr = ip_fw_ctl_ptr;
+
+		ip_fw_init();
+		splx(s);
+		return 0;
+	case MOD_UNLOAD:
+		s = splnet();
+
+		ip_fw_chk_ptr =  old_chk_ptr;
+		ip_fw_ctl_ptr =  old_ctl_ptr;
+
+		while (LIST_FIRST(&ip_fw_chain) != NULL) {
+			struct ip_fw_chain *fcp = LIST_FIRST(&ip_fw_chain);
+			LIST_REMOVE(LIST_FIRST(&ip_fw_chain), chain);
+			free(fcp->rule, M_IPFW);
+			free(fcp, M_IPFW);
+		}
+	
+		splx(s);
+		printf("IP firewall unloaded\n");
+		return 0;
+	default:
+		break;
+	}
+	return 0;
+}
+
+moduledata_t ipfwmod = {
+	"ipfw",
+	ipfw_modevent,
+	0
+};
+DECLARE_MODULE(ipfw, ipfwmod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 #endif

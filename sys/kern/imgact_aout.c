@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.41 1998/07/15 05:00:26 bde Exp $
+ *	$Id: imgact_aout.c,v 1.42 1998/09/14 05:36:49 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -303,4 +303,4 @@ out:
  * correct directive to use.
  */
 static const struct execsw aout_execsw = { exec_aout_imgact, "a.out" };
-TEXT_SET(execsw_set, aout_execsw);
+EXEC_SET(aout, aout_execsw);

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.55 1998/09/05 17:13:27 bde Exp $
+ * $Id: kern_lkm.c,v 1.56 1998/09/07 05:42:15 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -650,11 +650,15 @@ _lkm_vfs(lkmtp, cmd)
 
 		/* like in vfs_op_init */
 		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++) {
-			const struct vnodeopv_desc *opv =
+			struct vnodeopv_desc *opv = (struct vnodeopv_desc *)
 				args->lkm_vnodeops->ls_items[i];
 			*(opv->opv_desc_vector_p) = NULL;
 		}
-		vfs_opv_init((struct vnodeopv_desc **)args->lkm_vnodeops->ls_items);
+		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++) {
+			struct vnodeopv_desc *opv = (struct vnodeopv_desc *)
+				args->lkm_vnodeops->ls_items[i];
+			vfs_opv_init(opv);
+		}
 
 		/*
 		 * Call init function for this VFS...
@@ -834,40 +838,21 @@ _lkm_exec(lkmtp, cmd)
 		/* don't load twice! */
 		if (lkmexists(lkmtp))
 			return(EEXIST);
-		if ((i = args->lkm_offset) == LKM_ANON) {	/* auto */
-			/*
-			 * Search the table looking for a slot...
-			 */
-			for (i = 0; execsw[i] != NULL; i++)
-				if (execsw[i]->ex_imgact == NULL)
-					break;		/* found it! */
-			/* out of allocable slots? */
-			if (execsw[i] == NULL) {
-				err = ENFILE;
-				break;
-			}
-		} else {				/* assign */
+		if (args->lkm_offset != LKM_ANON) {	/* auto */
 			err = EINVAL;
 			break;
 		}
 
-		/* save old */
-		bcopy(&execsw[i], &(args->lkm_oldexec), sizeof(struct execsw*));
-
-		/* replace with new */
-		bcopy(&(args->lkm_exec), &execsw[i], sizeof(struct execsw*));
+		err = exec_register(args->lkm_exec);
 
 		/* done! */
-		args->lkm_offset = i;	/* slot in execsw[] */
+		args->lkm_offset = 0;	/* slot in execsw[] */
 
 		break;
 
 	case LKM_E_UNLOAD:
-		/* current slot... */
-		i = args->lkm_offset;
 
-		/* replace current slot contents with old contents */
-		bcopy(&(args->lkm_oldexec), &execsw[i], sizeof(struct execsw*));
+		err = exec_unregister(args->lkm_exec);
 
 		break;
 
@@ -876,16 +861,6 @@ _lkm_exec(lkmtp, cmd)
 	}
 	return(err);
 }
-
-/* XXX: This is bogus.  we should find a better method RSN! */
-static const struct execsw lkm_exec_dummy1 = { NULL, "lkm" };
-static const struct execsw lkm_exec_dummy2 = { NULL, "lkm" };
-static const struct execsw lkm_exec_dummy3 = { NULL, "lkm" };
-static const struct execsw lkm_exec_dummy4 = { NULL, "lkm" };
-TEXT_SET(execsw_set, lkm_exec_dummy1);
-TEXT_SET(execsw_set, lkm_exec_dummy2);
-TEXT_SET(execsw_set, lkm_exec_dummy3);
-TEXT_SET(execsw_set, lkm_exec_dummy4);
 
 /*
  * This code handles the per-module type "wiring-in" of loadable modules

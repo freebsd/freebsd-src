@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.33 1998/09/05 17:13:27 bde Exp $
+ * $Id: vfs_init.c,v 1.34 1998/10/05 11:10:55 obrien Exp $
  */
 
 
@@ -67,13 +67,24 @@ MALLOC_DEFINE(M_VNODE, "vnodes", "Dynamically allocated vnodes");
 
 static struct vfsconf void_vfsconf;
 
+#ifdef unused
 extern struct linker_set vfs_opv_descs_;
 #define vfs_opv_descs ((struct vnodeopv_desc **)vfs_opv_descs_.ls_items)
-
-extern struct linker_set vfs_set;
+#endif
 
 extern struct vnodeop_desc *vfs_op_descs[];
 				/* and the operations they perform */
+
+/*
+ * XXX this bloat just exands the sysctl__vfs linker set a little so that
+ * we can attach sysctls for VFS modules without expanding the linker set.
+ * Currently (1998/09/06), only one VFS uses sysctls, so 2 extra linker
+ * set slots are more than sufficient.
+ */
+extern struct linker_set sysctl__vfs;
+static int mod_xx;
+SYSCTL_INT(_vfs, OID_AUTO, mod0, CTLFLAG_RD, &mod_xx, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, mod1, CTLFLAG_RD, &mod_xx, 0, "");
 
 /*
  * Zone for namei
@@ -103,9 +114,9 @@ struct vm_zone *namei_zone;
  * it's not a very dynamic "feature".
  */
 void
-vfs_opv_init(struct vnodeopv_desc **them)
+vfs_opv_init(struct vnodeopv_desc *opv)
 {
-	int i, j, k;
+	int j, k;
 	vop_t ***opv_desc_vector_p;
 	vop_t **opv_desc_vector;
 	struct vnodeopv_entry_desc *opve_descp;
@@ -113,76 +124,72 @@ vfs_opv_init(struct vnodeopv_desc **them)
 	/*
 	 * Allocate the dynamic vectors and fill them in.
 	 */
-	for (i=0; them[i]; i++) {
-		opv_desc_vector_p = them[i]->opv_desc_vector_p;
-		/*
-		 * Allocate and init the vector, if it needs it.
-		 * Also handle backwards compatibility.
-		 */
-		if (*opv_desc_vector_p == NULL) {
-			/* XXX - shouldn't be M_VNODE */
-			MALLOC(*opv_desc_vector_p, vop_t **,
-			       vfs_opv_numops * sizeof(vop_t *), M_VNODE,
-			       M_WAITOK);
-			bzero(*opv_desc_vector_p,
-			      vfs_opv_numops * sizeof(vop_t *));
-			DODEBUG(printf("vector at %x allocated\n",
-			    opv_desc_vector_p));
-		}
-		opv_desc_vector = *opv_desc_vector_p;
-		for (j=0; them[i]->opv_desc_ops[j].opve_op; j++) {
-			opve_descp = &(them[i]->opv_desc_ops[j]);
+	opv_desc_vector_p = opv->opv_desc_vector_p;
+	/*
+	 * Allocate and init the vector, if it needs it.
+	 * Also handle backwards compatibility.
+	 */
+	if (*opv_desc_vector_p == NULL) {
+		/* XXX - shouldn't be M_VNODE */
+		MALLOC(*opv_desc_vector_p, vop_t **,
+		       vfs_opv_numops * sizeof(vop_t *), M_VNODE,
+		       M_WAITOK);
+		bzero(*opv_desc_vector_p,
+		      vfs_opv_numops * sizeof(vop_t *));
+		DODEBUG(printf("vector at %x allocated\n",
+		    opv_desc_vector_p));
+	}
+	opv_desc_vector = *opv_desc_vector_p;
+	for (j = 0; opv->opv_desc_ops[j].opve_op; j++) {
+		opve_descp = &(opv->opv_desc_ops[j]);
 
-			/*
-			 * Sanity check:  is this operation listed
-			 * in the list of operations?  We check this
-			 * by seeing if its offest is zero.  Since
-			 * the default routine should always be listed
-			 * first, it should be the only one with a zero
-			 * offset.  Any other operation with a zero
-			 * offset is probably not listed in
-			 * vfs_op_descs, and so is probably an error.
-			 *
-			 * A panic here means the layer programmer
-			 * has committed the all-too common bug
-			 * of adding a new operation to the layer's
-			 * list of vnode operations but
-			 * not adding the operation to the system-wide
-			 * list of supported operations.
-			 */
-			if (opve_descp->opve_op->vdesc_offset == 0 &&
-				    opve_descp->opve_op->vdesc_offset !=
-				    	VOFFSET(vop_default)) {
-				printf("operation %s not listed in %s.\n",
-				    opve_descp->opve_op->vdesc_name,
-				    "vfs_op_descs");
-				panic ("vfs_opv_init: bad operation");
-			}
-			/*
-			 * Fill in this entry.
-			 */
-			opv_desc_vector[opve_descp->opve_op->vdesc_offset] =
-					opve_descp->opve_impl;
+		/*
+		 * Sanity check:  is this operation listed
+		 * in the list of operations?  We check this
+		 * by seeing if its offest is zero.  Since
+		 * the default routine should always be listed
+		 * first, it should be the only one with a zero
+		 * offset.  Any other operation with a zero
+		 * offset is probably not listed in
+		 * vfs_op_descs, and so is probably an error.
+		 *
+		 * A panic here means the layer programmer
+		 * has committed the all-too common bug
+		 * of adding a new operation to the layer's
+		 * list of vnode operations but
+		 * not adding the operation to the system-wide
+		 * list of supported operations.
+		 */
+		if (opve_descp->opve_op->vdesc_offset == 0 &&
+			    opve_descp->opve_op->vdesc_offset !=
+				VOFFSET(vop_default)) {
+			printf("operation %s not listed in %s.\n",
+			    opve_descp->opve_op->vdesc_name,
+			    "vfs_op_descs");
+			panic ("vfs_opv_init: bad operation");
 		}
+		/*
+		 * Fill in this entry.
+		 */
+		opv_desc_vector[opve_descp->opve_op->vdesc_offset] =
+				opve_descp->opve_impl;
 	}
 	/*
 	 * Finally, go back and replace unfilled routines
 	 * with their default.  (Sigh, an O(n^3) algorithm.  I
 	 * could make it better, but that'd be work, and n is small.)
 	 */
-	for (i = 0; them[i]; i++) {
-		opv_desc_vector = *(them[i]->opv_desc_vector_p);
-		/*
-		 * Force every operations vector to have a default routine.
-		 */
-		if (opv_desc_vector[VOFFSET(vop_default)]==NULL) {
-			panic("vfs_opv_init: operation vector without default routine.");
-		}
-		for (k = 0; k<vfs_opv_numops; k++)
-			if (opv_desc_vector[k] == NULL)
-				opv_desc_vector[k] =
-					opv_desc_vector[VOFFSET(vop_default)];
+	opv_desc_vector = *(opv->opv_desc_vector_p);
+	/*
+	 * Force every operations vector to have a default routine.
+	 */
+	if (opv_desc_vector[VOFFSET(vop_default)]==NULL) {
+		panic("vfs_opv_init: operation vector without default routine.");
 	}
+	for (k = 0; k<vfs_opv_numops; k++)
+		if (opv_desc_vector[k] == NULL)
+			opv_desc_vector[k] =
+				opv_desc_vector[VOFFSET(vop_default)];
 }
 
 /*
@@ -195,11 +202,13 @@ vfs_op_init()
 
 	DODEBUG(printf("Vnode_interface_init.\n"));
 	DODEBUG(printf ("vfs_opv_numops=%d\n", vfs_opv_numops));
+#ifdef unused
 	/*
 	 * Set all vnode vectors to a well known value.
 	 */
 	for (i = 0; vfs_opv_descs[i]; i++)
 		*(vfs_opv_descs[i]->opv_desc_vector_p) = NULL;
+#endif
 	/*
 	 * assign each op to its offset
 	 *
@@ -212,6 +221,11 @@ vfs_op_init()
 	 */
 	for (i = 0; i < vfs_opv_numops; i++)
 		vfs_op_descs[i]->vdesc_offset = i;
+#ifdef unused
+	/* Finish the job */
+	for (i = 0; vfs_opv_descs[i]; i++)
+		vfs_opv_init(vfs_opv_descs[i]);
+#endif
 }
 
 /*
@@ -246,26 +260,127 @@ vfsinit(dummy)
 	 * Build vnode operation vectors.
 	 */
 	vfs_op_init();
-	vfs_opv_init(vfs_opv_descs);   /* finish the job */
 	/*
 	 * Initialize each file system type.
 	 * Vfs type numbers must be distinct from VFS_GENERIC (and VFS_VFSCONF).
 	 */
 	vattr_null(&va_null);
-	maxtypenum = VFS_GENERIC + 1;
-	vfc = (struct vfsconf **)vfs_set.ls_items;
-	vfsconf = *vfc;
-	for (; *vfc != NULL; maxtypenum++, vfc++) {
-		vfsp = *vfc;
-		vfsp->vfc_next = *(vfc + 1);
-		vfsp->vfc_typenum = maxtypenum;
-		if (vfsp->vfc_vfsops->vfs_oid != NULL) {
-			vfsp->vfc_vfsops->vfs_oid->oid_number = maxtypenum;
-			sysctl_order_all();
-		}
-		(*vfsp->vfc_vfsops->vfs_init)(vfsp);
-	}
-	/* next vfc_typenum to be used */
-	maxvfsconf = maxtypenum;
+	maxvfsconf = VFS_GENERIC + 1;
 }
 
+int
+vfs_register(vfc)
+	struct vfsconf *vfc;
+{
+	struct linker_set *l;
+	struct sysctl_oid **oidpp;
+	struct vfsconf *vfsp;
+	int error, i, maxtypenum, exists;
+
+	vfsp = NULL;
+	exists = 0;
+	l = &sysctl__vfs;
+	if (vfsconf)
+		for (vfsp = vfsconf; vfsp->vfc_next; vfsp = vfsp->vfc_next)
+			if (!strcmp(vfc->vfc_name, vfsp->vfc_name))
+				return EEXIST;
+
+	vfc->vfc_typenum = maxvfsconf++;
+	if (vfc->vfc_vfsops->vfs_oid != NULL) {
+		oidpp = (struct sysctl_oid **)l->ls_items;
+		for (i = l->ls_length; i-- && !exists; oidpp++)
+			if (*oidpp == vfc->vfc_vfsops->vfs_oid)
+				exists = 1;
+	}
+	if (exists == 0 && vfc->vfc_vfsops->vfs_oid != NULL) {
+		oidpp = (struct sysctl_oid **)l->ls_items;
+		for (i = l->ls_length; i--; oidpp++) {
+			if (*oidpp == NULL ||
+			    *oidpp == &sysctl___vfs_mod0 ||
+			    *oidpp == &sysctl___vfs_mod1) {
+				*oidpp = vfc->vfc_vfsops->vfs_oid;
+				(*oidpp)->oid_number = vfc->vfc_typenum;
+				sysctl_order_all();
+				break;
+			}
+		}
+	}
+	if (vfsp)
+		vfsp->vfc_next = vfc;
+	else
+		vfsconf = vfc;
+	vfc->vfc_next = NULL;
+
+	/*
+	 * Call init function for this VFS...
+	 */
+	(*(vfc->vfc_vfsops->vfs_init))(vfc);
+
+	return 0;
+}
+
+
+/*
+ * To be called at SI_SUB_VFS, SECOND, for each VFS before any are registered.
+ */
+void
+vfs_mod_opv_init(handle)
+	void *handle;
+{
+	int i;
+	struct vnodeopv_desc *opv;
+
+	opv = (struct vnodeopv_desc *)handle;
+	*(opv->opv_desc_vector_p) = NULL;
+	vfs_opv_init(opv);
+}
+
+int
+vfs_unregister(vfc)
+	struct vfsconf *vfc;
+{
+	struct linker_set *l;
+	struct sysctl_oid **oidpp;
+	struct vfsconf *vfsp, *prev_vfsp;
+	int error, i, maxtypenum;
+
+	i = vfc->vfc_typenum;
+
+	prev_vfsp = NULL;
+	for (vfsp = vfsconf; vfsp;
+			prev_vfsp = vfsp, vfsp = vfsp->vfc_next) {
+		if (!strcmp(vfc->vfc_name, vfsp->vfc_name))
+			break;
+	}
+	if (vfsp == NULL)
+		return EINVAL;
+	if (vfsp->vfc_refcount)
+		return EBUSY;
+	if (vfc->vfc_vfsops->vfs_uninit != NULL) {
+		error = (*vfc->vfc_vfsops->vfs_uninit)(vfsp);
+		if (error)
+			return (error);
+	}
+	if (prev_vfsp)
+		prev_vfsp->vfc_next = vfsp->vfc_next;
+	else
+		vfsconf = vfsp->vfc_next;
+	if (vfsp->vfc_vfsops->vfs_oid != NULL) {
+		l = &sysctl__vfs;
+		for (i = l->ls_length,
+		    oidpp = (struct sysctl_oid **)l->ls_items;
+		    i--; oidpp++) {
+			if (*oidpp == vfsp->vfc_vfsops->vfs_oid) {
+				*oidpp = NULL;
+				sysctl_order_all();
+				break;
+			}
+		}
+	}
+	maxtypenum = VFS_GENERIC;
+	for (vfsp = vfsconf; vfsp != NULL; vfsp = vfsp->vfc_next)
+		if (maxtypenum < vfsp->vfc_typenum)
+			maxtypenum = vfsp->vfc_typenum;
+	maxvfsconf = maxtypenum + 1;
+	return 0;
+}
