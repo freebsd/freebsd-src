@@ -590,6 +590,13 @@ options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
 options 	IPSTEALTH		#support for stealth forwarding
 options 	TCPDEBUG
 
+# RANDOM_IP_ID causes the ID field in IP packets to be randomized
+# instead of incremented by 1 with each packet generated.  This
+# option closes a minor information leak which allows remote
+# observers to determine the rate of packet generation on the
+# machine by watching the counter.
+options		RANDOM_IP_ID
+
 # Statically Link in accept filters
 options		ACCEPT_FILTER_DATA
 options		ACCEPT_FILTER_HTTP

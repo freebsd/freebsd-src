@@ -42,6 +42,7 @@
 #include "opt_ipfilter.h"
 #include "opt_ipsec.h"
 #include "opt_pfil_hooks.h"
+#include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -208,7 +209,11 @@ ip_output(m0, opt, ro, flags, imo)
 	if ((flags & (IP_FORWARDING|IP_RAWOUTPUT)) == 0) {
 		ip->ip_vhl = IP_MAKE_VHL(IPVERSION, hlen >> 2);
 		ip->ip_off &= IP_DF;
+#ifdef RANDOM_IP_ID
+		ip->ip_id = ip_randomid();
+#else
 		ip->ip_id = htons(ip_id++);
+#endif
 		ipstat.ips_localout++;
 	} else {
 		hlen = IP_VHL_HL(ip->ip_vhl) << 2;
