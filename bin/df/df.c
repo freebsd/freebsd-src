@@ -521,12 +521,14 @@ usage()
 char *makenetvfslist()
 {
 	char *str, *strptr, **listptr;
-	int mib[3], maxvfsconf, miblen, cnt=0, i;
+	int mib[3], maxvfsconf, cnt=0, i;
+	size_t miblen;
 	struct ovfsconf *ptr;
 
 	mib[0] = CTL_VFS; mib[1] = VFS_GENERIC; mib[2] = VFS_MAXTYPENUM;
 	miblen=sizeof(maxvfsconf);
-	if (sysctl(mib, sizeof(mib)/sizeof(mib[0]), &maxvfsconf, &miblen, NULL, 0)) {
+	if (sysctl(mib, (u_int) sizeof (mib) / sizeof(mib[0]), &maxvfsconf,
+	    &miblen, NULL, 0)) {
 		warnx("sysctl failed");
 		return (NULL);
 	}
