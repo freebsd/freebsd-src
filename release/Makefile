@@ -458,7 +458,11 @@ release rerelease:
 	# NB: these may fail if the host is running w/o devfs
 	echo "umount /dev >/dev/null 2>&1 || true" >> ${_MK}
 	echo "mount -t devfs devfs /dev >/dev/null 2>&1 || true"	>> ${_MK}
-	echo "/etc/rc.d/ldconfig start"		>> ${_MK}
+	echo "if [ -x /etc/rc.d/ldconfig ]; then" >> ${_MK}
+	echo "	/etc/rc.d/ldconfig start"	>> ${_MK}
+	echo "else"				>> ${_MK}
+	echo "	ldconfig /lib /usr/lib /usr/local/lib || true" >> ${_MK}
+	echo "fi"				>> ${_MK}
 	echo "if [ ! -f /tmp/.world_done ]; then" >> ${_MK}
 	echo "	cd /usr/src"			>> ${_MK}
 	echo "	${CROSSMAKE} ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${_MK}
