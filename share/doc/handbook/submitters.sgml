@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.47 1997/04/12 16:51:20 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.48 1997/04/13 14:36:18 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -517,7 +517,7 @@ like to publically thank them here!
 	<url url="http://www.via.net" name="ViaNet Communications">
 	donated a <bf>Kingston ethernet controller.</bf>
 
-	<item><utl url="mailto:jack@diamond.xtalwind.net"
+	<item><url url="mailto:jack@diamond.xtalwind.net"
 	name="Jack O'Neill"> donated an <bf>NCR 53C875 SCSI
 	controller card</bf>.
 
@@ -559,7 +559,8 @@ like to publically thank them here!
 <item><bf>Hardware contributors:</bf>
   <p>
   The following individuals and businesses have generously contributed
-  hardware for testing and device driver development and support:
+  hardware for testing and device driver development/support:
+
   <itemize>
     <item>Walnut Creek CDROM for providing the Pentium P5-90 and
       486/DX2-66 EISA/VL systems that are being used for our development
