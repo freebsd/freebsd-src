@@ -71,7 +71,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_comp.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: res_comp.c,v 8.11 1997/05/21 19:31:04 halley Exp $";
-static char rcsid[] = "$Id: res_comp.c,v 1.13 1998/05/02 13:10:56 peter Exp $";
+static char rcsid[] = "$Id: res_comp.c,v 1.14 1998/06/11 09:02:46 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -256,3 +256,12 @@ void __putshort(u_int16_t src, u_char *dst) { ns_put16(src, dst); }
 u_int32_t _getlong(const u_char *src) { return (ns_get32(src)); }
 u_int16_t _getshort(const u_char *src) { return (ns_get16(src)); }
 #endif /*BIND_4_COMPAT*/
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <resolv.h>.
+ */
+#undef dn_comp
+__weak_reference(__dn_comp, dn_comp);
+#undef dn_expand
+__weak_reference(__dn_expand, dn_expand);

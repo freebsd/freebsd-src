@@ -71,7 +71,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid = "From: Id: res_query.c,v 8.14 1997/06/09 17:47:05 halley Exp $";
-static char rcsid[] = "$Id: res_query.c,v 1.15 1997/09/01 01:19:21 brian Exp $";
+static char rcsid[] = "$Id: res_query.c,v 1.16 1998/06/11 09:03:00 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -408,3 +408,14 @@ hostalias(name)
 	fclose(fp);
 	return (NULL);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <resolv.h>.
+ */
+#undef res_query
+__weak_reference(__res_query, res_query);
+#undef res_search
+__weak_reference(__res_search, res_search);
+#undef res_querydomain
+__weak_reference(__res_querydomain, res_querydomain);
