@@ -321,9 +321,11 @@ make_flow_rec(struct mbuf **m, int *plen, struct flow_rec *r, uint8_t *tcp_flags
 	r->r_ip_p = ip->ip_p;
 	r->r_tos = ip->ip_tos;
 
-	if ((*m)->m_pkthdr.rcvif)
-		r->r_i_ifx = (*m)->m_pkthdr.rcvif->if_index;
-	else
+	/* Configured in_ifx overrides mbuf's */
+	if (i_ifx == 0) {
+		if ((*m)->m_pkthdr.rcvif)
+			r->r_i_ifx = (*m)->m_pkthdr.rcvif->if_index;
+	} else
 		r->r_i_ifx = i_ifx;
 
 	/*
@@ -696,7 +698,8 @@ ng_netflow_expire(void *arg)
 		if (used <= CACHELOWAT && !INACTIVE(fle))
 			goto finish;
 
-		if (INACTIVE(fle) && (SMALL(fle) || (used > CACHELOWAT))) {
+		if ((INACTIVE(fle) && (SMALL(fle) || (used > CACHELOWAT))) ||
+		    AGED(fle)) {
 
 			/* Detach flow entry from cache */
 			LIST_REMOVE(fle, fle_hash);
