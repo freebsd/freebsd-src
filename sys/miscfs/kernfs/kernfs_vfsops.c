@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.4 (Berkeley) 1/21/94
- * $Id: kernfs_vfsops.c,v 1.11 1995/12/11 09:24:32 phk Exp $
+ * $Id: kernfs_vfsops.c,v 1.12 1995/12/13 15:13:28 julian Exp $
  */
 
 /*
@@ -119,8 +119,12 @@ kernfs_init()
 	printf("kernfs_init\n");		/* printed during system boot */
 #endif
 
+	if (!bdevsw[bmaj]) {
+		panic("root dev has no bdevsw");
+	}
 	for (cmaj = 0; cmaj < nchrdev; cmaj++) {
-		if (cdevsw[cmaj]->d_open == bdevsw[bmaj]->d_open) {
+		if (cdevsw[cmaj]
+		  && (cdevsw[cmaj]->d_open == bdevsw[bmaj]->d_open)) {
 			dev_t cdev = makedev(cmaj, minor(rootdev));
 			error = cdevvp(cdev, &rrootvp);
 			if (error == 0)
