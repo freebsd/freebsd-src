@@ -70,14 +70,14 @@ MALLOC_DEFINE(M_P31B, "p1003.1b", "Posix 1003.1B");
  *
  * Can process p, with pcred pc, do "write flavor" operations to process q?
  */
-#define CAN_AFFECT(p, pc, q) \
-	((pc)->pc_ucred->cr_uid == 0 || \
-	    (pc)->p_ruid == (q)->p_cred->p_ruid || \
-	    (pc)->pc_ucred->cr_uid == (q)->p_cred->p_ruid || \
-	    (pc)->p_ruid == (q)->p_ucred->cr_uid || \
-	    (pc)->pc_ucred->cr_uid == (q)->p_ucred->cr_uid)
+#define CAN_AFFECT(p, q) \
+	(!suser_xxx(NULL, p, PRISON_ROOT) || \
+	    (p)->p_cred->pc_ruid == (q)->p_cred->p_ruid || \
+	    (p)->p_ucred->cr_uid == (q)->p_cred->p_ruid || \
+	    (p)->p_cred->pc_ruid == (q)->p_ucred->cr_uid || \
+	    (p)->p_ucred->cr_uid == (q)->p_ucred->cr_uid)
 #else
-#define CAN_AFFECT(p, pc, q) ((pc)->pc_ucred->cr_uid == 0)
+#define CAN_AFFECT(p, q) (!suser_xxx(NULL, p, PRISON_ROOT))
 #endif
 
 /*
@@ -99,7 +99,7 @@ int p31b_proc(struct proc *p, pid_t pid, struct proc **pp)
 	{
 		/* Enforce permission policy.
 		 */
-		if (CAN_AFFECT(p, p->p_cred, other_proc))
+		if (CAN_AFFECT(p, other_proc))
 			*pp = other_proc;
 		else
 			ret = EPERM;
