@@ -512,7 +512,7 @@ faultin(p)
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 		FOREACH_THREAD_IN_PROC (p, td)
-			if (td->td_state == TDS_SWAPPED)	/* XXXKSE */
+			if (td->td_state == TDS_SWAPPED)
 				setrunqueue(td);
 
 		p->p_sflag &= ~PS_SWAPPINGIN;
