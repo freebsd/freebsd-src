@@ -298,6 +298,7 @@ struct thread {
 	sigset_t	td_oldsigmask;	/* (k) Saved mask from pre sigpause. */
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
 	sigset_t	td_siglist;	/* (c) Sigs arrived, not delivered. */
+	sigset_t	*td_waitset;	/* (c) Wait set for sigwait */
 	TAILQ_ENTRY(thread) td_umtx;	/* (c?) Link for when we're blocked. */
 
 #define	td_endzero td_base_pri
@@ -341,7 +342,6 @@ struct thread {
 #define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
 #define	TDF_CVWAITQ	0x000080 /* Thread is on a cv_waitq (not slpq). */
 #define	TDF_ONSLEEPQ	0x000200 /* On the sleep queue. */
-#define	TDF_NOSIGPOST	0x000400 /* Thread doesn't want signals */
 #define	TDF_ASTPENDING	0x000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
 #define	TDF_INTERRUPT	0x002000 /* Thread is marked as interrupted. */
@@ -903,7 +903,7 @@ void	ksegrp_unlink(struct ksegrp *kg);
 void	thread_signal_add(struct thread *td, int sig);
 struct	thread *thread_alloc(void);
 void	thread_exit(void) __dead2;
-int	thread_export_context(struct thread *td);
+int	thread_export_context(struct thread *td, int willexit);
 void	thread_free(struct thread *td);
 void	thread_link(struct thread *td, struct ksegrp *kg);
 void	thread_reap(void);
