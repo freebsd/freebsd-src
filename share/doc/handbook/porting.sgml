@@ -49,16 +49,27 @@ the ports collection.
 	is already included; if not, add the code:
 
 <tscreen><verb>
-#ifdef _HAVE_PARAM_H
+#ifdef (defined(__unix__) || defined(unix))
 #include <sys/param.h>
 #endif
 </verb></tscreen>
 
-	to the proper place in the <tt>.c</tt> file and add
-	<tt>-D_HAVE_PARAM_H</tt> to the <tt>CFLAGS</tt> in the
-	Makefile.
+      <p>to the proper place in the <tt>.c</tt> file.  We believe that every
+        system that defineds these to symbols has sys/param.h.  If you find
+        a system that doesn't, we would like to know.  Please send mail to
+        <htmlurl url='mailto:ports@FreeBSD.org' name='ports@FreeBSD.org'>.
+	  <p>Or you can use the GNU Autoconf style of doing this:
 
-	Then, you may use:
+<tscreen><verb>
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+</verb></tscreen>
+
+	Don't forget to add <tt>-DHAVE_SYS_PARAM_H</tt> to the <tt>CFLAGS</tt>
+    in the Makefile for this method.
+
+	Once you have <tt>&lt;sys/param.h&gt;</tt> included, you may use:
 
 <tscreen><verb>
 #if (defined(BSD) && (BSD >= 199103))
