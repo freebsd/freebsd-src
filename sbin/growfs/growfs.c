@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <sys/disklabel.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/disk.h>
 
 #include <stdio.h>
 #include <paths.h>
@@ -110,6 +111,7 @@ union dinode {
 static ufs2_daddr_t 	inoblk;			/* inode block address */
 static char		inobuf[MAXBSIZE];	/* inode block */
 static int		maxino;			/* last valid inode */
+static int		unlabeled;     /* unlabeled partition, e.g. vinum volume etc. */
 
 /*
  * An array of elements of type struct gfs_bpp describes all blocks to
@@ -148,6 +150,7 @@ static void	updclst(int);
 static void	updrefs(int, ino_t, struct gfs_bpp *, int, int, unsigned int);
 static void	indirchk(ufs_lbn_t, ufs_lbn_t, ufs2_daddr_t, ufs_lbn_t,
 		    struct gfs_bpp *, int, int, unsigned int);
+static void	get_dev_size(int, int *);
 
 /* ************************************************************ growfs ***** */
 /*
@@ -1880,6 +1883,28 @@ charsperline(void)
 	return columns;
 }
 
+/* ****************************************************** get_dev_size ***** */
+/*
+ * Get the size of the partition if we can't figure it out from the disklabel,
+ * e.g. from vinum volumes.
+ */
+static void
+get_dev_size(int fd, int *size)
+{
+   int sectorsize;
+   off_t mediasize;
+
+   if (ioctl(fd, DIOCGSECTORSIZE, &sectorsize) == -1)
+        err(1,"DIOCGSECTORSIZE");
+   if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) == -1)
+        err(1,"DIOCGMEDIASIZE");
+
+   if (sectorsize <= 0)
+       errx(1, "bogus sectorsize: %d", sectorsize);
+
+   *size = mediasize / sectorsize;
+}
+
 /* ************************************************************** main ***** */
 /*
  * growfs(8)  is a utility which allows to increase the size of an existing
@@ -1917,6 +1942,7 @@ main(int argc, char **argv)
 	struct disklabel	*lp;
 	struct partition	*pp;
 	int	i,fsi,fso;
+    u_int32_t p_size;
 	char	reply[5];
 #ifdef FSMAXSNAP
 	int	j;
@@ -2016,24 +2042,24 @@ main(int argc, char **argv)
 	 */
 	cp=device+strlen(device)-1;
 	lp = get_disklabel(fsi);
-	if(lp->d_type == DTYPE_VINUM) {
-		pp = &lp->d_partitions[0];
-	} else if (isdigit(*cp)) {
-		pp = &lp->d_partitions[2];
-	} else if (*cp>='a' && *cp<='h') {
-		pp = &lp->d_partitions[*cp - 'a'];
-	} else {
-		errx(1, "unknown device");
-	}
+    if (lp != NULL) {
+        if (isdigit(*cp)) {
+            pp = &lp->d_partitions[2];
+        } else if (*cp>='a' && *cp<='h') {
+            pp = &lp->d_partitions[*cp - 'a'];
+        } else {
+            errx(1, "unknown device");
+        }
+        p_size = pp->p_size;
+    } else {
+        get_dev_size(fsi, &p_size);
+    }
 
 	/*
 	 * Check if that partition is suitable for growing a file system.
 	 */
-	if (pp->p_size < 1) {
+	if (p_size < 1) {
 		errx(1, "partition is unavailable");
-	}
-	if (pp->p_fstype != FS_BSDFFS) {
-		errx(1, "partition not 4.2BSD");
 	}
 
 	/*
@@ -2063,11 +2089,11 @@ main(int argc, char **argv)
 	 * Determine size to grow to. Default to the full size specified in
 	 * the disk label.
 	 */
-	sblock.fs_size = dbtofsb(&osblock, pp->p_size);
+	sblock.fs_size = dbtofsb(&osblock, p_size);
 	if (size != 0) {
-		if (size > pp->p_size){
+		if (size > p_size){
 			errx(1, "There is not enough space (%d < %d)",
-			    pp->p_size, size);
+			    p_size, size);
 		}
 		sblock.fs_size = dbtofsb(&osblock, size);
 	}
@@ -2117,7 +2143,7 @@ main(int argc, char **argv)
 	 * later on realize we have to abort our operation, on that block
 	 * there should be no data, so we can't destroy something yet.
 	 */
-	wtfs((ufs2_daddr_t)pp->p_size-1, (size_t)DEV_BSIZE, (void *)&sblock,
+	wtfs((ufs2_daddr_t)p_size-1, (size_t)DEV_BSIZE, (void *)&sblock,
 	    fso, Nflag);
 
 	/*
@@ -2178,12 +2204,14 @@ main(int argc, char **argv)
 	/*
 	 * Update the disk label.
 	 */
-	pp->p_fsize = sblock.fs_fsize;
-	pp->p_frag = sblock.fs_frag;
-	pp->p_cpg = sblock.fs_fpg;
+    if (!unlabeled) {
+        pp->p_fsize = sblock.fs_fsize;
+        pp->p_frag = sblock.fs_frag;
+        pp->p_cpg = sblock.fs_fpg;
 
-	return_disklabel(fso, lp, Nflag);
-	DBG_PRINT0("label rewritten\n");
+        return_disklabel(fso, lp, Nflag);
+        DBG_PRINT0("label rewritten\n");
+    }
 
 	close(fsi);
 	if(fso>-1) close(fso);
@@ -2247,15 +2275,16 @@ get_disklabel(int fd)
 	DBG_ENTER;
 
 	lab=(struct disklabel *)malloc(sizeof(struct disklabel));
-	if (!lab) {
+	if (!lab)
 		errx(1, "malloc failed");
-	}
-	if (ioctl(fd, DIOCGDINFO, (char *)lab) < 0) {
-		errx(1, "DIOCGDINFO failed");
-	}
+
+    if (!ioctl(fd, DIOCGDINFO, (char *)lab))
+        return (lab);
+
+    unlabeled++;
 
 	DBG_LEAVE;
-	return (lab);
+	return (NULL);
 }
 
 
