@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.166 1998/03/16 11:58:46 bde Exp $
+#	$Id$
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -73,7 +73,7 @@ SUBDIR+= games
 .if exists(gnu)
 SUBDIR+= gnu
 .endif
-.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+.if exists(kerberosIV) && exists(crypto) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
 SUBDIR+= kerberosIV
 .endif
 .if exists(libexec)
