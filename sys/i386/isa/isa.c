@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.120 1999/04/16 23:39:15 peter Exp $
+ *	$Id: isa.c,v 1.121 1999/04/24 06:47:24 peter Exp $
  */
 
 /*
@@ -75,7 +75,7 @@ MALLOC_DEFINE(M_ISADEV, "isadev", "ISA device");
  * The structure used to attach devices to the isa bus.
  */
 struct isa_device {
-	short		id_port[ISA_NPORT_IVARS];
+	int		id_port[ISA_NPORT_IVARS];
 	u_short		id_portsize[ISA_NPORT_IVARS];
 	vm_offset_t	id_maddr[ISA_NMEM_IVARS];
 	vm_size_t	id_msize[ISA_NMEM_IVARS];
