@@ -300,6 +300,7 @@ fddi_output(ifp, m, dst, rt0)
 	else
 		bcopy((caddr_t)ac->ac_enaddr, (caddr_t)fh->fddi_shost,
 			FDDI_ADDR_LEN);
+
 	/*
 	 * If a simplex interface, and the packet is being sent to our
 	 * Ethernet address or a broadcast address, loopback a copy.
@@ -309,8 +310,7 @@ fddi_output(ifp, m, dst, rt0)
 	 * on the wire). However, we don't do that here for security
 	 * reasons and compatibility with the original behavior.
 	 */
-	if ((ifp->if_flags & IFF_SIMPLEX) &&
-	   (loop_copy != -1)) {
+	if ((ifp->if_flags & IFF_SIMPLEX) && (loop_copy != -1)) {
 		if ((m->m_flags & M_BCAST) || loop_copy) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
@@ -379,6 +379,7 @@ fddi_input(ifp, fh, m)
 #endif
 
 	l = mtod(m, struct llc *);
+
 	switch (l->llc_dsap) {
 #if defined(INET) || defined(INET6) || defined(NS) || defined(DECNET) || defined(IPX) || defined(NETATALK)
 	case LLC_SNAP_LSAP:
@@ -404,10 +405,14 @@ fddi_input(ifp, fh, m)
 		    return;
 		}
 #endif /* NETATALK */
-		if (l->llc_snap.org_code[0] != 0 || l->llc_snap.org_code[1] != 0|| l->llc_snap.org_code[2] != 0)
+		if (l->llc_snap.org_code[0] != 0 ||
+		    l->llc_snap.org_code[1] != 0 ||
+		    l->llc_snap.org_code[2] != 0)
 			goto dropanyway;
+
 		type = ntohs(l->llc_snap.ether_type);
-		m_adj(m, 8);
+		m_adj(m, LLC_SNAPFRAMELEN);
+
 		switch (type) {
 #ifdef INET
 		case ETHERTYPE_IP:
@@ -470,17 +475,21 @@ fddi_input(ifp, fh, m)
 	default:
 		/* printf("fddi_input: unknown dsap 0x%x\n", l->llc_dsap); */
 		ifp->if_noproto++;
-	dropanyway:
-		m_freem(m);
-		return;
+		goto dropanyway;
 	}
 
 	(void) IF_HANDOFF(inq, m, NULL);
+	return;
+
+dropanyway:
+	ifp->if_iqdrops++;
+	if (m)
+		m_freem(m);
+	return;
 }
 /*
  * Perform common duties while attaching to interface list
  */
-
 void
 fddi_ifattach(ifp)
 	struct ifnet *ifp;
