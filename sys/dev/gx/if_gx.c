@@ -350,13 +350,13 @@ gx_attach(device_t dev)
 	ifp->if_init = gx_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = GX_TX_RING_CNT - 1;
-	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
+	ifp->if_capabilities = IFCAP_VLAN_HWTAGGING;
 
 	/* see if we can enable hardware checksumming */
-	if (gx->gx_vflags & GXF_CSUM) {
-		ifp->if_capabilities = IFCAP_HWCSUM;
-		ifp->if_capenable = ifp->if_capabilities;
-	}
+	if (gx->gx_vflags & GXF_CSUM)
+		ifp->if_capabilities |= IFCAP_HWCSUM;
+
+	ifp->if_capenable = ifp->if_capabilities;
 
 	/* figure out transciever type */
 	if (gx->gx_vflags & GXF_FORCE_TBI ||
