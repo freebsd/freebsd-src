@@ -34,7 +34,7 @@
 .\"
 .Sh NAME
 .Nm setkey
-.Nd manually manipulate the IPsec SA/SP database.
+.Nd "manually manipulate the IPsec SA/SP database"
 .\"
 .Sh SYNOPSIS
 .Nm
@@ -61,16 +61,12 @@ as well as Security Policy Database (SPD) entries in the kernel.
 .Pp
 .Nm
 takes a series of operations from the standard input
-.Po
-if invoked with
-.Fl c
-.Pc
+(if invoked with
+.Fl c )
 or the file named
 .Ar filename
-.Po
-if invoked with
-.Fl f Ar filename
-.Pc .
+(if invoked with
+.Fl f Ar filename ) .
 .Bl -tag -width Ds
 .It Fl D
 Dump the SAD entries.
@@ -228,11 +224,9 @@ IPCOMP
 Security Parameter Index (SPI) for the SAD and the SPD.
 It must be decimal number or hexadecimal number
 You cannot use the set of SPI values in the range 0 through 255.
-.Po
-with
+(with
 .Li 0x
-attached
-.Pc .
+attached).
 .\"
 .Pp
 .It Ar extensions
@@ -302,7 +296,7 @@ If
 is not specified with
 .Li ipcomp
 line, the kernel will use well-known IPComp CPI
-.Pq compression parameter index
+(compression parameter index)
 on IPComp CPI field on packets, and
 .Ar spi
 field will be ignored.
@@ -403,7 +397,7 @@ NOTE:
 .Ar upperspec
 does not work against forwarding case at this moment,
 as it requires extra reassembly at forwarding node
-.Pq not implemented at this moment .
+(not implemented at this moment).
 We have many protocols in
 .Pa /etc/protocols ,
 but protocols except of TCP, UDP and ICMP may not be suitable to use with IPSec.
@@ -490,7 +484,7 @@ If the SA is not available in every level, the kernel will request
 getting SA to the key exchange daemon.
 .Li default
 means the kernel consults to the system wide default against protocol you
-specified, e.g.
+specified, e.g.\&
 .Li esp_trans_deflev
 sysctl variable, when the kernel processes the packet.
 .Li use
@@ -623,8 +617,8 @@ The command exits with 0 on success, and non-zero on errors.
 .\"
 .Sh SEE ALSO
 .Xr ipsec_set_policy 3 ,
-.Xr sysctl 8 ,
-.Xr racoon 8
+.Xr racoon 8 ,
+.Xr sysctl 8
 .\"
 .Sh HISTORY
 The

@@ -31,7 +31,7 @@
 .\"
 .Dd February 8, 1994
 .Dt QUOT 8
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm quot
 .Nd display disk space occupied by each user
@@ -88,7 +88,9 @@ size block.
 .El
 .Sh BUGS
 .Xr ncheck
-(which would be a lot more useful than ls -i in the example above)
+(which would be a lot more useful than
+.Nm ls Fl i
+in the example above)
 does not exist in
 .Fx .
 .Sh SEE ALSO

@@ -15,7 +15,7 @@
 .\"
 .Dd June 30, 1999
 .Dt KBDCONTROL 1
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm kbdcontrol
 .Nd a utility for manipulating the syscons console driver
@@ -109,7 +109,8 @@ Set function key number
 to send
 .Ar string .
 Refer to the man page for the keyboard driver
-.Pq e.g. Xr atkbd 4
+(e.g.\&
+.Xr atkbd 4 )
 for available function keys and their numbers.
 .It Fl F
 Set function keys back to the standard definitions.
@@ -177,7 +178,9 @@ The keyboard device driver may let you change default configuration
 options, such as the default keyboard map, so that you do not need to set up
 the options at boot time.
 See keyboard driver manuals
-.Pq e.g. Xr atkbd 4 , Xr ukbd 4
+(e.g.\&
+.Xr atkbd 4 ,
+.Xr ukbd 4 )
 for details.
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/keymaps/foo_bar -compact

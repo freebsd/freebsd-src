@@ -1,36 +1,33 @@
-'\"
-'\"Copyright (C) 2000
-'\"Dr. Duncan McLennan Barclay, dmlb@ragnet.demon.co.uk.
-'\"
-'\" All rights reserved.
-'\"
-'\"Redistribution and use in source and binary forms, with or without
-'\"modification, are permitted provided that the following conditions
-'\"are met:
-'\"1. Redistributions of source code must retain the above copyright
-'\"   notice, this list of conditions and the following disclaimer.
-'\"2. Redistributions in binary form must reproduce the above copyright
-'\"   notice, this list of conditions and the following disclaimer in the
-'\"   documentation and/or other materials provided with the distribution.
-'\"3. Neither the name of the author nor the names of any co-contributors
-'\"   may be used to endorse or promote products derived from this software
-'\"   without specific prior written permission.
-'\"
-'\"THIS SOFTWARE IS PROVIDED BY DUNCAN BARCLAY AND CONTRIBUTORS ``AS IS'' AND
-'\"ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-'\"IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-'\"ARE DISCLAIMED.  IN NO EVENT SHALL DUNCAN BARCLAY OR CONTRIBUTORS BE LIABLE
-'\"FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-'\"DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-'\"OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-'\"HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-'\"LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-'\"OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-'\"SUCH DAMAGE.
-'\"
-'\" $FreeBSD$
-'\"
-'\"
+.\"
+.\"Copyright (C) 2000
+.\"Dr. Duncan McLennan Barclay, dmlb@ragnet.demon.co.uk.
+.\"
+.\" All rights reserved.
+.\"
+.\"Redistribution and use in source and binary forms, with or without
+.\"modification, are permitted provided that the following conditions
+.\"are met:
+.\"1. Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\"2. Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\"3. Neither the name of the author nor the names of any co-contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\"THIS SOFTWARE IS PROVIDED BY DUNCAN BARCLAY AND CONTRIBUTORS ``AS IS'' AND
+.\"ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\"ARE DISCLAIMED.  IN NO EVENT SHALL DUNCAN BARCLAY OR CONTRIBUTORS BE LIABLE
+.\"FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\"OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\"HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\"LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\"OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\"SUCH DAMAGE.
+.\"
 .\" Copyright (c) 1997, 1998, 1999
 .\"	Bill Paul <wpaul@ctr.columbia.edu> All rights reserved.
 .\"
@@ -65,7 +62,7 @@
 .\"
 .Dd March 21, 2000
 .Dt RAYCONTROL 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm raycontrol
 .Nd configure Raytheon Raylink/Webgear Aviator devices
@@ -126,7 +123,8 @@ The options are as follows:
 .It Fl i Ar iface Op Fl o
 Display the current settings of the specified Raylink/Webgear interface.
 This retrieves the current card settings from the driver and prints them
-out. The results from this command are a snapshot of the card settings.
+out.
+The results from this command are a snapshot of the card settings.
 Using the additional
 .Fl o
 flag will cause
@@ -146,14 +144,16 @@ legal transmit rate settings and the corresponding transmit speeds:
 4	High (2Mbps)
 .El
 .Pp
-The version 4 firmware may ignore this setting. Note, that the IEEE 802.11
+The version 4 firmware may ignore this setting.
+Note, that the IEEE 802.11
 standard
 only allows 1Mbps or 2Mbps operation, and that the generally accepted
 reading of the IEEE 802.11 standard is that 2Mbps is only allowed in
 infrastructure mode.
 .It Fl i Ar iface Fl n Ar network name
 Set the name of the service set that this station wishes to
-join. The
+join.
+The
 .Ar network name
 can be any text string up to 32 characters in length.
 The default name
@@ -168,7 +168,8 @@ The legal values for
 are 0 (ad-hoc mode) and 1 (infrastructure mode).
 In ad-hoc mode, the station can
 communicate directly with any other stations within direct radio range
-(provided that they are also operating in ad-hoc mode). In inrastructure mode,
+(provided that they are also operating in ad-hoc mode).
+In inrastructure mode,
 hosts must associate with a service set controlled by an access point,
 that relays traffic between end stations.
 The default setting is 0
@@ -260,7 +261,8 @@ Display the cached signal strength information maintained by the
 .Nm ray
 driver.
 The driver retains information about signal strength and
-noise level for packets received from different hosts. For
+noise level for packets received from different hosts.
+For
 infrastructure networks the cache stores the signal strength of the
 access point.
 .Pp

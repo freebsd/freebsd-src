@@ -66,15 +66,14 @@ field is separated from the
 .Em action
 field by one or more tab characters or spaces.
 .Pp
-Note that if you use spaces as separators, your 
+Note that if you use spaces as separators, your
 .Pa syslog.conf
 might be incompatible with other Unices or Unix-like systems.
 This functionality was added for the ease of configuration
-(e.g. it is possible to cut-and-paste into 
-.Pa syslog.conf
-), 
+(e.g. it is possible to cut-and-paste into
+.Pa syslog.conf ) ,
 and to avoid possible mistakes.
-This change however preserves 
+This change however preserves
 backwards compatibility with the old style of the
 .Pa syslog.conf
 (i.e. tab characters only).
@@ -100,8 +99,8 @@ are case insensitive.
 The
 .Em facility
 describes the part of the system generating the message, and is one of
-the following keywords: auth, authpriv, console, cron, daemon, ftp, kern, 
-lpr, mail, mark, news, ntp, security, syslog, user, uucp and local0 through 
+the following keywords: auth, authpriv, console, cron, daemon, ftp, kern,
+lpr, mail, mark, news, ntp, security, syslog, user, uucp and local0 through
 local7.
 These keywords (with the exception of mark) correspond to the
 similar
@@ -138,7 +137,7 @@ values specified to the
 .Xr syslog 3
 library routine.
 .Pp
-Each block of lines is separated from the previous block by a 
+Each block of lines is separated from the previous block by a
 .Em program
 or
 .Em hostname

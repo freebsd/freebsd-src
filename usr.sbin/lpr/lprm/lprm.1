@@ -34,7 +34,7 @@
 .\"
 .Dd June 6, 1993
 .Dt LPRM 1
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm lprm
 .Nd remove jobs from the line printer spooling queue
@@ -80,7 +80,7 @@ is useful only to the super-user.
 A user may dequeue an individual job by specifying its job number.
 This number may be obtained from the
 .Xr lpq  1
-program, e.g.
+program, e.g.\&
 .Pp
 .Bd -literal -offset indent
 \&% lpq \-l

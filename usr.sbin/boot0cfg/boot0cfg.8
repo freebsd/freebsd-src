@@ -52,7 +52,9 @@ Note that what are referred to here as
 .Dq slices
 are typically called
 .Dq partitions
-in non-BSD documentation relating to the PC.
+in
+.No non- Ns Bx
+documentation relating to the PC.
 Typically, only non-removable disks are sliced.
 .Pp
 The
@@ -140,11 +142,18 @@ Set the timeout value to
 .Ar ticks .
 (There are approximately 18.2 ticks per second.)
 .El
+.Sh FILES
+.Bl -tag -width /boot/boot0 -compact
+.It Pa /boot/boot0
+The default
+.Sq boot0
+image
+.El
 .Sh SEE ALSO
 .Xr boot 8 ,
 .Xr fdisk 8
 .Sh DIAGNOSTICS
-Exit status is 0 on success and >0 on error.
+.Ex -std
 .Sh AUTHORS
 .An Robert Nordier Aq rnordier@FreeBSD.org .
 .Sh BUGS

@@ -1,6 +1,6 @@
 .\"----------------------------------------------------------------------------
 .\""THE BEER-WARE LICENSE" (Revision 42):
-.\"<joerg@freebsd.org> wrote this file.  As long as you retain this notice you
+.\"<joerg@FreeBSD.org> wrote this file.  As long as you retain this notice you
 .\"can do whatever you want with this stuff. If we meet some day, and you think
 .\"this stuff is worth it, you can buy me a beer in return.       Joerg Wunsch
 .\"----------------------------------------------------------------------------
@@ -41,7 +41,7 @@ The CTM statements are as follows.
 This is the overall begin of a CTM delta file.  The
 .Ar version
 field must match the program version
-.Pq currently 2.0 .
+(currently 2.0).
 .Ar Name
 is the name and
 .Ar number
@@ -51,11 +51,9 @@ to see if the delta has already been applied.
 .Ar Timestamp
 contains the year, month, day, hour, minute, and second of the
 time of delta creation for reference
-.Po
-followed by the letter
+(followed by the letter
 .Sq Z
-meaning this is a UTC timestamp
-.Pc .
+meaning this is a UTC timestamp).
 The
 .Ar prefix
 field is currently not implemented.
@@ -69,13 +67,13 @@ Make the file
 .Ar name ,
 the original file had the uid
 .Ar uid
-.Pq numerical, decimal ,
+(numerical, decimal),
 the gid
 .Ar gid
-.Pq numerical, decimal ,
+(numerical, decimal),
 mode
 .Ar mode
-.Pq numerical, octal ,
+(numerical, octal),
 and the MD5 checksum
 .Ar md5 .
 .Pp
@@ -87,13 +85,13 @@ Substitute the contents of file
 .Ar name ,
 the original file had the new uid
 .Ar uid
-.Pq numerical, decimal ,
+(numerical, decimal),
 the new gid
 .Ar gid
-.Pq numerical, decimal ,
+(numerical, decimal),
 new mode
 .Ar mode
-.Pq numerical, octal ,
+(numerical, octal),
 the old MD5 checksum
 .Ar md5before ,
 and the new MD5 checksum
@@ -142,7 +140,7 @@ is to be removed.
 .Sh EXAMPLES
 In the following example, long lines have been folded to make them
 printable
-.Pq marked by backslashes .
+(marked by backslashes).
 .Bd -literal
 CTM_BEGIN 2.0 cvs-cur 485 19950324214652Z .
 CTMFR src/sys/gnu/i386/isa/scd.c,v 5225f13aa3c7e458f9dd0d4bb637b18d

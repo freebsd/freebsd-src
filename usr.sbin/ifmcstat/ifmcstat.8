@@ -31,16 +31,28 @@
 .\"
 .Dd May 21, 1998
 .Dt IFMCSTAT 8
-.Os KAME
+.Os
 .Sh NAME
 .Nm ifmcstat
 .Nd dump multicast group management statistics per interface
 .Sh SYNOPSIS
 .Nm
-.\"
 .Sh DESCRIPTION
 The
 .Nm
-command dumps multicast group information in the kernel.
+program dumps multicast group information from the kernel.
+It is similar but not identical to the output from
+.Nm netstat Fl ina .
 .Pp
-There are no command-line options.
+There are no command line options.
+.Pp
+Only root can use
+.Nm .
+.Sh SEE ALSO
+.Xr netstat 1
+.Rs
+.%A G. Malkin
+.%A R. Minnear
+.%R IPng for IPv6
+.%N RFC2080
+.Re

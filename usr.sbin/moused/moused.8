@@ -32,7 +32,7 @@
 .\"
 .Dd April 1, 2000
 .Dt MOUSED 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm moused
 .Nd pass mouse data to the console driver
@@ -63,7 +63,8 @@ and the console driver work together to support
 mouse operation in the text console and user programs.
 They virtualize the mouse and provide user programs with mouse data
 in the standard format
-.Pq see Xr sysmouse 4 .
+(see
+.Xr sysmouse 4 ) .
 .Pp
 The mouse daemon listens to the specified port for mouse data,
 interprets and then passes it via ioctls to the console driver.
@@ -113,7 +114,7 @@ to operate in the
 mode.
 .It Fl E Ar timeout
 When the third button emulation is enabled
-.Pq see above ,
+(see above),
 the
 .Nm
 daemon waits
@@ -175,7 +176,7 @@ information are:
 .Pp
 .Bl -tag -compact -width modelxxx
 .It Ar port
-Port (device file) name, i.e.
+Port (device file) name, i.e.\&
 .Pa /dev/cuaa0 ,
 .Pa /dev/mse0
 and
@@ -245,7 +246,8 @@ Under normal circumstances,
 you need to use this option only if the
 .Nm
 command is not able to detect the protocol automatically
-.Pq see the Sx Configuring Mouse Daemon .
+(see the
+.Sx "Configuring Mouse Daemon" ) .
 .Pp
 Note that if a protocol type is specified with this option, the
 .Fl P
@@ -439,7 +441,8 @@ command with the
 option and see what it says.  If the command can identify
 the protocol type, no further investigation is necessary on your part.
 You may start the daemon without explicitly specifying a protocol type
-.Pq see Sx EXAMPLES .
+(see
+.Sx EXAMPLES ) .
 .Pp
 The command may print
 .Ar sysmouse
@@ -532,7 +535,8 @@ This is useful if the user wants to use the built-in PS/2 pointing device
 of a laptop computer while on the road, but wants to use a serial
 mouse when s/he attaches the system to the docking station in the office.
 Run two mouse daemons and tell the application program
-.Pq such as the X Window System
+(such as the
+.Tn "X\ Window System" )
 to use
 .Xr sysmouse ,
 then the application program will always see mouse data from either mice.

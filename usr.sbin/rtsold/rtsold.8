@@ -63,7 +63,7 @@ and to get non link-local addresses.
 .Pp
 .Nm
 should be used on IPv6 hosts
-.Pq non-router nodes
+(non-router nodes)
 only.
 .Pp
 If you invoke the program as
@@ -175,10 +175,8 @@ Advertisement packet has arrived on each
 .Ar interface ,
 then exit.
 .El
-.Sh RETURN VALUES
-The
-.Nm
-program exits 0 on success, and >0 on failures.
+.Sh DIAGNOSTICS
+.Ex -std
 .\"
 .Sh FILES
 .Bl -tag -width /var/run/rtsold.dump -compact

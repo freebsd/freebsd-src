@@ -35,7 +35,7 @@
 .\"
 .Dd January 19, 1999
 .Dt NGHOOK 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm nghook
 .Nd connect to a
@@ -78,15 +78,15 @@ Increase the debugging verbosity level.
 Although all input is read in unbuffered mode,
 there's no way to control the packetization of the input.
 .Sh SEE ALSO
-.Xr netgraph 4 ,
 .Xr netgraph 3 ,
-.Xr ngctl 8 .
+.Xr netgraph 4 ,
+.Xr ngctl 8
 .Sh HISTORY
 The
 .Em netgraph
-system was designed and first implemented at Whistle Communications, Inc.
+system was designed and first implemented at Whistle Communications, Inc.\&
 in a version of
 .Fx 2.2
 customized for the Whistle InterJet.
-.Sh AUTHOR
+.Sh AUTHORS
 .An Archie Cobbs Aq archie@whistle.com

@@ -25,19 +25,20 @@
 .\" $FreeBSD$
 .\"
 .Dd August 13, 1997
-.Os FreeBSD
+.Os
 .Dt PERIODIC 8
 .Sh NAME
 .Nm periodic
-.Nd
-run periodic system functions
+.Nd run periodic system functions
 .Sh SYNOPSIS
 .Nm
 .Ar directory Ns No ...
 .Sh DESCRIPTION
 The
 .Nm
-program is intended to be called by cron(8) to execute shell scripts
+program is intended to be called by
+.Xr cron 8
+to execute shell scripts
 located in the specified directory.
 .Pp
 One or more of the following arguments must be specified:

@@ -200,7 +200,7 @@ on client.
 Inactive sessions will be disconnected in 30 minutes,
 to avoid stale sessions from chewing up resources.
 This may be inappropriate for some of the services
-.Pq should this be configurable? .
+(should this be configurable?).
 .Ss inetd mode
 When
 .Nm
@@ -237,12 +237,10 @@ To prevent malicious accesses,
 implements a simple address-based access control.
 With
 .Pa /etc/faithd.conf
-.Po
-or
+(or
 .Ar configfile
 specified by
-.Fl f
-.Pc ,
+.Fl f ) ,
 .Nm
 will avoid relaying unwanted traffic.
 The
@@ -398,7 +396,7 @@ It is very insecure to use
 .Xr rhosts 5
 and other IP-address based authentication, for connections relayed by
 .Nm
-.Pq and any other TCP relaying services .
+(and any other TCP relaying services).
 .Pp
 Administrators are advised to limit accesses to
 .Nm

@@ -42,7 +42,7 @@
 .Sh DESCRIPTION
 .Nm Apmd
 monitors the occurrence of the specified Advanced Power Management
-.Pq APM
+.Pq Tn APM
 events and, if one of the events occurs, it executes the sequence of
 commands corresponding to the event.  Only the events specified in the
 configuration file are notified to
@@ -77,10 +77,8 @@ Verbose mode.
 When
 .Nm
 starts, it reads the configuration file
-.Po
-.Pa /etc/apmd.conf
-as default
-.Pc
+.Pa ( /etc/apmd.conf
+as default)
 and notifies the set of events to be monitored to the APM device driver.
 When it terminates, the APM device driver automatically cancels
 monitored events.
