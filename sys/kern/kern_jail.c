@@ -431,7 +431,7 @@ int
 prison_check_mount(struct ucred *cred, struct mount *mp)
 {
 
-	if (jail_getfsstatroot_only) {
+	if (jail_getfsstatroot_only && cred->cr_prison != NULL) {
 		if (cred->cr_prison->pr_root->v_mount != mp)
 			return (0);
 	}
