@@ -1,6 +1,6 @@
 root::0:0::0:0:Charlie &:/root:/bin/csh
 toor:*:0:0::0:0:Bourne-again Superuser:/root:
-daemon:*:1:31::0:0:Owner of many system processes:/root:/nonexistent
+daemon:*:1:1::0:0:Owner of many system processes:/root:/nonexistent
 operator:*:2:20::0:0:System &:/usr/guest/operator:/bin/csh
 bin:*:3:7::0:0:Binaries Commands and Source,,,:/:/nonexistent
 games:*:7:13::0:0:Games pseudo-user:/usr/games:/nonexistent
