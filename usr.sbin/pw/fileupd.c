@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fileupd.c,v 1.1.1.1.2.2 1997/11/04 07:16:12 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -49,7 +49,7 @@ fileupdate(char const * filename, mode_t fmode, char const * newline, char const
 	if (pfxlen <= 1)
 		errno = EINVAL;
 	else {
-		int             infd = open(filename, O_RDWR | O_CREAT | O_EXLOCK, fmode);
+		int             infd = open(filename, O_RDWR | O_CREAT, fmode);
 
 		if (infd != -1) {
 			FILE           *infp = fdopen(infd, "r+");
@@ -134,9 +134,20 @@ fileupdate(char const * filename, mode_t fmode, char const * newline, char const
 									fputs(line, infp);
 
 								/*
+                                                                 * If there was a problem with copying
+                                                                 * we will just rename 'file.new' 
+                                                                 * to 'file'.
 								 * This is a gross hack, but we may have
 								 * corrupted the original file
-								 * Unfortunately, it will lose the inode.
+								 * Unfortunately, it will lose the inode
+                                                                 * and hence the lock.
+                                                                 *
+                                                                 * The implications of this is that this invocation of pw 
+                                                                 * won't have the file locked and concurrent copies
+                                                                 * of pw, vipw etc could clobber what this one is doing.
+                                                                 *
+                                                                 * It should probably just return an error instead
+                                                                 * of going on like nothing is wrong.
 								 */
 								if (fflush(infp) == EOF || ferror(infp))
 									rc = rename(file, filename) == 0;
