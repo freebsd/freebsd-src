@@ -68,7 +68,7 @@ dev_unlock(void)
 }
 
 void
-dev_ref(struct cdev *dev)
+dev_refl(struct cdev *dev)
 {
 
 	mtx_assert(&devmtx, MA_OWNED);
