@@ -57,6 +57,7 @@ struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
 #endif
 
 volatile int mc_expected, mc_received;
+u_int32_t intr_nesting_level;
 
 static void 
 dummy_perf(unsigned long vector, struct trapframe *framep)  
