@@ -41,6 +41,10 @@
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
 #include <machine/globals.h>
+#ifndef curproc
+struct proc;
+extern struct proc *curproc;
+#endif
 #endif	/* _KERNEL_ */
 #endif	/* !LOCORE */
 
