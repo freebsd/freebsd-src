@@ -40,6 +40,12 @@ extern const union __nan_un {
 #define	INFINITY	HUGE_VALF
 #define	NAN		(__nan.__uf)
 
+#if __ISO_C_VISIBLE >= 1999
+#define	MATH_ERRNO	1
+#define	MATH_ERREXCEPT	2
+#define	math_errhandling	0
+#endif
+
 /* Symbolic constants to classify floating point numbers. */
 #define	FP_INFINITE	0x01
 #define	FP_NAN		0x02
