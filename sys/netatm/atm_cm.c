@@ -105,11 +105,13 @@ atm_cm_init(void)
 
 	atm_connection_zone = uma_zcreate("atm connection",
 	    sizeof(Atm_connection), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_max(atm_connection_zone, 100);
+	if (atm_connection_zone == NULL)
+		panic("atm_connection_zone");
 
 	atm_connvc_zone = uma_zcreate("atm connvc", sizeof(Atm_connvc), NULL,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_max(atm_connvc_zone, 100);
+	if (atm_connvc_zone == NULL)
+		panic("atm_connvc_zone");
 }
 
 /*

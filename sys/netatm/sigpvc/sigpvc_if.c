@@ -145,7 +145,8 @@ sigpvc_start()
 
 	sigpvc_vc_zone = uma_zcreate("sigpvc vc", sizeof(struct sigpvc_vccb),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_max(sigpvc_vc_zone, 50);		
+	if (sigpvc_vc_zone == NULL)
+		return (ENOMEM);
  
 	/*
 	 * Register ourselves with system

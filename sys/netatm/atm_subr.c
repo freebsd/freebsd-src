@@ -114,13 +114,11 @@ atm_initialize()
 	    UMA_ALIGN_PTR, 0);
 	if (atm_attributes_zone == NULL)
 		panic("atm_initialize: unable to create attributes zone");
-	uma_zone_set_max(atm_attributes_zone, 100);
 
 	atm_stackq_zone = uma_zcreate("atm stackq", sizeof(struct stackq_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	if (atm_stackq_zone == NULL)
 		panic("atm_initialize: unable to create stackq zone");
-	uma_zone_set_max(atm_stackq_zone, 10);
 
 	atm_intrq.ifq_maxlen = ATM_INTRQ_MAX;
 	mtx_init(&atm_intrq.ifq_mtx, "atm_inq", NULL, MTX_DEF);

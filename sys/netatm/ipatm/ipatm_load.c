@@ -402,13 +402,11 @@ ipatm_start()
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	if (ipatm_vc_zone == NULL)
 		panic("ipatm_start: unable to create ipatm_vc_zone");
-	uma_zone_set_max(ipatm_vc_zone, 100);
 		
 	ipatm_nif_zone = uma_zcreate("ipatm nif", sizeof(struct ip_nif), NULL,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	if (ipatm_nif_zone == NULL)
 		panic("ipatm_start: unable to create ipatm_nif_zone");
-	uma_zone_set_max(ipatm_nif_zone, 52);
 
 	/*
 	 * Register ourselves as a network convergence module
