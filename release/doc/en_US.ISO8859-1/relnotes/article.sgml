@@ -997,7 +997,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>A number of bugs in the filesystem code, discovered
       through the use of a filesystem test tool, have been fixed.
       Under certain circumstances (primarily related to use of NFS),
-      these bugs could cause data corruption or kernel panics.</para>
+      these bugs could cause data corruption or kernel panics. &merged;</para>
     </sect3>
 
     <sect3>
