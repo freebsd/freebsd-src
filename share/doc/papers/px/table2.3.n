@@ -41,5 +41,5 @@ _
 Mnemonic	Reference	Description
 =
 .TH
-.so obj/fig2.3.n
+.so fig2.3.n
 .TE
