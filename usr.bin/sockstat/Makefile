@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	des@freebsd.org
 SCRIPTS=	sockstat.pl
 MAN=		sockstat.1
 
