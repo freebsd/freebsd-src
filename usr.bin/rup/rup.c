@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: rup.c,v 1.7 1997/02/22 19:56:48 peter Exp $";
+	"$Id: rup.c,v 1.8 1997/08/07 06:50:02 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -192,7 +192,7 @@ allhosts()
 
 	clnt_stat = clnt_broadcast(RSTATPROG, RSTATVERS_TIME, RSTATPROC_STATS,
 				   xdr_void, NULL,
-				   xdr_statstime, &host_stat, rstat_reply);
+				   xdr_statstime, (char *)&host_stat, rstat_reply);
 	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT)
 		errx(1, "%s", clnt_sperrno(clnt_stat));
 }
