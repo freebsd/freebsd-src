@@ -14,6 +14,30 @@
 #ifndef _GETOPT_H
 #define _GETOPT_H 1
 
+/* CVS - DRP
+ *
+ * If the OS defines this, just redefine the names to avoid namespace
+ * clashes.  In theory, we should be testing the built in functions to
+ * see if they do what we want and use them if possible, but this is
+ * easier...
+ *
+ * Namely, this was occurring under Mac OS X.  This is a Mac OS X (or
+ * OS X related) bug.
+ *
+ * Oops.  We avoid compiling this with ifdefs because pretty much all of
+ * getopt.c is switched on the same macros...  this isn't right, but I think
+ * this isn't our file.  Probably best not to mess with it too much.
+ */
+#if defined (_LIBC) || !defined (__GNU_LIBRARY__)
+# ifdef HAVE_GETOPT
+#   define getopt		cvs_getopt
+#   define optarg		cvs_optarg
+#   define opterr		cvs_opterr
+#   define optind		cvs_optind
+#   define optopt		cvs_optopt
+# endif /* HAVE_GETOPT */
+#endif	/* _LIBC or not __GNU_LIBRARY__.  */
+
 #ifdef	__cplusplus
 extern "C" {
 #endif

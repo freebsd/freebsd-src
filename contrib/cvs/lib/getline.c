@@ -50,7 +50,7 @@ getstr (lineptr, n, stream, terminator, offset, limit)
      char **lineptr;
      size_t *n;
      FILE *stream;
-     char terminator;
+     int terminator;
      int offset;
      int limit;
 {

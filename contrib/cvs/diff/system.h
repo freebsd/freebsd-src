@@ -132,7 +132,7 @@ GNU General Public License for more details.
 #endif
 
 #ifndef STAT_BLOCKSIZE
-#if HAVE_ST_BLKSIZE
+#if HAVE_STRUCT_STAT_ST_BLKSIZE
 #define STAT_BLOCKSIZE(s) (s).st_blksize
 #else
 #define STAT_BLOCKSIZE(s) (8 * 1024)

@@ -11,7 +11,6 @@
  */
 
 #include "cvs.h"
-#include "version.h"
 
 #ifdef CLIENT_SUPPORT
 #ifdef SERVER_SUPPORT
@@ -62,7 +61,7 @@ version (argc, argv)
     /* Having the year here is a good idea, so people have
        some idea of how long ago their version of CVS was
        released.  */
-    (void) fputs (version_string, stdout);
+    (void) fputs (PACKAGE_STRING, stdout);
     (void) fputs (config_string, stdout);
 
 #ifdef CLIENT_SUPPORT
