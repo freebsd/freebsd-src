@@ -83,9 +83,7 @@ vm_pgmoveco(vm_map_t mapa, vm_offset_t kaddr, vm_offset_t uaddr)
 	 * First lookup the kernel page.
 	 */
 	kern_pg = PHYS_TO_VM_PAGE(vtophys(kaddr));
-	/*
-	 * XXX The vm object containing kern_pg needs locking.
-	 */
+
 	if ((vm_map_lookup(&map, uaddr,
 			   VM_PROT_WRITE, &entry, &uobject,
 			   &upindex, &prot, &wired)) != KERN_SUCCESS) {
@@ -111,7 +109,8 @@ vm_pgmoveco(vm_map_t mapa, vm_offset_t kaddr, vm_offset_t uaddr)
 		else
 			panic("vm_pgmoveco: renaming busy page");
 	}
-	vm_page_rename(kern_pg, uobject, upindex);
+	vm_page_insert(kern_pg, uobject, upindex);
+	vm_page_dirty(kern_pg);
 	kern_pg->valid = VM_PAGE_BITS_ALL;
 	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(uobject);
@@ -221,12 +220,11 @@ userspaceco(void *cp, u_int cnt, struct uio *uio, struct vm_object *obj,
 	iov = uio->uio_iov;
 	if (uio->uio_rw == UIO_READ) {
 		if ((so_zero_copy_receive != 0)
-		 && (obj != NULL)
+		 && (obj == NULL)
 		 && ((cnt & PAGE_MASK) == 0)
 		 && ((((intptr_t) iov->iov_base) & PAGE_MASK) == 0)
 		 && ((uio->uio_offset & PAGE_MASK) == 0)
 		 && ((((intptr_t) cp) & PAGE_MASK) == 0)
-		 && (obj->type == OBJT_DEFAULT)
 		 && (disposable != 0)) {
 			/* SOCKET: use page-trading */
 			/*
