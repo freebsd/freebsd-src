@@ -218,9 +218,8 @@ struct kseq {
 #ifdef SMP
 	int		ksq_load_transferable;	/* kses that may be migrated. */
 	int		ksq_idled;
-	unsigned int	ksq_rslices;	/* Slices on run queue */
 	int		ksq_cpus;	/* Count of CPUs in this kseq. */
-	struct kse 	*ksq_assigned;	/* KSEs assigned by another CPU. */
+	struct kse	*ksq_assigned;	/* assigned by another CPU. */
 #endif
 };
 
@@ -257,9 +256,6 @@ static void kseq_nice_add(struct kseq *kseq, int nice);
 static void kseq_nice_rem(struct kseq *kseq, int nice);
 void kseq_print(int cpu);
 #ifdef SMP
-#if 0
-static int sched_pickcpu(void);
-#endif
 static struct kse *runq_steal(struct runq *rq);
 static void sched_balance(void *arg);
 static void kseq_move(struct kseq *from, int cpu);
@@ -322,9 +318,6 @@ kseq_load_add(struct kseq *kseq, struct kse *ke)
 	class = PRI_BASE(ke->ke_ksegrp->kg_pri_class);
 	if (class == PRI_TIMESHARE)
 		kseq->ksq_load_timeshare++;
-#ifdef SMP
-	kseq->ksq_rslices += ke->ke_slice;
-#endif
 	kseq->ksq_load++;
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
 		CTR6(KTR_ULE,
@@ -343,9 +336,6 @@ kseq_load_rem(struct kseq *kseq, struct kse *ke)
 	class = PRI_BASE(ke->ke_ksegrp->kg_pri_class);
 	if (class == PRI_TIMESHARE)
 		kseq->ksq_load_timeshare--;
-#ifdef SMP
-	kseq->ksq_rslices -= ke->ke_slice;
-#endif
 	kseq->ksq_load--;
 	ke->ke_runq = NULL;
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
@@ -628,7 +618,6 @@ kseq_setup(struct kseq *kseq)
 	kseq->ksq_load_timeshare = 0;
 #ifdef SMP
 	kseq->ksq_load_transferable = 0;
-	kseq->ksq_rslices = 0;
 	kseq->ksq_idled = 0;
 	kseq->ksq_assigned = NULL;
 #endif
@@ -863,38 +852,6 @@ sched_pctcpu_update(struct kse *ke)
 	ke->ke_ftick = ke->ke_ltick - SCHED_CPU_TICKS;
 }
 
-#if 0
-/* XXX Should be changed to kseq_load_lowest() */
-int
-sched_pickcpu(void)
-{
-	struct kseq *kseq;
-	int load;
-	int cpu;
-	int i;
-
-	mtx_assert(&sched_lock, MA_OWNED);
-	if (!smp_started)
-		return (0);
-
-	load = 0;
-	cpu = 0;
-
-	for (i = 0; i < mp_maxid; i++) {
-		if (CPU_ABSENT(i) || (i & stopped_cpus) != 0)
-			continue;
-		kseq = KSEQ_CPU(i);
-		if (kseq->ksq_load < load) {
-			cpu = i;
-			load = kseq->ksq_load;
-		}
-	}
-
-	CTR1(KTR_ULE, "sched_pickcpu: %d", cpu);
-	return (cpu);
-}
-#endif
-
 void
 sched_prio(struct thread *td, u_char prio)
 {
@@ -1062,7 +1019,7 @@ sched_fork_kse(struct kse *ke, struct kse *child)
 {
 
 	child->ke_slice = 1;	/* Attempt to quickly learn interactivity. */
-	child->ke_cpu = ke->ke_cpu; /* sched_pickcpu(); */
+	child->ke_cpu = ke->ke_cpu;
 	child->ke_runq = NULL;
 
 	/* Grab our parents cpu estimation information. */
@@ -1227,17 +1184,12 @@ sched_clock(struct thread *td)
 	/*
 	 * We used up one time slice.
 	 */
-	ke->ke_slice--;
-	kseq = KSEQ_SELF();
-#ifdef SMP
-	kseq->ksq_rslices--;
-#endif
-
-	if (ke->ke_slice > 0)
+	if (--ke->ke_slice > 0)
 		return;
 	/*
 	 * We're out of time, recompute priorities and requeue.
 	 */
+	kseq = KSEQ_SELF();
 	kseq_load_rem(kseq, ke);
 	sched_priority(kg);
 	sched_slice(ke);
