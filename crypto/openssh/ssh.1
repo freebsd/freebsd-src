@@ -370,15 +370,16 @@ It is believed to be secure.
 (triple-des) is an encrypt-decrypt-encrypt triple with three different keys.
 It is presumably more secure than the
 .Ar des
-cipher which is no longer supported in
+cipher which is no longer fully supported in
 .Nm ssh .
 .Ar blowfish
 is a fast block cipher, it appears very secure and is much faster than
 .Ar 3des .
 .It Fl c Ar "3des-cbc,blowfish-cbc,arcfour,cast128-cbc"
 Additionally, for protocol version 2 a comma-separated list of ciphers can
-be specified in order of preference. Protocol version 2 supports
-3DES, Blowfish and CAST128 in CBC mode and Arcfour.
+be specified in order of preference.
+Protocol version 2 supports 3DES, Blowfish, and CAST128 in CBC mode
+and Arcfour.
 .It Fl e Ar ch|^ch|none
 Sets the escape character for sessions with a pty (default:
 .Ql ~ ) .
@@ -486,6 +487,8 @@ debugging connection, authentication, and configuration problems.
 The verbose mode is also used to display
 .Xr skey 1
 challenges, if the user entered "s/key" as password.
+Multiple -v options increases the verbosity.
+Maximum is 3.
 .It Fl x
 Disables X11 forwarding.
 .It Fl X
@@ -627,9 +630,10 @@ If the option is set to
 .Dq no ,
 the check will not be executed.
 .It Cm Cipher
-Specifies the cipher to use for encrypting the session.
+Specifies the cipher to use for encrypting the session
+in protocol version 1.
 Currently,
-.Dq blowfish ,
+.Dq blowfish 
 and
 .Dq 3des
 are supported.
@@ -640,7 +644,7 @@ Specifies the ciphers allowed for protocol version 2
 in order of preference.
 Multiple ciphers must be comma-separated.
 The default is
-.Dq 3des-cbc,blowfish-cbc,arcfour,cast128-cbc .
+.Dq 3des-cbc,blowfish-cbc,cast128-cbc,arcfour .
 .It Cm Compression
 Specifies whether to use compression.
 The argument must be

@@ -36,7 +36,7 @@ OpenSSH contains no GPL code.
      - The make-ssh-known-hosts script is no longer included
      - TSS has been removed
      - MD5 is now external, in the OpenSSL library
-     - RC4 support has been removed
+     - RC4 support has been replaced with ARC4 support from OpenSSL
      - Blowfish is now external, in the OpenSSL library
 
     [The licence continues]

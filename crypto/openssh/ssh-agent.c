@@ -1,3 +1,5 @@
+/*	$OpenBSD: ssh-agent.c,v 1.37 2000/09/21 11:07:51 markus Exp $	*/
+
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +37,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-agent.c,v 1.35 2000/09/07 20:27:54 deraadt Exp $");
+RCSID("$OpenBSD: ssh-agent.c,v 1.37 2000/09/21 11:07:51 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -55,6 +57,7 @@ RCSID("$FreeBSD$");
 #include "authfd.h"
 #include "dsa.h"
 #include "kex.h"
+#include "compat.h"
 
 typedef struct {
 	int fd;
@@ -232,6 +235,7 @@ process_sign_request2(SocketEntry *e)
 	Key *key, *private;
 	unsigned char *blob, *data, *signature = NULL;
 	unsigned int blen, dlen, slen = 0;
+	int flags;
 	Buffer msg;
 	int ok = -1;
 
@@ -239,7 +243,10 @@ process_sign_request2(SocketEntry *e)
 	
 	blob = buffer_get_string(&e->input, &blen);
 	data = buffer_get_string(&e->input, &dlen);
-	buffer_get_int(&e->input);			/* flags, unused */
+
+	flags = buffer_get_int(&e->input);
+	if (flags & SSH_AGENT_OLD_SIGNATURE)
+		datafellows = SSH_BUG_SIGBLOB;
 
 	key = dsa_key_from_blob(blob, blen);
 	if (key != NULL) {
@@ -770,8 +777,11 @@ main(int ac, char **av)
 			printf("echo Agent pid %d;\n", pid);
 			exit(0);
 		}
-		setenv(SSH_AUTHSOCKET_ENV_NAME, socket_name, 1);
-		setenv(SSH_AGENTPID_ENV_NAME, pidstrbuf, 1);
+		if (setenv(SSH_AUTHSOCKET_ENV_NAME, socket_name, 1) == -1 ||
+		    setenv(SSH_AGENTPID_ENV_NAME, pidstrbuf, 1) == -1) {
+			perror("setenv");
+			exit(1);
+		}
 		execvp(av[0], av);
 		perror(av[0]);
 		exit(1);

@@ -9,7 +9,7 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $Id: scp.1,v 1.10 2000/09/01 15:25:13 deraadt Exp $
+.\" $OpenBSD: scp.1,v 1.13 2000/10/16 09:38:44 djm Exp $
 .\"
 .Dd September 25, 1999
 .Dt SCP 1
@@ -24,6 +24,7 @@
 .Op Fl P Ar port
 .Op Fl c Ar cipher
 .Op Fl i Ar identity_file
+.Op Fl o Ar option
 .Sm off
 .Oo
 .Op Ar user@
@@ -102,9 +103,13 @@ is already reserved for preserving the times and modes of the file in
 .It Fl S Ar program
 Name of
 .Ar program
-to use for the encrypted connection. The program must understand
+to use for the encrypted connection.
+The program must understand
 .Xr ssh 1
 options.
+.It Fl o Ar option
+The given option is directly passed to
+.Xr ssh 1 .
 .It Fl 4
 Forces
 .Nm

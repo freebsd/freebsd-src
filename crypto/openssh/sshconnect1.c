@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect1.c,v 1.6 2000/09/07 20:27:54 deraadt Exp $");
+RCSID("$OpenBSD: sshconnect1.c,v 1.8 2000/10/12 09:59:19 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/bn.h>
@@ -26,7 +26,6 @@ RCSID("$FreeBSD$");
 #include "ssh.h"
 #include "buffer.h"
 #include "packet.h"
-#include "cipher.h"
 #include "mpaux.h"
 #include "uidswap.h"
 #include "readconf.h"
@@ -837,17 +836,11 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 
 	if (options.cipher == SSH_CIPHER_ILLEGAL) {
 		log("No valid SSH1 cipher, using %.100s instead.",
-		    cipher_name(SSH_FALLBACK_CIPHER));
-		options.cipher = SSH_FALLBACK_CIPHER;
+		    cipher_name(ssh_cipher_default));
+		options.cipher = ssh_cipher_default;
 	} else if (options.cipher == SSH_CIPHER_NOT_SET) {
-		if (cipher_mask1() & supported_ciphers & (1 << ssh_cipher_default))
+		if (cipher_mask_ssh1(1) & supported_ciphers & (1 << ssh_cipher_default))
 			options.cipher = ssh_cipher_default;
-		else {
-			debug("Cipher %s not supported, using %.100s instead.",
-			    cipher_name(ssh_cipher_default),
-			    cipher_name(SSH_FALLBACK_CIPHER));
-			options.cipher = SSH_FALLBACK_CIPHER;
-		}
 	}
 	/* Check that the selected cipher is supported. */
 	if (!(supported_ciphers & (1 << options.cipher)))

@@ -14,7 +14,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-options.c,v 1.4 2000/09/07 21:13:36 markus Exp $");
+RCSID("$OpenBSD: auth-options.c,v 1.5 2000/10/09 21:32:34 markus Exp $");
 
 #include "ssh.h"
 #include "packet.h"
@@ -33,6 +33,25 @@ char *forced_command = NULL;
 /* "environment=" options. */
 struct envstring *custom_environment = NULL;
 
+void
+auth_clear_options(void)
+{
+	no_agent_forwarding_flag = 0;
+	no_port_forwarding_flag = 0;
+	no_pty_flag = 0;
+	no_x11_forwarding_flag = 0;
+	while (custom_environment) {
+		struct envstring *ce = custom_environment;
+		custom_environment = ce->next;
+		xfree(ce->s);
+		xfree(ce);
+	}
+	if (forced_command) {
+		xfree(forced_command);
+		forced_command = NULL;
+	}
+}
+
 /* return 1 if access is granted, 0 if not. side effect: sets key option flags */
 int
 auth_parse_options(struct passwd *pw, char *options, unsigned long linenum)
@@ -40,6 +59,10 @@ auth_parse_options(struct passwd *pw, char *options, unsigned long linenum)
 	const char *cp;
 	if (!options)
 		return 1;
+
+	/* reset options */
+	auth_clear_options();
+
 	while (*options && *options != ' ' && *options != '\t') {
 		cp = "no-port-forwarding";
 		if (strncmp(options, cp, strlen(cp)) == 0) {
@@ -87,9 +110,9 @@ auth_parse_options(struct passwd *pw, char *options, unsigned long linenum)
 			}
 			if (!*options) {
 				debug("%.100s, line %lu: missing end quote",
-				      SSH_USER_PERMITTED_KEYS, linenum);
+				    SSH_USER_PERMITTED_KEYS, linenum);
 				packet_send_debug("%.100s, line %lu: missing end quote",
-						  SSH_USER_PERMITTED_KEYS, linenum);
+				    SSH_USER_PERMITTED_KEYS, linenum);
 				continue;
 			}
 			forced_command[i] = 0;
@@ -117,9 +140,9 @@ auth_parse_options(struct passwd *pw, char *options, unsigned long linenum)
 			}
 			if (!*options) {
 				debug("%.100s, line %lu: missing end quote",
-				      SSH_USER_PERMITTED_KEYS, linenum);
+				    SSH_USER_PERMITTED_KEYS, linenum);
 				packet_send_debug("%.100s, line %lu: missing end quote",
-						  SSH_USER_PERMITTED_KEYS, linenum);
+				    SSH_USER_PERMITTED_KEYS, linenum);
 				continue;
 			}
 			s[i] = 0;
@@ -175,21 +198,6 @@ auth_parse_options(struct passwd *pw, char *options, unsigned long linenum)
 				    get_remote_ipaddr());
 				packet_send_debug("Your host '%.200s' is not permitted to use this key for login.",
 				get_canonical_hostname());
-				/* key invalid for this host, reset flags */
-				no_agent_forwarding_flag = 0;
-				no_port_forwarding_flag = 0;
-				no_pty_flag = 0;
-				no_x11_forwarding_flag = 0;
-				while (custom_environment) {
-					struct envstring *ce = custom_environment;
-					custom_environment = ce->next;
-					xfree(ce->s);
-					xfree(ce);
-				}
-				if (forced_command) {
-					xfree(forced_command);
-					forced_command = NULL;
-				}
 				/* deny access */
 				return 0;
 			}

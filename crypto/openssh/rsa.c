@@ -151,7 +151,7 @@ rsa_public_encrypt(BIGNUM *out, BIGNUM *in, RSA *key)
 
 	if ((len = RSA_public_encrypt(ilen, inbuf, outbuf, key,
 	    RSA_PKCS1_PADDING)) <= 0)
-		fatal("rsa_private_encrypt() failed.");
+		fatal("rsa_public_encrypt() failed.");
 
 	BN_bin2bn(outbuf, len, out);
 

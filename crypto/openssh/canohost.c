@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: canohost.c,v 1.15 2000/09/07 21:13:37 markus Exp $");
+RCSID("$OpenBSD: canohost.c,v 1.16 2000/10/21 17:04:22 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "packet.h"
@@ -124,7 +124,7 @@ check_ip_options:
 		else
 			ipproto = IPPROTO_IP;
 		option_size = sizeof(options);
-		if (getsockopt(0, ipproto, IP_OPTIONS, (char *) options,
+		if (getsockopt(socket, ipproto, IP_OPTIONS, (char *) options,
 		    &option_size) >= 0 && option_size != 0) {
 			cp = text;
 			/* Note: "text" buffer must be at least 3x as big as options. */

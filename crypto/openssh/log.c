@@ -36,7 +36,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: log.c,v 1.9 2000/09/07 21:13:37 markus Exp $");
+RCSID("$OpenBSD: log.c,v 1.11 2000/09/30 16:27:43 markus Exp $");
 
 #include "ssh.h"
 #include "xmalloc.h"
@@ -93,7 +93,25 @@ debug(const char *fmt,...)
 {
 	va_list args;
 	va_start(args, fmt);
-	do_log(SYSLOG_LEVEL_DEBUG, fmt, args);
+	do_log(SYSLOG_LEVEL_DEBUG1, fmt, args);
+	va_end(args);
+}
+
+void
+debug2(const char *fmt,...)
+{
+	va_list args;
+	va_start(args, fmt);
+	do_log(SYSLOG_LEVEL_DEBUG2, fmt, args);
+	va_end(args);
+}
+
+void
+debug3(const char *fmt,...)
+{
+	va_list args;
+	va_start(args, fmt);
+	do_log(SYSLOG_LEVEL_DEBUG3, fmt, args);
 	va_end(args);
 }
 
@@ -190,7 +208,10 @@ static struct {
 	{ "ERROR",	SYSLOG_LEVEL_ERROR },
 	{ "INFO",	SYSLOG_LEVEL_INFO },
 	{ "VERBOSE",	SYSLOG_LEVEL_VERBOSE },
-	{ "DEBUG",	SYSLOG_LEVEL_DEBUG },
+	{ "DEBUG",	SYSLOG_LEVEL_DEBUG1 },
+	{ "DEBUG1",	SYSLOG_LEVEL_DEBUG1 },
+	{ "DEBUG2",	SYSLOG_LEVEL_DEBUG2 },
+	{ "DEBUG3",	SYSLOG_LEVEL_DEBUG3 },
 	{ NULL, 0 }
 };
 

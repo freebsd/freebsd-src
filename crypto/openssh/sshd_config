@@ -12,8 +12,12 @@ ServerKeyBits 768
 LoginGraceTime 120
 KeyRegenerationInterval 3600
 PermitRootLogin no
-# Rate-limit sshd connections to 5 connections per 10 seconds
-ConnectionsPerPeriod 5/10
+# Deprecated: rate-limit sshd connections to 5 connections per 10 seconds
+# ConnectionsPerPeriod 5/10
+
+# After 10 unauthenticated connections, refuse 30% of the new ones, and
+# refuse any more than 60 total.
+MaxStartups 10:30:60
 # Don't read ~/.rhosts and ~/.shosts files
 IgnoreRhosts yes
 # Uncomment if you don't trust ~/.ssh/known_hosts for RhostsRSAAuthentication
@@ -41,6 +45,7 @@ PasswordAuthentication yes
 PermitEmptyPasswords no
 # Uncomment to disable s/key passwords 
 #SkeyAuthentication no
+#KbdInteractiveAuthentication yes
 
 # To change Kerberos options
 #KerberosAuthentication no
@@ -56,4 +61,3 @@ CheckMail yes
 
 # Uncomment if you want to enable sftp
 #Subsystem	sftp	/usr/libexec/sftp-server
-#MaxStartups 10:30:60

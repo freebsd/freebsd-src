@@ -24,8 +24,9 @@
 #ifndef KEX_H
 #define KEX_H
 
-#define	KEX_DH1	"diffie-hellman-group1-sha1"
-#define KEX_DSS	"ssh-dss"
+#define	KEX_DH1		"diffie-hellman-group1-sha1"
+#define	KEX_DHGEX	"diffie-hellman-group-exchange-sha1"
+#define	KEX_DSS		"ssh-dss"
 
 enum kex_init_proposals {
 	PROPOSAL_KEX_ALGS,
@@ -47,28 +48,30 @@ enum kex_modes {
 	MODE_MAX
 };
 
+enum kex_exchange {
+	DH_GRP1_SHA1,
+	DH_GEX_SHA1
+};
+		
 typedef struct Kex Kex;
 typedef struct Mac Mac;
 typedef struct Comp Comp;
 typedef struct Enc Enc;
 
 struct Enc {
-	int		type;
+	char		*name;
+	Cipher		*cipher;
 	int		enabled;
-	int		block_size;
 	unsigned char	*key;
 	unsigned char	*iv;
-	int		key_len;
-	int		iv_len;
-	char		*name;
 };
 struct Mac {
-	EVP_MD		*md;
+	char		*name;
 	int		enabled;
+	EVP_MD		*md;
 	int		mac_len;
 	unsigned char	*key;
 	int		key_len;
-	char		*name;
 };
 struct Comp {
 	int		type;
@@ -83,6 +86,7 @@ struct Kex {
 	int		server;
 	char		*name;
 	char		*hostkeyalg;
+	int		kex_type;
 };
 
 Buffer	*kex_init(char *myproposal[PROPOSAL_MAX]);
@@ -96,6 +100,8 @@ kex_choose_conf(char *cprop[PROPOSAL_MAX],
 int	kex_derive_keys(Kex *k, unsigned char *hash, BIGNUM *shared_secret);
 void	packet_set_kex(Kex *k);
 int	dh_pub_is_valid(DH *dh, BIGNUM *dh_pub);
+DH	*dh_new_group_asc(const char *, const char *);
+DH	*dh_new_group(BIGNUM *, BIGNUM *);
 DH	*dh_new_group1();
 
 unsigned char *
@@ -109,4 +115,15 @@ kex_hash(
     BIGNUM *server_dh_pub,
     BIGNUM *shared_secret);
 
+unsigned char *
+kex_hash_gex(
+    char *client_version_string,
+    char *server_version_string,
+    char *ckexinit, int ckexinitlen,
+    char *skexinit, int skexinitlen,
+    char *serverhostkeyblob, int sbloblen,
+    int minbits, BIGNUM *prime, BIGNUM *gen,
+    BIGNUM *client_dh_pub,
+    BIGNUM *server_dh_pub,
+    BIGNUM *shared_secret);
 #endif
