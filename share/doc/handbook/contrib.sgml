@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.34 1995/10/22 00:41:59 jfieber Exp $ -->
+<!-- $Id: contrib.sgml,v 1.35 1995/11/13 05:14:01 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -74,6 +74,7 @@
 	<tag/Postmaster/ Jonathan M. Bresler &lt;jmb@FreeBSD.org&gt;
 	<tag/Public Relations/ Jordan Hubbard &lt;jkh@FreeBSD.org&gt;
 	<tag/Release Coordinator/ Jordan Hubbard &lt;jkh@FreeBSD.org&gt;
+	<tag/Source Repository Manager/ Peter Wemm &lt;peter@FreeBSD.org&gt;
 	<tag/System Administration/ Gary Palmer &lt;gpalmer@FreeBSD.org&gt;
 	<tag/Webmasters/ John Fieber &lt;jfieber@FreeBSD.org&gt; and
 	  James L. Robinson &lt;jlrobin@FreeBSD.org&gt;
