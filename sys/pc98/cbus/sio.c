@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.96 1999/05/11 08:38:28 kato Exp $
+ *	$Id: sio.c,v 1.97 1999/05/30 16:53:22 phk Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -3931,7 +3931,7 @@ static cn_checkc_t siocncheckc;
 static cn_getc_t siocngetc;
 static cn_putc_t siocnputc;
 
-CONS_DRIVER(sio, siocnprobe, siocninit, siocngetc, siocncheckc, siocnputc);
+CONS_DRIVER(sio, siocnprobe, siocninit, NULL, siocngetc, siocncheckc, siocnputc);
 
 /* To get the GDB related variables */
 #if DDB > 0
