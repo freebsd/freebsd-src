@@ -33,10 +33,10 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.h,v 1.2 1998/10/21 08:32:32 grog Exp $
+ * $Id: vinumio.h,v 1.4 1998/12/28 04:56:24 peter Exp $
  */
 
-#ifdef DEBUG
+#ifdef VINUMDEBUG
 #define MAX_IOCTL_REPLY 4096
 #else
 #define MAX_IOCTL_REPLY 256
@@ -62,7 +62,7 @@ struct _ioctl_reply {
 #define VINUM_SAVECONFIG	_IOC(0, L, 72, 0)	    /* release locks, update, write config to disk */
 #define VINUM_RESETCONFIG	_IOC(0, L, 73, 0)	    /* trash config on disk */
 #define VINUM_INIT		_IOC(0, L, 74, 0)	    /* read config from disk */
-#ifdef DEBUG
+#ifdef VINUMDEBUG
 
 struct debuginfo {
     int changeit;
@@ -136,6 +136,6 @@ struct vinum_rename_msg {
 #define VINUM_RENAME		_IOC(IOC_IN | IOC_OUT, L, 89, MAX_IOCTL_REPLY) /* reset object stats */
 #define VINUM_REPLACE		_IOC(IOC_IN | IOC_OUT, L, 90, MAX_IOCTL_REPLY) /* reset object stats */
 
-#ifdef DEBUG
+#ifdef VINUMDEBUG
 #define VINUM_RQINFO		_IOWR(L, 91, struct rqinfo) /* get request info [i] from trace buffer */
 #endif

@@ -33,13 +33,16 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: util.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
+ * $Id: util.c,v 1.3 1998/12/28 04:56:24 peter Exp $
  */
 
 /* This file contains utility routines used both in kernel and user context */
 
-#include "vinumhdr.h"
-#include "statetexts.h"
+#ifdef KERNEL
+#include "opt_vinum.h"
+#endif
+#include <dev/vinum/vinumhdr.h>
+#include <dev/vinum/statetexts.h>
 #ifndef REALLYKERNEL
 #include <stdio.h>
 extern jmp_buf command_fail;				    /* return on a failed command */

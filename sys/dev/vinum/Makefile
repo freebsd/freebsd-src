@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.2 1998/09/28 04:21:20 grog Exp $ 
+#       $Id: Makefile,v 1.4 1998/12/28 04:56:22 peter Exp $ 
 
 .PATH:  ${.CURDIR}/../../sys/dev/ccd
 KMOD=   vinum_mod
@@ -7,7 +7,7 @@ SRCS=   vinum.c vinum.h vnode_if.h parser.c config.c io.c util.c vinumhdr.h requ
 	vinumstate.h vinumvar.h revive.c vinumioctl.c interrupt.c
 NOMAN=
 PSEUDO_LKM=
-CFLAGS = -I${.CURDIR} -O -g -I/usr/include/machine -DDEBUG -Wall -Wno-unused -Wno-parentheses
+CFLAGS = -I${.CURDIR} -O -g -DVINUMDEBUG -Wall -Wno-unused -Wno-parentheses
 
 CLEANFILES+=    vinum.h vnode_if.h vnode_if.c
 

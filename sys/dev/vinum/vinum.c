@@ -33,15 +33,16 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.3 1998/11/03 06:38:58 grog Exp $
+ * $Id: vinum.c,v 1.5 1998/12/28 04:56:24 peter Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
 
 #define REALLYKERNEL
-#include "vinumhdr.h"
-#include "sys/sysproto.h"				    /* for sync(2) */
-#ifdef DEBUG
+#include "opt_vinum.h"
+#include <dev/vinum/vinumhdr.h>
+#include <sys/sysproto.h>				    /* for sync(2) */
+#ifdef VINUMDEBUG
 #include <sys/reboot.h>
 int debug = 0;
 #endif

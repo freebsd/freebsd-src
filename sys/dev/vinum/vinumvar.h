@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.3 1998/11/02 04:11:16 grog Exp $
+ * $Id: vinumvar.h,v 1.5 1998/12/28 04:56:24 peter Exp $
  */
 
 /* XXX gdb can't find our global pointers, so use this kludge to
@@ -41,7 +41,7 @@
 #define BROKEN_GDB struct _vinum_conf *VC = &vinum_conf
 
 #include <sys/time.h>
-#include "vinumstate.h"
+#include <dev/vinum/vinumstate.h>
 /* Some configuration maxima.  They're an enum because
  * we can't define global constants.  Sorry about that.
  *
@@ -212,7 +212,7 @@ struct _vinum_conf {
 
     int flags;
     int opencount;					    /* number of times we've been opened */
-#if DEBUG
+#if VINUMDEBUG
     int lastrq;
     struct buf *lastbuf;
     struct rqinfo **rqipp;
@@ -506,7 +506,7 @@ enum setstateflags {
     setstate_noupdate = 16				    /* don't update config */
 };
 
-#ifdef DEBUG
+#ifdef VINUMDEBUG
 /* Debugging stuff */
 #define DEBUG_ADDRESSES 1
 #define DEBUG_NUMOUTPUT 2

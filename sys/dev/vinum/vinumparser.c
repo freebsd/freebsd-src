@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: parser.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
+ * $Id: parser.c,v 1.3 1998/12/28 04:56:23 peter Exp $
  */
 
 /* This file contains the parser for the configuration routines.  It's used
@@ -52,6 +52,10 @@
  * Error conditions are end of line before end of quote, or no space after
  * a closing quote.  In this case, tokenize() returns -1. */
 
+#ifdef KERNEL
+#include "opt_vinum.h"
+#endif
+
 #include <sys/param.h>
 #ifdef KERNEL
 #undef KERNEL						    /* XXX */
@@ -68,12 +72,12 @@
 #include <sys/mount.h>
 #include <sys/device.h>
 #include <sys/disk.h>
-#include "sys/buf.h"
+#include <sys/buf.h>
 
-#include <vinumvar.h>
-#include "vinumkw.h"
-#include "vinumio.h"
-#include "vinumext.h"
+#include <dev/vinum/vinumvar.h>
+#include <dev/vinum/vinumkw.h>
+#include <dev/vinum/vinumio.h>
+#include <dev/vinum/vinumext.h>
 
 #ifdef REALLYKERNEL
 #define isspace(c) ((c == ' ') || (c == '\t'))		    /* check for white space */
@@ -116,7 +120,7 @@ struct _keywords keywords[] =
     keypair(rename),
     keypair(detached),
 #ifndef KERNEL						    /* for vinum(8) only */
-#ifdef DEBUG
+#ifdef VINUMDEBUG
     keypair(debug),
 #endif
     keypair(attach),

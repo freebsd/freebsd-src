@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.h,v 1.2 1998/10/21 08:32:32 grog Exp $
+ * $Id: request.h,v 1.4 1998/12/28 04:56:23 peter Exp $
  */
 
 /* Information needed to set up a transfer */
@@ -57,7 +57,7 @@ enum xferinfo {
     XFR_PARITY_BLOCK = 0x80,				    /* parity block in request */
     XFR_BAD_SUBDISK = 0x100,				    /* this subdisk is dead */
     XFR_MALLOCED = 0x200,				    /* this buffer is malloced */
-#if DEBUG
+#if VINUMDEBUG
     XFR_PHASE2 = 0x800,					    /* documentation only: 2nd phase write */
 #endif
     XFR_REVIVECONFLICT = 0x1000,			    /* possible conflict with a revive operation */
@@ -158,7 +158,7 @@ enum requeststatus {
     REQUEST_ENOMEM					    /* ran out of memory */
 };
 
-#ifdef DEBUG
+#ifdef VINUMDEBUG
 /* Trace entry for request info (DEBUG_LASTREQS) */
 enum rqinfo_type {
     loginfo_unused,					    /* never been used */

@@ -33,17 +33,19 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: io.c,v 1.3 1998/11/03 06:38:26 grog Exp $
+ * $Id: io.c,v 1.5 1998/12/28 04:56:23 peter Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
+
+#include "opt_vinum.h"
 
 #if __FreeBSD__ < 3					    /* this is in sys/disklabel.h in 3.0 and on */
 #define DTYPE_VINUM		12			    /* vinum volume */
 #endif
 
 #define REALLYKERNEL
-#include "vinumhdr.h"
+#include <dev/vinum/vinumhdr.h>
 #include <miscfs/specfs/specdev.h>
 
 extern jmp_buf command_fail;				    /* return on a failed command */
