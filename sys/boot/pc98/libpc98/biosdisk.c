@@ -83,7 +83,7 @@ struct open_disk {
 #define BD_PARTTABOK		0x0010
     struct disklabel		od_disklabel;
     int				od_nslices;	/* slice count */
-    struct dos_partition	od_slicetab[MAX_SLICES];
+    struct pc98_partition	od_slicetab[MAX_SLICES];
 };
 
 /*
@@ -109,7 +109,7 @@ static int	bd_write(struct open_disk *od, daddr_t dblk, int blks,
 
 static int	bd_int13probe(struct bdinfo *bd);
 
-static void	bd_printslice(struct open_disk *od, struct dos_partition *dp,
+static void	bd_printslice(struct open_disk *od, struct pc98_partition *dp,
 		    char *prefix, int verbose);
 static void	bd_printbsdslice(struct open_disk *od, daddr_t offset,
 		    char *prefix, int verbose);
@@ -298,7 +298,7 @@ bd_print(int verbose)
     char			line[80];
     struct i386_devdesc		dev;
     struct open_disk		*od;
-    struct dos_partition	*dptr;
+    struct pc98_partition	*dptr;
     
     for (i = 0; i < nbdinfo; i++) {
 #ifdef PC98
@@ -523,7 +523,7 @@ bd_open(struct open_file *f, ...)
 static int
 bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 {
-    struct dos_partition	*dptr;
+    struct pc98_partition	*dptr;
     struct disklabel		*lp;
     struct open_disk		*od;
     int				sector, slice, i;
@@ -605,7 +605,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
      * copy the partition table, then pick up any extended partitions.
      */
     bcopy(buf + DOSPARTOFF, &od->od_slicetab,
-      sizeof(struct dos_partition) * NDOSPART);
+      sizeof(struct pc98_partition) * NDOSPART);
 #ifdef PC98
     od->od_nslices = NDOSPART;		/* extended slices start here */
 #else
@@ -810,7 +810,7 @@ done:
 static int
 bd_bestslice(struct open_disk *od)
 {
-	struct dos_partition *dp;
+	struct pc98_partition *dp;
 	int pref, preflevel;
 	int i, prefslice;
 	
