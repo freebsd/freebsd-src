@@ -308,7 +308,7 @@ typedef enum {			/* channel mode */
 	M_ASYNC,		/* asynchronous mode */
 	M_HDLC,			/* HDLC mode */
 	M_BISYNC,		/* BISYNC mode */
-	M_X21,			/* X.21 mode */
+	M_X21			/* X.21 mode */
 } cx_chan_mode_t;
 
 typedef struct {		/* channel option register 4 */
@@ -354,7 +354,7 @@ typedef struct {
 typedef enum {                  /* line break mode */
 	BRK_IDLE,               /* normal line mode */
 	BRK_SEND,               /* start sending break */
-	BRK_STOP,               /* stop sending break */
+	BRK_STOP                /* stop sending break */
 } cx_break_t;
 
 typedef struct {
@@ -464,15 +464,6 @@ typedef struct _board_t {
 } cx_board_t;
 
 #define CX_SPEED_DFLT	9600
-
-extern long cx_rxbaud, cx_txbaud;
-extern int cx_univ_mode, cx_sync_mode, cx_iftype;
-
-extern cx_chan_opt_t chan_opt_dflt;     /* default mode-independent options */
-extern cx_opt_async_t opt_async_dflt;   /* default async options */
-extern cx_opt_hdlc_t opt_hdlc_dflt;     /* default hdlc options */
-extern cx_opt_bisync_t opt_bisync_dflt; /* default bisync options */
-extern cx_opt_x21_t opt_x21_dflt;       /* default x21 options */
 
 int cx_probe_board (int port);
 void cx_init (cx_board_t *b, int num, int port, int irq, int dma);
