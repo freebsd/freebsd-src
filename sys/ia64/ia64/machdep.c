@@ -505,7 +505,7 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	 * TODO: Disable interrupts, floating point etc.
 	 * Maybe flush cache and tlb
 	 */
-	__asm __volatile("mov ar.fpsr=%0" :: "r"(IA64_FPSR_DEFAULT));
+	ia64_set_fpsr(IA64_FPSR_DEFAULT);
 
 	/*
 	 * TODO: Get critical system information (if possible, from the
