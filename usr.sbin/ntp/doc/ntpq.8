@@ -113,7 +113,7 @@ uniquely identify the command need be typed.
 The output of a
 command is normally sent to the standard output, but optionally the
 output of individual commands may be sent to a file by appending a
-.Ql \&< ,
+.Ql \&> ,
 followed by a file name, to the command line.
 A
 number of interactive format commands are executed entirely within
@@ -322,7 +322,7 @@ in
 The index is then of use when dealing with stupid
 servers which use association identifiers which are hard for humans
 to type, in that for any subsequent commands which require an
-association identifier as an argument, the form and index may be
+association identifier as an argument, the form of index may be
 used as an alternative.
 .It Xo Ic clockvar Op Ar assocID
 .Oo
@@ -411,7 +411,7 @@ An old form of the
 .Ic peers
 command with the reference ID
 replaced by the local interface address.
-.It Ic passocations
+.It Ic passociations
 Displays association data concerning in-spec peers from the
 internally cached list of associations.
 This command performs
@@ -455,14 +455,14 @@ further consideration.
 The peer is discarded by the clustering algorithm as an
 outlyer.
 .It \&+
-.Pq candidat
+.Pq candidate
 The peer is a survivor and a candidate for the combining
 algorithm.
 .It \&#
 .Pq selected
 The peer is a survivor, but not among the first six peers
 sorted by synchronization distance.
-If the assocation is ephemeral,
+If the association is ephemeral,
 it may be demobilized to conserve resources.
 .It \&*
 .Pq peer
@@ -471,7 +471,7 @@ variables to the system variables.
 .It o
 .Pq (pps.peer)
 The peer has been declared the system peer and lends its
-variables to thesystem variables.
+variables to the system variables.
 However, the actual system
 synchronization is derived from a pulse-per-second (PPS) signal,
 either indirectly via the PPS reference clock driver or directly
@@ -688,7 +688,7 @@ association.
 The names and values of the peer variables returned
 will be printed.
 Note that the status word from the header is
-displayed preceding the variables, both in hexidecimal and in
+displayed preceding the variables, both in hexadecimal and in
 pidgeon English.
 .It Ic readlist Ar assocID
 .It Ic rl Ar assocID
