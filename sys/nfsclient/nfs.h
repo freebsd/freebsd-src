@@ -113,6 +113,20 @@
  */
 #define NFS_NFSSTATS	1		/* struct: struct nfsstats */
 
+/*
+ * File context information for nfsv4.	Currently, there is only one
+ * lockowner for the whole machine "0."
+ */
+struct nfs4_fctx {
+	TAILQ_ENTRY(nfs4_fstate) next;
+
+	pid_t		pid;
+	uint32_t	refcnt;
+	struct nfs4_lowner *lop;
+	struct nfsnode *np;
+	char		stateid[NFSX_V4STATEID];
+};
+
 #ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
@@ -241,20 +255,6 @@ extern int nfs_debug;
 #define NFS_DPF(cat, args)
 
 #endif
-
-/*
- * File context information for nfsv4.	Currently, there is only one
- * lockowner for the whole machine "0."
- */
-struct nfs4_fctx {
-	TAILQ_ENTRY(nfs4_fstate) next;
-
-	pid_t		pid;
-	uint32_t	refcnt;
-	struct nfs4_lowner *lop;
-	struct nfsnode *np;
-	char		stateid[NFSX_V4STATEID];
-};
 
 vfs_init_t nfs_init;
 vfs_uninit_t nfs_uninit;
