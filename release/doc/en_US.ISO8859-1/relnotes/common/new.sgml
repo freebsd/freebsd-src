@@ -859,7 +859,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>IP multicast now works on VLAN devices.  Several other
 	bugs in the VLAN code have also been fixed.</para>
 
-      <para>A bug in the IPSec processing for IPv4, which caused the
+      <para>A bug in the IPsec processing for IPv4, which caused the
 	inbound SPD checks to be ignored, has been fixed. &merged;</para>
 
       <para>&man.ipfw.4; now filters correctly in the presence of ECN
@@ -1450,9 +1450,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  1933.  The <literal>IFF_LINK2</literal> interface flag can
 	  be used to control ingress filtering. &merged;</para>
 
-	<para><application>IPSec</application> has received some
+	<para><application>IPsec</application> has received some
 	  enhancements, including the ability to use the Rijndael and
-	  SHA2 algorithms.  IPSec RC5 support has been removed due to
+	  SHA2 algorithms.  IPsec RC5 support has been removed due to
 	  patent issues. &merged;</para>
 
 	<para>&man.stf.4; now conforms to RFC 3056; the
