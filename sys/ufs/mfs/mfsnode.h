@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfsnode.h	8.2 (Berkeley) 8/11/93
- * $Id$
+ * $Id: mfsnode.h,v 1.2 1994/08/02 07:54:46 davidg Exp $
  */
+
+#ifndef _UFS_MFS_MFSNODE_H_
+#define _UFS_MFS_MFSNODE_H_
 
 /*
  * This structure defines the control data for the memory based file system.
@@ -85,3 +88,5 @@ struct mfsnode {
 #define mfs_truncate ((int (*) __P((struct  vop_truncate_args *)))mfs_badop)
 #define mfs_update ((int (*) __P((struct  vop_update_args *)))mfs_badop)
 #define mfs_bwrite ((int (*) __P((struct  vop_bwrite_args *)))vn_bwrite)
+
+#endif

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_extern.h	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: mfs_extern.h,v 1.2 1994/08/02 07:54:42 davidg Exp $
  */
+
+#ifndef _UFS_MFS_MFS_EXTERN_H_
+#define _UFS_MFS_MFS_EXTERN_H_
 
 struct buf;
 struct mount;
@@ -59,3 +62,5 @@ int	mfs_start __P((struct mount *mp, int flags, struct proc *p));
 int	mfs_statfs __P((struct mount *mp, struct statfs *sbp, struct proc *p));
 int	mfs_strategy __P((struct vop_strategy_args *)); /* XXX */
 __END_DECLS
+
+#endif
