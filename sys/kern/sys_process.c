@@ -154,18 +154,21 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	vm_prot_t reqprot;
 	int error, writing;
 
-	GIANT_REQUIRED;
-
+	mtx_lock(&Giant);
 	/*
 	 * if the vmspace is in the midst of being deallocated or the
 	 * process is exiting, don't try to grab anything.  The page table
 	 * usage in that process can be messed up.
 	 */
 	vm = p->p_vmspace;
-	if ((p->p_flag & P_WEXIT))
+	if ((p->p_flag & P_WEXIT)) {
+		mtx_unlock(&Giant);
 		return (EFAULT);
-	if (vm->vm_refcnt < 1)
+	}
+	if (vm->vm_refcnt < 1) {
+		mtx_unlock(&Giant);
 		return (EFAULT);
+	}
 	++vm->vm_refcnt;
 	/*
 	 * The map we want...
@@ -274,6 +277,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	} while (error == 0 && uio->uio_resid > 0);
 
 	vmspace_free(vm);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -602,9 +606,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		uio.uio_segflg = UIO_SYSSPACE;	/* i.e.: the uap */
 		uio.uio_rw = write ? UIO_WRITE : UIO_READ;
 		uio.uio_td = td;
-		mtx_lock(&Giant);
 		error = proc_rwmem(p, &uio);
-		mtx_unlock(&Giant);
 		if (uio.uio_resid != 0) {
 			/*
 			 * XXX proc_rwmem() doesn't currently return ENOSPC,
@@ -645,9 +647,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		default:
 			return (EINVAL);
 		}
-		mtx_lock(&Giant);
 		error = proc_rwmem(p, &uio);
-		mtx_unlock(&Giant);
 		piod->piod_len -= uio.uio_resid;
 		return (error);
 

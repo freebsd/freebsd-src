@@ -1914,10 +1914,9 @@ ptrace_single_step(struct thread *td)
 	if (td->td_md.md_flags & (MDTD_STEP1|MDTD_STEP2))
 		panic("ptrace_single_step: step breakpoints not removed");
 
-	PROC_UNLOCK(td->td_proc);
 	error = ptrace_read_int(td, pc, &ins.bits);
 	if (error)
-		goto err;
+		return (error);
 
 	switch (ins.branch_format.opcode) {
 
@@ -1957,20 +1956,18 @@ ptrace_single_step(struct thread *td)
 	td->td_md.md_sstep[0].addr = addr[0];
 	error = ptrace_set_bpt(td, &td->td_md.md_sstep[0]);
 	if (error)
-		goto err;
+		return (error);
 	if (count == 2) {
 		td->td_md.md_sstep[1].addr = addr[1];
 		error = ptrace_set_bpt(td, &td->td_md.md_sstep[1]);
 		if (error) {
 			ptrace_clear_bpt(td, &td->td_md.md_sstep[0]);
-			goto err;
+			return (error);
 		}
 		td->td_md.md_flags |= MDTD_STEP2;
 	} else
 		td->td_md.md_flags |= MDTD_STEP1;
 
-err:
-	PROC_LOCK(td->td_proc);
 	return (error);
 }
 
