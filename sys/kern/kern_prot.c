@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.26 1997/03/03 23:02:43 ache Exp $
+ * $Id: kern_prot.c,v 1.27 1997/03/31 13:21:37 peter Exp $
  */
 
 /*
@@ -297,6 +297,18 @@ setpgid(curp, uap, retval)
 	return (enterpgrp(targp, uap->pgid, 0));
 }
 
+/*
+ * Use the clause in B.4.2.2 that allows setuid/setgid to be 4.2/4.3BSD
+ * compatable.  It says that setting the uid/gid to euid/egid is a special
+ * case of "appropriate privilege".  Once the rules are expanded out, this
+ * basically means that setuid(nnn) sets all three id's, in all permitted
+ * cases unless _POSIX_SAVED_IDS is enabled.  In that case, setuid(getuid())
+ * does not set the saved id - this is dangerous for traditional BSD
+ * programs.  For this reason, we *really* do not want to set
+ * _POSIX_SAVED_IDS and do not want to clear POSIX_APPENDIX_B_4_2_2.
+ */
+#define POSIX_APPENDIX_B_4_2_2
+
 #ifndef _SYS_SYSPROTO_H_
 struct setuid_args {
 	uid_t	uid;
@@ -313,37 +325,82 @@ setuid(p, uap, retval)
 	register uid_t uid;
 	int error;
 
+	/*
+	 * See if we have "permission" by POSIX 1003.1 rules.
+	 *
+	 * Note that setuid(geteuid()) is a special case of 
+	 * "appropriate privileges" in appendix B.4.2.2.  We need
+	 * to use this clause to be compatable with traditional BSD
+	 * semantics.  Basically, it means that "setuid(xx)" sets all
+	 * three id's (assuming you have privs).
+	 *
+	 * Notes on the logic.  We do things in three steps.
+	 * 1: We determine if the euid is going to change, and do EPERM
+	 *    right away.  We unconditionally change the euid later if this
+	 *    test is satisfied, simplifying that part of the logic.
+	 * 2: We determine if the real and/or saved uid's are going to
+	 *    change.  Determined by compile options.
+	 * 3: Change euid last. (after tests in #2 for "appropriate privs")
+	 */
 	uid = uap->uid;
-	if (uid != pc->p_ruid &&
+	if (uid != pc->p_ruid &&		/* allow setuid(getuid()) */
 #ifdef _POSIX_SAVED_IDS
-	    uid != pc->p_svuid &&
+	    uid != pc->p_svuid &&		/* allow setuid(saved gid) */
+#endif
+#ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
+	    uid != pc->pc_ucred->cr_uid &&	/* allow setuid(geteuid()) */
 #endif
 	    (error = suser(pc->pc_ucred, &p->p_acflag)))
 		return (error);
+
+#ifdef _POSIX_SAVED_IDS
 	/*
-	 * Everything's okay, do it.
-	 * Transfer proc count to new user.
-	 * Copy credentials so other references do not see our changes.
+	 * Do we have "appropriate privileges" (are we root or uid == euid)
+	 * If so, we are changing the real uid and/or saved uid.
 	 */
 	if (
-#ifdef _POSIX_SAVED_IDS
-	    pc->pc_ucred->cr_uid == 0 &&
+#ifdef POSIX_APPENDIX_B_4_2_2	/* Use the clause from B.4.2.2 */
+	    uid == pc->pc_ucred->cr_uid ||
 #endif
-	    uid != pc->p_ruid) {
-		(void)chgproccnt(pc->p_ruid, -1);
-		(void)chgproccnt(uid, 1);
+	    suser(pc->pc_ucred, &p->p_acflag) == 0) /* we are using privs */
+#endif
+	{
+		/*
+		 * Transfer proc count to new user.
+		 */
+		if (uid != pc->p_ruid) {
+			(void)chgproccnt(pc->p_ruid, -1);
+			(void)chgproccnt(uid, 1);
+		}
+		/*
+		 * Set real uid
+		 */
+		if (uid != pc->p_ruid) {
+			p->p_flag |= P_SUGID;
+			pc->p_ruid = uid;
+		}
+		/*
+		 * Set saved uid
+		 *
+		 * XXX always set saved uid even if not _POSIX_SAVED_IDS, as
+		 * the security of seteuid() depends on it.  B.4.2.2 says it
+		 * is important that we should do this.
+		 */
+		if (pc->p_svuid != uid) {
+			p->p_flag |= P_SUGID;
+			pc->p_svuid = uid;
+		}
 	}
-	pc->pc_ucred = crcopy(pc->pc_ucred);
-#ifdef _POSIX_SAVED_IDS
-	if (pc->pc_ucred->cr_uid == 0) {
-#endif
-		pc->p_ruid = uid;
-		pc->p_svuid = uid;
-#ifdef _POSIX_SAVED_IDS
+
+	/*
+	 * In all permitted cases, we are changing the euid.
+	 * Copy credentials so other references do not see our changes.
+	 */
+	if (pc->pc_ucred->cr_uid != uid) {
+		pc->pc_ucred = crcopy(pc->pc_ucred);
+		pc->pc_ucred->cr_uid = uid;
+		p->p_flag |= P_SUGID;
 	}
-#endif
-	pc->pc_ucred->cr_uid = uid;
-	p->p_flag |= P_SUGID;
 	return (0);
 }
 
@@ -393,24 +450,68 @@ setgid(p, uap, retval)
 	register gid_t gid;
 	int error;
 
+	/*
+	 * See if we have "permission" by POSIX 1003.1 rules.
+	 *
+	 * Note that setgid(getegid()) is a special case of
+	 * "appropriate privileges" in appendix B.4.2.2.  We need
+	 * to use this clause to be compatable with traditional BSD
+	 * semantics.  Basically, it means that "setgid(xx)" sets all
+	 * three id's (assuming you have privs).
+	 *
+	 * For notes on the logic here, see setuid() above.
+	 */
 	gid = uap->gid;
-	if (gid != pc->p_rgid &&
+	if (gid != pc->p_rgid &&		/* allow setgid(getgid()) */
 #ifdef _POSIX_SAVED_IDS
-	    gid != pc->p_svgid &&
+	    gid != pc->p_svgid &&		/* allow setgid(saved gid) */
+#endif
+#ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
+	    gid != pc->pc_ucred->cr_groups[0] && /* allow setgid(getegid()) */
 #endif
 	    (error = suser(pc->pc_ucred, &p->p_acflag)))
 		return (error);
-	pc->pc_ucred = crcopy(pc->pc_ucred);
-	pc->pc_ucred->cr_groups[0] = gid;
+
 #ifdef _POSIX_SAVED_IDS
-	if (pc->pc_ucred->cr_uid == 0) {
+	/*
+	 * Do we have "appropriate privileges" (are we root or gid == egid)
+	 * If so, we are changing the real uid and saved gid.
+	 */
+	if (
+#ifdef POSIX_APPENDIX_B_4_2_2	/* use the clause from B.4.2.2 */
+	    gid == pc->pc_ucred->cr_groups[0] ||
 #endif
-		pc->p_rgid = gid;
-		pc->p_svgid = gid;
-#ifdef _POSIX_SAVED_IDS
+	    suser(pc->pc_ucred, &p->p_acflag) == 0) /* we are using privs */
+#endif
+	{
+		/*
+		 * Set real gid
+		 */
+		if (pc->p_rgid != gid) {
+			p->p_flag |= P_SUGID;
+			pc->p_rgid = gid;
+		}
+		/*
+		 * Set saved gid
+		 *
+		 * XXX always set saved gid even if not _POSIX_SAVED_IDS, as
+		 * the security of setegid() depends on it.  B.4.2.2 says it
+		 * is important that we should do this.
+		 */
+		if (pc->p_svgid != gid) {
+			p->p_flag |= P_SUGID;
+			pc->p_svgid = gid;
+		}
 	}
-#endif
-	p->p_flag |= P_SUGID;
+	/*
+	 * In all cases permitted cases, we are changing the egid.
+	 * Copy credentials so other references do not see our changes.
+	 */
+	if (pc->pc_ucred->cr_groups[0] != gid) {
+		pc->pc_ucred = crcopy(pc->pc_ucred);
+		pc->pc_ucred->cr_groups[0] = gid;
+		p->p_flag |= P_SUGID;
+	}
 	return (0);
 }
 
