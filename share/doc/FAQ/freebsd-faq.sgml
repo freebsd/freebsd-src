@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.62 1996/08/25 21:11:46 wosch Exp $
+<date> $Id: freebsd-faq.sgml,v 1.63 1996/09/08 21:22:54 jfieber Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1456,7 +1456,7 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
         <heading>How do I configure INN (Internet News) for my machine?</heading>
         
         <p>After installing the inn package or port, the
-        <htmlurl url="http://elwing.unibe.ch/%7Eguggis/faqs/inn/inn-faq.home.html" name="INN FAQ"> may be an excellent place to start.
+        <htmlurl url="http://www.math.psu.edu/barr/INN.html" name="INN FAPage"> where you'll find the INN FAQ may be an excellent place to start.
 
     <sect>
       <heading>Miscellaneous Questions</heading>
