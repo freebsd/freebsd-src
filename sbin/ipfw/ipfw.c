@@ -47,11 +47,12 @@ struct nlist nl[]={
 	"" ,
 };
 
-typedef enum {
-    IPF_BLOCKING,
-    IPF_FORWARDING
-} ipf_kind;
+#define    IPF_FORWARDING 	0
+#define    IPF_BLOCKING 	1
 
+/*
+ * Global flags.
+ */
 int do_resolv=1;
 int do_verbose=0;
 
@@ -72,24 +73,24 @@ struct in_addr xaddr;
 
 void
 show_firewall_chain(chain)
-struct ip_firewall *chain;
+struct ip_fw *chain;
 {
 	    char *comma;
 	    u_long adrt;
 	    struct hostent *he;
 	    int i;
 
-	    if ( chain->flags & IP_FIREWALL_ACCEPT ) {
+	    if ( chain->flags & IP_FW_F_ACCEPT ) {
 		printf("accept ");
 	    } else {
 		printf("deny   ");
 	    }
 
-	    switch ( chain->flags & IP_FIREWALL_KIND ) {
-	    case IP_FIREWALL_ICMP: printf("icmp "); break;
-	    case IP_FIREWALL_TCP: printf("tcp  "); break;
-	    case IP_FIREWALL_UDP: printf("udp  "); break;
-	    case IP_FIREWALL_UNIVERSAL: printf("all  "); break;
+	    switch ( chain->flags & IP_FW_F_KIND ) {
+	    case IP_FW_F_ICMP: printf("icmp "); break;
+	    case IP_FW_F_TCP: printf("tcp  "); break;
+	    case IP_FW_F_UDP: printf("udp  "); break;
+	    case IP_FW_F_ALL: printf("all  "); break;
 	    default: break;
 	    }
 	    printf("from ");
@@ -114,9 +115,9 @@ struct ip_firewall *chain;
 		}
 
 	    comma = " ";
-	    for ( i = 0; i < chain->num_src_ports; i += 1 ) {
+	    for ( i = 0; i < chain->n_src_p; i += 1 ) {
 		printf("%s%d",comma,chain->ports[i]);
-		if ( i == 0 && (chain->flags & IP_FIREWALL_SRC_RANGE) ) {
+		if ( i == 0 && (chain->flags & IP_FW_F_SRNG) ) {
 		    comma = ":";
 		} else {
 		    comma = ",";
@@ -144,9 +145,9 @@ struct ip_firewall *chain;
 		}
 
 	    comma = " ";
-	    for ( i = 0; i < chain->num_dst_ports; i += 1 ) {
-		printf("%s%d",comma,chain->ports[chain->num_src_ports+i]);
-		if ( i == chain->num_src_ports && (chain->flags & IP_FIREWALL_DST_RANGE) ) {
+	    for ( i = 0; i < chain->n_dst_p; i += 1 ) {
+		printf("%s%d",comma,chain->ports[chain->n_src_p+i]);
+		if ( i == chain->n_src_p && (chain->flags & IP_FW_F_DRNG) ) {
 		    comma = ":";
 		} else {
 		    comma = ",";
@@ -161,7 +162,7 @@ list_kernel_data()
 {
 kvm_t *kd;
 static char errb[_POSIX2_LINE_MAX];
-struct ip_firewall b,*btmp;
+struct ip_fw b,*btmp;
 
  if ( (kd=kvm_openfiles(NULL,NULL,NULL,O_RDONLY,errb)) == NULL)
     {
@@ -174,21 +175,21 @@ struct ip_firewall b,*btmp;
       exit(1);
     }
 
-kvm_read(kd,(u_long)nl[N_BCHAIN].n_value,&b,sizeof(struct ip_firewall));
+kvm_read(kd,(u_long)nl[N_BCHAIN].n_value,&b,sizeof(struct ip_fw));
 printf("Blocking chain entries:\n");
 while(b.next!=NULL)
 {
  btmp=b.next;
- kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_firewall));
+ kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
  show_firewall_chain(&b);
 }
 
-kvm_read(kd,(u_long)nl[N_FCHAIN].n_value,&b,sizeof(struct ip_firewall));
+kvm_read(kd,(u_long)nl[N_FCHAIN].n_value,&b,sizeof(struct ip_fw));
 printf("Forwarding chain entries:\n");
 while(b.next!=NULL)
 {
  btmp=b.next;
- kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_firewall));
+ kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
  show_firewall_chain(&b);
 }
 }
@@ -273,18 +274,18 @@ show_parms(char **argv)
 }
 
 int
-get_protocol(char *arg,void (*cmd_usage)(ipf_kind),ipf_kind kind)
+get_protocol(char *arg,void (*cmd_usage)(int),int kind)
 {
     if ( arg == NULL ) {
 	fprintf(stderr,"ipfw: missing protocol name\n");
     } else if ( strcmp(arg, "tcp") == 0 ) {
-	return( IP_FIREWALL_TCP );
+	return( IP_FW_F_TCP );
     } else if ( strcmp(arg, "udp") == 0 ) {
-	return( IP_FIREWALL_UDP );
+	return( IP_FW_F_UDP );
     } else if ( strcmp(arg, "icmp") == 0 ) {
-	return( IP_FIREWALL_ICMP );
+	return( IP_FW_F_ICMP );
     } else if ( strcmp(arg, "all") == 0 ) {
-	return( IP_FIREWALL_UNIVERSAL );
+	return( IP_FW_F_ALL );
     } else {
 	fprintf(stderr,"illegal protocol name \"%s\"\n",arg);
     }
@@ -293,7 +294,7 @@ get_protocol(char *arg,void (*cmd_usage)(ipf_kind),ipf_kind kind)
 }
 
 void
-get_ipaddr(char *arg,struct in_addr *addr,struct in_addr *mask,void(*usage)(ipf_kind),ipf_kind kind)
+get_ipaddr(char *arg,struct in_addr *addr,struct in_addr *mask,void(*usage)(int),int kind)
 {
     char *p, *tbuf;
     int period_cnt, non_digit;
@@ -453,7 +454,7 @@ get_ipaddr(char *arg,struct in_addr *addr,struct in_addr *mask,void(*usage)(ipf_
 }
 
 u_short
-get_one_port(char *arg,void (*usage)(ipf_kind),ipf_kind kind,const char *proto_name)
+get_one_port(char *arg,void (*usage)(int),int kind,const char *proto_name)
 {
     int slen = strlen(arg);
 
@@ -492,7 +493,7 @@ get_one_port(char *arg,void (*usage)(ipf_kind),ipf_kind kind,const char *proto_n
 }
 
 int
-get_ports(char ***argv_ptr,u_short *ports,int min_ports,int max_ports,void (*usage)(ipf_kind),ipf_kind kind,const char *proto_name)
+get_ports(char ***argv_ptr,u_short *ports,int min_ports,int max_ports,void (*usage)(int),int kind,const char *proto_name)
 {
     int ix;
     char *arg;
@@ -565,14 +566,14 @@ get_ports(char ***argv_ptr,u_short *ports,int min_ports,int max_ports,void (*usa
 }
 
 void
-check_usage(ipf_kind kind)
+check_usage(int kind)
 {
     fprintf(stderr,"usage: ipfw check%s <expression>\n",
     kind == IPF_BLOCKING ? "blocking" : "forwarding");
 }
 
 void
-check(ipf_kind kind, int socket_fd, char **argv)
+check(int kind, int socket_fd, char **argv)
 {
     int protocol;
     struct ip *packet;
@@ -586,8 +587,8 @@ check(ipf_kind kind, int socket_fd, char **argv)
     proto_name = *argv++;
     protocol = get_protocol(proto_name,check_usage,kind);
     switch ( protocol ) {
-    case IP_FIREWALL_TCP: packet->ip_p = IPPROTO_TCP; break;
-    case IP_FIREWALL_UDP: packet->ip_p = IPPROTO_UDP; break;
+    case IP_FW_F_TCP: packet->ip_p = IPPROTO_TCP; break;
+    case IP_FW_F_UDP: packet->ip_p = IPPROTO_UDP; break;
     default:
 	fprintf(stderr,"ipfw:  can only check TCP or UDP packets\n");
 	break;
@@ -600,7 +601,7 @@ check(ipf_kind kind, int socket_fd, char **argv)
     if ( strcmp(*argv,"from") == 0 ) {
 	argv += 1;
 	get_ipaddr(*argv++,&packet->ip_src,NULL,check_usage,kind);
-	if ( protocol == IP_FIREWALL_TCP || protocol == IP_FIREWALL_UDP ) {
+	if ( protocol == IP_FW_F_TCP || protocol == IP_FW_F_UDP ) {
 	    get_ports(&argv,&((struct tcphdr *)(&packet[1]))->th_sport,1,1,check_usage,kind,proto_name);
 	    ((struct tcphdr *)(&packet[1]))->th_sport = htons(
 		((struct tcphdr *)(&packet[1]))->th_sport
@@ -618,7 +619,7 @@ check(ipf_kind kind, int socket_fd, char **argv)
     if ( strcmp(*argv,"to") == 0 ) {
 	argv += 1;
 	get_ipaddr(*argv++,&packet->ip_dst,NULL,check_usage,kind);
-	if ( protocol == IP_FIREWALL_TCP || protocol == IP_FIREWALL_UDP ) {
+	if ( protocol == IP_FW_F_TCP || protocol == IP_FW_F_UDP ) {
 	    get_ports(&argv,&((struct tcphdr *)(&packet[1]))->th_dport,1,1,check_usage,kind,proto_name);
 	    ((struct tcphdr *)(&packet[1]))->th_dport = htons(
 		((struct tcphdr *)(&packet[1]))->th_dport
@@ -658,17 +659,17 @@ check(ipf_kind kind, int socket_fd, char **argv)
 }
 
 void
-add_usage(ipf_kind kind)
+add_usage(int kind)
 {
     fprintf(stderr,"usage: ipfw add%s [accept|deny] <expression>\n",
     kind == IPF_BLOCKING ? "blocking" : "forwarding");
 }
 
 void
-add(ipf_kind kind, int socket_fd, char **argv)
+add(int kind, int socket_fd, char **argv)
 {
     int protocol, accept_firewall, src_range, dst_range;
-    struct ip_firewall firewall;
+    struct ip_fw firewall;
     char *proto_name;
 
 
@@ -680,7 +681,7 @@ add(ipf_kind kind, int socket_fd, char **argv)
     if ( strcmp(*argv,"deny") == 0 ) {
 	accept_firewall = 0;
     } else if ( strcmp(*argv,"accept") == 0 ) {
-	accept_firewall = IP_FIREWALL_ACCEPT;
+	accept_firewall = IP_FW_F_ACCEPT;
     } else {
 	add_usage(kind);
 	exit(1);
@@ -697,18 +698,18 @@ add(ipf_kind kind, int socket_fd, char **argv)
     if ( strcmp(*argv,"from") == 0 ) {
 	argv++;
 	get_ipaddr(*argv++,&firewall.src,&firewall.src_mask,add_usage,kind);
-	if ( protocol == IP_FIREWALL_TCP || protocol == IP_FIREWALL_UDP ) {
+	if ( protocol == IP_FW_F_TCP || protocol == IP_FW_F_UDP ) {
 	    int cnt;
-	    cnt = get_ports(&argv,&firewall.ports[0],0,IP_FIREWALL_MAX_PORTS,add_usage,kind,proto_name);
+	    cnt = get_ports(&argv,&firewall.ports[0],0,IP_FW_MAX_PORTS,add_usage,kind,proto_name);
 	    if ( cnt < 0 ) {
-		src_range = IP_FIREWALL_SRC_RANGE;
+		src_range = IP_FW_F_SRNG;
 		cnt = -cnt;
 	    } else {
 		src_range = 0;
 	    }
-	    firewall.num_src_ports = cnt;
+	    firewall.n_src_p = cnt;
 	} else {
-	    firewall.num_src_ports = 0;
+	    firewall.n_src_p = 0;
 	    src_range = 0;
 	}
     } else {
@@ -723,18 +724,18 @@ add(ipf_kind kind, int socket_fd, char **argv)
     if ( strcmp(*argv,"to") == 0 ) {
 	argv++;
 	get_ipaddr(*argv++,&firewall.dst,&firewall.dst_mask,add_usage,kind);
-	if ( protocol == IP_FIREWALL_TCP || protocol == IP_FIREWALL_UDP ) {
+	if ( protocol == IP_FW_F_TCP || protocol == IP_FW_F_UDP ) {
 	    int cnt;
-	    cnt = get_ports(&argv,&firewall.ports[firewall.num_src_ports],0,IP_FIREWALL_MAX_PORTS-firewall.num_src_ports,add_usage,kind,proto_name);
+	    cnt = get_ports(&argv,&firewall.ports[firewall.n_src_p],0,IP_FW_MAX_PORTS-firewall.n_src_p,add_usage,kind,proto_name);
 	    if ( cnt < 0 ) {
-		dst_range = IP_FIREWALL_DST_RANGE;
+		dst_range = IP_FW_F_DRNG;
 		cnt = -cnt;
 	    } else {
 		dst_range = 0;
 	    }
-	    firewall.num_dst_ports = cnt;
+	    firewall.n_dst_p = cnt;
 	} else {
-	    firewall.num_dst_ports = 0;
+	    firewall.n_dst_p = 0;
 	    dst_range = 0;
 	}
     } else {
@@ -746,7 +747,7 @@ add(ipf_kind kind, int socket_fd, char **argv)
 
 	firewall.flags = protocol | accept_firewall | src_range | dst_range;
 	if (do_verbose)
-		firewall.flags=firewall.flags | IP_FIREWALL_PRINT;
+		firewall.flags=firewall.flags | IP_FW_F_PRN;
 	(void)do_setsockopt( 
 	    socket_fd, IPPROTO_IP,
 	    kind == IPF_BLOCKING ? IP_FW_ADD_BLK : IP_FW_ADD_FWD,
@@ -764,17 +765,17 @@ add(ipf_kind kind, int socket_fd, char **argv)
 }
 
 void
-del_usage(ipf_kind kind)
+del_usage(int kind)
 {
     fprintf(stderr,"usage: ipfw del%s <expression>\n",
     kind == IPF_BLOCKING ? "blocking" : "forwarding");
 }
 
 void
-del(ipf_kind kind, int socket_fd, char **argv)
+del(int kind, int socket_fd, char **argv)
 {
     int protocol, accept_firewall, src_range, dst_range;
-    struct ip_firewall firewall;
+    struct ip_fw firewall;
     char *proto_name;
 
     if ( *argv == NULL ) {
@@ -785,7 +786,7 @@ del(ipf_kind kind, int socket_fd, char **argv)
     if ( strcmp(*argv,"deny") == 0 ) {
 	accept_firewall = 0;
     } else if ( strcmp(*argv,"accept") == 0 ) {
-	accept_firewall = IP_FIREWALL_ACCEPT;
+	accept_firewall = IP_FW_F_ACCEPT;
     } else {
 	fprintf(stderr,"ipfw: expected \"accept\" or \"deny\", got \"%s\"\n",*argv);
 	exit(1);
@@ -802,18 +803,18 @@ del(ipf_kind kind, int socket_fd, char **argv)
     if ( strcmp(*argv,"from") == 0 ) {
 	argv++;
 	get_ipaddr(*argv++,&firewall.src,&firewall.src_mask,del_usage,kind);
-	if ( protocol == IP_FIREWALL_TCP || protocol == IP_FIREWALL_UDP ) {
+	if ( protocol == IP_FW_F_TCP || protocol == IP_FW_F_UDP ) {
 	    int cnt;
-	    cnt = get_ports(&argv,&firewall.ports[0],0,IP_FIREWALL_MAX_PORTS,del_usage,kind,proto_name);
+	    cnt = get_ports(&argv,&firewall.ports[0],0,IP_FW_MAX_PORTS,del_usage,kind,proto_name);
 	    if ( cnt < 0 ) {
-		src_range = IP_FIREWALL_SRC_RANGE;
+		src_range = IP_FW_F_SRNG;
 		cnt = -cnt;
 	    } else {
 		src_range = 0;
 	    }
-	    firewall.num_src_ports = cnt;
+	    firewall.n_src_p = cnt;
 	} else {
-	    firewall.num_src_ports = 0;
+	    firewall.n_src_p = 0;
 	    src_range = 0;
 	}
     } else {
@@ -828,18 +829,18 @@ del(ipf_kind kind, int socket_fd, char **argv)
     if ( strcmp(*argv,"to") == 0 ) {
 	argv++;
 	get_ipaddr(*argv++,&firewall.dst,&firewall.dst_mask,del_usage,kind);
-	if ( protocol == IP_FIREWALL_TCP || protocol == IP_FIREWALL_UDP ) {
+	if ( protocol == IP_FW_F_TCP || protocol == IP_FW_F_UDP ) {
 	    int cnt;
-	    cnt = get_ports(&argv,&firewall.ports[firewall.num_src_ports],0,IP_FIREWALL_MAX_PORTS-firewall.num_src_ports,del_usage,kind,proto_name);
+	    cnt = get_ports(&argv,&firewall.ports[firewall.n_src_p],0,IP_FW_MAX_PORTS-firewall.n_src_p,del_usage,kind,proto_name);
 	    if ( cnt < 0 ) {
-		dst_range = IP_FIREWALL_DST_RANGE;
+		dst_range = IP_FW_F_DRNG;
 		cnt = -cnt;
 	    } else {
 		dst_range = 0;
 	    }
-	    firewall.num_dst_ports = cnt;
+	    firewall.n_dst_p = cnt;
 	} else {
-	    firewall.num_dst_ports = 0;
+	    firewall.n_dst_p = 0;
 	    dst_range = 0;
 	}
     } else {
@@ -925,7 +926,7 @@ int argc;
 char **argv;
 {
     int socket_fd;
-    struct ip_firewall *data,*fdata;
+    struct ip_fw *data,*fdata;
     char **str;
     extern char *optarg;
     extern int optind;
