@@ -99,6 +99,8 @@ main (int argc, char **argv)
 		rc = -1; /* assume ejected */
 	    else
 		rc = status (&trk, &m, &s, &f);
+	    if (standalone)
+		printf("status track minute second frame\n");
 	    printf ("%d %02d %d %d %d\n", rc, trk, m, s, f);
 	} else if (command("quit"))
 	    break;
