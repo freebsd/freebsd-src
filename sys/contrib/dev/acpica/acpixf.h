@@ -121,6 +121,7 @@
 #include "actypes.h"
 #include "actbl.h"
 
+
 /*
  * Global interfaces
  */
@@ -153,6 +154,23 @@ ACPI_STATUS
 AcpiFormatException (
     ACPI_STATUS             Exception,
     ACPI_BUFFER             *OutBuffer);
+
+
+/*
+ * ACPI Memory manager
+ */
+
+void *
+AcpiAllocate (
+    UINT32                  Size);
+
+void *
+AcpiCallocate (
+    UINT32                  Size);
+
+void
+AcpiFree (
+    void                    *Address);
 
 
 /*
@@ -197,14 +215,14 @@ AcpiWalkNamespace (
     ACPI_OBJECT_TYPE        Type,
     ACPI_HANDLE             StartObject,
     UINT32                  MaxDepth,
-    WALK_CALLBACK           UserFunction,
+    ACPI_WALK_CALLBACK      UserFunction,
     void                    *Context,
     void *                  *ReturnValue);
 
 ACPI_STATUS
 AcpiGetDevices (
     NATIVE_CHAR             *HID,
-    WALK_CALLBACK           UserFunction,
+    ACPI_WALK_CALLBACK      UserFunction,
     void                    *Context,
     void                    **ReturnValue);
 
@@ -256,52 +274,52 @@ AcpiGetParent (
 
 
 /*
- * AcpiEvent handler interfaces
+ * Event handler interfaces
  */
 
 ACPI_STATUS
 AcpiInstallFixedEventHandler (
     UINT32                  AcpiEvent,
-    FIXED_EVENT_HANDLER     Handler,
+    ACPI_EVENT_HANDLER      Handler,
     void                    *Context);
 
 ACPI_STATUS
 AcpiRemoveFixedEventHandler (
     UINT32                  AcpiEvent,
-    FIXED_EVENT_HANDLER     Handler);
+    ACPI_EVENT_HANDLER      Handler);
 
 ACPI_STATUS
 AcpiInstallNotifyHandler (
     ACPI_HANDLE             Device,
     UINT32                  HandlerType,
-    NOTIFY_HANDLER          Handler,
+    ACPI_NOTIFY_HANDLER     Handler,
     void                    *Context);
 
 ACPI_STATUS
 AcpiRemoveNotifyHandler (
     ACPI_HANDLE             Device,
     UINT32                  HandlerType,
-    NOTIFY_HANDLER          Handler);
+    ACPI_NOTIFY_HANDLER     Handler);
 
 ACPI_STATUS
 AcpiInstallAddressSpaceHandler (
     ACPI_HANDLE             Device,
-    ACPI_ADDRESS_SPACE_TYPE SpaceId,
-    ADDRESS_SPACE_HANDLER   Handler,
-    ADDRESS_SPACE_SETUP     Setup,
+    ACPI_ADR_SPACE_TYPE     SpaceId,
+    ACPI_ADR_SPACE_HANDLER  Handler,
+    ACPI_ADR_SPACE_SETUP    Setup,
     void                    *Context);
 
 ACPI_STATUS
 AcpiRemoveAddressSpaceHandler (
     ACPI_HANDLE             Device,
-    ACPI_ADDRESS_SPACE_TYPE SpaceId,
-    ADDRESS_SPACE_HANDLER   Handler);
+    ACPI_ADR_SPACE_TYPE     SpaceId,
+    ACPI_ADR_SPACE_HANDLER  Handler);
 
 ACPI_STATUS
 AcpiInstallGpeHandler (
     UINT32                  GpeNumber,
     UINT32                  Type,
-    GPE_HANDLER             Handler,
+    ACPI_GPE_HANDLER        Handler,
     void                    *Context);
 
 ACPI_STATUS
@@ -315,7 +333,7 @@ AcpiReleaseGlobalLock (
 ACPI_STATUS
 AcpiRemoveGpeHandler (
     UINT32                  GpeNumber,
-    GPE_HANDLER             Handler);
+    ACPI_GPE_HANDLER        Handler);
 
 ACPI_STATUS
 AcpiEnableEvent (
