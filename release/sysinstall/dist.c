@@ -119,6 +119,7 @@ static Distribution SrcDistTable[] = {
 { "ssys",	"/usr/src",		&SrcDists,	DIST_SRC_SYS,		NULL		},
 { "subin",	"/usr/src",		&SrcDists,	DIST_SRC_UBIN,		NULL		},
 { "susbin",	"/usr/src",		&SrcDists,	DIST_SRC_USBIN,		NULL		},
+{ "stools",	"/usr/src",		&SrcDists,	DIST_SRC_TOOLS,         NULL            },
 { NULL },
 };
 
