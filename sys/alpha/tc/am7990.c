@@ -1,4 +1,4 @@
-/* $Id: am7990.c,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
+/* $Id: am7990.c,v 1.2 1998/12/04 22:54:42 archie Exp $ */
 /*	$NetBSD: am7990.c,v 1.43 1998/03/29 22:36:42 mycroft Exp $	*/
 
 /*-
@@ -1459,7 +1459,7 @@ char *
 ether_sprintf(ap)
         register u_char *ap;
 {
-        register i;
+        int i;
         static char etherbuf[18];
         register char *cp = etherbuf;
 	static char digits[] = "0123456789abcdef";
