@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.45 1996/08/03 10:11:56 jkh Exp $
+ * $Id: tcpip.c,v 1.46 1996/09/01 08:17:14 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -236,6 +236,11 @@ tcpOpenDialog(Device *devp)
     char		help[FILENAME_MAX];
     char		title[80];
 
+    if (!RunningAsInit) {
+	if (isDebug())
+	    msgDebug("Running multi-user, assuming that the network is already up\n");
+	return DITEM_SUCCESS;
+    }
     save = savescr();
     dialog_clear_norefresh();
     /* We need a curses window */
@@ -521,14 +526,9 @@ tcpDeviceSelect(void)
 	msgConfirm("No network devices available!");
 	status = FALSE;
     }
-    else if (cnt == 1 || (!RunningAsInit && !Fake)) {
-	/* If we're running in user mode, assume network already up */
-	if (!RunningAsInit) {
-	    if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_FAILURE))
-		return FALSE;
-	}
-	else
-	    msgDebug("Running multi-user, assuming that the network is already up\n");
+    else if (cnt == 1) {
+	if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_FAILURE))
+	    return FALSE;
 	mediaDevice = devs[0];
 	status = TRUE;
     }
