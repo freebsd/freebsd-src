@@ -41,14 +41,19 @@
 # running sendmail to pick up the changes as well.
 #
 # ------------------------------------------------------------------------
-#
-# This makefile uses `<HOSTNAME>.mc' as the default .mc file.  This can
-# be changed by defining SENDMAIL_MC in /etc/make.conf, e.g.:
+# This Makefile uses `<HOSTNAME>.mc' as the default MTA .mc file.  This
+# can be changed by defining SENDMAIL_MC in /etc/make.conf, e.g.:
 #
 #		   SENDMAIL_MC=/etc/mail/myconfig.mc
 #
 # If '<HOSTNAME>.mc' does not exist, it is created using 'freebsd.mc'
 # as a template.
+#
+# It also uses 'freebsd.submit.mc' as the default mail submission .mc file.
+# This can be changed by defining SENDMAIL_SUBMIT_MC in /etc/make.conf,
+# e.g.:
+#
+#		   SENDMAIL_SUBMIT_MC=/etc/mail/mysubmit.mc
 # ------------------------------------------------------------------------
 #
 # The Makefile knows about the following maps:
@@ -64,7 +69,13 @@ ${SENDMAIL_MC}:
 	cp freebsd.mc ${SENDMAIL_MC}
 .endif
 
+SENDMAIL_SUBMIT_MC?=	freebsd.submit.mc
+
 INSTALL_CF=		${SENDMAIL_MC:R}.cf
+
+.ifndef SENDMAIL_SET_USER_ID
+INSTALL_SUBMIT_CF=	${SENDMAIL_SUBMIT_MC:R}.cf
+.endif
 
 SENDMAIL_ALIASES?=	/etc/mail/aliases
 
@@ -160,24 +171,35 @@ clean:
 
 depend:
 
-cf:		${INSTALL_CF}
+cf:		${INSTALL_CF} ${INSTALL_SUBMIT_CF}
 
-submit.cf:	submit.mc
+.ifdef SENDMAIL_SET_USER_ID
+install: install-cf
+.else
+install: install-cf install-submit-cf
+.endif
+
+install-cf:	${INSTALL_CF}
+.if ${INSTALL_CF} != /etc/mail/sendmail.cf
+	${INSTALL} -c -m ${SHAREMODE} ${INSTALL_CF} /etc/mail/sendmail.cf
+.endif
+
+
+install-submit-cf:	${INSTALL_SUBMIT_CF}
 .ifdef SENDMAIL_SET_USER_ID
 	@echo ">>> ERROR: You should not create a submit.cf file if you are using a"
 	@echo "           set-user-ID sendmail binary (SENDMAIL_SET_USER_ID is set"
 	@echo "           in make.conf)."
 	@false
+.else
+.if ${INSTALL_SUBMIT_CF} != /etc/mail/submit.cf
+	${INSTALL} -c -m ${SHAREMODE} ${INSTALL_SUBMIT_CF} /etc/mail/submit.cf
 .endif
-
-maps:		${SENDMAIL_MAP_OBJ}
+.endif
 
 aliases:	${SENDMAIL_ALIASES}.db
 
-install:	${INSTALL_CF}
-.if ${INSTALL_CF} != /etc/mail/sendmail.cf
-	${INSTALL} -c -m ${SHAREMODE} ${INSTALL_CF} /etc/mail/sendmail.cf
-.endif
+maps:		${SENDMAIL_MAP_OBJ}
 
 start start-mta start-mspq:
 	@if [ -r ${SENDMAIL_START_SCRIPT} ]; then \
