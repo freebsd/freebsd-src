@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.1 1995/05/04 19:48:10 jkh Exp $
+ * $Id: dist.c,v 1.2 1995/05/08 21:39:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,6 +45,11 @@
 
 unsigned int Dists;
 unsigned int SrcDists;
+unsigned int XF86Dists;
+unsigned int XF86ServerDists;
+unsigned int XF86FontDists;
+
+static int	distSetXF86(char *str);
 
 int
 distSetDeveloper(char *str)
@@ -59,6 +64,7 @@ distSetXDeveloper(char *str)
 {
     Dists = _DIST_XDEVELOPER;
     SrcDists = DIST_SRC_ALL;
+    distSetXF86(NULL);
     return 0;
 }
 
@@ -73,6 +79,7 @@ int
 distSetXUser(char *str)
 {
     Dists = _DIST_XUSER;
+    distSetXF86(NULL);
     return 0;
 }
 
@@ -88,37 +95,121 @@ distSetEverything(char *str)
 {
     Dists = DIST_ALL;
     SrcDists = DIST_SRC_ALL;
+    distSetXF86(NULL);
     return 0;
 }
 
-struct {
+int
+distSetSrc(char *str)
+{
+    extern DMenu MenuSrcDistributions;
+    int choice, scroll, curr, max;
+
+    choice = scroll = curr = max;
+    dmenuOpen(&MenuSrcDistributions, &choice, &scroll, &curr, &max);
+    if (SrcDists)
+	Dists |= DIST_SRC;
+    return 0;
+}
+
+static int
+distSetXF86(char *str)
+{
+    extern DMenu MenuXF86;
+    int choice, scroll, curr, max;
+
+    choice = scroll = curr = max;
+    dmenuOpen(&MenuXF86, &choice, &scroll, &curr, &max);
+    return 0;
+}
+
+static struct _dist {
     char *my_name;
     unsigned int my_bit;
 } DistTable[] = {
-{ "bin", DIST_BIN },
-{ "games", DIST_GAMES },
-{ "manpages", DIST_MANPAGES },
-{ "proflibs", DIST_PROFLIBS },
-{ "dict", DIST_DICT },
-{ "src", DIST_SRC },
-{ "des", DIST_DES },
-{ "compat1x", DIST_COMPAT1X },
-{ "xf86311l", DIST_XFREE86 },
-{ NULL, 0 },
+{ "bin",	DIST_BIN	},
+{ "games",	DIST_GAMES	},
+{ "manpages",	DIST_MANPAGES	},
+{ "proflibs",	DIST_PROFLIBS	},
+{ "dict",	DIST_DICT	},
+{ "src",	DIST_SRC	},
+{ "des",	DIST_DES	},
+{ "compat1x",	DIST_COMPAT1X	},
+{ "xf86311",	DIST_XF86	},
+{ NULL,		0		},
 };
 
-Boolean
+static struct _dist SrcDistTable[] = {
+{ "base",	DIST_SRC_BASE	},
+{ "gnu",	DIST_SRC_GNU	},
+{ "etc",	DIST_SRC_ETC	},
+{ "games",	DIST_SRC_GAMES	},
+{ "include",	DIST_SRC_INCLUDE},
+{ "lib",	DIST_SRC_LIB	},
+{ "libexec",	DIST_SRC_LIBEXEC},
+{ "lkm",	DIST_SRC_LKM	},
+{ "release",	DIST_SRC_RELEASE},
+{ "sbin",	DIST_SRC_SBIN	},
+{ "share",	DIST_SRC_SHARE	},
+{ "sys",	DIST_SRC_SYS	},
+{ "ubin",	DIST_SRC_UBIN	},
+{ "usbin",	DIST_SRC_USBIN	},
+{ NULL,		0		},
+};
+
+static struct _dist XFree86DistTable[] = {
+{ "bin",	DIST_XF86_BIN	},
+{ "lib",	DIST_XF86_LIB	},
+{ "doc",	DIST_XF86_DOC	},
+{ "man",	DIST_XF86_MAN	},
+{ "prog",	DIST_XF86_PROG	},
+{ "link",	DIST_XF86_LINK	},
+{ "pex",	DIST_XF86_PEX	},
+{ "lbx",	DIST_XF86_LBX	},
+{ "xicf",	DIST_XF86_XINIT	},
+{ "xdmcf",	DIST_XF86_XDMCF	},
+{ NULL,		0		},
+};
+
+static struct _dist XFree86ServerDistTable[] = {
+{ "8514",	DIST_XF86_SERVER_8514	},
+{ "AGX",	DIST_XF86_SERVER_AGX	},
+{ "Mch3",	DIST_XF86_SERVER_MACH32	},
+{ "Mch8",	DIST_XF86_SERVER_MACH8	},
+{ "Mono",	DIST_XF86_SERVER_MONO	},
+{ "P9K",	DIST_XF86_SERVER_P9000	},
+{ "S3",		DIST_XF86_SERVER_S3	},
+{ "SVGA",	DIST_XF86_SERVER_SVGA	},
+{ "VGA16",	DIST_XF86_SERVER_VGA16	},
+{ "W32",	DIST_XF86_SERVER_W32	},
+{ "nest",	DIST_XF86_SERVER_NEST	},
+{ NULL,		0		},
+};
+
+static struct _dist XFree86FontDistTable[] = {
+{ "fnts",	DIST_XF86_FONTS_MISC	},
+{ "f100",	DIST_XF86_FONTS_100	},
+{ "fscl",	DIST_XF86_FONTS_SCALE	},
+{ "fnon",	DIST_XF86_FONTS_NON	},
+{ "fsrv",	DIST_XF86_FONTS_SERVER	},
+};
+
+static Boolean
 dist_extract(char *name)
 {
-    int fd;
-
+    if (!strcmp(name, "src")) {
+    }
+    else if (!strcmp(name, "xf86311l")) {
+    }
+    else {
+    }
     return FALSE;
 }
     
 void
 distExtractAll(void)
 {
-    int i, fd;
+    int i;
 
     while (Dists) {
 	for (i = 0; DistTable[i].my_name; i++) {
