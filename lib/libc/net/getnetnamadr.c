@@ -88,7 +88,7 @@ getnetbyaddr(u_long addr, int af)
 		{ 0 }
 	};       
 
-	rval = nsdispatch((void *)&hp, dtab, NSDB_HOSTS, "getnetbyaddr",
+	rval = nsdispatch((void *)&hp, dtab, NSDB_NETWORKS, "getnetbyaddr",
 			  default_src, addr, af);
 
 	if (rval != NS_SUCCESS)
