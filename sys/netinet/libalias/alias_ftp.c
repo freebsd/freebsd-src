@@ -14,6 +14,10 @@
     changes of sequence and acknowledgment numbers, since the client
     machine is totally unaware of the modification to the TCP stream.
 
+    This version also supports the EPRT command, which is functionally
+    equivalent to the PORT command, but was designed to support both
+    IPv4 and IPv6 addresses.  See RFC 2428 for specifications.
+
 
     This software is placed into the public domain with no restrictions
     on its distribution.
@@ -25,13 +29,13 @@
          error for modified IP packets.
 
     Version 1.7:  January 9, 1996 (cjm)
-         Differental checksum computation for change
+         Differential checksum computation for change
          in IP packet length.
    
     Version 2.1:  May, 1997 (cjm)
          Very minor changes to conform with
          local/global/function naming conventions
-         withing the packet alising module.
+         within the packet aliasing module.
 
     See HISTORY file for record of revisions.
 
@@ -50,7 +54,9 @@
 
 #include "alias_local.h"
 
-static void NewFtpPortCommand(struct ip *, struct alias_link *, struct in_addr, u_short, int);
+static int  ParseFtpPortCommand(char *, int, struct ip *, struct alias_link *, int);
+static void ParseFtpEprtCommand(char *, int, struct ip *, struct alias_link *, int);
+static void NewFtpPortCommand(struct ip *, struct alias_link *, struct in_addr, u_short, int, int);
 
 
 
@@ -61,8 +67,6 @@ struct alias_link *link, /* The link to go through (aliased port) */
 int maxpacketsize  /* The maximum size this packet can grow to (including headers) */)
 {
     int hlen, tlen, dlen;
-    struct in_addr true_addr;
-    u_short true_port;
     char *sptr;
     struct tcphdr *tc;
         
@@ -72,7 +76,7 @@ int maxpacketsize  /* The maximum size this packet can grow to (including header
     tlen = ntohs(pip->ip_len);
     dlen = tlen - hlen;
 
-/* Return is data length is too long or too short */
+/* Return if data length is too long or too short */
     if (dlen<10 || dlen>80)
         return;
 
@@ -81,58 +85,152 @@ int maxpacketsize  /* The maximum size this packet can grow to (including header
     sptr += hlen;
 
 /* Parse through string using state diagram method */
+    if (!ParseFtpPortCommand(sptr, dlen, pip, link, maxpacketsize))
+	ParseFtpEprtCommand(sptr, dlen, pip, link, maxpacketsize);
+}
+
+static int
+ParseFtpPortCommand(
+char *sptr,
+int dlen,
+struct ip *pip,	  /* IP packet to examine/patch */
+struct alias_link *link, /* The link to go through (aliased port) */
+int maxpacketsize  /* The maximum size this packet can grow to (including headers) */)
+{
+    struct in_addr true_addr;
+    u_short true_port;
+    char ch;
+    int i, state;
+    u_long a1, a2, a3, a4;
+    u_short p1, p2; 
+
+    a1=0; a2=0; a3=0; a4=0; p1=0; p2=0;
+    state=-4;
+    for (i=0; i<dlen; i++)
     {
-        char ch, zero;
-        int i, state;
-        u_long a1, a2, a3, a4;
-        u_short p1, p2; 
+	ch = sptr[i];
+	switch (state)
+	{
+	case -4: if (ch == 'P') state++; else return 0; break;
+	case -3: if (ch == 'O') state++; else return 0; break;
+	case -2: if (ch == 'R') state++; else return 0; break;
+	case -1: if (ch == 'T') state++; else return 0; break;
 
-        a1=0; a2=0; a3=0; a4=0; p1=0; p2=0;
-        zero = '0';
-        state=-4;
-        for (i=0; i<dlen; i++)
-        {
-            ch = sptr[i];
-            switch (state)
-            {
-                case -4: if (ch == 'P') state=-3; else return; break;
-                case -3: if (ch == 'O') state=-2; else return; break;
-                case -2: if (ch == 'R') state=-1; else return; break;
-                case -1: if (ch == 'T') state= 0; else return; break;
+	case 0 :
+	    if (isdigit(ch)) {a1=ch-'0'; state++;} break;
+	case 1 :
+	    if (isdigit(ch)) a1=10*a1+ch-'0'; else state++; break;
+	case 2 :
+	    if (isdigit(ch)) {a2=ch-'0'; state++;} break;
+	case 3 :
+	    if (isdigit(ch)) a2=10*a2+ch-'0'; else state++; break;
+	case 4 :
+	    if (isdigit(ch)) {a3=ch-'0'; state++;} break;
+	case 5 :
+	    if (isdigit(ch)) a3=10*a3+ch-'0'; else state++; break;
+	case 6 :
+	    if (isdigit(ch)) {a4=ch-'0'; state++;} break;
+	case 7 :
+	    if (isdigit(ch)) a4=10*a4+ch-'0'; else state++; break;
+	case 8 :
+	    if (isdigit(ch)) {p1=ch-'0'; state++;} break;
+	case 9 :
+	    if (isdigit(ch)) p1=10*p1+ch-'0'; else state++; break;
+	case 10:
+	    if (isdigit(ch)) {p2=ch-'0'; state++;} break;
+	case 11:
+	    if (isdigit(ch)) p2=10*p2+ch-'0'; break;
+	}
+    }
 
-                case 0 :
-                    if (isdigit(ch)) {a1=ch-zero; state=1 ;} break;
-                case 1 :
-                    if (isdigit(ch)) a1=10*a1+ch-zero; else state=2 ; break;
-                case 2 :
-                    if (isdigit(ch)) {a2=ch-zero; state=3 ;} break;
-                case 3 :
-                    if (isdigit(ch)) a2=10*a2+ch-zero; else state=4 ; break;
-                case 4 :
-                    if (isdigit(ch)) {a3=ch-zero; state=5 ;} break;
-                case 5 :
-                    if (isdigit(ch)) a3=10*a3+ch-zero; else state=6 ; break;
-                case 6 :
-                    if (isdigit(ch)) {a4=ch-zero; state=7 ;} break;
-                case 7 :
-                    if (isdigit(ch)) a4=10*a4+ch-zero; else state=8 ; break;
-                case 8 :
-                    if (isdigit(ch)) {p1=ch-zero; state=9 ;} break;
-                case 9 :
-                    if (isdigit(ch)) p1=10*p1+ch-zero; else state=10; break;
-                case 10:
-                    if (isdigit(ch)) {p2=ch-zero; state=11;} break;
-                case 11:
-                    if (isdigit(ch)) p2=10*p2+ch-zero; break;
-            }
-        }
+    if (state == 11)
+    {
+	true_port = htons((p1<<8) + p2);
+	true_addr.s_addr = htonl((a1<<24) + (a2<<16) +(a3<<8) + a4);
+	NewFtpPortCommand(pip, link, true_addr, true_port, maxpacketsize, 0);
+	return 1;
+    }
+    else
+	return 0;
+}
 
-        if (state == 11)
-        {
-            true_port = htons((p1<<8) + p2);
-            true_addr.s_addr = htonl((a1<<24) + (a2<<16) +(a3<<8) + a4);
-            NewFtpPortCommand(pip, link, true_addr, true_port, maxpacketsize);
-        }
+static void
+ParseFtpEprtCommand(
+char *sptr,
+int dlen,
+struct ip *pip,	  /* IP packet to examine/patch */
+struct alias_link *link, /* The link to go through (aliased port) */
+int maxpacketsize  /* The maximum size this packet can grow to (including headers) */)
+{
+    struct in_addr true_addr;
+    u_short true_port;
+    char ch, delim;
+    int i, state;
+    u_long a1, a2, a3, a4;
+    u_short pt;
+
+    a1=0; a2=0; a3=0; a4=0; pt=0;
+    delim='|';				/* XXX gcc -Wuninitialized */
+    state=-4;
+    for (i=0; i<dlen; i++)
+    {
+	ch = sptr[i];
+	switch (state)
+	{
+	case -4: if (ch == 'E') state++; else return; break;
+	case -3: if (ch == 'P') state++; else return; break;
+	case -2: if (ch == 'R') state++; else return; break;
+	case -1: if (ch == 'T') state++; else return; break;
+
+	case 0 :
+	    if (!isspace(ch)) {delim=ch; state++;} break;
+	case 1 :
+	    if (ch=='1') /* IPv4 address */ state++; else return; break;
+	case 2 :
+	    if (ch==delim) state++; else return; break;
+	case 3 :
+	    if (isdigit(ch)) {a1=ch-'0'; state++;} else return; break;
+	case 4 :
+	    if (isdigit(ch)) a1=10*a1+ch-'0';
+	    else if (ch=='.') state++;
+	    else return;
+	    break;
+	case 5 :
+	    if (isdigit(ch)) {a2=ch-'0'; state++;} else return; break;
+	case 6 :
+	    if (isdigit(ch)) a2=10*a2+ch-'0';
+	    else if (ch=='.') state++;
+	    else return;
+	    break;
+	case 7:
+	    if (isdigit(ch)) {a3=ch-'0'; state++;} else return; break;
+	case 8 :
+	    if (isdigit(ch)) a3=10*a3+ch-'0';
+	    else if (ch=='.') state++;
+	    else return;
+	    break;
+	case 9 :
+	    if (isdigit(ch)) {a4=ch-'0'; state++;} else return; break;
+	case 10:
+	    if (isdigit(ch)) a4=10*a4+ch-'0';
+	    else if (ch==delim) state++;
+	    else return;
+	    break;
+	case 11:
+	    if (isdigit(ch)) {pt=ch-'0'; state++;} else return; break;
+	case 12:
+	    if (isdigit(ch)) pt=10*pt+ch-'0';
+	    else if (ch==delim) state++;
+	    else return;
+	    break;
+	}
+    }
+
+    if (state == 13)
+    {
+	true_port = htons(pt);
+	true_addr.s_addr = htonl((a1<<24) + (a2<<16) +(a3<<8) + a4);
+	NewFtpPortCommand(pip, link, true_addr, true_port, maxpacketsize, 1);
     }
 }
 
@@ -141,7 +239,8 @@ NewFtpPortCommand(struct ip *pip,
                   struct alias_link *link,
                   struct in_addr true_addr,
                   u_short true_port,
-                  int maxpacketsize)
+                  int maxpacketsize,
+                  int is_eprt)
 { 
     struct alias_link *ftp_link;
 
@@ -179,14 +278,21 @@ NewFtpPortCommand(struct ip *pip,
             ptr = (u_char *) &alias_address.s_addr;
             a1 = *ptr++; a2=*ptr++; a3=*ptr++; a4=*ptr;
 
-/* Decompose alias port into pair format */
-            alias_port = GetAliasPort(ftp_link);
-            ptr = (char *) &alias_port;
-            p1 = *ptr++; p2=*ptr;
+	    alias_port = GetAliasPort(ftp_link);
 
-/* Generate command string */
-            sprintf(stemp, "PORT %d,%d,%d,%d,%d,%d\r\n",
-                     a1,a2,a3,a4,p1,p2);
+	    if (is_eprt) {
+/* Generate EPRT command string */
+		sprintf(stemp, "EPRT |1|%d.%d.%d.%d|%d|\r\n",
+			a1,a2,a3,a4,ntohs(alias_port));
+	    } else {
+/* Decompose alias port into pair format */
+		ptr = (char *) &alias_port;
+		p1 = *ptr++; p2=*ptr;
+
+/* Generate PORT command string */
+		sprintf(stemp, "PORT %d,%d,%d,%d,%d,%d\r\n",
+			a1,a2,a3,a4,p1,p2);
+	    }
 
 /* Save string length for IP header modification */
             slen = strlen(stemp);
