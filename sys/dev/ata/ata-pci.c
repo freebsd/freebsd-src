@@ -173,9 +173,11 @@ ata_pci_match(device_t dev)
 
     case 0x0d30105a:
     case 0x4d30105a:
+	return "Promise ATA100 controller";
+
     case 0x4d68105a:
     case 0x6268105a:
-	return "Promise ATA100 controller";
+	return "Promise TX2 ATA100 controller";
 
     case 0x00041103:
 	switch (pci_get_revid(dev)) {
@@ -278,15 +280,13 @@ ata_pci_attach(device_t dev)
 			 (pci_read_config(dev, 0x53, 1) & ~0x01) | 0x02, 1);
 	break;
 
-    case 0x4d38105a: /* Promise 66 & 100 need their clock changed */
+    case 0x4d38105a: /* Promise 66 & 100 (before TX2) need the clock changed */
     case 0x4d30105a:
     case 0x0d30105a:
-    case 0x4d68105a:
-    case 0x6268105a:
 	ATA_OUTB(sc->bmio, 0x11, ATA_INB(sc->bmio, 0x11) | 0x0a);
 	/* FALLTHROUGH */
 
-    case 0x4d33105a: /* Promise (all) need burst mode to be turned on */
+    case 0x4d33105a: /* Promise (before TX2) need burst mode turned on */
 	ATA_OUTB(sc->bmio, 0x1f, ATA_INB(sc->bmio, 0x1f) | 0x01);
 	break;
 

@@ -1045,8 +1045,6 @@ promise_timing(struct ata_softc *scp, int devno, int mode)
     case 0x4d38105a:  /* Promise Ultra/Fasttrak 66 */
     case 0x4d30105a:  /* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:  /* Promise OEM ATA 100 */
-    case 0x4d68105a:  /* Promise TX2 ATA 100 */
-    case 0x6268105a:  /* Promise TX2v2 ATA 100 */
 	switch (mode) {
 	default:
 	case ATA_PIO0:  t->pa = 15; t->pb = 31; t->mb = 7; t->mc = 15; break;
@@ -1060,6 +1058,10 @@ promise_timing(struct ata_softc *scp, int devno, int mode)
 	case ATA_UDMA5: t->pa =  3; t->pb =  7; t->mb = 1; t->mc =  1; break;
 	}
 	break;
+
+    case 0x4d68105a:  /* Promise TX2 ATA 100 */
+    case 0x6268105a:  /* Promise TX2v2 ATA 100 */
+	return;
     }
     pci_write_config(device_get_parent(scp->dev), 0x60 + (devno<<2), timing, 4);
 }
