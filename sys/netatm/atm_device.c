@@ -237,8 +237,8 @@ void
 atm_dev_lower(cmd, tok, arg1, arg2)
 	int	cmd;
 	void	*tok;
-	int	arg1;
-	int	arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 	Cmn_vcc		*cvp = (Cmn_vcc *)tok;
 	Atm_connvc	*cvcp = cvp->cv_connvc;
@@ -324,7 +324,7 @@ atm_dev_lower(cmd, tok, arg1, arg2)
 			 */
 			KB_DATASTART(m, ip, int *);
 			ip++;
-			if (*ip == (int)cvp) {
+			if (*ip == (intptr_t)cvp) {
 				/*
 				 * Yep, so dequeue the entry
 				 */
@@ -499,7 +499,7 @@ atm_dev_alloc(size, align, flags)
 	/*
 	 * Calculate correct alignment address to pass back to user
 	 */
-	mep->me_uaddr = (void *) roundup((u_int)mep->me_kaddr, align);
+	mep->me_uaddr = (void *) roundup((uintptr_t)mep->me_kaddr, align);
 	mep->me_ksize = ksize;
 	mep->me_flags = flags;
 

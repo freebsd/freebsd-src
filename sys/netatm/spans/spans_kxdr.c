@@ -678,5 +678,5 @@ xdrmbuf_getpos(xdrs)
 	register XDR *xdrs;
 {
 
-	return ((u_int)xdrs->x_private - (u_int)xdrs->x_base);
+	return ((uintptr_t)xdrs->x_private - (uintptr_t)xdrs->x_base);
 }

@@ -69,9 +69,9 @@ struct atm_cm_stat	atm_cm_stat = {0};
 /*
  * Local functions
  */
-static void		atm_cm_cpcs_upper(int, void *, int, int);
-static void		atm_cm_saal_upper(int, void *, int, int);
-static void		atm_cm_sscop_upper(int, void *, int, int);
+static void		atm_cm_cpcs_upper(int, void *, intptr_t, intptr_t);
+static void		atm_cm_saal_upper(int, void *, intptr_t, intptr_t);
+static void		atm_cm_sscop_upper(int, void *, intptr_t, intptr_t);
 static Atm_connvc *	atm_cm_share_llc(Atm_attributes *);
 static void		atm_cm_closeconn(Atm_connection *,
 				struct t_atm_cause *);
@@ -165,7 +165,7 @@ atm_cm_connect(epp, token, ap, copp)
 	struct atm_pif	*pip;
 	struct sigmgr	*smp;
 	struct stack_list	sl;
-	void		(*upf)(int, void *, int, int);
+	void		(*upf)(int, void *, intptr_t, intptr_t);
 	int		s, sli, err, err2;
 
 	*copp = NULL;
@@ -1432,7 +1432,7 @@ atm_cm_connected(cvp)
 		/*
 		 * Currently only supported for CPCS API
 		 */
-		atm_cm_cpcs_upper(CPCS_UNITDATA_SIG, cvp, (int)m, 0);
+		atm_cm_cpcs_upper(CPCS_UNITDATA_SIG, cvp, (intptr_t)m, 0);
 	}
 
 	return;
@@ -1761,7 +1761,7 @@ atm_cm_accept(cvp, cop)
 	Atm_connection	*cop;
 {
 	struct stack_list	sl;
-	void		(*upf)(int, void *, int, int);
+	void		(*upf)(int, void *, intptr_t, intptr_t);
 	int		sli, err, err2;
 
 
@@ -2810,7 +2810,7 @@ atm_cm_cpcs_data(cop, m)
 	 * Finally, we can send the packet on its way
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, cvp->cvc_lower, cvp->cvc_tokl, 
-		cvp, (int)m, 0, err);
+		cvp, (intptr_t)m, 0, err);
 
 done:
 	return (err);
@@ -2837,8 +2837,8 @@ static void
 atm_cm_cpcs_upper(cmd, tok, arg1, arg2)
 	int		cmd;
 	void		*tok;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 	Atm_connection	*cop;
 	Atm_connvc	*cvp = tok;
@@ -3017,7 +3017,7 @@ atm_cm_saal_ctl(cmd, cop, arg)
 		 * Pass command down the stack
 		 */
 		STACK_CALL(cmd, cvp->cvc_lower, cvp->cvc_tokl, cvp, 
-			(int)arg, 0, err);
+			(intptr_t)arg, 0, err);
 		break;
 
 	default:
@@ -3077,7 +3077,7 @@ atm_cm_saal_data(cop, m)
 	 * Finally, we can send the packet on its way
 	 */
 	STACK_CALL(SSCF_UNI_DATA_REQ, cvp->cvc_lower, cvp->cvc_tokl, 
-		cvp, (int)m, 0, err);
+		cvp, (intptr_t)m, 0, err);
 
 done:
 	return (err);
@@ -3104,8 +3104,8 @@ static void
 atm_cm_saal_upper(cmd, tok, arg1, arg2)
 	int		cmd;
 	void		*tok;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 	Atm_connection	*cop;
 	Atm_connvc	*cvp = tok;
@@ -3221,7 +3221,7 @@ atm_cm_sscop_ctl(cmd, cop, arg1, arg2)
 		 * Pass command down the stack
 		 */
 		STACK_CALL(cmd, cvp->cvc_lower, cvp->cvc_tokl, cvp, 
-			(int)arg1, (int)arg2, err);
+			(intptr_t)arg1, (intptr_t)arg2, err);
 		break;
 
 	default:
@@ -3281,7 +3281,7 @@ atm_cm_sscop_data(cop, m)
 	 * Finally, we can send the packet on its way
 	 */
 	STACK_CALL(SSCOP_DATA_REQ, cvp->cvc_lower, cvp->cvc_tokl, 
-		cvp, (int)m, 0, err);
+		cvp, (intptr_t)m, 0, err);
 
 done:
 	return (err);
@@ -3308,8 +3308,8 @@ static void
 atm_cm_sscop_upper(cmd, tok, arg1, arg2)
 	int		cmd;
 	void		*tok;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 	Atm_connection	*cop;
 	Atm_connvc	*cvp = tok;

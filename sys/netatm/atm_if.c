@@ -960,7 +960,7 @@ atm_nif_setaddr(nip, ifa)
 	 * Notify convergence modules of network i/f change
 	 */
 	for (ncp = atm_netconv_head; ncp; ncp = ncp->ncm_next) {
-		err = (*ncp->ncm_stat)(NCM_SETADDR, nip, (int)ifa);
+		err = (*ncp->ncm_stat)(NCM_SETADDR, nip, (intptr_t)ifa);
 		if (err)
 			break;
 	}

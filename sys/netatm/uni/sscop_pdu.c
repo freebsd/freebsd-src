@@ -130,7 +130,7 @@ sscop_send_bgn(sop, source)
 	 * Send PDU towards peer
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl,
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 
 	if (err)
 		KB_FREEALL(m);
@@ -188,7 +188,7 @@ sscop_send_bgak(sop)
 	 * Send PDU towards peer
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl,
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 
 	if (err)
 		KB_FREEALL(m);
@@ -245,7 +245,7 @@ sscop_send_bgrej(sop)
 	 * Send PDU towards peer
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl,
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 
 	if (err)
 		KB_FREEALL(m);
@@ -312,7 +312,7 @@ sscop_send_end(sop, source)
 	 * Send PDU towards peer
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl,
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 
 	if (err)
 		KB_FREEALL(m);
@@ -383,7 +383,7 @@ sscop_send_endak(sop)
 	 * Send PDU towards peer
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl,
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 
 	if (err)
 		KB_FREEALL(m);
@@ -446,7 +446,7 @@ sscop_send_rs(sop)
 	 * Send PDU towards peer
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl,
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 
 	if (err)
 		KB_FREEALL(m);
@@ -517,7 +517,7 @@ sscop_send_rsak(sop)
 	 * Send PDU towards peer
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl,
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 
 	if (err)
 		KB_FREEALL(m);
@@ -574,7 +574,7 @@ sscop_send_er(sop)
 	 * Send PDU towards peer
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl,
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 
 	if (err)
 		KB_FREEALL(m);
@@ -631,7 +631,7 @@ sscop_send_erak(sop)
 	 * Send PDU towards peer
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl,
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 
 	if (err)
 		KB_FREEALL(m);
@@ -687,7 +687,7 @@ sscop_send_poll(sop)
 	 * Send PDU towards peer
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl,
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 
 	if (err)
 		KB_FREEALL(m);
@@ -856,7 +856,7 @@ sscop_stat_end(sop, nps, head, m)
 	 * Finally, send the STAT
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl,
-		sop->so_connvc, (int)head, 0, err);
+		sop->so_connvc, (intptr_t)head, 0, err);
 
 	if (err) {
 		/*
@@ -1125,7 +1125,7 @@ sscop_send_ustat(sop, ns)
 	 * Send PDU towards peer
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl,
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 
 	if (err)
 		KB_FREEALL(m);
@@ -1215,7 +1215,7 @@ sscop_send_ud(sop, m)
 	 * Now pass PDU down the stack
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl, 
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 	if (err) {
 		KB_FREEALL(m);
 		return (1);

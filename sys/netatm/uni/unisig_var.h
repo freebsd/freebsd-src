@@ -56,7 +56,7 @@ struct	unisig {
 	struct siginst	us_inst;	/* Header */
 	struct atm_time	us_time;	/* Timer controls */
 	void		(*us_lower)	/* Lower command handler */
-				(int, void *, int, int);
+				(int, void *, intptr_t, intptr_t);
 	Atm_connection	*us_conn;	/* Signalling connection */
 	int		us_cref;	/* Call reference allocation */
 	u_int		us_retry;	/* Protocol retry count */

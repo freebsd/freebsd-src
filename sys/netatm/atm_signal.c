@@ -431,7 +431,7 @@ int
 atm_create_stack(cvp, tlp, upf)
 	Atm_connvc		*cvp;
 	struct stack_list	*tlp;
-	void			(*upf)(int, void *, int, int);
+	void			(*upf)(int, void *, intptr_t, intptr_t);
 {
 	struct stack_defn	*sdp, usd;
 	struct stack_inst	svs;

@@ -70,8 +70,8 @@ __RCSID("@(#) $FreeBSD$");
 void
 sscop_estreq_idle(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 
 	/*
@@ -137,8 +137,8 @@ sscop_estreq_idle(sop, arg1, arg2)
 void
 sscop_estrsp_inconn(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 
 	/*
@@ -218,8 +218,8 @@ sscop_estrsp_inconn(sop, arg1, arg2)
 void
 sscop_relreq_outconn(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 
 	/*
@@ -279,8 +279,8 @@ sscop_relreq_outconn(sop, arg1, arg2)
 void
 sscop_relreq_inconn(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 
 	/*
@@ -318,8 +318,8 @@ sscop_relreq_inconn(sop, arg1, arg2)
 void
 sscop_relreq_ready(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 
 	/*
@@ -386,8 +386,8 @@ sscop_relreq_ready(sop, arg1, arg2)
 void
 sscop_datreq_ready(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 	KBuffer		*m = (KBuffer *)arg1;
 
@@ -433,8 +433,8 @@ sscop_datreq_ready(sop, arg1, arg2)
 void
 sscop_udtreq_all(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 	KBuffer		*m = (KBuffer *)arg1;
 

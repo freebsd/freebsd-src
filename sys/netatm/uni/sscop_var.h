@@ -84,9 +84,9 @@ struct sscop {
 	void		*so_toku;	/* Stack upper layer's token */
 	void		*so_tokl;	/* Stack lower layer's token */
 	void		(*so_upper)	/* Stack upper layer's interface */
-				(int, void *, int, int);
+				(int, void *, intptr_t, intptr_t);
 	void		(*so_lower)	/* Stack lower layer's interface */
-				(int, void *, int, int);
+				(int, void *, intptr_t, intptr_t);
 	u_short		so_headout;	/* Output buffer headroom */
 };
 
@@ -148,11 +148,11 @@ void		sscop_maa_error(struct sscop *, int);
 void		sscop_abort(struct sscop *, char *);
 
 	/* sscop_lower.c */
-void		sscop_lower(int, void *, int, int);
-void		sscop_aa_noop_0(struct sscop *, int, int);
-void		sscop_aa_noop_1(struct sscop *, int, int);
-void		sscop_init_inst(struct sscop *, int, int);
-void		sscop_term_all(struct sscop *, int, int);
+void		sscop_lower(int, void *, intptr_t, intptr_t);
+void		sscop_aa_noop_0(struct sscop *, intptr_t, intptr_t);
+void		sscop_aa_noop_1(struct sscop *, intptr_t, intptr_t);
+void		sscop_init_inst(struct sscop *, intptr_t, intptr_t);
+void		sscop_term_all(struct sscop *, intptr_t, intptr_t);
 
 	/* sscop_pdu.c */
 int		sscop_send_bgn(struct sscop *, int);
@@ -171,13 +171,13 @@ int		sscop_send_ud(struct sscop *, KBuffer *);
 void		sscop_pdu_print(struct sscop *, KBuffer *, char *);
 
 	/* sscop_sigaa.c */
-void		sscop_estreq_idle(struct sscop *, int, int);
-void		sscop_estrsp_inconn(struct sscop *, int, int);
-void		sscop_relreq_outconn(struct sscop *, int, int);
-void		sscop_relreq_inconn(struct sscop *, int, int);
-void		sscop_relreq_ready(struct sscop *, int, int);
-void		sscop_datreq_ready(struct sscop *, int, int);
-void		sscop_udtreq_all(struct sscop *, int, int);
+void		sscop_estreq_idle(struct sscop *, intptr_t, intptr_t);
+void		sscop_estrsp_inconn(struct sscop *, intptr_t, intptr_t);
+void		sscop_relreq_outconn(struct sscop *, intptr_t, intptr_t);
+void		sscop_relreq_inconn(struct sscop *, intptr_t, intptr_t);
+void		sscop_relreq_ready(struct sscop *, intptr_t, intptr_t);
+void		sscop_datreq_ready(struct sscop *, intptr_t, intptr_t);
+void		sscop_udtreq_all(struct sscop *, intptr_t, intptr_t);
 
 	/* sscop_sigcpcs.c */
 void		sscop_noop(struct sscop *, KBuffer *, caddr_t);
@@ -239,7 +239,7 @@ void		sscop_set_poll(struct sscop *);
 void		sscop_timeout(struct atm_time *);
 
 	/* sscop_upper.c */
-void		sscop_upper(int, void *, int, int);
+void		sscop_upper(int, void *, intptr_t, intptr_t);
 
 	/* q2110_sigaa.c */
 
@@ -273,9 +273,9 @@ extern struct sscop	*sscop_head;
 extern struct sscop_stat	sscop_stat;
 extern struct atm_time	sscop_timer;
 extern void		(*(*sscop_qsaal_aatab[]))
-				(struct sscop *, int, int);
+				(struct sscop *, intptr_t, intptr_t);
 extern void		(*(*sscop_q2110_aatab[]))
-				(struct sscop *, int, int);
+				(struct sscop *, intptr_t, intptr_t);
 extern void		(*(*sscop_qsaal_pdutab[]))
 				(struct sscop *, KBuffer *, caddr_t);
 extern void		(*(*sscop_q2110_pdutab[]))
