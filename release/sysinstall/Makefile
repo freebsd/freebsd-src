@@ -57,18 +57,6 @@ makedevs.c:	Makefile rtermcap
 	./rtermcap xterm | \
 		file2c 'const char termcap_xterm[] = {' ',0};' \
 		>> makedevs.c
-.if ${MACHINE} == "i386"
-	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.c
-	echo "size_t boot0_size = sizeof(boot0);" >> makedevs.c
-	file2c 'u_char mbr[] = {' '};' < /boot/mbr >> makedevs.c
-	echo "size_t mbr_size = sizeof(mbr);" >> makedevs.c
-.endif
-.if ${MACHINE} == "pc98"
-	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.c
-	echo "size_t boot0_size = sizeof(boot0);" >> makedevs.c
-	file2c 'u_char boot05[] = {' '};' < /boot/boot0.5 >> makedevs.c
-	echo "size_t boot05_size = sizeof(boot05);" >> makedevs.c
-.endif
 
 rtermcap:	rtermcap.c
 	${CC} -o ${.TARGET} ${.ALLSRC} -ltermcap
