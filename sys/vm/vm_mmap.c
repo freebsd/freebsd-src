@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.25 1995/07/09 06:58:01 davidg Exp $
+ * $Id: vm_mmap.c,v 1.26 1995/07/13 08:48:31 davidg Exp $
  */
 
 /*
@@ -468,9 +468,31 @@ mincore(p, uap, retval)
 	struct mincore_args *uap;
 	int *retval;
 {
+	vm_offset_t addr;
+	vm_offset_t end;
+	char *vec;
 
-	/* Not yet implemented */
-	return (EOPNOTSUPP);
+	addr = trunc_page((vm_offset_t) uap->addr);
+	end = addr + round_page((vm_size_t) uap->len);
+	if (VM_MAXUSER_ADDRESS > 0 && end > VM_MAXUSER_ADDRESS)
+		return (EINVAL);
+	if (end < addr)
+		return (EINVAL);
+
+	vec = uap->vec;
+	while(addr < end) {
+		int error;
+		if (pmap_extract(&p->p_vmspace->vm_pmap, addr)) {
+			error = subyte( vec, 1);
+		} else {
+			error = subyte( vec, 0);
+		}
+		if (error)
+			return EFAULT;
+		vec++;
+		addr += PAGE_SIZE;
+	}
+	return (0);
 }
 
 struct mlock_args {
