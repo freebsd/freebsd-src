@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.58 1998/05/31 18:09:18 peter Exp $
+ * $Id: nfs_subs.c,v 1.59 1998/05/31 18:11:03 peter Exp $
  */
 
 /*
@@ -1874,6 +1874,9 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag, pubflag)
 	register int i;
 	struct ucred *credanon;
 	int error, exflags;
+#ifdef MNT_EXNORESPORT		/* XXX needs mountd and /etc/exports help yet */
+	struct sockaddr_int *saddr;
+#endif
 
 	*vpp = (struct vnode *)0;
 
@@ -1889,6 +1892,16 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag, pubflag)
 	error = VFS_FHTOVP(mp, &fhp->fh_fid, nam, vpp, &exflags, &credanon);
 	if (error)
 		return (error);
+#ifdef MNT_EXNORESPORT
+	if (!(exflags & (MNT_EXNORESPORT|MNT_EXPUBLIC))) {
+		saddr = (struct sockaddr_in *)nam;
+		if (saddr->sin_family == AF_INET &&
+		    ntohs(saddr->sin_port) >= IPPORT_RESERVED) {
+			vput(*vpp);
+			return (NFSERR_AUTHERR | AUTH_TOOWEAK);
+		}
+	}
+#endif
 	/*
 	 * Check/setup credentials.
 	 */
