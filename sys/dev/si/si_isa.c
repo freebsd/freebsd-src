@@ -78,7 +78,7 @@ si_isa_probe(device_t dev)
 		goto fail;
 	}
 
-	if (((u_int)paddr & 0x7fff) != 0) {
+	if (((uintptr_t)paddr & 0x7fff) != 0) {
 		device_printf(dev, "maddr (%p) not on 32k boundary\n", paddr);
 		goto fail;
 	}
