@@ -1018,10 +1018,9 @@ modlist_newmodule(const char *modname, int version, linker_file_t container)
 {
 	modlist_t mod;
 
-	mod = malloc(sizeof(struct modlist), M_LINKER, M_NOWAIT);
+	mod = malloc(sizeof(struct modlist), M_LINKER, M_NOWAIT | M_ZERO);
 	if (mod == NULL)
 		panic("no memory for module list");
-	bzero(mod, sizeof(*mod));
 	mod->container = container;
 	mod->name = modname;
 	mod->version = version;
