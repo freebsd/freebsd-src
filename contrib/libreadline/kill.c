@@ -572,6 +572,8 @@ rl_yank_last_arg (count, key)
   static int explicit_arg_p = 0;
   static int count_passed = 1;
   static int direction = 1;
+  static int undo_needed = 0;
+  int retval;
 
   if (rl_last_func != rl_yank_last_arg)
     {
@@ -582,19 +584,22 @@ rl_yank_last_arg (count, key)
     }
   else
     {
-      rl_do_undo ();
+      if (undo_needed)
+	rl_do_undo ();
       if (count < 1)
         direction = -direction;
       history_skip += direction;
       if (history_skip < 0)
 	history_skip = 0;
-      count_passed = count;
     }
  
   if (explicit_arg_p)
-    return (rl_yank_nth_arg_internal (count, key, history_skip));
+    retval = rl_yank_nth_arg_internal (count_passed, key, history_skip);
   else
-    return (rl_yank_nth_arg_internal ('$', key, history_skip));
+    retval = rl_yank_nth_arg_internal ('$', key, history_skip);
+
+  undo_needed = retval == 0;
+  return retval;
 }
 
 /* A special paste command for users of Cygnus's cygwin32. */

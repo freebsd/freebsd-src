@@ -278,7 +278,7 @@ HIST_ENTRY *
 replace_history_entry (which, line, data)
      int which;
      char *line;
-     char *data;
+     histdata_t data;
 {
   HIST_ENTRY *temp = (HIST_ENTRY *)xmalloc (sizeof (HIST_ENTRY));
   HIST_ENTRY *old_value;

@@ -37,9 +37,9 @@
 
 #include "rldefs.h"
 
-#if !defined (SHELL) && defined (GWINSZ_IN_SYS_IOCTL)
+#if defined (GWINSZ_IN_SYS_IOCTL)
 #  include <sys/ioctl.h>
-#endif /* !SHELL && GWINSZ_IN_SYS_IOCTL */
+#endif /* GWINSZ_IN_SYS_IOCTL */
 
 #include "rltty.h"
 #include "readline.h"
@@ -144,7 +144,7 @@ static int terminal_prepped;
 static int ksrflow;
 #endif
 
-#if !defined (SHELL) && defined (TIOCGWINSZ)
+#if defined (TIOCGWINSZ)
 /* Dummy call to force a backgrounded readline to stop before it tries
    to get the tty settings. */
 static void
@@ -156,9 +156,7 @@ set_winsize (tty)
   if (ioctl (tty, TIOCGWINSZ, &w) == 0)
       (void) ioctl (tty, TIOCSWINSZ, &w);
 }
-#else /* SHELL || !TIOCGWINSZ */
-#  define set_winsize(tty)
-#endif /* SHELL || !TIOCGWINSZ */
+#endif /* TIOCGWINSZ */
 
 #if defined (NEW_TTY_DRIVER)
 
@@ -389,6 +387,7 @@ get_tty_settings (tty, tiop)
      TIOTYPE *tiop;
 {
   int ioctl_ret;
+
   set_winsize (tty);
 
   while (1)

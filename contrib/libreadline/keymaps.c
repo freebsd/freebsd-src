@@ -124,7 +124,7 @@ rl_make_keymap ()
 /* Free the storage associated with MAP. */
 void
 rl_discard_keymap (map)
-     Keymap (map);
+     Keymap map;
 {
   int i;
 

@@ -280,7 +280,7 @@ rl_expand_prompt (prompt)
   if (local_prompt_prefix)
     free (local_prompt_prefix);
   local_prompt = local_prompt_prefix = (char *)0;
-  last_invisible = 0;
+  last_invisible = visible_length = 0;
 
   if (prompt == 0 || *prompt == 0)
     return (0);
@@ -373,6 +373,13 @@ rl_redisplay ()
 
       if (local_len > 0)
 	{
+	  temp = local_len + out + 2;
+	  if (temp >= line_size)
+	    {
+	      line_size = (temp + 1024) - (temp % 1024);
+	      visible_line = xrealloc (visible_line, line_size);
+	      line = invisible_line = xrealloc (invisible_line, line_size);
+	    }
 	  strncpy (line + out, local_prompt, local_len);
 	  out += local_len;
 	}
@@ -399,6 +406,13 @@ rl_redisplay ()
 	}
 
       pmtlen = strlen (prompt_this_line);
+      temp = pmtlen + out + 2;
+      if (temp >= line_size)
+	{
+	  line_size = (temp + 1024) - (temp % 1024);
+	  visible_line = xrealloc (visible_line, line_size);
+	  line = invisible_line = xrealloc (invisible_line, line_size);
+	}
       strncpy (line + out,  prompt_this_line, pmtlen);
       out += pmtlen;
       line[out] = '\0';
@@ -407,12 +421,12 @@ rl_redisplay ()
 
 #define CHECK_LPOS() \
       do { \
-        lpos++; \
-        if (lpos >= screenwidth) \
-          { \
-            inv_lbreaks[++newlines] = out; \
-            lpos = 0; \
-          } \
+	lpos++; \
+	if (lpos >= screenwidth) \
+	  { \
+	    inv_lbreaks[++newlines] = out; \
+	    lpos = 0; \
+	  } \
       } while (0)
 
   /* inv_lbreaks[i] is where line i starts in the buffer. */
@@ -427,8 +441,8 @@ rl_redisplay ()
       temp = ((newlines + 1) * screenwidth) - ((newlines == 0) ? wrap_offset : 0);
 #else
       /* XXX - possible fix from Darin Johnson <darin@acuson.com> for prompt
-       string with invisible characters that is longer than the screen
-       width. */
+	 string with invisible characters that is longer than the screen
+	 width. */
       temp = ((newlines + 1) * screenwidth) + ((newlines == 0) ? wrap_offset : 0);
 #endif
       inv_lbreaks[++newlines] = temp;
@@ -481,7 +495,12 @@ rl_redisplay ()
       else if (c == '\t')
 	{
 	  register int temp, newout;
+
+#if 0
 	  newout = (out | (int)7) + 1;
+#else
+	  newout = out + 8 - lpos % 8;
+#endif
 	  temp = newout - out;
 	  if (lpos + temp >= screenwidth)
 	    {
@@ -501,11 +520,11 @@ rl_redisplay ()
 	}
 #endif
       else if (c == '\n' && _rl_horizontal_scroll_mode == 0 && term_up && *term_up)
-        {
-          line[out++] = '\0';	/* XXX - sentinel */
-          inv_lbreaks[++newlines] = out;
-          lpos = 0;
-        }
+	{
+	  line[out++] = '\0';	/* XXX - sentinel */
+	  inv_lbreaks[++newlines] = out;
+	  lpos = 0;
+	}
       else if (CTRL_CHAR (c) || c == RUBOUT)
 	{
 	  line[out++] = '^';
@@ -616,11 +635,11 @@ rl_redisplay ()
 	    {
 	      _rl_move_vert (cursor_linenum);
 	      /* If we moved up to the line with the prompt using term_up,
-	         the physical cursor position on the screen stays the same,
-	         but the buffer position needs to be adjusted to account
-	         for invisible characters. */
+		 the physical cursor position on the screen stays the same,
+		 but the buffer position needs to be adjusted to account
+		 for invisible characters. */
 	      if (cursor_linenum == 0 && wrap_offset)
-	        _rl_last_c_pos += wrap_offset;
+		_rl_last_c_pos += wrap_offset;
 	    }
 
 	  /* We have to reprint the prompt if it contains invisible
@@ -673,16 +692,16 @@ rl_redisplay ()
       ndisp = c_pos - wrap_offset;
       nleft  = visible_length + wrap_offset;
       /* Where the new cursor position will be on the screen.  This can be
-         longer than SCREENWIDTH; if it is, lmargin will be adjusted. */
+	 longer than SCREENWIDTH; if it is, lmargin will be adjusted. */
       phys_c_pos = c_pos - (last_lmargin ? last_lmargin : wrap_offset);
       t = screenwidth / 3;
 
       /* If the number of characters had already exceeded the screenwidth,
-         last_lmargin will be > 0. */
+	 last_lmargin will be > 0. */
 
       /* If the number of characters to be displayed is more than the screen
-         width, compute the starting offset so that the cursor is about
-         two-thirds of the way across the screen. */
+	 width, compute the starting offset so that the cursor is about
+	 two-thirds of the way across the screen. */
       if (phys_c_pos > screenwidth - 2)
 	{
 	  lmargin = c_pos - (2 * t);
@@ -694,7 +713,7 @@ rl_redisplay ()
 	    lmargin = nleft;
 	}
       else if (ndisp < screenwidth - 2)		/* XXX - was -1 */
-        lmargin = 0;
+	lmargin = 0;
       else if (phys_c_pos < 1)
 	{
 	  /* If we are moving back towards the beginning of the line and
@@ -704,7 +723,7 @@ rl_redisplay ()
 	    lmargin = nleft;
 	}
       else
-        lmargin = last_lmargin;
+	lmargin = last_lmargin;
 
       /* If the first character on the screen isn't the first character
 	 in the display line, indicate this with a special character. */
@@ -712,12 +731,12 @@ rl_redisplay ()
 	line[lmargin] = '<';
 
       /* If SCREENWIDTH characters starting at LMARGIN do not encompass
-         the whole line, indicate that with a special characters at the
-         right edge of the screen.  If LMARGIN is 0, we need to take the
-         wrap offset into account. */
+	 the whole line, indicate that with a special character at the
+	 right edge of the screen.  If LMARGIN is 0, we need to take the
+	 wrap offset into account. */
       t = lmargin + M_OFFSET (lmargin, wrap_offset) + screenwidth;
       if (t < out)
-        line[t - 1] = '>';
+	line[t - 1] = '>';
 
       if (!rl_display_fixed || forced_display || lmargin != last_lmargin)
 	{
@@ -782,7 +801,7 @@ new:	eddie> Oh, my little buggy says to me, as lurgid as
 			     \new first difference
 
    All are character pointers for the sake of speed.  Special cases for
-   no differences, as well as for end of line additions must be handeled.
+   no differences, as well as for end of line additions must be handled.
 
    Could be made even smarter, but this works well enough */
 static void
@@ -810,7 +829,7 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
       _rl_last_c_pos = 1;		/* XXX */
       _rl_last_v_pos++;
       if (old[0] && new[0])
-        old[0] = new[0];
+	old[0] = new[0];
     }
       
   /* Find first difference. */
@@ -895,10 +914,7 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
      lendiff needs to be adjusted. */
   if (current_line == 0 && !_rl_horizontal_scroll_mode &&
       current_invis_chars != visible_wrap_offset)
-    {
-      temp = visible_wrap_offset - current_invis_chars;
-      lendiff += temp;
-    }
+    lendiff += visible_wrap_offset - current_invis_chars;
 
   /* Insert (diff (len (old), len (new)) ch. */
   temp = ne - nfd;
@@ -927,7 +943,7 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 	      /* At the end of a line the characters do not have to
 		 be "inserted".  They can just be placed on the screen. */
 	      /* However, this screws up the rest of this block, which
-	         assumes you've done the insert because you can. */
+		 assumes you've done the insert because you can. */
 	      _rl_output_some_chars (nfd, lendiff);
 	      _rl_last_c_pos += lendiff;
 	    }
@@ -987,10 +1003,13 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 	      _rl_last_c_pos += temp;
 	    }
 	  lendiff = (oe - old) - (ne - new);
-	  if (_rl_term_autowrap && current_line < inv_botlin)
-	    space_to_eol (lendiff);
-	  else
-	    _rl_clear_to_eol (lendiff);
+	  if (lendiff)
+	    {	  
+	      if (_rl_term_autowrap && current_line < inv_botlin)
+		space_to_eol (lendiff);
+	      else
+		_rl_clear_to_eol (lendiff);
+	    }
 	}
     }
 }
@@ -1019,7 +1038,7 @@ rl_forced_update_display ()
       register char *temp = visible_line;
 
       while (*temp)
-        *temp++ = '\0';
+	*temp++ = '\0';
     }
   rl_on_new_line ();
   forced_display++;
@@ -1080,7 +1099,7 @@ _rl_move_cursor_relative (new, data)
 	putc (data[i], rl_outstream);
 #endif /* HACK_TERMCAP_MOTION */
     }
-  else if (_rl_last_c_pos != new)
+  else if (_rl_last_c_pos > new)
     _rl_backspace (_rl_last_c_pos - new);
   _rl_last_c_pos = new;
 }
@@ -1245,7 +1264,7 @@ static int saved_last_invisible;
 static int saved_visible_length;
 
 void
-_rl_save_prompt ()
+rl_save_prompt ()
 {
   saved_local_prompt = local_prompt;
   saved_local_prefix = local_prompt_prefix;
@@ -1257,7 +1276,7 @@ _rl_save_prompt ()
 }
 
 void
-_rl_restore_prompt ()
+rl_restore_prompt ()
 {
   if (local_prompt)
     free (local_prompt);
@@ -1277,14 +1296,14 @@ _rl_make_prompt_for_search (pchar)
   int len;
   char *pmt;
 
-  _rl_save_prompt ();
+  rl_save_prompt ();
 
   if (saved_local_prompt == 0)
     {
       len = (rl_prompt && *rl_prompt) ? strlen (rl_prompt) : 0;
       pmt = xmalloc (len + 2);
       if (len)
-        strcpy (pmt, rl_prompt);
+	strcpy (pmt, rl_prompt);
       pmt[len] = pchar;
       pmt[len+1] = '\0';
     }
@@ -1293,7 +1312,7 @@ _rl_make_prompt_for_search (pchar)
       len = *saved_local_prompt ? strlen (saved_local_prompt) : 0;
       pmt = xmalloc (len + 2);
       if (len)
-        strcpy (pmt, saved_local_prompt);
+	strcpy (pmt, saved_local_prompt);
       pmt[len] = pchar;
       pmt[len+1] = '\0';
       local_prompt = savestring (pmt);
@@ -1540,6 +1559,15 @@ _rl_clean_up_for_exit ()
       _rl_move_vert (_rl_vis_botlin);
       _rl_vis_botlin = 0;
       fflush (rl_outstream);
-      rl_restart_output ();
+      rl_restart_output (1, 0);
     }
+}
+
+void
+_rl_erase_entire_line ()
+{
+  cr ();
+  _rl_clear_to_eol (0);
+  cr ();
+  fflush (rl_outstream);
 }

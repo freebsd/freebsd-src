@@ -8,7 +8,7 @@ This document describes the GNU Readline Library, a utility for aiding
 in the consitency of user interface across discrete programs that need
 to provide a command line interface.
 
-Copyright (C) 1988, 1994, 1996 Free Software Foundation, Inc.
+Copyright (C) 1988, 1994, 1996, 1998, 1999 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -47,7 +47,9 @@ in your own programs, this section is for you.
 * Readline Variables::			Variables accessible to custom
 					functions.
 * Readline Convenience Functions::	Functions which Readline supplies to
-					aid in writing your own
+					aid in writing your own custom
+					functions.
+* Readline Signal Handling::	How Readline behaves when it receives signals.
 * Custom Completers::	Supplanting or supplementing Readline's
 			completion functions.
 @end menu
@@ -268,6 +270,13 @@ Setting this to a value makes it the next keystroke read.  This is a
 way to stuff a single character into the input stream.
 @end deftypevar
 
+@deftypevar int rl_erase_empty_line
+Setting this to a non-zero value causes Readline to completely erase
+the current line, including any prompt, any time a newline is typed as
+the only character on an otherwise-empty line.  The cursor is moved to
+the beginning of the newly-blank line.
+@end deftypevar
+
 @deftypevar {char *} rl_prompt
 The prompt Readline uses.  This is set from the argument to
 @code{readline ()}, and should not be assigned to directly.
@@ -298,6 +307,12 @@ The stdio stream to which Readline performs output.
 @deftypevar {Function *} rl_startup_hook
 If non-zero, this is the address of a function to call just
 before @code{readline} prints the first prompt.
+@end deftypevar
+
+@deftypevar {Function *} rl_pre_input_hook
+If non-zero, this is the address of a function to call after
+the first prompt has been printed and just before @code{readline}
+starts reading input characters.
 @end deftypevar
 
 @deftypevar {Function *} rl_event_hook
@@ -619,6 +634,16 @@ is also used to display numeric arguments and search strings.
 Clear the message in the echo area.
 @end deftypefun
 
+@deftypefun void rl_save_prompt ()
+Save the local Readline prompt display state in preparation for
+displaying a new message in the message area with @code{rl_message}.
+@end deftypefun
+
+@deftypefun void rl_restore_prompt ()
+Restore the local Readline prompt display state saved by the most
+recent call to @code{rl_save_prompt}.
+@end deftypefun
+
 @node Modifying Text
 @subsection Modifying Text
 
@@ -687,6 +712,16 @@ Return 1 if @var{c} is a numeric character.
 
 @deftypefun int ding ()
 Ring the terminal bell, obeying the setting of @code{bell-style}.
+@end deftypefun
+
+@deftypefun void rl_display_match_list (char **matches, int len, int max)
+A convenience function for displaying a list of strings in
+columnar format on Readline's output stream.  @code{matches} is the list
+of strings, in argv format, such as a list of completion matches.
+@code{len} is the number of strings in @code{matches}, and @code{max}
+is the length of the longest string in @code{matches}.  This function uses
+the setting of @code{print-completions-horizontally} to select how the
+matches are displayed (@pxref{Readline Init File Syntax}).
 @end deftypefun
 
 The following are implemented as macros, defined in @code{chartypes.h}.
@@ -813,6 +848,116 @@ invert_case_line (count, key)
   return (0);
 @}
 @end example
+
+@node Readline Signal Handling
+@section Readline Signal Handling
+
+Signals are asynchronous events sent to a process by the Unix kernel,
+sometimes on behalf of another process.  They are intended to indicate
+exceptional events, like a user pressing the interrupt key on his
+terminal, or a network connection being broken.  There is a class of
+signals that can be sent to the process currently reading input from
+the keyboard.  Since Readline changes the terminal attributes when it
+is called, it needs to perform special processing when a signal is
+received to restore the terminal to a sane state, or provide application
+writers with functions to do so manually.
+
+Readline contains an internal signal handler that is installed for a
+number of signals (@code{SIGINT}, @code{SIGQUIT}, @code{SIGTERM},
+@code{SIGALRM}, @code{SIGTSTP}, @code{SIGTTIN}, and @code{SIGTTOU}).
+When one of these signals is received, the signal handler
+will reset the terminal attributes to those that were in effect before
+@code{readline ()} was called, reset the signal handling to what it was
+before @code{readline ()} was called, and resend the signal to the calling
+application.
+If and when the calling application's signal handler returns, Readline
+will reinitialize the terminal and continue to accept input.
+When a @code{SIGINT} is received, the Readline signal handler performs
+some additional work, which will cause any partially-entered line to be
+aborted (see the description of @code{rl_free_line_state ()}).
+
+There is an additional Readline signal handler, for @code{SIGWINCH}, which
+the kernel sends to a process whenever the terminal's size changes (for
+example, if a user resizes an @code{xterm}).  The Readline @code{SIGWINCH}
+handler updates Readline's internal screen size state, and then calls any
+@code{SIGWINCH} signal handler the calling application has installed. 
+Readline calls the application's @code{SIGWINCH} signal handler without
+resetting the terminal to its original state.  If the application's signal
+handler does more than update its idea of the terminal size and return (for
+example, a @code{longjmp} back to a main processing loop), it @emph{must}
+call @code{rl_cleanup_after_signal ()} (described below), to restore the
+terminal state. 
+
+Readline provides two variables that allow application writers to
+control whether or not it will catch certain signals and act on them
+when they are received.  It is important that applications change the
+values of these variables only when calling @code{readline ()}, not in
+a signal handler, so Readline's internal signal state is not corrupted.
+
+@deftypevar int rl_catch_signals
+If this variable is non-zero, Readline will install signal handlers for
+@code{SIGINT}, @code{SIGQUIT}, @code{SIGTERM}, @code{SIGALRM},
+@code{SIGTSTP}, @code{SIGTTIN}, and @code{SIGTTOU}.
+
+The default value of @code{rl_catch_signals} is 1.
+@end deftypevar
+
+@deftypevar int rl_catch_sigwinch
+If this variable is non-zero, Readline will install a signal handler for
+@code{SIGWINCH}.
+
+The default value of @code{rl_catch_sigwinch} is 1.
+@end deftypevar
+
+If an application does not wish to have Readline catch any signals, or
+to handle signals other than those Readline catches (@code{SIGHUP},
+for example), 
+Readline provides convenience functions to do the necessary terminal
+and internal state cleanup upon receipt of a signal.
+
+@deftypefun void rl_cleanup_after_signal (void)
+This function will reset the state of the terminal to what it was before
+@code{readline ()} was called, and remove the Readline signal handlers for
+all signals, depending on the values of @code{rl_catch_signals} and
+@code{rl_catch_sigwinch}.
+@end deftypefun
+
+@deftypefun void rl_free_line_state (void)
+This will free any partial state associated with the current input line
+(undo information, any partial history entry, any partially-entered
+keyboard macro, and any partially-entered numeric argument).  This
+should be called before @code{rl_cleanup_after_signal ()}.  The
+Readline signal handler for @code{SIGINT} calls this to abort the
+current input line.
+@end deftypefun
+
+@deftypefun void rl_reset_after_signal (void)
+This will reinitialize the terminal and reinstall any Readline signal
+handlers, depending on the values of @code{rl_catch_signals} and
+@code{rl_catch_sigwinch}.
+@end deftypefun
+
+If an application does not wish Readline to catch @code{SIGWINCH}, it may
+call @code{rl_resize_terminal ()} to force Readline to update its idea of
+the terminal size when a @code{SIGWINCH} is received.
+
+@deftypefun void rl_resize_terminal (void)
+Update Readline's internal screen size.
+@end deftypefun
+
+The following functions install and remove Readline's signal handlers.
+
+@deftypefun int rl_set_signals (void)
+Install Readline's signal handler for @code{SIGINT}, @code{SIGQUIT},
+@code{SIGTERM}, @code{SIGALRM}, @code{SIGTSTP}, @code{SIGTTIN},
+@code{SIGTTOU}, and @code{SIGWINCH}, depending on the values of
+@code{rl_catch_signals} and @code{rl_catch_sigwinch}.
+@end deftypefun
+
+@deftypefun int rl_clear_signals (void)
+Remove all of the Readline signal handlers installed by
+@code{rl_set_signals ()}.
+@end deftypefun
 
 @node Custom Completers
 @section Custom Completers
@@ -1106,6 +1251,20 @@ This function, if defined, is allowed to modify the directory portion
 of filenames Readline completes.  It is called with the address of a
 string (the current directory name) as an argument.  It could be used
 to expand symbolic links or shell variables in pathnames.
+@end deftypevar
+
+@deftypevar {VFunction *} rl_completion_display_matches_hook
+If non-zero, then this is the address of a function to call when
+completing a word would normally display the list of possible matches.
+This function is called in lieu of Readline displaying the list.
+It takes three arguments:
+(@code{char **}@var{matches}, @code{int} @var{num_matches}, @code{int} @var{max_length})
+where @var{matches} is the array of matching strings,
+@var{num_matches} is the number of strings in that array, and
+@var{max_length} is the length of the longest string in that array.
+Readline provides a convenience function, @code{rl_display_match_list},
+that takes care of doing the display to Readline's output stream.  That
+function may be called from this hook.
 @end deftypevar
 
 @node A Short Completion Example

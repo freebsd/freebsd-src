@@ -232,6 +232,16 @@ _rl_set_screen_size (rows, cols)
   screenchars = screenwidth * screenheight;
 }
 
+void
+rl_resize_terminal ()
+{
+  if (readline_echoing_p)
+    {
+      _rl_get_screen_size (fileno (rl_instream), 1);
+      _rl_redisplay_after_sigwinch ();
+    }
+}
+
 struct _tc_string {
      char *tc_var;
      char **tc_value;
@@ -252,7 +262,7 @@ static struct _tc_string tc_strings[] =
   "im", &term_im,
   "kd", &term_kd,
   "kh", &term_kh,	/* home */
-  "kH", &term_kH,	/* end */
+  "@7", &term_kH,       /* end */
   "kl", &term_kl,
   "kr", &term_kr,
   "ku", &term_ku,

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1997/02/22 15:43:07 peter Exp $
+# $Id: Makefile,v 1.1 1999/05/28 04:26:18 ache Exp $
 
 SRCDIR= ${.CURDIR}/../../../../../contrib/libreadline/doc
 

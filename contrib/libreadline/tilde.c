@@ -47,10 +47,6 @@
 
 #include "tilde.h"
 
-#ifdef SHELL
-#include "shell.h"
-#endif
-
 #if !defined (HAVE_GETPW_DECLS)
 extern struct passwd *getpwuid (), *getpwnam ();
 #endif /* !HAVE_GETPW_DECLS */
@@ -76,6 +72,12 @@ static char *xmalloc (), *xrealloc ();
 #else
 extern char *xmalloc (), *xrealloc ();
 #endif /* TEST || STATIC_MALLOC */
+
+/* If being compiled as part of bash, these will be satisfied from
+   variables.o.  If being compiled as part of readline, they will
+   be satisfied from shell.o. */
+extern char *get_home_dir ();
+extern char *get_env_value ();
 
 /* The default value of tilde_additional_prefixes.  This is set to
    whitespace preceding a tilde so that simple programs which do not
@@ -170,15 +172,6 @@ tilde_find_suffix (string)
     }
   return (i);
 }
-
-#if !defined (SHELL)
-static char *
-get_string_value (varname)
-     char *varname;
-{
-  return ((char *)getenv (varname));
-}
-#endif
 
 /* Return a new string which is the result of tilde expanding STRING. */
 char *
@@ -284,27 +277,6 @@ glue_prefix_and_suffix (prefix, suffix, suffind)
   return ret;
 }
 
-static char *
-get_home_dir ()
-{
-  char *home_dir;
-
-#ifdef SHELL
-  home_dir = (char *)NULL;
-  if (current_user.home_dir == 0)
-    get_current_user_info ();
-  home_dir = current_user.home_dir;
-#else
-  struct passwd *entry;
-
-  home_dir = (char *)NULL;
-  entry = getpwuid (getuid ());
-  if (entry)
-    home_dir = entry->pw_dir;
-#endif
-  return (home_dir);
-}
-
 /* Do the work of tilde expansion on FILENAME.  FILENAME starts with a
    tilde.  If there is no expansion, call tilde_expansion_failure_hook.
    This always returns a newly-allocated string, never static storage. */
@@ -328,7 +300,7 @@ tilde_expand_word (filename)
   if (filename[1] == '\0' || filename[1] == '/')
     {
       /* Prefix $HOME to the rest of the string. */
-      expansion = get_string_value ("HOME");
+      expansion = get_env_value ("HOME");
 
       /* If there is no HOME variable, look up the directory in
 	 the password database. */

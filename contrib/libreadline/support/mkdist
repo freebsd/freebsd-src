@@ -48,7 +48,7 @@ fi
 version=$1
 newdir=${ROOTNAME}-$version
 
-vmsg creating distribution for version $version in $newdir
+vmsg creating distribution for $ROOTNAME version $version in $newdir
 
 if [ ! -d $newdir ]; then
 	mkdir $newdir || { echo $0: cannot make directory $newdir 1>&2 ; exit 1; }
