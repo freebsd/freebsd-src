@@ -136,6 +136,10 @@ __FBSDID("$FreeBSD$");
 #define TSBH1_FCONTROL		0xce
 
 
+static void mt2032_set_tv_freq(bktr_ptr_t bktr, unsigned int freq);
+static int mt2032_init(bktr_ptr_t bktr);
+
+
 static const struct TUNER tuners[] = {
 /* XXX FIXME: fill in the band-switch crosspoints */
 	/* NO_TUNER */
@@ -276,7 +280,17 @@ static const struct TUNER tuners[] = {
              TSBH1_FCONTROL,
              0x00 },
            { 0x00, 0x00 },                      /* band-switch crosspoints */
-           { 0x01, 0x02, 0x08, 0x00 } }         /* the band-switch values */
+           { 0x01, 0x02, 0x08, 0x00 } },         /* the band-switch values */
+
+	/* MT2032 Microtune */
+	{ "MT2032",				/* the 'name' */
+	   TTYPE_PAL,			/* input type */
+	   { TSA552x_SCONTROL,			/* control byte for Tuner PLL */
+	     TSA552x_SCONTROL,
+	     TSA552x_SCONTROL,
+	     0x00 },
+	   { 0x00, 0x00 },			/* band-switch crosspoints */
+	   { 0xa0, 0x90, 0x30, 0x00 } },	/* the band-switch values */
 };
 
 
@@ -712,6 +726,9 @@ void    select_tuner( bktr_ptr_t bktr, int tuner_type ) {
 	} else {
 		bktr->card.tuner = NULL;
 	}
+	if (tuner_type == TUNER_MT2032) {
+		mt2032_init(bktr);
+	}
 }
 
 /*
@@ -789,6 +806,10 @@ tv_freq( bktr_ptr_t bktr, int frequency, int type )
 	if ( tuner == NULL )
 		return( -1 );
 
+	if (tuner == &tuners[TUNER_MT2032]) {
+		mt2032_set_tv_freq(bktr, frequency);
+		return 0;
+	}
 	if (type == TV_FREQUENCY) {
 		/*
 		 * select the band based on frequency
@@ -976,6 +997,8 @@ do_afc( bktr_ptr_t bktr, int addr, int frequency )
  * Get the Tuner status and signal strength
  */
 int     get_tuner_status( bktr_ptr_t bktr ) {
+	if (bktr->card.tuner == &tuners[TUNER_MT2032])
+		return 0;
 	return i2cRead( bktr, bktr->card.tuner_pllAddr + 1 );
 }
 
@@ -1014,4 +1037,374 @@ tuner_getchnlset(struct bktr_chnlset *chnlset)
 
        chnlset->max_channel=freqTable[chnlset->index].ptr[0];
        return( 0 );
+}
+
+
+
+
+#define	TDA9887_ADDR	0x86
+
+int
+TDA9887_init(bktr_ptr_t bktr, int output2_enable)
+{
+	u_char addr = TDA9887_ADDR;
+#if 0
+	char buf[8];
+
+	/* NOTE: these are PAL values */
+	buf[0] = 0;	/* sub address */
+	buf[1] = 0x50;	/* output port1 inactive */
+	buf[2] = 0x6e;	/* tuner takeover point / de-emphasis */
+	buf[3] = 0x09;	/* fVIF = 38.9 MHz, fFM = 5.5 MHz */
+
+	if (!output2_enable)
+		buf[1] |= 0x80;
+
+	if (i2cWriteBuf(bktr, addr, 4, buf) == -1) {
+		printf("%s: TDA9887 write failed\n", bktr_name(bktr));
+		return -1;
+	}
+#else
+	i2cWrite(bktr, addr, 0, output2_enable ? 0x50 : 0xd0);
+	i2cWrite(bktr, addr, 1, 0x6e);
+	i2cWrite(bktr, addr, 2, 0x09);
+#endif
+	return 0;
+}
+
+
+
+#define MT2032_OPTIMIZE_VCO	 1
+
+/* holds the value of XOGC register after init */
+static int      MT2032_XOGC = 4;
+
+/* card.tuner_pllAddr not set during init */
+#define	MT2032_ADDR		0xc0
+
+#ifndef MT2032_ADDR
+#define	MT2032_ADDR		(bktr->card.tuner_pllAddr)
+#endif
+
+static u_char 
+_MT2032_GetRegister(bktr_ptr_t bktr, u_char regNum)
+{
+	int		ch;
+
+	if (i2cWrite(bktr, MT2032_ADDR, regNum, -1) == -1) {
+		printf("%s: MT2032 write failed (i2c addr %#x)\n",
+			bktr_name(bktr), MT2032_ADDR);
+	}
+	if ((ch = i2cRead(bktr, MT2032_ADDR + 1)) == -1) {
+		printf("%s: MT2032 get register %d failed\n",
+			bktr_name(bktr), regNum);
+		return 0;
+	}
+	return ch;
+}
+
+static void 
+_MT2032_SetRegister(bktr_ptr_t bktr, u_char regNum, u_char data)
+{
+	i2cWrite(bktr, MT2032_ADDR, regNum, data);
+}
+
+#define	MT2032_GetRegister(r)		_MT2032_GetRegister(bktr,r)
+#define	MT2032_SetRegister(r,d)		_MT2032_SetRegister(bktr,r,d)
+
+
+static int 
+mt2032_init(bktr_ptr_t bktr)
+{
+	u_char            rdbuf[22];
+	int             xogc, xok = 0;
+	int             i;
+
+	TDA9887_init(bktr, 0);
+
+	for (i = 0; i < 21; i++)
+		rdbuf[i] = MT2032_GetRegister(i);
+
+	printf("%s: MT2032: Companycode=%02x%02x Part=%02x Revision=%02x\n",
+		bktr_name(bktr),
+		rdbuf[0x11], rdbuf[0x12], rdbuf[0x13], rdbuf[0x14]);
+
+	/* Initialize Registers per spec. */
+	MT2032_SetRegister(2, 0xff);
+	MT2032_SetRegister(3, 0x0f);
+	MT2032_SetRegister(4, 0x1f);
+	MT2032_SetRegister(6, 0xe4);
+	MT2032_SetRegister(7, 0x8f);
+	MT2032_SetRegister(8, 0xc3);
+	MT2032_SetRegister(9, 0x4e);
+	MT2032_SetRegister(10, 0xec);
+	MT2032_SetRegister(13, 0x32);
+
+	/* Adjust XOGC (register 7), wait for XOK */
+	xogc = 7;
+	do {
+		DELAY(10000);
+		xok = MT2032_GetRegister(0x0e) & 0x01;
+		if (xok == 1) {
+			break;
+		}
+		xogc--;
+		if (xogc == 3) {
+			xogc = 4;	/* min. 4 per spec */
+			break;
+		}
+		MT2032_SetRegister(7, 0x88 + xogc);
+	} while (xok != 1);
+
+	TDA9887_init(bktr, 1);
+
+	MT2032_XOGC = xogc;
+
+	return 0;
+}
+
+static int 
+MT2032_SpurCheck(int f1, int f2, int spectrum_from, int spectrum_to)
+{
+	int             n1 = 1, n2, f;
+
+	f1 = f1 / 1000;		/* scale to kHz to avoid 32bit overflows */
+	f2 = f2 / 1000;
+	spectrum_from /= 1000;
+	spectrum_to /= 1000;
+
+	do {
+		n2 = -n1;
+		f = n1 * (f1 - f2);
+		do {
+			n2--;
+			f = f - f2;
+			if ((f > spectrum_from) && (f < spectrum_to)) {
+				return 1;
+			}
+		} while ((f > (f2 - spectrum_to)) || (n2 > -5));
+		n1++;
+	} while (n1 < 5);
+
+	return 0;
+}
+
+static int
+MT2032_ComputeFreq(
+		   int rfin,
+		   int if1,
+		   int if2,
+		   int spectrum_from,
+		   int spectrum_to,
+		   unsigned char *buf,
+		   int *ret_sel,
+		   int xogc
+)
+{				/* all in Hz */
+	int             fref, lo1, lo1n, lo1a, s, sel;
+	int             lo1freq, desired_lo1, desired_lo2, lo2, lo2n, lo2a,
+	                lo2num, lo2freq;
+	int             nLO1adjust;
+
+	fref = 5250 * 1000;	/* 5.25MHz */
+
+	/* per spec 2.3.1 */
+	desired_lo1 = rfin + if1;
+	lo1 = (2 * (desired_lo1 / 1000) + (fref / 1000)) / (2 * fref / 1000);
+	lo1freq = lo1 * fref;
+	desired_lo2 = lo1freq - rfin - if2;
+
+	/* per spec 2.3.2 */
+	for (nLO1adjust = 1; nLO1adjust < 3; nLO1adjust++) {
+		if (!MT2032_SpurCheck(lo1freq, desired_lo2, spectrum_from, spectrum_to)) {
+			break;
+		}
+		if (lo1freq < desired_lo1) {
+			lo1 += nLO1adjust;
+		} else {
+			lo1 -= nLO1adjust;
+		}
+
+		lo1freq = lo1 * fref;
+		desired_lo2 = lo1freq - rfin - if2;
+	}
+
+	/* per spec 2.3.3 */
+	s = lo1freq / 1000 / 1000;
+
+	if (MT2032_OPTIMIZE_VCO) {
+		if (s > 1890) {
+			sel = 0;
+		} else if (s > 1720) {
+			sel = 1;
+		} else if (s > 1530) {
+			sel = 2;
+		} else if (s > 1370) {
+			sel = 3;
+		} else {
+			sel = 4;/* >1090 */
+		}
+	} else {
+		if (s > 1790) {
+			sel = 0;/* <1958 */
+		} else if (s > 1617) {
+			sel = 1;
+		} else if (s > 1449) {
+			sel = 2;
+		} else if (s > 1291) {
+			sel = 3;
+		} else {
+			sel = 4;/* >1090 */
+		}
+	}
+
+	*ret_sel = sel;
+
+	/* per spec 2.3.4 */
+	lo1n = lo1 / 8;
+	lo1a = lo1 - (lo1n * 8);
+	lo2 = desired_lo2 / fref;
+	lo2n = lo2 / 8;
+	lo2a = lo2 - (lo2n * 8);
+	/* scale to fit in 32bit arith */
+	lo2num = ((desired_lo2 / 1000) % (fref / 1000)) * 3780 / (fref / 1000);
+	lo2freq = (lo2a + 8 * lo2n) * fref + lo2num * (fref / 1000) / 3780 * 1000;
+
+	if (lo1a < 0 || lo1a > 7 || lo1n < 17 || lo1n > 48 || lo2a < 0 ||
+	    lo2a > 7 || lo2n < 17 || lo2n > 30) {
+		printf("MT2032: parameter out of range\n");
+		return -1;
+	}
+	/* set up MT2032 register map for transfer over i2c */
+	buf[0] = lo1n - 1;
+	buf[1] = lo1a | (sel << 4);
+	buf[2] = 0x86;		/* LOGC */
+	buf[3] = 0x0f;		/* reserved */
+	buf[4] = 0x1f;
+	buf[5] = (lo2n - 1) | (lo2a << 5);
+	if (rfin < 400 * 1000 * 1000) {
+		buf[6] = 0xe4;
+	} else {
+		buf[6] = 0xf4;	/* set PKEN per rev 1.2 */
+	}
+
+	buf[7] = 8 + xogc;
+	buf[8] = 0xc3;		/* reserved */
+	buf[9] = 0x4e;		/* reserved */
+	buf[10] = 0xec;		/* reserved */
+	buf[11] = (lo2num & 0xff);
+	buf[12] = (lo2num >> 8) | 0x80;	/* Lo2RST */
+
+	return 0;
+}
+
+static int 
+MT2032_CheckLOLock(bktr_ptr_t bktr)
+{
+	int             t, lock = 0;
+	for (t = 0; t < 10; t++) {
+		lock = MT2032_GetRegister(0x0e) & 0x06;
+		if (lock == 6) {
+			break;
+		}
+		DELAY(1000);
+	}
+	return lock;
+}
+
+static int 
+MT2032_OptimizeVCO(bktr_ptr_t bktr, int sel, int lock)
+{
+	int             tad1, lo1a;
+
+	tad1 = MT2032_GetRegister(0x0f) & 0x07;
+
+	if (tad1 == 0) {
+		return lock;
+	}
+	if (tad1 == 1) {
+		return lock;
+	}
+	if (tad1 == 2) {
+		if (sel == 0) {
+			return lock;
+		} else {
+			sel--;
+		}
+	} else {
+		if (sel < 4) {
+			sel++;
+		} else {
+			return lock;
+		}
+	}
+	lo1a = MT2032_GetRegister(0x01) & 0x07;
+	MT2032_SetRegister(0x01, lo1a | (sel << 4));
+	lock = MT2032_CheckLOLock(bktr);
+	return lock;
+}
+
+static int
+MT2032_SetIFFreq(bktr_ptr_t bktr, int rfin, int if1, int if2, int from, int to)
+{
+	u_char          buf[21];
+	int             lint_try, sel, lock = 0;
+
+	if (MT2032_ComputeFreq(rfin, if1, if2, from, to, &buf[0], &sel, MT2032_XOGC) == -1)
+		return -1;
+
+	TDA9887_init(bktr, 0);
+
+	printf("%s: MT2032-SetIFFreq: 0x%02X%02X%02X%02X...\n",
+		bktr_name(bktr),
+		buf[0x00], buf[0x01], buf[0x02], buf[0x03]);
+
+	/* send only the relevant registers per Rev. 1.2 */
+	MT2032_SetRegister(0, buf[0x00]);
+	MT2032_SetRegister(1, buf[0x01]);
+	MT2032_SetRegister(2, buf[0x02]);
+
+	MT2032_SetRegister(5, buf[0x05]);
+	MT2032_SetRegister(6, buf[0x06]);
+	MT2032_SetRegister(7, buf[0x07]);
+
+	MT2032_SetRegister(11, buf[0x0B]);
+	MT2032_SetRegister(12, buf[0x0C]);
+
+	/* wait for PLLs to lock (per manual), retry LINT if not. */
+	for (lint_try = 0; lint_try < 2; lint_try++) {
+		lock = MT2032_CheckLOLock(bktr);
+
+		if (MT2032_OPTIMIZE_VCO) {
+			lock = MT2032_OptimizeVCO(bktr, sel, lock);
+		}
+		if (lock == 6) {
+			break;
+		}
+		/* set LINT to re-init PLLs */
+		MT2032_SetRegister(7, 0x80 + 8 + MT2032_XOGC);
+		DELAY(10000);
+		MT2032_SetRegister(7, 8 + MT2032_XOGC);
+	}
+	if (lock != 6)
+		printf("%s: PLL didn't lock\n", bktr_name(bktr));
+
+	MT2032_SetRegister(2, 0x20);
+
+	TDA9887_init(bktr, 1);
+	return 0;
+}
+
+static void
+mt2032_set_tv_freq(bktr_ptr_t bktr, unsigned int freq)
+{
+	int if2,from,to;
+
+	from=32900*1000;
+	to=39900*1000;
+	if2=38900*1000;
+
+	printf("%s: setting frequency to %d\n", bktr_name(bktr), freq*62500);
+	MT2032_SetIFFreq(bktr, freq*62500 /* freq*1000*1000/16 */,
+		1090*1000*1000, if2, from, to);
 }

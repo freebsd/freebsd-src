@@ -45,21 +45,22 @@
 
 /* Definitions for Tuners */
 
-#define NO_TUNER                0
-#define TEMIC_NTSC              1
-#define TEMIC_PAL               2
-#define TEMIC_SECAM             3
-#define PHILIPS_NTSC            4
-#define PHILIPS_PAL             5
-#define PHILIPS_SECAM           6
-#define TEMIC_PALI              7
-#define PHILIPS_PALI            8
-#define PHILIPS_FR1236_NTSC     9    /* These have FM radio support */
-#define PHILIPS_FR1216_PAL      10   /* These have FM radio support */
-#define PHILIPS_FR1236_SECAM    11   /* These have FM radio support */
-#define ALPS_TSCH5              12
-#define ALPS_TSBH1              13
-#define Bt848_MAX_TUNER         14
+#define NO_TUNER		0
+#define TEMIC_NTSC		1
+#define TEMIC_PAL		2
+#define TEMIC_SECAM		3
+#define PHILIPS_NTSC		4
+#define PHILIPS_PAL		5
+#define PHILIPS_SECAM		6
+#define TEMIC_PALI		7
+#define PHILIPS_PALI		8
+#define PHILIPS_FR1236_NTSC	9	/* These have FM radio support */
+#define PHILIPS_FR1216_PAL	10	/* These have FM radio support */
+#define PHILIPS_FR1236_SECAM	11	/* These have FM radio support */
+#define ALPS_TSCH5		12
+#define ALPS_TSBH1		13
+#define TUNER_MT2032		14
+#define Bt848_MAX_TUNER		15
 
 /* experimental code for Automatic Frequency Control */ 
 #define TUNER_AFC
