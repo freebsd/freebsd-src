@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.1 1998/06/10 10:52:10 dfr Exp $
+ *	$Id: autoconf.c,v 1.2 1998/06/14 13:44:37 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -80,6 +80,12 @@ configure(void *dummy)
 	configure_start();
 
 	device_add_child(root_bus, platform.iobus, 0, 0);
+
+	/* XXX hack until I implement ISA */
+	if (!strcmp(platform.iobus, "cia"))
+	    device_add_child(root_bus, "mcclock", 0, 0);
+	/* XXX end hack */
+
 	root_bus_configure();
 
 	pci_configure();
@@ -101,8 +107,8 @@ void
 cpu_rootconf()
 {
     mountrootfsname = "ufs";
-    rootdevs[0] = makedev(4, dkmakeminor(0, COMPATIBILITY_SLICE, 0));
-    rootdevnames[0] = "sd0c";
+    rootdevs[0] = makedev(4, dkmakeminor(1, COMPATIBILITY_SLICE, 0));
+    rootdevnames[0] = "sd1a";
 }
 
 void
