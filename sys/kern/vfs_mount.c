@@ -83,6 +83,8 @@
 #include <sys/systm.h>
 #include <sys/vnode.h>
 
+#include <geom/geom.h>
+
 #include <machine/stdarg.h>
 
 #include "opt_rootdevname.h"
@@ -1394,7 +1396,9 @@ vfs_mountroot(void)
 {
 	char		*cp;
 	int		i, error;
-	
+
+	g_waitidle();	
+
 	/* 
 	 * The root filesystem information is compiled in, and we are
 	 * booted with instructions to use it.
@@ -1465,8 +1469,6 @@ vfs_mountroot(void)
 	panic("Root mount failed, startup aborted.");
 }
 
-void g_waitidle(void);
-
 /*
  * Mount (mountfrom) as the root filesystem.
  */
@@ -1484,8 +1486,6 @@ vfs_mountroot_try(char *mountfrom)
 	path    = NULL;
 	mp      = NULL;
 	error   = EINVAL;
-
-	g_waitidle();
 
 	if (mountfrom == NULL)
 		return(error);		/* don't complain */
@@ -1587,11 +1587,13 @@ vfs_mountroot_ask(void)
 		if (name[0] == 0)
 			return(1);
 		if (name[0] == '?') {
-			printf("Possibly valid devices for 'ufs' root:\n");
-			for (i = 0; i < NUMCDEVSW; i++) {
-				dev = makedev(i, 0);
-				if (devsw(dev) != NULL)
-					printf(" \"%s\"", devsw(dev)->d_name);
+			if (!g_dev_print()) {
+				printf("Possibly valid devices for 'ufs' root:\n");
+				for (i = 0; i < NUMCDEVSW; i++) {
+					dev = makedev(i, 0);
+					if (devsw(dev) != NULL)
+						printf(" \"%s\"", devsw(dev)->d_name);
+				}
 			}
 			printf("\n");
 			continue;
