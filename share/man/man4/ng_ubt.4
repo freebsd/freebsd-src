@@ -1,8 +1,6 @@
-.\" ng_ubt.4
-.\" 
 .\" Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -11,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -23,47 +21,50 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $Id: ng_ubt.4,v 1.2 2003/03/22 23:44:32 max Exp $
 .\" $FreeBSD$
+.\"
 .Dd June 14, 2002
 .Dt NG_UBT 4
 .Os
 .Sh NAME
-.Nm ubt
+.Nm ng_ubt
 .Nd Netgraph node type that is also a driver for Bluetooth USB devices
 .Sh SYNOPSIS
 .In sys/types.h
 .In ng_ubt.h
 .Sh DESCRIPTION
 The
-.Nm
+.Nm ubt
 node type is both a persistent Netgraph node type and a driver for
-Bluetooth USB devices. It implements a Bluetooth USB transport layer 
-as per chapter H2 of the Bluetooth Specification Book v1.1. A new 
-node is created when supported USB device is plugged.
+Bluetooth USB devices.
+It implements a Bluetooth USB transport layer
+as per chapter H2 of the Bluetooth Specification Book v1.1.
+A new node is created when supported USB device is plugged.
 .Pp
 The node has a single hook called
 .Dv hook .
 Incoming bytes received on the device are re-assembled into HCI frames
-(according to the length). Full HCI frames are sent out on the hook. The node 
-will add HCI frame indicator if device did not send it. HCI frames received
-on
+(according to the length).
+Full HCI frames are sent out on the hook.
+The node will add HCI frame indicator if device did not send it.
+HCI frames received on
 .Dv hook
-are transmitted out. The node will drop HCI frame indicator unless device
-requires it to be present. 
+are transmitted out.
+The node will drop HCI frame indicator unless device
+requires it to be present.
 .Sh HOOKS
 This node type supports the following hooks:
-.Pp
-.Bl -tag -width foobar
+.Bl -tag -width indent
 .It Dv hook
 single HCI frame contained in single
-.Dv mbuf
+.Vt mbuf
 structure.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width foo
+.Bl -tag -width indent
 .It Dv NGM_UBT_NODE_GET_DEBUG
 Returns an integer containing the current debug level for the node.
 .It Dv NGM_UBT_NODE_SET_DEBUG
@@ -73,53 +74,56 @@ for the node.
 This command takes a parameter that specifies queue number and returns
 current maximal length of the queue for the node.
 .It Dv NGM_UBT_NODE_SET_QLEN
-This command takes two parameters that specify queue number and maximum 
+This command takes two parameters that specify queue number and maximum
 length of the queue and sets maximal length of the queue for the node.
 .It Dv NGM_UBT_NODE_GET_STAT
-Returns various statistic information for the node, such as: number of 
-bytes (frames) sent, number of bytes (frames) received and number of 
+Returns various statistic information for the node, such as: number of
+bytes (frames) sent, number of bytes (frames) received and number of
 input (output) errors.
 .It Dv NGM_UBT_NODE_RESET_STAT
 Reset all statistic counters to zero.
 .It Dv NGM_UBT_NODE_DEV_NODES
-This command takes single integer parameter. If the parameter's value
-is not zero then the driver will create device nodes for the control,
-interrupt, bulk-in and bulk-out endpoints. If the parameter's value is
-zero then the driver will destroy device nodes for the endpoints. The
-device nodes interface is mutually exclusive with Netgraph interface.
+This command takes single integer parameter.
+If the parameter's value is not zero, then the driver will create device nodes
+for the control, interrupt, bulk-in and bulk-out endpoints.
+If the parameter's value is zero, then the driver will destroy device nodes
+for the endpoints.
+The device nodes interface is mutually exclusive with Netgraph interface.
 .El
 .Sh DEVICE NODES INTERFACE
 The
-.Nm
-driver can create or destroy endpoint device nodes on request. This
-feature can be used to implement external firmware download utility.
+.Nm ubt
+driver can create or destroy endpoint device nodes on request.
+This feature can be used to implement external firmware download utility.
 .Pp
 The control transfers can only happen on the control endpoint which
-is always endpoint 0. Control request are issued by
+is always endpoint 0.
+Control requests are issued by
 .Xr ioctl 2
 calls.
 .Pp
-Only incoming transfers are supported on an interrupt endpoint. To perform I/O 
-on an interrupt endpoint
+Only incoming transfers are supported on an interrupt endpoint.
+To perform I/O on an interrupt endpoint,
 .Xr read 2
-should be used.  All I/O operations on a interrupt endpoint are unbuffered.
+should be used.
+All I/O operations on an interrupt endpoint are unbuffered.
 .Pp
-The bulk transfers can be in or out depending on the endpoint. To perform 
-I/O on a bulk endpoint
+The bulk transfers can be in or out depending on the endpoint.
+To perform I/O on a bulk endpoint,
 .Xr read 2
-and 
+and
 .Xr write 2
-should be used. All I/O operations on a bulk endpoint are unbuffered.
+should be used.
+All I/O operations on a bulk endpoint are unbuffered.
 .Pp
 The control endpoint (endpoint 0) handles the following
 .Xr ioctl 2
 calls:
-.Bl -tag -width foo
+.Bl -tag -width indent
 .It Dv USB_GET_DEVICE_DESC Pq Vt usb_device_descriptor_t
 Return the device descriptor.
 .It Dv USB_GET_STRING_DESC Pq Vt "struct usb_string_desc"
-Get a string descriptor for the given language ID and
-string index.
+Get a string descriptor for the given language ID and string index.
 .Bd -literal
 struct usb_string_desc {
         int                     string_index;
@@ -153,18 +157,18 @@ struct usb_ctl_request {
 };
 .Ed
 This is a dangerous operation in that it can perform arbitrary operations
-on the device.  Some of the most dangerous (e.g., changing the device
-address) are not allowed.
+on the device.
+Some of the most dangerous (e.g., changing the device address) are not allowed.
 .It Dv USB_GET_DEVICEINFO Pq Vt "struct usb_device_info"
-Get an information summary for the device. This call will not issue any USB 
-transactions.
+Get an information summary for the device.
+This call will not issue any USB transactions.
 .El
 .Sh SHUTDOWN
 This node shuts down when the corresponding USB device is un-plugged.
 .Sh BUGS
-Isochronous USB transfers are broken. It means that USB device will not be able
-to transfer SCO data (voice). USB interrupt transfers are implemented as bulk-in
-transfers (not really a bug).
+Isochronous USB transfers are broken.
+It means that USB device will not be able to transfer SCO data (voice).
+USB interrupt transfers are implemented as bulk-in transfers (not really a bug).
 .Sh FILES
 .Bl -tag -width ".Pa /dev/ubt Ns Ar N Ns Pa \&. Ns Ar EE" -compact
 .It Pa /dev/ubt Ns Ar N Ns Pa \&. Ns Ar EE
@@ -174,13 +178,13 @@ of device
 .Ar N .
 .El
 .Sh SEE ALSO
-.Xr usb 4 ,
-.Xr ugen 4 ,
 .Xr netgraph 4 ,
+.Xr ugen 4 ,
+.Xr usb 4 ,
 .Xr ngctl 8
 .Sh HISTORY
 The
-.Nm
+.Nm ubt
 node type was implemented in
 .Fx 5.0 .
 .Sh AUTHORS

@@ -1,8 +1,6 @@
-.\" rfcomm_pppd.1
-.\" 
 .\" Copyright (c) 2001-2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -11,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -23,9 +21,10 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $Id: rfcomm_sppd.1,v 1.1 2003/04/26 23:55:34 max Exp $
 .\" $FreeBSD$
+.\"
 .Dd April 26, 2003
 .Dt RFCOMM_SPPD 1
 .Os
@@ -34,61 +33,66 @@
 .Nd RFCOMM Serial Port Profile daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl a Ar BD_ADDR
-.Op Fl b
-.Op Fl c Ar channel
-.Op Fl t Ar tty
-.Op Fl h
+.Op Fl bh
+.Fl a Ar BD_ADDR
+.Fl c Ar channel
+.Fl t Ar tty
 .Sh DESCRIPTION
 The
 .Nm
-is a Serial Port Profile daemon. It opens RFCOMM connection to the
-specified server's BD_ADDR and channel. Once connection is established 
+utility is a Serial Port Profile daemon.
+It opens RFCOMM connection to the specified server's
+.Ar BD_ADDR
+and
+.Ar channel .
+Once connection is established, the
 .Nm
-provides access to the server's remote serial port via 
+utility provides access to the server's remote serial port via
 .Xr pty 4
 interface.
 .Pp
+The
 .Nm
-opens both master and slave pseudo terminals. This is done to ensure that
-RFCOMM connection stays open until
+utility opens both master and slave pseudo terminals.
+This is done to ensure that RFCOMM connection stays open until
 .Nm
-is terminated. The data received from the master pseudo terminal are sent over 
-the RFCOMM connection. The data received from the RFCOMM connection are written
-into master pseudo terminal. The application in its turn opens slave pseudo 
+is terminated.
+The data received from the master pseudo terminal are sent over
+the RFCOMM connection.
+The data received from the RFCOMM connection are written
+into master pseudo terminal.
+The application in its turn opens the slave pseudo
 terminal and operates on it just like it would operate over the standard serial
 port.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl a Ar BD_ADDR
-This requied option specifies the remote BD_ADDR of the RFCOMM server. 
+This required option specifies the remote BD_ADDR of the RFCOMM server.
 .It Fl b
-Detach from the controlling terminal, i.e. run in background.
+Detach from the controlling terminal, i.e., run in background.
 .It Fl c Ar channel
-This required option specifies RFCOMM channel to connect to. This channel
-must provide Serial Port service.
-.It Fl t Ar tty
-Slave pseudo tty name.
+This required option specifies RFCOMM channel to connect to.
+This channel must provide Serial Port service.
 .It Fl h
 Display usage message and exit.
+.It Fl t Ar tty
+Slave pseudo tty name.
 .El
 .Sh EXAMPLES
-.Bl -tag -width indent
-.It rfcomm_sppd -a 00:01:02:03:04:05 -c 1 -t /dev/ttyp1
+.Dl "rfcomm_sppd -a 00:01:02:03:04:05 -c 1 -t /dev/ttyp1"
 .Pp
-Will start
+Will start the
 .Nm
-and open RFCOMM connection to the server at
-.Em 00:01:02:03:04:05 
-and channel 
-.Em 1 .
-Once connection has been established
+utility and open RFCOMM connection to the server at
+.Li 00:01:02:03:04:05
+and channel
+.Li 1 .
+Once the connection has been established,
 .Pa /dev/ttyp1
 can be used to talk to the remote serial port on the server.
-.El
 .Sh FILES
-.Bl -tag -width /dev/tty[p-sP-S][0-9a-v]x -compact
+.Bl -tag -width ".Pa /dev/tty[p-sP-S][0-9a-v]" -compact
 .It Pa /dev/pty[p-sP-S][0-9a-v]
 master pseudo terminals
 .It Pa /dev/tty[p-sP-S][0-9a-v]
@@ -97,11 +101,12 @@ slave pseudo terminals
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh BUGS
+The
 .Nm
-currently is not integrated with SDP (Service Discovery Protocol).
+utility is not currently integrated with SDP (Service Discovery Protocol).
 .Sh SEE ALSO
-.Xr pty 4 ,
 .Xr ng_btsocket 4 ,
+.Xr pty 4 ,
 .Xr rfcomm_pppd 8
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
