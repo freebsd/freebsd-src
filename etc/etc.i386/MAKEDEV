@@ -129,7 +129,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.202 1999/07/07 12:00:42 bde Exp $
+#	$Id: MAKEDEV,v 1.203 1999/07/09 12:52:02 sheldonh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -805,7 +805,7 @@ ppi*)
 
 pps*)
 	unit=`expr $i : 'pps\(.*\)'`
-	mknod ppi$unit c 89 $unit
+	mknod pps$unit c 89 $unit
 	;;
 
 usb*)
