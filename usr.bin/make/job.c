@@ -205,15 +205,6 @@ static Shell    shells[] = {
     TRUE, "set -e", "set +e",
     "v", "e",
 },
-    /*
-     * UNKNOWN.
-     */
-{
-    (char *) 0,
-    FALSE, (char *) 0, (char *) 0, (char *) 0, 0,
-    FALSE, (char *) 0, (char *) 0,
-    (char *) 0, (char *) 0,
-}
 };
 static Shell 	*commandShell = &shells[DEFSHELL];/* this is the shell to
 						   * which we pass all
@@ -2345,7 +2336,7 @@ JobMatchShell(char *name)
 
     match = NULL;
 
-    for (sh = shells; sh->name != NULL; sh++) {
+    for (sh = shells; sh < shells + sizeof(shells) / sizeof(shells[0]); sh++) {
 	for (cp1 = eoname - strlen(sh->name), cp2 = sh->name;
 	     *cp1 != '\0' && *cp1 == *cp2;
 	     cp1++, cp2++) {
