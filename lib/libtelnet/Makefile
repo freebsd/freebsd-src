@@ -11,7 +11,7 @@ INTERNALLIB=	yes
 SRCS=		genget.c getent.c misc.c
 CFLAGS+=	-I${TELNETDIR}
 
-WARNS?=		2
+WARNS?=		0
 
 .if !defined(RELEASE_CRUNCH)
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
