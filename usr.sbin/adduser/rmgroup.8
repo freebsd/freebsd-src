@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: adduser.8,v 1.12 1996/08/28 17:54:13 adam Exp $
+.\" $Id: rmgroup.8,v 1.1 1996/11/04 17:21:11 wosch Exp $
 
 .Dd Oct, 30, 1996
 .Dt RMGROUP 8
@@ -35,11 +35,13 @@
 .Ar group
 .Sh DESCRIPTION
 .Nm 
-delete a Unix group from group database. 
+delete a Unix group from the 
+.Xr group 5
+database. 
 .Nm 
-do not delete the system groups wheel, daemon, kmem, sys, tty,
+will not delete the system groups wheel, daemon, kmem, sys, tty,
 operator, bin, nogroup, nobody,
-and not groups with gid 0.
+or groups with gid 0.
 .Sh SEE ALSO
 .Xr group 5 ,
 .Xr adduser 8 ,

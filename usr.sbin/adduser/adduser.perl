@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.21 1996/11/27 22:04:55 ache Exp $
+# $Id: adduser.perl,v 1.22 1996/12/07 21:25:12 ache Exp $
 
 
 # read variables
@@ -789,7 +789,7 @@ usage: adduser
     [-message message_file]
     [-noconfig]
     [-shell shell]
-    [-s|-silent|-q|-quit]
+    [-s|-silent|-q|-quiet]
     [-uid uid_start]
     [-v|-verbose]
 
@@ -854,7 +854,7 @@ sub parse_arguments {
 	shift @argv;
 	last if /^--$/;
 	if    (/^--?(v|verbose)$/)	{ $verbose = 1 }
-	elsif (/^--?(s|silent|q|quit)$/)  { $verbose = 0 }
+	elsif (/^--?(s|silent|q|quiet)$/)  { $verbose = 0 }
 	elsif (/^--?(debug)$/)	    { $verbose = 2 }
 	elsif (/^--?(h|help|\?)$/)	{ &usage }
 	elsif (/^--?(home)$/)	 { $home = $argv[0]; shift @argv }
