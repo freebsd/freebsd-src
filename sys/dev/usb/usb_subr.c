@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_subr.c,v 1.87 2001/08/15 00:04:59 augustss Exp $	*/
+/*	$NetBSD: usb_subr.c,v 1.88 2001/11/10 16:53:32 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1306,13 +1306,7 @@ usb_disconnect_port(struct usbd_port *up, device_ptr_t parent)
 			if (up->portno != 0)
 				printf(" port %d", up->portno);
 			printf(" (addr %d) disconnected\n", dev->address);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 			config_detach(dev->subdevs[i], DETACH_FORCE);
-#elif defined(__FreeBSD__)
-                        device_delete_child(device_get_parent(dev->subdevs[i]),
-					    dev->subdevs[i]);
-#endif
-
 		}
 	}
 
