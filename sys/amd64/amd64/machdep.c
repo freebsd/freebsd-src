@@ -685,11 +685,30 @@ setregs(p, entry, stack)
 	regs[tES] = _udatasel;
 	regs[tCS] = _ucodesel;
 
-	p->p_addr->u_pcb.pcb_flags = 0;	/* no fp at all */
-	load_cr0(rcr0() | CR0_TS);	/* start emulating */
-#if	NNPX > 0
+	/*
+	 * Initialize the math emulator (if any) for the current process.
+	 * Actually, just clear the bit that says that the emulator has
+	 * been initialized.  Initialization is delayed until the process
+	 * traps to the emulator (if it is done at all) mainly because
+	 * emulators don't provide an entry point for initialization.
+	 */
+	p->p_addr->u_pcb.pcb_flags &= ~FP_SOFTFP;
+
+	/*
+	 * Arrange to trap the next npx or `fwait' instruction (see npx.c
+	 * for why fwait must be trapped at least if there is an npx or an
+	 * emulator).  This is mainly to handle the case where npx0 is not
+	 * configured, since the npx routines normally set up the trap
+	 * otherwise.  It should be done only at boot time, but doing it
+	 * here allows modifying `npx_exists' for testing the emulator on
+	 * systems with an npx.
+	 */
+	load_cr0(rcr0() | CR0_MP | CR0_TS);
+
+#if NNPX > 0
+	/* Initialize the npx (if any) for the current process. */
 	npxinit(__INITIAL_NPXCW__);
-#endif	/* NNPX > 0 */
+#endif
 }
 
 static int
@@ -1140,9 +1159,11 @@ init386(first)
 	Maxmem = MAXMEM/4;
 #endif
 
+#if NNPX > 0
 	idp = find_isadev(isa_devtab_null, &npxdriver, 0);
 	if (idp != NULL && idp->id_msize != 0)
 		Maxmem = idp->id_msize / 4;
+#endif
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap (first, 0);
