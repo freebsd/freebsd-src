@@ -1,0 +1,13 @@
+# $FreeBSD$
+TODO*
+*.info*
+*.cat[0-9]
+appl/dceutils
+appl/kx
+appl/otp
+appl/popper
+appl/xnlock
+doc/standardisation
+lib/des
+lib/editline
+lib/otp
