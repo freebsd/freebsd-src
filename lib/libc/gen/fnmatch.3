@@ -99,7 +99,13 @@ Additionally, if
 .Dv FNM_PATHNAME
 is set,
 a period is ``leading'' if it immediately follows a slash.
-.It Dv FNM_ICASE
+.It Dv FNM_LEADING_DIR
+Ignore
+.Nm /*
+rest after successful
+.Fa pattern 
+matching.
+.It Dv FNM_CASEFOLD
 Ignore  case  distinctions in both the 
 .Fa pattern 
 and the 

@@ -51,7 +51,7 @@ static char sccsid[] = "@(#)fnmatch.c	8.2 (Berkeley) 4/16/94";
 
 #define	EOS	'\0'
 
-static const char *rangematch __P((const char *, int, int));
+static const char *rangematch __P((const char *, char, int));
 
 int
 fnmatch(pattern, string, flags)
@@ -64,6 +64,8 @@ fnmatch(pattern, string, flags)
 	for (stringstart = string;;)
 		switch (c = *pattern++) {
 		case EOS:
+			if ((flags & FNM_LEADING_DIR) && *string == '/')
+				return (0);
 			return (*string == EOS ? 0 : FNM_NOMATCH);
 		case '?':
 			if (*string == EOS)
@@ -130,8 +132,9 @@ fnmatch(pattern, string, flags)
 		default:
 			if (c == *string)
 				;
-			else if ((flags & FNM_ICASE) && 
-				 (tolower(c) == tolower(*string)))
+			else if ((flags & FNM_CASEFOLD) &&
+				 (tolower((unsigned char)c) ==
+				  tolower((unsigned char)*string)))
 				;
 			else
 				return (FNM_NOMATCH);
@@ -144,7 +147,8 @@ fnmatch(pattern, string, flags)
 static const char *
 rangematch(pattern, test, flags)
 	const char *pattern;
-	int test, flags;
+	char test;
+	int flags;
 {
 	int negate, ok;
 	char c, c2;
@@ -159,8 +163,8 @@ rangematch(pattern, test, flags)
 	if ( (negate = (*pattern == '!' || *pattern == '^')) )
 		++pattern;
 
-	if (flags & FNM_ICASE) 
-		test = tolower(test);
+	if (flags & FNM_CASEFOLD)
+		test = tolower((unsigned char)test);
 
 	for (ok = 0; (c = *pattern++) != ']';) {
 		if (c == '\\' && !(flags & FNM_NOESCAPE))
@@ -168,8 +172,8 @@ rangematch(pattern, test, flags)
 		if (c == EOS)
 			return (NULL);
 
-		if (flags & FNM_ICASE)
-			c = tolower(c);
+		if (flags & FNM_CASEFOLD)
+			c = tolower((unsigned char)c);
 
 		if (*pattern == '-'
 		    && (c2 = *(pattern+1)) != EOS && c2 != ']') {
@@ -179,8 +183,8 @@ rangematch(pattern, test, flags)
 			if (c2 == EOS)
 				return (NULL);
 
-			if (flags & FNM_ICASE)
-				c2 = tolower(c2);
+			if (flags & FNM_CASEFOLD)
+				c2 = tolower((unsigned char)c2);
 
 			if (   collate_range_cmp(c, test) <= 0
 			    && collate_range_cmp(test, c2) <= 0
