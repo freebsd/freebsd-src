@@ -1107,32 +1107,24 @@ falloc(td, resultfp, resultfd)
 	register struct file *fp, *fq;
 	int error, i;
 
+	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
 	sx_xlock(&filelist_lock);
 	if (nfiles >= maxfiles) {
 		sx_xunlock(&filelist_lock);
+		uma_zfree(file_zone, fp);
 		tablefull("file");
 		return (ENFILE);
 	}
 	nfiles++;
-	sx_xunlock(&filelist_lock);
-	/*
-	 * Allocate a new file descriptor.
-	 * If the process has file descriptor zero open, add to the list
-	 * of open files at that point, otherwise put it at the front of
-	 * the list of open files.
-	 */
-	fp = uma_zalloc(file_zone, M_WAITOK);
-	bzero(fp, sizeof(*fp));
 
 	/*
-	 * wait until after malloc (which may have blocked) returns before
-	 * allocating the slot, else a race might have shrunk it if we had
-	 * allocated it before the malloc.
+	 * If the process has file descriptor zero open, add the new file
+	 * descriptor to the list of open files at that point, otherwise
+	 * put it at the front of the list of open files.
 	 */
 	FILEDESC_LOCK(p->p_fd);
 	if ((error = fdalloc(td, 0, &i))) {
 		FILEDESC_UNLOCK(p->p_fd);
-		sx_xlock(&filelist_lock);
 		nfiles--;
 		sx_xunlock(&filelist_lock);
 		uma_zfree(file_zone, fp);
@@ -1144,9 +1136,6 @@ falloc(td, resultfp, resultfd)
 	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;
 	fp->f_seqcount = 1;
-	FILEDESC_UNLOCK(p->p_fd);
-	sx_xlock(&filelist_lock);
-	FILEDESC_LOCK(p->p_fd);
 	if ((fq = p->p_fd->fd_ofiles[0])) {
 		LIST_INSERT_AFTER(fq, fp, f_list);
 	} else {
