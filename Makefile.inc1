@@ -546,6 +546,9 @@ redistribute:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
 
+distribution:
+	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} distribution
+
 #
 # buildkernel and installkernel
 #
