@@ -512,11 +512,13 @@ struct ciss_bmic_id_ldrive {
 #define CISS_LDRIVE_RAID5	3
 #define CISS_LDRIVE_RAID51	4
 #define CISS_LDRIVE_RAIDADG	5
-    u_int8_t	res1[2];
-#if 0	/* only for identify logical drive extended (0x18) */
+    u_int8_t	res1;
+    u_int8_t	bios_disable_flag;
+    u_int8_t	res2;
     u_int32_t	logical_drive_identifier;
     char	logical_drive_label[64];
-#endif
+    u_int64_t	big_blocks_available;
+    u_int8_t	res3[410];
 } __packed;
 
 /* CISS_BMIC_ID_LSTATUS */
