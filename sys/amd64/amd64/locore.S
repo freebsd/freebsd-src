@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.42 1994/10/30 20:09:12 bde Exp $
+ *	$Id: locore.s,v 1.43 1994/10/31 17:20:15 joerg Exp $
  */
 
 /*
@@ -177,6 +177,11 @@ NON_GPROF_ENTRY(btext)
 	/* Don't trust what the BIOS gives for eflags. */
 	pushl	$PSL_MBO
 	popfl
+
+	/* Don't trust what the BIOS gives for %fs and %gs. */
+	mov	%ds, %ax
+	mov	%ax, %fs
+	mov	%ax, %gs
 
 	/*
 	 * This code is called in different ways depending on what loaded
