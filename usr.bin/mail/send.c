@@ -303,9 +303,10 @@ mail1(hp, printheaders)
 	int printheaders;
 {
 	char *cp;
+	char *nbuf;
 	int pid;
 	char **namelist;
-	struct name *to;
+	struct name *to, *nsto;
 	FILE *mtf;
 
 	/*
@@ -354,6 +355,18 @@ mail1(hp, printheaders)
 	to = elide(to);
 	if (count(to) == 0)
 		goto out;
+	if (value("recordrecip") != NULL) {
+		/*
+		 * Before fixing the header, save old To:.
+		 * We do this because elide above has sorted To: list, and
+		 * we would like to save message in a file named by the first
+		 * recipient the user has entered, not the one being the first
+		 * after sorting happened.
+		 */
+		if ((nsto = malloc(sizeof(struct name))) == NULL)
+			err(1, "Out of memory");
+		bcopy(hp->h_to, nsto, sizeof(struct name));
+	}
 	fixhead(hp, to);
 	if ((mtf = infix(hp, mtf)) == NULL) {
 		fprintf(stderr, ". . . message lost, sorry.\n");
@@ -369,7 +382,18 @@ mail1(hp, printheaders)
 		printf("\n");
 		goto out;
 	}
-	if ((cp = value("record")) != NULL)
+	if (value("recordrecip") != NULL) {
+		/*
+		 * Extract first recipient username from saved To: and use it
+		 * as a filename.
+		 */
+		if ((nbuf = malloc(strlen(detract(nsto, 0)) + 1)) == NULL)
+			err(1, "Out of memory");
+		if ((cp = yanklogin(detract(nsto, 0), nbuf)) != NULL)
+			(void)savemail(expand(nbuf), mtf);
+		free(nbuf);
+		free(nsto);
+	} else if ((cp = value("record")) != NULL)
 		(void)savemail(expand(cp), mtf);
 	/*
 	 * Fork, set up the temporary mail file as standard

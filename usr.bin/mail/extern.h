@@ -73,6 +73,7 @@ char	*username(void);
 char	*value(const char *);
 char	*vcopy(const char *);
 char	*yankword(char *, char []);
+char	*yanklogin(char *, char []);
 int	 Fclose(FILE *);
 int	 More(int *);
 int	 Pclose(FILE *);
