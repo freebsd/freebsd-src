@@ -104,7 +104,7 @@ wakeup(void *chan)
 	secrethandshake();
 	for (i = 0; i < NTHREAD; i++)
 		if (thr[i].wchan == chan) {
-			// printf("wakeup %s\n", thr[i].name);
+			printf("wakeup %s\n", thr[i].name);
 			atomic_clear_int(&sleeping, 1 << i);
 			write(thr[i].pipe[1], "\0", 1);
 		}
@@ -136,13 +136,13 @@ tsleep(void *chan, int pri __unused, const char *wmesg, int timo)
 	tp->wchan = chan;
 	tp->wmesg = wmesg;
 	fd = tp->pipe[0];
-	// printf("tsleep %s %p %s\n", tp->name, chan, wmesg);
+	printf("tsleep %s %p %s\n", tp->name, chan, wmesg);
 	for (;;) {
 		if (timo > 0) {
 			tv.tv_sec = 1;
 			tv.tv_usec = 0;
 		} else {
-			tv.tv_sec = 10;
+			tv.tv_sec = 3;
 			tv.tv_usec = 0;
 		}
 		FD_ZERO(&r);
@@ -152,11 +152,10 @@ tsleep(void *chan, int pri __unused, const char *wmesg, int timo)
 		atomic_set_int(&sleeping, 1 << i);
 		j = select(fd + 1, &r, &w, &e, &tv);
 		secrethandshake();
-		if (j)
-			break;
-		atomic_set_int(&sleeping, 1 << i);
+		break;
 	}
-	i = read(fd, buf, sizeof(buf));
+	if (j)
+		i = read(fd, buf, sizeof(buf));
 	tp->wchan = 0;
 	tp->wmesg = 0;
 	return(i);
@@ -169,7 +168,7 @@ rattle()
 
 	for (;;) {
 		secrethandshake();
-		usleep(100000);
+		usleep(500000);
 		secrethandshake();
 		i = sleeping & 7;
 		if (i != 7)
@@ -311,7 +310,7 @@ mtx_unlock_spin(struct mtx *mp)
 }
 
 void
-mtx_init(struct mtx *mp, char *bla __unused, int foo __unused)
+mtx_init(struct mtx *mp, const char *bla __unused, const char *yak __unused, int foo __unused)
 {
 	mp->mtx_lock = 0;
 }

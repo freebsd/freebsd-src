@@ -60,7 +60,7 @@ struct bio {
 	off_t			bio_length;
 	off_t			bio_completed;
 	void			*bio_data;
-	char			*bio_attribute;	/* BIO_GETATTR/BIO_SETATTR */
+	const char		*bio_attribute;	/* BIO_GETATTR/BIO_SETATTR */
 	int			bio_error;
 
 	struct bio		*bio_linkage;
@@ -107,7 +107,7 @@ void mtx_lock(struct mtx *);
 void mtx_lock_spin(struct mtx *);
 void mtx_unlock(struct mtx *);
 void mtx_unlock_spin(struct mtx *);
-void mtx_init(struct mtx *, char *, int);
+void mtx_init(struct mtx *, const char *, const char *, int);
 void mtx_destroy(struct mtx *);
 
 #define MALLOC_DECLARE(foo)	/* */
