@@ -108,7 +108,7 @@ usage(void)
 static char *
 getcwd_logical(void)
 {
-	struct stat log, phy;
+	struct stat lg, phy;
 	char *pwd;
 
 	/*
@@ -116,9 +116,9 @@ getcwd_logical(void)
 	 * the current working directory.
 	 */
 	if ((pwd = getenv("PWD")) != NULL && *pwd == '/') {
-		if (stat(pwd, &log) == -1 || stat(".", &phy) == -1)
+		if (stat(pwd, &lg) == -1 || stat(".", &phy) == -1)
 			return (NULL);
-		if (log.st_dev == phy.st_dev && log.st_ino == phy.st_ino)
+		if (lg.st_dev == phy.st_dev && lg.st_ino == phy.st_ino)
 			return (pwd);
 	}
 
