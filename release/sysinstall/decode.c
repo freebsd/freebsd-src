@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: decode.c,v 1.1 1995/05/10 07:44:54 jkh Exp $
+ * $Id: decode.c,v 1.2 1995/05/11 06:10:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -60,9 +60,7 @@ Boolean
 dispatch(DMenuItem *tmp, char *name)
 {
     Boolean failed = FALSE;
-    int choice, scroll, curr, max;
 
-    choice = scroll = curr = max = 0;
     switch (tmp->type) {
 	/* User whapped ESC twice and wants a sub-shell */
     case DMENU_SHELL_ESCAPE:
@@ -76,7 +74,7 @@ dispatch(DMenuItem *tmp, char *name)
 
 	/* It's a sub-menu; recurse on it */
     case DMENU_SUBMENU:
-	dmenuOpen((DMenu *)tmp->ptr, &choice, &scroll, &curr, &max);
+	dmenuOpenSimple((DMenu *)tmp->ptr);
 	break;
 
 	/* Execute it as a system command */
