@@ -40,12 +40,16 @@
  *
  *	@(#)conf.c	8.1 (Berkeley) 6/4/93
  *
- * Utah $Hdr: conf.c 3.1 92/07/06$
+ * From: Utah Hdr: conf.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)conf.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -65,7 +69,6 @@ static char sccsid[] = "@(#)conf.c	8.1 (Berkeley) 6/4/93";
 **	simplify the boot file search code.
 */
 
-char	*ProgName;				/* path-stripped argv[0] */
 char	MyHost[MAXHOSTNAMELEN+1];		/* host name */
 int	MyPid;					/* process id */
 int	DebugFlg = 0;				/* set true if debugging */

@@ -126,7 +126,6 @@ typedef struct rmpconn_s {
 /*
  *  All these variables are defined in "conf.c".
  */
-extern	char	*ProgName;		/* path-stripped argv[0] */
 extern	char	MyHost[];		/* this hosts' name */
 extern	int	MyPid;			/* this processes' ID */
 extern	int	DebugFlg;		/* set true if debugging */
