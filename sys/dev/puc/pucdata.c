@@ -244,11 +244,11 @@ const struct puc_device_description puc_devices[] = {
 	 */
 	{   "Dolphin Peripherals 4036",
 	    NULL,
-	    {	0x1409,	0x7168,	0x0,	0x0	},
-	    {	0xffff,	0xffff,	0x0,	0x0	},
+	    {	0x1409,	0x7168,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
 	    {
-		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 8},
-		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 8},
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 8 },
 	    },
 	},
 
@@ -702,8 +702,8 @@ const struct puc_device_description puc_devices[] = {
 	    {	0x14d2,	0x8020,	0,	0	},
 	    {	0xffff,	0xffff,	0,	0	},
 	    {
-		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ * 8},
-		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8},
+		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8 },
 	    },
 	},
 
@@ -807,8 +807,10 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
-	/* NEC PK-UG-X001 K56flex PCI Modem card.
-	   NEC MARTH bridge chip and Rockwell RCVDL56ACF/SP using. */
+	/*
+	 * NEC PK-UG-X001 K56flex PCI Modem card.
+	 * Uses NEC MARTH bridge chip and Rockwell RCVDL56ACF/SP.
+	 */
 	{   "NEC PK-UG-X001 K56flex PCI Modem",
 	    NULL,
 	    {	0x1033,	0x0074,	0x1033,	0x8014	},
@@ -824,7 +826,7 @@ const struct puc_device_description puc_devices[] = {
 	    {	0x1033,	0x007d,	0x1033,	0x8012	},
 	    {	0xffff,	0xffff,	0xffff,	0xffff	},
 	    {
-		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ},
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ },
 	    },
 	},
 
@@ -896,8 +898,8 @@ const struct puc_device_description puc_devices[] = {
 	/* Actiontec 56K PCI Master */
 	{   "Actiontec 56K PCI Master",
 	    NULL,
-	    {	0x11c1,	0x0480,	0x0,	0x0	},
-	    {	0xffff,	0xffff,	0x0,	0x0	},
+	    {	0x11c1,	0x0480,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
 	    {
 		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ },
 	    },
@@ -1016,8 +1018,8 @@ const struct puc_device_description puc_devices[] = {
 	/* SD-LAB PCI I/O Card 4S2P */
 	{   "Syba Tech Ltd. PCI-4S2P-550-ECP",
 	    puc_config_win877,
-	    {	0x1592, 0x0781, 0,	0	},
-	    {	0xffff, 0xffff, 0,	0	},
+	    {	0x1592,	0x0781,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
 	    {
 		{ PUC_PORT_TYPE_COM, 0x10, 0x2e8, COM_FREQ },
 		{ PUC_PORT_TYPE_COM, 0x10, 0x2f8, COM_FREQ },
@@ -1032,7 +1034,7 @@ const struct puc_device_description puc_devices[] = {
 	{   "Moxa Technologies, Smartio C104H/PCI",
 	    NULL,
 	    {	0x1393,	0x1040,	0,	0	},
-	    {	0xffff,	0xffff,	0,	0,	},
+	    {	0xffff,	0xffff,	0,	0	},
 	    {
 		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8 },
 		{ PUC_PORT_TYPE_COM, 0x18, 0x08, COM_FREQ * 8 },
@@ -1044,8 +1046,8 @@ const struct puc_device_description puc_devices[] = {
 	/* Moxa Technologies Co., Ltd. PCI I/O Card 4S RS232 */
 	{   "Moxa Technologies, Smartio CP-104UL/PCI",
 	    NULL,
-	    {   0x1393,	0x1041,	0,	0	},
-	    {   0xffff,	0xffff,	0,	0,	},
+	    {	0x1393,	0x1041,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
 	    {
 		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8 },
 		{ PUC_PORT_TYPE_COM, 0x18, 0x08, COM_FREQ * 8 },
@@ -1058,7 +1060,7 @@ const struct puc_device_description puc_devices[] = {
 	{   "Moxa Technologies, Industio CP-114",
 	    NULL,
 	    {	0x1393,	0x1141,	0,	0	},
-	    {	0xffff,	0xffff,	0,	0,	},
+	    {	0xffff,	0xffff,	0,	0	},
 	    {
 		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8 },
 		{ PUC_PORT_TYPE_COM, 0x18, 0x08, COM_FREQ * 8 },
@@ -1071,7 +1073,7 @@ const struct puc_device_description puc_devices[] = {
 	{   "Moxa Technologies, C168H/PCI",
 	    NULL,
 	    {	0x1393,	0x1680,	0,	0	},
-	    {	0xffff,	0xffff,	0,	0,	},
+	    {	0xffff,	0xffff,	0,	0	},
 	    {
 		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8 },
 		{ PUC_PORT_TYPE_COM, 0x18, 0x08, COM_FREQ * 8 },
@@ -1088,7 +1090,7 @@ const struct puc_device_description puc_devices[] = {
 	{   "Moxa Technologies, C168U/PCI",
 	    NULL,
 	    {	0x1393,	0x1681,	0,	0	},
-	    {	0xffff,	0xffff,	0,	0,	},
+	    {	0xffff,	0xffff,	0,	0	},
 	    {
 		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8 },
 		{ PUC_PORT_TYPE_COM, 0x18, 0x08, COM_FREQ * 8 },
@@ -1159,7 +1161,7 @@ const struct puc_device_description puc_devices[] = {
 		{ PUC_PORT_TYPE_COM, 0x10, 0x20, COM_FREQ },
 		{ PUC_PORT_TYPE_COM, 0x10, 0x28, COM_FREQ },
 		{ PUC_PORT_TYPE_COM, 0x10, 0x30, COM_FREQ },
-		{ PUC_PORT_TYPE_COM, 0x10, 0x38, COM_FREQ }
+		{ PUC_PORT_TYPE_COM, 0x10, 0x38, COM_FREQ },
 	    },
 	    PUC_ILR_TYPE_DIGI, { 0x07 },
 	},
@@ -1176,7 +1178,7 @@ const struct puc_device_description puc_devices[] = {
 		{ PUC_PORT_TYPE_COM, 0x10, 0x20, COM_FREQ },
 		{ PUC_PORT_TYPE_COM, 0x10, 0x28, COM_FREQ },
 		{ PUC_PORT_TYPE_COM, 0x10, 0x30, COM_FREQ },
-		{ PUC_PORT_TYPE_COM, 0x10, 0x38, COM_FREQ }
+		{ PUC_PORT_TYPE_COM, 0x10, 0x38, COM_FREQ },
 	    },
 	    PUC_ILR_TYPE_DIGI, { 0x07 },
 	},
