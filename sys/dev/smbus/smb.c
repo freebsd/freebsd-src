@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.1.2.1 1998/08/13 15:15:19 son Exp $
+ *	$Id: smb.c,v 1.1.1.1 1998/09/03 20:52:53 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -284,4 +284,6 @@ smb_drvinit(void *unused)
 CDEV_DRIVER_MODULE(smb, smbus, smb_driver, smb_devclass, CDEV_MAJOR,
 			smb_cdevsw, 0, 0);
 
+#if 0
 SYSINIT(smbdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,smb_drvinit,NULL)
+#endif
