@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -45,7 +45,9 @@ This manual page lists the standard
 .B groff
 input characters.
 Only the characters that are available for the device that
-is being used to print this manual page will be displayed.
+is being used to print or view this manual page will be
+.ie \n(.g displayed (the device currently used is `\*(.T').
+.el displayed.
 The
 .I "Input code"
 column applies to characters which can be
@@ -379,6 +381,7 @@ Output	Input	Input	PostScript	Notes
 .C2 OK \& "check mark, tick"
 .C2 Of ordfeminine
 .C2 Om ordmasculine
+.C2 pc periodcentered
 .C2 S1 onesuperior
 .C2 S2 twosuperior
 .C2 S3 threesuperior
@@ -399,7 +402,7 @@ Output	Input	Input	PostScript	Notes
 .C2 br br "box rule with traditional troff metrics"
 .C2 ru ru "baseline rule"
 .C2 ul ul "underline with traditional troff metrics"
-.C2 bv bv "bold vertical"
+.C2 bv bv "bar vertical"
 .C2 bs bell
 .C2 ci circle
 .C2 bu bullet
@@ -436,7 +439,9 @@ Output	Input	Input	PostScript	Notes
 .C2 lq quotedblleft
 .C2 rq quotedblright
 .C2 oq quoteleft "single open quote"
+.C2 cq quoteright "single closing quote (ASCII 39)"
 .C2 aq quotesingle "apostrophe quote"
+.C2 dq quotedbl "double quote (ASCII 34)"
 .C2 or bar
 .C2 at at
 .C1 - minus "minus sign from current font"
@@ -533,6 +538,9 @@ Output	Input	Input	PostScript	Notes
 .C2 ib reflexsubset
 .C2 ip reflexsuperset
 .C2 ap similar
+.C2 is integral
+.C2 sr radical "square root"
+.C2 rn \& overline
 .C2 pd partialdiff "partial differentiation sign"
 .C2 c* circlemultiply "multiply sign in a circle"
 .C2 c+ circleplus "plus sign in a circle"
@@ -549,8 +557,8 @@ Output	Input	Input	PostScript	Notes
 .C2 CR carriagereturn "carriage return symbol"
 .C2 st suchthat
 .C2 /_ angle
-.C2 << "" "much less"
-.C2 >> "" "much greater"
+.C2 << \& "much less"
+.C2 >> \& "much greater"
 .C2 wp weierstrass "Weierstrass p"
 .C2 lz lozenge
 .C2 an arrowhorizex "horizontal arrow extension"

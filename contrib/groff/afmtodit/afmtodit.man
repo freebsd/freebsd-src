@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -26,25 +26,26 @@ the original English.
 .SH NAME
 afmtodit \- create font files for use with groff \-Tps
 .SH SYNOPSIS
+.nr a \n(.j
+.ad l
+.nr i \n(.i
+.in +\w'\fBafmtodit 'u
+.ti \niu
 .B afmtodit
-[
-.B \-ns
-]
-[
-.BI \-d desc_file
-]
-[
-.BI \-e enc_file
-]
-[
-.BI \-i n
-]
-[
-.BI \-a n
-]
+.de OP
+.ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
+.el .RB "[\ " "\\$1" "\ ]"
+..
+.OP \-ns
+.OP \-d desc_file
+.OP \-e enc_file
+.OP \-i n
+.OP \-a n
 .I afm_file
 .I map_file
 .I font
+.br
+.ad \na
 .SH DESCRIPTION
 .B afmtodit
 creates a font file for use with groff and

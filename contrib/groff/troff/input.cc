@@ -37,6 +37,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 // Needed for getpid().
 #include "posix.h"
 
+#include "nonposix.h"
+
 #ifdef ISATTY_MISSING
 #undef isatty
 #define isatty(n) (1)
@@ -50,7 +52,8 @@ extern "C" {
 
 #define USAGE_EXIT_CODE 1
 #define MACRO_PREFIX "tmac."
-#define STARTUP_FILE "troffrc"
+#define INITIAL_STARTUP_FILE "troffrc"
+#define FINAL_STARTUP_FILE   "troffrc-end"
 #define DEFAULT_INPUT_STACK_LIMIT 1000
 
 #ifndef DEFAULT_WARNING_MASK
@@ -127,6 +130,8 @@ struct input_iterator;
 input_iterator *make_temp_iterator(const char *);
 const char *input_char_description(int);
 
+#ifndef IS_EBCDIC_HOST
+
 const int ESCAPE_QUESTION = 015;
 const int BEGIN_TRAP = 016;
 const int END_TRAP = 017;
@@ -156,6 +161,41 @@ const int VJUSTIFY_REQUEST = 0203;
 const int ESCAPE_E = 0204;
 const int LAST_PAGE_EJECTOR = 0205;
 const int ESCAPE_RIGHT_PARENTHESIS = 0206;
+
+#else /* IS_EBCDIC_HOST */
+
+const int ESCAPE_QUESTION = 010;
+const int BEGIN_TRAP = 011;
+const int END_TRAP = 013;
+const int PAGE_EJECTOR = 015;
+const int ESCAPE_NEWLINE = 016;
+const int ESCAPE_AMPERSAND = 017;
+const int ESCAPE_UNDERSCORE = 020;
+const int ESCAPE_BAR = 021;
+const int ESCAPE_CIRCUMFLEX = 022;
+const int ESCAPE_LEFT_BRACE = 023;
+const int ESCAPE_RIGHT_BRACE = 024;
+const int ESCAPE_LEFT_QUOTE = 027;
+const int ESCAPE_RIGHT_QUOTE = 030;
+const int ESCAPE_HYPHEN = 031;
+const int ESCAPE_BANG = 032;
+const int ESCAPE_c = 033;
+const int ESCAPE_e = 034;
+const int ESCAPE_PERCENT = 035;
+const int ESCAPE_SPACE = 036;
+
+const int TITLE_REQUEST = 060;
+const int COPY_FILE_REQUEST = 061;
+const int TRANSPARENT_FILE_REQUEST = 062;
+#ifdef COLUMN
+const int VJUSTIFY_REQUEST = 063;
+#endif /* COLUMN */
+const int ESCAPE_E = 064;
+const int LAST_PAGE_EJECTOR = 065;
+const int ESCAPE_RIGHT_PARENTHESIS = 066;
+
+#endif /* IS_EBCDIC_HOST */
+
 
 void set_escape_char()
 {
@@ -263,8 +303,13 @@ public:
 };
 
 file_iterator::file_iterator(FILE *f, const char *fn, int po)
-: fp(f), filename(fn), lineno(1), newline_flag(0), popened(po)
+: fp(f), lineno(1), filename(fn), popened(po), newline_flag(0)
 {
+  if ((font::use_charnames_in_special) && (fn != 0)) {
+    if (!the_output)
+      init_output();
+    the_output->put_filename(fn);
+  }
 }
 
 file_iterator::~file_iterator()
@@ -365,8 +410,12 @@ void file_iterator::backtrace()
 
 int file_iterator::set_location(const char *f, int ln)
 {
-  if (f)
+  if (f) {
     filename = f;
+    if (!the_output)
+      init_output();
+    the_output->put_filename(f);
+  }
   lineno = ln;
   return 1;
 }
@@ -1954,7 +2003,7 @@ static int transparent_translate(int cc)
     case charinfo::TRANSLATE_HYPHEN_INDICATOR:
       return ESCAPE_PERCENT;
     }
-    // This is realy ugly.
+    // This is really ugly.
     ci = ci->get_translation(1);
     if (ci) {
       int c = ci->get_ascii_code();
@@ -2300,7 +2349,7 @@ private:
 };
 
 char_list::char_list()
-: head(0), tail(0), ptr(0), len(0)
+: ptr(0), len(0), head(0), tail(0)
 {
 }
 
@@ -2388,6 +2437,7 @@ node_list::~node_list()
 }
 
 struct macro_header {
+public:
   int count;
   char_list cl;
   node_list nl;
@@ -2413,7 +2463,7 @@ macro::macro()
 }
 
 macro::macro(const macro &m) 
-: filename(m.filename), lineno(m.lineno), p(m.p), length(m.length)
+: p(m.p), filename(m.filename), lineno(m.lineno), length(m.length)
 { 
   if (p != 0)
     p->count++;
@@ -2530,7 +2580,7 @@ public:
 };
 
 string_iterator::string_iterator(const macro &m, const char *p, symbol s) 
-: lineno(1), mac(m), newline_flag(0), how_invoked(p), nm(s)
+: mac(m), how_invoked(p), newline_flag(0), lineno(1), nm(s)
 {
   count = mac.length;
   if (count != 0) {
@@ -3015,7 +3065,7 @@ void read_request()
     }
   }
   if (reading_from_terminal) {
-    fputc(had_prompt ? ':' : '\007', stderr);
+    fputc(had_prompt ? ':' : '\a', stderr);
     fflush(stderr);
   }
   input_stack::push(mi);
@@ -3502,6 +3552,44 @@ void substring_macro()
   skip_line();
 }
 
+void length_macro()
+{
+  symbol ret;
+  ret = get_name(1);
+  if (ret.is_null()) {
+    skip_line();
+    return;
+  }
+  int c;
+  node *n;
+  if (tok.newline())
+    c = '\n';
+  else if (tok.tab())
+    c = '\t';
+  else if (!tok.space()) {
+    error("bad string definition");
+    skip_line();
+    return;
+  }
+  else
+    c = get_copy(&n);
+  while (c == ' ')
+    c = get_copy(&n);
+  if (c == '"')
+    c = get_copy(&n);
+  int len = 0;
+  while (c != '\n' && c != EOF) {
+    ++len;
+    c = get_copy(&n);
+  }
+  tok.next();
+  reg *r = (reg*)number_reg_dictionary.lookup(ret);
+  if (r)
+    r->set_value(len);
+  else
+    set_number_reg(ret, len);
+}
+
 void asciify_macro()
 {
   symbol s = get_name(1);
@@ -3820,7 +3908,7 @@ static void do_width()
   }
   env.wrap_up_tab();
   units x = env.get_input_line_position().to_units();
-  input_stack::push(make_temp_iterator(itoa(x)));
+  input_stack::push(make_temp_iterator(i_to_a(x)));
   env.width_registers();
   curenv = oldenv;
 }
@@ -3926,6 +4014,38 @@ static node *do_non_interpreted()
   return new non_interpreted_node(mac);
 }
 
+static void encode_char (macro *mac, char c)
+{
+  if (c == '\0') {
+    if ((font::use_charnames_in_special) && tok.special()) {
+      charinfo *ci=tok.get_char(1);
+      const char *s=ci->get_symbol()->contents();
+
+      if (s[0] != (char)0) {
+	mac->append('\\');
+	mac->append('(');
+	int i=0;
+	while (s[i] != (char)0) {
+	  mac->append(s[i]);
+	  i++;
+	}
+	mac->append('\\');
+	mac->append(')');
+      }
+    } else {
+      error("%1 is illegal within \\X", tok.description());
+    }
+  } else {
+    if ((font::use_charnames_in_special) && (c == '\\')) {
+      /*
+       * add escape escape sequence
+       */
+      mac->append(c);
+    }
+    mac->append(c);
+  }
+}
+
 node *do_special()
 {
   token start;
@@ -3955,10 +4075,7 @@ node *do_special()
       c = '\b';
     else
       c = tok.ch();
-    if (c == '\0')
-      error("%1 is illegal within \\X", tok.description());
-    else 
-      mac.append(c);
+    encode_char(&mac, c);
   }
   return new special_node(mac);
 }
@@ -4332,7 +4449,7 @@ void pipe_source()
     }
     buf[buf_used] = '\0';
     errno = 0;
-    FILE *fp = popen(buf, "r");
+    FILE *fp = popen(buf, POPEN_RT);
     if (fp)
       input_stack::push(new file_iterator(fp, symbol(buf).contents(), 1));
     else
@@ -4341,6 +4458,193 @@ void pipe_source()
   }
   tok.next();
 #endif /* not POPEN_MISSING */
+}
+
+
+// .psbb
+
+static int llx_reg_contents = 0;
+static int lly_reg_contents = 0;
+static int urx_reg_contents = 0;
+static int ury_reg_contents = 0;
+
+struct bounding_box {
+  int llx, lly, urx, ury;
+};
+
+/* Parse the argument to a %%BoundingBox comment.  Return 1 if it
+contains 4 numbers, 2 if it contains (atend), 0 otherwise. */
+
+int parse_bounding_box(char *p, bounding_box *bb)
+{
+  if (sscanf(p, "%d %d %d %d",
+	     &bb->llx, &bb->lly, &bb->urx, &bb->ury) == 4)
+    return 1;
+  else {
+    /* The Document Structuring Conventions say that the numbers
+       should be integers.  Unfortunately some broken applications
+       get this wrong. */
+    double x1, x2, x3, x4;
+    if (sscanf(p, "%lf %lf %lf %lf", &x1, &x2, &x3, &x4) == 4) {
+      bb->llx = (int)x1;
+      bb->lly = (int)x2;
+      bb->urx = (int)x3;
+      bb->ury = (int)x4;
+      return 1;
+    }
+    else {
+      for (; *p == ' ' || *p == '\t'; p++)
+	;
+      if (strncmp(p, "(atend)", 7) == 0) {
+	return 2;
+      }
+    }
+  }
+  bb->llx = bb->lly = bb->urx = bb->ury = 0;
+  return 0;
+}
+
+// This version is taken from psrm.cc
+
+#define PS_LINE_MAX 255
+cset white_space("\n\r \t");
+
+int ps_get_line(char *buf, FILE *fp, const char* filename)
+{
+  int c = getc(fp);
+  if (c == EOF) {
+    buf[0] = '\0';
+    return 0;
+  }
+  int i = 0;
+  int err = 0;
+  while (c != '\r' && c != '\n' && c != EOF) {
+    if ((c < 0x1b && !white_space(c)) || c == 0x7f)
+      error("illegal input character code %1 in `%2'", int(c), filename);
+    else if (i < PS_LINE_MAX)
+      buf[i++] = c;
+    else if (!err) {
+      err = 1;
+      error("PostScript file `%1' is non-conforming "
+	    "because length of line exceeds 255", filename);
+    }
+    c = getc(fp);
+  }
+  buf[i++] = '\n';
+  buf[i] = '\0';
+  if (c == '\r') {
+    c = getc(fp);
+    if (c != EOF && c != '\n')
+      ungetc(c, fp);
+  }
+  return 1;
+}
+
+void do_ps_file(FILE *fp, const char* filename)
+{
+  bounding_box bb;
+  int bb_at_end = 0;
+  char buf[PS_LINE_MAX];
+  llx_reg_contents = lly_reg_contents =
+    urx_reg_contents = ury_reg_contents = 0;
+  if (!ps_get_line(buf, fp, filename)) {
+    error("`%1' is empty", filename);
+    return;
+  }
+  if (strncmp("%!PS-Adobe-", buf, 11) != 0) {
+    error("`%1' is not conforming to the Document Structuring Conventions",
+	  filename);
+    return;
+  }
+  while (ps_get_line(buf, fp, filename) != 0) {
+    if (buf[0] != '%' || buf[1] != '%'
+	|| strncmp(buf + 2, "EndComments", 11) == 0)
+      break;
+    if (strncmp(buf + 2, "BoundingBox:", 12) == 0) {
+      int res = parse_bounding_box(buf + 14, &bb);
+      if (res == 1)
+	goto assign_registers;
+      else if (res == 2) {
+	bb_at_end = 1;
+	break;
+      }
+      else {
+	error("the arguments to the %%%%BoundingBox comment in `%1' are bad",
+	      filename);
+        return;
+      }
+    }
+  }
+  if (bb_at_end) {
+    long offset;
+    int last_try = 0;
+    /* in the trailer, the last BoundingBox comment is significant */
+    for (offset = 512; !last_try; offset *= 2) {
+      int had_trailer = 0;
+      int got_bb = 0;
+      if (offset > 32768 || fseek(fp, -offset, 2) == -1) {
+	last_try = 1;
+	if (fseek(fp, 0L, 0) == -1)
+	  break;
+      }
+      while (ps_get_line(buf, fp, filename) != 0) {
+	if (buf[0] == '%' && buf[1] == '%') {
+	  if (!had_trailer) {
+	    if (strncmp(buf + 2, "Trailer", 7) == 0)
+	      had_trailer = 1;
+	  }
+	  else {
+	    if (strncmp(buf + 2, "BoundingBox:", 12) == 0) {
+	      int res = parse_bounding_box(buf + 14, &bb);
+	      if (res == 1)
+		got_bb = 1;
+	      else if (res == 2) {
+		error("`(atend)' not allowed in trailer of `%1'", filename);
+		return;
+	      }
+	      else {
+		error("the arguments to the %%%%BoundingBox comment in `%1' are bad",
+		      filename);
+		return;
+	      }
+	    }
+	  }
+	}
+      }
+      if (got_bb)
+	goto assign_registers;
+    }
+  }
+  error("%%%%BoundingBox comment not found in `%1'", filename);
+  return;
+
+assign_registers:
+  llx_reg_contents = bb.llx;
+  lly_reg_contents = bb.lly;
+  urx_reg_contents = bb.urx;
+  ury_reg_contents = bb.ury;
+}
+
+void ps_bbox_request()
+{
+  symbol nm = get_long_name(1);
+  if (nm.is_null())
+    skip_line();
+  else {
+    while (!tok.newline() && !tok.eof())
+      tok.next();
+    errno = 0;
+    // PS files might contain non-printable characters, such as ^Z
+    // and CRs not followed by an LF, so open them in binary mode.
+    FILE *fp = fopen(nm.contents(), FOPEN_RB);
+    if (fp) {
+      do_ps_file(fp, nm.contents());
+      fclose(fp);
+    }
+    else
+      error("can't open `%1': %2", nm.contents(), strerror(errno));
+    tok.next();
+  }
 }
 
 const char *asciify(int c)
@@ -4418,7 +4722,7 @@ const char *input_char_description(int c)
   case '\001':
     return "a leader character";
   case '\t':
-    return "a tab character ";
+    return "a tab character";
   case ' ':
     return "a space character";
   case '\0':
@@ -4576,7 +4880,7 @@ static void init_charset_table()
   char buf[16];
   strcpy(buf, "char");
   for (int i = 0; i < 256; i++) {
-    strcpy(buf + 4, itoa(i));
+    strcpy(buf + 4, i_to_a(i));
     charset_table[i] = get_charinfo(symbol(buf));
     charset_table[i]->set_ascii_code(i);
     if (csalpha(i))
@@ -4883,7 +5187,7 @@ public:
 
 const char *nargs_reg::get_string()
 {
-  return itoa(input_stack::nargs());
+  return i_to_a(input_stack::nargs());
 }
 
 class lineno_reg : public reg {
@@ -4897,7 +5201,7 @@ const char *lineno_reg::get_string()
   const char *file;
   if (!input_stack::get_location(0, &file, &line))
     line = 0;
-  return itoa(line);
+  return i_to_a(line);
 }
 
 
@@ -4965,7 +5269,7 @@ constant_int_reg::constant_int_reg(int *q) : p(q)
 
 const char *constant_int_reg::get_string()
 {
-  return itoa(*p);
+  return i_to_a(*p);
 }
 
 void abort_request()
@@ -5213,10 +5517,10 @@ static void process_macro_file(const char *mac)
   process_input_stack();
 }
 
-static void process_startup_file()
+static void process_startup_file(char *filename)
 {
   char *path;
-  FILE *fp = macro_path.open_file(STARTUP_FILE, &path);
+  FILE *fp = macro_path.open_file(filename, &path);
   if (fp) {
     input_stack::push(new file_iterator(fp, symbol(path).contents()));
     a_delete path;
@@ -5368,7 +5672,7 @@ int main(int argc, char **argv)
   int fflag = 0;
   int nflag = 0;
   int safer_flag = 1;		// safer by default
-  int no_rc = 0;		// don't process troffrc
+  int no_rc = 0;		// don't process troffrc and troffrc-end
   int next_page_number;
   opterr = 0;
   hresolution = vresolution = 1;
@@ -5377,8 +5681,8 @@ int main(int argc, char **argv)
     switch(c) {
     case 'v':
       {
-	extern const char *version_string;
-	fprintf(stderr, "GNU troff version %s\n", version_string);
+	extern const char *Version_string;
+	fprintf(stderr, "GNU troff version %s\n", Version_string);
 	fflush(stderr);
 	break;
       }
@@ -5511,7 +5815,7 @@ int main(int argc, char **argv)
     delete tem;
   }
   if (!no_rc)
-    process_startup_file();
+    process_startup_file(INITIAL_STARTUP_FILE);
   if (safer_flag)
     prepend_string("safer", &macros);
   while (macros) {
@@ -5520,6 +5824,8 @@ int main(int argc, char **argv)
     macros = macros->next;
     delete tem;
   }
+  if (!no_rc)
+    process_startup_file(FINAL_STARTUP_FILE);
   for (i = optind; i < argc; i++)
     process_input_file(argv[i]);
   if (optind >= argc || iflag)
@@ -5556,6 +5862,7 @@ static void init_registers()
   set_number_reg("dw", int(tt->tm_wday + 1));
   set_number_reg("dy", int(tt->tm_mday));
   set_number_reg("mo", int(tt->tm_mon + 1));
+  set_number_reg("year", int(1900 + tt->tm_year));
   set_number_reg("yr", int(tt->tm_year));
   set_number_reg("$$", getpid());
   number_reg_dictionary.define(".A",
@@ -5607,6 +5914,7 @@ void init_input_requests()
   init_request("backtrace", backtrace_request);
   init_request("chop", chop_macro);
   init_request("substring", substring_macro);
+  init_request("length", length_macro);
   init_request("asciify", asciify_macro);
   init_request("warn", warn_request);
   init_request("open", open_request);
@@ -5628,6 +5936,7 @@ void init_input_requests()
 #ifndef POPEN_MISSING
   init_request("pso", pipe_source);
 #endif /* not POPEN_MISSING */
+  init_request("psbb", ps_bbox_request);
   number_reg_dictionary.define("systat", new variable_reg(&system_status));
   number_reg_dictionary.define("slimit",
 			       new variable_reg(&input_stack::limit));
@@ -5643,8 +5952,14 @@ void init_input_requests()
   number_reg_dictionary.define(".x", new constant_reg(major_version));
   extern const char *minor_version;
   number_reg_dictionary.define(".y", new constant_reg(minor_version));
+  extern const char *revision;
+  number_reg_dictionary.define(".Y", new constant_reg(revision));
   number_reg_dictionary.define(".g", new constant_reg("1"));
   number_reg_dictionary.define(".warn", new constant_int_reg(&warning_mask));
+  number_reg_dictionary.define("llx", new variable_reg(&llx_reg_contents));
+  number_reg_dictionary.define("lly", new variable_reg(&lly_reg_contents));
+  number_reg_dictionary.define("urx", new variable_reg(&urx_reg_contents));
+  number_reg_dictionary.define("ury", new variable_reg(&ury_reg_contents));
 }
 
 object_dictionary request_dictionary(501);
@@ -5988,9 +6303,9 @@ charinfo *get_charinfo(symbol nm)
 int charinfo::next_index = 0;
 
 charinfo::charinfo(symbol s)
-: nm(s), hyphenation_code(0), translation(0), flags(0), ascii_code(0),
-  special_translation(TRANSLATE_NONE), mac(0), not_found(0),
-  transparent_translate(1)
+: translation(0), mac(0), special_translation(TRANSLATE_NONE),
+  hyphenation_code(0), flags(0), ascii_code(0), not_found(0),
+  transparent_translate(1), nm(s)
 {
   index = next_index++;
 }
@@ -6059,7 +6374,7 @@ charinfo *get_charinfo_by_number(int n)
     return ci;
   }
   else {
-    symbol ns(itoa(n));
+    symbol ns(i_to_a(n));
     charinfo *ci = (charinfo *)numbered_charinfo_dictionary.lookup(ns);
     if (!ci) {
       ci = new charinfo(UNNAMED_SYMBOL);

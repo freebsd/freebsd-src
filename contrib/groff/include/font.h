@@ -50,6 +50,7 @@ public:
   int get_left_italic_correction(int index, int point_size);
   int get_subscript_correction(int index, int point_size);
   int get_code(int i);
+  const char *get_special_device_encoding(int index);
   const char *get_name();
   const char *get_internal_name();
 
@@ -72,6 +73,8 @@ public:
   static int spare2;
   static int sizescale;
   static int tcommand;
+  static int pass_filenames;
+  static int use_charnames_in_special;
 
   static const char **font_name_table;
   static const char **style_table;

@@ -46,7 +46,7 @@ box *make_small_over_box(box *pp, box *qq)
 }
 
 over_box::over_box(int is_small, box *pp, box *qq)
-: num(pp), den(qq), reduce_size(is_small)
+: reduce_size(is_small), num(pp), den(qq)
 {
   spacing_type = INNER_TYPE;
 }

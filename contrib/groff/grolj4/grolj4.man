@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1994, 1995, 1999 Free Software Foundation, Inc.
+Copyright (C) 1994-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -26,24 +26,28 @@ the original English.
 .SH NAME
 grolj4 \- groff driver for HP Laserjet 4 family
 .SH SYNOPSIS
+.nr a \n(.j
+.ad l
+.nr i \n(.i
+.in +\w'\fBgrolj4 'u
+.ti \niu
 .B grolj4
-[
-.B \-lv
-] [
-.B \-d
-[\c
-.IR n ]
-] [
-.BI \-c n
-] [
-.BI \-p paper_size
-] [
-.BI \-w n
-] [
-.BI \-F dir
-] [
-.IR files \|.\|.\|.
-]
+.de OP
+.ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
+.el .RB "[\ " "\\$1" "\ ]"
+..
+.OP \-lv
+.OP \-d \fR[\fPn\fR]\fP
+.OP \-c n
+.OP \-p paper_size
+.OP \-w n
+.OP \-F dir
+.RI "[\ " files\|.\|.\|. "\ ]"
+.br
+.ad \na
+.PP
+It is possible to have whitespace between a command line option and its
+parameter.
 .SH DESCRIPTION
 .B grolj4
 is a driver for
@@ -96,12 +100,34 @@ thousandths of an em.
 Search directory
 .IB dir /devlj4
 for font and device description files.
+.LP
+The following four commands are available additionally in the
+.B DESC
+file:
+.TP 
+.BI pclweight \ N
+The integer value
+.I N
+must be in the range -7 to +7; default is 0.
+.TP
+.BI pclstyle \ N
+The integer value
+.I N
+must be in the range 0 to 32767; default is 0.
+.TP
+.BI pclproportional \ N
+A boolean flag which can be either 0 or 1; default is 0.
+.TP
+.BI pcltypeface \ N
+The integer value
+.I N
+must be in the range 0 to 65535; default is 0.
 .SH FILES
 .TP
 .B @FONTDIR@/devlj4/DESC
 Device description file.
 .TP
-.B @FONTDIR@/devlj4/ F
+.BI @FONTDIR@/devlj4/ F
 Font description file for font
 .IR F .
 .TP
@@ -113,7 +139,6 @@ Small dots.
 .SH "SEE ALSO"
 .BR groff (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),
-.BR @g@eqn (@MAN1EXT@),
 .BR groff_out (@MAN5EXT@),
 .BR groff_font (@MAN5EXT@),
-.BR groff_char (@MAN7EXT@),
+.BR groff_char (@MAN7EXT@)

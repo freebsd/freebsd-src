@@ -35,6 +35,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "index.h"
 #include "defs.h"
 
+#include "nonposix.h"
+
 // Interface to mmap.
 extern "C" {
   void *mapread(int fd, int len);
@@ -105,9 +107,9 @@ public:
 
 
 index_search_item::index_search_item(const char *filename, int fid)
-: search_item(filename, fid), out_of_date_files(0), key_buffer(0),
-  filename_buffer(0), filename_buflen(0), common_words_table(0),
-  map_addr(0), map_len(0), buffer(0)
+: search_item(filename, fid), out_of_date_files(0), buffer(0), map_addr(0),
+  map_len(0), key_buffer(0), filename_buffer(0), filename_buflen(0),
+  common_words_table(0)
 {
 }
 
@@ -274,7 +276,7 @@ search_item *make_index_search_item(const char *filename, int fid)
   char *index_filename = new char[strlen(filename) + sizeof(INDEX_SUFFIX)];
   strcpy(index_filename, filename);
   strcat(index_filename, INDEX_SUFFIX);
-  int fd = open(index_filename, O_RDONLY);
+  int fd = open(index_filename, O_RDONLY | O_BINARY);
   if (fd < 0)
     return 0;
   index_search_item *item = new index_search_item(index_filename, fid);
@@ -297,9 +299,10 @@ search_item *make_index_search_item(const char *filename, int fid)
 
 index_search_item_iterator::index_search_item_iterator(index_search_item *ind,
 						       const char *q)
-: indx(ind), buf(0), buflen(0), temp_list(0), query(strsave(q)),
+: indx(ind), out_of_date_files_iter(0), next_out_of_date_file(0), temp_list(0),
+  buf(0), buflen(0),
   searcher(q, strlen(q), ind->ignore_fields, ind->header.truncate),
-  out_of_date_files_iter(0), next_out_of_date_file(0)
+  query(strsave(q))
 {
   found_list = indx->search(q, strlen(q), &temp_list);
   if (!found_list) {
@@ -357,7 +360,7 @@ int index_search_item_iterator::get_tag(int tagno,
   }
   tag *tp = indx->tags + tagno;
   const char *filename = indx->munge_filename(indx->pool + tp->filename_index);
-  int fd = open(filename, O_RDONLY);
+  int fd = open(filename, O_RDONLY | O_BINARY);
   if (fd < 0) {
     error("can't open `%1': %2", filename, strerror(errno));
     return 0;
@@ -375,7 +378,7 @@ int index_search_item_iterator::get_tag(int tagno,
     return 0;
   }
   int res = 0;
-  FILE *fp = fdopen(fd, "r");
+  FILE *fp = fdopen(fd, FOPEN_RB);
   if (!fp) {
     error("fdopen failed");
     close(fd);
@@ -409,6 +412,20 @@ int index_search_item_iterator::get_tag(int tagno,
 	error("fread on `%1' failed: %2", filename, strerror(errno));
       else {
 	buf[0] = '\n';
+	// Remove the CR characters from CRLF pairs.
+	int sidx = 1, didx = 1;
+	for ( ; sidx < length + 1; sidx++, didx++)
+	  {
+	    if (buf[sidx] == '\r')
+	      {
+		if (buf[++sidx] != '\n')
+		  buf[didx++] = '\r';
+		else
+		  length--;
+	      }
+	    if (sidx != didx)
+	      buf[didx] = buf[sidx];
+	  }
 	buf[length + 1] = '\n';
 	res = searcher.search(buf + 1, buf + 2 + length, pp, lenp);
 	if (res && ridp)
@@ -423,10 +440,11 @@ int index_search_item_iterator::get_tag(int tagno,
 
 const char *index_search_item::munge_filename(const char *filename)
 {
-  if (filename[0] == '/')
+  if (IS_ABSOLUTE(filename))
     return filename;
   const char *cwd = pool;
-  int need_slash = (cwd[0] != 0 && strchr(cwd, '\0')[-1] != '/');
+  int need_slash = (cwd[0] != 0
+		    && strchr(DIR_SEPS, strchr(cwd, '\0')[-1]) == 0);
   int len = strlen(cwd) + strlen(filename) + need_slash + 1;
   if (len > filename_buflen) {
     a_delete filename_buffer;
@@ -613,7 +631,7 @@ void index_search_item::check_files()
     if (stat(path, &sb) < 0)
       error("can't stat `%1': %2", path, strerror(errno));
     else if (sb.st_mtime > mtime) {
-      int fd = open(path, O_RDONLY);
+      int fd = open(path, O_RDONLY | O_BINARY);
       if (fd < 0)
 	error("can't open `%1': %2", path, strerror(errno));
       else

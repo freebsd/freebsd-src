@@ -2,14 +2,20 @@ PROG=indxbib
 MAN1=indxbib.n
 XLIBS=$(LIBBIB) $(LIBGROFF)
 MLIB=$(LIBM)
-OBJS=indxbib.o dirnamemax.o signal.o
-CCSRCS=indxbib.cc
-CSRCS=dirnamemax.c signal.c
+OBJS=\
+  indxbib.o \
+  dirnamemax.o \
+  signal.o
+CCSRCS=\
+  $(srcdir)/indxbib.cc
+CSRCS=\
+  $(srcdir)/dirnamemax.c \
+  $(srcdir)/signal.c
 NAMEPREFIX=$(g)
 
 install_data: eign
-	-test -d $(datadir) || mkdir $(datadir)
-	-test -d $(datasubdir) || mkdir $(datasubdir)
+	-test -d $(datadir) || $(mkinstalldirs) $(datadir)
+	-test -d $(datasubdir) || $(mkinstalldirs) $(datasubdir)
 	if test -f /usr/lib/eign; then \
 	  rm -f $(common_words_file); \
 	  ln -s /usr/lib/eign $(common_words_file) 2>/dev/null \

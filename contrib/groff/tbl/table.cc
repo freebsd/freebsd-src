@@ -326,8 +326,8 @@ public:
 };
 
 table_entry::table_entry(const entry_modifier *m)
-: next(0), start_row(-1), end_row(-1), start_col(-1), end_col(-1), mod(m),
-  input_lineno(-1), input_filename(0)
+: next(0), input_lineno(-1), input_filename(0),
+  start_row(-1), end_row(-1), start_col(-1), end_col(-1), mod(m)
 {
 }
 
@@ -445,7 +445,7 @@ int empty_entry::line_type()
 }
 
 text_entry::text_entry(char *s, const entry_modifier *m)
-: contents(s), simple_entry(m)
+: simple_entry(m), contents(s)
 {
 }
 
@@ -1009,7 +1009,7 @@ struct stuff {
   virtual int is_double_line() { return 0; };
 };
 
-stuff::stuff(int r) : row(r), next(0), printed(0)
+stuff::stuff(int r) : next(0), row(r), printed(0)
 {
 }
 
@@ -1029,7 +1029,7 @@ struct text_stuff : public stuff {
 
 
 text_stuff::text_stuff(const string &s, int r, const char *fn, int ln)
-: contents(s), stuff(r), filename(fn), lineno(ln)
+: stuff(r), contents(s), filename(fn), lineno(ln)
 {
 }
 
@@ -1105,7 +1105,7 @@ struct vertical_rule {
 };
 
 vertical_rule::vertical_rule(int sr, int er, int c, int dbl, vertical_rule *p)
-: start_row(sr), end_row(er), col(c), is_double(dbl), next(p)
+: next(p), start_row(sr), end_row(er), col(c), is_double(dbl)
 {
 }
 
@@ -1199,11 +1199,11 @@ void vertical_rule::print()
 }
 
 table::table(int nc, unsigned f, int ls, char dpc)
-: ncolumns(nc), flags(f), linesize(ls), decimal_point_char(dpc),
-  nrows(0), allocated_rows(0), entry(0), entry_list(0),
-  entry_list_tailp(&entry_list),
-  left_separation(0), right_separation(0), stuff_list(0), vline(0),
-  vrule_list(0), row_is_all_lines(0), span_list(0)
+: flags(f), nrows(0), ncolumns(nc), linesize(ls), decimal_point_char(dpc),
+  vrule_list(0), stuff_list(0), span_list(0),
+  entry_list(0), entry_list_tailp(&entry_list), entry(0),
+  vline(0), row_is_all_lines(0), left_separation(0), right_separation(0),
+  allocated_rows(0)
 {
   minimum_width = new string[ncolumns];
   column_separation = ncolumns > 1 ? new int[ncolumns - 1] : 0;
@@ -1969,7 +1969,7 @@ void table::sum_columns(int start_col, int end_col)
 }
 
 horizontal_span::horizontal_span(int sc, int ec, horizontal_span *p)
-: start_col(sc), end_col(ec), next(p)
+: next(p), start_col(sc), end_col(ec)
 {
 }
 

@@ -336,8 +336,8 @@ int main(int argc, char **argv)
 	}
       case 'v':
 	{
-	  extern const char *version_string;
-	  fprintf(stderr, "GNU refer version %s\n", version_string);
+	  extern const char *Version_string;
+	  fprintf(stderr, "GNU refer version %s\n", Version_string);
 	  fflush(stderr);
 	  opt++;
 	  break;
@@ -513,7 +513,7 @@ static void do_file(const char *filename)
 	  if ((flags & FORCE_LEFT_BRACKET) || !have_text)
 	    pending_line += PRE_LABEL_MARKER;
 	  pending_line += pre;
-	  char lm = LABEL_MARKER + lt;
+	  char lm = LABEL_MARKER + (int)lt;
 	  pending_line += lm;
 	  pending_line += post;
 	  if ((flags & FORCE_RIGHT_BRACKET) || !have_text)
@@ -921,7 +921,7 @@ void label_processing_state::process(int c)
 
 extern "C" {
 
-static int rcompare(const void *p1, const void *p2)
+int rcompare(const void *p1, const void *p2)
 {
   return compare_reference(**(reference **)p1, **(reference **)p2);
 }

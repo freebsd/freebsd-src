@@ -8,3 +8,5 @@ hor 1
 vert 1
 unitwidth 10
 postpro grohtml
+use_charnames_in_special
+pass_filenames

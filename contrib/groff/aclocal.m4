@@ -55,7 +55,7 @@ dnl Bison generated parsers have problems with C++ compilers other than g++.
 dnl So byacc is preferred over bison.
 dnl
 AC_DEFUN(GROFF_PROG_YACC,
-[AC_CHECK_PROGS(YACC, byacc 'bison -y', yacc)])
+[AC_CHECK_PROGS(YACC, byacc 'bison -y', yacc)])dnl
 dnl
 dnl
 dnl GROFF_CSH_HACK(if hack present, if not present)
@@ -103,53 +103,16 @@ AC_MSG_RESULT(no))
 AC_LANG_RESTORE])dnl
 dnl
 dnl
-AC_DEFUN(GROFF_GETOPT,
+dnl srand() of SunOS 4.1.3 has return type int instead of void
+dnl
+AC_DEFUN(GROFF_SRAND,
 [AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
-AC_MSG_CHECKING([declaration of getopt in stdlib.h])
+AC_MSG_CHECKING([for return type of srand])
 AC_TRY_COMPILE([#include <stdlib.h>
-extern "C" { void getopt(int); }],,
-AC_MSG_RESULT(no),
-AC_MSG_RESULT(yes);AC_DEFINE(STDLIB_H_DECLARES_GETOPT))
-AC_MSG_CHECKING([declaration of getopt in unistd.h])
-AC_TRY_COMPILE([#include <sys/types.h>
-#include <unistd.h>
-extern "C" { void getopt(int); }],,
-AC_MSG_RESULT(no),
-AC_MSG_RESULT(yes);AC_DEFINE(UNISTD_H_DECLARES_GETOPT))
-AC_LANG_RESTORE])dnl
-dnl
-dnl
-AC_DEFUN(GROFF_PUTENV,
-[AC_LANG_SAVE
-AC_LANG_CPLUSPLUS
-AC_MSG_CHECKING([declaration of putenv])
-AC_TRY_COMPILE([#include <stdlib.h>
-extern "C" { void putenv(int); }],,
-AC_MSG_RESULT(no),
-AC_MSG_RESULT(yes);AC_DEFINE(STDLIB_H_DECLARES_PUTENV))
-AC_LANG_RESTORE])dnl
-dnl
-dnl
-AC_DEFUN(GROFF_POPEN,
-[AC_LANG_SAVE
-AC_LANG_CPLUSPLUS
-AC_MSG_CHECKING([declaration of popen])
-AC_TRY_COMPILE([#include <stdio.h>
-extern "C" { void popen(int); }],,
-AC_MSG_RESULT(no),
-AC_MSG_RESULT(yes);AC_DEFINE(STDIO_H_DECLARES_POPEN))
-AC_LANG_RESTORE])dnl
-dnl
-dnl
-AC_DEFUN(GROFF_PCLOSE,
-[AC_LANG_SAVE
-AC_LANG_CPLUSPLUS
-AC_MSG_CHECKING([declaration of pclose])
-AC_TRY_COMPILE([#include <stdio.h>
-extern "C" { void pclose(int); }],,
-AC_MSG_RESULT(no),
-AC_MSG_RESULT(yes);AC_DEFINE(STDIO_H_DECLARES_PCLOSE))
+extern "C" { void srand(unsigned int); }],,
+AC_MSG_RESULT(void);AC_DEFINE(RET_TYPE_SRAND_IS_VOID),
+AC_MSG_RESULT(int))
 AC_LANG_RESTORE])dnl
 dnl
 dnl
@@ -174,17 +137,6 @@ AC_TRY_COMPILE([#include <errno.h>
 [int k; k = (int)sys_errlist[0];],
 AC_MSG_RESULT(yes);AC_DEFINE(HAVE_SYS_ERRLIST),
 AC_MSG_RESULT(no))
-AC_LANG_RESTORE])dnl
-dnl
-dnl
-AC_DEFUN(GROFF_HYPOT,
-[AC_LANG_SAVE
-AC_LANG_CPLUSPLUS
-AC_MSG_CHECKING([declaration of hypot])
-AC_TRY_COMPILE([#include <math.h>
-extern "C" { double hypot(double,double); }],,
-AC_MSG_RESULT(no),
-AC_MSG_RESULT(yes);AC_DEFINE(MATH_H_DECLARES_HYPOT))
 AC_LANG_RESTORE])dnl
 dnl
 dnl
@@ -318,8 +270,7 @@ AC_SUBST(PAGE)])dnl
 dnl
 dnl
 AC_DEFUN(GROFF_CXX_CHECK,
-[AC_REQUIRE([AC_C_CROSS])
-AC_REQUIRE([AC_PROG_CXX])
+[AC_REQUIRE([AC_PROG_CXX])
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$cross_compiling" = no; then
@@ -353,8 +304,7 @@ AC_TRY_LINK([#include <stdio.h>],
 [fopen(0, 0);],
 AC_MSG_RESULT(yes),
 AC_MSG_RESULT(no);AC_MSG_ERROR([header files do not support C++ (if you are using a version of gcc/g++ earlier than 2.5, you should install libg++)]))
-AC_LANG_RESTORE
-])dnl
+AC_LANG_RESTORE])dnl
 dnl
 dnl
 AC_DEFUN(GROFF_TMAC,
@@ -413,8 +363,7 @@ elif test -n "$sys_tmac_prefix"; then
 	rm -f conftest.sol
 fi
 AC_MSG_RESULT([$tmac_wrap])
-AC_SUBST(tmac_wrap)
-])dnl
+AC_SUBST(tmac_wrap)])dnl
 dnl
 dnl
 AC_DEFUN(GROFF_G,
@@ -426,8 +375,7 @@ else
 	AC_MSG_RESULT(no)
 	g=
 fi
-AC_SUBST(g)
-])dnl
+AC_SUBST(g)])dnl
 dnl
 dnl
 dnl We need the path to install-sh to be absolute.
@@ -435,8 +383,7 @@ dnl
 AC_DEFUN(GROFF_INSTALL_SH,
 [AC_REQUIRE([AC_CONFIG_AUX_DIR_DEFAULT])dnl
 ac_dir=`cd $ac_aux_dir; pwd`
-ac_install_sh="$ac_dir/install-sh -c"
-])dnl
+ac_install_sh="$ac_dir/install-sh -c"])dnl
 dnl
 dnl
 dnl At least one UNIX system, Apple Macintosh Rhapsody 5.5,
@@ -444,5 +391,122 @@ dnl does not have -lm.
 dnl
 AC_DEFUN(GROFF_LIBM,
 [AC_CHECK_LIB(m,sin,LIBM=-lm)
-AC_SUBST(LIBM)
-])
+AC_SUBST(LIBM)])dnl
+dnl
+dnl
+dnl We need top_srcdir to be absolute.
+dnl
+AC_DEFUN(GROFF_SRCDIR,
+[ac_srcdir_defaulted=no
+srcdir=`cd $srcdir; pwd`])dnl
+dnl
+dnl
+dnl This simplifies Makefile rules.
+dnl
+AC_DEFUN(GROFF_BUILDDIR,
+[top_builddir=`pwd`
+AC_SUBST(top_builddir)])dnl
+dnl
+dnl
+dnl Check for EBCDIC - stolen from the OS390 Unix LYNX port
+dnl
+AC_DEFUN(GROFF_EBCDIC,
+[AC_MSG_CHECKING([whether character set is EBCDIC])
+AC_TRY_COMPILE(,
+[/* Treat any failure as ASCII for compatibility with existing art.
+    Use compile-time rather than run-time tests for cross-compiler
+    tolerance. */
+#if '0' != 240
+make an error "Character set is not EBCDIC"
+#endif],
+groff_cv_ebcdic="yes"
+ TTYDEVDIRS="font/devcp1047"
+ AC_MSG_RESULT(yes)
+ AC_DEFINE(IS_EBCDIC_HOST),
+groff_cv_ebcdic="no"
+ TTYDEVDIRS="font/devascii font/devlatin1 font/devutf8"
+ AC_MSG_RESULT(no))
+AC_SUBST(TTYDEVDIRS)])dnl
+dnl
+dnl
+dnl Check for OS/390 Unix.  We test for EBCDIC also -- the Linux port (with
+dnl gcc) to OS/390 uses ASCII internally.
+dnl
+AC_DEFUN(GROFF_OS390,
+[groff_cv_os390="no"
+if test "$groff_cv_ebcdic" = "yes"; then
+	AC_MSG_CHECKING([for OS/390 Unix])
+	case `uname` in
+	OS/390)
+		CFLAGS="$CFLAGS -D_ALL_SOURCE"
+		groff_cv_os390="yes"
+		AC_MSG_RESULT(yes) ;;
+	*)
+		AC_MSG_RESULT(no) ;;
+	esac
+fi])dnl
+dnl
+dnl
+dnl Finally, we must modify a base function of autoconf to replace the
+dnl ASCII char `012' with its generic equivalent `\n' if we run under
+dnl OS/390 Unix -- unfortunately, not all `tr' variants understand `\n',
+dnl so this hack is necessary.
+dnl
+define([AC_OUTPUT_MAKE_DEFS],
+[# Transform confdefs.h into DEFS.
+dnl Using a here document instead of a string reduces the quoting nightmare.
+# Protect against shell expansion while executing Makefile rules.
+# Protect against Makefile macro expansion.
+cat > conftest.defs <<\EOF
+changequote(<<, >>)dnl
+s%<<#define>> \([A-Za-z_][A-Za-z0-9_]*\) *\(.*\)%-D\1=\2%g
+s%[ 	`~<<#>>$^&*(){}\\|;'"<>?]%\\&%g
+s%\[%\\&%g
+s%\]%\\&%g
+s%\$%$$%g
+changequote([, ])dnl
+EOF
+if test "$groff_cv_os390" = "yes"; then
+	DEFS=`sed -f conftest.defs confdefs.h | tr '\n' ' '`
+else
+	DEFS=`sed -f conftest.defs confdefs.h | tr '\012' ' '`
+fi
+rm -f conftest.defs
+])dnl
+dnl
+dnl
+dnl Check whether we need a declaration for a function.
+dnl
+dnl Stolen from GNU bfd.
+dnl
+AC_DEFUN(GROFF_NEED_DECLARATION,
+[AC_MSG_CHECKING([whether $1 must be declared])
+AC_LANG_SAVE
+AC_LANG_CPLUSPLUS
+AC_CACHE_VAL(groff_cv_decl_needed_$1,
+[AC_TRY_COMPILE([
+#include <stdio.h>
+#ifdef HAVE_STRING_H
+#include <string.h>
+#else
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif
+#endif
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_MATH_H
+#include <math.h>
+#endif],
+[char *(*pfn) = (char *(*)) $1],
+groff_cv_decl_needed_$1=no,
+groff_cv_decl_needed_$1=yes)])
+AC_MSG_RESULT($groff_cv_decl_needed_$1)
+if test $groff_cv_decl_needed_$1 = yes; then
+	AC_DEFINE([NEED_DECLARATION_]translit($1, [a-z], [A-Z]))
+fi
+AC_LANG_RESTORE])dnl

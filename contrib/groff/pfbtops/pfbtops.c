@@ -1,6 +1,9 @@
 /* This translates ps fonts in .pfb format to ASCII ps files. */
 
 #include <stdio.h>
+#include <getopt.h>
+
+#include "nonposix.h"
 
 /* Binary bytes per output line. */
 #define BYTES_PER_LINE (64/2)
@@ -34,8 +37,8 @@ int main(argc, argv)
     switch (opt) {
     case 'v':
       {
-	extern char *version_string;
-	fprintf(stderr, "pfbtops groff version %s\n", version_string);
+	extern char *Version_string;
+	fprintf(stderr, "pfbtops groff version %s\n", Version_string);
 	fflush(stderr);
 	break;
       }
@@ -51,6 +54,9 @@ int main(argc, argv)
       perror(argv[optind]);
       exit(1);
     }
+#ifdef SET_BINARY
+  SET_BINARY(fileno(stdin));
+#endif
   for (;;)
     {
       int type, c, i;

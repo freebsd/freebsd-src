@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2000 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -35,26 +35,28 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "font.h"
 #include "device.h"
 #include "pipeline.h"
+#include "nonposix.h"
 #include "defs.h"
 
-#define BSHELL "/bin/sh"
 #define GXDITVIEW "gxditview"
 
 // troff will be passed an argument of -rXREG=1 if the -X option is
 // specified
 #define XREG ".X"
 
-#ifndef STDLIB_H_DECLARES_PUTENV
+#ifdef NEED_DECLARATION_PUTENV
 extern "C" {
   int putenv(const char *);
 }
-#endif /* not STDLIB_H_DECLARES_PUTENV */
+#endif /* NEED_DECLARATION_PUTENV */
 
 const int SOELIM_INDEX = 0;
 const int REFER_INDEX = SOELIM_INDEX + 1;
-const int PIC_INDEX = REFER_INDEX + 1;
+const int GRAP_INDEX = REFER_INDEX + 1;
+const int PIC_INDEX = GRAP_INDEX + 1;
 const int TBL_INDEX = PIC_INDEX + 1;
-const int EQN_INDEX = TBL_INDEX + 1;
+const int GRN_INDEX = TBL_INDEX + 1;
+const int EQN_INDEX = GRN_INDEX + 1;
 const int TROFF_INDEX = EQN_INDEX + 1;
 const int POST_INDEX = TROFF_INDEX + 1;
 const int SPOOL_INDEX = POST_INDEX + 1;
@@ -114,7 +116,7 @@ int main(int argc, char **argv)
     command_prefix = PROG_PREFIX;
   commands[TROFF_INDEX].set_name(command_prefix, "troff");
   while ((opt = getopt(argc, argv,
-		       "abCd:eEf:F:hiI:lL:m:M:n:No:pP:r:RsStT:UvVw:W:XzZ"))
+		       "abCd:eEf:F:gGhiI:lL:m:M:n:No:pP:r:RsStT:UvVw:W:XzZ"))
 	 != EOF) {
     char buf[3];
     buf[0] = '-';
@@ -133,6 +135,12 @@ int main(int argc, char **argv)
       break;
     case 'p':
       commands[PIC_INDEX].set_name(command_prefix, "pic");
+      break;
+    case 'g':
+      commands[GRN_INDEX].set_name(command_prefix, "grn");
+      break;
+    case 'G':
+      commands[GRAP_INDEX].set_name(command_prefix, "grap");
       break;
     case 'e':
       commands[EQN_INDEX].set_name(command_prefix, "eqn");
@@ -160,7 +168,9 @@ int main(int argc, char **argv)
     case 'C':
       commands[SOELIM_INDEX].append_arg(buf);
       commands[PIC_INDEX].append_arg(buf);
+      commands[GRAP_INDEX].append_arg(buf);
       commands[TBL_INDEX].append_arg(buf);
+      commands[GRN_INDEX].append_arg(buf);
       commands[EQN_INDEX].append_arg(buf);
       commands[TROFF_INDEX].append_arg(buf);
       break;
@@ -192,7 +202,7 @@ int main(int argc, char **argv)
     case 'F':
       font::command_line_font_dir(optarg);
       if (Fargs.length() > 0) {
-	Fargs += ':';
+	Fargs += PATH_SEP[0];
 	Fargs += optarg;
       }
       else
@@ -210,6 +220,8 @@ int main(int argc, char **argv)
       break;
     case 'M':
       commands[EQN_INDEX].append_arg(buf, optarg);
+      commands[GRAP_INDEX].append_arg(buf, optarg);
+      commands[GRN_INDEX].append_arg(buf, optarg);
       commands[TROFF_INDEX].append_arg(buf, optarg);
       break;
     case 'P':
@@ -285,7 +297,7 @@ int main(int argc, char **argv)
     commands[POST_INDEX].append_arg("-");
   if (lflag && !Xflag && spooler) {
     commands[SPOOL_INDEX].set_name(BSHELL);
-    commands[SPOOL_INDEX].append_arg("-c");
+    commands[SPOOL_INDEX].append_arg(BSHELL_DASH_C);
     Largs += '\0';
     Largs = spooler + Largs;
     commands[SPOOL_INDEX].append_arg(Largs.contents());
@@ -296,6 +308,7 @@ int main(int argc, char **argv)
   }
   commands[TROFF_INDEX].append_arg("-T", device);
   commands[EQN_INDEX].append_arg("-T", device);
+  commands[GRN_INDEX].append_arg("-T", device);
 
   int first_index;
   for (first_index = 0; first_index < TROFF_INDEX; first_index++)
@@ -315,7 +328,7 @@ int main(int argc, char **argv)
     e += Fargs;
     char *fontpath = getenv("GROFF_FONT_PATH");
     if (fontpath && *fontpath) {
-      e += ':';
+      e += PATH_SEP[0];
       e += fontpath;
     }
     e += '\0';
@@ -333,7 +346,19 @@ const char *xbasename(const char *s)
 {
   if (!s)
     return 0;
-  const char *p = strrchr(s, '/');
+  // DIR_SEPS[] are possible directory separator characters, see nonposix.h
+  // We want the rightmost separator of all possible ones.
+  // Example: d:/foo\\bar.
+  const char *p = strrchr(s, DIR_SEPS[0]), *p1;
+  const char *sep = &DIR_SEPS[1];
+
+  while (*sep)
+    {
+      p1 = strrchr(s, *sep);
+      if (p1 && (!p || p1 > p))
+	p = p1;
+      sep++;
+    }
   return p ? p + 1 : s;
 }
 
@@ -465,8 +490,8 @@ void possible_command::build_argv()
 void possible_command::print(int is_last, FILE *fp)
 {
   build_argv();
-  if (argv[0] != 0 && strcmp(argv[0], BSHELL) == 0
-      && argv[1] != 0 && strcmp(argv[1], "-c") == 0
+  if (IS_BSHELL(argv[0])
+      && argv[1] != 0 && strcmp(argv[1], BSHELL_DASH_C) == 0
       && argv[2] != 0 && argv[3] == 0)
     fputs(argv[2], fp);
   else {
@@ -547,9 +572,9 @@ char **possible_command::get_argv()
 void synopsis()
 {
   fprintf(stderr,
-"usage: %s [-abehilpstvzCENRSUVXZ] [-Fdir] [-mname] [-Tdev] [-ffam] [-wname]\n"
-"       [-Wname] [-Mdir] [-dcs] [-rcn] [-nnum] [-olist] [-Parg] [-Larg]\n"
-"       [files...]\n",
+"usage: %s [-abeghilpstvzCENRSUVXZ] [-Fdir] [-mname] [-Tdev] [-ffam]\n"
+"       [-wname] [-Wname] [-Mdir] [-dcs] [-rcn] [-nnum] [-olist] [-Parg]\n"
+"       [-Larg] [-Idir] [files...]\n",
 	  program_name);
 }
 
@@ -561,6 +586,8 @@ void help()
 "-t\tpreprocess with tbl\n"
 "-p\tpreprocess with pic\n"
 "-e\tpreprocess with eqn\n"
+"-g\tpreprocess with grn\n"
+"-G\tpreprocess with grap\n"
 "-s\tpreprocess with soelim\n"
 "-R\tpreprocess with refer\n"
 "-Tdev\tuse device dev\n"
@@ -571,7 +598,7 @@ void help()
 "-nnum\tnumber first page n\n"
 "-olist\toutput only pages in list\n"
 "-ffam\tuse fam as the default font family\n"
-"-Fdir\tsearch directory dir for device directories\n"
+"-Fdir\tsearch dir for device directories\n"
 "-Mdir\tsearch dir for macro files\n"
 "-v\tprint version number\n"
 "-z\tsuppress formatted output\n"
@@ -590,6 +617,7 @@ void help()
 "-N\tdon't allow newlines within eqn delimiters\n"
 "-S\tenable safer mode (the default)\n"
 "-U\tenable unsafe mode\n"
+"-Idir\tsearch dir for soelim.  Implies -s\n"
 "\n",
 	stderr);
   exit(0);

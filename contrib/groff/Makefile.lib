@@ -1,6 +1,10 @@
 LIBCLEAN=lib$(LIB).a
-MAKEFILEPARTS=$(srcdir)/../Makefile.comm ../Makefile.cfg \
-  $(srcdir)/Makefile.sub $(srcdir)/../Makefile.lib $(srcdir)/Makefile.dep
+MAKEFILEPARTS=\
+  $(top_srcdir)/Makefile.comm \
+  $(top_builddir)/Makefile.cfg \
+  $(srcdir)/Makefile.sub \
+  $(top_srcdir)/Makefile.lib \
+  Makefile.dep
 
 all: lib$(LIB).a
 
@@ -12,3 +16,5 @@ depend: depend_src
 depend.temp: $(GENSRCS)
 TAGS: $(CCSRCS) $(CSRCS)
 Makefile: $(MAKEFILEPARTS)
+Makefile.dep:
+	touch Makefile.dep

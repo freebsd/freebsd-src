@@ -624,7 +624,7 @@ public:
 
 const char *column_bottom_reg::get_string()
 {
-  return itoa(the_column->get_bottom().to_units());
+  return i_to_a(the_column->get_bottom().to_units());
 }
 
 class column_extra_space_reg : public reg {
@@ -634,7 +634,7 @@ public:
 
 const char *column_extra_space_reg::get_string()
 {
-  return itoa(the_column->get_last_extra_space().to_units());
+  return i_to_a(the_column->get_last_extra_space().to_units());
 }
 
 class column_active_reg : public reg {

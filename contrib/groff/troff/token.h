@@ -68,6 +68,7 @@ public:
   int nspaces();		// 1 if space, 2 if double space, 0 otherwise
   int space();			// is it a space or double space?
   int white_space();		// is the current token space or tab?
+  int special();                // is the current token a special character?
   int newline();		// is the current token a newline?
   int tab();			// is the current token a tab?
   int leader();
@@ -122,6 +123,11 @@ inline int token::newline()
 inline int token::space()
 { 
   return type == TOKEN_SPACE;
+}
+
+inline int token::special()
+{ 
+  return type == TOKEN_SPECIAL;
 }
 
 inline int token::nspaces()

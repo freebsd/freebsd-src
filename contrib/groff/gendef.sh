@@ -11,7 +11,11 @@ do
 #define $def"
 done
 
-t=/tmp/groff.$$
+# Use $TMPDIR if defined.  Default to cwd, for non-Unix systems
+# which don't have /tmp on each drive (we are going to remove
+# the file before we exit anyway).  Put the PID in the basename,
+# since the extension can only hold 3 characters on MS-DOS.
+t=${TMPDIR-.}/gro$$.tmp
 
 sed -e 's/=/ /' >$t <<EOF
 $defs

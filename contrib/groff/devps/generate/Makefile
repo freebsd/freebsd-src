@@ -1,21 +1,21 @@
-#Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
-#     Written by James Clark (jjc@jclark.com)
+# Copyright (C) 1989-2000 Free Software Foundation, Inc.
+#      Written by James Clark (jjc@jclark.com)
 #
-#This file is part of groff.
+# This file is part of groff.
 #
-#groff is free software; you can redistribute it and/or modify it under
-#the terms of the GNU General Public License as published by the Free
-#Software Foundation; either version 2, or (at your option) any later
-#version.
+# groff is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2, or (at your option) any later
+# version.
 #
-#groff is distributed in the hope that it will be useful, but WITHOUT ANY
-#WARRANTY; without even the implied warranty of MERCHANTABILITY or
-#FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-#for more details.
+# groff is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
 #
-#You should have received a copy of the GNU General Public License along
-#with groff; see the file COPYING.  If not, write to the Free Software
-#Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# You should have received a copy of the GNU General Public License along
+# with groff; see the file COPYING.  If not, write to the Free Software
+# Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 # This is set up so you can do
 #   make -f generate/Makefile
@@ -24,7 +24,7 @@
 # Directory containing AFM files.  Must not be current directory.
 # Either long names (eg Times-Roman.afm) or short names (eg timesr.afm)
 # may be used. See the afmname script.
-afmdir=/usr/local/afm
+afmdir=/usr/local/lib/afm
 srcdir=generate
 
 SPECIALFONTS=S
@@ -42,8 +42,7 @@ NOLIGFLAG=-n
 TEXTENC=$(srcdir)/../text.enc
 EFLAG=-e $(TEXTENC)
 TEXTMAP=$(srcdir)/textmap
-SHELL=/bin/sh
-AFMNAME=$(SHELL) $(srcdir)/afmname
+AFMNAME=$(srcdir)/afmname
 
 all: $(FONTS)
 

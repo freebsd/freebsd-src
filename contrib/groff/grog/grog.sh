@@ -2,7 +2,7 @@
 # grog -- guess options for groff command
 # Like doctype in Kernighan & Pike, Unix Programming Environment, pp 306-8.
 
-soelim=gsoelim
+soelim=@g@soelim
 
 opts=
 
@@ -20,12 +20,12 @@ do
 	esac
 done
 
-egrep -h '^\.(P|[LI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|Oc|TS|EQ|TH|SH|so|\[|R1|PH|SA)' $* \
+egrep -h '^\.(P|[LI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|Oc|TS|EQ|TH|SH|so|\[|R1|GS|G1|PH|SA)' $* \
 | sed -e '/^\.so/s/^.*$/.SO_START\
 &\
 .SO_END/' \
 | $soelim \
-| egrep '^\.(P|[LI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|Oc|TS|EQ|TH|SH|\[|R1|PH|SA|SO_START|SO_END)' \
+| egrep '^\.(P|[LI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|Oc|TS|EQ|TH|SH|\[|R1|GS|G1|PH|SA|SO_START|SO_END)' \
 | awk '
 /^\.SO_START$/ { so = 1 }
 /^\.SO_END$/ { so = 0 }
@@ -33,6 +33,8 @@ egrep -h '^\.(P|[LI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|Oc|TS|EQ|TH|SH|so|\[|R1|PH
 /^\.PS([ 0-9.<].*)?$/ { pic++; if (so > 0) soelim++ }
 /^\.EQ/ { eqn++; if (so > 0) soelim++ }
 /^\.(R1|\[)/ { refer++; if (so > 0) soelim++ }
+/^\.GS/ { grn++; if (so > 0) soelim++ }
+/^\.G1/ { grap++; pic++; if (so > 0) soelim++ }
 /^\.TH/ { TH++ }
 /^\.[PLI]P/ { PP++ }
 /^\.P$/ { P++ }
@@ -48,10 +50,12 @@ END {
 	if (files ~ /^-/)
 		files = "-- " files
 	printf "groff"
-	if (pic > 0 || tbl > 0 || eqn > 0 || refer > 0) {
+	if (pic > 0 || tbl > 0 || grn > 0 || grap > 0 || eqn > 0 || refer > 0) {
 		printf " -"
 		if (soelim > 0) printf "s"
 		if (refer > 0) printf "R"
+		if (grn > 0) printf "g"
+		if (grap > 0) printf "G"
 		if (pic > 0) printf "p"
 		if (tbl > 0) printf "t"
 		if (eqn > 0) printf "e"

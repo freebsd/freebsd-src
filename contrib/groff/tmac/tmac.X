@@ -31,7 +31,7 @@
 \D'l .39m 0'\v'.4m'\D'l -.39m 0''\h'.5m'
 .if !c\(lq .char \(lq ``
 .if !c\(rq .char \(rq ''
-.if !c\(Bq .char \(bq ,,
+.if !c\(Bq .char \(Bq ,,
 .if !c\(OE .char \(OE O\h'-.25m'E
 .if !c\(oe .char \(oe o\h'-.14m'e
 .if !c\(ah .char \(ah \v'-.55m'\s[\En[.s]/2u]v\s0\v'.55m'

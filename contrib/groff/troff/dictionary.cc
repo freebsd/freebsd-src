@@ -38,7 +38,7 @@ static int is_good_size(int p)
   return 1;
 }
 
-dictionary::dictionary(int n) : threshold(0.5), factor(1.5), used(0), size(n)
+dictionary::dictionary(int n) : size(n), used(0), threshold(0.5), factor(1.5)
 {
   table = new association[n];
 }
