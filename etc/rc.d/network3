@@ -611,15 +611,11 @@ network_pass3() {
 				case ${nfs_reserved_port_only} in
 				[Yy][Ee][Ss])
 					echo -n ' NFS on reserved port only=YES'
-					sysctl -w vfs.nfs.nfs_privport=1 > /dev/null
+					sysctl -w vfs.nfsrv.nfs_privport=1 > /dev/null
 					;;
 				esac
 
 				echo -n ' nfsd';	nfsd ${nfs_server_flags}
-
-				if [ -n "${nfs_bufpackets}" ]; then
-					sysctl -w vfs.nfs.bufpackets=${nfs_bufpackets} > /dev/null
-				fi
 
 				case ${rpc_lockd_enable} in
 				[Yy][Ee][Ss])
@@ -655,10 +651,13 @@ network_pass3() {
 
 		case ${nfs_client_enable} in
 		[Yy][Ee][Ss])
-			echo -n ' nfsiod';	nfsiod ${nfs_client_flags}
-				if [ -n "${nfs_access_cache}" ]; then
-			echo -n " NFS access cache time=${nfs_access_cache}"
-			sysctl -w vfs.nfs.access_cache_timeout=${nfs_access_cache} >/dev/null
+			#echo -n ' nfsiod';	nfsiod ${nfs_client_flags}
+			if [ -n "${nfs_access_cache}" ]; then
+				echo -n " NFS access cache time=${nfs_access_cache}"
+				sysctl -w vfs.nfs.access_cache_timeout=${nfs_access_cache} >/dev/null
+			fi
+			if [ -n "${nfs_bufpackets}" ]; then
+				sysctl -w vfs.nfs.bufpackets=${nfs_bufpackets} > /dev/null
 			fi
 			;;
 		esac
