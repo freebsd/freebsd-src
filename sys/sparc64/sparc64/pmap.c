@@ -276,7 +276,7 @@ pmap_bootstrap(vm_offset_t ekva)
 		va = (vm_offset_t)tsb_kernel + i * PAGE_SIZE_4M;
 		tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
 		tte.tte_data = TD_V | TD_4M | TD_VA_LOW(va) | TD_PA(pa) |
-		    TD_L | TD_CP | TD_P | TD_W;
+		    TD_L | TD_CP | TD_CV | TD_P | TD_W;
 		tlb_store_slot(TLB_DTLB, va, TLB_CTX_KERNEL, tte,
 		    TLB_SLOT_TSB_KERNEL_MIN + i);
 	}
@@ -523,7 +523,7 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 		}
 	}
 	pa = VM_PAGE_TO_PHYS(m);
-	dcache_inval_phys(pa, pa + PAGE_SIZE);
+	dcache_inval_phys(pa, pa + PAGE_SIZE - 1);
 	return (0);
 }
 
@@ -550,7 +550,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 
 	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
 	tte.tte_data = TD_V | TD_8K | TD_VA_LOW(va) | TD_PA(pa) |
-	    TD_REF | TD_SW | TD_CP | TD_P | TD_W;
+	    TD_REF | TD_SW | TD_CP | TD_CV | TD_P | TD_W;
 	tp = tsb_kvtotte(va);
 	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx tp=%p data=%#lx",
 	    va, pa, tp, tp->tte_data);
