@@ -57,3 +57,9 @@ a Boot Manager (the option for which will be presented later in the
 installation) or set one Active before leaving this screen.
 
 To leave the slice editor, type `Q'.
+
+Final Note: If you're absolutely sure you know what you're doing
+      and you want to use the old "Dangerously Dedicated" mode
+      which is now deprecated by sysinstall, use the (purposely)
+      undocumented `F' key.
+
