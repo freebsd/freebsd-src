@@ -8,6 +8,12 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20020807:
+	COPY is being deprecated.  The 20020703 change was reverted, as
+	it causes far more pain than was expected, and to always compare
+	before installing, please use INSTALL="install -C" again.  The
+	-C option is now silently ignored when used with the -d option.
+
 20020704:
 	OpenSSH has been upgraded to 3.4p1 and fully PAMified.  Note
 	that the protocol version now defaults to 2 rather than 1,

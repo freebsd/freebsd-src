@@ -173,7 +173,7 @@ main(argc, argv)
 	argv += optind;
 
 	/* some options make no sense when creating directories */
-	if ((safecopy || docompare || dostrip) && dodir)
+	if (dostrip && dodir)
 		usage();
 
 	/* must have at least two arguments, except when creating directories */
