@@ -5,8 +5,28 @@
  * 
  * This version supports just the DUMB UART mode.
  * 
- * (C) 1993  Hannu Savolainen (hsavolai@cs.helsinki.fi) See COPYING for further
- * details. Should be distributed with this file.
+ * Copyright by Hannu Savolainen 1993
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met: 1. Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer. 2.
+ * Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * 
  */
 
 #include "sound_config.h"
@@ -39,6 +59,7 @@ static int      mpu401_detected = 0;
 static int      my_dev;
 
 static int      reset_mpu401 (void);
+static void     (*midi_input_intr) (int dev, unsigned char data);
 
 static void
 mpu401_input_loop (void)
@@ -55,7 +76,7 @@ mpu401_input_loop (void)
 	count = 100;
 
 	if (mpu401_opened & OPEN_READ)
-	  sequencer_midi_input (my_dev, c);
+	  midi_input_intr (my_dev, c);
       }
     else
       while (!input_avail () && count)
@@ -65,8 +86,6 @@ mpu401_input_loop (void)
 void
 mpuintr (int unit)
 {
-  unsigned char   c;
-
   if (input_avail ())
     mpu401_input_loop ();
 }
@@ -141,7 +160,10 @@ set_mpu401_irq (int interrupt_level)
 }
 
 static int
-mpu401_open (int dev, int mode)
+mpu401_open (int dev, int mode,
+	     void            (*input) (int dev, unsigned char data),
+	     void            (*output) (int dev)
+)
 {
   if (mpu401_opened)
     {
@@ -151,6 +173,7 @@ mpu401_open (int dev, int mode)
 
   mpu401_input_loop ();
 
+  midi_input_intr = input;
   mpu401_opened = mode;
   poll_mpu401 (0);		/* Enable input polling */
 
