@@ -57,7 +57,6 @@ struct thread;
 struct bio;
 struct sbuf;
 
-#define G_CLASS_INITSTUFF { 0, 0 }, { 0 }, 0
 
 typedef struct g_geom * g_create_geom_t (struct g_class *mp,
     struct g_provider *pp, char *name);
@@ -81,19 +80,21 @@ typedef void g_dumpconf_t (struct sbuf *, char *indent, struct g_geom *,
  * one common g_class and so on.
  * Certain operations are instantiated on the class, most notably the
  * taste and create_geom functions.
- * XXX: should access and orphan go into g_geom ?
- * XXX: would g_class be a better and less confusing name ?
  */
 struct g_class {
 	char			*name;
 	g_taste_t		*taste;
-	g_access_t		*access;
-	g_orphan_t		*orphan;
 	g_create_geom_t		*create_geom;
+	/*
+	 * The remaning elements are private and classes should use
+	 * the G_CLASS_INITSTUFF macro to initialize them.
+         */
 	LIST_ENTRY(g_class)	class;
 	LIST_HEAD(,g_geom)	geom;
 	struct g_event		*event;
 };
+
+#define G_CLASS_INITSTUFF { 0, 0 }, { 0 }, 0
 
 /*
  * The g_geom is an instance of a g_class.
@@ -109,6 +110,8 @@ struct g_geom {
 	g_start_t		*start;
 	g_spoiled_t		*spoiled;
 	g_dumpconf_t		*dumpconf;
+	g_access_t		*access;
+	g_orphan_t		*orphan;
 	void			*softc;
 	struct g_event		*event;
 	unsigned		flags;
@@ -205,6 +208,7 @@ void g_std_spoiled(struct g_consumer *cp);
 struct bio * g_clone_bio(struct bio *);
 void g_destroy_bio(struct bio *);
 void g_io_deliver(struct bio *bp);
+void g_io_fail(struct bio *bp, int error);
 int g_io_getattr(char *attr, struct g_consumer *cp, int *len, void *ptr);
 void g_io_request(struct bio *bp, struct g_consumer *cp);
 int g_io_setattr(char *attr, struct g_consumer *cp, int len, void *ptr);

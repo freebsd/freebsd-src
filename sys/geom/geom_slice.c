@@ -60,6 +60,10 @@
 #include <geom/geom_slice.h>
 #include <machine/stdarg.h>
 
+static g_orphan_t g_slice_orphan;
+static g_access_t g_slice_access;
+static g_start_t g_slice_start;
+
 struct g_slicer *
 g_slice_init(unsigned nslice, unsigned scsize)
 {
@@ -72,7 +76,7 @@ g_slice_init(unsigned nslice, unsigned scsize)
 	return (gsp);
 }
 
-int
+static int
 g_slice_access(struct g_provider *pp, int dr, int dw, int de)
 {
 	int error, i;
@@ -114,7 +118,7 @@ g_slice_access(struct g_provider *pp, int dr, int dw, int de)
 	return (error);
 }
 
-void
+static void
 g_slice_start(struct bio *bp)
 {
 	struct bio *bp2;
@@ -226,6 +230,8 @@ g_slice_new(struct g_class *mp, int slices, struct g_provider *pp, struct g_cons
 	gp = g_new_geomf(mp, "%s", pp->name);
 	gsp = g_slice_init(slices, extra);
 	gsp->start = start;
+	gp->access = g_slice_access;
+	gp->orphan = g_slice_orphan;
 	gp->softc = gsp;
 	gp->start = g_slice_start;
 	gp->spoiled = g_std_spoiled;
@@ -246,7 +252,7 @@ g_slice_new(struct g_class *mp, int slices, struct g_provider *pp, struct g_cons
 	return (gp);
 }
 
-void
+static void
 g_slice_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
