@@ -34,8 +34,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl c
-.Op Fl D Ar name Ns Op Ar =value 
-.Op ...\&
+.Op Fl D Ar name Ns Op Ar =value
+.Ar ...\&
 .Op Fl E
 .Op Fl g
 .Op Fl I Ar directory ...\&
@@ -63,7 +63,12 @@ Define name as if by a C-language
 directive.  If
 no
 .Ar =value
-is given, a value of 1 will be used.  The
+is given, a value of 1 will be used. Note that in order to request a
+translation as specified by
+.St -p1003.2
+you need to define
+.Dv _POSIX_SOURCE
+either in the source or using this option.  The
 .Fl D
 option has lower precedence than the
 .Fl U
