@@ -1,6 +1,8 @@
 PROG=	sysinstall
 MAN8=	sysinstall.8
+
 BINDIR=/stand
+NOSHARED=YES
 
 CLEANFILES+=	makedevs.c rtermcap rtermcap.tmp dumpnlist
 CLEANFILES+=	keymap.tmp keymap.h
