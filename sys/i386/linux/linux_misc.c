@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.47 1998/12/10 13:47:18 jkh Exp $
+ *  $Id: linux_misc.c,v 1.48 1998/12/19 02:55:33 julian Exp $
  */
 
 #include <sys/param.h>
@@ -583,12 +583,7 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 {
     int error, ff = RFPROC;
     struct proc *p2;
-    int            growable;
-    int            initstacksize;
-    int            maxstacksize;
     int            exit_signal;
-    vm_map_entry_t entry;
-    vm_map_t       map;
     vm_offset_t    start;
     struct rfork_args rf_args;
 
@@ -630,7 +625,7 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
     p2 = pfind(p->p_retval[0]);
     if (p2 == 0)
  	return ESRCH;
-    
+
     p2->p_sigparent = exit_signal;
     p2->p_md.md_regs->tf_esp = (unsigned int)args->stack;
 
@@ -693,14 +688,14 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
     bsd_args.len = linux_args.len;
 #else
 
-#if !defined(USE_VM_STACK) && !defined(USE_VM_STACK_FOR_EXEC)
+    /*#if !defined(USE_VM_STACK) && !defined(USE_VM_STACK_FOR_EXEC)*/
     /* Linux Threads will map into the proc stack space, unless
        we prevent it.  This causes problems if we're not using
        our VM_STACK options.
     */
     if ((unsigned int)linux_args.addr + linux_args.len > (USRSTACK - MAXSSIZ))
         return (EINVAL);
-#endif
+    /*#endif*/
 
     if (linux_args.flags & LINUX_MAP_GROWSDOWN) {
 
