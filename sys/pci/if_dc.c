@@ -1942,10 +1942,12 @@ static int dc_attach(dev)
 		break;
 	case DC_DEVICEID_X3201:
 		sc->dc_type = DC_TYPE_XIRCOM;
-		sc->dc_flags |= DC_TX_INTR_ALWAYS | DC_TX_COALESCE;
+		sc->dc_flags |= DC_TX_INTR_ALWAYS | DC_TX_COALESCE |
+				DC_TX_ALIGN ;
 		/*
 		 * We don't actually need to coalesce, but we're doing
 		 * it to obtain a double word aligned buffer.
+		 * The DC_TX_COALESCE flag is required.
 		 */
 		break;
 	case DC_DEVICEID_RS7112:
@@ -2996,7 +2998,9 @@ static void dc_start(ifp)
 		if (m_head == NULL)
 			break;
 
-		if (sc->dc_flags & DC_TX_COALESCE) {
+		if (sc->dc_flags & DC_TX_COALESCE &&
+		    (m_head->m_next != NULL ||
+		     sc->dc_flags & DC_TX_ALIGN) ) {
 			if (dc_coal(sc, &m_head)) {
 				IF_PREPEND(&ifp->if_snd, m_head);
 				ifp->if_flags |= IFF_OACTIVE;
