@@ -54,20 +54,25 @@ Unless the argument
 .Fa nochdir
 is non-zero,
 .Fn daemon
-changes the current working directory to the root (``/'').
+changes the current working directory to the root
+.Pq Pa / .
 .Pp
 Unless the argument
 .Fa noclose
 is non-zero,
 .Fn daemon
-will redirect standard input, standard output and standard error
-to ``/dev/null''.
-.Sh ERRORS
-If an error occurs,
+will redirect standard input, standard output, and standard error to
+.Pa /dev/null .
+.Sh RETURN VALUES
+Upon success,
 .Fn daemon
-returns -1 and sets the global variable
+returns 0; otherwise \-1 is returned.
+.Sh ERRORS
+The function
+.Fn daemon
+may fail and set
 .Va errno
-to any of the errors specified for the library functions
+for any of the errors specified for the library functions
 .Xr fork 2
 and
 .Xr setsid 2 .
@@ -79,3 +84,22 @@ The
 .Fn daemon
 function first appeared in
 .Bx 4.4 .
+.Sh CAVEATS
+Unless the
+.Ar noclose
+argument is non-zero,
+.Fn daemon
+will close the first three file descriptors and redirect them to
+.Pa /dev/null .
+Normally, these correspond to standard input, standard output, and
+standard error.
+However, if any of those file descriptors refer to something else they
+will still be closed, resulting in incorrect behavior of the calling program.
+This can happen if any of standard input, standard output, or standard
+error have been closed before the program was run.
+Programs using
+.Fn daemon
+should therefore either call
+.Fn daemon
+before opening any files or sockets, or verify that any file
+descriptors obtained have values greater than 2.
