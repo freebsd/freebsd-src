@@ -636,7 +636,7 @@ release.8:
 .if ${MACHINE_ARCH} == "alpha"
 	rm -rf ${RD}/mfsfd/stand/help/*
 .endif
-.if exists(${.CURDIR}/${MACHINE_ARCH}/drivers.conf)
+.if exists(${.CURDIR}/${MACHINE}/drivers.conf)
 	@mkdir -p ${RD}/mfsfd/stand/modules
 	@perl ${.CURDIR}/scripts/driver-copy2.pl \
 		${.CURDIR}/${MACHINE_ARCH}/drivers.conf \
@@ -914,7 +914,7 @@ createBOOTMFS:
 	@echo "options  INTRO_USERCONFIG" >> \
 	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
 .endif
-.if exists(${.CURDIR}/${MACHINE_ARCH}/drivers.conf)
+.if exists(${.CURDIR}/${MACHINE}/drivers.conf)
 	@perl ${.CURDIR}/scripts/driver-remove.pl \
 		${.CURDIR}/${MACHINE_ARCH}/drivers.conf \
 		${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
