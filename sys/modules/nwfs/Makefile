@@ -11,8 +11,6 @@ SRCS=	vnode_if.h \
 
 NOMAN=true
 
-CFLAGS+= -DNWFS
-
 .if defined(VNPRINT)
 CFLAGS+= -DVNPRINT
 .endif
