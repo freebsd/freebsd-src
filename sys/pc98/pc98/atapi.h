@@ -251,20 +251,24 @@ extern struct atapi *atapi_tab;         /* the table of atapi controllers */
 int atapi_attach (int ctlr, int unit, int port, struct kern_devconf*);
 #endif
 
-int atapi_start (int ctrlr);
-int atapi_intr (int ctrlr);
-void atapi_debug (struct atapi *ata, int on);
-struct atapires atapi_request_wait (struct atapi *ata, int unit,
+/*
+ * These "functions" are declared with archaic `extern's because they are
+ * actually pointers in the !ATAPI_STATIC case.
+ */
+extern int atapi_start (int ctrlr);
+extern int atapi_intr (int ctrlr);
+extern void atapi_debug (struct atapi *ata, int on);
+extern struct atapires atapi_request_wait (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
 	char *addr, int count);
-void atapi_request_callback (struct atapi *ata, int unit,
+extern void atapi_request_callback (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
 	char *addr, int count, atapi_callback_t *done, void *x, void *y);
-struct atapires atapi_request_immediate (struct atapi *ata, int unit,
+extern struct atapires atapi_request_immediate (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,

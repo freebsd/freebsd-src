@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.31 1996/02/06 18:51:12 wollman Exp $ */
+/* $Id: if_ppp.c,v 1.32 1996/04/07 17:39:08 bde Exp $ */
 /* from if_ppp.c,v 1.5 1995/08/16 01:36:38 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -122,6 +122,8 @@
 #define PACKETPTR	struct mbuf *
 #include <net/ppp_comp.h>
 #endif
+
+struct ppp_softc ppp_softc[NPPP];
 
 static void	pppattach __P((void *));
 PSEUDO_SET(pppattach, if_ppp);

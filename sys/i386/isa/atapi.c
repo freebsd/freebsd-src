@@ -905,15 +905,7 @@ struct atapires atapi_request_immediate (struct atapi *ata, int unit,
 }
 #endif /* ATAPI_STATIC */
 
-#ifdef ATAPI_MODULE
-/*
- * ATAPI loadable driver stubs.
- */
-#include <sys/exec.h>
-#include <sys/conf.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
-
+#if defined (ATAPI_MODULE) || !defined(ATAPI_STATIC)
 int (*atapi_start_ptr) (int ctrlr);
 int (*atapi_intr_ptr) (int ctrlr);
 void (*atapi_debug_ptr) (struct atapi *ata, int on);
@@ -932,6 +924,16 @@ struct atapires (*atapi_request_immediate_ptr) (struct atapi *ata, int unit,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
 	char *addr, int count);
+#endif
+
+#ifdef ATAPI_MODULE
+/*
+ * ATAPI loadable driver stubs.
+ */
+#include <sys/exec.h>
+#include <sys/conf.h>
+#include <sys/sysent.h>
+#include <sys/lkm.h>
 
 extern int atapi_lock (int ctlr);
 /*

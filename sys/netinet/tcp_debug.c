@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_debug.c,v 1.5 1995/11/14 20:34:24 phk Exp $
+ * $Id: tcp_debug.c,v 1.6 1996/03/11 15:13:26 davidg Exp $
  */
 
 #ifdef TCPDEBUG
@@ -70,6 +70,10 @@
 #ifdef TCPDEBUG
 static int	tcpconsdebug = 0;
 #endif
+
+static struct tcp_debug tcp_debug[TCP_NDEBUG];
+static int	tcp_debx;
+
 /*
  * Tcp debug routines
  */
