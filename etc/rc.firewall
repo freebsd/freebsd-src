@@ -1,12 +1,20 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.2 1996/04/12 09:16:42 phk Exp $
+# $Id: rc.firewall,v 1.3 1996/06/22 00:54:36 alex Exp $
 
 ############
 #
 # >>Warning<<
 # This file is not very old yet, and have been put together without much
-# test of the contents.
+# testing of the contents.
+
+# Set this to be the type of firewall you want:  open, client, simple or NONE.
+# ``open'' will allow anyone in, ``client'' will try to protect just one
+# machine and ``simple'' will try to protect a whole network (entries should
+# be customized appropriately below).  To let no one in, use NONE.
+
+firewall_type=	NONE
+
 
 ############
 #
@@ -36,7 +44,8 @@
 ############
 # If you just configured ipfw in the kernel as a tool to solve network
 # problems or you just want to disallow some particular kinds of traffic
-# they you will want to change the default policy to open.
+# they you will want to change the default policy to open.  You can also
+# do this as your only action by setting the firewall_type to ``open''.
 
 # /sbin/ipfw add 65000 pass all from any to any
 
@@ -44,14 +53,19 @@
 # Only in rare cases do you want to change this rule
 /sbin/ipfw add 1000 pass all from 127.0.0.1 to 127.0.0.1
 
-############
-# This is a prototype setup that will protect your system somewhat against
-# people from outside your own network.
-#
-# To enable simply change "false" to "true" in the if line and set the
-# variables to your network parameters
 
-if false ; then
+# Prototype setups.
+if [ "${firewall_type}" = "open" ]; then
+
+	/sbin/ipfw add 65000 pass all from any to any
+
+elif [ "${firewall_type}" = "client" ]; then
+
+    ############
+    # This is a prototype setup that will protect your system somewhat against
+    # people from outside your own network.
+    ############
+
     # set these to your network and netmask and ip
     net="192.168.4.0"
     mask="255.255.255.0"
@@ -82,17 +96,15 @@ if false ; then
     /sbin/ipfw add pass udp from ${ip} to any 123
 
     # Everyting else is denied as default.
-fi
 
-############
-# This is a prototype setup for a simple firewall.  Configure this machine 
-# as a named server and ntp server, and point all the machines on the inside
-# at this machine for those services.
-#
-# To enable simply change "false" to "true" in the if line and set the
-# variables to your network parameters
+elif [ "${firewall_type}" = "simple" ]; then
 
-if false ; then
+    ############
+    # This is a prototype setup for a simple firewall.  Configure this machine 
+    # as a named server and ntp server, and point all the machines on the inside
+    # at this machine for those services.
+    ############
+
     # set these to your outside interface network and netmask and ip
     oif="ed0"
     onet="192.168.4.0"
