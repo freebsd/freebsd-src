@@ -49,9 +49,11 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_cd9660.c	8.7 (Berkeley) 5/1/95";
 */
 static const char rcsid[] =
-	"$Id: mount_cd9660.c,v 1.10 1997/03/11 12:29:02 peter Exp $";
+	"$Id: mount_cd9660.c,v 1.11 1997/03/29 03:32:35 imp Exp $";
 #endif /* not lint */
 
+#include <sys/cdio.h>
+#include <sys/file.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/../isofs/cd9660/cd9660_mount.h>
@@ -74,21 +76,22 @@ struct mntopt mopts[] = {
 	{ NULL }
 };
 
-void	usage __P((void));
+int	get_ssector(const char *dev);
+void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	struct iso_args args;
 	int ch, mntflags, opts;
 	char *dev, *dir;
 	struct vfsconf vfc;
-	int error;
+	int error, verbose;
 
-	mntflags = opts = 0;
-	while ((ch = getopt(argc, argv, "ego:r")) != -1)
+	mntflags = opts = verbose = 0;
+	memset(&args, 0, sizeof args);
+	args.ssector = -1;
+	while ((ch = getopt(argc, argv, "ego:rs:v")) != -1)
 		switch (ch) {
 		case 'e':
 			opts |= ISOFSMNT_EXTATT;
@@ -101,6 +104,12 @@ main(argc, argv)
 			break;
 		case 'r':
 			opts |= ISOFSMNT_NORRIP;
+			break;
+		case 's':
+			args.ssector = atoi(optarg);
+			break;
+		case 'v':
+			verbose++;
 			break;
 		case '?':
 		default:
@@ -125,6 +134,26 @@ main(argc, argv)
 	args.export.ex_root = DEFAULT_ROOTUID;
 	args.flags = opts;
 
+	if (args.ssector == -1) {
+		/*
+		 * The start of the session has not been specified on
+		 * the command line.  If we can successfully read the
+		 * TOC of a CD-ROM, use the last data track we find.
+		 * Otherwise, just use 0, in order to mount the very
+		 * first session.  This is compatible with the
+		 * historic behaviour of mount_cd9660(8).  If the user
+		 * has specified -s <ssector> above, we don't get here
+		 * and leave the user's will.
+		 */
+		if ((args.ssector = get_ssector(dev)) == -1) {
+			if (verbose)
+				printf("could not determine starting sector, "
+				       "using very first session\n");
+			args.ssector = 0;
+		} else if (verbose)
+			printf("using starting sector %d\n", args.ssector);
+	}
+
 	error = getvfsbyname("cd9660", &vfc);
 	if (error && vfsisloadable("cd9660")) {
 		if (vfsload("cd9660"))
@@ -141,9 +170,51 @@ main(argc, argv)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: mount_cd9660 [-egrt] [-o options] special node\n");
+		"usage: mount_cd9660 [-egrv] [-o options] [-s startsector] special node\n");
 	exit(EX_USAGE);
+}
+
+int
+get_ssector(const char *dev)
+{
+	struct ioc_toc_header h;
+	struct ioc_read_toc_entry t;
+	struct cd_toc_entry toc_buffer[100];
+	int fd, ntocentries, i;
+
+	if ((fd = open(dev, O_RDONLY)) == -1)
+		return -1;
+	if (ioctl(fd, CDIOREADTOCHEADER, &h) == -1) {
+		close(fd);
+		return -1;
+	}
+
+	ntocentries = h.ending_track - h.starting_track + 1;
+	if (ntocentries > 100) {
+		/* unreasonable, only 100 allowed */
+		close(fd);
+		return -1;
+	}
+	t.address_format = CD_LBA_FORMAT;
+	t.starting_track = 0;
+	t.data_len = ntocentries * sizeof(struct cd_toc_entry);
+	t.data = toc_buffer;
+
+	if (ioctl(fd, CDIOREADTOCENTRYS, (char *) &t) == -1) {
+		close(fd);
+		return -1;
+	}
+	close(fd);
+	
+	for (i = ntocentries - 1; i >= 0; i--)
+		if ((toc_buffer[i].control & 4) != 0)
+			/* found a data track */
+			break;
+	if (i < 0)
+		return -1;
+
+	return ntohl(toc_buffer[i].addr.lba);
 }
