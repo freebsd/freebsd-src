@@ -1,5 +1,5 @@
 .\"	$FreeBSD$
-.\"	$KAME: getnameinfo.3,v 1.16 2000/07/05 08:22:04 itojun Exp $
+.\"	$KAME: getnameinfo.3,v 1.17 2000/08/09 21:16:17 itojun Exp $
 .\"
 .\" Copyright (c) 1983, 1987, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -36,7 +36,7 @@
 .\"
 .Dd May 25, 1995
 .Dt GETNAMEINFO 3
-.Os KAME
+.Os
 .\"
 .Sh NAME
 .Nm getnameinfo
@@ -57,14 +57,15 @@ The
 .Fn getnameinfo
 function is defined for protocol-independent address-to-nodename translation.
 Its functionality is a reverse conversion of
-.Xr getaddrinfo 3
-and is similar to that of
+.Xr getaddrinfo 3 ,
+and implements similar functionality with
 .Xr gethostbyaddr 3
 and
-.Xr getservbyport 3 .
+.Xr getservbyport 3
+in more sophisticated manner.
 .Pp
 This function looks up an IP address and port number provided by the
-caller in the DNS and system-specific database and then returns text
+caller in the DNS and system-specific database, and returns text
 strings for both in buffers provided by the caller.
 The function indicates successful completion by a zero return value;
 a non-zero return value indicates failure.
@@ -303,6 +304,8 @@ and documented in
 .Pq RFC2553 .
 .\"
 .Sh BUGS
+The current implementation is not thread-safe.
+.Pp
 The text was shamelessly copied from RFC2553.
 .Pp
 The type of the 2nd argument should be
