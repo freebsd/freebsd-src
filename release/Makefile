@@ -398,6 +398,7 @@ release rerelease:
 .else
 	cd ${CHROOTDIR}/usr/src && ${CVSPREFIX} cvs -R ${CVSARGS} -q update ${CVSCMDARGS} -P -d -r ${RELEASETAG}
 .endif
+	rm -f ${CHROOTDIR}/tmp/.world_done 
 .if !defined(NOPORTS)
 	cd ${CHROOTDIR}/usr/ports && ${CVSPREFIX} cvs -R ${CVSARGS} -q update ${CVSCMDARGS} -P -d
 .endif
@@ -412,9 +413,12 @@ release rerelease:
 .endif
 .endif
 	# Add version information to those things that need it.
-	( cd ${CHROOTDIR}/usr/src/sys/conf && \
-	  mv newvers.sh foo && \
-	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh && rm foo )
+	if [ ! -f ${CHROOTDIR}/tmp/.world_done ]; then \
+		cd ${CHROOTDIR}/usr/src/sys/conf && \
+		mv newvers.sh foo && \
+		sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh && \
+		rm foo; \
+	fi
 	-test -f install.cfg && cp install.cfg ${CHROOTDIR}/usr/src/release
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
