@@ -597,6 +597,7 @@ pci/if_pn.c		optional pn device-driver
 pci/if_fpa.c		optional fpa device-driver
 pci/if_rl.c		optional rl device-driver
 pci/if_sr_p.c		optional sr device-driver
+pci/if_ti.c		optional ti device-driver
 pci/if_tl.c		optional tl device-driver
 pci/if_tx.c		optional tx device-driver
 pci/if_vr.c		optional vr device-driver

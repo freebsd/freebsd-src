@@ -1,5 +1,5 @@
 /*	$NetBSD: if_media.h,v 1.3 1997/03/26 01:19:27 thorpej Exp $	*/
-/*	$Id$ */
+/*	$Id: if_media.h,v 1.2 1997/05/03 20:58:10 peter Exp $ */
 
 /*
  * Copyright (c) 1997
@@ -128,6 +128,13 @@ int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
 #define	IFM_100_T4	8		/* 100BaseT4 - 4 pair cat 3 */
 #define	IFM_100_VG	9		/* 100VG-AnyLAN */
 #define	IFM_100_T2	10		/* 100BaseT2 */
+#define IFM_1000_FX	11		/* 1000BaseFX - gigabit over fiber */
+#define IFM_10_STP	12		/* 10BaseT over shielded TP */
+#define IFM_10_FL	13		/* 10baseFL - Fiber */
+#define IFM_1000_SX	14		/* 1000BaseSX Multi-mode Fiber */
+#define IFM_1000_LX	15		/* 1000BaseLX Single-mode Fiber */
+#define IFM_1000_CX	16		/* 1000BaseCX 150ohm STP */
+#define IFM_1000_TX	17		/* 1000BaseTX 4 pair cat 5 */
 
 /*
  * Token ring
@@ -186,9 +193,19 @@ int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
 /*
  * Macros to extract various bits of information from the media word.
  */
-#define	IFM_TYPE(x)	((x) & IFM_NMASK)
-#define	IFM_SUBTYPE(x)	((x) & IFM_TMASK)
-#define	IFM_INST(x)	(((x) & IFM_IMASK) >> IFM_ISHIFT)
+#define	IFM_TYPE(x)         ((x) & IFM_NMASK)
+#define	IFM_SUBTYPE(x)      ((x) & IFM_TMASK)
+#define IFM_TYPE_OPTIONS(x) ((x) & IFM_OMASK)
+#define	IFM_INST(x)         (((x) & IFM_IMASK) >> IFM_ISHIFT)
+#define IFM_OPTIONS(x)	((x) & (IFM_OMASK|IFM_GMASK))
+
+#define IFM_INST_MAX	IFM_INST(IFM_IMASK)
+
+/*
+ * Macro to create a media word.
+ */
+#define IFM_MAKEWORD(type, subtype, options, instance)			\
+	((type) | (subtype) | (options) | ((instance) << IFM_ISHIFT))
 
 /*
  * NetBSD extension not defined in the BSDI API.  This is used in various
@@ -218,6 +235,13 @@ struct ifmedia_description {
 	{ IFM_100_T4,	"100baseT4" },					\
 	{ IFM_100_VG,	"100baseVG" },					\
 	{ IFM_100_T2,	"100baseT2" },					\
+	{ IFM_1000_FX,	"1000baseFX" },					\
+	{ IFM_10_STP,	"10baseSTP" },					\
+	{ IFM_10_FL,	"10baseFL" },					\
+	{ IFM_1000_SX,	"1000baseSX" },					\
+	{ IFM_1000_LX,	"1000baseLX" },					\
+	{ IFM_1000_CX,	"1000baseCX" },					\
+	{ IFM_1000_TX,	"1000baseTX" },					\
 	{ 0, NULL },							\
 }
 
@@ -233,6 +257,13 @@ struct ifmedia_description {
 	{ IFM_100_T4,	"100T4" },					\
 	{ IFM_100_VG,	"100VG" },					\
 	{ IFM_100_T2,	"100T2" },					\
+	{ IFM_1000_FX,	"1000FX" },					\
+	{ IFM_10_STP,	"10STP" },					\
+	{ IFM_10_FL,	"10FL" },					\
+	{ IFM_1000_FX,	"1000SX" },					\
+	{ IFM_1000_FX,	"1000LX" },					\
+	{ IFM_1000_FX,	"1000CX" },					\
+	{ IFM_1000_FX,	"1000TX" },					\
 	{ 0, NULL },							\
 }
 

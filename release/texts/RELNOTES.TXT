@@ -88,6 +88,10 @@ Support has been added for direct access to NTFS filesystems.
 Support has been added for Joliet extensions on ISO 9660 filesystems.
 Only iso8859-1 characters (latin-1) are supported at this time, though.
 
+Driver support has been added for PCI gigabit ethernet adapters
+based on the Alteon Networks Tigon 1 and Tigon 2 chipsets, including
+the Alteon AceNIC, 3Com 3c985 and Netgear GA620.
+
 1.2. SECURITY FIXES
 -------------------
 See ftp://ftp.freebsd.org/pub/FreeBSD/CERT/ for details:
@@ -232,6 +236,15 @@ Unmaintained drivers, they might or might not work for your hardware:
 2.2. Ethernet cards
 -------------------
 Allied-Telesis AT1700 and RE2000 cards
+
+Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
+chipsets, including the following:
+  Alteon AceNIC (Tigon 1 and 2)
+  3Com 3c985-SX (Tigon 1 and 2)
+  Netgear GA620 (Tigon 2)
+  Silicon Graphics Gigabit Ethernet
+  DEC/Compaq EtherWORKS 1000
+  NEC Gigabit Ethernet
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 
