@@ -99,7 +99,7 @@ rman_init(struct rman *rm)
 		panic("implement RMAN_GAUGE");
 
 	TAILQ_INIT(&rm->rm_list);
-	rm->rm_mtx = malloc(sizeof *rm->rm_mtx, M_RMAN, M_NOWAIT);
+	rm->rm_mtx = malloc(sizeof *rm->rm_mtx, M_RMAN, M_NOWAIT | M_ZERO);
 	if (rm->rm_mtx == 0)
 		return ENOMEM;
 	mtx_init(rm->rm_mtx, "rman", MTX_DEF);
