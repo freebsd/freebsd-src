@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.52 1997/10/01 01:30:35 jkh Exp $
+ * $Id: installUpgrade.c,v 1.53 1997/10/12 16:21:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -232,10 +232,6 @@ installUpgrade(dialogMenuItem *self)
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 
-	if (extractingBin) {
-	    msgNotify("chflags'ing old binaries - please wait.");
-	    (void)vsystem("chflags -R noschg /mnt/");
-	}
 	msgNotify("Updating /stand on root filesystem");
 	(void)vsystem("find -x /stand | cpio %s -pdum /mnt", cpioVerbosity());
 
@@ -272,6 +268,10 @@ installUpgrade(dialogMenuItem *self)
 			     "Do you want to continue anyway?", saved_etc) != 0)
 		    return DITEM_FAILURE | DITEM_RESTORE;
 	}
+
+	msgNotify("chflags'ing old binaries - please wait.");
+	(void)vsystem("chflags -R noschg /bin /sbin /usr/sbin /usr/bin /kernel*");
+
 	if (file_readable("/kernel")) {
 	    msgNotify("Moving old kernel to /kernel.prev");
 	    if (system("chflags noschg /kernel && mv /kernel /kernel.prev")) {
