@@ -60,257 +60,106 @@
 #include <machine/tsb.h>
 #include <machine/tte.h>
 
-struct stte *tsb_kernel;
+#define	KTR_TSB		KTR_CT3
+
+ASSERT_EQUAL(sizeof(struct tte), 1 << TTE_SHIFT);
+
+struct tte *tsb_kernel;
 vm_offset_t tsb_kernel_phys;
 
-struct stte *
-tsb_get_bucket(pmap_t pm, u_int level, vm_offset_t va, int allocate)
+struct tte *
+tsb_tte_lookup(pmap_t pm, vm_offset_t va)
 {
-	struct stte *bucket;
-	struct stte *stp;
-	vm_offset_t bva;
-	u_long bits;
-
-	bucket = tsb_vtobucket(va, level);
-	if (level == 0)
-		return (bucket);
-	bits = (va & ((tsb_mask(level) & ~tsb_mask(level - 1)) << PAGE_SHIFT))
-	    >> tsb_mask_width(level);
-	if (level == 1) {
-		bits |= ((long)bucket & TSB_LEVEL1_BUCKET_MASK) >>
-		    TSB_LEVEL1_BUCKET_SHIFT;
-	}
-	bva = trunc_page((u_long)tsb_vtobucket(va, level - 1)) | bits;
-	stp = (struct stte *)(long)bva + tsb_bucket_size(level - 1) - 1;
-	if (tte_match(stp->st_tte, (u_long)bucket) == 0) {
-		if (!allocate)
-			return (NULL);
-		tsb_page_fault(pm, level, trunc_page((u_long)bucket), stp);
-	} else {
-		tlb_store_slot(TLB_DTLB, trunc_page((u_long)bucket),
-		    TLB_CTX_KERNEL, stp->st_tte, tsb_tlb_slot(1));
-	}
-	return (bucket);
-}
-
-struct tte
-tsb_page_alloc(pmap_t pm, vm_offset_t va)
-{
-	struct tte tte;
-	vm_offset_t pa;
-	vm_page_t m;
-
-	m = vm_page_alloc(pm->pm_object, pm->pm_pages++, VM_ALLOC_SYSTEM);
-	if (m == NULL)
-		panic("tsb_page_alloc: vm_page_alloc\n");
-	pa = VM_PAGE_TO_PHYS(m);
-	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
-	tte.tte_data = TD_V | TD_8K | TD_VA_LOW(va) | TD_PA(pa) | TD_L |
-	    TD_CP | TD_P | TD_W;
-	return (tte);
-}
-
-void
-tsb_page_fault(pmap_t pm, int level, vm_offset_t va, struct stte *stp)
-{
-	struct tte tte;
-
-	tte = tsb_page_alloc(pm, va);
-	stp->st_tte = tte;
-	tlb_store_slot(TLB_DTLB, va, TLB_CTX_KERNEL, stp->st_tte,
-	    tsb_tlb_slot(level));
-	tsb_page_init((void *)va, level);
-}
-
-void
-tsb_page_init(void *va, int level)
-{
-	struct stte *stp;
-	caddr_t p;
-	u_int bsize;
-	u_int inc;
-	u_int i;
-
-	inc = PAGE_SIZE >> TSB_BUCKET_SPREAD_SHIFT;
-	if (level == 0)
-		inc >>= TSB_SECONDARY_BUCKET_SHIFT - TSB_PRIMARY_BUCKET_SHIFT;
-	bsize = tsb_bucket_size(level);
-	bzero(va, PAGE_SIZE);
-	for (i = 0; i < PAGE_SIZE; i += inc) {
-		p = (caddr_t)va + i;
-		stp = (struct stte *)p + bsize - 1;
-		stp->st_tte.tte_data = TD_L;
-	}
-}
-
-struct stte *
-tsb_stte_lookup(pmap_t pm, vm_offset_t va)
-{
-	struct stte *bucket;
-	struct stte *stp;
-	u_int level;
+	struct tte *bucket;
+	struct tte *tp;
 	u_int i;
 
 	if (pm == kernel_pmap) {
-		stp = tsb_kvtostte(va);
-		CTR3(KTR_PMAP,
-		    "tsb_stte_lookup: kernel va=%#lx stp=%#lx data=%#lx",
-		    va, stp, stp->st_tte.tte_data);
-		if (tte_match(stp->st_tte, va)) {
-			CTR1(KTR_PMAP, "tsb_stte_lookup: match va=%#lx", va);
-			return (stp);
+		tp = tsb_kvtotte(va);
+		CTR3(KTR_TSB,
+		    "tsb_tte_lookup: kernel va=%#lx tp=%#lx data=%#lx",
+		    va, tp, tp->tte_data);
+		if (tte_match(*tp, va)) {
+			CTR1(KTR_TSB, "tsb_tte_lookup: match va=%#lx", va);
+			return (tp);
 		}
-		goto out;
-	}
-
-	CTR2(KTR_PMAP, "tsb_stte_lookup: ctx=%#lx va=%#lx", pm->pm_context, va);
-
-	va = trunc_page(va);
-	for (level = 0; level < TSB_DEPTH; level++) {
-		bucket = tsb_get_bucket(pm, level, va, 0);
-		CTR2(KTR_PMAP, "tsb_stte_lookup: lvl=%d b=%p", level, bucket);
-		if (bucket == NULL)
-			break;
-		for (i = 0; i < tsb_bucket_size(level); i++) {
-			if (tte_match(bucket[i].st_tte, va)) {
-				stp = &bucket[i];
-				CTR2(KTR_PMAP,
-				    "tsb_stte_lookup: match va=%#lx stp=%p",
-				    va, stp);
-				return (stp);
+	} else {
+		va = trunc_page(va);
+		bucket = tsb_vtobucket(pm, va);
+		CTR3(KTR_TSB, "tsb_tte_lookup: ctx=%#lx va=%#lx bucket=%p",
+		    pm->pm_context, va, bucket);
+		for (i = 0; i < TSB_BUCKET_SIZE; i++) {
+			if (tte_match(bucket[i], va)) {
+				tp = &bucket[i];
+				CTR2(KTR_TSB,
+				    "tsb_tte_lookup: match va=%#lx tp=%p",
+				    va, tp);
+				return (tp);
 			}
 		}
 	}
-out:
-	CTR2(KTR_PMAP, "tsb_stte_lookup: miss ctx=%#lx va=%#lx",
+	CTR2(KTR_TSB, "tsb_tte_lookup: miss ctx=%#lx va=%#lx",
 	    pm->pm_context, va);
 	return (NULL);
 }
 
-struct stte *
-tsb_stte_promote(pmap_t pm, vm_offset_t va, struct stte *stp)
+struct tte *
+tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, struct tte tte)
 {
-	struct stte *bucket;
-	struct tte tte;
-	int bmask;
+	struct tte *bucket;
+	struct tte *rtp;
+	struct tte *tp;
+	vm_page_t om;
+	vm_offset_t ova;
 	int b0;
 	int i;
-
-	CTR3(KTR_PMAP, "tsb_stte_promote: ctx=%#x va=%#lx stp=%p",
-	    pm->pm_context, va, stp);
-	bmask = tsb_bucket_mask(0);
-	bucket = tsb_vtobucket(va, 0);
-	b0 = rd(tick) & bmask;
-	i = b0;
-	do {
-		if ((bucket[i].st_tte.tte_data & TD_V) == 0 ||
-		    (bucket[i].st_tte.tte_data & (TD_L | TD_REF)) == 0) {
-			tte = stp->st_tte;
-			CTR3(KTR_PMAP,
-			    "tsb_stte_promote: replace stp=%p va=%#lx pa=%#lx",
-			    stp, tte_get_va(tte), TD_PA(tte.tte_data));
-			if (tte.tte_data & TD_MNG)
-				pv_remove_virt(stp);
-			stp->st_tte.tte_data = 0;
-			stp = tsb_tte_enter(pm, va, tte);
-			break;
-		}
-	} while ((i = (i + 1) & bmask) != b0);
-	CTR1(KTR_PMAP, "tsb_stte_promote: return stp=%p", stp);
-	return (stp);
-}
-
-void
-tsb_stte_remove(struct stte *stp)
-{
-	struct tte tte;
-
-	tte = stp->st_tte;
-	if (tte.tte_data & TD_V) {
-		tte_invalidate(&stp->st_tte);
-		tsb_tte_local_remove(&tte);
-	}
-}
-
-void
-tsb_tte_local_remove(struct tte *tp)
-{
-	tlb_page_demap(TLB_DTLB | TLB_ITLB, TT_GET_CTX(tp->tte_tag),
-	    tte_get_va(*tp));
-}
-
-struct stte *
-tsb_tte_enter(pmap_t pm, vm_offset_t va, struct tte tte)
-{
-	struct stte *bucket;
-	struct stte *nstp;
-	struct stte *rstp;
-	struct stte *stp;
-	struct tte otte;
-	u_int bmask;
-	int level;
-	int b0;
-	int i;
-
-	CTR3(KTR_PMAP, "tsb_tte_enter: ctx=%#lx va=%#lx data=%#lx",
-	    pm->pm_context, va, tte.tte_data);
 
 	if (pm == kernel_pmap) {
-		stp = tsb_kvtostte(va);
-		if (stp->st_tte.tte_data & TD_MNG)
-			pv_remove_virt(stp);
-		stp->st_tte = tte;
-		if (tte.tte_data & TD_MNG)
-			pv_insert(pm, TD_PA(tte.tte_data), va, stp);
-		return (stp);
+		tp = tsb_kvtotte(va);
+		*tp = tte;
+		return (tp);
 	}
 
-	nstp = NULL;
-	for (level = 0; level < TSB_DEPTH; level++) {
-		bucket = tsb_get_bucket(pm, level, va, 1);
-		CTR3(KTR_PMAP, "tsb_tte_enter: va=%#lx bucket=%p level=%d",
-		    va, bucket, level);
+	bucket = tsb_vtobucket(pm, va);
+	CTR4(KTR_TSB, "tsb_tte_enter: ctx=%#lx va=%#lx data=%#lx bucket=%p",
+	    pm->pm_context, va, tte.tte_data, bucket);
 
-		stp = NULL;
-		rstp = NULL;
-		bmask = tsb_bucket_mask(level);
-		b0 = rd(tick) & bmask;
-		i = b0;
-		do {
-			if ((bucket[i].st_tte.tte_data & TD_L) != 0)
-				continue;
-			if ((bucket[i].st_tte.tte_data & TD_V) == 0) {
-				stp = &bucket[i];
-				break;
-			}
-			if (stp == NULL) {
-				if ((bucket[i].st_tte.tte_data & TD_REF) == 0)
-					stp = &bucket[i];
-				else if (rstp == NULL)
-					rstp = &bucket[i];
-			}
-		} while ((i = (i + 1) & bmask) != b0);
-
-		if (stp == NULL)
-			stp = rstp;
-		if (stp == NULL)
-			panic("tsb_enter_tte");
-		if (nstp == NULL)
-			nstp = stp;
-
-		otte = stp->st_tte;
-		if (otte.tte_data & TD_V && otte.tte_data & TD_MNG)
-			pv_remove_virt(stp);
-		stp->st_tte = tte;
-		if (tte.tte_data & TD_MNG)
-			pv_insert(pm, TD_PA(tte.tte_data), va, stp);
-		if ((otte.tte_data & TD_V) == 0)
+	tp = NULL;
+	rtp = NULL;
+	b0 = rd(tick) & (TSB_BUCKET_SIZE - 1);
+	i = b0;
+	do {
+		if ((bucket[i].tte_data & TD_V) == 0) {
+			tp = &bucket[i];
 			break;
-		tte = otte;
-		va = tte_get_va(tte);
+		}
+		if (tp == NULL) {
+			if ((bucket[i].tte_data & TD_REF) == 0)
+				tp = &bucket[i];
+			else if (rtp == NULL)
+				rtp = &bucket[i];
+		}
+	} while ((i = (i + 1) & (TSB_BUCKET_SIZE - 1)) != b0);
+
+	if (tp == NULL)
+		tp = rtp;
+	if ((tp->tte_data & TD_V) != 0) {
+		ova = tte_get_va(*tp);
+		if ((tp->tte_data & TD_PV) != 0) {
+			om = PHYS_TO_VM_PAGE(TD_GET_PA(tp->tte_data));
+			if ((tp->tte_data & TD_W) != 0 &&
+			    pmap_track_modified(pm, ova))
+				vm_page_dirty(om);
+			if ((tp->tte_data & TD_REF) != 0)
+				vm_page_flag_set(om, PG_REFERENCED);
+			pmap_cache_remove(om, ova);
+			pv_remove(pm, om, ova);
+		}
+		tlb_page_demap(TLB_DTLB | TLB_ITLB, pm->pm_context, ova);
 	}
-	CTR1(KTR_PMAP, "tsb_tte_enter: return stp=%p", nstp);
-	if (level >= TSB_DEPTH)
-		panic("tsb_enter_tte: TSB full");
-	return (nstp);
+
+	*tp = tte;
+
+	CTR1(KTR_TSB, "tsb_tte_enter: return tp=%p", tp);
+	return (tp);
 }
