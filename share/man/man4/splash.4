@@ -44,11 +44,14 @@ This driver is required if the splash bitmap image is to be loaded or
 any screen saver is to be used.
 .Sh SPLASH SCREEN
 You can load and display an arbitrary bitmap image file as a welcome banner
-on the screen when the system is about to start.  This image will remain on
-the screen during kernel initialization process until the ``Login'' prompt
-appears on the screen or until a screen saver is loaded and initialized. 
-The image will also disappear if you hit any key, although this may not work
-immediately if the kernel is still probing devices.
+on the screen when the system is about to start.
+This image will remain on the screen
+during kernel initialization process
+until the ``Login'' prompt appears on the screen
+or until a screen saver is loaded and initialized. 
+The image will also disappear if you hit any key,
+although this may not work immediately
+if the kernel is still probing devices.
 .Pp
 If you specify the  
 .Fl c
@@ -66,8 +69,8 @@ Currently the following decoder modules are available:
 .It Pa splash_bmp.ko
 W*ndows BMP file decoder.
 While the BMP file format allows images of various color depths, this
-decoder currently only handles 256 color bitmaps.  Bitmaps of other color
-depths will not be displayed.
+decoder currently only handles 256 color bitmaps.
+Bitmaps of other color depths will not be displayed.
 .It Pa splash_pcx.ko
 ZSoft PCX decoder.
 This decoder currently only supports version 5 8-bpp single-plane
@@ -88,9 +91,10 @@ BIOS and the amount of video memory on the video card.
 .Sh SCREEN SAVER
 The screen saver will activate when the system is considered idle: i.e.
 when the user has not typed a key or moved the mouse for a specified period
-of time.  As the screen saver is an optional module, it must be explicitly
-loaded into memory.  Currently the following screen saver modules are
-available:
+of time.
+As the screen saver is an optional module,
+it must be explicitly loaded into memory.
+Currently the following screen saver modules are available:
 .Pp
 .Bl -tag -width splash_module.ko -compact
 .It Pa blank_saver.ko
@@ -205,7 +209,8 @@ first example above.
 .Sh CAVEATS
 Both the splash screen and the screen saver work with
 .Xr syscons 4
-only.  They are not available for the alternative console driver
+only.
+They are not available for the alternative console driver
 .Xr pcvt 4 .
 .Sh BUGS
 If you load a screen saver while another screen saver has already
