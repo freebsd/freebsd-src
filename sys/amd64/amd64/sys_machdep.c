@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.25 1997/09/01 01:12:51 bde Exp $
+ *	$Id: sys_machdep.c,v 1.26 1997/10/10 09:44:08 peter Exp $
  *
  */
 
@@ -52,6 +52,7 @@
 #include <sys/user.h>
 
 #include <machine/cpu.h>
+#include <machine/pcb_ext.h>	/* pcb.h included by sys/user.h */
 #include <machine/sysarch.h>
 
 #include <vm/vm_kern.h>		/* for kernel_map */
