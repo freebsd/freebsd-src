@@ -23,9 +23,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
@@ -281,14 +282,14 @@ void
 cpu_boot(int howto)
 {
 
-	ia64_efi_runtime->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, 0);
+	efi_reset_system();
 }
 
 void
 cpu_halt()
 {
 
-	ia64_efi_runtime->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, 0);
+	efi_reset_system();
 }
 
 static void
@@ -485,8 +486,8 @@ ia64_init(void)
 	vm_offset_t kernstart, kernend;
 	vm_offset_t kernstartpfn, kernendpfn, pfn0, pfn1;
 	char *p;
-	EFI_MEMORY_DESCRIPTOR *md, *mdp;
-	int mdcount, i, metadata_missing;
+	struct efi_md *md;
+	int metadata_missing;
 
 	/* NO OUTPUT ALLOWED UNTIL FURTHER NOTICE */
 
@@ -516,15 +517,15 @@ ia64_init(void)
 	 * Look for the I/O ports first - we need them for console
 	 * probing.
 	 */
-	mdcount = bootinfo.bi_memmap_size / bootinfo.bi_memdesc_size;
-	md = (EFI_MEMORY_DESCRIPTOR *) IA64_PHYS_TO_RR7(bootinfo.bi_memmap);
-
-	for (i = 0, mdp = md; i < mdcount; i++,
-	    mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size)) {
-		if (mdp->Type == EfiMemoryMappedIOPortSpace)
-			ia64_port_base = IA64_PHYS_TO_RR6(mdp->PhysicalStart);
-		else if (mdp->Type == EfiPalCode)
-			ia64_pal_base = mdp->PhysicalStart;
+	for (md = efi_md_first(); md != NULL; md = efi_md_next(md)) {
+		switch (md->md_type) {
+		case EFI_MD_TYPE_IOPORT:
+			ia64_port_base = IA64_PHYS_TO_RR6(md->md_phys);
+			break;
+		case EFI_MD_TYPE_PALCODE:
+			ia64_pal_base = md->md_phys;
+			break;
+		}
 	}
 
 	metadata_missing = 0;
@@ -577,7 +578,8 @@ ia64_init(void)
 	 * Wire things up so we can call the firmware.
 	 */
 	map_pal_code();
-	ia64_efi_init();
+	efi_boot_minimal(bootinfo.bi_systab);
+	ia64_sal_init();
 	calculate_frequencies();
 
 	/*
@@ -627,22 +629,18 @@ ia64_init(void)
 #endif
 
 	phys_avail_cnt = 0;
-	for (i = 0, mdp = md; i < mdcount; i++,
-		 mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size)) {
+	for (md = efi_md_first(); md != NULL; md = efi_md_next(md)) {
 #ifdef DEBUG_MD
-		printf("MD %d: type %d pa 0x%lx cnt 0x%lx\n", i,
-		       mdp->Type,
-		       mdp->PhysicalStart,
-		       mdp->NumberOfPages);
+		printf("MD %p: type %d pa 0x%lx cnt 0x%lx\n", md,
+		    md->md_type, md->md_phys, md->md_pages);
 #endif
 
-		pfn0 = ia64_btop(round_page(mdp->PhysicalStart));
-		pfn1 = ia64_btop(trunc_page(mdp->PhysicalStart
-					    + mdp->NumberOfPages * 4096));
+		pfn0 = ia64_btop(round_page(md->md_phys));
+		pfn1 = ia64_btop(trunc_page(md->md_phys + md->md_pages * 4096));
 		if (pfn1 <= pfn0)
 			continue;
 
-		if (mdp->Type != EfiConventionalMemory)
+		if (md->md_type != EFI_MD_TYPE_FREE)
 			continue;
 
 		/*
@@ -651,12 +649,12 @@ ia64_init(void)
 		 */
 		if (pfn0 >= ia64_btop(0x100000000UL)) {
 			printf("Skipping memory chunk start 0x%lx\n",
-			    mdp->PhysicalStart);
+			    md->md_phys);
 			continue;
 		}
 		if (pfn1 >= ia64_btop(0x100000000UL)) {
 			printf("Skipping memory chunk end 0x%lx\n",
-			    mdp->PhysicalStart + mdp->NumberOfPages * 4096);
+			    md->md_phys + md->md_pages * 4096);
 			continue;
 		}
 
@@ -672,7 +670,7 @@ ia64_init(void)
 			 * within the segment.
 			 */
 #ifdef DEBUG_MD
-			printf("Descriptor %d contains kernel\n", i);
+			printf("Descriptor %p contains kernel\n", mp);
 #endif
 			if (pfn0 < kernstartpfn) {
 				/*

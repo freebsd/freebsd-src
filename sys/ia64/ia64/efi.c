@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2004 Marcel Moolenaar
  * Copyright (c) 2001 Doug Rabson
  * All rights reserved.
  *
@@ -22,9 +23,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -32,87 +34,123 @@
 #include <machine/efi.h>
 #include <machine/sal.h>
 
-EFI_SYSTEM_TABLE	*ia64_efi_systab;
-EFI_RUNTIME_SERVICES	*ia64_efi_runtime;
-u_int64_t		ia64_efi_acpi_table;
-u_int64_t		ia64_efi_acpi20_table;
+extern uint64_t ia64_call_efi_physical(uint64_t, uint64_t, uint64_t, uint64_t,
+    uint64_t, uint64_t);
 
-extern u_int64_t ia64_call_efi_physical(u_int64_t, u_int64_t, u_int64_t,
-					u_int64_t, u_int64_t, u_int64_t);
+static struct efi_systbl *efi_systbl;
+static struct efi_cfgtbl *efi_cfgtbl;
+static struct efi_rt *efi_runtime;
 
 void
-ia64_efi_init(void)
+efi_boot_finish(void)
 {
-	EFI_CONFIGURATION_TABLE *conf;
-	struct sal_system_table *saltab = 0;
-	EFI_RUNTIME_SERVICES *rs;
-	EFI_MEMORY_DESCRIPTOR *md, *mdp;
-	int mdcount, i;
-	EFI_STATUS status;
-
-	if (!bootinfo.bi_systab) {
-		printf("No system table!\n");
-		return;
-	}
-
-	ia64_efi_systab = (EFI_SYSTEM_TABLE *)
-	    IA64_PHYS_TO_RR7(bootinfo.bi_systab);
-	rs = (EFI_RUNTIME_SERVICES *)
-	    IA64_PHYS_TO_RR7((u_int64_t)ia64_efi_systab->RuntimeServices);
-	if (!rs)
-		panic("No runtime services!");
-
-	ia64_efi_runtime = rs;
-	conf = (EFI_CONFIGURATION_TABLE *)
-	    IA64_PHYS_TO_RR7((u_int64_t)ia64_efi_systab->ConfigurationTable);
-	if (!conf)
-		panic("No configuration tables!");
-
-	mdcount = bootinfo.bi_memmap_size / bootinfo.bi_memdesc_size;
-	md = (EFI_MEMORY_DESCRIPTOR *) IA64_PHYS_TO_RR7(bootinfo.bi_memmap);
-
-	for (i = 0, mdp = md; i < mdcount; i++,
-		 mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size)) {
-		/*
-		 * Relocate runtime memory segments for firmware.
-		 */
-		if (mdp->Attribute & EFI_MEMORY_RUNTIME) {
-			if (mdp->Attribute & EFI_MEMORY_WB)
-				mdp->VirtualStart =
-					IA64_PHYS_TO_RR7(mdp->PhysicalStart);
-			else if (mdp->Attribute & EFI_MEMORY_UC)
-				mdp->VirtualStart =
-					IA64_PHYS_TO_RR6(mdp->PhysicalStart);
-		}
-	}
-
-	status = ia64_call_efi_physical((u_int64_t)rs->SetVirtualAddressMap,
-	    bootinfo.bi_memmap_size, bootinfo.bi_memdesc_size,
-	    bootinfo.bi_memdesc_version, bootinfo.bi_memmap, 0);
-
-	if (EFI_ERROR(status)) {
-		/*
-		 * We could wrap EFI in a virtual->physical shim here.
-		 */
-		printf("SetVirtualAddressMap returned 0x%lx\n", status);
-		panic("Can't set firmware into virtual mode");
-	}
-
-	for (i = 0; i < ia64_efi_systab->NumberOfTableEntries; i++) {
-		static EFI_GUID sal = SAL_SYSTEM_TABLE_GUID;
-		static EFI_GUID acpi = ACPI_TABLE_GUID;
-		static EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
-		if (!memcmp(&conf[i].VendorGuid, &sal, sizeof(EFI_GUID)))
-			saltab = (struct sal_system_table *)
-			    IA64_PHYS_TO_RR7((u_int64_t) conf[i].VendorTable);
-		if (!memcmp(&conf[i].VendorGuid, &acpi, sizeof(EFI_GUID)))
-			ia64_efi_acpi_table = (u_int64_t) conf[i].VendorTable;
-		if (!memcmp(&conf[i].VendorGuid, &acpi20, sizeof(EFI_GUID)))
-			ia64_efi_acpi20_table = (u_int64_t) conf[i].VendorTable;
-	}
-
-	if (saltab)
-		ia64_sal_init(saltab);
-
 }
 
+/*
+ * Collect the entry points for PAL and SAL. Be extra careful about NULL
+ * pointer values. We're running pre-console, so it's better to return
+ * error values than to cause panics, machine checks and other traps and
+ * faults. Keep this minimal...
+ */
+int
+efi_boot_minimal(uint64_t systbl)
+{
+	struct efi_md *md;
+	efi_status status;
+
+	if (systbl == 0)
+		return (EINVAL);
+	efi_systbl = (struct efi_systbl *)IA64_PHYS_TO_RR7(systbl);
+	if (efi_systbl->st_hdr.th_sig != EFI_SYSTBL_SIG) {
+		efi_systbl = NULL;
+		return (EFAULT);
+	}
+	efi_cfgtbl = (efi_systbl->st_cfgtbl == 0) ? NULL :
+	    (struct efi_cfgtbl *)IA64_PHYS_TO_RR7(efi_systbl->st_cfgtbl);
+	if (efi_cfgtbl == NULL)
+		return (ENOENT);
+	efi_runtime = (efi_systbl->st_rt == 0) ? NULL :
+	    (struct efi_rt *)IA64_PHYS_TO_RR7(efi_systbl->st_rt);
+	if (efi_runtime == NULL)
+		return (ENOENT);
+
+	/*
+	 * Relocate runtime memory segments for firmware.
+	 */
+	md = efi_md_first();
+	while (md != NULL) {
+		if (md->md_attr & EFI_MD_ATTR_RT) {
+			if (md->md_attr & EFI_MD_ATTR_WB)
+				md->md_virt =
+				    (void *)IA64_PHYS_TO_RR7(md->md_phys);
+			else if (md->md_attr & EFI_MD_ATTR_UC)
+				md->md_virt =
+				    (void *)IA64_PHYS_TO_RR6(md->md_phys);
+		}
+		md = efi_md_next(md);
+	}
+	status = ia64_call_efi_physical((uint64_t)efi_runtime->rt_setvirtual,
+	    bootinfo.bi_memmap_size, bootinfo.bi_memdesc_size,
+	    bootinfo.bi_memdesc_version, bootinfo.bi_memmap, 0);
+	return ((status < 0) ? EFAULT : 0);
+}
+
+void *
+efi_get_table(struct uuid *uuid)
+{
+	struct efi_cfgtbl *ct;
+	u_long count;
+
+	if (efi_cfgtbl == NULL)
+		return (NULL);
+	count = efi_systbl->st_entries;
+	ct = efi_cfgtbl;
+	while (count--) {
+		if (!memcmp(&ct->ct_uuid, uuid, sizeof(*uuid)))
+			return ((void *)IA64_PHYS_TO_RR7(ct->ct_data));
+		ct++;
+	}
+	return (NULL);
+}
+
+void
+efi_get_time(struct efi_tm *tm)
+{
+
+	efi_runtime->rt_gettime(tm, NULL);
+}
+
+struct efi_md *
+efi_md_first(void)
+{
+
+	if (bootinfo.bi_memmap == 0)
+		return (NULL);
+	return ((struct efi_md *)IA64_PHYS_TO_RR7(bootinfo.bi_memmap));
+}
+
+struct efi_md *
+efi_md_next(struct efi_md *md)
+{
+	uint64_t plim;
+
+	plim = IA64_PHYS_TO_RR7(bootinfo.bi_memmap + bootinfo.bi_memmap_size);
+	md = (struct efi_md *)((uintptr_t)md + bootinfo.bi_memdesc_size);
+	return ((md >= (struct efi_md *)plim) ? NULL : md);
+}
+
+void
+efi_reset_system(void)
+{
+
+	if (efi_runtime != NULL)
+		efi_runtime->rt_reset(EFI_RESET_WARM, 0, 0, NULL);
+	panic("%s: unable to reset the machine", __func__);
+}
+
+efi_status
+efi_set_time(struct efi_tm *tm)
+{
+
+	return (efi_runtime->rt_settime(tm));
+}

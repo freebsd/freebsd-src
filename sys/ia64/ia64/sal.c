@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -32,6 +33,7 @@
 #include <sys/malloc.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
+#include <machine/efi.h>
 #include <machine/md_var.h>
 #include <machine/sal.h>
 #include <machine/smp.h>
@@ -48,6 +50,9 @@ static sal_entry_t	fake_sal;
 
 extern u_int64_t	ia64_pal_entry;
 sal_entry_t		*ia64_sal_entry = fake_sal;
+
+static struct uuid sal_table = EFI_TABLE_SAL;
+static struct sal_system_table *sal_systbl;
 
 static struct ia64_sal_result
 fake_sal(u_int64_t a1, u_int64_t a2, u_int64_t a3, u_int64_t a4,
@@ -77,7 +82,7 @@ setup_ipi_vectors(int ceil)
 }
 
 void
-ia64_sal_init(struct sal_system_table *saltab)
+ia64_sal_init(void)
 {
 	static int sizes[6] = {
 		48, 32, 16, 32, 16, 16
@@ -85,13 +90,17 @@ ia64_sal_init(struct sal_system_table *saltab)
 	u_int8_t *p;
 	int i;
 
-	if (memcmp(saltab->sal_signature, SAL_SIGNATURE, 4)) {
+	sal_systbl = efi_get_table(&sal_table);
+	if (sal_systbl == NULL)
+		return;
+
+	if (memcmp(sal_systbl->sal_signature, SAL_SIGNATURE, 4)) {
 		printf("Bad signature for SAL System Table\n");
 		return;
 	}
 
-	p = (u_int8_t *) (saltab + 1);
-	for (i = 0; i < saltab->sal_entry_count; i++) {
+	p = (u_int8_t *) (sal_systbl + 1);
+	for (i = 0; i < sal_systbl->sal_entry_count; i++) {
 		switch (*p) {
 		case 0: {
 			struct sal_entrypoint_descriptor *dp;
