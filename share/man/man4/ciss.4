@@ -3,6 +3,7 @@
 .\" This file is in the public domain.
 .\"
 .Dd December 29, 2002
+.Dd August 3, 2004
 .Dt CISS 4
 .Os
 .Sh NAME
@@ -72,10 +73,12 @@ drives) are only exposed as
 devices.
 Hot-insertion and removal of devices is supported but a bus
 rescan might be necessary.
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
 .Pp
-Supported controllers include:
-.Pp
-.Bl -item -compact
+.Bl -bullet -compact
 .It
 Compaq Smart Array 5300
 .It
