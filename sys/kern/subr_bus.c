@@ -1869,7 +1869,7 @@ bus_generic_resume(device_t dev)
 }
 
 int
-bus_print_child_header (device_t dev, device_t child)
+bus_print_child_header(device_t dev, device_t child)
 {
 	int	retval = 0;
 
@@ -1883,7 +1883,7 @@ bus_print_child_header (device_t dev, device_t child)
 }
 
 int
-bus_print_child_footer (device_t dev, device_t child)
+bus_print_child_footer(device_t dev, device_t child)
 {
 	return (printf(" on %s\n", device_get_nameunit(dev)));
 }
@@ -1914,7 +1914,7 @@ bus_generic_write_ivar(device_t dev, device_t child, int index,
 }
 
 struct resource_list *
-bus_generic_get_resource_list (device_t dev, device_t child)
+bus_generic_get_resource_list(device_t dev, device_t child)
 {
 	return (NULL);
 }
@@ -2008,7 +2008,7 @@ bus_generic_config_intr(device_t dev, int irq, enum intr_trigger trig,
 }
 
 int
-bus_generic_rl_get_resource (device_t dev, device_t child, int type, int rid,
+bus_generic_rl_get_resource(device_t dev, device_t child, int type, int rid,
     u_long *startp, u_long *countp)
 {
 	struct resource_list *		rl = NULL;
@@ -2031,7 +2031,7 @@ bus_generic_rl_get_resource (device_t dev, device_t child, int type, int rid,
 }
 
 int
-bus_generic_rl_set_resource (device_t dev, device_t child, int type, int rid,
+bus_generic_rl_set_resource(device_t dev, device_t child, int type, int rid,
     u_long start, u_long count)
 {
 	struct resource_list *		rl = NULL;
@@ -2046,7 +2046,7 @@ bus_generic_rl_set_resource (device_t dev, device_t child, int type, int rid,
 }
 
 void
-bus_generic_rl_delete_resource (device_t dev, device_t child, int type, int rid)
+bus_generic_rl_delete_resource(device_t dev, device_t child, int type, int rid)
 {
 	struct resource_list *		rl = NULL;
 
@@ -2060,7 +2060,7 @@ bus_generic_rl_delete_resource (device_t dev, device_t child, int type, int rid)
 }
 
 int
-bus_generic_rl_release_resource (device_t dev, device_t child, int type,
+bus_generic_rl_release_resource(device_t dev, device_t child, int type,
     int rid, struct resource *r)
 {
 	struct resource_list *		rl = NULL;
@@ -2073,7 +2073,7 @@ bus_generic_rl_release_resource (device_t dev, device_t child, int type,
 }
 
 struct resource *
-bus_generic_rl_alloc_resource (device_t dev, device_t child, int type,
+bus_generic_rl_alloc_resource(device_t dev, device_t child, int type,
     int *rid, u_long start, u_long end, u_long count, u_int flags)
 {
 	struct resource_list *		rl = NULL;
