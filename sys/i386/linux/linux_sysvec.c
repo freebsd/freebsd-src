@@ -299,6 +299,8 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		if (sig <= p->p_sysent->sv_sigsize)
 			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
+	bzero(&frame, sizeof(frame));
+
 	frame.sf_handler = catcher;
 	frame.sf_sig = sig;
 	frame.sf_siginfo = &fp->sf_si;
@@ -391,7 +393,6 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  * frame pointer, it returns to the user
  * specified pc, psl.
  */
-
 static void
 linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
@@ -436,6 +437,8 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		if (sig <= p->p_sysent->sv_sigsize)
 			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
+	bzero(&frame, sizeof(frame));
+
 	frame.sf_handler = catcher;
 	frame.sf_sig = sig;
 
@@ -463,8 +466,6 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.sc_ss     = regs->tf_ss;
 	frame.sf_sc.sc_err    = regs->tf_err;
 	frame.sf_sc.sc_trapno = bsd_to_linux_trapcode(code);
-
-	bzero(&frame.sf_fpstate, sizeof(struct l_fpstate));
 
 	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
 		frame.sf_extramask[i] = lmask.__bits[i+1];
