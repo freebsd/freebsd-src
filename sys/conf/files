@@ -674,6 +674,7 @@ netgraph/ng_bpf.c	optional netgraph_bpf
 net/bpf_filter.c	optional netgraph_bpf
 netgraph/ng_cisco.c	optional netgraph_cisco
 netgraph/ng_echo.c	optional netgraph_echo
+netgraph/ng_ether.c	optional netgraph_ether
 netgraph/ng_frame_relay.c	optional netgraph_frame_relay
 netgraph/ng_hole.c	optional netgraph_hole
 netgraph/ng_iface.c	optional netgraph_iface
