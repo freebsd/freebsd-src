@@ -21,7 +21,9 @@ SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
 
 CFLAGS+= -I${SSHDIR}
 .if !defined(NO_KERBEROS)
-CFLAGS+= -DKRB5 -DHEIMDAL
+CFLAGS+= -DGSSAPI -DKRB5 -DHEIMDAL
+DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
+LDADD+=	-lgssapi -lkrb5 -lasn1 -lcom_err -lmd -lroken
 .endif
 
 NOLINT=	true
