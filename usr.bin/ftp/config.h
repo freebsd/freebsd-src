@@ -58,6 +58,9 @@
 /* Define if you have the fparseln function.  */
 #define HAVE_FPARSELN 1
 
+/* Define if you have the fseeko function.  */
+#define HAVE_FSEEKO 1
+
 /* Define if you have the getaddrinfo function.  */
 #define HAVE_GETADDRINFO 1
 
@@ -74,7 +77,7 @@
 #define HAVE_GETPGRP 1
 
 /* Define if you have the glob function.  */
-#define HAVE_GLOB 1
+#define USE_GLOB_H 1
 
 /* Define if you have the inet_ntop function.  */
 #define HAVE_INET_NTOP 1
@@ -96,6 +99,9 @@
 
 /* Define if you have the select function.  */
 #define HAVE_SELECT 1
+
+/* Define if you have the setprogname function.  */
+#define HAVE_SETPROGNAME 1
 
 /* Define if you have the sl_init function.  */
 #define HAVE_SL_INIT 1
@@ -136,11 +142,17 @@
 /* Define if you have the usleep function.  */
 #define HAVE_USLEEP 1
 
+/* Define if you have the <arpa/nameser.h> header file.  */
+#define HAVE_ARPA_NAMESER_H 1
+
 /* Define if you have the <dirent.h> header file.  */
 #define HAVE_DIRENT_H 1
 
 /* Define if you have the <err.h> header file.  */
 #define HAVE_ERR_H 1
+
+/* Define if you have the <libutil.h> header file.  */
+#define HAVE_LIBUTIL_H 1
 
 /* Define if you have the <ndir.h> header file.  */
 /* #undef HAVE_NDIR_H */
@@ -189,6 +201,9 @@
 
 /* Define if in_port_t exists */
 #define HAVE_IN_PORT_T 1
+
+/* Define if sa_family_t exists in <sys/socket.h> */
+#define HAVE_SA_FAMILY_T 1
 
 /* Define if struct sockaddr.sa_len exists (implies sockaddr_in.sin_len, etc) */
 #define HAVE_SOCKADDR_SA_LEN 1
