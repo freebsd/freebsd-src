@@ -837,7 +837,7 @@ quote_copy_string (string)
   from_here = string;
   while (*from_here)
     {
-      c = *from_here++;
+      c = *from_here++ & 0xFF;
       if (c == '\\')
 	{
 	  if (!copying)
