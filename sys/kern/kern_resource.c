@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.13 1995/10/21 09:18:45 bde Exp $
+ * $Id: kern_resource.c,v 1.14 1995/10/23 19:05:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -200,7 +200,7 @@ donice(curp, chgp, n)
 struct rtprio_args {
 	int		function;
 	pid_t		pid;
-	struct rtprio	*rtprio;
+	struct rtprio	*rtp;
 };
 
 /*
@@ -219,7 +219,7 @@ rtprio(curp, uap, retval)
 	struct rtprio rtp;
 	int error;
 
-	error = copyin(uap->rtprio, &rtp, sizeof(struct rtprio));
+	error = copyin(uap->rtp, &rtp, sizeof(struct rtprio));
 	if (error)
 		return (error);
 
@@ -233,7 +233,7 @@ rtprio(curp, uap, retval)
 
 	switch (uap->function) {
 	case RTP_LOOKUP:
-		return (copyout(&p->p_rtprio, uap->rtprio, sizeof(struct rtprio)));
+		return (copyout(&p->p_rtprio, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
 		if (pcred->pc_ucred->cr_uid && pcred->p_ruid &&
 		    pcred->pc_ucred->cr_uid != p->p_ucred->cr_uid &&
@@ -266,15 +266,15 @@ rtprio(curp, uap, retval)
 }
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-struct setrlimit_args {
+struct osetrlimit_args {
 	u_int	which;
-	struct	orlimit *lim;
+	struct	orlimit *rlp;
 };
 /* ARGSUSED */
 int
 osetrlimit(p, uap, retval)
 	struct proc *p;
-	register struct setrlimit_args *uap;
+	register struct osetrlimit_args *uap;
 	int *retval;
 {
 	struct orlimit olim;
@@ -282,14 +282,14 @@ osetrlimit(p, uap, retval)
 	int error;
 
 	if ((error =
-	    copyin((caddr_t)uap->lim, (caddr_t)&olim, sizeof(struct orlimit))))
+	    copyin((caddr_t)uap->rlp, (caddr_t)&olim, sizeof(struct orlimit))))
 		return (error);
 	lim.rlim_cur = olim.rlim_cur;
 	lim.rlim_max = olim.rlim_max;
 	return (dosetrlimit(p, uap->which, &lim));
 }
 
-struct getrlimit_args {
+struct ogetrlimit_args {
 	u_int	which;
 	struct	orlimit *rlp;
 };
@@ -297,7 +297,7 @@ struct getrlimit_args {
 int
 ogetrlimit(p, uap, retval)
 	struct proc *p;
-	register struct getrlimit_args *uap;
+	register struct ogetrlimit_args *uap;
 	int *retval;
 {
 	struct orlimit olim;
@@ -316,7 +316,7 @@ ogetrlimit(p, uap, retval)
 
 struct __setrlimit_args {
 	u_int	which;
-	struct	rlimit *lim;
+	struct	rlimit *rlp;
 };
 /* ARGSUSED */
 int
@@ -329,7 +329,7 @@ setrlimit(p, uap, retval)
 	int error;
 
 	if ((error =
-	    copyin((caddr_t)uap->lim, (caddr_t)&alim, sizeof (struct rlimit))))
+	    copyin((caddr_t)uap->rlp, (caddr_t)&alim, sizeof (struct rlimit))))
 		return (error);
 	return (dosetrlimit(p, uap->which, &alim));
 }
