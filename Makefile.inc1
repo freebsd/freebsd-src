@@ -695,6 +695,7 @@ includes:
 	cd ${.CURDIR}/lib/libpcap;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libradius;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libsbuf;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libskey;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libstand;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libtacplus;		${MAKE} beforeinstall
@@ -713,6 +714,7 @@ includes:
 #
 # lib*: csu libgcc_pic
 # libatm: libmd
+# libcam: libsbuf
 # libcrypt: libmd
 # libdialog: libncurses
 # libedit: libncurses
@@ -774,8 +776,8 @@ libraries:
 .for _lib in ${_csu} gnu/lib/csu gnu/lib/libgcc lib/libmd lib/libcrypt \
     ${_secure_lib} ${_kerberosIV_lib} \
     ${_kerberos5_lib} lib/libcom_err ${_libm} lib/libncurses \
-    lib/libopie lib/libradius lib/libskey lib/libtacplus lib/libutil \
-    lib/libz lib gnu/lib ${_libperl} usr.bin/lex/lib ${_libkeycap}
+    lib/libopie lib/libradius lib/libsbuf lib/libskey lib/libtacplus \
+    lib/libutil lib/libz lib gnu/lib ${_libperl} usr.bin/lex/lib ${_libkeycap}
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
 		${MAKE} depend; \

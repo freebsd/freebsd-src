@@ -62,6 +62,20 @@ static	u_int		camperiphunit(struct periph_driver *p_drv,
 static	void		camperiphdone(struct cam_periph *periph, 
 					union ccb *done_ccb);
 static  void		camperiphfree(struct cam_periph *periph);
+static int		camperiphscsistatuserror(union ccb *ccb,
+						 cam_flags camflags,
+						 u_int32_t sense_flags,
+						 union ccb *save_ccb,
+						 int *openings,
+						 u_int32_t *relsim_flags,
+						 u_int32_t *timeout);
+static	int		camperiphscsisenseerror(union ccb *ccb,
+					        cam_flags camflags,
+					        u_int32_t sense_flags,
+					        union ccb *save_ccb,
+					        int *openings,
+					        u_int32_t *relsim_flags,
+					        u_int32_t *timeout);
 
 static int nperiph_drivers;
 struct periph_driver **periph_drivers;
@@ -473,14 +487,22 @@ cam_periph_lock(struct cam_periph *periph, int priority)
 {
 	int error;
 
-	while ((periph->flags & CAM_PERIPH_LOCKED) != 0) {
-		periph->flags |= CAM_PERIPH_LOCK_WANTED;
-		if ((error = tsleep(periph, priority, "caplck", 0)) != 0)
-			return error;
-	}
-
+	/*
+	 * Increment the reference count on the peripheral
+	 * while we wait for our lock attempt to succeed
+	 * to ensure the peripheral doesn't dissappear
+	 * out from under us while we sleep.
+	 */
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
 		return(ENXIO);
+
+	while ((periph->flags & CAM_PERIPH_LOCKED) != 0) {
+		periph->flags |= CAM_PERIPH_LOCK_WANTED;
+		if ((error = tsleep(periph, priority, "caplck", 0)) != 0) {
+			cam_periph_release(periph);
+			return error;
+		}
+	}
 
 	periph->flags |= CAM_PERIPH_LOCKED;
 	return 0;
@@ -891,13 +913,16 @@ cam_release_devq(struct cam_path *path, u_int32_t relsim_flags,
 static void
 camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 {
+	union ccb      *saved_ccb;
 	cam_status	status;
 	int		frozen;
 	int		sense;
 	struct scsi_start_stop_unit *scsi_cmd;
 	u_int32_t	relsim_flags, timeout;
 	u_int32_t	qfrozen_cnt;
+	int		xpt_done_ccb;
 
+	xpt_done_ccb = FALSE;
 	status = done_ccb->ccb_h.status;
 	frozen = (status & CAM_DEV_QFRZN) != 0;
 	sense  = (status & CAM_AUTOSNS_VALID) != 0;
@@ -905,6 +930,7 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 
 	timeout = 0;
 	relsim_flags = 0;
+	saved_ccb = (union ccb *)done_ccb->ccb_h.saved_ccb_ptr;
 
 	/* 
 	 * Unfreeze the queue once if it is already frozen..
@@ -918,15 +944,19 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 
 	switch (status) {
-
 	case CAM_REQ_CMP:
-
+	{
 		/*
 		 * If we have successfully taken a device from the not
-		 * ready to ready state, re-scan the device and re-get the
-		 * inquiry information.  Many devices (mostly disks) don't
-		 * properly report their inquiry information unless they
-		 * are spun up.
+		 * ready to ready state, re-scan the device and re-get
+		 * the inquiry information.  Many devices (mostly disks)
+		 * don't properly report their inquiry information unless
+		 * they are spun up.
+		 *
+		 * If we manually retrieved sense into a CCB and got
+		 * something other than "NO SENSE" send the updated CCB
+		 * back to the client via xpt_done() to be processed via
+		 * the error recovery code again.
 		 */
 		if (done_ccb->ccb_h.func_code == XPT_SCSI_IO) {
 			scsi_cmd = (struct scsi_start_stop_unit *)
@@ -935,15 +965,35 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 		 	if (scsi_cmd->opcode == START_STOP_UNIT)
 				xpt_async(AC_INQ_CHANGED,
 					  done_ccb->ccb_h.path, NULL);
+			if (scsi_cmd->opcode == REQUEST_SENSE) {
+				u_int sense_key;
+
+				sense_key = saved_ccb->csio.sense_data.flags;
+				sense_key &= SSD_KEY;
+				if (sense_key != SSD_KEY_NO_SENSE) {
+					saved_ccb->ccb_h.flags |=
+					    CAM_AUTOSNS_VALID;
+					xpt_print_path(saved_ccb->ccb_h.path);
+					printf("Recovered Sense\n");
+#if 0
+					scsi_sense_print(&saved_ccb->csio);
+#endif
+					cam_error_print(saved_ccb, CAM_ESF_ALL,
+							CAM_EPF_ALL);
+					xpt_done_ccb = TRUE;
+				}
+			}
 		}
 		bcopy(done_ccb->ccb_h.saved_ccb_ptr, done_ccb,
 		      sizeof(union ccb));
 
 		periph->flags &= ~CAM_PERIPH_RECOVERY_INPROG;
 
-		xpt_action(done_ccb);
+		if (xpt_done_ccb == FALSE)
+			xpt_action(done_ccb);
 
 		break;
+	}
 	case CAM_SCSI_STATUS_ERROR:
 		scsi_cmd = (struct scsi_start_stop_unit *)
 				&done_ccb->csio.cdb_io.cdb_bytes;
@@ -982,7 +1032,7 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 
 				xpt_action(done_ccb);
 
-			} else if (done_ccb->ccb_h.retry_count > 0) {
+			} else if (done_ccb->ccb_h.retry_count > 1) {
 				/*
 				 * In this case, the error recovery
 				 * command failed, but we've got 
@@ -1001,8 +1051,9 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 
 			} else {
 				/* 
-				 * Copy the original CCB back and
-				 * send it back to the caller.
+				 * Perform the final retry with the original
+				 * CCB so that final error processing is
+				 * performed by the owner of the CCB.
 				 */
 				bcopy(done_ccb->ccb_h.saved_ccb_ptr,		
 				      done_ccb, sizeof(union ccb));
@@ -1039,6 +1090,13 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 
 	/* decrement the retry count */
+	/*
+	 * XXX This isn't appropriate in all cases.  Restructure,
+	 *     so that the retry count is only decremented on an
+	 *     actual retry.  Remeber that the orignal ccb had its
+	 *     retry count dropped before entering recovery, so
+	 *     doing it again is a bug.
+	 */
 	if (done_ccb->ccb_h.retry_count > 0)
 		done_ccb->ccb_h.retry_count--;
 
@@ -1047,6 +1105,8 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 				      /*openings*/0,
 				      /*timeout*/timeout,
 				      /*getcount_only*/0);
+	if (xpt_done_ccb == TRUE)
+		(*done_ccb->ccb_h.cbfcnp)(periph, done_ccb);
 }
 
 /*
@@ -1113,6 +1173,320 @@ cam_periph_freeze_after_event(struct cam_periph *periph,
 
 }
 
+static int
+camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
+			 u_int32_t sense_flags, union ccb *save_ccb,
+			 int *openings, u_int32_t *relsim_flags,
+			 u_int32_t *timeout)
+{
+	int error;
+
+	switch (ccb->csio.scsi_status) {
+	case SCSI_STATUS_OK:
+	case SCSI_STATUS_COND_MET:
+	case SCSI_STATUS_INTERMED:
+	case SCSI_STATUS_INTERMED_COND_MET:
+		error = 0;
+		break;
+	case SCSI_STATUS_CMD_TERMINATED:
+	case SCSI_STATUS_CHECK_COND:
+		error = camperiphscsisenseerror(ccb,
+					        camflags,
+					        sense_flags,
+					        save_ccb,
+					        openings,
+					        relsim_flags,
+					        timeout);
+		break;
+	case SCSI_STATUS_QUEUE_FULL:
+	{
+		/* no decrement */
+		struct ccb_getdevstats cgds;
+
+		/*
+		 * First off, find out what the current
+		 * transaction counts are.
+		 */
+		xpt_setup_ccb(&cgds.ccb_h,
+			      ccb->ccb_h.path,
+			      /*priority*/1);
+		cgds.ccb_h.func_code = XPT_GDEV_STATS;
+		xpt_action((union ccb *)&cgds);
+
+		/*
+		 * If we were the only transaction active, treat
+		 * the QUEUE FULL as if it were a BUSY condition.
+		 */
+		if (cgds.dev_active != 0) {
+			int total_openings;
+
+			/*
+		 	 * Reduce the number of openings to
+			 * be 1 less than the amount it took
+			 * to get a queue full bounded by the
+			 * minimum allowed tag count for this
+			 * device.
+		 	 */
+			total_openings = cgds.dev_active + cgds.dev_openings;
+			*openings = cgds.dev_active;
+			if (*openings < cgds.mintags)
+				*openings = cgds.mintags;
+			if (*openings < total_openings)
+				*relsim_flags = RELSIM_ADJUST_OPENINGS;
+			else {
+				/*
+				 * Some devices report queue full for
+				 * temporary resource shortages.  For
+				 * this reason, we allow a minimum
+				 * tag count to be entered via a
+				 * quirk entry to prevent the queue
+				 * count on these devices from falling
+				 * to a pessimisticly low value.  We
+				 * still wait for the next successful
+				 * completion, however, before queueing
+				 * more transactions to the device.
+				 */
+				*relsim_flags = RELSIM_RELEASE_AFTER_CMDCMPLT;
+			}
+			*timeout = 0;
+			error = ERESTART;
+			break;
+		}
+		/* FALLTHROUGH */
+	}
+	case SCSI_STATUS_BUSY:
+		/*
+		 * Restart the queue after either another
+		 * command completes or a 1 second timeout.
+		 */
+	 	if (ccb->ccb_h.retry_count > 0) {
+	 		ccb->ccb_h.retry_count--;
+			error = ERESTART;
+			*relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT
+				      | RELSIM_RELEASE_AFTER_CMDCMPLT;
+			*timeout = 1000;
+		} else {
+			error = EIO;
+		}
+		break;
+	case SCSI_STATUS_RESERV_CONFLICT:
+		error = EIO;
+		break;
+	default:
+		error = EIO;
+		break;
+	}
+	return (error);
+}
+
+static int
+camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
+			u_int32_t sense_flags, union ccb *save_ccb,
+		       int *openings, u_int32_t *relsim_flags,
+		       u_int32_t *timeout)
+{
+	struct cam_periph *periph;
+	int error;
+
+	periph = xpt_path_periph(ccb->ccb_h.path);
+	if (periph->flags & CAM_PERIPH_RECOVERY_INPROG) {
+
+		/*
+		 * If error recovery is already in progress, don't attempt
+		 * to process this error, but requeue it unconditionally
+		 * and attempt to process it once error recovery has
+		 * completed.  This failed command is probably related to
+		 * the error that caused the currently active error recovery
+		 * action so our  current recovery efforts should also
+		 * address this command.  Be aware that the error recovery
+		 * code assumes that only one recovery action is in progress
+		 * on a particular peripheral instance at any given time
+		 * (e.g. only one saved CCB for error recovery) so it is
+		 * imperitive that we don't violate this assumption.
+		 */
+		error = ERESTART;
+	} else {
+		scsi_sense_action err_action;
+		struct ccb_getdev cgd;
+		const char *action_string;
+		union ccb* print_ccb;
+
+		/* A description of the error recovery action performed */
+		action_string = NULL;
+
+		/*
+		 * The location of the orignal ccb
+		 * for sense printing purposes.
+		 */
+		print_ccb = ccb;
+
+		/*
+		 * Grab the inquiry data for this device.
+		 */
+		xpt_setup_ccb(&cgd.ccb_h, ccb->ccb_h.path, /*priority*/ 1);
+		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
+		xpt_action((union ccb *)&cgd);
+
+		if ((ccb->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
+			err_action = scsi_error_action(&ccb->csio,
+						       &cgd.inq_data,
+						       sense_flags);
+		else if ((ccb->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0)
+			err_action = SS_REQSENSE;
+		else
+			err_action = SS_RETRY|SSQ_DECREMENT_COUNT|EIO;
+
+		error = err_action & SS_ERRMASK;
+
+		/*
+		 * If the recovery action will consume a retry,
+		 * make sure we actually have retries available.
+		 */
+		if ((err_action & SSQ_DECREMENT_COUNT) != 0) {
+		 	if (ccb->ccb_h.retry_count > 0)
+		 		ccb->ccb_h.retry_count--;
+			else {
+				action_string = "Retries Exhausted";
+				goto sense_error_done;
+			}
+		}
+
+		if ((err_action & SS_MASK) >= SS_START) {
+			/*
+			 * Do common portions of commands that
+			 * use recovery CCBs.
+			 */
+			if (save_ccb == NULL) {
+				action_string = "No recovery CCB supplied";
+				goto sense_error_done;
+			}
+			bcopy(ccb, save_ccb, sizeof(*save_ccb));
+			print_ccb = save_ccb;
+			periph->flags |= CAM_PERIPH_RECOVERY_INPROG;
+		}
+
+		switch (err_action & SS_MASK) {
+		case SS_NOP:
+		case SS_RETRY:
+			action_string = "Retrying Command";
+			error = ERESTART;
+			break;
+		case SS_FAIL:
+			action_string = "Unretryable error";
+			break;
+		case SS_START:
+		{
+			int le;
+
+			/*
+			 * Send a start unit command to the device, and
+			 * then retry the command.
+			 */
+			action_string = "Attempting to Start Unit";
+
+			/*
+			 * Check for removable media and set
+			 * load/eject flag appropriately.
+			 */
+			if (SID_IS_REMOVABLE(&cgd.inq_data))
+				le = TRUE;
+			else
+				le = FALSE;
+
+			scsi_start_stop(&ccb->csio,
+					/*retries*/1,
+					camperiphdone,
+					MSG_SIMPLE_Q_TAG,
+					/*start*/TRUE,
+					/*load/eject*/le,
+					/*immediate*/FALSE,
+					SSD_FULL_SIZE,
+					/*timeout*/50000);
+			break;
+		}
+		case SS_TUR:
+		{
+			/*
+			 * Send a Test Unit Ready to the device.
+			 * If the 'many' flag is set, we send 120
+			 * test unit ready commands, one every half 
+			 * second.  Otherwise, we just send one TUR.
+			 * We only want to do this if the retry 
+			 * count has not been exhausted.
+			 */
+			int retries;
+
+			if ((err_action & SSQ_MANY) != 0) {
+				action_string = "Polling device for readiness";
+				retries = 120;
+			} else {
+				action_string = "Testing device for readiness";
+				retries = 1;
+			}
+			scsi_test_unit_ready(&ccb->csio,
+					     retries,
+					     camperiphdone,
+					     MSG_SIMPLE_Q_TAG,
+					     SSD_FULL_SIZE,
+					     /*timeout*/5000);
+
+			/*
+			 * Accomplish our 500ms delay by deferring
+			 * the release of our device queue appropriately.
+			 */
+			*relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT;
+			*timeout = 500;
+			break;
+		}
+		case SS_REQSENSE:
+		{
+			/*
+			 * Send a Request Sense to the device.  We
+			 * assume that we are in a contingent allegiance
+			 * condition so we do not tag this request.
+			 */
+			scsi_request_sense(&ccb->csio, /*retries*/1,
+					   camperiphdone,
+					   &save_ccb->csio.sense_data,
+					   sizeof(save_ccb->csio.sense_data),
+					   CAM_TAG_ACTION_NONE,
+					   /*sense_len*/SSD_FULL_SIZE,
+					   /*timeout*/5000);
+			break;
+		}
+		default:
+			panic("Unhandled error action %x\n", err_action);
+		}
+		
+		if ((err_action & SS_MASK) >= SS_START) {
+			/*
+			 * Drop the priority to 0 so that the recovery
+			 * CCB is the first to execute.  Freeze the queue
+			 * after this command is sent so that we can
+			 * restore the old csio and have it queued in
+			 * the proper order before we release normal 
+			 * transactions to the device.
+			 */
+			ccb->ccb_h.pinfo.priority = 0;
+			ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
+			ccb->ccb_h.saved_ccb_ptr = save_ccb;
+			error = ERESTART;
+		}
+
+sense_error_done:
+		if ((err_action & SSQ_PRINT_SENSE) != 0
+		 && (ccb->ccb_h.status & CAM_AUTOSNS_VALID) != 0) {
+#if 0
+			scsi_sense_print(&print_ccb->csio);
+#endif
+			cam_error_print(print_ccb, CAM_ESF_ALL, CAM_EPF_ALL);
+			xpt_print_path(ccb->ccb_h.path);
+			printf("%s\n", action_string);
+		}
+	}
+	return (error);
+}
+
 /*
  * Generic error handler.  Peripheral drivers usually filter
  * out the errors that they handle in a unique mannor, then
@@ -1122,460 +1496,47 @@ int
 cam_periph_error(union ccb *ccb, cam_flags camflags,
 		 u_int32_t sense_flags, union ccb *save_ccb)
 {
-	cam_status status;
-	int	   frozen;
-	int	   sense;
-	int	   error;
-	int        openings;
-	int	   retry;
-	u_int32_t  relsim_flags;
-	u_int32_t  timeout;
+	const char *action_string;
+	cam_status  status;
+	int	    frozen;
+	int	    error;
+	int         openings;
+	u_int32_t   relsim_flags;
+	u_int32_t   timeout;
 	
+	action_string = NULL;
 	status = ccb->ccb_h.status;
 	frozen = (status & CAM_DEV_QFRZN) != 0;
-	sense  = (status & CAM_AUTOSNS_VALID) != 0;
 	status &= CAM_STATUS_MASK;
 	relsim_flags = 0;
 
 	switch (status) {
 	case CAM_REQ_CMP:
-		/* decrement the number of retries */
-		retry = ccb->ccb_h.retry_count > 0;
-		if (retry)
-			ccb->ccb_h.retry_count--;
 		error = 0;
 		break;
-	case CAM_AUTOSENSE_FAIL:
 	case CAM_SCSI_STATUS_ERROR:
-
-		switch (ccb->csio.scsi_status) {
-		case SCSI_STATUS_OK:
-		case SCSI_STATUS_COND_MET:
-		case SCSI_STATUS_INTERMED:
-		case SCSI_STATUS_INTERMED_COND_MET:
-			error = 0;
-			break;
-		case SCSI_STATUS_CMD_TERMINATED:
-		case SCSI_STATUS_CHECK_COND:
-			if (sense != 0) {
-				struct scsi_sense_data *sense;
-				int    error_code, sense_key, asc, ascq;
-				struct cam_periph *periph;
-				scsi_sense_action err_action;
-				struct ccb_getdev cgd;
-
-				sense = &ccb->csio.sense_data;
-				scsi_extract_sense(sense, &error_code,
-						   &sense_key, &asc, &ascq);
-				periph = xpt_path_periph(ccb->ccb_h.path);
-
-				/*
-				 * Grab the inquiry data for this device.
-				 */
-				xpt_setup_ccb(&cgd.ccb_h, ccb->ccb_h.path,
-					      /*priority*/ 1);
-				cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-				xpt_action((union ccb *)&cgd);
-
-				err_action = scsi_error_action(asc, ascq, 
-							       &cgd.inq_data);
-
-				/*
-				 * Send a Test Unit Ready to the device.
-				 * If the 'many' flag is set, we send 120
-				 * test unit ready commands, one every half 
-				 * second.  Otherwise, we just send one TUR.
-				 * We only want to do this if the retry 
-				 * count has not been exhausted.
-				 */
-				if (((err_action & SS_MASK) == SS_TUR)
-				 && save_ccb != NULL 
-				 && ccb->ccb_h.retry_count > 0) {
-
-					/*
-					 * Since error recovery is already
-					 * in progress, don't attempt to
-					 * process this error.  It is probably
-					 * related to the error that caused
-					 * the currently active error recovery
-					 * action.  Also, we only have
-					 * space for one saved CCB, so if we
-					 * had two concurrent error recovery
-					 * actions, we would end up
-					 * over-writing one error recovery
-					 * CCB with another one.
-					 */
-					if (periph->flags &
-					    CAM_PERIPH_RECOVERY_INPROG) {
-						error = ERESTART;
-						break;
-					}
-
-					periph->flags |=
-						CAM_PERIPH_RECOVERY_INPROG;
-
-					/* decrement the number of retries */
-					if ((err_action & 
-					     SSQ_DECREMENT_COUNT) != 0) {
-						retry = 1;
-						ccb->ccb_h.retry_count--;
-					}
-
-					bcopy(ccb, save_ccb, sizeof(*save_ccb));
-
-					/*
-					 * We retry this one every half
-					 * second for a minute.  If the
-					 * device hasn't become ready in a
-					 * minute's time, it's unlikely to
-					 * ever become ready.  If the table
-					 * doesn't specify SSQ_MANY, we can
-					 * only try this once.  Oh well.
-					 */
-					if ((err_action & SSQ_MANY) != 0)
-						scsi_test_unit_ready(&ccb->csio,
-							       /*retries*/120,
-							       camperiphdone,
-						 	       MSG_SIMPLE_Q_TAG,
-							       SSD_FULL_SIZE,
-							       /*timeout*/5000);
-					else
-						scsi_test_unit_ready(&ccb->csio,
-							       /*retries*/1,
-							       camperiphdone,
-						 	       MSG_SIMPLE_Q_TAG,
-							       SSD_FULL_SIZE,
-							       /*timeout*/5000);
-
-					/* release the queue after .5 sec.  */
-					relsim_flags = 
-						RELSIM_RELEASE_AFTER_TIMEOUT;
-					timeout = 500;
-					/*
-					 * Drop the priority to 0 so that 
-					 * we are the first to execute.  Also 
-					 * freeze the queue after this command 
-					 * is sent so that we can restore the 
-					 * old csio and have it queued in the 
-					 * proper order before we let normal 
-					 * transactions go to the drive.
-					 */
-					ccb->ccb_h.pinfo.priority = 0;
-					ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
-
-					/*
-					 * Save a pointer to the original
-					 * CCB in the new CCB.
-					 */
-					ccb->ccb_h.saved_ccb_ptr = save_ccb;
-
-					error = ERESTART;
-				}
-				/*
-				 * Send a start unit command to the device,
-				 * and then retry the command.  We only 
-				 * want to do this if the retry count has 
-				 * not been exhausted.  If the user 
-				 * specified 0 retries, then we follow 
-				 * their request and do not retry.
-				 */
-				else if (((err_action & SS_MASK) == SS_START)
-				      && save_ccb != NULL 
-				      && ccb->ccb_h.retry_count > 0) {
-					int le;
-
-					/*
-					 * Only one error recovery action
-					 * at a time.  See above.
-					 */
-					if (periph->flags &
-					    CAM_PERIPH_RECOVERY_INPROG) {
-						error = ERESTART;
-						break;
-					}
-
-					periph->flags |=
-						CAM_PERIPH_RECOVERY_INPROG;
-
-					/* decrement the number of retries */
-					retry = 1;
-					ccb->ccb_h.retry_count--;
-
-					/*
-					 * Check for removable media and
-					 * set load/eject flag
-					 * appropriately.
-					 */
-					if (SID_IS_REMOVABLE(&cgd.inq_data))
-						le = TRUE;
-					else
-						le = FALSE;
-
-					/*
-					 * Attempt to start the drive up.
-					 *
-					 * Save the current ccb so it can 
-					 * be restored and retried once the 
-					 * drive is started up.
-					 */
-					bcopy(ccb, save_ccb, sizeof(*save_ccb));
-
-					scsi_start_stop(&ccb->csio,
-							/*retries*/1,
-							camperiphdone,
-							MSG_SIMPLE_Q_TAG,
-							/*start*/TRUE,
-							/*load/eject*/le,
-							/*immediate*/FALSE,
-							SSD_FULL_SIZE,
-							/*timeout*/50000);
-					/*
-					 * Drop the priority to 0 so that 
-					 * we are the first to execute.  Also 
-					 * freeze the queue after this command 
-					 * is sent so that we can restore the 
-					 * old csio and have it queued in the 
-					 * proper order before we let normal 
-					 * transactions go to the drive.
-					 */
-					ccb->ccb_h.pinfo.priority = 0;
-					ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
-
-					/*
-					 * Save a pointer to the original
-					 * CCB in the new CCB.
-					 */
-					ccb->ccb_h.saved_ccb_ptr = save_ccb;
-
-					error = ERESTART;
-				} else if ((sense_flags & SF_RETRY_UA) != 0) {
-					/*
-					 * XXX KDM this is a *horrible*
-					 * hack.  
-					 */
-					error = scsi_interpret_sense(ccb,
-								  sense_flags,
-								  &relsim_flags,
-								  &openings,
-								  &timeout,
-								  err_action);
-				} 
-
-				/*
-				 * Theoretically, this code should send a
-				 * test unit ready to the given device, and 
-				 * if it returns and error, send a start 
-				 * unit command.  Since we don't yet have
-				 * the capability to do two-command error
-				 * recovery, just send a start unit.
-				 * XXX KDM fix this!
-				 */
-				else if (((err_action & SS_MASK) == SS_TURSTART)
-				      && save_ccb != NULL
-				      && ccb->ccb_h.retry_count > 0) {
-					int le;
-
-					/*
-					 * Only one error recovery action
-					 * at a time.  See above.
-					 */
-					if (periph->flags &
-					    CAM_PERIPH_RECOVERY_INPROG) {
-						error = ERESTART;
-						break;
-					}
-
-					periph->flags |=
-						CAM_PERIPH_RECOVERY_INPROG;
-
-					/* decrement the number of retries */
-					retry = 1;
-					ccb->ccb_h.retry_count--;
-
-					/*
-					 * Check for removable media and
-					 * set load/eject flag
-					 * appropriately.
-					 */
-					if (SID_IS_REMOVABLE(&cgd.inq_data))
-						le = TRUE;
-					else
-						le = FALSE;
-
-					/*
-					 * Attempt to start the drive up.
-					 *
-					 * Save the current ccb so it can 
-					 * be restored and retried once the 
-					 * drive is started up.
-					 */
-					bcopy(ccb, save_ccb, sizeof(*save_ccb));
-
-					scsi_start_stop(&ccb->csio,
-							/*retries*/1,
-							camperiphdone,
-							MSG_SIMPLE_Q_TAG,
-							/*start*/TRUE,
-							/*load/eject*/le,
-							/*immediate*/FALSE,
-							SSD_FULL_SIZE,
-							/*timeout*/50000);
-
-					/* release the queue after .5 sec.  */
-					relsim_flags = 
-						RELSIM_RELEASE_AFTER_TIMEOUT;
-					timeout = 500;
-					/*
-					 * Drop the priority to 0 so that 
-					 * we are the first to execute.  Also 
-					 * freeze the queue after this command 
-					 * is sent so that we can restore the 
-					 * old csio and have it queued in the 
-					 * proper order before we let normal 
-					 * transactions go to the drive.
-					 */
-					ccb->ccb_h.pinfo.priority = 0;
-					ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
-
-					/*
-					 * Save a pointer to the original
-					 * CCB in the new CCB.
-					 */
-					ccb->ccb_h.saved_ccb_ptr = save_ccb;
-
-					error = ERESTART;
-				} else {
-					error = scsi_interpret_sense(ccb,
-								  sense_flags,
-								  &relsim_flags,
-								  &openings,
-								  &timeout,
-								  err_action);
-				}
-			} else if (ccb->csio.scsi_status == 
-				   SCSI_STATUS_CHECK_COND
-				&& status != CAM_AUTOSENSE_FAIL) {
-				/* no point in decrementing the retry count */
-				panic("cam_periph_error: scsi status of "
-				      "CHECK COND returned but no sense "
-				      "information is availible.  "
-				      "Controller should have returned "
-				      "CAM_AUTOSENSE_FAILED");
-				/* NOTREACHED */
-				error = EIO;
-			} else if (ccb->ccb_h.retry_count == 0) {
-				/*
-				 * XXX KDM shouldn't there be a better
-				 * argument to return??
-				 */
-				error = EIO;
-			} else {
-				/* decrement the number of retries */
-				retry = ccb->ccb_h.retry_count > 0;
-				if (retry)
-					ccb->ccb_h.retry_count--;
-				/*
-				 * If it was aborted with no
-				 * clue as to the reason, just
-				 * retry it again.
-				 */
-				error = ERESTART;
-			}
-			break;
-		case SCSI_STATUS_QUEUE_FULL:
-		{
-			/* no decrement */
-			struct ccb_getdevstats cgds;
-
-			/*
-			 * First off, find out what the current
-			 * transaction counts are.
-			 */
-			xpt_setup_ccb(&cgds.ccb_h,
-				      ccb->ccb_h.path,
-				      /*priority*/1);
-			cgds.ccb_h.func_code = XPT_GDEV_STATS;
-			xpt_action((union ccb *)&cgds);
-
-			/*
-			 * If we were the only transaction active, treat
-			 * the QUEUE FULL as if it were a BUSY condition.
-			 */
-			if (cgds.dev_active != 0) {
-				int total_openings;
-
-				/*
-			 	 * Reduce the number of openings to
-				 * be 1 less than the amount it took
-				 * to get a queue full bounded by the
-				 * minimum allowed tag count for this
-				 * device.
-			 	 */
-				total_openings =
-				    cgds.dev_active+cgds.dev_openings;
-				openings = cgds.dev_active;
-				if (openings < cgds.mintags)
-					openings = cgds.mintags;
-				if (openings < total_openings)
-					relsim_flags = RELSIM_ADJUST_OPENINGS;
-				else {
-					/*
-					 * Some devices report queue full for
-					 * temporary resource shortages.  For
-					 * this reason, we allow a minimum
-					 * tag count to be entered via a
-					 * quirk entry to prevent the queue
-					 * count on these devices from falling
-					 * to a pessimisticly low value.  We
-					 * still wait for the next successful
-					 * completion, however, before queueing
-					 * more transactions to the device.
-					 */
-					relsim_flags =
-					    RELSIM_RELEASE_AFTER_CMDCMPLT;
-				}
-				timeout = 0;
-				error = ERESTART;
-				break;
-			}
-			/* FALLTHROUGH */
-		}
-		case SCSI_STATUS_BUSY:
-			/*
-			 * Restart the queue after either another
-			 * command completes or a 1 second timeout.
-			 * If we have any retries left, that is.
-			 */
-			retry = ccb->ccb_h.retry_count > 0;
-			if (retry) {
-				ccb->ccb_h.retry_count--;
-				error = ERESTART;
-				relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT
-					     | RELSIM_RELEASE_AFTER_CMDCMPLT;
-				timeout = 1000;
-			} else {
-				error = EIO;
-			}
-			break;
-		case SCSI_STATUS_RESERV_CONFLICT:
-			error = EIO;
-			break;
-		default:
-			error = EIO;
-			break;
-		}
+		error = camperiphscsistatuserror(ccb,
+						 camflags,
+						 sense_flags,
+						 save_ccb,
+						 &openings,
+						 &relsim_flags,
+						 &timeout);
 		break;
+	case CAM_AUTOSENSE_FAIL:
+		xpt_print_path(ccb->ccb_h.path);
+		printf("AutoSense Failed\n");
 	case CAM_REQ_CMP_ERR:
 	case CAM_CMD_TIMEOUT:
 	case CAM_UNEXP_BUSFREE:
 	case CAM_UNCOR_PARITY:
 	case CAM_DATA_RUN_ERR:
 		/* decrement the number of retries */
-		retry = ccb->ccb_h.retry_count > 0;
-		if (retry) {
+		if (ccb->ccb_h.retry_count > 0) {
 			ccb->ccb_h.retry_count--;
 			error = ERESTART;
 		} else {
+			action_string = "Retries Exausted";
 			error = EIO;
 		}
 		break;
@@ -1587,46 +1548,37 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		break;
 	case CAM_SEL_TIMEOUT:
 	{
-		/*
-		 * XXX
-		 * A single selection timeout should not be enough
-		 * to invalidate a device.  We should retry for multiple
-		 * seconds assuming this isn't a probe.  We'll probably
-		 * need a special flag for that.
-		 */
-#if 0
 		struct cam_path *newpath;
 
+		if ((camflags & CAM_RETRY_SELTO) != 0) {
+			if (ccb->ccb_h.retry_count > 0) {
+
+				ccb->ccb_h.retry_count--;
+				error = ERESTART;
+
+				/*
+				 * Wait a second to give the device
+				 * time to recover before we try again.
+				 */
+				relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT;
+				timeout = 1000;
+				break;
+			}
+		}
+		error = ENXIO;
 		/* Should we do more if we can't create the path?? */
 		if (xpt_create_path(&newpath, xpt_path_periph(ccb->ccb_h.path),
 				    xpt_path_path_id(ccb->ccb_h.path),
 				    xpt_path_target_id(ccb->ccb_h.path),
 				    CAM_LUN_WILDCARD) != CAM_REQ_CMP) 
 			break;
+
 		/*
 		 * Let peripheral drivers know that this device has gone
 		 * away.
 		 */
 		xpt_async(AC_LOST_DEVICE, newpath, NULL);
 		xpt_free_path(newpath);
-#endif
-		if ((sense_flags & SF_RETRY_SELTO) != 0) {
-			retry = ccb->ccb_h.retry_count > 0;
-			if (retry) {
-				ccb->ccb_h.retry_count--;
-				error = ERESTART;
-				/*
-				 * Wait half a second to give the device
-				 * time to recover before we try again.
-				 */
-				relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT;
-				timeout = 500;
-			} else {
-				error = ENXIO;
-			}
-		} else {
-			error = ENXIO;
-		}
 		break;
 	}
 	case CAM_REQ_INVALID:
@@ -1634,13 +1586,22 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	case CAM_DEV_NOT_THERE:
 	case CAM_NO_HBA:
 	case CAM_PROVIDE_FAIL:
-	case CAM_REQ_TOO_BIG:		
+	case CAM_REQ_TOO_BIG:
 		error = EINVAL;
 		break;
 	case CAM_SCSI_BUS_RESET:
-	case CAM_BDR_SENT:		
+	case CAM_BDR_SENT:
+		/*
+		 * Commands that repeatedly timeout and cause these
+		 * kinds of error recovery actions, should return
+		 * CAM_CMD_TIMEOUT, which allows us to safely assume
+		 * that this command was an innocent bystander to
+		 * these events and should be unconditionally
+		 * retried.
+		 */
+		/* FALLTHROUGH */
 	case CAM_REQUEUE_REQ:
-		/* Unconditional requeue, dammit */
+		/* Unconditional requeue */
 		error = ERESTART;
 		break;
 	case CAM_RESRC_UNAVAIL:
@@ -1648,13 +1609,12 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		/* timeout??? */
 	default:
 		/* decrement the number of retries */
-		retry = ccb->ccb_h.retry_count > 0;
-		if (retry) {
+		if (ccb->ccb_h.retry_count > 0) {
 			ccb->ccb_h.retry_count--;
 			error = ERESTART;
 		} else {
-			/* Check the sense codes */
 			error = EIO;
+			action_string = "Retries Exhausted";
 		}
 		break;
 	}
@@ -1664,18 +1624,30 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		if (frozen != 0)
 			ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
 
-		if (error == ERESTART)
+		if (error == ERESTART) {
+			action_string = "Retrying Command";
 			xpt_action(ccb);
+		}
 		
-		if (frozen != 0) {
+		if (frozen != 0)
 			cam_release_devq(ccb->ccb_h.path,
 					 relsim_flags,
 					 openings,
 					 timeout,
 					 /*getcount_only*/0);
-		}
 	}
 
+	if (error != 0 && bootverbose) {
+
+		if (action_string == NULL)
+			action_string = "Unretryable Error";
+		if (error != ERESTART) {
+			xpt_print_path(ccb->ccb_h.path);
+			printf("error %d\n", error);
+		}
+		xpt_print_path(ccb->ccb_h.path);
+		printf("%s\n", action_string);
+	}
 
 	return (error);
 }
