@@ -180,7 +180,7 @@ SUBDIR=	ac \
 	zic \
 	${_zzz}
 
-.if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "arm"
+.if ${MACHINE_ARCH} != "arm"
 _sysinstall=	sysinstall
 .endif
 
