@@ -48,6 +48,8 @@ struct usbd_quirks {
 #define UQ_BUS_POWERED	0x20	/* device is bus powered, despite claim */
 #define UQ_BAD_AUDIO	0x40	/* device claims audio class, but isn't */
 #define UQ_SPUR_BUT_UP	0x80	/* spurious mouse button up events */
+#define UQ_NO_TSLEEP	0x100	/* device needs to work at interrupt
+				 * context, must avoid tsleep! */
 };
 
 extern struct usbd_quirks usbd_no_quirk;

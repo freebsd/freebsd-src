@@ -490,6 +490,10 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
 
 ADMtek AL981-based PCI fast ethernet NICs
 ADMtek AN985-based PCI fast ethernet NICs
+ADMtek Inc. AN986-based USB ethernet NICs including the following:
+  LinkSys USB100TX
+  Billionton USB100
+  Melco Inc. LU-ATX
 
 ASIX Electronics AX88140A PCI NICs, including the following:
   Alfa Inc. GFC2204

@@ -214,3 +214,4 @@ pseudo-device	bpf		#Berkeley packet filter
 #device		ulpt0		# Printer
 #controller	umass0		# Disks/Mass storage - Requires scbus and da0
 #device		ums0		# Mouse
+#device		aue0		# ADMtek USB ethernet

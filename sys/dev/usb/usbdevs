@@ -44,6 +44,7 @@ $FreeBSD$
 vendor HP		0x03f0	Hewlett Packard
 vendor NEC		0x0409	NEC
 vendor KODAK		0x040a	Eastman Kodak Corp.
+vendor MELCO		0x0411	Melco Inc.
 vendor CATC		0x0423	Computer Access Technology Corp.
 vendor GRAVIS		0x0428	Advanced Gravis Computer Tech. Ltd.
 vendor LEXMARK		0x043d	Lexmark International Inc.
@@ -101,9 +102,11 @@ vendor MULTITECH	0x06e0	MultiTech
 vendor ADS		0x06e1	ADS Technologies
 vendor MIDIMAN		0x0763	Midiman
 vendor SANDISK		0x0781	SanDisk Corp
+vendor ADMTEK		0x07a6	ADMtek Inc.
 vendor SIIG		0x07cc	SIIG
 vendor HANDSPRING	0x082d	Handspring Inc.
 vendor ACTIVEWIRE	0x0854	ActiveWire Inc.
+vendor BILLIONTON	0x08DD	Billionton Systems
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
 vendor INSIDEOUT	0x1608	Inside Out Networks
@@ -126,6 +129,9 @@ product NEC HUB_B		0x55ab	hub
 product KODAK DC260		0x0110	Digital Science DC260
 product KODAK DC240		0x0120	Digital Science DC240
 product KODAK DC280		0x0130	Digital Science DC280
+
+/* Melco products */
+product MELCO LUATX		0x0001	LU-ATX Ethernet adapter
 
 /* CATC products */
 product CATC ANDROMEDA		0x1237	Andromeda hub
@@ -314,6 +320,9 @@ product MIDIMAN MIDISPORT2X2	0x1001	Midisport 2x2
 /* SanDisk products */
 product	SANDISK IMAGEMATE	0x0001	USB ImageMate
 
+/* ADMtek products */
+product ADMTEK PEGASUS		0x0986	AN986 USB Ethernet adapter
+
 /* SIIG products */
 product SIIG DIGIFILMREADER	0x0004	DigiFilm-Combo Reader
 
@@ -323,6 +332,9 @@ product	HANDSPRING VISOR	0x0100	Handspring Visor
 /* ActiveWire Inc. products */
 product ACTIVEWIRE IOBOARD	0x0100	I/O Board
 product ACTIVEWIRE IOBOARD_FW1	0x0101	I/O Board, rev. 1 firmware
+
+/* Billionton products */
+product BILLIONTON USB100	0x0986	USB100 Ethernet adapter
 
 /* Motorola products */
 product	MOTOROLA MC141555	0x1555	MC141555 hub controller
