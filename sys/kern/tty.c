@@ -3111,7 +3111,7 @@ open_top:
 			if (flag & O_NONBLOCK)
 				return (EBUSY);
 			error =	tsleep(&tp->t_actout,
-				       TTIPRI | PCATCH, "siobi", 0);
+				       TTIPRI | PCATCH, "ttybi", 0);
 			if (error != 0 || (tp->t_flags & TS_GONE))
 				goto out;
 			goto open_top;
