@@ -48,6 +48,8 @@
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysproto.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -1060,10 +1062,13 @@ struct sysctl_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 __sysctl(struct proc *p, struct sysctl_args *uap)
 {
-	int error, i, name[CTL_MAXNAME];
+	int error, name[CTL_MAXNAME];
 	size_t j;
 
 	if (uap->namelen > CTL_MAXNAME || uap->namelen < 2)
@@ -1073,16 +1078,20 @@ __sysctl(struct proc *p, struct sysctl_args *uap)
  	if (error)
 		return (error);
 
+	mtx_lock(&Giant);
+
 	error = userland_sysctl(p, name, uap->namelen,
 		uap->old, uap->oldlenp, 0,
 		uap->new, uap->newlen, &j);
 	if (error && error != ENOMEM)
-		return (error);
+		goto done2;
 	if (uap->oldlenp) {
-		i = copyout(&j, uap->oldlenp, sizeof(j));
+		int i = copyout(&j, uap->oldlenp, sizeof(j));
 		if (i)
-			return (i);
+			error = i;
 	}
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -1232,12 +1241,17 @@ struct getkerninfo_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 ogetkerninfo(struct proc *p, struct getkerninfo_args *uap)
 {
 	int error, name[6];
 	size_t size;
 	u_int needed = 0;
+
+	mtx_lock(&Giant);
 
 	switch (uap->op & 0xff00) {
 
@@ -1362,14 +1376,17 @@ ogetkerninfo(struct proc *p, struct getkerninfo_args *uap)
 	}
 
 	default:
-		return (EOPNOTSUPP);
+		error = EOPNOTSUPP;
+		break;
 	}
-	if (error)
-		return (error);
-	p->p_retval[0] = needed ? needed : size;
-	if (uap->size)
-		error = copyout((caddr_t)&size, (caddr_t)uap->size,
-		    sizeof(size));
+	if (error == 0) {
+		p->p_retval[0] = needed ? needed : size;
+		if (uap->size) {
+			error = copyout((caddr_t)&size, (caddr_t)uap->size,
+				    sizeof(size));
+		}
+	}
+	mtx_unlock(&Giant);
 	return (error);
 }
 #endif /* COMPAT_43 */
