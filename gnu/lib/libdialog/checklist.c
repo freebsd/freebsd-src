@@ -456,7 +456,7 @@ draw:
 	    /* Select either the OK or Cancel button */
 	case '\n':
 	case '\r':
-	    if (!button && result) {
+	    if (ditems && result) {
 		if (ditems && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
 		    int st;
 		    WINDOW *save = dupwin(newscr);
@@ -470,13 +470,13 @@ draw:
 		    if (st == DITEM_FAILURE)
 			continue;
 		}
-		else {
-		    *result = '\0';
-		    for (i = 0; i < item_no; i++) {
-			if (status[i]) {
-			    strcat(result, items[i*3]);
-			    strcat(result, "\n");
-			}
+	    }
+	    else if (result) {
+		*result = '\0';
+		for (i = 0; i < item_no; i++) {
+		    if (status[i]) {
+			strcat(result, items[i*3]);
+			strcat(result, "\n");
 		    }
 		}
 	    }
