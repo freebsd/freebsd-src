@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.27 1995/03/25 08:47:35 davidg Exp $
+ *	$Id: vm_page.c,v 1.28 1995/04/09 06:03:52 davidg Exp $
  */
 
 /*
@@ -1160,6 +1160,7 @@ vm_page_is_clean(m, base, size)
 		return 0;
 }
 
+#ifdef DDB
 void
 print_page_info()
 {
@@ -1174,4 +1175,4 @@ print_page_info()
 	printf("cnt.v_cache_min: %d\n", cnt.v_cache_min);
 	printf("cnt.v_inactive_target: %d\n", cnt.v_inactive_target);
 }
-
+#endif
