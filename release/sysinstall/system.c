@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.16 1995/05/18 15:58:32 jkh Exp $
+ * $Id: system.c,v 1.17 1995/05/18 17:49:09 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -285,10 +285,10 @@ vsystem(char *fmt, ...)
     case 0:				/* child */
 	(void)sigsetmask(omask);
 	if (DebugFD != -1) {
+	    msgInfo("Command output is on debugging screen - type ALT-F2 to see it");
 	    dup2(DebugFD, 0);
 	    dup2(DebugFD, 1);
 	    dup2(DebugFD, 2);
-	    msgInfo("Command output is on debugging screen - type ALT-F2 to see it");
 	}
 	execl("/stand/sh", "sh", "-c", cmd, (char *)NULL);
 	i = 127;
