@@ -20,7 +20,7 @@
 #define MAX_SEC_SIZE    2048  /* maximum sector size that is supported */
 #define MIN_SEC_SIZE	512   /* the sector size to end sensing at */
 
-const static enum platform {
+static const enum platform {
 	p_any,			/* for debugging ! */
 	p_alpha,
 	p_i386,
@@ -276,7 +276,7 @@ ShowChunkFlags(struct chunk *);
 
 struct disklabel;
 void Fill_Disklabel(struct disklabel *, const struct disk *,
-	const struct disk *, const struct chunk *);
+	const struct chunk *);
 void Debug_Chunk(struct chunk *);
 void Free_Chunk(struct chunk *);
 struct chunk *Clone_Chunk(const struct chunk *);

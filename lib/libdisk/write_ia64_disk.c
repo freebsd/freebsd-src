@@ -44,7 +44,7 @@ Write_FreeBSD(int fd, const struct disk *new, const struct chunk *c1)
 	}
 
 	dl = (struct disklabel *)(buf + 512 * LABELSECTOR + LABELOFFSET);
-	Fill_Disklabel(dl, new, NULL, c1);
+	Fill_Disklabel(dl, new, c1);
 
 	for (i = 0; i < BBSIZE / 512; i++) {
 		if (write_block(fd, i + c1->offset, buf + 512 * i, 512) != 0)

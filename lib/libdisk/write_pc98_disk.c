@@ -30,8 +30,7 @@ __FBSDID("$FreeBSD$");
  *	I'm not sure which, so I leave it like it worked before. --schweikh
  */
 static int
-Write_FreeBSD(int fd, const struct disk *new, const struct disk *old,
-	      const struct chunk *c1)
+Write_FreeBSD(int fd, const struct disk *new, const struct chunk *c1)
 {
 	struct disklabel *dl;
 	int i;
@@ -50,7 +49,7 @@ Write_FreeBSD(int fd, const struct disk *new, const struct disk *old,
 		memcpy(buf + 512, new->boot2, BBSIZE - 512);
 
 	dl = (struct disklabel *)(buf + 512 * LABELSECTOR + LABELOFFSET);
-	Fill_Disklabel(dl, new, old, c1);
+	Fill_Disklabel(dl, new, c1);
 
 	for (i = 0; i < BBSIZE / 512; i++)
 		write_block(fd, i + c1->offset, buf + 512 * i, 512);
@@ -105,7 +104,7 @@ Write_Disk(const struct disk *d1)
 			continue;
 		s[j]++;
 		if (c1->type == freebsd)
-			ret += Write_FreeBSD(fd, d1, old, c1);
+			ret += Write_FreeBSD(fd, d1, c1);
 
 		i = c1->offset;
 		dp[j].dp_ssect = dp[j].dp_ipl_sct = i % d1->bios_sect;
