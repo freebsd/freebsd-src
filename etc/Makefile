@@ -20,7 +20,7 @@ BIN1=	amd.map apmd.conf auth.conf \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
 
-.if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
+.if !defined(NO_OPENSSL)
 .if !defined(NO_OPENSSH)
 SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 	${.CURDIR}/../crypto/openssh/sshd_config \
@@ -82,7 +82,7 @@ distribution:
 .if !defined(NO_SENDMAIL)
 	cd ${.CURDIR}/sendmail; ${MAKE} distribution
 .endif
-.if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
+.if !defined(NO_OPENSSL)
 .if !defined(NO_OPENSSH)
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${SSH} ${DESTDIR}/etc/ssh
