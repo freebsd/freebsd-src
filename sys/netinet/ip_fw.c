@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.86 1998/06/05 23:33:26 julian Exp $
+ *	$Id: ip_fw.c,v 1.87 1998/06/06 19:39:08 julian Exp $
  */
 
 /*
@@ -104,7 +104,7 @@ static ip_fw_ctl_t *old_ctl_ptr;
 #endif
 
 static int	ip_fw_chk __P((struct ip **pip, int hlen,
-			struct ifnet *oif, int *cookie, struct mbuf **m));
+			struct ifnet *oif, u_int16_t *cookie, struct mbuf **m));
 static int	ip_fw_ctl __P((int stage, struct mbuf **mm));
 
 static char err_prefix[] = "ip_fw_ctl:";
@@ -398,7 +398,7 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 
 static int 
 ip_fw_chk(struct ip **pip, int hlen,
-	struct ifnet *oif, int *cookie, struct mbuf **m)
+	struct ifnet *oif, u_int16_t *cookie, struct mbuf **m)
 {
 	struct ip_fw_chain *chain;
 	struct ip_fw *rule = NULL;
@@ -407,9 +407,9 @@ ip_fw_chk(struct ip **pip, int hlen,
 	u_short offset = (ip->ip_off & IP_OFFMASK);
 	u_short src_port, dst_port;
 #ifdef	IPFW_DIVERT_OLDRESTART
-	int ignport = *cookie;
+	u_int16_t ignport = *cookie;
 #else
-	int skipto = *cookie;
+	u_int16_t skipto = *cookie;
 #endif /* IPFW_DIVERT_OLDRESTART */
 
 	*cookie = 0;
