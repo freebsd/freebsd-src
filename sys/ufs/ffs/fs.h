@@ -312,21 +312,21 @@ struct fs {
 /* these fields retain the current block allocation info */
 	int32_t	 fs_cgrotor;		/* last cg searched */
 	void 	*fs_ocsp[NOCSPTRS];	/* padding; was list of fs_cs buffers */
-	u_int8_t *fs_contigdirs;	/* # of contiguously allocated dirs */
-	struct	csum *fs_csp;		/* cg summary info buffer for fs_cs */
-	int32_t	*fs_maxcluster;		/* max cluster in each cyl group */
-	u_int	*fs_active;		/* used by snapshots to track fs */
+	u_int8_t *fs_contigdirs;	/* (u) # of contig. allocated dirs */
+	struct	csum *fs_csp;		/* (u) cg summary info buffer */
+	int32_t	*fs_maxcluster;		/* (u) max cluster in each cyl group */
+	u_int	*fs_active;		/* (u) used by snapshots to track fs */
 	int32_t	 fs_old_cpc;		/* cyl per cycle in postbl */
 	int32_t	 fs_maxbsize;		/* maximum blocking factor permitted */
 	int64_t	 fs_sparecon64[17];	/* old rotation block list head */
 	int64_t	 fs_sblockloc;		/* byte offset of standard superblock */
-	struct	csum_total fs_cstotal;	/* cylinder summary information */
+	struct	csum_total fs_cstotal;	/* (u) cylinder summary information */
 	ufs_time_t fs_time;		/* last time written */
 	int64_t	 fs_size;		/* number of blocks in fs */
 	int64_t	 fs_dsize;		/* number of data blocks in fs */
 	ufs2_daddr_t fs_csaddr;		/* blk addr of cyl grp summary area */
-	int64_t	 fs_pendingblocks;	/* blocks in process of being freed */
-	int32_t	 fs_pendinginodes;	/* inodes in process of being freed */
+	int64_t	 fs_pendingblocks;	/* (u) blocks being freed */
+	int32_t	 fs_pendinginodes;	/* (u) inodes being freed */
 	int32_t	 fs_snapinum[FSMAXSNAP];/* list of snapshot inode numbers */
 	int32_t	 fs_avgfilesize;	/* expected average file size */
 	int32_t	 fs_avgfpdir;		/* expected # of files per directory */
@@ -408,6 +408,14 @@ CTASSERT(sizeof(struct fs) == 1376);
  */
 #define	ACTIVECGNUM(fs, cg)	((fs)->fs_active[(cg) / (NBBY * sizeof(int))])
 #define	ACTIVECGOFF(cg)		(1 << ((cg) % (NBBY * sizeof(int))))
+#define	ACTIVESET(fs, cg)	do {					\
+	if ((fs)->fs_active)						\
+		ACTIVECGNUM((fs), (cg)) |= ACTIVECGOFF((cg));		\
+} while (0)
+#define	ACTIVECLEAR(fs, cg)	do {					\
+	if ((fs)->fs_active)						\
+		ACTIVECGNUM((fs), (cg)) &= ~ACTIVECGOFF((cg));		\
+} while (0)
 
 /*
  * The size of a cylinder group is calculated by CGSIZE. The maximum size
