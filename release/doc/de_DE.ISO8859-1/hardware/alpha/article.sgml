@@ -1,6 +1,6 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/article.sgml,v 1.3 2002/03/10 18:41:34 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/article.sgml,v 1.4 2002/03/15 13:08:31 ue Exp $
   $Id: article.sgml,v 1.7 2002/03/10 15:37:14 ue Exp $
   basiert auf: 1.4
 -->
@@ -14,7 +14,7 @@
 %translators;
 <!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
 %mlists;
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//DE">
 %release;
 <!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
 
