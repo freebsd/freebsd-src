@@ -37,6 +37,15 @@ __FBSDID("$FreeBSD$");
 #include <fnmatch.h>
 #ifdef HAVE_GETOPT_LONG
 #include <getopt.h>
+#else
+struct option {
+	const char *name;
+	int has_arg;
+	int *flag;
+	int val;
+};
+#define	no_argument 0
+#define	required_argument 1
 #endif
 #include <locale.h>
 #include <pwd.h>
@@ -48,6 +57,8 @@ __FBSDID("$FreeBSD$");
 
 #include "bsdtar.h"
 
+static int		 bsdtar_getopt(struct bsdtar *, const char *optstring,
+    const struct option **poption);
 static void		 long_help(struct bsdtar *);
 static void		 only_mode(struct bsdtar *, char mode, const char *opt,
 			     const char *valid);
@@ -55,21 +66,29 @@ static char **		 rewrite_argv(struct bsdtar *,
 			     int *argc, char ** src_argv,
 			     const char *optstring);
 
-const char *tar_opts = "Bb:C:cF:f:HhjkLlmnOoPprtT:UuvwX:xyZz";
-
-#ifdef HAVE_GETOPT_LONG
 /*
- * These long options are deliberately not documented.  They are
- * provided only to make life easier for people using GNU tar.  The
- * only long options documented in the manual page are the ones with
- * no corresponding short option (currently, --exclude, --nodump, and
- * --fast-read).
+ * The leading '+' here forces the GNU version of getopt() (as well as
+ * both the GNU and BSD versions of getopt_long) to stop at the first
+ * non-option.  Otherwise, GNU getopt() permutes the arguments and
+ * screws up -C processing.
+ */
+const char *tar_opts = "+Bb:C:cF:f:HhjkLlmnOoPprtT:UuvW:wX:xyZz";
+
+/*
+ * Most of these long options are deliberately not documented.  They
+ * are provided only to make life easier for people who also use GNU tar.
+ * The only long options documented in the manual page are the ones
+ * with no corresponding short option, such as --exclude, --nodump,
+ * and --fast-read.
  *
- * XXX TODO: Provide short options for --exclude, --nodump and --fast-read
- * so that bsdtar is usable on systems that do not have (or do not want
- * to use) getopt_long().
+ * On systems that lack getopt_long, long options can be specified
+ * using -W longopt and -W longopt=value, e.g. "-W nodump" is the same
+ * as "--nodump" and "-W exclude=pattern" is the same as "--exclude
+ * pattern".  This does not rely the GNU getopt() "W;" extension, so
+ * should work correctly on any system with a POSIX-compliant getopt().
  */
 
+/* Fake short equivalents for long options that otherwise lack them. */
 #define	OPTION_EXCLUDE 1
 #define	OPTION_FAST_READ 2
 #define	OPTION_NODUMP 3
@@ -119,17 +138,17 @@ const struct option tar_longopts[] = {
 	{ "verbose",            no_argument,       NULL, 'v' },
 	{ NULL, 0, NULL, 0 }
 };
-#endif
 
 int
 main(int argc, char **argv)
 {
 	struct bsdtar		*bsdtar, bsdtar_storage;
+	const struct option	*option;
 	struct passwd		*pwent;
 	int			 opt;
 	char			 mode;
-	char			 buff[16];
 	char			 possible_help_request;
+	char			 buff[16];
 
 	/*
 	 * Use a pointer for consistency, but stack-allocated storage
@@ -177,12 +196,7 @@ main(int argc, char **argv)
 	bsdtar->argc = argc;
 
 	/* Process all remaining arguments now. */
-#ifdef HAVE_GETOPT_LONG
-        while ((opt = getopt_long(bsdtar->argc, bsdtar->argv,
-	    tar_opts, tar_longopts, NULL)) != -1) {
-#else
-	while ((opt = getopt(bsdtar->argc, bsdtar->argv, tar_opts)) != -1) {
-#endif
+        while ((opt = bsdtar_getopt(bsdtar, tar_opts, &option)) != -1) {
 		switch (opt) {
 		case 'B': /* GNU tar */
 			/*
@@ -194,7 +208,7 @@ main(int argc, char **argv)
 			bsdtar->bytes_per_block = 512 * atoi(optarg);
 			break;
 		case 'C': /* GNU tar */
-			/* XXX How should multiple -C options be handled? */
+			/* Defer first -C until after -f is opened. */
 			bsdtar->start_dir = optarg;
 			break;
 		case 'c': /* SUSv2 */
@@ -204,11 +218,9 @@ main(int argc, char **argv)
 				    opt, mode);
 			mode = opt;
 			break;
-#ifdef HAVE_GETOPT_LONG
 		case OPTION_EXCLUDE: /* GNU tar */
 			exclude(bsdtar, optarg);
 			break;
-#endif
 		case 'F':
 			bsdtar->create_format = optarg;
 			break;
@@ -217,11 +229,9 @@ main(int argc, char **argv)
 			if (strcmp(bsdtar->filename, "-") == 0)
 				bsdtar->filename = NULL;
 			break;
-#ifdef HAVE_GETOPT_LONG
 		case OPTION_FAST_READ: /* GNU tar */
 			bsdtar->option_fast_read = 1;
 			break;
-#endif
 		case 'H': /* BSD convention */
 			bsdtar->symlink_mode = 'H';
 			break;
@@ -230,17 +240,13 @@ main(int argc, char **argv)
 			/* Hack: -h by itself is the "help" command. */
 			possible_help_request = 1;
 			break;
-#ifdef HAVE_GETOPT_LONG
 		case OPTION_HELP:
 			long_help(bsdtar);
 			exit(0);
 			break;
-#endif
-#ifdef HAVE_GETOPT_LONG
 		case OPTION_INCLUDE:
 			include(bsdtar, optarg);
 			break;
-#endif
 		case 'j': /* GNU tar */
 			if (bsdtar->create_compression != '\0')
 				bsdtar_errc(bsdtar, 1, 0,
@@ -263,12 +269,9 @@ main(int argc, char **argv)
 		case 'n': /* GNU tar */
 			bsdtar->option_no_subdirs = 1;
 			break;
-#ifdef HAVE_GETOPT_LONG
 		case OPTION_NODUMP: /* star */
 			bsdtar->option_honor_nodump = 1;
 			break;
-#endif
-#ifdef HAVE_GETOPT_LONG
 		case OPTION_NO_SAME_PERMISSIONS: /* GNU tar */
 			/*
 			 * This is always the default in FreeBSD's
@@ -277,18 +280,15 @@ main(int argc, char **argv)
 			 * command-line option as a no-op.
 			 */
 			break;
-#endif
 		case 'O': /* GNU tar */
 			bsdtar->option_stdout = 1;
 			break;
 		case 'o': /* SUSv2; note that GNU -o conflicts */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
-#if HAVE_GETOPT_LONG
 		case OPTION_ONE_FILE_SYSTEM: /* -l in GNU tar */
 			bsdtar->option_dont_traverse_mounts = 1;
 			break;
-#endif
 #if 0
 		/*
 		 * The common BSD -P option is not necessary, since
@@ -472,7 +472,7 @@ only_mode(struct bsdtar *bsdtar, char mode,
  * Convert traditional tar arguments into new-style.
  * For example,
  *     tar tvfb file.tar 32 --exclude FOO
- * must be converted to
+ * will be converted to
  *     tar -t -v -f file.tar -b 32 --exclude FOO
  *
  * This requires building a new argv array.  The initial bundled word
@@ -566,6 +566,8 @@ static const char *long_help_msg[] = {
 	"  -F {ustar|pax|cpio|shar}  Select archive format\n",
 #ifdef HAVE_GETOPT_LONG
 	"  --exclude <pattern>  Skip files that match pattern\n",
+#else
+	"  -W exclude=<pattern>  Skip files that match pattern\n",
 #endif
 	"  C=<dir>  Change to <dir> before processing remaining files\n",
 	"  @<archive>  Add entries from <archive> to output\n",
@@ -623,4 +625,71 @@ long_help(struct bsdtar *bsdtar)
 		}
 	}
 	fflush(stderr);
+}
+
+static int
+bsdtar_getopt(struct bsdtar *bsdtar, const char *optstring,
+    const struct option **poption)
+{
+	char *p, *q;
+	const struct option *option;
+	int opt;
+	int option_index;
+	size_t option_length;
+
+	option_index = -1;
+	*poption = NULL;
+
+#ifdef HAVE_GETOPT_LONG
+	opt = getopt_long(bsdtar->argc, bsdtar->argv, optstring,
+	    tar_longopts, &option_index);
+	if (option_index > -1)
+		*poption = tar_longopts + option_index;
+#else
+	opt = getopt(bsdtar->argc, bsdtar->argv, optstring);
+#endif
+
+	/* Support long options through -W longopt=value */
+	if (opt == 'W') {
+		p = optarg;
+		q = strchr(optarg, '=');
+		if (q != NULL) {
+			option_length = q - p;
+			optarg = q + 1;
+		} else {
+			option_length = strlen(p);
+			optarg = NULL;
+		}
+		option = tar_longopts;
+		while (option->name != NULL &&
+		    (strlen(option->name) < option_length ||
+		    strncmp(p, option->name, option_length) != 0 )) {
+			option++;
+		}
+
+		if (option->name != NULL) {
+			*poption = option;
+			opt = option->val;
+
+			/* Check if there's another match. */
+			option++;
+			while (option->name != NULL &&
+			    (strlen(option->name) < option_length ||
+			    strncmp(p, option->name, option_length) != 0)) {
+				option++;
+			}
+			if (option->name != NULL)
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Ambiguous option %s "
+				    "(matches both %s and %s)",
+				    p, (*poption)->name, option->name);
+
+		} else {
+			opt = '?';
+			/* TODO: Set up a fake 'struct option' for
+			 * error reporting... ? ? ? */
+		}
+	}
+
+	return (opt);
 }
