@@ -22,7 +22,7 @@ Notable files and directories:
 
 share/mk/doc.relnotes.mk
 	Common Makefile definitions for RELNOTESng.  These definitions
-	mostly accomodate the fact that we're building DocProj-like
+	mostly accommodate the fact that we're building DocProj-like
 	documents outside the doc/ tree.
 share/sgml/catalog
 	Main SGML catalog for all language-neutral (and default EN)
@@ -121,7 +121,7 @@ documentation builds).
 
 Release builders can set which language gets built with the 
 RELNOTES_LANG variable; note that this is different from the 
-DOC_LANG variable because (at least intially) most languages
+DOC_LANG variable because (at least initially) most languages
 will have localized DocProj files but not localized release notes.
 The default language, if none is specified, is en_US.ISO8859-1.
 
