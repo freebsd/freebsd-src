@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/01/16 03:51:28 $
+<date>$Date: 1997/01/16 06:27:18 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -911,6 +911,9 @@ drivedata: 0
           should only be required if you are using ISA devices, although
           one or two broken EISA and VLB devices may need it as well).
 
+	  Also look at the section on <ref id="reallybigram"
+	  name="&gt;64M machines"> if you have that much memory.
+
       <sect1>
 	<heading>I keep seeing messages like ``<tt/ed1: timeout/''.</heading>
         <p>
@@ -1145,7 +1148,7 @@ options   PSM_CHECKSYNC      #checks the header byte for sync.
         <heading>I have a laptop with a track-ball mouse.</heading>
 
         <p>
-          Please refer to the answer to the previous question.
+          Please refer to <ref id="ps2mouse" name="the answer to the previous question">.
 
       <sect1>
 	<heading>What types of tape drives are supported under FreeBSD?</heading>
@@ -1733,6 +1736,20 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
             options "SCSI_DELAY=15"
           </verb>
 
+      <sect1>
+         <heading>How do I mount a secondary DOS partition?</heading>
+
+          <p>
+	    The secondary DOS partitions are found after ALL the primary
+	    partitions. For example, if you have an "E" partition as the
+	    second DOS partition on the second SCSI drive, you need to create
+	    the special files for "slice 5" in /dev, then mount /dev/sd1s5:
+
+	    <verb>
+	       % cd /dev
+	       % ./MAKEDEV sd1s5
+	       % mount -t msdos /dev/sd1s5 /dos/e
+	    </verb>
       <sect1>
         <heading>How can I use the NT loader to boot FreeBSD?</heading>
         <p>
@@ -2462,7 +2479,7 @@ disk        fd1   at fdc0 drive 1
 	  GIMP. 256Kb is plenty for X11R6 shared memory.
 
       <sect1>
-        <heading>I have 128 MB of RAM but the system only uses 64 MB.</heading>
+        <heading>I have 128 MB of RAM but the system only uses 64 MB.<label id="reallybigram"></heading>
 
         <p>
           Due to the manner in which FreeBSD gets the memory size from the
