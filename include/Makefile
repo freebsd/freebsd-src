@@ -37,6 +37,7 @@ LSUBDIRS=	cam/scsi dev/an dev/ic dev/iicbus dev/ofw dev/ppbus dev/smbus \
 	fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs fs/nwfs fs/portalfs \
 	fs/procfs fs/smbfs fs/umapfs fs/unionfs isofs/cd9660 \
 	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
+	netgraph/bluetooth/include \
 	security/lomac security/mac_biba security/mac_bsdextended \
 	security/mac_mls security/mac_partition ufs/ffs ufs/ufs
 
