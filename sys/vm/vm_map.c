@@ -2543,7 +2543,8 @@ vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 
 	if (VM_MIN_ADDRESS > 0 && addrbos < VM_MIN_ADDRESS)
 		return (KERN_NO_SPACE);
-
+	if (addrbos > map->max_offset)
+		return (KERN_NO_SPACE);
 	if (max_ssize < sgrowsiz)
 		init_ssize = max_ssize;
 	else
