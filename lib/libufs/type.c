@@ -94,6 +94,8 @@ ufs_disk_fillout(struct uufsd *disk, const char *name)
 {
 	int fd;
 
+	DEBUG(NULL);
+
 	fd = open(name, O_RDONLY);
 	if (fd == -1) {
 		DEBUG("open");
