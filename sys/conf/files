@@ -24,7 +24,6 @@ kern/bus_if.m			standard
 kern/clock_if.m			optional genclock
 kern/linker_if.m		standard
 cam/cam.c		optional scbus
-cam/cam_extend.c	optional scbus
 cam/cam_periph.c	optional scbus
 cam/cam_queue.c		optional scbus
 cam/cam_sim.c		optional scbus

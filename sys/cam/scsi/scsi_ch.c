@@ -82,7 +82,6 @@
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
-#include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
@@ -227,22 +226,11 @@ static struct cdevsw ch_cdevsw = {
 	/* flags */	0,
 };
 
-static struct extend_array *chperiphs;
-
 void
 chinit(void)
 {
 	cam_status status;
 	struct cam_path *path;
-
-	/*
-	 * Create our extend array for storing the devices we attach to.
-	 */
-	chperiphs = cam_extend_new();
-	if (chperiphs == NULL) {
-		printf("ch: Failed to alloc extend array!\n");
-		return;
-	}
 
 	/*
 	 * Install a global async callback.  This callback will
@@ -305,7 +293,6 @@ chcleanup(struct cam_periph *periph)
 
 	devstat_remove_entry(&softc->device_stats);
 	destroy_dev(softc->dev);
-	cam_extend_release(chperiphs, periph->unit_number);
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
 	free(softc, M_DEVBUF);
@@ -384,7 +371,6 @@ chregister(struct cam_periph *periph, void *arg)
 	bzero(softc, sizeof(*softc));
 	softc->state = CH_STATE_PROBE;
 	periph->softc = softc;
-	cam_extend_set(chperiphs, periph->unit_number, periph);
 	softc->quirks = CH_Q_NONE;
 
 	/*
@@ -401,6 +387,7 @@ chregister(struct cam_periph *periph, void *arg)
 	softc->dev = make_dev(&ch_cdevsw, periph->unit_number, UID_ROOT,
 			      GID_OPERATOR, 0600, "%s%d", periph->periph_name,
 			      periph->unit_number);
+	softc->dev->si_drv1 = periph;
 
 	/*
 	 * Add an async callback so that we get
@@ -428,12 +415,10 @@ chopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct ch_softc *softc;
-	int unit, error;
+	int error;
 	int s;
 
-	unit = CHUNIT(dev);
-	periph = cam_extend_get(chperiphs, unit);
-
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return(ENXIO);
 
@@ -478,12 +463,11 @@ chclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	ch_softc *softc;
-	int	unit, error;
+	int	error;
 
 	error = 0;
 
-	unit = CHUNIT(dev);
-	periph = cam_extend_get(chperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return(ENXIO);
 
@@ -728,12 +712,9 @@ chioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct ch_softc *softc;
-	u_int8_t unit;
 	int error;
 
-	unit = CHUNIT(dev);
-
-	periph = cam_extend_get(chperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return(ENXIO);
 
