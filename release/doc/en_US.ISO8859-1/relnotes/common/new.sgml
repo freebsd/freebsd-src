@@ -239,6 +239,22 @@
 	fast recovery when NewReno was enabled, has been
 	fixed. &merged;</para>
 
+      <para>TCP now has support for the <quote>Limited
+	Transmit</quote> mechanism proposed by RFC 3042.  This feature
+	is intended to improve the effectiveness of TCP loss recovery
+	in certain circumstances.  It is off by default but can be
+	enabled with the <varname>net.inet.tcp.rfc3042</varname>
+	sysctl variable.  More information can be found in
+	&man.tcp.4;.</para>
+
+      <para>TCP now has support for increased initial congestion
+	window sizes as described in RFC 3390.  This feature can
+	improve the throughput of short transfers, as well as
+	high-bandwidth, large propagation-delay connections.  It is
+	off by default but can be enabled with the
+	<varname>net.inet.tcp.rfc3390</varname> sysctl variable.  More
+	information can by found in &man.tcp.4;.</para>
+
       <para>The IP fragment reassembly code behaves more gracefully
 	when receiving a large number of packet fragments (it is
 	designed to be more resistant to fragment-based denial of
