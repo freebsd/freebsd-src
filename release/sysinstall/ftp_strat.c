@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.20 1996/07/06 02:03:47 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.48 1996/07/06 02:05:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,63 +51,10 @@ extern int FtpPort;
 
 static char *lastRequest;
 
-static Boolean
-get_new_host(Device *dev, Boolean probe)
-{
-    Boolean i;
-    int j;
-    char *oldTitle = MenuMediaFTP.title;
-    char *cp = variable_get(VAR_FTP_ONERROR);
-
-    if (probe || (cp && strcmp(cp, "reselect")))
-	i = TRUE;
-    else {
-	i = FALSE;
-	msgConfirm("The %s file failed to load from the FTP site you\n"
-		   "selected.  Please select another one from the FTP menu.", lastRequest ? lastRequest : "requested");
-	MenuMediaFTP.title = "Request failed - please select another site";
-	j = mediaSetFTP(NULL);
-	MenuMediaFTP.title = oldTitle;
-	if (DITEM_STATUS(j) == DITEM_SUCCESS) {
-	    /* Bounce the link if necessary */
-	    if (ftpInitted) {
-		msgDebug("Bouncing FTP connection before reselecting new host.\n");
-		dev->shutdown(dev);
-		i = dev->init(dev);
-	    }
-	}
-	else {
-	    msgDebug("User elected not to reselect, shutting down open connection.\n");
-	    dev->shutdown(dev);
-	}
-    }
-    return i;
-}
-
-/* Should we throw in the towel? */
-static Boolean
-ftpShouldAbort(Device *dev, int retries)
-{
-    char *cp, *cp2;
-    int maxretries, rval = FALSE;
-
-    cp = variable_get(VAR_FTP_ONERROR);
-    cp2 = variable_get(VAR_FTP_RETRIES);
-    maxretries = atoi(cp2);
-    if (retries > maxretries || (cp && !strcmp(cp, "abort"))) {
-	rval = TRUE;
-	if (isDebug())
-	    msgDebug("Aborting FTP connection.\n");
-	dev->shutdown(dev);
-	(void)dev->init(dev);
-    }
-    return rval;
-}
-
 Boolean
 mediaInitFTP(Device *dev)
 {
-    int i, retries;
+    int i;
     char *cp, *rel, *hostname, *dir;
     char *user, *login_name, password[80];
 
@@ -144,30 +91,21 @@ mediaInitFTP(Device *dev)
 	strcpy(password, variable_get(VAR_FTP_PASS));
     else
 	sprintf(password, "%s@%s", login_name, hostname);
-    retries = 0;
-retry:
     msgNotify("Logging in as %s..", login_name);
     if (FtpOpen(ftp, hostname, login_name, password) != 0) {
 	if (variable_get(VAR_NO_CONFIRM))
 	    msgNotify("Couldn't open FTP connection to %s", hostname);
 	else
 	    msgConfirm("Couldn't open FTP connection to %s", hostname);
-	if (ftpShouldAbort(dev, ++retries) || !get_new_host(dev, FALSE))
-	    return FALSE;
-	goto retry;
+	goto punt;
     }
 
     FtpPassive(ftp, !strcmp(variable_get(VAR_FTP_STATE), "passive"));
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
 	msgDebug("Attempt to chdir to distribution in %s\n", dir);
-	if ((i = FtpChdir(ftp, dir)) != 0) {
-	    if (i == -2 || ftpShouldAbort(dev, ++retries))
-		goto punt;
-	    else if (get_new_host(dev, FALSE))
-		retries = 0;
-	    goto retry;
-	}
+	if (FtpChdir(ftp, dir) == IO_ERROR)
+	    goto punt;
     }
 
     /* Give it a shot - can't hurt to try and zoom in if we can, unless the release is set to __RELEASE which signifies that it's not set */
@@ -176,14 +114,14 @@ retry:
 	i = FtpChdir(ftp, rel);
     else
 	i = 0;
-    if (i == -2)
-	goto punt;
-    else if (i == -1)
+    if (i == -1)
 	msgConfirm("Warning:  Can't CD to `%s' distribution on this\n"
 		   "FTP server.  You may need to visit the Options menu\n"
 		   "to set the release name explicitly if this FTP server\n"
 		   "isn't exporting a CD (or some other custom release) at\n"
 		   "the top level as a release tree.", rel);
+    else if (i == IO_ERROR)
+	goto punt;
 
     if (isDebug())
 	msgDebug("mediaInitFTP was successful (logged in and chdir'd)\n");
@@ -212,14 +150,14 @@ mediaGetFTP(Device *dev, char *file, Boolean probe)
     lastRequest = file;
     while ((fd = FtpGet(ftp, fp)) < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
-	if (fd == -2 && ++nretries < atoi(variable_get(VAR_FTP_RETRIES))) {
+	if (fd == IO_ERROR) {	
 	    dev->shutdown(dev);
 	    /* If we can't re-initialize, just forget it */
 	    if (!dev->init(dev))
-		return -2;
+		return IO_ERROR;
 	}
-	else if (probe || ftpShouldAbort(dev, ++nretries))
-	    return -1;
+	else if (probe)
+	    return EOF;
 	else {
 	    /* Try some alternatives */
 	    switch (nretries) {
@@ -240,12 +178,7 @@ mediaGetFTP(Device *dev, char *file, Boolean probe)
 
 	    case 4:
 		fp = file;
-		if (get_new_host(dev, probe)) {
-		    nretries = 0;
-		    continue;
-		}
-		else
-		    break;
+		break;
 	    }
 	}
     }
