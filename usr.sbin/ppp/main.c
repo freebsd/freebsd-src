@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.112 1997/12/27 13:45:53 brian Exp $
+ * $Id: main.c,v 1.113 1997/12/28 02:46:26 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -915,16 +915,15 @@ DoLoop(void)
       FD_SET(server, &rfds);
     }
 
+#ifndef SIGALRM
     /*
      * *** IMPORTANT ***
-     * 
      * CPU is serviced every TICKUNIT micro seconds. This value must be chosen
-     * with great care. If this values is too big, it results loss of
-     * characters from modem and poor responce. If this values is too small,
-     * ppp process eats many CPU time.
+     * with great care. If this values is too big, it results in loss of
+     * characters from the modem and poor response.  If this value is too
+     * small, ppp eats too much CPU time.
      */
-#ifndef SIGALRM
-    nointr_usleep(TICKUNIT);
+    usleep(TICKUNIT);
     TimerService();
 #else
     handle_signals();
