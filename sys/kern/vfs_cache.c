@@ -41,6 +41,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>

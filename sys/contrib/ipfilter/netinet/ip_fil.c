@@ -34,6 +34,9 @@
 #endif
 #include <sys/errno.h>
 #include <sys/types.h>
+#if (__FreeBSD_version >= 500028)
+#include <sys/queue.h>
+#endif
 #include <sys/file.h>
 #if __FreeBSD_version >= 220000 && defined(_KERNEL)
 # include <sys/fcntl.h>
