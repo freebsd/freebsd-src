@@ -45,6 +45,16 @@ struct radius {
   } cfg;
 };
 
+struct radacct {
+  struct radius *rad_parent;	/* "Parent" struct radius stored in bundle */
+  char user_name[AUTHLEN];	/* Session User-Name */
+  char session_id[256];		/* Unique session ID */
+  char multi_session_id[51];	/* Unique MP session ID */
+  int  authentic;		/* How the session has been authenticated */
+  struct in_addr ip;
+  struct in_addr mask;
+};
+
 #define descriptor2radius(d) \
   ((d)->type == RADIUS_DESCRIPTOR ? (struct radius *)(d) : NULL)
 
@@ -56,3 +66,12 @@ extern void radius_Destroy(struct radius *);
 extern void radius_Show(struct radius *, struct prompt *);
 extern void radius_Authenticate(struct radius *, struct authinfo *,
                                 const char *, const char *, const char *);
+extern void radius_Account(struct radius *, struct radacct *, 
+                           struct datalink *, int, struct in_addr *,
+                           struct in_addr *, struct pppThroughput *);
+
+/* An (int) parameter to radius_Account, from radlib.h */
+#if !defined(RAD_START)
+#define RAD_START	1
+#define RAD_STOP	2
+#endif

@@ -957,6 +957,12 @@ IpcpLayerDown(struct fsm *fp)
       s = "Interface configuration error !";
     log_Printf(LogIPCP, "%s: LayerDown: %s\n", fp->link->name, s);
 
+#ifndef NORADIUS
+    radius_Account(&fp->bundle->radius, &fp->bundle->radacct,
+                   fp->bundle->links, RAD_STOP, &ipcp->peer_ip, &ipcp->ifmask,
+                   &ipcp->throughput);
+#endif
+
     /*
      * XXX this stuff should really live in the FSM.  Our config should
      * associate executable sections in files with events.
@@ -1008,6 +1014,11 @@ IpcpLayerUp(struct fsm *fp)
 
   if (!ipcp_InterfaceUp(ipcp))
     return 0;
+
+#ifndef NORADIUS
+  radius_Account(&fp->bundle->radius, &fp->bundle->radacct, fp->bundle->links, 
+                 RAD_START, &ipcp->peer_ip, &ipcp->ifmask, &ipcp->throughput);
+#endif
 
   /*
    * XXX this stuff should really live in the FSM.  Our config should
