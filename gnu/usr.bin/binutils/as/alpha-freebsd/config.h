@@ -28,9 +28,6 @@
 /* Define to `long' if <sys/types.h> doesn't define.  */
 /* #undef off_t */
 
-/* Define if you need to in order for stat and other things to work.  */
-/* #undef _POSIX_SOURCE */
-
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 /* #undef size_t */
 
@@ -149,10 +146,13 @@
 #define PACKAGE "gas"
 
 /* Version number of package */
-/* #define VERSION "000427" */
+/* #define VERSION "2.11" */
 
 /* Define if defaulting to ELF on SCO 5. */
 /* #undef SCO_ELF */
+
+/* Using strict COFF? */
+/* #undef STRICTCOFF */
 
 /* Use ELF stabs for MIPS, not ECOFF stabs */
 /* #undef MIPS_STABS_ELF */

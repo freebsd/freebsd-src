@@ -10,7 +10,7 @@ SRCS+=		ldcref.c ldctor.c ldemul.c ldemul-list.h ldexp.c ldfile.c \
 		ldgram.y ldlang.c ldlex.l ldmain.c ldmisc.c \
 		ldver.c ldwrite.c lexsup.c mri.c
 CFLAGS+=	-DSCRIPTDIR=\"${DESTDIR}/usr/libdata\"
-CFLAGS+=	-I${SRCDIR}/ld
+CFLAGS+=	-I${SRCDIR}/ld -I${SRCDIR}/bfd
 CFLAGS+=	-I${.CURDIR}/../../../../include
 CFLAGS+=	-DVERSION=\"${VERSION}\" -DBFD_VERSION=\"${VERSION}\"
 NOSHARED?=	yes
