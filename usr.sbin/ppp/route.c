@@ -504,17 +504,19 @@ route_UpdateMTU(struct bundle *bundle)
   for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
     rtm = (struct rt_msghdr *)cp;
     route_ParseHdr(rtm, sa);
-    if (sa[RTAX_DST] && sa[RTAX_DST]->sa_family == AF_INET &&
-        sa[RTAX_GATEWAY] && /* sa[RTAX_NETMASK] && */
-        rtm->rtm_index == bundle->iface->index &&
-        (sa[RTAX_GATEWAY]->sa_family == AF_INET ||
-         sa[RTAX_GATEWAY]->sa_family == AF_LINK)) {
-      log_Printf(LogTCPIP, "route_UpdateMTU: Netif: %d (%s), dst %s, mtu %d\n",
-                 rtm->rtm_index, Index2Nam(rtm->rtm_index),
-                 inet_ntoa(((struct sockaddr_in *)sa[RTAX_DST])->sin_addr),
-                 bundle->iface->mtu);
-      ncprange_setsa(&dst, sa[RTAX_DST], sa[RTAX_NETMASK]);
-      rt_Update(bundle, &dst);
+    if (sa[RTAX_DST] && (sa[RTAX_DST]->sa_family == AF_INET ||
+#ifndef NOINET6
+                         sa[RTAX_DST]->sa_family == AF_INET6
+#endif
+                        ) &&
+        sa[RTAX_GATEWAY] && rtm->rtm_index == bundle->iface->index) {
+      if (log_IsKept(LogTCPIP)) {
+        ncprange_setsa(&dst, sa[RTAX_DST], sa[RTAX_NETMASK]);
+        log_Printf(LogTCPIP, "route_UpdateMTU: Netif: %d (%s), dst %s,"
+                   " mtu %d\n", rtm->rtm_index, Index2Nam(rtm->rtm_index),
+                   ncprange_ntoa(&dst), bundle->iface->mtu);
+      }
+      rt_Update(bundle, sa[RTAX_DST], sa[RTAX_GATEWAY], sa[RTAX_NETMASK]);
     }
   }
 
@@ -819,11 +821,13 @@ failed:
 }
 
 void
-rt_Update(struct bundle *bundle, const struct ncprange *dst)
+rt_Update(struct bundle *bundle, const struct sockaddr *dst,
+          const struct sockaddr *gw, const struct sockaddr *mask)
 {
+  struct ncprange ncpdst;
   struct rtmsg rtmes;
+  char *p;
   int s, wb;
-  struct sockaddr_storage sadst, samask;
 
   s = ID0socket(PF_ROUTE, SOCK_RAW, 0);
   if (s < 0) {
@@ -834,7 +838,7 @@ rt_Update(struct bundle *bundle, const struct ncprange *dst)
   memset(&rtmes, '\0', sizeof rtmes);
   rtmes.m_rtm.rtm_version = RTM_VERSION;
   rtmes.m_rtm.rtm_type = RTM_CHANGE;
-  rtmes.m_rtm.rtm_addrs = RTA_DST;
+  rtmes.m_rtm.rtm_addrs = RTA_GATEWAY;
   rtmes.m_rtm.rtm_seq = ++bundle->routing_seq;
   rtmes.m_rtm.rtm_pid = getpid();
   rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
@@ -851,27 +855,36 @@ rt_Update(struct bundle *bundle, const struct ncprange *dst)
 
   rtmes.m_rtm.rtm_rmx.rmx_mtu = bundle->iface->mtu;
   rtmes.m_rtm.rtm_inits |= RTV_MTU;
+  p = rtmes.m_space;
 
-  ncprange_getsa(dst, &sadst, &samask);
+  if (dst) {
+    rtmes.m_rtm.rtm_addrs |= RTA_DST;
+    memcpy(p, dst, dst->sa_len);
+    p += dst->sa_len;
+  }
+  memcpy(p, gw, gw->sa_len);
+  p += gw->sa_len;
+  if (mask) {
+    rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
+    memcpy(p, mask, mask->sa_len);
+    p += mask->sa_len;
+  }
 
-  memcpy(rtmes.m_space, &sadst, sadst.ss_len);
-  memcpy(rtmes.m_space + sadst.ss_len, &samask, samask.ss_len);
-  rtmes.m_rtm.rtm_msglen = rtmes.m_space - (char *)&rtmes;
-  rtmes.m_rtm.rtm_msglen+= sadst.ss_len + samask.ss_len;
+  rtmes.m_rtm.rtm_msglen = p - (char *)&rtmes;
 
   wb = ID0write(s, &rtmes, rtmes.m_rtm.rtm_msglen);
   if (wb < 0) {
+    ncprange_setsa(&ncpdst, dst, mask);
+
     log_Printf(LogTCPIP, "rt_Update failure:\n");
-    log_Printf(LogTCPIP, "rt_Update:  Dst = %s\n", ncprange_ntoa(dst));
+    log_Printf(LogTCPIP, "rt_Update:  Dst = %s\n", ncprange_ntoa(&ncpdst));
 
     if (rtmes.m_rtm.rtm_errno == 0)
       log_Printf(LogWARN, "%s: Change route failed: errno: %s\n",
-                 ncprange_ntoa(dst), strerror(errno));
+                 ncprange_ntoa(&ncpdst), strerror(errno));
     else
       log_Printf(LogWARN, "%s: Change route failed: %s\n",
-		 ncprange_ntoa(dst), strerror(rtmes.m_rtm.rtm_errno));
+		 ncprange_ntoa(&ncpdst), strerror(rtmes.m_rtm.rtm_errno));
   }
-  log_Printf(LogDEBUG, "wrote %d: cmd = Change, dst = %s\n",
-             wb, ncprange_ntoa(dst));
   close(s);
 }
