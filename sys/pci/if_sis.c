@@ -125,6 +125,7 @@ static void sis_txeof		(struct sis_softc *);
 static void sis_intr		(void *);
 static void sis_tick		(void *);
 static void sis_start		(struct ifnet *);
+static void sis_startl		(struct ifnet *);
 static int sis_ioctl		(struct ifnet *, u_long, caddr_t);
 static void sis_init		(void *);
 static void sis_stop		(struct sis_softc *);
@@ -1718,7 +1719,7 @@ sis_tick(xsc)
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 		sc->sis_link++;
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			sis_start(ifp);
+			sis_startl(ifp);
 	}
 
 	callout_reset(&sc->sis_stat_ch, hz,  sis_tick, sc);
@@ -1757,7 +1758,7 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	sis_rxeof(sc);
 	sis_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		sis_start(ifp);
+		sis_startl(ifp);
 
 	if (sc->rxcycles > 0 || cmd == POLL_AND_CHECK_STATUS) {
 		u_int32_t	status;
@@ -1844,7 +1845,7 @@ sis_intr(arg)
 	CSR_WRITE_4(sc, SIS_IER, 1);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		sis_start(ifp);
+		sis_startl(ifp);
 done:
 	SIS_UNLOCK(sc);
 
@@ -1941,23 +1942,31 @@ sis_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct sis_softc	*sc;
+
+	sc = ifp->if_softc;
+	SIS_LOCK(sc);
+	sis_startl(ifp);
+	SIS_UNLOCK(sc);
+}
+
+static void
+sis_startl(struct ifnet *ifp)
+{
+	struct sis_softc	*sc;
 	struct mbuf		*m_head = NULL;
 	u_int32_t		idx, queued = 0;
 
 	sc = ifp->if_softc;
-	SIS_LOCK(sc);
 
-	if (!sc->sis_link) {
-		SIS_UNLOCK(sc);
+	SIS_LOCK_ASSERT(sc);
+
+	if (!sc->sis_link)
 		return;
-	}
 
 	idx = sc->sis_tx_prod;
 
-	if (ifp->if_flags & IFF_OACTIVE) {
-		SIS_UNLOCK(sc);
+	if (ifp->if_flags & IFF_OACTIVE)
 		return;
-	}
 
 	while(sc->sis_tx_list[idx].sis_mbuf == NULL) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
@@ -1990,10 +1999,6 @@ sis_start(ifp)
 		 */
 		ifp->if_timer = 5;
 	}
-
-	SIS_UNLOCK(sc);
-
-	return;
 }
 
 static void
@@ -2332,7 +2337,7 @@ sis_watchdog(ifp)
 	sis_init(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		sis_start(ifp);
+		sis_startl(ifp);
 
 	SIS_UNLOCK(sc);
 
