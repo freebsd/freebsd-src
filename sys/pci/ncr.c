@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.97 1997/04/20 15:48:17 bde Exp $
+**  $Id: ncr.c,v 1.98 1997/06/11 22:36:02 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1212,7 +1212,7 @@ static	ccb_p	ncr_get_ccb	(ncb_p np, u_long flags, u_long t,u_long l);
 static  u_int32_t ncr_info	(int unit);
 static	void	ncr_init	(ncb_p np, char * msg, u_long code);
 static	void	ncr_intr	(void *vnp);
-static	void	ncr_int_ma	(ncb_p np);
+static	void	ncr_int_ma	(ncb_p np, u_char dstat);
 static	void	ncr_int_sir	(ncb_p np);
 static  void    ncr_int_sto     (ncb_p np);
 static	void	ncr_min_phys	(struct buf *bp);
@@ -1256,7 +1256,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.97 1997/04/20 15:48:17 bde Exp $\n";
+	"\n$Id: ncr.c,v 1.98 1997/06/11 22:36:02 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -5050,7 +5050,7 @@ void ncr_exception (ncb_p np)
 	if ((sist  & MA) &&
 		!(sist  & (STO|GEN|HTH|SGE|UDC|RST|PAR)) &&
 		!(dstat & (MDPE|BF|ABRT|SIR|IID))) {
-		ncr_int_ma (np);
+		ncr_int_ma (np, dstat);
 		return;
 	};
 
@@ -5370,7 +5370,7 @@ void ncr_int_sto (ncb_p np)
 **----------------------------------------------------------
 */
 
-static void ncr_int_ma (ncb_p np)
+static void ncr_int_ma (ncb_p np, u_char dstat)
 {
 	u_long	dbc;
 	u_long	rest;
@@ -5401,7 +5401,7 @@ static void ncr_int_ma (ncb_p np)
 	**	Check the sstat2 register in case of wide transfer.
 	*/
 
-	if (! (INB(nc_dstat) & DFE)) rest += delta;
+	if (!(dstat & DFE)) rest += delta;
 	if (ss0 & OLF) rest++;
 	if (ss0 & ORF) rest++;
 	if (INB(nc_scntl3) & EWS) {
@@ -5537,7 +5537,10 @@ static void ncr_int_ma (ncb_p np)
 	*/
 	np->profile.num_break++;
 	OUTL (nc_temp, vtophys (newcmd));
-	OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, dispatch));
+	if ((cmd & 7) == 0)
+		OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, dispatch));
+	else
+		OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, checkatn));
 }
 
 /*==========================================================
