@@ -1570,9 +1570,22 @@ Print the process id's of the processes in the specified
 If the
 .Ar job
 argument is omitted, use the current job.
-.It Ic jobs
-This command lists out all the background processes
-which are children of the current shell process.
+.It Xo
+.Ic jobs
+.Op Fl ls
+.Op Ar job ...
+.Xc
+Print information about the specified jobs, or all jobs if no
+.Ar job
+argument is given.
+The information printed includes job ID, status and command name.
+.Pp
+If the
+.Fl l
+option is specified, the PID of each job is also printed.
+If the
+.Fl s
+option is specified, only the PID's of the jobs are printed, one per line.
 .It Ic pwd Op Fl LP
 Print the path of the current directory.  The builtin command may
 differ from the program of the same name because the
