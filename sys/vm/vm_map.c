@@ -76,6 +76,8 @@
 #include <sys/vnode.h>
 #include <sys/resourcevar.h>
 #include <sys/file.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -148,6 +150,10 @@ static void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t,
 		vm_map_entry_t));
 static void vm_map_split __P((vm_map_entry_t));
 static void vm_map_unclip_range __P((vm_map_t map, vm_map_entry_t start_entry, vm_offset_t start, vm_offset_t end, int flags));
+
+static int old_msync;
+SYSCTL_INT(_vm, OID_AUTO, old_msync, CTLFLAG_RW, &old_msync, 0,
+    "Use old (insecure) msync behavior");
 
 void
 vm_map_startup()
@@ -2014,7 +2020,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
 			vm_object_page_remove(object,
 			    OFF_TO_IDX(offset),
 			    OFF_TO_IDX(offset + size + PAGE_MASK),
-			    TRUE);
+			    old_msync ? FALSE : TRUE);
 			vm_object_deallocate(object);
 		}
 		start += size;
