@@ -500,6 +500,7 @@ osf1_mmap(p, uap)
 		addr = round_page((vm_offset_t)0x10000UL);
 	len = (vm_offset_t)SCARG(&a, len);
 	map = &p->p_vmspace->vm_map;
+	mtx_lock(&vm_mtx);
 	if (!vm_map_findspace(map, addr, len, &newaddr)) {
 		SCARG(&a,addr) = (caddr_t) newaddr;
 		SCARG(&a, flags) |= (MAP_FIXED);
@@ -509,7 +510,7 @@ osf1_mmap(p, uap)
 		uprintf("osf1_mmap:vm_map_findspace failed for: %p 0x%lx\n",
 		    (caddr_t)addr, len);
 #endif
-
+	mtx_unlock(&vm_mtx);
 	if (SCARG(uap, flags) & OSF1_MAP_SHARED)
 		SCARG(&a, flags) |= MAP_SHARED;
 	if (SCARG(uap, flags) & OSF1_MAP_PRIVATE)
@@ -1645,10 +1646,12 @@ osf1_uswitch(p, uap)
 	zero = 0;
 
 	if (uap->cmd == OSF1_USC_GET) {
+		mtx_lock(&vm_mtx);
 		if (vm_map_lookup_entry(&(p->p_vmspace->vm_map),0, &entry))
 			p->p_retval[0] =  OSF1_USW_NULLP;
 		else
 			p->p_retval[0] =  0;
+		mtx_unlock(&vm_mtx);
 		return(KERN_SUCCESS);
 	} else if (uap->cmd == OSF1_USC_SET)
 		if (uap->mask & OSF1_USW_NULLP) {
