@@ -48,6 +48,7 @@ __BEGIN_DECLS
 #if !defined(NOPROTO) && !defined(__STDC__)
 #define NOPROTO
 #endif
+#define OPENSSL_DES_LIBDES_COMPATIBILITY
 #include <openssl/des.h>
 
 /* CNS compatibility ahead! */

@@ -80,6 +80,7 @@ RCSID("$Id: kerberos.c,v 1.87.2.3 2000/10/18 20:24:13 assar Exp $");
 #include <roken.h>
 #include <base64.h>
 
+#define OPENSSL_DES_LIBDES_COMPATIBILITY
 #include <openssl/des.h>
 #include <krb.h>
 #include <krb_db.h>

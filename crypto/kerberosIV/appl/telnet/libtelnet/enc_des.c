@@ -51,6 +51,7 @@ RCSID("$Id: enc_des.c,v 1.16 1998/07/09 23:16:23 assar Exp $");
 #include "encrypt.h"
 #include "misc-proto.h"
 
+#define OPENSSL_DES_LIBDES_COMPATIBILITY
 #include <openssl/des.h>
 
 extern int encrypt_debug_mode;

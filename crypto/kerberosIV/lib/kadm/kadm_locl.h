@@ -70,6 +70,7 @@ struct hostent  *gethostbyname(const char *);
 
 #include <roken.h>
 
+#define OPENSSL_DES_LIBDES_COMPATIBILITY
 #include <openssl/des.h>
 #include <krb.h>
 #include <krb_err.h>
