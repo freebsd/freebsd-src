@@ -27,11 +27,13 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -556,6 +558,13 @@ link_elf_load_file(linker_class_t cls, const char* filename,
     if (error)
 	return error;
     NDFREE(&nd, NDF_ONLY_PNBUF);
+#ifdef MAC
+    error = mac_check_kld_load(curthread->td_ucred, nd.ni_vp);
+    if (error) {
+	firstpage = NULL;
+	goto out;
+    }
+#endif
 
     /*
      * Read the elf header from the file.
