@@ -108,16 +108,16 @@ static struct nlist nlst[] = {
  */
 
 static char smp_header[] =
-  "  PID %-*.*s PRI NICE  SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
+  "  PID %-*.*s PRI NICE   SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
 
 #define smp_Proc_format \
-	"%5d %-*.*s %3d %3d%7s %6s %-6.6s %1x%7s %5.2f%% %5.2f%% %.*s"
+	"%5d %-*.*s %3d %4d%7s %6s %-6.6s %1x%7s %5.2f%% %5.2f%% %.*s"
 
 static char up_header[] =
-  "  PID %-*.*s PRI NICE  SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
+  "  PID %-*.*s PRI NICE   SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
 
 #define up_Proc_format \
-	"%5d %-*.*s %3d %3d%7s %6s %-6.6s%.0d%7s %5.2f%% %5.2f%% %.*s"
+	"%5d %-*.*s %3d %4d%7s %6s %-6.6s%.0d%7s %5.2f%% %5.2f%% %.*s"
 
 
 
