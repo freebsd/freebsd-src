@@ -90,8 +90,6 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	int unicast, dgl, foff;
 	static int next_dgl;
 
-	GIANT_REQUIRED;
-
 #ifdef MAC
 	error = mac_check_ifnet_transmit(ifp, m);
 	if (error)
