@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990, 1991, 1993, 1994 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1991, 1993, 1994, 1996 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 /* Routines to generate code for I/O statements.
@@ -33,7 +33,7 @@ this software.
 #include "names.h"
 #include "iob.h"
 
-extern int inqmask;
+extern int byterev, inqmask;
 
 static void dofclose Argdcl((void));
 static void dofinquire Argdcl((void));
@@ -302,7 +302,7 @@ fmtstmt(register struct Labelblock *lp)
 	if(lp->labtype == LABUNKNOWN)
 	{
 		lp->labtype = LABFORMAT;
-		lp->labelno = newlabel();
+		lp->labelno = (int)newlabel();
 	}
 	else if(lp->labtype != LABFORMAT)
 	{
@@ -689,7 +689,7 @@ doiolist(chainp p0)
 		q = (tagptr)p->datap;
 		if(q->tag == TIMPLDO)
 		{
-			exdo(range=newlabel(), (Namep)0,
+			exdo(range = (int)newlabel(), (Namep)0,
 				q->impldoblock.impdospec);
 			doiolist(q->impldoblock.datalist);
 			enddo(range);
@@ -813,7 +813,10 @@ putio(expptr nelt, register expptr addr)
 			: call3(TYINT, "do_lio", mc, nelt, addr);
 		}
 	else {
-		char *s = ioformatted==FORMATTED ? "do_fio" : "do_uio";
+		char *s = ioformatted==FORMATTED ? "do_fio"
+			: !byterev ? "do_uio"
+			: ONEOF(type, M(TYCHAR)|M(TYINT1)|M(TYLOGICAL1))
+			? "do_ucio" : "do_unio";
 		q = c	? call3(TYINT, s, nelt, addr, (expptr)c)
 			: call2(TYINT, s, nelt, addr);
 		}

@@ -1,10 +1,10 @@
 exec:	  iffable
-	| SDO end_spec intonlyon label intonlyoff opt_comma dospecw
+	| SDO end_spec label opt_comma dospecw
 		{
-		if($4->labdefined)
+		if($3->labdefined)
 			execerr("no backward DO loops", CNULL);
-		$4->blklevel = blklevel+1;
-		exdo($4->labelno, NPNULL, $7);
+		$3->blklevel = blklevel+1;
+		exdo($3->labelno, NPNULL, $5);
 		}
 	| SDO end_spec opt_comma dospecw
 		{

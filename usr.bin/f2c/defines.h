@@ -187,6 +187,14 @@ typedef long int ftnint;
 #define OPDABS 59		/* abs macro under forcedouble */
 #define OPMIN2 60		/* min(a,b) macro */
 #define OPMAX2 61		/* max(a,b) macro */
+#define OPBITTEST 62		/* btest */
+#define OPBITCLR 63		/* ibclr */
+#define OPBITSET 64		/* ibset */
+#define OPQBITCLR 65		/* ibclr, integer*8 */
+#define OPQBITSET 66		/* ibset, integer*8 */
+#define OPBITBITS 67		/* ibits */
+#define OPBITSH 68		/* ishft */
+#define OPBITSHC 69		/* ishftc */
 
 /* label type codes -- used with the ASSIGN statement */
 
@@ -206,6 +214,7 @@ typedef long int ftnint;
 #define INTRSPEC 5
 #define INTRBOOL 6
 #define INTRCNST 7	/* constants, e.g. bigint(1.0) v. bigint (1d0) */
+#define INTRBGEN 8	/* bit manipulation */
 
 
 /* I/O statement codes - these all form Integer Constants, and are always
@@ -244,6 +253,7 @@ typedef long int ftnint;
 
 
 #define IDENT_LEN 31		/* Maximum length user.ident */
+#define MAXNAMELEN 50		/* Maximum Fortran name length */
 
 /* type masks - TYLOGICAL defined in   ftypes   */
 

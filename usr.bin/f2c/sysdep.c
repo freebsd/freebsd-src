@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990 - 1994 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990 - 1994 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 #include "defs.h"
 #include "usignal.h"
@@ -82,7 +82,7 @@ set_tmp_names(Void)
 	int k;
 	if (debugflag == 1)
 		return;
-	k = strlen(tmpdir) + 16;
+	k = strlen(tmpdir) + 24;
 	c_functions = (char *)ckalloc(7*k);
 	initfname = c_functions + k;
 	initbname = initfname + k;
@@ -115,13 +115,13 @@ set_tmp_names(Void)
 	sprintf(p1_bakfile, "%sf2c_p1fb", t);
 	sprintf(sortfname, "%sf2c_sort", t);
 #else
-	int pid = getpid();
-	sprintf(c_functions, "%s/f2c%d_func", tmpdir, pid);
-	sprintf(initfname, "%s/f2c%d_rd", tmpdir, pid);
-	sprintf(blkdfname, "%s/f2c%d_blkd", tmpdir, pid);
-	sprintf(p1_file, "%s/f2c%d_p1f", tmpdir, pid);
-	sprintf(p1_bakfile, "%s/f2c%d_p1fb", tmpdir, pid);
-	sprintf(sortfname, "%s/f2c%d_sort", tmpdir, pid);
+	long pid = getpid();
+	sprintf(c_functions, "%s/f2c%ld_func", tmpdir, pid);
+	sprintf(initfname, "%s/f2c%ld_rd", tmpdir, pid);
+	sprintf(blkdfname, "%s/f2c%ld_blkd", tmpdir, pid);
+	sprintf(p1_file, "%s/f2c%ld_p1f", tmpdir, pid);
+	sprintf(p1_bakfile, "%s/f2c%ld_p1fb", tmpdir, pid);
+	sprintf(sortfname, "%s/f2c%ld_sort", tmpdir, pid);
 #endif
 	sprintf(initbname, "%s.b", initfname);
 	}

@@ -8,6 +8,7 @@
 #define F2C_INCLUDE
 
 typedef long int integer;
+typedef unsigned long uinteger;
 typedef char *address;
 typedef short int shortint;
 typedef float real;
@@ -18,7 +19,12 @@ typedef long int logical;
 typedef short int shortlogical;
 typedef char logical1;
 typedef char integer1;
-/* typedef long long longint; */ /* system-dependent */
+#if 0	/* Adjust for integer*8. */
+typedef long long longint;		/* system-dependent */
+typedef unsigned long long ulongint;	/* system-dependent */
+#define qbit_clear(a,b)	((a) & ~((ulongint)1 << (b)))
+#define qbit_set(a,b)	((a) |  ((ulongint)1 << (b)))
+#endif
 
 #define TRUE_ (1)
 #define FALSE_ (0)
@@ -154,6 +160,9 @@ typedef struct Namelist Namelist;
 #define max(a,b) ((a) >= (b) ? (a) : (b))
 #define dmin(a,b) (doublereal)min(a,b)
 #define dmax(a,b) (doublereal)max(a,b)
+#define bit_test(a,b)	((a) >> (b) & 1)
+#define bit_clear(a,b)	((a) & ~((uinteger)1 << (b)))
+#define bit_set(a,b)	((a) |  ((uinteger)1 << (b)))
 
 /* procedure parameter types for -A and -C++ */
 
