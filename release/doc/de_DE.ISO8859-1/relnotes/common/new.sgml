@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.101 2002/11/09 21:57:27 ue Exp $
-  basiert auf: 1.22.2.305
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.102 2002/11/09 23:42:54 ue Exp $
+  basiert auf: 1.22.2.306
 -->
 
 <articleinfo>
@@ -211,6 +211,10 @@
     <para>Mit dem neuen Hilfsprogramm &man.getconf.1; k&ouml;nnen die
       Werte der in POSIX und X/Open angegebenen Variablen f&uuml;r die
       Pfad- und Systemkonfiguration ausgegeben werden.</para>
+
+    <para>Mit dem neuen Programm &man.pathchk.1; k&ouml;nnen
+      Pfadangaben auf ihre G&uuml;ltigkeit und Portabilit&auml;t
+      zwischen POSIX-Systemen gepr&uuml;ft werden.</para>
 
     <para>Die Base64-Unterst&uuml;tzung von &man.uuencode.1; und
       &man.uudecode.1; wird jetzt automatisch aktiviert, wenn die
