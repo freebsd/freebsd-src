@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)user.h	8.2 (Berkeley) 9/23/93
- * $Id$
+ * $Id: user.h,v 1.12 1997/02/22 09:46:23 peter Exp $
  */
 
 #ifndef _SYS_USER_H_
@@ -84,7 +84,7 @@ struct kinfo_proc {
 #define	EPROC_CTTY	0x01	/* controlling tty vnode active */
 #define	EPROC_SLEADER	0x02	/* session leader */
 		char	e_login[MAXLOGNAME];	/* setlogin() name */
-		long	e_spare[3];
+		long	e_spare[2];
 	} kp_eproc;
 };
 void fill_eproc __P((struct proc *, struct eproc *));
