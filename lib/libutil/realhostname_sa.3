@@ -57,18 +57,14 @@
 .Sh NAME
 .Nm realhostname_sa
 .Nd "convert an struct sockaddr to the real host name"
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <netinet/in.h>
 .Fd #include <libutil.h>
 .Ft int
 .Fn realhostname_sa "char *host" "size_t hsize" "struct sockaddr *addr" "int addrlen"
-.Pp
-Link with
-.Va -lutil
-on the
-.Xr cc 1
-command line.
 .Sh DESCRIPTION
 The function
 .Fn realhostname_sa
