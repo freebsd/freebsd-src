@@ -50,16 +50,16 @@
 
 #include <vm/vm.h>
 
-#include <machine/inst.h>
 #include <machine/db_machdep.h>
 #include <machine/mutex.h>
+#include <machine/setjmp.h>
 
 #include <ddb/ddb.h>
-
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
-#include <machine/setjmp.h>
+
+#include <ia64/disasm/disasm.h>
 
 static jmp_buf *db_nofault = 0;
 extern jmp_buf	db_jmpbuf;
@@ -398,10 +398,7 @@ kdb_trap(int vector, struct trapframe *regs)
  * Read bytes from kernel address space for debugger.
  */
 void
-db_read_bytes(addr, size, data)
-	vm_offset_t	addr;
-	register size_t	size;
-	register char	*data;
+db_read_bytes(vm_offset_t addr, size_t size, char *data)
 {
 
 	db_nofault = &db_jmpbuf;
@@ -418,10 +415,7 @@ db_read_bytes(addr, size, data)
  * Write bytes to kernel address space for debugger.
  */
 void
-db_write_bytes(addr, size, data)
-	vm_offset_t	addr;
-	register size_t	size;
-	register char	*data;
+db_write_bytes(vm_offset_t addr, size_t size, char *data)
 {
 
 	db_nofault = &db_jmpbuf;
@@ -442,9 +436,7 @@ Debugger(const char* msg)
 }
 
 u_long
-db_register_value(regs, regno)
-	db_regs_t *regs;
-	int regno;
+db_register_value(db_regs_t *regs, int regno)
 {
 	uint64_t *rsp;
 	uint64_t bsp;
@@ -479,68 +471,95 @@ db_register_value(regs, regno)
 }
 
 void
-db_read_bundle(db_addr_t addr, struct ia64_bundle *bp)
-{
-	u_int64_t low, high;
-
-	db_read_bytes(addr, 8, (caddr_t) &low);
-	db_read_bytes(addr+8, 8, (caddr_t) &high);
-
-	ia64_unpack_bundle(low, high, bp);
-}
-
-void
-db_write_bundle(db_addr_t addr, struct ia64_bundle *bp)
-{
-	u_int64_t low, high;
-
-	ia64_pack_bundle(&low, &high, bp);
-
-	db_write_bytes(addr, 8, (caddr_t) &low);
-	db_write_bytes(addr+8, 8, (caddr_t) &high);
-
-	ia64_fc(addr);
-	ia64_sync_i();
-}
-
-void
 db_write_breakpoint(vm_offset_t addr, u_int64_t *storage)
 {
-	struct ia64_bundle b;
-	int slot;
-
-	slot = addr & 15;
-	addr &= ~15;
-	db_read_bundle(addr, &b);
-	*storage = b.slot[slot];
-	b.slot[slot] = 0x80100 << 6; /* break.* 0x80100 */
-	db_write_bundle(addr, &b);
 }
 
 void
 db_clear_breakpoint(vm_offset_t addr, u_int64_t *storage)
 {
-	struct ia64_bundle b;
-	int slot;
-
-	slot = addr & 15;
-	addr &= ~15;
-	db_read_bundle(addr, &b);
-	b.slot[slot] = *storage;
-	db_write_bundle(addr, &b);
 }
 
 void
-db_skip_breakpoint(void)
+db_skip_breakpoint()
 {
-	/*
-	 * Skip past the break instruction.
-	 */
+
 	ddb_regs.tf_special.psr += IA64_PSR_RI_1;
 	if ((ddb_regs.tf_special.psr & IA64_PSR_RI) > IA64_PSR_RI_2) {
 		ddb_regs.tf_special.psr &= ~IA64_PSR_RI;
 		ddb_regs.tf_special.iip += 16;
 	}
+}
+
+db_addr_t
+db_disasm(db_addr_t loc, boolean_t altfmt)
+{
+	char buf[32];
+	struct asm_bundle bundle;
+	const struct asm_inst *i;
+	const char *tmpl;
+	int n, slot;
+
+	slot = loc & 0xf;
+	loc &= ~0xful;
+	db_read_bytes(loc, 16, buf);
+	if (asm_decode((uintptr_t)buf, &bundle)) {
+		i = bundle.b_inst + slot;
+		tmpl = bundle.b_templ + slot;
+		if (*tmpl == ';' || (slot == 2 && bundle.b_templ[1] == ';'))
+			tmpl++;
+		if (*tmpl == 'L' || i->i_op == ASM_OP_NONE) {
+			db_printf("\n");
+			goto out;
+		}
+
+		/* Unit + slot. */
+		db_printf("[%c%d] ", *tmpl, slot);
+
+		/* Predicate. */
+		if (i->i_oper[0].o_value != 0) {
+			asm_operand(i->i_oper+0, buf, loc);
+			db_printf("(%s) ", buf);
+		} else
+			db_printf("   ");
+
+		/* Mnemonic & completers. */
+		asm_mnemonic(i->i_op, buf);
+		db_printf(buf);
+		n = 0;
+		while (n < i->i_ncmpltrs) {
+			asm_completer(i->i_cmpltr + n, buf);
+			db_printf(buf);
+			n++;
+		}
+		db_printf(" ");
+
+		/* Operands. */
+		n = 1;
+		while (n < 7 && i->i_oper[n].o_type != ASM_OPER_NONE) {
+			if (n > 1) {
+				if (n == i->i_srcidx)
+					db_printf("=");
+				else
+					db_printf(",");
+			}
+			asm_operand(i->i_oper + n, buf, loc);
+			db_printf(buf);
+			n++;
+		}
+	} else {
+		tmpl = NULL;
+		slot = 2;
+	}
+	db_printf("\n");
+
+out:
+	slot++;
+	if (slot == 1 && tmpl[1] == 'L')
+		slot++;
+	if (slot > 2)
+		slot = 16;
+	return (loc + slot);
 }
 
 void
