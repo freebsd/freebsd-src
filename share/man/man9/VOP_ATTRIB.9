@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VOP_ATTRIB.9,v 1.3 1997/03/07 03:16:52 mpp Exp $
+.\" $Id: VOP_ATTRIB.9,v 1.4 1997/03/07 03:32:21 mpp Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -36,6 +36,7 @@
 .Nm VOP_SETATTR
 .Nd get and set attributes on a file or directory
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
 .Ft int
 .Fn VOP_GETATTR "struct vnode *vp" "struct vattr *vap" "struct ucred *cred" "struct proc *p"
