@@ -66,9 +66,11 @@
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/sysctl.h>
-#include <machine/types.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
+#include <sys/vmmeter.h>
+
+#include <machine/types.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -85,8 +87,8 @@
  * the zone heads are allocated from the allocator, so we use the bss section
  * to bootstrap us.
  */
-static struct uma_zone master_zone;
-static uma_zone_t zones = &master_zone;
+static struct uma_zone masterzone;
+static uma_zone_t zones = &masterzone;
 
 /* This is the zone from which all of uma_slab_t's are allocated. */
 static uma_zone_t slabzone;
@@ -101,6 +103,11 @@ static uma_zone_t hashzone;
  * Zone that buckets come from.
  */
 static uma_zone_t bucketzone;
+
+/*
+ * Are we allowed to allocate buckets?
+ */
+static int bucketdisable = 1;
 
 /* Linked list of all zones in the system */
 static LIST_HEAD(,uma_zone) uma_zones = LIST_HEAD_INITIALIZER(&uma_zones); 
@@ -168,8 +175,8 @@ static void hash_free(struct uma_hash *hash);
 static void uma_timeout(void *);
 static void uma_startup3(void);
 static void *uma_zalloc_internal(uma_zone_t, void *, int, uma_bucket_t);
-static void uma_zfree_internal(uma_zone_t,
-    void *, void *, int);
+static void uma_zfree_internal(uma_zone_t, void *, void *, int);
+static void bucket_enable(void);
 void uma_print_zone(uma_zone_t);
 void uma_print_stats(void);
 static int sysctl_vm_zone(SYSCTL_HANDLER_ARGS);
@@ -177,6 +184,19 @@ static int sysctl_vm_zone(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD,
     NULL, 0, sysctl_vm_zone, "A", "Zone Info");
 SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
+
+/*
+ * This routine checks to see whether or not it's safe to enable buckets.
+ */
+
+static void
+bucket_enable(void)
+{
+	if (cnt.v_free_count < cnt.v_free_min)
+		bucketdisable = 1;
+	else
+		bucketdisable = 0;
+}
 
 
 /*
@@ -192,6 +212,7 @@ SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
 static void
 uma_timeout(void *unused)
 {
+	bucket_enable();
 	zone_foreach(zone_timeout);
 
 	/* Reschedule this event */
@@ -1172,6 +1193,7 @@ uma_startup2(void *hashmem, u_long elems)
 	mallochash->uh_hashsize = elems;
 	mallochash->uh_hashmask = elems - 1;
 	booted = 1;
+	bucket_enable();
 #ifdef UMA_DEBUG
 	printf("UMA startup2 complete.\n");
 #endif
@@ -1384,7 +1406,7 @@ uma_zalloc_internal(uma_zone_t zone, void *udata, int wait, uma_bucket_t bucket)
 	 * boot pages.
 	 */
 
-	if (!booted && zone == bucketzone)
+	if (bucketdisable && zone == bucketzone)
 		return (NULL);
 
 #ifdef UMA_DEBUG_ALLOC
@@ -1825,6 +1847,7 @@ uma_reclaim(void)
 #ifdef UMA_DEBUG
 	printf("UMA: vm asked us to release pages!\n");
 #endif
+	bucket_enable();
 	zone_foreach(zone_drain);
 
 	/*
