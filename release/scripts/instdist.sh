@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.5 1995/01/28 09:07:48 jkh Exp $
+# $Id: instdist.sh,v 1.6 1995/01/29 01:35:24 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -128,6 +128,7 @@ Please use arrow keys to scroll through all items." \
   "Korea" "ftp.cau.ac.kr" \
   "Netherlands" "ftp.nl.net" \
   "Russia" "ftp.kiae.su" \
+  "Sweden" "ftp.luth.se" \
   "Taiwan" "netbsd.csie.nctu.edu.tw" \
   "Thailand" "ftp.nectec.or.th" \
   "UK" "ftp.demon.co.uk" \
@@ -161,6 +162,7 @@ Please use arrow keys to scroll through all items." \
    Korea) FTP_PATH="ftp://ftp.cau.ac.kr/pub/FreeBSD/${DISTNAME}" ;;
    Netherlands) FTP_PATH="ftp://ftp.nl.net/pub/os/FreeBSD/${DISTNAME}" ;;
    Russia) FTP_PATH="ftp://ftp.kiae.su/FreeBSD/${DISTNAME}" ;;
+   Sweden) FTP_PATH="ftp://ftp.luth.se/pub/FreeBSD/${DISTNAME}" ;;
    Taiwan) FTP_PATH="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" ;;
    Thailand) FTP_PATH="ftp://ftp.nectec.or.th/pub/FreeBSD/${DISTNAME}" ;;
    UK) FTP_PATH="ftp://ftp.demon.co.uk/pub/BSD/FreeBSD/${DISTNAME}" ;;
