@@ -62,8 +62,9 @@ circumstances dictate otherwise.
 The
 .Fn suser_cred
 function should be used when the credentials to be checked are
-not the thread's own, when there is no thread, or when superuser
-powers should be extended to imprisoned roots.
+not the thread's own, when there is no thread, when superuser
+powers should be extended to imprisoned roots, or when the credential
+to be checked is the real user rather than the effective user.
 .Pp
 By default, a process does not command superuser powers if it has
 been imprisoned by the
@@ -84,6 +85,17 @@ Generally, only where the action is protected by
 implicit in the
 .Xr jail 2
 call should such powers be granted.
+.Pp
+By default, the credential checked is the effective user.  There are cases 
+where it is instead necessary to check the real user (for example, when 
+determining if resource limits should be applied), and this can be done
+by passing the
+.Dv SUSER_RUID
+flag in the
+.Fa flag
+argument to the
+.Fn suser_cred
+function.
 .Pp
 The
 .Fn suser
