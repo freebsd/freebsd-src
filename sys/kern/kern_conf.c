@@ -47,7 +47,7 @@
 
 #define cdevsw_ALLOCSTART	(NUMCDEVSW/2)
 
-struct cdevsw 	*cdevsw[NUMCDEVSW];
+static struct cdevsw 	*cdevsw[NUMCDEVSW];
 
 static MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
 
