@@ -37,9 +37,8 @@
 #ifndef _SYS_FILEDESC_H_
 #define	_SYS_FILEDESC_H_
 
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/sx.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 #include <sys/queue.h>
 
 /*
@@ -135,23 +134,11 @@ SLIST_HEAD(sigiolst, sigio);
 
 #define FILEDESC_LOCK_DESC	"filedesc structure"
 
-extern struct sx	sigio_lock;
-
 /* Lock a file descriptor table. */
 #define FILEDESC_LOCK(fd)	mtx_lock(&(fd)->fd_mtx)
 #define FILEDESC_UNLOCK(fd)	mtx_unlock(&(fd)->fd_mtx)
 #define	FILEDESC_LOCKED(fd)	mtx_owned(&(fd)->fd_mtx)
 #define	FILEDESC_LOCK_ASSERT(fd, type)	mtx_assert(&(fd)->fd_mtx, (type))
-
-/*
- * Lock the pointers for a sigio object in the underlying objects of
- * a file descriptor.
- */
-#define SIGIO_SLOCK()	sx_slock(&sigio_lock)
-#define SIGIO_XLOCK()	sx_xlock(&sigio_lock)
-#define SIGIO_SUNLOCK()	sx_sunlock(&sigio_lock)
-#define SIGIO_XUNLOCK()	sx_xunlock(&sigio_lock)
-#define SIGIO_ASSERT(what)	sx_assert(&sigio_lock, what)
 
 int	closef(struct file *fp, struct thread *p);
 int	dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd,

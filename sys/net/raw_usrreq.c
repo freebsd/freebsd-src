@@ -35,11 +35,14 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sx.h>
+#include <sys/systm.h>
 
 #include <net/raw_cb.h>
 

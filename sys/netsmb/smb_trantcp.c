@@ -32,18 +32,21 @@
  * $FreeBSD$
  */
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/condvar.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/poll.h>
-#include <sys/uio.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
-#include <sys/condvar.h>
+#include <sys/systm.h>
+#include <sys/uio.h>
 
 #include <net/if.h>
 #include <net/route.h>

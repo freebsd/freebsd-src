@@ -70,33 +70,36 @@
 #include "opt_ipsec.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/domain.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
+#include <sys/sx.h>
 #include <sys/syslog.h>
-#include <sys/domain.h>
+#include <sys/systm.h>
+#include <sys/time.h>
 
 #include <net/if.h>
-#include <net/route.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
 #include <netinet/icmp6.h>
-#include <netinet6/mld6_var.h>
-#include <netinet/in_pcb.h>
-#include <netinet6/in6_pcb.h>
-#include <netinet6/nd6.h>
 #include <netinet6/in6_ifattach.h>
+#include <netinet6/in6_pcb.h>
 #include <netinet6/ip6protosw.h>
+#include <netinet6/ip6_var.h>
+#include <netinet6/mld6_var.h>
+#include <netinet6/nd6.h>
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>

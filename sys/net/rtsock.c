@@ -36,21 +36,24 @@
 
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/domain.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
-#include <sys/proc.h>
+#include <sys/jail.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
+#include <sys/protosw.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/domain.h>
-#include <sys/protosw.h>
-#include <sys/jail.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <net/if.h>
-#include <net/route.h>
 #include <net/raw_cb.h>
+#include <net/route.h>
 
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 

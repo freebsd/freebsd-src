@@ -38,10 +38,8 @@
 #define _SYS_SOCKETVAR_H_
 
 #include <sys/queue.h>			/* for TAILQ macros */
-#include <sys/filedesc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/sx.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 #include <sys/selinfo.h>		/* for struct selinfo */
 #include <vm/uma.h>
 

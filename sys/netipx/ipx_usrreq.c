@@ -39,13 +39,16 @@
 #include "opt_ipx.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -53,10 +56,10 @@
 #include <netinet/in.h>
 
 #include <netipx/ipx.h>
-#include <netipx/ipx_pcb.h>
 #include <netipx/ipx_if.h>
-#include <netipx/ipx_var.h>
 #include <netipx/ipx_ip.h>
+#include <netipx/ipx_pcb.h>
+#include <netipx/ipx_var.h>
 
 /*
  * IPX protocol implementation.

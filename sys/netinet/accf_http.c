@@ -31,9 +31,12 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mbuf.h>
+#include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/socketvar.h>
-#include <sys/mbuf.h>
+#include <sys/sx.h>
 
 /* check for GET/HEAD */
 static void sohashttpget(struct socket *so, void *arg, int waitflag);
