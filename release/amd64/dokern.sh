@@ -12,9 +12,6 @@ sed	-e '/pty/d' \
 	-e '/maxusers/d' \
 	-e 's/GENERIC/BOOTMFS/g'
 
-# So dhclient will work (just on boot floppy).
-echo "pseudo-device bpf 4"
-
 # reset maxusers to something lower
 echo "maxusers	5"
 
