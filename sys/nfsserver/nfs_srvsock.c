@@ -358,7 +358,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		 * and related calls.  Right now, this tramples on any
 		 * extensible data in the ucred, fails to initialize the
 		 * mutex, and worse.  This must be fixed before FreeBSD
-		 * 5.0-RELEASE.
+		 * 5.3-RELEASE.
 		 */
 		bzero((caddr_t)&nd->nd_cr, sizeof (struct ucred));
 		nd->nd_cr.cr_ref = 1;
