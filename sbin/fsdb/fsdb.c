@@ -49,11 +49,11 @@ static const char rcsid[] =
 #include "fsdb.h"
 #include "fsck.h"
 
-static void usage __P((void));
-int cmdloop __P((void));
+static void usage(void) __dead2;
+int cmdloop(void);
 
 static void 
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: fsdb [-d] [-f] [-r] fsname\n");
 	exit(1);
@@ -69,9 +69,7 @@ char nflag;
  * the file system.
  */
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, rval;
 	char *fsys = NULL;
@@ -117,10 +115,8 @@ main(argc, argv)
 	exit(rval);
 }
 
-#define CMDFUNC(func) int func __P((int argc, char *argv[]))
-#define CMDFUNCSTART(func) int func(argc, argv)		\
-				int argc;		\
-				char *argv[];
+#define CMDFUNC(func) int func(int argc, char *argv[])
+#define CMDFUNCSTART(func) int func(int argc, char *argv[])
 
 CMDFUNC(helpfn);
 CMDFUNC(focus);				/* focus on inode */
@@ -186,9 +182,7 @@ struct cmdtable cmds[] = {
 };
 
 int
-helpfn(argc, argv)
-	int argc;
-	char *argv[];
+helpfn(int argc, char *argv[])
 {
     struct cmdtable *cmdtp;
 
@@ -202,8 +196,7 @@ helpfn(argc, argv)
 }
 
 char *
-prompt(el)
-	EditLine *el;
+prompt(EditLine *el)
 {
     static char pstring[64];
     snprintf(pstring, sizeof(pstring), "fsdb (inum: %d)> ", curinum);
@@ -212,7 +205,7 @@ prompt(el)
 
 
 int
-cmdloop()
+cmdloop(void)
 {
     char *line;
     const char *elline;
@@ -392,8 +385,7 @@ const char *typename[] = {
 int slot;
 
 int
-scannames(idesc)
-	struct inodesc *idesc;
+scannames(struct inodesc *idesc)
 {
 	struct direct *dirp = idesc->id_dirp;
 
@@ -419,12 +411,11 @@ CMDFUNCSTART(ls)
     return 0;
 }
 
-int findino __P((struct inodesc *idesc)); /* from fsck */
-static int dolookup __P((char *name));
+int findino(struct inodesc *idesc); /* from fsck */
+static int dolookup(char *name);
 
 static int
-dolookup(name)
-	char *name;
+dolookup(char *name)
 {
     struct inodesc idesc;
 
@@ -514,8 +505,7 @@ CMDFUNCSTART(rm)
 long slotcount, desired;
 
 int
-chinumfunc(idesc)
-	struct inodesc *idesc;
+chinumfunc(struct inodesc *idesc)
 {
 	struct direct *dirp = idesc->id_dirp;
 
@@ -558,8 +548,7 @@ CMDFUNCSTART(chinum)
 }
 
 int
-chnamefunc(idesc)
-	struct inodesc *idesc;
+chnamefunc(struct inodesc *idesc)
 {
 	struct direct *dirp = idesc->id_dirp;
 	struct direct testdir;
@@ -822,9 +811,7 @@ CMDFUNCSTART(chgroup)
 }
 
 int
-dotime(name, rts)
-	char *name;
-	struct timespec *rts;
+dotime(char *name, struct timespec *rts)
 {
     char *p, *val;
     struct tm t;
