@@ -1,5 +1,7 @@
 /*
  * io.c - input/output routines for Phantasia
+ *
+ * $FreeBSD$
  */
 
 #include <string.h>

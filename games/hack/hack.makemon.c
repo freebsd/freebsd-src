@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.makemon.c - version 1.0.2 */
+/* $FreeBSD$ */
 
 #include	"hack.h"
 extern char fut_geno[];

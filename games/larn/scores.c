@@ -1,4 +1,5 @@
 /* scores.c			 Larn is copyrighted 1986 by Noah Morgan.
+ * $FreeBSD$
  *
  *	Functions in this file are:
  *

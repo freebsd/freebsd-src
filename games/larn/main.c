@@ -1,4 +1,5 @@
 /*	main.c		*/
+/* $FreeBSD$ */
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "header.h"

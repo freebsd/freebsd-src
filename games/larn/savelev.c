@@ -1,4 +1,5 @@
 /* savelev.c		 Larn is copyrighted 1986 by Noah Morgan. */
+/* $FreeBSD$ */
 #include "header.h"
 extern struct cel *cell;
 

@@ -1,4 +1,5 @@
 /* nap.c		 Larn is copyrighted 1986 by Noah Morgan. */
+/* $FreeBSD$ */
 #include <signal.h>
 #include <sys/types.h>
 #ifdef SYSV

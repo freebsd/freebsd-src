@@ -1,4 +1,5 @@
 /* moreobj.c 		Larn is copyrighted 1986 by Noah Morgan.
+ * $FreeBSD$
  *
  *	Routines in this file:
  *

@@ -1,5 +1,7 @@
 /*
  * misc.c  Phantasia miscellaneous support routines
+ *
+ * $FreeBSD$
  */
 
 #include <string.h>

@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.mkshop.c - version 1.0.3 */
+/* $FreeBSD$ */
 
 #ifndef QUEST
 #include "hack.h"
