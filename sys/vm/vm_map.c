@@ -75,6 +75,7 @@
 #include <sys/mman.h>
 #include <sys/vnode.h>
 #include <sys/resourcevar.h>
+#include <sys/file.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
