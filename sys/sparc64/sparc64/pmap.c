@@ -565,29 +565,27 @@ pmap_pageable(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 void
 pmap_new_proc(struct proc *p)
 {
-	struct user *u;
 	vm_object_t o;
+	vm_offset_t u;
 	vm_page_t m;
 	u_int i;
 
-	if ((o = p->p_upages_obj) == NULL) {
+	o = p->p_upages_obj;
+	if (o  == NULL) {
 		o = vm_object_allocate(OBJT_DEFAULT, UPAGES);
 		p->p_upages_obj = o;
 	}
-	if ((u = p->p_addr) == NULL) {
-		u = (struct user *)kmem_alloc_nofault(kernel_map,
-		    UPAGES * PAGE_SIZE);
+	u = (vm_offset_t)p->p_addr;
+	if (u == 0) {
+		u = kmem_alloc_nofault(kernel_map, UPAGES * PAGE_SIZE);
 		KASSERT(u != NULL, ("pmap_new_proc: u area\n"));
-		p->p_addr = u;
+		p->p_addr = (struct user *)u;
 	}
 	for (i = 0; i < UPAGES; i++) {
 		m = vm_page_grab(o, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 		m->wire_count++;
 		cnt.v_wire_count++;
-
-		pmap_kenter((vm_offset_t)u + i * PAGE_SIZE,
-		    VM_PAGE_TO_PHYS(m));
-		
+		pmap_kenter(u + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
@@ -599,18 +597,18 @@ void
 pmap_dispose_proc(struct proc *p)
 {
 	vm_object_t upobj;
+	vm_offset_t up;
 	vm_page_t m;
 	int i;
 
 	upobj = p->p_upages_obj;
+	up = (vm_offset_t)p->p_addr;
 	for (i = 0; i < UPAGES; i++) {
-		if ((m = vm_page_lookup(upobj, i)) == NULL)
-			panic("pmap_dispose_proc: upage already missing???");
-
+		m = vm_page_lookup(upobj, i);
+		if (m == NULL)
+			panic("pmap_dispose_proc: upage already missing?");
 		vm_page_busy(m);
-
-		pmap_kremove((vm_offset_t)p->p_addr + i * PAGE_SIZE);
-
+		pmap_kremove(up + i * PAGE_SIZE);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
