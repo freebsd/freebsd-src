@@ -339,6 +339,9 @@ isp_pci_attach(config_id, unit)
 		free(pcs, M_DEVBUF);
 	}
 	ISP_UNLOCK(isp);
+#ifdef __alpha__
+	alpha_register_pci_scsi(config_id->bus, config_id->slot, isp->isp_sim);
+#endif	
 }
 
 #define  PCI_BIU_REGS_OFF		BIU_REGS_OFF
