@@ -69,7 +69,7 @@
 ACPI_STATUS
 AcpiOsReadPort (
     ACPI_IO_ADDRESS	InPort,
-    void		*Value,
+    UINT32		*Value,
     UINT32		Width)
 {
     switch (Width) {
@@ -93,7 +93,7 @@ AcpiOsReadPort (
 ACPI_STATUS
 AcpiOsWritePort (
     ACPI_IO_ADDRESS	OutPort,
-    ACPI_INTEGER	Value,
+    UINT32		Value,
     UINT32		Width)
 {
     switch (Width) {

@@ -114,6 +114,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     ACPI_BUFFER			crsbuf, prsbuf;
     ACPI_RESOURCE		*crsres, *prsres, resbuf;
     ACPI_DEVICE_INFO		devinfo;
+    ACPI_BUFFER			buf = {sizeof(devinfo), &devinfo};
     ACPI_STATUS			status;
     u_int8_t			*prtp;
     int				interrupt;
@@ -182,14 +183,14 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     /*
      * Verify that this is a PCI link device, and that it's present.
      */
-    if (ACPI_FAILURE(AcpiGetObjectInfo(lnkdev, &devinfo))) {
+    if (ACPI_FAILURE(AcpiGetObjectInfo(lnkdev, &buf))) {
 	device_printf(pcib, "couldn't validate PCI interrupt link device %s\n",
 	    prt->Source);
 	goto out;
     }
-    if (!(devinfo.Valid & ACPI_VALID_HID) || strcmp("PNP0C0F", devinfo.HardwareId)) {
+    if (!(devinfo.Valid & ACPI_VALID_HID) || strcmp("PNP0C0F", devinfo.HardwareId.Value)) {
 	device_printf(pcib, "PCI interrupt link device %s has wrong _HID (%s)\n",
-		      prt->Source, devinfo.HardwareId);
+		      prt->Source, devinfo.HardwareId.Value);
 	goto out;
     }
     if (devinfo.Valid & ACPI_VALID_STA && (devinfo.CurrentStatus & 0x9) != 0x9) {
