@@ -182,8 +182,9 @@ do_umntall(char *hostname) {
 	clp->cl_auth = authunix_create_default();
 	try.tv_sec = 3;
 	try.tv_usec = 0;
-	clnt_stat = clnt_call(clp, RPCMNT_UMNTALL, xdr_void, (caddr_t)0,
-	    xdr_void, (caddr_t)0, try);
+	clnt_stat = clnt_call(clp, RPCMNT_UMNTALL,
+	    (xdrproc_t)xdr_void, (caddr_t)0,
+	    (xdrproc_t)xdr_void, (caddr_t)0, try);
 	if (clnt_stat != RPC_SUCCESS)
 		warnx("%s: %s", hostname, clnt_sperror(clp, "RPCMNT_UMNTALL"));
 	auth_destroy(clp->cl_auth);
@@ -208,8 +209,8 @@ do_umount(char *hostname, char *dirp) {
 	clp->cl_auth = authsys_create_default();
 	try.tv_sec = 3;
 	try.tv_usec = 0;
-	clnt_stat = clnt_call(clp, RPCMNT_UMOUNT, xdr_dir, dirp,
-	    xdr_void, (caddr_t)0, try);
+	clnt_stat = clnt_call(clp, RPCMNT_UMOUNT, (xdrproc_t)xdr_dir, dirp,
+	    (xdrproc_t)xdr_void, (caddr_t)0, try);
 	if (clnt_stat != RPC_SUCCESS)
 		warnx("%s: %s", hostname, clnt_sperror(clp, "RPCMNT_UMOUNT"));
 	auth_destroy(clp->cl_auth);
