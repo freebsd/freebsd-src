@@ -293,7 +293,6 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 				CHN_LOCK(rdch);
 				pcm_chnref(rdch, -1);
 				pcm_chnrelease(rdch);
-				CHN_UNLOCK(rdch);
 			}
 			pcm_unlock(d);
 			splx(s);
