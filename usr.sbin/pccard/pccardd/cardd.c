@@ -235,8 +235,8 @@ card_inserted(struct slot *sp)
 	for (cp = cards; cp; cp = cp->next) {
 		switch (cp->deftype) {
 		case DT_VERS:
-			if (strncmp(cp->manuf, sp->cis->manuf, CIS_MAXSTR) == 0 &&
-			    strncmp(cp->version, sp->cis->vers, CIS_MAXSTR) == 0) {
+			if (strcmp(cp->manuf, sp->cis->manuf) == 0 &&
+			    strcmp(cp->version, sp->cis->vers) == 0) {
 				logmsg("Card \"%s\"(\"%s\") "
 					"matched \"%s\" (\"%s\") ",
 					sp->cis->manuf, sp->cis->vers,
@@ -271,6 +271,13 @@ escape:
 			sp->cis->manuf, sp->cis->vers);
 		return;
 	}
+	if (sp->cis->lan_nid && sp->cis->lan_nid[0] == sizeof(sp->eaddr)) {
+		bcopy(sp->cis->lan_nid + 1, sp->eaddr, sizeof(sp->eaddr));
+		sp->flags |= EADDR_CONFIGED;
+	} else {
+		bzero(sp->eaddr, sizeof(sp->eaddr));
+	}
+
 	if (cp->ether) {
 		struct ether *e = 0;
 		e = cp->ether;
@@ -326,6 +333,7 @@ read_ether(struct slot *sp)
 	logmsg("Ether=%02x:%02x:%02x:%02x:%02x:%02x\n",
 	    sp->eaddr[0], sp->eaddr[1], sp->eaddr[2],
 	    sp->eaddr[3], sp->eaddr[4], sp->eaddr[5]);
+	sp->flags |= EADDR_CONFIGED;
 }
 
 /*
