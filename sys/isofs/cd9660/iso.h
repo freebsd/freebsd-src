@@ -258,6 +258,7 @@ struct iso_mnt {
 int cd9660_vget_internal __P((struct mount *, ino_t, struct vnode **, int,
 			      struct iso_directory_record *));
 int cd9660_init __P((struct vfsconf *));
+int cd9660_uninit __P((struct vfsconf *));
 #define cd9660_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \
                                     size_t, struct proc *)))eopnotsupp)
 

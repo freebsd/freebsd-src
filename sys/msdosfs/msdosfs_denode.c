@@ -109,6 +109,16 @@ msdosfs_init(vfsp)
 	return (0);
 }
 
+int 
+msdosfs_uninit(vfsp)
+	struct vfsconf *vfsp;
+{
+
+	if (dehashtbl)
+		free(dehashtbl, M_MSDOSFSMNT);
+	return (0);
+}
+
 static struct denode *
 msdosfs_hashget(dev, dirclust, diroff)
 	dev_t dev;
