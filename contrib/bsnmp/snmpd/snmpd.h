@@ -30,14 +30,23 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/snmpd.h,v 1.17 2003/01/28 13:44:35 hbb Exp $
+ * $Begemot: bsnmp/snmpd/snmpd.h,v 1.23 2003/12/09 12:28:53 hbb Exp $
  *
  * Private SNMPd data and functions.
  */
 #include <sys/queue.h>
+#ifdef USE_LIBBEGEMOT
+#include <rpoll.h>
+#else
 #include <isc/eventlib.h>
+#endif
 
 #define PATH_SYSCONFIG "/etc:/usr/etc:/usr/local/etc"
+
+#ifdef USE_LIBBEGEMOT
+#define	evTimerID	int
+#define	evFileID	int
+#endif
 
 /*************************************************************
  *
@@ -140,43 +149,80 @@ void lm_start(struct lmodule *);
  *
  * SNMP ports
  */
-struct snmp_port {
-	u_int8_t	addr[4];/* host byteorder */
-	u_int16_t	port;	/* host byteorder */
+/*
+ * Common input stuff
+ */
+struct port_input {
+	int		fd;		/* socket */
+	void		*id;		/* evSelect handle */
 
-	int		sock;	/* the socket */
-	void *		id;	/* evSelect handle */
+	int		stream : 1;	/* stream socket */
+	int		cred : 1;	/* want credentials */
 
-	struct sockaddr_in ret;	/* the return address */
-	socklen_t	retlen;	/* length of that address */
+	struct sockaddr	*peer;		/* last received packet */
+	socklen_t	peerlen;
+	int		priv : 1;	/* peer is privileged */
 
-	TAILQ_ENTRY(snmp_port) link;
-
-	struct asn_oid	index;
+	u_char		*buf;		/* receive buffer */
+	size_t		buflen;		/* buffer length */
+	size_t		length;		/* received length */
+	size_t		consumed;	/* how many bytes used */
 };
-TAILQ_HEAD(snmp_port_list, snmp_port);
-extern struct snmp_port_list snmp_port_list;
 
-void close_snmp_port(struct snmp_port *);
-int open_snmp_port(u_int8_t *, u_int32_t, struct snmp_port **);
-
-struct local_port {
-	char		*name;	/* unix path name */
-	int		sock;	/* the socket */
-	void		*id;	/* evSelect handle */
-
-	struct sockaddr_un ret;	/* the return address */
-	socklen_t	retlen;	/* length of that address */
-
-	TAILQ_ENTRY(local_port) link;
-
-	struct asn_oid	index;
+struct tport {
+	struct asn_oid	index;		/* table index of this tp point */
+	TAILQ_ENTRY(tport) link;	/* table link */
+	struct transport *transport;	/* who handles this */
 };
-TAILQ_HEAD(local_port_list, local_port);
-extern struct local_port_list local_port_list;
+TAILQ_HEAD(tport_list, tport);
 
-void close_local_port(struct local_port *);
-int open_local_port(u_char *, size_t, struct local_port **);
+int snmpd_input(struct port_input *, struct tport *);
+void snmpd_input_close(struct port_input *);
+
+
+/*
+ * Transport domain
+ */
+#define TRANS_NAMELEN	64
+
+struct transport_def {
+	const char	*name;		/* name of this transport */
+	struct asn_oid	id;		/* OBJID of this transport */
+
+	int		(*start)(void);
+	int		(*stop)(int);
+
+	void		(*close_port)(struct tport *);
+	int		(*init_port)(struct tport *);
+
+	ssize_t		(*send)(struct tport *, const u_char *, size_t,
+			    const struct sockaddr *, size_t);
+};
+struct transport {
+	struct asn_oid	index;		/* transport table index */
+	TAILQ_ENTRY(transport) link;	/* ... and link */
+	u_int		or_index;	/* registration index */
+
+	struct tport_list table;	/* list of open ports */
+
+	const struct transport_def *vtab;
+};
+
+TAILQ_HEAD(transport_list, transport);
+extern struct transport_list transport_list;
+
+void trans_insert_port(struct transport *, struct tport *);
+void trans_remove_port(struct tport *);
+struct tport *trans_find_port(struct transport *,
+    const struct asn_oid *, u_int);
+struct tport *trans_next_port(struct transport *,
+    const struct asn_oid *, u_int);
+struct tport *trans_first_port(struct transport *);
+struct tport *trans_iter_port(struct transport *,
+    int (*)(struct tport *, intptr_t), intptr_t);
+
+int trans_register(const struct transport_def *, struct transport **);
+int trans_unregister(struct transport *);
 
 /*************************************************************
  *
@@ -197,8 +243,15 @@ struct snmpd {
 
 	/* source address for V1 traps */
 	u_char		trap1addr[4];
+
+	/* version enable flags */
+	uint32_t	version_enable;
 };
 extern struct snmpd snmpd;
+
+#define	VERS_ENABLE_V1	0x00000001
+#define	VERS_ENABLE_V2C	0x00000002
+#define	VERS_ENABLE_ALL	0x00000003
 
 /*
  * The debug group
@@ -275,3 +328,6 @@ extern int32_t snmp_serial_no;
 int init_actvals(void);
 int read_config(const char *, struct lmodule *);
 int define_macro(const char *name, const char *value);
+
+#define	LOG_ASN1_ERRORS	0x10000000
+#define	LOG_SNMP_ERRORS	0x20000000

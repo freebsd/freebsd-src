@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmppriv.h,v 1.7 2002/12/11 15:54:07 hbb Exp $
+ * $Begemot: bsnmp/lib/snmppriv.h,v 1.8 2003/12/03 09:55:58 hbb Exp $
  *
  * Private functions.
  */
