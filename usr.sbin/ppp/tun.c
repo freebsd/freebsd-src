@@ -43,15 +43,16 @@
 #if defined(__OpenBSD__) || defined(__NetBSD__)
 #include <sys/ioctl.h>
 #endif
+#include <stdio.h>
 #include <termios.h>
 #ifdef __NetBSD__
-#include <stdio.h>
 #include <unistd.h>
 #endif
 
 #include "layer.h"
 #include "mbuf.h"
 #include "log.h"
+#include "id.h"
 #include "timer.h"
 #include "lqr.h"
 #include "hdlc.h"
@@ -105,7 +106,7 @@ tun_configure(struct bundle *bundle)
 #ifdef __OpenBSD__
   info.flags = IFF_UP|IFF_POINTOPOINT;                             
 #endif
-  if (ioctl(bundle->dev.fd, TUNSIFINFO, &info) < 0)
+  if (ID0ioctl(bundle->dev.fd, TUNSIFINFO, &info) < 0)
     log_Printf(LogERROR, "tun_configure: ioctl(TUNSIFINFO): %s\n",
 	      strerror(errno));
 #endif
