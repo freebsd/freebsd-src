@@ -27,7 +27,7 @@ int x, y;
 	T(("wbkgd(%x, %x) called", win, ch));
 	for (y = 0; y < win->_maxy; y++)
 		for (x = 0; x < win->_maxx; x++)
-			if (win->_line[y][x]&A_CHARTEXT == ' ')
+			if ((win->_line[y][x]&A_CHARTEXT) == ' ')
 				win->_line[y][x] |= ch;
 			else
 				win->_line[y][x] |= (ch&A_ATTRIBUTES);
