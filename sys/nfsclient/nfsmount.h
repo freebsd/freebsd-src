@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsmount.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsmount.h,v 1.6 1995/11/21 12:54:40 bde Exp $
+ * $Id: nfsmount.h,v 1.7 1995/12/17 21:12:36 phk Exp $
  */
 
 #ifndef _NFS_NFSMOUNT_H_
@@ -82,6 +82,10 @@ struct	nfsmount {
 	int	nm_numuids;		/* Number of nfsuid mappings */
 	TAILQ_HEAD(, nfsuid) nm_uidlruhead; /* Lists of nfsuid mappings */
 	LIST_HEAD(, nfsuid) nm_uidhashtbl[NFS_MUIDHASHSIZ];
+	TAILQ_HEAD(, buf) nm_bufq;	/* async io buffer queue */
+	short	nm_bufqlen;		/* number of buffers in queue */
+	short	nm_bufqwant;		/* process wants to add to the queue */
+	int	nm_bufqiods;		/* number of iods processing queue */
 };
 
 #if defined(KERNEL) || defined(_KERNEL)
@@ -89,6 +93,23 @@ struct	nfsmount {
  * Convert mount ptr to nfsmount ptr.
  */
 #define VFSTONFS(mp)	((struct nfsmount *)((mp)->mnt_data))
+
+#ifdef NFS_DEBUG
+
+extern int nfs_debug;
+#define NFS_DEBUG_ASYNCIO	1
+
+#define NFS_DPF(cat, args)					\
+	do {							\
+		if (nfs_debug & NFS_DEBUG_##cat) printf args;	\
+	} while (0)
+
+#else
+
+#define NFS_DPF(cat, args)
+
+#endif
+
 #endif /* KERNEL */
 
 #endif
