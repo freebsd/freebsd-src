@@ -9,10 +9,14 @@
  * Copyright (C) 1993  Hannu Savolainen
  * Ported to 386bsd by Serge Vakulenko
  * based on tools/build.c by Linus Torvalds
- * $Id: kzip.c,v 1.4 1995/10/06 02:42:15 peter Exp $
- *
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -28,10 +32,10 @@
 	/* This is the limit because a kzip'ed kernel loads at 3Mb and
 	 * ends up at 1Mb
 	 */
-void
-Usage(char *prog)
+static void
+usage()
 {
-	fprintf(stderr,"usage:\n\t%s [-v] [ -l loadaddr] kernel\n", prog);
+	fprintf(stderr, "usage: kzip [-v] [ -l loadaddr] kernel\n");
 	exit(1);
 }
 
@@ -45,7 +49,7 @@ main(int argc, char **argv)
 	struct exec hdr;
 	int zip_size, offset;
 	struct stat st;
-	u_long forceaddr = 0, addr, entry;
+	u_long forceaddr = 0, entry;
 	char *kernname;
 	char obj[BUFSIZ];
 	char out[BUFSIZ];
@@ -55,22 +59,19 @@ main(int argc, char **argv)
 		switch (c) {
 		case 'l':
 			forceaddr = strtoul(optarg, NULL, 0);
-			if (forceaddr == 0) {
-				fprintf(stderr, "Invalid load address!\n");
-				exit(1);
-			}
+			if (forceaddr == 0)
+				errx(1, "invalid load address");
 			break;
 		case 'v':
 			verbose++;
 			break;
 		default:
-			Usage(argv[0]);
-			break;
+			usage();
 		}
 	}
 
 	if ((argc - optind) != 1)
-		Usage(argv[0]);
+		usage();
 
 	argc -= optind;
 	argv += optind;
@@ -82,15 +83,13 @@ main(int argc, char **argv)
 
 	fdi = open(kernname ,O_RDONLY);
 	if(fdi<0) {
-		perror(kernname);
+		warn(kernname);
 		return 2;
 	}
 
 	/* figure out how big the uncompressed image will be */
-	if (read (fdi, (char *)&hdr, sizeof(hdr)) != sizeof(hdr)) {
-		perror(argv[1]);
-		exit(2);
-	}
+	if (read (fdi, (char *)&hdr, sizeof(hdr)) != sizeof(hdr))
+		err(2, argv[1]);
 
 	size = hdr.a_text + hdr.a_data + hdr.a_bss;
 	entry = hdr.a_entry - 0xf0000000;	/* replace KZBASE */
@@ -105,7 +104,7 @@ main(int argc, char **argv)
 
 	fdo = open(obj,O_WRONLY|O_TRUNC|O_CREAT,0666);
 	if(fdo<0) {
-		perror(obj);
+		warn(obj);
 		return 2;
 	}
 
@@ -138,7 +137,7 @@ main(int argc, char **argv)
 	}
 
 	Ppiggy = fork();
-	if (Ppiggy < 0) { perror("fork()"); return 1; }
+	if (Ppiggy < 0) { warn("fork()"); return 1; }
 	if (!Ppiggy) {
 		dup2(pipe2[0],0);
 		dup2(fdo,1);
@@ -154,10 +153,10 @@ main(int argc, char **argv)
 	close(fdi); close(fdo);
 
 	if (waitpid(Pext, &status,0) < 0)
-		{ perror("waitpid(Pextract)"); return 1; }
+		{ warn("waitpid(Pextract)"); return 1; }
 
 	if(status) {
-		fprintf(stderr,"extract returned %x\n",status);
+		warnx("extract returned %x",status);
 		return 3;
 	}
 
@@ -165,15 +164,15 @@ main(int argc, char **argv)
 		{ perror("waitpid(Pgzip)"); return 1; }
 
 	if(status) {
-		fprintf(stderr,"gzip returned %x\n",status);
+		warnx("gzip returned %x",status);
 		return 3;
 	}
 
 	if (waitpid(Ppiggy, &status,0) < 0)
-		{ perror("waitpid(Ppiggy)"); return 1; }
+		{ warn("waitpid(Ppiggy)"); return 1; }
 
 	if(status) {
-		fprintf(stderr,"piggyback returned %x\n",status);
+		warnx("piggyback returned %x",status);
 		return 3;
 	}
 
@@ -182,7 +181,7 @@ main(int argc, char **argv)
 	else {
 		/* a kludge to dynamically figure out where to start it */
 		if (stat (obj, &st) < 0) {
-			perror("cannot get size of compressed data");
+			warn("cannot get size of compressed data");
 			return 3;
 		}
 		zip_size = (int)st.st_size;
@@ -191,7 +190,7 @@ main(int argc, char **argv)
 	sprintf(base, "0x%x", roundup(offset, 4096));
 
 	Pld = fork();
-	if (Pld < 0) { perror("fork()"); return 1; }
+	if (Pld < 0) { warn("fork()"); return 1; }
 	if (!Pld) {
 		execlp("ld",
 			"ld",
@@ -209,10 +208,10 @@ main(int argc, char **argv)
 	}
 
 	if (waitpid(Pld, &status,0) < 0)
-		{ perror("waitpid(Pld)"); return 1; }
+		{ warn("waitpid(Pld)"); return 1; }
 
 	if(status) {
-		fprintf(stderr,"ld returned %x\n",status);
+		warnx("ld returned %x",status);
 		return 3;
 	}
 
@@ -220,13 +219,13 @@ main(int argc, char **argv)
 
 		fdn = open(obj ,O_RDONLY);
 		if(fdn<0) {
-			perror(obj);
+			warn(obj);
 			return 3;
 		}
 
 		/* figure out how big the compressed image is */
 		if (read (fdn, (char *)&hdr, sizeof(hdr)) != sizeof(hdr)) {
-			perror(obj);
+			warn(obj);
 			return 3;
 		}
 		close(fdn);
@@ -248,19 +247,12 @@ extract (char *file)
 	char buf[BUFSIZ];
 	struct exec hdr;
 
-	if (read (0, (char *)&hdr, sizeof(hdr)) != sizeof(hdr)) {
-		perror(file);
-		exit(2);
-	}
-	if (hdr.a_magic != ZMAGIC) {
-		fprintf(stderr,"Bad magic in file %s, probably not a kernel\n",
-			file);
-		exit(2);
-	}
-	if (lseek (0, N_TXTOFF(hdr), 0) < 0) {
-		perror(file);
-		exit(2);
-	}
+	if (read (0, (char *)&hdr, sizeof(hdr)) != sizeof(hdr))
+		err(2, file);
+	if (hdr.a_magic != ZMAGIC)
+		errx(2, "bad magic in file %s, probably not a kernel", file);
+	if (lseek (0, N_TXTOFF(hdr), 0) < 0)
+		err(2, file);
 
 	sz = N_SYMOFF (hdr) - N_TXTOFF (hdr);
 
@@ -274,11 +266,9 @@ extract (char *file)
 		n = read (0, buf, l);
 		if (n != l) {
 			if (n == -1)
-				perror (file);
+				err(1, file);
 			else
-				fprintf (stderr, "Unexpected EOF\n");
-
-			exit(1);
+				errx(1, "unexpected EOF");
 		}
 
 		write (1, buf, l);
@@ -306,15 +296,11 @@ piggyback(char *file)
 	while ((n = read (0, &image[len], sizeof(image)-len+1)) > 0)
 	      len += n;
 
-	if (n < 0) {
-		perror ("stdin");
-		exit (1);
-	}
+	if (n < 0)
+		err(1, "stdin");
 
-	if (len >= sizeof(image)) {
-		fprintf (stderr,"Input too large\n");
-		exit (1);
-	}
+	if (len >= sizeof(image))
+		errx(1, "input too large");
 
 	/*
 	 *      Output object header
