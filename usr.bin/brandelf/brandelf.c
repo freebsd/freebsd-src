@@ -25,9 +25,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: brandelf.c,v 1.1 1996/10/16 18:16:22 sos Exp $
+ *  $Id: brandelf.c,v 1.1.2.1 1997/02/09 20:38:03 joerg Exp $
  */
 
+#include <err.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -35,7 +36,7 @@
 #include <fcntl.h>
 #include <sys/imgact_elf.h>
 
-int usage(void);
+static void usage __P((void));
 
 int
 main(int argc, char **argv)
@@ -59,30 +60,27 @@ main(int argc, char **argv)
 	}
 	argc -= optind;
 	argv += optind;
-	if (!argc) {
-		fprintf(stderr, "No file(s) specified.\n");
-		exit(1);
-	}
+	if (!argc)
+		errx(1, "no file(s) specified");
 	while (argc) {
 		int fd;
 		char buffer[EI_NINDENT];
 		char string[(EI_NINDENT-EI_SPARE)+1];
 
 		if ((fd = open(argv[0], O_RDWR, 0)) < 0) {
-			fprintf(stderr, "No such file %s.\n", argv[0]);
+			warnx("no such file %s", argv[0]);
 			retval = 1;
 			goto fail;
 			
 		}
 		if (read(fd, buffer, EI_NINDENT) < EI_NINDENT) {
-			fprintf(stderr, "File '%s' too short.\n", argv[0]);
+			warnx("file '%s' too short", argv[0]);
 			retval = 1;
 			goto fail;
 		}
 		if (buffer[0] != ELFMAG0 || buffer[1] != ELFMAG1 ||
 		    buffer[2] != ELFMAG2 || buffer[3] != ELFMAG3) {
-			fprintf(stderr, "File '%s' is not ELF format.\n",
-				argv[0]);
+			warnx("file '%s' is not ELF format", argv[0]);
 			retval = 1;
 			goto fail;
 		}		
@@ -101,8 +99,8 @@ main(int argc, char **argv)
 			strncpy(&buffer[EI_SPARE], type, EI_NINDENT-EI_SPARE);
 			lseek(fd, 0, SEEK_SET);
 			if (write(fd, buffer, EI_NINDENT) != EI_NINDENT) {
-				fprintf(stderr, "Error writing %s\n", argv[0]);
-			retval = 1;
+				warnx("error writing %s", argv[0]);
+				retval = 1;
 				goto fail;
 			}
 		}
@@ -114,9 +112,9 @@ fail:
 	return retval;
 }
 
-int
-usage(void)
+static void
+usage()
 {
-	fprintf(stderr, "Usage: brandelf [-t string] file ...\n");
+	fprintf(stderr, "usage: brandelf [-t string] file ...\n");
 	exit(1);
 }
