@@ -5,7 +5,7 @@
    Source files groveled to make this file include:
 
 	./session.c
-	./echo_area.c
+	./echo-area.c
 	./infodoc.c
 	./m-x.c
 	./indices.c
@@ -52,7 +52,6 @@ FUNCTION_DOC function_doc_array[] = {
    { info_up_node, "up-node", "Select the `Up' node" },
    { info_last_node, "last-node", "Select the last node in this file" },
    { info_first_node, "first-node", "Select the first node in this file" },
-   { info_history_node, "history-node", "Select the most recently selected node" },
    { info_last_menu_item, "last-menu-item", "Select the last item in this node's menu" },
    { info_menu_digit, "menu-digit", "Select this menu item" },
    { info_menu_item, "menu-item", "Read a menu item and select its node" },
@@ -63,6 +62,7 @@ FUNCTION_DOC function_doc_array[] = {
    { info_man, "man", "Read a manpage reference and select it" },
    { info_top_node, "top-node", "Select the node `Top' in this file" },
    { info_dir_node, "dir-node", "Select the node `(dir)'" },
+   { info_history_node, "history-node", "Select the most recently selected node" },
    { info_kill_node, "kill-node", "Kill this node" },
    { info_view_file, "view-file", "Read the name of a file and select it" },
    { info_print_node, "print-node", "Pipe the contents of this node through INFO_PRINT_COMMAND" },
@@ -80,7 +80,7 @@ FUNCTION_DOC function_doc_array[] = {
    { info_add_digit_to_numeric_arg, "add-digit-to-numeric-arg", "Add this digit to the current numeric argument" },
    { info_universal_argument, "universal-argument", "Start (or multiply by 4) the current numeric argument" },
    { info_numeric_arg_digit_loop, "numeric-arg-digit-loop", "Internally used by \\[universal-argument]" },
-/* Commands found in "./echo_area.c". */
+/* Commands found in "./echo-area.c". */
    { ea_forward, "echo-area-forward", "Move forward a character" },
    { ea_backward, "echo-area-backward", "Move backward a character" },
    { ea_beg_of_line, "echo-area-beg-of-line", "Move to the start of this line" },

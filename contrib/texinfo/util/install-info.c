@@ -1,37 +1,27 @@
 /* install-info -- create Info directory entry(ies) for an Info file.
-   Copyright (C) 1996 Free Software Foundation, Inc.
+   $Id: install-info.c,v 1.21 1998/03/01 15:38:45 karl Exp $
 
-$Id: install-info.c,v 1.12 1996/10/03 23:13:36 karl Exp $
+   Copyright (C) 1996, 97, 98 Free Software Foundation, Inc.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.*/
 
-#define INSTALL_INFO_VERSION_STRING "GNU install-info (Texinfo 3.9) 1.2"
-
-#include <stdio.h>
-#include <errno.h>
+#include "system.h"
 #include <getopt.h>
-#include <sys/types.h>
 
-/* Get O_RDONLY.  */
-#ifdef HAVE_SYS_FCNTL_H
-#include <sys/fcntl.h>
-#else
-#include <fcntl.h>
-#endif /* !HAVE_SYS_FCNTL_H */
-#ifdef HAVE_SYS_FILE_H
-#include <sys/file.h>
+#ifdef HAVE_LIBZ
+#include <zlib.h>
 #endif
 
 /* Name this program was invoked with.  */
@@ -47,9 +37,8 @@ struct spec_entry;
 
 /* Data structures.  */
 
-/* Record info about a single line from a file
-   as read into core.  */
 
+/* Record info about a single line from a file as read into core.  */
 struct line_data
 {
   /* The start of the line.  */
@@ -66,9 +55,9 @@ struct line_data
   int delete;
 };
 
+
 /* This is used for a list of the specified menu section names
    in which entries should be added.  */
-
 struct spec_section
 {
   struct spec_section *next;
@@ -78,16 +67,16 @@ struct spec_section
   int missing;
 };
 
-/* This is used for a list of the entries specified to be added.  */
 
+/* This is used for a list of the entries specified to be added.  */
 struct spec_entry
 {
   struct spec_entry *next;
   char *text;
 };
-
-/* This is used for a list of nodes found by parsing the dir file.  */
 
+
+/* This is used for a list of nodes found by parsing the dir file.  */
 struct node
 {
   struct node *next;
@@ -108,9 +97,9 @@ struct node
   struct menu_section *last_section;
 };
 
+
 /* This is used for a list of sections found in a node's menu.
    Each  struct node  has such a list in the  sections  field.  */
-
 struct menu_section
 {
   struct menu_section *next;
@@ -124,7 +113,6 @@ struct menu_section
 /* Memory allocation and string operations.  */
 
 /* Like malloc but get fatal error if memory is exhausted.  */
-
 void *
 xmalloc (size)
      unsigned int size;
@@ -132,12 +120,11 @@ xmalloc (size)
   extern void *malloc ();
   void *result = malloc (size);
   if (result == NULL)
-    fatal ("virtual memory exhausted", 0);
+    fatal (_("virtual memory exhausted"), 0);
   return result;
 }
 
-/* Like malloc but get fatal error if memory is exhausted.  */
-
+/* Like realloc but get fatal error if memory is exhausted.  */
 void *
 xrealloc (obj, size)
      void *obj;
@@ -146,12 +133,12 @@ xrealloc (obj, size)
   extern void *realloc ();
   void *result = realloc (obj, size);
   if (result == NULL)
-    fatal ("virtual memory exhausted", 0);
+    fatal (_("virtual memory exhausted"), 0);
   return result;
 }
 
-/* Return a newly-allocated string whose contents concatenate those of s1, s2, s3.  */
-
+/* Return a newly-allocated string
+   whose contents concatenate those of S1, S2, S3.  */
 char *
 concat (s1, s2, s3)
      char *s1, *s2, *s3;
@@ -185,7 +172,7 @@ copy_string (string, size)
 
 /* Error message functions.  */
 
-/* Print error message.  `s1' is printf control string, `s2' is arg for it. */
+/* Print error message.  S1 is printf control string, S2 and S3 args for it. */
 
 /* VARARGS1 */
 void
@@ -194,7 +181,7 @@ error (s1, s2, s3)
 {
   fprintf (stderr, "%s: ", progname);
   fprintf (stderr, s1, s2, s3);
-  fprintf (stderr, "\n");
+  putc ('\n', stderr);
 }
 
 /* VARARGS1 */
@@ -202,9 +189,9 @@ void
 warning (s1, s2, s3)
      char *s1, *s2, *s3;
 {
-  fprintf (stderr, "%s: Warning: ", progname);
+  fprintf (stderr, _("%s: warning: "), progname);
   fprintf (stderr, s1, s2, s3);
-  fprintf (stderr, "\n");
+  putc ('\n', stderr);
 }
 
 /* Print error message and exit.  */
@@ -223,7 +210,7 @@ void
 pfatal_with_name (name)
      char *name;
 {
-  char *s = concat ("", strerror (errno), " for %s");
+  char *s = concat ("", strerror (errno), _(" for %s"));
   fatal (s, name);
 }
 
@@ -292,7 +279,7 @@ extract_menu_file_name (item_text)
 void
 suggest_asking_for_help ()
 {
-  fprintf (stderr, "\tTry `%s --help' for a complete list of options.\n",
+  fprintf (stderr, _("\tTry `%s --help' for a complete list of options.\n"),
            progname);
   exit (1);
 }
@@ -300,8 +287,9 @@ suggest_asking_for_help ()
 void
 print_help ()
 {
-  printf ("%s [OPTION]... [INFO-FILE [DIR-FILE]]\n\
-  Install INFO-FILE in the Info directory file DIR-FILE.\n\
+  printf (_("Usage: %s [OPTION]... [INFO-FILE [DIR-FILE]]\n\
+\n\
+Install INFO-FILE in the Info directory file DIR-FILE.\n\
 \n\
 Options:\n\
 --delete          Delete existing entries in INFO-FILE;\n\
@@ -334,33 +322,80 @@ Options:\n\
                     from information in the Info file itself.\n\
 --version         Display version information and exit.\n\
 \n\
-Email bug reports to bug-texinfo@prep.ai.mit.edu.\n\
-", progname);
+Email bug reports to bug-texinfo@gnu.org.\n\
+"), progname);
 }
 
+
+/* If DIRFILE does not exist, create a minimal one (or abort).  If it
+   already exists, do nothing.  */
+
+void
+ensure_dirfile_exists (dirfile)
+     char *dirfile;
+{
+  int desc = open (dirfile, O_RDONLY);
+  if (desc < 0 && errno == ENOENT)
+    {
+      FILE *f;
+      char *readerr = strerror (errno);
+      close (desc);
+      f = fopen (dirfile, "w");
+      if (f)
+        {
+          fputs (_("This is the file .../info/dir, which contains the\n\
+topmost node of the Info hierarchy, called (dir)Top.\n\
+The first time you invoke Info you start off looking at this node.\n\
+\n\
+File: dir,\tNode: Top,\tThis is the top of the INFO tree\n\
+\n\
+  This (the Directory node) gives a menu of major topics.\n\
+  Typing \"q\" exits, \"?\" lists all Info commands, \"d\" returns here,\n\
+  \"h\" gives a primer for first-timers,\n\
+  \"mEmacs<Return>\" visits the Emacs manual, etc.\n\
+\n\
+  In Emacs, you can click mouse button 2 on a menu item or cross reference\n\
+  to select it.\n\
+\n\
+* Menu:\n\
+"), f);
+          if (fclose (f) < 0)
+            pfatal_with_name (dirfile);
+        }
+      else
+        {
+          /* Didn't exist, but couldn't open for writing.  */
+          fprintf (stderr,
+                   _("%s: could not read (%s) and could not create (%s)\n"),
+                   dirfile, readerr, strerror (errno));
+          exit (1);
+        }
+    }
+  else
+    close (desc); /* It already existed, so fine.  */
+}
 
 /* This table defines all the long-named options, says whether they
    use an argument, and maps them into equivalent single-letter options.  */
 
 struct option longopts[] =
 {
-  { "delete",                   no_argument, NULL, 'r' },
-  { "defentry",                 required_argument, NULL, 'E' },
-  { "defsection",               required_argument, NULL, 'S' },
-  { "dir-file",                 required_argument, NULL, 'd' },
-  { "entry",                    required_argument, NULL, 'e' },
-  { "forceentry",               required_argument, NULL, 'f' },
-  { "help",                     no_argument, NULL, 'h' },
-  { "info-dir",                 required_argument, NULL, 'D' },
-  { "info-file",                required_argument, NULL, 'i' },
-  { "item",                     required_argument, NULL, 'e' },
-  { "quiet",                    no_argument, NULL, 'q' },
-  { "remove",                   no_argument, NULL, 'r' },
-  { "section",                  required_argument, NULL, 's' },
-  { "version",                  no_argument, NULL, 'V' },
+  { "delete",    no_argument, NULL, 'r' },
+  { "dir-file",  required_argument, NULL, 'd' },
+  { "entry",     required_argument, NULL, 'e' },
+  { "help",      no_argument, NULL, 'h' },
+  { "info-dir",  required_argument, NULL, 'D' },
+  { "info-file", required_argument, NULL, 'i' },
+  { "item",      required_argument, NULL, 'e' },
+  { "quiet",     no_argument, NULL, 'q' },
+  { "remove",    no_argument, NULL, 'r' },
+  { "section",   required_argument, NULL, 's' },
+  { "version",   no_argument, NULL, 'V' },
   { 0 }
 };
+
 
+int
 main (argc, argv)
      int argc;
      char **argv;
@@ -407,6 +442,15 @@ main (argc, argv)
 
   progname = argv[0];
 
+#ifdef HAVE_SETLOCALE
+  /* Set locale via LC_ALL.  */
+  setlocale (LC_ALL, "");
+#endif
+
+  /* Set the text message domain.  */
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
+
   while (1)
     {
       int opt = getopt_long (argc, argv, "i:d:e:s:hHr", longopts, 0);
@@ -427,7 +471,7 @@ main (argc, argv)
         case 'd':
           if (dirfile)
             {
-              fprintf (stderr, "%s: Specify the Info directory only once.\n",
+              fprintf (stderr, _("%s: Specify the Info directory only once.\n"),
                        progname);
               suggest_asking_for_help ();
             }
@@ -437,7 +481,7 @@ main (argc, argv)
         case 'D':
           if (dirfile)
             {
-              fprintf (stderr, "%s: Specify the Info directory only once.\n",
+              fprintf (stderr, _("%s: Specify the Info directory only once.\n"),
                        progname);
               suggest_asking_for_help ();
             }
@@ -476,7 +520,7 @@ main (argc, argv)
         case 'i':
           if (infile)
             {
-              fprintf (stderr, "%s: Specify the Info file only once.\n",
+              fprintf (stderr, _("%s: Specify the Info file only once.\n"),
                        progname);
               suggest_asking_for_help ();
             }
@@ -507,12 +551,13 @@ main (argc, argv)
           break;
 
         case 'V':
-          puts (INSTALL_INFO_VERSION_STRING);
-puts ("Copyright (C) 1996 Free Software Foundation, Inc.\n\
+          printf ("install-info (GNU %s) %s\n", PACKAGE, VERSION);
+	  printf (_("Copyright (C) %s Free Software Foundation, Inc.\n\
 There is NO warranty.  You may redistribute this software\n\
 under the terms of the GNU General Public License.\n\
-For more information about these matters, see the files named COPYING.");
-              exit (0);
+For more information about these matters, see the files named COPYING.\n"),
+		  "1998");
+          exit (0);
 
         default:
           suggest_asking_for_help ();
@@ -530,13 +575,13 @@ For more information about these matters, see the files named COPYING.");
       else if (dirfile == 0)
         dirfile = argv[optind];
       else
-        error ("excess command line argument `%s'", argv[optind]);
+        error (_("excess command line argument `%s'"), argv[optind]);
     }
 
   if (!infile)
-    fatal ("No input file specified");
+    fatal (_("No input file specified; try --help for more information."));
   if (!dirfile)
-    fatal ("No dir file specified");
+    fatal (_("No dir file specified; try --help for more information."));
 
   /* Read the Info file and parse it into lines.  */
 
@@ -595,7 +640,7 @@ For more information about these matters, see the files named COPYING.");
               && sizeof ("START-INFO-DIR-ENTRY") - 1 == input_lines[i].size)
             {
               if (start_of_this_entry != 0)
-                fatal ("START-INFO-DIR-ENTRY without matching END-INFO-DIR-ENTRY");
+                fatal (_("START-INFO-DIR-ENTRY without matching END-INFO-DIR-ENTRY"));
               start_of_this_entry = input_lines[i + 1].start;
             }
           if (!strncmp ("END-INFO-DIR-ENTRY", input_lines[i].start,
@@ -621,18 +666,26 @@ For more information about these matters, see the files named COPYING.");
                   start_of_this_entry = 0;
                 }
               else
-                fatal ("END-INFO-DIR-ENTRY without matching START-INFO-DIR-ENTRY");
+                fatal (_("END-INFO-DIR-ENTRY without matching START-INFO-DIR-ENTRY"));
             }
         }
       if (start_of_this_entry != 0)
-        fatal ("START-INFO-DIR-ENTRY without matching END-INFO-DIR-ENTRY");
+        fatal (_("START-INFO-DIR-ENTRY without matching END-INFO-DIR-ENTRY"));
     }
 
   if (!delete_flag)
     if (entries_to_add == 0)
-      fatal ("no info dir entry in `%s'", infile);
+      { /* No need to abort here, the original info file may not have
+           the requisite Texinfo commands.  This is not something an
+           installer should have to correct (it's a problem for the
+           maintainer), and there's no need to cause subsequent parts of
+           `make install' to fail.  */
+        warning (_("no info dir entry in `%s'"), infile);
+        exit (0);
+      }
 
   /* Now read in the Info dir file.  */
+  ensure_dirfile_exists (dirfile);
   dir_data = readfile (dirfile, &dir_size);
   dir_lines = findlines (dir_data, dir_size, &dir_nlines);
 
@@ -641,7 +694,6 @@ For more information about these matters, see the files named COPYING.");
      .info suffix.  */
   {
     unsigned basename_len;
-    extern char *strrchr ();
     char *infile_basename = strrchr (infile, '/');
     if (infile_basename)
       infile_basename++;
@@ -761,10 +813,13 @@ For more information about these matters, see the files named COPYING.");
               p++;
               if ((dir_lines[i].size
                    > (p - dir_lines[i].start + infilelen_sans_info))
-                  && !strncmp(p, infile_sans_info, infilelen_sans_info)
-                  && ( p[infilelen_sans_info] == ')' ||
-		       strncmp (p + infilelen_sans_info, ".info)", 6) == 0))
-                dir_lines[i].delete = 1;
+                  && !strncmp (p, infile_sans_info, infilelen_sans_info)
+                  && (p[infilelen_sans_info] == ')'
+                      || !strncmp (p + infilelen_sans_info, ".info)", 6)))
+                {
+                  dir_lines[i].delete = 1;
+                  something_deleted = 1;
+                }
             }
         }
       /* Treat lines that start with whitespace
@@ -836,7 +891,7 @@ For more information about these matters, see the files named COPYING.");
                                                 dir_lines[i].start,
                                                 dir_lines[i].size)
                             && !dir_lines[i].delete)
-                          fatal ("menu item `%s' already exists, for file `%s'",
+                          fatal (_("menu item `%s' already exists, for file `%s'"),
                                  extract_menu_item_name (entry->text),
                                  extract_menu_file_name (dir_lines[i].start));
                         if (dir_lines[i].start[0] == '*'
@@ -859,7 +914,7 @@ For more information about these matters, see the files named COPYING.");
     }
 
   if (delete_flag && !something_deleted && !quiet_flag)
-    warning ("no entries found for `%s'; nothing deleted", infile);
+    warning (_("no entries found for `%s'; nothing deleted"), infile);
 
   /* Output the old dir file, interpolating the new sections
      and/or new entries where appropriate.  */
@@ -951,19 +1006,49 @@ readfile (filename, sizep)
      char *filename;
      int *sizep;
 {
+  int desc;
   int data_size = 1024;
   char *data = (char *) xmalloc (data_size);
   int filled = 0;
   int nread = 0;
+#ifdef HAVE_LIBZ
+  int isGZ = 0;
+  gzFile zdesc;
+#endif
 
-  int desc = open (filename, O_RDONLY);
-
+  desc = open (filename, O_RDONLY);
   if (desc < 0)
     pfatal_with_name (filename);
 
+#ifdef HAVE_LIBZ
+  /* The file should always be two bytes long.  */
+  if (read (desc, data, 2) != 2)
+    pfatal_with_name (filename);
+
+  /* Undo that read.  */
+  lseek (desc, 0, SEEK_SET);
+
+  /* If we see gzip magic, use gzdopen. */
+  if (data[0] == '\x1f' && data[1] == '\x8b')
+    {
+      isGZ = 1;
+      zdesc = gzdopen (desc, "r");
+      if (zdesc == NULL) {
+        close (desc);
+        pfatal_with_name (filename);
+      }
+    }
+#endif /* HAVE_LIBZ */
+
   while (1)
     {
-      nread = read (desc, data + filled, data_size - filled);
+#ifdef HAVE_LIBZ
+      if (isGZ)
+	nread = gzread (zdesc, data + filled, data_size - filled);
+      else
+#endif
+        nread = read (desc, data + filled, data_size - filled);
+
       if (nread < 0)
         pfatal_with_name (filename);
       if (nread == 0)
@@ -978,6 +1063,14 @@ readfile (filename, sizep)
     }
 
   *sizep = filled;
+
+#ifdef HAVE_LIBZ
+  if (isGZ)
+    gzclose (zdesc);
+  else
+#endif
+    close(desc);
+
   return data;
 }
 
