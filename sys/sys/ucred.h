@@ -57,6 +57,8 @@ struct ucred {
 #ifdef _KERNEL
 #define	crhold(cr)	(cr)->cr_ref++
 
+struct proc;
+
 void		change_euid __P((struct proc *p, uid_t euid));
 struct ucred	*crcopy __P((struct ucred *cr));
 struct ucred	*crdup __P((struct ucred *cr));
