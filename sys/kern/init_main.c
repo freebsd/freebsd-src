@@ -74,7 +74,7 @@
 
 extern struct linker_set	sysinit_set;	/* XXX */
 
-extern void mi_startup __P((void *framep));
+void mi_startup(void);				/* Should be elsewhere */
 
 /* Components of the first process -- never freed. */
 static struct session session0;
@@ -96,19 +96,11 @@ int	boothowto = 0;		/* initialized so that it can be patched */
 SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0, "");
 
 /*
- * Promiscuous argument pass for start_init()
- *
- * This is a kludge because we use a return from mi_startup() rather than a call
- * to a new routine in locore.s to kick the kernel alive from locore.s.
- */
-static void	*init_framep;
-
-/*
  * This ensures that there is at least one entry so that the sysinit_set
  * symbol is not undefined.  A sybsystem ID of SI_SUB_DUMMY is never
  * executed.
  */
-SYSINIT(placeholder, SI_SUB_DUMMY,SI_ORDER_ANY, NULL, NULL)
+SYSINIT(placeholder, SI_SUB_DUMMY, SI_ORDER_ANY, NULL, NULL)
 
 /*
  * The sysinit table itself.  Items are checked off as the are run.
@@ -122,8 +114,7 @@ struct sysinit **newsysinit;
  * necessary.  This can only be called after malloc is running.
  */
 void
-sysinit_add(set)
-	struct sysinit **set;
+sysinit_add(struct sysinit **set)
 {
 	struct sysinit **newset;
 	struct sysinit **sipp;
@@ -169,19 +160,12 @@ sysinit_add(set)
  * module.  Finally, it allows for optional "kernel threads".
  */
 void
-mi_startup(framep)
-	void *framep;
+mi_startup(void)
 {
 
 	register struct sysinit **sipp;		/* system initialization*/
 	register struct sysinit **xipp;		/* interior loop of sort*/
 	register struct sysinit *save;		/* bubble*/
-
-	/*
-	 * Copy the locore.s frame pointer for proc0, this is forked into
-	 * all other processes.
-	 */
-	init_framep = framep;
 
 restart:
 	/*
@@ -244,10 +228,8 @@ restart:
  ****
  ***************************************************************************
  */
-static void print_caddr_t __P((void *data));
 static void
-print_caddr_t(data)
-	void *data;
+print_caddr_t(void *data __unused)
 {
 	printf("%s", (char *)data);
 }
@@ -268,10 +250,8 @@ SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t, copyright)
  ***************************************************************************
  */
 /* ARGSUSED*/
-static void proc0_init __P((void *dummy));
 static void
-proc0_init(dummy)
-	void *dummy;
+proc0_init(void *dummy __unused)
 {
 	register struct proc		*p;
 	register struct filedesc0	*fdp;
@@ -315,9 +295,6 @@ proc0_init(dummy)
 	p->p_rtprio.type = RTP_PRIO_NORMAL;
 	p->p_rtprio.prio = 0;
 
-/*
- * Link for kernel based threads
- */
 	p->p_peers = 0;
 	p->p_leader = p;
 
@@ -337,6 +314,9 @@ proc0_init(dummy)
 	/* Create procsig. */
 	p->p_procsig = &procsig0;
 	p->p_procsig->ps_refcnt = 1;
+
+	/* Initialize signal state for process 0. */
+	siginit(&proc0);
 
 	/* Create the file descriptor table. */
 	fdp = &filedesc0;
@@ -363,7 +343,6 @@ proc0_init(dummy)
 	limit0.p_cpulimit = RLIM_INFINITY;
 	limit0.p_refcnt = 1;
 
-
 	/* Allocate a prototype map so we have something to fork. */
 	pmap_pinit0(vmspace_pmap(&vmspace0));
 	p->p_vmspace = &vmspace0;
@@ -372,13 +351,6 @@ proc0_init(dummy)
 	    trunc_page(VM_MAXUSER_ADDRESS));
 	vmspace0.vm_map.pmap = vmspace_pmap(&vmspace0);
 	p->p_addr = proc0paddr;				/* XXX */
-
-#ifdef cpu_set_init_frame
-	/*
-	 * proc0 needs to have a coherent frame base in its stack.
-	 */
-	cpu_set_init_frame(p, init_framep);			/* XXX! */
-#endif
 
 	/*
 	 * We continue to place resource usage info and signal
@@ -402,19 +374,20 @@ proc0_init(dummy)
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL)
 
 /* ARGSUSED*/
-static void proc0_post __P((void *dummy));
 static void
-proc0_post(dummy)
-	void *dummy;
+proc0_post(void *dummy __unused)
 {
 	struct timespec ts;
+	struct proc *p;
 
 	/*
 	 * Now we can look at the time, having had a chance to verify the
 	 * time from the file system.  Pretend that proc0 started now.
 	 */
-	microtime(&proc0.p_stats->p_start);
-	proc0.p_runtime = 0;
+	LIST_FOREACH(p, &allproc, p_list) {
+		microtime(&p->p_stats->p_start);
+		p->p_runtime = 0;
+	}
 	microuptime(&switchtime);
 	switchticks = ticks;
 
@@ -424,14 +397,8 @@ proc0_post(dummy)
 	 */
 	nanotime(&ts);
 	srandom(ts.tv_sec ^ ts.tv_nsec);
-
-	/* Initialize signal state for process 0. */
-	siginit(&proc0);
 }
 SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL)
-
-
-
 
 /*
  ***************************************************************************
@@ -442,59 +409,15 @@ SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL)
  ***************************************************************************
  */
 
-/* ARGSUSED*/
-static void xxx_vfs_root_fdtab __P((void *dummy));
-static void
-xxx_vfs_root_fdtab(dummy)
-	void *dummy;
-{
-	register struct filedesc0	*fdp = &filedesc0;
-
-	/* Get the vnode for '/'.  Set fdp->fd_fd.fd_cdir to reference it. */
-	if (VFS_ROOT(TAILQ_FIRST(&mountlist), &rootvnode))
-		panic("cannot find root vnode");
-	fdp->fd_fd.fd_cdir = rootvnode;
-	VREF(fdp->fd_fd.fd_cdir);
-	fdp->fd_fd.fd_rdir = rootvnode;
-	VREF(fdp->fd_fd.fd_rdir);
-	VOP_UNLOCK(rootvnode, 0, &proc0);
-}
-SYSINIT(retrofit, SI_SUB_ROOT_FDTAB, SI_ORDER_FIRST, xxx_vfs_root_fdtab, NULL)
-
 
 /*
  ***************************************************************************
  ****
  **** The following code probably belongs in another file, like
- **** kern/init_init.c.  It is here for two reasons only:
- ****
- ****	1)	This code returns to startup the system; this is
- ****		abnormal for a kernel thread.
- ****	2)	This code promiscuously uses init_frame
+ **** kern/init_init.c.
  ****
  ***************************************************************************
  */
-
-extern void prepare_usermode __P((void));
-static void create_init __P((const void *dummy));
-static void start_init __P((void *dummy));
-SYSINIT(init,SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, create_init, NULL)
-
-/*
- * Like kthread_create(), but runs in it's own address space.
- */
-static void
-create_init(udata)
-	const void *udata;
-{
-	int error;
-
-	error = fork1(&proc0, RFFDG | RFPROC, &initproc);
-	if (error)
-		panic("cannot fork init: %d\n", error);
-	initproc->p_flag |= P_INMEM | P_SYSTEM;
-	cpu_set_fork_handler(initproc, start_init, NULL);
-}
 
 /*
  * List of paths to try when searching for "init".
@@ -512,8 +435,7 @@ SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0, "");
  * The program is invoked with one argument containing the boot flags.
  */
 static void
-start_init(dummy)
-	void *dummy;
+start_init(void *dummy)
 {
 	vm_offset_t addr;
 	struct execve_args args;
@@ -523,6 +445,14 @@ start_init(dummy)
 	struct proc *p;
 
 	p = curproc;
+
+	/* Get the vnode for '/'.  Set p->p_fd->fd_cdir to reference it. */
+	if (VFS_ROOT(TAILQ_FIRST(&mountlist), &rootvnode))
+		panic("cannot find root vnode");
+	p->p_fd->fd_cdir = rootvnode;
+	VREF(p->p_fd->fd_cdir);
+	p->p_fd->fd_rdir = rootvnode;
+	VOP_UNLOCK(rootvnode, 0, p);
 
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
@@ -605,13 +535,11 @@ start_init(dummy)
 		 * Now try to exec the program.  If can't for any reason
 		 * other than it doesn't exist, complain.
 		 *
-		 * Otherwise, return via the fork trampoline all the way
+		 * Otherwise, return via fork_trampoline() all the way
 		 * to user mode as init!
 		 */
-		if ((error = execve(p, &args)) == 0) {
-			prepare_usermode();
+		if ((error = execve(p, &args)) == 0)
 			return;
-		}
 		if (error != ENOENT)
 			printf("exec %.*s: error %d\n", (int)(next - path), 
 			    path, error);
@@ -619,3 +547,37 @@ start_init(dummy)
 	printf("init: not found in path %s\n", init_path);
 	panic("no init");
 }
+
+/*
+ * Like kthread_create(), but runs in it's own address space.
+ * We do this early to reserve pid 1.
+ *
+ * Note special case - do not make it runnable yet.  Other work
+ * in progress will change this more.
+ */
+static void
+create_init(const void *udata __unused)
+{
+	int error;
+	int s;
+
+	s = splhigh();
+	error = fork1(&proc0, RFFDG | RFPROC, &initproc);
+	if (error)
+		panic("cannot fork init: %d\n", error);
+	initproc->p_flag |= P_INMEM | P_SYSTEM;
+	cpu_set_fork_handler(initproc, start_init, NULL);
+	remrunqueue(initproc);
+	splx(s);
+}
+SYSINIT(init,SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL)
+
+/*
+ * Make it runnable now.
+ */
+static void
+kick_init(const void *udata __unused)
+{
+	setrunqueue(initproc);
+}
+SYSINIT(kickinit,SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL)

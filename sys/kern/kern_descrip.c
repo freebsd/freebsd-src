@@ -919,9 +919,11 @@ fdinit(p)
 	    M_FILEDESC, M_WAITOK);
 	bzero(newfdp, sizeof(struct filedesc0));
 	newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
-	VREF(newfdp->fd_fd.fd_cdir);
+	if (newfdp->fd_fd.fd_cdir)
+		VREF(newfdp->fd_fd.fd_cdir);
 	newfdp->fd_fd.fd_rdir = fdp->fd_rdir;
-	VREF(newfdp->fd_fd.fd_rdir);
+	if (newfdp->fd_fd.fd_rdir)
+		VREF(newfdp->fd_fd.fd_rdir);
 	newfdp->fd_fd.fd_jdir = fdp->fd_jdir;
 	if (newfdp->fd_fd.fd_jdir)
 		VREF(newfdp->fd_fd.fd_jdir);
@@ -966,8 +968,10 @@ fdcopy(p)
 	MALLOC(newfdp, struct filedesc *, sizeof(struct filedesc0),
 	    M_FILEDESC, M_WAITOK);
 	bcopy(fdp, newfdp, sizeof(struct filedesc));
-	VREF(newfdp->fd_cdir);
-	VREF(newfdp->fd_rdir);
+	if (newfdp->fd_cdir)
+		VREF(newfdp->fd_cdir);
+	if (newfdp->fd_rdir)
+		VREF(newfdp->fd_rdir);
 	if (newfdp->fd_jdir)
 		VREF(newfdp->fd_jdir);
 	newfdp->fd_refcnt = 1;
@@ -1051,8 +1055,10 @@ fdfree(p)
 	}
 	if (fdp->fd_nfiles > NDFILE)
 		FREE(fdp->fd_ofiles, M_FILEDESC);
-	vrele(fdp->fd_cdir);
-	vrele(fdp->fd_rdir);
+	if (fdp->fd_cdir)
+		vrele(fdp->fd_cdir);
+	if (fdp->fd_rdir)
+		vrele(fdp->fd_rdir);
 	if (fdp->fd_jdir)
 		vrele(fdp->fd_jdir);
 	if (fdp->fd_knlist)

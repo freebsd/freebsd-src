@@ -116,11 +116,12 @@ enum sysinit_sub_id {
 	SI_SUB_CPU		= 0x2000000,	/* CPU resource(s)*/
 	SI_SUB_KLD		= 0x2100000,	/* KLD and module setup */
 	SI_SUB_INTRINSIC	= 0x2200000,	/* proc 0*/
-	SI_SUB_DEVFS		= 0x2300000,	/* get DEVFS ready */
-	SI_SUB_DRIVERS		= 0x2400000,	/* Let Drivers initialize */
-	SI_SUB_CONFIGURE	= 0x2500000,	/* Configure devices */
-	SI_SUB_RUN_QUEUE	= 0x3000000,	/* the run queue*/
-	SI_SUB_VM_CONF		= 0x3800000,	/* config VM, set limits*/
+	SI_SUB_VM_CONF		= 0x2300000,	/* config VM, set limits*/
+	SI_SUB_RUN_QUEUE	= 0x2400000,	/* the run queue*/
+	SI_SUB_CREATE_INIT	= 0x2500000,	/* create the init process */
+	SI_SUB_DEVFS		= 0x3000000,	/* get DEVFS ready */
+	SI_SUB_DRIVERS		= 0x3100000,	/* Let Drivers initialize */
+	SI_SUB_CONFIGURE	= 0x3800000,	/* Configure devices */
 	SI_SUB_VFS		= 0x4000000,	/* virtual file system*/
 	SI_SUB_CLOCKS		= 0x4800000,	/* real time and stat clocks*/
 	SI_SUB_MBUF		= 0x5000000,	/* mbufs*/
@@ -141,8 +142,8 @@ enum sysinit_sub_id {
 	SI_SUB_ROOT_CONF	= 0xb000000,	/* Find root devices */
 	SI_SUB_DUMP_CONF	= 0xb200000,	/* Find dump devices */
 	SI_SUB_VINUM		= 0xb300000,	/* Configure vinum */
+	SI_SUB_RAID		= 0xb380000,	/* Configure RAIDframe */
 	SI_SUB_MOUNT_ROOT	= 0xb400000,	/* root mount*/
-	SI_SUB_ROOT_FDTAB	= 0xb800000,	/* root vnode in fd table...*/
 	SI_SUB_SWAP		= 0xc000000,	/* swap*/
 	SI_SUB_INTRINSIC_POST	= 0xd000000,	/* proc 0 cleanup*/
 	SI_SUB_KTHREAD_INIT	= 0xe000000,	/* init process*/

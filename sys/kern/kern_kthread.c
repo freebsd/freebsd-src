@@ -70,7 +70,7 @@ kthread_create(void (*func)(void *), void *arg,
 	va_list ap;
 	struct proc *p2;
 
-	if (!proc0.p_stats || proc0.p_stats->p_start.tv_sec == 0) {
+	if (!proc0.p_stats /* || proc0.p_stats->p_start.tv_sec == 0 */) {
 		panic("kthread_create called too soon");
 	}
 

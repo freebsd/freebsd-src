@@ -485,8 +485,6 @@ init_secondary(void)
 	common_tssd = *tss_gdt;
 	ltr(gsel_tss);
 
-	load_cr0(0x8005003b);		/* XXX! */
-
 	pmap_set_opt();
 }
 
@@ -621,13 +619,6 @@ mp_enable(u_int boot_addr)
 
 	/* start each Application Processor */
 	start_all_aps(boot_addr);
-
-	/* 
-	 * The init process might be started on a different CPU now,
-	 * and the boot CPU might not call prepare_usermode to get
-	 * cr0 correctly configured. Thus we initialize cr0 here.
-	 */
-	load_cr0(rcr0() | CR0_WP | CR0_AM);
 }
 
 
@@ -2421,8 +2412,8 @@ ap_init()
 
 	printf("SMP: AP CPU #%d Launched!\n", cpuid);
 
-	/* XXX FIXME: i386 specific, and redundant: Setup the FPU. */
-	load_cr0((rcr0() & ~CR0_EM) | CR0_MP | CR0_NE | CR0_TS);
+	/* set up CPU registers and state */
+	cpu_setregs();
 
 	/* set up FPU state on the AP */
 	npxinit(__INITIAL_NPXCW__);
