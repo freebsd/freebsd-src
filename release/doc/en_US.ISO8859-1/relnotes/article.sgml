@@ -377,7 +377,7 @@
 
       <para>The &man.an.4; driver now supports <quote>monitor</quote>
       mode, settable via the <option>-M</option> option to
-      &man.ancontrol.8;.</para>
+      &man.ancontrol.8;. &merged;</para>
 
       <para arch="i386">The &man.el.4; driver can now be loaded as a
       module.</para>
@@ -1700,7 +1700,8 @@
     <para>&man.fmtcheck.3;, a function for checking consistency of
     format string arguments, has been added. &merged;</para>
 
-    <para>&man.nl.1;, a line numbering filter program, has been added.</para>
+    <para>&man.nl.1;, a line numbering filter program, has been
+    added. &merged;</para>
 
     <para>&man.c89.1; has been converted from a shell script to a
     binary executable, fixing some minor bugs. &merged;</para>
