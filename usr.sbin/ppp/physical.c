@@ -365,8 +365,8 @@ physical_Close(struct physical *p)
   throughput_log(&p->link.stats.total, LogPHASE, p->link.name);
 
   if (p->session_owner != (pid_t)-1) {
-    log_Printf(LogPHASE, "%s: HUPing %d\n", p->link.name,
-               (int)p->session_owner);
+    log_Printf(LogPHASE, "%s: HUPing %ld\n", p->link.name,
+               (long)p->session_owner);
     ID0kill(p->session_owner, SIGHUP);
     p->session_owner = (pid_t)-1;
   }
@@ -456,7 +456,7 @@ physical_ShowStatus(struct cmdargs const *arg)
                 *p->name.full ?  p->name.full :
                 p->type == PHYS_DIRECT ? "unknown" : "N/A");
   if (p->session_owner != (pid_t)-1)
-    prompt_Printf(arg->prompt, " (session owner: %d)", (int)p->session_owner);
+    prompt_Printf(arg->prompt, " (session owner: %ld)", (long)p->session_owner);
 
   prompt_Printf(arg->prompt, "\n Link Type:       %s\n", mode2Nam(p->type));
   prompt_Printf(arg->prompt, " Connect Count:   %d\n", p->connect_count);
