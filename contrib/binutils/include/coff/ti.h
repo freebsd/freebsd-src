@@ -2,7 +2,7 @@
    customized in a target-specific file, and then this file included (see
    tic54x.h for an example).
    
-   Copyright 2001 Free Software Foundation, Inc.
+   Copyright 2001, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,6 +55,14 @@ struct external_filehdr
 /* Which bfd_arch to use... */
 #ifndef TICOFF_TARGET_ARCH
 #error "TICOFF_TARGET_ARCH needs to be defined for your CPU"
+#endif
+
+#ifndef TICOFF_TARGET_MACHINE_GET
+#define TICOFF_TARGET_MACHINE_GET(FLAGS) 0
+#endif
+
+#ifndef TICOFF_TARGET_MACHINE_SET
+#define TICOFF_TARGET_MACHINE_SET(FLAGSP, MACHINE)
 #endif
 
 /* Default to COFF2 for file output */
@@ -118,6 +126,7 @@ struct external_filehdr
 #define	F_RELFLG	(0x0001)
 #define	F_EXEC		(0x0002)
 #define	F_LNNO		(0x0004)
+#define F_VERS          (0x0010) /* TMS320C4x code */
 /* F_LSYMS needs to be redefined in your source file */
 #define	F_LSYMS_TICOFF	(0x0010) /* normal COFF is 0x8 */
 
@@ -206,25 +215,25 @@ struct external_scnhdr {
    Assume we're dealing with the COFF2 scnhdr structure, and adjust
    accordingly 
  */
-#define GET_SCNHDR_NRELOC(ABFD, PTR) \
-  (COFF2_P (ABFD) ? H_GET_32 (ABFD, PTR) : H_GET_16 (ABFD, PTR))
-#define PUT_SCNHDR_NRELOC(ABFD, VAL, PTR) \
-  (COFF2_P (ABFD) ? H_PUT_32 (ABFD, VAL, PTR) : H_PUT_16 (ABFD, VAL, PTR))
-#define GET_SCNHDR_NLNNO(ABFD, PTR) \
-  (COFF2_P (ABFD) ? H_GET_32 (ABFD, PTR) : H_GET_16 (ABFD, (PTR) -2))
-#define PUT_SCNHDR_NLNNO(ABFD, VAL, PTR) \
-  (COFF2_P (ABFD) ? H_PUT_32 (ABFD, VAL, PTR) : H_PUT_16 (ABFD, VAL, (PTR) -2))
-#define GET_SCNHDR_FLAGS(ABFD, PTR) \
-  (COFF2_P (ABFD) ? H_GET_32 (ABFD, PTR) : H_GET_16 (ABFD, (PTR) -4))
-#define PUT_SCNHDR_FLAGS(ABFD, VAL, PTR) \
-  (COFF2_P (ABFD) ? H_PUT_32 (ABFD, VAL, PTR) : H_PUT_16 (ABFD, VAL, (PTR) -4))
-#define GET_SCNHDR_PAGE(ABFD, PTR) \
-  (COFF2_P (ABFD) ? H_GET_16 (ABFD, PTR) : (unsigned) H_GET_8 (ABFD, (PTR) -7))
+#define GET_SCNHDR_NRELOC(ABFD, LOC) \
+  (COFF2_P (ABFD) ? H_GET_32 (ABFD, LOC) : H_GET_16 (ABFD, LOC))
+#define PUT_SCNHDR_NRELOC(ABFD, VAL, LOC) \
+  (COFF2_P (ABFD) ? H_PUT_32 (ABFD, VAL, LOC) : H_PUT_16 (ABFD, VAL, LOC))
+#define GET_SCNHDR_NLNNO(ABFD, LOC) \
+  (COFF2_P (ABFD) ? H_GET_32 (ABFD, LOC) : H_GET_16 (ABFD, (LOC) - 2))
+#define PUT_SCNHDR_NLNNO(ABFD, VAL, LOC) \
+  (COFF2_P (ABFD) ? H_PUT_32 (ABFD, VAL, LOC) : H_PUT_16 (ABFD, VAL, (LOC) - 2))
+#define GET_SCNHDR_FLAGS(ABFD, LOC) \
+  (COFF2_P (ABFD) ? H_GET_32 (ABFD, LOC) : H_GET_16 (ABFD, (LOC) - 4))
+#define PUT_SCNHDR_FLAGS(ABFD, VAL, LOC) \
+  (COFF2_P (ABFD) ? H_PUT_32 (ABFD, VAL, LOC) : H_PUT_16 (ABFD, VAL, (LOC) - 4))
+#define GET_SCNHDR_PAGE(ABFD, LOC) \
+  (COFF2_P (ABFD) ? H_GET_16 (ABFD, LOC) : (unsigned) H_GET_8 (ABFD, (LOC) - 7))
 /* on output, make sure that the "reserved" field is zero */
-#define PUT_SCNHDR_PAGE(ABFD, VAL, PTR) \
+#define PUT_SCNHDR_PAGE(ABFD, VAL, LOC) \
   (COFF2_P (ABFD) \
-   ? H_PUT_16 (ABFD, VAL, PTR) \
-   : H_PUT_8 (ABFD, VAL, (PTR) -7), H_PUT_8 (ABFD, 0, (PTR) -8))
+   ? H_PUT_16 (ABFD, VAL, LOC) \
+   : H_PUT_8 (ABFD, VAL, (LOC) - 7), H_PUT_8 (ABFD, 0, (LOC) - 8))
 
 /* TI COFF stores section size as number of bytes (address units, not octets),
    so adjust to be number of octets, which is what BFD expects */ 

@@ -34,18 +34,18 @@ extern int ecoff_debugging_seen;
 
 /* This function should be called at the start of assembly, by
    obj_read_begin_hook.  */
-extern void ecoff_read_begin_hook PARAMS ((void));
+extern void ecoff_read_begin_hook (void);
 
 /* This function should be called when the assembler switches to a new
    file.  */
-extern void ecoff_new_file PARAMS ((const char *));
+extern void ecoff_new_file (const char *);
 
 /* This function should be called when a new symbol is created, by
    obj_symbol_new_hook.  */
-extern void ecoff_symbol_new_hook PARAMS ((symbolS *));
+extern void ecoff_symbol_new_hook (symbolS *);
 
 /* This function should be called by the obj_frob_symbol hook.  */
-extern void ecoff_frob_symbol PARAMS ((symbolS *));
+extern void ecoff_frob_symbol (symbolS *);
 
 /* Build the ECOFF debugging information.  This should be called by
    obj_frob_file.  This fills in the counts in *HDR; the offsets are
@@ -53,59 +53,59 @@ extern void ecoff_frob_symbol PARAMS ((symbolS *));
    block of memory holding the debugging information.  It returns the
    length of *BUFP.  */
 extern unsigned long ecoff_build_debug
-  PARAMS ((HDRR *hdr, char **bufp, const struct ecoff_debug_swap *));
+  (HDRR *hdr, char **bufp, const struct ecoff_debug_swap *);
 
 /* Functions to handle the ECOFF debugging directives.  */
-extern void ecoff_directive_begin PARAMS ((int));
-extern void ecoff_directive_bend PARAMS ((int));
-extern void ecoff_directive_end PARAMS ((int));
-extern void ecoff_directive_ent PARAMS ((int));
-extern void ecoff_directive_fmask PARAMS ((int));
-extern void ecoff_directive_frame PARAMS ((int));
-extern void ecoff_directive_loc PARAMS ((int));
-extern void ecoff_directive_mask PARAMS ((int));
+extern void ecoff_directive_begin (int);
+extern void ecoff_directive_bend (int);
+extern void ecoff_directive_end (int);
+extern void ecoff_directive_ent (int);
+extern void ecoff_directive_fmask (int);
+extern void ecoff_directive_frame (int);
+extern void ecoff_directive_loc (int);
+extern void ecoff_directive_mask (int);
 
 /* Other ECOFF directives.  */
-extern void ecoff_directive_extern PARAMS ((int));
-extern void ecoff_directive_weakext PARAMS ((int));
+extern void ecoff_directive_extern (int);
+extern void ecoff_directive_weakext (int);
 
 /* Functions to handle the COFF debugging directives.  */
-extern void ecoff_directive_def PARAMS ((int));
-extern void ecoff_directive_dim PARAMS ((int));
-extern void ecoff_directive_endef PARAMS ((int));
-extern void ecoff_directive_file PARAMS ((int));
-extern void ecoff_directive_scl PARAMS ((int));
-extern void ecoff_directive_size PARAMS ((int));
-extern void ecoff_directive_tag PARAMS ((int));
-extern void ecoff_directive_type PARAMS ((int));
-extern void ecoff_directive_val PARAMS ((int));
+extern void ecoff_directive_def (int);
+extern void ecoff_directive_dim (int);
+extern void ecoff_directive_endef (int);
+extern void ecoff_directive_file (int);
+extern void ecoff_directive_scl (int);
+extern void ecoff_directive_size (int);
+extern void ecoff_directive_tag (int);
+extern void ecoff_directive_type (int);
+extern void ecoff_directive_val (int);
 
 /* Handle stabs.  */
-extern void ecoff_stab PARAMS ((segT sec, int what, const char *string,
-				int type, int other, int desc));
+extern void ecoff_stab (segT sec, int what, const char *string,
+			int type, int other, int desc);
 
 /* Set the GP prologue size.  */
-extern void ecoff_set_gp_prolog_size PARAMS ((int sz));
+extern void ecoff_set_gp_prolog_size (int sz);
 
 /* This routine is called from the ECOFF code to set the external
    information for a symbol.  */
 #ifndef obj_ecoff_set_ext
-extern void obj_ecoff_set_ext PARAMS ((symbolS *, EXTR *));
+extern void obj_ecoff_set_ext (symbolS *, EXTR *);
 #endif
 
 /* This routine is used to patch up a line number directive when
    instructions are moved around.  */
-extern void ecoff_fix_loc PARAMS ((fragS *, unsigned long));
+extern void ecoff_fix_loc (fragS *, unsigned long);
 
 /* This function is called from read.c to peek at cur_file_ptr.  */
-extern int ecoff_no_current_file PARAMS ((void));
+extern int ecoff_no_current_file (void);
 
 /* This function returns the symbol associated with the current proc.  */
-extern symbolS *ecoff_get_cur_proc_sym PARAMS ((void));
+extern symbolS *ecoff_get_cur_proc_sym (void);
 
 #endif /* ECOFF_DEBUGGING */
 
 /* This routine is called from read.c to generate line number for .s file.  */
-extern void ecoff_generate_asm_lineno PARAMS ((void));
+extern void ecoff_generate_asm_lineno (void);
 
 #endif /* ! GAS_ECOFF_H */

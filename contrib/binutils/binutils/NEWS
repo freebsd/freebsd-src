@@ -1,4 +1,47 @@
 -*- text -*-
+
+* objcopy and strip can now take wildcard patterns in symbol names specified on
+  the command line provided that the --wildcard switch is used to enable them.
+
+* readelf can now parse archives.
+
+* objdump now accepts --debugging-tags to print the debug information in a
+  format compatible with ctags tool.
+
+* objcopy and strip now accept --only-keep-debug to create a file containing
+  those sections that would be stripped out by --strip-debug.  The idea is that
+  this can be used in conjunction with the --add-gnu-debuglink switch to create
+  a two part program distribution - one a stripped executable and the other the
+  debugging info.
+
+* objcopy now accepts --add-gnu-debuglink=<file> to insert a .gnu_debuglink
+  section into a (presumably stripped) executable.  This allows the debug
+  information for the file to be held in a separate file.
+  
+* BFD marks the sections .comment and .note as 'n' in the BSD/POSIX
+  single-character representation.  This can be checked by running nm
+  with the -a switch.
+
+Changes in 2.14:
+
+* Added --info switch to objcopy and strip.
+
+* Support for Vitesse IQ2000 added by Red Hat.
+
+* Added 'S' encoding to strings to allow the display of 8-bit characters.
+
+* Added --prefix-symbols=<text>, --prefix-sections=<text> and
+  --prefix-alloc-sections=<text> to objcopy.
+
+* readelf can handle the extensions to the DWARF2 spec used by the Unified
+  Parallel C compiler.
+
+* BFD no longer declares a "boolean" type, to avoid clashes with other
+  headers that declare the same.  Users of BFD should replace boolean,
+  false and true, with int, 0 and 1, or define their own boolean type.
+
+* Support for IP2K added by Denis Chertykov.
+
 Changes in 2.13:
 
 * Support for the Fujitsu FRV architecture added by Red Hat. Models for FR400
@@ -44,7 +87,7 @@ Changes in binutils 2.11:
 
 * Add --srec-len and --srec-forceS3 command line switch to objcopy.
   By Luciano Gemme.
-  
+
 * Support for the MIPS32, by Anders Norlander.
 
 * Support for the i860, by Jason Eckhardt.
@@ -57,13 +100,13 @@ Changes in binutils 2.10:
 
 * New command line switch to objdump --file-start-context which shows the
   entire file contents up to the source line first encountered for a given
-  file. 
+  file.
 
 * New command line switch to objdump -M (or --disassembler-options) which takes
   a parameter which can then be interpreted on a per-target basis by the
   disassembler.  Used by ARM targets to select register name sets, ISA, APCS or
   raw verions.
-  
+
 * objdump support for -mi386:intel which causes disassembly to be displayed
   with intel syntax.
 
@@ -154,7 +197,7 @@ Changes in binutils 2.6:
 Changes in binutils 2.5:
 
 * Changed objdump -dr to dump the relocs interspersed with the assembly
-  listing, for a more useful listing of relocateable files.
+  listing, for a more useful listing of relocatable files.
 
 * Changed objdump -d/--disassemble to only disassemble SEC_CODE sections.
   Added -D/--disassemble-all option to disassemble all sections.

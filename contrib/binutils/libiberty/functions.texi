@@ -3,6 +3,28 @@
 @c Edit the *.c files, configure with --enable-maintainer-mode,
 @c and let gather-docs build you a new copy.
 
+@c safe-ctype.c:24
+@defvr Extension HOST_CHARSET
+This macro indicates the basic character set and encoding used by the
+host: more precisely, the encoding used for character constants in
+preprocessor @samp{#if} statements (the C "execution character set").
+It is defined by @file{safe-ctype.h}, and will be an integer constant
+with one of the following values:
+
+@ftable @code
+@item HOST_CHARSET_UNKNOWN
+The host character set is unknown - that is, not one of the next two
+possibilities.
+
+@item HOST_CHARSET_ASCII
+The host character set is ASCII.
+
+@item HOST_CHARSET_EBCDIC
+The host character set is some variant of EBCDIC.  (Only one of the
+nineteen EBCDIC varying characters is tested; exercise caution.)
+@end ftable
+@end defvr
+
 @c alloca.c:26
 @deftypefn Replacement void* alloca (size_t @var{size})
 
@@ -29,7 +51,7 @@ pass a pointer to a pointer.  This function will compute the size of
 the buffer needed, allocate memory with @code{malloc}, and store a
 pointer to the allocated memory in @code{*@var{resptr}}.  The value
 returned is the same as @code{sprintf} would return.  If memory could
-not be allocated, zero is returned and @code{NULL} is stored in
+not be allocated, minus one is returned and @code{NULL} is stored in
 @code{*@var{resptr}}.
 
 @end deftypefn
@@ -276,7 +298,7 @@ itself.
 
 @end deftypefn
 
-@c getruntime.c:78
+@c getruntime.c:82
 @deftypefn Replacement long get_run_time (void)
 
 Returns the time used so far, in microseconds.  If possible, this is
@@ -317,16 +339,17 @@ between calls to @code{getpwd}.
 
 @end deftypefn
 
-@c hex.c:25
+@c hex.c:30
 @deftypefn Extension void hex_init (void)
 
 Initializes the array mapping the current character set to
 corresponding hex values.  This function must be called before any
-call to @code{hex_p} or @code{hex_value}.
+call to @code{hex_p} or @code{hex_value}.  If you fail to call it, a
+default ASCII-based table will normally be used on ASCII systems.
 
 @end deftypefn
 
-@c hex.c:33
+@c hex.c:39
 @deftypefn Extension int hex_p (int @var{c})
 
 Evaluates to non-zero if the given character is a valid hex character,
@@ -335,13 +358,19 @@ or zero if it is not.  Note that the value you pass will be cast to
 
 @end deftypefn
 
-@c hex.c:41
-@deftypefn Extension int hex_value (int @var{c})
+@c hex.c:47
+@deftypefn Extension unsigned int hex_value (int @var{c})
 
 Returns the numeric equivalent of the given character when interpreted
 as a hexidecimal digit.  The result is undefined if you pass an
 invalid hex digit.  Note that the value you pass will be cast to
 @code{unsigned char} within the macro.
+
+The @code{hex_value} macro returns @code{unsigned int}, rather than
+signed @code{int}, to make it easier to use in parsing addresses from
+hex dump files: a signed @code{int} would be sign-extended when
+converted to a wider unsigned type --- like @code{bfd_vma}, on some
+systems.
 
 @end deftypefn
 
@@ -375,6 +404,78 @@ struct qelem @{
 
 @end deftypefn
 
+@c safe-ctype.c:45
+@deffn  Extension ISALPHA  (@var{c})
+@deffnx Extension ISALNUM  (@var{c})
+@deffnx Extension ISBLANK  (@var{c})
+@deffnx Extension ISCNTRL  (@var{c})
+@deffnx Extension ISDIGIT  (@var{c})
+@deffnx Extension ISGRAPH  (@var{c})
+@deffnx Extension ISLOWER  (@var{c})
+@deffnx Extension ISPRINT  (@var{c})
+@deffnx Extension ISPUNCT  (@var{c})
+@deffnx Extension ISSPACE  (@var{c})
+@deffnx Extension ISUPPER  (@var{c})
+@deffnx Extension ISXDIGIT (@var{c})
+
+These twelve macros are defined by @file{safe-ctype.h}.  Each has the
+same meaning as the corresponding macro (with name in lowercase)
+defined by the standard header @file{ctype.h}.  For example,
+@code{ISALPHA} returns true for alphabetic characters and false for
+others.  However, there are two differences between these macros and
+those provided by @file{ctype.h}:
+
+@itemize @bullet
+@item These macros are guaranteed to have well-defined behavior for all 
+values representable by @code{signed char} and @code{unsigned char}, and
+for @code{EOF}.
+
+@item These macros ignore the current locale; they are true for these
+fixed sets of characters:
+@multitable {@code{XDIGIT}} {yada yada yada yada yada yada yada yada}
+@item @code{ALPHA}  @tab @kbd{A-Za-z}
+@item @code{ALNUM}  @tab @kbd{A-Za-z0-9}
+@item @code{BLANK}  @tab @kbd{space tab}
+@item @code{CNTRL}  @tab @code{!PRINT}
+@item @code{DIGIT}  @tab @kbd{0-9}
+@item @code{GRAPH}  @tab @code{ALNUM || PUNCT}
+@item @code{LOWER}  @tab @kbd{a-z}
+@item @code{PRINT}  @tab @code{GRAPH ||} @kbd{space}
+@item @code{PUNCT}  @tab @kbd{`~!@@#$%^&*()_-=+[@{]@}\|;:'",<.>/?}
+@item @code{SPACE}  @tab @kbd{space tab \n \r \f \v}
+@item @code{UPPER}  @tab @kbd{A-Z}
+@item @code{XDIGIT} @tab @kbd{0-9A-Fa-f}
+@end multitable
+
+Note that, if the host character set is ASCII or a superset thereof,
+all these macros will return false for all values of @code{char} outside
+the range of 7-bit ASCII.  In particular, both ISPRINT and ISCNTRL return
+false for characters with numeric values from 128 to 255.
+@end itemize
+@end deffn
+
+@c safe-ctype.c:94
+@deffn  Extension ISIDNUM         (@var{c})
+@deffnx Extension ISIDST          (@var{c})
+@deffnx Extension IS_VSPACE       (@var{c})
+@deffnx Extension IS_NVSPACE      (@var{c})
+@deffnx Extension IS_SPACE_OR_NUL (@var{c})
+@deffnx Extension IS_ISOBASIC     (@var{c})
+These six macros are defined by @file{safe-ctype.h} and provide
+additional character classes which are useful when doing lexical
+analysis of C or similar languages.  They are true for the following
+sets of characters:
+
+@multitable {@code{SPACE_OR_NUL}} {yada yada yada yada yada yada yada yada}
+@item @code{IDNUM}        @tab @kbd{A-Za-z0-9_}
+@item @code{IDST}         @tab @kbd{A-Za-z_}
+@item @code{VSPACE}       @tab @kbd{\r \n}
+@item @code{NVSPACE}      @tab @kbd{space tab \f \v \0}
+@item @code{SPACE_OR_NUL} @tab @code{VSPACE || NVSPACE}
+@item @code{ISOBASIC}     @tab @code{VSPACE || NVSPACE || PRINT}
+@end multitable
+@end deffn
+
 @c lbasename.c:23
 @deftypefn Replacement {const char*} lbasename (const char *@var{name})
 
@@ -388,6 +489,41 @@ strings for particular input.
 
 In particular, the empty string returns the same empty string,
 and a path ending in @code{/} returns the empty string after it.
+
+@end deftypefn
+
+@c lrealpath.c:25
+@deftypefn Replacement {const char*} lrealpath (const char *@var{name})
+
+Given a pointer to a string containing a pathname, returns a canonical
+version of the filename.  Symlinks will be resolved, and ``.'' and ``..''
+components will be simplified.  The returned value will be allocated using
+@code{malloc}, or @code{NULL} will be returned on a memory allocation error.
+
+@end deftypefn
+
+@c make-relative-prefix.c:24
+@deftypefn Extension {const char*} make_relative_prefix (const char *@var{progname}, const char *@var{bin_prefix}, const char *@var{prefix})
+
+Given three paths @var{progname}, @var{bin_prefix}, @var{prefix},
+return the path that is in the same position relative to
+@var{progname}'s directory as @var{prefix} is relative to
+@var{bin_prefix}.  That is, a string starting with the directory
+portion of @var{progname}, followed by a relative pathname of the
+difference between @var{bin_prefix} and @var{prefix}.
+
+If @var{progname} does not contain any directory separators,
+@code{make_relative_prefix} will search @env{PATH} to find a program
+named @var{progname}.  Also, if @var{progname} is a symbolic link,
+the symbolic link will be resolved.
+
+For example, if @var{bin_prefix} is @code{/alpha/beta/gamma/gcc/delta},
+@var{prefix} is @code{/alpha/beta/gamma/omega/}, and @var{progname} is
+@code{/red/green/blue/gcc}, then this function will return
+@code{/red/green/blue/../../omega/}.
+
+The return value is normally allocated via @code{malloc}.  If no
+relative prefix can be found, return @code{NULL}.
 
 @end deftypefn
 
@@ -440,6 +576,14 @@ Copies @var{count} bytes from memory area @var{from} to memory area
 
 @end deftypefn
 
+@c mempcpy.c:23
+@deftypefn Supplemental void* mempcpy (void *@var{out}, const void *@var{in}, size_t @var{length})
+
+Copies @var{length} bytes from memory region @var{in} to region
+@var{out}.  Returns a pointer to @var{out} + @var{length}.
+
+@end deftypefn
+
 @c memset.c:6
 @deftypefn Supplemental void* memset (void *@var{s}, int @var{c}, size_t @var{count})
 
@@ -466,7 +610,7 @@ reading and writing.
 
 @end deftypefn
 
-@c pexecute.c:67
+@c pexecute.txh:1
 @deftypefn Extension int pexecute (const char *@var{program}, char * const *@var{argv}, const char *@var{this_pname}, const char *@var{temp_base}, char **@var{errmsg_fmt}, char **@var{errmsg_arg}, int flags)
 
 Executes a program.
@@ -481,14 +625,15 @@ use if needed.  This is currently only needed for MS-DOS ports that
 don't use @code{go32} (do any still exist?).  Ports that don't need it
 can pass @code{NULL}.
 
-(@code{@var{flags} & PEXECUTE_SEARCH}) is non-zero if @env{PATH} should be searched
-(??? It's not clear that GCC passes this flag correctly).  (@code{@var{flags} &
-PEXECUTE_FIRST}) is nonzero for the first process in chain.
-(@code{@var{flags} & PEXECUTE_FIRST}) is nonzero for the last process
-in chain.  The first/last flags could be simplified to only mark the
-last of a chain of processes but that requires the caller to always
-mark the last one (and not give up early if some error occurs).
-It's more robust to require the caller to mark both ends of the chain.
+(@code{@var{flags} & PEXECUTE_SEARCH}) is non-zero if @env{PATH}
+should be searched (??? It's not clear that GCC passes this flag
+correctly).  (@code{@var{flags} & PEXECUTE_FIRST}) is nonzero for the
+first process in chain.  (@code{@var{flags} & PEXECUTE_FIRST}) is
+nonzero for the last process in chain.  The first/last flags could be
+simplified to only mark the last of a chain of processes but that
+requires the caller to always mark the last one (and not give up
+early if some error occurs).  It's more robust to require the caller
+to mark both ends of the chain.
 
 The result is the pid on systems like Unix where we
 @code{fork}/@code{exec} and on systems like WIN32 and OS/2 where we
@@ -523,21 +668,23 @@ name is unset/removed.
 
 @end deftypefn
 
-@c pexecute.c:104
+@c pexecute.txh:39
 @deftypefn Extension int pwait (int @var{pid}, int *@var{status}, int @var{flags})
 
 Waits for a program started by @code{pexecute} to finish.
 
 @var{pid} is the process id of the task to wait for. @var{status} is
-the `status' argument to wait. @var{flags} is currently unused (allows
-future enhancement without breaking upward compatibility).  Pass 0 for now.
+the `status' argument to wait. @var{flags} is currently unused
+(allows future enhancement without breaking upward compatibility).
+Pass 0 for now.
 
 The result is the pid of the child reaped, or -1 for failure
 (@code{errno} says why).
 
-On systems that don't support waiting for a particular child, @var{pid} is
-ignored.  On systems like MS-DOS that don't really multitask @code{pwait}
-is just a mechanism to provide a consistent interface for the caller.
+On systems that don't support waiting for a particular child,
+@var{pid} is ignored.  On systems like MS-DOS that don't really
+multitask @code{pwait} is just a mechanism to provide a consistent
+interface for the caller.
 
 @end deftypefn
 
@@ -626,12 +773,43 @@ be the value @code{1}).
 
 @end deftypefn
 
+@c snprintf.c:28
+@deftypefn Supplemental int snprintf (char *@var{buf}, size_t @var{n}, const char *@var{format}, ...)
+
+This function is similar to sprintf, but it will print at most @var{n}
+characters.  On error the return value is -1, otherwise it returns the
+number of characters that would have been printed had @var{n} been
+sufficiently large, regardless of the actual value of @var{n}.  Note
+some pre-C99 system libraries do not implement this correctly so users
+cannot generally rely on the return value if the system version of
+this function is used.
+
+@end deftypefn
+
 @c spaces.c:22
 @deftypefn Extension char* spaces (int @var{count})
 
 Returns a pointer to a memory region filled with the specified
 number of spaces and null terminated.  The returned pointer is
 valid until at least the next call.
+
+@end deftypefn
+
+@c stpcpy.c:23
+@deftypefn Supplemental char* stpcpy (char *@var{dst}, const char *@var{src})
+
+Copies the string @var{src} into @var{dst}.  Returns a pointer to
+@var{dst} + strlen(@var{src}).
+
+@end deftypefn
+
+@c stpncpy.c:23
+@deftypefn Supplemental char* stpncpy (char *@var{dst}, const char *@var{src}, size_t @var{len})
+
+Copies the string @var{src} into @var{dst}, copying exactly @var{len}
+and padding with zeros if necessary.  If @var{len} < strlen(@var{src})
+then return @var{dst} + @var{len}, otherwise returns @var{dst} +
+strlen(@var{src}).
 
 @end deftypefn
 
@@ -838,7 +1016,7 @@ you pass a pointer to a pointer.  This function will compute the size
 of the buffer needed, allocate memory with @code{malloc}, and store a
 pointer to the allocated memory in @code{*@var{resptr}}.  The value
 returned is the same as @code{vsprintf} would return.  If memory could
-not be allocated, zero is returned and @code{NULL} is stored in
+not be allocated, minus one is returned and @code{NULL} is stored in
 @code{*@var{resptr}}.
 
 @end deftypefn
@@ -861,6 +1039,19 @@ These functions are the same as @code{printf}, @code{fprintf}, and
 they do not call @code{va_end}; this is the application's
 responsibility.  In @libib{} they are implemented in terms of the
 nonstandard but common function @code{_doprnt}.
+
+@end deftypefn
+
+@c vsnprintf.c:28
+@deftypefn Supplemental int vsnprintf (char *@var{buf}, size_t @var{n}, const char *@var{format}, va_list @var{ap})
+
+This function is similar to vsprintf, but it will print at most
+@var{n} characters.  On error the return value is -1, otherwise it
+returns the number of characters that would have been printed had
+@var{n} been sufficiently large, regardless of the actual value of
+@var{n}.  Note some pre-C99 system libraries do not implement this
+correctly so users cannot generally rely on the return value if the
+system version of this function is used.
 
 @end deftypefn
 

@@ -1,5 +1,5 @@
 /* mri.h -- header file for MRI scripting functions
-   Copyright 1993, 1995, 1996 Free Software Foundation, Inc.
+   Copyright 1993, 1995, 1996, 2003 Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
@@ -22,18 +22,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 extern unsigned int symbol_truncate;
 
-extern void mri_output_section PARAMS ((const char *name, etree_type *vma));
-extern void mri_only_load PARAMS ((const char *name));
-extern void mri_base PARAMS ((etree_type *exp));
-extern void mri_load PARAMS ((const char *name));
-extern void mri_order PARAMS ((const char *name));
-extern void mri_alias PARAMS ((const char *want, const char *is, int isn));
-extern void mri_name PARAMS ((const char *name));
-extern void mri_format PARAMS ((const char *name));
-extern void mri_public PARAMS ((const char *name, etree_type *exp));
-extern void mri_align PARAMS ((const char *name, etree_type *exp));
-extern void mri_alignmod PARAMS ((const char *name, etree_type *exp));
-extern void mri_truncate PARAMS ((unsigned int exp));
-extern void mri_draw_tree PARAMS ((void));
+extern void mri_output_section (const char *, etree_type *);
+extern void mri_only_load (const char *);
+extern void mri_base (etree_type *);
+extern void mri_load (const char *);
+extern void mri_order (const char *);
+extern void mri_alias (const char *, const char *, int);
+extern void mri_name (const char *);
+extern void mri_format (const char *);
+extern void mri_public (const char *, etree_type *);
+extern void mri_align (const char *, etree_type *);
+extern void mri_alignmod (const char *, etree_type *);
+extern void mri_truncate (unsigned int);
+extern void mri_draw_tree (void);
 
 #endif

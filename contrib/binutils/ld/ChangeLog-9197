@@ -7574,7 +7574,7 @@ Tue Oct  8 16:00:57 1991  Per Bothner  (bothner at cygnus.com)
 	* Makefile.in: Add LIB_PATH macro, which if set is used to replace
 	the SEARCH_DIR commands in the scripts (using ugly sed magic).
 	This is primarily intended for cross-linking, where you would
-	place libaries in a different place than native libraries.
+	place libraries in a different place than native libraries.
 	Also, emulations made from ldtemplate now use $(srcdir).
 	* scripttempl/ldglda29k.sc:  Change SEARCH_DIR commands to a
 	conventional form; people can use the Makefile's LIB_PATH to

@@ -1,21 +1,21 @@
 /* M32R ELF support for BFD.
-   Copyright 1996, 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2003 Free Software Foundation, Inc.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation, Inc.,
+   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef _ELF_M32R_H
 #define _ELF_M32R_H
@@ -25,18 +25,48 @@ along with this program; if not, write to the Free Software Foundation, Inc.,
 /* Relocations.  */
 START_RELOC_NUMBERS (elf_m32r_reloc_type)
   RELOC_NUMBER (R_M32R_NONE, 0)
-  RELOC_NUMBER (R_M32R_16, 1)
-  RELOC_NUMBER (R_M32R_32, 2)
-  RELOC_NUMBER (R_M32R_24, 3)
-  RELOC_NUMBER (R_M32R_10_PCREL, 4)
-  RELOC_NUMBER (R_M32R_18_PCREL, 5)
-  RELOC_NUMBER (R_M32R_26_PCREL, 6)
-  RELOC_NUMBER (R_M32R_HI16_ULO, 7)
-  RELOC_NUMBER (R_M32R_HI16_SLO, 8)
-  RELOC_NUMBER (R_M32R_LO16, 9)
-  RELOC_NUMBER (R_M32R_SDA16, 10)
-  RELOC_NUMBER (R_M32R_GNU_VTINHERIT, 11)
-  RELOC_NUMBER (R_M32R_GNU_VTENTRY, 12)
+  /* REL relocations */
+  RELOC_NUMBER (R_M32R_16, 1)		 /* For backwards compatibility. */
+  RELOC_NUMBER (R_M32R_32, 2)		 /* For backwards compatibility. */
+  RELOC_NUMBER (R_M32R_24, 3)		 /* For backwards compatibility. */
+  RELOC_NUMBER (R_M32R_10_PCREL, 4)	 /* For backwards compatibility. */
+  RELOC_NUMBER (R_M32R_18_PCREL, 5)	 /* For backwards compatibility. */
+  RELOC_NUMBER (R_M32R_26_PCREL, 6)	 /* For backwards compatibility. */
+  RELOC_NUMBER (R_M32R_HI16_ULO, 7)	 /* For backwards compatibility. */
+  RELOC_NUMBER (R_M32R_HI16_SLO, 8)	 /* For backwards compatibility. */
+  RELOC_NUMBER (R_M32R_LO16, 9)		 /* For backwards compatibility. */
+  RELOC_NUMBER (R_M32R_SDA16, 10)	 /* For backwards compatibility. */
+  RELOC_NUMBER (R_M32R_GNU_VTINHERIT, 11)/* For backwards compatibility. */
+  RELOC_NUMBER (R_M32R_GNU_VTENTRY, 12)	 /* For backwards compatibility. */
+
+  /* RELA relocations */
+  RELOC_NUMBER (R_M32R_16_RELA, 33)
+  RELOC_NUMBER (R_M32R_32_RELA, 34)
+  RELOC_NUMBER (R_M32R_24_RELA, 35)
+  RELOC_NUMBER (R_M32R_10_PCREL_RELA, 36)
+  RELOC_NUMBER (R_M32R_18_PCREL_RELA, 37)
+  RELOC_NUMBER (R_M32R_26_PCREL_RELA, 38)
+  RELOC_NUMBER (R_M32R_HI16_ULO_RELA, 39)
+  RELOC_NUMBER (R_M32R_HI16_SLO_RELA, 40)
+  RELOC_NUMBER (R_M32R_LO16_RELA, 41)
+  RELOC_NUMBER (R_M32R_SDA16_RELA, 42)
+  RELOC_NUMBER (R_M32R_RELA_GNU_VTINHERIT, 43)
+  RELOC_NUMBER (R_M32R_RELA_GNU_VTENTRY, 44)
+                                                                                
+  RELOC_NUMBER (R_M32R_GOT24, 48)
+  RELOC_NUMBER (R_M32R_26_PLTREL, 49)
+  RELOC_NUMBER (R_M32R_COPY, 50)
+  RELOC_NUMBER (R_M32R_GLOB_DAT, 51)
+  RELOC_NUMBER (R_M32R_JMP_SLOT, 52)
+  RELOC_NUMBER (R_M32R_RELATIVE, 53)
+  RELOC_NUMBER (R_M32R_GOTOFF, 54)
+  RELOC_NUMBER (R_M32R_GOTPC24, 55)
+  RELOC_NUMBER (R_M32R_GOT16_HI_ULO, 56)
+  RELOC_NUMBER (R_M32R_GOT16_HI_SLO, 57)
+  RELOC_NUMBER (R_M32R_GOT16_LO, 58)
+  RELOC_NUMBER (R_M32R_GOTPC_HI_ULO, 59)
+  RELOC_NUMBER (R_M32R_GOTPC_HI_SLO, 60)
+  RELOC_NUMBER (R_M32R_GOTPC_LO, 61)
 END_RELOC_NUMBERS (R_M32R_max)
 
 /* Processor specific section indices.  These sections do not actually
@@ -62,6 +92,25 @@ END_RELOC_NUMBERS (R_M32R_max)
 /* m32r code.  */
 #define E_M32R_ARCH		0x00000000
 /* m32rx code.  */
-#define E_M32RX_ARCH		0x10000000
+#define E_M32RX_ARCH            0x10000000
+/* m32r2 code.  */
+#define E_M32R2_ARCH            0x20000000
+
+/* 12 bit m32r new instructions field.  */
+#define EF_M32R_INST            0x0FFF0000
+/* Parallel instructions.  */
+#define E_M32R_HAS_PARALLEL     0x00010000
+/* Hidden instructions for m32rx:
+   jc, jnc, macwhi-a, macwlo-a, mulwhi-a, mulwlo-a, sth+, shb+, sat, pcmpbz,
+   sc, snc.  */
+#define E_M32R_HAS_HIDDEN_INST  0x00020000
+/* New bit instructions:
+   clrpsw, setpsw, bset, bclr, btst.  */
+#define E_M32R_HAS_BIT_INST     0x00040000
+/* Floating point instructions.  */
+#define E_M32R_HAS_FLOAT_INST   0x00080000
+
+/* 4 bit m32r ignore to check field.  */
+#define EF_M32R_IGNORE          0x0000000F
 
 #endif

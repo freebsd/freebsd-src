@@ -33,7 +33,7 @@
  * were broken across buffers, and return a buffer of full lines to
  * the caller.
  * The last partial line begins the next buffer we build and return to caller.
- * The buffer returned to caller is preceeded by BEFORE_STRING and followed
+ * The buffer returned to caller is preceded by BEFORE_STRING and followed
  * by AFTER_STRING, as sentinels. The last character before AFTER_STRING
  * is a newline.
  * Also looks after line numbers, for e.g. error messages.
@@ -121,9 +121,9 @@ struct input_save {
   char *              saved_position;	/* Caller's saved position in buf.  */
 };
 
-static struct input_save *input_scrub_push PARAMS ((char *saved_position));
-static char *input_scrub_pop PARAMS ((struct input_save *arg));
-static void as_1_char PARAMS ((unsigned int c, FILE * stream));
+static struct input_save *input_scrub_push (char *saved_position);
+static char *input_scrub_pop (struct input_save *arg);
+static void as_1_char (unsigned int c, FILE * stream);
 
 /* Saved information about the file that .include'd this one.  When we hit EOF,
    we automatically pop to that file.  */
@@ -135,8 +135,7 @@ static struct input_save *next_saved_file;
    area, which can be restored by passing it to input_scrub_pop().  */
 
 static struct input_save *
-input_scrub_push (saved_position)
-     char *saved_position;
+input_scrub_push (char *saved_position)
 {
   register struct input_save *saved;
 
@@ -171,8 +170,7 @@ input_scrub_push (saved_position)
 }
 
 static char *
-input_scrub_pop (saved)
-     struct input_save *saved;
+input_scrub_pop (struct input_save *saved)
 {
   char *saved_position;
 
@@ -199,7 +197,7 @@ input_scrub_pop (saved)
 }
 
 void
-input_scrub_begin ()
+input_scrub_begin (void)
 {
   know (strlen (BEFORE_STRING) == BEFORE_SIZE);
   know (strlen (AFTER_STRING) == AFTER_SIZE
@@ -221,7 +219,7 @@ input_scrub_begin ()
 }
 
 void
-input_scrub_end ()
+input_scrub_end (void)
 {
   if (buffer_start)
     {
@@ -235,8 +233,7 @@ input_scrub_end ()
    Return start of caller's part of buffer.  */
 
 char *
-input_scrub_new_file (filename)
-     char *filename;
+input_scrub_new_file (char *filename)
 {
   input_file_open (filename, !flag_no_comments);
   physical_input_file = filename[0] ? filename : _("{standard input}");
@@ -251,9 +248,7 @@ input_scrub_new_file (filename)
    input_scrub_new_file.  */
 
 char *
-input_scrub_include_file (filename, position)
-     char *filename;
-     char *position;
+input_scrub_include_file (char *filename, char *position)
 {
   next_saved_file = input_scrub_push (position);
   return input_scrub_new_file (filename);
@@ -263,10 +258,7 @@ input_scrub_include_file (filename, position)
    expanding a macro.  */
 
 void
-input_scrub_include_sb (from, position, is_expansion)
-     sb *from;
-     char *position;
-     int is_expansion;
+input_scrub_include_sb (sb *from, char *position, int is_expansion)
 {
   if (macro_nest > max_macro_nest)
     as_fatal (_("macros nested too deeply"));
@@ -298,14 +290,13 @@ input_scrub_include_sb (from, position, is_expansion)
 }
 
 void
-input_scrub_close ()
+input_scrub_close (void)
 {
   input_file_close ();
 }
 
 char *
-input_scrub_next_buffer (bufp)
-     char **bufp;
+input_scrub_next_buffer (char **bufp)
 {
   register char *limit;		/*->just after last char of buffer.  */
 
@@ -414,13 +405,13 @@ input_scrub_next_buffer (bufp)
    messages and so on.  Return TRUE if we opened any file.  */
 
 int
-seen_at_least_1_file ()
+seen_at_least_1_file (void)
 {
   return (physical_input_file != NULL);
 }
 
 void
-bump_line_counters ()
+bump_line_counters (void)
 {
   if (sb_index < 0)
     {
@@ -439,9 +430,8 @@ bump_line_counters ()
    Returns nonzero if the filename actually changes.  */
 
 int
-new_logical_line (fname, line_number)
-     char *fname;		/* DON'T destroy it!  We point to it!  */
-     int line_number;
+new_logical_line (char *fname, /* DON'T destroy it!  We point to it!  */
+		  int line_number)
 {
   if (line_number >= 0)
     logical_input_line = line_number;
@@ -464,9 +454,7 @@ new_logical_line (fname, line_number)
    up declarations like that, and it's easier to avoid it.  */
 
 void
-as_where (namep, linep)
-     char **namep;
-     unsigned int *linep;
+as_where (char **namep, unsigned int *linep)
 {
   if (logical_input_file != NULL
       && (linep == NULL || logical_input_line >= 0))
@@ -494,8 +482,7 @@ as_where (namep, linep)
    No free '\n' at end of line.  */
 
 void
-as_howmuch (stream)
-     FILE *stream;		/* Opened for write please.  */
+as_howmuch (FILE *stream /* Opened for write please.  */)
 {
   register char *p;		/* Scan input line.  */
 
@@ -511,9 +498,7 @@ as_howmuch (stream)
 }
 
 static void
-as_1_char (c, stream)
-     unsigned int c;
-     FILE *stream;
+as_1_char (unsigned int c, FILE *stream)
 {
   if (c > 127)
     {

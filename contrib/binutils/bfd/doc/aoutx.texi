@@ -161,7 +161,7 @@ handle any last-minute setup.
 @subsubsection @code{aout_@var{size}_mkobject}
 @strong{Synopsis}
 @example
-boolean aout_@var{size}_mkobject, (bfd *abfd);
+bfd_boolean aout_@var{size}_mkobject, (bfd *abfd);
 @end example
 @strong{Description}@*
 Initialize BFD @var{abfd} for use with a.out files.
@@ -187,7 +187,7 @@ is always understood.
 @subsubsection @code{aout_@var{size}_set_arch_mach}
 @strong{Synopsis}
 @example
-boolean aout_@var{size}_set_arch_mach,
+bfd_boolean aout_@var{size}_set_arch_mach,
    (bfd *,
     enum bfd_architecture arch,
     unsigned long machine));
@@ -201,7 +201,7 @@ can support the architecture required.
 @subsubsection @code{aout_@var{size}_new_section_hook}
 @strong{Synopsis}
 @example
-boolean aout_@var{size}_new_section_hook,
+bfd_boolean aout_@var{size}_new_section_hook,
    (bfd *abfd,
     asection *newsect));
 @end example

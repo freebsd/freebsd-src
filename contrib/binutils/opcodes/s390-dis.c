@@ -57,7 +57,7 @@ init_disasm (info)
       current_arch_mask = 1 << S390_OPCODE_ESA;
       break;
     case bfd_mach_s390_64:
-      current_arch_mask = 1 << S390_OPCODE_ESAME;
+      current_arch_mask = 1 << S390_OPCODE_ZARCH;
       break;
     default:
       abort ();
@@ -88,6 +88,10 @@ s390_extract_operand (insn, operand)
   while (bits > 0);
   val >>= -bits;
   val &= ((1U << (operand->bits - 1)) << 1) - 1;
+
+  /* Check for special long displacement case.  */
+  if (operand->bits == 20 && operand->shift == 20)
+    val = (val & 0xff) << 12 | (val & 0xfff00) >> 8;
 
   /* Sign extend value if the operand is signed or pc relative.  */
   if ((operand->flags & (S390_OPERAND_SIGNED | S390_OPERAND_PCREL))
@@ -161,7 +165,7 @@ print_insn_s390 (memaddr, info)
 	  const unsigned char *opindex;
 
 	  /* Check architecture.  */
-	  if (!(opcode->architecture & current_arch_mask))
+	  if (!(opcode->modes & current_arch_mask))
 	    continue;
 	  /* Check signature of the opcode.  */
 	  if ((buffer[1] & opcode->mask[1]) != opcode->opcode[1]

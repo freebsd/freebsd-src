@@ -1,6 +1,6 @@
 /* tc-i386.h -- Header file for tc-i386.c
    Copyright 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001
+   2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -23,6 +23,10 @@
 #ifndef TC_I386
 #define TC_I386 1
 
+#ifndef BFD_ASSEMBLER
+#error So, do you know what you are doing?
+#endif
+
 #ifdef ANSI_PROTOTYPES
 struct fix;
 #endif
@@ -32,45 +36,6 @@ struct fix;
 #ifdef TE_LYNX
 #define TARGET_FORMAT		"coff-i386-lynx"
 #endif
-
-#ifdef BFD_ASSEMBLER
-/* This is used to determine relocation types in tc-i386.c.  The first
-   parameter is the current relocation type, the second one is the desired
-   type.  The idea is that if the original type is already some kind of PIC
-   relocation, we leave it alone, otherwise we give it the desired type */
-
-#define tc_fix_adjustable(X)  tc_i386_fix_adjustable(X)
-extern int tc_i386_fix_adjustable PARAMS ((struct fix *));
-
-#if (defined (OBJ_MAYBE_ELF) || defined (OBJ_ELF) || defined (OBJ_MAYBE_COFF) || defined (OBJ_COFF)) && !defined (TE_PE)
-/* This arranges for gas/write.c to not apply a relocation if
-   tc_fix_adjustable() says it is not adjustable.
-   The "! symbol_used_in_reloc_p" test is there specifically to cover
-   the case of non-global symbols in linkonce sections.  It's the
-   generally correct thing to do though;  If a reloc is going to be
-   emitted against a symbol then we don't want to adjust the fixup by
-   applying the reloc during assembly.  The reloc will be applied by
-   the linker during final link.  */
-#define TC_FIX_ADJUSTABLE(fixP) \
-  (! symbol_used_in_reloc_p ((fixP)->fx_addsy) && tc_fix_adjustable (fixP))
-#endif
-
-/* This expression evaluates to false if the relocation is for a local object
-   for which we still want to do the relocation at runtime.  True if we
-   are willing to perform this relocation while building the .o file.
-   This is only used for pcrel relocations, so GOTOFF does not need to be
-   checked here.  I am not sure if some of the others are ever used with
-   pcrel, but it is easier to be safe than sorry.  */
-
-#define TC_RELOC_RTSYM_LOC_FIXUP(FIX)				\
-  ((FIX)->fx_r_type != BFD_RELOC_386_PLT32			\
-   && (FIX)->fx_r_type != BFD_RELOC_386_GOT32			\
-   && (FIX)->fx_r_type != BFD_RELOC_386_GOTPC			\
-   && ((FIX)->fx_addsy == NULL					\
-       || (! S_IS_EXTERNAL ((FIX)->fx_addsy)			\
-	   && ! S_IS_WEAK ((FIX)->fx_addsy)			\
-	   && S_IS_DEFINED ((FIX)->fx_addsy)			\
-	   && ! S_IS_COMMON ((FIX)->fx_addsy))))
 
 #define TARGET_ARCH		bfd_arch_i386
 #define TARGET_MACH		(i386_mach ())
@@ -125,93 +90,7 @@ extern void i386_elf_emit_arch_note PARAMS ((void));
 
 #define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 0
 
-#else /* ! BFD_ASSEMBLER */
-
-/* COFF STUFF */
-
-#define COFF_MAGIC I386MAGIC
-#define BFD_ARCH bfd_arch_i386
-#define COFF_FLAGS F_AR32WR
-#define TC_COUNT_RELOC(x) ((x)->fx_addsy || (x)->fx_r_type==7)
-#define TC_COFF_FIX2RTYPE(fixP) tc_coff_fix2rtype(fixP)
-extern short tc_coff_fix2rtype PARAMS ((struct fix *));
-#define TC_COFF_SIZEMACHDEP(frag) tc_coff_sizemachdep (frag)
-extern int tc_coff_sizemachdep PARAMS ((fragS *frag));
-
-#ifdef TE_GO32
-/* DJGPP now expects some sections to be 2**4 aligned.  */
-#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN)					\
-  ((strcmp (obj_segment_name (SEG), ".text") == 0			\
-    || strcmp (obj_segment_name (SEG), ".data") == 0			\
-    || strcmp (obj_segment_name (SEG), ".bss") == 0			\
-    || strncmp (obj_segment_name (SEG), ".gnu.linkonce.t", 15) == 0	\
-    || strncmp (obj_segment_name (SEG), ".gnu.linkonce.d", 15) == 0	\
-    || strncmp (obj_segment_name (SEG), ".gnu.linkonce.r", 15) == 0)	\
-   ? 4									\
-   : 2)
-#else
-#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 2
-#endif
-
-#define TC_RVA_RELOC 7
-/* Need this for PIC relocations */
-#define NEED_FX_R_TYPE
-
-#ifdef TE_386BSD
-/* The BSDI linker apparently rejects objects with a machine type of
-   M_386 (100).  */
-#define AOUT_MACHTYPE 0
-#else
-#define AOUT_MACHTYPE 100
-#endif
-
-#undef REVERSE_SORT_RELOCS
-
-#endif /* ! BFD_ASSEMBLER */
-
-#ifndef LEX_AT
-#define TC_PARSE_CONS_EXPRESSION(EXP, NBYTES) x86_cons (EXP, NBYTES)
-extern void x86_cons PARAMS ((expressionS *, int));
-
-#define TC_CONS_FIX_NEW(FRAG,OFF,LEN,EXP) x86_cons_fix_new(FRAG, OFF, LEN, EXP)
-extern void x86_cons_fix_new
-  PARAMS ((fragS *, unsigned int, unsigned int, expressionS *));
-#endif
-
-#ifdef BFD_ASSEMBLER
-#define TC_FORCE_RELOCATION(FIXP)			\
-  ((FIXP)->fx_r_type == BFD_RELOC_VTABLE_INHERIT	\
-   || (FIXP)->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
-#else
-/* For COFF.  */
-#define TC_FORCE_RELOCATION(FIXP)			\
-  ((FIXP)->fx_r_type == 7)
-#endif
-
-#ifdef BFD_ASSEMBLER
-#define NO_RELOC BFD_RELOC_NONE
-#else
-#define NO_RELOC 0
-#endif
-#define tc_coff_symbol_emit_hook(a)	;	/* not used */
-
-#ifndef BFD_ASSEMBLER
-#ifndef OBJ_AOUT
-#ifndef TE_PE
-#ifndef TE_GO32
-/* Local labels starts with .L */
-#define LOCAL_LABEL(name) (name[0] == '.' \
-		 && (name[1] == 'L' || name[1] == 'X' || name[1] == '.'))
-#endif
-#endif
-#endif
-#endif
-
 #define LOCAL_LABELS_FB 1
-
-#define tc_aout_pre_write_hook(x)	{;}	/* not used */
-#define tc_crawl_symbol_chain(a)	{;}	/* not used */
-#define tc_headers_hook(a)		{;}	/* not used */
 
 extern const char extra_symbol_chars[];
 #define tc_symbol_chars extra_symbol_chars
@@ -314,13 +193,15 @@ typedef struct
 #define CpuSSE	       0x1000	/* Streaming SIMD extensions required */
 #define CpuSSE2	       0x2000	/* Streaming SIMD extensions 2 required */
 #define Cpu3dnow       0x4000	/* 3dnow! support required */
+#define CpuPNI	       0x8000	/* Prescott New Instructions required */
+#define CpuPadLock    0x10000	/* VIA PadLock required */
 
   /* These flags are set by gas depending on the flag_code.  */
 #define Cpu64	     0x4000000   /* 64bit support required  */
 #define CpuNo64      0x8000000   /* Not supported in the 64bit mode  */
 
   /* The default value for unknown CPUs - enable all features to avoid problems.  */
-#define CpuUnknownFlags (Cpu086|Cpu186|Cpu286|Cpu386|Cpu486|Cpu586|Cpu686|CpuP4|CpuSledgehammer|CpuMMX|CpuSSE|CpuSSE2|Cpu3dnow|CpuK6|CpuAthlon)
+#define CpuUnknownFlags (Cpu086|Cpu186|Cpu286|Cpu386|Cpu486|Cpu586|Cpu686|CpuP4|CpuSledgehammer|CpuMMX|CpuSSE|CpuSSE2|CpuPNI|Cpu3dnow|CpuK6|CpuAthlon|CpuPadLock)
 
   /* the bits in opcode_modifier are used to generate the final opcode from
      the base_opcode.  These bits also are used to detect alternate forms of
@@ -518,21 +399,66 @@ arch_entry;
 #define GLOBAL_OFFSET_TABLE_NAME "_GLOBAL_OFFSET_TABLE_"
 #endif
 
-#ifdef BFD_ASSEMBLER
-void i386_validate_fix PARAMS ((struct fix *));
-#define TC_VALIDATE_FIX(FIXP,SEGTYPE,SKIP) i386_validate_fix(FIXP)
+#ifndef LEX_AT
+#define TC_PARSE_CONS_EXPRESSION(EXP, NBYTES) x86_cons (EXP, NBYTES)
+extern void x86_cons PARAMS ((expressionS *, int));
+
+#define TC_CONS_FIX_NEW(FRAG,OFF,LEN,EXP) x86_cons_fix_new(FRAG, OFF, LEN, EXP)
+extern void x86_cons_fix_new
+  PARAMS ((fragS *, unsigned int, unsigned int, expressionS *));
 #endif
 
-#endif /* TC_I386 */
+#define DIFF_EXPR_OK    /* foo-. gets turned into PC relative relocs */
+
+#define NO_RELOC BFD_RELOC_NONE
+
+void i386_validate_fix PARAMS ((struct fix *));
+#define TC_VALIDATE_FIX(FIX,SEGTYPE,SKIP) i386_validate_fix(FIX)
+
+#define tc_fix_adjustable(X)  tc_i386_fix_adjustable(X)
+extern int tc_i386_fix_adjustable PARAMS ((struct fix *));
+
+/* Values passed to md_apply_fix3 don't include the symbol value.  */
+#define MD_APPLY_SYM_VALUE(FIX) 0
+
+/* ELF wants external syms kept, as does PE COFF.  */
+#if defined (TE_PE) && defined (STRICT_PE_FORMAT)
+#define EXTERN_FORCE_RELOC				\
+  (OUTPUT_FLAVOR == bfd_target_elf_flavour		\
+   || OUTPUT_FLAVOR == bfd_target_coff_flavour)
+#else
+#define EXTERN_FORCE_RELOC				\
+  (OUTPUT_FLAVOR == bfd_target_elf_flavour)
+#endif
+
+/* This expression evaluates to true if the relocation is for a local
+   object for which we still want to do the relocation at runtime.
+   False if we are willing to perform this relocation while building
+   the .o file.  GOTOFF does not need to be checked here because it is
+   not pcrel.  I am not sure if some of the others are ever used with
+   pcrel, but it is easier to be safe than sorry.  */
+
+#define TC_FORCE_RELOCATION_LOCAL(FIX)			\
+  (!(FIX)->fx_pcrel					\
+   || (FIX)->fx_plt					\
+   || (FIX)->fx_r_type == BFD_RELOC_386_PLT32		\
+   || (FIX)->fx_r_type == BFD_RELOC_386_GOT32		\
+   || (FIX)->fx_r_type == BFD_RELOC_386_GOTPC		\
+   || TC_FORCE_RELOCATION (FIX))
 
 #define md_operand(x)
 
 extern const struct relax_type md_relax_table[];
 #define TC_GENERIC_RELAX_TABLE md_relax_table
 
+extern int optimize_align_code;
+
 #define md_do_align(n, fill, len, max, around)				\
-if ((n) && !need_pass_2							\
-    && (!(fill) || ((char)*(fill) == (char)0x90 && (len) == 1))		\
+if ((n)									\
+    && !need_pass_2							\
+    && optimize_align_code						\
+    && (!(fill)								\
+	|| ((char)*(fill) == (char)0x90 && (len) == 1))			\
     && subseg_text_p (now_seg))						\
   {									\
     frag_align_code ((n), (max));					\
@@ -559,4 +485,19 @@ void i386_print_statistics PARAMS ((FILE *));
 extern void sco_id PARAMS ((void));
 #endif
 
-#define DIFF_EXPR_OK    /* foo-. gets turned into PC relative relocs */
+/* We want .cfi_* pseudo-ops for generating unwind info.  */
+#define TARGET_USE_CFIPOP 1
+
+extern unsigned int x86_dwarf2_return_column;
+#define DWARF2_DEFAULT_RETURN_COLUMN x86_dwarf2_return_column
+
+extern int x86_cie_data_alignment;
+#define DWARF2_CIE_DATA_ALIGNMENT x86_cie_data_alignment
+
+#define tc_regname_to_dw2regnum tc_x86_regname_to_dw2regnum
+extern int tc_x86_regname_to_dw2regnum PARAMS ((const char *regname));
+
+#define tc_cfi_frame_initial_instructions tc_x86_frame_initial_instructions
+extern void tc_x86_frame_initial_instructions PARAMS ((void));
+
+#endif /* TC_I386 */

@@ -1,5 +1,5 @@
 /* IEEE-695 object file formats:  definitions internal to BFD.
-   Copyright 1990, 1991, 1992, 1994, 1996, 2001
+   Copyright 1990, 1991, 1992, 1994, 1996, 2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.  Mostly Steve Chamberlain's fault.
 
@@ -56,7 +56,7 @@ typedef struct ieee_per_section
   /* For output */
   file_ptr current_pos;
   unsigned int current_byte;
-  boolean initialized;
+  bfd_boolean initialized;
   ieee_reloc_type **reloc_tail_ptr;
 } ieee_per_section_type;
 
@@ -72,8 +72,8 @@ typedef struct {
 typedef struct ieee_data_struct
 {
   common_header_type h;
-  boolean read_symbols;
-  boolean read_data;
+  bfd_boolean read_symbols;
+  bfd_boolean read_data;
   file_ptr output_cursor;
   /* Map of section indexes to section ptrs */
   asection **section_table;
@@ -103,10 +103,10 @@ typedef struct ieee_data_struct
   int external_reference_base_offset;
 
 
-  boolean symbol_table_full;
+  bfd_boolean symbol_table_full;
 
 
-boolean done_debug;
+bfd_boolean done_debug;
 
 
 bfd_chain_type *chain_head;

@@ -27,7 +27,7 @@ The BFD contains the result of an executable core dump.
 @subsubsection @code{bfd_check_format}
 @strong{Synopsis}
 @example
-boolean bfd_check_format(bfd *abfd, bfd_format format);
+bfd_boolean bfd_check_format (bfd *abfd, bfd_format format);
 @end example
 @strong{Description}@*
 Verify if the file attached to the BFD @var{abfd} is compatible
@@ -42,7 +42,7 @@ interrogated to determine a match.  If the default target
 matches, it is used.  If not, exactly one target must recognize
 the file, or an error results.
 
-The function returns @code{true} on success, otherwise @code{false}
+The function returns @code{TRUE} on success, otherwise @code{FALSE}
 with one of the following error codes:
 
 @itemize @bullet
@@ -70,10 +70,11 @@ more than one backend recognised the file format.
 @subsubsection @code{bfd_check_format_matches}
 @strong{Synopsis}
 @example
-boolean bfd_check_format_matches(bfd *abfd, bfd_format format, char ***matching);
+bfd_boolean bfd_check_format_matches
+   (bfd *abfd, bfd_format format, char ***matching);
 @end example
 @strong{Description}@*
-Like @code{bfd_check_format}, except when it returns false with
+Like @code{bfd_check_format}, except when it returns FALSE with
 @code{bfd_errno} set to @code{bfd_error_file_ambiguously_recognized}.  In that
 case, if @var{matching} is not NULL, it will be filled in with
 a NULL-terminated list of the names of the formats that matched,
@@ -87,7 +88,7 @@ should free it.
 @subsubsection @code{bfd_set_format}
 @strong{Synopsis}
 @example
-boolean bfd_set_format(bfd *abfd, bfd_format format);
+bfd_boolean bfd_set_format (bfd *abfd, bfd_format format);
 @end example
 @strong{Description}@*
 This function sets the file format of the BFD @var{abfd} to the
@@ -99,7 +100,7 @@ is not open for writing, then an error occurs.
 @subsubsection @code{bfd_format_string}
 @strong{Synopsis}
 @example
-const char *bfd_format_string(bfd_format format);
+const char *bfd_format_string (bfd_format format);
 @end example
 @strong{Description}@*
 Return a pointer to a const string

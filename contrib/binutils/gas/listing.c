@@ -1,27 +1,26 @@
-/* listing.c - mainting assembly listings
+/* listing.c - maintain assembly listings
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002
+   2001, 2002, 2003
    Free Software Foundation, Inc.
 
-This file is part of GAS, the GNU Assembler.
+   This file is part of GAS, the GNU Assembler.
 
-GAS is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+   GAS is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
 
-GAS is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   GAS is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GAS; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with GAS; see the file COPYING.  If not, write to the Free
+   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
-/*
- Contributed by Steve Chamberlain <sac@cygnus.com>
+/* Contributed by Steve Chamberlain <sac@cygnus.com>
 
  A listing page looks like:
 
@@ -65,7 +64,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
  The function listing_newline remembers the frag associated with the
  newline, and creates a new frag - note that this is wasteful, but not
  a big deal, since listing slows things down a lot anyway.  The
- function also rememebers when the filename changes.
+ function also remembers when the filename changes.
 
  When all the input has finished, and gas has had a chance to settle
  down, the listing is output. This is done by running down the list of
@@ -86,10 +85,9 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
  LISTING_LHS_WIDTH_SECOND   Number of words for the data on the lhs
  			for the second line
 
- LISTING_LHS_CONT_LINES	Max number of lines to use up for a continutation
+ LISTING_LHS_CONT_LINES	Max number of lines to use up for a continuation
  LISTING_RHS_WIDTH      Number of chars from the input file to print
-                        on a line
-*/
+                        on a line.  */
 
 #include "as.h"
 #include "obstack.h"
@@ -119,7 +117,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #endif
 
 /* This structure remembers which .s were used.  */
-typedef struct file_info_struct {
+typedef struct file_info_struct
+{
   struct file_info_struct * next;
   char *                    filename;
   long                      pos;
@@ -127,14 +126,16 @@ typedef struct file_info_struct {
   int                       at_end;
 } file_info_type;
 
-/* This structure rememebrs which line from which file goes into which
+/* This structure remembers which line from which file goes into which
    frag.  */
-struct list_info_struct {
+struct list_info_struct
+{
   /* Frag which this line of source is nearest to.  */
   fragS *frag;
 
   /* The actual line in the source file.  */
   unsigned int line;
+
   /* Pointer to the file info struct for the file which this line
      belongs to.  */
   file_info_type *file;
@@ -148,21 +149,23 @@ struct list_info_struct {
   /* Pointer to the file info struct for the high level language
      source line that belongs here.  */
   file_info_type *hll_file;
+
   /* High level language source line.  */
   unsigned int hll_line;
 
   /* Pointer to any error message associated with this line.  */
   char *message;
 
-  enum {
-    EDICT_NONE,
-    EDICT_SBTTL,
-    EDICT_TITLE,
-    EDICT_NOLIST,
-    EDICT_LIST,
-    EDICT_NOLIST_NEXT,
-    EDICT_EJECT
-  } edict;
+  enum
+    {
+      EDICT_NONE,
+      EDICT_SBTTL,
+      EDICT_TITLE,
+      EDICT_NOLIST,
+      EDICT_LIST,
+      EDICT_NOLIST_NEXT,
+      EDICT_EJECT
+    } edict;
   char *edict_arg;
 
   /* Nonzero if this line is to be omitted because it contains
@@ -204,27 +207,20 @@ static FILE *list_file;
 static char *data_buffer;
 
 /* Prototypes.  */
-static void listing_message PARAMS ((const char *name, const char *message));
-static file_info_type *file_info PARAMS ((const char *file_name));
-static void new_frag PARAMS ((void));
-static char *buffer_line PARAMS ((file_info_type *file,
-				  char *line, unsigned int size));
-static void listing_page PARAMS ((list_info_type *list));
-static unsigned int calc_hex PARAMS ((list_info_type *list));
-static void print_lines PARAMS ((list_info_type *, unsigned int,
-				 char *, unsigned int));
-static void list_symbol_table PARAMS ((void));
-static void print_source PARAMS ((file_info_type *current_file,
-				  list_info_type *list,
-				  char *buffer,
-				  unsigned int width));
-static int debugging_pseudo PARAMS ((list_info_type *, const char *));
-static void listing_listing PARAMS ((char *name));
+static void listing_message (const char *, const char *);
+static file_info_type *file_info (const char *);
+static void new_frag (void);
+static char *buffer_line (file_info_type *, char *, unsigned int);
+static void listing_page (list_info_type *);
+static unsigned int calc_hex (list_info_type *);
+static void print_lines (list_info_type *, unsigned int, char *, unsigned int);
+static void list_symbol_table (void);
+static void print_source (file_info_type *, list_info_type *, char *, unsigned int);
+static int debugging_pseudo (list_info_type *, const char *);
+static void listing_listing (char *);
 
 static void
-listing_message (name, message)
-     const char *name;
-     const char *message;
+listing_message (const char *name, const char *message)
 {
   if (listing_tail != (list_info_type *) NULL)
     {
@@ -237,22 +233,19 @@ listing_message (name, message)
 }
 
 void
-listing_warning (message)
-     const char *message;
+listing_warning (const char *message)
 {
   listing_message (_("Warning:"), message);
 }
 
 void
-listing_error (message)
-     const char *message;
+listing_error (const char *message)
 {
   listing_message (_("Error:"), message);
 }
 
 static file_info_type *
-file_info (file_name)
-     const char *file_name;
+file_info (const char *file_name)
 {
   /* Find an entry with this file name.  */
   file_info_type *p = file_info_head;
@@ -265,8 +258,7 @@ file_info (file_name)
     }
 
   /* Make new entry.  */
-
-  p = (file_info_type *) xmalloc (sizeof (file_info_type));
+  p = xmalloc (sizeof (file_info_type));
   p->next = file_info_head;
   file_info_head = p;
   p->filename = xstrdup (file_name);
@@ -278,17 +270,14 @@ file_info (file_name)
 }
 
 static void
-new_frag ()
+new_frag (void)
 {
-
   frag_wane (frag_now);
   frag_new (0);
-
 }
 
 void
-listing_newline (ps)
-     char *ps;
+listing_newline (char *ps)
 {
   char *file;
   unsigned int line;
@@ -382,7 +371,7 @@ listing_newline (ps)
     }
   else
     {
-      new = (list_info_type *) xmalloc (sizeof (list_info_type));
+      new = xmalloc (sizeof (list_info_type));
       new->line_contents = ps;
     }
 
@@ -432,7 +421,7 @@ listing_newline (ps)
    with the new instruction.  */
 
 void
-listing_prev_line ()
+listing_prev_line (void)
 {
   list_info_type *l;
   fragS *f;
@@ -459,10 +448,7 @@ listing_prev_line ()
    file to make.  */
 
 static char *
-buffer_line (file, line, size)
-     file_info_type *file;
-     char *line;
-     unsigned int size;
+buffer_line (file_info_type *file, char *line, unsigned int size)
 {
   unsigned int count = 0;
   int c;
@@ -533,8 +519,7 @@ static char *subtitle;		/* Current subtitle */
 static unsigned int on_page;	/* Number of lines printed on current page */
 
 static void
-listing_page (list)
-     list_info_type *list;
+listing_page (list_info_type *list)
 {
   /* Grope around, see if we can see a title or subtitle edict coming up
      soon.  (we look down 10 lines of the page and see if it's there)  */
@@ -577,8 +562,7 @@ listing_page (list)
 }
 
 static unsigned int
-calc_hex (list)
-     list_info_type *list;
+calc_hex (list_info_type *list)
 {
   int data_buffer_size;
   list_info_type *first = list;
@@ -605,9 +589,7 @@ calc_hex (list)
 	     && data_buffer_size < MAX_BYTES - 3)
 	{
 	  if (address == ~(unsigned int) 0)
-	    {
-	      address = frag_ptr->fr_address / OCTETS_PER_BYTE;
-	    }
+	    address = frag_ptr->fr_address / OCTETS_PER_BYTE;
 
 	  sprintf (data_buffer + data_buffer_size,
 		   "%02X",
@@ -626,9 +608,8 @@ calc_hex (list)
 		 && data_buffer_size < MAX_BYTES - 3)
 	    {
 	      if (address == ~(unsigned int) 0)
-		{
-		  address = frag_ptr->fr_address / OCTETS_PER_BYTE;
-		}
+		address = frag_ptr->fr_address / OCTETS_PER_BYTE;
+
 	      sprintf (data_buffer + data_buffer_size,
 		       "%02X",
 		       (frag_ptr->fr_literal[var_rep_idx]) & 0xff);
@@ -653,11 +634,8 @@ calc_hex (list)
 }
 
 static void
-print_lines (list, lineno, string, address)
-     list_info_type *list;
-     unsigned int lineno;
-     char *string;
-     unsigned int address;
+print_lines (list_info_type *list, unsigned int lineno,
+	     char *string, unsigned int address)
 {
   unsigned int idx;
   unsigned int nchars;
@@ -761,7 +739,7 @@ print_lines (list, lineno, string, address)
 }
 
 static void
-list_symbol_table ()
+list_symbol_table (void)
 {
   extern symbolS *symbol_rootP;
   int got_some = 0;
@@ -869,11 +847,8 @@ list_symbol_table ()
 }
 
 static void
-print_source (current_file, list, buffer, width)
-     file_info_type *current_file;
-     list_info_type *list;
-     char *buffer;
-     unsigned int width;
+print_source (file_info_type *current_file, list_info_type *list,
+	      char *buffer, unsigned int width)
 {
   if (!current_file->at_end)
     {
@@ -881,6 +856,7 @@ print_source (current_file, list, buffer, width)
 	     && !current_file->at_end)
 	{
 	  char *p = buffer_line (current_file, buffer, width);
+
 	  fprintf (list_file, "%4u:%-13s **** %s\n", current_file->linenum,
 		   current_file->filename, p);
 	  on_page++;
@@ -893,9 +869,7 @@ print_source (current_file, list, buffer, width)
    records inserted by the compiler, see if the line is suspicious.  */
 
 static int
-debugging_pseudo (list, line)
-     list_info_type *list;
-     const char *line;
+debugging_pseudo (list_info_type *list, const char *line)
 {
   static int in_debug;
   int was_debug;
@@ -955,7 +929,6 @@ debugging_pseudo (list, line)
     return 1;
   if (strncmp (line, "tag", 3) == 0)
     return 1;
-
   if (strncmp (line, "stabs", 5) == 0)
     return 1;
   if (strncmp (line, "stabn", 5) == 0)
@@ -965,8 +938,7 @@ debugging_pseudo (list, line)
 }
 
 static void
-listing_listing (name)
-     char *name ATTRIBUTE_UNUSED;
+listing_listing (char *name ATTRIBUTE_UNUSED)
 {
   list_info_type *list = head;
   file_info_type *current_hll_file = (file_info_type *) NULL;
@@ -986,7 +958,6 @@ listing_listing (name)
       if (list->next)
 	list->frag = list->next->frag;
       list = list->next;
-
     }
 
   list = head->next;
@@ -1048,24 +1019,19 @@ listing_listing (name)
 	  message = 0;
 
 	  if (list->hll_file)
-	    {
-	      current_hll_file = list->hll_file;
-	    }
+	    current_hll_file = list->hll_file;
 
 	  if (current_hll_file && list->hll_line && (listing & LISTING_HLL))
-	    {
-	      print_source (current_hll_file, list, buffer, width);
-	    }
+	    print_source (current_hll_file, list, buffer, width);
 
 	  if (list->line_contents)
 	    {
 	      if (!((listing & LISTING_NODEBUG)
 		    && debugging_pseudo (list, list->line_contents)))
-		{
-		  print_lines (list,
-			       list->file->linenum == 0 ? list->line : list->file->linenum,
-			       list->line_contents, calc_hex (list));
-		}
+		print_lines (list,
+			     list->file->linenum == 0 ? list->line : list->file->linenum,
+			     list->line_contents, calc_hex (list));
+
 	      free (list->line_contents);
 	      list->line_contents = NULL;
 	    }
@@ -1090,9 +1056,7 @@ listing_listing (name)
 	    }
 
 	  if (list->edict == EDICT_EJECT)
-	    {
-	      eject = 1;
-	    }
+	    eject = 1;
 	}
 
       if (list->edict == EDICT_NOLIST_NEXT && show_listing == 1)
@@ -1107,8 +1071,7 @@ listing_listing (name)
 }
 
 void
-listing_print (name)
-     char *name;
+listing_print (char *name)
 {
   int using_stdout;
 
@@ -1127,6 +1090,9 @@ listing_print (name)
 	using_stdout = 0;
       else
 	{
+#ifdef BFD_ASSEMBLER
+      bfd_set_error (bfd_error_system_call);
+#endif
 	  as_perror (_("can't open list file: %s"), name);
 	  list_file = stdout;
 	  using_stdout = 1;
@@ -1134,50 +1100,44 @@ listing_print (name)
     }
 
   if (listing & LISTING_NOFORM)
-    {
-      paper_height = 0;
-    }
+    paper_height = 0;
 
   if (listing & LISTING_LISTING)
-    {
-      listing_listing (name);
-    }
+    listing_listing (name);
 
   if (listing & LISTING_SYMBOLS)
-    {
-      list_symbol_table ();
-    }
+    list_symbol_table ();
 
   if (! using_stdout)
     {
       if (fclose (list_file) == EOF)
-	as_perror (_("error closing list file: %s"), name);
+	{
+#ifdef BFD_ASSEMBLER
+	  bfd_set_error (bfd_error_system_call);
+#endif
+	  as_perror (_("error closing list file: %s"), name);
+	}
     }
 
   if (last_open_file)
-    {
-      fclose (last_open_file);
-    }
+    fclose (last_open_file);
 }
 
 void
-listing_file (name)
-     const char *name;
+listing_file (const char *name)
 {
   fn = name;
 }
 
 void
-listing_eject (ignore)
-     int ignore ATTRIBUTE_UNUSED;
+listing_eject (int ignore ATTRIBUTE_UNUSED)
 {
   if (listing)
     listing_tail->edict = EDICT_EJECT;
 }
 
 void
-listing_flags (ignore)
-     int ignore ATTRIBUTE_UNUSED;
+listing_flags (int ignore ATTRIBUTE_UNUSED)
 {
   while ((*input_line_pointer++) && (*input_line_pointer != '\n'))
     input_line_pointer++;
@@ -1190,8 +1150,7 @@ listing_flags (ignore)
    the current line should be listed, but the next line should not.  */
 
 void
-listing_list (on)
-     int on;
+listing_list (int on)
 {
   if (listing)
     {
@@ -1220,8 +1179,7 @@ listing_list (on)
 }
 
 void
-listing_psize (width_only)
-     int width_only;
+listing_psize (int width_only)
 {
   if (! width_only)
     {
@@ -1248,15 +1206,13 @@ listing_psize (width_only)
 }
 
 void
-listing_nopage (ignore)
-     int ignore ATTRIBUTE_UNUSED;
+listing_nopage (int ignore ATTRIBUTE_UNUSED)
 {
   paper_height = 0;
 }
 
 void
-listing_title (depth)
-     int depth;
+listing_title (int depth)
 {
   int quoted;
   char *start;
@@ -1308,8 +1264,7 @@ listing_title (depth)
 }
 
 void
-listing_source_line (line)
-     unsigned int line;
+listing_source_line (unsigned int line)
 {
   if (listing)
     {
@@ -1320,8 +1275,7 @@ listing_source_line (line)
 }
 
 void
-listing_source_file (file)
-     const char *file;
+listing_source_file (const char *file)
 {
   if (listing)
     listing_tail->hll_file = file_info (file);
@@ -1332,73 +1286,59 @@ listing_source_file (file)
 /* Dummy functions for when compiled without listing enabled.  */
 
 void
-listing_flags (ignore)
-     int ignore;
+listing_flags (int ignore)
 {
   s_ignore (0);
 }
 
 void
-listing_list (on)
-     int on;
+listing_list (int on)
 {
   s_ignore (0);
 }
 
 void
-listing_eject (ignore)
-     int ignore;
+listing_eject (int ignore)
 {
   s_ignore (0);
 }
 
 void
-listing_psize (ignore)
-     int ignore;
+listing_psize (int ignore)
 {
   s_ignore (0);
 }
 
 void
-listing_nopage (ignore)
-     int ignore;
+listing_nopage (int ignore)
 {
   s_ignore (0);
 }
 
 void
-listing_title (depth)
-     int depth;
+listing_title (int depth)
 {
   s_ignore (0);
 }
 
 void
-listing_file (name)
-     const char *name;
+listing_file (const char *name)
 {
-
 }
 
 void
-listing_newline (name)
-     char *name;
+listing_newline (char *name)
 {
-
 }
 
 void
-listing_source_line (n)
-     unsigned int n;
+listing_source_line (unsigned int n)
 {
-
 }
 
 void
-listing_source_file (n)
-     const char *n;
+listing_source_file (const char *n)
 {
-
 }
 
 #endif

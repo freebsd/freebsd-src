@@ -1,5 +1,5 @@
 /* BFD backend for core files which use the ptrace_user structure
-   Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2001, 2002
+   Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
    The structure of this file is based on trad-core.c written by John Gilmore
    of Cygnus Support.
@@ -49,13 +49,12 @@ struct trad_core_struct
 /* forward declarations */
 
 const bfd_target *ptrace_unix_core_file_p PARAMS ((bfd *abfd));
-char *		ptrace_unix_core_file_failing_command PARAMS ((bfd *abfd));
-int		ptrace_unix_core_file_failing_signal PARAMS ((bfd *abfd));
-boolean		ptrace_unix_core_file_matches_executable_p
-			 PARAMS ((bfd *core_bfd, bfd *exec_bfd));
-static void	swap_abort PARAMS ((void));
+char * ptrace_unix_core_file_failing_command PARAMS ((bfd *abfd));
+int ptrace_unix_core_file_failing_signal PARAMS ((bfd *abfd));
+bfd_boolean ptrace_unix_core_file_matches_executable_p
+  PARAMS ((bfd *core_bfd, bfd *exec_bfd));
+static void swap_abort PARAMS ((void));
 
-/* ARGSUSED */
 const bfd_target *
 ptrace_unix_core_file_p (abfd)
      bfd *abfd;
@@ -146,7 +145,6 @@ ptrace_unix_core_file_failing_command (abfd)
     return 0;
 }
 
-/* ARGSUSED */
 int
 ptrace_unix_core_file_failing_signal (abfd)
      bfd *abfd;
@@ -154,14 +152,13 @@ ptrace_unix_core_file_failing_signal (abfd)
   return abfd->tdata.trad_core_data->u.pt_sigframe.sig_num;
 }
 
-/* ARGSUSED */
-boolean
+bfd_boolean
 ptrace_unix_core_file_matches_executable_p  (core_bfd, exec_bfd)
      bfd *core_bfd, *exec_bfd;
 {
   /* FIXME: Use pt_timdat field of the ptrace_user structure to match
      the date of the executable */
-  return true;
+  return TRUE;
 }
 
 /* If somebody calls any byte-swapping routines, shoot them.  */
@@ -170,10 +167,13 @@ swap_abort ()
 {
   abort (); /* This way doesn't require any declaration for ANSI to fuck up */
 }
-#define	NO_GET	((bfd_vma (*) PARAMS ((   const bfd_byte *))) swap_abort )
-#define	NO_PUT	((void    (*) PARAMS ((bfd_vma, bfd_byte *))) swap_abort )
-#define	NO_SIGNED_GET \
-  ((bfd_signed_vma (*) PARAMS ((const bfd_byte *))) swap_abort )
+
+#define	NO_GET ((bfd_vma (*) (const void *)) swap_abort)
+#define	NO_PUT ((void (*) (bfd_vma, void *)) swap_abort)
+#define	NO_GETS ((bfd_signed_vma (*) (const void *)) swap_abort)
+#define	NO_GET64 ((bfd_uint64_t (*) (const void *)) swap_abort)
+#define	NO_PUT64 ((void (*) (bfd_uint64_t, void *)) swap_abort)
+#define	NO_GETS64 ((bfd_int64_t (*) (const void *)) swap_abort)
 
 const bfd_target ptrace_core_vec =
   {
@@ -188,41 +188,41 @@ const bfd_target ptrace_core_vec =
     0,			                                   /* symbol prefix */
     ' ',						   /* ar_pad_char */
     16,							   /* ar_max_namelen */
-    NO_GET, NO_SIGNED_GET, NO_PUT,	/* 64 bit data */
-    NO_GET, NO_SIGNED_GET, NO_PUT,	/* 32 bit data */
-    NO_GET, NO_SIGNED_GET, NO_PUT,	/* 16 bit data */
-    NO_GET, NO_SIGNED_GET, NO_PUT,	/* 64 bit hdrs */
-    NO_GET, NO_SIGNED_GET, NO_PUT,	/* 32 bit hdrs */
-    NO_GET, NO_SIGNED_GET, NO_PUT,	/* 16 bit hdrs */
+    NO_GET64, NO_GETS64, NO_PUT64,	/* 64 bit data */
+    NO_GET, NO_GETS, NO_PUT,		/* 32 bit data */
+    NO_GET, NO_GETS, NO_PUT,		/* 16 bit data */
+    NO_GET64, NO_GETS64, NO_PUT64,	/* 64 bit hdrs */
+    NO_GET, NO_GETS, NO_PUT,		/* 32 bit hdrs */
+    NO_GET, NO_GETS, NO_PUT,		/* 16 bit hdrs */
 
     {				/* bfd_check_format */
-     _bfd_dummy_target,		/* unknown format */
-     _bfd_dummy_target,		/* object file */
-     _bfd_dummy_target,		/* archive */
-     ptrace_unix_core_file_p	/* a core file */
+      _bfd_dummy_target,		/* unknown format */
+      _bfd_dummy_target,		/* object file */
+      _bfd_dummy_target,		/* archive */
+      ptrace_unix_core_file_p		/* a core file */
     },
     {				/* bfd_set_format */
-     bfd_false, bfd_false,
-     bfd_false, bfd_false
+      bfd_false, bfd_false,
+      bfd_false, bfd_false
     },
     {				/* bfd_write_contents */
-     bfd_false, bfd_false,
-     bfd_false, bfd_false
+      bfd_false, bfd_false,
+      bfd_false, bfd_false
     },
 
-       BFD_JUMP_TABLE_GENERIC (_bfd_generic),
-       BFD_JUMP_TABLE_COPY (_bfd_generic),
-       BFD_JUMP_TABLE_CORE (ptrace_unix),
-       BFD_JUMP_TABLE_ARCHIVE (_bfd_noarchive),
-       BFD_JUMP_TABLE_SYMBOLS (_bfd_nosymbols),
-       BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),
-       BFD_JUMP_TABLE_WRITE (_bfd_generic),
-       BFD_JUMP_TABLE_LINK (_bfd_nolink),
-       BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
+    BFD_JUMP_TABLE_GENERIC (_bfd_generic),
+    BFD_JUMP_TABLE_COPY (_bfd_generic),
+    BFD_JUMP_TABLE_CORE (ptrace_unix),
+    BFD_JUMP_TABLE_ARCHIVE (_bfd_noarchive),
+    BFD_JUMP_TABLE_SYMBOLS (_bfd_nosymbols),
+    BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),
+    BFD_JUMP_TABLE_WRITE (_bfd_generic),
+    BFD_JUMP_TABLE_LINK (_bfd_nolink),
+    BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
     NULL,
 
     (PTR) 0			/* backend_data */
-};
+  };
 
 #endif /* PTRACE_CORE */

@@ -5,9 +5,13 @@ dnl brackets, be sure changequote invocations surround it.
 dnl
 dnl
 dnl v2.5 needed for --bindir et al
-AC_PREREQ(2.13)
+AC_PREREQ(2.57)
 AC_INIT(as.h)
 
+dnl Autoconf 2.57 will find the aux dir without this.  However, unless
+dnl we specify this explicitly, automake-1.7 will assume that ylwrap is in
+dnl gas/ instead of gas/../.
+AC_CONFIG_AUX_DIR(..)
 AC_CANONICAL_SYSTEM
 AC_ISC_POSIX
 
@@ -70,10 +74,14 @@ AM_CONFIG_HEADER(config.h:config.in)
 
 # If we are on a DOS filesystem, we must use gdb.ini rather than
 # .gdbinit.
-GDBINIT=".gdbinit"
 case "${host}" in
-  *-*-msdos* | *-*-go32* | *-*-mingw32* | *-*-cygwin* | *-*-windows*)
+  *-*-msdos* | *-*-go32* | *-*-mingw32* | *-*-windows*)
     GDBINIT="gdb.ini"
+    AC_CONFIG_FILES(gdb.ini:gdbinit.in)
+    ;;
+  *)
+    GDBINIT=".gdbinit"
+    AC_CONFIG_FILES(.gdbinit:gdbinit.in)
     ;;
 esac
 AC_SUBST(GDBINIT)
@@ -114,14 +122,18 @@ changequote([,])dnl
     arch=
     endian=
     case ${cpu} in
+      am33_2.0)		cpu_type=mn10300 endian=little ;;
       alpha*)		cpu_type=alpha ;;
       arm*b|xscale*b|strongarm*b) cpu_type=arm endian=big ;;
       arm*|xscale*|strongarm*)    cpu_type=arm endian=little ;;
+      c4x*)		cpu_type=tic4x ;;
       hppa*)		cpu_type=hppa ;;
 changequote(,)dnl
-      i[3456]86)	cpu_type=i386 arch=i386;;
+      i[3-7]86)		cpu_type=i386 arch=i386;;
       x86_64)		cpu_type=i386 arch=x86_64;;
       ia64)		cpu_type=ia64 ;;
+      ip2k)             cpu_type=ip2k endian=big ;; 
+      iq2000)           cpu_type=iq2000 endian=big ;; 
       m6811|m6812|m68hc12) cpu_type=m68hc11 ;;
       m680[012346]0)	cpu_type=m68k ;;
 changequote([,])dnl
@@ -151,6 +163,9 @@ changequote([,])dnl
       sparc86x*)	cpu_type=sparc arch=sparc86x  ;;
       sparc*)		cpu_type=sparc arch=sparclite ;; # ??? See tc-sparc.c.
       v850*)		cpu_type=v850 ;;
+      xtensa*)		cpu_type=xtensa arch=xtensa ;;
+      m32r)             cpu_type=m32r target_cpu=m32r endian=big ;;
+      m32rle)           cpu_type=m32r target_cpu=m32r endian=little ;;
       *)		cpu_type=${cpu} ;;
     esac
 
@@ -167,348 +182,347 @@ changequote([,])dnl
 
     # assign object format
     case ${generic_target} in
-      a29k-*-coff)          fmt=coff ;;
-      a29k-amd-udi)         fmt=coff ;;
-      a29k-amd-ebmon)       fmt=coff ;;
-      a29k-nyu-sym1)        fmt=coff ;;
-      a29k-*-rtems*)        fmt=coff ;;
-      a29k-*-vxworks*)      fmt=coff ;;
+      a29k-*-coff)			fmt=coff ;;
+      a29k-amd-udi)			fmt=coff ;;
+      a29k-amd-ebmon)			fmt=coff ;;
+      a29k-nyu-sym1)			fmt=coff ;;
+      a29k-*-rtems*)			fmt=coff ;;
+      a29k-*-vxworks*)			fmt=coff ;;
 
-      alpha*-*-*vms*)	    fmt=evax ;;
-      alpha*-*-netware*)    fmt=ecoff ;;
-      alpha*-*-osf*)        fmt=ecoff ;;
-      alpha*-*-linuxecoff*) fmt=ecoff ;;
-      alpha*-*-linux-gnu*)  fmt=elf em=linux ;;
-      alpha*-*-netbsd*)     fmt=elf em=nbsd ;;
-      alpha*-*-openbsd*)    fmt=elf em=obsd ;;
+      alpha*-*-*vms*)			fmt=evax ;;
+      alpha*-*-netware*)		fmt=ecoff ;;
+      alpha*-*-osf*)			fmt=ecoff ;;
+      alpha*-*-linuxecoff*)		fmt=ecoff ;;
+      alpha*-*-linux-gnu*)		fmt=elf em=linux ;;
+      alpha*-*-netbsd*)			fmt=elf em=nbsd ;;
+      alpha*-*-openbsd*)		fmt=elf em=obsd ;;
 
-      arc-*-elf*)           fmt=elf bfd_gas=yes ;;
+      # cpu_type for am33_2.0 is set to mn10300
+      mn10300-*-linux*)			fmt=elf bfd_gas=yes em=linux ;;
 
-      arm-*-aout)	                fmt=aout ;;
-      arm-*-coff | thumb-*-coff)        fmt=coff ;;
-      arm-*-rtems | thumb-*-rtems)      fmt=elf ;;
-      arm-*-elf | thumb-*-elf)          fmt=elf ;;
+      arc-*-elf*)			fmt=elf ;;
+
+      arm-*-aout)			fmt=aout ;;
+      arm-*-coff | thumb-*-coff)	fmt=coff ;;
+      arm-*-rtems* | thumb-*-rtems*)	fmt=elf ;;
+      arm-*-elf | thumb-*-elf)		fmt=elf ;;
+      arm-*-kaos*)			fmt=elf ;;
       arm*-*-conix*)			fmt=elf ;;
-      arm-*-linux*aout*)	        fmt=aout em=linux ;;
-      arm*-*-linux-gnu* | arm*-*-uclinux*)	
-					fmt=elf  em=linux ;;
+      arm-*-linux*aout*)		fmt=aout em=linux ;;
+      arm*-*-linux-gnu*)		fmt=elf  em=linux ;;
+      arm*-*-uclinux*)			fmt=elf  em=linux ;;
       arm-*-netbsdelf*)                 fmt=elf  em=nbsd ;;
-      arm-*-netbsd* | arm-*-openbsd*)   fmt=aout em=nbsd ;;
-      arm-*-oabi | thumb-*-oabi)        fmt=elf ;;
-      arm-epoc-pe | thumb-epoc-pe)      fmt=coff em=epoc-pe ;;
-      arm-*-wince)			fmt=coff em=wince-pe ;;
-      arm-*-pe | thumb-*-pe)            fmt=coff em=pe ;;
-      arm-*-riscix*)	                fmt=aout em=riscix ;;
-      arm-*-vxworks)	                fmt=coff ;;
+      arm-*-*n*bsd*)			fmt=aout em=nbsd ;;
+      arm-**-nto*)			fmt=elf ;;
+      arm-*-oabi | thumb-*-oabi)	fmt=elf ;;
+      arm-epoc-pe | thumb-epoc-pe)	fmt=coff em=epoc-pe ;;
+      arm-wince-pe | arm-*-wince)       fmt=coff em=wince-pe ;;
+      arm-*-pe | thumb-*-pe)		fmt=coff em=pe ;;
+      arm-*-riscix*)			fmt=aout em=riscix ;;
 
-      avr-*-*)		    fmt=elf bfd_gas=yes ;;
+      avr-*-*)				fmt=elf ;;
 
-      cris-*-*)		    fmt=multi bfd_gas=yes ;;
+      cris-*-linux-gnu*)		fmt=multi bfd_gas=yes em=linux ;;
+      cris-*-*)				fmt=multi bfd_gas=yes ;;
 
-      d10v-*-*)		    fmt=elf bfd_gas=yes ;;
-      d30v-*-*)		    fmt=elf bfd_gas=yes ;;
-      dlx-*-*)		    fmt=elf ;;
+      d10v-*-*)				fmt=elf ;;
+      d30v-*-*)				fmt=elf ;;
+      dlx-*-*)				fmt=elf ;;
 
+      fr30-*-*)				fmt=elf ;;
+      frv-*-*linux*)			fmt=elf em=linux;;
+      frv-*-*)				fmt=elf ;;
 
-      fr30-*-*)		    fmt=elf bfd_gas=yes ;;
-      frv-*-*)		    fmt=elf bfd_gas=yes ;;
+      hppa-*-linux*)	case ${cpu} in
+			    hppa*64*)	fmt=elf em=hppalinux64;;
+			    hppa*)	fmt=elf em=linux;;
+			esac ;;
+      hppa-*-*elf*)			fmt=elf em=hppa ;;
+      hppa-*-lites*)			fmt=elf em=hppa ;;
+      hppa-*-netbsd*)			fmt=elf em=nbsd ;;
+      hppa-*-openbsd*)			fmt=elf em=hppa ;;
+      hppa-*-osf*)			fmt=som em=hppa ;;
+      hppa-*-rtems*)			fmt=elf em=hppa ;;
+      hppa-*-hpux11*)	case ${cpu} in
+			    hppa*64*)	fmt=elf em=hppa64 ;;
+			    hppa*)	fmt=som em=hppa ;;
+			esac ;;
+      hppa-*-hpux*)			fmt=som em=hppa ;;
+      hppa-*-mpeix*)			fmt=som em=hppa ;;
+      hppa-*-bsd*)			fmt=som em=hppa ;;
+      hppa-*-hiux*)			fmt=som em=hppa ;;
 
-      hppa-*-linux-gnu*)    case ${cpu} in
-				hppa*64*)
-					fmt=elf em=hppalinux64;;
-				hppa*)
-					fmt=elf em=linux;;
-			    esac ;;
-      hppa-*-*elf*)         fmt=elf em=hppa ;;
-      hppa-*-lites*)        fmt=elf em=hppa ;;
-      hppa-*-netbsd*)       fmt=elf em=nbsd ;;
-      hppa-*-openbsd*)      fmt=elf em=hppa ;;
-      hppa-*-osf*)          fmt=som em=hppa ;;
-      hppa-*-rtems*)        fmt=elf em=hppa ;;
-      hppa-*-hpux11*)	    case ${cpu} in
-				hppa*64*)
-					fmt=elf em=hppa64 ;;
-				hppa*)
-					fmt=som em=hppa ;;
-			    esac ;;
-      hppa-*-hpux*)         fmt=som em=hppa ;;
-      hppa-*-mpeix*)        fmt=som em=hppa ;;
-      hppa-*-bsd*)          fmt=som em=hppa ;;
-      hppa-*-hiux*)         fmt=som em=hppa ;;
+      h8300-*-rtems*)			fmt=coff ;;
+      h8300-*-coff)			fmt=coff ;;
+      h8300-*-elf)			fmt=elf ;;
+      h8500-*-rtems*)			fmt=coff ;;
+      h8500-*-coff)			fmt=coff ;;
 
-      h8300-*-rtems*)       fmt=coff ;;
-      h8300-*-coff)         fmt=coff ;;
-      h8300-*-elf)          fmt=elf ;;
-      h8500-*-rtems*)       fmt=coff ;;
-      h8500-*-coff)         fmt=coff ;;
-
-      i370-*-elf* | i370-*-linux*) fmt=elf ;;
-      i386-ibm-aix*)        fmt=coff em=i386aix ;;
-      i386-sequent-bsd*)    fmt=aout em=dynix bfd_gas=yes ;;
-      i386-*-beospe*)       fmt=coff em=pe bfd_gas=yes ;;
-      i386-*-beoself* | i386-*-beos*) fmt=elf bfd_gas=yes ;;
-      i386-*-bsd*)          fmt=aout em=386bsd ;;
-      i386-*-netbsd0.8)     fmt=aout em=386bsd ;;
-      i386-*-netbsdpe*)       fmt=coff em=pe bfd_gas=yes ;;
-      i386-*-netbsd*)       em=nbsd bfd_gas=yes
-			    case ${cpu} in
-			      x86_64)	fmt=elf ;;
-			      *)	case ${os} in
-					  *elf*) fmt=elf ;;
-					  *)     fmt=aout ;;
-					esac
-					;;
-			    esac
-			    ;;
-      i386-*-openbsd*)      fmt=aout em=nbsd bfd_gas=yes;;
-      i386-*-linux*aout* | i386-*-linux*oldld)   fmt=aout em=linux ;;
-      i386-*-linux*coff*)   fmt=coff em=linux ;;
-      i386-*-linux-gnu*)    fmt=elf em=linux bfd_gas=yes ;;
-      x86_64-*-linux-gnu*)  fmt=elf em=linux bfd_gas=yes ;;
-      i386-*-lynxos*)       fmt=coff em=lynx ;;
+      i370-*-elf* | i370-*-linux*)	fmt=elf ;;
+      i386-ibm-aix*)			fmt=coff em=i386aix ;;
+      i386-sequent-bsd*)		fmt=aout em=dynix ;;
+      i386-*-beospe*)			fmt=coff em=pe ;;
+      i386-*-beos*)			fmt=elf ;;
+      i386-*-coff)			fmt=coff ;;
+      i386-*-elf)			fmt=elf ;;
+      i386-*-kaos*)			fmt=elf ;;
+      i386-*-bsd*)			fmt=aout em=386bsd ;;
+      i386-*-netbsd0.8)			fmt=aout em=386bsd ;;
+      i386-*-netbsdpe*)			fmt=coff em=pe ;;
+      i386-*-netbsd*-gnu* | \
+      i386-*-knetbsd*-gnu | \
+      i386-*-netbsdelf*)		fmt=elf em=nbsd ;;
+      i386-*-*n*bsd*)	case ${cpu} in
+			    x86_64)	fmt=elf em=nbsd ;;
+			    *)		fmt=aout em=nbsd ;;
+			esac ;;
+      i386-*-linux*aout*)		fmt=aout em=linux ;;
+      i386-*-linux*oldld)		fmt=aout em=linux ;;
+      i386-*-linux*coff*)		fmt=coff em=linux ;;
+      i386-*-linux-gnu*)		fmt=elf em=linux ;;
+      x86_64-*-linux-gnu*)		fmt=elf em=linux ;;
+      i386-*-lynxos*)			fmt=coff em=lynx ;;
 changequote(,)dnl
-      i386-*-sysv[45]* | i386-*-solaris* | i386-*-elf)
-			    fmt=elf bfd_gas=yes ;;
-      i386-*-freebsdaout* | i386-*-freebsd[12].* | i386-*-freebsd[12])
-                            fmt=aout em=386bsd ;;
+      i386-*-sysv[45]*)			fmt=elf ;;
+      i386-*-solaris*)			fmt=elf ;;
+      i386-*-freebsdaout*)		fmt=aout em=386bsd ;;
+      i386-*-freebsd[12].*)		fmt=aout em=386bsd ;;
+      i386-*-freebsd[12])		fmt=aout em=386bsd ;;
 changequote([,])dnl
-      i386-*-coff | i386-*-sysv* | i386-*-sco3.2v5*coff | i386-*-isc*)
-                          fmt=coff ;;
-      i386-*-sco3.2v5*)      fmt=elf
-			    if test ${this_target} = $target; then
-				AC_DEFINE(SCO_ELF, 1,
-				    [Define if defaulting to ELF on SCO 5.])
-			    fi
-			    ;;
-      i386-*-sco3.2*)       fmt=coff ;;
-      i386-*-vsta)          fmt=aout ;;
-      i386-*-msdosdjgpp* | i386-*-go32* | i386-go32-rtems*)
-			    fmt=coff em=go32 bfd_gas=yes
-			    AC_DEFINE(STRICTCOFF, 1, [Using strict COFF?])
-			    ;;
-      i386-*-rtemself*)     fmt=elf ;;
-      i386-*-rtemscoff*)    fmt=coff ;;
-      i386-*-rtems*)        fmt=elf ;;
-      i386-*-gnu*)          fmt=elf ;;
-      i386-*-mach*)
-			    fmt=aout em=mach bfd_gas=yes ;;
-      i386-*-msdos*)        fmt=aout ;;
-      i386-*-moss*)	    fmt=elf ;;
-      i386-*-pe)            fmt=coff em=pe bfd_gas=yes ;;
-      i386-*-cygwin*)       fmt=coff em=pe bfd_gas=yes ;;
-      i386-*-interix*)	    fmt=coff em=interix bfd_gas=yes ;;
-      i386-*-mingw32*)      fmt=coff em=pe bfd_gas=yes ;;
-      i386-*-nto-qnx*)	    fmt=elf ;;
-      i386-*-*nt*)          fmt=coff em=pe bfd_gas=yes ;;
-      i386-*-vxworks*)      fmt=aout ;;
-      i386-*-chaos)         fmt=elf ;;
-      i860-stardent-sysv4* | i860-stardent-elf*)
-			    fmt=elf bfd_gas=yes endian=little
-			    AC_MSG_WARN(GAS support for ${generic_target} is preliminary and a work in progress) ;;
-      i960-*-bout)          fmt=bout ;;
-      i960-*-coff)          fmt=coff em=ic960 ;;
-      i960-*-rtems*)        fmt=coff em=ic960 ;;
-      i960-*-nindy*)        fmt=bout ;;
-      i960-*-vxworks4*)     fmt=bout ;;
-      i960-*-vxworks5.0)    fmt=bout ;;
-      i960-*-vxworks5.*)    fmt=coff em=ic960 ;;
-      i960-*-vxworks*)      fmt=bout ;;
-      i960-*-elf*)	    fmt=elf ;;
+      i386-*-freebsd* | i386-*-kfreebsd*-gnu)
+					fmt=elf em=freebsd ;;
+      i386-*-sysv*)			fmt=coff ;;
+      i386-*-sco3.2v5*coff)		fmt=coff ;;
+      i386-*-isc*)			fmt=coff ;;
+      i386-*-sco3.2v5*)			fmt=elf
+	  if test ${this_target} = $target; then
+	    AC_DEFINE(SCO_ELF, 1, [Define if defaulting to ELF on SCO 5.])
+	  fi ;;
+      i386-*-sco3.2*)			fmt=coff ;;
+      i386-*-vsta)			fmt=aout ;;
+      i386-*-msdosdjgpp* \
+      | i386-*-go32* \
+      | i386-go32-rtems*)		fmt=coff em=go32
+	    AC_DEFINE(STRICTCOFF, 1, [Using strict COFF?]) ;;
+      i386-*-rtemself*)			fmt=elf ;;
+      i386-*-rtemscoff*)		fmt=coff ;;
+      i386-*-rtems*)			fmt=elf ;;
+      i386-*-gnu*)			fmt=elf ;;
+      i386-*-mach*)			fmt=aout em=mach ;;
+      i386-*-msdos*)			fmt=aout ;;
+      i386-*-moss*)			fmt=elf ;;
+      i386-*-pe)			fmt=coff em=pe ;;
+      i386-*-cygwin*)			fmt=coff em=pe ;;
+      i386-*-interix*)			fmt=coff em=interix ;;
+      i386-*-mingw32*)			fmt=coff em=pe ;;
+      i386-*-nto-qnx*)			fmt=elf ;;
+      i386-*-*nt*)			fmt=coff em=pe ;;
+      i386-*-chaos)			fmt=elf ;;
 
-      ia64-*-elf*)	    fmt=elf ;;
-      ia64-*-aix*)	    fmt=elf em=ia64aix ;;
-      ia64-*-linux-gnu*)    fmt=elf em=linux ;;
-      ia64-*-hpux*)	    fmt=elf em=hpux ;;
-      ia64-*-netbsd*)       fmt=elf em=nbsd ;;
+      i860-*-*)				fmt=elf endian=little
+		AC_MSG_WARN(GAS support for ${generic_target} is preliminary and a work in progress) ;;
+      i960-*-bout)			fmt=bout ;;
+      i960-*-coff)			fmt=coff em=ic960 ;;
+      i960-*-rtems*)			fmt=coff em=ic960 ;;
+      i960-*-nindy*)			fmt=bout ;;
+      i960-*-vxworks5.0)		fmt=bout ;;
+      i960-*-vxworks5.*)		fmt=coff em=ic960 ;;
+      i960-*-vxworks*)			fmt=bout ;;
+      i960-*-elf*)			fmt=elf ;;
 
-      m32r-*-*)		    fmt=elf bfd_gas=yes ;;
+      ia64-*-elf*)			fmt=elf ;;
+      ia64-*-aix*)			fmt=elf em=ia64aix ;;
+      ia64-*-linux-gnu*)		fmt=elf em=linux ;;
+      ia64-*-hpux*)			fmt=elf em=hpux ;;
+      ia64-*-netbsd*)			fmt=elf em=nbsd ;;
 
-      m68hc11-*-*|m6811-*-*|m68hc12-*-*|m6812-*-*)fmt=elf bfd_gas=yes ;;
+      ip2k-*-*)				fmt=elf ;;
 
-      m68k-*-vxworks* | m68k-ericsson-ose | m68k-*-sunos*)
-			    fmt=aout em=sun3 ;;
-      m68k-motorola-sysv*)  fmt=coff em=delta ;;
-      m68k-bull-sysv3*)     fmt=coff em=dpx2 ;;
-      m68k-apollo-*)        fmt=coff em=apollo ;;
-      m68k-*-sysv4*) # must be before -sysv*
-			    fmt=elf em=svr4 ;;
-      m68k-*-elf*)	    fmt=elf ;;
-      m68k-*-coff | m68k-*-sysv* | m68k-*-rtemscoff*)
-			    fmt=coff ;;
-      m68k-*-rtems*)	    fmt=elf ;;
-      m68k-*-hpux*)         fmt=hp300 em=hp300 ;;
-      m68k-*-linux*aout*)   fmt=aout em=linux ;;
-      m68k-*-linux-gnu*)    fmt=elf em=linux ;;
-      m68k-*-gnu*)	    fmt=elf ;;
-      m68k-*-lynxos*)       fmt=coff em=lynx ;;
-      m68k-*-netbsdelf*)    fmt=elf em=nbsd bfd_gas=yes ;;
-      m68k-*-netbsdaout* | m68k-*-netbsd*)
-			    fmt=aout em=nbsd bfd_gas=yes ;;
-      m68k-*-openbsd*)      fmt=aout em=nbsd bfd_gas=yes ;;
-      m68k-apple-aux*)      fmt=coff em=aux ;;
-      m68k-*-psos*)         fmt=elf em=psos;;
+      iq2000-*-elf)         		fmt=elf bfd_gas=yes ;;
 
-      m88k-motorola-sysv3*) fmt=coff em=delt88 ;;
-      m88k-*-coff*)         fmt=coff ;;
+      m32r-*-elf*)			fmt=elf ;;
+      m32r-*-linux*)			fmt=elf em=linux;;
 
-      mcore-*-elf)	    fmt=elf bfd_gas=yes ;;
-      mcore-*-pe)	    fmt=coff em=pe bfd_gas=yes ;;
+      m68hc11-*-* | m6811-*-*)		fmt=elf ;;
+      m68hc12-*-* | m6812-*-*)		fmt=elf ;;
+
+      m68k-*-vxworks*)			fmt=aout em=sun3 ;;
+      m68k-ericsson-ose)		fmt=aout em=sun3 ;;
+      m68k-*-sunos*)			fmt=aout em=sun3 ;;
+      m68k-motorola-sysv*)		fmt=coff em=delta ;;
+      m68k-bull-sysv3*)			fmt=coff em=dpx2 ;;
+      m68k-apollo-*)			fmt=coff em=apollo ;;
+      m68k-*-elf*)			fmt=elf ;;
+      m68k-*-sysv4*)			fmt=elf em=svr4 ;;
+      m68k-*-sysv*)			fmt=coff ;;
+      m68k-*-coff | m68k-*-rtemscoff*)	fmt=coff ;;
+      m68k-*-rtems*)			fmt=elf ;;
+      m68k-*-hpux*)			fmt=hp300 em=hp300 ;;
+      m68k-*-linux*aout*)		fmt=aout em=linux ;;
+      m68k-*-linux-gnu*)		fmt=elf em=linux ;;
+      m68k-*-uclinux*)			fmt=elf ;;
+      m68k-*-gnu*)			fmt=elf ;;
+      m68k-*-lynxos*)			fmt=coff em=lynx ;;
+      m68k-*-netbsdelf*)		fmt=elf em=nbsd ;;
+      m68k-*-netbsd*)			fmt=aout em=nbsd bfd_gas=yes ;;
+      m68k-*-openbsd*)			fmt=aout em=nbsd bfd_gas=yes ;;
+      m68k-apple-aux*)			fmt=coff em=aux ;;
+      m68k-*-psos*)			fmt=elf em=psos;;
+
+      m88k-motorola-sysv3*)		fmt=coff em=delt88 ;;
+      m88k-*-coff*)			fmt=coff ;;
+
+      mcore-*-elf)			fmt=elf ;;
+      mcore-*-pe)			fmt=coff em=pe bfd_gas=yes ;;
 
       # don't change em like *-*-bsd does
-      mips-dec-openbsd*)    fmt=elf endian=little ;;
-      mips-dec-bsd*)        fmt=aout endian=little ;;
-      mips-sony-bsd*)       fmt=ecoff ;;
-      mips-*-bsd*)          AC_MSG_ERROR(Unknown vendor for mips-bsd configuration.) ;;
-      mips-*-ultrix*)       fmt=ecoff endian=little ;;
-      mips-*-osf*)          fmt=ecoff endian=little ;;
-      mips-*-ecoff*)        fmt=ecoff ;;
-      mips-*-pe*)           fmt=coff endian=little em=pe ;;
-      mips-*-irix6*)	    fmt=elf ;;
-      mips-*-irix5*)        fmt=elf ;;
-      mips-*-irix*)         fmt=ecoff ;;
-      mips-*-lnews*)        fmt=ecoff em=lnews ;;
-      mips-*-riscos*)       fmt=ecoff ;;
-      mips*-*-linux*)	    fmt=elf em=tmips ;;
-      mips-*-sysv4*MP* | mips-*-gnu*)
-			    fmt=elf em=tmips ;;
-      mips-*-sysv*)         fmt=ecoff ;;
-      mips-*-elf* | mips-*-rtems* | mips-*-netbsd* | mips-*-openbsd*)
-			    fmt=elf ;;
-      mips-*-vxworks*)      fmt=elf ;;
-      mmix-*-*)		    fmt=elf bfd_gas=yes ;;
-      mn10200-*-*)	    fmt=elf bfd_gas=yes ;;
-      mn10300-*-*)	    fmt=elf bfd_gas=yes ;;
-      openrisc-*-*)	    fmt=elf bfd_gas=yes ;;
-      or32-*-rtems*)	    fmt=coff ;;
-      or32-*-coff)	    fmt=coff ;;
-      or32-*-elf)           fmt=elf ;;
-      pj*)		    fmt=elf ;;
-      ppc-*-pe | ppc-*-cygwin* | ppc-*-winnt*)
-		            fmt=coff em=pe ;;
-      ppc-*-aix5*)          fmt=coff em=aix5 ;;
-      ppc-*-aix*)           fmt=coff ;;
-      ppc-*-beos*)          fmt=coff ;;
-      ppc-*-*bsd* | ppc-*-elf* | ppc-*-eabi* | ppc-*-sysv4*)
-			    fmt=elf ;;
-      ppc-*-linux-gnu*)	    fmt=elf
-			    case "$endian" in
-			    big)  ;;
-			    *)    AC_MSG_ERROR(GNU/Linux must be configured big endian) ;;
-			    esac
-			    ;;
-      ppc-*-solaris*)	    fmt=elf
-			    if test ${this_target} = $target; then
-				AC_DEFINE(TARGET_SOLARIS_COMMENT, 1,
-				[Define if default target is PowerPC Solaris.])
-			    fi
-			    if test x${endian} = xbig; then
-				AC_MSG_ERROR(Solaris must be configured little endian)
-			    fi
-			    ;;
-      ppc-*-rtems*)	    fmt=elf ;;
-      ppc-*-macos* | ppc-*-mpw*)
-			    fmt=coff em=macos ;;
-      ppc-*-netware*)       fmt=elf em=ppcnw ;;
-      ppc-*-vxworks*)       fmt=elf ;;
-      ppc-*-windiss*)       fmt=elf ;;
+      mips-dec-openbsd*)		fmt=elf endian=little ;;
+      mips-sony-bsd*)			fmt=ecoff ;;
+      mips-*-bsd*)
+	    AC_MSG_ERROR(Unknown vendor for mips-bsd configuration.) ;;
+      mips-*-ultrix*)			fmt=ecoff endian=little ;;
+      mips-*-osf*)			fmt=ecoff endian=little ;;
+      mips-*-ecoff*)			fmt=ecoff ;;
+      mips-*-pe*)			fmt=coff endian=little em=pe ;;
+      mips-*-irix6*)			fmt=elf em=irix ;;
+      mips-*-irix5*)			fmt=elf em=irix ;;
+      mips-*-irix*)			fmt=ecoff em=irix ;;
+      mips-*-lnews*)			fmt=ecoff em=lnews ;;
+      mips-*-riscos*)			fmt=ecoff ;;
+      mips*-*-linux*)			fmt=elf em=tmips ;;
+      mips-*-sysv4*MP* | mips-*-gnu*)	fmt=elf em=tmips ;;
+      mips-*-sysv*)			fmt=ecoff ;;
+      mips-*-elf* | mips-*-rtems*)	fmt=elf ;;
+      mips-*-netbsd*)			fmt=elf ;;
+      mips-*-openbsd*)			fmt=elf ;;
 
-      s390x-*-linux-gnu*)   fmt=elf em=linux ;;
-      s390-*-linux-gnu*)    fmt=elf em=linux ;;
+      mmix-*-*)				fmt=elf ;;
+      mn10200-*-*)			fmt=elf ;;
+      mn10300-*-*)			fmt=elf ;;
+      msp430-*-*)			fmt=elf ;;
+      openrisc-*-*)			fmt=elf ;;
+      or32-*-rtems*)			fmt=elf ;;
+      or32-*-coff)			fmt=coff ;;
+      or32-*-elf)			fmt=elf ;;
+      pj*)				fmt=elf ;;
 
-      sh*-*-linux*)	    fmt=elf em=linux
-			    case ${cpu} in
-				sh*eb)
-					endian=big ;;
-				sh*)
-					endian=little ;;
-			    esac ;;
-      sh5*-*-netbsd*)       fmt=elf em=nbsd ;;
-      sh64*-*-netbsd*)      fmt=elf em=nbsd ;;
-      sh*-*-netbsdelf*)     fmt=elf em=nbsd ;;
-      sh-*-elf*)	    fmt=elf ;;
-      sh-*-coff*)           fmt=coff ;;
-      sh-*-pe*)             fmt=coff em=pe bfd_gas=yes endian=little ;;
-      sh-*-rtemself*)       fmt=elf ;;
-      sh-*-rtems*)	    fmt=coff ;;
+      ppc-*-pe | ppc-*-cygwin*)		fmt=coff em=pe ;;
+      ppc-*-winnt*)			fmt=coff em=pe ;;
+changequote(,)dnl
+      ppc-*-aix5.[01])			fmt=coff em=aix5 ;;
+changequote([,])dnl
+      ppc-*-aix5.*)			fmt=coff em=aix5
+      	AC_DEFINE(AIX_WEAK_SUPPORT, 1,
+		  [Define if using AIX 5.2 value for C_WEAKEXT.])
+      ;;
+      ppc-*-aix*)			fmt=coff ;;
+      ppc-*-beos*)			fmt=coff ;;
+      ppc-*-*n*bsd* | ppc-*-elf*)	fmt=elf ;;
+      ppc-*-eabi* | ppc-*-sysv4*)	fmt=elf ;;
+      ppc-*-linux-gnu*)			fmt=elf em=linux
+	    case "$endian" in
+		big)  ;;
+		*)    AC_MSG_ERROR(GNU/Linux must be configured big endian) ;;
+	    esac ;;
+      ppc-*-solaris*)			fmt=elf
+	    if test ${this_target} = $target; then
+		AC_DEFINE(TARGET_SOLARIS_COMMENT, 1,
+			  [Define if default target is PowerPC Solaris.])
+	    fi
+	    if test x${endian} = xbig; then
+		AC_MSG_ERROR(Solaris must be configured little endian)
+	    fi ;;
+      ppc-*-rtems*)			fmt=elf ;;
+      ppc-*-macos* | ppc-*-mpw*)	fmt=coff em=macos ;;
+      ppc-*-netware*)			fmt=elf em=ppcnw ;;
+      ppc-**-nto*)			fmt=elf ;;
+      ppc-*-kaos*)			fmt=elf ;;
 
-      sh64-*-elf*)	    fmt=elf ;;
-      ns32k-pc532-mach* | ns32k-pc532-ux*)    fmt=aout em=pc532mach ;;
-      ns32k-*-netbsd* | ns32k-pc532-lites*)  fmt=aout em=nbsd532 ;;
-      ns32k-pc532-openbsd*) fmt=aout em=nbsd532 ;;
+      s390x-*-linux-gnu*)		fmt=elf em=linux ;;
+      s390-*-linux-gnu*)		fmt=elf em=linux ;;
 
-      sparc-*-rtemsaout*)   fmt=aout ;;
-      sparc-*-rtemself*)    fmt=elf ;;
-      sparc-*-rtems*)       fmt=elf ;;
-      sparc-*-sunos4*)      fmt=aout em=sun3 ;;
-      sparc-*-aout | sparc*-*-vxworks*)
-			    fmt=aout em=sparcaout ;;
-      sparc-*-coff)         fmt=coff ;;
-      sparc-*-linux*aout*)  fmt=aout em=linux ;;
-      sparc-*-linux-gnu*)   fmt=elf em=linux ;;
-      sparc-*-lynxos*)      fmt=coff em=lynx ;;
-      sparc-fujitsu-none)   fmt=aout ;;
-      sparc-*-elf | sparc-*-sysv4* | sparc-*-solaris*)
-			    fmt=elf ;;
-      sparc-*-netbsd*)      em=nbsd bfd_gas=yes
-                            case ${cpu} in
-                                sparc) case ${os} in
-                                           *elf*) fmt=elf ;;
-                                           *)     fmt=aout ;;
-                                       esac ;;
-                                sparc64) fmt=elf ;;
-                            esac
-                            ;;
-      sparc-*-openbsd*)     em=nbsd
-                            case ${cpu} in
-                               sparc) fmt=aout ;;
-                               sparc64) fmt=elf ;;
-                            esac
-                            ;;
+      sh*-*-linux*)			fmt=elf em=linux
+	    case ${cpu} in
+		sh*eb)	endian=big ;;
+		*)	endian=little ;;
+	    esac ;;
+      sh5*-*-netbsd*)			fmt=elf em=nbsd ;;
+      sh64*-*-netbsd*)			fmt=elf em=nbsd ;;
+      sh*-*-netbsdelf*)			fmt=elf em=nbsd ;;
+      sh-*-elf*)			fmt=elf ;;
+      sh-*-coff*)			fmt=coff ;;
+      sh-*-nto*)			fmt=elf ;;
+      sh-*-pe*)				fmt=coff em=pe bfd_gas=yes endian=little ;;
+      sh-*-rtemscoff*)			fmt=coff ;;
+      sh-*-rtems*)			fmt=elf ;;
+      sh-*-kaos*)			fmt=elf ;;
+      shle*-*-kaos*)			fmt=elf ;;
+      sh64-*-elf*)			fmt=elf ;;
 
-      strongarm-*-coff)     fmt=coff ;;
-      strongarm-*-elf)      fmt=elf ;;
-      xscale-*-coff)     fmt=coff ;;
-      xscale-*-elf)      fmt=elf ;;
+      ns32k-pc532-mach*)		fmt=aout em=pc532mach ;;
+      ns32k-pc532-ux*)			fmt=aout em=pc532mach ;;
+      ns32k-pc532-lites*)		fmt=aout em=nbsd532 ;;
+      ns32k-*-*n*bsd*)			fmt=aout em=nbsd532 ;;
 
-      tic30-*-*aout*)	    fmt=aout bfd_gas=yes ;;
-      tic30-*-*coff*)       fmt=coff bfd_gas=yes ;;
-      tic54x-*-* | c54x*-*-*)
-			    fmt=coff bfd_gas=yes need_libm=yes;;
-      tic80-*-*)	    fmt=coff ;;
+      sparc-*-rtemsaout*)		fmt=aout ;;
+      sparc-*-rtemself*)		fmt=elf ;;
+      sparc-*-rtems*)			fmt=elf ;;
+      sparc-*-sunos4*)			fmt=aout em=sun3 ;;
+      sparc-*-aout | sparc*-*-vxworks*)	fmt=aout em=sparcaout ;;
+      sparc-*-coff)			fmt=coff ;;
+      sparc-*-linux*aout*)		fmt=aout em=linux ;;
+      sparc-*-linux-gnu*)		fmt=elf em=linux ;;
+      sparc-*-lynxos*)			fmt=coff em=lynx ;;
+      sparc-fujitsu-none)		fmt=aout ;;
+      sparc-*-elf)			fmt=elf ;;
+      sparc-*-sysv4*)			fmt=elf ;;
+      sparc-*-solaris*)			fmt=elf ;;
+      sparc-*-netbsdelf*)		fmt=elf em=nbsd ;;
+      sparc-*-*n*bsd*)	case ${cpu} in
+			    sparc64)	fmt=elf em=nbsd ;;
+			    *)		fmt=aout em=nbsd ;;
+			esac ;;
+      strongarm-*-coff)			fmt=coff ;;
+      strongarm-*-elf)			fmt=elf ;;
+      strongarm-*-kaos*)		fmt=elf ;;
+      xscale-*-coff)			fmt=coff ;;
+      xscale-*-elf)			fmt=elf ;;
 
-      v850-*-*)		    fmt=elf bfd_gas=yes ;;
-      v850e-*-*)	    fmt=elf bfd_gas=yes ;;
-      v850ea-*-*)	    fmt=elf bfd_gas=yes ;;
+      tic30-*-*aout*)			fmt=aout bfd_gas=yes ;;
+      tic30-*-*coff*)			fmt=coff bfd_gas=yes ;;
+      tic4x-*-* | c4x-*-*)              fmt=coff bfd_gas=yes ;;
+      tic54x-*-* | c54x*-*-*)		fmt=coff bfd_gas=yes need_libm=yes;;
+      tic80-*-*)			fmt=coff ;;
 
-      vax-*-netbsdelf*)     fmt=elf em=nbsd bfd_gas=yes ;;
-      vax-*-netbsdaout* | vax-*-netbsd*)
-			    fmt=aout em=nbsd ;;
-      vax-*-bsd* | vax-*-ultrix*)
-			    fmt=aout ;;
-      vax-*-vms)            fmt=vms ;;
+      v850-*-*)				fmt=elf ;;
+      v850e-*-*)			fmt=elf ;;
+      v850ea-*-*)			fmt=elf ;;
 
-      w65-*-*)              fmt=coff ;;
+      vax-*-netbsdelf*)			fmt=elf em=nbsd ;;
+      vax-*-netbsd*)			fmt=aout em=nbsd ;;
+      vax-*-bsd* | vax-*-ultrix*)	fmt=aout ;;
+      vax-*-linux-gnu*)			fmt=elf em=linux bfd_gas=yes ;;
+      vax-*-vms)			fmt=vms ;;
 
-      xstormy16-*-*)	    fmt=elf bfd_gas=yes ;;
+      w65-*-*)				fmt=coff ;;
 
-      z8k-*-coff | z8k-*-sim)
-			    fmt=coff ;;
+      xstormy16-*-*)			fmt=elf ;;
 
-      *-*-aout | *-*-scout)
-			    fmt=aout ;;
-      *-*-freebsd*)	    fmt=elf em=freebsd bfd_gas=yes ;;
-      *-*-nindy*)
-			    fmt=bout ;;
-      *-*-bsd*)
-			    fmt=aout em=sun3 ;;
-      *-*-generic)          fmt=generic ;;
-      *-*-xray | *-*-hms)   fmt=coff ;;
-      *-*-sim)              fmt=coff ;;
-      *-*-elf | *-*-sysv4* | *-*-solaris*)
-			    AC_MSG_WARN(GAS support for ${generic_target} is incomplete.)
-			    fmt=elf dev=yes ;;
-      *-*-vxworks)          fmt=aout ;;
-      *-*-netware)          fmt=elf ;;
+      xtensa-*-*)			fmt=elf ;;
+
+      z8k-*-coff | z8k-*-sim)		fmt=coff ;;
+
+      *-*-aout | *-*-scout)		fmt=aout ;;
+      *-*-freebsd* | *-*-kfreebsd*-gnu)	fmt=elf em=freebsd ;;
+      *-*-nindy*)			fmt=bout ;;
+      *-*-bsd*)				fmt=aout em=sun3 ;;
+      *-*-generic)			fmt=generic ;;
+      *-*-xray | *-*-hms)		fmt=coff ;;
+      *-*-sim)				fmt=coff ;;
+      *-*-elf | *-*-sysv4* | *-*-solaris*) fmt=elf dev=yes ;;
+      *-*-aros*)			fmt=elf em=linux bfd_gas=yes ;;
+      *-*-vxworks | *-*-windiss)	fmt=elf ;;
+      *-*-netware)			fmt=elf ;;
     esac
 
     if test ${this_target} = $target ; then
@@ -525,29 +539,96 @@ changequote([,])dnl
     fi
 
     case ${cpu_type}-${fmt} in
-      alpha*-*)	bfd_gas=yes ;;
-      arm-*)	bfd_gas=yes ;;
-    # not yet
-    # i386-aout)	bfd_gas=preferred ;;
-      ia64*-*)	bfd_gas=yes ;;
-      mips-*)	bfd_gas=yes ;;
-      ns32k-*)	bfd_gas=yes ;;
-      pdp11-*)	bfd_gas=yes ;;
-      ppc-*)	bfd_gas=yes ;;
-      sparc-*)	bfd_gas=yes ;;
-      strongarm-*)	bfd_gas=yes ;;
-      xscale-*)	bfd_gas=yes ;;
-      *-elf)	bfd_gas=yes ;;
-      *-ecoff)	bfd_gas=yes ;;
-      *-som)	bfd_gas=yes ;;
-    #enable bfd for coff and aout to allow testing if a bfd target is
-    #the primary target, but not for coff or aout as the primary target
-      i386-coff)	if test x${primary_bfd_gas} = xyes; then bfd_gas=yes; fi ;;
-      i386-aout)	if test x${primary_bfd_gas} = xyes; then bfd_gas=yes; fi ;;
-      *)		;;
+	alpha*-* | arm-* | i386-* | ia64*-* | mips-* | ns32k-* \
+		| pdp11-* | ppc-* | sparc-* | strongarm-* | xscale-* \
+		| *-elf | *-ecoff | *-som)
+	    bfd_gas=yes ;;
     esac
 
 # Other random stuff.
+
+    case ${cpu_type} in
+      mips)
+	# Set mips_cpu to the name of the default CPU.
+	case ${target_cpu} in
+	  mips | mipsbe | mipseb | mipsle | mipsel | mips64 | mips64el)
+	    mips_cpu=from-abi
+	    ;;
+	  mipsisa32 | mipsisa32el)
+	    mips_cpu=mips32
+	    ;;
+	  mipsisa32r2 | mipsisa32r2el)
+	    mips_cpu=mips32r2
+	    ;;
+	  mipsisa64 | mipsisa64el)
+	    mips_cpu=mips64
+	    ;;
+	  mipsisa64r2 | mipsisa64r2el)
+	    mips_cpu=mips64r2
+	    ;;
+	  mipstx39 | mipstx39el)
+	    mips_cpu=r3900
+	    ;;
+	  mips64vr | mips64vrel)
+	    mips_cpu=vr4100
+	    ;;
+	  mipsisa32r2* | mipsisa64r2*)
+changequote(,)dnl
+	    mips_cpu=`echo $target_cpu | sed -e 's/[a-z]*..r2//' -e 's/el$//'`
+changequote([,])dnl
+	    ;;
+	  mips64* | mipsisa64* | mipsisa32*)
+changequote(,)dnl
+	    mips_cpu=`echo $target_cpu | sed -e 's/[a-z]*..//' -e 's/el$//'`
+changequote([,])dnl
+	    ;;
+	  *)
+	    AC_ERROR($target_cpu isn't a supported MIPS CPU name)
+	    ;;
+	esac
+	# See whether it's appropriate to set E_MIPS_ABI_O32 for o32
+	# binaries.  It's a GNU extension that some OSes don't understand.
+	# The value only matters on ELF targets.
+	case ${target} in
+	  *-*-irix*)
+	    use_e_mips_abi_o32=0
+	    ;;
+	  *)
+	    use_e_mips_abi_o32=1
+	    ;;
+	esac
+	# Decide whether to generate 32-bit or 64-bit code by default.
+	# Used to resolve -march=from-abi when an embedded ABI is selected.
+	case ${target} in
+	  mips64*-*-* | mipsisa64*-*-*)
+	    mips_default_64bit=1
+	    ;;
+	  *)
+	    mips_default_64bit=0
+	    ;;
+	esac
+	# Decide which ABI to target by default.
+	case ${target} in
+	  mips64*-linux* | mips-sgi-irix6*)
+	    mips_default_abi=N32_ABI
+	    ;;
+	  mips*-linux*)
+	    mips_default_abi=O32_ABI
+	    ;;
+	  *)
+	    mips_default_abi=NO_ABI
+	    ;;
+	esac
+	AC_DEFINE_UNQUOTED(MIPS_CPU_STRING_DEFAULT, "$mips_cpu",
+			   [Default CPU for MIPS targets. ])
+	AC_DEFINE_UNQUOTED(USE_E_MIPS_ABI_O32, $use_e_mips_abi_o32,
+			   [Allow use of E_MIPS_ABI_O32 on MIPS targets. ])
+	AC_DEFINE_UNQUOTED(MIPS_DEFAULT_64BIT, $mips_default_64bit,
+			   [Generate 64-bit code by default on MIPS targets. ])
+	AC_DEFINE_UNQUOTED(MIPS_DEFAULT_ABI, $mips_default_abi,
+			   [Choose a default ABI for MIPS targets. ])
+	;;
+    esac
 
     # Do we need the opcodes library?
     case ${cpu_type} in
@@ -571,7 +652,7 @@ changequote([,])dnl
 
     # Any other special object files needed ?
     case ${cpu_type} in
-      fr30 | m32r | openrisc)
+      fr30 | ip2k | iq2000 | m32r | openrisc)
 	using_cgen=yes
 	;;
 
@@ -610,6 +691,13 @@ changequote([,])dnl
 
       xstormy16)
 	using_cgen=yes
+	;;
+
+      xtensa)
+	echo ${extra_objects} | grep -s "xtensa-relax.o"
+	if test $? -ne 0 ; then
+	  extra_objects="$extra_objects xtensa-relax.o"
+	fi
 	;;
 
       *)
@@ -868,6 +956,7 @@ esac
 case "${need_bfd}" in
 yes)
   BFDLIB=../bfd/libbfd.la
+  BFDVER_H=../bfd/bfdver.h
   ALL_OBJ_DEPS="$ALL_OBJ_DEPS"' ../bfd/bfd.h $(INCDIR)/symcat.h'
   ;;
 esac
@@ -875,6 +964,7 @@ esac
 AC_SUBST(BFDLIB)
 AC_SUBST(OPCODES_LIB)
 
+AC_SUBST(BFDVER_H)
 AC_SUBST(ALL_OBJ_DEPS)
 
 AC_DEFINE_UNQUOTED(TARGET_ALIAS,	"${target_alias}", [Target alias.])
@@ -974,7 +1064,8 @@ dnl the build directory which include the right .h file.  Make sure
 dnl the old symlinks don't exist, so that a reconfigure in an existing
 dnl directory behaves reasonably.
 
-AC_OUTPUT(Makefile doc/Makefile ${GDBINIT}:gdbinit.in po/Makefile.in:po/Make-in,
+AC_CONFIG_FILES(Makefile doc/Makefile po/Makefile.in:po/Make-in)
+AC_CONFIG_COMMANDS([default],
 [rm -f targ-cpu.c targ-cpu.h obj-format.h obj-format.c targ-env.h atof-targ.c itbl-cpu.h
  echo '#include "tc-'"${target_cpu_type}"'.h"' > targ-cpu.h
  echo '#include "obj-'"${obj_format}"'.h"' > obj-format.h
@@ -989,3 +1080,5 @@ AC_OUTPUT(Makefile doc/Makefile ${GDBINIT}:gdbinit.in po/Makefile.in:po/Make-in,
  cgen_cpu_prefix=${cgen_cpu_prefix}
  obj_format=${obj_format}
  te_file=${te_file}])
+
+AC_OUTPUT

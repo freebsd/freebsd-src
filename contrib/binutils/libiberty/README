@@ -15,7 +15,8 @@ The library must be configured from the top source directory.  Don't
 try to run configure in this directory.  Follow the configuration
 instructions in ../README.
 
-Please report bugs and fixes to "bug-gnu-utils@prep.ai.mit.edu".  Thank you.
+Please report bugs to "gcc-bugs@gcc.gnu.org" and send fixes to
+"gcc-patches@gcc.gnu.org".  Thank you.
 
 ADDING A NEW FILE
 =================
@@ -33,7 +34,7 @@ name of the function must be the same as the name of the file.
     * Add the source file name to CFILES.
 
     * Add the function to name to the funcs shell variable in
-      configure.in.
+      configure.ac.
 
     * Add the function to the AC_CHECK_FUNCS lists just after the
       setting of the funcs shell variable.  These AC_CHECK_FUNCS calls

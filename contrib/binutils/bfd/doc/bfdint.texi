@@ -1,6 +1,6 @@
 \input texinfo
 @c Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998,
-@c 2000, 2001
+@c 2000, 2001, 2002, 2003
 @c Free Software Foundation, Inc.
 @setfilename bfdint.info
 
@@ -694,7 +694,7 @@ information in BFD private data.  This is called via
 @samp{bfd_get_symtab_upper_bound}.  The corresponding field in the
 target vector is named @samp{_bfd_get_symtab_upper_bound}.
 
-@item _get_symtab
+@item _canonicalize_symtab
 Read in the symbol table.  This is called via
 @samp{bfd_canonicalize_symtab}.  The corresponding field in the target
 vector is named @samp{_bfd_canonicalize_symtab}.
@@ -835,7 +835,7 @@ corresponding field in the target vector is named
 
 @item _bfd_get_relocated_section_contents
 Read the contents of a section and apply the relocation information.
-This handles both a final link and a relocateable link; in the latter
+This handles both a final link and a relocatable link; in the latter
 case, it adjust the relocation information as well.  This is called via
 @samp{bfd_get_relocated_section_contents}.  Most targets implement it by
 calling @samp{bfd_generic_get_relocated_section_contents}.
@@ -1073,11 +1073,6 @@ sizes.
 Like @file{elfcode.h}, but for functions that are specific to ELF core
 files.  This is included only by @file{elfcode.h}.
 
-@item elflink.h
-@cindex @file{elflink.h}
-Like @file{elfcode.h}, but for functions used by the ELF linker.  This
-is included only by @file{elfcode.h}.
-
 @item elfxx-target.h
 @cindex @file{elfxx-target.h}
 This file is the source for the generated files @file{elf32-target.h}
@@ -1169,7 +1164,7 @@ allocate space in a different section and use the offset within that
 section as the value to store.  In the IEEE object file format,
 relocations may involve arbitrary expressions.
 
-When doing a relocateable link, the linker may or may not have to do
+When doing a relocatable link, the linker may or may not have to do
 anything with a relocation, depending upon the definition of the
 relocation.  Simple relocations generally do not require any special
 action.
@@ -1240,9 +1235,9 @@ existing target, you need to do the following:
 @itemize @bullet
 @item
 Make sure you clearly understand what the contents of the section should
-look like after assembly, after a relocateable link, and after a final
+look like after assembly, after a relocatable link, and after a final
 link.  Make sure you clearly understand the operations the linker must
-perform during a relocateable link and during a final link.
+perform during a relocatable link and during a final link.
 
 @item
 Write a howto structure for the relocation.  The howto structure is
@@ -1257,7 +1252,7 @@ call @samp{bfd_install_relocation}, so your howto structure has to be
 able to handle that.  You may need to set the @samp{special_function}
 field to handle assembly correctly.  Be careful to ensure that any code
 you write to handle the assembler will also work correctly when doing a
-relocateable link.  For example, see @samp{bfd_elf_generic_reloc}.
+relocatable link.  For example, see @samp{bfd_elf_generic_reloc}.
 
 @item
 Test the assembler.  Consider the cases of relocation against an
@@ -1271,14 +1266,14 @@ If your target uses the new linker, which is recommended, add any
 required handling to the target specific relocation function.  In simple
 cases this will just involve a call to @samp{_bfd_final_link_relocate}
 or @samp{_bfd_relocate_contents}, depending upon the definition of the
-relocation and whether the link is relocateable or not.
+relocation and whether the link is relocatable or not.
 
 @item
 Test the linker.  Test the case of a final link.  If the relocation can
 overflow, use a linker script to force an overflow and make sure the
-error is reported correctly.  Test a relocateable link, whether the
-symbol is defined or undefined in the relocateable output.  For both the
-final and relocateable link, test the case when the symbol is a common
+error is reported correctly.  Test a relocatable link, whether the
+symbol is defined or undefined in the relocatable output.  For both the
+final and relocatable link, test the case when the symbol is a common
 symbol, when the symbol looked like a common symbol but became a defined
 symbol, when the symbol is defined in a different object file, and when
 the symbol is defined in the same object file.
@@ -1291,7 +1286,7 @@ thing for the relocation.  You may need to set the
 doing a link in which the output object file format is S-records.
 
 @item
-Using the linker to generate relocateable output in a different object
+Using the linker to generate relocatable output in a different object
 file format is impossible in the general case, so you generally don't
 have to worry about that.  The GNU linker makes sure to stop that from
 happening when an input file in a different format has relocations.
@@ -1350,7 +1345,7 @@ howto structure.  Some mechanism would be used to determine which type
 of howto structure was being used by a particular format.
 
 The new howto structure would clearly define the relocation behaviour in
-the case of an assembly, a relocateable link, and a final link.  At
+the case of an assembly, a relocatable link, and a final link.  At
 least one special function would be defined as an escape, and it might
 make sense to define more.
 
@@ -1482,8 +1477,7 @@ external data.  @file{elfcode.h} is compiled twice, once via
 @file{elfcode.h} includes functions to swap the ELF structures in and
 out of external form, as well as a few more complex functions.
 
-Linker support is found in @file{elflink.c} and @file{elflink.h}.  The
-latter file is compiled twice, for both 32 and 64 bit support.  The
+Linker support is found in @file{elflink.c}.  The
 linker support is only used if the processor specific file defines
 @samp{elf_backend_relocate_section}, which is required to relocate the
 section contents.  If that macro is not defined, the generic linker code
@@ -1566,7 +1560,7 @@ relocations.  @samp{Rela} relocations will require more space in object
 files (but not in executables, except when using dynamic linking).
 However, this is outweighed by the simplicity of addend handling when
 using @samp{Rela} relocations.  With @samp{Rel} relocations, the addend
-must be stored in the section contents, which makes relocateable links
+must be stored in the section contents, which makes relocatable links
 more complex.
 
 For example, consider C code like @code{i = a[1000];} where @samp{a} is
@@ -1578,7 +1572,7 @@ relocations, that addend must be stored in the instructions themselves.
 If you are adding support for a RISC chip which uses two or more
 instructions to load an address, then the addend may not fit in a single
 instruction, and will have to be somehow split among the instructions.
-This makes linking awkward, particularly when doing a relocateable link
+This makes linking awkward, particularly when doing a relocatable link
 in which the addend may have to be updated.  It can be done---the MIPS
 ELF support does it---but it should be avoided when possible.
 
@@ -1611,7 +1605,7 @@ called @file{@var{cpu}.h}.  This file should define any target specific
 information which may be needed outside of the BFD code.  In particular
 it should use the @samp{START_RELOC_NUMBERS}, @samp{RELOC_NUMBER},
 @samp{FAKE_RELOC}, @samp{EMPTY_RELOC} and @samp{END_RELOC_NUMBERS}
-macros to create a table mapping the number used to indentify a
+macros to create a table mapping the number used to identify a
 relocation to a name describing that relocation.
 
 While not a BFD component, you probably also want to make the binutils
@@ -1645,7 +1639,7 @@ information, and modify the section contents according to the relocation
 information.  In simple cases, this is little more than a loop over the
 relocations which computes the value of each relocation and calls
 @samp{_bfd_final_link_relocate}.  The function must check for a
-relocateable link, and in that case normally needs to do nothing other
+relocatable link, and in that case normally needs to do nothing other
 than adjust the addend for relocations against a section symbol.
 
 The complex cases generally have to do with dynamic linker support.  GOT
@@ -1788,7 +1782,7 @@ The implementation within BFD of a particular object file format.  The
 set of functions which appear in a particular target vector.
 
 @item BFD
-The BFD library itself.  Also, each object file, archive, or exectable
+The BFD library itself.  Also, each object file, archive, or executable
 opened by the BFD library has the type @samp{bfd *}, and is sometimes
 referred to as a bfd.
 

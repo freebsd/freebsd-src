@@ -1,5 +1,5 @@
 /* This file is tc-alpha.h
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Ken Raeburn <raeburn@cygnus.com>.
 
@@ -46,27 +46,21 @@
 #define NEED_LITERAL_POOL
 #define REPEAT_CONS_EXPRESSIONS
 
+struct fix;
+struct alpha_reloc_tag;
+
 extern int alpha_force_relocation PARAMS ((struct fix *));
 extern int alpha_fix_adjustable PARAMS ((struct fix *));
 
 extern unsigned long alpha_gprmask, alpha_fprmask;
 extern valueT alpha_gp_value;
 
-#define TC_FORCE_RELOCATION(FIXP)	alpha_force_relocation (FIXP)
-#define tc_fix_adjustable(FIXP)		alpha_fix_adjustable (FIXP)
+#define TC_FORCE_RELOCATION(FIX)	alpha_force_relocation (FIX)
+#define tc_fix_adjustable(FIX)		alpha_fix_adjustable (FIX)
 #define RELOC_REQUIRES_SYMBOL
 
-/* This expression evaluates to false if the relocation is for a local
-   object for which we still want to do the relocation at runtime.
-   True if we are willing to perform this relocation while building
-   the .o file.  This is only used for pcrel relocations.  */
-
-#define TC_RELOC_RTSYM_LOC_FIXUP(FIX)				\
-  ((FIX)->fx_addsy == NULL					\
-   || (! S_IS_EXTERNAL ((FIX)->fx_addsy)			\
-       && ! S_IS_WEAK ((FIX)->fx_addsy)				\
-       && S_IS_DEFINED ((FIX)->fx_addsy)			\
-       && ! S_IS_COMMON ((FIX)->fx_addsy)))
+/* Values passed to md_apply_fix3 don't include the symbol value.  */
+#define MD_APPLY_SYM_VALUE(FIX) 0
 
 #define md_convert_frag(b,s,f)		as_fatal ("alpha convert_frag\n")
 #define md_estimate_size_before_relax(f,s) \
@@ -84,6 +78,21 @@ extern valueT alpha_gp_value;
 	: LEN == 4 ? BFD_RELOC_32 \
 	: LEN == 8 ? BFD_RELOC_64 \
 	: BFD_RELOC_ALPHA_LINKAGE);
+#endif
+
+#ifndef VMS
+#define TC_IMPLICIT_LCOMM_ALIGNMENT(size, align) \
+  do							\
+    {							\
+      align = 0;					\
+      if (size > 1)					\
+	{						\
+	  addressT temp = 1;				\
+	  while ((size & temp) == 0)			\
+	    ++align, temp <<= 1;			\
+	}						\
+    }							\
+  while (0)
 #endif
 
 #define md_number_to_chars		number_to_chars_littleendian
@@ -110,17 +119,13 @@ extern void alpha_frob_file_before_adjust PARAMS ((void));
 #define DIFF_EXPR_OK   /* foo-. gets turned into PC relative relocs */
 
 #ifdef OBJ_ELF
-#define ELF_TC_SPECIAL_SECTIONS \
-  { ".sdata",   SHT_PROGBITS,   SHF_ALLOC + SHF_WRITE + SHF_ALPHA_GPREL  }, \
-  { ".sbss",    SHT_NOBITS,     SHF_ALLOC + SHF_WRITE + SHF_ALPHA_GPREL  },
-
 #define md_elf_section_letter		alpha_elf_section_letter
 extern int alpha_elf_section_letter PARAMS ((int, char **));
 #define md_elf_section_flags		alpha_elf_section_flags
 extern flagword alpha_elf_section_flags PARAMS ((flagword, int, int));
 #endif
 
-/* Whether to add support for explict !relocation_op!sequence_number.  At the
+/* Whether to add support for explicit !relocation_op!sequence_number.  At the
    moment, only do this for ELF, though ECOFF could use it as well.  */
 
 #ifdef OBJ_ELF
@@ -131,8 +136,13 @@ extern flagword alpha_elf_section_flags PARAMS ((flagword, int, int));
    supplied !lituse relocations follow the appropriate !literal
    relocations.  Also convert the gas-internal relocations to the
    appropriate linker relocations.  */
-#define tc_adjust_symtab() alpha_adjust_symtab ()
-extern void alpha_adjust_symtab PARAMS ((void));
+#define tc_frob_file_before_fix() alpha_before_fix ()
+extern void alpha_before_fix PARAMS ((void));
+
+#ifdef OBJ_ELF
+#define md_end  alpha_elf_md_end
+extern void alpha_elf_md_end PARAMS ((void));
+#endif
 
 /* New fields for supporting explicit relocations (such as !literal to mark
    where a pointer is loaded from the global table, and !lituse_base to track
@@ -147,19 +157,26 @@ struct alpha_fix_tag
 };
 
 /* Initialize the TC_FIX_TYPE field.  */
-#define TC_INIT_FIX_DATA(fixP)						\
+#define TC_INIT_FIX_DATA(FIX)						\
 do {									\
-  fixP->tc_fix_data.next_reloc = (struct fix *)0;			\
-  fixP->tc_fix_data.info = (struct alpha_reloc_tag *)0;			\
+  FIX->tc_fix_data.next_reloc = (struct fix *) 0;			\
+  FIX->tc_fix_data.info = (struct alpha_reloc_tag *) 0;			\
 } while (0)
 
 /* Work with DEBUG5 to print fields in tc_fix_type.  */
-#define TC_FIX_DATA_PRINT(stream,fixP)					\
+#define TC_FIX_DATA_PRINT(STREAM, FIX)					\
 do {									\
-  if (fixP->tc_fix_data.info)						\
-    fprintf (stderr, "\tinfo = 0x%lx, next_reloc = 0x%lx\n", \
-	     (long)fixP->tc_fix_data.info,				\
-	     (long)fixP->tc_fix_data.next_reloc);			\
+  if (FIX->tc_fix_data.info)						\
+    fprintf (STREAM, "\tinfo = 0x%lx, next_reloc = 0x%lx\n", \
+	     (long) FIX->tc_fix_data.info,				\
+	     (long) FIX->tc_fix_data.next_reloc);			\
 } while (0)
 
-#define DWARF2_LINE_MIN_INSN_LENGTH 4
+#define TARGET_USE_CFIPOP 1
+
+#define tc_cfi_frame_initial_instructions alpha_cfi_frame_initial_instructions
+extern void alpha_cfi_frame_initial_instructions(void);
+
+#define DWARF2_LINE_MIN_INSN_LENGTH	4
+#define DWARF2_DEFAULT_RETURN_COLUMN	26
+#define DWARF2_CIE_DATA_ALIGNMENT	-8

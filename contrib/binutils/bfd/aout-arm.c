@@ -1,5 +1,5 @@
 /* BFD back-end for raw ARM a.out binaries.
-   Copyright 1994, 1995, 1997, 1998, 1999, 2000, 2001
+   Copyright 1994, 1995, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
 
@@ -22,7 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "bfd.h"
 #include "sysdep.h"
 
-/* Avoid multiple defininitions from aoutx if supporting standarad a.out
+/* Avoid multiple definitions from aoutx if supporting standard a.out
    as well as our own.  */
 /* Do not "beautify" the CONCAT* macro args.  Traditional C will not
    remove whitespace added here, and thus will fail to concatenate
@@ -54,7 +54,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "libaout.h"
 #include "aout/aout64.h"
 
-static boolean MY(write_object_contents)
+static bfd_boolean MY(write_object_contents)
   PARAMS ((bfd *));
 static bfd_reloc_status_type MY(fix_pcrel_26_done)
   PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *, bfd *, char **));
@@ -80,28 +80,28 @@ reloc_howto_type MY(howto_table)[] =
   {
     /* Type rs size bsz pcrel bitpos ovrf sf name part_inpl
        readmask setmask pcdone.  */
-    HOWTO (0, 0, 0, 8, false, 0, complain_overflow_bitfield, 0, "8", true,
-	   0x000000ff, 0x000000ff, false),
-    HOWTO (1, 0, 1, 16, false, 0, complain_overflow_bitfield, 0, "16", true,
-	   0x0000ffff, 0x0000ffff, false),
-    HOWTO (2, 0, 2, 32, false, 0, complain_overflow_bitfield, 0, "32", true,
-	   0xffffffff, 0xffffffff, false),
-    HOWTO (3, 2, 2, 26, true, 0, complain_overflow_signed, MY(fix_pcrel_26),
-	   "ARM26", true, 0x00ffffff, 0x00ffffff, true),
-    HOWTO (4, 0, 0, 8, true, 0, complain_overflow_signed, 0, "DISP8", true,
-	   0x000000ff, 0x000000ff, true),
-    HOWTO (5, 0, 1, 16, true, 0, complain_overflow_signed, 0, "DISP16", true,
-	   0x0000ffff, 0x0000ffff, true),
-    HOWTO (6, 0, 2, 32, true, 0, complain_overflow_signed, 0, "DISP32", true,
-	   0xffffffff, 0xffffffff, true),
-    HOWTO (7, 2, 2, 26, false, 0, complain_overflow_signed,
-	   MY(fix_pcrel_26_done), "ARM26D", true, 0x0, 0x0,
-	   false),
+    HOWTO (0, 0, 0, 8, FALSE, 0, complain_overflow_bitfield, 0, "8", TRUE,
+	   0x000000ff, 0x000000ff, FALSE),
+    HOWTO (1, 0, 1, 16, FALSE, 0, complain_overflow_bitfield, 0, "16", TRUE,
+	   0x0000ffff, 0x0000ffff, FALSE),
+    HOWTO (2, 0, 2, 32, FALSE, 0, complain_overflow_bitfield, 0, "32", TRUE,
+	   0xffffffff, 0xffffffff, FALSE),
+    HOWTO (3, 2, 2, 26, TRUE, 0, complain_overflow_signed, MY(fix_pcrel_26),
+	   "ARM26", TRUE, 0x00ffffff, 0x00ffffff, TRUE),
+    HOWTO (4, 0, 0, 8, TRUE, 0, complain_overflow_signed, 0, "DISP8", TRUE,
+	   0x000000ff, 0x000000ff, TRUE),
+    HOWTO (5, 0, 1, 16, TRUE, 0, complain_overflow_signed, 0, "DISP16", TRUE,
+	   0x0000ffff, 0x0000ffff, TRUE),
+    HOWTO (6, 0, 2, 32, TRUE, 0, complain_overflow_signed, 0, "DISP32", TRUE,
+	   0xffffffff, 0xffffffff, TRUE),
+    HOWTO (7, 2, 2, 26, FALSE, 0, complain_overflow_signed,
+	   MY(fix_pcrel_26_done), "ARM26D", TRUE, 0x0, 0x0,
+	   FALSE),
     EMPTY_HOWTO (-1),
-    HOWTO (9, 0, -1, 16, false, 0, complain_overflow_bitfield, 0, "NEG16", true,
-	   0x0000ffff, 0x0000ffff, false),
-    HOWTO (10, 0, -2, 32, false, 0, complain_overflow_bitfield, 0, "NEG32", true,
-	   0xffffffff, 0xffffffff, false)
+    HOWTO (9, 0, -1, 16, FALSE, 0, complain_overflow_bitfield, 0, "NEG16", TRUE,
+	   0x0000ffff, 0x0000ffff, FALSE),
+    HOWTO (10, 0, -2, 32, FALSE, 0, complain_overflow_bitfield, 0, "NEG32", TRUE,
+	   0xffffffff, 0xffffffff, FALSE)
   };
 
 #define RELOC_ARM_BITS_NEG_BIG      ((unsigned int) 0x08)

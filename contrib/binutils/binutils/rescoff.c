@@ -1,5 +1,6 @@
 /* rescoff.c -- read and write resources in Windows COFF files.
-   Copyright 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2000, 2003
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GNU Binutils.
@@ -102,20 +103,17 @@ struct extern_res_data
 
 /* Local functions.  */
 
-static void overrun PARAMS ((const struct coff_file_info *, const char *));
+static void overrun (const struct coff_file_info *, const char *);
 static struct res_directory *read_coff_res_dir
-  PARAMS ((const bfd_byte *, const struct coff_file_info *,
-	   const struct res_id *, int));
+  (const bfd_byte *, const struct coff_file_info *,
+   const struct res_id *, int);
 static struct res_resource *read_coff_data_entry
-  PARAMS ((const bfd_byte *, const struct coff_file_info *,
-	   const struct res_id *));
+  (const bfd_byte *, const struct coff_file_info *, const struct res_id *);
 
 /* Read the resources in a COFF file.  */
 
 struct res_directory *
-read_coff_rsrc (filename, target)
-     const char *filename;
-     const char *target;
+read_coff_rsrc (const char *filename, const char *target)
 {
   bfd *abfd;
   char **matching;
@@ -171,9 +169,7 @@ read_coff_rsrc (filename, target)
 /* Give an error if we are out of bounds.  */
 
 static void
-overrun (finfo, msg)
-     const struct coff_file_info *finfo;
-     const char *msg;
+overrun (const struct coff_file_info *finfo, const char *msg)
 {
   fatal (_("%s: %s: address out of bounds"), finfo->filename, msg);
 }
@@ -181,11 +177,8 @@ overrun (finfo, msg)
 /* Read a resource directory.  */
 
 static struct res_directory *
-read_coff_res_dir (data, finfo, type, level)
-     const bfd_byte *data;
-     const struct coff_file_info *finfo;
-     const struct res_id *type;
-     int level;
+read_coff_res_dir (const bfd_byte *data, const struct coff_file_info *finfo,
+		   const struct res_id *type, int level)
 {
   const struct extern_res_directory *erd;
   struct res_directory *rd;
@@ -314,10 +307,7 @@ read_coff_res_dir (data, finfo, type, level)
 /* Read a resource data entry.  */
 
 static struct res_resource *
-read_coff_data_entry (data, finfo, type)
-     const bfd_byte *data;
-     const struct coff_file_info *finfo;
-     const struct res_id *type;
+read_coff_data_entry (const bfd_byte *data, const struct coff_file_info *finfo, const struct res_id *type)
 {
   const struct extern_res_data *erd;
   struct res_resource *r;
@@ -408,12 +398,12 @@ struct coff_write_info
   ((cwi->big_endian) ? bfd_putb32 ((v), (s)) : bfd_putl32 ((v), (s)))
 
 static void coff_bin_sizes
-  PARAMS ((const struct res_directory *, struct coff_write_info *));
-static unsigned char *coff_alloc PARAMS ((struct bindata_build *, size_t));
+  (const struct res_directory *, struct coff_write_info *);
+static unsigned char *coff_alloc (struct bindata_build *, size_t);
 static void coff_to_bin
-  PARAMS ((const struct res_directory *, struct coff_write_info *));
+  (const struct res_directory *, struct coff_write_info *);
 static void coff_res_to_bin
-  PARAMS ((const struct res_resource *, struct coff_write_info *));
+  (const struct res_resource *, struct coff_write_info *);
 
 /* Write resources to a COFF file.  RESOURCES should already be
    sorted.
@@ -424,10 +414,8 @@ static void coff_res_to_bin
    adding the .rsrc section.  */
 
 void
-write_coff_file (filename, target, resources)
-     const char *filename;
-     const char *target;
-     const struct res_directory *resources;
+write_coff_file (const char *filename, const char *target,
+		 const struct res_directory *resources)
 {
   bfd *abfd;
   asection *sec;
@@ -584,9 +572,8 @@ write_coff_file (filename, target, resources)
    entries.  This updates fields in CWI.  */
 
 static void
-coff_bin_sizes (resdir, cwi)
-     const struct res_directory *resdir;
-     struct coff_write_info *cwi;
+coff_bin_sizes (const struct res_directory *resdir,
+		struct coff_write_info *cwi)
 {
   const struct res_entry *re;
 
@@ -609,9 +596,7 @@ coff_bin_sizes (resdir, cwi)
 /* Allocate data for a particular list.  */
 
 static unsigned char *
-coff_alloc (bb, size)
-     struct bindata_build *bb;
-     size_t size;
+coff_alloc (struct bindata_build *bb, size_t size)
 {
   struct bindata *d;
 
@@ -634,9 +619,7 @@ coff_alloc (bb, size)
 /* Convert the resource directory RESDIR to binary.  */
 
 static void
-coff_to_bin (resdir, cwi)
-     const struct res_directory *resdir;
-     struct coff_write_info *cwi;
+coff_to_bin (const struct res_directory *resdir, struct coff_write_info *cwi)
 {
   struct extern_res_directory *erd;
   int ci, cn;
@@ -713,9 +696,7 @@ coff_to_bin (resdir, cwi)
 /* Convert the resource RES to binary.  */
 
 static void
-coff_res_to_bin (res, cwi)
-     const struct res_resource *res;
-     struct coff_write_info *cwi;
+coff_res_to_bin (const struct res_resource *res, struct coff_write_info *cwi)
 {
   arelent *r;
   struct extern_res_data *erd;

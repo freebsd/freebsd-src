@@ -66,7 +66,7 @@ fibnode_new ()
 {
   fibnode_t node;
 
-  node = xcalloc (1, sizeof *node);
+  node = (fibnode_t) xcalloc (1, sizeof *node);
   node->left = node;
   node->right = node;
 
@@ -218,7 +218,7 @@ fibheap_replace_key_data (heap, node, key, data)
      void *data;
 {
   void *odata;
-  int okey;
+  fibheapkey_t okey;
   fibnode_t y;
 
   /* If we wanted to, we could actually do a real increase by redeleting and

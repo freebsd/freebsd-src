@@ -1,5 +1,5 @@
 /* IEEE floating point support declarations, for GDB, the GNU Debugger.
-   Copyright 1991, 1994, 1995, 1997, 2000 Free Software Foundation, Inc.
+   Copyright 1991, 1994, 1995, 1997, 2000, 2003 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -61,8 +61,12 @@ struct floatformat
 
   unsigned int exp_start;
   unsigned int exp_len;
-  /* Amount added to "true" exponent.  0x3fff for many IEEE extendeds.  */
-  unsigned int exp_bias;
+  /* Bias added to a "true" exponent to form the biased exponent.  It
+     is intentionally signed as, otherwize, -exp_bias can turn into a
+     very large number (e.g., given the exp_bias of 0x3fff and a 64
+     bit long, the equation (long)(1 - exp_bias) evaluates to
+     4294950914) instead of -16382).  */
+  int exp_bias;
   /* Exponent value which indicates NaN.  This is the actual value stored in
      the float, not adjusted by the exp_bias.  This usually consists of all
      one bits.  */
@@ -76,6 +80,9 @@ struct floatformat
 
   /* Internal name for debugging. */
   const char *name;
+
+  /* Validator method.  */
+  int (*is_valid) PARAMS ((const struct floatformat *fmt, const char *from));
 };
 
 /* floatformats for IEEE single and double, big and little endian.  */
@@ -109,13 +116,18 @@ extern const struct floatformat floatformat_ia64_quad_little;
    Store the double in *TO.  */
 
 extern void
-floatformat_to_double PARAMS ((const struct floatformat *, char *, double *));
+floatformat_to_double PARAMS ((const struct floatformat *, const char *, double *));
 
 /* The converse: convert the double *FROM to FMT
    and store where TO points.  */
 
 extern void
 floatformat_from_double PARAMS ((const struct floatformat *,
-				 double *, char *));
+				 const double *, char *));
+
+/* Return non-zero iff the data at FROM is a valid number in format FMT.  */
+
+extern int
+floatformat_is_valid PARAMS ((const struct floatformat *fmt, const char *from));
 
 #endif	/* defined (FLOATFORMAT_H) */
