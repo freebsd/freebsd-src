@@ -2,6 +2,6 @@
 # $FreeBSD$
 #
 
-PROG=	perldoc
+SCRIPTS=perldoc
 
 .include <bsd.prog.mk>

@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-PROG=	h2ph
+SCRIPTS=h2ph
 
 beforedepend all:	scripts
 
@@ -10,7 +10,7 @@ beforedepend all:	scripts
 
 afterinstall:
 	cd ${DESTDIR}/usr/include; \
-	${MINIPERL} -I${.OBJDIR}/lib ${.OBJDIR}/${PROG} -d \
+	${MINIPERL} -I${.OBJDIR}/lib ${.OBJDIR}/${SCRIPTS} -d \
 		${DESTDIR}/usr/libdata/perl/${VERSION}/mach * */*
 
 .PATH:	${PERL5SRC}
