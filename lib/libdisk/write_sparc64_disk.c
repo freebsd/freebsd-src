@@ -89,6 +89,10 @@ Write_Disk(const struct disk *d1)
         }
 
 	write_block(fd, 0, sl, sizeof *sl);
+
+	for(i = 1; i < 16; i++)
+		write_block(fd, i * 512, d1->boot1 + 512 * (i - 1), 512);
+
 	close(fd);
 	return 0;
 }
