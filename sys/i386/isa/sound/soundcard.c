@@ -34,6 +34,8 @@
 #endif /* DEVFS */
 
 #if NSND > 0	/* from "snd.h" */
+#include "uart.h"
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <sys/mman.h>
@@ -428,7 +430,7 @@ sndattach(struct isa_device * dev)
     if (strcmp(dname, "sscape") == 0 || strcmp(dname, "trix") == 0)
 	dev->id_ointr = sscapeintr;
 #endif
-#if NSND > 0
+#if NUART > 0
     if (strcmp(dname, "uart0") == 0)
 	dev->id_ointr = m6850intr;
 #endif
