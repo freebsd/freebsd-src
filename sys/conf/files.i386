@@ -230,7 +230,6 @@ i386/isa/if_cx.c		optional	cx
 i386/isa/if_el.c		count		el
 i386/isa/if_le.c		count		le
 i386/isa/if_rdp.c		count		rdp
-i386/isa/if_wl.c		count		wl
 i386/isa/if_wlp.c		optional	wlp
 i386/isa/intr_machdep.c		standard
 i386/isa/ithread.c		standard
