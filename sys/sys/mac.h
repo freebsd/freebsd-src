@@ -120,6 +120,8 @@ struct mount;
 struct proc;
 struct sockaddr;
 struct socket;
+struct sysctl_oid;
+struct sysctl_req;
 struct pipepair;
 struct thread;
 struct timespec;
@@ -281,9 +283,8 @@ int	mac_check_system_reboot(struct ucred *cred, int howto);
 int	mac_check_system_settime(struct ucred *cred);
 int	mac_check_system_swapon(struct ucred *cred, struct vnode *vp);
 int	mac_check_system_swapoff(struct ucred *cred, struct vnode *vp);
-int	mac_check_system_sysctl(struct ucred *cred, int *name,
-	    u_int namelen, void *old, size_t *oldlenp, int inkernel,
-	    void *new, size_t newlen);
+int	mac_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
+	    void *arg1, int arg2, struct sysctl_req *req);
 int	mac_check_vnode_access(struct ucred *cred, struct vnode *vp,
 	    int acc_mode);
 int	mac_check_vnode_chdir(struct ucred *cred, struct vnode *dvp);
