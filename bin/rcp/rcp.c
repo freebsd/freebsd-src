@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rcp.c,v 1.8.2.2 1997/06/06 16:11:15 charnier Exp $
+ *	$Id$
  */
 
 #ifndef lint
@@ -70,9 +70,9 @@ static char const sccsid[] = "@(#)rcp.c	8.2 (Berkeley) 4/2/94";
 
 #ifdef KERBEROS
 #include <des.h>
-#include <kerberosIV/krb.h>
+#include <krb.h>
 
-#include "../../usr.bin/rlogin/krb.h"
+/* #include "../../usr.bin/rlogin/krb.h" */
 
 char	dst_realm_buf[REALM_SZ];
 char	*dest_realm = NULL;
@@ -344,7 +344,7 @@ tolocal(argc, argv)
 			if (!(bp = malloc(len)))
 				err(1, NULL);
 			(void)snprintf(bp, len, "exec %s%s%s %s %s", _PATH_CP,
-			    iamrecursive ? " -r" : "", pflag ? " -p" : "",
+			    iamrecursive ? " -PR" : "", pflag ? " -p" : "",
 			    argv[i], argv[argc - 1]);
 			if (susystem(bp, userid))
 				++errs;
