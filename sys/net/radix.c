@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.4 (Berkeley) 11/2/94
- *	$Id: radix.c,v 1.16 1999/04/26 09:05:31 peter Exp $
+ *	$Id: radix.c,v 1.17 1999/04/29 03:22:16 luoqi Exp $
  */
 
 /*
@@ -260,8 +260,11 @@ rn_match(v_arg, head)
 	/*
 	 * This extra grot is in case we are explicitly asked
 	 * to look up the default.  Ugh!
+	 *
+	 * Never return the root node itself, it seems to cause a
+	 * lot of confusion.
 	 */
-	if ((t->rn_flags & RNF_ROOT) && t->rn_dupedkey)
+	if (t->rn_flags & RNF_ROOT)
 		t = t->rn_dupedkey;
 	return t;
 on1:
