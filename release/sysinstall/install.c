@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.193 1997/07/16 11:45:48 jkh Exp $
+ * $Id: install.c,v 1.194 1997/07/16 15:21:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -796,6 +796,15 @@ installFixup(dialogMenuItem *self)
 	/* BOGON #4: /compat created by default in root fs */
 	Mkdir("/usr/compat");
 	vsystem("ln -s /usr/compat /compat");
+
+	/* BOGON #5: aliases database not build for bin */
+	vsystem("newaliases");
+
+	/* BOGON #6: deal with new boot files */
+	if (file_readable("/sys/i386/boot/biosboot/boot.help"))
+	    vsystem("cp /sys/i386/boot/biosboot/boot.help /");
+	vsystem("touch /kernel.config");
+	vsystem("touch /boot.config");
 
 	/* Now run all the mtree stuff to fix things up */
         vsystem("mtree -deU -f /etc/mtree/BSD.root.dist -p /");
