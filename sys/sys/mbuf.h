@@ -269,8 +269,8 @@ struct mbstat {
  * M_TRYWAIT means "block for mbuf_wait ticks at most if nothing is
  * available."
  */
-#define	M_DONTWAIT	1
-#define	M_TRYWAIT	0
+#define	M_DONTWAIT	0x4		/* don't conflict with M_NOWAIT */
+#define	M_TRYWAIT	0x8		/* or M_WAITOK */
 #define	M_WAIT		M_TRYWAIT	/* XXX: Deprecated. */
 
 #ifdef _KERNEL
