@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vfprintf.c,v 1.13 1997/12/19 21:59:22 bde Exp $";
+		"$Id: vfprintf.c,v 1.14 1997/12/24 13:47:13 ache Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -643,18 +643,14 @@ fp_begin:		if (prec == -1)
 			break;
 #endif /* FLOATING_POINT */
 		case 'n':
-			n = ret;
-			if ((fp->_flags & __SSTR) &&
-			    fp->_bf._size < n)
-				n = fp->_bf._size;
 			if (flags & QUADINT)
-				*GETARG(quad_t *) = n;
+				*GETARG(quad_t *) = ret;
 			else if (flags & LONGINT)
-				*GETARG(long *) = n;
+				*GETARG(long *) = ret;
 			else if (flags & SHORTINT)
-				*GETARG(short *) = n;
+				*GETARG(short *) = ret;
 			else
-				*GETARG(int *) = n;
+				*GETARG(int *) = ret;
 			continue;	/* no output */
 		case 'O':
 			flags |= LONGINT;
