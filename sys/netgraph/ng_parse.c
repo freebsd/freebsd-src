@@ -47,7 +47,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/ctype.h>
+/* #include <sys/ctype.h>*/
 
 #include <netinet/in.h>
 
