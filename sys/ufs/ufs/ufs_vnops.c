@@ -90,7 +90,6 @@ static int ufs_create(struct vop_create_args *);
 static int ufs_getattr(struct vop_getattr_args *);
 static int ufs_link(struct vop_link_args *);
 static int ufs_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
-static int ufs_missingop(struct vop_generic_args *ap);
 static int ufs_mkdir(struct vop_mkdir_args *);
 static int ufs_mknod(struct vop_mknod_args *);
 static int ufs_open(struct vop_open_args *);
@@ -2433,15 +2432,6 @@ bad:
 	return (error);
 }
 
-static int
-ufs_missingop(ap)
-	struct vop_generic_args *ap;
-{
-
-	panic("no vop function for %s in ufs child", ap->a_desc->vdesc_name);
-	return (EOPNOTSUPP);
-}
-
 static struct filterops ufsread_filtops = 
 	{ 1, NULL, filt_ufsdetach, filt_ufsread };
 static struct filterops ufswrite_filtops = 
@@ -2549,10 +2539,10 @@ filt_ufsvnode(struct knote *kn, long hint)
 static vop_t **ufs_vnodeop_p;
 static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },
-	{ &vop_read_desc,		(vop_t *) ufs_missingop },
-	{ &vop_reallocblks_desc,	(vop_t *) ufs_missingop },
-	{ &vop_write_desc,		(vop_t *) ufs_missingop },
+	{ &vop_fsync_desc,		(vop_t *) vop_panic },
+	{ &vop_read_desc,		(vop_t *) vop_panic },
+	{ &vop_reallocblks_desc,	(vop_t *) vop_panic },
+	{ &vop_write_desc,		(vop_t *) vop_panic },
 	{ &vop_access_desc,		(vop_t *) ufs_access },
 	{ &vop_advlock_desc,		(vop_t *) ufs_advlock },
 	{ &vop_bmap_desc,		(vop_t *) ufs_bmap },
@@ -2597,7 +2587,7 @@ static struct vnodeopv_desc ufs_vnodeop_opv_desc =
 static vop_t **ufs_specop_p;
 static struct vnodeopv_entry_desc ufs_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
-	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },
+	{ &vop_fsync_desc,		(vop_t *) vop_panic },
 	{ &vop_access_desc,		(vop_t *) ufs_access },
 	{ &vop_close_desc,		(vop_t *) ufsspec_close },
 	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
@@ -2623,7 +2613,7 @@ static struct vnodeopv_desc ufs_specop_opv_desc =
 static vop_t **ufs_fifoop_p;
 static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
-	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },
+	{ &vop_fsync_desc,		(vop_t *) vop_panic },
 	{ &vop_access_desc,		(vop_t *) ufs_access },
 	{ &vop_close_desc,		(vop_t *) ufsfifo_close },
 	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
