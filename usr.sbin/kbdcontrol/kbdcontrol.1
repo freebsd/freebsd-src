@@ -118,6 +118,14 @@ You need to use the
 option below to associate a keyboard with the console again.
 .It Fl k Ar keyboard_device
 Use the specified device as the console keyboard.
+When using this option, the standard input of the
+.Nm
+process should be redirected from
+.Pa /dev/console
+if you are not working on the system console
+(see the
+.Sx EXAMPLES
+section).
 .It Fl L Ar keymap_file
 Load keyboard map file from
 .Ar keymap_file
@@ -187,6 +195,17 @@ from flushing if the bell is to ring in the background screen,
 run the following command.
 .Pp
 .Dl kbdcontrol -b quiet.visual
+.Pp
+To change the default console keyboard to the another keyboard,
+for example the first USB keyboard (see
+.Xr ukbd 4 ) ,
+use the following commands.
+.Pp
+.Dl kbdcontrol -k /dev/kbd1 < /dev/console
+.Pp
+To switch back to the default keyboard, use this command.
+.Pp
+.Dl kbdcontrol -k /dev/kbd0
 .Pp
 .Sh BUGS
 Report when found.
