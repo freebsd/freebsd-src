@@ -442,7 +442,6 @@ struct kse {
 
 /* flags kept in ke_flags */
 #define	KEF_IDLEKSE	0x00004	/* A 'Per CPU idle process'.. has one thread */
-#define	KEF_USER	0x00200	/* Process is not officially in the kernel */
 #define	KEF_DIDRUN	0x02000	/* KSE actually ran. */
 #define	KEF_EXIT	0x04000	/* KSE is being killed. */
 
@@ -572,7 +571,6 @@ struct proc {
 	void		*p_aioinfo;	/* (c) ASYNC I/O info. */
 	struct thread	*p_singlethread;/* (j) If single threading this is it */
 	int		p_suspcount;	/* (j) # threads in suspended mode */
-	int		p_userthreads;	/* (j) # threads in userland */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_sigmask
 
