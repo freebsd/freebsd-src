@@ -119,14 +119,12 @@ acct(td, uap)
 	struct nameidata nd;
 	int error, flags;
 
-	mtx_lock(&Giant);
-	if (td != curthread)
-		panic("acct");		/* XXXKSE DIAGNOSTIC */
 	/* Make sure that the caller is root. */
 	error = suser(td);
 	if (error)
-		goto done2;
+		return (error);
 
+	mtx_lock(&Giant);
 	/*
 	 * If accounting is to be started to a file, open that file for
 	 * writing and make sure it's a 'normal'.
