@@ -113,6 +113,7 @@ CLEANDIR=	clean cleandepend
 CLEANDIR=	cleandir
 .endif
 
+CVS?=		cvs
 SUP?=		/usr/local/bin/cvsup
 SUPFLAGS?=	-g -L 2 -P -
 .if defined(SUPHOST)
@@ -503,7 +504,7 @@ update:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Updating ${.CURDIR} from cvs repository" ${CVSROOT}
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; cvs -q update -A -P -d
+	cd ${.CURDIR}; ${CVS} -q update -A -P -d
 .endif
 
 #
