@@ -563,7 +563,7 @@ ugen_do_write(sc, endpt, uio, flag)
 	usbd_xfer_handle xfer;
 	usbd_status err;
 
-	DPRINTFN(5, ("%s: ugenwrite: %d\n", USBDEVNAME(sc->sc_dev), endpt));
+	DPRINTFN(5, ("%s: ugen_do_write: %d\n", USBDEVNAME(sc->sc_dev), endpt));
 
 	if (sc->sc_dying)
 		return (EIO);
@@ -573,11 +573,11 @@ ugen_do_write(sc, endpt, uio, flag)
 
 #ifdef DIAGNOSTIC
 	if (sce->edesc == NULL) {
-		printf("ugenwrite: no edesc\n");
+		printf("ugen_do_write: no edesc\n");
 		return (EIO);
 	}
 	if (sce->pipeh == NULL) {
-		printf("ugenwrite: no pipe\n");
+		printf("ugen_do_write: no pipe\n");
 		return (EIO);
 	}
 #endif
@@ -591,7 +591,7 @@ ugen_do_write(sc, endpt, uio, flag)
 			error = uiomove(buf, n, uio);
 			if (error)
 				break;
-			DPRINTFN(1, ("ugenwrite: transfer %d bytes\n", n));
+			DPRINTFN(1, ("ugen_do_write: transfer %d bytes\n", n));
 			err = usbd_bulk_transfer(xfer, sce->pipeh, 0, 
 				  sce->timeout, buf, &n,"ugenwb");
 			if (err) {
@@ -1203,7 +1203,7 @@ ugenpoll(dev, events, p)
 		return (EINVAL);
 #ifdef DIAGNOSTIC
 	if (!sce->edesc) {
-		printf("ugenwrite: no edesc\n");
+		printf("ugenpoll: no edesc\n");
 		return (EIO);
 	}
 	if (!sce->pipeh) {
