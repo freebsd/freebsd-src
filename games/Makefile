@@ -2,7 +2,7 @@
 
 # XXX missing: chess ching monop [copyright]
 SUBDIR= adventure arithmetic atc backgammon battlestar bcd boggle bs caesar \
-	canfield cribbage dm factor fish fortune gdc hack hangman \
+	canfield cribbage dm factor fish fortune grdc hack hangman \
 	larn mille morse number phantasia pig pom ppt primes quiz \
 	rain random robots rogue sail snake tetris trek wargames worm worms \
 	wump
