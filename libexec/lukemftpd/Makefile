@@ -26,9 +26,15 @@ CFLAGS+=-I${.CURDIR}/${LSDIR}
 DPADD+=	${LIBM}
 LDADD+=	-lm
 
-CFLAGS+= -DUSE_OPIE -DUSE_PAM
-DPADD+=	${LIBOPIE} ${LIBPAM}
-LDADD+=	-lopie -lpam
+CFLAGS+= -DUSE_OPIE
+DPADD+=	${LIBOPIE} ${LIBMD}
+LDADD+=	-lopie -lmd
+
+.if !defined(NOPAM)
+CFLAGS+= -DUSE_PAM
+DPADD+=	${LIBPAM}
+LDADD+=	${MINUSLPAM}
+.endif
 
 CLEANFILES+=	ls-unmain.c
 ls-unmain.c: ls.c
