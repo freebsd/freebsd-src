@@ -98,6 +98,8 @@ all_procs_ipi(int vector)
 static __inline int
 all_but_self_ipi(int vector)
 {
+	if (mp_ncpus <= 1)
+		return 0;
 	return apic_ipi(APIC_DEST_ALLESELF, vector, APIC_DELMODE_FIXED);
 }
 
