@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cbcp.c,v 1.5 1998/10/17 12:28:11 brian Exp $
+ *	$Id: cbcp.c,v 1.6 1998/10/25 23:35:15 brian Exp $
  */
 
 #include <sys/types.h>
@@ -354,10 +354,12 @@ cbcp_AdjustResponse(struct cbcp *cbcp, struct cbcp_data *data)
 
   switch (data->type) {
     case CBCP_NONUM:
-      if (cbcp->fsm.type == CBCP_NONUM)
-          return 1;
-      log_Printf(LogPHASE, "CBCP: server wants no callback !\n");
-      return 0;
+      /*
+       * If the callee offers no callback, we send our desired response
+       * anyway.  This is what Win95 does - although I can't find this
+       * behaviour documented in the spec....
+       */
+      return 1;
 
     case CBCP_CLIENTNUM:
       if (cbcp->fsm.type == CBCP_CLIENTNUM) {
