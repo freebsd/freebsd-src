@@ -184,6 +184,7 @@ i386/i386/simplelock.s		optional	smp
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
+i386/i386/synch_machdep.c	standard
 i386/i386/trap.c		standard
 i386/i386/vm86.c		standard
 i386/i386/vm_machdep.c		standard
@@ -229,6 +230,7 @@ i386/isa/if_sr.c		count		sr
 i386/isa/if_wi.c		optional	wi card
 i386/isa/if_wl.c		count		wl
 i386/isa/intr_machdep.c		standard
+i386/isa/ithread.c		standard
 i386/isa/ipl_funcs.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/isa/isa.c			optional	isa
