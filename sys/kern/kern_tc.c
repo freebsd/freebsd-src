@@ -19,8 +19,6 @@
 #include <sys/timepps.h>
 #include <sys/timex.h>
 
-#include <machine/psl.h>
-
 /*
  * Implement a dummy timecounter which we can use until we get a real one
  * in the air.  This allows the console and other early stuff to use
