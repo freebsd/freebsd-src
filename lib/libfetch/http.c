@@ -135,6 +135,8 @@ _http_fillbuf(struct cookie *c)
     } else if (c->encoding == ENC_CHUNKED) {
 	if (c->chunksize == 0) {
 	    ln = fgetln(c->real_f, &len);
+	    if (len <= 2)
+		return NULL;
 	    DEBUG(fprintf(stderr, "\033[1m_http_fillbuf(): new chunk: "
 			  "%*.*s\033[m\n", (int)len-2, (int)len-2, ln));
 	    sscanf(ln, "%x", &(c->chunksize));
