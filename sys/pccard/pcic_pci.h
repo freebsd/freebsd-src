@@ -222,14 +222,19 @@
 #define CB_SS_YVSOCK		0x80000000 /* Y.Y V Socket */
 
 #define CB_SP_CLKSTOP		0x80	/* Cardbus clock stop protocol */
+#define CB_SP_VCC_MASK		0x70
 #define CB_SP_VCC_0V		0x00
+					/* 0x10 is reserved 12V in VPP */
 #define CB_SP_VCC_5V		0x20
 #define CB_SP_VCC_3V		0x30
 #define CB_SP_VCC_XV		0x40
 #define CB_SP_VCC_YV		0x50
+					/* 0x60 and 0x70 are reserved */
+#define CB_SP_VPP_MASK		0x07
 #define CB_SP_VPP_0V		0x00
 #define CB_SP_VPP_12V		0x01
 #define CB_SP_VPP_5V		0x02
 #define CB_SP_VPP_3V		0x03
 #define CB_SP_VPP_XV		0x04
 #define CB_SP_VPP_YV		0x05
+					/* 0x6 and 0x7 are reserved */
