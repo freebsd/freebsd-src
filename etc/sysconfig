@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id$
+#	$Id: sysconfig,v 1.60 1997/02/23 09:20:54 peter Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -234,9 +234,6 @@ xtend=NO
 # The device should normally be one of the swap devices specified
 # in /etc/fstab.
 dumpdev=NO
-
-# Set to YES if you want kernel crashdumps to be saved for debugging
-savecore=NO
 
 # Set to an additional swapfile you'd like to have added to preallocated swap
 # space during system boot (or NO for none).
