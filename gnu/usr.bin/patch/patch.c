@@ -90,6 +90,7 @@ char rcsid[] =
  *
  */
 
+#include <paths.h>
 #include "INTERN.h"
 #include "common.h"
 #include "EXTERN.h"
@@ -166,7 +167,7 @@ char **argv;
 
       tmpdir = getenv ("TMPDIR");
       if (tmpdir == NULL) {
-	tmpdir = "/tmp";
+	tmpdir = _PATH_TMP;
       }
       tmpname_len = strlen (tmpdir) + 20;
 
@@ -387,7 +388,7 @@ char **argv;
 	if (failed) {
 	    failtotal += failed;
 	    if (!*rejname) {
-		Strcpy(rejname, outname);
+		Strlcpy(rejname, outname, sizeof(rejname));
 		addext(rejname, ".rej", '#');
 	    }
 	    if (skip_rest_of_patch) {
@@ -524,9 +525,9 @@ get_some_switches(void)
 	    	do_defines = TRUE;
 		if (!isalpha((unsigned char)*optarg) && '_' != *optarg)
 		    fatal1("argument to -D is not an identifier\n");
-		Sprintf(if_defined, "#ifdef %s\n", optarg);
-		Sprintf(not_defined, "#ifndef %s\n", optarg);
-		Sprintf(end_defined, "#endif /* %s */\n", optarg);
+		Snprintf(if_defined, sizeof(if_defined), "#ifdef %s\n", optarg);
+		Snprintf(not_defined, sizeof(not_defined), "#ifndef %s\n", optarg);
+		Snprintf(end_defined, sizeof(end_defined), "#endif /* %s */\n", optarg);
 		break;
 	    case 'e':
 		diff_type = ED_DIFF;
@@ -565,7 +566,7 @@ get_some_switches(void)
 		    strippath = 0;
 		break;
 	    case 'r':
-		Strcpy(rejname, optarg);
+		Strlcpy(rejname, optarg, sizeof(rejname));
 		break;
 	    case 'R':
 		reverse = TRUE;

@@ -29,9 +29,12 @@
 #define Fclose (void)fclose
 #define Fflush (void)fflush
 #define Sprintf (void)sprintf
+#define Snprintf (void)snprintf
 #define Mktemp (void)mktemp
 #define Strcpy (void)strcpy
 #define Strcat (void)strcat
+#define Strlcpy (void)strlcpy
+#define Strlcat (void)strlcat
 
 /* NeXT declares malloc and realloc incompatibly from us in some of
    these files.  Temporarily redefine them to prevent errors.  */
