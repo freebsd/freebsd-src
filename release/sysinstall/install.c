@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.71 1995/11/05 00:16:33 jkh Exp $
+ * $Id: install.c,v 1.71.2.72 1995/11/05 01:00:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -346,19 +346,17 @@ installNovice(char *str)
     if (diskLabelEditor("novice") == RET_FAIL)
 	return RET_FAIL;
 
-    if (!Dists) {
-	dialog_clear();
-	msgConfirm("Now it is time to select an installation subset.  There are a number of\n"
-		   "canned distribution sets, ranging from minimal installation sets to full\n"
-		   "X11 developer oriented configurations.  You can also select a custom set\n"
-		   "of distributions if none of the provided ones are suitable.");
-	while (1) {
-	    if (!dmenuOpenSimple(&MenuDistributions))
-		return RET_FAIL;
-
-	    if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
-		break;
-	}
+    dialog_clear();
+    msgConfirm("Now it is time to select an installation subset.  There are a number of\n"
+	       "canned distribution sets, ranging from minimal installation sets to full\n"
+	       "X11 developer oriented configurations.  You can also select a custom set\n"
+	       "of distributions if none of the provided ones are suitable.");
+    while (1) {
+	if (!dmenuOpenSimple(&MenuDistributions))
+	    return RET_FAIL;
+	
+	if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
+	    break;
     }
 
     if (!mediaDevice) {
