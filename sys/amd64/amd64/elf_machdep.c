@@ -104,10 +104,11 @@ SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
 
 /* Process one elf relocation with addend. */
 static int
-elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
+elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
+    int type, int local, elf_lookup_fn lookup)
 {
-	Elf_Addr relocbase = (Elf_Addr) lf->address;
-	Elf_Addr *where;
+	Elf64_Addr *where, val;
+	Elf32_Addr *where32, val32;
 	Elf_Addr addr;
 	Elf_Addr addend;
 	Elf_Word rtype, symidx;
@@ -133,37 +134,39 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 		panic("unknown reloc type %d\n", type);
 	}
 
-	if (local) {
-		if (rtype == R_X86_64_RELATIVE) {	/* A + B */
-			addr = relocbase + addend;
-			if (*where != addr)
-				*where = addr;
-		}
-		return (0);
-	}
-
 	switch (rtype) {
+
 
 		case R_X86_64_NONE:	/* none */
 			break;
 
 		case R_X86_64_64:		/* S + A */
-			addr = elf_lookup(lf, symidx, 1);
+			addr = lookup(lf, symidx, 1);
+			val = addr + addend;
 			if (addr == 0)
 				return -1;
-			addr += addend;
-			if (*where != addr)
-				*where = addr;
+			if (*where != val)
+				*where = val;
 			break;
 
 		case R_X86_64_PC32:	/* S + A - P */
-			addr = elf_lookup(lf, symidx, 1);
+			addr = lookup(lf, symidx, 1);
+			where32 = (Elf32_Addr *)where;
+			val32 = (Elf32_Addr)(addr + addend - (Elf_Addr)where);
 			if (addr == 0)
 				return -1;
-			addr += addend - (Elf_Addr)where;
-			/* XXX needs to be 32 bit *where, not 64 bit */
-			if (*where != addr)
-				*where = addr;
+			if (*where32 != val32)
+				*where32 = val32;
+			break;
+
+		case R_X86_64_32S:	/* S + A sign extend */
+			addr = lookup(lf, symidx, 1);
+			val32 = (Elf32_Addr)(addr + addend);
+			where32 = (Elf32_Addr *)where;
+			if (addr == 0)
+				return -1;
+			if (*where32 != val32)
+				*where32 = val32;
 			break;
 
 		case R_X86_64_COPY:	/* none */
@@ -176,7 +179,7 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 			break;
 
 		case R_X86_64_GLOB_DAT:	/* S */
-			addr = elf_lookup(lf, symidx, 1);
+			addr = lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
 			if (*where != addr)
@@ -184,6 +187,10 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 			break;
 
 		case R_X86_64_RELATIVE:	/* B + A */
+			addr = relocbase + addend;
+			val = addr;
+			if (*where != val)
+				*where = val;
 			break;
 
 		default:
@@ -195,17 +202,19 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 }
 
 int
-elf_reloc(linker_file_t lf, const void *data, int type)
+elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
+    elf_lookup_fn lookup)
 {
 
-	return (elf_reloc_internal(lf, data, type, 0));
+	return (elf_reloc_internal(lf, relocbase, data, type, 0, lookup));
 }
 
 int
-elf_reloc_local(linker_file_t lf, const void *data, int type)
+elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
+    int type, elf_lookup_fn lookup)
 {
 
-	return (elf_reloc_internal(lf, data, type, 1));
+	return (elf_reloc_internal(lf, relocbase, data, type, 1, lookup));
 }
 
 int

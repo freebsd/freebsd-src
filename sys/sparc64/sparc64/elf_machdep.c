@@ -252,7 +252,8 @@ static long reloc_target_bitmask[] = {
 #define RELOC_VALUE_BITMASK(t)	(reloc_target_bitmask[t])
 
 int
-elf_reloc_local(linker_file_t lf, const void *data, int type)
+elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
+    int type, elf_lookup_fn lookup)
 {
 	const Elf_Rela *rela;
 	Elf_Addr value;
@@ -275,7 +276,8 @@ elf_reloc_local(linker_file_t lf, const void *data, int type)
 
 /* Process one elf relocation with addend. */
 int
-elf_reloc(linker_file_t lf, const void *data, int type)
+elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
+    elf_lookup_fn lookup)
 {
 	const Elf_Rela *rela;
 	Elf_Addr relocbase;
@@ -289,7 +291,6 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 	if (type != ELF_RELOC_RELA)
 		return (-1);
 
-	relocbase = (Elf_Addr)lf->address;
 	rela = (const Elf_Rela *)data;
 	where = (Elf_Addr *)(relocbase + rela->r_offset);
 	where32 = (Elf_Half *)where;
@@ -309,7 +310,7 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 	value = rela->r_addend;
 
 	if (RELOC_RESOLVE_SYMBOL(rtype)) {
-		addr = elf_lookup(lf, symidx, 1);
+		addr = lookup(lf, symidx, 1);
 		if (addr == 0)
 			return (-1);
 		value += addr;

@@ -143,7 +143,7 @@ ia64_coredump(struct thread *td, struct vnode *vp, off_t limit)
 }
 
 static Elf_Addr
-lookup_fdesc(linker_file_t lf, Elf_Word symidx)
+lookup_fdesc(linker_file_t lf, Elf_Word symidx, elf_lookup_fn lookup)
 {
 	linker_file_t top;
 	Elf_Addr addr;
@@ -151,7 +151,7 @@ lookup_fdesc(linker_file_t lf, Elf_Word symidx)
 	int i;
 	static int eot = 0;
 
-	addr = elf_lookup(lf, symidx, 0);
+	addr = lookup(lf, symidx, 0);
 	if (addr == 0) {
 		top = lf;
 		symname = elf_get_symname(top, symidx);
@@ -191,7 +191,8 @@ lookup_fdesc(linker_file_t lf, Elf_Word symidx)
 
 /* Process one elf relocation with addend. */
 static int
-elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
+elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
+    int type, int local, elf_lookup_fn lookup)
 {
 	Elf_Addr relocbase = (Elf_Addr)lf->address;
 	Elf_Addr *where;
@@ -238,7 +239,7 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 	case R_IA64_NONE:
 		break;
 	case R_IA64_DIR64LSB:	/* word64 LSB	S + A */
-		addr = elf_lookup(lf, symidx, 1);
+		addr = lookup(lf, symidx, 1);
 		if (addr == 0)
 			return (-1);
 		*where = addr + addend;
@@ -248,7 +249,7 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 			printf("%s: addend ignored for OPD relocation\n",
 			    __func__);
 		}
-		addr = lookup_fdesc(lf, symidx);
+		addr = lookup_fdesc(lf, symidx, lookup);
 		if (addr == 0)
 			return (-1);
 		*where = addr;
@@ -256,7 +257,7 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 	case R_IA64_REL64LSB:	/* word64 LSB	BD + A */
 		break;
 	case R_IA64_IPLTLSB:
-		addr = lookup_fdesc(lf, symidx);
+		addr = lookup_fdesc(lf, symidx, lookup);
 		if (addr == 0)
 			return (-1);
 		where[0] = *((Elf_Addr*)addr) + addend;
@@ -272,17 +273,19 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 }
 
 int
-elf_reloc(linker_file_t lf, const void *data, int type)
+elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
+    elf_lookup_fn lookup)
 {
 
-	return (elf_reloc_internal(lf, data, type, 0));
+	return (elf_reloc_internal(lf, relocbase, data, type, 0, lookup));
 }
 
 int
-elf_reloc_local(linker_file_t lf, const void *data, int type)
+elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
+    int type, elf_lookup_fn lookup)
 {
 
-	return (elf_reloc_internal(lf, data, type, 1));
+	return (elf_reloc_internal(lf, relocbase, data, type, 1, lookup));
 }
 
 int
