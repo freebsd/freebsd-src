@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.5 1997/02/02 19:06:18 joerg Exp $
+ * $Id: main.c,v 1.22.2.6 1997/02/22 17:59:08 joerg Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -28,7 +28,7 @@
 #include <paths.h>
 #include <sys/time.h>
 #include <termios.h>
-#include "sig.h"
+#include <signal.h>
 #include <sys/wait.h>
 #include <errno.h>
 #include <netdb.h>
@@ -49,6 +49,7 @@
 #include "systems.h"
 #include "ip.h"
 #include "alias.h"
+#include "sig.h"
 
 #define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
 #define LAUTH_M2 "Warning: All manipulation is allowed by anyone in the world\n"
@@ -158,13 +159,19 @@ int excode;
   OsLinkdown();
   OsCloseLink(1);
   sleep(1);
-  if (mode & MODE_AUTO) {
-    DeleteIfRoutes(1);
-  }
   if (mode & (MODE_AUTO | MODE_BACKGROUND)) {
+    DeleteIfRoutes(1);
     unlink(pid_filename);
   }
   OsInterfaceDown(1);
+  if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
+    char c = EX_ERRDEAD;
+    if (write(BGFiledes[1],&c,1) == 1)
+      LogPrintf(LOG_PHASE_BIT,"Parent notified of failure.\n");
+    else
+      LogPrintf(LOG_PHASE_BIT,"Failed to notify parent of failure.\n");
+    close(BGFiledes[1]);
+  }
   LogPrintf(LOG_PHASE_BIT, "PPP Terminated.\n");
   LogClose();
   if (server > 0)
@@ -184,7 +191,7 @@ int signo;
 	abort();
   }
   if (BGPid) {
-      kill (BGPid, SIGHUP);
+      kill (BGPid, SIGTERM);
       exit (EX_HANGUP);
   }
   else {
@@ -346,15 +353,15 @@ char **argv;
 
   tcgetattr(0, &oldtio);		/* Save original tty mode */
 
-  pending_signal(SIGHUP, Hangup);
+  pending_signal(SIGHUP, LogReOpen);
   pending_signal(SIGTERM, CloseSession);
   pending_signal(SIGINT, CloseSession);
   pending_signal(SIGQUIT, CloseSession);
 #ifdef SIGSEGV
-  pending_signal(SIGSEGV, Hangup);
+  signal(SIGSEGV, Hangup);
 #endif
 #ifdef SIGPIPE
-  pending_signal(SIGPIPE, Hangup);
+  signal(SIGPIPE, Hangup);
 #endif
 #ifdef SIGALRM
   pending_signal(SIGALRM, SIG_IGN);
@@ -438,12 +445,18 @@ char **argv;
 	if (mode & MODE_BACKGROUND) {
 	  /* Wait for our child to close its pipe before we exit. */
 	  BGPid = bgpid;
-	  read (BGFiledes[0], &c, 1);
-	  if (c == EX_NORMAL)
-	    LogPrintf (LOG_CHAT, "PPP enabled.\n");
+          close (BGFiledes[1]);
+	  if (read(BGFiledes[0], &c, 1) != 1)
+	    LogPrintf (LOG_PHASE_BIT, "Parent: Child exit, no status.\n");
+	  else if (c == EX_NORMAL)
+	    LogPrintf (LOG_PHASE_BIT, "Parent: PPP enabled.\n");
+	  else
+	    LogPrintf (LOG_PHASE_BIT, "Parent: Child failed %d.\n",(int)c);
+          close (BGFiledes[0]);
 	}
         exit(c);
-      }
+      } else if (mode & MODE_BACKGROUND)
+          close(BGFiledes[0]);
 
       snprintf(pid_filename, sizeof (pid_filename), "%s/ppp.tun%d.pid",
 		  _PATH_VARRUN, tunno);
@@ -704,7 +717,7 @@ DoLoop()
 
   pgroup = getpgrp();
 
-  if (mode & MODE_DIRECT) {
+  if (mode & (MODE_DIRECT|MODE_BACKGROUND)) {
     modem = OpenModem(mode);
     LogPrintf(LOG_PHASE_BIT, "Packet mode enabled\n");
     fflush(stderr);
@@ -719,7 +732,10 @@ DoLoop()
   timeout.tv_sec = 0;
   timeout.tv_usec = 0;
 
-  dial_up = FALSE;			/* XXXX */
+  if (mode & MODE_BACKGROUND)
+    dial_up = TRUE;			/* Bring the line up */
+  else
+    dial_up = FALSE;			/* XXXX */
   tries = 0;
   for (;;) {
     FD_ZERO(&rfds); FD_ZERO(&wfds); FD_ZERO(&efds);

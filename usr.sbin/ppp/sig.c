@@ -26,27 +26,27 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: sig.c,v 1.2 1997/02/22 16:10:51 peter Exp $
  *
  *  TODO:
  *
  */
 
+#include <sys/cdefs.h>
 #include "sig.h"
 #include <sys/types.h>
+#include <signal.h>
 #include "mbuf.h"
 #include "log.h"
 
-#define __MAXSIG (32)		/* Sizeof u_long: Make life convenient.... */
-static u_long caused;				/* A mask of pending signals */
-static __sighandler_t *handler[ __MAXSIG ];	/* all start at SIG_DFL */
+static caused[NSIG];		/* An array of pending signals */
+static sig_type handler[NSIG];	/* all start at SIG_DFL */
 
 
-/* Record a signal in the "caused" mask */
+/* Record a signal in the "caused" array */
 
 static void signal_recorder(int sig) {
-    if (sig > 0 && sig <= __MAXSIG)
-        caused |= (1<<(sig-1));
+        caused[sig-1]++;
 }
 
 
@@ -55,10 +55,10 @@ static void signal_recorder(int sig) {
     call in handle_signal()
 */
 
-__sighandler_t *pending_signal(int sig,__sighandler_t *fn) {
-    __sighandler_t *Result;
+sig_type pending_signal(int sig,sig_type fn) {
+    sig_type Result;
 
-    if (sig <= 0 || sig > __MAXSIG) {
+    if (sig <= 0 || sig > NSIG) {
 	/* Oops - we must be a bit out of date (too many sigs ?) */
         logprintf("Eeek! %s:%s: I must be out of date!\n",__FILE__,__LINE__);
         return signal(sig,fn);
@@ -66,13 +66,13 @@ __sighandler_t *pending_signal(int sig,__sighandler_t *fn) {
 
     Result = handler[sig-1];
     if (fn == SIG_DFL || fn == SIG_IGN) {
-        handler[sig-1] = (__sighandler_t *)0;
         signal(sig,fn);
+        handler[sig-1] = (sig_type)0;
     } else {
         handler[sig-1] = fn;
         signal(sig,signal_recorder);
     }
-    caused &= ~(1<<(sig-1));
+    caused[sig-1] = 0;
     return Result;
 }
 
@@ -81,9 +81,15 @@ __sighandler_t *pending_signal(int sig,__sighandler_t *fn) {
 
 void handle_signals() {
     int sig;
+    int got;
 
-    if (caused)
-       for (sig=0; sig<__MAXSIG; sig++, caused>>=1)
-           if (caused&1)
+    do {
+       got = 0;
+       for (sig = 0; sig < NSIG; sig++)
+           if (caused[sig]) {
+               caused[sig]--;
+               got++;
                (*handler[sig])(sig+1);
+           }
+    } while(got);
 }
