@@ -106,7 +106,7 @@ BINDIR		= $(DESTDIR)/usr/ucb
 
 # Names for the terminal libraries...
 LIBCURSES	= -lcurses
-LIBTERM		= -ltermlib
+LIBTERMCAP	= -ltermcap
 
 #PC_LIBCURSES	=
 #PC_LIBTERM	=
@@ -156,7 +156,7 @@ FRC:
 
 tn3270$X:	telnet/telprog.o ${SUBLIB} api/apilib.a
 	${CC} ${CFLAGS} -o tn3270 telnet/telprog.o \
-		$L ${SUBLIB} api/apilib.a $(LIBCURSES) $(LIBTERM)
+		$L ${SUBLIB} api/apilib.a ${LIBCURSES} ${LIBTERMCAP}
 
 #PC_tn3270$X:
 #PC_	link <@<

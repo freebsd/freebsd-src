@@ -5,7 +5,7 @@ CFLAGS+=-I${.CURDIR}
 SRCS=	ch.c command.c decode.c help.c input.c line.c linenum.c main.c \
 	option.c os.c output.c position.c prim.c screen.c signal.c tags.c \
 	ttyin.c
-DPADD=	${LIBTERM} ${LIBCOMPAT}
+DPADD=	${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-ltermcap -lcompat
 
 beforeinstall:
