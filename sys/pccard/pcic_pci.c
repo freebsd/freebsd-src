@@ -551,8 +551,8 @@ pcic_pci_attach(device_t dev)
 			return (ENOMEM);
 		sp->getb = pcic_getb_io;
 		sp->putb = pcic_putb_io;
-		sc->bst = sp->bst = rman_get_bustag(sc->iores);
-		sc->bsh = sp->bsh = rman_get_bushandle(sc->iores);
+		sp->bst = rman_get_bustag(sc->iores);
+		sp->bsh = rman_get_bushandle(sc->iores);
 		sp->offset = pci_get_function(dev) * PCIC_SLOT_SIZE;
 		sp->controller = PCIC_PD672X;
 		sp->revision = 0;
@@ -566,8 +566,8 @@ pcic_pci_attach(device_t dev)
 		sp->getb = pcic_pci_getb2;
 		sp->putb = pcic_pci_putb2;
 		sp->offset = CB_EXCA_OFFSET;
-		sc->bst = sp->bst = rman_get_bustag(sc->memres);
-		sc->bsh = sp->bsh = rman_get_bushandle(sc->memres);
+		sp->bst = rman_get_bustag(sc->memres);
+		sp->bsh = rman_get_bushandle(sc->memres);
 		itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
 		if (itm != NULL) {
 			sp->controller = itm->type;
