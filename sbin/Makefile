@@ -87,9 +87,7 @@ SUBDIR+=devd
 .if !defined(NO_IPFILTER)
 SUBDIR+=ipf \
 	ipfs \
-	ipfstat \
-	ipmon \
-	ipnat
+	ipmon
 .endif
 
 .if !defined(NOINET6)
