@@ -44,6 +44,9 @@ SYSCTL_INT(_jail, OID_AUTO, sysvipc_allowed, CTLFLAG_RW,
     &jail_sysvipc_allowed, 0,
     "Processes in jail can use System V IPC primitives");
 
+/*
+ * MPSAFE
+ */
 int
 jail(p, uap)
 	struct proc *p;
@@ -56,15 +59,19 @@ jail(p, uap)
 	struct jail j;
 	struct chroot_args ca;
 
+	mtx_lock(&Giant);
+
 	/* Implicitly fail if already in jail.  */
 	error = suser(p);
 	if (error)
-		return (error);
+		goto done2;
 	error = copyin(uap->jail, &j, sizeof j);
 	if (error)
-		return (error);
-	if (j.version != 0)
-		return (EINVAL);
+		goto done2;
+	if (j.version != 0) {
+		error = EINVAL;
+		goto done2;
+	}
 	MALLOC(pr, struct prison *, sizeof *pr , M_PRISON, M_WAITOK | M_ZERO);
 	error = copyinstr(j.hostname, &pr->pr_host, sizeof pr->pr_host, 0);
 	if (error) 
@@ -79,10 +86,13 @@ jail(p, uap)
 	p->p_ucred = crcopy(p->p_ucred);
 	p->p_ucred->cr_prison = pr;
 	pr->pr_ref = 1;
+	mtx_unlock(&Giant);
 	return (0);
 
 bail:
 	FREE(pr, M_PRISON);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
