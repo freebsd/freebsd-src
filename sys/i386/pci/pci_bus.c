@@ -36,6 +36,7 @@
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
+#include <pci/pcib_private.h>
 #include <isa/isavar.h>
 #include <machine/nexusvar.h>
 #include <machine/pci_cfgreg.h>
@@ -47,6 +48,9 @@
 #include "opt_cpu.h"
 
 #include "pcib_if.h"
+
+static int	pcibios_pcib_route_interrupt(device_t pcib, device_t dev,
+    int pin);
 
 static int
 nexus_pcib_maxslots(device_t dev)
@@ -77,8 +81,7 @@ nexus_pcib_write_config(device_t dev, int bus, int slot, int func,
 static int
 nexus_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 {
-	return(pci_cfgintr(pci_get_bus(dev), pci_get_slot(dev), pin,
-	    pci_get_irq(dev)));
+	return (pcibios_pcib_route_interrupt(pcib, dev, pin));
 }
 
 static devclass_t	pcib_devclass;
@@ -619,3 +622,67 @@ static driver_t pcibus_pnp_driver = {
 static devclass_t pcibus_pnp_devclass;
 
 DRIVER_MODULE(pcibus_pnp, isa, pcibus_pnp_driver, pcibus_pnp_devclass, 0, 0);
+
+
+/*
+ * Provide a PCI-PCI bridge driver for PCI busses behind PCI-PCI bridges
+ * that appear in the PCIBIOS Interrupt Routing Table to use the routing
+ * table for interrupt routing when possible.
+ */
+static int	pcibios_pcib_probe(device_t bus);
+
+static device_method_t pcibios_pcib_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		pcibios_pcib_probe),
+	DEVMETHOD(device_attach,	pcib_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,	pcib_read_ivar),
+	DEVMETHOD(bus_write_ivar,	pcib_write_ivar),
+	DEVMETHOD(bus_alloc_resource,	pcib_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	/* pcib interface */
+	DEVMETHOD(pcib_maxslots,	pcib_maxslots),
+	DEVMETHOD(pcib_read_config,	pcib_read_config),
+	DEVMETHOD(pcib_write_config,	pcib_write_config),
+	DEVMETHOD(pcib_route_interrupt,	pcibios_pcib_route_interrupt),
+
+	{0, 0}
+};
+
+static driver_t pcibios_pcib_driver = {
+	"pcib",
+	pcibios_pcib_pci_methods,
+	sizeof(struct pcib_softc),
+};
+
+DRIVER_MODULE(pcibios_pcib, pci, pcibios_pcib_driver, pcib_devclass, 0, 0);
+
+static int
+pcibios_pcib_probe(device_t dev)
+{
+
+	if ((pci_get_class(dev) != PCIC_BRIDGE) ||
+	    (pci_get_subclass(dev) != PCIS_BRIDGE_PCI))
+		return (ENXIO);
+	if (pci_probe_route_table(pcib_get_bus(dev)) == 0)
+		return (ENXIO);
+	device_set_desc(dev, "PCIBIOS PCI-PCI bridge");
+	return (-2000);
+}
+
+static int
+pcibios_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
+{
+	return(pci_cfgintr(pci_get_bus(dev), pci_get_slot(dev), pin,
+		   pci_get_irq(dev)));
+}
