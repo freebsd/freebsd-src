@@ -32,22 +32,27 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)vfontedpr.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <time.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+#include <time.h>
 #include "pathnames.h"
 #include "extern.h"
 
@@ -126,7 +131,7 @@ char	*language = "c";	/* the language indicator */
 
 #define	ps(x)	printf("%s", x)
 
-void
+int
 main(argc, argv)
     int argc;
     char *argv[];
@@ -211,10 +216,8 @@ main(argc, argv)
 	    }
 
 	    /* open the file for input */
-	    if (freopen(argv[0], "r", stdin) == NULL) {
-		perror(argv[0]);
-		exit(1);
-	    }
+	    if (freopen(argv[0], "r", stdin) == NULL)
+		err(1, "%s", argv[0]);
 	    if (idx)
 		printf("'ta 4i 4.25i 5.5iR\n'in .5i\n");
 	    fname = argv[0];
