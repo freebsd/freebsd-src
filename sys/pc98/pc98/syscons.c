@@ -25,14 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.125 1999/08/09 10:35:03 phk Exp $
+ *  $Id: syscons.c,v 1.126 1999/08/23 13:45:28 kato Exp $
  */
 
 #include "sc.h"
 #include "splash.h"
 #include "opt_syscons.h"
 #include "opt_ddb.h"
-#include "opt_devfs.h"
 #ifdef __i386__
 #include "apm.h"
 #endif
@@ -48,10 +47,6 @@
 #include <sys/tty.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#ifdef	DEVFS
-#include <sys/devfsext.h>
-#endif
-
 #include <machine/clock.h>
 #include <sys/cons.h>
 #include <machine/console.h>
@@ -88,10 +83,6 @@ static default_attr kernel_default = {
 
 static	int		sc_console_unit = -1;
 static  scr_stat    	*sc_console;
-#ifdef DEVFS
-static	void		*sc_mouse_devfs_token;
-static	void		*sc_console_devfs_token;
-#endif
 static  term_stat   	kernel_console;
 static  default_attr    *current_default;
 
@@ -308,9 +299,7 @@ sc_attach_unit(int unit, int flags)
 #ifdef SC_PIXEL_MODE
     video_info_t info;
 #endif
-#ifdef DEVFS
     int vc;
-#endif
 
     scmeminit(NULL);		/* XXX */
 
@@ -376,22 +365,15 @@ sc_attach_unit(int unit, int flags)
      */
     cdevsw_add(&sc_cdevsw);	/* XXX do this just once... */
 
-#ifdef DEVFS
     for (vc = sc->first_vty; vc < sc->first_vty + sc->vtys; vc++)
-        sc->devfs_token[vc] = devfs_add_devswf(&sc_cdevsw, vc,
-					       DV_CHR, UID_ROOT, GID_WHEEL,
-					       0600, "ttyv%r", vc);
+        make_dev(&sc_cdevsw, vc, UID_ROOT, GID_WHEEL, 0600, "ttyv%r", vc);
     if (scp == sc_console) {
 #ifndef SC_NO_SYSMOUSE
-	sc_mouse_devfs_token = devfs_add_devswf(&sc_cdevsw, SC_MOUSE,
-						DV_CHR, UID_ROOT, GID_WHEEL,
-						0600, "sysmouse");
+	make_dev(&sc_cdevsw, SC_MOUSE, UID_ROOT, GID_WHEEL, 0600, "sysmouse");
 #endif /* SC_NO_SYSMOUSE */
-	sc_console_devfs_token = devfs_add_devswf(&sc_cdevsw, SC_CONSOLECTL,
-						  DV_CHR, UID_ROOT, GID_WHEEL,
-						  0600, "consolectl");
+	make_dev(&sc_cdevsw, SC_CONSOLECTL,
+				UID_ROOT, GID_WHEEL, 0600, "consolectl");
     }
-#endif /* DEVFS */
 
     return 0;
 }

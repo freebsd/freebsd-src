@@ -27,7 +27,7 @@
  *	i4b_tel.c - device driver for ISDN telephony
  *	--------------------------------------------
  *
- *	$Id: i4b_tel.c,v 1.43 1999/07/09 06:44:00 hm Exp $
+ *	$Id: i4b_tel.c,v 1.5 1999/08/06 14:02:04 hm Exp $
  *
  *	last edit-date: [Fri Jul  9 08:35:30 1999]
  *
@@ -58,14 +58,6 @@
 #include <net/if.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
-
-#ifdef __FreeBSD__
-#include "opt_devfs.h"
-#endif
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 
 #ifdef __bsdi__
 #include <sys/device.h>
@@ -130,10 +122,6 @@ typedef struct {
 #define ST_WRWAITEMPTY	0x08		/* userland write waiting */
 
 	struct selinfo		selp;		/* select / poll */
-
-#ifdef DEVFS
-        void                    *devfs_token;   /* token for DEVFS */
-#endif
 } tel_sc_t;
 
 static tel_sc_t tel_sc[NI4BTEL][NOFUNCS];
@@ -311,13 +299,8 @@ i4btelattach()
 			tel_sc[i][j].wcvttab = 0;
 			tel_sc[i][j].result = 0;			
 			tel_init_linktab(i);
-#ifdef DEVFS
-
-/* XXX */  		tel_sc[i][j].devfs_token
-		  		= devfs_add_devswf(&i4btel_cdevsw, i, DV_CHR,
-				     UID_ROOT, GID_WHEEL, 0600,
-				     "i4btel%d", i);
-#endif
+		  	make_dev(&i4btel_cdevsw, i,
+				UID_ROOT, GID_WHEEL, 0600, "i4btel%d", i);
 		}
 	}
 }

@@ -27,7 +27,7 @@
  *	i4b_ctl.c - i4b system control port driver
  *	------------------------------------------
  *
- *	$Id: i4b_ctl.c,v 1.25 1999/06/08 08:13:00 hm Exp $
+ *	$Id: i4b_ctl.c,v 1.6 1999/08/06 14:02:02 hm Exp $
  *
  *	last edit-date: [Tue Jun  8 09:27:15 1999]
  *
@@ -58,14 +58,6 @@
 #include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <net/if.h>
-
-#ifdef __FreeBSD__
-#include "opt_devfs.h"
-#endif
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
@@ -135,10 +127,6 @@ PSEUDO_SET(i4bctlattach, i4b_i4bctldrv);
 
 #define PDEVSTATIC	static
 #endif /* __FreeBSD__ */
-
-#ifdef DEVFS
-static void *devfs_token;
-#endif
 
 #ifndef __FreeBSD__
 #define PDEVSTATIC	/* */
@@ -212,11 +200,7 @@ i4bctlattach()
 #ifndef HACK_NO_PSEUDO_ATTACH_MSG
 	printf("i4bctl: ISDN system control port attached\n");
 #endif
-#ifdef DEVFS
-	devfs_token = devfs_add_devswf(&i4bctl_cdevsw, 0, DV_CHR,
-				       UID_ROOT, GID_WHEEL, 0600,
-				       "i4bctl");
-#endif
+	make_dev(&i4bctl_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "i4bctl");
 }
 
 /*---------------------------------------------------------------------------*

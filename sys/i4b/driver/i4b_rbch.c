@@ -27,7 +27,7 @@
  *	i4b_rbch.c - device driver for raw B channel data
  *	---------------------------------------------------
  *
- *	$Id: i4b_rbch.c,v 1.36 1999/07/19 14:03:33 hm Exp $
+ *	$Id: i4b_rbch.c,v 1.5 1999/08/06 14:02:04 hm Exp $
  *
  *	last edit-date: [Fri Jul  9 09:37:02 1999]
  *
@@ -52,14 +52,6 @@
 #if defined (__NetBSD__) || defined (__OpenBSD__)
 extern cc_t ttydefchars;
 #define termioschars(t) memcpy((t)->c_cc, &ttydefchars, sizeof((t)->c_cc))
-#endif
-
-#ifdef __FreeBSD__
-#include "opt_devfs.h"
-#endif
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
 #endif
 
 #ifdef __NetBSD__
@@ -124,10 +116,6 @@ static struct rbch_softc {
 #define I4BRBCHMAXQLEN	10
 
 	struct selinfo selp;		/* select / poll	*/
-
-#ifdef DEVFS
-	void *devfs_token;		/* device filesystem	*/
-#endif	
 } rbch_softc[NI4BRBCH];
 
 static void rbch_rx_data_rdy(int unit);
@@ -280,12 +268,8 @@ i4brbchattach()
 	
 	for(i=0; i < NI4BRBCH; i++)
 	{
-#ifdef DEVFS
-		rbch_softc[i].devfs_token =
-			devfs_add_devswf(&i4brbch_cdevsw, i, DV_CHR,
-				     UID_ROOT, GID_WHEEL, 0600,
-				     "i4brbch%d", i);
-#endif
+		make_dev(&i4brbch_cdevsw, i,
+			UID_ROOT, GID_WHEEL, 0600, "i4brbch%d", i);
 		rbch_softc[i].sc_devstate = ST_IDLE;
 		rbch_softc[i].sc_hdlcq.ifq_maxlen = I4BRBCHMAXQLEN;
 		rbch_softc[i].it_in.c_ispeed = rbch_softc[i].it_in.c_ospeed = 64000;

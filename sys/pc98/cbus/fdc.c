@@ -47,12 +47,11 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.67 1999/07/29 01:02:59 mdodd Exp $
+ *	$Id: fd.c,v 1.68 1999/08/14 11:40:47 phk Exp $
  *
  */
 
 #include "fd.h"
-#include "opt_devfs.h"
 #include "opt_fdc.h"
 
 #if NFDC > 0
@@ -79,10 +78,6 @@
 #include <machine/ioctl_fd.h>
 #include <machine/resource.h>
 #include <machine/stdarg.h>
-
-#ifdef	DEVFS
-#include <sys/devfsext.h>
-#endif	/* DEVFS */
 
 #include <isa/isavar.h>
 #ifdef PC98
@@ -1164,7 +1159,7 @@ static int
 fd_attach(device_t dev)
 {
 	struct	fd_data *fd;
-#ifdef DEVFS
+#if 0
 	int	i;
 	int     mynor;
 	int     typemynor;
@@ -1173,14 +1168,9 @@ fd_attach(device_t dev)
 
 	fd = device_get_softc(dev);
 
-#ifdef DEVFS			/* XXX bitrot */
-	mynor = fd->fdu << 6;
-	fd->bdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_BLK,
-					UID_ROOT, GID_OPERATOR, 0640,
-					"fd%d", fd->fdu);
-	fd->cdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_CHR,
-					UID_ROOT, GID_OPERATOR, 0640,
-					"rfd%d", fd->fdu);
+	make_dev(&fd_cdevsw, (fd->fdu << 6),
+		UID_ROOT, GID_OPERATOR, 0640, "rfd%d", fd->fdu);
+#if 0 /* DEVFS */
 	for (i = 1; i < 1 + NUMDENS; i++) {
 		/*
 		 * XXX this and the lookup in Fdopen() should be
