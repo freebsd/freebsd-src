@@ -8,13 +8,14 @@
 #define IEATT_REVISION	6	/* read here to figure out this board */
 #define IEATT_ATTRIB	7	/* more information about this board */
 
-#define SL_BOARD(x) ((x) & 0x0f)
-#define SL_REV(x) ((x) >> 4)
+#define	SL_BOARD(x)	((x) & 0x0f)
+#define	SL_REV(x)	((x) >> 4)
 
-#define SL1_BOARD	0
-#define SL10_BOARD	1
-#define EN100_BOARD	2
-#define SLFIBER_BOARD	3
+#define SL1_BOARD	0x00
+#define SL10_BOARD	0x01
+#define EN100_BOARD	0x02
+#define SLFIBER_BOARD	0x03
+#define	NI5210_BOARD	0x0055
 
 #define SL_ATTR_WIDTH	0x04	/* bus width: clear -> 8-bit */
 #define SL_ATTR_SPEED	0x08	/* medium speed: clear -> 10 Mbps */

@@ -70,43 +70,45 @@
  */
 
 /*
-Mode of operation:
-
-We run the 82586 in a standard Ethernet mode.  We keep NFRAMES received
-frame descriptors around for the receiver to use, and NRXBUFS associated
-receive buffer descriptors, both in a circular list.  Whenever a frame is
-received, we rotate both lists as necessary.  (The 586 treats both lists
-as a simple queue.)  We also keep a transmit command around so that packets
-can be sent off quickly.
-
-We configure the adapter in AL-LOC = 1 mode, which means that the
-Ethernet/802.3 MAC header is placed at the beginning of the receive buffer
-rather than being split off into various fields in the RFD.  This also
-means that we must include this header in the transmit buffer as well.
-
-By convention, all transmit commands, and only transmit commands, shall
-have the I (IE_CMD_INTR) bit set in the command.  This way, when an
-interrupt arrives at ieintr(), it is immediately possible to tell
-what precisely caused it.  ANY OTHER command-sending routines should
-run at splimp(), and should post an acknowledgement to every interrupt
-they generate.
-
-The 82586 has a 24-bit address space internally, and the adaptor's memory
-is located at the top of this region.  However, the value we are given in
-configuration is normally the *bottom* of the adaptor RAM.  So, we must go
-through a few gyrations to come up with a kernel virtual address which
-represents the actual beginning of the 586 address space.  First, we
-autosize the RAM by running through several possible sizes and trying to
-initialize the adapter under the assumption that the selected size is
-correct.  Then, knowing the correct RAM size, we set up our pointers in
-the softc `iomem' represents the computed base of the 586 address
-space.  `iomembot' represents the actual configured base of adapter RAM.
-Finally, `iosize' represents the calculated size of 586 RAM.  Then, when
-laying out commands, we use the interval [iomembot, iomembot + iosize); to
-make 24-pointers, we subtract iomem, and to make 16-pointers, we subtract
-iomem and and with 0xffff.
-
-*/
+ * Mode of operation:
+ *
+ * We run the 82586 in a standard Ethernet mode.  We keep NFRAMES   
+ * received frame descriptors around for the receiver to use, and   
+ * NRXBUFS associated receive buffer descriptors, both in a circular
+ * list.  Whenever a frame is received, we rotate both lists as
+ * necessary.  (The 586 treats both lists as a simple queue.)  We also
+ * keep a transmit command around so that packets can be sent off
+ * quickly.
+ *
+ * We configure the adapter in AL-LOC = 1 mode, which means that the
+ * Ethernet/802.3 MAC header is placed at the beginning of the receive
+ * buffer rather than being split off into various fields in the RFD. 
+ * This also means that we must include this header in the transmit 
+ * buffer as well.
+ *
+ * By convention, all transmit commands, and only transmit commands,
+ * shall have the I (IE_CMD_INTR) bit set in the command.  This way, 
+ * when an interrupt arrives at ieintr(), it is immediately possible
+ * to tell what precisely caused it.  ANY OTHER command-sending routines
+ * should run at splimp(), and should post an acknowledgement to every
+ * interrupt they generate.
+ *
+ * The 82586 has a 24-bit address space internally, and the adaptor's
+ * memory is located at the top of this region.  However, the value
+ * we are given in configuration is normally the *bottom* of the adaptor
+ * RAM.  So, we must go through a few gyrations to come up with a
+ * kernel virtual address which represents the actual beginning of the
+ * 586 address space.  First, we autosize the RAM by running through
+ * several possible sizes and trying to initialize the adapter under
+ * the assumption that the selected size is correct.  Then, knowing
+ * the correct RAM size, we set up our pointers in the softc `iomem'
+ * represents the computed base of the 586 address space.  `iomembot'
+ * represents the actual configured base of adapter RAM.  Finally,
+ * `iosize' represents the calculated size of 586 RAM.  Then, when
+ * laying out commands, we use the interval [iomembot, iomembot +
+ * iosize); to make 24-pointers, we subtract iomem, and to make
+ * 16-pointers, we subtract iomem and and with 0xffff.
+ */
 
 #include "ie.h"
 #include "opt_inet.h"
@@ -250,28 +252,28 @@ static const char *ie_hardware_names[] = {
 };
 
 /*
-sizeof(iscp) == 1+1+2+4 == 8
-sizeof(scb) == 2+2+2+2+2+2+2+2 == 16
-NFRAMES * sizeof(rfd) == NFRAMES*(2+2+2+2+6+6+2+2) == NFRAMES*24 == 384
-sizeof(xmit_cmd) == 2+2+2+2+6+2 == 18
-sizeof(transmit buffer) == 1512
-sizeof(transmit buffer desc) == 8
------
-1946
-
-NRXBUFS * sizeof(rbd) == NRXBUFS*(2+2+4+2+2) == NRXBUFS*12
-NRXBUFS * IE_RBUF_SIZE == NRXBUFS*256
-
-NRXBUFS should be (16384 - 1946) / (256 + 12) == 14438 / 268 == 53
-
-With NRXBUFS == 48, this leaves us 1574 bytes for another command or
-more buffers.  Another transmit command would be 18+8+1512 == 1538
----just barely fits!
-
-Obviously all these would have to be reduced for smaller memory sizes.
-With a larger memory, it would be possible to roughly double the number of
-both transmit and receive buffers.
-*/
+ * sizeof(iscp) == 1+1+2+4 == 8
+ * sizeof(scb) == 2+2+2+2+2+2+2+2 == 16
+ * NFRAMES * sizeof(rfd) == NFRAMES*(2+2+2+2+6+6+2+2) == NFRAMES*24 == 384
+ * sizeof(xmit_cmd) == 2+2+2+2+6+2 == 18
+ * sizeof(transmit buffer) == 1512
+ * sizeof(transmit buffer desc) == 8
+ * -----
+ * 1946
+ * 
+ * NRXBUFS * sizeof(rbd) == NRXBUFS*(2+2+4+2+2) == NRXBUFS*12
+ * NRXBUFS * IE_RBUF_SIZE == NRXBUFS*256
+ * 
+ * NRXBUFS should be (16384 - 1946) / (256 + 12) == 14438 / 268 == 53
+ * 
+ * With NRXBUFS == 48, this leaves us 1574 bytes for another command or
+ * more buffers.  Another transmit command would be 18+8+1512 == 1538
+ * ---just barely fits!
+ * 
+ * Obviously all these would have to be reduced for smaller memory sizes.
+ * With a larger memory, it would be possible to roughly double the number
+ * of both transmit and receive buffers.
+ */
 
 #define NFRAMES		8	/* number of receive frames */
 #define NRXBUFS		48	/* number of buffers to allocate */
