@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.14 1997/04/14 18:22:02 phk Exp $
+ * $Id: queue.h,v 1.15 1997/04/27 08:31:17 phk Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -183,6 +183,9 @@ struct {								\
 	(head)->stqh_last = &(head)->stqh_first;			\
 }
 
+#define STAILQ_FIRST(head)	((head)->stqh_first)
+#define STAILQ_LAST(head)	(*(head)->stqh_last)
+
 #define STAILQ_INSERT_HEAD(head, elm, field) {				\
 	if (((elm)->field.stqe_next = (head)->stqh_first) == NULL)	\
 		(head)->stqh_last = &(elm)->field.stqe_next;		\
@@ -200,6 +203,8 @@ struct {								\
 		(head)->stqh_last = &(elm)->field.stqe_next;		\
 	(tqelm)->field.stqe_next = (elm);				\
 }
+
+#define STAILQ_NEXT(elm, field)	((elm)->field.stqe_next)
 
 #define STAILQ_REMOVE_HEAD(head, field) {				\
 	if (((head)->stqh_first =					\
