@@ -148,12 +148,14 @@ SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, reservedhigh,
 	   CTLFLAG_RW|CTLFLAG_SECURE, &ipport_reservedhigh, 0, "");
 SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, reservedlow,
 	   CTLFLAG_RW|CTLFLAG_SECURE, &ipport_reservedlow, 0, "");
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomized,
-	   CTLFLAG_RW, &ipport_randomized, 0, "");
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomcps,
-	   CTLFLAG_RW, &ipport_randomcps, 0, "");
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomtime,
-	   CTLFLAG_RW, &ipport_randomtime, 0, "");
+SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomized, CTLFLAG_RW,
+	   &ipport_randomized, 0, "Enable random port allocation");
+SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomcps, CTLFLAG_RW,
+	   &ipport_randomcps, 0, "Maximum number of random port "
+	   "allocations before switching to a sequental one");
+SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomtime, CTLFLAG_RW,
+	   &ipport_randomtime, 0, "Minimum time to keep sequental port "
+	   "allocation before switching to a random one");
 
 /*
  * in_pcb.c: manage the Protocol Control Blocks.
@@ -1211,7 +1213,8 @@ in_pcbsosetlabel(so)
  * allocation should be continued.  If more than ipport_randomcps
  * ports have been allocated in the last second, then we return to
  * sequential port allocation. We return to random allocation only
- * once we drop below ipport_randomcps for at least 5 seconds.
+ * once we drop below ipport_randomcps for at least ipport_randomtime
+ * seconds.
  */
 
 void
