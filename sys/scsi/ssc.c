@@ -49,7 +49,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.8 1995/12/08 11:18:55 julian Exp $
+ * $Id: ssc.c,v 1.9 1995/12/08 23:22:26 phk Exp $
  */
 
 #include <sys/types.h>
@@ -78,7 +78,7 @@ extern	d_ioctl_t	suioctl;
 static struct cdevsw ssc_cdevsw = 
 	{ sscopen,	sscclose,	noread,		nowrite,	/*49*/
 	  sscioctl,	nostop,		nullreset,	nodevtotty,
-	  noselect,	nxmmap,		nostrategy,	"ssc",	NULL,	-1 };
+	  noselect,	nommap,		nostrategy,	"ssc",	NULL,	-1 };
 
 static dev_t sscdev = NODEV;
 
