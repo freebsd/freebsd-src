@@ -1657,7 +1657,7 @@ ppc_write(device_t dev, char *buf, int len, int how)
 	 */
 	if ((ppc->ppc_avm & PPB_ECP) && (ppc->ppc_registered)) {
 
-	    if (ppc->ppc_dmachan >= 0) {
+	    if (ppc->ppc_dmachan > 0) {
 
 		/* byte mode, no intr, no DMA, dir=0, flush fifo
 		 */
