@@ -152,8 +152,9 @@ static	int iommu_strbuf_flush_done(struct iommu_state *);
 static 	void iommu_diag(struct iommu_state *, vm_offset_t va);
 #endif
 
-#define	IO_PAGE_SIZE		PAGE_SIZE
-#define	IO_PAGE_MASK		PAGE_MASK
+#define	IO_PAGE_SIZE		PAGE_SIZE_8K
+#define	IO_PAGE_MASK		PAGE_MASK_8K
+#define	IO_PAGE_SHIFT		PAGE_SHIFT_8K
 #define	round_io_page(x)	round_page(x)
 #define	trunc_io_page(x)	trunc_page(x)
 
@@ -461,7 +462,6 @@ iommu_dvmamap_load(bus_dma_tag_t t, struct iommu_state *is, bus_dmamap_t map,
 	u_long dvmaddr;
 	bus_size_t align, bound;
 	vm_offset_t vaddr;
-	u_long astart, aoffs;
 	int error, sgcnt;
 
 	if (map->res) {
@@ -486,50 +486,18 @@ iommu_dvmamap_load(bus_dma_tag_t t, struct iommu_state *is, bus_dmamap_t map,
 	 * Allocate a virtual region in the dvma map. Alignment to a page
 	 * boundary is always enforced.
 	 */
-	align = t->alignment / IO_PAGE_SIZE;
+	align = (t->alignment + IO_PAGE_MASK) >> IO_PAGE_SHIFT;
 	sgsize = round_io_page(buflen + ((int)vaddr & PAGE_MASK)) /
 	    IO_PAGE_SIZE;
-	/*
-	 * XXX: This is a bad kluge: the resource manager does not support
-	 * boundaries for allocations. To support this feature anyway, we
-	 * allocate at size + lcm(boundary, align) bytes (which is an upper
-	 * boundary to avoid more complex calculations), select the right
-	 * subregion, free and reallocate. There is a race in this, too...
-	 *
-	 * Should smaller boundaries be inforced using bounce buffers?
-	 */
 	if (t->boundary > 0 && (buflen > t->boundary ||
 	    t->boundary < IO_PAGE_SIZE))
 		panic("immu_dvmamap_load: illegal boundary specified");
 	bound = ulmax(t->boundary / IO_PAGE_SIZE, 1);
-	map->res = rman_reserve_resource(&is->is_dvma_rman, 0L, t->lowaddr,
-	    sgsize + align * bound,
+	map->res = rman_reserve_resource_bound(&is->is_dvma_rman, 0L,
+	    t->lowaddr, sgsize, bound >> IO_PAGE_SHIFT,
 	    RF_ACTIVE | rman_make_alignment_flags(align), NULL);
 	if (map->res == NULL)
 		return (ENOMEM);
-	astart = rman_get_start(map->res);
-	/*
-	 * Move astart to the start of a boundary region. The alignment is
-	 * maintained by rman_reserve resource().
-	 */
-	if (t->boundary > 0)
-		aoffs = (bound - (astart & (bound - 1))) % bound;
-	else
-		aoffs = 0;
-	astart += aoffs;
-	if (astart + sgsize - 1 > rman_get_end(map->res)) {
-		/* This only should happen with bad a boundary.	 */
-		panic("iommo_dvmamap_load: boundary could not be "
-		    "maintained: boundary %lu (%lu), offset %lu, start %lu, "
-		    "end %lu\n", t->boundary, bound, aoffs,
-		    rman_get_start(map->res), rman_get_end(map->res));
-	}
-	rman_release_resource(map->res);
-	map->res = rman_reserve_resource(&is->is_dvma_rman, astart,
-	    astart + sgsize + align, sgsize, RF_ACTIVE |
-	    rman_make_alignment_flags(align), NULL);
-	if (map->res == NULL)
-		panic("iommo_dvmamap_load: reallocation failed");
 
 	dvmaddr = (rman_get_start(map->res) * IO_PAGE_SIZE) |
 	    (vaddr & IO_PAGE_MASK);
@@ -615,8 +583,7 @@ iommu_dvmamap_unload(bus_dma_tag_t t, struct iommu_state *is, bus_dmamap_t map)
 			    sgsize);
 	}
 	/* Flush the caches */
-	bus_dmamap_unload(t->parent->parent, map);
-
+	bus_dmamap_unload(t->parent, map);
 }
 
 void
