@@ -62,43 +62,27 @@
 struct clockframe {
 	struct trapframe	cf_tf;
 };
-#define	CLKF_USERMODE(framep)						\
-	(((framep)->cf_tf.tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) != 0)
-#define	CLKF_PC(framep)		((framep)->cf_tf.tf_regs[FRAME_PC])
+#define	TRAPF_USERMODE(framep)						\
+	(((framep)->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) != 0)
+#define	TRAPF_PC(framep)	((framep)->tf_regs[FRAME_PC])
+
+#define	CLKF_USERMODE(framep)	TRAPF_USERMODE(&(framep)->cf_tf)
+#define	CLKF_PC(framep)		TRAPF_PC(&(framep)->cf_tf)
 #define	CLKF_INTR(framep)	(curproc->p_intr_nesting_level >= 2)
 
 /*
- * Preempt the current process if in interrupt from user mode,
- * or after the current trap/syscall if in system mode.
- */
-#define	need_resched()		do { want_resched = 1; aston(); } while (0)
-
-#define	resched_wanted()	want_resched
-
-/*
- * Give a profiling tick to the current process when the user profiling
- * buffer pages are invalid.  On the hp300, request an ast to send us
- * through trap, marking the proc as needing a profiling tick.
+ * Arrange to handle pending profiling ticks before returning to user mode.
+ *
+ * XXX this is now poorly named and implemented.  It used to handle only a
+ * single tick and the PS_OWEUPC flag served as a counter.  Now there is a
+ * counter in the proc table and flag isn't really necessary.
  */
 #define	need_proftick(p) do {						\
-	mtx_lock_spin(&sched_lock);				\
+	mtx_lock_spin(&sched_lock);					\
 	(p)->p_sflag |= PS_OWEUPC;					\
-	mtx_unlock_spin(&sched_lock);				\
 	aston();							\
+	mtx_unlock_spin(&sched_lock);					\
 } while (0)
-
-/*
- * Notify the current process (p) that it has a signal pending,
- * process as soon as possible.
- */
-#define	signotify(p)	aston()
-
-#define	aston()		PCPU_SET(astpending, 1)
-
-#ifdef _KERNEL
-extern u_int32_t want_resched;		/* resched() was called */
-#endif
-
 
 /*
  * CTL_MACHDEP definitions.

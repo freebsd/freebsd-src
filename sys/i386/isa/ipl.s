@@ -55,17 +55,20 @@
 	SUPERALIGN_TEXT
 	.type	_doreti,@function
 _doreti:
+
 	FAKE_MCOUNT(_bintr)		/* init "from" _bintr -> _doreti */
 doreti_next:
 	/* Check for ASTs that can be handled now. */
-	testl	$AST_PENDING,PCPU(ASTPENDING)
-	je	doreti_exit		/* no AST, exit */
 	testb	$SEL_RPL_MASK,TF_CS(%esp)  /* are we in user mode? */
 	jne	doreti_ast		/* yes, do it now. */
 	testl	$PSL_VM,TF_EFLAGS(%esp) /* kernel mode */
 	je	doreti_exit		/* and not VM86 mode, defer */
 	cmpl	$1,_in_vm86call		/* are we in a VM86 call? */
-	jne	doreti_ast		/* yes, we can do it */
+	je	doreti_exit		/* no, defer */
+
+doreti_ast:
+	movl	$T_ASTFLT,TF_TRAPNO(%esp)
+	call	_ast
 
 	/*
 	 * doreti_exit:	release MP lock, pop registers, iret.
@@ -80,7 +83,6 @@ doreti_exit:
 
 	.globl	doreti_popl_fs
 	.globl	doreti_syscall_ret
-doreti_syscall_ret:
 doreti_popl_fs:
 	popl	%fs
 	.globl	doreti_popl_es
@@ -119,14 +121,6 @@ doreti_popl_fs_fault:
 	movl	$0,TF_ERR(%esp)	/* XXX should be the error code */
 	movl	$T_PROTFLT,TF_TRAPNO(%esp)
 	jmp	alltraps_with_regs_pushed
-
-	ALIGN_TEXT
-doreti_ast:
-	andl	$~AST_PENDING,PCPU(ASTPENDING)
-	sti
-	movl	$T_ASTFLT,TF_TRAPNO(%esp)
-	call	_ast
-	jmp	doreti_next
 
 #ifdef APIC_IO
 #include "i386/isa/apic_ipl.s"

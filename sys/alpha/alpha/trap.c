@@ -70,8 +70,6 @@
 #include <ddb/ddb.h>
 #endif
 
-u_int32_t want_resched;
-
 unsigned long	Sfloat_to_reg __P((unsigned int));
 unsigned int	reg_to_Sfloat __P((unsigned long));
 unsigned long	Tfloat_reg_cvt __P((unsigned long));
@@ -101,7 +99,7 @@ userret(p, frame, oticks)
 	struct trapframe *frame;
 	u_quad_t oticks;
 {
-	int sig, s;
+	int sig;
 
 	/* take pending signals */
 	while ((sig = CURSIG(p)) != 0) {
@@ -111,7 +109,7 @@ userret(p, frame, oticks)
 	}
 	mtx_lock_spin(&sched_lock);
 	p->p_priority = p->p_usrpri;
-	if (want_resched) {
+	if (resched_wanted()) {
 		/*
 		 * Since we are curproc, a clock interrupt could
 		 * change our priority without changing run queues
@@ -120,14 +118,12 @@ userret(p, frame, oticks)
 		 * before we switch()'ed, we might not be on the queue
 		 * indicated by our priority.
 		 */
-		s = splstatclock();
 		DROP_GIANT_NOSWITCH();
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 		PICKUP_GIANT();
-		splx(s);
 		while ((sig = CURSIG(p)) != 0) {
 			if (!mtx_owned(&Giant))
 				mtx_lock(&Giant);
@@ -759,22 +755,27 @@ void
 ast(framep)
 	struct trapframe *framep;
 {
-	register struct proc *p;
+	struct proc *p = CURPROC;
 	u_quad_t sticks;
 
-	p = curproc;
+	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
+
+	/*
+	 * We check for a pending AST here rather than in the assembly as
+	 * acquiring and releasing mutexes in assembly is not fun.
+	 */
 	mtx_lock_spin(&sched_lock);
+	if (!(astpending() || resched_wanted())) {
+		mtx_unlock_spin(&sched_lock);
+		return;
+	}
+
 	sticks = p->p_sticks;
-	mtx_unlock_spin(&sched_lock);
 	p->p_md.md_tf = framep;
 
-	if ((framep->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) == 0)
-		panic("ast and not user");
-
+	astoff();
 	cnt.v_soft++;
-
-	PCPU_SET(astpending, 0);
-	mtx_lock_spin(&sched_lock);
+	mtx_intr_enable(&sched_lock);
 	if (p->p_sflag & PS_OWEUPC) {
 		p->p_sflag &= ~PS_OWEUPC;
 		mtx_unlock_spin(&sched_lock);

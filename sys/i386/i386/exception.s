@@ -230,7 +230,7 @@ calltrap:
  * temporarily altered for the pushfl - an interrupt might come in
  * and clobber the saved cs/eip.
  *
- * We do not obtain the MP lock, but the call to syscall2 might.  If it
+ * We do not obtain the MP lock, but the call to syscall might.  If it
  * does it will release the lock prior to returning.
  */
 	SUPERALIGN_TEXT
@@ -250,11 +250,8 @@ IDTVEC(syscall)
 	movl	%eax,TF_EFLAGS(%esp)
 	movl	$7,TF_ERR(%esp) 	/* sizeof "lcall 7,0" */
 	FAKE_MCOUNT(13*4(%esp))
-	call	_syscall2
+	call	_syscall
 	MEXITCOUNT
-	cli				/* atomic astpending access */
-	cmpl    $0,PCPU(ASTPENDING)	/* AST pending? */
-	je	doreti_syscall_ret	/* no, get out of here */
 	jmp	_doreti
 
 /*
@@ -264,7 +261,7 @@ IDTVEC(syscall)
  * rather then an IGT (interrupt gate).  Thus interrupts are enabled on
  * entry just as they are for a normal syscall.
  *
- * We do not obtain the MP lock, but the call to syscall2 might.  If it
+ * We do not obtain the MP lock, but the call to syscall might.  If it
  * does it will release the lock prior to returning.
  */
 	SUPERALIGN_TEXT
@@ -281,11 +278,8 @@ IDTVEC(int0x80_syscall)
 	mov	%ax,%fs
 	movl	$2,TF_ERR(%esp)		/* sizeof "int 0x80" */
 	FAKE_MCOUNT(13*4(%esp))
-	call	_syscall2
+	call	_syscall
 	MEXITCOUNT
-	cli				/* atomic astpending access */
-	cmpl    $0,PCPU(ASTPENDING)	/* AST pending? */
-	je	doreti_syscall_ret	/* no, get out of here */
 	jmp	_doreti
 
 ENTRY(fork_trampoline)

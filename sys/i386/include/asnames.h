@@ -304,7 +304,7 @@
 #define _swi_net			swi_net
 #define _swi_null			swi_null
 #define _swi_vm				swi_vm
-#define _syscall2			syscall2
+#define _syscall			syscall
 #define _szsigcode			szsigcode
 #define _ticks				ticks
 #define _time				time

@@ -57,7 +57,6 @@ struct globaldata {
 	u_int32_t	gd_next_asn;		/* next ASN to allocate */
 	u_int32_t	gd_current_asngen;	/* ASN rollover check */
 
-	u_int		gd_astpending;
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	int		gd_witness_spin_check;
 #ifdef KTR_PERCPU
