@@ -26,4 +26,4 @@
 
 #include <machine/endian.h>
 
-#endif _ATALK_ENDIAN_H_
+#endif /* !_ATALK_ENDIAN_H_ */
