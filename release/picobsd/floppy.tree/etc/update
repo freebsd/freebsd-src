@@ -1,9 +1,9 @@
 #!/bin/sh
 # $FreeBSD$
 pwd=`pwd`
-set `df /` ; dev="/dev/$8"
+set `df /` ; dev="$8"
 echo -n "Updating /etc contents on ${dev}... "
-mount ${dev} /mnt
+mount ${dev} /start_floppy
 if [ "X$?" != "X0" ] ; then
 	echo ""
 	echo "Cannot mount ${dev} read-write!"
@@ -12,11 +12,11 @@ fi
 cd /etc
 rm *.db
 rm passwd
-cp -Rp . /mnt/etc/
+cp -Rp . /start_floppy/etc/
 pwd_mkdb master.passwd
 echo " Done."
 echo -n "Updating kernel parameters...  "
-kget /mnt/boot/kernel.conf
-umount /mnt
+kget /start_floppy/boot/kernel.conf
+umount /start_floppy
 cd ${pwd}
 echo " Done."
