@@ -104,7 +104,9 @@
 #define PAGE_SIZE_MAX	PAGE_SIZE_4M
 #define PAGE_MASK_MAX	PAGE_MASK_4M
 
+#ifndef KSTACK_PAGES
 #define KSTACK_PAGES		4	/* pages of kernel stack (with pcb) */
+#endif
 #define KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
 #define UAREA_PAGES		1	/* pages of user area */
 #define PCPU_PAGES		1

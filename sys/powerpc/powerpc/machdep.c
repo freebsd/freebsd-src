@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_compat.h"
+#include "opt_kstack_pages.h"
 #include "opt_msgbuf.h"
 
 #include <sys/param.h>
