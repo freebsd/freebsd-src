@@ -34,7 +34,7 @@ usage(int devmask, int recmask)
 	int i, n;
 
 	printf("usage:\tmixer [[dev [voll[:volr]] | recsrc | {^|+|-|=}rec recdev] ... ]\n");
-	printf("   devices:\t");
+	printf(" devices: ");
 	for (i = 0, n = 0; i < SOUND_MIXER_NRDEVICES; i++)
 		if ((1 << i) & devmask)  {
 			if (n)
@@ -42,7 +42,7 @@ usage(int devmask, int recmask)
 			printf(names[i]);
 			n = 1;
 		}
-	printf("\n   rec devices:\t");
+	printf("\n rec devices: ");
 	for (i = 0, n = 0; i < SOUND_MIXER_NRDEVICES; i++)
 		if ((1 << i) & recmask)  {
 			if (n)
