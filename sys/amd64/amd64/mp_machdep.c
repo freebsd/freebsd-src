@@ -2647,7 +2647,7 @@ ipi_self(u_int ipi)
 	apic_ipi(APIC_DEST_SELF, ipi, APIC_DELMODE_FIXED); 
 }
 
-void
+static void
 release_aps(void *dummy __unused)
 {
 
