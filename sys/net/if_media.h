@@ -189,16 +189,19 @@ int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 #define	IFM_IEEE80211_OFDM48	16	/* OFDM 48Mbps */
 #define	IFM_IEEE80211_OFDM54	17	/* OFDM 54Mbps */
 #define	IFM_IEEE80211_OFDM72	18	/* OFDM 72Mbps */
+
 #define	IFM_IEEE80211_ADHOC	0x00000100	/* Operate in Adhoc mode */
 #define	IFM_IEEE80211_HOSTAP	0x00000200	/* Operate in Host AP mode */
 #define	IFM_IEEE80211_IBSS	0x00000400	/* Operate in IBSS mode */
 #define	IFM_IEEE80211_IBSSMASTER 0x00000800	/* Operate as an IBSS master */
 #define	IFM_IEEE80211_TURBO	0x00001000	/* Operate in turbo mode */
 #define	IFM_IEEE80211_MONITOR	0x00002000	/* Operate in monitor mode */
+
 /* operating mode for multi-mode devices */
-#define	IFM_IEEE80211_11A	1	/* 5Ghz, OFDM mode */
-#define	IFM_IEEE80211_11B	2	/* Direct Sequence mode */
-#define	IFM_IEEE80211_11G	3	/* 2Ghz, CCK mode */
+#define	IFM_IEEE80211_11A	0x00010000	/* 5Ghz, OFDM mode */
+#define	IFM_IEEE80211_11B	0x00020000	/* Direct Sequence mode */
+#define	IFM_IEEE80211_11G	0x00030000	/* 2Ghz, CCK mode */
+#define	IFM_IEEE80211_FH	0x00040000	/* 2Ghz, GFSK mode */
 
 /*
  * ATM
@@ -453,6 +456,7 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_11A, "11a" },					\
 	{ IFM_IEEE80211_11B, "11b" },					\
 	{ IFM_IEEE80211_11G, "11g" },					\
+	{ IFM_IEEE80211_FH, "fh" },					\
 	{ 0, NULL },							\
 }
 
