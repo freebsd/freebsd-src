@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.36 1994/03/21 15:18:27 ache Exp $
+ *	$Id: sio.c,v 1.37 1994/03/21 22:19:56 ache Exp $
  */
 
 #include "sio.h"
@@ -426,7 +426,7 @@ sioattach(isdp)
 	com = &com_structs[unit];
 	com->cfcr_image = CFCR_8BITS;
 	com->mcr_image = MCR_IENABLE;
-	com->dtr_wait = 300;
+	com->dtr_wait = 3 * hz;
 	com->tx_fifo_size = 1;
 	com->iptr = com->ibuf = com->ibuf1;
 	com->ibufend = com->ibuf1 + RS_IBUFSIZE;
@@ -768,6 +768,7 @@ sioclose(dev, flag, mode, p)
 {
 	struct com_s	*com;
 	struct tty	*tp;
+	int s = spltty();
 
 	com = com_addr(UNIT(dev));
 	tp = com->tp;
@@ -775,6 +776,7 @@ sioclose(dev, flag, mode, p)
 	siostop(tp, FREAD|FWRITE);
 	ttyclose(tp);
 	comhardclose(com);
+	splx(s);
 	return (0);
 }
 
