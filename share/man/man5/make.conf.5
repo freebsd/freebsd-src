@@ -111,6 +111,30 @@ They can be used, if set, by:
 .Bd -literal -offset indent
 CFLAGS+=${BDECFLAGS}
 .Ed
+.It Va CPUTYPE
+.Pq Vt str
+Controls which processor should be targeted for generated
+code.  This controls processor-specific optimizations in
+certain code (currently only OpenSSL) as well as modifying
+the value of
+.Va CFLAGS
+and
+.Va COPTFLAGS
+to contain the appropriate optimization directive to
+.Xr gcc 1 .
+The automatic setting of
+.Va CFLAGS
+and
+.Va COPTFLAGS
+may be overridden using the
+.Va NO_CPU_CFLAGS
+and
+.Va NO_CPU_COPTFLAGS
+variables, respectively.  Refer to
+.Pa /usr/share/examples/etc/make.conf
+for a list of recognized
+.Va CPUTYPE
+options.
 .It Va CVS_UPDATE
 .Pq Vt bool
 Set this to use
@@ -144,6 +168,19 @@ List any directories that should be entered when doing
 make's in
 .Pa /usr/src
 in this variable.
+.It Va MAKE_SHELL
+.Pq Vt str
+Controls the shell used internally by
+.Xr make 1
+to process the command scripts in makefiles.
+.Xr sh 1 ,
+.Xr ksh 1,
+and
+.Xr csh 1
+all currently supported.
+.Bd -literal -offset indent
+MAKE_SHELL?=sh
+.Ed
 .It Va MTREE_FOLLOWS_SYMLINKS
 .Pq Vt str
 Set this to
@@ -271,6 +308,22 @@ and install the kernel specified by the config file
 .Pa MINE .
 It defaults to
 .Pa GENERIC .
+.It Va LOADER_TFTP_SUPPORT
+.Pq Vt bool
+While not a buildkernel-affected option, there is no better place for this.
+By default the
+.Xr pxeboot 8
+loader retrieves the kernel via NFS.
+Defining this and recompiling
+.Pa /usr/src/sys/boot
+will cause it to retrieve the kernel via TFTP.
+This allows pxeboot to load a custom BOOTP diskless kernel yet
+still mount the server's
+.Pa /
+rather than load the server's kernel.
+.It Va MODULES_OVERRIDE
+.Pq Vt str
+Set to a list of modules to build instead of all of them.
 .It Va NO_KERNELCONFIG
 .Pq Vt bool
 Set this to skip running
@@ -286,9 +339,6 @@ during
 .It Va NO_MODULES
 .Pq Vt bool
 Set to not build modules with the kernel.
-.It Va MODULES_OVERRIDE
-.Pq Vt str
-Set to a list of modules to build instead of all of them.
 .El
 .Pp
 The following list provides a name and short description for variables
@@ -331,6 +381,11 @@ compatibility libraries.
 Command to use to fetch files.
 Normally
 .Xr fetch 1 .
+.It Va KRB5_HOME
+.Pq Vt str
+If you want to install the MIT Kerberos5 port somewhere other than
+.Pa /usr/local ,
+define this.  This is also used to tell ssh1 that kerberos is needed).
 .It Va MAKE_IDEA
 .Pq Vt bool
 Set to build the IDEA encryption code.
@@ -361,12 +416,22 @@ with the set-user-ID bit set.
 Otherwise,
 .Xr newgrp 1
 will not be able to change users' groups.
+.It Va ENABLE_SUID_SSH
+.Pq Vt bool
+Set this to install
+.Xr ssh 1
+with the setuid bit turned on.
 .It Va MODULES_WITH_WORLD
 .Pq Vt bool
 Set to build modules with the system instead of the kernel.
 .It Va NO_CVS
 .Pq Vt bool
 Set to not build CVS.
+.It Va NO_CXX
+.Pq Vt bool
+Set to not build
+.Xr g++ 1
+and related libraries.
 .It Va NO_BIND
 .Pq Vt bool
 Set to not build BIND.
@@ -375,6 +440,10 @@ Set to not build BIND.
 Set to not build
 .Xr g77 1
 and related libraries.
+.It Va NO_GDB
+.Pq Vt bool
+Set to not build
+.Xr gdb 1
 .It Va NO_I4B
 .Pq Vt bool
 Set to not build isdn4bsd package.
@@ -596,6 +665,14 @@ should be followed instead if at all possible.
 Mode to use when generating alias and map database files using
 .Pa /etc/mail/Makefile .
 The default value is 0640.
+.It Va TOP_TABLE_SIZE
+.Pq Vt int
+.Xr top 1
+uses a hash table for the user names.  The size of this hash can be tuned
+to match the number of local users.  The table size should be a prime number
+approximately twice as large as the number of lines in
+.Pa /etc/passwd .
+The default number is 20011.
 .It Va WANT_FORCE_OPTIMIZATION_DOWNGRADE
 .Pq Vt int
 Causes the system compiler to be built such that it forces high optimization
@@ -605,6 +682,15 @@ levels to a lower one.
 and above is known to trigger known optimizer bugs at various
 times \(em this is worse on the Alpha platform.
 The value assigned is the highest optimization value used.
+.It Va WANT_OPENSSL_MANPAGES
+.Pq Vt bool
+Set this to build the OpenSSL manual pages.  These are not built by
+default because they clobber a number of system manual pages with
+manual pages describing parts of the OpenSSL toolkit, including
+.Xr passwd 1 ,
+.Xr err 3 ,
+.Xr md5 3 ,
+and others.
 .El
 .Pp
 The following list provides a name and short description for variables
