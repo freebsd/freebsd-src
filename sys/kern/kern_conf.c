@@ -486,7 +486,7 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 	va_start(ap, fmt);
 	i = vsnrprintf(dev->__si_namebuf, sizeof dev->__si_namebuf, 32, fmt, ap);
 	if (i > (sizeof dev->__si_namebuf - 1)) {
-		printf("WARNING: Device name truncated! (%s)", 
+		printf("WARNING: Device name truncated! (%s)\n", 
 		    dev->__si_namebuf);
 	}
 	va_end(ap);
@@ -540,7 +540,7 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 	va_start(ap, fmt);
 	i = vsnrprintf(dev->__si_namebuf, sizeof dev->__si_namebuf, 32, fmt, ap);
 	if (i > (sizeof dev->__si_namebuf - 1)) {
-		printf("WARNING: Device name truncated! (%s)", 
+		printf("WARNING: Device name truncated! (%s)\n", 
 		    dev->__si_namebuf);
 	}
 	va_end(ap);
