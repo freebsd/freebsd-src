@@ -1,6 +1,6 @@
-#	$Id: Makefile,v 1.1 1994/08/07 19:04:08 wollman Exp $
+#	$Id: Makefile,v 1.2 1994/08/08 17:49:22 csgr Exp $
 
-SUBDIR=	bdes lib
+SUBDIR= lib 
 
 .include <bsd.subdir.mk>
 
