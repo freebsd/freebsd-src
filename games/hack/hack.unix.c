@@ -14,22 +14,16 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <stdlib.h>
 #include "hack.h"	/* mainly for index() which depends on BSD */
 
 #include	<sys/types.h>		/* for time_t and stat */
 #include	<sys/stat.h>
-#ifdef BSD
-#include	<sys/time.h>
-#else
 #include	<time.h>
-#endif BSD
-
-extern char *getenv();
-extern time_t time();
 
 setrandom()
 {
- 	(void) srandom((int) time ((time_t *) 0));
+	(void) srandomdev();
 }
 
 struct tm *
