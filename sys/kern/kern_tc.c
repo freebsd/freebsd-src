@@ -25,10 +25,10 @@
  * timeservices.
  */
 
-static unsigned 
+static u_int
 dummy_get_timecount(struct timecounter *tc)
 {
-	static unsigned now;
+	static u_int now;
 
 	return (++now);
 }
@@ -43,16 +43,16 @@ static struct timecounter dummy_timecounter = {
 
 struct timehands {
 	/* These fields must be initialized by the driver. */
-	struct timecounter	*tc_counter;
-	int64_t			tc_adjustment;
-	u_int64_t		tc_scale;
-	unsigned 		tc_offset_count;
-	struct bintime		tc_offset;
-	struct timeval		tc_microtime;
-	struct timespec		tc_nanotime;
-	/* Fields not to be copied in tc_windup start with tc_generation */
-	volatile unsigned	tc_generation;
-	struct timehands	*tc_next;
+	struct timecounter	*th_counter;
+	int64_t			th_adjustment;
+	u_int64_t		th_scale;
+	u_int	 		th_offset_count;
+	struct bintime		th_offset;
+	struct timeval		th_microtime;
+	struct timespec		th_nanotime;
+	/* Fields not to be copied in tc_windup start with th_generation */
+	volatile u_int		th_generation;
+	struct timehands	*th_next;
 };
 
 
@@ -92,7 +92,7 @@ SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime, CTLFLAG_RD,
 SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
 
 #define TC_STATS(foo) \
-	static unsigned foo; \
+	static u_int foo; \
 	SYSCTL_INT(_kern_timecounter, OID_AUTO, foo, CTLFLAG_RD, & foo, 0, "")
 
 TC_STATS(nbinuptime);    TC_STATS(nnanouptime);    TC_STATS(nmicrouptime);
@@ -104,28 +104,37 @@ TC_STATS(ngetbintime);   TC_STATS(ngetnanotime);   TC_STATS(ngetmicrotime);
 
 static void tc_windup(void);
 
+/* Get delta hardware ticks relative to our timehands */
 
-static __inline unsigned
-tc_delta(struct timehands *tc)
+static __inline u_int
+tc_delta(struct timehands *th)
 {
+	struct timecounter *tc;
 
-	return ((tc->tc_counter->tc_get_timecount(tc->tc_counter) - 
-	    tc->tc_offset_count) & tc->tc_counter->tc_counter_mask);
+	tc = th->th_counter;
+	return ((tc->tc_get_timecount(tc) - th->th_offset_count) &
+	    tc->tc_counter_mask);
 }
+
+/*-
+ * Functions for reading the time.  We have to loop until we are sure that
+ * the timehands we operated on was not updated under our feet.
+ * See comment in <sys/time.h> for description of these 12 functions.
+ */
 
 void
 binuptime(struct bintime *bt)
 {
-	struct timehands *tc;
-	unsigned gen;
+	struct timehands *th;
+	u_int gen;
 
 	nbinuptime++;
 	do {
-		tc = timehands;
-		gen = tc->tc_generation;
-		*bt = tc->tc_offset;
-		bintime_addx(bt, tc->tc_scale * tc_delta(tc));
-	} while (gen == 0 || gen != tc->tc_generation);
+		th = timehands;
+		gen = th->th_generation;
+		*bt = th->th_offset;
+		bintime_addx(bt, th->th_scale * tc_delta(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
@@ -180,106 +189,94 @@ microtime(struct timeval *tv)
 void
 getbinuptime(struct bintime *bt)
 {
-	struct timehands *tc;
-	unsigned gen;
+	struct timehands *th;
+	u_int gen;
 
 	ngetbinuptime++;
 	do {
-		tc = timehands;
-		gen = tc->tc_generation;
-		*bt = tc->tc_offset;
-	} while (gen == 0 || gen != tc->tc_generation);
+		th = timehands;
+		gen = th->th_generation;
+		*bt = th->th_offset;
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
 getnanouptime(struct timespec *tsp)
 {
-	struct timehands *tc;
-	unsigned gen;
+	struct timehands *th;
+	u_int gen;
 
 	ngetnanouptime++;
 	do {
-		tc = timehands;
-		gen = tc->tc_generation;
-		bintime2timespec(&tc->tc_offset, tsp);
-	} while (gen == 0 || gen != tc->tc_generation);
+		th = timehands;
+		gen = th->th_generation;
+		bintime2timespec(&th->th_offset, tsp);
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
 getmicrouptime(struct timeval *tvp)
 {
-	struct timehands *tc;
-	unsigned gen;
+	struct timehands *th;
+	u_int gen;
 
 	ngetmicrouptime++;
 	do {
-		tc = timehands;
-		gen = tc->tc_generation;
-		bintime2timeval(&tc->tc_offset, tvp);
-	} while (gen == 0 || gen != tc->tc_generation);
+		th = timehands;
+		gen = th->th_generation;
+		bintime2timeval(&th->th_offset, tvp);
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
 getbintime(struct bintime *bt)
 {
-	struct timehands *tc;
-	unsigned gen;
+	struct timehands *th;
+	u_int gen;
 
 	ngetbintime++;
 	do {
-		tc = timehands;
-		gen = tc->tc_generation;
-		*bt = tc->tc_offset;
-	} while (gen == 0 || gen != tc->tc_generation);
+		th = timehands;
+		gen = th->th_generation;
+		*bt = th->th_offset;
+	} while (gen == 0 || gen != th->th_generation);
 	bintime_add(bt, &boottimebin);
 }
 
 void
 getnanotime(struct timespec *tsp)
 {
-	struct timehands *tc;
-	unsigned gen;
+	struct timehands *th;
+	u_int gen;
 
 	ngetnanotime++;
 	do {
-		tc = timehands;
-		gen = tc->tc_generation;
-		*tsp = tc->tc_nanotime;
-	} while (gen == 0 || gen != tc->tc_generation);
+		th = timehands;
+		gen = th->th_generation;
+		*tsp = th->th_nanotime;
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
 getmicrotime(struct timeval *tvp)
 {
-	struct timehands *tc;
-	unsigned gen;
+	struct timehands *th;
+	u_int gen;
 
 	ngetmicrotime++;
 	do {
-		tc = timehands;
-		gen = tc->tc_generation;
-		*tvp = tc->tc_microtime;
-	} while (gen == 0 || gen != tc->tc_generation);
+		th = timehands;
+		gen = th->th_generation;
+		*tvp = th->th_microtime;
+	} while (gen == 0 || gen != th->th_generation);
 }
 
-static void
-tc_setscales(struct timehands *tc)
-{
-	u_int64_t scale;
-
-	/* Sacrifice the lower bit to the deity for code clarity */
-	scale = 1ULL << 63;
-	/* 
-	 * We get nanoseconds with 32 bit binary fraction and want
-	 * 64 bit binary fraction: x = a * 2^32 / 10^9 = a * 4.294967296
-	 * The range is +/- 5000PPM so we can only multiply by about 850
-	 * without overflowing.  The best suitable fraction is 2199/512.
-	 * Divide by 2 times 512 to match the temporary lower precision.
-	 */
-	scale += (tc->tc_adjustment / 1024) * 2199;
-	scale /= tc->tc_counter->tc_frequency;
-	tc->tc_scale = scale * 2;
-}
+/*-
+ * Initialize a new timecounter.
+ * We should really try to rank the timecounters and intelligently determine
+ * if the new timecounter is better than the current one.  This is subject
+ * to further study.  For now always use the new timecounter.
+ */
 
 void
 tc_init(struct timecounter *tc)
@@ -287,18 +284,26 @@ tc_init(struct timecounter *tc)
 
 	tc->tc_next = timecounters;
 	timecounters = tc;
-	printf("Timecounter \"%s\"  frequency %lu Hz\n", 
+	printf("Timecounter \"%s\"  frequency %lu Hz\n",
 	    tc->tc_name, (u_long)tc->tc_frequency);
+	tc->tc_get_timecount(tc);
+	tc->tc_get_timecount(tc);
 	timecounter = tc;
 }
+
+/* Report frequency of the current timecounter. */
 
 u_int32_t
 tc_getfrequency(void)
 {
 
-	return (timehands->tc_counter->tc_frequency);
+	return (timehands->th_counter->tc_frequency);
 }
 
+/*-
+ * Step our concept of GMT.  This is done by modifying our estimate of
+ * when we booted.  XXX: needs futher work.
+ */
 void
 tc_setclock(struct timespec *ts)
 {
@@ -316,56 +321,119 @@ tc_setclock(struct timespec *ts)
 	tc_windup();
 }
 
+/*-
+ * tc_windup() will initialize the next struct timehands in the ring and make
+ * it the active timehands.  Along the way we might switch to a different
+ * timecounter and/or do seconds processing in NTP.  Slightly magic.
+ */
+
 static void
 tc_windup(void)
 {
-	struct timehands *tc, *tco;
+	struct timehands *th, *tho;
 	struct bintime bt;
-	unsigned ogen, delta, ncount;
+	u_int ogen, delta, ncount;
 	int i;
+	u_int64_t scale;
 
 	ncount = 0;		/* GCC is lame */
-	tco = timehands;
-	tc = tco->tc_next;
-	ogen = tc->tc_generation;
-	tc->tc_generation = 0;
-	bcopy(tco, tc, __offsetof(struct timehands, tc_generation));
-	delta = tc_delta(tc);
-	if (tc->tc_counter != timecounter)
-		ncount = timecounter->tc_get_timecount(timecounter);
-	tc->tc_offset_count += delta;
-	tc->tc_offset_count &= tc->tc_counter->tc_counter_mask;
-	bintime_addx(&tc->tc_offset, tc->tc_scale * delta);
-	/*
-	 * We may be inducing a tiny error here, the tc_poll_pps() may
-	 * process a latched count which happens after the tc_delta()
-	 * in sync_other_counter(), which would extend the previous
-	 * counters parameters into the domain of this new one.
-	 * Since the timewindow is very small for this, the error is
-	 * going to be only a few weenieseconds (as Dave Mills would
-	 * say), so lets just not talk more about it, OK ?
-	 */
-	if (tco->tc_counter->tc_poll_pps) 
-		tco->tc_counter->tc_poll_pps(tco->tc_counter);
-	for (i = tc->tc_offset.sec - tco->tc_offset.sec; i > 0; i--) 
-		ntp_update_second(&tc->tc_adjustment, &tc->tc_offset.sec);
-	if (tc->tc_counter != timecounter) {
-		tc->tc_counter = timecounter;
-		tc->tc_offset_count = ncount;
-	}
-	tc_setscales(tc);
 
-	bt = tc->tc_offset;
+	/*-
+	 * Make the next timehands a copy of the current one, but do not
+	 * overwrite the generation or next pointer.  While we update
+	 * the contents, the generation must be zero.
+	 */
+	tho = timehands;
+	th = tho->th_next;
+	ogen = th->th_generation;
+	th->th_generation = 0;
+	bcopy(tho, th, __offsetof(struct timehands, th_generation));
+
+	/*-
+	 * Capture a timecounter delta on the current timecounter and if
+	 * changing timecounters, a counter value from the new timecounter.
+	 * Update the offset fields accordingly.
+	 */
+	delta = tc_delta(th);
+	if (th->th_counter != timecounter)
+		ncount = timecounter->tc_get_timecount(timecounter);
+	th->th_offset_count += delta;
+	th->th_offset_count &= th->th_counter->tc_counter_mask;
+	bintime_addx(&th->th_offset, th->th_scale * delta);
+
+	/*-
+	 * Hardware latching timecounters may not generate interrupts on
+	 * PPS events, so instead we poll them.  There is a finite risk that
+	 * the hardware might capture a count which is later than the one we
+	 * got above, and therefore possibly in the next NTP second which might
+	 * have a different rate than the current NTP second.  It doesn't
+	 * matter in practice.
+	 */
+	if (tho->th_counter->tc_poll_pps)
+		tho->th_counter->tc_poll_pps(tho->th_counter);
+
+	/*-
+	 * Deal with NTP second processing.  The for() loop probably doesn't
+	 * do anything normally, but in a few extreme situations it might
+	 * keep timecounters sane if timeouts are not run for several seconds.
+	 */
+	for (i = th->th_offset.sec - tho->th_offset.sec; i > 0; i--)
+		ntp_update_second(&th->th_adjustment, &th->th_offset.sec);
+
+	/* Now is a good time to change timecounters. */
+	if (th->th_counter != timecounter) {
+		th->th_counter = timecounter;
+		th->th_offset_count = ncount;
+	}
+
+	/*-
+	 * Recalculate the scaling factor.  We want the number of 1/2^64
+	 * fractions of a second per period of the hardware counter, taking
+	 * into account the th_adjustment factor which the NTP PLL/adjtime(2)
+	 * processing provides us with.
+	 *
+	 * The th_adjustment is nanoseconds per second with 32 bit binary
+	 * fraction and want 64 bit binary fraction of second:
+	 *
+	 *	 x = a * 2^32 / 10^9 = a * 4.294967296
+	 *
+	 * The range of th_adjustment is +/- 5000PPM so inside a 64bit int
+	 * we can only multiply by about 850 without overflowing, but that
+	 * leaves suitably precise fractions for multiply before divide.
+	 *
+	 * Divide before multiply with a fraction of 2199/512 results in a
+	 * systematic undercompensation of 10PPM of th_adjustment.  On a
+	 * 5000PPM adjustment this is a 0.05PPM error.  This is acceptable.
+ 	 *
+	 * We happily sacrifice the lowest of the 64 bits of our result
+	 * to the goddess of code clarity.
+	 */
+
+	scale = 1ULL << 63;
+	scale += (th->th_adjustment / 1024) * 2199;
+	scale /= th->th_counter->tc_frequency;
+	th->th_scale = scale * 2;
+
+	/* Update the GMT timestamps used for the get*() functions. */
+	bt = th->th_offset;
 	bintime_add(&bt, &boottimebin);
-	bintime2timeval(&bt, &tc->tc_microtime);
-	bintime2timespec(&bt, &tc->tc_nanotime);
-	ogen++;
-	if (ogen == 0)
+	bintime2timeval(&bt, &th->th_microtime);
+	bintime2timespec(&bt, &th->th_nanotime);
+
+	/*-
+	 * Now that the struct timehands is against consistent, set the new
+	 * generation number, making sure to not make it zero.
+	 */
+	if (++ogen == 0)
 		ogen++;
-	tc->tc_generation = ogen;
-	time_second = tc->tc_microtime.tv_sec;
-	timehands = tc;
+	th->th_generation = ogen;
+
+	/* Go live on the new struct timehands */
+	time_second = th->th_microtime.tv_sec;
+	timehands = th;
 }
+
+/* Report or change active timecounter hardware. */
 
 static int
 sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
@@ -394,6 +462,9 @@ sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING | CTLFLAG_RW,
     0, 0, sysctl_kern_timecounter_hardware, "A", "");
 
+/*-
+ * RFC 2783 PPS-API implementation.
+ */
 
 int
 pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
@@ -413,7 +484,7 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 		app = (pps_params_t *)data;
 		if (app->mode & ~pps->ppscap)
 			return (EINVAL);
-		pps->ppsparam = *app;         
+		pps->ppsparam = *app;
 		return (0);
 	case PPS_IOC_GETPARAMS:
 		app = (pps_params_t *)data;
@@ -429,7 +500,7 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 			return (EINVAL);
 		if (fapi->timeout.tv_sec || fapi->timeout.tv_nsec)
 			return (EOPNOTSUPP);
-		pps->ppsinfo.current_mode = pps->ppsparam.mode;         
+		pps->ppsinfo.current_mode = pps->ppsparam.mode;
 		fapi->pps_info_buf = pps->ppsinfo;
 		return (0);
 	case PPS_IOC_KCBIND:
@@ -465,25 +536,27 @@ pps_init(struct pps_state *pps)
 void
 pps_capture(struct pps_state *pps)
 {
-	struct timehands *tc;
+	struct timehands *th;
 
-	tc = timehands;
-	pps->captc = tc;
-	pps->capgen = tc->tc_generation;
-	pps->capcount = tc->tc_counter->tc_get_timecount(tc->tc_counter);
+	th = timehands;
+	pps->capgen = th->th_generation;
+	pps->capth = th;
+	pps->capcount = th->th_counter->tc_get_timecount(th->th_counter);
+	if (pps->capgen != th->th_generation)
+		pps->capgen = 0;
 }
 
 void
 pps_event(struct pps_state *pps, int event)
 {
 	struct timespec ts, *tsp, *osp;
-	unsigned tcount, *pcount;
+	u_int tcount, *pcount;
 	struct bintime bt;
 	int foff, fhard;
 	pps_seq_t	*pseq;
 
 	/* If the timecounter were wound up, bail. */
-	if (pps->capgen != pps->capgen)
+	if (!pps->capgen || pps->capgen != pps->capth->th_generation)
 		return;
 
 	/* Things would be easier with arrays... */
@@ -503,15 +576,14 @@ pps_event(struct pps_state *pps, int event)
 		pseq = &pps->ppsinfo.clear_sequence;
 	}
 
-	/* The timecounter changed: bail */
-	if (!pps->ppstc || 
-	    pps->ppstc != pps->captc->tc_counter || 
-	    pps->captc->tc_counter != timehands->tc_counter) {
-		pps->ppstc = pps->captc->tc_counter;
+	/*-
+	 * If the timecounter changed, we cannot compare the count values, so
+	 * we have to drop the rest of the PPS-stuff until the next event.
+	 */
+	if (pps->ppstc != pps->capth->th_counter) {
+		pps->ppstc = pps->capth->th_counter;
 		*pcount = pps->capcount;
-#ifdef PPS_SYNC
 		pps->ppscount[2] = pps->capcount;
-#endif
 		return;
 	}
 
@@ -520,14 +592,14 @@ pps_event(struct pps_state *pps, int event)
 		return;
 
 	/* Convert the count to timespec */
-	tcount = pps->capcount - pps->captc->tc_offset_count;
-	tcount &= pps->captc->tc_counter->tc_counter_mask;
-	bt = pps->captc->tc_offset;
-	bintime_addx(&bt, pps->captc->tc_scale * tcount);
+	tcount = pps->capcount - pps->capth->th_offset_count;
+	tcount &= pps->capth->th_counter->tc_counter_mask;
+	bt = pps->capth->th_offset;
+	bintime_addx(&bt, pps->capth->th_scale * tcount);
 	bintime2timespec(&bt, &ts);
 
 	/* If the timecounter were wound up, bail. */
-	if (pps->capgen != pps->capgen)
+	if (pps->capgen != pps->capth->th_generation)
 		return;
 
 	*pcount = pps->capcount;
@@ -543,13 +615,21 @@ pps_event(struct pps_state *pps, int event)
 	}
 #ifdef PPS_SYNC
 	if (fhard) {
-		/* magic, at its best... */
+		/*-
+		 * Feed the NTP PLL/FLL.
+		 * The FLL wants to know how many nanoseconds elapsed since
+		 * the previous event.
+		 * I have never been able to convince myself that this code
+		 * is actually correct:  Using th_scale is bound to contain
+		 * a phase correction component from userland, when running
+		 * as FLL, so the number hardpps() gets is not meaningful IMO.
+		 */
 		tcount = pps->capcount - pps->ppscount[2];
 		pps->ppscount[2] = pps->capcount;
-		tcount &= pps->captc->tc_counter->tc_counter_mask;
+		tcount &= pps->capth->th_counter->tc_counter_mask;
 		bt.sec = 0;
 		bt.frac = 0;
-		bintime_addx(&bt, pps->captc->tc_scale * tcount);
+		bintime_addx(&bt, pps->capth->th_scale * tcount);
 		bintime2timespec(&bt, &ts);
 		hardpps(tsp, ts.tv_nsec + 1000000000 * ts.tv_sec);
 	}
@@ -576,7 +656,7 @@ tc_ticktock(void *dummy)
 	timeout(tc_ticktock, NULL, tc_tick);
 }
 
-static void 
+static void
 inittimecounter(void *dummy)
 {
 	u_int p;
