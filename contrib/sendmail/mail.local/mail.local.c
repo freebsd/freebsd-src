@@ -1425,7 +1425,7 @@ void
 usage()
 {
 	ExitVal = EX_USAGE;
-	mailerr(NULL, "usage: mail.local [-7] [-B] [-b] [-l] [-f from] user ...");
+	mailerr(NULL, "usage: mail.local [-7] [-B] [-b] [-l] [-f from] [-s] user ...");
 	exit(ExitVal);
 }
 
