@@ -54,62 +54,75 @@ static const char rcsid[] =
 
 #include "find.h"
 
-static OPTION *option __P((char *));
-
 /* NB: the following table must be sorted lexically. */
 static OPTION const options[] = {
-	{ "!",		N_NOT,		c_not,		O_ZERO },
-	{ "(",		N_OPENPAREN,	c_openparen,	O_ZERO },
-	{ ")",		N_CLOSEPAREN,	c_closeparen,	O_ZERO },
-	{ "-a",		N_AND,		NULL,		O_NONE },
-	{ "-amin",	N_AMIN,	        c_amin,	        O_ARGV },
-	{ "-and",	N_AND,		NULL,		O_NONE },
-	{ "-atime",	N_ATIME,	c_atime,	O_ARGV },
-	{ "-cmin",	N_CMIN,	        c_cmin,	        O_ARGV },
-	{ "-ctime",	N_CTIME,	c_ctime,	O_ARGV },
-	{ "-delete",	N_DELETE,	c_delete,	O_ZERO },
-	{ "-depth",	N_DEPTH,	c_depth,	O_ZERO },
-	{ "-empty",	N_EMPTY,	c_empty,	O_ZERO },
-	{ "-exec",	N_EXEC,		c_exec,		O_ARGVP },
-	{ "-execdir",	N_EXECDIR,	c_execdir,	O_ARGVP },
-	{ "-flags",	N_FLAGS,	c_flags,	O_ARGV },
-	{ "-follow",	N_FOLLOW,	c_follow,	O_ZERO },
-
+	{ "!",		c_simple,	f_not,		0 },
+	{ "(",		c_simple,	f_openparen,	0 },
+	{ ")",		c_simple,	f_closeparen,	0 },
+	{ "-a",		c_and,		NULL,		0 },
+	{ "-amin",	c_Xmin,		f_Xmin,		F_TIME_A },
+	{ "-and",	c_and,		NULL,		0 },
+	{ "-anewer",	c_newer,	f_newer,	F_TIME_A },
+	{ "-atime",	c_Xtime,	f_Xtime,	F_TIME_A },
+	{ "-cmin",	c_Xmin,		f_Xmin,		F_TIME_C },
+	{ "-cnewer",	c_newer,	f_newer,	F_TIME_C },
+	{ "-ctime",	c_Xtime,	f_Xtime,	F_TIME_C },
+	{ "-delete",	c_delete,	f_delete,	0 },
+	{ "-depth",	c_depth,	f_always_true,	0 },
+	{ "-empty",	c_empty,	f_empty,	0 },
+	{ "-exec",	c_exec,		f_exec,		0 },
+	{ "-execdir",	c_exec,		f_exec,		F_EXECDIR },
+	{ "-flags",	c_flags,	f_flags,	0 },
+	{ "-follow",	c_follow,	f_always_true,	0 },
 /*
  * NetBSD doesn't provide a getvfsbyname(), so this option
  * is not available if using a NetBSD kernel.
  */
 #if !defined(__NetBSD__)
-	{ "-fstype",	N_FSTYPE,	c_fstype,	O_ARGV },
+	{ "-fstype",	c_fstype,	f_fstype,	0 },
 #endif
-	{ "-group",	N_GROUP,	c_group,	O_ARGV },
-	{ "-iname",	N_INAME,	c_iname,       	O_ARGV },
-	{ "-inum",	N_INUM,		c_inum,		O_ARGV },
-	{ "-ipath", 	N_IPATH,	c_ipath,	O_ARGV },
-	{ "-iregex",	N_IREGEX,	c_iregex,	O_ARGV },
-	{ "-links",	N_LINKS,	c_links,	O_ARGV },
-	{ "-ls",	N_LS,		c_ls,		O_ZERO },
-	{ "-maxdepth",  N_MAXDEPTH,     c_maxdepth,     O_ARGV },
-	{ "-mindepth",  N_MINDEPTH,     c_mindepth,     O_ARGV },
-	{ "-mmin",	N_MMIN,	        c_mmin,	        O_ARGV },
-	{ "-mtime",	N_MTIME,	c_mtime,	O_ARGV },
-	{ "-name",	N_NAME,		c_name,		O_ARGV },
-	{ "-newer",	N_NEWER,	c_newer,	O_ARGV },
-	{ "-nogroup",	N_NOGROUP,	c_nogroup,	O_ZERO },
-	{ "-nouser",	N_NOUSER,	c_nouser,	O_ZERO },
-	{ "-o",		N_OR,		c_or,		O_ZERO },
-	{ "-ok",	N_OK,		c_exec,		O_ARGVP },
-	{ "-or",	N_OR,		c_or,		O_ZERO },
-	{ "-path", 	N_PATH,		c_path,		O_ARGV },
-	{ "-perm",	N_PERM,		c_perm,		O_ARGV },
-	{ "-print",	N_PRINT,	c_print,	O_ZERO },
-	{ "-print0",	N_PRINT0,	c_print0,	O_ZERO },
-	{ "-prune",	N_PRUNE,	c_prune,	O_ZERO },
-	{ "-regex",	N_REGEX,	c_regex,	O_ARGV },
-	{ "-size",	N_SIZE,		c_size,		O_ARGV },
-	{ "-type",	N_TYPE,		c_type,		O_ARGV },
-	{ "-user",	N_USER,		c_user,		O_ARGV },
-	{ "-xdev",	N_XDEV,		c_xdev,		O_ZERO },
+	{ "-group",	c_group,	f_group,	0 },
+	{ "-iname",	c_name,		f_name,		F_IGNCASE },
+	{ "-inum",	c_inum,		f_inum,		0 },
+	{ "-ipath",	c_name,		f_path,		F_IGNCASE },
+	{ "-iregex",	c_regex,	f_regex,	F_IGNCASE },
+	{ "-links",	c_links,	f_links,	0 },
+	{ "-ls",	c_ls,		f_ls,		0 },
+	{ "-maxdepth",	c_mXXdepth,	f_always_true,	F_MAXDEPTH },
+	{ "-mindepth",	c_mXXdepth,	f_always_true,	0 },
+	{ "-mmin",	c_Xmin,		f_Xmin,		0 },
+	{ "-mnewer",	c_newer,	f_newer,	0 },
+	{ "-mtime",	c_Xtime,	f_Xtime,	0 },
+	{ "-name",	c_name,		f_name,		0 },
+	{ "-newer",	c_newer,	f_newer,	0 },
+	{ "-neweraa",	c_newer,	f_newer,	F_TIME_A | F_TIME2_A },
+	{ "-newerac",	c_newer,	f_newer,	F_TIME_A | F_TIME2_C },
+	{ "-neweram",	c_newer,	f_newer,	F_TIME_A },
+	{ "-newerat",	c_newer,	f_newer,	F_TIME_A | F_TIME2_T },
+	{ "-newerca",	c_newer,	f_newer,	F_TIME_C | F_TIME2_A },
+	{ "-newercc",	c_newer,	f_newer,	F_TIME_C | F_TIME2_C },
+	{ "-newercm",	c_newer,	f_newer,	F_TIME_C },
+	{ "-newerct",	c_newer,	f_newer,	F_TIME_C | F_TIME2_T },
+	{ "-newerma",	c_newer,	f_newer,	F_TIME2_A },
+	{ "-newermc",	c_newer,	f_newer,	F_TIME2_C },
+	{ "-newermm",	c_newer,	f_newer,	0 },
+	{ "-newermt",	c_newer,	f_newer,	F_TIME2_T },
+	{ "-nogroup",	c_nogroup,	f_nogroup,	0 },
+	{ "-nouser",	c_nouser,	f_nouser,	0 },
+	{ "-o",		c_simple,	f_or,		0 },
+	{ "-ok",	c_exec,		f_exec,		F_NEEDOK },
+	{ "-okdir",	c_exec,		f_exec,		F_NEEDOK | F_EXECDIR },
+	{ "-or",	c_simple,	f_or,		0 },
+	{ "-path", 	c_name,		f_path,		0 },
+	{ "-perm",	c_perm,		f_perm,		0 },
+	{ "-print",	c_print,	f_print,	0 },
+	{ "-print0",	c_print,	f_print0,	0 },
+	{ "-prune",	c_simple,	f_prune,	0 },
+	{ "-regex",	c_regex,	f_regex,	0 },
+	{ "-size",	c_size,		f_size,		0 },
+	{ "-type",	c_type,		f_type,		0 },
+	{ "-user",	c_user,		f_user,		0 },
+	{ "-xdev",	c_xdev,		f_always_true,	0 },
 };
 
 /*
@@ -133,30 +146,13 @@ find_create(argvp)
 	if ((p = option(*argv)) == NULL)
 		errx(1, "%s: unknown option", *argv);
 	++argv;
-	if (p->flags & (O_ARGV|O_ARGVP) && !*argv)
-		errx(1, "%s: requires additional arguments", *--argv);
 
-	switch(p->flags) {
-	case O_NONE:
-		new = NULL;
-		break;
-	case O_ZERO:
-		new = (p->create)();
-		break;
-	case O_ARGV:
-		new = (p->create)(*argv++);
-		break;
-	case O_ARGVP:
-		new = (p->create)(&argv, p->token == N_OK);
-		break;
-	default:
-		abort();
-	}
+	new = (p->create)(p, &argv);
 	*argvp = argv;
 	return (new);
 }
 
-static OPTION *
+OPTION *
 option(name)
 	char *name;
 {
