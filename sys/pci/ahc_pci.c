@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.7 1999/03/05 23:28:36 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.8 1999/03/23 07:26:41 gibbs Exp $
  */
 
 #include <pci.h>
@@ -42,7 +42,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/queue.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -50,7 +51,9 @@
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
 #include <machine/clock.h>
+#include <sys/rman.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -64,8 +67,8 @@
 
 #include <aic7xxx_reg.h>
 
-#define PCI_BASEADR0	PCI_MAP_REG_START	/* I/O Address */
-#define PCI_BASEADR1	PCI_MAP_REG_START + 4	/* Mem I/O Address */
+#define AHC_PCI_IOADDR	PCIR_MAPS		/* I/O Address */
+#define AHC_PCI_MEMADDR	(PCIR_MAPS + 4)	/* Mem I/O Address */
 
 #define PCI_DEVICE_ID_ADAPTEC_398XU	0x83789004ul
 #define PCI_DEVICE_ID_ADAPTEC_3940U	0x82789004ul
@@ -143,143 +146,146 @@ static u_int8_t read_brdctl(struct ahc_softc *ahc);
 
 static struct ahc_softc *first_398X;
 
-static const char* ahc_pci_probe(pcici_t tag, pcidi_t type);
-static void ahc_pci_attach(pcici_t config_id, int unit);
+static int ahc_pci_probe(device_t dev);
+static int ahc_pci_attach(device_t dev);
 
 /* Exported for use in the ahc_intr routine */
 void ahc_pci_intr(struct ahc_softc *ahc);
 
-static struct  pci_device ahc_pci_driver = {
-	"ahc",
-        ahc_pci_probe,
-        ahc_pci_attach,
-        &ahc_unit,
-	NULL
+static device_method_t ahc_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ahc_pci_probe),
+	DEVMETHOD(device_attach,	ahc_pci_attach),
+	{ 0, 0 }
 };
 
-DATA_SET (pcidevice_set, ahc_pci_driver);
+static driver_t ahc_pci_driver = {
+	"ahc",
+	ahc_pci_methods,
+	DRIVER_TYPE_CAM,
+	sizeof(struct ahc_softc)
+};
 
-static const char*
-ahc_pci_probe (pcici_t tag, pcidi_t type)
+static devclass_t ahc_devclass;
+
+DRIVER_MODULE(ahc, pci, ahc_pci_driver, ahc_devclass, 0, 0);
+
+static int
+ahc_pci_probe(device_t dev)
 {
-	switch (type) {
+	const char *name = NULL;
+
+	switch (pci_get_devid(dev)) {
 	case PCI_DEVICE_ID_ADAPTEC_398XU:
-		return ("Adaptec 398X Ultra SCSI RAID adapter");
+		name = "Adaptec 398X Ultra SCSI RAID adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_3940U:
-		return ("Adaptec 3940 Ultra SCSI host adapter");
+		name = "Adaptec 3940 Ultra SCSI host adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_398X:
-		return ("Adaptec 398X SCSI RAID adapter");
+		name  = "Adaptec 398X SCSI RAID adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_3940:
-		return ("Adaptec 3940 SCSI adapter");
+		name = "Adaptec 3940 SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_3950U2:
-		return ("Adaptec 3950 Ultra2 SCSI adapter");
+		name = "Adaptec 3950 Ultra2 SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_2930U2:
-		return ("Adaptec 2930 Ultra2 SCSI adapter");
+		name = "Adaptec 2930 Ultra2 SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_2944U:
-		return ("Adaptec 2944 Ultra SCSI adapter");
+		name = "Adaptec 2944 Ultra SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_2940U:
-		return ("Adaptec 2940 Ultra SCSI adapter");
+		name = "Adaptec 2940 Ultra SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_2940U2:
-		return ("Adaptec 2940 Ultra2 SCSI adapter");
+		name = "Adaptec 2940 Ultra2 SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_2944:
-		return ("Adaptec 2944 SCSI adapter");
+		name = "Adaptec 2944 SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_2940:
-		return ("Adaptec 2940 SCSI adapter");
+		name = "Adaptec 2940 SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_2940AU:
-		return ("Adaptec 2940A Ultra SCSI adapter");
+		name = "Adaptec 2940A Ultra SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7895:
-		return ("Adaptec aic7895 Ultra SCSI adapter");
+		name = "Adaptec aic7895 Ultra SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7895C:
-		return ("Adaptec aic7895 `Raid Port' Ultra SCSI adapter");
+		name = "Adaptec aic7895 `Raid Port' Ultra SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7890:
-		return ("Adaptec aic7890/91 Ultra2 SCSI adapter");
+		name = "Adaptec aic7890/91 Ultra2 SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7896:
-		return ("Adaptec aic7896/97 Ultra2 SCSI adapter");
+		name = "Adaptec aic7896/97 Ultra2 SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7880:
-		return ("Adaptec aic7880 Ultra SCSI adapter");
+		name = "Adaptec aic7880 Ultra SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7870:
-		return ("Adaptec aic7870 SCSI adapter");
+		name = "Adaptec aic7870 SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7860:
-		return ("Adaptec aic7860 SCSI adapter");
+		name = "Adaptec aic7860 SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7855:
-		return ("Adaptec aic7855 SCSI adapter");
+		name = "Adaptec aic7855 SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7850:
-		return ("Adaptec aic7850 SCSI adapter");
+		name = "Adaptec aic7850 SCSI adapter";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7810:
-		return ("Adaptec aic7810 RAID memory controller");
+		name = "Adaptec aic7810 RAID memory controller";
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7815:
-		return ("Adaptec aic7815 RAID memory controller");
+		name = "Adaptec aic7815 RAID memory controller";
 		break;
 	default:
 		break;
 	}
-	return (0);
-
+	if (name != NULL) {
+		device_set_desc(dev, name);
+		return (0);
+	}
+	return (ENXIO);
 }
 
-static void
-ahc_pci_attach(pcici_t config_id, int unit)
+static int
+ahc_pci_attach(device_t dev)
 {
-	pci_port_t	 io_port;
-	struct		 ahc_softc *ahc;
-	u_int32_t	 id;
-	u_int32_t	 command;
-	struct scb_data *shared_scb_data;
-	int opri;
-	ahc_chip	 ahc_t = AHC_NONE;
-	ahc_feature	 ahc_fe = AHC_FENONE;
-	ahc_flag	 ahc_f = AHC_FNONE;
-	vm_offset_t	 vaddr;
-	vm_offset_t	 paddr;
-	u_int		 our_id = 0;
-	u_int		 sxfrctl1;
-	u_int		 scsiseq;
-	int		 error;
-	char		 channel;
+	bus_dma_tag_t	   parent_dmat;
+	struct		   resource *regs;
+	struct		   ahc_softc *ahc;
+	u_int32_t	   command;
+	struct scb_data   *shared_scb_data;
+	ahc_chip	   ahc_t = AHC_NONE;
+	ahc_feature	   ahc_fe = AHC_FENONE;
+	ahc_flag	   ahc_f = AHC_FNONE;
+	int		   regs_type;
+	int		   regs_id;
+	u_int		   our_id = 0;
+	u_int		   sxfrctl1;
+	u_int		   scsiseq;
+	int		   error;
+	int		   zero;
+	char		   channel;
 
-	if (config_id->func == 1)
+	if (pci_get_function(dev) == 1)
 		channel = 'B';
 	else
 		channel = 'A';
 	shared_scb_data = NULL;
-	vaddr = NULL;
-	paddr = NULL;
-	io_port = 0;
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
-#ifdef AHC_ALLOW_MEMIO
-	if ((command & PCI_COMMAND_MEM_ENABLE) == 0
-	 || (pci_map_mem(config_id, PCI_BASEADR1, &vaddr, &paddr)) == 0)
-#endif
-		if ((command & PCI_COMMAND_IO_ENABLE) == 0
-		 || (pci_map_port(config_id, PCI_BASEADR0, &io_port)) == 0)
-			return;
+	command = pci_read_config(dev, PCIR_COMMAND, /*bytes*/1);
 
-	switch ((id = pci_conf_read(config_id, PCI_ID_REG))) {
+	switch (pci_get_devid(dev)) {
 	case PCI_DEVICE_ID_ADAPTEC_398XU:
 	case PCI_DEVICE_ID_ADAPTEC_398X:
-		if (id == PCI_DEVICE_ID_ADAPTEC_398XU) {
+		if (pci_get_devid(dev) == PCI_DEVICE_ID_ADAPTEC_398XU) {
 			ahc_t = AHC_AIC7880;
 			ahc_fe = AHC_AIC7880_FE;
 		} else {
@@ -287,7 +293,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
 			ahc_fe = AHC_AIC7870_FE;
 		}
 
-		switch (config_id->slot) {
+		switch (pci_get_slot(dev)) {
 		case AHC_398X_SLOT_CHANNEL_A:
 			break;
 		case AHC_398X_SLOT_CHANNEL_B:
@@ -299,13 +305,13 @@ ahc_pci_attach(pcici_t config_id, int unit)
 		default:
 			printf("adapter at unexpected slot %d\n"
 			       "unable to map to a channel\n",
-			       config_id->slot);
+			       pci_get_slot(dev));
 		}
 		ahc_f |= AHC_LARGE_SEEPROM;
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_3940U:
 	case PCI_DEVICE_ID_ADAPTEC_3940:
-		if (id == PCI_DEVICE_ID_ADAPTEC_3940U) {
+		if (pci_get_devid(dev)) {
 			ahc_t = AHC_AIC7880;
 			ahc_fe = AHC_AIC7880_FE;
 		} else {
@@ -313,7 +319,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
 			ahc_fe = AHC_AIC7870_FE;
 		}
 
-		switch (config_id->slot) {
+		switch (pci_get_slot(dev)) {
 		case AHC_394X_SLOT_CHANNEL_A:
 			break;
 		case AHC_394X_SLOT_CHANNEL_B:
@@ -322,7 +328,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
 		default:
 			printf("adapter at unexpected slot %d\n"
 			       "unable to map to a channel\n",
-			       config_id->slot);
+			       pci_get_slot(dev));
 		}
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7890:
@@ -364,9 +370,9 @@ ahc_pci_attach(pcici_t config_id, int unit)
 
 		ahc_t = AHC_AIC7895;
 		ahc_fe = AHC_AIC7895_FE;
-		devconfig = pci_conf_read(config_id, DEVCONFIG);
+		devconfig = pci_read_config(dev, DEVCONFIG, /*bytes*/4);
 		devconfig &= ~SCBSIZE32;
-		pci_conf_write(config_id, DEVCONFIG, devconfig);
+		pci_write_config(dev, DEVCONFIG, devconfig, /*bytes*/4);
 		break;
 	}
 	case PCI_DEVICE_ID_ADAPTEC_AIC7855:
@@ -377,18 +383,38 @@ ahc_pci_attach(pcici_t config_id, int unit)
 	case PCI_DEVICE_ID_ADAPTEC_AIC7810:
 	case PCI_DEVICE_ID_ADAPTEC_AIC7815:
 		printf("RAID functionality unsupported\n");
-		return;
+		return (ENXIO);
 	default:
 		break;
 	}
 
-	/* On all PCI adapters, we allow SCB paging */
-	ahc_f |= AHC_PAGESCBS;
-	if ((ahc = ahc_alloc(unit, io_port, vaddr, ahc_t|AHC_PCI, ahc_fe, ahc_f,
-	     shared_scb_data)) == NULL)
-		return;  /* XXX PCI code should take return status */
+	regs = NULL;
+	regs_type = 0;
+	regs_id = 0;
+#ifdef AHC_ALLOW_MEMIO
+	if ((command & PCIM_CMD_MEMEN) != 0) {
+		regs_type = SYS_RES_MEMORY;
+		regs_id = AHC_PCI_MEMADDR;
+		regs = bus_alloc_resource(dev, regs_type,
+					  &regs_id, 0, ~0, 1, RF_ACTIVE);
+	}
+#endif
 
-	ahc->channel = channel;
+	if (regs == NULL && (command & PCI_COMMAND_IO_ENABLE) != 0) {
+		regs_type = SYS_RES_IOPORT;
+		regs_id = AHC_PCI_IOADDR;
+		regs = bus_alloc_resource(dev, regs_type,
+					  &regs_id, 0, ~0, 1, RF_ACTIVE);
+	}
+ 
+	if (regs == NULL) {
+		device_printf(dev, "can't allocate register resources\n");
+		return (ENOMEM);
+	}
+
+	/* Ensure busmastering is enabled */
+	command |= PCIM_CMD_BUSMASTEREN;
+	pci_write_config(dev, PCIR_COMMAND, command, /*bytes*/1);
 
 	/* Allocate a dmatag for our SCB DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
@@ -399,18 +425,25 @@ ahc_pci_attach(pcici_t config_id, int unit)
 				   /*filter*/NULL, /*filterarg*/NULL,
 				   /*maxsize*/MAXBSIZE, /*nsegments*/AHC_NSEG,
 				   /*maxsegsz*/AHC_MAXTRANSFER_SIZE,
-				    /*flags*/BUS_DMA_ALLOCNOW, &ahc->dmat);
+				   /*flags*/BUS_DMA_ALLOCNOW, &parent_dmat);
 
 	if (error != 0) {
-		printf("%s: Could not allocate DMA tag - error %d\n",
-		       ahc_name(ahc), error);
-		ahc_free(ahc);
-		return;
+		printf("ahc_pci_attach: Could not allocate DMA tag "
+		       "- error %d\n", error);
+		return (ENOMEM);
 	}
 
+	/* On all PCI adapters, we allow SCB paging */
+	ahc_f |= AHC_PAGESCBS;
+	if ((ahc = ahc_alloc(dev, regs, regs_type, regs_id, parent_dmat,
+			     ahc_t|AHC_PCI, ahc_fe, ahc_f,
+			     shared_scb_data)) == NULL)
+		return (ENOMEM);
+
+	ahc->channel = channel;
 
 	/* Store our PCI bus information for use in our PCI error handler */
-	ahc->pci_config_id = config_id;
+	ahc->device = dev;
 	
 	/* Remeber how the card was setup in case there is no SEEPROM */
 	ahc_outb(ahc, HCNTRL, ahc->pause);
@@ -424,7 +457,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
 	if (ahc_reset(ahc) != 0) {
 		/* Failed */
 		ahc_free(ahc);
-		return;
+		return (ENXIO);
 	}
 
 	/*
@@ -439,7 +472,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
 		if ((dscommand0 & RAMPS) != 0) {
 			u_int32_t devconfig;
 
-			devconfig = pci_conf_read(config_id, DEVCONFIG);
+			devconfig = pci_read_config(dev, DEVCONFIG, /*bytes*/4);
 			if ((devconfig & MPORTMODE) != 0) {
 				/* Single user mode */
 
@@ -448,7 +481,8 @@ ahc_pci_attach(pcici_t config_id, int unit)
 				 * parity checking
 				 */
 				devconfig |= EXTSCBPEN;
-				pci_conf_write(config_id, DEVCONFIG, devconfig);
+				pci_write_config(dev, DEVCONFIG,
+						 devconfig, /*bytes*/4);
 
 				/*
 				 * Set the bank select apropriately.
@@ -474,7 +508,9 @@ ahc_pci_attach(pcici_t config_id, int unit)
 
 		}
 	} else if ((ahc->chip & AHC_CHIPID_MASK) >= AHC_AIC7870) {
-		u_int32_t devconfig = pci_conf_read(config_id, DEVCONFIG);
+		u_int32_t devconfig;
+
+		devconfig = pci_read_config(dev, DEVCONFIG, /*bytes*/4);
 		if ((devconfig & RAMPSM) != 0
 		 && (devconfig & MPORTMODE) != 0) {
 
@@ -496,12 +532,13 @@ ahc_pci_attach(pcici_t config_id, int unit)
 
 			/* Select external SRAM */
 			devconfig &= ~SCBRAMSEL;
-			pci_conf_write(config_id, DEVCONFIG, devconfig);
+			pci_write_config(dev, DEVCONFIG, devconfig, /*bytes*/4);
 
 			if (ahc_probe_scbs(ahc) == 0) {
 				/* External ram isn't really there */
 				devconfig |= SCBRAMSEL;
-				pci_conf_write(config_id, DEVCONFIG, devconfig);
+				pci_write_config(dev, DEVCONFIG,
+						 devconfig, /*bytes*/4);
 			} else if (bootverbose)
 				printf("%s: External SRAM bank%d\n",
 				       ahc_name(ahc),
@@ -509,15 +546,15 @@ ahc_pci_attach(pcici_t config_id, int unit)
 		}
 	}
 
-	if (!(pci_map_int(config_id, ahc_intr, (void *)ahc, &cam_imask))) {
+	zero = 0;
+	ahc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &zero,
+				      0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	if (ahc->irq == NULL) {
 		ahc_free(ahc);
-		return;
+		return (ENOMEM);
 	}
-	/*
-	 * Protect ourself from spurrious interrupts during
-	 * intialization.
-	 */
-	opri = splcam();
+
+	ahc->irq_res_type = SYS_RES_IRQ;
 
 	/*
 	 * Do aic7880/aic7870/aic7860/aic7850 specific initialization
@@ -575,8 +612,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
 		default:
 			printf("ahc: Unknown controller type.  Ignoring.\n");
 			ahc_free(ahc);
-			splx(opri);
-			return;
+			return (ENXIO);
 		}
 
 		/* See if we have an SEEPROM and perform auto-term */
@@ -636,8 +672,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
 
 	if (ahc_init(ahc)) {
 		ahc_free(ahc);
-		splx(opri);
-		return; /* XXX PCI code should take return status */
+		return (ENOMEM);
 	}
 
 	/* XXX Crude hack - fix sometime */
@@ -647,9 +682,9 @@ ahc_pci_attach(pcici_t config_id, int unit)
 			first_398X = ahc;
 	}
 
-	splx(opri);
-
 	ahc_attach(ahc);
+
+	return (0);
 }
 
 /*
@@ -1197,7 +1232,7 @@ ahc_pci_intr(struct ahc_softc *ahc)
 {
 	u_int8_t status1;
 
-	status1 = pci_cfgread(ahc->pci_config_id, PCIR_STATUS + 1, /*bytes*/1);
+	status1 = pci_read_config(ahc->device, PCIR_STATUS + 1, /*bytes*/1);
 
 	if (status1 & DPE) {
 		printf("%s: Data Parity Error Detected during address "
@@ -1223,7 +1258,7 @@ ahc_pci_intr(struct ahc_softc *ahc)
 		printf("%s: Latched PCIERR interrupt with "
 		       "no status bits set\n", ahc_name(ahc)); 
 	}
-	pci_cfgwrite(ahc->pci_config_id, PCIR_STATUS + 1, status1, /*bytes*/1);
+	pci_write_config(ahc->device, PCIR_STATUS + 1, status1, /*bytes*/1);
 
 	if (status1 & (DPR|RMA|RTA)) {
 		ahc_outb(ahc, CLRINT, CLRPARERR);

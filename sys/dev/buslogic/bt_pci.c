@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_pci.c,v 1.4 1998/12/14 06:32:54 dillon Exp $
+ *	$Id: bt_pci.c,v 1.5 1999/04/18 15:50:35 peter Exp $
  */
 
 #include "pci.h"
@@ -104,7 +104,7 @@ bt_pci_release_resources(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT,
 				     BT_PCI_IOADDR, bt->port);
 	if (bt->irq)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, bt->irq);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, bt->irq);
 	bt_free_softc(dev);
 }
 
@@ -165,7 +165,7 @@ bt_pci_attach(device_t dev)
 	int		   opri;
 	int		   error;
 
-	/* Initialise softc */
+	/* Initialize softc */
 	error = bt_pci_alloc_resources(dev);
 	if (error) {
 		device_printf(dev, "can't allocate resources in bt_pci_attach\n");
