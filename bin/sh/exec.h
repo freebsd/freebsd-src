@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 6/8/95
- *	$Id$
+ *	$Id: exec.h,v 1.6 1997/02/22 13:58:25 peter Exp $
  */
 
 /* values of cmdtype */
@@ -68,3 +68,4 @@ void getcmdentry __P((char *, struct cmdentry *));
 void addcmdentry __P((char *, struct cmdentry *));
 void defun __P((char *, union node *));
 int unsetfunc __P((char *));
+int typecmd __P((int, char **));
