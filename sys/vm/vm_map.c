@@ -78,6 +78,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/sysent.h>
 #include <sys/shm.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -147,6 +149,10 @@ static void _vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max);
 static void vm_map_zdtor(void *mem, int size, void *arg);
 static void vmspace_zdtor(void *mem, int size, void *arg);
 #endif
+
+static int old_msync;
+SYSCTL_INT(_vm, OID_AUTO, old_msync, CTLFLAG_RW, &old_msync, 0,
+    "Use old (insecure) msync behavior");
 
 void
 vm_map_startup(void)
@@ -2086,7 +2092,8 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 		     object == kernel_object || object == kmem_object) &&
 		    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
 			vm_object_collapse(object);
-			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
+			vm_object_page_remove(object, offidxstart, offidxend,
+			    old_msync ? FALSE : TRUE);
 			if (object->type == OBJT_SWAP)
 				swap_pager_freespace(object, offidxstart, count);
 			if (offidxend >= object->size &&
