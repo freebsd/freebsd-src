@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)rcp.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rcp.c,v 1.19 1998/05/18 06:36:03 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -455,7 +455,8 @@ syserr:			run_err("%s: %s", name, strerror(errno));
 			 * versions expecting microseconds.
 			 */
 			(void)snprintf(buf, sizeof(buf), "T%ld 0 %ld 0\n",
-			    stb.st_mtimespec.tv_sec, stb.st_atimespec.tv_sec);
+			    (long)stb.st_mtimespec.tv_sec,
+			    (long)stb.st_atimespec.tv_sec);
 			(void)write(rem, buf, strlen(buf));
 			if (response() < 0)
 				goto next;
@@ -519,7 +520,8 @@ rsource(name, statp)
 		last++;
 	if (pflag) {
 		(void)snprintf(path, sizeof(path), "T%ld 0 %ld 0\n",
-		    statp->st_mtimespec.tv_sec, statp->st_atimespec.tv_sec);
+		    (long)statp->st_mtimespec.tv_sec,
+		    (long)statp->st_atimespec.tv_sec);
 		(void)write(rem, path, strlen(path));
 		if (response() < 0) {
 			closedir(dirp);
