@@ -1627,7 +1627,8 @@ softdep_setup_allocext(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	WORKLIST_INSERT(&bp->b_dep, &adp->ad_list);
 	if (lbn >= NXADDR) {
 		FREE_LOCK(&lk);
-		panic("softdep_setup_allocext: lbn %d > NXADDR", lbn);
+		panic("softdep_setup_allocext: lbn %lld > NXADDR",
+		    (long long)lbn);
 	}
 	/*
 	 * The list of allocdirects must be kept in sorted and ascending
