@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.17 1997/02/22 15:45:28 peter Exp $
 
 PROG = gdb
 
@@ -65,5 +65,7 @@ DPADD+=   ${.OBJDIR}/../libiberty/libiberty.a
 LDADD+=   -L${.CURDIR}/../libiberty/ -liberty
 DPADD+=   ${.CURDIR}/../libiberty/libiberty.a
 .endif
+
+LINKS= ${BINDIR}/${PROG} ${BINDIR}/k${PROG}
 
 .include <bsd.prog.mk>
