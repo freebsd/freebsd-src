@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id$
+ *	$Id: genassym.c,v 1.42 1997/02/22 09:32:18 peter Exp $
  */
 
 #include <stdio.h>
@@ -120,33 +120,14 @@ main()
 	printf("#define\tVM_MAXUSER_ADDRESS 0x%lx\n", VM_MAXUSER_ADDRESS);
 	printf("#define\tKERNBASE 0x%x\n", KERNBASE);
 	printf("#define\tMCLBYTES %d\n", MCLBYTES);
-	printf("#define\tPCB_LINK %p\n", &pcb->pcb_tss.tss_link);
-	printf("#define\tPCB_ESP0 %p\n", &pcb->pcb_tss.tss_esp0);
-	printf("#define\tPCB_SS0 %p\n", &pcb->pcb_tss.tss_ss0);
-	printf("#define\tPCB_ESP1 %p\n", &pcb->pcb_tss.tss_esp1);
-	printf("#define\tPCB_SS1 %p\n", &pcb->pcb_tss.tss_ss1);
-	printf("#define\tPCB_ESP2 %p\n", &pcb->pcb_tss.tss_esp2);
-	printf("#define\tPCB_SS2 %p\n", &pcb->pcb_tss.tss_ss2);
-	printf("#define\tPCB_CR3 %p\n", &pcb->pcb_tss.tss_cr3);
-	printf("#define\tPCB_EIP %p\n", &pcb->pcb_tss.tss_eip);
-	printf("#define\tPCB_EFLAGS %p\n", &pcb->pcb_tss.tss_eflags);
-	printf("#define\tPCB_EAX %p\n", &pcb->pcb_tss.tss_eax);
-	printf("#define\tPCB_ECX %p\n", &pcb->pcb_tss.tss_ecx);
-	printf("#define\tPCB_EDX %p\n", &pcb->pcb_tss.tss_edx);
-	printf("#define\tPCB_EBX %p\n", &pcb->pcb_tss.tss_ebx);
-	printf("#define\tPCB_ESP %p\n", &pcb->pcb_tss.tss_esp);
-	printf("#define\tPCB_EBP %p\n", &pcb->pcb_tss.tss_ebp);
-	printf("#define\tPCB_ESI %p\n", &pcb->pcb_tss.tss_esi);
-	printf("#define\tPCB_EDI %p\n", &pcb->pcb_tss.tss_edi);
-	printf("#define\tPCB_ES %p\n", &pcb->pcb_tss.tss_es);
-	printf("#define\tPCB_CS %p\n", &pcb->pcb_tss.tss_cs);
-	printf("#define\tPCB_SS %p\n", &pcb->pcb_tss.tss_ss);
-	printf("#define\tPCB_DS %p\n", &pcb->pcb_tss.tss_ds);
-	printf("#define\tPCB_FS %p\n", &pcb->pcb_tss.tss_fs);
-	printf("#define\tPCB_GS %p\n", &pcb->pcb_tss.tss_gs);
-	printf("#define\tPCB_LDT %p\n", &pcb->pcb_tss.tss_ldt);
+	printf("#define\tPCB_CR3 %p\n", &pcb->pcb_cr3);
+	printf("#define\tPCB_EDI %p\n", &pcb->pcb_edi);
+	printf("#define\tPCB_ESI %p\n", &pcb->pcb_esi);
+	printf("#define\tPCB_EBP %p\n", &pcb->pcb_ebp);
+	printf("#define\tPCB_ESP %p\n", &pcb->pcb_esp);
+	printf("#define\tPCB_EBX %p\n", &pcb->pcb_ebx);
+	printf("#define\tPCB_EIP %p\n", &pcb->pcb_eip);
 	printf("#define\tPCB_USERLDT %p\n", &pcb->pcb_ldt);
-	printf("#define\tPCB_IOOPT %p\n", &pcb->pcb_tss.tss_ioopt);
 	printf("#define\tU_PROF %p\n", &up->u_stats.p_prof);
 	printf("#define\tU_PROFSCALE %p\n", &up->u_stats.p_prof.pr_scale);
 	printf("#define\tPR_BASE %p\n", &uprof->pr_base);
