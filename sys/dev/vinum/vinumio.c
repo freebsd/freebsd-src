@@ -878,6 +878,7 @@ vinum_scandisk(char *devicename)
 	drive->flags |= VF_CONFIGURED;			    /* this drive's configuration is complete */
     }
 
+    Free(config_line);
     Free(config_text);
     Free(drivelist);
     vinum_conf.flags &= ~VF_READING_CONFIG;		    /* no longer reading from disk */
