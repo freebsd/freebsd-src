@@ -89,7 +89,7 @@ struct putchar_arg {
  * configuration routines, so it assumes it's the owner of
  * the configuration lock, and unlocks it on exit
  */
-void 
+void
 throw_rude_remark(int error, char *msg,...)
 {
     int retval;
@@ -151,7 +151,7 @@ throw_rude_remark(int error, char *msg,...)
 int atoi(char *);					    /* no atoi in the kernel */
 
 /* Minimal version of atoi */
-int 
+int
 atoi(char *s)
 {							    /* no atoi in the kernel */
     int r = 0;
@@ -170,7 +170,7 @@ atoi(char *s)
  * Check a volume to see if the plex is already assigned to it.
  * Return index in volume->plex, or -1 if not assigned
  */
-int 
+int
 my_plex(int volno, int plexno)
 {
     int i;
@@ -187,7 +187,7 @@ my_plex(int volno, int plexno)
  * Check a plex to see if the subdisk is already assigned to it.
  * Return index in plex->sd, or -1 if not assigned
  */
-int 
+int
 my_sd(int plexno, int sdno)
 {
     int i;
@@ -201,7 +201,7 @@ my_sd(int plexno, int sdno)
 }
 
 /* Add plex to the volume if possible */
-int 
+int
 give_plex_to_volume(int volno, int plexno)
 {
     struct volume *vol;
@@ -233,7 +233,7 @@ give_plex_to_volume(int volno, int plexno)
 /*
  * Add subdisk to a plex if possible
  */
-int 
+int
 give_sd_to_plex(int plexno, int sdno)
 {
     int i;
@@ -316,7 +316,7 @@ give_sd_to_plex(int plexno, int sdno)
  * must already be stored in the sd structure, but the drive
  * doesn't know about the subdisk yet.
  */
-static void 
+static void
 give_sd_to_drive(int sdno)
 {
     struct sd *sd;					    /* pointer to subdisk */
@@ -452,7 +452,7 @@ give_sd_to_drive(int sdno)
 }
 
 /* Get an empty drive entry from the drive table */
-int 
+int
 get_empty_drive(void)
 {
     int driveno;
@@ -483,7 +483,7 @@ get_empty_drive(void)
  * If create != 0, create an entry if it doesn't exist
  */
 /* XXX check if we have it open from attach */
-int 
+int
 find_drive(const char *name, int create)
 {
     int driveno;
@@ -518,7 +518,7 @@ find_drive(const char *name, int create)
  * devname must be valid.
  * Otherwise the same as find_drive above
  */
-int 
+int
 find_drive_by_dev(const char *devname, int create)
 {
     int driveno;
@@ -546,7 +546,7 @@ find_drive_by_dev(const char *devname, int create)
 }
 
 /* Find an empty subdisk in the subdisk table */
-int 
+int
 get_empty_sd(void)
 {
     int sdno;
@@ -578,7 +578,7 @@ get_empty_sd(void)
 }
 
 /* return a drive to the free pool */
-void 
+void
 free_drive(struct drive *drive)
 {
     if ((drive->state > drive_referenced)		    /* real drive */
@@ -600,7 +600,7 @@ free_drive(struct drive *drive)
  *
  * Return index in vinum_conf.sd
  */
-int 
+int
 find_subdisk(const char *name, int create)
 {
     int sdno;
@@ -623,7 +623,7 @@ find_subdisk(const char *name, int create)
 }
 
 /* Return space to a drive */
-void 
+void
 return_drive_space(int driveno, int64_t offset, int length)
 {
     struct drive *drive;
@@ -718,7 +718,7 @@ return_drive_space(int driveno, int64_t offset, int length)
  * This performs memory management only.  remove()
  * is responsible for checking relationships.
  */
-void 
+void
 free_sd(int sdno)
 {
     struct sd *sd;
@@ -734,7 +734,7 @@ free_sd(int sdno)
 }
 
 /* Find an empty plex in the plex table */
-int 
+int
 get_empty_plex(void)
 {
     int plexno;
@@ -769,7 +769,7 @@ get_empty_plex(void)
  * If create != 0, create an entry if it doesn't exist
  * return index in vinum_conf.plex
  */
-int 
+int
 find_plex(const char *name, int create)
 {
     int plexno;
@@ -795,7 +795,7 @@ find_plex(const char *name, int create)
  * Free an allocated plex entry
  * and its associated memory areas
  */
-void 
+void
 free_plex(int plexno)
 {
     struct plex *plex;
@@ -810,7 +810,7 @@ free_plex(int plexno)
 }
 
 /* Find an empty volume in the volume table */
-int 
+int
 get_empty_volume(void)
 {
     int volno;
@@ -839,7 +839,7 @@ get_empty_volume(void)
  * If create != 0, create an entry if it doesn't exist
  * return the index in vinum_conf
  */
-int 
+int
 find_volume(const char *name, int create)
 {
     int volno;
@@ -866,7 +866,7 @@ find_volume(const char *name, int create)
  * Free an allocated volume entry
  * and its associated memory areas
  */
-void 
+void
 free_volume(int volno)
 {
     struct volume *vol;
@@ -882,13 +882,14 @@ free_volume(int volno)
  *
  * If we find an error, print a message and return
  */
-void 
+void
 config_drive(int update)
 {
     enum drive_label_info partition_status;		    /* info about the partition */
     int parameter;
     int driveno;					    /* index of drive in vinum_conf */
     struct drive *drive;				    /* and pointer to it */
+    int otherdriveno;					    /* index of possible second drive */
 
     if (tokens < 2)					    /* not enough tokens */
 	throw_rude_remark(EINVAL, "Drive has no name\n");
@@ -909,6 +910,14 @@ config_drive(int update)
 	switch (get_keyword(token[parameter], &keyword_set)) {
 	case kw_device:
 	    parameter++;
+	    otherdriveno = find_drive_by_dev(token[parameter], 0); /* see if it exists already */
+	    if (otherdriveno >= 0) {			    /* yup, */
+		drive->state = drive_unallocated;	    /* deallocate the drive */
+		throw_rude_remark(EEXIST,		    /* and complain */
+		    "Drive %s would have same device as drive %s",
+		    token[1],
+		    DRIVE[otherdriveno].label.name);
+	    }
 	    if (drive->devicename[0] == '/') {		    /* we know this drive... */
 		if (strcmp(drive->devicename, token[parameter])) /* different name */
 		    close_drive(drive);			    /* close it if it's open */
@@ -1004,7 +1013,7 @@ config_drive(int update)
  *
  * If we find an error, print a message and return
  */
-void 
+void
 config_subdisk(int update)
 {
     int parameter;
@@ -1180,7 +1189,7 @@ config_subdisk(int update)
 /*
  * Handle a plex definition.
  */
-void 
+void
 config_plex(int update)
 {
     int parameter;
@@ -1344,7 +1353,7 @@ config_plex(int update)
  * Handle a volume definition.
  * If we find an error, print a message, deallocate the nascent volume, and return
  */
-void 
+void
 config_volume(int update)
 {
     int parameter;
@@ -1477,7 +1486,7 @@ config_volume(int update)
  * Return 0 if all is well, otherwise EINVAL for invalid keyword,
  * or ENOENT if 'read' command doesn't find any drives.
  */
-int 
+int
 parse_config(char *cptr, struct keywordset *keyset, int update)
 {
     int status;
@@ -1530,7 +1539,7 @@ parse_config(char *cptr, struct keywordset *keyset, int update)
  * ensured that configuration is performed in a single-
  * threaded manner
  */
-int 
+int
 parse_user_config(char *cptr, struct keywordset *keyset)
 {
     int status;
@@ -1544,7 +1553,7 @@ parse_user_config(char *cptr, struct keywordset *keyset)
 }
 
 /* Remove an object */
-void 
+void
 remove(struct vinum_ioctl_msg *msg)
 {
     struct vinum_ioctl_msg message = *msg;		    /* make a copy to hand on */
@@ -1581,7 +1590,7 @@ remove(struct vinum_ioctl_msg *msg)
 }
 
 /* Remove a drive.  */
-void 
+void
 remove_drive_entry(int driveno, int force, int recurse)
 {
     struct drive *drive = &DRIVE[driveno];
@@ -1616,7 +1625,7 @@ remove_drive_entry(int driveno, int force, int recurse)
 }
 
 /* remove a subdisk */
-void 
+void
 remove_sd_entry(int sdno, int force, int recurse)
 {
     struct sd *sd = &SD[sdno];
@@ -1668,7 +1677,7 @@ remove_sd_entry(int sdno, int force, int recurse)
 }
 
 /* remove a plex */
-void 
+void
 remove_plex_entry(int plexno, int force, int recurse)
 {
     struct plex *plex = &PLEX[plexno];
@@ -1734,7 +1743,7 @@ remove_plex_entry(int plexno, int force, int recurse)
 }
 
 /* remove a volume */
-void 
+void
 remove_volume_entry(int volno, int force, int recurse)
 {
     struct volume *vol = &VOL[volno];
@@ -1770,7 +1779,7 @@ remove_volume_entry(int volno, int force, int recurse)
 }
 
 /* Currently called only from ioctl */
-void 
+void
 update_sd_config(int sdno, int diskconfig)
 {
     if (!diskconfig)
@@ -1778,7 +1787,7 @@ update_sd_config(int sdno, int diskconfig)
     SD[sdno].flags &= ~VF_NEWBORN;
 }
 
-void 
+void
 update_plex_config(int plexno, int diskconfig)
 {
     u_int64_t size;
@@ -1895,7 +1904,7 @@ update_plex_config(int plexno, int diskconfig)
     plex->flags &= ~VF_NEWBORN;
 }
 
-void 
+void
 update_volume_config(int volno, int diskconfig)
 {
     struct volume *vol = &VOL[volno];
@@ -1928,7 +1937,7 @@ update_volume_config(int volno, int diskconfig)
  * them down if there's some error which got
  * missed when writing to disk.
  */
-void 
+void
 updateconfig(int diskconfig)
 {
     int plexno;
@@ -1952,7 +1961,7 @@ updateconfig(int diskconfig)
  * others who may wish to do so.
  * XXX why do we need this and lock_config too?
  */
-int 
+int
 start_config(int force)
 {
     int error;
@@ -1987,7 +1996,7 @@ start_config(int force)
  * it.  We won't update the configuration if we
  * are called in a recursive loop via throw_rude_remark.
  */
-void 
+void
 finish_config(int update)
 {
     /* we've finished our config */
@@ -2002,3 +2011,6 @@ finish_config(int update)
 	wakeup(&vinum_conf);
     }
 }
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */
