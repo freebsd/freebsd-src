@@ -64,6 +64,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *
+ * $FreeBSD$
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -78,24 +80,26 @@
 static struct cdevsw my_devsw = {
 	/* open */	mydev_open,
 	/* close */	mydev_close,
-	/* read */	noread,
-	/* write */	nowrite,
+	/* read */	mydev_read,
+	/* write */	mydev_write,
 	/* ioctl */	mydev_ioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"cdev",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
+
+/* 
+ * Used as the variable that is the reference to our device
+ * in devfs... we must keep this variable sane until we 
+ * call kldunload.
+ */
+static dev_t sdev;
 
 /*
  * This function is called each time the module is loaded or unloaded.
@@ -123,10 +127,12 @@ cdev_load(module_t mod, int cmd, void *arg)
 	printf("Copyright (c) 1998\n");
 	printf("Rajesh Vaidheeswarran\n");
 	printf("All rights reserved\n");
+	sdev = make_dev(&my_devsw, 0, UID_ROOT, GID_WHEEL, 0600, "cdev");
 	break;		/* Success*/
 
     case MOD_UNLOAD:
 	printf("Unloaded kld character device driver\n");
+	destroy_dev(sdev);
 	break;		/* Success*/
 
     default:	/* we only understand load/unload*/
@@ -139,4 +145,4 @@ cdev_load(module_t mod, int cmd, void *arg)
 
 /* Now declare the module to the system */
 
-DEV_MODULE(cdev, CDEV_MAJOR, -1, my_devsw, cdev_load, 0);
+DEV_MODULE(cdev, cdev_load, NULL);
