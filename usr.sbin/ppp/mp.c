@@ -37,6 +37,9 @@
 
 #include <errno.h>
 #include <paths.h>
+#ifdef __NetBSD__
+#include <signal.h>	/* for `errno' ?!? */
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
