@@ -28,6 +28,7 @@ add hide
 [devfsrules_unhide_basic=2]
 add path null unhide
 add path zero unhide
+add path crypto unhide
 add path random unhide
 add path urandom unhide
 
