@@ -8,7 +8,12 @@
 PROG=	atmconfig
 SRCS=	main.c diag.c natm.c
 MAN=	atmconfig.8
+
+.if ${MACHINE_ARCH} == "arm"
+WARNS?= 3
+.else
 WARNS?=	9
+.endif
 
 FILES=	atmconfig.help
 FILESDIR= /usr/share/doc/atm
