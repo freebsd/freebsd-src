@@ -884,7 +884,7 @@ static void aue_rxstart(ifp)
 
 	/* Setup new transfer. */
 	usbd_setup_xfer(c->aue_xfer, sc->aue_ep[AUE_ENDPT_RX],
-	    c, mtod(c->aue_mbuf, char *), AUE_BUFSZ, USBD_SHORT_XFER_OK,
+	    c, mtod(c->aue_mbuf, char *), AUE_CUTOFF, USBD_SHORT_XFER_OK,
 	    USBD_NO_TIMEOUT, aue_rxeof);
 	usbd_transfer(c->aue_xfer);
 
