@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.187 1997/05/30 01:03:09 jkh Exp $
+ * $Id: install.c,v 1.188 1997/06/13 07:11:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,6 +69,10 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
     Disk *disk;
     Chunk *c1, *c2, *rootdev, *swapdev, *usrdev, *vardev;
     int i;
+
+    /* Don't allow whinging if noWarn is set */
+    if (variable_get(VAR_NO_WARN))
+	whinge = FALSE;
 
     status = TRUE;
     *rdev = *sdev = *udev = *vdev = rootdev = swapdev = usrdev = vardev = NULL;
