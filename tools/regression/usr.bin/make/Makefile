@@ -33,8 +33,9 @@ all:
 	@! ${MAKE} lhs_expn && true || ${MAKE} failure
 	@echo "PASS: Test lhs_expn detected no regression."
 
-# Doubly-defined targets.  NetBSD make(1) will warn, ours will silently use the
-# ``right'' one.
+# Doubly-defined targets.  make(1) will warn, but use the "right" one.  If it
+# switches to using the "non-right" one, it breaks things worse than a little
+# regression test.
 double:
 	@true
 
