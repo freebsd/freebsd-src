@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 /*
- * char *realpath(const char *path, char resolved_path[MAXPATHLEN]);
+ * char *realpath(const char *path, char resolved_path[PATH_MAX]);
  *
  * Find the real name of path, by removing all ".", ".." and symlink
  * components.  Returns (resolved) on success, or (NULL) on failure,
@@ -65,7 +65,7 @@ realpath(path, resolved)
 {
 	struct stat sb;
 	int fd, n, rootd, serrno;
-	char *p, *q, wbuf[MAXPATHLEN];
+	char *p, *q, wbuf[PATH_MAX];
 	int symlinks = 0;
 
 	/* Save the starting point. */
@@ -82,8 +82,8 @@ realpath(path, resolved)
 	 *     if it is a directory, then change to that directory.
 	 * get the current directory name and append the basename.
 	 */
-	(void)strncpy(resolved, path, MAXPATHLEN - 1);
-	resolved[MAXPATHLEN - 1] = '\0';
+	(void)strncpy(resolved, path, PATH_MAX - 1);
+	resolved[PATH_MAX - 1] = '\0';
 loop:
 	q = strrchr(resolved, '/');
 	if (q != NULL) {
@@ -109,7 +109,7 @@ loop:
 				errno = ELOOP;
 				goto err1;
 			}
-			n = readlink(p, resolved, MAXPATHLEN - 1);
+			n = readlink(p, resolved, PATH_MAX - 1);
 			if (n < 0)
 				goto err1;
 			resolved[n] = '\0';
@@ -127,7 +127,7 @@ loop:
 	 * the current directory.
 	 */
 	(void)strcpy(wbuf, p);
-	if (getcwd(resolved, MAXPATHLEN) == 0)
+	if (getcwd(resolved, PATH_MAX) == 0)
 		goto err1;
 
 	/*
@@ -140,7 +140,7 @@ loop:
 		rootd = 0;
 
 	if (*wbuf) {
-		if (strlen(resolved) + strlen(wbuf) + rootd + 1 > MAXPATHLEN) {
+		if (strlen(resolved) + strlen(wbuf) + rootd + 1 > PATH_MAX) {
 			errno = ENAMETOOLONG;
 			goto err1;
 		}

@@ -47,7 +47,7 @@
 .In sys/param.h
 .In stdlib.h
 .Ft "char *"
-.Fn realpath "const char *pathname" "char resolved_path[MAXPATHLEN]"
+.Fn realpath "const char *pathname" "char resolved_path[PATH_MAX]"
 .Sh DESCRIPTION
 The
 .Fn realpath
@@ -67,7 +67,7 @@ The
 argument
 .Em must
 refer to a buffer capable of storing at least
-.Dv MAXPATHLEN
+.Dv PATH_MAX
 characters.
 .Pp
 The
