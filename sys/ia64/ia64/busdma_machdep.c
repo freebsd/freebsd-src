@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/proc.h>
