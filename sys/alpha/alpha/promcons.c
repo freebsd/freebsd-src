@@ -101,7 +101,7 @@ promopen(dev, flag, mode, p)
 	int s;
 	int error = 0, setuptimeout = 0;
  
-	if (!pmap_uses_prom_console() || unit >= 1)
+	if (!pmap_uses_prom_console() || unit != 0)
 		return ENXIO;
 
 	s = spltty();
