@@ -3218,15 +3218,11 @@ trm_init(u_int16_t unit, device_t pci_config_id)
 	      /*maxsegsz*/    TRM_MAXTRANSFER_SIZE,
 	      /*flags*/           BUS_DMA_ALLOCNOW,
 	      &pACB->buffer_dmat) != 0)
-	{
-		free(pACB, M_DEVBUF);
 		return (NULL);
-	}
 	trm_check_eeprom(&trm_eepromBuf[unit],pACB);
 	trm_initACB(pACB, unit);
    	if (trm_initAdapter(pACB, unit, pci_config_id)) {
 		printf("trm_initAdapter: initial ERROR\n");
-		free(pACB, M_DEVBUF);
 		return (NULL);
 	}
 	return (pACB);
@@ -3268,13 +3264,11 @@ trm_attach(device_t pci_config_id)
 	    bus_setup_intr(pci_config_id, irqres, 
 	      INTR_TYPE_CAM, trm_Interrupt, pACB, &ih)) {
 		printf("trm%d: register Interrupt handler error!\n", unit);
-		free(pACB, M_DEVBUF);
 		return (ENXIO);
 	}
 	device_Q = cam_simq_alloc(MAX_START_JOB);
 	if (device_Q == NULL){ 
 		printf("trm%d: device_Q == NULL !\n",unit);
-		free(pACB, M_DEVBUF);
 		return (ENXIO);
 	}
 	/*
@@ -3314,13 +3308,11 @@ trm_attach(device_t pci_config_id)
 	if (pACB->psim == NULL) {
 		printf("trm%d: SIM allocate fault !\n",unit);
 		cam_simq_free(device_Q);  /* SIM allocate fault*/
-		free(pACB, M_DEVBUF);
 		return (ENXIO);
 	}
 	if (xpt_bus_register(pACB->psim, 0) != CAM_SUCCESS)  {
 		printf("trm%d: xpt_bus_register fault !\n",unit);
 		cam_sim_free(pACB->psim, TRUE); 
-		free(pACB, M_DEVBUF);
 		/* 
 		 * cam_sim_free(pACB->psim, TRUE);  free_devq 
 		 * pACB->psim = NULL;
@@ -3335,7 +3327,6 @@ trm_attach(device_t pci_config_id)
 		printf("trm%d: xpt_create_path fault !\n",unit);
 		xpt_bus_deregister(cam_sim_path(pACB->psim));
 		cam_sim_free(pACB->psim, /*free_simq*/TRUE);
-		free(pACB, M_DEVBUF);
 		/* 
 		 * cam_sim_free(pACB->psim, TRUE);  free_devq 
 		 * pACB->psim = NULL;
