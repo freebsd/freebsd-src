@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.88 1996/09/27 16:34:16 bde Exp $
+#	$Id: Makefile.i386,v 1.89 1996/10/08 22:08:44 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -120,7 +120,7 @@ genassym.o: ${I386}/i386/genassym.c Makefile
 	${CC} -c ${CFLAGS} ${PARAM} -UKERNEL ${I386}/i386/genassym.c
 
 genassym: genassym.o
-	${CC} -static ${CFLAGS} ${PARAM} genassym.o -o $@
+	${CC} ${CFLAGS} ${PARAM} genassym.o -o $@
 
 # XXX this assumes that the options for NORMAL_C* and DRIVER_C* are identical.
 depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
