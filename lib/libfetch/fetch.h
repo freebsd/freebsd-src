@@ -25,14 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fetch.h,v 1.5 1998/11/05 19:48:17 des Exp $
+ *	$Id: fetch.h,v 1.6 1998/11/06 22:14:08 des Exp $
  */
 
 #ifndef _FETCH_H_INCLUDED
 #define _FETCH_H_INCLUDED
-
-#include <sys/param.h>
-#include <stdio.h>
 
 #include <fetch_err.h>
 
@@ -53,7 +50,8 @@ struct url {
 
 struct url_stat {
     off_t	 size;
-    time_t	 time;
+    time_t	 atime;
+    time_t	 mtime;
 };
 
 /* FILE-specific functions */
@@ -80,5 +78,8 @@ int		 fetchStatURL(char *, struct url_stat *, char *);
 FILE		*fetchGet(struct url *, char *);
 FILE		*fetchPut(struct url *, char *);
 int		 fetchStat(struct url *, struct url_stat *, char *);
+
+/* Last error code */
+extern int	 fetchLastErrCode;
 
 #endif
