@@ -1,10 +1,14 @@
+The "TODO" file!                              -*-Indented-Text-*-
+
 22. Catch signals for cleanup when "add"ing files.
 
 24. Insist on a log message.
     (If done, this should be configurable via commitinfo or some new
     config file -kingdon, Jun 1995).
 
-30. Add "patch" program option to the modules database.
+30. Add "rdiff" program option to the modules database (and "diff"
+too?).  (perhaps should think a little harder about what this is
+trying to accomplish and what the best way is -kingdon, Jul 1997).
 
 31. Think hard about ^C recovery.
 
@@ -16,7 +20,9 @@
     that other branch is already merged.  This has pitfalls--it could
     easily lead to invisible state which could confuse users very
     rapidly--but having to create a tag or some such mechanism to keep
-    track of what has been merged is a pain.
+    track of what has been merged is a pain.  Take a look at PRCS 1.2.
+    PRCS 1.0 was particularly bad the way it handled the "invisible
+    state", but 1.2 is significantly better.
 
 45. Consider enhancing the "rdiff" and "tag" (rtag??) command support in
     the module database -- they seem hard to use since these commands
@@ -45,9 +51,6 @@
 63. The "import" and vendor support commands (co -j) need to be documented
     better.
 
-64. Need to greatly increase the performance of an initial checkout.
-    [[ it got better, then we added functionality, making it worse again ]]
-
 66. Length of the CVS temporary files must be limited to 14 characters for
     System-V stupid support.  As well as the length on the CVS.adm files.
 
@@ -57,8 +60,8 @@
 73. Consider an option (in .cvsrc?) to automatically add files that are new
     and specified to commit.
 
-79. Might be nice to have some sort of interface to TFS and tagged
-    revisions.
+79. Might be nice to have some sort of interface to Sun's Translucent
+    (?) File System and tagged revisions.
 
 82. Maybe the import stuff should allow an arbitrary revision to be
     specified.
@@ -66,8 +69,10 @@
 84. Improve the documentation about administration of the repository and
     how to add/remove files and the use of symbolic links.
 
-85. Add revision controlled symbolic links to CVS using one of the tag
-    fields in the RCS file.
+85. Make symbolic links a valid thing to put under version control.
+    Perhaps use one of the tag fields in the RCS file?  Note that we
+    can only support symlinks that are relative and within the scope of
+    the sources being controlled.
 
 92. Look into this:
 	After a bit of soul searching via dbx, I realized my sin was that I'd
@@ -130,11 +135,12 @@
 113. The "cvs update" command should tee its output to a log file in ".".
      (why?  What is wrong with piping stdout to "tee"? -kingdon, Jun 1995)
 
-119. Consider an option to have import checkout the RCS or SCCS files
-     if necessary.  (this is if someone want to import something which is
-     in RCS or SCCS without preserving the history, but making sure they
-     do get the latest versions.  It isn't clear to me how useful that is
-     -kingdon, June 1996).
+119. When importing a directory tree that is under SCCS/RCS control,
+     consider an option to have import checkout the SCCS/RCS files if
+     necessary.  (This is if someone wants to import something which
+     is in RCS or SCCS without preserving the history, but makes sure
+     they do get the latest versions.  It isn't clear to me how useful
+     that is -kingdon, June 1996).
 
 122. If Name_Repository fails, it currently causes CVS to die completely.  It
      should instead return NULL and have the caller do something reasonable
@@ -142,6 +148,7 @@
      -kingdon, June 1996).
 
 123. Add a flag to import to not build vendor branches for local code.
+     (See `importb' tests in src/sanity.sh for more details).
 
 124. Anyway, I thought you might want to add something like the following
      to the cvs man pages:
@@ -156,8 +163,6 @@
 
 127. Look at *info files; they should all be quiet if the files are not
      there.  Should be able to point at a RCS directory and go.
-
-128. When I tag a file, the message tells me that I'm tagging a directory.
 
 130. cvs diff with no -r arguments does not need to look up the current RCS
      version number since it only cares about what's in the Entries file.
@@ -184,10 +189,14 @@
      variable to limit the amount of sources that need to be duplicated for
      sites with giant source trees and no disk space.
 
-141. Import should accept modules as its directory argument.
+141. Import should accept modules as its directory argument.  If we're
+     going to implement this, we should think hard about how modules
+     might be expanded and how to handle those cases.
 
 143. Update the documentation to show that the source repository is
-     something far away from the files that you work on.
+     something far away from the files that you work on.  (People who
+     come from an RCS background are used to their `repository' being
+     _very_ close to their working directory.)
 
 144. Have cvs checkout look for the environment variable CVSPREFIX
      (or CVSMODPREFIX or some such).  If it's set, then when looking
@@ -227,13 +236,41 @@
      .#foo.c.1.5 or whatever), so they can do the interactive part at
      that point -kingdon, June 1996).
 
-149. On Sun, 2 Feb 92 22:01:38 EST, rouilj@dl5000.bc.edu (John P. Rouillard)
-     said:
-     Maybe there should be an option to cvs admin that allows a user to
-     change the Repository file with some degree of error checking?
+149. Maybe there should be an option to cvs admin that allows a user to
+     change the Repository/Root file with some degree of error checking?
      Something like "cvs admin reposmv /old/path /new/pretty/path".  Before
      it does the replace it check to see that the files
      /new/pretty/path/<dir>/<files> exist.
+
+     The obvious cases are where one moves the repository to another
+     machine or directory.  But there are other cases, like where the
+     user might want to change from :pserver: to :ext:, use a different
+     server (if there are two server machines which share the
+     repository using a networked file system), etc.
+
+     The status quo is a bit of a mess (as of, say, CVS 1.9).  It is
+     that the -d global option has two moderately different uses.  One
+     is to use a totally different repository (in which case we'd
+     probably want to give an error if it disagreed with CVS/Root, as
+     CVS 1.8 and earlier did).  The other is the "reposmv"
+     functionality above (in which the two repositories really are the
+     same, and we want to update the CVS/Root files).  A related issue
+     is that the fact that CVS only sets and looks at the CVS/Root
+     file in the directory where CVS is run; it doesn't do anything
+     about CVS/Root files in subdirectories.
+
+     Note also RELATIVE_REPOS in options.h; it needs to be set for
+     changing CVS/Root (not CVS/Repository) to be sufficient in the
+     case where the directory has changed.
+
+     This whole area is a rather bad pile of individual decisions which
+     accumulated over time, some of them probably bad decisions with
+     hindsight.  But we didn't get into this mess overnight, and we're
+     not going to get out of it overnight (that is, we need to come up
+     with a replacement behavior, document what parts of the status
+     quo are deprecated, probably circulate some unofficial patches, &c).
+
+     (this item originally added 2 Feb 1992 but revised since).
 
 150. I have a customer request for a way to specify log message per
      file, non-interactively before the commit, such that a single, fully
@@ -256,8 +293,9 @@
      message specified at commit time.  Easy enough.  (having cvs
      commit be non-interactive takes care of various issues like
      whether to connect to the server before or after prompting for a
-     message (see comment in commit.c at call to start_server)
-     -kingdon, June 1996)
+     message (see comment in commit.c at call to start_server).  Also
+     would clean up the kludge for what to do with the message from
+     do_editor if the up-to-date check fails (see commit.c client code).
 
      I'm not sure about the part above about having commit prompt
      for an overall message--part of the point is having commit
@@ -270,30 +308,41 @@
      incompatibility between client/server (per-tree) and
      non-client/server (per-directory).
 
+     A few interesting issues with this: (1) if you do a cvs update or
+     some other operation which changes the working directory, do you
+     need to run "cvs message" again (it would, of course, bring up
+     the old message which you could accept)?  Probably yes, after all
+     merging in some conflicts might change the situation.  (2) How do
+     you change the stored messages if you change your mind before the
+     commit (probably run "cvs message" again, as hinted in (1))?
+
 151. Also, is there a flag I am missing that allows replacing Ulrtx_Build
      by Ultrix_build?  I.E. I would like a tag replacement to be a one step
      operation rather than a two step "cvs rtag -r Ulrtx_Build Ultrix_Build"
-     followed by "cvs trag -d Ulrtx_Build"
+     followed by "cvs rtag -d Ulrtx_Build"
 
 152. The "cvs -n" option does not work as one would expect for all the
      commands.  In particular, for "commit" and "import", where one would
      also like to see what it would do, without actually doing anything.
 
-153. There should be some command (maybe I just haven't figured
-     out which one...) to import a source directory which is already
-     RCS-administered without losing all prior RCS gathered data.  Thus, it
-     would have to examine the RCS files and choose a starting version and
-     branch higher than previous ones used.
+153. There should be some command (maybe I just haven't figured out
+     which one...) to import a source directory which is already
+     RCS-administered without losing all prior RCS gathered data.
+     Thus, it would have to examine the RCS files and choose a
+     starting version and branch higher than previous ones used.
+     (Check out rcs-to-cvs and see if it addresses this issue.)
 
 154. When committing the modules file, a pre-commit check should be done to
      verify the validity of the new modules file before allowing it to be
      committed.
 
 155. The options for "cvs history" are mutually exclusive, even though
-     useful queries can be done if they are not, as in specifying both a
-     module and a tag.  A workaround is to specify the module, then run the
-     output through grep to only display lines that begin with T, which are
-     tag lines.
+     useful queries can be done if they are not, as in specifying both
+     a module and a tag.  A workaround is to specify the module, then
+     run the output through grep to only display lines that begin with
+     T, which are tag lines.  (Better perhaps if we redesign the whole
+     "history" business -- check out doc/cvs.texinfo for the entire
+     rant.)
 
 156. Also, how hard would it be to allow continuation lines in the
      {commit,rcs,log}info files? It would probably be useful with all of
@@ -312,9 +361,6 @@
      someone else.  Maybe it should also lock the new revision if the old
      revision was already locked by the user as well, thus moving the lock
      forward after the commit.
-
-161. The date parser included with CVS (lib/getdate.y) does not support
-     such RCS-supported dates as "1992/03/07".  It probably should.
 
 163. The rtag/tag commands should have an option that removes the specified
      tag from any file that is in the attic.  This allows one to re-use a
@@ -385,10 +431,12 @@
      is down!).
 
 182.  There should be a way to show log entries corresponding to
-changes from tag "foo" to tag "bar".  "cvs log -rfoo -rbar" doesn't
-cut it, because it is inclusive on the bar end.  I'm not sure that is
-ever a useful or logical behavior ("cvs diff -r foo -r bar" is not
-similarly inclusive), but is compatibility an issue?
+changes from tag "foo" to tag "bar".  "cvs log -rfoo:bar" doesn't cut
+it, because it erroneously shows the changes associated with the
+change from the revision before foo to foo.  I'm not sure that is ever
+a useful or logical behavior ("cvs diff -r foo -r bar" gets this
+right), but is compatibility an issue?  See
+http://www.cyclic.com/cvs/unoff-log.txt for an unofficial patch.
 
 183.  "cvs status" should report on Entries.Static flag and CVS/Tag (how?
 maybe a "cvs status -d" to give directory status?).  There should also
@@ -420,3 +468,326 @@ modifying it), but even as to the general idea, I don't have a clear
 idea about whether it would be good (see what I mean about the need
 for better documentation?  I work on CVS full-time, and even I don't
 understand the state of the art on this subject).
+
+186.  There is a frequent discussion of multisite features.
+
+* There may be some overlap with the client/server CVS, which is good
+especially when there is a single developer at each location.  But by
+"multisite" I mean something in which each site is more autonomous, to
+one extent or another.
+
+* Vendor branches are the closest thing that CVS currently has for
+multisite features.  They have fixable drawbacks (such as poor
+handling of added and removed files), and more fundamental drawbacks
+(when you import a vendor branch, you are importing a set of files,
+not importing any knowledge of their version history outside the
+current repository).
+
+* One approach would be to require checkins (or other modifications to
+the repository) to succeed at a write quorum of sites (51%) before
+they are allowed to complete.  To work well, the network should be
+reliable enough that one can typically get to that many sites.  When a
+server which has been out of touch reconnects, it would want to update
+its data before doing anything else.  Any of the servers can service
+all requests locally, except perhaps for a check that they are
+up-to-date.  The way this differs from a run-of-the-mill distributed
+database is that if one only allows reversible operations via this
+mechanism (exclude "cvs admin -o", "cvs tag -d", &c), then each site
+can back up the others, such that failures at one site, including
+something like deleting all the sources, can be recovered from.  Thus
+the sites need not trust each other as much as for many shared
+databases, and the system may be resilient to many types of
+organizational failures.  Sometimes I call this design the
+"CVScluster" design.
+
+* Another approach is a master/slave one.  Checkins happen at the
+master site, and slave sites need to check whether their local
+repository is up to date before relying on its information.
+
+* Another approach is to have each site own a particular branch.  This
+one is the most tolerant of flaky networks; if checkins happen at each
+site independently there is no particular problem.  The big question
+is whether merges happen only manually, as with existing CVS branches,
+or whether there is a feature whereby there are circumstances in which
+merges from one branch to the other happen automatically (for example,
+the case in which the branches have not diverged).  This might be a
+legitimate question to ask even quite aside from multisite features.
+
+One additional random tidbit is to note that Eric Raymond has some
+interest in this sort of thing.  The item "Cooperative distributed
+freeware development" on http://www.ccil.org/~esr/ has a very brief
+introduction to what he is thinking about.
+
+187.  Might want to separate out usage error messages and help
+messages.  The problem now is that if you specify an invalid option,
+for example, the error message is lost among all the help text.  In
+the new regime, the error message would be followed by a one-line
+message directing people to the appropriate help option ("cvs -H
+<command>" or "cvs --help-commands" or whatever, according to the
+situation).  I'm not sure whether this change would be controversial
+(as defined in HACKING), so there might be a need for further
+discussion or other actions other than just coding.
+
+188.  Option parsing and .cvsrc has at least one notable limitation.
+If you want to set a global option only for some CVS commands, there
+is no way to do it (for example, if one wants to set -q only for
+"rdiff").  I am told that the "popt" package from RPM
+(http://www.rpm.org) could solve this and other problems (for example,
+if the syntax of option stuff in .cvsrc is similar to RPM, that would
+be great from a user point of view).  It would at least be worth a
+look (it also provides a cleaner API than getopt_long).
+
+Another issue which may or may not be related is the issue of
+overriding .cvsrc from the command line.  The cleanest solution might
+be to have options in mutually exclusive sets (-l/-R being a current
+example, but --foo/--no-foo is a better way to name such options).  Or
+perhaps there is some better solution.
+
+189.  Renaming files and directories is a frequently discussed topic.
+
+Some of the problems with the status quo:
+
+a.  "cvs annotate" cannot operate on both the old and new files in a
+single run.  You need to run it twice, once for the new name and once
+for the old name.
+
+b.  "cvs diff" (or "cvs diff -N") shows a rename as a removal of the
+old file and an addition of the new one.  Some people would like to
+see the differences between the file contents (but then how would we
+indicate the fact that the file has been renamed?  Certainly the
+notion that "patch(1)" has of renames is as a removal and addition).
+
+c.  "cvs log" should be able to show the changes between two
+tags/dates, even in the presence of adds/removes/renames (I'm not sure
+what the status quo is on this; see also item #182).
+
+d.  Renaming directories is way too hard.
+
+Implementations:
+
+It is perhaps premature to try to design implementation details
+without answering some of the above questions about desired behaviors
+but several general implementations get mentioned.
+
+i.  No fundamental changes (for example, a "cvs rename" command which
+operated on directories could still implement the current recommended
+practice for renaming directories, which is to rename each of the
+files contained therein via an add and a remove).  One thing to note
+that the status quo gets right is proper merges, even with adds and
+removals (Well, mostly right at least.  There are a *LOT* of different
+cases; see the testsuite for some of them).
+
+ii.  Rename database.  In this scheme the files in the repository
+would have some arbitrary name, and then a separate rename database
+would indicate the current correspondence between the filename in the
+working directory and the actual storage.  As far as I know this has
+never been designed in detail for CVS.
+
+iii.  A modest change in which the RCS files would contain some
+information such as "renamed from X" or "renamed to Y".  That is, this
+would be generally similar to the log messages which are suggested
+when one renames via an add and a removal, but would be
+computer-parseable.  I don't think anyone has tried to flesh out any
+details here either.
+
+It is interesting to note that in solution ii. version numbers in the
+"new file" start where the "old file" left off, while in solutions
+i. and iii., version numbers restart from 1.1 each time a file is
+renamed.  Except perhaps in the case where we rename a file from foo
+to bar and then back to foo.  I'll shut up now.
+
+Regardless of the method we choose, we need to address how renames
+affect existing CVS behaviors.  For example, what happens when you
+rename a file on a branch but not the trunk and then try to merge the
+two?  What happens when you rename a file on one branch and delete it
+on another and try to merge the two?
+
+Ideally, we'd come up with a way to parameterize the problem and
+simply write up a lookup table to determine the correct behavior.
+
+190.  The meaning of the -q and -Q global options is very ad hoc;
+there is no clear definition of which messages are suppressed by them
+and which are not.  Here is a classification of the current meanings
+of -q; I don't know whether anyone has done a similar investigation of
+-Q:
+
+  a.  The "warm fuzzies" printed upon entering each directory (for
+  example, "cvs update: Updating sdir").  The need for these messages
+  may be decreased now that most of CVS uses ->fullname instead of
+  ->file in messages (a project which is *still* not 100% complete,
+  alas).  However, the issue of whether CVS can offer status as it
+  runs is an important one.  Of course from the command line it is
+  hard to do this well and one ends up with options like -q.  But
+  think about emacs, jCVS, or other environments which could flash you
+  the latest status line so you can see whether the system is working
+  or stuck.
+
+  b.  Other cases where the message just offers information (rather
+  than an error) and might be considered unnecessarily verbose.  These
+  have a certain point to them, although it isn't really clear whether
+  it should be the same option as the warm fuzzies or whether it is
+  worth the conceptual hair:
+
+    add.c: scheduling %s `%s' for addition (may be an issue)
+    modules.c: %s %s: Executing '%s' (I can see how that might be noise,
+      but...)
+    remove.c: scheduling `%s' for removal (analogous to the add.c one)
+    update.c: Checking out %s (hmm, that message is a bit on the noisy side...)
+      (but the similar message in annotate is not affected by -q).
+
+  c.  Suppressing various error messages.  This is almost surely
+  bogus.
+
+    commit.c: failed to remove tag `%s' from `%s' (Questionable.
+      Rationale might be that we already printed another message
+      elsewhere but why would it be necessary to avoid
+      the extra message in such an uncommon case?)
+    commit.c: failed to check out `%s' (likewise; this one seems to be a
+      vestige from before RCS_checkout was internal.  Take a look at how
+      RCS_checkout handles errors)
+    commit.c: failed to commit dead revision for `%s' (likewise)
+    remove.c: file `%s' still in working directory (see below about rm
+      -f analogy)
+    remove.c: nothing known about `%s' (looks dubious to me, especially in
+      the case where the user specified it explicitly).
+    remove.c: removed `%s' (seems like an obscure enough case that I fail
+      to see the appeal of being cryptically concise here).
+    remove.c: file `%s' already scheduled for removal (now it is starting
+      to look analogous to the infamous rm -f option).
+    rtag.c: cannot find tag `%s' in `%s' (more rm -f like behavior)
+    rtag.c: failed to remove tag `%s' from `%s' (ditto)
+    tag.c: failed to remove tag %s from %s (see above about whether RCS_*
+      has already printed an error message).
+    tag.c: couldn't tag added but un-commited file `%s' (more rm -f
+      like behavior)
+    tag.c: skipping removed but un-commited file `%s' (ditto)
+    tag.c: cannot find revision control file for `%s' (ditto, but at first
+      glance seems even worse, as this would seem to be a "can't happen"
+      condition)
+
+191.  Storing RCS files, especially binary files, takes rather more
+space than it could, typically.
+  - The virtue of the status quo is that it is simple to implement.
+    Of course it is also simplest in terms of dealing with compatibility.
+  - Just storing the revisions as separate gzipped files is a common 
+    technique.  It also is pretty simple (no new algorithms, CVS
+    already has zlib around).  Of course for some files (such as files
+    which are already compressed) the gzip step won't help, but
+    something which can at least sometimes avoid rewriting the entire
+    RCS file for each new revision would, I would think, be a big
+    speedup for large files.
+  - Josh MacDonald has written a tool called xdelta which produces
+    differences (that is, sufficient information to transform the old
+    to the new) which looks for common sequences of bytes, like RCS
+    currently does, but which is not based on lines.  This seems to do
+    quite well for some kinds of files (e.g. FrameMaker documents,
+    text files), and not as well for others (anything which is already
+    compressed, executables).  xdelta 1.10 also is faster than GNU diff.
+  - Karl Fogel has thought some about using a difference technique
+    analogous to fractal compression (see the comp.compression FAQ for
+    more on fractal compression, including at least one patent to
+    watch for; I don't know how analogous Karl's ideas are to the
+    techniques described there).
+  - Quite possibly want some documented interface by which a site can
+    plug in their choice of external difference programs (with the
+    ability to choose the program based on filename, magic numbers,
+    or some such).
+
+192.  "cvs update" using an absolute pathname does not work if the
+working directory is not a CVS-controlled directory with the correct
+CVSROOT.  For example, the following will fail:
+
+  cd /tmp
+  cvs -d /repos co foo
+  cd /
+  cvs update /tmp/foo
+
+It is possible to read the CVSROOT from the administrative files in
+the directory specified by the absolute pathname argument to update.
+In that case, the last command above would be equivalent to:
+
+  cd /tmp/foo
+  cvs update .
+
+This can be problematic, however, if we ask CVS to update two
+directories with different CVSROOTs.  Currently, CVS has no way of
+changing CVSROOT mid-stream.  Consider the following:
+
+  cd /tmp
+  cvs -d /repos1 co foo
+  cvs -d /repos2 co bar
+  cd /
+  cvs update /tmp/foo /tmp/bar
+
+To make that example work, we need to think hard about:
+
+  - where and when CVSROOT-related variables get set
+  - who caches said variables for later use
+  - how the remote protocol should be extended to handle sending a new
+    repository mid-stream
+  - how the client should maintain connections to a variety of servers
+    in a single invocation.
+
+Because those issues are hairy, I suspect that having a change in
+CVSROOT be an error would be a better move.
+
+193.  The client relies on timestamps to figure out whether a file is
+(maybe) modified.  If something goes awry, then it ends up sending
+entire files to the server to be checked, and this can be quite slow
+especially over a slow network.  A couple of things that can happen:
+(a) other programs, like make, use timestamps, so one ends up needing
+to do "touch foo" and otherwise messing with timestamps, (b) changing
+the timezone offset (e.g. summer vs. winter or moving a machine)
+should work on unix, but there may be problems with non-unix.
+
+Possible solutions:
+
+   a.  Store a checksum for each file in CVS/Entries or some such
+   place.  What to do about hash collisions is interesting: using a
+   checksum, like MD5, large enough to "never" have collisions
+   probably works in practice (of course, if there is a collision then
+   all hell breaks loose because that code path was not tested, but
+   given the tiny, tiny probability of that I suppose this is only an
+   aesthetic issue).
+
+   b.  I'm not thinking of others, except storing the whole file in
+   CVS/Base, and I'm sure using twice the disk space would be
+   unpopular.
+
+194.  CVS does not separate the "metadata" from the actual revision
+history; it stores them both in the RCS files.  Metadata means tags
+and header information such as the number of the head revision.
+Storing the metadata separately could speed up "cvs tag" enormously,
+which is a big problem for large repositories.  It could also probably
+make CVS's locking much less in the way (see comment in do_recursion
+about "two-pass design").
+
+195.  Many people using CVS over a slow link are interested in whether
+the remote protocol could be any more efficient with network
+bandwidth.  This item is about one aspect of that--how the server
+sends a new version of a file the client has a different version of,
+or vice versa.
+
+a.  Cases in which the status quo already sends a diff.  For most text
+files, this is probably already close to optimal.  For binary files,
+and anomalous text files, it might be worth looking into other
+difference algorithms (see item #191).
+
+b.  Cases in which the status quo does not send a diff (e.g. "cvs
+commit").
+
+b1.  With some frequency, people suggest rsync or a similar algorithm
+(see ftp://samba.anu.edu.au/pub/rsync/).  This could speed things up,
+and in some ways involves the most minimal changes to the default CVS
+paradigm.  There are some downsides though: (1) there is an extra
+network turnaround, (2) the algorithm is not as efficient with network
+bandwidth as difference type programs (it transmits a fair bit of data
+to discover what a difference program discovers locally).
+
+b2.  If one is willing to require that users use "cvs edit" before
+editing a file on the client side (in some cases, a development
+environment like emacs can make this fairly easy), then the Modified
+request in the protocol could be extended to allow the client to just
+send differences instead of entire files.  In the degenerate case
+(e.g. "cvs diff" without arguments) the required network traffic is
+reduced to zero, and the client need not even contact the server.

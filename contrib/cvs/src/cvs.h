@@ -127,6 +127,8 @@ extern int errno;
 #define CVSADM_NOTIFY   "CVS/Notify."
 #define CVSADM_NOTIFYTMP "CVS/Notify.tmp"
 #define CVSADM_BASE      "CVS/Base"
+#define CVSADM_BASEREV   "CVS/Baserev."
+#define CVSADM_BASEREVTMP "CVS/Baserev.tmp"
 #define CVSADM_TEMPLATE "CVS/Template."
 #else /* USE_VMS_FILENAMES */
 #define	CVSADM		"CVS"
@@ -144,6 +146,8 @@ extern int errno;
 /* A directory in which we store base versions of files we currently are
    editing with "cvs edit".  */
 #define CVSADM_BASE     "CVS/Base"
+#define CVSADM_BASEREV  "CVS/Baserev"
+#define CVSADM_BASEREVTMP "CVS/Baserev.tmp"
 /* File which contains the template for use in log messages.  */
 #define CVSADM_TEMPLATE "CVS/Template"
 #endif /* USE_VMS_FILENAMES */
@@ -182,6 +186,7 @@ extern int errno;
 #define CVSROOTADM_READERS	"readers"
 #define CVSROOTADM_WRITERS	"writers"
 #define CVSROOTADM_PASSWD	"passwd"
+#define CVSROOTADM_CONFIG	"config"
 
 #define CVSNULLREPOS		"Emptydir"	/* an empty directory */
 
@@ -206,11 +211,10 @@ extern int errno;
 /* Command attributes -- see function lookup_command_attribute(). */
 #define CVS_CMD_IGNORE_ADMROOT        1
 
-/* Set if CVS does _not_ need to create a CVS/Root file upon
-   completion of this command.  The name is confusing, both because
-   the meaning is closer to "does not use working directory" than
-   "uses working directory" and because the flag isn't really as
-   general purpose as it seems (cvs release sets it).  */
+/* Set if CVS needs to create a CVS/Root file upon completion of this
+   command.  The name may be slightly confusing, because the flag
+   isn't really as general purpose as it seems (it is not set for cvs
+   release).  */
 
 #define CVS_CMD_USES_WORK_DIR         2
 
@@ -240,9 +244,6 @@ extern int errno;
 #endif
 #endif /* USE_VMS_FILENAMES */
 
-#define	FALSE		0
-#define	TRUE		1
-
 /*
  * Special tags. -rHEAD	refers to the head of an RCS file, regardless of any
  * sticky tags. -rBASE	refers to the current revision the user has checked
@@ -253,10 +254,7 @@ extern int errno;
 
 /* Environment variable used by CVS */
 #define	CVSREAD_ENV	"CVSREAD"	/* make files read-only */
-#define	CVSREAD_DFLT	FALSE		/* writable files by default */
-
-#define	RCSBIN_ENV	"RCSBIN"	/* RCS binary directory */
-/* #define	RCSBIN_DFLT		   Set by options.h */
+#define	CVSREAD_DFLT	0		/* writable files by default */
 
 #define	TMPDIR_ENV	"TMPDIR"	/* Temporary directory */
 /* #define	TMPDIR_DFLT		   Set by options.h */
@@ -300,8 +298,13 @@ struct entnode
     enum ent_type type;
     char *user;
     char *version;
+
+    /* Timestamp, or "" if none (never NULL).  */
     char *timestamp;
+
+    /* Keyword expansion options, or "" if none (never NULL).  */
     char *options;
+
     char *tag;
     char *date;
     char *conflict;
@@ -353,7 +356,7 @@ typedef enum direnter_type Dtype;
 #endif
 
 extern char *program_name, *program_path, *command_name;
-extern char *Rcsbin, *Tmpdir, *Editor;
+extern char *Tmpdir, *Editor;
 extern int cvsadmin_root;
 extern char *CurDir;
 extern int really_quiet, quiet;
@@ -363,7 +366,8 @@ extern mode_t cvsumask;
 
 /* Access method specified in CVSroot. */
 typedef enum {
-  local_method, server_method, pserver_method, kserver_method, ext_method
+  local_method, server_method, pserver_method, kserver_method, gserver_method,
+  ext_method
 } CVSmethod;
 extern char *method_names[];	/* change this in root.c if you change
 				   the enum above */
@@ -374,6 +378,8 @@ extern CVSmethod CVSroot_method; /* one of the enum values above */
 extern char *CVSroot_username;	/* the username or NULL if method == local */
 extern char *CVSroot_hostname;	/* the hostname or NULL if method == local */
 extern char *CVSroot_directory;	/* the directory name */
+
+extern char *emptydir_name PROTO ((void));
 
 extern int trace;		/* Show all commands */
 extern int noexec;		/* Don't modify disk anywhere */
@@ -389,20 +395,24 @@ extern char hostname[];
 
 /* Externs that are included directly in the CVS sources */
 
-int RCS_exec_settag PROTO((const char *, const char *, const char *));
-int RCS_exec_deltag PROTO((const char *, const char *, int));
-int RCS_exec_setbranch PROTO((const char *, const char *));
-int RCS_exec_lock PROTO((const char *, const char *, int));
-int RCS_exec_unlock PROTO((const char *, const char *, int));
-int RCS_merge PROTO((const char *, const char *, const char *, const char *));
+int RCS_merge PROTO((RCSNode *, char *, char *, char *, char *, char *));
 /* Flags used by RCS_* functions.  See the description of the individual
    functions for which flags mean what for each function.  */
 #define RCS_FLAGS_FORCE 1
 #define RCS_FLAGS_DEAD 2
 #define RCS_FLAGS_QUIET 4
 #define RCS_FLAGS_MODTIME 8
-int RCS_checkin PROTO ((char *rcsfile, char *workfile, char *message,
-			char *rev, int flags));
+
+extern int RCS_exec_rcsdiff PROTO ((RCSNode *rcsfile,
+				    char *opts, char *options,
+				    char *rev1, char *rev2,
+				    char *label1, char *label2,
+				    char *workfile));
+extern int diff_exec PROTO ((char *file1, char *file2, char *options,
+			     char *out));
+extern int diff_execv PROTO ((char *file1, char *file2,
+			      char *label1, char *label2,
+			      char *options, char *out));
 
 
 
@@ -416,9 +426,11 @@ List *Entries_Open PROTO((int aflag));
 void Subdirs_Known PROTO((List *entries));
 void Subdir_Register PROTO((List *, const char *, const char *));
 void Subdir_Deregister PROTO((List *, const char *, const char *));
+
 char *Make_Date PROTO((char *rawdate));
 char *Name_Repository PROTO((char *dir, char *update_dir));
-
+char *Short_Repository PROTO((char *repository));
+void Sanitize_Repository_Name PROTO((char *repository));
 
 char *Name_Root PROTO((char *dir, char *update_dir));
 int parse_cvsroot PROTO((char *CVSroot));
@@ -428,9 +440,8 @@ void root_allow_add PROTO ((char *));
 void root_allow_free PROTO ((void));
 int root_allow_ok PROTO ((char *));
 
-int same_directories PROTO((char *dir1, char *dir2));
-char *Short_Repository PROTO((char *repository));
-char *gca PROTO((char *rev1, char *rev2));
+char *gca PROTO((const char *rev1, const char *rev2));
+extern void check_numeric PROTO ((const char *, int, char **));
 char *getcaller PROTO((void));
 char *time_stamp PROTO((char *file));
 
@@ -443,6 +454,8 @@ int pathname_levels PROTO ((char *path));
 
 typedef	int (*CALLPROC)	PROTO((char *repository, char *value));
 int Parse_Info PROTO((char *infofile, char *repository, CALLPROC callproc, int all));
+extern int parse_config PROTO ((char *));
+
 typedef	RETSIGTYPE (*SIGCLEANUPPROC)	PROTO(());
 int SIG_register PROTO((int sig, SIGCLEANUPPROC sigcleanup));
 int isdir PROTO((const char *file));
@@ -457,6 +470,8 @@ char *get_homedir PROTO ((void));
 char *cvs_temp_name PROTO ((void));
 
 int numdots PROTO((const char *s));
+char *increment_revnum PROTO ((const char *));
+int compare_revnums PROTO ((const char *, const char *));
 int unlink_file PROTO((const char *f));
 int link_file PROTO ((const char *from, const char *to));
 int unlink_file_dir PROTO((const char *f));
@@ -465,9 +480,10 @@ int xcmp PROTO((const char *file1, const char *file2));
 int yesno PROTO((void));
 void *valloc PROTO((size_t bytes));
 time_t get_date PROTO((char *date, struct timeb *now));
-void Create_Admin PROTO((char *dir, char *update_dir,
-			 char *repository, char *tag, char *date,
-			 int nonbranch));
+extern int Create_Admin PROTO ((char *dir, char *update_dir,
+				char *repository, char *tag, char *date,
+				int nonbranch, int warn));
+extern int expand_at_signs PROTO ((char *, off_t, FILE *));
 
 /* Locking subsystem (implemented in lock.c).  */
 
@@ -505,7 +521,7 @@ extern int ign_case;
 
 #include "update.h"
 
-void line2argv PROTO ((int *pargc, char ***argv, char *line));
+void line2argv PROTO ((int *pargc, char ***argv, char *line, char *sepchars));
 void make_directories PROTO((const char *name));
 void make_directory PROTO((const char *name));
 extern int mkdir_if_needed PROTO ((char *name));
@@ -542,7 +558,7 @@ void do_editor PROTO((char *dir, char **messagep,
 void do_verify PROTO((char *message, char *repository));
 
 typedef	int (*CALLBACKPROC)	PROTO((int *pargc, char *argv[], char *where,
-	char *mwhere, char *mfile, int horten, int local_specified,
+	char *mwhere, char *mfile, int shorten, int local_specified,
 	char *omodule, char *msg));
 
 /* This is the structure that the recursion processor passes to the
@@ -603,7 +619,9 @@ void SIG_endCrSect PROTO((void));
 void read_cvsrc PROTO((int *argc, char ***argv, char *cmdname));
 
 char *make_message_rcslegal PROTO((char *message));
-extern int file_has_markers PROTO ((struct file_info *));
+extern int file_has_markers PROTO ((const struct file_info *));
+extern void get_file PROTO ((const char *, const char *, const char *,
+			     char **, size_t *, size_t *));
 
 /* flags for run_exec(), the fast system() for CVS */
 #define	RUN_NORMAL		0x0000	/* no special behaviour */
@@ -616,14 +634,9 @@ extern int file_has_markers PROTO ((struct file_info *));
 
 void run_arg PROTO((const char *s));
 void run_print PROTO((FILE * fp));
-#ifdef HAVE_VPRINTF
-void run_setup PROTO((const char *fmt,...));
-void run_args PROTO((const char *fmt,...));
-#else
-void run_setup ();
-void run_args ();
-#endif
-int run_exec PROTO((char *stin, char *stout, char *sterr, int flags));
+void run_setup PROTO ((const char *prog));
+int run_exec PROTO((const char *stin, const char *stout, const char *sterr,
+		    int flags));
 
 /* other similar-minded stuff from run.c.  */
 FILE *run_popen PROTO((const char *, const char *));
@@ -643,10 +656,16 @@ pid_t waitpid PROTO((pid_t, int *, int));
 struct vers_ts
 {
     /* rcs version user file derives from, from CVS/Entries.
-     * it can have the following special values:
-     *    empty = no user file
-     *    0 = user file is new
-     *    -vers = user file to be removed.  */
+       It can have the following special values:
+
+       NULL = file is not mentioned in Entries (this is also used for a
+	      directory).
+       "" = ILLEGAL!  The comment used to say that it meant "no user file"
+	    but as far as I know CVS didn't actually use it that way.
+	    Note that according to cvs.texinfo, "" is not legal in the
+	    Entries file.
+       0 = user file is new
+       -vers = user file to be removed.  */
     char *vn_user;
 
     /* Numeric revision number corresponding to ->vn_tag (->vn_tag
@@ -669,7 +688,8 @@ struct vers_ts
        and if they differ it is modified.  */
     char *ts_rcs;
 
-    /* Options from CVS/Entries (keyword expansion).  */
+    /* Options from CVS/Entries (keyword expansion), malloc'd.  If none,
+       then it is an empty string (never NULL).  */
     char *options;
 
     /* If non-NULL, there was a conflict (or merely a merge?  See merge_file)
@@ -707,6 +727,11 @@ void freevers_ts PROTO ((Vers_TS ** versp));
 int Checkin PROTO ((int type, struct file_info *finfo, char *rcs, char *rev,
 		    char *tag, char *options, char *message));
 int No_Difference PROTO ((struct file_info *finfo, Vers_TS *vers));
+
+/* CVSADM_BASEREV stuff, from entries.c.  */
+extern char *base_get PROTO ((struct file_info *));
+extern void base_register PROTO ((struct file_info *, char *));
+extern void base_deregister PROTO ((struct file_info *));
 
 /*
  * defines for Classify_File() to determine the current state of a file.
@@ -818,10 +843,13 @@ extern void tag_check_valid PROTO ((char *, int, char **, int, int, char *));
 extern void tag_check_valid_join PROTO ((char *, int, char **, int, int,
 					 char *));
 
+/* From server.c and documented there.  */
 extern void cvs_output PROTO ((const char *, size_t));
+extern void cvs_output_binary PROTO ((char *, size_t));
 extern void cvs_outerr PROTO ((const char *, size_t));
 extern void cvs_flusherr PROTO ((void));
 extern void cvs_flushout PROTO ((void));
+extern void cvs_output_tagged PROTO ((char *, char *));
 
 #if defined(SERVER_SUPPORT) || defined(CLIENT_SUPPORT)
 #include "server.h"

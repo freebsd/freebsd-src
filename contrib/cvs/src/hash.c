@@ -2,7 +2,7 @@
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Polk's hash list manager.  So cool.
  */
@@ -220,21 +220,23 @@ freenode (p)
 }
 
 /*
- * insert item p at end of list "list" (maybe hash it too) if hashing and it
- * already exists, return -1 and don't actually put it in the list
+ * Link item P into list LIST before item MARKER.  If P->KEY is non-NULL and
+ * that key is already in the hash table, return -1 without modifying any
+ * parameter.
  * 
  * return 0 on success
  */
 int
-addnode (list, p)
+insert_before (list, marker, p)
     List *list;
+    Node *marker;
     Node *p;
 {
-    int hashval;
-    Node *q;
-
     if (p->key != NULL)			/* hash it too? */
     {
+	int hashval;
+	Node *q;
+
 	hashval = hashp (p->key);
 	if (list->hasharray[hashval] == NULL)	/* make a header for list? */
 	{
@@ -257,13 +259,38 @@ addnode (list, p)
 	q->hashprev = p;
     }
 
-    /* put it into the regular list */
-    p->prev = list->list->prev;
-    p->next = list->list;
-    list->list->prev->next = p;
-    list->list->prev = p;
+    p->next = marker;
+    p->prev = marker->prev;
+    marker->prev->next = p;
+    marker->prev = p;
 
     return (0);
+}
+
+/*
+ * insert item p at end of list "list" (maybe hash it too) if hashing and it
+ * already exists, return -1 and don't actually put it in the list
+ * 
+ * return 0 on success
+ */
+int
+addnode (list, p)
+    List *list;
+    Node *p;
+{
+  return insert_before (list, list->list, p);
+}
+
+/*
+ * Like addnode, but insert p at the front of `list'.  This bogosity is
+ * necessary to preserve last-to-first output order for some RCS functions.
+ */
+int
+addnode_at_front (list, p)
+    List *list;
+    Node *p;
+{
+  return insert_before (list, list->list->next, p);
 }
 
 /* Look up an entry in hash list table and return a pointer to the

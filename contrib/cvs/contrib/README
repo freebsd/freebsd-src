@@ -86,6 +86,10 @@ An attempt at a table of Contents for this directory:
 			into RCS files, retaining the info contained in the
 			SCCS file (like dates, author, and log message).
 			Contributed by Ken Cox <kenstir@viewlogic.com>.
+        pvcs_to_rcs     A perl script that can convert (some) PVCS histories
+			into RCS files, retaining the info contained in the
+			PVCS history.  See the comments at the start of the
+			file for more details.
 	intro.doc	A user's view of what you need to know to get
 			started with CVS.
 			Contributed by <Steven.Pemberton@cwi.nl>.

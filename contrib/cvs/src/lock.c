@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Set Lock
  * 
@@ -39,9 +39,9 @@
    be.
 
    * Readlocks ensure that we won't find the file in the state in
-   which it is in between the "rcs -i" and the RCS_checkin in commit.c
-   (when a file is being added).  This state is a state in which the
-   RCS file parsing routines in rcs.c cannot parse the file.
+   which it is in between the calls to add_rcs_file and RCS_checkin in
+   commit.c (when a file is being added).  This state is a state in
+   which the RCS file parsing routines in rcs.c cannot parse the file.
 
    * Readlocks ensure that a reader won't try to look at a
    half-written fileattr file (fileattr is not updated atomically).

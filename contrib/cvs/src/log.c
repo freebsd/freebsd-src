@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Print Log Information
  * 
@@ -148,6 +148,7 @@ static const char *const log_usage[] =
     "\t-d dates\tSpecify dates (D1<D2 for range, D for latest before).\n",
     "\t-s states\tOnly list revisions with specified states.\n",
     "\t-w[logins]\tOnly list revisions checked in by specified logins.\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -469,6 +470,20 @@ log_parse_list (plist, argstring)
     }
 }
 
+static int printlock_proc PROTO ((Node *, void *));
+
+static int
+printlock_proc (lock, foo)
+    Node *lock;
+    void *foo;
+{
+    cvs_output ("\n\t", 2);
+    cvs_output (lock->data, 0);
+    cvs_output (": ", 2);
+    cvs_output (lock->key, 0);
+    return 0;
+}
+
 /*
  * Do an rlog on a file
  */
@@ -493,7 +508,7 @@ log_fileproc (callerdat, finfo)
 	    Entnode *e;
 	    
 	    e = (Entnode *) p->data;
-	    if (e->version[0] == '0' || e->version[1] == '\0')
+	    if (e->version[0] == '0' && e->version[1] == '\0')
 	    {
 		if (!really_quiet)
 		    error (0, 0, "%s has been added, but not committed",
@@ -560,98 +575,18 @@ log_fileproc (callerdat, finfo)
     }
 
     cvs_output ("\nlocks:", 0);
-    if (rcsfile->other != NULL)
-    {
-	p = findnode (rcsfile->other, "strict");
-	if (p != NULL)
-	    cvs_output (" strict", 0);
-	p = findnode (rcsfile->other, "locks");
-	if (p != NULL && p->data != NULL)
-	{
-	    char *f, *cp;
-
-	    f = xstrdup (p->data);
-	    cp = f;
-	    while (*cp != '\0')
-	    {
-		char *cp2, *locker, *version;
-		RCSVers *vnode;
-
-		locker = cp;
-
-		cp2 = strchr (cp, ':');
-		if (cp2 == NULL)
-		{
-		    error (0, 0, "warning: bad locks field in RCS file `%s'",
-			   finfo->fullname);
-		    break;
-		}
-
-		*cp2 = '\0';
-
-		cvs_output ("\n\t", 2);
-		cvs_output (cp, cp2 - cp);
-		cvs_output (": ", 2);
-
-		cp = cp2 + 1;
-		while (isspace (*cp) && *cp != '\0')
-		    ++cp;
-
-		version = cp;
-
-		cp2 = cp;
-		while (! isspace (*cp2) && *cp2 != '\0')
-		    ++cp2;
-
-		cvs_output (cp, cp2 - cp);
-
-		if (*cp2 == '\0')
-		    cp = cp2;
-		else
-		{
-		    *cp2 = '\0';
-		    cp = cp2 + 1;
-		    while (isspace (*cp) && *cp != '\0')
-			++cp;
-		}
-
-		p = findnode (rcsfile->versions, version);
-		if (p == NULL)
-		    error (0, 0,
-			   "warning: lock for missing version `%s' in `%s'",
-			   version, finfo->fullname);
-		else
-		{
-		    vnode = (RCSVers *) p->data;
-		    p = getnode ();
-		    p->type = RCSFIELD;
-		    p->key = xstrdup (";locker");
-		    p->data = xstrdup (locker);
-		    if (addnode (vnode->other, p) != 0)
-		    {
-			error (0, 0,
-			       "warning: duplicate lock for `%s' in `%s'",
-			       version, finfo->fullname);
-			freenode (p);
-		    }
-		}
-	    }
-
-	    free (f);
-	}
-    }
+    if (rcsfile->strict_locks)
+	cvs_output (" strict", 0);
+    walklist (RCS_getlocks (rcsfile), printlock_proc, NULL);
 
     cvs_output ("\naccess list:", 0);
-    if (rcsfile->other != NULL)
+    if (rcsfile->access != NULL)
     {
-	p = findnode (rcsfile->other, "access");
-	if (p != NULL && p->data != NULL)
-	{
-	    const char *cp;
+	const char *cp;
 
-	    cp = p->data;
-	    while (*cp != '\0')
-	    {
+	cp = rcsfile->access;
+	while (*cp != '\0')
+	{
 		const char *cp2;
 
 		cvs_output ("\n\t", 2);
@@ -662,7 +597,6 @@ log_fileproc (callerdat, finfo)
 		cp = cp2;
 		while (isspace (*cp) && *cp != '\0')
 		    ++cp;
-	    }
 	}
     }
 
@@ -712,12 +646,8 @@ log_fileproc (callerdat, finfo)
     if (! log_data->header || log_data->long_header)
     {
 	cvs_output ("description:\n", 0);
-	if (rcsfile->other != NULL)
-	{
-	    p = findnode (rcsfile->other, "desc");
-	    if (p != NULL && p->data != NULL)
-		cvs_output (p->data, 0);
-	}
+	if (rcsfile->desc != NULL)
+	    cvs_output (rcsfile->desc, 0);
     }
 
     if (! log_data->header && ! log_data->long_header && rcsfile->head != NULL)
@@ -1276,7 +1206,7 @@ log_version (log_data, revlist, rcs, ver, trunk)
     cvs_output ("----------------------------\nrevision ", 0);
     cvs_output (ver->version, 0);
 
-    p = findnode (ver->other, ";locker");
+    p = findnode (RCS_getlocks (rcs), ver->version);
     if (p != NULL)
     {
 	cvs_output ("\tlocked by: ", 0);
@@ -1341,7 +1271,14 @@ log_version (log_data, revlist, rcs, ver, trunk)
     cvs_output ("\n", 1);
 
     p = findnode (ver->other, "log");
-    if (p == NULL || p->data[0] == '\0')
+    /* The p->date == NULL case is the normal one for an empty log
+       message (rcs-14 in sanity.sh).  I don't think the case where
+       p->data is "" can happen (getrcskey in rcs.c checks for an
+       empty string and set the value to NULL in that case).  My guess
+       would be the p == NULL case would mean an RCS file which was
+       missing the "log" keyword (which is illegal according to
+       rcsfile.5).  */
+    if (p == NULL || p->data == NULL || p->data[0] == '\0')
 	cvs_output ("*** empty log message ***\n", 0);
     else
     {

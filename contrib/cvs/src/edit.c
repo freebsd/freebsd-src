@@ -284,6 +284,18 @@ edit_fileproc (callerdat, finfo)
     if (noexec)
 	return 0;
 
+    /* This is a somewhat screwy way to check for this, because it
+       doesn't help errors other than the nonexistence of the file
+       (e.g. permissions problems).  It might be better to rearrange
+       the code so that CVSADM_NOTIFY gets written only after the
+       various actions succeed (but what if only some of them
+       succeed).  */
+    if (!isfile (finfo->file))
+    {
+	error (0, 0, "no such file %s; ignored", finfo->fullname);
+	return 0;
+    }
+
     fp = open_file (CVSADM_NOTIFY, "a");
 
     (void) time (&now);
@@ -326,6 +338,14 @@ edit_fileproc (callerdat, finfo)
     copy_file (finfo->file, basefilename);
     free (basefilename);
 
+    {
+	Node *node;
+
+	node = findnode_fn (finfo->entries, finfo->file);
+	if (node != NULL)
+	    base_register (finfo, ((Entnode *) node->data)->version);
+    }
+
     return 0;
 }
 
@@ -336,6 +356,7 @@ static const char *const edit_usage[] =
     "-R: Process directories recursively\n",
     "-a: Specify what actions for temporary watch, one of\n",
     "    edit,unedit,commit,all,none\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -475,6 +496,39 @@ unedit_fileproc (callerdat, finfo)
 		   CVSADM_NOTIFY);
     }
 
+    /* Now update the revision number in CVS/Entries from CVS/Baserev.
+       The basic idea here is that we are reverting to the revision
+       that the user edited.  If we wanted "cvs update" to update
+       CVS/Base as we go along (so that an unedit could revert to the
+       current repository revision), we would need:
+
+       update (or all send_files?) (client) needs to send revision in
+       new Entry-base request.  update (server/local) needs to check
+       revision against repository and send new Update-base response
+       (like Update-existing in that the file already exists.  While
+       we are at it, might try to clean up the syntax by having the
+       mode only in a "Mode" response, not in the Update-base itself).  */
+    {
+	char *baserev;
+	Node *node;
+	Entnode *entdata;
+
+	baserev = base_get (finfo);
+	node = findnode_fn (finfo->entries, finfo->file);
+	/* The case where node is NULL probably should be an error or
+	   something, but I don't want to think about it too hard right
+	   now.  */
+	if (node != NULL)
+	{
+	    entdata = (Entnode *) node->data;
+	    Register (finfo->entries, finfo->file, baserev, entdata->timestamp,
+		      entdata->options, entdata->tag, entdata->date,
+		      entdata->conflict);
+	}
+	free (baserev);
+	base_deregister (finfo);
+    }
+
     xchmod (finfo->file, 0);
     return 0;
 }
@@ -552,14 +606,14 @@ editor_set (filename, editor, val)
 
     edlist = fileattr_get0 (filename, "_editors");
     newlist = fileattr_modify (edlist, editor, val, '>', ',');
-    if (edlist != NULL)
-	free (edlist);
     /* If the attributes is unchanged, don't rewrite the attribute file.  */
     if (!((edlist == NULL && newlist == NULL)
 	  || (edlist != NULL
 	      && newlist != NULL
 	      && strcmp (edlist, newlist) == 0)))
 	fileattr_set (filename, "_editors", newlist);
+    if (edlist != NULL)
+	free (edlist);
     if (newlist != NULL)
 	free (newlist);
 }
@@ -916,6 +970,7 @@ static const char *const editors_usage[] =
     "Usage: %s %s [-lR] [files...]\n",
     "\t-l\tProcess this directory only (not recursive).\n",
     "\t-R\tProcess directories recursively.\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 

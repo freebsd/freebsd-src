@@ -22,20 +22,48 @@
 #include <winsock.h>
 #endif
 
-#if defined (AUTH_SERVER_SUPPORT) || defined (HAVE_KERBEROS)
+#if defined (AUTH_SERVER_SUPPORT) || defined (HAVE_KERBEROS) || defined (HAVE_GSSAPI)
 #include <sys/socket.h>
 #endif
 
 #ifdef HAVE_KERBEROS
-#include <netinet/in.h>
-#include <krb.h>
-#ifndef HAVE_KRB_GET_ERR_TEXT
-#define krb_get_err_text(status) krb_err_txt[status]
-#endif
+#  include <netinet/in.h>
+#  include <krb.h>
+#  ifndef HAVE_KRB_GET_ERR_TEXT
+#    define krb_get_err_text(status) krb_err_txt[status]
+#  endif
 
 /* Information we need if we are going to use Kerberos encryption.  */
 static C_Block kblock;
 static Key_schedule sched;
+
+#endif
+
+#ifdef HAVE_GSSAPI
+
+#include <netdb.h>
+#include <gssapi/gssapi.h>
+#include <gssapi/gssapi_generic.h>
+
+/* We use Kerberos 5 routines to map the GSSAPI credential to a user
+   name.  */
+#include <krb5.h>
+
+/* We need this to wrap data.  */
+static gss_ctx_id_t gcontext;
+
+static void gserver_authenticate_connection PROTO((void));
+
+/* Whether we are already wrapping GSSAPI communication.  */
+static int cvs_gssapi_wrapping;
+
+#  ifdef ENCRYPTION
+/* Whether to encrypt GSSAPI communication.  We use a global variable
+   like this because we use the same buffer type (gssapi_wrap) to
+   handle both authentication and encryption, and we don't want
+   multiple instances of that buffer in the communication stream.  */
+int cvs_gssapi_encrypt;
+#  endif
 
 #endif
 
@@ -76,12 +104,12 @@ static Key_schedule sched;
 #ifdef HAVE_GETSPNAM
 #include <shadow.h>
 #endif
+#endif /* AUTH_SERVER_SUPPORT */
+
 /* For initgroups().  */
 #if HAVE_INITGROUPS
 #include <grp.h>
 #endif /* HAVE_INITGROUPS */
-#endif /* AUTH_SERVER_SUPPORT */
-
 
 #ifdef AUTH_SERVER_SUPPORT
 
@@ -94,6 +122,10 @@ char *CVS_Username = NULL;
 /* Used to check that same repos is transmitted in pserver auth and in
    later CVS protocol.  Exported because root.c also uses. */
 char *Pserver_Repos = NULL;
+
+/* Should we check for system usernames/passwords?  Can be changed by
+   CVSROOT/config.  */
+int system_auth = 1;
 
 #endif /* AUTH_SERVER_SUPPORT */
 
@@ -329,7 +361,7 @@ mkdir_p (dir)
 	{
 	    strncpy (q, dir, p - dir);
 	    q[p - dir] = '\0';
-	    if (CVS_MKDIR (q, 0777) < 0)
+	    if (q[p - dir - 1] != '/'  &&  CVS_MKDIR (q, 0777) < 0)
 	    {
 		int saved_errno = errno;
 
@@ -437,6 +469,8 @@ alloc_pending (size)
     return 1;
 }
 
+static void serve_is_modified PROTO ((char *));
+
 static int supported_response PROTO ((char *));
 
 static int
@@ -526,7 +560,29 @@ serve_root (arg)
 		     "E Root %s must be an absolute pathname", arg);
 	return;
     }
+
+    /* Sending "Root" twice is illegal.  It would also be nice to
+       check for the other case, in which there is no Root request
+       prior to a request which requires one.
+
+       The other way to handle a duplicate Root requests would be as a
+       request to clear out all state and start over as if it was a
+       new connection.  Doing this would cause interoperability
+       headaches, so it should be a different request, if there is
+       any reason why such a feature is needed.  */
+    if (CVSroot_directory != NULL)
+    {
+	if (alloc_pending (80 + strlen (arg)))
+	    sprintf (pending_error_text,
+		     "E Protocol error: Duplicate Root request, for %s", arg);
+	return;
+    }
+
     set_local_cvsroot (arg);
+
+    /* For pserver, this will already have happened, and the call will do
+       nothing.  But for rsh, we need to do it now.  */
+    parse_config (CVSroot_directory);
 
     path = xmalloc (strlen (CVSroot_directory)
 		    + sizeof (CVSROOTADM)
@@ -629,6 +685,7 @@ dirswitch (dir, repos)
     int status;
     FILE *f;
     char *b;
+    size_t dir_len;
 
     server_write_entries ();
 
@@ -637,20 +694,22 @@ dirswitch (dir, repos)
     if (dir_name != NULL)
 	free (dir_name);
 
+    dir_len = strlen (dir);
+
     /* Check for a trailing '/'.  This is not ISDIRSEP because \ in the
        protocol is an ordinary character, not a directory separator (of
        course, it is perhaps unwise to use it in directory names, but that
        is another issue).  */
-    if (strlen (dir) > 0
-	&& dir[strlen (dir) - 1] == '/')
+    if (dir_len > 0
+	&& dir[dir_len - 1] == '/')
     {
-	if (alloc_pending (80 + strlen (dir)))
+	if (alloc_pending (80 + dir_len))
 	    sprintf (pending_error_text,
-		     "E protocol error: illegal directory syntax in %s", dir);
+		     "E protocol error: invalid directory syntax in %s", dir);
 	return;
     }
 
-    dir_name = malloc (strlen (server_temp_dir) + strlen (dir) + 40);
+    dir_name = malloc (strlen (server_temp_dir) + dir_len + 40);
     if (dir_name == NULL)
     {
 	pending_error = ENOMEM;
@@ -671,6 +730,12 @@ dirswitch (dir, repos)
 	return;
     }
 
+    /* Note that this call to Subdir_Register will be a noop if the parent
+       directory does not yet exist (for example, if the client sends
+       "Directory foo" followed by "Directory .", then the subdirectory does
+       not get registered, but if the client sends "Directory ." followed
+       by "Directory foo", then the subdirectory does get registered.
+       This seems pretty fishy, but maybe it is the way it needs to work.  */
     b = strrchr (dir_name, '/');
     *b = '\0';
     Subdir_Register ((List *) NULL, dir_name, b + 1);
@@ -774,6 +839,24 @@ serve_directory (arg)
     status = buf_read_line (buf_from_net, &repos, (int *) NULL);
     if (status == 0)
     {
+	/* I think isabsolute (repos) should always be true, and that
+	   any RELATIVE_REPOS stuff should only be in CVS/Repository
+	   files, not the protocol (for compatibility), but I'm putting
+	   in the in isabsolute check just in case.  */
+	if (isabsolute (repos)
+	    && strncmp (CVSroot_directory,
+			repos,
+			strlen (CVSroot_directory)) != 0)
+	{
+	    if (alloc_pending (strlen (CVSroot_directory)
+			       + strlen (repos)
+			       + 80))
+		sprintf (pending_error_text, "\
+E protocol error: directory '%s' not within root '%s'",
+			 repos, CVSroot_directory);
+	    return;
+	}
+
 	dirswitch (arg, repos);
 	free (repos);
     }
@@ -1004,6 +1087,11 @@ receive_file (size, file, gzipped)
     }
 }
 
+/* Kopt for the next file sent in Modified or Is-modified.  */
+static char *kopt;
+
+static void serve_modified PROTO ((char *));
+
 static void
 serve_modified (arg)
      char *arg;
@@ -1118,6 +1206,13 @@ serve_modified (arg)
 	    return;
 	}
     }
+
+    /* Make sure that the Entries indicate the right kopt.  We probably
+       could do this even in the non-kopt case and, I think, save a stat()
+       call in time_stamp_server.  But for conservatism I'm leaving the
+       non-kopt case alone.  */
+    if (kopt != NULL)
+	serve_is_modified (arg);
 }
 
 
@@ -1174,8 +1269,6 @@ serve_unchanged (arg)
     }
 }
 
-static void serve_is_modified PROTO ((char *));
-
 static void
 serve_is_modified (arg)
     char *arg;
@@ -1212,6 +1305,16 @@ serve_is_modified (arg)
 		}
 		*timefield = 'M';
 	    }
+	    if (kopt != NULL)
+	    {
+		if (alloc_pending (strlen (name) + 80))
+		    sprintf (pending_error_text,
+			     "E protocol error: both Kopt and Entry for %s",
+			     arg);
+		free (kopt);
+		kopt = NULL;
+		return;
+	    }
 	    found = 1;
 	    break;
 	}
@@ -1220,21 +1323,35 @@ serve_is_modified (arg)
     {
 	/* We got Is-modified but no Entry.  Add a dummy entry.
 	   The "D" timestamp is what makes it a dummy.  */
-	struct an_entry *p;
 	p = (struct an_entry *) malloc (sizeof (struct an_entry));
 	if (p == NULL)
 	{
 	    pending_error = ENOMEM;
 	    return;
 	}
-	p->entry = xmalloc (strlen (arg) + 80);
+	p->entry = malloc (strlen (arg) + 80);
+	if (p->entry == NULL)
+	{
+	    pending_error = ENOMEM;
+	    free (p);
+	    return;
+	}
 	strcpy (p->entry, "/");
 	strcat (p->entry, arg);
-	strcat (p->entry, "//D//");
+	strcat (p->entry, "//D/");
+	if (kopt != NULL)
+	{
+	    strcat (p->entry, kopt);
+	    free (kopt);
+	    kopt = NULL;
+	}
+	strcat (p->entry, "/");
 	p->next = entries;
 	entries = p;
     }
 }
+
+static void serve_entry PROTO ((char *));
 
 static void
 serve_entry (arg)
@@ -1260,6 +1377,45 @@ serve_entry (arg)
     p->next = entries;
     p->entry = cp;
     entries = p;
+}
+
+static void serve_kopt PROTO ((char *));
+
+static void
+serve_kopt (arg)
+     char *arg;
+{
+    if (error_pending ())
+	return;
+
+    if (kopt != NULL)
+    {
+	if (alloc_pending (80 + strlen (arg)))
+	    sprintf (pending_error_text,
+		     "E protocol error: duplicate Kopt request: %s", arg);
+	return;
+    }
+
+    /* Do some sanity checks.  In particular, that it is not too long.
+       This lets the rest of the code not worry so much about buffer
+       overrun attacks.  Probably should call RCS_check_kflag here,
+       but that would mean changing RCS_check_kflag to handle errors
+       other than via exit(), fprintf(), and such.  */
+    if (strlen (arg) > 10)
+    {
+	if (alloc_pending (80 + strlen (arg)))
+	    sprintf (pending_error_text,
+		     "E protocol error: invalid Kopt request: %s", arg);
+	return;
+    }
+
+    kopt = malloc (strlen (arg) + 1);
+    if (kopt == NULL)
+    {
+	pending_error = ENOMEM;
+	return;
+    }
+    strcpy (kopt, arg);
 }
 
 static void
@@ -1609,6 +1765,7 @@ serve_set (arg)
 }
 
 #ifdef ENCRYPTION
+
 #ifdef HAVE_KERBEROS
 
 static void
@@ -1626,7 +1783,68 @@ serve_kerberos_encrypt (arg)
 }
 
 #endif /* HAVE_KERBEROS */
+
+#ifdef HAVE_GSSAPI
+
+static void
+serve_gssapi_encrypt (arg)
+     char *arg;
+{
+    if (cvs_gssapi_wrapping)
+    {
+	/* We're already using a gssapi_wrap buffer for stream
+           authentication.  Flush everything we've output so far, and
+           turn on encryption for future data.  On the input side, we
+           should only have unwrapped as far as the Gssapi-encrypt
+           command, so future unwrapping will become encrypted.  */
+	buf_flush (buf_to_net, 1);
+	cvs_gssapi_encrypt = 1;
+	return;
+    }
+
+    /* All future communication with the client will be encrypted.  */
+
+    cvs_gssapi_encrypt = 1;
+
+    buf_to_net = cvs_gssapi_wrap_buffer_initialize (buf_to_net, 0,
+						    gcontext,
+						    buf_to_net->memory_error);
+    buf_from_net = cvs_gssapi_wrap_buffer_initialize (buf_from_net, 1,
+						      gcontext,
+						      buf_from_net->memory_error);
+
+    cvs_gssapi_wrapping = 1;
+}
+
+#endif /* HAVE_GSSAPI */
+
 #endif /* ENCRYPTION */
+
+#ifdef HAVE_GSSAPI
+
+static void
+serve_gssapi_authenticate (arg)
+     char *arg;
+{
+    if (cvs_gssapi_wrapping)
+    {
+	/* We're already using a gssapi_wrap buffer for encryption.
+           That includes authentication, so we don't have to do
+           anything further.  */
+	return;
+    }
+
+    buf_to_net = cvs_gssapi_wrap_buffer_initialize (buf_to_net, 0,
+						    gcontext,
+						    buf_to_net->memory_error);
+    buf_from_net = cvs_gssapi_wrap_buffer_initialize (buf_from_net, 1,
+						      gcontext,
+						      buf_from_net->memory_error);
+
+    cvs_gssapi_wrapping = 1;
+}
+
+#endif /* HAVE_GSSAPI */
 
 #ifdef SERVER_FLOWCONTROL
 /* The maximum we'll queue to the remote client before blocking.  */
@@ -1814,10 +2032,18 @@ check_command_legal_p (cmd_name)
 			CVSROOTADM, CVSROOTADM_READERS);
 
          fp = fopen (fname, "r");
-         free (fname);
 
          if (fp == NULL)
-             goto do_writers;
+	 {
+	     if (!existence_error (errno))
+	     {
+		 /* Need to deny access, so that attackers can't fool
+		    us with some sort of denial of service attack.  */
+		 error (0, errno, "cannot open %s", fname);
+		 free (fname);
+		 return 0;
+	     }
+	 }
          else  /* successfully opened readers file */
          {
              while ((num_red = getline (&linebuf, &linebuf_len, fp)) >= 0)
@@ -1835,16 +2061,19 @@ check_command_legal_p (cmd_name)
                  if (strcmp (linebuf, CVS_Username) == 0)
                      goto handle_illegal;
              }
+	     if (num_red < 0 && !feof (fp))
+		 error (0, errno, "cannot read %s", fname);
 
              /* If not listed specifically as a reader, then this user
                 has write access by default unless writers are also
                 specified in a file . */
-             fclose (fp);
-             goto do_writers;
+	     if (fclose (fp) < 0)
+		 error (0, errno, "cannot close %s", fname);
          }
+	 free (fname);
 
-    do_writers:
-         
+	 /* Now check the writers file.  */
+
          flen = strlen (CVSroot_directory)
                 + strlen (CVSROOTADM)
                 + strlen (CVSROOTADM_WRITERS)
@@ -1855,18 +2084,27 @@ check_command_legal_p (cmd_name)
 			CVSROOTADM, CVSROOTADM_WRITERS);
 
          fp = fopen (fname, "r");
-         free (fname);
 
          if (fp == NULL)
          {
-             /* writers file does not exist, so everyone is a writer,
-                by default */
 	     if (linebuf)
 	         free (linebuf);
-             return 1;
+	     if (existence_error (errno))
+	     {
+		 /* Writers file does not exist, so everyone is a writer,
+		    by default.  */
+		 free (fname);
+		 return 1;
+	     }
+	     else
+	     {
+		 /* Need to deny access, so that attackers can't fool
+		    us with some sort of denial of service attack.  */
+		 error (0, errno, "cannot read %s", fname);
+		 free (fname);
+		 return 0;
+	     }
          }
-
-         /* else */
 
          found_it = 0;
          while ((num_red = getline (&linebuf, &linebuf_len, fp)) >= 0)
@@ -1881,20 +2119,26 @@ check_command_legal_p (cmd_name)
                  break;
              }
          }
+	 if (num_red < 0 && !feof (fp))
+	     error (0, errno, "cannot read %s", fname);
 
          if (found_it)
          {
-             fclose (fp);
+             if (fclose (fp) < 0)
+		 error (0, errno, "cannot close %s", fname);
              if (linebuf)
                  free (linebuf);
+	     free (fname);
              return 1;
          }
          else   /* writers file exists, but this user not listed in it */
          {
          handle_illegal:
-             fclose (fp);
+             if (fclose (fp) < 0)
+		 error (0, errno, "cannot close %s", fname);
              if (linebuf)
                  free (linebuf);
+	     free (fname);
 	     return 0;
          }
     }
@@ -2813,7 +3057,7 @@ static void
 serve_log (arg)
     char *arg;
 {
-    do_cvs_command ("cvslog", cvslog);
+    do_cvs_command ("log", cvslog);
 }
 
 static void
@@ -3085,6 +3329,8 @@ server_modtime (finfo, vers_ts)
       {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 	 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
+    assert (vers_ts->vn_rcs != NULL);
+
     if (!supported_response ("Mod-time"))
 	return;
 
@@ -3117,7 +3363,18 @@ server_updated (finfo, vers, updated, file_info, checksum)
     unsigned char *checksum;
 {
     if (noexec)
+    {
+	/* Hmm, maybe if we did the same thing for entries_file, we
+	   could get rid of the kludges in server_register and
+	   server_scratch which refrain from warning if both
+	   Scratch_Entry and Register get called.  Maybe.  */
+	if (scratched_file)
+	{
+	    free (scratched_file);
+	    scratched_file = NULL;
+	}
 	return;
+    }
 
     if (entries_line != NULL && scratched_file == NULL)
     {
@@ -3559,6 +3816,11 @@ expand_proc (pargc, argv, where, mwhere, mfile, shorten,
     if (mwhere != NULL)
     {
 	buf_output0 (buf_to_net, "Module-expansion ");
+	if (server_dir != NULL)
+	{
+	    buf_output0 (buf_to_net, server_dir);
+	    buf_output0 (buf_to_net, "/");
+	}
 	buf_output0 (buf_to_net, mwhere);
 	if (mfile != NULL)
 	{
@@ -3574,6 +3836,11 @@ expand_proc (pargc, argv, where, mwhere, mfile, shorten,
 	if (*pargc == 1)
 	{
 	    buf_output0 (buf_to_net, "Module-expansion ");
+	    if (server_dir != NULL)
+	    {
+		buf_output0 (buf_to_net, server_dir);
+		buf_output0 (buf_to_net, "/");
+	    }
 	    buf_output0 (buf_to_net, dir);
 	    buf_append_char (buf_to_net, '\n');
 	}
@@ -3582,6 +3849,11 @@ expand_proc (pargc, argv, where, mwhere, mfile, shorten,
 	    for (i = 1; i < *pargc; ++i)
 	    {
 	        buf_output0 (buf_to_net, "Module-expansion ");
+		if (server_dir != NULL)
+		{
+		    buf_output0 (buf_to_net, server_dir);
+		    buf_output0 (buf_to_net, "/");
+		}
 		buf_output0 (buf_to_net, dir);
 		buf_append_char (buf_to_net, '/');
 		buf_output0 (buf_to_net, argv[i]);
@@ -3760,6 +4032,7 @@ struct request requests[] =
   REQ_LINE("Checkin-prog", serve_checkin_prog, rq_optional),
   REQ_LINE("Update-prog", serve_update_prog, rq_optional),
   REQ_LINE("Entry", serve_entry, rq_essential),
+  REQ_LINE("Kopt", serve_kopt, rq_optional),
   REQ_LINE("Modified", serve_modified, rq_essential),
   REQ_LINE("Is-modified", serve_is_modified, rq_optional),
 
@@ -3778,9 +4051,15 @@ struct request requests[] =
   REQ_LINE("Gzip-stream", serve_gzip_stream, rq_optional),
   REQ_LINE("Set", serve_set, rq_optional),
 #ifdef ENCRYPTION
-#ifdef HAVE_KERBEROS
+#  ifdef HAVE_KERBEROS
   REQ_LINE("Kerberos-encrypt", serve_kerberos_encrypt, rq_optional),
+#  endif
+#  ifdef HAVE_GSSAPI
+  REQ_LINE("Gssapi-encrypt", serve_gssapi_encrypt, rq_optional),
+#  endif
 #endif
+#ifdef HAVE_GSSAPI
+  REQ_LINE("Gssapi-authenticate", serve_gssapi_authenticate, rq_optional),
 #endif
   REQ_LINE("expand-modules", serve_expand_modules, rq_optional),
   REQ_LINE("ci", serve_ci, rq_essential),
@@ -4024,50 +4303,6 @@ server (argc, argv)
        protocol to report error messages.  */
     error_use_protocol = 1;
 
-    /*
-     * Put Rcsbin at the start of PATH, so that rcs programs can find
-     * themselves.
-     */
-#ifdef HAVE_PUTENV
-    if (Rcsbin != NULL && *Rcsbin)
-    {
-        char *p;
-	char *env;
-
-	p = getenv ("PATH");
-	if (p != NULL)
-	{
-	    env = malloc (strlen (Rcsbin) + strlen (p) + sizeof "PATH=:");
-	    if (env != NULL)
-	        sprintf (env, "PATH=%s:%s", Rcsbin, p);
-	}
-	else
-	{
-	    env = malloc (strlen (Rcsbin) + sizeof "PATH=");
-	    if (env != NULL)
-	        sprintf (env, "PATH=%s", Rcsbin);
-	}
-	if (env == NULL)
-	{
-	    printf ("E Fatal server error, aborting.\n\
-error ENOMEM Virtual memory exhausted.\n");
-
-	    /* I'm doing this manually rather than via error_exit ()
-	       because I'm not sure whether we want to call server_cleanup.
-	       Needs more investigation....  */
-
-#ifdef SYSTEM_CLEANUP
-	    /* Hook for OS-specific behavior, for example socket subsystems on
-	       NT and OS2 or dealing with windows and arguments on Mac.  */
-	    SYSTEM_CLEANUP ();
-#endif
-
-	    exit (EXIT_FAILURE);
-	}
-	putenv (env);
-    }
-#endif
-
     /* OK, now figure out where we stash our temporary files.  */
     {
 	char *p;
@@ -4220,8 +4455,6 @@ error ENOMEM Virtual memory exhausted.\n");
        by this server" or something like that instead of usage message.  */
     argument_vector[0] = "cvs server";
 
-    server_active = 1;
-
     while (1)
     {
 	char *cmd, *orig_cmd;
@@ -4274,7 +4507,7 @@ error ENOMEM Virtual memory exhausted.\n");
 }
 
 
-#if defined (HAVE_KERBEROS) || defined (AUTH_SERVER_SUPPORT)
+#if defined (HAVE_KERBEROS) || defined (AUTH_SERVER_SUPPORT) || defined (HAVE_GSSAPI)
 static void switch_to_user PROTO((const char *));
 
 static void
@@ -4300,6 +4533,15 @@ error 0 %s: no such user\n", username);
 
 	exit (EXIT_FAILURE);
     }
+
+    /* FIXME?  We don't check for errors from initgroups, setuid, &c.
+       I think this mainly would come up if someone is trying to run
+       the server as a non-root user.  I think we should be checking for
+       errors and aborting (as with the error above from getpwnam) if
+       there is an error (presumably EPERM).  That means that pserver
+       should continue to work right if all of the "system usernames"
+       in CVSROOT/passwd match the user which the server is being run
+       as (in inetd.conf), but fail otherwise.  */
 
 #if HAVE_INITGROUPS
     initgroups (pw->pw_name, pw->pw_gid);
@@ -4471,7 +4713,7 @@ check_password (username, password, repository)
         /* host_user already set by reference, so just return. */
         goto handle_return;
     }
-    else if (rc == 0)
+    else if (rc == 0 && system_auth)
     {
 	/* No cvs password found, so try /etc/passwd. */
 
@@ -4530,6 +4772,27 @@ error 0 %s: no such user\n", username);
             goto handle_return;
         }
     }
+    else if (rc == 0)
+    {
+	/* Note that the message _does_ distinguish between the case in
+	   which we check for a system password and the case in which
+	   we do not.  It is a real pain to track down why it isn't
+	   letting you in if it won't say why, and I am not convinced
+	   that the potential information disclosure to an attacker
+	   outweighs this.  */
+	printf ("error 0 no such user %s in CVSROOT/passwd\n", username);
+
+	/* I'm doing this manually rather than via error_exit ()
+	   because I'm not sure whether we want to call server_cleanup.
+	   Needs more investigation....  */
+
+#ifdef SYSTEM_CLEANUP
+	/* Hook for OS-specific behavior, for example socket subsystems on
+	   NT and OS2 or dealing with windows and arguments on Mac.  */
+	SYSTEM_CLEANUP ();
+#endif
+	exit (EXIT_FAILURE);
+    }
     else
     {
 	/* Something strange happened.  We don't know what it was, but
@@ -4550,6 +4813,10 @@ handle_return:
     return host_user;
 }
 
+#endif /* AUTH_SERVER_SUPPORT */
+
+#if defined (AUTH_SERVER_SUPPORT) || defined (HAVE_GSSAPI)
+
 /* Read username and password from client (i.e., stdin).
    If correct, then switch to run as that user and send an ACK to the
    client via stdout, else send NACK and die. */
@@ -4558,6 +4825,7 @@ pserver_authenticate_connection ()
 {
     char *tmp = NULL;
     size_t tmp_allocated = 0;
+#ifdef AUTH_SERVER_SUPPORT
     char *repository = NULL;
     size_t repository_allocated = 0;
     char *username = NULL;
@@ -4567,6 +4835,7 @@ pserver_authenticate_connection ()
 
     char *host_user;
     char *descrambled_password;
+#endif /* AUTH_SERVER_SUPPORT */
     int verify_and_exit = 0;
 
     /* The Authentication Protocol.  Client sends:
@@ -4631,8 +4900,26 @@ pserver_authenticate_connection ()
 
     if (strcmp (tmp, "BEGIN VERIFICATION REQUEST\n") == 0)
 	verify_and_exit = 1;
-    else if (strcmp (tmp, "BEGIN AUTH REQUEST\n") != 0)
+    else if (strcmp (tmp, "BEGIN AUTH REQUEST\n") == 0)
+	;
+    else if (strcmp (tmp, "BEGIN GSSAPI REQUEST\n") == 0)
+    {
+#ifdef HAVE_GSSAPI
+	free (tmp);
+	gserver_authenticate_connection ();
+	return;
+#else
+	error (1, 0, "GSSAPI authentication not supported by this server");
+#endif
+    }
+    else
 	error (1, 0, "bad auth protocol start: %s", tmp);
+
+#ifndef AUTH_SERVER_SUPPORT
+
+    error (1, 0, "Password authentication not supported by this server");
+
+#else /* AUTH_SERVER_SUPPORT */
 
     /* Get the three important pieces of information in order. */
     /* See above comment about error handling.  */
@@ -4656,13 +4943,20 @@ pserver_authenticate_connection ()
 	error (1, 0, "bad auth protocol end: %s", tmp);
     }
     if (!root_allow_ok (repository))
-	/* At least for the moment I'm going to do the paranoid
-	   security thing and not tell them how it failed.  I'm not
-	   sure that is a good idea; it is a real pain when one needs
-	   to track down what is going on for legitimate reasons.
-	   The other issue is that the protocol doesn't really have
-	   a good way for anything other than I HATE YOU.  */
+	/* Just give a generic I HATE YOU.  This is because CVS 1.9.10
+	   and older clients do not support "error".  Once more recent
+	   clients are more widespread, probably want to fix this (it is
+	   a real pain to track down why it isn't letting you in if it
+	   won't say why, and I am not convinced that the potential
+	   information disclosure to an attacker outweighs this).  */
 	goto i_hate_you;
+
+    /* OK, now parse the config file, so we can use it to control how
+       to check passwords.  If there was an error parsing the config
+       file, parse_config already printed an error.  We keep going.
+       Why?  Because if we didn't, then there would be no way to check
+       in a new CVSROOT/config file to fix the broken one!  */
+    parse_config (repository);
 
     /* We need the real cleartext before we hash it. */
     descrambled_password = descramble (password);
@@ -4715,9 +5009,11 @@ pserver_authenticate_connection ()
     free (repository);
     free (username);
     free (password);
-}
 
 #endif /* AUTH_SERVER_SUPPORT */
+}
+
+#endif /* AUTH_SERVER_SUPPORT || HAVE_GSSAPI */
 
 
 #ifdef HAVE_KERBEROS
@@ -4797,6 +5093,122 @@ error 0 kerberos: can't get local name: %s\n", krb_get_err_text(status));
 }
 #endif /* HAVE_KERBEROS */
 
+#ifdef HAVE_GSSAPI
+
+#ifndef MAXHOSTNAMELEN
+#define MAXHOSTNAMELEN (256)
+#endif
+
+/* Authenticate a GSSAPI connection.  This is called from
+   pserver_authenticate_connection, and it handles success and failure
+   the same way.  */
+
+static void
+gserver_authenticate_connection ()
+{
+    char hostname[MAXHOSTNAMELEN];
+    struct hostent *hp;
+    gss_buffer_desc tok_in, tok_out;
+    char buf[1024];
+    OM_uint32 stat_min, ret;
+    gss_name_t server_name, client_name;
+    gss_cred_id_t server_creds;
+    int nbytes;
+    gss_OID mechid;
+
+    gethostname (hostname, sizeof hostname);
+    hp = gethostbyname (hostname);
+    if (hp == NULL)
+	error (1, 0, "can't get canonical hostname");
+
+    sprintf (buf, "cvs@%s", hp->h_name);
+    tok_in.value = buf;
+    tok_in.length = strlen (buf);
+
+    if (gss_import_name (&stat_min, &tok_in, gss_nt_service_name,
+			 &server_name) != GSS_S_COMPLETE)
+	error (1, 0, "could not import GSSAPI service name %s", buf);
+
+    /* Acquire the server credential to verify the client's
+       authentication.  */
+    if (gss_acquire_cred (&stat_min, server_name, 0, GSS_C_NULL_OID_SET,
+			  GSS_C_ACCEPT, &server_creds,
+			  NULL, NULL) != GSS_S_COMPLETE)
+	error (1, 0, "could not acquire GSSAPI server credentials");
+
+    gss_release_name (&stat_min, &server_name);
+
+    /* The client will send us a two byte length followed by that many
+       bytes.  */
+    if (fread (buf, 1, 2, stdin) != 2)
+	error (1, errno, "read of length failed");
+
+    nbytes = ((buf[0] & 0xff) << 8) | (buf[1] & 0xff);
+    assert (nbytes <= sizeof buf);
+
+    if (fread (buf, 1, nbytes, stdin) != nbytes)
+	error (1, errno, "read of data failed");
+
+    gcontext = GSS_C_NO_CONTEXT;
+    tok_in.length = nbytes;
+    tok_in.value = buf;
+
+    if (gss_accept_sec_context (&stat_min,
+                                &gcontext,	/* context_handle */
+                                server_creds,	/* verifier_cred_handle */
+                                &tok_in,	/* input_token */
+                                NULL,		/* channel bindings */
+                                &client_name,	/* src_name */
+                                &mechid,	/* mech_type */
+                                &tok_out,	/* output_token */
+                                &ret,
+                                NULL,	 	/* ignore time_rec */
+                                NULL)		/* ignore del_cred_handle */
+	!= GSS_S_COMPLETE)
+    {
+	error (1, 0, "could not verify credentials");
+    }
+
+    /* FIXME: Use Kerberos v5 specific code to authenticate to a user.
+       We could instead use an authentication to access mapping.  */
+    {
+	krb5_context kc;
+	krb5_principal p;
+	gss_buffer_desc desc;
+
+	krb5_init_context (&kc);
+	if (gss_display_name (&stat_min, client_name, &desc,
+			      &mechid) != GSS_S_COMPLETE
+	    || krb5_parse_name (kc, ((gss_buffer_t) &desc)->value, &p) != 0
+	    || krb5_aname_to_localname (kc, p, sizeof buf, buf) != 0
+	    || krb5_kuserok (kc, p, buf) != TRUE)
+	{
+	    error (1, 0, "access denied");
+	}
+	krb5_free_principal (kc, p);
+	krb5_free_context (kc);
+    }
+
+    if (tok_out.length != 0)
+    {
+	char cbuf[2];
+
+	cbuf[0] = (tok_out.length >> 8) & 0xff;
+	cbuf[1] = tok_out.length & 0xff;
+	if (fwrite (cbuf, 1, 2, stdout) != 2
+	    || (fwrite (tok_out.value, 1, tok_out.length, stdout)
+		!= tok_out.length))
+	    error (1, errno, "fwrite failed");
+    }
+
+    switch_to_user (buf);
+
+    printf ("I LOVE YOU\n");
+    fflush (stdout);
+}
+
+#endif /* HAVE_GSSAPI */
+
 #endif /* SERVER_SUPPORT */
 
 #if defined (CLIENT_SUPPORT) || defined (SERVER_SUPPORT)
@@ -4805,49 +5217,159 @@ error 0 kerberos: can't get local name: %s\n", krb_get_err_text(status));
    the command line.  */
 int cvsencrypt;
 
+/* This global variable is non-zero if the users requests stream
+   authentication on the command line.  */
+int cvsauthenticate;
+
+#ifdef HAVE_GSSAPI
+
+/* An buffer interface using GSSAPI.  This is built on top of a
+   packetizing buffer.  */
+
+/* This structure is the closure field of the GSSAPI translation
+   routines.  */
+
+struct cvs_gssapi_wrap_data
+{
+    /* The GSSAPI context.  */
+    gss_ctx_id_t gcontext;
+};
+
+static int cvs_gssapi_wrap_input PROTO((void *, const char *, char *, int));
+static int cvs_gssapi_wrap_output PROTO((void *, const char *, char *, int,
+					 int *));
+
+/* Create a GSSAPI wrapping buffer.  We use a packetizing buffer with
+   GSSAPI wrapping routines.  */
+
+struct buffer *
+cvs_gssapi_wrap_buffer_initialize (buf, input, gcontext, memory)
+     struct buffer *buf;
+     int input;
+     gss_ctx_id_t gcontext;
+     void (*memory) PROTO((struct buffer *));
+{
+    struct cvs_gssapi_wrap_data *gd;
+
+    gd = (struct cvs_gssapi_wrap_data *) xmalloc (sizeof *gd);
+    gd->gcontext = gcontext;
+
+    return (packetizing_buffer_initialize
+	    (buf,
+	     input ? cvs_gssapi_wrap_input : NULL,
+	     input ? NULL : cvs_gssapi_wrap_output,
+	     gd,
+	     memory));
+}
+
+/* Unwrap data using GSSAPI.  */
+
+static int
+cvs_gssapi_wrap_input (fnclosure, input, output, size)
+     void *fnclosure;
+     const char *input;
+     char *output;
+     int size;
+{
+    struct cvs_gssapi_wrap_data *gd =
+	(struct cvs_gssapi_wrap_data *) fnclosure;
+    gss_buffer_desc inbuf, outbuf;
+    OM_uint32 stat_min;
+    int conf;
+
+    inbuf.value = (void *) input;
+    inbuf.length = size;
+
+    if (gss_unwrap (&stat_min, gd->gcontext, &inbuf, &outbuf, &conf, NULL)
+	!= GSS_S_COMPLETE)
+    {
+	error (1, 0, "gss_unwrap failed");
+    }
+
+    if (outbuf.length > size)
+	abort ();
+
+    memcpy (output, outbuf.value, outbuf.length);
+
+    /* The real packet size is stored in the data, so we don't need to
+       remember outbuf.length.  */
+
+    gss_release_buffer (&stat_min, &outbuf);
+
+    return 0;
+}
+
+/* Wrap data using GSSAPI.  */
+
+static int
+cvs_gssapi_wrap_output (fnclosure, input, output, size, translated)
+     void *fnclosure;
+     const char *input;
+     char *output;
+     int size;
+     int *translated;
+{
+    struct cvs_gssapi_wrap_data *gd =
+	(struct cvs_gssapi_wrap_data *) fnclosure;
+    gss_buffer_desc inbuf, outbuf;
+    OM_uint32 stat_min;
+    int conf_req, conf;
+
+    inbuf.value = (void *) input;
+    inbuf.length = size;
+
+#ifdef ENCRYPTION
+    conf_req = cvs_gssapi_encrypt;
+#else
+    conf_req = 0;
+#endif
+
+    if (gss_wrap (&stat_min, gd->gcontext, conf_req, GSS_C_QOP_DEFAULT,
+		  &inbuf, &conf, &outbuf) != GSS_S_COMPLETE)
+	error (1, 0, "gss_wrap failed");
+
+    /* The packetizing buffer only permits us to add 100 bytes.
+       FIXME: I don't know what, if anything, is guaranteed by GSSAPI.
+       This may need to be increased for a different GSSAPI
+       implementation, or we may need a different algorithm.  */
+    if (outbuf.length > size + 100)
+	abort ();
+
+    memcpy (output, outbuf.value, outbuf.length);
+
+    *translated = outbuf.length;
+
+    gss_release_buffer (&stat_min, &outbuf);
+
+    return 0;
+}
+
+#endif /* HAVE_GSSAPI */
+
 #ifdef ENCRYPTION
 
 #ifdef HAVE_KERBEROS
 
-/* An encryption interface using Kerberos.  This is built on top of
-   the buffer structure.  We encrypt using a big endian two byte count
-   field followed by a block of encrypted data.  */
+/* An encryption interface using Kerberos.  This is built on top of a
+   packetizing buffer.  */
 
-/* This structure is the closure field of a Kerberos encryption
-   buffer.  */
+/* This structure is the closure field of the Kerberos translation
+   routines.  */
 
-struct krb_encrypt_buffer
+struct krb_encrypt_data
 {
-    /* The underlying buffer.  */
-    struct buffer *buf;
     /* The Kerberos key schedule.  */
     Key_schedule sched;
     /* The Kerberos DES block.  */
     C_Block block;
-    /* For an input buffer, we may have to buffer up data here.  */
-    /* This is non-zero if the buffered data is decrypted.  Otherwise,
-       the buffered data is encrypted, and starts with the two byte
-       count.  */
-    int clear;
-    /* The amount of buffered data.  */
-    int holdsize;
-    /* The buffer allocated to hold the data.  */
-    char *holdbuf;
-    /* The size of holdbuf.  */
-    int holdbufsize;
-    /* If clear is set, we need another data pointer to track where we
-       are in holdbuf.  If clear is zero, then this pointer is not
-       used.  */
-    char *holddata;
 };
 
-static int krb_encrypt_buffer_input PROTO((void *, char *, int, int, int *));
-static int krb_encrypt_buffer_output PROTO((void *, const char *, int, int *));
-static int krb_encrypt_buffer_flush PROTO((void *));
-static int krb_encrypt_buffer_block PROTO((void *, int));
-static int krb_encrypt_buffer_shutdown PROTO((void *));
+static int krb_encrypt_input PROTO((void *, const char *, char *, int));
+static int krb_encrypt_output PROTO((void *, const char *, char *, int,
+				     int *));
 
-/* Create an encryption buffer.  */
+/* Create a Kerberos encryption buffer.  We use a packetizing buffer
+   with Kerberos encryption translation routines.  */
 
 struct buffer *
 krb_encrypt_buffer_initialize (buf, input, sched, block, memory)
@@ -4857,268 +5379,70 @@ krb_encrypt_buffer_initialize (buf, input, sched, block, memory)
      C_Block block;
      void (*memory) PROTO((struct buffer *));
 {
-    struct krb_encrypt_buffer *kb;
+    struct krb_encrypt_data *kd;
 
-    kb = (struct krb_encrypt_buffer *) xmalloc (sizeof *kb);
-    memset (kb, 0, sizeof *kb);
+    kd = (struct krb_encrypt_data *) xmalloc (sizeof *kd);
+    memcpy (kd->sched, sched, sizeof (Key_schedule));
+    memcpy (kd->block, block, sizeof (C_Block));
 
-    kb->buf = buf;
-    memcpy (kb->sched, sched, sizeof (Key_schedule));
-    memcpy (kb->block, block, sizeof (C_Block));
-    if (input)
-    {
-	/* We add some space to the buffer to hold the length.  */
-	kb->holdbufsize = BUFFER_DATA_SIZE + 16;
-	kb->holdbuf = xmalloc (kb->holdbufsize);
-    }
-
-    return buf_initialize (input ? krb_encrypt_buffer_input : NULL,
-			   input ? NULL : krb_encrypt_buffer_output,
-			   input ? NULL : krb_encrypt_buffer_flush,
-			   krb_encrypt_buffer_block,
-			   krb_encrypt_buffer_shutdown,
-			   memory,
-			   kb);
+    return packetizing_buffer_initialize (buf,
+					  input ? krb_encrypt_input : NULL,
+					  input ? NULL : krb_encrypt_output,
+					  kd,
+					  memory);
 }
 
-/* Input data from a Kerberos encryption buffer.  */
+/* Decrypt Kerberos data.  */
 
 static int
-krb_encrypt_buffer_input (closure, data, need, size, got)
-     void *closure;
-     char *data;
-     int need;
+krb_encrypt_input (fnclosure, input, output, size)
+     void *fnclosure;
+     const char *input;
+     char *output;
      int size;
-     int *got;
 {
-    struct krb_encrypt_buffer *kb = (struct krb_encrypt_buffer *) closure;
+    struct krb_encrypt_data *kd = (struct krb_encrypt_data *) fnclosure;
+    int tcount;
 
-    *got = 0;
+    des_cbc_encrypt ((C_Block *) input, (C_Block *) output,
+		     size, kd->sched, &kd->block, 0);
 
-    if (kb->holdsize > 0 && kb->clear)
-    {
-	int copy;
-
-	copy = kb->holdsize;
-
-	if (copy > size)
-	{
-	    memcpy (data, kb->holddata, size);
-	    kb->holdsize -= size;
-	    kb->holddata += size;
-	    *got = size;
-	    return 0;
-	}
-
-	memcpy (data, kb->holddata, copy);
-	kb->holdsize = 0;
-	kb->clear = 0;
-
-	data += copy;
-	need -= copy;
-	size -= copy;
-	*got = copy;
-    }
-
-    while (need > 0 || *got == 0)
-    {
-	int get, status, nread, count, dcount;
-	char *bytes;
-	char stackoutbuf[BUFFER_DATA_SIZE + 16];
-	char *outbuf;
-
-	/* If we don't already have the two byte count, get it.  */
-	if (kb->holdsize < 2)
-	{
-	    get = 2 - kb->holdsize;
-	    status = buf_read_data (kb->buf, get, &bytes, &nread);
-	    if (status != 0)
-	    {
-		/* buf_read_data can return -2, but a buffer input
-                   function is only supposed to return -1, 0, or an
-                   error code.  */
-		if (status == -2)
-		    status = ENOMEM;
-		return status;
-	    }
-
-	    if (nread == 0)
-	    {
-		/* The buffer is in nonblocking mode, and we didn't
-                   manage to read anything.  */
-		return 0;
-	    }
-
-	    if (get == 1)
-		kb->holdbuf[1] = bytes[0];
-	    else
-	    {
-		kb->holdbuf[0] = bytes[0];
-		if (nread < 2)
-		{
-		    /* We only got one byte, but we needed two.  Stash
-                       the byte we got, and try again.  */
-		    kb->holdsize = 1;
-		    continue;
-		}
-		kb->holdbuf[1] = bytes[1];
-	    }
-	    kb->holdsize = 2;
-	}
-
-	/* Read the encrypted block of data.  */
-
-	count = (((kb->holdbuf[0] & 0xff) << 8)
-		 + (kb->holdbuf[1] & 0xff));
-
-	if (count + 2 > kb->holdbufsize)
-	{
-	    char *n;
-
-	    /* This should be impossible, since we should have
-	       allocated space for the largest possible block in the
-	       initialize function.  However, we handle it just in
-	       case something changes in the future, so that a current
-	       server can handle a later client.  */
-
-	    n = realloc (kb->holdbuf, count + 2);
-	    if (n == NULL)
-	    {
-		(*kb->buf->memory_error) (kb->buf);
-		return ENOMEM;
-	    }
-	    kb->holdbuf = n;
-	    kb->holdbufsize = count + 2;
-	}
-
-	get = count - (kb->holdsize - 2);
-
-	status = buf_read_data (kb->buf, get, &bytes, &nread);
-	if (status != 0)
-	{
-	    /* buf_read_data can return -2, but a buffer input
-               function is only supposed to return -1, 0, or an error
-               code.  */
-	    if (status == -2)
-		status = ENOMEM;
-	    return status;
-	}
-
-	if (nread == 0)
-	{
-	    /* We did not get any data.  Presumably the buffer is in
-               nonblocking mode.  */
-	    return 0;
-	}
-
-	/* FIXME: We could complicate the code here to avoid this
-           memcpy in the common case of kb->holdsize == 2 && nread ==
-           get.  */
-	memcpy (kb->holdbuf + kb->holdsize, bytes, nread);
-	kb->holdsize += nread;
-
-	if (nread < get)
-	{
-	    /* We did not get all the data we need.  buf_read_data
-               does not promise to return all the bytes requested, so
-               we must try again.  */
-	    continue;
-	}
-
-	/* We have a complete encrypted block of COUNT bytes at
-           KB->HOLDBUF + 2.  Decrypt it.  */
-
-	if (count <= sizeof stackoutbuf)
-	    outbuf = stackoutbuf;
-	else
-	{
-	    /* I believe this is currently impossible, but we handle
-               it for the benefit of future client changes.  */
-	    outbuf = malloc (count);
-	    if (outbuf == NULL)
-	    {
-		(*kb->buf->memory_error) (kb->buf);
-		return ENOMEM;
-	    }
-	}
-
-	des_cbc_encrypt ((C_Block *) (kb->holdbuf + 2), (C_Block *) outbuf,
-			 count, kb->sched, &kb->block, 0);
-
-	/* The first two bytes in the decrypted buffer are the real
-           (unaligned) length.  */
-	dcount = ((outbuf[0] & 0xff) << 8) + (outbuf[1] & 0xff);
-
-	if (((dcount + 2 + 7) & ~7) != count)
-	    error (1, 0, "Decryption failure");
-
-	if (dcount > size)
-	{
-	    /* We have too much data for the buffer.  We need to save
-               some of it for the next call.  */
-
-	    memcpy (data, outbuf + 2, size);
-	    *got += size;
-
-	    kb->holdsize = dcount - size;
-	    memcpy (kb->holdbuf, outbuf + 2 + size, dcount - size);
-	    kb->holddata = kb->holdbuf;
-	    kb->clear = 1;
-
-	    if (outbuf != stackoutbuf)
-		free (outbuf);
-
-	    return 0;
-	}
-
-	memcpy (data, outbuf + 2, dcount);
-
-	if (outbuf != stackoutbuf)
-	    free (outbuf);
-
-	kb->holdsize = 0;
-
-	data += dcount;
-	need -= dcount;
-	size -= dcount;
-	*got += dcount;
-    }
+    /* SIZE is the size of the buffer, which is set by the encryption
+       routine.  The packetizing buffer will arrange for the first two
+       bytes in the decrypted buffer to be the real (unaligned)
+       length.  As a safety check, make sure that the length in the
+       buffer corresponds to SIZE.  Note that the length in the buffer
+       is just the length of the data.  We must add 2 to account for
+       the buffer count itself.  */
+    tcount = ((output[0] & 0xff) << 8) + (output[1] & 0xff);
+    if (((tcount + 2 + 7) & ~7) != size)
+      error (1, 0, "Decryption failure");
 
     return 0;
 }
 
-/* Output data to a Kerberos encryption buffer.  */
+/* Encrypt Kerberos data.  */
 
 static int
-krb_encrypt_buffer_output (closure, data, have, wrote)
-     void *closure;
-     const char *data;
-     int have;
-     int *wrote;
+krb_encrypt_output (fnclosure, input, output, size, translated)
+     void *fnclosure;
+     const char *input;
+     char *output;
+     int size;
+     int *translated;
 {
-    struct krb_encrypt_buffer *kb = (struct krb_encrypt_buffer *) closure;
-    char inbuf[BUFFER_DATA_SIZE + 16];
-    char outbuf[BUFFER_DATA_SIZE + 16];
+    struct krb_encrypt_data *kd = (struct krb_encrypt_data *) fnclosure;
     int aligned;
-
-    if (have > BUFFER_DATA_SIZE)
-    {
-	/* It would be easy to malloc a buffer, but I don't think this
-           case can ever arise.  */
-	abort ();
-    }
-
-    inbuf[0] = (have >> 8) & 0xff;
-    inbuf[1] = have & 0xff;
-    memcpy (inbuf + 2, data, have);
 
     /* For security against a known plaintext attack, we should
        initialize any padding bytes to random values.  Instead, we
        just pick up whatever is on the stack, which is at least better
        than using zero.  */
 
-    /* Align (have + 2) (plus 2 for the count) to an 8 byte boundary.  */
-    aligned = (have + 2 + 7) & ~7;
+    /* Align SIZE to an 8 byte boundary.  Note that SIZE includes the
+       two byte buffer count at the start of INPUT which was added by
+       the packetizing buffer.  */
+    aligned = (size + 7) & ~7;
 
     /* We use des_cbc_encrypt rather than krb_mk_priv because the
        latter sticks a timestamp in the block, and krb_rd_priv expects
@@ -5127,65 +5451,12 @@ krb_encrypt_buffer_output (closure, data, have, wrote)
        fail over a long network connection.  We trust krb_recvauth to
        guard against a replay attack.  */
 
-    des_cbc_encrypt ((C_Block *) inbuf, (C_Block *) (outbuf + 2), aligned,
-		     kb->sched, &kb->block, 1);
+    des_cbc_encrypt ((C_Block *) input, (C_Block *) output, aligned,
+		     kd->sched, &kd->block, 1);
 
-    outbuf[0] = (aligned >> 8) & 0xff;
-    outbuf[1] = aligned & 0xff;
+    *translated = aligned;
 
-    /* FIXME: It would be more efficient to get des_cbc_encrypt to put
-       its output directly into a buffer_data structure, which we
-       could then append to kb->buf.  That would save a memcpy.  */
-
-    buf_output (kb->buf, outbuf, aligned + 2);
-
-    *wrote = have;
-
-    /* We will only be here because buf_send_output was called on the
-       encryption buffer.  That means that we should now call
-       buf_send_output on the underlying buffer.  */
-    return buf_send_output (kb->buf);
-}
-
-/* Flush data to a Kerberos encryption buffer.  */
-
-static int
-krb_encrypt_buffer_flush (closure)
-     void *closure;
-{
-    struct krb_encrypt_buffer *kb = (struct krb_encrypt_buffer *) closure;
-
-    /* Flush the underlying buffer.  Note that if the original call to
-       buf_flush passed 1 for the BLOCK argument, then the buffer will
-       already have been set into blocking mode, so we should always
-       pass 0 here.  */
-    return buf_flush (kb->buf, 0);
-}
-
-/* The block routine for a Kerberos encryption buffer.  */
-
-static int
-krb_encrypt_buffer_block (closure, block)
-     void *closure;
-     int block;
-{
-    struct krb_encrypt_buffer *kb = (struct krb_encrypt_buffer *) closure;
-
-    if (block)
-	return set_block (kb->buf);
-    else
-	return set_nonblock (kb->buf);
-}
-
-/* Shut down a Kerberos encryption buffer.  */
-
-static int
-krb_encrypt_buffer_shutdown (closure)
-     void *closure;
-{
-    struct krb_encrypt_buffer *kb = (struct krb_encrypt_buffer *) closure;
-
-    return buf_shutdown (kb->buf);
+    return 0;
 }
 
 #endif /* HAVE_KERBEROS */
@@ -5221,6 +5492,13 @@ cvs_output (str, len)
 	size_t to_write = len;
 	const char *p = str;
 
+	/* For symmetry with cvs_outerr we would call fflush (stderr)
+	   here.  I guess the assumption is that stderr will be
+	   unbuffered, so we don't need to.  That sounds like a sound
+	   assumption from the manpage I looked at, but if there was
+	   something fishy about it, my guess is that calling fflush
+	   would not produce a significant performance problem.  */
+
 	while (to_write > 0)
 	{
 	    written = fwrite (p, 1, to_write, stdout);
@@ -5229,6 +5507,90 @@ cvs_output (str, len)
 	    p += written;
 	    to_write -= written;
 	}
+    }
+}
+
+/* Output LEN bytes at STR in binary mode.  If LEN is zero, then
+   output zero bytes.  */
+
+void
+cvs_output_binary (str, len)
+    char *str;
+    size_t len;
+{
+#ifdef SERVER_SUPPORT
+    if (error_use_protocol || server_active)
+    {
+	struct buffer *buf;
+	char size_text[40];
+
+	if (error_use_protocol)
+	    buf = buf_to_net;
+	else if (server_active)
+	    buf = protocol;
+
+	if (!supported_response ("Mbinary"))
+	{
+	    error (0, 0, "\
+this client does not support writing binary files to stdout");
+	    return;
+	}
+
+	buf_output0 (buf, "Mbinary\012");
+	sprintf (size_text, "%lu\012", (unsigned long) len);
+	buf_output0 (buf, size_text);
+
+	/* Not sure what would be involved in using buf_append_data here
+	   without stepping on the toes of our caller (which is responsible
+	   for the memory allocation of STR).  */
+	buf_output (buf, str, len);
+
+	if (!error_use_protocol)
+	    buf_send_counted (protocol);
+    }
+    else
+#endif
+    {
+	size_t written;
+	size_t to_write = len;
+	const char *p = str;
+
+	/* For symmetry with cvs_outerr we would call fflush (stderr)
+	   here.  I guess the assumption is that stderr will be
+	   unbuffered, so we don't need to.  That sounds like a sound
+	   assumption from the manpage I looked at, but if there was
+	   something fishy about it, my guess is that calling fflush
+	   would not produce a significant performance problem.  */
+#ifdef USE_SETMODE_STDOUT
+	int oldmode;
+
+	/* It is possible that this should be the same ifdef as
+	   USE_SETMODE_BINARY but at least for the moment we keep them
+	   separate.  Mostly this is just laziness and/or a question
+	   of what has been tested where.  Also there might be an
+	   issue of setmode vs. _setmode.  */
+	/* The Windows doc says to call setmode only right after startup.
+	   I assume that what they are talking about can also be helped
+	   by flushing the stream before changing the mode.  */
+	fflush (stdout);
+	oldmode = _setmode (_fileno (stdout), _O_BINARY);
+	if (oldmode < 0)
+	    error (0, errno, "failed to setmode on stdout");
+#endif
+
+	while (to_write > 0)
+	{
+	    written = fwrite (p, 1, to_write, stdout);
+	    if (written == 0)
+		break;
+	    p += written;
+	    to_write -= written;
+	}
+#ifdef USE_SETMODE_STDOUT
+	fflush (stdout);
+	if (_setmode (_fileno (stdout), oldmode) != _O_BINARY)
+	    error (0, errno, "failed to setmode on stdout");
+#endif
     }
 }
 
@@ -5324,4 +5686,63 @@ cvs_flushout ()
     else
 #endif
 	fflush (stdout);
+}
+
+/* Output TEXT, tagging it according to TAG.  There are lots more
+   details about what TAG means in cvsclient.texi but for the simple
+   case (e.g. non-client/server), TAG is just "newline" to output a
+   newline (in which case TEXT must be NULL), and any other tag to
+   output normal text.
+
+   Note that there is no way to output either \0 or \n as part of TEXT.  */
+
+void
+cvs_output_tagged (tag, text)
+    char *tag;
+    char *text;
+{
+    if (text != NULL && strchr (text, '\n') != NULL)
+	/* Uh oh.  The protocol has no way to cope with this.  For now
+	   we dump core, although that really isn't such a nice
+	   response given that this probably can be caused by newlines
+	   in filenames and other causes other than bugs in CVS.  Note
+	   that we don't want to turn this into "MT newline" because
+	   this case is a newline within a tagged item, not a newline
+	   as extraneous sugar for the user.  */
+	assert (0);
+
+    /* Start and end tags don't take any text, per cvsclient.texi.  */
+    if (tag[0] == '+' || tag[0] == '-')
+	assert (text == NULL);
+
+#ifdef SERVER_SUPPORT
+    if (server_active && supported_response ("MT"))
+    {
+	struct buffer *buf;
+
+	if (error_use_protocol)
+	    buf = buf_to_net;
+	else
+	    buf = protocol;
+
+	buf_output0 (buf, "MT ");
+	buf_output0 (buf, tag);
+	if (text != NULL)
+	{
+	    buf_output (buf, " ", 1);
+	    buf_output0 (buf, text);
+	}
+	buf_output (buf, "\n", 1);
+
+	if (!error_use_protocol)
+	    buf_send_counted (protocol);
+    }
+    else
+#endif
+    {
+	if (strcmp (tag, "newline") == 0)
+	    cvs_output ("\n", 1);
+	else if (text != NULL)
+	    cvs_output (text, 0);
+    }
 }
