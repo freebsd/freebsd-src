@@ -33,8 +33,6 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-__weak_reference(_kqueue, kqueue);
-
 int
 _kqueue(void)
 {
@@ -42,7 +40,7 @@ _kqueue(void)
 
 	/* Create a kqueue: */
 	if ((fd = __sys_kqueue()) < 0) {
-		/* Error creating socket. */
+		/* Error creating kqueue. */
 
 	/* Initialise the entry in the file descriptor table: */
 	} else if (_thread_fd_table_init(fd) != 0) {
@@ -51,3 +49,5 @@ _kqueue(void)
 	}
 	return (fd);
 }
+
+__strong_reference(_kqueue, kqueue);

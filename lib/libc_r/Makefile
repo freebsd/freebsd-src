@@ -30,7 +30,7 @@ HIDDEN_SYSCALLS= aio_suspend.o accept.o bind.o close.o connect.o dup.o dup2.o \
 	execve.o fchflags.o fchmod.o fchown.o fcntl.o \
 	flock.o fpathconf.o fstat.o fstatfs.o fsync.o getdirentries.o \
 	getlogin.o getpeername.o getsockname.o getsockopt.o ioctl.o \
-	kevent.o listen.o \
+	kevent.o kqueue.o listen.o \
 	msync.o nanosleep.o open.o poll.o read.o readv.o recvfrom.o \
 	recvmsg.o sched_yield.o select.o sendfile.o sendmsg.o sendto.o \
 	setsockopt.o shutdown.o sigaction.o \
