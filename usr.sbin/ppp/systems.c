@@ -59,8 +59,8 @@ CloseSecret(FILE *fp)
 }
 
 /* Move string from ``from'' to ``to'', interpreting ``~'' and $.... */
-static void
-InterpretArg(char *from, char *to)
+static const char *
+InterpretArg(const char *from, char *to)
 {
   const char *env;
   char *ptr, *startto, *endto;
@@ -71,6 +71,7 @@ InterpretArg(char *from, char *to)
 
   while(issep(*from))
     from++;
+
   if (*from == '~') {
     ptr = strchr(++from, '/');
     len = ptr ? ptr - from : strlen(from);
@@ -95,7 +96,7 @@ InterpretArg(char *from, char *to)
     from += len;
   }
 
-  while (to < endto && *from != '\0') {
+  while (to < endto && !issep(*from) && *from != '#' && *from != '\0') {
     if (*from == '$') {
       if (from[1] == '$') {
         *to = '\0';	/* For an empty var name below */
@@ -131,9 +132,13 @@ InterpretArg(char *from, char *to)
         *endto = '\0';
         to += strlen(to);
       }
-    } else
+    } else {
+      if (*from == '\\')
+        from++;
       *to++ = *from++;
+    }
   }
+
   while (to > startto) {
     to--;
     if (!issep(*to)) {
@@ -142,6 +147,11 @@ InterpretArg(char *from, char *to)
     }
   }
   *to = '\0';
+
+  while (issep(*from))
+    from++;
+
+  return from;
 }
 
 #define CTRL_UNKNOWN (0)
@@ -150,9 +160,14 @@ InterpretArg(char *from, char *to)
 static int
 DecodeCtrlCommand(char *line, char *arg)
 {
+  const char *end;
+
   if (!strncasecmp(line, "include", 7) && issep(line[7])) {
-    InterpretArg(line+8, arg);
-    return CTRL_INCLUDE;
+    end = InterpretArg(line+8, arg);
+    if (*end && *end != '#')
+      log_Printf(LogWARN, "Usage: !include filename\n");
+    else
+      return CTRL_INCLUDE;
   }
   return CTRL_UNKNOWN;
 }
@@ -308,6 +323,15 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
       break;
 
     default:
+      if ((wp = findblank(cp, 0)) != NULL) {
+        while (issep(*wp))
+          *wp++ = '\0';
+        if (*wp != '#' && *wp != '\0') {
+	  log_Printf(LogWARN, "Bad label in %s (line %d) - too many words.\n",
+		    filename, linenum);
+	  continue;
+        }
+      }
       wp = strchr(cp, ':');
       if (wp == NULL || wp[1] != '\0') {
 	log_Printf(LogWARN, "Bad rule in %s (line %d) - missing colon.\n",

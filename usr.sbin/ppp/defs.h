@@ -98,4 +98,5 @@ extern int Nam2mode(const char *);
 extern struct in_addr GetIpAddr(const char *);
 extern int SpeedToInt(speed_t);
 extern speed_t IntToSpeed(int);
+extern char *findblank(char *, int);
 extern int MakeArgs(char *, char **, int);
