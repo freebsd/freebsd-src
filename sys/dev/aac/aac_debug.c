@@ -213,7 +213,7 @@ aac_print_fib(struct aac_softc *sc, struct aac_fib *fib, char *caller)
 		      fib->Header.StructType);
 	device_printf(sc->aac_dev, "  Flags         0x%x\n", fib->Header.Flags);
 	device_printf(sc->aac_dev, "  Size          %d\n", fib->Header.Size);
-	device_printf(sc->aac_dev, "  SenderSize    %d\n",xi
+	device_printf(sc->aac_dev, "  SenderSize    %d\n",
 		      fib->Header.SenderSize);
 	device_printf(sc->aac_dev, "  SenderAddress 0x%x\n",
 		      fib->Header.SenderFibAddress);
@@ -225,7 +225,7 @@ aac_print_fib(struct aac_softc *sc, struct aac_fib *fib, char *caller)
 	case ContainerCommand:
 	{
 		struct aac_blockread *br;
-		struct aac_blockwrite *br;
+		struct aac_blockwrite *bw;
 		struct aac_sg_table *sg;
 		int i;
 
