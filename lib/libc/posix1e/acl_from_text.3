@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"       $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd January 28, 2000
 .Dt ACL_FROM_TEXT 3
@@ -72,9 +72,6 @@ and set
 .Va errno
 to the corresponding value:
 .Bl -tag -width Er
-.It Bq Er EACCES
-Search permission is denied for a component of the path prefix, or the
-object exists and the process does not have appropriate access rights.
 .It Bq Er EINVAL
 Argument
 .Va buf_p
@@ -104,7 +101,7 @@ and development continues.
 .An Robert N M Watson
 .Sh BUGS
 These features are not yet fully implemented.
-
+.Pp
 .Fn acl_from_text
 and
 .Fn acl_to_text
