@@ -52,15 +52,15 @@ struct tr_chinfo {
 	u_int32_t rvol, cvol;
 	u_int32_t gvsel, pan, vol, ctrl;
 	int index, bufhalf;
-	snd_dbuf *buffer;
-	pcm_channel *channel;
+	struct snd_dbuf *buffer;
+	struct pcm_channel *channel;
 	struct tr_info *parent;
 };
 
 struct tr_rchinfo {
 	u_int32_t delta;
-	snd_dbuf *buffer;
-	pcm_channel *channel;
+	struct snd_dbuf *buffer;
+	struct pcm_channel *channel;
 	struct tr_info *parent;
 };
 
@@ -75,6 +75,8 @@ struct tr_info {
 	struct resource *reg, *irq;
 	int		regtype, regid, irqid;
 	void		*ih;
+
+	void *lock;
 
 	u_int32_t playchns;
 	struct tr_chinfo chinfo[TR_MAXPLAYCH];
@@ -94,7 +96,7 @@ static u_int32_t tr_recfmt[] = {
 	AFMT_STEREO | AFMT_U16_LE,
 	0
 };
-static pcmchan_caps tr_reccaps = {4000, 48000, tr_recfmt, 0};
+static struct pcmchan_caps tr_reccaps = {4000, 48000, tr_recfmt, 0};
 
 static u_int32_t tr_playfmt[] = {
 	AFMT_U8,
@@ -107,7 +109,7 @@ static u_int32_t tr_playfmt[] = {
 	AFMT_STEREO | AFMT_U16_LE,
 	0
 };
-static pcmchan_caps tr_playcaps = {4000, 48000, tr_playfmt, 0};
+static struct pcmchan_caps tr_playcaps = {4000, 48000, tr_playfmt, 0};
 
 /* -------------------------------------------------------------------- */
 
@@ -168,9 +170,11 @@ tr_rdcd(kobj_t obj, void *devinfo, int regno)
 	}
 
 	regno &= 0x7f;
+	snd_mtxlock(tr->lock);
 	tr_wr(tr, treg, regno | trw, 4);
 	j=trw;
 	for (i=TR_TIMEOUT_CDC; (i > 0) && (j & trw); i--) j=tr_rd(tr, treg, 4);
+	snd_mtxunlock(tr->lock);
 	if (i == 0) printf("codec timeout during read of register %x\n", regno);
 	return (j >> TR_CDC_DATA) & 0xffff;
 }
@@ -200,11 +204,13 @@ tr_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 	printf("tr_wrcd: reg %x was %x", regno, tr_rdcd(devinfo, regno));
 #endif
 	j=trw;
+	snd_mtxlock(tr->lock);
 	for (i=TR_TIMEOUT_CDC; (i>0) && (j & trw); i--) j=tr_rd(tr, treg, 4);
 	tr_wr(tr, treg, (data << TR_CDC_DATA) | regno | trw, 4);
 #if 0
 	printf(" - wrote %x, now %x\n", data, tr_rdcd(devinfo, regno));
 #endif
+	snd_mtxunlock(tr->lock);
 	if (i==0) printf("codec timeout writing %x, data %x\n", regno, data);
 	return (i > 0)? 0 : -1;
 }
@@ -250,6 +256,7 @@ tr_enaint(struct tr_chinfo *ch, int enable)
        	u_int32_t i, reg;
 	int bank, chan;
 
+	snd_mtxlock(tr->lock);
 	bank = (ch->index & 0x20) ? 1 : 0;
 	chan = ch->index & 0x1f;
 	reg = bank? TR_REG_INTENB : TR_REG_INTENA;
@@ -260,6 +267,7 @@ tr_enaint(struct tr_chinfo *ch, int enable)
 
 	tr_clrint(ch);
 	tr_wr(tr, reg, i, 4);
+	snd_mtxunlock(tr->lock);
 }
 
 /* playback channels */
@@ -336,9 +344,11 @@ tr_wrch(struct tr_chinfo *ch)
 		cr[3]|=(ch->alpha<<20) | (ch->fms<<16) | (ch->fmc<<14);
 		break;
 	}
+	snd_mtxlock(tr->lock);
 	tr_selch(ch);
 	for (i=0; i<TR_CHN_REGS; i++)
 		tr_wr(tr, TR_REG_CHNBASE+(i<<2), cr[i], 4);
+	snd_mtxunlock(tr->lock);
 }
 
 static void
@@ -347,9 +357,11 @@ tr_rdch(struct tr_chinfo *ch)
 	struct tr_info *tr = ch->parent;
 	u_int32_t cr[5], i;
 
+	snd_mtxlock(tr->lock);
 	tr_selch(ch);
 	for (i=0; i<5; i++)
 		cr[i]=tr_rd(tr, TR_REG_CHNBASE+(i<<2), 4);
+	snd_mtxunlock(tr->lock);
 
 
 	ch->lba=	(cr[1] & 0x3fffffff);
@@ -396,7 +408,7 @@ tr_fmttobits(u_int32_t fmt)
 /* channel interface */
 
 static void *
-trpchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+trpchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct tr_info *tr = devinfo;
 	struct tr_chinfo *ch;
@@ -480,7 +492,7 @@ trpchan_getptr(kobj_t obj, void *data)
 	return ch->cso * sndbuf_getbps(ch->buffer);
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 trpchan_getcaps(kobj_t obj, void *data)
 {
 	return &tr_playcaps;
@@ -502,7 +514,7 @@ CHANNEL_DECLARE(trpchan);
 /* rec channel interface */
 
 static void *
-trrchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+trrchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct tr_info *tr = devinfo;
 	struct tr_rchinfo *ch;
@@ -600,7 +612,7 @@ trrchan_getptr(kobj_t obj, void *data)
 	return tr_rd(tr, TR_REG_DMAR0, 4) - vtophys(sndbuf_getbuf(ch->buffer));
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 trrchan_getcaps(kobj_t obj, void *data)
 {
 	return &tr_reccaps;
@@ -646,9 +658,7 @@ tr_intr(void *p)
 							if (ch->bufhalf != tmp) {
 								chn_intr(ch->channel);
 								ch->bufhalf = tmp;
-							} else
-								printf("same bufhalf\n");
-
+							}
 						}
 					}
 					chnum++;
@@ -716,6 +726,7 @@ tr_pci_attach(device_t dev)
 
 	bzero(tr, sizeof(*tr));
 	tr->type = pci_get_devid(dev);
+	tr->lock = snd_mtxcreate(device_get_nameunit(dev));
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	data |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
@@ -745,8 +756,7 @@ tr_pci_attach(device_t dev)
 	tr->irqid = 0;
 	tr->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &tr->irqid,
 				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (!tr->irq ||
-	    bus_setup_intr(dev, tr->irq, INTR_TYPE_TTY, tr_intr, tr, &tr->ih)) {
+	if (!tr->irq || snd_setup_intr(dev, tr->irq, INTR_MPSAFE, tr_intr, tr, &tr->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
@@ -778,6 +788,7 @@ bad:
 	if (tr->ih) bus_teardown_intr(dev, tr->irq, tr->ih);
 	if (tr->irq) bus_release_resource(dev, SYS_RES_IRQ, tr->irqid, tr->irq);
 	if (tr->parent_dmat) bus_dma_tag_destroy(tr->parent_dmat);
+	if (tr->lock) snd_mtxfree(tr->lock);
 	free(tr, M_DEVBUF);
 	return ENXIO;
 }
@@ -797,6 +808,7 @@ tr_pci_detach(device_t dev)
 	bus_teardown_intr(dev, tr->irq, tr->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, tr->irqid, tr->irq);
 	bus_dma_tag_destroy(tr->parent_dmat);
+	snd_mtxfree(tr->lock);
 	free(tr, M_DEVBUF);
 
 	return 0;
@@ -814,7 +826,7 @@ static device_method_t tr_methods[] = {
 static driver_t tr_driver = {
 	"pcm",
 	tr_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 static devclass_t pcm_devclass;

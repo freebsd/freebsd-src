@@ -48,8 +48,8 @@ struct sc_info;
 /* channel registers */
 struct sc_chinfo {
 	int spd, dir, fmt;
-	snd_dbuf *buffer;
-	pcm_channel *channel;
+	struct snd_dbuf *buffer;
+	struct pcm_channel *channel;
 	struct sc_info *parent;
 };
 
@@ -117,7 +117,7 @@ static u_int32_t nm_fmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps nm_caps = {4000, 48000, nm_fmt, 0};
+static struct pcmchan_caps nm_caps = {4000, 48000, nm_fmt, 0};
 
 /* -------------------------------------------------------------------- */
 
@@ -329,7 +329,7 @@ nm_setch(struct sc_chinfo *ch)
 
 /* channel interface */
 static void *
-nmchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+nmchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_chinfo *ch;
@@ -341,7 +341,7 @@ nmchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	sndbuf_setup(ch->buffer, (u_int8_t *)rman_get_virtual(sc->buf) + chnbuf, NM_BUFFSIZE);
 	if (bootverbose)
 		device_printf(sc->dev, "%s buf %p\n", (dir == PCMDIR_PLAY)?
-			      "play" : "rec", ch->buffer->buf);
+			      "play" : "rec", sndbuf_getbuf(ch->buffer));
 	ch->parent = sc;
 	ch->channel = c;
 	ch->dir = dir;
@@ -432,7 +432,7 @@ nmchan_getptr(kobj_t obj, void *data)
 		return nm_rd(sc, NM_RBUFFER_CURRP, 4) - sc->rbuf;
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 nmchan_getcaps(kobj_t obj, void *data)
 {
 	return &nm_caps;
@@ -623,8 +623,7 @@ nm_pci_attach(device_t dev)
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
 				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (!sc->irq ||
-	    bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, nm_intr, sc, &sc->ih)) {
+	if (!sc->irq || snd_setup_intr(dev, sc->irq, 0, nm_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
@@ -702,7 +701,7 @@ static device_method_t nm_methods[] = {
 static driver_t nm_driver = {
 	"pcm",
 	nm_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 static devclass_t pcm_devclass;

@@ -62,8 +62,8 @@ CODE {
 METHOD void* init {
 	kobj_t obj;
 	void *devinfo;
-	snd_dbuf *b;
-	pcm_channel *c;
+	struct snd_dbuf *b;
+	struct pcm_channel *c;
 	int dir;
 };
 
@@ -117,7 +117,7 @@ METHOD u_int32_t getptr {
 	void *data;
 };
 
-METHOD pcmchan_caps* getcaps {
+METHOD struct pcmchan_caps* getcaps {
 	kobj_t obj;
 	void *data;
 };

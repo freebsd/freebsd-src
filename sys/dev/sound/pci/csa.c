@@ -155,7 +155,7 @@ csa_attach(device_t dev)
 	}
 
 	/* Enable interrupt. */
-	if (bus_setup_intr(dev, resp->irq, INTR_TYPE_TTY, csa_intr, scp, &scp->ih)) {
+	if (snd_setup_intr(dev, resp->irq, 0, csa_intr, scp, &scp->ih)) {
 		bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
 		bus_release_resource(dev, SYS_RES_MEMORY, resp->mem_rid, resp->mem);
 		bus_release_resource(dev, SYS_RES_IRQ, resp->irq_rid, resp->irq);

@@ -45,8 +45,8 @@ struct csa_info;
 
 struct csa_chinfo {
 	struct csa_info *parent;
-	pcm_channel *channel;
-	snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct snd_dbuf *buffer;
 	int dir;
 	u_int32_t fmt;
 	int dma;
@@ -93,14 +93,14 @@ static u_int32_t csa_playfmt[] = {
 	AFMT_STEREO | AFMT_S16_BE,
 	0
 };
-static pcmchan_caps csa_playcaps = {8000, 48000, csa_playfmt, 0};
+static struct pcmchan_caps csa_playcaps = {8000, 48000, csa_playfmt, 0};
 
 static u_int32_t csa_recfmt[] = {
 	AFMT_S16_LE,
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps csa_reccaps = {11025, 48000, csa_recfmt, 0};
+static struct pcmchan_caps csa_reccaps = {11025, 48000, csa_recfmt, 0};
 
 /* -------------------------------------------------------------------- */
 /* ac97 codec */
@@ -515,7 +515,7 @@ csa_startdsp(csa_res *resp)
 /* channel interface */
 
 static void *
-csachan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+csachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct csa_info *csa = devinfo;
 	struct csa_chinfo *ch = (dir == PCMDIR_PLAY)? &csa->pch : &csa->rch;
@@ -654,7 +654,7 @@ csachan_getptr(kobj_t obj, void *data)
 	return (ptr);
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 csachan_getcaps(kobj_t obj, void *data)
 {
 	struct csa_chinfo *ch = data;
@@ -854,7 +854,7 @@ pcmcsa_attach(device_t dev)
 	snprintf(status, SND_STATUSLEN, "at irq %ld", rman_get_start(resp->irq));
 
 	/* Enable interrupt. */
-	if (bus_setup_intr(dev, resp->irq, INTR_TYPE_TTY, csa_intr, csa, &csa->ih)) {
+	if (snd_setup_intr(dev, resp->irq, 0, csa_intr, csa, &csa->ih)) {
 		ac97_destroy(codec);
 		csa_releaseres(csa, dev);
 		return (ENXIO);
@@ -902,7 +902,7 @@ static device_method_t pcmcsa_methods[] = {
 static driver_t pcmcsa_driver = {
 	"pcm",
 	pcmcsa_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 static devclass_t pcm_devclass;

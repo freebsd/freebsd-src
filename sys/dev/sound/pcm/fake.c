@@ -43,14 +43,16 @@ static u_int32_t fk_fmt[] = {
 	AFMT_STEREO | AFMT_U16_BE,
 	0
 };
-static pcmchan_caps fk_caps = {0, 1000000, fk_fmt, 0};
+static struct pcmchan_caps fk_caps = {0, 1000000, fk_fmt, 0};
+
+#define	FKBUFSZ	4096
+static char fakebuf[FKBUFSZ];
 
 /* channel interface */
 static void *
-fkchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+fkchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
-	b->bufsize = 16384;
-	b->buf = malloc(b->bufsize, M_DEVBUF, M_NOWAIT);
+	sndbuf_setup(b, fakebuf, FKBUFSZ);
 	return (void *)0xbabef00d;
 }
 
@@ -90,7 +92,7 @@ fkchan_getptr(kobj_t obj, void *data)
 	return 0;
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 fkchan_getcaps(kobj_t obj, void *data)
 {
 	return &fk_caps;
@@ -109,18 +111,26 @@ static kobj_method_t fkchan_methods[] = {
 };
 CHANNEL_DECLARE(fkchan);
 
-int
-fkchan_setup(pcm_channel *c)
+struct pcm_channel *
+fkchan_setup(device_t dev)
 {
+    	struct snddev_info *d = device_get_softc(dev);
+	struct pcm_channel *c;
+
+	c = malloc(sizeof(*c), M_DEVBUF, M_WAITOK);
 	c->methods = kobj_create(&fkchan_class, M_DEVBUF, M_WAITOK);
-	return 0;
+	c->parent = d;
+	snprintf(c->name, CHN_NAMELEN, "%s:fake", device_get_nameunit(dev));
+
+	return c;
 }
 
 int
-fkchan_kill(pcm_channel *c)
+fkchan_kill(struct pcm_channel *c)
 {
 	kobj_delete(c->methods, M_DEVBUF);
 	c->methods = NULL;
+	free(c, M_DEVBUF);
 	return 0;
 }
 

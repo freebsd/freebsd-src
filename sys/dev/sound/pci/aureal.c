@@ -44,7 +44,7 @@ static u_int32_t au_playfmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps au_playcaps = {4000, 48000, au_playfmt, 0};
+static struct pcmchan_caps au_playcaps = {4000, 48000, au_playfmt, 0};
 
 static u_int32_t au_recfmt[] = {
 	AFMT_U8,
@@ -53,7 +53,7 @@ static u_int32_t au_recfmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps au_reccaps = {4000, 48000, au_recfmt, 0};
+static struct pcmchan_caps au_reccaps = {4000, 48000, au_recfmt, 0};
 
 /* -------------------------------------------------------------------- */
 
@@ -61,8 +61,8 @@ struct au_info;
 
 struct au_chinfo {
 	struct au_info *parent;
-	pcm_channel *channel;
-	snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct snd_dbuf *buffer;
 	int dir;
 };
 
@@ -73,6 +73,7 @@ struct au_info {
 	bus_space_handle_t sh[3];
 
 	bus_dma_tag_t	parent_dmat;
+	void *lock;
 
 	u_int32_t	x[32], y[128];
 	char		z[128];
@@ -293,7 +294,7 @@ au_prepareoutput(struct au_chinfo *ch, u_int32_t format)
 /* -------------------------------------------------------------------- */
 /* channel interface */
 static void *
-auchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+auchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct au_info *au = devinfo;
 	struct au_chinfo *ch = (dir == PCMDIR_PLAY)? &au->pch : NULL;
@@ -365,7 +366,7 @@ auchan_getptr(kobj_t obj, void *data)
 	}
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 auchan_getcaps(kobj_t obj, void *data)
 {
 	struct au_chinfo *ch = data;
@@ -620,8 +621,7 @@ au_pci_attach(device_t dev)
 	irqid = 0;
 	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &irqid,
 				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (!irq
-	    || bus_setup_intr(dev, irq, INTR_TYPE_TTY, au_intr, au, &ih)) {
+	if (!irq || snd_setup_intr(dev, irq, 0, au_intr, au, &ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
@@ -678,7 +678,7 @@ static device_method_t au_methods[] = {
 static driver_t au_driver = {
 	"pcm",
 	au_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 static devclass_t pcm_devclass;

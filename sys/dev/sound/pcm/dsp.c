@@ -33,12 +33,12 @@
 
 #define OLDPCM_IOCTL
 
-static int getchns(snddev_info *d, int chan, pcm_channel **rdch, pcm_channel **wrch);
+static int getchns(struct snddev_info *d, int chan, struct pcm_channel **rdch, struct pcm_channel **wrch);
 
-static pcm_channel *
-allocchn(snddev_info *d, int direction)
+static struct pcm_channel *
+allocchn(struct snddev_info *d, int direction)
 {
-	pcm_channel *chns = (direction == PCMDIR_PLAY)? d->play : d->rec;
+	struct pcm_channel *chns = (direction == PCMDIR_PLAY)? d->play : d->rec;
 	int i, cnt = (direction == PCMDIR_PLAY)? d->playcount : d->reccount;
 	for (i = 0; i < cnt; i++) {
 		if (!(chns[i].flags & (CHN_F_BUSY | CHN_F_DEAD))) {
@@ -50,15 +50,15 @@ allocchn(snddev_info *d, int direction)
 }
 
 static int
-getchns(snddev_info *d, int chan, pcm_channel **rdch, pcm_channel **wrch)
+getchns(struct snddev_info *d, int chan, struct pcm_channel **rdch, struct pcm_channel **wrch)
 {
 	KASSERT((d->flags & SD_F_PRIO_SET) != SD_F_PRIO_SET, \
 		("getchns: read and write both prioritised"));
 
 	if ((d->flags & SD_F_SIMPLEX) && (d->flags & SD_F_PRIO_SET)) {
-		*rdch = (d->flags & SD_F_PRIO_RD)? d->arec[chan] : &d->fakechan;
-		*wrch = (d->flags & SD_F_PRIO_WR)? d->aplay[chan] : &d->fakechan;
-		d->fakechan.flags |= CHN_F_BUSY;
+		*rdch = (d->flags & SD_F_PRIO_RD)? d->arec[chan] : d->fakechan;
+		*wrch = (d->flags & SD_F_PRIO_WR)? d->aplay[chan] : d->fakechan;
+		d->fakechan->flags |= CHN_F_BUSY;
 	} else {
 		*rdch = d->arec[chan];
 		*wrch = d->aplay[chan];
@@ -67,7 +67,7 @@ getchns(snddev_info *d, int chan, pcm_channel **rdch, pcm_channel **wrch)
 }
 
 static void
-setchns(snddev_info *d, int chan)
+setchns(struct snddev_info *d, int chan)
 {
 	KASSERT((d->flags & SD_F_PRIO_SET) != SD_F_PRIO_SET, \
 		("getchns: read and write both prioritised"));
@@ -75,14 +75,13 @@ setchns(snddev_info *d, int chan)
 }
 
 int
-dsp_open(snddev_info *d, int chan, int oflags, int devtype)
+dsp_open(struct snddev_info *d, int chan, int oflags, int devtype)
 {
-	pcm_channel *rdch, *wrch;
+	struct pcm_channel *rdch, *wrch;
 	u_int32_t fmt;
 
 	if (chan >= d->chancount) return ENODEV;
 	if ((d->flags & SD_F_SIMPLEX) && (d->ref[chan] > 0)) return EBUSY;
-	if (d->atype[chan] != 0 && d->atype[chan] != devtype) return EBUSY;
 
 	rdch = d->arec[chan];
 	wrch = d->aplay[chan];
@@ -102,7 +101,6 @@ dsp_open(snddev_info *d, int chan, int oflags, int devtype)
 			}
 		} else return EBUSY;
 	}
-	d->atype[chan] = devtype;
 	d->aplay[chan] = wrch;
 	d->arec[chan] = rdch;
 	d->ref[chan]++;
@@ -126,6 +124,10 @@ dsp_open(snddev_info *d, int chan, int oflags, int devtype)
 	default:
 		return ENXIO;
 	}
+	if (rdch)
+		CHN_LOCK(rdch);
+	if (wrch)
+		CHN_LOCK(wrch);
 
 	if (rdch && (oflags & FREAD)) {
 	        chn_reset(rdch, fmt);
@@ -135,77 +137,101 @@ dsp_open(snddev_info *d, int chan, int oflags, int devtype)
 	        chn_reset(wrch, fmt);
 		if (oflags & O_NONBLOCK) wrch->flags |= CHN_F_NBIO;
 	}
+	if (wrch)
+		CHN_UNLOCK(wrch);
+	if (rdch)
+		CHN_UNLOCK(rdch);
 	return 0;
 }
 
 int
-dsp_close(snddev_info *d, int chan, int devtype)
+dsp_close(struct snddev_info *d, int chan, int devtype)
 {
-	pcm_channel *rdch, *wrch;
+	struct pcm_channel *rdch, *wrch;
 
-	d->ref[chan] = 0;
-#if 0
-	/* enable this if/when every close() is propagated here */
+	d->ref[chan]--;
 	if (d->ref[chan]) return 0;
-#endif
 	d->flags &= ~SD_F_TRANSIENT;
 	rdch = d->arec[chan];
 	wrch = d->aplay[chan];
 
 	if (rdch) {
+		CHN_LOCK(rdch);
 		chn_abort(rdch);
 		rdch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
 		chn_reset(rdch, 0);
+		CHN_UNLOCK(rdch);
 	}
 	if (wrch) {
+		CHN_LOCK(wrch);
 		chn_flush(wrch);
 		wrch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
 		chn_reset(wrch, 0);
+		CHN_UNLOCK(wrch);
 	}
 	d->aplay[chan] = NULL;
 	d->arec[chan] = NULL;
-	d->atype[chan] = 0;
 	return 0;
 }
 
 int
-dsp_read(snddev_info *d, int chan, struct uio *buf, int flag)
+dsp_read(struct snddev_info *d, int chan, struct uio *buf, int flag)
 {
-	pcm_channel *rdch, *wrch;
+	struct pcm_channel *rdch, *wrch;
+	int ret;
 
 	if (!(d->flags & SD_F_PRIO_SET)) d->flags |= SD_F_PRIO_RD;
 	if (!(d->flags & SD_F_DIR_SET)) setchns(d, chan);
+
 	getchns(d, chan, &rdch, &wrch);
+	CHN_LOCK(rdch);
 	KASSERT(rdch, ("dsp_read: nonexistant channel"));
 	KASSERT(rdch->flags & CHN_F_BUSY, ("dsp_read: nonbusy channel"));
-	if (rdch->flags & (CHN_F_MAPPED | CHN_F_DEAD)) return EINVAL;
+
+	if (rdch->flags & (CHN_F_MAPPED | CHN_F_DEAD)) {
+		CHN_UNLOCK(rdch);
+		return EINVAL;
+	}
 	if (!(rdch->flags & CHN_F_RUNNING))
 		rdch->flags |= CHN_F_RUNNING;
-	return chn_read(rdch, buf);
+	ret = chn_read(rdch, buf);
+	CHN_UNLOCK(rdch);
+
+	return ret;
 }
 
 int
-dsp_write(snddev_info *d, int chan, struct uio *buf, int flag)
+dsp_write(struct snddev_info *d, int chan, struct uio *buf, int flag)
 {
-	pcm_channel *rdch, *wrch;
+	struct pcm_channel *rdch, *wrch;
+	int ret;
 
 	if (!(d->flags & SD_F_PRIO_SET)) d->flags |= SD_F_PRIO_WR;
 	if (!(d->flags & SD_F_DIR_SET)) setchns(d, chan);
+
 	getchns(d, chan, &rdch, &wrch);
+	CHN_LOCK(wrch);
 	KASSERT(wrch, ("dsp_write: nonexistant channel"));
 	KASSERT(wrch->flags & CHN_F_BUSY, ("dsp_write: nonbusy channel"));
-	if (wrch->flags & (CHN_F_MAPPED | CHN_F_DEAD)) return EINVAL;
+
+	if (wrch->flags & (CHN_F_MAPPED | CHN_F_DEAD)) {
+		CHN_UNLOCK(wrch);
+		return EINVAL;
+	}
 	if (!(wrch->flags & CHN_F_RUNNING))
 		wrch->flags |= CHN_F_RUNNING;
-	return chn_write(wrch, buf);
+	ret = chn_write(wrch, buf);
+	CHN_UNLOCK(wrch);
+
+	return ret;
 }
 
 int
-dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
+dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
 {
     	int ret = 0, *arg_i = (int *)arg;
     	u_long s;
-    	pcm_channel *wrch = NULL, *rdch = NULL;
+    	struct pcm_channel *wrch = NULL, *rdch = NULL;
 
 	rdch = d->arec[chan];
 	wrch = d->aplay[chan];
@@ -216,6 +242,11 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		wrch = NULL;
 	if (!(rdch || wrch))
 		return EINVAL;
+
+	if (wrch)
+		CHN_LOCK(wrch);
+	if (rdch)
+		CHN_LOCK(rdch);
     	/*
      	 * all routines are called with int. blocked. Make sure that
      	 * ints are re-enabled when calling slow or blocking functions!
@@ -227,9 +258,11 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
      	 * we start with the new ioctl interface.
      	 */
     	case AIONWRITE:	/* how many bytes can write ? */
-		if (wrch && wrch->buffer.dl)
-			while (chn_wrfeed(wrch) > 0);
-		*arg_i = wrch? wrch->buffer2nd.fl : 0;
+/*
+		if (wrch && wrch->bufhard.dl)
+			while (chn_wrfeed(wrch) == 0);
+*/
+		*arg_i = wrch? sndbuf_getfree(wrch->bufsoft) : 0;
 		break;
 
     	case AIOSSIZE:     /* set the current blocksize */
@@ -245,9 +278,9 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		{
 	    		struct snd_size *p = (struct snd_size *)arg;
 	    		if (wrch)
-				p->play_size = wrch->buffer2nd.blksz;
+				p->play_size = sndbuf_getblksz(wrch->bufsoft);
 	    		if (rdch)
-				p->rec_size = rdch->buffer2nd.blksz;
+				p->rec_size = sndbuf_getblksz(rdch->bufsoft);
 		}
 		break;
 
@@ -278,15 +311,15 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case AIOGCAP:     /* get capabilities */
 		{
 	    		snd_capabilities *p = (snd_capabilities *)arg;
-			pcmchan_caps *pcaps = NULL, *rcaps = NULL;
+			struct pcmchan_caps *pcaps = NULL, *rcaps = NULL;
 			if (rdch) rcaps = chn_getcaps(rdch);
 			if (wrch) pcaps = chn_getcaps(wrch);
 	    		p->rate_min = max(rcaps? rcaps->minspeed : 0,
 	                      		  pcaps? pcaps->minspeed : 0);
 	    		p->rate_max = min(rcaps? rcaps->maxspeed : 1000000,
 	                      		  pcaps? pcaps->maxspeed : 1000000);
-	    		p->bufsize = min(rdch? rdch->buffer2nd.bufsize : 1000000,
-	                     		 wrch? wrch->buffer2nd.bufsize : 1000000);
+	    		p->bufsize = min(rdch? sndbuf_getsize(rdch->bufsoft) : 1000000,
+	                     		 wrch? sndbuf_getsize(wrch->bufsoft) : 1000000);
 			/* XXX bad on sb16 */
 	    		p->formats = (rdch? chn_getformats(rdch) : 0xffffffff) &
 			 	     (wrch? chn_getformats(wrch) : 0xffffffff);
@@ -318,9 +351,9 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 	 * here follow the standard ioctls (filio.h etc.)
 	 */
     	case FIONREAD: /* get # bytes to read */
-		if (rdch && rdch->buffer.dl)
-			while (chn_rdfeed(rdch) > 0);
-		*arg_i = rdch? rdch->buffer2nd.rl : 0;
+/*		if (rdch && rdch->bufhard.dl)
+			while (chn_rdfeed(rdch) == 0);
+*/		*arg_i = rdch? sndbuf_getready(rdch->bufsoft) : 0;
 		break;
 
     	case FIOASYNC: /*set/clear async i/o */
@@ -344,9 +377,9 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case THE_REAL_SNDCTL_DSP_GETBLKSIZE:
     	case SNDCTL_DSP_GETBLKSIZE:
 		if (wrch)
-			*arg_i = wrch->buffer2nd.blksz;
+			*arg_i = sndbuf_getblksz(wrch->bufsoft);
 		else if (rdch)
-			*arg_i = rdch->buffer2nd.blksz;
+			*arg_i = sndbuf_getblksz(rdch->bufsoft);
 		else
 			*arg_i = 0;
 		break ;
@@ -359,19 +392,18 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 
     	case SNDCTL_DSP_RESET:
 		DEB(printf("dsp reset\n"));
-		splx(s);
-		if (wrch) chn_abort(wrch);
-		if (rdch) chn_abort(rdch);
+		if (wrch)
+			chn_abort(wrch);
+		if (rdch)
+			chn_abort(rdch);
 		break;
 
     	case SNDCTL_DSP_SYNC:
 		DEB(printf("dsp sync\n"));
-		splx(s);
-		if (wrch) chn_sync(wrch, wrch->buffer2nd.bufsize - 4);
+		if (wrch) chn_sync(wrch, sndbuf_getsize(wrch->bufsoft) - 4);
 		break;
 
     	case SNDCTL_DSP_SPEED:
-		splx(s);
 		if (wrch)
 			ret = chn_setspeed(wrch, *arg_i);
 		if (rdch && ret == 0)
@@ -383,7 +415,6 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		break;
 
     	case SNDCTL_DSP_STEREO:
-		splx(s);
 		if (wrch)
 			ret = chn_setformat(wrch, (wrch->format & ~AFMT_STEREO) |
 					((*arg_i)? AFMT_STEREO : 0));
@@ -395,7 +426,6 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 
     	case SOUND_PCM_WRITE_CHANNELS:
 /*	case SNDCTL_DSP_CHANNELS: ( == SOUND_PCM_WRITE_CHANNELS) */
-		splx(s);
 		if (*arg_i == 1 || *arg_i == 2) {
 	  		if (wrch)
 				ret = chn_setformat(wrch, (wrch->format & ~AFMT_STEREO) |
@@ -427,15 +457,10 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		*arg_i = (wrch? wrch->format : rdch->format) & ~AFMT_STEREO;
 		break;
 
-    	case SNDCTL_DSP_SUBDIVIDE:
-		/* XXX watch out, this is RW! */
-		printf("SNDCTL_DSP_SUBDIVIDE unimplemented\n");
-		break;
-
     	case SNDCTL_DSP_SETFRAGMENT:
 		DEB(printf("SNDCTL_DSP_SETFRAGMENT 0x%08x\n", *(int *)arg));
 		{
-			pcm_channel *c = wrch? wrch : rdch;
+			struct pcm_channel *c = wrch? wrch : rdch;
 			u_int32_t fragln = (*arg_i) & 0x0000ffff;
 			u_int32_t maxfrags = ((*arg_i) & 0xffff0000) >> 16;
 			u_int32_t fragsz;
@@ -458,13 +483,13 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		    	if (wrch && ret == 0)
 				ret = chn_setblocksize(wrch, maxfrags, fragsz);
 
-			fragsz = c->buffer2nd.blksz;
+			fragsz = sndbuf_getblksz(c->bufsoft);
 			fragln = 0;
 			while (fragsz > 1) {
 				fragln++;
 				fragsz >>= 1;
 			}
-	    		*arg_i = (c->buffer2nd.blkcnt << 16) | fragln;
+	    		*arg_i = (sndbuf_getblkcnt(c->bufsoft) << 16) | fragln;
 		}
 		break;
 
@@ -473,18 +498,13 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		{
 	    		audio_buf_info *a = (audio_buf_info *)arg;
 	    		if (rdch) {
-	        		snd_dbuf *b = &rdch->buffer;
-	        		snd_dbuf *bs = &rdch->buffer2nd;
-				if (b->dl && !(rdch->flags & CHN_F_MAPPED))
-					/*
-					 * Suck up the secondary and DMA buffer.
-					 * chn_rdfeed*() takes care of the alignment.
-					 */
-					while (chn_rdfeed(rdch) > 0);
-				a->bytes = bs->rl;
-	        		a->fragments = a->bytes / rdch->buffer2nd.blksz;
-	        		a->fragstotal = rdch->buffer2nd.blkcnt;
-	        		a->fragsize = rdch->buffer2nd.blksz;
+	        		struct snd_dbuf *bs = rdch->bufsoft;
+
+				chn_rdupdate(rdch);
+				a->bytes = sndbuf_getfree(bs);
+	        		a->fragments = a->bytes / sndbuf_getblksz(bs);
+	        		a->fragstotal = sndbuf_getblkcnt(bs);
+	        		a->fragsize = sndbuf_getblksz(bs);
 	    		}
 		}
 		break;
@@ -494,21 +514,13 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		{
 	    		audio_buf_info *a = (audio_buf_info *)arg;
 	    		if (wrch) {
-	        		snd_dbuf *b = &wrch->buffer;
-	        		snd_dbuf *bs = &wrch->buffer2nd;
-				if (b->dl && !(wrch->flags & CHN_F_MAPPED)) {
-					/*
-					 * Fill up the secondary and DMA buffer.
-					 * chn_wrfeed*() takes care of the alignment.
-					 * Check for underflow before writing into the buffers.
-					 */
-					chn_checkunderflow(wrch);
-					while (chn_wrfeed(wrch) > 0);
-				}
-				a->bytes = bs->fl;
-	        		a->fragments = a->bytes / wrch->buffer2nd.blksz;
-	        		a->fragstotal = wrch->buffer2nd.blkcnt;
-	        		a->fragsize = wrch->buffer2nd.blksz;
+	        		struct snd_dbuf *bs = wrch->bufsoft;
+
+				chn_wrupdate(wrch);
+				a->bytes = sndbuf_getfree(bs);
+	        		a->fragments = a->bytes / sndbuf_getblksz(bs);
+	        		a->fragstotal = sndbuf_getblkcnt(bs);
+	        		a->fragsize = sndbuf_getblksz(bs);
 	    		}
 		}
 		break;
@@ -517,18 +529,13 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		{
 	    		count_info *a = (count_info *)arg;
 	    		if (rdch) {
-	        		snd_dbuf *b = &rdch->buffer;
-	        		snd_dbuf *bs = &rdch->buffer2nd;
-	        		if (b->dl && !(rdch->flags & CHN_F_MAPPED))
-					/*
-					 * Suck up the secondary and DMA buffer.
-					 * chn_rdfeed*() takes care of the alignment.
-					 */
-					while (chn_rdfeed(rdch) > 0);
-	        		a->bytes = bs->total;
-	        		a->blocks = rdch->blocks;
-	        		a->ptr = bs->rp;
-				rdch->blocks = 0;
+	        		struct snd_dbuf *bs = rdch->bufsoft;
+
+				chn_rdupdate(rdch);
+	        		a->bytes = sndbuf_gettotal(bs);
+	        		a->blocks = sndbuf_getblocks(bs) - rdch->blocks;
+	        		a->ptr = sndbuf_getreadyptr(bs);
+				rdch->blocks = sndbuf_getblocks(bs);
 	    		} else ret = EINVAL;
 		}
 		break;
@@ -537,21 +544,13 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		{
 	    		count_info *a = (count_info *)arg;
 	    		if (wrch) {
-    	        		snd_dbuf *b = &wrch->buffer;
-	        		snd_dbuf *bs = &wrch->buffer2nd;
-				if (b->dl && !(wrch->flags & CHN_F_MAPPED)) {
-					/*
-					 * Fill up the secondary and DMA buffer.
-					 * chn_wrfeed*() takes care of the alignment.
-					 * Check for underflow before writing into the buffers.
-					 */
-					chn_checkunderflow(wrch);
-					while (chn_wrfeed(wrch) > 0);
-				}
-	        		a->bytes = bs->total;
-	        		a->blocks = wrch->blocks;
-	        		a->ptr = bs->rp;
-				wrch->blocks = 0;
+	        		struct snd_dbuf *bs = wrch->bufsoft;
+
+				chn_wrupdate(wrch);
+	        		a->bytes = sndbuf_gettotal(bs);
+	        		a->blocks = sndbuf_getblocks(bs) - wrch->blocks;
+	        		a->ptr = sndbuf_getreadyptr(bs);
+				wrch->blocks = sndbuf_getblocks(bs);
 	    		} else ret = EINVAL;
 		}
 		break;
@@ -569,19 +568,19 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case SNDCTL_DSP_SETTRIGGER:
 		if (rdch) {
 			rdch->flags &= ~(CHN_F_TRIGGERED | CHN_F_NOTRIGGER);
-		    	if (*arg_i & PCM_ENABLE_INPUT)
+		    	if (*arg_i & PCM_ENABLE_INPUT) {
 				rdch->flags |= CHN_F_TRIGGERED;
-			else
+				chn_start(rdch, 1);
+			} else
 				rdch->flags |= CHN_F_NOTRIGGER;
-			chn_intr(rdch);
 		}
 		if (wrch) {
 			wrch->flags &= ~(CHN_F_TRIGGERED | CHN_F_NOTRIGGER);
-		    	if (*arg_i & PCM_ENABLE_OUTPUT)
+		    	if (*arg_i & PCM_ENABLE_OUTPUT) {
 				wrch->flags |= CHN_F_TRIGGERED;
-			else
+				chn_start(wrch, 1);
+			} else
 				wrch->flags |= CHN_F_NOTRIGGER;
-			chn_intr(wrch);
 		}
 		break;
 
@@ -595,14 +594,11 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 
 	case SNDCTL_DSP_GETODELAY:
 		if (wrch) {
-			snd_dbuf *b = &wrch->buffer;
-	        	snd_dbuf *bs = &wrch->buffer2nd;
-			if (b->dl) {
-				chn_checkunderflow(wrch);
-				if (!(wrch->flags & CHN_F_MAPPED))
-					while (chn_wrfeed(wrch) > 0);
-			}
-			*arg_i = b->rl + bs->rl;
+			struct snd_dbuf *b = wrch->bufhard;
+	        	struct snd_dbuf *bs = wrch->bufsoft;
+
+			chn_wrupdate(wrch);
+			*arg_i = sndbuf_getready(b) + sndbuf_getready(bs);
 		} else
 			ret = EINVAL;
 		break;
@@ -619,6 +615,7 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case SNDCTL_DSP_SETSYNCRO:
 		/* undocumented */
 
+    	case SNDCTL_DSP_SUBDIVIDE:
     	case SOUND_PCM_WRITE_FILTER:
     	case SOUND_PCM_READ_FILTER:
 		/* dunno what these do, don't sound important */
@@ -627,39 +624,57 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		ret = EINVAL;
 		break;
     	}
-    	splx(s);
+	if (rdch)
+		CHN_UNLOCK(rdch);
+	if (wrch)
+		CHN_UNLOCK(wrch);
     	return ret;
 }
 
 int
-dsp_poll(snddev_info *d, int chan, int events, struct proc *p)
+dsp_poll(struct snddev_info *d, int chan, int events, struct proc *p)
 {
 	int ret = 0, e;
-	pcm_channel *wrch = NULL, *rdch = NULL;
+	struct pcm_channel *wrch = NULL, *rdch = NULL;
 
 	getchns(d, chan, &rdch, &wrch);
+
 	e = events & (POLLOUT | POLLWRNORM);
 	if (wrch && e) ret |= chn_poll(wrch, e, p);
+
 	e = events & (POLLIN | POLLRDNORM);
 	if (rdch && e) ret |= chn_poll(rdch, e, p);
+
 	return ret;
 }
 
 int
-dsp_mmap(snddev_info *d, int chan, vm_offset_t offset, int nprot)
+dsp_mmap(struct snddev_info *d, int chan, vm_offset_t offset, int nprot)
 {
-	pcm_channel *wrch = NULL, *rdch = NULL, *c = NULL;
+	struct pcm_channel *wrch = NULL, *rdch = NULL, *c = NULL;
+	int ret;
 
 	getchns(d, chan, &rdch, &wrch);
-	/* XXX this is broken by line 204 of vm/device_pager.c, so force write buffer */
+#if 0
+	/*
+	 * XXX the linux api uses the nprot to select read/write bufhard
+	 * our vm system doesn't allow this, so force write bufhard
+	 */
+
 	if (1 || (wrch && (nprot & PROT_WRITE)))
 		c = wrch;
 	else if (rdch && (nprot & PROT_READ))
 		c = rdch;
-	if (c && (c->format == c->buffer.fmt)) {
-		c->flags |= CHN_F_MAPPED;
-		return atop(vtophys(c->buffer2nd.buf + offset));
-	} else
+#else
+	c = wrch;
+#endif
+
+	if (c == NULL)
 		return -1;
+	CHN_LOCK(c);
+	c->flags |= CHN_F_MAPPED;
+	ret = atop(vtophys(((char *)sndbuf_getbuf(c->bufsoft)) + offset));
+	CHN_UNLOCK(c);
+	return ret;
 }
 

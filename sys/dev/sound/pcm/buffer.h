@@ -26,24 +26,70 @@
  * $FreeBSD$
  */
 
-#define ISA_DMA(b) (((b)->chan >= 0 && (b)->chan != 4 && (b)->chan < 8))
+#define ISA_DMA(b) (sndbuf_getflags((b)) & SNDBUF_F_ISADMA)
+#define SNDBUF_LOCKASSERT(b)
 
-int sndbuf_alloc(snd_dbuf *b, bus_dma_tag_t dmatag, int size);
-int sndbuf_setup(snd_dbuf *b, void *buf, int size);
-void sndbuf_free(snd_dbuf *b);
-int sndbuf_resize(snd_dbuf *b, int blkcnt, int blksz);
-void sndbuf_reset(snd_dbuf *b);
-void sndbuf_clear(snd_dbuf *b, int length);
-int sndbuf_setfmt(snd_dbuf *b, u_int32_t fmt);
-int sndbuf_getbps(snd_dbuf *b);
-void *sndbuf_getbuf(snd_dbuf *b);
-int sndbuf_getsize(snd_dbuf *b);
-int sndbuf_runsz(snd_dbuf *b);
+#define	SNDBUF_F_ISADMA		0x00000001
+#define	SNDBUF_F_XRUN		0x00000002
+#define	SNDBUF_F_RUNNING	0x00000004
 
-int sndbuf_isadmasetup(snd_dbuf *b, struct resource *drq);
-int sndbuf_isadmasetdir(snd_dbuf *b, int dir);
-void sndbuf_isadma(snd_dbuf *b, int go);
-int sndbuf_isadmaptr(snd_dbuf *b);
-void sndbuf_isadmabounce(snd_dbuf *b);
+struct snd_dbuf *sndbuf_create(char *drv, char *desc);
+void sndbuf_destroy(struct snd_dbuf *b);
+
+void sndbuf_dump(struct snd_dbuf *b, char *s, u_int32_t what);
+
+int sndbuf_alloc(struct snd_dbuf *b, bus_dma_tag_t dmatag, unsigned int size);
+int sndbuf_setup(struct snd_dbuf *b, void *buf, unsigned int size);
+void sndbuf_free(struct snd_dbuf *b);
+int sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz);
+int sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz);
+void sndbuf_reset(struct snd_dbuf *b);
+void sndbuf_clear(struct snd_dbuf *b, unsigned int length);
+
+u_int32_t sndbuf_getfmt(struct snd_dbuf *b);
+int sndbuf_setfmt(struct snd_dbuf *b, u_int32_t fmt);
+unsigned int sndbuf_getspd(struct snd_dbuf *b);
+void sndbuf_setspd(struct snd_dbuf *b, unsigned int spd);
+unsigned int sndbuf_getbps(struct snd_dbuf *b);
+
+void *sndbuf_getbuf(struct snd_dbuf *b);
+void *sndbuf_getbufofs(struct snd_dbuf *b, unsigned int ofs);
+unsigned int sndbuf_getsize(struct snd_dbuf *b);
+unsigned int sndbuf_getmaxsize(struct snd_dbuf *b);
+unsigned int sndbuf_getalign(struct snd_dbuf *b);
+unsigned int sndbuf_getblkcnt(struct snd_dbuf *b);
+void sndbuf_setblkcnt(struct snd_dbuf *b, unsigned int blkcnt);
+unsigned int sndbuf_getblksz(struct snd_dbuf *b);
+void sndbuf_setblksz(struct snd_dbuf *b, unsigned int blksz);
+unsigned int sndbuf_runsz(struct snd_dbuf *b);
+void sndbuf_setrun(struct snd_dbuf *b, int go);
+struct selinfo *sndbuf_getsel(struct snd_dbuf *b);
+
+unsigned int sndbuf_getxrun(struct snd_dbuf *b);
+void sndbuf_setxrun(struct snd_dbuf *b, unsigned int cnt);
+unsigned int sndbuf_gethwptr(struct snd_dbuf *b);
+void sndbuf_sethwptr(struct snd_dbuf *b, unsigned int ptr);
+unsigned int sndbuf_getfree(struct snd_dbuf *b);
+unsigned int sndbuf_getfreeptr(struct snd_dbuf *b);
+unsigned int sndbuf_getready(struct snd_dbuf *b);
+unsigned int sndbuf_getreadyptr(struct snd_dbuf *b);
+unsigned int sndbuf_getblocks(struct snd_dbuf *b);
+unsigned int sndbuf_getprevblocks(struct snd_dbuf *b);
+unsigned int sndbuf_gettotal(struct snd_dbuf *b);
+void sndbuf_updateprevtotal(struct snd_dbuf *b);
+
+int sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count);
+int sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count);
+int sndbuf_uiomove(struct snd_dbuf *b, struct uio *uio, unsigned int count);
+int sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *channel, struct pcm_feeder *feeder, unsigned int count);
+
+u_int32_t sndbuf_getflags(struct snd_dbuf *b);
+void sndbuf_setflags(struct snd_dbuf *b, u_int32_t flags, int on);
+
+int sndbuf_isadmasetup(struct snd_dbuf *b, struct resource *drq);
+int sndbuf_isadmasetdir(struct snd_dbuf *b, int dir);
+void sndbuf_isadma(struct snd_dbuf *b, int go);
+int sndbuf_isadmaptr(struct snd_dbuf *b);
+void sndbuf_isadmabounce(struct snd_dbuf *b);
 
 

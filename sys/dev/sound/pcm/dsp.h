@@ -26,12 +26,12 @@
  * $FreeBSD$
  */
 
-int dsp_open(snddev_info *d, int chan, int oflags, int devtype);
-int dsp_close(snddev_info *d, int chan, int devtype);
-int dsp_read(snddev_info *d, int chan, struct uio *buf, int flag);
-int dsp_write(snddev_info *d, int chan, struct uio *buf, int flag);
-int dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg);
-int dsp_poll(snddev_info *d, int chan, int events, struct proc *p);
-int dsp_mmap(snddev_info *d, int chan, vm_offset_t offset, int nprot);
+int dsp_open(struct snddev_info *d, int chan, int oflags, int devtype);
+int dsp_close(struct snddev_info *d, int chan, int devtype);
+int dsp_read(struct snddev_info *d, int chan, struct uio *buf, int flag);
+int dsp_write(struct snddev_info *d, int chan, struct uio *buf, int flag);
+int dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg);
+int dsp_poll(struct snddev_info *d, int chan, int events, struct proc *p);
+int dsp_mmap(struct snddev_info *d, int chan, vm_offset_t offset, int nprot);
 
 
