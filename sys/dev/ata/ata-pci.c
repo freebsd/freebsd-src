@@ -234,7 +234,10 @@ ata_pci_match(device_t dev)
 	return "AMD 768 ATA100 controller";
 
     case 0x01bc10de:
-	return "nVIDIA nForce ATA100 controller";
+	return "nVidia nForce ATA100 controller";
+
+    case 0x006510de:
+	return "nVidia nForce ATA133 controller";
 
     case 0x02111166:
 	return "ServerWorks ROSB4 ATA33 controller";
