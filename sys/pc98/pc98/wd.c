@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.9.2.2 1996/12/04 16:01:45 phk Exp $
+ *	$Id: wd.c,v 1.9.2.3 1997/01/04 20:18:34 kato Exp $
  */
 
 /* TODO:
@@ -482,25 +482,11 @@ wdattach(struct isa_device *dvp)
 				printf("wd%d: size unknown, using %s values\n",
 				       lunit, du->dk_dd.d_secperunit > 17
 					      ? "BIOS" : "fake");
-#ifdef PC98	/* XXX */
-			if (du->dk_dd.d_secperunit > 8 * 1024 * 1024) {
-			    du->dk_dd.d_ncylinders = 
-				bootinfo.bi_bios_geom[du->dk_unit] >> 16;
-			    du->dk_dd.d_secperunit = 
-				du->dk_dd.d_ncylinders
-					* du->dk_dd.d_ntracks
-					* du->dk_dd.d_nsectors;
-			}
-#endif
 			printf(
 "wd%d: %luMB (%lu sectors), %lu cyls, %lu heads, %lu S/T, %lu B/S\n",
 			       lunit,
 			       du->dk_dd.d_secperunit
-#ifdef PC98
-			       / ( 1024 * 1024 / du->dk_dd.d_secsize) ,
-#else
 			       * du->dk_dd.d_secsize / (1024 * 1024),
-#endif
 			       du->dk_dd.d_secperunit,
 			       du->dk_dd.d_ncylinders,
 			       du->dk_dd.d_ntracks,
@@ -1791,14 +1777,16 @@ failed:
 #ifdef WDDEBUG
 	printf(
 "\nwd(%d,%d): wdgetctlr: gc %x cyl %d trk %d sec %d type %d sz %d model %s\n",
-	       du->dk_ctrlr, du->dk_unit, wp->wdp_config, wp->wdp_cylinders,
+	       du->dk_ctrlr, du->dk_unit, wp->wdp_config, (u_short)wp->wdp_cylinders,
 	       wp->wdp_heads, wp->wdp_sectors, wp->wdp_buffertype,
 	       wp->wdp_buffersize, wp->wdp_model);
 #endif
 #ifdef PC98
 	/* for larger than 40MB */
 	{
-	  long cyl = wp->wdp_cylinders * wp->wdp_heads * wp->wdp_sectors;
+	  u_long cyl = (u_short)wp->wdp_cylinders * (u_short)wp->wdp_heads
+		  * (u_short)wp->wdp_sectors;
+	  u_short tmpcyl;
 
 	  if ( du->dk_unit > 1 ) {
 	 	 wp->wdp_sectors = 17;
@@ -1808,13 +1796,14 @@ failed:
 		 wp->wdp_heads = (bootinfo.bi_bios_geom[du->dk_unit] >> 8) & 0xff;
 	  }
 
-	  wp->wdp_cylinders = cyl / (wp->wdp_heads * wp->wdp_sectors);
+	  tmpcyl = cyl / ((u_short)wp->wdp_heads * (u_short)wp->wdp_sectors);
+	  wp->wdp_cylinders = (short)tmpcyl;
 	}
 #endif
 
 	/* update disklabel given drive information */
 	du->dk_dd.d_secsize = DEV_BSIZE;
-	du->dk_dd.d_ncylinders = wp->wdp_cylinders;	/* +- 1 */
+	du->dk_dd.d_ncylinders = (u_long)((u_short)wp->wdp_cylinders);	/* +- 1 */
 	du->dk_dd.d_ntracks = wp->wdp_heads;
 	du->dk_dd.d_nsectors = wp->wdp_sectors;
 	du->dk_dd.d_secpercyl = du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;
