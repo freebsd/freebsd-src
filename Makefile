@@ -63,6 +63,11 @@
 # release of 4.0. You have exactly one major release to move entirely
 # to elf.
 #
+# If -DTARGET_ARCH=arch (e.g. ia64, sparc64, ...) is specified you can
+# cross build world for other architectures using the buildworld target,
+# and once the world is built you can cross build a kernel using the
+# buildkernel target.
+#
 # ----------------------------------------------------------------------------
 #
 #           Upgrading an i386 system from a.out to elf format
