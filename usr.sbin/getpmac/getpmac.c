@@ -46,7 +46,7 @@
 
 #define	MAXELEMENTS	32
 
-void
+static void
 usage(void)
 {
 
