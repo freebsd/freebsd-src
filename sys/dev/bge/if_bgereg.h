@@ -1906,7 +1906,7 @@ struct bge_status_block {
 #define ALTIMA_VENDORID			0x173b
 #define ALTIMA_DEVICE_AC1000		0x03e8
 #define ALTIMA_DEVICE_AC1002		0x03e9
-#define ALTIMA_DEVICE_AC9100	 	0x03ea			
+#define ALTIMA_DEVICE_AC9100		0x03ea
 
 /*
  * Dell PCI vendor ID
@@ -2150,19 +2150,19 @@ struct bge_gib {
  * Vital product data and structures.
  */
 #define BGE_VPD_FLAG		0x8000
- 
+
 /* VPD structures */
 struct vpd_res {
 	u_int8_t		vr_id;
 	u_int8_t		vr_len;
 	u_int8_t		vr_pad;
 };
- 
+
 struct vpd_key {
 	char			vk_key[2];
 	u_int8_t		vk_len;
 };
- 
+
 #define VPD_RES_ID	0x82	/* ID string */
 #define VPD_RES_READ	0x90	/* start of read only area */
 #define VPD_RES_WRITE	0x81	/* start of read/write area */
