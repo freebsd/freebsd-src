@@ -4,6 +4,8 @@
 # Currently, no method for checking to see if the designated disk type is
 # already in /etc/disktab.  You can edit it out of the file after installation.
 #
+PATH=/sbin:/bin:/usr/bin:/usr/sbin:.
+
 OPSYSTEM=FreeBSD
 OPSYSID=165
 ROOTMIN=7
@@ -83,20 +85,12 @@ while read data; do
 		end_cyl=`expr "$data" : '[ 	]*end[^0-9]*\([0-9]*\)'`
 		if [ "$part_id" ]; then 	
 			part_cnt=`expr $part_cnt + 1`
-		elif [ "$beg_cyl"  ]; then
-				if [ $beg_cyl -gt $cyls_per_disk ]; then
-					no_part_table=1
-					sysid_cnt=0
-					have_opsys_part=0
-					unused_last_part=`expr $part_cnt - 1`
-				fi
-		elif [ "$end_cyl" ]; then 
-				if [ $end_cyl -gt $cyls_per_disk ]; then
-					no_part_table=1
-					sysid_cnt=0
-					have_opsys_part=0
-					unused_last_part=`expr $part_cnt - 1`
-				fi
+		elif [ "${beg_cyl}" -gt "${cyls_per_disk}" -o  \
+		    "${end_cyl}" -gt "${cyls_per_disk}" ]; then
+			no_part_table=1
+			sysid_cnt=0
+			have_opsys_part=0
+			unused_last_part=`expr $part_cnt - 1`
 		fi
 	fi
 done <fdisk.out
