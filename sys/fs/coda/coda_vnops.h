@@ -78,7 +78,6 @@ int coda_islocked  __P((void *));
 int coda_vop_error   __P((void *));
 int coda_vop_nop     __P((void *));
 int coda_fbsd_getpages	__P((void *));
-int coda_fbsd_putpages	__P((void *));
 
 int (**coda_vnodeop_p)(void *);
 

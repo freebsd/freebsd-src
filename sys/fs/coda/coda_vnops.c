@@ -143,7 +143,7 @@ struct vnodeopv_entry_desc coda_vnodeop_entries[] = {
     { &vop_lease_desc, coda_vop_nop },		/* lease */
     { &vop_poll_desc, (vop_t *) vop_stdpoll },
     { &vop_getpages_desc, coda_fbsd_getpages },	/* pager intf.*/
-    { &vop_putpages_desc, coda_fbsd_putpages },	/* pager intf.*/
+    { &vop_putpages_desc, vop_stdputpages },	/* pager intf.*/
 
 #if	0
 
