@@ -101,6 +101,15 @@ Boston, MA 02111-1307, USA.  */
     %{!shared:crtend.o%s} \
     %{shared:crtendS.o%s} crtn.o%s}"
 
+/* FreeBSD conditionalizes the use of ".section rodata" depending on
+   ELF mode - otherwise .text.  */
+#undef  USE_CONST_SECTION
+#define USE_CONST_SECTION	TARGET_ELF
+
+/* ".string" doesn't work for the aout case. */
+#undef  STRING_ASM_OP
+#define STRING_ASM_OP	(TARGET_AOUT ? "\t.asciz\t" : "\t.string\t")
+
 
 /************************[  Target stuff  ]***********************************/
 
@@ -347,12 +356,21 @@ Boston, MA 02111-1307, USA.  */
 
    This is used to align code labels according to Intel recommendations.  */
 
+/* XXX configuration of this is broken in the same way as HAVE_GAS_SHF_MERGE,
+   but it is easier to fix in an MD way.  */
+
 #ifdef HAVE_GAS_MAX_SKIP_P2ALIGN
-#define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE, LOG, MAX_SKIP)					\
-  if ((LOG) != 0) {														\
-    if ((MAX_SKIP) == 0) fprintf ((FILE), "\t.p2align %d\n", (LOG));	\
-    else fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP));	\
-  }
+#define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE, LOG, MAX_SKIP)			\
+do {									\
+  if ((LOG) != 0) {							\
+    if (TARGET_AOUT)							\
+      ASM_OUTPUT_ALIGN ((FILE), (LOG));					\
+    else if ((MAX_SKIP) == 0)						\
+      fprintf ((FILE), "\t.p2align %d\n", (LOG));			\
+    else								\
+      fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP));	\
+  }									\
+} while (0)
 #endif
 
 
