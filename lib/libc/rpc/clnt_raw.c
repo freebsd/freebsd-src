@@ -81,7 +81,7 @@ static enum clnt_stat clnt_raw_call(CLIENT *, rpcproc_t, xdrproc_t, void *,
 static void clnt_raw_geterr(CLIENT *, struct rpc_err *);
 static bool_t clnt_raw_freeres(CLIENT *, xdrproc_t, void *);
 static void clnt_raw_abort(CLIENT *);
-static bool_t clnt_raw_control(CLIENT *, u_int, char *);
+static bool_t clnt_raw_control(CLIENT *, u_int, void *);
 static void clnt_raw_destroy(CLIENT *);
 static struct clnt_ops *clnt_raw_ops(void);
 
@@ -280,7 +280,7 @@ static bool_t
 clnt_raw_control(cl, ui, str)
 	CLIENT *cl;
 	u_int ui;
-	char *str;
+	void *str;
 {
 	return (FALSE);
 }
