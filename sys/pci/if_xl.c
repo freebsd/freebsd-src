@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.7 1998/08/31 15:26:09 wpaul Exp $
+ *	$Id: if_xl.c,v 1.49 1998/09/04 15:30:02 wpaul Exp $
  */
 
 /*
@@ -43,9 +43,12 @@
  * 3Com 3c900-COMBO	10Mbps/RJ-45,AUI,BNC
  * 3Com 3c905-TX	10/100Mbps/RJ-45
  * 3Com 3c905-T4	10/100Mbps/RJ-45
+ * 3Com 3c900B-TPO	10Mbps/RJ-45
+ * 3Com 3c900B-COMBO	10Mbps/RJ-45,AUI,BNC
  * 3Com 3c905B-TX	10/100Mbps/RJ-45
  * 3Com 3c905B-FL/FX	10/100Mbps/Fiber-optic
- * Dell Optiplex GX1 on-board 3c905B 10/100Mbps/RJ-45
+ * 3Com 3c980-TX	10/100Mbps server adapter
+ * Dell Optiplex GX1 on-board 3c918 10/100Mbps/RJ-45
  * Dell Precision on-board 3c905B 10/100Mbps/RJ-45
  * Dell Latitude laptop docking station embedded 3c905-TX
  *
@@ -124,7 +127,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.7 1998/08/31 15:26:09 wpaul Exp $";
+	"$Id: if_xl.c,v 1.49 1998/09/04 15:30:02 wpaul Exp $";
 #endif
 
 /*
@@ -140,13 +143,15 @@ static struct xl_type xl_devs[] = {
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_100BT4,
 		"3Com 3c905 Fast Etherlink XL 10/100BaseT4" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10BT,
-		"3Com 3c905B Etherlink XL 10BaseT" },
+		"3Com 3c900B Etherlink XL 10BaseT" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10BT_COMBO,
-		"3Com 3c905B Etherlink XL 10BaseT Combo" },
+		"3Com 3c900B Etherlink XL 10BaseT Combo" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT,
 		"3Com 3c905B Fast Etherlink XL 10/100BaseTX" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT4,
 		"3Com 3c905B Fast Etherlink XL 10/100BaseT4" },
+	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT_SERV,
+		"3Com 3c980 Fast Etherlink XL 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -1170,15 +1175,28 @@ static void xl_mediacheck(sc)
 	 * XXX I should check for 10baseFL, but I don't have an adapter
 	 * to test with.
 	 */
-	if (sc->xl_media & (XL_MEDIAOPT_MASK & ~XL_MEDIAOPT_VCO))
-		return;
+	if (sc->xl_media & (XL_MEDIAOPT_MASK & ~XL_MEDIAOPT_VCO)) {
+		/*
+	 	* Check the XCVR value. If it's not in the normal range
+	 	* of values, we need to fake it up here.
+	 	*/
+		if (sc->xl_xcvr <= XL_XCVR_AUTO)
+			return;
+		else {
+			printf("xl%d: bogus xcvr value "
+			"in EEPROM (%x)\n", sc->xl_unit, sc->xl_xcvr);
+			printf("xl%d: choosing new default based "
+				"on card type\n", sc->xl_unit);
+		}
+	} else {
+		printf("xl%d: WARNING: no media options bits set in "
+			"the media options register!!\n", sc->xl_unit);
+		printf("xl%d: this could be a manufacturing defect in "
+			"your adapter or system\n", sc->xl_unit);
+		printf("xl%d: attempting to guess media type; you "
+			"should probably consult your vendor\n", sc->xl_unit);
+	}
 
-	printf("xl%d: WARNING: no media options bits set in "
-		"the media options register!!\n", sc->xl_unit);
-	printf("xl%d: this could be a manufacturing defect in "
-		"your adapter or system\n", sc->xl_unit);
-	printf("xl%d: attempting to guess media type; you "
-		"should probably consult your vendor\n", sc->xl_unit);
 
 	/*
 	 * Read the device ID from the EEPROM.
@@ -1189,26 +1207,32 @@ static void xl_mediacheck(sc)
 
 	switch(devid) {
 	case TC_DEVICEID_BOOMERANG_10BT:	/* 3c900-TP */
-	case TC_DEVICEID_CYCLONE_10BT:		/* 3c905B-TP */
+	case TC_DEVICEID_CYCLONE_10BT:		/* 3c900B-TP */
 		sc->xl_media = XL_MEDIAOPT_BT;
+		sc->xl_xcvr = XL_XCVR_10BT;
 		printf("xl%d: guessing 10BaseT transceiver\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_BOOMERANG_10BT_COMBO:	/* 3c900-COMBO */
-	case TC_DEVICEID_CYCLONE_10BT_COMBO:	/* 3c905B-COMBO */
+	case TC_DEVICEID_CYCLONE_10BT_COMBO:	/* 3c900B-COMBO */
 		sc->xl_media = XL_MEDIAOPT_BT|XL_MEDIAOPT_BNC|XL_MEDIAOPT_AUI;
+		sc->xl_xcvr = XL_XCVR_10BT;
 		printf("xl%d: guessing COMBO (AUI/BNC/TP)\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_BOOMERANG_10_100BT:	/* 3c905-TX */
 		sc->xl_media = XL_MEDIAOPT_MII;
+		sc->xl_xcvr = XL_XCVR_MII;
 		printf("xl%d: guessing MII\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_BOOMERANG_100BT4:	/* 3c905-T4 */
 	case TC_DEVICEID_CYCLONE_10_100BT4:	/* 3c905B-T4 */
 		sc->xl_media = XL_MEDIAOPT_BT4;
+		sc->xl_xcvr = XL_XCVR_MII;
 		printf("xl%d: guessing 100BaseT4/MII\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_CYCLONE_10_100BT:	/* 3c905B-TX */
+	case TC_DEVICEID_CYCLONE_10_100BT_SERV:	/* 3c980-TX */
 		sc->xl_media = XL_MEDIAOPT_BTX;
+		sc->xl_xcvr = XL_XCVR_AUTO;
 		printf("xl%d: guessing 10/100 internal\n", sc->xl_unit);
 		break;
 	default:
@@ -1408,11 +1432,12 @@ xl_attach(config_id, unit)
 		printf("xl%d: media options word: %x\n", sc->xl_unit,
 							 sc->xl_media);
 
-	xl_mediacheck(sc);
-
 	xl_read_eeprom(sc, (char *)&sc->xl_xcvr, XL_EE_ICFG_0, 2, 0);
 	sc->xl_xcvr &= XL_ICFG_CONNECTOR_MASK;
 	sc->xl_xcvr >>= XL_ICFG_CONNECTOR_BITS;
+
+	xl_mediacheck(sc);
+
 	if (sc->xl_media & XL_MEDIAOPT_MII || sc->xl_media & XL_MEDIAOPT_BTX
 			|| sc->xl_media & XL_MEDIAOPT_BT4) {
 		/*
