@@ -70,7 +70,7 @@ getgrouplist(uname, agroup, groups, grpcnt)
 	 */
 	setgrent();
 	while (grp = getgrent()) {
-		for (i = 1; i < ngroups; i++) {
+		for (i = 0; i < ngroups; i++) {
 			if (grp->gr_gid == groups[i])
 				goto skip;
 		}
