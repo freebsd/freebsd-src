@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.65 1996/03/10 07:04:44 gibbs Exp $
+ *	$Id: isa.c,v 1.66 1996/04/07 17:32:13 bde Exp $
  */
 
 /*
@@ -125,7 +125,7 @@ static void conflict __P((struct isa_device *dvp, struct isa_device *tmpdvp,
 			  char const *format));
 static int haveseen __P((struct isa_device *dvp, struct isa_device *tmpdvp,
 			 u_int checkbits));
-static int isa_dmarangecheck __P((caddr_t va, unsigned length, unsigned chan));
+static int isa_dmarangecheck __P((caddr_t va, u_int length, int chan));
 static inthand2_t isa_strayintr;
 static void register_imask __P((struct isa_device *dvp, u_int mask));
 
@@ -559,26 +559,35 @@ isa_defaultirq()
 }
 
 static caddr_t	dma_bouncebuf[8];
-static unsigned	dma_bouncebufsize[8];
-static char	dma_bounced[8];
-static char	dma_busy[8];
+static u_int	dma_bouncebufsize[8];
+static u_int8_t	dma_bounced = 0;
+static u_int8_t	dma_busy = 0;		/* Used in isa_dmastart() */
+static u_int8_t	dma_inuse = 0;		/* User for acquire/release */
+
+#define VALID_DMA_MASK (7)
 
 /* high byte of address is stored in this port for i-th dma channel */
 static short dmapageport[8] =
 	{ 0x87, 0x83, 0x81, 0x82, 0x8f, 0x8b, 0x89, 0x8a };
 
 /*
- * Allocate a DMA channel.
+ * Setup a DMA channel's bounce buffer.
  */
 void
 isa_dmainit(chan, bouncebufsize)
-	unsigned chan;
-	unsigned bouncebufsize;
+	int chan;
+	u_int bouncebufsize;
 {
 	void *buf;
 
-	if (chan > 7 || dma_bouncebuf[chan] != NULL)
+#ifdef DIAGNOSTIC
+	if (chan & ~VALID_DMA_MASK)
+		panic("isa_dmainit: channel out of range");
+
+	if (dma_bouncebuf[chan] != NULL)
 		panic("isa_dmainit: impossible request"); 
+#endif
+
 	dma_bouncebufsize[chan] = bouncebufsize;
 
 	/* Try malloc() first.  It works better if it works. */
@@ -599,13 +608,67 @@ isa_dmainit(chan, bouncebufsize)
 }
 
 /*
+ * Register a DMA channel's usage.  Usually called from a device driver
+ * in open() or during it's initialization.
+ */
+int
+isa_dma_acquire(chan)
+	int chan;
+{
+#ifdef DIAGNOSTIC
+	if (chan & ~VALID_DMA_MASK)
+		panic("isa_dma_acquire: channel out of range");
+#endif
+
+	if (dma_inuse & (1 << chan)) {
+		printf("isa_dma_acquire: channel %d already in use\n", chan);
+		return (EBUSY);
+	}
+	dma_inuse |= (1 << chan);
+
+	return (0);
+}
+
+/*
+ * Unregister a DMA channel's usage.  Usually called from a device driver
+ * during close() or during it's shutdown.
+ */
+void
+isa_dma_release(chan)
+	int chan;
+{
+#ifdef DIAGNOSTIC
+	if (chan & ~VALID_DMA_MASK)
+		panic("isa_dma_release: channel out of range");
+
+	if (dma_inuse & (1 << chan) == 0)
+		printf("isa_dma_release: channel %d not in use\n", chan);
+#endif
+
+	if (dma_busy & (1 << chan)) {
+		dma_busy &= ~(1 << chan);
+		/* 
+		 * XXX We should also do "dma_bounced &= (1 << chan);"
+		 * because we are acting on behalf of isa_dmadone() which
+		 * was not called to end the last DMA operation.  This does
+		 * not matter now, but it may in the future.
+		 */
+	}
+
+	dma_inuse &= ~(1 << chan);
+}
+
+/*
  * isa_dmacascade(): program 8237 DMA controller channel to accept
  * external dma control by a board.
  */
-void isa_dmacascade(unsigned chan)
+void isa_dmacascade(chan)
+	int chan;
 {
-	if (chan > 7)
-		panic("isa_dmacascade: impossible request");
+#ifdef DIAGNOSTIC
+	if (chan & ~VALID_DMA_MASK)
+		panic("isa_dmacascade: channel out of range");
+#endif
 
 	/* set dma channel mode, and set dma channel mode */
 	if ((chan & 4) == 0) {
@@ -621,26 +684,34 @@ void isa_dmacascade(unsigned chan)
  * isa_dmastart(): program 8237 DMA controller channel, avoid page alignment
  * problems by using a bounce buffer.
  */
-void isa_dmastart(int flags, caddr_t addr, unsigned nbytes, unsigned chan)
-{	vm_offset_t phys;
+void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
+{
+	vm_offset_t phys;
 	int waport;
 	caddr_t newaddr;
 
-	if (    chan > 7
-	    || (chan < 4 && nbytes > (1<<16))
+#ifdef DIAGNOSTIC
+	if (chan & ~VALID_DMA_MASK)
+		panic("isa_dmastart: channel out of range");
+
+	if ((chan < 4 && nbytes > (1<<16))
 	    || (chan >= 4 && (nbytes > (1<<17) || (u_int)addr & 1)))
 		panic("isa_dmastart: impossible request");
 
-#ifdef notdef
-	if (dma_busy[chan])
-		printf("isa_dmastart: channel %u busy\n", chan);
+	if (dma_inuse & (1 << chan) == 0)
+		printf("isa_dmastart: channel %d not acquired\n", chan);
 #endif
-	dma_busy[chan] = 1;
+
+	if (dma_busy & (1 << chan))
+		printf("isa_dmastart: channel %d busy\n", chan);
+
+	dma_busy |= (1 << chan);
+
 	if (isa_dmarangecheck(addr, nbytes, chan)) {
 		if (dma_bouncebuf[chan] == NULL
 		    || dma_bouncebufsize[chan] < nbytes)
 			panic("isa_dmastart: bad bounce buffer"); 
-		dma_bounced[chan] = 1;
+		dma_bounced |= (1 << chan);
 		newaddr = dma_bouncebuf[chan];
 
 		/* copy bounce buffer on write */
@@ -723,36 +794,33 @@ void isa_dmastart(int flags, caddr_t addr, unsigned nbytes, unsigned chan)
 }
 
 void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
-{
+{  
+#ifdef DIAGNOSTIC
+	if (chan & ~VALID_DMA_MASK)
+		panic("isa_dmadone: channel out of range");
 
-#ifdef notdef
-	if (!dma_busy[chan])
+	if (dma_inuse & (1 << chan) == 0)
+		printf("isa_dmadone: channel %d not acquired\n", chan);
+#endif
+
+#if 0
+	/*
+	 * XXX This should be checked, but drivers like ad1848 only call
+	 * isa_dmastart() once because they use Auto DMA mode.  If we
+	 * leave this in, drivers that do this will print this continuously.
+	 */
+	if (dma_busy & (1 << chan) == 0)
 		printf("isa_dmadone: channel %d not busy\n", chan);
 #endif
-	if (dma_bounced[chan]) {
+
+	if (dma_bounced & (1 << chan)) {
 		/* copy bounce buffer on read */
 		if (flags & B_READ)
 			bcopy(dma_bouncebuf[chan], addr, nbytes);
 
-		dma_bounced[chan] = 0;
+		dma_bounced &= ~(1 << chan);
 	}
-	dma_busy[chan] = 0;
-}
-
-void
-isa_dmadone_nobounce(chan)
-	unsigned chan;
-{
-
-#ifdef notdef
-	if (!dma_busy[chan])
-		printf("isa_dmadone_nobounce: channel %u not busy\n", chan);
-#endif
-	if (dma_bounced[chan]) {
-		printf("isa_dmadone_nobounce: channel %u bounced\n", chan);
-		dma_bounced[chan] = 0;
-	}
-	dma_busy[chan] = 0;
+	dma_busy &= ~(1 << chan);
 }
 
 /*
@@ -763,7 +831,7 @@ isa_dmadone_nobounce(chan)
  */
 
 static int
-isa_dmarangecheck(caddr_t va, unsigned length, unsigned chan) {
+isa_dmarangecheck(caddr_t va, u_int length, int chan) {
 	vm_offset_t phys, priorpage = 0, endva;
 	u_int dma_pgmsk = (chan & 4) ?  ~(128*1024-1) : ~(64*1024-1);
 
