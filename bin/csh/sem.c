@@ -29,12 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)sem.c	8.1 (Berkeley) 5/31/93";
+#else
+static const char rcsid[] =
+	"$Id: sem.c,v 1.5 1997/02/22 14:02:07 peter Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -62,7 +65,7 @@ static void	 chkclob __P((char *));
 
 void
 execute(t, wanttty, pipein, pipeout)
-    register struct command *t;
+    struct command *t;
     int     wanttty, *pipein, *pipeout;
 {
     bool    forked = 0;
@@ -451,7 +454,7 @@ static void
 vffree(i)
 int i;
 {
-    register Char **v;
+    Char **v;
 
     if ((v = gargv) != NULL) {
 	gargv = 0;
@@ -481,7 +484,7 @@ int i;
  */
 static Char *
 splicepipe(t, cp)
-    register struct command *t;
+    struct command *t;
     Char *cp;	/* word after < or > */
 {
     Char *blk[2];
@@ -524,12 +527,12 @@ splicepipe(t, cp)
  */
 static void
 doio(t, pipein, pipeout)
-    register struct command *t;
+    struct command *t;
     int    *pipein, *pipeout;
 {
-    register int fd;
-    register Char *cp;
-    register int flags = t->t_dflg;
+    int fd;
+    Char *cp;
+    int flags = t->t_dflg;
 
     if (didfds || (flags & F_REPEAT))
 	return;
@@ -620,7 +623,7 @@ doio(t, pipein, pipeout)
 
 void
 mypipe(pv)
-    register int *pv;
+    int *pv;
 {
 
     if (pipe(pv) < 0)
@@ -635,7 +638,7 @@ oops:
 
 static void
 chkclob(cp)
-    register char *cp;
+    char *cp;
 {
     struct stat stb;
 
