@@ -755,6 +755,7 @@ ess_intr(void *arg)
 	chn_intr(sb->rch.channel);
     }
 }
+
 static int
 sb_format(struct sb_chinfo *ch, u_int32_t format)
 {
@@ -1238,7 +1239,7 @@ sbmix_setrecsrc(snd_mixer *m, u_int32_t src)
 	 	*/
         	sb_setmixer(sb, SB16_OMASK, 0x1f & ~1);
 		break;
-    	}
+       	}
     	return src;
 }
 
