@@ -31,9 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.78 1998/03/30 09:56:00 phk Exp $
+ * $Id: ffs_vfsops.c,v 1.79 1998/04/19 23:32:49 julian Exp $
  */
 
+#include "opt_devfs.h" /* for SLICE */
 #include "opt_quota.h"
 
 #include <sys/param.h>
