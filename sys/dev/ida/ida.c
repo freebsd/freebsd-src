@@ -398,7 +398,7 @@ ida_construct_qcb(struct ida_softc *ida)
 	 * XXX
 	 */
 	{
-		struct id_softc *drv = (struct id_softc *)bp->b_driver1;
+		struct idad_softc *drv = (struct idad_softc *)bp->b_driver1;
 		hwqcb->hdr.drive = drv->unit;
 	}
 
@@ -520,7 +520,7 @@ ida_done(struct ida_softc *ida, struct ida_qcb *qcb)
 	} else {
 		if (error)
 			qcb->buf->b_flags |= B_ERROR;
-		id_intr(qcb->buf);
+		idad_intr(qcb->buf);
 	}
 
 	qcb->state = QCB_FREE;
