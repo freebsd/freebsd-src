@@ -64,7 +64,7 @@ This
 .Em boot
 program
 finds the corresponding file on the given device 
-.Pf ( Ar vmunix
+.Pf ( Ar kernel
 by default),
 loads that file into memory,
 and starts the program at the entry address specified in the program header.
@@ -94,7 +94,7 @@ specifiers.
 For example,
 to boot from the `a' file system of unit 0 on HP-IB 2,
 type
-.Ql rd(16, 0)vmunix
+.Ql rd(16, 0)kernel
 to the boot prompt.
 For tapes, the minor device number gives a file offset.
 .Pp
@@ -103,7 +103,7 @@ In an emergency, the bootstrap methods described in the paper
 can be used to boot from a distribution tape.
 .Sh FILES
 .Bl -tag -width /usr/mdec/installboot -compact
-.It Pa /vmunix
+.It Pa /kernel
 system code
 .It Pa /usr/mdec/bootrd
 .Tn LIF

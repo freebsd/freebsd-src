@@ -62,7 +62,7 @@ The default, causing the system to reboot in its usual fashion.
 Interpreted by the bootstrap program itself, causing it to
 prompt on the console as to what file should be booted.
 Normally, the system is booted from the file
-.Dq Em xx Ns No (0,0)vmunix ,
+.Dq Em xx Ns No (0,0)kernel ,
 where
 .Em xx
 is the default disk name,
@@ -123,7 +123,7 @@ program in the newly booted system.
 When no options are given (i.e.,
 .Dv RB_AUTOBOOT
 is used), the system is
-rebooted from file ``vmunix'' in the root file system of unit 0
+rebooted from file ``kernel'' in the root file system of unit 0
 of a disk chosen in a processor specific way.
 An automatic consistency check of the disks is normally performed
 (see

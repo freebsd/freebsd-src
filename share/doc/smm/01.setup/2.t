@@ -370,7 +370,7 @@ prompt for a kernel file to boot:
 HP433 CPU
 Boot
 .R
-\fB:\fP \fI/vmunix\fP
+\fB:\fP \fI/kernel\fP
 .DE
 .LP
 After providing the kernel name, the machine will boot \*(4B with
@@ -755,7 +755,7 @@ Boot the supplied kernel:
 .DS
 .ft CW
 # halt
-ok boot sd(0,3)vmunix -s		[for old proms] OR
+ok boot sd(0,3)kernel -s		[for old proms] OR
 ok boot disk3 -s			[for new proms]
 \&... [\*(4B boot messages]
 .DE
@@ -773,7 +773,7 @@ to set up \*(4B to reboot automatically:
 .DS
 .ft CW
 # halt
-ok setenv boot-from sd(0,3)vmunix	[for old proms] OR
+ok setenv boot-from sd(0,3)kernel	[for old proms] OR
 ok setenv boot-device disk3		[for new proms]
 .DE
 If you build backwards-compatible filesystems, either with the SunOS
@@ -857,8 +857,8 @@ tar xf /dev/rmt0
 will extract the following four files:
 .DS
 A) root.image: \fIdd\fP image of the root filesystem
-B) vmunix.tape: \fIdd\fP image for creating boot tapes
-C) vmunix.net: file for booting over the network
+B) kernel.tape: \fIdd\fP image for creating boot tapes
+C) kernel.net: file for booting over the network
 D) root.dump: \fIdump\fP image of the root filesystem
 .DE
 There are three basic ways a system can be bootstrapped corresponding to the
@@ -886,8 +886,8 @@ following PROM commands. If you are booting on a 3100, the disk must be SCSI
 id zero because of a bug.
 .DS
 .ft CW
-DEC 3100:    boot \-f rz(0,0,0)vmunix
-DEC 5000:    boot 5/rz0/vmunix
+DEC 3100:    boot \-f rz(0,0,0)kernel
+DEC 5000:    boot 5/rz0/kernel
 .DE
 You can then proceed to section 2.5
 to create reasonable disk partitions for your machine
@@ -903,7 +903,7 @@ First, you will need to create a boot tape. This can be done using
 \fIdd\fP as in the following example.
 .DS
 .ft CW
-dd if=vmunix.tape of=/dev/nrmt0 bs=1b
+dd if=kernel.tape of=/dev/nrmt0 bs=1b
 dd if=root.dump of=/dev/nrmt0 bs=\*(Bzb
 .DE
 The actual special file syntax for the tape drive will vary depending on
@@ -925,15 +925,15 @@ Next you should proceed to section 2.4.3 to build a disk-based root filesystem.
 .PP
 You will need a host machine that is running the \fIbootp\fP server 
 with the
-.Pn vmunix.net
+.Pn kernel.net
 file installed in the default directory defined by the
 configuration file for
 .Xr bootp .
 Here are two example PROM commands to boot across the net:
 .DS
 .ft CW
-DEC 3100:	boot \-f tftp()vmunix.net m
-DEC 5000:	boot 6/tftp/vmunix.net m
+DEC 3100:	boot \-f tftp()kernel.net m
+DEC 5000:	boot 6/tftp/kernel.net m
 .DE
 This command should load the kernel and mini-root into memory and
 run the same as the tape install (procedure B).
@@ -1001,8 +1001,8 @@ When the restore finishes, clean up with:
 Reset the system and initialize the PROM monitor to boot automatically.
 .DS
 .ft CW
-DEC 3100:	setenv bootpath boot \-f rz(0,?,0)vmunix
-DEC 5000:	setenv bootpath 5/rz?/vmunix -a
+DEC 3100:	setenv bootpath boot \-f rz(0,?,0)kernel
+DEC 5000:	setenv bootpath 5/rz?/kernel -a
 .DE
 .IP 4)
 After booting UNIX, you will need to create
@@ -1370,7 +1370,7 @@ directory is a memory-based filesystem.
 Note that to interleave the paging between the two disks
 you must build a system configuration that specifies:
 .DS
-config	vmunix	root on \*(Dk0 swap on \*(Dk0 and \*(Dk1
+config	kernel	root on \*(Dk0 swap on \*(Dk0 and \*(Dk1
 .DE
 The
 .Pn /etc/fstab
