@@ -133,10 +133,16 @@ A regular expression which produces this syntax is:
     <scheme>:(//(<user>(:<pwd>)?@)?<host>(:<port>)?)?/(<document>)?
 .Ed
 .Pp
+If the URL does not seem to begin with a scheme name, the following
+syntax is assumed:
+.Bd -literal
+    ((<user>(:<pwd>)?@)?<host>(:<port>)?)?/(<document>)?
+.Ed
+.Pp
 Note that some components of the URL are not necessarily relevant to
 all URL schemes.
-For instance, the file scheme only needs the <scheme>
-and <document> components.
+For instance, the file scheme only needs the <scheme> and <document>
+components.
 .Pp
 .Fn fetchMakeURL
 and
@@ -416,8 +422,11 @@ and message, e.g. "File is not available (404 Not Found)"
 .Sh ENVIRONMENT
 .Bl -tag -width HTTP_PROXY_AUTH
 .It Ev FTP_PROXY
-Host name of the FTP proxy to use, optionally followed by a port
-number separated from the host name by a colon.
+URL of the proxy to use for FTP requests.
+The document part is ignored.
+FTP and HTTP proxies are supported; if no scheme is specified, FTP is
+assumed.
+If the proxy is an FTP proxy,
 .Nm libfetch
 will send
 .Ql user@host
@@ -444,12 +453,12 @@ password, in that order.
 This variable is only used if the server requires authorization and
 no user name or password was specified in the URL.
 .It Ev HTTP_PROXY
-host name of the HTTP proxy to use, optionally followed by a port
-number separated from the host name by a colon.
+URL of the proxy to use for HTTP requests.
+The document part is ignored.
+Only HTTP proxies are supported for HTTP requests.
 If no port number is specified, the default is 3128.
 .Pp
-Note that the HTTP proxy will also be used for FTP documents, unless
-the
+Note that this proxy will also be used for FTP documents, unless the
 .Ev FTP_PROXY
 variable is set.
 .It Ev HTTP_PROXY_AUTH
@@ -458,8 +467,9 @@ format as the
 .Ev HTTP_AUTH
 variable.
 .Pp
-The value of this variable is used if and only if connected to an HTTP
-proxy.
+This variable is used if and only if connected to an HTTP proxy, and
+is ignored if a user and/or a password were specified in the proxy
+URL.
 .El
 .Sh SEE ALSO
 .Xr fetch 1 ,
