@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: extract.sh,v 1.6 1994/11/10 02:47:06 jkh Exp $
+# $Id: extract.sh,v 1.7 1994/11/10 02:50:42 jkh Exp $
 
 DDIR=/
 
@@ -19,7 +19,12 @@ for i in *.aa
 do
 	b=`basename $i .aa`
 	if [ "$b" != bin_tgz ] ; then
+		if [ "$b" = des_tgz ] ; then
+			# We cannot replace /sbin/init while it runs
+			# so move it out of the way for now
+			mv /sbin/init /sbin/nondes_init
+		fi
 		echo "Extracting $b"
-		cat $b.?? | zcat | tar xf - -C $DDIR
+		cat $b.?? | zcat | ( cd $DDIR ; tar --unlink -xf - )
 	fi
 done
