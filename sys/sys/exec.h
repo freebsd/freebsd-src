@@ -90,7 +90,8 @@ int exec_unregister(const struct execsw *);
 #include <sys/module.h>
 
 #define EXEC_SET(name, execsw_arg) \
-	static int name ## _modevent(module_t mod, int type, void *data) \
+	static int __CONCAT(name,_modevent)(module_t mod, int type, \
+	    void *data) \
 	{ \
 		struct execsw *exec = (struct execsw *)data; \
 		int error = 0; \
@@ -99,25 +100,25 @@ int exec_unregister(const struct execsw *);
 			/* printf(#name " module loaded\n"); */ \
 			error = exec_register(exec); \
 			if (error) \
-				printf(#name "register failed\n"); \
+				printf(__XSTRING(name) "register failed\n"); \
 			break; \
 		case MOD_UNLOAD: \
 			/* printf(#name " module unloaded\n"); */ \
 			error = exec_unregister(exec); \
 			if (error) \
-				printf(#name " unregister failed\n"); \
+				printf(__XSTRING(name) " unregister failed\n");\
 			break; \
 		default: \
 			break; \
 		} \
 		return error; \
 	} \
-	static moduledata_t name ## _mod = { \
-		#name, \
-		name ## _modevent, \
+	static moduledata_t __CONCAT(name,_mod) = { \
+		__XSTRING(name), \
+		__CONCAT(name,_modevent), \
 		(void *)& execsw_arg \
 	}; \
-	DECLARE_MODULE(name, name ## _mod, SI_SUB_EXEC, SI_ORDER_ANY)
+	DECLARE_MODULE(name, __CONCAT(name,_mod), SI_SUB_EXEC, SI_ORDER_ANY)
 #endif
 
 #endif
