@@ -272,6 +272,7 @@ boot(int howto)
 				DROP_GIANT();
    				for (subiter = 0; subiter < 50 * iter; subiter++) {
      					mtx_lock_spin(&sched_lock);
+					setrunqueue(curthread);
 					curthread->td_proc->p_stats->p_ru.ru_nvcsw++;
      					mi_switch(); /* Allow interrupt threads to run */
      					mtx_unlock_spin(&sched_lock);
