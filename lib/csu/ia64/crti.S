@@ -32,18 +32,18 @@
  */
 	.file	"crti.S"
 
-	.section .init
-	.global _init#
-	.proc _init#
+	.section .init,"ax",@progbits
+	.global	_init#
+	.proc	_init#
 _init:
-	alloc loc1 = ar.pfs,0,2,0,0
-	mov loc0 = b0			/* Save return addr */
-	.endp _init#
+	alloc	loc1=ar.pfs,0,2,0,0
+	mov	loc0=b0			/* Save return addr */
+	.endp	_init#
 
-	.section .fini
-	.global _fini#
-	.proc _fini#
+	.section .fini,"ax",@progbits
+	.global	_fini#
+	.proc	_fini#
 _fini:
-	alloc loc1 = ar.pfs, 0, 2, 0, 0
-	mov loc0 = b0			/* Save return addr */
-	.endp _fini#
+	alloc	loc1=ar.pfs,0,2,0,0
+	mov	loc0=b0			/* Save return addr */
+	.endp	_fini#
