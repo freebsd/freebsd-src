@@ -47,7 +47,7 @@ typedef struct _entry {
 #define	E_LOCATE	10
 #define	E_NAME		7
 #define	E_OTHER		11
-#define	E_SHELL		12
+#define	E_SHELL		13
 
 extern ENTRY list[];
 extern uid_t uid;
