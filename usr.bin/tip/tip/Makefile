@@ -22,4 +22,12 @@ MAN5=	modems.5
 SRCS=	acu.c acutab.c cmds.c cmdtab.c cu.c hunt.c log.c partab.c \
 	remote.c tip.c tipout.c value.c vars.c
 
+BINDIR?=	/usr/bin
+BINOWN=		uucp
+BINGRP=		dialer
+#BINMODE?=	4510
+
+# XXX: there is some concern that `tip' in its current state shouldn't run
+#      SUID.  If it believed it should, the mode above may still no be proper.
+
 .include <bsd.prog.mk>
