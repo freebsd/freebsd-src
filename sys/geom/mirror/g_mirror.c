@@ -2599,37 +2599,22 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		else {
 			int first = 1;
 
-			if ((disk->d_flags & G_MIRROR_DISK_FLAG_DIRTY) != 0) {
-				if (!first)
-					sbuf_printf(sb, ", ");
-				else
-					first = 0;
-				sbuf_printf(sb, "DIRTY");
-			}
-			if ((disk->d_flags &
-			    G_MIRROR_DISK_FLAG_INACTIVE) != 0) {
-				if (!first)
-					sbuf_printf(sb, ", ");
-				else
-					first = 0;
-				sbuf_printf(sb, "INACTIVE");
-			}
-			if ((disk->d_flags &
-			    G_MIRROR_DISK_FLAG_SYNCHRONIZING) != 0) {
-				if (!first)
-					sbuf_printf(sb, ", ");
-				else
-					first = 0;
-				sbuf_printf(sb, "SYNCHRONIZING");
-			}
-			if ((disk->d_flags &
-			    G_MIRROR_DISK_FLAG_FORCE_SYNC) != 0) {
-				if (!first)
-					sbuf_printf(sb, ", ");
-				else
-					first = 0;
-				sbuf_printf(sb, "FORCE_SYNC");
-			}
+#define	ADD_FLAG(flag, name)	do {					\
+	if ((disk->d_flags & (flag)) != 0) {				\
+		if (!first)						\
+			sbuf_printf(sb, ", ");				\
+		else							\
+			first = 0;					\
+		sbuf_printf(sb, name);					\
+	}								\
+} while (0)
+			ADD_FLAG(G_MIRROR_DISK_FLAG_DIRTY, "DIRTY");
+			ADD_FLAG(G_MIRROR_DISK_FLAG_HARDCODED, "HARDCODED");
+			ADD_FLAG(G_MIRROR_DISK_FLAG_INACTIVE, "INACTIVE");
+			ADD_FLAG(G_MIRROR_DISK_FLAG_SYNCHRONIZING,
+			    "SYNCHRONIZING");
+			ADD_FLAG(G_MIRROR_DISK_FLAG_FORCE_SYNC, "FORCE_SYNC");
+#undef	ADD_FLAG
 		}
 		sbuf_printf(sb, "</Flags>\n");
 		sbuf_printf(sb, "%s<Priority>%u</Priority>\n", indent,
@@ -2645,14 +2630,17 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		else {
 			int first = 1;
 
-			if ((sc->sc_flags &
-			    G_MIRROR_DEVICE_FLAG_NOAUTOSYNC) != 0) {
-				if (!first)
-					sbuf_printf(sb, ", ");
-				else
-					first = 0;
-				sbuf_printf(sb, "NOAUTOSYNC");
-			}
+#define	ADD_FLAG(flag, name)	do {					\
+	if ((sc->sc_flags & (flag)) != 0) {				\
+		if (!first)						\
+			sbuf_printf(sb, ", ");				\
+		else							\
+			first = 0;					\
+		sbuf_printf(sb, name);					\
+	}								\
+} while (0)
+			ADD_FLAG(G_MIRROR_DEVICE_FLAG_NOAUTOSYNC, "NOAUTOSYNC");
+#undef	ADD_FLAG
 		}
 		sbuf_printf(sb, "</Flags>\n");
 		sbuf_printf(sb, "%s<Slice>%u</Slice>\n", indent,
