@@ -551,11 +551,8 @@ ata_reset(struct ata_channel *ch)
 			ch->devices |= ATA_ATA_MASTER;
 		    }
 		}
-		else if (err == lsb && err == msb) {
-		    ATA_IDX_OUTB(ch, ATA_ERROR, 0xff);
-		    DELAY(10);
-    	    	    if (stat0 == ATA_IDX_INB(ch, ATA_STATUS))
-			stat0 |= ATA_S_BUSY;
+		else if ((stat0 & 0x4f) && err == lsb && err == msb) {
+		    stat0 |= ATA_S_BUSY;
 		}
 	    }
 	}
@@ -579,11 +576,8 @@ ata_reset(struct ata_channel *ch)
 			ch->devices |= ATA_ATA_SLAVE;
 		    }
 		}
-		else if (err == lsb && err == msb) {
-		    ATA_IDX_OUTB(ch, ATA_ERROR, 0xff);
-		    DELAY(10);
-    	    	    if (stat1 == ATA_IDX_INB(ch, ATA_STATUS))
-			stat1 |= ATA_S_BUSY;
+		else if ((stat1 & 0x4f) && err == lsb && err == msb) {
+		    stat1 |= ATA_S_BUSY;
 		}
 	    }
 	}
