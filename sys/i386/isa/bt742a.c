@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.17 1994/05/27 04:02:01 rgrimes Exp $
+ *      $Id: bt742a.c,v 1.18 1994/08/13 03:49:55 wollman Exp $
  */
 
 /*
@@ -371,7 +371,7 @@ struct scsi_adapter bt_switch =
     0,
     bt_adapter_info,
     "bt",
-    0, 0
+    { 0, 0 }
 };
 
 /* the below structure is so we have a default dev struct for out link struct */
@@ -383,7 +383,7 @@ struct scsi_device bt_dev =
     NULL,			/* Use default 'done' routine */
     "bt",
     0,
-    0, 0
+    { 0, 0 }
 };
 
 #endif /*KERNEL */
