@@ -135,7 +135,7 @@ Delete the character underneath the cursor.
 @item @w{Printing characters}
 Insert the character into the line at the cursor.
 @item @key{C-_}
-Undo the last thing that you did.  You can undo all the way back to an
+Undo the last editing command.  You can undo all the way back to an
 empty line.
 @end table
 
@@ -155,7 +155,7 @@ Move to the start of the line.
 @item C-e
 Move to the end of the line.
 @item M-f
-Move forward a word.
+Move forward a word, where a word is composed of letters and digits.
 @item M-b
 Move backward a word.
 @item C-l
@@ -207,7 +207,7 @@ Kill from the cursor to the previous whitespace.  This is different than
 
 @end table
 
-And, here is how to @dfn{yank} the text back into the line.  Yanking
+Here is how to @dfn{yank} the text back into the line.  Yanking
 means to copy the most-recently-killed text from the kill buffer.
 
 @table @key
@@ -227,10 +227,10 @@ argument acts as a repeat count, other times it is the @i{sign} of the
 argument that is significant.  If you pass a negative argument to a
 command which normally acts in a forward direction, that command will
 act in a backward direction.  For example, to kill text back to the
-start of the line, you might type @w{@kbd{M-- C-k}}.
+start of the line, you might type @samp{M-- C-k}.
 
 The general way to pass numeric arguments to a command is to type meta
-digits before the command.  If the first `digit' you type is a minus
+digits before the command.  If the first `digit' typed is a minus
 sign (@key{-}), then the sign of the argument will be negative.  Once
 you have typed one meta digit to get the argument started, you can type
 the remainder of the digits, and then the command.  For example, to give
@@ -248,38 +248,38 @@ There are two search modes:  @var{incremental} and @var{non-incremental}.
 
 Incremental searches begin before the user has finished typing the
 search string.
-As each character of the search string is typed, readline displays
+As each character of the search string is typed, Readline displays
 the next entry from the history matching the string typed so far.
 An incremental search requires only as many characters as needed to
 find the desired history entry.
-The Escape character is used to terminate an incremental search.
-Control-J will also terminate the search.
-Control-G will abort an incremental search and restore the original
-line.
+The @key{ESC} character is used to terminate an incremental search.
+@key{C-j} will also terminate the search.
+@key{C-g} will abort an incremental search and restore the original line.
 When the search is terminated, the history entry containing the
 search string becomes the current line.
-To find other matching entries in the history list, type Control-S or
-Control-R as appropriate.
+To find other matching entries in the history list, type @key{C-s} or
+@key{C-r} as appropriate.
 This will search backward or forward in the history for the next
 entry matching the search string typed so far.
-Any other key sequence bound to a readline command will terminate
+Any other key sequence bound to a Readline command will terminate
 the search and execute that command.
-For instance, a @code{newline} will terminate the search and accept
+For instance, a @key{RET} will terminate the search and accept
 the line, thereby executing the command from the history list.
 
 Non-incremental searches read the entire search string before starting
 to search for matching history lines.  The search string may be
-typed by the user or part of the contents of the current line.
+typed by the user or be part of the contents of the current line.
 
 @node Readline Init File
 @section Readline Init File
 @cindex initialization file, readline
 
 Although the Readline library comes with a set of @code{emacs}-like
-keybindings installed by default,
-it is possible that you would like to use a different set
-of keybindings.  You can customize programs that use Readline by putting
-commands in an @dfn{inputrc} file in your home directory.  The name of this
+keybindings installed by default, it is possible to use a different set
+of keybindings.
+Any user can customize programs that use Readline by putting
+commands in an @dfn{inputrc} file in his home directory.
+The name of this
 @ifset BashFeatures
 file is taken from the value of the shell variable @code{INPUTRC}.  If
 @end ifset
@@ -314,16 +314,18 @@ denote variable settings and key bindings.
 
 @table @asis
 @item Variable Settings
-You can change the state of a few variables in Readline by
-using the @code{set} command within the init file.  Here is how you
-would specify that you wish to use @code{vi} line editing commands:
+You can modify the run-time behavior of Readline by
+altering the values of variables in Readline
+using the @code{set} command within the init file.  Here is how to
+change from the default Emacs-like key binding to use
+@code{vi} line editing commands:
 
 @example
 set editing-mode vi
 @end example
 
-Right now, there are only a few variables which can be set;
-so few, in fact, that we just list them here:
+A great deal of run-time behavior is changeable with the following
+variables.
 
 @table @code
 
@@ -341,6 +343,11 @@ The string to insert at the beginning of the line when the
 @code{insert-comment} command is executed.  The default value
 is @code{"#"}.
 
+@item completion-ignore-case
+If set to @samp{on}, Readline performs filename matching and completion
+in a case-insensitive fashion.
+The default value is @samp{off}.
+
 @item completion-query-items
 @vindex completion-query-items
 The number of possible completions that determines when the user is
@@ -353,26 +360,26 @@ them; otherwise, they are simply listed.  The default limit is
 @item convert-meta
 @vindex convert-meta
 If set to @samp{on}, Readline will convert characters with the
-eigth bit set to an ASCII key sequence by stripping the eigth
+eighth bit set to an ASCII key sequence by stripping the eighth
 bit and prepending an @key{ESC} character, converting them to a
 meta-prefixed key sequence.  The default value is @samp{on}.
 
 @item disable-completion
 @vindex disable-completion
-If set to @samp{On}, readline will inhibit word completion.
+If set to @samp{On}, Readline will inhibit word completion.
 Completion  characters will be inserted into the line as if they had
 been mapped to @code{self-insert}.  The default is @samp{off}.
 
 @item editing-mode
 @vindex editing-mode
-The @code{editing-mode} variable controls which editing mode you are
-using.  By default, Readline starts up in Emacs editing mode, where
-the keystrokes are most similar to Emacs.  This variable can be
+The @code{editing-mode} variable controls which default set of
+key bindings is used.  By default, Readline starts up in Emacs editing
+mode, where the keystrokes are most similar to Emacs.  This variable can be
 set to either @samp{emacs} or @samp{vi}.
 
 @item enable-keypad
 @vindex enable-keypad
-When set to @samp{on}, readline will try to enable the application
+When set to @samp{on}, Readline will try to enable the application
 keypad when it is called.  Some systems need this to enable the
 arrow keys.  The default is @samp{off}.
 
@@ -384,7 +391,7 @@ attempts word completion.  The default is @samp{off}.
 @item horizontal-scroll-mode
 @vindex horizontal-scroll-mode
 This variable can be set to either @samp{on} or @samp{off}.  Setting it
-to @samp{on} means that the text of the lines that you edit will scroll
+to @samp{on} means that the text of the lines being edited will scroll
 horizontally on a single screen line when they are longer than the width
 of the screen, instead of wrapping onto a new screen line.  By default,
 this variable is set to @samp{off}.
@@ -411,8 +418,8 @@ appended.  The default is @samp{on}.
 
 @item mark-modified-lines
 @vindex mark-modified-lines
-This variable, when set to @samp{on}, says to display an asterisk
-(@samp{*}) at the start of history lines which have been modified.
+This variable, when set to @samp{on}, causes Readline to display an
+asterisk (@samp{*}) at the start of history lines which have been modified.
 This variable is @samp{off} by default.
 
 @item input-meta
@@ -429,6 +436,11 @@ synonym for this variable.
 If set to @samp{on}, Readline will display characters with the
 eighth bit set directly rather than as a meta-prefixed escape
 sequence.  The default is @samp{off}.
+
+@item print-completions-horizontally
+If set to @samp{on}, Readline will display completions with matches
+sorted horizontally in alphabetical order, rather than down the screen.
+The default is @samp{off}.
 
 @item show-all-if-ambiguous
 @vindex show-all-if-ambiguous
@@ -449,9 +461,9 @@ completions.  The default is @samp{off}.
 @item Key Bindings
 The syntax for controlling key bindings in the init file is
 simple.  First you have to know the name of the command that you
-want to change.  The following pages contain tables of the command name,
-the default keybinding, and a short description of what the command
-does.
+want to change.  The following sections contain tables of the command
+name, the default keybinding, if any, and a short description of what
+the command does.
 
 Once you know the name of the command, simply place the name of the key
 you wish to bind the command to, a colon, and then the name of the
@@ -468,8 +480,8 @@ Meta-Rubout: backward-kill-word
 Control-o: "> output"
 @end example
 
-In the above example, @samp{C-u} is bound to the function
-@code{universal-argument}, and @samp{C-o} is bound to run the macro
+In the above example, @key{C-u} is bound to the function
+@code{universal-argument}, and @key{C-o} is bound to run the macro
 expressed on the right hand side (that is, to insert the text
 @samp{> output} into the line).
 
@@ -486,12 +498,16 @@ special character names are not recognized.
 "\e[11~": "Function Key 1"
 @end example
 
-In the above example, @samp{C-u} is bound to the function
+In the above example, @key{C-u} is bound to the function
 @code{universal-argument} (just as it was in the first example),
-@samp{C-x C-r} is bound to the function @code{re-read-init-file}, and
-@samp{ESC [ 1 1 ~} is bound to insert the text @samp{Function Key 1}.
-The following escape sequences are available when specifying key
-sequences:
+@samp{@key{C-x} @key{C-r}} is bound to the function @code{re-read-init-file},
+and @samp{@key{ESC} @key{[} @key{1} @key{1} @key{~}} is bound to insert
+the text @samp{Function Key 1}.
+
+@end table
+
+The following GNU Emacs style escape sequences are available when
+specifying key sequences:
 
 @table @code
 @item @kbd{\C-}
@@ -508,18 +524,46 @@ backslash
 @key{'}
 @end table
 
-When entering the text of a macro, single or double quotes should
-be used to indicate a macro definition.  Unquoted text
-is assumed to be a function name.  Backslash
-will quote any character in the macro text, including @samp{"}
-and @samp{'}.
+In addition to the GNU Emacs style escape sequences, a second
+set of backslash escapes is available:
+
+@table @code
+@item \a
+alert (bell)
+@item \b
+backspace
+@item \d
+delete
+@item \f
+form feed
+@item \n
+newline
+@item \r
+carriage return
+@item \t
+horizontal tab
+@item \v
+vertical tab
+@item \@var{nnn}
+the character whose ASCII code is the octal value @var{nnn}
+(one to three digits)
+@item \x@var{nnn}
+the character whose ASCII code is the hexadecimal value @var{nnn}
+(one to three digits)
+@end table
+
+When entering the text of a macro, single or double quotes must
+be used to indicate a macro definition.
+Unquoted text is assumed to be a function name.
+In the macro body, the backslash escapes described above are expanded.
+Backslash will quote any other character in the macro text,
+including @samp{"} and @samp{'}.
 For example, the following binding will make @samp{C-x \}
 insert a single @samp{\} into the line:
 @example
 "\C-x\\": "\\"
 @end example
 
-@end table
 @end table
 
 @node Conditional Init Constructs
@@ -528,7 +572,7 @@ insert a single @samp{\} into the line:
 Readline implements a facility similar in spirit to the conditional
 compilation features of the C preprocessor which allows key
 bindings and variable settings to be performed as the result
-of tests.  There are three parser directives used.
+of tests.  There are four parser directives used.
 
 @table @code
 @item $if
@@ -550,8 +594,8 @@ Readline is starting out in @code{emacs} mode.
 The @code{term=} form may be used to include terminal-specific
 key bindings, perhaps to bind the key sequences output by the
 terminal's function keys.  The word on the right side of the
-@samp{=} is tested against the full name of the terminal and the
-portion of the terminal name before the first @samp{-}.  This
+@samp{=} is tested against both the full name of the terminal and
+the portion of the terminal name before the first @samp{-}.  This
 allows @code{sun} to match both @code{sun} and @code{sun-cmd},
 for instance.
 
@@ -571,12 +615,19 @@ $endif
 @end table
 
 @item $endif
-This command, as you saw in the previous example, terminates an
+This command, as seen in the previous example, terminates an
 @code{$if} command.
 
 @item $else
 Commands in this branch of the @code{$if} directive are executed if
 the test fails.
+
+@item $include
+This directive takes a single filename as an argument and reads commands
+and bindings from that file.
+@example
+$include /etc/inputrc
+@end example
 @end table
 
 @node Sample Init File
@@ -593,6 +644,11 @@ binding, variable assignment, and conditional syntax.
 #
 # You can re-read the inputrc file with C-x C-r.
 # Lines beginning with '#' are comments.
+#
+# First, include any systemwide bindings and variable assignments from
+# /etc/Inputrc
+$include /etc/Inputrc
+
 #
 # Set various bindings for emacs mode.
 
@@ -738,8 +794,9 @@ Refresh the current line.  By default, this is unbound.
 @ifset BashFeatures
 Accept the line regardless of where the cursor is.  If this line is
 non-empty, add it to the history list according to the setting of
-the @code{HISTCONTROL} variable.  If this line was a history
-line, then restore the history line to its original state.
+the @code{HISTCONTROL} and @code{HISTIGNORE} variables.
+If this line was a history line, then restore the history line to its
+original state.
 @end ifset
 @ifclear BashFeatures
 Accept the line regardless of where the cursor is.  If this line is
@@ -757,7 +814,8 @@ Move `down' through the history list.
 Move to the first line in the history.
 
 @item end-of-history (M->)
-Move to the end of the input history, i.e., the line you are entering.
+Move to the end of the input history, i.e., the line currently
+being entered.
 
 @item reverse-search-history (C-r)
 Search backward starting at the current line and moving `up' through
@@ -780,7 +838,7 @@ for a string supplied by the user.
 @item history-search-forward ()
 Search forward through the history for the string of characters
 between the start of the current line and the current cursor
-position (the `point').  This is a non-incremental search.  By
+position (the @var{point}).  This is a non-incremental search.  By
 default, this command is unbound.
 
 @item history-search-backward ()
@@ -799,6 +857,8 @@ inserts the @var{n}th word from the end of the previous command.
 Insert last argument to the previous command (the last word of the
 previous history entry).  With an
 argument, behave exactly like @code{yank-nth-arg}.
+Successive calls to @code{yank-last-arg} move back through the history
+list, inserting the last argument of each line in turn.
 
 @end ftable
 
@@ -809,18 +869,21 @@ argument, behave exactly like @code{yank-nth-arg}.
 @item delete-char (C-d)
 Delete the character under the cursor.  If the cursor is at the
 beginning of the line, there are no characters in the line, and
-the last character typed was not @kbd{C-d}, then return @code{EOF}.
+the last character typed was not bound to @code{delete-char}, then
+return @code{EOF}.
 
 @item backward-delete-char (Rubout)
-Delete the character behind the cursor.  A numeric arg says to kill
-the characters instead of deleting them.
+Delete the character behind the cursor.  A numeric argument means
+to kill the characters instead of deleting them.
 
 @item quoted-insert (C-q, C-v)
-Add the next character that you type to the line verbatim.  This is
+Add the next character typed to the line verbatim.  This is
 how to insert key sequences like @key{C-q}, for example.
 
+@ifclear BashFeatures
 @item tab-insert (M-TAB)
 Insert a tab character.
+@end ifclear
 
 @item self-insert (a, b, A, 1, !, ...)
 Insert yourself.
@@ -831,7 +894,7 @@ the character at the cursor, moving the
 cursor forward as well.  If the insertion point
 is at the end of the line, then this
 transposes the last two characters of the line.
-Negative argumentss don't work.
+Negative arguments don't work.
 
 @item transpose-words (M-t)
 Drag the word behind the cursor past the word in front of the cursor
@@ -839,15 +902,15 @@ moving the cursor over that word as well.
 
 @item upcase-word (M-u)
 Uppercase the current (or following) word.  With a negative argument,
-do the previous word, but do not move the cursor.
+uppercase the previous word, but do not move the cursor.
 
 @item downcase-word (M-l)
 Lowercase the current (or following) word.  With a negative argument,
-do the previous word, but do not move the cursor.
+lowercase the previous word, but do not move the cursor.
 
 @item capitalize-word (M-c)
 Capitalize the current (or following) word.  With a negative argument,
-do the previous word, but do not move the cursor.
+capitalize the previous word, but do not move the cursor.
 
 @end ftable
 
@@ -864,7 +927,7 @@ Kill backward to the beginning of the line.
 
 @item unix-line-discard (C-u)
 Kill backward from the cursor to the beginning of the current line.
-Save the killed text on the kill-ring.
+The killed text is saved on the kill-ring.
 
 @item kill-whole-line ()
 Kill all characters on the current line, no matter where the
@@ -888,19 +951,21 @@ Delete all spaces and tabs around point.  By default, this is unbound.
 
 @item kill-region ()
 Kill the text between the point and the @emph{mark} (saved
-cursor position.  This text is referred to as the @var{region}.
+cursor position).  This text is referred to as the @var{region}.
 By default, this command is unbound.
 
 @item copy-region-as-kill ()
-Copy the text in the region to the kill buffer, so you can yank it
+Copy the text in the region to the kill buffer, so it can be yanked
 right away.  By default, this command is unbound.
 
 @item copy-backward-word ()
 Copy the word before point to the kill buffer.
+The word boundaries are the same as @code{backward-word}.
 By default, this command is unbound.
 
 @item copy-forward-word ()
 Copy the word following point to the kill buffer.
+The word boundaries are the same as @code{forward-word}.
 By default, this command is unbound.
 
 @item yank (C-y)
@@ -943,8 +1008,8 @@ By default, this is not bound to a key.
 Attempt to do completion on the text before the cursor.  This is
 application-specific.  Generally, if you are typing a filename
 argument, you can do filename completion; if you are typing a command,
-you can do command completion, if you are typing in a symbol to GDB, you
-can do symbol name completion, if you are typing in a variable to Bash,
+you can do command completion; if you are typing in a symbol to GDB, you
+can do symbol name completion; if you are typing in a variable to Bash,
 you can do variable name completion, and so on.
 @ifset BashFeatures
 Bash attempts completion treating the text as a variable (if the
@@ -960,6 +1025,19 @@ List the possible completions of the text before the cursor.
 @item insert-completions (M-*)
 Insert all completions of the text before point that would have
 been generated by @code{possible-completions}.
+
+@item menu-complete ()
+Similar to @code{complete}, but replaces the word to be completed
+with a single match from the list of possible completions.
+Repeated execution of @code{menu-complete} steps through the list
+of possible completions, inserting each match in turn.
+At the end of the list of completions, the bell is rung and the
+original text is restored.
+An argument of @var{n} moves @var{n} positions forward in the list
+of matches; a negative argument may be used to move backward
+through the list.
+This command is intended to be bound to @code{TAB}, but is unbound
+by default.
 
 @ifset BashFeatures
 @item complete-filename (M-/)
@@ -997,7 +1075,7 @@ treating it as a hostname.
 Attempt completion on the text before point, treating
 it as a command name.  Command completion attempts to
 match the text against aliases, reserved words, shell
-functions, builtins, and finally executable filenames,
+functions, shell builtins, and finally executable filenames,
 in that order.
 
 @item possible-command-completions (C-x !)
@@ -1052,7 +1130,7 @@ If the metafied character @var{x} is lowercase, run the command
 that is bound to the corresponding uppercase character.
 
 @item prefix-meta (ESC)
-Make the next character that you type be metafied.  This is for people
+Make the next character typed be metafied.  This is for keyboards
 without a meta key.  Typing @samp{ESC f} is equivalent to typing
 @samp{M-f}.
 
@@ -1060,7 +1138,7 @@ without a meta key.  Typing @samp{ESC f} is equivalent to typing
 Incremental undo, separately remembered for each line.
 
 @item revert-line (M-r)
-Undo all changes made to this line.  This is like typing the @code{undo}
+Undo all changes made to this line.  This is like executing the @code{undo}
 command enough times to get back to the beginning.
 
 @item tilde-expand (M-~)
@@ -1093,18 +1171,18 @@ This makes the current line a shell comment.
 
 @item dump-functions ()
 Print all of the functions and their key bindings to the
-readline output stream.  If a numeric argument is supplied,
+Readline output stream.  If a numeric argument is supplied,
 the output is formatted in such a way that it can be made part
 of an @var{inputrc} file.  This command is unbound by default.
 
 @item dump-variables ()
 Print all of the settable variables and their values to the
-readline output stream.  If a numeric argument is supplied,
+Readline output stream.  If a numeric argument is supplied,
 the output is formatted in such a way that it can be made part
 of an @var{inputrc} file.  This command is unbound by default.
 
 @item dump-macros ()
-Print all of the readline key sequences bound to macros and the
+Print all of the Readline key sequences bound to macros and the
 strings they ouput.  If a numeric argument is supplied,
 the output is formatted in such a way that it can be made part
 of an @var{inputrc} file.  This command is unbound by default.
@@ -1116,24 +1194,27 @@ and the list of matching file names is inserted, replacing the word.
 
 @item glob-list-expansions (C-x g)
 The list of expansions that would have been generated by
-@code{glob-expand-word}
-is inserted into the line, replacing the word before point.
+@code{glob-expand-word} is displayed, and the line is redrawn.
 
 @item display-shell-version (C-x C-v)
 Display version information about the current instance of Bash.
 
 @item shell-expand-line (M-C-e)
-Expand the line the way the shell does when it reads it.  This
-performs alias and history expansion as well as all of the shell
-word expansions.
+Expand the line as the shell does.
+This performs alias and history expansion as well as all of the shell
+word expansions (@pxref{Shell Expansions}).
 
 @item history-expand-line (M-^)
 Perform history expansion on the current line.
 
-@item alias-expand-line
+@item magic-space ()
+Perform history expansion on the current line and insert a space
+(@pxref{History Interaction}).
+
+@item alias-expand-line ()
 Perform alias expansion on the current line (@pxref{Aliases}).
 
-@item history-and-alias-expand-line
+@item history-and-alias-expand-line ()
 Perform history and alias expansion on the current line.
 
 @item insert-last-argument (M-., M-_)

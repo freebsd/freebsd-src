@@ -19,12 +19,16 @@
 #include "readline.h"
 #include "history.h"
 
+extern HIST_ENTRY **history_list ();
+
 main ()
 {
-  HIST_ENTRY **history_list ();
-  char *temp = (char *)NULL;
-  char *prompt = "readline$ ";
-  int done = 0;
+  char *temp, *prompt;
+  int done;
+
+  temp = (char *)NULL;
+  prompt = "readline$ ";
+  done = 0;
 
   while (!done)
     {
@@ -47,18 +51,17 @@ main ()
 
       if (strcmp (temp, "list") == 0)
 	{
-	  HIST_ENTRY **list = history_list ();
+	  HIST_ENTRY **list;
 	  register int i;
+
+	  list = history_list ();
 	  if (list)
 	    {
 	      for (i = 0; list[i]; i++)
-		{
-		  fprintf (stderr, "%d: %s\r\n", i, list[i]->line);
-		  free (list[i]->line);
-		}
-	      free (list);
+		fprintf (stderr, "%d: %s\r\n", i, list[i]->line);
 	    }
 	}
       free (temp);
     }
+  exit (0);
 }

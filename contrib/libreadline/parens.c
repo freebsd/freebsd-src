@@ -101,7 +101,7 @@ rl_insert_close (count, invoking_key)
 
       FD_ZERO (&readfds);
       FD_SET (fileno (rl_instream), &readfds);
-      timer.tv_sec = 1;
+      timer.tv_sec = 0;
       timer.tv_usec = 500;
 
       orig_point = rl_point;

@@ -64,7 +64,7 @@
 #include "history.h"
 
 #ifndef RL_LIBRARY_VERSION
-#  define RL_LIBRARY_VERSION "2.1-bash"
+#  define RL_LIBRARY_VERSION "2.2-bash"
 #endif
 
 /* Evaluates its arguments multiple times. */
@@ -78,7 +78,11 @@
 /* Variables and functions imported from terminal.c */
 extern int _rl_init_terminal_io ();
 extern void _rl_enable_meta_key ();
+#ifdef _MINIX
+extern void _rl_output_character_function ();
+#else
 extern int _rl_output_character_function ();
+#endif
 extern void _rl_get_screen_size ();
 
 extern int _rl_enable_meta;
@@ -1026,6 +1030,18 @@ _rl_fix_point (fix_mark_too)
     _RL_FIX_POINT (rl_mark);
 }
 #undef _RL_FIX_POINT
+
+void
+_rl_replace_text (text, start, end)
+     char *text;
+     int start, end;
+{
+  rl_begin_undo_group ();
+  rl_delete_text (start, end + 1);
+  rl_point = start;
+  rl_insert_text (text);
+  rl_end_undo_group ();
+}
 
 /* **************************************************************** */
 /*								    */

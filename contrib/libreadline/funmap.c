@@ -94,11 +94,15 @@ static FUNMAP default_funmap[] = {
   { "kill-line", rl_kill_line },
   { "kill-region", rl_kill_region },
   { "kill-word", rl_kill_word },
+  { "menu-complete", rl_menu_complete },
   { "next-history", rl_get_next_history },
   { "non-incremental-forward-search-history", rl_noninc_forward_search },
   { "non-incremental-reverse-search-history", rl_noninc_reverse_search },
   { "non-incremental-forward-search-history-again", rl_noninc_forward_search_again },
   { "non-incremental-reverse-search-history-again", rl_noninc_reverse_search_again },
+#ifdef __CYGWIN32__
+  { "paste-from-clipboard", rl_paste_from_clipboard },
+#endif
   { "possible-completions", rl_possible_completions },
   { "previous-history", rl_get_previous_history },
   { "quoted-insert", rl_quoted_insert },
