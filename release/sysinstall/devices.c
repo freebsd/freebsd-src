@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.36.2.11 1995/11/15 06:57:02 jkh Exp $
+ * $Id: devices.c,v 1.37 1995/12/07 10:33:38 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,6 +47,7 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/errno.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -166,6 +167,8 @@ deviceTry(char *name, char *try)
     fd = open(try, O_RDWR);
     if (fd > 0)
 	return fd;
+    else if (errno == EACCES)
+	return 0;
     snprintf(try, FILENAME_MAX, "/mnt/dev/%s", name);
     fd = open(try, O_RDWR);
     return fd;
@@ -251,7 +254,7 @@ deviceGetAll(void)
 	case DEVICE_TYPE_CDROM:
 	    fd = deviceTry(device_names[i].name, try);
 	    if (fd >= 0) {
-		close(fd);
+		if (fd) close(fd);
 		(void)deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
 				     DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM, NULL,
 				     mediaShutdownCDROM, NULL);
@@ -262,7 +265,7 @@ deviceGetAll(void)
 	case DEVICE_TYPE_TAPE:
 	    fd = deviceTry(device_names[i].name, try);
 	    if (fd >= 0) {
-		close(fd);
+		if (fd) close(fd);
 		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
 			       DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, NULL, mediaShutdownTape, NULL);
 		msgDebug("Found a device of type TAPE named: %s\n", device_names[i].name);
@@ -272,7 +275,7 @@ deviceGetAll(void)
 	case DEVICE_TYPE_FLOPPY:
 	    fd = deviceTry(device_names[i].name, try);
 	    if (fd >= 0) {
-		close(fd);
+		if (fd) close(fd);
 		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
 			       DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy, NULL,
 			       mediaShutdownFloppy, NULL);
@@ -283,7 +286,7 @@ deviceGetAll(void)
 	case DEVICE_TYPE_NETWORK:
 	    fd = deviceTry(device_names[i].name, try);
 	    if (fd >= 0) {
-		close(fd);
+		if (fd) close(fd);
 		/* The only network devices that have fds associated are serial ones */
 		deviceRegister(device_names[i].name, device_names[i].description, strdup(try), DEVICE_TYPE_NETWORK,
 			       TRUE, mediaInitNetwork, NULL, NULL, mediaShutdownNetwork, NULL);
