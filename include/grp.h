@@ -52,6 +52,11 @@ typedef	__gid_t		gid_t;
 #define	_GID_T_DECLARED
 #endif
 
+#ifndef _SIZE_T_DECLARED
+typedef __size_t	size_t;
+#define _SIZE_T_DECLARED
+#endif
+
 struct group {
 	char	*gr_name;		/* group name */
 	char	*gr_passwd;		/* group password */
@@ -70,15 +75,17 @@ struct group	*getgrnam(const char *);
 const char	*group_from_gid(gid_t, int);
 #endif
 #if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+/* XXX IEEE Std 1003.1, 2003 specifies `void setgrent(void)' */
 int		 setgrent(void);
+int		 getgrgid_r(gid_t, struct group *, char *, size_t,
+		    struct group **);
+int		 getgrnam_r(const char *, struct group *, char *, size_t,
+		    struct group **);
 #endif
 #if __BSD_VISIBLE
-void		 setgrfile(const char *);
+int		 getgrent_r(struct group *, char *, size_t, struct group **);
 int		 setgroupent(int);
 #endif
-/*
- * XXX missing getgrgid_r(), getgrnam_r().
- */
 __END_DECLS
 
 #endif /* !_GRP_H_ */

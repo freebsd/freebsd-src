@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <arpa/inet.h>
 
 #include <db.h>
 #include <err.h>
@@ -66,6 +67,8 @@ static const char rcsid[] =
 #define	SECURE		2
 #define	PERM_INSECURE	(S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
 #define	PERM_SECURE	(S_IRUSR|S_IWUSR)
+#define LEGACY_VERSION	_PW_VERSION(3)
+#define CURRENT_VERSION	_PW_VERSION(4)
 
 HASHINFO openinfo = {
 	4096,		/* bsize */
@@ -94,6 +97,8 @@ static void	usage(void);
 int
 main(int argc, char *argv[])
 {
+	static char verskey[] = _PWD_VERSION_KEY;
+	char version = _PWD_CURRENT_VERSION;
 	DB *dp, *sdp, *pw_db;
 	DBT data, sdata, key;
 	FILE *fp, *oldfp;
@@ -101,6 +106,7 @@ main(int argc, char *argv[])
 	int ch, cnt, ypcnt, makeold, tfd, yp_enabled = 0;
 	unsigned int len;
 	int32_t pw_change, pw_expire;
+	uint32_t store;
 	const char *t;
 	char *p;
 	char buf[MAX(MAXPATHLEN, LINE_MAX * 2)], tbuf[1024];
@@ -223,7 +229,7 @@ main(int argc, char *argv[])
 		pw_db = dbopen(_PATH_MP_DB, O_RDONLY, 0, DB_HASH, NULL);
 		if (!pw_db)
 			error(_MP_DB);
-		buf[0] = _PW_KEYBYNAME;
+		buf[0] = _PW_KEYBYNAME | CURRENT_VERSION;
 		len = strlen(username);
 
 		/* Only check that username fits in buffer */
@@ -239,7 +245,7 @@ main(int argc, char *argv[])
 			while (*p++)
 				;
 
-			buf[0] = _PW_KEYBYUID;
+			buf[0] = _PW_KEYBYUID | CURRENT_VERSION;
 			memmove(buf + 1, p, sizeof(int));
 			key.data = (u_char *)buf;
 			key.size = sizeof(int) + 1;
@@ -304,6 +310,19 @@ main(int argc, char *argv[])
 	 * original file prepended by the _PW_KEYBYNUM character.  (The special
 	 * characters are prepended to ensure that the keys do not collide.)
 	 */
+	/* In order to transition this file into a machine-independent
+	 * form, we have to change the format of entries.  However, since
+	 * older binaries will still expect the old MD format entries, we 
+	 * create * those as usual and use versioned tags for the new entries.
+	 */
+	key.data = verskey;
+	key.size = sizeof(verskey)-1;
+	data.data = &version;
+	data.size = 1;
+	if ((dp->put)(dp, &key, &data, 0) == -1)
+		error("put");
+	if ((dp->put)(sdp, &key, &data, 0) == -1)
+		error("put");
 	ypcnt = 1;
 	data.data = (u_char *)buf;
 	sdata.data = (u_char *)sbuf;
@@ -315,11 +334,105 @@ main(int argc, char *argv[])
 		if (is_comment)
 			--cnt;
 #define	COMPACT(e)	t = e; while ((*p++ = *t++));
+#define SCALAR(e)	store = htonl((uint32_t)(e));      \
+			memmove(p, &store, sizeof(store)); \
+			p += sizeof(store);
 		if (!is_comment && 
 		    (!username || (strcmp(username, pwd.pw_name) == 0))) {
 			pw_change = pwd.pw_change;
 			pw_expire = pwd.pw_expire;
 			/* Create insecure data. */
+			p = buf;
+			COMPACT(pwd.pw_name);
+			COMPACT("*");
+			SCALAR(pwd.pw_uid);
+			SCALAR(pwd.pw_gid);
+			SCALAR(pwd.pw_change);
+			COMPACT(pwd.pw_class);
+			COMPACT(pwd.pw_gecos);
+			COMPACT(pwd.pw_dir);
+			COMPACT(pwd.pw_shell);
+			SCALAR(pwd.pw_expire);
+			SCALAR(pwd.pw_fields);
+			data.size = p - buf;
+
+			/* Create secure data. */
+			p = sbuf;
+			COMPACT(pwd.pw_name);
+			COMPACT(pwd.pw_passwd);
+			SCALAR(pwd.pw_uid);
+			SCALAR(pwd.pw_gid);
+			SCALAR(pwd.pw_change);
+			COMPACT(pwd.pw_class);
+			COMPACT(pwd.pw_gecos);
+			COMPACT(pwd.pw_dir);
+			COMPACT(pwd.pw_shell);
+			SCALAR(pwd.pw_expire);
+			SCALAR(pwd.pw_fields);
+			sdata.size = p - sbuf;
+
+			/* Store insecure by name. */
+			tbuf[0] = _PW_KEYBYNAME | CURRENT_VERSION;
+			len = strlen(pwd.pw_name);
+			memmove(tbuf + 1, pwd.pw_name, len);
+			key.size = len + 1;
+			if ((dp->put)(dp, &key, &data, method) == -1)
+				error("put");
+
+			/* Store insecure by number. */
+			tbuf[0] = _PW_KEYBYNUM | CURRENT_VERSION;
+			store = htonl(cnt);
+			memmove(tbuf + 1, &store, sizeof(store));
+			key.size = sizeof(store) + 1;
+			if ((dp->put)(dp, &key, &data, method) == -1)
+				error("put");
+
+			/* Store insecure by uid. */
+			tbuf[0] = _PW_KEYBYUID | CURRENT_VERSION;
+			store = htonl(pwd.pw_uid);
+			memmove(tbuf + 1, &store, sizeof(store));
+			key.size = sizeof(store) + 1;
+			if ((dp->put)(dp, &key, &data, methoduid) == -1)
+				error("put");
+
+			/* Store secure by name. */
+			tbuf[0] = _PW_KEYBYNAME | CURRENT_VERSION;
+			len = strlen(pwd.pw_name);
+			memmove(tbuf + 1, pwd.pw_name, len);
+			key.size = len + 1;
+			if ((sdp->put)(sdp, &key, &sdata, method) == -1)
+				error("put");
+
+			/* Store secure by number. */
+			tbuf[0] = _PW_KEYBYNUM | CURRENT_VERSION;
+			store = htonl(cnt);
+			memmove(tbuf + 1, &store, sizeof(store));
+			key.size = sizeof(store) + 1;
+			if ((sdp->put)(sdp, &key, &sdata, method) == -1)
+				error("put");
+
+			/* Store secure by uid. */
+			tbuf[0] = _PW_KEYBYUID | CURRENT_VERSION;
+			store = htonl(pwd.pw_uid);
+			memmove(tbuf + 1, &store, sizeof(store));
+			key.size = sizeof(store) + 1;
+			if ((sdp->put)(sdp, &key, &sdata, methoduid) == -1)
+				error("put");
+
+			/* Store insecure and secure special plus and special minus */
+			if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
+				tbuf[0] = _PW_KEYYPBYNUM | CURRENT_VERSION;
+				store = htonl(ypcnt);
+				memmove(tbuf + 1, &store, sizeof(store));
+				ypcnt++;
+				key.size = sizeof(store) + 1;
+				if ((dp->put)(dp, &key, &data, method) == -1)
+					error("put");
+				if ((sdp->put)(sdp, &key, &sdata, method) == -1)
+					error("put");
+			}
+
+			/* Create insecure data. (legacy version) */
 			p = buf;
 			COMPACT(pwd.pw_name);
 			COMPACT("*");
@@ -339,7 +452,7 @@ main(int argc, char *argv[])
 			p += sizeof pwd.pw_fields;
 			data.size = p - buf;
 
-			/* Create secure data. */
+			/* Create secure data. (legacy version) */
 			p = sbuf;
 			COMPACT(pwd.pw_name);
 			COMPACT(pwd.pw_passwd);
@@ -360,7 +473,7 @@ main(int argc, char *argv[])
 			sdata.size = p - sbuf;
 
 			/* Store insecure by name. */
-			tbuf[0] = _PW_KEYBYNAME;
+			tbuf[0] = _PW_KEYBYNAME | LEGACY_VERSION;
 			len = strlen(pwd.pw_name);
 			memmove(tbuf + 1, pwd.pw_name, len);
 			key.size = len + 1;
@@ -368,21 +481,21 @@ main(int argc, char *argv[])
 				error("put");
 
 			/* Store insecure by number. */
-			tbuf[0] = _PW_KEYBYNUM;
+			tbuf[0] = _PW_KEYBYNUM | LEGACY_VERSION;
 			memmove(tbuf + 1, &cnt, sizeof(cnt));
 			key.size = sizeof(cnt) + 1;
 			if ((dp->put)(dp, &key, &data, method) == -1)
 				error("put");
 
 			/* Store insecure by uid. */
-			tbuf[0] = _PW_KEYBYUID;
+			tbuf[0] = _PW_KEYBYUID | LEGACY_VERSION;
 			memmove(tbuf + 1, &pwd.pw_uid, sizeof(pwd.pw_uid));
 			key.size = sizeof(pwd.pw_uid) + 1;
 			if ((dp->put)(dp, &key, &data, methoduid) == -1)
 				error("put");
 
 			/* Store secure by name. */
-			tbuf[0] = _PW_KEYBYNAME;
+			tbuf[0] = _PW_KEYBYNAME | LEGACY_VERSION;
 			len = strlen(pwd.pw_name);
 			memmove(tbuf + 1, pwd.pw_name, len);
 			key.size = len + 1;
@@ -390,14 +503,14 @@ main(int argc, char *argv[])
 				error("put");
 
 			/* Store secure by number. */
-			tbuf[0] = _PW_KEYBYNUM;
+			tbuf[0] = _PW_KEYBYNUM | LEGACY_VERSION;
 			memmove(tbuf + 1, &cnt, sizeof(cnt));
 			key.size = sizeof(cnt) + 1;
 			if ((sdp->put)(sdp, &key, &sdata, method) == -1)
 				error("put");
 
 			/* Store secure by uid. */
-			tbuf[0] = _PW_KEYBYUID;
+			tbuf[0] = _PW_KEYBYUID | LEGACY_VERSION;
 			memmove(tbuf + 1, &pwd.pw_uid, sizeof(pwd.pw_uid));
 			key.size = sizeof(pwd.pw_uid) + 1;
 			if ((sdp->put)(sdp, &key, &sdata, methoduid) == -1)
@@ -405,7 +518,7 @@ main(int argc, char *argv[])
 
 			/* Store insecure and secure special plus and special minus */
 			if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
-				tbuf[0] = _PW_KEYYPBYNUM;
+				tbuf[0] = _PW_KEYYPBYNUM | LEGACY_VERSION;
 				memmove(tbuf + 1, &ypcnt, sizeof(cnt));
 				ypcnt++;
 				key.size = sizeof(cnt) + 1;
@@ -437,7 +550,7 @@ main(int argc, char *argv[])
 	if (yp_enabled) {
 		buf[0] = yp_enabled + 2;
 		data.size = 1;
-		tbuf[0] = _PW_KEYYPENABLED;
+		tbuf[0] = _PW_KEYYPENABLED | LEGACY_VERSION;
 		key.size = 1;
 		if ((dp->put)(dp, &key, &data, method) == -1)
 			error("put");
