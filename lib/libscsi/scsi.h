@@ -48,6 +48,7 @@
 || SR->error       		/* copy of errno */ \
 )
 
+__BEGIN_DECLS
 scsireq_t *scsireq_reset __P((scsireq_t *));
 scsireq_t *scsireq_new __P((void));
 
@@ -80,5 +81,6 @@ void scsi_dump __P((FILE *, char *, u_char *, int, int, int ));
 int scsi_debug __P((FILE *, int, scsireq_t *));
 FILE *scsi_debug_output __P((char *));
 int scsi_open __P((const char *, int ));
+__END_DECLS
 
 #endif /* _SCSI_H_ */
