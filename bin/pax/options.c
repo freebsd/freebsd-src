@@ -134,7 +134,7 @@ int ford[] = {5, 4, 3, 2, 1, 0, -1 };
  *	parser
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 options(register int argc, register char **argv)
 #else
@@ -172,7 +172,7 @@ options(argc, argv)
  *	the user specified a legal set of flags. If not, complain and exit
  */
 
-#if __STDC__
+#ifdef __STDC__
 static void
 pax_options(register int argc, register char **argv)
 #else
@@ -207,7 +207,7 @@ pax_options(argc, argv)
 			 */
 			flg |= BF;
 			if ((wrblksz = (int)str_offt(optarg)) <= 0) {
-				pax_warn(1, "Invalid block size %s", optarg);
+				paxwarn(1, "Invalid block size %s", optarg);
 				pax_usage();
 			}
 			break;
@@ -309,7 +309,7 @@ pax_options(argc, argv)
 					pmode = 1;
 					break;
 				default:
-					pax_warn(1, "Invalid -p string: %c", *pt);
+					paxwarn(1, "Invalid -p string: %c", *pt);
 					pax_usage();
 					break;
 				}
@@ -369,7 +369,7 @@ pax_options(argc, argv)
 				flg |= XF;
 				break;
 			}
-			pax_warn(1, "Unknown -x format: %s", optarg);
+			paxwarn(1, "Unknown -x format: %s", optarg);
 			(void)fputs("pax: Known -x formats are:", stderr);
 			for (i = 0; i < (sizeof(fsub)/sizeof(FSUB)); ++i)
 				(void)fprintf(stderr, " %s", fsub[i].name);
@@ -382,11 +382,11 @@ pax_options(argc, argv)
 			 * single archive volume.
 			 */
 			if ((wrlimit = str_offt(optarg)) <= 0) {
-				pax_warn(1, "Invalid write limit %s", optarg);
+				paxwarn(1, "Invalid write limit %s", optarg);
 				pax_usage();
 			}
 			if (wrlimit % BLKMULT) {
-				pax_warn(1, "Write limit is not a %d byte multiple",
+				paxwarn(1, "Write limit is not a %d byte multiple",
 				    BLKMULT);
 				pax_usage();
 			}
@@ -410,7 +410,7 @@ pax_options(argc, argv)
 			if (strcmp(NONE, optarg) == 0)
 				maxflt = -1;
 			else if ((maxflt = atoi(optarg)) < 0) {
-				pax_warn(1, "Error count value must be positive");
+				paxwarn(1, "Error count value must be positive");
 				pax_usage();
 			}
 			break;
@@ -545,7 +545,7 @@ pax_options(argc, argv)
 		break;
 	case COPY:
 		if (optind >= argc) {
-			pax_warn(0, "Destination directory was not supplied");
+			paxwarn(0, "Destination directory was not supplied");
 			pax_usage();
 		}
 		--argc;
@@ -571,7 +571,7 @@ pax_options(argc, argv)
  *	the user specified a legal set of flags. If not, complain and exit
  */
 
-#if __STDC__
+#ifdef __STDC__
 static void
 tar_options(register int argc, register char **argv)
 #else
@@ -601,12 +601,12 @@ tar_options(argc, argv)
 			/*
 			 * specify blocksize
 			 */
-			if (*argv == (char *)NULL) {
-				pax_warn(1,"blocksize must be specified with 'b'");
+			if (*argv == NULL) {
+				paxwarn(1,"blocksize must be specified with 'b'");
 				tar_usage();
 			}
 			if ((wrblksz = (int)str_offt(*argv)) <= 0) {
-				pax_warn(1, "Invalid block size %s", *argv);
+				paxwarn(1, "Invalid block size %s", *argv);
 				tar_usage();
 			}
 			++argv;
@@ -627,8 +627,8 @@ tar_options(argc, argv)
 			/*
 			 * filename where the archive is stored
 			 */
-			if (*argv == (char *)NULL) {
-				pax_warn(1, "filename must be specified with 'f'");
+			if (*argv == NULL) {
+				paxwarn(1, "filename must be specified with 'f'");
 				tar_usage();
 			}
 			if ((argv[0][0] == '-') && (argv[0][1]== '\0')) {
@@ -760,13 +760,13 @@ tar_options(argc, argv)
 	case LIST:
 	case EXTRACT:
 	default:
-		while (*argv != (char *)NULL)
+		while (*argv != NULL)
 			if (pat_add(*argv++) < 0)
 				tar_usage();
 		break;
 	case ARCHIVE:
 	case APPND:
-		while (*argv != (char *)NULL)
+		while (*argv != NULL)
 			if (ftree_add(*argv++) < 0)
 				tar_usage();
 		/*
@@ -775,9 +775,9 @@ tar_options(argc, argv)
 		maxflt = 0;
 		break;
 	}
-	if (!fstdin && ((arcname == (char *)NULL) || (*arcname == '\0'))) {
+	if (!fstdin && ((arcname == NULL) || (*arcname == '\0'))) {
 		arcname = getenv("TAPE");
-		if ((arcname == (char *)NULL) || (*arcname == '\0'))
+		if ((arcname == NULL) || (*arcname == '\0'))
 			arcname = DEV_8;
 	}
 }
@@ -789,7 +789,7 @@ tar_options(argc, argv)
  *	the user specified a legal set of flags. If not, complain and exit
  */
 
-#if __STDC__
+#ifdef __STDC__
 static void
 cpio_options(register int argc, register char **argv)
 #else
@@ -807,7 +807,7 @@ cpio_options(argc, argv)
  *	print out those invalid flag sets found to the user
  */
 
-#if __STDC__
+#ifdef __STDC__
 static void
 printflg(unsigned int flg)
 #else
@@ -834,7 +834,7 @@ printflg(flg)
  *	by the user
  */
 
-#if __STDC__
+#ifdef __STDC__
 static int
 c_frmt(const void *a, const void *b)
 #else
@@ -855,7 +855,7 @@ c_frmt(a, b)
  *	pointer to next OPLIST entry or NULL (end of list).
  */
 
-#if __STDC__
+#ifdef __STDC__
 OPLIST *
 opt_next(void)
 #else
@@ -876,7 +876,7 @@ opt_next()
  *	when the format does not support options.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 bad_opt(void)
 #else
@@ -891,7 +891,7 @@ bad_opt()
 	/*
 	 * print all we were given
 	 */
-	pax_warn(1,"These format options are not supported");
+	paxwarn(1,"These format options are not supported");
 	while ((opt = opt_next()) != NULL)
 		(void)fprintf(stderr, "\t%s = %s\n", opt->name, opt->value);
 	pax_usage();
@@ -907,7 +907,7 @@ bad_opt()
  *	0 if format in name=value format, -1 if -o is passed junk
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 opt_add(register char *str)
 #else
@@ -922,7 +922,7 @@ opt_add(str)
 	register char *endpt;
 
 	if ((str == NULL) || (*str == '\0')) {
-		pax_warn(0, "Invalid option name");
+		paxwarn(0, "Invalid option name");
 		return(-1);
 	}
 	frpt = endpt = str;
@@ -936,11 +936,11 @@ opt_add(str)
 		if ((endpt = strchr(frpt, ',')) != NULL)
 			*endpt = '\0';
 		if ((pt = strchr(frpt, '=')) == NULL) {
-			pax_warn(0, "Invalid options format");
+			paxwarn(0, "Invalid options format");
 			return(-1);
 		}
 		if ((opt = (OPLIST *)malloc(sizeof(OPLIST))) == NULL) {
-			pax_warn(0, "Unable to allocate space for option list");
+			paxwarn(0, "Unable to allocate space for option list");
 			return(-1);
 		}
 		*pt++ = '\0';
@@ -976,7 +976,7 @@ opt_add(str)
  *	0 for an error, a positive value o.w.
  */
 
-#if __STDC__
+#ifdef __STDC__
 static off_t
 str_offt(char *val)
 #else
@@ -1051,7 +1051,7 @@ str_offt(val)
  *	0
  */
 
-#if __STDC__
+#ifdef __STDC__
 static int
 no_op(void)
 #else
@@ -1067,7 +1067,7 @@ no_op()
  *	print the usage summary to the user
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 pax_usage(void)
 #else
@@ -1106,7 +1106,7 @@ pax_usage()
  *	print the usage summary to the user
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 tar_usage(void)
 #else
@@ -1126,7 +1126,7 @@ tar_usage()
  *	print the usage summary to the user
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 cpio_usage(void)
 #else

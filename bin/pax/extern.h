@@ -284,5 +284,5 @@ int ustar_wr __P((register ARCHD *));
 int tty_init __P((void));
 void tty_prnt __P((const char *, ...)) __printflike(1, 2);
 int tty_read __P((char *, int));
-void pax_warn __P((int, const char *, ...)) __printflike(2, 3);
-void sys_warn __P((int, int, const char *, ...)) __printflike(3, 4);
+void paxwarn __P((int, const char *, ...)) __printflike(2, 3);
+void syswarn __P((int, int, const char *, ...)) __printflike(3, 4);
