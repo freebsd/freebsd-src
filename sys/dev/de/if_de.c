@@ -1,5 +1,5 @@
-/*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/*	$Id: if_de.c,v 1.99 1999/03/01 16:54:28 luigi Exp $ */
+/*	$NetBSD: if_de.c,v 1.82 1999/02/28 17:08:51 explorer Exp $	*/
+/*	$Id: if_de.c,v 1.100 1999/03/13 09:21:27 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -3235,7 +3235,8 @@ tulip_reset(
      * to properly reset its internal pathways to the right places.
      *   Grrrr.
      */
-    if (sc->tulip_boardsw->bd_media_preset != NULL)
+    if ((sc->tulip_flags & TULIP_DEVICEPROBE) == 0
+	    && sc->tulip_boardsw->bd_media_preset != NULL)
 	(*sc->tulip_boardsw->bd_media_preset)(sc);
 
     TULIP_CSR_WRITE(sc, csr_busmode, TULIP_BUSMODE_SWRESET);
@@ -4496,8 +4497,6 @@ tulip_txput(
     ri->ri_nextout->d_status = TULIP_DSTS_OWNER;
     TULIP_TXDESC_PRESYNC(sc, ri->ri_nextout, sizeof(u_int32_t));
 
-    TULIP_CSR_WRITE(sc, csr_txpoll, 1);
-
     /*
      * This advances the ring for us.
      */
@@ -4507,6 +4506,7 @@ tulip_txput(
     TULIP_PERFEND(txput);
 
     if (sc->tulip_flags & TULIP_TXPROBE_ACTIVE) {
+	TULIP_CSR_WRITE(sc, csr_txpoll, 1);
 	sc->tulip_if.if_flags |= IFF_OACTIVE;
 	sc->tulip_if.if_start = tulip_ifstart;
 	TULIP_PERFEND(txput);
@@ -4549,6 +4549,7 @@ tulip_txput(
 	    TULIP_CSR_WRITE(sc, csr_intr, sc->tulip_intrmask);
 	}
     }
+    TULIP_CSR_WRITE(sc, csr_txpoll, 1);
     TULIP_PERFEND(txput);
     return m;
 }
@@ -5099,7 +5100,7 @@ tulip_attach(
 
 #if defined(__NetBSD__) && NRND > 0
     rnd_attach_source(&sc->tulip_rndsource, sc->tulip_dev.dv_xname,
-		      RND_TYPE_NET);
+		      RND_TYPE_NET, 0);
 #endif
 }
 
@@ -5581,10 +5582,10 @@ tulip_pci_attach(
 	(sc)->tulip_pci_busno = parent; \
 	(sc)->tulip_pci_devno = pa->pa_device; \
     } while (0)
-#endif /* __NetBSD__ */
 #if defined(__alpha__)
     tulip_media_t media = TULIP_MEDIA_UNKNOWN;
 #endif
+#endif /* __NetBSD__ */
     int retval, idx;
     u_int32_t revinfo, cfdainfo, id;
 #if !defined(TULIP_IOMAPPED) && defined(__FreeBSD__)
@@ -5695,14 +5696,13 @@ tulip_pci_attach(
      * force a probe.
      */
     switch ((cfdainfo >> 8) & 0xff) {
-    case 1: media = chipid > TULIP_DE425 ?
-        TULIP_MEDIA_AUI : TULIP_MEDIA_AUIBNC; break;
-    case 2: media = chipid > TULIP_DE425 ?
-        TULIP_MEDIA_BNC : TULIP_MEDIA_UNKNOWN; break;
-    case 3: media = TULIP_MEDIA_10BASET; break;
-    case 4: media = TULIP_MEDIA_10BASET_FD; break;
-    case 5: media = TULIP_MEDIA_100BASETX; break;
-    case 6: media = TULIP_MEDIA_100BASETX_FD; break;
+	case 1: media = chipid > TULIP_DE425 ? TULIP_MEDIA_AUI : TULIP_MEDIA_AUIBNC; break;
+	case 2: media = chipid > TULIP_DE425 ? TULIP_MEDIA_BNC : TULIP_MEDIA_UNKNOWN; break;
+	case 3: media = TULIP_MEDIA_10BASET; break;
+	case 4: media = TULIP_MEDIA_10BASET_FD; break;
+	case 5: media = TULIP_MEDIA_100BASETX; break;
+	case 6: media = TULIP_MEDIA_100BASETX_FD; break;
+	default: media = TULIP_MEDIA_UNKNOWN; break;
     }
 #endif
 
@@ -5890,11 +5890,13 @@ tulip_pci_attach(
 #endif
 
 	s = TULIP_RAISESPL();
-	tulip_reset(sc);
+#if defined(__alpha__) && defined(__NetBSD__)
+	sc->tulip_media = media;
+#endif
 	tulip_attach(sc);
 #if defined(__alpha__) && defined(__NetBSD__)
-	if (media != TULIP_MEDIA_UNKNOWN)
-	    tulip_linkup(sc, media);
+	if (sc->tulip_media != TULIP_MEDIA_UNKNOWN)
+		tulip_linkup(sc, media);
 #endif
 	TULIP_RESTORESPL(s);
     }
