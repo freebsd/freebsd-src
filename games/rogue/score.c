@@ -336,7 +336,7 @@ object *monster;
 			}
 		}
 	}
-	sprintf(buf, "%2d    %6d   %s: ", rank+1, rogue.gold, login_name);
+	sprintf(buf, "%2d    %6ld   %s: ", rank+1, rogue.gold, login_name);
 
 	if (other) {
 		switch(other) {
