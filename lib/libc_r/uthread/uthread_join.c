@@ -119,6 +119,9 @@ pthread_join(pthread_t pthread, void **thread_return)
 		/* Set the running thread to be the joiner: */
 		pthread->joiner = _thread_run;
 
+		/* Keep track of which thread we're joining to: */
+		_thread_run->data.thread = pthread;
+
 		/* Schedule the next thread: */
 		_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
 
