@@ -57,7 +57,10 @@
 .Ar
 .Sh DESCRIPTION
 .Nm Chown
-sets the user ID and/or the group ID of the specified files.
+changes the user ID and/or the group ID of the specified files.
+Symbolic links named by arguments are silently left unchanged unless
+.Op Fl h
+is used.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -82,8 +85,8 @@ in the files instead of just the files themselves.
 Don't report any failure to change file owner or group, nor modify
 the exit status to reflect such failures.
 .It Fl h
-If the file is a symbolic link, change the user ID and/or the group ID
-of the link itself rather than the file that the link points to.
+If the file is a symbolic link, change the user ID and/or the
+group ID of the link itself.
 .It Fl v
 Cause
 .Nm
