@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if NAMED_BIND
-static char sccsid[] = "@(#)domain.c	8.19 (Berkeley) 3/11/94 (with name server)";
+static char sccsid[] = "@(#)domain.c	8.19.1.1 (Berkeley) 3/6/95 (with name server)";
 #else
-static char sccsid[] = "@(#)domain.c	8.19 (Berkeley) 3/11/94 (without name server)";
+static char sccsid[] = "@(#)domain.c	8.19.1.1 (Berkeley) 3/6/95 (without name server)";
 #endif
 #endif /* not lint */
 
@@ -709,6 +709,7 @@ gethostalias(host)
 	fname = getenv("HOSTALIASES");
 	if (fname == NULL || (fp = fopen(fname, "r")) == NULL)
 		return NULL;
+	setbuf(fp, NULL);
 	while (fgets(buf, sizeof buf, fp) != NULL)
 	{
 		for (p = buf; p != '\0' && !(isascii(*p) && isspace(*p)); p++)

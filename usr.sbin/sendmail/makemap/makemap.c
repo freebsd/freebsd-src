@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)makemap.c	8.6 (Berkeley) 11/22/93";
+static char sccsid[] = "@(#)makemap.c	8.6.1.1 (Berkeley) 3/6/95";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -66,7 +66,7 @@ union dbent
 	struct
 	{
 		char	*data;
-		int	size;
+		size_t	size;
 	} xx;
 };
 
@@ -226,10 +226,14 @@ main(argc, argv)
 #ifdef NEWDB
 	  case T_HASH:
 		dbp.db = dbopen(mapname, mode, 0644, DB_HASH, NULL);
+		if (dbp.db != NULL)
+			(void) (*dbp.db->sync)(dbp.db, 0);
 		break;
 
 	  case T_BTREE:
 		dbp.db = dbopen(mapname, mode, 0644, DB_BTREE, NULL);
+		if (dbp.db != NULL)
+			(void) (*dbp.db->sync)(dbp.db, 0);
 		break;
 #endif
 

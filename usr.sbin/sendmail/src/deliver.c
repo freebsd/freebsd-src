@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)deliver.c	8.84.1.1 (Berkeley) 2/10/95";
+static char sccsid[] = "@(#)deliver.c	8.84.1.3 (Berkeley) 3/5/95";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -1181,6 +1181,12 @@ tryhost:
 			extern char **environ;
 			extern int DtableSize;
 
+			if (e->e_lockfp != NULL)
+			{
+				fclose(e->e_lockfp);
+				e->e_lockfp = NULL;
+			}
+
 			/* child -- set up input & exec mailer */
 			(void) setsignal(SIGINT, SIG_IGN);
 			(void) setsignal(SIGHUP, SIG_IGN);
@@ -2176,7 +2182,15 @@ mailfile(filename, ctladdr, e)
 	{
 		/* child -- actually write to file */
 		struct stat stb;
+		struct stat fsb;
 		MCI mcibuf;
+		int oflags = O_WRONLY|O_APPEND;
+
+		if (e->e_lockfp != NULL)
+		{
+			fclose(e->e_lockfp);
+			e->e_lockfp = NULL;
+		}
 
 		(void) setsignal(SIGINT, SIG_DFL);
 		(void) setsignal(SIGHUP, SIG_DFL);
@@ -2184,15 +2198,18 @@ mailfile(filename, ctladdr, e)
 		(void) umask(OldUmask);
 
 		if (stat(filename, &stb) < 0)
+		{
 			stb.st_mode = FileMode;
+			oflags |= O_CREAT|O_EXCL;
+		}
+		else if (bitset(0111, stb.st_mode))
+			exit(EX_CANTCREAT);
 		mode = stb.st_mode;
 
 		/* limit the errors to those actually caused in the child */
 		errno = 0;
 		ExitStat = EX_OK;
 
-		if (bitset(0111, stb.st_mode))
-			exit(EX_CANTCREAT);
 		if (ctladdr != NULL)
 		{
 			/* ignore setuid and setgid bits */
@@ -2232,10 +2249,20 @@ mailfile(filename, ctladdr, e)
 		}
 		FileName = filename;
 		LineNumber = 0;
-		f = dfopen(filename, O_WRONLY|O_CREAT|O_APPEND, FileMode);
+		f = dfopen(filename, oflags, FileMode);
 		if (f == NULL)
 		{
 			message("554 cannot open: %s", errstring(errno));
+			exit(EX_CANTCREAT);
+		}
+		if (fstat(fileno(f), &fsb) < 0 ||
+		    !bitset(O_CREAT, oflags) &&
+		     (stb.st_nlink != fsb.st_nlink ||
+		      stb.st_dev != fsb.st_dev ||
+		      stb.st_ino != fsb.st_ino ||
+		      stb.st_uid != fsb.st_uid))
+		{
+			message("554 cannot write: file changed after open");
 			exit(EX_CANTCREAT);
 		}
 
