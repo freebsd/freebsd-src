@@ -69,7 +69,7 @@
 /*
  * Null filesystem
  */
-int	null_open (char *path, struct open_file *f)
+int	null_open (const char *path, struct open_file *f)
 {
 	errno  = EIO;
 	return -1;
