@@ -48,7 +48,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: lpr.c	8.4 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: lpr.c,v 1.26 1999/01/06 08:25:56 imp Exp $";
+	"$Id: lpr.c,v 1.27 1999/01/06 08:33:38 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -99,6 +99,7 @@ static int	 tfd;		/* control file descriptor */
 static char	*tfname;	/* tmp copy of cf before linking */
 static char	*title;		/* pr'ing title */
 static int	 userid;	/* user id */
+static char	*Uflag;		/* user name specified with -U flag */
 static char	*width;		/* width for versatec printing */
 
 static struct stat statb;
@@ -188,7 +189,7 @@ main(argc, argv)
 
 		case 'U':		/* user name */
 			hdr++;
-			person = optarg;
+			uflag = optarg;
 			break;
 
 		case 'c':		/* print cifplot output */
@@ -266,14 +267,20 @@ main(argc, argv)
 	 * the daemon actually checks for the string "root" in its
 	 * permission checking.  Sigh.
 	 */
-	if ((person = getlogin()) == NULL) {
-		userid = getuid();
+	userid = getuid();
+	if (Uflag) {
+		if (userid != 0 && userid != pp->daemon_user)
+			errx(1, "only privileged users may use the `-U' flag");
+		person = Uflag;
+	} else {
+		person = getlogin();
 		if (userid != pp->daemon_user || person == 0) {
 			if ((pw = getpwuid(userid)) == NULL)
 				errx(1, "Who are you?");
 			person = pw->pw_name;
 		}
 	}
+
 	/*
 	 * Check for restricted group access.
 	 */
