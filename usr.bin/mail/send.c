@@ -428,7 +428,7 @@ infix(hp, fi)
 	struct header *hp;
 	FILE *fi;
 {
-	extern char tempMail[];
+	extern char *tempMail;
 	register FILE *nfo, *nfi;
 	register int c;
 
