@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.10 1996/07/01 20:28:54 bde Exp $
+ *	$Id: snake_saver.c,v 1.14 1997/04/06 10:49:22 dufault Exp $
  */
 
 #include <sys/param.h>
@@ -48,7 +48,7 @@ void (*old_saver)(int blank);
 static void
 snake_saver(int blank)
 {
-	const char	saves[] = {"FreeBSD-2.2"};
+	const char	saves[] = {"FreeBSD-2.2-STABLE"};
 	static u_char	*savs[sizeof(saves)-1];
 	static int	dirx, diry;
 	int		f;
@@ -122,6 +122,6 @@ snake_saver_unload(struct lkm_table *lkmtp, int cmd)
 int
 snake_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp, cmd, ver, snake_saver_load, snake_saver_unload,
-		 lkm_nullcmd);
+	MOD_DISPATCH(snake_saver, lkmtp, cmd, ver,
+		snake_saver_load, snake_saver_unload, lkm_nullcmd);
 }
