@@ -81,7 +81,7 @@ This is the traditional behavior of
 Resource limits and session priority applicable to the original user's
 login class (See
 .Xr login.conf 5 )
-are also normally retained unless the target login as a user ID of 0.
+are also normally retained unless the target login has a user ID of 0.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -208,7 +208,7 @@ as user
 .Li man .
 You will be asked for man's password unless your real UID is 0.
 .It Li "su man -c 'catman /usr/share/man /usr/local/man /usr/X11R6/man'"
-Same as above, but the target command constitutes of more than a
+Same as above, but the target command consists of more than a
 single word and hence is quoted for use with the
 .Fl c
 option being passed to the shell.  (Most shells expect the argument to
