@@ -51,5 +51,5 @@ PermitEmptyPasswords no
 # Kerberos TGT Passing does only work with the AFS kaserver
 #KerberosTgtPassing yes
 
-#CheckMail yes
+CheckMail yes
 #UseLogin no
