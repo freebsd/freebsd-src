@@ -436,9 +436,9 @@ static void
 ep_if_start(ifp)
     struct ifnet *ifp;
 {
-    register struct ep_softc *sc = ifp->if_softc;
-    register u_int len;
-    register struct mbuf *m;
+    struct ep_softc *sc = ifp->if_softc;
+    u_int len;
+    struct mbuf *m;
     struct mbuf *top;
     int s, pad;
 
@@ -446,17 +446,15 @@ ep_if_start(ifp)
 	return;
     }
 
-    s = splimp();
     while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
     if (ifp->if_flags & IFF_OACTIVE) {
-	splx(s);
 	return;
     }
+
 startagain:
     /* Sneak a peek at the next packet */
     m = ifp->if_snd.ifq_head;
     if (m == 0) {
-	splx(s);
 	return;
     }
     for (len = 0, top = m; m; m = m->m_next)
@@ -485,29 +483,39 @@ startagain:
 	    splx(s);
 	    return;
 	}
+    } else {
+	outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | EP_THRESH_DISABLE);
     }
+
     IF_DEQUEUE(&ifp->if_snd, m);
+
+    s = splhigh();
 
     outw(BASE + EP_W1_TX_PIO_WR_1, len); 
     outw(BASE + EP_W1_TX_PIO_WR_1, 0x0);	/* Second dword meaningless */
 
-    for (top = m; m != 0; m = m->m_next)
-	if (EP_FTST(sc, F_ACCESS_32_BITS)) {
+    if (EP_FTST(sc, F_ACCESS_32_BITS)) {
+        for (top = m; m != 0; m = m->m_next) {
 	    outsl(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t),
 		  m->m_len / 4);
 	    if (m->m_len & 3)
 		outsb(BASE + EP_W1_TX_PIO_WR_1,
 		      mtod(m, caddr_t) + (m->m_len & (~3)),
 		      m->m_len & 3);
-	} else {
+	}
+    } else {
+        for (top = m; m != 0; m = m->m_next) {
 	    outsw(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t), m->m_len / 2);
 	    if (m->m_len & 1)
 		outb(BASE + EP_W1_TX_PIO_WR_1,
 		     *(mtod(m, caddr_t) + m->m_len - 1));
 	}
+    }
 
     while (pad--)
 	outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
+
+    splx(s);
 
     if (ifp->if_bpf) {
 	bpf_mtap(ifp, top);
@@ -530,7 +538,6 @@ readcheck:
 	if (ifp->if_snd.ifq_head) {
 	    outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
 	}
-	splx(s);
 	return;
     }
     goto startagain;
