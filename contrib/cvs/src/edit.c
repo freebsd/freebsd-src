@@ -427,6 +427,15 @@ edit (argc, argv)
 	setting_tcommit = 1;
     }
 
+    if (strpbrk (hostname, "+,>;=\t\n") != NULL)
+	error (1, 0,
+	       "host name (%s) contains an invalid character (+,>;=\\t\\n)",
+	       hostname);
+    if (strpbrk (CurDir, "+,>;=\t\n") != NULL)
+	error (1, 0,
+"current directory (%s) contains an invalid character (+,>;=\\t\\n)",
+	       CurDir);
+
     /* No need to readlock since we aren't doing anything to the
        repository.  */
     err = start_recursion (edit_fileproc, (FILESDONEPROC) NULL,
@@ -553,6 +562,15 @@ unedit_fileproc (callerdat, finfo)
     return 0;
 }
 
+static const char *const unedit_usage[] =
+{
+    "Usage: %s %s [-lR] [files...]\n",
+    "-l: Local directory only, not recursive\n",
+    "-R: Process directories recursively\n",
+    "(Specify the --help global option for a list of other help options)\n",
+    NULL
+};
+
 int
 unedit (argc, argv)
     int argc;
@@ -563,7 +581,7 @@ unedit (argc, argv)
     int err;
 
     if (argc == -1)
-	usage (edit_usage);
+	usage (unedit_usage);
 
     optind = 0;
     while ((c = getopt (argc, argv, "+lR")) != -1)
@@ -578,7 +596,7 @@ unedit (argc, argv)
 		break;
 	    case '?':
 	    default:
-		usage (edit_usage);
+		usage (unedit_usage);
 		break;
 	}
     }
@@ -1060,6 +1078,7 @@ editors_fileproc (callerdat, finfo)
 	cvs_output ("\n", 1);
     }
   out:;
+    free (them);
     return 0;
 }
 

@@ -177,6 +177,11 @@ foreach sfile (SCCS/s.*)
         if ($status != 0) goto ERROR
 
         # get file into current dir and get stats
+	set year = `echo $date | cut -c3-4`
+	if ($year < 70) then
+		# Y2K Bug, change century to 20
+		set date = `echo $date | sed -e s/19/20/`
+	endif
         set date = `sccs prs -r$rev $file | grep "^D " | awk '{printf("19%s %s", $3, $4); exit}'`
         set author = `sccs prs -r$rev $file | grep "^D " | awk '{print $5; exit}'`
         echo ""
