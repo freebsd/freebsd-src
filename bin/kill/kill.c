@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kill.c,v 1.6 1997/02/22 14:03:45 peter Exp $
+ *	$Id: kill.c,v 1.7 1997/06/03 06:24:50 charnier Exp $
  */
 
 #ifndef lint
@@ -180,9 +180,10 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: kill [-s signal_name] pid ...\n");
-	(void)fprintf(stderr, "       kill -l [exit_status]\n");
-	(void)fprintf(stderr, "       kill -signal_name pid ...\n");
-	(void)fprintf(stderr, "       kill -signal_number pid ...\n");
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
+		"usage: kill [-s signal_name] pid ...",
+		"       kill -l [exit_status]",
+		"       kill -signal_name pid ...",
+		"       kill -signal_number pid ...");
 	exit(1);
 }

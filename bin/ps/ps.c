@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.18 1997/03/28 15:24:29 imp Exp $
+ *	$Id: ps.c,v 1.19 1997/04/29 05:26:05 jkh Exp $
  */
 
 #ifndef lint
@@ -558,10 +558,9 @@ static void
 usage()
 {
 
-	(void)fprintf(stderr,
-	    "usage:\t%s\n\t   %s\n\t%s\n",
-	    "ps [-aChjlmrSTuvwx] [-O|o fmt] [-p pid] [-t tty] [-U user]",
-	    "[-M core] [-N system] [-W swap]",
-	    "ps [-L]");
+	(void)fprintf(stderr, "%s\n%s\n%s\n",
+	    "usage: ps [-aChjlmrSTuvwx] [-O|o fmt] [-p pid] [-t tty] [-U user]",
+	    "          [-M core] [-N system] [-W swap]",
+	    "       ps [-L]");
 	exit(1);
 }
