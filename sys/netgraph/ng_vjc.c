@@ -41,7 +41,7 @@
  */
 
 /*
- * This node performs Van Jacobsen IP header (de)compression.
+ * This node performs Van Jacobson IP header (de)compression.
  * You must have included net/slcompress.c in your kernel compilation.
  */
 
