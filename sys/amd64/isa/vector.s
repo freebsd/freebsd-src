@@ -1,11 +1,10 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.8 1994/08/18 05:09:36 davidg Exp $
+ *	$Id: vector.s,v 1.9 1994/09/20 21:35:49 bde Exp $
  */
 
-#include "i386/isa/icu.h"
-#include "i386/isa/isa.h"
-#include "vector.h"
+#include <i386/isa/icu.h>
+#include <i386/isa/isa.h>
 
 #define	ICU_EOI			0x20	/* XXX - define elsewhere */
 
@@ -185,11 +184,13 @@ Xresume/**/irq_num: ; \
 	movl	%eax,_cpl ; \
 	sti ; \
 	call	*_intr_handler + (irq_num) * 4 ; \
+	cli ;			/* must unmask _imen and icu atomically */ \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
 	andb	$~IRQ_BIT(irq_num),%al ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
 	FASTER_NOP ; \
 	outb	%al,$icu+1 ; \
+	sti ;			/* XXX _doreti repeats the cli/sti */ \
 	MEXITCOUNT ; \
 	/* We could usually avoid the following jmp by inlining some of */ \
 	/* _doreti, but it's probably better to use less cache. */ \
