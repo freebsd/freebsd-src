@@ -1052,7 +1052,6 @@ sioattach(dev)
 		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
 	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
 		enable_intr();
-		free(com, M_DEVBUF);
 		/*
 		 * Leave i/o resources allocated if this is a `cn'-level
 		 * console, so that other devices can't snarf them.
@@ -1440,7 +1439,6 @@ sioclose(dev, flag, mode, p)
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
 		bzero(tp, sizeof *tp);
-		free(com, M_DEVBUF);
 		splx(s);
 	}
 	return (0);
