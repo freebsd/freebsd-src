@@ -29,7 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <arpa/inet.h>
+#include <sys/param.h>
 #include <err.h>
 #include <stdarg.h>
 #include <stdio.h>
