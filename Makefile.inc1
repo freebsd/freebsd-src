@@ -552,10 +552,11 @@ includes:
 	cd ${.CURDIR}/lib/libftpio;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmytinfo;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libncurses;		${MAKE} beforeinstall
 .if !defined(WANT_CSRG_LIBM)
 	cd ${.CURDIR}/lib/msun;			${MAKE} beforeinstall
 .endif
+	cd ${.CURDIR}/lib/libncurses;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libnetgraph;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libopie;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libpam/libpam;	${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libpcap;		${MAKE} beforeinstall
