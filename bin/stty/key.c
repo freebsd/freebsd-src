@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include "extern.h"
 
 __BEGIN_DECLS
+static int c_key __P((const void *, const void *));
 void	f_all __P((struct info *));
 void	f_cbreak __P((struct info *));
 void	f_columns __P((struct info *));
@@ -70,7 +71,7 @@ void	f_tty __P((struct info *));
 __END_DECLS
 
 static struct key {
-	char *name;				/* name */
+	const char *name;			/* name */
 	void (*f) __P((struct info *));		/* function */
 #define	F_NEEDARG	0x01			/* needs an argument */
 #define	F_OFFOK		0x02			/* can turn off */
@@ -102,7 +103,7 @@ c_key(a, b)
         const void *a, *b;
 {
 
-        return (strcmp(((struct key *)a)->name, ((struct key *)b)->name));
+        return (strcmp(((const struct key *)a)->name, ((const struct key *)b)->name));
 }
 
 int
@@ -209,7 +210,7 @@ f_ispeed(ip)
 	struct info *ip;
 {
 
-	cfsetispeed(&ip->t, atoi(ip->arg));
+	cfsetispeed(&ip->t, (speed_t)atoi(ip->arg));
 	ip->set = 1;
 }
 
@@ -233,7 +234,7 @@ f_ospeed(ip)
 	struct info *ip;
 {
 
-	cfsetospeed(&ip->t, atoi(ip->arg));
+	cfsetospeed(&ip->t, (speed_t)atoi(ip->arg));
 	ip->set = 1;
 }
 

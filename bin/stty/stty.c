@@ -59,6 +59,8 @@ static const char rcsid[] =
 #include "stty.h"
 #include "extern.h"
 
+int main __P((int, char *[]));
+
 int
 main(argc, argv)
 	int argc;
@@ -131,7 +133,7 @@ args:	argc -= optind;
 			continue;
 
 		if (isdigit(**argv)) {
-			int speed;
+			speed_t speed;
 
 			speed = atoi(*argv);
 			cfsetospeed(&i.t, speed);

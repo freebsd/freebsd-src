@@ -44,8 +44,10 @@ static const char rcsid[] =
 #include <string.h>
 #include "stty.h"
 
+int msearch __P((char ***, struct info *));
+
 struct modes {
-	char *name;
+	const char *name;
 	long set;
 	long unset;
 };
@@ -93,7 +95,7 @@ struct modes cmodes[] = {
 	{ "-rtsflow",	0, CRTS_IFLOW },
 	{ "mdmbuf",	MDMBUF, 0 },
 	{ "-mdmbuf",	0, MDMBUF },
-	{ NULL },
+	{ NULL,		0, 0 },
 };
 
 struct modes imodes[] = {
@@ -129,7 +131,7 @@ struct modes imodes[] = {
 	{ "-decctlq",	IXANY, 0 },
 	{ "imaxbel",	IMAXBEL, 0 },
 	{ "-imaxbel",	0, IMAXBEL },
-	{ NULL },
+	{ NULL,		0, 0 },
 };
 
 struct modes lmodes[] = {
@@ -181,7 +183,7 @@ struct modes lmodes[] = {
 	{ "-nokerninfo",0, NOKERNINFO },
 	{ "kerninfo",	0, NOKERNINFO },
 	{ "-kerninfo",	NOKERNINFO, 0 },
-	{ NULL },
+	{ NULL,		0, 0 },
 };
 
 struct modes omodes[] = {
@@ -201,7 +203,7 @@ struct modes omodes[] = {
 	{ "-onocr",	0, ONOCR },
 	{ "onlret",	ONLRET, 0 },
 	{ "-onlret",	0, ONLRET },
-	{ NULL },
+	{ NULL,		0, 0 },
 };
 
 #define	CHK(s)	(*name == s[0] && !strcmp(name, s))
