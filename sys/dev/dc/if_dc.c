@@ -1955,13 +1955,17 @@ dc_attach(dev)
 	sc->dc_info = dc_devtype(dev);
 	revision = pci_read_config(dev, DC_PCI_CFRV, 4) & 0x000000FF;
 
+	/* Get the eeprom width, but PNIC and XIRCOM have no eeprom */
+	if (sc->dc_info->dc_did != DC_DEVICEID_82C168 &&
+	   sc->dc_info->dc_did != DC_DEVICEID_X3201)
+		dc_eeprom_width(sc);
+
 	switch(sc->dc_info->dc_did) {
 	case DC_DEVICEID_21143:
 		sc->dc_type = DC_TYPE_21143;
 		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		/* Save EEPROM contents so we can parse them later. */
-		dc_eeprom_width(sc);
 		dc_read_srom(sc, sc->dc_romwidth);
 		break;
 	case DC_DEVICEID_DM9009:
@@ -1982,7 +1986,6 @@ dc_attach(dev)
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
 		sc->dc_pmode = DC_PMODE_MII;
-		dc_eeprom_width(sc);
 		dc_read_srom(sc, sc->dc_romwidth);
 		break;
 	case DC_DEVICEID_AN985:
@@ -1993,7 +1996,6 @@ dc_attach(dev)
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
 		sc->dc_pmode = DC_PMODE_MII;
-		dc_eeprom_width(sc);
 		dc_read_srom(sc, sc->dc_romwidth);
 		break;
 	case DC_DEVICEID_98713:
@@ -2064,7 +2066,6 @@ dc_attach(dev)
 		sc->dc_flags |= DC_TX_INTR_ALWAYS;
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		sc->dc_pmode = DC_PMODE_MII;
-		dc_eeprom_width(sc);
 		dc_read_srom(sc, sc->dc_romwidth);
 		break;
 	default:
