@@ -274,7 +274,9 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 				printf("Ignoring known bogus MBR #1\n");
 			break;
 		}
+		g_topology_lock();
 		g_mbr_modify(gp, ms, dp);
+		g_topology_unlock();
 		break;
 	}
 	g_topology_lock();
