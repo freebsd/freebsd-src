@@ -99,7 +99,7 @@
       (&man.hifn.4;) and Broadcom-based cards (&man.ubsec.4;).</para>
 
     <para arch="i386,pc98">Initial support has been added for
-      Firewire devices (see &man.firewire.4;).</para>
+      FireWire devices (see &man.firewire.4;).</para>
 
     <para>The &man.uftdi.4; driver, to support FTDI USB-to-serial
       devices, has been added.</para>
@@ -156,7 +156,7 @@
         &release.prev;, but was not mentioned in the release
         notes.)</para>
 
-      <para>The trm driver has been added to support SCSI adapters
+      <para>The &man.trm.4; driver has been added to support SCSI adapters
         using the Tekram TRM-S1040 SCSI chipset.</para>
 
     </sect3>
@@ -220,6 +220,9 @@
       <literal>speed</literal> command to set the maximum speed to be
       used by the drive (the maximum possible speed can be selected
       setting the speed to <literal>max</literal>).</para>
+
+    <para>The &man.fwcontrol.8; utility has been added to help users
+      access and control the FireWire subsystem.</para>
 
     <para>The &man.getconf.1; utility has been added.  It prints the
       values of POSIX or X/Open path or system configuration
