@@ -52,6 +52,7 @@
 #include <sys/malloc.h>
 #include <sys/errno.h>
 #include <sys/buf.h>
+#define b_actf	b_act.tqe_next
 #include <sys/dataacq.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
