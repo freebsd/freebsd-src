@@ -969,7 +969,7 @@ ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 	ahc_lock(ahc, &s);
 
 	cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
-	if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0) {
+	if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) == 0) {
 		if ((ahc->user_discenable & devinfo.target_mask) != 0)
 			cts->flags |= CCB_TRANS_DISC_ENB;
 
