@@ -18,8 +18,10 @@
 
 #ifdef KERNEL_PLL
 #include <sys/timex.h>
+#ifndef NTP_SYSCALLS_LIBC
 #define ntp_gettime(t)	syscall(SYS_ntp_gettime, (t))
 #define ntp_adjtime(t)	syscall(SYS_ntp_adjtime, (t))
+#endif
 #endif /* KERNEL_PLL */
 
 /*
