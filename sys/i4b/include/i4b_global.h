@@ -27,9 +27,11 @@
  *	i4b_global.h - i4b global include file
  *	--------------------------------------
  *
+ *	$Id: i4b_global.h,v 1.23 1999/12/13 21:25:24 hm Exp $
+ *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Apr 26 11:10:26 1999]
+ *	last edit-date: [Mon Dec 13 21:44:17 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,6 +48,12 @@
 
 #ifdef __FreeBSD__
 #include <sys/param.h>
+
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 400000 && __FreeBSD_version < 400011
+#error "Unsupported FreeBSD-current version,"
+#error "you need a FreeBSD-current >= 400011"
+#endif
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 
 #define TIMEOUT_FUNC_T	timeout_t *

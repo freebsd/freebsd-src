@@ -27,9 +27,11 @@
  *	i4b_l2.h - ISDN layer 2 (Q.921) definitions
  *	---------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_l2.h,v 1.20 1999/12/13 21:25:27 hm Exp $ 
  *
- *      last edit-date: [Fri May 28 15:51:17 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:03:29 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -61,7 +63,7 @@ typedef struct {
 	void(*T202func)(void *);/* function to be called when T202 expires */
 	int	T203;		/* max line idle time */
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 	struct	callout_handle T200_callout;
 	struct	callout_handle T202_callout;
 	struct	callout_handle T203_callout;

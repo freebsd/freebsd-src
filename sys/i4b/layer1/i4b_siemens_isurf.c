@@ -37,32 +37,28 @@
  *	Siemens I-Surf 2.0 PnP specific routines for isic driver
  *	--------------------------------------------------------
  *
+ *	$Id: i4b_siemens_isurf.c,v 1.2 1999/12/13 21:25:26 hm Exp $
+ *
  * $FreeBSD$
  *
- *      last edit-date: [Mon 14 Jun 16:46:27 CEST 1999]
+ *      last edit-date: [Mon Dec 13 22:02:28 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#if defined(__FreeBSD__)
 #include "isic.h"
 #include "opt_i4b.h"
 
 #if NISIC > 0 && defined(SIEMENS_ISURF2)
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/socket.h>
 
 #include <machine/clock.h>
-#include <i386/isa/isa_device.h>
 
-#include <sys/socket.h>
 #include <net/if.h>
 
 #include <machine/i4b_debug.h>
@@ -97,171 +93,122 @@
 /*---------------------------------------------------------------------------*
  *      Siemens I-Surf 2.0 PnP ISAC get fifo routine
  *---------------------------------------------------------------------------*/
-
-static void             
-siemens_isurf_read_fifo(void *buf, const void *base, size_t len)
+static void 
+siemens_isurf_read_fifo(struct l1_softc *sc,int what,void *buf,size_t size)
 {
-	if(((u_int)base & SIE_ISURF_OFF_MASK) == SIE_ISURF_IDHSCXB)
+	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[0]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[0]);
+
+	switch ( what )
 	{
-	        outb((u_int)((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, IPAC_HSCXB_OFF);
-		insb((((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW), (u_char *)buf, (u_int)len);
+		case ISIC_WHAT_ISAC:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,IPAC_ISAC_OFF);
+			bus_space_read_multi_1(t,h,SIE_ISURF_OFF_RW,buf,size);
+			break;
+		case ISIC_WHAT_HSCXA:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,IPAC_HSCXA_OFF);
+			bus_space_read_multi_1(t,h,SIE_ISURF_OFF_RW,buf,size);
+			break;
+		case ISIC_WHAT_HSCXB:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,IPAC_HSCXB_OFF);
+			bus_space_read_multi_1(t,h,SIE_ISURF_OFF_RW,buf,size);
+			break;
 	}
-	else if(((u_int)base & SIE_ISURF_OFF_MASK) == SIE_ISURF_IDHSCXA)
-	{
-	        outb((u_int)((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, IPAC_HSCXA_OFF);
-		insb((((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW), (u_char *)buf, (u_int)len);
-	}		
-	else /* if(((u_int)base & SIE_ISURF_OFF_MASK) == SIE_ISURF_IDISAC) */
-	{
-	        outb((u_int)((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, IPAC_ISAC_OFF);
-		insb((((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW), (u_char *)buf, (u_int)len);
-	}		
 }
 
 /*---------------------------------------------------------------------------*
  *      Siemens I-Surf 2.0 PnP ISAC put fifo routine
  *---------------------------------------------------------------------------*/
-
-static void
-siemens_isurf_write_fifo(void *base, const void *buf, size_t len)
+static void 
+siemens_isurf_write_fifo(struct l1_softc *sc,int what,void *buf,size_t size)
 {
-	if(((u_int)base & SIE_ISURF_OFF_MASK) == SIE_ISURF_IDHSCXB)
+	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[0]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[0]);
+
+	switch ( what )
 	{
-	        outb((u_int)((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, IPAC_HSCXB_OFF);
-		outsb((((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW), (const u_char *)buf, (u_int)len);
-	}
-	else if(((u_int)base & SIE_ISURF_OFF_MASK) == SIE_ISURF_IDHSCXA)
-	{
-	        outb((u_int)((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, IPAC_HSCXA_OFF);
-		outsb((((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW), (const u_char *)buf, (u_int)len);
-	}		
-	else /* if(((u_int)base & SIE_ISURF_OFF_MASK) == SIE_ISURF_IDISAC) */
-	{
-	        outb((u_int)((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, IPAC_ISAC_OFF);
-		outsb((((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW), (const u_char *)buf, (u_int)len);
+		case ISIC_WHAT_ISAC:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,IPAC_ISAC_OFF);
+			bus_space_write_multi_1(t,h,SIE_ISURF_OFF_RW,buf,size);
+			break;
+		case ISIC_WHAT_HSCXA:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,IPAC_HSCXA_OFF);
+			bus_space_write_multi_1(t,h,SIE_ISURF_OFF_RW,buf,size);
+			break;
+		case ISIC_WHAT_HSCXB:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,IPAC_HSCXB_OFF);
+			bus_space_write_multi_1(t,h,SIE_ISURF_OFF_RW,buf,size);
+			break;
 	}
 }
 
 /*---------------------------------------------------------------------------*
  *      Siemens I-Surf 2.0 PnP ISAC put register routine
  *---------------------------------------------------------------------------*/
-
 static void
-siemens_isurf_write_reg(u_char *base, u_int offset, u_int v)
+siemens_isurf_write_reg(struct l1_softc *sc,int what,bus_size_t reg,u_int8_t data)
 {
-	if(((u_int)base & SIE_ISURF_OFF_MASK) == SIE_ISURF_IDHSCXB)
+	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[0]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[0]);
+
+	switch ( what )
 	{
-	        outb(((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, (u_char)(offset+IPAC_HSCXB_OFF));
-	        outb(((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW, (u_char)v);
-	}		
-	else if(((u_int)base & SIE_ISURF_OFF_MASK) == SIE_ISURF_IDHSCXA)
-	{
-	        outb(((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, (u_char)(offset+IPAC_HSCXA_OFF));
-	        outb(((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW, (u_char)v);
-	}		
-	else if(((u_int)base & SIE_ISURF_OFF_MASK) == SIE_ISURF_IDISAC)
-	{
-	        outb(((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, (u_char)(offset+IPAC_ISAC_OFF));
-	        outb(((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW, (u_char)v);
-	}		
-	else /* IPAC */
-	{
-	        outb(((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, (u_char)(offset+IPAC_IPAC_OFF));
-	        outb(((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW, (u_char)v);
-	}		
+		case ISIC_WHAT_ISAC:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,reg+IPAC_ISAC_OFF);
+			bus_space_write_1(t,h,SIE_ISURF_OFF_RW,data);
+			break;
+		case ISIC_WHAT_HSCXA:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,reg+IPAC_HSCXA_OFF);
+			bus_space_write_1(t,h,SIE_ISURF_OFF_RW,data);
+			break;
+		case ISIC_WHAT_HSCXB:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,reg+IPAC_HSCXB_OFF);
+			bus_space_write_1(t,h,SIE_ISURF_OFF_RW,data);
+			break;
+		case ISIC_WHAT_IPAC:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,reg+IPAC_IPAC_OFF);
+			bus_space_write_1(t,h,SIE_ISURF_OFF_RW,data);
+			break;
+	}
 }
 
 /*---------------------------------------------------------------------------*
  *	Siemens I-Surf 2.0 PnP ISAC get register routine
  *---------------------------------------------------------------------------*/
-
-static u_char
-siemens_isurf_read_reg(u_char *base, u_int offset)
+static u_int8_t
+siemens_isurf_read_reg(struct l1_softc *sc,int what,bus_size_t reg)
 {
-	if(((u_int)base & SIE_ISURF_OFF_MASK) == SIE_ISURF_IDHSCXB)
+	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[0]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[0]);
+
+	switch ( what )
 	{
-	        outb((u_int)((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, (u_char)(offset+IPAC_HSCXB_OFF));
-		return(inb(((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW));
+		case ISIC_WHAT_ISAC:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,reg+IPAC_ISAC_OFF);
+			return bus_space_read_1(t,h,SIE_ISURF_OFF_RW);
+		case ISIC_WHAT_HSCXA:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,reg+IPAC_HSCXA_OFF);
+			return bus_space_read_1(t,h,SIE_ISURF_OFF_RW);
+		case ISIC_WHAT_HSCXB:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,reg+IPAC_HSCXB_OFF);
+			return bus_space_read_1(t,h,SIE_ISURF_OFF_RW);
+		case ISIC_WHAT_IPAC:
+			bus_space_write_1(t,h,SIE_ISURF_OFF_ALE,reg+IPAC_IPAC_OFF);
+			return bus_space_read_1(t,h,SIE_ISURF_OFF_RW);
+		default:
+			return 0;
 	}
-	else if(((u_int)base & SIE_ISURF_OFF_MASK) == SIE_ISURF_IDHSCXA)
-	{
-	        outb((u_int)((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, (u_char)(offset+IPAC_HSCXA_OFF));
-		return(inb(((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW));
-	}		
-	else if(((u_int)base & SIE_ISURF_OFF_MASK) == SIE_ISURF_IDISAC)
-	{
-	        outb((u_int)((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, (u_char)(offset+IPAC_ISAC_OFF));
-		return(inb(((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW));
-	}		
-	else /* IPAC */
-	{
-	        outb((u_int)((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_ALE, (u_char)(offset+IPAC_IPAC_OFF));
-		return(inb(((u_int)base & SIE_ISURF_BASE_MASK) + SIE_ISURF_OFF_RW));
-	}		
 }
 
 /*---------------------------------------------------------------------------*
- *	isic_probe_siemens_isurf - probe for Siemens I-Surf 2.0 PnP
+ *	isic_attach_siemens_isurf - attach for Siemens I-Surf 2.0 PnP
  *---------------------------------------------------------------------------*/
-
 int
-isic_probe_siemens_isurf(struct isa_device *dev, unsigned int iobase2)
+isic_attach_siemens_isurf(device_t dev)
 {
-	struct isic_softc *sc = &isic_sc[dev->id_unit];
+	int unit = device_get_unit(dev);
+	struct l1_softc *sc = &l1_sc[unit];	
 	
-	/* check max unit range */
-	
-	if(dev->id_unit >= ISIC_MAXUNIT)
-	{
-		printf("isic%d: Error, unit %d >= ISIC_MAXUNIT for Siemens I-Surf 2.0 PnP\n",
-				dev->id_unit, dev->id_unit);
-		return(0);	
-	}	
-	sc->sc_unit = dev->id_unit;
-
-	/* check IRQ validity */
-
-	switch(ffs(dev->id_irq) - 1)
-	{
-		case 3:
-		case 4:		
-		case 5:
-		case 7:
-		case 10:
-		case 11:
-		case 12:
-		case 15:		
-			break;
-			
-		default:
-			printf("isic%d: Error, invalid IRQ [%d] specified for Siemens I-Surf 2.0 PnP!\n",
-				dev->id_unit, ffs(dev->id_irq)-1);
-			return(0);
-			break;
-	}
-	sc->sc_irq = dev->id_irq;
-
-	/* check if memory addr specified */
-
-	if(dev->id_maddr)
-	{
-		printf("isic%d: Error, mem addr 0x%lx specified for Siemens I-Surf 2.0 PnP!\n",
-			dev->id_unit, (u_long)dev->id_maddr);
-		return(0);
-	}
-	dev->id_msize = 0;
-	
-	/* check if we got an iobase */
-
-	if(!((dev->id_iobase >= 0x100) && (dev->id_iobase <= 0xff0)))
-	{
-		printf("isic%d: Error, invalid iobase 0x%x specified for Siemens I-Surf 2.0 PnP!\n",
-			dev->id_unit, dev->id_iobase);
-		return(0);
-	}
-	sc->sc_port = dev->id_iobase;
-
-
 	/* setup access routines */
 
 	sc->clearirq = NULL;
@@ -283,27 +230,9 @@ isic_probe_siemens_isurf(struct isa_device *dev, unsigned int iobase2)
 	
 	sc->sc_ipac = 1;
 	sc->sc_bfifolen = IPAC_BFIFO_LEN;
-	
-        
-	return (1);
-}
-
-/*---------------------------------------------------------------------------*
- *	isic_attach_siemens_isurf - attach for Siemens I-Surf 2.0 PnP
- *---------------------------------------------------------------------------*/
-int
-isic_attach_siemens_isurf(struct isa_device *dev, unsigned int iobase2)
-{
-	struct isic_softc *sc = &isic_sc[dev->id_unit];
-
-	/* setup ISAC and HSCX base addr */
-
-	ISAC_BASE   = (caddr_t) ((u_int)sc->sc_port | SIE_ISURF_IDISAC);
-	HSCX_A_BASE = (caddr_t) ((u_int)sc->sc_port | SIE_ISURF_IDHSCXA);
-	HSCX_B_BASE = (caddr_t) ((u_int)sc->sc_port | SIE_ISURF_IDHSCXB);
-	IPAC_BASE   = (caddr_t) ((u_int)sc->sc_port | SIE_ISURF_IDIPAC);
 
 	/* enable hscx/isac irq's */
+
 	IPAC_WRITE(IPAC_MASK, (IPAC_MASK_INT1 | IPAC_MASK_INT0));
 
 	IPAC_WRITE(IPAC_ACFG, 0);	/* outputs are open drain */
@@ -311,7 +240,6 @@ isic_attach_siemens_isurf(struct isa_device *dev, unsigned int iobase2)
 		(IPAC_AOE_OE5 | IPAC_AOE_OE4 | IPAC_AOE_OE3 | IPAC_AOE_OE2));
 	IPAC_WRITE(IPAC_ATX, 0xff);	/* set all output lines high */
 
-	return(1);
+	return(0);
 }
 #endif /* NISIC > 0 && defined(SIEMENS_ISURF2) */
-#endif /* FreeBSD */

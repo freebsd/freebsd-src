@@ -27,9 +27,11 @@
  *	i4b_l3l4.h - layer 3 / layer 4 interface
  *	------------------------------------------
  *
+ *	$Id: i4b_l3l4.h,v 1.27 1999/12/13 21:25:24 hm Exp $
+ *
  * $FreeBSD$
  *
- *	last edit-date: [Wed Mar 17 16:16:40 1999]
+ *	last edit-date: [Mon Dec 13 21:44:56 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -111,6 +113,13 @@ void tel_set_linktab(int unit, isdn_link_t *ilt);
 
 drvr_link_t *i4bisppp_ret_linktab(int unit);
 void i4bisppp_set_linktab(int unit, isdn_link_t *ilt);
+
+#ifdef __bsdi__
+/* global linktab functions for IBC userland driver */
+
+drvr_link_t *ibc_ret_linktab(int unit);
+void ibc_set_linktab(int unit, isdn_link_t *ilt);
+#endif
 
 /*---------------------------------------------------------------------------*
  *	this structure describes one call/connection on one B-channel
@@ -228,6 +237,8 @@ typedef struct
 	int	unit;			/* unit number of this contr.	*/
 	int	ctrl_type;		/* controller type   (CTRL_XXX)	*/
 	int	card_type;		/* card manufacturer (CARD_XXX) */
+
+	int	protocol;		/* D-channel protocol type */
 
 	int	dl_est;			/* layer 2 established	*/
 #define DL_DOWN	0

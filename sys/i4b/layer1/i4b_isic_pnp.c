@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1998 Eivind Eklund. All rights reserved.
  *
- *   Copyright (c) 1998 German Tischler. All rights reserved.
+ *   Copyright (c) 1998, 1999 German Tischler. All rights reserved.
  *
  *   Copyright (c) 1998, 1999 Hellmuth Michaelis. All rights reserved. 
  *
@@ -37,24 +37,18 @@
  *	i4b_isic_pnp.c - i4b pnp support
  *	--------------------------------
  *
+ *	$Id: i4b_isic_pnp.c,v 1.5 1999/12/13 21:25:26 hm Exp $
+ *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Jul  5 15:57:01 1999]
+ *      last edit-date: [Mon Dec 13 22:01:48 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef __FreeBSD__
-
-#define NPNP 1
 #include "isic.h"
 #include "opt_i4b.h"
 
-#if NPNP > 0
-#warning "Fix i4b pnp!"
-#undef NPNP
-#endif
-
-#if (NISIC > 0) && (NPNP > 0)
+#if (NISIC > 0)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -62,24 +56,13 @@
 #include <sys/socket.h>
 #include <net/if.h>
 
-#if defined(__FreeBSD__) && __FreeBSD__ < 3
-#include "ioconf.h"
-extern void isicintr(int unit); 	/* XXX this gives a compiler warning */
-					/* on one 2.2.7 machine but no       */
-					/* warning on another one !? (-hm)   */
-#endif
-
-#if (defined(__FreeBSD_version) && __FreeBSD_version >= 300006)
-extern void isicintr(int unit);
-#endif
-
 #include <machine/clock.h>
-#include <i386/isa/isa_device.h>
-/* #include <i386/isa/pnp.h> */
 
 #include <i4b/include/i4b_global.h>
 #include <machine/i4b_ioctl.h>
 #include <i4b/layer1/i4b_l1.h>
+
+#include <isa/isavar.h>
 
 #define VID_TEL163PNP		0x10212750	/* Teles 16.3 PnP	*/
 #define VID_CREATIXPP		0x0000980e	/* Creatix S0/16 P+P	*/
@@ -92,53 +75,73 @@ extern void isicintr(int unit);
 #define VID_SIESURF2		0x2000254d	/* Siemens I-Surf 2.0 PnP*/
 #define VID_ASUSCOM_IPAC	0x90167506	/* Asuscom (with IPAC)	*/	
 
-static struct i4b_pnp_ids {
+static struct isic_pnp_ids {
 	u_long vend_id;
 	char *id_str;
-} i4b_pnp_ids[] = {
-	{ VID_TEL163PNP,	"Teles 16.3 PnP"		},
-	{ VID_CREATIXPP,	"Creatix S0/16 P+P"		},
+} isic_pnp_ids[] = {
+#if defined(TEL_S0_16_3_P) || defined(CRTX_S0_P)
+	{ VID_TEL163PNP,	"Teles S0/16.3 PnP"		},
+	{ VID_CREATIXPP,	"Creatix S0/16 PnP"		},
+#endif
+#ifdef DYNALINK
 	{ VID_DYNALINK,		"Dynalink IS64PH"		},
+#endif
+#ifdef SEDLBAUER
 	{ VID_SEDLBAUER,	"Sedlbauer WinSpeed"		},
+#endif
+#ifdef DRN_NGO
 	{ VID_NICCYGO,		"Dr.Neuhaus Niccy Go@"		},
+#endif
+#ifdef ELSA_QS1ISA
 	{ VID_ELSAQS1P,		"ELSA QuickStep 1000pro"	},	
+#endif
+#ifdef ITKIX1
 	{ VID_ITK0025,		"ITK ix1 Micro V3.0"    	},
+#endif
+#ifdef AVM_PNP
 	{ VID_AVMPNP,		"AVM Fritz!Card PnP"		},	
+#endif
+#ifdef SIEMENS_ISURF2
 	{ VID_SIESURF2,		"Siemens I-Surf 2.0 PnP"	},	
+#endif
+#ifdef ASUSCOM_IPAC
  	{ VID_ASUSCOM_IPAC,	"Asuscom ISDNLink 128 PnP"	},
-	{ 0 }
+#endif
+	{ 0, 0 }
 };
 
-extern struct isa_driver isicdriver;
+static int isic_pnp_probe(device_t dev);
+static int isic_pnp_attach(device_t dev);
 
-static int isic_pnpprobe(struct isa_device *dev, unsigned int iobase2);
-static char *i4b_pnp_probe(u_long csn, u_long vend_id);
-static void i4b_pnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev);
-
-static u_long ni4b_pnp = 0; 
-
-static struct pnp_device i4b_pnp = {
-	"i4b_pnp",
-	i4b_pnp_probe,
-	i4b_pnp_attach,
-	&ni4b_pnp,
-	&net_imask
+static device_method_t isic_pnp_methods[] = {
+	DEVMETHOD(device_probe,		isic_pnp_probe),
+	DEVMETHOD(device_attach,	isic_pnp_attach),
+	{ 0, 0 }
+};
+                                
+static driver_t isic_pnp_driver = {
+	"isic",
+	isic_pnp_methods,
+	0,
 };
 
-DATA_SET(pnpdevice_set, i4b_pnp);
+static devclass_t isic_devclass;
+
+DRIVER_MODULE(isicpnp, isa, isic_pnp_driver, isic_devclass, 0, 0);
 
 /*---------------------------------------------------------------------------*
- *	PnP probe routine
+ *      probe for ISA PnP cards
  *---------------------------------------------------------------------------*/
-static char *
-i4b_pnp_probe(u_long csn, u_long vend_id)
+int
+isic_pnp_probe(device_t dev)
 {
-	struct i4b_pnp_ids *ids;
-	char *string = NULL;
+	struct isic_pnp_ids *ids;			/* pnp id's */
+	char *string = NULL;				/* the name */
+	u_int32_t vend_id = isa_get_vendorid(dev); 	/* vendor id */
 
 	/* search table of knowd id's */
 	
-	for(ids = i4b_pnp_ids; ids->vend_id != 0; ids++)
+	for(ids = isic_pnp_ids; ids->vend_id != 0; ids++)
 	{
 		if(vend_id == ids->vend_id)
 		{
@@ -146,204 +149,169 @@ i4b_pnp_probe(u_long csn, u_long vend_id)
 			break;
 		}
 	}
-
-	if(string)
-	{
-		struct pnp_cinfo spci;
-
-		read_pnp_parms(&spci, 0);
-
-		if((spci.enable == 0) || (spci.flags & 0x01))
-		{
-			printf("CSN %d (%s) is disabled.\n", (int)csn, string);
-			return (NULL);
-		}
-	}
-	return(string);
-}
-
-/*---------------------------------------------------------------------------*
- *	PnP attach routine
- *---------------------------------------------------------------------------*/
-static void
-i4b_pnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
-{
-	struct pnp_cinfo spci;
-#if !((defined(__FreeBSD_version) && __FreeBSD_version >= 400004))
-	struct isa_device *isa_devp;
-#endif
-
-	if(dev->id_unit != next_isic_unit)
-	{
-		printf("i4b_pnp_attach: Error: new unit (%d) != next_isic_unit (%d)!\n", dev->id_unit, next_isic_unit);
-		return;
-	}
-
-	if(dev->id_unit >= ISIC_MAXUNIT)
-	{
-		printf("isic%d: Error, unit %d >= ISIC_MAXUNIT for %s\n",
-		        dev->id_unit, dev->id_unit, name);
-		return;
-	}
-
-	if(read_pnp_parms(&spci, 0) == 0)
-	{
-		printf("isic%d: read_pnp_parms error for %s\n",
-		        dev->id_unit, name);
-		return;
-	}
-
-	if(bootverbose)
-	{
-		printf("isic%d: vendorid = 0x%08x port0 = 0x%04x, port1 = 0x%04x, irq = %d\n",
-			dev->id_unit, spci.vendor_id, spci.port[0], spci.port[1], spci.irq[0]);
-	}
 	
-	dev->id_iobase = spci.port[0];
-	dev->id_irq = (1 << spci.irq[0]);
-	dev->id_intr = (inthand2_t *) isicintr;
-	dev->id_drq = -1;
-
-/* XXX add dev->id_alive init here ! ?? */
-
-	switch(spci.vendor_id)
+	if(string)		/* set name if we have one */
 	{
-		case VID_TEL163PNP:
-			dev->id_flags = FLAG_TELES_S0_163_PnP;
-			break;
-		case VID_CREATIXPP:
-			dev->id_flags = FLAG_CREATIX_S0_PnP;
-			break;
-		case VID_DYNALINK:
-			dev->id_flags = FLAG_DYNALINK;
-			break;
-		case VID_SEDLBAUER:
-			dev->id_flags = FLAG_SWS;
-			break;
-		case VID_NICCYGO:
-			dev->id_flags = FLAG_DRN_NGO;
-			break;
-		case VID_ELSAQS1P:
-			dev->id_flags = FLAG_ELSA_QS1P_ISA;
-			break;
-		case VID_ITK0025:
-			dev->id_flags = FLAG_ITK_IX1;
-			break;
-		case VID_AVMPNP:
-			dev->id_flags = FLAG_AVM_PNP;
-			break;
-		case VID_SIESURF2:
-			dev->id_flags = FLAG_SIEMENS_ISURF2;
-			break;
-		case VID_ASUSCOM_IPAC:
-			dev->id_flags = FLAG_ASUSCOM_IPAC;
-			break;
-	}
-
-	write_pnp_parms(&spci, 0);
-	enable_pnp_card();
-	
-	if(dev->id_driver == NULL)
-	{
-		dev->id_driver = &isicdriver;
-#if(defined(__FreeBSD_version) && __FreeBSD_version >= 400004)
-		dev->id_id = isa_compat_nextid();
-#else
-		isa_devp = find_isadev(isa_devtab_net, &isicdriver, 0);
-
-		if(isa_devp != NULL)
-		{
-			dev->id_id = isa_devp->id_id;
-		}
-#endif
-	}
-
-	if((dev->id_alive = isic_pnpprobe(dev, spci.port[1])) != 0)
-	{
-/* XXX dev->id_alive is the size of the port area used ! */
-		isic_realattach(dev, spci.port[1]);
+		device_set_desc(dev, string);	/* set description */
+		return 0;
 	}
 	else
 	{
-		printf("isic%d: probe failed!\n", dev->id_unit);
+		return ENXIO;
 	}
 }
 
 /*---------------------------------------------------------------------------*
- *	isic - pnp device driver probe routine
+ *      attach for ISA PnP cards
  *---------------------------------------------------------------------------*/
-static int
-isic_pnpprobe(struct isa_device *dev, unsigned int iobase2)
+int
+isic_pnp_attach(device_t dev)
 {
-	int ret = 0;
-
-	switch(dev->id_flags)
+	u_int32_t vend_id = isa_get_vendorid(dev);	/* vendor id */
+	unsigned int unit = device_get_unit(dev);	/* get unit */
+	const char *name = device_get_desc(dev);	/* get description */
+	struct l1_softc *sc = 0;			/* softc */
+	void *ih = 0;					/* a dummy */
+	int ret;
+ 
+	/* see if we are out of bounds */
+	
+	if(unit >= ISIC_MAXUNIT)
 	{
-#ifdef TEL_S0_16_3_P
-		case FLAG_TELES_S0_163_PnP:
-			ret = isic_probe_s0163P(dev, iobase2);
-			break;
-#endif
-
-#ifdef CRTX_S0_P
-		case FLAG_CREATIX_S0_PnP:
-			ret = isic_probe_Cs0P(dev, iobase2);
-			break;
-#endif
-
-#ifdef DRN_NGO
-		case FLAG_DRN_NGO:
-			ret = isic_probe_drnngo(dev, iobase2);
-			break;
-#endif
-
-#ifdef SEDLBAUER
-		case FLAG_SWS:
-			ret = 8;	/* pnp only, nothing to probe */
-			break;
-#endif
-
-#ifdef DYNALINK
-		case FLAG_DYNALINK:
-			ret = isic_probe_Dyn(dev, iobase2);
-			break;
-#endif
-
-#ifdef ELSA_QS1ISA
-		case FLAG_ELSA_QS1P_ISA:
-			ret = isic_probe_Eqs1pi(dev, iobase2);
-			break;
-#endif
-
-#ifdef ITKIX1
-		case FLAG_ITK_IX1:
-			ret = isic_probe_itkix1(dev);
-			break;
-#endif
-
-#ifdef AVM_PNP
-		case FLAG_AVM_PNP:
-			ret = isic_probe_avm_pnp(dev, iobase2);
-			break;
-#endif
-
-#ifdef SIEMENS_ISURF2
-		case FLAG_SIEMENS_ISURF2:
-			ret = isic_probe_siemens_isurf(dev, iobase2);
-			break;
-#endif
-
-#ifdef ASUSCOM_IPAC
-		case FLAG_ASUSCOM_IPAC:
-			ret = isic_probe_asi(dev, iobase2);
-			break;
-#endif
-
-		default:
-			break;
+		printf("isic%d: Error, unit %d >= ISIC_MAXUNIT for %s\n", unit, unit, name);
+		return ENXIO;
 	}
-	return(ret);
-}
 
-#endif /* (NISIC > 0) && (NPNP > 0) */
-#endif /* __FreeBSD__ */
+	/* get information structure for this unit */
+
+	sc = &l1_sc[unit];
+
+	/* get io_base */
+	if(!(sc->sc_resources.io_base[0] =
+			bus_alloc_resource(dev, SYS_RES_IOPORT,
+						&sc->sc_resources.io_rid[0],
+						0UL, ~0UL, 1, RF_ACTIVE ) ))
+	{
+		printf("isic_pnp_attach: Couldn't get my io_base.\n");
+		return ENXIO;                                       
+	}
+	
+	/* will not be used for pnp devices */
+
+	sc->sc_port = rman_get_start(sc->sc_resources.io_base[0]);
+
+	/* get irq, release io_base if we don't get it */
+
+	if(!(sc->sc_resources.irq =
+			bus_alloc_resource(dev, SYS_RES_IRQ,
+					   &sc->sc_resources.irq_rid,
+					   0UL, ~0UL, 1, RF_ACTIVE)))
+	{
+		printf("isic%d: Could not get irq.\n",unit);
+		isic_detach_common(dev);
+		return ENXIO;                                       
+	}
+	
+	/* not needed */
+	sc->sc_irq = rman_get_start(sc->sc_resources.irq);
+
+
+	/* set flag so we know what this card is */
+
+	ret = ENXIO;
+	
+	switch(vend_id)
+	{
+#if defined(TEL_S0_16_3_P) || defined(CRTX_S0_P)
+		case VID_TEL163PNP:
+			sc->sc_flags = FLAG_TELES_S0_163_PnP;
+			ret = isic_attach_Cs0P(dev);
+			break;
+
+		case VID_CREATIXPP:
+			sc->sc_flags = FLAG_CREATIX_S0_PnP;
+			ret = isic_attach_Cs0P(dev);
+			break;
+#endif
+#ifdef DYNALINK
+		case VID_DYNALINK:
+			sc->sc_flags = FLAG_DYNALINK;
+			ret = isic_attach_Dyn(dev);
+			break;
+#endif
+#ifdef SEDLBAUER
+		case VID_SEDLBAUER:
+			sc->sc_flags = FLAG_SWS;
+			ret = isic_attach_sws(dev);
+			break;
+#endif
+#ifdef DRN_NGO
+		case VID_NICCYGO:
+			sc->sc_flags = FLAG_DRN_NGO;
+			ret = isic_attach_drnngo(dev);
+			break;
+#endif
+#ifdef ELSA_QS1ISA
+		case VID_ELSAQS1P:
+			sc->sc_flags = FLAG_ELSA_QS1P_ISA;
+			ret = isic_attach_Eqs1pi(dev);
+			break;
+#endif
+#ifdef ITKIX1
+		case VID_ITK0025:
+			sc->sc_flags = FLAG_ITK_IX1;
+			ret = isic_attach_itkix1(dev);
+			break;
+#endif			
+#ifdef AVM_PNP
+		case VID_AVMPNP:
+			sc->sc_flags = FLAG_AVM_PNP;
+			ret = isic_attach_avm_pnp(dev);
+			break;
+#endif
+#ifdef SIEMENS_ISURF2
+		case VID_SIESURF2:
+			sc->sc_flags = FLAG_SIEMENS_ISURF2;
+			ret = isic_attach_siemens_isurf(dev);
+			break;
+#endif
+#ifdef ASUSCOM_IPAC
+		case VID_ASUSCOM_IPAC:
+			sc->sc_flags = FLAG_ASUSCOM_IPAC;
+			ret = isic_attach_asi(dev);
+			break;
+#endif
+		default:
+			printf("isic%d: Error, no driver for %s\n", unit, name);
+			ret = ENXIO;
+			break;		
+	}
+
+	if(ret)
+	{
+		isic_detach_common(dev);
+		return ENXIO;                                       
+	}		
+		
+	if(isic_attach_common(dev))
+	{
+		/* unset flag */
+		sc->sc_flags = 0;
+
+		/* free irq here, it hasn't been attached yet */
+		bus_release_resource(dev,SYS_RES_IRQ,sc->sc_resources.irq_rid,
+					sc->sc_resources.irq);
+		sc->sc_resources.irq = 0;
+		isic_detach_common(dev);
+		return ENXIO;
+	}
+	else
+	{
+		/* setup intr routine */
+		bus_setup_intr(dev,sc->sc_resources.irq,INTR_TYPE_NET,
+				(void(*)(void*))isicintr,
+				sc,&ih);
+		return 0;
+	}
+}
+#endif /* (NISIC > 0) */

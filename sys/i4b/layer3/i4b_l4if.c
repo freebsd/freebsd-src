@@ -27,9 +27,11 @@
  *	i4b_l4if.c - Layer 3 interface to Layer 4
  *	-------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_l4if.c,v 1.22 1999/12/13 21:25:27 hm Exp $ 
  *
- *      last edit-date: [Tue Apr 27 16:46:51 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:05:25 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -41,11 +43,13 @@
 #if NI4BQ931 > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
 #endif
+
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -160,6 +164,7 @@ i4b_mdl_status_ind(int unit, int status, int parm)
 				if( (ctrl_desc[call_desc[i].controller].ctrl_type == CTRL_PASSIVE) &&
 				    (ctrl_desc[call_desc[i].controller].unit == unit))
                 		{
+					i4b_l3_stop_all_timers(&(call_desc[i]));
 					if(call_desc[i].cdid != CDID_UNUSED)
 						sendup++;
 				}
@@ -171,7 +176,10 @@ i4b_mdl_status_ind(int unit, int status, int parm)
 			ctrl_desc[utoc_tab[unit]].tei = -1;
 
 			if(sendup)
+			{
 				i4b_l4_pdeact(unit, sendup);
+				call_desc[i].cdid = CDID_UNUSED;
+			}
 			break;
 
 		case STI_NOL1ACC:	/* no outgoing access to S0 */

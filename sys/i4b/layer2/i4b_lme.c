@@ -27,9 +27,11 @@
  *	i4b_lme.c - layer management entity
  *	-------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_lme.c,v 1.11 1999/12/13 21:25:27 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:31:55 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:04:03 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -41,11 +43,13 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
 #endif
+
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>

@@ -30,15 +30,13 @@
  *
  *---------------------------------------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_hscx.h,v 1.2 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:26:56 1999]
+ * $FreeBSD$
  *
- *	-hm	added AVM config register defs
- *	-hm	split up for rewrite of Siemens chipset driver
+ *      last edit-date: [Mon Dec 13 22:00:49 1999]
  *
- *---------------------------------------------------------------------------
- */
+ *---------------------------------------------------------------------------*/
  
 #ifndef I4B_HSCX_H_
 #define I4B_HSCX_H_

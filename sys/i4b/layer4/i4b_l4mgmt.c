@@ -27,9 +27,11 @@
  *	i4b_l4mgmt.c - layer 4 calldescriptor management utilites
  *	-----------------------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_l4mgmt.c,v 1.26 1999/12/13 21:25:28 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:35:13 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:06:32 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -38,11 +40,13 @@
 #if NI4B > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
 #endif
+
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -50,11 +54,12 @@
 #include <net/if.h>
 
 #ifdef __FreeBSD__
-#include <machine/i4b_debug.h>
-#include <machine/i4b_ioctl.h>
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 #include <machine/random.h>
 #endif
+
+#ifdef __FreeBSD__
+#include <machine/i4b_debug.h>
+#include <machine/i4b_ioctl.h>
 #else
 #include <i4b/i4b_debug.h>
 #include <i4b/i4b_ioctl.h>
@@ -74,7 +79,7 @@ static unsigned int get_cdid(void);
 
 int nctrl;				/* number of attached controllers */
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 void init_callout(call_desc_t *);
 #endif
 
@@ -157,7 +162,7 @@ reserve_cd(void)
 	if(cd == NULL)
 		panic("reserve_cd: no free call descriptor available!");
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 	init_callout(cd);
 #endif
 
@@ -212,7 +217,7 @@ cd_by_cdid(unsigned int cdid)
 		{
 			DBGL4(L4_MSG, "cd_by_cdid", ("found cdid - index=%d cdid=%u cr=%d\n",
 					i, call_desc[i].cdid, call_desc[i].cr));
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 			init_callout(&call_desc[i]);
 #endif
 			return(&(call_desc[i]));
@@ -243,7 +248,7 @@ cd_by_unitcr(int unit, int cr, int crf)
 	  {
 	    DBGL4(L4_MSG, "cd_by_unitcr", ("found cd, index=%d cdid=%u cr=%d\n",
 				i, call_desc[i].cdid, call_desc[i].cr));
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 	    init_callout(&call_desc[i]);
 #endif
 	    return(&(call_desc[i]));
@@ -268,7 +273,7 @@ get_rand_cr(int unit)
 	{
 		int found = 1;
 		
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 		read_random((char *)&val, sizeof(val));
 #else
 		val |= unit+i;
@@ -300,9 +305,9 @@ get_rand_cr(int unit)
 }
 
 /*---------------------------------------------------------------------------*
- *	initialize the callout handles for FreeBSD-current 3.0
+ *	initialize the callout handles for FreeBSD
  *---------------------------------------------------------------------------*/
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 void
 init_callout(call_desc_t *cd)
 {
