@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: ata-all.c,v 1.6 1999/04/10 18:53:35 sos Exp $
+ *  $Id: ata-all.c,v 1.7 1999/04/16 21:21:52 peter Exp $
  */
 
 #include "ata.h"
@@ -33,29 +33,30 @@
 #include "isa.h"
 #include "pci.h"
 #include "atadisk.h"
+#include "opt_global.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/interrupt.h>
 #include <sys/conf.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/devicestat.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <machine/resource.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
 #include <machine/clock.h>
 #ifdef __i386__
 #include <machine/smp.h>
 #endif
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
-#ifdef __i386__
-#include <i386/isa/icu.h>
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
-#else
+#include <isa/isavar.h>
 #include <isa/isareg.h>
-#endif
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/atapi-all.h>
@@ -63,73 +64,129 @@
 /* misc defines */
 #define UNIT(dev) (dev>>3 & 0x1f)   		/* assume 8 minor # per unit */
 #define MIN(a,b) ((a)>(b)?(b):(a))
-#if NSMP == 0
+#if SMP == 0
 #define isa_apic_irq(x)	x
 #endif
 
 /* prototypes */
-#if NISA > 0 && defined(__i386__)
-static int32_t ata_isaprobe(struct isa_device *);
-static int32_t ata_isaattach(struct isa_device *);
-#endif
 #if NPCI > 0
-static const char *ata_pciprobe(pcici_t, pcidi_t);
-static void ata_pciattach(pcici_t, int32_t);
 static void promise_intr(int32_t);
 #endif
-static int32_t ata_probe(int32_t, int32_t, int32_t, pcici_t, int32_t *);
+static int32_t ata_probe(int32_t, int32_t, int32_t, device_t, int32_t *);
 static void ataintr(int32_t);
 
+/*
+ * Ought to be handled by the devclass.
+ */
 static int32_t atanlun = 0;
 struct ata_softc *atadevices[MAXATA];
 
-#if NISA > 0 && defined(__i386__)
-struct isa_driver atadriver = { ata_isaprobe, ata_isaattach, "ata" };
+static devclass_t ata_devclass;
 
-static int32_t
-ata_isaprobe(struct isa_device *devp)
+#if NISA > 0
+
+static int
+ata_isaprobe(device_t dev)
 {
+    struct resource *port;
+    int rid;
     int32_t ctlr, res;
-    
+    int unit;
+
+    /* Allocate the port range */
+    rid = 0;
+    port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+    if (!port)
+	return (ENOMEM);
+
     for (ctlr = 0; ctlr < atanlun; ctlr++) {
-	if (atadevices[ctlr]->ioaddr == devp->id_iobase) {
+	if (atadevices[ctlr]->ioaddr == rman_get_start(port)) {
 	    printf("ata-isa%d: already registered as ata%d\n", 
-		   devp->id_unit, ctlr);
-	    return 0;
+		   device_get_unit(dev), ctlr);
+	    bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
+	    return ENXIO;
 	}
     }
-    res = ata_probe(devp->id_iobase, devp->id_iobase + ATA_ALTPORT, 0, 0,
-		    &devp->id_unit);
-    if (res)
-	devp->id_intr = (inthand2_t *)ataintr;
-    return res;
+
+    /* 
+     * XXX not sure what to do with the unit. The new bus code will
+     * automatically assign unit numbers for both pci and isa. For
+     * now, store it in the softc.
+     */
+    res = ata_probe(rman_get_start(port), rman_get_start(port) + ATA_ALTPORT,
+		    0, dev, &unit);
+    *(int *) device_get_softc(dev) = unit;
+
+    bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
+
+    if (res) {
+	isa_set_portsize(dev, res);
+	return 0;
+    }
+
+    return ENXIO;
 }
 
-static int32_t
-ata_isaattach(struct isa_device *devp)
+static int
+ata_isaattach(device_t dev)
 {
-    return 1;
+    struct resource *port;
+    struct resource *irq;
+    int rid, unit;
+    void *ih;
+
+    /* Allocate the port range and interrupt */
+    rid = 0;
+    port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+    if (!port)
+	return (ENOMEM);
+
+    rid = 0;
+    irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
+    if (!irq) {
+	bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
+	return (ENOMEM);
+    }
+
+    /*
+     * The interrupt code could be changed to take the ata_softc as
+     * its argument directly.
+     */
+    unit = *(int *) device_get_softc(dev);
+    return bus_setup_intr(dev, irq, (driver_intr_t *) ataintr,
+			  (void*)(uintptr_t) unit, &ih);
 }
+
+static device_method_t ata_isa_methods[] = {
+    /* Device interface */
+    DEVMETHOD(device_probe,	ata_isaprobe),
+    DEVMETHOD(device_attach,	ata_isaattach),
+    { 0, 0 }
+};
+
+static driver_t ata_isa_driver = {
+    "ata",
+    ata_isa_methods,
+    DRIVER_TYPE_BIO,
+    sizeof(int),
+};
+
+DRIVER_MODULE(ata, isa, ata_isa_driver, ata_devclass, 0, 0);
+
 #endif
 
 #if NPCI > 0
-static u_long ata_pcicount;
-static struct pci_device ata_pcidevice = {
-    "ata-pci", ata_pciprobe, ata_pciattach, &ata_pcicount, 0
-};
-
-DATA_SET(pcidevice_set, ata_pcidevice);
 
 static const char *
-ata_pciprobe(pcici_t tag, pcidi_t type)
+ata_pcimatch(device_t dev)
 {
     u_int32_t data;
 
-    data = pci_conf_read(tag, PCI_CLASS_REG);
-    if ((data & PCI_CLASS_MASK) == PCI_CLASS_MASS_STORAGE &&
-	((data & PCI_SUBCLASS_MASK) == 0x00010000 ||
-	((data & PCI_SUBCLASS_MASK) == 0x00040000))) {
-	switch (type) {
+    data = pci_read_config(dev, PCI_CLASS_REG, 4);
+    if (pci_get_class(dev) == PCIC_STORAGE &&
+	(pci_get_subclass(dev) == PCIS_STORAGE_IDE ||
+	 pci_get_subclass(dev) == PCIS_STORAGE_RAID)) {
+	switch (pci_get_devid(dev)) {
 	case 0x12308086:
 	    return "Intel PIIX IDE controller";
 	case 0x70108086:
@@ -140,13 +197,15 @@ ata_pciprobe(pcici_t tag, pcidi_t type)
 	    return "Promise Ultra/33 IDE controller";
 	case 0x522910b9:
 	    return "AcerLabs Aladdin IDE controller";
+#if 0
+	case 0x05711106:
+	    return "VIA Apollo IDE controller";
 	case 0x06401095:
 	    return "CMD 640 IDE controller";
 	case 0x06461095:
 	    return "CMD 646 IDE controller";
-#if 0
-	case 0x05711106:
-	    return "VIA Apollo IDE controller";
+	case 0xc6931080:
+	    return "Cypress 82C693 IDE controller";
 	case 0x01021078:
 	    return "Cyrix 5530 IDE controller";
 #endif
@@ -157,65 +216,84 @@ ata_pciprobe(pcici_t tag, pcidi_t type)
     return NULL;
 }
 
-static void
-ata_pciattach(pcici_t tag, int32_t unit)
+static int
+ata_pciprobe(device_t dev)
 {
-    pcidi_t type, class, cmd;
+    const char *desc = ata_pcimatch(dev);
+    if (desc) {
+	device_set_desc(dev, desc);
+	return 0;
+    } 
+    else
+	return ENXIO;
+}
+
+static int
+ata_pciattach(device_t dev)
+{
+    int unit = device_get_unit(dev);
+    u_int32_t type;
+    u_int8_t class, subclass;
+    u_int32_t cmd;
     int32_t iobase_1, iobase_2, altiobase_1, altiobase_2; 
     int32_t bmaddr_1 = 0, bmaddr_2 = 0, sysctrl = 0, irq1, irq2;
     int32_t lun;
 
     /* set up vendor-specific stuff */
-    type = pci_conf_read(tag, PCI_ID_REG);
-    class = pci_conf_read(tag, PCI_CLASS_REG);
-    cmd = pci_conf_read(tag, PCI_COMMAND_STATUS_REG);
+    type = pci_get_devid(dev);
+    class = pci_get_class(dev);
+    subclass = pci_get_subclass(dev);
+    cmd = pci_read_config(dev, PCIR_COMMAND, 4);
 
 #ifdef ATA_DEBUG
-    printf("ata%d: type=%08x class=%08x cmd=%08x\n", unit, type, class, cmd);
+    printf("ata%d: type=%08x class=%02x subclass=%02x cmd=%08x\n",
+	   unit, type, class, subclass, cmd);
 #endif
 
     /* if this is a Promise controller handle it specially */
     if (type == 0x4d33105a) { 
-	iobase_1 = pci_conf_read(tag, 0x10) & 0xfffc;
-	altiobase_1 = pci_conf_read(tag, 0x14) & 0xfffc;
-	iobase_2 = pci_conf_read(tag, 0x18) & 0xfffc;
-	altiobase_2 = pci_conf_read(tag, 0x1c) & 0xfffc;
-	irq1 = irq2 = pci_conf_read(tag, PCI_INTERRUPT_REG) & 0xff;
-    	bmaddr_1 = pci_conf_read(tag, 0x20) & 0xfffc;
+	iobase_1 = pci_read_config(dev, 0x10, 4) & 0xfffc;
+	altiobase_1 = pci_read_config(dev, 0x14, 4) & 0xfffc;
+	iobase_2 = pci_read_config(dev, 0x18, 4) & 0xfffc;
+	altiobase_2 = pci_read_config(dev, 0x1c, 4) & 0xfffc;
+	irq1 = irq2 = pci_read_config(dev, PCI_INTERRUPT_REG, 4) & 0xff;
+    	bmaddr_1 = pci_read_config(dev, 0x20, 4) & 0xfffc;
 	bmaddr_2 = bmaddr_1 + ATA_BM_OFFSET1;
-	sysctrl = (pci_conf_read(tag, 0x20) & 0xfffc) + 0x1c;
+	sysctrl = (pci_read_config(dev, 0x20, 4) & 0xfffc) + 0x1c;
 	outb(bmaddr_1 + 0x1f, inb(bmaddr_1 + 0x1f) | 0x01);
 	printf("ata-pci%d: Busmastering DMA supported\n", unit);
     }
     /* everybody else seems to do it this way */
     else {
-	if ((class & 0x100) == 0) {
+	if ((unit == 0) &&
+	    (pci_get_progif(dev) & PCIP_STORAGE_IDE_MODEPRIM) == 0) {
 		iobase_1 = IO_WD1;
 		altiobase_1 = iobase_1 + ATA_ALTPORT;
 		irq1 = 14;
 	} 
 	else {
-		iobase_1 = pci_conf_read(tag, 0x10) & 0xfffc;
-		altiobase_1 = pci_conf_read(tag, 0x14) & 0xfffc;
-		irq1 = pci_conf_read(tag, PCI_INTERRUPT_REG) & 0xff;
+		iobase_1 = pci_read_config(dev, 0x10, 4) & 0xfffc;
+		altiobase_1 = pci_read_config(dev, 0x14, 4) & 0xfffc;
+		irq1 = pci_read_config(dev, PCI_INTERRUPT_REG, 4) & 0xff;
 	}
-	if ((class & 0x400) == 0) {
+	if ((unit == 0) &&
+	    (pci_get_progif(dev) & PCIP_STORAGE_IDE_MODESEC) == 0) {
 		iobase_2 = IO_WD2;
 		altiobase_2 = iobase_2 + ATA_ALTPORT;
 		irq2 = 15;
 	}
 	else {
-		iobase_2 = pci_conf_read(tag, 0x18) & 0xfffc;
-		altiobase_2 = pci_conf_read(tag, 0x1c) & 0xfffc;
-		irq2 = pci_conf_read(tag, PCI_INTERRUPT_REG) & 0xff;
+		iobase_2 = pci_read_config(dev, 0x18, 4) & 0xfffc;
+		altiobase_2 = pci_read_config(dev, 0x1c, 4) & 0xfffc;
+		irq2 = pci_read_config(dev, PCI_INTERRUPT_REG, 4) & 0xff;
 	}
 
         /* is this controller busmaster capable ? */
-        if (pci_conf_read(tag, PCI_CLASS_REG) & 0x8000) {
+        if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
 	    /* is busmastering support turned on ? */
-	    if ((pci_conf_read(tag, PCI_COMMAND_STATUS_REG) & 5) == 5) {
+	    if ((pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4) & 5) == 5) {
 	        /* is there a valid port range to connect to ? */
-    	        if ((bmaddr_1 = pci_conf_read(tag, 0x20) & 0xfffc)) {
+    	        if ((bmaddr_1 = pci_read_config(dev, 0x20, 4) & 0xfffc)) {
 		    bmaddr_2 = bmaddr_1 + ATA_BM_OFFSET1;
 		    printf("ata-pci%d: Busmastering DMA supported\n", unit);
     	        }
@@ -231,47 +309,76 @@ ata_pciattach(pcici_t tag, int32_t unit)
 	
     /* now probe the addresse found for "real" ATA/ATAPI hardware */
     lun = 0;
-    if (ata_probe(iobase_1, altiobase_1, bmaddr_1, tag, &lun)) {
+    if (ata_probe(iobase_1, altiobase_1, bmaddr_1, dev, &lun)) {
 	if (iobase_1 == IO_WD1)
 #ifdef __i386__
-	    register_intr(irq1, (int)"", 0, (inthand2_t *)ataintr, 
-			  &bio_imask, lun);
-#else
+	    register_intr(irq1,(int)"",0,(inthand2_t *)ataintr,&bio_imask,lun);
+#endif
+#ifdef __alpha__
 	    alpha_platform_setup_ide_intr(0, ataintr, (void *)(intptr_t)lun);
 #endif
 	else {
+	    struct resource *irq;
+	    int rid = 0;
+	    void *ih;
+
+	    irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0,1,RF_ACTIVE);
 	    if (sysctrl)
-	        pci_map_int(tag, (inthand2_t *)promise_intr, 
-			    (void *)(intptr_t)lun, &bio_imask);
+		bus_setup_intr(dev, irq, (driver_intr_t *)promise_intr,
+			       (void *)lun, &ih);
 	    else
-	        pci_map_int(tag, (inthand2_t *)ataintr, (void *)(intptr_t)lun,&bio_imask);
+		bus_setup_intr(dev, irq, (driver_intr_t *)ataintr,
+			       (void *)lun, &ih);
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_1, isa_apic_irq(irq1), unit);
     }
     lun = 1;
-    if (ata_probe(iobase_2, altiobase_2, bmaddr_2, tag, &lun)) {
+    if (ata_probe(iobase_2, altiobase_2, bmaddr_2, dev, &lun)) {
 	if (iobase_2 == IO_WD2)
 #ifdef __i386__
-	    register_intr(irq2, (int)"", 0, (inthand2_t *)ataintr,
-			  &bio_imask, lun);
-#else
+	    register_intr(irq2,(int)"",0,(inthand2_t *)ataintr,&bio_imask,lun);
+#endif
+#ifdef __alpha__
 	    alpha_platform_setup_ide_intr(1, ataintr, (void *)(intptr_t)lun);
 #endif
 	else {
+	    struct resource *irq;
+	    int rid = 0;
+	    void *ih;
+
+	    irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0,1,RF_ACTIVE);
 	    if (!sysctrl)
-	        pci_map_int(tag, (inthand2_t *)ataintr, (void *)(intptr_t)lun,&bio_imask);
+		bus_setup_intr(dev, irq, (driver_intr_t *)ataintr,
+			       (void *)lun, &ih);
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_2, isa_apic_irq(irq2), unit);
     }
+    return 0;
 }
+
+static device_method_t ata_pci_methods[] = {
+    /* Device interface */
+    DEVMETHOD(device_probe,	ata_pciprobe),
+    DEVMETHOD(device_attach,	ata_pciattach),
+    { 0, 0 }
+};
+
+static driver_t ata_pci_driver = {
+    "ata",
+    ata_pci_methods,
+    DRIVER_TYPE_BIO,
+    sizeof(int),
+};
+
+DRIVER_MODULE(ata, pci, ata_pci_driver, ata_devclass, 0, 0);
 
 static void
 promise_intr(int32_t unit)
 {
     struct ata_softc *scp = atadevices[unit];
-    int32_t channel = inl((pci_conf_read(scp->tag, 0x20) & 0xfffc) + 0x1c);
+    int32_t channel = inl((pci_read_config(scp->dev, 0x20, 4) & 0xfffc) + 0x1c);
 
     if (channel & 0x00000400)
 	ataintr(unit);
@@ -283,7 +390,7 @@ promise_intr(int32_t unit)
 
 static int32_t
 ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
-	  pcici_t tag, int32_t *unit)
+	  device_t dev, int32_t *unit)
 {
     struct ata_softc *scp = atadevices[atanlun];
     int32_t mask = 0;
@@ -430,14 +537,13 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
     bufq_init(&scp->ata_queue);
     TAILQ_INIT(&scp->atapi_queue);
     *unit = scp->lun;
-    scp->tag = tag;
+    scp->dev = dev;
     if (bmaddr)
     	scp->bmaddr = bmaddr;
     atadevices[scp->lun] = scp;
 #ifndef ATA_STATIC_ID
     atanlun++;
 #endif
-    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     return ATA_IOSIZE;
 }
 
