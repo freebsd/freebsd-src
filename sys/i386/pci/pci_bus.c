@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.6 1995/03/22 10:52:05 se Exp $
+**  $Id: pcibus.c,v 1.7 1995/03/22 19:51:59 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -162,6 +162,7 @@ pcibus_setup (void)
 	if (!inb (CONF2_ENABLE_PORT) && !inb (CONF2_FORWARD_PORT)) {
 		pci_mechanism = 2;
 		pci_maxdevice = 16;
+		return;
 	};
 
 	/*---------------------------------------
@@ -177,6 +178,7 @@ pcibus_setup (void)
 	if (result == CONF1_ENABLE) {
 		pci_mechanism = 1;
 		pci_maxdevice = 32;
+		return;
 	};
 
 	/*---------------------------------------
