@@ -281,7 +281,11 @@ CompatRunCommand (cmdp, gnp)
 	 * -e flag as well as -c if it's supposed to exit when it hits an
 	 * error.
 	 */
-	static char	*shargv[4] = { "/bin/sh" };
+#ifndef _PATH_DEFSHELLDIR
+	static char	*shargv[4] = { "sh" };
+#else /* _PATH_DEFSHELLDIR */
+	static char	*shargv[4] = { _PATH_DEFSHELLDIR"/sh" };
+#endif /* _PATH_DEFSHELLDIR */
 
 	shargv[1] = (errCheck ? "-ec" : "-c");
 	shargv[2] = cmd;
@@ -293,7 +297,11 @@ CompatRunCommand (cmdp, gnp)
 	 * This command must be passed by the shell for other reasons..
 	 * or.. possibly not at all.
 	 */
-	static char	*shargv[4] = { "/bin/sh" };
+#ifndef _PATH_DEFSHELLDIR
+	static char	*shargv[4] = { "sh" };
+#else /* _PATH_DEFSHELLDIR */
+	static char	*shargv[4] = { _PATH_DEFSHELLDIR"/sh" };
+#endif /* _PATH_DEFSHELLDIR */
 
 	if (internal == -1) {
 		/* Command does not need to be executed */
@@ -333,7 +341,7 @@ CompatRunCommand (cmdp, gnp)
 	    (void) write (STDERR_FILENO, strerror(errno), strlen(strerror(errno)));
 	    (void) write (STDERR_FILENO, "\n", 1);
 	} else {
-	    (void)execv(av[0], av);
+	    (void)execvp(av[0], av);
 	}
 	exit(1);
     }
