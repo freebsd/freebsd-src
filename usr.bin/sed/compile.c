@@ -615,7 +615,7 @@ compile_tr(p, transtab)
 static char *
 compile_text()
 {
-	int asize, esc_nl, size;
+	int asize, size;
 	char *text, *p, *op, *s;
 	char lbuf[_POSIX2_LINE_MAX + 1];
 
@@ -626,15 +626,13 @@ compile_text()
 		op = s = text + size;
 		p = lbuf;
 		EATSPACE();
-		for (esc_nl = 0; *p != '\0'; p++) {
-			if (*p == '\\' && *p++ == '\0') {
-				esc_nl = 1;
-				break;
-			}
+		for (; *p != '\0'; p++) {
+			if (*p == '\\')
+				*p++ = '\0';
 			*s++ = *p;
 		}
 		size += s - op;
-		if (!esc_nl) {
+		if (p[-2] != '\0') {
 			*s = '\0';
 			break;
 		}
