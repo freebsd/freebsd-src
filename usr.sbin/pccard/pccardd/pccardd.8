@@ -2,27 +2,27 @@
 .\" All rights reserved.
 .\"
 .Dd November 1, 1994
-.Dt PC-CARD 8
+.Dt PCCARD 8
 .Os FreeBSD
 .Sh NAME
-.Nm cardd
+.Nm pccardd
 .Nd PC-CARD (PCMCIA) management daemon
 .Sh SYNOPSIS
-.Nm cardd
+.Nm pccardd
 .Op Fl d
 .Op Fl v
 .Op Fl f Ar configfile
 .Sh DESCRIPTION
-.Nm Cardd
+.Nm Pccardd
 is normally started at boot time, and manages the insertion
 and removal of PC-CARD cards.
 .Pp
 When started,
-.Nm cardd
+.Nm pccardd
 will read the configuration file (default name
-.Pa /etc/card.conf )
+.Pa /etc/pccard.conf )
 and scans the available PC-CARD slots for cards.
-.Nm Cardd
+.Nm Pccardd
 then waits for
 .Em "card events" ,
 such as the insertion of a new card or the removal
@@ -35,7 +35,7 @@ actions are taken:
 The kernel driver detects the card insertion and applies
 power to the card.
 .It
-.Nm Cardd
+.Nm Pccardd
 reads the
 .Em CIS
 data from the attribute memory of the card, and uses
@@ -45,7 +45,7 @@ the card description in the configuration file.
 Once matched, a driver is allocated.
 .It
 Once a free driver and device instance is located,
-.Nm cardd
+.Nm pccardd
 will (if required) allocate resources such as an ISA memory
 block and Input/Output ports from a common pool.
 .It
@@ -61,7 +61,7 @@ for each card, driver or device, and are executed in that order.
 .El
 .Pp
 When
-.Nm cardd
+.Nm pccardd
 detects that a card has been removed, the following sequence occurs:
 .Bl -enum
 .It
@@ -86,7 +86,7 @@ parameters. This will change significantly when loadable kernel
 modules are supported.
 .Pp
 The start options understood by
-.Nm cardd
+.Nm pccardd
 are:
 .Bl -tag -width Ds
 .It Fl d
@@ -98,17 +98,17 @@ of it.
 .It Fl f Ar configfile
 Specifies a different configuration file to be used
 in placed of the default file
-.Pa /etc/card.conf.
+.Pa /etc/pccard.conf.
 The file format is detailed in
 .Xr card.conf 5 ,
 and lists the PC-CARD cards recognized by
-.Nm cardd ,
+.Nm pccardd ,
 and the kernel drivers and devices that are used to
 interface to the card.
 .Pp
 .Sh FILES
-.Bl -tag -width /etc/card.conf -compact
-.It Pa /etc/card.conf
+.Bl -tag -width /etc/pccard.conf -compact
+.It Pa /etc/pccard.conf
 .El
 .Sh SEE ALSO
 .Xr card.conf 5
@@ -116,7 +116,7 @@ interface to the card.
 .Sh AUTHOR
 Developed by Andrew McRae (andrew@mega.com.au).
 .Sh BUGS
-.Nm Cardd
+.Nm Pccardd
 can set up card parameters, but cannot guarantee that
 particular drivers can work with the card.
 .Pp
