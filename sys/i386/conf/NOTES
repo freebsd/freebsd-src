@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.226 1995/12/24 08:11:46 davidg Exp $
+#	$Id: LINT,v 1.227 1995/12/24 08:13:23 davidg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -844,6 +844,7 @@ options		POWERFAIL_NMI	# make it beep instead of panicing
 
 # More undocumented options for linting.
 
+options		APM_SLOWSTART=1
 options		COMPAT_LINUX
 options		DEBUG
 options		"EXT2FS"
