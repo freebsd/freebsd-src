@@ -146,6 +146,9 @@ ohci_pci_attach(device_t self)
 	void *ih;
 	int intr;
 
+	/* XXX where does it say so in the spec? */
+	sc->sc_bus.usbrev = USBREV_1_0;
+
 	rid = PCI_CBMEM;
 	res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
 				 0, ~0, 1, RF_ACTIVE);
