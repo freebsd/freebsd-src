@@ -522,8 +522,8 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 				err = EINVAL;
 				goto error;
 			}
-			xfer->dst = fwdev->dst;
-			fp->mode.hdr.dst = FWLOCALBUS | xfer->dst;
+			xfer->dst = FWLOCALBUS | fwdev->dst;
+			fp->mode.hdr.dst = xfer->dst;
 			break;
 		case FWASRESTL:
 			/* XXX what's this? */
