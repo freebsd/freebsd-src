@@ -1,58 +1,64 @@
 /* struct_symbol.h - Internal symbol structure
-   Copyright (C) 1987 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1992 Free Software Foundation, Inc.
+   
+   This file is part of GAS, the GNU Assembler.
+   
+   GAS is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+   
+   GAS is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   
+   oYou should have received a copy of the GNU General Public License
+   along with GAS; see the file COPYING.  If not, write to
+   the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+/*
+ * $Id: struc-symbol.h,v 1.4 1993/10/02 20:57:53 pk Exp $
+ */
 
-This file is part of GAS, the GNU Assembler.
 
-GAS is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
-any later version.
-
-GAS is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with GAS; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
-
-#ifndef		VMS
-#include "a.out.gnu.h"		/* Needed to define struct nlist. Sigh. */
-#else
-#include "a_out.h"
-#endif
+#ifndef __struc_symbol_h__
+#define __struc_symbol_h__
 
 struct symbol			/* our version of an nlist node */
 {
-  struct nlist	sy_nlist;	/* what we write in .o file (if permitted) */
-  long unsigned sy_name_offset;	/* 4-origin position of sy_name in symbols */
-				/* part of object file. */
-				/* 0 for (nameless) .stabd symbols. */
-				/* Not used until write_object_file() time. */
-  long int	sy_number;	/* 24 bit symbol number. */
-				/* Symbol numbers start at 0 and are */
-				/* unsigned. */
-  struct symbol * sy_next;	/* forward chain, or NULL */
-  struct frag *	sy_frag;	/* NULL or -> frag this symbol attaches to. */
-  struct symbol *sy_forward;	/* value is really that of this other symbol */
+	obj_symbol_type sy_symbol;	/* what we write in .o file (if permitted) */
+	unsigned long sy_name_offset;	/* 4-origin position of sy_name in symbols */
+	/* part of object file. */
+	/* 0 for (nameless) .stabd symbols. */
+	/* Not used until write_object_file() time. */
+	long	sy_number;	/* 24 bit symbol number. */
+	/* Symbol numbers start at 0 and are */
+	/* unsigned. */
+	struct symbol *sy_next;	/* forward chain, or NULL */
+#ifdef SYMBOLS_NEED_BACKPOINTERS
+	struct symbol *sy_previous;	/* backward chain, or NULL */
+#endif /* SYMBOLS_NEED_BACKPOINTERS */
+	struct frag *sy_frag;	/* NULL or -> frag this symbol attaches to. */
+	struct symbol *sy_forward;	/* value is really that of this other symbol */
+	/* We will probably want to add a sy_segment here soon. */
+
+#ifdef PIC
+	/* Force symbol into symbol table, even if local */
+	int	sy_forceout;
+#endif
+	/* Size of symbol as given by the .size directive */
+	int	sy_size;
 };
 
 typedef struct symbol symbolS;
 
-#define sy_name		sy_nlist .n_un. n_name
-				/* Name field always points to a string. */
-				/* 0 means .stabd-like anonymous symbol. */
-#define sy_type 	sy_nlist.	n_type
-#define sy_other	sy_nlist.	n_other
-#define sy_desc		sy_nlist.	n_desc
-#define sy_value	sy_nlist.	n_value
-				/* Value of symbol is this value + object */
-				/* file address of sy_frag. */
+#ifdef PIC
+symbolS *GOT_symbol;		/* Pre-defined "__GLOBAL_OFFSET_TABLE" */
+int	got_referenced;
+#endif
 
 typedef unsigned valueT;	/* The type of n_value. Helps casting. */
 
-/* end: struct_symbol.h */
 #ifndef WORKING_DOT_WORD
 struct broken_word {
 	struct broken_word *next_broken_word;/* One of these strucs per .word x-y */
@@ -63,10 +69,59 @@ struct broken_word {
 	symbolS	*sub;		/* - symbol_y */
 	long	addnum;		/* + addnum */
 	int	added;		/* nasty thing happend yet? */
-				/* 1: added and has a long-jump */
-				/* 2: added but uses someone elses long-jump */
+	/* 1: added and has a long-jump */
+	/* 2: added but uses someone elses long-jump */
 	struct broken_word *use_jump; /* points to broken_word with a similar
 					 long-jump */
 };
 extern struct broken_word *broken_words;
-#endif
+#endif /* ndef WORKING_DOT_WORD */
+
+#define	SEGMENT_TO_SYMBOL_TYPE(seg)  (seg_N_TYPE[(int) (seg)])
+extern const short seg_N_TYPE[]; /* subseg.c */
+
+#define	N_REGISTER	30	/* Fake N_TYPE value for SEG_REGISTER */
+
+#ifdef SYMBOLS_NEED_BACKPOINTERS
+#if __STDC__ == 1
+
+void symbol_clear_list_pointers(symbolS *symbolP);
+void symbol_insert(symbolS *addme, symbolS *target, symbolS **rootP, symbolS **lastP);
+void symbol_remove(symbolS *symbolP, symbolS **rootP, symbolS **lastP);
+void verify_symbol_chain(symbolS *rootP, symbolS *lastP);
+
+#else /* not __STDC__ */
+
+void symbol_clear_list_pointers();
+void symbol_insert();
+void symbol_remove();
+void verify_symbol_chain();
+
+#endif /* not __STDC__ */
+
+#define symbol_previous(s) ((s)->sy_previous)
+
+#else /* SYMBOLS_NEED_BACKPOINTERS */
+
+#define symbol_clear_list_pointers(clearme) {clearme->sy_next = NULL;}
+
+#endif /* SYMBOLS_NEED_BACKPOINTERS */
+
+#if __STDC__ == 1
+void symbol_append(symbolS *addme, symbolS *target, symbolS **rootP, symbolS **lastP);
+#else /* not __STDC__ */
+void symbol_append();
+#endif /* not __STDC__ */
+
+#define symbol_next(s)	((s)->sy_next)
+
+#endif /* __struc_symbol_h__ */
+
+/*
+ * Local Variables:
+ * comment-column: 0
+ * fill-column: 131
+ * End:
+ */
+
+/* end of struc-symbol.h */
