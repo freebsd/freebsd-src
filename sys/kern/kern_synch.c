@@ -286,7 +286,7 @@ schedcpu(arg)
 		if (p->p_pri.pri_level >= PUSER) {
 			if ((p != curproc) &&
 #ifdef SMP
-			    p->p_oncpu == 0xff && 	/* idle */
+			    p->p_oncpu == NOCPU && 	/* idle */
 #endif
 			    p->p_stat == SRUN &&
 			    (p->p_sflag & PS_INMEM) &&
@@ -930,7 +930,7 @@ mi_switch()
 	cpu_switch();
 	curproc->p_oncpu = PCPU_GET(cpuid);
 	sched_lock.mtx_recurse = sched_nest;
-	sched_lock.mtx_lock = curproc;
+	sched_lock.mtx_lock = (uintptr_t)curproc;
 	CTR4(KTR_PROC, "mi_switch: new proc %p (pid %d, %s), schedlock %p",
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	if (PCPU_GET(switchtime.tv_sec) == 0)
