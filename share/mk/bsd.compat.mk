@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-.if !defined(BURN_BRIDGES)
 .for oldnew in \
 	NOATM:NO_ATM \
 	NOCLEAN:NO_CLEAN \
@@ -32,11 +31,10 @@
 	NOTAGS:NO_TAGS
 .for old in ${oldnew:C/:.*//}
 .for new in ${oldnew:C/.*://}
-.if defined(${old}) && !defined(${new})
-.warning ${old} is deprecated in favor of ${new}
-${new}=	${${old}}
+.if defined(${new}) && !defined(${old})
+${old}=	${${new}}
+#echo "setting ${old} to ${new}"
 .endif
 .endfor
 .endfor
 .endfor
-.endif

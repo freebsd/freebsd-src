@@ -271,4 +271,5 @@ OBJFORMAT?=	elf
 
 .endif
 
+.include <bsd.compat.mk>
 .include <bsd.cpu.mk>
