@@ -33,7 +33,7 @@ CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
 .include <bsd.lib.mk>
 
-.if defined(REALLY_AMD64)
+.if ${MACHINE_ARCH} == "amd64"
 ${OBJS}: machine
 CLEANFILES+=	machine
 machine:
