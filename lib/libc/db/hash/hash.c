@@ -122,8 +122,7 @@ __hash_open(file, flags, mode, info, dflags)
 
 	new_table = 0;
 	if (!file || (flags & O_TRUNC) ||
-	    (stat(file, &statbuf) && (errno == ENOENT)) ||
-	    statbuf.st_size == 0) {
+	    (stat(file, &statbuf) && (errno == ENOENT))) {
 		if (errno == ENOENT)
 			errno = 0; /* Just in case someone looks at errno */
 		new_table = 1;
@@ -131,6 +130,13 @@ __hash_open(file, flags, mode, info, dflags)
 	if (file) {
 		if ((hashp->fp = open(file, flags, mode)) == -1)
 			RETURN_ERROR(errno, error0);
+
+		/* if the .db file is empty, and we had permission to create
+		   a new .db file, then reinitialize the database */
+		if ((flags & O_CREAT) &&
+		     fstat(hashp->fp, &statbuf) == 0 && statbuf.st_size == 0)
+			new_table = 1;
+
 		(void)fcntl(hashp->fp, F_SETFD, 1);
 	}
 	if (new_table) {
