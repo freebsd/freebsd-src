@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.60 1998/06/08 20:33:29 julian Exp $
+ *	$Id: if.c,v 1.61 1998/07/20 13:21:56 dfr Exp $
  */
 
 #include "opt_compat.h"
@@ -1031,6 +1031,7 @@ if_delmulti(ifp, sa)
 
 	s = splimp();
 	LIST_REMOVE(ifma, ifma_link);
+	ifp->if_ioctl(ifp, SIOCDELMULTI, 0);
 	splx(s);
 	free(ifma->ifma_addr, M_IFMADDR);
 	free(sa, M_IFMADDR);
