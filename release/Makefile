@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.294 1997/05/24 20:15:13 jkh Exp $
+#	$Id: Makefile,v 1.295 1997/06/01 08:06:48 joerg Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -179,6 +179,7 @@ rerelease release:
 	echo "chflags noschg /usr/lib/lib*.so.*" >> ${CHROOTDIR}/mk
 	echo "mv /usr/lib/lib*.so.* /usr/lib/compat" >> ${CHROOTDIR}/mk
 	echo "ldconfig /usr/lib /usr/lib/compat" >> ${CHROOTDIR}/mk
+	echo "(cd include; make all install)"   >> ${CHROOTDIR}/mk
 	echo "make world"			>> ${CHROOTDIR}/mk
 	echo "(cd etc; make distribution)"	>> ${CHROOTDIR}/mk
 	# Now we've got our own shared libs, remove the bootstrapping
