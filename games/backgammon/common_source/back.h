@@ -53,8 +53,8 @@
  *
  */
 
-char	EXEC[];			/* object for main program */
-char	TEACH[];		/* object for tutorial program */
+extern char	EXEC[];		/* object for main program */
+extern char	TEACH[];	/* object for tutorial program */
 
 int	pnum;			/* color of player:
 					-1 = white
@@ -108,7 +108,7 @@ char	cin[100];		/* input line of current move
 				   (used for reconstructing input after
 				   a backspace) */
 
-char	*color[];
+extern char	*color[];
 				/* colors as strings */
 char	**colorptr;		/* color of current player */
 char	**Colorptr;		/* color of current player, capitalized */
