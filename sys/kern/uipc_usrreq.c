@@ -803,16 +803,6 @@ unp_abort(unp)
 #endif
 
 static int
-prison_unpcb(struct proc *p, struct unpcb *unp)
-{
-	if (!jailed(p->p_ucred))
-		return (0);
-	if (p->p_fd->fd_rdir == unp->unp_rvnode)
-		return (0);
-	return (1);
-}
-
-static int
 unp_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, n;
@@ -859,9 +849,9 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	
 	for (unp = LIST_FIRST(head), i = 0; unp && i < n;
 	     unp = LIST_NEXT(unp, unp_link)) {
-		if (unp->unp_gencnt <= gencnt && !prison_unpcb(req->p, unp)) {
-			if (!showallsockets && socheckproc(unp->unp_socket,
-			    curthread->td_proc))
+		if (unp->unp_gencnt <= gencnt) {
+			if (cr_cansee(req->p->p_ucred,
+			    unp->unp_socket->so_cred))
 				continue;
 			unp_list[i++] = unp;
 		}

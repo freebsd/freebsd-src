@@ -1299,7 +1299,6 @@ suser_xxx(cred, proc, flag)
 	return (0);
 }
 
-
 /*
  * Test (local, globale) securelevel values against passed required
  * securelevel.  _gt implements (level > securelevel), and _ge implements
@@ -1357,6 +1356,16 @@ securelevel_ge(struct ucred *cr, int level)
 	}
 }
 
+/*
+ * kern_security_seeotheruids_permitted determines whether or not visibility
+ * of processes and sockets with credentials holding different real uid's
+ * is possible using a variety of system MIBs.
+ */
+static int	kern_security_seeotheruids_permitted = 1;
+SYSCTL_INT(_kern_security, OID_AUTO, seeotheruids_permitted,
+    CTLFLAG_RW, &kern_security_seeotheruids_permitted, 0,
+    "Unprivileged processes may see subjects/objects with different real uid");
+
 /*-
  * Determine if u1 "can see" the subject specified by u2.
  * Returns: 0 for permitted, an errno value otherwise
@@ -1372,7 +1381,8 @@ cr_cansee(struct ucred *u1, struct ucred *u2)
 
 	if ((error = prison_check(u1, u2)))
 		return (error);
-	if (!ps_showallprocs && u1->cr_ruid != u2->cr_ruid) {
+	if (!kern_security_seeotheruids_permitted &&
+	    u1->cr_ruid != u2->cr_ruid) {
 		if (suser_xxx(u1, NULL, PRISON_ROOT) != 0)
 			return (ESRCH);
 	}
