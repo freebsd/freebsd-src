@@ -1030,15 +1030,6 @@ acdstrategy(struct buf *bp)
     struct acd_softc *cdp = bp->b_dev->si_drv1;
     int32_t s;
 
-#ifdef NOTYET
-    /* allow write only on CD-R/RW media */   /* all for now SOS */
-    if (!(bp->b_flags & B_READ) && !(writeable_media)) {
-	bp->b_error = EROFS;
-	bp->b_flags |= B_ERROR;
-	biodone(bp);
-	return;
-    }
-#endif
     /* if it's a null transfer, return immediatly. */
     if (bp->b_bcount == 0) {
 	bp->b_resid = 0;
@@ -1046,8 +1037,6 @@ acdstrategy(struct buf *bp)
 	return;
     }
     
-    /* check for valid blocksize SOS */
-
     bp->b_pblkno = bp->b_blkno;
     bp->b_resid = bp->b_bcount;
 
@@ -1288,7 +1277,8 @@ acd_open_track(struct acd_softc *cdp, struct cdr_track *track)
     if ((error = acd_mode_sense(cdp, ATAPI_CDROM_WRITE_PARAMETERS_PAGE,
 				&param, sizeof(param))))
 	return error;
-    param.page_code = 0x05;
+
+    param.page_code = ATAPI_CDROM_WRITE_PARAMETERS_PAGE;
     param.page_length = 0x32;
     param.test_write = track->test_write ? 1 : 0;
     param.write_type = CDR_WTYPE_TRACK;
@@ -1349,9 +1339,9 @@ acd_open_track(struct acd_softc *cdp, struct cdr_track *track)
     }
 
 #if 1
-        param.multi_session = CDR_MSES_MULTI;
+    param.multi_session = CDR_MSES_MULTI;
 #else
-        param.multi_session = CDR_MSES_NONE;
+    param.multi_session = CDR_MSES_NONE;
 #endif
     param.fp = 0;
     param.packet_size = 0;
