@@ -62,12 +62,19 @@ static int mmap_option;
 static char const short_options[] =
 "0123456789A:B:C::EFGHUVX:abcd:e:f:hiLlnqrsuvwxyZz";
 
+/* Non-boolean long options that have no corresponding short equivalents.  */
+enum
+{
+  BINARY_FILES_OPTION = CHAR_MAX + 1
+};
+
 /* Long options equivalences. */
 static struct option long_options[] =
 {
   {"after-context", required_argument, NULL, 'A'},
   {"basic-regexp", no_argument, NULL, 'G'},
   {"before-context", required_argument, NULL, 'B'},
+  {"binary-files", required_argument, NULL, BINARY_FILES_OPTION},
   {"byte-offset", no_argument, NULL, 'b'},
   {"context", optional_argument, NULL, 'C'},
   {"count", no_argument, NULL, 'c'},
@@ -476,7 +483,12 @@ fillbuf (save, stats)
 }
 
 /* Flags controlling the style of output. */
-static int always_text;		/* Assume the input is always text. */
+static enum
+  {
+    BINARY_BINARY_FILES,
+    TEXT_BINARY_FILES,
+    WITHOUT_MATCH_BINARY_FILES
+  } binary_files;		/* How to handle binary files.  */
 static int filename_mask;	/* If zero, output nulls after filenames.  */
 static int out_quiet;		/* Suppress all normal output. */
 static int out_invert;		/* Print nonmatching stuff. */
@@ -729,11 +741,14 @@ grep (fd, file, stats)
     {
       if (! (is_EISDIR (errno, file) && suppress_errors))
 	error (filename, errno);
-      return nlines;
+      return 0;
     }
 
-  not_text = (! (always_text | out_quiet)
+  not_text = (((binary_files == BINARY_BINARY_FILES && !out_quiet)
+	       || binary_files == WITHOUT_MATCH_BINARY_FILES)
 	      && memchr (bufbeg, eol ? '\0' : '\200', buflim - bufbeg));
+  if (not_text && binary_files == WITHOUT_MATCH_BINARY_FILES)
+    return 0;
   done_on_match += not_text;
   out_quiet += not_text;
 
@@ -993,7 +1008,9 @@ Output control:\n\
   -H, --with-filename       print the filename for each match\n\
   -h, --no-filename         suppress the prefixing filename on output\n\
   -q, --quiet, --silent     suppress all normal output\n\
-  -a, --text                do not suppress binary output\n\
+  -a, --text                equivalent to --binary-files=text\n\
+      --binary-files=TYPE   assume that binary files are TYPE\n\
+                            TYPE is 'binary', 'text', or 'without-match'.\n\
   -d, --directories=ACTION  how to handle directories\n\
                             ACTION is 'read', 'recurse', or 'skip'.\n\
   -r, --recursive           equivalent to --directories=recurse.\n\
@@ -1276,7 +1293,7 @@ main (argc, argv)
 	setmatcher (optarg);
 	break;
       case 'a':
-	always_text = 1;
+	binary_files = TEXT_BINARY_FILES;
 	break;
       case 'b':
 	out_byte = 1;
@@ -1369,6 +1386,16 @@ main (argc, argv)
 	break;
       case 'z':
 	eolbyte = '\0';
+	break;
+      case BINARY_FILES_OPTION:
+	if (strcmp (optarg, "binary") == 0)
+	  binary_files = BINARY_BINARY_FILES;
+	else if (strcmp (optarg, "text") == 0)
+	  binary_files = TEXT_BINARY_FILES;
+	else if (strcmp (optarg, "without-match") == 0)
+	  binary_files = WITHOUT_MATCH_BINARY_FILES;
+	else
+	  fatal (_("unknown binary-files type"), 0);
 	break;
       case 0:
 	/* long options */

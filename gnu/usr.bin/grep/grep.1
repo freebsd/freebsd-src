@@ -12,7 +12,7 @@
 .de Id
 .ds Dt \\$4
 ..
-.Id $Id: grep.1,v 1.7 1999/10/12 20:41:01 alainm Exp $
+.Id $Id: grep.1,v 1.8 2000/01/17 00:55:06 alainm Exp $
 .TH GREP 1 \*(Dt "GNU Project"
 .SH NAME
 grep, egrep, fgrep \- print lines matching a pattern
@@ -28,6 +28,7 @@ grep, egrep, fgrep \- print lines matching a pattern
 .IR FILE ]
 .RB [ \-d
 .IR ACTION ]
+.RB [ \-\^\-binary-files=\fITYPE\fP ]
 .RB [ \-\^\-directories=\fIACTION\fP ]
 .RB [ \-\^\-extended-regexp ]
 .RB [ \-\^\-fixed-strings ]
@@ -143,6 +144,41 @@ Print the version number of
 to standard error.  This version number should
 be included in all bug reports (see below).
 .TP
+.BI \-\^\-binary-files= TYPE
+If the first few bytes of a file indicate that the file contains binary
+data, assume that the file is of type
+.IR TYPE .
+By default,
+.I TYPE
+is
+.BR binary ,
+and
+.B grep
+normally outputs either
+a one-line message saying that a binary file matches, or no message if
+there is no match.
+If
+.I TYPE
+is
+.BR without-match ,
+.B grep
+assumes that a binary file does not match.
+If
+.I TYPE
+is
+.BR text ,
+.B grep
+processes a binary file as if it were text; this is equivalent to the
+.B \-a
+or
+.B \-\^\-text
+option.
+.I Warning:
+.B "grep \-\^\-binary-files=text"
+might output binary garbage,
+which can have nasty side effects if the output is a terminal and if the
+terminal driver interprets some of it as commands.
+.TP
 .BR \-b ", " \-\^\-byte-offset
 Print the byte offset within the input file before
 each line of output.
@@ -257,15 +293,9 @@ and
 and should redirect output to /dev/null instead.
 .TP
 .BR \-a ", " \-\^\-text
-Do not suppress output lines that contain binary data.
-Normally, if the first few bytes of a file indicate that
-the file contains binary data,
-.B grep
-outputs only a message saying that the file matches the pattern.
-This option causes
-.B grep
-to act as if the file is a text file,
-even if it would otherwise be treated as binary.
+Process a binary file as if it were text; this is equivalent to the
+.B \-\^\-binary-files=text
+option.
 .TP
 .BR \-v ", " \-\^\-invert-match
 Invert the sense of matching, to select non-matching lines.
@@ -323,9 +353,9 @@ system call to read input, instead of
 the default
 .BR read (2)
 system call.  In some situations,
-.B -\^-mmap
+.B \-\^\-mmap
 yields better performance.  However,
-.B -\^-mmap
+.B \-\^\-mmap
 can cause undefined behavior (including core dumps)
 if an input file shrinks while
 .B grep
