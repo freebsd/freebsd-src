@@ -92,7 +92,6 @@ LongJmp(jmp_buf buf, int retval)
 #else /* not i386 */
 #define LongJmp longjmp					    /* just use the kernel function */
 #endif /* i386 */
-#endif /* VINUMDEBUG */
 
 /* find the base name of a path name */
 char *
@@ -105,6 +104,7 @@ basename(char *file)
     else
 	return ++f;					    /* skip the / */
 }
+#endif /* VINUMDEBUG */
 
 #ifdef VINUMDEBUG
 void
