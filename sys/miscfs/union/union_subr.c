@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.35 1998/12/07 21:58:34 archie Exp $
+ * $Id: union_subr.c,v 1.36 1998/12/14 05:00:59 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -1182,15 +1182,6 @@ union_dircheck(struct proc *p, struct vnode **vp, struct file *fp)
 			*vp = lvp;
 			return -1;	/* goto unionread */
 		}
-	}
-	if (((*vp)->v_flag & VROOT) && ((*vp)->v_mount->mnt_flag & MNT_UNION)) {
-		struct vnode *tvp = *vp;
-		*vp = (*vp)->v_mount->mnt_vnodecovered;
-		VREF(*vp);
-		fp->f_data = (caddr_t) *vp;
-		fp->f_offset = 0;
-		vrele(tvp);
-		return -1;	/* goto unionread */
 	}
 	return error;
 }
