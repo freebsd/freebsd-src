@@ -93,13 +93,13 @@ static int		relocate_file(aout_file_t af);
 /*
  * The kernel symbol table starts here.
  */
-extern struct _dynamic _DYNAMIC;
+extern struct _dynamic __DYNAMIC;
 
 static void
 link_aout_init(void* arg)
 {
 #ifndef __ELF__
-    struct _dynamic* dp = &_DYNAMIC;
+    struct _dynamic* dp = &__DYNAMIC;
 #endif
 
     linker_add_class(&link_aout_class);
@@ -109,7 +109,7 @@ link_aout_init(void* arg)
 	aout_file_t af;
 
 	linker_kernel_file =
-	    linker_make_file(kernelname, af, &link_aout_class);
+	    linker_make_file(kernelname, &link_aout_class);
 	if (linker_kernel_file == NULL)
 	    panic("link_aout_init: Can't create linker structures for kernel");
 	af = (aout_file_t) linker_kernel_file;
