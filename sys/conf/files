@@ -336,7 +336,6 @@ dev/buslogic/bt_mca.c	optional bt mca
 dev/buslogic/bt_pci.c	optional bt pci
 dev/cardbus/cardbus.c	optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
-dev/ccd/ccd.c		optional ccd
 dev/ciss/ciss.c		optional ciss
 dev/cm/smc90cx6.c	optional cm
 dev/cnw/if_cnw.c	optional cnw card
@@ -904,6 +903,8 @@ geom/geom_aes.c		optional geom_aes
 geom/geom_apple.c	optional geom_apple
 geom/geom_bsd.c		optional geom_bsd
 geom/geom_bsd_enc.c	optional geom_bsd
+geom/geom_ccd.c		optional ccd
+geom/geom_ccd.c		optional geom_ccd
 geom/geom_ctl.c		standard
 geom/geom_dev.c		standard
 geom/geom_disk.c	standard
