@@ -604,6 +604,8 @@ rip_abort(struct socket *so)
 	soisdisconnected(so);
 	if (so->so_state & SS_NOFDREF)
 		rip_pcbdetach(so, inp);
+	else
+		INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 	return 0;
 }
