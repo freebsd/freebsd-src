@@ -47,8 +47,8 @@ __FBSDID("$FreeBSD$");
 #define	HKEY_GET	1
 
 /* Functions */
-#define	HKEY_REG_LCD_BRIGHTNESS	0x04
-#define	HKEY_REG_SOUND_MUTE	0x08
+#define	HKEY_REG_LCD_BRIGHTNESS		0x04
+#define	HKEY_REG_SOUND_MUTE		0x08
 
 /* Field definitions */
 #define	HKEY_LCD_BRIGHTNESS_BITS	4
@@ -69,18 +69,20 @@ static int	acpi_panasonic_probe(device_t dev);
 static int	acpi_panasonic_attach(device_t dev);
 static int	acpi_panasonic_detach(device_t dev);
 static int	acpi_panasonic_sysctl(SYSCTL_HANDLER_ARGS);
-static ACPI_INTEGER	acpi_panasonic_sinf(ACPI_HANDLE h, ACPI_INTEGER index);
+static ACPI_INTEGER acpi_panasonic_sinf(ACPI_HANDLE h, ACPI_INTEGER index);
 static void	acpi_panasonic_sset(ACPI_HANDLE h, ACPI_INTEGER index,
-				    ACPI_INTEGER val);
+		    ACPI_INTEGER val);
+static int	acpi_panasonic_hkey_event(struct acpi_panasonic_softc *sc,
+		    ACPI_HANDLE h, UINT32 *arg);
+static void	acpi_panasonic_hkey_action(struct acpi_panasonic_softc *sc,
+		    ACPI_HANDLE h, UINT32 key);
+static void	acpi_panasonic_notify(ACPI_HANDLE h, UINT32 notify,
+		    void *context);
+
 static hkey_fn_t	hkey_lcd_brightness_max;
 static hkey_fn_t	hkey_lcd_brightness;
 static hkey_fn_t	hkey_sound_mute;
-static int	acpi_panasonic_hkey_event(struct acpi_panasonic_softc *sc,
-					  ACPI_HANDLE h, UINT32 *arg);
-static void	acpi_panasonic_hkey_action(struct acpi_panasonic_softc *sc,
-					   ACPI_HANDLE h, UINT32 key);
-static void	acpi_panasonic_notify(ACPI_HANDLE h, UINT32 notify,
-				      void *context);
+static int		lcd_brightness_max = 255;
 
 /* Table of sysctl names and HKEY functions to call. */
 static struct {
@@ -111,10 +113,8 @@ static driver_t acpi_panasonic_driver = {
 static devclass_t acpi_panasonic_devclass;
 
 DRIVER_MODULE(acpi_panasonic, acpi, acpi_panasonic_driver,
-	      acpi_panasonic_devclass, 0, 0);
+    acpi_panasonic_devclass, 0, 0);
 MODULE_DEPEND(acpi_panasonic, acpi, 1, 1, 1);
-
-static int lcd_brightness_max = 255;
 
 static int
 acpi_panasonic_probe(device_t dev)
@@ -151,10 +151,10 @@ acpi_panasonic_attach(device_t dev)
 	    "panasonic", CTLFLAG_RD, 0, "");
 	for (i = 0; sysctl_table[i].name != NULL; i++) {
 		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
-				SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-				sysctl_table[i].name,
-				CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY,
-				sc, i, acpi_panasonic_sysctl, "I", "");
+		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+		    sysctl_table[i].name,
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY,
+		    sc, i, acpi_panasonic_sysctl, "I", "");
 	}
 
 #if 0
@@ -169,10 +169,10 @@ acpi_panasonic_attach(device_t dev)
 
         /* Handle notifies */
 	status = AcpiInstallNotifyHandler(sc->handle, ACPI_DEVICE_NOTIFY,
-					  acpi_panasonic_notify, sc);
+	    acpi_panasonic_notify, sc);
 	if (ACPI_FAILURE(status)) {
 		device_printf(dev, "couldn't install notify handler - %s\n",
-			      AcpiFormatException(status));
+		    AcpiFormatException(status));
 		sysctl_ctx_free(&sc->sysctl_ctx);
 		return (ENXIO);
 	}
@@ -189,7 +189,7 @@ acpi_panasonic_detach(device_t dev)
 
 	/* Remove notify handler */
 	AcpiRemoveNotifyHandler(sc->handle, ACPI_DEVICE_NOTIFY,
-				acpi_panasonic_notify);
+	    acpi_panasonic_notify);
 
 	/* Free sysctl tree */
 	sysctl_ctx_free(&sc->sysctl_ctx);
@@ -315,7 +315,7 @@ hkey_sound_mute(ACPI_HANDLE h, int op, UINT32 *val)
 
 static int
 acpi_panasonic_hkey_event(struct acpi_panasonic_softc *sc, ACPI_HANDLE h,
-			  UINT32 *arg)
+    UINT32 *arg)
 {
 	ACPI_BUFFER buf;
 	ACPI_OBJECT *res;
@@ -351,7 +351,7 @@ end:
 
 static void
 acpi_panasonic_hkey_action(struct acpi_panasonic_softc *sc, ACPI_HANDLE h,
-			   UINT32 key)
+    UINT32 key)
 {
 	int arg;
 
@@ -404,7 +404,7 @@ acpi_panasonic_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 		}
 		break;
 	default:
-		device_printf(sc->dev, "unknown Notify: 0x%x\n", notify);
+		device_printf(sc->dev, "unknown notify: %#x\n", notify);
 		break;
 	}
 }
