@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.4 (Berkeley) 5/5/95
-#	$Id: Makefile,v 1.15 1996/10/25 14:49:24 bde Exp $
+#	$Id: Makefile,v 1.15.2.1 1997/08/25 09:09:28 jkh Exp $
 
 PROG=	sh
 SHSRCS=	alias.c cd.c echo.c error.c eval.c exec.c expand.c \
@@ -7,7 +7,7 @@ SHSRCS=	alias.c cd.c echo.c error.c eval.c exec.c expand.c \
 	mystring.c options.c output.c parser.c printf.c redir.c show.c \
 	trap.c var.c
 GENSRCS= arith.c arith_lex.c builtins.c init.c nodes.c syntax.c
-SRCS= ${SHSRCS} ${GENSRCS}
+SRCS=	${SHSRCS} ${GENSRCS}
 
 DPADD+= ${LIBL} ${LIBEDIT} ${LIBTERMCAP}
 LDADD+= -ll -ledit -ltermcap
@@ -32,6 +32,18 @@ builtins.c builtins.h: mkbuiltins builtins.def
 init.c: mkinit alias.c eval.c exec.c input.c jobs.c options.c parser.c \
 	redir.c trap.c var.c
 	./mkinit ${.ALLSRC:S/^mkinit$//}
+
+# XXX this is just to stop the default .c rule being used, so that the
+# intermediate object has a fixed name.
+# XXX we have a default .c rule, but no default .o rule.
+.o:
+	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
+mkinit: mkinit.o
+mkinit.o: mkinit.c		# XXX and many headers
+mknodes: mknodes.o
+mknodes.o: mknodes.c		# XXX and many headers
+mksyntax: mksyntax.o
+mksyntax.o: mksyntax.c		# XXX and many headers
 
 nodes.c nodes.h: mknodes nodetypes nodes.c.pat
 	./mknodes ${.CURDIR}/nodetypes ${.CURDIR}/nodes.c.pat
