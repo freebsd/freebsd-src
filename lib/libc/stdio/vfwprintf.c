@@ -39,7 +39,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-__FBSDID("FreeBSD: src/lib/libc/stdio/vfprintf.c,v 1.62 2004/01/18 10:32:49 das Exp");
+__FBSDID("FreeBSD: src/lib/libc/stdio/vfprintf.c,v 1.65 2004/05/02 10:55:05 das
+ Exp");
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -70,10 +71,6 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 #include "fvwrite.h"
 
-/* Define FLOATING_POINT to get floating point, HEXFLOAT to get %a. */
-#define	FLOATING_POINT
-#define	HEXFLOAT
-
 union arg {
 	int	intarg;
 	u_int	uintarg;
@@ -95,7 +92,7 @@ union arg {
 	ptrdiff_t *pptrdiffarg;
 	size_t	*psizearg;
 	intmax_t *pintmaxarg;
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 	double	doublearg;
 	long double longdoublearg;
 #endif
@@ -435,7 +432,7 @@ vfwprintf(FILE * __restrict fp, const wchar_t * __restrict fmt0, va_list ap)
 	return (ret);
 }
 
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 
 #define	dtoa		__dtoa
 #define	freedtoa	__freedtoa
@@ -449,7 +446,7 @@ vfwprintf(FILE * __restrict fp, const wchar_t * __restrict fmt0, va_list ap)
 
 static int exponent(wchar_t *, int, wchar_t);
 
-#endif /* FLOATING_POINT */
+#endif /* !NO_FLOATING_POINT */
 
 /*
  * The size of the buffer we use as scratch space for integer
@@ -497,7 +494,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	wchar_t sign;		/* sign prefix (' ', '+', '-', or \0) */
 	char thousands_sep;	/* locale specific thousands separator */
 	const char *grouping;	/* locale specific numeric grouping rules */
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 	/*
 	 * We can decompose the printed representation of floating
 	 * point numbers into several parts, some of which may be empty:
@@ -648,7 +645,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 
 	thousands_sep = '\0';
 	grouping = NULL;
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 	decimal_point = localeconv()->decimal_point;
 #endif
 	convbuf = NULL;
@@ -766,7 +763,7 @@ reswitch:	switch (ch) {
 			}
 			width = n;
 			goto reswitch;
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 		case 'L':
 			flags |= LONGDBL;
 			goto rflag;
@@ -828,8 +825,7 @@ reswitch:	switch (ch) {
 			}
 			base = 10;
 			goto number;
-#ifdef FLOATING_POINT
-#ifdef HEXFLOAT
+#ifndef NO_FLOATING_POINT
 		case 'a':
 		case 'A':
 			if (ch == 'a') {
@@ -864,7 +860,6 @@ reswitch:	switch (ch) {
 			cp = convbuf = __mbsconv(dtoaresult, -1);
 			freedtoa(dtoaresult);
 			goto fp_common;
-#endif	/* HEXFLOAT */
 		case 'e':
 		case 'E':
 			expchar = ch;
@@ -968,7 +963,7 @@ fp_common:
 					lead = expt;
 			}
 			break;
-#endif /* FLOATING_POINT */
+#endif /* !NO_FLOATING_POINT */
 		case 'n':
 			/*
 			 * Assignment-like behavior is specified if the
@@ -1176,7 +1171,7 @@ number:			if ((dprec = prec) >= 0)
 		PAD(dprec - size, zeroes);
 
 		/* the string or number proper */
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 		if ((flags & FPT) == 0) {
 			PRINT(cp, size);
 		} else {	/* glue together f_p fragments */
@@ -1369,7 +1364,7 @@ reswitch:	switch (ch) {
 			}
 			width = n;
 			goto reswitch;
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 		case 'L':
 			flags |= LONGDBL;
 			goto rflag;
@@ -1416,11 +1411,9 @@ reswitch:	switch (ch) {
 		case 'i':
 			ADDSARG();
 			break;
-#ifdef FLOATING_POINT
-#ifdef HEXFLOAT
+#ifndef NO_FLOATING_POINT
 		case 'a':
 		case 'A':
-#endif
 		case 'e':
 		case 'E':
 		case 'f':
@@ -1431,7 +1424,7 @@ reswitch:	switch (ch) {
 			else
 				ADDTYPE(T_DOUBLE);
 			break;
-#endif /* FLOATING_POINT */
+#endif /* !NO_FLOATING_POINT */
 		case 'n':
 			if (flags & INTMAXT)
 				ADDTYPE(TP_INTMAXT);
@@ -1551,7 +1544,7 @@ done:
 		    case TP_INTMAXT:
 			(*argtable) [n].pintmaxarg = va_arg (ap, intmax_t *);
 			break;
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 		    case T_DOUBLE:
 			(*argtable) [n].doublearg = va_arg (ap, double);
 			break;
@@ -1608,7 +1601,7 @@ __grow_type_table (int nextarg, enum typeid **typetable, int *tablesize)
 }
 
 
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 
 static int
 exponent(wchar_t *p0, int exp, wchar_t fmtch)
@@ -1645,4 +1638,4 @@ exponent(wchar_t *p0, int exp, wchar_t fmtch)
 	}
 	return (p - p0);
 }
-#endif /* FLOATING_POINT */
+#endif /* !NO_FLOATING_POINT */
