@@ -35,10 +35,8 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 /*
- * Synonym for fgetwc(stdin). Function call overhead is not an issue here:
- * wchar.h #define's getwchar() to fgetwc(stdin).
+ * Synonym for fgetwc(stdin).
  */
-#undef getwchar
 wint_t
 getwchar(void)
 {
