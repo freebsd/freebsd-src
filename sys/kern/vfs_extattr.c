@@ -2577,7 +2577,7 @@ stat(td, uap)
 	int error;
 	struct nameidata nd;
 
-#ifdef LOOKUP_SHARED
+#ifndef LOOKUP_EXCLUSIVE
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | NOOBJ,
 	    UIO_USERSPACE, SCARG(uap, path), td);
 #else
