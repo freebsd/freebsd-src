@@ -699,7 +699,9 @@ frequency_lookup( bktr_ptr_t bktr, int channel )
 #undef TBL_CHNL
 
 
-#define TBL_IF	freqTable[ bktr->tuner.chnlset ].ptr[ 1 ]
+#define	TBL_IF	(bktr->format_params == BT848_IFORM_F_NTSCJ || \
+                 bktr->format_params == BT848_IFORM_F_NTSCM ? \
+                 nabcst[1] : weurope[1])
 
 
 /* Initialise the tuner structures in the bktr_softc */
