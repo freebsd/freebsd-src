@@ -90,6 +90,9 @@ crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	ipsec ipsec_esp
 crypto/blowfish/bf_enc.c	optional	crypto
 crypto/des/des_enc.c		optional	crypto
+crypto/des/des_ecb.c		optional	netsmbcrypto
+crypto/des/des_enc.c		optional	netsmbcrypto
+crypto/des/des_setkey.c		optional	netsmbcrypto
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
