@@ -279,10 +279,10 @@ nexus_dmamap_create(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, int flags,
     bus_dmamap_t *mapp)
 {
 
-	/* Not much to do...? */
 	*mapp = malloc(sizeof(**mapp), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (*mapp != NULL) {
 		ddmat->dt_map_count++;
+		sparc64_dmamap_init(*mapp);
 		return (0);
 	} else
 		return (ENOMEM);
@@ -415,6 +415,7 @@ nexus_dmamap_load(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
 
 	if (error == 0) {
 		(*callback)(callback_arg, dm_segments, nsegs + 1, 0);
+		map->dm_loaded = 1;
 	} else
 		(*callback)(callback_arg, NULL, 0, error);
 
@@ -460,6 +461,7 @@ nexus_dmamap_load_mbuf(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 		/* force "no valid mappings" in callback */
 		(*callback)(callback_arg, dm_segments, 0, 0, error);
 	} else {
+		map->dm_loaded = 1;
 		(*callback)(callback_arg, dm_segments, nsegs + 1,
 		    m0->m_pkthdr.len, error);
 	}
@@ -517,6 +519,7 @@ nexus_dmamap_load_uio(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 		/* force "no valid mappings" in callback */
 		(*callback)(callback_arg, dm_segments, 0, 0, error);
 	} else {
+		map->dm_loaded = 1;
 		(*callback)(callback_arg, dm_segments, nsegs + 1,
 		    uio->uio_resid, error);
 	}
@@ -531,7 +534,7 @@ static void
 nexus_dmamap_unload(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
 {
 
-	/* Nothing to do...? */
+	map->dm_loaded = 0;
 }
 
 /*
@@ -584,6 +587,7 @@ sparc64_dmamem_alloc_map(bus_dma_tag_t dmat, bus_dmamap_t *mapp)
 		return (ENOMEM);
 
 	dmat->dt_map_count++;
+	sparc64_dmamap_init(*mapp);
 	return (0);
 }
 

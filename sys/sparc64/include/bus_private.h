@@ -35,15 +35,23 @@
 
 #define	BUS_DMAMAP_NSEGS	((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1)
 
-struct bus_dmamap {
-	bus_dma_tag_t	dmat;
-	void		*buf;		/* unmapped buffer pointer */
-	bus_size_t	buflen;		/* unmapped buffer length */
-	bus_addr_t	start;		/* start of mapped region */
-	struct resource *res;		/* associated resource */
-	bus_size_t	dvmaresv;	/* reseved DVMA memory */
-	STAILQ_ENTRY(bus_dmamap)	maplruq;
-	int		onq;
+struct bus_dmamap_res {
+	struct resource		*dr_res;
+	bus_size_t		dr_used;
+	SLIST_ENTRY(bus_dmamap_res)	dr_link;
 };
+
+struct bus_dmamap {
+	TAILQ_ENTRY(bus_dmamap)	dm_maplruq;
+	SLIST_HEAD(, bus_dmamap_res)	dm_reslist;
+	int			dm_onq;
+	int			dm_loaded;
+};
+
+static __inline void
+sparc64_dmamap_init(struct bus_dmamap *m)
+{
+	SLIST_INIT(&m->dm_reslist);
+}
 
 #endif /* !_MACHINE_BUS_PRIVATE_H_ */
