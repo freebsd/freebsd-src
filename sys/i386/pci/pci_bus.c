@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.13 1995/09/15 21:43:45 se Exp $
+**  $Id: pcibus.c,v 1.14 1995/09/18 21:48:39 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -145,11 +145,10 @@ DATA_SET (pcibus_set, i386pci);
 #define CONF1_DATA_PORT    0x0cfc
 
 #define CONF1_ENABLE       0x80000000ul
-#define CONF1_ENABLE_CHK1  0xF0000001ul
-#define CONF1_ENABLE_MSK1  0x80000001ul
+#define CONF1_ENABLE_CHK   0x80000000ul
+#define CONF1_ENABLE_CHK1  0xFF000001ul
+#define CONF1_ENABLE_MSK1  0x80000000ul
 #define CONF1_ENABLE_RES1  0x80000000ul
-#define CONF1_ENABLE_CHK2  0xfffffffful
-#define CONF1_ENABLE_RES2  0x80fffffcul
 
 #define CONF2_ENABLE_PORT  0x0cf8
 #define CONF2_FORWARD_PORT 0x0cfa
@@ -157,90 +156,104 @@ DATA_SET (pcibus_set, i386pci);
 #define CONF2_ENABLE_CHK   0x0e
 #define CONF2_ENABLE_RES   0x0e
 
-
 static int
 pcibus_check (void)
 {
 	u_char device;
 
+	if (bootverbose) printf ("pcibus_check:\tdevice ");
+
 	for (device = 0; device < pci_maxdevice; device++) {
-		if (pcibus_read (pcibus_tag (0,device,0), 0) != 0xfffffffful)
+		if (bootverbose) printf ("%d ", device);
+		if (pcibus_read (pcibus_tag (0,device,0), 0) != 0xfffffffful) {
+			if (bootverbose) printf ("is there\n");
 			return 1;
+		}
 	}
+	if (bootverbose) printf ("-- nothing found\n");
 	return 0;
 }
 
 static void
 pcibus_setup (void)
 {
-	u_long result, oldval;
-
-	/*---------------------------------------
-	**      Configuration mode 1 ?
-	**---------------------------------------
-	*/
+	unsigned long mode1res,oldval;
+	unsigned char mode2res;
 
 	oldval = inl (CONF1_ADDR_PORT);
-	outl (CONF1_ADDR_PORT, CONF1_ENABLE_CHK1);
-	outb (CONF1_ADDR_PORT +3, 0);
-	result = inl (CONF1_ADDR_PORT);
+	outl (CONF1_ADDR_PORT, CONF1_ENABLE_CHK);
+	outb (CONF2_ENABLE_PORT, CONF2_ENABLE_CHK);
+	mode1res = inl(CONF1_ADDR_PORT);
+	mode2res = inb(CONF2_ENABLE_PORT);
 	outl (CONF1_ADDR_PORT, oldval);
 
-	if ((result & CONF1_ENABLE_MSK1) == CONF1_ENABLE_RES1) {
-		pci_mechanism = 1;
-		pci_maxdevice = 32;
-		if (pcibus_check()) 
-			return;
-	};
-
-	/*---------------------------------------
-	**      Configuration mode 2 ?
-	**---------------------------------------
-	*/
-
-	outb (CONF2_ENABLE_PORT,  CONF2_ENABLE_CHK);
-	outb (CONF2_FORWARD_PORT, 0);
-	result = inb (CONF2_ENABLE_PORT);
-
-	outb (CONF2_ENABLE_PORT,  0);
-	outb (CONF2_FORWARD_PORT, 0);
-	if ((result == CONF2_ENABLE_RES)
-	    && !inb (CONF2_ENABLE_PORT) 
-	    && !inb (CONF2_FORWARD_PORT)) {
-		pci_mechanism = 2;
-		pci_maxdevice = 16;
-		if (pcibus_check()) 
-			return;
-	};
-
-
-	/*-----------------------------------------------------
-	**      Well, is it Configuration mode 1, after all ?
-	**-----------------------------------------------------
-	*/
-
-	oldval = inl (CONF1_ADDR_PORT);
-	outl (CONF1_ADDR_PORT, CONF1_ENABLE_CHK2);
-	outl (CONF1_DATA_PORT, 0);
-	result = inl (CONF1_ADDR_PORT);
-	outl (CONF1_ADDR_PORT, oldval);
-
-	if (result == CONF1_ENABLE_RES2) {
-		pci_mechanism = 1;
-		pci_maxdevice = 32;
-		if (pcibus_check()) 
-			return;
+	if (bootverbose) {
+		printf ("pcibus_setup(1):\tmode1res=0x%08lx (0x%08lx), "
+			"mode2res=0x%02x (0x%02x)\n",
+			mode1res,CONF1_ENABLE_CHK,
+			(int)mode2res,CONF2_ENABLE_CHK);
 	}
+
+	/*---------------------------------------
+	**	No PCI, if neither mode1res nor mode2res could be read back
+	**---------------------------------------
+	*/
+
+	if ((mode1res != CONF1_ENABLE_CHK) && (mode2res != CONF2_ENABLE_CHK)) {
+		return;
+	}
+
+	/*---------------------------------------
+	**      Assume configuration mechanism 1 for now ...
+	**---------------------------------------
+	*/
+
+	pci_mechanism = 1;
+	pci_maxdevice = 32;
+
+	outl (CONF1_ADDR_PORT, CONF1_ENABLE_CHK);
+	outb (CONF1_ADDR_PORT +3, 0);
+	mode1res = inl (CONF1_ADDR_PORT);
+	outl (CONF1_ADDR_PORT, oldval);
+
+	if (bootverbose)
+		printf ("pcibus_setup(2):\tmode1res=0x%08lx (0x%08lx)\n", 
+			mode1res, CONF1_ENABLE_CHK);
+
+	if (mode1res) {
+		if (pcibus_check()) 
+			return;
+	};
+
+	outl (CONF1_ADDR_PORT, CONF1_ENABLE_CHK1);
+	outl (CONF1_DATA_PORT, 0);
+	mode1res = inl(CONF1_ADDR_PORT);
+	outl (CONF1_ADDR_PORT, oldval);
+
+	if (bootverbose)
+		printf ("pcibus_setup(3):\tmode1res=0x%08lx (0x%08lx)\n", 
+			mode1res, CONF1_ENABLE_CHK1);
+
+	if ((mode1res & CONF1_ENABLE_MSK1) == CONF1_ENABLE_CHK1) {
+		if (pcibus_check()) 
+			return;
+	};
+
+	/*---------------------------------------
+	**      Try configuration mechanism 2 ...
+	**---------------------------------------
+	*/
+
+	pci_mechanism = 2;
+	pci_maxdevice = 16;
+
+	if (pcibus_check()) 
+	    return;
 
 	/*---------------------------------------
 	**      No PCI bus host bridge found
 	**---------------------------------------
 	*/
-
-	if (bootverbose && (result != 0xfffffffful))
-		printf ("pcibus_setup: "
-			"wrote 0x%08x, read back 0x%08x, expected 0x%08x\n", 
-			CONF1_ENABLE_CHK2, result, CONF1_ENABLE_RES2);
 
 	pci_mechanism = 0;
 	pci_maxdevice = 0;
