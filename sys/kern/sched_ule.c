@@ -815,14 +815,16 @@ sched_switch(struct thread *td)
 			runq_add(ke->ke_runq, ke);
 			/* setrunqueue(td); */
 		}
-	} else if (ke->ke_runq)
-		kseq_rem(KSEQ_CPU(ke->ke_cpu), ke);
-	/*
-	 * We will not be on the run queue. So we must be
-	 * sleeping or similar.
-	 */
-	if (td->td_proc->p_flag & P_SA)
-		kse_reassign(ke);
+	} else {
+		if (ke->ke_runq)
+			kseq_rem(KSEQ_CPU(ke->ke_cpu), ke);
+		/*
+		 * We will not be on the run queue. So we must be
+		 * sleeping or similar.
+		 */
+		if (td->td_proc->p_flag & P_SA)
+			kse_reassign(ke);
+	}
 	sched_nest = sched_lock.mtx_recurse;
 	newtd = choosethread();
 	if (td != newtd)
