@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.15 1996/01/19 03:58:32 dyson Exp $
+ *	$Id: procfs_mem.c,v 1.16 1996/01/24 18:41:06 peter Exp $
  */
 
 /*
@@ -96,20 +96,6 @@ procfs_rwmem(p, uio)
 		int fix_prot;
 
 		uva = (vm_offset_t) uio->uio_offset;
-		if (uva >= VM_MAXUSER_ADDRESS) {
-			
-			if (writing || (uva >= (VM_MAXUSER_ADDRESS + UPAGES * PAGE_SIZE))) {
-				error = 0;
-				break;
-			}
-			/* we are reading the "U area", fill it in */
-			PHOLD(p);
-			if (p->p_flag & P_INMEM) {
-				p->p_addr->u_kproc.kp_proc = *p;
-				fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
-			}
-			PRELE(p);
-		}
 
 		/*
 		 * Get the page number of this segment.
@@ -121,6 +107,39 @@ procfs_rwmem(p, uio)
 		 * How many bytes to copy
 		 */
 		len = min(PAGE_SIZE - page_offset, uio->uio_resid);
+
+		if (uva >= VM_MAXUSER_ADDRESS) {
+			if (writing || (uva >= (VM_MAXUSER_ADDRESS + UPAGES * PAGE_SIZE))) {
+				error = 0;
+				break;
+			}
+
+			/* we are reading the "U area", force it into core */
+			PHOLD(p);
+
+			/* sanity check */
+			if (!(p->p_flag & P_INMEM)) {
+				/* aiee! */
+				error = EFAULT;
+				break;
+			}
+
+			/* populate the ptrace/procfs area */
+			p->p_addr->u_kproc.kp_proc = *p;
+			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
+
+			/* locate the in-core address */
+			kva = (u_int)p->p_addr + uva - VM_MAXUSER_ADDRESS;
+
+			/* transfer it */
+			error = uiomove((caddr_t)kva, len, uio);
+
+			/* let the pages go */
+			PRELE(p);
+
+			continue;
+		}
+
 
 		/*
 		 * The map we want...
