@@ -7157,7 +7157,8 @@ static driver_t ncr_driver = {
 
 static devclass_t ncr_devclass;
 
-DRIVER_MODULE(if_ncr, pci, ncr_driver, ncr_devclass, 0, 0);
+DRIVER_MODULE(ncr, pci, ncr_driver, ncr_devclass, 0, 0);
+MODULE_DEPEND(ncr, pci, 1, 1, 1);
 
 /*=========================================================================*/
 #endif /* _KERNEL */

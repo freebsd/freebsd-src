@@ -124,7 +124,8 @@ static driver_t hme_sbus_driver = {
 	sizeof(struct hme_sbus_softc)
 };
 
-DRIVER_MODULE(if_hme, sbus, hme_sbus_driver, hme_devclass, 0, 0);
+DRIVER_MODULE(hme, sbus, hme_sbus_driver, hme_devclass, 0, 0);
+MODULE_DEPEND(hme, ether, 1, 1, 1);
 
 static int
 hme_sbus_probe(device_t dev)

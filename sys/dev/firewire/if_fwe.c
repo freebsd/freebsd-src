@@ -684,6 +684,6 @@ static driver_t fwe_driver = {
 };
 
 
-DRIVER_MODULE(if_fwe, firewire, fwe_driver, fwe_devclass, 0, 0);
-MODULE_VERSION(if_fwe, 1);
-MODULE_DEPEND(if_fwe, firewire, 1, 1, 1);
+DRIVER_MODULE(fwe, firewire, fwe_driver, fwe_devclass, 0, 0);
+MODULE_VERSION(fwe, 1);
+MODULE_DEPEND(fwe, firewire, 1, 1, 1);

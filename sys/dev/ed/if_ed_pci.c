@@ -120,4 +120,6 @@ static driver_t ed_pci_driver = {
 	sizeof(struct ed_softc),
 };
 
-DRIVER_MODULE(if_ed, pci, ed_pci_driver, ed_devclass, 0, 0);
+DRIVER_MODULE(ed, pci, ed_pci_driver, ed_devclass, 0, 0);
+MODULE_DEPEND(ed, pci, 1, 1, 1);
+MODULE_DEPEND(ed, ether, 1, 1, 1);

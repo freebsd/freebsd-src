@@ -111,6 +111,8 @@ __FBSDID("$FreeBSD$");
 
 #define BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 
+MODULE_DEPEND(bge, pci, 1, 1, 1);
+MODULE_DEPEND(bge, ether, 1, 1, 1);
 MODULE_DEPEND(bge, miibus, 1, 1, 1);
 
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
@@ -241,7 +243,7 @@ static driver_t bge_driver = {
 
 static devclass_t bge_devclass;
 
-DRIVER_MODULE(if_bge, pci, bge_driver, bge_devclass, 0, 0);
+DRIVER_MODULE(bge, pci, bge_driver, bge_devclass, 0, 0);
 DRIVER_MODULE(miibus, bge, miibus_driver, miibus_devclass, 0, 0);
 
 static u_int32_t

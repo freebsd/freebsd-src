@@ -200,7 +200,8 @@ static driver_t sbsh_driver = {
 
 static devclass_t sbsh_devclass;
 
-DRIVER_MODULE(if_sbsh, pci, sbsh_driver, sbsh_devclass, 0, 0);
+DRIVER_MODULE(sbsh, pci, sbsh_driver, sbsh_devclass, 0, 0);
+MODULE_DEPEND(sbsh, pci, 1, 1, 1);
 
 static int
 sbsh_probe(device_t dev)
