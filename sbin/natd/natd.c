@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- *	$Id: natd.c,v 1.15 1999/04/25 22:33:30 imp Exp $
+ *	$Id: natd.c,v 1.16 1999/05/13 16:58:31 brian Exp $
  */
 
 #define SYSLOG_NAMES
@@ -1431,7 +1431,7 @@ void SetupPortRedirect (const char* parms)
 	        errx (1, "redirect_port: port ranges must be equal in size");
 
 	/* Remote port range is allowed to be '0' which means all ports. */
-	if (numRemotePorts != numLocalPorts && (numRemotePorts != 1 || remotePort != 0)
+	if (numRemotePorts != numLocalPorts && (numRemotePorts != 1 || remotePort != 0))
 	        errx (1, "redirect_port: remote port must be 0 or equal to local port range in size");
 
 	for (i = 0 ; i < numPublicPorts ; ++i) {
