@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1997/05/23 04:04:15 msmith Exp $
+#	$Id: Makefile,v 1.1 1999/05/05 07:37:06 wpaul Exp $
 PROG=	wicontrol
 SRCS=	wicontrol.c
 

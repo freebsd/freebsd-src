@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wavelan_ieee.h,v 1.4 1999/04/27 02:02:41 wpaul Exp $
+ *	$Id: if_wavelan_ieee.h,v 1.1 1999/05/05 07:36:50 wpaul Exp $
  */
 
 #ifndef _IF_WAVELAN_IEEE_H
