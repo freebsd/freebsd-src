@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.15.2.1 1997/08/26 06:35:18 charnier Exp $";
+	"$Id: vmstat.c,v 1.15.2.2 1997/08/29 05:30:11 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -71,6 +71,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -103,7 +104,7 @@ struct nlist namelist[] = {
 	{ "_kmemstats" },
 #define	X_KMEMBUCKETS	13
 	{ "_bucket" },
-#ifdef notdef
+#ifdef notyet
 #define	X_DEFICIT	14
 	{ "_deficit" },
 #define	X_FORKSTAT	15
@@ -171,7 +172,7 @@ kvm_t *kd;
 
 void	cpustats(), dkstats(), dointr(), domem(), dosum();
 void	dovmstat(), kread(), usage();
-#ifdef notdef
+#ifdef notyet
 void	dotimes(), doforkst();
 #endif
 void printhdr __P((void));
@@ -194,11 +195,13 @@ main(argc, argv)
 		case 'c':
 			reps = atoi(optarg);
 			break;
-#ifndef notdef
 		case 'f':
+#ifdef notyet
 			todo |= FORKSTAT;
-			break;
+#else
+			errx(EX_USAGE, "sorry, -f is not (re)implemented yet");
 #endif
+			break;
 		case 'i':
 			todo |= INTRSTAT;
 			break;
@@ -214,11 +217,13 @@ main(argc, argv)
 		case 's':
 			todo |= SUMSTAT;
 			break;
-#ifndef notdef
 		case 't':
+#ifdef notyet
 			todo |= TIMESTAT;
-			break;
+#else
+			errx(EX_USAGE, "sorry, -t is not (re)implemented yet");
 #endif
+			break;
 		case 'w':
 			interval = atoi(optarg);
 			break;
@@ -285,7 +290,7 @@ main(argc, argv)
 	} else if (reps)
 		interval = 1;
 
-#ifdef notdef
+#ifdef notyet
 	if (todo & FORKSTAT)
 		doforkst();
 #endif
@@ -293,7 +298,7 @@ main(argc, argv)
 		domem();
 	if (todo & SUMSTAT)
 		dosum();
-#ifdef notdef
+#ifdef notyet
 	if (todo & TIMESTAT)
 		dotimes();
 #endif
@@ -486,7 +491,7 @@ needhdr()
 	hdrcnt = 1;
 }
 
-#ifdef notdef
+#ifdef notyet
 void
 dotimes()
 {
@@ -598,7 +603,7 @@ dosum()
 #endif
 }
 
-#ifdef notdef
+#ifdef notyet
 void
 doforkst()
 {
