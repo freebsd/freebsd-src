@@ -112,8 +112,7 @@ main(int argc, char *argv[])
 	int		ftsoptions;
 	int		listall;
 	int		depth;
-	int		Hflag, Lflag, Pflag, aflag, sflag, dflag, cflag, hflag, ch, rval;
-	size_t		notused;
+	int		Hflag, Lflag, Pflag, aflag, sflag, dflag, cflag, hflag, ch, notused, rval;
 	char 		**save;
 	static char	dot[] = ".";
 
