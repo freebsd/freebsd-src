@@ -50,9 +50,9 @@ ipx_ntoa(addr)
 	static char obuf[40];
 	union { union ipx_net net_e; u_long long_e; } net;
 	u_short port = htons(addr.x_port);
-	register char *cp;
+	char *cp;
 	char *cp2;
-	register u_char *up = addr.x_host.c_host;
+	u_char *up = addr.x_host.c_host;
 	u_char *uplim = up + 6;
 	static char *spectHex();
 
@@ -87,7 +87,7 @@ spectHex(p0)
 {
 	int ok = 0;
 	int nonzero = 0;
-	register char *p = p0;
+	char *p = p0;
 	for (; *p; p++) switch (*p) {
 
 	case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':

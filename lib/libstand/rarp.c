@@ -68,7 +68,7 @@ rarp_getipaddress(sock)
 	int sock;
 {
 	struct iodesc *d;
-	register struct ether_arp *ap;
+	struct ether_arp *ap;
 	struct {
 		u_char header[ETHER_SIZE];
 		struct {
@@ -139,9 +139,9 @@ rarp_getipaddress(sock)
  */
 static ssize_t
 rarpsend(d, pkt, len)
-	register struct iodesc *d;
-	register void *pkt;
-	register size_t len;
+	struct iodesc *d;
+	void *pkt;
+	size_t len;
 {
 
 #ifdef RARP_DEBUG
@@ -158,13 +158,13 @@ rarpsend(d, pkt, len)
  */
 static ssize_t
 rarprecv(d, pkt, len, tleft)
-	register struct iodesc *d;
-	register void *pkt;
-	register size_t len;
+	struct iodesc *d;
+	void *pkt;
+	size_t len;
 	time_t tleft;
 {
-	register ssize_t n;
-	register struct ether_arp *ap;
+	ssize_t n;
+	struct ether_arp *ap;
 	u_int16_t etype;	/* host order */
 
 #ifdef RARP_DEBUG

@@ -34,6 +34,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)insque.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * insque -- vax insque instruction
@@ -48,7 +50,7 @@ struct vaxque {		/* queue format expected by VAX queue instructions */
 
 void
 insque(e, prev)
-	register struct vaxque *e, *prev;
+	struct vaxque *e, *prev;
 {
 	e->vq_prev = prev;
 	e->vq_next = prev->vq_next;

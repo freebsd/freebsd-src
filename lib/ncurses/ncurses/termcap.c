@@ -103,8 +103,8 @@ int
 _nc_read_termcap_entry(const char *const name, TERMTYPE *const tp)
 {
 	ENTRY	*ep;
-	register char *p;
-	register char *cp;
+	char *p;
+	char *cp;
 	char  *dummy;
 	char **fname;
 	char  *home;

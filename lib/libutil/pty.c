@@ -61,8 +61,8 @@ openpty(amaster, aslave, name, termp, winp)
 	struct winsize *winp;
 {
 	char line[] = "/dev/ptyXX";
-	register const char *cp1, *cp2;
-	register int master, slave, ttygid;
+	const char *cp1, *cp2;
+	int master, slave, ttygid;
 	struct group *gr;
 
 	if ((gr = getgrnam("tty")) != NULL)
