@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.36 1997/12/28 00:29:50 jkh Exp $
+#	$Id: LINT,v 1.286.2.37 1997/12/31 21:47:28 obrien Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -615,6 +615,11 @@ options		"MAXMEM=(128*1024)"
 #options        "TUNE_1542"
 #options	BROKEN_KEYBOARD_RESET
 #options	PAS_JOYSTICK_ENABLE
+
+# Enable PnP support in the kernel.  This allows you to automaticly 
+# attach to PnP cards for drivers that support it and allows you to  
+# configure cards from USERCONFIG.  See pnp(4) for more info.
+controller      pnp0
 
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
