@@ -35,6 +35,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/errno.h>
+#include <sys/linker.h>
 #include <sys/mount.h>
 
 #include <stdio.h>
@@ -75,6 +76,8 @@ main(int argc, char *argv[])
 #ifdef APPLE
 	extern void dropsuid();
 	extern int loadsmbvfs();
+#else
+	struct xvfsconf vfc;
 #endif
 	char *next;
 	int opt, error, mntflags, caseopt;
@@ -97,9 +100,16 @@ main(int argc, char *argv[])
 
 #ifdef APPLE
 	error = loadsmbvfs();
+#else
+	error = getvfsbyname(SMBFS_VFSNAME, &vfc);
+	if (error) {
+		if (kldload(SMBFS_VFSNAME))
+			err(EX_OSERR, "kldload("SMBFS_VFSNAME")");
+		error = getvfsbyname(SMBFS_VFSNAME, &vfc);
+	}
+#endif
 	if (error)
 		errx(EX_OSERR, "SMB filesystem is not available");
-#endif
 
 	if (smb_lib_init() != 0)
 		exit(1);
