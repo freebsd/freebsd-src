@@ -355,8 +355,8 @@ sortq(const void *a, const void *b)
 	const char *fname_a, *fname_b, *jnum_a, *jnum_b;
 	int cat_a, cat_b, ch, res, seq_a, seq_b;
 
-	fname_a = (*(const struct dirent **)a)->d_name;
-	fname_b = (*(const struct dirent **)b)->d_name;
+	fname_a = (*(const struct dirent * const *)a)->d_name;
+	fname_b = (*(const struct dirent * const *)b)->d_name;
 
 	/*
 	 * First separate filenames into cagatories.  Catagories are
