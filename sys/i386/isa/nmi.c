@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.5 1997/08/29 18:45:19 fsmp Exp $
+ *	$Id: intr_machdep.c,v 1.6 1997/08/30 08:08:04 fsmp Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -150,20 +150,32 @@ isa_nmi(cd)
 #else /* IBM-PC */
 	int isa_port = inb(0x61);
 	int eisa_port = inb(0x461);
-	if(isa_port & NMI_PARITY) {
+
+	if (isa_port & NMI_PARITY)
 		panic("RAM parity error, likely hardware failure.");
-	} else if(isa_port & NMI_IOCHAN) {
+
+	if (isa_port & NMI_IOCHAN)
 		panic("I/O channel check, likely hardware failure.");
-	} else if(eisa_port & ENMI_WATCHDOG) {
-		panic("EISA watchdog timer expired, likely hardware failure.");
-	} else if(eisa_port & ENMI_BUSTIMER) {
-		panic("EISA bus timeout, likely hardware failure.");
-	} else if(eisa_port & ENMI_IOSTATUS) {
-		panic("EISA I/O port status error.");
-	} else {
-		printf("\nNMI ISA %x, EISA %x\n", isa_port, eisa_port);
+
+	/*
+	 * On a real EISA machine, this will never happen.  However it can
+	 * happen on ISA machines which implement XT style floating point
+	 * error handling (very rare).  Save them from a meaningless panic.
+	 */
+	if (eisa_port == 0xff)
 		return(0);
-	}
+
+	if (eisa_port & ENMI_WATCHDOG)
+		panic("EISA watchdog timer expired, likely hardware failure.");
+
+	if (eisa_port & ENMI_BUSTIMER)
+		panic("EISA bus timeout, likely hardware failure.");
+
+	if (eisa_port & ENMI_IOSTATUS)
+		panic("EISA I/O port status error.");
+
+	printf("\nNMI ISA %x, EISA %x\n", isa_port, eisa_port);
+	return(0);
 #endif
 }
 
