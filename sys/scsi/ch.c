@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ch.c,v 1.38 1997/03/23 04:39:12 bde Exp $
+ *      $Id: ch.c,v 1.39 1997/03/24 04:26:46 bde Exp $
  */
 
 #include "opt_scsi.h"
@@ -41,7 +41,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
-#include <sys/ioctl.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/chio.h>

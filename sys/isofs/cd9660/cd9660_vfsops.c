@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.19 1997/02/22 09:38:50 peter Exp $
+ * $Id: cd9660_vfsops.c,v 1.20 1997/03/23 03:36:11 bde Exp $
  */
 
 #include <sys/param.h>
@@ -49,7 +49,6 @@
 #include <sys/mount.h>
 #include <sys/buf.h>
 #include <sys/fcntl.h>
-#include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/stat.h>

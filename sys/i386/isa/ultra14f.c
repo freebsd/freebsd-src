@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.52 1997/03/23 04:39:57 bde Exp $
+ *      $Id: ultra14f.c,v 1.53 1997/03/23 06:33:30 bde Exp $
  */
 
 #include <sys/types.h>
@@ -33,7 +33,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
-#include <sys/ioctl.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>

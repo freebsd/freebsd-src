@@ -41,7 +41,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/errno.h>
-#include <sys/ioctl.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>

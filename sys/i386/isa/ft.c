@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.31 1997/02/22 09:36:12 peter Exp $
+ *  $Id: ft.c,v 1.32 1997/03/24 07:19:55 kato Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -73,7 +73,6 @@
 #include <sys/disklabel.h>	/* temp. for dkunit() in fdc.h */
 #include <sys/file.h>
 #include <sys/proc.h>
-#include <sys/ioctl.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/uio.h>

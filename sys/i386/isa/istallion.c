@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.9 1997/03/13 03:51:25 davidn Exp $
+ * $Id: istallion.c,v 1.10 1997/03/23 03:34:49 bde Exp $
  */
 
 /*****************************************************************************/
@@ -44,7 +44,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/conf.h>

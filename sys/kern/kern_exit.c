@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id$
+ * $Id: kern_exit.c,v 1.45 1997/02/22 09:39:04 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -45,7 +45,6 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
-#include <sys/ioctl.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/time.h>

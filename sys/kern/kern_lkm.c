@@ -30,13 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.37 1997/02/27 16:40:20 bde Exp $
+ * $Id: kern_lkm.c,v 1.38 1997/03/23 03:36:20 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id$
+ * $Id: kern_proc.c,v 1.25 1997/02/22 09:39:08 peter Exp $
  */
 
 #include <sys/param.h>
@@ -47,7 +47,6 @@
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/signalvar.h>
 #include <vm/vm.h>

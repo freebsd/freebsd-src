@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ccd.c,v 1.21 1997/02/22 09:28:56 peter Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -104,7 +104,6 @@
 #include <sys/namei.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <ufs/ffs/fs.h> 
 #include <sys/device.h>
