@@ -36,13 +36,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id$
+ * $Id: types.h,v 1.18 1997/02/22 09:46:18 peter Exp $
  */
 
 #ifndef _SYS_TYPES_H_
 #define	_SYS_TYPES_H_
 
 /* Machine type dependent parameters. */
+#include <sys/cdefs.h>			/* XXX for __signed in machine/ansi.h */
 #include <machine/ansi.h>
 #include <machine/types.h>
 
@@ -62,7 +63,7 @@ typedef	quad_t *	qaddr_t;
 typedef	char *		caddr_t;	/* core address */
 typedef	int32_t		daddr_t;	/* disk address */
 typedef	u_int32_t	dev_t;		/* device number */
-typedef u_int32_t	fixpt_t;	/* fixed point number */
+typedef	u_int32_t	fixpt_t;	/* fixed point number */
 typedef	u_int32_t	gid_t;		/* group id */
 typedef	u_int32_t	ino_t;		/* inode number */
 typedef	long		key_t;		/* IPC key (for Sys V IPC) */
@@ -70,11 +71,10 @@ typedef	u_int16_t	mode_t;		/* permissions */
 typedef	u_int16_t	nlink_t;	/* link count */
 typedef	_BSD_OFF_T_	off_t;		/* file offset */
 typedef	_BSD_PID_T_	pid_t;		/* process id */
+typedef	quad_t		rlim_t;		/* resource limit */
 typedef	int32_t		segsz_t;	/* segment size */
 typedef	int32_t		swblk_t;	/* swap offset */
 typedef	u_int32_t	uid_t;		/* user id */
-
-typedef	quad_t		rlim_t; 	/* resource limits */
 
 #ifdef KERNEL
 typedef	int		boolean_t;
@@ -87,7 +87,6 @@ typedef	struct vm_page	*vm_page_t;
  * version of lseek.
  */
 #ifndef KERNEL
-#include <sys/cdefs.h>
 __BEGIN_DECLS
 off_t	 lseek __P((int, off_t, int));
 __END_DECLS
@@ -139,8 +138,8 @@ typedef	_BSD_TIME_T_	time_t;
 #define	FD_SETSIZE	1024
 #endif
 
-typedef long	fd_mask;
-#define NFDBITS	(sizeof(fd_mask) * NBBY)	/* bits per mask */
+typedef	long	fd_mask;
+#define	NFDBITS	(sizeof(fd_mask) * NBBY)	/* bits per mask */
 
 #ifndef howmany
 #define	howmany(x, y)	(((x) + ((y) - 1)) / (y))
