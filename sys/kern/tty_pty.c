@@ -187,7 +187,7 @@ ptsopen(dev, flag, devtype, p)
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 	} else if (tp->t_state & TS_XCLUDE && suser(p)) {
 		return (EBUSY);
-	} else if (pti->pt_prison != p->p_prison) {
+	} else if (pti->pt_prison != p->p_ucred->cr_prison) {
 		return (EBUSY);
 	}
 	if (tp->t_oproc)			/* Ctrlr still around. */
@@ -348,7 +348,7 @@ ptcopen(dev, flag, devtype, p)
 	(void)(*linesw[tp->t_line].l_modem)(tp, 1);
 	tp->t_lflag &= ~EXTPROC;
 	pti = dev->si_drv1;
-	pti->pt_prison = p->p_prison;
+	pti->pt_prison = p->p_ucred->cr_prison;
 	pti->pt_flags = 0;
 	pti->pt_send = 0;
 	pti->pt_ucntl = 0;

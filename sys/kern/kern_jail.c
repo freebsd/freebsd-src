@@ -46,16 +46,17 @@ SYSCTL_INT(_jail, OID_AUTO, sysvipc_allowed, CTLFLAG_RW,
 
 int
 jail(p, uap)
-        struct proc *p;
-        struct jail_args /* {
-                syscallarg(struct jail *) jail;
-        } */ *uap;
+	struct proc *p;
+	struct jail_args /* {
+		syscallarg(struct jail *) jail;
+	} */ *uap;
 {
 	int error;
 	struct prison *pr;
 	struct jail j;
 	struct chroot_args ca;
 
+	/* Implicitly fail if already in jail.  */
 	error = suser(p);
 	if (error)
 		return (error);
@@ -75,9 +76,9 @@ jail(p, uap)
 	if (error)
 		goto bail;
 
-	pr->pr_ref++;
-	p->p_prison = pr;
-	p->p_flag |= P_JAILED;
+	p->p_ucred = crcopy(p->p_ucred);
+	p->p_ucred->cr_prison = pr;
+	pr->pr_ref = 1;
 	return (0);
 
 bail:
@@ -85,12 +86,31 @@ bail:
 	return (error);
 }
 
+void
+prison_free(struct prison *pr)
+{
+
+	pr->pr_ref--;
+	if (pr->pr_ref == 0) {
+		if (pr->pr_linux != NULL)
+			FREE(pr->pr_linux, M_PRISON);
+		FREE(pr, M_PRISON);
+	}
+}
+
+void
+prison_hold(struct prison *pr)
+{
+
+	pr->pr_ref++;
+}
+
 int
-prison_ip(struct proc *p, int flag, u_int32_t *ip)
+prison_ip(struct ucred *cred, int flag, u_int32_t *ip)
 {
 	u_int32_t tmp;
 
-	if (!p->p_prison)
+	if (!jailed(cred))
 		return (0);
 	if (flag) 
 		tmp = *ip;
@@ -98,22 +118,22 @@ prison_ip(struct proc *p, int flag, u_int32_t *ip)
 		tmp = ntohl(*ip);
 	if (tmp == INADDR_ANY) {
 		if (flag) 
-			*ip = p->p_prison->pr_ip;
+			*ip = cred->cr_prison->pr_ip;
 		else
-			*ip = htonl(p->p_prison->pr_ip);
+			*ip = htonl(cred->cr_prison->pr_ip);
 		return (0);
 	}
-	if (p->p_prison->pr_ip != tmp)
+	if (cred->cr_prison->pr_ip != tmp)
 		return (1);
 	return (0);
 }
 
 void
-prison_remote_ip(struct proc *p, int flag, u_int32_t *ip)
+prison_remote_ip(struct ucred *cred, int flag, u_int32_t *ip)
 {
 	u_int32_t tmp;
 
-	if (!p || !p->p_prison)
+	if (!jailed(cred))
 		return;
 	if (flag)
 		tmp = *ip;
@@ -121,16 +141,16 @@ prison_remote_ip(struct proc *p, int flag, u_int32_t *ip)
 		tmp = ntohl(*ip);
 	if (tmp == 0x7f000001) {
 		if (flag)
-			*ip = p->p_prison->pr_ip;
+			*ip = cred->cr_prison->pr_ip;
 		else
-			*ip = htonl(p->p_prison->pr_ip);
+			*ip = htonl(cred->cr_prison->pr_ip);
 		return;
 	}
 	return;
 }
 
 int
-prison_if(struct proc *p, struct sockaddr *sa)
+prison_if(struct ucred *cred, struct sockaddr *sa)
 {
 	struct sockaddr_in *sai = (struct sockaddr_in*) sa;
 	int ok;
@@ -139,9 +159,38 @@ prison_if(struct proc *p, struct sockaddr *sa)
 		ok = 1;
 	else if (sai->sin_family != AF_INET)
 		ok = 0;
-	else if (p->p_prison->pr_ip != ntohl(sai->sin_addr.s_addr))
+	else if (cred->cr_prison->pr_ip != ntohl(sai->sin_addr.s_addr))
 		ok = 1;
 	else
 		ok = 0;
 	return (ok);
+}
+
+/*
+ * Return 0 if jails permit p1 to frob p2, otherwise ESRCH.
+ */
+int
+prison_check(cred1, cred2)
+	struct ucred *cred1, *cred2;
+{
+
+	if (jailed(cred1)) {
+		if (!jailed(cred2))
+			return (ESRCH);
+		if (cred2->cr_prison != cred1->cr_prison)
+			return (ESRCH);
+	}
+
+	return (0);
+}
+
+/*
+ * Return 1 if the passed credential is in a jail, otherwise 0.
+ */
+int
+jailed(cred)
+	struct ucred *cred;
+{
+
+	return (cred->cr_prison != NULL);
 }

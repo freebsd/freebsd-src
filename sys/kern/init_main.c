@@ -324,9 +324,7 @@ proc0_init(void *dummy __unused)
 	p->p_ucred = crget();
 	p->p_ucred->cr_ngroups = 1;	/* group 0 */
 	p->p_ucred->cr_uidinfo = uifind(0);
-
-	/* Don't jail it */
-	p->p_prison = 0;
+	p->p_ucred->cr_prison = NULL;	/* Don't jail it. */
 
 	/* Create procsig. */
 	p->p_procsig = &procsig0;

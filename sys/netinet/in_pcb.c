@@ -199,7 +199,7 @@ in_pcbbind(inp, nam, p)
 			return (EAFNOSUPPORT);
 #endif
 		if (sin->sin_addr.s_addr != INADDR_ANY)
-			if (prison_ip(p, 0, &sin->sin_addr.s_addr))
+			if (prison_ip(p->p_ucred, 0, &sin->sin_addr.s_addr))
 				return(EINVAL);
 		lport = sin->sin_port;
 		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
@@ -219,12 +219,11 @@ in_pcbbind(inp, nam, p)
 		}
 		if (lport) {
 			struct inpcb *t;
-
 			/* GROSS */
 			if (ntohs(lport) < IPPORT_RESERVED && p &&
 			    suser_xxx(0, p, PRISON_ROOT))
 				return (EACCES);
-			if (p && p->p_prison)
+			if (p && jailed(p->p_ucred))
 				prison = 1;
 			if (so->so_cred->cr_uid != 0 &&
 			    !IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
@@ -274,7 +273,7 @@ in_pcbbind(inp, nam, p)
 		int count;
 
 		if (inp->inp_laddr.s_addr != INADDR_ANY)
-			if (prison_ip(p, 0, &inp->inp_laddr.s_addr ))
+			if (prison_ip(p->p_ucred, 0, &inp->inp_laddr.s_addr ))
 				return (EINVAL);
 		inp->inp_flags |= INP_ANONPORT;
 
@@ -345,7 +344,7 @@ in_pcbbind(inp, nam, p)
 		}
 	}
 	inp->inp_lport = lport;
-	if (prison_ip(p, 0, &inp->inp_laddr.s_addr))
+	if (prison_ip(p->p_ucred, 0, &inp->inp_laddr.s_addr))
 		return(EINVAL);
 	if (in_pcbinshash(inp) != 0) {
 		inp->inp_laddr.s_addr = INADDR_ANY;
@@ -492,11 +491,13 @@ in_pcbconnect(inp, nam, p)
 	struct sockaddr_in *ifaddr;
 	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct sockaddr_in sa;
+	struct ucred *cred;
 	int error;
 
-	if (inp->inp_laddr.s_addr == INADDR_ANY && p->p_prison != NULL) {
+	cred = inp->inp_socket->so_cred;
+	if (inp->inp_laddr.s_addr == INADDR_ANY && jailed(cred)) {
 		bzero(&sa, sizeof (sa));
-		sa.sin_addr.s_addr = htonl(p->p_prison->pr_ip);
+		sa.sin_addr.s_addr = htonl(cred->cr_prison->pr_ip);
 		sa.sin_len=sizeof (sa);
 		sa.sin_family = AF_INET;
 		error = in_pcbbind(inp, (struct sockaddr *)&sa, p);
@@ -1068,9 +1069,9 @@ in_pcbremlists(inp)
 int
 prison_xinpcb(struct proc *p, struct inpcb *inp)
 {
-	if (!p->p_prison)
+	if (!jailed(p->p_ucred))
 		return (0);
-	if (ntohl(inp->inp_laddr.s_addr) == p->p_prison->pr_ip)
+	if (ntohl(inp->inp_laddr.s_addr) == p->p_ucred->cr_prison->pr_ip)
 		return (0);
 	return (1);
 }

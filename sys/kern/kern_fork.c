@@ -394,11 +394,6 @@ again:
 	crhold(p1->p_ucred);
 	uihold(p1->p_cred->p_uidinfo);
 
-	if (p2->p_prison) {
-		p2->p_prison->pr_ref++;
-		p2->p_flag |= P_JAILED;
-	}
-
 	if (p2->p_args)
 		p2->p_args->ar_ref++;
 

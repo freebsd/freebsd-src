@@ -258,7 +258,6 @@ struct	proc {
 
 	struct 	pgrp *p_pgrp;	/* (e?/c?) Pointer to process group. */
 	struct 	sysentvec *p_sysent; /* (b) System call dispatch information. */
-	struct	prison *p_prison;	/* (b?) jail(4). */
 	struct	pargs *p_args;		/* (b?) Process arguments. */
 
 /* End area that is copied on creation. */
@@ -539,7 +538,7 @@ void	fork_return __P((struct proc *, struct trapframe *));
 int	inferior __P((struct proc *p));
 int	leavepgrp __P((struct proc *p));
 void	mi_switch __P((void));
-int	p_can __P((const struct proc *p1, const struct proc *p2, int operation,
+int	p_can __P((struct proc *p1, struct proc *p2, int operation,
 	    int *privused));
 int	p_trespass __P((struct proc *p1, struct proc *p2));
 void	procinit __P((void));
