@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: spl.h,v 1.3 1994/08/02 07:39:06 davidg Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -79,6 +79,7 @@ extern	unsigned net_imask;	/* group of interrupts masked with splimp() */
 extern	volatile unsigned ipending;	/* active interrupts masked by cpl */
 extern	volatile unsigned netisr;
 extern	unsigned tty_imask;	/* group of interrupts masked with spltty() */
+extern  unsigned stat_imask;	/* interrupts masked with splstatclock() */
 
 /*
  * ipending has to be volatile so that it is read every time it is accessed
@@ -110,7 +111,7 @@ static __inline int name(void)			\
 GENSPL(splbio, cpl |= bio_imask)
 GENSPL(splclock, cpl = HWI_MASK | SWI_MASK)
 GENSPL(splhigh, cpl = HWI_MASK | SWI_MASK)
-GENSPL(splstatclock, cpl = HWI_MASK | SWI_MASK)
+GENSPL(splstatclock, cpl |= stat_imask | SWI_CLOCK_MASK)
 GENSPL(splimp, cpl |= net_imask)
 GENSPL(splnet, cpl |= SWI_NET_MASK)
 GENSPL(splsoftclock, cpl = SWI_CLOCK_MASK)
