@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.28 1995/05/30 07:59:18 rgrimes Exp $
+ *	$Id: cons.c,v 1.29 1995/06/14 04:52:39 bde Exp $
  */
 
 #include <sys/param.h>
@@ -107,9 +107,16 @@ cninit()
 	cdp->d_open = cnopen;
 	cn_tp = (*cdp->d_devtotty)(cn_tab->cn_dev);
 	/*
+	 * XXX there are too many tty pointers.  cn_tty is only used for
+	 * sysctl(CPU_CONSDEV) (not for tprintf like the above comment
+	 * says).  cn_tp in struct consdev hasn't been initialized
+	 * (except statically to NULL) or used (except to initialize
+	 * cn_tty to the wrong value) for a year or two.
+	 */
+	cn_tty = cn_tp;
+	/*
 	 * Turn on console
 	 */
-	cn_tty = cp->cn_tp;
 	(*cp->cn_init)(cp);
 }
 
