@@ -36,7 +36,7 @@
 .\"
 .\"     @(#)boot_i386.8	8.2 (Berkeley) 4/19/94
 .\"
-.\" $Id: boot_i386.8,v 1.7 1997/02/22 14:33:07 peter Exp $
+.\" $Id: boot_i386.8,v 1.8 1997/07/05 02:02:02 bde Exp $
 .\"
 .Dd April 19, 1994
 .Dt BOOT 8 i386
@@ -134,7 +134,10 @@ ask for the device to mount as as the root file system.
 boot from CDROM.
 .It Fl c
 run UserConfig to modify hardware parameters for the loaded
-kernel.
+kernel.  If the kernel was built with the USERCONFIG_BOOT option,
+remain in UserConfig regardless of any
+.Ic quit
+commands present in the script.
 .It Fl D
 toggle single and dual console configurations.  In the single
 configuration the console will be either the internal display
