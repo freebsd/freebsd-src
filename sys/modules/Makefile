@@ -1,11 +1,11 @@
-#	$Id: Makefile,v 1.46 1999/01/17 19:06:06 peter Exp $
+#	$Id: Makefile,v 1.47 1999/01/19 00:41:17 peter Exp $
 
 # XXX present but broken: ip_mroute_mod
 # XXX not yet completed porting: acd
 # XXX builds but not updated: atapi
 
 SUBDIR=	ccd cd9660 coda fdesc if_disc if_ppp if_sl if_tun ipfw kernfs \
-	mfs msdos nfs nullfs portal procfs umapfs union vinum 
+	mfs msdos nfs ntfs nullfs portal procfs umapfs union vinum 
 
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
