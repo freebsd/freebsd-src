@@ -58,6 +58,8 @@
         ..
         smbfs
         ..
+	udf
+	..
         umapfs
         ..
         unionfs
