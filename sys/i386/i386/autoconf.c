@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.13 1994/08/29 21:47:11 ache Exp $
+ *	$Id: autoconf.c,v 1.14 1994/08/31 23:36:56 se Exp $
  */
 
 /*
@@ -84,14 +84,25 @@ configure()
 	pci_configure();
 #endif
 
-#if GENERICxxx && !defined(DISKLESS)
+#if GENERICxxx 
 	if ((boothowto & RB_ASKNAME) == 0)
 		setroot();
 	setconf();
 #else
-#ifndef DISKLESS
+#  ifdef NFS
+	{
+	extern int nfs_diskless_valid;
+
+	extern int (*mountroot) __P((void));
+	extern int nfs_mountroot(void);
+	if (nfs_diskless_valid)
+		mountroot = nfs_mountroot;
+	else
+		setroot();
+	}
+#  else /* !NFS */
 	setroot();
-#endif
+#  endif /* NFS */
 #endif
 	/*
 	 * Configure swap area and related system
