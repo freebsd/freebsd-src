@@ -43,6 +43,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 #define SIS7012ID       0x70121039      /* SiS 7012 needs special handling */
 #define ICH4ID		0x24c58086	/* ICH4 needs special handling too */
+#define ICH5ID		0x24d58086	/* ICH5 needs to be treated as ICH4 */
 
 /* buffer descriptor */
 struct ich_desc {
@@ -577,8 +578,8 @@ ich_init(struct sc_info *sc)
 	stat = ich_rd(sc, ICH_REG_GLOB_STA, 4);
 
 	if ((stat & ICH_GLOB_STA_PCR) == 0) {
-		/* ICH4 may fail when busmastering is enabled. Continue */
-		if (pci_get_devid(sc->dev) != ICH4ID) {
+		/* ICH4/ICH5 may fail when busmastering is enabled. Continue */
+		if ((pci_get_devid(sc->dev) != ICH4ID) && (pci_get_devid(sc->dev) != ICH5ID)) {
 			return ENXIO;
 		}
 	}
@@ -628,7 +629,11 @@ ich_pci_probe(device_t dev)
 
 	case ICH4ID:
 		device_set_desc(dev, "Intel ICH4 (82801DB)");
-		return 0;
+		return -1000;	/* allow a better driver to override us */
+
+	case ICH5ID:
+		device_set_desc(dev, "Intel ICH5 (82801EB)");
+		return -1000;	/* allow a better driver to override us */
 
 	case SIS7012ID:
 		device_set_desc(dev, "SiS 7012");
@@ -682,15 +687,15 @@ ich_pci_attach(device_t dev)
 	 * By default, ich4 has NAMBAR and NABMBAR i/o spaces as
 	 * read-only.  Need to enable "legacy support", by poking into
 	 * pci config space.  The driver should use MMBAR and MBBAR,
-	 * but doing so will mess things up here.  ich4 has enough new
-	 * features it warrants it's own driver.
+	 * but doing so will mess things up here.  ich4/5 have enough new
+	 * features to warrant a seperate driver.
 	 */
-	if (pci_get_devid(dev) == ICH4ID) {
+	if ((pci_get_devid(dev) == ICH4ID) || (pci_get_devid(dev) == ICH5ID)) {
 		pci_write_config(dev, PCIR_ICH_LEGACY, ICH_LEGACY_ENABLE, 1);
 	}
 
 	/*
-	 * Enable bus master. On ich4 this may prevent the detection of
+	 * Enable bus master. On ich4/5 this may prevent the detection of
 	 * the primary codec becoming ready in ich_init().
 	 */
 	pci_enable_busmaster(dev);
@@ -712,7 +717,7 @@ ich_pci_attach(device_t dev)
 
 	sc->bufsz = pcm_getbuffersize(dev, 4096, ICH_DEFAULT_BUFSZ, ICH_MAX_BUFSZ);
 	if (bus_dma_tag_create(NULL, 8, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-			       NULL, NULL, sc->bufsz, 1, 0x3ffff, 0, 
+			       NULL, NULL, sc->bufsz, 1, 0x3ffff, 0,
 			       busdma_lock_mutex, &Giant, &sc->dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
@@ -811,7 +816,7 @@ ich_pci_suspend(device_t dev)
 	struct sc_info *sc;
 	int i;
 
-	sc = pcm_getdevinfo(dev);	
+	sc = pcm_getdevinfo(dev);
 	for (i = 0 ; i < 3; i++) {
 		sc->ch[i].run_save = sc->ch[i].run;
 		if (sc->ch[i].run) {
