@@ -267,6 +267,7 @@ uart_bus_probe(device_t dev, int regshft, int rclk, int rid)
 	 * accordingly. In general, you don't want to permanently disrupt
 	 * console I/O.
 	 */
+	sc->sc_bas.iobase = rman_get_start(sc->sc_rres);
 	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
 	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
 	sc->sc_bas.regshft = regshft;

@@ -58,13 +58,6 @@ uart_cpu_channel(char *dev)
 	return (alias[len - 1] - 'a');
 }
 
-bus_addr_t
-uart_cpu_busaddr(struct uart_bas *bas)
-{
-
-	return (bas->bsh);
-}
-
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
@@ -143,6 +136,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		return (ENXIO);
 
 	/* Fill in the device info. */
+	di->bas.iobase = addr;
 	di->bas.bst = &bst_store[devtype];
 	di->bas.bsh = sparc64_fake_bustag(space, addr, di->bas.bst);
 
