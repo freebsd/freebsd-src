@@ -132,9 +132,6 @@ Set the default boot selection to
 .Ar slice .
 Values between 1 and 4 refer to slices; a value of 5 refers to the
 option of booting from a second disk.
-This would normally be used in conjunction with the
-.Sq update
-option.
 .It Fl t Ar ticks
 Set the timeout value to
 .Ar ticks .
@@ -155,7 +152,7 @@ of the
 .Nm
 command to affect the next boot:
 .Pp
-.Dl "boot0cfg -o update -s 2 ad0"
+.Dl "boot0cfg -s 2 ad0"
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
