@@ -14,9 +14,9 @@
 #
 # Usage:
 #
-# mkisoimages.sh [-[e]b] image-label image-name base-bits-dir [extra-bits-dir]
+# mkisoimages.sh [-b] image-label image-name base-bits-dir [extra-bits-dir]
 #
-# Where -[e]b is passed if the ISO image should be made "bootable" by
+# Where -b is passed if the ISO image should be made "bootable" by
 # whatever standards this architecture supports (may be unsupported),
 # image-label is the ISO image label, image-name is the filename of the
 # resulting ISO image, base-bits-dir contains the image contents and
@@ -27,9 +27,6 @@ publisher="The FreeBSD Project.  http://www.freebsd.org/"
 
 if [ "x$1" = "x-b" ]; then
 	bootable="-b boot/cdboot -no-emul-boot"
-	shift
-elif [ "x$1" = "x-eb" ]; then
-	bootable="-b floppies/boot.flp -c floppies/boot.catalog"
 	shift
 else
 	bootable=""
