@@ -141,14 +141,6 @@ putw (struct pcic_slot *sp, int reg, unsigned short word)
 
 
 /*
- * Get a 16 bit value
- */
-static unsigned short
-getw (struct pcic_slot *sp, int reg)
-{
-	return (getb(sp, reg) | (getb(sp, reg+1) << 8));
-}
-/*
  *	Loadable kernel module interface.
  */
 #ifdef	LKM
@@ -171,8 +163,6 @@ pcic_handle( lkmtp, cmd)
 struct lkm_table	*lkmtp;
 int			cmd;
 {
-	int			i;
-	struct lkm_misc		*args = lkmtp->private.lkm_misc;
 	int			err = 0;	/* default = success*/
 
 	switch( cmd) {
@@ -255,17 +245,6 @@ struct pcic_slot *cp = pcic_slots;
 }
 #endif LKM
 
-static void
-pcic_print_regs (struct pcic_slot *sp)
-{
-	int i, j;
-
-	for (i = 0; i < PCIC_SLOT_SIZE; i += 16) {
-		for (j = 0; j < 16; ++j)
-			printf ("%02x ", getb (sp, i + j));
-		printf ("\n");
-	}
-}
 #if 0
 static void
 pcic_dump_attributes (unsigned char *scratch, int maxlen)
@@ -604,7 +583,6 @@ unsigned char c;
 static int
 pcic_ioctl(struct slot *sp, int cmd, caddr_t data)
 {
-int	s;
 
 	switch(cmd)
 		{
@@ -674,7 +652,7 @@ struct pcic_slot *sp = slotp->cdata;
 		{
 		reg |= PCIC_OUTENA;
 		putb (sp, PCIC_POWER, reg);
-		DELAY (100*000);
+		DELAY (100*1000);
 		}
 	return(0);
 }
@@ -745,7 +723,7 @@ struct pcic_slot *cp = pcic_slots;
 	s = splhigh();
 	for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, cp++)
 		if (cp->sp)
-			if (chg = getb(cp, PCIC_STAT_CHG))
+			if ((chg = getb(cp, PCIC_STAT_CHG)) != 0)
 				if (chg & PCIC_CDTCH)
 					{
 					if ((getb(cp, PCIC_STATUS) & PCIC_CD) ==
