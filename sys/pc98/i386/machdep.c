@@ -1294,7 +1294,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 /* GPROC0_SEL	4 Proc 0 Tss Descriptor */
 {
 	0x0,			/* segment base address */
-	sizeof(struct i386tss)-1,/* length - all address space */
+	sizeof(struct i386tss)-1,/* length  */
 	SDT_SYS386TSS,		/* segment type */
 	0,			/* segment descriptor priority level */
 	1,			/* segment descriptor present */
@@ -1581,6 +1581,12 @@ getmemsize(int first)
 		pmap_kenter(KERNBASE + pa, pa);
 
 	/*
+	 * Map the page at address zero for the bios code to use.
+	 * Note that page zero is not in the general page pool.
+	 */
+	pmap_kenter(KERNBASE, 0);
+
+	/*
 	 * if basemem != 640, map pages r/w into vm86 page table so 
 	 * that the bios can scribble on it.
 	 */
@@ -1862,7 +1868,7 @@ physmap_done:
 			/*
 			 * block out kernel memory as not available.
 			 */
-			if (pa >= 0x100000 && pa < first)
+			if (pa >= KERNLOAD && pa < first)
 				continue;
 	
 			page_bad = FALSE;
