@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)xx.c	8.1 (Berkeley) 6/6/93";
 #include "ww.h"
 #include "xx.h"
 #include "tt.h"
+#include <stdlib.h>
 
 xxinit()
 {
