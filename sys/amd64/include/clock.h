@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.33 1998/02/25 02:20:30 bde Exp $
+ *	$Id: clock.h,v 1.34 1998/03/05 21:45:42 tegge Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -20,6 +20,7 @@ extern int	statclock_disable;
 extern u_int	timer_freq;
 extern int	timer0_max_count;
 extern u_int	tsc_freq;
+extern int	tsc_is_broken;
 extern int	wall_cmos_clock;
 #ifdef APIC_IO
 extern int	apic_8254_intr;
