@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kbd.c,v 1.1 1999/01/09 02:44:50 yokota Exp $
+ * $Id: kbd.c,v 1.2 1999/01/12 10:35:58 yokota Exp $
  */
 
 #include "kbd.h"
@@ -856,7 +856,7 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			splx(s);
 			return EINVAL;
 		}
-		bcopy(&kbd->kb_keymap[keyp->keynum], &keyp->key,
+		bcopy(&kbd->kb_keymap->key[keyp->keynum], &keyp->key,
 		      sizeof(keyp->key));
 		break;
 	case PIO_KEYMAPENT:	/* set keyboard translation table entry */
@@ -866,7 +866,7 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			splx(s);
 			return EINVAL;
 		}
-		bcopy(&keyp->key, &kbd->kb_keymap[keyp->keynum],
+		bcopy(&keyp->key, &kbd->kb_keymap->key[keyp->keynum],
 		      sizeof(keyp->key));
 		break;
 
