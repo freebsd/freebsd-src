@@ -60,12 +60,44 @@
 
 /* External definitions for functions in inet(3), addr2ascii(3) */
 
-#include <sys/types.h>
 #include <sys/cdefs.h>
+#include <machine/ansi.h>
 
-struct in_addr;
+#ifndef	_IN_ADDR_T_DECLARED_
+typedef	__uint32_t	in_addr_t;
+#define	_IN_ADDR_T_DECLARED_
+#endif
+
+#ifndef	_IN_PORT_T_DECLARED_
+typedef	_uint16_t	in_port_t;
+#define	_IN_PORT_T_DECLARED_
+#endif
+
+#ifndef _POSIX_SOURCE
+#ifdef	_BSD_SIZE_T_
+typedef	_BSD_SIZE_T_	size_t;
+#undef	_BSD_SIZE_T_
+#endif
+#endif /* !_POSIX_SOURCE */
+
+/*
+ * XXX socklen_t is used by a POSIX.1-200x interface, but not required by
+ * POSIX.1-200x.
+ */
+#ifdef	_BSD_SOCKLEN_T_
+typedef	_BSD_SOCKLEN_T_	socklen_t;
+#undef	_BSD_SOCKLEN_T_
+#endif
+
+#ifndef _STRUCT_IN_ADDR_DECLARED
+struct in_addr {
+	in_addr_t s_addr;
+};
+#define	_STRUCT_IN_ADDR_DECLARED
+#endif
 
 /* XXX all new diversions!! argh!! */
+#ifndef _POSIX_SOURCE
 #define	inet_addr	__inet_addr
 #define	inet_aton	__inet_aton
 #define	inet_lnaof	__inet_lnaof
@@ -80,11 +112,21 @@ struct in_addr;
 #define	inet_ntop	__inet_ntop
 #define	inet_nsap_addr	__inet_nsap_addr
 #define	inet_nsap_ntoa	__inet_nsap_ntoa
+#endif /* !_POSIX_SOURCE */
 
 __BEGIN_DECLS
+in_addr_t	 inet_addr __P((const char *));
+char		*inet_ntoa __P((struct in_addr));
+const char	*inet_ntop __P((int, const void *, char *, socklen_t));
+int		 inet_pton __P((int, const char *, void *));
+/*
+ * XXX missing: ntohl() family.
+ */
+
+/* Nonstandard functions. */
+#ifndef _POSIX_SOURCE
 int		 ascii2addr __P((int, const char *, void *));
 char		*addr2ascii __P((int, const void *, int, char *));
-in_addr_t	 inet_addr __P((const char *));
 int		 inet_aton __P((const char *, struct in_addr *));
 in_addr_t	 inet_lnaof __P((struct in_addr));
 struct in_addr	 inet_makeaddr __P((in_addr_t, in_addr_t));
@@ -93,11 +135,9 @@ in_addr_t	 inet_netof __P((struct in_addr));
 in_addr_t	 inet_network __P((const char *));
 char		*inet_net_ntop __P((int, const void *, int, char *, size_t));
 int		 inet_net_pton __P((int, const char *, void *, size_t));
-char		*inet_ntoa __P((struct in_addr));
-int              inet_pton __P((int, const char *, void *));
-const char	*inet_ntop __P((int, const void *, char *, size_t));
-u_int		 inet_nsap_addr __P((const char *, u_char *, int));
-char		*inet_nsap_ntoa __P((int, const u_char *, char *));
+unsigned	 inet_nsap_addr __P((const char *, unsigned char *, int));
+char		*inet_nsap_ntoa __P((int, const unsigned char *, char *));
+#endif /* !_POSIX_SOURCE */
 __END_DECLS
 
-#endif /* !_INET_H_ */
+#endif /* !_ARPA_INET_H_ */

@@ -15,8 +15,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$Id: inet_ntop.c,v 8.7 1996/08/05 08:41:18 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -28,15 +31,17 @@ static char rcsid[] = "$FreeBSD$";
 #include <stdio.h>
 #include <string.h>
 
-#define SPRINTF(x) ((size_t)sprintf x)
+#define SPRINTF(x) ((socklen_t)sprintf x)
 
 /*
  * WARNING: Don't even consider trying to compile this on a system where
  * sizeof(int) < 4.  sizeof(int) > 4 is fine; all the world's not a VAX.
  */
 
-static const char *inet_ntop4 __P((const u_char *src, char *dst, size_t size));
-static const char *inet_ntop6 __P((const u_char *src, char *dst, size_t size));
+static const char *inet_ntop4 __P((const u_char *src, char *dst,
+    socklen_t size));
+static const char *inet_ntop6 __P((const u_char *src, char *dst,
+    socklen_t size));
 
 /* char *
  * inet_ntop(af, src, dst, size)
@@ -51,7 +56,7 @@ inet_ntop(af, src, dst, size)
 	int af;
 	const void *src;
 	char *dst;
-	size_t size;
+	socklen_t size;
 {
 	switch (af) {
 	case AF_INET:
@@ -80,7 +85,7 @@ static const char *
 inet_ntop4(src, dst, size)
 	const u_char *src;
 	char *dst;
-	size_t size;
+	socklen_t size;
 {
 	static const char fmt[] = "%u.%u.%u.%u";
 	char tmp[sizeof "255.255.255.255"];
@@ -103,7 +108,7 @@ static const char *
 inet_ntop6(src, dst, size)
 	const u_char *src;
 	char *dst;
-	size_t size;
+	socklen_t size;
 {
 	/*
 	 * Note that int32_t and int16_t need only be "at least" large enough
@@ -182,7 +187,7 @@ inet_ntop6(src, dst, size)
 	/*
 	 * Check for overflow, copy, and we're done.
 	 */
-	if ((size_t)(tp - tmp) > size) {
+	if ((socklen_t)(tp - tmp) > size) {
 		errno = ENOSPC;
 		return (NULL);
 	}

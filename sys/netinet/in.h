@@ -228,12 +228,27 @@
  */
 #define IPPORT_RESERVEDSTART	600
 
+#define	IPPORT_MAX		65535
+
+#ifndef _IN_ADDR_T_DECLARED_
+typedef	__uint32_t	in_addr_t;
+#define	_IN_ADDR_T_DECLARED_
+#endif
+
+#ifndef _IN_PORT_T_DECLARED_
+typedef	__uint16_t	in_port_t;
+#define	_IN_PORT_T_DECLARED_
+#endif
+
 /*
  * Internet address (a structure for historical reasons)
  */
+#ifndef	_STRUCT_IN_ADDR_DECLARED
 struct in_addr {
 	in_addr_t s_addr;
 };
+#define	_STRUCT_IN_ADDR_DECLARED
+#endif
 
 /*
  * Definitions of bits in internet address integers.
