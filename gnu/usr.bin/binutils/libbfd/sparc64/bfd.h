@@ -340,7 +340,7 @@ alent;
 /* Object and core file sections.  */
 
 #define	align_power(addr, align)	\
-	( ((addr) + ((1<<(align))-1)) & (-1 << (align)))
+  (((addr) + ((bfd_vma) 1 << (align)) - 1) & ((bfd_vma) -1 << (align)))
 
 typedef struct sec *sec_ptr;
 
@@ -537,6 +537,8 @@ extern void warn_deprecated
 #define bfd_get_symcount(abfd) ((abfd)->symcount)
 #define bfd_get_outsymbols(abfd) ((abfd)->outsymbols)
 #define bfd_count_sections(abfd) ((abfd)->section_count)
+
+#define bfd_get_dynamic_symcount(abfd) ((abfd)->dynsymcount)
 
 #define bfd_get_symbol_leading_char(abfd) ((abfd)->xvec->symbol_leading_char)
 
@@ -2259,6 +2261,9 @@ to compensate for the borrow when the low bits are added.  */
   BFD_RELOC_386_RELATIVE,
   BFD_RELOC_386_GOTOFF,
   BFD_RELOC_386_GOTPC,
+  BFD_RELOC_386_TLS_TPOFF,
+  BFD_RELOC_386_TLS_IE,
+  BFD_RELOC_386_TLS_GOTIE,
   BFD_RELOC_386_TLS_LE,
   BFD_RELOC_386_TLS_GD,
   BFD_RELOC_386_TLS_LDM,
@@ -3384,6 +3389,9 @@ struct _bfd
 
   /* Symbol table for output BFD (with symcount entries).  */
   struct symbol_cache_entry  **outsymbols;
+
+  /* Used for slurped dynamic symbol tables.  */
+  unsigned int dynsymcount;
 
   /* Pointer to structure which contains architecture information.  */
   const struct bfd_arch_info *arch_info;
