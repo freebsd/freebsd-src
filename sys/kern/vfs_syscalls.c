@@ -3929,7 +3929,7 @@ extattrctl(td, uap)
 {
 	struct vnode *filename_vp;
 	struct nameidata nd;
-	struct mount *mp;
+	struct mount *mp, *mp_writable;
 	char attrname[EXTATTR_MAXNAMELEN];
 	int error;
 
@@ -3960,13 +3960,17 @@ extattrctl(td, uap)
 
 	/* SCARG(uap, path) always defined. */
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
-	if ((error = namei(&nd)) != 0)
+	if ((error = namei(&nd)) != 0) {
+		if (filename_vp != NULL)
+			vput(filename_vp);
 		return (error);
-	error = vn_start_write(nd.ni_vp, &mp, V_WAIT | PCATCH);
+	}
+	mp = nd.ni_vp->v_mount;
+	error = vn_start_write(nd.ni_vp, &mp_writable, V_WAIT | PCATCH);
 	NDFREE(&nd, 0);
 	if (error) {
-		if (filename_vp)
-			vrele(filename_vp);
+		if (filename_vp != NULL)
+			vput(filename_vp);
 		return (error);
 	}
 
@@ -3978,7 +3982,7 @@ extattrctl(td, uap)
 		    SCARG(uap, attrnamespace), NULL, td);
 	}
 
-	vn_finished_write(mp);
+	vn_finished_write(mp_writable);
 	/*
 	 * VFS_EXTATTRCTL will have unlocked, but not de-ref'd,
 	 * filename_vp, so vrele it if it is defined.
