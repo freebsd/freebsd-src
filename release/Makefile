@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.53 1997/06/29 18:13:57 jkh Exp $
+#	$Id: Makefile,v 1.246.2.54 1997/07/02 08:59:34 jkh Exp $
 #
 # How to roll a release:
 #
@@ -640,6 +640,9 @@ doMFSKERN:
 	@mkdir  ${RD}/boot.${FSIMAGE}
 	@mv ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cp ${RD}/kernels/BOOTMFS.${FSIMAGE} ${RD}/boot.${FSIMAGE}/kernel
+.if defined(BOOT_CONFIG)
+	@echo "${BOOT_CONFIG}" >${RD}/boot.${FSIMAGE}/boot.config
+.endif
 	@vnconfig /dev/vn0 fs-image.${FSIMAGE}
 	@mkdir -p /tmp/mnt_xx
 	@mount /dev/vn0 /tmp/mnt_xx
@@ -652,9 +655,8 @@ doMFSKERN:
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
 	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
-.if defined(BOOT_CONFIG)
-	@echo "${BOOT_CONFIG}" >${RD}/boot.${FSIMAGE}/boot.config
-.endif
+	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/boot.${FSIMAGE}
+	@touch ${RD}/boot.${FSIMAGE}/boot.config
 	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/boot.${FSIMAGE} \
 		${BOOTINODE} ${FDLABEL}
