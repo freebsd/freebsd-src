@@ -36,6 +36,8 @@
 #include <dev/fb/fbreg.h>
 #include <dev/fb/splashreg.h>
 
+MODULE_VERSION(splash, 1);
+
 /* video adapter and image decoder */
 static video_adapter_t	*splash_adp;
 static splash_decoder_t	*splash_decoder;
