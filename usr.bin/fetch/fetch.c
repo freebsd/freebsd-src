@@ -486,7 +486,7 @@ fetch(char *URL, const char *path)
 				    "does not match remote", path);
 				goto failure_keep;
 			}
-		} else {
+		} else if (us.size != -1) {
 			if (us.size == sb.st_size)
 				/* nothing to do */
 				goto success;
