@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.93 1998/09/01 02:04:17 kato Exp $
+ *	$Id: machdep.c,v 1.94 1998/09/01 07:17:36 kato Exp $
  */
 
 #include "apm.h"
@@ -220,6 +220,27 @@ sysctl_hw_availpages SYSCTL_HANDLER_ARGS
 
 SYSCTL_PROC(_hw, OID_AUTO, availpages, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_availpages, "I", "");
+
+static int
+sysctl_machdep_msgbuf SYSCTL_HANDLER_ARGS
+{
+	int error;
+
+	/* Unwind the buffer, so that is linear (possibly starting with
+	 * some initial nulls.
+	 */
+	error=sysctl_handle_opaque(oidp,msgbufp->msg_ptr+msgbufp->msg_bufr,
+		msgbufp->msg_size-msgbufp->msg_bufr,req);
+	if(error) return(error);
+	if(msgbufp->msg_bufr>0) {
+		error=sysctl_handle_opaque(oidp,msgbufp->msg_ptr,
+			msgbufp->msg_bufr,req);
+	}
+	return(error);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, msgbuf, CTLTYPE_STRING|CTLFLAG_RD,
+	0, 0, sysctl_machdep_msgbuf, "A","");
 
 int bootverbose = 0, Maxmem = 0;
 #ifdef PC98
@@ -1829,6 +1850,24 @@ set_regs(p, regs)
 	pcb = &p->p_addr->u_pcb;
 	pcb->pcb_fs = regs->r_fs;
 	pcb->pcb_gs = regs->r_gs;
+	return (0);
+}
+
+int
+fill_fpregs(p, fpregs)
+	struct proc *p;
+	struct fpreg *fpregs;
+{
+	bcopy(&p->p_addr->u_pcb.pcb_savefpu, fpregs, sizeof *fpregs);
+	return (0);
+}
+
+int
+set_fpregs(p, fpregs)
+	struct proc *p;
+	struct fpreg *fpregs;
+{
+	bcopy(fpregs, &p->p_addr->u_pcb.pcb_savefpu, sizeof *fpregs);
 	return (0);
 }
 
