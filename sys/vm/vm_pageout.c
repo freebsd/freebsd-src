@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.76 1996/05/31 00:38:04 dyson Exp $
+ * $Id: vm_pageout.c,v 1.77 1996/06/17 03:35:40 dyson Exp $
  */
 
 /*
@@ -506,14 +506,8 @@ vm_pageout_map_deactivate_pages(map, entry, count, freeer)
 			vm_pageout_map_deactivate_pages(map, tmpe, count, freeer);
 			tmpe = tmpe->next;
 		};
-	} else if (entry->is_sub_map || entry->is_a_map) {
-		tmpm = entry->object.share_map;
-		tmpe = tmpm->header.next;
-		while (tmpe != &tmpm->header && *count > 0) {
-			vm_pageout_map_deactivate_pages(tmpm, tmpe, count, freeer);
-			tmpe = tmpe->next;
-		};
-	} else if ((obj = entry->object.vm_object) != 0) {
+	} else if (entry->is_sub_map == 0 && entry->is_a_map == 0 &&
+			(obj = entry->object.vm_object) != 0) {
 		*count -= (*freeer) (map, obj, *count, TRUE);
 	}
 	lock_read_done(&map->lock);
@@ -1006,6 +1000,7 @@ vm_daemon()
 		 * process is swapped out -- deactivate pages
 		 */
 
+#if !defined(RSS_LIMIT)
 		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 			int overage;
 			quad_t limit;
@@ -1046,6 +1041,7 @@ vm_daemon()
 				    (vm_map_entry_t) 0, &overage, vm_pageout_object_deactivate_pages);
 			}
 		}
+#endif
 
 		/*
 		 * we remove cached objects that have no RSS...
