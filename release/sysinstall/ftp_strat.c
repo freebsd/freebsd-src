@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.10 1995/10/16 15:13:57 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.11 1995/10/16 23:02:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -62,6 +62,9 @@ get_new_host(Device *dev)
     Boolean i;
     char *oldTitle = MenuMediaFTP.title;
 
+    if (dev->flags & OPT_EXPLORATORY_GET)
+	return FALSE;
+
     MenuMediaFTP.title = "Request failed - please select another site";
     i = mediaSetFTP(NULL);
     MenuMediaFTP.title = oldTitle;
@@ -70,16 +73,12 @@ get_new_host(Device *dev)
 
 	if (cp && *cp)
 	    (void)mediaSetFtpUserPass(NULL);
-	if (dev) {
-	    /* Bounce the link */
-	    dev->shutdown(dev);
-	    i = dev->init(dev);
-	}
-	else
-	    i = TRUE;
+	/* Bounce the link */
+	dev->shutdown(dev);
+	i = dev->init(dev);
     }
     else
-	dev->shutdown(link);
+	dev->shutdown(dev);
     return i;
 }
 
@@ -202,19 +201,14 @@ mediaGetFTP(Device *dev, char *file, Attribs *dist_attrs)
     char *fp;
     char buf[PATH_MAX];
 
-    if (dev->flags & OPT_EXPLORATORY_GET)
-	max_retries = 0;
-
     fp = file;
     while ((fd = FtpGet(ftp, fp)) < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
 	if (fd == -2)
 	    return -2;
 	else if (++nretries > max_retries) {
-	    if (optionIsSet(OPT_FTP_ABORT) || !max_retries)
+	    if (optionIsSet(OPT_FTP_ABORT) || !get_new_host(dev))
 		return -1;
-	    else if (!get_new_host(dev))
-		return -2;
 	    nretries = 0;
 	    fp = file;
 	}
