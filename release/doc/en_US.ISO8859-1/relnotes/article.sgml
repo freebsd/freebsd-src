@@ -180,6 +180,11 @@
     re-initialise cards that have external port modules attached such as
     the PC/Xem.<para>
 
+    <para>The <literal>O_DIRECT</literal> flag has been added to
+    &man.open.2; and &man.fcntl.2;.  Specifying this flag for open
+    files will attempt to minimize the cache effects of reading and
+    writing.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -360,6 +365,9 @@
       <para>The <literal>TCP_COMPAT_42</literal> kernel option has
       been removed.</para>
 
+      <para>TCP now has RFC 1323 extensions enabled by default in
+      &man.rc.conf.5;. &merged;</para>
+
       <para>A new sysctl <literal>net.inet.ip.check_interface</literal>,
       which is on by default, causes IP to verify that an incoming
       packet arrives on an interface that has an address matching the
@@ -372,6 +380,9 @@
 
       <para>&man.ipfw.8; now filters correctly in the presence of ECN bits in TCP
       segments. &merged;</para>
+
+      <para>&man.ipfw.8; now has a <option>-d</option> flag to prevent
+      the display of dynamic firewall rules.</para>
 
       <para>&man.bridge.4; and &man.dummynet.4; have received some
       enhancements and bug fixes.</para>
@@ -525,8 +536,8 @@
       <para>The directory layout preference algorithm for FFS has been
       changed to improve its speed on large filesystems.</para>
 
-      <para arch="i386">smbfs (CIFS) support in kernel has been added.</para>
-
+      <para arch="i386">smbfs (CIFS) support in kernel has been
+      added. &merged;</para>
     </sect3>
 
     <sect3>
@@ -859,6 +870,12 @@
     behavior, bad assumptions about current directory permissions, and
     potential buffer overflows, have been fixed. &merged;</para>
 
+    <para>The &os; <filename>Makefile</filename> infrastructure now
+    supports the <varname>WARNS</varname> directive from NetBSD.  This
+    directive controls the addition of compiler warning flags to
+    <varname>CFLAGS</varname> in a relatively compiler-neutral
+    manner.</para>
+
     <para>&man.fsck.8; wrappers have been imported; this feature
     provides infrastructure for &man.fsck.8; to work on different
     types of filesystems (analogous to &man.mount.8;).</para>
@@ -984,7 +1001,9 @@
     checking on all the filesystems that can do background checking.
     Unlike the foreground checking, the background checking is started
     asynchronously so that other system activity can proceed even on
-    the filesystems that are being checked.</para>
+    the filesystems that are being checked.  Boot-time enabling of
+    this feature is controlled by the
+    <varname>background_fsck</varname> option in &man.rc.conf.5;.</para>
 
     <para>Catching up with most other network utilities in the base
     system, &man.lpr.1;, &man.lpd.8;, &man.syslogd.8;, and
@@ -1185,6 +1204,9 @@
     <para>&man.ping.8; now supports a <option>-m</option> option to
     set the TTL of outgoing packets. &merged;</para>
 
+    <para>&man.ping.8; now supports a <option>-A</option> option to
+    beep when packets are lost.</para>
+
     <para>A version of Transport Independent RPC
     (<application>TI-RPC</application>) has been imported.</para>
 
@@ -1222,6 +1244,11 @@
     <para>&man.vidcontrol.1; now allows the user to omit the font size
     specification when loading a font, and has some better
     error-handling.</para>
+
+    <para>&man.vidcontrol.1; now supports a <option>-p</option> to
+    take a snapshot of a &man.syscons.4; video buffer.  These
+    snapshots can be manipulated by some of the
+    <filename>scr2*</filename> utilities in the Ports Collection.</para>
 
     <para>devinfo, a simple tool to print the device tree and resource usage by
     devices, has been added.</para>
@@ -1264,6 +1291,13 @@
     <para>&man.telnet.1; now does autologin and encryption by default;
     a new <option>-y</option> option turns off encryption.</para>
 
+    <para>&man.telnet.1; now supports a <option>-u</option> flag to
+    allow connections to UNIX-domain (<literal>AF_UNIX</literal>)
+    sockets.</para>
+
+    <para>The default stripe size in &man.vinum.8; has been changed
+    from 256KB to 279KB, to spread out superblocks more evenly between
+    stripes.</para>
 
     <sect3>
       <title>Contributed Software</title>
@@ -1429,7 +1463,7 @@
         <title>OpenSSL</title>
 
 	<para><application>OpenSSL</application> has been upgraded to
-	0.9.6. &merged;</para>
+	0.9.6a.</para>
 
 	<para><application>OpenSSL</application> now has support for
 	machine-dependent ASM optimizations, activated by the new
