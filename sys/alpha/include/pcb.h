@@ -28,6 +28,9 @@
  * rights to redistribute these changes.
  */
 
+#ifndef _MACHINE_PCB_H_
+#define _MACHINE_PCB_H_
+
 #include <machine/frame.h>
 #include <machine/reg.h>
 #include <machine/globaldata.h>
@@ -65,8 +68,4 @@ struct md_coredump {
 	struct	fpreg md_fpstate;
 };
 
-#ifdef _KERNEL
-#ifndef curpcb
-extern struct pcb *curpcb;		/* our current running pcb */
-#endif
-#endif
+#endif	/* _MACHINE_PCB_H */
