@@ -12,7 +12,7 @@
 .\" no representations about the suitability of this software for any
 .\" purpose.  It is provided "as is" without express or implied
 .\" warranty.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
 .\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
 .\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -59,7 +59,7 @@ file on the filesystem in which they are interested.
 The
 .Vt statvfs
 structure contains the following members:
-.Bl -tag -offset indent -width "f_namemax"
+.Bl -tag -offset indent -width ".Va f_namemax"
 .It Va f_namemax
 The maximum length in bytes of a file name on this filesystem.
 Applications should use
@@ -87,18 +87,16 @@ Flags describing mount options for this filesystem; see below.
 In addition, there are three members of type
 .Vt fsfilcnt_t ,
 which represent counts of file serial numbers
-.Pq Em i.e. , No inodes ;
-these are named
-.Va f_files ,
-.Va f_favail ,
+.Em ( i.e. ,
+inodes); these are named
+.Va f_files , f_favail ,
 and
 .Va f_ffree ,
 and represent the number of file serial numbers which exist in total,
 are available to unprivileged processes, and are available to
 privileged processes, respectively.
 Likewise, the members
-.Va f_blocks ,
-.Va f_bavail ,
+.Va f_blocks , f_bavail ,
 and
 .Va f_bfree
 (all of type
@@ -108,7 +106,7 @@ represent the respective allocation-block counts.
 There are two flags defined for the
 .Va f_flag
 member:
-.Bl -tag -offset indent -width "ST_NOSUID"
+.Bl -tag -offset indent -width ".Dv ST_NOSUID"
 .It Dv ST_RDONLY
 The filesystem is mounted read-only.
 .It Dv ST_NOSUID
@@ -141,7 +139,7 @@ and
 functions may fail for any of the reasons documented for
 .Xr statfs 2
 or
-.Xr fstatfs 2 
+.Xr fstatfs 2
 and
 .Xr pathconf 3
 or
@@ -175,11 +173,15 @@ is provided by the underlying filesystem, subject to the limitations
 of the specified data types.
 .Sh HISTORY
 The
-.Nm
-function first appeared in
+.Fn statvfs
+and
+.Fn fstatvfs
+functions first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were written by
+.Fn statvfs
+and
+.Fn fstatvfs
+functions and this manual page were written by
 .An Garrett Wollman Aq wollman@FreeBSD.org .

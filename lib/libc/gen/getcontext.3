@@ -1,11 +1,11 @@
 .\" Copyright (c) 2002 Packet Design, LLC.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Subject to the following obligations and disclaimer of warranty,
 .\" use and redistribution of this software, in source or object code
 .\" forms, with or without modifications are expressly permitted by
 .\" Packet Design; provided, however, that:
-.\" 
+.\"
 .\"    (i)  Any and all reproductions of the source or object code
 .\"         must include the copyright notice above and the following
 .\"         disclaimer of warranties; and
@@ -13,7 +13,7 @@
 .\"         Packet Design trademarks, including the mark "PACKET DESIGN"
 .\"         on advertising, endorsements, or otherwise except as such
 .\"         appears in the above copyright notice or in the software.
-.\" 
+.\"
 .\" THIS SOFTWARE IS BEING PROVIDED BY PACKET DESIGN "AS IS", AND
 .\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, PACKET DESIGN MAKES NO
 .\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING
@@ -35,12 +35,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Sep 10, 2002
+.Dd September 10, 2002
 .Dt GETCONTEXT 3
 .Os
 .Sh NAME
-.Nm getcontext
-.Nm setcontext
+.Nm getcontext , setcontext
 .Nd get and set user thread context
 .Sh LIBRARY
 .Lb libc
@@ -51,24 +50,28 @@
 .Ft int
 .Fn setcontext "const ucontext_t *ucp"
 .Sh DESCRIPTION
+The
 .Fn getcontext
+function
 saves the current thread's execution context in the structure pointed to by
-.Fa "ucp" .
+.Fa ucp .
 This saved context may then later be restored by calling
 .Fn setcontext .
 .Pp
+The
 .Fn setcontext
+function
 makes a previously saved thread context the current thread context, i.e.,
 the current context is lost and
 .Fn setcontext
 does not return.
 Instead, execution continues in the context specified by
-.Fa "ucp" ,
+.Fa ucp ,
 which must have been previously initialized by a call to
 .Fn setcontext ,
-.Fn makecontext ,
+.Xr makecontext 3 ,
 or by being passed as an argument to a signal handler (see
-.Xr sigaction 2) .
+.Xr sigaction 2 ) .
 .Pp
 If
 .Fa ucp
@@ -81,9 +84,9 @@ call had just returned (again).
 If
 .Fa ucp
 was initialized by
-.Fn makecontext ,
+.Xr makecontext 3 ,
 execution continues with the invocation of the function specified to
-.Fn makecontext .
+.Xr makecontext 3 .
 When that function returns,
 .Fa "ucp->uc_link"
 determines what happens next:
@@ -100,13 +103,12 @@ If
 .Fa ucp
 was initialized by the invocation of a signal handler, execution continues
 at the point the thread was interrupted by the signal.
-.Ed
 .Sh RETURN VALUES
 If successful,
 .Fn getcontext
 returns zero and
 .Fn setcontext
-does not return; otherwise -1 is returned.
+does not return; otherwise \-1 is returned.
 .Sh ERRORS
 No errors are defined for
 .Fn getcontext

@@ -41,14 +41,12 @@ The
 function will get and set process limits.
 Currently this is limited to the maximum file size.
 The
-.Va cmd
+.Fa cmd
 parameter is one of the following:
-.Pp
-.Bl -tag -offset -width UL_GETSIZE
+.Bl -tag -width ".Dv UL_GETSIZE"
 .It Dv UL_GETSIZE
 will return the maximum file size in units of 512 blocks of
 the current process.
-.Pp
 .It Dv UL_SETSIZE
 will attempt to set the maximum file size of the current
 process and its children with the second argument expressed as a long.
@@ -57,7 +55,7 @@ process and its children with the second argument expressed as a long.
 Upon successful completion,
 .Fn ulimit
 returns the value requested;
-otherwise the value -1 is returned and
+otherwise the value \-1 is returned and the global variable
 .Ar errno
 is set to indicate the error.
 .Sh ERRORS
