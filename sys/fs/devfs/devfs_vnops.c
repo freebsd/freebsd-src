@@ -167,7 +167,7 @@ loop:
 	de->de_vnode = vp;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 #ifdef MAC
-	mac_create_devfs_vnode(de, vp);
+	mac_associate_vnode_devfs(mp, de, vp);
 #endif
 	*vpp = vp;
 	return (0);

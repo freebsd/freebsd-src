@@ -195,6 +195,8 @@ void	mac_init_pipe(struct pipe *);
 int	mac_init_mbuf(struct mbuf *m, int flag);
 void	mac_init_mount(struct mount *);
 void	mac_init_vnode(struct vnode *);
+void	mac_init_vnode_label(struct label *);
+void	mac_copy_vnode_label(struct label *, struct label *label);
 void	mac_destroy_bpfdesc(struct bpf_d *);
 void	mac_destroy_cred(struct ucred *);
 void	mac_destroy_devfsdirent(struct devfs_dirent *);
@@ -205,26 +207,29 @@ void	mac_destroy_pipe(struct pipe *);
 void	mac_destroy_mbuf(struct mbuf *);
 void	mac_destroy_mount(struct mount *);
 void	mac_destroy_vnode(struct vnode *);
+void	mac_destroy_vnode_label(struct label *);
 
 /*
  * Labeling event operations: file system objects, and things that
  * look a lot like file system objects.
  */
+void	mac_associate_vnode_devfs(struct mount *mp, struct devfs_dirent *de,
+	    struct vnode *vp);
+int	mac_associate_vnode_extattr(struct mount *mp, struct vnode *vp);
+void	mac_associate_vnode_singlelabel(struct mount *mp, struct vnode *vp);
 void	mac_create_devfs_device(dev_t dev, struct devfs_dirent *de);
 void	mac_create_devfs_directory(char *dirname, int dirnamelen,
 	    struct devfs_dirent *de);
 void	mac_create_devfs_symlink(struct ucred *cred, struct devfs_dirent *dd,
 	    struct devfs_dirent *de);
 void	mac_create_devfs_vnode(struct devfs_dirent *de, struct vnode *vp);
-void	mac_create_vnode(struct ucred *cred, struct vnode *parent,
-	    struct vnode *child);
+int	mac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
+	    struct vnode *dvp, struct vnode *vp, struct componentname *cnp);
 void	mac_create_mount(struct ucred *cred, struct mount *mp);
 void	mac_create_root_mount(struct ucred *cred, struct mount *mp);
 void	mac_relabel_vnode(struct ucred *cred, struct vnode *vp,
 	    struct label *newlabel);
 void	mac_update_devfsdirent(struct devfs_dirent *de, struct vnode *vp);
-void	mac_update_procfsvnode(struct vnode *vp, struct ucred *cred);
-void	mac_update_vnode_from_mount(struct vnode *vp, struct mount *mp);
 
 /*
  * Labeling event operations: IPC objects.
@@ -362,9 +367,6 @@ int	mac_pipe_label_set(struct ucred *cred, struct pipe *pipe,
  * Calls to help various file systems implement labeling functionality
  * using their existing EA implementation.
  */
-int	vop_stdcreatevnode_ea(struct vnode *dvp, struct vnode *tvp,
-	    struct ucred *cred);
-int	vop_stdrefreshlabel_ea(struct vop_refreshlabel_args *ap);
 int	vop_stdsetlabel_ea(struct vop_setlabel_args *ap);
 
 #endif /* _KERNEL */

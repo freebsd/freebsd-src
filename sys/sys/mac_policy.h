@@ -118,8 +118,6 @@ struct mac_policy_ops {
 	int	(*mpo_externalize_vnode_label)(struct label *label,
 		    char *element_name, char *buffer, size_t buflen,
 		    size_t *len, int *claimed);
-	int	(*mpo_externalize_vnode_oldmac)(struct label *label,
-		    struct oldmac *extmac);
 	int	(*mpo_internalize_cred_label)(struct label *label,
 		    char *element_name, char *element_data, int *claimed);
 	int	(*mpo_internalize_ifnet_label)(struct label *label,
@@ -135,6 +133,16 @@ struct mac_policy_ops {
 	 * Labeling event operations: file system objects, and things that
 	 * look a lot like file system objects.
 	 */
+	void	(*mpo_associate_vnode_devfs)(struct mount *mp,
+		    struct label *fslabel, struct devfs_dirent *de,
+		    struct label *delabel, struct vnode *vp,
+		    struct label *vlabel);
+	int	(*mpo_associate_vnode_extattr)(struct mount *mp,
+		    struct label *fslabel, struct vnode *vp,
+		    struct label *vlabel);
+	void	(*mpo_associate_vnode_singlelabel)(struct mount *mp,
+		    struct label *fslabel, struct vnode *vp,
+		    struct label *vlabel);
 	void	(*mpo_create_devfs_device)(dev_t dev, struct devfs_dirent *de,
 		    struct label *label);
 	void	(*mpo_create_devfs_directory)(char *dirname, int dirnamelen,
@@ -145,30 +153,23 @@ struct mac_policy_ops {
 	void	(*mpo_create_devfs_vnode)(struct devfs_dirent *de,
 		    struct label *direntlabel, struct vnode *vp,
 		    struct label *vnodelabel);
-	void	(*mpo_create_vnode)(struct ucred *cred, struct vnode *parent,
-		    struct label *parentlabel, struct vnode *child,
-		    struct label *childlabel);
+	int	(*mpo_create_vnode_extattr)(struct ucred *cred,
+		    struct mount *mp, struct label *fslabel,
+		    struct vnode *dvp, struct label *dlabel,
+		    struct vnode *vp, struct label *vlabel,
+		    struct componentname *cnp);
 	void	(*mpo_create_mount)(struct ucred *cred, struct mount *mp,
 		    struct label *mntlabel, struct label *fslabel);
 	void	(*mpo_create_root_mount)(struct ucred *cred, struct mount *mp,
 		    struct label *mountlabel, struct label *fslabel);
 	void	(*mpo_relabel_vnode)(struct ucred *cred, struct vnode *vp,
 		    struct label *vnodelabel, struct label *label);
-	int	(*mpo_stdcreatevnode_ea)(struct vnode *vp,
-		    struct label *vnodelabel);
+	int	(*mpo_setlabel_vnode_extattr)(struct ucred *cred,
+		    struct vnode *vp, struct label *vlabel,
+		    struct label *intlabel);
 	void	(*mpo_update_devfsdirent)(struct devfs_dirent *devfs_dirent,
 		    struct label *direntlabel, struct vnode *vp,
 		    struct label *vnodelabel);
-	void	(*mpo_update_procfsvnode)(struct vnode *vp,
-		    struct label *vnodelabel, struct ucred *cred);
-	int	(*mpo_update_vnode_from_extattr)(struct vnode *vp,
-		    struct label *vnodelabel, struct mount *mp,
-		    struct label *fslabel);
-	int	(*mpo_update_vnode_from_externalized)(struct vnode *vp,
-		    struct label *vnodelabel, struct oldmac *extmac);
-	void	(*mpo_update_vnode_from_mount)(struct vnode *vp,
-		    struct label *vnodelabel, struct mount *mp,
-		    struct label *fslabel);
 
 	/*
 	 * Labeling event operations: IPC objects.
@@ -431,7 +432,6 @@ enum mac_op_constant {
 	MAC_EXTERNALIZE_SOCKET_LABEL,
 	MAC_EXTERNALIZE_SOCKET_PEER_LABEL,
 	MAC_EXTERNALIZE_VNODE_LABEL,
-	MAC_EXTERNALIZE_VNODE_OLDMAC,
 	MAC_INTERNALIZE_CRED_LABEL,
 	MAC_INTERNALIZE_IFNET_LABEL,
 	MAC_INTERNALIZE_PIPE_LABEL,
@@ -441,16 +441,15 @@ enum mac_op_constant {
 	MAC_CREATE_DEVFS_DIRECTORY,
 	MAC_CREATE_DEVFS_SYMLINK,
 	MAC_CREATE_DEVFS_VNODE,
-	MAC_CREATE_VNODE,
 	MAC_CREATE_MOUNT,
 	MAC_CREATE_ROOT_MOUNT,
 	MAC_RELABEL_VNODE,
-	MAC_STDCREATEVNODE_EA,
 	MAC_UPDATE_DEVFSDIRENT,
-	MAC_UPDATE_PROCFSVNODE,
-	MAC_UPDATE_VNODE_FROM_EXTATTR,
-	MAC_UPDATE_VNODE_FROM_EXTERNALIZED,
-	MAC_UPDATE_VNODE_FROM_MOUNT,
+	MAC_ASSOCIATE_VNODE_DEVFS,
+	MAC_ASSOCIATE_VNODE_EXTATTR,
+	MAC_ASSOCIATE_VNODE_SINGLELABEL,
+	MAC_CREATE_VNODE_EXTATTR,
+	MAC_SETLABEL_VNODE_EXTATTR,
 	MAC_CREATE_MBUF_FROM_SOCKET,
 	MAC_CREATE_PIPE,
 	MAC_CREATE_SOCKET,

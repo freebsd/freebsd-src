@@ -46,6 +46,7 @@
 #include <sys/param.h>
 #include <sys/acl.h>
 #include <sys/conf.h>
+#include <sys/extattr.h>
 #include <sys/kernel.h>
 #include <sys/mac.h>
 #include <sys/mount.h>
@@ -136,13 +137,6 @@ mac_none_externalize_label(struct label *label, char *element_name,
 }
 
 static int
-mac_none_externalize_vnode_oldmac(struct label *label, struct oldmac *extmac)
-{
-
-	return (0);
-}
-
-static int
 mac_none_internalize_label(struct label *label, char *element_name,
     char *element_data, int *claimed)
 {
@@ -154,6 +148,29 @@ mac_none_internalize_label(struct label *label, char *element_name,
  * Labeling event operations: file system objects, and things that look
  * a lot like file system objects.
  */
+static void
+mac_none_associate_vnode_devfs(struct mount *mp, struct label *fslabel,
+    struct devfs_dirent *de, struct label *delabel, struct vnode *vp,
+    struct label *vlabel)
+{
+
+}
+
+static int
+mac_none_associate_vnode_extattr(struct mount *mp, struct label *fslabel,
+    struct vnode *vp, struct label *vlabel)
+{
+
+	return (0);
+}
+
+static void
+mac_none_associate_vnode_singlelabel(struct mount *mp,
+    struct label *fslabel, struct vnode *vp, struct label *vlabel)
+{
+
+}
+
 static void
 mac_none_create_devfs_device(dev_t dev, struct devfs_dirent *devfs_dirent,
     struct label *label)
@@ -182,12 +199,13 @@ mac_none_create_devfs_vnode(struct devfs_dirent *devfs_dirent,
 
 }
 
-static void
-mac_none_create_vnode(struct ucred *cred, struct vnode *parent,
-    struct label *parentlabel, struct vnode *child,
-    struct label *childlabel)
+static int
+mac_none_create_vnode_extattr(struct ucred *cred, struct mount *mp,
+    struct label *fslabel, struct vnode *dvp, struct label *dlabel,
+    struct vnode *vp, struct label *vlabel, struct componentname *cnp)
 {
 
+	return (0);
 }
 
 static void
@@ -211,31 +229,17 @@ mac_none_relabel_vnode(struct ucred *cred, struct vnode *vp,
 
 }
 
-static void
-mac_none_update_devfsdirent(struct devfs_dirent *devfs_dirent,
-    struct label *direntlabel, struct vnode *vp, struct label *vnodelabel)
-{
-
-}
-
-static void
-mac_none_update_procfsvnode(struct vnode *vp, struct label *vnodelabel,
-    struct ucred *cred)
-{
-
-}
-
 static int
-mac_none_update_vnode_from_externalized(struct vnode *vp,
-    struct label *vnodelabel, struct oldmac *extmac)
+mac_none_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
+    struct label *vlabel, struct label *intlabel)
 {
 
 	return (0);
 }
 
 static void
-mac_none_update_vnode_from_mount(struct vnode *vp, struct label *vnodelabel,
-    struct mount *mp, struct label *fslabel)
+mac_none_update_devfsdirent(struct devfs_dirent *devfs_dirent,
+    struct label *direntlabel, struct vnode *vp, struct label *vnodelabel)
 {
 
 }
@@ -924,8 +928,6 @@ static struct mac_policy_op_entry mac_none_ops[] =
 	    (macop_t)mac_none_externalize_label },
 	{ MAC_EXTERNALIZE_VNODE_LABEL,
 	    (macop_t)mac_none_externalize_label },
-	{ MAC_EXTERNALIZE_VNODE_OLDMAC,
-	    (macop_t)mac_none_externalize_vnode_oldmac },
 	{ MAC_INTERNALIZE_CRED_LABEL,
 	    (macop_t)mac_none_internalize_label },
 	{ MAC_INTERNALIZE_IFNET_LABEL,
@@ -936,6 +938,12 @@ static struct mac_policy_op_entry mac_none_ops[] =
 	    (macop_t)mac_none_internalize_label },
 	{ MAC_INTERNALIZE_VNODE_LABEL,
 	    (macop_t)mac_none_internalize_label },
+	{ MAC_ASSOCIATE_VNODE_DEVFS,
+	    (macop_t)mac_none_associate_vnode_devfs },
+	{ MAC_ASSOCIATE_VNODE_EXTATTR,
+	    (macop_t)mac_none_associate_vnode_extattr },
+	{ MAC_ASSOCIATE_VNODE_SINGLELABEL,
+	    (macop_t)mac_none_associate_vnode_singlelabel },
 	{ MAC_CREATE_DEVFS_DEVICE,
 	    (macop_t)mac_none_create_devfs_device },
 	{ MAC_CREATE_DEVFS_DIRECTORY,
@@ -944,22 +952,18 @@ static struct mac_policy_op_entry mac_none_ops[] =
 	    (macop_t)mac_none_create_devfs_symlink },
 	{ MAC_CREATE_DEVFS_VNODE,
 	    (macop_t)mac_none_create_devfs_vnode },
-	{ MAC_CREATE_VNODE,
-	    (macop_t)mac_none_create_vnode },
+	{ MAC_CREATE_VNODE_EXTATTR,
+	    (macop_t)mac_none_create_vnode_extattr },
 	{ MAC_CREATE_MOUNT,
 	    (macop_t)mac_none_create_mount },
 	{ MAC_CREATE_ROOT_MOUNT,
 	    (macop_t)mac_none_create_root_mount },
 	{ MAC_RELABEL_VNODE,
 	    (macop_t)mac_none_relabel_vnode },
+	{  MAC_SETLABEL_VNODE_EXTATTR,
+	    (macop_t)mac_none_setlabel_vnode_extattr },
 	{ MAC_UPDATE_DEVFSDIRENT,
 	    (macop_t)mac_none_update_devfsdirent },
-	{ MAC_UPDATE_PROCFSVNODE,
-	    (macop_t)mac_none_update_procfsvnode },
-	{ MAC_UPDATE_VNODE_FROM_EXTERNALIZED,
-	    (macop_t)mac_none_update_vnode_from_externalized },
-	{ MAC_UPDATE_VNODE_FROM_MOUNT,
-	    (macop_t)mac_none_update_vnode_from_mount },
 	{ MAC_CREATE_MBUF_FROM_SOCKET,
 	    (macop_t)mac_none_create_mbuf_from_socket },
 	{ MAC_CREATE_PIPE,

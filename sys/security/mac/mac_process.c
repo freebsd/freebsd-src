@@ -115,6 +115,12 @@ SYSCTL_UINT(_security_mac, OID_AUTO, max_policies, CTLFLAG_RD,
  */
 static int	mac_late = 0;
 
+/*
+ * Warn about EA transactions only the first time they happen.
+ * Weak coherency, no locking.
+ */
+static int	ea_warn_once = 0;
+
 static int	mac_enforce_fs = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, enforce_fs, CTLFLAG_RW,
     &mac_enforce_fs, 0, "Enforce MAC policy on file system objects");
@@ -145,22 +151,11 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_vm, CTLFLAG_RW,
     &mac_enforce_vm, 0, "Enforce MAC policy on vm operations");
 TUNABLE_INT("security.mac.enforce_vm", &mac_enforce_vm);
 
-static int	mac_label_size = sizeof(struct oldmac);
-SYSCTL_INT(_security_mac, OID_AUTO, label_size, CTLFLAG_RD,
-    &mac_label_size, 0, "Pre-compiled MAC label size");
-
 static int	mac_cache_fslabel_in_vnode = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, cache_fslabel_in_vnode, CTLFLAG_RW,
     &mac_cache_fslabel_in_vnode, 0, "Cache mount fslabel in vnode");
 TUNABLE_INT("security.mac.cache_fslabel_in_vnode",
     &mac_cache_fslabel_in_vnode);
-
-static int	mac_vnode_label_cache_hits = 0;
-SYSCTL_INT(_security_mac, OID_AUTO, vnode_label_cache_hits, CTLFLAG_RD,
-    &mac_vnode_label_cache_hits, 0, "Cache hits on vnode labels");
-static int	mac_vnode_label_cache_misses = 0;
-SYSCTL_INT(_security_mac, OID_AUTO, vnode_label_cache_misses, CTLFLAG_RD,
-    &mac_vnode_label_cache_misses, 0, "Cache misses on vnode labels");
 
 static int	mac_mmap_revocation = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation, CTLFLAG_RW,
@@ -214,18 +209,19 @@ SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, devfsdirents, CTLFLAG_RD,
 #endif
 
 static int	error_select(int error1, int error2);
-static int	mac_externalize_vnode_oldmac(struct label *label,
-		    struct oldmac *extmac);
 static int	mac_policy_register(struct mac_policy_conf *mpc);
 static int	mac_policy_unregister(struct mac_policy_conf *mpc);
 
-static int	mac_stdcreatevnode_ea(struct vnode *vp);
 static void	mac_check_vnode_mmap_downgrade(struct ucred *cred,
 		    struct vnode *vp, int *prot);
 static void	mac_cred_mmapped_drop_perms_recurse(struct thread *td,
 		    struct ucred *cred, struct vm_map *map);
 
 static void	mac_destroy_socket_label(struct label *label);
+
+static int	mac_setlabel_vnode_extattr(struct ucred *cred,
+		    struct vnode *vp, struct label *intlabel);
+
 
 MALLOC_DEFINE(M_MACOPVEC, "macopvec", "MAC policy operation vector");
 MALLOC_DEFINE(M_MACPIPELABEL, "macpipelabel", "MAC labels for pipes");
@@ -623,10 +619,6 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_externalize_vnode_label =
 			    mpe->mpe_function;
 			break;
-		case MAC_EXTERNALIZE_VNODE_OLDMAC:
-			mpc->mpc_ops->mpo_externalize_vnode_oldmac =
-			    mpe->mpe_function;
-			break;
 		case MAC_INTERNALIZE_CRED_LABEL:
 			mpc->mpc_ops->mpo_internalize_cred_label =
 			    mpe->mpe_function;
@@ -663,14 +655,6 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_create_devfs_vnode =
 			    mpe->mpe_function;
 			break;
-		case MAC_STDCREATEVNODE_EA:
-			mpc->mpc_ops->mpo_stdcreatevnode_ea =
-			    mpe->mpe_function;
-			break;
-		case MAC_CREATE_VNODE:
-			mpc->mpc_ops->mpo_create_vnode =
-			    mpe->mpe_function;
-			break;
 		case MAC_CREATE_MOUNT:
 			mpc->mpc_ops->mpo_create_mount =
 			    mpe->mpe_function;
@@ -687,20 +671,24 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_update_devfsdirent =
 			    mpe->mpe_function;
 			break;
-		case MAC_UPDATE_PROCFSVNODE:
-			mpc->mpc_ops->mpo_update_procfsvnode =
+		case MAC_ASSOCIATE_VNODE_DEVFS:
+			mpc->mpc_ops->mpo_associate_vnode_devfs =
 			    mpe->mpe_function;
 			break;
-		case MAC_UPDATE_VNODE_FROM_EXTATTR:
-			mpc->mpc_ops->mpo_update_vnode_from_extattr =
+		case MAC_ASSOCIATE_VNODE_EXTATTR:
+			mpc->mpc_ops->mpo_associate_vnode_extattr =
 			    mpe->mpe_function;
 			break;
-		case MAC_UPDATE_VNODE_FROM_EXTERNALIZED:
-			mpc->mpc_ops->mpo_update_vnode_from_externalized =
+		case MAC_ASSOCIATE_VNODE_SINGLELABEL:
+			mpc->mpc_ops->mpo_associate_vnode_singlelabel =
 			    mpe->mpe_function;
 			break;
-		case MAC_UPDATE_VNODE_FROM_MOUNT:
-			mpc->mpc_ops->mpo_update_vnode_from_mount =
+		case MAC_CREATE_VNODE_EXTATTR:
+			mpc->mpc_ops->mpo_create_vnode_extattr =
+			    mpe->mpe_function;
+			break;
+		case MAC_SETLABEL_VNODE_EXTATTR:
+			mpc->mpc_ops->mpo_setlabel_vnode_extattr =
 			    mpe->mpe_function;
 			break;
 		case MAC_CREATE_MBUF_FROM_SOCKET:
@@ -1379,7 +1367,7 @@ mac_init_socket(struct socket *socket, int flag)
 	return (error);
 }
 
-static void
+void
 mac_init_vnode_label(struct label *label)
 {
 
@@ -1536,7 +1524,7 @@ mac_destroy_socket(struct socket *socket)
 	mac_destroy_socket_peer_label(&socket->so_peerlabel);
 }
 
-static void
+void
 mac_destroy_vnode_label(struct label *label)
 {
 
@@ -1561,7 +1549,7 @@ mac_copy_pipe_label(struct label *src, struct label *dest)
 	MAC_PERFORM(copy_pipe_label, src, dest);
 }
 
-static void
+void
 mac_copy_vnode_label(struct label *src, struct label *dest)
 {
 
@@ -1640,16 +1628,6 @@ mac_externalize_vnode_label(struct label *label, char *elements,
 	int error;
 
 	MAC_EXTERNALIZE(vnode_label, label, elements, outbuf, outbuflen);
-
-	return (error);
-}
-
-static int
-mac_externalize_vnode_oldmac(struct label *label, struct oldmac *extmac)
-{
-	int error;
-
-	MAC_CHECK(externalize_vnode_oldmac, label, extmac);
 
 	return (error);
 }
@@ -1753,264 +1731,110 @@ mac_update_devfsdirent(struct devfs_dirent *de, struct vnode *vp)
 }
 
 void
-mac_update_procfsvnode(struct vnode *vp, struct ucred *cred)
+mac_associate_vnode_devfs(struct mount *mp, struct devfs_dirent *de,
+    struct vnode *vp)
 {
 
-	MAC_PERFORM(update_procfsvnode, vp, &vp->v_label, cred);
+	MAC_PERFORM(associate_vnode_devfs, mp, &mp->mnt_fslabel, de,
+	    &de->de_label, vp, &vp->v_label);
 }
 
-/*
- * Support callout for policies that manage their own externalization
- * using extended attributes.
- */
-static int
-mac_update_vnode_from_extattr(struct vnode *vp, struct mount *mp)
+int
+mac_associate_vnode_extattr(struct mount *mp, struct vnode *vp)
 {
 	int error;
 
-	MAC_CHECK(update_vnode_from_extattr, vp, &vp->v_label, mp,
-	    &mp->mnt_fslabel);
+	ASSERT_VOP_LOCKED(vp, "mac_associate_vnode_extattr");
+
+	MAC_CHECK(associate_vnode_extattr, mp, &mp->mnt_fslabel, vp,
+	    &vp->v_label);
 
 	return (error);
 }
 
-/*
- * Given an externalized mac label, internalize it and stamp it on a
- * vnode.
- */
-static int
-mac_update_vnode_from_externalized(struct vnode *vp, struct oldmac *extmac)
-{
-	int error;
-
-	MAC_CHECK(update_vnode_from_externalized, vp, &vp->v_label, extmac);
-
-	return (error);
-}
-
-/*
- * Call out to individual policies to update the label in a vnode from
- * the mountpoint.
- */
 void
-mac_update_vnode_from_mount(struct vnode *vp, struct mount *mp)
+mac_associate_vnode_singlelabel(struct mount *mp, struct vnode *vp)
 {
 
-	MAC_PERFORM(update_vnode_from_mount, vp, &vp->v_label, mp,
-	    &mp->mnt_fslabel);
-
-	ASSERT_VOP_LOCKED(vp, "mac_update_vnode_from_mount");
-	if (mac_cache_fslabel_in_vnode)
-		vp->v_vflag |= VV_CACHEDLABEL;
+	MAC_PERFORM(associate_vnode_singlelabel, mp, &mp->mnt_fslabel, vp,
+	    &vp->v_label);
 }
 
-/*
- * Implementation of VOP_REFRESHLABEL() that relies on extended attributes
- * to store label data.  Can be referenced by filesystems supporting
- * extended attributes.
- */
 int
-vop_stdrefreshlabel_ea(struct vop_refreshlabel_args *ap)
+mac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
+    struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 {
-	struct vnode *vp = ap->a_vp;
-	struct oldmac extmac;
-	int buflen, error;
+	int error;
 
-	ASSERT_VOP_LOCKED(vp, "vop_stdrefreshlabel_ea");
+	ASSERT_VOP_LOCKED(dvp, "mac_create_vnode_extattr");
+	ASSERT_VOP_LOCKED(vp, "mac_create_vnode_extattr");
 
-	/*
-	 * Call out to external policies first.  Order doesn't really
-	 * matter, as long as failure of one assures failure of all.
-	 */
-	error = mac_update_vnode_from_extattr(vp, vp->v_mount);
-	if (error)
-		return (error);
-
-	buflen = sizeof(extmac);
-	error = vn_extattr_get(vp, IO_NODELOCKED,
-	    FREEBSD_MAC_EXTATTR_NAMESPACE, FREEBSD_MAC_EXTATTR_NAME, &buflen,
-	    (char *)&extmac, curthread);
-	switch (error) {
-	case 0:
-		/* Got it */
-		break;
-
-	case ENOATTR:
-		/*
-		 * Use the label from the mount point.
-		 */
-		mac_update_vnode_from_mount(vp, vp->v_mount);
-		return (0);
-
-	case EOPNOTSUPP:
-	default:
-		/* Fail horribly. */
-		return (error);
-	}
-
-	if (buflen != sizeof(extmac))
-		error = EPERM;		/* Fail very closed. */
-	if (error == 0)
-		error = mac_update_vnode_from_externalized(vp, &extmac);
-	if (error == 0)
-		vp->v_vflag |= VV_CACHEDLABEL;
-	else {
-		struct vattr va;
-
-		printf("Corrupted label on %s",
-		    vp->v_mount->mnt_stat.f_mntonname);
-		if (VOP_GETATTR(vp, &va, curthread->td_ucred, curthread) == 0)
-			printf(" inum %ld", va.va_fileid);
-#ifdef MAC_DEBUG
-		if (mac_debug_label_fallback) {
-			printf(", falling back.\n");
-			mac_update_vnode_from_mount(vp, vp->v_mount);
-			error = 0;
-		} else {
-#endif
-			printf(".\n");
-			error = EPERM;
-#ifdef MAC_DEBUG
+	error = VOP_OPENEXTATTR(vp, cred, curthread);
+	if (error == EOPNOTSUPP) {
+		/* XXX: Optionally abort if transactions not supported. */
+		if (ea_warn_once == 0) {
+			printf("Warning: transactions not supported "
+			    "in EA write.\n");
+			ea_warn_once = 1;
 		}
-#endif
+	} else if (error)
+		return (error);
+
+	MAC_CHECK(create_vnode_extattr, cred, mp, &mp->mnt_fslabel,
+	    dvp, &dvp->v_label, vp, &vp->v_label, cnp);
+
+	if (error) {
+		VOP_CLOSEEXTATTR(vp, 0, NOCRED, curthread);
+		return (error);
 	}
+
+	error = VOP_CLOSEEXTATTR(vp, 1, NOCRED, curthread);
+
+	if (error == EOPNOTSUPP)
+		error = 0;				/* XXX */
 
 	return (error);
 }
 
-/*
- * Make sure the vnode label is up-to-date.  If EOPNOTSUPP, then we handle
- * the labeling activity outselves.  Filesystems should be careful not
- * to change their minds regarding whether they support vop_refreshlabel()
- * for a vnode or not.  Don't cache the vnode here, allow the file
- * system code to determine if it's safe to cache.  If we update from
- * the mount, don't cache since a change to the mount label should affect
- * all vnodes.
- */
 static int
-vn_refreshlabel(struct vnode *vp, struct ucred *cred)
+mac_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
+    struct label *intlabel)
 {
 	int error;
 
-	ASSERT_VOP_LOCKED(vp, "vn_refreshlabel");
+	ASSERT_VOP_LOCKED(vp, "mac_setlabel_vnode_extattr");
 
-	if (vp->v_mount == NULL) {
-/*
-		Eventually, we probably want to special-case refreshing
-		of deadfs vnodes, and if there's a lock-free race somewhere,
-		that case might be handled here.
+	error = VOP_OPENEXTATTR(vp, cred, curthread);
+	if (error == EOPNOTSUPP) {
+		/* XXX: Optionally abort if transactions not supported. */
+		if (ea_warn_once == 0) {
+			printf("Warning: transactions not supported "
+			    "in EA write.\n");
+			ea_warn_once = 1;
+		}
+	} else if (error)
+		return (error);
 
-		mac_update_vnode_deadfs(vp);
-		return (0);
- */
-		/* printf("vn_refreshlabel: null v_mount\n"); */
-		if (vp->v_type != VNON)
-			printf(
-			    "vn_refreshlabel: null v_mount with non-VNON\n");
-		return (EBADF);
-	}
+	MAC_CHECK(setlabel_vnode_extattr, cred, vp, &vp->v_label, intlabel);
 
-	if (vp->v_vflag & VV_CACHEDLABEL) {
-		mac_vnode_label_cache_hits++;
-		return (0);
-	} else
-		mac_vnode_label_cache_misses++;
-
-	if ((vp->v_mount->mnt_flag & MNT_MULTILABEL) == 0) {
-		mac_update_vnode_from_mount(vp, vp->v_mount);
-		return (0);
-	}
-
-	error = VOP_REFRESHLABEL(vp, cred, curthread);
-	switch (error) {
-	case EOPNOTSUPP:
-		/*
-		 * If labels are not supported on this vnode, fall back to
-		 * the label in the mount and propagate it to the vnode.
-		 * There should probably be some sort of policy/flag/decision
-		 * about doing this.
-		 */
-		mac_update_vnode_from_mount(vp, vp->v_mount);
-		error = 0;
-	default:
+	if (error) {
+		VOP_CLOSEEXTATTR(vp, 0, NOCRED, curthread);
 		return (error);
 	}
-}
 
-/*
- * Helper function for file systems using the vop_std*_ea() calls.  This
- * function must be called after EA service is available for the vnode,
- * but before it's hooked up to the namespace so that the node persists
- * if there's a crash, or before it can be accessed.  On successful
- * commit of the label to disk (etc), do cache the label.
- */
-int
-vop_stdcreatevnode_ea(struct vnode *dvp, struct vnode *tvp, struct ucred *cred)
-{
-	struct oldmac extmac;
-	int error;
+	error = VOP_CLOSEEXTATTR(vp, 1, NOCRED, curthread);
 
-	ASSERT_VOP_LOCKED(tvp, "vop_stdcreatevnode_ea");
-	if ((dvp->v_mount->mnt_flag & MNT_MULTILABEL) == 0) {
-		mac_update_vnode_from_mount(tvp, tvp->v_mount);
-	} else {
-		error = vn_refreshlabel(dvp, cred);
-		if (error)
-			return (error);
+	if (error == EOPNOTSUPP)
+		error = 0;				/* XXX */
 
-		/*
-		 * Stick the label in the vnode.  Then try to write to
-		 * disk.  If we fail, return a failure to abort the
-		 * create operation.  Really, this failure shouldn't
-		 * happen except in fairly unusual circumstances (out
-		 * of disk, etc).
-		 */
-		mac_create_vnode(cred, dvp, tvp);
-
-		error = mac_stdcreatevnode_ea(tvp);
-		if (error)
-			return (error);
-
-		/*
-		 * XXX: Eventually this will go away and all policies will
-		 * directly manage their extended attributes.
-		 */
-		error = mac_externalize_vnode_oldmac(&tvp->v_label, &extmac);
-		if (error)
-			return (error);
-
-		error = vn_extattr_set(tvp, IO_NODELOCKED,
-		    FREEBSD_MAC_EXTATTR_NAMESPACE, FREEBSD_MAC_EXTATTR_NAME,
-		    sizeof(extmac), (char *)&extmac, curthread);
-		if (error == 0)
-			tvp->v_vflag |= VV_CACHEDLABEL;
-		else {
-#if 0
-			/*
-			 * In theory, we could have fall-back behavior here.
-			 * It would probably be incorrect.
-			 */
-#endif
-			return (error);
-		}
-	}
-
-	return (0);
+	return (error);
 }
 
 void
 mac_execve_transition(struct ucred *old, struct ucred *new, struct vnode *vp)
 {
-	int error;
 
 	ASSERT_VOP_LOCKED(vp, "mac_execve_transition");
-
-	error = vn_refreshlabel(vp, old);
-	if (error) {
-		printf("mac_execve_transition: vn_refreshlabel returned %d\n",
-		    error);
-		printf("mac_execve_transition: using old vnode label\n");
-	}
 
 	MAC_PERFORM(execve_transition, old, new, vp, &vp->v_label);
 }
@@ -2018,11 +1842,7 @@ mac_execve_transition(struct ucred *old, struct ucred *new, struct vnode *vp)
 int
 mac_execve_will_transition(struct ucred *old, struct vnode *vp)
 {
-	int error, result;
-
-	error = vn_refreshlabel(vp, old);
-	if (error)
-		return (error);
+	int result;
 
 	result = 0;
 	MAC_BOOLEAN(execve_will_transition, ||, old, vp, &vp->v_label);
@@ -2040,10 +1860,6 @@ mac_check_vnode_access(struct ucred *cred, struct vnode *vp, int flags)
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_access, cred, vp, &vp->v_label, flags);
 	return (error);
 }
@@ -2057,10 +1873,6 @@ mac_check_vnode_chdir(struct ucred *cred, struct vnode *dvp)
 
 	if (!mac_enforce_fs)
 		return (0);
-
-	error = vn_refreshlabel(dvp, cred);
-	if (error)
-		return (error);
 
 	MAC_CHECK(check_vnode_chdir, cred, dvp, &dvp->v_label);
 	return (error);
@@ -2076,10 +1888,6 @@ mac_check_vnode_chroot(struct ucred *cred, struct vnode *dvp)
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(dvp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_chroot, cred, dvp, &dvp->v_label);
 	return (error);
 }
@@ -2094,10 +1902,6 @@ mac_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 
 	if (!mac_enforce_fs)
 		return (0);
-
-	error = vn_refreshlabel(dvp, cred);
-	if (error)
-		return (error);
 
 	MAC_CHECK(check_vnode_create, cred, dvp, &dvp->v_label, cnp, vap);
 	return (error);
@@ -2115,13 +1919,6 @@ mac_check_vnode_delete(struct ucred *cred, struct vnode *dvp, struct vnode *vp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(dvp, cred);
-	if (error)
-		return (error);
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_delete, cred, dvp, &dvp->v_label, vp,
 	    &vp->v_label, cnp);
 	return (error);
@@ -2138,10 +1935,6 @@ mac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_deleteacl, cred, vp, &vp->v_label, type);
 	return (error);
 }
@@ -2156,9 +1949,6 @@ mac_check_vnode_exec(struct ucred *cred, struct vnode *vp)
 	if (!mac_enforce_process && !mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
 	MAC_CHECK(check_vnode_exec, cred, vp, &vp->v_label);
 
 	return (error);
@@ -2174,10 +1964,6 @@ mac_check_vnode_getacl(struct ucred *cred, struct vnode *vp, acl_type_t type)
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_getacl, cred, vp, &vp->v_label, type);
 	return (error);
 }
@@ -2192,10 +1978,6 @@ mac_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 
 	if (!mac_enforce_fs)
 		return (0);
-
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
 
 	MAC_CHECK(check_vnode_getextattr, cred, vp, &vp->v_label,
 	    attrnamespace, name, uio);
@@ -2214,14 +1996,6 @@ mac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(dvp, cred);
-	if (error)
-		return (error);
-
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_link, cred, dvp, &dvp->v_label, vp,
 	    &vp->v_label, cnp);
 	return (error);
@@ -2238,10 +2012,6 @@ mac_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(dvp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_lookup, cred, dvp, &dvp->v_label, cnp);
 	return (error);
 }
@@ -2255,10 +2025,6 @@ mac_check_vnode_mmap(struct ucred *cred, struct vnode *vp, int prot)
 
 	if (!mac_enforce_fs || !mac_enforce_vm)
 		return (0);
-
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
 
 	MAC_CHECK(check_vnode_mmap, cred, vp, &vp->v_label, prot);
 	return (error);
@@ -2290,10 +2056,6 @@ mac_check_vnode_mprotect(struct ucred *cred, struct vnode *vp, int prot)
 	if (!mac_enforce_fs || !mac_enforce_vm)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_mprotect, cred, vp, &vp->v_label, prot);
 	return (error);
 }
@@ -2307,10 +2069,6 @@ mac_check_vnode_open(struct ucred *cred, struct vnode *vp, mode_t acc_mode)
 
 	if (!mac_enforce_fs)
 		return (0);
-
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
 
 	MAC_CHECK(check_vnode_open, cred, vp, &vp->v_label, acc_mode);
 	return (error);
@@ -2326,10 +2084,6 @@ mac_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
 
 	if (!mac_enforce_fs)
 		return (0);
-
-	error = vn_refreshlabel(vp, active_cred);
-	if (error)
-		return (error);
 
 	MAC_CHECK(check_vnode_poll, active_cred, file_cred, vp,
 	    &vp->v_label);
@@ -2348,10 +2102,6 @@ mac_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, active_cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_read, active_cred, file_cred, vp,
 	    &vp->v_label);
 
@@ -2368,10 +2118,6 @@ mac_check_vnode_readdir(struct ucred *cred, struct vnode *dvp)
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(dvp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_readdir, cred, dvp, &dvp->v_label);
 	return (error);
 }
@@ -2386,10 +2132,6 @@ mac_check_vnode_readlink(struct ucred *cred, struct vnode *vp)
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_readlink, cred, vp, &vp->v_label);
 	return (error);
 }
@@ -2401,10 +2143,6 @@ mac_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_relabel");
-
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
 
 	MAC_CHECK(check_vnode_relabel, cred, vp, &vp->v_label, newlabel);
 
@@ -2423,13 +2161,6 @@ mac_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(dvp, cred);
-	if (error)
-		return (error);
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_rename_from, cred, dvp, &dvp->v_label, vp,
 	    &vp->v_label, cnp);
 	return (error);
@@ -2447,14 +2178,6 @@ mac_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(dvp, cred);
-	if (error)
-		return (error);
-	if (vp != NULL) {
-		error = vn_refreshlabel(vp, cred);
-		if (error)
-			return (error);
-	}
 	MAC_CHECK(check_vnode_rename_to, cred, dvp, &dvp->v_label, vp,
 	    vp != NULL ? &vp->v_label : NULL, samedir, cnp);
 	return (error);
@@ -2469,10 +2192,6 @@ mac_check_vnode_revoke(struct ucred *cred, struct vnode *vp)
 
 	if (!mac_enforce_fs)
 		return (0);
-
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
 
 	MAC_CHECK(check_vnode_revoke, cred, vp, &vp->v_label);
 	return (error);
@@ -2489,10 +2208,6 @@ mac_check_vnode_setacl(struct ucred *cred, struct vnode *vp, acl_type_t type,
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_setacl, cred, vp, &vp->v_label, type, acl);
 	return (error);
 }
@@ -2507,10 +2222,6 @@ mac_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
 
 	if (!mac_enforce_fs)
 		return (0);
-
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
 
 	MAC_CHECK(check_vnode_setextattr, cred, vp, &vp->v_label,
 	    attrnamespace, name, uio);
@@ -2527,10 +2238,6 @@ mac_check_vnode_setflags(struct ucred *cred, struct vnode *vp, u_long flags)
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_setflags, cred, vp, &vp->v_label, flags);
 	return (error);
 }
@@ -2544,10 +2251,6 @@ mac_check_vnode_setmode(struct ucred *cred, struct vnode *vp, mode_t mode)
 
 	if (!mac_enforce_fs)
 		return (0);
-
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
 
 	MAC_CHECK(check_vnode_setmode, cred, vp, &vp->v_label, mode);
 	return (error);
@@ -2564,10 +2267,6 @@ mac_check_vnode_setowner(struct ucred *cred, struct vnode *vp, uid_t uid,
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_setowner, cred, vp, &vp->v_label, uid, gid);
 	return (error);
 }
@@ -2582,10 +2281,6 @@ mac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 
 	if (!mac_enforce_fs)
 		return (0);
-
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
 
 	MAC_CHECK(check_vnode_setutimes, cred, vp, &vp->v_label, atime,
 	    mtime);
@@ -2603,10 +2298,6 @@ mac_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, active_cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_stat, active_cred, file_cred, vp,
 	    &vp->v_label);
 	return (error);
@@ -2622,10 +2313,6 @@ mac_check_vnode_swapon(struct ucred *cred, struct vnode *vp)
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
-
 	MAC_CHECK(check_vnode_swapon, cred, vp, &vp->v_label);
 	return (error);
 }
@@ -2640,10 +2327,6 @@ mac_check_vnode_write(struct ucred *active_cred, struct ucred *file_cred,
 
 	if (!mac_enforce_fs)
 		return (0);
-
-	error = vn_refreshlabel(vp, active_cred);
-	if (error)
-		return (error);
 
 	MAC_CHECK(check_vnode_write, active_cred, file_cred, vp,
 	    &vp->v_label);
@@ -3344,7 +3027,6 @@ mac_ioctl_ifnet_get(struct ucred *cred, struct ifreq *ifr,
 		return (error);
 
 	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
@@ -3352,7 +3034,6 @@ mac_ioctl_ifnet_get(struct ucred *cred, struct ifreq *ifr,
 	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-
 	error = mac_externalize_ifnet_label(&ifnet->if_label, elements,
 	    buffer, mac.m_buflen, M_WAITOK);
 	if (error == 0)
@@ -3382,7 +3063,6 @@ mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 		return (error);
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
 	if (error) {
 		free(buffer, M_MACTEMP);
@@ -3444,16 +3124,6 @@ mac_create_devfs_symlink(struct ucred *cred, struct devfs_dirent *dd,
 	    &de->de_label);
 }
 
-static int
-mac_stdcreatevnode_ea(struct vnode *vp)
-{
-	int error;
-
-	MAC_CHECK(stdcreatevnode_ea, vp, &vp->v_label);
-
-	return (error);
-}
-
 void
 mac_create_devfs_directory(char *dirname, int dirnamelen,
     struct devfs_dirent *de)
@@ -3461,29 +3131,6 @@ mac_create_devfs_directory(char *dirname, int dirnamelen,
 
 	MAC_PERFORM(create_devfs_directory, dirname, dirnamelen, de,
 	    &de->de_label);
-}
-
-/*
- * When a new vnode is created, this call will initialize its label.
- */
-void
-mac_create_vnode(struct ucred *cred, struct vnode *parent,
-    struct vnode *child)
-{
-	int error;
-
-	ASSERT_VOP_LOCKED(parent, "mac_create_vnode");
-	ASSERT_VOP_LOCKED(child, "mac_create_vnode");
-
-	error = vn_refreshlabel(parent, cred);
-	if (error) {
-		printf("mac_create_vnode: vn_refreshlabel returned %d\n",
-		    error);
-		printf("mac_create_vnode: using old vnode label\n");
-	}
-
-	MAC_PERFORM(create_vnode, cred, parent, &parent->v_label, child,
-	    &child->v_label);
 }
 
 int
@@ -3499,7 +3146,6 @@ mac_setsockopt_label_set(struct ucred *cred, struct socket *so,
 		return (error);
 
 	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac->m_string, buffer, mac->m_buflen, NULL);
 	if (error) {
 		free(buffer, M_MACTEMP);
@@ -3554,7 +3200,6 @@ mac_getsockopt_label_get(struct ucred *cred, struct socket *so,
 		return (error);
 
 	elements = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac->m_string, elements, mac->m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
@@ -3562,7 +3207,6 @@ mac_getsockopt_label_get(struct ucred *cred, struct socket *so,
 	}
 
 	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-
 	error = mac_externalize_socket_label(&so->so_label, elements,
 	    buffer, mac->m_buflen, M_WAITOK);
 	if (error == 0)
@@ -3586,7 +3230,6 @@ mac_getsockopt_peerlabel_get(struct ucred *cred, struct socket *so,
 		return (error);
 
 	elements = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac->m_string, elements, mac->m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
@@ -3594,7 +3237,6 @@ mac_getsockopt_peerlabel_get(struct ucred *cred, struct socket *so,
 	}
 
 	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-
 	error = mac_externalize_socket_peer_label(&so->so_peerlabel,
 	    elements, buffer, mac->m_buflen, M_WAITOK);
 	if (error == 0)
@@ -3616,34 +3258,18 @@ vop_stdsetlabel_ea(struct vop_setlabel_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct label *intlabel = ap->a_label;
-	struct oldmac extmac;
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "vop_stdsetlabel_ea");
 
-	/*
-	 * XXX: Eventually call out to EA check/set calls here.
-	 * Be particularly careful to avoid race conditions,
-	 * consistency problems, and stability problems when
-	 * dealing with multiple EAs.  In particular, we require
-	 * the ability to write multiple EAs on the same file in
-	 * a single transaction, which the current EA interface
-	 * does not provide.
-	 */
+	if ((vp->v_mount->mnt_flag & MNT_MULTILABEL) == 0)
+		return (EOPNOTSUPP);
 
-	error = mac_externalize_vnode_oldmac(intlabel, &extmac);
-	if (error)
-		return (error);
-
-	error = vn_extattr_set(vp, IO_NODELOCKED,
-	    FREEBSD_MAC_EXTATTR_NAMESPACE, FREEBSD_MAC_EXTATTR_NAME,
-	    sizeof(extmac), (char *)&extmac, curthread);
+	error = mac_setlabel_vnode_extattr(ap->a_cred, vp, intlabel);
 	if (error)
 		return (error);
 
 	mac_relabel_vnode(ap->a_cred, vp, intlabel);
-
-	vp->v_vflag |= VV_CACHEDLABEL;
 
 	return (0);
 }
@@ -3721,7 +3347,6 @@ __mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 		return (error);
 
 	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
@@ -3730,7 +3355,6 @@ __mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-
 	error = mac_externalize_cred_label(&tcred->cr_label, elements,
 	    buffer, mac.m_buflen, M_WAITOK);
 	if (error == 0)
@@ -3761,7 +3385,6 @@ __mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 		return (error);
 
 	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
@@ -3769,7 +3392,6 @@ __mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-
 	error = mac_externalize_cred_label(&td->td_ucred->cr_label,
 	    elements, buffer, mac.m_buflen, M_WAITOK);
 	if (error == 0)
@@ -3802,7 +3424,6 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 		return (error);
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
 	if (error) {
 		free(buffer, M_MACTEMP);
@@ -3880,7 +3501,6 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 		return (error);
 
 	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
@@ -3888,7 +3508,6 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-
 	mtx_lock(&Giant);				/* VFS */
 	error = fget(td, SCARG(uap, fd), &fp);
 	if (error)
@@ -3903,9 +3522,7 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 		mac_init_vnode_label(&intlabel);
 
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		error = vn_refreshlabel(vp, td->td_ucred);
-		if (error == 0)
-			mac_copy_vnode_label(&vp->v_label, &intlabel);
+		mac_copy_vnode_label(&vp->v_label, &intlabel);
 		VOP_UNLOCK(vp, 0, td);
 
 		break;
@@ -3974,7 +3591,6 @@ __mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 		return (error);
 
 	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
@@ -3982,7 +3598,6 @@ __mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-
 	mtx_lock(&Giant);				/* VFS */
 	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_USERSPACE, uap->path_p,
 	    td);
@@ -3991,12 +3606,9 @@ __mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 		goto out;
 
 	mac_init_vnode_label(&intlabel);
-	error = vn_refreshlabel(nd.ni_vp, td->td_ucred);
-	if (error == 0)
-		mac_copy_vnode_label(&nd.ni_vp->v_label, &intlabel);
-	if (error == 0)
-		error = mac_externalize_vnode_label(&intlabel, elements,
-		    buffer, mac.m_buflen, M_WAITOK);
+	mac_copy_vnode_label(&nd.ni_vp->v_label, &intlabel);
+	error = mac_externalize_vnode_label(&intlabel, elements, buffer,
+	    mac.m_buflen, M_WAITOK);
 
 	NDFREE(&nd, 0);
 	mac_destroy_vnode_label(&intlabel);
@@ -4034,7 +3646,6 @@ __mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 		return (error);
 
 	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
@@ -4042,7 +3653,6 @@ __mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-
 	mtx_lock(&Giant);				/* VFS */
 	NDINIT(&nd, LOOKUP, LOCKLEAF | NOFOLLOW, UIO_USERSPACE, uap->path_p,
 	    td);
@@ -4051,12 +3661,9 @@ __mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 		goto out;
 
 	mac_init_vnode_label(&intlabel);
-	error = vn_refreshlabel(nd.ni_vp, td->td_ucred);
-	if (error == 0)
-		mac_copy_vnode_label(&nd.ni_vp->v_label, &intlabel);
-	if (error == 0)
-		error = mac_externalize_vnode_label(&intlabel, elements,
-		    buffer, mac.m_buflen, M_WAITOK);
+	mac_copy_vnode_label(&nd.ni_vp->v_label, &intlabel);
+	error = mac_externalize_vnode_label(&intlabel, elements, buffer,
+	    mac.m_buflen, M_WAITOK);
 	NDFREE(&nd, 0);
 	mac_destroy_vnode_label(&intlabel);
 
@@ -4096,7 +3703,6 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 		return (error);
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
 	if (error) {
 		free(buffer, M_MACTEMP);
@@ -4183,7 +3789,6 @@ __mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 		return (error);
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
 	if (error) {
 		free(buffer, M_MACTEMP);
@@ -4240,7 +3845,6 @@ __mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
 		return (error);
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-
 	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
 	if (error) {
 		free(buffer, M_MACTEMP);
