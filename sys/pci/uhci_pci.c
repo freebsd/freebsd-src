@@ -182,12 +182,12 @@ uhci_pci_attach(device_t self)
 	}
 		
 	sc->sc_bus.bdev = device_add_child(self, "usb", -1);
-	device_set_ivars(sc->sc_bus.bdev, sc);
 	if (!sc->sc_bus.bdev) {
 		device_printf(self, "could not add USB device\n");
 		err = ENOMEM;
 		goto bad2;
 	}
+	device_set_ivars(sc->sc_bus.bdev, sc);
 
 	switch (pci_get_devid(self)) {
 	case PCI_UHCI_DEVICEID_PIIX3:
