@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: init.c,v 1.24 1997/08/02 00:22:49 davidn Exp $
+ *		$Id: init.c,v 1.25 1997/08/06 16:07:52 ache Exp $
  */
 
 #ifndef lint
@@ -1458,9 +1458,6 @@ runshutdown()
 		sa.sa_handler = SIG_IGN;
 		(void) sigaction(SIGTSTP, &sa, (struct sigaction *)0);
 		(void) sigaction(SIGHUP, &sa, (struct sigaction *)0);
-
-		for (fd = getdtablesize(); fd-- > 2; )
-		    (void)close(fd);
 
 		if ((fd = open(_PATH_CONSOLE, O_RDWR)) == -1)
 		    warning("can't open %s: %m", _PATH_CONSOLE);
