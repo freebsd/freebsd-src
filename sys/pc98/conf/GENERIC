@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.23 1997/06/15 16:38:12 kato Exp $
+#	$Id: GENERIC98,v 1.24 1997/10/14 14:58:18 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -133,9 +133,9 @@ device		npx0	at isa? port "IO_NPX" irq 8 vector npxintr
 device		apm0    at isa?	disable	flags 0x31 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
-#controller	crd0
-#device		pcic0	at crd?
-#device		pcic1	at crd?
+#controller	card0
+#device		pcic0	at card?
+#device		pcic1	at card?
 
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		sio1	at isa? port 0xd2  tty irq 5 flags 0x101 vector siointr
