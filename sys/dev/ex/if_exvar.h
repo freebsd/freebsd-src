@@ -40,7 +40,8 @@ struct ex_softc {
 	int		irq_rid;
 	void *		ih;
 
-	u_int		iobase;		/* I/O base address. */
+	bus_space_tag_t	bst;
+	bus_space_handle_t bsh;
 	u_short		irq_no;		/* IRQ number. */
 
 	char *		irq2ee;		/* irq <-> internal		*/
@@ -74,17 +75,43 @@ extern u_char	ee2irqmap[];
 extern char	plus_irq2eemap[];
 extern u_char	plus_ee2irqmap[];
 
-int		ex_alloc_resources	(device_t);
-void		ex_release_resources	(device_t);
-int		ex_attach		(device_t);
-int		ex_detach		(device_t);
+int		ex_alloc_resources(device_t);
+void		ex_release_resources(device_t);
+int		ex_attach(device_t);
+int		ex_detach(device_t);
 
 driver_intr_t	ex_intr;
 
-u_int16_t	eeprom_read		(u_int32_t, int);
+u_int16_t	ex_eeprom_read(struct ex_softc *, int);
+void		ex_get_address(struct ex_softc *, u_char *);
+int		ex_card_type(u_char *);
 
-int		look_for_card		(u_int32_t);
-void		ex_get_address		(u_int32_t, u_char *);
-int		ex_card_type		(u_char *);
+void		ex_stop(struct ex_softc *);
 
-void		ex_stop			(struct ex_softc *);
+#define CSR_READ_1(sc, off) (bus_space_read_1((sc)->bst, (sc)->bsh, off))
+#define CSR_READ_2(sc, off) (bus_space_read_2((sc)->bst, (sc)->bsh, off))
+#define CSR_WRITE_1(sc, off, val) \
+	bus_space_write_1((sc)->bst, (sc)->bsh, off, val)
+#define CSR_WRITE_2(sc, off, val) \
+	bus_space_write_2((sc)->bst, (sc)->bsh, off, val)
+#define CSR_WRITE_MULTI_1(sc, off, addr, count) \
+	bus_space_write_multi_1((sc)->bst, (sc)->bsh, off, addr, count)
+#define CSR_WRITE_MULTI_2(sc, off, addr, count) \
+	bus_space_write_multi_2((sc)->bst, (sc)->bsh, off, addr, count)
+#define CSR_WRITE_MULTI_4(sc, off, addr, count) \
+	bus_space_write_multi_4((sc)->bst, (sc)->bsh, off, addr, count)
+#define CSR_READ_MULTI_1(sc, off, addr, count) \
+	bus_space_read_multi_1((sc)->bst, (sc)->bsh, off, addr, count)
+#define CSR_READ_MULTI_2(sc, off, addr, count) \
+	bus_space_read_multi_2((sc)->bst, (sc)->bsh, off, addr, count)
+#define CSR_READ_MULTI_4(sc, off, addr, count) \
+	bus_space_read_multi_4((sc)->bst, (sc)->bsh, off, addr, count)
+
+#define EX_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	EX_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define EX_LOCK_INIT(_sc) \
+	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
+	    MTX_NETWORK_LOCK, MTX_DEF)
+#define EX_LOCK_DESTORY(_sc)	mtx_destroy(&_sc->sc_mtx);
+#define EX_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define EX_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
