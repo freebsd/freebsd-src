@@ -1,4 +1,4 @@
-/*	$Id: chio.c,v 1.2 1997/06/02 06:25:19 charnier Exp $	*/
+/*	$Id: chio.c,v 1.3 1997/06/06 06:32:09 charnier Exp $	*/
 
 /*
  * Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>
@@ -374,7 +374,7 @@ do_params(cname, argc, argv)
 
 	/* No arguments to this command. */
 	if (argc) {
-		warnx("%s: no arguements expected", cname);
+		warnx("%s: no arguments expected", cname);
 		goto usage;
 	}
 
