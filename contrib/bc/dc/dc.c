@@ -1,7 +1,7 @@
 /* 
  * implement the "dc" Desk Calculator language.
  *
- * Copyright (C) 1994, 1997 Free Software Foundation, Inc.
+ * Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,7 +65,8 @@ Usage: %s [OPTION] [file ...]\n\
   -h, --help               display this help and exit\n\
   -V, --version            output version information and exit\n\
 \n\
-Report bugs to @\n\
+Report bugs to bug-gnu-utils@prep.ai.mit.edu\n\
+Be sure to include the word ``dc'' somewhere in the ``Subject:'' field.\n\
 ", progname);
 }
 
@@ -94,17 +95,21 @@ r1bindex DC_DECLARG((s, c))
 }
 
 static void
-try_file(const char *filename) {
+try_file(const char *filename)
+{
 	FILE *input;
 
-	if ( !(input=fopen(filename, "r")) ) {
+	if (strcmp(filename, "-") == 0) {
+		input = stdin;
+	} else if ( !(input=fopen(filename, "r")) ) {
 		fprintf(stderr, "Could not open file ");
 		perror(filename);
 		exit(EXIT_FAILURE);
 	}
 	if (dc_evalfile(input))
 		exit(EXIT_FAILURE);
-	fclose(input);
+	if (input != stdin)
+		fclose(input);
 }
 
 
@@ -124,12 +129,16 @@ main DC_DECLARG((argc, argv))
 	int c;
 
 	progname = r1bindex(*argv, '/');
+#ifdef HAVE_SETVBUF
+	/* attempt to simplify interaction with applications such as emacs */
+	(void) setvbuf(stdout, NULL, _IOLBF, 0);
+#endif
 	dc_math_init();
 	dc_string_init();
 	dc_register_init();
 	dc_array_init();
 
-	while ((c = getopt_long(argc, argv, "hVe:", long_opts, (int *)0)) != EOF) {
+	while ((c = getopt_long(argc, argv, "hVe:f:", long_opts, (int *)0)) != EOF) {
 		switch (c) {
 		case 'e':
 			{	dc_data string = dc_makestring(optarg, strlen(optarg));
@@ -156,12 +165,7 @@ main DC_DECLARG((argc, argv))
 	}
 
 	for (; optind < argc; ++optind) {
-		if (strcmp(argv[optind], "-") == 0) {
-			if (dc_evalfile(stdin))
-				return EXIT_FAILURE;
-		} else {
-			try_file(argv[optind]);
-		}
+		try_file(argv[optind]);
 		did_eval = 1;
 	}
 	if (!did_eval) {
