@@ -1,3 +1,16 @@
+2000-02-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 7:1:2
+	
+2000-02-16  Assar Westerlund  <assar@sics.se>
+
+	* snprintf.c (PARSE_INT_FORMAT): note that shorts are actually
+	transmitted as ints
+	(according to the integer protomotion rules) in variable arguments
+	lists.  Therefore, we should not call va_arg with short but rather
+	with int.  See <http://www.debian.org/Bugs/db/57/57919.html> for
+	original bug report
+
 2000-02-13  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: bump version to 7:0:2
