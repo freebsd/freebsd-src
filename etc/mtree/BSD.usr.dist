@@ -161,7 +161,7 @@
     ..
     local
     ..
-    obj nochange
+    obj             nochange
     ..
     sbin
     ..
@@ -561,8 +561,8 @@
             ..
             sv_SE.ISO_8859-1
             ..
-	    tr_TR.ISO_8859-9
-	    ..
+            tr_TR.ISO_8859-9
+            ..
             uk_UA.KOI8-U
             ..
             zh_CN.EUC
@@ -571,7 +571,7 @@
             ..
         ..
         man
-/set type=dir uname=man gname=wheel mode=0755
+/set uname=man
             cat1
             ..
             cat1aout
@@ -621,7 +621,7 @@
                 ..
                 catn
                 ..
-/set type=dir uname=root gname=wheel mode=0755
+/set uname=root
                 man1
                 ..
                 man2
@@ -805,8 +805,8 @@
             ..
             sv_SE.ISO_8859-1
             ..
-	    tr_TR.ISO_8859-9
-	    ..
+            tr_TR.ISO_8859-9
+            ..
             uk_UA.KOI8-U
             ..
             zh_CN.EUC
@@ -887,6 +887,6 @@
             ..
         ..
     ..
-    src             mode=0755 nochange
+    src             nochange
     ..
 ..
