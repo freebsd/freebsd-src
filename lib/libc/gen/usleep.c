@@ -66,7 +66,7 @@ usleep(useconds)
 		time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
 		time_to_sleep.tv_sec = useconds / 1000000;
 		do {
-			nanosleep(&time_to_sleep, &time_remaining);
+			(void)nanosleep(&time_to_sleep, &time_remaining);
 			time_to_sleep = time_remaining;
 		} while (time_to_sleep.tv_sec != 0 ||
 			 time_to_sleep.tv_nsec != 0);
@@ -85,7 +85,8 @@ usleep(useconds)
 		/* Block SIGALRM while fiddling with it */
 		sigemptyset(&mask);
 		sigaddset(&mask, SIGALRM);
-		sigprocmask(SIG_BLOCK, &mask, &omask);
+		if (sigprocmask(SIG_BLOCK, &mask, &omask))
+			return;
 
 		alarm_termination = 0;
 
@@ -99,7 +100,11 @@ usleep(useconds)
 			 */
 			memset(&act, 0, sizeof(act));
 			act.sa_handler = sleephandler;
-			sigaction(SIGALRM, &act, &oact);
+			if (sigaction(SIGALRM, &act, &oact)) {
+				(void)sigprocmask(SIG_SETMASK, &omask,
+						  (sigset_t *)0);
+				return;
+			}
 		}
 
   		/*
@@ -111,7 +116,8 @@ usleep(useconds)
 		 * gets what it asks for.
   		 */
 		do {
-			signanosleep(&time_to_sleep, &time_remaining, &omask);
+			(void)signanosleep(&time_to_sleep, &time_remaining,
+					   &omask);
 			time_to_sleep = time_remaining;
 		} while (!alarm_termination &&
 			 (time_to_sleep.tv_sec != 0 ||
@@ -119,8 +125,8 @@ usleep(useconds)
 
 		if (!alarm_blocked) {
 			/* Unwind */
-			sigaction(SIGALRM, &oact, (struct sigaction *)0);
-			sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
+			(void)sigaction(SIGALRM, &oact, (struct sigaction *)0);
+			(void)sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
 		}
 	}
 #endif	/* _THREAD_SAFE */
