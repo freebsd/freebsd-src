@@ -52,6 +52,7 @@
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <miscfs/umapfs/umap.h>
+#include <vm/vm_zone.h>
 
 static MALLOC_DEFINE(M_UMAPFSMNT, "UMAP mount", "UMAP mount structure");
 
@@ -129,6 +130,7 @@ umapfs_mount(mp, path, data, ndp, p)
 	error = namei(ndp);
 	if (error)
 		return (error);
+	NDFREE(ndp, NDF_ONLY_PNBUF);
 
 	/*
 	 * Sanity check on lower vnode

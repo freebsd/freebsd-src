@@ -93,7 +93,6 @@ static int msdosfs_mkdir __P((struct vop_mkdir_args *));
 static int msdosfs_rmdir __P((struct vop_rmdir_args *));
 static int msdosfs_symlink __P((struct vop_symlink_args *));
 static int msdosfs_readdir __P((struct vop_readdir_args *));
-static int msdosfs_abortop __P((struct vop_abortop_args *));
 static int msdosfs_bmap __P((struct vop_bmap_args *));
 static int msdosfs_strategy __P((struct vop_strategy_args *));
 static int msdosfs_print __P((struct vop_print_args *));
@@ -185,13 +184,10 @@ msdosfs_create(ap)
 	error = createde(&ndirent, pdep, &dep, cnp);
 	if (error)
 		goto bad;
-	if ((cnp->cn_flags & SAVESTART) == 0)
-		zfree(namei_zone, cnp->cn_pnbuf);
 	*ap->a_vpp = DETOV(dep);
 	return (0);
 
 bad:
-	zfree(namei_zone, cnp->cn_pnbuf);
 	return (error);
 }
 
@@ -215,7 +211,6 @@ msdosfs_mknod(ap)
 		break;
 
 	default:
-		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 		return (EINVAL);
 	}
 	/* NOTREACHED */
@@ -906,7 +901,6 @@ msdosfs_link(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	VOP_ABORTOP(ap->a_tdvp, ap->a_cnp);
 	return (EOPNOTSUPP);
 }
 
@@ -1015,14 +1009,12 @@ msdosfs_rename(ap)
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
 		error = EXDEV;
 abortit:
-		VOP_ABORTOP(tdvp, tcnp);
 		if (tdvp == tvp)
 			vrele(tdvp);
 		else
 			vput(tdvp);
 		if (tvp)
 			vput(tvp);
-		VOP_ABORTOP(fdvp, fcnp);
 		vrele(fdvp);
 		vrele(fvp);
 		return (error);
@@ -1420,15 +1412,12 @@ msdosfs_mkdir(ap)
 	error = createde(&ndirent, pdep, &dep, cnp);
 	if (error)
 		goto bad;
-	if ((cnp->cn_flags & SAVESTART) == 0)
-		zfree(namei_zone, cnp->cn_pnbuf);
 	*ap->a_vpp = DETOV(dep);
 	return (0);
 
 bad:
 	clusterfree(pmp, newcluster, NULL);
 bad2:
-	zfree(namei_zone, cnp->cn_pnbuf);
 	return (error);
 }
 
@@ -1504,8 +1493,6 @@ msdosfs_symlink(ap)
 		char *a_target;
 	} */ *ap;
 {
-	zfree(namei_zone, ap->a_cnp->cn_pnbuf);
-	/* VOP_ABORTOP(ap->a_dvp, ap->a_cnp); ??? */
 	return (EOPNOTSUPP);
 }
 
@@ -1776,18 +1763,6 @@ out:
 	return (error);
 }
 
-static int
-msdosfs_abortop(ap)
-	struct vop_abortop_args /* {
-		struct vnode *a_dvp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
-	return (0);
-}
-
 /*
  * vp  - address of vnode file the file
  * bn  - which cluster we are interested in mapping to a filesystem block number.
@@ -1950,7 +1925,6 @@ msdosfs_putpages(ap)
 vop_t **msdosfs_vnodeop_p;
 static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_abortop_desc,		(vop_t *) msdosfs_abortop },
 	{ &vop_access_desc,		(vop_t *) msdosfs_access },
 	{ &vop_bmap_desc,		(vop_t *) msdosfs_bmap },
 	{ &vop_cachedlookup_desc,	(vop_t *) msdosfs_lookup },

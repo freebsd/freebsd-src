@@ -38,9 +38,8 @@
 #include <machine/elf.h>
 
 #include <vm/vm.h>
-#ifdef SPARSE_MAPPING
-#endif
 #include <vm/vm_param.h>
+#include <vm/vm_zone.h>
 #include <sys/lock.h>
 #ifdef SPARSE_MAPPING
 #include <vm/vm_object.h>
@@ -430,6 +429,7 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     free(pathname, M_LINKER);
     if (error)
 	return error;
+    NDFREE(&nd, NDF_ONLY_PNBUF);
 
     /*
      * Read the elf header from the file.

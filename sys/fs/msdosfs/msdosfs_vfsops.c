@@ -60,6 +60,7 @@
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/stat.h> 				/* defines ALLPERMS */
+#include <vm/vm_zone.h>
 
 #include <msdosfs/bpb.h>
 #include <msdosfs/bootsect.h>
@@ -288,6 +289,7 @@ msdosfs_mount(mp, path, data, ndp, p)
 	if (error)
 		return (error);
 	devvp = ndp->ni_vp;
+	NDFREE(ndp, NDF_ONLY_PNBUF);
 
 	if (!vn_isdisk(devvp)) {
 		vrele(devvp);

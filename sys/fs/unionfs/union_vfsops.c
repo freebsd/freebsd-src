@@ -52,6 +52,7 @@
 #include <sys/malloc.h>
 #include <sys/filedesc.h>
 #include <miscfs/union/union.h>
+#include <vm/vm_zone.h>
 
 static MALLOC_DEFINE(M_UNIONFSMNT, "UNION mount", "UNION mount structure");
 
@@ -144,6 +145,7 @@ union_mount(mp, path, data, ndp, p)
 	if (error)
 		goto bad;
 
+	NDFREE(ndp, NDF_ONLY_PNBUF);
 	upperrootvp = ndp->ni_vp;
 	vrele(ndp->ni_dvp);
 	ndp->ni_dvp = NULL;

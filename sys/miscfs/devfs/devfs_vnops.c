@@ -680,7 +680,6 @@ DBPRINT(("remove\n"));
 	 */
 	if ((error = devfs_vntodn(dvp, &tdp)) != 0) {
 abortit:
-		VOP_ABORTOP(dvp, cnp); 
 		return (error);
 	}
 	if ((error = devfs_vntodn(vp, &tp)) != 0) goto abortit;
@@ -790,7 +789,6 @@ DBPRINT(("link\n"));
 	 || (vp->v_tag != tdvp->v_tag) ) {
 		error = EXDEV;
 abortit:
-		VOP_ABORTOP(tdvp, cnp); 
 		goto out;
 	}
 
@@ -904,14 +902,12 @@ devfs_rename(struct vop_rename_args *ap)
 	 || ((fp->type == DEV_DIR) && (fp->dvm != tdp->dvm ))) {
 		error = EXDEV;
 abortit:
-		VOP_ABORTOP(tdvp, tcnp); 
 		if (tdvp == tvp) /* eh? */
 			vrele(tdvp);
 		else
 			vput(tdvp);
 		if (tvp)
 			vput(tvp);
-		VOP_ABORTOP(fdvp, fcnp); /* XXX, why not in NFS? */
 		vrele(fdvp);
 		vrele(fvp);
 		return (error);
@@ -981,12 +977,10 @@ abortit:
 		}
 
 		/* Release destination completely. */
-		VOP_ABORTOP(tdvp, tcnp);
 		vput(tdvp);
 		vput(tvp);
 
 		/* Delete source. */
-		VOP_ABORTOP(fdvp, fcnp); /*XXX*/
 		vrele(fdvp);
 		vrele(fvp);
 		dev_free_name(fnp);
@@ -1224,22 +1218,6 @@ DBPRINT(("readlink\n"));
 	error = uiomove(lnk_node->by.Slnk.name, lnk_node->by.Slnk.namelen, uio);
 	return error;
 }
-
-#ifdef notyet
-static int
-devfs_abortop(struct vop_abortop_args *ap)
-        /*struct vop_abortop_args {
-                struct vnode *a_dvp;
-                struct componentname *a_cnp;
-        } */
-{
-DBPRINT(("abortop\n"));
-	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
-	return 0;
-}
-#endif /* notyet */
-
 
 static int
 devfs_reclaim(struct vop_reclaim_args *ap)

@@ -24,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -44,6 +46,8 @@
 #include <i386/ibcs2/ibcs2_proto.h>
 #include <i386/ibcs2/ibcs2_util.h>
 #include <i386/ibcs2/ibcs2_utsname.h>
+
+#include <vm/vm_zone.h>
 
 static void bsd_stat2ibcs_stat __P((struct stat *, struct ibcs2_stat *));
 static int  cvt_statfs         __P((struct statfs *, caddr_t, int));
@@ -106,6 +110,7 @@ ibcs2_statfs(p, uap)
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	mp = nd.ni_vp->v_mount;
 	sp = &mp->mnt_stat;
 	vrele(nd.ni_vp);

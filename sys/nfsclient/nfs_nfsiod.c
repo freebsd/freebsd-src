@@ -55,6 +55,7 @@
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/namei.h>
+#include <vm/vm_zone.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -179,6 +180,7 @@ nfssvc(p, uap)
 		error = namei(&nd);
 		if (error)
 			return (error);
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if ((nd.ni_vp->v_flag & VROOT) == 0)
 			error = EINVAL;
 		nmp = VFSTONFS(nd.ni_vp->v_mount);

@@ -44,6 +44,8 @@
 #include <sys/vnode.h>
 #include <sys/sysctl.h>
 
+#include <vm/vm_zone.h>
+
 #ifdef KLD_DEBUG
 int kld_debug = 0;
 #endif
@@ -1017,6 +1019,7 @@ linker_search_path(const char *name)
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, result, p);
 	error = vn_open(&nd, FREAD, 0);
 	if (error == 0) {
+	    NDFREE(&nd, NDF_ONLY_PNBUF);
 	    type = nd.ni_vp->v_type;
 	    VOP_UNLOCK(nd.ni_vp, 0, p);
 	    vn_close(nd.ni_vp, FREAD, p->p_ucred, p);

@@ -39,6 +39,8 @@
 
 #include <i386/linux/linux_util.h>
 
+#include <vm/vm_zone.h>
+
 const char      linux_emul_path[] = "/compat/linux";
 
 /*
@@ -135,6 +137,7 @@ linux_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		if ((error = namei(&ndroot)) != 0) {
 			/* Cannot happen! */
 			free(buf, M_TEMP);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 			vrele(nd.ni_vp);
 			return error;
 		}
@@ -164,13 +167,18 @@ linux_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		free(buf, M_TEMP);
 	}
 
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
-	if (!cflag)
+	if (!cflag) {
+		NDFREE(&ndroot, NDF_ONLY_PNBUF);
 		vrele(ndroot.ni_vp);
+	}
 	return error;
 
 bad:
+	NDFREE(&ndroot, NDF_ONLY_PNBUF);
 	vrele(ndroot.ni_vp);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
 	free(buf, M_TEMP);
 	return error;

@@ -559,7 +559,7 @@ unp_bind(unp, nam, p)
 		return (error);
 	vp = nd.ni_vp;
 	if (vp != NULL) {
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (nd.ni_dvp == vp)
 			vrele(nd.ni_dvp);
 		else
@@ -572,6 +572,7 @@ unp_bind(unp, nam, p)
 	vattr.va_mode = (ACCESSPERMS & ~p->p_fd->fd_cmask);
 	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
 	if (error)
 		return (error);
@@ -608,6 +609,7 @@ unp_connect(so, nam, p)
 	if (error)
 		return (error);
 	vp = nd.ni_vp;
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (vp->v_type != VSOCK) {
 		error = ENOTSOCK;
 		goto bad;

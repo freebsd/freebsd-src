@@ -49,6 +49,8 @@
 #include <i386/ibcs2/ibcs2_xenix.h>
 #include <i386/ibcs2/ibcs2_xenix_syscall.h>
 
+#include <vm/vm_zone.h>
+
 extern struct sysent xenix_sysent[];
 
 int
@@ -218,6 +220,7 @@ xenix_eaccess(struct proc *p, struct xenix_eaccess_args *uap)
                 if ((flags & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
                         error = VOP_ACCESS(vp, flags, cred, p);
         }
+	NDFREE(&nd, NDF_ONLY_PNBUF);
         vput(vp);
         return error;
 }

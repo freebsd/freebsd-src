@@ -53,6 +53,7 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/swap_pager.h>
+#include <vm/vm_zone.h>
 
 /*
  * Indirect driver for multi-controller paging.
@@ -173,6 +174,7 @@ swapon(p, uap)
 	if (error)
 		return (error);
 
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
 	if (!vn_isdisk(vp)) 

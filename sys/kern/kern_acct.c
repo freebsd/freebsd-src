@@ -56,6 +56,8 @@
 #include <sys/resourcevar.h>
 #include <sys/tty.h>
 
+#include <vm/vm_zone.h>
+
 /*
  * The routines implemented in this file are described in:
  *      Leffler, et al.: The Design and Implementation of the 4.3BSD
@@ -133,6 +135,7 @@ acct(a1, uap)
 		error = vn_open(&nd, FWRITE, 0);
 		if (error)
 			return (error);
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		VOP_UNLOCK(nd.ni_vp, 0, p);
 		if (nd.ni_vp->v_type != VREG) {
 			vn_close(nd.ni_vp, FWRITE, p->p_ucred, p);

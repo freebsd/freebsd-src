@@ -142,6 +142,7 @@ mount(p, uap)
 	    SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	if (SCARG(uap, flags) & MNT_UPDATE) {
 		if ((vp->v_flag & VROOT) == 0) {
@@ -264,8 +265,7 @@ mount(p, uap)
 	/*
 	 * Allocate and initialize the filesystem.
 	 */
-	mp = (struct mount *)malloc((u_long)sizeof(struct mount),
-		M_MOUNT, M_WAITOK);
+	mp = malloc(sizeof(struct mount), M_MOUNT, M_WAITOK);
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, p);
@@ -297,6 +297,8 @@ update:
 	    MNT_NOATIME | MNT_NOCLUSTERR | MNT_NOCLUSTERW | MNT_SUIDDIR);
 	/*
 	 * Mount the filesystem.
+	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
+	 * get.  No freeing of cn_pnbuf.
 	 */
 	error = VFS_MOUNT(mp, SCARG(uap, path), SCARG(uap, data), &nd, p);
 	if (mp->mnt_flag & MNT_UPDATE) {
@@ -421,6 +423,7 @@ unmount(p, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	mp = vp->v_mount;
 
 	/*
@@ -602,6 +605,7 @@ quotactl(p, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	mp = nd.ni_vp->v_mount;
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
 	return (VFS_QUOTACTL(mp, SCARG(uap, cmd), SCARG(uap, uid),
 	    SCARG(uap, arg), p));
@@ -636,6 +640,7 @@ statfs(p, uap)
 		return (error);
 	mp = nd.ni_vp->v_mount;
 	sp = &mp->mnt_stat;
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
 	error = VFS_STATFS(mp, sp, p);
 	if (error)
@@ -833,6 +838,7 @@ chdir(p, uap)
 	    SCARG(uap, path), p);
 	if ((error = change_dir(&nd, p)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(fdp->fd_cdir);
 	fdp->fd_cdir = nd.ni_vp;
 	return (0);
@@ -908,6 +914,7 @@ chroot(p, uap)
 	    SCARG(uap, path), p);
 	if ((error = change_dir(&nd, p)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(fdp->fd_rdir);
 	fdp->fd_rdir = nd.ni_vp;
 	if (!fdp->fd_jdir) {
@@ -999,6 +1006,7 @@ open(p, uap)
 		return (error);
 	}
 	p->p_dupfd = 0;
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
 	fp->f_data = (caddr_t)vp;
@@ -1134,20 +1142,18 @@ mknod(p, uap)
 	}
 	if (!error) {
 		VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
-		if (whiteout) {
+		if (whiteout)
 			error = VOP_WHITEOUT(nd.ni_dvp, &nd.ni_cnd, CREATE);
-			if (error)
-				VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-			vput(nd.ni_dvp);
-		} else {
+		else {
 			error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp,
 						&nd.ni_cnd, &vattr);
 			if (error == 0)
 				vput(nd.ni_vp);
-			vput(nd.ni_dvp);
 		}
+		NDFREE(&nd, NDF_ONLY_PNBUF);
+		vput(nd.ni_dvp);
 	} else {
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (nd.ni_dvp == vp)
 			vrele(nd.ni_dvp);
 		else
@@ -1186,7 +1192,7 @@ mkfifo(p, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	if (nd.ni_vp != NULL) {
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (nd.ni_dvp == nd.ni_vp)
 			vrele(nd.ni_dvp);
 		else
@@ -1201,6 +1207,7 @@ mkfifo(p, uap)
 	error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	if (error == 0)
 		vput(nd.ni_vp);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
 	return (error);
 }
@@ -1230,6 +1237,7 @@ link(p, uap)
 	NDINIT(&nd, LOOKUP, FOLLOW|NOOBJ, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	if (vp->v_type == VDIR)
 		error = EPERM;		/* POSIX */
@@ -1238,7 +1246,6 @@ link(p, uap)
 		error = namei(&nd);
 		if (!error) {
 			if (nd.ni_vp != NULL) {
-				VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 				if (nd.ni_vp)
 					vrele(nd.ni_vp);
 				error = EEXIST;
@@ -1248,6 +1255,7 @@ link(p, uap)
 				VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
 				error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
 			}
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 			if (nd.ni_dvp == nd.ni_vp)
 				vrele(nd.ni_dvp);
 			else
@@ -1290,7 +1298,7 @@ symlink(p, uap)
 	if ((error = namei(&nd)) != 0)
 		goto out;
 	if (nd.ni_vp) {
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (nd.ni_dvp == nd.ni_vp)
 			vrele(nd.ni_dvp);
 		else
@@ -1303,6 +1311,7 @@ symlink(p, uap)
 	vattr.va_mode = ACCESSPERMS &~ p->p_fd->fd_cmask;
 	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr, path);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error == 0)
 		vput(nd.ni_vp);
 	vput(nd.ni_dvp);
@@ -1334,7 +1343,7 @@ undelete(p, uap)
 		return (error);
 
 	if (nd.ni_vp != NULLVP || !(nd.ni_cnd.cn_flags & ISWHITEOUT)) {
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (nd.ni_dvp == nd.ni_vp)
 			vrele(nd.ni_dvp);
 		else
@@ -1345,8 +1354,8 @@ undelete(p, uap)
 	}
 
 	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
-	if ((error = VOP_WHITEOUT(nd.ni_dvp, &nd.ni_cnd, DELETE)) != 0)
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
+	error = VOP_WHITEOUT(nd.ni_dvp, &nd.ni_cnd, DELETE);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
 	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "undelete");
 	ASSERT_VOP_UNLOCKED(nd.ni_vp, "undelete");
@@ -1395,9 +1404,8 @@ unlink(p, uap)
 	if (!error) {
 		VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 		error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
-	} else {
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_dvp == vp)
 		vrele(nd.ni_dvp);
 	else
@@ -1541,6 +1549,7 @@ access(p, uap)
 		if ((flags & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
 			error = VOP_ACCESS(vp, flags, cred, p);
 	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 out1:
 	cred->cr_uid = t_uid;
@@ -1576,6 +1585,7 @@ ostat(p, uap)
 	    SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = vn_stat(nd.ni_vp, &sb, p);
 	vput(nd.ni_vp);
 	if (error)
@@ -1615,6 +1625,7 @@ olstat(p, uap)
 		return (error);
 	vp = nd.ni_vp;
 	error = vn_stat(vp, &sb, p);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 	if (error)
 		return (error);
@@ -1680,6 +1691,7 @@ stat(p, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	error = vn_stat(nd.ni_vp, &sb, p);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
@@ -1716,6 +1728,7 @@ lstat(p, uap)
 		return (error);
 	vp = nd.ni_vp;
 	error = vn_stat(vp, &sb, p);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 	if (error)
 		return (error);
@@ -1771,6 +1784,7 @@ nstat(p, uap)
 	    SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = vn_stat(nd.ni_vp, &sb, p);
 	vput(nd.ni_vp);
 	if (error)
@@ -1809,6 +1823,7 @@ nlstat(p, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = vn_stat(vp, &sb, p);
 	vput(vp);
 	if (error)
@@ -1843,6 +1858,7 @@ pathconf(p, uap)
 	    SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = VOP_PATHCONF(nd.ni_vp, SCARG(uap, name), p->p_retval);
 	vput(nd.ni_vp);
 	return (error);
@@ -1878,6 +1894,7 @@ readlink(p, uap)
 	    SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	if (vp->v_type != VLNK)
 		error = EINVAL;
@@ -1950,6 +1967,7 @@ chflags(p, uap)
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = setfflags(p, nd.ni_vp, SCARG(uap, flags));
 	vrele(nd.ni_vp);
 	return error;
@@ -2023,6 +2041,7 @@ chmod(p, uap)
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = setfmode(p, nd.ni_vp, SCARG(uap, mode));
 	vrele(nd.ni_vp);
 	return error;
@@ -2052,6 +2071,7 @@ lchmod(p, uap)
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = setfmode(p, nd.ni_vp, SCARG(uap, mode));
 	vrele(nd.ni_vp);
 	return error;
@@ -2129,9 +2149,9 @@ chown(p, uap)
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = setfown(p, nd.ni_vp, SCARG(uap, uid), SCARG(uap, gid));
 	vrele(nd.ni_vp);
-
 	return (error);
 }
 
@@ -2161,6 +2181,7 @@ lchown(p, uap)
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = setfown(p, nd.ni_vp, SCARG(uap, uid), SCARG(uap, gid));
 	vrele(nd.ni_vp);
 	return (error);
@@ -2267,6 +2288,7 @@ utimes(p, uap)
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = setutimes(p, nd.ni_vp, ts, usrtvp == NULL);
 	vrele(nd.ni_vp);
 	return (error);
@@ -2301,6 +2323,7 @@ lutimes(p, uap)
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = setutimes(p, nd.ni_vp, ts, usrtvp == NULL);
 	vrele(nd.ni_vp);
 	return (error);
@@ -2368,6 +2391,7 @@ truncate(p, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	if (vp->v_type == VDIR)
@@ -2557,7 +2581,7 @@ rename(p, uap)
 		/* Translate error code for rename("dir1", "dir2/."). */
 		if (error == EISDIR && fvp->v_type == VDIR)
 			error = EINVAL;
-		VOP_ABORTOP(fromnd.ni_dvp, &fromnd.ni_cnd);
+		NDFREE(&fromnd, NDF_ONLY_PNBUF);
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
 		goto out1;
@@ -2596,15 +2620,17 @@ out:
 		}
 		error = VOP_RENAME(fromnd.ni_dvp, fromnd.ni_vp, &fromnd.ni_cnd,
 				   tond.ni_dvp, tond.ni_vp, &tond.ni_cnd);
+		NDFREE(&fromnd, NDF_ONLY_PNBUF);
+		NDFREE(&tond, NDF_ONLY_PNBUF);
 	} else {
-		VOP_ABORTOP(tond.ni_dvp, &tond.ni_cnd);
+		NDFREE(&fromnd, NDF_ONLY_PNBUF);
+		NDFREE(&tond, NDF_ONLY_PNBUF);
 		if (tdvp == tvp)
 			vrele(tdvp);
 		else
 			vput(tdvp);
 		if (tvp)
 			vput(tvp);
-		VOP_ABORTOP(fromnd.ni_dvp, &fromnd.ni_cnd);
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
 	}
@@ -2613,11 +2639,9 @@ out:
 	ASSERT_VOP_UNLOCKED(fromnd.ni_vp, "rename");
 	ASSERT_VOP_UNLOCKED(tond.ni_dvp, "rename");
 	ASSERT_VOP_UNLOCKED(tond.ni_vp, "rename");
-	zfree(namei_zone, tond.ni_cnd.cn_pnbuf);
 out1:
 	if (fromnd.ni_startdir)
 		vrele(fromnd.ni_startdir);
-	zfree(namei_zone, fromnd.ni_cnd.cn_pnbuf);
 	if (error == -1)
 		return (0);
 	return (error);
@@ -2652,7 +2676,7 @@ mkdir(p, uap)
 		return (error);
 	vp = nd.ni_vp;
 	if (vp != NULL) {
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (nd.ni_dvp == vp)
 			vrele(nd.ni_dvp);
 		else
@@ -2665,6 +2689,7 @@ mkdir(p, uap)
 	vattr.va_mode = (SCARG(uap, mode) & ACCESSPERMS) &~ p->p_fd->fd_cmask;
 	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 	error = VOP_MKDIR(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
 	if (!error)
 		vput(nd.ni_vp);
@@ -2714,14 +2739,13 @@ rmdir(p, uap)
 	 */
 	if (vp->v_flag & VROOT)
 		error = EBUSY;
-out:
-	if (!error) {
+	else {
 		VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 		VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
 		error = VOP_RMDIR(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
-	} else {
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 	}
+out:
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_dvp == vp)
 		vrele(nd.ni_dvp);
 	else
@@ -3013,6 +3037,7 @@ revoke(p, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (vp->v_type != VCHR && vp->v_type != VBLK) {
 		error = EINVAL;
 		goto out;
@@ -3077,6 +3102,7 @@ getfh(p, uap)
 	error = namei(&nd);
 	if (error)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	bzero(&fh, sizeof(fh));
 	fh.fh_fsid = vp->v_mount->mnt_stat.f_fsid;

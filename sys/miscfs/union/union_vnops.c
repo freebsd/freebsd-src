@@ -67,7 +67,6 @@ SYSCTL_INT(_vfs, OID_AUTO, uniondebug, CTLFLAG_RW, &uniondebug, 0, "");
 SYSCTL_INT(_vfs, OID_AUTO, uniondebug, CTLFLAG_RD, &uniondebug, 0, "");
 #endif
 
-static int	union_abortop __P((struct vop_abortop_args *ap));
 static int	union_access __P((struct vop_access_args *ap));
 static int	union_advlock __P((struct vop_advlock_args *ap));
 static int	union_bmap __P((struct vop_bmap_args *ap));
@@ -1682,43 +1681,6 @@ union_readlink(ap)
 }
 
 /*
- *	union_abortop:
- *
- *	dvp is locked on entry and left locked on return
- *
- */
-
-static int
-union_abortop(ap)
-	struct vop_abortop_args /* {
-		struct vnode *a_dvp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-	struct componentname *cnp = ap->a_cnp;
-	struct proc *p = cnp->cn_proc;
-	struct union_node *un = VTOUNION(ap->a_dvp);
-	int islocked = VOP_ISLOCKED(ap->a_dvp, NULL);
-	struct vnode *vp;
-	int error;
-
-	if (islocked) {
-		vp = union_lock_other(un, p);
-	} else {
-		vp = OTHERVP(ap->a_dvp);
-	}
-	KASSERT(vp != NULL, ("union_abortop: backing vnode missing!"));
-
-	ap->a_dvp = vp;
-	error = VCALL(vp, VOFFSET(vop_abortop), ap);
-
-	if (islocked)
-		union_unlock_other(vp, p);
-
-	return (error);
-}
-
-/*
  *	union_inactive:
  *
  *	Called with the vnode locked.  We are expected to unlock the vnode.
@@ -1974,7 +1936,6 @@ union_strategy(ap)
 vop_t **union_vnodeop_p;
 static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_abortop_desc,		(vop_t *) union_abortop },
 	{ &vop_access_desc,		(vop_t *) union_access },
 	{ &vop_advlock_desc,		(vop_t *) union_advlock },
 	{ &vop_bmap_desc,		(vop_t *) union_bmap },

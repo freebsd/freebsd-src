@@ -54,6 +54,8 @@
 #include <sys/stat.h>
 #include <sys/syslog.h>
 
+#include <vm/vm_zone.h>
+
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/iso_rrip.h>
 #include <isofs/cd9660/cd9660_node.h>
@@ -209,6 +211,7 @@ cd9660_mount(mp, path, data, ndp, p)
 	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, p);
 	if ((error = namei(ndp)))
 		return (error);
+	NDFREE(ndp, NDF_ONLY_PNBUF);
 	devvp = ndp->ni_vp;
 
 	if (!vn_isdisk(devvp)) {
