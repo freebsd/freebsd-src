@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.13 1999/07/29 01:49:17 msmith Exp $
+ *      $Id: bios.c,v 1.14 1999/07/29 06:48:26 msmith Exp $
  */
 
 /*
@@ -53,9 +53,9 @@ struct bios32_SDentry		PCIbios = {entry : 0};
 static struct SMBIOS_table	*SMBIOStable = 0;
 static struct DMI_table		*DMItable = 0;
 
-static u_int		bios32_SDCI = 0;
+static u_int			bios32_SDCI = 0;
 
-static void		bios32_init(void *junk);
+static void			bios32_init(void *junk);
 
 /* start fairly early */
 SYSINIT(bios32, SI_SUB_CPU, SI_ORDER_ANY, bios32_init, NULL);
@@ -174,21 +174,21 @@ bios32_init(void *junk)
 int
 bios32_SDlookup(struct bios32_SDentry *ent)
 {
-	struct bios_regs args;
+    struct bios_regs args;
 
-	if (bios32_SDCI == 0)
-		return (1);
+    if (bios32_SDCI == 0)
+	return (1);
 
-	args.eax = ent->ident.id;		/* set up arguments */
-	args.ebx = args.ecx = args.edx = 0;
-	bios32(&args, bios32_SDCI, GSEL(GCODE_SEL, SEL_KPL));
-	if ((args.eax & 0xff) == 0) {		/* success? */
-		ent->base = args.ebx;
-		ent->len = args.ecx;
-		ent->entry = args.edx;
-		return (0);			/* all OK */
-	}
-	return (1);				/* failed */
+    args.eax = ent->ident.id;		/* set up arguments */
+    args.ebx = args.ecx = args.edx = 0;
+    bios32(&args, bios32_SDCI, GSEL(GCODE_SEL, SEL_KPL));
+    if ((args.eax & 0xff) == 0) {	/* success? */
+	ent->base = args.ebx;
+	ent->len = args.ecx;
+	ent->entry = args.edx;
+	return (0);			/* all OK */
+    }
+    return (1);				/* failed */
 }
 
 
@@ -245,66 +245,66 @@ bios_sigsearch(u_int32_t start, u_char *sig, int siglen, int paralen, int sigofs
  * do not staticize, used by bioscall.s
  */
 union {
-	struct {
-		u_short	offset;
-		u_short	segment;
-	} vec16;
-	struct {
-		u_int	offset;
-		u_short	segment;
-	} vec32;
+    struct {
+	u_short	offset;
+	u_short	segment;
+    } vec16;
+    struct {
+	u_int	offset;
+	u_short	segment;
+    } vec32;
 } bioscall_vector;			/* bios jump vector */
 
 void
 set_bios_selectors(struct bios_segments *seg, int flags)
 {
-	static u_int curgen = 1;
-	struct soft_segment_descriptor ssd = {
-		0,			/* segment base address (overwritten) */
-		0,			/* length (overwritten) */
-		SDT_MEMERA,		/* segment type (overwritten) */
-		0,			/* priority level */
-		1,			/* descriptor present */
-		0, 0,
-		1,			/* descriptor size (overwritten) */
-		0			/* granularity == byte units */
-	};
+    static u_int curgen = 1;
+    struct soft_segment_descriptor ssd = {
+	0,			/* segment base address (overwritten) */
+	0,			/* length (overwritten) */
+	SDT_MEMERA,		/* segment type (overwritten) */
+	0,			/* priority level */
+	1,			/* descriptor present */
+	0, 0,
+	1,			/* descriptor size (overwritten) */
+	0			/* granularity == byte units */
+    };
 
-	if (seg->generation == curgen)
-		return;
-	if (++curgen == 0)
-		curgen = 1;
-	seg->generation = curgen;
+    if (seg->generation == curgen)
+	return;
+    if (++curgen == 0)
+	curgen = 1;
+    seg->generation = curgen;
 	
-	ssd.ssd_base = seg->code32.base;
-	ssd.ssd_limit = seg->code32.limit;
-	ssdtosd(&ssd, &gdt[GBIOSCODE32_SEL].sd);
+    ssd.ssd_base = seg->code32.base;
+    ssd.ssd_limit = seg->code32.limit;
+    ssdtosd(&ssd, &gdt[GBIOSCODE32_SEL].sd);
 
-	ssd.ssd_def32 = 0;
-	if (flags & BIOSCODE_FLAG) {
-		ssd.ssd_base = seg->code16.base;
-		ssd.ssd_limit = seg->code16.limit;
-		ssdtosd(&ssd, &gdt[GBIOSCODE16_SEL].sd);
-	}
+    ssd.ssd_def32 = 0;
+    if (flags & BIOSCODE_FLAG) {
+	ssd.ssd_base = seg->code16.base;
+	ssd.ssd_limit = seg->code16.limit;
+	ssdtosd(&ssd, &gdt[GBIOSCODE16_SEL].sd);
+    }
 
-	ssd.ssd_type = SDT_MEMRWA;
-	if (flags & BIOSDATA_FLAG) {
-		ssd.ssd_base = seg->data.base;
-		ssd.ssd_limit = seg->data.limit;
-		ssdtosd(&ssd, &gdt[GBIOSDATA_SEL].sd);
-	}
+    ssd.ssd_type = SDT_MEMRWA;
+    if (flags & BIOSDATA_FLAG) {
+	ssd.ssd_base = seg->data.base;
+	ssd.ssd_limit = seg->data.limit;
+	ssdtosd(&ssd, &gdt[GBIOSDATA_SEL].sd);
+    }
 
-	if (flags & BIOSUTIL_FLAG) {
-		ssd.ssd_base = seg->util.base;
-		ssd.ssd_limit = seg->util.limit;
-		ssdtosd(&ssd, &gdt[GBIOSUTIL_SEL].sd);
-	}
+    if (flags & BIOSUTIL_FLAG) {
+	ssd.ssd_base = seg->util.base;
+	ssd.ssd_limit = seg->util.limit;
+	ssdtosd(&ssd, &gdt[GBIOSUTIL_SEL].sd);
+    }
 
-	if (flags & BIOSARGS_FLAG) {
-		ssd.ssd_base = seg->args.base;
-		ssd.ssd_limit = seg->args.limit;
-		ssdtosd(&ssd, &gdt[GBIOSARGS_SEL].sd);
-	}
+    if (flags & BIOSARGS_FLAG) {
+	ssd.ssd_base = seg->args.base;
+	ssd.ssd_limit = seg->args.limit;
+	ssdtosd(&ssd, &gdt[GBIOSARGS_SEL].sd);
+    }
 }
 
 /*
@@ -333,143 +333,141 @@ extern int vm86pa;
 int
 bios16(struct bios_args *args, char *fmt, ...)
 {
-	char *p, *stack, *stack_top;
-	va_list ap;
-	int flags = BIOSCODE_FLAG | BIOSDATA_FLAG;
-	u_int i, arg_start, arg_end;
-	u_int *pte, *ptd;
+    char	*p, *stack, *stack_top;
+    va_list 	ap;
+    int 	flags = BIOSCODE_FLAG | BIOSDATA_FLAG;
+    u_int 	i, arg_start, arg_end;
+    u_int 	*pte, *ptd;
 
-	arg_start = 0xffffffff;
-	arg_end = 0;
+    arg_start = 0xffffffff;
+    arg_end = 0;
 
-	stack = (caddr_t)PAGE_SIZE;
-	va_start(ap, fmt);
-	for (p = fmt; p && *p; p++) {
-		switch (*p) {
-		case 'p':			/* 32-bit pointer */
-			i = va_arg(ap, u_int);
-			arg_start = min(arg_start, i);
-			arg_end = max(arg_end, i + ASSUMED_ARGSIZE);
-			flags |= BIOSARGS_FLAG;
-			stack -= 4;
-			break;
+    stack = (caddr_t)PAGE_SIZE;
+    va_start(ap, fmt);
+    for (p = fmt; p && *p; p++) {
+	switch (*p) {
+	case 'p':			/* 32-bit pointer */
+	    i = va_arg(ap, u_int);
+	    arg_start = min(arg_start, i);
+	    arg_end = max(arg_end, i + ASSUMED_ARGSIZE);
+	    flags |= BIOSARGS_FLAG;
+	    stack -= 4;
+	    break;
 
-		case 'i':			/* 32-bit integer */
-			i = va_arg(ap, u_int);
-			stack -= 4;
-			break;
+	case 'i':			/* 32-bit integer */
+	    i = va_arg(ap, u_int);
+	    stack -= 4;
+	    break;
 
-		case 'U':			/* 16-bit selector */
-			flags |= BIOSUTIL_FLAG;
-			/* FALL THROUGH */
-		case 'D':			/* 16-bit selector */
-		case 'C':			/* 16-bit selector */
-		case 's':			/* 16-bit integer */
-			i = va_arg(ap, u_short);
-			stack -= 2;
-			break;
+	case 'U':			/* 16-bit selector */
+	    flags |= BIOSUTIL_FLAG;
+	    /* FALLTHROUGH */
+	case 'D':			/* 16-bit selector */
+	case 'C':			/* 16-bit selector */
+	case 's':			/* 16-bit integer */
+	    i = va_arg(ap, u_short);
+	    stack -= 2;
+	    break;
 
-		default:
-			return (EINVAL);
-		}
+	default:
+	    return (EINVAL);
 	}
+    }
 
-	if (flags & BIOSARGS_FLAG) {
-		if (arg_end - arg_start > ctob(16))
-			return (EACCES);
-		args->seg.args.base = arg_start;
-		args->seg.args.limit = arg_end - arg_start;
-	}
+    if (flags & BIOSARGS_FLAG) {
+	if (arg_end - arg_start > ctob(16))
+	    return (EACCES);
+	args->seg.args.base = arg_start;
+	args->seg.args.limit = arg_end - arg_start;
+    }
 
-	args->seg.code32.base = (u_int)&bios16_call & PG_FRAME;
-	args->seg.code32.limit = 0xffff;	
+    args->seg.code32.base = (u_int)&bios16_call & PG_FRAME;
+    args->seg.code32.limit = 0xffff;	
 
-	ptd = (u_int *)rcr3();
-	if (ptd == IdlePTD)
-	{
-		/*
-		 * no page table, so create one and install it.
-		 */
-		pte = (u_int *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
-		ptd = (u_int *)((u_int)ptd + KERNBASE);
-		*ptd = vtophys(pte) | PG_RW | PG_V;
-	} else {
-		/*
-		 * this is a user-level page table 
-		 */
-		pte = (u_int *)&PTmap;
-	}
+    ptd = (u_int *)rcr3();
+    if (ptd == IdlePTD) {
 	/*
-	 * install pointer to page 0.  we don't need to flush the tlb,
-	 * since there should not be a previous mapping for page 0.
+	 * no page table, so create one and install it.
 	 */
-	*pte = (vm86pa - PAGE_SIZE) | PG_RW | PG_V; 
-
-	stack_top = stack;
-	va_start(ap, fmt);
-	for (p = fmt; p && *p; p++) {
-		switch (*p) {
-		case 'p':			/* 32-bit pointer */
-			i = va_arg(ap, u_int);
-			*(u_int *)stack = (i - arg_start) |
-			    (GSEL(GBIOSARGS_SEL, SEL_KPL) << 16);
-			stack += 4;
-			break;
-
-		case 'i':			/* 32-bit integer */
-			i = va_arg(ap, u_int);
-			*(u_int *)stack = i;
-			stack += 4;
-			break;
-
-		case 'U':			/* 16-bit selector */
-			i = va_arg(ap, u_short);
-			*(u_short *)stack = GSEL(GBIOSUTIL_SEL, SEL_KPL);
-			stack += 2;
-			break;
-
-		case 'D':			/* 16-bit selector */
-			i = va_arg(ap, u_short);
-			*(u_short *)stack = GSEL(GBIOSDATA_SEL, SEL_KPL);
-			stack += 2;
-			break;
-
-		case 'C':			/* 16-bit selector */
-			i = va_arg(ap, u_short);
-			*(u_short *)stack = GSEL(GBIOSCODE16_SEL, SEL_KPL);
-			stack += 2;
-			break;
-
-		case 's':			/* 16-bit integer */
-			i = va_arg(ap, u_short);
-			*(u_short *)stack = i;
-			stack += 2;
-			break;
-
-		default:
-			return (EINVAL);
-		}
-	}
-
-	args->seg.generation = 0;			/* reload selectors */
-	set_bios_selectors(&args->seg, flags);
-	bioscall_vector.vec16.offset = (u_short)args->entry;
-	bioscall_vector.vec16.segment = GSEL(GBIOSCODE16_SEL, SEL_KPL);
-
-	i = bios16_call(&args->r, stack_top);
-
-	if (pte == (u_int *)&PTmap) {
-		*pte = 0;			/* remove entry */
-	} else {
-		*ptd = 0;			/* remove page table */
-		free(pte, M_TEMP);		/* ... and free it */
-	}
-
-
+	pte = (u_int *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+	ptd = (u_int *)((u_int)ptd + KERNBASE);
+	*ptd = vtophys(pte) | PG_RW | PG_V;
+    } else {
 	/*
-	 * XXX only needs to be invlpg(0) but that doesn't work on the 386 
+	 * this is a user-level page table 
 	 */
-	invltlb();
+	pte = (u_int *)&PTmap;
+    }
+    /*
+     * install pointer to page 0.  we don't need to flush the tlb,
+     * since there should not be a previous mapping for page 0.
+     */
+    *pte = (vm86pa - PAGE_SIZE) | PG_RW | PG_V; 
 
-	return (i);
+    stack_top = stack;
+    va_start(ap, fmt);
+    for (p = fmt; p && *p; p++) {
+	switch (*p) {
+	case 'p':			/* 32-bit pointer */
+	    i = va_arg(ap, u_int);
+	    *(u_int *)stack = (i - arg_start) |
+		(GSEL(GBIOSARGS_SEL, SEL_KPL) << 16);
+	    stack += 4;
+	    break;
+
+	case 'i':			/* 32-bit integer */
+	    i = va_arg(ap, u_int);
+	    *(u_int *)stack = i;
+	    stack += 4;
+	    break;
+
+	case 'U':			/* 16-bit selector */
+	    i = va_arg(ap, u_short);
+	    *(u_short *)stack = GSEL(GBIOSUTIL_SEL, SEL_KPL);
+	    stack += 2;
+	    break;
+
+	case 'D':			/* 16-bit selector */
+	    i = va_arg(ap, u_short);
+	    *(u_short *)stack = GSEL(GBIOSDATA_SEL, SEL_KPL);
+	    stack += 2;
+	    break;
+
+	case 'C':			/* 16-bit selector */
+	    i = va_arg(ap, u_short);
+	    *(u_short *)stack = GSEL(GBIOSCODE16_SEL, SEL_KPL);
+	    stack += 2;
+	    break;
+
+	case 's':			/* 16-bit integer */
+	    i = va_arg(ap, u_short);
+	    *(u_short *)stack = i;
+	    stack += 2;
+	    break;
+
+	default:
+	    return (EINVAL);
+	}
+    }
+
+    args->seg.generation = 0;			/* reload selectors */
+    set_bios_selectors(&args->seg, flags);
+    bioscall_vector.vec16.offset = (u_short)args->entry;
+    bioscall_vector.vec16.segment = GSEL(GBIOSCODE16_SEL, SEL_KPL);
+
+    i = bios16_call(&args->r, stack_top);
+    
+    if (pte == (u_int *)&PTmap) {
+	*pte = 0;			/* remove entry */
+    } else {
+	*ptd = 0;			/* remove page table */
+	free(pte, M_TEMP);		/* ... and free it */
+    }
+
+    /*
+     * XXX only needs to be invlpg(0) but that doesn't work on the 386 
+     */
+    invltlb();
+
+    return (i);
 }
