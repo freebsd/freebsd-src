@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.42 1996/12/19 00:43:27 jkh Exp $ -->
+<!-- $Id: install.sgml,v 1.43 1996/12/19 21:39:07 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -339,6 +339,9 @@ Boot:
 	    <item>SDL Communications RISCom/N2 and N2pci sync serial cards.
 
 	    <item>Digiboard Sync/570i high-speed sync serial card.
+	
+	    <item>Decision-Computer Intl. "Eight-Serial" 8 port serial cards 
+                  using shared IRQ.
 
 	    <item>Adlib, SoundBlaster, SoundBlaster Pro,
 	      ProAudioSpectrum, Gravis UltraSound, Gravis UltraSound MAX
