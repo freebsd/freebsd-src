@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.14 1997/08/04 17:19:17 smp Exp smp $
+ * $Id: mplock.s,v 1.15 1997/08/10 20:51:52 smp Exp smp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -40,6 +40,25 @@ _tryhits:        9938            2196d           44cc
 #define FREE_FIRST
 #define GLPROFILE
 
+#ifdef CHEAP_TPR
+
+/* we assumme that the 'reserved bits' can be written with zeros */
+
+#else /* CHEAP_TPR */
+
+#error HEADS UP: this code needs work
+/*
+ * The APIC doc says that reserved bits must be written with whatever
+ * value they currently contain, ie you should:	read, modify, write,
+ * instead of just writing new values to the TPR register.  Current
+ * silicon seems happy with just writing.  If the behaviour of the
+ * silicon changes, all code that access the lapic_tpr must be modified.
+ * The last version to contain such code was:
+ *   $Id: mplock.s,v 1.15 1997/08/10 20:51:52 smp Exp smp $
+ */
+
+#endif /* CHEAP_TPR */
+
 #ifdef GRAB_LOPRIO
 /*
  * Claim LOWest PRIOrity, ie. attempt to grab ALL INTerrupts.
@@ -48,44 +67,20 @@ _tryhits:        9938            2196d           44cc
 /* location of saved TPR on stack */
 #define TPR_TARGET		12(%esp)
 
-/* we assumme that the 'reserved bits' can be written with zeros */
-#ifdef CHEAP_TPR
-
 /* after 1st acquire of lock we attempt to grab all hardware INTs */
-#define GRAB_HWI \
-	movl	$ALLHWI_LEVEL, TPR_TARGET	/* task prio to 'all HWI' */
-
-#define GRAB_HWI_2 \
-	movl	$ALLHWI_LEVEL, lapic_tpr	/* task prio to 'all HWI' */
+#define GRAB_HWI	movl	$ALLHWI_LEVEL, TPR_TARGET
+#define GRAB_HWI_2	movl	$ALLHWI_LEVEL, lapic_tpr /* CHEAP_TPR */
 
 /* after last release of lock give up LOW PRIO (ie, arbitrate INTerrupts) */
-#define ARB_HWI \
-	movl	$LOPRIO_LEVEL, lapic_tpr	/* task prio to 'arbitrate' */
+#define ARB_HWI		movl	$LOPRIO_LEVEL, lapic_tpr /* CHEAP_TPR */
 
-#else /** CHEAP_TPR */
+#else /* GRAB_LOPRIO */
 
-#define GRAB_HWI \
-	andl	$~APIC_TPR_PRIO, TPR_TARGET	/* task prio to 'all HWI' */
+#define GRAB_HWI	/* nop */
+#define GRAB_HWI_2	/* nop */
+#define ARB_HWI		/* nop */
 
-#define GRAB_HWI_2 \
-	andl	$~APIC_TPR_PRIO, lapic_tpr	/* task prio to 'all HWI' */
-
-#define ARB_HWI								\
-	movl	lapic_tpr, %eax ;		/* TPR */		\
-	andl	$~APIC_TPR_PRIO, %eax ;		/* clear TPR field */	\
-	orl	$LOPRIO_LEVEL, %eax ;		/* prio to arbitrate */	\
-	movl	%eax, lapic_tpr ;		/* set it */		\
-  	movl	(%edx), %eax			/* reload %eax with lock */
-
-#endif /** CHEAP_TPR */
-
-#else /** GRAB_LOPRIO */
-
-#define GRAB_HWI				/* nop */
-#define GRAB_HWI_2				/* nop */
-#define ARB_HWI					/* nop */
-
-#endif /** GRAB_LOPRIO */
+#endif /* GRAB_LOPRIO */
 
 
 	.text
@@ -308,22 +303,11 @@ NON_GPROF_ENTRY(get_mplock)
 	pushl	%edx
 
 	/* block all HW INTs via Task Priority Register */
-#ifdef CHEAP_TPR
 	pushl	lapic_tpr		/* save current TPR */
 	pushfl				/* save current EFLAGS */
 	testl	$(1<<9), (%esp)		/* test EI bit */
 	jnz	1f			/* INTs currently enabled */
-	movl	$TPR_BLOCK_HWI, lapic_tpr
-#else
-	movl	lapic_tpr, %eax		/* get current TPR */
-	pushl	%eax			/* save current TPR */
-	pushfl				/* save current EFLAGS */
-	testl	$(1<<9), (%esp)		/* test EI bit */
-	jnz	1f			/* INTs currently enabled */
-	andl	$~APIC_TPR_PRIO, %eax	/* clear task priority field */
-	orl	$TPR_BLOCK_HWI, %eax	/* only allow IPIs */
-	movl	%eax, lapic_tpr
-#endif /** CHEAP_TPR */
+	movl	$TPR_BLOCK_HWI, lapic_tpr /* CHEAP_TPR */
 	sti				/* allow IPI (and only IPI) INTs */
 1:
 	pushl	$_mp_lock
@@ -336,44 +320,6 @@ NON_GPROF_ENTRY(get_mplock)
 	popl	%ecx
 	popl	%eax
 	ret
-
-/***********************************************************************
- *  void get_isrlock()
- *  -----------------
- *  no registers preserved, assummed the calling ISR does!
- *
- *  Stack (after call to _MPgetlock):
- *	
- *	&mp_lock	 4(%esp)
- *	EFLAGS		 8(%esp)
- *	local APIC TPR	12(%esp)
- */
-
-NON_GPROF_ENTRY(get_isrlock)
-
-	/* block all HW INTs via Task Priority Register */
-#ifdef CHEAP_TPR
-	pushl	lapic_tpr		/* save current TPR */
-	pushfl				/* save current EFLAGS */
-	movl	$TPR_BLOCK_HWI, lapic_tpr
-#else
-	movl	lapic_tpr, %eax		/* get current TPR */
-	pushl	%eax			/* save current TPR */
-	pushfl				/* save current EFLAGS */
-	andl	$~APIC_TPR_PRIO, %eax	/* clear task priority field */
-	orl	$TPR_BLOCK_HWI, %eax	/* only allow IPIs */
-	movl	%eax, lapic_tpr
-#endif /** CHEAP_TPR */
-	sti				/* allow IPI (and only IPI) INTs */
-1:
-	pushl	$_mp_lock
-	call	_MPgetlock
-	add	$4, %esp
-
-	popfl				/* restore original EFLAGS */
-	popl	lapic_tpr		/* restore TPR */
-	ret
-
 
 /***********************************************************************
  *  void try_mplock()
@@ -390,20 +336,6 @@ NON_GPROF_ENTRY(try_mplock)
 	popl	%edx
 	popl	%ecx
 	ret
-
-/***********************************************************************
- *  void try_isrlock()
- *  -----------------
- *  no registers preserved, assummed the calling ISR does!
- *  reg %eax == 1 if success
- */
-
-NON_GPROF_ENTRY(try_isrlock)
-	pushl	$_mp_lock
-	call	_MPtrylock
-	add	$4, %esp
-	ret
-
 
 /***********************************************************************
  *  void rel_mplock()
@@ -424,6 +356,49 @@ NON_GPROF_ENTRY(rel_mplock)
 	ret
 
 /***********************************************************************
+ *  void get_isrlock()
+ *  -----------------
+ *  no registers preserved, assummed the calling ISR does!
+ *
+ *  Stack (after call to _MPgetlock):
+ *	
+ *	&mp_lock	 4(%esp)
+ *	EFLAGS		 8(%esp)
+ *	local APIC TPR	12(%esp)
+ */
+
+NON_GPROF_ENTRY(get_isrlock)
+
+	/* block all HW INTs via Task Priority Register */
+	pushl	lapic_tpr		/* save current TPR */
+	pushfl				/* save current EFLAGS */
+	movl	$TPR_BLOCK_HWI, lapic_tpr /* CHEAP_TPR */
+	sti				/* allow IPI (and only IPI) INTs */
+
+	pushl	$_mp_lock
+	call	_MPgetlock
+	add	$4, %esp
+
+	popfl				/* restore original EFLAGS */
+	popl	lapic_tpr		/* restore TPR */
+	ret
+
+
+/***********************************************************************
+ *  void try_isrlock()
+ *  -----------------
+ *  no registers preserved, assummed the calling ISR does!
+ *  reg %eax == 1 if success
+ */
+
+NON_GPROF_ENTRY(try_isrlock)
+	pushl	$_mp_lock
+	call	_MPtrylock
+	add	$4, %esp
+	ret
+
+
+/***********************************************************************
  *  void rel_isrlock()
  *  -----------------
  *  no registers preserved, assummed the calling ISR does!
@@ -434,6 +409,130 @@ NON_GPROF_ENTRY(rel_isrlock)
 	call	_MPrellock
 	add	$4, %esp
 	ret
+
+
+/***********************************************************************
+ * FPU locks
+ */
+
+NON_GPROF_ENTRY(get_fpu_lock)
+	pushl	lapic_tpr
+	pushfl
+	movl	$TPR_BLOCK_HWI, lapic_tpr /* CHEAP_TPR */
+	sti
+	pushl	$_mp_lock
+	call	_MPgetlock
+	add	$4, %esp
+	popfl
+	popl	lapic_tpr
+	ret
+
+#ifdef notneeded
+NON_GPROF_ENTRY(try_fpu_lock)
+	pushl	$_mp_lock
+	call	_MPtrylock
+	add	$4, %esp
+	ret
+
+NON_GPROF_ENTRY(rel_fpu_lock)
+	pushl	$_mp_lock
+	call	_MPrellock
+	add	$4, %esp
+	ret
+#endif /* notneeded */
+
+
+/***********************************************************************
+ * align locks
+ */
+
+NON_GPROF_ENTRY(get_align_lock)
+	pushl	lapic_tpr
+	pushfl
+	movl	$TPR_BLOCK_HWI, lapic_tpr /* CHEAP_TPR */
+	sti
+	pushl	$_mp_lock
+	call	_MPgetlock
+	add	$4, %esp
+	popfl
+	popl	lapic_tpr
+	ret
+
+#ifdef notneeded
+NON_GPROF_ENTRY(try_align_lock)
+	pushl	$_mp_lock
+	call	_MPtrylock
+	add	$4, %esp
+	ret
+
+NON_GPROF_ENTRY(rel_align_lock)
+	pushl	$_mp_lock
+	call	_MPrellock
+	add	$4, %esp
+	ret
+#endif /* notneeded */
+
+
+/***********************************************************************
+ * syscall locks
+ */
+
+NON_GPROF_ENTRY(get_syscall_lock)
+	pushl	lapic_tpr
+	pushfl
+	movl	$TPR_BLOCK_HWI, lapic_tpr /* CHEAP_TPR */
+	sti
+	pushl	$_mp_lock
+	call	_MPgetlock
+	add	$4, %esp
+	popfl
+	popl	lapic_tpr
+	ret
+
+#ifdef notneeded
+NON_GPROF_ENTRY(try_syscall_lock)
+	pushl	$_mp_lock
+	call	_MPtrylock
+	add	$4, %esp
+	ret
+
+NON_GPROF_ENTRY(rel_syscall_lock)
+	pushl	$_mp_lock
+	call	_MPrellock
+	add	$4, %esp
+	ret
+#endif /* notneeded */
+
+
+/***********************************************************************
+ * int0x80_syscall locks
+ */
+
+NON_GPROF_ENTRY(get_int0x80_syscall_lock)
+	pushl	lapic_tpr
+	pushfl
+	movl	$TPR_BLOCK_HWI, lapic_tpr /* CHEAP_TPR */
+	sti
+	pushl	$_mp_lock
+	call	_MPgetlock
+	add	$4, %esp
+	popfl
+	popl	lapic_tpr
+	ret
+
+#ifdef notneeded
+NON_GPROF_ENTRY(try_int0x80_syscall_lock)
+	pushl	$_mp_lock
+	call	_MPtrylock
+	add	$4, %esp
+	ret
+
+NON_GPROF_ENTRY(rel_int0x80_syscall_lock)
+	pushl	$_mp_lock
+	call	_MPrellock
+	add	$4, %esp
+	ret
+#endif /* notneeded */
 
 
 /***********************************************************************
