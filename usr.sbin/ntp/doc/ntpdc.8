@@ -130,7 +130,7 @@ uniquely identify the command need be typed.
 The output of a
 command is normally sent to the standard output, but optionally the
 output of individual commands may be sent to a file by appending a
-.Ql \&; ,
+.Ql \&> ,
 followed by a file name, to the command line.
 .Pp
 A number of interactive format commands are executed entirely
@@ -378,7 +378,7 @@ signal.
 The
 .Sq stability
 is the residual frequency error remaining
-afterthe system frequency correction is applied and is intended for
+after the system frequency correction is applied and is intended for
 maintenance and debugging.
 In most architectures, this value will
 initially decrease from as high as 500 ppm to a nominal value in
@@ -391,7 +391,7 @@ may be
 incorrect.
 .Pp
 The
-.Ic broadcastdelay
+.Sq broadcastdelay
 shows the default broadcast delay,
 as set by the
 .Ic broadcastdelay
@@ -425,7 +425,7 @@ Obtain and print traffic counts collected and maintained by the
 monitor facility.
 The version number should not normally need to be
 specified.
-.It Ic clkbug clock_peer_address ...
+.It Ic clkbug Ar clock_peer_address ...
 Obtain debugging information for a reference clock driver.
 This
 information is provided only by some clock drivers and is mostly
@@ -548,8 +548,8 @@ is willing to continue on in this fashion.
 This command provides a way to set certain data for a reference
 clock.
 See the source listing for further information.
-.It enable Ar flag ...
-.It disable Ar flag ...
+.It Ic enable Ar flag ...
+.It Ic disable Ar flag ...
 These commands operate in the same way as the
 .Ic enable
 and
