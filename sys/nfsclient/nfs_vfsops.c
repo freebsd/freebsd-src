@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
@@ -121,6 +122,9 @@ static struct vfsops nfs_vfsops = {
 	vfs_stdextattrctl,
 };
 VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
+
+/* So that loader and kldload(2) can find us, wherever we are.. */
+MODULE_VERSION(nfs, 1);
 
 /*
  * This structure must be filled in by a primary bootstrap or bootstrap
