@@ -3,7 +3,6 @@
 #include <sys/times.h>
 #include <sys/stat.h>
 #include "header.h"
-extern long int initialtime;
 extern int rmst,maxitm,lasttime;
 extern char nosignal;
 static struct tms cputime;
@@ -144,7 +143,7 @@ diagdrawscreen()
 /*
 	to save the game in a file
  */
-static long int zzz=0;
+static time_t zzz=0;
 savegame(fname)
 	char *fname;
 	{
