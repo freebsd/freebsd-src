@@ -8,9 +8,10 @@
 #
 # Comment out the LOG=yes line to disable logging.
 #
-#	$Id: yppwupdate,v 1.4 1996/06/03 16:17:21 wpaul Exp $
+#	$Id: yppwupdate,v 1.4 1996/11/04 23:54:01 wosch Exp $
 #
 
+PATH=/bin:/usr/bin; export PATH
 LOG=yes
 LOGFILE=/var/yp/ypupdate.log
 
@@ -18,16 +19,16 @@ umask 077
 
 if [ ! -f $LOGFILE ];
 then
-	/usr/bin/touch $LOGFILE
+	touch $LOGFILE
 	echo "# Edit /usr/libexec/yppwupdate to disable" >> $LOGFILE
 	echo "# logging to this file from yppasswdd." >> $LOGFILE
 	echo -n "# Log started on: " >> $LOGFILE
-	/bin/date >> $LOGFILE
+	date >> $LOGFILE
 fi
 
 if [ ! $LOG ];
 then
-	cd /var/yp; /usr/bin/make MASTER_PASSWD=$1 UPDATE_DOMAIN=$2 $3 2>&1
+	cd /var/yp && make MASTER_PASSWD=$1 UPDATE_DOMAIN=$2 $3 2>&1
 else
-	cd /var/yp; /usr/bin/make MASTER_PASSWD=$1 UPDATE_DOMAIN=$2 $3 >> $LOGFILE 2>&1
+	cd /var/yp && make MASTER_PASSWD=$1 UPDATE_DOMAIN=$2 $3 >> $LOGFILE 2>&1
 fi
