@@ -218,6 +218,8 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # CPU_SUSP_HLT enables suspend on HALT.  If this option is set, CPU
 # enters suspend mode following execution of HALT instruction.
 #
+# CPU_UPGRADE_HW_CACHE eliminates unneeded cache flush instruction(s).
+#
 # CPU_WT_ALLOC enables write allocation on Cyrix 6x86/6x86MX and AMD
 # K5/K6/K6-2 cpus.
 #
@@ -262,6 +264,7 @@ options 	CPU_LOOP_EN
 options 	CPU_PPRO2CELERON
 options 	CPU_RSTK_EN
 options 	CPU_SUSP_HLT
+options 	CPU_UPGRADE_HW_CACHE
 options 	CPU_WT_ALLOC
 options 	CYRIX_CACHE_WORKS
 options 	CYRIX_CACHE_REALLY_WORKS
@@ -2851,9 +2854,6 @@ options 	CAM_DEBUG_DELAY
 
 # VFS cluster debugging.
 options 	CLUSTERDEBUG
-
-# Eliminate unneeded cache flush instruction(s).
-options 	CPU_UPGRADE_HW_CACHE
 
 options 	DEBUG
 
