@@ -64,9 +64,11 @@ int	outcol;
 char	suppresul;
 char	printall;
 
-char	*progname;
 FILE	*f;
 
+static void usage __P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -75,7 +77,7 @@ main(argc, argv)
 	register char *cp, *dp;
 
 	argc--;
-	progname = *argv++;
+	argv++;
 	while (argc > 0 && argv[0][0] == '-') {
 		switch (argv[0][1]) {
 			case 0:
@@ -85,9 +87,7 @@ main(argc, argv)
 				printall = 1;
 				break;
 			default:
-				printf("usage: %s [ - ] [ -2 ] [ file ... ]\n", progname);
-				fflush(stdout);
-				exit(1);
+				usage();
 		}
 		argc--;
 		argv++;
@@ -97,8 +97,7 @@ main(argc, argv)
 			close(0);
 			if (!(f = fopen(argv[0], "r"))) {
 				fflush(stdout);
-				perror(argv[0]);
-				exit (1);
+				err(1, argv[0]);
 			}
 			argc--;
 			argv++;
@@ -178,6 +177,13 @@ main(argc, argv)
 	} while (argc > 0);
 	fflush(stdout);
 	exit(0);
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: colcrt [ - ] [ -2 ] [ file ... ]\n");
+	exit(1);
 }
 
 plus(c, d)
