@@ -33,12 +33,12 @@ static char sccsid[] = "@(#) socket.c 1.15 97/03/21 19:27:24";
 #include <string.h>
 
 #ifdef INET6
-#ifndef USE_GETIPNODEBY
-#include <resolv.h>
+#ifndef NI_WITHSCOPEID
+#define NI_WITHSCOPEID	0
 #endif
-#endif
-
+#else
 extern char *inet_ntoa();
+#endif
 
 /* Local stuff. */
 
@@ -148,25 +148,18 @@ struct host_info *host;
 {
 #ifdef INET6
     struct sockaddr *sin = host->sin;
-    char *ap;
-    int alen;
+    int salen;
 
     if (!sin)
 	return;
-    switch (sin->sa_family) {
-    case AF_INET:
-	ap = (char *)&((struct sockaddr_in *)sin)->sin_addr;
-	alen = sizeof(struct in_addr);
-	break;
-    case AF_INET6:
-	ap = (char *)&((struct sockaddr_in6 *)sin)->sin6_addr;
-	alen = sizeof(struct in6_addr);
-	break;
-    default:
-	return;
-    }
-    host->addr[0] = '\0';
-    inet_ntop(sin->sa_family, ap, host->addr, sizeof(host->addr));
+#ifdef SIN6_LEN
+    salen = sin->sa_len;
+#else
+    salen = (sin->sa_family == AF_INET) ? sizeof(struct sockaddr_in)
+					: sizeof(struct sockaddr_in6);
+#endif
+    getnameinfo(sin, salen, host->addr, sizeof(host->addr),
+		NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID);
 #else
     struct sockaddr_in *sin = host->sin;
 
@@ -182,64 +175,47 @@ struct host_info *host;
 {
 #ifdef INET6
     struct sockaddr *sin = host->sin;
-    char addr[128];
-#ifdef USE_GETIPNODEBY
-    int h_error;
-#else
-    u_long res_options;
-#endif
-    struct hostent *hp = NULL;
-    char *ap;
-    int alen;
-#else
-    struct sockaddr_in *sin = host->sin;
-    struct hostent *hp;
-#endif
-    int     i;
+    struct sockaddr_in sin4;
+    struct addrinfo hints, *res, *res0 = NULL;
+    int salen, alen, err = 1;
+    char *ap = NULL, *rap, hname[NI_MAXHOST];
 
-    /*
-     * On some systems, for example Solaris 2.3, gethostbyaddr(0.0.0.0) does
-     * not fail. Instead it returns "INADDR_ANY". Unfortunately, this does
-     * not work the other way around: gethostbyname("INADDR_ANY") fails. We
-     * have to special-case 0.0.0.0, in order to avoid false alerts from the
-     * host name/address checking code below.
-     */
-#ifdef INET6
     if (sin != NULL) {
+	if (sin->sa_family == AF_INET6) {
+	    struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sin;
+
+	    if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
+		memset(&sin4, 0, sizeof(sin4));
+#ifdef SIN6_LEN
+		sin4.sin_len = sizeof(sin4);
+#endif
+		sin4.sin_family = AF_INET;
+		sin4.sin_port = sin6->sin6_port;
+		sin4.sin_addr.s_addr = *(u_int32_t *)&sin6->sin6_addr.s6_addr[12];
+		sin = (struct sockaddr *)&sin4;
+	    }
+	}
 	switch (sin->sa_family) {
 	case AF_INET:
-	    if (((struct sockaddr_in *)sin)->sin_addr.s_addr == 0) {
-		strcpy(host->name, paranoid);	/* name is bad, clobber it */
-		return;
-	    }
-	    ap = (char *) &((struct sockaddr_in *)sin)->sin_addr;
+	    ap = (char *)&((struct sockaddr_in *)sin)->sin_addr;
 	    alen = sizeof(struct in_addr);
+	    salen = sizeof(struct sockaddr_in);
 	    break;
 	case AF_INET6:
-	    ap = (char *) &((struct sockaddr_in6 *)sin)->sin6_addr;
+	    ap = (char *)&((struct sockaddr_in6 *)sin)->sin6_addr;
 	    alen = sizeof(struct in6_addr);
+	    salen = sizeof(struct sockaddr_in6);
 	    break;
-	defalut:
-	    strcpy(host->name, paranoid);	/* name is bad, clobber it */
-	    return;
+	default:
+	    break;
 	}
-#ifdef USE_GETIPNODEBY
-	hp = getipnodebyaddr(ap, alen, sin->sa_family, &h_error);
-#else
-	hp = gethostbyaddr(ap, alen, sin->sa_family);
-#endif
+	if (ap)
+	    err = getnameinfo(sin, salen, hname, sizeof(hname),
+			      NULL, 0, NI_WITHSCOPEID | NI_NAMEREQD);
     }
-    if (hp) {
-#else
-    if (sin != 0 && sin->sin_addr.s_addr != 0
-	&& (hp = gethostbyaddr((char *) &(sin->sin_addr),
-			       sizeof(sin->sin_addr), AF_INET)) != 0) {
-#endif
+    if (!err) {
 
-	STRN_CPY(host->name, hp->h_name, sizeof(host->name));
-#if defined(INET6) && defined(USE_GETIPNODEBY)
-	freehostent(hp);
-#endif
+	STRN_CPY(host->name, hname, sizeof(host->name));
 
 	/*
 	 * Verify that the address is a member of the address list returned
@@ -254,53 +230,116 @@ struct host_info *host;
 	 * we're in big trouble anyway.
 	 */
 
-#ifdef INET6
-#ifdef USE_GETIPNODEBY
-	hp = getipnodebyname(host->name, sin->sa_family,
-			     AI_V4MAPPED | AI_ADDRCONFIG | AI_ALL, &h_error);
-#else
-	if ((_res.options & RES_INIT) == 0) {
-	    if (res_init() < 0) {
-		inet_ntop(sin->sa_family, ap, addr, sizeof(addr));
-		tcpd_warn("can't verify hostname: res_init() for %s failed",
-			  addr);
-		strcpy(host->name, paranoid);	/* name is bad, clobber it */
-		return;
-	    }
-	}
-	res_options = _res.options;
-	if (sin->sa_family == AF_INET6)
-	    _res.options |= RES_USE_INET6;
-	else
-	    _res.options &= ~RES_USE_INET6;
-	hp = gethostbyname2(host->name,
-			    (sin->sa_family == AF_INET6 &&
-			     IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)sin)->sin6_addr)) ?
-				AF_INET : sin->sa_family);
-	_res.options = res_options;
-#endif
-	if (!hp) {
-#else
-	if ((hp = gethostbyname(host->name)) == 0) {
-#endif
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = sin->sa_family;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE | AI_CANONNAME;
+	if (getaddrinfo(host->name, NULL, &hints, &res0) != 0) {
 
 	    /*
 	     * Unable to verify that the host name matches the address. This
 	     * may be a transient problem or a botched name server setup.
 	     */
 
-#ifdef INET6
-#ifdef USE_GETIPNODEBY
-	    tcpd_warn("can't verify hostname: getipnodebyname(%s, %s) failed",
-#else
-	    tcpd_warn("can't verify hostname: gethostbyname2(%s, %s) failed",
-#endif
+	    tcpd_warn("can't verify hostname: getaddrinfo(%s, %s) failed",
 		      host->name,
 		      (sin->sa_family == AF_INET) ? "AF_INET" : "AF_INET6");
-#else
+
+	} else if (STR_NE(host->name, res0->ai_canonname)
+		   && STR_NE(host->name, "localhost")) {
+
+	    /*
+	     * The gethostbyaddr() and gethostbyname() calls did not return
+	     * the same hostname. This could be a nameserver configuration
+	     * problem. It could also be that someone is trying to spoof us.
+	     */
+
+	    tcpd_warn("host name/name mismatch: %s != %.*s",
+		      host->name, STRING_LENGTH, res0->ai_canonname);
+
+	} else {
+
+	    /*
+	     * The address should be a member of the address list returned by
+	     * gethostbyname(). We should first verify that the h_addrtype
+	     * field is AF_INET, but this program has already caused too much
+	     * grief on systems with broken library code.
+	     */
+
+	    for (res = res0; res; res = res->ai_next) {
+		if (res->ai_family != sin->sa_family)
+		    continue;
+		switch (res->ai_family) {
+		case AF_INET:
+		    rap = (char *)&((struct sockaddr_in *)res->ai_addr)->sin_addr;
+		    break;
+		case AF_INET6:
+		    rap = (char *)&((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
+		    break;
+		default:
+		    continue;
+		}
+		if (memcmp(rap, ap, alen) == 0) {
+		    freeaddrinfo(res0);
+		    return;			/* name is good, keep it */
+		}
+	    }
+
+	    /*
+	     * The host name does not map to the initial address. Perhaps
+	     * someone has messed up. Perhaps someone compromised a name
+	     * server.
+	     */
+
+	    getnameinfo(sin, salen, hname, sizeof(hname),
+			NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID);
+	    tcpd_warn("host name/address mismatch: %s != %.*s",
+		      hname, STRING_LENGTH, res0->ai_canonname);
+	}
+	strcpy(host->name, paranoid);		/* name is bad, clobber it */
+	if (res0)
+	    freeaddrinfo(res0);
+    }
+#else /* INET6 */
+    struct sockaddr_in *sin = host->sin;
+    struct hostent *hp;
+    int     i;
+
+    /*
+     * On some systems, for example Solaris 2.3, gethostbyaddr(0.0.0.0) does
+     * not fail. Instead it returns "INADDR_ANY". Unfortunately, this does
+     * not work the other way around: gethostbyname("INADDR_ANY") fails. We
+     * have to special-case 0.0.0.0, in order to avoid false alerts from the
+     * host name/address checking code below.
+     */
+    if (sin != 0 && sin->sin_addr.s_addr != 0
+	&& (hp = gethostbyaddr((char *) &(sin->sin_addr),
+			       sizeof(sin->sin_addr), AF_INET)) != 0) {
+
+	STRN_CPY(host->name, hp->h_name, sizeof(host->name));
+
+	/*
+	 * Verify that the address is a member of the address list returned
+	 * by gethostbyname(hostname).
+	 * 
+	 * Verify also that gethostbyaddr() and gethostbyname() return the same
+	 * hostname, or rshd and rlogind may still end up being spoofed.
+	 * 
+	 * On some sites, gethostbyname("localhost") returns "localhost.domain".
+	 * This is a DNS artefact. We treat it as a special case. When we
+	 * can't believe the address list from gethostbyname("localhost")
+	 * we're in big trouble anyway.
+	 */
+
+	if ((hp = gethostbyname(host->name)) == 0) {
+
+	    /*
+	     * Unable to verify that the host name matches the address. This
+	     * may be a transient problem or a botched name server setup.
+	     */
+
 	    tcpd_warn("can't verify hostname: gethostbyname(%s) failed",
 		      host->name);
-#endif
 
 	} else if (STR_NE(host->name, hp->h_name)
 		   && STR_NE(host->name, "localhost")) {
@@ -324,19 +363,10 @@ struct host_info *host;
 	     */
 
 	    for (i = 0; hp->h_addr_list[i]; i++) {
-#ifdef INET6
-		if (memcmp(hp->h_addr_list[i], ap, alen) == 0) {
-#ifdef USE_GETIPNODEBY
-		    freehostent(hp);
-#endif
-		    return;			/* name is good, keep it */
-		}
-#else
 		if (memcmp(hp->h_addr_list[i],
 			   (char *) &sin->sin_addr,
 			   sizeof(sin->sin_addr)) == 0)
 		    return;			/* name is good, keep it */
-#endif
 	    }
 
 	    /*
@@ -345,21 +375,12 @@ struct host_info *host;
 	     * server.
 	     */
 
-#ifdef INET6
-	    inet_ntop(sin->sa_family, ap, addr, sizeof(addr));
-	    tcpd_warn("host name/address mismatch: %s != %.*s",
-		      addr, STRING_LENGTH, hp->h_name);
-#else
 	    tcpd_warn("host name/address mismatch: %s != %.*s",
 		      inet_ntoa(sin->sin_addr), STRING_LENGTH, hp->h_name);
-#endif
 	}
 	strcpy(host->name, paranoid);		/* name is bad, clobber it */
-#if defined(INET6) && defined(USE_GETIPNODEBY)
-	if (hp)
-	    freehostent(hp);
-#endif
     }
+#endif /* INET6 */
 }
 
 /* sock_sink - absorb unreceived IP datagram */
