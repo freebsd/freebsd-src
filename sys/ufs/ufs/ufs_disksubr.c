@@ -183,7 +183,7 @@ readdisklabel(dev, lp)
 	bp->b_flags &= ~B_INVAL;
 	bp->b_iocmd = BIO_READ;
 	DEV_STRATEGY(bp, 1);
-	if (biowait(bp))
+	if (bufwait(bp))
 		msg = "I/O error";
 	else for (dlp = (struct disklabel *)bp->b_data;
 	    dlp <= (struct disklabel *)((char *)bp->b_data +
@@ -286,7 +286,7 @@ writedisklabel(dev, lp)
 	bp->b_flags &= ~B_INVAL;
 	bp->b_iocmd = BIO_READ;
 	DEV_STRATEGY(bp, 1);
-	error = biowait(bp);
+	error = bufwait(bp);
 	if (error)
 		goto done;
 	for (dlp = (struct disklabel *)bp->b_data;
@@ -302,7 +302,7 @@ writedisklabel(dev, lp)
 			alpha_fix_srm_checksum(bp);
 #endif
 			DEV_STRATEGY(bp, 1);
-			error = biowait(bp);
+			error = bufwait(bp);
 			goto done;
 		}
 	}
@@ -315,7 +315,7 @@ done:
 	bp->b_flags &= ~B_INVAL;
 	bp->b_iocmd = BIO_WRITE;
 	DEV_STRATEGY(bp, 1);
-	error = biowait(bp);
+	error = bufwait(bp);
 #endif
 	bp->b_flags |= B_INVAL | B_AGE;
 	brelse(bp);
