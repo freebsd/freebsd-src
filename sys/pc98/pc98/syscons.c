@@ -221,7 +221,8 @@ static struct cdevsw sc_cdevsw = {
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	D_TTY,
+	/* flags */	D_TTY | D_KQFILTER,
+	/* kqfilter */	ttykqfilter
 };
 
 int
