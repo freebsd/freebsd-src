@@ -27,32 +27,34 @@
 .\" $FreeBSD$
 .\"
 .Dd July 9, 2001
-.Dt UMINOR 9
+.Dt GROUPMEMBER 9
 .Os
 .Sh NAME
-.Nm uminor
-.Nd "returns the minor number from the raw device number"
+.Nm groupmember
+.Nd checks group set for a group ID
 .Sh SYNOPSIS
-.In sys/systm.h
+.In sys/param.h
+.In sys/ucred.h
 .Ft int
-.Fn uminor "udev_t dev"
+.Fn groupmember "gid_t gid" "struct ucred *cred"
 .Sh DESCRIPTION
 The
-.Fn uminor
-function returns the minor device number from the raw device number.
+.Fn groupmember
+function checks to see if the given
+.Fa gid
+is in the group set of the credentials.
 .Pp
-Its argument is:
-.Bl -tag -width ".Fa dev"
-.It Fa dev
-The raw device number from which the minor device number should be
-calculated.
+Its arguments are:
+.Bl -tag -width ".Fa cred"
+.It Fa gid
+The group ID to check for.
+.It Fa cred
+The credentials to search for the group in.
 .El
 .Sh RETURN VALUES
-An integer greater than or equal to zero.
-.Sh SEE ALSO
-.Xr major 9 ,
-.Xr minor 9 ,
-.Xr umajor 9
+If the
+.Fa gid
+is found, 1 is returned; otherwise, 0 is returned.
 .Sh AUTHORS
 This man page was written by
-.An Chad David .
+.An Chad David Aq davidc@acns.ab.ca .

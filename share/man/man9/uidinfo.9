@@ -26,32 +26,72 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2001
-.Dt MINOR 9
+.Dd July 10, 2001
+.Dt UIDINFO 9
 .Os
 .Sh NAME
-.Nm minor
-.Nd "returns the minor number for the device"
+.Nm uidinfo ,
+.Nm uihashinit ,
+.Nm uifind ,
+.Nm uihold ,
+.Nm uifree
+.Nd "functions for managing UID information"
 .Sh SYNOPSIS
-.In sys/systm.h
-.Ft int
-.Fn minor "dev_t dev"
+.In sys/param.h
+.In sys/resourcevar.h
+.Ft void
+.Fn uihashinit void
+.Ft "struct uidinfo *"
+.Fn uifind "uid_t uid"
+.Ft void
+.Fn uihold "struct uidinfo *uip"
+.Ft void
+.Fn uifree "struct uidinfo *uip"
 .Sh DESCRIPTION
 The
-.Fn minor
-function returns the minor device number for the given device.
+.Nm
+family of functions
+is used to manage
+.Vt uidinfo
+structures.
+The
+.Vt uidinfo
+structure maintains the process count and socket buffer space usage
+for a given UID.
 .Pp
-Its argument is:
-.Bl -tag -width ".Fa dev"
-.It Fa dev
-The device whose minor device number should be returned.
-.El
+The
+.Fn uihashinit
+function initializes the
+.Vt uidinfo
+hash table.
+This function should only be called during system initialization.
+.Pp
+The
+.Fn uifind
+function looks up and returns the
+.Vt uidinfo
+structure for the
+.Fa uid .
+If the
+.Vt uidinfo
+is not found, a new structure is allocated.
+.Pp
+The
+.Fn uihold
+function increases the reference count on the
+.Vt uidinfo
+structure.
+.Pp
+The
+.Fn uifree
+function decreases the reference count on the
+.Vt uidinfo
+structure.
+If the count reaches 0, the storage for the structure is freed.
 .Sh RETURN VALUES
-An integer greater than zero, or
-.Dv NOUDEV
-if the device is invalid.
-.Sh SEE ALSO
-.Xr major 9
+The functions that return values all return a pointer to a
+.Vt uidinfo
+structure.
 .Sh AUTHORS
 This man page was written by
-.An Chad David .
+.An Chad David Aq davidc@acns.ab.ca .
