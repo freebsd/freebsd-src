@@ -164,7 +164,7 @@ Static struct cdevsw uhid_cdevsw = {
 	.d_name =	"uhid",
 	.d_maj =	UHID_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
-	/* bmaj */	-1
+	.d_bmaj		-1
 #endif
 };
 #endif

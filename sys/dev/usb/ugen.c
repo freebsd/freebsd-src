@@ -155,7 +155,7 @@ Static struct cdevsw ugen_cdevsw = {
 	.d_name =	"ugen",
 	.d_maj =	UGEN_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
-	/* bmaj */	-1
+	.d_bmaj		-1
 #endif
 };
 #endif
