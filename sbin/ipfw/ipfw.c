@@ -1273,27 +1273,43 @@ add(ac,av)
 	while (ac) {
 		if (!strncmp(*av,"uid",strlen(*av))) {
 			struct passwd *pwd;
+			char *end;
+			uid_t uid;
 
 			rule.fw_flg |= IP_FW_F_UID;
 			ac--; av++;
 			if (!ac)
 				show_usage("``uid'' requires argument");
 			
-			rule.fw_uid = (pwd = getpwnam(*av)) ? pwd->pw_uid
-					: strtoul(*av, NULL, 0);
+			uid = strtoul(*av, &end, 0);
+			if (*end == '\0')
+				pwd = getpwuid(uid);
+			else
+				pwd = getpwnam(*av);
+			if (pwd == NULL)
+				show_usage("uid \"%s\" is nonexistant", *av);
+			rule.fw_uid = pwd->pw_uid;
 			ac--; av++;
 			continue;
 		}
 		if (!strncmp(*av,"gid",strlen(*av))) {
 			struct group *grp;
+			char *end;
+			gid_t gid;
 
 			rule.fw_flg |= IP_FW_F_GID;
 			ac--; av++;
 			if (!ac)
 				show_usage("``gid'' requires argument");
 			
-			rule.fw_gid = (grp = getgrnam(*av)) ? (gid_t)grp->gr_gid
-					: strtoul(*av, NULL, 0);
+			gid = strtoul(*av, &end, 0);
+			if (*end == '\0')
+				grp = getgrgid(gid);
+			else
+				grp = getgrnam(*av);
+			if (grp == NULL)
+				show_usage("gid \"%s\" is nonexistant", *av);
+			rule.fw_gid = grp->gr_gid;
 			ac--; av++;
 			continue;
 		}
