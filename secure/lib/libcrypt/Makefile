@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.15 1999/01/23 08:26:01 markm Exp $
 #
 
 LCRYPTBASE=     libcrypt
@@ -37,25 +37,25 @@ afterinstall:
 	@cd $(DESTDIR)/$(LIBDIR); \
 	if [ ! -e $(LCRYPTSO) ]; then \
 	rm -f $(LCRYPTSO); \
-	ln -s $(LDCRYPTSO) $(LCRYPTSO); \
+	ln -sf $(LDCRYPTSO) $(LCRYPTSO); \
 	fi
 .endif
 .if !defined(NOPIC) && defined(SHLIB_MAJOR) && ${OBJFORMAT} == elf
 	@cd $(DESTDIR)/$(LIBDIR); \
 	if [ ! -e $(LCRYPTBASE).so ]; then \
 	rm -f $(LCRYPTBASE).so; \
-	ln -s $(LDCRYPTBASE).so libcrypt.so; \
+	ln -sf $(LDCRYPTBASE).so libcrypt.so; \
 	fi
 .endif
 	@cd  $(DESTDIR)/$(LIBDIR); \
 	if [ ! -e $(LCRYPTBASE).a ]; then \
 	rm -f $(LCRYPTBASE).a; \
-	ln -s $(LDCRYPTBASE).a libcrypt.a; \
+	ln -sf $(LDCRYPTBASE).a libcrypt.a; \
 	fi
 .if !defined(NOPROFILE)
 	@cd  $(DESTDIR)/$(LIBDIR); \
 	if [ ! -e $(LCRYPTBASE)_p.a ]; then \
 	rm -f $(LCRYPTBASE)_p.a; \
-	ln -s $(LDCRYPTBASE)_p.a libcrypt_p.a; \
+	ln -sf $(LDCRYPTBASE)_p.a libcrypt_p.a; \
 	fi
 .endif
