@@ -1377,12 +1377,15 @@ loop:
 			 * to free anything that cpu_exit couldn't
 			 * release while still running in process context.
 			 */
-			cpu_wait(q);
+			vm_waitproc(q);
 #if defined(__NetBSD__)
 			pool_put(&proc_pool, q);
 #endif
 #ifdef __FreeBSD__
 			mtx_destroy(&q->p_mtx);
+#ifdef MAC
+                        mac_destroy_proc(q);
+#endif
 			uma_zfree(proc_zone, q);
 #endif
 			nprocs--;
