@@ -63,9 +63,9 @@
 
 #include <i386/isa/isa_device.h>
 
-#define DATA	0       /* Offset for data port, read-write */
-#define CNTRL	4       /* Offset for control port, write-only */
-#define STATUS	4	/* Offset for status port, read-only */
+#define PSM_DATA	0x00	/* Offset for data port, read-write */
+#define PSM_CNTRL	0x04	/* Offset for control port, write-only */
+#define PSM_STATUS	0x04	/* Offset for status port, read-only */
 
 /* status bits */
 #define	PSM_OUTPUT_ACK	0x02	/* output acknowledge */
@@ -93,8 +93,8 @@
 #define min(x,y) (x < y ? x : y)
 #endif  min
 
-static int psmprobe (struct isa_device *);
-static int psmattach (struct isa_device *);
+static int psmprobe(struct isa_device *);
+static int psmattach(struct isa_device *);
 static void psm_poll_status(void);
 
 static int psmaddr[NPSM];	/* Base I/O port addresses per unit */
@@ -119,8 +119,8 @@ static struct psm_softc {	/* Driver status information */
 #endif
 } psm_softc[NPSM];
 
-#define OPEN	1		/* Device is open */
-#define ASLP	2		/* Waiting for mouse data */
+#define PSM_OPEN	1		/* Device is open */
+#define PSM_ASLP	2		/* Waiting for mouse data */
 
 struct isa_driver psmdriver = { psmprobe, psmattach, "psm" };
 
@@ -138,44 +138,46 @@ static	struct	cdevsw psm_cdevsw =
 
 #define AUX_PORT 0x60		/* AUX_PORT base (S.Yuen) */
 
-static void psm_write_dev(int inport, u_char value)
+static void
+psm_write_dev(int ioport, u_char value)
 {
 	psm_poll_status();
-	outb(inport+CNTRL, 0xd4);
+	outb(inport+PSM_CNTRL, 0xd4);
 	psm_poll_status();
-	outb(inport+DATA,value);
+	outb(inport+PSM_DATA,value);
 }
 
-static inline void psm_command(int ioport, u_char value)
+static inline void
+psm_command(int ioport, u_char value)
 {
 	psm_poll_status();
-	outb(ioport+CNTRL, 0x60);
+	outb(ioport+PSM_CNTRL, 0x60);
 	psm_poll_status();
-	outb(ioport+DATA, value);
+	outb(ioport+PSM_DATA, value);
 }
 
 static int 
 psmprobe(struct isa_device *dvp)
 {
 	/* XXX: Needs a real probe routine. */
-
-	int ioport,c,unit;
+	int ioport, c, unit;
 
 	ioport=dvp->id_iobase;
 	unit=dvp->id_unit;
 #ifndef PSM_NO_RESET
-	psm_write_dev(ioport,0xff); /* Reset aux device */
+	psm_write_dev(ioport, PSM_RESET);	/* Reset aux device */
 	psm_poll_status();
 #endif
-	outb(ioport+CNTRL,0xa9);
+	outb(ioport+PSM_CNTRL,0xa9);
 	psm_poll_status();
-	outb(ioport+CNTRL,0xaa);
-	c = inb(ioport+DATA);
-	if(c&0x04) {
+	outb(ioport+PSM_CNTRL,0xaa);
+	c = inb(ioport+PSM_DATA);
+	if(c & 0x04) {
 /*		printf("PS/2 AUX mouse is not found\n");*/
-		psm_command(ioport,0x65);
+		psm_command(ioport, PSM_INT_DISABLE);
 		psmaddr[unit] = 0;	/* Device not found */
-		return(0);}
+		return (0);
+	}
 /*	printf("PS/2 AUX mouse found.  Installing driver\n");*/
 	return (4);
 }
@@ -188,13 +190,11 @@ psmattach(struct isa_device *dvp)
 	struct psm_softc *sc = &psm_softc[unit];
 
 	/* Save I/O base address */
-
 	psmaddr[unit] = ioport;
 
 	/* Disable mouse interrupts */
-
 	psm_poll_status();
-	outb(ioport+CNTRL, PSM_ENABLE);
+	outb(ioport+PSM_CNTRL, PSM_ENABLE);
 #ifdef 0
 	psm_write(ioport, PSM_SET_RES);
 	psm_write(ioport, 0x03);	/* 8 counts/mm */
@@ -206,47 +206,41 @@ psmattach(struct isa_device *dvp)
 	psm_write(ioport, PSM_SET_STREAM);
 #endif
 	psm_poll_status();
-	outb(ioport+CNTRL, PSM_DISABLE);
+	outb(ioport+PSM_CNTRL, PSM_DISABLE);
 	psm_command(ioport, PSM_INT_DISABLE);
 
 	/* Setup initial state */
-
 	sc->state = 0;
 
 	/* Done */
-
-	return(0); /* XXX eh? usually 1 indicates success */
+	return (0); /* XXX eh? usually 1 indicates success */
 }
 
 static int
 psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
-	int unit = PSMUNIT(dev);
 	struct psm_softc *sc;
 	int ioport;
+	int unit = PSMUNIT(dev);
 
 	/* Validate unit number */
-
 	if (unit >= NPSM)
-		return(ENXIO);
+		return (ENXIO);
 
 	/* Get device data */
-
 	sc = &psm_softc[unit];
 	ioport = psmaddr[unit];
 
 	/* If device does not exist */
-
 	if (ioport == 0)
-		return(ENXIO);
+		return (ENXIO);
 
 	/* Disallow multiple opens */
-	if (sc->state & OPEN)
-		return(EBUSY);
+	if (sc->state & PSM_OPEN)
+		return (EBUSY);
 
 	/* Initialize state */
-
-	sc->state |= OPEN;
+	sc->state |= PSM_OPEN;
 	sc->rsel.si_flags = 0;
 	sc->rsel.si_pid = 0;
 	sc->status = 0;
@@ -255,15 +249,13 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 	sc->y = 0;
 
 	/* Allocate and initialize a ring buffer */
-
 	sc->inq.count = sc->inq.first = sc->inq.last = 0;
 
 	/* Enable Bus Mouse interrupts */
-
 	psm_write_dev(ioport, PSM_DEV_ENABLE);
 	
 	psm_poll_status();
-	outb(ioport+CNTRL, PSM_ENABLE);
+	outb(ioport+PSM_CNTRL, PSM_ENABLE);
 	psm_command(ioport, PSM_INT_ENABLE);
 
 	/* Successful open */
@@ -276,19 +268,18 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 				 "npsm%d", unit);
 #endif
 
-	return(0);
+	return (0);
 }
 
 static void
 psm_poll_status(void)
 {
 
-	while(inb(AUX_PORT+STATUS)&0x03) {
-		if(inb(AUX_PORT+STATUS) & 0x2 == 0x2)
-			inb(AUX_PORT+DATA);}
+	while(inb(AUX_PORT+PSM_STATUS) & 0x03) {
+		if(inb(AUX_PORT+PSM_STATUS) & 0x2 == 0x2)
+			inb(AUX_PORT+PSM_DATA);}
 	return;
 }
-
 
 static	int
 psmclose(dev_t dev, int flag, int fmt, struct proc *p)
@@ -297,27 +288,23 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 	struct psm_softc *sc;
 
 	/* Get unit and associated info */
-
 	unit = PSMUNIT(dev);
 	sc = &psm_softc[unit];
 	ioport = psmaddr[unit];
 
 	/* Disable further mouse interrupts */
-
 	psm_command(ioport,PSM_INT_DISABLE);
 	psm_poll_status();
-	outb(ioport+CNTRL,PSM_DISABLE );
+	outb(ioport+PSM_CNTRL,PSM_DISABLE );
 
 	/* Complete the close */
-
-	sc->state &= ~OPEN;
+	sc->state &= ~PSM_OPEN;
 
 	/* close is almost always successful */
-
-	return(0);
+	return (0);
 }
 
-static	int
+staticint
 psmread(dev_t dev, struct uio *uio, int flag)
 {
 	int s;
@@ -337,25 +324,23 @@ psmread(dev_t dev, struct uio *uio, int flag)
 	while (sc->inq.count == 0) {
 		if (minor(dev) & 0x1) {
 			splx(s);
-			return(EWOULDBLOCK);
+			return (EWOULDBLOCK);
 		}
-		sc->state |= ASLP;
+		sc->state |= PSM_ASLP;
 		error = tsleep((caddr_t)sc, PZERO | PCATCH, "psmrea", 0);
 		if (error != 0) {
 			splx(s);
-			return(error);
+			return (error);
 		}
 	}
 
 	/* Transfer as many chunks as possible */
-
 	while (sc->inq.count > 0 && uio->uio_resid > 0) {
 		length = min(sc->inq.count, uio->uio_resid);
 		if (length > sizeof(buffer))
 			length = sizeof(buffer);
 
 		/* Remove a small chunk from input queue */
-
 		if (sc->inq.first + length >= MSBSZ) {
 			bcopy(&sc->inq.queue[sc->inq.first],
 		 	      buffer, MSBSZ - sc->inq.first);
@@ -369,21 +354,18 @@ psmread(dev_t dev, struct uio *uio, int flag)
 		sc->inq.count -= length;
 
 		/* Copy data to user process */
-
 		error = uiomove(buffer, length, uio);
 		if (error)
 			break;
 	}
-
 	sc->x = sc->y = 0;
 
 	/* Allow interrupts again */
-
 	splx(s);
-	return(error);
+	return (error);
 }
 
-static	int
+staticint
 psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct psm_softc *sc;
@@ -391,27 +373,21 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 	int s, error;
 
 	/* Get device information */
-
 	sc = &psm_softc[PSMUNIT(dev)];
 
 	/* Perform IOCTL command */
-
 	switch (cmd) {
 
 	case MOUSEIOCREAD:
-
 		/* Don't modify info while calculating */
-
 		s = spltty();
 
 		/* Build mouse status octet */
-
 		info.status = sc->status;
 		if (sc->x || sc->y)
 			info.status |= MOVEMENT;
 
 		/* Encode X and Y motion as good as we can */
-
 		if (sc->x > 127)
 			info.xmotion = 127;
 		else if (sc->x < -128)
@@ -427,13 +403,11 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 			info.ymotion = sc->y;
 
 		/* Reset historical information */
-
 		sc->x = 0;
 		sc->y = 0;
 		sc->status &= ~BUTCHNGMASK;
 
 		/* Allow interrupts and copy result buffer */
-
 		splx(s);
 		error = copyout(&info, addr, sizeof(struct mouseinfo));
 		break;
@@ -441,11 +415,10 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 	default:
 		error = EINVAL;
 		break;
-		}
+	}
 
 	/* Return error code */
-
-	return(error);
+	return (error);
 }
 
 void psmintr(unit)
@@ -454,28 +427,26 @@ void psmintr(unit)
 	struct psm_softc *sc = &psm_softc[unit];
 	int ioport = psmaddr[unit];
 
-	sc->inq.queue[sc->inq.last++ % MSBSZ] = inb(ioport+DATA);
+	sc->inq.queue[sc->inq.last++ % MSBSZ] = inb(ioport+PSM_DATA);
 	sc->inq.count++;
-	if (sc -> state & ASLP) {
-		sc->state &= ~ASLP;
+	if (sc -> state & PSM_ASLP) {
+		sc->state &= ~PSM_ASLP;
 		wakeup((caddr_t)sc);
 	}
 	selwakeup(&sc->rsel);
 }
 
-static	int
+static int
 psmselect(dev_t dev, int rw, struct proc *p)
 {
 	int s, ret;
 	struct psm_softc *sc = &psm_softc[PSMUNIT(dev)];
 
 	/* Silly to select for output */
-
 	if (rw == FWRITE)
-		return(0);
+		return (0);
 
 	/* Return true if a mouse event available */
-
 	s = spltty();
 	if (sc->inq.count)
 		ret = 1;
@@ -485,13 +456,14 @@ psmselect(dev_t dev, int rw, struct proc *p)
 	}
 	splx(s);
 
-	return(ret);
+	return (ret);
 }
 
 
 static psm_devsw_installed = 0;
 
-static void 	psm_drvinit(void *unused)
+static void
+(void *unused)
 {
 	dev_t dev;
 
@@ -506,5 +478,3 @@ SYSINIT(psmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,psm_drvinit,NULL)
 
 
 #endif
-
-
