@@ -9,6 +9,8 @@
 #define TUNERTYPE_CABLEIRC	2
 #define TUNERTYPE_CABLEHRC	3
 #define TUNERTYPE_WEUROPE	4
+#define TUNERTYPE_MIN		TUNERTYPE_NABCST
+#define TUNERTYPE_MAX		TUNERTYPE_WEUROPE
 
 
 /*
@@ -63,6 +65,11 @@
 #define BT848_SATVSTEPS		512
 
 
+struct eeProm {
+	u_char bytes[ 256 ];
+};
+
+
 /*
  * XXX: this is a hack, should be in ioctl_meteor.h
  * here to avoid touching that file for now...
@@ -89,6 +96,10 @@
 #define	BT848_SUSAT	_IOW('x', 42, int)		/* set chroma U sat */
 #define BT848_GUSAT 	_IOR('x', 42, int)		/* get U saturation */
 
+#define	BT848_SCBARS	_IOR('x', 43, int)		/* set colorbar */
+#define	BT848_CCBARS	_IOR('x', 44, int)		/* clear colorbar */
+
+#define	BT848_EEPROM	_IOR('x', 45, struct eeProm)
 
 /*
  * XXX: more bad magic,
