@@ -34,7 +34,7 @@ struct disk {
 #define DISKFLAG_WANTED		0x2
 
 dev_t disk_create __P((int unit, struct disk *disk, int flags, struct cdevsw *cdevsw, struct cdevsw *diskdevsw));
-void disk_delete __P((dev_t dev));
+void disk_destroy __P((dev_t dev));
 int disk_dumpcheck __P((dev_t dev, u_int *count, u_int *blkno, u_int *secsize));
 void disk_invalidate __P((struct disk *disk));
 
