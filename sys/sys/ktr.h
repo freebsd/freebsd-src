@@ -77,14 +77,14 @@
  * Trace classes which can be assigned to particular use at compile time
  * These must remain in high 22 as some assembly code counts on it
  */
-#define KTR_CT1		0x010000000
-#define KTR_CT2		0x020000000
-#define KTR_CT3		0x040000000
-#define KTR_CT4		0x080000000
-#define KTR_CT5		0x100000000
-#define KTR_CT6		0x200000000
-#define KTR_CT7		0x400000000
-#define KTR_CT8		0x800000000
+#define KTR_CT1		0x01000000
+#define KTR_CT2		0x02000000
+#define KTR_CT3		0x04000000
+#define KTR_CT4		0x08000000
+#define KTR_CT5		0x10000000
+#define KTR_CT6		0x20000000
+#define KTR_CT7		0x40000000
+#define KTR_CT8		0x80000000
 
 /* Trace classes to compile in */
 #ifndef KTR_COMPILE
