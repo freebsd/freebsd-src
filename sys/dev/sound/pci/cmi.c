@@ -60,7 +60,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define CMI8738B_PCI_ID   0x011213f6
 
 /* Buffer size max is 64k for permitted DMA boundaries */
-#define CMI_BUFFER_SIZE      16384
+#define CMI_DEFAULT_BUFSZ      16384
 
 /* Interrupts per length of buffer */
 #define CMI_INTR_PER_BUFFER      2
@@ -109,6 +109,7 @@ struct sc_info {
 	void 			*ih;
 	void			*lock;
 
+	unsigned int		bufsz;
 	struct sc_chinfo 	pch, rch;
 };
 
@@ -338,7 +339,7 @@ cmichan_init(kobj_t obj, void *devinfo,
 	ch->spd        = DSP_DEFAULT_SPEED;
 	ch->buffer     = b;
 	ch->dma_active = 0;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, CMI_BUFFER_SIZE) != 0) {
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0) {
 		DEB(printf("cmichan_init failed\n"));
 		return NULL;
 	}
@@ -443,10 +444,11 @@ static int
 cmichan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
+	struct sc_info	 *sc = ch->parent;
 
 	/* user has requested interrupts every blocksize bytes */
-	if (blocksize > CMI_BUFFER_SIZE / CMI_INTR_PER_BUFFER) {
-		blocksize = CMI_BUFFER_SIZE / CMI_INTR_PER_BUFFER;
+	if (blocksize > sc->bufsz / CMI_INTR_PER_BUFFER) {
+		blocksize = sc->bufsz / CMI_INTR_PER_BUFFER;
 	}
 	sndbuf_resize(ch->buffer, CMI_INTR_PER_BUFFER, blocksize);
 
@@ -844,11 +846,13 @@ cmi_attach(device_t dev)
 		goto bad;
 	}
 
+	sc->bufsz = pcm_getbuffersize(dev, 4096, CMI_DEFAULT_BUFSZ, 65536);
+
 	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/CMI_BUFFER_SIZE, /*nsegments*/1,
+			       /*maxsize*/sc->bufsz, /*nsegments*/1,
 			       /*maxsegz*/0x3ffff, /*flags*/0,
 			       &sc->parent_dmat) != 0) {
 		device_printf(dev, "cmi_attach: Unable to create dma tag\n");
