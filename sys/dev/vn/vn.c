@@ -743,6 +743,7 @@ vn_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+		cdevsw_add(&vn_cdevsw);
 		break;
 
 	case MOD_UNLOAD:
@@ -764,4 +765,4 @@ vn_modevent(module_t mod, int type, void *data)
 	return 0;
 }
 
-DEV_MODULE(vn, CDEV_MAJOR, BDEV_MAJOR, vn_cdevsw, vn_modevent, 0);
+DEV_MODULE(vn, vn_modevent, 0);

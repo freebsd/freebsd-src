@@ -178,23 +178,6 @@ devsw_module_handler(module_t mod, int what, void* arg)
 	struct devsw_module_data* data = (struct devsw_module_data*) arg;
 	int error = 0;
 
-	switch (what) {
-	case MOD_LOAD:
-		error = cdevsw_add(data->cdevsw);
-		if (!error && data->chainevh)
-			error = data->chainevh(mod, what, data->chainarg);
-		return error;
-
-	case MOD_UNLOAD:
-		if (data->chainevh) {
-			error = data->chainevh(mod, what, data->chainarg);
-			if (error)
-				return error;
-		}
-		cdevsw_remove(data->cdevsw);
-		return error;
-	}
-
 	if (data->chainevh)
 		return data->chainevh(mod, what, data->chainarg);
 	else
