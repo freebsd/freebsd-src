@@ -93,7 +93,7 @@ information.
 Equivalent to
 .Nm whatis .
 .It Fl h
-Print a one line help message and exit.
+Print a help message and exit.
 .It Fl k
 Equivalent to
 .Nm apropos .
