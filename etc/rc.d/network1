@@ -205,8 +205,6 @@ network_start()
 		fi
 	done
 
-	echo '.'
-
 	# Resync ipfilter
 	/etc/rc.d/ipfilter resync
 }
