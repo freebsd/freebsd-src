@@ -63,7 +63,6 @@ int yylex(void);
 <INITIAL,nchar,subs>\\v      { yylval.ch = '\v'; return CHAR; }
 <INITIAL,nchar,subs>\\r      { yylval.ch = '\r'; return CHAR; }
 <INITIAL,nchar,subs>\\a      { yylval.ch = '\a'; return CHAR; }
-<INITIAL,nchar,subs>\\.      { yylval.ch = yytext[1]; return CHAR; }
 <subs2>\n               {
 	line_no++;
 	BEGIN(INITIAL);
@@ -90,28 +89,15 @@ int yylex(void);
 	yylval.ch = (u_char)v;
 	return CHAR;
 }
-<INITIAL,nchar,subs>\\x[0-9a-z]{2}   {
+<INITIAL,nchar,subs>\\x[0-9a-fA-F]{2}   {
 	u_int v;
 
 	sscanf(&yytext[2], "%x", &v);
 	yylval.ch = (u_char)v;
 	return CHAR;
 }
-<INITIAL>[^;,{}() \t\n"<]+      {
-	if(yyleng == 1) {
-		yylval.ch = *yytext;
-		return CHAR;
-	}
-	if(yyleng > BUFSIZE - 1)
-		errx(EX_UNAVAILABLE, "chain buffer overflow near line %u",
-		     line_no);
-	strcpy(yylval.str, yytext);
-	return CHAIN;
-}
-<nchar,subs>.                {
-	yylval.ch = *yytext;
-	return CHAR;
-}
+<INITIAL,nchar,subs>\\. { yylval.ch = yytext[1]; return CHAR; }
+<INITIAL,nchar,subs>.   { yylval.ch = *yytext; return CHAR; }
 <defn>^#.*\n            line_no++;
 <defn>[ \t]+            {
 	if (ptr == buf)
