@@ -182,8 +182,8 @@ ACPI support has been merged in from the FreeBSD-ACPI project.
 
 devfs(5), which allows entries in the /dev directory to be built
 automatically and supports more flexible attachment of devices, has
-been largely reworked.  devfs(5) is configured into the GENERIC
-kernel.
+been largely reworked.  devfs(5) is now enabled by default, and is
+disabled by the NODEVFS kernel option.
 
 Write combining for crashdumps has been implemented.  This feature
 is useful when write caching is disabled on both SCSI and IDE disks,
@@ -331,7 +331,7 @@ generations. This enables the use of binary-only programs like Adobe
 Acrobat 4 on EV4 and EV5. 
 
 The fxp(4) driver now requires a "device miibus" entry in the kernel
-configuration file.
+configuration file. [MERGED]
 
 A new NFS hash function (based on the Fowler/Noll/Vo hash algorithm)
 has been implemented to improve NFS performance by increasing the
@@ -988,6 +988,9 @@ PAM support has been added for account management and sessions.
 
 Linux PAM has been updated to 0.75.
 
+The following PAM modules have been added: pam_krb5, pam_nologin,
+pam_rootok, pam_wheel.
+
 wall(1) now supports a -g flag to write a message to all users of a
 given group.
 
@@ -1103,6 +1106,10 @@ fixes.
 Ukranian language support has been added to the FreeBSD console.
 
 The performance of the ELF dynamic linker has been improved. [MERGED]
+
+fdread(1), a program to read data from floppy disks, has been added.
+It is designed to provide a means of recovering at least some data
+from bad media, and to obviate for a complex invocation of dd(1).
 
 
 2. Supported Configurations

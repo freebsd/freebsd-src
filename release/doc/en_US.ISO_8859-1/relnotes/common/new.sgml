@@ -78,8 +78,8 @@
     <para>&man.devfs.5;, which allows entries in the
     <filename>/dev</filename> directory to be built automatically and
     supports more flexible attachment of devices, has been largely
-    reworked.  &man.devfs.5; is now configured into the
-    <filename>GENERIC</filename> kernel.</para>
+    reworked.  &man.devfs.5; is now enabled by default and can be
+    disabled by the <literal>NODEVFS</literal> kernel option.</para>
 
     <para arch="i386">Preliminary Cardbus support under NEWCARD has been added.
     This code supports the TI113X, TI12XX, TI125X, Ricoh 5C46/5C47, Topic
@@ -281,7 +281,7 @@
       fixed. &merged;</para>
 
       <para>The &man.fxp.4; driver now requires a <literal>device
-      miibus</literal> entry in the kernel configuration file.</para>
+      miibus</literal> entry in the kernel configuration file. &merged;</para>
 
       <para>The &man.wx.4; driver now supports the Intel PRO1000-F and
       PRO1000-T (10/100/1000) adapters. &merged;</para>
@@ -1227,6 +1227,12 @@
     <para>The performance of the ELF dynamic linker &man.rtld.1; has
     been improved. &merged;</para>
 
+    <para>&man.fdread.1;, a program to read data from floppy disks,
+    has been added.  It is a counterpart to &man.fdwrite.1; and is
+    designed to provide a means of recovering at least some data from
+    bad media, and to obviate for a complex invocation of
+    &man.dd.1;.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -1341,6 +1347,12 @@
 
         <para><application>PAM</application> support for
         <application>OpenSSH</application> has been added.</para>
+
+	<para>The following <application>PAM</application> modules
+	have been added:  <filename>pam_krb5</filename>,
+	<filename>pam_nologin</filename>,
+	<filename>pam_rootok</filename>,
+	<filename>pam_wheel</filename>
 
 	<para>A long-standing bug in <application>OpenSSH</application>,
 	which sometimes resulted in a dropped session when an
