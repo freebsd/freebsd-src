@@ -308,4 +308,13 @@
 #define	SYS_uuidgen	392
 #define	SYS_sendfile	393
 #define	SYS_mac_syscall	394
-#define	SYS_MAXSYSCALL	395
+#define	SYS_ksem_close	400
+#define	SYS_ksem_post	401
+#define	SYS_ksem_wait	402
+#define	SYS_ksem_trywait	403
+#define	SYS_ksem_init	404
+#define	SYS_ksem_open	405
+#define	SYS_ksem_unlink	406
+#define	SYS_ksem_getvalue	407
+#define	SYS_ksem_destroy	408
+#define	SYS_MAXSYSCALL	409

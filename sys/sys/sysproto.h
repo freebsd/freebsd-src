@@ -10,8 +10,8 @@
 #define	_SYS_SYSPROTO_H_
 
 #include <sys/signal.h>
-
 #include <sys/acl.h>
+#include <posix4/_semaphore.h>
 
 struct proc;
 
@@ -1124,6 +1124,39 @@ struct mac_syscall_args {
 	char call_l_[PADL_(int)]; int call; char call_r_[PADR_(int)];
 	char arg_l_[PADL_(void *)]; void * arg; char arg_r_[PADR_(void *)];
 };
+struct ksem_close_args {
+	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
+};
+struct ksem_post_args {
+	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
+};
+struct ksem_wait_args {
+	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
+};
+struct ksem_trywait_args {
+	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
+};
+struct ksem_init_args {
+	char idp_l_[PADL_(semid_t *)]; semid_t * idp; char idp_r_[PADR_(semid_t *)];
+	char value_l_[PADL_(unsigned int)]; unsigned int value; char value_r_[PADR_(unsigned int)];
+};
+struct ksem_open_args {
+	char idp_l_[PADL_(semid_t *)]; semid_t * idp; char idp_r_[PADR_(semid_t *)];
+	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
+	char oflag_l_[PADL_(int)]; int oflag; char oflag_r_[PADR_(int)];
+	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
+	char value_l_[PADL_(unsigned int)]; unsigned int value; char value_r_[PADR_(unsigned int)];
+};
+struct ksem_unlink_args {
+	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
+};
+struct ksem_getvalue_args {
+	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
+	char val_l_[PADL_(int *)]; int * val; char val_r_[PADR_(int *)];
+};
+struct ksem_destroy_args {
+	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_exit(struct thread *, struct sys_exit_args *);
 int	fork(struct thread *, struct fork_args *);
@@ -1377,6 +1410,15 @@ int	lchflags(struct thread *, struct lchflags_args *);
 int	uuidgen(struct thread *, struct uuidgen_args *);
 int	sendfile(struct thread *, struct sendfile_args *);
 int	mac_syscall(struct thread *, struct mac_syscall_args *);
+int	ksem_close(struct thread *, struct ksem_close_args *);
+int	ksem_post(struct thread *, struct ksem_post_args *);
+int	ksem_wait(struct thread *, struct ksem_wait_args *);
+int	ksem_trywait(struct thread *, struct ksem_trywait_args *);
+int	ksem_init(struct thread *, struct ksem_init_args *);
+int	ksem_open(struct thread *, struct ksem_open_args *);
+int	ksem_unlink(struct thread *, struct ksem_unlink_args *);
+int	ksem_getvalue(struct thread *, struct ksem_getvalue_args *);
+int	ksem_destroy(struct thread *, struct ksem_destroy_args *);
 
 #ifdef COMPAT_43
 
