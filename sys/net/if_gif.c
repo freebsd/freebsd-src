@@ -169,7 +169,7 @@ gif_clone_create(ifc, unit)
 
 	sc->encap_cookie4 = sc->encap_cookie6 = NULL;
 #ifdef INET
-	sc->encap_cookie4 = encap_attach_func(AF_INET, -1,
+	sc->encap_cookie4 = encap_attach_func(AF_INET, IPPROTO_IPV4,
 	    gif_encapcheck, (struct protosw*)&in_gif_protosw, sc);
 	if (sc->encap_cookie4 == NULL) {
 		printf("%s: unable to attach encap4\n", if_name(&sc->gif_if));
@@ -178,7 +178,7 @@ gif_clone_create(ifc, unit)
 	}
 #endif
 #ifdef INET6
-	sc->encap_cookie6 = encap_attach_func(AF_INET6, -1,
+	sc->encap_cookie6 = encap_attach_func(AF_INET6, IPPROTO_IPV6,
 	    gif_encapcheck, (struct protosw *)&in6_gif_protosw, sc);
 	if (sc->encap_cookie6 == NULL) {
 		if (sc->encap_cookie4) {
