@@ -202,7 +202,7 @@ void file_compress(file, mode)
     gzFile out;
 
     if (strlen(file) + strlen(GZ_SUFFIX) >= sizeof(outfile)) {
-        fprintf(stderr, "%s: nilename too long\n", prog);
+        fprintf(stderr, "%s: filename too long\n", prog);
         exit(1);	    
     }
     
