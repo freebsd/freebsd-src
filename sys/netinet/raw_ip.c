@@ -131,7 +131,7 @@ rip_init()
 	ripcbinfo.hashbase = hashinit(1, M_PCB, &ripcbinfo.hashmask);
 	ripcbinfo.porthashbase = hashinit(1, M_PCB, &ripcbinfo.porthashmask);
 	ripcbinfo.ipi_zone = uma_zcreate("ripcb", sizeof(struct inpcb),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(ripcbinfo.ipi_zone, maxsockets);
 }
 

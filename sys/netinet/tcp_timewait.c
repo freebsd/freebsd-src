@@ -275,7 +275,7 @@ tcp_init()
 	tcbinfo.porthashbase = hashinit(hashsize, M_PCB,
 					&tcbinfo.porthashmask);
 	tcbinfo.ipi_zone = uma_zcreate("inpcb", sizeof(struct inpcb), 
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(tcbinfo.ipi_zone, maxsockets);
 #ifdef INET6
 #define TCP_MINPROTOHDR (sizeof(struct ip6_hdr) + sizeof(struct tcphdr))
@@ -291,10 +291,10 @@ tcp_init()
 	 * These have to be type stable for the benefit of the timers.
 	 */
 	tcpcb_zone = uma_zcreate("tcpcb", sizeof(struct tcpcb_mem), 
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(tcpcb_zone, maxsockets);
 	tcptw_zone = uma_zcreate("tcptw", sizeof(struct tcptw), 
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(tcptw_zone, maxsockets / 5);
 	tcp_timer_init();
 	syncache_init();
@@ -305,7 +305,7 @@ tcp_init()
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, tcp_fini, NULL,
 		SHUTDOWN_PRI_DEFAULT);
 	sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole), 
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 }
 
 void
