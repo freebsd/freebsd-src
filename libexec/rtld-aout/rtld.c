@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.38 1996/10/10 04:10:32 jdp Exp $
+ *	$Id: rtld.c,v 1.39 1996/10/10 23:16:50 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -235,6 +235,7 @@ static struct nzlist	*lookup __P((char *, struct so_map **, int));
 static inline struct rt_symbol	*lookup_rts __P((char *));
 static struct rt_symbol	*enter_rts __P((char *, long, int, caddr_t,
 						long, struct so_map *));
+static void		die __P((void));
 static void		generror __P((char *, ...));
 static int		maphints __P((void));
 static void		unmaphints __P((void));
@@ -357,12 +358,12 @@ struct _dynamic		*dp;
 	   can intercept those calls */
 	if (ld_preload != NULL && *ld_preload != '\0') {
 	        if(map_preload() == -1)			/* Failed */
-			return -1;
+			die();
 	}
 
 	/* Map all the shared objects that the main program depends upon */
 	if(map_sods(main_map) == -1)
-		return -1;
+		die();
 
 	if(ld_tracing) {	/* We're done */
 		ld_trace(link_map_head);
@@ -373,7 +374,7 @@ struct _dynamic		*dp;
 
 	/* Relocate and initialize all mapped objects */
 	if(reloc_and_init(main_map) == -1)		/* Failed */
-		return -1;
+		die();
 
 	ddp = crtp->crt_dp->d_debug;
 	ddp->dd_cc = rt_symbol_head;
@@ -844,13 +845,10 @@ map_sods(parent)
 				path = strdup(name);
 		}
 
-		if(path != NULL)
+		if(path != NULL) {
 			smp = map_object(path, sodp, parent);
-		else if (ld_tracing)
-			(void)alloc_link_map(NULL, sodp, parent, 0, 0);
-
-		if(path != NULL)
 			free(path);
+		}
 
 		if(smp != NULL) {
 			struct so_list	*solp = (struct so_list *)
@@ -859,7 +857,13 @@ map_sods(parent)
 			solp->sol_next = NULL;
 			*soltail = solp;
 			soltail = &solp->sol_next;
-		} else if(!ld_tracing)
+		} else if(ld_tracing) {
+			/*
+			 * Allocate a dummy map entry so that we will get the
+			 * "not found" message.
+			 */
+			(void)alloc_link_map(NULL, sodp, parent, 0, 0);
+		} else  /* Give up */
 			break;
 
 		next = sodp->sod_next;
@@ -1910,6 +1914,22 @@ xprintf("__dlexit called\n");
 
 	unmap_object(link_map_head, 1);
 }
+
+/*
+ * Print the current error message and exit with failure status.
+ */
+static void
+die __P((void))
+{
+	char *msg;
+
+	fprintf(stderr, "ld.so failed");
+	if ((msg = __dlerror()) != NULL)
+		fprintf(stderr, ": %s", msg);
+	putc('\n', stderr);
+	_exit(1);
+}
+
 
 /*
  * Generate an error message that can be later be retrieved via dlerror.
