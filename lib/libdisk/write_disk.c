@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.10 1995/05/18 22:25:37 phk Exp $
+ * $Id: write_disk.c,v 1.11 1995/05/21 07:47:24 phk Exp $
  *
  */
 
@@ -24,7 +24,6 @@
 #include "libdisk.h"
 
 #define DOSPTYP_EXTENDED        5
-#define DOSPTYP_ONTRACK         84      
 #define BBSIZE			8192 
 
 #define WHERE(offset,disk) (disk->flags & DISK_ON_TRACK ? offset + 63 : offset)
@@ -38,7 +37,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	u_char buf[BBSIZE];
 
 	for(i=0;i<BBSIZE/512;i++) {
-		p = read_block(fd,i + c1->offset);
+		p = read_block(fd,WHERE(i + c1->offset,new));
 		memcpy(buf+512*i,p,512);
 		free(p);
 	}
@@ -124,7 +123,7 @@ Write_Disk(struct disk *d1)
         }
 
 	memset(s,0,sizeof s);
-	mbr = read_block(fd,0);
+	mbr = read_block(fd,WHERE(0,d1));
 	dp = (struct dos_partition*) (mbr + DOSPARTOFF);
 	memcpy(work,dp,sizeof work);
 	dp = work;
@@ -201,7 +200,7 @@ Write_Disk(struct disk *d1)
 			if (dp[i].dp_typ == 0xa5)
 				dp[i].dp_flag = 0x80;
 	
-	mbr = read_block(fd,0);
+	mbr = read_block(fd,WHERE(0,d1));
 	if (d1->bootmgr)
 		memcpy(mbr,d1->bootmgr,DOSPARTOFF);	
 	memcpy(mbr+DOSPARTOFF,dp,sizeof *dp * NDOSPART);
