@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ar_io.c,v 1.7 1997/02/22 14:04:17 peter Exp $
+ *	$Id: ar_io.c,v 1.8 1997/08/29 16:12:19 sos Exp $
  */
 
 #ifndef lint
@@ -42,11 +42,9 @@ static char const sccsid[] = "@(#)ar_io.c	8.2 (Berkeley) 4/18/94";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/mtio.h>
-#include <sys/param.h>
 #include <signal.h>
 #include <string.h>
 #include <fcntl.h>

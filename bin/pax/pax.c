@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pax.c,v 1.8 1997/02/22 14:04:39 peter Exp $
+ *	$Id: pax.c,v 1.9 1997/08/29 16:12:28 sos Exp $
  */
 
 #ifndef lint
@@ -47,17 +47,16 @@ static char const copyright[] =
 static char const sccsid[] = "@(#)pax.c	8.2 (Berkeley) 4/18/94";
 #endif /* not lint */
 
-#include <stdio.h>
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <signal.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <locale.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "pax.h"
 #include "extern.h"
 static int gen_init __P((void));

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: buf_subs.c,v 1.7 1997/02/22 14:04:20 peter Exp $
+ *	$Id: buf_subs.c,v 1.8 1997/08/29 16:12:20 sos Exp $
  */
 
 #ifndef lint
@@ -42,10 +42,7 @@ static char const sccsid[] = "@(#)buf_subs.c	8.2 (Berkeley) 4/18/94";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/param.h>
-#include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
