@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.7 1995/05/11 06:10:50 jkh Exp $
+ * $Id: dmenu.c,v 1.8 1995/05/16 02:53:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -125,7 +125,10 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 				    (unsigned char **)nitems,
 				    (unsigned char *)result);
 	}
+
+	/* This seems to be the only technique that works for getting the display to look right */
 	dialog_clear();
+
 	if (!rval) {
 	    if (menu->options & DMENU_MULTIPLE_TYPE) {
 		if (menu->options & DMENU_CALL_FIRST)
@@ -156,5 +159,3 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	}
     }
 }
-
-

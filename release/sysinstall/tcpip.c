@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.3 1995/05/16 20:00:51 gpalmer Exp $
+ * $Id: tcpip.c,v 1.4 1995/05/17 12:09:11 gpalmer Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -199,6 +199,7 @@ tcpOpenDialog(char *str)
     char                *tmp;
     Device		**devs;
     char		old_iface[8];
+    char		help[FILENAME_MAX];
 
     /* We need a curses window */
     ds_win = newwin(LINES, COLS, 0, 0);
@@ -216,9 +217,11 @@ tcpOpenDialog(char *str)
 	iface_names[n] = (devs[n])->name;
 	++n;
     }
-    n_iface = --n;
+    n_iface = n;
 
     /* Setup a nice screen for us to splat stuff onto */
+    systemHelpFile(TCP_HELPFILE, help);
+    use_helpfile(help);
     draw_box(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X,
 	     TCP_DIALOG_HEIGHT, TCP_DIALOG_WIDTH,
 	     dialog_attr, border_attr);
@@ -388,7 +391,7 @@ tcpOpenDialog(char *str)
                the next field, so we special case around getting to
                that field, rather than moving off the previous
                one. Hence we are really testing for
-	       (n ==_IFACE) */
+	       (n == LAYOUT_IFACE) */
 
 	    if (n == LAYOUT_IPADDR) {
 		n = LAYOUT_OKBUTTON;
@@ -517,6 +520,8 @@ tcpOpenDialog(char *str)
 	    else
 		n = max;
 	    break;
+	case KEY_F(1):
+	    display_helpfile();
 
 	    /* They tried some key combination we don't support - tell them! */
 	default:
@@ -534,6 +539,7 @@ tcpOpenDialog(char *str)
     /* Clear this crap off the screen */
     dialog_clear();
     refresh();
+    use_helpfile(NULL);
     
     /* We actually need to inform the rest of sysinstall about this
        data now - if the user hasn't selected cancel, save the stuff
@@ -557,13 +563,10 @@ tcpOpenDialog(char *str)
 		sprintf(temp, "inet %s %s netmask %s",
 			if_list[foo].ipaddr, if_list[foo].extras,
 			if_list[foo].netmask);
-		sprintf(ifn, "ifconfig_%s", iface_names[foo]);
+		sprintf(ifn, "%s%s", VAR_IFCONFIG, iface_names[foo]);
 		variable_set2(ifn, temp);
 	    }
 	}
-
-	return 1;
     }
-
     return 0;
 }
