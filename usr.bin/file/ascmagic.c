@@ -36,7 +36,7 @@
 
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: ascmagic.c,v 1.20 1995/05/20 22:09:21 christos Exp $";
+	"@(#)$Id: ascmagic.c,v 1.21 1997/01/15 17:23:24 christos Exp $";
 #endif	/* lint */
 
 			/* an optimisation over plain strcmp() */
@@ -88,6 +88,13 @@ int nbytes;	/* size actually read */
 		return 1;
 	}
 
+
+	/* Make sure we are dealing with ascii text before looking for tokens */
+	for (i = 0; i < nbytes; i++) {
+		if (!isascii(buf[i]))
+			return 0;	/* not all ASCII */
+	}
+
 	/* look for tokens from names.h - this is expensive! */
 	/* make a copy of the buffer here because strtok() will destroy it */
 	s = (unsigned char*) memcpy(nbuf, buf, nbytes);
@@ -104,12 +111,6 @@ int nbytes;	/* size actually read */
 				return 1;
 			}
 		}
-	}
-
-
-	for (i = 0; i < nbytes; i++) {
-		if (!isascii(buf[i]))
-			return 0;	/* not all ASCII */
 	}
 
 	/* all else fails, but it is ASCII... */

@@ -12,5 +12,6 @@
 0	beshort		0x0104		shared library
 0	beshort		0x0105		ctab data
 0	beshort		0xfe04		structured file
-0	string		0xabcdef	message catalog
-#0	string		<aiaff>		archive
+0	string		0xabcdef	AIX message catalog
+0	belong		0x000001f9	AIX compiled message catalog
+0	string		\<aiaff>	archive
