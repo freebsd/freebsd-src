@@ -81,6 +81,7 @@ Directors, The FreeBSD Project:
 Additional FreeBSD Contributors
 (in alphabetical order by first name, just to be different):
 
+Adam David <adam@veda.is>
 Adam Glass <glass@postgres.berkeley.edu>
 Akito Fujita <fujita@zoo.ncl.omron.co.jp>
 Andreas Klemm <andreas@knobel.GUN.de>
@@ -248,4 +249,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.6 1995/04/12 22:47:31 jkh Exp $
+$Id: CONTRIB.FreeBSD,v 1.7 1995/05/17 02:01:00 rgrimes Exp $
