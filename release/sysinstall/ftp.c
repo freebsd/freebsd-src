@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.13.2.3 1995/06/03 02:14:31 jkh Exp $
+ * $Id: ftp.c,v 1.13.2.4 1995/06/03 06:31:02 jkh Exp $
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.
@@ -276,8 +276,9 @@ FtpGet(FTP_t ftp, char *file)
 {
     int i,s;
     char *q;
-    unsigned char addr[6];
+    unsigned char addr[64];
     struct sockaddr_in sin;
+    u_long a;
 
     debug(ftp, "FtpGet(ftp,%s)\n",file);
     if (ftp->state != isopen)
@@ -291,6 +292,10 @@ FtpGet(FTP_t ftp, char *file)
     } else {
 	return -1;
     }
+
+    if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0)
+	return zap(ftp);
+
     if (ftp->passive) {
 	debug(ftp, "send <%s>\n","PASV");
 	if (writes(ftp->fd_ctrl,"PASV\r\n"))
@@ -315,9 +320,6 @@ FtpGet(FTP_t ftp, char *file)
 	bcopy(addr+4, (char *)&sin.sin_port, 2);
 	debug(ftp, "Opening active socket to %s : %u\n", inet_ntoa(sin.sin_addr), htons(sin.sin_port));
 
-	if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0)
-	    return zap(ftp);
-
 	debug(ftp, "Connecting to %s:%u\n", inet_ntoa(sin.sin_addr), htons(sin.sin_port));
 	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
 	    (void)close(s);
@@ -325,15 +327,54 @@ FtpGet(FTP_t ftp, char *file)
 	    return -1;
 	}
 	ftp->fd_xfer = s;
-	ftp->state = xfer;
 	i = cmd(ftp,"RETR %s",file);
 	if (i < 0) 
 	    return zap(ftp);
-	if (i > 299)
+	if (i > 299) {
+	    close(s);
 	    return -1;
+	}
+	ftp->state = xfer;
 	return s;
     } else {
-	return -1;
+	i = sizeof sin;
+	getsockname(ftp->fd_ctrl,(struct sockaddr *)&sin,&i);
+	sin.sin_port = 0;
+	i = sizeof sin;
+	if (bind(s,(struct sockaddr *)&sin, i) < 0) {
+		close (s);	
+		debug(ftp,"bind failed %d\n",errno);
+		return zap(ftp);
+	}
+	getsockname(s,(struct sockaddr *)&sin,&i);
+	if (listen(s,1) < 0) {
+		close (s);	
+		debug(ftp,"listen failed %d\n",errno);
+		return zap(ftp);
+	}
+	a = ntohl(sin.sin_addr.s_addr);
+	i = cmd(ftp,"PORT %d,%d,%d,%d,%d,%d",
+		(a                   >> 24) & 0xff,
+		(a                   >> 16) & 0xff,
+		(a                   >>  8) & 0xff,
+		 a                          & 0xff,
+		(ntohs(sin.sin_port) >>  8) & 0xff,
+		 ntohs(sin.sin_port)        & 0xff);
+	if (i != 200)
+	    return -1;
+	i = cmd(ftp,"RETR %s",file);
+	if (i < 0) {
+	    close(s);
+	    return zap(ftp);
+	}
+	ftp->fd_xfer = accept(s,0,0);
+	if (ftp->fd_xfer < 0) {
+	    close(s);
+	    return zap(ftp);
+	}
+	ftp->state = xfer;
+	close(s);
+	return(ftp->fd_xfer);
     }
 }
 
@@ -350,7 +391,7 @@ FtpEOF(FTP_t ftp)
     i = get_a_number(ftp,0);
     if (i < 0)
 	return zap(ftp);
-    else if (i != 250)
+    else if (i != 250 && i != 226)
 	return -1;
     else
 	return 0;
@@ -367,23 +408,13 @@ main(int argc, char **argv)
     char c;
 
     ftp = FtpInit();
-    if (!ftp) err(1,"FtpInit()");
+    if (!ftp)
+	err(1, "FtpInit()");
 
     FtpDebug(ftp, 1);
-    i = FtpOpen(ftp, "ref.tfs.com", "ftp", "phk-libftp@");
-    if (i) err(1,"FtpOpen(%d)",i);
-    FtpBinary(ftp, 1);
-    FtpPassive(ftp, 1);
-    FtpChdir(ftp, "/");
-    FtpChdir(ftp, "CTM");
-    i = FtpGet(ftp, "README");
-    while (1 == read(i, &c, 1))
-	putchar(c);
-    FtpEOF(ftp);
-    FtpClose(ftp);
     i = FtpOpen(ftp, "freefall.cdrom.com", "ftp", "phk-libftp@");
     FtpBinary(ftp, 1);
-    FtpPassive(ftp, 1);
+    FtpPassive(ftp, 0);
     FtpChdir(ftp, "/pub");
     FtpChdir(ftp, "FreeBSD");
     i = FtpGet(ftp, "README");
