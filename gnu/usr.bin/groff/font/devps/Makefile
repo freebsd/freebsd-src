@@ -18,9 +18,9 @@ DESC: DESC.in
 	cat ${DIST_DIR}/DESC.in >DESC
 	echo broken ${BROKEN_SPOOLER_FLAGS} >>DESC
 	if test "${PAGE}" = A4; then \
-	  echo "paperlength 841890" >>DESC; \
+	  echo "papersize a4" >>DESC; \
 	else \
-	  echo "paperlength 792000" >>DESC; \
+	  echo "papersize letter" >>DESC; \
 	fi
 	test -z '${PSPRINT}' ||	echo print '${PSPRINT}' >>DESC
 
