@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.42 1999/03/10 00:41:27 mjacob Exp $ */
+/* $Id: ccd.c,v 1.43 1999/03/11 18:50:39 dg Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -105,9 +105,6 @@
 #include <ufs/ffs/fs.h> 
 #include <sys/device.h>
 #include <sys/devicestat.h>
-#undef KERNEL			/* XXX */
-#include <sys/disk.h>
-#define KERNEL
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
 
@@ -636,7 +633,7 @@ ccdopen(dev, flags, fmt, p)
 	if ((error = ccdlock(cs)) != 0)
 		return (error);
 
-	lp = &cs->sc_dkdev.dk_label;
+	lp = &cs->sc_label;
 
 	part = ccdpart(dev);
 	pmask = (1 << part);
@@ -646,7 +643,7 @@ ccdopen(dev, flags, fmt, p)
 	 * open partitions.  If not, then it's safe to update
 	 * the in-core disklabel.
 	 */
-	if ((cs->sc_flags & CCDF_INITED) && (cs->sc_dkdev.dk_openmask == 0))
+	if ((cs->sc_flags & CCDF_INITED) && (cs->sc_openmask == 0))
 		ccdgetdisklabel(dev);
 
 	/* Check that the partition exists. */
@@ -659,15 +656,15 @@ ccdopen(dev, flags, fmt, p)
 	/* Prevent our unit from being unconfigured while open. */
 	switch (fmt) {
 	case S_IFCHR:
-		cs->sc_dkdev.dk_copenmask |= pmask;
+		cs->sc_copenmask |= pmask;
 		break;
 
 	case S_IFBLK:
-		cs->sc_dkdev.dk_bopenmask |= pmask;
+		cs->sc_bopenmask |= pmask;
 		break;
 	}
-	cs->sc_dkdev.dk_openmask =
-	    cs->sc_dkdev.dk_copenmask | cs->sc_dkdev.dk_bopenmask;
+	cs->sc_openmask =
+	    cs->sc_copenmask | cs->sc_bopenmask;
 
  done:
 	ccdunlock(cs);
@@ -702,15 +699,15 @@ ccdclose(dev, flags, fmt, p)
 	/* ...that much closer to allowing unconfiguration... */
 	switch (fmt) {
 	case S_IFCHR:
-		cs->sc_dkdev.dk_copenmask &= ~(1 << part);
+		cs->sc_copenmask &= ~(1 << part);
 		break;
 
 	case S_IFBLK:
-		cs->sc_dkdev.dk_bopenmask &= ~(1 << part);
+		cs->sc_bopenmask &= ~(1 << part);
 		break;
 	}
-	cs->sc_dkdev.dk_openmask =
-	    cs->sc_dkdev.dk_copenmask | cs->sc_dkdev.dk_bopenmask;
+	cs->sc_openmask =
+	    cs->sc_copenmask | cs->sc_bopenmask;
 
 	ccdunlock(cs);
 	return (0);
@@ -752,7 +749,7 @@ ccdstrategy(bp)
 	if (bp->b_bcount == 0)
 		goto done;
 
-	lp = &cs->sc_dkdev.dk_label;
+	lp = &cs->sc_label;
 
 	/*
 	 * Do bounds checking and adjust transfer.  If there's an
@@ -801,7 +798,7 @@ ccdstart(cs, bp)
 	 */
 	bn = bp->b_blkno;
 	if (ccdpart(bp->b_dev) != RAW_PART) {
-		pp = &cs->sc_dkdev.dk_label.d_partitions[ccdpart(bp->b_dev)];
+		pp = &cs->sc_label.d_partitions[ccdpart(bp->b_dev)];
 		bn += pp->p_offset;
 	}
 
@@ -911,7 +908,6 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	bzero(cbp, sizeof (struct ccdbuf));
 	cbp->cb_buf.b_flags = bp->b_flags | B_CALL;
 	cbp->cb_buf.b_iodone = (void (*)(struct buf *))ccdiodone;
-	cbp->cb_buf.b_proc = bp->b_proc;
 	cbp->cb_buf.b_dev = ci->ci_dev;		/* XXX */
 	cbp->cb_buf.b_blkno = cbn + cboff + CCD_OFFSET;
 	cbp->cb_buf.b_offset = dbtob(cbn + cboff + CCD_OFFSET);
@@ -1191,9 +1187,9 @@ ccdioctl(dev, cmd, data, flag, p)
 		 */
 		part = ccdpart(dev);
 		pmask = (1 << part);
-		if ((cs->sc_dkdev.dk_openmask & ~pmask) ||
-		    ((cs->sc_dkdev.dk_bopenmask & pmask) &&
-		    (cs->sc_dkdev.dk_copenmask & pmask))) {
+		if ((cs->sc_openmask & ~pmask) ||
+		    ((cs->sc_bopenmask & pmask) &&
+		    (cs->sc_copenmask & pmask))) {
 			ccdunlock(cs);
 			return (EBUSY);
 		}
@@ -1253,16 +1249,16 @@ ccdioctl(dev, cmd, data, flag, p)
 		if ((cs->sc_flags & CCDF_INITED) == 0)
 			return (ENXIO);
 
-		*(struct disklabel *)data = cs->sc_dkdev.dk_label;
+		*(struct disklabel *)data = cs->sc_label;
 		break;
 
 	case DIOCGPART:
 		if ((cs->sc_flags & CCDF_INITED) == 0)
 			return (ENXIO);
 
-		((struct partinfo *)data)->disklab = &cs->sc_dkdev.dk_label;
+		((struct partinfo *)data)->disklab = &cs->sc_label;
 		((struct partinfo *)data)->part =
-		    &cs->sc_dkdev.dk_label.d_partitions[ccdpart(dev)];
+		    &cs->sc_label.d_partitions[ccdpart(dev)];
 		break;
 
 	case DIOCWDINFO:
@@ -1278,15 +1274,12 @@ ccdioctl(dev, cmd, data, flag, p)
 
 		cs->sc_flags |= CCDF_LABELLING;
 
-		error = setdisklabel(&cs->sc_dkdev.dk_label,
+		error = setdisklabel(&cs->sc_label,
 		    (struct disklabel *)data, 0);
-				/*, &cs->sc_dkdev.dk_cpulabel); */
 		if (error == 0) {
 			if (cmd == DIOCWDINFO)
 				error = writedisklabel(CCDLABELDEV(dev),
-				    ccdstrategy, &cs->sc_dkdev.dk_label);
-				/*
-				    &cs->sc_dkdev.dk_cpulabel); */
+				    ccdstrategy, &cs->sc_label);
 		}
 
 		cs->sc_flags &= ~CCDF_LABELLING;
@@ -1332,10 +1325,10 @@ ccdsize(dev)
 	if ((cs->sc_flags & CCDF_INITED) == 0)
 		return (-1);
 
-	if (cs->sc_dkdev.dk_label.d_partitions[part].p_fstype != FS_SWAP)
+	if (cs->sc_label.d_partitions[part].p_fstype != FS_SWAP)
 		size = -1;
 	else
-		size = cs->sc_dkdev.dk_label.d_partitions[part].p_size;
+		size = cs->sc_label.d_partitions[part].p_size;
 
 	if (ccdclose(dev, 0, S_IFBLK, curproc))
 		return (-1);
@@ -1422,7 +1415,7 @@ ccdgetdisklabel(dev)
 	int unit = ccdunit(dev);
 	struct ccd_softc *cs = &ccd_softc[unit];
 	char *errstring;
-	struct disklabel *lp = &cs->sc_dkdev.dk_label;
+	struct disklabel *lp = &cs->sc_label;
 	struct ccdgeom *ccg = &cs->sc_geom;
 
 	bzero(lp, sizeof(*lp));
@@ -1451,13 +1444,13 @@ ccdgetdisklabel(dev)
 
 	lp->d_magic = DISKMAGIC;
 	lp->d_magic2 = DISKMAGIC;
-	lp->d_checksum = dkcksum(&cs->sc_dkdev.dk_label);
+	lp->d_checksum = dkcksum(&cs->sc_label);
 
 	/*
 	 * Call the generic disklabel extraction routine.
 	 */
 	if ((errstring = readdisklabel(CCDLABELDEV(dev), ccdstrategy,
-	    &cs->sc_dkdev.dk_label)) != NULL)
+	    &cs->sc_label)) != NULL)
 		ccdmakedisklabel(cs);
 
 #ifdef DEBUG
@@ -1476,7 +1469,7 @@ static void
 ccdmakedisklabel(cs)
 	struct ccd_softc *cs;
 {
-	struct disklabel *lp = &cs->sc_dkdev.dk_label;
+	struct disklabel *lp = &cs->sc_label;
 
 	/*
 	 * For historical reasons, if there's no disklabel present
