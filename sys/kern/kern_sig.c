@@ -1910,9 +1910,10 @@ postsig(sig)
 			p->p_sig = 0;
 		}
 		if (p->p_flag & P_KSES)
-			if (signal_upcall(p, sig))
-				return;
-		(*p->p_sysent->sv_sendsig)(action, sig, &returnmask, code);
+			thread_signal_add(curthread, sig);
+		else
+			(*p->p_sysent->sv_sendsig)(action, sig,
+			    &returnmask, code);
 	}
 }
 

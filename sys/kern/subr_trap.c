@@ -247,10 +247,17 @@ ast(struct trapframe *framep)
 		mtx_unlock_spin(&sched_lock);
 	}
 	if (sflag & PS_NEEDSIGCHK) {
+		int sigs;
+
+		sigs = 0;
 		PROC_LOCK(p);
-		while ((sig = cursig(td)) != 0)
+		while ((sig = cursig(td)) != 0) {
 			postsig(sig);
+			sigs++;
+		}
 		PROC_UNLOCK(p);
+		if (p->p_flag & P_KSES && sigs)
+			thread_signal_upcall(td);
 	}
 
 	userret(td, framep, sticks);
