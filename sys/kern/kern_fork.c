@@ -166,6 +166,13 @@ rfork(td, uap)
 	/* Don't allow kernel only flags. */
 	if ((uap->flags & RFKERNELONLY) != 0)
 		return (EINVAL);
+	/* 
+	 * Don't allow sharing of file descriptor table unless
+	 * RFTHREAD flag is supplied
+	 */
+	if ((uap->flags & (RFPROC | RFTHREAD | RFFDG | RFCFDG)) ==
+	    RFPROC)
+		return(EINVAL);
 	mtx_lock(&Giant);
 	error = fork1(td, uap->flags, 0, &p2);
 	if (error == 0) {
