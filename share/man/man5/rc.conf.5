@@ -229,6 +229,13 @@ to enable ipfw event logging.
 This is equivalent to the
 .Dv IPFIREWALL_VERBOSE
 kernel option.
+.It Va firewall_flags
+.Pq Vt str
+Flags passed to
+.Xr ipfw 8
+if
+.Va firewall_type
+specifies a filename.
 .It Va natd_program
 .Pq Vt str
 Path to
@@ -722,6 +729,8 @@ Set to
 if you want to run a Kerberos authentication server
 at boot time.
 .It Va kadmind_server_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Xr kadmind 8
@@ -773,6 +782,22 @@ See the
 .Xr amd 8
 .Xr info 1
 page for more information.
+.It Va amd_map_program
+.Pq Vt str
+If set,
+the specified program is run to get the list of
+.Xr amd 8
+maps.
+For example, if the
+.Xr amd 8
+maps are stored in NIS, one can set this to
+run
+.Xr ypcat 8
+to get a list of
+.Xr amd 8
+maps from the
+.Pa amd.master
+NIS map.
 .It Va update_motd
 .Pq Vt bool
 If set to
@@ -1056,7 +1081,7 @@ daemon.
 If set to
 .Dq YES
 then run the
-.Xr ypxfrd 8
+.Xr rpc.ypxfrd 8
 daemon at system boot time.
 .It Va nis_ypxfrd_flags
 .Pq Vt str
@@ -1065,14 +1090,14 @@ If
 is set to
 .Dq YES ,
 these are the flags to pass to the
-.Xr ypxfrd 8
+.Xr rpc.ypxfrd 8
 daemon.
 .It Va nis_yppasswdd_enable
 .Pq Vt bool
 If set to
 .Dq YES
 then run the
-.Xr yppasswdd 8
+.Xr rpc.yppasswdd 8
 daemon at system boot time.
 .It Va nis_yppasswdd_flags
 .Pq Vt str
@@ -1081,7 +1106,7 @@ If
 is set to
 .Dq YES ,
 these are the flags to pass to the
-.Xr yppasswdd 8
+.Xr rpc.yppasswdd 8
 daemon.
 .It Va defaultrouter
 .Pq Vt str
@@ -1622,6 +1647,13 @@ will typically be stored in the
 directory by the
 .Xr savecore 8
 program.
+.It Va enable_quotas
+.Pq Vt bool
+Set to
+.Dq YES
+to turn on user disk quotas on system startup via the
+.Xr quotaon 8
+command.
 .It Va check_quotas
 .Pq Vt bool
 Set to
@@ -1818,6 +1850,7 @@ Flags for
 .Xr info 1 ,
 .Xr makewhatis 1 ,
 .Xr vidcontrol 1 ,
+.Xr yp 4 ,
 .Xr exports 5 ,
 .Xr motd 5 ,
 .Xr accton 8 ,
@@ -1842,6 +1875,7 @@ Flags for
 .Xr ntpdate 8 ,
 .Xr pcnfsd 8 ,
 .Xr quotacheck 8 ,
+.Xr quotaon 8 ,
 .Xr rc 8 ,
 .Xr route 8 ,
 .Xr routed 8 ,
