@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.126
+        Original revision: 1.129
 -->
 
 <sect1 id="support">
@@ -1767,7 +1767,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Davicom DM9100 および
+    <para arch="i386,pc98,alpha">Davicom DM9009, DM9100,
       DM9102 PCI Fast Ethernet NIC (&man.dc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1936,13 +1936,13 @@
     <para arch="i386">3Com 3C501 8-bit ISA Ethernet NIC 
       (&man.el.4; ドライバ)</para>
 
-    <para arch="i386,pc98,alpha">3Com Etherlink XL-based NIC (&man.xl.4; ドライバ)
+    <para arch="i386,pc98,alpha,sparc64">3Com Etherlink XL-based NIC (&man.xl.4; ドライバ)
       <itemizedlist>
 	<listitem>
 	  <para>3C900/905/905B/905C PCI</para>
         </listitem>
         <listitem arch="i386,alpha">
-	  <para>3C556/556B MiniPCI</para>
+	  <para>3C555/556/556B MiniPCI</para>
         </listitem>
         <listitem arch="i386,alpha">
 	  <para>3C450-TX HomeConnect アダプタ</para>
@@ -2361,7 +2361,7 @@
         </listitem>
         <listitem>
 	  <para>Cisco Systems Aironet 340 および 350 シリーズ
-            (PCMCIA, PCI, ISA アダプタすべてに対応)</para>
+            (PCMCIA, PCI, Mini-PCI, ISA アダプタすべてに対応)</para>
         </listitem>
 	<listitem>
 	  <para>Xircom Wireless Ethernet adapter (rebadged Aironet)</para>
