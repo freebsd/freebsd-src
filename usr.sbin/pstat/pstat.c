@@ -856,7 +856,7 @@ ttyprt(tp, line)
 
 	if (usenumflag || tp->t_dev == 0 ||
 	   (name = devname(tp->t_dev, S_IFCHR)) == NULL)
-		(void)printf("%7d ", line);
+		(void)printf("   %2d,%-2d", major(tp->t_dev), minor(tp->t_dev));
 	else
 		(void)printf("%7s ", name);
 	(void)printf("%2d %3d ", tp->t_rawq.c_cc, tp->t_canq.c_cc);
