@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.49 1995/03/16 18:11:31 bde Exp $
+ *	$Id: trap.c,v 1.50 1995/03/21 07:02:51 davidg Exp $
  */
 
 /*
@@ -387,6 +387,126 @@ trap(frame)
 out:
 	userret(p, &frame, sticks);
 }
+
+#ifdef notyet
+/*
+ * This version doesn't allow a page fault to user space while
+ * in the kernel. The rest of the kernel needs to be made "safe"
+ * before this can be used. I think the only things remaining
+ * to be made safe are the iBCS2 code and the process tracing/
+ * debugging code.
+ */
+int
+trap_pfault(frame, usermode)
+	struct trapframe *frame;
+	int usermode;
+{
+	vm_offset_t va;
+	struct vmspace *vm = NULL;
+	vm_map_t map = 0;
+	int rv = 0;
+	vm_prot_t ftype;
+	int eva;
+	struct proc *p = curproc;
+
+	if (frame->tf_err & PGEX_W)
+		ftype = VM_PROT_READ | VM_PROT_WRITE;
+	else
+		ftype = VM_PROT_READ;
+
+	eva = rcr2();
+	va = trunc_page((vm_offset_t)eva);
+
+	if (va < VM_MIN_KERNEL_ADDRESS) {
+		vm_offset_t v;
+		vm_page_t ptepg;
+
+		if ((p == NULL) ||
+		    (!usermode && va < VM_MAXUSER_ADDRESS &&
+		    curpcb->pcb_onfault == NULL)) {
+			trap_fatal(frame);
+			return (-1);
+		}
+
+		/*
+		 * This is a fault on non-kernel virtual memory.
+		 * vm is initialized above to NULL. If curproc is NULL
+		 * or curproc->p_vmspace is NULL the fault is fatal.
+		 */
+		vm = p->p_vmspace;
+		if (vm == NULL)
+			goto nogo;
+
+		map = &vm->vm_map;
+
+		/*
+		 * Keep swapout from messing with us during this
+		 *	critical time.
+		 */
+		++p->p_lock;
+
+		/*
+		 * Grow the stack if necessary
+		 */
+		if ((caddr_t)va > vm->vm_maxsaddr
+		    && (caddr_t)va < (caddr_t)USRSTACK) {
+			if (!grow(p, va)) {
+				rv = KERN_FAILURE;
+				--p->p_lock;
+				goto nogo;
+			}
+		}
+
+		/*
+		 * Check if page table is mapped, if not,
+		 *	fault it first
+		 */
+		v = (vm_offset_t) vtopte(va);
+
+		/* Fault the pte only if needed: */
+		*(volatile char *)v += 0;	
+
+		pmap_use_pt( vm_map_pmap(map), va);
+
+		/* Fault in the user page: */
+		rv = vm_fault(map, va, ftype, FALSE);
+
+		pmap_unuse_pt( vm_map_pmap(map), va);
+
+		--p->p_lock;
+	} else {
+		/*
+		 * Don't allow user-mode faults in kernel address space.
+		 */
+		if (usermode)
+			goto nogo;
+
+		/*
+		 * Since we know that kernel virtual address addresses
+		 * always have pte pages mapped, we just have to fault
+		 * the page.
+		 */
+		rv = vm_fault(kernel_map, va, ftype, FALSE);
+	}
+
+	if (rv == KERN_SUCCESS)
+		return (0);
+nogo:
+	if (!usermode) {
+		if (curpcb && curpcb->pcb_onfault) {
+			frame->tf_eip = (int)curpcb->pcb_onfault;
+			return (0);
+		}
+		trap_fatal(frame);
+		return (-1);
+	}
+
+	/* kludge to pass faulting virtual address to sendsig */
+	frame->tf_err = eva;
+
+	return((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
+}
+#endif
 
 int
 trap_pfault(frame, usermode)
