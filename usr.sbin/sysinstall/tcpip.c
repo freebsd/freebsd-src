@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.75 1999/02/05 22:15:52 jkh Exp $
+ * $Id: tcpip.c,v 1.76 1999/05/06 11:03:18 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -167,6 +167,7 @@ tcpOpenDialog(Device *devp)
     else { /* See if there are any defaults */
 	char *cp;
 
+#ifdef notdef	/* This is just a test stub which doesn't work yet either */
 	/* First try a DHCP scan */
 	msgNotify("Scanning for DHCP servers...");
 	Mkdir("/var/db");
@@ -176,6 +177,7 @@ tcpOpenDialog(Device *devp)
 	}
 	else
 	    msgConfirm("Unsuccessful return from dhclient");
+#endif
 
 	/* Get old IP address from variable space, if available */
 	if (!ipaddr[0]) {
