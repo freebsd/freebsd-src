@@ -61,7 +61,7 @@ extern int current_postcode;  /** XXX currently in mp_machdep.c */
 extern int			bootMP_size;
 
 /* functions in mpboot.s */
-void	bootMP			(void);
+void	bootMP(void);
 
 /* global data in mp_machdep.c */
 extern int			bsp_apic_ready;
@@ -88,36 +88,36 @@ extern struct apic_intmapinfo	int_to_apicintpin[];
 extern struct pcb		stoppcbs[];
 
 /* functions in mp_machdep.c */
-void	i386_mp_probe		(void);
-u_int	mp_bootaddress		(u_int);
-u_int	isa_apic_mask		(u_int);
-int	isa_apic_irq		(int);
-int	pci_apic_irq		(int, int, int);
-int	apic_irq		(int, int);
-int	next_apic_irq		(int);
-int	undirect_isa_irq	(int);
-int	undirect_pci_irq	(int);
-int	apic_bus_type		(int);
-int	apic_src_bus_id		(int, int);
-int	apic_src_bus_irq	(int, int);
-int	apic_int_type		(int, int);
-int	apic_trigger		(int, int);
-int	apic_polarity		(int, int);
-void	assign_apic_irq		(int apic, int intpin, int irq);
-void	revoke_apic_irq		(int irq);
-void	bsp_apic_configure	(void);
-void	init_secondary		(void);
-void	smp_invltlb		(void);
-void	forward_statclock	(void);
-void	forwarded_statclock	(struct trapframe frame);
-void	forward_hardclock	(void);
-void	forwarded_hardclock	(struct trapframe frame);
-void	ipi_selected		(u_int cpus, u_int ipi);
-void	ipi_all			(u_int ipi);
-void	ipi_all_but_self	(u_int ipi);
-void	ipi_self		(u_int ipi);
+void	i386_mp_probe(void);
+u_int	mp_bootaddress(u_int);
+u_int	isa_apic_mask(u_int);
+int	isa_apic_irq(int);
+int	pci_apic_irq(int, int, int);
+int	apic_irq(int, int);
+int	next_apic_irq(int);
+int	undirect_isa_irq(int);
+int	undirect_pci_irq(int);
+int	apic_bus_type(int);
+int	apic_src_bus_id(int, int);
+int	apic_src_bus_irq(int, int);
+int	apic_int_type(int, int);
+int	apic_trigger(int, int);
+int	apic_polarity(int, int);
+void	assign_apic_irq(int apic, int intpin, int irq);
+void	revoke_apic_irq(int irq);
+void	bsp_apic_configure(void);
+void	init_secondary(void);
+void	smp_invltlb(void);
+void	forward_statclock(void);
+void	forwarded_statclock(struct trapframe frame);
+void	forward_hardclock(void);
+void	forwarded_hardclock(struct trapframe frame);
+void	ipi_selected(u_int cpus, u_int ipi);
+void	ipi_all(u_int ipi);
+void	ipi_all_but_self(u_int ipi);
+void	ipi_self(u_int ipi);
 #ifdef	APIC_INTR_REORDER
-void	set_lapic_isrloc	(int, int);
+void	set_lapic_isrloc(int, int);
 #endif /* APIC_INTR_REORDER */
 
 /* global data in mpapic.c */
@@ -125,22 +125,22 @@ extern volatile lapic_t		lapic;
 extern volatile ioapic_t	**ioapic;
 
 /* functions in mpapic.c */
-void	apic_dump		(char*);
-void	apic_initialize		(void);
-void	imen_dump		(void);
-int	apic_ipi		(int, int, int);
-int	selected_apic_ipi	(u_int, int, int);
-int	io_apic_setup		(int);
-void	io_apic_setup_intpin	(int, int);
-void	io_apic_set_id		(int, int);
-int	io_apic_get_id		(int);
-int	ext_int_setup		(int, int);
+void	apic_dump(char*);
+void	apic_initialize(void);
+void	imen_dump(void);
+int	apic_ipi(int, int, int);
+int	selected_apic_ipi(u_int, int, int);
+int	io_apic_setup(int);
+void	io_apic_setup_intpin(int, int);
+void	io_apic_set_id(int, int);
+int	io_apic_get_id(int);
+int	ext_int_setup(int, int);
 
-void	set_apic_timer		(int);
-int	read_apic_timer		(void);
-void	u_sleep			(int);
-u_int	io_apic_read		(int, int);
-void	io_apic_write		(int, int, u_int);
+void	set_apic_timer(int);
+int	read_apic_timer(void);
+void	u_sleep(int);
+u_int	io_apic_read(int, int);
+void	io_apic_write(int, int, u_int);
 
 #endif /* !LOCORE */
 #endif /* SMP && !APIC_IO */

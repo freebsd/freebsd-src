@@ -236,8 +236,8 @@ invd(void)
  * (this is a bug) and the inlining cost is prohibitive since the call
  * executes into the IPI transmission system.
  */
-void	invlpg		(u_int addr);
-void	invltlb		(void);
+void	invlpg(u_int addr);
+void	invltlb(void);
 
 static __inline void
 cpu_invlpg(void *addr)
