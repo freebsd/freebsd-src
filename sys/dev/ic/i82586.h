@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: i82586.h,v 1.1 1993/10/12 06:53:10 rgrimes Exp $
+ *	$Id: i82586.h,v 1.2 1995/10/31 18:41:47 phk Exp $
  */
 
 /*
@@ -292,7 +292,7 @@ struct ie_config_cmd {
  * but since we have the inline facility, it makes sense to use that
  * instead.
  */
-inline void
+static inline void
 ie_setup_config(volatile struct ie_config_cmd *cmd,
 		int promiscuous, int manchester) {
 	cmd->ie_config_count = 0x0c;
