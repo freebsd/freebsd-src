@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,6 +75,8 @@ main(argc, argv)
 	register int ch;
 	int width;
 	char *p;
+
+	(void) setlocale(LC_CTYPE, "");
 
 	width = -1;
 	while ((ch = getopt(argc, argv, "0123456789bsw:")) != -1)
@@ -155,7 +158,7 @@ fold(width)
 		if ((col = newpos(col, ch)) > width) {
 			if (sflag) {
 				i = indx;
-				while (--i >= 0 && !isblank(buf[i]))
+				while (--i >= 0 && !isblank((unsigned char)buf[i]))
 					;
 				space = i;
 			}
