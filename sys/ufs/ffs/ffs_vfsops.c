@@ -313,7 +313,7 @@ ffs_mount(mp, path, data, ndp, td)
 
 	/*
 	 * Not an update, or updating the name: look up the name
-	 * and verify that it refers to a sensible block device.
+	 * and verify that it refers to a sensible disk device.
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
 	if ((error = namei(ndp)) != 0)
@@ -416,20 +416,15 @@ ffs_reload(mp, cred, td)
 	 */
 	devvp = VFSTOUFS(mp)->um_devvp;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = vinvalbuf(devvp, 0, cred, td, 0, 0);
-	VOP_UNLOCK(devvp, 0, td);
-	if (error)
+	if (vinvalbuf(devvp, 0, cred, td, 0, 0) != 0)
 		panic("ffs_reload: dirty1");
-
 	/*
 	 * Only VMIO the backing device if the backing device is a real
-	 * block device.
+	 * disk device.  See ffs_mountfs() for more details.
 	 */
-	if (vn_isdisk(devvp, NULL)) {
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	if (vn_isdisk(devvp, NULL))
 		vfs_object_create(devvp, td, td->td_ucred);
-		VOP_UNLOCK(devvp, 0, td);
-	}
+	VOP_UNLOCK(devvp, 0, td);
 
 	/*
 	 * Step 2: re-read superblock from disk.
@@ -588,24 +583,21 @@ ffs_mountfs(devvp, mp, td)
 		return (EBUSY);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = vinvalbuf(devvp, V_SAVE, cred, td, 0, 0);
-	VOP_UNLOCK(devvp, 0, td);
-	if (error)
+	if (error) {
+		VOP_UNLOCK(devvp, 0, td);
 		return (error);
+	}
 
 	/*
 	 * Only VMIO the backing device if the backing device is a real
-	 * block device.
+	 * disk device.
 	 * Note that it is optional that the backing device be VMIOed.  This
 	 * increases the opportunity for metadata caching.
 	 */
-	if (vn_isdisk(devvp, NULL)) {
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	if (vn_isdisk(devvp, NULL))
 		vfs_object_create(devvp, td, cred);
-		VOP_UNLOCK(devvp, 0, td);
-	}
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	/*
 	 * XXX: open the device with read and write access even if only
 	 * read access is needed now.  Write access is needed if the
