@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
- * $Id$
+ * $Id: tcp_output.c,v 1.2 1994/08/02 07:49:03 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,9 @@
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
+#endif
 
 #ifdef notyet
 extern struct mbuf *m_copypack();
@@ -521,11 +523,13 @@ send:
 		if (SEQ_GT(tp->snd_nxt + len, tp->snd_max))
 			tp->snd_max = tp->snd_nxt + len;
 
+#ifdef TCPDEBUG
 	/*
 	 * Trace.
 	 */
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_OUTPUT, tp->t_state, tp, ti, 0);
+#endif
 
 	/*
 	 * Fill in IP length and desired time to live and
