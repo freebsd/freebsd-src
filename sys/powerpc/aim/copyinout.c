@@ -265,9 +265,9 @@ suword(void *addr, long word)
 }
 
 int
-suword32(void *addr, u_int32_t word)
+suword32(void *addr, int32_t word)
 {
-	return (suword(addr, word));
+	return (suword(addr, (long)word));
 }
 
 
@@ -322,8 +322,8 @@ fuword(const void *addr)
 	return (val);
 }
 
-u_int32_t
+int32_t
 fuword32(const void *addr)
 {
-	return (fuword(addr));
+	return ((int32_t)fuword(addr));
 }
