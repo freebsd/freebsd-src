@@ -597,11 +597,12 @@ ndis_attach(dev)
 fail:
 	if (error)
 		ndis_detach(dev);
-
-	/* We're done talking to the NIC for now; halt it. */
-	ifp->if_flags |= IFF_UP;
-	ndis_halt_nic(sc);
-	ifp->if_flags &= ~IFF_UP;
+	else {
+		/* We're done talking to the NIC for now; halt it. */
+		ifp->if_flags |= IFF_UP;
+		ndis_halt_nic(sc);
+		ifp->if_flags &= ~IFF_UP;
+	}
 
 	return(error);
 }
@@ -841,6 +842,9 @@ ndis_intrtask(arg, pending)
 	ifp = &sc->arpcom.ac_if;
 
 	ndis_intrhand(sc);
+	mtx_lock(&sc->ndis_intrmtx);
+	ndis_enable_intr(sc);
+	mtx_unlock(&sc->ndis_intrmtx);
 
 	if (ifp->if_snd.ifq_head != NULL)
 		ndis_start(ifp);
@@ -864,7 +868,12 @@ ndis_intr(arg)
 		return;
 
 	mtx_lock(&sc->ndis_intrmtx);
-	ndis_isr(sc, &is_our_intr, &call_isr);
+	if (sc->ndis_block.nmb_interrupt->ni_isrreq == TRUE)
+		ndis_isr(sc, &is_our_intr, &call_isr);
+	else {
+		ndis_disable_intr(sc);
+		call_isr = 1;
+	}
 	mtx_unlock(&sc->ndis_intrmtx);
 
 	if (is_our_intr || call_isr)
@@ -1098,11 +1107,21 @@ ndis_init(xsc)
 	sc->ndis_txpending = sc->ndis_maxpkts;
 	sc->ndis_link = 0;
 
+	ndis_enable_intr(sc);
+
 	if (sc->ndis_80211)
 		ndis_setstate_80211(sc);
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
+
+	/*
+	 * Some drivers don't set this value. The NDIS spec says
+	 * the default checkforhang timeout is approximately 2
+	 * seconds.
+	 */
+	if (sc->ndis_block.nmb_checkforhangsecs == 0)
+		sc->ndis_block.nmb_checkforhangsecs = 2;
 
 	if (sc->ndis_chars.nmc_checkhang_func != NULL)
 		sc->ndis_stat_ch = timeout(ndis_tick, sc,

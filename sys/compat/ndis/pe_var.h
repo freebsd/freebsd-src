@@ -230,6 +230,29 @@ typedef struct image_nt_header image_nt_header;
 #define IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT      13
 #define IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR    14
 
+/* Resource types */
+
+#define RT_CURSOR	1
+#define RT_BITMAP	2
+#define RT_ICON		3
+#define RT_MENU		4
+#define RT_DIALOG	5
+#define RT_STRING	6
+#define RT_FONTDIR	7
+#define RT_FONT		8
+#define RT_ACCELERATOR	9
+#define RT_RCDATA	10
+#define RT_MESSAGETABLE	11
+#define RT_GROUP_CURSOR	12
+#define RT_GROUP_ICON	14
+#define RT_VERSION	16
+#define RT_DLGINCLUDE	17
+#define RT_PLUGPLAY	19
+#define RT_VXD		20
+#define RT_ANICURSOR	21
+#define RT_ANIICON	22
+#define RT_HTML		23
+
 /*
  * Section header format.
  */
@@ -303,6 +326,80 @@ typedef struct image_base_reloc image_base_reloc;
 #define IMAGE_REL_BASED_DIR64                   10
 #define IMAGE_REL_BASED_HIGH3ADJ                11
 
+struct image_resource_directory_entry {
+	uint32_t		irde_name;
+	uint32_t		irde_dataoff;
+};
+
+typedef struct image_resource_directory_entry image_resource_directory_entry;
+
+#define RESOURCE_NAME_STR	0x80000000
+#define RESOURCE_DIR_FLAG	0x80000000
+
+struct image_resource_directory {
+	uint32_t		ird_characteristics;
+	uint32_t		ird_timestamp;
+	uint16_t		ird_majorver;
+	uint16_t		ird_minorver;
+	uint16_t		ird_named_entries;
+	uint16_t		ird_id_entries;
+#ifdef notdef
+	image_resource_directory_entry	ird_entries[1];
+#endif
+};
+
+typedef struct image_resource_directory image_resource_directory;
+
+struct image_resource_directory_string {
+	uint16_t		irds_len;
+	char			irds_name[1];
+};
+
+typedef struct image_resource_directory_string image_resource_directory_string;
+
+struct image_resource_directory_string_u {
+	uint16_t		irds_len;
+	char			irds_name[1];
+};
+
+typedef struct image_resource_directory_string_u
+	image_resource_directory_string_u;
+
+struct image_resource_data_entry {
+	uint32_t		irde_offset;
+	uint32_t		irde_size;
+	uint32_t		irde_codepage;
+	uint32_t		irde_rsvd;
+};
+
+typedef struct image_resource_data_entry image_resource_data_entry;
+
+struct message_resource_data {
+	uint32_t		mrd_numblocks;
+#ifdef notdef
+	message_resource_block	mrd_blocks[1];
+#endif
+};
+
+typedef struct message_resource_data message_resource_data;
+
+struct message_resource_block {
+	uint32_t		mrb_lowid;
+	uint32_t		mrb_highid;
+	uint32_t		mrb_entryoff;
+};
+
+typedef struct message_resource_block message_resource_block;
+
+struct message_resource_entry {
+	uint16_t		mre_len;
+	uint16_t		mre_flags;
+	char			mre_text[];
+};
+
+typedef struct message_resource_entry message_resource_entry;
+
+#define MESSAGE_RESOURCE_UNICODE	0x0001
 
 struct image_patch_table {
 	char		*ipt_name;
@@ -325,6 +422,10 @@ extern int pe_get_section(vm_offset_t, image_section_header *, const char *);
 extern int pe_relocate(vm_offset_t);
 extern int pe_get_import_descriptor(vm_offset_t, image_import_descriptor *, char *);
 extern int pe_patch_imports(vm_offset_t, char *, image_patch_table *);
+#ifdef _KERNEL
+extern int pe_get_messagetable(vm_offset_t, message_resource_data  **);
+extern int pe_get_message(vm_offset_t, uint32_t, char **, int *);
+#endif
 __END_DECLS
 
 #endif /* _PE_VAR_H_ */
