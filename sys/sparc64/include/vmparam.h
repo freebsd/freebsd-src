@@ -62,23 +62,23 @@
  */
 #define	MAXSLP			20
 
-#define	VM_MAXUSER_ADDRESS	0
+#define	VM_MAXUSER_ADDRESS	(0x5ffffffffff)
 
 #define	USRSTACK		VM_MAXUSER_ADDRESS
 
-#define	VM_MIN_ADDRESS		0
+#define	VM_MIN_ADDRESS		(0)
 
 /*
  * Virtual size (bytes) for various kernel submaps.
  */
 #ifndef	VM_KMEM_SIZE
-#define	VM_KMEM_SIZE	(12*1024*1024)
+#define	VM_KMEM_SIZE		(12*1024*1024)
 #endif
 
-#define	VM_MIN_KERNEL_ADDRESS	(0)
-#define	VM_MAX_KERNEL_ADDRESS	(0)
+#define	VM_MIN_KERNEL_ADDRESS	(0x60000000000)
+#define	VM_MAX_KERNEL_ADDRESS	(0x6e000000000)
 
-#define	KERNBASE		(0)
+#define	KERNBASE		(0x60000000000)
 
 /*
  * Initial pagein size of beginning of executable file.

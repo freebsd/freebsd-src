@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
  * Copyright 1998 Massachusetts Institute of Technology
  *
@@ -26,6 +25,8 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_RESOURCE_H_

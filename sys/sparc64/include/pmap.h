@@ -29,30 +29,36 @@
 #ifndef	_MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
 
+#include <sys/kobj.h>
+#include <machine/tte.h>
+
+#define	PMAP_CONTEXT_MAX	8192
+
+#define	pmap_resident_count(pm)	(pm->pm_stats.resident_count)
+
+typedef	struct pmap *pmap_t;
+
 struct	md_page {
 };
 
 struct	pmap {
-	struct	pmap_statistics	pm_stats;
+	struct	stte pm_stte;
+	u_int	pm_active;
+	u_int	pm_context;
+	u_int	pm_count;
+	struct	pmap_statistics pm_stats;
 };
 
-typedef	struct pmap *pmap_t;
-
-extern	struct pmap __kernel_pmap;
-#define	kernel_pmap	(&__kernel_pmap)
-
-#define	pmap_resident_count(pm)	(pm->pm_stats.resident_count)
-
-#ifdef _KERNEL
-
+void	pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva);
 vm_offset_t pmap_kextract(vm_offset_t va);
 
 extern	vm_offset_t avail_start;
 extern	vm_offset_t avail_end;
+extern	vm_offset_t clean_eva;
+extern	vm_offset_t clean_sva;
+extern	struct pmap *kernel_pmap;
 extern	vm_offset_t phys_avail[];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
-
-#endif
 
 #endif /* !_MACHINE_PMAP_H_ */

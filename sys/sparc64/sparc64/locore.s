@@ -26,51 +26,36 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_DB_MACHDEP_H_
-#define	_MACHINE_DB_MACHDEP_H_
+#include <machine/asmacros.h>
 
-#include <machine/frame.h>
-#include <machine/trap.h>
+#include "assym.s"
 
-#define	BYTE_MSF	(1)
+/*
+ * void _start(struct bootinfo *bi, u_long ofw_vec)
+ */
+ENTRY(_start)
+	wrpr	%g0, PSTATE_IE|PSTATE_PRIV, %pstate
+	mov	%o0, %g1
+	mov	%o1, %g2
+	flushw
+	wrpr	%g0, 1, %cwp
+	wrpr	%g0, 0, %cleanwin
 
-typedef vm_offset_t	db_addr_t;
-typedef u_long		db_expr_t;
+	setx	user0 + UPAGES * PAGE_SIZE - SPOFF, %l0, %o5
+	save	%o5, -CCFSZ, %sp
 
-struct db_regs {
-	u_long	dr_global[8];
-};
+	mov	%g1, %o0
+	call	sparc64_init
+	 mov	%g2, %o1
+	call	mi_startup
+	 nop
+	! NOTREACHED
+END(_start)
 
-typedef struct trapframe db_regs_t;
-extern db_regs_t ddb_regs;
-#define	DDB_REGS	(&ddb_regs)
+ENTRY(sigcode)
+	illtrap
+esigcode:
+END(sigcode)
 
-#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_tpc)
-
-#define	BKPT_INST	(0)
-#define	BKPT_SIZE	(4)
-#define	BKPT_SET(inst)	(BKPT_INST)
-
-#define	FIXUP_PC_AFTER_BREAK do {					\
-	ddb_regs.tf_tpc = ddb_regs.tf_tnpc;				\
-	ddb_regs.tf_tnpc += BKPT_SIZE;					\
-} while (0);
-
-#define	db_clear_single_step(regs)
-#define	db_set_single_step(regs)
-
-#define	IS_BREAKPOINT_TRAP(type, code)	(type == T_BREAKPOINT)
-#define	IS_WATCHPOINT_TRAP(type, code)	(0)
-
-#define	inst_trap_return(ins)	(0)
-#define	inst_return(ins)	(0)
-#define	inst_call(ins)		(0)
-#define	inst_load(ins)		(0)
-#define	inst_store(ins)		(0)
-
-#define	DB_SMALL_VALUE_MAX	(0x7fffffff)
-#define	DB_SMALL_VALUE_MIN	(-0x40001)
-
-#define	DB_ELFSIZE		64
-
-#endif /* !_MACHINE_DB_MACHDEP_H_ */
+DATA(szsigcode)
+	.long	esigcode - sigcode

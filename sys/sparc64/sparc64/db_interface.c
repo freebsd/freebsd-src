@@ -26,24 +26,85 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h>
+#include <sys/param.h> 
 #include <sys/systm.h>
-#include <sys/bus.h>
+#include <sys/reboot.h>
 #include <sys/cons.h>
-#include <sys/kernel.h>
+#include <sys/ktr.h>
+#include <sys/linker_set.h>
+#include <sys/lock.h>
+#include <sys/pcpu.h>
+#include <sys/proc.h>
+#include <sys/smp.h>
 
-dev_t dumpdev = NODEV;
-dev_t rootdev = NODEV;
+#include <machine/cpu.h>
+#include <machine/md_var.h>
 
-static void configure(void *);
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
-SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure, NULL);
+#include <ddb/ddb.h>
+#include <ddb/db_access.h>
+#include <ddb/db_sym.h>
+#include <ddb/db_variables.h>
 
-static void
-configure(void *v)
+#include <setjmp.h>
+
+static jmp_buf *db_nofault = 0;
+extern jmp_buf db_jmpbuf;
+
+int db_active;
+db_regs_t ddb_regs;
+
+static jmp_buf db_global_jmpbuf;
+static int db_global_jmpbuf_valid;
+
+int
+kdb_trap(struct trapframe *tf)
 {
-	device_add_child(root_bus, "upa", 0);
-	root_bus_configure();
-	cninit_finish();
-	cold = 0;
+	struct kdbframe *kf;
+
+	if (db_global_jmpbuf_valid)
+		longjmp(db_global_jmpbuf, 1);
+	ddb_regs = *tf;
+	kf = ddb_regs.tf_arg;
+	kf->kf_cfp = kf->kf_fp;
+	setjmp(db_global_jmpbuf);
+	db_global_jmpbuf_valid = TRUE;
+	db_active++;
+	cndbctl(TRUE);
+	db_trap(tf->tf_type, 0);
+	cndbctl(FALSE);
+	db_active--;
+	db_global_jmpbuf_valid = FALSE;
+	return (1);
+}
+
+void
+db_read_bytes(vm_offset_t addr, size_t size, char *data)
+{
+	char *src;
+
+	db_nofault = &db_jmpbuf;
+	src = (char *)addr;
+	while (size-- > 0)
+		*data++ = *src++;
+	db_nofault = NULL;
+}
+
+void
+db_write_bytes(vm_offset_t addr, size_t size, char *data)
+{
+	char *dst;
+
+	db_nofault = &db_jmpbuf;
+	dst = (char *)addr;
+	while (size-- > 0)
+		*dst++ = *data++;
+	db_nofault = NULL;
+}
+
+DB_COMMAND(reboot, db_reboot)
+{
+	cpu_reset();
 }

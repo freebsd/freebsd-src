@@ -26,51 +26,39 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_DB_MACHDEP_H_
-#define	_MACHINE_DB_MACHDEP_H_
+#ifndef	_MACHINE_ASMACROS_H_
+#define	_MACHINE_ASMACROS_H_
 
-#include <machine/frame.h>
-#include <machine/trap.h>
+#ifdef _KERNEL
 
-#define	BYTE_MSF	(1)
+#define	PCPU(member)	%g7 + GD_ ## member
+#define	DEBUGGER()	ta %xcc, 1
+#define	PANIC(msg, reg) \
+	.sect	.rodata ; \
+9:	.asciz	msg ; \
+	.previous ; \
+	setx	9b, reg, %o0 ; \
+	call	panic ; \
+	 nop
 
-typedef vm_offset_t	db_addr_t;
-typedef u_long		db_expr_t;
+#endif
 
-struct db_regs {
-	u_long	dr_global[8];
-};
+#define	DATA(name) \
+	.data ; \
+	.globl	name ; \
+	.type	name, @object ; \
+name ## :
 
-typedef struct trapframe db_regs_t;
-extern db_regs_t ddb_regs;
-#define	DDB_REGS	(&ddb_regs)
+#define	EMPTY
 
-#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_tpc)
+#define	ENTRY(name) \
+	.text ; \
+	.align	4 ; \
+	.globl	name ; \
+	.type	name, @function ; \
+name ## :
 
-#define	BKPT_INST	(0)
-#define	BKPT_SIZE	(4)
-#define	BKPT_SET(inst)	(BKPT_INST)
+#define	END(name) \
+	.size	name, . - name
 
-#define	FIXUP_PC_AFTER_BREAK do {					\
-	ddb_regs.tf_tpc = ddb_regs.tf_tnpc;				\
-	ddb_regs.tf_tnpc += BKPT_SIZE;					\
-} while (0);
-
-#define	db_clear_single_step(regs)
-#define	db_set_single_step(regs)
-
-#define	IS_BREAKPOINT_TRAP(type, code)	(type == T_BREAKPOINT)
-#define	IS_WATCHPOINT_TRAP(type, code)	(0)
-
-#define	inst_trap_return(ins)	(0)
-#define	inst_return(ins)	(0)
-#define	inst_call(ins)		(0)
-#define	inst_load(ins)		(0)
-#define	inst_store(ins)		(0)
-
-#define	DB_SMALL_VALUE_MAX	(0x7fffffff)
-#define	DB_SMALL_VALUE_MIN	(-0x40001)
-
-#define	DB_ELFSIZE		64
-
-#endif /* !_MACHINE_DB_MACHDEP_H_ */
+#endif /* !_MACHINE_ASMACROS_H_ */
