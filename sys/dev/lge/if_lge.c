@@ -1118,7 +1118,6 @@ static void lge_tick(xsc)
 	if (!sc->lge_link) {
 		mii = device_get_softc(sc->lge_miibus);
 		mii_tick(mii);
-		mii_pollstat(mii);
 		if (mii->mii_media_status & IFM_ACTIVE &&
 		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 			sc->lge_link++;

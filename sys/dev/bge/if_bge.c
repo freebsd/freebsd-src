@@ -2045,18 +2045,15 @@ bge_tick(xsc)
 	mii = device_get_softc(sc->bge_miibus);
 	mii_tick(mii);
  
-	if (!sc->bge_link) {
-		mii_pollstat(mii);
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-			sc->bge_link++;
-			if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_TX ||
-			    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX)
-				printf("bge%d: gigabit link up\n",
-				   sc->bge_unit);
-			if (ifp->if_snd.ifq_head != NULL)
-				bge_start(ifp);
-		}
+	if (!sc->bge_link && mii->mii_media_status & IFM_ACTIVE &&
+	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+		sc->bge_link++;
+		if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_TX ||
+		    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX)
+			printf("bge%d: gigabit link up\n",
+			   sc->bge_unit);
+		if (ifp->if_snd.ifq_head != NULL)
+			bge_start(ifp);
 	}
 
 	splx(s);
