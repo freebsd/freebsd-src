@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.25.4.2 1996/06/14 23:23:39 davidg Exp $
+ * $Id: vm_fault.c,v 1.25.4.3 1996/06/19 07:20:21 davidg Exp $
  */
 
 /*
@@ -916,11 +916,6 @@ vm_fault_wire(map, start, end)
 	 */
 
 	for (va = start; va < end; va += PAGE_SIZE) {
-
-		while( curproc != pageproc &&
-			(cnt.v_free_count <= cnt.v_pageout_free_min))
-			VM_WAIT;
-
 		rv = vm_fault(map, va, VM_PROT_READ|VM_PROT_WRITE, TRUE);
 		if (rv) {
 			if (va != start)
