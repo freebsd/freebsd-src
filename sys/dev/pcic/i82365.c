@@ -1,8 +1,6 @@
 /*	$NetBSD: i82365.c,v 1.23 1999/02/19 03:14:00 mycroft Exp $	*/
 /* $FreeBSD$ */
 
-#define	PCICDEBUG
-
 /*
  * Copyright (c) 1997 Marc Horowitz.  All rights reserved.
  *
@@ -45,6 +43,8 @@
 #include <sys/rman.h>
 #include <machine/resource.h>
 
+#include <machine/clock.h>
+
 #include <sys/proc.h>
 #include <sys/wait.h>
 #include <sys/kthread.h>
@@ -67,6 +67,9 @@ int	pcic_debug = 0;
 #define	DPRINTF(arg)
 #endif
 
+#define DETACH_FORCE	0x1
+
+
 #define	PCIC_VENDOR_UNKNOWN		0
 #define	PCIC_VENDOR_I82365SLR0		1
 #define	PCIC_VENDOR_I82365SLR1		2
@@ -83,8 +86,10 @@ int	pcic_debug = 0;
 void	pcic_attach_socket __P((struct pcic_handle *));
 void	pcic_init_socket __P((struct pcic_handle *));
 
+#if XXX
 int	pcic_submatch __P((struct device *, struct cfdata *, void *));
 int	pcic_print  __P((void *arg, const char *pnp));
+#endif
 int	pcic_intr_socket __P((struct pcic_handle *));
 
 void	pcic_attach_card __P((struct pcic_handle *));
@@ -174,9 +179,10 @@ pcic_vendor_to_string(vendor)
 }
 
 void
-pcic_attach(sc)
-	struct pcic_softc *sc;
+pcic_attach(device_t dev)
 {
+	struct pcic_softc *sc = (struct pcic_softc *)
+	    device_get_softc(dev);
 	int vendor, count, i, reg;
 
 	/* now check for each controller/socket */
@@ -265,7 +271,7 @@ pcic_attach(sc)
 		 */
 		if (sc->handle[i].flags & PCIC_FLAG_SOCKETP)
 		{
-			SIMPLEQ_INIT(&sc->handle[i].events);
+			STAILQ_INIT(&sc->handle[i].events);
 			pcic_write(&sc->handle[i], PCIC_CSC_INTR, 0);
 			pcic_read(&sc->handle[i], PCIC_CSC);
 		}
@@ -275,7 +281,7 @@ pcic_attach(sc)
 	    (sc->handle[1].flags & PCIC_FLAG_SOCKETP)) {
 		vendor = pcic_vendor(&sc->handle[0]);
 
-		printf("%s: controller 0 (%s) has ", sc->dev.dv_xname,
+		device_printf(dev, "controller 0 (%s) has ",
 		       pcic_vendor_to_string(vendor));
 
 		if ((sc->handle[0].flags & PCIC_FLAG_SOCKETP) &&
@@ -295,7 +301,7 @@ pcic_attach(sc)
 	    (sc->handle[3].flags & PCIC_FLAG_SOCKETP)) {
 		vendor = pcic_vendor(&sc->handle[2]);
 
-		printf("%s: controller 1 (%s) has ", sc->dev.dv_xname,
+		device_printf(dev, "controller 1 (%s) has ",
 		       pcic_vendor_to_string(vendor));
 
 		if ((sc->handle[2].flags & PCIC_FLAG_SOCKETP) &&
@@ -344,8 +350,10 @@ pcic_attach_socket(h)
 	paa.iobase = h->sc->iobase;
 	paa.iosize = h->sc->iosize;
 
+#if XXX
 	h->pccard = config_found_sm(&h->sc->dev, &paa, pcic_print,
 	    pcic_submatch);
+#endif
 
 	/* if there's actually a pccard device attached, initialize the slot */
 
@@ -377,14 +385,14 @@ pcic_create_event_thread(arg)
 		panic("pcic_create_event_thread: unknown pcic socket");
 	}
 
-	if (kthread_create1(pcic_event_thread, h, &h->event_thread,
-	    "%s,%s", h->sc->dev.dv_xname, cs)) {
-		printf("%s: unable to create event thread for sock 0x%02x\n",
-		    h->sc->dev.dv_xname, h->sock);
+	if (kthread_create(pcic_event_thread, h, &h->event_thread,
+	    "%s,%s", device_get_name(h->sc->dev), cs)) {
+		device_printf(h->sc->dev,
+		    "cannot create event thread for sock 0x%02x\n", h->sock);
 		panic("pcic_create_event_thread");
 	} else
-	    printf("%s: create event thread for sock 0x%02x\n",
-		   h->sc->dev.dv_xname, h->sock);
+		device_printf(h->sc->dev, 
+		    "create event thread for sock 0x%02x\n", h->sock);
 
 }
 
@@ -398,7 +406,7 @@ pcic_event_thread(arg)
 
 	while (h->shutdown == 0) {
 		s = splhigh();
-		if ((pe = SIMPLEQ_FIRST(&h->events)) == NULL) {
+		if ((pe = STAILQ_FIRST(&h->events)) == NULL) {
 			splx(s);
 			(void) tsleep(&h->events, PWAIT, "pcicev", 0);
 			continue;
@@ -408,7 +416,7 @@ pcic_event_thread(arg)
 			(void) tsleep((caddr_t)pcic_event_thread, PWAIT, "pcicss", hz/4);
 		}
 		s = splhigh();
-		SIMPLEQ_REMOVE_HEAD(&h->events, pe, pe_q);
+		STAILQ_REMOVE_HEAD_UNTIL(&h->events, pe, pe_q);
 		splx(s);
 
 		switch (pe->pe_type) {
@@ -417,16 +425,16 @@ pcic_event_thread(arg)
 			while (1) {
 				struct pcic_event *pe1, *pe2;
 
-				if ((pe1 = SIMPLEQ_FIRST(&h->events)) == NULL)
+				if ((pe1 = STAILQ_FIRST(&h->events)) == NULL)
 					break;
 				if (pe1->pe_type != PCIC_EVENT_REMOVAL)
 					break;
-				if ((pe2 = SIMPLEQ_NEXT(pe1, pe_q)) == NULL)
+				if ((pe2 = STAILQ_NEXT(pe1, pe_q)) == NULL)
 					break;
 				if (pe2->pe_type == PCIC_EVENT_INSERTION) {
-					SIMPLEQ_REMOVE_HEAD(&h->events, pe1, pe_q);
+					STAILQ_REMOVE_HEAD_UNTIL(&h->events, pe1, pe_q);
 					free(pe1, M_TEMP);
-					SIMPLEQ_REMOVE_HEAD(&h->events, pe2, pe_q);
+					STAILQ_REMOVE_HEAD_UNTIL(&h->events, pe2, pe_q);
 					free(pe2, M_TEMP);
 				}
 			}
@@ -441,16 +449,16 @@ pcic_event_thread(arg)
 			while (1) {
 				struct pcic_event *pe1, *pe2;
 
-				if ((pe1 = SIMPLEQ_FIRST(&h->events)) == NULL)
+				if ((pe1 = STAILQ_FIRST(&h->events)) == NULL)
 					break;
 				if (pe1->pe_type != PCIC_EVENT_INSERTION)
 					break;
-				if ((pe2 = SIMPLEQ_NEXT(pe1, pe_q)) == NULL)
+				if ((pe2 = STAILQ_NEXT(pe1, pe_q)) == NULL)
 					break;
 				if (pe2->pe_type == PCIC_EVENT_REMOVAL) {
-					SIMPLEQ_REMOVE_HEAD(&h->events, pe1, pe_q);
+					STAILQ_REMOVE_HEAD_UNTIL(&h->events, pe1, pe_q);
 					free(pe1, M_TEMP);
-					SIMPLEQ_REMOVE_HEAD(&h->events, pe2, pe_q);
+					STAILQ_REMOVE_HEAD_UNTIL(&h->events, pe2, pe_q);
 					free(pe2, M_TEMP);
 				}
 			}
@@ -488,7 +496,7 @@ pcic_init_socket(h)
 	if (h->event_thread != NULL)
 		panic("pcic_attach_socket: event thread");
 #endif
-	kthread_create(pcic_create_event_thread, h);
+	pcic_create_event_thread(h);
 
 	/* set up the card to interrupt on card detect */
 
@@ -522,6 +530,7 @@ pcic_init_socket(h)
 	}
 }
 
+#if XXX
 int
 pcic_submatch(parent, cf, aux)
 	struct device *parent;
@@ -583,7 +592,9 @@ pcic_submatch(parent, cf, aux)
 
 	return ((*cf->cf_attach->ca_match)(parent, cf, aux));
 }
+#endif
 
+#if XXX
 int
 pcic_print(arg, pnp)
 	void *arg;
@@ -615,6 +626,7 @@ pcic_print(arg, pnp)
 
 	return (UNCONF);
 }
+#endif
 
 int
 pcic_intr(arg)
@@ -707,7 +719,7 @@ pcic_queue_event(h, event)
 
 	pe->pe_type = event;
 	s = splhigh();
-	SIMPLEQ_INSERT_TAIL(&h->events, pe, pe_q);
+	STAILQ_INSERT_TAIL(&h->events, pe, pe_q);
 	splx(s);
 	wakeup(&h->events);
 }
@@ -718,8 +730,10 @@ pcic_attach_card(h)
 {
         struct pccard_softc *psc = (void*)h->pccard;
 	if (!(h->flags & PCIC_FLAG_CARDP)) {
+#if XXX
 		/* call the MI attach function */
 		psc->sc_if.if_card_attach (psc);
+#endif
 
 		h->flags |= PCIC_FLAG_CARDP;
 	} else {
@@ -737,7 +751,9 @@ pcic_detach_card(h, flags)
 		h->flags &= ~PCIC_FLAG_CARDP;
 
 		/* call the MI detach function */
+#if XXX
 		psc->sc_if.if_card_detach (psc, flags);
+#endif
 	} else {
 		DPRINTF(("pcic_detach_card: already detached"));
 	}
@@ -749,7 +765,9 @@ pcic_deactivate_card(h)
 {
         struct pccard_softc *psc = (void*)h->pccard;
 	/* call the MI deactivate function */
+#if XXX
 	psc->sc_if.if_card_deactivate (psc);
+#endif
 
 	/* power down the socket */
 	pcic_write(h, PCIC_PWRCTL, 0);
@@ -784,10 +802,12 @@ pcic_chip_mem_alloc(pch, size, pcmhp)
 
 	for (i = 0; i <= PCIC_MAX_MEM_PAGES - sizepg; i++) {
 		if ((h->sc->subregionmask & (mask << i)) == (mask << i)) {
+#if XXX
 			if (bus_space_subregion(h->sc->memt, h->sc->memh,
 			    i * PCIC_MEM_PAGESIZE,
 			    sizepg * PCIC_MEM_PAGESIZE, &memh))
 				return (1);
+#endif
 			mhandle = mask << i;
 			addr = h->sc->membase + (i * PCIC_MEM_PAGESIZE);
 			h->sc->subregionmask &= ~(mhandle);
@@ -1037,16 +1057,20 @@ pcic_chip_io_alloc(pch, start, size, align, pcihp)
 
 	if (start) {
 		ioaddr = start;
+#if XXX
 		if (bus_space_map(iot, start, size, 0, &ioh))
 			return (1);
+#endif
 		DPRINTF(("pcic_chip_io_alloc map port %lx+%lx\n",
 		    (u_long) ioaddr, (u_long) size));
 	} else {
 		flags |= PCCARD_IO_ALLOCATED;
+#if XXX
 		if (bus_space_alloc(iot, h->sc->iobase,
 		    h->sc->iobase + h->sc->iosize, size, align, 0, 0,
 		    &ioaddr, &ioh))
 			return (1);
+#endif
 		DPRINTF(("pcic_chip_io_alloc alloc port %lx+%lx\n",
 		    (u_long) ioaddr, (u_long) size));
 	}
@@ -1069,10 +1093,12 @@ pcic_chip_io_free(pch, pcihp)
 	bus_space_handle_t ioh = pcihp->ioh;
 	bus_size_t size = pcihp->size;
 
+#if XXX
 	if (pcihp->flags & PCCARD_IO_ALLOCATED)
 		bus_space_free(iot, ioh, size);
 	else
 		bus_space_unmap(iot, ioh, size);
+#endif
 }
 
 
@@ -1314,7 +1340,9 @@ pcic_chip_socket_enable(pch)
 
 	/* set the card type */
 
+#if XXX
 	cardtype = psc->sc_if.if_card_gettype (psc);
+#endif
 
 	reg = pcic_read(h, PCIC_INTR);
 	reg &= ~(PCIC_INTR_CARDTYPE_MASK | PCIC_INTR_IRQ_MASK | PCIC_INTR_ENABLE);

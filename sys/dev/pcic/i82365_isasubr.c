@@ -1,8 +1,6 @@
 /*	$NetBSD: i82365_isasubr.c,v 1.1 1998/06/07 18:28:31 sommerfe Exp $	*/
 /* $FreeBSD$ */
 
-#define	PCICISADEBUG
-
 /*
  * Copyright (c) 1998 Bill Sommerfeld.  All rights reserved.
  * Copyright (c) 1997 Marc Horowitz.  All rights reserved.
@@ -121,13 +119,15 @@ int	pcicsubr_debug = 0 /* XXX */ ;
 #define	DPRINTF(arg)
 #endif
 
-void pcic_isa_bus_width_probe (sc, iot, ioh, base, length)
-	struct pcic_softc *sc;
+void pcic_isa_bus_width_probe (dev, iot, ioh, base, length)
+	device_t dev;
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
 	bus_addr_t base;
 	u_int32_t length;
 {
+	struct pcic_softc *sc = (struct pcic_softc *)
+	    device_get_softc(dev);
 	bus_space_handle_t ioh_high;
 	int i, iobuswidth, tmp1, tmp2;
 
@@ -138,12 +138,13 @@ void pcic_isa_bus_width_probe (sc, iot, ioh, base, length)
 
 	iobuswidth = 12;
 
+#if XXX 
 	/* Map i/o space. */
 	if (bus_space_map(iot, base + 0x400, length, 0, &ioh_high)) {
 		printf("%s: can't map high i/o space\n", sc->dev.dv_xname);
 		return;
 	}
-
+#endif
 	for (i = 0; i < PCIC_NSLOTS; i++) {
 		if (sc->handle[i].flags & PCIC_FLAG_SOCKETP) {
 			/*
@@ -164,7 +165,9 @@ void pcic_isa_bus_width_probe (sc, iot, ioh, base, length)
 		}
 	}
 
+#if XXX
 	bus_space_free(iot, ioh_high, length);
+#endif
 
 	/*
 	 * XXX mycroft recommends I/O space range 0x400-0xfff .  I should put
@@ -227,6 +230,8 @@ pcic_isa_chip_intr_establish(pch, pf, ipl, fct, arg)
 	int (*fct) __P((void *));
 	void *arg;
 {
+#define IST_LEVEL 1
+#define IST_PULSE 2
 	struct pcic_handle *h = (struct pcic_handle *) pch;
 	isa_chipset_tag_t ic = h->sc->intr_est;
 	int irq, ist;
@@ -240,12 +245,14 @@ pcic_isa_chip_intr_establish(pch, pf, ipl, fct, arg)
 	else
 		ist = IST_LEVEL;
 
+#if XXX
 	if (isa_intr_alloc(ic,
 	    PCIC_INTR_IRQ_VALIDMASK & pcic_isa_intr_alloc_mask, ist, &irq))
 		return (NULL);
 	if ((ih = isa_intr_establish(ic, irq, ist, ipl,
 	    fct, arg)) == NULL)
 		return (NULL);
+#endif
 
 	reg = pcic_read(h, PCIC_INTR);
 	reg &= ~PCIC_INTR_IRQ_MASK;
@@ -254,7 +261,7 @@ pcic_isa_chip_intr_establish(pch, pf, ipl, fct, arg)
 
 	h->ih_irq = irq;
 
-	printf("%s: card irq %d\n", h->pccard->dv_xname, irq);
+	printf("card irq %d\n",irq);
 
 	return (ih);
 }
@@ -274,5 +281,7 @@ pcic_isa_chip_intr_disestablish(pch, ih)
 	reg &= ~(PCIC_INTR_IRQ_MASK | PCIC_INTR_ENABLE);
 	pcic_write(h, PCIC_INTR, reg);
 
+#if XXX
 	isa_intr_disestablish(ic, ih);
+#endif
 }
