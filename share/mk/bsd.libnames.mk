@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.1 1996/09/05 18:05:07 bde Exp $
+#	$Id: bsd.libnames.mk,v 1.2 1996/10/04 08:52:43 peter Exp $
 
 LIBCRT0?=	${DESTDIR}/usr/lib/crt0.o
 LIBKZHEAD?=	${DESTDIR}/usr/lib/kzhead.o
@@ -45,6 +45,7 @@ LIBSCRYPT?=	"don't use LIBSCRYPT, use LIBCRYPT"
 LIBSCSI?=	${DESTDIR}/usr/lib/libscsi.a
 LIBSKEY?=	${DESTDIR}/usr/lib/libskey.a
 LIBSS?=		${DESTDIR}/usr/lib/libss.a
+LIBSTDCPLUSPLUS?= ${DESTDIR}/usr/lib/libstdc++.a
 LIBTCL?=	${DESTDIR}/usr/lib/libtcl.a
 LIBTELNET?=	${DESTDIR}/usr/lib/libtelnet.a
 LIBTERMCAP?=	${DESTDIR}/usr/lib/libtermcap.a
