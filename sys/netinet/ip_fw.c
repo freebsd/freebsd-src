@@ -1800,6 +1800,7 @@ ip_fw_ctl(struct sockopt *sopt)
 	switch (sopt->sopt_name) {
 	case IP_FW_GET:
 		size = 0 ;
+		s = splnet();
 		LIST_FOREACH(fcp, &ip_fw_chain_head, next)
 		    size += sizeof(struct ip_fw) ;
 		if (ipfw_dyn_v) {
@@ -1844,6 +1845,8 @@ ip_fw_ctl(struct sockopt *sopt)
 		    if (last != NULL)
 			last->next = NULL ;
 		}
+		splx(s);
+
 		error = sooptcopyout(sopt, buf, size);
 		FREE(buf, M_TEMP);
 		break;
