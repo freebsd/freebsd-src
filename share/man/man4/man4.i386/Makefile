@@ -15,6 +15,7 @@ MLINKS+=	is.4 ../is.4
 MLINKS+=	joy.4 ../joy.4
 MLINKS+=	keyboard.4 ../keyboard.4
 MLINKS+=	lpt.4 ../lpt.4
+MLINKS+=	matcd.4 ../matcd.4
 MLINKS+=	mcd.4 ../mcd.4
 MLINKS+=	mem.4 kmem.4 mem.4 ../mem.4 mem.4 ../kmem.4
 MLINKS+=	mse.4 ../mse.4
