@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.43 1996/06/12 19:24:01 gpalmer Exp $
+ * $Id: if_sl.c,v 1.44 1996/06/24 21:56:39 gpalmer Exp $
  */
 
 /*
@@ -224,6 +224,8 @@ slattach(dummy)
 		sc->sc_if.if_output = sloutput;
 		sc->sc_if.if_snd.ifq_maxlen = 50;
 		sc->sc_fastq.ifq_maxlen = 32;
+		sc->sc_if.if_linkmib = sc;
+		sc->sc_if.if_linkmiblen = sizeof *sc;
 		if_attach(&sc->sc_if);
 #if NBPFILTER > 0
 		bpfattach(&sc->sc_if, DLT_SLIP, SLIP_HDRLEN);
