@@ -1,7 +1,7 @@
 /*
  * setup.c - set up all files for Phantasia
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/phantasia/setup.c,v 1.11 1999/11/16 02:57:34 billf Exp $
  */
 #include "include.h"
 #include <sys/types.h>

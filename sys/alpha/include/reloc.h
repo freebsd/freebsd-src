@@ -29,5 +29,5 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/reloc.h,v 1.1.1.1.6.1 2000/08/03 00:48:04 peter Exp $
  */

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pkg_install/sign/sign.c,v 1.1.2.1 2001/03/05 03:43:53 wes Exp $ */
 /* $OpenBSD: sign.c,v 1.3 1999/10/04 21:46:29 espie Exp $ */
 /*-
  * Copyright (c) 1999 Marc Espie.

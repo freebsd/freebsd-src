@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/passwd/yp_passwd.c,v 1.15.6.1 2002/02/15 00:46:56 des Exp $
  */
 
 #ifdef YP

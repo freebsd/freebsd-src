@@ -11,7 +11,7 @@
  *
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/src/mci.c,v 1.3.6.6 2002/04/17 02:00:24 gshapiro Exp $ */
 
 #include <sendmail.h>
 

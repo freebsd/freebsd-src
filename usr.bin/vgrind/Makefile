@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/9/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/vgrind/Makefile,v 1.7.6.3 2002/02/18 16:16:57 ru Exp $
 
 PROG=	vfontedpr
 SRCS=	regexp.c vfontedpr.c

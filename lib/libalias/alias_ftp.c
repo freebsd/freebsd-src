@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libalias/alias_ftp.c,v 1.5.2.7 2001/12/06 09:00:26 ru Exp $
  */
 
 /*

@@ -41,7 +41,7 @@ __RCSID("$NetBSD$");
 #endif /* LIBC_SCCS and not lint */
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/string/wcsncmp.c,v 1.3.2.1 2001/07/11 23:48:38 obrien Exp $";
 #endif
 
 #include <assert.h>

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/mpapic.c,v 1.37.2.5 2001/02/13 22:32:44 tegge Exp $
  */
 
 #include <sys/param.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_dup2.c,v 1.9.2.1 2002/02/21 11:27:33 maxim Exp $
  */
 #include <errno.h>
 #include <unistd.h>

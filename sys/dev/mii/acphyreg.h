@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/acphyreg.h,v 1.1.2.1 2001/06/08 19:58:33 semenu Exp $
  */
 
 #ifndef _DEV_MII_ACPHYREG_H_

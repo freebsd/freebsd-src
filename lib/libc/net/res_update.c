@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/libc/net/res_update.c,v 1.2.2.1 2001/03/05 10:47:11 obrien Exp $";
 #endif /* not lint */
 
 /*

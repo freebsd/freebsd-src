@@ -3,7 +3,7 @@
 \ ** John Sadler (john_sadler@alum.mit.edu)
 \ ** September, 1998
 
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/ficl/softwords/softcore.fr,v 1.8.2.1 2000/07/06 23:51:46 obrien Exp $
 
 \ ** Ficl USER variables
 \ ** See words.c for primitive def'n of USER

@@ -10,7 +10,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/gnu/lib/libdialog/tree.c,v 1.5.2.1 2001/07/31 20:34:00 eric Exp $";
 #endif
 
 #include <stdlib.h>

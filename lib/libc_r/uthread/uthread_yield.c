@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_yield.c,v 1.4.2.1 2000/11/09 23:46:05 deischen Exp $
  */
 #ifdef _THREAD_SAFE
 #include <pthread.h>

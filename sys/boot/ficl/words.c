@@ -7,7 +7,7 @@
 ** 
 *******************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/words.c,v 1.23.2.2 2001/10/10 08:05:43 jkh Exp $ */
 
 #ifdef TESTMAIN
 #include <stdlib.h>

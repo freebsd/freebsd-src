@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/i686_mem.c,v 1.8.2.2 2002/04/28 22:57:59 dwmalone Exp $
  */
 
 #include <sys/param.h>

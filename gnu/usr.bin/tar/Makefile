@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/tar/Makefile,v 1.11.6.3 2001/02/26 07:48:39 ume Exp $
 
 PROG=	tar
 SRCS=   buffer.c create.c diffarch.c extract.c getdate.y \

@@ -27,7 +27,7 @@
  *	i4b_l1dmux.c - isdn4bsd layer 1 driver multiplexer
  *	--------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_l1dmux.c,v 1.3.2.2 2002/04/25 12:29:55 gj Exp $
  *
  *      last edit-date: [Wed Jan 10 16:43:24 2001]
  *

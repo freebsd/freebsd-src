@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libposix1e/acl_valid.c,v 1.4 2000/01/28 20:07:00 rwatson Exp $
  */
 /*
  * acl_valid -- POSIX.1e ACL check routine

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/gcore/elfcore.c,v 1.5.2.3 2001/07/11 23:59:11 obrien Exp $
  */
 
 #include <sys/param.h>

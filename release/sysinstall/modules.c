@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/modules.c,v 1.2.2.4 2002/06/05 20:13:50 jhb Exp $
  */
 
 #include "sysinstall.h"

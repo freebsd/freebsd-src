@@ -1,7 +1,7 @@
 /* pam_misc.c -- This is random stuff */
 
 /* $Id: pam_misc.c,v 1.9 1997/04/05 06:56:19 morgan Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_misc.c,v 1.1.1.1.6.3 2001/09/13 08:24:14 roam Exp $
  *
  * $Log: pam_misc.c,v $
  * Revision 1.9  1997/04/05 06:56:19  morgan

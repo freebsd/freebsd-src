@@ -31,7 +31,7 @@ SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.238 2002/03/30 07:43:21 geir Exp $")
 #include <sm/mbdb.h>
 #include <sm/sysexits.h>
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/mail.local/mail.local.c,v 1.6.6.8 2002/04/17 02:00:14 gshapiro Exp $ */
 
 /*
 **  This is not intended to work on System V derived systems

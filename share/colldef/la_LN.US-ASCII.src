@@ -1,6 +1,6 @@
 # ASCII
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/la_LN.US-ASCII.src,v 1.2.6.1 2002/01/05 15:36:07 phantom Exp $
 #
 order \
 	\x00;...;\xff

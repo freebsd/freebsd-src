@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF  
  * SUCH DAMAGE.  
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/mskanji.c,v 1.2.8.2 2001/03/05 10:22:45 obrien Exp $
  */  
 
 #if defined(LIBC_SCCS) && !defined(lint)

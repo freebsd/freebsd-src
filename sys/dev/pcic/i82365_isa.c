@@ -1,6 +1,6 @@
 /*	$NetBSD: i82365_isasubr.c,v 1.3 1999/10/15 06:07:27 haya Exp $	*/
 /*	$NetBSD: i82365_isa.c,v 1.11 1998/06/09 07:25:00 thorpej Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/pcic/i82365_isa.c,v 1.13.2.1 2000/05/23 03:57:02 imp Exp $ */
 
 /*
  * Copyright (c) 1998 Bill Sommerfeld.  All rights reserved.

@@ -44,7 +44,7 @@ static char const copyright[] =
 static char const sccsid[] = "@(#)printf.c	8.1 (Berkeley) 7/20/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/printf/printf.c,v 1.12.6.6 2002/04/29 16:45:16 jmallett Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

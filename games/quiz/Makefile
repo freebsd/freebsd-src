@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/quiz/Makefile,v 1.5.6.3 2002/02/18 16:02:43 ru Exp $
 
 PROG=	quiz
 SRCS=	quiz.c rxp.c

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/libkern/alpha/ntohs.S,v 1.1.6.1 2000/08/03 01:03:45 peter Exp $ */
 /*	$NetBSD: ntohs.S,v 1.1 1996/04/17 22:37:02 cgd Exp $	*/
 
 /*

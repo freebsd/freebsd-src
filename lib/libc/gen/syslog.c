@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)syslog.c	8.5 (Berkeley) 4/29/95";
 */
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/syslog.c,v 1.21.2.2 2002/04/10 21:35:50 dwmalone Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>

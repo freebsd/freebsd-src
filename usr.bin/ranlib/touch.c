@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/ranlib/touch.c,v 1.6 1999/08/28 01:05:04 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-@c $FreeBSD$
+@c $FreeBSD: src/gnu/usr.bin/send-pr/doc/s-usage.texi,v 1.2.8.1 2001/03/05 10:44:04 kris Exp $
 
 @c This is the usage section for send-pr.  It is called as 
 @c chapter (Invoking send-pr) by send-pr.texi, and also as

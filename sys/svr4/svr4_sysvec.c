@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/svr4/svr4_sysvec.c,v 1.10.2.1 2001/02/22 05:15:12 marcel Exp $
  */
 
 /* XXX we use functions that might not exist. */

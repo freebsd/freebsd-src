@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/kldconfig/Makefile,v 1.1.2.1 2001/08/01 05:52:36 obrien Exp $
 #
 
 PROG=		kldconfig

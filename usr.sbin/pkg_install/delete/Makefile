@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/delete/Makefile,v 1.11.2.2 2001/10/23 09:16:03 sobomax Exp $
 
 PROG= pkg_delete
 

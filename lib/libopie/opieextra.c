@@ -3,7 +3,7 @@
  * by Todd Miller <millert@openbsd.org>, Theo De Raadt <deraadt@openbsd.org>
  * and possibly others.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libopie/opieextra.c,v 1.1.2.1 2000/06/09 07:16:42 kris Exp $
  */
 
 #include <stdio.h>

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/arp.h,v 1.9.2.1 2001/06/13 21:56:33 brian Exp $
  */
 
 struct sockaddr_dl;

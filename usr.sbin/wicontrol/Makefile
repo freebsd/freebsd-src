@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/wicontrol/Makefile,v 1.3.2.1 2001/04/25 12:11:11 ru Exp $
 PROG=	wicontrol
 MAN=	wicontrol.8
 

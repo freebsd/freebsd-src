@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/as/obstack.h,v 1.6 1999/08/27 23:34:20 peter Exp $
  */
 
 

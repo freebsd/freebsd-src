@@ -14,7 +14,7 @@ static const char rcsid[] =
      "@(#) $Header: /tcpdump/master/tcpdump/print-smb.c,v 1.7 2000/12/05 06:42:47 guy Exp $";
 #endif
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/tcpdump/print-smb.c,v 1.1.1.1.2.2 2001/07/26 22:30:01 fenner Exp $ */
 
 #include <stdio.h>
 #include <string.h>

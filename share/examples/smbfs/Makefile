@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/smbfs/Makefile,v 1.1.2.2 2002/04/01 16:22:23 roam Exp $
 
 NOOBJ=	noobj
 BINDIR=	/usr/share/examples

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/i4b/Makefile.inc,v 1.1.6.1 2001/08/01 17:29:16 obrien Exp $
 
 # if you don't like curses stuff in the daemon (i.e. don't intend
 # to ever run it in the foreground but are using the monitoring

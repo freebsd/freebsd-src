@@ -37,7 +37,7 @@
  *
  *	$Id: trace.c,v 1.19 2000/08/28 07:06:42 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/trace.c,v 1.8.2.1 2001/08/01 17:45:08 obrien Exp $
  *
  *      last edit-date: [Mon Aug 28 09:03:46 2000]
  *

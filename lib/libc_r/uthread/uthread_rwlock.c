@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_rwlock.c,v 1.4.2.1 2002/03/29 02:25:38 bsd Exp $
  */
 
 #ifdef _THREAD_SAFE

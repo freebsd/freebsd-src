@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pcvt/keycap/Makefile,v 1.9.6.1 2001/04/25 12:10:28 ru Exp $
 
 LIB	=	keycap
 CAPDIR	=	/usr/share/misc

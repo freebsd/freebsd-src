@@ -1,7 +1,7 @@
   -- FreeBSD SGML Public Identifiers --
   -- Release-specific --
 
-  -- $FreeBSD$ --
+  -- $FreeBSD: src/release/doc/share/sgml/catalog,v 1.2.2.2 2001/06/22 00:35:11 bmah Exp $ --
 
 PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN"
        "release.ent"

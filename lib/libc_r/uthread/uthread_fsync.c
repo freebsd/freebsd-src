@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_fsync.c,v 1.8 2000/01/27 23:07:07 jasone Exp $
  */
 #include <unistd.h>
 #ifdef _THREAD_SAFE

@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char xcmd_rcsid[] = "$FreeBSD$";
+const char xcmd_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/uucico/xcmd.c,v 1.6 1999/08/27 23:33:52 peter Exp $";
 #endif
 
 #include <errno.h>

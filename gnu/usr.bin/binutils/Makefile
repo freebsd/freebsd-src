@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/Makefile,v 1.11.2.4 2002/03/06 18:50:27 obrien Exp $
 
 #	In my absence, bde and jdp have pre-approval for any commit they feel
 #	necessary.

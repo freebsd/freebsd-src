@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/ufs_vnops.c,v 1.131.2.7 2002/02/05 18:35:04 dillon Exp $
  */
 
 #include "opt_quota.h"

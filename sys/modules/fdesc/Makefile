@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/fdesc/Makefile,v 1.6 1999/12/12 16:47:24 peter Exp $
 
 .PATH:	${.CURDIR}/../../miscfs/fdesc
 KMOD=	fdesc

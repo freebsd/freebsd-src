@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_cmdarg_rcsid[] = "$FreeBSD$";
+const char _uuconf_cmdarg_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/cmdarg.c,v 1.7 1999/08/27 23:33:16 peter Exp $";
 #endif
 
 #include <ctype.h>

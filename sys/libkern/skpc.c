@@ -32,7 +32,7 @@
  *
  *	@(#)skpc.c	8.1 (Berkeley) 6/10/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/skpc.c,v 1.6 1999/08/28 00:46:36 peter Exp $
  */
 
 #include <sys/libkern.h>

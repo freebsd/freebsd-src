@@ -26,7 +26,7 @@ Boston, MA 02111-1307, USA.  */
    This exception does not however invalidate any other reasons why
    the executable file might be covered by the GNU General Public License.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/libgcc2.c,v 1.4 1999/10/27 09:45:47 obrien Exp $ */
 
 /* It is incorrect to include config.h here, because this file is being
    compiled for the target, and hence definitions concerning only the host

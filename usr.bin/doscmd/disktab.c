@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/disktab.c,v 1.1.6.1 2002/04/25 11:04:50 tg Exp $");
 
 /* XXX goaway (requires change to config.c) */
 

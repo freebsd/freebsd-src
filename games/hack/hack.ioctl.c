@@ -1,6 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.ioctl.c - version 1.0.2 */
-/* $FreeBSD$
+/* $FreeBSD: src/games/hack/hack.ioctl.c,v 1.2 1999/09/12 07:01:23 marcel Exp $
 
 /* This cannot be part of hack.tty.c (as it was earlier) since on some
    systems (e.g. MUNIX) the include files <termio.h> and <sgtty.h>

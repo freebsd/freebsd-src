@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-# $FreeBSD$
+# $FreeBSD: src/etc/Makefile,v 1.219.2.29 2002/04/28 19:57:41 gshapiro Exp $
 
 .if !defined(NO_SENDMAIL)
 SUBDIR=	sendmail

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/common/pnpdata,v 1.2 1999/08/28 00:39:51 peter Exp $
 #
 # This file contains the system default Plug-and-Play data.  It is
 # derived from a number of sources, including:

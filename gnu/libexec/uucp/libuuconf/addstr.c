@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_addstr_rcsid[] = "$FreeBSD$";
+const char _uuconf_addstr_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/addstr.c,v 1.6 1999/08/27 23:33:13 peter Exp $";
 #endif
 
 #include <errno.h>

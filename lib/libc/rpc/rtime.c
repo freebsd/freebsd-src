@@ -54,7 +54,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /* from: static char sccsid[] = 	"@(#)rtime.c	2.2 88/08/10 4.0 RPCSRC; from 1.8 88/02/08 SMI"; */
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/lib/libc/rpc/rtime.c,v 1.5 2000/01/27 23:06:41 jasone Exp $";
 #endif
 
 extern int _rpc_dtablesize __P(( void ));

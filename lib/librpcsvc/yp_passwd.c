@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/librpcsvc/yp_passwd.c,v 1.2 1999/08/28 00:05:24 peter Exp $
  */
 
 #include <stdlib.h>
@@ -40,7 +40,7 @@
 #include <netinet/in.h>
 
 #ifndef LINT
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/lib/librpcsvc/yp_passwd.c,v 1.2 1999/08/28 00:05:24 peter Exp $";
 #endif
 
 /*

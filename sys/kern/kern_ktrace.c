@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_ktrace.c,v 1.35.2.5 2001/10/24 19:14:51 dillon Exp $
  */
 
 #include "opt_ktrace.h"

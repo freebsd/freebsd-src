@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_arregs.h,v 1.6 1999/10/17 09:38:25 jhay Exp $
  */
 #ifndef _IF_ARREGS_H_
 #define _IF_ARREGS_H_

@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_ssh/pam_ssh.c,v 1.28.2.2 2002/04/06 05:24:36 des Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/440.status-mailq,v 1.4.2.5 2002/05/14 10:45:56 brian Exp $
 #
 
 # If there is a global system configuration file, suck it in.

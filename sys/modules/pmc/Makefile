@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/pmc/Makefile,v 1.1.2.1 2001/11/01 09:42:29 nyan Exp $
 
 .PATH: ${.CURDIR}/../../pc98/pc98
 

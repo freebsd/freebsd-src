@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/monetdef/Makefile,v 1.37.2.1 2002/03/01 16:08:06 phantom Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}

@@ -1,6 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.mkmaze.c - version 1.0.2 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/hack.mkmaze.c,v 1.4 1999/11/16 10:26:37 marcel Exp $ */
 
 #include "hack.h"
 #include "def.mkroom.h"		/* not really used */

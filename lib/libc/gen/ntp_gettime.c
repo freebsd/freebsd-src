@@ -33,7 +33,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/ntp_gettime.c,v 1.6 1999/08/27 23:58:52 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>

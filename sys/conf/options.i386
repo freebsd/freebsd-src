@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options.i386,v 1.132.2.15 2002/04/28 23:01:29 dwmalone Exp $
 
 DISABLE_PSE
 IDE_DELAY

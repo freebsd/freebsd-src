@@ -34,7 +34,7 @@
 __RCSID("$NetBSD: exec_elf32.c,v 1.4 1997/08/12 06:07:24 mikel Exp $");
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/crunch/crunchide/exec_elf32.c,v 1.1.6.1 2001/07/11 23:59:12 obrien Exp $";
 #endif
  
 #ifndef ELFSIZE

@@ -38,7 +38,7 @@
 
 #include <dev/sound/pci/via82c686.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/via82c686.c,v 1.4.2.8 2002/04/22 15:49:33 cg Exp $");
 
 #define VIA686A_PCI_ID 0x30581106
 #define VIA8233_PCI_ID 0x30591106

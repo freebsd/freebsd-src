@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/adduser/Makefile,v 1.14.2.2 2001/04/25 14:04:49 ru Exp $
 
 MAINTAINER= wosch
 

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/binutils/FREEBSD-deletelist,v 1.3.2.2 2001/08/01 23:02:21 obrien Exp $
 CVS
 testsuite
 .cvsignore

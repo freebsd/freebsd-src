@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
 
 SM_IDSTR(id, "@(#)$Id: rmail.c,v 8.61 2001/09/18 21:45:29 gshapiro Exp $")
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/rmail/rmail.c,v 1.4.6.6 2002/03/25 21:25:50 gshapiro Exp $ */
 
 /*
  * RMAIL -- UUCP mail server.

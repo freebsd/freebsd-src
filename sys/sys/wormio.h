@@ -1,5 +1,5 @@
 /* Shared between kernel & process */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/sys/wormio.h,v 1.6 1999/10/01 14:10:50 peter Exp $ */
 
 #ifndef	_SYS_WORMIO_H_
 #define	_SYS_WORMIO_H_

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rtsold/rtsold.h,v 1.1.2.3 2001/07/03 11:02:16 ume Exp $
  */
 
 struct ifinfo {

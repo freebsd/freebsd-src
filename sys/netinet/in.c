@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/in.c,v 1.44.2.12 2002/05/01 08:30:36 brian Exp $
  */
 
 #include "opt_bootp.h"

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pccard/pccardd/cardd.h,v 1.18.2.6 2001/05/23 21:56:40 dmlb Exp $
  *
  *	Common include file for PCMCIA daemon
  */

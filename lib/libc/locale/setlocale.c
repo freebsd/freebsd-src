@@ -37,7 +37,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/locale/setlocale.c,v 1.25.2.5 2002/03/12 17:20:53 phantom Exp $";
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)

@@ -28,7 +28,7 @@
  *
  * Author: Julian Elischer <julian@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_etf.h,v 1.1.2.1 2002/04/09 20:05:47 julian Exp $
  */
 
 #ifndef _NETGRAPH_ETHERTYPE_FILTER_H_

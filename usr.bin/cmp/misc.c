@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/cmp/misc.c,v 1.2.6.1 2001/11/21 10:47:54 dwmalone Exp $
  *
  */
 

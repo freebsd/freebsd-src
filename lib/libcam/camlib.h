@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libcam/camlib.h,v 1.2 1999/08/28 00:04:06 peter Exp $
  */
 /*
  * Buffer encoding/decoding routines taken from the original FreeBSD SCSI

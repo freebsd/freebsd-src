@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libio/io.c,v 1.3 2000/02/12 14:57:01 dfr Exp $
  */
 
 #include <sys/types.h>

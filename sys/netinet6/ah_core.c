@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/ah_core.c,v 1.2.2.5 2002/04/28 05:40:26 suz Exp $	*/
 /*	$KAME: ah_core.c,v 1.44 2001/03/12 11:24:39 itojun Exp $	*/
 
 /*

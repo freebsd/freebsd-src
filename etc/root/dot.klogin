@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/root/dot.klogin,v 1.6 1999/08/27 23:24:09 peter Exp $
 #
 # user1.root@your.realm.wherever
 # user2.root@your.realm.wherever

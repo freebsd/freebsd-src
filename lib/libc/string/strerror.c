@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)strerror.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/string/strerror.c,v 1.2.14.2 2001/12/20 06:31:26 wes Exp $";
 #endif
 
 #include <stdio.h>

@@ -20,7 +20,7 @@
  *  - consider returning on failure PAM_FAIL_NOW if the user is not
  *    a wheel member.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_wheel/pam_wheel.c,v 1.3.2.2 2001/06/11 15:28:35 markm Exp $
  */
 
 #define _BSD_SOURCE

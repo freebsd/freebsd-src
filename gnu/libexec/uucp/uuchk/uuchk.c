@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uuchk_rcsid[] = "$FreeBSD$";
+const char uuchk_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/uuchk/uuchk.c,v 1.7 1999/08/27 23:33:46 peter Exp $";
 #endif
 
 #include "getopt.h"

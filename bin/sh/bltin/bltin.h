@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)bltin.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/bltin/bltin.h,v 1.10.2.1 2001/08/01 05:22:07 obrien Exp $
  */
 
 /*

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/tip/libacu/dn11.c,v 1.1.12.1 2000/07/01 12:24:22 ps Exp $
  */
 
 #ifndef lint

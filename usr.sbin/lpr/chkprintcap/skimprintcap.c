@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
     
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/lpr/chkprintcap/skimprintcap.c,v 1.1.2.1 2002/04/18 20:45:23 gad Exp $");
 
 #include <sys/types.h>
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/nls/et/Makefile,v 1.1.2.1 2001/10/08 21:11:00 mp Exp $
 
 NL=     et
 DL=     et_EE.ISO8859-15

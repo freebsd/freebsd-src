@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pkg_install/sign/common.c,v 1.1.2.1 2001/03/05 03:43:53 wes Exp $ */
 /* $OpenBSD: common.c,v 1.3 1999/10/07 16:30:32 espie Exp $ */
 /*-
  * Copyright (c) 1999 Marc Espie.

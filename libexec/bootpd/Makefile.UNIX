@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/bootpd/Makefile.UNIX,v 1.5 1999/08/28 00:09:14 peter Exp $
 #
 # Makefile for the BOOTP programs:
 #   bootpd	- BOOTP server daemon

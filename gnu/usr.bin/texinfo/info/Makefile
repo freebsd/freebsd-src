@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/texinfo/info/Makefile,v 1.10.2.3 2002/03/30 17:09:25 ru Exp $
 
 PROG=	info
 MAN=	info.1 info.5 texinfo.5

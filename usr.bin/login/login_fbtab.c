@@ -13,7 +13,7 @@
 * warranties, including, without limitation, the implied warranties of
 * merchantibility and fitness for any particular purpose.
 ************************************************************************/
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/login/login_fbtab.c,v 1.6.2.4 2001/12/14 10:58:18 rwatson Exp $ */
 /*
     SYNOPSIS
 	void login_fbtab(tty, uid, gid)

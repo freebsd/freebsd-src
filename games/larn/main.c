@@ -1,5 +1,5 @@
 /*	main.c		*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/larn/main.c,v 1.9 1999/11/30 03:48:59 billf Exp $ */
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "header.h"

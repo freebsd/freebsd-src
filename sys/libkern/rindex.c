@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/rindex.c,v 1.7 1999/12/10 17:38:41 peter Exp $
  */
 
 #include <sys/param.h>

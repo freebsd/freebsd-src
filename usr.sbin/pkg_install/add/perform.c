@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/pkg_install/add/perform.c,v 1.57.2.9 2002/04/14 13:23:49 murray Exp $";
 #endif
 
 /*

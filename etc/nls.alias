@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/nls.alias,v 1.2.2.6 2002/04/15 00:44:13 dougb Exp $
 
 ASCII                   C
 POSIX                   C

@@ -26,7 +26,7 @@ Boston, MA 02111-1307, USA.  */
    egcs/gcc/config/i386/freebsd-elf.h by
    David O'Brien <obrien@FreeBSD.org>.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/freebsd.h,v 1.25.2.9 2001/08/01 18:28:00 obrien Exp $ */
 
 
 /* Cpp, assembler, linker, library, and startfile spec's.  */

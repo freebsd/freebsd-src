@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/enigma/Makefile,v 1.3.6.3 2001/07/30 09:59:16 dd Exp $
 
 PROG=	enigma
 WARNS?=	2

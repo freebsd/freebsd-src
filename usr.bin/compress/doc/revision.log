@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/compress/doc/revision.log,v 1.3 1999/09/06 07:32:15 peter Exp $
  * $Log: revision.log,v $
  * Revision 4.0  85/07/30  12:50:00  joe
  * Removed ferror() calls in output routine on every output except first.
@@ -113,4 +113,4 @@
  */
 
 static char rcs_ident[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/compress/doc/revision.log,v 1.3 1999/09/06 07:32:15 peter Exp $";

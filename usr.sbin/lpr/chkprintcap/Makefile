@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/lpr/chkprintcap/Makefile,v 1.7.2.3 2002/04/18 20:45:23 gad Exp $
 
 .PATH: ${.CURDIR}/../common_source
 

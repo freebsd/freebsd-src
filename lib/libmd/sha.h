@@ -54,7 +54,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libmd/sha.h,v 1.3 1999/08/28 00:05:08 peter Exp $
  */
 
 #ifndef _SHA_H_

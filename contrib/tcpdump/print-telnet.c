@@ -44,7 +44,7 @@
  *      1/ that the above copyright notice and this notice 
  *      are preserved in all copies.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-telnet.c,v 1.1.1.1.2.2 2001/07/26 22:30:01 fenner Exp $
  */
 
 #ifdef HAVE_CONFIG_H

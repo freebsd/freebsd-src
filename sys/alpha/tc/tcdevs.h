@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/tcdevs.h,v 1.2 1999/08/28 00:39:11 peter Exp $ */
 /*	$NetBSD: tcdevs.h,v 1.12 1998/06/18 23:29:46 jonathan Exp $	*/
 
 /*

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/kern/vfs_conf.c,v 1.49.2.4 2002/02/04 13:08:12 sobomax Exp $
  */
 
 /*

@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_zone.h,v 1.13.2.1 2001/03/04 09:04:39 assar Exp $
  */
 
 #ifndef _SYS_ZONE_H

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/vacation/Makefile,v 1.6.2.3 2002/03/25 21:31:50 gshapiro Exp $
 
 MAINTAINER=	gshapiro@FreeBSD.org
 

@@ -104,4 +104,4 @@ Mi³ej zabawy!
   
 Andrzej Bia³ecki <abial@freebsd.org>
 
-$FreeBSD$
+$FreeBSD: src/release/picobsd/dial/lang/README.pl,v 1.5 1999/08/28 01:33:20 peter Exp $

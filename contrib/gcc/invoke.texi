@@ -3,7 +3,7 @@
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
-@c $FreeBSD$
+@c $FreeBSD: src/contrib/gcc/invoke.texi,v 1.6.2.2 2001/04/10 19:23:10 obrien Exp $
 
 @node Invoking GCC
 @chapter GCC Command Options

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/libpam/modules/pam_securetty/README,v 1.3.2.2 2001/06/11 15:28:27 markm Exp $
 pam_securetty:
 	Allows root logins only if the user is logging in on a
 	"secure" tty, as defined by the listing in /etc/securetty

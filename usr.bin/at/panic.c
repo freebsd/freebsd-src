@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/at/panic.c,v 1.10 1999/12/05 19:57:14 charnier Exp $";
 #endif /* not lint */
 
 /* System Headers */

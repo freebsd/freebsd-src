@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/opendir.c,v 1.10.2.1 2001/06/04 20:59:48 joerg Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)tput.c	8.2 (Berkeley) 3/19/94";
 #endif
 static char rcsid[] =
-"$FreeBSD$";
+"$FreeBSD: src/usr.bin/tput/tput.c,v 1.7.6.2 2001/07/30 10:16:46 dd Exp $";
 #endif /* not lint */
 
 #include <termios.h>

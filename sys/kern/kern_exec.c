@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_exec.c,v 1.107.2.14 2002/04/21 13:06:23 nectar Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/doc/psd/title/Makefile,v 1.5.2.2 2002/02/18 12:29:44 ru Exp $
 
 VOLUME=	psd
 SRCS=	Title

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/collate.c,v 1.21.2.1 2001/03/05 10:10:22 obrien Exp $
  */
 
 #include <rune.h>

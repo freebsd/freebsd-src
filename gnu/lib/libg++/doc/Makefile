@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libg++/doc/Makefile,v 1.5 1999/08/27 23:32:46 peter Exp $
 
 INFO = g++FAQ libg++ iostream
 INFOSECTION= "Gcc Documentation"

@@ -8,7 +8,7 @@
  * and the X/Open XSSO draft of March 1997.
  *
  * $Id: pam_env.c,v 1.2 1997/02/15 15:56:48 morgan Exp morgan $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_env.c,v 1.1.1.1.6.2 2001/06/11 15:28:12 markm Exp $
  *
  * $Log: pam_env.c,v $
  * Revision 1.2  1997/02/15 15:56:48  morgan

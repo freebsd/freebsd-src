@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/i4b/isdntel/Makefile,v 1.3.2.2 2001/08/01 17:45:06 obrien Exp $
 
 PROG=	isdntel
 MAN=	isdntel.8

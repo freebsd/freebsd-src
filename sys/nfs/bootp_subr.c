@@ -1,4 +1,4 @@
-/* $FreeBSD$	*/
+/* $FreeBSD: src/sys/nfs/bootp_subr.c,v 1.20.2.8 2002/03/16 15:56:06 luigi Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass

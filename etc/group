@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/group,v 1.19.2.2 2002/02/10 11:43:37 obrien Exp $
 #
 wheel:*:0:root
 daemon:*:1:daemon

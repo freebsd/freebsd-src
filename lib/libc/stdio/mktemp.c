@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/stdio/mktemp.c,v 1.19.2.1 2001/01/20 09:35:24 kris Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>

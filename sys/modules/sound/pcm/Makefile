@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/pcm/Makefile,v 1.3.2.3 2001/08/01 03:41:07 cg Exp $
 
 .PATH:		${.CURDIR}/../../../dev/sound/pcm
 KMOD		= snd_pcm

@@ -37,7 +37,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)wwsize.c	8.1 (Berkeley) 6/6/93";
 static char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/window/wwsize.c,v 1.2.6.1 2001/05/17 09:45:01 obrien Exp $";
 #endif /* not lint */
 
 #include <stdlib.h>

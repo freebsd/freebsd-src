@@ -1,6 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.engrave.c - version 1.0.3 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/hack.engrave.c,v 1.4 1999/11/16 02:57:04 billf Exp $ */
 
 #include	"hack.h"
 

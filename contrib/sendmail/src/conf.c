@@ -15,7 +15,7 @@
 
 SM_RCSID("@(#)$Id: conf.c,v 8.961 2002/04/04 21:32:14 gshapiro Exp $")
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/src/conf.c,v 1.5.2.8 2002/04/17 02:00:21 gshapiro Exp $ */
 
 #include <sendmail/pathnames.h>
 

@@ -3,7 +3,7 @@
 # This file should be in "kernel_dir/modules/if_tap" directory
 # kernel_dir - kernel source root directory (/usr/src/sys)
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_tap/Makefile,v 1.1.2.2 2001/07/24 09:49:42 dd Exp $
 
 .PATH:		${.CURDIR}/../../net
 KMOD=		if_tap

@@ -26,7 +26,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/update/pkg_update.pl,v 1.4.2.1 2001/03/16 04:36:01 paul Exp $
 #/
 
 use strict;

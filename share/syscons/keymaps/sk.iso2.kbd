@@ -3,7 +3,7 @@
 #
 # Version 1.1 - 1999-03-21
 #
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/sk.iso2.kbd,v 1.1.4.1 2000/07/18 00:47:52 ache Exp $
 #
 # This map is derived from my Central European map
 # (ce.iso2.kbd). The description of the CE map is next.

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_resume_np.c,v 1.7.2.3 2001/06/23 00:47:05 jasone Exp $
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE

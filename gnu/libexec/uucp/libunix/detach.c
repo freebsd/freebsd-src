@@ -23,7 +23,7 @@
    c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/libexec/uucp/libunix/detach.c,v 1.5.8.1 2000/12/11 01:03:17 obrien Exp $ */
 
 #include "uucp.h"
 

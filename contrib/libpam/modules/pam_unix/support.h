@@ -1,6 +1,6 @@
 /*
  * $Id: support.h,v 1.3 2000/12/20 05:15:05 vorlon Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_unix/support.h,v 1.1.1.1.2.2 2001/06/11 15:28:30 markm Exp $
  */
 
 #ifndef _PAM_UNIX_SUPPORT_H

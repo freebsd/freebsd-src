@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/pci/tsunamivar.h,v 1.3 1999/10/12 22:10:53 gallatin Exp $
  */
 
 extern void tsunami_init(void);

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ls.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/ls/ls.h,v 1.11.2.3 2002/03/28 01:28:14 joe Exp $
  */
 
 #define NO_PRINT	1

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pcvt/fonts/Makefile,v 1.10.2.1 2002/02/18 16:24:27 ru Exp $
 
 .SUFFIXES: .uu
 .uu:

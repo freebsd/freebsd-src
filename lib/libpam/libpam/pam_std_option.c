@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libpam/libpam/pam_std_option.c,v 1.1.1.1.6.2 2001/06/11 15:28:36 markm Exp $
  */
 
 #include <security/pam_modules.h>

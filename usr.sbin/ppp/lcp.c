@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/lcp.c,v 1.81.2.12 2001/10/25 21:01:28 brian Exp $
  */
 
 #include <sys/param.h>

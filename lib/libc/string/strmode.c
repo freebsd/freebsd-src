@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)strmode.c	8.3 (Berkeley) 8/15/94";
 #endif /* LIBC_SCCS and not lint */
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/string/strmode.c,v 1.1.1.2.6.1 2001/07/09 23:30:07 obrien Exp $";
 #endif
 
 #include <sys/types.h>

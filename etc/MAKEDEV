@@ -20,7 +20,7 @@
 # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
 #	@(#)MAKEDEV	5.2 (Berkeley) 6/22/90
-# $FreeBSD$
+# $FreeBSD: src/etc/MAKEDEV,v 1.243.2.47 2002/04/21 19:47:06 will Exp $
 #
 # Device "make" file.  Valid arguments:
 #	all	makes all known devices, standard number of units (or close)

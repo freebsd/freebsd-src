@@ -1,5 +1,5 @@
 This fortune brought to you by:
-$FreeBSD$
+$FreeBSD: src/games/fortune/datfiles/freebsd-tips,v 1.14.2.4 2002/03/24 03:28:46 murray Exp $
 %
 Having trouble using FTP through a firewall?  Try setting the environment
 variable FTP_PASSIVE_MODE to yes, and see ftp(1) for more details.

@@ -22,7 +22,7 @@ SM_IDSTR(copyright,
 
 SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.175 2001/12/28 22:44:01 ca Exp $")
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/makemap/makemap.c,v 1.3.6.4 2002/03/25 21:25:45 gshapiro Exp $ */
 
 #include <sys/types.h>
 #ifndef ISC_UNIX

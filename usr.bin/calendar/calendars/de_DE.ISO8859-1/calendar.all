@@ -1,7 +1,7 @@
 /*
  * deutscher Kalender
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/de_DE.ISO8859-1/calendar.all,v 1.6.2.1 2002/01/05 15:43:37 phantom Exp $
  */
 
 #ifndef _de_DE_ISO8859_1_all_

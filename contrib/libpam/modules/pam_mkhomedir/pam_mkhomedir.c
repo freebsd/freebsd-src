@@ -25,7 +25,7 @@
    Originally written by Jason Gunthorpe <jgg@debian.org> Feb 1999
    Structure taken from pam_lastlogin by Andrew Morgan 
      <morgan@parc.power.net> 1996
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_mkhomedir/pam_mkhomedir.c,v 1.1.1.1.2.2 2001/06/11 15:28:20 markm Exp $
  */
 
 /* I want snprintf dammit */

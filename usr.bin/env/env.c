@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 static const char sccsid[] = "@(#)env.c	8.3 (Berkeley) 4/2/94";
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/env/env.c,v 1.5.2.1 2001/08/02 02:25:58 obrien Exp $";
 #endif /* not lint */
 
 #include <err.h>

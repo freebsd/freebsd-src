@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/pci/apecs.c,v 1.13.2.1 2001/01/11 18:04:22 gallatin Exp $
  */
 /*
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.

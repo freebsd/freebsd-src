@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_hsys_rcsid[] = "$FreeBSD$";
+const char _uuconf_hsys_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/hsys.c,v 1.6 1999/08/27 23:33:23 peter Exp $";
 #endif
 
 /* Get system information from the HDB configuration files.  This is a

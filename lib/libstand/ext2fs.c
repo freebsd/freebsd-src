@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libstand/ext2fs.c,v 1.1.2.2 2001/03/05 06:26:07 kris Exp $
  */
 /*-
  * Copyright (c) 1993

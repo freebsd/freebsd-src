@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/iconv_xlat.c,v 1.1.2.1 2001/05/21 08:28:07 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/kernel.h>

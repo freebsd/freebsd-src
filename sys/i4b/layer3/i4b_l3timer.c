@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_l3timer.c,v 1.17 2000/08/24 11:48:58 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer3/i4b_l3timer.c,v 1.6.2.1 2001/08/10 14:08:42 obrien Exp $
  *
  *      last edit-date: [Thu Aug 24 12:49:50 2000]
  *

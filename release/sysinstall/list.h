@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/list.h,v 1.2 1999/08/28 01:34:15 peter Exp $
  *
  * Copyright (c) 1997 FreeBSD, Inc.
  * All rights reserved.

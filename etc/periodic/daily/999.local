@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/999.local,v 1.2.2.3 2001/08/01 20:38:03 obrien Exp $
 #
 # Run the old /etc/daily.local script.  This is really for backwards
 # compatibility more than anything else.

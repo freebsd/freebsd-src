@@ -97,7 +97,7 @@
  */
 
 #ifdef RCSID
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/gnu/usr.bin/gzip/inflate.c,v 1.8 1999/08/27 23:35:51 peter Exp $";
 #endif
 
 #include <sys/types.h>

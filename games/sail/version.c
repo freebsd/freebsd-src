@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)version.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/sail/version.c,v 1.2 1999/11/30 03:49:38 billf Exp $";
 #endif /* not lint */
 
 char version[] = "Wooden Ships and Iron Men, Version 8.1 (93/05/31)";
