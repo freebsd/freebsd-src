@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: defs.h,v 1.2 1995/02/26 12:17:25 amurai Exp $
  *
  *	TODO:
  */
@@ -38,7 +38,7 @@
  */
 #define	LOGFILE		"/var/log/ppp.log"	/* Name of log file */
 #ifdef __FreeBSD__
-#define	MODEM_DEV	"/dev/cua01"		/* name of tty device */
+#define	MODEM_DEV	"/dev/cuaa1"		/* name of tty device */
 #else
 #define	MODEM_DEV	"/dev/tty01"		/* name of tty device */
 #endif
