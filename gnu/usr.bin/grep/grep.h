@@ -22,6 +22,8 @@
 # define __attribute__(x)
 #endif
 
+#include "mbcache.h"
+
 /* Grep.c expects the matchers vector to be terminated
    by an entry with a NULL compile, and to contain at least
    an entry named "default". */
@@ -30,7 +32,8 @@ extern struct matcher
 {
   char name[8];
   void (*compile) PARAMS ((char const *, size_t));
-  size_t (*execute) PARAMS ((char const *, size_t, size_t *, int));
+  size_t (*execute) PARAMS ((char const *, size_t, struct mb_cache *,
+			     size_t *, int));
 } const matchers[];
 
 /* Exported from fgrepmat.c, egrepmat.c, grepmat.c.  */
