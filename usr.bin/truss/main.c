@@ -202,6 +202,9 @@ main(int ac, char **av) {
 
   Procfd = start_tracing(pid, S_EXEC | S_SCE | S_SCX | S_CORE | S_EXIT |
 		     (nosigs ? 0 : S_SIG));
+  if (Procfd == -1)
+    return 0;
+
   pfs.why = 0;
 
   funcs = set_etype();
@@ -251,8 +254,12 @@ main(int ac, char **av) {
 	break;
       }
     }
-    if (ioctl(Procfd, PIOCCONT, val) == -1)
-      warn("PIOCCONT");
+    if (ioctl(Procfd, PIOCCONT, val) == -1) {
+      if (kill(pid, 0) == -1 && errno == ESRCH)
+	break;
+      else
+	warn("PIOCCONT");
+    }
   } while (pfs.why != S_EXIT);
   fflush(outfile);
   if (sigexit) {
