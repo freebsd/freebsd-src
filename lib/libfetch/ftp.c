@@ -139,7 +139,7 @@ _ftp_chkerr(int cd)
 	return -1;
     }
     if (isftpinfo(last_reply)) {
-	while (!isftpreply(last_reply)) {
+	while (lr_length && !isftpreply(last_reply)) {
 	    if (_fetch_getln(cd, &last_reply, &lr_size, &lr_length) == -1) {
 		_fetch_syserr();
 		return -1;
