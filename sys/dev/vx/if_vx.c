@@ -160,6 +160,7 @@ vxalloc(unit)
 	return NULL;
     }
     bzero(sc, sizeof(struct vx_softc));
+    callout_handle_init(&sc->ch);
 
     vx_softc[unit] = sc;
     sc->unit = unit;
@@ -827,8 +828,10 @@ vxget(sc, totlen)
             return 0;
     } else {
         /* If the queue is no longer full, refill. */
-        if (sc->last_mb == sc->next_mb)
-            timeout(vxmbuffill, sc, 1);
+        if (sc->last_mb == sc->next_mb && sc->buffill_pending == 0) {
+	    sc->ch = timeout(vxmbuffill, sc, 1);
+	    sc->buffill_pending = 1;
+	}
         /* Convert one of our saved mbuf's. */
         sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
         m->m_data = m->m_pktdat;
@@ -1056,8 +1059,12 @@ vxmbuffill(sp)
     } while (i != sc->next_mb);
     sc->last_mb = i;
     /* If the queue was not filled, try again. */
-    if (sc->last_mb != sc->next_mb)
-	timeout(vxmbuffill, sc, 1);
+    if (sc->last_mb != sc->next_mb) {
+	sc->ch = timeout(vxmbuffill, sc, 1);
+	sc->buffill_pending = 1;
+    } else {
+	sc->buffill_pending = 0;
+    }
     splx(s);
 }
 
@@ -1075,7 +1082,8 @@ vxmbufempty(sc)
 	}
     }
     sc->last_mb = sc->next_mb = 0;
-    untimeout(vxmbuffill, sc);
+    if (sc->buffill_pending != 0)
+	untimeout(vxmbuffill, sc, sc->ch);
     splx(s);
 }
 
