@@ -574,9 +574,9 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       like this:</para>
 
       <screen arch="i386"><prompt>C:\></prompt> <userinput>MD C:\FREEBSD</userinput>
-<prompt>C:\></prompt> <userinput>XCOPY /S E:\BIN C:\FREEBSD\BIN</userinput></screen>
+<prompt>C:\></prompt> <userinput>XCOPY /S E:\BASE C:\FREEBSD\BASE</userinput></screen>
       <screen arch="pc98"><prompt>A:\></prompt> <userinput>MD A:\FREEBSD</userinput>
-<prompt>A:\></prompt> <userinput>XCOPY /S E:\BIN A:\FREEBSD\BIN</userinput></screen>
+<prompt>A:\></prompt> <userinput>XCOPY /S E:\BASE A:\FREEBSD\BASE</userinput></screen>
 
       <para>Assuming that <devicename>E:</devicename> was where your CD was mounted.</para>
 
