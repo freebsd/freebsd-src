@@ -1136,8 +1136,8 @@ pccard_parse_cis_tuple(tuple, arg)
 					reg = pccard_tuple_read_1(tuple, idx);
 					idx++;
 
-					cfe->num_memspace = reg &
-					    PCCARD_TPCE_MS_COUNT + 1;
+					cfe->num_memspace = (reg &
+					    PCCARD_TPCE_MS_COUNT) + 1;
 
 					if (cfe->num_memspace >
 					    (sizeof(cfe->memspace) /
