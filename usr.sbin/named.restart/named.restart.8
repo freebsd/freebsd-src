@@ -54,21 +54,26 @@
 .\"	from hostname.7	6.4 (Berkeley) 1/16/90
 .\" $FreeBSD$
 .\"
-.TH @INDOT_U@NAMED.RESTART @SYS_OPS_EXT_U@ "June 26, 1993"
-.UC 5
-.SH NAME
-@INDOT@named.restart \- stop and restart the name server
-.SH DESCRIPTION
-This command sends a \s-1SIGKILL\s+1 to the running name server and then
+.Dd June 26, 1993
+.Dt @INDOT_U@NAMED.RESTART @SYS_OPS_EXT_U@
+.Os
+.Sh NAME
+.Nm @INDOT@named.restart
+.Nd "stop and restart the name server"
+.Sh DESCRIPTION
+This command sends a
+.Dv SIGKILL
+to the running name server and then
 starts a new one.
-.SH BUGS
+.Sh BUGS
 Does not check to see if the name server is actually running, and could
 use a stale PID cache file which may result in the death of an unrelated
 process.
-.PP
+.Pp
 Does not wait after killing the old server before starting a new one; since
 the server could take some time to die and the new one will experience a
 fatal error if the old one isn't gone by the time it starts, you can be left
 in a situation where you have no name server at all.
-.SH SEE ALSO
-@INDOT@named(@SYS_OPS_EXT@), @INDOT@named.reload(@SYS_OPS_EXT@)
+.Sh SEE ALSO
+.Xr @INDOT@named @SYS_OPS_EXT@ ,
+.Xr @INDOT@named.reload @SYS_OPS_EXT@
