@@ -3404,6 +3404,16 @@ Show a list of available commands.
 If
 .Ar command
 is specified, show the usage string for that command.
+.It ident Op Ar text Ns No ...
+Identify the link to the peer using
+.Ar text .
+If
+.Ar text
+is empty, link identification is disabled.  Refer to the
+.Ic sendident
+command for details of when
+.Nm
+identifies itself to the peer.
 .It iface Ar command Op args
 This command is used to control the interface used by
 .Nm ppp .
@@ -3697,6 +3707,24 @@ command.
 .El
 .It save
 This option is not (yet) implemented.
+.It sendident
+This command tells
+.Nm
+to identify itself to the peer.  The link must be in LCP state or higher.
+If no identity has been set (via the
+.Ic ident
+command),
+.Ic sendident
+will fail.
+.Pp
+When an identity has been set,
+.Nm
+will automatically identify itself when it sends or receives a configure
+reject, when negotiation fails or when LCP reaches the opened state.
+.Pp
+Received identification packets are logged to the LCP log (see
+.Ic set log
+for details) and are never responded to.
 .It set Ns Xo
 .No Op up
 .Ar var value

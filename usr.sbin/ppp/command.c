@@ -61,12 +61,12 @@
 #include "log.h"
 #include "timer.h"
 #include "fsm.h"
-#include "lcp.h"
 #include "iplist.h"
 #include "throughput.h"
 #include "slcompress.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "lcp.h"
 #include "ipcp.h"
 #ifndef NONAT
 #include "nat_cmd.h"
@@ -239,6 +239,31 @@ HelpCommand(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "\n");
 
   return 0;
+}
+
+static int
+IdentCommand(struct cmdargs const *arg)
+{
+  int f, pos;
+
+  *arg->cx->physical->link.lcp.cfg.ident = '\0';
+
+  for (pos = 0, f = arg->argn; f < arg->argc; f++)
+    pos += snprintf(arg->cx->physical->link.lcp.cfg.ident + pos,
+                    sizeof arg->cx->physical->link.lcp.cfg.ident - pos, "%s%s",
+                    f == arg->argn ? "" : " ", arg->argv[f]);
+
+  return 0;
+}
+
+static int
+SendIdentification(struct cmdargs const *arg)
+{
+  if (arg->cx->state < DATALINK_LCP) {
+    log_Printf(LogWARN, "sendident: link has not reached LCP\n");
+    return 2;
+  }
+  return lcp_SendIdentification(&arg->cx->physical->link.lcp) ? 0 : 1;
 }
 
 static int
@@ -441,6 +466,8 @@ command_Expand(char **nargv, int argc, char const *const *oargv,
                        inet_ntoa(bundle->ncp.ipcp.ns.dns[0]));
     nargv[arg] = subst(nargv[arg], "DNS1",
                        inet_ntoa(bundle->ncp.ipcp.ns.dns[1]));
+    nargv[arg] = subst(nargv[arg], "VERSION", Version);
+    nargv[arg] = subst(nargv[arg], "COMPILATIONDATE", __DATE__);
   }
   nargv[arg] = NULL;
 }
@@ -681,6 +708,8 @@ static struct cmdtab const Commands[] = {
   "Generate a down event", "down [ccp|lcp]"},
   {"enable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Enable option", "enable option .."},
+  {"ident", NULL, IdentCommand, LOCAL_AUTH | LOCAL_CX,
+  "Set the link identity", "ident text..."},
   {"iface", "interface", RunListCommand, LOCAL_AUTH,
   "interface control", "iface option ...", IfaceCommands},
   {"link", "datalink", LinkCommand, LOCAL_AUTH,
@@ -705,6 +734,8 @@ static struct cmdtab const Commands[] = {
   "Manipulate resolv.conf", "resolv readonly|reload|restore|rewrite|writable"},
   {"save", NULL, SaveCommand, LOCAL_AUTH,
   "Save settings", "save"},
+  {"sendident", NULL, SendIdentification, LOCAL_AUTH | LOCAL_CX,
+  "Transmit the link identity", "sendident"},
   {"set", "setup", SetCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set parameters", "set[up] var value"},
   {"shell", "!", FgShellCommand, LOCAL_AUTH,
