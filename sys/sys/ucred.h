@@ -49,6 +49,7 @@
  */
 struct ucred {
 	u_int	cr_ref;			/* reference count */
+#define	cr_startcopy cr_uid
 	uid_t	cr_uid;			/* effective user id */
 	uid_t	cr_ruid;		/* real user id */
 	uid_t	cr_svuid;		/* saved user id */
@@ -59,6 +60,7 @@ struct ucred {
 	struct	uidinfo *cr_uidinfo;	/* per euid resource consumption */
 	struct	uidinfo *cr_ruidinfo;	/* per ruid resource consumption */
 	struct	prison *cr_prison;	/* jail(4) */
+#define	cr_endcopy cr_mtx
 	struct	mtx cr_mtx;		/* protect refcount */
 };
 #define cr_gid cr_groups[0]
@@ -87,11 +89,12 @@ void		change_rgid __P((struct ucred *newcred, gid_t rgid));
 void		change_ruid __P((struct ucred *newcred, uid_t ruid));
 void		change_svgid __P((struct ucred *newcred, gid_t svgid));
 void		change_svuid __P((struct ucred *newcred, uid_t svuid));
-struct ucred	*crcopy __P((struct ucred *cr));
+void		crcopy __P((struct ucred *dest, struct ucred *src));
 struct ucred	*crdup __P((struct ucred *cr));
 void		crfree __P((struct ucred *cr));
 struct ucred	*crget __P((void));
-void		crhold __P((struct ucred *cr));
+struct ucred	*crhold __P((struct ucred *cr));
+int		crshared __P((struct ucred *cr));
 int		groupmember __P((gid_t gid, struct ucred *cred));
 #endif /* _KERNEL */
 

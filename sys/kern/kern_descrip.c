@@ -588,8 +588,7 @@ fsetown(pgid, sigiop)
 		sigio->sio_pgrp = pgrp;
 	}
 	sigio->sio_pgid = pgid;
-	crhold(curthread->td_proc->p_ucred);
-	sigio->sio_ucred = curthread->td_proc->p_ucred;
+	sigio->sio_ucred = crhold(curthread->td_proc->p_ucred);
 	sigio->sio_myref = sigiop;
 	s = splhigh();
 	*sigiop = sigio;
@@ -995,10 +994,9 @@ falloc(td, resultfp, resultfd)
 		return (error);
 	}
 	fp->f_count = 1;
-	fp->f_cred = p->p_ucred;
+	fp->f_cred = crhold(p->p_ucred);
 	fp->f_ops = &badfileops;
 	fp->f_seqcount = 1;
-	crhold(fp->f_cred);
 	if ((fq = p->p_fd->fd_ofiles[0])) {
 		LIST_INSERT_AFTER(fq, fp, f_list);
 	} else {

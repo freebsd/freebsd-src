@@ -884,10 +884,8 @@ again:
 			error = EINTR;
 			break;
 		}
-		if (bp->b_wcred == NOCRED) {
-			crhold(cred);
-			bp->b_wcred = cred;
-		}
+		if (bp->b_wcred == NOCRED)
+			bp->b_wcred = crhold(cred);
 		np->n_flag |= NMODIFIED;
 
 		/*
@@ -1207,16 +1205,12 @@ again:
 		}
 
 		if (bp->b_iocmd == BIO_READ) {
-			if (bp->b_rcred == NOCRED && cred != NOCRED) {
-				crhold(cred);
-				bp->b_rcred = cred;
-			}
+			if (bp->b_rcred == NOCRED && cred != NOCRED)
+				bp->b_rcred = crhold(cred);
 		} else {
 			bp->b_flags |= B_WRITEINPROG;
-			if (bp->b_wcred == NOCRED && cred != NOCRED) {
-				crhold(cred);
-				bp->b_wcred = cred;
-			}
+			if (bp->b_wcred == NOCRED && cred != NOCRED)
+				bp->b_wcred = crhold(cred);
 		}
 
 		BUF_KERNPROC(bp);
