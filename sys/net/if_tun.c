@@ -431,9 +431,11 @@ tunioctl(dev, cmd, data, flag, p)
 		break;
 	case FIONREAD:
 		s = splimp();
-		if (tp->tun_if.if_snd.ifq_head)
-			*(int *)data = tp->tun_if.if_snd.ifq_head->m_len;
-		else
+		if (tp->tun_if.if_snd.ifq_head) {
+			struct mbuf *mb = tp->tun_if.if_snd.ifq_head;
+			for( *(int *)data = 0; mb != 0; mb = mb->m_next) 
+				*(int *)data += mb->m_len;
+		} else
 			*(int *)data = 0;
 		splx(s);
 		break;
