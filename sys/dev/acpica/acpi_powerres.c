@@ -299,7 +299,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 {
     struct acpi_powerconsumer	*pc;
     struct acpi_powerreference	*pr;
-    ACPI_HANDLE			method_handle, reslist_handle;
+    ACPI_HANDLE			method_handle, reslist_handle, pr0_handle;
     ACPI_BUFFER			reslist_buffer;
     ACPI_OBJECT			*reslist_object;
     ACPI_STATUS			status;
@@ -355,6 +355,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * support D0 and D3.  It's never an error to try to go to
      * D0.
      */
+    reslist_object = NULL;
     if (AcpiGetHandle(consumer, method_name, &method_handle) != AE_OK)
 	method_handle = NULL;
     if (AcpiGetHandle(consumer, reslist_name, &reslist_handle) != AE_OK)
@@ -364,9 +365,24 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 	    pc->ac_state = ACPI_STATE_D0;
 	    return_ACPI_STATUS(AE_OK);
 	}
-	DEBUG_PRINT(TRACE_OBJECTS, ("attempt to set unsupported state D%d\n", 
-				    state));
-	return_ACPI_STATUS(AE_BAD_PARAMETER);
+	if (state != ACPI_STATE_D3) {
+	    goto bad;
+	}
+
+	/* turn off the resources listed in _PR0 to go to D3. */
+	if (AcpiGetHandle(consumer, "_PR0", &pr0_handle) != AE_OK) {
+	    goto bad;
+	}
+	status = acpi_EvaluateIntoBuffer(pr0_handle, NULL, NULL, &reslist_buffer);
+	if (status != AE_OK) {
+	    goto bad;
+	}
+	reslist_object = (ACPI_OBJECT *)reslist_buffer.Pointer;
+	if ((reslist_object->Type != ACPI_TYPE_PACKAGE) ||
+	    (reslist_object->Package.Count == 0)) {
+	    goto bad;
+	}
+	AcpiOsFree(reslist_object);
     }
 
     /*
@@ -434,6 +450,13 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
     /* transition was successful */
     pc->ac_state = state;
     return_ACPI_STATUS(AE_OK);
+
+ bad:
+    DEBUG_PRINT(TRACE_OBJECTS, ("attempt to set unsupported state D%d\n", 
+		state));
+    if (reslist_object)
+	AcpiOsFree(reslist_object);
+    return_ACPI_STATUS(AE_BAD_PARAMETER);
 }
 
 /*
