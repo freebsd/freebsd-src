@@ -6,7 +6,7 @@ TARGET_TUPLE?=	sparc64-unknown-freebsd
 HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"elf32_sparc\"
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
-_sparc_path=	\"/usr/lib\"
+_sparc_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _sparc_path=	\"/usr/cross/sparc-freebsd/usr/lib\"
 .endif
