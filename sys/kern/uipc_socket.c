@@ -1001,6 +1001,8 @@ dontblock:
 			sbfree(&so->so_rcv, m);
 			so->so_rcv.sb_mb = m_free(m);
 			m = so->so_rcv.sb_mb;
+			if (m != NULL)
+				m->m_nextpkt = nextrecord;
 		}
 	}
 	while (m != NULL && m->m_type == MT_CONTROL && error == 0) {
