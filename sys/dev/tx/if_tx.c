@@ -234,7 +234,6 @@ epic_attach(dev)
 	unit = device_get_unit(dev);
 
 	/* Preinitialize softc structure. */
-	bzero(sc, sizeof(epic_softc_t));
 	sc->unit = unit;
 	sc->dev = dev;
 
@@ -318,12 +317,11 @@ epic_attach(dev)
 
 	/* Allocate DMA safe memory and get the DMA addresses. */
 	error = bus_dmamem_alloc(sc->ftag, (void **)&sc->tx_flist,
-	    BUS_DMA_NOWAIT, &sc->fmap);
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->fmap);
 	if (error) {
 		device_printf(dev, "couldn't allocate dma memory\n");
 		goto fail;
 	}
-	bzero(sc->tx_flist, sizeof(struct epic_frag_list) * TX_RING_SIZE);
 	error = bus_dmamap_load(sc->ftag, sc->fmap, sc->tx_flist,
 	    sizeof(struct epic_frag_list) * TX_RING_SIZE, epic_dma_map_addr,
 	    &sc->frag_addr, 0);
@@ -332,12 +330,11 @@ epic_attach(dev)
 		goto fail;
 	}
 	error = bus_dmamem_alloc(sc->ttag, (void **)&sc->tx_desc,
-	    BUS_DMA_NOWAIT, &sc->tmap);
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->tmap);
 	if (error) {
 		device_printf(dev, "couldn't allocate dma memory\n");
 		goto fail;
 	}
-	bzero(sc->tx_desc, sizeof(struct epic_tx_desc) * TX_RING_SIZE);
 	error = bus_dmamap_load(sc->ttag, sc->tmap, sc->tx_desc,
 	    sizeof(struct epic_tx_desc) * TX_RING_SIZE, epic_dma_map_addr,
 	    &sc->tx_addr, 0);
@@ -346,12 +343,11 @@ epic_attach(dev)
 		goto fail;
 	}
 	error = bus_dmamem_alloc(sc->rtag, (void **)&sc->rx_desc,
-	    BUS_DMA_NOWAIT, &sc->rmap);
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->rmap);
 	if (error) {
 		device_printf(dev, "couldn't allocate dma memory\n");
 		goto fail;
 	}
-	bzero(sc->rx_desc, sizeof(struct epic_rx_desc) * RX_RING_SIZE);
 	error = bus_dmamap_load(sc->rtag, sc->rmap, sc->rx_desc,
 	    sizeof(struct epic_rx_desc) * RX_RING_SIZE, epic_dma_map_addr,
 	    &sc->rx_addr, 0);
