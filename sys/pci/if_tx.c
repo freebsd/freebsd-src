@@ -813,7 +813,7 @@ epic_pci_attach(
 	i=epic_read_phy_register(iobase,DP83840_BMSR);
 
 	if( !(i & BMSR_LINK_STATUS) )
-		printf("tx%d: WARNING! no link estabilished\n",sc->unit);
+		printf("tx%d: WARNING! no link established\n",sc->unit);
 
 	/* Set shut down routine to stop DMA processes on reboot */
 	at_shutdown(epic_shutdown, sc, SHUTDOWN_POST_SYNC);
