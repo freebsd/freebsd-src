@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.9 1994/09/02 04:12:02 davidg Exp $
+ *	$Id: db_interface.c,v 1.10 1994/09/15 11:38:59 davidg Exp $
  */
 
 /*
@@ -33,10 +33,12 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/reboot.h>
+
+#include <machine/segments.h>
+
 #include <ddb/ddb.h>
 
-#include <sys/reboot.h>
-/* #include <vm/vm_statistics.h> */
 #include <vm/pmap.h>
 
 #include <setjmp.h>
@@ -45,6 +47,7 @@ int	db_active = 0;
 
 db_regs_t ddb_regs;
 
+#if 0
 /*
  * Received keyboard interrupt sequence.
  */
@@ -53,10 +56,11 @@ kdb_kbd_trap(regs)
 	struct i386_saved_state *regs;
 {
 	if (db_active == 0 && (boothowto & RB_KDB)) {
-	    printf("\n\nkernel: keyboard interrupt\n");
+	    db_printf("\n\nkernel: keyboard interrupt\n");
 	    kdb_trap(-1, 0, regs);
 	}
 }
+#endif
 
 /*
  *  kdb_trap - field a TRACE or BPT trap
@@ -75,11 +79,8 @@ kdb_trap(type, code, regs)
 #endif
 
 	switch (type) {
-	    case T_BPTFLT /* T_INT3 */:	/* breakpoint */
-	    case T_KDBTRAP /* T_WATCHPOINT */:	/* watchpoint */
-	    case T_PRIVINFLT /* T_DEBUG */:	/* single_step */
-
-	    case -1:	/* keyboard interrupt */
+	    case T_BPTFLT:	/* breakpoint */
+	    case T_TRCTRAP:	/* debug exception */
 		break;
 
 	    default:
@@ -96,18 +97,15 @@ kdb_trap(type, code, regs)
 
 	ddb_regs = *regs;
 
-	if ((regs->tf_cs & 0x3) == 0) {
+	if (ISPL(regs->tf_cs) == 0) {
 	    /*
 	     * Kernel mode - esp and ss not saved
 	     */
 	    ddb_regs.tf_esp = (int)&regs->tf_esp;	/* kernel stack pointer */
-#if 0
-	    ddb_regs.ss   = KERNEL_DS;
+#ifdef __GNUC__
+#define	rss() ({u_short ss; __asm __volatile("movl %%ss,%0" : "=r" (ss)); ss;})
 #endif
-	    asm(" movw %%ss,%%ax; movl %%eax,%0 " 
-		: "=g" (ddb_regs.tf_ss) 
-		:
-		: "ax");
+	    ddb_regs.tf_ss = rss();
 	}
 
 	db_active++;
@@ -122,7 +120,7 @@ kdb_trap(type, code, regs)
 	regs->tf_ecx    = ddb_regs.tf_ecx;
 	regs->tf_edx    = ddb_regs.tf_edx;
 	regs->tf_ebx    = ddb_regs.tf_ebx;
-	if (regs->tf_cs & 0x3) {
+	if (ISPL(regs->tf_cs)) {
 	    /*
 	     * user mode - saved esp and ss valid
 	     */
@@ -150,9 +148,9 @@ void
 kdbprinttrap(type, code)
 	int	type, code;
 {
-	printf("kernel: ");
-	printf("type %d", type);
-	printf(" trap, code=%x\n", code);
+	db_printf("kernel: ");
+	db_printf("type %d", type);
+	db_printf(" trap, code=%x\n", code);
 }
 
 /*
@@ -235,18 +233,18 @@ db_write_bytes(addr, size, data)
 /*
  * XXX move this to machdep.c and allow it to be called iff any debugger is
  * installed.
- * XXX msg is not printed.
  */
 void
-Debugger (msg)
+Debugger(msg)
 	const char *msg;
 {
 	static volatile u_char in_Debugger;
  
 	if (!in_Debugger) {
 		in_Debugger = 1;
+		db_printf("Debugger(\"%s\")\n", msg);
 #ifdef __GNUC__
-		asm("int $3");
+		__asm __volatile("int $3");
 #else
 		int3();
 #endif
