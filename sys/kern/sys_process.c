@@ -647,6 +647,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		return (error);
 
 	case PT_IO:
+		PROC_UNLOCK(p);
 		piod = addr;
 		iov.iov_base = piod->piod_addr;
 		iov.iov_len = piod->piod_len;
