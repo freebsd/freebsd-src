@@ -1,4 +1,4 @@
-/*	$Id: nl_types.h,v 1.4 1997/02/23 09:17:14 peter Exp $ */
+/*	$Id: nl_types.h,v 1.5 1998/04/30 10:09:58 ache Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -42,8 +42,10 @@ up-to-date.  Many thanks.
 typedef	int	nl_item;
 typedef	void	*nl_catd;
 
+__BEGIN_DECLS
 extern nl_catd 	catopen __P((__const char *, int));
 extern char    *catgets	__P((nl_catd, int, int,	__const	char *));
 extern int	catclose __P((nl_catd));
+__END_DECLS
 
 #endif	/* _NL_TYPES_H_ */
