@@ -23,7 +23,7 @@ MAN+=	btowc.3 \
 	rune.3 \
 	setlocale.3 toascii.3 tolower.3 toupper.3 towlower.3 wcsrtombs.3 \
 	wcrtomb.3 \
-	wctrans.3 wctype.3
+	wctrans.3 wctype.3 wcwidth.3
 MAN+=	euc.4 utf2.4
 
 MLINKS+=btowc.3 wctob.3
