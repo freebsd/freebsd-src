@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ccdconfig.c,v 1.3 1995/12/28 00:22:16 asami Exp $ */
 
 /*	$NetBSD: ccdconfig.c,v 1.2.2.1 1995/11/11 02:43:35 thorpej Exp $	*/
 
@@ -72,6 +72,8 @@ struct	flagval {
 } flagvaltab[] = {
 	{ "CCDF_SWAP",		CCDF_SWAP },
 	{ "CCDF_UNIFORM",	CCDF_UNIFORM },
+	{ "CCDF_MIRROR",	CCDF_MIRROR },
+	{ "CCDF_PARITY",	CCDF_PARITY },
 	{ NULL,			0 },
 };
 
