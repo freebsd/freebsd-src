@@ -41,13 +41,16 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)rwho.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/file.h>
+
 #include <protocols/rwhod.h>
+
 #include <dirent.h>
 #include <err.h>
 #include <langinfo.h>
@@ -56,13 +59,13 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <timeconv.h>
 #include <unistd.h>
 #include <utmp.h>
 
 DIR	*dirp;
 
 struct	whod wd;
-int	utmpcmp();
 #define	NUSERS	1000
 struct	myutmp {
 	char    myhost[sizeof(wd.wd_hostname)];
@@ -71,7 +74,7 @@ struct	myutmp {
 } myutmp[NUSERS];
 int	nusers;
 
-#define	WHDRSIZE	(sizeof (wd) - sizeof (wd.wd_we))
+#define	WHDRSIZE	(ssize_t)(sizeof (wd) - sizeof (wd.wd_we))
 /*
  * this macro should be shared with ruptime.
  */
@@ -84,13 +87,12 @@ static void usage(void);
 int utmpcmp(const void *, const void *);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	int ch;
 	struct dirent *dp;
-	int cc, width;
+	int width;
+	ssize_t cc;
 	register struct whod *w = &wd;
 	register struct whoent *we;
 	register struct myutmp *mp;
@@ -196,17 +198,16 @@ main(argc, argv)
 
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: rwho [-a]\n");
 	exit(1);
 }
 
-#define MYUTMP(a) ((struct myutmp *)(a))
+#define MYUTMP(a) ((const struct myutmp *)(a))
 
 int
-utmpcmp(u1, u2)
-	const void *u1, *u2;
+utmpcmp(const void *u1, const void *u2)
 {
 	int rc;
 
