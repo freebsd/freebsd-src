@@ -62,11 +62,10 @@ atapi_attach(struct ata_softc *scp, int device)
 {
     struct atapi_softc *atp;
 
-    if (!(atp = malloc(sizeof(struct atapi_softc), M_ATAPI, M_NOWAIT))) {
+    if (!(atp = malloc(sizeof(struct atapi_softc), M_ATAPI, M_NOWAIT|M_ZERO))) {
 	ata_printf(scp, device, "failed to allocate driver storage\n");
 	return;
     }
-    bzero(atp, sizeof(struct atapi_softc));
     atp->controller = scp;
     atp->unit = device;
     if (bootverbose) 
@@ -154,10 +153,10 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, caddr_t data,
     struct atapi_request *request;
     int error, s;
  
-    if (!(request = malloc(sizeof(struct atapi_request), M_ATAPI, M_NOWAIT)))
+    if (!(request = malloc(sizeof(struct atapi_request), M_ATAPI,
+			   M_NOWAIT | M_ZERO)))
 	return ENOMEM;
 
-    bzero(request, sizeof(struct atapi_request));
     request->device = atp;
     request->data = data;
     request->bytecount = count;

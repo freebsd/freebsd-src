@@ -96,12 +96,11 @@ astattach(struct atapi_softc *atp)
 	cdevsw_add(&ast_cdevsw);
 	ast_cdev_done = 1;
     }
-    stp = malloc(sizeof(struct ast_softc), M_AST, M_NOWAIT);
+    stp = malloc(sizeof(struct ast_softc), M_AST, M_NOWAIT | M_ZERO);
     if (!stp) {
 	printf("ast: out of memory\n");
 	return -1;
     }
-    bzero(stp, sizeof(struct ast_softc));
     bioq_init(&stp->bio_queue);
     stp->atp = atp;
     stp->lun = ata_get_lun(&ast_lun_map);
