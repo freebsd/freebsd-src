@@ -53,19 +53,16 @@ static void	eni_pci_attach __P((pcici_t, int));
 static int 	eni_get_ack __P((Eni_unit *));
 static int	eni_get_sebyte __P((Eni_unit *));
 static void	eni_read_seeprom __P((Eni_unit *));
-#ifdef	__FreeBSD__
 #if BSD < 199506
 static int	eni_pci_shutdown __P((struct kern_devconf *, int));
 #else
 static void	eni_pci_shutdown __P((void *, int));
 #endif
 static void	eni_pci_reset __P((Eni_unit *));
-#endif	/* __FreeBSD__ */
 
 /*
  * Used by kernel to return number of claimed devices
  */
-#ifdef	__FreeBSD__
 static u_long eni_nunits;
 
 static struct pci_device eni_pci_device = {
@@ -81,7 +78,6 @@ static struct pci_device eni_pci_device = {
 };
 
 COMPAT_PCI_DRIVER (eni_pci, eni_pci_device);
-#endif	/* __FreeBSD__ */
 
 /*
  * Called by kernel with PCI device_id which was read from the PCI
@@ -611,7 +607,6 @@ eni_pci_reset ( eup )
 	return;
 }
 
-#ifdef	__FreeBSD__
 #if BSD < 199506
 /*
  * Device shutdown routine
@@ -666,4 +661,3 @@ eni_pci_shutdown ( eup, howto )
 
 }
 #endif	/* BSD < 199506 */
-#endif	/* __FreeBSD__ */
