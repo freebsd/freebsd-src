@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.62 1996/10/28 17:14:58 imp Exp $
+ **      $Id: userconfig.c,v 1.63 1996/10/30 21:40:15 julian Exp $
  **/
 
 /**
@@ -674,6 +674,10 @@ savelist(DEV_LIST *list, int active)
     {
 	if ((list->comment == DEV_DEVICE) && list->changed)
 	{
+	    if ((list->iobase == -2) ||			/* is a PCI device; can't save */
+		(list->device == NULL))			/* no isa_device associated at all?! */
+		continue;		
+
 	    setdev(list,active);			/* set the device itself */
 
 	    id_pn = NULL;
@@ -2212,7 +2216,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.62 1996/10/28 17:14:58 imp Exp $
+ *      $Id: userconfig.c,v 1.63 1996/10/30 21:40:15 julian Exp $
  */
 
 #include "scbus.h"
