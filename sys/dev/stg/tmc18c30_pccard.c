@@ -92,10 +92,10 @@ extern struct stg_softc *stgdata[];
 static	int	stgprobe(DEVPORT_PDEVICE devi);
 static	int	stgattach(DEVPORT_PDEVICE devi);
 
-static	int	stg_card_intr	__P((DEVPORT_PDEVICE));
 static	void	stg_card_unload	__P((DEVPORT_PDEVICE));
 #if defined(__FreeBSD__) && __FreeBSD_version < 400001
 static	int	stg_card_init	__P((DEVPORT_PDEVICE));
+static	int	stg_card_intr	__P((DEVPORT_PDEVICE));
 #endif
 
 #if defined(__FreeBSD__) && __FreeBSD_version >= 400001
@@ -301,6 +301,13 @@ stg_card_init(DEVPORT_PDEVICE devi)
 
 	return (0);
 }
+
+static	int
+stg_card_intr(DEVPORT_PDEVICE devi)
+{
+	stgintr(DEVPORT_PDEVGET_SOFTC(devi));
+	return 1;
+}
 #endif
 
 static	void
@@ -311,13 +318,6 @@ stg_card_unload(DEVPORT_PDEVICE devi)
 	printf("%s: unload\n",sc->sc_sclow.sl_xname);
 	scsi_low_deactivate((struct scsi_low_softc *)sc);
         scsi_low_dettach(&sc->sc_sclow);
-}
-
-static	int
-stg_card_intr(DEVPORT_PDEVICE devi)
-{
-	stgintr(DEVPORT_PDEVGET_SOFTC(devi));
-	return 1;
 }
 
 static	int
@@ -341,7 +341,9 @@ stgprobe(DEVPORT_PDEVICE devi)
 static	int
 stgattach(DEVPORT_PDEVICE devi)
 {
+#if defined(__FreeBSD__) && __FreeBSD_version < 400001
 	int unit = DEVPORT_PDEVUNIT(devi);
+#endif
 	struct stg_softc *sc;
 	struct scsi_low_softc *slp;
 	u_int32_t flags = DEVPORT_PDEVFLAGS(devi);
