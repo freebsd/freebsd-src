@@ -1230,8 +1230,11 @@ ufs/ffs/ffs_inode.c	optional ffs
 ufs/ffs/ffs_inode.c	optional ifs
 ufs/ffs/ffs_snapshot.c	optional ffs
 ufs/ffs/ffs_snapshot.c	optional ifs
-ufs/ffs/ffs_softdep.c	optional softupdates
-ufs/ffs/ffs_softdep_stub.c	standard
+ufs/ffs/ffs_softdep.c	optional softupdates ffs
+ufs/ffs/ffs_softdep.c	optional softupdates ifs
+ufs/ffs/ffs_softdep_stub.c optional ext2fs
+ufs/ffs/ffs_softdep_stub.c optional ffs
+ufs/ffs/ffs_softdep_stub.c optional ifs
 ufs/ffs/ffs_subr.c	optional ffs
 ufs/ffs/ffs_subr.c	optional ifs
 ufs/ffs/ffs_tables.c	optional ffs
@@ -1240,20 +1243,40 @@ ufs/ffs/ffs_vfsops.c	optional ffs
 ufs/ffs/ffs_vfsops.c	optional ifs
 ufs/ffs/ffs_vnops.c	optional ffs
 ufs/ffs/ffs_vnops.c	optional ifs
-ufs/ufs/ufs_acl.c	standard
-ufs/ufs/ufs_bmap.c	standard
-ufs/ufs/ufs_dirhash.c	standard
-ufs/ufs/ufs_extattr.c	standard
-ufs/ufs/ufs_ihash.c	standard
-ufs/ufs/ufs_inode.c	standard
-ufs/ufs/ufs_lookup.c	standard
+ufs/ufs/ufs_acl.c	optional ext2fs
+ufs/ufs/ufs_acl.c	optional ffs
+ufs/ufs/ufs_acl.c	optional ifs
+ufs/ufs/ufs_bmap.c	optional ext2fs
+ufs/ufs/ufs_bmap.c	optional ffs
+ufs/ufs/ufs_bmap.c	optional ifs
+ufs/ufs/ufs_dirhash.c	optional ext2fs
+ufs/ufs/ufs_dirhash.c	optional ffs
+ufs/ufs/ufs_dirhash.c	optional ifs
+ufs/ufs/ufs_extattr.c	optional ext2fs
+ufs/ufs/ufs_extattr.c	optional ffs
+ufs/ufs/ufs_extattr.c	optional ifs
+ufs/ufs/ufs_ihash.c	optional ext2fs
+ufs/ufs/ufs_ihash.c	optional ffs
+ufs/ufs/ufs_ihash.c	optional ifs
+ufs/ufs/ufs_inode.c	optional ext2fs
+ufs/ufs/ufs_inode.c	optional ffs
+ufs/ufs/ufs_inode.c	optional ifs
+ufs/ufs/ufs_lookup.c	optional ext2fs
+ufs/ufs/ufs_lookup.c	optional ffs
+ufs/ufs/ufs_lookup.c	optional ifs
+ufs/ufs/ufs_quota.c	optional ext2fs
+ufs/ufs/ufs_quota.c	optional ffs
+ufs/ufs/ufs_quota.c	optional ifs
+ufs/ufs/ufs_vfsops.c	optional ext2fs
+ufs/ufs/ufs_vfsops.c	optional ffs
+ufs/ufs/ufs_vfsops.c	optional ifs
+ufs/ufs/ufs_vnops.c	optional ext2fs
+ufs/ufs/ufs_vnops.c	optional ffs
+ufs/ufs/ufs_vnops.c	optional ifs
 ufs/ifs/ifs_lookup.c	optional ifs
 ufs/ifs/ifs_vfsops.c	optional ifs
 ufs/ifs/ifs_vnops.c	optional ifs
 ufs/ifs/ifs_subr.c	optional ifs
-ufs/ufs/ufs_quota.c	standard
-ufs/ufs/ufs_vfsops.c	standard
-ufs/ufs/ufs_vnops.c	standard
 vm/default_pager.c	standard
 vm/device_pager.c	standard
 vm/phys_pager.c		standard
