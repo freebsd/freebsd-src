@@ -99,6 +99,7 @@
 #define AGP3_VIA_GARTCTRL        0x90
 #define AGP3_VIA_APSIZE          0x94
 #define AGP3_VIA_ATTBASE         0x98
+#define AGP_VIA_AGPSEL		 0xfd
 
 /*
  * Config offsets for SiS AGP chipsets.

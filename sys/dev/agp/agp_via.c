@@ -122,11 +122,21 @@ agp_via_attach(device_t dev)
 	struct agp_via_softc *sc = device_get_softc(dev);
 	struct agp_gatt *gatt;
 	int error;
+	u_int32_t agpsel;
 
 	switch (pci_get_devid(dev)) {
 	case 0x31881106:
 	case 0x31891106:
-		sc->regs = via_v3_regs;
+		/* The newer VIA chipsets will select the AGP version based on
+		 * what AGP versions the card supports.  We still have to
+		 * program it using the v2 registers if it has chosen to use
+		 * compatibility mode.
+		 */
+		agpsel = pci_read_config(dev, AGP_VIA_AGPSEL, 1);
+		if ((agpsel & (1 << 1)) == 0)
+			sc->regs = via_v3_regs;
+		else
+			sc->regs = via_v2_regs;
 		break;
 	default:
 		sc->regs = via_v2_regs;
