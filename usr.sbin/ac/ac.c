@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ac.c,v 1.8 1997/09/01 06:11:40 charnier Exp $";
+	"$Id: ac.c,v 1.9 1998/05/25 05:21:29 steve Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -503,12 +503,12 @@ ac(fp)
 			break;
 		default:
 			/*
-			 * if they came in on tty[p-y]*, then it is only
+			 * if they came in on tty[p-sP-S]*, then it is only
 			 * a login session if the ut_host field is non-empty
 			 */
 			if (*usr.ut_name) {
 				if (strncmp(usr.ut_line, "tty", 3) != 0 ||
-				    strchr("pqrstuvwxy", usr.ut_line[3]) == 0 ||
+				    strchr("pqrsPQRS", usr.ut_line[3]) == 0 ||
 				    *usr.ut_host != '\0')
 					head = log_in(head, &usr);
 			} else
