@@ -108,7 +108,7 @@
  * of the hardware page size.
  */
 #ifndef	MSIZE
-#define MSIZE		128		/* size of an mbuf */
+#define MSIZE		256		/* size of an mbuf */
 #endif	/* MSIZE */
 
 #ifndef	MCLSHIFT
