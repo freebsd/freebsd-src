@@ -39,8 +39,11 @@
 static char sccsid[] = "@(#)rand.c	8.1 (Berkeley) 6/14/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include <sys/time.h>          /* for sranddev() */
 #include <sys/types.h>
+#include <fcntl.h>             /* for sranddev() */
 #include <stdlib.h>
+#include <unistd.h>            /* for sranddev() */
 
 #ifdef TEST
 #include <stdio.h>
@@ -100,6 +103,37 @@ u_int seed;
 {
 	next = seed;
 }
+
+
+/*
+ * sranddev:
+ *
+ * Many programs choose the seed value in a totally predictable manner.
+ * This often causes problems.  We seed the generator using the much more
+ * secure urandom(4) interface.
+ */
+void
+sranddev()
+{
+	int fd, done;
+
+	done = 0;
+	fd = _open("/dev/urandom", O_RDONLY, 0);
+	if (fd >= 0) {
+		if (_read(fd, (void *) &next, sizeof(next)) == sizeof(next))
+			done = 1;
+		_close(fd);
+	}
+
+	if (!done) {
+		struct timeval tv;
+		unsigned long junk;
+
+		gettimeofday(&tv, NULL);
+		next = getpid() ^ tv.tv_sec ^ tv.tv_usec ^ junk;
+	}
+}
+
 
 #ifdef TEST
 
