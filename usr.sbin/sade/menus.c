@@ -46,7 +46,7 @@ setSrc(dialogMenuItem *self)
     Dists |= DIST_SRC;
     SrcDists = DIST_SRC_ALL;
     CRYPTODists |= (DIST_CRYPTO_SCRYPTO | DIST_CRYPTO_SSECURE |
-	DIST_CRYPTO_SKERBEROS4 | DIST_CRYPTO_SKERBEROS5);
+	DIST_CRYPTO_SKERBEROS5);
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
@@ -56,7 +56,7 @@ clearSrc(dialogMenuItem *self)
     Dists &= ~DIST_SRC;
     SrcDists = 0;
     CRYPTODists &= ~(DIST_CRYPTO_SCRYPTO | DIST_CRYPTO_SSECURE |
-	DIST_CRYPTO_SKERBEROS4 | DIST_CRYPTO_SKERBEROS5);
+	DIST_CRYPTO_SKERBEROS5);
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
@@ -969,8 +969,6 @@ DMenu MenuSubDistributions = {
 #endif
       { " crypto",	"Basic encryption services",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_CRYPTO, },
-      { " krb4",	"KerberosIV authentication services",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS4 },
       { " krb5",	"Kerberos5 authentication services",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS5 },
       { " dict",	"Spelling checker dictionary files",
@@ -1039,8 +1037,6 @@ DMenu MenuSrcDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SCRYPTO },
       { " share",	"/usr/src/share (documents and shared files)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SHARE },
-      { " skrb4",	"/usr/src/kerberosIV (sources for KerberosIV)",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SKERBEROS4 },
       { " skrb5",	"/usr/src/kerberos5 (sources for Kerberos5)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SKERBEROS5 },
       { " ssecure",	"/usr/src/secure (BSD encryption sources)",
