@@ -100,10 +100,6 @@ see
 isdn4bsd configuration files;
 see
 .Xr isdnd 8
-.It Pa kerberosIV/
-configuration files for kerberos version IV;
-see
-.Xr kerberos 1
 .It Pa localtime
 local timezone information;
 see
@@ -168,12 +164,12 @@ useful and semi-frivolous programs
 .It Pa include/
 standard C include files
 .Pp
-.Bl -tag -width "kerberosIV/" -compact
+.Bl -tag -width "kerberos5/" -compact
 .It Pa arpa/
 C include files for Internet service protocols
 .It Pa cam/
 C include files for the Common Access Methods Layer
-.Bl -tag -width "kerberosIV/" -compact
+.Bl -tag -width "kerberos5/" -compact
 .It Pa scsi/
 The SCSI device on top of CAM
 .El
@@ -181,7 +177,7 @@ The SCSI device on top of CAM
 C include files for programming various
 .Fx
 devices
-.Bl -tag -width "kerberosIV/" -compact
+.Bl -tag -width "kerberos5/" -compact
 .It Pa ic/
 Various header files describing driver- and bus-independent
 hardware circuits
@@ -199,7 +195,7 @@ The
 WaveLAN driver
 .El
 .It Pa fs/
-.Bl -tag -width "kerberosIV/" -compact
+.Bl -tag -width "kerberos5/" -compact
 .It Pa fdescfs/
 per-process file descriptors file system
 .It Pa fifofs/
@@ -226,21 +222,17 @@ union file system
 .El
 .It Pa g++/
 GNU C++ include files
-.Bl -tag -width "kerberosIV/" -compact
+.Bl -tag -width "kerberos5/" -compact
 .It Pa std/
 GNU C++ libstdc++ include files
 .El
 .It Pa isc/
 ISC utility library libisc include files
 .It Pa isofs/
-.Bl -tag -width "kerberosIV/" -compact
+.Bl -tag -width "kerberos5/" -compact
 .It Pa cd9660/
 iso9660 file system
 .El
-.It Pa kerberosIV/
-C include files for kerberos authentication package;
-see
-.Xr kerberos 1
 .It Pa libmilter/
 C include files for libmilter,
 the
@@ -308,7 +300,7 @@ system C include files (kernel data structures)
 .\" Tcl language;
 .\" see
 .\" .Xr Tcl n
-.\" .Bl -tag -width "kerberosIV/" -compact
+.\" .Bl -tag -width "kerberos5/" -compact
 .\" .It Pa generic/
 .\" ???
 .\" .It Pa unix/
@@ -316,7 +308,7 @@ system C include files (kernel data structures)
 .\" .El
 .It Pa ufs/
 C include files for UFS (The U-word File System)
-.Bl -tag -width "kerberosIV/" -compact
+.Bl -tag -width "kerberos5/" -compact
 .It Pa ffs/
 Fast file system
 .It Pa ufs/
@@ -578,7 +570,7 @@ see
 .Bx ,
 third-party, and/or local source files
 .Pp
-.Bl -tag -width "kerberosIV/" -compact
+.Bl -tag -width "kerberos5/" -compact
 .It Pa bin/
 source code for files in /bin
 .It Pa contrib/
@@ -593,8 +585,8 @@ source code for files in /usr/games
 Utilities covered by the GNU General Public License
 .It Pa include/
 source code for files in /usr/include
-.It Pa kerberosIV/
-source code for kerberos version IV
+.It Pa kerberos5/
+build infrastructure for kerberos version 5
 .It Pa lib/
 source code for files in /usr/lib
 .It Pa libexec/
