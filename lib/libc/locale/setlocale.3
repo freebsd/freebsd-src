@@ -302,15 +302,13 @@ The current implementation supports only the
 .Li "\&""C""
 and
 .Li "\&""POSIX""
-locales for all but the LC_CTYPE locale.
+locales for all but the LC_CTYPE and LC_COLLATE locale.
 .Pp
 In spite of the gnarly currency support in
 .Fn localeconv ,
 the standards don't include any functions
 for generalized currency formatting.
 .Pp
-.Dv LC_COLLATE
-does not make sense for many languages.
 Use of
 .Dv LC_MONETARY
 could lead to misleading results until we have a real time currency
