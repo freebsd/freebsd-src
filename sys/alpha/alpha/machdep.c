@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.3 1998/06/10 20:35:10 dfr Exp $
+ *	$Id: machdep.c,v 1.4 1998/06/28 00:45:50 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -524,8 +524,45 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 * information provided by the boot program).
 	 */
 	bootinfo_msg = NULL;
-	if (0) {
-		/* bootinfo goes here */
+	if (bim == BOOTINFO_MAGIC) {
+		if (biv == 0) {		/* backward compat */
+			biv = *(u_long *)bip;
+			bip += 8;
+		}
+		switch (biv) {
+		case 1: {
+			struct bootinfo_v1 *v1p = (struct bootinfo_v1 *)bip;
+
+			bootinfo.ssym = v1p->ssym;
+			bootinfo.esym = v1p->esym;
+			/* hwrpb may not be provided by boot block in v1 */
+			if (v1p->hwrpb != NULL) {
+				bootinfo.hwrpb_phys =
+				    ((struct rpb *)v1p->hwrpb)->rpb_phys;
+				bootinfo.hwrpb_size = v1p->hwrpbsize;
+			} else {
+				bootinfo.hwrpb_phys =
+				    ((struct rpb *)HWRPB_ADDR)->rpb_phys;
+				bootinfo.hwrpb_size =
+				    ((struct rpb *)HWRPB_ADDR)->rpb_size;
+			}
+			bcopy(v1p->boot_flags, bootinfo.boot_flags,
+			    min(sizeof v1p->boot_flags,
+			      sizeof bootinfo.boot_flags));
+			bcopy(v1p->booted_kernel, bootinfo.booted_kernel,
+			    min(sizeof v1p->booted_kernel,
+			      sizeof bootinfo.booted_kernel));
+			/* booted dev not provided in bootinfo */
+			init_prom_interface((struct rpb *)
+			    ALPHA_PHYS_TO_K0SEG(bootinfo.hwrpb_phys));
+                	prom_getenv(PROM_E_BOOTED_DEV, bootinfo.booted_dev,
+			    sizeof bootinfo.booted_dev);
+			break;
+		}
+		default:
+			bootinfo_msg = "unknown bootinfo version";
+			goto nobootinfo;
+		}
 	} else {
 		bootinfo_msg = "boot program did not pass bootinfo";
 	nobootinfo:
@@ -555,6 +592,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		prom_getenv(PROM_E_BOOTED_DEV, bootinfo.booted_dev,
 			    sizeof bootinfo.booted_dev);
 	}
+	printf("ssym=%lx, esym=%lx\n", bootinfo.ssym, bootinfo.esym);
 
 	/*
 	 * Initialize the kernel's mapping of the RPB.  It's needed for
@@ -877,6 +915,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 #ifdef KADB
 	boothowto |= RB_KDB;
 #endif
+/*	boothowto |= RB_KDB | RB_GDB; */
 	for (p = bootinfo.boot_flags; p && *p != '\0'; p++) {
 		/*
 		 * Note that we'd really like to differentiate case here,
@@ -896,10 +935,14 @@ alpha_init(pfn, ptb, bim, bip, biv)
 			break;
 #endif
 
-#if defined(KGDB) || defined(DDB)
+#if defined(DDB)
 		case 'd': /* break into the kernel debugger ASAP */
 		case 'D':
 			boothowto |= RB_KDB;
+			break;
+		case 'g': /* use kernel gdb */
+		case 'G':
+			boothowto |= RB_GDB;
 			break;
 #endif
 
