@@ -555,7 +555,7 @@ options 	ETHER_SNAP		# enable Ethernet_802.2/SNAP frame
 # for IPv6
 device		gif			#IPv6 and IPv4 tunneling
 options 	XBONEHACK
-device		faith	1		#for IPv6 and IPv4 translation
+device		faith			#for IPv6 and IPv4 translation
 device		stf			#6to4 IPv6 over IPv4 encapsulation
 
 #
