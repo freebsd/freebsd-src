@@ -2,7 +2,8 @@
 /*
  * Lexical Analyzer for the Aic7xxx SCSI Host adapter sequencer assembler.
  *
- * Copyright (c) 1997, 1998 Justin T. Gibbs.
+ * Copyright (c) 1997, 1998, 2000 Justin T. Gibbs.
+ * Copyright (c) 2001 Adaptec Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,25 +12,33 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
- * GNU Public License ("GPL").
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/src/aic7xxx/aicasm/aicasm_scan.l#5 $
+ * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_scan.l#10 $
  *
  * $FreeBSD$
  */
@@ -37,6 +46,7 @@
 #include <sys/types.h>
 
 #include <limits.h>
+#include <regex.h>
 #include <stdio.h>
 #include <string.h>
 #include <sysexits.h>
@@ -48,25 +58,31 @@
 
 #include "aicasm.h"
 #include "aicasm_symbol.h"
-#include "y.tab.h"
+#include "aicasm_gram.h"
 
-#define MAX_STR_CONST 256
-char string_buf[MAX_STR_CONST];
-char *string_buf_ptr;
-int  parren_count;
-int  quote_count;
+/* This is used for macro body capture too, so err on the large size. */
+#define MAX_STR_CONST 4096
+static char string_buf[MAX_STR_CONST];
+static char *string_buf_ptr;
+static int  parren_count;
+static int  quote_count;
+static char buf[255];
 %}
 
-%option nounput
-
-PATH		[-/A-Za-z0-9_.]*[./][-/A-Za-z0-9_.]*
+PATH		([/]*[-A-Za-z0-9_.])+
 WORD		[A-Za-z_][-A-Za-z_0-9]*
 SPACE		[ \t]+
+MCARG		[^(), \t]+
+MBODY		((\\[^\n])*[^\n\\]*)+
 
 %x COMMENT
 %x CEXPR
 %x INCLUDE
 %x STRING
+%x MACRODEF
+%x MACROARGLIST
+%x MACROCALLARGS
+%x MACROBODY
 
 %%
 \n			{ ++yylineno; }
@@ -115,6 +131,7 @@ if[ \t]*\(		{
 			}
 
 VERSION			{ return T_VERSION; }
+PATCH_ARG_LIST		{ return T_PATCH_ARG_LIST; }
 \"			{
 				string_buf_ptr = string_buf;
 				BEGIN STRING;
@@ -133,14 +150,16 @@ VERSION			{ return T_VERSION; }
 				yylval.str = string_buf;
 				return T_STRING;
 			}
-{SPACE}			;
+{SPACE}			 ;
 
 	/* Register/SCB/SRAM definition keywords */
+export			{ return T_EXPORT; }
 register		{ return T_REGISTER; }
 const			{ yylval.value = FALSE; return T_CONST; }
 download		{ return T_DOWNLOAD; }
 address			{ return T_ADDRESS; }
 access_mode		{ return T_ACCESS_MODE; }
+modes			{ return T_MODES; }
 RW|RO|WO		{
 				 if (strcmp(yytext, "RW") == 0)
 					yylval.value = RW;
@@ -152,6 +171,8 @@ RW|RO|WO		{
 			}
 BEGIN_CRITICAL		{ return T_BEGIN_CS; }
 END_CRITICAL		{ return T_END_CS; }
+SET_SRC_MODE		{ return T_SET_SRC_MODE; }
+SET_DST_MODE		{ return T_SET_DST_MODE; }
 bit			{ return T_BIT; }
 mask			{ return T_MASK; }
 alias			{ return T_ALIAS; }
@@ -159,6 +180,7 @@ size			{ return T_SIZE; }
 scb			{ return T_SCB; }
 scratch_ram		{ return T_SRAM; }
 accumulator		{ return T_ACCUM; }
+mode_pointer		{ return T_MODE_PTR; }
 allones			{ return T_ALLONES; }
 allzeros		{ return T_ALLZEROS; }
 none			{ return T_NONE; }
@@ -199,7 +221,9 @@ nop			{ return T_NOP; }
 else			{ return T_ELSE; }
 
 	/* Allowed Symbols */
-[-+,:()~|&."{};<>[\]!=]	{ return yytext[0]; }
+\<\<			{ return T_EXPR_LSHIFT; }
+\>\>			{ return T_EXPR_RSHIFT; }
+[-+,:()~|&."{};<>[\]/*!=] { return yytext[0]; }
 
 	/* Number processing */
 0[0-7]*			{
@@ -216,7 +240,6 @@ else			{ return T_ELSE; }
 				yylval.value = strtol(yytext, NULL, 10);
 				return T_NUMBER;
 			}
-
 	/* Include Files */
 #include{SPACE}		{
 				BEGIN INCLUDE;
@@ -231,13 +254,7 @@ else			{ return T_ELSE; }
 				quote_count++;
 				return yytext[0];
 			}
-<INCLUDE>.		{ stop("Invalid include line", EX_DATAERR); }
-
-	/* For parsing C include files with #define foo */
-#define			{ yylval.value = TRUE; return T_CONST; }
-	/* Throw away macros */
-#define[^\n]*[()]+[^\n]* ;
-<INITIAL,INCLUDE>{PATH}	{
+<INCLUDE>{PATH}		{
 				char *yptr;
 
 				yptr = yytext;
@@ -248,12 +265,158 @@ else			{ return T_ELSE; }
 				*string_buf_ptr = '\0';
 				return T_PATH;
 			}
+<INCLUDE>.		{ stop("Invalid include line", EX_DATAERR); }
+#define{SPACE}		{
+				BEGIN MACRODEF;
+				return T_DEFINE;
+			}
+<MACRODEF>{WORD}{SPACE}	{ 
+				char *yptr;
 
-{WORD}			{ yylval.sym = symtable_get(yytext);  return T_SYMBOL; }
+				/* Strip space and return as a normal symbol */
+				yptr = yytext;
+				while (*yptr != ' ' && *yptr != '\t')
+					yptr++;
+				*yptr = '\0';
+				yylval.sym = symtable_get(yytext);
+				string_buf_ptr = string_buf;
+				BEGIN MACROBODY;
+				return T_SYMBOL;
+			}
+<MACRODEF>{WORD}\(	{
+				/*
+				 * We store the symbol with its opening
+				 * parren so we can differentiate macros
+				 * that take args from macros with the
+				 * same name that do not take args as
+				 * is allowed in C.
+				 */
+				BEGIN MACROARGLIST;
+				yylval.sym = symtable_get(yytext);
+				unput('(');
+				return T_SYMBOL;
+			}
+<MACROARGLIST>{WORD}	{
+				yylval.str = yytext;
+				return T_ARG;
+			}
+<MACROARGLIST>{SPACE}   ;
+<MACROARGLIST>[(,]	{
+				return yytext[0];
+			}
+<MACROARGLIST>[)]	{
+				string_buf_ptr = string_buf;
+				BEGIN MACROBODY;
+				return ')';
+			}
+<MACROARGLIST>.		{
+				snprintf(buf, sizeof(buf), "Invalid character "
+					 "'%c' in macro argument list",
+					 yytext[0]);
+				stop(buf, EX_DATAERR);
+			}
+<MACROCALLARGS>{SPACE}  ;
+<MACROCALLARGS>\(	{
+				parren_count++;
+				if (parren_count == 1)
+					return ('(');
+				*string_buf_ptr++ = '(';
+			}
+<MACROCALLARGS>\)	{
+				parren_count--;
+				if (parren_count == 0) {
+					BEGIN INITIAL;
+					return (')');
+				}
+				*string_buf_ptr++ = ')';
+			}
+<MACROCALLARGS>{MCARG}	{
+				char *yptr;
 
+				yptr = yytext;
+				while (*yptr)
+					*string_buf_ptr++ = *yptr++;
+			}
+<MACROCALLARGS>\,	{
+				if (string_buf_ptr != string_buf) {
+					/*
+					 * Return an argument and
+					 * rescan this comma so we
+					 * can return it as well.
+					 */
+					*string_buf_ptr = '\0';
+					yylval.str = string_buf;
+					string_buf_ptr = string_buf;
+					unput(',');
+					return T_ARG;
+				}
+				return ',';
+			}
+<MACROBODY>\\\n		{
+				/* Eat escaped newlines. */
+				++yylineno;
+			}
+<MACROBODY>\n		{
+				/* Macros end on the first unescaped newline. */
+				BEGIN INITIAL;
+				*string_buf_ptr = '\0';
+				yylval.str = string_buf;
+				++yylineno;
+				return T_MACROBODY;
+			}
+<MACROBODY>{MBODY}	{
+				char *yptr;
+
+				yptr = yytext;
+				while (*yptr)
+					*string_buf_ptr++ = *yptr++;
+			}
+{WORD}\(		{
+				char *yptr;
+				char *ycopy;
+
+				/* May be a symbol or a macro invocation. */
+				yylval.sym = symtable_get(yytext);
+				if (yylval.sym->type == MACRO) {
+					YY_BUFFER_STATE old_state;
+					YY_BUFFER_STATE temp_state;
+
+					ycopy = strdup(yytext);
+					yptr = ycopy + yyleng;
+					while (yptr > ycopy)
+						unput(*--yptr);
+					old_state = YY_CURRENT_BUFFER;
+					temp_state =
+					    yy_create_buffer(stdin,
+							     YY_BUF_SIZE);
+					yy_switch_to_buffer(temp_state);
+					mm_switch_to_buffer(old_state);
+					mmparse();
+					mm_switch_to_buffer(temp_state);
+					yy_switch_to_buffer(old_state);
+					mm_delete_buffer(temp_state);
+					expand_macro(yylval.sym);
+				} else {
+					if (yylval.sym->type == UNINITIALIZED) {
+						/* Try without the '(' */
+						symbol_delete(yylval.sym);
+						yytext[yyleng-1] = '\0';
+						yylval.sym =
+						    symtable_get(yytext);
+					}
+					unput('(');
+					return T_SYMBOL;
+				}
+			}
+{WORD}			{
+				yylval.sym = symtable_get(yytext);
+				if (yylval.sym->type == MACRO) {
+					expand_macro(yylval.sym);
+				} else {
+					return T_SYMBOL;
+				}
+			}
 .			{ 
-				char buf[255];
-
 				snprintf(buf, sizeof(buf), "Invalid character "
 					 "'%c'", yytext[0]);
 				stop(buf, EX_DATAERR);
@@ -320,6 +483,92 @@ include_file(char *file_name, include_type type)
 	yy_switch_to_buffer(yy_create_buffer(newfile, YY_BUF_SIZE));
 	yylineno = 1;
 	yyfilename = strdup(file_name);
+}
+
+static void next_substitution(struct symbol *mac_symbol, const char *body_pos,
+			      const char **next_match,
+			      struct macro_arg **match_marg, regmatch_t *match);
+
+void
+expand_macro(struct symbol *macro_symbol)
+{
+	struct macro_arg *marg;
+	struct macro_arg *match_marg;
+	const char *body_head;
+	const char *body_pos;
+	const char *next_match;
+
+	/*
+	 * Due to the nature of unput, we must work
+	 * backwards through the macro body performing
+	 * any expansions.
+	 */
+	body_head = macro_symbol->info.macroinfo->body;
+	body_pos = body_head + strlen(body_head);
+	while (body_pos > body_head) {
+		regmatch_t match;
+
+		next_match = body_head;
+		match_marg = NULL;
+		next_substitution(macro_symbol, body_pos, &next_match,
+				  &match_marg, &match);
+
+		/* Put back everything up until the replacement. */
+		while (body_pos > next_match)
+			unput(*--body_pos);
+
+		/* Perform the replacement. */
+		if (match_marg != NULL) {
+			const char *strp;
+
+			next_match = match_marg->replacement_text;
+			strp = next_match + strlen(next_match);
+			while (strp > next_match)
+				unput(*--strp);
+
+			/* Skip past the unexpanded macro arg. */
+			body_pos -= match.rm_eo - match.rm_so;
+		}
+	}
+
+	/* Cleanup replacement text. */
+	STAILQ_FOREACH(marg, &macro_symbol->info.macroinfo->args, links) {
+		free(marg->replacement_text);
+	}
+}
+
+/*
+ * Find the next substitution in the macro working backwards from
+ * body_pos until the beginning of the macro buffer.  next_match
+ * should be initialized to the beginning of the macro buffer prior
+ * to calling this routine.
+ */
+static void
+next_substitution(struct symbol *mac_symbol, const char *body_pos,
+		  const char **next_match, struct macro_arg **match_marg,
+		  regmatch_t *match)
+{
+	regmatch_t	  matches[2];
+	struct macro_arg *marg;
+	const char	 *search_pos;
+	int		  retval;
+
+	do {
+		search_pos = *next_match;
+
+		STAILQ_FOREACH(marg, &mac_symbol->info.macroinfo->args, links) {
+
+			retval = regexec(&marg->arg_regex, search_pos, 2,
+					 matches, 0);
+			if (retval == 0
+			 && (matches[1].rm_eo + search_pos) <= body_pos
+			 && (matches[1].rm_eo + search_pos) > *next_match) {
+				*match = matches[1];
+				*next_match = match->rm_eo + search_pos;
+				*match_marg = marg;
+			}
+		}
+	} while (search_pos != *next_match);
 }
 
 int

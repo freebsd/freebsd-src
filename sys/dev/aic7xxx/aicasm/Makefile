@@ -5,12 +5,13 @@
 PROG=	aicasm
 
 CSRCS=	aicasm.c aicasm_symbol.c
-GENSRCS= aicasm_gram.c aicasm_scan.c
+YSRCS=	aicasm_gram.y aicasm_macro_gram.y
+LSRCS=	aicasm_scan.l aicasm_macro_scan.l
 
-GENHDRS=	y.tab.h
+GENHDRS=	aicasm_gram.h aicasm_macro_gram.h
 
-SRCS=	${GENSRCS} ${CSRCS}
-CLEANFILES+= ${GENSRCS} ${GENHDRS} y.output
+SRCS=	${GENHDRS} ${CSRCS} ${YSRCS} ${LSRCS}
+CLEANFILES+= ${GENHDRS} ${YSRCS:R:C/(.*)/\1.output/g}
 DPADD+=	${LIBL}
 LDADD+=	-ll
 
@@ -21,10 +22,12 @@ LDADD+=	-ll
 DEPENDFILE=
 .endif
 
-CFLAGS+= -I/usr/include -I. -I../../../dev/aic7xxx/aicasm
+CFLAGS+= -I/usr/include -I.
 NOMAN=	noman
+YFLAGS= -b ${.TARGET:R} ${.TARGET:M*macro*:S/$(.TARGET)/-p mm/} -d
+LFLAGS+= ${.TARGET:M*macro*:S/$(.TARGET)/-Pmm/}
 
-.ifdef DEBUG
+.ifdef AICASM_DEBUG
 CFLAGS+= -DDEBUG -g
 YFLAGS+= -t -v
 LFLAGS+= -d
