@@ -13,7 +13,7 @@ all: tree links
 
 tree:
 	@echo "--- making tree"
-	mtree -deU -f mfs.mtree -p ${DESTDIR}
+	mtree -deLU -f mfs.mtree -p ${DESTDIR}
 
 links: tree
 	@echo "--- making links"
