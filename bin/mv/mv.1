@@ -35,7 +35,7 @@
 .\"	@(#)mv.1	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2002
+.Dd July 9, 2002
 .Dt MV 1
 .Os
 .Sh NAME
@@ -47,7 +47,7 @@
 .Op Fl v
 .Ar source target
 .Nm
-.Op  Fl f | i | n
+.Op Fl f | i | n
 .Op Fl v
 .Ar source ... directory
 .Sh DESCRIPTION
@@ -73,7 +73,7 @@ concatenation of the last operand, a slash, and the final pathname
 component of the named file.
 .Pp
 The following options are available:
-.Bl -tag -width flag
+.Bl -tag -width indent
 .It Fl f
 Do not prompt for confirmation before overwriting the destination
 path.
@@ -90,9 +90,9 @@ Cause
 to write a prompt to standard error before moving a file that would
 overwrite an existing file.
 If the response from the standard input begins with the character
-.Sq Li y
+.Ql y
 or
-.Sq Li Y ,
+.Ql Y ,
 the move is attempted.
 (The
 .Fl i
@@ -127,7 +127,7 @@ prompts the user for confirmation as specified for the
 option.
 .Pp
 As the
-.Xr rename  2
+.Xr rename 2
 call does not work across file systems,
 .Nm
 uses
@@ -138,8 +138,8 @@ to accomplish the move.
 The effect is equivalent to:
 .Bd -literal -offset indent
 rm -f destination_path && \e
-\tcp -pRP source_file destination && \e
-\trm -rf source_file
+cp -pRP source_file destination && \e
+rm -rf source_file
 .Ed
 .Sh DIAGNOSTICS
 .Ex -std
