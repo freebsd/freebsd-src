@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)idp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: idp_usrreq.c,v 1.2 1994/08/02 07:51:41 davidg Exp $
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
