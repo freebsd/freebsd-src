@@ -54,6 +54,7 @@
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/cdefs.h>
 #include <sched.h>
 #include <spinlock.h>
 #include <pthread_np.h>
