@@ -92,8 +92,9 @@ by
 .Ar install ,
 and so on all the way to
 .Ar fetch .
-You will usually only target
-.Ar install .
+Usually, you will only use the
+.Ar install
+target.
 .Bl -tag -width configure
 .It Ar fetch
 Fetch all of the files needed to build this port from the site(s)
@@ -102,7 +103,8 @@ listed in MASTER_SITES and PATCH_SITES.  See
 and
 .Ev MASTER_SITE_OVERRIDE .
 .It Ar checksum
-Verify that the fetched distfile matches the one the port was tested against.
+Verify that the fetched distfile's checksum matches the one the port was
+tested against.
 Defining
 .Ev NO_CHECKSUM
 will skip this step.
@@ -152,7 +154,8 @@ is defined.
 .It Ar distclean
 Remove the port's distfile(s) and perform the
 .Ar clean
-operation.  The
+target.
+The
 .Sq clean
 portion recurses to dependencies unless
 .Ev NOCLEANDEPENDS
@@ -186,6 +189,35 @@ Create a port's
 This can be used from
 .Pa /usr/ports
 to create a browsable web of all ports on your system!
+.It Ar search
+Search the
+.Pa INDEX
+file for the pattern specified by either the
+.Ar key
+(searches the port name, comment, and dependencies) or
+.Ar name
+(just searches the port name) make argument.
+For example, one would type:
+.Pp
+.Dl cd /usr/ports && make search name=query
+.Pp
+to find all ports whose
+name matches
+.Ql query .
+Results include the matching ports' path, comment, maintainer,
+build dependencies, and run dependencies.
+.It Ar index
+Create
+.Pa /usr/ports/INDEX ,
+which is used by the
+.Ar pretty-print-*
+and
+.Ar search
+targets.
+While the master INDEX file in the CVS repository is periodically
+updated, running the
+.Ar index
+target will ensure your INDEX file is up to date with your ports tree.
 .El
 .Sh ENVIRONMENT
 You can change all of these.
