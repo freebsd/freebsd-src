@@ -227,7 +227,7 @@ machine_init(statics)
 
     modelen = sizeof(smpmode);
     if ((sysctlbyname("machdep.smp_active", &smpmode, &modelen, NULL, 0) < 0 &&
-         sysctlbyname("kern.smp.active", &smpmode, &modelen, NULL, 0) < 0) ||
+	 sysctlbyname("kern.smp.active", &smpmode, &modelen, NULL, 0) < 0) ||
 	modelen != sizeof(smpmode))
 	    smpmode = 0;
 
@@ -367,10 +367,10 @@ get_system_info(si)
 	memory_stats[6] = -1;
 
 	/* first interval */
-        if (swappgsin < 0) {
+	if (swappgsin < 0) {
 	    swap_stats[4] = 0;
 	    swap_stats[5] = 0;
-	} 
+	}
 
 	/* compute differences between old and new swap statistic */
 	else {
@@ -378,17 +378,17 @@ get_system_info(si)
 	    swap_stats[5] = pagetok(((nspgsout - swappgsout)));
 	}
 
-        swappgsin = nspgsin;
+	swappgsin = nspgsin;
 	swappgsout = nspgsout;
 
 	/* call CPU heavy swapmode() only for changes */
-        if (swap_stats[4] > 0 || swap_stats[5] > 0 || swap_delay == 0) {
+	if (swap_stats[4] > 0 || swap_stats[5] > 0 || swap_delay == 0) {
 	    swap_stats[3] = swapmode(&swapavail, &swapfree);
 	    swap_stats[0] = swapavail;
 	    swap_stats[1] = swapavail - swapfree;
 	    swap_stats[2] = swapfree;
 	}
-        swap_delay = 1;
+	swap_delay = 1;
 	swap_stats[6] = -1;
     }
 
@@ -637,7 +637,7 @@ format_next_process(handle, get_userid)
     hp = (struct handle *)handle;
     pp = *(hp->next_proc++);
     hp->remaining--;
-    
+
     /* get the process's command name */
     if ((pp->ki_sflag & PS_INMEM) == 0) {
 	/*
@@ -675,7 +675,7 @@ format_next_process(handle, get_userid)
 	case SLOCK:
 	    if (pp->ki_kiflag & KI_LOCKBLOCK) {
 		sprintf(status, "*%.6s", pp->ki_lockname);
-	        break;
+		break;
 	    }
 	    /* fall through */
 	case SSLEEP:
@@ -687,7 +687,7 @@ format_next_process(handle, get_userid)
 	default:
 
 	    if (state >= 0 &&
-	        state < sizeof(state_abbrev) / sizeof(*state_abbrev))
+		state < sizeof(state_abbrev) / sizeof(*state_abbrev))
 		    sprintf(status, "%.6s", state_abbrev[(unsigned char) state]);
 	    else
 		    sprintf(status, "?%5d", state);
@@ -730,15 +730,15 @@ format_next_process(handle, get_userid)
 	    pp->ki_pri.pri_level - PZERO,
 
 	    /*
-	     * normal time      -> nice value -20 - +20 
+	     * normal time      -> nice value -20 - +20
 	     * real time 0 - 31 -> nice value -52 - -21
 	     * idle time 0 - 31 -> nice value +21 - +52
 	     */
-	    (pp->ki_pri.pri_class ==  PRI_TIMESHARE ? 
-	    	pp->ki_nice - NZERO : 
-	    	(PRI_IS_REALTIME(pp->ki_pri.pri_class) ?
+	    (pp->ki_pri.pri_class ==  PRI_TIMESHARE ?
+		pp->ki_nice - NZERO :
+		(PRI_IS_REALTIME(pp->ki_pri.pri_class) ?
 		    (PRIO_MIN - 1 - (PRI_MAX_REALTIME - pp->ki_pri.pri_level)) :
-		    (PRIO_MAX + 1 + pp->ki_pri.pri_level - PRI_MIN_IDLE))), 
+		    (PRIO_MAX + 1 + pp->ki_pri.pri_level - PRI_MIN_IDLE))),
 	    format_k2(PROCSIZE(pp)),
 	    format_k2(pagetok(pp->ki_rssize)),
 	    status,
@@ -793,12 +793,12 @@ compare_pid(p1, p2)
 /*
  *  proc_compare - comparison function for "qsort"
  *	Compares the resource consumption of two processes using five
- *  	distinct keys.  The keys (in descending order of importance) are:
- *  	percent cpu, cpu ticks, state, resident set size, total virtual
- *  	memory usage.  The process states are ordered as follows (from least
- *  	to most important):  WAIT, zombie, sleep, stop, start, run.  The
- *  	array declaration below maps a process state index into a number
- *  	that reflects this ordering.
+ *	distinct keys.  The keys (in descending order of importance) are:
+ *	percent cpu, cpu ticks, state, resident set size, total virtual
+ *	memory usage.  The process states are ordered as follows (from least
+ *	to most important):  WAIT, zombie, sleep, stop, start, run.  The
+ *	array declaration below maps a process state index into a number
+ *	that reflects this ordering.
  */
 
 static unsigned char sorted_state[] =
@@ -811,7 +811,7 @@ static unsigned char sorted_state[] =
     2,	/* zombie		*/
     4	/* stop			*/
 };
- 
+
 
 #define ORDERKEY_PCTCPU \
   if (lresult = (long) p2->ki_pctcpu - (long) p1->ki_pctcpu, \
@@ -819,17 +819,17 @@ static unsigned char sorted_state[] =
 
 #define ORDERKEY_CPTICKS \
   if ((result = p2->ki_runtime > p1->ki_runtime ? 1 : \
-                p2->ki_runtime < p1->ki_runtime ? -1 : 0) == 0)
+		p2->ki_runtime < p1->ki_runtime ? -1 : 0) == 0)
 
 #define ORDERKEY_STATE \
   if ((result = sorted_state[(unsigned char) p2->ki_stat] - \
-                sorted_state[(unsigned char) p1->ki_stat]) == 0)
+		sorted_state[(unsigned char) p1->ki_stat]) == 0)
 
 #define ORDERKEY_PRIO \
   if ((result = p2->ki_pri.pri_level - p1->ki_pri.pri_level) == 0)
 
 #define ORDERKEY_RSSIZE \
-  if ((result = p2->ki_rssize - p1->ki_rssize) == 0) 
+  if ((result = p2->ki_rssize - p1->ki_rssize) == 0)
 
 #define ORDERKEY_MEM \
   if ( (result = PROCSIZE(p2) - PROCSIZE(p1)) == 0 )
@@ -1019,7 +1019,7 @@ proc_owner(pid)
     cnt = pref_len;
     while (--cnt >= 0)
     {
-	pp = *prefp++;	
+	pp = *prefp++;
 	if (pp->ki_pid == (pid_t)pid)
 	{
 	    return((int)pp->ki_ruid);
@@ -1053,4 +1053,3 @@ swapmode(retavail, retfree)
 	    (double)swapary[0].ksw_total);
 	return(n);
 }
-
