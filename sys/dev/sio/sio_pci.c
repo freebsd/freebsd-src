@@ -74,7 +74,7 @@ static struct pci_ids pci_ids[] = {
 	{ 0x048011c1, "Lucent kermit based PCI Modem", 0x14 },
 	{ 0x95211415, "Oxford Semiconductor PCI Dual Port Serial", 0x10 },
 	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
-	/* { 0xXXXXXXXX, "Xircom Cardbus modem", 0x10 }, */
+	{ 0x0103115d, "Xircom Cardbus modem", 0x10 },
 	{ 0x00000000, NULL, 0 }
 };
 
