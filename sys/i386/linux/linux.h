@@ -33,7 +33,7 @@
 
 #include <sys/signal.h> /* for sigval union */
 
-#include <linux_syscall.h>
+#include <i386/linux/linux_syscall.h>
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_LINUX);

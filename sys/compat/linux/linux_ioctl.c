@@ -51,7 +51,11 @@
 #include <sys/disklabel.h>
 
 #include <machine/../linux/linux.h>
+#ifdef __alpha__
 #include <linux_proto.h>
+#else
+#include <machine/../linux/linux_proto.h>
+#endif
 
 #ifdef __alpha__
 #include <machine/../linux/linux_ioctl.h>

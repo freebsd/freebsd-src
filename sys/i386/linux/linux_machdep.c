@@ -48,7 +48,7 @@
 #include <vm/vm_map.h>
 
 #include <i386/linux/linux.h>
-#include <linux_proto.h>
+#include <i386/linux/linux_proto.h>
 #include <compat/linux/linux_ipc.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>

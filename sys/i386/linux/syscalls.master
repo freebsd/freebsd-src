@@ -27,7 +27,7 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <i386/linux/linux.h>
-#include <linux_proto.h>
+#include <i386/linux/linux_proto.h>
 
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
