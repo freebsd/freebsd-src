@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage3.c,v 1.4 1994/10/21 02:14:52 phk Exp $
+ * $Id: stage3.c,v 1.6 1994/10/26 05:41:01 phk Exp $
  *
  */
 
@@ -28,45 +28,45 @@
 void
 stage3()
 {
-	char		pbuf[90],*p;
-	int		mountflags;
-	struct		fstab *fs;
+    char	pbuf[90],*p;
+    int		mountflags;
+    struct	fstab *fs;
 
-	/*
-	 * Mount things in /etc/fstab we like.
-	 */
+    /*
+     * Mount things in /etc/fstab we like.
+     */
 
-	mountflags = MNT_UPDATE;
-	while((fs = getfsent()) != NULL) {
-		p = fs->fs_spec;
-		if (*p++ != '/') continue;
-		if (*p++ != 'd') continue;
-		if (*p++ != 'e') continue;
-		if (*p++ != 'v') continue;
-		if (*p++ != '/') continue;
+    mountflags = MNT_UPDATE;
+    while((fs = getfsent()) != NULL) {
+	p = fs->fs_spec;
+	if (*p++ != '/') continue;
+	if (*p++ != 'd') continue;
+	if (*p++ != 'e') continue;
+	if (*p++ != 'v') continue;
+	if (*p++ != '/') continue;
 
-		if (!strcmp(fs->fs_type,"sw")) {
-			swapon(fs->fs_file);
-			continue;
-		}
-
-		if (strcmp(fs->fs_vfstype,"ufs")) continue;
-
-		if (!strcmp(fs->fs_type,"ro"))
-			mountflags |= MNT_RDONLY;
-		else if (!strcmp(fs->fs_type,"rw"))
-			;
-		else
-			continue;
-		strcpy(pbuf,"/dev/r");
-		strcat(pbuf,p);
-		TellEm("fsck -y %s",pbuf);
-		if (exec(0, "/stand/fsck",
-			"/stand/fsck", "-y", pbuf, 0) == -1)
-			Fatal(errmsg);
-
-		MountUfs(p,fs->fs_file,0,mountflags);
-		mountflags = 0;
+	if (!strcmp(fs->fs_type, "sw")) {
+	    swapon(fs->fs_file);
+	    continue;
 	}
-	endfsent();
+
+	if (strcmp(fs->fs_vfstype, "ufs")) continue;
+
+	if (!strcmp(fs->fs_type, "ro"))
+	    mountflags |= MNT_RDONLY;
+	else if (!strcmp(fs->fs_type, "rw"))
+	    ;
+	else
+	    continue;
+	strcpy(pbuf, "/dev/r");
+	strcat(pbuf,p);
+	TellEm("fsck -y %s",pbuf);
+	if (exec(0, "/stand/fsck",
+		 "/stand/fsck", "-y", pbuf, 0) == -1)
+	    Fatal(errmsg);
+
+	MountUfs(p, fs->fs_file, 0, mountflags);
+	mountflags = 0;
+    }
+    endfsent();
 }

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.13 1994/10/29 10:01:40 phk Exp $
+ * $Id: utils.c,v 1.15 1994/11/01 10:10:43 phk Exp $
  *
  */
 
@@ -184,6 +184,14 @@ Mkdir(char *path)
 		Fatal("Couldn't create directory %s: %s\n",
 			path,strerror(errno));
 	}
+}
+
+void
+Link(char *from, char *to)
+{
+	TellEm("ln %s %s", from, to);
+	if (link(from, to) == -1)
+		Fatal("Couldn't create link: %s -> %s\n", from, to);
 }
 
 void
