@@ -396,6 +396,8 @@ soclose(so)
 {
 	int error = 0;
 
+	KASSERT(!(so->so_state & SS_NOFDREF), ("soclose: SS_NOFDREF on enter"));
+
 	funsetown(&so->so_sigio);
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct socket *sp;
