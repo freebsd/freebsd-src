@@ -26,19 +26,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef HAVE_NCURSES
-#include <ncurses.h>
-
-#else
-
-#ifdef ultrix
-#include <cursesX.h>
-#else
-#include <curses.h>
-#endif
-
-#endif
-
 #if defined(LOCALE)
 #include <locale.h>
 #endif
@@ -182,7 +169,6 @@ chtype attributes[] = {
 
 #ifdef HAVE_NCURSES
 extern bool use_colors;
-extern bool use_shadow;
 #endif
 
 extern chtype attributes[];
@@ -211,8 +197,3 @@ void color_setup(void);
 void attr_clear(WINDOW *win, int height, int width, chtype attr);
 void print_autowrap(WINDOW *win, unsigned char *prompt, int width, int y, int x);
 void print_button(WINDOW *win, unsigned char *label, int y, int x, int selected);
-void draw_box(WINDOW *win, int y, int x, int height, int width, chtype box, chtype border);
-#ifdef HAVE_NCURSES
-void draw_shadow(WINDOW *win, int y, int x, int height, int width);
-#endif
-

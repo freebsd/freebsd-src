@@ -19,8 +19,8 @@
  */
 
 
-#include "dialog.priv.h"
 #include <dialog.h>
+#include "dialog.priv.h"
 
 
 static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int status, int choice, int selected);

@@ -18,8 +18,29 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define HAVE_NCURSES
+
+#ifdef HAVE_NCURSES
+#include <ncurses.h>
+
+#else
+
+#ifdef ultrix
+#include <cursesX.h>
+#else
+#include <curses.h>
+#endif
+
+#endif
+
 #define VERSION "0.4"
 #define MAX_LEN 2048
+
+#ifdef HAVE_NCURSES
+extern bool use_shadow;
+void draw_shadow(WINDOW *win, int y, int x, int height, int width);
+#endif
+void draw_box(WINDOW *win, int y, int x, int height, int width, chtype box, chtype border);
 
 void dialog_create_rc(unsigned char *filename);
 int dialog_yesno(unsigned char *title, unsigned char *prompt, int height, int width);
