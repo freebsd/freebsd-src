@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.58 1999/04/07 09:28:03 grog Exp $
+#	$Id: Makefile.pc98,v 1.59 1999/04/11 03:40:11 grog Exp $
 #
 # Makefile for FreeBSD
 #
@@ -19,7 +19,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	300010
+%VERSREQ=	400013
 
 KERNFORMAT?=	elf
 
@@ -89,6 +89,7 @@ SYSTEM_DEP= Makefile symbols.exclude symbols.sort ${SYSTEM_OBJS}
 SYMORDER_EXCLUDE=-x symbols.exclude
 .endif
 SYSTEM_LD_HEAD= @echo loading ${.TARGET}; rm -f ${.TARGET}
+
 .if ${KERNFORMAT} == aout || ${KERNFORMAT} == aoutkld
 SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o config.o
 SYSTEM_LD= @${LD} -aout -Bforcedynamic -Z -T ${LOAD_ADDRESS} -o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
@@ -96,6 +97,7 @@ SYSTEM_LD_TAIL= @echo rearranging symbols; \
 	symorder -m ${SYMORDER_EXCLUDE} symbols.sort ${.TARGET}; \
 	size -aout ${.TARGET} ; chmod 755 ${.TARGET}
 .endif
+
 .if ${KERNFORMAT} == elf
 SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
 	setdef1.o hack.So
@@ -104,6 +106,12 @@ SYSTEM_LD= @${LD} -elf -Bdynamic -T $S/i386/conf/kernel.script \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @size -elf ${.TARGET} ; chmod 755 ${.TARGET}
 SYSTEM_DEP+= $S/i386/conf/kernel.script
+.endif
+
+.if defined(DEBUG)
+FULLKERNEL=	${KERNEL}.debug
+.else
+FULLKERNEL=	${KERNEL}
 .endif
 
 %BEFORE_DEPEND
@@ -209,17 +217,20 @@ tags:
 	@echo "see $S/kern/Makefile for tags"
 
 .if defined(DEBUG)
-install:	${KERNEL}
-.if ${KERNFORMAT} == "elf" && !defined(FORCE)
-	@if [ -f /${KERNEL} -a "`file /${KERNEL} 2>/dev/null | grep ELF`" = "" ]; then \
-		echo "WARNING: You are about to install an ELF kernel for the first time!" ; \
-		echo "Please be sure you have upgraded your bootblocks and/or /boot/loader so" ; \
-		echo "that you can boot it.  Old bootblocks WILL NOT WORK!  Please read:" ; \
-		echo "http://www.freebsd.org/~peter/elfday.html for information." ; \
-		echo "If you are satisfied you can boot an ELF kernel, type:  make -DFORCE install" ; \
+${KERNEL}:	${FULLKERNEL}
+.if ${KERNFORMAT} == "elf"
+	objcopy --strip-debug ${FULLKERNEL} ${KERNEL}
+.else
+	cp ${FULLKERNEL} ${KERNEL}
+	strip -d kernel
+.endif
+.endif
+
+install install.debug:
+	@if [ ! -f ${KERNEL}${.TARGET:S/install//} ] ; then \
+		echo "You must first build a kernel first." ; \
 		exit 1 ; \
 	fi
-.endif
 .if exists(${DESTDIR}/${KERNEL})
 	-chflags noschg ${DESTDIR}/${KERNEL}
 	mv ${DESTDIR}/${KERNEL} ${DESTDIR}/${KERNEL}.old
@@ -231,37 +242,8 @@ install:	${KERNEL}
 			mv -f /var/db/kvm_kernel.db /var/db/kvm_kernel.old.db ; \
 		fi \
 	fi
-	install -c -m 555 -o root -g wheel -fschg ${KERNEL} ${DESTDIR}/
-
-.endif
-
-${INSTALL}:
-	@if [ ! -f ${KERNEL} ] ; then \
-		echo "You must first build your kernel before trying to install." ; \
-		exit 1 ; \
-	fi
-.if ${KERNFORMAT} == "elf" && !defined(FORCE)
-	@if [ -f /${KERNEL} -a "`file /${KERNEL} 2>/dev/null | grep ELF`" = "" ]; then \
-		echo "WARNING: You are about to install an ELF kernel for the first time!" ; \
-		echo "Please be sure you have upgraded your bootblocks and/or /boot/loader so" ; \
-		echo "that you can boot it.  Old bootblocks WILL NOT WORK!  Please read:" ; \
-		echo "http://www.freebsd.org/~peter/elfday.html for information." ; \
-		echo "If you are satisfied you can boot an ELF kernel, type:  make -DFORCE install" ; \
-		exit 1 ; \
-	fi
-.endif
-.if exists(${DESTDIR}/${KERNEL})
-	-chflags noschg ${DESTDIR}/${KERNEL}
-	mv ${DESTDIR}/${KERNEL} ${DESTDIR}/${KERNEL}.old
-.endif
-	PATH=$${PATH}:/sbin:/usr/sbin; \
-	if [ `sysctl -n kern.bootfile` = ${DESTDIR}/${KERNEL} ] ; then \
-		sysctl -w kern.bootfile=${DESTDIR}/${KERNEL}.old ; \
-		if [ -f /var/db/kvm_kernel.db ] ; then \
-			mv -f /var/db/kvm_kernel.db /var/db/kvm_kernel.old.db ; \
-		fi \
-	fi
-	install -c -m 555 -o root -g wheel -fschg ${FULLKERNEL} ${DESTDIR}/${KERNEL}
+	install -c -m 555 -o root -g wheel -fschg \
+		${KERNEL}${.TARGET:S/install//} ${DESTDIR}/${KERNEL}
 
 config.o:
 	${NORMAL_C}

@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.88 1999/04/02 08:51:06 kato Exp $
+#	$Id: files.pc98,v 1.89 1999/04/10 04:42:46 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -26,6 +26,16 @@ font8x16.o			optional	std8x16font		\
 	no-implicit-rule before-depend \
 	clean		"${STD8X16FONT}-8x16 font8x16.c" 
 #
+atkbdmap.h			optional	atkbd_dflt_keymap	\
+	compile-with	"kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"				\
+	no-obj no-implicit-rule before-depend				\
+	clean		"atkbdmap.h"
+#
+ukbdmap.h			optional	ukbd_dflt_keymap	\
+	compile-with	"kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"				\
+	no-obj no-implicit-rule before-depend				\
+	clean		"ukbdmap.h"
+#
 dev/ata/ata-all.c		optional	ata	device-driver
 dev/ata/ata-dma.c		optional	ata	device-driver
 dev/ata/atapi-all.c		optional	ata	device-driver
@@ -43,7 +53,7 @@ i386/apm/apm_setup.s		optional	apm
 i386/eisa/dpt_eisa.c		optional	eisa dpt device-driver
 i386/eisa/3c5x9.c		optional	ep	device-driver
 #i386/eisa/adv_eisa.c		optional	adv	device-driver
-i386/eisa/ahc_eisa.c		optional	ahc	device-driver	   \
+i386/eisa/ahc_eisa.c		optional	eisa ahc device-driver	   \
 	dependency	"aic7xxx_reg.h $S/i386/eisa/ahc_eisa.c"
 i386/eisa/ahb.c			optional	ahb	device-driver
 i386/eisa/bt_eisa.c		optional	bt	device-driver
@@ -76,12 +86,14 @@ i386/i386/mp_machdep.c		optional	smp
 i386/i386/mpapic.c		optional	smp
 i386/i386/mpboot.s		optional	smp
 i386/i386/mplock.s		optional	smp
+i386/i386/nexus.c		standard
 i386/i386/perfmon.c		optional	perfmon	profiling-routine
 i386/i386/perfmon.c		optional	perfmon
 i386/i386/pmap.c		standard
 i386/i386/procfs_machdep.c	standard
 i386/i386/simplelock.s		optional	smp
 i386/i386/support.s		standard
+i386/i386/swapgeneric.c		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
 i386/i386/trap.c		standard
@@ -112,7 +124,7 @@ i386/isa/bs/bs.c		optional	bs	device-driver
 i386/isa/bs/bsfunc.c		optional	bs	device-driver
 i386/isa/bs/bshw.c		optional	bs	device-driver
 i386/isa/bs/bsif.c		optional	bs	device-driver
-#i386/isa/adv_isa.c		optional	adv	device-driver
+i386/isa/adv_isa.c		optional	adv	device-driver
 #i386/isa/aha1542.c		optional	aha	device-driver
 i386/isa/aha_isa.c		optional	aha	device-driver
 i386/isa/bt_isa.c		optional	bt	device-driver
@@ -156,7 +168,7 @@ contrib/dev/oltr/trlldbm.c	optional	oltr	device-driver
 i386/isa/ipl_funcs.c		standard				   \
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} $<"
 i386/isa/intr_machdep.c		standard
-pc98/pc98/pc98.c		optional	isa	device-driver
+i386/isa/isa.c			optional	isa	device-driver
 i386/isa/istallion.c		optional	stli	device-driver
 i386/isa/joy.c			optional        joy     device-driver
 pc98/pc98/pc98kbd.c		optional	pckbd	device-driver
@@ -169,20 +181,22 @@ pc98/pc98/npx.c			mandatory	npx	device-driver
 pc98/pc98/pc98gdc.c		optional	gdc	device-driver
 pc98/pc98/pcaudio.c		optional	pca	device-driver
 i386/isa/matcd/matcd.c		optional	matcd	device-driver
+i386/isa/isa_compat.c		optional	isa	device-driver
+pc98/pc98/isa_dma.c		optional	isa	device-driver
 i386/isa/pcibus.c		optional	pci	device-driver
 i386/isa/pcicx.c		optional	ze	device-driver
 i386/isa/pcicx.c		optional	zp	device-driver
-#i386/isa/pcvt/pcvt_drv.c	optional	vt	device-driver
-#i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
-#i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
-#i386/isa/pcvt/pcvt_out.c	optional	vt	device-driver
-#i386/isa/pcvt/pcvt_sup.c	optional	vt	device-driver
-#i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_drv.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_out.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_sup.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
 i386/isa/pnp.c			optional	pnp	device-driver
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/ppc.c			optional	ppc	device-driver
 i386/isa/pcf.c			optional	pcf	device-driver
-i386/isa/psm.c			optional	psm	device-driver
+isa/psm.c			optional	psm	device-driver
 i386/isa/random_machdep.c	standard
 i386/isa/rc.c			optional	rc	device-driver
 i386/isa/rp.c			optional	rp	device-driver
@@ -264,13 +278,10 @@ pc98/pc98/spkr.c		optional	speaker	device-driver
 i386/isa/stallion.c		optional	stl	device-driver
 pc98/pc98/syscons.c		optional	sc	device-driver
 pc98/pc98/scvidctl.c		optional	sc	device-driver
-#i386/isa/scvesactl.c		optional	sc	device-driver
-#i386/isa/videoio.c		optional	sc	device-driver
-#i386/isa/vesa.c			optional	sc	device-driver
 i386/isa/tw.c			optional	tw	device-driver
 pc98/pc98/wd.c			optional	wdc	device-driver
 pc98/pc98/wd.c			optional	wd	device-driver
-i386/isa/atapi.c		optional	atapi	device-driver
+i386/isa/atapi.c		optional	wdc	device-driver
 i386/isa/atapi-cd.c		optional	wcd	device-driver
 i386/isa/wfd.c			optional	wfd	device-driver
 i386/isa/wst.c			optional	wst	device-driver
