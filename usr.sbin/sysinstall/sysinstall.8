@@ -1,5 +1,5 @@
 .\" Copyright (c) 1997
-.\"	Jordan Hubbard <jkh@freebsd.org>.  All rights reserved.
+.\"	Jordan Hubbard <jkh@FreeBSD.org>.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: sysinstall.8,v 1.20 1999/08/17 10:57:18 mpp Exp $
+.\"	$Id: sysinstall.8,v 1.21 1999/08/18 05:54:54 chris Exp $
 .\"
 .Dd August 9, 1997
 .Dt SYSINSTALL 8
@@ -37,11 +37,17 @@
 .Op Ar ...
 .Sh DESCRIPTION
 .Nm
-is a utility for installing and configuring FreeBSD systems.
-It is the first utility invoked by the FreeBSD installation boot
+is a utility for installing and configuring
+.Fx
+systems.
+It is the first utility invoked by the
+.Fx
+installation boot
 floppy and is also copied into
 .Pa /stand/sysinstall
-on newly installed FreeBSD systems for use in later configuring the system.
+on newly installed
+.Fx
+systems for use in later configuring the system.
 .Pp
 The
 .Nm
@@ -63,10 +69,14 @@ the ability to write MBRs and disk labels (through the services
 of the
 .Xr libdisk 3
 library) and install distributions or packages onto new and
-existing FreeBSD systems.  It also contains some extra intelligence
+existing
+.Fx
+systems.  It also contains some extra intelligence
 for running as a replacement for
 .Xr init 8
-when it's invoked by the FreeBSD installation boot procedure.  It
+when it's invoked by the
+.Fx
+installation boot procedure.  It
 assumes very little in the way of additional utility support and
 performs most file system operations by calling the relevant syscalls
 (such as
@@ -79,11 +89,12 @@ currently uses the
 library to do user interaction with simple ANSI line graphics, color
 support for which is enabled by either running on a syscons VTY or some
 other color-capable terminal emulator (newer versions of xterm will support
-color when using the ``xterm-color'' termcap entry).
+color when using the
+.Dq xterm-color
+termcap entry).
 .Pp
 This product is currently at the end of its life cycle and will
 eventually be replaced.
-utility.
 .Sh RUNNING SCRIPTS
 .Nm
 may be either driven interactively through its various internal menus
@@ -124,7 +135,7 @@ directive), upon reaching the end of the argument list or on error.
 For example:
 .nf
 
-/stand/sysinstall _ftpPath=ftp:/ziggy/pub/ mediaSetFTP configPackages
+/stand/sysinstall _ftpPath=ftp://ziggy/pub/ mediaSetFTP configPackages
 
 .fi
 Would initialize
@@ -178,7 +189,11 @@ loading any required 3rd-party routing daemons as necessary.
 .Bl -tag -width indent
 .It router
 can be set to the name of the desired routing daemon,
-e.g. ``routed'' or ``gated'', otherwise it is prompted for.
+e.g.
+.Dq routed
+or
+.Dq gated ,
+otherwise it is prompted for.
 .El
 .It configNFSServer
 Configure host as an NFS server.
@@ -226,18 +241,27 @@ change to geometry.
 .It partition
 Set to disk partitioning type or size, its value being
 .Ar free
-in order to use only remaining free space for FreeBSD,
+in order to use only remaining free space for
+.Fx ,
 .Ar all
-to use the entire disk for FreeBSD but maintain a proper partition
+to use the entire disk for
+.Fx
+but maintain a proper partition
 table,
 .Ar existing
-to use an existing FreeBSD partition (first found),
+to use an existing
+.Fx
+partition (first found),
 .Ar exclusive
-to use the disk in ``dangerously dedicated'' mode or, finally,
+to use the disk in
+.Dq dangerously dedicated
+mode or, finally,
 .Ar somenumber
 to allocate
 .Ar somenumber
-blocks of available free space to a new FreeBSD partition.
+blocks of available free space to a new
+.Fx
+partition.
 Default:  Interactive mode.
 .It bootManager
 is set to one of
@@ -262,7 +286,8 @@ function) to be written out.
 \fBVariables:\fR None
 .It diskLabelEditor
 Invokes the disk label editor.  This is a bit trickier from a script
-since you need to essentially label everything inside each FreeBSD
+since you need to essentially label everything inside each
+.Fx
 (type 0xA5) partition created by the
 .Ar diskPartitionEditor
 function, and that requires knowing a few rules about how things are
@@ -273,15 +298,20 @@ what the slice names will be, then and only then hardwiring them into
 the script.
 .Pp
 For example, let's say you have a SCSI disk on which you've created a new
-FreeBSD partition in slice 2 (your DOS partition residing in slice 1).
+.Fx
+partition in slice 2 (your DOS partition residing in slice 1).
 The slice name would be
 .Ar da0s2
-for the whole FreeBSD partition (
-.Ar da0s1
+for the whole
+.Fx
+partition
+.Ar ( da0s1
 being your DOS primary
 partition).  Now let's further assume that you have 500MB in this
 partition and you want to sub-partition that space into root, swap,
-var and usr file systems for FreeBSD.  Your invocation of the
+var and usr file systems for
+.Fx .
+Your invocation of the
 .Ar diskLabelEditor
 function might involve setting the following variables:
 .Bl -tag -width findx
@@ -336,11 +366,12 @@ Resets all selected distributions to the empty set (no distributions selected).
 .It distSetCustom
 Allows the selection of a custom distribution set (e.g. not just on of the
 existing "canned" sets) with no user interaction.
+
 \fBVariables:\fR
 .Bl -tag -width indent
 .It dists
 List of distributions to load.  Possible distribution values are:
-.Bl -tag -width indent
+.Bl -tag -width indentxx
 .It Li bin
 The base binary distribution.
 .It Li doc
@@ -360,19 +391,31 @@ GNU info files and other extra docs.
 .It Li des
 DES encryption binaries and libraries.
 .It Li compat1x
-Compatibility with FreeBSD 1.x
+Compatibility with
+.It Li 1.x
 .It Li compat20
-Compatibility with FreeBSD 2.0
+Compatibility with
+.Fx 2.0
 .It Li compat21
-Compatibility with FreeBSD 2.1
+Compatibility with
+.Fx 2.1
+.It Li compat22
+.Fx 2.2
+and
+.Fx 3.0
+a.out binary compatibility
+.It Li compat3x
+Compatibility with
+.It Li 3.x
+(available for
+.Fx 4.0
+systems only)
 .It Li ports
 The ports collection.
 .It Li krb
 Kerberos binaries.
 .It Li ssecure
 /usr/src/secure
-.It Li sebones
-/usr/src/eBones
 .It Li sbase
 /usr/src/[top level files]
 .It Li scontrib
@@ -564,6 +607,7 @@ variable).  Defaults to lynx.
 Commit any and all pending changes to disk.  This function
 is essentially shorthand for a number of more granular "commit"
 functions.
+.Pp
 \fBVariables:\fR None
 .It installExpress
 Start an "express" installation, asking few questions of
@@ -613,7 +657,9 @@ configuration file from another.
 The fully pathname of the file to load.
 .El
 .It mediaSetCDROM
-Select a FreeBSD CDROM as the installation media.
+Select a
+.Fx
+CDROM as the installation media.
 .Pp
 \fBVariables:\fR None
 .It mediaSetFloppy
@@ -641,8 +687,8 @@ The domain name of the host being installed (optional).
 .It defaultrouter
 The default router for this host (non-optional).
 .It netDev
-Which host interface to use (
-.Ar ed0
+Which host interface to use
+.Ar ( ed0
 or
 .Ar ep0 ,
 for example.  Non-optional).
@@ -654,9 +700,10 @@ The IP address for the selected host interface (non-optional).
 .It netmask
 The netmask for the selected host interface (non-optional).
 .It _ftpPath
-The fully qualified URL of the FTP site containing the FreeBSD
+The fully qualified URL of the FTP site containing the
+.Fx
 distribution you're interested in, e.g.
-.Ar ftp://ftp.freebsd.org/pub/FreeBSD/ .
+.Ar ftp://ftp.FreeBSD.org/pub/FreeBSD/ .
 .El
 .It mediaSetFTPActive
 Alias for
@@ -679,7 +726,9 @@ the installation media.
 \fBVariables:\fR
 .Bl -tag -width indent
 .It ufs
-full /path to directory containing the FreeBSD distribution you're
+full /path to directory containing the
+.Fx
+distribution you're
 interested in.
 .El
 .It mediaSetNFS
@@ -693,8 +742,8 @@ The domain name of the host being installed (optional).
 .It defaultrouter
 The default router for this host (non-optional).
 .It netDev
-Which host interface to use (
-.Ar ed0
+Which host interface to use
+.Ar ( ed0
 or
 .Ar ep0 ,
 for example.  Non-optional).
@@ -707,7 +756,9 @@ The IP address for the selected host interface (non-optional).
 The netmask for the selected host interface (non-optional).
 .It nfs
 full hostname:/path specification for directory containing
-the FreeBSD distribution you're interested in.
+the
+.Fx
+distribution you're interested in.
 .El
 .It mediaSetFTPUserPass
 .Pp
