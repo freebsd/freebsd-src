@@ -222,8 +222,8 @@
       <groupname>kmem</groupname> で SGID
       されている必要はなくなりました。&merged;</para>
 
-    <para>The kernel environment is now dynamic, and can be changed
-      via the new &man.kenv.2; system call.</para>
+    <para>カーネル環境が新たに &man.kenv.2; システムコールを利用して
+      動的に変更することができるようになりました。</para>
 
     <para role="historic">&os; カーネルに &man.kqueue.2;
       イベント通知機能が追加されました。
@@ -443,8 +443,8 @@
     <para arch="i386,pc98">The ubsa driver has been added to support
       the Belkin F5U103 (and compatible) USB-to-serial adaptors.</para>
 
-    <para arch="i386">USB モデムに対応した umodem ドライバが追加されました。
-      このドライバは
+    <para arch="i386">USB モデムに対応した
+      &man.umodem.4; ドライバが追加されました。このドライバは
       3Com 5605 と Metricom Ricochet GS wireless USB モデムに対応しています。
       &merged;</para>
 
@@ -1029,18 +1029,18 @@
 	に対応しました。104/128 ビット WEP も Prism カードで動くように
 	なりました。&merged;</para>
 
-      <para role="historic">The &man.wi.4;
-	driver now supports using a &os; host as
-	a wireless access point.  This functionality can be enabled
-	using the <literal>mediaopt hostap</literal> option of
-	&man.ifconfig.8;.  This feature requires a wireless
-	adapter based on the Prism II chipset. &merged;</para>
+      <para role="historic">&man.wi.4; ドライバが
+	&os; ホストを無線アクセスポイントとして利用できるようになりました。
+	この機能は &man.ifconfig.8; の <literal>mediaopt hostap</literal>
+	オプションを使って有効にすることができます。ただし、これは
+	Prism II チップセットベースの無線アダプタを利用する場合に限ります。
+	&merged;</para>
 
       <para role="historic">The &man.wi.4; driver now has support for
 	<application>bsd-airtools</application>. &merged;</para>
 
-      <para role="historic">The xe driver can now be built as a
-	module. &merged;</para>
+      <para role="historic">xe ドライバがモジュールとして
+        構築できるようになりました。&merged;</para>
 
       <para role="historic">&man.xl.4; ドライバが
         ラップトップで使われている 3Com 3C556 および
@@ -1206,9 +1206,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         connectives between match fields. &merged;</para>
 
       <para role="historic">
-	A new ng_eiface netgraph module has been added, which
-	appears as an Ethernet interface but delivers its Ethernet
-	frames to a Netgraph hook. &merged;</para>
+	ng_eiface netgraph モジュールが新たに追加されました。
+	Netgraph フックへイーサネットフレームを配送する
+	イーサネットインターフェースとして振舞います。&merged;</para>
 
       <para>A new &man.ng.device.4; netgraph node type has been added,
 	which creates a device entry in <filename>/dev</filename>, to
@@ -1331,12 +1331,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	</note>
       </para>
 
-      <para role="historic">
-	TCP now supports RFC 1948 (Defending Against Sequence
-	Number Attacks).  The
- 	<varname>net.inet.tcp.isn_reseed_interval</varname> sysctl
-	variable controls the reseeding of the secret data used in
-	the RFC 1948 initial sequence number calculations. &merged;</para>
+      <para role="historic">TCP の実装が
+	RFC 1948 (Defending Against Sequence Number Attacks) に対応しました。
+	sysctl 変数 <varname>net.inet.tcp.isn_reseed_interval</varname> 
+	は RFC 1948 初期シーケンスナンバーの計算において利用される
+	秘密データの reseeding を制御します。
+	<!-- XXX: rushani: should be translated -->
+	&merged;</para>
 
       <para role="historic">&os; の TCP 実装は、顕著な受信 SYN セグメントの
 	キャッシュを実装しました。
@@ -2413,10 +2414,11 @@ hw.pcic.irq="0"</programlisting>
       をご覧ください。
       &merged;</para>
 
-    <para>A bug with memory-mapped I/O, which could cause a system
-      crash, has been fixed.  For more information about a solution,
-      see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>.
+    <para>memory-mapped I/O
+      に潜んでいたシステムをクラッシュさせる可能性のあるバグが修正されました。
+      解決策に関する詳細な情報はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>
+      から得ることができます。
       &merged;</para>
 
     <para>A security hole, in which SUID programs could be made to
@@ -2865,15 +2867,15 @@ hw.pcic.irq="0"</programlisting>
       これらのスクリプトは <filename>/etc/periodic/security/</filename>
       に置かれています。&merged;</para>
 
-    <para>&man.expr.1; is now compliant with POSIX.2-1992 (and thus
-      also with POSIX.1-2001).  Some program depend on the old,
-      historic behavior and do not properly protect their arguments to
-      keep them from being misinterpreted as command-line options.
-      (the <filename role="package">devel/libtool</filename>
-      port/package, used by many GNU programs, is a notable example).
-      The old behavior can be requested by enabling compatibility mode
-      for &man.expr.1; as described in
-      &man.check.utility.compat.3;.</para>
+    <para>&man.expr.1; が
+      POSIX ユーティリティシンタックスガイドラインに適合しました。
+      しかしながら、&man.expr.1; の古く、
+      歴史的な振舞いに依存するプログラムがいくつかあります
+      (<filename role="package">devel/libtool</filename> の
+      port/package がその顕著な例でしたし、また今でもそうです)。
+      このような状況であるため、
+      環境変数 <envar>EXPR_COMPAT</envar> を定義すると
+      &man.expr.1; は以前のように振舞わせることができます。</para>
 
     <para>&man.fbtab.5; はターゲットデバイスとして、特定のデバイスや
       ディレクトリだけではなく、グロブマッチングパターンも受け付ける
@@ -2937,9 +2939,10 @@ hw.pcic.irq="0"</programlisting>
       &man.fmtcheck.3; が新たに追加されました。
       &merged;</para>
 
-    <para>&man.fold.1; now supports a <option>-b</option> flag to
-      break at byte positions and a <option>-s</option> flag to break at
-      word boundaries. &merged;</para>
+    <para>&man.fold.1; に、
+      指定バイト位置で改行する <option>-b</option> フラグ、
+      単語境界で改行する <option>-s</option> フラグが追加されました。
+      &merged;</para>
 
     <para role="historic">&man.fsdb.8; now supports a <literal>blocks</literal>
       command to list the blocks allocated by a particular
@@ -3107,11 +3110,12 @@ hw.pcic.irq="0"</programlisting>
       が UNIX ドメインソケットに対応しました。
       &merged;</para>
 
-    <para>By default, &man.inetd.8; is no longer run by &man.rc.8; at
-      boot-time, although &man.sysinstall.8; gives the option of
-      enabling it during binary installations.  &man.inetd.8; can also
-      be enabled by adding the following line to
-      <filename>/etc/rc.conf</filename>:</para>
+    <para>デフォルトでは、
+      &man.inetd.8; は起動時に &man.rc.8;から起動されなくなりました。
+      しかし、バイナリインストールの際には &man.sysinstall.8;
+      によってこのオプションは有効化されるようになっています。
+      &man.inetd.8; は <filename>/etc/rc.conf</filename>
+      に次の行を加えて有効にすることができます:</para>
 
     <programlisting>inetd_enable="YES"</programlisting>
 
@@ -3165,9 +3169,8 @@ hw.pcic.irq="0"</programlisting>
       <option>-q</option> (quiet) フラグが新たに追加されました。
       &merged;</para>
 
-    <para role="historic">&man.ispppcontrol.8;
-      has been deleted, and its functionality
-      has been folded into &man.spppcontrol.8;. &merged;</para>
+    <para role="historic">&man.ispppcontrol.8; が削除され、
+      その機能が &man.spppcontrol.8; に統合されました。&merged;</para>
 
     <para role="historic">&man.k5su.8; is no longer installed SUID
       <username>root</username> by default.  Users requiring this
@@ -3184,8 +3187,8 @@ hw.pcic.irq="0"</programlisting>
       コマンドが新たに追加されました。
       &merged;</para>
 
-    <para>&man.kenv.1; now has the ability to set or delete kernel
-      environment variables.</para>
+    <para>&man.kenv.1; がカーネル環境変数を
+      設定したり削除したりできるようになりました。</para>
 
     <para role="historic">Perl スクリプトだった &man.keyinfo.1; が
       C プログラムに変更されました。&merged;</para>
@@ -3201,8 +3204,8 @@ hw.pcic.irq="0"</programlisting>
       &man.regex.3; の正規表現文法に従います。
       &merged;</para>
 
-    <para>&man.killall.1; no longer tries to kill zombie processes
-      unless the <option>-z</option> flag is specified.</para>
+    <para>&man.killall.1; が <option>-z</option> フラグが指定されない限り、
+      ゾンビプロセスを kill しようとしなくなりました。</para>
 
     <para role="historic">新しいユーティリティ &man.kldconfig.8;
       が追加されました。
@@ -3351,11 +3354,11 @@ hw.pcic.irq="0"</programlisting>
       PostScript 形式ファイルの印刷を可能にするためのものです。
       &merged;</para>
 
-    <para role="historic">&man.lpd.8;
-      now recognizes the <option>-s</option> flag as
-      the preferred synonym for <option>-p</option> (these flags
-      cause &man.lpd.8; not to open a socket for network print
-      jobs). &merged;</para>
+    <para role="historic">&man.lpd.8; が
+      <option>-p</option> と同じ意味を持ち、よりわかりやすい
+      <option>-s</option> フラグを認識するようになりました
+      (これらの フラグは &man.lpd.8; がネットワーク経由の
+      プリントジョブ用ソケットを開かないようにします)。&merged;</para>
 
     <para role="historic">&man.lpd.8; now implements a new <literal>rc</literal>
       printcap option.  When specified in a print queue for a remote
@@ -3392,10 +3395,9 @@ hw.pcic.irq="0"</programlisting>
       a <option>-x</option> flag to sort filenames across a
       page. &merged;</para>
 
-    <para role="historic">&man.m4.1; now accepts a <option>-s</option>
-      flag to cause
-      it to emit <literal>#line</literal> directives for use by
-      &man.cpp.1;. &merged;</para>
+    <para role="historic">&man.m4.1; が &man.cpp.1; で利用される
+      <literal>#line</literal> 識別子を受け付けるようになりました。
+      &merged;</para>
 
     <para role="historic">&man.mail.1; に新しいオプション
       <option>-E</option> が追加されました。
@@ -3483,16 +3485,18 @@ hw.pcic.irq="0"</programlisting>
       ユーザが実行すべきコマンドをユーザに知らせるようになっています。
       &merged;</para>
 
-    <para role="historic">&man.mergemaster.8; now supports two new flags.
-      The <option>-p</option> flag enables a
-      <quote>pre-<literal>buildworld</literal></quote> mode to files
-      known to be essential to the success of the
-      <literal>buildworld</literal> and
-      <literal>installworld</literal> system updating steps.  The
-      <option>-C</option> flag, used after a successful
-      &man.mergemaster.8; run, compares options in
-      <filename>/etc/rc.conf</filename> to the default options in
-      <filename>/etc/defaults/rc.conf</filename>. &merged;</para>
+    <para role="historic">&man.mergemaster.8;
+      が新たに 2 つのフラグに対応しました。
+      <option>-p</option> フラグは
+      <quote>pre-<literal>buildworld</literal></quote> モードを有効にします。
+      これは、<literal>buildworld</literal> および
+      <literal>installworld</literal> のシステムアップグレードステップを
+      成功させるために不可欠なファイル群を比較するものです。
+      <option>-C</option> フラグは、
+      &man.mergemaster.8; がうまく動作した後、
+      <filename>/etc/rc.conf</filename> で指定されているオプションと
+      <filename>/etc/defaults/rc.conf</filename> で
+      定義されているデフォルトのオプションを比較します。&merged;</para>
 
     <para>&man.mesg.1; now conforms to SUSv3.  Among other things, it
       now uses the first terminal associated with the standard input,
@@ -3520,9 +3524,10 @@ hw.pcic.irq="0"</programlisting>
       パス名を列挙したファイルが利用できるようになりました。
       &merged;</para>
 
-    <para>&man.mv.1; now takes a (nonstandard) <option>-n</option> option to
-      automatically answer <quote>no</quote> when it would ask to
-      overwrite a file. &merged;</para>
+    <para>&man.mv.1; に、
+      (非標準の) <option>-n</option> オプションが追加されました。
+      これは、ファイルを上書きする際の確認に対して、
+      自動的に <quote>no</quote> を回答するものです。&merged;</para>
 
     <para role="historic">&man.natd.8; に &man.ipfw.8; のルールにより遮断された
       ために再評価できないパケットを記録する
@@ -3656,8 +3661,8 @@ hw.pcic.irq="0"</programlisting>
     <para>A &man.pam.exec.8; program execution service module has been
       added.</para>
 
-    <para>A &man.pam.ftp.8; module has been added to allow
-      authentication of anonymous FTP users.</para>
+    <para>&man.pam.ftp.8; モジュールが追加されました。
+      これは匿名 FTP ユーザの認証を実現します。</para>
 
     <para>A &man.pam.ftpusers.8; module has been added to perform
       checks against the &man.ftpusers.5; file.</para>
@@ -3666,43 +3671,47 @@ hw.pcic.irq="0"</programlisting>
       authentication and <filename>$HOME/.k5login</filename>
       authorization for &man.su.1;.</para>
 
-    <para>A &man.pam.lastlog.8; module has been added to record
-      sessions in the &man.utmp.5;, &man.wtmp.5;, and &man.lastlog.5;
-      databases.</para>
+    <para>&man.pam.lastlog.8; モジュールが追加されました。
+      これは &man.utmp.5;、&man.wtmp.5;、&man.lastlog.5; データベースの
+      セションの記録を実現します。</para>
 
-    <para>A &man.pam.login.access.8; module has been added, to allow
-      checking against <filename>/etc/login.access</filename>.</para>
+    <para>&man.pam.login.access.8; モジュールが追加されました。
+      これは <filename>/etc/login.access</filename>
+      の検査を実現します。</para>
 
-    <para>The &man.pam.nologin.8; module, which can disallow logins
-      using &man.nologin.5;, has been added.</para>
+    <para>&man.pam.nologin.8; モジュールが追加されました。
+      これは &man.nologin.5; を利用したログインの無効化に実現します。</para>
 
-    <para>The &man.pam.opie.8; and &man.pam.opieaccess.8; modules have
-      been added to control authentication via &man.opie.4;. &merged;</para>
+    <para>&man.pam.opie.8; および
+      &man.pam.opieaccess.8; モジュールが追加されました。
+      これは &man.opie.4; を経由した認証の制御を実現します。&merged;</para>
 
-    <para>A &man.pam.passwdqc.8; module has been added, to check the
-      quality of passwords submitted during password changes.</para>
+    <para>&man.pam.passwdqc.8; モジュールが追加されました。
+      これはパスワード変更の際に入力されたパスワードの
+      品質の検査を実現します。</para>
 
-    <para>A &man.pam.rhosts.8; module has been added to support
-      &man.rhosts.5; authentication.</para>
+    <para>&man.pam.rhosts.8; モジュールが追加されました。
+      これは &man.rhosts.5; 認証を実現します。</para>
 
-    <para>The &man.pam.rootok.8; module, which can be used to
-      authenticate only the superuser, has been added.</para>
+    <para>&man.pam.rootok.8; モジュールが追加されました。
+      これはスーパーユーザのみが認証を利用できます。</para>
 
-    <para>A &man.pam.securetty.8; module has been added to check the
-      <quote>security</quote> of a TTY, as listed in &man.ttys.5;.</para>
+    <para>&man.pam.securetty.8; モジュールが追加されました。
+      &man.ttys.5; に記載されている TTY の
+      <quote>セキュリティ</quote> を検査します。</para>
 
-    <para>A &man.pam.self.8; module, which allows self-authentication
-      of a user, has been added.</para>
+    <para>&man.pam.self.8; モジュールが追加されました。
+      これはユーザ自身の認証を実現します。</para>
 
-    <para role="historic">A &man.pam.ssh.8;
-      module has been added to allow the use of
-      SSH passphrases and keypairs for authentication.  This module
-      also handles session management by invoking
-      &man.ssh-agent.1;. &merged;</para>
+    <para role="historic">&man.pam.ssh.8; が追加されました。
+      これは、SSH のパスフレーズと暗号鍵対を使った認証の利用を実現します。
+      また、このモジュールは
+      &man.ssh-agent.1; を起動することでセッション管理も行ないます。
+      &merged;</para>
 
-    <para>A &man.pam.wheel.8; module has been added to permit
-      authentication to members of a group, which defaults to
-      <groupname>wheel</groupname>.</para>
+    <para>&man.pam.wheel.8; モジュールが追加されました。
+      これはグループのメンバの認証を可能にします
+      (デフォルトは <groupname>wheel</groupname> です)。</para>
 
     <para role="historic">&man.passwd.1; および &man.pw.8; で
       パスワードハッシュアルゴリズムを切り替えられるようになりました。
@@ -3710,10 +3719,10 @@ hw.pcic.irq="0"</programlisting>
       <literal>passwd_format</literal> をご覧ください。
       &merged;</para>
 
-    <para role="historic">&man.patch.1; now accepts a <option>-i</option>
-      command-line
-      flag to read a patch from a file, rather than standard
-      input. &merged;</para>
+    <para role="historic">&man.patch.1; に、
+      標準入力ではなく、ファイルからパッチを読み込むことを指定する
+      <option>-i</option> コマンドラインフラグが追加されました。
+      &merged;</para>
 
     <para>The &man.pathchk.1; utility, which checks pathnames for
       validity or portability between POSIX systems, has been
@@ -3774,9 +3783,10 @@ hw.pcic.irq="0"</programlisting>
       &man.pppd.8; を利用している場合は、グループ設定を変更する必要があります。
       &merged;</para>
 
-    <para role="historic">&man.pr.1; now supports the <option>-f</option> and
-      <option>-p</option> flags to pause output going to a
-      terminal. &merged;</para>
+    <para role="historic">&man.pr.1; が、
+      端末への出力を一時停止するよう指示する
+      <option>-f</option>、<option>-p</option> フラグに対応しました。
+      &merged;</para>
 
     <para>prefix(8) is obsolete and has been removed.  Its
       functionality is provided by the <option>eui64</option> command
@@ -3831,9 +3841,9 @@ hw.pcic.irq="0"</programlisting>
       now takes a <option>-k</option> to specify
       the next kernel to boot. &merged;</para>
 
-    <para>The &man.renice.8; command implements a <option>-n</option>
-      option, which specifies an increment to be applied to the
-      priority of a process. &merged;</para>
+    <para>&man.renice.8; コマンドに、
+      プロセスの優先度に対する増分を指定する
+      <option>-n</option> オプションが追加されました。&merged;</para>
 
     <para role="historic">&os; の &man.resolver.3;
       実装が EDNS0 に対応しました。
@@ -4144,8 +4154,8 @@ hw.pcic.irq="0"</programlisting>
       <literal>xterm-color</literal> terminal type may result in
       (benign) warnings from applications.</para>
 
-    <para role="historic">&man.tftp.1; and &man.tftpd.8;
-      now support IPv6. &merged;</para>
+    <para role="historic">&man.tftp.1; と &man.tftpd.8; が
+      IPv6 に対応しました。&merged;</para>
 
     <para role="historic">&man.tftpd.8;
       に新しいオプション <option>-c</option> および
@@ -4617,8 +4627,7 @@ hw.pcic.irq="0"</programlisting>
         &merged;</para>
 
       <para arch="i386,pc98"><application>smbfs</application> ユーザランド
-	ユーティリティのバージョン 1.4.5 がインポートされました。
-	&merged;</para>
+	ユーティリティのバージョン 1.4.5 がインポートされました。</para>
 
       <para><application>GNU sort</application> has been updated to
 	the version from <application>GNU textutils
@@ -5176,28 +5185,27 @@ hw.pcic.irq="0"</programlisting>
   </sect2>
 
   <sect2>
-    <title>Release Engineering and Integration</title>
+    <title>リリースエンジニアリングと統合</title>
 
-    <para>The <filename>bin</filename> distribution has been renamed
-      <filename>base</filename>, in order to make creation of combined
-      install/recovery disks easier.</para>
+    <para><filename>bin</filename> 配布物の名前が
+      総合したインストール / リカバリディスクの作成を容易にするために
+      <filename>base</filename> に変更されました。</para>
 
-    <para arch="i386">ISO images and CDROMs now use the
-      <filename>cdboot</filename> boot loader by default.  This
-      eliminates the need for an emulated floppy disk image on
-      a bootable CDROM and allows for a full
-      <filename>GENERIC</filename> kernel to be used for CDROM
-      installations, at the expense of compatability with some old
-      BIOSs.</para>
+    <para arch="i386">ISO イメージと CDROM は、デフォルトで
+      <filename>cdboot</filename> ブートローダを使うようになりました。
+      これにより bootable CDROM でフロッピディスクイメージの
+      エミュレーションをする必要がなくなり、CDROM インストールに
+      <filename>GENERIC</filename> カーネルを使えるようになりました
+      (その代わり、古い BIOS との互換性は損なわれています)。</para>
 
     <para arch="i386,pc98,alpha" role="historic">
-      <application>XFree86</application> 4.2.0
-      is now the default version of the X Window System supported by
-      &man.sysinstall.8;.  It installs
-      <application>XFree86</application> as a set of standard binary
-      packages, so the usual package utilities such as
-      &man.pkg.info.1; can be used to examine/manipulate its
-      components. &merged;</para>
+      <application>XFree86</application> 4.2.0 は
+      &man.sysinstall.8; が対応する
+      X Window System のデフォルトのバージョンになりました。
+      &man.sysinstall.8; は <application>XFree86</application> を
+      標準のバイナリパッケージセットとしてインストールするため、
+      &man.pkg.info.1; のような通常の package ユーティリティを使って
+      それらのコンポーネントを調べたり操作することが可能です。&merged;</para>
 
     <para>It is now possible to make releases of &os;
       5-CURRENT on a &os; 4-STABLE host and vice versa.  Cross-architecture
