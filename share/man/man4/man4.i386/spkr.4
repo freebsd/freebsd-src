@@ -2,6 +2,7 @@
 .Dt SPKR 4
 .Os FreeBSD
 .Sh NAME
+.Nm speaker ,
 .Nm spkr
 .Nd console speaker device driver
 .Sh SYNOPSIS
@@ -206,6 +207,8 @@ to crossing a block boundary.
 .It Pa /dev/speaker
 speaker device file
 .El
+.Sh SEE ALSO
+.Xr spkrtest 8
 .Sh AUTHOR
 Eric S. Raymond <esr@snark.thyrsus.com) June 1990
 .Sh "PORTED BY"
@@ -213,5 +216,4 @@ Andrew A. Chernov <ache@astral.msk.su>
 .Sh HISTORY
 The
 .Nm
-device appeared in
-.Fx 1.0 .
+device appeared in FreeBSD 1.0 .
