@@ -7,8 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-1995 Darren Reed";
-/*static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.4.2.4 1999/11/28 04:52:10 darrenr Exp $";*/
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.4.2.4 1999/11/28 04:52:10 darrenr Exp $";
 #endif
 
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -25,8 +24,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include <string.h>
 # include <stdlib.h>
 #endif
-#if ((defined(KERNEL) && (__FreeBSD_version >= 220000)) || \
-     (defined(_KERNEL) && (__FreeBSD_version >= 40013)))
+#if defined(_KERNEL) && (__FreeBSD_version >= 220000)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
