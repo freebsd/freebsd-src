@@ -690,22 +690,34 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	if (class->lc_flags & LC_SLEEPLOCK) {
 		/*
 		 * Since spin locks include a critical section, this check
-		 * impliclty enforces a lock order of all sleep locks before
+		 * implicitly enforces a lock order of all sleep locks before
 		 * all spin locks.
 		 */
 		if (td->td_critnest != 0)
 			panic("blockable sleep lock (%s) %s @ %s:%d",
 			    class->lc_name, lock->lo_name, file, line);
-		lock_list = &td->td_sleeplocks;
-	} else
-		lock_list = PCPU_PTR(spinlocks);
 
-	/*
-	 * Is this the first lock acquired?  If so, then no order checking
-	 * is needed.
-	 */
-	if (*lock_list == NULL)
-		return;
+		/*
+		 * If this is the first lock acquired then just return as
+		 * no order checking is needed.
+		 */
+		if (td->td_sleeplocks == NULL)
+			return;
+		lock_list = &td->td_sleeplocks;
+	} else {
+		/*
+		 * If this is the first lock, just return as no order
+		 * checking is needed.  We check this in both if clauses
+		 * here as unifying the check would require us to use a
+		 * critical section to ensure we don't migrate while doing
+		 * the check.  Note that if this is not the first lock, we
+		 * are already in a critical section and are safe for the
+		 * rest of the check.
+		 */
+		if (PCPU_GET(spinlocks) == NULL)
+			return;
+		lock_list = PCPU_PTR(spinlocks);
+	}
 
 	/*
 	 * Check to see if we are recursing on a lock we already own.  If
