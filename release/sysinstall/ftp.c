@@ -102,7 +102,10 @@ try:
     ftpBinary(OpenConn);
     if (dir && *dir != '\0') {
 	if ((i = ftpChdir(OpenConn, dir)) != 0) {
-	    msgDebug("Attempt to chdir to distribution in %s returns error code %d\n", dir, i);
+	    if (i == 550)
+		msgConfirm("No such directory %s, please check your path and try again.", dir);
+	    else
+		msgConfirm("FTP chdir to directory %s returned FTP error status %d\n", dir, i);
 	    goto punt;
 	}
     }
