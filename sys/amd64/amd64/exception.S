@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.6 1994/12/03 10:02:19 bde Exp $
+ *	$Id: exception.s,v 1.7 1995/01/14 13:20:05 bde Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -244,6 +244,44 @@ IDTVEC(syscall)
 	movb	$1,_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
+
+#ifdef COMPAT_LINUX
+/*
+ * Call gate entry for Linux syscall (int 0x80)
+ */
+	SUPERALIGN_TEXT
+IDTVEC(linux_syscall)
+	pushl	$0
+	pushl	$0
+	pushal
+	pushl	%ds
+	pushl	%es
+	movl	$KDSEL,%eax
+	movl	%ax,%ds
+	movl	%ax,%es
+	FAKE_MCOUNT(12*4(%esp))
+	incl	_cnt+V_SYSCALL
+	orl	$SWI_AST_MASK,_cpl
+	call	_linux_syscall
+	/*
+	 * There was no place to save the cpl so we have to recover it
+	 * indirectly.  For traps from user mode it was 0, and for traps
+	 * from kernel mode Oring SWI_AST_MASK into it didn't change it.
+	 */
+	subl	%eax,%eax
+	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
+	jne	1f
+	movl	_cpl,%eax
+1:
+	/*
+	 * Return via _doreti to handle ASTs.  Have to change trap frame
+	 * to interrupt frame.
+	 */
+	pushl	%eax
+	subl	$4,%esp
+	MEXITCOUNT
+	jmp	_doreti
+#endif /* COMPAT_LINUX */
 
 /*
  * Include what was once config+isa-dependent code.

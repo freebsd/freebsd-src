@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.8 1994/09/24 21:36:50 davidg Exp $
+ *	$Id: imgact_aout.c,v 1.9 1994/09/25 19:33:31 phk Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,16 @@ exec_aout_imgact(iparams)
 	unsigned long bss_size;
 	int error;
 	extern struct sysentvec aout_sysvec;
+
+#ifdef COMPAT_LINUX
+	/*
+	 * Linux and *BSD binaries look very much alike,
+	 * only the machine id is different: 
+	 * 0x64 for Linux, 0x86 for *BSD.
+	 */
+	if (((a_out->a_magic >> 16) & 0xff) != 0x86)
+		return -1;
+#endif /* COMPAT_LINUX */
 
 	/*
 	 * Set file/virtual offset based on a.out variant.

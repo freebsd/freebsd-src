@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.9 1994/10/09 22:07:37 sos Exp $
+# $Id: makesyscalls.sh,v 1.10 1994/11/06 21:57:16 ats Exp $
 
 set -e
 
@@ -183,7 +183,7 @@ awk < $1 "
 		printf ("struct sysentvec aout_sysvec = {\n") > sysent
 		printf ("\tsizeof (sysent) / sizeof (sysent[0]),\n") > sysent
 		printf ("\tsysent,\n") > sysent
-		printf ("\t0,\n\t0,\n\t0,\n\t0,\n\t0\n};\n") > sysent
+		printf ("\t0,\n\t0,\n\t0,\n\t0,\n\t0,\n\t0\n};\n") > sysent
 		printf("};\n") > sysnames
 	} '
 
