@@ -1169,8 +1169,6 @@ void
 union_removed_upper(un)
 	struct union_node *un;
 {
-	struct thread *td = curthread;
-
 	if (un->un_flags & UN_CACHED) {
 		int hash = UNION_HASH(un->un_uppervp, un->un_lowervp);
 
