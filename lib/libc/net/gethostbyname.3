@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)gethostbyname.3	8.4 (Berkeley) 5/25/95
-.\"     $Id$
+.\"     $Id: gethostbyname.3,v 1.8 1997/06/18 06:26:13 charnier Exp $
 .\"
 .Dd May 25, 1995
 .Dt GETHOSTBYNAME 3
@@ -47,7 +47,7 @@
 .Nd get network host entry
 .Sh SYNOPSIS
 .Fd #include <netdb.h>
-.Fd extern int h_errno;
+.Vt extern int h_errno;
 .Ft struct hostent *
 .Fn gethostbyname "const char *name"
 .Ft struct hostent *
