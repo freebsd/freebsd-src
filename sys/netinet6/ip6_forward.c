@@ -267,10 +267,19 @@ ip6_forward(m, srcrt)
 	 *      ipsec esp/tunnel/xxx-xxx/require esp/transport//require;
 	 */
 	for (isr = sp->req; isr; isr = isr->next) {
-		if (isr->saidx.mode == IPSEC_MODE_TRANSPORT)
-			goto skip_ipsec;
+		if (isr->saidx.mode == IPSEC_MODE_ANY)
+			goto doipsectunnel;
+		if (isr->saidx.mode == IPSEC_MODE_TUNNEL)
+			goto doipsectunnel;
 	}
 
+	/*
+	 * if there's no need for tunnel mode IPsec, skip.
+	 */
+	if (!isr)
+		goto skip_ipsec;
+
+    doipsectunnel:
 	/*
 	 * All the extension headers will become inaccessible
 	 * (since they can be encrypted).
@@ -317,8 +326,17 @@ ip6_forward(m, srcrt)
 		return;
 	}
 
+	if (ip6 != mtod(m, struct ip6_hdr *)) {
+		/*
+		 * now tunnel mode headers are added.  we are originating
+		 * packet instead of forwarding the packet.
+		 */
+		ip6_output(m, NULL, NULL, IPV6_FORWARDING/*XXX*/, NULL, NULL,
+		    NULL);
+		goto freecopy;
+	}
+
 	/* adjust pointer */
-	ip6 = mtod(m, struct ip6_hdr *);
 	dst = (struct sockaddr_in6 *)state.dst;
 	rt = state.ro ? state.ro->ro_rt : NULL;
 	if (dst != NULL && rt != NULL)
