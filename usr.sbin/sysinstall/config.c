@@ -941,7 +941,7 @@ configInetd(dialogMenuItem *self)
         variable_set2("inetd_enable", "NO", 1);
     } else {
         /* If inetd is enabled, we'll need an inetd.conf */
-
+        variable_set2("inetd_enable", "YES", 1);
 	if (!msgYesNo("inetd(8) relies on its configuration file, /etc/inetd.conf, to determine\n"
                    "which of its Internet services will be available.  The default FreeBSD\n"
                    "inetd.conf(5) leaves all services disabled by default, so they must be\n"
@@ -953,7 +953,6 @@ configInetd(dialogMenuItem *self)
             sprintf(cmd, "%s /etc/inetd.conf", variable_get(VAR_EDITOR));
             dialog_clear();
             systemExecute(cmd);
-            variable_set2("inetd_enable", "YES", 1);
 	}
     }
     restorescr(w);
