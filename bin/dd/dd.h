@@ -55,10 +55,9 @@ typedef struct {
 #define	ISTRUNC		0x20		/* valid to ftruncate() */
 	u_int		flags;
 
-	const char 	*name;		/* name */
+	const char	*name;		/* name */
 	int		fd;		/* file descriptor */
 	off_t		offset;		/* # of blocks to skip */
-
 } IO;
 
 typedef struct {
@@ -69,7 +68,7 @@ typedef struct {
 	uintmax_t	trunc;		/* # of truncated records */
 	uintmax_t	swab;		/* # of odd-length swab blocks */
 	uintmax_t	bytes;		/* # of bytes written */
-	double		start; 			/* start time of dd */
+	double		start;		/* start time of dd */
 } STAT;
 
 /* Flags (in ddflags). */
@@ -87,17 +86,17 @@ typedef struct {
 #define	C_NOTRUNC	0x00800
 #define	C_OBS		0x01000
 #define	C_OF		0x02000
-#define	C_SEEK		0x04000
-#define	C_SKIP		0x08000
-#define	C_SWAB		0x10000
-#define	C_SYNC		0x20000
-#define	C_UCASE		0x40000
-#define	C_UNBLOCK	0x80000
-#define	C_OSYNC		0x100000
-#define	C_SPARSE	0x200000
-#define C_PAREVEN	0x400000
-#define C_PARODD	0x800000
-#define C_PARSET	0x1000000
-#define C_PARNONE	0x2000000
+#define	C_OSYNC		0x04000
+#define	C_PAREVEN	0x08000
+#define	C_PARNONE	0x100000
+#define	C_PARODD	0x200000
+#define	C_PARSET	0x400000
+#define	C_SEEK		0x800000
+#define	C_SKIP		0x1000000
+#define	C_SPARSE	0x2000000
+#define	C_SWAB		0x4000000
+#define	C_SYNC		0x8000000
+#define	C_UCASE		0x10000000
+#define	C_UNBLOCK	0x20000000
 
-#define C_PARITY	(C_PAREVEN|C_PARODD|C_PARSET|C_PARNONE)
+#define	C_PARITY	(C_PAREVEN | C_PARODD | C_PARNONE | C_PARSET)
