@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.18 1996/08/04 22:40:35 pst Exp $
+ *	$Id: ftpd.c,v 1.19 1996/08/05 00:21:14 pst Exp $
  */
 
 #ifndef lint
@@ -667,10 +667,10 @@ pass(passwd)
 #endif
 #ifdef SKEY
 		rval = strcmp(skey_crypt(passwd, pw->pw_passwd, pw, pwok),
-			      passwd);
+			      pw->pw_passwd);
 		pwok = 0;
 #else
-		rval = strcmp(crypt(passwd, pw->passwd), passwd);
+		rval = strcmp(crypt(passwd, pw->passwd), pw->pw_passwd);
 #endif
 		/* The strcmp does not catch null passwords! */
 		if (*pw->pw_passwd == '\0' ||
