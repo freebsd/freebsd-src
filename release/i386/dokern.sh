@@ -40,7 +40,7 @@ elif [ "$MFS" = "NO" ]; then		# can be much bigger
 		-e '/gzip/d' \
 		-e '/PROCFS/d' \
 		-e '/KTRACE/d' \
-		-e 's/GENERIC/BOOTMFS/g' \
+		-e 's/GENERIC/BOOTMFS/g'
 fi
 echo "options  NFS_NOSERVER" 
 echo 'options  "MAXCONS=4"' 
