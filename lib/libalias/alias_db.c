@@ -859,17 +859,6 @@ AddLink(struct in_addr  src_addr,
     link = malloc(sizeof(struct alias_link));
     if (link != NULL)
     {
-    /* If either the aliasing address or source address are
-       equal to the default device address (equal to the
-       global variable aliasAddress), then set the alias
-       address field of the link record to zero */
-
-        if (src_addr.s_addr == aliasAddress.s_addr)
-            src_addr.s_addr = 0;
-
-        if (alias_addr.s_addr == aliasAddress.s_addr)
-            alias_addr.s_addr = 0;
-
     /* Basic initialization */
         link->src_addr          = src_addr;
         link->dst_addr          = dst_addr;
@@ -1030,7 +1019,7 @@ ReLink(struct alias_link *old_link,
 }
 
 static struct alias_link *
-FindLinkOut(struct in_addr src_addr,
+_FindLinkOut(struct in_addr src_addr,
             struct in_addr dst_addr,
             u_short src_port,
             u_short dst_port,
@@ -1039,9 +1028,6 @@ FindLinkOut(struct in_addr src_addr,
 {
     u_int i;
     struct alias_link *link;
-
-    if (src_addr.s_addr == aliasAddress.s_addr)
-        src_addr.s_addr = 0;
 
     i = StartPointOut(src_addr, dst_addr, src_port, dst_port, link_type);
     link = linkTableOut[i];
@@ -1064,7 +1050,8 @@ FindLinkOut(struct in_addr src_addr,
     {
         if (dst_port != 0)
         {
-            link = FindLinkOut(src_addr, dst_addr, src_port, 0, link_type, 0);
+            link = _FindLinkOut(src_addr, dst_addr, src_port, 0,
+                                link_type, 0);
             if (link != NULL && replace_partial_links)
             {
                 link = ReLink(link,
@@ -1075,7 +1062,38 @@ FindLinkOut(struct in_addr src_addr,
         }
         else if (dst_addr.s_addr != 0)
         {
-            link = FindLinkOut(src_addr, nullAddress, src_port, 0, link_type, 0);
+            link = _FindLinkOut(src_addr, nullAddress, src_port, 0,
+                                link_type, 0);
+        }
+    }
+
+    return(link);
+}
+
+static struct alias_link *
+FindLinkOut(struct in_addr src_addr,
+            struct in_addr dst_addr,
+            u_short src_port,
+            u_short dst_port,
+            int link_type,
+            int replace_partial_links)
+{
+    struct alias_link *link;
+
+    link = _FindLinkOut(src_addr, dst_addr, src_port, dst_port,
+                        link_type, replace_partial_links);
+
+    if (link == NULL)
+    {
+    /* The following allows permanent links to be
+       specified as using the default source address
+       (i.e. device interface address) without knowing
+       in advance what that address is. */
+        if (aliasAddress.s_addr != 0 &&
+            src_addr.s_addr == aliasAddress.s_addr)
+        {
+            link = _FindLinkOut(nullAddress, dst_addr, src_port, dst_port,
+                               link_type, replace_partial_links);
         }
     }
 
@@ -1084,7 +1102,7 @@ FindLinkOut(struct in_addr src_addr,
 
 
 struct alias_link *
-FindLinkIn(struct in_addr  dst_addr,
+_FindLinkIn(struct in_addr dst_addr,
            struct in_addr  alias_addr,
            u_short         dst_port,
            u_short         alias_port,
@@ -1113,14 +1131,6 @@ FindLinkIn(struct in_addr  dst_addr,
         flags_in |= LINK_UNKNOWN_DEST_ADDR;
     if (dst_port == 0)
         flags_in |= LINK_UNKNOWN_DEST_PORT;
-
-/* The following allows permanent links to be
-   be specified as using the default aliasing address
-   (i.e. device interface address) without knowing
-   in advance what that address is. */
-
-    if (alias_addr.s_addr == aliasAddress.s_addr)
-        alias_addr.s_addr = 0;
 
 /* Search loop */
     start_point = StartPointIn(alias_addr, alias_port, link_type);
@@ -1216,6 +1226,36 @@ FindLinkIn(struct in_addr  dst_addr,
     {
         return(NULL);
     }
+}
+
+struct alias_link *
+FindLinkIn(struct in_addr dst_addr,
+           struct in_addr alias_addr,
+           u_short dst_port,
+           u_short alias_port,
+           int link_type,
+           int replace_partial_links)
+{
+    struct alias_link *link;
+
+    link = _FindLinkIn(dst_addr, alias_addr, dst_port, alias_port,
+                       link_type, replace_partial_links);
+
+    if (link == NULL)
+    {
+    /* The following allows permanent links to be
+       specified as using the default aliasing address
+       (i.e. device interface address) without knowing
+       in advance what that address is. */
+        if (aliasAddress.s_addr != 0 &&
+            alias_addr.s_addr == aliasAddress.s_addr)
+        {
+            link = _FindLinkIn(dst_addr, nullAddress, dst_port, alias_port,
+                               link_type, replace_partial_links);
+        }
+    }
+
+    return(link);
 }
 
 
