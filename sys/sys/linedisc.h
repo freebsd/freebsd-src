@@ -50,9 +50,10 @@ struct tty;
 struct vnode;
 
 struct specinfo {
-
+	u_int		si_flags;
+#define SI_STASHED	0x0001	/* created in stashed storage */
 	udev_t		si_udev;
-	SLIST_ENTRY(specinfo)	si_hash;
+	LIST_ENTRY(specinfo)	si_hash;
 	SLIST_HEAD(, vnode) si_hlist;
 	char		si_name[SPECNAMELEN + 1];
 	void		*si_drv1, *si_drv2;
@@ -127,6 +128,7 @@ typedef int l_modem_t __P((struct tty *tp, int flag));
 
 /* This is type of the function DEVFS uses to hook into the kernel with */
 typedef void devfs_create_t __P((dev_t dev, uid_t uid, gid_t gid, int perms));
+typedef void devfs_remove_t __P((dev_t dev));
 
 /*
  * XXX: The dummy argument can be used to do what strategy1() never
@@ -275,11 +277,13 @@ dev_t	chrtoblk __P((dev_t dev));
 struct cdevsw *devsw __P((dev_t dev));
 int	devsw_module_handler __P((struct module *mod, int what, void *arg));
 char   *devtoname __P((dev_t dev));
+void	freedev __P((dev_t dev));
 int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
 dev_t	makebdev __P((int maj, int min));
 dev_t	make_dev __P((struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char *fmt, ...)) __printflike(6, 7);
 int	lminor __P((dev_t dev));
+void	remove_dev __P((dev_t dev));
 void	setconf __P((void));
 
 extern devfs_create_t *devfs_create_hook;

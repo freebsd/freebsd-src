@@ -1692,7 +1692,7 @@ vclean(vp, flags, p)
 
 	if (VSHOULDFREE(vp))
 		vfree(vp);
-
+	
 	/*
 	 * Done with purge, notify sleepers of the grim news.
 	 */
@@ -1821,6 +1821,7 @@ vgonel(vp, p)
 	if ((vp->v_type == VBLK || vp->v_type == VCHR) && vp->v_rdev != NULL) {
 		simple_lock(&spechash_slock);
 		SLIST_REMOVE(&vp->v_hashchain, vp, vnode, v_specnext);
+		freedev(vp->v_rdev);
 		simple_unlock(&spechash_slock);
 		vp->v_rdev = NULL;
 	}
