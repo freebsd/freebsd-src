@@ -63,12 +63,14 @@ as well if it is compiled with the
 .Dv DEVICE_POLLING
 option.
 .Sh HISTORY
-The fwe device driver first appeared in
+The
+.Nm
+device driver first appeared in
 .Fx 5.0 .
 .Sh BUGS
-This driver emulates ethernet very adhoc way and it does not reserve a
+This driver emulates ethernet in a very adhoc way and it does not reserve a
 stream channel using an isochronous manager.
-Note this driver uses very different protocol from RFC 2734
+Note that this driver uses a protocol which is very different from RFC 2734
 (IPv4 over IEEE 1394).
 .Sh SEE ALSO
 .Xr arp 4 ,
