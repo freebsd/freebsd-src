@@ -96,7 +96,8 @@ get_ip_addr(p)
 				ip_host->h_addrtype != AF_INET) {
 			return((struct sockaddr_in *)0);
 		}
-		s.sin_addr.s_addr = *(u_long *)ip_host->h_addr_list[0];
+		memcpy(&s.sin_addr.s_addr, ip_host->h_addr_list[0],
+		    sizeof(s.sin_addr.s_addr));
 	}
 	return(&s);
 }

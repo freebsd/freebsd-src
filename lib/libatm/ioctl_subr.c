@@ -172,7 +172,7 @@ get_vcc_info(intf, vccp)
 	/*
 	 * Return a pointer to the VCC info and its length
 	 */
-	*vccp = (struct air_vcc_rsp *) air.air_buf_addr;
+	*vccp = (struct air_vcc_rsp *)(void *)air.air_buf_addr;
 	return(buf_len);
 }
 
@@ -226,7 +226,7 @@ get_subnet_mask(intf, mask)
 	/*
 	 * Give the answer back to the caller
 	 */
-	ip_mask = (struct sockaddr_in *)&req.ifr_addr;
+	ip_mask = (struct sockaddr_in *)(void *)&req.ifr_addr;
 	*mask = *ip_mask;
 	mask->sin_family = AF_INET;
 
@@ -392,7 +392,7 @@ get_cfg_info ( intf, cfgp )
         /*
          * Return a pointer to the Config info and its length
          */
-        *cfgp = (struct air_cfg_rsp *) air.air_buf_addr;
+        *cfgp = (struct air_cfg_rsp *)(void *)air.air_buf_addr;
         return ( buf_len );
 
 }
@@ -430,7 +430,7 @@ get_intf_info ( intf, intp )
         /*
          * Return a pointer to the Physical Interface info and its length
          */
-        *intp = (struct air_int_rsp *) air.air_buf_addr;
+        *intp = (struct air_int_rsp *)(void *)air.air_buf_addr;
         return ( buf_len );
 
 }

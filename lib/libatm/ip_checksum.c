@@ -77,7 +77,7 @@ ip_checksum(addr, count)
 
 	while( count > 1 ) {
 		/* This is the inner loop */
-		sum += ntohs(* (unsigned short *) addr);
+		sum += ntohs(* (unsigned short *)(void *)addr);
 		addr += sizeof(unsigned short);
 		count -= sizeof(unsigned short);
 	}
