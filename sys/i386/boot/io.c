@@ -1,6 +1,4 @@
 /*
- * Ported to boot 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
- *
  * Mach Operating System
  * Copyright (c) 1992, 1991 Carnegie Mellon University
  * All Rights Reserved.
@@ -24,30 +22,9 @@
  * 
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
- */
-
-/*
- * HISTORY
- * $Log: io.c,v $
- * Revision 1.3  1993/07/11  12:02:24  andrew
- * Fixes from bde, including support for loading @ any MB boundary (e.g. a
- * kernel linked for 0xfe100000 will load at the 1MB mark) and read-ahead
- * buffering to speed booting from floppies.  Also works with aha174x
- * controllers in enhanced mode.
  *
- * Revision 1.2  1993/06/18  02:28:59  cgd
- * make it *do* something when loading the kernel, a la sun twiddling-thing
- *
- * Revision 1.1  1993/03/21  18:08:38  cgd
- * after 0.2.2 "stable" patches applied
- *
- * Revision 2.2  92/04/04  11:35:57  rpd
- * 	Fixed for IBM L40's A20 initialization.
- * 	[92/03/30            rvb]
- * 
- * 	Created.
- * 	[92/03/30            mg32]
- * 
+ *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
+ *	$Id$
  */
 
 #include <i386/include/pio.h>
