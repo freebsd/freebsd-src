@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.3 1995/03/19 13:28:46 joerg Exp $
+ *	$Id: print.c,v 1.4 1995/05/30 00:06:50 rgrimes Exp $
  */
 
 #ifndef lint
@@ -52,7 +52,6 @@ static char sccsid[] = "@(#)print.c	8.4 (Berkeley) 4/17/94";
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <tzfile.h>
 #include <unistd.h>
 #include <utmp.h>
 
@@ -234,7 +233,7 @@ printtime(ftime)
 	for (i = 4; i < 11; ++i)
 		(void)putchar(longstring[i]);
 
-#define	SIXMONTHS	((DAYSPERNYEAR / 2) * SECSPERDAY)
+#define	SIXMONTHS	((365 / 2) * 86400)
 	if (f_sectime)
 		for (i = 11; i < 24; i++)
 			(void)putchar(longstring[i]);

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.6 1995/03/19 13:29:01 joerg Exp $
+ *	$Id: print.c,v 1.7 1995/05/30 00:07:04 rgrimes Exp $
  */
 
 #ifndef lint
@@ -65,7 +65,6 @@ static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #include <stdlib.h>
 #include <string.h>
 #include <vis.h>
-#include <tzfile.h>
 
 #include "ps.h"
 
@@ -369,11 +368,11 @@ started(k, ve)
 	tp = localtime(&k->ki_u.u_start.tv_sec);
 	if (!now)
 		(void)time(&now);
-	if (now - k->ki_u.u_start.tv_sec < 24 * SECSPERHOUR) {
+	if (now - k->ki_u.u_start.tv_sec < 24 * 3600) {
 		/* I *hate* SCCS... */
 		static char fmt[] = __CONCAT("%l:%", "M%p");
 		(void)strftime(buf, sizeof(buf) - 1, fmt, tp);
-	} else if (now - k->ki_u.u_start.tv_sec < 7 * SECSPERDAY) {
+	} else if (now - k->ki_u.u_start.tv_sec < 7 * 86400) {
 		/* I *hate* SCCS... */
 		static char fmt[] = __CONCAT("%a%", "I%p");
 		(void)strftime(buf, sizeof(buf) - 1, fmt, tp);
