@@ -218,7 +218,7 @@ ata_detach(device_t dev)
     if (!dev)
 	return ENXIO;
     scp = device_get_softc(dev);
-    if (!scp || !scp->devices)
+    if (!scp)
 	return ENXIO;
 
     /* make sure channel is not busy SOS XXX */
