@@ -533,7 +533,7 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 #ifdef MAC
 	mac_destroy_mount(mp);
 #endif
-	if (mp->mnt_op->vfs_mount == NULL)
+	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
 	crfree(mp->mnt_cred);
 	free(mp, M_MOUNT);
