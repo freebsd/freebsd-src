@@ -78,7 +78,7 @@ nat_t *nat;
 		return 0;
 
 	tcp = (tcphdr_t *)fin->fin_dp;
-	off = (ip->ip_hl << 2) + (tcp->th_off << 2);
+	off = fin->fin_hlen + (tcp->th_off << 2);
 	bzero(membuf, sizeof(membuf));
 #if	SOLARIS
 	m = fin->fin_qfm;
@@ -194,7 +194,7 @@ nat_t *nat;
 		return 0;
 
 	tcp = (tcphdr_t *)fin->fin_dp;
-	off = (ip->ip_hl << 2) + (tcp->th_off << 2);
+	off = fin->fin_hlen + (tcp->th_off << 2);
 	m = *(mb_t **)fin->fin_mp;
 
 #if	SOLARIS
@@ -283,11 +283,13 @@ nat_t *nat;
 		fi.fin_data[0] = dp;
 		fi.fin_data[1] = sp;
 		fi.fin_out = 0;
-		ipn = nat_new(nat->nat_ptr, ip, &fi, 
+		ipn = nat_new(&fi, ip, nat->nat_ptr, NULL,
 			      IPN_UDP | (sp ? 0 : FI_W_SPORT), NAT_OUTBOUND);
 		if (ipn != NULL) {
 			ipn->nat_age = fr_defnatage;
-			(void) fr_addstate(ip, &fi, sp ? 0 : FI_W_SPORT);
+			(void) fr_addstate(ip, &fi, NULL,
+					   FI_IGNOREPKT|FI_NORULE|
+					   (sp ? 0 : FI_W_SPORT));
 		}
 	}
 
@@ -298,11 +300,12 @@ nat_t *nat;
 		fi.fin_data[0] = sp;
 		fi.fin_data[1] = 0;
 		fi.fin_out = 1;
-		ipn = nat_new(nat->nat_ptr, ip, &fi, IPN_UDP|FI_W_DPORT,
+		ipn = nat_new(&fi, ip, nat->nat_ptr, NULL, IPN_UDP|FI_W_DPORT,
 			      NAT_OUTBOUND);
 		if (ipn != NULL) {
 			ipn->nat_age = fr_defnatage;
-			(void) fr_addstate(ip, &fi, FI_W_DPORT);
+			(void) fr_addstate(ip, &fi, NULL,
+					   FI_W_DPORT|FI_IGNOREPKT|FI_NORULE);
 		}
 	}
 
