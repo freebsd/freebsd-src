@@ -161,7 +161,7 @@ static void rt_unref(struct rtentry *);
 static void dummynet(void *);
 static void dummynet_flush(void);
 void dummynet_drain(void);
-static int dummynet_io(int pipe, int dir, struct mbuf *m, struct ifnet *ifp,
+static int dummynet_io(int pipe_nr, int dir, struct mbuf *m, struct ifnet *ifp,
 		struct route *ro, struct sockaddr_in * dst,
 		struct ip_fw *rule, int flags);
 static void dn_rule_delete(void *);
@@ -445,7 +445,10 @@ transmit_event(struct dn_pipe *pipe)
 		/* somebody unloaded the bridge module. Drop pkt */
 		printf("-- dropping bridged packet trapped in pipe--\n");
 		m_freem(pkt->dn_m);
-	    } else {
+		break;
+	    } /* fallthrough */
+	case DN_TO_ETH_DEMUX:
+	    {
 		struct mbuf *m = (struct mbuf *)pkt ;
 		struct ether_header *eh;
 
@@ -465,11 +468,18 @@ transmit_event(struct dn_pipe *pipe)
 		 * (originally pkt->dn_m, but could be something else now) if
 		 * it has not consumed it.
 		 */
-		m = bdg_forward_ptr(m, eh, pkt->ifp);
-		if (m)
-		    m_freem(m);
+		if (pkt->dn_dir == DN_TO_BDG_FWD) {
+		    m = bdg_forward_ptr(m, eh, pkt->ifp);
+		    if (m)
+			m_freem(m);
+		} else
+		    ether_demux(NULL, eh, m); /* which consumes the mbuf */
 	    }
 	    break ;
+	case DN_TO_ETH_OUT:
+	    ether_output_frame(pkt->ifp, (struct mbuf *)pkt);
+	    break;
+
 	default:
 	    printf("dummynet: bad switch %d!\n", pkt->dn_dir);
 	    m_freem(pkt->dn_m);
@@ -1036,6 +1046,18 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
 /*
  * dummynet hook for packets. Below 'pipe' is a pipe or a queue
  * depending on whether WF2Q or fixed bw is used.
+ *
+ * pipe_nr	pipe or queue the packet is destined for.
+ * dir		where shall we send the packet after dummynet.
+ * m		the mbuf with the packet
+ * ifp		the 'ifp' parameter from the caller.
+ *		NULL in ip_input, destination interface in ip_output,
+ *		real_dst in bdg_forward
+ * ro		route parameter (only used in ip_output, NULL otherwise)
+ * dst		destination address, only used by ip_output
+ * rule		matching rule, in case of multiple passes
+ * flags	flags from the caller, only used in ip_output
+ * 
  */
 int
 dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
