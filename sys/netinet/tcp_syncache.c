@@ -1101,7 +1101,7 @@ syncache_respond(sc, m)
 		    ((sc->sc_flags & SCF_CC) ? TCPOLEN_CC_APPA * 2 : 0);
 #ifdef TCP_SIGNATURE
 		optlen += (sc->sc_flags & SCF_SIGNATURE) ?
-		    (TCPOLEN_SIGNATURE + 2) : 0;
+		    TCPOLEN_SIGNATURE + 2 : 0;
 #endif
 	}
 	tlen = hlen + sizeof(struct tcphdr) + optlen;
