@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.50 1996/09/03 14:21:53 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.51 1996/09/19 18:20:27 nate Exp $
  */
 
 /*
@@ -698,9 +698,9 @@ open(p, uap, retval)
 	}
 	p->p_dupfd = 0;
 	vp = nd.ni_vp;
-		
+
 	fp->f_flag = flags & FMASK;
-	fp->f_type = DTYPE_VNODE;
+	fp->f_type = (vp->v_type == VFIFO ? DTYPE_FIFO : DTYPE_VNODE);
 	fp->f_ops = &vnops;
 	fp->f_data = (caddr_t)vp;
 	if (flags & (O_EXLOCK | O_SHLOCK)) {
@@ -2346,7 +2346,7 @@ getvnode(fdp, fd, fpp)
 	if ((u_int)fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL)
 		return (EBADF);
-	if (fp->f_type != DTYPE_VNODE)
+	if (fp->f_type != DTYPE_VNODE && fp->f_type != DTYPE_FIFO)
 		return (EINVAL);
 	*fpp = fp;
 	return (0);
