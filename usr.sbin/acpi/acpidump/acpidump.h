@@ -160,6 +160,111 @@ struct FACS {
 	char		reserved[40];
 } __packed;
 
+struct MADT_local_apic {
+	u_char		cpu_id;
+	u_char		apic_id;
+	u_int32_t	flags;
+#define	ACPI_MADT_APIC_LOCAL_FLAG_ENABLED	1
+} __packed;
+
+struct MADT_io_apic {
+	u_char		apic_id;
+	u_char		reserved;
+	u_int32_t	apic_addr;
+	u_int32_t	int_base;
+} __packed;
+
+struct MADT_int_override {
+	u_char		bus;
+	u_char		source;
+	u_int32_t	intr;
+	u_int16_t	mps_flags;
+#define	MPS_INT_FLAG_POLARITY_MASK	0x3
+#define	MPS_INT_FLAG_POLARITY_CONFORM	0x0
+#define	MPS_INT_FLAG_POLARITY_HIGH	0x1
+#define	MPS_INT_FLAG_POLARITY_LOW	0x3
+#define	MPS_INT_FLAG_TRIGGER_MASK	0xc
+#define	MPS_INT_FLAG_TRIGGER_CONFORM	0x0
+#define	MPS_INT_FLAG_TRIGGER_EDGE	0x4
+#define	MPS_INT_FLAG_TRIGGER_LEVEL	0xc
+} __packed;
+
+struct MADT_nmi {
+	u_int16_t	mps_flags;
+	u_int32_t	intr;
+} __packed;
+
+struct MADT_local_nmi {
+	u_char		cpu_id;
+	u_int16_t	mps_flags;
+	u_char		lintpin;
+} __packed;
+
+struct MADT_local_apic_override {
+	u_char		reserved[2];
+	u_int64_t	apic_addr;
+} __packed;
+
+struct MADT_io_sapic {
+	u_char		apic_id;
+	u_char		reserved;
+	u_int32_t	int_base;
+	u_int64_t	apic_addr;
+} __packed;
+
+struct MADT_local_sapic {
+	u_char		cpu_id;
+	u_char		apic_id;
+	u_char		apic_eid;
+	u_char		reserved[3];
+	u_int32_t	flags;
+} __packed;
+
+struct MADT_int_src {
+	u_int16_t	mps_flags;
+	u_char		type;
+#define	ACPI_MADT_APIC_INT_SOURCE_PMI	1
+#define	ACPI_MADT_APIC_INT_SOURCE_INIT	2
+#define	ACPI_MADT_APIC_INT_SOURCE_CPEI	3	/* Corrected Platform Error */
+	u_char		cpu_id;
+	u_char		cpu_eid;
+	u_char		sapic_vector;
+	u_int32_t	intr;
+	u_char		reserved[4];
+} __packed;
+
+struct MADT_APIC {
+	u_char		type;
+#define	ACPI_MADT_APIC_TYPE_LOCAL_APIC	0
+#define	ACPI_MADT_APIC_TYPE_IO_APIC	1
+#define	ACPI_MADT_APIC_TYPE_INT_OVERRIDE 2
+#define	ACPI_MADT_APIC_TYPE_NMI		3
+#define	ACPI_MADT_APIC_TYPE_LOCAL_NMI	4
+#define	ACPI_MADT_APIC_TYPE_LOCAL_OVERRIDE 5
+#define	ACPI_MADT_APIC_TYPE_IO_SAPIC	6
+#define	ACPI_MADT_APIC_TYPE_LOCAL_SAPIC	7
+#define	ACPI_MADT_APIC_TYPE_INT_SRC	8
+	u_char		len;
+	union {
+		struct MADT_local_apic local_apic;
+		struct MADT_io_apic io_apic;
+		struct MADT_int_override int_override;
+		struct MADT_nmi nmi;
+		struct MADT_local_nmi local_nmi;
+		struct MADT_local_apic_override local_apic_override;
+		struct MADT_io_sapic io_sapic;
+		struct MADT_local_sapic local_sapic;
+		struct MADT_int_src int_src;
+	} body;
+} __packed;
+
+struct MADTbody {
+	u_int32_t	lapic_addr;
+	u_int32_t	flags;
+#define	ACPI_APIC_FLAG_PCAT_COMPAT 1	/* Syetem has dual-8259 setup. */
+	u_char		body[1];
+} __packed;
+
 void		*acpi_map_physical(vm_offset_t, size_t);
 struct ACPIrsdp	*acpi_find_rsd_ptr(void);
 int		 acpi_checksum(void *, size_t);
