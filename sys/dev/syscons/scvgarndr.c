@@ -199,8 +199,8 @@ vga_txtcursor_shape(scr_stat *scp, int base, int height, int blink)
 		return;
 	/* the caller may set height <= 0 in order to disable the cursor */
 #if 0
-	scp->cursor_base = base;
-	scp->cursor_height = height;
+	scp->curs_attr.base = base;
+	scp->curs_attr.height = height;
 #endif
 	(*vidsw[scp->sc->adapter]->set_hw_cursor_shape)(scp->sc->adp,
 							base, height,
@@ -217,7 +217,7 @@ draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
 	scp->cursor_saveunder_attr = a;
 
 #ifndef SC_NO_FONT_LOADING
-	if (sc->flags & SC_CHAR_CURSOR) {
+	if (scp->curs_attr.flags & CONS_CHAR_CURSOR) {
 		unsigned char *font;
 		int h;
 		int i;
@@ -232,22 +232,20 @@ draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
 			font = sc->font_14;
 			h = 14;
 		}
-		if (scp->cursor_base >= h)
+		if (scp->curs_attr.base >= h)
 			return;
 		if (flip)
 			a = (a & 0x8800)
 				| ((a & 0x7000) >> 4) | ((a & 0x0700) << 4);
 		bcopy(font + c*h, font + sc->cursor_char*h, h);
 		font = font + sc->cursor_char*h;
-		for (i = imax(h - scp->cursor_base - scp->cursor_height, 0);
-			i < h - scp->cursor_base; ++i) {
+		for (i = imax(h - scp->curs_attr.base - scp->curs_attr.height, 0);
+			i < h - scp->curs_attr.base; ++i) {
 			font[i] ^= 0xff;
 		}
-		sc->font_loading_in_progress = TRUE;
 		/* XXX */
 		(*vidsw[sc->adapter]->load_font)(sc->adp, 0, h, font,
 						 sc->cursor_char, 1);
-		sc->font_loading_in_progress = FALSE;
 		sc_vtb_putc(&scp->scr, at, sc->cursor_char, a);
 	} else
 #endif /* SC_NO_FONT_LOADING */
@@ -274,7 +272,7 @@ vga_txtcursor(scr_stat *scp, int at, int blink, int on, int flip)
 	video_adapter_t *adp;
 	int cursor_attr;
 
-	if (scp->cursor_height <= 0)	/* the text cursor is disabled */
+	if (scp->curs_attr.height <= 0)	/* the text cursor is disabled */
 		return;
 
 	adp = scp->sc->adp;
@@ -621,8 +619,8 @@ vga_pxlcursor_shape(scr_stat *scp, int base, int height, int blink)
 		return;
 	/* the caller may set height <= 0 in order to disable the cursor */
 #if 0
-	scp->cursor_base = base;
-	scp->cursor_height = height;
+	scp->curs_attr.base = base;
+	scp->curs_attr.height = height;
 #endif
 }
 
@@ -644,7 +642,7 @@ draw_pxlcursor(scr_stat *scp, int at, int on, int flip)
 		+ scp->yoff*scp->font_size*line_width 
 		+ (at%scp->xsize) 
 		+ scp->font_size*line_width*(at/scp->xsize)
-		+ (scp->font_size - scp->cursor_base - 1)*line_width;
+		+ (scp->font_size - scp->curs_attr.base - 1)*line_width;
 
 	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
 	outw(GDCIDX, 0x0003);		/* data rotate/function select */
@@ -666,8 +664,8 @@ draw_pxlcursor(scr_stat *scp, int at, int on, int flip)
 		col = (on) ? ((a & 0xf000) >> 4) : (a & 0x0f00);
 	outw(GDCIDX, col | 0x00);	/* set/reset */
 	f = &(scp->font[sc_vtb_getc(&scp->vtb, at)*scp->font_size
-		+ scp->font_size - scp->cursor_base - 1]);
-	height = imin(scp->cursor_height, scp->font_size);
+		+ scp->font_size - scp->curs_attr.base - 1]);
+	height = imin(scp->curs_attr.height, scp->font_size);
 	for (i = 0; i < height; ++i, --f) {
 		outw(GDCIDX, (*f << 8) | 0x08);	/* bit mask */
 	       	writeb(d, 0);
@@ -683,7 +681,7 @@ static int pxlblinkrate = 0;
 static void 
 vga_pxlcursor(scr_stat *scp, int at, int blink, int on, int flip)
 {
-	if (scp->cursor_height <= 0)	/* the text cursor is disabled */
+	if (scp->curs_attr.height <= 0)	/* the text cursor is disabled */
 		return;
 
 	if (on) {

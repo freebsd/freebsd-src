@@ -103,9 +103,11 @@ typedef struct ssaver	ssaver_t;
 #define CONS_SSAVER	_IOW('c', 5, ssaver_t)
 #define CONS_GSAVER	_IOWR('c', 6, ssaver_t)
 
-/* set the text cursor shape */
+/* set the text cursor type (obsolete, see CONS_CURSORSHAPE below) */
+/*
 #define CONS_BLINK_CURSOR (1 << 0)
 #define CONS_CHAR_CURSOR (1 << 1)
+*/
 #define CONS_CURSORTYPE	_IOW('c', 7, int)
 
 /* set the bell type to audible or visual */
@@ -174,6 +176,22 @@ typedef struct mouse_info mouse_info_t;
 
 /* start the screen saver */
 #define CONS_SAVERSTART	_IOW('c', 13, int)
+
+/* set the text cursor shape (see also CONS_CURSORTYPE above) */
+#define CONS_BLINK_CURSOR	(1 << 0)
+#define CONS_CHAR_CURSOR	(1 << 1)
+#define CONS_HIDDEN_CURSOR	(1 << 2)
+#define CONS_CURSOR_ATTRS	(CONS_BLINK_CURSOR | CONS_CHAR_CURSOR |	\
+				 CONS_HIDDEN_CURSOR)
+#define CONS_RESET_CURSOR	(1 << 30)
+#define CONS_LOCAL_CURSOR	(1 << 31)
+#define CONS_CURSOR_FLAGS	(CONS_RESET_CURSOR | CONS_LOCAL_CURSOR)
+struct cshape {
+	/* shape[0]: flags, shape[1]: base, shape[2]: height */
+	int		shape[3];
+};
+#define CONS_GETCURSORSHAPE _IOWR('c', 14, struct cshape)
+#define CONS_SETCURSORSHAPE _IOW('c', 15, struct cshape)
 
 /* set/get font data */
 struct fnt8 {
