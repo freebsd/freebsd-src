@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: c++rt0.c,v 1.2 1995/05/30 05:39:36 rgrimes Exp $
+ *	$Id: c++rt0.c,v 1.3 1995/06/27 09:53:24 dfr Exp $
  */
 
 /*
@@ -54,10 +54,18 @@ __dtors(void)
 static void
 __ctors(void)
 {
-	void (**p)(void) = __CTOR_LIST__ + 1;
+	/*
+	 * If the shared library doesn't have any static constructors in it,
+	 * then __CTOR_LIST__ will come out as a simple COMMON region of
+	 * 4 bytes.  That is why we have to check the count in the first
+	 * word.
+	 */
+	if ((unsigned long) __CTOR_LIST__[0] > 0) {
+		void (**p)(void) = __CTOR_LIST__ + 1;
 
-	while (*p)
-		(**p++)();
+		while (*p)
+			(**p++)();
+	}
 }
 
 extern void __init() asm(".init");
