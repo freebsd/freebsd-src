@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.26 1997/08/25 22:14:57 bde Exp $
+ *	$Id: imgact_coff.c,v 1.27 1997/09/21 04:22:29 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_zone.h>
 
 #include <i386/ibcs2/coff.h>
 #include <i386/ibcs2/ibcs2_util.h>

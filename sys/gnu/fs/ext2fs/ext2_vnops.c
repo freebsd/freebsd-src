@@ -51,7 +51,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/resourcevar.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/stat.h>
 #include <sys/buf.h>
@@ -63,6 +62,7 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_zone.h>
 
 #include <sys/signalvar.h>
 #include <ufs/ufs/dir.h>
