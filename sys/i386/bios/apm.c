@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.82 1999/05/07 10:10:17 phk Exp $
+ *	$Id: apm.c,v 1.83 1999/05/08 21:59:13 dfr Exp $
  */
 
 #include "opt_devfs.h"
@@ -739,13 +739,13 @@ apm_probe(device_t dev)
 	switch (apm_version) {
 	case APMINI_CANTFIND:
 		/* silent */
-		return 0;
+		return ENXIO;
 	case APMINI_NOT32BIT:
 		printf("apm: 32bit connection is not supported.\n");
-		return 0;
+		return ENXIO;
 	case APMINI_CONNECTERR:
 		printf("apm: 32-bit connection error.\n");
-		return 0;
+		return ENXIO;
 	}
 	if (flags & 0x20)
 		statclock_disable = 1;
