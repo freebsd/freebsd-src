@@ -78,7 +78,7 @@ __bt_put(dbp, key, data, flags)
 	PAGE *h;
 	indx_t index, nxtindex;
 	pgno_t pg;
-	u_int32_t nbytes;
+	u_int32_t nbytes, tmp;
 	int dflags, exact, status;
 	char *dest, db[NOVFLSIZE], kb[NOVFLSIZE];
 
@@ -131,8 +131,9 @@ storekey:		if (__ovfl_put(t, key, &pg) == RET_ERROR)
 			tkey.data = kb;
 			tkey.size = NOVFLSIZE;
 			memmove(kb, &pg, sizeof(pgno_t));
+			tmp = key->size;
 			memmove(kb + sizeof(pgno_t),
-			    &key->size, sizeof(u_int32_t));
+			    &tmp, sizeof(u_int32_t));
 			dflags |= P_BIGKEY;
 			key = &tkey;
 		}
@@ -142,8 +143,9 @@ storekey:		if (__ovfl_put(t, key, &pg) == RET_ERROR)
 			tdata.data = db;
 			tdata.size = NOVFLSIZE;
 			memmove(db, &pg, sizeof(pgno_t));
+			tmp = data->size;
 			memmove(db + sizeof(pgno_t),
-			    &data->size, sizeof(u_int32_t));
+			    &tmp, sizeof(u_int32_t));
 			dflags |= P_BIGDATA;
 			data = &tdata;
 		}
