@@ -198,6 +198,13 @@
 	processors will be treated like additional physical processors
 	for the purposes of process scheduling. &merged;</para>
 
+      <para arch="i386">Support for the Physical Address Extensions
+	(PAE) capability on Intel Pentium Pro and higher processors
+	has been added.  This allows the use of up to 64GB of RAM in a
+	machine, although the amount of memory usable by any single
+	process (or the &os; kernel) is unchanged.  For more
+	information, see the &man.pae.4; manual page.</para>
+
     </sect3>
 
     <sect3>
@@ -238,7 +245,7 @@
 
       <para>The cm driver now supports IPX. &merged;</para>
 
-      <para>A new wlan module provides 802.11 link-layer support.  The
+      <para>A new &man.wlan.4; module provides 802.11 link-layer support.  The
 	&man.wi.4; driver now uses this facility.</para>
 
       <para arch="i386,alpha,pc98,sparc64">A timing bug in the
@@ -406,6 +413,10 @@
       directives cancel prior <literal>option</literal> and
       <literal>makeoption</literal> directives, respectively.</para>
 
+    <para>The &man.diskinfo.8; utility has been added to show
+      information about a disk device and optionally to run a naive
+      performance test.</para>
+
     <para>The <option>-N</option> and <option>-W</option> flags to
       &man.disklabel.8; have been retired.</para>
 
@@ -473,10 +484,22 @@
       and visible interface than the existing sysctl
       variables. &merged;</para>
 
+    <para>&man.jail.8; now supports a <option>-i</option> flag to
+      output an identifier for a newly-created jail.</para>
+
+    <para>The &man.jexec.8; utility has been added to execute a
+      command inside an existing jail.</para>
+
+    <para>The &man.jls.8; utility has been added to list existing
+      jails.</para>
+
     <para>&man.kenv.1; has been moved from
       <filename>/usr/bin</filename> to <filename>/bin</filename> to
       make it available at times during system startup when only the
       root filesystem is mounted.</para>
+
+    <para>&man.killall.1; now supports a <option>-j</option> option to
+      kill all processes inside a jail.</para>
 
     <para>The MAKEDEV script is now unnecessary, due to the mandatory
       presence of &man.devfs.5;, and has been removed.</para>
@@ -494,6 +517,10 @@
       easier creation of FFS snapshots.  It is a
       SUID-<username>root</username> executable designed for use by
       members of the <groupname>operator</groupname>group.</para>
+
+    <para>&man.mount.8; and &man.umount.8; now accept a
+      <option>-F</option> option to specify an alternate &man.fstab.5;
+      file.</para>
 
     <para>&man.mount.nfs.8; now supports a <option>-c</option> flag to
       avoid doing a &man.connect.2; for UDP mount points.  This option
@@ -536,6 +563,11 @@
       stuck at <literal>0</literal> has been fixed.  (&man.rand.3;
       remains unsuitable for all but trivial uses.)</para>
 
+    <para>&man.rtld.1; now has support for the dynamic mapping of
+      shared object dependencies.  More information can be found in
+      &man.libmap.conf.5;.  This is an optional feature, disabled by
+      default.</para>
+
     <para>&man.sem.open.3; now correctly handles multiple opens of the
       same semaphore; as a result, &man.sem.close.3; no longer crashes
       calling programs.</para>
@@ -568,6 +600,17 @@
 
     <para>&man.xargs.1; now supports a <option>-P</option> option to
       execute multiple copies of the same utility in parallel.</para>
+
+    <para>A 1:1 threading package (where for every pthread in an
+      application there is one KSE and thread) has been implemented.
+      Under this model, the kernel handles all thread scheduling
+      decisions and all signal delivery.  This uses some of the common
+      KSE code, and is a restricted case of the M:N threading work
+      still in progress.  The <filename>libthr</filename> library
+      implementing the userland portion of this functionality is a
+      drop-in replacement for the <filename>libc_r</filename> library.
+      Note that <filename>libthr</filename> is not (at this time)
+      built by default.</para>
 
     <sect3>
       <title>Contributed Software</title>
