@@ -1896,6 +1896,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	struct ifconf ifc;
 	struct l_ifreq ifr;
 	struct ifnet *ifp;
+	struct ifaddr *ifa;
 	struct iovec iov;
 	struct uio uio;
 	int error, ethno;
@@ -1918,10 +1919,11 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	/* Keep track of eth interfaces */
 	ethno = 0;
 
-	/* return interface names but no addresses. */
+	/* Return all AF_INET addresses of all interfaces */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (uio.uio_resid <= 0)
 			break;
+
 		bzero(&ifr, sizeof ifr);
 		if (IFP_IS_ETH(ifp))
 			snprintf(ifr.ifr_name, LINUX_IFNAMSIZ, "eth%d",
@@ -1929,9 +1931,25 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 		else
 			snprintf(ifr.ifr_name, LINUX_IFNAMSIZ, "%s%d",
 			    ifp->if_name, ifp->if_unit);
-		error = uiomove((caddr_t)&ifr, sizeof ifr, &uio);
-		if (error != 0)
-			return (error);
+
+		/* Walk the address list */
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			struct sockaddr *sa = ifa->ifa_addr;
+
+			if (uio.uio_resid <= 0)
+				break;
+
+			if (sa->sa_family == AF_INET) {
+				ifr.ifr_addr.sa_family = LINUX_AF_INET;
+				memcpy(ifr.ifr_addr.sa_data, sa->sa_data,
+				    sizeof(ifr.ifr_addr.sa_data));
+
+				error = uiomove((caddr_t)&ifr, sizeof ifr,
+				    &uio);
+				if (error != 0)
+					return (error);
+			}
+		}
 	}
 
 	ifc.ifc_len -= uio.uio_resid;
