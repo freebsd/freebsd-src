@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.51 1999/05/31 11:28:08 phk Exp $
+ * $Id: bpf.c,v 1.52 1999/07/06 19:23:10 des Exp $
  */
 
 #include "bpf.h"
@@ -78,11 +78,7 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-#include "opt_devfs.h"
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
+MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 
 #if NBPF > 0
 
@@ -111,11 +107,8 @@ SYSCTL_INT(_debug, OID_AUTO, bpf_bufsize, CTLFLAG_RW,
 
 /*
  *  bpf_iflist is the list of interfaces; each corresponds to an ifnet
- *  bpf_dtab holds the descriptors, indexed by minor device #
  */
 static struct bpf_if	*bpf_iflist;
-static struct bpf_d	bpf_dtab[NBPF];
-static int		bpf_dtab_init;
 
 static int	bpf_allocbufs __P((struct bpf_d *));
 static void	bpf_attachd __P((struct bpf_d *d, struct bpf_if *bp));
@@ -339,16 +332,6 @@ bpf_detachd(d)
 	d->bd_bif = 0;
 }
 
-
-/*
- * Mark a descriptor free by making it point to itself.
- * This is probably cheaper than marking with a constant since
- * the address should be in a register anyway.
- */
-#define D_ISFREE(d) ((d) == (d)->bd_next)
-#define D_MARKFREE(d) ((d)->bd_next = (d))
-#define D_MARKUSED(d) ((d)->bd_next = 0)
-
 /*
  * Open ethernet device.  Returns ENXIO for illegal minor device number,
  * EBUSY if file is open by another process.
@@ -366,18 +349,17 @@ bpfopen(dev, flags, fmt, p)
 	if (p->p_prison)
 		return (EPERM);
 
-	if (minor(dev) >= NBPF)
-		return (ENXIO);
+	d = dev->si_drv1;
 	/*
-	 * Each minor can be opened by only one process.  If the requested
+	 * Each minor can be opened by only one process.  If the requested 
 	 * minor is in use, return EBUSY.
 	 */
-	d = &bpf_dtab[minor(dev)];
-	if (!D_ISFREE(d))
+	if (d)
 		return (EBUSY);
-
-	/* Mark "free" and do most initialization. */
-	bzero((char *)d, sizeof(*d));
+	make_dev(&bpf_cdevsw, minor(dev), 0, 0, 0600, "bpf%d", lminor(dev));
+	MALLOC(d, struct bpf_d *, sizeof(*d), M_BPF, M_WAITOK);
+	bzero(d, sizeof(*d));
+	dev->si_drv1 = d;
 	d->bd_bufsize = bpf_bufsize;
 	d->bd_sig = SIGIO;
 
@@ -396,7 +378,7 @@ bpfclose(dev, flags, fmt, p)
 	int fmt;
 	struct proc *p;
 {
-	register struct bpf_d *d = &bpf_dtab[minor(dev)];
+	register struct bpf_d *d = dev->si_drv1;
 	register int s;
 
 	funsetown(d->bd_sigio);
@@ -405,6 +387,8 @@ bpfclose(dev, flags, fmt, p)
 		bpf_detachd(d);
 	splx(s);
 	bpf_freed(d);
+	dev->si_drv1 = 0;
+	FREE(d, M_BPF);
 
 	return (0);
 }
@@ -468,7 +452,7 @@ bpfread(dev, uio, ioflag)
 	register struct uio *uio;
 	int ioflag;
 {
-	register struct bpf_d *d = &bpf_dtab[minor(dev)];
+	register struct bpf_d *d = dev->si_drv1;
 	int error;
 	int s;
 
@@ -578,7 +562,7 @@ bpfwrite(dev, uio, ioflag)
 	struct uio *uio;
 	int ioflag;
 {
-	register struct bpf_d *d = &bpf_dtab[minor(dev)];
+	register struct bpf_d *d = dev->si_drv1;
 	struct ifnet *ifp;
 	struct mbuf *m;
 	int error, s;
@@ -657,7 +641,7 @@ bpfioctl(dev, cmd, addr, flags, p)
 	int flags;
 	struct proc *p;
 {
-	register struct bpf_d *d = &bpf_dtab[minor(dev)];
+	register struct bpf_d *d = dev->si_drv1;
 	int s, error = 0;
 
 	switch (cmd) {
@@ -909,7 +893,7 @@ bpf_setf(d, fp)
 		reset_d(d);
 		splx(s);
 		if (old != 0)
-			free((caddr_t)old, M_DEVBUF);
+			free((caddr_t)old, M_BPF);
 		return (0);
 	}
 	flen = fp->bf_len;
@@ -917,7 +901,7 @@ bpf_setf(d, fp)
 		return (EINVAL);
 
 	size = flen * sizeof(*fp->bf_insns);
-	fcode = (struct bpf_insn *)malloc(size, M_DEVBUF, M_WAITOK);
+	fcode = (struct bpf_insn *)malloc(size, M_BPF, M_WAITOK);
 	if (copyin((caddr_t)fp->bf_insns, (caddr_t)fcode, size) == 0 &&
 	    bpf_validate(fcode, (int)flen)) {
 		s = splimp();
@@ -925,11 +909,11 @@ bpf_setf(d, fp)
 		reset_d(d);
 		splx(s);
 		if (old != 0)
-			free((caddr_t)old, M_DEVBUF);
+			free((caddr_t)old, M_BPF);
 
 		return (0);
 	}
-	free((caddr_t)fcode, M_DEVBUF);
+	free((caddr_t)fcode, M_BPF);
 	return (EINVAL);
 }
 
@@ -1031,7 +1015,7 @@ bpfpoll(dev, events, p)
 	/*
 	 * An imitation of the FIONREAD ioctl code.
 	 */
-	d = &bpf_dtab[minor(dev)];
+	d = dev->si_drv1;
 
 	s = splimp();
 	if (events & (POLLIN | POLLRDNORM)) {
@@ -1209,13 +1193,13 @@ static int
 bpf_allocbufs(d)
 	register struct bpf_d *d;
 {
-	d->bd_fbuf = (caddr_t)malloc(d->bd_bufsize, M_DEVBUF, M_WAITOK);
+	d->bd_fbuf = (caddr_t)malloc(d->bd_bufsize, M_BPF, M_WAITOK);
 	if (d->bd_fbuf == 0)
 		return (ENOBUFS);
 
-	d->bd_sbuf = (caddr_t)malloc(d->bd_bufsize, M_DEVBUF, M_WAITOK);
+	d->bd_sbuf = (caddr_t)malloc(d->bd_bufsize, M_BPF, M_WAITOK);
 	if (d->bd_sbuf == 0) {
-		free(d->bd_fbuf, M_DEVBUF);
+		free(d->bd_fbuf, M_BPF);
 		return (ENOBUFS);
 	}
 	d->bd_slen = 0;
@@ -1237,16 +1221,14 @@ bpf_freed(d)
 	 * free.
 	 */
 	if (d->bd_sbuf != 0) {
-		free(d->bd_sbuf, M_DEVBUF);
+		free(d->bd_sbuf, M_BPF);
 		if (d->bd_hbuf != 0)
-			free(d->bd_hbuf, M_DEVBUF);
+			free(d->bd_hbuf, M_BPF);
 		if (d->bd_fbuf != 0)
-			free(d->bd_fbuf, M_DEVBUF);
+			free(d->bd_fbuf, M_BPF);
 	}
 	if (d->bd_filter)
-		free((caddr_t)d->bd_filter, M_DEVBUF);
-
-	D_MARKFREE(d);
+		free((caddr_t)d->bd_filter, M_BPF);
 }
 
 /*
@@ -1260,8 +1242,7 @@ bpfattach(ifp, dlt, hdrlen)
 	u_int dlt, hdrlen;
 {
 	struct bpf_if *bp;
-	int i;
-	bp = (struct bpf_if *)malloc(sizeof(*bp), M_DEVBUF, M_DONTWAIT);
+	bp = (struct bpf_if *)malloc(sizeof(*bp), M_BPF, M_DONTWAIT);
 	if (bp == 0)
 		panic("bpfattach");
 
@@ -1282,46 +1263,18 @@ bpfattach(ifp, dlt, hdrlen)
 	 */
 	bp->bif_hdrlen = BPF_WORDALIGN(hdrlen + SIZEOF_BPF_HDR) - hdrlen;
 
-	/*
-	 * Mark all the descriptors free if this hasn't been done.
-	 */
-	if (!bpf_dtab_init) {
-		for (i = 0; i < NBPF; ++i)
-			D_MARKFREE(&bpf_dtab[i]);
-		bpf_dtab_init = 1;
-	}
-
 	if (bootverbose)
 		printf("bpf: %s%d attached\n", ifp->if_name, ifp->if_unit);
 }
 
-#ifdef DEVFS
-static	void *bpf_devfs_token[NBPF];
-#endif
-
-static	int bpf_devsw_installed;
-
 static void bpf_drvinit __P((void *unused));
+
 static void
 bpf_drvinit(unused)
 	void *unused;
 {
-#ifdef DEVFS
-	int i;
-#endif
 
-	if( ! bpf_devsw_installed ) {
-		cdevsw_add(&bpf_cdevsw);
-		bpf_devsw_installed = 1;
-#ifdef DEVFS
-
-		for ( i = 0 ; i < NBPF ; i++ ) {
-			bpf_devfs_token[i] =
-				devfs_add_devswf(&bpf_cdevsw, i, DV_CHR, 0, 0, 
-						 0600, "bpf%d", i);
-		}
-#endif
-    	}
+	cdevsw_add(&bpf_cdevsw);
 }
 
 SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bpf_drvinit,NULL)
@@ -1366,4 +1319,4 @@ bpf_filter(pc, p, wirelen, buflen)
 	return -1;	/* "no filter" behaviour */
 }
 
-#endif
+#endif /* !BPF */
