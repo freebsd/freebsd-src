@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 6/6/93";
 
 int errmsgs;	/* Count of messages displayed by error() */
 
+extern int bs_mode;
 extern int sigs;
 extern int sc_width, sc_height;
 extern int ul_width, ue_width;
@@ -115,6 +116,17 @@ put_line()
 		case '\b':
 			putbs();
 			column--;
+			break;
+		case '\r':
+			/* treat \r\n sequences like \n if -u flag not set. */
+			if (bs_mode || p[1] != '\0')
+			{
+				/* -u was set, or this CR is not a CRLF, so
+				 * treat this CR like any other control_char */
+				putchr('^');;
+				putchr(CARAT_CHAR(c));
+				column += 2;
+			}
 			break;
 		default:
 			if (c == 0200 || CONTROL_CHAR(c))

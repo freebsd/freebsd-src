@@ -122,7 +122,7 @@ adjacent to an underscore character are displayed as underlined text.
 Backspaces which appear between two identical characters are displayed
 as emboldened text.
 .Dv CR-LF
-sequences are compressed to a single linefeed
+sequences are compressed to a single newline
 character.  The
 .Fl u
 option causes backspaces to always be displayed as
@@ -289,8 +289,7 @@ characteristics necessary to manipulate the screen.
 .Xr ctags 1 ,
 .Xr vi 1
 .Sh BUGS
-Incorrect output can result from omitting the -u flag when accessing regular
-files with CRLF line termination.
+Reading files with long lines is slow.
 .Sh AUTHORS
 This software is derived from software contributed to Berkeley
 by
