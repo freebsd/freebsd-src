@@ -243,7 +243,7 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 				return -1;
 			if ((fs->fs_magic == FS_UFS1_MAGIC ||
 			    (fs->fs_magic == FS_UFS2_MAGIC &&
-			    fs->fs_sblockloc == numfrags(fs, sblock_try[n]))) &&
+			    fs->fs_sblockloc == sblock_try[n])) &&
 			    fs->fs_bsize <= MAXBSIZE &&
 			    fs->fs_bsize >= sizeof(struct fs))
 				break;

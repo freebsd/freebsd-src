@@ -426,7 +426,7 @@ ffs_reload(mp, cred, td)
 	 * Step 2: re-read superblock from disk.
 	 */
 	fs = VFSTOUFS(mp)->um_fs;
-	if ((error = bread(devvp, fsbtodb(fs, fs->fs_sblockloc), fs->fs_sbsize,
+	if ((error = bread(devvp, btodb(fs->fs_sblockloc), fs->fs_sbsize,
 	    NOCRED, &bp)) != 0)
 		return (error);
 	newfs = (struct fs *)bp->b_data;
@@ -624,10 +624,11 @@ ffs_mountfs(devvp, mp, td, malloctype)
 		    cred, &bp)) != 0)
 			goto out;
 		fs = (struct fs *)bp->b_data;
-		sblockloc = numfrags(fs, sblock_try[i]);
+		sblockloc = sblock_try[i];
 		if ((fs->fs_magic == FS_UFS1_MAGIC ||
 		     (fs->fs_magic == FS_UFS2_MAGIC &&
-		      fs->fs_sblockloc == sblockloc)) &&
+		      (fs->fs_sblockloc == sblockloc ||
+		       (fs->fs_old_flags & FS_FLAGS_UPDATED) == 0))) &&
 		    fs->fs_bsize <= MAXBSIZE &&
 		    fs->fs_bsize >= sizeof(struct fs))
 			break;
@@ -848,12 +849,18 @@ ffs_oldfscompat_read(fs, ump, sblockloc)
 	off_t maxfilesize;
 
 	/*
+	 * If not yet done, update fs_flags location and value of fs_sblockloc.
+	 */
+	if ((fs->fs_old_flags & FS_FLAGS_UPDATED) == 0) {
+		fs->fs_flags = fs->fs_old_flags;
+		fs->fs_old_flags |= FS_FLAGS_UPDATED;
+		fs->fs_sblockloc = sblockloc;
+	}
+	/*
 	 * If not yet done, update UFS1 superblock with new wider fields.
 	 */
-	if (fs->fs_magic == FS_UFS1_MAGIC &&
-	    fs->fs_sblockloc != sblockloc) {
+	if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_size != fs->fs_old_size) {
 		fs->fs_maxbsize = fs->fs_bsize;
-		fs->fs_sblockloc = sblockloc;
 		fs->fs_time = fs->fs_old_time;
 		fs->fs_size = fs->fs_old_size;
 		fs->fs_dsize = fs->fs_old_dsize;
@@ -1471,8 +1478,8 @@ ffs_sbupdate(mp, waitfor)
 	 */
 	if (allerror)
 		return (allerror);
-	bp = getblk(mp->um_devvp, fsbtodb(fs, fs->fs_sblockloc),
-	    (int)fs->fs_sbsize, 0, 0);
+	bp = getblk(mp->um_devvp, btodb(fs->fs_sblockloc), (int)fs->fs_sbsize,
+	    0, 0);
 	fs->fs_fmod = 0;
 	fs->fs_time = time_second;
 	bcopy((caddr_t)fs, bp->b_data, (u_int)fs->fs_sbsize);

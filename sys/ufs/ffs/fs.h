@@ -302,7 +302,7 @@ struct fs {
 	int8_t   fs_fmod;		/* super block modified flag */
 	int8_t   fs_clean;		/* filesystem is clean flag */
 	int8_t 	 fs_ronly;		/* mounted read-only flag */
-	int8_t   fs_flags;		/* see FS_ flags below */
+	int8_t   fs_old_flags;		/* old FS_ flags */
 	u_char	 fs_fsmnt[MAXMNTLEN];	/* name mounted on */
 /* these fields retain the current block allocation info */
 	int32_t	 fs_cgrotor;		/* last cg searched */
@@ -314,7 +314,7 @@ struct fs {
 	int32_t	 fs_old_cpc;		/* cyl per cycle in postbl */
 	int32_t	 fs_maxbsize;		/* maximum blocking factor permitted */
 	int64_t	 fs_sparecon64[17];	/* old rotation block list head */
-	int64_t	 fs_sblockloc;		/* location of standard superblock */
+	int64_t	 fs_sblockloc;		/* byte offset of standard superblock */
 	struct	csum_total fs_cstotal;	/* cylinder summary information */
 	ufs_time_t fs_time;		/* last time written */
 	int64_t	 fs_size;		/* number of blocks in fs */
@@ -326,7 +326,8 @@ struct fs {
 	int32_t	 fs_avgfilesize;	/* expected average file size */
 	int32_t	 fs_avgfpdir;		/* expected # of files per directory */
 	int32_t	 fs_save_cgsize;	/* save real cg size to use fs_bsize */
-	int32_t	 fs_sparecon32[27];	/* reserved for future constants */
+	int32_t	 fs_sparecon32[26];	/* reserved for future constants */
+	int32_t  fs_flags;		/* see FS_ flags below */
 	int32_t	 fs_contigsumsize;	/* size of cluster summary array */ 
 	int32_t	 fs_maxsymlinklen;	/* max length of an internal symlink */
 	int32_t	 fs_old_inodefmt;	/* format of on-disk inodes */
@@ -389,6 +390,7 @@ struct fs {
 #define FS_INDEXDIRS  0x08	/* kernel supports indexed directories */
 #define FS_ACLS       0x10	/* file system has ACLs enabled */
 #define FS_MULTILABEL 0x20	/* file system is MAC multi-label */
+#define FS_FLAGS_UPDATED 0x80	/* flags have been moved to new location */
 
 /*
  * Macros to access bits in the fs_active array.

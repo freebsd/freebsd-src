@@ -235,8 +235,8 @@ restart:
 	/*
 	 * Allocate copies for the superblock and its summary information.
 	 */
-	error = UFS_BALLOC(vp, lfragtosize(fs, fs->fs_sblockloc),
-	    fs->fs_sbsize, KERNCRED, 0, &nbp);
+	error = UFS_BALLOC(vp, fs->fs_sblockloc, fs->fs_sbsize, KERNCRED,
+	    0, &nbp);
 	if (error)
 		goto out;
 	bawrite(nbp);
@@ -339,14 +339,14 @@ restart:
 	 * Grab a copy of the superblock and its summary information.
 	 * We delay writing it until the suspension is released below.
 	 */
-	error = bread(vp, fragstoblks(fs, fs->fs_sblockloc), fs->fs_bsize,
+	error = bread(vp, lblkno(fs, fs->fs_sblockloc), fs->fs_bsize,
 	    KERNCRED, &sbp);
 	if (error) {
 		brelse(sbp);
 		sbp = NULL;
 		goto out1;
 	}
-	loc = blkoff(fs, lfragtosize(fs, fs->fs_sblockloc));
+	loc = blkoff(fs, fs->fs_sblockloc);
 	copy_fs = (struct fs *)(sbp->b_data + loc);
 	bcopy(fs, copy_fs, fs->fs_sbsize);
 	if ((fs->fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) == 0)
