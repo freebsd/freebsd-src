@@ -1429,6 +1429,9 @@ static void wb_tick(xsc)
 {
 	struct wb_softc		*sc;
 	struct mii_data		*mii;
+	int			s;
+
+	s = splimp();
 
 	sc = xsc;
 	mii = device_get_softc(sc->wb_miibus);
@@ -1436,6 +1439,8 @@ static void wb_tick(xsc)
 	mii_tick(mii);
 
 	sc->wb_stat_ch = timeout(wb_tick, sc, hz);
+
+	splx(s);
 
 	return;
 }
