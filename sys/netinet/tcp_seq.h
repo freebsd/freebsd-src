@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_seq.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp_seq.h,v 1.2 1994/08/02 07:49:06 davidg Exp $
+ * $Id: tcp_seq.h,v 1.3 1994/08/21 05:27:37 paul Exp $
  */
 
 #ifndef _NETINET_TCP_SEQ_H_
@@ -45,6 +45,25 @@
 #define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
 #define	SEQ_GT(a,b)	((int)((a)-(b)) > 0)
 #define	SEQ_GEQ(a,b)	((int)((a)-(b)) >= 0)
+
+/* for modulo comparisons of timestamps */
+#define TSTMP_LT(a,b)	((int)((a)-(b)) < 0)
+#define TSTMP_GEQ(a,b)	((int)((a)-(b)) >= 0)
+
+#ifdef TTCP
+/*
+ * TCP connection counts are 32 bit integers operated
+ * on with modular arithmetic.  These macros can be
+ * used to compare such integers.
+ */
+#define	CC_LT(a,b)	((int)((a)-(b)) < 0)
+#define	CC_LEQ(a,b)	((int)((a)-(b)) <= 0)
+#define	CC_GT(a,b)	((int)((a)-(b)) > 0)
+#define	CC_GEQ(a,b)	((int)((a)-(b)) >= 0)
+
+/* Macro to increment a CC: skip 0 which has a special meaning */
+#define CC_INC(c)	(++(c) == 0 ? ++(c) : (c))
+#endif
 
 /*
  * Macros to initialize tcp sequence numbers for
@@ -60,7 +79,13 @@
 
 #define	TCP_ISSINCR	(125*1024)	/* increment for tcp_iss each second */
 
+#define TCP_PAWS_IDLE	(24 * 24 * 60 * 60 * PR_SLOWHZ)
+					/* timestamp wrap-around time */
+
 #ifdef KERNEL
 tcp_seq	tcp_iss;		/* tcp initial send seq # */
+#ifdef TTCP
+tcp_cc	tcp_ccgen;		/* global connection count */
+#endif
 #endif
 #endif

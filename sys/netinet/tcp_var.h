@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.3 (Berkeley) 4/10/94
- * $Id: tcp_var.h,v 1.2 1994/08/02 07:49:17 davidg Exp $
+ * $Id: tcp_var.h,v 1.3 1994/08/21 05:27:39 paul Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -52,6 +52,7 @@ struct tcpcb {
 	short	t_rxtcur;		/* current retransmit value */
 	short	t_dupacks;		/* consecutive dup acks recd */
 	u_short	t_maxseg;		/* maximum segment size */
+	u_short	t_maxopd;		/* mss plus options */
 	char	t_force;		/* 1 if forcing out a byte */
 	u_short	t_flags;
 #define	TF_ACKNOW	0x0001		/* ack peer immediately */
@@ -64,6 +65,13 @@ struct tcpcb {
 #define	TF_REQ_TSTMP	0x0080		/* have/will request timestamps */
 #define	TF_RCVD_TSTMP	0x0100		/* a timestamp was received in SYN */
 #define	TF_SACK_PERMIT	0x0200		/* other side said I could SACK */
+#ifdef TTCP
+#define TF_NEEDSYN	0x0400		/* send SYN (implicit state) */
+#define TF_NEEDFIN	0x0800		/* send FIN (implicit state) */
+#define TF_NOPUSH	0x1000		/* don't push */
+#define TF_REQ_CC	0x2000		/* have/will request CC */
+#define	TF_RCVD_CC	0x4000		/* a CC was received in SYN */
+#endif
 
 	struct	tcpiphdr *t_template;	/* skeletal packet for transmit */
 	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
@@ -126,10 +134,53 @@ struct tcpcb {
 	u_long	ts_recent;		/* timestamp echo data */
 	u_long	ts_recent_age;		/* when last updated */
 	tcp_seq	last_ack_sent;
+#ifdef TTCP
+/* RFC 1644 variables */
+	tcp_cc	cc_send;		/* send connection count */
+	tcp_cc	cc_recv;		/* receive connection count */
+	u_long	t_duration;		/* connection duration */
+#endif /* TTCP */
 
 /* TUBA stuff */
 	caddr_t	t_tuba_pcb;		/* next level down pcb for TCP over z */
 };
+
+#ifdef TTCP
+/*
+ * Structure to hold TCP options that are only used during segment
+ * processing (in tcp_input), but not held in the tcpcb.
+ * It's basically used to reduce the number of parameters
+ * to tcp_dooptions.
+ */
+struct tcpopt {
+	u_long	to_flag;		/* which options are present */
+#define TOF_TS		0x0001		/* timestamp */
+#define TOF_CC		0x0002		/* CC and CCnew are exclusive */
+#define TOF_CCNEW	0x0004
+#define	TOF_CCECHO	0x0008
+	u_long	to_tsval;
+	u_long	to_tsecr;
+	tcp_cc	to_cc;		/* holds CC or CCnew */
+	tcp_cc	to_ccecho;
+};
+
+/*
+ * The TAO cache entry which is stored in the protocol family specific
+ * portion of the route metrics.
+ */
+struct rmxp_tao {
+	tcp_cc	tao_cc;			/* latest CC in valid SYN */
+	tcp_cc	tao_ccsent;		/* latest CC sent to peer */
+	u_short	tao_mssopt;		/* peer's cached MSS */
+#ifdef notyet
+	u_short	tao_flags;		/* cache status flags */
+#define	TAOF_DONT	0x0001		/* peer doesn't understand rfc1644 */
+#define	TAOF_OK		0x0002		/* peer does understand rfc1644 */
+#define	TAOF_UNDEF	0		/* we don't know yet */
+#endif /* notyet */
+};
+#define rmx_taop(r)	((struct rmxp_tao *)&(r).rmx_pspec)
+#endif /* TTCP */
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
 #define	sototcpcb(so)	(intotcpcb(sotoinpcb(so)))
@@ -146,7 +197,7 @@ struct tcpcb {
 #define	TCP_RTT_SCALE		8	/* multiplier for srtt; 3 bits frac. */
 #define	TCP_RTT_SHIFT		3	/* shift for srtt; 3 bits frac. */
 #define	TCP_RTTVAR_SCALE	4	/* multiplier for rttvar; 2 bits */
-#define	TCP_RTTVAR_SHIFT	2	/* multiplier for rttvar; 2 bits */
+#define	TCP_RTTVAR_SHIFT	2	/* shift for rttvar; 2 bits */
 
 /*
  * The initial retransmission should happen at rtt + 4 * rttvar.
@@ -234,6 +285,21 @@ struct	tcpstat {
 	u_long	tcps_pcbcachemiss;
 };
 
+/*
+ * Names for TCP sysctl objects
+ */
+#define	TCPCTL_DO_RFC1323	1	/* use RFC-1323 extensions */
+#define	TCPCTL_DO_RFC1644	2	/* use RFC-1644 extensions */
+#define	TCPCTL_MSSDFLT		3	/* MSS default */
+#define TCPCTL_MAXID		4
+
+#define TCPCTL_NAMES { \
+	{ 0, 0 }, \
+	{ "do_rfc1323", CTLTYPE_INT }, \
+	{ "do_rfc1644", CTLTYPE_INT }, \
+	{ "mssdflt", CTLTYPE_INT }, \
+}
+
 #ifdef KERNEL
 struct	inpcb tcb;		/* head of queue of active tcpcb's */
 struct	tcpstat tcpstat;	/* tcp statistics */
@@ -243,19 +309,32 @@ int	 tcp_attach __P((struct socket *));
 void	 tcp_canceltimers __P((struct tcpcb *));
 struct tcpcb *
 	 tcp_close __P((struct tcpcb *));
+#ifdef TTCP
+int	 tcp_connect __P((struct tcpcb *, struct mbuf *));
+#endif
 void	 tcp_ctlinput __P((int, struct sockaddr *, struct ip *));
 int	 tcp_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
 struct tcpcb *
 	 tcp_disconnect __P((struct tcpcb *));
 struct tcpcb *
 	 tcp_drop __P((struct tcpcb *, int));
+#ifdef TTCP
+void	 tcp_dooptions __P((struct tcpcb *,
+	    u_char *, int, struct tcpiphdr *, struct tcpopt *));
+#else
 void	 tcp_dooptions __P((struct tcpcb *,
 	    u_char *, int, struct tcpiphdr *, int *, u_long *, u_long *));
+#endif
 void	 tcp_drain __P((void));
 void	 tcp_fasttimo __P((void));
+#ifdef TTCP
+struct rmxp_tao *
+	 tcp_gettaocache __P((struct inpcb *));
+#endif
 void	 tcp_init __P((void));
 void	 tcp_input __P((struct mbuf *, int));
-int	 tcp_mss __P((struct tcpcb *, u_int));
+void	 tcp_mss __P((struct tcpcb *, int));
+int	 tcp_mssopt __P((struct tcpcb *));
 struct tcpcb *
 	 tcp_newtcpcb __P((struct inpcb *));
 void	 tcp_notify __P((struct inpcb *, int));
@@ -266,8 +345,11 @@ void	 tcp_quench __P((struct inpcb *, int));
 int	 tcp_reass __P((struct tcpcb *, struct tcpiphdr *, struct mbuf *));
 void	 tcp_respond __P((struct tcpcb *,
 	    struct tcpiphdr *, struct mbuf *, u_long, u_long, int));
+struct rtentry *
+	 tcp_rtlookup __P((struct inpcb *));
 void	 tcp_setpersist __P((struct tcpcb *));
 void	 tcp_slowtimo __P((void));
+int	 tcp_sysctl __P((int *, u_int, void *, size_t *, void *, size_t));
 struct tcpiphdr *
 	 tcp_template __P((struct tcpcb *));
 struct tcpcb *
