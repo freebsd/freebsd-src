@@ -1683,15 +1683,6 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		u_int16_t capinfo, bintval, timoff;
 		u_int16_t fhdwell;
 
-		if (subtype == IEEE80211_FC0_SUBTYPE_BEACON) {
-			/*
-			 * Count beacon frames specially, some drivers
-			 * use this info to do things like update LED's.
-			 */
-			ic->ic_stats.is_rx_beacon++;
-			IEEE80211_NODE_STAT(ni, rx_beacons);
-		} else
-			IEEE80211_NODE_STAT(ni, rx_proberesp);
 		/*
 		 * We process beacon/probe response frames:
 		 *    o when scanning, or
@@ -1827,6 +1818,15 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			ic->ic_stats.is_rx_chanmismatch++;
 			return;
 		}
+
+		/*
+		 * Count frame now that we know it's to be processed.
+		 */
+		if (subtype == IEEE80211_FC0_SUBTYPE_BEACON) {
+			ic->ic_stats.is_rx_beacon++;		/* XXX remove */
+			IEEE80211_NODE_STAT(ni, rx_beacons);
+		} else
+			IEEE80211_NODE_STAT(ni, rx_proberesp);
 
 		/*
 		 * When operating in station mode, check for state updates.
