@@ -72,7 +72,6 @@ extern ssize_t		ski_copyout(const vm_offset_t src, void *dest, size_t len);
 extern ssize_t		ski_readin(int fd, vm_offset_t dest, size_t len);
 
 extern int		ski_boot(void);
-extern int		ski_autoload(void);
 
 struct bootinfo;
 struct preloaded_file;
