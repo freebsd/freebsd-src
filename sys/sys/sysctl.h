@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.70 1999/01/10 07:45:27 phk Exp $
+ * $Id: sysctl.h,v 1.71 1999/02/16 10:49:55 dfr Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -484,6 +484,8 @@ SYSCTL_DECL(_user);
 extern char	machine[];
 extern char	osrelease[];
 extern char	ostype[];
+
+struct linker_set;
 
 void	sysctl_register_set(struct linker_set *lsp);
 void	sysctl_unregister_set(struct linker_set *lsp);
