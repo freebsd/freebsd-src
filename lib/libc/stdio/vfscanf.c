@@ -42,6 +42,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -51,8 +52,10 @@ static const char rcsid[] =
 #include <varargs.h>
 #endif
 #include <string.h>
+#include "un-namespace.h"
 
 #include "collate.h"
+#include "libc_private.h"
 #include "local.h"
 
 #define FLOATING_POINT
@@ -100,21 +103,32 @@ static const char rcsid[] =
 static u_char *__sccl(char *, u_char *);
 
 /*
- * vfscanf
+ * __vfscanf - MT-safe version
  */
 int
-__svfscanf(fp, fmt0, ap)
-	register FILE *fp;
-	char const *fmt0;
-	va_list ap;
+__vfscanf(FILE *fp, char const *fmt0, va_list ap)
 {
-	register u_char *fmt = (u_char *)fmt0;
-	register int c;		/* character from format, or conversion */
-	register size_t width;	/* field width, or 0 */
-	register char *p;	/* points into all kinds of strings */
-	register int n;		/* handy integer */
-	register int flags;	/* flags as defined above */
-	register char *p0;	/* saves original value of p when necessary */
+	int ret;
+
+	FLOCKFILE(fp);
+	ret = __svfscanf(fp, fmt0, ap);
+	FUNLOCKFILE(fp);
+	return (ret);
+}
+
+/*
+ * __svfscanf - non-MT-safe version of __vfscanf
+ */
+int
+__svfscanf(FILE *fp, char const *fmt0, va_list ap)
+{
+	u_char *fmt = (u_char *)fmt0;
+	int c;			/* character from format, or conversion */
+	size_t width;		/* field width, or 0 */
+	char *p;		/* points into all kinds of strings */
+	int n;			/* handy integer */
+	int flags;		/* flags as defined above */
+	char *p0;		/* saves original value of p when necessary */
 	int nassigned;		/* number of fields assigned */
 	int nconversions;	/* number of conversions */
 	int nread;		/* number of characters consumed from fp */
@@ -539,13 +553,13 @@ literal:
 			 */
 			if (flags & NDIGITS) {
 				if (p > buf)
-					(void) ungetc(*(u_char *)--p, fp);
+					(void) __ungetc(*(u_char *)--p, fp);
 				goto match_failure;
 			}
 			c = ((u_char *)p)[-1];
 			if (c == 'x' || c == 'X') {
 				--p;
-				(void) ungetc(c, fp);
+				(void) __ungetc(c, fp);
 			}
 			if ((flags & SUPPRESS) == 0) {
 				u_quad_t res;
@@ -635,16 +649,16 @@ literal:
 				if (flags & EXPOK) {
 					/* no digits at all */
 					while (p > buf)
-						ungetc(*(u_char *)--p, fp);
+						__ungetc(*(u_char *)--p, fp);
 					goto match_failure;
 				}
 				/* just a bad exponent (e and maybe sign) */
 				c = *(u_char *)--p;
 				if (c != 'e' && c != 'E') {
-					(void) ungetc(c, fp);/* sign */
+					(void) __ungetc(c, fp);/* sign */
 					c = *(u_char *)--p;
 				}
-				(void) ungetc(c, fp);
+				(void) __ungetc(c, fp);
 			}
 			if ((flags & SUPPRESS) == 0) {
 				double res;

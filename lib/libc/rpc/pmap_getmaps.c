@@ -41,6 +41,7 @@ static char *rcsid = "$FreeBSD$";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include "namespace.h"
 #include <rpc/rpc.h>
 #include <rpc/pmap_prot.h>
 #include <rpc/pmap_clnt.h>
@@ -51,6 +52,8 @@ static char *rcsid = "$FreeBSD$";
 #include <errno.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
+#include "un-namespace.h"
+
 #define NAMELEN 255
 #define MAX_BROADCAST_SIZE 1400
 

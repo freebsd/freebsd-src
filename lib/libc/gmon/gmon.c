@@ -37,6 +37,7 @@
 static char sccsid[] = "@(#)gmon.c	8.1 (Berkeley) 6/4/93";
 #endif
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/gmon.h>
@@ -46,7 +47,9 @@ static char sccsid[] = "@(#)gmon.c	8.1 (Berkeley) 6/4/93";
 #include <errno.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 #if defined(__ELF__) && defined(i386)
 extern char *minbrk asm (".minbrk");

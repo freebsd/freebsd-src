@@ -29,16 +29,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)send.c	8.2 (Berkeley) 2/21/94";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 
 #include <stddef.h>
+#include "un-namespace.h"
 
 ssize_t
 send(s, msg, len, flags)
@@ -46,5 +50,5 @@ send(s, msg, len, flags)
 	size_t len;
 	const void *msg;
 {
-	return (sendto(s, msg, len, flags, NULL, 0));
+	return (_sendto(s, msg, len, flags, NULL, 0));
 }

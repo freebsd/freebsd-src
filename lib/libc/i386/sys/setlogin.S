@@ -43,7 +43,7 @@
 
 #include "SYS.h"
 
-.globl	CNAME(_logname_valid)		/* in getlogin() */
+.globl	CNAME(_logname_valid)		/* in _getlogin() */
 
 SYSCALL(setlogin)
 #ifdef PIC

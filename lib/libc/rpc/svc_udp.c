@@ -41,6 +41,7 @@ static char *rcsid = "$FreeBSD$";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include "namespace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -48,6 +49,7 @@ static char *rcsid = "$FreeBSD$";
 #include <rpc/rpc.h>
 #include <sys/socket.h>
 #include <errno.h>
+#include "un-namespace.h"
 
 #define rpc_buffer(xprt) ((xprt)->xp_p1)
 #define MAX(a, b)     ((a > b) ? a : b)
@@ -107,7 +109,7 @@ svcudp_bufcreate(sock, sendsz, recvsz)
 	int len = sizeof(struct sockaddr_in);
 
 	if (sock == RPC_ANYSOCK) {
-		if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+		if ((sock = _socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
 			perror("svcudp_create: socket creation problem");
 			return ((SVCXPRT *)NULL);
 		}
@@ -118,9 +120,9 @@ svcudp_bufcreate(sock, sendsz, recvsz)
 	addr.sin_family = AF_INET;
 	if (bindresvport(sock, &addr)) {
 		addr.sin_port = 0;
-		(void)bind(sock, (struct sockaddr *)&addr, len);
+		(void)_bind(sock, (struct sockaddr *)&addr, len);
 	}
-	if (getsockname(sock, (struct sockaddr *)&addr, &len) != 0) {
+	if (_getsockname(sock, (struct sockaddr *)&addr, &len) != 0) {
 		perror("svcudp_create - cannot getsockname");
 		if (madesock)
 			(void)_close(sock);
@@ -182,7 +184,7 @@ svcudp_recv(xprt, msg)
 
     again:
 	xprt->xp_addrlen = sizeof(struct sockaddr_in);
-	rlen = recvfrom(xprt->xp_sock, rpc_buffer(xprt), (int) su->su_iosz,
+	rlen = _recvfrom(xprt->xp_sock, rpc_buffer(xprt), (int) su->su_iosz,
 	    0, (struct sockaddr *)&(xprt->xp_raddr), &(xprt->xp_addrlen));
 	if (rlen == -1 && errno == EINTR)
 		goto again;
@@ -195,7 +197,7 @@ svcudp_recv(xprt, msg)
 	su->su_xid = msg->rm_xid;
 	if (su->su_cache != NULL) {
 		if (cache_get(xprt, msg, &reply, &replylen)) {
-			(void) sendto(xprt->xp_sock, reply, (int) replylen, 0,
+			(void) _sendto(xprt->xp_sock, reply, (int) replylen, 0,
 			  (struct sockaddr *) &xprt->xp_raddr, xprt->xp_addrlen);
 			return (TRUE);
 		}
@@ -218,7 +220,7 @@ svcudp_reply(xprt, msg)
 	msg->rm_xid = su->su_xid;
 	if (xdr_replymsg(xdrs, msg)) {
 		slen = (int)XDR_GETPOS(xdrs);
-		if (sendto(xprt->xp_sock, rpc_buffer(xprt), slen, 0,
+		if (_sendto(xprt->xp_sock, rpc_buffer(xprt), slen, 0,
 		    (struct sockaddr *)&(xprt->xp_raddr), xprt->xp_addrlen)
 		    == slen) {
 			stat = TRUE;

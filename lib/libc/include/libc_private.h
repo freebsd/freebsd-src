@@ -53,7 +53,7 @@ extern int	__isthreaded;
 #ifdef	_FLOCK_DEBUG
 #define _FLOCKFILE(x)	_flockfile_debug(x, __FILE__, __LINE__)
 #else
-#define _FLOCKFILE(x)	flockfile(x)
+#define _FLOCKFILE(x)	_flockfile(x)
 #endif
 
 /*
@@ -61,6 +61,6 @@ extern int	__isthreaded;
  * process is threaded to avoid locking when not required.
  */
 #define	FLOCKFILE(fp)		if (__isthreaded) _FLOCKFILE(fp)
-#define	FUNLOCKFILE(fp)		if (__isthreaded) funlockfile(fp)
+#define	FUNLOCKFILE(fp)		if (__isthreaded) _funlockfile(fp)
 
 #endif /* _LIBC_PRIVATE_H_ */

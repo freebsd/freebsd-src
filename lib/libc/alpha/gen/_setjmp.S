@@ -87,12 +87,8 @@ LEAF(_setjmp, 1)
 	RET
 END(_setjmp)
 
-#ifdef _THREAD_SAFE
+XLEAF(_longjmp, 2)
 LEAF(___longjmp, 2)
-#else
-XLEAF(___longjmp, 2)
-LEAF(_longjmp, 2)
-#endif
 	LDGP(pv)
 	ldq	t0, ((31 + 4) * 8)(a0)		/* magic in sc_regs[31] */
 	ldiq	t1, 0xacedbadd
@@ -127,8 +123,4 @@ botch:
 	CALL(longjmperror)
 	CALL(abort)
 	RET					/* "can't" get here... */
-#ifdef _THREAD_SAFE
 END(___longjmp)
-#else
-END(_longjmp)
-#endif

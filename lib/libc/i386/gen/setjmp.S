@@ -61,11 +61,7 @@ ENTRY(setjmp)
 	pushl	%eax			/* (sigset_t*)oset */
 	pushl	$0			/* (sigset_t*)set  */
 	pushl	$1			/* SIG_BLOCK       */
-#ifdef _THREAD_SAFE
-	call	PIC_PLT(CNAME(_thread_sys_sigprocmask))
-#else
-	call	PIC_PLT(CNAME(sigprocmask))
-#endif
+	call	PIC_PLT(CNAME(_sigprocmask))
 	addl	$12,%esp
 	PIC_EPILOGUE
 	movl	4(%esp),%ecx
@@ -80,10 +76,8 @@ ENTRY(setjmp)
 	xorl	%eax,%eax
 	ret
 
-#ifndef _THREAD_SAFE
-.weak CNAME(longjmp);
-.set CNAME(longjmp),CNAME(__longjmp);
-#endif
+	.weak CNAME(longjmp)
+	.set CNAME(longjmp),CNAME(__longjmp)
 ENTRY(__longjmp)
 	movl	4(%esp),%edx
 	PIC_PROLOGUE
@@ -91,11 +85,7 @@ ENTRY(__longjmp)
 	leal	28(%edx), %eax
 	pushl	%eax			/* (sigset_t*)set  */
 	pushl	$3			/* SIG_SETMASK     */
-#ifdef _THREAD_SAFE
-	call	PIC_PLT(CNAME(_thread_sys_sigprocmask))
-#else
-	call	PIC_PLT(CNAME(sigprocmask))
-#endif
+	call	PIC_PLT(CNAME(_sigprocmask))
 	addl	$12,%esp
 	PIC_EPILOGUE
 	movl	4(%esp),%edx

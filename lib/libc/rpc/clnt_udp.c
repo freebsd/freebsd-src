@@ -39,6 +39,7 @@ static char *rcsid = "$FreeBSD$";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include "namespace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -49,6 +50,7 @@ static char *rcsid = "$FreeBSD$";
 #include <netdb.h>
 #include <errno.h>
 #include <rpc/pmap_clnt.h>
+#include "un-namespace.h"
 
 /*
  * UDP bases client side rpc operations
@@ -173,7 +175,7 @@ clntudp_bufcreate(raddr, program, version, wait, sockp, sendsz, recvsz)
 	if (*sockp < 0) {
 		int dontblock = 1;
 
-		*sockp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		*sockp = _socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 		if (*sockp < 0) {
 			rpc_createerr.cf_stat = RPC_SYSTEMERROR;
 			rpc_createerr.cf_error.re_errno = errno;
@@ -182,7 +184,7 @@ clntudp_bufcreate(raddr, program, version, wait, sockp, sendsz, recvsz)
 		/* attempt to bind to priv port */
 		(void)bindresvport(*sockp, (struct sockaddr_in *)0);
 		/* the sockets rpc controls are non-blocking */
-		(void)ioctl(*sockp, FIONBIO, (char *) &dontblock);
+		(void)_ioctl(*sockp, FIONBIO, (char *) &dontblock);
 		cu->cu_closeit = TRUE;
 	} else {
 		cu->cu_closeit = FALSE;
@@ -271,7 +273,7 @@ call_again:
 	outlen = (int)XDR_GETPOS(xdrs);
 
 send_again:
-	if (sendto(cu->cu_sock, cu->cu_outbuf, outlen, 0,
+	if (_sendto(cu->cu_sock, cu->cu_outbuf, outlen, 0,
 	    (struct sockaddr *)&(cu->cu_raddr), cu->cu_rlen) != outlen) {
 		cu->cu_error.re_errno = errno;
 		if (fds != &readfds)
@@ -301,7 +303,7 @@ send_again:
 		/* XXX we know the other bits are still clear */
 		FD_SET(cu->cu_sock, fds);
 		tv = cu->cu_wait;
-		switch (select(cu->cu_sock+1, fds, NULL, NULL, &tv)) {
+		switch (_select(cu->cu_sock+1, fds, NULL, NULL, &tv)) {
 
 		case 0:
 			timeradd(&time_waited, &cu->cu_wait, &tmp1);
@@ -332,7 +334,7 @@ send_again:
 
 		do {
 			fromlen = sizeof(struct sockaddr);
-			inlen = recvfrom(cu->cu_sock, cu->cu_inbuf,
+			inlen = _recvfrom(cu->cu_sock, cu->cu_inbuf,
 				(int) cu->cu_recvsz, 0,
 				(struct sockaddr *)&from, &fromlen);
 		} while (inlen < 0 && errno == EINTR);
@@ -539,7 +541,7 @@ clntudp_control(cl, request, info)
 		break;
 	case CLGET_LOCAL_ADDR:
 		len = sizeof(struct sockaddr);
-		if (getsockname(cu->cu_sock, (struct sockaddr *)info, &len) <0)
+		if (_getsockname(cu->cu_sock, (struct sockaddr *)info, &len) <0)
 			return(FALSE);
 		break;
 	case CLGET_SVC_ADDR:

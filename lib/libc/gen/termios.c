@@ -37,6 +37,7 @@
 static char sccsid[] = "@(#)termios.c	8.2 (Berkeley) 2/21/94";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
@@ -45,6 +46,7 @@ static char sccsid[] = "@(#)termios.c	8.2 (Berkeley) 2/21/94";
 #include <errno.h>
 #include <termios.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 int
 tcgetattr(fd, t)
@@ -52,7 +54,7 @@ tcgetattr(fd, t)
 	struct termios *t;
 {
 
-	return (ioctl(fd, TIOCGETA, t));
+	return (_ioctl(fd, TIOCGETA, t));
 }
 
 int
@@ -69,11 +71,11 @@ tcsetattr(fd, opt, t)
 	}
 	switch (opt & ~TCSASOFT) {
 	case TCSANOW:
-		return (ioctl(fd, TIOCSETA, t));
+		return (_ioctl(fd, TIOCSETA, t));
 	case TCSADRAIN:
-		return (ioctl(fd, TIOCSETAW, t));
+		return (_ioctl(fd, TIOCSETAW, t));
 	case TCSAFLUSH:
-		return (ioctl(fd, TIOCSETAF, t));
+		return (_ioctl(fd, TIOCSETAF, t));
 	default:
 		errno = EINVAL;
 		return (-1);
@@ -92,7 +94,7 @@ tcsetpgrp(fd, pgrp)
 	int s;
 
 	s = pgrp;
-	return (ioctl(fd, TIOCSPGRP, &s));
+	return (_ioctl(fd, TIOCSPGRP, &s));
 }
 
 pid_t
@@ -101,7 +103,7 @@ tcgetpgrp(fd)
 {
 	int s;
 
-	if (ioctl(fd, TIOCGPGRP, &s) < 0)
+	if (_ioctl(fd, TIOCGPGRP, &s) < 0)
 		return ((pid_t)-1);
 
 	return ((pid_t)s);
@@ -180,10 +182,10 @@ tcsendbreak(fd, len)
 
 	sleepytime.tv_sec = 0;
 	sleepytime.tv_usec = 400000;
-	if (ioctl(fd, TIOCSBRK, 0) == -1)
+	if (_ioctl(fd, TIOCSBRK, 0) == -1)
 		return (-1);
-	(void)select(0, 0, 0, 0, &sleepytime);
-	if (ioctl(fd, TIOCCBRK, 0) == -1)
+	(void)_select(0, 0, 0, 0, &sleepytime);
+	if (_ioctl(fd, TIOCCBRK, 0) == -1)
 		return (-1);
 	return (0);
 }
@@ -192,12 +194,11 @@ int
 __tcdrain(fd)
 	int fd;
 {
-	return (ioctl(fd, TIOCDRAIN, 0));
+	return (_ioctl(fd, TIOCDRAIN, 0));
 }
 
-#ifndef _THREAD_SAFE
 __weak_reference(__tcdrain, tcdrain);
-#endif
+__weak_reference(__tcdrain, _tcdrain);
 
 int
 tcflush(fd, which)
@@ -219,7 +220,7 @@ tcflush(fd, which)
 		errno = EINVAL;
 		return (-1);
 	}
-	return (ioctl(fd, TIOCFLUSH, &com));
+	return (_ioctl(fd, TIOCFLUSH, &com));
 }
 
 int
@@ -231,9 +232,9 @@ tcflow(fd, action)
 
 	switch (action) {
 	case TCOOFF:
-		return (ioctl(fd, TIOCSTOP, 0));
+		return (_ioctl(fd, TIOCSTOP, 0));
 	case TCOON:
-		return (ioctl(fd, TIOCSTART, 0));
+		return (_ioctl(fd, TIOCSTART, 0));
 	case TCION:
 	case TCIOFF:
 		if (tcgetattr(fd, &term) == -1)

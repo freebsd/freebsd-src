@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -42,11 +44,13 @@ static char sccsid[] = "@(#)scandir.c	8.3 (Berkeley) 1/2/94";
  * struct dirent (through namelist). Returns -1 if there were any errors.
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <stdlib.h>
 #include <string.h>
+#include "un-namespace.h"
 
 /*
  * The DIRSIZ macro is the minimum record length which will hold the directory
@@ -74,7 +78,7 @@ scandir(dirname, namelist, select, dcomp)
 
 	if ((dirp = opendir(dirname)) == NULL)
 		return(-1);
-	if (fstat(dirp->dd_fd, &stb) < 0)
+	if (_fstat(dirp->dd_fd, &stb) < 0)
 		goto fail;
 
 	/*

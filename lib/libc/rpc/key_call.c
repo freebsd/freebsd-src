@@ -43,6 +43,7 @@
  * gendeskey(deskey) - generate a secure des key
  */
 
+#include "namespace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -57,6 +58,7 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <sys/fcntl.h>
+#include "un-namespace.h"
 
 
 #define	KEY_TIMEOUT	5	/* per-try timeout in seconds */
@@ -322,7 +324,7 @@ int	vers;
 	if (kcp->client != NULL) {
 		/* if other side closed socket, build handle again */
 		clnt_control(kcp->client, CLGET_FD, (char *)&fd);
-		if (getpeername(fd,(struct sockaddr *)&name,&namelen) == -1) {
+		if (_getpeername(fd,(struct sockaddr *)&name,&namelen) == -1) {
 			auth_destroy(kcp->client->cl_auth);
 			clnt_destroy(kcp->client);
 			kcp->client = NULL;

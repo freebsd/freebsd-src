@@ -42,7 +42,6 @@ static char sccsid[] = "@(#)devname.c	8.2 (Berkeley) 4/29/95";
 
 #include <db.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <stdio.h>

@@ -83,50 +83,41 @@ END(label);
  * Design note:
  *
  * The macros PSYSCALL() and PRSYSCALL() are intended for use where a
- * syscall needs to be renamed in the threaded library. When building
- * a normal library, they default to the traditional SYSCALL() and
- * RSYSCALL(). This avoids the need to #ifdef _THREAD_SAFE everywhere
- * that the renamed function needs to be called.
+ * syscall needs to be renamed in the threaded library.
  */
-#ifdef _THREAD_SAFE
 /*
- * For the thread_safe versions, we prepend _thread_sys_ to the function
+ * For the thread_safe versions, we prepend __sys_ to the function
  * name so that the 'C' wrapper can go around the real name.
  */
+#define	PNAME(name)	__CONCAT(__sys_,name)
+
 #define	PCALL(name)						\
-	CALL(___CONCAT(_thread_sys_,name))
+	CALL(PNAME(name))
 
 #define	PLEAF(name, args)					\
-LEAF(___CONCAT(_thread_sys_,name),args)
+LEAF(PNAME(name),args)
 
 #define	PEND(name)						\
-END(___CONCAT(_thread_sys_,name))
+END(PNAME(name))
 
 #define	PSYSCALL(name)						\
 PLEAF(name,0);				/* XXX # of args? */	\
+	WEAK_ALIAS(name, PNAME(name));				\
+	WEAK_ALIAS(__CONCAT(_,name), PNAME(name));		\
 	CALLSYS_ERROR(name)
 
 #define	PRSYSCALL(name)						\
 PLEAF(name,0);				/* XXX # of args? */	\
+	WEAK_ALIAS(name, PNAME(name));				\
+	WEAK_ALIAS(__CONCAT(_,name), PNAME(name));		\
 	CALLSYS_ERROR(name)					\
 	RET;							\
 PEND(name)
 
 #define	PPSEUDO(label,name)					\
 PLEAF(label,0);				/* XXX # of args? */	\
+	WEAK_ALIAS(label, PNAME(label));			\
+	WEAK_ALIAS(__CONCAT(_,label), PNAME(label));		\
 	CALLSYS_ERROR(name);					\
 	RET;							\
 PEND(label)
-
-#else
-/*
- * The non-threaded library defaults to traditional syscalls where
- * the function name matches the syscall name.
- */
-#define	PSYSCALL(x)	SYSCALL(x)
-#define	PRSYSCALL(x)	RSYSCALL(x)
-#define	PPSEUDO(x,y)	PSEUDO(x,y)
-#define	PLEAF(x,y)	LEAF(x,y)
-#define	PEND(x)		END(x)
-#define	PCALL(x)	CALL(x)
-#endif

@@ -40,6 +40,7 @@ static char *rcsid = "$FreeBSD$";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,6 +49,7 @@ static char *rcsid = "$FreeBSD$";
 #include <rpc/rpc.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include "un-namespace.h"
 
 static struct callrpc_private {
 	CLIENT	*client;

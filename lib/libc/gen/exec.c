@@ -41,6 +41,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -56,6 +57,7 @@ static const char rcsid[] =
 #else
 #include <varargs.h>
 #endif
+#include "un-namespace.h"
 
 extern char **environ;
 
@@ -97,7 +99,7 @@ execl(name, arg, va_alist)
 	while ((argv[n] = va_arg(ap, char *)) != NULL)
 		n++;
 	va_end(ap);
-	return (execve(name, argv, environ));
+	return (_execve(name, argv, environ));
 }
 
 int
@@ -139,7 +141,7 @@ execle(name, arg, va_alist)
 		n++;
 	envp = va_arg(ap, char **);
 	va_end(ap);
-	return (execve(name, argv, envp));
+	return (_execve(name, argv, envp));
 }
 
 int
@@ -189,7 +191,7 @@ execv(name, argv)
 	const char *name;
 	char * const *argv;
 {
-	(void)execve(name, argv, environ);
+	(void)_execve(name, argv, environ);
 	return (-1);
 }
 
@@ -260,7 +262,7 @@ execvp(name, argv)
 		bcopy(name, buf + lp + 1, ln);
 		buf[lp + ln + 1] = '\0';
 
-retry:		(void)execve(bp, argv, environ);
+retry:		(void)_execve(bp, argv, environ);
 		switch(errno) {
 		case E2BIG:
 			goto done;
@@ -279,7 +281,7 @@ retry:		(void)execve(bp, argv, environ);
 			memp[0] = "sh";
 			memp[1] = bp;
 			bcopy(argv + 1, memp + 2, cnt * sizeof(char *));
-			(void)execve(_PATH_BSHELL, memp, environ);
+			(void)_execve(_PATH_BSHELL, memp, environ);
 			goto done;
 		case ENOMEM:
 			goto done;

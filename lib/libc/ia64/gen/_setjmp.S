@@ -90,12 +90,8 @@ ENTRY(_setjmp, 1)
 #endif
 END(_setjmp)
 
-#ifdef _THREAD_SAFE
+XENTRY(_longjmp)
 ENTRY(___longjmp, 2)
-#else
-XENTRY(___longjmp)
-ENTRY(_longjmp, 2)
-#endif
 #if 0
 	LDGP(pv)
 	ldq	t0, ((31 + 4) * 8)(a0)		/* magic in sc_regs[31] */
@@ -132,8 +128,4 @@ botch:
 	CALL(abort)
 	RET					/* "can't" get here... */
 #endif
-#ifdef _THREAD_SAFE
 END(___longjmp)
-#else
-END(_longjmp)
-#endif

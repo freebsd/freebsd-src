@@ -42,17 +42,19 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "local.h"
+#include "un-namespace.h"
 #include "libc_private.h"
+#include "local.h"
 
 int
 fclose(fp)
-	register FILE *fp;
+	FILE *fp;
 {
-	register int r;
+	int r;
 
 	if (fp->_flags == 0) {	/* not open! */
 		errno = EBADF;
@@ -71,6 +73,12 @@ fclose(fp)
 	FUNLOCKFILE(fp);
 	fp->_file = -1;
 	fp->_r = fp->_w = 0;	/* Mess up if reaccessed. */
+#if 0
+	if (fp->_lock != NULL) {
+		_pthread_mutex_destroy((pthread_mutex_t *)&fp->_lock);
+		fp->_lock = NULL;
+	}
+#endif
 	fp->_flags = 0;		/* Release this FILE for reuse. */
 	return (r);
 }

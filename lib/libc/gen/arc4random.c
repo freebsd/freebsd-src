@@ -25,11 +25,13 @@
  * RC4 is a registered trademark of RSA Laboratories.
  */
 
+#include "namespace.h"
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include "un-namespace.h"
 
 struct arc4_stream {
 	u_int8_t i;

@@ -54,20 +54,12 @@ Lsavesig:
 	jmp	zero, setjmp
 END(sigsetjmp)
 
-#ifdef _THREAD_SAFE
+XLEAF(siglongjmp, 2)
 LEAF(__siglongjmp, 2)
-#else
-XLEAF(__siglongjmp, 2)
-LEAF(siglongjmp, 2)
-#endif
 	LDGP(pv)
 	ldq	t0, (81 * 8)(a0)		/* get the mask */
 	bne	t0, Lrestoresig			/* if !zero, restore signals */
-	jmp	zero, _longjmp
+	jmp	zero, ___longjmp
 Lrestoresig:
-	jmp	zero, longjmp
-#ifdef _THREAD_SAFE
+	jmp	zero, __longjmp
 END(__siglongjmp)
-#else
-END(siglongjmp)
-#endif

@@ -45,7 +45,6 @@ static char *rcsid = "$FreeBSD$";
 
 #include <string.h>
 #include <stdlib.h>
-#include <sys/errno.h>
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 

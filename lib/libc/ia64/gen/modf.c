@@ -30,7 +30,6 @@
 
 #include <sys/types.h>
 #include <machine/ieee.h>
-#include <errno.h>
 #include <math.h>
 
 /*

@@ -40,6 +40,7 @@ static const char *rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "un-namespace.h"
 #include <sys/param.h>
 #include <fcntl.h>
 #include <db.h>
@@ -62,6 +63,7 @@ static const char *rcsid[] =
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #endif
+#include "un-namespace.h"
 
 extern void setnetgrent __P((char *));
 extern int getnetgrent __P((char **, char **, char **));

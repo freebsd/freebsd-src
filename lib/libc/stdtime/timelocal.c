@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/syslimits.h>
@@ -34,6 +35,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include "un-namespace.h"
+
 #include "setlocale.h"
 #include "timelocal.h"
 
@@ -158,7 +162,7 @@ __time_load_locale(const char *name)
 	fd = _open(filename, O_RDONLY);
 	if (fd < 0)
 		goto no_locale;
-	if (fstat(fd, &st) != 0)
+	if (_fstat(fd, &st) != 0)
 		goto bad_locale;
 	if (st.st_size <= 0)
 		goto bad_locale;

@@ -25,11 +25,13 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 
 #include "SYS.h"
 
-IMPORT(_logname_valid, 4)			/* in getlogin() */
+IMPORT(_logname_valid, 4)			/* in _getlogin() */
 
 SYSCALL(setlogin)
 	stl	zero, _logname_valid		/* clear it */

@@ -37,6 +37,7 @@
 static char sccsid[] = "@(#)nlist.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -47,6 +48,7 @@ static char sccsid[] = "@(#)nlist.c	8.1 (Berkeley) 6/4/93";
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 #define _NLIST_DO_AOUT
 #define _NLIST_DO_ELF
@@ -117,7 +119,7 @@ __aout_fdnlist(fd, list)
 	struct stat st;
 
 	/* check that file is at least as large as struct exec! */
-	if ((fstat(fd, &st) < 0) || (st.st_size < sizeof(struct exec)))
+	if ((_fstat(fd, &st) < 0) || (st.st_size < sizeof(struct exec)))
 		return (-1);
 
 	/* Check for files too large to mmap. */
@@ -257,7 +259,7 @@ __elf_fdnlist(fd, list)
 	if (lseek(fd, (off_t)0, SEEK_SET) == -1 ||
 	    _read(fd, &ehdr, sizeof(Elf_Ehdr)) != sizeof(Elf_Ehdr) ||
 	    !__elf_is_okay__(&ehdr) ||
-	    fstat(fd, &st) < 0)
+	    _fstat(fd, &st) < 0)
 		return (-1);
 
 	/* calculate section header table size */

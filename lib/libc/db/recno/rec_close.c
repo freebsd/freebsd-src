@@ -37,6 +37,7 @@
 static char sccsid[] = "@(#)rec_close.c	8.6 (Berkeley) 8/18/94";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/mman.h>
@@ -45,6 +46,7 @@ static char sccsid[] = "@(#)rec_close.c	8.6 (Berkeley) 8/18/94";
 #include <limits.h>
 #include <stdio.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 #include <db.h>
 #include "recno.h"
@@ -165,7 +167,7 @@ __rec_sync(dbp, flags)
 		while (status == RET_SUCCESS) {
 			iov[0].iov_base = data.data;
 			iov[0].iov_len = data.size;
-			if (writev(t->bt_rfd, iov, 2) != data.size + 1)
+			if (_writev(t->bt_rfd, iov, 2) != data.size + 1)
 				return (RET_ERROR);
 			status = (dbp->seq)(dbp, &key, &data, R_NEXT);
 		}

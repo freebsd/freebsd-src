@@ -42,9 +42,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/cdefs.h>
+#include "un-namespace.h"
 
 __warn_references(gets, "warning: this program uses gets(), which is unsafe.");
 

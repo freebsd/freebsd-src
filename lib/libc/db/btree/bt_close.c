@@ -40,6 +40,7 @@
 static char sccsid[] = "@(#)bt_close.c	8.7 (Berkeley) 8/17/94";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/param.h>
 
 #include <errno.h>
@@ -47,6 +48,7 @@ static char sccsid[] = "@(#)bt_close.c	8.7 (Berkeley) 8/17/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 #include <db.h>
 #include "btree.h"

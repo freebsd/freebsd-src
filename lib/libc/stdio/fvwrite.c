@@ -143,7 +143,7 @@ __sfvwrite(fp, uio)
 				COPY(w);
 				/* fp->_w -= w; */ /* unneeded */
 				fp->_p += w;
-				if (fflush(fp))
+				if (__fflush(fp))
 					goto err;
 			} else if (len >= (w = fp->_bf._size)) {
 				/* write directly */
@@ -183,7 +183,7 @@ __sfvwrite(fp, uio)
 				COPY(w);
 				/* fp->_w -= w; */
 				fp->_p += w;
-				if (fflush(fp))
+				if (__fflush(fp))
 					goto err;
 			} else if (s >= (w = fp->_bf._size)) {
 				w = (*fp->_write)(fp->_cookie, p, w);
@@ -197,7 +197,7 @@ __sfvwrite(fp, uio)
 			}
 			if ((nldist -= w) == 0) {
 				/* copied the newline: flush and forget */
-				if (fflush(fp))
+				if (__fflush(fp))
 					goto err;
 				nlknown = 0;
 			}
