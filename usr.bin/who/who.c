@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)who.c	8.1 (Berkeley) 6/6/93";
 #include <pwd.h>
 #include <utmp.h>
 #include <stdio.h>
+#include <locale.h>
 
 main(argc, argv)
 	int argc;
@@ -60,6 +61,8 @@ main(argc, argv)
 	struct passwd *pw;
 	FILE *ufp, *file();
 	char *t, *rindex(), *strcpy(), *strncpy(), *ttyname();
+
+	(void) setlocale(LC_TIME, "");
 
 	switch (argc) {
 	case 1:					/* who */
