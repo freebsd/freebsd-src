@@ -920,6 +920,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	return(maxf + 1);
 }
 
+#ifdef ENABLE_VFS_IOOPT
 /*
  * Same as vm_object_pmap_copy, except range checking really
  * works, and is meant for small sections of an object.
@@ -949,6 +950,7 @@ vm_object_pmap_copy_1(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 		vm_page_protect(p, VM_PROT_READ);
 	}
 }
+#endif
 
 /*
  *	vm_object_pmap_remove:
