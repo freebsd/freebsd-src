@@ -89,15 +89,7 @@ struct __sFILEX {
 	pthread_t	fl_owner;	/* current owner */
 	int		fl_count;	/* recursive lock count */
 	int		orientation;	/* orientation for fwide() */
-#ifdef notdef
-	/*
-	 * XXX These are not used yet -- they will be used to store the
-	 * multibyte conversion state for writing and reading when
-	 * stateful encodings are supported by the locale framework.
-	 */
-	mbstate_t	wstate;		/* write conversion state */
-	mbstate_t	rstate;		/* read conversion state */
-#endif
+	mbstate_t	mbstate;	/* multibyte conversion state */
 };
 
 /*
@@ -134,8 +126,7 @@ struct __sFILEX {
 	(fp)->_extra->fl_owner = NULL; \
 	(fp)->_extra->fl_count = 0; \
 	(fp)->_extra->orientation = 0; \
-	/* memset(&(fp)->_extra->wstate, 0, sizeof(mbstate_t)); */ \
-	/* memset(&(fp)->_extra->rstate, 0, sizeof(mbstate_t)); */ \
+	memset(&(fp)->_extra->mbstate, 0, sizeof(mbstate_t)); \
 }
 
 /*
