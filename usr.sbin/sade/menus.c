@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.22 1995/05/20 20:30:11 jkh Exp $
+ * $Id: menus.c,v 1.23 1995/05/21 15:40:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -274,16 +274,16 @@ select one of the following tape devices detected on your system.",
 DMenu MenuNetworkDevice = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a network interface type",
-    "FreeBSD can be installed directly over a network, using NFS\n\
-or FTP.  If you're using an ethernet card to talk to the world\n\
-then setup is pretty straight-forward.  If you are using PPP over\n\
-a serial device (cuaa0 or cuaa1) then you may need to dial your service\n\
-provider using a special PPP utility we provide for that purpose.\n\
-You can also install over your parallel port using a special \"laplink\"\n\
-cable, though this only works if you have another FreeBSD machine running\n\
-a fairly recent (2.0R or later) release to talk to.\n\n\
-To use PPP, select one of the serial devices, otherwise select lp0\n\
-for the parallel port or one of the ethernet controllers (if you have one)\n\
+"FreeBSD can be installed directly over a network, using NFS or FTP.\n
+If you're using an ethernet card to talk to the world then setup is\n\
+pretty straight-forward.  If you are using PPP over a serial device\n\
+(cuaa0 or cuaa1) then you may need to dial your service provider using\n\
+a special PPP utility we provide for that purpose.  You can also install\n\
+over your parallel port using a special \"laplink\" cable, though this\n\
+only works if you have another FreeBSD machine running a fairly recent\n\
+(2.0R or later) release to talk to.\n\n\
+To use PPP, select one of the serial devices, otherwise select lp0 for\n\
+the parallel port or one of the ethernet controllers (if you have one)\n\
 for an ethernet installation.",
     "Press F1 to read PPP user manual",
     "ppp.0",

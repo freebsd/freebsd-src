@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.18 1995/05/21 15:40:49 jkh Exp $
+ * $Id: label.c,v 1.19 1995/05/21 17:53:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -264,7 +264,6 @@ get_partition_type(void)
 	else if (!strcmp(selection, "Swap"))
 	    return PART_SWAP;
     }
-    clear();
     return PART_NONE;
 }
 
