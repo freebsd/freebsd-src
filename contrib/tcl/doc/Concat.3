@@ -5,10 +5,10 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) Concat.3 1.10 96/03/25 19:58:01
+'\" SCCS: @(#) Concat.3 1.11 96/06/05 18:00:12
 '\" 
 .so man.macros
-.TH Tcl_Concat 3 "" Tcl "Tcl Library Procedures"
+.TH Tcl_Concat 3 7.5 Tcl "Tcl Library Procedures"
 .BS
 .SH NAME
 Tcl_Concat \- concatenate a collection of strings
@@ -43,9 +43,11 @@ copies strings from \fBargv\fR to the result.  If an element of
 is ignored entirely.  This white-space removal was added to make
 the output of the \fBconcat\fR command cleaner-looking.
 .PP
+.VS
 The result string is dynamically allocated
-using \fBmalloc()\fR;  the caller must eventually release the space
-by calling \fBfree()\fR.
+using \fBTcl_Alloc\fR;  the caller must eventually release the space
+by calling \fBTcl_Free\fR.
+.VE
 
 .SH KEYWORDS
 concatenate, strings

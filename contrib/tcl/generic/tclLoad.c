@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclLoad.c 1.10 96/04/02 18:44:22
+ * SCCS: @(#) tclLoad.c 1.11 96/07/29 08:39:29
  */
 
 #include "tclInt.h"
@@ -373,6 +373,13 @@ Tcl_LoadCmd(dummy, interp, argc, argv)
      */
 
     if (code == TCL_OK) {
+	/*
+	 * Refetch ipFirstPtr: loading the package may have introduced
+	 * additional static packages at the head of the linked list!
+	 */
+
+	ipFirstPtr = (InterpPackage *) Tcl_GetAssocData(target, "tclLoad",
+		(Tcl_InterpDeleteProc **) NULL);
 	ipPtr = (InterpPackage *) ckalloc(sizeof(InterpPackage));
 	ipPtr->pkgPtr = pkgPtr;
 	ipPtr->nextPtr = ipFirstPtr;

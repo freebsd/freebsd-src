@@ -404,7 +404,7 @@ else
 fi
 
 
-# SCCS: @(#) configure.in 1.102 96/04/17 10:46:25
+# SCCS: @(#) configure.in 1.107 96/07/30 08:38:37
 
 TCL_VERSION=7.5
 TCL_MAJOR_VERSION=7
@@ -2996,7 +2996,7 @@ fi
 #	LD_SEARCH_FLAGS-Flags to pass to ld, such as "-R /usr/local/tcl/lib",
 #			that tell the run-time dynamic linker where to look
 #			for shared libraries such as libtcl.so.  Depends on
-#			the variable LIB_INSTALL_DIR in the Makefile.
+#			the variable LIB_RUNTIME_DIR in the Makefile.
 #	MAKE_LIB -	Command to execute to build the Tcl library;
 #			differs depending on whether or not Tcl is being
 #			compiled as a shared library.
@@ -3127,13 +3127,23 @@ case $system in
 	DL_OBJS="tclLoadDl.o tclLoadAix.o"
 	DL_LIBS="-lld"
 	LD_FLAGS=""
-	LD_SEARCH_FLAGS='-L${LIB_INSTALL_DIR}'
+	LD_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
 	cat >> confdefs.h <<\EOF
 #define NO_DLFCN_H 1
 EOF
 
 	AIX=yes
 	TCL_SHARED_LIB_SUFFIX='${VERSION}.a'
+	;;
+    BSD/OS-2.1*)
+	SHLIB_CFLAGS=""
+	SHLIB_LD="ld -r"
+	SHLIB_LD_FLAGS=""
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS="-ldl"
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS=""
 	;;
     HP-UX-*.08.*|HP-UX-*.09.*|HP-UX-*.10.*)
 	SHLIB_CFLAGS="+z"
@@ -3143,7 +3153,7 @@ EOF
 	DL_OBJS="tclLoadShl.o"
 	DL_LIBS="-ldld"
 	LD_FLAGS="-Wl,-E"
-	LD_SEARCH_FLAGS='-Wl,+b,${LIB_INSTALL_DIR}:.'
+	LD_SEARCH_FLAGS='-Wl,+b,${LIB_RUNTIME_DIR}:.'
 	;;
     IRIX-4.*)
 	SHLIB_CFLAGS="-G 0"
@@ -3155,7 +3165,7 @@ EOF
 	LD_FLAGS="-Wl,-D,08000000"
 	LD_SEARCH_FLAGS=""
 	;;
-    IRIX-5.*)
+    IRIX-5.*|IRIX-6.*)
 	SHLIB_CFLAGS=""
 	SHLIB_LD="ld -shared -rdata_shared"
 	SHLIB_LD_LIBS=""
@@ -3163,7 +3173,17 @@ EOF
 	DL_OBJS="tclLoadDl.o"
 	DL_LIBS=""
 	LD_FLAGS=""
-	LD_SEARCH_FLAGS='-Wl,-rpath,${LIB_INSTALL_DIR}'
+	LD_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
+	;;
+    IRIX64-6.*)
+	SHLIB_CFLAGS=""
+	SHLIB_LD="ld -32 -shared -rdata_shared -rpath /usr/local/lib"
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS=""
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
 	;;
     Linux*)
 	SHLIB_CFLAGS="-fPIC"
@@ -3182,7 +3202,7 @@ if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 3186 "configure"
+#line 3206 "configure"
 #include "confdefs.h"
 #include <dld.h>
 EOF
@@ -3240,7 +3260,7 @@ if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 3244 "configure"
+#line 3264 "configure"
 #include "confdefs.h"
 #include <dlfcn.h>
 EOF
@@ -3332,7 +3352,7 @@ fi
 	DL_OBJS="tclLoadDl.o"
 	DL_LIBS=""
 	LD_FLAGS=""
-	LD_SEARCH_FLAGS='-Wl,-rpath,${LIB_INSTALL_DIR}'
+	LD_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
 	;;
     RISCos-*)
 	SHLIB_CFLAGS="-G 0"
@@ -3375,7 +3395,7 @@ fi
 	DL_OBJS="tclLoadDl.o"
 	DL_LIBS="-ldl"
 	LD_FLAGS=""
-	LD_SEARCH_FLAGS='-L${LIB_INSTALL_DIR}'
+	LD_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
 
 	# SunOS can't handle version numbers with dots in them in library
 	# specs, like -ltcl7.5, so use -ltcl75 instead.  Also, it
@@ -3387,14 +3407,14 @@ fi
 	TCL_LIB_VERSIONS_OK=nodots
 	;;
     SunOS-5*)
-	SHLIB_CFLAGS="-K PIC"
+	SHLIB_CFLAGS="-KPIC"
 	SHLIB_LD="/usr/ccs/bin/ld -G -z text"
 	SHLIB_LD_LIBS='${LIBS}'
 	SHLIB_SUFFIX=".so"
 	DL_OBJS="tclLoadDl.o"
 	DL_LIBS="-ldl"
 	LD_FLAGS=""
-	LD_SEARCH_FLAGS='-R ${LIB_INSTALL_DIR}'
+	LD_SEARCH_FLAGS='-R ${LIB_RUNTIME_DIR}'
 	;;
     ULTRIX-4.*)
 	SHLIB_CFLAGS="-G 0"
@@ -3407,7 +3427,7 @@ fi
 	LD_SEARCH_FLAGS=""
 	;;
     UNIX_SV*)
-	SHLIB_CFLAGS="-K PIC"
+	SHLIB_CFLAGS="-KPIC"
 	SHLIB_LD="cc -G"
 	SHLIB_LD_LIBS=""
 	SHLIB_SUFFIX=".so"
@@ -3439,7 +3459,7 @@ esac
 if test "x$DL_OBJS" = "xtclLoadAout.o" ; then
     echo $ac_n "checking sys/exec.h""... $ac_c" 1>&6
     cat > conftest.$ac_ext <<EOF
-#line 3443 "configure"
+#line 3463 "configure"
 #include "confdefs.h"
 #include <sys/exec.h>
 int main() { return 0; }
@@ -3476,7 +3496,7 @@ EOF
     else
 	echo $ac_n "checking a.out.h""... $ac_c" 1>&6
 	cat > conftest.$ac_ext <<EOF
-#line 3480 "configure"
+#line 3500 "configure"
 #include "confdefs.h"
 #include <a.out.h>
 int main() { return 0; }
@@ -3513,7 +3533,7 @@ EOF
 	else
 	    echo $ac_n "checking sys/exec_aout.h""... $ac_c" 1>&6
 	    cat > conftest.$ac_ext <<EOF
-#line 3517 "configure"
+#line 3537 "configure"
 #include "confdefs.h"
 #include <sys/exec_aout.h>
 int main() { return 0; }

@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclPosixStr.c 1.30 96/02/08 16:33:34
+ * SCCS: @(#) tclPosixStr.c 1.31 96/07/28 16:25:29
  */
 
 #include "tclInt.h"
@@ -117,7 +117,7 @@ Tcl_ErrnoId()
 #if defined(EDEADLK) && (!defined(EWOULDBLOCK) || (EDEADLK != EWOULDBLOCK))
 	case EDEADLK: return "EDEADLK";
 #endif
-#ifdef EDEADLOCK
+#if defined(EDEADLOCK) && (!defined(EDEADLK) || (EDEADLOCK != EDEADLK))
 	case EDEADLOCK: return "EDEADLOCK";
 #endif
 #ifdef EDESTADDRREQ
@@ -563,7 +563,7 @@ Tcl_ErrnoMsg(err)
 #if defined(EDEADLK) && (!defined(EWOULDBLOCK) || (EDEADLK != EWOULDBLOCK))
 	case EDEADLK: return "resource deadlock avoided";
 #endif
-#ifdef EDEADLOCK
+#if defined(EDEADLOCK) && (!defined(EDEADLK) || (EDEADLOCK != EDEADLK))
 	case EDEADLOCK: return "resource deadlock avoided";
 #endif
 #ifdef EDESTADDRREQ

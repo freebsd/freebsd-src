@@ -12,7 +12,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclCmdMZ.c 1.65 96/02/09 14:59:52
+ * SCCS: @(#) tclCmdMZ.c 1.66 96/07/23 16:15:55
  */
 
 #include "tclInt.h"
@@ -1748,7 +1748,7 @@ Tcl_TimeCmd(dummy, interp, argc, argv)
 		" command ?count?\"", (char *) NULL);
 	return TCL_ERROR;
     }
-    TclGetTime(&start);
+    TclpGetTime(&start);
     for (i = count ; i > 0; i--) {
 	result = Tcl_Eval(interp, argv[1]);
 	if (result != TCL_OK) {
@@ -1761,7 +1761,7 @@ Tcl_TimeCmd(dummy, interp, argc, argv)
 	    return result;
 	}
     }
-    TclGetTime(&stop);
+    TclpGetTime(&stop);
     timePer = (stop.sec - start.sec)*1000000 + (stop.usec - start.usec);
     Tcl_ResetResult(interp);
     sprintf(interp->result, "%.0f microseconds per iteration",
