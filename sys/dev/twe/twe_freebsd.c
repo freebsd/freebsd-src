@@ -549,8 +549,6 @@ struct twed_softc
     struct twe_drive	*twed_drive;		/* drive data in parent softc */
     struct disk		twed_disk;		/* generic disk handle */
     struct devstat	twed_stats;		/* accounting */
-    int			twed_flags;
-#define TWED_OPEN	(1<<0)			/* drive is open (can't shut down) */
 };
 
 /*
@@ -584,7 +582,6 @@ DRIVER_MODULE(twed, twe, twed_driver, twed_devclass, 0, 0);
  * Disk device control interface.
  */
 static	d_open_t	twed_open;
-static	d_close_t	twed_close;
 static	d_strategy_t	twed_strategy;
 static	dumper_t	twed_dump;
 
@@ -592,7 +589,7 @@ static	dumper_t	twed_dump;
 
 static struct cdevsw twed_cdevsw = {
     twed_open,
-    twed_close,
+    nullclose,
     physread,
     physwrite,
     noioctl,
@@ -636,24 +633,6 @@ twed_open(dev_t dev, int flags, int fmt, d_thread_t *td)
     sc->twed_disk.d_fwsectors = sc->twed_drive->td_sectors;
     sc->twed_disk.d_fwheads = sc->twed_drive->td_heads;
 
-    sc->twed_flags |= TWED_OPEN;
-    return (0);
-}
-
-/********************************************************************************
- * Handle last close of the disk device.
- */
-static int
-twed_close(dev_t dev, int flags, int fmt, d_thread_t *td)
-{
-    struct twed_softc	*sc = (struct twed_softc *)dev->si_drv1;
-
-    debug_called(4);
-	
-    if (sc == NULL)
-	return (ENXIO);
-
-    sc->twed_flags &= ~TWED_OPEN;
     return (0);
 }
 
@@ -793,7 +772,7 @@ twed_detach(device_t dev)
 
     debug_called(4);
 
-    if (sc->twed_flags & TWED_OPEN)
+    if (sc->twed_disk.d_flags & DISKFLAG_OPEN)
 	return(EBUSY);
 
     devstat_remove_entry(&sc->twed_stats);
