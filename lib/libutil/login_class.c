@@ -21,7 +21,7 @@
  *
  * High-level routines relating to use of the user capabilities database
  *
- *	$Id: login_class.c,v 1.7 1998/05/25 03:55:23 steve Exp $
+ *	$Id: login_class.c,v 1.8 1998/06/03 08:12:00 jb Exp $
  */
 
 #include <stdio.h>
@@ -370,7 +370,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 	}
 	if (initgroups(pwd->pw_name, pwd->pw_gid) == -1) {
 	    syslog(LOG_ERR, "initgroups(%s,%ld): %m", pwd->pw_name,
-		   pwd->pw_gid);
+		   (long)pwd->pw_gid);
 	    login_close(llc);
 	    return -1;
 	}
@@ -389,7 +389,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 
     /* This needs to be done after anything that needs root privs */
     if ((flags & LOGIN_SETUSER) && setuid(uid) != 0) {
-	syslog(LOG_ERR, "setuid(%ld): %m", uid);
+	syslog(LOG_ERR, "setuid(%ld): %m", (long)uid);
 	return -1;	/* Paranoia again */
     }
 
