@@ -2,6 +2,7 @@
 #include "fio.h"
 #include "fmt.h"
 #include "fp.h"
+#include "ctype.h"
 
 extern int f__cursor;
 #ifdef KR_headers
@@ -29,10 +30,10 @@ rd_Z(Uint *n, int w, ftnlen len)
 
 	if (!hex['0']) {
 		s = "0123456789";
-		while( (ch = *s++) )
+		while(ch = *s++)
 			hex[ch] = ch - '0' + 1;
 		s = "ABCDEF";
-		while( (ch = *s++) )
+		while(ch = *s++)
 			hex[ch] = hex[ch + 'a' - 'A'] = ch - 'A' + 11;
 		}
 	s = s0 = (char *)x;
@@ -61,7 +62,7 @@ rd_Z(Uint *n, int w, ftnlen len)
 		return errno = 115;
 	w = (int)len;
 	w1 = s - s0;
-	w2 = (w1+1) >> 1;
+	w2 = w1+1 >> 1;
 	t = (char *)n;
 	if (*(char *)&one) {
 		/* little endian */
@@ -83,7 +84,7 @@ rd_Z(Uint *n, int w, ftnlen len)
 		t += i;
 		}
 	do {
-		*t = ((hex[*s0 & 0xff]-1) << 4) | (hex[s0[1] & 0xff]-1);
+		*t = hex[*s0 & 0xff]-1 << 4 | hex[s0[1] & 0xff]-1;
 		t += i;
 		s0 += 2;
 		}
@@ -153,8 +154,6 @@ rd_L(ftnint *n, int w, ftnlen len)
 		}
 	return 0;
 }
-
-#include "ctype.h"
 
  static int
 #ifdef KR_headers
@@ -387,9 +386,9 @@ rd_POS(char *s)
 	return(1);
 }
 #ifdef KR_headers
-int rd_ed(p,ptr,len) struct syl *p; char *ptr; ftnlen len;
+rd_ed(p,ptr,len) struct syl *p; char *ptr; ftnlen len;
 #else
-int rd_ed(struct syl *p, char *ptr, ftnlen len)
+rd_ed(struct syl *p, char *ptr, ftnlen len)
 #endif
 {	int ch;
 	for(;f__cursor>0;f__cursor--) if((ch=(*f__getn)())<0) return(ch);
@@ -450,9 +449,9 @@ int rd_ed(struct syl *p, char *ptr, ftnlen len)
 	return(errno);
 }
 #ifdef KR_headers
-int rd_ned(p) struct syl *p;
+rd_ned(p) struct syl *p;
 #else
-int rd_ned(struct syl *p)
+rd_ned(struct syl *p)
 #endif
 {
 	switch(p->op)

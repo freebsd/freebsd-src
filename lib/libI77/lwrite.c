@@ -14,9 +14,9 @@ donewrec(Void)
 	}
 
 #ifdef KR_headers
-int t_putc(c)
+t_putc(c)
 #else
-int t_putc(int c)
+t_putc(int c)
 #endif
 {
 	f__recpos++;
@@ -141,7 +141,7 @@ l_g(char *buf, double n)
 	switch(*b) {
 #ifndef WANT_LEAD_0
 		case '0':
-			while( (b[0] = b[1]) )
+			while(b[0] = b[1])
 				b++;
 			break;
 #endif
@@ -166,7 +166,7 @@ l_g(char *buf, double n)
 				while(*++b);
 				goto f__ret;
 			case 'E':
-				for(c1 = '.', c = 'E';  (*b = c1);
+				for(c1 = '.', c = 'E';  *b = c1;
 					c1 = c, c = *++b);
 				goto f__ret;
 			}
@@ -188,7 +188,7 @@ l_put(register char *s)
 #else
 	register int c, (*pn)(int) = f__putn;
 #endif
-	while( (c = *s++) )
+	while(c = *s++)
 		(*pn)(c);
 	}
 
@@ -240,9 +240,9 @@ lwrt_C(double a, double b)
 	PUT(')');
 }
 #ifdef KR_headers
-int l_write(number,ptr,len,type) ftnint *number,type; char *ptr; ftnlen len;
+l_write(number,ptr,len,type) ftnint *number,type; char *ptr; ftnlen len;
 #else
-int l_write(ftnint *number, char *ptr, ftnlen len, ftnint type)
+l_write(ftnint *number, char *ptr, ftnlen len, ftnint type)
 #endif
 {
 #define Ptr ((flex *)ptr)

@@ -5,7 +5,7 @@ CFLAGS+= -DIEEE_drem -DNON_ANSI_RW_MODES -DNON_UNIX_STDIO -DPedantic
 
 MISC =	Version.c main.c s_rnge.c abort_.c getarg_.c iargc_.c getenv_.c\
 	signal_.c s_stop.c s_paus.c system_.c cabs.c\
-	derf_.c derfc_.c erf_.c erfc_.c sig_die.c F77_aloc.c exit.c
+	derf_.c derfc_.c erf_.c erfc_.c sig_die.c F77_aloc.c
 POW =	pow_ci.c pow_dd.c pow_di.c pow_hh.c pow_ii.c  pow_ri.c pow_zi.c pow_zz.c
 CX =	c_abs.c c_cos.c c_div.c c_exp.c c_log.c c_sin.c c_sqrt.c
 DCX =	z_cos.c z_div.c z_exp.c z_log.c z_sin.c z_sqrt.c
@@ -23,9 +23,10 @@ HALF =	h_abs.c h_dim.c h_dnnt.c h_indx.c h_len.c h_mod.c  h_nint.c h_sign.c
 CMP =	l_ge.c l_gt.c l_le.c l_lt.c hl_ge.c hl_gt.c hl_le.c hl_lt.c
 EFL =	ef1asc_.c ef1cmc_.c
 CHAR =	s_cat.c s_cmp.c s_copy.c
+F90BIT = lbitbits.c lbitshft.c
 
 F77SRCS= $(MISC) $(POW) $(CX) $(DCX) $(REAL) $(DBL) $(INT) \
-	$(HALF) $(CMP) $(EFL) $(CHAR)
+	$(HALF) $(CMP) $(EFL) $(CHAR) $(F90BIT)
 
 I77SRCS = Version.c backspace.c close.c dfe.c dolio.c due.c endfile.c err.c \
 	fmt.c fmtlib.c iio.c ilnw.c inquire.c lread.c lwrite.c open.c \
