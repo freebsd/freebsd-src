@@ -38,7 +38,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#if defined(__NetBSD__)
 #include <sys/callout.h>
+#endif
 
 /* From usb_mem.h */
 DECLARE_USB_DMA_T;
@@ -56,11 +58,10 @@ struct usbd_bus_methods {
 	void		      (*soft_intr)(void *);
 	void		      (*do_poll)(struct usbd_bus *);
 	usbd_status	      (*allocm)(struct usbd_bus *, usb_dma_t *,
-					    u_int32_t bufsize);
+					u_int32_t bufsize);
 	void		      (*freem)(struct usbd_bus *, usb_dma_t *);
 	struct usbd_xfer *    (*allocx)(struct usbd_bus *);
-	void		      (*freex)(struct usbd_bus *,
-					   struct usbd_xfer *);
+	void		      (*freex)(struct usbd_bus *, struct usbd_xfer *);
 };
 
 struct usbd_pipe_methods {
@@ -148,7 +149,7 @@ struct usbd_device {
 	struct usbd_interface  *ifaces;        /* array of all interfaces */
 	usb_device_descriptor_t ddesc;         /* device descriptor */
 	usb_config_descriptor_t *cdesc;	       /* full config descr */
-	const struct usbd_quirks *quirks;        /* device quirks, always set */
+	const struct usbd_quirks     *quirks;  /* device quirks, always set */
 	struct usbd_hub	       *hub;           /* only if this is a hub */
 	device_ptr_t	       *subdevs;       /* sub-devices, 0 terminated */
 };
@@ -237,20 +238,18 @@ void usbd_dump_pipe(usbd_pipe_handle pipe);
 int		usbctlprint(void *, const char *);
 void		usb_delay_ms(usbd_bus_handle, u_int);
 usbd_status	usbd_reset_port(usbd_device_handle dev,
-				     int port, usb_port_status_t *ps);
+				int port, usb_port_status_t *ps);
 usbd_status	usbd_setup_pipe(usbd_device_handle dev,
-				     usbd_interface_handle iface,
-				     struct usbd_endpoint *, int,
-				     usbd_pipe_handle *pipe);
+				usbd_interface_handle iface,
+				struct usbd_endpoint *, int,
+				usbd_pipe_handle *pipe);
 usbd_status	usbd_new_device(device_ptr_t parent, 
-				     usbd_bus_handle bus, int depth,
-				     int lowspeed, int port, 
-				     struct usbd_port *);
-void		usbd_remove_device(usbd_device_handle,
-					struct usbd_port *);
+				usbd_bus_handle bus, int depth,
+				int lowspeed, int port, 
+				struct usbd_port *);
+void		usbd_remove_device(usbd_device_handle, struct usbd_port *);
 int		usbd_printBCD(char *cp, int bcd);
-usbd_status	usbd_fill_iface_data(usbd_device_handle dev, 
-					  int i, int a);
+usbd_status	usbd_fill_iface_data(usbd_device_handle dev, int i, int a);
 void		usb_free_device(usbd_device_handle);
 
 usbd_status	usb_insert_transfer(usbd_xfer_handle xfer);
