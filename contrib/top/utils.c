@@ -7,6 +7,8 @@
  *
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -324,24 +326,42 @@ long *diffs;
 /*
  * errmsg(errnum) - return an error message string appropriate to the
  *           error number "errnum".  This is a substitute for the System V
- *           function "strerror" with one important difference:  the string
- *           returned by this function does NOT end in a newline!
- *           N.B.:  there appears to be no reliable way to determine if
- *           "strerror" exists at compile time, so I make do by providing
- *           something of similar functionality.
+ *           function "strerror".  There appears to be no reliable way to
+ *           determine if "strerror" exists at compile time, so I make do
+ *           by providing something of similar functionality.  For those
+ *           systems that have strerror and NOT errlist, define
+ *           -DHAVE_STRERROR in the module file and this function will
+ *           use strerror.
  */
 
 /* externs referenced by errmsg */
+
+#ifndef HAVE_STRERROR
+#ifndef SYS_ERRLIST_DECLARED
+#define SYS_ERRLIST_DECLARED
+extern char *sys_errlist[];
+#endif
+
+extern int sys_nerr;
+#endif
 
 char *errmsg(errnum)
 
 int errnum;
 
 {
+#ifdef HAVE_STRERROR
+    char *msg = strerror(errnum);
+    if (msg != NULL)
+    {
+	return msg;
+    }
+#else
     if (errnum > 0 && errnum < sys_nerr)
     {
 	return((char *)sys_errlist[errnum]);
     }
+#endif
     return("No error");
 }
 
