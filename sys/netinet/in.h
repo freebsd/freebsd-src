@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.36 1998/07/06 03:20:12 julian Exp $
+ * $Id: in.h,v 1.37 1998/08/23 03:07:14 wollman Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -322,6 +322,11 @@ struct ip_opts {
 #define IP_FW_ZERO    		53   /* clear single/all firewall counter(s) */
 #define IP_FW_GET     		54   /* get entire firewall rule chain */
 #define IP_NAT			55   /* set/get NAT opts */
+
+#define	IP_DUMMYNET_CONFIGURE	60   /* add/configure a dummynet pipe */
+#define	IP_DUMMYNET_DEL		61   /* delete a dummynet pipe from chain */
+#define	IP_DUMMYNET_FLUSH	62   /* flush dummynet */
+#define	IP_DUMMYNET_GET		64   /* get entire dummynet pipes */
 
 /*
  * Defaults and limits for options

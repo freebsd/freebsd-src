@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.54 1998/05/15 20:11:34 wollman Exp $
+ *	$Id: raw_ip.c,v 1.55 1998/08/23 03:07:14 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -61,6 +61,10 @@
 
 #include <netinet/ip_fw.h>
 
+#include "opt_ipdn.h"
+#ifdef DUMMYNET
+#include <netinet/ip_dummynet.h>
+#endif
 #if !defined(COMPAT_IPFW) || COMPAT_IPFW == 1
 #undef COMPAT_IPFW
 #define COMPAT_IPFW 1
@@ -259,6 +263,14 @@ rip_ctloutput(so, sopt)
 			else
 				error = ip_nat_ctl_ptr(sopt);
 			break;
+#ifdef DUMMYNET
+		case IP_DUMMYNET_GET:
+			if (ip_dn_ctl_ptr == NULL)
+				error = ENOPROTOOPT ;
+			else
+				error = ip_dn_ctl_ptr(sopt);
+			break ;
+#endif /* DUMMYNET */
 #endif /* COMPAT_IPFW */
 
 		case MRT_INIT:
@@ -308,6 +320,16 @@ rip_ctloutput(so, sopt)
 			else
 				error = ip_nat_ctl_ptr(sopt);
 			break;
+#ifdef DUMMYNET
+		case IP_DUMMYNET_CONFIGURE:
+		case IP_DUMMYNET_DEL:
+		case IP_DUMMYNET_FLUSH:
+			if (ip_dn_ctl_ptr == NULL)
+				error = ENOPROTOOPT ;
+			else
+				error = ip_dn_ctl_ptr(sopt);
+			break ;
+#endif
 #endif /* COMPAT_IPFW */
 
 		case IP_RSVP_ON:

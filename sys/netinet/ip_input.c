@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.107 1998/11/16 08:27:36 dfr Exp $
+ * $Id: ip_input.c,v 1.101 1998/09/10 08:56:40 dfr Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -39,6 +39,7 @@
 
 #include "opt_bootp.h"
 #include "opt_ipfw.h"
+#include "opt_ipdn.h"
 #include "opt_ipdivert.h"
 #include "opt_ipfilter.h"
 
@@ -47,6 +48,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/malloc.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -74,6 +76,10 @@
 
 #ifdef IPFIREWALL
 #include <netinet/ip_fw.h>
+#endif
+
+#ifdef DUMMYNET
+#include <netinet/ip_dummynet.h>
 #endif
 
 int rsvp_on = 0;
@@ -148,6 +154,10 @@ SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 /* Firewall hooks */
 ip_fw_chk_t *ip_fw_chk_ptr;
 ip_fw_ctl_t *ip_fw_ctl_ptr;
+
+#ifdef DUMMYNET
+ip_dn_ctl_t *ip_dn_ctl_ptr;
+#endif
 
 /* IP Network Address Translation (NAT) hooks */ 
 ip_nat_t *ip_nat_ptr;
@@ -224,6 +234,12 @@ ip_init()
 
 	ip_id = time_second & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
+#ifdef IPFIREWALL
+	ip_fw_init();
+#endif
+#ifdef DUMMYNET
+	ip_dn_init();
+#endif
 #ifdef IPNAT
         ip_nat_init(); 
 #endif
@@ -245,9 +261,34 @@ ip_input(struct mbuf *m)
 {
 	struct ip *ip;
 	struct ipq *fp;
+	struct ipqent *ipqe;
 	struct in_ifaddr *ia;
 	int    i, hlen, mff;
 	u_short sum;
+#ifndef IPDIVERT /* dummy variable for the firewall code to play with */
+        u_short ip_divert_cookie = 0 ;
+#endif
+#ifdef COMPAT_IPFW
+	struct ip_fw_chain *rule = NULL ;
+#endif
+
+#if defined(IPFIREWALL) && defined(DUMMYNET)
+        /*
+         * dummynet packet are prepended a vestigial mbuf with
+         * m_type = MT_DUMMYNET and m_data pointing to the matching
+         * rule.
+         */
+        if (m->m_type == MT_DUMMYNET) {
+            struct mbuf *m0 = m ;
+            rule = (struct ip_fw_chain *)(m->m_data) ;
+            m = m->m_next ;
+            free(m0, M_IPFW);
+            ip = mtod(m, struct ip *);
+            hlen = IP_VHL_HL(ip->ip_vhl) << 2;
+            goto iphack ;
+        } else
+            rule = NULL ;
+#endif
 
 #ifdef	DIAGNOSTIC
 	if (m == NULL || (m->m_flags & M_PKTHDR) == 0)
@@ -336,9 +377,12 @@ tooshort:
 	 * deals with it.
 	 * - Firewall: deny/allow/divert
 	 * - Xlate: translate packet's addr/port (NAT).
+	 * - Pipe: pass pkt through dummynet.
 	 * - Wrap: fake packet's addr/port <unimpl.>
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
  	 */
+
+iphack:
 #if defined(IPFILTER) || defined(IPFILTER_LKM)
 	/*
 	 * Check if we want to allow this packet to be processed.
@@ -354,8 +398,6 @@ tooshort:
 #endif
 #ifdef COMPAT_IPFW
 	if (ip_fw_chk_ptr) {
-		u_int16_t	port;
-
 #ifdef IPFIREWALL_FORWARD
 		/*
 		 * If we've been forwarded from the output side, then
@@ -364,29 +406,41 @@ tooshort:
 		if (ip_fw_fwd_addr)
 			goto ours;
 #endif	/* IPFIREWALL_FORWARD */
+		i = (*ip_fw_chk_ptr)(&ip, hlen, NULL, &ip_divert_cookie,
+					&m, &rule, &ip_fw_fwd_addr);
+		/*
+		 * see the comment in ip_output for the return values
+		 * produced by the firewall.
+		 */
+		if (!m) /* packet discarded by firewall */
+			return ;
+		if (i == 0 && ip_fw_fwd_addr == NULL) /* common case */
+			goto pass ;
+#ifdef DUMMYNET
+                if (i & 0x10000) {
+                        /* send packet to the appropriate pipe */
+                        dummynet_io(i&0xffff,DN_TO_IP_IN,m,NULL,NULL,0, rule);
+			return ;
+		}
+#endif
 #ifdef IPDIVERT
-		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL, &ip_divert_cookie,
-					&m, &ip_fw_fwd_addr);
-		if (port) {
+		if (i > 0 && i < 0x10000) {
 			/* Divert packet */
-			frag_divert_port = port;
+			frag_divert_port = i & 0xffff ;
 			goto ours;
 		}
-#else	/* !DIVERT */
+#endif
+#ifdef IPFIREWALL_FORWARD
+		if (i == 0 && ip_fw_fwd_addr != NULL)
+			goto pass ;
+#endif
 		/*
-		 * If ipfw says divert, we have to just drop packet 
-		 *  Use port as a dummy argument.
+		 * if we get here, the packet must be dropped
 		 */
-		port = 0;
-		if ((*ip_fw_chk_ptr)(&ip, hlen, NULL, &port,
-					&m, &ip_fw_fwd_addr)) {
 			m_freem(m);
-			m = NULL;
-		}
-#endif	/* !DIVERT */
-		if (!m)
 			return;
 	}
+pass:
 
         if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, m->m_pkthdr.rcvif, IP_NAT_IN))
 		return;
@@ -512,7 +566,7 @@ ours:
 	 */
 	if (ip->ip_off & (IP_MF | IP_OFFMASK | IP_RF)) {
 		if (m->m_flags & M_EXT) {		/* XXX */
-			if ((m = m_pullup(m, hlen)) == 0) {
+			if ((m = m_pullup(m, sizeof (struct ip))) == 0) {
 				ipstat.ips_toosmall++;
 #ifdef IPDIVERT
 				frag_divert_port = 0;
@@ -710,13 +764,13 @@ ip_reass(m, fp, where)
 		fp->ipq_id = ip->ip_id;
 		fp->ipq_src = ip->ip_src;
 		fp->ipq_dst = ip->ip_dst;
-		fp->ipq_frags = m;
-		m->m_nextpkt = NULL;
+		fp->ipq_frags = 0;
 #ifdef IPDIVERT
 		fp->ipq_divert = 0;
 		fp->ipq_div_cookie = 0;
 #endif
-		goto inserted;
+		q = 0;
+		goto insert;
 	}
 
 #define GETIP(m)	((struct ip*)((m)->m_pkthdr.header))
@@ -731,8 +785,7 @@ ip_reass(m, fp, where)
 	/*
 	 * If there is a preceding segment, it may provide some of
 	 * our data already.  If so, drop the data from the incoming
-	 * segment.  If it provides all of our data, drop us, otherwise
-	 * stick new segment in the proper place.
+	 * segment.  If it provides all of our data, drop us.
 	 */
 	if (p) {
 		i = GETIP(p)->ip_off + GETIP(p)->ip_len - ip->ip_off;
@@ -743,11 +796,6 @@ ip_reass(m, fp, where)
 			ip->ip_off += i;
 			ip->ip_len -= i;
 		}
-		m->m_nextpkt = p->m_nextpkt;
-		p->m_nextpkt = m;
-	} else {
-		m->m_nextpkt = fp->ipq_frags;
-		fp->ipq_frags = m;
 	}
 
 	/*
@@ -755,7 +803,7 @@ ip_reass(m, fp, where)
 	 * if they are completely covered, dequeue them.
 	 */
 	for (; q != NULL && ip->ip_off + ip->ip_len > GETIP(q)->ip_off;
-	     q = nq) {
+	     p = q, q = nq) {
 		i = (ip->ip_off + ip->ip_len) -
 		    GETIP(q)->ip_off;
 		if (i < GETIP(q)->ip_len) {
@@ -765,11 +813,14 @@ ip_reass(m, fp, where)
 			break;
 		}
 		nq = q->m_nextpkt;
-		m->m_nextpkt = nq;
+		if (p)
+			p->m_nextpkt = nq;
+		else
+			fp->ipq_frags = nq;
 		m_freem(q);
 	}
 
-inserted:
+insert:
 
 #ifdef IPDIVERT
 	/*
@@ -784,8 +835,16 @@ inserted:
 #endif
 
 	/*
-	 * Check for complete reassembly.
+	 * Stick new segment in its place;
+	 * check for complete reassembly.
 	 */
+	if (p == NULL) {
+		m->m_nextpkt = fp->ipq_frags;
+		fp->ipq_frags = m;
+	} else {
+		m->m_nextpkt = p->m_nextpkt;
+		p->m_nextpkt = m;
+	}
 	next = 0;
 	for (p = NULL, q = fp->ipq_frags; q; p = q, q = q->m_nextpkt) {
 		if (GETIP(q)->ip_off != next)
@@ -1241,7 +1300,7 @@ ip_srcroute()
 	*(mtod(m, struct in_addr *)) = *p--;
 #ifdef DIAGNOSTIC
 	if (ipprintfs)
-		printf(" hops %lx", (u_long)ntohl(mtod(m, struct in_addr *)->s_addr));
+		printf(" hops %lx", ntohl(mtod(m, struct in_addr *)->s_addr));
 #endif
 
 	/*
@@ -1261,7 +1320,7 @@ ip_srcroute()
 	while (p >= ip_srcrt.route) {
 #ifdef DIAGNOSTIC
 		if (ipprintfs)
-			printf(" %lx", (u_long)ntohl(q->s_addr));
+			printf(" %lx", ntohl(q->s_addr));
 #endif
 		*q++ = *p--;
 	}
@@ -1271,7 +1330,7 @@ ip_srcroute()
 	*q = ip_srcrt.dst;
 #ifdef DIAGNOSTIC
 	if (ipprintfs)
-		printf(" %lx\n", (u_long)ntohl(q->s_addr));
+		printf(" %lx\n", ntohl(q->s_addr));
 #endif
 	return (m);
 }
