@@ -208,23 +208,21 @@ installs
 in the root file system.
 .El
 .Sh FILES
-.Bl -tag -width /sys/i386/conf/Makefile.i386 -compact
+.Bl -tag -width /sys/ARCH/compile/LOCAL -compact
 .It Pa /sys/conf/files
 list of common files system is built from
-.It Pa /sys/i386/conf/Makefile.i386
-generic makefile for the
-.Tn i386
-.It Pa /sys/i386/conf/files.i386
+.It Pa /sys/conf/Makefile.ARCH
+generic Makefile for the
+.Pa ARCH .
+.It Pa /sys/conf/files.ARCH
 list of
-.Tn i386
+.Pa ARCH
 specific files
-.It Pa /sys/i386/conf/files. Ns Em ERNIE
-list of files specific to
-.Em ERNIE
-system
-.It Pa /sys/compile/SYSTEM_NAME
+.It Pa /sys/ARCH/compile/LOCAL
 default kernel build directory for system
-.Pa SYSTEM_NAME .
+.Pa LOCAL
+on
+.Pa ARCH .
 .El
 .Sh SEE ALSO
 The
