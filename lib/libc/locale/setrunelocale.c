@@ -47,6 +47,7 @@ extern int		_none_init __P((_RuneLocale *));
 #ifdef XPG4
 extern int		_UTF2_init __P((_RuneLocale *));
 extern int		_EUC_init __P((_RuneLocale *));
+extern int		_BIG5_init __P((_RuneLocale *));
 extern int		_MSKanji_init __P((_RuneLocale *));
 extern int              _xpg4_setrunelocale __P((char *));
 #endif
@@ -128,6 +129,8 @@ _xpg4_setrunelocale(encoding)
 #ifdef XPG4
 	else if (!strcmp(rl->encoding, "EUC"))
 		return(_EUC_init(rl));
+	else if (!strcmp(rl->encoding, "BIG5"))
+		return(_BIG5_init(rl));
 	else if (!strcmp(rl->encoding, "MSKanji"))
 		return(_MSKanji_init(rl));
 #endif
