@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pccardmem.c,v 1.9 1997/11/18 21:08:06 nate Exp $";
+	"$Id: pccardmem.c,v 1.9.2.1 1999/03/03 11:15:32 kuriyama Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -64,8 +64,8 @@ pccardmem_main(argc, argv)
 			errx(1, "arg error");
 	}
 	if (ioctl(fd, PIOCRWMEM, &addr))
-		warn("ioctl");
+		err(1, "ioctl (PIOCRWMEM)");
 	else
 		printf("PCCARD Memory address set to 0x%x\n", addr);
-	exit(0);
+	return 0;
 }

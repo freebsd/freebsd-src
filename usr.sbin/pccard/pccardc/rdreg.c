@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: rdreg.c,v 1.9 1997/11/18 21:08:07 nate Exp $";
+	"$Id: rdreg.c,v 1.9.2.1 1999/03/03 11:15:32 kuriyama Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -38,6 +38,7 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 
 #include <pccard/cardinfo.h>
+
 void
 dumpslot(sl)
 	int     sl;
@@ -47,7 +48,7 @@ dumpslot(sl)
 	struct pcic_reg r;
 
 	sprintf(name, CARD_DEVICE, sl);
-	fd = open(name, O_RDWR);
+	fd = open(name, O_RDONLY);
 	if (fd < 0) {
 		warn("%s", name);
 		return;
@@ -55,7 +56,7 @@ dumpslot(sl)
 	printf("Registers for slot %d\n", sl);
 	for (r.reg = 0; r.reg < 0x40; r.reg++) {
 		if (ioctl(fd, PIOCGREG, &r)) {
-			warn("ioctl");
+			err(1, "ioctl (PIOCGREG)");
 			break;
 		}
 		if ((r.reg % 16) == 0)

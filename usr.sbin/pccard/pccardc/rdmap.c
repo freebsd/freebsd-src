@@ -26,9 +26,10 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: rdmap.c,v 1.9 1997/11/18 21:08:07 nate Exp $";
+	"$Id: rdmap.c,v 1.9.2.1 1999/03/03 11:15:32 kuriyama Exp $";
 #endif /* not lint */
 
+#include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +40,7 @@ static const char rcsid[] =
 #include <pccard/cardinfo.h>
 #include <pccard/cis.h>
 
-void
+static void
 dump_io(fd, nio)
 	int     fd, nio;
 {
@@ -48,13 +49,14 @@ dump_io(fd, nio)
 
 	for (i = 0; i < nio; i++) {
 		io.window = i;
-		ioctl(fd, PIOCGIO, &io);
+		if (ioctl(fd, PIOCGIO, &io))
+			err(1, "ioctl (PIOCGIO)");
 		printf("I/O %d: flags 0x%03x port 0x%3x size %d bytes\n",
 		    io.window, io.flags, io.start, io.size);
 	}
 }
 
-void
+static void
 dump_mem(fd, nmem)
 	int     fd, nmem;
 {
@@ -63,7 +65,8 @@ dump_mem(fd, nmem)
 
 	for (i = 0; i < nmem; i++) {
 		mem.window = i;
-		ioctl(fd, PIOCGMEM, &mem);
+		if (ioctl(fd, PIOCGMEM, &mem))
+			err(1, "ioctl (PIOCGMEM)");
 		printf("Mem %d: flags 0x%03x host %p card %04lx size %d bytes\n",
 		    mem.window, mem.flags, mem.start, mem.card, mem.size);
 	}
@@ -81,7 +84,8 @@ scan(slot)
 	fd = open(name, O_RDONLY);
 	if (fd < 0)
 		return;
-	ioctl(fd, PIOCGSTATE, &st);
+	if (ioctl(fd, PIOCGSTATE, &st))
+		err(1, "ioctl (PIOCGSTATE)");
 /*
 	if (st.state == filled)
  */

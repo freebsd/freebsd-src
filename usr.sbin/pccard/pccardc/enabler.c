@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: enabler.c,v 1.10 1997/11/18 21:08:06 nate Exp $";
+	"$Id: enabler.c,v 1.10.2.1 1999/03/03 11:15:32 kuriyama Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -138,7 +138,7 @@ void
 usage(msg)
 	char   *msg;
 {
-	warnx("enabler: %s", msg);
+	fprintf(stderr, "enabler: %s\n", msg);
 	fprintf(stderr,
 "usage: pccardc enabler slot driver [-m addr size] [-a iobase] [-i irq]\n");
 	fprintf(stderr,

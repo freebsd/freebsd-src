@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: wrattr.c,v 1.10 1997/11/18 21:08:08 nate Exp $";
+	"$Id: wrattr.c,v 1.10.2.1 1999/03/03 11:15:32 kuriyama Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -62,16 +62,19 @@ wrattr_main(argc, argv)
 	fd = open(name, O_RDWR);
 	if (fd < 0)
 		err(1, "%s", name);
+
 	reg = MDF_ATTR;
 	if (ioctl(fd, PIOCRWFLAG, &reg))
 		err(1, "ioctl (PIOCRWFLAG)");
+
 	if (sscanf(argv[2], "%x", &reg) != 1 ||
 	    sscanf(argv[3], "%x", &value) != 1)
 		errx(1, "arg error");
+
 	offs = reg;
 	c = value;
 	lseek(fd, offs, SEEK_SET);
 	if (write(fd, &c, 1) != 1)
-		warn("%s", name);
+		err(1, "%s", name);
 	return 0;
 }
