@@ -290,7 +290,7 @@ lprintf("lp flags 0x%x\n", sc->sc_flags);
 		if (trys++ >= LPINITRDY*4) {
 			splx(s);
 			sc->sc_state = 0;
-printf ("status %x\n", inb(port+lpt_status) );
+lprintf ("status %x\n", inb(port+lpt_status) );
 			return (EBUSY);
 		}
 
