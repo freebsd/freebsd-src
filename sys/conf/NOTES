@@ -399,7 +399,7 @@ options		REGRESSION
 # for development use only and should NOT be used in production systems
 # to "workaround" a panic.
 #
-options 	RESTARTABLE_PANICS
+#options 	RESTARTABLE_PANICS
 
 #
 # PERFMON causes the driver for Pentium/Pentium Pro performance counters
