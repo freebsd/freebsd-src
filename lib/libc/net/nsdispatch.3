@@ -74,7 +74,8 @@ the caller of
 .Pp
 Each method has the function signature described by the typedef:
 .Pp
-.Ft typedef "int \*(lp*nss_method\*(rp\*(lpvoid *retval, void *mdata, va_list *ap\*(rp" ;
+.Ft typedef int
+.Fn \*(lp*nss_method\*(rp "void *retval" "void *mdata" "va_list *ap" ;
 .Pp
 .Va dtab
 is an array of
@@ -175,12 +176,12 @@ as a variable argument list of the type
 .Ss Valid source types
 While there is support for arbitrary sources, the following
 #defines for commonly implemented sources are available:
-.Bl -column NS_COMPAT COMPAT -offset indent
+.Bl -column NSSRC_COMPAT compat -offset indent
 .It Sy "#define	value"
-.It "NSSRC_FILES	""files"""
-.It "NSSRC_DNS	""dns"""
-.It "NSSRC_NIS	""nis"""
-.It "NSSRC_COMPAT	""compat"""
+.It Dv NSSRC_FILES Ta """files""
+.It Dv NSSRC_DNS Ta """dns""
+.It Dv NSSRC_NIS Ta """nis""
+.It Dv NSSRC_COMPAT Ta """compat""
 .El
 .Pp
 Refer to
@@ -192,13 +193,13 @@ The
 .Vt nss_method
 functions must return one of the following values depending upon status
 of the lookup:
-.Bl -column "RETURN VALUE" "STATUS CODE"
+.Bl -column "Return value" "Status code"
 .It Sy "Return value	Status code"
-.It "NS_SUCCESS	success"
-.It "NS_NOTFOUND	notfound"
-.It "NS_UNAVAIL	unavail"
-.It "NS_TRYAGAIN	tryagain"
-.It "NS_RETURN	-none-"
+.It Dv NS_SUCCESS Ta success
+.It Dv NS_NOTFOUND Ta notfound
+.It Dv NS_UNAVAIL Ta unavail
+.It Dv NS_TRYAGAIN Ta tryagain
+.It Dv NS_RETURN Ta -none-
 .El
 .Pp
 Refer to
@@ -208,12 +209,14 @@ for a complete description of each status code.
 The
 .Fn nsdispatch
 function returns the value of the method that caused the dispatcher to
-terminate, or NS_NOTFOUND otherwise.
+terminate, or
+.Dv NS_NOTFOUND
+otherwise.
 .Sh SEE ALSO
 .Xr hesiod 3 ,
 .Xr stdarg 3 ,
-.Xr yp 8 ,
-.Xr nsswitch.conf 5
+.Xr nsswitch.conf 5 ,
+.Xr yp 8
 .Sh HISTORY
 The
 .Fn nsdispatch
@@ -232,10 +235,10 @@ Luke Mewburn
 wrote this freely-distributable name-service switch implementation,
 using ideas from the
 .Tn ULTRIX
-"svc.conf\*(lp5\*(rp"
+svc.conf(5)
 and
 .Tn Solaris
-"nsswitch.conf\*(lp4\*(rp"
+nsswitch.conf(4)
 manual pages.
 The
 .Fx
