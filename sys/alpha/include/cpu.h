@@ -92,8 +92,8 @@ struct clockframe {
 #define	aston()		(astpending = 1)
 
 #ifdef _KERNEL
-u_int32_t intr_nesting_level;	/* bookeeping only; counts software intr */
-u_int32_t want_resched;		/* resched() was called */
+extern u_int32_t intr_nesting_level;	/* bookeeping only; counts sw intrs */
+extern u_int32_t want_resched;		/* resched() was called */
 #endif
 
 
