@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.34 1998/07/15 05:00:26 bde Exp $
+ * $Id: imgact_gzip.c,v 1.35 1998/10/16 03:55:00 peter Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -374,5 +374,5 @@ Flush(void *vp, u_char * ptr, u_long siz)
  * correct directive to use.
  */
 
-static const struct execsw gzip_execsw = {exec_gzip_imgact, "gzip"};
+static struct execsw gzip_execsw = {exec_gzip_imgact, "gzip"};
 EXEC_SET(execgzip, gzip_execsw);
