@@ -778,7 +778,7 @@ syscall(code, framep)
 	cred_free_thread(td);
 #endif
 	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    syscallnames[code]);
+	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
