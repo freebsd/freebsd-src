@@ -570,7 +570,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
-"usage: netstat [-Aan] [-f address_family] [-M core] [-N system]",
+"usage: netstat [-AaLn] [-f address_family] [-M core] [-N system]",
 "       netstat [-bdghimnrs] [-f address_family] [-M core] [-N system]",
 "       netstat [-bdn] [-I interface] [-M core] [-N system] [-w wait]",
 "       netstat [-M core] [-N system] [-p protocol]");
