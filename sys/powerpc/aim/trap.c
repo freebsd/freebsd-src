@@ -265,8 +265,6 @@ trap(frame)
 			int n;
 			register_t args[10];
 
-			PROC_LOCK(p);
-
 #if 0
 			uvmexp.syscalls++;
 #endif
@@ -309,6 +307,13 @@ trap(frame)
 				params = args;
 			}
 
+			/*
+			 * Try to run the syscall without Giant if the syscall
+			 * is MP safe.
+			 */
+			if ((callp->sy_narg & SYF_MPSAFE) == 0)
+				mtx_lock(&Giant);
+
 #ifdef	KTRACE
 			if (KTRPOINT(p, KTR_SYSCALL))
 				ktrsyscall(p, code, argsize, params);
@@ -344,12 +349,17 @@ syscall_bad:
 				break;
 			}
 
+			/*
+			 * Release Giant if we had to get it.  Don't use
+			 * mtx_owned(), we want to catch broken syscalls.
+			 */
+			if ((callp->sy_narg & SYF_MPSAFE) == 0)
+				mtx_unlock(&Giant);
 #ifdef	KTRACE
 			if (KTRPOINT(p, KTR_SYSRET))
 				ktrsysret(p, code, error, rval[0]);
 #endif
 		}
-		PROC_UNLOCK(p);
 		break;
 
 	case EXC_FPU|EXC_USER:
