@@ -173,7 +173,7 @@ mpt_probe(device_t dev)
 	}
 
 	device_set_desc(dev, desc);
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 #ifdef	RELENG_4

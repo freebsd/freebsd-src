@@ -796,7 +796,7 @@ my_probe(device_t dev)
 		    (pci_get_device(dev) == t->my_did)) {
 			device_set_desc(dev, t->my_name);
 			my_info_tmp = t;
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}

@@ -98,7 +98,7 @@ pdq_pci_probe(device_t dev)
     if (pci_get_vendor(dev) == DEC_VENDORID &&
 	    pci_get_device(dev) == DEFPA_CHIPID) {
 	device_set_desc(dev, "Digital DEFPA PCI FDDI Controller");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
     }
 
     return (ENXIO);
