@@ -104,7 +104,7 @@ main(argc, argv)
 		break;
 	case 3:
 		if (!strncmp(argv[2], _PATH_DEV, strlen(_PATH_DEV)))
-			argv[2] += 5;
+			argv[2] += strlen(_PATH_DEV);
 		if (utmp_chk(argv[1], argv[2])) {
 			(void)fprintf(stderr,
 			    "write: %s is not logged in on %s.\n",
