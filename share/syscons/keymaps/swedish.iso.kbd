@@ -12,7 +12,7 @@
   007   '6'    '&'    nop    nop    nop    nop    nop    nop     O
   008   '7'    '/'    nop    nop    '{'    nop    nop    nop     O
   009   '8'    '('    nop    nop    '['    nop    nop    nop     O
-  010   '9'    ')'    nop    nop    ']'    nop    nop    nop     O
+  010   '9'    ')'    nop    nop    ']'    nop    gs     nop     O
   011   '0'    '='    nop    nop    '}'    nop    nop    nop     O
   012   '+'    '?'    nop    nop    '\'    nop    fs     nop     O
   013   128    '`'    nop    nop    nop    nop    nop    nop     O
