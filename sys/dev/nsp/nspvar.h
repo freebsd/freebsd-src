@@ -105,7 +105,7 @@ void nspattachsubr(struct nsp_softc *);
 int nspprint(void *, const char *);
 int nspintr(void *);
 
-#if	defined(__i386__)
+#if	defined(__i386__) && 0
 #define	SOFT_INTR_REQUIRED(slp)	(softintr((slp)->sl_irq))
 #else	/* !__i386__ */
 #define	SOFT_INTR_REQUIRED(slp)
