@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.38 1998/01/12 23:54:51 yokota Exp $
+ *	$Id: kbdtables.h,v 1.39 1998/01/28 08:45:18 yokota Exp $
  */
 
 #define SET8 0x80       	/* set eight bit on */
@@ -897,7 +897,7 @@ static keymap_t key_map = { 0xEC,        /* keys number */
 
 #ifdef ESKEYMAP
 #define ISO_ACCENTCHARS
-static keymap_t keymap = { 0x69,	/* spanish iso8859 keymap */
+static keymap_t key_map = { 0x69,	/* spanish iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
