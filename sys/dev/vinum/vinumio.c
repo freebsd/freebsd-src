@@ -50,32 +50,21 @@ static int drivecmp(const void *va, const void *vb);
 int
 open_drive(struct drive *drive, struct thread *td, int verbose)
 {
-    struct nameidata nd;
     struct cdevsw *dsw;					    /* pointer to cdevsw entry */
-    int error;
 
     if (drive->flags & VF_OPEN)				    /* open already, */
 	return EBUSY;					    /* don't do it again */
 
-    NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, drive->devicename,
-        curthread);
-    error = namei(&nd);
-    if (error)
-	return (error);
-    if (!vn_isdisk(nd.ni_vp, &error)) {
-	NDFREE(&nd, 0);
-	return (error);
-    }
-    drive->dev = udev2dev(nd.ni_vp->v_rdev->si_udev, 0);
-    NDFREE(&nd, 0);
-
-    if (drive->dev == NULL)				    /* didn't find anything */
-	return ENODEV;
+    drive->dev = getdiskbyname(drive->devicename);
+    if (drive->dev == NODEV)				    /* didn't find anything */
+	return ENOENT;
 
     drive->dev->si_iosize_max = DFLTPHYS;
     dsw = devsw(drive->dev);
-    if (dsw == NULL)
+    if (dsw == NULL)					    /* sanity, should not happen */
 	drive->lasterror = ENOENT;
+    else if ((dsw->d_flags & D_DISK) == 0)
+	drive->lasterror = ENOTBLK;
     else
 	drive->lasterror = (dsw->d_open) (drive->dev, FWRITE | FREAD, 0, NULL);
 
@@ -145,11 +134,7 @@ set_drive_parms(struct drive *drive)
 int
 init_drive(struct drive *drive, int verbose)
 {
-    if (drive->devicename[0] != '/') {
-	drive->lasterror = EINVAL;
-	log(LOG_ERR, "vinum: Can't open drive without drive name\n");
-	return EINVAL;
-    }
+
     drive->lasterror = open_drive(drive, curthread, verbose); /* open the drive */
     if (drive->lasterror)
 	return drive->lasterror;
