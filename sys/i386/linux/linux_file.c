@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.22 1998/10/05 16:37:36 jfieber Exp $
+ *  $Id: linux_file.c,v 1.23 1999/01/10 23:15:35 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -258,7 +258,8 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	linux_to_bsd_flock(&linux_flock, bsd_flock);
 	fcntl_args.cmd = F_GETLK;
 	fcntl_args.arg = (int)bsd_flock;
-	if (error = fcntl(p, &fcntl_args))
+	error = fcntl(p, &fcntl_args);
+	if (error)
 	    return error;
 	bsd_to_linux_flock(bsd_flock, &linux_flock);
 	return copyout((caddr_t)&linux_flock, (caddr_t)args->arg,

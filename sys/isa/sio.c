@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.227 1999/04/24 10:41:21 dt Exp $
+ *	$Id: sio.c,v 1.228 1999/04/27 11:15:42 phk Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -1395,9 +1395,9 @@ comhardclose(com)
 		     * the next open because it might go up and down while
 		     * we're not watching.
 		     */
-		    || !com->active_out
-		       && !(com->prev_modem_status & MSR_DCD)
-		       && !(com->it_in.c_cflag & CLOCAL)
+		    || (!com->active_out
+		        && !(com->prev_modem_status & MSR_DCD)
+		        && !(com->it_in.c_cflag & CLOCAL))
 		    || !(tp->t_state & TS_ISOPEN)) {
 			(void)commctl(com, TIOCM_DTR, DMBIC);
 			if (com->dtr_wait != 0 && !(com->state & CS_DTR_OFF)) {
@@ -2074,7 +2074,7 @@ comparam(tp, t)
 
 	/* check requested parameters */
 	divisor = ttspeedtab(t->c_ospeed, comspeedtab);
-	if (divisor < 0 || divisor > 0 && t->c_ispeed != t->c_ospeed)
+	if (divisor < 0 || (divisor > 0 && t->c_ispeed != t->c_ospeed))
 		return (EINVAL);
 
 	/* parameters are OK, convert them to the com struct and the device */

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_stats.c,v 1.8 1997/02/22 09:38:25 peter Exp $
+ *  $Id: linux_stats.c,v 1.9 1997/11/06 19:29:04 phk Exp $
  */
 
 #include <sys/param.h>
@@ -241,12 +241,14 @@ linux_statfs(struct proc *p, struct linux_statfs_args *args)
 #endif
 	ndp = &nd;
 	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args->path, curproc);
-	if (error = namei(ndp))
+	error = namei(ndp);
+	if (error)
 		return error;
 	mp = ndp->ni_vp->v_mount;
 	bsd_statfs = &mp->mnt_stat;
 	vrele(ndp->ni_vp);
-	if (error = VFS_STATFS(mp, bsd_statfs, p))
+	error = VFS_STATFS(mp, bsd_statfs, p);
+	if (error)
 		return error;
 	bsd_statfs->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	linux_statfs_buf.ftype = bsd_statfs->f_type;
@@ -275,11 +277,13 @@ linux_fstatfs(struct proc *p, struct linux_fstatfs_args *args)
 #ifdef DEBUG
 	printf("Linux-emul(%d): fstatfs(%d, *)\n", p->p_pid, args->fd);
 #endif
-	if (error = getvnode(p->p_fd, args->fd, &fp))
+	error = getvnode(p->p_fd, args->fd, &fp);
+	if (error)
 		return error;
 	mp = ((struct vnode *)fp->f_data)->v_mount;
 	bsd_statfs = &mp->mnt_stat;
-	if (error = VFS_STATFS(mp, bsd_statfs, p))
+	error = VFS_STATFS(mp, bsd_statfs, p);
+	if (error)
 		return error;
 	bsd_statfs->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	linux_statfs_buf.ftype = bsd_statfs->f_type;

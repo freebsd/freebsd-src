@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.56 1999/04/27 12:21:04 phk Exp $
+ *  $Id: linux_misc.c,v 1.57 1999/04/28 01:04:19 luoqi Exp $
  */
 
 #include <sys/param.h>
@@ -173,7 +173,8 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args)
     vp = NULL;
 
     NDINIT(&ni, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, args->library, p);
-    if (error = namei(&ni))
+    error = namei(&ni);
+    if (error)
 	goto cleanup;
 
     vp = ni.ni_vp;
@@ -198,7 +199,8 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args)
     /*
      * Executable?
      */
-    if (error = VOP_GETATTR(vp, &attr, p->p_ucred, p))
+    error = VOP_GETATTR(vp, &attr, p->p_ucred, p);
+    if (error)
 	goto cleanup;
 
     if ((vp->v_mount->mnt_flag & MNT_NOEXEC) ||
@@ -219,10 +221,12 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args)
     /*
      * Can we access it?
      */
-    if (error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p))
+    error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p);
+    if (error)
 	goto cleanup;
 
-    if (error = VOP_OPEN(vp, FREAD, p->p_ucred, p))
+    error = VOP_OPEN(vp, FREAD, p->p_ucred, p);
+    if (error)
 	goto cleanup;
 
     /*
@@ -772,12 +776,14 @@ linux_pipe(struct proc *p, struct linux_pipe_args *args)
     printf("Linux-emul(%d): pipe(*)\n", p->p_pid);
 #endif
     reg_edx = p->p_retval[1];
-    if (error = pipe(p, 0)) {
+    error = pipe(p, 0);
+    if (error) {
 	p->p_retval[1] = reg_edx;
 	return error;
     }
 
-    if (error = copyout(p->p_retval, args->pipefds, 2*sizeof(int))) {
+    error = copyout(p->p_retval, args->pipefds, 2*sizeof(int));
+    if (error) {
 	p->p_retval[1] = reg_edx;
 	return error;
     }

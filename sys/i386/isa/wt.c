@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.47 1998/12/18 18:07:10 bde Exp $
+ * $Id: wt.c,v 1.48 1999/04/28 10:53:07 dt Exp $
  *
  */
 
@@ -295,7 +295,8 @@ wtopen (dev_t dev, int flag, int fmt, struct proc *p)
 	/* If the tape is in rewound state, check the status and set density. */
 	if (t->flags & TPSTART) {
 		/* If rewind is going on, wait */
-		if (error = wtwait (t, PCATCH, "wtrew"))
+		error = wtwait (t, PCATCH, "wtrew");
+		if (error)
 			return (error);
 
 		/* Check the controller status */
@@ -450,28 +451,34 @@ wtioctl (dev_t dev, u_long cmd, caddr_t arg, int flags, struct proc *p)
 	case MTOFFL:            /* rewind and put the drive offline */
 		if (t->flags & TPREW)   /* rewind is running */
 			return (0);
-		if (error = wtwait (t, PCATCH, "wtorew"))
+		error = wtwait (t, PCATCH, "wtorew");
+		if (error)
 			return (error);
 		wtrewind (t);
 		return (0);
 	case MTFSF:             /* forward space file */
 		for (count=((struct mtop*)arg)->mt_count; count>0; --count) {
-			if (error = wtwait (t, PCATCH, "wtorfm"))
+			error = wtwait (t, PCATCH, "wtorfm");
+			if (error)
 				return (error);
-			if (error = wtreadfm (t))
+			error = wtreadfm (t);
+			if (error)
 				return (error);
 		}
 		return (0);
 	case MTWEOF:            /* write an end-of-file record */
 		if (! (t->flags & TPWRITE) || (t->flags & TPWP))
 			return (EACCES);
-		if (error = wtwait (t, PCATCH, "wtowfm"))
+		error = wtwait (t, PCATCH, "wtowfm");
+		if (error)
 			return (error);
-		if (error = wtwritefm (t))
+		error = wtwritefm (t);
+		if (error)
 			return (error);
 		return (0);
 	case MTRETENS:		/* re-tension tape */
-		if (error = wtwait (t, PCATCH, "wtretens"))
+		error = wtwait (t, PCATCH, "wtretens");
+		if (error)
 			return (error);
 		op = QIC_RETENS;
 		goto erase_retens;
@@ -479,7 +486,8 @@ wtioctl (dev_t dev, u_long cmd, caddr_t arg, int flags, struct proc *p)
 	case MTERASE:		/* erase to EOM */
 		if (! (t->flags & TPWRITE) || (t->flags & TPWP))
 			return (EACCES);
-		if (error = wtwait (t, PCATCH, "wterase"))
+		error = wtwait (t, PCATCH, "wterase");
+		if (error)
 			return (error);
 		op = QIC_ERASE;
 	erase_retens:
@@ -789,9 +797,11 @@ wtwait (wtinfo_t *t, int catch, char *msg)
 	int error;
 
 	TRACE (("wtwait() `%s'\n", msg));
-	while (t->flags & (TPACTIVE | TPREW | TPRMARK | TPWMARK))
-		if (error = tsleep ((caddr_t)t, WTPRI | catch, msg, 0))
+	while (t->flags & (TPACTIVE | TPREW | TPRMARK | TPWMARK)) {
+		error = tsleep ((caddr_t)t, WTPRI | catch, msg, 0);
+		if (error)
 			return (error);
+	}
 	return (0);
 }
 
