@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot0.s,v 1.6.2.1 1999/04/25 11:16:20 rnordier Exp $
+#	$Id: boot0.s,v 1.6.2.2 1999/06/26 21:31:57 rnordier Exp $
 
 # A 512-byte boot manager.
 
@@ -25,7 +25,7 @@
 		.set PRT_OFF,0x1be		# Partition table
 
 		.set TBL0SZ,0x3 		# Table 0 size
-		.set TBL1SZ,0xa 		# Table 1 size
+		.set TBL1SZ,0xb 		# Table 1 size
 
 		.set MAGIC,0xaa55		# Magic: bootable
 
@@ -234,7 +234,7 @@ tables:
 		.byte 0x0, 0x5, 0xf
 
 		.byte 0x1, 0x4, 0x6, 0xb, 0xc, 0xe, 0x63, 0x83
-		.byte 0xa5, 0xa6
+		.byte 0xa5, 0xa6, 0xa9
 
 		.byte os_misc-. 		# Unknown
 		.byte os_dos-.			# DOS
@@ -247,6 +247,7 @@ tables:
 		.byte os_linux-.		# Linux
 		.byte os_freebsd-.		# FreeBSD
 		.byte os_bsd-.			# OpenBSD
+		.byte os_bsd-.			# NetBSD
 
 os_misc:	.ascii "?";    .byte '?'|0x80
 os_dos: 	.ascii "DO";   .byte 'S'|0x80
