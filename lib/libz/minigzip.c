@@ -13,7 +13,7 @@
  * or in pipe mode.
  */
 
-/* $FreeBSD$ */
+/* @(#) $Id: minigzip.c,v 1.1.1.3 1999/01/10 09:46:57 peter Exp $ */
 
 #include <stdio.h>
 #include "zlib.h"
@@ -47,6 +47,9 @@
 #  define unlink remove
 #  define GZ_SUFFIX "-gz"
 #  define fileno(file) file->__file
+#endif
+#if defined(__MWERKS__) && __dest_os != __be_os && __dest_os != __win32_os
+#  include <unix.h> /* for fileno */
 #endif
 
 #ifndef WIN32 /* unlink already in stdio.h for WIN32 */
