@@ -215,6 +215,10 @@ install: __null_install
 __null_install:
 .endif
 
+.if !target(all-man)
+all-man: _SUBDIR
+.endif
+
 .if !target(maninstall)
 maninstall: _SUBDIR
 .endif
