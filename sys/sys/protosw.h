@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- * $Id: protosw.h,v 1.8 1995/11/21 12:55:13 bde Exp $
+ * $Id: protosw.h,v 1.9 1995/12/16 02:14:44 bde Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
@@ -91,6 +91,7 @@ struct protosw {
 					/* slow timeout (500ms) */
 	void	(*pr_drain) __P((void));
 					/* flush any excess space possible */
+	struct	pr_usrreqs *pr_usrreqs;	/* supersedes pr_usrreq() */
 };
 
 #define	PR_SLOWHZ	2		/* 2 slow timeouts per second */
@@ -147,6 +148,7 @@ struct protosw {
 #define	PRU_SLOWTIMO		19	/* 500ms timeout */
 #define	PRU_PROTORCV		20	/* receive from below */
 #define	PRU_PROTOSEND		21	/* send to below */
+/* end for protocol's internal use */
 #define PRU_SEND_EOF		22	/* send and close */
 #define PRU_NREQ		22
 
@@ -161,6 +163,55 @@ char *prurequests[] = {
 	"SEND_EOF",
 };
 #endif
+
+#ifdef	KERNEL			/* users shouldn't see this decl */
+struct stat;
+
+/*
+ * If the ordering here looks odd, that's because it's alphabetical.
+ */
+struct pr_usrreqs {
+	int	(*pru_abort) __P((struct socket *so));
+	int	(*pru_accept) __P((struct socket *so, struct mbuf *nam));
+	int	(*pru_attach) __P((struct socket *so, int proto));
+	int	(*pru_bind) __P((struct socket *so, struct mbuf *nam));
+	int	(*pru_connect) __P((struct socket *so, struct mbuf *nam));
+	int	(*pru_connect2) __P((struct socket *so1, struct socket *so2));
+	int	(*pru_control) __P((struct socket *so, int cmd, caddr_t data));
+	int	(*pru_detach) __P((struct socket *so));
+	int	(*pru_disconnect) __P((struct socket *so));
+	int	(*pru_listen) __P((struct socket *so));
+	int	(*pru_peeraddr) __P((struct socket *so, struct mbuf *nam));
+	int	(*pru_rcvd) __P((struct socket *so, int flags));
+	int	(*pru_rcvoob) __P((struct socket *so, struct mbuf *m, int flags));
+	/*
+	 * The `m' parameter here is almost certainly going to become a
+	 * `struct uio' at some point in the future.  Similar changes
+	 * will probably happen for the receive entry points.
+	 */
+	int	(*pru_send) __P((struct socket *so, int flags, struct mbuf *m, 
+			      struct mbuf *addr, struct mbuf *control));
+#define	PRUS_OOB	0x1
+#define	PRUS_EOF	0x2
+	int	(*pru_sense) __P((struct socket *so, struct stat *sb));
+	int	(*pru_shutdown) __P((struct socket *so));
+	int	(*pru_sockaddr) __P((struct socket *so, struct mbuf *nam));
+};
+
+#define	PRU_OLDSTYLE
+
+#ifdef PRU_OLDSTYLE
+/*
+ * Protocols which don't yet implement pr_usrreqs can point it to this
+ * structure, which will call the old pr_usrreq() entry point with the
+ * appropriate arguments.
+ */
+extern	struct pr_usrreqs pru_oldstyle;
+int	pr_newstyle_usrreq(struct socket *, int, struct mbuf *, struct mbuf *,
+			   struct mbuf *);
+#endif /* PRU_OLDSTYLE */
+
+#endif /* KERNEL */
 
 /*
  * The arguments to the ctlinput routine are
