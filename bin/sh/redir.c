@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: redir.c,v 1.8 1997/02/22 13:58:43 peter Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)redir.c	8.2 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "@(#)redir.c	8.2 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
