@@ -28,12 +28,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(LIBC_RCS) && !defined(lint)
-	.text
-        .asciz "$FreeBSD$"
-#endif /* LIBC_RCS and not lint */
-
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * memcmp (void *b1, void *b2, size_t len)

@@ -37,17 +37,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 	.asciz "@(#)fabs.s	5.2 (Berkeley) 12/17/90"
 #endif /* LIBC_SCCS and not lint */
-#if !defined(lint) && !defined(STRIP_FBSDID)
-#ifdef __ELF__
-	.ident "$FreeBSD$"
-#else
-	.data
-	.asciz "$FreeBSD$"
-	.previous
-#endif
-#endif
-
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 ENTRY(fabs)
 	fldl	4(%esp)

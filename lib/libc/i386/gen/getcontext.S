@@ -24,11 +24,8 @@
  * SUCH DAMAGE.
  */
 
-/*
- * $FreeBSD$
- */
-
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Where do we define these?

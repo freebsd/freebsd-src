@@ -34,8 +34,11 @@
  */
 
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
+#if 0
 	RCSID("$NetBSD: bcopy.S,v 1.6 1996/11/12 00:50:06 jtc Exp $")
+#endif
 
 	/*
 	 * (ov)bcopy (src,dst,cnt)
