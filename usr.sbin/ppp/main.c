@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.36 1998/03/20 19:48:11 brian Exp $
+ * $Id: main.c,v 1.121.2.37 1998/03/25 00:59:38 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -91,7 +91,6 @@
 #endif
 #endif
 
-static pid_t BGPid = 0;
 static char pid_filename[MAXPATHLEN];
 
 static void DoLoop(struct bundle *);
@@ -145,12 +144,17 @@ CloseConnection(int signo)
 static void
 CloseSession(int signo)
 {
-  if (BGPid) {
-    kill(BGPid, SIGINT);
-    exit(EX_TERM);
-  }
   LogPrintf(LogPHASE, "Signal %d, terminate.\n", signo);
   Cleanup(EX_TERM);
+}
+
+static pid_t BGPid = 0;
+
+static void
+KillChild(int signo)
+{
+  LogPrintf(LogPHASE, "Parent: Signal %d\n", signo);
+  kill(BGPid, SIGINT);
 }
 
 static void
@@ -436,9 +440,15 @@ main(int argc, char **argv)
 	char c = EX_NORMAL;
 
 	if (mode & MODE_BACKGROUND) {
-	  /* Wait for our child to close its pipe before we exit. */
-	  BGPid = bgpid;
 	  close(BGFiledes[1]);
+	  BGPid = bgpid;
+          /* If we get a signal, kill the child */
+          signal(SIGHUP, KillChild);
+          signal(SIGTERM, KillChild);
+          signal(SIGINT, KillChild);
+          signal(SIGQUIT, KillChild);
+
+	  /* Wait for our child to close its pipe before we exit */
 	  if (read(BGFiledes[0], &c, 1) != 1) {
 	    prompt_Printf(&prompt, "Child exit, no status.\n");
 	    LogPrintf(LogPHASE, "Parent: Child exit, no status.\n");
