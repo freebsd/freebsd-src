@@ -86,7 +86,7 @@ getif(s, addrp)
 	while (len > 0) {
 		ifrq = (struct ifreq *) p;
 		sip = (struct sockaddr_in *) &ifrq->ifr_addr;
-		m = nmatch(addrp, &(sip->sin_addr));
+		m = nmatch((u_char *)addrp, (u_char *)&(sip->sin_addr));
 		if (m > maxmatch) {
 			maxmatch = m;
 			ifrmax = ifrq;
