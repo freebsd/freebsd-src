@@ -43,7 +43,8 @@ tmp_version.c:	version.c ${BIND_DIR}/Version
 	    -e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
 	    < ${BIND_DIR}/bin/named/version.c > tmp_version.c)
 	
-pathnames.h:	pathtemplate.h ${.CURDIR}/../../usr.sbin/named/Makefile.inc
+pathnames.h:	${BIND_DIR}/bin/named/pathtemplate.h \
+		${.CURDIR}/../../usr.sbin/named/Makefile.inc
 	rm -f pathnames.h
 	sed -e "s|%DESTSBIN%|${DESTSBIN}|" \
 	    -e "s|%DESTEXEC%|${DESTEXEC}|" \
