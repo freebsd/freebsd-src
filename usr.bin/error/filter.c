@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)filter.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: filter.c,v 1.2 1997/11/03 07:44:06 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -57,7 +57,7 @@ char	*lint_libs[] = {
 	0
 };
 
-int	lexsort();
+int	lexsort __P((const void *, const void *));
 
 /*
  *	Read the file ERRORNAME of the names of functions in lint
@@ -128,9 +128,10 @@ getignored(auxname)
 #endif
 }
 
-int lexsort(cpp1, cpp2)
-	char	**cpp1, **cpp2;
+int lexsort(vcpp1, vcpp2)
+	const void	*vcpp1, *vcpp2;
 {
+	char * const *cpp1 = vcpp1, * const *cpp2 = vcpp2;
 	return(strcmp(*cpp1, *cpp2));
 }
 
