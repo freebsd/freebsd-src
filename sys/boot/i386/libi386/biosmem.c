@@ -24,7 +24,7 @@ int
 getbasemem(void)
 {
     v86.ctl = 0;
-    v86.addr = 0x1a;		/* int 0x12 */
+    v86.addr = 0x12;		/* int 0x12 */
     v86int();
 
     return(v86.eax & 0xffff);
@@ -39,7 +39,7 @@ getextmem(void)
     int		extkb;
     
     v86.ctl = 0;
-    v86.addr = 0x15;		/* int 0x12 function 0x88*/
+    v86.addr = 0x15;		/* int 0x15 function 0x88*/
     v86.eax = 0x8800;
     v86int();
     extkb = v86.eax & 0xffff;
