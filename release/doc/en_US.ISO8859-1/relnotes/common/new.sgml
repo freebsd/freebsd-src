@@ -110,15 +110,19 @@
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3 id="proc">
-      <title>Processor/Motherboard Support</title>
+      <title>Platform-Specific Hardware Support</title>
 
       <para arch="i386">A bug which prevented the kernel from booting
 	on an Intel 80386 processor has been corrected.</para>
 
+      <para arch="i386">A bug that even when no AT keyboard is connected,
+        &man.atkbd.4; registers an AT keyboard during console initialization
+        has been fixed.  <command>kbdcontrol -k /dev/kbd1</command>
+        is no longer needed when only a USB keyboard is connected.</para>
     </sect3>
 
     <sect3 id="boot">
-      <title>Boot Loaders</title>
+      <title>Boot Loader Changes</title>
 
       <para></para>
 
@@ -163,7 +167,7 @@
     </sect3>
 
     <sect3 id="fs">
-      <title>Filesystems</title>
+      <title>File Systems</title>
 
       <para>A new <literal>DIRECTIO</literal> kernel option enables
 	support for read operations that bypass the buffer cache and
