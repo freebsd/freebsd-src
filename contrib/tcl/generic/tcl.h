@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tcl.h 1.318 97/06/26 13:43:02
+ * SCCS: @(#) tcl.h 1.324 97/08/07 10:26:49
  */
 
 #ifndef _TCL
@@ -37,11 +37,11 @@
 
 #define TCL_MAJOR_VERSION   8
 #define TCL_MINOR_VERSION   0
-#define TCL_RELEASE_LEVEL   1
-#define TCL_RELEASE_SERIAL  2
+#define TCL_RELEASE_LEVEL   2
+#define TCL_RELEASE_SERIAL  0
 
 #define TCL_VERSION	    "8.0"
-#define TCL_PATCH_LEVEL	    "8.0b2"
+#define TCL_PATCH_LEVEL	    "8.0"
 
 /*
  * The following definitions set up the proper options for Windows
@@ -410,12 +410,25 @@ typedef struct Tcl_Obj {
  * expression that is expensive to compute or has side effects.
  */
 
-#define Tcl_IncrRefCount(objPtr) \
-    ++(objPtr)->refCount
-#define Tcl_DecrRefCount(objPtr) \
-    if (--(objPtr)->refCount <= 0) TclFreeObj(objPtr)
-#define Tcl_IsShared(objPtr) \
-    ((objPtr)->refCount > 1)
+EXTERN void		Tcl_IncrRefCount _ANSI_ARGS_((Tcl_Obj *objPtr));
+EXTERN void		Tcl_DecrRefCount _ANSI_ARGS_((Tcl_Obj *objPtr));
+EXTERN int		Tcl_IsShared _ANSI_ARGS_((Tcl_Obj *objPtr));
+
+#ifdef TCL_MEM_DEBUG
+#   define Tcl_IncrRefCount(objPtr) \
+	Tcl_DbIncrRefCount(objPtr, __FILE__, __LINE__)
+#   define Tcl_DecrRefCount(objPtr) \
+	Tcl_DbDecrRefCount(objPtr, __FILE__, __LINE__)
+#   define Tcl_IsShared(objPtr) \
+	Tcl_DbIsShared(objPtr, __FILE__, __LINE__)
+#else
+#   define Tcl_IncrRefCount(objPtr) \
+	++(objPtr)->refCount
+#   define Tcl_DecrRefCount(objPtr) \
+	if (--(objPtr)->refCount <= 0) TclFreeObj(objPtr)
+#   define Tcl_IsShared(objPtr) \
+	((objPtr)->refCount > 1)
+#endif
 
 /*
  * Macros and definitions that help to debug the use of Tcl objects.
@@ -511,17 +524,18 @@ typedef struct Tcl_CallFrame {
 } Tcl_CallFrame;
 
 /*
- * Information about commands that is returned by Tcl_GetCmdInfo and passed
- * to Tcl_SetCmdInfo. objProc is an objc/objv object-based command procedure
- * while proc is a traditional Tcl argc/argv string-based procedure.
- * Tcl_CreateObjCommand and Tcl_CreateCommand ensure that both objProc and
- * proc are non-NULL and can be called to execute the command. However,
- * it may be faster to call one instead of the other. The member
- * isNativeObjectProc is set to 1 if an object-based procedure was
- * registered by Tcl_CreateObjCommand, and to 0 if a string-based procedure
- * was registered by Tcl_CreateCommand. The other procedure is typically set
- * to a compatibility wrapper that does string-to-object or object-to-string
- * argument conversions then calls the other procedure.
+ * Information about commands that is returned by Tcl_GetCommandInfo and
+ * passed to Tcl_SetCommandInfo. objProc is an objc/objv object-based
+ * command procedure while proc is a traditional Tcl argc/argv
+ * string-based procedure. Tcl_CreateObjCommand and Tcl_CreateCommand
+ * ensure that both objProc and proc are non-NULL and can be called to
+ * execute the command. However, it may be faster to call one instead of
+ * the other. The member isNativeObjectProc is set to 1 if an
+ * object-based procedure was registered by Tcl_CreateObjCommand, and to
+ * 0 if a string-based procedure was registered by Tcl_CreateCommand.
+ * The other procedure is typically set to a compatibility wrapper that
+ * does string-to-object or object-to-string argument conversions then
+ * calls the other procedure.
  */
      
 typedef struct Tcl_CmdInfo {
@@ -985,7 +999,7 @@ EXTERN int		Tcl_AsyncInvoke _ANSI_ARGS_((Tcl_Interp *interp,
 EXTERN void		Tcl_AsyncMark _ANSI_ARGS_((Tcl_AsyncHandler async));
 EXTERN int		Tcl_AsyncReady _ANSI_ARGS_((void));
 EXTERN void		Tcl_BackgroundError _ANSI_ARGS_((Tcl_Interp *interp));
-EXTERN char		Tcl_Backslash _ANSI_ARGS_((char *src,
+EXTERN char		Tcl_Backslash _ANSI_ARGS_((CONST char *src,
 			    int *readPtr));
 EXTERN int		Tcl_BadChannelOption _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *optionName, char *optionList));
@@ -1003,9 +1017,9 @@ EXTERN int		Tcl_CommandComplete _ANSI_ARGS_((char *cmd));
 EXTERN char *		Tcl_Concat _ANSI_ARGS_((int argc, char **argv));
 EXTERN Tcl_Obj *	Tcl_ConcatObj _ANSI_ARGS_((int objc,
 			    Tcl_Obj *CONST objv[]));
-EXTERN int		Tcl_ConvertCountedElement _ANSI_ARGS_((char *src,
+EXTERN int		Tcl_ConvertCountedElement _ANSI_ARGS_((CONST char *src,
 			    int length, char *dst, int flags));
-EXTERN int		Tcl_ConvertElement _ANSI_ARGS_((char *src,
+EXTERN int		Tcl_ConvertElement _ANSI_ARGS_((CONST char *src,
 			    char *dst, int flags));
 EXTERN int		Tcl_ConvertToType _ANSI_ARGS_((Tcl_Interp *interp,
 			    Tcl_Obj *objPtr, Tcl_ObjType *typePtr));
@@ -1059,6 +1073,12 @@ EXTERN int		Tcl_DbCkfree _ANSI_ARGS_((char *ptr,
 			    char *file, int line));
 EXTERN char *		Tcl_DbCkrealloc _ANSI_ARGS_((char *ptr,
 			    unsigned int size, char *file, int line));
+EXTERN void		Tcl_DbDecrRefCount _ANSI_ARGS_((Tcl_Obj *objPtr,
+			    char *file, int line));
+EXTERN void		Tcl_DbIncrRefCount _ANSI_ARGS_((Tcl_Obj *objPtr,
+			    char *file, int line));
+EXTERN int		Tcl_DbIsShared _ANSI_ARGS_((Tcl_Obj *objPtr,
+			    char *file, int line));
 EXTERN Tcl_Obj *	Tcl_DbNewBooleanObj _ANSI_ARGS_((int boolValue,
                             char *file, int line));
 EXTERN Tcl_Obj *	Tcl_DbNewDoubleObj _ANSI_ARGS_((double doubleValue,
@@ -1109,9 +1129,9 @@ EXTERN int		Tcl_DoOneEvent _ANSI_ARGS_((int flags));
 EXTERN void		Tcl_DoWhenIdle _ANSI_ARGS_((Tcl_IdleProc *proc,
 			    ClientData clientData));
 EXTERN char *		Tcl_DStringAppend _ANSI_ARGS_((Tcl_DString *dsPtr,
-			    char *string, int length));
+			    CONST char *string, int length));
 EXTERN char *		Tcl_DStringAppendElement _ANSI_ARGS_((
-			    Tcl_DString *dsPtr, char *string));
+			    Tcl_DString *dsPtr, CONST char *string));
 EXTERN void		Tcl_DStringEndSublist _ANSI_ARGS_((Tcl_DString *dsPtr));
 EXTERN void		Tcl_DStringFree _ANSI_ARGS_((Tcl_DString *dsPtr));
 EXTERN void		Tcl_DStringGetResult _ANSI_ARGS_((Tcl_Interp *interp,
@@ -1137,7 +1157,7 @@ EXTERN int		Tcl_EvalObj _ANSI_ARGS_((Tcl_Interp *interp,
 			    Tcl_Obj *objPtr));
 EXTERN void		Tcl_Exit _ANSI_ARGS_((int status));
 EXTERN int		Tcl_ExposeCommand _ANSI_ARGS_((Tcl_Interp *interp,
-        		    char *hiddenCmdName, char *cmdName));
+        		    char *hiddenCmdToken, char *cmdName));
 EXTERN int		Tcl_ExprBoolean _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *string, int *ptr));
 EXTERN int		Tcl_ExprBooleanObj _ANSI_ARGS_((Tcl_Interp *interp,
@@ -1245,7 +1265,7 @@ EXTERN int		Tcl_GlobalEvalObj _ANSI_ARGS_((Tcl_Interp *interp,
 			    Tcl_Obj *objPtr));
 EXTERN char *		Tcl_HashStats _ANSI_ARGS_((Tcl_HashTable *tablePtr));
 EXTERN int		Tcl_HideCommand _ANSI_ARGS_((Tcl_Interp *interp,
-		            char *cmdName, char *hiddenCmdName));
+		            char *cmdName, char *hiddenCmdToken));
 EXTERN int		Tcl_Init _ANSI_ARGS_((Tcl_Interp *interp));
 EXTERN void		Tcl_InitHashTable _ANSI_ARGS_((Tcl_HashTable *tablePtr,
 			    int keyType));
@@ -1326,6 +1346,8 @@ EXTERN int		Tcl_Read _ANSI_ARGS_((Tcl_Channel chan,
 EXTERN void		Tcl_ReapDetachedProcs _ANSI_ARGS_((void));
 EXTERN int		Tcl_RecordAndEval _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *cmd, int flags));
+EXTERN int		Tcl_RecordAndEvalObj _ANSI_ARGS_((Tcl_Interp *interp,
+			    Tcl_Obj *cmdPtr, int flags));
 EXTERN Tcl_RegExp	Tcl_RegExpCompile _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *string));
 EXTERN int		Tcl_RegExpExec _ANSI_ARGS_((Tcl_Interp *interp,
@@ -1342,9 +1364,9 @@ EXTERN void		Tcl_Release _ANSI_ARGS_((ClientData clientData));
 EXTERN void		Tcl_RestartIdleTimer _ANSI_ARGS_((void));
 EXTERN void		Tcl_ResetResult _ANSI_ARGS_((Tcl_Interp *interp));
 #define Tcl_Return Tcl_SetResult
-EXTERN int		Tcl_ScanCountedElement _ANSI_ARGS_((char *string,
+EXTERN int		Tcl_ScanCountedElement _ANSI_ARGS_((CONST char *string,
 			    int length, int *flagPtr));
-EXTERN int		Tcl_ScanElement _ANSI_ARGS_((char *string,
+EXTERN int		Tcl_ScanElement _ANSI_ARGS_((CONST char *string,
 			    int *flagPtr));
 EXTERN int		Tcl_Seek _ANSI_ARGS_((Tcl_Channel chan,
         		    int offset, int mode));

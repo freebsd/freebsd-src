@@ -12,7 +12,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclCmdMZ.c 1.99 97/05/19 17:37:17
+ * SCCS: @(#) tclCmdMZ.c 1.102 97/08/13 10:06:58
  */
 
 #include "tclInt.h"
@@ -953,7 +953,7 @@ Tcl_SourceObjCmd(dummy, interp, objc, objv)
 /*
  *----------------------------------------------------------------------
  *
- * Tcl_SplitCmd --
+ * Tcl_SplitObjCmd --
  *
  *	This procedure is invoked to process the "split" Tcl command.
  *	See the user documentation for details on what it does.
@@ -969,60 +969,63 @@ Tcl_SourceObjCmd(dummy, interp, objc, objv)
 
 	/* ARGSUSED */
 int
-Tcl_SplitCmd(dummy, interp, argc, argv)
-    ClientData dummy;			/* Not used. */
-    Tcl_Interp *interp;			/* Current interpreter. */
-    int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
+Tcl_SplitObjCmd(dummy, interp, objc, objv)
+    ClientData dummy;		/* Not used. */
+    Tcl_Interp *interp;		/* Current interpreter. */
+    int objc;			/* Number of arguments. */
+    Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
-    char *splitChars;
     register char *p, *p2;
-    char *elementStart;
+    char *splitChars, *string, *elementStart;
+    int splitCharLen, stringLen, i, j;
+    Tcl_Obj *listPtr;
 
-    if (argc == 2) {
+    if (objc == 2) {
 	splitChars = " \n\t\r";
-    } else if (argc == 3) {
-	splitChars = argv[2];
+	splitCharLen = 4;
+    } else if (objc == 3) {
+	splitChars = Tcl_GetStringFromObj(objv[2], &splitCharLen);
     } else {
-	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-		" string ?splitChars?\"", (char *) NULL);
+	Tcl_WrongNumArgs(interp, 1, objv, "string ?splitChars?");
 	return TCL_ERROR;
     }
 
+    string = Tcl_GetStringFromObj(objv[1], &stringLen);
+    listPtr = Tcl_NewListObj(0, (Tcl_Obj **) NULL);
+    
     /*
      * Handle the special case of splitting on every character.
      */
 
-    if (*splitChars == 0) {
-	char string[2];
-	string[1] = 0;
-	for (p = argv[1]; *p != 0; p++) {
-	    string[0] = *p;
-	    Tcl_AppendElement(interp, string);
+    if (splitCharLen == 0) {
+	for (i = 0, p = string;  i < stringLen;  i++, p++) {
+	    Tcl_ListObjAppendElement(interp, listPtr,
+                    Tcl_NewStringObj(p, 1));
 	}
-	return TCL_OK;
-    }
+    } else {
+	/*
+	 * Normal case: split on any of a given set of characters.
+	 * Discard instances of the split characters.
+	 */
 
-    /*
-     * Normal case: split on any of a given set of characters.
-     * Discard instances of the split characters.
-     */
-
-    for (p = elementStart = argv[1]; *p != 0; p++) {
-	char c = *p;
-	for (p2 = splitChars; *p2 != 0; p2++) {
-	    if (*p2 == c) {
-		*p = 0;
-		Tcl_AppendElement(interp, elementStart);
-		*p = c;
-		elementStart = p+1;
-		break;
+	for (i = 0, p = elementStart = string;  i < stringLen;  i++, p++) {
+	    for (j = 0, p2 = splitChars;  j < splitCharLen;  j++, p2++) {
+		if (*p2 == *p) {
+		    Tcl_ListObjAppendElement(interp, listPtr,
+                            Tcl_NewStringObj(elementStart, (p-elementStart)));
+		    elementStart = p+1;
+		    break;
+		}
 	    }
 	}
+	if (p != string) {
+	    int remainingChars = stringLen - (elementStart-string);
+	    Tcl_ListObjAppendElement(interp, listPtr,
+                    Tcl_NewStringObj(elementStart, remainingChars));
+	}
     }
-    if (p != argv[1]) {
-	Tcl_AppendElement(interp, elementStart);
-    }
+
+    Tcl_SetObjResult(interp, listPtr);
     return TCL_OK;
 }
 
@@ -1132,15 +1135,17 @@ Tcl_StringObjCmd(dummy, interp, objc, objv)
 		return TCL_ERROR;
 	    }
 
+	    match = -1;
 	    string1 = Tcl_GetStringFromObj(objv[2], &length1);
 	    string2 = Tcl_GetStringFromObj(objv[3], &length2);
-	    match = -1;
-	    end = string2 + length2 - length1 + 1;
-	    for (p = string2; p < end; p++) {
-		if (memcmp(string1, p, (unsigned) length1) == 0) {
-		    match = p - string2;
-		    if (first) {
-		        break;
+	    if (length1 > 0) {
+		end = string2 + length2 - length1 + 1;
+		for (p = string2; p < end; p++) {
+		    if (memcmp(string1, p, (unsigned) length1) == 0) {
+			match = p - string2;
+			if (first) {
+			    break;
+			}
 		    }
 		}
 	    }
@@ -2066,7 +2071,7 @@ TraceVarProc(clientData, interp, name1, name2, flags)
 
 	oldObjResultPtr = iPtr->objResultPtr;
 	iPtr->objResultPtr = saveObjPtr;  /* was incremented above */
-	TclDecrRefCount(oldObjResultPtr);
+	Tcl_DecrRefCount(oldObjResultPtr);
 
 	Tcl_DecrRefCount(dummy.objResultPtr);
 	dummy.objResultPtr = NULL;

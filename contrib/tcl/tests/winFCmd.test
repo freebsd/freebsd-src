@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) winFCmd.test 1.8 97/05/21 14:49:13
+# SCCS: @(#) winFCmd.test 1.10 97/08/05 11:44:57
 #
 
 if {[string compare test [info procs test]] == 1} then {source defs}
@@ -44,9 +44,6 @@ proc cleanup {args} {
     }
 }
 
-set testConfig(32s) 0
-set testConfig(95) 0
-set testConfig(NT) 0
 set testConfig(cdrom) 0
 set testConfig(exdev) 0
 set testConfig(UNCPath} 0
@@ -104,12 +101,6 @@ if {[file exists c:/] && [file exists d:/]} {
     }
 }
 
-switch $tcl_platform(os) {
-    "Windows NT" {set testConfig(NT) 1}
-    "Windows 95" {set testConfig(95) 1}
-    "Win32s" {set testConfig(32s) 1}
-}
-
 if {[file exists //bisque/icepick]} {
     set testConfig(UNCPath) 1
 }
@@ -149,7 +140,10 @@ test winFCmd-1.2 {TclpRenameFile: errno: EEXIST} {
     file mkdir td2
     list [catch {testfile mv td2 td1/td2} msg] $msg
 } {1 EEXIST} 
-test winFCmd-1.3 {TclpRenameFile: errno: EINVAL} {
+test winFCmd-1.3 {TclpRenameFile: errno: EINVAL} {!$testConfig(win32s) || ("[lindex [file split [pwd]] end]" == "C:/")} {
+    # Don't run this test under Win32s on a drive mounted from an NT 
+    # machine; it causes the NT machine to die.
+
     cleanup
     list [catch {testfile mv / td1} msg] $msg
 } {1 EINVAL}
@@ -214,7 +208,7 @@ test winFCmd-1.14 {TclpRenameFile: errno: EACCES} {95} {
     createfile tf1
     list [catch {testfile mv tf1 nul} msg] $msg
 } {1 EACCES}
-test winFCmd-1.15 {TclpRenameFile: errno: EEXIST} {NT} {
+test winFCmd-1.15 {TclpRenameFile: errno: EEXIST} {nt} {
     cleanup
     createfile tf1
     list [catch {testfile mv tf1 nul} msg] $msg
@@ -235,18 +229,22 @@ test winFCmd-1.18 {TclpRenameFile: srcAttr == -1} {
 } {1 ENOENT} 
 test winFCmd-1.19 {TclpRenameFile: errno == EACCES} {
     cleanup
-    list [catch {testfile mv nul g} msg] $msg
+    list [catch {testfile mv nul tf1} msg] $msg
 } {1 EACCES}
-# under 95, this would actually move the current dir out from under yourself.
-test winFCmd-1.20 {TclpRenameFile: src is dir} {NT} {
+# under 95, this would actually succed and move the current dir out from 
+# under yourself.
+test winFCmd-1.20 {TclpRenameFile: src is dir} {!95} {
     cleanup
     file delete /tf1
     list [catch {testfile mv [pwd] /tf1} msg] $msg
 } {1 EACCES}
-test winFCmd-1.21 {TclpRenameFile: obscenely long src} {
+test winFCmd-1.21 {TclpRenameFile: obscenely long src} {!win32s} {
+    # Really long file names cause all the file system calls to lock up,
+    # endlessly throwing an access violation and retrying the operation.
+
     list [catch {testfile mv $longname tf1} msg] $msg
 } {1 ENAMETOOLONG}
-test winFCmd-1.22 {TclpRenameFile: obscenely long dst} {NT} {
+test winFCmd-1.22 {TclpRenameFile: obscenely long dst} {nt} {
     # return ENOENT if name is too long!
     cleanup
     createfile tf1
@@ -262,7 +260,10 @@ test winFCmd-1.24 {TclpRenameFile: move dir into self} {
     file mkdir td1
     list [catch {testfile mv [pwd]/td1 td1/td2} msg] $msg
 } {1 EINVAL}
-test winFCmd-1.25 {TclpRenameFile: move a root dir} {
+test winFCmd-1.25 {TclpRenameFile: move a root dir} {!$testConfig(win32s) || ("[lindex [file split [pwd]] end]" == "C:/")} {
+    # Don't run this test under Win32s on a drive mounted from an NT 
+    # machine; it causes the NT machine to die.
+
     cleanup
     list [catch {testfile mv / c:/} msg] $msg
 } {1 EINVAL}
@@ -371,7 +372,7 @@ test winFCmd-2.6 {TclpCopyFile: errno: ENOENT} {
     createfile tf1
     list [catch {testfile cp tf1 ""} msg] $msg
 } {1 ENOENT}
-test winFCmd-2.7 {TclpCopyFile: errno: EACCES} {95} {
+test winFCmd-2.7 {TclpCopyFile: errno: EACCES} {!nt} {
     cleanup
     createfile tf1
     set fd [open tf2 w]
@@ -379,7 +380,7 @@ test winFCmd-2.7 {TclpCopyFile: errno: EACCES} {95} {
     close $fd
     set msg
 } {1 EACCES}
-test winFCmd-2.8 {TclpCopyFile: errno: EACCES} {NT} {
+test winFCmd-2.8 {TclpCopyFile: errno: EACCES} {nt} {
     cleanup
     list [catch {testfile cp nul tf1} msg] $msg
 } {1 EACCES}
@@ -509,7 +510,7 @@ test winFCmd-3.11 {TclpDeleteFile: still can't remove path} {
     set msg
 } {1 EACCES}
 
-test winFCmd-4.1 {TclpCreateDirectory: errno: EACCES} {cdrom NT} {
+test winFCmd-4.1 {TclpCreateDirectory: errno: EACCES} {cdrom nt} {
     list [catch {testfile mkdir $cdrom/dummy~~.dir} msg] $msg
 } {1 EACCES}
 test winFCmd-4.2 {TclpCreateDirectory: errno: EACCES} {cdrom 95} {
@@ -584,15 +585,15 @@ test winFCmd-6.9 {TclpRemoveDirectory: errno == EACCES} {
     testfile rmdir td1
     file exists td1
 } {0}
-test winFCmd-6.10 {TclpRemoveDirectory: attr == -1} {95} {
+test winFCmd-6.10 {TclpRemoveDirectory: attr == -1} {!nt} {
     cleanup
     list [catch {testfile rmdir nul} msg] $msg
 } {1 {nul EACCES}}
-test winFCmd-6.11 {TclpRemoveDirectory: attr == -1} {NT} {
+test winFCmd-6.11 {TclpRemoveDirectory: attr == -1} {nt} {
     cleanup
     list [catch {testfile rmdir /} msg] $msg
 } {1 {\ EACCES}}
-test winFCmd-6.12 {TclpRemoveDirectory: errno == EACCES} {95} {
+test winFCmd-6.12 {TclpRemoveDirectory: errno == EACCES} {!nt} {
     cleanup
     createfile tf1
     list [catch {testfile rmdir tf1} msg] $msg
@@ -604,7 +605,7 @@ test winFCmd-6.13 {TclpRemoveDirectory: write-protected} {
     testfile rmdir td1
     file exists td1
 } {0}
-test winFCmd-6.14 {TclpRemoveDirectory: check if empty dir} {95} {
+test winFCmd-6.14 {TclpRemoveDirectory: check if empty dir} {!nt} {
     cleanup
     file mkdir td1/td2
     list [catch {testfile rmdir td1} msg] $msg
@@ -670,10 +671,10 @@ test winFCmd-7.7 {TraverseWinTree: append \ to source if necessary} {
     testfile cpdir td1 td2
     contents td2/tf1
 } {tf1}    
-test winFCmd-7.8 {TraverseWinTree: append \ to source if necessary} {95 cdrom} {
+test winFCmd-7.8 {TraverseWinTree: append \ to source if necessary} {!nt && cdrom} {
     list [catch {testfile rmdir $cdrom/} msg] $msg
 } "1 {$cdrom\\ EEXIST}"
-test winFCmd-7.9 {TraverseWinTree: append \ to source if necessary} {NT cdrom} {
+test winFCmd-7.9 {TraverseWinTree: append \ to source if necessary} {nt cdrom} {
     list [catch {testfile rmdir $cdrom/} msg] $msg
 } "1 {$cdrom\\ EACCES}"
 test winFCmd-7.10 {TraverseWinTree: can't read directory: handle == INVALID} {
@@ -701,12 +702,12 @@ test winFCmd-7.13 {TraverseWinTree: append \ to target if necessary} {
     testfile cpdir td1 td2
     contents td2/tf1
 } {tf1}    
-test winFCmd-7.14 {TraverseWinTree: append \ to target if necessary} {95} {
+test winFCmd-7.14 {TraverseWinTree: append \ to target if necessary} {!nt} {
     cleanup
     file mkdir td1
     list [catch {testfile cpdir td1 /} msg] $msg
 } {1 {\ EEXIST}}
-test winFCmd-7.15 {TraverseWinTree: append \ to target if necessary} {NT} {
+test winFCmd-7.15 {TraverseWinTree: append \ to target if necessary} {nt} {
     cleanup
     file mkdir td1
     list [catch {testfile cpdir td1 /} msg] $msg
@@ -832,45 +833,45 @@ test winFCmd-11.4 {GetWinFileAttributes} {
 test winFCmd-12.1 {ConvertFileNameFormat} {
     cleanup
     close [open td1 w]
-    list [catch {file attributes td1 -longname} msg] $msg [cleanup]
+    list [catch {string tolower [file attributes td1 -longname]} msg] $msg [cleanup]
 } {0 td1 {}}
 test winFCmd-12.2 {ConvertFileNameFormat} {
     cleanup
     file mkdir td1
     close [open td1/td1 w]
-    list [catch {file attributes td1/td1 -longname} msg] $msg [cleanup]
+    list [catch {string tolower [file attributes td1/td1 -longname]} msg] $msg [cleanup]
 } {0 td1/td1 {}}
 test winFCmd-12.3 {ConvertFileNameFormat} {
     cleanup
     file mkdir td1
     file mkdir td1/td2
     close [open td1/td3 w]
-    list [catch {file attributes td1/td2/../td3 -longname} msg] $msg [cleanup]
+    list [catch {string tolower [file attributes td1/td2/../td3 -longname]} msg] $msg [cleanup]
 } {0 td1/td2/../td3 {}}
 test winFCmd-12.4 {ConvertFileNameFormat} {
     cleanup
     close [open td1 w]
-    list [catch {file attributes ./td1 -longname} msg] $msg [cleanup]
+    list [catch {string tolower [file attributes ./td1 -longname]} msg] $msg [cleanup]
 } {0 ./td1 {}}
 test winFCmd-12.5 {ConvertFileNameFormat} {
     catch {file delete -force -- c:/td1}
     close [open c:/td1 w]
-    list [catch {file attributes c:/td1 -longname} msg] $msg [file delete -force -- c:/td1]
+    list [catch {string tolower [file attributes c:/td1 -longname]} msg] $msg [file delete -force -- c:/td1]
 } {0 c:/td1 {}}
 test winFCmd-12.6 {ConvertFileNameFormat} {UNCPath} {
     catch {file delete -force -- //bisque/icepick/test/td1}
     close [open //bisque/icepick/test/td1 w]
-    list [catch {file attributes //bisque/icepick/test/td1 -longname} msg] $msg [file delete -force -- //bisque/icepick/test/td1]
+    list [catch {string tolower [file attributes //bisque/icepick/test/td1 -longname]} msg] $msg [file delete -force -- //bisque/icepick/test/td1]
 } {0 //bisque/icepick/test/td1 {}}
 test winFCmd-12.7 {ConvertFileNameFormat} {longFileNames} {
     cleanup
     close [open td1 w]
-    list [catch {file attributes td1 -longname} msg] $msg [cleanup]
+    list [catch {string tolower [file attributes td1 -longname]} msg] $msg [cleanup]
 } {0 td1 {}}
-test winFCmd-12.8 {ConvertFileNameFormat} {32s} {
+test winFCmd-12.8 {ConvertFileNameFormat} {win32s} {
     cleanup
     close [open td1 w]
-    list [catch {file attributes td1 -longname} msg] $msg [cleanup]
+    list [catch {string tolower [file attributes td1 -longname]} msg] $msg [cleanup]
 } {0 td1 {}}
 test winFCmd-12.9 {ConvertFileNameFormat} {longFileNames} {
     cleanup
@@ -880,19 +881,19 @@ test winFCmd-12.9 {ConvertFileNameFormat} {longFileNames} {
 test winFCmd-12.10 {ConvertFileNameFormat} {longFileNames} {
     cleanup
     close [open td1 w]
-    list [catch {file attributes td1 -shortname} msg] $msg [cleanup]
+    list [catch {string tolower [file attributes td1 -shortname]} msg] $msg [cleanup]
 } {0 td1 {}}
 
 test winFCmd-13.1 {GetWinFileLongName} {
     cleanup
     close [open td1 w]
-    list [catch {file attributes td1 -longname} msg] $msg [cleanup]
+    list [catch {string tolower [file attributes td1 -longname]} msg] $msg [cleanup]
 } {0 td1 {}}
 
 test winFCmd-14.1 {GetWinFileShortName} {
     cleanup
     close [open td1 w]
-    list [catch {file attributes td1 -shortname} msg] $msg [cleanup]
+    list [catch {string tolower [file attributes td1 -shortname]} msg] $msg [cleanup]
 } {0 td1 {}}
 
 test winFCmd-15.1 {SetWinFileAttributes} {

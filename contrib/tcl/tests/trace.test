@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) trace.test 1.25 96/08/23 11:44:46
+# SCCS: @(#) trace.test 1.27 97/07/23 17:08:38
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -25,6 +25,10 @@ proc traceScalarAppend {name1 name2 op} {
 proc traceArray {name1 name2 op} {
     global info
     set info [list $name1 $name2 $op [catch {uplevel set [set name1]($name2)} msg] $msg]
+}
+proc traceArray2 {name1 name2 op} {
+    global info
+    set info [list $name1 $name2 $op]
 }
 proc traceProc {name1 name2 op} {
     global info
@@ -80,20 +84,48 @@ test trace-1.5 {trace array element reads} {
     trace var x(2) r traceArray
     list [catch {set x(2)} msg] $msg $info
 } {0 zzz {x 2 r 0 zzz}}
-test trace-1.6 {trace reads on whole arrays} {
+test trace-1.6 {trace array element reads} {
+    catch {unset x}
+    set info {}
+    trace variable x r traceArray2
+    proc p {} {
+        global x
+        set x(2) willi
+        return $x(2)
+    }
+    list [catch {p} msg] $msg $info
+} {0 willi {x 2 r}}
+test trace-1.7 {trace array element reads, create element undefined if nonexistant} {
+    catch {unset x}
+    set info {}
+    trace variable x r q
+    proc q {name1 name2 op} {
+        global info
+        set info [list $name1 $name2 $op]
+        global $name1
+        set ${name1}($name2) wolf
+    }
+    proc p {} {
+        global x
+        set x(X) willi
+        return $x(Y)
+    }
+    list [catch {p} msg] $msg $info
+} {0 wolf {x Y r}}
+test trace-1.8 {trace reads on whole arrays} {
     catch {unset x}
     set info {}
     trace var x r traceArray
     list [catch {set x(2)} msg] $msg $info
 } {1 {can't read "x(2)": no such variable} {}}
-test trace-1.7 {trace reads on whole arrays} {
+test trace-1.9 {trace reads on whole arrays} {
     catch {unset x}
     set x(2) zzz
     set info {}
     trace var x r traceArray
     list [catch {set x(2)} msg] $msg $info
 } {0 zzz {x 2 r 0 zzz}}
-test trace-1.8 {trace variable reads} {
+test trace-1.10 {trace variable reads} {
     catch {unset x}
     set x 444
     set info {}

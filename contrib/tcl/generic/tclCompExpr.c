@@ -8,7 +8,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclCompExpr.c 1.30 97/06/13 18:17:20
+ * SCCS: @(#) tclCompExpr.c 1.31 97/08/07 10:14:07
  */
 
 #include "tclInt.h"
@@ -69,7 +69,14 @@ typedef struct ExprInfo {
 				 * primary to a number if possible. */
     int exprIsJustVarRef;	/* Set 1 if the expr consists of just a
 				 * variable reference as in the expression
-				 * of "if $b then...". Otherwise 0. Used
+				 * of "if $b then...". Otherwise 0. If 1 the
+				 * expr is compiled out-of-line in order to
+				 * implement expr's 2 level substitution
+				 * semantics properly. */
+    int exprIsComparison;	/* Set 1 if the top-level operator in the
+				 * expr is a comparison. Otherwise 0. If 1,
+				 * because the operands might be strings,
+				 * the expr is compiled out-of-line in order
 				 * to implement expr's 2 level substitution
 				 * semantics properly. */
 } ExprInfo;
@@ -242,6 +249,11 @@ static int		GetToken _ANSI_ARGS_((Tcl_Interp *interp,
  *	Otherwise it is set 0. This is used to implement Tcl's two level
  *	expression substitution semantics properly.
  *
+ *	envPtr->exprIsComparison is set 1 if the top-level operator in the
+ *	expr is a comparison. Otherwise it is set 0. If 1, because the
+ *	operands might be strings, the expr is compiled out-of-line in order
+ *	to implement expr's 2 level substitution semantics properly.
+ *
  * Side effects:
  *	Adds instructions to envPtr to evaluate the expression at runtime.
  *
@@ -307,6 +319,7 @@ TclCompileExpr(interp, string, lastChar, flags, envPtr)
     info.lastChar = lastChar;
     info.hasOperators = 0;
     info.exprIsJustVarRef = 1;	/* will be set 0 if anything else is seen */
+    info.exprIsComparison = 0;	/* set 1 if topmost operator is <,==,etc. */
 
     /*
      * Get the first token then compile an expression.
@@ -343,6 +356,7 @@ TclCompileExpr(interp, string, lastChar, flags, envPtr)
     envPtr->termOffset = (info.next - string);
     envPtr->maxStackDepth = maxDepth;
     envPtr->exprIsJustVarRef = info.exprIsJustVarRef;
+    envPtr->exprIsComparison = info.exprIsComparison;
     return result;
 }
 
@@ -424,6 +438,7 @@ CompileCondExpr(interp, infoPtr, flags, envPtr)
 
 	infoPtr->hasOperators = 0;
 	infoPtr->exprIsJustVarRef = 0;
+	infoPtr->exprIsComparison = 0;
 	result = CompileCondExpr(interp, infoPtr, flags, envPtr);
 	if (result != TCL_OK) {
 	    goto done;
@@ -495,6 +510,12 @@ CompileCondExpr(interp, infoPtr, flags, envPtr)
 	TclFixupForwardJump(envPtr, &jumpAroundThenFixup, jumpDist, 127);
 
 	infoPtr->hasOperators = 1;
+
+	/*
+	 * A comparison is not the top-level operator in this expression.
+	 */
+
+	infoPtr->exprIsComparison = 0;
     }
 
     done:
@@ -658,7 +679,12 @@ CompileLorExpr(interp, infoPtr, flags, envPtr)
 	TclFixupForwardJump(envPtr, &(jumpFixupArray.fixup[fixupIndex]), jumpDist, 127);
     }
 
+    /*
+     * We get here only if one or more ||'s appear as top-level operators.
+     */
+
     done:
+    infoPtr->exprIsComparison = 0;
     TclFreeJumpFixupArray(&jumpFixupArray);
     envPtr->maxStackDepth = maxDepth;
     return result;
@@ -817,10 +843,16 @@ CompileLandExpr(interp, infoPtr, flags, envPtr)
 	fixupIndex = (j - 1);	/* process closest jump first */
 	currCodeOffset = TclCurrCodeOffset();
 	jumpDist = (currCodeOffset - jumpFixupArray.fixup[fixupIndex].codeOffset);
-	TclFixupForwardJump(envPtr, &(jumpFixupArray.fixup[fixupIndex]), jumpDist, 127);
+	TclFixupForwardJump(envPtr, &(jumpFixupArray.fixup[fixupIndex]),
+	        jumpDist, 127);
     }
 
+    /*
+     * We get here only if one or more &&'s appear as top-level operators.
+     */
+
     done:
+    infoPtr->exprIsComparison = 0;
     TclFreeJumpFixupArray(&jumpFixupArray);
     envPtr->maxStackDepth = maxDepth;
     return result;
@@ -883,6 +915,12 @@ CompileBitOrExpr(interp, infoPtr, flags, envPtr)
 	maxDepth = TclMax((envPtr->maxStackDepth + 1), maxDepth);
 	
 	TclEmitOpcode(INST_BITOR, envPtr);
+
+	/*
+	 * A comparison is not the top-level operator in this expression.
+	 */
+
+	infoPtr->exprIsComparison = 0;
     }
 
     done:
@@ -947,6 +985,12 @@ CompileBitXorExpr(interp, infoPtr, flags, envPtr)
 	maxDepth = TclMax((envPtr->maxStackDepth + 1), maxDepth);
 	
 	TclEmitOpcode(INST_BITXOR, envPtr);
+
+	/*
+	 * A comparison is not the top-level operator in this expression.
+	 */
+
+	infoPtr->exprIsComparison = 0;
     }
 
     done:
@@ -1011,6 +1055,12 @@ CompileBitAndExpr(interp, infoPtr, flags, envPtr)
 	maxDepth = TclMax((envPtr->maxStackDepth + 1), maxDepth);
 	
 	TclEmitOpcode(INST_BITAND, envPtr);
+
+	/*
+	 * A comparison is not the top-level operator in this expression.
+	 */
+
+	infoPtr->exprIsComparison = 0;
     }
 
     done:
@@ -1082,6 +1132,12 @@ CompileEqualityExpr(interp, infoPtr, flags, envPtr)
 	}
 	
 	op = infoPtr->token;
+
+	/*
+	 * A comparison _is_ the top-level operator in this expression.
+	 */
+	
+	infoPtr->exprIsComparison = 1;
     }
 
     done:
@@ -1162,6 +1218,12 @@ CompileRelationalExpr(interp, infoPtr, flags, envPtr)
 	}
 
 	op = infoPtr->token;
+
+	/*
+	 * A comparison _is_ the top-level operator in this expression.
+	 */
+	
+	infoPtr->exprIsComparison = 1;
     }
 
     done:
@@ -1233,6 +1295,12 @@ CompileShiftExpr(interp, infoPtr, flags, envPtr)
 	}
 
 	op = infoPtr->token;
+
+	/*
+	 * A comparison is not the top-level operator in this expression.
+	 */
+
+	infoPtr->exprIsComparison = 0;
     }
 
     done:
@@ -1304,6 +1372,12 @@ CompileAddExpr(interp, infoPtr, flags, envPtr)
 	}
 
 	op = infoPtr->token;
+
+	/*
+	 * A comparison is not the top-level operator in this expression.
+	 */
+
+	infoPtr->exprIsComparison = 0;
     }
 
     done:
@@ -1377,6 +1451,12 @@ CompileMultiplyExpr(interp, infoPtr, flags, envPtr)
 	}
 
 	op = infoPtr->token;
+
+	/*
+	 * A comparison is not the top-level operator in this expression.
+	 */
+
+	infoPtr->exprIsComparison = 0;
     }
 
     done:
@@ -1449,6 +1529,12 @@ CompileUnaryExpr(interp, infoPtr, flags, envPtr)
 	    TclEmitOpcode(INST_LNOT, envPtr);
 	    break;
 	}
+
+	/*
+	 * A comparison is not the top-level operator in this expression.
+	 */
+
+	infoPtr->exprIsComparison = 0;
     } else {			/* must be a primaryExpr */
 	result = CompilePrimaryExpr(interp, infoPtr, flags, envPtr);
 	if (result != TCL_OK) {
@@ -1583,6 +1669,7 @@ CompilePrimaryExpr(interp, infoPtr, flags, envPtr)
 	if (result != TCL_OK) {
 	    goto done;
 	}
+	infoPtr->exprIsComparison = 0;
 	result = CompileCondExpr(interp, infoPtr, flags, envPtr);
 	if (result != TCL_OK) {
 	    goto done;
@@ -1722,6 +1809,7 @@ CompileMathFuncCall(interp, infoPtr, flags, envPtr)
 
     if (mathFuncPtr->numArgs > 0) {
 	for (i = 0;  ;  i++) {
+	    infoPtr->exprIsComparison = 0;
 	    result = CompileCondExpr(interp, infoPtr, flags, envPtr);
 	    if (result != TCL_OK) {
 		goto done;
@@ -1785,7 +1873,12 @@ CompileMathFuncCall(interp, infoPtr, flags, envPtr)
 	TclEmitInstUInt1(INST_CALL_FUNC1, (mathFuncPtr->numArgs+1), envPtr);
     }
 
+    /*
+     * A comparison is not the top-level operator in this expression.
+     */
+
     done:
+    infoPtr->exprIsComparison = 0;
     envPtr->maxStackDepth = maxDepth;
     return result;
 

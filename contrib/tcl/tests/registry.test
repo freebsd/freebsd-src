@@ -9,7 +9,7 @@
 #
 # Copyright (c) 1997 by Sun Microsystems, Inc.  All rights reserved.
 #
-# SCCS: @(#) registry.test 1.3 97/02/11 16:58:43
+# SCCS: @(#) registry.test 1.5 97/08/01 11:14:25
 
 if {$tcl_platform(platform) != "windows"} {
     return
@@ -19,6 +19,11 @@ if {[string compare test [info procs test]] == 1} then {source defs}
 
 if [catch {package require registry}] {
     puts "Unable to find the registry package. Skipping registry tests."
+    return
+}
+
+if {$testConfig(win32s)} {
+    puts "Skipping registry tests under Win32s"
     return
 }
 
@@ -38,7 +43,7 @@ test registry-1.2 {argument parsing for registry command} {
 
 test registry-1.3 {argument parsing for registry command} {
     list [catch {registry d} msg] $msg
-} {1 {wrong # args: should be "registry d keyName ?valueName?"}}
+} {1 {wrong # args: should be "registry delete keyName ?valueName?"}}
 test registry-1.4 {argument parsing for registry command} {
     list [catch {registry delete} msg] $msg
 } {1 {wrong # args: should be "registry delete keyName ?valueName?"}}
@@ -48,7 +53,7 @@ test registry-1.5 {argument parsing for registry command} {
 
 test registry-1.6 {argument parsing for registry command} {
     list [catch {registry g} msg] $msg
-} {1 {wrong # args: should be "registry g keyName valueName"}}
+} {1 {wrong # args: should be "registry get keyName valueName"}}
 test registry-1.7 {argument parsing for registry command} {
     list [catch {registry get} msg] $msg
 } {1 {wrong # args: should be "registry get keyName valueName"}}
@@ -61,7 +66,7 @@ test registry-1.9 {argument parsing for registry command} {
 
 test registry-1.10 {argument parsing for registry command} {
     list [catch {registry k} msg] $msg
-} {1 {wrong # args: should be "registry k keyName ?pattern?"}}
+} {1 {wrong # args: should be "registry keys keyName ?pattern?"}}
 test registry-1.11 {argument parsing for registry command} {
     list [catch {registry keys} msg] $msg
 } {1 {wrong # args: should be "registry keys keyName ?pattern?"}}
@@ -71,7 +76,7 @@ test registry-1.12 {argument parsing for registry command} {
 
 test registry-1.13 {argument parsing for registry command} {
     list [catch {registry s} msg] $msg
-} {1 {wrong # args: should be "registry s keyName ?valueName data ?type??"}}
+} {1 {wrong # args: should be "registry set keyName ?valueName data ?type??"}}
 test registry-1.14 {argument parsing for registry command} {
     list [catch {registry set} msg] $msg
 } {1 {wrong # args: should be "registry set keyName ?valueName data ?type??"}}
@@ -84,7 +89,7 @@ test registry-1.16 {argument parsing for registry command} {
 
 test registry-1.17 {argument parsing for registry command} {
     list [catch {registry t} msg] $msg
-} {1 {wrong # args: should be "registry t keyName valueName"}}
+} {1 {wrong # args: should be "registry type keyName valueName"}}
 test registry-1.18 {argument parsing for registry command} {
     list [catch {registry type} msg] $msg
 } {1 {wrong # args: should be "registry type keyName valueName"}}
@@ -97,7 +102,7 @@ test registry-1.20 {argument parsing for registry command} {
 
 test registry-1.21 {argument parsing for registry command} {
     list [catch {registry v} msg] $msg
-} {1 {wrong # args: should be "registry v keyName ?pattern?"}}
+} {1 {wrong # args: should be "registry values keyName ?pattern?"}}
 test registry-1.22 {argument parsing for registry command} {
     list [catch {registry values} msg] $msg
 } {1 {wrong # args: should be "registry values keyName ?pattern?"}}

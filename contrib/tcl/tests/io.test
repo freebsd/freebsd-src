@@ -6,12 +6,12 @@
 # generates output for errors.  No output means no errors were found.
 #
 # Copyright (c) 1991-1994 The Regents of the University of California.
-# Copyright (c) 1994-1996 Sun Microsystems, Inc.
+# Copyright (c) 1994-1997 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) io.test 1.119 97/06/23 18:47:01
+# SCCS: @(#) io.test 1.128 97/08/13 10:24:56
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -24,13 +24,6 @@ if {"[info commands testchannel]" != "testchannel"} {
 removeFile test1
 removeFile pipe
 
-set testConfig(umask2) 1
-catch {
-    if {"[exec umask]" != "002"} {
-	set testConfig(umask2) 0
-    }
-}
-
 # set up a long data file for some of the following tests
 
 set f [open longfile w]
@@ -42,6 +35,28 @@ for { set i 0 } { $i < 100 } { incr i} {
     }
 close $f
 
+set f [open cat w]
+puts $f {
+    if {$argv == {}} {
+	set argv -
+    }
+    foreach name $argv {
+	if {$name == "-"} {
+	    set f stdin
+	} elseif {[catch {open $name r} f] != 0} {
+	    puts stderr $f
+	    continue
+	}
+	while {[eof $f] == 0} {
+	    puts -nonewline stdout [read $f]
+	}
+	if {$f != "stdin"} {
+	    close $f
+	}
+    }
+}
+close $f
+
 # These tests are disabled until we decide what to do with "unsupported0".
 #
 #test io-1.7 {unsupported0 command} {
@@ -51,7 +66,7 @@ close $f
 #    unsupported0 $f1 $f2
 #    close $f1
 #    catch {close $f2}
-#    set s1 [file size io.test]
+#    set s1 [file size [info script]]
 #    set s2 [file size test1]
 #    set x ok
 #    if {"$s1" != "$s2"} {
@@ -61,7 +76,7 @@ close $f
 #} ok
 #test io-1.8 {unsupported0 command} {
 #    removeFile test1
-#    set f1 [open io.test]
+#    set f1 [open [info script]]
 #    set f2 [open test1 w]
 #    unsupported0 $f1 $f2 40
 #    close $f1
@@ -70,13 +85,13 @@ close $f
 #} 40
 #test io-1.9 {unsupported0 command} {
 #    removeFile test1
-#    set f1 [open io.test]
+#    set f1 [open [info script]]
 #    set f2 [open test1 w]
 #    unsupported0 $f1 $f2 -1
 #    close $f1
 #    close $f2
 #    set x ok
-#    set s1 [file size io.test]
+#    set s1 [file size [info script]]
 #    set s2 [file size test1]
 #    if {$s1 != $s2} {
 #        set x broken
@@ -89,11 +104,11 @@ close $f
 #    set f1 [open pipe w]
 #    puts $f1 {puts ready}
 #    puts $f1 {gets stdin}
-#    puts $f1 {set f1 [open io.test r]}
+#    puts $f1 {set f1 [open [info script] r]}
 #    puts $f1 {puts [read $f1 100]}
 #    puts $f1 {close $f1}
 #    close $f1
-#    set f1 [open "|$tcltest pipe" r+]
+#    set f1 [open "|[list $tcltest pipe]" r+]
 #    gets $f1
 #    puts $f1 ready
 #    flush $f1
@@ -135,7 +150,7 @@ test io-1.2 {Tcl_SetStdChannel and Tcl_GetStdChannel} {
     interp delete x
     set l
 } {line line none}
-test io-1.3 {Tcl_SetStdChannel & Tcl_GetStdChannel}  {unixOrPc} {
+test io-1.3 {Tcl_SetStdChannel & Tcl_GetStdChannel} {stdio} {
     set f [open test1 w]
     puts $f {
 	close stdin
@@ -152,7 +167,7 @@ test io-1.3 {Tcl_SetStdChannel & Tcl_GetStdChannel}  {unixOrPc} {
 	close $f3
     }
     close $f
-    set result [eval exec $tcltest test1]
+    set result [exec $tcltest test1]
     set f [open test2 r]
     set f2 [open test3 r]
     lappend result [read $f] [read $f2]
@@ -180,7 +195,7 @@ test io-1.4 {Tcl_SetStdChannel & Tcl_GetStdChannel} {unixOnly} {
 	close $f3
     }
     close $f
-    set result [eval exec $tcltest test1]
+    set result [exec $tcltest test1]
     set f [open test2 r]
     set f2 [open test3 r]
     lappend result [read $f] [read $f2]
@@ -235,12 +250,12 @@ test io-1.8 {reuse of stdio special channels} {unixOnly} {
 	puts [gets $f]
     }
     close $f
-    set f [open "|$tcltest script" r]
+    set f [open "|[list $tcltest script]" r]
     set c [gets $f]
     close $f
     set c
 } hello
-test io-1.9 {reuse of stdio special channels} {unixOnly} {
+test io-1.9 {reuse of stdio special channels} {stdio} {
     removeFile script
     removeFile test1
     set f [open script w]
@@ -249,11 +264,11 @@ test io-1.9 {reuse of stdio special channels} {unixOnly} {
 	puts $f hello
 	close $f
 	close stderr
-	set f [open "|cat test1" r]
+	set f [open "|[list [info nameofexecutable] cat test1]" r]
 	puts [gets $f]
     }
     close $f
-    set f [open "|$tcltest script" r]
+    set f [open "|[list $tcltest script]" r]
     set c [gets $f]
     close $f
     set c
@@ -500,7 +515,7 @@ test io-4.5 {FlushChannel, implicit flush when buffer fills and on close} {unixO
     lappend l [file size test1]
     set l
 } {0 60 72}
-test io-4.6 {FlushChannel, async flushing, async close} {unixOrPc asyncPipeClose} {
+test io-4.6 {FlushChannel, async flushing, async close} {stdio && asyncPipeClose} {
     removeFile pipe
     removeFile output
     set f [open pipe w]
@@ -520,7 +535,7 @@ test io-4.6 {FlushChannel, async flushing, async close} {unixOrPc asyncPipeClose
     }
     set f [open output w]
     close $f
-    set f [open "|$tcltest pipe" w]
+    set f [open "|[list $tcltest pipe]" w]
     fconfigure $f -blocking off
     puts -nonewline $f $x
     close $f
@@ -567,7 +582,7 @@ test io-5.2 {CloseChannel called when all references are dropped} {
     close $f
     set l
 } abcdef
-test io-5.3 {CloseChannel, not called before output queue is empty} {unixOrPc asyncPipeClose tempNotPc nonPortable} {
+test io-5.3 {CloseChannel, not called before output queue is empty} {unixOrPc asyncPipeClose nonPortable tempNotPc} {
     removeFile pipe
     removeFile output
     set f [open pipe w]
@@ -595,8 +610,12 @@ test io-5.3 {CloseChannel, not called before output queue is empty} {unixOrPc as
     }
     set f [open output w]
     close $f
-    set f [open "|$tcltest pipe" r+]
+    set f [open "|[list $tcltest pipe]" r+]
     fconfigure $f -blocking off -eofchar {}
+
+    # Under windows, the first 24576 bytes of $x are copied to $f, and
+    # then the writing fails.  
+
     puts -nonewline $f $x
     close $f
     set counter 0
@@ -632,7 +651,7 @@ test io-5.5 {Tcl_Close vs standard handles} {unixOnly} {
 	puts [testchannel open]
     }
     close $f
-    set f [open "|$tcltest script" r]
+    set f [open "|[list $tcltest script]" r]
     set l [gets $f]
     close $f
     set l
@@ -766,7 +785,7 @@ test io-6.11 {Tcl_Write, no newline, implicit flush} {
     close $f2
     file size test1
 } 377
-test io-6.12 {Tcl_Write on a pipe} {unixOrPc} {
+test io-6.12 {Tcl_Write on a pipe} {stdio} {
     removeFile test1
     removeFile pipe
     set f1 [open pipe w]
@@ -777,7 +796,7 @@ test io-6.12 {Tcl_Write on a pipe} {unixOrPc} {
 	}
     }
     close $f1
-    set f1 [open "|$tcltest pipe" r]
+    set f1 [open "|[list $tcltest pipe]" r]
     set f2 [open longfile r]
     set y ok
     for {set x 0} {$x < 10} {incr x} {
@@ -791,7 +810,7 @@ test io-6.12 {Tcl_Write on a pipe} {unixOrPc} {
     close $f2
     set y
 } ok
-test io-6.13 {Tcl_Write to a pipe, line buffered} {unixOrPc} {
+test io-6.13 {Tcl_Write to a pipe, line buffered} {stdio} {
     removeFile test1
     removeFile pipe
     set f1 [open pipe w]
@@ -801,7 +820,7 @@ test io-6.13 {Tcl_Write to a pipe, line buffered} {unixOrPc} {
     }
     close $f1
     set y ok
-    set f1 [open "|$tcltest pipe" r+]
+    set f1 [open "|[list $tcltest pipe]" r+]
     fconfigure $f1 -buffering line
     set f2 [open longfile r]
     set line [gets $f2]
@@ -842,8 +861,8 @@ test io-6.15 {Tcl_Flush, channel not open for writing} {
     string compare $x \
 	[list 1 "channel \"$fd\" wasn't opened for writing"]
 } 0
-test io-6.16 {Tcl_Flush on pipe opened only for reading} {unixOrPc unixExecs} {
-    set fd [open "|cat longfile" r]
+test io-6.16 {Tcl_Flush on pipe opened only for reading} {stdio} {
+    set fd [open "|[list $tcltest cat longfile]" r]
     set x [list [catch {flush $fd} msg] $msg]
     catch {close $fd}
     string compare $x \
@@ -916,21 +935,21 @@ test io-6.20 {Implicit flush when buffer is full} {
     lappend z [file size test1]
     set z
 } {4096 12288 12600}
-test io-6.21 {Tcl_Flush to pipe} {unixOrPc} {
+test io-6.21 {Tcl_Flush to pipe} {stdio} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {set x [read stdin 6]}
     puts $f1 {set cnt [string length $x]}
     puts $f1 {puts "read $cnt characters"}
     close $f1
-    set f1 [open "|$tcltest pipe" r+]
+    set f1 [open "|[list $tcltest pipe]" r+]
     puts $f1 hello
     flush $f1
     set x [gets $f1]
     catch {close $f1}
     set x
 } "read 6 characters"
-test io-6.22 {Tcl_Flush called at other end of pipe} {unixOrPc} {
+test io-6.22 {Tcl_Flush called at other end of pipe} {stdio} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {
@@ -943,7 +962,7 @@ test io-6.22 {Tcl_Flush called at other end of pipe} {unixOrPc} {
 	flush stdout
     }
     close $f1
-    set f1 [open "|$tcltest pipe" r+]
+    set f1 [open "|[list $tcltest pipe]" r+]
     set x ""
     lappend x [gets $f1]
     lappend x [gets $f1]
@@ -953,7 +972,7 @@ test io-6.22 {Tcl_Flush called at other end of pipe} {unixOrPc} {
     close $f1
     set x
 } {hello hello bye}
-test io-6.23 {Tcl_Flush and line buffering at end of pipe} {unixOrPc} {
+test io-6.23 {Tcl_Flush and line buffering at end of pipe} {stdio} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {
@@ -963,7 +982,7 @@ test io-6.23 {Tcl_Flush and line buffering at end of pipe} {unixOrPc} {
 	puts bye
     }
     close $f1
-    set f1 [open "|$tcltest pipe" r+]
+    set f1 [open "|[list $tcltest pipe]" r+]
     set x ""
     lappend x [gets $f1]
     lappend x [gets $f1]
@@ -989,9 +1008,9 @@ test io-6.24 {Tcl_Write and Tcl_Flush move end of file} {
     set x
 } {{} {Line 1
 Line 2}}
-test io-6.25 {Implicit flush with Tcl_Flush to command pipelines} {unixOrPc unixExecs} {
+test io-6.25 {Implicit flush with Tcl_Flush to command pipelines} {stdio} {
     removeFile test3
-    set f [open "| cat | cat > test3" w]
+    set f [open "|[list $tcltest cat | $tcltest cat > test3]" w]
     puts $f "Line 1"
     puts $f "Line 2"
     close $f
@@ -1003,20 +1022,20 @@ test io-6.25 {Implicit flush with Tcl_Flush to command pipelines} {unixOrPc unix
 } {Line 1
 Line 2
 }    
-test io-6.26 {Tcl_Flush, Tcl_Write on bidirectional pipelines} {unixOrPc unixExecs} {
-    set f [open "| cat -u" r+]
+test io-6.26 {Tcl_Flush, Tcl_Write on bidirectional pipelines} {unixOrPc && unixExecs && tempNotPc} {
+    set f [open "|[list cat -u]" r+]
     puts $f "Line1"
     flush $f
     set x [gets $f]
     close $f
     set x
 } {Line1}
-test io-6.27 {Tcl_Flush on closed pipeline} {unixOrPc tempNotPc} {
+test io-6.27 {Tcl_Flush on closed pipeline} {stdio && tempNotPc} {
     removeFile pipe
     set f [open pipe w]
     puts $f {exit}
     close $f
-    set f [open "|$tcltest pipe" r+]
+    set f [open "|[list $tcltest pipe]" r+]
     gets $f
     puts $f output
     after 50
@@ -1065,7 +1084,7 @@ test io-6.30 {Tcl_Write, crlf mode} {
     close $f
     file size test1
 } 25
-test io-6.31 {Tcl_Write, background flush} {unixOrPc} {
+test io-6.31 {Tcl_Write, background flush} {stdio} {
     removeFile pipe
     removeFile output
     set f [open pipe w]
@@ -1085,7 +1104,7 @@ test io-6.31 {Tcl_Write, background flush} {unixOrPc} {
     }
     set f [open output w]
     close $f
-    set f [open "|$tcltest pipe" r+]
+    set f [open "|[list $tcltest pipe]" r+]
     fconfigure $f -blocking off
     puts -nonewline $f $x
     close $f
@@ -1101,7 +1120,7 @@ test io-6.31 {Tcl_Write, background flush} {unixOrPc} {
         set result ok
     }
 } ok
-test io-6.32 {Tcl_Write, background flush to slow reader} {unixOrPc asyncPipeClose} {
+test io-6.32 {Tcl_Write, background flush to slow reader} {stdio && asyncPipeClose} {
     removeFile pipe
     removeFile output
     set f [open pipe w]
@@ -1122,7 +1141,7 @@ test io-6.32 {Tcl_Write, background flush to slow reader} {unixOrPc asyncPipeClo
     }
     set f [open output w]
     close $f
-    set f [open "|$tcltest pipe" r+]
+    set f [open "|[list $tcltest pipe]" r+]
     fconfigure $f -blocking off
     puts -nonewline $f $x
     close $f
@@ -1138,7 +1157,7 @@ test io-6.32 {Tcl_Write, background flush to slow reader} {unixOrPc asyncPipeClo
         set result ok
     }
 } ok
-test io-6.33 {Tcl_Flush, implicit flush on exit} {unixOrPc} {
+test io-6.33 {Tcl_Flush, implicit flush on exit} {stdio} {
     set f [open script w]
     puts $f {
 	set f [open test1 w]
@@ -1148,7 +1167,7 @@ test io-6.33 {Tcl_Flush, implicit flush on exit} {unixOrPc} {
 	puts $f strange
     }
     close $f
-    eval exec $tcltest script
+    exec $tcltest script
     set f [open test1 r]
     set r [read $f]
     close $f
@@ -1158,7 +1177,7 @@ bye
 strange
 }
 
-test io-6.34 {Tcl_Close, async flush on close, using sockets} {tempNotMac} {
+test io-6.34 {Tcl_Close, async flush on close, using sockets} {socket tempNotMac} {
     set c 0
     set x running
     set l abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
@@ -1194,7 +1213,7 @@ test io-6.34 {Tcl_Close, async flush on close, using sockets} {tempNotMac} {
     vwait x
     set c
 } 2000
-test io-6.35 {Tcl_Close vs fileevent vs multiple interpreters} {
+test io-6.35 {Tcl_Close vs fileevent vs multiple interpreters} {socket} {
     catch {interp delete x}
     catch {interp delete y}
     interp create x
@@ -2345,25 +2364,25 @@ test io-9.9 {Tcl_Read, read to end of file} {
     }
     set x
 } ok
-test io-9.10 {Tcl_Read from a pipe} {unixOrPc} {
+test io-9.10 {Tcl_Read from a pipe} {stdio} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {puts [gets stdin]}
     close $f1
-    set f1 [open "|$tcltest pipe" r+]
+    set f1 [open "|[list $tcltest pipe]" r+]
     puts $f1 hello
     flush $f1
     set x [read $f1]
     close $f1
     set x
 } "hello\n"
-test io-9.11 {Tcl_Read from a pipe} {unixOrPc} {
+test io-9.11 {Tcl_Read from a pipe} {stdio} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {puts [gets stdin]}
     puts $f1 {puts [gets stdin]}
     close $f1
-    set f1 [open "|$tcltest pipe" r+]
+    set f1 [open "|[list $tcltest pipe]" r+]
     puts $f1 hello
     flush $f1
     set x ""
@@ -2467,12 +2486,12 @@ test io-10.2 {Tcl_Gets into variable} {
     close $f1
     set z
 } ok
-test io-10.3 {Tcl_Gets from pipe} {unixOrPc} {
+test io-10.3 {Tcl_Gets from pipe} {stdio} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {puts [gets stdin]}
     close $f1
-    set f1 [open "|$tcltest pipe" r+]
+    set f1 [open "|[list $tcltest pipe]" r+]
     puts $f1 hello
     flush $f1
     set x [gets $f1]
@@ -2664,8 +2683,8 @@ test io-11.7 {Tcl_Seek to offset from end of file, then to current position} {
     close $f1
     list $c1 $r1 $c2
 } {44 rstuv 49}
-test io-11.8 {Tcl_Seek on pipes: not supported} {unixOrPc} {
-    set f1 [open "|$tcltest" r+]
+test io-11.8 {Tcl_Seek on pipes: not supported} {stdio} {
+    set f1 [open "|[list $tcltest]" r+]
     set x [list [catch {seek $f1 0 current} msg] $msg]
     close $f1
     regsub {".*":} $x {"":} x
@@ -2771,14 +2790,14 @@ test io-11.15 {Tcl_Tell combined with seeking} {
     close $f1
     list $c1 $c2
 } {10 20}
-test io-11.16 {Tcl_tell on pipe: always -1} {unixOrPc} {
-    set f1 [open "|$tcltest" r+]
+test io-11.16 {Tcl_tell on pipe: always -1} {stdio} {
+    set f1 [open "|[list $tcltest]" r+]
     set c [tell $f1]
     close $f1
     set c
 } -1
-test io-11.17 {Tcl_Tell on pipe: always -1} {unixOrPc} {
-    set f1 [open "|$tcltest" r+]
+test io-11.17 {Tcl_Tell on pipe: always -1} {stdio} {
+    set f1 [open "|[list $tcltest]" r+]
     puts $f1 {puts hello}
     flush $f1
     set c [tell $f1]
@@ -2854,13 +2873,13 @@ test io-12.1 {Tcl_Eof} {
     close $f
     set x
 } {0 0 0 0 1 1}
-test io-12.2 {Tcl_Eof with pipe} {unixOrPc} {
+test io-12.2 {Tcl_Eof with pipe} {stdio} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {gets stdin}
     puts $f1 {puts hello}
     close $f1
-    set f1 [open "|$tcltest pipe" r+]
+    set f1 [open "|[list $tcltest pipe]" r+]
     puts $f1 hello
     set x [eof $f1]
     flush $f1
@@ -2872,13 +2891,13 @@ test io-12.2 {Tcl_Eof with pipe} {unixOrPc} {
     close $f1
     set x
 } {0 0 0 1}
-test io-12.3 {Tcl_Eof with pipe} {unixOrPc} {
+test io-12.3 {Tcl_Eof with pipe} {stdio} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {gets stdin}
     puts $f1 {puts hello}
     close $f1
-    set f1 [open "|$tcltest pipe" r+]
+    set f1 [open "|[list $tcltest pipe]" r+]
     puts $f1 hello
     set x [eof $f1]
     flush $f1
@@ -2906,14 +2925,14 @@ test io-12.4 {Tcl_Eof, eof detection on nonblocking file} {nonBlockFiles} {
     close $f
     set l
 } {{} 1}
-test io-12.5 {Tcl_Eof, eof detection on nonblocking pipe} {unixOrPc} {
+test io-12.5 {Tcl_Eof, eof detection on nonblocking pipe} {stdio} {
     removeFile pipe
     set f [open pipe w]
     puts $f {
 	exit
     }
     close $f
-    set f [open "|$tcltest pipe" r]
+    set f [open "|[list $tcltest pipe]" r]
     set l ""
     lappend l [gets $f]
     lappend l [eof $f]
@@ -3098,7 +3117,7 @@ test io-12.17 {Tcl_Eof, eof char in middle, crlf write, crlf read} {
 # Test Tcl_InputBlocked
 
 test io-13.1 {Tcl_InputBlocked on nonblocking pipe} {unixOrPc tempNotPc} {
-    set f1 [open "|$tcltest" r+]
+    set f1 [open "|[list $tcltest]" r+]
     puts $f1 {puts hello_from_pipe}
     flush $f1
     gets $f1
@@ -3117,7 +3136,7 @@ test io-13.1 {Tcl_InputBlocked on nonblocking pipe} {unixOrPc tempNotPc} {
     set x
 } {{} 1 hello 0 {} 1}
 test io-13.2 {Tcl_InputBlocked on blocking pipe} {unixOrPc tempNotPc} {
-    set f1 [open "|$tcltest" r+]
+    set f1 [open "|[list $tcltest]" r+]
     fconfigure $f1 -buffering line
     puts $f1 {puts hello_from_pipe}
     set x ""
@@ -3375,7 +3394,7 @@ test io-16.10 {Tcl_SetChannelOption, blocking mode} {unixOrPc tempNotPc} {
     puts $f1 {gets stdin}
     close $f1
     set x ""
-    set f1 [open "|$tcltest pipe" r+]
+    set f1 [open "|[list $tcltest pipe]" r+]
     fconfigure $f1 -blocking off -buffering line
     lappend x [fconfigure $f1 -blocking]
     lappend x [gets $f1]
@@ -3448,7 +3467,7 @@ test io-17.2 {POSIX open access modes: CREAT} {unixOnly} {
     close $f
     set x
 } {0600 {line 1}}
-test io-17.3 {POSIX open access modes: CREAT} {unixOnly nonPortable umask2} {
+test io-17.3 {POSIX open access modes: CREAT} {$testConfig(unix) && ([exec umask] == 2)} {
     # This test only works if your umask is 2, like ouster's.
     removeFile test3
     set f [open test3 {WRONLY CREAT}]
@@ -3639,8 +3658,8 @@ test io-19.2 {Tcl_FileeventCmd: replacing} {
 if {($tcl_platform(platform) != "macintosh") && \
 	($testConfig(unixExecs) == 1)} {
 
-catch {set f2 [open {|cat -u} r+]}
-catch {set f3 [open {|cat -u} r+]}
+catch {set f2 [open "|[list cat -u]" r+]}
+catch {set f3 [open "|[list cat -u]" r+]}
 
 test io-20.1 {Tcl_FileeventCmd: creating, deleting, querying} {
     set result {}
@@ -3715,8 +3734,8 @@ test io-21.4 {FileEventProc procedure: eror in write event} {
     rename bgerror {}
     list $x [fileevent $f2 writable]
 } {bad-write {}}
-test io-21.5 {FileEventProc procedure: end of file} {unixOrPc unixExecs} {
-    set f4 [open {|cat << foo} r]
+test io-21.5 {FileEventProc procedure: end of file} {unixOrPc} {
+    set f4 [open "|[list $tcltest cat << foo]" r]
     fileevent $f4 readable {
 	if {[gets $f4 line] < 0} {
 	    lappend x eof
@@ -4012,7 +4031,7 @@ test io-25.3 {testing readability conditions} {unixOnly nonBlockFiles} {
 	}
     }
     close $f
-    set f [open |$tcltest r+]
+    set f [open "|[list $tcltest]" r+]
     fileevent $f readable [list consume $f]
     fconfigure $f -buffering line
     fconfigure $f -blocking off
@@ -4610,7 +4629,7 @@ test io-27.6 {testing handler deletion vs reentrant calls} {
 	      {first after update}]
 } 0
 
-test io-28.1 {Test old socket deletion on Macintosh} {tempNotMac} {
+test io-28.1 {Test old socket deletion on Macintosh} {socket} {
     set x 0
     set result ""
     proc accept {s a p} {
@@ -4650,7 +4669,7 @@ test io-28.1 {Test old socket deletion on Macintosh} {tempNotMac} {
 
 test io-29.1 {TclCopyChannel} {
     removeFile test1
-    set f1 [open io.test]
+    set f1 [open [info script]]
     set f2 [open test1 w]
     fcopy $f1 $f2 -command { # }
     catch { fcopy $f1 $f2 } msg
@@ -4660,9 +4679,9 @@ test io-29.1 {TclCopyChannel} {
 } {0}
 test io-29.2 {TclCopyChannel} {
     removeFile test1
-    set f1 [open io.test]
+    set f1 [open [info script]]
     set f2 [open test1 w]
-    set f3 [open io.test]
+    set f3 [open [info script]]
     fcopy $f1 $f2 -command { # }
     catch { fcopy $f3 $f2 } msg
     close $f1
@@ -4672,7 +4691,7 @@ test io-29.2 {TclCopyChannel} {
 } {0}
 test io-29.3 {TclCopyChannel} {
     removeFile test1
-    set f1 [open io.test]
+    set f1 [open [info script]]
     set f2 [open test1 w]
     fconfigure $f1 -translation lf -blocking 0
     fconfigure $f2 -translation cr -blocking 0
@@ -4680,7 +4699,7 @@ test io-29.3 {TclCopyChannel} {
     set result [list [fconfigure $f1 -blocking] [fconfigure $f2 -blocking]]
     close $f1
     close $f2
-    set s1 [file size io.test]
+    set s1 [file size [info script]]
     set s2 [file size test1]
     if {("$s1" == "$s2") && ($s0 == $s1)} {
         lappend result ok
@@ -4689,7 +4708,7 @@ test io-29.3 {TclCopyChannel} {
 } {0 0 ok}
 test io-29.4 {TclCopyChannel} {
     removeFile test1
-    set f1 [open io.test]
+    set f1 [open [info script]]
     set f2 [open test1 w]
     fconfigure $f1 -translation lf -blocking 0
     fconfigure $f2 -translation cr -blocking 0
@@ -4701,7 +4720,7 @@ test io-29.4 {TclCopyChannel} {
 } {0 0 40}
 test io-29.5 {TclCopyChannel} {
     removeFile test1
-    set f1 [open io.test]
+    set f1 [open [info script]]
     set f2 [open test1 w]
     fconfigure $f1 -translation lf -blocking 0
     fconfigure $f2 -translation lf -blocking 0
@@ -4709,7 +4728,7 @@ test io-29.5 {TclCopyChannel} {
     set result [list [fconfigure $f1 -blocking] [fconfigure $f2 -blocking]]
     close $f1
     close $f2
-    set s1 [file size io.test]
+    set s1 [file size [info script]]
     set s2 [file size test1]
     if {"$s1" == "$s2"} {
         lappend result ok
@@ -4718,15 +4737,15 @@ test io-29.5 {TclCopyChannel} {
 } {0 0 ok}
 test io-29.6 {TclCopyChannel} {
     removeFile test1
-    set f1 [open io.test]
+    set f1 [open [info script]]
     set f2 [open test1 w]
     fconfigure $f1 -translation lf -blocking 0
     fconfigure $f2 -translation lf -blocking 0
-    set s0 [fcopy $f1 $f2 -size [expr [file size io.test] + 5]]
+    set s0 [fcopy $f1 $f2 -size [expr [file size [info script]] + 5]]
     set result [list [fconfigure $f1 -blocking] [fconfigure $f2 -blocking]]
     close $f1
     close $f2
-    set s1 [file size io.test]
+    set s1 [file size [info script]]
     set s2 [file size test1]
     if {("$s1" == "$s2") && ($s0 == $s1)} {
         lappend result ok
@@ -4735,13 +4754,13 @@ test io-29.6 {TclCopyChannel} {
 } {0 0 ok}
 test io-29.7 {TclCopyChannel} {
     removeFile test1
-    set f1 [open io.test]
+    set f1 [open [info script]]
     set f2 [open test1 w]
     fconfigure $f1 -translation lf -blocking 0
     fconfigure $f2 -translation lf -blocking 0
     fcopy $f1 $f2
     set result [list [fconfigure $f1 -blocking] [fconfigure $f2 -blocking]]
-    set s1 [file size io.test]
+    set s1 [file size [info script]]
     set s2 [file size test1]
     close $f1
     close $f2
@@ -4750,23 +4769,27 @@ test io-29.7 {TclCopyChannel} {
     }
     set result
 } {0 0 ok}
-test io-29.8 {TclCopyChannel} {unixOrPc} {
+test io-29.8 {TclCopyChannel} {stdio} {
     removeFile test1
     removeFile pipe
     set f1 [open pipe w]
+    fconfigure $f1 -translation lf
     puts $f1 {
 	puts ready
 	gets stdin
-	set f1 [open io.test r]
+	set f1 [open [info script] r]
+	fconfigure $f1 -translation lf
 	puts [read $f1 100]
 	close $f1
     }
     close $f1
-    set f1 [open "|$tcltest pipe" r+]
+    set f1 [open "|[list $tcltest pipe]" r+]
+    fconfigure $f1 -translation lf
     gets $f1
     puts $f1 ready
     flush $f1
     set f2 [open test1 w]
+    fconfigure $f2 -translation lf
     set s0 [fcopy $f1 $f2 -size 40]
     catch {close $f1}
     close $f2
@@ -4775,7 +4798,7 @@ test io-29.8 {TclCopyChannel} {unixOrPc} {
 
 test io-30.1 {CopyData} {
     removeFile test1
-    set f1 [open io.test]
+    set f1 [open [info script]]
     set f2 [open test1 w]
     fconfigure $f1 -translation lf -blocking 0
     fconfigure $f2 -translation cr -blocking 0
@@ -4787,7 +4810,7 @@ test io-30.1 {CopyData} {
 } {0 0 0}
 test io-30.2 {CopyData} {
     removeFile test1
-    set f1 [open io.test]
+    set f1 [open [info script]]
     set f2 [open test1 w]
     fconfigure $f1 -translation lf -blocking 0
     fconfigure $f2 -translation cr -blocking 0
@@ -4796,7 +4819,7 @@ test io-30.2 {CopyData} {
     vwait s0
     close $f1
     close $f2
-    set s1 [file size io.test]
+    set s1 [file size [info script]]
     set s2 [file size test1]
     if {("$s1" == "$s2") && ($s0 == $s1)} {
         lappend result ok
@@ -4818,7 +4841,7 @@ test io-30.3 {CopyData: background read underflow} {unixOnly} {
 	close $f
     }
     close $f1
-    set f1 [open "|$tcltest pipe" r+]
+    set f1 [open "|[list $tcltest pipe]" r+]
     set result [gets $f1]
     puts $f1 line1
     flush $f1
@@ -4851,7 +4874,7 @@ test io-30.4 {CopyData: background write overflow} {unixOnly} {
 	close $f
     }
     close $f1
-    set f1 [open "|$tcltest pipe" r+]
+    set f1 [open "|[list $tcltest pipe]" r+]
     set result [gets $f1]
     fconfigure $f1 -blocking 0
     puts $f1 $big
@@ -4885,21 +4908,38 @@ if [catch {socket -server FcopyTestAccept 2828} listen] {
     puts stderr "Skipping fcopy error test"
 } else {
     test io-30.5 {CopyData: error during fcopy} {
-	set in [open io.test]	;# 126 K
+	set in [open [info script]]	;# 126 K
 	set out [socket localhost 2828]
 	catch {unset fcopyTestDone}
 	close $listen	;# This means the socket open never really succeeds
 	fcopy $in $out -command FcopyTestDone
 	if ![info exists fcopyTestDone] {
-	    vwait fcopyTestDone
+	    vwait fcopyTestDone		;# The error occurs here in the b.g.
 	}
 	close $in
 	close $out
-	set fcopyTestDone
+	set fcopyTestDone	;# 1 for error condition
     } 1
 }
+test io-30.6 {CopyData: error during fcopy} {stdio} {
+    removeFile pipe
+    removeFile test1
+    catch {unset fcopyTestDone}
+    set f1 [open pipe w]
+    puts $f1 "exit 1"
+    close $f1
+    set in [open "|[list $tcltest pipe]" r+]
+    set out [open test1 w]
+    fcopy $in $out -command [list FcopyTestDone]
+    if ![info exists fcopyTestDone] {
+	vwait fcopyTestDone
+    }
+    catch {close $in}
+    close $out
+    set fcopyTestDone	;# 0 for plain end of file
+} {0}
 
-test io-31.1 {Recursive channel events} {
+test io-31.1 {Recursive channel events} {socket} {
     # This test checks to see if file events are delivered during recursive
     # event loops when there is buffered data on the channel.
 
@@ -4951,7 +4991,7 @@ test io-31.1 {Recursive channel events} {
     close $cs
     list $result $x
 } {{{line 1} 1 2} 2}
-test io-31.2 {Testing for busy-wait in recursive channel events} {
+test io-31.2 {Testing for busy-wait in recursive channel events} {socket} {
     set s [socket -server accept 3939]
     proc accept {s a p} {
 	global counter
@@ -4998,7 +5038,23 @@ test io-31.2 {Testing for busy-wait in recursive channel events} {
     close $s
     set counter
 } 1
+test io-32.1 {ChannelEventScriptInvoker: deletion} {
+    proc eventScript {fd} {
+	close $fd
+	error "planned error"
+	set ::x whoops
+    }
+    proc bgerror {args} {
+	set ::x got_error
+    }
+    set f [open fooBar w]
+    fileevent $f writable [list eventScript $f]
+    set x not_done
+    vwait x
+    set x
+} {got_error}
 
+removeFile fooBar
 removeFile longfile
 removeFile script
 removeFile output
@@ -5009,6 +5065,8 @@ removeFile foo
 removeFile bar
 removeFile test2
 removeFile test3
+
+file delete cat
 
 set x ""
 unset x

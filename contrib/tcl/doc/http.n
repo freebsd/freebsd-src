@@ -4,7 +4,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) http.n 1.10 97/06/24 17:15:09
+'\" SCCS: @(#) http.n 1.11 97/08/07 16:45:02
 '\" 
 .so man.macros
 .TH "Http" n 8.0 Tcl "Tcl Built-In Commands"
@@ -13,25 +13,25 @@
 .SH NAME
 Http \- Client-side implementation of the HTTP/1.0 protocol.
 .SH SYNOPSIS
-\fBpackage require http ?1.0?\fP
+\fBpackage require http ?2.0?\fP
 .sp
-\fBhttp_config \fI?options?\fR
+\fB::http::config \fI?options?\fR
 .sp
-\fBhttp_get \fIurl ?options?\fR
+\fB::http::geturl \fIurl ?options?\fR
 .sp
-\fBhttp_formatQuery \fIlist\fR
+\fB::http::formatQuery \fIlist\fR
 .sp
-\fBhttp_reset \fItoken\fR
+\fB::http::reset \fItoken\fR
 .sp
-\fBhttp_wait \fItoken\fR
+\fB::http::wait \fItoken\fR
 .sp
-\fBhttp_status \fItoken\fR
+\fB::http::status \fItoken\fR
 .sp
-\fBhttp_size \fItoken\fR
+\fB::http::size \fItoken\fR
 .sp
-\fBhttp_code \fItoken\fR
+\fB::http::code \fItoken\fR
 .sp
-\fBhttp_data \fItoken\fR
+\fB::http::data \fItoken\fR
 .BE
 
 .SH DESCRIPTION
@@ -43,26 +43,27 @@ firewalls.  The package is compatible with the \fBSafesock\fR security
 policy, so it can be used by untrusted applets to do URL fetching from
 a restricted set of hosts.
 .PP
-The \fBhttp_get\fR procedure does a HTTP transaction.
+The \fB::http::geturl\fR procedure does a HTTP transaction.
 Its \fIoptions \fR determine whether a GET, POST, or HEAD transaction
 is performed.  
-The return value of \fBhttp_get\fR is a token for the transaction.
-The value is also the name of a global array that contains state
+The return value of \fB::http::geturl\fR is a token for the transaction.
+The value is also the name of an array in the ::http namespace
+ that contains state
 information about the transaction.  The elements of this array are
 described in the STATE ARRAY section.
 .PP
 If the \fB-command\fP option is specified, then
 the HTTP operation is done in the background.
-\fBhttp_get\fR returns immediately after generating the
+\fB::http::geturl\fR returns immediately after generating the
 HTTP request and the callback is invoked
 when the transaction completes.  For this to work, the Tcl event loop
 must be active.  In Tk applications this is always true.  For pure-Tcl
-applications, the caller can use \fBhttp_wait\fR after calling
-\fBhttp_get\fR to start the event loop.
+applications, the caller can use \fB::http::wait\fR after calling
+\fB::http::geturl\fR to start the event loop.
 .SH COMMANDS
 .TP
-\fBhttp_config\fP ?\fIoptions\fR?
-The \fBhttp_config\fR command is used to set and query the name of the
+\fB::http::config\fP ?\fIoptions\fR?
+The \fB::http::config\fR command is used to set and query the name of the
 proxy server and port, and the User-Agent name used in the HTTP
 requests.  If no options are specified, then the current configuration
 is returned.  If a single argument is specified, then it should be one
@@ -86,7 +87,7 @@ The proxy port number.
 .TP
 \fB\-proxyfilter\fP \fIcommand\fP
 The command is a callback that is made during
-\fBhttp_get\fR
+\fB::http::geturl\fR
 to determine if a proxy is required for a given host.  One argument, a
 host name, is added to \fIcommand\fR when it is invoked.  If a proxy
 is required, the callback should return a two element list containing
@@ -97,20 +98,20 @@ non-empty.
 .TP
 \fB\-useragent\fP \fIstring\fP
 The value of the User-Agent header in the HTTP request.  The default
-is \fB"Tcl http client package 1.0."\fR
+is \fB"Tcl http client package 2.0."\fR
 .RE
 .TP
-\fBhttp_get\fP \fIurl\fP ?\fIoptions\fP? 
-The \fBhttp_get \fR command is the main procedure in the package.
+\fB::http::geturl\fP \fIurl\fP ?\fIoptions\fP? 
+The \fB::http::geturl \fR command is the main procedure in the package.
 The \fB\-query\fR option causes a POST operation and
 the \fB\-validate\fR option causes a HEAD operation;
-otherwise, a GET operation is performed.  The \fBhttp_get\fR command
+otherwise, a GET operation is performed.  The \fB::http::geturl\fR command
 returns a \fItoken\fR value that can be used to get
 information about the transaction.  See the STATE ARRAY section for
-details.  The \fBhttp_get\fR command blocks until the operation
+details.  The \fB::http::geturl\fR command blocks until the operation
 completes, unless the \fB\-command\fR option specifies a callback
 that is invoked when the HTTP transaction completes.
-\fBhttp_get\fR takes several options:
+\fB::http::geturl\fR takes several options:
 .RS
 .TP
 \fB\-blocksize\fP \fIsize\fP
@@ -127,9 +128,9 @@ Copy the URL contents to channel \fIname\fR instead of saving it in
 .TP
 \fB\-command\fP \fIcallback\fP
 Invoke \fIcallback\fP after the HTTP transaction completes.
-This option causes \fBhttp_get\fP to return immediately.
+This option causes \fB::http::geturl\fP to return immediately.
 The \fIcallback\fP gets an additional argument that is the \fItoken\fR returned
-from \fBhttp_get\fR. This token is the name of a global array that is
+from \fB::http::geturl\fR. This token is the name of an array that is
 described in the STATE ARRAY section.  Here is a template for the
 callback:
 .RS
@@ -145,7 +146,7 @@ proc httpCallback {token} {
 Invoke \fIcallback\fP whenever HTTP data is available; if present, nothing
 else will be done with the HTTP data.  This procedure gets two additional
 arguments: the socket for the HTTP data and the \fItoken\fR returned from
-\fBhttp_get\fR.  The token is the name of a global array that is described
+\fB::http::geturl\fR.  The token is the name of a global array that is described
 in the STATE ARRAY section.  The procedure is expected to return the number
 of bytes read from the socket.  Here is a template for the callback:
 .RS
@@ -176,7 +177,7 @@ Pragma: no-cache
 \fB\-progress\fP \fIcallback\fP
 The \fIcallback\fR is made after each transfer of data from the URL.
 The callback gets three additional arguments: the \fItoken\fR from
-\fBhttp_get\fR, the expected total size of the contents from the
+\fB::http::geturl\fR, the expected total size of the contents from the
 \fBContent-Length\fR meta-data, and the current number of bytes
 transferred so far.  The expected total size may be unknown, in which
 case zero is passed to the callback.  Here is a template for the
@@ -190,60 +191,60 @@ proc httpProgress {token total current} {
 .RE
 .TP
 \fB\-query\fP \fIquery\fP
-This flag causes \fBhttp_get\fR to do a POST request that passes the
+This flag causes \fB::http::geturl\fR to do a POST request that passes the
 \fIquery\fR to the server. The \fIquery\fR must be a x-url-encoding
-formatted query.  The \fBhttp_formatQuery\fR procedure can be used to
+formatted query.  The \fB::http::formatQuery\fR procedure can be used to
 do the formatting.
 .TP
 \fB\-timeout\fP \fImilliseconds\fP
-If \fImilliseconds\fR is non-zero, then \fBhttp_get\fR sets up a timeout
+If \fImilliseconds\fR is non-zero, then \fB::http::geturl\fR sets up a timeout
 to occur after the specified number of milliseconds.
-A timeout results in a call to \fBhttp_reset\fP and to
+A timeout results in a call to \fB::http::reset\fP and to
 the \fB-command\fP callback, if specified.
-The return value of \fBhttp_status\fP is \fBtimeout\fP
+The return value of \fB::http::status\fP is \fBtimeout\fP
 after a timeout has occurred.
 .TP
 \fB\-validate\fP \fIboolean\fP
-If \fIboolean\fR is non-zero, then \fBhttp_get\fR does an HTTP HEAD
+If \fIboolean\fR is non-zero, then \fB::http::geturl\fR does an HTTP HEAD
 request.  This request returns meta information about the URL, but the
 contents are not returned.  The meta information is available in the
 \fBstate(meta) \fR variable after the transaction.  See the STATE
 ARRAY section for details.
 .RE
 .TP
-\fBhttp_formatQuery\fP \fIkey value\fP ?\fIkey value\fP ...?
+\fB::http::formatQuery\fP \fIkey value\fP ?\fIkey value\fP ...?
 This procedure does x-url-encoding of query data.  It takes an even
 number of arguments that are the keys and values of the query.  It
 encodes the keys and values, and generates one string that has the
 proper & and = separators.  The result is suitable for the
-\fB\-query\fR value passed to \fBhttp_get\fR.
+\fB\-query\fR value passed to \fB::http::geturl\fR.
 .TP
-\fBhttp_reset\fP \fItoken\fP ?\fIwhy\fP?
+\fB::http::reset\fP \fItoken\fP ?\fIwhy\fP?
 This command resets the HTTP transaction identified by \fItoken\fR, if
 any.  This sets the \fBstate(status)\fP value to \fIwhy\fP, which defaults to \fBreset\fR, and then calls the registered \fB\-command\fR callback.
 .TP
-\fBhttp_wait\fP \fItoken\fP
+\fB::http::wait\fP \fItoken\fP
 This is a convenience procedure that blocks and waits for the
 transaction to complete.  This only works in trusted code because it
 uses \fBvwait\fR.
 .TP
-\fBhttp_data\fP \fItoken\fP
+\fB::http::data\fP \fItoken\fP
 This is a convenience procedure that returns the \fBbody\fP element
 (i.e., the URL data) of the state array.
 .TP
-\fBhttp_status\fP \fItoken\fP
+\fB::http::status\fP \fItoken\fP
 This is a convenience procedure that returns the \fBstatus\fP element of
 the state array.
 .TP
-\fBhttp_code\fP \fItoken\fP
+\fB::http::code\fP \fItoken\fP
 This is a convenience procedure that returns the \fBhttp\fP element of the
 state array.
 .TP
-\fBhttp_size\fP \fItoken\fP
+\fB::http::size\fP \fItoken\fP
 This is a convenience procedure that returns the \fBcurrentsize\fP
 element of the state array.
 .SH "STATE ARRAY"
-The \fBhttp_get\fR procedure returns a \fItoken\fR that can be used to
+The \fB::http::geturl\fR procedure returns a \fItoken\fR that can be used to
 get to the state of the HTTP transaction in the form of a Tcl array.
 Use this construct to create an easy-to-use array variable:
 .CS
@@ -254,11 +255,11 @@ The following elements of the array are supported:
 .TP
 \fBbody\fR
 The contents of the URL.  This will be empty if the \fB\-channel\fR
-option has been specified.  This value is returned by the \fBhttp_data\fP command.
+option has been specified.  This value is returned by the \fB::http::data\fP command.
 .TP
 \fBcurrentsize\fR
 The current number of bytes fetched from the URL.
-This value is returned by the \fBhttp_size\fP command.
+This value is returned by the \fB::http::size\fP command.
 .TP
 \fBerror\fR
 If defined, this is the error string seen when the HTTP transaction
@@ -266,7 +267,7 @@ was aborted.
 .TP
 \fBhttp\fR
 The HTTP status reply from the server.  This value
-is returned by the \fBhttp_code\fP command.  The format of this value is:
+is returned by the \fB::http::code\fP command.  The format of this value is:
 .RS
 .CS
 \fIcode string\fP
@@ -297,7 +298,7 @@ The type of the URL contents.  Examples include \fBtext/html\fR,
 .TP
 \fBContent-Length\fR
 The advertised size of the contents.  The actual size obtained by
-\fBhttp_get\fR is available as \fBstate(size)\fR.
+\fB::http::geturl\fR is available as \fBstate(size)\fR.
 .TP
 \fBLocation\fR
 An alternate URL that contains the requested data.
@@ -320,12 +321,12 @@ The requested URL.
 .SH EXAMPLE
 .DS
 # Copy a URL to a file and print meta-data
-proc Http_Copy { url file {chunk 4096} } {
+proc ::http::copy { url file {chunk 4096} } {
     set out [open $file w]
-    set token [http_get $url -channel $out -progress HttpProgress \\
+    set token [geturl $url -channel $out -progress ::http::Progress \\
 	-blocksize $chunk]
     close $out
-    # This ends the line started by HttpProgress
+    # This ends the line started by http::Progress
     puts stderr ""
     upvar #0 $token state
     set max 0
@@ -336,7 +337,7 @@ proc Http_Copy { url file {chunk 4096} } {
 	if {[regexp -nocase ^location$ $name]} {
 	    # Handle URL redirects
 	    puts stderr "Location:$value"
-	    return [Http_Copy [string trim $value] $file $chunk]
+	    return [copy [string trim $value] $file $chunk]
 	}
     }
     incr max
@@ -346,7 +347,7 @@ proc Http_Copy { url file {chunk 4096} } {
 
     return $token
 }
-proc HttpProgress {args} {
+proc ::http::Progress {args} {
     puts -nonewline stderr . ; flush stderr
 }
 

@@ -5,7 +5,7 @@
 # These procedures use a callback interface to avoid using vwait,
 # which is not defined in the safe base.
 #
-# SCCS: @(#) http.tcl 1.6 97/05/20 18:09:27
+# SCCS: @(#) http.tcl 1.8 97/07/22 13:37:20
 #
 # See the http.n man page for documentation
 
@@ -118,12 +118,15 @@ proc http_get { url args } {
 	    return -code error "Unknown option $flag, can be: $usage"
 	}
     }
-    if {! [regexp -nocase {^(http://)?([^/:]+)(:([0-9]+))?(/.*)} $url \
+    if {! [regexp -nocase {^(http://)?([^/:]+)(:([0-9]+))?(/.*)?$} $url \
 	    x proto host y port srvurl]} {
 	error "Unsupported URL: $url"
     }
     if {[string length $port] == 0} {
 	set port 80
+    }
+    if {[string length $srvurl] == 0} {
+	set srvurl /
     }
     if {[string length $proto] == 0} {
 	set url http://$url
@@ -221,6 +224,9 @@ proc http_size {token} {
 	    if ![regexp -nocase ^text $state(type)] {
 		# Turn off conversions for non-text data
 		fconfigure $s -translation binary
+		if {[info exists state(-channel)]} {
+		    fconfigure $state(-channel) -translation binary
+		}
 	    }
 	    if {[info exists state(-channel)] &&
 		    ![info exists state(-handler)]} {

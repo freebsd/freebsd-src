@@ -12,7 +12,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclTest.c 1.111 97/06/26 14:33:03
+ * SCCS: @(#) tclTest.c 1.115 97/08/13 10:27:26
  */
 
 #define TCL_TEST
@@ -84,6 +84,10 @@ static int		CmdProc1 _ANSI_ARGS_((ClientData clientData,
 			    Tcl_Interp *interp, int argc, char **argv));
 static int		CmdProc2 _ANSI_ARGS_((ClientData clientData,
 			    Tcl_Interp *interp, int argc, char **argv));
+static void		CmdTraceProc _ANSI_ARGS_((ClientData clientData,
+			    Tcl_Interp *interp, int level, char *command,
+			    Tcl_CmdProc *cmdProc, ClientData cmdClientData,
+                            int argc, char **argv));
 static int		CreatedCommandProc _ANSI_ARGS_((
 			    ClientData clientData, Tcl_Interp *interp,
 			    int argc, char **argv));
@@ -111,6 +115,8 @@ static int		TestcmdinfoCmd _ANSI_ARGS_((ClientData dummy,
 			    Tcl_Interp *interp, int argc, char **argv));
 static int		TestcmdtokenCmd _ANSI_ARGS_((ClientData dummy,
 			    Tcl_Interp *interp, int argc, char **argv));
+static int		TestcmdtraceCmd _ANSI_ARGS_((ClientData dummy,
+			    Tcl_Interp *interp, int argc, char **argv));
 static int		TestchmodCmd _ANSI_ARGS_((ClientData dummy,
 			    Tcl_Interp *interp, int argc, char **argv));
 static int		TestcreatecommandCmd _ANSI_ARGS_((ClientData dummy,
@@ -126,6 +132,8 @@ static int		TestdstringCmd _ANSI_ARGS_((ClientData dummy,
 static int		TestexithandlerCmd _ANSI_ARGS_((ClientData dummy,
 			    Tcl_Interp *interp, int argc, char **argv));
 static int		TestexprlongCmd _ANSI_ARGS_((ClientData dummy,
+			    Tcl_Interp *interp, int argc, char **argv));
+static int		TestexprstringCmd _ANSI_ARGS_((ClientData dummy,
 			    Tcl_Interp *interp, int argc, char **argv));
 static int		TestfileCmd _ANSI_ARGS_((ClientData dummy,
 			    Tcl_Interp *interp, int argc, char **argv));
@@ -225,6 +233,8 @@ Tcltest_Init(interp)
 	    (Tcl_CmdDeleteProc *) NULL);
     Tcl_CreateCommand(interp, "testcmdinfo", TestcmdinfoCmd, (ClientData) 0,
 	    (Tcl_CmdDeleteProc *) NULL);
+    Tcl_CreateCommand(interp, "testcmdtrace", TestcmdtraceCmd,
+	    (ClientData) 0, (Tcl_CmdDeleteProc *) NULL);
     Tcl_CreateCommand(interp, "testcreatecommand", TestcreatecommandCmd,
 	    (ClientData) 0, (Tcl_CmdDeleteProc *) NULL);
     Tcl_CreateCommand(interp, "testdcall", TestdcallCmd, (ClientData) 0,
@@ -239,6 +249,8 @@ Tcltest_Init(interp)
     Tcl_CreateCommand(interp, "testexithandler", TestexithandlerCmd,
             (ClientData) 0, (Tcl_CmdDeleteProc *) NULL);
     Tcl_CreateCommand(interp, "testexprlong", TestexprlongCmd,
+            (ClientData) 0, (Tcl_CmdDeleteProc *) NULL);
+    Tcl_CreateCommand(interp, "testexprstring", TestexprstringCmd,
             (ClientData) 0, (Tcl_CmdDeleteProc *) NULL);
     Tcl_CreateCommand(interp, "testfile", TestfileCmd,
             (ClientData) 0, (Tcl_CmdDeleteProc *) NULL);
@@ -621,6 +633,85 @@ TestcmdtokenCmd(dummy, interp, argc, argv)
 	return TCL_ERROR;
     }
     return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TestcmdtraceCmd --
+ *
+ *	This procedure implements the "testcmdtrace" command. It is used
+ *	to test Tcl_CreateTrace and Tcl_DeleteTrace.
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *	Creates and deletes a command trace, and tests the invocation of
+ *	a procedure by the command trace.
+ *
+ *----------------------------------------------------------------------
+ */
+
+	/* ARGSUSED */
+static int
+TestcmdtraceCmd(dummy, interp, argc, argv)
+    ClientData dummy;			/* Not used. */
+    Tcl_Interp *interp;			/* Current interpreter. */
+    int argc;				/* Number of arguments. */
+    char **argv;			/* Argument strings. */
+{
+    Tcl_Trace trace;
+    Tcl_DString buffer;
+    int result;
+
+    if (argc != 2) {
+	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
+		" script\"", (char *) NULL);
+	return TCL_ERROR;
+    }
+
+    Tcl_DStringInit(&buffer);
+    trace = Tcl_CreateTrace(interp, 50000,
+	    (Tcl_CmdTraceProc *) CmdTraceProc, (ClientData) &buffer);
+
+    result = Tcl_Eval(interp, argv[1]);
+    if (result == TCL_OK) {
+	Tcl_ResetResult(interp);
+	Tcl_AppendResult(interp, Tcl_DStringValue(&buffer), NULL);
+    }
+    
+    Tcl_DeleteTrace(interp, trace);
+    Tcl_DStringFree(&buffer);
+    return TCL_OK;
+}
+
+static void
+CmdTraceProc(clientData, interp, level, command, cmdProc, cmdClientData,
+        argc, argv)
+    ClientData clientData;	/* Pointer to buffer in which the
+				 * command and arguments are appended.
+				 * Accumulates test result. */
+    Tcl_Interp *interp;		/* Current interpreter. */
+    int level;			/* Current trace level. */
+    char *command;		/* The command being traced (after
+				 * substitutions). */
+    Tcl_CmdProc *cmdProc;	/* Points to command's command procedure. */
+    ClientData cmdClientData;	/* Client data associated with command
+				 * procedure. */
+    int argc;			/* Number of arguments. */
+    char **argv;		/* Argument strings. */
+{
+    Tcl_DString *bufPtr = (Tcl_DString *) clientData;
+    int i;
+
+    Tcl_DStringAppendElement(bufPtr, command);
+
+    Tcl_DStringStartSublist(bufPtr);
+    for (i = 0;  i < argc;  i++) {
+	Tcl_DStringAppendElement(bufPtr, argv[i]);
+    }
+    Tcl_DStringEndSublist(bufPtr);
 }
 
 /*
@@ -1128,6 +1219,37 @@ TestexprlongCmd(clientData, interp, argc, argv)
     sprintf(buf, ": %ld", exprResult);
     Tcl_AppendResult(interp, buf, NULL);
     return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TestexprstringCmd --
+ *
+ *	This procedure tests the basic operation of Tcl_ExprString.
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+TestexprstringCmd(clientData, interp, argc, argv)
+    ClientData clientData;		/* Not used. */
+    Tcl_Interp *interp;			/* Current interpreter. */
+    int argc;				/* Number of arguments. */
+    char **argv;			/* Argument strings. */
+{
+    if (argc != 2) {
+        Tcl_AppendResult(interp, "wrong # arguments: should be \"", argv[0],
+                " expression\"", (char *) NULL);
+        return TCL_ERROR;
+    }
+    return Tcl_ExprString(interp, argv[1]);
 }
 
 /*

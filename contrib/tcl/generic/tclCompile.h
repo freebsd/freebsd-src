@@ -6,7 +6,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclCompile.h 1.33 97/05/02 13:12:43
+ * SCCS: @(#) tclCompile.h 1.37 97/08/07 19:11:50
  */
 
 #ifndef _TCLCOMPILATION
@@ -55,11 +55,29 @@ extern int 		tclTraceCompile;
 extern int 		tclTraceExec;
 
 /*
- * The number of bytecode compilations.
+ * The number of bytecode compilations and various other compilation-related
+ * statistics. The tclByteCodeCount and tclSourceCount arrays are used to
+ * hold the count of ByteCodes and sources whose sizes fall into various
+ * binary decades; e.g., tclByteCodeCount[5] is a count of the ByteCodes
+ * with size larger than 2**4 and less than or equal to 2**5.
  */
 
 #ifdef TCL_COMPILE_STATS
 extern long		tclNumCompilations;
+extern double		tclTotalSourceBytes;
+extern double		tclTotalCodeBytes;
+
+extern double		tclTotalInstBytes;
+extern double		tclTotalObjBytes;
+extern double		tclTotalExceptBytes;
+extern double		tclTotalAuxBytes;
+extern double		tclTotalCmdMapBytes;
+
+extern double		tclCurrentSourceBytes;
+extern double		tclCurrentCodeBytes;
+
+extern int		tclSourceCount[32];
+extern int		tclByteCodeCount[32];
 #endif /* TCL_COMPILE_STATS */
 
 /*
@@ -115,15 +133,17 @@ typedef struct ExceptionRange {
 
 /*
  * Structure used to map between instruction pc and source locations. It
- * defines for each compiled Tcl command the starting and ending offsets for
- * its source and code.
+ * defines for each compiled Tcl command its code's starting offset and 
+ * its source's starting offset and length. Note that the code offset
+ * increases monotonically: that is, the table is sorted in code offset
+ * order. The source offset is not monotonic.
  */
 
 typedef struct CmdLocation {
+    int codeOffset;		/* Offset of first byte of command code. */
+    int numCodeBytes;		/* Number of bytes for command's code. */
     int srcOffset;		/* Offset of first char of the command. */
     int numSrcChars;		/* Number of command source chars. */
-    int codeOffset;		/* Offset of first byte of command code. */
-    int numCodeBytes;		/* Number of code bytes for command code. */
 } CmdLocation;
 
 /*
@@ -222,6 +242,12 @@ typedef struct CompileEnv {
 				 * of "if $b then...". Otherwise 0. Used
 				 * to implement expr's 2 level substitution
 				 * semantics properly. */
+    int exprIsComparison;	/* Set 1 if the top-level operator in the
+				 * expression last compiled is a comparison.
+				 * Otherwise 0. If 1, since the operands
+				 * might be strings, the expr is compiled
+				 * out-of-line to implement expr's 2 level
+				 * substitution semantics properly. */
     int termOffset;		/* Offset of character just after the last
 				 * one compiled. Set by compilation
 				 * procedures before returning. */
@@ -307,12 +333,17 @@ typedef struct ByteCode {
 				 * pointer is also not owned by the ByteCode
 				 * and must not be freed by it. Used for
 				 * debugging. */
+    size_t totalSize;		/* Total number of bytes required for this
+				 * ByteCode structure including the storage
+				 * for Tcl objects in its object array. */
     int numCommands;		/* Number of commands compiled. */
     int numSrcChars;		/* Number of source chars compiled. */
     int numCodeBytes;		/* Number of code bytes. */
     int numObjects;		/* Number of Tcl objects in object array. */
     int numExcRanges;		/* Number of ExceptionRange array elems. */
     int numAuxDataItems;	/* Number of AuxData items. */
+    int numCmdLocBytes;		/* Number of bytes needed for encoded
+				 * command location information. */
     int maxExcRangeDepth;	/* Maximum nesting level of ExceptionRanges;
 				 * -1 if no ranges were compiled. */
     int maxStackDepth;		/* Maximum number of stack elements needed
@@ -326,13 +357,43 @@ typedef struct ByteCode {
     				/* Points to the start of the ExceptionRange
 				 * array. This is just after the last
 				 * object in the object array. */
-    CmdLocation *cmdMapPtr;	/* Points to pc <-> source map: an array of
-				 * numCommands CmdLocation structures. This
-				 * is just after the last entry in the
-				 * ExceptionRange array. */
     AuxData *auxDataArrayPtr;   /* Points to the start of the auxiliary data
 				 * array. This is just after the last entry
-				 * in the CmdLocation array. */
+				 * in the ExceptionRange array. */
+    unsigned char *codeDeltaStart;
+				/* Points to the first of a sequence of
+				 * bytes that encode the change in the
+				 * starting offset of each command's code.
+				 * If -127<=delta<=127, it is encoded as 1
+				 * byte, otherwise 0xFF (128) appears and
+				 * the delta is encoded by the next 4 bytes.
+				 * Code deltas are always positive. This
+				 * sequence is just after the last entry in
+				 * the AuxData array. */
+    unsigned char *codeLengthStart;
+				/* Points to the first of a sequence of
+				 * bytes that encode the length of each
+				 * command's code. The encoding is the same
+				 * as for code deltas. Code lengths are
+				 * always positive. This sequence is just
+				 * after the last entry in the code delta
+				 * sequence. */
+    unsigned char *srcDeltaStart;
+				/* Points to the first of a sequence of
+				 * bytes that encode the change in the
+				 * starting offset of each command's source.
+				 * The encoding is the same as for code
+				 * deltas. Source deltas can be negative.
+				 * This sequence is just after the last byte
+				 * in the code length sequence. */
+    unsigned char *srcLengthStart;
+				/* Points to the first of a sequence of
+				 * bytes that encode the length of each
+				 * command's source. The encoding is the
+				 * same as for code deltas. Source lengths
+				 * are always positive. This sequence is
+				 * just after the last byte in the source
+				 * delta sequence. */
 } ByteCode;
 
 /*
@@ -709,14 +770,15 @@ EXTERN int		TclFixupForwardJump _ANSI_ARGS_((
 EXTERN void		TclFreeCompileEnv _ANSI_ARGS_((CompileEnv *envPtr));
 EXTERN void		TclFreeJumpFixupArray _ANSI_ARGS_((
   			    JumpFixupArray *fixupArrayPtr));
-EXTERN int		TclGetSrcInfoForPc _ANSI_ARGS_((unsigned char *pc,
-        		    ByteCode* codePtr));
 EXTERN void		TclInitByteCodeObj _ANSI_ARGS_((Tcl_Obj *objPtr,
 			    CompileEnv *envPtr));
 EXTERN void		TclInitCompileEnv _ANSI_ARGS_((Tcl_Interp *interp,
 			    CompileEnv *envPtr, char *string));
 EXTERN void		TclInitJumpFixupArray _ANSI_ARGS_((
 			    JumpFixupArray *fixupArrayPtr));
+#ifdef TCL_COMPILE_STATS
+EXTERN int		TclLog2 _ANSI_ARGS_((int value));
+#endif /*TCL_COMPILE_STATS*/
 EXTERN int		TclObjIndexForString _ANSI_ARGS_((char *start,
 			    int length, int allocStrRep, int inHeap,
 			    CompileEnv *envPtr));
@@ -826,7 +888,7 @@ EXTERN void		TclPrintSource _ANSI_ARGS_((FILE *outFile,
 /*
  * Macro to push a Tcl object onto the Tcl evaluation stack. It emits the
  * object's one or four byte array index into the CompileEnv's code
- * array. These support, respectively, a maximum of 256 (2^8) and 2^32
+ * array. These support, respectively, a maximum of 256 (2**8) and 2**32
  * objects in a CompileEnv. The ANSI C "prototype" for this macro is:
  *
  * EXTERN void	TclEmitPush _ANSI_ARGS_((int objIndex, CompileEnv *envPtr));
@@ -840,22 +902,22 @@ EXTERN void		TclPrintSource _ANSI_ARGS_((FILE *outFile,
     }
 
 /*
- * Macros to update a (signed or unsigned) integer starting at a bytecode
- * pc. The two variants depend on the number of bytes. The ANSI C
- * "prototypes" for these macros are:
+ * Macros to update a (signed or unsigned) integer starting at a pointer.
+ * The two variants depend on the number of bytes. The ANSI C "prototypes"
+ * for these macros are:
  *
- * EXTERN void	TclUpdateInt1AtPc _ANSI_ARGS_((int i, unsigned char *pc));
- * EXTERN void	TclUpdateInt4AtPc _ANSI_ARGS_((int i, unsigned char *pc));
+ * EXTERN void	TclStoreInt1AtPtr _ANSI_ARGS_((int i, unsigned char *p));
+ * EXTERN void	TclStoreInt4AtPtr _ANSI_ARGS_((int i, unsigned char *p));
  */
     
-#define TclUpdateInt1AtPc(i, pc) \
-    *(pc)   = (unsigned char) ((unsigned int) (i))
+#define TclStoreInt1AtPtr(i, p) \
+    *(p)   = (unsigned char) ((unsigned int) (i))
     
-#define TclUpdateInt4AtPc(i, pc) \
-    *(pc)   = (unsigned char) ((unsigned int) (i) >> 24); \
-    *(pc+1) = (unsigned char) ((unsigned int) (i) >> 16); \
-    *(pc+2) = (unsigned char) ((unsigned int) (i) >>  8); \
-    *(pc+3) = (unsigned char) ((unsigned int) (i)      )
+#define TclStoreInt4AtPtr(i, p) \
+    *(p)   = (unsigned char) ((unsigned int) (i) >> 24); \
+    *(p+1) = (unsigned char) ((unsigned int) (i) >> 16); \
+    *(p+2) = (unsigned char) ((unsigned int) (i) >>  8); \
+    *(p+3) = (unsigned char) ((unsigned int) (i)      )
 
 /*
  * Macros to update instructions at a particular pc with a new op code
@@ -870,54 +932,54 @@ EXTERN void		TclPrintSource _ANSI_ARGS_((FILE *outFile,
 
 #define TclUpdateInstInt1AtPc(op, i, pc) \
     *(pc) = (unsigned char) (op); \
-    TclUpdateInt1AtPc((i), ((pc)+1))
+    TclStoreInt1AtPtr((i), ((pc)+1))
 
 #define TclUpdateInstInt4AtPc(op, i, pc) \
     *(pc) = (unsigned char) (op); \
-    TclUpdateInt4AtPc((i), ((pc)+1))
+    TclStoreInt4AtPtr((i), ((pc)+1))
     
 /*
  * Macros to get a signed integer (GET_INT{1,2}) or an unsigned int
- * (GET_UINT{1,2}) from a code pc pointer. There are two variants for each
- * return type that depend on the number of bytes fetched from the code
- * sequence. The ANSI C "prototypes" for these macros are:
+ * (GET_UINT{1,2}) from a pointer. There are two variants for each
+ * return type that depend on the number of bytes fetched.
+ * The ANSI C "prototypes" for these macros are:
  *
- * EXTERN int	        TclGetInt1AtPc  _ANSI_ARGS_((unsigned char *pc));
- * EXTERN int	        TclGetInt4AtPc  _ANSI_ARGS_((unsigned char *pc));
- * EXTERN unsigned int	TclGetUInt1AtPc _ANSI_ARGS_((unsigned char *pc));
- * EXTERN unsigned int	TclGetUInt4AtPc _ANSI_ARGS_((unsigned char *pc));
+ * EXTERN int	        TclGetInt1AtPtr  _ANSI_ARGS_((unsigned char *p));
+ * EXTERN int	        TclGetInt4AtPtr  _ANSI_ARGS_((unsigned char *p));
+ * EXTERN unsigned int	TclGetUInt1AtPtr _ANSI_ARGS_((unsigned char *p));
+ * EXTERN unsigned int	TclGetUInt4AtPtr _ANSI_ARGS_((unsigned char *p));
  */
 
 /*
- * The TclGetInt1AtPc macro is tricky because we want to do sign
+ * The TclGetInt1AtPtr macro is tricky because we want to do sign
  * extension on the 1-byte value. Unfortunately the "char" type isn't
  * signed on all platforms so sign-extension doesn't always happen
- * automatically.  Sometimes we can explicitly declare the pointer to be
+ * automatically. Sometimes we can explicitly declare the pointer to be
  * signed, but other times we have to explicitly sign-extend the value
  * in software.
  */
 
 #ifndef __CHAR_UNSIGNED__
-#   define TclGetInt1AtPc(pc) ((int) *((char *) pc))
+#   define TclGetInt1AtPtr(p) ((int) *((char *) p))
 #else
 #   ifdef HAVE_SIGNED_CHAR
-#	define TclGetInt1AtPc(pc) ((int) *((signed char *) pc))
+#	define TclGetInt1AtPtr(p) ((int) *((signed char *) p))
 #    else
-#	define TclGetInt1AtPc(pc) (((int) *((char *) pc)) \
-		| ((*(pc) & 0200) ? (-256) : 0))
+#	define TclGetInt1AtPtr(p) (((int) *((char *) p)) \
+		| ((*(p) & 0200) ? (-256) : 0))
 #    endif
 #endif
 
-#define TclGetInt4AtPc(pc) (((int) TclGetInt1AtPc(pc) << 24) | \
-		                  (*((pc)+1) << 16) | \
-				  (*((pc)+2) <<  8) | \
-				  (*((pc)+3)))
+#define TclGetInt4AtPtr(p) (((int) TclGetInt1AtPtr(p) << 24) | \
+		                  	    (*((p)+1) << 16) | \
+				  	    (*((p)+2) <<  8) | \
+				  	    (*((p)+3)))
 
-#define TclGetUInt1AtPc(pc) ((unsigned int) *(pc))
-#define TclGetUInt4AtPc(pc) ((unsigned int) (*(pc)     << 24) | \
-		                            (*((pc)+1) << 16) | \
-				            (*((pc)+2) <<  8) | \
-				            (*((pc)+3)))
+#define TclGetUInt1AtPtr(p) ((unsigned int) *(p))
+#define TclGetUInt4AtPtr(p) ((unsigned int) (*(p)     << 24) | \
+		                            (*((p)+1) << 16) | \
+				            (*((p)+2) <<  8) | \
+				            (*((p)+3)))
 
 /*
  * Macros used to compute the minimum and maximum of two integers.

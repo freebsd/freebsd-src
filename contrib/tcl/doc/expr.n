@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) expr.n 1.25 97/04/29 10:11:52
+'\" SCCS: @(#) expr.n 1.27 97/08/12 11:31:30
 '\" 
 .so man.macros
 .TH expr n 8.0 Tcl "Tcl Built-In Commands"
@@ -285,6 +285,7 @@ operands could be arbitrary;  it's better in these cases to use the
 \fBstring compare\fR command instead.
 
 .SH "PERFORMANCE CONSIDERATIONS"
+.VS
 .PP
 Enclose expressions in braces for the best speed and the smallest
 storage requirements.
@@ -315,6 +316,7 @@ The most expensive code is required for
 unbraced expressions that contain command substitutions.
 These expressions must be implemented by generating new code
 each time the expression is executed.
+.VE
 
 .SH KEYWORDS
-arithmetic, boolean, compare, expression
+arithmetic, boolean, compare, expression, fuzzy comparison

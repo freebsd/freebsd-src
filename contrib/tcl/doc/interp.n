@@ -4,7 +4,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) interp.n 1.29 97/03/06 17:41:39
+'\" SCCS: @(#) interp.n 1.35 97/07/31 18:04:06
 '\" 
 .so man.macros
 .TH interp n 7.6 Tcl "Tcl Built-In Commands"
@@ -169,18 +169,29 @@ exists in this master, \fB0\fR otherwise. If \fIpath\fR is omitted, the
 invoking interpreter is used.
 .VS BR
 .TP
-\fBinterp \fBexpose \fIpath\fR \fIhiddenCmdName\fR ?\fIexposedCmdName\fR?
-Makes the hidden command \fIhiddenCmdName\fR exposed, potentially renaming
-it to \fIexposedCmdName\fR, in the interpreter denoted by \fIpath\fR.
+\fBinterp \fBexpose \fIpath\fR \fIhiddenName\fR ?\fIexposedCmdName\fR?
+Makes the hidden command \fIhiddenName\fR exposed, eventually bringing
+it back under a new \fIexposedCmdName\fR name (this name is currently
+accepted only if it is a valid global name space name without any ::),
+in the interpreter
+denoted by \fIpath\fR.
 If an exposed command with the targetted name already exists, this command
 fails.
 Hidden commands are explained in more detail in HIDDEN COMMANDS, below.
 .TP
 \fBinterp \fBhide \fIpath\fR \fIexposedCmdName\fR ?\fIhiddenCmdName\fR?
-Makes the exposed command \fIexposedCmdName\fR hidden, potentially renaming
-it to \fIhiddenCmdName\fR, in the interpreter denoted by \fIpath\fR.
+Makes the exposed command \fIexposedCmdName\fR hidden, renaming
+it to the hidden command \fIhiddenCmdName\fR, or keeping the same name if
+\fIhiddenCmdName\fR is not given, in the interpreter denoted 
+by \fIpath\fR.
 If a hidden command with the targetted name already exists, this command
 fails.
+Currently both \fIexposedCmdName\fR and \fIhiddenCmdName\fR can 
+not contain namespace qualifiers, or an error is raised.
+Commands to be hidden by \fBinterp hide\fR are looked up in the global
+namespace even if the current namespace is not the global one. This
+prevents slaves from fooling a master interpreter into hiding the wrong
+command, by making the current namespace be different from the global one.
 Hidden commands are explained in more detail in HIDDEN COMMANDS, below.
 .TP
 \fBinterp \fBhidden \fIpath\fR
@@ -291,25 +302,34 @@ such as the \fBerrorInfo\fR and \fBerrorCode\fR variables, if an
 error occurs) is returned to the invoking interpreter.
 .VS BR
 .TP
-\fIslave \fBexpose \fIhiddenCmdName \fR?\fIexposedCmdName\fR?
-This command exposes the hidden command \fIhiddenCmdName\fR, potentially
-renaming it to \fIexposedCmdName\fR, in \fIslave\fR.
-If an exposed command with the targeted name already exists, this command
+\fIslave \fBexpose \fIhiddenName \fR?\fIexposedCmdName\fR?
+This command exposes the hidden command \fIhiddenName\fR, eventually bringing
+it back under a new \fIexposedCmdName\fR name (this name is currently
+accepted only if it is a valid global name space name without any ::),
+in \fIslave\fR.
+If an exposed command with the targetted name already exists, this command
 fails.
 For more details on hidden commands, see HIDDEN COMMANDS, below.
 .TP
-\fIslave \fBhide \fIexposedCmdName \fR?\fIhiddenCmdName\fR?
-This command hides the exposed command \fIexposedCmdName\fR, potentially
-renaming it to \fIhiddenCmdName\fR, in \fIslave\fR.
-If a hidden command with the targeted name already exists, this command
+\fIslave \fBhide \fIexposedCmdName\fR ?\fIhiddenCmdName\fR?
+This command hides the exposed command \fIexposedCmdName\fR, renaming it to 
+the hidden command \fIhiddenCmdName\fR, or keeping the same name if the
+the argument is not given, in the \fIslave\fR interpreter.
+If a hidden command with the targetted name already exists, this command
 fails.
+Currently both \fIexposedCmdName\fR and \fIhiddenCmdName\fR can 
+not contain namespace qualifiers, or an error is raised.
+Commands to be hidden are looked up in the global
+namespace even if the current namespace is not the global one. This
+prevents slaves from fooling a master interpreter into hiding the wrong
+command, by making the current namespace be different from the global one.
 For more details on hidden commands, see HIDDEN COMMANDS, below.
 .TP
 \fIslave \fBhidden\fR
 Returns a list of the names of all hidden commands in \fIslave\fR.
 .TP
-\fIslave \fBinvokehidden\fR ?\fB-global\fR \fIhiddenCmdName \fR?\fIarg ..\fR?
-This command invokes the hidden command \fIhiddenCmdName\fR with the
+\fIslave \fBinvokehidden\fR ?\fB-global\fR \fIhiddenName \fR?\fIarg ..\fR?
+This command invokes the hidden command \fIhiddenName\fR with the
 supplied arguments, in \fIslave\fR. No substitutions or evaluations are
 applied to the arguments.
 If the \fB-global\fR flag is given, the command is invoked at the global
@@ -494,11 +514,19 @@ interpreter using \fBinterp expose\fR and \fBinterp hide\fR. The \fBinterp
 expose\fR command moves a hidden command to the
 set of exposed commands in the interpreter identified by \fIpath\fR,
 potentially renaming the command in the process. If an exposed command by
-the targeted name already exists, the operation fails. Similarly,
+the targetted name already exists, the operation fails. Similarly,
 \fBinterp hide\fR moves an exposed command to the set of hidden commands in
 that interpreter. Safe interpreters are not allowed to move commands
 between the set of hidden and exposed commands, in either themselves or
 their descendants.
+.PP
+Currently, the names of hidden commands cannot contain namespace
+qualifiers, and you must first rename a command in a namespace to the
+global namespace before you can hide it.
+Commands to be hidden by \fBinterp hide\fR are looked up in the global
+namespace even if the current namespace is not the global one. This
+prevents slaves from fooling a master interpreter into hiding the wrong
+command, by making the current namespace be different from the global one.
 .VE
 .SH CREDITS
 .PP

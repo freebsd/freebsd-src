@@ -19,7 +19,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixPort.h 1.47 97/05/22 10:57:36
+ * SCCS: @(#) tclUnixPort.h 1.49 97/07/30 14:11:59
  */
 
 #ifndef _TCLUNIXPORT
@@ -427,13 +427,6 @@ EXTERN int		gettimeofday _ANSI_ARGS_((struct timeval *tp,
 #   define NFDBITS NBBY*sizeof(fd_mask)
 #endif
 #define MASK_SIZE howmany(FD_SETSIZE, NFDBITS)
-
-/*
- * The following function is declared in tclInt.h but doesn't do anything
- * on Unix systems.
- */
-
-#define TclSetSystemEnv(a,b)
 
 /*
  * The following implements the Unix method for exiting the process.
