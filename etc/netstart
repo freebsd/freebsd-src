@@ -29,7 +29,7 @@
 #
 
 # This file is NOT called by any of the other scripts - it has been
-# obsoleted by /etc/rc.network and is provided here only for user
+# obsoleted by /etc/rc.d/* and is provided here only for user
 # convenience (if you're sitting in single user mode and wish to start
 # the network by hand, this script will do it for you).
 #
