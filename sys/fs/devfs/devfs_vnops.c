@@ -546,31 +546,67 @@ devfs_setattr(ap)
 	} */ *ap;
 {
 	struct devfs_dirent *de;
-	int c;
+	struct vattr *vap;
+	int c, error;
+	uid_t uid;
+	gid_t gid;
+
+	vap = ap->a_vap;
+	if ((vap->va_type != VNON) ||
+	    (vap->va_nlink != VNOVAL) ||
+	    (vap->va_fsid != VNOVAL) ||
+	    (vap->va_fileid != VNOVAL) ||
+	    (vap->va_blocksize != VNOVAL) ||
+	    (vap->va_flags != VNOVAL) ||
+	    (vap->va_rdev != VNOVAL) ||
+	    ((int)vap->va_bytes != VNOVAL) ||
+	    (vap->va_gen != VNOVAL)) {
+		return (EINVAL);
+	}
 
 	de = ap->a_vp->v_data;
 	if (ap->a_vp->v_type == VDIR) 
 		de = de->de_dir;
 
-	c = 0;
-	if (ap->a_vap->va_flags != VNOVAL)
-		return (EOPNOTSUPP);
-	if (ap->a_vap->va_uid != (uid_t)VNOVAL) {
-		de->de_uid = ap->a_vap->va_uid;
+	error = c = 0;
+	if (vap->va_uid == (uid_t)VNOVAL)
+		uid = de->de_uid;
+	else
+		uid = vap->va_uid;
+	if (vap->va_gid == (gid_t)VNOVAL)
+		gid = de->de_gid;
+	else
+		gid = vap->va_gid;
+	if (uid != de->de_uid || gid != de->de_gid) {
+		if (((ap->a_cred->cr_uid != de->de_uid) || uid != de->de_uid ||
+		    (gid != de->de_gid && !groupmember(gid, ap->a_cred))) &&
+		    (error = suser(ap->a_p)) != 0)
+			return (error);
+		de->de_uid = uid;
+		de->de_gid = gid;
 		c = 1;
 	}
-	if (ap->a_vap->va_gid != (gid_t)VNOVAL) {
-		de->de_gid = ap->a_vap->va_gid;
+	if (vap->va_mode != (mode_t)VNOVAL) {
+		if ((ap->a_cred->cr_uid != de->de_uid) &&
+		    (error = suser(ap->a_p)))
+			return (error);
+		de->de_mode = vap->va_mode;
 		c = 1;
 	}
-	if (ap->a_vap->va_mode != (mode_t)VNOVAL) {
-		de->de_mode = ap->a_vap->va_mode;
+	if (vap->va_atime.tv_sec != VNOVAL) {
+		if ((ap->a_cred->cr_uid != de->de_uid) &&
+		    (error = suser(ap->a_p)))
+			return (error);
+		de->de_atime = vap->va_atime;
 		c = 1;
 	}
-	if (ap->a_vap->va_atime.tv_sec != VNOVAL)
-		de->de_atime = ap->a_vap->va_atime;
-	if (ap->a_vap->va_mtime.tv_sec != VNOVAL)
-		de->de_mtime = ap->a_vap->va_mtime;
+	if (vap->va_mtime.tv_sec != VNOVAL) {
+		if ((ap->a_cred->cr_uid != de->de_uid) &&
+		    (error = suser(ap->a_p)))
+			return (error);
+		de->de_mtime = vap->va_mtime;
+		c = 1;
+	}
 
 	if (c)
 		getnanotime(&de->de_ctime);
