@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.167 1999/05/08 11:07:25 brian Exp $
+.\" $Id: ppp.8,v 1.168 1999/05/12 09:48:59 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -4363,6 +4363,8 @@ Show the current interface information
 .Pq the same \&as Dq iface show .
 .It show ipcp
 Show the current IPCP statistics.
+.It show layers
+Show the protocol layers currently in use.
 .It show lcp
 Show the current LCP statistics.
 .It show Op data Ns Xo
