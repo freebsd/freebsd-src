@@ -149,7 +149,7 @@ g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
 		 * partitions to be present in the MBR. A PMBR will
 		 * be handled correctly anyway.
 		 */
-		if (dp[i].dp_typ == 0xee)
+		if (dp[i].dp_typ == DOSPTYP_PMBR)
 			l[i] = 0;
 		else if (dp[i].dp_flag != 0 && dp[i].dp_flag != 0x80)
 			l[i] = 0;
