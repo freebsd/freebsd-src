@@ -1,6 +1,4 @@
-#	  fs: /usr/local
-#	  by: rgrimes
-#	date: Sun Aug 29 22:56:32 PDT 1993
+#	$Id$
 #
 
 /set type=file uname=bin gname=bin mode=0755
