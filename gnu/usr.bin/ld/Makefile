@@ -1,7 +1,8 @@
-# $Id: Makefile,v 1.21 1997/02/22 15:46:17 peter Exp $
+# $Id: Makefile,v 1.22 1997/06/29 21:36:33 bde Exp $
 #
 
 PROG=	ld
+BINDIR= /usr/libexec/aout
 SRCS=	ld.c symbol.c lib.c shlib.c warnings.c support.c rrs.c xbits.c md.c \
 	cplus-dem.c
 CFLAGS+= -I$(.CURDIR) -I$(.CURDIR)/$(MACHINE) \
