@@ -58,10 +58,9 @@
  * $FreeBSD$
  */
 
-#ifndef NO_SSL2
-
-#include <stdio.h>
 #include "ssl_locl.h"
+#ifndef NO_SSL2
+#include <stdio.h>
 
 int ssl2_enc_init(SSL *s, int client)
 	{
@@ -181,5 +180,10 @@ void ssl2_mac(SSL *s, unsigned char *md, int send)
 	EVP_DigestFinal(&c,md,NULL);
 	/* some would say I should zero the md context */
 	}
+#else /* !NO_SSL2 */
+
+# if PEDANTIC
+static void *dummy=&dummy;
+# endif
 
 #endif
