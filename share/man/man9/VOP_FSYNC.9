@@ -38,7 +38,7 @@
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_FSYNC "struct vnode *vp" "struct ucred *cred" "int waitfor" "struct proc *p"
+.Fn VOP_FSYNC "struct vnode *vp" "struct ucred *cred" "int waitfor" "struct thread *td"
 .Sh DESCRIPTION
 This call flushes any dirty filesystem buffers for the file.
 It is used to implement the
@@ -64,8 +64,8 @@ start all I/O, but do not wait for it
 .It Dv MNT_LAZY
 push data not written by filesystem syncer
 .El
-.It Ar p
-the calling process
+.It Ar td
+the calling thread 
 .El
 .Pp
 The argument
@@ -84,7 +84,7 @@ error code is returned.
 .Sh PSEUDOCODE
 .Bd -literal
 int
-vop_fsync(struct vnode *vp, struct ucred *cred, int waitfor, struct proc *p)
+vop_fsync(struct vnode *vp, struct ucred *cred, int waitfor, struct thread *td)
 {
     struct buf *bp;
     struct buf *nbp;

@@ -36,7 +36,7 @@
 .In sys/vnode.h
 .In sys/acl.h
 .Ft int
-.Fn VOP_ACLCHECK "struct vnode *vp" "acl_type_t type" "struct acl *aclp" "struct ucred *cred" "struct proc *p"
+.Fn VOP_ACLCHECK "struct vnode *vp" "acl_type_t type" "struct acl *aclp" "struct ucred *cred" "struct thread *td"
 .Sh DESCRIPTION
 This vnode call may be used to determine the validity of a particular access
 control list (ACL) for a particular file or directory.
@@ -51,8 +51,8 @@ the type of ACL to check
 a pointer to an ACL structure from which to retrieve the ACL data
 .It Ar cred
 the user credentials to use in authorizing the request
-.It Ar p
-the process checking the ACL
+.It Ar td
+the thread checking the ACL
 .El
 .Pp
 The

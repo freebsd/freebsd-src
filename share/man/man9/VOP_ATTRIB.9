@@ -39,9 +39,9 @@
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_GETATTR "struct vnode *vp" "struct vattr *vap" "struct ucred *cred" "struct proc *p"
+.Fn VOP_GETATTR "struct vnode *vp" "struct vattr *vap" "struct ucred *cred" "struct thread *td"
 .Ft int
-.Fn VOP_SETATTR "struct vnode *vp" "struct vattr *vap" "struct ucred *cred" "struct proc *p"
+.Fn VOP_SETATTR "struct vnode *vp" "struct vattr *vap" "struct ucred *cred" "struct thread *td"
 .Sh DESCRIPTION
 These entry points manipulate various attributes of a file or directory,
 including file permissions, owner, group, size,
@@ -55,8 +55,8 @@ the vnode of the file
 the attributes of the file
 .It Ar cred
 the user credentials of the calling process
-.It Ar p
-the process
+.It Ar td
+the thread 
 .El
 .Pp
 Attributes which are not being modified by
@@ -82,7 +82,7 @@ appropriate error is returned.
 .Bd -literal
 int
 vop_getattr(struct vnode *vp, struct vattr *vap,
-	    struct ucred *cred, struct proc *p)
+	    struct ucred *cred, struct thread *td)
 {
     /*
      * Fill in the contents of *vap with information from
@@ -95,7 +95,7 @@ vop_getattr(struct vnode *vp, struct vattr *vap,
 
 int
 vop_setattr(struct vnode *vp, struct vattr *vap,
-	    struct ucred *cred, struct proc *p)
+	    struct ucred *cred, struct thread *td)
 {
     /*
      * Check for unsettable attributes.
