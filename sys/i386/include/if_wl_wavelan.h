@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: if_wl_wavelan.h,v 1.2 1997/08/01 03:33:43 msmith Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -84,8 +84,6 @@
 #define	MMC_EECTRLstat_DWLD	0x08	/* 2.4 Gz  Synth/Tx-Pwr DWLD busy */
 #define	MMC_EECTRLstat_EEBUSY	0x04	/* 2.4 Gz  EEPROM busy		  */
 
-#endif	_CHIPS_WAVELAN_H
-
 /* additional socket ioctl params for wl card   
  * see sys/sockio.h for numbers.  The 2nd params here
  * must be greater than any values in sockio.h
@@ -164,4 +162,6 @@ struct w_sigcache {
         int    quality;   /* quality of the packet */
         int    snr;       /* packet has unique age between 1 to MAX_AGE - 1 */
 };
+
+#endif /* _CHIPS_WAVELAN_H */
 
