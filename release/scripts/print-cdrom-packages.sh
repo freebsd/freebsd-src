@@ -139,7 +139,9 @@ CDROM_SET_1="${CDROM_SET_1} print/ghostview"
 CDROM_SET_1="${CDROM_SET_1} print/gv"
 CDROM_SET_1="${CDROM_SET_1} print/psutils-letter"
 CDROM_SET_1="${CDROM_SET_1} security/sudo"
+if [ "X${PKG_ARCH}" = "Xi386" ]; then
 CDROM_SET_1="${CDROM_SET_1} security/freebsd-update"
+fi
 CDROM_SET_1="${CDROM_SET_1} shells/bash2"
 CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
 CDROM_SET_1="${CDROM_SET_1} shells/zsh"
