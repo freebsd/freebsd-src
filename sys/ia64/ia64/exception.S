@@ -1150,28 +1150,65 @@ IVT_ENTRY(External_Interrupt, 0x3000)
 	br.sptk		exception_save
 	;;
 }
-{	.mmb
-2:	alloc	r14=ar.pfs,0,0,2,0	// make a frame for calling with
-	add	out1=16,sp
-	nop	0
+	alloc		r14=ar.pfs,0,0,2,0
+	;;
+1:
+{	.mii
+	mov		out0=cr.ivr	// Get interrupt vector
+	add		out1=16,sp
+	;;
+	cmp.eq		p15,p0=15,out0	// check for spurious vector number
 }
-
-3:	mov	out0=cr.ivr		// find interrupt vector
-	;;
-	cmp.eq	p15,p0=15,out0		// check for spurious vector number
-(p15)	br.dpnt.few exception_restore	// if spurious, we are done
-	;;
-	ssm	psr.i			// re-enable interrupts
+{	.mbb
+	ssm		psr.i		// re-enable interrupts
+(p15)	br.dpnt.few 2f			// if spurious, we are done
 	br.call.sptk.many rp=interrupt	// call high-level handler
 	;;
-	rsm	psr.i			// disable interrupts
+}
+{	.mmi
+	rsm		psr.i		// disable interrupts
 	;;
 	srlz.d
-	mov	cr.eoi=r0		// and ack the interrupt
+	nop		0
+}
+{	.mmi
+	mov		cr.eoi=r0	// ack the interrupt
 	;;
 	srlz.d
-	br.sptk.few 3b			// loop for more
+	nop		0
+}
+{	.mfb
+	nop		0
+	nop		0
+	br.sptk		1b		// loop for more
 	;;
+}
+2:
+{	.mmi
+	add		r14=16+TF_SPECIAL_IIP,sp
+	;;
+	ld8		r14=[r14]
+	add		out0=16,sp
+	;;
+}
+{	.mii
+	nop		0
+	extr.u		r14=r14,61,3
+	;;
+	cmp.ge		p15,p0=5,r14
+}
+{	.mfb
+	nop		0
+	nop		0
+(p15)	br.call.sptk	rp=do_ast
+	;;
+}
+{	.mfb
+	nop		0
+	nop		0
+	br.sptk		exception_restore
+	;;
+}
 IVT_END(External_Interrupt)
 
 IVT_ENTRY(Reserved_3400, 0x3400)
