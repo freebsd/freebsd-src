@@ -568,7 +568,6 @@ char    *__ttyname_r_basic(int, char *, size_t);
 char    *ttyname_r(int, char *, size_t);
 int     _thread_create(pthread_t *,const pthread_attr_t *,void *(*start_routine)(void *),void *,pthread_t);
 int     _thread_fd_lock(int, int, struct timespec *,char *fname,int lineno);
-int     nanosleep(struct timespec *, struct timespec *);
 void    _thread_exit(char *, int, char *);
 void    _thread_fd_unlock(int, int);
 void    *_thread_cleanup(pthread_t);
