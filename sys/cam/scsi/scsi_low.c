@@ -63,6 +63,7 @@
 #include <sys/bio.h>
 #endif
 #include <sys/buf.h>
+#include <sys/devicestat.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/device_port.h>
