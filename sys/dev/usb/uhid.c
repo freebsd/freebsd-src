@@ -415,6 +415,7 @@ uhidclose(dev, flag, mode, p)
 	usbd_close_pipe(sc->sc_intrpipe);
 	sc->sc_intrpipe = 0;
 
+	ndflush(&sc->sc_q, sc->sc_q.c_cc);
 	clfree(&sc->sc_q);
 
 	free(sc->sc_ibuf, M_USBDEV);
