@@ -6,7 +6,8 @@ MAN1=	w.1 uptime.1
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 BINOWN= root
-BINMODE=4555
+BINGRP= kmem
+BINMODE=2555
 LINKS=	${BINDIR}/w ${BINDIR}/uptime
 
 .PATH: ${.CURDIR}/../../bin/ps
