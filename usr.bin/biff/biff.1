@@ -76,6 +76,18 @@ or the
 .Ev mail
 variable of
 .Xr csh 1 .
+.Sh DIAGNOSTICS
+The
+.Nm
+utility exits with one of the following values:
+.Bl -tag -width Ds
+.It 0
+Notification is enabled.
+.It 1
+Notification is disabled.
+.It >1
+An error occurred.
+.El
 .Sh SEE ALSO
 .Xr csh 1 ,
 .Xr mail 1 ,
