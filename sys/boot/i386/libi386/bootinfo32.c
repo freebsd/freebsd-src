@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.5 1998/09/28 21:59:21 peter Exp $
+ *	$Id: bootinfo.c,v 1.6 1998/10/02 20:53:17 msmith Exp $
  */
 
 #include <stand.h>
@@ -272,7 +272,6 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
     /* bi.bi_bios_geom[] */
     bi.bi_size = sizeof(bi);
     bi.bi_memsizes_valid = 1;
-    bi.bi_vesa = 0;			/* XXX correct value? */
     bi.bi_basemem = getbasemem();
     bi.bi_extmem = getextmem();
 
