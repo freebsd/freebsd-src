@@ -33,13 +33,13 @@
 .Os
 .Sh NAME
 .Nm ng_gif
-.Nd Generic tunnel interface netgraph node type
+.Nd generic tunnel interface netgraph node type
 .Sh SYNOPSIS
-.Fd #include <netgraph/ng_gif.h>
+.In netgraph/ng_gif.h
 .Sh DESCRIPTION
 The
 .Nm
-netgraph node type allows 
+netgraph node type allows
 .Xr gif 4
 interfaces to interact with
 the
@@ -58,7 +58,7 @@ All
 nodes are persistent for as long as the interface itself exists.
 .Pp
 Two hooks are supported:
-.Dv lower 
+.Dv lower
 and
 .Dv orphans .
 The hook name
@@ -100,7 +100,7 @@ When no hooks are connected, packets flow normally upwards and downwards.
 .Sh HOOKS
 This node type supports the following hooks:
 .Pp
-.Bl -tag -width orphans
+.Bl -tag -width ".Dv orphans"
 .It Dv lower
 Connection to the lower device link layer.
 .It Dv orphans
@@ -109,15 +109,13 @@ Like
 but only receives unrecognized packets.
 .El
 .Sh CONTROL MESSAGES
-This node type supports only the generic control messages generic
-control messages.
+This node type supports only the generic control messages.
 .Sh EXAMPLES
 This command dumps all unrecognized packets received by the
-.Dv gif0
+.Li gif0
 interface to standard output decoded in hex and ASCII:
-.Bd -literal -offset indent
-nghook -a gif0: orphans
-.Ed
+.Pp
+.Dl "nghook -a gif0: orphans"
 .Sh SEE ALSO
 .Xr gif 4 ,
 .Xr netgraph 4 ,
