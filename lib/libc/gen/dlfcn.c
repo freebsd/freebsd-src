@@ -23,12 +23,78 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: dlfcn.c,v 1.1 1998/02/09 06:05:24 jdp Exp $
  */
 
 /*
- * Trampolines to services provided by the dynamic linker.
+ * Linkage to services provided by the dynamic linker.  These are
+ * implemented differently in ELF and a.out, because the dynamic
+ * linkers have different interfaces.
  */
+
+#ifdef __ELF__
+
+#include <dlfcn.h>
+#include <stddef.h>
+
+static const char sorry[] = "Service unavailable";
+
+/*
+ * For ELF, the dynamic linker directly resolves references to its
+ * services to functions inside the dynamic linker itself.  These
+ * weak-symbol stubs are necessary so that "ld" won't complain about
+ * undefined symbols.  The stubs are executed only when the program is
+ * linked statically, or when a given service isn't implemented in the
+ * dynamic linker.  They must return an error if called, and they must
+ * be weak symbols so that the dynamic linker can override them.
+ */
+
+#pragma weak _rtld_error
+void
+_rtld_error(const char *fmt, ...)
+{
+}
+
+#pragma weak dladdr
+int
+dladdr(const void *addr, Dl_info *dlip)
+{
+	_rtld_error(sorry);
+	return 0;
+}
+
+#pragma weak dlclose
+int
+dlclose(void *handle)
+{
+	_rtld_error(sorry);
+	return -1;
+}
+
+#pragma weak dlerror
+const char *
+dlerror(void)
+{
+	return sorry;
+}
+
+#pragma weak dlopen
+void *
+dlopen(const char *name, int mode)
+{
+	_rtld_error(sorry);
+	return NULL;
+}
+
+#pragma weak dlsym
+void *
+dlsym(void *handle, const char *name)
+{
+	_rtld_error(sorry);
+	return NULL;
+}
+
+#else /* a.out format */
 
 #include <sys/types.h>
 #include <nlist.h>		/* XXX - Required by link.h */
@@ -37,60 +103,66 @@
 #include <stddef.h>
 
 /*
+ * For a.out, entry to the dynamic linker is via these trampolines.
+ * They enter the dynamic linker through the ld_entry struct that was
+ * passed back from the dynamic linker at startup time.
+ */
+
+/* GCC is needed because we use its __builtin_return_address construct. */
+
+#ifndef __GNUC__
+#error "GCC is needed to compile this file"
+#endif
+
+/*
  * These variables are set by code in crt0.o.  For compatibility with
  * old executables, they must be common, not extern.
  */
 struct ld_entry	*__ldso_entry;		/* Entry points to dynamic linker */
 int		 __ldso_version;	/* Dynamic linker version number */
 
-void *
-dlopen(name, mode)
-	const char	*name;
-	int		 mode;
+int
+dladdr(const void *addr, Dl_info *dlip)
 {
-	if (__ldso_entry == NULL)
-		return NULL;
-	return (__ldso_entry->dlopen)(name, mode);
+	if (__ldso_entry == NULL || __ldso_version < LDSO_VERSION_HAS_DLADDR)
+		return 0;
+	return (__ldso_entry->dladdr)(addr, dlip);
 }
 
 int
-dlclose(fd)
-	void		*fd;
+dlclose(void *handle)
 {
 	if (__ldso_entry == NULL)
 		return -1;
-	return (__ldso_entry->dlclose)(fd);
+	return (__ldso_entry->dlclose)(handle);
 }
-
-void *
-dlsym(fd, name)
-	void		*fd;
-	const char	*name;
-{
-	if (__ldso_entry == NULL)
-		return NULL;
-	if (__ldso_version >= LDSO_VERSION_HAS_DLSYM3) {
-		void *retaddr = *(&fd - 1);  /* XXX - ABI/machine dependent */
-		return (__ldso_entry->dlsym3)(fd, name, retaddr);
-	} else
-		return (__ldso_entry->dlsym)(fd, name);
-}
-
 
 const char *
-dlerror()
+dlerror(void)
 {
 	if (__ldso_entry == NULL)
 		return "Service unavailable";
 	return (__ldso_entry->dlerror)();
 }
 
-int
-dladdr(addr, dlip)
-	const void	*addr;
-	Dl_info		*dlip;
+void *
+dlopen(const char *name, int mode)
 {
-	if (__ldso_entry == NULL || __ldso_version < LDSO_VERSION_HAS_DLADDR)
-		return 0;
-	return (__ldso_entry->dladdr)(addr, dlip);
+	if (__ldso_entry == NULL)
+		return NULL;
+	return (__ldso_entry->dlopen)(name, mode);
 }
+
+void *
+dlsym(void *handle, const char *name)
+{
+	if (__ldso_entry == NULL)
+		return NULL;
+	if (__ldso_version >= LDSO_VERSION_HAS_DLSYM3) {
+		void *retaddr = __builtin_return_address(0); /* __GNUC__ only */
+		return (__ldso_entry->dlsym3)(handle, name, retaddr);
+	} else
+		return (__ldso_entry->dlsym)(handle, name);
+}
+
+#endif /* __ELF__ */
