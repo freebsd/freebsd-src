@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.337 1999/06/01 18:19:40 jlemon Exp $
+ *	$Id: machdep.c,v 1.338 1999/06/01 18:25:26 jlemon Exp $
  */
 
 #include "apm.h"
@@ -1352,7 +1352,12 @@ physmap_done:
 	}
 #endif
 
-/* XXX former point of mp_probe() and pmap_bootstrap() */
+#ifdef SMP
+	/* look for the MP hardware - needed for apic addresses */
+	mp_probe();
+#endif
+	/* call pmap initialization to make new kernel address space */
+	pmap_bootstrap(first, 0);
 
 	/*
 	 * Size up each available chunk of physical memory.
@@ -1361,8 +1366,11 @@ physmap_done:
 	pa_indx = 0;
 	phys_avail[pa_indx++] = physmap[0];
 	phys_avail[pa_indx] = physmap[0];
+#if 0
 	pte = (pt_entry_t)vtopte(KERNBASE);
-	*pte = (1 << PAGE_SHIFT) | PG_RW | PG_V;
+#else
+	pte = (pt_entry_t)CMAP1;
+#endif
 
 	/*
 	 * physmap is in bytes, so when converting to page boundaries,
@@ -1376,7 +1384,11 @@ physmap_done:
 			end = trunc_page(physmap[i + 1]);
 		for (pa = round_page(physmap[i]); pa < end; pa += PAGE_SIZE) {
 			int tmp, page_bad;
+#if 0
 			int *ptr = 0;
+#else
+			int *ptr = (int *)CADDR1;
+#endif
 
 			/*
 			 * block out kernel memory as not available.
@@ -1649,14 +1661,6 @@ init386(first)
 
 	vm86_initialize();
 	getmemsize(first);
-
-#ifdef SMP
-	/* look for the MP hardware - needed for apic addresses */
-	mp_probe();
-#endif
-
-	/* call pmap initialization to make new kernel address space */
-	pmap_bootstrap(first, 0);
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
