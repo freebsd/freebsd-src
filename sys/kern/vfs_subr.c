@@ -832,7 +832,7 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_lasta = 0;
 		vp->v_cstart = 0;
 		vp->v_clen = 0;
-		vp->v_socket = 0;
+		bzero(&vp->v_un, sizeof vp->v_un);
 		lockdestroy(vp->v_vnlock);
 		lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
 		VNASSERT(bo->bo_clean.bv_cnt == 0, vp,
