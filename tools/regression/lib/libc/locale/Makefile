@@ -10,7 +10,9 @@ TESTS=	test-mbrtowc	\
 	test-wctomb	\
 	test-mbstowcs	\
 	test-wcstombs	\
-	test-mblen
+	test-mblen	\
+	test-iswctype	\
+	test-towctrans
 
 .PHONY: tests
 tests: ${TESTS}
