@@ -89,10 +89,10 @@ struct isa_device { int dummy; };
 
 #endif	/* _OS_H_ */
 
-#include <dev/pcm/datatypes.h>
-#include <dev/pcm/channel.h>
-#include <dev/pcm/mixer.h>
-#include <dev/pcm/dsp.h>
+#include <dev/sound/pcm/datatypes.h>
+#include <dev/sound/pcm/channel.h>
+#include <dev/sound/pcm/mixer.h>
+#include <dev/sound/pcm/dsp.h>
 
 #define	MAGIC(unit) (0xa4d10de0 + unit)
 

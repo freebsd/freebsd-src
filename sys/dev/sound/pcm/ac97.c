@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#include <dev/pcm/sound.h>
-#include <dev/pcm/ac97.h>
+#include <dev/sound/pcm/sound.h>
+#include <dev/sound/pcm/ac97.h>
 
 #define AC97_MUTE	0x8000
 

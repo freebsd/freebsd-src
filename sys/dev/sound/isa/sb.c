@@ -31,11 +31,11 @@
  * $FreeBSD$
  */
 
-#include <dev/pcm/sound.h>
+#include <dev/sound/pcm/sound.h>
 #if NPCM > 0
 
 #define __SB_MIXER_C__	/* XXX warning... */
-#include  <dev/pcm/isa/sb.h>
+#include  <dev/sound/isa/sb.h>
 
 /* channel interface */
 static void *sbchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
