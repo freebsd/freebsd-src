@@ -17,6 +17,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040303:
+	If you are having trouble with the libc_r -> libpthread transition
+	(see the 20040130 entry), place the following lines at the top of
+	/etc/libmap.conf:
+
+	libc_r.so.5		libpthread.so.1
+	libc_r.so		libpthread.so
+
+	This will cause all programs and libraries linked against libc_r
+	to use libpthread instead.
+
 20040226:
 	Some sshd configuration defaults have changed: protocol version 1
 	is no longer enabled by default, and password authentication is
