@@ -368,6 +368,41 @@ pcic_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
+
+static int
+pcic_sresource(struct slot *slt, caddr_t data)
+{
+	struct pccard_resource *pr;
+	struct resource *r;
+	int flags;
+	int rid = 0;
+	device_t bridgedev = slt->dev;
+	struct pcic_slot *sp = slt->cdata;
+
+	pr = (struct pccard_resource *)data;
+	pr->resource_addr = ~0ul;
+	if (pr->type == SYS_RES_IRQ && sp->sc->func_route == pci_parallel) {
+		pr->resource_addr = sp->sc->irq;
+		return (0);
+	}
+	switch(pr->type) {
+	default:
+		return (EINVAL);
+	case SYS_RES_MEMORY:
+	case SYS_RES_IRQ:
+	case SYS_RES_IOPORT:
+		break;
+	}
+	flags = rman_make_alignment_flags(pr->size);
+	r = bus_alloc_resource(bridgedev, pr->type, &rid, pr->min, pr->max,
+	   pr->size, flags);
+	if (r != NULL) {
+		pr->resource_addr = (u_long)rman_get_start(r);
+		bus_release_resource(bridgedev, pr->type, rid, r);
+	}
+	return (0);
+}
+
 /*
  *	ioctl calls - Controller specific ioctls
  */
@@ -379,16 +414,16 @@ pcic_ioctl(struct slot *slt, int cmd, caddr_t data)
 	switch(cmd) {
 	default:
 		return (ENOTTY);
-	/*
-	 * Get/set PCIC registers
-	 */
-	case PIOCGREG:
+	case PIOCGREG:			/* Get pcic register */
 		((struct pcic_reg *)data)->value =
 			sp->getb(sp, ((struct pcic_reg *)data)->reg);
-		break;
+		break;			/* Set pcic register */
 	case PIOCSREG:
 		sp->putb(sp, ((struct pcic_reg *)data)->reg,
 			((struct pcic_reg *)data)->value);
+		break;
+	case PIOCSRESOURCE:		/* Can I use this resource? */
+		pcic_sresource(slt, data);
 		break;
 	}
 	return (0);
