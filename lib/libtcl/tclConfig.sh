@@ -48,7 +48,7 @@ TCL_SHLIB_LD='ld -Bshareable -x'
 TCL_SHLIB_LD_LIBS=''
 
 # Suffix to use for the name of a shared library.
-TCL_SHLIB_SUFFIX='.so.1.0'
+TCL_SHLIB_SUFFIX='.so'
 
 # Library file(s) to include in tclsh and other base applications
 # in order to provide facilities needed by DLOBJ above.
