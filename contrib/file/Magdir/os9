@@ -37,10 +37,10 @@
 >6	byte&0x0f	0x00	non-executable
 >6	byte&0x0f	0x01	machine language
 >6	byte&0x0f	0x02	BASIC I-code
->6	byte&0x0f	0x03	P-code
+>6	byte&0x0f	0x03	Pascal P-code
 >6	byte&0x0f	0x04	C I-code
 >6	byte&0x0f	0x05	COBOL I-code
->6	byte&0x0f	0x06	FORTRAN I-code
+>6	byte&0x0f	0x06	Fortran I-code
 #
 >6	byte&0xf0	0x10	program executable
 >6	byte&0xf0	0x20	subroutine
@@ -57,28 +57,28 @@
 0	beshort		0x4AFC	OS9/68K module:
 #
 # attr
->14	byte&0x80	0x80	re-entrant
->14	byte&0x40	0x40	ghost
->14	byte&0x20	0x20	system-state
+>0x14	byte&0x80	0x80	re-entrant
+>0x14	byte&0x40	0x40	ghost
+>0x14	byte&0x20	0x20	system-state
 #
 # lang:
 #
->13	byte		1	machine language
->13	byte		2	BASIC I-code
->13	byte		3	P-code
->13	byte		4	C I-code
->13	byte		5	COBOL I-code
->13	byte		6	Fortran I-code
+>0x13	byte		1	machine language
+>0x13	byte		2	BASIC I-code
+>0x13	byte		3	Pascal P-code
+>0x13	byte		4	C I-code
+>0x13	byte		5	COBOL I-code
+>0x13	byte		6	Fortran I-code
 #
 #
 # type:
 #
->12	byte		1	program executable
->12	byte		2	subroutine
->12	byte		3	multi-module
->12	byte		4	data module
->12	byte		11	trap library
->12	byte		12	system module
->12	byte		13	file manager
->12	byte		14	device driver
->12	byte		15	device descriptor
+>0x12	byte		1	program executable
+>0x12	byte		2	subroutine
+>0x12	byte		3	multi-module
+>0x12	byte		4	data module
+>0x12	byte		11	trap library
+>0x12	byte		12	system module
+>0x12	byte		13	file manager
+>0x12	byte		14	device driver
+>0x12	byte		15	device descriptor

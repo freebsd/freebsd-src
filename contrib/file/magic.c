@@ -11,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *  
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -65,7 +63,7 @@
 #include "patchlevel.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: magic.c,v 1.22 2004/07/24 19:55:17 christos Exp $")
+FILE_RCSID("@(#)$Id: magic.c,v 1.24 2004/09/27 15:28:37 christos Exp $")
 #endif	/* lint */
 
 #ifdef __EMX__
@@ -87,34 +85,34 @@ magic_open(int flags)
 		return NULL;
 
 	if (magic_setflags(ms, flags) == -1) {
-		free(ms);
 		errno = EINVAL;
-		return NULL;
+		goto free1;
 	}
 
 	ms->o.ptr = ms->o.buf = malloc(ms->o.size = 1024);
-	ms->o.len = 0;
-	if (ms->o.buf == NULL) {
-		free(ms);
-		return NULL;
-	}
+	if (ms->o.buf == NULL)
+		goto free1;
+
 	ms->o.pbuf = malloc(ms->o.psize = 1024);
-	if (ms->o.pbuf == NULL) {
-		free(ms->o.buf);
-		free(ms);
-		return NULL;
-	}
+	if (ms->o.pbuf == NULL)
+		goto free2;
+
 	ms->c.off = malloc((ms->c.len = 10) * sizeof(*ms->c.off));
-	if (ms->c.off == NULL) {
-		free(ms->o.pbuf);
-		free(ms->o.buf);
-		free(ms);
-		return NULL;
-	}
+	if (ms->c.off == NULL)
+		goto free3;
+	
+	ms->o.len = 0;
 	ms->haderr = 0;
 	ms->error = -1;
 	ms->mlist = NULL;
 	return ms;
+free3:
+	free(ms->o.pbuf);
+free2:
+	free(ms->o.buf);
+free1:
+	free(ms);
+	return NULL;
 }
 
 private void
@@ -140,6 +138,7 @@ magic_close(ms)
     struct magic_set *ms;
 {
 	free_mlist(ms->mlist);
+	free(ms->o.pbuf);
 	free(ms->o.buf);
 	free(ms->c.off);
 	free(ms);
