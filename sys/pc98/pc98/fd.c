@@ -1870,11 +1870,9 @@ fdstate(fdc_p fdc)
 
 	bp = fdc->bp;
 	if (bp == NULL) {
-		bp = bioq_first(&fdc->head);
-		if (bp != NULL) {
-			bioq_remove(&fdc->head, bp);
+		bp = bioq_takefirst(&fdc->head);
+		if (bp != NULL)
 			fdc->bp = bp;
-		}
 	}
 	if (bp == NULL) {
 		/*
