@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.h,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
+ * $Id: vinumstate.h,v 1.12 1998/12/30 01:31:52 grog Exp grog $
  */
 
 /* This file gets read by makestatetext to create text files
@@ -70,11 +70,6 @@ enum plexstate {
      * administrator. */
     plex_down,
 
-    /* A plex which is currently being brought up after
-     * being not up.  This involves copying data from
-     * another plex */
-    plex_reviving,
-
     /* A plex which is being initialized */
     plex_initializing,
 
@@ -90,12 +85,9 @@ enum plexstate {
 
     plex_firstup = plex_corrupt,			    /* first "up" state */
 
-    /* A plex entry which is at least partially up.  Not
-     * all subdisks are available, but so far no
-     * inconsistency has occurred (this will change with
-     * the first write to the address space occupied by
-     * a defective subdisk).  A RAID 5 plex with one subdisk
-     * down will remain degraded even after a write */
+    /* A RAID-5 plex entry which is accessible, but one
+     * subdisk is down, requiring recovery for many
+     * I/O requests. */
     plex_degraded,
 
     /* A plex which is really up, but which has a reborn
@@ -126,39 +118,39 @@ enum sdstate {
      */
     sd_init,
 
-    /* A subdisk entry which has been created completely and
-     * which is currently being initialized */
-    sd_initializing,
-
     /* A subdisk entry which has been created completely.
      * All fields are correct, and the disk has been
      * updated, but there is no data on the disk.
      */
     sd_empty,
 
+    /* A subdisk entry which has been created completely and
+     * which is currently being initialized */
+    sd_initializing,
+
     /* *** The following states represent invalid data */
     /* A subdisk entry which has been created completely.
-     * All fields are correct, the disk has been updated,
-     * and the data was valid, but since then the drive
-     * has gone down, and as a result updates have been
-     * missed.
+     * All fields are correct, the config on disk has been
+     * updated, and the data was valid, but since then the
+     * drive has been taken down, and as a result updates
+     * have been missed.
      */
     sd_obsolete,
 
     /* A subdisk entry which has been created completely.
      * All fields are correct, the disk has been updated,
      * and the data was valid, but since then the drive
-     * has gone down, updates have been lost, and then
-     * the drive came up again.
+     * has been crashed and updates have been lost.
      */
     sd_stale,
 
     /* *** The following states represent valid, inaccessible data */
+
     /* A subdisk entry which has been created completely.
      * All fields are correct, the disk has been updated,
      * and the data was valid, but since then the drive
      * has gone down.   No attempt has been made to write
-     * to the subdisk since the crash.
+     * to the subdisk since the crash, so the data is valid.
      */
     sd_crashed,
 
@@ -166,6 +158,11 @@ enum sdstate {
      * valid data, and which was taken down by the
      * administrator.  The data is valid. */
     sd_down,
+
+    /* *** This is invalid data (the subdisk previously had
+     * a numerically lower state), but it is currently in the
+     * process of being revived.  We can write but not read. */
+    sd_reviving,
 
     /* *** The following states represent accessible subdisks
      * with valid data */
@@ -180,8 +177,7 @@ enum sdstate {
      * covers this address space in the plex, we set its
      * state to sd_up under these circumstances, so this
      * status implies that there is another subdisk to
-     * fulfil the request.
-     */
+     * fulfil the request. */
     sd_reborn,
 
     /* A subdisk entry which has been created completely.
@@ -202,9 +198,6 @@ enum drivestate {
 
     drive_down,
     /* not accessible */
-
-    drive_coming_up,
-    /* in the process of being brought up */
 
     drive_up,
     /* up and running */
