@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_req.c,v 8.118 2000/07/17 07:57:56 vixie Exp $";
+static const char rcsid[] = "$Id: ns_req.c,v 8.119 2000/08/21 05:57:09 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -271,7 +271,11 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 	 * safely assume these are always 0 when a query
 	 * comes in.
 	 */
-	hp->aa = hp->ra = 0;
+#ifdef BIND_NOTIFY
+	if (hp->opcode != ns_o_notify)
+#endif
+		hp->aa = 0;
+	hp->ra = 0;
 	ra = (NS_OPTION_P(OPTION_NORECURSE) == 0);
 
 	if (error == NOERROR)
@@ -460,18 +464,21 @@ req_notify(HEADER *hp, u_char **cpp, u_char *eom, u_char *msg,
 	char dnbuf[MAXDNAME];
 	struct zoneinfo *zp;
 
-	/* valid notify's have one question */
-	if (ntohs(hp->qdcount) != 1) {
-		ns_debug(ns_log_notify, 1,
-			 "FORMERR Notify header counts wrong");
-		hp->rcode = ns_r_formerr;
-		return (Finish);
-	}
-
 	/* valid notify's are authoritative */
 	if (!hp->aa) {
 		ns_debug(ns_log_notify, 1,
 			 "FORMERR Notify request without AA");
+#ifdef not_yet
+		hp->rcode = ns_r_formerr;
+		return (Finish);
+#endif
+	}
+	hp->aa = 0;
+
+	/* valid notify's have one question */
+	if (ntohs(hp->qdcount) != 1) {
+		ns_debug(ns_log_notify, 1,
+			 "FORMERR Notify header counts wrong");
 		hp->rcode = ns_r_formerr;
 		return (Finish);
 	}
