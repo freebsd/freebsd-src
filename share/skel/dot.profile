@@ -1,4 +1,4 @@
-#	$Id: dot.profile,v 1.10 1997/02/22 13:56:33 peter Exp $
+#	$Id: dot.profile,v 1.11 1997/03/08 16:35:39 wosch Exp $
 #
 # .profile - Bourne Shell startup script for login shells
 #
@@ -31,7 +31,7 @@ PAGER=more;  	export PAGER
 alias h='fc -l'
 alias j=jobs
 alias m=$PAGER
-alias ll='ls -lagFo'
+alias ll='ls -laFo'
 alias l='ls -l'
 alias g='egrep -i'
  
