@@ -430,6 +430,7 @@ coda_nb_statfs(vfsp, sbp, td)
     bcopy((caddr_t)&(vfsp->mnt_stat.f_fsid), (caddr_t)&(sbp->f_fsid), sizeof (fsid_t));
     snprintf(sbp->f_mntonname, sizeof(sbp->f_mntonname), "/coda");
     snprintf(sbp->f_mntfromname, sizeof(sbp->f_mntfromname), "CODA");
+    snprintf(sbp->f_fstypename, sizeof(sbp->f_fstypename), "coda");
 /*  MARK_INT_SAT(CODA_STATFS_STATS); */
     return(0);
 }
