@@ -3,6 +3,24 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+20000117:
+	GNU texinfo upgraded to 4.0.  It is recommended that you use
+	make buidlworld to update.
+
+20000117:
+	CAM_VERSION has been increased.  Recompile all programs that
+	depend on it (tosha, camcontrol, etc) when moving to kernels
+	past this date.
+
+20000115:
+	pccard ioctls changed with a commit to have the kernel tell
+	pccardd which device it created, rather than having pccardd
+	dictate it to the kernel.  Recompile kernel and
+	pccardd/pccardc together.  pccardd/pccardc rely on a kernel
+	Makefile that must be installed prior to building them.  Make
+	world will automatically take care of this issue, but you need
+	to know if you are building by hand.
+
 20000109:
 	Your kernel config files need to be changed to s/controller/device/
 	in them.  You will need a new version of config to do this.
