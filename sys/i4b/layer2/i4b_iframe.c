@@ -55,7 +55,6 @@
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
-#include <machine/i4b_ioctl.h>
 #include <machine/i4b_trace.h>
 #else
 #include <i4b/i4b_debug.h>

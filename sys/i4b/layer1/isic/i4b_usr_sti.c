@@ -49,7 +49,6 @@
 
 #ifdef __FreeBSD__
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
 #else
@@ -61,7 +60,6 @@
 #include <net/if.h>
 
 #ifdef __FreeBSD__
-#include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #else
 #include <i4b/i4b_debug.h>
@@ -69,7 +67,6 @@
 #endif
 
 #include <i4b/layer1/isic/i4b_isic.h>
-#include <i4b/layer1/isic/i4b_isac.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
 
 

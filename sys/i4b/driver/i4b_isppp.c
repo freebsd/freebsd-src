@@ -103,7 +103,6 @@
 
 #ifdef __FreeBSD__
 #include <machine/i4b_ioctl.h>
-#include <machine/i4b_cause.h>
 #include <machine/i4b_debug.h>
 #else
 #include <i4b/i4b_ioctl.h>

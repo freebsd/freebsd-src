@@ -47,14 +47,9 @@
 #include <net/if.h>
 
 
-#include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
-#include <machine/i4b_trace.h>
 
 #include <i4b/layer1/isic/i4b_isic.h>
-#include <i4b/layer1/isic/i4b_ipac.h>
-#include <i4b/layer1/isic/i4b_isac.h>
-#include <i4b/layer1/isic/i4b_hscx.h>
 
 #include <sys/bus.h>
 #include <isa/isavar.h>
