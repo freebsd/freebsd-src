@@ -2095,7 +2095,7 @@ vget(vp, flags, td)
 	 */
 	if ((flags & LK_INTERLOCK) == 0)
 		VI_LOCK(vp);
-	if (vp->v_iflag & VI_XLOCK && vp->v_vxproc != curthread) {
+	if (vp->v_iflag & VI_XLOCK && vp->v_vxthread != curthread) {
 		if ((flags & LK_NOWAIT) == 0) {
 			vp->v_iflag |= VI_XWANT;
 			msleep(vp, VI_MTX(vp), PINOD | PDROP, "vget", 0);
@@ -2504,7 +2504,7 @@ vx_lock(struct vnode *vp)
 	if (vp->v_iflag & VI_XLOCK)
 		panic("vclean: deadlock");
 	vp->v_iflag |= VI_XLOCK;
-	vp->v_vxproc = curthread;
+	vp->v_vxthread = curthread;
 }
 
 static void
@@ -2512,7 +2512,7 @@ vx_unlock(struct vnode *vp)
 {
 	ASSERT_VI_LOCKED(vp, "vx_unlock");
 	vp->v_iflag &= ~VI_XLOCK;
-	vp->v_vxproc = NULL;
+	vp->v_vxthread = NULL;
 	if (vp->v_iflag & VI_XWANT) {
 		vp->v_iflag &= ~VI_XWANT;
 		wakeup(vp);

@@ -112,7 +112,7 @@ struct vnode {
 	u_long	v_iflag;			/* i vnode flags (see below) */
 	int	v_usecount;			/* i ref count of users */
 	long	v_numoutput;			/* i writes in progress */
-	struct thread *v_vxproc;		/* i thread owning VXLOCK */
+	struct thread *v_vxthread;		/* i thread owning VXLOCK */
 	int	v_holdcnt;			/* i page & buffer references */
 	struct	buflists v_cleanblkhd;		/* i SORTED clean blocklist */
 	struct buf	*v_cleanblkroot;	/* i clean buf splay tree  */
