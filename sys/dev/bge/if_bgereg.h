@@ -1701,11 +1701,17 @@ typedef struct {
 	u_int32_t		bge_addr_hi;
 	u_int32_t		bge_addr_lo;
 } bge_hostaddr;
+
 #define BGE_HOSTADDR(x, y)						\
 	do {								\
 		(x).bge_addr_lo = ((u_int64_t) (y) & 0xffffffff);	\
 		(x).bge_addr_hi = ((u_int64_t) (y) >> 32);		\
 	} while(0)
+
+#define BGE_ADDR_LO(y)	\
+	((u_int64_t) (y) & 0xFFFFFFFF)
+#define BGE_ADDR_HI(y)	\
+	((u_int64_t) (y) >> 32)
 
 /* Ring control block structure */
 struct bge_rcb {
@@ -2147,16 +2153,36 @@ struct vpd_key {
  * are the tx and command rings, which live in NIC memory and which
  * we access via the shared memory window.
  */
+
 struct bge_ring_data {
-	struct bge_rx_bd	bge_rx_std_ring[BGE_STD_RX_RING_CNT];
-	struct bge_rx_bd	bge_rx_jumbo_ring[BGE_JUMBO_RX_RING_CNT];
-	struct bge_rx_bd	bge_rx_return_ring[BGE_RETURN_RING_CNT];
-	struct bge_tx_bd	bge_tx_ring[BGE_TX_RING_CNT];
-	struct bge_status_block	bge_status_block;
-	struct bge_tx_desc	*bge_tx_ring_nic;/* pointer to shared mem */
-	struct bge_cmd_desc	*bge_cmd_ring;	/* pointer to shared mem */
+	struct bge_rx_bd	*bge_rx_std_ring;
+	bus_addr_t		bge_rx_std_ring_paddr;
+	struct bge_rx_bd	*bge_rx_jumbo_ring;
+	bus_addr_t		bge_rx_jumbo_ring_paddr;
+	struct bge_rx_bd	*bge_rx_return_ring;
+	bus_addr_t		bge_rx_return_ring_paddr;
+	struct bge_tx_bd	*bge_tx_ring;
+	bus_addr_t		bge_tx_ring_paddr;
+	struct bge_status_block	*bge_status_block;
+	bus_addr_t		bge_status_block_paddr;
+	struct bge_stats	*bge_stats;
+	bus_addr_t		bge_stats_paddr;
+	void			*bge_jumbo_buf;
 	struct bge_gib		bge_info;
 };
+
+#define BGE_STD_RX_RING_SZ	\
+	(sizeof(struct bge_rx_bd) * BGE_STD_RX_RING_CNT)
+#define BGE_JUMBO_RX_RING_SZ	\
+	(sizeof(struct bge_rx_bd) * BGE_JUMBO_RX_RING_CNT)
+#define BGE_TX_RING_SZ		\
+	(sizeof(struct bge_tx_bd) * BGE_TX_RING_CNT)
+#define BGE_RX_RTN_RING_SZ(x)	\
+	(sizeof(struct bge_rx_bd) * x->bge_return_ring_cnt)
+
+#define BGE_STATUS_BLK_SZ	sizeof (struct bge_status_block)
+
+#define BGE_STATS_SZ		sizeof (struct bge_stats)
 
 /*
  * Mbuf pointers. We need these to keep track of the virtual addresses
@@ -2164,13 +2190,40 @@ struct bge_ring_data {
  * not the other way around.
  */
 struct bge_chain_data {
+	bus_dma_tag_t		bge_parent_tag;
+	bus_dma_tag_t		bge_rx_std_ring_tag;
+	bus_dma_tag_t		bge_rx_jumbo_ring_tag;
+	bus_dma_tag_t		bge_rx_return_ring_tag;
+	bus_dma_tag_t		bge_tx_ring_tag;
+	bus_dma_tag_t		bge_status_tag;
+	bus_dma_tag_t		bge_stats_tag;
+	bus_dma_tag_t		bge_jumbo_tag;
+	bus_dma_tag_t		bge_mtag;	/* mbuf mapping tag */
+	bus_dma_tag_t		bge_mtag_jumbo;	/* mbuf mapping tag */
+	bus_dmamap_t		bge_tx_dmamap[BGE_TX_RING_CNT];
+	bus_dmamap_t		bge_rx_std_dmamap[BGE_STD_RX_RING_CNT];
+	bus_dmamap_t		bge_rx_jumbo_dmamap[BGE_JUMBO_RX_RING_CNT];
+	bus_dmamap_t		bge_rx_std_ring_map;
+	bus_dmamap_t		bge_rx_jumbo_ring_map;
+	bus_dmamap_t		bge_tx_ring_map;
+	bus_dmamap_t		bge_rx_return_ring_map;
+	bus_dmamap_t		bge_status_map;
+	bus_dmamap_t		bge_stats_map;
+	bus_dmamap_t		bge_jumbo_map;
 	struct mbuf		*bge_tx_chain[BGE_TX_RING_CNT];
 	struct mbuf		*bge_rx_std_chain[BGE_STD_RX_RING_CNT];
 	struct mbuf		*bge_rx_jumbo_chain[BGE_JUMBO_RX_RING_CNT];
-	struct mbuf		*bge_rx_mini_chain[BGE_MINI_RX_RING_CNT];
 	/* Stick the jumbo mem management stuff here too. */
 	caddr_t			bge_jslots[BGE_JSLOTS];
-	void			*bge_jumbo_buf;
+};
+
+struct bge_dmamap_arg {
+	struct bge_softc	*sc;
+	bus_addr_t		bge_busaddr;
+	u_int16_t		bge_flags;
+	int			bge_idx;
+	int			bge_maxsegs;
+	struct bge_tx_bd	*bge_ring;
 };
 
 struct bge_type {
@@ -2212,7 +2265,7 @@ struct bge_softc {
 	u_int32_t		bge_chipid;
 	u_int8_t		bge_asicrev;
 	u_int8_t		bge_chiprev;
-	struct bge_ring_data	*bge_rdata;	/* rings */
+	struct bge_ring_data	bge_ldata;	/* rings */
 	struct bge_chain_data	bge_cdata;	/* mbufs */
 	u_int16_t		bge_tx_saved_considx;
 	u_int16_t		bge_rx_saved_considx;
