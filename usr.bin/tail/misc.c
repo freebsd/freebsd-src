@@ -79,7 +79,7 @@ mapprint(struct mapinfo *mip, off_t startoff, off_t len)
 
 	while (len > 0) {
 		if (startoff < mip->mapoff || startoff >= mip->mapoff +
-		    mip->maplen) {
+		    (off_t)mip->maplen) {
 			if (maparound(mip, startoff) != 0)
 				return (1);
 		}
@@ -107,7 +107,7 @@ maparound(struct mapinfo *mip, off_t offset)
 
 	mip->mapoff = offset & ~((off_t)TAILMAPLEN - 1);
 	mip->maplen = TAILMAPLEN;
-	if (mip->maplen > mip->maxoff - mip->mapoff)
+	if ((off_t)mip->maplen > mip->maxoff - mip->mapoff)
 		mip->maplen = mip->maxoff - mip->mapoff;
 	if (mip->maplen <= 0)
 		abort();
