@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.106 1998/04/04 13:24:11 phk Exp $
+ *	$Id: locore.s,v 1.107 1998/04/06 15:42:26 peter Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -308,11 +308,13 @@ _pc98_system_parameter:
 	stosb
 
 #if NAPM > 0
+#ifndef VM86
 /*
  * XXX it's not clear that APM can live in the current environonment.
  * Only pc-relative addressing works.
  */
 	call	_apm_setup
+#endif
 #endif
 
 	call	create_pagetables

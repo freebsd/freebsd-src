@@ -11,7 +11,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_setup.s,v 1.11 1997/03/29 11:06:40 phk Exp $
+ *	$Id: apm_setup.s,v 1.12 1997/11/04 18:12:45 nate Exp $
  */
 
 #include "apm.h"
@@ -59,8 +59,12 @@ _apm_ds_base:
 	.globl	_apm_ds_base
 	.word	0
 
-_apm_cs_limit:
-	.globl	_apm_cs_limit
+_apm_cs32_limit:
+	.globl	_apm_cs32_limit
+	.word	0
+
+_apm_cs16_limit:
+	.globl	_apm_cs16_limit
 	.word	0
 
 _apm_ds_limit:
@@ -169,7 +173,7 @@ _apm_setup:
 	shrl	$16, %ecx
 	movw	%cx, PADDR(_apm_cs32_base)
 	movw	%dx, PADDR(_apm_ds_base)
-	movw	%si, PADDR(_apm_cs_limit)
+	movw	%si, PADDR(_apm_cs32_limit)
 	shrl	$16, %esi
 	movw	%si, PADDR(_apm_ds_limit)
 	movw	%di, PADDR(_apm_flags)
