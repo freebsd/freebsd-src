@@ -17,6 +17,11 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20030923:	p43	FreeBSD-SA-03:14.arp
+	Fix a bug in arplookup(), whereby a hostile party on a locally
+	attached network could exhaust kernel memory, and cause a system
+	panic, by sending a flood of spoofed ARP requests.
+
 20030917:	p42	FreeBSD-SA-03:13.sendmail
 	Fix another address parsing buffer overflow.
 
