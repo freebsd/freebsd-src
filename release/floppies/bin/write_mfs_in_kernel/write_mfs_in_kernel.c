@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: write_mfs_in_kernel.c,v 1.1 1997/07/16 12:24:21 julian Exp $
  *
  * This program patches a filesystem into a kernel made with MFS_ROOT
  * option.

@@ -1,5 +1,5 @@
 ###
-#	$Id$
+#	$Id: crunch_fs.mk,v 1.1 1997/07/16 12:24:29 julian Exp $
 #
 # This is included to make a floppy that includes a crunch file
 #
@@ -8,9 +8,9 @@
 # FS_DIRS	directories to make on the fs (*)
 # STANDLINKS	added symlinks to /stand on the fs
 # VERBATIM	a directory that contains tree to be copied to the fs
-# FSSIZE	defaults to	1200
-# FSLABEL	defaults to	fd1200
-# FSINODE	defaults to	4300
+# FSSIZE	defaults to	1440
+# FSLABEL	defaults to	fd1440
+# FSINODE	defaults to	4000
 # FS_DEVICES	devices to make on the fs (using MAKEDEV) (default = all)
 # ZIP		decides if the installed cruch will also be gzip'd(def=true)
 # (*) = Mandatory
@@ -26,9 +26,9 @@ xxx
 MNT=			/mnt
 
 # other floppy parameters.
-FSSIZE?=		1200
-FSLABEL?=		fd1200
-FSINODE?=		4300
+FSSIZE?=		1440
+FSLABEL?=		fd1440
+FSINODE?=		2000
 FS_DEVICES?= 		all
 ZIP?=true
 
@@ -52,8 +52,8 @@ ${TREE}: ${.CURDIR}/Makefile
 	rm -rf ${TREE}
 	mkdir -p ${TREE}
 	cd ${TREE} && mkdir ${FS_DIRS}
-	cd ${TREE} ; for i in ${STANDLINKS} ;\
-	do ; \
+	cd ${TREE} ; for i in ${STANDLINKS} ; \
+	do \
 		ln -s /stand $${i} ; \
 	done
 
@@ -79,8 +79,9 @@ step4: step3
 	touch step4
 
 fs-image: step4
-	sh -e ${FS_BIN}/doFS.sh ${LABELDIR} ${MNT} ${FSSIZE} tree \
-		10000 ${FSLABEL}
+	sh -e ${SCRIPTDIR}/doFS.sh ${LABELDIR} ${MNT} ${FSSIZE} tree \
+		${FSINODE} ${FSLABEL}
+	cp fs-image.size ${.CURDIR}
 
 
 .if defined(CRUNCHDIRS)

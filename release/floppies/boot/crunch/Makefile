@@ -11,5 +11,5 @@ ${SYSINSTALL}:
 	 exit 1; \
 	fi
 
-.include "../../makecrunch.mk"
+.include "../../mk/makecrunch.mk"
 
