@@ -214,7 +214,7 @@ coff_load_file(struct proc *p, char *name)
 			    0,
 			    (caddr_t) vp,
 			    0)) != 0)
-    	goto fail;
+		goto unlocked_fail;
 
   	fhdr = (struct filehdr *)ptr;
 
@@ -270,14 +270,16 @@ coff_load_file(struct proc *p, char *name)
 
   	error = 0;
 
- 	dealloc_and_fail:
+ dealloc_and_fail:
 	if (vm_map_remove(kernel_map,
 			  (vm_offset_t) ptr,
 			  (vm_offset_t) ptr + PAGE_SIZE))
     		panic(__FUNCTION__ " vm_map_remove failed");
 
  fail:
-    vput(nd.ni_vp);
+	VOP_UNLOCK(vp, 0, p);
+ unlocked_fail:
+	vrele(nd.ni_vp);
 	zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
   	return error;
 }
