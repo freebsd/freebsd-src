@@ -823,7 +823,7 @@ ext2_flushfiles(mp, flags, p)
 	ump = VFSTOUFS(mp);
 #if QUOTA
 	if (mp->mnt_flag & MNT_QUOTA) {
-		if ((error = vflush(mp, NULLVP, SKIPSYSTEM|flags)) != 0)
+		if ((error = vflush(mp, 0, SKIPSYSTEM|flags)) != 0)
 			return (error);
 		for (i = 0; i < MAXQUOTAS; i++) {
 			if (ump->um_quotas[i] == NULLVP)
@@ -836,7 +836,7 @@ ext2_flushfiles(mp, flags, p)
 		 */
 	}
 #endif
-	error = vflush(mp, NULLVP, flags);
+	error = vflush(mp, 0, flags);
 	return (error);
 }
 

@@ -259,7 +259,7 @@ coda_unmount(vfsp, mntflags, p)
 
 	active = coda_kill(vfsp, NOT_DOWNCALL);
 	mi->mi_rootvp->v_flag &= ~VROOT;
-	error = vflush(mi->mi_vfsp, NULLVP, FORCECLOSE);
+	error = vflush(mi->mi_vfsp, 0, FORCECLOSE);
 	printf("coda_unmount: active = %d, vflush active %d\n", active, error);
 	error = 0;
 	/* I'm going to take this out to allow lookups to go through. I'm

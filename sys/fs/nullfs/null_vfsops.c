@@ -229,7 +229,6 @@ nullfs_unmount(mp, mntflags, p)
 	int mntflags;
 	struct proc *p;
 {
-	struct vnode *vp = MOUNTTONULLMOUNT(mp)->nullm_rootvp;
 	void *mntdata;
 	int error;
 	int flags = 0;
@@ -239,31 +238,11 @@ nullfs_unmount(mp, mntflags, p)
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 
-	error = VFS_ROOT(mp, &vp);
-	if (error)
-		return (error);
-	if (vp->v_usecount > 2) {
-		NULLFSDEBUG("nullfs_unmount: rootvp is busy(%d)\n",
-		    vp->v_usecount);
-		vput(vp);
-		return (EBUSY);
-	}
-	error = vflush(mp, vp, flags);
+	/* There is 1 extra root vnode reference (nullm_rootvp). */
+	error = vflush(mp, 1, flags);
 	if (error)
 		return (error);
 
-#ifdef NULLFS_DEBUG
-	vprint("alias root of lower", vp);
-#endif
-	vput(vp);
-	/*
-	 * Release reference on underlying root vnode
-	 */
-	vrele(vp);
-	/*
-	 * And blow it away for future re-use
-	 */
-	vgone(vp);
 	/*
 	 * Finally, throw away the null_mount structure
 	 */

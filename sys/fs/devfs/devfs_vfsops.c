@@ -118,26 +118,16 @@ devfs_unmount(mp, mntflags, p)
 {
 	int error;
 	int flags = 0;
-	struct vnode *rootvp;
 	struct devfs_mount *fmp;
 
-	error = devfs_root(mp, &rootvp);
-	if (error)
-		return (error);
 	fmp = VFSTODEVFS(mp);
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	if (rootvp->v_usecount > 2) {
-		vrele(rootvp);
-		return (EBUSY);
-	}
-	error = vflush(mp, rootvp, flags);
+	/* There is 1 extra root vnode reference from devfs_mount(). */
+	error = vflush(mp, 1, flags);
 	if (error)
 		return (error);
 	devfs_purge(fmp->dm_rootdir);
-	vput(rootvp);
-	vrele(rootvp);
-	vgone(rootvp);
 	mp->mnt_data = 0;
 	lockdestroy(&fmp->dm_lock);
 	free(fmp, M_DEVFS);
