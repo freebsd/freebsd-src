@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.32 1996/01/19 03:58:14 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.33 1996/01/20 23:24:16 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -149,9 +149,9 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 			vp->v_ralen >>= RA_SHIFTDOWN;
 			return 0;
 		} else if( vp->v_maxra > lblkno) {
-			if ( vp->v_maxra > lblkno + (vp->v_ralen / RA_MULTIPLE_SLOW) ) {
-				if ((vp->v_ralen + 1) < RA_MULTIPLE_FAST*(MAXPHYS / size))
-					++vp->v_ralen;
+			if ((vp->v_ralen + 1) < RA_MULTIPLE_FAST * (MAXPHYS / size))
+				++vp->v_ralen;
+			if ( vp->v_maxra > lblkno + vp->v_ralen ) {
 				return 0;
 			}
 			lblkno = vp->v_maxra;
