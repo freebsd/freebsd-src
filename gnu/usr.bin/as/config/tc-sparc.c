@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id: tc-sparc.c,v 1.2 1993/10/27 00:14:52 pk Exp $";
+static char rcsid[] = "$Id: tc-sparc.c,v 1.1 1993/11/03 00:54:52 paul Exp $";
 #endif
 
 #define cypress 1234
@@ -657,6 +657,7 @@ char *str;
 			case '1':
 			case '2':
 			case 'd':
+			case 'x':
 				if (*s++ == '%') {
 					switch (c = *s++) {
 						
@@ -746,6 +747,9 @@ char *str;
 						
 					case 'r':
 						opcode |= (mask << 25) | (mask << 14);
+						continue;
+					case 'x':
+						opcode |= (mask << 25) | mask;
 						continue;
 					}
 				}
