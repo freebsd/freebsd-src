@@ -136,4 +136,7 @@ extern char	 fetchLastErrString[MAXERRSTRING];
 extern int	 fetchTimeout;
 extern int	 fetchRestartCalls;
 
+/* Extra verbosity */
+extern int	 fetchDebug;
+
 #endif
