@@ -2593,7 +2593,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 				rsize = sizeof(mir);
 				if (aac_sync_fib(sc, ContainerCommand, 0, fib,
 						 sizeof(struct aac_mntinfo))) {
-					device_printf(sc->sc_dev,
+					device_printf(sc->aac_dev,
 					    "Error probing container %d\n", i);
 					continue;
 				}
