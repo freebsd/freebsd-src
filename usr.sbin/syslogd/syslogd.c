@@ -162,7 +162,7 @@ struct filed {
 	union {
 		char	f_uname[MAXUNAMES][UT_NAMESIZE+1];
 		struct {
-			char	f_hname[MAXHOSTNAMELEN+1];
+			char	f_hname[MAXHOSTNAMELEN];
 			struct addrinfo *f_addr;
 
 		} f_forw;		/* forwarding address */
@@ -174,7 +174,7 @@ struct filed {
 	} f_un;
 	char	f_prevline[MAXSVLINE];		/* last message logged */
 	char	f_lasttime[16];			/* time of last occurrence */
-	char	f_prevhost[MAXHOSTNAMELEN+1];	/* host from which recd. */
+	char	f_prevhost[MAXHOSTNAMELEN];	/* host from which recd. */
 	int	f_prevpri;			/* pri of f_prevline */
 	int	f_prevlen;			/* length of f_prevline */
 	int	f_prevcount;			/* repetition cnt of prevline */
@@ -257,7 +257,7 @@ struct	filed consfile;
 
 int	Debug;			/* debug flag */
 int	resolve = 1;		/* resolve hostname */
-char	LocalHostName[MAXHOSTNAMELEN+1];	/* our hostname */
+char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
 char	*LocalDomain;		/* our local domain name */
 int	*finet = NULL;		/* Internet datagram socket */
 int	fklog = -1;		/* /dev/klog */
@@ -1339,7 +1339,7 @@ init(signo)
 	char *p;
 	char cline[LINE_MAX];
  	char prog[NAME_MAX+1];
-	char host[MAXHOSTNAMELEN+1];
+	char host[MAXHOSTNAMELEN];
 
 	dprintf("init\n");
 
@@ -1416,7 +1416,7 @@ init(signo)
 			}
 			if (*p == '@')
 				p = LocalHostName;
-			for (i = 1; i < MAXHOSTNAMELEN; i++) {
+			for (i = 1; i < MAXHOSTNAMELEN - 1; i++) {
 				if (!isalnum(*p) && *p != '.' && *p != '-')
 					break;
 				host[i] = *p++;
