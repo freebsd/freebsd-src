@@ -38,7 +38,7 @@
 .Nm vgrind
 .Nd grind nice listings of programs
 .Sh SYNOPSIS
-.Nm vgrind
+.Nm
 .Op Fl 
 .Op Fl W
 .Op Fl d Ar file
@@ -64,7 +64,7 @@ page as it is encountered.
 runs in two basic modes, filter mode (see the
 .Fl f
 option) or regular mode.  In filter mode 
-.Nm vgrind
+.Nm
 acts as a filter in a manner similar to
 .Xr tbl 1 .
 The standard input is passed directly to the standard output except
@@ -87,14 +87,14 @@ or
 .Xr tbl 1 .
 .Pp
 In regular mode 
-.Nm vgrind
+.Nm
 accepts input files, processes them, and passes them to the postprocessor
 for output,
 .Xr psroff 1
 by default.  
 .Pp
 In both modes 
-.Nm vgrind
+.Nm
 passes any lines beginning with a decimal point without conversion.
 .Pp
 The options are:
@@ -161,13 +161,13 @@ causing formatted text to go to the standard output
 .It Fl x
 outputs the index file in a ``pretty'' format. 
 The index file itself is produced whenever 
-.Nm vgrind
+.Nm
 is run with a file called 
 .Pa index
 in the current directory.
 The index of function
 definitions can then be run off by giving 
-.Nm vgrind
+.Nm
 the
 .Fl x
 option and the file
@@ -213,10 +213,10 @@ name comment mechanisms will fail.
 .Pp
 More generally, arbitrary formatting styles for programs mostly look bad.
 The use of spaces to align source code fails miserably; if you plan to
-.Nm vgrind
+.Nm
 your program you should use tabs.  This is somewhat inevitable since the
 font used by
-.Nm vgrind
+.Nm
 is variable width.
 .Pp
 The mechanism of
