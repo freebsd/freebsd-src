@@ -1,0 +1,882 @@
+.ig \"-*- nroff -*-
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.ie \n(.V<\n(.v .ds tx T\h'-.1667m'\v'.224m'E\v'-.224m'\h'-.125m'X
+.el .ds tx TeX
+.\" Like TP, but if specified indent is more than half
+.\" the current line-length - indent, use the default indent.
+.de Tp
+.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.el .TP "\\$1"
+..
+.\" The BSD man macros can't handle " in arguments to font change macros,
+.\" so use \(ts instead of ".
+.tr \(ts"
+.TH @G@EQN @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.SH NAME
+@g@eqn \- format equations for troff
+.SH SYNOPSIS
+.nr a \n(.j
+.ad l
+.nr i \n(.i
+.in +\w'\fB@g@eqn 'u
+.ti \niu
+.B @g@eqn
+.de OP
+.ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
+.el .RB "[\ " "\\$1" "\ ]"
+..
+.OP \-rvCNR
+.OP \-d cc
+.OP \-T name
+.OP \-M dir
+.OP \-f F
+.OP \-s n
+.OP \-p n
+.OP \-m n
+.RI "[\ " files\|.\|.\|. "\ ]"
+.br
+.ad \na
+.PP
+It is possible to have whitespace between a command line option and its
+parameter.
+.SH DESCRIPTION
+This manual page describes the GNU version of
+.BR eqn ,
+which is part of the groff document formatting system.
+.B eqn
+compiles descriptions of equations embedded within
+.B troff
+input files into commands that are understood by
+.BR troff .
+Normally, it should be invoked using the
+.B \-e
+option of
+.BR groff .
+The syntax is quite compatible with Unix eqn.
+The output of GNU eqn cannot be processed with Unix troff;
+it must be processed with GNU troff.
+If no files are given on the command line, the standard input
+will be read.
+A filename of
+.B \-
+will cause the standard input to be read.
+.LP
+.B eqn
+searches for the file
+.B eqnrc
+in the directories given with the
+.B \-M
+option first, then in
+.BR @SYSTEMMACRODIR@ ,
+.BR @LOCALMACRODIR@ ,
+and finally in the standard macro directory
+.BR @MACRODIR@ .
+If it exists, eqn will process it before the other input files.
+The
+.B \-R
+option prevents this.
+.LP
+GNU eqn does not provide the functionality of neqn:
+it does not support low-resolution, typewriter-like devices
+(although it may work adequately for very simple input).
+.SH OPTIONS
+.TP
+.B \-C
+Recognize
+.B .EQ
+and
+.B .EN
+even when followed by a character other than space or newline.
+.TP
+.B \-N
+Don't allow newlines within delimiters.
+This option allows
+.B eqn
+to recover better from missing closing delimiters.
+.TP
+.B \-v
+Print the version number.
+.TP
+.B \-r
+Only one size reduction.
+.TP
+.BI \-m n
+The minimum point-size is
+.IR n .
+eqn will not reduce the size of subscripts or superscripts to
+a smaller size than
+.IR n .
+.TP
+.BI \-T name
+The output is for device
+.IR name .
+The only effect of this is to define a macro
+.I name
+with a value of
+.BR 1 .
+Typically
+.B eqnrc
+will use this to provide definitions appropriate for the output device.
+The default output device is
+.BR @DEVICE@ .
+.TP
+.BI \-M dir
+Search
+.I dir
+for
+.B eqnrc
+before the default directories.
+.TP
+.B \-R
+Don't load
+.BR eqnrc .
+.TP
+.BI \-f F
+This is equivalent to a
+.BI gfont\  F
+command.
+.TP
+.BI \-s n
+This is equivalent to a
+.BI gsize\  n
+command.
+This option is deprecated.
+eqn will normally set equations at whatever the current point size
+is when the equation is encountered.
+.TP
+.BI \-p n
+This says that subscripts and superscripts should be
+.I n
+points smaller than the surrounding text.
+This option is deprecated. 
+Normally eqn makes sets subscripts and superscripts at 70% 
+of the size of the surrounding text.
+.SH USAGE
+Only the differences between GNU eqn and Unix eqn are described here.
+.LP
+Most of the new features of GNU eqn
+are based on \*(tx.
+There are some references to the differences between \*(tx and GNU eqn below;
+these may safely be ignored if you do not know \*(tx.
+.SS Automatic spacing
+.LP
+.B eqn
+gives each component of an equation a type, and adjusts the spacing
+between components using that type.
+Possible types are:
+.TP \w'punctuation'u+2n
+ordinary
+an ordinary character such as 1 or
+.IR x ;
+.TP
+operator
+a large operator such as
+.ds Su \s+5\(*S\s0
+.if \n(.g .if !c\(*S .ds Su the summation operator
+\*(Su;
+.TP
+binary
+a binary operator such as +;
+.TP
+relation
+a relation such as =;
+.TP
+opening
+a opening bracket such as (;
+.TP
+closing
+a closing bracket such as );
+.TP
+punctuation
+a punctuation character such as ,;
+.TP
+inner
+a subformula contained within brackets;
+.TP
+suppress
+spacing that suppresses automatic spacing adjustment.
+.LP
+Components of an equation get a type in one of two ways.
+.TP
+.BI type\  t\ e
+This yields an equation component that contains
+.I e
+but that has type
+.IR t ,
+where
+.I t
+is one of the types mentioned above.
+For example,
+.B times
+is defined as
+.RS
+.IP
+.B
+type "binary" \e(mu
+.RE
+.IP
+The name of the type doesn't have to be quoted, but quoting protects
+from macro expansion.
+.TP
+.BI chartype\  t\ text
+Unquoted groups of characters are split up into individual characters,
+and the type of each character is looked up;
+this changes the type that is stored for each character;
+it says that the characters in
+.I text
+from now on have type
+.IR t .
+For example,
+.RS
+.IP
+.B
+chartype "punctuation" .,;:
+.RE
+.IP
+would make the characters
+.B .,;:
+have type punctuation
+whenever they subsequently appeared in an equation.
+The type
+.I t
+can also be
+.B letter
+or
+.BR digit ;
+in these cases
+.B chartype
+changes the font type of the characters.
+See the Fonts subsection.
+.SS New primitives
+.TP
+.IB e1\  smallover\  e2
+This is similar to
+.BR over ;
+.B smallover
+reduces the size of
+.I e1
+and
+.IR e2 ;
+it also puts less vertical space between
+.I e1
+or
+.I e2
+and the fraction bar.
+The
+.B over
+primitive corresponds to the \*(tx
+.B \eover
+primitive in display styles;
+.B smallover
+corresponds to
+.B \eover
+in non-display styles.
+.TP
+.BI vcenter\  e
+This vertically centers
+.I e
+about the math axis.
+The math axis is the vertical position about which characters
+such as + and - are centered; also it is the vertical position
+used for the bar of fractions.
+For example,
+.B sum
+is defined as
+.RS
+.IP
+.B
+{ type "operator" vcenter size +5 \e(*S }
+.RE
+.TP
+.IB e1\  accent\  e2
+This sets
+.I e2
+as an accent over
+.IR e1 .
+.I e2
+is assumed to be at the correct height for a lowercase letter;
+.I e2
+will be moved down according if
+.I e1
+is taller or shorter than a lowercase letter.
+For example,
+.B hat
+is defined as
+.RS
+.IP
+.B
+accent { "^" }
+.RE
+.IP
+.BR dotdot ,
+.BR dot ,
+.BR tilde ,
+.B vec
+and
+.B dyad
+are also defined using the
+.B accent
+primitive.
+.TP
+.IB e1\  uaccent\  e2
+This sets
+.I e2
+as an accent under
+.IR e1 .
+.I e2
+is assumed to be at the correct height for a character without a descender;
+.I e2
+will be moved down if
+.I e1
+has a descender.
+.B utilde
+is pre-defined using
+.B uaccent
+as a tilde accent below the baseline.
+.TP
+.BI split\ \(ts text \(ts
+This has the same effect as simply
+.RS
+.IP
+.I text
+.RE
+.IP
+but
+.I text
+is not subject to macro expansion because it is quoted;
+.I text
+will be split up and the spacing between individual characters
+will be adjusted.
+.TP
+.BI nosplit\  text
+This has the same effect as
+.RS
+.IP
+.BI \(ts text \(ts
+.RE
+.IP
+but because
+.I text
+is not quoted it will be subject to macro expansion;
+.I text
+will not be split up
+and the spacing between individual characters will not be adjusted.
+.TP
+.IB e\  opprime
+This is a variant of
+.B prime
+that acts as an operator on
+.IR e .
+It produces a different result from
+.B prime
+in a case such as
+.BR A\ opprime\ sub\ 1 :
+with
+.B opprime
+the
+.B 1
+will be tucked under the prime as a subscript to the
+.B A
+(as is conventional in mathematical typesetting),
+whereas with
+.B prime
+the
+.B 1
+will be a subscript to the prime character.
+The precedence of
+.B opprime
+is the same as that of
+.B bar
+and
+.BR under ,
+which is higher than that of everything except
+.B accent
+and
+.BR uaccent .
+In unquoted text a
+.B '
+that is not the first character will be treated like
+.BR opprime .
+.TP
+.BI special\  text\ e
+This constructs a new object from
+.I e
+using a
+.BR @g@troff  (@MAN1EXT@)
+macro named
+.IR text .
+When the macro is called,
+the string
+.B 0s
+will contain the output for
+.IR e ,
+and the number registers
+.BR 0w ,
+.BR 0h ,
+.BR 0d ,
+.BR 0skern
+and
+.BR 0skew
+will contain the width, height, depth, subscript kern, and skew of
+.IR e .
+(The
+.I "subscript kern"
+of an object says how much a subscript on that object should be tucked in;
+the
+.I skew
+of an object says how far to the right of the center of the object an
+accent over the object should be placed.)
+The macro must modify
+.B 0s
+so that it will output the desired result with its origin at the current
+point, and increase the current horizontal position by the width
+of the object.
+The number registers must also be modified so that they correspond to the
+result.
+.RS
+.LP
+For example, suppose you wanted a construct that `cancels' an expression
+by drawing a diagonal line through it.
+.IP
+.nf
+.ft B
+.ne 6+\n(.Vu
+\&.EQ
+define cancel 'special Ca'
+\&.EN
+\&.de Ca
+\&.ds 0s \eZ'\e\e*(0s'\ev'\e\en(0du'\eD'l \e\en(0wu -\e\en(0hu-\e\en(0du'\ev'\e\en(0hu'
+\&..
+.ft
+.fi
+.LP
+Then you could cancel an expression
+.I e
+with
+.BI cancel\ {\  e\  }
+.LP
+Here's a more complicated construct that draws a box round an expression:
+.IP
+.nf
+.ft B
+.ne 11+\n(.Vu
+\&.EQ
+define box 'special Bx'
+\&.EN
+\&.de Bx
+\&.ds 0s \eZ'\eh'1n'\e\e*(0s'\e
+\eZ'\ev'\e\en(0du+1n'\eD'l \e\en(0wu+2n 0'\eD'l 0 -\e\en(0hu-\e\en(0du-2n'\e
+\eD'l -\e\en(0wu-2n 0'\eD'l 0 \e\en(0hu+\e\en(0du+2n''\eh'\e\en(0wu+2n'
+\&.nr 0w +2n
+\&.nr 0d +1n
+\&.nr 0h +1n
+\&..
+.ft
+.fi
+.RE
+.SS Customization
+The appearance of equations is controlled by
+a large number of parameters. These can be set using
+the
+.B set
+command.
+.TP
+.BI set\  p\ n
+This sets parameter
+.I p
+to value
+.I n ;
+.I n
+is an integer.
+For example,
+.RS
+.IP
+.B
+set x_height 45
+.RE
+.IP
+says that
+.B eqn
+should assume an x height of 0.45 ems.
+.RS
+.LP
+Possible parameters are as follows.
+Values are in units of hundredths of an em unless otherwise stated.
+These descriptions are intended to be expository rather than
+definitive.
+.TP \w'\fBdefault_rule_thickness'u+2n
+.B minimum_size
+.B eqn
+will not set anything at a smaller point-size than this.
+The value is in points.
+.TP
+.B fat_offset
+The
+.B fat
+primitive emboldens an equation
+by overprinting two copies of the equation
+horizontally offset by this amount.
+.TP
+.B over_hang
+A fraction bar will be longer by twice this amount than
+the maximum of the widths of the numerator and denominator;
+in other words, it will overhang the numerator and
+denominator by at least this amount.
+.TP
+.B accent_width
+When
+.B bar
+or
+.B under
+is applied to a single character,
+the line will be this long.
+Normally,
+.B bar
+or
+.B under
+produces a line whose length is the width of the object to which it applies;
+in the case of a single character,
+this tends to produce a line that looks too long.
+.TP
+.B delimiter_factor
+Extensible delimiters produced with the
+.B left
+and
+.B right
+primitives will have a combined height and depth of at least this many
+thousandths of twice the maximum amount by which the sub-equation that
+the delimiters enclose extends away from the axis.
+.TP
+.B delimiter_shortfall
+Extensible delimiters produced with the
+.B left
+and
+.B right
+primitives will have a combined height and depth
+not less than the difference of
+twice the maximum amount by which the sub-equation that
+the delimiters enclose extends away from the axis
+and this amount.
+.TP
+.B null_delimiter_space
+This much horizontal space is inserted
+on each side of a fraction.
+.TP
+.B script_space
+The width of subscripts and superscripts is increased by this amount.
+.TP
+.B thin_space
+This amount of space is automatically inserted after punctuation
+characters.
+.TP
+.B medium_space
+This amount of space is automatically inserted on either side
+of binary operators.
+.TP
+.B thick_space
+This amount of space is automatically inserted on either side of
+relations.
+.TP
+.B x_height
+The height of lowercase letters without ascenders such as x.
+.TP
+.B axis_height
+The height above the baseline of the center of characters
+such as \(pl and \(mi.
+It is important that this value is correct for the font
+you are using.
+.TP
+.B default_rule_thickness
+This should set to the thickness of the
+.B \e(ru
+character, or the thickness of horizontal lines produced with the
+.B \eD
+escape sequence.
+.TP
+.B num1
+The
+.B over
+command will shift up the numerator by at least this amount.
+.TP
+.B num2
+The
+.B smallover
+command will shift up the numerator by at least this amount.
+.TP
+.B denom1
+The
+.B over
+command will shift down the denominator by at least this amount.
+.TP
+.B denom2
+The
+.B smallover
+command will shift down the denominator by at least this amount.
+.TP
+.B sup1
+Normally superscripts will be shifted up by at least this amount.
+.TP
+.B sup2
+Superscripts within superscripts or upper limits
+or numerators of
+.B smallover
+fractions
+will be shifted up by at least this amount.
+This is usually less than sup1.
+.TP
+.B sup3
+Superscripts within denominators or square roots
+or subscripts or lower limits will be shifted up by at least
+this amount.
+This is usually less than sup2.
+.TP
+.B sub1
+Subscripts will normally be shifted down by at least this amount.
+.TP
+.B sub2
+When there is both a subscript and a superscript, the subscript
+will be shifted down by at least this amount.
+.TP
+.B sup_drop
+The baseline of a superscript will be no more
+than this much amount below the top of the object on
+which the superscript is set.
+.TP
+.B sub_drop
+The baseline of a subscript will be at least this much below
+the bottom of the object on which the subscript is set.
+.TP
+.B big_op_spacing1
+The baseline of an upper limit will be at least this
+much above the top of the object on which the limit is set.
+.TP
+.B big_op_spacing2
+The baseline of a lower limit will be at least this
+much below the bottom of the object on which the limit is set.
+.TP
+.B big_op_spacing3
+The bottom of an upper limit will be at least this much above the
+top of the object on which the limit is set.
+.TP
+.B big_op_spacing4
+The top of a lower limit will be at least this much below
+the bottom of the object on which the limit is set.
+.TP
+.B big_op_spacing5
+This much vertical space will be added above and below limits.
+.TP
+.B baseline_sep
+The baselines of the rows in a pile or matrix will normally be
+this far apart.
+In most cases this should be equal to the sum of
+.B num1
+and
+.BR denom1 .
+.TP
+.B shift_down
+The midpoint between the top baseline and the bottom baseline
+in a matrix or pile will be shifted down by this much from the axis.
+In most cases this should be equal to
+.BR axis_height .
+.TP
+.B column_sep
+This much space will be added between columns in a matrix.
+.TP
+.B matrix_side_sep
+This much space will be added at each side of a matrix.
+.TP
+.B draw_lines
+If this is non-zero, lines will be drawn using the
+.B \eD
+escape sequence, rather than with the
+.B \el
+escape sequence and the
+.B \e(ru
+character.
+.TP
+.B body_height
+The amount by which the height of the equation exceeds this
+will be added as extra space before the line containing the equation
+(using
+.BR \ex .)
+The default value is 85.
+.TP
+.B body_depth
+The amount by which the depth of the equation exceeds this
+will be added as extra space after the line containing the equation
+(using
+.BR \ex .)
+The default value is 35.
+.TP
+.B nroff
+If this is non-zero,
+then
+.B ndefine
+will behave like
+.B define
+and
+.B tdefine
+will be ignored,
+otherwise
+.B tdefine
+will behave like
+.B define
+and
+.B ndefine
+will be ignored.
+The default value is 0
+(This is typically changed to 1 by the
+.B eqnrc
+file for the
+.BR ascii ,
+.BR latin1 ,
+.BR utf8 ,
+and
+.B cp1047
+devices.)
+.LP
+A more precise description of the role of many of these
+parameters can be found in Appendix H of
+.IR The\ \*(txbook .
+.RE
+.SS Macros
+Macros can take arguments.
+In a macro body,
+.BI $ n
+where
+.I n
+is between 1 and 9,
+will be replaced by the
+.IR n-th
+argument if the macro is called with arguments;
+if there are fewer than
+.I n
+arguments, it will be replaced by nothing.
+A word containing a left parenthesis where the part of the word
+before the left parenthesis has been defined using the
+.B define
+command
+will be recognized as a macro call with arguments;
+characters following the left parenthesis
+up to a matching right parenthesis will be treated as comma-separated
+arguments;
+commas inside nested parentheses do not terminate an argument.
+.TP
+.BI sdefine\  name\ X\ anything\ X
+This is like the
+.B define
+command, but
+.I name
+will not be recognized if called with arguments.
+.TP
+.BI include\ \(ts file \(ts
+Include the contents of
+.IR file .
+Lines of
+.I file
+beginning with
+.B .EQ
+or
+.B .EN
+will be ignored.
+.TP
+.BI ifdef\  name\ X\ anything\ X
+If
+.I name
+has been defined by
+.B define
+(or has been automatically defined because
+.I name
+is the output device)
+process
+.IR anything ;
+otherwise ignore
+.IR anything .
+.I X
+can be any character not appearing in
+.IR anything .
+.SS Fonts
+.B eqn
+normally uses at least two fonts to set an equation:
+an italic font for letters,
+and a roman font for everything else.
+The existing
+.B gfont
+command
+changes the font that is used as the italic font.
+By default this is
+.BR I .
+The font that is used as the roman font can be changed
+using the new
+.B grfont
+command.
+.TP
+.BI grfont\  f
+Set the roman font to
+.IR f .
+.LP
+The
+.B italic
+primitive uses the current italic font set by
+.BR gfont ;
+the
+.B roman
+primitive uses the current roman font set by
+.BR grfont .
+There is also a new
+.B gbfont
+command, which changes the font used by the
+.B bold
+primitive.
+If you only use the
+.BR roman ,
+.B italic
+and
+.B bold
+primitives to changes fonts within an equation,
+you can change all the fonts used by your equations
+just by using
+.BR gfont ,
+.B grfont
+and
+.B gbfont
+commands.
+.LP
+You can control which characters are treated as letters
+(and therefore set in italics) by using the
+.B chartype
+command described above.
+A type of
+.B letter
+will cause a character to be set in italic type.
+A type of
+.B digit
+will cause a character to be set in roman type.
+.SH FILES
+.Tp \w'\fB@MACRODIR@/eqnrc'u+2n
+.B @MACRODIR@/eqnrc
+Initialization file.
+.SH BUGS
+Inline equations will be set at the point size that is current at the
+beginning of the input line.
+.SH "SEE ALSO"
+.BR groff (@MAN1EXT@),
+.BR @g@troff (@MAN1EXT@),
+.BR groff_font (@MAN5EXT@),
+.I The\ \*(txbook

@@ -1,0 +1,61 @@
+.\" psold.tmac
+.\"
+.\" In newer PostScript printers, text fonts contain all ISO Latin-1
+.\" characters.  The font description files that comes with groff match
+.\" these fonts.  The text fonts in older PostScript printers are missing
+.\" some of these characters.  This file prevents those characters from
+.\" being used.  This will allow the PostScript output to be printed on
+.\" such old printers.
+.nr _C \n(.C
+.cp 0
+.\" Define an accented character.
+.de ps-achar
+.\" Note that character definitions are always interpreted with
+.\" compatibility mode off.
+.char \\$1 \\$3\
+\k[acc]\
+\h'(u;-\w'\\$2'-\w'\\$3'/2+\\\\n[skw]+(\w'x'*0)-\\\\n[skw])'\
+\v'(u;\w'x'*0+\\\\n[rst]+(\w'\\$3'*0)-\\\\n[rst])'\
+\\$2\
+\v'(u;\w'x'*0-\\\\n[rst]+(\w'\\$3'*0)+\\\\n[rst])'\
+\h'|\\\\n[acc]u'
+.ie '\\$3'\(.i' .hcode \\$1i
+.el .hcode \\$1\\$3
+..
+.ps-achar \['y] \(aa y
+.ps-achar \['Y] \(aa Y
+.char \[12] \v'-.7m\s[\\n(.s*6u/10u]+.7m'1\v'-.7m\s0+.7m'\
+\(f/\s[\\n(.s*6u/10u]2\s0
+.char \[14] \v'-.7m\s[\\n(.s*6u/10u]+.7m'1\v'-.7m\s0+.7m'\
+\(f/\s[\\n(.s*6u/10u]4\s0
+.char \[34] \v'-.7m\s[\\n(.s*6u/10u]+.7m'3\v'-.7m\s0+.7m'\
+\(f/\s[\\n(.s*6u/10u]4\s0
+.char \[S1] \v'-.2m'\s-31\s+3\v'+.2m'
+.char \[S2] \v'-.2m'\s-32\s+3\v'+.2m'
+.char \[S3] \v'-.2m'\s-33\s+3\v'+.2m'
+.char \[bb] |
+.char \[de] \fS\(de
+.char \[-D] \Z'\v'-.1m'-'D
+.char \[TP] \
+I\h'-.25m'\v'-.33m'\s'\En(.s*6u/10u'\v'.33m'D\v'-.33m'\s0\v'.33m'
+.char \[Sd] \Z'\v'-.3m'\h'.2m'-'\(pd
+.char \[Tp] \zlp
+.tr \[char166]\[bb]
+.tr \[char176]\[de]
+.tr \[char177]\[+-]
+.tr \[char178]\[S2]
+.tr \[char179]\[S3]
+.tr \[char181]\[*m]
+.tr \[char185]\[S1]
+.tr \[char188]\[14]
+.tr \[char189]\[12]
+.tr \[char190]\[34]
+.tr \[char208]\[-D]
+.tr \[char215]\[mu]
+.tr \[char221]\['Y]
+.tr \[char222]\[TP]
+.tr \[char240]\[Sd]
+.tr \[char247]\[di]
+.tr \[char253]\['y]
+.tr \[char254]\[Tp]
+.cp \n(_C

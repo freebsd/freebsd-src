@@ -30,7 +30,16 @@ groff_man \- groff `man' macros to support generation of man pages
 .SH SYNOPSIS
 .
 .B groff
-.B \-m@TMAC_AN_PREFIX@an
+.B \-man
+[
+.IR options .\|.\|.
+]
+[
+.IR files .\|.\|.
+]
+.br
+.B groff
+.B \-m\ man
 [
 .IR options .\|.\|.
 ]
@@ -40,11 +49,11 @@ groff_man \- groff `man' macros to support generation of man pages
 .
 .SH DESCRIPTION
 .
-The 
-.B tmac.@TMAC_AN_PREFIX@an 
-macros used to generate man pages with 
+The
+.B man
+macros used to generate man pages with
 .I groff
-were written by James Clark.  
+were written by James Clark.
 This document provides a brief summary of the use of each macro in that
 package.
 .
@@ -54,6 +63,13 @@ The
 .B man
 macros understand the following command line options (which define various
 registers).
+.TP
+.B \-rcR=1
+This option (the default if in nroff mode) will create a single, very long
+page instead of multiple pages.
+Say
+.B \-rcR=0
+to disable it.
 .TP
 .B \-rC1
 If more than one manual page is given on the command line, number the
@@ -91,11 +107,12 @@ For example, the option `\-rX2' will produce the following page numbers:
 This section describes the available macros for manual pages.
 For further customization, put additional macros and requests into the file
 .B man.local
-which will be loaded immediately after
-.BR tmac.@TMAC_AN_PREFIX@an .
+which will be loaded immediately after the
+.B man
+package.
 .TP
 .BI .TH " title section " [ extra1 "] [" extra2 "] [" extra3 ]
-Sets the title of the man page to 
+Sets the title of the man page to
 .I title
 and the section to
 .IR section ,
@@ -154,7 +171,7 @@ value.
 .TP
 .BI ".TP [" nnn ]
 Sets up an indented paragraph with label.
-The indentation is set to 
+The indentation is set to
 .I nnn
 if that argument is supplied (the default unit is `n' if omitted), otherwise
 it is set to the default indentation value.
@@ -188,8 +205,8 @@ The font size and shape are reset to the default value (10pt resp. Roman).
 Finally, the current left margin is restored.
 .TP
 .BI ".IP [" designator "] [" nnn ]
-Sets up an indented paragraph, using 
-.I designator 
+Sets up an indented paragraph, using
+.I designator
 as a tag to mark its beginning.
 The indentation is set to
 .I nnn
@@ -205,9 +222,9 @@ designator, using `.IP\ \\(bu\ 4':
 .RS
 .IP \(bu 4
 .B IP
-is one of the three macros used in 
-.B tmac.@TMAC_AN_PREFIX@an
-to format lists.
+is one of the three macros used in the
+.B man
+package to format lists.
 .IP \(bu 4
 .B HP
 is another.
@@ -345,7 +362,7 @@ of the next line appears in italic.
 .
 The default indentation is 7.2n for all output devices except for
 .B grohtml
-which uses 1.2i instead.
+which ignores indentation.
 .TP
 .B .DT
 Sets tabs every 0.5 inches.
@@ -413,15 +430,38 @@ Modern implementations of the
 program read this first line and automatically call the right
 preprocessor(s).
 .
+.SH FILES
+.TP
+.B man.tmac
+.TQ
+.B an.tmac
+These are wrapper files to call
+.BR andoc.tmac .
+.TP
+.B andoc.tmac
+This file checks whether the
+.B man
+macros or the
+.B mdoc
+package should be used.
+.TP
+.B an-old.tmac
+All
+.B man
+macros are contained in this file.
+.TP
+.B man.local
+Local changes and customizations should be put into this file.
+.
 .SH "SEE ALSO"
 .
-Since the 
-.B tmac.@TMAC_AN_PREFIX@an
-macros consist of groups of 
-.I groff 
+Since the
+.B man
+macros consist of groups of
+.I groff
 requests, one can, in principle, supplement the functionality of the
-.B tmac.@TMAC_AN_PREFIX@an
-macros with individual 
+.B man
+macros with individual
 .I groff
 requests where necessary.
 A complete list of these requests is available on the WWW at
