@@ -605,13 +605,15 @@ loop:
 		    bread(devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 		    (int)fs->s_blocksize, NOCRED, &bp);
 		if (error) {
-			vput(vp);
+			VOP_UNLOCK(vp, 0, td);
+			vrele(vp);
 			return (error);
 		}
 		ext2_ei2i((struct ext2_inode *) ((char *)bp->b_data +
 		    EXT2_INODE_SIZE * ino_to_fsbo(fs, ip->i_number)), ip);
 		brelse(bp);
-		vput(vp);
+		VOP_UNLOCK(vp, 0, td);
+		vrele(vp);
 		mtx_lock(&mntvnode_mtx);
 	}
 	mtx_unlock(&mntvnode_mtx);
