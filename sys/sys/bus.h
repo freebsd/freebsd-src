@@ -362,6 +362,11 @@ static moduledata_t name##_##busname##_mod = {				\
 DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
 	       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
+#if 0
+/*
+ * Broken, to be replaced with DRIVER_MODULE() directly and cdevsw_add()
+ * or (preferably) make_dev()
+ */
 #define DEV_DRIVER_MODULE(name, busname, driver, devclass,		\
 			   devsw, evh, arg)				\
 									\
@@ -371,6 +376,7 @@ static struct devsw_module_data name##_##busname##_devsw_mod = {	\
 									\
 DRIVER_MODULE(name, busname, driver, devclass,				\
 	      devsw_module_handler, &name##_##busname##_devsw_mod)
+#endif
 
 #endif /* KERNEL */
 
