@@ -37,17 +37,17 @@
 /* 8250 registers #[0-6]. */
 
 #define	com_data	0	/* data register (R/W) */
-#define	com_thr		com_data /* transmitter holding register (W) */
-#define	com_rhr		com_data /* receiver holding register (R) */
+#define	REG_DATA	com_data
 
 #define	com_ier		1	/* interrupt enable register (W) */
+#define	REG_IER		com_ier
 #define	IER_ERXRDY	0x1
 #define	IER_ETXRDY	0x2
 #define	IER_ERLS	0x4
 #define	IER_EMSC	0x8
 
 #define	com_iir		2	/* interrupt identification register (R) */
-#define	com_isr		com_iir	/* interrupt status register (R) */
+#define	REG_IIR		com_iir
 #define	IIR_IMASK	0xf
 #define	IIR_RXTOUT	0xc
 #define	IIR_RLS		0x6
@@ -58,36 +58,52 @@
 #define	IIR_FIFO_MASK	0xc0	/* set if FIFOs are enabled */
 
 #define	com_lcr		3	/* line control register (R/W) */
-#define	com_lctl	com_lcr
 #define	com_cfcr	com_lcr	/* character format control register (R/W) */
+#define	REG_LCR		com_lcr
 #define	LCR_DLAB	0x80
 #define	CFCR_DLAB	LCR_DLAB
 #define	LCR_EFR_ENABLE	0xbf	/* magic to enable EFR on 16650 up */
 #define	CFCR_EFR_ENABLE	LCR_EFR_ENABLE
-#define	CFCR_SBREAK	0x40
-#define	CFCR_PZERO	0x30
-#define	CFCR_PONE	0x20
-#define	CFCR_PEVEN	0x10
-#define	CFCR_PODD	0x00
-#define	CFCR_PENAB	0x08
-#define	CFCR_STOPB	0x04
-#define	CFCR_8BITS	0x03
-#define	CFCR_7BITS	0x02
-#define	CFCR_6BITS	0x01
-#define	CFCR_5BITS	0x00
+#define	LCR_SBREAK	0x40
+#define	CFCR_SBREAK	LCR_SBREAK
+#define	LCR_PZERO	0x30
+#define	CFCR_PZERO	LCR_PZERO
+#define	LCR_PONE	0x20
+#define	CFCR_PONE	LCR_PONE
+#define	LCR_PEVEN	0x10
+#define	CFCR_PEVEN	LCR_PEVEN
+#define	LCR_PODD	0x00
+#define	CFCR_PODD	LCR_PODD
+#define	LCR_PENAB	0x08
+#define	CFCR_PENAB	LCR_PENAB
+#define	LCR_STOPB	0x04
+#define	CFCR_STOPB	LCR_STOPB
+#define	LCR_8BITS	0x03
+#define	CFCR_8BITS	LCR_8BITS
+#define	LCR_7BITS	0x02
+#define	CFCR_7BITS	LCR_7BITS
+#define	LCR_6BITS	0x01
+#define	CFCR_6BITS	LCR_6BITS
+#define	LCR_5BITS	0x00
+#define	CFCR_5BITS	LCR_5BITS
 
 #define	com_mcr		4	/* modem control register (R/W) */
+#define	REG_MCR		com_mcr
 #define	MCR_PRESCALE	0x80	/* only available on 16650 up */
 #define	MCR_LOOPBACK	0x10
-#define	MCR_IENABLE	0x08
+#define	MCR_IE		0x08
+#define	MCR_IENABLE	MCR_IE
 #define	MCR_DRS		0x04
 #define	MCR_RTS		0x02
 #define	MCR_DTR		0x01
 
 #define	com_lsr		5	/* line status register (R/W) */
+#define	REG_LSR		com_lsr
 #define	LSR_RCV_FIFO	0x80
-#define	LSR_TSRE	0x40
-#define	LSR_TXRDY	0x20
+#define	LSR_TEMT	0x40
+#define	LSR_TSRE	LSR_TEMT
+#define	LSR_THRE	0x20
+#define	LSR_TXRDY	LSR_THRE
 #define	LSR_BI		0x10
 #define	LSR_FE		0x08
 #define	LSR_PE		0x04
@@ -96,6 +112,7 @@
 #define	LSR_RCV_MASK	0x1f
 
 #define	com_msr		6	/* modem status register (R/W) */
+#define	REG_MSR		com_msr
 #define	MSR_DCD		0x80
 #define	MSR_RI		0x40
 #define	MSR_DSR		0x20
@@ -110,6 +127,7 @@
 #define	com_dlbl	com_dll
 #define	com_dlm		1	/* divisor latch high (R/W) */
 #define	com_dlbh	com_dlm
+#define	REG_DL		com_dll
 
 /* 16450 register #7.  Not multiplexed. */
 #define	com_scr		7	/* scratch register (R/W) */
@@ -117,20 +135,32 @@
 /* 16550 register #2.  Not multiplexed. */
 #define	com_fcr		2	/* FIFO control register (W) */
 #define	com_fifo	com_fcr
-#define	FIFO_ENABLE	0x01
-#define	FIFO_RCV_RST	0x02
-#define	FIFO_XMT_RST	0x04
-#define	FIFO_DMA_MODE	0x08
-#define	FIFO_RX_LOW	0x00
-#define	FIFO_RX_MEDL	0x40
-#define	FIFO_RX_MEDH	0x80
-#define	FIFO_RX_HIGH	0xc0
+#define	REG_FCR		com_fcr
+#define	FCR_ENABLE	0x01
+#define	FIFO_ENABLE	FCR_ENABLE
+#define	FCR_RCV_RST	0x02
+#define	FIFO_RCV_RST	FCR_RCV_RST
+#define	FCR_XMT_RST	0x04
+#define	FIFO_XMT_RST	FCR_XMT_RST
+#define	FCR_DMA		0x08
+#define	FIFO_DMA_MODE	FCR_DMA
+#define	FCR_RX_LOW	0x00
+#define	FIFO_RX_LOW	FCR_RX_LOW
+#define	FCR_RX_MEDL	0x40
+#define	FIFO_RX_MEDL	FCR_RX_MEDL
+#define	FCR_RX_MEDH	0x80
+#define	FIFO_RX_MEDH	FCR_RX_MEDH
+#define	FCR_RX_HIGH	0xc0
+#define	FIFO_RX_HIGH	FCR_RX_HIGH
 
 /* 16650 registers #2,[4-7].  Access enabled by LCR_EFR_ENABLE. */
 
 #define	com_efr		2	/* enhanced features register (R/W) */
-#define	EFR_AUTOCTS	0x80
-#define	EFR_AUTORTS	0x40
+#define	REG_EFR		com_efr
+#define	EFR_CTS		0x80
+#define	EFR_AUTOCTS	EFR_CTS
+#define	EFR_RTS		0x40
+#define	EFR_AUTORTS	EFR_RTS
 #define	EFR_EFE		0x10	/* enhanced functions enable */
 
 #define	com_xon1	4	/* XON 1 character (R/W) */
@@ -162,6 +192,7 @@
  * index into the Indexed Control register set.
  */
 #define	com_spr		com_scr	/* scratch pad (and index) register (R/W) */
+#define	REG_SPR		com_scr
 
 /*
  * 16950 indexed control registers #[0-0x13].  Access is via index in SPR,
