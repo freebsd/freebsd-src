@@ -191,7 +191,7 @@ linux_llseek(struct thread *td, struct linux_llseek_args *args)
 	if ((error = lseek(td, &bsd_args)))
 		return error;
 
-	if ((error = copyout(td->td_retval, (caddr_t)args->res, sizeof (off_t))))
+	if ((error = copyout(td->td_retval, args->res, sizeof (off_t))))
 		return error;
 
 	td->td_retval[0] = 0;
@@ -980,7 +980,7 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 		return (kern_fcntl(td, args->fd, F_SETFL, arg));
 
 	case LINUX_F_GETLK:
-		error = copyin((caddr_t)args->arg, &linux_flock,
+		error = copyin((void *)args->arg, &linux_flock,
 		    sizeof(linux_flock));
 		if (error)
 			return (error);
@@ -989,11 +989,11 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 		if (error)
 			return (error);
 		bsd_to_linux_flock(&bsd_flock, &linux_flock);
-		return (copyout(&linux_flock, (caddr_t)args->arg,
+		return (copyout(&linux_flock, (void *)args->arg,
 		    sizeof(linux_flock)));
 
 	case LINUX_F_SETLK:
-		error = copyin((caddr_t)args->arg, &linux_flock,
+		error = copyin((void *)args->arg, &linux_flock,
 		    sizeof(linux_flock));
 		if (error)
 			return (error);
@@ -1002,7 +1002,7 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 		    (intptr_t)&bsd_flock));
 
 	case LINUX_F_SETLKW:
-		error = copyin((caddr_t)args->arg, &linux_flock,
+		error = copyin((void *)args->arg, &linux_flock,
 		    sizeof(linux_flock));
 		if (error)
 			return (error);
@@ -1065,7 +1065,7 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 
 	switch (args->cmd) {
 	case LINUX_F_GETLK64:
-		error = copyin((caddr_t)args->arg, &linux_flock,
+		error = copyin((void *)args->arg, &linux_flock,
 		    sizeof(linux_flock));
 		if (error)
 			return (error);
@@ -1074,11 +1074,11 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 		if (error)
 			return (error);
 		bsd_to_linux_flock64(&bsd_flock, &linux_flock);
-		return (copyout(&linux_flock, (caddr_t)args->arg,
-		    sizeof(linux_flock)));
+		return (copyout(&linux_flock, (void *)args->arg,
+			    sizeof(linux_flock)));
 
 	case LINUX_F_SETLK64:
-		error = copyin((caddr_t)args->arg, &linux_flock,
+		error = copyin((void *)args->arg, &linux_flock,
 		    sizeof(linux_flock));
 		if (error)
 			return (error);
@@ -1087,7 +1087,7 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 		    (intptr_t)&bsd_flock));
 
 	case LINUX_F_SETLKW64:
-		error = copyin((caddr_t)args->arg, &linux_flock,
+		error = copyin((void *)args->arg, &linux_flock,
 		    sizeof(linux_flock));
 		if (error)
 			return (error);

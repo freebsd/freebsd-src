@@ -387,7 +387,7 @@ linux_setrlimit(td, uap)
 		return EINVAL;
 
 	if ((error =
-	   copyin((caddr_t)uap->rlim, (caddr_t)&rlim, sizeof (struct rlimit))))
+	   copyin(uap->rlim, &rlim, sizeof (struct rlimit))))
 		return (error);
 	return dosetrlimit(td,  which, &rlim);
 }
@@ -412,6 +412,6 @@ linux_getrlimit(td, uap)
 	if (which == -1)
 		return EINVAL;
 
-	return (copyout((caddr_t)&td->td_proc->p_rlimit[which],
-	    (caddr_t)uap->rlim, sizeof (struct rlimit)));
+	return (copyout(&td->td_proc->p_rlimit[which],
+	    uap->rlim, sizeof (struct rlimit)));
 }
