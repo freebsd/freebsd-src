@@ -176,13 +176,14 @@ ata_start(struct ata_channel *ch)
 
     /* if we have work todo, try to grap the ATA HW and start transaction */
     if ((request = TAILQ_FIRST(&ch->ata_queue))) {
-	ch->locking(ch, ATA_LF_LOCK);
-	mtx_lock(&ch->state_mtx);
-	if (ch->state == ATA_IDLE) {
-	    ch->state = ATA_ACTIVE;
-	    gotit = 1;
+	if (ch->locking(ch, ATA_LF_LOCK) == ch->unit) {
+	    mtx_lock(&ch->state_mtx);
+		if (ch->state == ATA_IDLE) {
+		ch->state = ATA_ACTIVE;
+		gotit = 1;
+	    }
+	    mtx_unlock(&ch->state_mtx);
 	}
-	mtx_unlock(&ch->state_mtx);
 	if (!gotit) {
 	    mtx_unlock(&ch->queue_mtx);
 	    return;
@@ -203,8 +204,8 @@ ata_start(struct ata_channel *ch)
 	    mtx_lock(&ch->state_mtx);
 	    ch->state = ATA_IDLE;
 	    mtx_unlock(&ch->state_mtx);
-            ch->locking(ch, ATA_LF_UNLOCK);
 	    ata_finish(request);
+            ch->locking(ch, ATA_LF_UNLOCK);
 	}
     }
     else
@@ -412,8 +413,6 @@ ata_timeout(struct ata_request *request)
     /* mark request as no longer running we'll shoot it down shortly */
     ch->running = NULL;
 
-    /* debug on */
-    request->flags |= ATA_R_DEBUG;
     ATA_DEBUG_RQ(request, "timeout");
 
     /* if we saw an interrupt before the timeout, shout and re_arm timeout */

@@ -88,9 +88,10 @@ ata_pccard_match(device_t dev)
     return(ENXIO);
 }
 
-static void
+static int
 ata_pccard_locknoop(struct ata_channel *ch, int type)
 {
+    return 1;
 }
 
 static void
