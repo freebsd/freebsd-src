@@ -3,15 +3,12 @@
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
 KMOD	= if_fxp
-SRCS	= if_fxp.c fxp.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
-CLEANFILES	+= fxp.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
+SRCS	= if_fxp.c fxp.h opt_bdg.h device_if.h bus_if.h pci_if.h
+CLEANFILES	+= fxp.h opt_bdg.h device_if.h bus_if.h pci_if.h
 CFLAGS	+= ${DEBUG_FLAGS}
 
 fxp.h:
 	echo "#define NFXP 1" > fxp.h
-
-bpf.h:
-	echo "#define NBPF 0" > bpf.h
 
 opt_bdg.h:
 	touch opt_bdg.h

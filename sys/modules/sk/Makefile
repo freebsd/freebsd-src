@@ -3,15 +3,12 @@
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
 KMOD	= if_sk
-SRCS	= if_sk.c sk.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
-CLEANFILES	+= sk.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
+SRCS	= if_sk.c sk.h opt_bdg.h device_if.h bus_if.h pci_if.h
+CLEANFILES	+= sk.h opt_bdg.h device_if.h bus_if.h pci_if.h
 CFLAGS	+= ${DEBUG_FLAGS}
 
 sk.h:
 	echo "#define NSK 1" > sk.h
-
-bpf.h:
-	echo "#define NBPF 1" > bpf.h
 
 opt_bdg.h:
 	touch opt_bdg.h
