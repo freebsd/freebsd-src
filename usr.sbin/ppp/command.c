@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.14 1997/05/26 00:52:16 brian Exp $
+ * $Id: command.c,v 1.24.2.15 1997/05/29 02:30:34 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -1107,7 +1107,7 @@ struct cmdtab const SetCommands[] = {
 	"Set input filter", "..."},
   { "login",    NULL,     SetVariable,		LOCAL_AUTH,
 	"Set login script", StrChatStr,	(void *)VAR_LOGIN },
-  { "mru",      "mtu",    SetInitialMRU,	LOCAL_AUTH,
+  { "mru",      NULL,     SetInitialMRU,	LOCAL_AUTH,
 	"Set Initial MRU value", StrValue },
   { "ofilter",  NULL,	  SetOfilter,		LOCAL_AUTH,
 	"Set output filter", "..." },
