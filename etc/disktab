@@ -51,25 +51,21 @@
 fd360:\
 	:ty=floppy:se#512:nt#2:rm#300:ns#9:nc#40:\
 	:pa#720:oa#0:ba#4096:fa#512:\
-	:pb#720:ob#0:bb#4096:fb#512:\
 	:pc#720:oc#0:bc#4096:fc#512:
 
 fd720:\
 	:ty=floppy:se#512:nt#2:rm#300:ns#9:nc#80:\
 	:pa#1440:oa#0:ba#4096:fa#512:\
-	:pb#1440:ob#0:bb#4096:fb#512:\
 	:pc#1440:oc#0:bc#4096:fc#512:
 
 fd1200|floppy5|5in|5.25in High Density Floppy:\
 	:ty=floppy:se#512:nt#2:rm#360:ns#15:nc#80:\
 	:pa#2400:oa#0:ba#4096:fa#512:\
-	:pb#2400:ob#0:bb#4096:fb#512:\
 	:pc#2400:oc#0:bc#4096:fc#512:
 
 fd1440|floppy|floppy3|3in|3.5in High Density Floppy:\
 	:ty=floppy:se#512:nt#2:rm#300:ns#18:nc#80:\
 	:pa#2880:oa#0:ba#4096:fa#512:\
-	:pb#2880:ob#0:bb#4096:fb#512:\
 	:pc#2880:oc#0:bc#4096:fc#512:
 
 #
@@ -79,25 +75,21 @@ fd1440|floppy|floppy3|3in|3.5in High Density Floppy:\
 fd800:\
 	:ty=floppy:se#512:nt#2:rm#300:ns#10:nc#80:\
 	:pa#1600:oa#0:ba#4096:fa#512:\
-	:pb#1600:ob#0:bb#4096:fb#512:\
 	:pc#1600:oc#0:bc#4096:fc#512:
 
 fd820:\
 	:ty=floppy:se#512:nt#2:rm#300:ns#10:nc#82:\
 	:pa#1640:oa#0:ba#4096:fa#512:\
-	:pb#1640:ob#0:bb#4096:fb#512:\
 	:pc#1640:oc#0:bc#4096:fc#512:
 
 fd1480:\
 	:ty=floppy:se#512:nt#2:rm#300:ns#18:nc#82:\
 	:pa#2952:oa#0:ba#4096:fa#512:\
-	:pb#2952:ob#0:bb#4096:fb#512:\
 	:pc#2952:oc#0:bc#4096:fc#512:
 
 fd1720:\
 	:ty=floppy:se#512:nt#2:rm#300:ns#21:nc#82:\
 	:pa#3444:oa#0:ba#4096:fa#512:\
-	:pb#3444:ob#0:bb#4096:fb#512:\
 	:pc#3444:oc#0:bc#4096:fc#512:
 
 #
@@ -106,7 +98,6 @@ fd1720:\
 fd120m|floppy120|floppy120m|3.5in LS-120 Floppy:\
 	:ty=floppy:se#512:nt#8:rm#300:ns#32:nc#963:\
 	:pa#246528:oa#0:ba#4096:fa#512:\
-	:pb#246528:ob#0:bb#4096:fb#512:\
 	:pc#246528:oc#0:bc#4096:fc#512:
 
 #
@@ -219,13 +210,11 @@ minimum3:ty=mfs:se#512:nt#1:rm#300:\
 zip100|zip 100:\
 	:ty=removable:se#512:nc#96:nt#64:ns#32:\
 	:pa#196608:oa#0:ba#4096:fa#512:\
-	:pb#196608:ob#0:bb#4096:fb#512:\
 	:pc#196608:oc#0:bc#4096:fc#512:
 
 zip250|zip 250:\
 	:ty=removable:se#512:nc#239:nt#64:ns#32:\
 	:pa#489472:oa#0:ba#4096:fa#512:\
-	:pb#489472:ob#0:bb#4096:fb#512:\
 	:pc#489472:oc#0:bc#4096:fc#512:
 
 orb2200|orb22|orb:\
