@@ -64,7 +64,7 @@
  *       3.  dpt_handle_timeouts   potentially inserts into the queue
  */
 
-#ident "$Id: dpt_scsi.c,v 1.9 1998/08/06 20:57:33 eivind Exp $"
+#ident "$Id: dpt_scsi.c,v 1.10 1998/08/10 17:06:28 bde Exp $"
 
 #define _DPT_C_
 
@@ -3466,10 +3466,10 @@ checkit:
 	  ospl = splcam();
 	  dpt->state &= ~DPT_HA_SHUTDOWN_ACTIVE;
 	  splx(ospl);
-	  printf("dpt%d: WARNING:  After sleeping for %d seconds, "
+	  printf("dpt%d: WARNING:  After sleeping for about 100 seconds, "
 			 "I am re-enabled\n",
 			 dpt->unit);
-	  printf("                Any further I/O is NOT guranteed to "
+	  printf("                Any further I/O is NOT guaranteed to "
 			 "complete!\n");
 	}
 #else
