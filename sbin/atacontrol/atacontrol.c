@@ -348,14 +348,19 @@ main(int argc, char **argv)
 		int disk, dev, offset;
 
 		iocmd.cmd = ATARAIDCREATE;
-		if (!strcmp(argv[2], "RAID0") || !strcmp(argv[2], "stripe"))
-			iocmd.u.raid_setup.type = 1;
-		if (!strcmp(argv[2], "RAID1") || !strcmp(argv[2],"mirror"))
-			iocmd.u.raid_setup.type = 2;
-		if (!strcmp(argv[2], "RAID0+1"))
-			iocmd.u.raid_setup.type = 3;
-		if (!strcmp(argv[2], "SPAN") || !strcmp(argv[2], "JBOD"))
-			iocmd.u.raid_setup.type = 4;
+		if (argc > 2) {
+			if (!strcmp(argv[2], "RAID0") ||
+			    !strcmp(argv[2], "stripe"))
+				iocmd.u.raid_setup.type = 1;
+			if (!strcmp(argv[2], "RAID1") ||
+			    !strcmp(argv[2],"mirror"))
+				iocmd.u.raid_setup.type = 2;
+			if (!strcmp(argv[2], "RAID0+1"))
+				iocmd.u.raid_setup.type = 3;
+			if (!strcmp(argv[2], "SPAN") ||
+			    !strcmp(argv[2], "JBOD"))
+				iocmd.u.raid_setup.type = 4;
+		}
 		if (!iocmd.u.raid_setup.type) {
 			fprintf(stderr, "atacontrol: Invalid RAID type\n");
 			fprintf(stderr, "atacontrol: Valid RAID types : \n");
@@ -365,7 +370,8 @@ main(int argc, char **argv)
 		}
 		
 		if (iocmd.u.raid_setup.type & 1) {
-			if (!sscanf(argv[3], "%d",
+			if (argc < 4 || 
+			    !sscanf(argv[3], "%d",
 				    &iocmd.u.raid_setup.interleave) == 1) {
 				fprintf(stderr, "atacontrol: Invalid interleave\n");
 				exit(EX_USAGE);
