@@ -2,7 +2,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.38
+    Original revision: 1.41
 -->
 
 <!-- 
@@ -79,17 +79,17 @@
  <![ %release.type.release [
       &release.current;
 ]]>
-      用の errata 文書です。&os; 5.1-RELEASE の公開までの間、保守されます。</para>
+      用の errata 文書です。&os; &release.next; の公開までの間、保守されます。</para>
 
     <para>&release.branch;
       ブランチは最新のブランチポイントであり、
       ここからはまだリリース版が公開されていません。
       そのため現時点の &release.current; には、
-      errata がありません。
-      (最初のリリースは &release.next; になる予定です)
-      このファイルは新たに作成されたブランチ用のひな型として用意されているものです。
+      errata がありません
+      (最初のリリースは &release.next; になる予定です)。
+      このファイルは新たに作成されたブランチ用のひな型として用意されているものです
       (当然ながら、この注意書きは他のブランチにある errata
-      文書には存在しません)</para>
+      文書には存在しません)。</para>
   </abstract>
 
   <sect1 id="intro">
@@ -133,256 +133,82 @@
   <sect1 id="security">
     <title>セキュリティ勧告</title>
 
-    <para><application>CVS</application> には、CVS サーバ上で任意のコマンドが実行できるという、
-      リモートから悪用可能なセキュリティ上の弱点が存在します。
-      問題の詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>
-      をご覧ください。</para>
+<![ %release.type.release [
+    <para>セキュリティ勧告は発行されていません。</para>
+]]>
 
-    <para><application>OpenSSL</application> には、特定の条件下で、
-      クライアントとサーバ間で交換されるネットワークメッセージを
-      横取り・置き換えできるような強い影響力を持つ攻撃者が
-      タイミングベースの攻撃を行ない平文を得ることができる可能性があります。
-      この問題は、&os; &release.current; では
-      <application>OpenSSL</application> 0.9.7 に更新して、
-      セキュリティブランチでは
-      <application>OpenSSL</application> 0.9.6i を統合して修正されました。
-      詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>
-      をご覧ください。</para>
-
-    <para><quote>syncookies</quote> 機能の実装を悪用することで、
-      この機能で使われている共有秘密鍵を復元することができる可能性があります。
-      これは TCP SYN flood を用いたサービス妨害攻撃への耐性を低下させます。
-      回避方法と解決方法は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>
-      をご覧ください。</para>
-
-    <para><application>sendmail</application> のヘッダ解析時のオーバフローにより、
-      リモートの攻撃者は、&man.sendmail.8; に
-      sendmail を起動したユーザ (通常は <username>root</username>) の権限で
-      任意のコードを実行させるような
-      特殊な細工を施したメッセージを作成することができます。
-      修正パッチの場所を含む詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
-      および <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>
-      に記載されています。</para>
-
-    <para>XDR エンコーダ / デコーダの実装に、
-      リモートからサービス妨害攻撃が可能になるような
-      不正な境界チェックを行なうコードが含まれていました。
-      バグ修正を含む詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>
-      をご覧ください。</para>
-
-    <para><application>OpenSSL</application> に
-      二つの弱点
-      (訳注: RSA のタイミング攻撃と Klima-Pokorny-Rosa 攻撃)
-      が発見されました。
-      回避方法と問題を修正するパッチについての情報は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>
-      をご覧ください。</para>
+<![ %release.type.snapshot [
+    <para>セキュリティ勧告は発行されていません。</para>
+]]>
 
   </sect1>
+
+  <sect1 id="open-issues">
+    <title>未解決の問題</title>
+
+<![ %release.type.release [
+    <para>未解決の問題はありません。</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>マニュアルページ &man.raid.4; に記載されている
+      RAIDframe ディスクドライバは、このリリースではうまく動作しません。</para>
+
+    <para>ACPI によって不安定になる i386 マシンがあるようです。
+      ACPI 機能を無効にすると問題解決の役に立つかもしれません。
+      <xref linkend="late-news"> にある項をご覧ください。</para>
+]]>
 
   <sect1 id="late-news">
     <title>最新情報</title>
 
-    <bridgehead renderas="sect3">GEOM</bridgehead>
+<![ %release.type.release [
+    <para>情報はありません。</para>
+]]>
 
-    <para>カーネルにある &man.geom.4;
-      ベースのディスクパーティションコードは、
-      使用中のパーティションの上書きを禁止しています。
-      たとえば、<command>disklabel -B</command>
-      コマンドを使ってディスクの起動ブロックを更新することはできません。
-      これは、起動ブロックが記録されている領域と
-      <literal>a</literal> パーティションの領域が重なっているためです。
-      これを回避するには、CDROM や fixit
-      フロッピなどの他のディスクから起動するとよいでしょう。</para>
+<![ %release.type.snapshot [
+    <para>&man.ipfw.4; が alpha や sparc64 のような 64-bit
+      ストリクトアラインメント環境下で正しく動作するようになったはずです。</para>
 
-    <bridgehead renderas="sect3">&man.dump.8;</bridgehead>
-
-    <para>512 バイトより大きいセクタ長を持ったディスクメディア (たとえば
-      &man.gbde.4; で暗号化されたディスク) を使っている場合、
-      &man.dump.8; プログラムがそのセクタ長を認識しないため、
-      そのパーティションのダンプをとることができません。
-      これを回避する法の一つとして、ファイルシステム全体を
-      raw フォーマットでコピーし、
-      そのコピーからダンプをとるという方法があります。
-      たとえば次のようにすると、
-      ファイルシステムを通常ファイルにダンプすることが可能です。
-
-      <screen>&prompt.root; <userinput>dd if=/dev/ad0s1d.bde of=/junk/ad0.dd bs=1m</userinput>
-&prompt.root; <userinput>dump 0f - /junk/ad0.dd | ...</userinput></screen>
-
-    <para>より簡単な方法としては、バックアップに
-      &man.tar.1; もしくは &man.cpio.1; を使うというのもあげられるでしょう。</para>
-
-    <bridgehead renderas="sect3">&man.mly.4;</bridgehead>
-
-    <para>&os; 4.7-RELEASE で正常に動作していた
-      &man.mly.4; で構成した RAID アレイに
-      &os; 5.0 スナップショット版をインストールする際、
-      システムがハングアップするという事例がいくつか報告されていました。
-      これらの問題は、&os; &release.current; で修正されました。</para>
-
-    <bridgehead renderas="sect3">NETNCP/Netware ファイルシステム対応</bridgehead>
-
-    <para>NETNCP と nwfs はまだ KSE に対応していないため、動作しません。
-      これらの問題は、&os; &release.current; で修正されました。</para>
-
-    <bridgehead renderas="sect3">&man.iir.4; コントローラ</bridgehead>
-
-    <para>&man.iir.4; コントローラはインストール時に正常に認識されますが、
-      ディスクデバイスが認識されないという不具合があります。</para>
-
-    <bridgehead renderas="sect3">&man.truss.1; の競合状態</bridgehead>
-
-    <para>&man.truss.1; には、デバッグの開始時に
-      起動前のデバック対象プロセスに接続できなくなるような競合状態があるようです。
-      症状は、&man.truss.1; が「デバッグ対象のプロセスに対応する
-      &man.procfs.5; ノードを open できない」というエラーを表示する、
-      というものです。また、&man.truss.1; には、
-      &man.execve.2; が <literal>ENOENT</literal>
-      を返す時にハングアップするというバグも確認されています。
-      さらに、もう一つの競合状態が原因で、&man.truss.1;
-      の起動時に時々 <errorname>PIOCWAIT:
-      Input/output error</errorname> というエラーが表示されます。
-      この問題の修正には、プロセスの実行処理を大きく変更する必要があるため、
-      5.0 の公開以降に行なわれる予定です。</para>
-
-    <bridgehead renderas="sect3">インストーラのディスクパーティション設定</bridgehead>
-
-    <para>&man.sysinstall.8;
-      のディスクパーティション設定にいくつかバグが報告されています。
-      詳細が判明している問題の一つに、i386 版の &man.sysinstall.8; で
-      FDISK パーティションのパーティションタイプを変更した後、
-      ディスクの空き領域の再計算がなされないというものがあります。</para>
-
-    <bridgehead renderas="sect3">文書化の遅れ</bridgehead>
-
-    <para>(FAQ やハンドブックなどの) 文書のいくつかは、
-      &os; &release.current; の機能を反映した更新が行なわれていません。
-      たとえば &man.gbde.8; や新しい <quote>fast IPsec</quote>
-      実装などについての文書は十分な整備されておらず、
-      今後の課題となっています。</para>
-
-    <bridgehead renderas="sect3">SMB ファイルシステム</bridgehead>
-
-    <para>smbfs 共有をアンマウントしようとした時に、
-      そのマウントポイントが使用中でないにもかかわらず、
-      <errorname>Device busy</errorname> というエラーが出力されることがあります。
-      これを回避する一つの方法は、成功するまでアンマウントを繰り返すことです。
-      この問題は &release.current; で修正されました。</para>
-
-    <para>smbfs 共有を強制アンマウント (<command>umount -f</command>)
-      した時に、カーネルがパニックを起こす可能性があります。
-      この問題は、&release.current; で修正されました。</para>
-
-    <bridgehead renderas="sect3">&man.fstat.2;</bridgehead>
-
-    <para>connect されたソケットファイル記述子を指定して
-      &man.fstat.2; を呼び出すと、
-      <varname>struct stat</varname> 構造体の
-      <varname>st_size</varname> メンバ変数に、
-      読み込み可能なバイト数が返されます。
-      しかし TCP ソケットでは、 <varname>st_size</varname> が常に
-      <literal>0</literal> を返すというバグがあります。
-      この問題は、&release.current; で修正されました。</para>
-
-    <bridgehead renderas="sect3">カーネルイベントキュー</bridgehead>
-
-    <para>&man.kqueue.2; <literal>EVFILT_READ</literal> フィルタは、
-      TCP ソケットから読み込み可能なバイト数を、実際の値に関わらず
-      <literal>0</literal> と報告するバグが含まれています。
-      <literal>EVFILT_READ</literal> の
-      <literal>NOTE_LOWAT</literal> フラグも、TCP
-      ソケットに対する動作に不具合があります。
-      この問題は、&release.current; で修正されました。</para>
-
-    <bridgehead renderas="sect3">POSIX 名前付きセマフォ</bridgehead>
-
-    <para>&os; &release.prev; は POSIX 名前付きセマフォに対応していますが、
-      その実装は、&man.sem.open.3; で同じプロセスから同じセマフォを
-      複数回オープンする処理に致命的なバグを含んでおり、
-      &man.sem.close.3; を呼び出したプログラムがクラッシュする可能性があります。
-      この問題は、&release.current; で修正されました。</para>
-
-    <bridgehead renderas="sect3"><filename>/dev/tty</filename>
-      の許可属性</bridgehead>
+    <para>i386 プラットフォーム では <filename>libthr</filename> ライブラリが
+      デフォルトで構築されるとリリースノートに明示すべきでした。</para>
 
     <para>&os; &release.prev; には、
-      <filename>/dev/tty</filename>
-      の許可属性の処理に小さなバグが含まれています。
-      <username>root</username> 以外、<groupname>tty</groupname>
-      グループに含まれていないユーザとしてログインし、その後に
-      &man.su.1; を使って他の <username>root</username>
-      以外のユーザに切り替えた場合、
-      <filename>/dev/tty</filename> が開けないため
-      &man.ssh.1; が動作しません。
-      この問題は、&release.current; で修正されました。</para>
+      新しい起動ローダスクリプトが含まれています。
+      これは &os; を異なるオプションで簡単に起動するために設計されたもので
+      起動時の問題を診断する役に立つかもしれません。
+      既存の Forth ベースの起動ローダスクリプトを基にしているため、
+      <filename>/boot/loader.conf</filename> および
+      他のローダ設定ファイルを活用することができます。
+      なお、デフォルトでは、新規に
+      i386 マシンにバイナリインストールした時にのみ有効です。
+      このスクリプトは起動メニューを表示し、
+      &os; がどのように起動されるかを制御します。
+      具体的には、ACPI の無効化、<quote>安全モード</quote>、
+      シングルユーザモードや出力形式を詳細にするように
+      選択して起動することができます。
+      <quote>安全モード</quote> での起動は、
+      システムのハードウェア互換性が不明瞭な時に特に便利です。
+      このモードではカーネル変数を次のように設定します。</para>
 
-    <bridgehead renderas="sect3">&man.growfs.8;</bridgehead>
+      <programlisting>hint.acpi.0.disabled=1 # ACPI を無効にします (i386 アーキテクチャのみ)。
+hw.ata.ata_dma=0       # IDE DMA 転送を無効にします。
+hw.ata.atapi_dma=0     # ATAPI/IDE DMA 転送を無効にします。
+hw.ata.wc=0            # IDE ディスクの書込みキャッシュを無効にします。
+hw.eisa_slots=0        # EISA デバイスの検出を無効にします。</programlisting>
 
-    <para>&man.growfs.8; は &man.vinum.4; ボリュームでは (おそらく &man.geom.4;
-      エンティティでも) 動作しなくなっています。
-      &man.growfs.8; はディスクラベルを検査するのですが、
-      これらのサブシステムはそのためのディスクラベルを用意しないからです。</para>
+    <para>i386 アーキテクチャマシンでの新規インストールでは、
+      &man.sysinstall.8; は ACPI が
+      新しい起動ローダスクリプトで上記のように無効にされているかどうかを判断し、
+      もしそうならこの変更を恒久的に利用すべきかどうか尋ねます。</para>
 
-    <bridgehead renderas="sect3">IPFW</bridgehead>
-
-    <para>&man.ipfw.4; の <literal>skipto</literal> ルールは、
-      <literal>log</literal> キーワードと組み合わせると動作しません。
-      また、&man.ipfw.4; の <literal>uid</literal> ルールも適切に動作しません。
-      これらの問題は、&release.current; で修正されました。</para>
-
-    <bridgehead renderas="sect3">パスワードと &man.adduser.8;</bridgehead>
-
-    <para>&man.adduser.8; は、
-      シェルの特殊文字を含むパスワードをユーザに設定する処理を
-      正しく行なうことができません。
-      この問題は、&release.current; で修正されました。</para>
-
-    <bridgehead renderas="sect3">&man.xl.4;</bridgehead>
-
-    <para>&man.xl.4; ドライバには、
-      インタフェースの初期化を行なう際にカーネルパニック
-      (や、その他の問題) を引き起こす、
-      タイミングに関連するバグが含まれています。
-      この問題は、&release.current; で修正されました。</para>
-
-    <bridgehead renderas="sect3">ISC DHCP</bridgehead>
-
-    <para><application>ISC DHCP</application> がバージョン
-      3.0.1rc11 に更新されました。
-      実際に更新が行なわれたのは &os;
-      &release.prev; だったのですが、
-      リリースノートの記載忘れだったようです。</para>
-
-    <bridgehead renderas="sect3">&man.amd.8;
-      の相互運用性</bridgehead>
-
-    <para>&release.prev; における非ブロッキング RPC コードには、バグが含まれています。
-      このバグによる最も大きな影響に、&release.prev; が動作している
-      NFS サーバ上のマウントポイントを、&man.amd.8;
-      を使ってマウントすることができないというものがあります。
-      このバグは &release.current; で修正されました。</para>
-
-    <bridgehead renderas="sect3">nsswitch</bridgehead>
-
-    <para><application>nsswitch</application>
-      に対応したことを記載したリリースノートには、
-      従来のリゾルバの設定ファイル名に誤りがありました。
-      正しくは <filename>/etc/host.conf</filename> です。</para>
-
-    <bridgehead renderas="sect3">Mailman</bridgehead>
-
-    <para>最近になって、メーリングリストが majordomo から変更され、
-      Mailman リストサーバを使うようになりました。
-      この新しいメーリングリストに関する詳細は、
-      <ulink url="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD
-      Mailman Info Page</ulink> をご覧ください。</para>
+    <para>OpenPAM、NSS 対応、PAE 対応、
+      強制アクセス制御 (MAC) 機構のさまざまな更新、
+      GEOM ディスクジオメトリシステムなどの機能を追加する作業は
+      国防省高等研究開発局 (DARPA) に後援していただいたことを
+      リリースノートで言及すべきでした。</para>
+]]>
 
   </sect1>
+
 </article>
