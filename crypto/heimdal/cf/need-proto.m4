@@ -1,4 +1,4 @@
-dnl $Id: need-proto.m4,v 1.4 2002/08/23 15:07:41 joda Exp $
+dnl $Id: need-proto.m4,v 1.4.6.1 2004/04/01 07:27:35 joda Exp $
 dnl
 dnl
 dnl Check if we need the prototype for a function
@@ -6,7 +6,7 @@ dnl
 
 dnl AC_NEED_PROTO(includes, function)
 
-AC_DEFUN(AC_NEED_PROTO, [
+AC_DEFUN([AC_NEED_PROTO], [
 if test "$ac_cv_func_$2+set" != set -o "$ac_cv_func_$2" = yes; then
 AC_CACHE_CHECK([if $2 needs a prototype], ac_cv_func_$2_noproto,
 AC_TRY_COMPILE([$1],

@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: gssapi_locl.h,v 1.24 2003/03/16 17:30:15 lha Exp $ */
+/* $Id: gssapi_locl.h,v 1.24.2.5 2003/09/18 22:01:52 lha Exp $ */
 
 #ifndef GSSAPI_LOCL_H
 #define GSSAPI_LOCL_H
@@ -43,6 +43,8 @@
 #include <krb5_locl.h>
 #include <gssapi.h>
 #include <assert.h>
+
+#include "arcfour.h"
 
 extern krb5_context gssapi_krb5_context;
 
@@ -81,6 +83,10 @@ gssapi_krb5_encapsulate(
 			gss_buffer_t output_token,
 			u_char *type);
 
+u_char *
+_gssapi_make_mech_header(u_char *p,
+			 size_t len);
+
 OM_uint32
 gssapi_krb5_decapsulate(
 			OM_uint32 *minor_status,
@@ -102,6 +108,14 @@ OM_uint32
 gssapi_krb5_verify_header(u_char **str,
 			  size_t total_len,
 			  char *type);
+
+
+OM_uint32
+_gssapi_verify_mech_header(u_char **str,
+			   size_t total_len);
+
+OM_uint32
+_gssapi_verify_pad(gss_buffer_t, size_t, size_t *);
 
 OM_uint32
 gss_verify_mic_internal(OM_uint32 * minor_status,
@@ -144,5 +158,22 @@ gssapi_krb5_get_error_string (void);
 
 OM_uint32
 _gss_DES3_get_mic_compat(OM_uint32 *minor_status, gss_ctx_id_t ctx);
+
+OM_uint32
+gssapi_lifetime_left(OM_uint32 *, OM_uint32, OM_uint32 *);
+
+/* 8003 */
+
+krb5_error_code
+gssapi_encode_om_uint32(OM_uint32, u_char *);
+
+krb5_error_code
+gssapi_encode_be_om_uint32(OM_uint32, u_char *);
+
+krb5_error_code
+gssapi_decode_om_uint32(u_char *, OM_uint32 *);
+
+krb5_error_code
+gssapi_decode_be_om_uint32(u_char *, OM_uint32 *);
 
 #endif

@@ -32,7 +32,7 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rshd.c,v 1.51 2003/04/16 19:50:49 joda Exp $");
+RCSID("$Id: rshd.c,v 1.51.2.1 2003/08/19 11:36:17 joda Exp $");
 
 int
 login_access( struct passwd *user, char *from);
@@ -919,7 +919,7 @@ struct getargs args[] = {
       "port" },
     { "vacuous",	'v',	arg_flag, &do_vacuous,
       "Don't accept non-kerberised connections" },
-#ifdef KRB4
+#if defined(KRB4) || defined(KRB5)
     { NULL,		'P',	arg_negative_flag, &do_newpag,
       "Don't put process in new PAG" },
 #endif

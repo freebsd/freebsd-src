@@ -1,10 +1,10 @@
-dnl $Id: krb-func-getcwd-broken.m4,v 1.3 2002/05/19 19:17:35 joda Exp $
+dnl $Id: krb-func-getcwd-broken.m4,v 1.3.8.1 2004/04/01 07:27:34 joda Exp $
 dnl
 dnl
 dnl test for broken getcwd in (SunOS braindamage)
 dnl
 
-AC_DEFUN(AC_KRB_FUNC_GETCWD_BROKEN, [
+AC_DEFUN([AC_KRB_FUNC_GETCWD_BROKEN], [
 if test "$ac_cv_func_getcwd" = yes; then
 AC_MSG_CHECKING(if getcwd is broken)
 AC_CACHE_VAL(ac_cv_func_getcwd_broken, [

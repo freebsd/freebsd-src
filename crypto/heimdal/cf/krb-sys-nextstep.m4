@@ -1,10 +1,10 @@
-dnl $Id: krb-sys-nextstep.m4,v 1.4 2002/08/28 18:44:32 joda Exp $
+dnl $Id: krb-sys-nextstep.m4,v 1.4.6.1 2004/04/01 07:27:34 joda Exp $
 dnl
 dnl NEXTSTEP is not posix compliant by default,
 dnl you need a switch -posix to the compiler
 dnl
 
-AC_DEFUN(rk_SYS_NEXTSTEP, [
+AC_DEFUN([rk_SYS_NEXTSTEP], [
 AC_CACHE_CHECK(for NeXTSTEP, rk_cv_sys_nextstep, [
 AC_EGREP_CPP(yes, 
 [#if defined(NeXT) && !defined(__APPLE__)

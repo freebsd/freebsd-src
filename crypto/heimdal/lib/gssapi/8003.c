@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,10 +33,10 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: 8003.c,v 1.12 2002/10/31 14:38:49 joda Exp $");
+RCSID("$Id: 8003.c,v 1.12.2.2 2003/09/18 21:30:57 lha Exp $");
 
-static krb5_error_code
-encode_om_uint32(OM_uint32 n, u_char *p)
+krb5_error_code
+gssapi_encode_om_uint32(OM_uint32 n, u_char *p)
 {
   p[0] = (n >> 0)  & 0xFF;
   p[1] = (n >> 8)  & 0xFF;
@@ -45,10 +45,27 @@ encode_om_uint32(OM_uint32 n, u_char *p)
   return 0;
 }
 
-static krb5_error_code
-decode_om_uint32(u_char *p, OM_uint32 *n)
+krb5_error_code
+gssapi_encode_be_om_uint32(OM_uint32 n, u_char *p)
+{
+  p[0] = (n >> 24) & 0xFF;
+  p[1] = (n >> 16) & 0xFF;
+  p[2] = (n >> 8)  & 0xFF;
+  p[3] = (n >> 0)  & 0xFF;
+  return 0;
+}
+
+krb5_error_code
+gssapi_decode_om_uint32(u_char *p, OM_uint32 *n)
 {
     *n = (p[0] << 0) | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+    return 0;
+}
+
+krb5_error_code
+gssapi_decode_be_om_uint32(u_char *p, OM_uint32 *n)
+{
+    *n = (p[0] <<24) | (p[1] << 16) | (p[2] << 8) | (p[3] << 0);
     return 0;
 }
 
@@ -60,23 +77,23 @@ hash_input_chan_bindings (const gss_channel_bindings_t b,
   MD5_CTX md5;
 
   MD5_Init(&md5);
-  encode_om_uint32 (b->initiator_addrtype, num);
+  gssapi_encode_om_uint32 (b->initiator_addrtype, num);
   MD5_Update (&md5, num, sizeof(num));
-  encode_om_uint32 (b->initiator_address.length, num);
+  gssapi_encode_om_uint32 (b->initiator_address.length, num);
   MD5_Update (&md5, num, sizeof(num));
   if (b->initiator_address.length)
     MD5_Update (&md5,
 		b->initiator_address.value,
 		b->initiator_address.length);
-  encode_om_uint32 (b->acceptor_addrtype, num);
+  gssapi_encode_om_uint32 (b->acceptor_addrtype, num);
   MD5_Update (&md5, num, sizeof(num));
-  encode_om_uint32 (b->acceptor_address.length, num);
+  gssapi_encode_om_uint32 (b->acceptor_address.length, num);
   MD5_Update (&md5, num, sizeof(num));
   if (b->acceptor_address.length)
     MD5_Update (&md5,
 		b->acceptor_address.value,
 		b->acceptor_address.length);
-  encode_om_uint32 (b->application_data.length, num);
+  gssapi_encode_om_uint32 (b->application_data.length, num);
   MD5_Update (&md5, num, sizeof(num));
   if (b->application_data.length)
     MD5_Update (&md5,
@@ -117,7 +134,7 @@ gssapi_krb5_create_8003_checksum (
     }
   
     p = result->checksum.data;
-    encode_om_uint32 (16, p);
+    gssapi_encode_om_uint32 (16, p);
     p += 4;
     if (input_chan_bindings == GSS_C_NO_CHANNEL_BINDINGS) {
 	memset (p, 0, 16);
@@ -125,7 +142,7 @@ gssapi_krb5_create_8003_checksum (
 	hash_input_chan_bindings (input_chan_bindings, p);
     }
     p += 16;
-    encode_om_uint32 (flags, p);
+    gssapi_encode_om_uint32 (flags, p);
     p += 4;
 
     if (fwd_data->length > 0 && (flags & GSS_C_DELEG_FLAG)) {
@@ -178,7 +195,7 @@ gssapi_krb5_verify_8003_checksum(
     }
     
     p = cksum->checksum.data;
-    decode_om_uint32(p, &length);
+    gssapi_decode_om_uint32(p, &length);
     if(length != sizeof(hash)) {
 	*minor_status = 0;
 	return GSS_S_BAD_BINDINGS;
@@ -200,7 +217,7 @@ gssapi_krb5_verify_8003_checksum(
     
     p += sizeof(hash);
     
-    decode_om_uint32(p, flags);
+    gssapi_decode_om_uint32(p, flags);
     p += 4;
 
     if (cksum->checksum.length > 24 && (*flags & GSS_C_DELEG_FLAG)) {

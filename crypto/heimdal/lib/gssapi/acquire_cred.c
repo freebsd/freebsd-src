@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: acquire_cred.c,v 1.13 2003/04/06 00:31:55 lha Exp $");
+RCSID("$Id: acquire_cred.c,v 1.13.2.1 2003/08/15 14:18:24 lha Exp $");
 
 static krb5_error_code
 get_keytab(krb5_keytab *keytab)
@@ -295,8 +295,14 @@ OM_uint32 gss_acquire_cred
 	return (ret);
     } 
     *minor_status = 0;
-    if (time_rec)
-	*time_rec = handle->lifetime;
+    if (time_rec) {
+	ret = gssapi_lifetime_left(minor_status,
+				   handle->lifetime,
+				   time_rec);
+
+	if (ret)
+	    return ret;
+    }
     handle->usage = cred_usage;
     *output_cred_handle = handle;
     return (GSS_S_COMPLETE);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: krb5.h,v 1.209 2003/03/16 18:30:02 lha Exp $ */
+/* $Id: krb5.h,v 1.209.2.1 2003/09/18 20:50:40 lha Exp $ */
 
 #ifndef __KRB5_H__
 #define __KRB5_H__
@@ -221,7 +221,8 @@ typedef enum krb5_keytype {
     KEYTYPE_DES3	= 7,
     KEYTYPE_AES128	= 17,
     KEYTYPE_AES256	= 18,
-    KEYTYPE_ARCFOUR	= 23
+    KEYTYPE_ARCFOUR	= 23,
+    KEYTYPE_ARCFOUR_56	= 24
 } krb5_keytype;
 
 typedef EncryptionKey krb5_keyblock;

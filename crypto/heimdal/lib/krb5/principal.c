@@ -41,7 +41,7 @@
 #include <fnmatch.h>
 #include "resolve.h"
 
-RCSID("$Id: principal.c,v 1.82 2002/10/21 15:30:53 joda Exp $");
+RCSID("$Id: principal.c,v 1.82.2.1 2003/08/15 14:30:07 lha Exp $");
 
 #define princ_num_comp(P) ((P)->name.name_string.len)
 #define princ_type(P) ((P)->name.name_type)
@@ -321,14 +321,17 @@ unparse_name(krb5_context context,
 	    len += 2*plen;
 	len++;
     }
+    len++;
     *name = malloc(len);
-    if(len != 0 && *name == NULL) {
+    if(*name == NULL) {
 	krb5_set_error_string (context, "malloc: out of memory");
 	return ENOMEM;
     }
     ret = unparse_name_fixed(context, principal, *name, len, short_flag);
-    if(ret)
+    if(ret) {
 	free(*name);
+	*name = NULL;
+    }
     return ret;
 }
 

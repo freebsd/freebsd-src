@@ -1,5 +1,18 @@
-2003-04-22  Love  <lha@stacken.kth.se>
+2004-01-15  Love  <lha@stacken.kth.se>
 
+	* roken-common.h: 1.52: use EAI_NONAME instead of EAI_ADDRFAMILY
+	  to check for if we need EAI_ macros
+	
+	* gai_strerror.c: 1.4: correct ifdef for EAI_ADDRFAMILY
+	1.3: EAI_ADDRFAMILY and EAI_NODATA is deprecated
+	
+2003-08-29  Love  <lha@stacken.kth.se>
+
+	* ndbm_wrap.c: 1.1->1.2: patch for working with DB4 on
+	heimdal-discuss From: Luke Howard <lukeh@PADL.COM>
+	
+2003-04-22  Love  <lha@stacken.kth.se>
+	
 	* resolve.c: 1.38->1.39: copy NUL too, from janj@wenf.org via
 	openbsd
 
