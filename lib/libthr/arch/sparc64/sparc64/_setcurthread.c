@@ -48,9 +48,12 @@ _retire_thread(void *v)
 }
 
 void *
-_set_curthread(struct pthread *thread)
+_set_curthread(ucontext_t *uc, struct pthread *thread)
 {
 
-	_curthread = thread;
+	if (uc != NULL)
+		uc->uc_mcontext.mc_global[6] = (uint64_t)thread;
+	else
+		_curthread = thread;
 	return (NULL);
 }

@@ -219,7 +219,7 @@ _thread_init(void)
 		PANIC("Cannot allocate memory for initial thread");
 	}
 	_thread_initial = pthread;
-	pthread->arch_id = _set_curthread(pthread);
+	pthread->arch_id = _set_curthread(NULL, pthread);
 
 	/* Zero the initial thread structure: */
 	memset(pthread, 0, sizeof(struct pthread));
