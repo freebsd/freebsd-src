@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 */
 static const char rcsid[] =
-	"$FreeBSD$";
+	"$Id: su.c,v 1.15 1997/01/13 06:39:19 davidn Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -101,7 +101,7 @@ main(argc, argv)
 	char *targetpass;
 	int iswheelsu;
 #endif /* WHEELSU */
-	char *p, **g, *user, *shell, *username, *cleanenv[20], **nargv, **np;
+	char *p, **g, *user, *shell=NULL, *username, *cleanenv[20], **nargv, **np;
 	struct group *gr;
 	uid_t ruid;
 	int asme, ch, asthem, fastlogin, prio, i;
@@ -341,13 +341,13 @@ main(argc, argv)
 
 #ifdef LOGIN_CAP
 	/* Set everything now except the environment & umask */
-	setwhat = LOGIN_SETALL & ~(LOGIN_SETPATH|LOGIN_SETUMASK|LOGIN_SETENV);
+	setwhat = LOGIN_SETUSER|LOGIN_SETGROUP|LOGIN_SETRESOURCES|LOGIN_SETPRIORITY;
 	/*
 	 * Don't touch resource/priority settings if -m has been
 	 * used or -l hasn't, and we're not su'ing to root.
 	 */
         if ((asme || !asthem) && pwd->pw_uid)
-		setwhat &= ~(LOGIN_SETPRIORITY|~LOGIN_SETRESOURCES);
+		setwhat &= ~(LOGIN_SETPRIORITY|LOGIN_SETRESOURCES);
 	if (setusercontext(lc, pwd, pwd->pw_uid, setwhat) < 0)
 		err(1, "setusercontext");
 #else
