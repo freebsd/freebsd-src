@@ -1760,7 +1760,7 @@ ffs_snapshot_mount(mp)
 	struct thread *td = curthread;
 	struct snapdata *sn;
 	struct vnode *vp;
-	struct inode *ip, *xp;
+	struct inode *ip;
 	struct uio auio;
 	struct iovec aiov;
 	void *snapblklist;
@@ -1817,23 +1817,20 @@ ffs_snapshot_mount(mp)
 		 * lock and give up our original private lock.
 		 */
 		VI_LOCK(devvp);
-		if ((xp = TAILQ_FIRST(&sn->sn_head)) != NULL) {
-			struct lock *lkp;
+		if (sn != NULL) {
 
-			lkp = ITOV(xp)->v_vnlock;
 			VI_UNLOCK(devvp);
 			VI_LOCK(vp);
-			vp->v_vnlock = lkp;
+			vp->v_vnlock = &sn->sn_lock;
 		} else {
-			struct lock *lkp;
-
 			VI_UNLOCK(devvp);
-			MALLOC(lkp, struct lock *, sizeof(struct lock),
-			    M_UFSMNT, M_WAITOK);
-			lockinit(lkp, PVFS, "snaplk", VLKTIMEOUT,
+			sn = malloc(sizeof *sn, M_UFSMNT, M_WAITOK | M_ZERO);
+			TAILQ_INIT(&sn->sn_head);
+			lockinit(&sn->sn_lock, PVFS, "snaplk", VLKTIMEOUT,
 			    LK_CANRECURSE | LK_NOPAUSE);
 			VI_LOCK(vp);
-			vp->v_vnlock = lkp;
+			vp->v_vnlock = &sn->sn_lock;
+			devvp->v_rdev->si_snapdata = sn;
 		}
 		vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY, td);
 		transferlockers(&vp->v_lock, vp->v_vnlock);
