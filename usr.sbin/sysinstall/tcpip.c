@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.79 1999/05/07 11:45:26 jkh Exp $
+ * $Id: tcpip.c,v 1.80 1999/07/16 11:13:09 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -172,9 +172,10 @@ tcpOpenDialog(Device *devp)
 	if (!variable_cmp(VAR_TRY_DHCP, "YES")) {
 	    Mkdir("/var/db");
 	    Mkdir("/var/run");
+	    Mkdir("/tmp");
 	    msgNotify("Scanning for DHCP servers...");
 	    vsystem("ifconfig %s inet 0.0.0.0 netmask 0.0.0.0 broadcast 255.255.255.255 up", devp->name);
-	    if (!vsystem("dhclient")) {
+	    if (!vsystem("dhclient %s", devp->name)) {
 		FILE *ifp;
 		char cmd[256];
 
