@@ -73,24 +73,20 @@ InterpretArg(const char *from, char *to)
     from++;
 
   if (*from == '~') {
+    struct passwd *pwd;
+
     ptr = strchr(++from, '/');
     len = ptr ? ptr - from : strlen(from);
     if (len == 0) {
-      if ((env = getenv("HOME")) == NULL)
-        env = _PATH_PPP;
-      strncpy(to, env, endto - to);
+      pwd = getpwuid(getuid());
     } else {
-      struct passwd *pwd;
-
       strncpy(to, from, len);
       to[len] = '\0';
       pwd = getpwnam(to);
-      if (pwd)
-        strncpy(to, pwd->pw_dir, endto-to);
-      else
-        strncpy(to, _PATH_PPP, endto - to);
-      endpwent();
     }
+    strncpy(to, pwd ? pwd->pw_dir : _PATH_PPP, endto - to);
+    endpwent();
+
     *endto = '\0';
     to += strlen(to);
     from += len;
