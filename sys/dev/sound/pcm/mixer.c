@@ -87,7 +87,9 @@ static struct cdevsw mixer_cdevsw = {
 	/* flags */	0,
 };
 
+#ifdef USING_DEVFS
 static eventhandler_tag mixer_ehtag;
+#endif
 
 static dev_t
 mixer_get_devt(device_t dev)
@@ -394,12 +396,17 @@ static int
 mixer_open(dev_t i_dev, int flags, int mode, struct proc *p)
 {
 	struct snd_mixer *m;
+	intrmask_t s;
 
+	s = spltty();
 	m = i_dev->si_drv1;
-	if (m->busy)
+	if (m->busy) {
+		splx(s);
 		return EBUSY;
+	}
 	m->busy = 1;
 
+	splx(s);
 	return 0;
 }
 
@@ -407,26 +414,33 @@ static int
 mixer_close(dev_t i_dev, int flags, int mode, struct proc *p)
 {
 	struct snd_mixer *m;
+	intrmask_t s;
 
+	s = spltty();
 	m = i_dev->si_drv1;
-	if (!m->busy)
+	if (!m->busy) {
+		splx(s);
 		return EBADF;
+	}
 	m->busy = 0;
 
+	splx(s);
 	return 0;
 }
 
 int
 mixer_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 {
+	struct snd_mixer *m;
+	intrmask_t s;
 	int ret, *arg_i = (int *)arg;
 	int v = -1, j = cmd & 0xff;
-	struct snd_mixer *m;
 
 	m = i_dev->si_drv1;
 	if (!m->busy)
 		return EBADF;
 
+	s = spltty();
 	snd_mtxlock(m->lock);
 	if ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0)) {
 		if (j == SOUND_MIXER_RECSRC)
@@ -434,6 +448,7 @@ mixer_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		else
 			ret = mixer_set(m, j, *arg_i);
 		snd_mtxunlock(m->lock);
+		splx(s);
 		return (ret == 0)? 0 : ENXIO;
 	}
 
@@ -461,9 +476,11 @@ mixer_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		return (v != -1)? 0 : ENXIO;
 	}
 	snd_mtxunlock(m->lock);
+	splx(s);
 	return ENXIO;
 }
 
+#ifdef USING_DEVFS
 static void
 mixer_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -493,5 +510,6 @@ mixer_sysuninit(void *p)
 
 SYSINIT(mixer_sysinit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, mixer_sysinit, NULL);
 SYSUNINIT(mixer_sysuninit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, mixer_sysuninit, NULL);
+#endif
 
 

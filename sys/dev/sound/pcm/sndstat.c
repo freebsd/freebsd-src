@@ -58,7 +58,11 @@ static int sndstat_isopen = 0;
 static int sndstat_bufptr;
 
 static int sndstat_verbose = 0;
+#ifdef	USING_MUTEX
 TUNABLE_INT("hw.snd.verbose", &sndstat_verbose);
+#else
+TUNABLE_INT_DECL("hw.snd.verbose", 0, sndstat_verbose);
+#endif
 
 static int sndstat_prepare(struct sbuf *s);
 
@@ -83,42 +87,60 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, verbose, CTLTYPE_INT | CTLFLAG_RW,
 static int
 sndstat_open(dev_t i_dev, int flags, int mode, struct proc *p)
 {
+	intrmask_t s;
 	int err;
 
-	if (sndstat_isopen)
+	s = spltty();
+	if (sndstat_isopen) {
+		splx(s);
 		return EBUSY;
-	if (sbuf_new(&sndstat_sbuf, NULL, 4096, 0) == NULL)
+	}
+	if (sbuf_new(&sndstat_sbuf, NULL, 4096, 0) == NULL) {
+		splx(s);
 		return ENXIO;
+	}
 	sndstat_bufptr = 0;
 	err = (sndstat_prepare(&sndstat_sbuf) > 0)? 0 : ENOMEM;
 	if (!err)
 		sndstat_isopen = 1;
 
+	splx(s);
 	return err;
 }
 
 static int
 sndstat_close(dev_t i_dev, int flags, int mode, struct proc *p)
 {
-	if (!sndstat_isopen)
+	intrmask_t s;
+
+	s = spltty();
+	if (!sndstat_isopen) {
+		splx(s);
 		return EBADF;
+	}
 	sbuf_delete(&sndstat_sbuf);
 	sndstat_isopen = 0;
 
+	splx(s);
 	return 0;
 }
 
 static int
 sndstat_read(dev_t i_dev, struct uio *buf, int flag)
 {
+	intrmask_t s;
 	int l, err;
 
-	if (!sndstat_isopen)
+	s = spltty();
+	if (!sndstat_isopen) {
+		splx(s);
 		return EBADF;
+	}
     	l = min(buf->uio_resid, sbuf_len(&sndstat_sbuf) - sndstat_bufptr);
 	err = (l > 0)? uiomove(sbuf_data(&sndstat_sbuf) + sndstat_bufptr, l, buf) : 0;
 	sndstat_bufptr += l;
 
+	splx(s);
 	return err;
 }
 
@@ -212,13 +234,19 @@ sndstat_init(void)
 static int
 sndstat_uninit(void)
 {
-	if (sndstat_isopen)
+	intrmask_t s;
+
+	s = spltty();
+	if (sndstat_isopen) {
+		splx(s);
 		return EBUSY;
+	}
 
 	if (sndstat_dev)
 		destroy_dev(sndstat_dev);
 	sndstat_dev = 0;
 
+	splx(s);
 	return 0;
 }
 
