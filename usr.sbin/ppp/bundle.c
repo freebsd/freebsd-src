@@ -708,10 +708,11 @@ bundle_Create(const char *prefix, int type, int unit)
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
       if (bundle.unit == minunit && !kldtried++) {
         /*
-	 * Attempt to load the tunnel interface KLD if it isn't loaded
-	 * already.
+         * Attempt to load the tunnel interface KLD if it isn't loaded
+         * already.
          */
-        loadmodules(LOAD_VERBOSLY, "if_tun", NULL);
+        if (loadmodules(LOAD_VERBOSLY, "if_tun", NULL))
+          bundle.unit--;
         continue;
       }
 #endif
