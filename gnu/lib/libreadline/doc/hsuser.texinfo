@@ -26,10 +26,18 @@ into another language, under the above conditions for modified versions.
 @node Using History Interactively
 @chapter Using History Interactively
 
+@ifset BashFeatures
+This chapter describes how to use the GNU History Library interactively,
+from a user's standpoint.  It should be considered a user's guide.  For
+information on using the GNU History Library in your own programs,
+see the GNU Readline Library Manual.
+@end ifset
+@ifclear BashFeatures
 This chapter describes how to use the GNU History Library interactively,
 from a user's standpoint.  It should be considered a user's guide.  For
 information on using the GNU History Library in your own programs,
 @pxref{Programming with GNU History}.
+@end ifclear
 
 @menu
 * History Interaction::		What it feels like using History as a user.

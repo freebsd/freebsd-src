@@ -1,14 +1,16 @@
-#       $Id: Makefile,v 1.1 1993/12/28 07:54:51 ache Exp $
+#       $Id: Makefile,v 1.3 1994/05/09 20:35:26 ache Exp $
 
 SHLIB_MAJOR=1
 SHLIB_MINOR=0
 
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/readline -DVOID_SIGHANDLER \
-	 -DHAVE_UNISTD_H -DSTATIC_MALLOC \
+	 -DHAVE_UNISTD_H -DHAVE_STRING_H -DHAVE_STDLIB_H \
 	 -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp
 
 LIB=    readline
-SRCS+=  readline.c history.c funmap.c keymaps.c
+SRCS+=  readline.c funmap.c keymaps.c vi_mode.c parens.c \
+	   rltty.c complete.c bind.c isearch.c display.c signals.c \
+	   history.c search.c tilde.c xmalloc.c
 NOMAN=	noman
 
 beforeinstall:
