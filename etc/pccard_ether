@@ -31,7 +31,7 @@ start_dhcp() {
 	elif [ -r /usr/local/sbin/dhcpc ]; then
 		/usr/local/sbin/dhcpc $interface
 	else
-		echo "DHCP client software not available (isc-dhcp2)"
+		echo 'DHCP client software not available (isc-dhcp2)'
 	fi
 }
 
