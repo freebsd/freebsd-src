@@ -300,28 +300,28 @@ umass_usb_transfer(usbd_interface_handle iface, usbd_pipe_handle pipe,
 
 	usbd_interface2device_handle(iface, &dev);
 
-	xfer = usbd_alloc_request(dev);
+	xfer = usbd_alloc_xfer(dev);
 	if (!xfer) {
 		DPRINTF(UDMASS_USB, ("Not enough memory\n"));
 		return USBD_NOMEM;
 	}
 
-	(void) usbd_setup_request(xfer, pipe, 0, buf, buflen,
-				flags, 3000 /*ms*/, NULL);
+	(void) usbd_setup_xfer(xfer, pipe, 0, buf, buflen,
+			       flags, 3000 /*ms*/, NULL);
 	err = usbd_sync_transfer(xfer);
 	if (err) {
 		DPRINTF(UDMASS_USB, ("transfer failed, %s\n",
 			usbd_errstr(err)));
-		usbd_free_request(xfer);
+		usbd_free_xfer(xfer);
 		return(err);
 	}
 
-	usbd_get_request_status(xfer, &priv, &buffer, &size, &err);
+	usbd_get_xfer_status(xfer, &priv, &buffer, &size, &err);
 
 	if (xfer_size)
 		*xfer_size = size;
 
-	usbd_free_request(xfer);
+	usbd_free_xfer(xfer);
 	return(USBD_NORMAL_COMPLETION);
 }
 
@@ -633,6 +633,10 @@ umass_cam_attach(umass_softc_t *sc)
 static void
 umass_cam_detach(umass_softc_t *sc)
 {
+	printf("%s: Woops! This will panic your system.\n"
+	       "Detachment of the drive is not supported currently.\n",
+	       USBDEVNAME(sc->sc_dev));
+
 	xpt_async(AC_LOST_DEVICE, sc->path, NULL);
 	xpt_free_path(sc->path);
 	xpt_bus_deregister(cam_sim_path(sc->sim));
