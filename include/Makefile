@@ -98,6 +98,11 @@ compat:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR}
+.if defined(WITH_BIND_LIBS) && !defined(NO_BIND)
+	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
+	    -f ${.CURDIR}/../etc/mtree/BIND.include.dist \
+	    -p ${DESTDIR}${INCLUDEDIR}
+.endif
 
 copies:
 .for i in ${LDIRS} ${LSUBDIRS} crypto machine machine/pc
