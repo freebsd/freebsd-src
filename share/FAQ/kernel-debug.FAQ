@@ -1,7 +1,7 @@
-                   Kernel debugging FAQ
-                       FreeBSD
+                         Kernel debugging FAQ
+                    for FreeBSD 1.1.5.1 and below
 
-Last modified: $Id: FreeBSD.kdebug.FAQ,v 1.1 1994/06/12 15:12:21 gclarkii Exp $
+Last modified: $Id: kernel-debug.FAQ,v 1.1 1994/09/11 10:56:06 jkh Exp $
 
 Here are some instructions for getting kernel debugging working on
 a crash dump, it assumes that you have enough swap space for a crash
