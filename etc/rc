@@ -116,6 +116,12 @@ esac
 
 swapon -a
 
+# Last chance to do things before potentially waiting for
+# operator to do fsck related tasks
+if [ -r /etc/rc.early ]; then
+	. /etc/rc.early
+fi
+
 case ${bootmode} in
 autoboot)
 	echo 'Automatic boot in progress...'
