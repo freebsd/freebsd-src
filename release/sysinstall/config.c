@@ -437,10 +437,8 @@ configResolv(void)
     if (!cp || !*cp)
 	goto skip;
     fp = fopen("/etc/resolv.conf", "w");
-    if (!fp) {
-	msgConfirm("Unable to open /etc/resolv.conf!  You will need to do this manually.");
+    if (!fp)
 	return;
-    }
     if (variable_get(VAR_DOMAINNAME))
 	fprintf(fp, "domain\t%s\n", variable_get(VAR_DOMAINNAME));
     fprintf(fp, "nameserver\t%s\n", cp);
