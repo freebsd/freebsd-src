@@ -142,7 +142,7 @@ static struct fe_filter const fe_filter_all     = { FE_FILTER_ALL };
 
 /* Standard driver entry points.  These can be static.  */
 static void		fe_init		(void *);
-static driver_intr_t	fe_intr;
+static inthand2_t	fe_intr;
 static int		fe_ioctl	(struct ifnet *, u_long, caddr_t);
 static void		fe_start	(struct ifnet *);
 static void		fe_watchdog	(struct ifnet *);
