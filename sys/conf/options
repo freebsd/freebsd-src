@@ -1,4 +1,4 @@
-#	$Id: options,v 1.14 1996/06/12 19:33:49 gpalmer Exp $
+#	$Id: options,v 1.15 1996/06/16 19:57:59 joerg Exp $
 
 # Option name	filename
 
@@ -71,3 +71,4 @@ OPEN_MAX	opt_rlimit.h
 MROUTING		opt_mrouting.h
 IPFIREWALL		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
+IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
