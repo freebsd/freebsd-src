@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.54 1996/08/01 20:29:28 wollman Exp $
+ *	$Id: cpufunc.h,v 1.55 1996/09/12 11:08:07 asami Exp $
  */
 
 /*
@@ -112,18 +112,25 @@ fls(int mask)
  * Use an expression-statement instead of a conditional expression
  * because gcc-2.6.0 would promote the operands of the conditional
  * and produce poor code for "if ((inb(var) & const1) == const2)".
+ *
+ * The unnecessary test `(port) < 0x10000' is to generate a warning if
+ * the `port' has type u_short or smaller.  Such types are pessimal.
+ * This actually only works for signed types.  The range check is
+ * careful to avoid generating warnings.
  */
-#define	inb(port)	({						\
+#define	inb(port) __extension__ ({					\
 	u_char	_data;							\
-	if (__builtin_constant_p((int) (port)) && (port) < 256ul)	\
+	if (__builtin_constant_p(port) && ((port) & 0xffff) < 0x100	\
+	    && (port) < 0x10000)					\
 		_data = inbc(port);					\
 	else								\
 		_data = inbv(port);					\
 	_data; })
 
-#define	outb(port, data) \
-	(__builtin_constant_p((int) (port)) && (port) < 256ul \
-	 ? outbc(port, data) : outbv(port, data))
+#define	outb(port, data) (						\
+	__builtin_constant_p(port) && ((port) & 0xffff) < 0x100		\
+	&& (port) < 0x10000						\
+	? outbc(port, data) : outbv(port, data))
 
 static __inline u_char
 inbc(u_int port)
