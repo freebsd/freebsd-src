@@ -41,7 +41,7 @@ static char copyright[] =
 #endif not lint
 
 #ifndef lint
-static char sccsid[] = "@(#)nfsd.c	8.7 (Berkeley) 2/22/94";
+static char sccsid[] = "@(#)nfsd.c	8.9 (Berkeley) 3/29/95";
 #endif not lint
 
 #include <sys/param.h>
@@ -67,7 +67,7 @@ static char sccsid[] = "@(#)nfsd.c	8.7 (Berkeley) 2/22/94";
 #include <nfs/nfs.h>
 
 #ifdef NFSKERB
-#include <des.h>
+#include <kerberosIV/des.h>
 #include <kerberosIV/krb.h>
 #endif
 
@@ -158,18 +158,18 @@ main(argc, argv, envp)
 	int tp4cnt, tp4flag, tp4sock, tpipcnt, tpipflag, tpipsock, udpflag;
 	char *cp, **cpp;
 #ifdef __FreeBSD__
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
+	int error;
 
-	vfc = getvfsbyname("nfs");
-	if(!vfc && vfsisloadable("nfs")) {
-		if(vfsload("nfs"))
+	error = getvfsbyname("nfs", &vfc);
+	if (error && vfsisloadable("nfs")) {
+		if (vfsload("nfs"))
 			err(1, "vfsload(nfs)");
 		endvfsent();	/* flush cache */
-		vfc = getvfsbyname("nfs"); /* probably unnecessary */
+		error = getvfsbyname("nfs", &vfc);
 	}
-	if(!vfc) {
+	if (error)
 		errx(1, "NFS is not available in the running kernel");
-	}
 #endif
 
 #ifdef OLD_SETPROCTITLE

@@ -41,7 +41,7 @@ static char copyright[] =
 #endif not lint
 
 #ifndef lint
-static char sccsid[] = "@(#)nfsiod.c	8.3 (Berkeley) 2/22/94";
+static char sccsid[] = "@(#)nfsiod.c	8.4 (Berkeley) 5/3/95";
 #endif not lint
 
 #include <sys/param.h>
@@ -86,19 +86,18 @@ main(argc, argv)
 	char *argv[];
 {
 	int ch, num_servers;
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
+	int error;
 
-	vfc = getvfsbyname("nfs");
-	if(!vfc && vfsisloadable("nfs")) {
-		if(vfsload("nfs"))
+	error = getvfsbyname("nfs", &vfc);
+	if (error && vfsisloadable("nfs")) {
+		if (vfsload("nfs"))
 			err(1, "vfsload(nfs)");
 		endvfsent();	/* flush cache */
-		vfc = getvfsbyname("nfs");
+		error = getvfsbyname("nfs", &vfc);
 	}
-
-	if(!vfc) {
+	if(error)
 		errx(1, "NFS support is not available in the running kernel");
-	}
 
 #define	MAXNFSDCNT      20
 #define	DEFNFSDCNT       1
