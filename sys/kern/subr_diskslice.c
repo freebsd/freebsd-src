@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.3 1995/01/31 04:33:41 phk Exp $
+ *	$Id: subr_diskslice.c,v 1.4 1995/02/16 15:19:00 bde Exp $
  */
 
 #include <sys/param.h>
@@ -62,8 +62,11 @@
 
 #define	FALSE	0
 #define	TRUE	1
+
 typedef	u_char	bool_t;
 
+static void adjust_label __P((struct disklabel *lp, u_long offset));
+static void dsiodone __P((struct buf *bp));
 static char *fixlabel __P((char *dname, int unit, int slice,
 			   struct diskslice *sp, struct disklabel *lp));
 static void partition_info __P((char *dname, int unit, int slice,
@@ -76,6 +79,20 @@ static void set_ds_label __P((struct diskslices *ssp, int slice,
 			      struct disklabel *lp));
 static void set_ds_wlabel __P((struct diskslices *ssp, int slice,
 			       int wlabel));
+
+static void
+adjust_label(lp, offset)
+	struct disklabel *lp;
+	u_long	offset;
+{
+	int	part;
+	struct partition *pp;
+
+	pp = &lp->d_partitions[0];
+	for (part = 0; part < lp->d_npartitions; part++, pp++)
+		if (pp->p_offset != 0 || pp->p_size != 0)
+			pp->p_offset += offset;
+}
 
 /*
  * Determine the size of the transfer, and make sure it is
@@ -162,11 +179,48 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 
 	/* calculate cylinder for disksort to order transfers with */
 	bp->b_pblkno = blkno + sp->ds_offset;
-
 	if (lp == NULL)
 		bp->b_cylinder = 0;	/* XXX always 0 would be better */
 	else
 		bp->b_cylinder = bp->b_pblkno / lp->d_secpercyl;
+
+	/*
+	 * Snoop on label accesses if the slice offset is nonzero.  Fudge
+	 * offsets in the label to keep the in-core label coherent with
+	 * the on-disk one.
+	 */
+	if (blkno <= LABELSECTOR + labelsect
+#if LABELSECTOR != 0
+	    && bp->b_blkno + sz > LABELSECTOR + labelsect
+#endif
+	    && sp->ds_offset != 0) {
+		struct iodone_chain *ic;
+
+		ic = malloc(sizeof *ic , M_DEVBUF, M_WAITOK);
+		ic->ic_prev_flags = bp->b_flags;
+		ic->ic_prev_iodone = bp->b_iodone;
+		ic->ic_prev_iodone_chain = bp->b_iodone_chain;
+		ic->ic_args[0].ia_long = (LABELSECTOR + labelsect - blkno)
+					 << DEV_BSHIFT;
+		ic->ic_args[1].ia_long = sp->ds_offset;
+		bp->b_flags |= B_CALL;
+		bp->b_iodone = dsiodone;
+		bp->b_iodone_chain = ic;
+		if (!(bp->b_flags & B_READ)) {
+			/*
+			 * XXX even disklabel(8) writes directly so we need
+			 * to adjust writes.  Perhaps we should drop support
+			 * for DIOCWLABEL (always write protect labels) and
+			 * require the use of DIOCWDINFO.
+			 *
+			 * XXX probably need to copy the data to avoid even
+			 * temporarily corrupting the in-core copy.
+			 */
+			adjust_label((struct disklabel *)
+				     (bp->b_data + ic->ic_args[0].ia_long),
+				     sp->ds_offset);
+		}
+	}
 	return (1);
 
 bad:
@@ -287,6 +341,9 @@ dsioctl(dev, cmd, data, flags, ssp, strat, setgeom)
 		error = setdisklabel(lp, (struct disklabel *)data,
 				     sp->ds_label != NULL
 				     ? sp->ds_openmask : (u_long)0);
+		/* XXX why doesn't setdisklabel() check this? */
+		if (error == 0 && lp->d_partitions[RAW_PART].p_offset != 0)
+			error = EINVAL;
 #if 0 /* XXX */
 		if (error != 0 && setgeom != NULL)
 			error = setgeom(lp);
@@ -311,7 +368,17 @@ dsioctl(dev, cmd, data, flags, ssp, strat, setgeom)
 		 */
 		old_wlabel = sp->ds_wlabel;
 		set_ds_wlabel(ssp, slice, TRUE);
-		error = correct_writedisklabel(dev, strat, sp->ds_label);
+		/*
+		 * XXX convert on-disk label offsets to absolute sectors for
+		 * backwards compatibility.
+		 */
+		lp = malloc(sizeof *lp, M_DEVBUF, M_WAITOK);
+		*lp = *sp->ds_label;
+		adjust_label(lp, sp->ds_offset);
+
+		error = correct_writedisklabel(dev, strat, lp);
+		/* XXX should restore old label if writedisklabel() failed. */
+		free(lp, M_DEVBUF);
 		set_ds_wlabel(ssp, slice, old_wlabel);
 		return (error);
 
@@ -326,6 +393,27 @@ dsioctl(dev, cmd, data, flags, ssp, strat, setgeom)
 	default:
 		return (-1);
 	}
+}
+
+static void
+dsiodone(bp)
+	struct buf *bp;
+{
+	struct iodone_chain *ic;
+	struct disklabel *lp;
+
+	ic = bp->b_iodone_chain;
+	bp->b_flags = (ic->ic_prev_flags & B_CALL)
+		      | (bp->b_flags & ~(B_CALL | B_DONE));
+	bp->b_iodone = ic->ic_prev_iodone;
+	bp->b_iodone_chain = ic->ic_prev_iodone_chain;
+	free(ic, M_DEVBUF);
+	lp = (struct disklabel *)(bp->b_data + ic->ic_args[0].ia_long);
+	if (!(bp->b_flags & B_READ))
+		adjust_label(lp, ic->ic_args[1].ia_long);
+	else if (!(bp->b_flags & B_ERROR) && bp->b_error == 0)
+		adjust_label(lp, -lp->d_partitions[RAW_PART].p_offset);
+	biodone(bp);
 }
 
 int
@@ -403,8 +491,11 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 		lp1 = malloc(sizeof *lp1, M_DEVBUF, M_WAITOK);
 		*lp1 = *lp;
 		lp = lp1;	
-		if (slice == WHOLE_DISK_SLICE)
-			goto set;
+		if (slice == WHOLE_DISK_SLICE) {
+			sp->ds_label = lp;
+			sp->ds_wlabel = TRUE;
+			goto out;
+		}
 		printf("readdisklabel\n");
 		msg = correct_readdisklabel(dkmodpart(dev, RAW_PART), strat, lp);
 #if 0 /* XXX */
@@ -446,9 +537,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 				return (EINVAL);  /* XXX needs translation */
 			}
 		}
-set:
 		set_ds_label(ssp, slice, lp);
-		set_ds_wlabel(ssp, slice, FALSE);
 	}
 	if (part != RAW_PART
 	    && (sp->ds_label == NULL || part >= sp->ds_label->d_npartitions))
@@ -476,7 +565,7 @@ fixlabel(dname, unit, slice, sp, lp)
 	struct disklabel *lp;
 {
 	bool_t	adjust;
-	int	bsdpart;
+	int	part;
 	struct partition *pp;
 	bool_t	warned;
 
@@ -511,7 +600,7 @@ fixlabel(dname, unit, slice, sp, lp)
 		warned = TRUE;
 	}
 	pp -= LABEL_PART;
-	for (bsdpart = 0; bsdpart < lp->d_npartitions; bsdpart++, pp++) {
+	for (part = 0; part < lp->d_npartitions; part++, pp++) {
 		if (adjust && (pp->p_offset != 0 || pp->p_size != 0))
 			pp->p_offset -= sp->ds_offset;
 		if (pp->p_offset + pp->p_size > sp->ds_size
@@ -525,7 +614,7 @@ fixlabel(dname, unit, slice, sp, lp)
 			}
 			if (adjust)
 				pp->p_offset += sp->ds_offset;
-			partition_info(dname, unit, slice, bsdpart, pp);
+			partition_info(dname, unit, slice, part, pp);
 			bzero(pp, sizeof *pp);
 		}
 	}
@@ -548,13 +637,6 @@ partition_info(dname, unit, slice, part, pp)
 	       pp->p_offset, pp->p_offset + pp->p_size - 1, pp->p_size);
 }
 
-/*
- * Most changes to ds_bad, ds_label and ds_wlabel are made using the
- * following functions to ensure coherency of the compatibility slice
- * with the first BSD slice.  The openmask fields are _not_ shared and
- * the other fields (ds_offset and ds_size) aren't changed after they
- * are initialized.
- */
 static void
 slice_info(dname, unit, slice, sp)
 	char	*dname;
@@ -567,6 +649,13 @@ slice_info(dname, unit, slice, sp)
 	       sp->ds_offset, sp->ds_offset + sp->ds_size - 1, sp->ds_size);
 }
 
+/*
+ * Most changes to ds_bad, ds_label and ds_wlabel are made using the
+ * following functions to ensure coherency of the compatibility slice
+ * with the first BSD slice.  The openmask fields are _not_ shared and
+ * the other fields (ds_offset and ds_size) aren't changed after they
+ * are initialized.
+ */
 static void
 set_ds_bad(ssp, slice, btp)
 	struct diskslices *ssp;
