@@ -64,8 +64,6 @@ SYSTEM_OBJS= locore.o exception.o vnode_if.o ${OBJS} hints.o env.o config.o hack
 
 %CLEAN
 
-.include "$S/conf/kern.post.mk"
-
 #lint: /tmp
 #	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} \
 #	  $S/$M/$M/Locore.c ${CFILES} | \
@@ -76,3 +74,5 @@ exception.o: $S/$M/$M/exception.s assym.s
 	${NORMAL_S}
 
 %RULES
+
+.include "$S/conf/kern.post.mk"

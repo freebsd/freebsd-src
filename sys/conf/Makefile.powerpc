@@ -53,6 +53,6 @@ COPTS+= -D__ELF__ -D__FreeBSD__ -msoft-float
 
 %CLEAN
 
-.include "$S/conf/kern.post.mk"
-
 %RULES
+
+.include "$S/conf/kern.post.mk"
