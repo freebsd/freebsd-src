@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.10 1995/09/15 20:06:50 ache Exp $
+ * $Id: startslip.c,v 1.11 1995/09/15 20:34:55 ache Exp $
  */
 
 #ifndef lint
@@ -120,7 +120,7 @@ main(argc, argv)
 	pid_t pid;
 	struct termios t;
 
-	while ((ch = getopt(argc, argv, "dhlWb:s:t:w:A:U:D:")) != EOF)
+	while ((ch = getopt(argc, argv, "dhlb:s:t:w:A:U:D:W:")) != EOF)
 		switch (ch) {
 		case 'd':
 			debug = 1;
