@@ -112,10 +112,15 @@ This prevents new
 printer jobs from being entered into the queue by
 .Xr lpr 1 .
 .Pp
+.It Ic down Bro Cm all | Ar printer ... Brc Cm -msg Ar message ...
 .It Ic down Bro Cm all | Ar printer Brc Ar message ...
 Turn the specified printer queue off, disable printing and put
 .Ar message
 in the printer status file.
+When specifying more than one printer queue, the
+.Ic -msg
+argument is required to separate the list of printers from the text
+that will be the new status message.
 The message doesn't need to be quoted, the
 remaining arguments are treated like
 .Xr echo 1 .
