@@ -3,11 +3,10 @@
 
 PROG=	rexecd
 MAN=	rexecd.8
-
-CFLAGS+=-DOPIE
+#WARNS?=	4
 WFORMAT=0
 
-DPADD=  ${LIBOPIE} ${LIBMD} ${LIBCRYPT} ${LIBUTIL}
-LDADD=	-lopie -lmd -lcrypt -lutil
+DPADD=  ${LIBPAM} ${LIBUTIL}
+LDADD=	${MINUSLPAM} -lutil
 
 .include <bsd.prog.mk>
