@@ -62,10 +62,9 @@ static const char rcsid[] =
     void
 ttloop()
 {
-    void netflush();
 
     DIAG(TD_REPORT, output_data("td: ttloop\r\n"));
-    if (nfrontp-nbackp) {
+    if (nfrontp - nbackp > 0) {
 	netflush();
     }
     ncc = read(net, netibuf, sizeof netibuf);
@@ -242,10 +241,13 @@ netflush()
     int n;
     extern int not42;
 
-    if ((n = nfrontp - nbackp) > 0) {
+    while ((n = nfrontp - nbackp) > 0) {
+#if 0
+	/* XXX This causes output_data() to recurse and die */
 	DIAG(TD_REPORT, {
 	    n += output_data("td: netflush %d chars\r\n", n);
 	});
+#endif
 	/*
 	 * if no urgent data, or if the other side appears to be an
 	 * old 4.2 client (and thus unable to survive TCP urgent data),
@@ -269,18 +271,19 @@ netflush()
 		n = send(net, nbackp, n, MSG_OOB);	/* URGENT data */
 	    }
 	}
-    }
-    if (n < 0) {
-	if (errno == EWOULDBLOCK || errno == EINTR)
-		return;
-	cleanup(0);
-    }
-    nbackp += n;
-    if (nbackp >= neturg) {
-	neturg = 0;
-    }
-    if (nbackp == nfrontp) {
-	nbackp = nfrontp = netobuf;
+	if (n == -1) {
+	    if (errno == EWOULDBLOCK || errno == EINTR)
+		continue;
+	    cleanup(0);
+	    /* NOTREACHED */
+	}
+	nbackp += n;
+	if (nbackp >= neturg) {
+	    neturg = 0;
+	}
+	if (nbackp == nfrontp) {
+	    nbackp = nfrontp = netobuf;
+	}
     }
     return;
 }  /* end of netflush */
