@@ -63,7 +63,8 @@ it is connection-oriented.
 .Pp
 If
 .Fa from
-is non-nil, and the socket is not connection-oriented,
+is not a null pointer
+and the socket is not connection-oriented,
 the source address of the message is filled in.
 The
 .Fa fromlen
@@ -82,7 +83,8 @@ socket (see
 .Xr connect 2 )
 and is identical to
 .Fn recvfrom
-with a nil
+with a
+null pointer passed as its
 .Fa from
 argument.
 As it is redundant, it may not be supported in future releases.
@@ -207,7 +209,9 @@ struct cmsghdr {
 .Ed
 As an example, one could use this to learn of changes in the data-stream
 in XNS/SPP, or in ISO, to obtain user-connection-request data by requesting
-a recvmsg with no data buffer provided immediately after an
+a
+.Fn recvmsg
+with no data buffer provided immediately after an
 .Fn accept
 system call.
 .Pp
@@ -287,6 +291,13 @@ and
 The argument
 .Fa s
 does not refer to a socket.
+.It Bq Er EMSGSIZE
+.Fn recvmsg
+was used to receive rights (file descriptors) that were in flight on the
+connection.  However, the receiving program did not have enough free file
+descriptor slots to accept the them.  In this case the descriptors are
+closed, any pending data can be returned by another call to
+.Fn recvmsg .
 .It Bq Er EAGAIN
 The socket is marked non-blocking, and the receive operation
 would block, or
