@@ -233,6 +233,7 @@ create last_module_option sizeof module.next allot 0 last_module_option !
 
 : 2>r postpone >r postpone >r ; immediate
 : 2r> postpone r> postpone r> ; immediate
+: 2r@ postpone 2r> postpone 2dup postpone 2>r ; immediate
 
 \ Private definitions
 
@@ -1299,14 +1300,13 @@ also builtins
 \   1. The "bootfile" environment variable
 \   2. The "kernel" environment variable
 \
-\ Flags are passed, if available. The parameter args must be 2
-\ if flags are being passed, or 1 if they should be ignored.
-\ Dummy flags and len must be passed in the latter case.
+\ Flags are passed, if available.
 \
 \ The kernel gets loaded from the current module_path.
 
-: load_a_kernel ( flags len args -- flag )
+: load_a_kernel ( flags len 1 | 0 -- flag )
   local args
+  args 0= if 0 0 then
   2local flags
   0 0 2local kernel
   end-locals
@@ -1314,7 +1314,7 @@ also builtins
   \ Check if a default kernel name exists at all, exits if not
   s" bootfile" getenv dup -1 <> if
     to kernel
-    flags kernel args try_multiple_kernels
+    flags kernel args 1+ try_multiple_kernels
     dup 0= if exit then
   then
   drop
@@ -1327,7 +1327,7 @@ also builtins
   then
 
   \ Try all default kernel names
-  flags kernel args try_multiple_kernels
+  flags kernel args 1+ try_multiple_kernels
 ;
 
 \ Try to load a kernel; the kernel name is taken from one of
@@ -1379,7 +1379,8 @@ also builtins
   modulepath setenv
 
   \ Try all default kernel names
-  flags args load_a_kernel
+  args 2 = if flags 1 else 0 then
+  load_a_kernel
   0= if ( success )
     oldmodulepath nip -1 <> if
       newmodulepath s" ;" strcat
@@ -1393,12 +1394,13 @@ also builtins
 
   \ Well, try without the prepended /boot/
   path newmodulepath drop swap move
-  path nip
+  newmodulepath drop path nip
   2dup to newmodulepath
   modulepath setenv
 
   \ Try all default kernel names
-  flags args load_a_kernel
+  args 2 = if flags 1 else 0 then
+  load_a_kernel
   if ( failed once more )
     oldmodulepath restoreenv
     newmodulepath drop free-memory
@@ -1454,32 +1456,30 @@ also builtins
 
 : load_kernel_and_modules ( flags len path len' 2 | path len' 1 -- flag )
   load_directory_or_file
-  0= if ['] load_modules catch then
+  ?dup 0= if ['] load_modules catch then
 ;
 
 : initialize  ( addr len -- )
   strdup conf_files .len ! conf_files .addr !
 ;
 
-: kernel_options ( -- addr len 2 | 0 0 1 )
+: kernel_options ( -- addr len 1 | 0 )
   s" kernel_options" getenv
-  dup -1 = if 0 0 1 else 2 then
+  dup -1 = if drop 0 else 1 then
 ;
 
-: kernel_and_options
+: kernel_and_options  ( a u 1 | 0 -- a u a' u' 2 | a' u' 1 )
   kernel_options
   s" kernel" getenv
-  rot
+  rot 1+
 ;
 
 : load_kernel  ( -- ) ( throws: abort )
   s" kernel" getenv
-  dup -1 = if
-    \ If unset, try any kernel
+  dup -1 = if ( there isn't a "kernel" environment variable, try bootfile )
     drop
     kernel_options load_a_kernel
-  else
-    \ If set, try first directory, next file name
+  else ( try finding a kernel using ${kernel} in various ways )
     kernel_options >r 2swap r> clip_args load_from_directory
     dup if
       drop
@@ -1488,7 +1488,131 @@ also builtins
   then
   abort" Unable to load a kernel!"
 ;
- 
+
+: set-defaultoptions  ( -- )
+  s" kernel_options" getenv dup -1 = if
+    drop
+  else
+    s" temp_options" setenv
+  then
+;
+
+: argv[]  ( aN uN ... a1 u1 N i -- aN uN ... a1 u1 N ai+1 ui+1 )
+  2dup = if 0 0 exit then
+  dup >r
+  1+ 2* ( skip N and ui )
+  pick
+  r>
+  1+ 2* ( skip N and ai )
+  pick
+;
+
+: drop-args  ( aN uN ... a1 u1 N -- )
+  0 ?do 2drop loop
+;
+
+: argc
+  dup
+;
+
+: queue-argv  ( aN uN ... a1 u1 N a u -- a u aN uN ... a1 u1 N+1 )
+  >r
+  over 2* 1+ -roll
+  r>
+  over 2* 1+ -roll
+  1+
+;
+
+: unqueue-argv  ( aN uN ... a1 u1 N -- aN uN ... a2 u2 N-1 a1 u1 )
+  1- -rot
+;
+
+: strlen(argv)
+  dup 0= if 0 exit then
+  0 >r	\ Size
+  0 >r	\ Index
+  begin
+    argc r@ <>
+  while
+    r@ argv[]
+    nip
+    r> r> rot + 1+
+    >r 1+ >r
+  repeat
+  r> drop
+  r>
+;
+
+: concat-argv  ( aN uN ... a1 u1 N -- a u )
+  strlen(argv) allocate if out_of_memory throw then
+  0 2>r
+
+  begin
+    argc
+  while
+    unqueue-argv
+    2r> 2swap
+    strcat
+    s"  " strcat
+    2>r
+  repeat
+  drop-args
+  2r>
+;
+
+: set-tempoptions  ( addrN lenN ... addr1 len1 N -- addr len 1 | 0 )
+  \ Save the first argument, if it exists and is not a flag
+  argc if
+    0 argv[] drop c@ [char] - <> if
+      unqueue-argv 2>r  \ Filename
+      1 >r		\ Filename present
+    else
+      0 >r		\ Filename not present
+    then
+  else
+    0 >r		\ Filename not present
+  then
+
+  \ If there are other arguments, assume they are flags
+  ?dup if
+    concat-argv
+    2dup s" temp_options" setenv
+    drop free if free_error throw then
+  else
+    set-defaultoptions
+  then
+
+  \ Bring back the filename, if one was provided
+  r> if 2r> 1 else 0 then
+;
+
+: get-arguments ( -- addrN lenN ... addr1 len1 N )
+  0
+  begin
+    \ Get next word on the command line
+    parse-word
+  ?dup while
+    queue-argv
+  repeat
+  drop ( empty string )
+;
+
+: load-conf  ( args -- flag )
+  set-tempoptions
+  argc >r
+  s" temp_options" getenv dup -1 <> if
+    queue-argv
+  else
+    drop
+  then
+  r> if ( a path was passed )
+    load_kernel_and_modules
+  else
+    load_a_kernel
+    ?dup 0= if ['] load_modules catch then
+  then
+;
+
 : read-password { size | buf len -- }
   size allocate if out_of_memory throw then
   to buf
