@@ -95,7 +95,7 @@ struct awi_softc
 	void			*sc_ih; /* interrupt handler */
 #endif
 #ifdef __FreeBSD__
-#if __FreeBSD__ >= 4
+#if __FreeBSD_version >= 40000
 	struct {
 		char	dv_xname[64];	/*XXX*/
 	}			sc_dev;
