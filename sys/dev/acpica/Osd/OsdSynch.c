@@ -37,35 +37,23 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
-#if __FreeBSD_version >= 500000
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
 
 #define _COMPONENT	ACPI_OS_SERVICES
 ACPI_MODULE_NAME("SYNCH")
 
 MALLOC_DEFINE(M_ACPISEM, "acpisem", "ACPI semaphore");
 
-#if __FreeBSD_version < 500000
-# define AS_LOCK(as)		s = splhigh()
-# define AS_UNLOCK(as)		splx(s)
-# define AS_LOCK_DECL		int s
-# define msleep(a, b, c, d, e)	tsleep(a, c, d, e)
-#else
-# define AS_LOCK(as)		mtx_lock(&(as)->as_mtx)
-# define AS_UNLOCK(as)		mtx_unlock(&(as)->as_mtx)
-# define AS_LOCK_DECL
-#endif
+#define AS_LOCK(as)	mtx_lock(&(as)->as_mtx)
+#define AS_UNLOCK(as)	mtx_unlock(&(as)->as_mtx)
 
 /*
  * Simple counting semaphore implemented using a mutex.  (Subsequently used
  * in the OSI code to implement a mutex.  Go figure.)
  */
 struct acpi_semaphore {
-#if __FreeBSD_version >= 500000
     struct mtx	as_mtx;
-#endif
     UINT32	as_units;
     UINT32	as_maxunits;
     UINT32	as_pendings;
@@ -101,9 +89,7 @@ AcpiOsCreateSemaphore(UINT32 MaxUnits, UINT32 InitialUnits,
     if ((as = malloc(sizeof(*as), M_ACPISEM, M_NOWAIT | M_ZERO)) == NULL)
 	return_ACPI_STATUS (AE_NO_MEMORY);
 
-#if __FreeBSD_version >= 500000
     mtx_init(&as->as_mtx, "ACPI semaphore", NULL, MTX_DEF);
-#endif
     as->as_units = InitialUnits;
     as->as_maxunits = MaxUnits;
     as->as_pendings = as->as_resetting = as->as_timeouts = 0;
@@ -129,9 +115,7 @@ AcpiOsDeleteSemaphore(ACPI_HANDLE Handle)
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "destroyed semaphore %p\n", as));
-#if __FreeBSD_version >= 500000
     mtx_destroy(&as->as_mtx);
-#endif
     free(Handle, M_ACPISEM);
 #endif /* !ACPI_NO_SEMAPHORES */
 
@@ -151,7 +135,6 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT16 Timeout)
     struct acpi_semaphore	*as = (struct acpi_semaphore *)Handle;
     int				rv, tmo;
     struct timeval		timeouttv, currenttv, timelefttv;
-    AS_LOCK_DECL;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -223,11 +206,9 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT16 Timeout)
 	    break;
 	}
 
-#if __FreeBSD_version >= 500000
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
 	    "semaphore blocked, calling msleep(%p, %p, %d, \"acsem\", %d)\n",
 	    as, &as->as_mtx, PCATCH, tmo));
-#endif
 
 	as->as_pendings++;
 
@@ -310,7 +291,6 @@ AcpiOsSignalSemaphore(ACPI_HANDLE Handle, UINT32 Units)
 {
 #ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore	*as = (struct acpi_semaphore *)Handle;
-    AS_LOCK_DECL;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
