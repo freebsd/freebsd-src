@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: util.c,v 1.13 1998/04/24 07:49:51 des Exp $";
+	"$Id: util.c,v 1.14 1998/04/24 12:43:26 des Exp $";
 #endif
 #endif /* not lint */
 
@@ -158,7 +158,7 @@ prn_octal(s)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: ls [-?ACFHLPRTWacdfgikloqrstu1]"
+	(void)fprintf(stderr, "usage: ls [-ACFHLPRTWacdfgikloqrstu1]"
 		      " [file ...]\n");
 	exit(1);
 }
