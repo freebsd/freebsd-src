@@ -139,6 +139,16 @@ do_system_command (command)
   else
     status = system (command);
 
+  /* check return value from system() function first */
+  if (status == -1) {
+    fprintf(stderr, 
+	    "wait() for exit status of shell failed in function system()\n");
+    return 0;
+  } else if (status == 127 || status == (127 << 8)) {
+    fprintf(stderr, "execution of the shell failed in function system()\n");
+    return 0;
+  }
+
   if (WIFSIGNALED(status))
     return -1;
   else if (WEXITSTATUS(status)) {
