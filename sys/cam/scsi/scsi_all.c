@@ -1950,6 +1950,7 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 #else /* !_KERNEL */
 		scsi_command_string(device, csio, sb);
 #endif /* _KERNEL/!_KERNEL */
+		sbuf_printf(sb, "\n");
 	}
 
 	/*
@@ -2068,9 +2069,9 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 				/* Bit pointer is valid */
 				if (sense->sense_key_spec[0] & 0x08)
 					snprintf(tmpstr2, sizeof(tmpstr2),
-						 "bit %d",
+						 "bit %d ",
 						sense->sense_key_spec[0] & 0x7);
-				sbuf_printf(sb, ": %s byte %d %s is invalid",
+				sbuf_printf(sb, ": %s byte %d %sis invalid",
 					    bad_command ? "Command" : "Data",
 					    scsi_2btoul(
 					    &sense->sense_key_spec[1]),
@@ -2447,12 +2448,24 @@ scsi_mode_sense(struct ccb_scsiio *csio, u_int32_t retries,
 		u_int8_t page, u_int8_t *param_buf, u_int32_t param_len,
 		u_int8_t sense_len, u_int32_t timeout)
 {
+	return(scsi_mode_sense_len(csio, retries, cbfcnp, tag_action, dbd,
+				   page_code, page, param_buf, param_len, 0,
+				   sense_len, timeout));
+}
+void
+scsi_mode_sense_len(struct ccb_scsiio *csio, u_int32_t retries,
+		    void (*cbfcnp)(struct cam_periph *, union ccb *),
+		    u_int8_t tag_action, int dbd, u_int8_t page_code,
+		    u_int8_t page, u_int8_t *param_buf, u_int32_t param_len,
+		    int minimum_cmd_size, u_int8_t sense_len, u_int32_t timeout)
+{
 	u_int8_t cdb_len;
 
 	/*
 	 * Use the smallest possible command to perform the operation.
 	 */
-	if (param_len < 256) {
+	if ((param_len < 256)
+	 && (minimum_cmd_size < 10)) {
 		/*
 		 * We can fit in a 6 byte cdb.
 		 */
@@ -2500,12 +2513,26 @@ scsi_mode_select(struct ccb_scsiio *csio, u_int32_t retries,
 		 u_int8_t *param_buf, u_int32_t param_len, u_int8_t sense_len,
 		 u_int32_t timeout)
 {
+	return(scsi_mode_select_len(csio, retries, cbfcnp, tag_action,
+				    scsi_page_fmt, save_pages, param_buf,
+				    param_len, 0, sense_len, timeout));
+}
+
+void
+scsi_mode_select_len(struct ccb_scsiio *csio, u_int32_t retries,
+		     void (*cbfcnp)(struct cam_periph *, union ccb *),
+		     u_int8_t tag_action, int scsi_page_fmt, int save_pages,
+		     u_int8_t *param_buf, u_int32_t param_len,
+		     int minimum_cmd_size, u_int8_t sense_len,
+		     u_int32_t timeout)
+{
 	u_int8_t cdb_len;
 
 	/*
 	 * Use the smallest possible command to perform the operation.
 	 */
-	if (param_len < 256) {
+	if ((param_len < 256)
+	 && (minimum_cmd_size < 10)) {
 		/*
 		 * We can fit in a 6 byte cdb.
 		 */

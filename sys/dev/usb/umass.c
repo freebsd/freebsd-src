@@ -2846,22 +2846,6 @@ umass_scsi_6_to_10(unsigned char *cmd, int cmdlen, unsigned char **rcmd,
 	 * | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
 	 * -----------------------------------------
 	 *  OP |B2 |    ADDRESS    |RSV|  LEN  |CTRL
-	 *
-	 * For mode sense/select, the format is:
-	 *
-	 * 6 byte:
-	 * -------------------------
-	 * | 0 | 1 | 2 | 3 | 4 | 5 |
-	 * -------------------------
-	 *  OP |B2 |PAG|UNU|LEN|CTRL
-	 *
-	 * 10 byte:
-	 * -----------------------------------------
-	 * | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
-	 * -----------------------------------------
-	 *  OP |B2 |PAG|     UNUSED    |  LEN  |CTRL
-	 *
-	 * with the exception that mode select does not have a page field.
 	 */
 	switch (cmd[0]) {
 	case READ_6:
@@ -2869,12 +2853,6 @@ umass_scsi_6_to_10(unsigned char *cmd, int cmdlen, unsigned char **rcmd,
 		break;
 	case WRITE_6:
 		(*rcmd)[0] = WRITE_10;
-		break;
-	case MODE_SENSE_6:
-		(*rcmd)[0] = MODE_SENSE_10;
-		break;
-	case MODE_SELECT_6:
-		(*rcmd)[0] = MODE_SELECT_6;
 		break;
 	default:
 		return (0);
@@ -2884,11 +2862,6 @@ umass_scsi_6_to_10(unsigned char *cmd, int cmdlen, unsigned char **rcmd,
 	case READ_6:
 	case WRITE_6:
 		memcpy(&(*rcmd)[3], &cmd[1], 3);
-		break;
-	case MODE_SENSE_6:
-		(*rcmd)[2] = cmd[2];
-	case MODE_SELECT_6:
-		(*rcmd)[1] = cmd[1];
 		break;
 	}
 	(*rcmd)[8] = cmd[4];

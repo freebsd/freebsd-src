@@ -128,6 +128,8 @@ struct da_softc {
 	struct	 disk disk;
 	union	 ccb saved_ccb;
 	dev_t    dev;
+	struct sysctl_ctx_list	sysctl_ctx;
+	struct sysctl_oid	*sysctl_tree;
 };
 
 struct da_quirk_entry {
@@ -479,16 +481,15 @@ static void		dashutdown(void *arg, int howto);
 
 static int da_retry_count = DA_DEFAULT_RETRY;
 static int da_default_timeout = DA_DEFAULT_TIMEOUT;
-static int da_no_6_byte = 0;
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, da, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
 SYSCTL_INT(_kern_cam_da, OID_AUTO, retry_count, CTLFLAG_RW,
            &da_retry_count, 0, "Normal I/O retry count");
+TUNABLE_INT("kern.cam.da.retry_count", &da_retry_count);
 SYSCTL_INT(_kern_cam_da, OID_AUTO, default_timeout, CTLFLAG_RW,
            &da_default_timeout, 0, "Normal I/O timeout (in seconds)");
-SYSCTL_INT(_kern_cam_da, OID_AUTO, no_6_byte, CTLFLAG_RW,
-           &da_no_6_byte, 0, "No 6 bytes commands");
+TUNABLE_INT("kern.cam.da.default_timeout", &da_default_timeout);
 
 /*
  * DA_ORDEREDTAG_INTERVAL determines how often, relative
@@ -1075,6 +1076,38 @@ daasync(void *callback_arg, u_int32_t code,
 	}
 }
 
+static int
+dacmdsizesysctl(SYSCTL_HANDLER_ARGS)
+{
+	int error, value;
+
+	value = *(int *)arg1;
+
+	error = sysctl_handle_int(oidp, &value, 0, req);
+
+	if ((error != 0)
+	 || (req->newptr == NULL))
+		return (error);
+
+	/*
+	 * Acceptable values here are 6, 10 or 12.  It's possible we may
+	 * support a 16 byte minimum command size in the future, since
+	 * there are now READ(16) and WRITE(16) commands defined in the
+	 * SBC-2 spec.
+	 */
+	if (value < 6)
+		value = 6;
+	else if ((value > 6)
+	      && (value <= 10))
+		value = 10;
+	else if (value > 10)
+		value = 12;
+
+	*(int *)arg1 = value;
+
+	return (0);
+}
+
 static cam_status
 daregister(struct cam_periph *periph, void *arg)
 {
@@ -1082,6 +1115,7 @@ daregister(struct cam_periph *periph, void *arg)
 	struct da_softc *softc;
 	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;
+	char tmpstr[80], tmpstr2[80];
 	caddr_t match;
 
 	cgd = (struct ccb_getdev *)arg;
@@ -1127,10 +1161,51 @@ daregister(struct cam_periph *periph, void *arg)
 	else
 		softc->quirks = DA_Q_NONE;
 
+	snprintf(tmpstr, sizeof(tmpstr), "CAM DA unit %d", periph->unit_number);
+	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
+	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
+		SYSCTL_STATIC_CHILDREN(_kern_cam_da), OID_AUTO, tmpstr2,
+		CTLFLAG_RD, 0, tmpstr);
+	if (softc->sysctl_tree == NULL) {
+		printf("daregister: unable to allocate sysctl tree\n");
+		free(softc, M_DEVBUF);
+		return (CAM_REQ_CMP_ERR);
+	}
+
+	/*
+	 * RBC devices don't have to support READ(6), only READ(10).
+	 */
 	if (softc->quirks & DA_Q_NO_6_BYTE || SID_TYPE(&cgd->inq_data) == T_RBC)
 		softc->minimum_cmd_size = 10;
 	else
 		softc->minimum_cmd_size = 6;
+
+	/*
+	 * Load the user's default, if any.
+	 */
+	snprintf(tmpstr, sizeof(tmpstr), "kern.cam.da.%d.minimum_cmd_size",
+		 periph->unit_number);
+	TUNABLE_INT_FETCH(tmpstr, &softc->minimum_cmd_size);
+
+	/*
+	 * 6, 10 and 12 are the currently permissible values.
+	 */
+	if (softc->minimum_cmd_size < 6)
+		softc->minimum_cmd_size = 6;
+	else if ((softc->minimum_cmd_size > 6)
+	      && (softc->minimum_cmd_size <= 10))
+		softc->minimum_cmd_size = 10;
+	else if (softc->minimum_cmd_size > 12)
+		softc->minimum_cmd_size = 12;
+
+	/*
+	 * Now register the sysctl handler, so the user can the value on
+	 * the fly.
+	 */
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx,SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
+		&softc->minimum_cmd_size, 0, dacmdsizesysctl, "I",
+		"Minimum CDB size");
 
 	/*
 	 * Block our timeout handler while we
@@ -1233,8 +1308,6 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 			} else {
 				tag_code = MSG_SIMPLE_Q_TAG;
 			}
-			if (da_no_6_byte && softc->minimum_cmd_size == 6)
-				softc->minimum_cmd_size = 10;
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/da_retry_count,
 					dadone,
@@ -1616,7 +1689,7 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
 	struct da_softc	  *softc;
 	struct cam_periph *periph;
-	int error, sense_key, error_code, asc, ascq;
+	int error;
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct da_softc *)periph->softc;
@@ -1626,8 +1699,16 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
  	 * READ(6)/WRITE(6) and upgrade to using 10 byte cdbs.
  	 */
 	error = 0;
-	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR
-	  && ccb->csio.scsi_status == SCSI_STATUS_CHECK_COND) {
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INVALID) {
+		error = cmd6workaround(ccb);
+	} else if (((ccb->ccb_h.status & CAM_STATUS_MASK) ==
+		   CAM_SCSI_STATUS_ERROR)
+	 && (ccb->ccb_h.status & CAM_AUTOSNS_VALID)
+	 && (ccb->csio.scsi_status == SCSI_STATUS_CHECK_COND)
+	 && ((ccb->ccb_h.flags & CAM_SENSE_PHYS) == 0)
+	 && ((ccb->ccb_h.flags & CAM_SENSE_PTR) == 0)) {
+		int sense_key, error_code, asc, ascq;
+
  		scsi_extract_sense(&ccb->csio.sense_data,
 				   &error_code, &sense_key, &asc, &ascq);
 		if (sense_key == SSD_KEY_ILLEGAL_REQUEST)
