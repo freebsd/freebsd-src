@@ -266,7 +266,7 @@ int use_yp (user, uid, which)
 	char bf[UT_NAMESIZE + 2];
 	char *result;
 	char *server;
-	int resultlen;
+	long resultlen;
 	char ubuf[UT_NAMESIZE + 2];
 
 	if (which) {
