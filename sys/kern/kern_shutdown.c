@@ -107,14 +107,12 @@ watchdog_tickle_fn wdog_tickler = NULL;
  */
 const char *panicstr;
 
-static void boot __P((int)) __dead2;
-static void dumpsys __P((void));
-static int setdumpdev __P((dev_t dev));
-static void poweroff_wait __P((void *, int));
-static void print_uptime __P((void));
-static void shutdown_halt __P((void *junk, int howto));
-static void shutdown_panic __P((void *junk, int howto));
-static void shutdown_reset __P((void *junk, int howto));
+static void boot(int) __dead2;
+static void dumpsys(void);
+static void poweroff_wait(void *, int);
+static void shutdown_halt(void *junk, int howto);
+static void shutdown_panic(void *junk, int howto);
+static void shutdown_reset(void *junk, int howto);
 
 /* register various local shutdown events */
 static void 
@@ -134,9 +132,7 @@ SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL)
  * The system call that results in a reboot
  */
 int
-reboot(p, uap)
-	struct proc *p;
-	struct reboot_args *uap;
+reboot(struct proc *p, struct reboot_args *uap)
 {
 	int error;
 
@@ -170,7 +166,7 @@ static int	waittime = -1;
 static struct pcb dumppcb;
 
 static void
-print_uptime()
+print_uptime(void)
 {
 	int f;
 	struct timespec ts;
@@ -202,17 +198,15 @@ print_uptime()
  * anything machine dependant in it.
  */
 static void
-boot(howto)
-	int howto;
+boot(int howto)
 {
 
 	/* collect extra flags that shutdown_nice might have set */
 	howto |= shutdown_howto;
 
 #ifdef SMP
-	if (smp_active) {
+	if (smp_active)
 		printf("boot() called on cpu#%d\n", cpuid);
-	}
 #endif
 	/*
 	 * Do any callouts that should be done BEFORE syncing the filesystems.
@@ -397,8 +391,7 @@ SYSCTL_INT(_machdep, OID_AUTO, do_dump, CTLFLAG_RW, &dodump, 0,
     "Try to perform coredump on kernel panic");
 
 static int
-setdumpdev(dev)
-	dev_t dev;
+setdumpdev(dev_t dev)
 {
 	int psize;
 	long newdumplo;
@@ -427,10 +420,8 @@ setdumpdev(dev)
 
 
 /* ARGSUSED */
-static void dump_conf __P((void *dummy));
 static void
-dump_conf(dummy)
-	void *dummy;
+dump_conf(void *dummy)
 {
 	if (setdumpdev(dumpdev) != 0)
 		dumpdev = NODEV;
