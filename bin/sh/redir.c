@@ -43,6 +43,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <signal.h>
 #include <string.h>
 #include <fcntl.h>
@@ -62,6 +63,7 @@ static const char rcsid[] =
 #include "output.h"
 #include "memalloc.h"
 #include "error.h"
+#include "options.h"
 
 
 #define EMPTY -2		/* marks an unused slot in redirtab */
@@ -161,6 +163,7 @@ again:
 STATIC void
 openredirect(union node *redir, char memory[10])
 {
+	struct stat sb;
 	int fd = redir->nfile.fd;
 	char *fname;
 	int f;
@@ -207,6 +210,9 @@ movefd:
 		goto movefd;
 	case NTO:
 		fname = redir->nfile.expfname;
+		if (Cflag && stat(fname, &sb) != -1 && S_ISREG(sb.st_mode))
+			error("cannot create %s: %s", fname,
+			    errmsg(EEXIST, E_CREAT));
 #ifdef O_CREAT
 		if ((f = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0)
 			error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
@@ -214,6 +220,11 @@ movefd:
 		if ((f = creat(fname, 0666)) < 0)
 			error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
 #endif
+		goto movefd;
+	case NCLOBBER:
+		fname = redir->nfile.expfname;
+		if ((f = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0)
+			error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
 		goto movefd;
 	case NAPPEND:
 		fname = redir->nfile.expfname;
