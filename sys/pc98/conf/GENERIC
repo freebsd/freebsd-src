@@ -175,7 +175,7 @@ device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
 device		miibus		# MII bus support
-device		bfe		# Broadcom BCM440x 10/100 ethernet
+device		bfe		# Broadcom BCM440x 10/100 Ethernet
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
@@ -184,9 +184,9 @@ device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
-device		sk		# SysKonnect SK-984x & SK-982x gigabit ethernet
+device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
-device		ti		# Alteon Networks Tigon I/II gigabit ethernet
+device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 device		tl		# Texas Instruments ThunderLAN
 device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vr		# VIA Rhine, Rhine II
@@ -199,9 +199,9 @@ device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
 device		ep		# Etherlink III based cards
 device		fe		# Fujitsu MB8696x based cards
 device		lnc		# C-NET(98)S
-device		sn		# SMC's 9000 series of ethernet chips
+device		sn		# SMC's 9000 series of Ethernet chips
 device		snc
-device		xe		# Xircom pccard ethernet
+device		xe		# Xircom pccard Ethernet
 
 # Wireless NIC cards
 device		wlan		# 802.11 support
@@ -240,11 +240,11 @@ device		bpf		# Berkeley packet filter
 #device		urio		# Diamond Rio 500 MP3 player
 #device		uscanner	# Scanners
 # USB Ethernet, requires mii
-#device		aue		# ADMtek USB ethernet
-#device		axe		# ASIX Electronics USB ethernet
-#device		cue		# CATC USB ethernet
-#device		kue		# Kawasaki LSI USB ethernet
-#device		rue		# RealTek RTL8150 USB ethernet
+#device		aue		# ADMtek USB Ethernet
+#device		axe		# ASIX Electronics USB Ethernet
+#device		cue		# CATC USB Ethernet
+#device		kue		# Kawasaki LSI USB Ethernet
+#device		rue		# RealTek RTL8150 USB Ethernet
 
 # FireWire support
 #device		firewire	# FireWire bus code
