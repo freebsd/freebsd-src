@@ -87,6 +87,7 @@ extern int		bi_load(struct bootinfo *, struct preloaded_file *);
 #define SSC_WRITE			53
 #define SSC_GET_COMPLETION		54
 #define SSC_WAIT_COMPLETION		55
+#define SSC_GET_RTC			65
 #define SSC_EXIT			66
 #define SSC_LOAD_SYMBOLS		69
 
