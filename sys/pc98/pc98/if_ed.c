@@ -60,7 +60,10 @@
  */
 
 #include "ed.h"
+#if 0
+/* XXX */
 #include "pnp.h"
+#endif
 
 #ifndef EXTRA_ED
 # if NPNP > 0
@@ -97,10 +100,10 @@
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
-#include <i386/isa/if_edreg.h>
+#include <dev/ed/if_edreg.h>
 
 #if NPNP > 0
-#include <i386/isa/pnp.h>
+#include <isa/pnpvar.h>
 #endif
 
 #ifdef PC98
