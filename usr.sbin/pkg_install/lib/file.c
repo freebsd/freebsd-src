@@ -176,7 +176,8 @@ fileGetURL(const char *base, const char *spec)
 		*(cp + 1) = '\0';
 		strcat(cp, "All/");
 		strcat(cp, spec);
-		strcat(cp, ".tgz");
+		/* XXX: need to handle .tgz also */
+		strcat(cp, ".tbz");
 	    }
 	    else
 		return NULL;
@@ -188,7 +189,8 @@ fileGetURL(const char *base, const char *spec)
 	     */
 	    strcpy(fname, hint);
 	    strcat(fname, spec);
-            strcat(fname, ".tgz");
+	    /* XXX: need to handle .tgz also */
+            strcat(fname, ".tbz");
 	}
     }
     else
@@ -222,7 +224,8 @@ fileGetURL(const char *base, const char *spec)
 	dup2(pfd[0], 0);
 	for (fd = getdtablesize() - 1; fd >= 3; --fd)
 	    close(fd);
-	execl("/usr/bin/tar", "tar", Verbose ? "-xzpvf" : "-xzpf", "-",
+	/* XXX: need to handle .tgz also */
+	execl("/usr/bin/tar", "tar", Verbose ? "-xjvf" : "-xzf", "-",
 	    (char *)0);
 	_exit(2);
     }
@@ -252,7 +255,7 @@ fileFindByPath(const char *base, const char *fname)
 {
     static char tmp[FILENAME_MAX];
     char *cp;
-    const char *suffixes[] = {".tgz", ".tar", ".tbz", NULL};
+    const char *suffixes[] = {".tbz", ".tgz", ".tar", NULL};
     int i;
 
     if (fexists(fname) && isfile(fname)) {
@@ -457,7 +460,7 @@ unpack(const char *pkg, const char *flist)
 	    strcpy(suff, cp + 1);
 	    if (strchr(suff, 'z') || strchr(suff, 'Z')) {
 		if (strchr(suff, 'b'))
-		    strcpy(args, "-y");
+		    strcpy(args, "-j");
 		else
 		    strcpy(args, "-z");
 	    }
