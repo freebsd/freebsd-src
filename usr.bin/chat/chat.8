@@ -1,6 +1,6 @@
 .\" -*- nroff -*-
 .\" manual page [] for chat 1.8
-.\" $Id: chat.8,v 1.2 1995/06/12 11:24:14 paulus Exp $
+.\" $Id: chat.8,v 1.5 1997/07/14 03:49:41 paulus Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -43,10 +43,26 @@ Set the file for output of the report strings. If you use the keyword
 option is not used and you still use \fIREPORT\fR keywords, the
 \fIstderr\fR file is used for the report strings.
 .TP
+.B -e
+Start with the echo option turned on. Echoing may also be turned on
+or off at specific points in the chat script by using the \fIECHO\fR
+keyword. When echoing is enabled, all output from the modem is echoed
+to \fIstderr\fR.
+.TP
 .B -v
 Request that the \fIchat\fR script be executed in a verbose mode. The
 \fIchat\fR program will then log all text received from the modem and
 the output strings which it sends to the SYSLOG.
+.TP
+.B -V
+Request that the \fIchat\fR script be executed in a stderr verbose
+mode. The \fIchat\fR program will then log all text received from the
+modem and the output strings which it sends to the stderr device. This
+device is usually the local console at the station running the chat or
+pppd program. This option will not work properly if the stderr is
+redirected to the /dev/null location as is the case should pppd be run
+in the 'detached' mode. In that case, use the '-v' option to record
+the session on the SYSLOG device.
 .TP
 .B script
 If the script is not specified in a file with the \fI-f\fR option then
@@ -98,13 +114,27 @@ In actual practice, simple scripts are rare. At the vary least, you
 should include sub-expect sequences should the original string not be
 received. For example, consider the following script:
 .IP
-ogin:--ogin: ppp ssowrd: hello2u2
+ogin:--ogin: ppp ssword: hello2u2
 .LP
 This would be a better script than the simple one used earlier. This would look
 for the same login: prompt, however, if one was not received, a single
 return sequence is sent and then it will look for login: again. Should line
 noise obscure the first login prompt then sending the empty line will
 usually generate a login prompt again.
+.SH COMMENTS
+Comments can be embedded in the chat script. A comment is a line which
+starts with the \fB#\fR (hash) character in column 1. Such comment
+lines are just ignored by the chat program. If a '#' character is to
+be expected as the first character of the expect sequence, you should
+quote the expect string.
+If you want to wait for a prompt that starts with a # (hash)
+character, you would have to write something like this:
+.IP
+# Now wait for the prompt and send logout string
+.br
+\'# ' logout
+.LP
+
 .SH ABORT STRINGS
 Many modems will report the status of the call as a string. These
 strings may be \fBCONNECTED\fR or \fBNO CARRIER\fR or \fBBUSY\fR. It
@@ -128,6 +158,60 @@ character sequence. The script will then fail because it found a match to
 the abort string. If it received the string \fINO CARRIER\fR, it will abort
 for the same reason. Either string may be received. Either string will
 terminate the \fIchat\fR script.
+.SH CLR_ABORT STRINGS
+This sequence allows for clearing previously set \fBABORT\fR strings.
+\fBABORT\fR strings are kept in an array of a pre-determined size (at
+compilation time); \fBCLR_ABORT\fR will reclaim the space for cleared
+entries so that new strings can use that space.
+.SH SAY STRINGS
+The \fBSAY\fR directive allows the script to send strings to the user
+at the terminal via standard error.  If \fBchat\fR is being run by
+pppd, and pppd is running as a daemon (detached from its controlling
+terminal), standard error will normally be redirected to the file
+/etc/ppp/connect-errors.
+.LP
+\fBSAY\fR strings must be enclosed in single or double quotes. If
+carriage return and line feed are needed in the string to be output,
+you must explicitely add them to your string.
+.LP
+The SAY strings could be used to give progress messages in sections of
+the script where you want to have 'ECHO OFF' but still let the user
+know what is happening.  An example is:
+.IP
+ABORT BUSY 
+.br
+ECHO OFF 
+.br
+SAY "Dialling your ISP...\\n" 
+.br
+\'' ATDT5551212 
+.br
+TIMEOUT 120
+.br
+SAY "Waiting up to 2 minutes for connection ... "
+.br
+CONNECT '' 
+.br
+SAY "Connected, now logging in ...\n"
+.br
+ogin: account
+.br
+ssword: pass
+.br
+$ \c
+SAY "Logged in OK ...\n"
+\fIetc ...\fR
+.LP
+This sequence will only present the SAY strings to the user and all
+the details of the script will remain hidden. For example, if the
+above script works, the user will see:
+.IP
+Dialling your ISP...
+.br
+Waiting up to 2 minutes for connection ... Connected, now logging in ...
+.br
+Logged in OK ...
+.LP
 
 .SH REPORT STRINGS
 A \fBreport\fR string is similar to the ABORT string. The difference
@@ -154,6 +238,82 @@ ATDT5551212 to dial the telephone. The expected string is
 of the script is executed. In addition the program will write to the
 expect-file the string "CONNECT" plus any characters which follow it
 such as the connection rate.
+.SH CLR_REPORT STRINGS
+This sequence allows for clearing previously set \fBREPORT\fR strings.
+\fBREPORT\fR strings are kept in an array of a pre-determined size (at
+compilation time); \fBCLR_REPORT\fR will reclaim the space for cleared
+entries so that new strings can use that space.
+.SH ECHO
+The echo options controls whether the output from the modem is echoed
+to \fIstderr\fR. This option may be set with the \fI-e\fR option, but
+it can also be controlled by the \fIECHO\fR keyword. The "expect-send"
+pair \fIECHO\fR \fION\fR enables echoing, and \fIECHO\fR \fIOFF\fR
+disables it. With this keyword you can select which parts of the
+conversation should be visible. For instance, with the following
+script:
+.IP
+ABORT   'BUSY'
+.br
+ABORT   'NO CARRIER'
+.br
+''      ATZ
+.br
+OK\\r\\n  ATD1234567
+.br
+\\r\\n    \\c
+.br
+ECHO    ON
+.br
+CONNECT \\c
+.br
+ogin:   account
+.LP
+all output resulting from modem configuration and dialing is not visible,
+but starting with the \fICONNECT\fR (or \fIBUSY\fR) message, everything
+will be echoed.
+.SH HANGUP
+The HANGUP options control whether a modem hangup should be considered
+as an error or not.  This option is useful in scripts for dialling
+systems which will hang up and call your system back.  The HANGUP
+options can be \fBON\fR or \fBOFF\fR.
+.br
+When HANGUP is set OFF and the modem hangs up (e.g., after the first
+stage of logging in to a callback system), \fBchat\fR will continue
+running the script (e.g., waiting for the incoming call and second
+stage login prompt). As soon as the incoming call is connected, you
+should use the \fBHANGUP ON\fR directive to reinstall normal hang up
+signal behavior.  Here is an (simple) example script:
+.IP
+ABORT   'BUSY'
+.br
+''      ATZ
+.br
+OK\\r\\n  ATD1234567
+.br
+\\r\\n    \\c
+.br
+CONNECT \\c
+.br
+\'Callback login:' call_back_ID
+.br
+HANGUP OFF
+.br
+ABORT "Bad Login"
+.br
+\'Callback Password:' Call_back_password
+.br
+TIMEOUT 120
+.br
+CONNECT \\c
+.br
+HANGUP ON
+.br
+ABORT "NO CARRIER"
+.br
+ogin:--BREAK--ogin: real_account
+.br
+\fIetc ...\fR
+.LP
 .SH TIMEOUT
 The initial timeout value is 45 seconds. This may be changed using the \fB-t\fR
 parameter.
@@ -161,7 +321,7 @@ parameter.
 To change the timeout value for the next expect string, the following
 example may be used:
 .IP
-ATZ OK ATDT5551212 CONNECT TIMEOUT 10 ogin:--ogin: TIMEOUT 5 assowrd: hello2u2
+ATZ OK ATDT5551212 CONNECT TIMEOUT 10 ogin:--ogin: TIMEOUT 5 assword: hello2u2
 .LP
 This will change the timeout to 10 seconds when it expects the login:
 prompt. The timeout is then changed to 5 seconds when it looks for the
