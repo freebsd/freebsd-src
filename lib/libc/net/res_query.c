@@ -56,7 +56,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid = "From: Id: res_query.c,v 8.10 1997/06/01 20:34:37 vixie Exp";
-static char rcsid[] = "$Id: res_query.c,v 1.13 1997/03/24 06:11:44 imp Exp $";
+static char rcsid[] = "$Id: res_query.c,v 1.14 1997/06/27 08:22:03 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -281,9 +281,9 @@ res_search(name, class, type, answer, anslen)
 
 	/* if we have not already tried the name "as is", do that now.
 	 * note that we do this regardless of how many dots were in the
-	 * name or whether it ends with a dot.
+	 * name or whether it ends with a dot unless NOTLDQUERY is set.
 	 */
-	if (!tried_as_is) {
+	if (!tried_as_is && (dots || !(_res.options & RES_NOTLDQUERY))) {
 		ret = res_querydomain(name, NULL, class, type, answer, anslen);
 		if (ret > 0)
 			return (ret);
