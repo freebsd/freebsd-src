@@ -35,9 +35,14 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static char sccsid[] = "@(#)egetopt.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <stdio.h>
@@ -64,18 +69,16 @@ int	eoptopt;		/* character checked for validity */
 char	*eoptarg;		/* argument associated with option */
 
 #define	BADCH	(int)'?'
-#define	EMSG	""
+
+static char	emsg[] = "";
 
 int
-egetopt(nargc, nargv, ostr)
-	int nargc;
-	char * const *nargv;
-	const char *ostr;
+egetopt(int nargc, char * const *nargv, const char *ostr)
 {
-	static char *place = EMSG;	/* option letter processing */
-	register char *oli;		/* option letter list index */
+	static char *place = emsg;	/* option letter processing */
+	char *oli;			/* option letter list index */
 	static int delim;		/* which option delimeter */
-	register char *p;
+	char *p;
 	static char savec = '\0';
 
 	if (savec != '\0') {
@@ -89,7 +92,7 @@ egetopt(nargc, nargv, ostr)
 		 */
 		if ((eoptind >= nargc) ||
 		    ((*(place = nargv[eoptind]) != '-') && (*place != '+'))) {
-			place = EMSG;
+			place = emsg;
 			return (EOF);
 		}
 
@@ -99,7 +102,7 @@ egetopt(nargc, nargv, ostr)
 			 * found "--"
 			 */
 			++eoptind;
-			place = EMSG;
+			place = emsg;
 			return (EOF);
 		}
 	}
@@ -128,7 +131,7 @@ egetopt(nargc, nargv, ostr)
 			eoptarg = place-1;
 
 			if (*p == '\0') {
-				place = EMSG;
+				place = emsg;
 				++eoptind;
 			} else {
 				place = p;
@@ -192,7 +195,7 @@ egetopt(nargc, nargv, ostr)
 		/*
 		 * no arg, but IS required
 		 */
-		place = EMSG;
+		place = emsg;
 		if (eopterr) {
 			if (!(p = strrchr(*nargv, '/')))
 				p = *nargv;
@@ -209,7 +212,7 @@ egetopt(nargc, nargv, ostr)
 		 */
 		eoptarg = nargv[eoptind];
 	}
-	place = EMSG;
+	place = emsg;
 	++eoptind;
 	return (eoptopt);
 }
