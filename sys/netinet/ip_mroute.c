@@ -130,10 +130,6 @@ rsvp_input(m, off)		/* XXX must fixup manually */
     m_freem(m);
 }
 
-void ipip_input(struct mbuf *m, int off) { /* XXX must fixup manually */
-	rip_input(m, off);
-}
-
 int (*legal_vif_num)(int) = 0;
 
 /*
