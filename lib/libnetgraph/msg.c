@@ -132,8 +132,11 @@ NgSendAsciiMsg(int cs, const char *path, const char *fmt, ...)
 
 	/* Send node a request to convert ASCII to binary */
 	if (NgSendMsg(cs, path, NGM_GENERIC_COOKIE, NGM_ASCII2BINARY,
-	    (u_char *)ascii, sizeof(*ascii) + ascii->header.arglen) < 0)
+	    (u_char *)ascii, sizeof(*ascii) + ascii->header.arglen) < 0) {
+		free(ascii);
 		return (-1);
+	}
+	free(ascii);
 
 	/* Get reply */
 	if (NgRecvMsg(cs, reply, sizeof(replybuf), NULL) < 0)
