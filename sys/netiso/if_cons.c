@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_cons.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: if_cons.c,v 1.2 1994/08/02 07:50:20 davidg Exp $
  */
 
 /***********************************************************
@@ -61,7 +61,7 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /home/ncvs/src/sys/netiso/if_cons.c,v 1.1.1.1 1994/05/24 10:07:14 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/if_cons.c,v 1.2 1994/08/02 07:50:20 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/if_cons.c,v $
  *
  * cons.c - Connection Oriented Network Service:
@@ -725,7 +725,7 @@ NSAPtoDTE(siso, sx25)
 		nsiso = blank_siso;
 		bcopy(nsiso.siso_data, siso->siso_data,
 				nsiso.siso_nlen = siso->siso_nlen);
-		if (rt = rtalloc1(&nsiso, 1)) {
+		if (rt = rtalloc1(&nsiso, 1, 0UL)) {
 			register struct sockaddr_x25 *sxx =
 							(struct sockaddr_x25 *)rt->rt_gateway;
 			register char *in = sxx->x25_addr;
