@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.18 1996/06/23 14:48:25 joerg Exp $
+#	$Id: LINT,v 1.184.4.19 1996/06/23 23:24:27 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -361,7 +361,7 @@ options		OD_AUTO_TURNOFF
 # among others.  The `isdn', `ii', `ity', `itel', and `ispy' devices
 # are all required when ISDN support is used.
 #
-pseudo-device	pty	16	#Pseudo ttys - can go as high as 64
+pseudo-device	pty	16	#Pseudo ttys - can go as high as 256
 pseudo-device	speaker		#Play IBM BASIC-style noises out your speaker
 pseudo-device	log		#Kernel syslog interface (/dev/klog)
 pseudo-device	gzip		#Exec gzipped a.out's
