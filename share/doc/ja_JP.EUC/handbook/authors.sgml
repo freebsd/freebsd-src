@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: authors.sgml,v 1.1.1.1 1996/11/15 05:14:38 asami Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.39 -->
+<!-- Original revision: 1.40 -->
 
 <!-- 
 Names and email address of contributing authors and CVS committers.
@@ -13,8 +13,8 @@ and double quotes.
   name='&lt;asami@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.awebster "Andrew Webster 
-  <tt><htmlurl url='mailto:awebster@dataradio.com' 
-  name='&lt;awebster@dataradio.com&gt;'></tt>">
+  <tt><htmlurl url='mailto:awebster@pubnix.net' 
+  name='&lt;awebster@pubnix.net&gt;'></tt>">
 
 <!ENTITY a.davidg "David Greenman 
   <tt><htmlurl url='mailto:davidg@FreeBSD.ORG' 
