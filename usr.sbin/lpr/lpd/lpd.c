@@ -85,12 +85,14 @@ static char sccsid[] = "@(#)lpd.c	8.7 (Berkeley) 5/10/95";
 #include <unistd.h>
 #include <syslog.h>
 #include <signal.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <ctype.h>
 #include "lp.h"
 #include "lp.local.h"
@@ -106,6 +108,7 @@ static void       doit __P((void));
 static void       startup __P((void));
 static void       chkhost __P((struct sockaddr_in *));
 static int	  ckqueue __P((char *));
+static void	  usage __P((void));
 
 uid_t	uid, euid;
 
@@ -114,11 +117,12 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	int f, funix, finet, options, fromlen;
+	int f, funix, finet, options, fromlen, i, errs;
 	fd_set defreadfds;
 	struct sockaddr_un un, fromunix;
 	struct sockaddr_in sin, frominet;
 	int omask, lfd;
+	struct servent *sp, serv;
 
 	euid = geteuid();	/* these shouldn't be different */
 	uid = getuid();
@@ -127,23 +131,43 @@ main(argc, argv)
 
 	name = "lpd";
 
-	if (euid != 0) {
-		fprintf(stderr,"lpd: must run as root\n");
-		exit(1);
+	if (euid != 0)
+		errx(EX_NOPERM,"must run as root");
+
+	errs = 0;
+	while ((i = getopt(argc, argv, "dl")) != -1)
+		switch (i) {
+		case 'd':
+			options |= SO_DEBUG;
+			break;
+		case 'l':
+			lflag++;
+			break;
+		default:
+			errs++;
+		}
+	argc -= optind;
+	argv += optind;
+	if (errs)
+		usage();
+
+	if (argc == 1) {
+		if ((i = atoi(argv[0])) == 0)
+			usage();
+		if (i < 0 || i > USHRT_MAX)
+			errx(EX_USAGE, "port # %d is invalid", i);
+
+		serv.s_port = htons(i);
+		sp = &serv;
+		argc--;
+	} else {
+		sp = getservbyname("printer", "tcp");
+		if (sp == NULL)
+			errx(EX_OSFILE, "printer/tcp: unknown service");
 	}
 
-	while (--argc > 0) {
-		argv++;
-		if (argv[0][0] == '-')
-			switch (argv[0][1]) {
-			case 'd':
-				options |= SO_DEBUG;
-				break;
-			case 'l':
-				lflag++;
-				break;
-			}
-	}
+	if (argc != 0)
+		usage();
 
 #ifndef DEBUG
 	/*
@@ -211,18 +235,11 @@ main(argc, argv)
 	listen(funix, 5);
 	finet = socket(AF_INET, SOCK_STREAM, 0);
 	if (finet >= 0) {
-		struct servent *sp;
-
 		if (options & SO_DEBUG)
 			if (setsockopt(finet, SOL_SOCKET, SO_DEBUG, 0, 0) < 0) {
 				syslog(LOG_ERR, "setsockopt (SO_DEBUG): %m");
 				mcleanup(0);
 			}
-		sp = getservbyname("printer", "tcp");
-		if (sp == NULL) {
-			syslog(LOG_ERR, "printer/tcp: unknown service");
-			mcleanup(0);
-		}
 		memset(&sin, 0, sizeof(sin));
 		sin.sin_family = AF_INET;
 		sin.sin_port = sp->s_port;
@@ -584,4 +601,10 @@ again:
 	}
 	fatal("Your host does not have line printer access");
 	/*NOTREACHED*/
+}
+
+void
+usage()
+{
+	errx(EX_USAGE, "usage: lpd [-dl] [port#]");
 }
