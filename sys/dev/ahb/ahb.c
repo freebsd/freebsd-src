@@ -53,9 +53,9 @@
 
 #include <cam/scsi/scsi_message.h>
 
-#include <i386/eisa/eisaconf.h>
+#include <dev/eisa/eisaconf.h>
 
-#include <i386/eisa/ahbreg.h>
+#include <dev/ahb/ahbreg.h>
 
 #define ccb_ecb_ptr spriv_ptr0
 #define ccb_ahb_ptr spriv_ptr1

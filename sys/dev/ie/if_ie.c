@@ -136,9 +136,9 @@ iomem and and with 0xffff.
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ic/i82586.h>
 #include <i386/isa/icu.h>
-#include <i386/isa/if_iereg.h>
-#include <i386/isa/if_ie507.h>
-#include <i386/isa/if_iee16.h>
+#include <dev/ie/if_iereg.h>
+#include <dev/ie/if_ie507.h>
+#include <dev/ie/if_iee16.h>
 #include <i386/isa/elink.h>
 
 #include <net/bpf.h>
