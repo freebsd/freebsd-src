@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/coda/coda_vnops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vnops.c,v 1.11 1999/01/05 18:49:51 eivind Exp $
+ *  $Id: coda_vnops.c,v 1.12 1999/01/07 16:14:12 bde Exp $
  * 
  */
 
@@ -48,6 +48,11 @@
 /*
  * HISTORY
  * $Log: coda_vnops.c,v $
+ * Revision 1.12  1999/01/07 16:14:12  bde
+ * Don't pass unused unused timestamp args to UFS_UPDATE() or waste
+ * time initializing them.  This almost finishes centralizing (in-core)
+ * timestamp updates in ufs_itimes().
+ *
  * Revision 1.11  1999/01/05 18:49:51  eivind
  * Remove the 'waslocked' parameter to vfs_object_create().
  *
@@ -2037,7 +2042,12 @@ coda_lock(v)
 		  cp->c_fid.Volume, cp->c_fid.Vnode, cp->c_fid.Unique));
     }
 
+#ifndef	DEBUG_LOCKS
     return (lockmgr(&cp->c_lock, ap->a_flags, &vp->v_interlock, p));
+#else
+    return (debuglockmgr(&cp->c_lock, ap->a_flags, &vp->v_interlock, p,
+			 "coda_lock", vp->filename, vp->line));
+#endif
 }
 
 int

@@ -205,7 +205,12 @@ vop_stdlock(ap)
 		return 0;
 	}
 
+#ifndef	DEBUG_LOCKS
 	return (lockmgr(l, ap->a_flags, &ap->a_vp->v_interlock, ap->a_p));
+#else
+	return (debuglockmgr(l, ap->a_flags, &ap->a_vp->v_interlock, ap->a_p,
+	    "vop_stdlock", ap->a_vp->filename, ap->a_vp->line));
+#endif
 }
 
 int
@@ -355,7 +360,12 @@ vop_sharedlock(ap)
 	}
 	if (flags & LK_INTERLOCK)
 		vnflags |= LK_INTERLOCK;
-	return(lockmgr(vp->v_vnlock, vnflags, &vp->v_interlock, ap->a_p));
+#ifndef	DEBUG_LOCKS
+	return (lockmgr(vp->v_vnlock, vnflags, &vp->v_interlock, ap->a_p));
+#else
+	return (debuglockmgr(vp->v_vnlock, vnflags, &vp->v_interlock, ap->a_p,
+	    "vop_sharedlock", vp->filename, vp->line));
+#endif
 }
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.78 1998/11/10 09:04:09 peter Exp $
+ * $Id: vnode.h,v 1.79 1999/01/05 18:50:01 eivind Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -125,6 +125,10 @@ struct vnode {
 		short	vpi_events;		/* what they are looking for */
 		short	vpi_revents;		/* what has happened */
 	} v_pollinfo;
+#ifdef	DEBUG_LOCKS
+	const char *filename;			/* Source file doing locking */
+	int line;				/* Line number doing locking */
+#endif
 };
 #define	v_mountedhere	v_un.vu_mountedhere
 #define	v_socket	v_un.vu_socket
@@ -505,6 +509,11 @@ int	vrecycle __P((struct vnode *vp, struct simplelock *inter_lkp,
 int 	vn_close __P((struct vnode *vp,
 	    int flags, struct ucred *cred, struct proc *p));
 int	vn_lock __P((struct vnode *vp, int flags, struct proc *p));
+#ifdef	DEBUG_LOCKS
+int	debug_vn_lock __P((struct vnode *vp, int flags, struct proc *p,
+	    const char *filename, int line));
+#define vn_lock(vp,flags,p) debug_vn_lock(vp,flags,p,__FILE__,__LINE__)
+#endif
 int 	vn_open __P((struct nameidata *ndp, int fmode, int cmode));
 void	vn_pollevent __P((struct vnode *vp, int events));
 void	vn_pollgone __P((struct vnode *vp));

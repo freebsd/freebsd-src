@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.537 1999/01/19 15:11:46 des Exp $
+#	$Id: LINT,v 1.538 1999/01/20 03:29:51 msmith Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1844,6 +1844,14 @@ options         "PMAP_SHPGPERPROC=201"
 #
 options		"NSFBUFS=1024"
 
+#
+# Enable extra debugging code for locks.  This include storing the
+# filename and line of whatever aquired the lock in the lock itself,
+# and changing a number of function calls to pass around the relevant
+# data.  This is not at all useful unless you are debugging lock code.
+#
+options		DEBUG_LOCKS
+
 # More undocumented options for linting.
 
 options		CLK_CALIBRATION_LOOP
@@ -1853,6 +1861,7 @@ options		CLUSTERDEBUG
 options		COMPAT_LINUX
 options		CPU_UPGRADE_HW_CACHE
 options		DEBUG
+options		DEBUG_VFS_LOCKS
 options		"DEBUG_1284"
 #options	DISABLE_PSE
 options		"EXT2FS"
