@@ -32,16 +32,15 @@
 #ifdef _KERNEL
 
 #include <sys/queue.h>
+#include <sys/kobj.h>
 
 /*
  * Forward declarations
  */
 typedef struct device		*device_t;
 typedef struct driver		driver_t;
-typedef struct device_method	device_method_t;
 typedef struct devclass		*devclass_t;
-typedef struct device_ops	*device_ops_t;
-typedef struct device_op_desc	*device_op_desc_t;
+#define device_method_t		kobj_method_t
 
 typedef void driver_intr_t(void*);
 
@@ -63,17 +62,9 @@ enum intr_type {
 
 typedef int (*devop_t)(void);
 
-struct device_method {
-    device_op_desc_t	desc;
-    devop_t		func;
-};
-
 struct driver {
-    const char		*name;		/* driver name */
-    device_method_t	*methods;	/* method table */
-    size_t		softc;		/* size of device softc struct */
+    KOBJ_CLASS_FIELDS;
     void		*priv;		/* driver private data */
-    device_ops_t	ops;		/* compiled method table */
     int			refs;		/* # devclasses containing driver */
 };
 
@@ -301,7 +292,7 @@ int	resource_count(void);
 /*
  * Shorthand for constructing method tables.
  */
-#define DEVMETHOD(NAME, FUNC) { &NAME##_desc, (devop_t) FUNC }
+#define DEVMETHOD	KOBJMETHOD
 
 /*
  * Some common device interfaces.

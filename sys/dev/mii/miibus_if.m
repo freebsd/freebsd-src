@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+#include <sys/bus.h>
+
 INTERFACE miibus;
 
 #
