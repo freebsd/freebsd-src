@@ -65,8 +65,6 @@ void head_bytes __P((FILE *, int));
 void obsolete __P((char *[]));
 void usage __P((void));
 
-int eval;
-
 int
 main(argc, argv)
 	int argc;
@@ -74,7 +72,7 @@ main(argc, argv)
 {
 	register int ch;
 	FILE *fp;
-	int first, linecnt = -1, bytecnt = -1;
+	int first, linecnt = -1, bytecnt = -1, eval = 0;
 	char *ep;
 
 	obsolete(argv);
@@ -119,8 +117,7 @@ main(argc, argv)
 				head_bytes(fp, bytecnt);
 			(void)fclose(fp);
 		}
-	}
-	else if (bytecnt == -1)
+	} else if (bytecnt == -1)
 		head(stdin, linecnt);
 	else
 		head_bytes(stdin, bytecnt);
@@ -133,20 +130,21 @@ head(fp, cnt)
 	FILE *fp;
 	register int cnt;
 {
-	register int ch;
+	char *cp;
+	int error, readlen;
 
-	while (cnt && (ch = getc(fp)) != EOF) {
-			if (putchar(ch) == EOF)
-				err(1, "stdout");
-			if (ch == '\n')
-				cnt--;
-		}
+	while (cnt && (cp = fgetln(fp, &readlen)) != NULL) {
+		error = fwrite(cp, sizeof(char), readlen, stdout);
+		if (error != readlen)
+			err(1, "stdout");
+		cnt--;
+	}
 }
 
 void
 head_bytes(fp, cnt)
-	 FILE *fp;
-	 register int cnt;
+	FILE *fp;
+	register int cnt;
 {
 	char buf[4096];
 	register int readlen;
@@ -187,6 +185,7 @@ obsolete(argv)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: head [-n lines] [-c bytes] [file ...]\n");
+
+	(void)fprintf(stderr, "usage: head [-n lines | -c bytes] [file ...]\n");
 	exit(1);
 }
