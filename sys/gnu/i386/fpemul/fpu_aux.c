@@ -66,7 +66,6 @@
 #include <sys/systm.h>		/* for printf() in EXCEPTION() */
 #endif
 #include <sys/proc.h>
-#include <machine/cpu.h>
 #include <machine/pcb.h>
 
 #include <gnu/i386/fpemul/fpu_emu.h>
