@@ -481,13 +481,6 @@ enum pthread_susp {
 	} while (tv.tv_sec != _sched_tod.tv_sec)
 
 
-struct pthread_key {
-	spinlock_t	lock;
-	volatile int	allocated;
-	volatile int	count;
-	void            (*destructor) ();
-};
-
 struct pthread_rwlockattr {
 	int		pshared;
 };
@@ -629,6 +622,11 @@ struct pthread_signal_frame {
 	int			sig_has_args;	/* use signal args if true */
 	ucontext_t		uc;
 	siginfo_t		siginfo;
+};
+
+struct pthread_specific_elem {
+	const void	*data;
+	int		seqno;
 };
 
 /*
@@ -842,9 +840,9 @@ struct pthread {
 	 */
 	TAILQ_HEAD(, pthread_mutex)	mutexq;
 
-	void		*ret;
-	const void	**specific_data;
-	int		specific_data_count;
+	void				*ret;
+	struct pthread_specific_elem	*specific;
+	int				specific_data_count;
 
 	/* Cleanup handlers Link List */
 	struct pthread_cleanup *cleanup;

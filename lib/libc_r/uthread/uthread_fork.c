@@ -233,8 +233,8 @@ free_thread_resources(struct pthread *thread)
 		    thread->attr.guardsize_attr);
 	}
 
-	if (thread->specific_data != NULL)
-		free(thread->specific_data);
+	if (thread->specific != NULL)
+		free(thread->specific);
 
 	if (thread->poll_data.fds != NULL)
 		free(thread->poll_data.fds);

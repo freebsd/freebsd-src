@@ -158,7 +158,7 @@ _pthread_exit(void *status)
 		curthread->attr.cleanup_attr(curthread->attr.arg_attr);
 	}
 	/* Check if there is thread specific data: */
-	if (curthread->specific_data != NULL) {
+	if (curthread->specific != NULL) {
 		/* Run the thread-specific data destructors: */
 		_thread_cleanupspecific();
 	}
