@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.6 1996/06/17 23:16:04 jkh Exp $
+ * $Id: ftpio.c,v 1.7 1996/06/22 21:43:54 jkh Exp $
  *
  */
 
@@ -138,6 +138,12 @@ ftpBinary(FILE *fp)
 	return i;
     ftp->is_binary = TRUE;
     return SUCCESS;
+}
+void
+ftpVerbose(FILE *fp, int status)
+{
+    FTP_t ftp = fcookie(fp);
+    ftp->is_verbose = status;
 }
 
 int
@@ -360,6 +366,7 @@ ftp_new(void)
     ftp->con_state = init;
     ftp->is_binary = FALSE;
     ftp->is_passive = FALSE;
+    ftp->is_verbose = FALSE;
     ftp->errno = 0;
     return ftp;
 }
@@ -448,6 +455,8 @@ get_a_line(FTP_t ftp)
 	    if (!i)
 		continue;
 	    buf[i] = '\0';
+	    if (ftp->is_verbose == TRUE)
+		printf("%s\n",buf+4);
 	    return buf;
 	}
 	i++;
