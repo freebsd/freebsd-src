@@ -32,7 +32,7 @@
  *
  */
 #include <stdio.h>
-#include "../hash.h"
+#include <strhash.h>
 #include "../forms.h"
 
 extern hash_table *global_bindings;
