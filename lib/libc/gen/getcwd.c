@@ -45,10 +45,13 @@ static char sccsid[] = "@(#)getcwd.c	8.5 (Berkeley) 2/7/95";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 
 #define	ISDOT(dp) \
 	(dp->d_name[0] == '.' && (dp->d_name[1] == '\0' || \
 	    (dp->d_name[1] == '.' && dp->d_name[2] == '\0')))
+
+static int have__getcwd = 1;	/* 0 = no, 1 = perhaps, 2 = yes */
 
 char *
 getcwd(pt, size)
@@ -89,17 +92,40 @@ getcwd(pt, size)
 			return (NULL);
 		ept = pt + ptsize;
 	}
-	if (!__getcwd(pt, ept - pt)) {
-		if (*pt != '/') {
-			bpt = pt;
-			ept = pt + strlen(pt) - 1;
-			while (bpt < ept) {
-				c = *bpt;
-				*bpt++ = *ept;
-				*ept-- = c;
-			}
+	if (have__getcwd) {
+		struct sigaction sa, osa;
+		int sigsys_installed = 0;
+		int ret;
+
+		if (have__getcwd == 1) {	/* unsure? */
+			bzero(&sa, sizeof(sa));
+			sa.sa_handler = SIG_IGN;
+			if (sigaction(SIGSYS, &sa, &osa) >= 0)
+				sigsys_installed = 1;
 		}
-		return (pt);
+		ret = __getcwd(pt, ept - pt);
+		if (sigsys_installed == 1) {
+			int oerrno = errno;
+			sigaction(SIGSYS, &osa, NULL);
+			errno = oerrno;
+		}
+		/* XXX a bogus syscall seems to return EINVAL(!) */
+		if (ret < 0 && (errno == ENOSYS || errno == EINVAL))
+			have__getcwd = 0;
+		else if (have__getcwd == 1)
+			have__getcwd = 2;	/* yep, remember we have it */
+		if (ret == 0) {
+			if (*pt != '/') {
+				bpt = pt;
+				ept = pt + strlen(pt) - 1;
+				while (bpt < ept) {
+					c = *bpt;
+					*bpt++ = *ept;
+					*ept-- = c;
+				}
+			}
+			return (pt);
+		}
 	}
 	bpt = ept - 1;
 	*bpt = '\0';
