@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.10 1995/09/26 17:48:59 peter Exp $
+ *	$Id: print.c,v 1.11 1995/10/28 20:11:18 phk Exp $
  */
 
 #ifndef lint
@@ -419,7 +419,7 @@ wchan(k, ve)
 		(void)printf("%-*s", v->width, "-");
 }
 
-#define pgtok(a)        (((a)*NBPG)/1024)
+#define pgtok(a)        (((a)*getpagesize())/1024)
 
 void
 vsize(k, ve)
@@ -612,7 +612,7 @@ maxrss(k, ve)
 
 	v = ve->var;
 #ifndef NEWVM	/* not yet */
-	if (KI_PROC(k)->p_maxrss != (RLIM_INFINITY/NBPG))
+	if (KI_PROC(k)->p_maxrss != (RLIM_INFINITY/PAGE_SIZE))
 		(void)printf("%*d", v->width, pgtok(KI_PROC(k)->p_maxrss));
 	else
 #endif
