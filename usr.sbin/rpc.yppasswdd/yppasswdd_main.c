@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: yppasswdd_main.c,v 1.12 1997/10/13 11:18:50 charnier Exp $";
 #endif /* not lint */
 
 #include "yppasswd.h"
@@ -236,7 +236,7 @@ name isn't set -- aborting");
 		exit(1);
 	}
 
-	if (strncmp(mastername, (char *)&myname, sizeof(myname))) {
+	if (strncasecmp(mastername, (char *)&myname, sizeof(myname))) {
 		yp_error("master of %s is %s, but we are %s",
 			"passwd.byname", mastername, myname);
 		yp_error("this host is not the NIS master server for \
