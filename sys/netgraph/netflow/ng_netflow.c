@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Gleb Smirnoff <glebius@FreeBSD.org>
+ * Copyright (c) 2004-2005 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2001-2003 Roman V. Palagin <romanp@unshadow.net>
  * All rights reserved.
  *
@@ -46,6 +46,8 @@ static const char rcs_id[] =
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
@@ -410,6 +412,8 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	const iface_p iface = NG_HOOK_PRIVATE(hook);
 	struct mbuf *m;
+	struct ip *ip;
+	int pullup_len = 0;
 	int error = 0;
 
 	NGI_GET_M(item, m);

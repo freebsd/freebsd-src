@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Gleb Smirnoff <glebius@FreeBSD.org>
+ * Copyright (c) 2004-2005 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2001-2003 Roman V. Palagin <romanp@unshadow.net>
  * All rights reserved.
  *
@@ -256,11 +256,6 @@ struct flow_hash_entry {
 	LIST_HEAD( ,flow_entry) head;
 };
 
-/* Make sure packet large enough to contain len bytes */
-#define	CHECK_MLEN(m, length)	((m)->m_pkthdr.len < (length))
-#define CHECK_PULLUP(m, length)	((m)->m_len < (length) && \
-				(((m) = m_pullup((m),(length))) == NULL))
-
 #define	ERROUT(x)	{ error = (x); goto done; }
 
 /* Prototypes for netflow.c */
@@ -268,7 +263,7 @@ int	ng_netflow_cache_init(priv_p);
 void	ng_netflow_cache_flush(priv_p);
 void	ng_netflow_copyinfo(priv_p, struct ng_netflow_info *);
 timeout_t ng_netflow_expire;
-int	ng_netflow_flow_add(priv_p, struct mbuf **, iface_p);
+int	ng_netflow_flow_add(priv_p, struct ip *, iface_p, struct ifnet *);
 int	ng_netflow_flow_show(priv_p, uint32_t last, struct ng_mesg *);
 
 #endif	/* _KERNEL */
