@@ -188,12 +188,12 @@ assym.s: $S/kern/genassym.sh genassym.o
 	OBJFORMAT=elf sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
 genassym.o: $S/$M/$M/genassym.c
-	rm -f ./machine ; ln -s $S/$M/include ./machine
 	${CC} -c ${CFLAGS} -elf $S/$M/$M/genassym.c
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
 kernel-depend:
+	rm -f ./machine ; ln -s $S/$M/include ./machine
 	rm -f .olddep
 	if [ -f .depend ]; then mv .depend .olddep; fi
 	${MAKE} _kernel-depend
