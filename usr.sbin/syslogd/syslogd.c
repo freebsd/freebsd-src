@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.40 1998/07/27 13:04:14 phk Exp $";
+	"$Id: syslogd.c,v 1.41 1998/08/25 21:16:47 julian Exp $";
 #endif /* not lint */
 
 /*
@@ -491,7 +491,8 @@ main(argc, argv)
 				Vogons++;
 				if (!(Vogons & (Vogons - 1))) {
 					(void)snprintf(line, sizeof line,
-"syslogd: discarded %d unwanted packets in secure mode", Vogons);
+"syslogd: discarded %d unwanted packets in secure mode, last from %s", Vogons,
+						inet_ntoa(frominet.sin_addr));
 					logmsg(LOG_SYSLOG|LOG_AUTH, line,
 					    LocalHostName, ADDDATE);
 				}
