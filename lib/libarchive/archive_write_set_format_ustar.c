@@ -37,14 +37,6 @@ __FBSDID("$FreeBSD$");
 #include "archive_entry.h"
 #include "archive_private.h"
 
-/* Constants are chosen so that 'term & 15' is number of termination bytes */
-#define	TERM_BYTES(n)		((n) & 15)
-#define	OCTAL_TERM_SPACE_NULL	0x12
-#define	OCTAL_TERM_NULL_SPACE	0x22
-#define	OCTAL_TERM_NULL		0x31
-#define	OCTAL_TERM_SPACE	0x41
-#define	OCTAL_TERM_NONE		0x50
-
 struct ustar {
 	uint64_t	entry_bytes_remaining;
 	uint64_t	entry_padding;
@@ -56,11 +48,16 @@ struct ustar {
  */
 struct archive_entry_header_ustar {
 	char	name[100];
-	char	mode[8];
-	char	uid[8];
-	char	gid[8];
-	char	size[12];
-	char	mtime[12];
+	char	mode[6];
+	char	mode_padding[2];
+	char	uid[6];
+	char	uid_padding[2];
+	char	gid[6];
+	char	gid_padding[2];
+	char	size[11];
+	char	size_padding[1];
+	char	mtime[11];
+	char	mtime_padding[1];
 	char	checksum[8];
 	char	typeflag[1];
 	char	linkname[100];
@@ -68,9 +65,35 @@ struct archive_entry_header_ustar {
 	char	version[2]; /* For POSIX: "00" */
 	char	uname[32];
 	char	gname[32];
-	char	devmajor[8];
-	char	devminor[8];
+	char	devmajor[6];
+	char	devmajor_padding[2];
+	char	devminor[6];
+	char	devminor_padding[2];
 	char	prefix[155];
+	char	padding[12];
+};
+
+/*
+ * A filled-in copy of the header for initialization.
+ */
+static const struct archive_entry_header_ustar template_header = {
+	{ },				/* name */
+	{ "000000" }, { ' ', '\0' },	/* mode, space-null termination. */
+	{ "000000" }, { ' ', '\0' },	/* uid, space-null termination. */
+	{ "000000" }, { ' ', '\0' },	/* gid, space-null termination. */
+	{ "00000000000" }, { ' ' },	/* size, space termination. */
+	{ "00000000000" }, { ' ' },	/* mtime, space termination. */
+	{ "        " },			/* Initial checksum value. */
+	{ '0' },			/* default: regular file */
+	{ },				/* linkname */
+	{ "ustar" },			/* magic */
+	{ '0', '0' },			/* version */
+	{ },				/* uname */
+	{ },				/* gname */
+	{ "000000" }, { ' ', '\0' },	/* devmajor, space-null termination */
+	{ "000000" }, { ' ', '\0' },	/* devminor, space-null termination */
+	{ },				/* prefix */
+	{ }				/* padding */
 };
 
 static int	archive_write_ustar_data(struct archive *a, const void *buff,
@@ -79,8 +102,7 @@ static int	archive_write_ustar_finish(struct archive *);
 static int	archive_write_ustar_finish_entry(struct archive *);
 static int	archive_write_ustar_header(struct archive *,
 		    struct archive_entry *entry);
-static int	format_octal(int64_t, char *, int, int term);
-static int64_t	format_octal_recursive(int64_t, char *, int);
+static int	format_octal(int64_t, char *, int);
 static int	write_nulls(struct archive *a, size_t);
 
 /*
@@ -156,11 +178,13 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 	unsigned int checksum;
 	struct archive_entry_header_ustar *h;
 	int i, ret;
+	size_t copy_length;
 	const char *p, *pp;
 	const struct stat *st;
 
 	ret = 0;
-	memset(buff, 0, 512);
+	memcpy(buff, &template_header, 512);
+
 	h = (struct archive_entry_header_ustar *)buff;
 
 	/*
@@ -198,62 +222,63 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 	if(p == NULL)
 		p = archive_entry_symlink(entry);
 	if (p != NULL && p[0] != '\0') {
-		if (strlen(p) > sizeof(h->linkname)) {
+		copy_length = strlen(p);
+		if (copy_length > sizeof(h->linkname)) {
 			archive_set_error(a, ENAMETOOLONG,
 			    "Link contents too long");
 			ret = ARCHIVE_WARN;
-		} else
-			memcpy(h->linkname, p, strlen(p));
+			copy_length = sizeof(h->linkname);
+		}
+		memcpy(h->linkname, p, copy_length);
 	}
 
 	p = archive_entry_uname(entry);
 	if (p != NULL && p[0] != '\0') {
-		if (strlen(p) > sizeof(h->uname)) {
+		copy_length = strlen(p);
+		if (copy_length > sizeof(h->uname)) {
 			archive_set_error(a, ARCHIVE_ERRNO_MISC,
 			    "Username too long");
 			ret = ARCHIVE_WARN;
-		} else
-			memcpy(h->uname, p, strlen(p));
+			copy_length = sizeof(h->uname);
+		}
+		memcpy(h->uname, p, copy_length);
 	}
 
 	p = archive_entry_gname(entry);
 	if (p != NULL && p[0] != '\0') {
+		copy_length = strlen(p);
 		if (strlen(p) > sizeof(h->gname)) {
 			archive_set_error(a, ARCHIVE_ERRNO_MISC,
 			    "Group name too long");
 			ret = ARCHIVE_WARN;
-		} else
-			memcpy(h->gname, p, strlen(p));
+			copy_length = sizeof(h->gname);
+		}
+		memcpy(h->gname, p, copy_length);
 	}
 
 	st = archive_entry_stat(entry);
 
-	if (format_octal(st->st_mode & 07777, h->mode, sizeof(h->mode),
-		OCTAL_TERM_SPACE_NULL)) {
+	if (format_octal(st->st_mode & 07777, h->mode, sizeof(h->mode))) {
 		archive_set_error(a, ERANGE, "Numeric mode too large");
 		ret = ARCHIVE_WARN;
 	}
 
-	if (format_octal(st->st_uid, h->uid, sizeof(h->uid),
-		OCTAL_TERM_SPACE_NULL)) {
+	if (format_octal(st->st_uid, h->uid, sizeof(h->uid))) {
 		archive_set_error(a, ERANGE, "Numeric user ID too large");
 		ret = ARCHIVE_WARN;
 	}
 
-	if (format_octal(st->st_gid, h->gid, sizeof(h->gid),
-		OCTAL_TERM_SPACE_NULL)) {
+	if (format_octal(st->st_gid, h->gid, sizeof(h->gid))) {
 		archive_set_error(a, ERANGE, "Numeric group ID too large");
 		ret = ARCHIVE_WARN;
 	}
 
-	if (format_octal(st->st_size, h->size,
-		sizeof(h->size), OCTAL_TERM_SPACE)) {
+	if (format_octal(st->st_size, h->size, sizeof(h->size))) {
 		archive_set_error(a, ERANGE, "File size too large");
 		ret = ARCHIVE_WARN;
 	}
 
-	if (format_octal(st->st_mtime, h->mtime,
-		sizeof(h->mtime), OCTAL_TERM_SPACE)) {
+	if (format_octal(st->st_mtime, h->mtime, sizeof(h->mtime))) {
 		archive_set_error(a, ERANGE,
 		    "File modification time too large");
 		ret = ARCHIVE_WARN;
@@ -261,23 +286,18 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 
 	if (S_ISBLK(st->st_mode) || S_ISCHR(st->st_mode)) {
 		if (format_octal(major(st->st_rdev), h->devmajor,
-			sizeof(h->devmajor), OCTAL_TERM_SPACE_NULL)) {
+			sizeof(h->devmajor))) {
 			archive_set_error(a, ERANGE,
 			    "Major device number too large");
 			ret = ARCHIVE_WARN;
 		}
 
 		if (format_octal(minor(st->st_rdev), h->devminor,
-			sizeof(h->devminor), OCTAL_TERM_SPACE_NULL)) {
+			sizeof(h->devminor))) {
 			archive_set_error(a, ERANGE,
 			    "Minor device number too large");
 			ret = ARCHIVE_WARN;
 		}
-	} else {
-		format_octal(0, h->devmajor, sizeof(h->devmajor),
-		    OCTAL_TERM_SPACE_NULL);
-		format_octal(0, h->devminor, sizeof(h->devminor),
-		    OCTAL_TERM_SPACE_NULL);
 	}
 
 	if (tartype >= 0) {
@@ -304,19 +324,12 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 		}
 	}
 
-	memcpy(h->magic, "ustar\0", 6);
-	memcpy(h->version, "00", 2);
-	memcpy(h->checksum, "        ", 8);
 	checksum = 0;
 	for (i = 0; i < 512; i++)
 		checksum += 255 & (unsigned int)buff[i];
-	if (format_octal(checksum, h->checksum,
-		sizeof(h->checksum), OCTAL_TERM_NULL_SPACE)) {
-		archive_set_error(a, ERANGE,
-		    "Checksum too large (Internal error; this can't happen)");
-		ret = ARCHIVE_WARN;
-	}
-
+	h->checksum[6] = '\0';
+	h->checksum[7] = ' ';
+	format_octal(checksum, h->checksum, 6);
 	return (ret);
 }
 
@@ -324,49 +337,26 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
  * Format a number into the specified field.
  */
 static int
-format_octal(int64_t v, char *p, int s, int term)
+format_octal(int64_t v, char *p, int s)
 {
-	/* POSIX specifies that all numeric values are unsigned. */
-	int64_t	max;
-	int digits, ret;
+	int len;
 
-	digits = s - TERM_BYTES(term);
-	max = (((int64_t)1) << (digits * 3)) - 1;
+	p += s;		/* Start at the end and work backwards. */
 
-	if (v >= 0  &&  v <= max) {
-		format_octal_recursive(v, p, digits);
-		ret = 0;
-	} else {
-		format_octal_recursive(max, p, digits);
-		ret = -1;
+	len = s;
+	while (s-- > 0) {
+		*--p = '0' + (v & 7);
+		v >>= 3;
 	}
 
-	switch (term) {
-	case OCTAL_TERM_SPACE_NULL:
-		p[s-2] = 0x20;
-		/* fall through */
-	case OCTAL_TERM_NULL:
-		p[s-1] = 0;
-		break;
-	case OCTAL_TERM_NULL_SPACE:
-		p[s-2] = 0;
-		/* fall through */
-	case OCTAL_TERM_SPACE:
-		p[s-1] = 0x20;
-		break;
-	}
-	return (ret);
-}
+	if (v == 0)
+		return (0);
 
-static int64_t
-format_octal_recursive(int64_t v, char *p, int s)
-{
-	if (s == 0)
-		return (v);
+	/* If it overflowed, fill field with max value. */
+	while (len-- > 0)
+		*p++ = '7';
 
-	v = format_octal_recursive(v, p+1, s-1);
-	*p = '0' + (v & 7);
-	return (v >>= 3);
+	return (-1);
 }
 
 static int
