@@ -337,8 +337,8 @@ uart_bus_attach(device_t dev)
 		    sc, &sc->sc_icookie);
 		if (error)
 			error = BUS_SETUP_INTR(device_get_parent(dev), dev,
-			    sc->sc_ires, INTR_TYPE_TTY, uart_intr, sc,
-			    &sc->sc_icookie);
+			    sc->sc_ires, INTR_TYPE_TTY | INTR_MPSAFE,
+			    uart_intr, sc, &sc->sc_icookie);
 		else
 			sc->sc_fastintr = 1;
 
