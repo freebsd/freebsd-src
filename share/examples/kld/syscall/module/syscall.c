@@ -39,7 +39,7 @@
  */
 
 static int
-hello (struct proc *p, void *arg)
+hello (struct thread *td, void *arg)
 {
 	printf ("hello kernel\n");
 	return 0;
