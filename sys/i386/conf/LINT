@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.4 1993/08/28 13:21:46 rgrimes Exp $
+#	$Id: LINT,v 1.5 1993/08/31 15:17:25 rgrimes Exp $
 #
 
 machine		"i386"
@@ -50,7 +50,7 @@ options		ISOFS			#ISO 9660 File System
 pseudo-device	loop
 options		MFS			#Memroy File System
 options		NFS			#Network File System
-#options	NS			#Xerox NS communications protocols
+options		NS			#Xerox NS communications protocols
 options		PCFS			#PC (MSDOS) File System
 pseudo-device	ppp	2
 pseudo-device	pty	4
