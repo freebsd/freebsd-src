@@ -1605,6 +1605,7 @@ device		miibus
 #       (requires sppp)
 # awi:  Support for IEEE 802.11 PC Card devices using the AMD Am79C930 and
 #       Harris (Intersil) Chipset with PCnetMobile firmware by AMD.
+# cnw:  Xircom CNW/Netware Airsurfer PC Card adapter
 # cs:   IBM Etherjet and other Crystal Semi CS89x0-based adapters
 # cx:   Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
 # dc:   Support for PCI fast ethernet adapters based on the DEC/Intel 21143
@@ -1771,6 +1772,7 @@ hint.sn.0.port="0x300"
 hint.sn.0.irq="10"
 device		an
 device		awi
+device		cnw
 device		wi
 options 	WLCACHE		# enables the signal-strength cache
 options 	WLDEBUG		# enables verbose debugging output
