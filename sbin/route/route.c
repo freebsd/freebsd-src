@@ -759,10 +759,7 @@ inet_makenetandmask(net, sin, bits)
 	register char *cp;
 
 	rtm_addrs |= RTA_NETMASK;
-	if (bits) {
-		addr = net;
-		mask = 0xffffffff << (32 - bits);
-	} else if (net == 0)
+	if (net == 0)
 		mask = addr = 0;
 	else if (net < 128) {
 		addr = net << IN_CLASSA_NSHIFT;
@@ -784,6 +781,8 @@ inet_makenetandmask(net, sin, bits)
 		else
 			mask = -1;
 	}
+	if (bits)
+		mask = 0xffffffff << (32 - bits);
 	sin->sin_addr.s_addr = htonl(addr);
 	sin = &so_mask.sin;
 	sin->sin_addr.s_addr = htonl(mask);
@@ -976,9 +975,9 @@ getaddr(which, s, hpp)
 	q = strchr(s,'/');
 	if (q && which == RTA_DST) {
 		*q = '\0';
-		if ((val = inet_addr(s)) != INADDR_NONE) {
+		if ((val = inet_network(s)) != INADDR_NONE) {
 			inet_makenetandmask(
-				ntohl(val), &su->sin, strtoul(q+1, 0, 0));
+				val, &su->sin, strtoul(q+1, 0, 0));
 			return (0);
 		}
 		*q = '/';
