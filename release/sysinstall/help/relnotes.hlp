@@ -14,15 +14,15 @@ For installation instructions, see the INSTALL.TXT and HARDWARE.TXT
 files.
 
 
-0. What's new since 2.2 BETA
------------------------------
+1. What's new since 2.2-BETA
+----------------------------
 
 Lots of installation bugs fixed, more pc98 changes syncronized, geeze,
 what else?
 
 
-0.1 What's new since 2.1.X-RELEASE
-------------------------------------
+1.1 What's new since 2.1.6-RELEASE
+----------------------------------
 
 Support for the SDL RISCom N2pci sync serial card.
 
@@ -105,82 +105,7 @@ programming interfaces.  We are still seeking volunteers to document
 interfaces here!
 
 
-2. Technical overview
----------------------
-
-FreeBSD is a freely available, full source 4.4 BSD Lite based release
-for Intel i386/i486/Pentium (or compatible) based PC's.  It is based
-primarily on software from U.C. Berkeley's CSRG group, with some
-enhancements from NetBSD, 386BSD, and the Free Software Foundation.
-
-Since our release of FreeBSD 2.0 almost 2 years ago, the performance,
-feature set and stability of FreeBSD has improved dramatically.  The
-largest change is a revamped VM system with a merged VM/file buffer
-cache that not only increases performance but reduces FreeBSD's memory
-footprint, making a 5MB configuration a more acceptable minimum.
-Other enhancements include full NIS client and server support,
-transaction TCP support, dial-on-demand PPP, an improved SCSI
-subsystem, early ISDN support, support for FDDI and Fast Ethernet
-(100Mbit) adapters, improved support for the Adaptec 2940 (WIDE and
-narrow) and 3940 SCSI adaptors along with many hundreds of bug fixes.
-
-We've taken the comments and suggestions of many of our users to
-heart and have attempted to provide what we hope is a more sane and
-easily understood installation process.  Your feedback on this
-(constantly evolving) process is especially welcome!
-
-In addition to the base distributions, FreeBSD offers a ported
-software collection with over 700 commonly sought-after programs.  The
-list of ports ranges from http (WWW) servers, to games, languages,
-editors and almost everything in between.  The entire ports collection
-requires only 6MB of storage, all ports being expressed as "deltas"
-to their original sources.  This makes it much easier for us to update
-ports and greatly reduces the disk space demands made by the ports
-collection.  To compile a port, you simply change to the directory of
-the program you wish to install, type make and let the system do the
-rest.  The full original distribution for each port you build is
-retrieved dynamically off of CDROM or a local ftp site, so you need
-only enough disk space to build the ports you want.  (Almost) every
-port is also provided as a pre-compiled "package" which can be
-installed with a simple command (pkg_add).  See also the new Packages
-option in the Configuration menu for an especially convenient interface
-to the package collection.
-
-
-A number of additional documents which you may find helpful in the
-process of installing and using FreeBSD may now also be found in the
-/usr/share/doc directory.  You may view the manuals with any HTML
-capable browser by saying:
-
-  To read the handbook:
-      <browser> file:/usr/share/doc/handbook/handbook.html
-
-  To read the FAQ:
-      <browser> file:/usr/share/doc/FAQ/FAQ.html
-
-You can also visit the master (and most frequently updated) copies at
-http://www.freebsd.org.
-
-The core of FreeBSD does not contain DES code which would inhibit its
-being exported outside the United States.  There is an add-on package
-to the core distribution, for use only in the United States, that
-contains the programs that normally use DES.  The auxiliary packages
-provided separately can be used by anyone.  A freely (from outside the
-U.S.) exportable distribution of DES for our non-U.S. users also
-exists at ftp://ftp.internat.freebsd.org/pub/FreeBSD.
-
-If password security for FreeBSD is all you need and you have no
-requirement for copying encrypted passwords from different hosts
-(Suns, DEC machines, etc) into FreeBSD password entries, then
-FreeBSD's MD5 based security may be all you require!  We feel that our
-default security model is more than a match for DES, and without any
-messy export issues to deal with.  If you're outside (or even inside)
-the U.S., give it a try!  This snapshot also includes support for
-mixed password files - either DES or MD5 passwords will be accepted,
-making it easier to transition from one scheme to the other.
-
-
-3. Supported Configurations
+2. Supported Configurations
 ---------------------------
 
 FreeBSD currently runs on a wide variety of ISA, VLB, EISA and PCI bus
@@ -194,7 +119,7 @@ FreeBSD.  Other configurations may also work, we have simply not as yet
 received confirmation of this.
 
 
-3.1. Disk Controllers
+2.1. Disk Controllers
 ---------------------
 
 WD1003 (any generic MFM/RLL)
@@ -204,6 +129,7 @@ ATA
 
 Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
 Adaptec 152x series ISA SCSI controllers
+Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
 Adaptec 274X/284X/2940/3940 (Narrow/Wide/Twin) series ISA/EISA/PCI SCSI
@@ -267,7 +193,7 @@ The following CD-ROM type systems are supported at this time:
         quality!).
 
 
-3.2. Ethernet cards
+2.2. Ethernet cards
 -------------------
 
 Allied-Telesis AT1700 and RE2000 cards
@@ -316,7 +242,7 @@ still waiting for someone to donate a driver for one of them.  Any
 takers?
 
 
-3.3. Misc
+2.3. Misc
 ---------
 
 AST 4 port serial card using shared IRQ.
@@ -363,13 +289,13 @@ Genius and Mustek hand scanners.
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
 
 
-
-4. Obtaining FreeBSD
+3. Obtaining FreeBSD
 --------------------
 
 You may obtain FreeBSD in a variety of ways:
 
-4.1. FTP/Mail
+3.1. FTP/Mail
+-------------
 
 You can ftp FreeBSD and any or all of its optional packages from
 `ftp.freebsd.org' - the official FreeBSD release site.
@@ -389,7 +315,8 @@ megabytes* through the mail and should only be employed as an absolute
 LAST resort!
 
 
-4.2. CDROM
+3.2. CDROM
+----------
 
 FreeBSD 2.1.6-RELEASE and 2.2-RELEASE CDs may be ordered on CDROM from:
 
@@ -418,8 +345,8 @@ Should you be dissatisfied for any reason, the CD comes with an
 unconditional return policy.
 
 
-Reporting problems, making suggestions, submitting code
--------------------------------------------------------
+4. Reporting problems, making suggestions, submitting code.
+-----------------------------------------------------------
 
 Your suggestions, bug reports and contributions of code are always
 valued - please do not hesitate to report any problems you may find
@@ -478,101 +405,19 @@ special interest groups not mentioned here, so send mail to majordomo
 and ask about them!
 
 
-6. Acknowledgements
+5. Acknowledgements
 -------------------
 
 FreeBSD represents the cumulative work of many dozens, if not
 hundreds, of individuals from around the world who have worked very
-hard to bring you this release.  It would be very difficult, if not
-impossible, to enumerate everyone who's contributed to FreeBSD, but
-nonetheless we shall try (in alphabetical order, of course). If you've
-contributed something substantive to us and your name is not mentioned
-here, please be assured that its omission is entirely accidental.
-Please contact hackers@FreeBSD.org for any desired updates to the
-lists that follow:
+hard to bring you this release.  For a complete list of FreeBSD
+project staffers, please see:
 
+        http://www.freebsd.org/handbook/staff.html
 
-The Computer Systems Research Group (CSRG), U.C. Berkeley.
+or, if you've loaded the doc distribution:
 
-Bill Jolitz, for his initial work with 386BSD.
-
-The FreeBSD Core Team
-(in alphabetical order by last name):
-
-        Satoshi Asami <asami@FreeBSD.org>
-        Andrey A. Chernov <ache@FreeBSD.org>
-        John Dyson <dyson@FreeBSD.org>
-        Bruce Evans <bde@FreeBSD.org>
-        Justin Gibbs <gibbs@FreeBSD.org>
-        David Greenman <davidg@FreeBSD.org>
-        Jordan K. Hubbard <jkh@FreeBSD.org>
-        Poul-Henning Kamp <phk@FreeBSD.org>
-        Rich Murphey <rich@FreeBSD.org>
-        Gary Palmer <gpalmer@FreeBSD.org>
-        Søren Schmidt <sos@FreeBSD.org>
-        Peter Wemm <peter@FreeBSD.org>
-        Garrett A. Wollman <wollman@FreeBSD.org>
-        Jörg Wunsch <joerg@FreeBSD.org>
-
-
-The FreeBSD Development Team, excluding core team members
-(in alphabetical order by last name):
-
-        Torsten Blum <torstenb@FreeBSD.org>
-        Gary Clark II <gclarkii@FreeBSD.org>
-        Adam David <adam@FreeBSD.org>
-        Peter Dufault <dufault@FreeBSD.org>
-        Frank Durda IV <uhclem@FreeBSD.org>
-        Julian Elischer <julian@FreeBSD.org>
-        Sean Eric Fagan <sef@FreeBSD.org>
-        Stefan Esser <se@FreeBSD.org>
-        Bill Fenner <fenner@FreeBSD.org>
-        John Fieber <jfieber@FreeBSD.org>
-        Lars Fredriksen <lars@freeBSD.org>
-        Thomas Gellekum <tg@FreeBSD.org>
-        Thomas Graichen <graichen@FreeBSD.org>
-        Rod Grimes <rgrimes@FreeBSD.org>
-        James FitzGibbon <jfitz@FreeBSD.org>
-        John Hay <jhay@FreeBSD.org>
-        Jeffrey Hsu <hsu@FreeBSD.org>
-        Ugen J.S. Antsilevich <ugen@FreeBSD.org>
-        Gary Jennejohn <gj@FreeBSD.org>
-        Andreas Klemm <andreas@FreeBSD.org>
-        Warner Losh <imp@FreeBSD.org>
-        L Jonas Olsson <ljo@FreeBSD.org>
-        Eric L. Hernes <erich@FreeBSD.org>
-        Scott Mace <smace@FreeBSD.org>
-        Atsushi Murai <amurai@FreeBSD.org>
-        Mark Murray <markm@FreeBSD.org>
-        Alex Nash <alex@FreeBSD.org>
-        Masafumi NAKANE <max@FreeBSD.org>
-        David E. O'Brien <obrien@FreeBSD.org>
-        Andras Olah <olah@FreeBSD.org>
-        Steve Passe <smp@FreeBSD.org>
-        Sujal Patel <smpatel@FreeBSD.org>
-        Bill Paul <wpaul@FreeBSD.org>
-        Joshua Peck Macdonald <jmacd@FreeBSD.org>
-        John Polstra <jdp@FreeBSD.org>
-        Steve Price <steve@FreeBSD.org>
-        Mike Pritchard <mpp@FreeBSD.org>
-        Doug Rabson <dfr@FreeBSD.org>
-        James Raynard <jraynard@FreeBSD.org>
-        Geoff Rehmet <csgr@FreeBSD.org>
-        Martin Renters <martin@FreeBSD.org>
-        Paul Richards <paul@FreeBSD.org>
-        Ollivier Robert <roberto@FreeBSD.org>
-        Chuck Robey <chuckr@FreeBSD.org>
-        Dima Ruban <dima@FreeBSD.org>
-        Wolfram Schneider <wosch@FreeBSD.org>
-        Andreas Schulz <ats@FreeBSD.org>
-        Karl Strickland <karl@FreeBSD.org>
-        Michael Smith <msmith@FreeBSD.org>
-        Paul Traina <pst@FreeBSD.org>
-        Guido van Rooij <guido@FreeBSD.org>
-        Steven Wallace <swallace@FreeBSD.org>
-        Nate Williams <nate@FreeBSD.org>
-        Jean-Marc Zucconi <jmz@FreeBSD.org>
-
+        file:/usr/share/doc/handbook/staff.html
 
 Additional FreeBSD helpers and beta testers:
 
@@ -604,6 +449,4 @@ Special mention to:
 
 We sincerely hope you enjoy this release of FreeBSD!
 
-                        The FreeBSD Core Team
-
-$Id: relnotes.hlp,v 1.17.2.9 1997/01/03 06:38:36 jkh Exp $
+                        The FreeBSD Project
