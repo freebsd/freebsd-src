@@ -47,20 +47,22 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include "indent_globs.h"
-
+#include "indent.h"
 
 int         comment_open;
-static      paren_target;
+static int  paren_target;
+static int pad_output(int current, int target);
 
-dump_line()
+void
+dump_line(void)
 {				/* dump_line is the routine that actually
 				 * effects the printing of the new source. It
 				 * prints the label section, followed by the
 				 * code section with the appropriate nesting
 				 * level, followed by any comments */
     register int cur_col,
-                target_col;
-    static      not_first_line;
+                target_col = 1;
+    static int  not_first_line;
 
     if (ps.procname[0]) {
 	if (troff) {
@@ -143,7 +145,7 @@ dump_line()
 	    }
 	    target_col = compute_code_target();
 	    {
-		register    i;
+		register    int i;
 
 		for (i = 0; i < ps.p_l_follow; i++)
 		    if (ps.paren_indents[i] >= 0)
@@ -157,7 +159,7 @@ dump_line()
 		    putc(*p, output);
 	    cur_col = count_spaces(cur_col, s_code);
 	}
-	if (s_com != e_com)
+	if (s_com != e_com) {
 	    if (troff) {
 		int         all_here = 0;
 		register char *p;
@@ -216,7 +218,7 @@ dump_line()
 		}
 	    }
 	    else {		/* print comment, if any */
-		register    target = ps.com_col;
+		register    int target = ps.com_col;
 		register char *com_st = s_com;
 
 		target += ps.comment_delta;
@@ -251,6 +253,7 @@ dump_line()
 		cur_col = count_spaces(cur_col, com_st);
 		++ps.com_lines;	/* count lines with comments */
 	    }
+	}
 	if (ps.use_ff)
 	    putc('\014', output);
 	else
@@ -282,19 +285,19 @@ inhibit_newline:
     ps.paren_level = ps.p_l_follow;
     paren_target = -ps.paren_indents[ps.paren_level - 1];
     not_first_line = 1;
-    return;
 }
 
-compute_code_target()
+int
+compute_code_target(void)
 {
-    register    target_col = ps.ind_size * ps.ind_level + 1;
+    register int target_col = ps.ind_size * ps.ind_level + 1;
 
     if (ps.paren_level)
 	if (!lineup_to_parens)
 	    target_col += continuation_indent * ps.paren_level;
 	else {
-	    register    w;
-	    register    t = paren_target;
+	    register int w;
+	    register int t = paren_target;
 
 	    if ((w = count_spaces(t, s_code) - max_col) > 0
 		    && count_spaces(target_col, s_code) <= max_col) {
@@ -310,7 +313,8 @@ compute_code_target()
     return target_col;
 }
 
-compute_label_target()
+int
+compute_label_target(void)
 {
     return
 	ps.pcase ? (int) (case_ind * ps.ind_size) + 1
@@ -334,8 +338,8 @@ compute_label_target()
  * buffer from temporary buffer
  *
  */
-int
-fill_buffer()
+void
+fill_buffer(void)
 {				/* this routine reads stuff from the input */
     register char *p;
     register int i;
@@ -351,9 +355,9 @@ fill_buffer()
     }
     for (p = in_buffer;;) {
 	if (p >= in_buffer_limit) {
-	    register size = (in_buffer_limit - in_buffer) * 2 + 10;
-	    register offset = p - in_buffer;
-	    in_buffer = (char *) realloc(in_buffer, size);
+	    register int size = (in_buffer_limit - in_buffer) * 2 + 10;
+	    register int offset = p - in_buffer;
+	    in_buffer = realloc(in_buffer, size);
 	    if (in_buffer == 0)
 		err(1, "input line too long");
 	    p = in_buffer + offset;
@@ -391,11 +395,12 @@ fill_buffer()
 			p++;
 		    if (*p == '*')
 			com = 1;
-		    else if (*p == 'O')
+		    else if (*p == 'O') {
 			if (*++p == 'N')
 			    p++, com = 1;
 			else if (*p == 'F' && *++p == 'F')
 			    p++, com = 2;
+		    }
 		    while (*p == ' ' || *p == '\t')
 			p++;
 		    if (p[0] == '*' && p[1] == '/' && p[2] == '\n' && com) {
@@ -418,7 +423,6 @@ fill_buffer()
 	    putc(*p, output);
 	while (*p++ != '\n');
     }
-    return;
 }
 
 /*
@@ -449,11 +453,13 @@ fill_buffer()
  * HISTORY: initial coding 	November 1976	D A Willcox of CAC
  *
  */
-pad_output(current, target)	/* writes tabs and blanks (if necessary) to
+static int
+pad_output(int current, int target)
+			        /* writes tabs and blanks (if necessary) to
 				 * get the current output position up to the
 				 * target column */
-    int         current;	/* the current column value */
-    int         target;		/* position we want it at */
+    /* current: the current column value */
+    /* target: position we want it at */
 {
     register int curr;		/* internal column pointer */
     register int tcur;
@@ -495,13 +501,11 @@ pad_output(current, target)	/* writes tabs and blanks (if necessary) to
  *
  */
 int
-count_spaces(current, buffer)
+count_spaces(int current, char *buffer)
 /*
  * this routine figures out where the character position will be after
  * printing the text in buffer starting at column "current"
  */
-    int         current;
-    char       *buffer;
 {
     register char *buf;		/* used to look thru buffer */
     register int cur;		/* current character counter */
@@ -533,9 +537,9 @@ count_spaces(current, buffer)
 }
 
 int	found_err;
-/* VARARGS2 */
-diag(level, msg, a, b)
-	char *msg;
+
+void
+diag4(int level, char *msg, int a, int b)
 {
     if (level)
 	found_err = 1;
@@ -551,18 +555,49 @@ diag(level, msg, a, b)
     }
 }
 
-writefdef(f, nm)
-    register struct fstate *f;
+void
+diag3(int level, char *msg, int a)
+{
+    if (level)
+	found_err = 1;
+    if (output == stdout) {
+	fprintf(stdout, "/**INDENT** %s@%d: ", level == 0 ? "Warning" : "Error", line_no);
+	fprintf(stdout, msg, a);
+	fprintf(stdout, " */\n");
+    }
+    else {
+	fprintf(stderr, "%s@%d: ", level == 0 ? "Warning" : "Error", line_no);
+	fprintf(stderr, msg, a);
+	fprintf(stderr, "\n");
+    }
+}
+
+void
+diag2(int level, char *msg)
+{
+    if (level)
+	found_err = 1;
+    if (output == stdout) {
+	fprintf(stdout, "/**INDENT** %s@%d: ", level == 0 ? "Warning" : "Error", line_no);
+	fprintf(stdout, msg);
+	fprintf(stdout, " */\n");
+    }
+    else {
+	fprintf(stderr, "%s@%d: ", level == 0 ? "Warning" : "Error", line_no);
+	fprintf(stderr, msg);
+	fprintf(stderr, "\n");
+    }
+}
+
+void
+writefdef(struct fstate *f, int nm)
 {
     fprintf(output, ".ds f%c %s\n.nr s%c %d\n",
 	    nm, f->font, nm, f->size);
 }
 
-char       *
-chfont(of, nf, s)
-    register struct fstate *of,
-               *nf;
-    char       *s;
+char *
+chfont(struct fstate *of, struct fstate *nf, char *s)
 {
     if (of->font[0] != nf->font[0]
 	    || of->font[1] != nf->font[1]) {
@@ -591,13 +626,12 @@ chfont(of, nf, s)
     return s;
 }
 
-
-parsefont(f, s0)
-    register struct fstate *f;
-    char       *s0;
+void
+parsefont(struct fstate *f, char *s0)
 {
     register char *s = s0;
     int         sizedelta = 0;
+
     bzero(f, sizeof *f);
     while (*s) {
 	if (isdigit(*s))

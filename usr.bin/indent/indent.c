@@ -56,9 +56,12 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "indent_globs.h"
 #include "indent_codes.h"
-#include <ctype.h>
+#include "indent.h"
+
+static void bakcopy(void);
 
 char       *in_name = "Standard Input";	/* will always point to name of input
 					 * file */
@@ -66,20 +69,17 @@ char       *out_name = "Standard Output";	/* will always point to name
 						 * of output file */
 char        bakfile[MAXPATHLEN] = "";
 
-static void usage __P((void));
-
-main(argc, argv)
-    int         argc;
-    char      **argv;
+int
+main(int argc, char **argv)
 {
 
-    extern int  found_err;	/* flag set in diag() on error */
+    extern int  found_err;	/* flag set in diagN() on error */
     int         dec_ind;	/* current indentation for declarations */
     int         di_stack[20];	/* a stack of structure indentation levels */
     int         flushed_nl;	/* used when buffering up comments to remember
 				 * that a newline was passed over */
     int         force_nl;	/* when true, code must be broken */
-    int         hd_type;	/* used to store type of stmt for if (...),
+    int         hd_type = 0;	/* used to store type of stmt for if (...),
 				 * for (...), etc */
     register int i;		/* local loop counter */
     int         scase;		/* set to true when we see a case, so we will
@@ -252,7 +252,7 @@ main(argc, argv)
     parse(semicolon);
     {
 	register char *p = buf_ptr;
-	register    col = 1;
+	register int col = 1;
 
 	while (1) {
 	    if (*p == ' ')
@@ -349,7 +349,7 @@ main(argc, argv)
 
 			if (sc_end >= &(save_com[sc_size])) {	/* check for temp buffer
 								 * overflow */
-			    diag(1, "Internal buffer overflow - Move big comment from right after if, while, or whatever.");
+			    diag2(1, "Internal buffer overflow - Move big comment from right after if, while, or whatever.");
 			    fflush(output);
 			    exit(1);
 			}
@@ -363,10 +363,10 @@ main(argc, argv)
 		if (flushed_nl)	/* if we flushed a newline, make sure it is
 				 * put back */
 		    force_nl = true;
-		if (type_code == sp_paren && *token == 'i'
-			&& last_else && ps.else_if
-			|| type_code == sp_nparen && *token == 'e'
-			&& e_code != s_code && e_code[-1] == '}')
+		if ((type_code == sp_paren && *token == 'i'
+			&& last_else && ps.else_if)
+			|| (type_code == sp_nparen && *token == 'e'
+			&& e_code != s_code && e_code[-1] == '}'))
 		    force_nl = false;
 
 		if (sc_end == 0) {	/* ignore buffering if comment wasnt
@@ -383,7 +383,7 @@ main(argc, argv)
 		    *sc_end++ = ' ';
 		    if (verbose && !flushed_nl)	/* print error msg if the line
 						 * was not already broken */
-			diag(0, "Line broken");
+			diag2(0, "Line broken");
 		    flushed_nl = false;
 		}
 		for (t_ptr = token; *t_ptr; ++t_ptr)
@@ -419,7 +419,7 @@ check_type:
 		    || s_com != e_com)	/* must dump end of line */
 		dump_line();
 	    if (ps.tos > 1)	/* check for balanced braces */
-		diag(1, "Stuff missing from end of file.");
+		diag2(1, "Stuff missing from end of file.");
 
 	    if (verbose) {
 		printf("There were %d output lines and %d comments\n",
@@ -440,7 +440,7 @@ check_type:
 		    (type_code != lbrace || !btype_2)) {
 		/* we should force a broken line here */
 		if (verbose && !flushed_nl)
-		    diag(0, "Line broken");
+		    diag2(0, "Line broken");
 		flushed_nl = false;
 		dump_line();
 		ps.want_blank = false;	/* dont insert blank at line start */
@@ -540,7 +540,7 @@ check_type:
 	    ps.sizeof_mask &= (1 << ps.p_l_follow) - 1;
 	    if (--ps.p_l_follow < 0) {
 		ps.p_l_follow = 0;
-		diag(0, "Extra %c", *token);
+		diag3(0, "Extra %c", *token);
 	    }
 	    if (e_code == s_code)	/* if the paren starts the line */
 		ps.paren_level = ps.p_l_follow;	/* then indent it */
@@ -713,7 +713,7 @@ check_type:
 		 * stmt.  It is a bit complicated, because the semicolon might
 		 * be in a for stmt
 		 */
-		diag(1, "Unbalanced parens");
+		diag2(1, "Unbalanced parens");
 		ps.p_l_follow = 0;
 		if (sp_sw) {	/* this is a check for a if, while, etc. with
 				 * unbalanced parens */
@@ -758,7 +758,7 @@ check_type:
 
 	    if (ps.p_l_follow > 0) {	/* check for preceding unbalanced
 					 * parens */
-		diag(1, "Unbalanced parens");
+		diag2(1, "Unbalanced parens");
 		ps.p_l_follow = 0;
 		if (sp_sw) {	/* check for unclosed if, for, etc. */
 		    sp_sw = false;
@@ -800,7 +800,7 @@ check_type:
 								 * declarations */
 		parse(semicolon);
 	    if (ps.p_l_follow) {/* check for unclosed if, for, else. */
-		diag(1, "Unbalanced parens");
+		diag2(1, "Unbalanced parens");
 		ps.p_l_follow = 0;
 		sp_sw = false;
 	    }
@@ -809,7 +809,7 @@ check_type:
 	    if (s_code != e_code && !ps.block_init) {	/* '}' must be first on
 							 * line */
 		if (verbose)
-		    diag(0, "Line broken");
+		    diag2(0, "Line broken");
 		dump_line();
 	    }
 	    *e_code++ = '}';
@@ -852,7 +852,7 @@ check_type:
 	    if (*token == 'e') {
 		if (e_code != s_code && (!cuddle_else || e_code[-1] != '}')) {
 		    if (verbose)
-			diag(0, "Line broken");
+			diag2(0, "Line broken");
 		    dump_line();/* make sure this starts a line */
 		    ps.want_blank = false;
 		}
@@ -863,7 +863,7 @@ check_type:
 	    else {
 		if (e_code != s_code) {	/* make sure this starts a line */
 		    if (verbose)
-			diag(0, "Line broken");
+			diag2(0, "Line broken");
 		    dump_line();
 		    ps.want_blank = false;
 		}
@@ -909,19 +909,19 @@ check_type:
 		    *e_code++ = ' ';
 		ps.want_blank = false;
 		if (is_procname == 0 || !procnames_start_line) {
-		    if (!ps.block_init)
+		    if (!ps.block_init) {
 			if (troff && !ps.dumped_decl_indent) {
 			    sprintf(e_code, "\n.De %dp+\200p\n", dec_ind * 7);
 			    ps.dumped_decl_indent = 1;
 			    e_code += strlen(e_code);
-			}
-			else
+			} else {
 			    while ((e_code - s_code) < dec_ind) {
 				CHECK_SIZE_CODE;
 				*e_code++ = ' ';
 			    }
-		}
-		else {
+			}
+		    }
+		} else {
 		    if (dec_ind && s_code != e_code)
 			dump_line();
 		    dec_ind = 0;
@@ -1072,7 +1072,7 @@ check_type:
 
 	    if (strncmp(s_lab, "#if", 3) == 0) {
 		if (blanklines_around_conditional_compilation) {
-		    register    c;
+		    register int c;
 		    prefix_blankline_requested++;
 		    while ((c = getc(input)) == '\n');
 		    ungetc(c, input);
@@ -1082,18 +1082,18 @@ check_type:
 		    state_stack[ifdef_level++] = ps;
 		}
 		else
-		    diag(1, "#if stack overflow");
+		    diag2(1, "#if stack overflow");
 	    }
 	    else if (strncmp(s_lab, "#else", 5) == 0)
 		if (ifdef_level <= 0)
-		    diag(1, "Unmatched #else");
+		    diag2(1, "Unmatched #else");
 		else {
 		    match_state[ifdef_level - 1] = ps;
 		    ps = state_stack[ifdef_level - 1];
 		}
 	    else if (strncmp(s_lab, "#endif", 6) == 0) {
 		if (ifdef_level <= 0)
-		    diag(1, "Unmatched #endif");
+		    diag2(1, "Unmatched #endif");
 		else {
 		    ifdef_level--;
 
@@ -1104,7 +1104,7 @@ check_type:
 		     */
 		    if (match_state[ifdef_level].tos >= 0
 			  && bcmp(&ps, &match_state[ifdef_level], sizeof ps))
-			diag(0, "Syntactically inconsistant #ifdef alternatives.");
+			diag2(0, "Syntactically inconsistant #ifdef alternatives.");
 #endif
 		}
 		if (blanklines_around_conditional_compilation) {
@@ -1115,7 +1115,7 @@ check_type:
 	    break;		/* subsequent processing of the newline
 				 * character will cause the line to be printed */
 
-	case comment:		/* we have gotten a /*  this is a biggie */
+	case comment:		/* we have gotten a / followed by * this is a biggie */
 	    if (flushed_nl) {	/* we should force a broken line here */
 		flushed_nl = false;
 		dump_line();
@@ -1132,19 +1132,13 @@ check_type:
     }				/* end of main while (1) loop */
 }
 
-static void
-usage()
-{
-	fprintf(stderr, "usage: indent [ file [ outfile ] ] [ options ]\n");
-	exit(1);
-}
-
 /*
  * copy input file to backup file if in_name is /blah/blah/blah/file, then
  * backup file will be ".Bfile" then make the backup file the input and
  * original input file the output
  */
-bakcopy()
+static void
+bakcopy(void)
 {
     int         n,
                 bakchn;
@@ -1163,7 +1157,7 @@ bakcopy()
     bakchn = creat(bakfile, 0600);
     if (bakchn < 0)
 	err(1, "%s", bakfile);
-    while (n = read(fileno(input), buff, sizeof buff))
+    while ((n = read(fileno(input), buff, sizeof buff)) != 0)
 	if (write(bakchn, buff, n) != n)
 	    err(1, "%s", bakfile);
     if (n < 0)
