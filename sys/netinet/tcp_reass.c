@@ -404,15 +404,16 @@ findpcb:
 				if(tiflags & TH_SYN)
 					log(LOG_INFO,
 			    		"Connection attempt to TCP %s:%d from %s:%d\n",
-			    		buf, ntohs(ti->ti_dport), inet_ntoa(ti->ti_src),
+			    		buf, ntohs(ti->ti_dport),
+					inet_ntoa(ti->ti_src),
 			    		ntohs(ti->ti_sport));
-						break;
+				break;
 			case 2:
 				log(LOG_INFO,
 			    	"Connection attempt to TCP %s:%d from %s:%d flags:0x%x\n",
 			    	buf, ntohs(ti->ti_dport), inet_ntoa(ti->ti_src),
 			    	ntohs(ti->ti_sport), tiflags);
-					break;
+				break;
 			default:
 				break;
 			}
@@ -498,8 +499,8 @@ findpcb:
 			inp->inp_lport = ti->ti_dport;
 			if (in_pcbinshash(inp) != 0) {
 				/*
-				 * Undo the assignments above if we failed to put
-				 * the PCB on the hash lists.
+				 * Undo the assignments above if we failed to
+				 * put the PCB on the hash lists.
 				 */
 				inp->inp_laddr.s_addr = INADDR_ANY;
 				inp->inp_lport = 0;
@@ -512,7 +513,8 @@ findpcb:
 
 			/* Compute proper scaling value from buffer space */
 			while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
-			   TCP_MAXWIN << tp->request_r_scale < so->so_rcv.sb_hiwat)
+			   TCP_MAXWIN << tp->request_r_scale <
+			   so->so_rcv.sb_hiwat)
 				tp->request_r_scale++;
 		}
 	}
@@ -767,7 +769,8 @@ findpcb:
 			 * segment.  Otherwise must send ACK now in case
 			 * the other side is slow starting.
 			 */
-			if (tcp_delack_enabled && ((tiflags & TH_FIN) || (ti->ti_len != 0 &&
+			if (tcp_delack_enabled && ((tiflags & TH_FIN) ||
+			    (ti->ti_len != 0 &&
 			    in_localaddr(inp->inp_faddr))))
 				tp->t_flags |= (TF_DELACK | TF_NEEDSYN);
 			else
@@ -943,7 +946,8 @@ findpcb:
 						tp->t_flags &= ~TF_NEEDFIN;
 					} else {
 						tp->t_state = TCPS_ESTABLISHED;
-						tp->t_timer[TCPT_KEEP] = tcp_keepidle;
+						tp->t_timer[TCPT_KEEP] =
+						    tcp_keepidle;
 					}
 					tp->t_flags |= TF_NEEDSYN;
 				} else
@@ -1494,7 +1498,7 @@ process_ACK:
 
 		if (cw > tp->snd_ssthresh)
 			incr = incr * incr / cw;
-		tp->snd_cwnd = min(cw + incr, TCP_MAXWIN<<tp->snd_scale);
+		tp->snd_cwnd = min(cw + incr, TCP_MAXWIN << tp->snd_scale);
 		}
 		if (acked > so->so_snd.sb_cc) {
 			tp->snd_wnd -= so->so_snd.sb_cc;
