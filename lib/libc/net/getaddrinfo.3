@@ -625,6 +625,10 @@ and documented in
 (RFC2553).
 .\"
 .Sh BUGS
-The current implementation is not thread-safe.
+Though the current implementation should be thread-safe, using
+.Fn getaddrinfo
+in conjunction with
+.Fn gethostby*
+breaks thread-safeness.
 .Pp
 The text was shamelessly copied from RFC2553.
