@@ -32,11 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
-#if defined(SYSLIBC_SCCS) && !defined(lint)
-	.asciz "@(#)sigsuspend.s	5.2 (Berkeley) 12/17/90"
-#endif /* SYSLIBC_SCCS and not lint */
+#if defined(SYSLIBC_RCS) && !defined(lint)
+	.text
+	.asciz "$Id$"
+#endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
 

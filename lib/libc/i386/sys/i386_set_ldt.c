@@ -25,7 +25,12 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  * 
+ *	$Id$
  */
+
+#if defined(LIBC_RCS) && !defined(lint)
+static const char rcsid[] = "$Id$";
+#endif /* LIBC_RCS and not lint */
 
 #include <sys/cdefs.h>
 #include <machine/segments.h>

@@ -34,12 +34,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fixunsdfsi.s	5.1	12/17/90
- *	$Id: fixunsdfsi.S,v 1.1 1994/08/05 01:18:05 wollman Exp $
+ *	$Id: fixunsdfsi.S,v 1.2 1994/12/27 13:37:38 bde Exp $
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-	.asciz "$Id: fixunsdfsi.S,v 1.1 1994/08/05 01:18:05 wollman Exp $"
-#endif /* LIBC_SCCS and not lint */
+#if defined(LIBC_RCS) && !defined(lint)
+	.text
+	.asciz "$Id: fixunsdfsi.S,v 1.2 1994/12/27 13:37:38 bde Exp $"
+#endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
 
