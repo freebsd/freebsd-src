@@ -16,6 +16,10 @@ SUBDIR+=libc libcompat libcom_err libcurses libdisk libedit \
 	libscsi libskey libss libtcl libtermcap libutil libxpg4 liby libz
 	
 
+.if defined(WANT_LIBC_R)
+SUBDIR+= libc_r
+.endif
+
 .if !exists(../secure) || defined(NOSECURE) || defined(NOCRYPT)
 SUBDIR+= libcrypt
 .else

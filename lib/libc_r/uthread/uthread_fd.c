@@ -31,6 +31,7 @@
  *
  */
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
@@ -48,7 +49,7 @@ _thread_fd_table_init(int fd)
 	/* Check if the file descriptor is out of range: */
 	if (fd < 0 || fd >= _thread_dtablesize) {
 		/* Return a bad file descriptor error: */
-		_thread_seterrno(_thread_run, EBADF);
+		errno = EBADF;
 		ret = -1;
 	}
 	/*
@@ -60,7 +61,7 @@ _thread_fd_table_init(int fd)
 	/* Allocate memory for the file descriptor table entry: */
 	else if ((_thread_fd_table[fd] = (struct fd_table_entry *) malloc(sizeof(struct fd_table_entry))) == NULL) {
 		/* Return a bad file descriptor error: */
-		_thread_seterrno(_thread_run, EBADF);
+		errno = EBADF;
 		ret = -1;
 	} else {
 		/* Initialise the file locks: */
@@ -73,12 +74,25 @@ _thread_fd_table_init(int fd)
 		_thread_fd_table[fd]->r_lockcount = 0;;
 		_thread_fd_table[fd]->w_lockcount = 0;;
 
-		/* Default the flags: */
-		_thread_fd_table[fd]->flags = 0;
-
 		/* Initialise the read/write queues: */
 		_thread_queue_init(&_thread_fd_table[fd]->r_queue);
 		_thread_queue_init(&_thread_fd_table[fd]->w_queue);
+
+		/* Get the flags for the file: */
+		if ((_thread_fd_table[fd]->flags = _thread_sys_fcntl(fd, F_GETFL, 0)) == -1) {
+			ret = -1;
+
+		/* Make the file descriptor non-blocking: */
+		} else {
+			_thread_sys_fcntl(fd, F_SETFL, _thread_fd_table[fd]->flags | O_NONBLOCK);
+		}
+
+		/* Check if one of the fcntl calls failed: */
+		if (ret == -1) {
+			/* Free the file descriptor table entry: */
+			free(_thread_fd_table[fd]);
+			_thread_fd_table[fd] = NULL;
+		}
 	}
 
 	/* Unblock signals: */

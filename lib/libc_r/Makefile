@@ -20,6 +20,7 @@ PRECIOUSLIB=	yes
 .include "${.CURDIR}/gen/Makefile.inc"
 .include "${.CURDIR}/gmon/Makefile.inc"
 .include "${.CURDIR}/locale/Makefile.inc"
+.include "${.CURDIR}/man/Makefile.inc"
 .include "${.CURDIR}/net/Makefile.inc"
 .include "${.CURDIR}/nls/Makefile.inc"
 .include "${.CURDIR}/quad/Makefile.inc"
@@ -38,24 +39,8 @@ CFLAGS+= -DYP
 .endif
 .include "${.CURDIR}/${MACHINE}/sys/Makefile.inc"
 
-KQSRCS=	adddi3.c anddi3.c ashldi3.c ashrdi3.c cmpdi2.c divdi3.c iordi3.c \
-	lshldi3.c lshrdi3.c moddi3.c muldi3.c negdi2.c notdi2.c qdivrem.c \
-	subdi3.c ucmpdi2.c udivdi3.c umoddi3.c xordi3.c
-KSRCS=	bcmp.c ffs.c index.c mcount.c rindex.c strcat.c strcmp.c strcpy.c \
-	strlen.c strncpy.c
-
-libkern: libkern.gen libkern.${MACHINE}
-
-libkern.gen: ${KQSRCS} ${KSRCS}
-	cp -p ${.CURDIR}/quad/quad.h ${.ALLSRC} /sys/libkern
-
-libkern.${MACHINE}:: ${KMSRCS}
-.if defined(KMSRCS) && !empty(KMSRCS)
-	cp -p ${.ALLSRC} /sys/libkern/${MACHINE}
-.endif
-
-#beforeinstall: tags
-#	${INSTALL} ${COPY} -o bin -g bin -m 444 tags /var/db/libc.tags
+beforeinstall: tags
+	${INSTALL} ${COPY} -o bin -g bin -m 444 tags /var/db/libc_r.tags
 
 tags: ${SRCS}
 	ctags ${.ALLSRC:M*.c}

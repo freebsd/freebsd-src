@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: gethostnamadr.c,v 1.7 1995/05/30 05:40:45 rgrimes Exp $";
-static char rcsid[] = "$Id: gethostnamadr.c,v 1.7 1995/05/30 05:40:45 rgrimes Exp $";
+static char sccsid[] = "@(#)$Id: gethostnamadr.c,v 1.8 1996/07/12 18:54:36 jkh Exp $";
+static char rcsid[] = "$Id: gethostnamadr.c,v 1.8 1996/07/12 18:54:36 jkh Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -183,6 +183,27 @@ gethostbyaddr(const char *addr, int len, int type)
 	}
 	return hp;
 }
+
+#ifdef _THREAD_SAFE
+struct hostent_data;
+
+/*
+ * Temporary function (not thread safe)
+ */
+int gethostbyaddr_r(const char *addr, int len, int type,
+	struct hostent *result, struct hostent_data *buffer)
+{
+	struct hostent *hp = 0;
+	int ret;
+	if ((hp = gethostbyaddr(addr, len, type)) == NULL) {
+		ret = -1;
+	} else {
+		memcpy(result, hp, sizeof(struct hostent));
+		ret = 0;
+	}
+	return(ret);
+}
+#endif
 
 void
 sethostent(stayopen)

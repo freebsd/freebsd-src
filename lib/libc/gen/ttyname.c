@@ -49,7 +49,8 @@ static char sccsid[] = "@(#)ttyname.c	8.2 (Berkeley) 1/27/94";
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
-static pthread_mutex_t ttyname_lock = PTHREAD_MUTEX_INITIALIZER;
+static struct pthread_mutex _ttyname_lockd = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t ttyname_lock = &_ttyname_lockd;
 static pthread_key_t ttyname_key;
 static int      ttyname_init = 0;
 

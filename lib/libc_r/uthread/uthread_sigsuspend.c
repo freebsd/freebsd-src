@@ -47,6 +47,9 @@ sigsuspend(const sigset_t * set)
 		/* Save the current sigmal mask: */
 		oset = _thread_run->sigmask;
 
+		/* Combine the caller's mask with the current one: */
+		_thread_run->sigmask |= *set;
+
 		/* Wait for a signal: */
 		_thread_kern_sched_state(PS_SIGWAIT, __FILE__, __LINE__);
 

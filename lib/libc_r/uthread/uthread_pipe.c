@@ -46,11 +46,6 @@ pipe(int fds[2])
 			_thread_sys_close(fds[0]);
 			_thread_sys_close(fds[1]);
 			ret = -1;
-		} else {
-			_thread_fd_table[fds[0]]->flags = _thread_sys_fcntl(fds[0], F_GETFL, NULL);
-			_thread_sys_fcntl(fds[0], F_SETFL, _thread_fd_table[fds[0]]->flags | O_NONBLOCK);
-			_thread_fd_table[fds[1]]->flags = _thread_sys_fcntl(fds[1], F_GETFL, NULL);
-			_thread_sys_fcntl(fds[1], F_SETFL, _thread_fd_table[fds[1]]->flags | O_NONBLOCK);
 		}
 	}
 	return (ret);

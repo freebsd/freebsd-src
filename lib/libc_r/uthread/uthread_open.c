@@ -31,6 +31,7 @@
  *
  */
 #include <stdarg.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
 #ifdef _THREAD_SAFE
@@ -55,8 +56,8 @@ open(const char *path, int flags,...)
 		mode = va_arg(ap, int);
 		va_end(ap);
 	}
-	/* Open the file, forcing it to use non-blocking I/O operations: */
-	if ((fd = _thread_sys_open(path, flags | O_NONBLOCK, mode)) < 0) {
+	/* Open the file: */
+	if ((fd = _thread_sys_open(path, flags, mode)) < 0) {
 	}
 	/* Initialise the file descriptor table entry: */
 	else if (_thread_fd_table_init(fd) != 0) {
@@ -65,12 +66,6 @@ open(const char *path, int flags,...)
 
 		/* Reset the file descriptor: */
 		fd = -1;
-	} else {
-		/*
-		 * Save the file open flags so that they can be checked
-		 * later: 
-		 */
-		_thread_fd_table[fd]->flags = flags;
 	}
 
 	/* Unblock signals: */

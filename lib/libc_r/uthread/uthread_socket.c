@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <fcntl.h>
+#include <unistd.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
@@ -40,17 +41,16 @@
 int
 socket(int af, int type, int protocol)
 {
-	int             fd;
-	int             tmp_flags;
+	int fd;
 
+	/* Create a socket: */
 	if ((fd = _thread_sys_socket(af, type, protocol)) < 0) {
+		/* Error creating socket. */
+
+	/* Initialise the entry in the file descriptor table: */
 	} else if (_thread_fd_table_init(fd) != 0) {
 		_thread_sys_close(fd);
 		fd = -1;
-	} else {
-		tmp_flags = _thread_sys_fcntl(fd, F_GETFL, 0);
-		_thread_sys_fcntl(fd, F_SETFL, tmp_flags | O_NONBLOCK);
-		_thread_fd_table[fd]->flags = tmp_flags;
 	}
 	return (fd);
 }

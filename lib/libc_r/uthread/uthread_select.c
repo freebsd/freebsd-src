@@ -142,36 +142,29 @@ select(int numfds, fd_set * readfds, fd_set * writefds,
 
 	if (ret > 0) {
 		if (readfds != NULL) {
-			FD_ZERO(readfds);
 			for (i = 0; i < numfds; i++) {
-				if (FD_ISSET(i, &data.readfds)) {
-					FD_SET(i, readfds);
+				if (FD_ISSET(i, readfds) &&
+					!FD_ISSET(i, &data.readfds)) {
+					FD_CLR(i, readfds);
 				}
 			}
 		}
 		if (writefds != NULL) {
-			FD_ZERO(writefds);
 			for (i = 0; i < numfds; i++) {
-				if (FD_ISSET(i, &data.writefds)) {
-					FD_SET(i, writefds);
+				if (FD_ISSET(i, writefds) &&
+					!FD_ISSET(i, &data.writefds)) {
+					FD_CLR(i, writefds);
 				}
 			}
 		}
 		if (exceptfds != NULL) {
-			FD_ZERO(exceptfds);
 			for (i = 0; i < numfds; i++) {
-				if (FD_ISSET(i, &data.exceptfds)) {
-					FD_SET(i, exceptfds);
+				if (FD_ISSET(i, exceptfds) &&
+					!FD_ISSET(i, &data.exceptfds)) {
+					FD_CLR(i, exceptfds);
 				}
 			}
 		}
-	} else {
-		if (exceptfds != NULL)
-			FD_ZERO(exceptfds);
-		if (writefds != NULL)
-			FD_ZERO(writefds);
-		if (readfds != NULL)
-			FD_ZERO(readfds);
 	}
 
 	return (ret);
