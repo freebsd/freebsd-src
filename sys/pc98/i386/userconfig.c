@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.62 1998/12/14 08:53:32 kato Exp $
+ **      $Id: userconfig.c,v 1.63 1999/01/08 16:05:27 kato Exp $
  **/
 
 /**
@@ -243,14 +243,22 @@ getchar(void)
 	     * script (userconfig_boot_parsing==1), otherwise
 	     * we would always block here waiting for user input.
 	     */
+	    intro = 1;
 	    if (userconfig_boot_parsing == 0)
 	    {
-		intro = 1;
+		/* userconfig_boot_parsing will be set to 1 on next pass,
+		 * which will allow using 'intro' in the middle of other
+		 * userconfig_script commands.
+		 */
 	        c = 'i';
 	        asp = "ntro\n";
 	        assize = strlen(asp);
+	    } else {
+	        userconfig_boot_parsing = 0;
+		assize=-1;
 	    }
 #else
+	userconfig_boot_parsing = 0;
 	if (!(boothowto & RB_CONFIG)) 
 	{
 	    /* don't want to drop to interpreter */
@@ -395,6 +403,7 @@ static DEV_INFO device_info[] = {
 {"vx",          "3COM 3C590/3C595 Ethernet adapters",		0,	CLS_NETWORK},
 {"ze",          "IBM/National Semiconductor PCMCIA Ethernet adapter",0,	CLS_NETWORK},
 {"zp",          "3COM PCMCIA Etherlink III Ethernet adapter",	0,	CLS_NETWORK},
+{"ax",          "ASIC AX88140A ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
 {"fpa",         "DEC DEFPA PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
 {"rl",          "RealTek 8129/8139 ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
@@ -2522,7 +2531,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.62 1998/12/14 08:53:32 kato Exp $
+ *      $Id: userconfig.c,v 1.63 1999/01/08 16:05:27 kato Exp $
  */
 
 #include "scbus.h"
@@ -2613,10 +2622,12 @@ static CmdParm dev_parms[] = {
     { -1, {} },
 };
 
+#if NPNP > 0
 static CmdParm string_arg[] = {
     { PARM_STRING, {} },
     { -1, {} },
 };
+#endif
 
 #if NEISA > 0
 static CmdParm int_arg[] = {
@@ -3161,6 +3172,8 @@ introfunc(CmdParm *parms)
 		    return visuserconfig();
 		else {
 		    putxy(0, 1, "Type \"help\" for help or \"quit\" to exit.");
+		    /* enable quitfunc */
+    		    userconfig_boot_parsing=0;
 		    move (0, 3);
 		    boothowto |= RB_CONFIG;	/* force -c */
 		    return 0;
