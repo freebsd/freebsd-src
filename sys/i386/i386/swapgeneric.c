@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.7 1995/03/16 18:11:30 bde Exp $
+ *	$Id: swapgeneric.c,v 1.8 1995/04/02 23:02:17 wpaul Exp $
  */
 
 #include <sys/param.h>
@@ -45,6 +45,7 @@
 #include <sys/disklabel.h>
 #include <sys/devconf.h>
 
+#include <i386/i386/cons.h>
 #include <machine/md_var.h>
 
 #include "wd.h"
@@ -71,7 +72,6 @@ long	dumplo;
 int	dmmin, dmmax, dmtext;
 
 extern struct kern_devconf *dc_list;
-extern int cngetc __P((void));
 void gets __P((char *));
 
 struct	genericconf {
