@@ -1,4 +1,9 @@
 
+        --- 8.3.7-REL released --- (Wed Sep  3 21:01:37 PDT 2003)
+
+1581.	[bug]		apply anti-cache poison techniques to negative
+			answers.
+
         --- 8.3.6-REL released --- (Sun Jun  8 15:11:32 PDT 2003)
 
 1547.	[port]		cope with spurious EINVAL from evRead.
