@@ -259,6 +259,7 @@ i386/isa/pcvt/pcvt_kbd.c	optional	vt
 i386/isa/pcvt/pcvt_out.c	optional	vt
 i386/isa/pcvt/pcvt_sup.c	optional	vt
 i386/isa/pcvt/pcvt_vtf.c	optional	vt
+pc98/pc98/pmc.c			optional	pmc
 pc98/pc98/ppc.c			optional	ppc
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/rc.c			optional	rc
