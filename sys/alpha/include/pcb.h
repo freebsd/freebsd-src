@@ -53,7 +53,6 @@ struct pcb {
 	u_int64_t	pcb_fp_control;		/* IEEE control word	[SW] */
 	unsigned long	pcb_onfault;		/* for copy faults	[SW] */
 	unsigned long	pcb_accessaddr;		/* for [fs]uswintr	[SW] */
-	u_int32_t	pcb_schednest;		/* state of sched_lock  [SW] */
 };
 
 /*
