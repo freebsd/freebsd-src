@@ -13,7 +13,8 @@ int08(regcontext_t *REGS)
 	*(u_long *)&BIOSDATA[0x6c] -= 24*60*6*182;
 	BIOSDATA[0x70]++;               /* # times past mn */
     }
-
+    /* What is the real BIOS' sequence? */
+    send_eoi();
     softint(0x1c);
 }
 

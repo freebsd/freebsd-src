@@ -84,12 +84,10 @@ generichandler(struct sigframe sf)
 #error BSD/OS sigframe/trapframe kernel interface not currently supported.
 #endif
 
-void
-setsignal(int s, void (*h)(struct sigframe *))
+void setsignal(int s, void (*h)(struct sigframe *))
 {
     static int first = 1;
     struct sigaction sa;
-    sigset_t set;
 
     if (first) {
 	struct sigaltstack sstack;
@@ -110,8 +108,5 @@ setsignal(int s, void (*h)(struct sigframe *))
 	sigaddset(&sa.sa_mask, SIGALRM);
 	sa.sa_flags = SA_ONSTACK;
 	sigaction(s, &sa, NULL);
-
-	sigaddset(&set, s);
-	sigprocmask(SIG_UNBLOCK, &set, 0);
     }
 }

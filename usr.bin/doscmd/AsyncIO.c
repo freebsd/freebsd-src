@@ -61,7 +61,7 @@
 static	fd_set	fdset;		/* File Descriptors to select on */
 
 typedef	struct {
-	void	(*func)(void *, regcontext_t *);
+	void	(*func)(int, int, void *, regcontext_t *);
 					/* Function to call on data arrival */
 	void	(*failure)(void *);	/* Function to call on failure */
 	void	*arg;			/* Argument to above functions */
@@ -71,17 +71,13 @@ typedef	struct {
 } Async;
 
 static Async	handlers[OPEN_MAX];
-static int	in_handler = 0;
 
 static void	CleanIO(void);
 static void	HandleIO(struct sigframe *sf);
 
 void
-_RegisterIO(fd, func, arg, failure)
-int fd;
-void (*func)(void *, regcontext_t *);
-void *arg;
-void (*failure)(void *);
+_RegisterIO(int fd, void (*func)(int, int, void *, regcontext_t *),
+    void *arg, void (*failure)(void *))
 {
 	static int firsttime = 1;
 	Async *as;
@@ -167,181 +163,99 @@ printf("Closed file descriptor %d\n", x);
 	}
 }
 
-static void
-HandleIO(struct sigframe *sf)
+static void HandleIO(struct sigframe *sf)
 {
-	++in_handler;
+	static struct timeval tv;
+	fd_set readset, writeset;
+	int x, fd;
 
-	for (;;) {
-		static struct timeval tv;
-		fd_set readset;
-		int x;
-		int fd;
+again:
+	readset = writeset = fdset;
+	if ((x = select(FD_SETSIZE, &readset, &writeset, 0, &tv)) < 0) {
+		/*
+		 * If we failed because of a BADFiledes, go find
+		 * which one(s), fail them out and then try a
+		 * new select to see if any of the good ones are
+		 * okay.
+		 */
+		if (errno == EBADF) {
+			CleanIO();
+			if (FD_ISZERO(&fdset))
+				return;
+			goto again;
+		}
+		perror("select");
+		return;
+	}
 
-		readset = fdset;
-		if ((x = select(FD_SETSIZE, &readset, 0, 0, &tv)) < 0) {
-			/*
-			 * If we failed becuase of a BADFiledes, go find
-			 * which one(s), fail them out and then try a
-			 * new select to see if any of the good ones are
-			 * okay.
-			 */
-			if (errno == EBADF) {
-				CleanIO();
-				if (FD_ISZERO(&fdset))
-					break;
-				continue;
-			}
-			perror("select");
-			break;
+	/*
+	 * If we run out of fds to look at, break out of the loop
+	 * and exit the handler.
+	 */
+	if (x == 0)
+		return;
+
+	/*
+	 * If there is at least 1 fd saying it has something for
+	 * us, then loop through the sets looking for those
+	 * bits, stopping when we have handleed the number it has
+	 * asked for.
+	 */
+	for (fd = 0; x && fd < OPEN_MAX; fd ++) {
+		Async *as;
+		int cond;  				     
+		
+		cond = 0;
+		
+		if (FD_ISSET(fd, &readset)) {
+			cond |= AS_RD;
+			x --;
+		}
+		if (FD_ISSET(fd, &writeset)) {
+			cond |= AS_WR;
+			x --;
 		}
 
-		/*
-		 * If we run out of fds to look at, break out of the loop
-		 * and exit the handler.
-		 */
-		if (!x)
-			break;
+		if (cond == 0)
+			continue;
 
 		/*
-		 * If there is at least 1 fd saying it has something for
-		 * us, then loop through the sets looking for those
-		 * bits, stopping when we have handleed the number it has
-		 * asked for.
+		 * Is suppose it is possible that one of the previous
+		 * I/O requests changed the fdset.
+		 * We do know that SIGIO is turned off right now,
+		 * so it is safe to checkit.
 		 */
-		for (fd = 0; x && fd < OPEN_MAX; ++fd) {
-			Async *as;
-
-			if (!FD_ISSET(fd, &readset)) {
-				continue;
-			}
-			--x;
-
-			/*
-			 * Is suppose it is possible that one of the previous
-			 * io requests changed the fdset.
-			 * We do know that SIGIO is turned off right now,
-			 * so it is safe to checkit.
-			 */
-			if (!FD_ISSET(fd, &fdset)) {
-				continue;
-			}
-			as = &handlers[fd];
-
-			/*
-			 * as in above, maybe someone locked us...
-			 * we are in dangerous water now if we are
-			 * multi-tasked
-			 */
-			if (as->lockcnt) {
-/*@*/			fprintf(stderr, "Selected IO on locked %d\n",fd);
-				continue;
-			}
-			/*
-			 * Okay, now if there exists a handler, we should
-			 * call it.  We must turn back on SIGIO if there
-			 * are possibly other people waiting for it.
-			 */
-			if (as->func) {
-				int afd;
-				Async *aas;
-
-				/*
-				 * STEP 1: Lock out all "members"
-				 */
-				aas = handlers;
-if (0)
-				for (afd = 0; afd < OPEN_MAX; ++afd, ++aas) {
-				    if (FD_ISSET(afd, &as->members)) {
-					if (aas->func) {
-					    if (as->lockcnt++ == 0) {
-						FD_CLR(afd, &fdset);
-						CLRASYNC(afd);
-					    }
-					
-					}
-				    }
-				}
-
-				/*
-				 * STEP 2: Renable SIGIO so other FDs can
-				 *         use a hit.
-				_UnblockIO();
-				 */
-
-				/*
-				 * STEP 3: Call the handler
-				 */
-				(*handlers[fd].func)(handlers[fd].arg, 
-				    (regcontext_t *)&sf->sf_uc);
-
-				/*
-				 * STEP 4: Just turn SIGIO off.  No check.
-				_BlockIO();
-				 */
-
-				/*
-				 * STEP 5: Unlock all "members"
-				 */
-				aas = handlers;
-if (0)
-				for (afd = 0; afd < OPEN_MAX; ++afd, ++aas) {
-				    if (FD_ISSET(afd, &as->members)) {
-					if (aas->func) {
-					    if (--as->lockcnt == 0) {
-						FD_SET(afd, &fdset);
-						SETASYNC(afd);
-					    }
-					}
-				    }
-				}
-			} else {
-				/*
-				 * Otherwise deregister this guy.
-				 */
-				_RegisterIO(fd, 0, 0, 0);
-			}
+		if (!FD_ISSET(fd, &fdset)) {
+			continue;
+		}
+		as = &handlers[fd];
+		
+		/*
+		 * as in above, maybe someone locked us...
+		 * we are in dangerous water now if we are
+		 * multi-tasked
+		 */
+		if (as->lockcnt) {
+			fprintf(stderr, "Selected IO on locked %d\n",fd);
+			continue;
 		}
 		/*
-		 * If we did not process all the fd's, then we should
-		 * break out of the probable infinite loop.
+		 * Okay, now if there exists a handler, we should
+		 * call it.  We must turn back on SIGIO if there
+		 * are possibly other people waiting for it.
 		 */
-		if (x) {
-			break;
+		if (as->func) {
+			(*handlers[fd].func)(fd, cond, handlers[fd].arg, 
+			    (regcontext_t*)&sf->sf_uc);
+		} else {
+			/*
+			 * Otherwise deregister this guy.
+			 */
+			_RegisterIO(fd, 0, 0, 0);
 		}
 	}
-
-	--in_handler;
-}
-
-static int stackp = 0;
-
-void
-_BlockIO()
-{
-	sigset_t set;
-
-	if (stackp >= 64) {
-		fprintf(stderr, "Signal stack count too deep\n");
-		abort();
-	}
-	if (stackp++ == 0) {
-		sigaddset(&set, SIGIO);
-		sigprocmask(SIG_BLOCK, &set, 0);
-	}
-}
-
-void
-_UnblockIO()
-{
-	sigset_t set;
-
-	if (stackp <= 0) {
-		fprintf(stderr, "Negative signal stack count\n");
-		abort();
-	}
-	if (--stackp == 0) {
-		sigaddset(&set, SIGIO);
-		sigprocmask(SIG_UNBLOCK, &set, 0);
-	}
+	/*
+	 * If we did not process all the fd's, then we should
+	 * break out of the probable infinite loop.
+	 */
 }

@@ -138,6 +138,7 @@ video_inb(int port)
 	return gdc_index;
     case VGA_InputStatus1Port:
 	set_atc_index = 1;
+	VGA_InputStatus1 = (VGA_InputStatus1 + 1) & 15;
 	return VGA_InputStatus1;
     default:
 	return 0;
@@ -259,6 +260,7 @@ video_init()
 	define_input_port_handler(TSC_DataPort, video_inb);
 	define_input_port_handler(GDC_IndexPort, video_inb);
 	define_input_port_handler(GDC_DataPort, video_inb);
+	define_input_port_handler(VGA_InputStatus1Port, video_inb);
 		
 	define_output_port_handler(CRTC_IndexPortColor, video_outb);
 	define_output_port_handler(CRTC_DataPortColor, video_outb);
@@ -364,6 +366,8 @@ init_vga(void)
     vplane1 = vram + 0x10000;
     vplane2 = vram + 0x20000;
     vplane3 = vram + 0x30000;
+
+    VGA_InputStatus1 = 0;
 }
 
 /*
@@ -450,7 +454,6 @@ init_mode(int mode)
     BIOS_DpyRows = DpyRows;
     BIOS_CharHeight = CharHeight;
 
-    _BlockIO();
     /* Load 'pixels[]' from default DAC values. */
     update_pixels();
 	
@@ -460,7 +463,6 @@ init_mode(int mode)
     
     /* Resize window if necessary. */
     resize_window();
-    _UnblockIO();
     
     /* Mmap video memory for the graphics modes. Write access to 0xa0000 -
        0xaffff will generate a T_PAGEFAULT trap in VM86 mode (aside: why not a

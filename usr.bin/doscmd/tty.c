@@ -125,16 +125,16 @@ static struct termios tty_cook, tty_raw;
 #define	col (CursCol0)
 
 /* Local functions */
-static void	_kbd_event(void *, regcontext_t *);
+static void	_kbd_event(int, int, void *, regcontext_t *);
 static void	Failure(void *);
 static void	SetVREGCur(void);
-static void	debug_event(void *, regcontext_t *);
+static void	debug_event(int, int, void *, regcontext_t *);
 static unsigned char	inb_port60(int);
 static int	inrange(int, int, int);
-static void	kbd_event(int);
+static void	kbd_event(int, int, void *, regcontext_t *);
 static u_short	read_raw_kbd(int, u_short *);
 static void	setgc(u_short);
-static void	video_async_event(void *, regcontext_t *);
+static void	video_async_event(int, int, void *, regcontext_t *);
 
 #ifndef NO_X
 static void	dac2rgb(XColor *, int);
@@ -234,10 +234,10 @@ console_denit(void *arg)
 }
 
 void
-_kbd_event(void *pfd, regcontext_t *REGS)
+_kbd_event(int fd, int cond, void *arg, regcontext_t *REGS)
 {
-    int fd = *(int *)pfd;
-    
+    if (!(cond & AS_RD))
+	return;
     printf("_kbd_event: fd=%d\n", fd);
     kbd_read = 1;
 }
@@ -317,19 +317,17 @@ console_init()
     }
 
 #if 0
-    _RegisterIO(0, debug_event, 0, Failure);
-    _RegisterIO(fd, kbd_event, fd, Failure);
+    _RegisterIO(STDIN_FILENO, debug_event, 0, Failure);
+    _RegisterIO(fd, kbd_event, 0, Failure);
 #endif
-    _RegisterIO(fd, _kbd_event, &fd, Failure);
+    _RegisterIO(fd, _kbd_event, 0, Failure);
 }
 
 void
 video_setborder(int color)
 {
 #ifndef NO_X
-	_BlockIO();
 	XSetWindowBackground(dpy, win, pixels[color & 0xf]);
-	_UnblockIO();
 #endif
 }
 void
@@ -360,7 +358,7 @@ video_update(regcontext_t *REGS)
 	static int icnt = 3;
 
 	if (kbd_read)
-	    kbd_event(kbd_fd);
+	    kbd_event(kbd_fd, AS_RD, 0, REGS);
 
     	if (--icnt == 0) {
 	    icnt = 3;
@@ -651,7 +649,7 @@ struct {
 };
 
 void
-debug_event(void *pfd, regcontext_t *REGS)
+debug_event(int fd, int cond, void *arg, regcontext_t *REGS)
 {
     static char ibuf[1024];
     static int icnt = 0;
@@ -660,6 +658,9 @@ debug_event(void *pfd, regcontext_t *REGS)
     static u_short cnt = 16 * 8;
     char *ep;
     int r;
+    
+    if (!(cond & AS_RD))
+    	return;
 
     r = read(STDIN_FILENO, ibuf + icnt, sizeof(ibuf) - icnt);
     if (r <= 0)
@@ -777,13 +778,16 @@ inb_port60(int port)
 }       
 
 void
-kbd_event(int fd)
+kbd_event(int fd, int cond, void *arg, regcontext_t *REGS)
 {
+    if (!(cond & AS_RD))
+       return;
+    
     kbd_read = 0;
 
     printf("kbd_event: fd=%d\n", fd);
     if ((break_code = read_raw_kbd(fd, &scan_code)) != 0xffff)
-	hardint(0x09);
+	hardint(0x01);
 }
 
 void
@@ -795,10 +799,11 @@ int09(REGISTERS)
 	    break_code = 0;
 	    scan_code = 0xffff;
 #if 0
-	    kbd_event(kbd_fd, sc);
+	    kbd_event(kbd_fd, 0, sc, REGS);
 #endif
 	}
     }
+    send_eoi();
 }
 
 u_short
@@ -974,12 +979,14 @@ printf("FORCED REDRAW\n");
 }
 
 void
-video_async_event(void *pfd, regcontext_t *REGS)
+video_async_event(int fd, int cond, void *arg, regcontext_t *REGS)
 {
 #ifndef NO_X
     	int int9 = 0;
-	int fd = *(int *)pfd;
 
+	if (!(cond & AS_RD))
+	    return;
+	
 	for (;;) {
                 int x;
                 fd_set fdset;
@@ -1012,7 +1019,7 @@ video_async_event(void *pfd, regcontext_t *REGS)
                 case 0:
 			XFlush(dpy);
 			if (int9)
-			    hardint(0x09);
+			    hardint(0x01);
                         return;
                 default:
                         if (FD_ISSET(fd, &fdset)) {
@@ -1967,10 +1974,9 @@ init_window()
 	err(1, "Could not open display ``%s''\n", XDisplayName(NULL));
     xfd = ConnectionNumber(dpy);
 
-    _RegisterIO(xfd, video_async_event, &xfd, Failure);
+    _RegisterIO(xfd, video_async_event, 0, Failure);
     if (debug_flags & D_DEBUGIN)
 	_RegisterIO(0, debug_event, 0, Failure);
-    _BlockIO();
 
     /* Create window, but defer setting a size and GC. */
     win = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 0, 0,
@@ -1995,8 +2001,6 @@ init_window()
     }
 
     XStoreName(dpy, win, "DOS");
-
-    _UnblockIO();
 
     /* Get the default visual and depth for later use. */
     depth = DefaultDepth(dpy, DefaultScreen(dpy));
