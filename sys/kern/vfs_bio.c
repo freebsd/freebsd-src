@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.188 1998/12/22 14:43:58 luoqi Exp $
+ * $Id: vfs_bio.c,v 1.189 1998/12/22 18:57:30 dillon Exp $
  */
 
 /*
@@ -692,10 +692,7 @@ brelse(struct buf * bp)
 				int poffset = foff & PAGE_MASK;
 				int presid = resid > (PAGE_SIZE - poffset) ?
 					(PAGE_SIZE - poffset) : resid;
-#ifdef DIAGNOSTIC
-				if (presid < 0)
-					panic("brelse: extra page");
-#endif
+				KASSERT(presid >= 0, ("brelse: extra page"));
 				vm_page_set_invalid(m, poffset, presid);
 			}
 			resid -= PAGE_SIZE - (foff & PAGE_MASK);
@@ -1002,11 +999,8 @@ trytofreespace:
 		return (0);
 	}
 
-#if defined(DIAGNOSTIC)
-	if (bp->b_flags & B_BUSY) {
-		panic("getnewbuf: busy buffer on free list\n");
-	}
-#endif
+	KASSERT(!(bp->b_flags & B_BUSY), 
+		("getnewbuf: busy buffer on free list\n"));
 
 	/*
 	 * We are fairly aggressive about freeing VMIO buffers, but since
@@ -1460,10 +1454,8 @@ loop:
 			}
 		}
 
-#ifdef DIAGNOSTIC
-		if (bp->b_offset == NOOFFSET)
-			panic("getblk: no buffer offset");
-#endif
+		KASSERT(bp->b_offset != NOOFFSET, 
+			("getblk: no buffer offset"));
 
 		/*
 		 * Check that the constituted buffer really deserves for the
@@ -1711,10 +1703,8 @@ allocbuf(struct buf * bp, int size)
 					 * is the responsibility of vnode_pager_setsize
 					 */
 					m = bp->b_pages[i];
-#if defined(DIAGNOSTIC)
-					if (m == bogus_page)
-						panic("allocbuf: bogus page found");
-#endif
+					KASSERT(m != bogus_page,
+						("allocbuf: bogus page found"));
 					vm_page_sleep(m, "biodep", &m->busy);
 
 					bp->b_pages[i] = NULL;
@@ -1747,10 +1737,8 @@ allocbuf(struct buf * bp, int size)
 				tinc = PAGE_SIZE;
 
 				off = bp->b_offset;
-#ifdef DIAGNOSTIC
-				if (bp->b_offset == NOOFFSET)
-					panic("allocbuf: no buffer offset");
-#endif
+				KASSERT(bp->b_offset != NOOFFSET,
+					("allocbuf: no buffer offset"));
 
 				curbpnpages = bp->b_npages;
 		doretry:
@@ -1938,10 +1926,8 @@ biodone(register struct buf * bp)
 #endif
 
 		foff = bp->b_offset;
-#ifdef DIAGNOSTIC
-		if (bp->b_offset == NOOFFSET)
-			panic("biodone: no buffer offset");
-#endif
+		KASSERT(bp->b_offset != NOOFFSET,
+			("biodone: no buffer offset"));
 
 #if !defined(MAX_PERF)
 		if (!obj) {
@@ -2213,10 +2199,8 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 		vm_ooffset_t foff;
 
 		foff = bp->b_offset;
-#ifdef DIAGNOSTIC
-		if (bp->b_offset == NOOFFSET)
-			panic("vfs_busy_pages: no buffer offset");
-#endif
+		KASSERT(bp->b_offset != NOOFFSET,
+			("vfs_busy_pages: no buffer offset"));
 
 		vfs_setdirty(bp);
 
@@ -2266,10 +2250,8 @@ vfs_clean_pages(struct buf * bp)
 		vm_ooffset_t foff;
 		foff = bp->b_offset;
 
-#ifdef DIAGNOSTIC
-		if (bp->b_offset == NOOFFSET)
-			panic("vfs_clean_pages: no buffer offset");
-#endif
+		KASSERT(bp->b_offset != NOOFFSET,
+			("vfs_clean_pages: no buffer offset"));
 
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];

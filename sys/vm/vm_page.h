@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.47 1998/10/21 14:46:42 dg Exp $
+ * $Id: vm_page.h,v 1.48 1998/10/28 13:37:02 dg Exp $
  */
 
 /*
@@ -391,12 +391,8 @@ vm_page_hold(vm_page_t mem)
 static __inline void
 vm_page_unhold(vm_page_t mem)
 {
-#ifdef DIAGNOSTIC
-	if (--mem->hold_count < 0)
-		panic("vm_page_unhold: hold count < 0!!!");
-#else
 	--mem->hold_count;
-#endif
+	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
 }
 
 static __inline void

@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $Id: vm_zone.c,v 1.20 1998/04/15 17:47:40 bde Exp $
+ * $Id: vm_zone.h,v 1.10 1998/04/25 04:50:03 dyson Exp $
  */
 
 #if !defined(_SYS_ZONE_H)
@@ -76,7 +76,7 @@ _zalloc(vm_zone_t z)
 {
 	void *item;
 
-#if defined(DIAGNOSTIC)
+#if defined(INVARIANTS)
 	if (z == 0)
 		zerror(ZONE_ERROR_INVALID);
 #endif
@@ -86,7 +86,7 @@ _zalloc(vm_zone_t z)
 
 	item = z->zitems;
 	z->zitems = ((void **) item)[0];
-#if defined(DIAGNOSTIC)
+#if defined(INVARIANTS)
 	if (((void **) item)[1] != (void *) ZENTRY_FREE)
 		zerror(ZONE_ERROR_NOTFREE);
 	((void **) item)[1] = 0;
@@ -101,7 +101,7 @@ static __inline__ void
 _zfree(vm_zone_t z, void *item)
 {
 	((void **) item)[0] = z->zitems;
-#if defined(DIAGNOSTIC)
+#if defined(INVARIANTS)
 	if (((void **) item)[1] == (void *) ZENTRY_FREE)
 		zerror(ZONE_ERROR_ALREADYFREE);
 	((void **) item)[1] = (void *) ZENTRY_FREE;

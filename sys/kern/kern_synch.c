@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.69 1998/11/27 11:44:22 dg Exp $
+ * $Id: kern_synch.c,v 1.70 1998/12/21 07:41:51 dillon Exp $
  */
 
 #include "opt_ktrace.h"
@@ -401,20 +401,11 @@ tsleep(ident, priority, wmesg, timo)
 		splx(s);
 		return (0);
 	}
-#ifdef DIAGNOSTIC
-	if(p == NULL) 
-		panic("tsleep1");
-	if (ident == NULL || p->p_stat != SRUN)
-		panic("tsleep");
-	/* XXX This is not exhaustive, just the most common case */
-#ifdef NOTDEF
-	/*
-	 * This can happen legitimately now with asleep()/await()
-	 */
-	if ((p->p_procq.tqe_prev != NULL) && (*p->p_procq.tqe_prev == p))
-		panic("sleeping process already on another queue");
-#endif
-#endif
+
+	KASSERT(p != NULL, ("tsleep1"));
+	KASSERT(ident != NULL && p->p_stat == SRUN,
+		("tsleep"));
+
 	/*
 	 * Process may be sitting on a slpque if asleep() was called, remove
 	 * it before re-adding.
@@ -706,16 +697,6 @@ wakeup(ident)
 	qp = &slpque[LOOKUP(ident)];
 restart:
 	for (p = qp->tqh_first; p != NULL; p = p->p_procq.tqe_next) {
-#ifdef DIAGNOSTIC
-#ifdef NOTDEF
-		/*
-		 * The process can legitimately be running now with 
-		 * asleep()/await().
-		 */
-		if (p->p_stat != SSLEEP && p->p_stat != SSTOP)
-			panic("wakeup");
-#endif
-#endif
 		if (p->p_wchan == ident) {
 			TAILQ_REMOVE(qp, p, p_procq);
 			p->p_wchan = 0;
@@ -757,16 +738,6 @@ wakeup_one(ident)
 	qp = &slpque[LOOKUP(ident)];
 
 	for (p = qp->tqh_first; p != NULL; p = p->p_procq.tqe_next) {
-#ifdef DIAGNOSTIC
-#ifdef NOTDEF
-		/*
-		 * The process can legitimately be running now with 
-		 * asleep()/await().
-		 */
-		if (p->p_stat != SSLEEP && p->p_stat != SSTOP)
-			panic("wakeup_one");
-#endif
-#endif
 		if (p->p_wchan == ident) {
 			TAILQ_REMOVE(qp, p, p_procq);
 			p->p_wchan = 0;
