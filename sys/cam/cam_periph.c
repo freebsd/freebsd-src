@@ -1522,15 +1522,18 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			/*
 			 * Restart the queue after either another
 			 * command completes or a 1 second timeout.
+			 * If we have any retries left, that is.
 			 */
-			/* 
-			 * XXX KDM ask JTG about this again, do we need to
-			 * be looking at the retry count here?
-			 */
-			error = ERESTART;
-			relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT
-				     | RELSIM_RELEASE_AFTER_CMDCMPLT;
-			timeout = 1000;
+			retry = ccb->ccb_h.retry_count > 0;
+			if (retry) {
+				ccb->ccb_h.retry_count--;
+				error = ERESTART;
+				relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT
+					     | RELSIM_RELEASE_AFTER_CMDCMPLT;
+				timeout = 1000;
+			} else {
+				error = EIO;
+			}
 			break;
 		case SCSI_STATUS_RESERV_CONFLICT:
 			error = EIO;
