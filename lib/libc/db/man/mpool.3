@@ -61,14 +61,15 @@
 .Ft int
 .Fn mpool_close "MPOOL *mp"
 .Sh DESCRIPTION
-.Nm Mpool
-is the library interface intended to provide page oriented buffer management
+The
+.Nm mpool
+library interface is intended to provide page oriented buffer management
 of files.
 The buffers may be shared between processes.
 .Pp
-The function
+The
 .Fn mpool_open
-initializes a memory pool.
+function initializes a memory pool.
 The
 .Fa key
 argument is the byte string used to negotiate between multiple
@@ -118,9 +119,9 @@ Both functions are called with the
 .Fa pgcookie
 pointer, the page number and a pointer to the page to being read or written.
 .Pp
-The function
+The
 .Fn mpool_new
-takes an
+function takes an
 .Ft MPOOL
 pointer and an address as arguments.
 If a new page can be allocated, a pointer to the page is returned and
@@ -133,9 +134,9 @@ is returned and
 .Va errno
 is set.
 .Pp
-The function
+The
 .Fn mpool_get
-takes a
+function takes a
 .Ft MPOOL
 pointer and a page number as arguments.
 If the page exists, a pointer to the page is returned.
@@ -148,9 +149,9 @@ The
 .Fa flags
 argument is not currently used.
 .Pp
-The function
+The
 .Fn mpool_put
-unpins the page referenced by
+function unpins the page referenced by
 .Fa pgaddr .
 The
 .Fa pgaddr
@@ -174,9 +175,9 @@ The
 function
 returns 0 on success and -1 if an error occurs.
 .Pp
-The function
+The
 .Fn mpool_sync
-writes all modified pages associated with the
+function writes all modified pages associated with the
 .Ft MPOOL
 pointer to the
 backing file.

@@ -1454,8 +1454,9 @@ at most 104 characters.
 This file is
 .Em not
 removed when the socket is closed.
+The
 .Xr unlink 2
-must be used to remove the file.
+system call must be used to remove the file.
 Upon completion,
 .Fa xprt\->xp_fd
 is the transport's socket descriptor.
