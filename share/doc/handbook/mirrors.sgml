@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.1.2.2 1995/10/18 04:36:31 jfieber Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.8 1995/11/20 01:10:25 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -124,7 +124,7 @@ and on CD-ROM from Walnut Creek CDROM:
 
 <item>
 <htmlurl url="ftp://ftp.hk.super.net/pub/FreeBSD"
-	name="g	ftp://ftp.hk.super.net/pub/FreeBSD"><newline>
+	name="ftp://ftp.hk.super.net/pub/FreeBSD"><newline>
 	Contact: <htmlurl url="mailto:ftp-admin@HK.Super.NET"
 	name="ftp-admin@HK.Super.NET">.
 
@@ -151,6 +151,48 @@ and on CD-ROM from Walnut Creek CDROM:
 	name="ftp://orgchem.weizmann.ac.il/pub/FreeBSD"><newline>
 	Contact: <htmlurl url="mailto:serg@klara.weizmann.ac.il"
 	name="serg@klara.weizmann.ac.il">.
+
+</itemize>
+
+<tag>Japan</tag>
+
+<itemize>
+
+<item>
+<htmlurl url="ftp://ftp.tokyonet.ad.jp/pub/FreeBSD"
+	name="ftp://ftp.tokyonet.ad.jp/pub/FreeBSD"><newline>
+	Contact: <htmlurl url="mailto:ftpadmin@TokyoNet.AD.JP"
+	name="ftpadmin@TokyoNet.AD.JP">.
+
+<item>
+<htmlurl url="ftp://ftp.nisiq.net/pub/os/FreeBSD"
+	name="ftp://ftp.nisiq.net/pub/os/FreeBSD"><newline>
+	Contact: <htmlurl url="mailto:ftp-admin@nisiq.net"
+	name="ftp-admin@nisiq.net">.
+
+<item>
+<htmlurl url="ftp://ftp.iij.ad.jp/pub/FreeBSD"
+	name="ftp://ftp.iij.ad.jp/pub/FreeBSD"><newline>
+	Contact: <htmlurl url="mailto:ftp@ftp.iij.ad.jp"
+	name="ftp@ftp.iij.ad.jp">.
+
+<item>
+<htmlurl url="ftp://ftp.kuis.kyoto-u.ac.jp/BSD/FreeBSD"
+	name="ftp://ftp.kuis.kyoto-u.ac.jp/BSD/FreeBSD"><newline>
+	Contact: <htmlurl url="ftp-admin@kuis.kyoto-u.ac.jp"
+	name="ftp-admin@kuis.kyoto-u.ac.jp">.
+
+<item>
+<htmlurl url="ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org"
+	name="ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org"><newline>
+	Contact: <htmlurl url="mailto:ftp-admin@ftp.ee.uec.ac.jp"
+	name="ftp-admin@ftp.ee.uec.ac.jp">.
+
+<item>
+<htmlurl url="ftp://ftp.u-aizu.ac.jp/pub/os/FreeBSD"
+	name="ftp://ftp.u-aizu.ac.jp/pub/os/FreeBSD"><newline>
+	Contact: <htmlurl url="mailto:ftp-admin@u-aizu.ac.jp"
+	name="ftp-admin@u-aizu.ac.jp">.
 
 </itemize>
 
@@ -277,60 +319,6 @@ and on CD-ROM from Walnut Creek CDROM:
 	name="ftp://ftp.cslab.vt.edu/pub/FreeBSD"><newline>
 	Contact: <htmlurl url="mailto:ftp@ftp.cslab.vt.edu"
 	name="ftp@ftp.cslab.vt.edu">.
-
-</itemize>
-
-<tag>Japan</tag>
-
-<itemize>
-
-<item>
-<htmlurl url="ftp://ftp.tokyonet.ad.jp/pub/FreeBSD"
-	name="ftp://ftp.tokyonet.ad.jp/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftpadmin@TokyoNet.AD.JP"
-	name="ftpadmin@TokyoNet.AD.JP">.
-
-<item>
-<htmlurl url="ftp://ftp.tut.ac.jp/FreeBSD"
-	name="ftp://ftp.tut.ac.jp/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:<ashida@ftp.tut.ac.jp"
-	name="ashida@ftp.tut.ac.jp">.
-
-<item>
-<htmlurl url="ftp://ftp.sra.co.jp/pub/os/FreeBSD"
-	name="ftp://ftp.sra.co.jp/pub/os/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftp-admin@sra.co.jp"
-	name="ftp-admin@sra.co.jp">.
-
-<item>
-<htmlurl url="ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org"
-	name="ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org"><newline>
-	Contact: <htmlurl url="mailto:ftp-admin@ftp.ee.uec.ac.jp"
-	name="ftp-admin@ftp.ee.uec.ac.jp">.
-
-<item>
-<htmlurl url="ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD"
-	name="ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:tanig@isl.mei.co.jp"
-	name="tanig@isl.mei.co.jp">.
-
-<item>
-<htmlurl url="ftp://ftp.waseda.ac.jp/pub/FreeBSD"
-	name="ftp://ftp.waseda.ac.jp/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftp-admin@waseda.ac.jp"
-	name="ftp-admin@waseda.ac.jp">.
-
-<item>
-<htmlurl url="ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD"
-	name="ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD"><newline>
-	Contact: Yoshihiko USUI <htmlurl url="mailto:usui@pu-toyama.ac.jp"
-	name="usui@pu-toyama.ac.jp">.
-
-<item>
-<htmlurl url="ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD"
-	name="ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftp-admin@u-aizu.ac.jp"
-	name="ftp-admin@u-aizu.ac.jp">.
 
 </itemize>
 
