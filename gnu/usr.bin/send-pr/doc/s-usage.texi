@@ -1,3 +1,5 @@
+@c $FreeBSD$
+
 @c This is the usage section for send-pr.  It is called as 
 @c chapter (Invoking send-pr) by send-pr.texi, and also as
 @c section (Submitting Problem Reports) by gnats.texi (chapter/section
@@ -5,13 +7,14 @@
 
 @c FIXME!  This still seems jumbled...
 
-You can invoke @code{send-pr} from a shell prompt or from within
+You can invoke @code{send-pr} from a shell prompt, or from within
 @sc{gnu} Emacs using @w{@samp{M-x send-pr}}.
 
 @menu
 * using send-pr::             Creating new Problem Reports
 * send-pr in Emacs::          Using send-pr from within Emacs
 * send-pr from the shell::    Invoking send-pr from the shell
+* Submitting via e-mail::     Submitting a Problem Report via direct e-mail
 * Helpful hints::
 @end menu
 
@@ -59,13 +62,17 @@ see @ref{An Example}.
 The default template contains your preconfigured @samp{>Submitter-Id:}.
 @code{send-pr} attempts to determine values for the @samp{>Originator:}
 and @samp{>Organization:} fields (@pxref{Fields,,Problem Report
-format}).  @code{send-pr} also attempts to find out some information
+format}).  @code{send-pr} will set the @samp{>Originator:} field to
+the value of the @code{NAME} environment variable if it has been set;
+similarly, @samp{>Organization:} will be set to the value of @code{ORGANIZATION}.
+@code{send-pr} also attempts to find out some information
 about your system and architecture, and places this information in the
 @samp{>Environment:} field if it finds any.
 
 You may submit problem reports to different Support Sites from the
 default site by specifying the alternate site when you invoke
-@code{send-pr}.  Each @code{site} has its own list of categories for
+@code{send-pr}.  @xref{send-pr from the shell}.
+Each @code{site} has its own list of categories for
 which it accepts Problem Reports.
 @c FIXME!  This should go in..
 @c For a list of sites to whom @code{send-pr} is configured to send
@@ -126,8 +133,8 @@ X-send-pr-version: send-pr @value{VERSION}
 @end smallexample
 
 @noindent
-where @var{support-site} is an alias for the Support Site you wish to
-submit this PR to.
+where @var{support-site} is an alias on your local machine for the
+Support Site you wish to submit this PR to.
 
 The rest of the template contains @sc{gnats} fields.  Each field is
 either automatically completed with valid information (such as your
@@ -156,7 +163,7 @@ pre-configured information:
 >Priority:    <[ low | medium | high ] (one line)>
 >Category:    <name of the product (one line)>
 >Class:       <[sw-bug | doc-bug | change-request | support]>
->Release:     <release number or tag (one line)>
+>Release:     <release number (one line)>
 >Environment:
          <machine, os, target, libraries (multiple lines)>
 
@@ -419,14 +426,24 @@ Sends the PR to @var{mail-address}. The default is preset when
 @code{send-pr} is configured.  @emph{This option is not recommended};
 instead, use the argument @var{site} on the command line.
 
+@item -c @var{mail-address}
+@itemx --cc @var{mail-address}
+Places @var{mail-address} in the @code{Cc:} header field of the message
+to be sent.
+
 @item --request-id
 Sends a request for a @code{>Submitter-Id:} to the Support Site.
 
-@item -L
-@item --list
 @cindex listing valid categories
+@item -L
+@itemx --list
 Prints the list of valid @code{>Category:} values on standard output.
 No mail is sent.
+
+@item -s @var{severity}
+@itemx --severity @var{severity}
+@cindex @code{send-pr} fields
+Sets the initial value of the @code{>Severity:} field to @var{severity}.
 
 @ignore
 @item -S
@@ -453,10 +470,41 @@ is sent.
 Displays a usage summary for @code{send-pr}.  No mail is sent.
 @end table
 
+@c -------------------------------------------------------------------------
+@node Submitting via e-mail
+@section Submitting a Problem Report via direct e-mail
+@cindex Direct e-mail
+@cindex Submitting a PR via e-mail
+In addition to using @code{send-pr}, there is another way to submit a problem
+report.  You can simply send an e-mail message to the support site.
+
+To do this, look at the address in the @samp{To:} field of the @code{send-pr}
+template.  When you send unformatted e-mail to this address, @sc{gnats}
+processes the message as a new problem report, filling in as many fields from 
+defaults as it can:
+
+@table @code
+@item Synopsis
+The @samp{>Synopsis} field is filled in by the @samp{Subject:} header.
+
+@item Submitter ID
+@sc{gnats} will try to derive the @samp{>Submitter} field from the address
+in the @samp{From:} header.
+
+@item Description
+All of the text in the body of the e-mail message is put into the 
+@samp{>Description} field.  Each line of the text is indented by one space,
+indicating that it is "quoted text" from the sender.
+@end table
+
+Other fields, such as category, version, severity, etc. are set to default
+values (if the @sc{gnats} administrator has set them).
+
+@c --------------------------------------------------------------------------
 @node Helpful hints
 @section Helpful hints
 @cindex helpful hints
-@cindex Using and Porting GNU CC
+@cindex Using and Porting @sc{gnu} CC
 @cindex effective problem reporting
 @cindex kinds of helpful information
 @cindex information to submit

@@ -1,3 +1,5 @@
+@c $FreeBSD$
+
 @node Valid Categories
 @unnumberedsec Valid Categories
 @cindex valid categories
@@ -20,7 +22,7 @@ This one doesn't actually exist.
 Free parser generator.
 
 @item config
-Cygnus Support Software configuration and installation.
+Cygnus Solutions Software configuration and installation.
 
 @item cvs
 Concurrent Version System.
@@ -71,7 +73,7 @@ Kerberos authentication system.
 @sc{gnu} linker.
 
 @item libc
-Cygnus Support C Support Library.
+Cygnus Solutions C Support Library.
 
 @item libg++
 @sc{gnu} C++ class library.
@@ -80,7 +82,7 @@ Cygnus Support C Support Library.
 @sc{gnu} @samp{libiberty} library.
 
 @item libm
-Cygnus Support C Math Library.
+Cygnus Solutions C Math Library.
 
 @item make
 @sc{gnu} @code{make} program.
@@ -92,7 +94,7 @@ Cygnus Support C Math Library.
 @sc{gnu} Motorola syntax assembler.
 
 @item newlib
-Cygnus Support C Support and Math Libraries.
+Cygnus Solutions C Support and Math Libraries.
 
 @item patch
 @sc{gnu} bug patch program.
