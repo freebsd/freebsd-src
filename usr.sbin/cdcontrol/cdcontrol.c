@@ -51,7 +51,7 @@ static const char rcsid[] =
 #define ASTS_VOID	0x15  /* No current audio status to return */
 
 #ifndef DEFAULT_CD_DRIVE
-#  define DEFAULT_CD_DRIVE  "/dev/cd0c"
+#  define DEFAULT_CD_DRIVE  "/dev/cd0"
 #endif
 
 #ifndef DEFAULT_CD_PARTITION
