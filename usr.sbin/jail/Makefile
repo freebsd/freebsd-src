@@ -5,6 +5,6 @@ MAN=	jail.8
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
-WARNS?=	2
+WARNS?=	6
 
 .include <bsd.prog.mk>
