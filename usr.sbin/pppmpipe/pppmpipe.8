@@ -1,0 +1,17 @@
+.\" $Id: ppp.8,v 1.97.2.24 1998/04/24 19:16:15 brian Exp $
+.Dd 30 April 1998
+.Os FreeBSD
+.Dt PPPMPIPE 8
+.Sh NAME
+.Nm pppmpipe
+.Nd Ppp multilink transport program
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+This program is used exclusively by the
+.Xr ppp 8
+daemon and should not be invoked directly.  It behaves as
+a transparent pipe that simultaneously exchanges data between
+standard input and standard output.
+.Sh SEE ALSO
+.Xr ppp 8
