@@ -35,13 +35,18 @@
  */
 
 #ifndef lint
-char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mount_union.c	8.5 (Berkeley) 3/27/94";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -127,7 +132,7 @@ main(argc, argv)
 		errx(EX_OSERR, "union filesystem is not available");
 
 	if (mount(vfc.vfc_name, source, mntflags, &args))
-		err(EX_OSERR, target);
+		err(EX_OSERR, "%s", target);
 	exit(0);
 }
 
