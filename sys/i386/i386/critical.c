@@ -15,6 +15,7 @@
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/ucontext.h>
+#include <machine/clock.h>
 #include <machine/critical.h>
 
 #ifdef SMP
@@ -89,6 +90,10 @@ cpu_thread_link(struct thread *td)
 void
 i386_unpend(void)
 {
+	struct clockframe frame;
+
+	frame.cf_cs = SEL_KPL;
+	frame.cf_eip = (register_t)i386_unpend;
 	KASSERT(curthread->td_critnest == 0, ("unpend critnest != 0"));
 	KASSERT((read_eflags() & PSL_I) == 0, ("unpend interrupts enabled1"));
 	curthread->td_critnest = 1;
@@ -131,15 +136,13 @@ i386_unpend(void)
 			PCPU_SET(spending, mask & ~(1 << irq));
 			switch(irq) {
 			case 0:		/* bit 0 - hardclock */
-				mtx_lock_spin(&sched_lock);
-				hardclock_process(curthread, 0);
-				mtx_unlock_spin(&sched_lock);
+				hardclock_process(&frame);
 				break;
 			case 1:		/* bit 1 - statclock */
-				mtx_lock_spin(&sched_lock);
-				statclock_process(curthread->td_kse,
-				    (register_t)i386_unpend, 0);
-				mtx_unlock_spin(&sched_lock);
+				if (profprocs != 0)
+					profclock(&frame);
+				if (pscnt == psdiv)
+					statclock(&frame);
 				break;
 			}
 			KASSERT((read_eflags() & PSL_I) == 0,

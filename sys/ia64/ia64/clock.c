@@ -259,12 +259,19 @@ fail:
  * change after being set up above.  Could recalculate intervals here
  * but that would be a drag.
  */
+
 void
-setstatclockrate(newhz)
-	int newhz;
+cpu_startprofclock(void)
 {
 
-	/* nothing we can do */
+	/* nothing to do */
+}
+
+void
+cpu_stopprofclock(void)
+{
+
+	/* nothing to do */
 }
 
 /*

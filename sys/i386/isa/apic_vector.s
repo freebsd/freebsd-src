@@ -365,7 +365,7 @@ Xinvlrng:
 	iret
 
 /*
- * Forward hardclock to another CPU.  Pushes a trapframe and calls
+ * Forward hardclock to another CPU.  Pushes a clockframe and calls
  * forwarded_hardclock().
  */
 	.text
@@ -389,14 +389,16 @@ Xhardclock:
 	jmp	10f
 1:
 	incl	TD_INTR_NESTING_LEVEL(%ebx)
+	pushl	$0		/* XXX convert trapframe to clockframe */
 	call	forwarded_hardclock
+	addl	$4, %esp	/* XXX convert clockframe to trapframe */
 	decl	TD_INTR_NESTING_LEVEL(%ebx)
 10:
 	MEXITCOUNT
 	jmp	doreti
 
 /*
- * Forward statclock to another CPU.  Pushes a trapframe and calls
+ * Forward statclock to another CPU.  Pushes a clockframe and calls
  * forwarded_statclock().
  */
 	.text
@@ -422,7 +424,9 @@ Xstatclock:
 	jmp	10f
 1:
 	incl	TD_INTR_NESTING_LEVEL(%ebx)
+	pushl	$0		/* XXX convert trapframe to clockframe */
 	call	forwarded_statclock
+	addl	$4, %esp	/* XXX convert clockframe to trapframe */
 	decl	TD_INTR_NESTING_LEVEL(%ebx)
 10:
 	MEXITCOUNT

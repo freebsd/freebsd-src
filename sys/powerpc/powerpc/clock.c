@@ -319,8 +319,13 @@ delay(int n)
  * Nothing to do.
  */
 void
-setstatclockrate(int arg)
+cpu_startprofclock(void)
 {
 
 	/* Do nothing */
+}
+
+void
+cpu_stopprofclock(void)
+{
 }
