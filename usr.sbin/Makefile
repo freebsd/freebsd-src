@@ -182,6 +182,7 @@ SUBDIR+=elf2exe \
 SUBDIR+=acpi \
 	apm \
 	apmd \
+	asf \
 	btxld \
 	kgmon \
 	kgzip \
