@@ -1,28 +1,65 @@
-Mon Jan 24 20:28:35 CET 2000  David M. Gay <dmg@bell-labs.com>
+2000-05-18  Chris Demetriou  <cgd@sibyte.com>
 
-	* libI77/endfile.c (t_runc): set state to writing
-	(b->uwrt = 1) when an endfile statement requires copying the file.
+	* configure.in: Test for __g77_integer, __g77_uinteger,
+	__g77_longint, and __g77_ulongint builtin types, rather
+	than mucking around with compiler headers.
+	* configure: Regenerate.
+	* g2c.hin (integer, logical, flag, ftnlen, ftnint): Use
+	__g77_integer rather than autoconfigured value.
+	(uinteger): Use __g77_uinteger rather than autoconfigured value.
+	(longint): Use __g77_longint rather than autoconfigured value.
+	(ulongint): Use __g77_ulongint rather than autoconfigured value.
 
-Sun Oct 24 23:54:10 PDT 1999 Jeff Law  (law@cygnus.com)
+Sun Mar 12 20:12;30 2000  Toon Moene  <toon@moene.indiv.nluug.nl>
+	Based on work done by David M. Gay (Bell Labs)
 
-	* gcc-2.95.2 Released.
+	* libF77/configure.in: Define IEEE_COMPLEX_DIVIDE.
+	* libF77/[cz]_div.c: Arrange for compilation under
+	-DIEEE_COMPLEX_DIVIDE to make these routines
+	avoid calling sig_die when the denominator vanishes.
+	* libF77/s_rnge.c: Add casts for the case of
+	sizeof(ftnint) == sizeof(int) < sizeof(long).
+	* libI77/endfile.c: Set state to writing (b->uwrt = 1) when an
+	endfile statement requires copying the file
+	Also, supply a missing (long) cast in the sprintf call.
+	* libI77/sfe.c: Add #ifdef ALWAYS_FLUSH logic, for formatted I/O.
 
-Mon Aug 16 01:29:24 PDT 1999 Jeff Law  (law@cygnus.com)
+Wed Feb 16 11:10:05 2000  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
-	* gcc-2.95.1 Released.
+	* configure.in (gcc_version): When setting, narrow search to
+	lines containing `version_string'.
+
+Tue Nov 16 20:39:42 1999  Geoffrey Keating  <geoffk@cygnus.com>
+
+	* libU77/u77-test.f (wd): Allow for longer working directory
+ 	pathnames.
+
+1999-10-14 Theo Papadopoulo  <Theodore.Papadopoulo@sophia.inria.fr>
+
+	* libU77/acconfig.h: Define GETTIMEOFDAY_ONE_ARGUMENT and
+	HAVE_TIMEZONE in acconfig.h.
+	* libU77/config.hin: Rebuilt.
+
+1999-10-12  Dave Love  <fx@gnu.org>
+
+	* libU77/aclocal.m4: Re-write, defining LIBU77_GETTIMEOFDAY, not
+	LIBU77_HAVE_STRUCT_TIMEZONE.
+
+	* libU77/configure.in: Use LIBU77_GETTIMEOFDAY, not
+	LIBU77_HAVE_STRUCT_TIMEZONE.  Don't check for gettimeofday
+	separately.
+
+	* libU77/datetime_.c (G77_date_and_time_0): Use
+	GETTIMEOFDAY_ONE_ARGUMENT.
+
+Tue Sep 14 01:44:01 1999  Marc Espie <espie@cvs.openbsd.org>
+
+	* Makefile.in:  Prepend $(SHELL) to move-if-change calls.
 
 Fri Aug  6 23:32:29 1999  Daniel Jacobowitz <drow@drow.them.org>
 
 	* Makefile.in (FLAGS_TO_PASS): Include prefix, exec_prefix,
 	libdir, libsubdir and tooldir.
-
-Wed Jul 28 21:39:31 PDT 1999 Jeff Law  (law@cygnus.com)
-
-	* gcc-2.95 Released.
-
-	* libF77/Version.c: No longer a prerelease.
-	* libI77/Version.c: No longer a prerelease.
-	* libU77/Version.c: No longer a prerelease.
 
 Wed Jul  7 15:58:16 1999  Craig Burley  <craig@jcb-sc.com>
 
@@ -32,10 +69,28 @@ Wed Jul  7 15:58:16 1999  Craig Burley  <craig@jcb-sc.com>
 
 	* libU77/Version.c: Bump version.
 
-Mon Jun 28 10:22:30 1999  Craig Burley  <craig@jcb-sc.com>
+Mon Jun 28 21:27:08 1999  Craig Burley  <craig@jcb-sc.com>
 
-	* libI77/rsne.c: Fix NAMELIST bug by applying 19990627
-	Netlib patch to release branch.
+	Update to Netlib version of 1999-06-28:
+	* changes.netlib, libI77/Version.c, libI77/rsne.c
+	readme.netlib: See changes.netlib for info.
+
+Fri Jun 18 11:38:07 1999  Craig Burley  <craig@jcb-sc.com>
+
+	* libU77/ttynam_.c: if !defined (HAVE_TTYNAM),
+	write all spaces into return value instead of trying
+	to return -1 from a void function.
+
+Fri Jun 18 11:22:21 1999  Craig Burley  <craig@jcb-sc.com>
+
+	Update to Netlib version of 1999-05-10:
+	* changes.netlib, libI77/Version.c, libI77/backspace.c
+	readme.netlib: See changes.netlib for info.
+
+Fri Jun 18 11:15:24 1999  Craig Burley  <craig@jcb-sc.com>
+
+	* libI77/backspace.c: Undo Wednesday's change, in
+	preparation for slightly different Netlib change.
 
 Wed Jun 16 11:38:58 1999  Craig Burley  <craig@jcb-sc.com>
 
@@ -142,9 +197,9 @@ Sat Apr 24 11:02:48 1999  Craig Burley  <craig@jcb-sc.com>
 Sat Apr 17 17:33:30 1999  Craig Burley  <craig@jcb-sc.com>
 
 	From H.J. Lu <hjl@gnu.org>:
-        * Makefile.in (s-libi77): Depend on i77.
-        (s-libf77): Depend on i77.
-        (s-libu77): Depend on u77.
+	* Makefile.in (s-libi77): Depend on i77.
+	(s-libf77): Depend on i77.
+	(s-libu77): Depend on u77.
 
 Mon Apr 12 21:38:14 1999  Mumit Khan  <khan@xraylith.wisc.edu>
 	
@@ -173,11 +228,11 @@ Wed Mar 31 13:50:24 1999  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
 	* configure: Rebuilt.
 
-        * configure.in: Fix integer size tests: sanity check first; search
-        toplevel include dir (from Rainer Orth); only mess with ac_cpp
-        once; use -DIN_GCC -DHAVE_CONFIG_H.
+	* configure.in: Fix integer size tests: sanity check first; search
+	toplevel include dir (from Rainer Orth); only mess with ac_cpp
+	once; use -DIN_GCC -DHAVE_CONFIG_H.
 
-        * configure.in: Use `g77_cv_...', not `f77_cv_...'.
+	* configure.in: Use `g77_cv_...', not `f77_cv_...'.
 
 Wed Mar 24 22:41:28 1999  Mumit Khan  <khan@xraylith.wisc.edu>
 
