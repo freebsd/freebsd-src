@@ -65,7 +65,6 @@ struct inode {
 	struct	vnode  *i_vnode;/* Vnode associated with this inode. */
 	struct	vnode  *i_devvp;/* Vnode for block I/O. */
 	u_int32_t i_flag;	/* flags, see below */
-	struct	cdev *i_dev;	/* Device associated with the inode. */
 	ino_t	  i_number;	/* The identity of the inode. */
 
 	struct	ext2_sb_info *i_e2fs;	/* EXT2FS */

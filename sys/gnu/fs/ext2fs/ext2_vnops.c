@@ -346,7 +346,6 @@ ext2_getattr(ap)
 	/*
 	 * Copy from inode table
 	 */
-	vap->va_fsid = dev2udev(ip->i_dev);
 	vap->va_fileid = ip->i_number;
 	vap->va_mode = ip->i_mode & ~IFMT;
 	vap->va_nlink = ip->i_nlink;
@@ -898,7 +897,7 @@ abortit:
 	 *    expunge the original entry's existence.
 	 */
 	if (xp == NULL) {
-		if (dp->i_dev != ip->i_dev)
+		if (dp->i_devvp != ip->i_devvp)
 			panic("ext2_rename: EXDEV");
 		/*
 		 * Account for ".." in new directory.
@@ -927,7 +926,7 @@ abortit:
 		}
 		vput(tdvp);
 	} else {
-		if (xp->i_dev != dp->i_dev || xp->i_dev != ip->i_dev)
+		if (xp->i_devvp != dp->i_devvp || xp->i_devvp != ip->i_devvp)
 		       panic("ext2_rename: EXDEV");
 		/*
 		 * Short circuit rename(foo, foo).
@@ -1428,8 +1427,7 @@ ext2_print(ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 
-	printf("\tino %lu, on dev %s", (u_long)ip->i_number,
-	    devtoname(ip->i_dev));
+	vn_printf(ip->i_devvp, "\tino %lu", (u_long)ip->i_number);
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
 	printf("\n");

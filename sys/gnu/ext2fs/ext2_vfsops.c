@@ -940,7 +940,6 @@ ext2_vget(mp, ino, flags, vpp)
 	vp->v_data = ip;
 	ip->i_vnode = vp;
 	ip->i_e2fs = fs = ump->um_e2fs;
-	ip->i_dev = dev;
 	ip->i_number = ino;
 
 	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
@@ -999,7 +998,6 @@ printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
 	 * Finish inode initialization now that aliasing has been resolved.
 	 */
 	ip->i_devvp = ump->um_devvp;
-	VREF(ip->i_devvp);
 	/*
 	 * Set up a generation number for this inode if it does not
 	 * already have one. This should only happen on old filesystems.
