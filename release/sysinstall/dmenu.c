@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.36 1998/03/10 17:24:07 jkh Exp $
+ * $Id: dmenu.c,v 1.37 1998/03/15 19:30:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,7 +88,7 @@ dmenuExit(dialogMenuItem *tmp)
 int
 dmenuSetVariable(dialogMenuItem *tmp)
 {
-    variable_set((char *)tmp->data);
+    variable_set((char *)tmp->data, 1);
     return DITEM_SUCCESS;
 }
 
@@ -101,7 +101,7 @@ dmenuSetVariables(dialogMenuItem *tmp)
     for (cp1 = copy; cp1 != NULL;) {
 	cp2 = index(cp1, ',');
 	if (cp2 != NULL) *cp2++ = '\0';
-	variable_set(cp1);
+	variable_set(cp1, 1);
 	cp1 = cp2;
     }
     free(copy);
@@ -114,7 +114,7 @@ dmenuSetKmapVariable(dialogMenuItem *tmp)
     char *lang;
     int err;
 
-    variable_set((char *)tmp->data);
+    variable_set((char *)tmp->data, 1);
     lang = variable_get(VAR_KEYMAP);
     if (lang != NULL)
     {
@@ -137,7 +137,7 @@ dmenuToggleVariable(dialogMenuItem *tmp)
 	return DITEM_FAILURE;
     }
     if (!variable_check(var))
-	variable_set(var);
+	variable_set(var, 1);
     else
 	variable_unset(var);
     return DITEM_SUCCESS;
@@ -154,14 +154,14 @@ dmenuISetVariable(dialogMenuItem *tmp)
 	return DITEM_FAILURE;
     }
     w = savescr();
-    ans = msgGetInput(variable_get(var), tmp->title);
+    ans = msgGetInput(variable_get(var), tmp->title, 1);
     restorescr(w);
     if (!ans)
 	return DITEM_FAILURE;
     else if (!*ans)
 	variable_unset(var);
     else
-	variable_set2(var, ans);
+	variable_set2(var, ans, 1);
     return DITEM_SUCCESS;
 }
 
