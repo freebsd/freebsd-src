@@ -317,25 +317,6 @@ freedev(struct cdev *dev)
 	free(dev, M_DEVT);
 }
 
-struct cdev *
-findcdev(dev_t udev)
-{
-	struct cdev *si;
-	int hash;
-
-	mtx_assert(&devmtx, MA_NOTOWNED);
-	if (udev == NODEV)
-		return (NULL);
-	dev_lock();
-	hash = udev % DEVT_HASH;
-	LIST_FOREACH(si, &dev_hash[hash], si_hash) {
-		if (si->si_drv0 == udev)
-			break;
-	}
-	dev_unlock();
-	return (si);
-}
-
 int
 uminor(dev_t dev)
 {
