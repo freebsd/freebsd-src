@@ -122,6 +122,8 @@ portal_lookup(ap)
 		VREF(dvp);
 		return (0);
 	}
+	KASSERT((cnp->cn_flags & ISDOTDOT) == 0,
+	    ("portal_lookup: Can not handle dotdot lookups."));
 
 	/*
 	 * Do the MALLOC before the getnewvnode since doing so afterward
@@ -154,14 +156,6 @@ portal_lookup(ap)
 
 	*vpp = fvp;
 	vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY, td);
-	/*
-	 * As we are the last component of the path name, fix up
-	 * the locking on the directory node.
-	 */
-	if ((cnp->cn_flags & LOCKPARENT) == 0) {
-		VOP_UNLOCK(dvp, 0, td);
-		cnp->cn_flags |= PDIRUNLOCK;
-	}
 	return (0);
 
 bad:;
