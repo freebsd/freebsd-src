@@ -1316,9 +1316,11 @@ static const char *gcc_exec_prefix;
 #ifndef TOOLDIR_BASE_PREFIX
 #define TOOLDIR_BASE_PREFIX "/usr/local/"
 #endif
+#ifndef FREEBSD_NATIVE
 #ifndef STANDARD_BINDIR_PREFIX
 #define STANDARD_BINDIR_PREFIX "/usr/local/bin"
 #endif
+#endif	/* not FREEBSD_NATIVE */
 
 static const char *const standard_exec_prefix = STANDARD_EXEC_PREFIX;
 static const char *const standard_exec_prefix_1 = "/usr/lib/gcc/";
@@ -1333,7 +1335,9 @@ static const char *const standard_startfile_prefix_2 = "/usr/lib/";
 static const char *const tooldir_base_prefix = TOOLDIR_BASE_PREFIX;
 static const char *tooldir_prefix;
 
+#ifndef FREEBSD_NATIVE
 static const char *const standard_bindir_prefix = STANDARD_BINDIR_PREFIX;
+#endif	/* not FREEBSD_NATIVE */
 
 /* Subdirectory to use for locating libraries.  Set by
    set_multilib_dir based on the compilation options.  */
@@ -3187,6 +3191,7 @@ process_command (argc, argv)
   /* Set up the default search paths.  If there is no GCC_EXEC_PREFIX,
      see if we can create it from the pathname specified in argv[0].  */
 
+#ifndef FREEBSD_NATIVE
 #ifndef VMS
   /* FIXME: make_relative_prefix doesn't yet work for VMS.  */
   if (!gcc_exec_prefix)
@@ -3197,6 +3202,7 @@ process_command (argc, argv)
 	putenv (concat ("GCC_EXEC_PREFIX=", gcc_exec_prefix, NULL));
     }
 #endif
+#endif	/* not FREEBSD_NATIVE */
 
   if (gcc_exec_prefix)
     {
@@ -3841,9 +3847,9 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
 #ifndef OS2
   add_prefix (&exec_prefixes, standard_exec_prefix, "GCC",
 	      PREFIX_PRIORITY_LAST, 1, warn_std_ptr);
-#ifndef FREEBSD_NATIVE
   add_prefix (&exec_prefixes, standard_exec_prefix, "BINUTILS",
 	      PREFIX_PRIORITY_LAST, 2, warn_std_ptr);
+#ifndef FREEBSD_NATIVE
   add_prefix (&exec_prefixes, standard_exec_prefix_1, "BINUTILS",
 	      PREFIX_PRIORITY_LAST, 2, warn_std_ptr);
 #endif	/* not FREEBSD_NATIVE */

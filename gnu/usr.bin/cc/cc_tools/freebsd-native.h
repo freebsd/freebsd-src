@@ -31,8 +31,9 @@
    libraries: MD_EXEC_PREFIX:MD_STARTFILE_PREFIX:STANDARD_STARTFILE_PREFIX
 */
 #undef	TOOLDIR_BASE_PREFIX		/* Old??  This is not documented. */
+#undef	STANDARD_BINDIR_PREFIX		/* We don't need one for now. */
 #define	STANDARD_EXEC_PREFIX		PREFIX"/libexec/"
-#define	MD_EXEC_PREFIX			PREFIX"/libexec/"
+#undef	MD_EXEC_PREFIX			/* We don't want one. */
 
 /* Under FreeBSD, the normal location of the various *crt*.o files is the
    /usr/lib directory.  */
