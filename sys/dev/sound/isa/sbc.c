@@ -26,11 +26,9 @@
  * $FreeBSD$
  */
 
-#include "isa.h"
-
 #include <dev/sound/chip.h>
 #include <dev/sound/pcm/sound.h>
-#include  <dev/sound/isa/sb.h>
+#include <dev/sound/isa/sb.h>
 
 #define IO_MAX	3
 #define IRQ_MAX	1
@@ -222,7 +220,9 @@ static struct isa_pnp_id sbc_ids[] = {
 
 	{0x02017316, "ESS ES1688"},			/* ESS1688 */
 	{0x68187316, "ESS ES1868"},			/* ESS1868 */
+	{0x03007316, "ESS ES1869"},			/* ESS1869 */
 	{0x69187316, "ESS ES1869"},			/* ESS1869 */
+	{0xabb0110e, "ESS ES1869 (Compaq OEM)"},	/* CPQb0ab */
 	{0xacb0110e, "ESS ES1869 (Compaq OEM)"},	/* CPQb0ac */
 	{0x78187316, "ESS ES1878"},			/* ESS1878 */
 	{0x79187316, "ESS ES1879"},			/* ESS1879 */
@@ -400,7 +400,6 @@ sbc_attach(device_t dev)
 	child = device_add_child(dev, "pcm", -1);
 	device_set_ivars(child, func);
 
-#if notyet
 	/* Midi Interface */
 	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
 	if (func == NULL) goto bad;
@@ -416,7 +415,6 @@ sbc_attach(device_t dev)
 	func->func = SCF_SYNTH;
 	child = device_add_child(dev, "midi", -1);
 	device_set_ivars(child, func);
-#endif /* notyet */
 
 	/* probe/attach kids */
 	bus_generic_attach(dev);
@@ -717,4 +715,8 @@ static driver_t sbc_driver = {
 };
 
 /* sbc can be attached to an isa bus. */
-DRIVER_MODULE(sbc, isa, sbc_driver, sbc_devclass, 0, 0);
+DRIVER_MODULE(snd_sbc, isa, sbc_driver, sbc_devclass, 0, 0);
+MODULE_DEPEND(snd_sbc, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_sbc, 1);
+
+

@@ -41,6 +41,7 @@
 #include <machine/clock.h>
 #include <sys/rman.h>
 #include <sys/soundcard.h>
+#include <dev/sound/pcm/sound.h>
 #include <dev/sound/chip.h>
 #include <dev/sound/pci/csareg.h>
 #include <dev/sound/pci/csavar.h>
@@ -58,11 +59,9 @@ struct csa_softc {
 	device_t pcm; /* pcm device */
 	driver_intr_t* pcmintr; /* pcm intr */
 	void *pcmintr_arg; /* pcm intr arg */
-#if notyet
 	device_t midi; /* midi device */
 	driver_intr_t* midiintr; /* midi intr */
 	void *midiintr_arg; /* midi intr arg */
-#endif /* notyet */
 	void *ih; /* cookie */
 
 	struct csa_bridgeinfo binfo; /* The state of this bridge. */
@@ -104,9 +103,6 @@ csa_probe(device_t dev)
 		break;
 	case CS4615_PCI_ID:
 		s = "Crystal Semiconductor CS4615 Audio accelerator";
-		break;
-	case CS4281_PCI_ID:
-		s = "Crystal Semiconductor CS4281 Audio controller";
 		break;
 	}
 
@@ -200,7 +196,6 @@ csa_attach(device_t dev)
 	scp->pcm = device_add_child(dev, "pcm", -1);
 	device_set_ivars(scp->pcm, func);
 
-#if notyet
 	/* Midi Interface */
 	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
 	if (func == NULL)
@@ -210,7 +205,6 @@ csa_attach(device_t dev)
 	func->func = SCF_MIDI;
 	scp->midi = device_add_child(dev, "midi", -1);
 	device_set_ivars(scp->midi, func);
-#endif /* notyet */
 
 	bus_generic_attach(dev);
 
@@ -294,12 +288,10 @@ csa_setup_intr(device_t bus, device_t child,
 		scp->pcmintr_arg = arg;
 		break;
 
-#if notyet
 	case SCF_MIDI:
 		scp->midiintr = intr;
 		scp->midiintr_arg = arg;
 		break;
-#endif /* notyet */
 
 	default:
 		return (EINVAL);
@@ -336,12 +328,10 @@ csa_teardown_intr(device_t bus, device_t child,
 		scp->pcmintr_arg = NULL;
 		break;
 
-#if notyet
 	case SCF_MIDI:
 		scp->midiintr = NULL;
 		scp->midiintr_arg = NULL;
 		break;
-#endif /* notyet */
 
 	default:
 		return (EINVAL);
@@ -377,10 +367,8 @@ csa_intr(void *arg)
 	/* Invoke the handlers of the children. */
 	if ((hisr & (HISR_VC0 | HISR_VC1)) != 0 && scp->pcmintr != NULL)
 		scp->pcmintr(scp->pcmintr_arg);
-#if notyet
 	if ((hisr & HISR_MIDI) != 0 && scp->midiintr != NULL)
 		scp->midiintr(scp->midiintr_arg);
-#endif /* notyet */
 
 	/* Throw an eoi. */
 	csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
@@ -564,7 +552,7 @@ csa_initialize(sc_p scp)
 #endif /* notdef */
 
 	/*
-	 * Turn off the Processor by turning off the software clock enable flag in 
+	 * Turn off the Processor by turning off the software clock enable flag in
 	 * the clock control register.
 	 */
 #if notdef
@@ -799,9 +787,9 @@ csa_readcodec(csa_res *resp, u_long offset, u_int32_t *data)
 
 	/*
 	 * Read the data returned from the AC97 register.
-	 * ACSDA = Status Data Register = 474h 
+	 * ACSDA = Status Data Register = 474h
 	 */
-	*data = csa_readio(resp, BA0_ACSDA); 
+	*data = csa_readio(resp, BA0_ACSDA);
 
 	return (0);
 }
@@ -924,4 +912,6 @@ static driver_t csa_driver = {
 /*
  * csa can be attached to a pci bus.
  */
-DRIVER_MODULE(csa, pci, csa_driver, csa_devclass, 0, 0);
+DRIVER_MODULE(snd_csa, pci, csa_driver, csa_devclass, 0, 0);
+MODULE_DEPEND(snd_csa, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_csa, 1);

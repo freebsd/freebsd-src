@@ -63,6 +63,7 @@ extern pcm_feeder feeder_root;
 
 #define PCMTRIG_START 1
 #define PCMTRIG_EMLDMAWR 2
+#define PCMTRIG_EMLDMARD 3
 #define PCMTRIG_STOP 0
 #define PCMTRIG_ABORT -1
 
@@ -80,9 +81,10 @@ extern pcm_feeder feeder_root;
 #define CHN_F_NBIO              0x00004000  /* do non-blocking i/o */
 #define CHN_F_INIT              0x00008000  /* changed parameters. need init */
 #define CHN_F_MAPPED		0x00010000  /* has been mmap()ed */
+#define CHN_F_DEAD		0x00020000
 
 
-#define CHN_F_RESET		(CHN_F_BUSY)
+#define CHN_F_RESET		(CHN_F_BUSY | CHN_F_DEAD)
 
 /*
  * This should be large enough to hold all pcm data between

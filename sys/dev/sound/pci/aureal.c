@@ -350,7 +350,10 @@ auchan_trigger(void *data, int go)
 {
 	struct au_chinfo *ch = data;
 	struct au_info *au = ch->parent;
-	if (go == PCMTRIG_EMLDMAWR) return 0;
+
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
 	if (ch->dir == PCMDIR_PLAY) {
 		au_setadb(au, 0x11, (go)? 1 : 0);
 		if (!go) {
@@ -683,4 +686,6 @@ static driver_t au_driver = {
 
 static devclass_t pcm_devclass;
 
-DRIVER_MODULE(au, pci, au_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_aureal, pci, au_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_aureal, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_aureal, 1);
