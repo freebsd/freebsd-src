@@ -279,8 +279,9 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 	sc = devclass_get_softc(firewire_devclass, unit);
 	fwdev = fw_noderesolve_eui64(sc->fc, fwmem_eui64);
 	if (fwdev == NULL) {
-		printf("fwmem: no such device ID:%08x%08x\n",
-			fwmem_eui64.hi, fwmem_eui64.lo);
+		if (fwmem_debug)
+			printf("fwmem: no such device ID:%08x%08x\n",
+					fwmem_eui64.hi, fwmem_eui64.lo);
 		return EINVAL;
 	}
 
@@ -341,8 +342,9 @@ fwmem_write (dev_t dev, struct uio *uio, int ioflag)
 	sc = devclass_get_softc(firewire_devclass, unit);
 	fwdev = fw_noderesolve_eui64(sc->fc, fwmem_eui64);
 	if (fwdev == NULL) {
-		printf("fwmem: no such device ID:%08x%08x\n",
-			fwmem_eui64.hi, fwmem_eui64.lo);
+		if (fwmem_debug)
+			printf("fwmem: no such device ID:%08x%08x\n",
+					fwmem_eui64.hi, fwmem_eui64.lo);
 		return EINVAL;
 	}
 

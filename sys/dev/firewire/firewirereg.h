@@ -257,8 +257,10 @@ struct fw_xfer{
 	caddr_t sc;
 	struct firewire_comm *fc;
 	struct fw_xferq *q;
+#ifdef XFER_TIMEOUT
 	struct callout_handle ch;
-	time_t time;
+#endif
+	struct timeval tv;
 	struct fw_tlabel *tlabel;
 	u_int8_t spd;
 	u_int8_t tcode;
