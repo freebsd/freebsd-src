@@ -109,7 +109,7 @@ SUBDIR=	IPXrouted \
 	ypset \
 	zic
 
-.if !defined(NO_BIND) && 0
+.if !defined(NO_BIND)
 SUBDIR+=named \
 	named.reload \
 	named.restart \
