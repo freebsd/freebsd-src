@@ -104,8 +104,11 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${DESTDIR}${INCLUDEDIR}/$i
 .endfor
-	cd ${.CURDIR}/../sys; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 opencrypto/*.h \
+	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	    ${DESTDIR}${INCLUDEDIR}/netinet
+	cd ${.CURDIR}/../sys/opencrypto; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/crypto
 	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
@@ -136,6 +139,11 @@ symlinks:
 		ln -fs ../../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
+	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
+	for h in *.h; do \
+		ln -fs ../../../sys/contrib/ipfilter/netinet/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/netinet; \
+	done
 	cd ${.CURDIR}/../sys/opencrypto; \
 	for h in *.h; do \
 		ln -fs ../../../sys/opencrypto/$$h \
