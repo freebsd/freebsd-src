@@ -32,12 +32,12 @@
 .\"     @(#)devname.3	8.2 (Berkeley) 4/29/95
 .\" $FreeBSD$
 .\"
-.Dd July 18, 1999
+.Dd February 22, 2005
 .Dt DEVNAME 3
 .Os
 .Sh NAME
 .Nm devname
-.Nd get device name
+.Nd "get device name"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -78,6 +78,16 @@ returns the name stored in a static buffer which will be overwritten
 on subsequent calls.
 .Fn devname_r
 takes a buffer and length as argument to avoid this problem.
+.Sh EXAMPLES
+.Bd -literal -compact
+int fd;
+struct stat buf;
+char *name;
+
+	fd = open("/dev/tun");
+	fstat(fd, &buf);
+	printf("devname is /dev/%s\en", devname(buf.st_rdev, S_IFCHR));
+.Ed
 .Sh SEE ALSO
 .Xr stat 2
 .Sh HISTORY
