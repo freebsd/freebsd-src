@@ -28,9 +28,6 @@
 #
 
 # Start ATM daemons
-# XXX - This script uses global variables set by scripts atm1 and atm2.
-#	Ideally this shouldn't be the case.
-#
 
 # PROVIDE: atm3
 # REQUIRE: atm2
@@ -39,9 +36,42 @@
 
 . /etc/rc.subr
 
+name="atm3"
+rcvar="atm_enable"
+start_cmd="atm3_start"
+stop_cmd=":"
+
 atm3_start()
 {
 	echo -n 'Starting ATM daemons:'
+
+	# Get a list of network interfaces
+	atm_nif=`atm sh netif | { read junk ; \
+	    while read dev junk ; do
+		echo "${dev} "
+	    done 
+	}`
+
+	for net in ${atm_nif} ; do
+		eval atmarp_args=\$atm_arpserver_${net}
+		eval scsparp_args=\$atm_scsparp_${net}
+
+		case ${scsparp_args} in
+		[Yy][Ee][Ss])
+			case ${atmarp_args} in
+			local)
+				;;
+			*)
+				warn "${net}: local arpserver required for SCSP"
+				continue
+				;;
+			esac
+
+			atm_atmarpd="${atm_atmarpd} ${net}"
+			atm_scspd=1
+			;;
+		esac
+	done
 
 	# Start SCSP daemon (if needed)
 	case ${atm_scspd} in
@@ -59,10 +89,5 @@ atm3_start()
 	echo '.'
 }
 
-load_rc_config "XXX"
-
-case ${atm_enable} in
-[Yy][Ee][Ss])
-	atm3_start
-	;;
-esac
+load_rc_config $name
+run_rc_command "$1"

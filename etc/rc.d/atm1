@@ -46,6 +46,21 @@ stop_cmd=":"
 #
 atm_start()
 {
+	if [ -n "${natm_interfaces}" ] ; then
+		# Load the HARP pseudo interface
+		kldstat -v | grep -q if_harp || kldload if_harp
+
+		# Load all the NATM drivers that we need
+		for natm in ${natm_interfaces} ; do
+			ifconfig ${natm} up
+		done
+	fi
+
+	# Load loadable HARP drivers
+	for dev in ${atm_load} ; do
+		kldstat -v | grep -q ${dev} || kldload ${dev}
+	done
+
 	# Locate all probed ATM adapters
 	atmdev=`atm sh stat int | while read dev junk; do
 		case ${dev} in
@@ -56,6 +71,20 @@ atm_start()
 			echo "${dev} "
 			;;
 		idt[0-9] | idt[0-9][0-9])
+			echo "${dev} "
+			;;
+
+		# NATM interfaces per pseudo driver
+		en[0-9] | en[0-9][0-9])
+			echo "${dev} "
+			;;
+		fatm[0-9] | fatm[0-9][0-9])
+			echo "${dev} "
+			;;
+		hatm[0-9] | hatm[0-9][0-9])
+			echo "${dev} "
+			;;
+		patm[0-9] | patm[0-9][0-9])
 			echo "${dev} "
 			;;
 		*)

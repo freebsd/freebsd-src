@@ -35,15 +35,37 @@
 #
 # Additional ATM interface configuration
 #
-
 . /etc/rc.subr
+
+name="atm2"
+rcvar="atm_enable"
+start_cmd="atm2_start"
+stop_cmd=":"
 
 atm2_start()
 {
 	# Configure network interfaces
+
+	# get a list of physical interfaces
+	atm_phy=`atm show stat int | { read junk ; read junk ; \
+	    while read dev junk ; do
+		case ${dev} in
+		en[0-9] | en[0-9][0-9])
+			;;
+		*)
+			echo "${dev} "
+			;;
+		esac
+	done ; }`
+
 	for phy in ${atm_phy}; do
 		eval netif_args=\$atm_netif_${phy}
 		set -- ${netif_args}
+		# skip unused physical interfaces
+		if [ $# -lt 2 ] ; then
+			continue
+		fi
+
 		netname=$1
 		netcnt=$2
 		netindx=0
@@ -58,23 +80,6 @@ atm2_start()
 				atm set arpserver ${net} ${atmarp_args} ||
 				    continue
 			fi
-			eval scsparp_args=\$atm_scsparp_${net}
-
-			case ${scsparp_args} in
-			[Yy][Ee][Ss])
-				case ${atmarp_args} in
-				local)
-					;;
-				*)
-					echo ' local arpserver required for SCSP'
-					continue
-					;;
-				esac
-
-				atm_atmarpd="${atm_atmarpd} ${net}"
-				atm_scspd=1
-				;;
-			esac
 		done
 	done
 	echo '.'
@@ -86,19 +91,7 @@ atm2_start()
 			atm add arp ${arp_args}
 		done
 	fi
-
-	# XXX - required by atm3.sh. I don't like having one script depend
-	#       on variables in another script (especially in a dynamic
-	#       ordered system like this), but it's necessary for the moment.
-	#
-	export atm_atmarpd
-	export atm_scspd
 }
 
-load_rc_config "XXX"
-
-case ${atm_enable} in
-[Yy][Ee][Ss])
-	atm2_start
-	;;
-esac
+load_rc_config $name
+run_rc_command "$1"
