@@ -22,8 +22,7 @@
 #include "skey.h"
 #include "pathnames.h"
 
-char *skipspace();
-int skeylookup __P((struct skey *mp,char *name));
+static char *skipspace();
 
 #define setpriority(x,y,z)	/* nothing */
 
@@ -296,6 +295,7 @@ register char *out,*in;
 	return 0;
 }
 
+static
 char *
 skipspace(cp)
 register char *cp;
