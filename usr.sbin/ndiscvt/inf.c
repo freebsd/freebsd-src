@@ -215,8 +215,9 @@ dump_deviceids()
 			/* Emit device IDs. */
 			if (strcasestr(assign->vals[1], "PCI") != NULL)
 				dump_pci_id(assign->vals[1]);
-#ifdef notdef
 			else if (strcasestr(assign->vals[1], "PCMCIA") != NULL)
+				continue;
+#ifdef notdef
 				dump_pcmcia_id(assign->vals[1]);
 #endif
 			/* Emit device description */
@@ -256,7 +257,8 @@ dump_addreg(const char *s, int devidx)
 				    stringcvt(reg->value), devidx);
 			} else if (strncasecmp(reg->subkey,
 			    "Ndi\\params", strlen("Ndi\\params")-1) == 0 &&
-			    strcasecmp(reg->key, "ParamDesc") == 0)
+			    (reg->key != NULL && strcasecmp(reg->key,
+			    "ParamDesc") == 0))
 				dump_paramreg(sec, reg, devidx);
 		}
 	}
@@ -292,6 +294,8 @@ dump_editreg(const struct section *s, const struct reg *r)
 			continue;
 		if (reg->subkey == NULL || strcasecmp(reg->subkey, r->subkey))
 			continue;
+		if (reg->key == NULL)
+			continue;
 		if (strcasecmp(reg->key, "LimitText") == 0)
 			fprintf(ofp, " [maxchars=%s]", reg->value);
 		if (strcasecmp(reg->key, "Optional") == 0 &&
@@ -312,6 +316,8 @@ dump_dwordreg(const struct section *s, const struct reg *r)
 			continue;
 		if (reg->subkey == NULL || strcasecmp(reg->subkey, r->subkey))
 			continue;
+		if (reg->key == NULL)
+			continue;
 		if (strcasecmp(reg->key, "min") == 0)
 			fprintf(ofp, " [min=%s]", reg->value);
 		if (strcasecmp(reg->key, "max") == 0)
@@ -329,7 +335,7 @@ dump_defaultinfo(const struct section *s, const struct reg *r, int devidx)
 			continue;
 		if (reg->subkey == NULL || strcasecmp(reg->subkey, r->subkey))
 			continue;
-		if (strcasecmp(reg->key, "Default"))
+		if (reg->key == NULL || strcasecmp(reg->key, "Default"))
 			continue;
 		fprintf(ofp, "\n\t{ \"%s\" }, %d },", reg->value == NULL ? "" :
 		    stringcvt(reg->value), devidx);
@@ -347,7 +353,7 @@ dump_paramdesc(const struct section *s, const struct reg *r)
 			continue;
 		if (reg->subkey == NULL || strcasecmp(reg->subkey, r->subkey))
 			continue;
-		if (strcasecmp(reg->key, "ParamDesc"))
+		if (reg->key == NULL || strcasecmp(reg->key, "ParamDesc"))
 			continue;
 		fprintf(ofp, "\n\t\"%s", stringcvt(r->value));
 			break;
@@ -363,6 +369,8 @@ dump_typeinfo(const struct section *s, const struct reg *r)
 		if (reg->section != s)
 			continue;
 		if (reg->subkey == NULL || strcasecmp(reg->subkey, r->subkey))
+			continue;
+		if (reg->key == NULL)
 			continue;
 		if (strcasecmp(reg->key, "type"))
 			continue;
