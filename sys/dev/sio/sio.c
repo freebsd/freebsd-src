@@ -1868,6 +1868,10 @@ if (com->iptr - com->ibuf == 8)
 					CE_RECORD(com, CE_OVERRUN);
 			}
 cont:
+			if (line_status & LSR_TXRDY
+			    && com->state >= (CS_BUSY | CS_TTGO | CS_ODEVREADY))
+				goto txrdy;
+
 			/*
 			 * "& 0x7F" is to avoid the gcc-1.40 generating a slow
 			 * jump from the top of the loop to here
@@ -1905,6 +1909,7 @@ cont:
 			}
 		}
 
+txrdy:
 		/* output queued and everything ready? */
 		if (line_status & LSR_TXRDY
 		    && com->state >= (CS_BUSY | CS_TTGO | CS_ODEVREADY)) {
