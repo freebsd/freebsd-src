@@ -745,7 +745,7 @@ vtryrecycle(struct vnode *vp)
 	 * If someone ref'd the vnode while we were cleaning, we have to
 	 * free it once the last ref is dropped.
 	 */
-	if (vp->v_usecount || vp->v_holdcnt)
+	if (vp->v_holdcnt)
 		error = EBUSY;
 	VI_UNLOCK(vp);
 done:
@@ -1781,6 +1781,7 @@ v_incr_usecount(struct vnode *vp, int delta)
 {
 
 	vp->v_usecount += delta;
+	vp->v_holdcnt += delta;
 	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
 		dev_lock();
 		vp->v_rdev->si_usecount += delta;
@@ -2018,7 +2019,7 @@ vdropl(struct vnode *vp)
 {
 
 	if (vp->v_holdcnt <= 0)
-		panic("vdrop: holdcnt");
+		panic("vdrop: holdcnt %d", vp->v_holdcnt);
 	vp->v_holdcnt--;
 	if (VSHOULDFREE(vp))
 		vfree(vp);
@@ -2326,7 +2327,7 @@ vgonel(struct vnode *vp, struct thread *td)
 	 * incremented first, vgone would (incorrectly) try to
 	 * close the previous instance of the underlying object.
 	 */
-	if (vp->v_usecount == 0 && vp->v_holdcnt == 0 && !doomed) {
+	if (vp->v_holdcnt == 0 && !doomed) {
 		mtx_lock(&vnode_free_list_mtx);
 		if (vp->v_iflag & VI_FREE) {
 			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
