@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.20 1997/10/10 14:08:07 phk Exp $";
+	"$Id: vmstat.c,v 1.21 1997/10/10 18:19:48 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -702,7 +702,7 @@ domem()
 	register int i, j;
 	int len, size, first, nkms;
 	long totuse = 0, totfree = 0, totreq = 0;
-	char *name;
+	const char *name;
 	struct malloc_type kmemstats[200],*kmsp;
 	char *kmemnames[200];
 	char buf[1024];
