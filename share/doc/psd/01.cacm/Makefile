@@ -7,5 +7,6 @@ EXTRA=	ref.bib
 MACROS=	-ms
 
 USE_REFER=	yes
+USE_TBL=	yes
 
 .include <bsd.doc.mk>
