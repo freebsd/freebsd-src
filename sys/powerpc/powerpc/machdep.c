@@ -445,7 +445,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 
 /* XXX: NetBSDism I _think_.  Not sure yet. */
 #if 0
-	curpm = curpcb->pcb_pmreal = curpcb->pcb_pm = kernel_pmap;
+	curpm = PCPU_GET(curpcb)->pcb_pmreal = PCPU_GET(curpcb)->pcb_pm = kernel_pmap;
 #endif
 	
 	/*
