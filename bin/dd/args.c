@@ -98,7 +98,7 @@ jcl(argv)
 
 	in.dbsz = out.dbsz = 512;
 
-	while (oper = *++argv) {
+	while ((oper = *++argv)) {/* JEAG */
 		if ((arg = strchr(oper, '=')) == NULL)
 			errx(1, "unknown operand %s", oper);
 		*arg++ = '\0';
