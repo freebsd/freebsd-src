@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.52 1999/01/21 08:29:12 dillon Exp $
+ * $Id: vm_object.h,v 1.53 1999/01/21 09:51:21 dillon Exp $
  */
 
 /*
@@ -249,7 +249,6 @@ vm_object_t vm_object_allocate __P((objtype_t, vm_size_t));
 void _vm_object_allocate __P((objtype_t, vm_size_t, vm_object_t));
 boolean_t vm_object_coalesce __P((vm_object_t, vm_pindex_t, vm_size_t, vm_size_t));
 void vm_object_collapse __P((vm_object_t));
-void vm_object_copy __P((vm_object_t, vm_pindex_t, vm_object_t *, vm_pindex_t *, boolean_t *));
 void vm_object_deallocate __P((vm_object_t));
 void vm_object_terminate __P((vm_object_t));
 void vm_object_vndeallocate __P((vm_object_t));

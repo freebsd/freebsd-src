@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.146 1999/02/07 21:48:22 dillon Exp $
+ * $Id: vm_object.c,v 1.147 1999/02/08 05:15:54 dillon Exp $
  */
 
 /*
@@ -920,6 +920,199 @@ vm_object_shadow(object, offset, length)
 	*object = result;
 }
 
+#define	OBSC_TEST_ALL_SHADOWED	0x0001
+#define	OBSC_COLLAPSE_NOWAIT	0x0002
+#define	OBSC_COLLAPSE_WAIT	0x0004
+
+static __inline int
+vm_object_backing_scan(vm_object_t object, int op)
+{
+	int s;
+	int r = 1;
+	vm_page_t p;
+	vm_object_t backing_object;
+	vm_pindex_t backing_offset_index;
+
+	s = splvm();
+
+	backing_object = object->backing_object;
+	backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
+
+	/*
+	 * Initial conditions
+	 */
+
+	if (op & OBSC_TEST_ALL_SHADOWED) {
+		/*
+		 * We do not want to have to test for the existance of
+		 * swap pages in the backing object.  XXX but with the
+		 * new swapper this would be pretty easy to do.
+		 *
+		 * XXX what about anonymous MAP_SHARED memory that hasn't
+		 * been ZFOD faulted yet?  If we do not test for this, the
+		 * shadow test may succeed! XXX
+		 */
+		if (backing_object->type != OBJT_DEFAULT) {
+			splx(s);
+			return(0);
+		}
+	}
+	if (op & OBSC_COLLAPSE_WAIT) {
+		vm_object_set_flag(backing_object, OBJ_DEAD);
+	}
+
+	/*
+	 * Our scan
+	 */
+
+	p = TAILQ_FIRST(&backing_object->memq);
+	while (p) {
+		vm_page_t next = TAILQ_NEXT(p, listq);
+		vm_pindex_t new_pindex = p->pindex - backing_offset_index;
+
+		if (op & OBSC_TEST_ALL_SHADOWED) {
+			vm_page_t pp;
+
+			/*
+			 * Ignore pages outside the parent object's range
+			 * and outside the parent object's mapping of the 
+			 * backing object.
+			 *
+			 * note that we do not busy the backing object's
+			 * page.
+			 */
+
+			if (
+			    p->pindex < backing_offset_index ||
+			    new_pindex >= object->size
+			) {
+				p = next;
+				continue;
+			}
+
+			/*
+			 * See if the parent has the page or if the parent's
+			 * object pager has the page.  If the parent has the
+			 * page but the page is not valid, the parent's
+			 * object pager must have the page.
+			 *
+			 * If this fails, the parent does not completely shadow
+			 * the object and we might as well give up now.
+			 */
+
+			pp = vm_page_lookup(object, new_pindex);
+			if (
+			    (pp == NULL || pp->valid == 0) &&
+			    !vm_pager_has_page(object, new_pindex, NULL, NULL)
+			) {
+				r = 0;
+				break;
+			}
+		}
+
+		/*
+		 * Check for busy page
+		 */
+
+		if (op & (OBSC_COLLAPSE_WAIT | OBSC_COLLAPSE_NOWAIT)) {
+			vm_page_t pp;
+
+			if (op & OBSC_COLLAPSE_NOWAIT) {
+				if (
+				    (p->flags & PG_BUSY) ||
+				    !p->valid || 
+				    p->hold_count || 
+				    p->wire_count ||
+				    p->busy
+				) {
+					p = next;
+					continue;
+				}
+			} else if (op & OBSC_COLLAPSE_WAIT) {
+				if (vm_page_sleep_busy(p, TRUE, "vmocol")) {
+					/*
+					 * If we slept, anything could have
+					 * happened.  Since the object is
+					 * marked dead, the backing offset
+					 * should not have changed so we
+					 * just restart our scan.
+					 */
+					p = TAILQ_FIRST(&backing_object->memq);
+					continue;
+				}
+			}
+
+			/* 
+			 * Busy the page
+			 */
+			vm_page_busy(p);
+
+			KASSERT(
+			    p->object == backing_object,
+			    ("vm_object_qcollapse(): object mismatch")
+			);
+
+			/*
+			 * Destroy any associated swap
+			 */
+			if (backing_object->type == OBJT_SWAP) {
+				swap_pager_freespace(
+				    backing_object, 
+				    p->pindex,
+				    1
+				);
+			}
+
+			if (
+			    p->pindex < backing_offset_index ||
+			    new_pindex >= object->size
+			) {
+				/*
+				 * Page is out of the parent object's range, we 
+				 * can simply destroy it. 
+				 */
+				vm_page_protect(p, VM_PROT_NONE);
+				vm_page_free(p);
+				p = next;
+				continue;
+			}
+
+			pp = vm_page_lookup(object, new_pindex);
+			if (
+			    pp != NULL ||
+			    vm_pager_has_page(object, new_pindex, NULL, NULL)
+			) {
+				/*
+				 * page already exists in parent OR swap exists
+				 * for this location in the parent.  Destroy 
+				 * the original page from the backing object.
+				 *
+				 * Leave the parent's page alone
+				 */
+				vm_page_protect(p, VM_PROT_NONE);
+				vm_page_free(p);
+				p = next;
+				continue;
+			}
+
+			/*
+			 * Page does not exist in parent, rename the
+			 * page from the backing object to the main object. 
+			 */
+			if ((p->queue - p->pc) == PQ_CACHE)
+				vm_page_deactivate(p);
+			else
+				vm_page_protect(p, VM_PROT_NONE);
+
+			vm_page_rename(p, object, new_pindex);
+			/* page automatically made dirty by rename */
+		}
+		p = next;
+	}
+	splx(s);
+	return(r);
+}
+
 
 /*
  * this version of collapse allows the operation to occur earlier and
@@ -930,105 +1123,16 @@ static void
 vm_object_qcollapse(object)
 	vm_object_t object;
 {
-	vm_object_t backing_object;
-	vm_pindex_t backing_offset_index;
-	vm_page_t p, pp;
-	vm_size_t size;
-	int s;
+	vm_object_t backing_object = object->backing_object;
 
-	backing_object = object->backing_object;
 	if (backing_object->ref_count != 1)
 		return;
 
 	backing_object->ref_count += 2;
 
-	backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
-	size = object->size;
+	vm_object_backing_scan(object, OBSC_COLLAPSE_NOWAIT);
 
-	/*
-	 * Since paging is in progress, we have to run at splbio() to
-	 * avoid busied pages from getting ripped out from under us
-	 * and screwing up the list sequencing.
-	 */
-
-	s = splbio();
-
-	p = TAILQ_FIRST(&backing_object->memq);
-	while (p) {
-		vm_page_t next;
-		vm_pindex_t new_pindex;
-		vm_pindex_t old_pindex;
-
-		/*
-		 * setup for loop.
-		 * loop if the page isn't trivial.
-		 */
-
-		next = TAILQ_NEXT(p, listq);
-		if ((p->flags & (PG_BUSY | PG_FICTITIOUS)) ||
-		    !p->valid || p->hold_count || p->wire_count || p->busy) {
-			p = next;
-			continue;
-		}
-
-		/*
-		 * busy the page and move it from the backing store to the
-		 * parent object.
-		 */
-
-		vm_page_busy(p);
-
-		KASSERT(p->object == backing_object, ("vm_object_qcollapse(): object mismatch"));
-
-		old_pindex = p->pindex;
-		new_pindex = old_pindex - backing_offset_index;
-
-		if (old_pindex < backing_offset_index || new_pindex >= size) {
-			/*
-			 * Page is out of the parent object's range, we 
-			 * can simply destroy it. 
-			 */
-			vm_page_protect(p, VM_PROT_NONE);
-			vm_page_free(p);
-		} else {
-			pp = vm_page_lookup(object, new_pindex);
-			if (pp != NULL ||
-				(object->type == OBJT_SWAP && vm_pager_has_page(object,
-				    new_pindex, NULL, NULL))) {
-				/*
-				 * page already exists in parent OR swap exists
-				 * for this location in the parent.  Destroy 
-				 * the original page from the backing object.
-				 */
-				vm_page_protect(p, VM_PROT_NONE);
-				vm_page_free(p);
-			} else {
-				/*
-				 * Page does not exist in parent, rename the
-				 * page. 
-				 */
-				if ((p->queue - p->pc) == PQ_CACHE)
-					vm_page_deactivate(p);
-				else
-					vm_page_protect(p, VM_PROT_NONE);
-
-				vm_page_rename(p, object, new_pindex);
-				/* page automatically made dirty by rename */
-			}
-		}
-
-		/*
-		 * Destroy any swap assigned to the backing object at this
-		 * location.  This is an optimization.
-		 */
-		if (backing_object->type == OBJT_SWAP) {
-			swap_pager_freespace(backing_object, old_pindex, 1);
-		}
-		p = next;
-	}
 	backing_object->ref_count -= 2;
-
-	splx(s);
 }
 
 /*
@@ -1041,29 +1145,20 @@ vm_object_qcollapse(object)
 void
 vm_object_collapse(object)
 	vm_object_t object;
-
 {
-	vm_object_t backing_object;
-	vm_ooffset_t backing_offset;
-	vm_size_t size;
-	vm_pindex_t new_pindex, backing_offset_index;
-	vm_page_t p, pp;
-
 	while (TRUE) {
+		vm_object_t backing_object;
+
 		/*
 		 * Verify that the conditions are right for collapse:
 		 *
-		 * The object exists and no pages in it are currently being paged
-		 * out.
+		 * The object exists and the backing object exists.
 		 */
 		if (object == NULL)
-			return;
+			break;
 
-		/*
-		 * Make sure there is a backing object.
-		 */
 		if ((backing_object = object->backing_object) == NULL)
-			return;
+			break;
 
 		/*
 		 * we check the backing object first, because it is most likely
@@ -1077,76 +1172,35 @@ vm_object_collapse(object)
 		    (object->type != OBJT_DEFAULT &&
 		     object->type != OBJT_SWAP) ||
 		    (object->flags & OBJ_DEAD)) {
-			return;
+			break;
 		}
 
-		if (object->paging_in_progress != 0 ||
-		    backing_object->paging_in_progress != 0) {
+		if (
+		    object->paging_in_progress != 0 ||
+		    backing_object->paging_in_progress != 0
+		) {
 			vm_object_qcollapse(object);
-			return;
+			break;
 		}
 
 		/*
 		 * We know that we can either collapse the backing object (if
-		 * the parent is the only reference to it) or (perhaps) remove
-		 * the parent's reference to it.
-		 */
-
-		backing_offset = object->backing_object_offset;
-		backing_offset_index = OFF_TO_IDX(backing_offset);
-		size = object->size;
-
-		/*
-		 * If there is exactly one reference to the backing object, we
-		 * can collapse it into the parent.
+		 * the parent is the only reference to it) or (perhaps) have
+		 * the parent bypass the object if the parent happens to shadow
+		 * all the resident pages in the entire backing object.
+		 *
+		 * This is ignoring pager-backed pages such as swap pages.
+		 * vm_object_backing_scan fails the shadowing test in this
+		 * case.
 		 */
 
 		if (backing_object->ref_count == 1) {
-
-			vm_object_set_flag(backing_object, OBJ_DEAD);
 			/*
-			 * We can collapse the backing object.
-			 *
-			 * Move all in-memory pages from backing_object to the
-			 * parent.  Pages that have been paged out will be
-			 * overwritten by any of the parent's pages that
-			 * shadow them.
+			 * If there is exactly one reference to the backing
+			 * object, we can collapse it into the parent.  
 			 */
 
-			while ((p = TAILQ_FIRST(&backing_object->memq)) != 0) {
-				if (vm_page_sleep_busy(p, TRUE, "vmocol"))
-					continue;
-				vm_page_busy(p);
-				new_pindex = p->pindex - backing_offset_index;
-
-				/*
-				 * If the parent has a page here, or if this
-				 * page falls outside the parent, dispose of
-				 * it.
-				 *
-				 * Otherwise, move it as planned.
-				 */
-
-				if (p->pindex < backing_offset_index ||
-				    new_pindex >= size) {
-					vm_page_protect(p, VM_PROT_NONE);
-					vm_page_free(p);
-				} else {
-					pp = vm_page_lookup(object, new_pindex);
-					if (pp != NULL || (object->type == OBJT_SWAP && vm_pager_has_page(object,
-					    new_pindex, NULL, NULL))) {
-						vm_page_protect(p, VM_PROT_NONE);
-						vm_page_free(p);
-					} else {
-						if ((p->queue - p->pc) == PQ_CACHE)
-							vm_page_deactivate(p);
-						else
-							vm_page_protect(p, VM_PROT_NONE);
-						vm_page_rename(p, object, new_pindex);
-						/* page automatically made dirty by rename */
-					}
-				}
-			}
+			vm_object_backing_scan(object, OBSC_COLLAPSE_WAIT);
 
 			/*
 			 * Move the pager from backing_object to object.
@@ -1175,29 +1229,41 @@ vm_object_collapse(object)
 			}
 			/*
 			 * Object now shadows whatever backing_object did.
-			 * Note that the reference to backing_object->backing_object
-			 * moves from within backing_object to within object.
+			 * Note that the reference to 
+			 * backing_object->backing_object moves from within 
+			 * backing_object to within object.
 			 */
 
-			TAILQ_REMOVE(&object->backing_object->shadow_head, object,
-			    shadow_list);
+			TAILQ_REMOVE(
+			    &object->backing_object->shadow_head, 
+			    object,
+			    shadow_list
+			);
 			object->backing_object->shadow_count--;
 			object->backing_object->generation++;
 			if (backing_object->backing_object) {
-				TAILQ_REMOVE(&backing_object->backing_object->shadow_head,
-				    backing_object, shadow_list);
+				TAILQ_REMOVE(
+				    &backing_object->backing_object->shadow_head,
+				    backing_object, 
+				    shadow_list
+				);
 				backing_object->backing_object->shadow_count--;
 				backing_object->backing_object->generation++;
 			}
 			object->backing_object = backing_object->backing_object;
 			if (object->backing_object) {
-				TAILQ_INSERT_TAIL(&object->backing_object->shadow_head,
-				    object, shadow_list);
+				TAILQ_INSERT_TAIL(
+				    &object->backing_object->shadow_head,
+				    object, 
+				    shadow_list
+				);
 				object->backing_object->shadow_count++;
 				object->backing_object->generation++;
 			}
 
-			object->backing_object_offset += backing_object->backing_object_offset;
+			object->backing_object_offset +=
+			    backing_object->backing_object_offset;
+
 			/*
 			 * Discard backing_object.
 			 *
@@ -1206,8 +1272,11 @@ vm_object_collapse(object)
 			 * necessary is to dispose of it.
 			 */
 
-			TAILQ_REMOVE(&vm_object_list, backing_object,
-			    object_list);
+			TAILQ_REMOVE(
+			    &vm_object_list, 
+			    backing_object,
+			    object_list
+			);
 			vm_object_count--;
 
 			zfree(obj_zone, backing_object);
@@ -1215,62 +1284,14 @@ vm_object_collapse(object)
 			object_collapses++;
 		} else {
 			vm_object_t new_backing_object;
+
 			/*
-			 * If all of the pages in the backing object are
-			 * shadowed by the parent object, the parent object no
-			 * longer has to shadow the backing object; it can
-			 * shadow the next one in the chain.
-			 *
-			 * The backing object must not be paged out - we'd have
-			 * to check all of the paged-out pages, as well.
+			 * If we do not entirely shadow the backing object,
+			 * there is nothing we can do so we give up.
 			 */
 
-			if (backing_object->type != OBJT_DEFAULT) {
-				return;
-			}
-			/*
-			 * Should have a check for a 'small' number of pages
-			 * here.
-			 */
-
-			for (p = TAILQ_FIRST(&backing_object->memq); p;
-					p = TAILQ_NEXT(p, listq)) {
-
-				new_pindex = p->pindex - backing_offset_index;
-				vm_page_busy(p);
-
-				/*
-				 * If the parent has a page here, or if this
-				 * page falls outside the parent, keep going.
-				 *
-				 * Otherwise, the backing_object must be left in
-				 * the chain.
-				 */
-
-				if (p->pindex >= backing_offset_index &&
-					new_pindex <= size) {
-
-					pp = vm_page_lookup(object, new_pindex);
-
-					if ((pp == NULL) || (pp->flags & PG_BUSY) || pp->busy) {
-						vm_page_wakeup(p);
-						return;
-					}
-
-					vm_page_busy(pp);
-					if ((pp->valid == 0) &&
-				   	    !vm_pager_has_page(object, new_pindex, NULL, NULL)) {
-						/*
-						 * Page still needed. Can't go any
-						 * further.
-						 */
-						vm_page_wakeup(pp);
-						vm_page_wakeup(p);
-						return;
-					}
-					vm_page_wakeup(pp);
-				}
-				vm_page_wakeup(p);
+			if (vm_object_backing_scan(object, OBSC_TEST_ALL_SHADOWED) == 0) {
+				break;
 			}
 
 			/*
@@ -1279,16 +1300,22 @@ vm_object_collapse(object)
 			 * it, since its reference count is at least 2.
 			 */
 
-			TAILQ_REMOVE(&backing_object->shadow_head,
-			    object, shadow_list);
+			TAILQ_REMOVE(
+			    &backing_object->shadow_head,
+			    object,
+			    shadow_list
+			);
 			backing_object->shadow_count--;
 			backing_object->generation++;
 
 			new_backing_object = backing_object->backing_object;
 			if ((object->backing_object = new_backing_object) != NULL) {
 				vm_object_reference(new_backing_object);
-				TAILQ_INSERT_TAIL(&new_backing_object->shadow_head,
-				    object, shadow_list);
+				TAILQ_INSERT_TAIL(
+				    &new_backing_object->shadow_head,
+				    object,
+				    shadow_list
+				);
 				new_backing_object->shadow_count++;
 				new_backing_object->generation++;
 				object->backing_object_offset +=
