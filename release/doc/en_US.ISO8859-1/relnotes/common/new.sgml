@@ -333,6 +333,10 @@
         the interrupt delays using sysctl tunables
         without recompiling the driver.</para>
 
+      <para>The &man.fatm.4; driver has been added.  This is a driver
+	for NATM and NgATM that supports Fore/Marconi PCA200 ATM
+	cards.</para>
+
       <para arch="i386,pc98,sparc64">The &man.harp.4; driver has been added.
         This is a pseudo physical interface driver for HARP, 
         which attaches to all NetGraph ATM interfaces in the
@@ -341,6 +345,10 @@
 
       <para arch="i386,pc98,sparc64">The &man.hatm.4; driver has been added
         to support Fore/Marconi HE155 and HE622 ATM cards.</para>
+
+      <para arch="i386">The hfa driver has been updated to firmware
+	version 4.1.12 and now supports a limited number of CBR
+	channels.</para>
 
       <para arch="i386,pc98,sparc64">The &man.patm.4; driver has been added to
         support IDT77252 based ATM interfaces.</para>
@@ -672,6 +680,14 @@
     <para>&man.ifconfig.8; now supports a <option>staticarp</option>
       option for an interface, which disables the sending of ARP
       requests for that interface.</para>
+
+    <para>A fix in the &man.initgroups.3; library function now causes
+      logins to fail if the login process is unable to successfully
+      set the process credentials to include <emphasis>all</emphasis>
+      groups defined for a user.  The current kernel limit is 16
+      groups; administrators may wish to check that users do not have
+      more than 16 groups defined, or they will be unable to log
+      in.</para>
 
     <para>The &man.ipfw.8; <literal>list</literal> and <literal>show</literal>
       commands now support ranges of rule numbers.
