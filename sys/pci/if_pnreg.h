@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pnreg.h,v 1.13 1999/05/28 18:43:11 wpaul Exp $
+ *	$Id: if_pnreg.h,v 1.27 1999/05/28 18:45:26 wpaul Exp wpaul $
  */
 
 /*
@@ -394,6 +394,7 @@ struct pn_desc {
 #define PN_MIN_FRAMELEN		60
 #define PN_FRAMELEN		1536
 #define PN_RXLEN		1518
+#define ETHER_ALIGN		2
 
 /*
  * A tx 'super descriptor' is actually 16 regular descriptors
@@ -473,6 +474,9 @@ struct pn_softc {
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	pn_bhandle;	/* bus space handle */
 	bus_space_tag_t		pn_btag;	/* bus space tag */
+	void			*pn_intrhand;
+	struct resource		*pn_irq;
+	struct resource		*pn_res;
 	struct pn_type		*pn_info;	/* PNIC adapter info */
 	struct pn_type		*pn_pinfo;	/* phy info */
 	u_int8_t		pn_unit;	/* interface number */
