@@ -180,14 +180,28 @@ These variables are also
 available via the
 .Xr sysctl 3
 interface.
-.Sh DIAGNOSTICS
-
-[EINVAL]  The IP option field was improperly formed; an option
-          field was shorter than the minimum value or longer than
-          the option buffer provided.  A structural error in 
-          ip_fw structure occurred (n_src_p+n_dst_p too big,
-          ports set for ALL/ICMP protocols etc.). An invalid
-          rule number was used.
+.Sh RETURN VALUES
+The
+.Fn setsockopt
+function returns 0 on success.
+Otherwise, -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn setsockopt
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The IP option field was improperly formed;
+an option field was shorter than the minimum value
+or longer than the option buffer provided.
+.It Bq Er EINVAL
+A structural error in ip_fw structure occurred
+(n_src_p+n_dst_p too big, ports set for ALL/ICMP protocols etc.).
+.It Bq Er EINVAL
+An invalid rule number was used.
+.El
 .Sh SEE ALSO
 .Xr setsockopt 2 ,
 .Xr divert 4 ,
