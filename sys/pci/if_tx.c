@@ -747,13 +747,12 @@ epic_common_attach(sc)
 	i = sizeof(struct epic_frag_list)*TX_RING_SIZE +
 	    sizeof(struct epic_rx_desc)*RX_RING_SIZE + 
 	    sizeof(struct epic_tx_desc)*TX_RING_SIZE + PAGE_SIZE,
-	sc->pool = (epic_softc_t *) malloc( i, M_DEVBUF, M_NOWAIT);
+	sc->pool = (epic_softc_t *) malloc(i, M_DEVBUF, M_NOWAIT | M_ZERO);
 
 	if (sc->pool == NULL) {
 		printf(": can't allocate memory for buffers\n");
 		return -1;
 	}
-	bzero(sc->pool, i);
 
 	/* Align pool on PAGE_SIZE */
 	pool = (caddr_t)sc->pool;

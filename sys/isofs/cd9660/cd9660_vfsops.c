@@ -401,8 +401,7 @@ iso_mountfs(devvp, mp, p, argp)
 		 pri_sierra->root_directory_record:
 		 pri->root_directory_record);
 
-	isomp = malloc(sizeof *isomp, M_ISOFSMNT, M_WAITOK);
-	bzero((caddr_t)isomp, sizeof *isomp);
+	isomp = malloc(sizeof *isomp, M_ISOFSMNT, M_WAITOK | M_ZERO);
 	isomp->logical_block_size = logical_block_size;
 	isomp->volume_space_size =
 		isonum_733 (high_sierra?
@@ -723,8 +722,7 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 		return (error);
 	}
 	MALLOC(ip, struct iso_node *, sizeof(struct iso_node), M_ISOFSNODE,
-	    M_WAITOK);
-	bzero((caddr_t)ip, sizeof(struct iso_node));
+	    M_WAITOK | M_ZERO);
 	lockinit(&vp->v_lock, PINOD, "isonode", 0, 0);
 	/*
 	 * ISOFS uses stdlock and can share lock structure

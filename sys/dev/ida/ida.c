@@ -191,10 +191,10 @@ ida_init(struct ida_softc *ida)
         bioq_init(&ida->bio_queue);
 
 	ida->qcbs = (struct ida_qcb *)
-	    malloc(IDA_QCB_MAX * sizeof(struct ida_qcb), M_DEVBUF, M_NOWAIT);
+	    malloc(IDA_QCB_MAX * sizeof(struct ida_qcb), M_DEVBUF,
+		M_NOWAIT | M_ZERO);
 	if (ida->qcbs == NULL)
 		return (ENOMEM);
-	bzero(ida->qcbs, IDA_QCB_MAX * sizeof(struct ida_qcb));
 
 	/*
 	 * Create our DMA tags

@@ -553,10 +553,9 @@ cyattach_common(cy_iobase, cy_align)
 			struct com_s	*com;
 			int		s;
 
-	com = malloc(sizeof *com, M_DEVBUF, M_NOWAIT);
+	com = malloc(sizeof *com, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (com == NULL)
 		break;
-	bzero(com, sizeof *com);
 	com->unit = unit;
 			com->gfrcr_image = firmware_version;
 			if (CY_RTS_DTR_SWAPPED(firmware_version)) {

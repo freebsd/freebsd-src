@@ -243,23 +243,20 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 
 	if (dmat->flags & BUS_DMA_ISA) {
 		bus_dmamap_t map;
-		map = (bus_dmamap_t)malloc(sizeof(**mapp), M_DEVBUF,
-					     M_NOWAIT);
-		if (map == NULL) {
+		map = (bus_dmamap_t)malloc(sizeof(*map), M_DEVBUF,
+					     M_NOWAIT | M_ZERO);
+		if (map == NULL)
 			return (ENOMEM);
-		} else {
-			bzero(map, sizeof(*map));
 #if 0
-			map->busaddress =
-				sgmap_alloc_region(chipset.sgmap,
-						   dmat->maxsize,
-						   dmat->boundary,
-						   &map->sgmaphandle);
+		map->busaddress =
+			sgmap_alloc_region(chipset.sgmap,
+					   dmat->maxsize,
+					   dmat->boundary,
+					   &map->sgmaphandle);
 #endif
-			dmat->map_count++;
-			*mapp = map;
-			return (0);
-		}
+		dmat->map_count++;
+		*mapp = map;
+		return (0);
 	}
 
 	if (dmat->lowaddr < ptoa(Maxmem)) {
@@ -267,14 +264,13 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		int maxpages;
 
 		*mapp = (bus_dmamap_t)malloc(sizeof(**mapp), M_DEVBUF,
-					     M_NOWAIT);
-		if (*mapp == NULL) {
+					     M_NOWAIT | M_ZERO);
+		if (*mapp == NULL)
 			return (ENOMEM);
-		} else {
-			/* Initialize the new map */
-			bzero(*mapp, sizeof(**mapp));
-			STAILQ_INIT(&((*mapp)->bpages));
-		}
+
+		/* Initialize the new map */
+		STAILQ_INIT(&((*mapp)->bpages));
+
 		/*
 		 * Attempt to add pages to our pool on a per-instance
 		 * basis up to a sane limit.
@@ -606,11 +602,10 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 		int s;
 
 		bpage = (struct bounce_page *)malloc(sizeof(*bpage), M_DEVBUF,
-						     M_NOWAIT);
+						     M_NOWAIT | M_ZERO);
 
 		if (bpage == NULL)
 			break;
-		bzero(bpage, sizeof(*bpage));
 		bpage->vaddr = (vm_offset_t)contigmalloc(PAGE_SIZE, M_DEVBUF,
 							 M_NOWAIT, 0ul,
 							 dmat->lowaddr,

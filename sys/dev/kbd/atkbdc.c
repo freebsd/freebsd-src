@@ -111,10 +111,9 @@ atkbdc_softc_t
 	sc = atkbdc_softc[unit];
 	if (sc == NULL) {
 		sc = atkbdc_softc[unit]
-		   = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
+		   = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (sc == NULL)
 			return NULL;
-		bzero(sc, sizeof(*sc));
 	}
 	return sc;
 }

@@ -287,11 +287,10 @@ cpu_coredump(p, vp, cred)
 	int error;
 	caddr_t tempuser;
 
-	tempuser = malloc(ctob(UPAGES), M_TEMP, M_WAITOK);
+	tempuser = malloc(ctob(UPAGES), M_TEMP, M_WAITOK | M_ZERO);
 	if (!tempuser)
 		return EINVAL;
 	
-	bzero(tempuser, ctob(UPAGES));
 	bcopy(p->p_addr, tempuser, sizeof(struct user));
 	bcopy(p->p_md.md_regs,
 	      tempuser + ((caddr_t) p->p_md.md_regs - (caddr_t) p->p_addr),

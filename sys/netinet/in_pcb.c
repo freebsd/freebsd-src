@@ -605,8 +605,8 @@ in_setsockaddr(so, nam)
 	/*
 	 * Do the malloc first in case it blocks.
 	 */
-	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME, M_WAITOK);
-	bzero(sin, sizeof *sin);
+	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME,
+		M_WAITOK | M_ZERO);
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 
@@ -637,8 +637,8 @@ in_setpeeraddr(so, nam)
 	/*
 	 * Do the malloc first in case it blocks.
 	 */
-	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME, M_WAITOK);
-	bzero(sin, sizeof (*sin));
+	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME,
+		M_WAITOK | M_ZERO);
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 

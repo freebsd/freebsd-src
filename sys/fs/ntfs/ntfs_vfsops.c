@@ -478,8 +478,7 @@ ntfs_mountfs(devvp, mp, argsp, p)
 	error = bread(devvp, BBLOCK, BBSIZE, NOCRED, &bp);
 	if (error)
 		goto out;
-	ntmp = malloc( sizeof *ntmp, M_NTFSMNT, M_WAITOK );
-	bzero( ntmp, sizeof *ntmp );
+	ntmp = malloc( sizeof *ntmp, M_NTFSMNT, M_WAITOK | M_ZERO);
 	bcopy( bp->b_data, &ntmp->ntm_bootfile, sizeof(struct bootfile) );
 	brelse( bp );
 	bp = NULL;

@@ -80,19 +80,18 @@ kbd_realloc_array(void)
 
 	s = spltty();
 	newsize = ((keyboards + ARRAY_DELTA)/ARRAY_DELTA)*ARRAY_DELTA;
-	new_kbd = malloc(sizeof(*new_kbd)*newsize, M_DEVBUF, M_NOWAIT);
+	new_kbd = malloc(sizeof(*new_kbd)*newsize, M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (new_kbd == NULL) {
 		splx(s);
 		return ENOMEM;
 	}
-	new_kbdsw = malloc(sizeof(*new_kbdsw)*newsize, M_DEVBUF, M_NOWAIT);
+	new_kbdsw = malloc(sizeof(*new_kbdsw)*newsize, M_DEVBUF,
+			    M_NOWAIT|M_ZERO);
 	if (new_kbdsw == NULL) {
 		free(new_kbd, M_DEVBUF);
 		splx(s);
 		return ENOMEM;
 	}
-	bzero(new_kbd, sizeof(*new_kbd)*newsize);
-	bzero(new_kbdsw, sizeof(*new_kbdsw)*newsize);
 	bcopy(keyboard, new_kbd, sizeof(*keyboard)*keyboards);
 	bcopy(kbdsw, new_kbdsw, sizeof(*kbdsw)*keyboards);
 	if (keyboards > 1) {

@@ -220,8 +220,7 @@ loop:
 	NFS_DPF(RC, ("M%03x", nd->nd_retxid & 0xfff));
 	if (numnfsrvcache < desirednfsrvcache) {
 		rp = (struct nfsrvcache *)malloc((u_long)sizeof *rp,
-		    M_NFSD, M_WAITOK);
-		bzero((char *)rp, sizeof *rp);
+		    M_NFSD, M_WAITOK | M_ZERO);
 		numnfsrvcache++;
 		rp->rc_flag = RC_LOCKED;
 	} else {

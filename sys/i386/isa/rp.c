@@ -1109,7 +1109,7 @@ rp_pciattach(pcici_t tag, int unit)
 	rp_num_ports[unit] = num_ports;
 
 	rp = (struct rp_port *)
-		malloc(sizeof(struct rp_port) * num_ports, M_TTYS, M_NOWAIT);
+	    malloc(sizeof(struct rp_port) * num_ports, M_TTYS, M_NOWAIT|M_ZERO);
 	if(rp == 0) {
 		printf("rp_attach: Could not malloc rp_ports structures\n");
 		return;
@@ -1119,14 +1119,12 @@ rp_pciattach(pcici_t tag, int unit)
 	for(i=count;i < (count + rp_num_ports[unit]);i++)
 		minor_to_unit[i] = unit;
 
-	bzero(rp, sizeof(struct rp_port) * num_ports);
 	tty = (struct tty *)
-		malloc(sizeof(struct tty) * num_ports, M_TTYS, M_NOWAIT);
+	    malloc(sizeof(struct tty) * num_ports, M_TTYS, M_NOWAIT|M_ZERO);
 	if(tty == 0) {
 		printf("rp_attach: Could not malloc tty structures\n");
 		return;
 	}
-	bzero(tty, sizeof(struct tty) * num_ports);
 
 	oldspl = spltty();
 	rp_addr(unit) = rp;
@@ -1212,7 +1210,7 @@ struct	isa_device	*dev;
 	rp_num_ports[unit] = num_ports;
 
 	rp = (struct rp_port *)
-		malloc(sizeof(struct rp_port) * num_ports, M_TTYS, M_NOWAIT);
+	    malloc(sizeof(struct rp_port) * num_ports, M_TTYS, M_NOWAIT|M_ZERO);
 	if(rp == 0) {
 		printf("rp_attach: Could not malloc rp_ports structures\n");
 		return(0);
@@ -1222,14 +1220,12 @@ struct	isa_device	*dev;
 	for(i=count;i < (count + rp_num_ports[unit]);i++)
 		minor_to_unit[i] = unit;
 
-	bzero(rp, sizeof(struct rp_port) * num_ports);
 	tty = (struct tty *)
-		malloc(sizeof(struct tty) * num_ports, M_TTYS, M_NOWAIT);
+	    malloc(sizeof(struct tty) * num_ports, M_TTYS, M_NOWAIT|M_ZERO);
 	if(tty == 0) {
 		printf("rp_attach: Could not malloc tty structures\n");
 		return(0);
 	}
-	bzero(tty, sizeof(struct tty) * num_ports);
 
 	oldspl = spltty();
 	rp_addr(unit) = rp;

@@ -388,8 +388,8 @@ nfssvc_addsock(fp, mynam, p)
 	so->so_snd.sb_timeo = 0;
 
 	slp = (struct nfssvc_sock *)
-		malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_WAITOK);
-	bzero((caddr_t)slp, sizeof (struct nfssvc_sock));
+		malloc(sizeof (struct nfssvc_sock), M_NFSSVC,
+		M_WAITOK | M_ZERO);
 	STAILQ_INIT(&slp->ns_rec);
 	TAILQ_INIT(&slp->ns_uidlruhead);
 	TAILQ_INSERT_TAIL(&nfssvc_sockhead, slp, ns_chain);
@@ -433,8 +433,7 @@ nfssvc_nfsd(nsd, argp, p)
 #endif
 	if (nfsd == (struct nfsd *)0) {
 		nsd->nsd_nfsd = nfsd = (struct nfsd *)
-			malloc(sizeof (struct nfsd), M_NFSD, M_WAITOK);
-		bzero((caddr_t)nfsd, sizeof (struct nfsd));
+			malloc(sizeof (struct nfsd), M_NFSD, M_WAITOK | M_ZERO);
 		s = splnet();
 		nfsd->nfsd_procp = p;
 		TAILQ_INSERT_TAIL(&nfsd_head, nfsd, nfsd_chain);
@@ -853,15 +852,13 @@ nfsrv_init(terminating)
 
 #if 0
 	nfs_udpsock = (struct nfssvc_sock *)
-	    malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_WAITOK);
-	bzero((caddr_t)nfs_udpsock, sizeof (struct nfssvc_sock));
+	    malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_WAITOK | M_ZERO);
 	STAILQ_INIT(&nfs_udpsock->ns_rec);
 	TAILQ_INIT(&nfs_udpsock->ns_uidlruhead);
 	TAILQ_INSERT_HEAD(&nfssvc_sockhead, nfs_udpsock, ns_chain);
 
 	nfs_cltpsock = (struct nfssvc_sock *)
-	    malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_WAITOK);
-	bzero((caddr_t)nfs_cltpsock, sizeof (struct nfssvc_sock));
+	    malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_WAITOK | M_ZERO);
 	STAILQ_INIT(&nfs_cltpsock->ns_rec);
 	TAILQ_INIT(&nfs_cltpsock->ns_uidlruhead);
 	TAILQ_INSERT_TAIL(&nfssvc_sockhead, nfs_cltpsock, ns_chain);

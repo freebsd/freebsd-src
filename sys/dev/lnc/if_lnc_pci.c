@@ -104,11 +104,9 @@ lnc_pci_attach(config_id, unit)
 	data |= PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN;
 	pci_cfgwrite(config_id, PCIR_COMMAND, data, 4);
 
-	sc = malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
+	sc = malloc(sizeof *sc, M_DEVBUF, M_NOWAIT | M_ZERO);
 
 	if (sc) {
-		bzero (sc, sizeof *sc);
-
 		sc->rap = iobase + PCNET_RAP;
 		sc->rdp = iobase + PCNET_RDP;
 		sc->bdp = iobase + PCNET_BDP;

@@ -291,8 +291,7 @@ snpopen(dev, flag, mode, p)
 	if (dev->si_drv1 == NULL) {
 		int mynor = minor(dev);
 
-		dev->si_drv1 = snp = malloc(sizeof(*snp), M_SNP, M_WAITOK);
-		bzero(snp, sizeof(*snp));
+		dev->si_drv1 = snp = malloc(sizeof(*snp), M_SNP, M_WAITOK|M_ZERO);
 		make_dev(&snp_cdevsw, mynor, 0, 0, 0600, "snp%d", mynor);
 	} else
 		return (EBUSY);

@@ -497,23 +497,22 @@ try_next:
 			(maddr + (unsigned)(modp->sm_next & 0x7fff));
 	}
 	sc->sc_ports = (struct si_port *)malloc(sizeof(struct si_port) * nport,
-		M_DEVBUF, M_NOWAIT);
+		M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->sc_ports == 0) {
 mem_fail:
 		printf("si%d: fail to malloc memory for port structs\n",
 			unit);
 		return EINVAL;
 	}
-	bzero(sc->sc_ports, sizeof(struct si_port) * nport);
 	sc->sc_nport = nport;
 
 	/*
 	 * allocate tty structures for ports
 	 */
-	tp = (struct tty *)malloc(sizeof(*tp) * nport, M_DEVBUF, M_NOWAIT);
+	tp = (struct tty *)malloc(sizeof(*tp) * nport, M_DEVBUF,
+		M_NOWAIT | M_ZERO);
 	if (tp == 0)
 		goto mem_fail;
-	bzero(tp, sizeof(*tp) * nport);
 	si__tty = tp;
 
 	/*

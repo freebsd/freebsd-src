@@ -205,8 +205,7 @@ tapcreate(dev)
 	char			*name = NULL;
 
 	/* allocate driver storage and create device */
-	MALLOC(tp, struct tap_softc *, sizeof(*tp), M_TAP, M_WAITOK);
-	bzero(tp, sizeof(*tp));
+	MALLOC(tp, struct tap_softc *, sizeof(*tp), M_TAP, M_WAITOK | M_ZERO);
 
 	/* select device: tap or vmnet */
 	if (minor(dev) & VMNET_DEV_MASK) {

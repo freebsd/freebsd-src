@@ -302,10 +302,9 @@ wdprobe(struct isa_device *dvp)
 	if (unit >= NWDC)
 		return (0);
 
-	du = malloc(sizeof *du, M_TEMP, M_NOWAIT);
+	du = malloc(sizeof *du, M_TEMP, M_NOWAIT | M_ZERO);
 	if (du == NULL)
 		return (0);
-	bzero(du, sizeof *du);
 	du->dk_ctrlr = dvp->id_unit;
 	interface = du->dk_ctrlr / 2;
 	du->dk_interface = interface;
@@ -511,14 +510,13 @@ wdattach(struct isa_device *dvp)
 		if (resource_int_value("wd", lunit, "flags", &flags) != 0)
 			flags = 0;
 
-		du = malloc(sizeof *du, M_TEMP, M_NOWAIT);
+		du = malloc(sizeof *du, M_TEMP, M_NOWAIT | M_ZERO);
 		if (du == NULL)
 			continue;
 		if (wddrives[lunit] != NULL)
 			panic("drive attached twice");
 		wddrives[lunit] = du;
 		bioq_init(&drive_queue[lunit]);
-		bzero(du, sizeof *du);
 		du->dk_ctrlr = dvp->id_unit;
 		if (eide_quirks & Q_CMD640B) {
 			du->dk_ctrlr_cmd640 = PRIMARY;

@@ -602,8 +602,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 		error = EROFS;          /* needs translation */
 		goto out;
 	}
-	ump = malloc(sizeof *ump, M_UFSMNT, M_WAITOK);
-	bzero((caddr_t)ump, sizeof *ump);
+	ump = malloc(sizeof *ump, M_UFSMNT, M_WAITOK | M_ZERO);
 	ump->um_malloctype = malloctype;
 	ump->um_i_effnlink_valid = 1;
 	ump->um_fs = malloc((u_long)fs->fs_sbsize, M_UFSMNT,

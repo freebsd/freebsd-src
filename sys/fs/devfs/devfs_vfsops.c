@@ -79,8 +79,7 @@ devfs_mount(mp, path, data, ndp, p)
 		return (EOPNOTSUPP);
 
 	MALLOC(fmp, struct devfs_mount *, sizeof(struct devfs_mount),
-	    M_DEVFS, M_WAITOK);
-	bzero(fmp, sizeof(*fmp));
+	    M_DEVFS, M_WAITOK | M_ZERO);
 	lockinit(&fmp->dm_lock, PVFS, "devfs", 0, LK_NOPAUSE);
 
 	mp->mnt_flag |= MNT_LOCAL;

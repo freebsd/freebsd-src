@@ -153,11 +153,11 @@ bsprobe(dev)
 		printf("bs%d: memory already allocated\n", unit);
 		return rv;
 	}
-	if (!(bsc = malloc(sizeof(struct bs_softc), M_TEMP, M_NOWAIT))) {
+	if (!(bsc = malloc(sizeof(struct bs_softc), M_TEMP, M_NOWAIT | M_ZERO)))
+	{
 		printf("bs%d cannot malloc!\n", unit);
 		return rv;
 	}
-	bzero(bsc, sizeof(struct bs_softc));
 	callout_handle_init(&bsc->timeout_ch);
 	bscdata[unit] = bsc;
 	bsc->unit = unit;

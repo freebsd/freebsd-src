@@ -125,10 +125,9 @@ devclass_find_internal(const char *classname, int create)
     PDEBUG(("%s not found%s", classname, (create? ", creating": "")));
     if (create) {
 	dc = malloc(sizeof(struct devclass) + strlen(classname) + 1,
-		    M_BUS, M_NOWAIT);
+		    M_BUS, M_NOWAIT|M_ZERO);
 	if (!dc)
 	    return NULL;
-	bzero(dc, sizeof(struct devclass) + strlen(classname) + 1);
 	dc->name = (char*) (dc + 1);
 	strcpy(dc->name, classname);
 	dc->devices = NULL;
@@ -162,10 +161,9 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
 
     PDEBUG(("%s", DRIVERNAME(driver)));
 
-    dl = malloc(sizeof *dl, M_BUS, M_NOWAIT);
+    dl = malloc(sizeof *dl, M_BUS, M_NOWAIT|M_ZERO);
     if (!dl)
 	return ENOMEM;
-    bzero(dl, sizeof *dl);
 
     /*
      * Compile the driver's methods. Also increase the reference count
@@ -322,10 +320,9 @@ devclass_get_devices(devclass_t dc, device_t **devlistp, int *devcountp)
 	if (dc->devices[i])
 	    count++;
 
-    list = malloc(count * sizeof(device_t), M_TEMP, M_NOWAIT);
+    list = malloc(count * sizeof(device_t), M_TEMP, M_NOWAIT|M_ZERO);
     if (!list)
 	return ENOMEM;
-    bzero(list, count * sizeof(device_t));
 
     count = 0;
     for (i = 0; i < dc->maxunit; i++)
@@ -405,10 +402,9 @@ devclass_add_device(devclass_t dc, device_t dev)
     PDEBUG(("%s in devclass %s", DEVICENAME(dev), DEVCLANAME(dc)));
 
     buflen = strlen(dc->name) + 5;
-    dev->nameunit = malloc(buflen, M_BUS, M_NOWAIT);
+    dev->nameunit = malloc(buflen, M_BUS, M_NOWAIT|M_ZERO);
     if (!dev->nameunit)
 	return ENOMEM;
-    bzero(dev->nameunit, buflen);
 
     if ((error = devclass_alloc_unit(dc, &dev->unit)) != 0) {
 	free(dev->nameunit, M_BUS);
@@ -460,10 +456,9 @@ make_device(device_t parent, const char *name, int unit)
     } else
 	dc = NULL;
 
-    dev = malloc(sizeof(struct device), M_BUS, M_NOWAIT);
+    dev = malloc(sizeof(struct device), M_BUS, M_NOWAIT|M_ZERO);
     if (!dev)
 	return 0;
-    bzero(dev, sizeof(struct device));
 
     dev->parent = parent;
     TAILQ_INIT(&dev->children);
@@ -715,10 +710,9 @@ device_get_children(device_t dev, device_t **devlistp, int *devcountp)
 	 child = TAILQ_NEXT(child, link))
 	count++;
 
-    list = malloc(count * sizeof(device_t), M_TEMP, M_NOWAIT);
+    list = malloc(count * sizeof(device_t), M_TEMP, M_NOWAIT|M_ZERO);
     if (!list)
 	return ENOMEM;
-    bzero(list, count * sizeof(device_t));
 
     count = 0;
     for (child = TAILQ_FIRST(&dev->children); child;
@@ -993,13 +987,12 @@ device_set_driver(device_t dev, driver_t *driver)
     if (driver) {
 	kobj_init((kobj_t) dev, (kobj_class_t) driver);
 	if (!(dev->flags & DF_EXTERNALSOFTC)) {
-	    dev->softc = malloc(driver->size, M_BUS, M_NOWAIT);
+	    dev->softc = malloc(driver->size, M_BUS, M_NOWAIT|M_ZERO);
 	    if (!dev->softc) {
 	        kobj_init((kobj_t) dev, &null_class);
 	        dev->driver = NULL;
 	        return ENOMEM;
 	    }
-	    bzero(dev->softc, driver->size);
 	}
     } else
 	kobj_init((kobj_t) dev, &null_class);
