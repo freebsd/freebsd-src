@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.100 2001/01/28 16:18:09 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.101 2001/02/20 15:20:32 minoura Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -859,6 +859,7 @@ ohci_init(ohci_softc_t *sc)
 	sc->sc_bus.pipe_size = sizeof(struct ohci_pipe);
 
 #if defined(__NetBSD__) || defined(__OPENBSD__)
+	sc->sc_control = sc->sc_intre = 0;
 	sc->sc_powerhook = powerhook_establish(ohci_power, sc);
 	sc->sc_shutdownhook = shutdownhook_establish(ohci_shutdown, sc);
 #endif
@@ -948,13 +949,29 @@ ohci_shutdown(void *v)
 void
 ohci_power(int why, void *v)
 {
-#ifdef OHCI_DEBUG
 	ohci_softc_t *sc = v;
+	int s;
 
+#ifdef OHCI_DEBUG
 	DPRINTF(("ohci_power: sc=%p, why=%d\n", sc, why));
-	/* XXX should suspend/resume */
 	ohci_dumpregs(sc);
 #endif
+
+	s = splusb();
+	switch (why) {
+	case PWR_SUSPEND:
+	case PWR_STANDBY:
+		OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_SUSPEND);
+		break;
+	case PWR_RESUME:
+		OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESUME);
+		break;
+	case PWR_SOFTSUSPEND:
+	case PWR_SOFTSTANDBY:
+	case PWR_SOFTRESUME:
+		break;
+	}
+	splx(s);
 }
 #endif
 
