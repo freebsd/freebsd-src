@@ -43,7 +43,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_cpu.h"
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_npx.h"
@@ -78,9 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/pcb_ext.h>
 #include <machine/vm86.h>
-#ifdef	CPU_ELAN
-#include <machine/elan_mmcr.h>
-#endif
 
 #ifdef CPU_ELAN
 #include <machine/elan_mmcr.h>
@@ -563,12 +559,6 @@ cpu_reset_real()
 	}
 	outb(0xf0, 0x00);		/* Reset. */
 #else
-#ifdef	CPU_ELAN
-	if (elan_mmcr != NULL)
-		/* SYS_RST */
-		elan_mmcr->RESCFG = 1;
-#endif
-
 	/*
 	 * Attempt to do a CPU reset via the keyboard controller,
 	 * do not turn of the GateA20, as any machine that fails
