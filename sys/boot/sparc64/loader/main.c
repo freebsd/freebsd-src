@@ -5,9 +5,11 @@
  *
  * As long as the above copyright statement and this notice remain
  * unchanged, you can do what ever you want with this file. 
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * FreeBSD/sparc64 kernel loader - machine dependent part
  *
