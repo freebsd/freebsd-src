@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.6 1996/10/05 05:51:12 jkh Exp $
+ * $Id: uc_main.c,v 1.7 1996/10/05 10:43:49 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -109,12 +109,22 @@ uc_open(char *name){
 		free(kern);
 		return NULL;
 	    }
+	    if (name[0] == '\n')
+		name[0] = '\0';
 	    nl[i].n_name = strdup(name);
 	    if (fscanf(fp, "%d %d %d %ld\n",
 		       &(nl[i].n_type), &(nl[i].n_other), &(nl[i].n_desc), &(nl[i].n_value)) != 4) {
-		msgDebug("Unable to read symbol detail fields from symbol file, entry = %d\n", i);
-		free(kern);
-		return NULL;
+		if (name[0]) {
+		    msgDebug("Unable to read symbol detail fields from symbol file, entry = %d\n", i);
+		    free(kern);
+		    return NULL;
+		}
+		else {
+		    nl[i].n_type = 0;
+		    nl[i].n_other = 0;
+		    nl[i].n_desc = 0;
+		    nl[i].n_value = 0;
+		}
 	    }
 	}
 	fclose(fp);
