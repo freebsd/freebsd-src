@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <sys/stat.h>
 #include <sys/uio.h>
 #include <termios.h>
 #include <unistd.h>
@@ -277,26 +278,36 @@ udp_Create(struct physical *p)
     }
   } else {
     /* See if we're a connected udp socket */
-    int type, sz, err;
+    struct stat st;
 
-    sz = sizeof type;
-    if ((err = getsockopt(p->fd, SOL_SOCKET, SO_TYPE, &type, &sz)) == 0 &&
-        sz == sizeof type && type == SOCK_DGRAM) {
-      if ((dev = malloc(sizeof *dev)) == NULL) {
-        log_Printf(LogWARN, "%s: Cannot allocate a udp device: %s\n",
-                   p->link.name, strerror(errno));
+    if (fstat(p->fd, &st) != -1 && (st.st_mode & S_IFSOCK)) {
+      int type, sz;
+
+      sz = sizeof type;
+      if (getsockopt(p->fd, SOL_SOCKET, SO_TYPE, &type, &sz) == -1) {
+        log_Printf(LogPHASE, "%s: Link is a closed socket !\n", p->link.name);
+        close(p->fd);
+        p->fd = -1;
         return NULL;
       }
 
-      /* We can't getpeername().... */
-      dev->connected = UDP_MAYBEUNCONNECTED;
+      if (sz == sizeof type && type == SOCK_DGRAM) {
+        if ((dev = malloc(sizeof *dev)) == NULL) {
+          log_Printf(LogWARN, "%s: Cannot allocate a udp device: %s\n",
+                     p->link.name, strerror(errno));
+          return NULL;
+        }
 
-      log_Printf(LogPHASE, "%s: Link is a udp socket\n", p->link.name);
+        /* We can't getpeername().... */
+        dev->connected = UDP_MAYBEUNCONNECTED;
 
-      if (p->link.lcp.cfg.openmode != OPEN_PASSIVE) {
-        log_Printf(LogPHASE, "%s:   Changing openmode to PASSIVE\n",
-                   p->link.name);
-        p->link.lcp.cfg.openmode = OPEN_PASSIVE;
+        log_Printf(LogPHASE, "%s: Link is a udp socket\n", p->link.name);
+
+        if (p->link.lcp.cfg.openmode != OPEN_PASSIVE) {
+          log_Printf(LogPHASE, "%s:   Changing openmode to PASSIVE\n",
+                     p->link.name);
+          p->link.lcp.cfg.openmode = OPEN_PASSIVE;
+        }
       }
     }
   }
