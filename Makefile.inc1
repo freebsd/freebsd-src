@@ -711,6 +711,7 @@ includes:
 	cd ${.CURDIR}/lib/libutil;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libvgl;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libwrap;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libypclnt;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libz;			${MAKE} beforeinstall
 	cd ${.CURDIR}/usr.bin/lex;		${MAKE} beforeinstall
 
