@@ -10,7 +10,7 @@
   005   '''    '4'    nop    nop    '''    '4'    nop    nop     O
   006   '('    '5'    nop    nop    '('    '5'    nop    nop     O
   007   167    '6'    rs     rs     '^'    '^'    rs     rs      O
-  008   23i    '7'    nop    nop    232    '7'    nop    nop     O
+  008   232    '7'    nop    nop    232    '7'    nop    nop     O
   009   '|'    '8'    nop    nop    '|'    '8'    nop    nop     O
   010   231    '9'    nop    nop    '{'    '{'    nop    nop     O
   011   225    '0'    nop    nop    '}'    '}'    nop    nop     O
