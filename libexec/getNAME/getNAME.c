@@ -29,19 +29,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $Id: getNAME.c,v 1.4 1997/02/22 14:21:35 peter Exp $
- *
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)getNAME.c	8.1 (Berkeley) 6/30/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -50,9 +51,11 @@ static char sccsid[] = "@(#)getNAME.c	8.1 (Berkeley) 6/30/93";
  *	-i	for building intro entries
  *	other	apropos database
  */
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 int tocrc;
 int intro;
@@ -63,14 +66,13 @@ void dorefname __P((char *));
 void getfrom __P((char *));
 void split __P((char *, char *));
 void trimln __P((char *));
-void usage __P((void));
+static void usage __P((void));
 
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
 	int ch;
 
 	while ((ch = getopt(argc, argv, "itw")) != -1)
@@ -108,10 +110,10 @@ getfrom(pathname)
 	char linbuf[BUFSIZ];
 
 	if (freopen(pathname, "r", stdin) == 0) {
-		perror(pathname);
+		warn("%s", pathname);
 		return;
 	}
-	if (name = strrchr(pathname, '/'))
+	if ((name = strrchr(pathname, '/')))
 		name++;
 	else
 		name = pathname;
@@ -333,7 +335,7 @@ again:
 		putchar (*dp++);
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr, "usage: getNAME [-itw] file ...\n");
