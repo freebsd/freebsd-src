@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: script.c,v 1.6 1997/12/29 13:31:46 peter Exp $";
+	"$Id: script.c,v 1.7 1997/12/30 01:20:08 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <sys/time.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <libutil.h>
 #include <paths.h>
@@ -64,8 +65,7 @@ static const char rcsid[] =
 
 FILE	*fscript;
 int	master, slave;
-int	child, subchild;
-int	outcc;
+int	child;
 char	*fname;
 int	qflg;
 
@@ -76,7 +76,6 @@ void	dooutput __P((void));
 void	doshell __P((char **));
 void	fail __P((void));
 void	finish __P((int));
-void	scriptflush __P((int));
 static void usage __P((void));
 
 int
@@ -85,19 +84,33 @@ main(argc, argv)
 	char *argv[];
 {
 	register int cc;
-	struct termios rtt;
+	struct termios rtt, stt;
 	struct winsize win;
-	int aflg, ch;
+	int aflg, kflg, ch, n;
+	struct timeval tv, *tvp;
+	time_t tvec, start;
+	char obuf[BUFSIZ];
 	char ibuf[BUFSIZ];
+	fd_set rfd;
+	int flushtime = 30;
+	int lastc = 1000;
 
-	aflg = 0;
-	while ((ch = getopt(argc, argv, "aq")) != -1)
+	aflg = kflg = 0;
+	while ((ch = getopt(argc, argv, "aqkt:")) != -1)
 		switch(ch) {
 		case 'a':
 			aflg = 1;
 			break;
 		case 'q':
 			qflg = 1;
+			break;
+		case 'k':
+			kflg = 1;
+			break;
+		case 't':
+			flushtime = atoi(optarg);
+			if (flushtime < 0)
+				err(1, "invalid flush time %d", flushtime);
 			break;
 		case '?':
 		default:
@@ -121,8 +134,12 @@ main(argc, argv)
 	if (openpty(&master, &slave, NULL, &tt, &win) == -1)
 		err(1, "openpty");
 
-	if (!qflg)
+	if (!qflg) {
+		tvec = time(NULL);
 		(void)printf("Script started, output file is %s\n", fname);
+		(void)fprintf(fscript, "Script started on %s", ctime(&tvec));
+		fflush(fscript);
+	}
 	rtt = tt;
 	cfmakeraw(&rtt);
 	rtt.c_lflag &= ~ECHO;
@@ -134,28 +151,59 @@ main(argc, argv)
 		warn("fork");
 		fail();
 	}
-	if (child == 0) {
-		subchild = child = fork();
-		if (child < 0) {
-			warn("fork");
-			fail();
-		}
-		if (child)
-			dooutput();
-		else
-			doshell(argv);
-	}
+	if (child == 0)
+		doshell(argv);
 
-	(void)fclose(fscript);
-	while ((cc = read(STDIN_FILENO, ibuf, BUFSIZ)) > 0)
-		(void)write(master, ibuf, cc);
+	if (flushtime > 0)
+		tvp = &tv;
+	else
+		tvp = NULL;
+
+	start = time(0);
+	FD_ZERO(&rfd);
+	for (;;) {
+		FD_SET(master, &rfd);
+		FD_SET(STDIN_FILENO, &rfd);
+		if (flushtime > 0) {
+			tv.tv_sec = flushtime;
+			tv.tv_usec = 0;
+		}
+		n = select(master + 1, &rfd, 0, 0, tvp);
+		if (n < 0 && errno != EINTR)
+			break;
+		if (n > 0 && FD_ISSET(STDIN_FILENO, &rfd)) {
+			cc = read(STDIN_FILENO, ibuf, BUFSIZ);
+			if (cc <= 0)
+				break;
+			if (cc > 0) {
+				(void)write(master, ibuf, cc);
+				if (kflg && tcgetattr(master, &stt) >= 0 &&
+				    ((stt.c_lflag & ECHO) == 0)) {
+					(void)fwrite(ibuf, 1, cc, fscript);
+				}
+			}
+		}
+		if (n > 0 && FD_ISSET(master, &rfd)) {
+			cc = read(master, obuf, sizeof (obuf));
+			if (cc <= 0)
+				break;
+			(void)write(1, obuf, cc);
+			(void)fwrite(obuf, 1, cc, fscript);
+		}
+		tvec = time(0);
+		if (tvec - start >= flushtime) {
+			fflush(fscript);
+			start = tvec;
+		}
+	}
 	done();
 }
 
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: script [-a] [-q] [file] [command]\n");
+	(void)fprintf(stderr,
+	    "usage: script [-a] [-q] [-k] [-t time] [file] [command]\n");
 	exit(1);
 }
 
@@ -173,45 +221,6 @@ finish(signo)
 
 	if (die)
 		done();
-}
-
-void
-dooutput()
-{
-	struct itimerval value;
-	register int cc;
-	time_t tvec;
-	char obuf[BUFSIZ];
-
-	(void)close(STDIN_FILENO);
-	tvec = time(NULL);
-	if (!qflg)
-		(void)fprintf(fscript, "Script started on %s", ctime(&tvec));
-
-	(void)signal(SIGALRM, scriptflush);
-	value.it_interval.tv_sec = 60 / 2;
-	value.it_interval.tv_usec = 0;
-	value.it_value = value.it_interval;
-	(void)setitimer(ITIMER_REAL, &value, NULL);
-	for (;;) {
-		cc = read(master, obuf, sizeof (obuf));
-		if (cc <= 0)
-			break;
-		(void)write(1, obuf, cc);
-		(void)fwrite(obuf, 1, cc, fscript);
-		outcc += cc;
-	}
-	done();
-}
-
-void
-scriptflush(signo)
-	int signo;
-{
-	if (outcc) {
-		(void)fflush(fscript);
-		outcc = 0;
-	}
 }
 
 void
@@ -248,16 +257,13 @@ done()
 {
 	time_t tvec;
 
-	if (subchild) {
-		tvec = time(NULL);
-		if (!qflg)
-			(void)fprintf(fscript,"\nScript done on %s", ctime(&tvec));
-		(void)fclose(fscript);
-		(void)close(master);
-	} else {
-		(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &tt);
-		if (!qflg)
-			(void)printf("Script done, output file is %s\n", fname);
+	(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &tt);
+	tvec = time(NULL);
+	if (!qflg) {
+		(void)fprintf(fscript,"\nScript done on %s", ctime(&tvec));
+		(void)printf("\nScript done, output file is %s\n", fname);
 	}
+	(void)fclose(fscript);
+	(void)close(master);
 	exit(0);
 }
