@@ -1380,7 +1380,7 @@ wtfs(bno, size, bf)
 			return;
 		done = 1;
 	}
-	if (wc_sect * sectorsize + wc_end == bno * sectorsize &&
+	if ((off_t)wc_sect * sectorsize + wc_end == (off_t)bno * sectorsize &&
 	    wc_end + size <= WCSIZE) {
 		bcopy(bf, wc + wc_end, size);
 		wc_end += size;
