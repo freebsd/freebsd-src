@@ -100,7 +100,8 @@ network_pass1() {
     if [ "${ppp_enable}" = "YES" ]; then
 	    # Establish ppp mode.
 	    if [ "${ppp_mode}" != "ddial" -a "${ppp_mode}" != "direct" \
-		-a "${ppp_mode}" != "dedicated" ]; then \
+		-a "${ppp_mode}" != "dedicated" \
+		-a "${ppp_mode}" != "background" ]; then
 	        ppp_mode="auto";
 	    fi
 	    ppp_command="-${ppp_mode} ";
