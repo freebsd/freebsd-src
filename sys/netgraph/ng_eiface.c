@@ -587,11 +587,6 @@ ng_eiface_rcvdata(hook_p hook, item_p item)
 	/* Meta-data ends its life here... */
         NG_FREE_ITEM(item);
 
-	if (m == NULL)
-	{
-		printf("ng_eiface: mbuf is null.\n");
-		return (EINVAL);
-	}
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
 		NG_FREE_M(m);
 		return (ENETDOWN);
