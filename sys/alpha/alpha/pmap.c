@@ -2338,7 +2338,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_prot_t prot,
 static int pmap_prefault_pageorder[] = {
 	-PAGE_SIZE, PAGE_SIZE,
 	-2 * PAGE_SIZE, 2 * PAGE_SIZE,
-	-3 * PAGE_SIZE, 3 * PAGE_SIZE
+	-3 * PAGE_SIZE, 3 * PAGE_SIZE,
 	-4 * PAGE_SIZE, 4 * PAGE_SIZE
 };
 
