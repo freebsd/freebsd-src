@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: input.c,v 1.1 1995/10/26 21:28:16 julian Exp $
+ *	$Id: input.c,v 1.2 1995/11/13 21:01:30 julian Exp $
  */
 
 #ifndef lint
@@ -250,6 +250,7 @@ rip_input(from, size)
 						trt->rt_timer = 0;
 						break;
 					}
+					trt = trt->rt_clone;
 				}
 				if (trt == NULL) {
 					rtadd_clone(rt, sa, from, 
