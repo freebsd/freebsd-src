@@ -168,7 +168,7 @@ acdattach(struct ata_device *atadev)
 				  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 				  DEVSTAT_PRIORITY_CD);
 	    }
-	    if (!(name = malloc(strlen(atadev->name) + 2, M_ACD, M_NOWAIT)))
+	    if (!(name = malloc(strlen(atadev->name) + 2, M_ACD, M_NOWAIT))) {
 		ata_prtdev(atadev, "out of memory\n");
 		free(cdp, M_ACD);
 		return 0;
