@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.66 1995/11/04 11:08:59 jkh Exp $
+ * $Id: install.c,v 1.71.2.67 1995/11/04 11:42:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -114,6 +114,7 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 	}
     }
 
+    swapdev = NULL;
     /* Now check for swap devices */
     for (i = 0; devs[i]; i++) {
 	disk = (Disk *)devs[i]->private;
@@ -123,7 +124,7 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
-		    if (c2->type == part && c2->subtype == FS_SWAP) {
+		    if (c2->type == part && c2->subtype == FS_SWAP && !swapdev) {
 			swapdev = c2;
 			if (isDebug())
 			    msgDebug("Found swapdev at %s!\n", swapdev->name);
@@ -579,17 +580,14 @@ installFilesystems(char *str)
     command_clear();
     upgrade = str && !strcmp(str, "upgrade");
 
-    if (swapdev) {
-	/* As the very first thing, try to get ourselves some swap space */
-	sprintf(dname, "/dev/%s", swapdev->name);
-	i = swapon(dname);
-	if (!i)
-	    msgNotify("Added %s as initial swap device", dname);
-	else
-	    msgConfirm("WARNING!  Unable to add %s as a swap device: %s\n"
-		       "This may cause the installation to fail at some point\n"
-		       "if you don't have a lot of memory.", dname, strerror(errno));
-    }
+    /* As the very first thing, try to get ourselves some swap space */
+    sprintf(dname, "/dev/%s", swapdev->name);
+    if (!swapon(dname))
+	msgNotify("Added %s as initial swap device", dname);
+    else
+	msgConfirm("WARNING!  Unable to swap to %s: %s\n"
+		   "This may cause the installation to fail at some point\n"
+		   "if you don't have a lot of memory.", dname, strerror(errno));
 
     /* Next, create and/or mount the root device */
     sprintf(dname, "/dev/r%sa", rootdev->disk->name);
