@@ -89,10 +89,9 @@ atmarp_cfg_netif(netif)
 	/*
 	 * Get an ATMARP interface block
 	 */
-	aip = (Atmarp_intf *)UM_ALLOC(sizeof(Atmarp_intf));
-	if (!aip)
+	aip = calloc(1, sizeof(Atmarp_intf));
+	if (aip == NULL)
 		atmarp_mem_err("atmarp_cfg_netif: sizeof(Atmarp_intf)");
-	UM_ZERO(aip, sizeof(Atmarp_intf));
 
 	/*
 	 * Make sure we're configuring a valid
@@ -123,7 +122,6 @@ atmarp_cfg_netif(netif)
 
 cfg_fail:
 	if (aip)
-		UM_FREE(aip);
-
+		free(aip);
 	return(rc);
 }
