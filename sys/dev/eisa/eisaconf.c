@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.38 1999/04/18 15:50:33 peter Exp $
+ *	$Id: eisaconf.c,v 1.39 1999/04/19 06:57:33 peter Exp $
  */
 
 #include "opt_eisa.h"
@@ -818,3 +818,4 @@ static driver_t eisa_driver = {
 };
 
 DRIVER_MODULE(eisa, isab, eisa_driver, eisa_devclass, 0, 0);
+DRIVER_MODULE(eisa, nexus, eisa_driver, eisa_devclass, 0, 0);
