@@ -689,7 +689,7 @@ hci_write_page_scan_activity(int s, int argc, char **argv)
 		cp.page_scan_interval = (uint16_t) n;
 
 		/* page scan window */
-		if (sscanf(argv[0], "%d", &n) != 1 || n < 0x12 || n > 0x1000)
+		if (sscanf(argv[1], "%d", &n) != 1 || n < 0x12 || n > 0x1000)
 			return (USAGE);
 
 		cp.page_scan_window = (uint16_t) n;
@@ -770,7 +770,7 @@ hci_write_inquiry_scan_activity(int s, int argc, char **argv)
 		cp.inquiry_scan_interval = (uint16_t) n;
 
 		/* inquiry scan window */
-		if (sscanf(argv[0], "%d", &n) != 1 || n < 0x12 || n > 0x1000)
+		if (sscanf(argv[1], "%d", &n) != 1 || n < 0x12 || n > 0x1000)
 			return (USAGE);
 
 		cp.inquiry_scan_window = (uint16_t) n;
@@ -1334,7 +1334,7 @@ hci_write_link_supervision_timeout(int s, int argc, char **argv)
 		cp.con_handle = htole16(cp.con_handle);
 
 		/* link supervision timeout */
-		if (sscanf(argv[1], "%d", &n) != 1 || n < 0 || n > 0xeff)
+		if (sscanf(argv[1], "%d", &n) != 1 || n < 0 || n > 0xffff)
 			return (USAGE);
 
 		cp.timeout = (uint16_t) (n & 0x0fff);
