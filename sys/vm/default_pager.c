@@ -46,6 +46,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_zone.h>
 #include <vm/swap_pager.h>
 
 static vm_object_t default_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t,

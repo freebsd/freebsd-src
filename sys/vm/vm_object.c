@@ -84,10 +84,10 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_zone.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 
 static void	vm_object_qcollapse __P((vm_object_t object));
 
