@@ -103,12 +103,12 @@ static vm_object_t
 dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t foff)
 {
 	struct cdev *dev;
-	d_mmap_t *mapfunc;
 	vm_object_t object;
 	vm_pindex_t pindex;
 	unsigned int npages;
 	vm_paddr_t paddr;
 	vm_offset_t off;
+	struct cdevsw *csw;
 
 	/*
 	 * Offset should be page aligned.
@@ -123,13 +123,10 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	 * Make sure this device can be mapped.
 	 */
 	dev = handle;
-	mtx_lock(&Giant);
-	mapfunc = devsw(dev)->d_mmap;
-	if (mapfunc == NULL || mapfunc == (d_mmap_t *)nullop) {
-		printf("obsolete map function %p\n", (void *)mapfunc);
-		mtx_unlock(&Giant);
+	csw = dev_refthread(dev);
+	if (csw == NULL)
 		return (NULL);
-	}
+	mtx_lock(&Giant);
 
 	/*
 	 * Check that the specified range of the device allows the desired
@@ -139,8 +136,9 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	 */
 	npages = OFF_TO_IDX(size);
 	for (off = foff; npages--; off += PAGE_SIZE)
-		if ((*mapfunc)(dev, off, &paddr, (int)prot) != 0) {
+		if ((*csw->d_mmap)(dev, off, &paddr, (int)prot) != 0) {
 			mtx_unlock(&Giant);
+			dev_relthread(dev);
 			return (NULL);
 		}
 
@@ -174,6 +172,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 
 	sx_xunlock(&dev_pager_sx);
 	mtx_unlock(&Giant);
+	dev_relthread(dev);
 	return (object);
 }
 
@@ -207,23 +206,23 @@ dev_pager_getpages(object, m, count, reqpage)
 	vm_page_t page;
 	struct cdev *dev;
 	int i, ret;
-	d_mmap_t *mapfunc;
 	int prot;
+	struct cdevsw *csw;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	dev = object->handle;
 	offset = m[reqpage]->pindex;
 	VM_OBJECT_UNLOCK(object);
+	csw = dev_refthread(dev);
+	if (csw == NULL)
+		panic("dev_pager_getpage: no cdevsw");
 	mtx_lock(&Giant);
 	prot = PROT_READ;	/* XXX should pass in? */
-	mapfunc = devsw(dev)->d_mmap;
 
-	if (mapfunc == NULL || mapfunc == (d_mmap_t *)nullop)
-		panic("dev_pager_getpage: no map function");
-
-	ret = (*mapfunc)(dev, (vm_offset_t)offset << PAGE_SHIFT, &paddr, prot);
+	ret = (*csw->d_mmap)(dev, (vm_offset_t)offset << PAGE_SHIFT, &paddr, prot);
 	KASSERT(ret == 0, ("dev_pager_getpage: map function returns error"));
 	mtx_unlock(&Giant);
+	dev_relthread(dev);
 
 	if ((m[reqpage]->flags & PG_FICTITIOUS) != 0) {
 		/*
