@@ -107,6 +107,7 @@ static struct resource *acpi_alloc_resource(device_t bus, device_t child, int ty
 					    u_long start, u_long end, u_long count, u_int flags);
 static int	acpi_release_resource(device_t bus, device_t child, int type, int rid, struct resource *r);
 static u_int32_t acpi_isa_get_logicalid(device_t dev);
+static u_int32_t acpi_isa_get_compatid(device_t dev);
 static int	acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids);
 
 static void	acpi_probe_children(device_t bus);
@@ -719,11 +720,39 @@ out:
     return_VALUE(pnpid);
 }
 
+static u_int32_t
+acpi_isa_get_compatid(device_t dev)
+{
+    ACPI_HANDLE		h;
+    ACPI_DEVICE_INFO	devinfo;
+    ACPI_STATUS		error;
+    u_int32_t		pnpid;
+    ACPI_LOCK_DECL;
+
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+    pnpid = 0;
+    ACPI_LOCK;
+    
+    /* fetch and validate the HID */
+    if ((h = acpi_get_handle(dev)) == NULL)
+	goto out;
+    if (ACPI_FAILURE(error = AcpiGetObjectInfo(h, &devinfo)))
+	goto out;
+    if (ACPI_FAILURE(error = acpi_EvaluateInteger(h, "_CID", &pnpid)))
+	goto out;
+
+out:
+    ACPI_UNLOCK;
+    return_VALUE(pnpid);
+}
+
+
 static int
 acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
 {
     int			result;
-    u_int32_t		pnpid;
+    u_int32_t		lid, cid;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -735,9 +764,10 @@ acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
     result = ENXIO;
 
     /* scan the supplied IDs for a match */
-    pnpid = acpi_isa_get_logicalid(child);
+    lid = acpi_isa_get_logicalid(child);
+    cid = acpi_isa_get_compatid(child);
     while (ids && ids->ip_id) {
-	if (pnpid == ids->ip_id) {
+	if (lid == ids->ip_id || cid == ids->ip_id) {
 	    result = 0;
 	    goto out;
 	}
