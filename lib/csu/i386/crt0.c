@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.31 1997/11/22 03:34:45 brian Exp $
+ *	$Id: crt0.c,v 1.32 1998/02/06 16:46:33 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -84,7 +84,6 @@ static int		_strncmp();
 #endif /* LDSO */
 
 extern struct _dynamic	_DYNAMIC;
-static struct ld_entry	*ld_entry;
 static void		__do_dynamic_link(char **argv);
 #endif /* DYNAMIC */
 
@@ -94,7 +93,9 @@ static char		empty[1];
 char			*__progname = empty;
 char			**environ;
 
-static int		ldso_version;
+/* Globals used by dlopen() and related functions in libc */
+struct ld_entry		*__ldso_entry;
+int			__ldso_version;
 
 extern	unsigned char	etext;
 extern	unsigned char	eprol asm ("eprol");
@@ -257,22 +258,22 @@ __do_dynamic_link(argv)
 	crt.crt_argv = argv;
 
 	entry = (int (*)())(crt.crt_ba + sizeof hdr);
-	ldso_version = (*entry)(CRT_VERSION_BSD_5, &crt);
-	ld_entry = crt.crt_ldentry;
-	if (ldso_version == -1 && ld_entry == NULL) {
+	__ldso_version = (*entry)(CRT_VERSION_BSD_5, &crt);
+	__ldso_entry = crt.crt_ldentry;
+	if (__ldso_version == -1 && __ldso_entry == NULL) {
 		/* If version 5 not recognised, try version 4 */
-		ldso_version = (*entry)(CRT_VERSION_BSD_4, &crt);
-		ld_entry = crt.crt_ldentry;
-		if (ldso_version == -1 && ld_entry == NULL) {
+		__ldso_version = (*entry)(CRT_VERSION_BSD_4, &crt);
+		__ldso_entry = crt.crt_ldentry;
+		if (__ldso_version == -1 && __ldso_entry == NULL) {
 			/* if version 4 not recognised, try version 3 */
-			ldso_version = (*entry)(CRT_VERSION_BSD_3, &crt);
-			ld_entry = _DYNAMIC.d_entry;
+			__ldso_version = (*entry)(CRT_VERSION_BSD_3, &crt);
+			__ldso_entry = _DYNAMIC.d_entry;
 		}
 	}
-	if (ldso_version == -1) {
+	if (__ldso_version == -1) {
 		_PUTMSG("ld.so failed");
-		if (ld_entry != NULL) {
-			const char *msg = (ld_entry->dlerror)();
+		if (__ldso_entry != NULL) {
+			const char *msg = (__ldso_entry->dlerror)();
 			if(msg != NULL) {
 				const char *endp;
 				_PUTMSG(": ");
@@ -285,72 +286,11 @@ __do_dynamic_link(argv)
 	}
 
 
-	if (ldso_version >= LDSO_VERSION_HAS_DLEXIT)
-		atexit(ld_entry->dlexit);
+	if (__ldso_version >= LDSO_VERSION_HAS_DLEXIT)
+		atexit(__ldso_entry->dlexit);
 
 	return;
 }
-
-/*
- * DL stubs
- */
-
-void *
-dlopen(name, mode)
-const char *name;
-int	mode;
-{
-	if (ld_entry == NULL)
-		return NULL;
-
-	return (ld_entry->dlopen)(name, mode);
-}
-
-int
-dlclose(fd)
-void	*fd;
-{
-	if (ld_entry == NULL)
-		return -1;
-
-	return (ld_entry->dlclose)(fd);
-}
-
-void *
-dlsym(fd, name)
-void	*fd;
-const char *name;
-{
-	if (ld_entry == NULL)
-		return NULL;
-
-	if (ldso_version >= LDSO_VERSION_HAS_DLSYM3) {
-		void *retaddr = *(&fd - 1);  /* XXX - ABI/machine dependent */
-		return (ld_entry->dlsym3)(fd, name, retaddr);
-	} else
-		return (ld_entry->dlsym)(fd, name);
-}
-
-
-const char *
-dlerror()
-{
-	if (ld_entry == NULL)
-		return "Service unavailable";
-
-	return (ld_entry->dlerror)();
-}
-
-int
-dladdr(addr, dlip)
-	const void	*addr;
-	Dl_info		*dlip;
-{
-	if (ld_entry == NULL || ldso_version < LDSO_VERSION_HAS_DLADDR)
-		return 0;
-	return (ld_entry->dladdr)(addr, dlip);
-}
-
 
 /*
  * Support routines
@@ -407,48 +347,6 @@ _getenv(name)
 	asm("		movl	$-1,%eax");
 	asm("		ret");
 
-#else /* DYNAMIC */
-
-/*
- * DL stubs for static linking case (just return error)
- */
-
-void *
-dlopen(name, mode)
-const char *name;
-int	mode;
-{
-	return NULL;
-}
-
-int
-dlclose(fd)
-void	*fd;
-{
-	return -1;
-}
-
-void *
-dlsym(fd, name)
-void	*fd;
-const char *name;
-{
-	return NULL;
-}
-
-const char *
-dlerror()
-{
-	return "Service unavailable";
-}
-
-int
-dladdr(addr, dlip)
-	const void	*addr;
-	Dl_info		*dlip;
-{
-	return 0;
-}
 #endif /* DYNAMIC */
 
 
