@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.61 1997/09/04 00:38:20 brian Exp $
+.\" $Id: ppp.8,v 1.62 1997/09/07 01:00:03 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -767,11 +767,22 @@ on ui-gate (the receiver) should contain the following:
 ppp-in:
  set timeout 0
  set ifaddr 10.0.4.1 10.0.4.2
- add 10.0.4.1 255.255.255.255 127.0.0.1
  add 10.0.1.0 255.255.255.0 10.0.4.1
 .Ed
 
-You may also want to enable PAP or CHAP for security.  The entry in
+You may also want to enable PAP or CHAP for security.  To enable PAP, add
+the following line:
+.Bd -literal -offset indent
+ enable PAP
+.Ed
+.Pp
+You'll also need to create the following entry in
+.Pa /etc/ppp/ppp.secret :
+.Bd -literal -offset indent
+MyAuthName MyAuthPasswd
+.Ed
+.Pp
+The entry in
 .Pa /etc/ppp/ppp.conf
 on awfulhak (the initiator) should contain the following:
 
@@ -783,8 +794,13 @@ ui-gate:
  set timeout 30 5 4 
  set log Phase Chat Connect Carrier hdlc LCP IPCP CCP tun
  set ifaddr 10.0.4.2 10.0.4.1
- add 10.0.4.2 255.255.255.255 127.0.0.1
  add 10.0.2.0 255.255.255.0 10.0.4.2
+.Ed
+.Pp
+Again, if you're enabling PAP, you'll also need:
+.Bd -literal -offset indent
+ set authname MyAuthName
+ set authkey MyAuthKey
 .Ed
 
 We're assigning the address of 10.0.4.1 to ui-gate, and the address
@@ -1260,12 +1276,12 @@ the next lines to your
 .Pa ppp.conf
 file:
 .Bd -literal -offset indent
-enable pap (or enable chap)
-disable chap (or disable pap)
 set authname MyName
 set authkey MyPassword
 .Ed
-
+.Pp
+Both are accepted by default, so ppp will provide whatever your ISP
+requires.
 .El
 
 Please refer to
@@ -1404,16 +1420,22 @@ and compares the results.  The advantage of this mechanism is that no
 passwords are sent across the connection.
 
 A challenge is made when the connection is first made.  Subsequent
-challenges may occur.
-
-When using CHAP, an
+challenges may occur.  If you want to have your peer authenticate
+itself, you must
+.Dq enable chap .
+in
+.Pa ppp.conf ,
+and have an entry in
+.Pa ppp.secret
+for the peer.
+.Pp
+When using CHAP as the client, you need only specify
 .Dq AuthName
-and an
+and
 .Dq AuthKey
-must be specified either in
-.Pa ppp.conf
-or in
-.Pa ppp.secret .
+in
+.Pa ppp.conf .
+CHAP is accepted by default.
 
 .It pap
 Default: Disabled and Accepted.  PAP stands for Password Authentication
@@ -1423,17 +1445,23 @@ authentication is acknowledged or the connection is terminated.  This
 is a rather poor security mechanism.  It is only performed when the
 connection is first established.
 
-When using PAP, an
-.Dq AuthName
-and an
-.Dq AuthKey
-must be specified either in
-.Pa ppp.conf
-or in
+If you want to have your peer authenticate itself, you must
+.Dq enable pap .
+in
+.Pa ppp.conf ,
+and have an entry in
 .Pa ppp.secret
-(although see the
+for the peer (although see the
 .Dq passwdauth
 option below).
+.Pp
+When using PAP as the client, you need only specify
+.Dq AuthName
+and
+.Dq AuthKey
+in
+.Pa ppp.conf .
+PAP is accepted by default.
 
 .It acfcomp
 Default: Enabled and Accepted.  ACFComp stands for Address and Control
@@ -1594,13 +1622,13 @@ not trigger a dial.
 Refer to the section on PACKET FILTERING above for further details.
 
 .It set authkey|key value
-This sets the authentication key (or password) used in PAP or CHAP
-negotiation to the given value.  It can also be used to specify the
-password to be used in the dial or login scripts, preventing the
-actual password from being logged.
+This sets the authentication key (or password) used in client mode
+PAP or CHAP negotiation to the given value.  It can also be used to
+specify the password to be used in the dial or login scripts, preventing
+the actual password from being logged.
 
 .It set authname id
-This sets the authentication id used in PAP or CHAP negotiation.
+This sets the authentication id used in client mode PAP or CHAP negotiation.
 
 .It set ctsrts
 This sets hardware flow control and is the default.
