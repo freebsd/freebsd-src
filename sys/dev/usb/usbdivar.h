@@ -174,7 +174,7 @@ struct usbd_request {
 	void		       *hcpriv; /* XXX private use by the HC driver */
 
 #if defined(__FreeBSD__)
-	struct callout_handle callout_handler;
+	struct callout_handle  timo_handle;
 #endif
 };
 
@@ -205,8 +205,7 @@ usbd_status	usb_get_bus_handle __P((int, usbd_bus_handle *));
 void		usb_needs_explore  __P((usbd_bus_handle));
 
 #if defined(__FreeBSD__)
-int 		usb_driver_load    __P((module_t mod, modeventtype_t what,
-					void *arg));
+int 		usb_driver_load    __P((module_t mod, int what, void *arg));
 void		usb_device_set_desc __P((device_t device, char *devinfo));
 #endif
 

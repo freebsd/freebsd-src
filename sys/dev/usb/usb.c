@@ -264,7 +264,7 @@ usb_print_child(device_t parent, device_t child)
  */
 
 int
-usb_driver_load(module_t mod, modeventtype_t what, void *arg)
+usb_driver_load(module_t mod, int what, void *arg)
 {
 	/* subroutine is there but inactive at the moment
 	 * the reconfiguration process has not been thought through yet.

@@ -11,7 +11,6 @@
 
 #define DEVICE_NAME(bdev)	\
 	printf("%s: ", (bdev).dv_xname)
-#define DEVICE_MSG(bdev
 
 typedef struct device bdevice;			/* base device */
 

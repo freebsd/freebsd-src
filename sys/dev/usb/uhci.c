@@ -78,11 +78,6 @@
 #include "dev/usb/queue.addendum.h"
 
 #define delay(d)		DELAY(d)
-
-static struct callout_handle uhci_timeout_handle
-	= CALLOUT_HANDLE_INITIALIZER(&uhci_timeout_handle);
-static struct callout_handle uhci_timo_handle
-	= CALLOUT_HANDLE_INITIALIZER(&uhci_timo_handle);
 #endif
 
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)
@@ -392,7 +387,6 @@ uhci_dump_td(p)
 	       (long)p->td->td_token,
 	       (long)p->td->td_buffer);
 	if (uhci_longtd)
-#if defined(__NetBSD__)
 		printf("  %b %b,errcnt=%d,actlen=%d pid=%02x,addr=%d,endpt=%d,D=%d,maxlen=%d\n",
 		       (long)p->td->td_link,
 		       "\20\1T\2Q\3VF",
@@ -405,7 +399,7 @@ uhci_dump_td(p)
 		       UHCI_TD_GET_ENDPT(p->td->td_token),
 		       UHCI_TD_GET_DT(p->td->td_token),
 		       UHCI_TD_GET_MAXLEN(p->td->td_token));
-#elif defined(__FreeBSD__)
+#if 0 && defined(__FreeBSD__)
 		printf("  Link=0x%08lx,Status=0x%08lx\n  errcnt=%d,actlen=%d,pid=%02x,addr=%d,endpt=%d,D=%d,maxlen=%d\n", 
 			(long)p->td->td_link,
 			(long)p->td->td_status,
@@ -489,10 +483,10 @@ uhci_timo(addr)
 #elif defined(__FreeBSD__)
 		/* To avoid race conditions we first initialise the struct
 		 * before we use it. The timeout might happen between the
-		 * setting of the timeout and the setting of callout_handler
+		 * setting of the timeout and the setting of timo_handle
 		 */
-		callout_handle_init(&reqh->callout_handler);
-		reqh->callout_handler = timeout(uhci_timo, reqh, sc->sc_ival);
+		callout_handle_init(&reqh->timo_handle);
+		reqh->timo_handle = timeout(uhci_timo, reqh, sc->sc_ival);
 #endif
 	} else {
 		usb_freemem(sc->sc_dmatag, &upipe->u.intr.datadma);
@@ -735,7 +729,7 @@ uhci_check_intr(sc, ii)
 #if defined(__NetBSD__)
 	untimeout(uhci_timeout, ii);
 #elif defined(__FreeBSD__)
-	untimeout(uhci_timeout, ii, ii->callout_handler);
+	untimeout(uhci_timeout, ii, ii->timeout_handle);
 #endif
 }
 
@@ -780,16 +774,12 @@ uhci_ii_done(ii, timo)
 			len += UHCI_TD_GET_ACTLEN(tst);
 	}
 	status &= UHCI_TD_ERROR;
-	/* NWH wrong func name also below, 'uhci_intr' 3 times
-	DPRINTFN(10, ("uhci_check_intr: len=%d, status=0x%x\n", len, status));
-	 */
 	DPRINTFN(10, ("uhci_ii_done: len=%d\n", len));
 	if (status != 0) {
-#if defined(__NetBSD__)
 		DPRINTFN(-1+(status==UHCI_TD_STALLED),
 			 ("uhci_ii_done: error, status 0x%b\n", (long)status, 
 			  "\20\22BITSTUFF\23CRCTO\24NAK\25BABBLE\26DBUFFER\27STALLED\30ACTIVE"));
-#elif defined(__FreeBSD__)
+#if 0 && defined(__FreeBSD__)
 		DPRINTFN(-1+(status==UHCI_TD_STALLED),
 			("uhci_ii_done: error, status 0x%08lx\n", (long)status));
 #endif
@@ -914,7 +904,7 @@ uhci_run(sc, run)
 {
 	int s, n, running;
 
-	run = run != 0;
+	run = (run? UHCI_STS_HCH:0);
 	s = splusb();		/* XXX really? */
 	running = !(UREAD2(sc, UHCI_STS) & UHCI_STS_HCH);
 	if (run == running) {
@@ -923,6 +913,10 @@ uhci_run(sc, run)
 	}
 	UWRITE2(sc, UHCI_CMD, run ? UHCI_CMD_RS : 0);
 	for(n = 0; n < 100; n++) {
+		/* XXX NWH should this not be a delay of 2ms (>1024usecs)
+		 * followed by one check? This fails in case a large transfer
+		 * is going on on a fast processor.
+		 */
 		running = !(UREAD2(sc, UHCI_STS) & UHCI_STS_HCH);
 		/* return when we've entered the state we want */
 		if (run == running) {
@@ -1200,8 +1194,19 @@ uhci_device_bulk_transfer(reqh)
 	uhci_add_bulk(sc, sqh);
 	LIST_INSERT_HEAD(&sc->sc_intrhead, ii, list);
 
-	if (reqh->timeout && !sc->sc_bus.use_polling)
+	if (reqh->timeout && !sc->sc_bus.use_polling) {
+#if defined(__NetBSD__)
 		timeout(uhci_timeout, ii, MS_TO_TICKS(reqh->timeout));
+#elif defined(__FreeBSD__)
+		/* To avoid race conditions we first initialise the struct
+		 * before we use it. The timeout might happen between the
+		 * setting of the timeout and the setting of timeout_handle
+		 */
+		callout_handle_init(&ii->timeout_handle);
+		ii->timeout_handle = timeout(uhci_timeout, ii,
+						MS_TO_TICKS(reqh->timeout));
+#endif
+	}
 	splx(s);
 
 #ifdef USB_DEBUG
@@ -1542,7 +1547,7 @@ uhci_device_request(reqh)
 		uhci_dump_tds(sqh->qh->elink);
 	}
 #endif
-	if (reqh->timeout && !sc->sc_bus.use_polling)
+	if (reqh->timeout && !sc->sc_bus.use_polling) {
 #if defined(__NetBSD__)
 		timeout(uhci_timeout, ii, MS_TO_TICKS(reqh->timeout));
 #elif defined(__FreeBSD__)
@@ -1550,9 +1555,11 @@ uhci_device_request(reqh)
 		 * before we use it. The timeout may happen between the setting
 		 * of the timeout and the setting of callout_handle
 		 */
-		callout_handle_init(&ii->callout_handler);
-		ii->callout_handler = timeout(uhci_timeout, ii, MS_TO_TICKS(reqh->timeout));
+		callout_handle_init(&ii->timeout_handle);
+		ii->timeout_handle = timeout(uhci_timeout, ii,
+						MS_TO_TICKS(reqh->timeout));
 #endif
+	}
 	splx(s);
 
 	return (USBD_NORMAL_COMPLETION);
@@ -2286,7 +2293,7 @@ uhci_root_ctrl_close(pipe)
 #if defined(__NetBSD__)
 	untimeout(uhci_timo, pipe->intrreqh);
 #elif defined(__FreeBSD__)
-	untimeout(uhci_timo, pipe->intrreqh, pipe->intrreqh->callout_handler);
+	untimeout(uhci_timo, pipe->intrreqh, pipe->intrreqh->timo_handle);
 #endif
 	DPRINTF(("uhci_root_ctrl_close\n"));
 }
@@ -2299,7 +2306,7 @@ uhci_root_intr_abort(reqh)
 #if defined(__NetBSD__)
 	untimeout(uhci_timo, reqh);
 #elif defined(__FreeBSD__)
-	untimeout(uhci_timo, reqh, reqh->callout_handler);
+	untimeout(uhci_timo, reqh, reqh->timo_handle);
 #endif
 }
 
@@ -2335,8 +2342,8 @@ uhci_root_intr_transfer(reqh)
 	 * before we use it. The timeout happen between the setting
 	 * of the timeout and the setting of callout_handle
 	 */
-	callout_handle_init(&reqh->callout_handler);
-	reqh->callout_handler = timeout(uhci_timo, reqh, sc->sc_ival);
+	callout_handle_init(&reqh->timo_handle);
+	reqh->timo_handle = timeout(uhci_timo, reqh, sc->sc_ival);
 #endif
 	return (USBD_IN_PROGRESS);
 }
@@ -2349,7 +2356,7 @@ uhci_root_intr_close(pipe)
 #if defined(__NetBSD__)
 	untimeout(uhci_timo, pipe->intrreqh);
 #elif defined(__FreeBSD__)
-	untimeout(uhci_timo, pipe->intrreqh, pipe->intrreqh->callout_handler);
+	untimeout(uhci_timo, pipe->intrreqh, pipe->intrreqh->timo_handle);
 #endif
 	DPRINTF(("uhci_root_intr_close\n"));
 }
