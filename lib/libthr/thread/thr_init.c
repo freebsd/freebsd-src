@@ -334,6 +334,10 @@ _thread_init(void)
 	getcontext(&pthread->ctx);
 	pthread->ctx.uc_stack.ss_sp = pthread->stack;
 	pthread->ctx.uc_stack.ss_size = PTHREAD_STACK_INITIAL;
+
+	/* Initialize the atfork list and mutex */
+	TAILQ_INIT(&_atfork_list);
+	_pthread_mutex_init(&_atfork_mutex, NULL);
 }
 
 /*

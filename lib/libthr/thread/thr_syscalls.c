@@ -90,6 +90,8 @@
 
 #include "thr_private.h"
 
+extern spinlock_t *__malloc_lock;
+
 extern int __creat(const char *, mode_t);
 extern int __sleep(unsigned int);
 extern int __sys_nanosleep(const struct timespec *, struct timespec *);
@@ -173,6 +175,62 @@ _fcntl(int fd, int cmd,...)
 
 	return ret;
 }
+
+__weak_reference(_fork, fork);
+
+int
+_fork(int fd)
+{
+	int	ret;
+	struct pthread_atfork *af;
+
+	_pthread_mutex_lock(&_atfork_mutex);
+
+	/* Run down atfork prepare handlers. */
+	TAILQ_FOREACH_REVERSE(af, &_atfork_list, atfork_head, qe) {
+		if (af->prepare != NULL)
+			af->prepare();
+	}
+
+ 	/*
+	 * Fork a new process.
+	 * XXX - The correct way to handle __malloc_lock is to have
+	 *	 the threads libraries (or libc) install fork handlers for it
+	 *	 in their initialization routine. We should probably
+	 *	 do that for all the locks in libc.
+	 */
+	if (__isthreaded && __malloc_lock != NULL)
+		_SPINLOCK(__malloc_lock);
+	ret = __sys_fork();
+ 	if (ret == 0) {
+		__isthreaded = 0;
+		if (__malloc_lock != NULL)
+			memset(__malloc_lock, 0, sizeof(spinlock_t));
+		init_tdlist(curthread, 1);
+		init_td_common(curthread, NULL, 1);
+		_mutex_reinit(&_atfork_mutex);
+
+		/* Run down atfork child handlers. */
+		TAILQ_FOREACH(af, &_atfork_list, qe) {
+			if (af->child != NULL)
+				af->child();
+		}
+ 	} else if (ret != -1) {
+		/* Run down atfork parent handlers. */
+		TAILQ_FOREACH(af, &_atfork_list, qe) {
+			if (af->parent != NULL)
+			af->parent();
+		}
+	}
+
+	if (ret != 0) {
+		if (__isthreaded && __malloc_lock != NULL)
+			_SPINUNLOCK(__malloc_lock);
+		_pthread_mutex_unlock(&_atfork_mutex);
+	}
+	return ret;
+}
+
 
 __weak_reference(_fsync, fsync);
 
