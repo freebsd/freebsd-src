@@ -5,7 +5,7 @@ PAMDIR=		${.CURDIR}/../../../../contrib/openpam
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
 
-CFLAGS+=	-I${PAMDIR}/libpam/include
+CFLAGS+=	-I${PAMDIR}/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
 
 # This is nasty.
