@@ -89,8 +89,8 @@ static char sccsid[] = "@(#)locate.code.c	8.1 (Berkeley) 6/6/93";
 
 #define	BGBUFSIZE	(NBG * 2)	/* size of bigram buffer */
 
-char buf1[MAXPATHLEN] = " ";	
-char buf2[MAXPATHLEN];
+char buf1[MAXPATHLEN + 1] = " ";
+char buf2[MAXPATHLEN + 1];
 char bigrams[BGBUFSIZE + 1] = { 0 };
 
 int	bgindex __P((char *));
@@ -129,7 +129,7 @@ main(argc, argv)
 	oldpath = buf1;
 	path = buf2;
 	oldcount = 0;
-	while (fgets(path, sizeof(buf2), stdin) != NULL) {
+	while (fgets(path, sizeof(buf2) - 1, stdin) != NULL) {
 		/* Truncate newline. */
 		cp = path + strlen(path) - 1;
 		if (cp > path && *cp == '\n')
@@ -139,7 +139,7 @@ main(argc, argv)
 		for (cp = path; *cp != NULL; cp++) {
 			if ((u_char)*cp >= PARITY)
 				*cp &= PARITY-1;
-			else if (*cp <= SWITCH)
+			if (*cp <= SWITCH)
 				*cp = '?';
 		}
 
