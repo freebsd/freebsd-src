@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.17 1997/04/26 11:45:07 peter Exp $
+ *	$Id: identcpu.c,v 1.18 1997/05/05 14:11:09 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -261,7 +261,7 @@ printcpuinfo(void)
 			break;
 		case 0x40:
 			/* XXX */
-			strcat(cpu_model, "Gx86");
+			strcat(cpu_model, "MediaGX");
 			break;
 		case 0x50:
 			strcat(cpu_model, "M2");
