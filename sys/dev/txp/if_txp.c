@@ -258,13 +258,13 @@ txp_attach(dev)
 #ifdef TXP_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		device_printf(dev, "failed to enable I/O ports!\n");
-		error = ENXIO;;
+		error = ENXIO;
 		goto fail;
 	}
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		device_printf(dev, "failed to enable memory mapping!\n");
-		error = ENXIO;;
+		error = ENXIO;
 		goto fail;
 	}
 #endif
@@ -1063,7 +1063,7 @@ txp_alloc_rings(sc)
 
 	if (r != STAT_WAITING_FOR_BOOT) {
 		device_printf(sc->sc_dev, "not waiting for boot\n");
-		/*return(ENXIO);*/
+		return(ENXIO);
 	}
 
 	WRITE_REG(sc, TXP_H2A_2, 0);
