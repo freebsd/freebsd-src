@@ -1,11 +1,12 @@
 #
 # SYSCONS -- Generic machine with WD/AHx family disks and syscons
 #
-#	$Id: SYSCONS,v 1.8 1993/10/01 04:20:18 rgrimes Exp $
+#	$Id: SYSCONS,v 1.9 1993/10/01 04:26:21 rgrimes Exp $
 #
 
 machine		"i386"
-cpu		"i386"
+cpu		"I386_CPU"
+cpu		"I486_CPU"
 ident		SYSCONS
 timezone	8 dst
 maxusers	10
