@@ -110,7 +110,7 @@ output.
 
 @emph{Note} The use of @sc{gasp} has now been deprecated.  Anything
 that it could do can now be done by the macro facilities built into
-@sc{gas} itself.  At some point in the future the @{gasp} sources will
+@sc{gas} itself.  At some point in the future the @sc{gasp} sources will
 be removed entirely from the binutils distribution.
 
 Here is a small example to give the flavor of @sc{gasp}.  This input to
