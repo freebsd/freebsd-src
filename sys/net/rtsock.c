@@ -67,14 +67,13 @@ struct walkarg {
 };
 
 static struct mbuf *
-		rt_msg1 __P((int, struct rt_addrinfo *));
-static int	rt_msg2 __P((int,
-		    struct rt_addrinfo *, caddr_t, struct walkarg *));
-static int	rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
-static int	sysctl_dumpentry __P((struct radix_node *rn, void *vw));
-static int	sysctl_iflist __P((int af, struct walkarg *w));
-static int	 route_output __P((struct mbuf *, struct socket *));
-static void	 rt_setmetrics __P((u_long, struct rt_metrics *, struct rt_metrics *));
+		rt_msg1(int, struct rt_addrinfo *);
+static int	rt_msg2(int, struct rt_addrinfo *, caddr_t, struct walkarg *);
+static int	rt_xaddrs(caddr_t, caddr_t, struct rt_addrinfo *);
+static int	sysctl_dumpentry(struct radix_node *rn, void *vw);
+static int	sysctl_iflist(int af, struct walkarg *w);
+static int	 route_output(struct mbuf *, struct socket *);
+static void	 rt_setmetrics(u_long, struct rt_metrics *, struct rt_metrics *);
 
 /* Sleazy use of local variables throughout file, warning!!!! */
 #define dst	info.rti_info[RTAX_DST]

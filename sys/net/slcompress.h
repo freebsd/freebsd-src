@@ -152,11 +152,10 @@ struct slcompress {
 /* flag values */
 #define SLF_TOSS 1		/* tossing rcvd frames because of input err */
 
-void	 sl_compress_init __P((struct slcompress *, int));
-u_int	 sl_compress_tcp __P((struct mbuf *,
-	    struct ip *, struct slcompress *, int));
-int	 sl_uncompress_tcp __P((u_char **, int, u_int, struct slcompress *));
-int	 sl_uncompress_tcp_core __P((u_char *, int, int, u_int,
-	    struct slcompress *, u_char **, u_int *));
+void	 sl_compress_init(struct slcompress *, int);
+u_int	 sl_compress_tcp(struct mbuf *, struct ip *, struct slcompress *, int);
+int	 sl_uncompress_tcp(u_char **, int, u_int, struct slcompress *);
+int	 sl_uncompress_tcp_core(u_char *, int, int, u_int,
+	    struct slcompress *, u_char **, u_int *);
 
 #endif /* !_NET_SLCOMPRESS_H_ */

@@ -57,8 +57,8 @@
 /*
  * Driver callbacks for media status and change requests.
  */
-typedef	int (*ifm_change_cb_t) __P((struct ifnet *ifp));
-typedef	void (*ifm_stat_cb_t) __P((struct ifnet *ifp, struct ifmediareq *req));
+typedef	int (*ifm_change_cb_t)(struct ifnet *ifp);
+typedef	void (*ifm_stat_cb_t)(struct ifnet *ifp, struct ifmediareq *req);
 
 /*
  * In-kernel representation of a single supported media type.
@@ -84,25 +84,25 @@ struct ifmedia {
 };
 
 /* Initialize an interface's struct if_media field. */
-void	ifmedia_init __P((struct ifmedia *ifm, int dontcare_mask,
-	    ifm_change_cb_t change_callback, ifm_stat_cb_t status_callback));
+void	ifmedia_init(struct ifmedia *ifm, int dontcare_mask,
+	    ifm_change_cb_t change_callback, ifm_stat_cb_t status_callback);
 
 /* Remove all mediums from a struct ifmedia.  */
-void	ifmedia_removeall __P(( struct ifmedia *ifm));
+void	ifmedia_removeall( struct ifmedia *ifm);
 
 /* Add one supported medium to a struct ifmedia. */
-void	ifmedia_add __P((struct ifmedia *ifm, int mword, int data, void *aux));
+void	ifmedia_add(struct ifmedia *ifm, int mword, int data, void *aux);
 
 /* Add an array (of ifmedia_entry) media to a struct ifmedia. */
 void	ifmedia_list_add(struct ifmedia *mp, struct ifmedia_entry *lp,
 	    int count);
 
 /* Set default media type on initialization. */
-void	ifmedia_set __P((struct ifmedia *ifm, int mword));
+void	ifmedia_set(struct ifmedia *ifm, int mword);
 
 /* Common ioctl function for getting/setting media, called by driver. */
-int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
-	    struct ifmedia *ifm, u_long cmd));
+int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
+	    struct ifmedia *ifm, u_long cmd);
 
 #endif /*_KERNEL */
 

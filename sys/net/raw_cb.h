@@ -67,15 +67,15 @@ pr_ctlinput_t	raw_ctlinput;
 pr_init_t	raw_init;
 
 /* usrreq entries */
-int	 raw_attach __P((struct socket *, int));
-void	 raw_detach __P((struct rawcb *));
-void	 raw_disconnect __P((struct rawcb *));
+int	 raw_attach(struct socket *, int);
+void	 raw_detach(struct rawcb *);
+void	 raw_disconnect(struct rawcb *);
 
 #if 0 /* what the ??? */
 pr_input_t	raw_input;
 #else
-void	 raw_input __P((struct mbuf *,
-	    struct sockproto *, struct sockaddr *, struct sockaddr *));
+void	 raw_input(struct mbuf *,
+	    struct sockproto *, struct sockaddr *, struct sockaddr *);
 #endif
 
 extern	struct pr_usrreqs raw_usrreqs;

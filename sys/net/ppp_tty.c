@@ -94,26 +94,26 @@
 #include <net/if_ppp.h>
 #include <net/if_pppvar.h>
 
-static int	pppopen __P((dev_t dev, struct tty *tp));
-static int	pppclose __P((struct tty *tp, int flag));
-static int	pppread __P((struct tty *tp, struct uio *uio, int flag));
-static int	pppwrite __P((struct tty *tp, struct uio *uio, int flag));
-static int	ppptioctl __P((struct tty *tp, u_long cmd, caddr_t data,
-					int flag, struct thread *td));
-static int	pppinput __P((int c, struct tty *tp));
-static int	pppstart __P((struct tty *tp));
+static int	pppopen(dev_t dev, struct tty *tp);
+static int	pppclose(struct tty *tp, int flag);
+static int	pppread(struct tty *tp, struct uio *uio, int flag);
+static int	pppwrite(struct tty *tp, struct uio *uio, int flag);
+static int	ppptioctl(struct tty *tp, u_long cmd, caddr_t data,
+					int flag, struct thread *td);
+static int	pppinput(int c, struct tty *tp);
+static int	pppstart(struct tty *tp);
 
-static u_short	pppfcs __P((u_short fcs, u_char *cp, int len));
-static void	pppasyncstart __P((struct ppp_softc *));
-static void	pppasyncctlp __P((struct ppp_softc *));
-static void	pppasyncrelinq __P((struct ppp_softc *));
-static void	pppasyncsetmtu __P((struct ppp_softc *));
-static void	ppp_timeout __P((void *));
-static void	pppgetm __P((struct ppp_softc *sc));
-static void	ppplogchar __P((struct ppp_softc *, int));
+static u_short	pppfcs(u_short fcs, u_char *cp, int len);
+static void	pppasyncstart(struct ppp_softc *);
+static void	pppasyncctlp(struct ppp_softc *);
+static void	pppasyncrelinq(struct ppp_softc *);
+static void	pppasyncsetmtu(struct ppp_softc *);
+static void	ppp_timeout(void *);
+static void	pppgetm(struct ppp_softc *sc);
+static void	ppplogchar(struct ppp_softc *, int);
 
 /* XXX called from if_ppp.c - layering violation */
-void		pppasyncattach __P((void *));
+void		pppasyncattach(void *);
 
 /*
  * Some useful mbuf macros not in mbuf.h.
