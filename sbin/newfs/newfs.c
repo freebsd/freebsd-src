@@ -318,7 +318,8 @@ main(argc, argv)
 			else if (strcmp(optarg, "time") == 0)
 				opt = FS_OPTTIME;
 			else
-	fatal("%s: unknown optimization preference: use `space' or `time'", optarg);
+				fatal("%s: unknown optimization preference: "
+				    "use `space' or `time'", optarg);
 			break;
 		case 'p':
 			if ((trackspares = atoi(optarg)) < 0)
@@ -367,12 +368,13 @@ main(argc, argv)
 		/*
 		 * No path prefix; try /dev/%s.
 		 */
-		(void)snprintf(device, sizeof(device), "%s%s", _PATH_DEV, special);
+		(void)snprintf(device, sizeof(device),
+		    "%s%s", _PATH_DEV, special);
 		special = device;
 	}
-	if (Nflag) {
+	if (Nflag)
 		fso = -1;
-	} else {
+	else {
 		fso = open(special, O_WRONLY);
 		if (fso < 0)
 			fatal("%s: %s", special, strerror(errno));
@@ -428,12 +430,12 @@ main(argc, argv)
 		    argv[0], *cp);
 	if (pp->p_fstype == FS_BOOT)
 		fatal("%s: `%c' partition overlaps boot program",
-		      argv[0], *cp);
+		    argv[0], *cp);
 	if (fssize == 0)
 		fssize = pp->p_size;
 	if (fssize > pp->p_size)
-	       fatal("%s: maximum file system size on the `%c' partition is %d",
-			argv[0], *cp, pp->p_size);
+		fatal("%s: maximum file system size on the "
+		    "`%c' partition is %d", argv[0], *cp, pp->p_size);
 	if (rpm == 0) {
 		rpm = lp->d_rpm;
 		if (rpm <= 0)
@@ -508,8 +510,8 @@ main(argc, argv)
 	 */
 	if (t_or_u_flag && secpercyl != lp->d_secpercyl)
 		fprintf(stderr, "%s (%d) %s (%lu)\n",
-			"Warning: calculated sectors per cylinder", secpercyl,
-			"disagrees with disk label", (u_long)lp->d_secpercyl);
+		    "Warning: calculated sectors per cylinder", secpercyl,
+		    "disagrees with disk label", (u_long)lp->d_secpercyl);
 	if (maxbpg == 0)
 		maxbpg = MAXBLKPG(bsize);
 	headswitch = lp->d_headswitch;
@@ -630,9 +632,8 @@ fatal(fmt, va_alist)
 		openlog(progname, LOG_CONS, LOG_DAEMON);
 		vsyslog(LOG_ERR, fmt, ap);
 		closelog();
-	} else {
+	} else
 		vwarnx(fmt, ap);
-	}
 	va_end(ap);
 	exit(1);
 	/*NOTREACHED*/
