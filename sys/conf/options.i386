@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.108 1999/03/10 10:11:42 julian Exp $
+#	$Id: options.i386,v 1.109 1999/03/10 10:36:30 yokota Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -179,6 +179,11 @@ IPR_VJ			opt_i4b.h
 OLTR_NO_TMS_MAC		opt_oltr.h
 OLTR_NO_HAWKEYE_MAC	opt_oltr.h
 OLTR_NO_BULLSEYE_MAC	opt_oltr.h
+
+# Total number of ports controlled by the dgb(4) driver.
+# Defaults to NDGB*16.
+NDGBPORTS		opt_dgb.h
+
 # -------------------------------
 # EOF
 # -------------------------------
