@@ -85,7 +85,7 @@ static struct ndis_type ndis_devs[] = {
 #ifdef NDIS_DEV_TABLE
 	NDIS_DEV_TABLE
 #endif
-	{ 0, 0, NULL }
+	{ 0, 0, 0, NULL }
 };
 
 #define __stdcall __attribute__((__stdcall__))
@@ -178,7 +178,9 @@ ndis_probe(dev)
 
 	while(t->ndis_name != NULL) {
 		if ((pci_get_vendor(dev) == t->ndis_vid) &&
-		    (pci_get_device(dev) == t->ndis_did)) {
+		    (pci_get_device(dev) == t->ndis_did) &&
+		    (pci_read_config(dev, PCIR_SUBVEND_0, 4) ==
+		    t->ndis_subsys)) {
 			device_set_desc(dev, t->ndis_name);
 			return(0);
 		}
@@ -201,6 +203,9 @@ ndis_attach(dev)
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid, len;
 	void			*img;
+	struct ndis_type	*t;
+	int			devidx = 0, defidx = 0;
+
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -296,6 +301,30 @@ ndis_attach(dev)
 	sc->ndis_dev = dev;
 	sc->ndis_regvals = ndis_regvals;
 	sc->ndis_iftype = PCIBus;
+
+	/* Figure out exactly which device we matched. */
+
+	t = ndis_devs;
+
+	while(t->ndis_name != NULL) {
+		if ((pci_get_vendor(dev) == t->ndis_vid) &&
+		    (pci_get_device(dev) == t->ndis_did)) {
+			if (t->ndis_subsys == 0)
+				defidx = devidx;
+			else {
+				if (t->ndis_subsys ==
+				    pci_read_config(dev, PCIR_SUBVEND_0, 4))
+					break;
+			}
+		}
+		t++;
+		devidx++;
+	}
+
+	if (ndis_devs[devidx].ndis_name == NULL)
+		sc->ndis_devidx = defidx;
+	else
+		sc->ndis_devidx = devidx;
 
 	sysctl_ctx_init(&sc->ndis_ctx);
 
