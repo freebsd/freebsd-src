@@ -21,6 +21,7 @@ __FBSDID("$FreeBSD$");
 void
 Set_Bios_Geom(struct disk *disk, u_long cyl, u_long hd, u_long sect)
 {
+
 	disk->bios_cyl = cyl;
 	disk->bios_hd = hd;
 	disk->bios_sect = sect;
@@ -47,7 +48,8 @@ Sanitize_Bios_Geom(struct disk *disk)
 	if (disk->bios_sect > 63)
 #endif
 		sane = 0;
-	if (disk->bios_cyl*disk->bios_hd*disk->bios_sect != disk->chunks->size)
+	if (disk->bios_cyl * disk->bios_hd * disk->bios_sect !=
+	    disk->chunks->size)
 		sane = 0;
 	if (sane)
 		return;
@@ -55,7 +57,8 @@ Sanitize_Bios_Geom(struct disk *disk)
 	/* First try something that IDE can handle */
 	disk->bios_sect = 63;
 	disk->bios_hd = 16;
-	disk->bios_cyl = disk->chunks->size / (disk->bios_sect*disk->bios_hd);
+	disk->bios_cyl = disk->chunks->size /
+		(disk->bios_sect * disk->bios_hd);
 
 #ifdef PC98
 	if (disk->bios_cyl < 65536)
@@ -72,9 +75,8 @@ Sanitize_Bios_Geom(struct disk *disk)
 #else
 	disk->bios_hd = 255;
 #endif
-	disk->bios_cyl = disk->chunks->size / (disk->bios_sect*disk->bios_hd);
-
-	return;
+	disk->bios_cyl = disk->chunks->size /
+		(disk->bios_sect * disk->bios_hd);
 }
 
 void
@@ -89,7 +91,7 @@ All_FreeBSD(struct disk *d, int force_all)
 	type = 0xa5;
 #endif
 
-    again:
+again:
 	for (c = d->chunks->part; c; c = c->next)
 		if (c->type != unused) {
 			Delete_Chunk(d, c);

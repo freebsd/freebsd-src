@@ -36,10 +36,10 @@ Write_Disk(const struct disk *d1)
 	char device[64];
 	int fd;
 
-	strcpy(device,_PATH_DEV);
-	strcat(device,d1->name);
+	strcpy(device, _PATH_DEV);
+	strcat(device, d1->name);
 
-	fd = open(device,O_RDWR);
+	fd = open(device, O_RDWR);
 	if (fd < 0) {
 		warn("open(%s) failed", device);
 		return (1);
@@ -57,14 +57,14 @@ Write_Disk(const struct disk *d1)
 	sl->sl_ntracks = d1->bios_hd;
 	if (c->size > 4999 * 1024 * 2) {
 		sprintf(sl->sl_text, "FreeBSD%luG cyl %u alt %u hd %u sec %u",
-		    (c->size + 1024 * 1024) / (2 * 1024 * 1024),
-		    sl->sl_ncylinders, sl->sl_acylinders,
-		    sl->sl_ntracks, sl->sl_nsectors);
+			(c->size + 1024 * 1024) / (2 * 1024 * 1024),
+			sl->sl_ncylinders, sl->sl_acylinders,
+			sl->sl_ntracks, sl->sl_nsectors);
 	} else {
 		sprintf(sl->sl_text, "FreeBSD%luM cyl %u alt %u hd %u sec %u",
-		    (c->size + 1024) / (2 * 1024),
-		    sl->sl_ncylinders, sl->sl_acylinders,
-		    sl->sl_ntracks, sl->sl_nsectors);
+			(c->size + 1024) / (2 * 1024),
+			sl->sl_ncylinders, sl->sl_acylinders,
+			sl->sl_ntracks, sl->sl_nsectors);
 	}
 	sl->sl_interleave = 1;
 	sl->sl_sparespercyl = 0;
