@@ -45,24 +45,24 @@
  */
 
 struct acpi_snc_softc {
-  int pid;
+	int pid;
 };
 static struct acpi_snc_name_list
 {
-  char *nodename;
-  char *getmethod;
-  char *setmethod;
-  char *comment;
-}acpi_snc_oids[] = {
-  { "brightness", "GBRT", "SBRT", "Display Brightness"},
-  { "ctr", "GCTR", "SCTR", "??"},
-  { "pcr", "GPCR", "SPCR", "???"},
+	char *nodename;
+	char *getmethod;
+	char *setmethod;
+	char *comment;
+} acpi_snc_oids[] = {
+	{ "brightness", "GBRT", "SBRT", "Display Brightness"},
+	{ "ctr", "GCTR", "SCTR", "??"},
+	{ "pcr", "GPCR", "SPCR", "???"},
 #if 0
-  { "cmi", "GCMI", "SCMI", "????"},
+	{ "cmi", "GCMI", "SCMI", "????"},
 #endif
-  { "wdp", "GWDP", NULL, "?????"},
-  { "cdp", "GCDP", "CDPW", "??????"},  /*shares [\GL03]&0x8 flag*/
-  {NULL, NULL,NULL}
+	{ "wdp", "GWDP", NULL, "?????"},
+	{ "cdp", "GCDP", "CDPW", "??????"},  /*shares [\GL03]&0x8 flag*/
+	{NULL, NULL,NULL}
 };
 
 static int	acpi_snc_probe(device_t dev);
@@ -124,8 +124,7 @@ acpi_snc_attach(device_t dev)
 		    dev, i, sysctl_acpi_snc_gen_handler, "I",
 		    acpi_snc_oids[i].comment);
 	}
-	
-	return_VALUE(0);
+	return (0);
 }
 
 static int 
@@ -133,12 +132,13 @@ acpi_snc_detach(device_t dev)
 {
 	return_VALUE(0);
 }
+
 #if 0
 static int
 acpi_snc_suspend(device_t dev)
 {
 	struct acpi_snc_softc *sc = device_get_softc(dev);
-	return_VALUE(0);
+	return (0);
 }
 
 static int
@@ -155,14 +155,12 @@ sysctl_acpi_snc_gen_handler(SYSCTL_HANDLER_ARGS)
 	int 	function = oidp->oid_arg2;
 	int		error = 0, val;
 
-
-	acpi_GetInteger(acpi_get_handle(dev), acpi_snc_oids[function].getmethod, &val);
+	acpi_GetInteger(acpi_get_handle(dev),
+	    acpi_snc_oids[function].getmethod, &val);
 	error = sysctl_handle_int(oidp, &val, 0, req);
-
 	if (error || !req->newptr || !acpi_snc_oids[function].setmethod)
-		return error;
-
-	acpi_SetInteger(acpi_get_handle(dev), acpi_snc_oids[function].setmethod, val);
-	return 0;
-	
+		return (error);
+	acpi_SetInteger(acpi_get_handle(dev),
+	    acpi_snc_oids[function].setmethod, val);
+	return (0);
 }
