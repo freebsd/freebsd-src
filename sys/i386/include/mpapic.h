@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.h,v 1.4 1997/05/22 22:04:45 fsmp Exp $
+ *	$Id: mpapic.h,v 1.5 1997/05/25 02:43:42 fsmp Exp $
  */
 
 #ifndef _MACHINE_MPAPIC_H_
@@ -90,11 +90,17 @@ enum busTypes {
 #error MULTIPLE_IOAPICSXXX
 #else
 static __inline u_int32_t
+#if 1  /** XXX APIC_STRUCT */
+io_apic_read(int apic, int reg)
+{
+	ioapic[apic].ioregsel = reg;
+	return ioapic[apic].iowin;
+#else
 io_apic_read(int apic __attribute__ ((unused)), int reg)
-
 {
 	(*io_apic_base) = reg;
 	return (*(io_apic_base + (IOAPIC_WINDOW / sizeof(u_int))));
+#endif  /** XXX APIC_STRUCT */
 }
 #endif /* MULTIPLE_IOAPICS */
 
@@ -106,10 +112,17 @@ io_apic_read(int apic __attribute__ ((unused)), int reg)
 #error MULTIPLE_IOAPICSXXX
 #else
 static __inline void
+#if 1  /** XXX APIC_STRUCT */
+io_apic_write(int apic, int reg, u_int32_t value)
+{
+	ioapic[apic].ioregsel = reg;
+	ioapic[apic].iowin = value;
+#else
 io_apic_write(int apic __attribute__ ((unused)), int reg, u_int32_t value)
 {
 	(*io_apic_base) = reg;
 	(*(io_apic_base + (IOAPIC_WINDOW / sizeof(u_int)))) = value;
+#endif  /** XXX APIC_STRUCT */
 }
 #endif /* MULTIPLE_IOAPICS */
 
@@ -184,7 +197,7 @@ read_io_apic_mask24(int apic __attribute__ ((unused)))
 static __inline void
 apic_eoi(void)
 {
-	apic_base[APIC_EOI] = 0;
+	lapic__eoi = 0;
 }
 
 

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.8 1997/05/07 19:53:20 peter Exp $
+ * $Id: smp.h,v 1.9 1997/05/28 18:44:11 fsmp Exp $
  *
  */
 
@@ -24,6 +24,8 @@
 #endif /* SMP && NCPU */
 
 #if defined(SMP) || defined(APIC_IO)
+
+#include <machine/apic.h>
 
 /* global data in mpboot.s */
 extern int			bootMP_size;
@@ -78,11 +80,17 @@ void	smp_invltlb		__P((void));
 
 /* global data in mpapic.c */
 extern volatile u_int*		apic_base;
+#if 1  /** XXX APIC_STRUCT */
+extern volatile lapic_t*	lapic;
+#endif  /** XXX APIC_STRUCT */
 
 #if defined(MULTIPLE_IOAPICS)
 #error MULTIPLE_IOAPICSXXX
 #else
 extern volatile u_int*		io_apic_base;
+#if 1  /** XXX APIC_STRUCT */
+extern volatile ioapic_t*	ioapic;
+#endif  /** XXX APIC_STRUCT */
 #endif /* MULTIPLE_IOAPICS */
 
 /* functions in mpapic.c */
@@ -125,7 +133,11 @@ cpunumber(void)
 static __inline unsigned
 cpunumber(void)
 {
+#if 0
 	return (unsigned)(apic_id_to_logical[(apic_base[8] & 0x0f000000) >> 24]);
+#else
+	return (unsigned)(apic_id_to_logical[(lapic__id & 0x0f000000) >> 24]);
+#endif
 }
 #endif /* 0 */
 
