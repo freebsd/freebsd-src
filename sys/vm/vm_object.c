@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.161 1999/08/01 06:05:09 alc Exp $
+ * $Id: vm_object.c,v 1.162 1999/08/09 10:35:05 phk Exp $
  */
 
 /*
@@ -766,15 +766,17 @@ relookup:
 		tobject = object;
 		tpindex = pindex;
 shadowlookup:
-
-		if (tobject->type != OBJT_DEFAULT &&
-		    tobject->type != OBJT_SWAP
-		) {
-			continue;
+		/*
+		 * MADV_FREE only operates on OBJT_DEFAULT or OBJT_SWAP pages
+		 * and those pages must be OBJ_ONEMAPPING.
+		 */
+		if (advise == MADV_FREE) {
+			if ((tobject->type != OBJT_DEFAULT &&
+			     tobject->type != OBJT_SWAP) ||
+			    (tobject->flags & OBJ_ONEMAPPING) == 0) {
+				continue;
+			}
 		}
-
-		if ((tobject->flags & OBJ_ONEMAPPING) == 0)
-			continue;
 
 		m = vm_page_lookup(tobject, tpindex);
 
