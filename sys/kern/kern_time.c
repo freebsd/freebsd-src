@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.34 1997/09/02 20:05:49 bde Exp $
+ * $Id: kern_time.c,v 1.35 1997/09/21 22:00:16 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -342,16 +342,10 @@ signanosleep(p, uap, retval)
 	if (error)
 		return (error);
 
-	/* See kern_sig.c:sigsuspend() for explanation. */
-	ps->ps_oldmask = p->p_sigmask;
-	ps->ps_flags |= SAS_OLDMASK;
+	/* change mask for sleep */
 	p->p_sigmask = mask &~ sigcantmask;
 
 	error = nanosleep1(p, &rqt, &rmt);
-
-	/* See kern_sig.c:sigsuspend() again. */
-	p->p_sigmask = ps->ps_oldmask;	/* in case timeout rather than sig */
-	ps->ps_flags &= ~SAS_OLDMASK;
 
 	if (SCARG(uap, rmtp)) {
 		error2 = copyout(&rmt, SCARG(uap, rmtp), sizeof(rmt));
