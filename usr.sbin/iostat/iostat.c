@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1986, 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)iostat.c	8.2 (Berkeley) 1/26/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -131,7 +135,7 @@ char	**dr_name;
 void cpustats __P((void));
 void dkstats __P((void));
 void phdr __P((int));
-void usage __P((void));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -150,7 +154,7 @@ main(argc, argv)
 		switch(ch) {
 		case 'c':
 			if ((reps = atoi(optarg)) <= 0)
-				errx(1, "repetition count <= 0.");
+				errx(1, "repetition count <= 0");
 			break;
 		case 'M':
 			memf = optarg;
@@ -160,7 +164,7 @@ main(argc, argv)
 			break;
 		case 'w':
 			if ((interval = atoi(optarg)) <= 0)
-				errx(1, "interval <= 0.");
+				errx(1, "interval <= 0");
 			break;
 		case '?':
 		default:
@@ -185,7 +189,7 @@ main(argc, argv)
 		errx(1, "dk_ndrive not found in namelist");
 	(void)nlread(X_DK_NDRIVE, dk_ndrive);
 	if (dk_ndrive < 0)
-		errx(1, "invalid dk_ndrive %d\n", dk_ndrive);
+		errx(1, "invalid dk_ndrive %d", dk_ndrive);
 
 	cur.dk_time = calloc(dk_ndrive, sizeof(long));
 	cur.dk_wds = calloc(dk_ndrive, sizeof(long));
@@ -386,7 +390,7 @@ cpustats()
 		    100. * cur.cp_time[state] / (time ? time : 1));
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr,
