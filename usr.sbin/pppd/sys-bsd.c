@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: sys-bsd.c,v 1.21 1995/08/16 01:40:23 paulus Exp $";
+static char rcsid[] = "$Id: sys-bsd.c,v 1.5 1995/10/31 21:21:46 peter Exp $";
 #endif
 
 /*
@@ -30,6 +30,7 @@ static char rcsid[] = "$Id: sys-bsd.c,v 1.21 1995/08/16 01:40:23 paulus Exp $";
 #include <syslog.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <termios.h>
