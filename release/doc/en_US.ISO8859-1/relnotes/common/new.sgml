@@ -274,6 +274,15 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>&man.biff.1; now accepts a <option>b</option> argument to
+      enable <quote>bell notification</quote> of new mail (which does
+      not disturb the terminal contents as <command>biff y</command>
+      would).</para>
+
+    <para>&man.cp.1; now takes a (nonstandard) <option>-n</option>
+      option to automatically answer <quote>no</quote> when it would
+      ask to overwrite a file.</para>
+
     <para>&man.dump.8; now supports a new <option>-S</option> flag to allow
       it to just print out the dump size estimates and exit.</para>
 
@@ -302,9 +311,20 @@
       a <option>-x</option> flag to sort filenames across a
       page.</para>
 
+    <para>&man.mv.1; now takes a (nonstandard) <option>-n</option>
+      option to automatically answer <quote>no</quote> when it would
+      ask to overwrite a file.</para>
+
     <para>&man.nice.1; now uses the <option>-n</option> option to
       specify the <quote>niceness</quote> of the utility being
       run.</para>
+
+    <para>&man.od.1; now supports the <option>-A</option> option to
+      specify the input address base, the <option>-N</option> option to
+      specify the number of bytes to dump, the <option>-j</option>
+      option to specify the number of bytes to skip, the
+      <option>-s</option> option to output signed decimal shorts, and
+      the <option>-t</option> option to specify output type.</para>
 
     <para>&man.pam.opie.8; no longer emits fake challenges when the
       <varname>no_fake_prompts</varname> variable is specified.</para>
