@@ -2242,6 +2242,17 @@ Brooke's Law:
 discovers something which either abolishes the system or expands it
 beyond recognition.
 %
+Brucify, v:
+       1: kill by nailing onto style(9); "David O'Brien was brucified"
+       2: annoy constantly by reminding of potential improvements
+          [syn: {torment}, {rag}, {tantalize}, {bedevil}, {dun},
+          {frustrate}]
+       3: Fix problems that was indicated in an earlier brucification
+          (of one of the two other meanings).
+The word 'brucify' originally comes from the style-reviews of Bruce
+Evans of the FreeBSD project, but is now also sometimes used for
+reviews just done in his spirit.
+%
 Bubble Memory, n.:
 	A derogatory term, usually referring to a person's
 intelligence.  See also "vacuum tube".
