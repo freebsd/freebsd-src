@@ -182,7 +182,6 @@ Xspuriousint:
 
 	iret
 
-
 /*
  * Handle TLB shootdowns.
  */
@@ -211,71 +210,61 @@ Xinvltlb:
 	popl	%eax
 	iret
 
-
 /*
- * Executed by a CPU when it receives an Xcpucheckstate IPI from another CPU,
- *
- *  - Stores current cpu state in checkstate_cpustate[cpuid]
- *      0 == user, 1 == sys, 2 == intr
- *  - Stores current process in checkstate_curproc[cpuid]
- *
- *  - Signals its receipt by setting bit cpuid in checkstate_probed_cpus.
- *
- * stack: 0->ds, 4->fs, 8->ebx, 12->eax, 16->eip, 20->cs, 24->eflags
+ * Forward hardclock to another CPU.  Pushes a trapframe and calls
+ * forwarded_hardclock().
  */
-
 	.text
 	SUPERALIGN_TEXT
-	.globl Xcpucheckstate
-	.globl checkstate_cpustate
-	.globl checkstate_curproc
-	.globl checkstate_pc
-Xcpucheckstate:
-	pushl	%eax
-	pushl	%ebx		
-	pushl	%ds			/* save current data segment */
-	pushl	%fs
-
-	movl	$KDSEL, %eax
-	mov	%ax, %ds		/* use KERNEL data segment */
+	.globl Xhardclock
+Xhardclock:
+	PUSH_FRAME
+	movl	$KDSEL, %eax	/* reload with kernel's data segment */
+	mov	%ax, %ds
+	mov	%ax, %es
 	movl	$KPSEL, %eax
 	mov	%ax, %fs
 
 	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
 
-	movl	$0, %ebx		
-	movl	20(%esp), %eax	
-	andl	$3, %eax
-	cmpl	$3, %eax
-	je	1f
-	testl	$PSL_VM, 24(%esp)
-	jne	1f
-	incl	%ebx			/* system or interrupt */
-1:	
-	movl	PCPU(CPUID), %eax
-	movl	%ebx, checkstate_cpustate(,%eax,4)
-	movl	PCPU(CURPROC), %ebx
-	movl	%ebx, checkstate_curproc(,%eax,4)
+	movl	PCPU(CURPROC),%ebx
+	incl	P_INTR_NESTING_LEVEL(%ebx)
+	call	forwarded_hardclock
+	decl	P_INTR_NESTING_LEVEL(%ebx)
+	MEXITCOUNT
+	jmp	doreti
 
-	movl	16(%esp), %ebx
-	movl	%ebx, checkstate_pc(,%eax,4)
+/*
+ * Forward statclock to another CPU.  Pushes a trapframe and calls
+ * forwarded_statclock().
+ */
+	.text
+	SUPERALIGN_TEXT
+	.globl Xstatclock
+Xstatclock:
+	PUSH_FRAME
+	movl	$KDSEL, %eax	/* reload with kernel's data segment */
+	mov	%ax, %ds
+	mov	%ax, %es
+	movl	$KPSEL, %eax
+	mov	%ax, %fs
 
-	lock				/* checkstate_probed_cpus |= (1<<id) */
-	btsl	%eax, checkstate_probed_cpus
+	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
 
-	popl	%fs
-	popl	%ds			/* restore previous data segment */
-	popl	%ebx
-	popl	%eax
-	iret
-
+	FAKE_MCOUNT(13*4(%esp))
+	movl	PCPU(CURPROC),%ebx
+	incl	P_INTR_NESTING_LEVEL(%ebx)
+	call	forwarded_statclock
+	decl	P_INTR_NESTING_LEVEL(%ebx)
+	MEXITCOUNT
+	jmp	doreti
 
 /*
  * Executed by a CPU when it receives an Xcpuast IPI from another CPU,
  *
- *  - Signals its receipt by clearing bit cpuid in checkstate_need_ast.
- *
- *  - We need a better method of triggering asts on other cpus.
+ * The other CPU has already executed aston() or need_resched() on our
+ * current process, so we simply need to ack the interrupt and return
+ * via doreti to run ast().
  */
 
 	.text
@@ -289,40 +278,12 @@ Xcpuast:
 	movl	$KPSEL, %eax
 	mov	%ax, %fs
 
-	movl	PCPU(CPUID), %eax
-	lock				/* checkstate_need_ast &= ~(1<<id) */
-	btrl	%eax, checkstate_need_ast
 	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
-
-	lock
-	btsl	%eax, checkstate_pending_ast
-	jc	1f
 
 	FAKE_MCOUNT(13*4(%esp))
 
-	MTX_LOCK_SPIN(sched_lock, 0)
-	movl	PCPU(CURPROC),%ebx
-	orl	$PS_ASTPENDING, P_SFLAG(%ebx)
-	
-	movl	PCPU(CPUID), %eax
-	lock	
-	btrl	%eax, checkstate_pending_ast
-	lock	
-	btrl	%eax, CNAME(resched_cpus)
-	jnc	2f
-	orl	$PS_NEEDRESCHED, P_SFLAG(%ebx)
-	lock
-	incl	CNAME(want_resched_cnt)
-2:		
-	MTX_UNLOCK_SPIN(sched_lock)
-	lock
-	incl	CNAME(cpuast_cnt)
 	MEXITCOUNT
 	jmp	doreti
-1:
-	/* We are already in the process of delivering an ast for this CPU */
-	POP_FRAME
-	iret			
 
 /*
  * Executed by a CPU when it receives an Xcpustop IPI from another CPU,
@@ -331,7 +292,6 @@ Xcpuast:
  *  - Waits for permission to restart.
  *  - Signals its restart.
  */
-
 	.text
 	SUPERALIGN_TEXT
 	.globl Xcpustop
@@ -357,20 +317,19 @@ Xcpustop:
 	pushl	%eax
 	call	CNAME(savectx)		/* Save process context */
 	addl	$4, %esp
-	
 		
 	movl	PCPU(CPUID), %eax
 
 	lock
-	btsl	%eax, stopped_cpus	/* stopped_cpus |= (1<<id) */
+	btsl	%eax, CNAME(stopped_cpus) /* stopped_cpus |= (1<<id) */
 1:
-	btl	%eax, started_cpus	/* while (!(started_cpus & (1<<id))) */
+	btl	%eax, CNAME(started_cpus) /* while (!(started_cpus & (1<<id))) */
 	jnc	1b
 
 	lock
-	btrl	%eax, started_cpus	/* started_cpus &= ~(1<<id) */
+	btrl	%eax, CNAME(started_cpus) /* started_cpus &= ~(1<<id) */
 	lock
-	btrl	%eax, stopped_cpus	/* stopped_cpus &= ~(1<<id) */
+	btrl	%eax, CNAME(stopped_cpus) /* stopped_cpus &= ~(1<<id) */
 
 	test	%eax, %eax
 	jnz	2f
@@ -491,34 +450,6 @@ Xrendezvous:
 _xhits:
 	.space	(NCPU * 4), 0
 #endif /* COUNT_XINVLTLB_HITS */
-
-/* variables used by stop_cpus()/restart_cpus()/Xcpustop */
-	.globl stopped_cpus, started_cpus
-stopped_cpus:
-	.long	0
-started_cpus:
-	.long	0
-
-	.globl checkstate_probed_cpus
-checkstate_probed_cpus:
-	.long	0	
-	.globl checkstate_need_ast
-checkstate_need_ast:
-	.long	0
-checkstate_pending_ast:
-	.long	0
-	.globl CNAME(resched_cpus)
-	.globl CNAME(want_resched_cnt)
-	.globl CNAME(cpuast_cnt)
-	.globl CNAME(cpustop_restartfunc)
-CNAME(resched_cpus):
-	.long 0
-CNAME(want_resched_cnt):
-	.long 0
-CNAME(cpuast_cnt):
-	.long 0
-CNAME(cpustop_restartfunc):
-	.long 0
 
 	.globl	apic_pin_trigger
 apic_pin_trigger:

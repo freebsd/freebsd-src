@@ -37,10 +37,10 @@
 #include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 
 #include <machine/cpu.h>
 #ifdef SMP
-#include <machine/smp.h>
 #include <machine/smptests.h>	/** CPUSTOP_ON_DDBBREAK */
 #endif
 
@@ -334,43 +334,44 @@ Debugger(msg)
 DB_SHOW_COMMAND(pcpu, db_show_pcpu)
 {
 	struct globaldata *gd;
+#ifdef SMP
 	int id;
 
 	if (have_addr)
 		id = ((addr >> 4) % 16) * 10 + (addr % 16);
 	else
 		id = PCPU_GET(cpuid);
-	SLIST_FOREACH(gd, &cpuhead, gd_allcpu) {
-		if (gd->gd_cpuid == id)
-			break;
-	}
-	if (gd == NULL)
+	gd = globaldata_find(id);
+	if (gd == NULL) {
 		db_printf("CPU %d not found\n", id);
-	else {
-		db_printf("cpuid    = %d\n", gd->gd_cpuid);
-		db_printf("curproc  = ");
-		if (gd->gd_curproc != NULL)
-			db_printf("%p: pid %d \"%s\"\n", gd->gd_curproc,
-			    gd->gd_curproc->p_pid, gd->gd_curproc->p_comm);
-		else
-			db_printf("none\n");
-		db_printf("curpcb   = %p\n", gd->gd_curpcb);
-		db_printf("npxproc  = ");
-		if (gd->gd_npxproc != NULL)
-			db_printf("%p: pid %d \"%s\"\n", gd->gd_npxproc,
-			    gd->gd_npxproc->p_pid, gd->gd_npxproc->p_comm);
-		else
-			db_printf("none\n");
-		db_printf("idleproc = ");
-		if (gd->gd_idleproc != NULL)
-			db_printf("%p: pid %d \"%s\"\n", gd->gd_idleproc,
-			    gd->gd_idleproc->p_pid, gd->gd_idleproc->p_comm);
-		else
-			db_printf("none\n");
+		return;
+	}
+#else
+	gd = GLOBALDATA;
+#endif
+	db_printf("cpuid    = %d\n", gd->gd_cpuid);
+	db_printf("curproc  = ");
+	if (gd->gd_curproc != NULL)
+		db_printf("%p: pid %d \"%s\"\n", gd->gd_curproc,
+		    gd->gd_curproc->p_pid, gd->gd_curproc->p_comm);
+	else
+		db_printf("none\n");
+	db_printf("curpcb   = %p\n", gd->gd_curpcb);
+	db_printf("npxproc  = ");
+	if (gd->gd_npxproc != NULL)
+		db_printf("%p: pid %d \"%s\"\n", gd->gd_npxproc,
+		    gd->gd_npxproc->p_pid, gd->gd_npxproc->p_comm);
+	else
+		db_printf("none\n");
+	db_printf("idleproc = ");
+	if (gd->gd_idleproc != NULL)
+		db_printf("%p: pid %d \"%s\"\n", gd->gd_idleproc,
+		    gd->gd_idleproc->p_pid, gd->gd_idleproc->p_comm);
+	else
+		db_printf("none\n");
 		
 #ifdef WITNESS
-		db_printf("spin locks held:\n");
-		witness_list_locks(&gd->gd_spinlocks);
+	db_printf("spin locks held:\n");
+	witness_list_locks(&gd->gd_spinlocks);
 #endif
-	}
 }

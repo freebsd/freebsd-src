@@ -6,43 +6,28 @@
 
 #ifdef _KERNEL
 
-#include <machine/mutex.h>
-#include <machine/ipl.h>
-#include <sys/ktr.h>
+/*
+ * Interprocessor interrupts for SMP.
+ */
+#define	IPI_INVLTLB		0x0001
+#define	IPI_RENDEZVOUS		0x0002
+#define	IPI_AST			0x0004
+#define	IPI_CHECKSTATE		0x0008
+#define	IPI_STOP		0x0010
 
 #ifndef LOCORE
-
-#define BETTER_CLOCK		/* unconditional on ia64 */
 
 /* global data in mp_machdep.c */
 extern volatile u_int		checkstate_probed_cpus;
 extern volatile u_int		checkstate_need_ast;
 extern volatile u_int		resched_cpus;
-extern void (*cpustop_restartfunc) __P((void));
 
-extern int			smp_active;
-extern int			mp_ncpus;
-extern u_int			all_cpus;
-extern u_int			started_cpus;
-extern u_int			stopped_cpus;
-
-/* functions in mp_machdep.c */
-void	mp_start(void);
-void	mp_announce(void);
-void	smp_invltlb(void);
-void	forward_statclock(int pscnt);
-void	forward_hardclock(int pscnt);
-void	forward_signal(struct proc *);
-void	forward_roundrobin(void);
-int	stop_cpus(u_int);
-int	restart_cpus(u_int);
-void	smp_rendezvous_action(void);
-void	smp_rendezvous(void (*)(void *), 
-		       void (*)(void *),
-		       void (*)(void *),
-		       void *arg);
+void	ipi_selected(u_int cpus, u_int ipi);
+void	ipi_all(u_int ipi);
+void	ipi_all_but_self(u_int ipi);
+void	ipi_self(u_int ipi);
 void	smp_init_secondary(void);
 
 #endif /* !LOCORE */
 #endif /* _KERNEL */
-#endif
+#endif /* !_MACHINE_SMP_H */

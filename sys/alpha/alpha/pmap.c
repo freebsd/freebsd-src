@@ -154,6 +154,7 @@
 #include <sys/msgbuf.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
+#include <sys/smp.h>
 #include <sys/sx.h>
 
 #include <vm/vm.h>
@@ -172,7 +173,6 @@
 
 #include <machine/md_var.h>
 #include <machine/rpb.h>
-#include <machine/smp.h>
 
 #ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200

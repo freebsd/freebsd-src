@@ -41,7 +41,21 @@ extern int current_postcode;  /** XXX currently in mp_machdep.c */
 			outb(0x80, current_postcode)
 
 
+#include <sys/bus.h>	/* XXX */
 #include <machine/apic.h>
+#include <machine/frame.h>
+#include <i386/isa/icu.h>
+#include <i386/isa/intr_machdep.h>
+
+/*
+ * Interprocessor interrupts for SMP.
+ */
+#define	IPI_INVLTLB		XINVLTLB_OFFSET
+#define	IPI_RENDEZVOUS		XRENDEZVOUS_OFFSET
+#define	IPI_AST			XCPUAST_OFFSET
+#define	IPI_STOP		XCPUSTOP_OFFSET
+#define	IPI_HARDCLOCK		XHARDCLOCK_OFFSET
+#define	IPI_STATCLOCK		XSTATCLOCK_OFFSET
 
 /* global data in mpboot.s */
 extern int			bootMP_size;
@@ -49,18 +63,8 @@ extern int			bootMP_size;
 /* functions in mpboot.s */
 void	bootMP			__P((void));
 
-/* global data in apic_vector.s */
-extern volatile u_int		stopped_cpus;
-extern volatile u_int		started_cpus;
-
-extern volatile u_int		checkstate_probed_cpus;
-extern volatile u_int		checkstate_need_ast;
-extern volatile u_int		resched_cpus;
-extern void (*cpustop_restartfunc) __P((void));
-
 /* global data in mp_machdep.c */
 extern int			bsp_apic_ready;
-extern int			mp_ncpus;
 extern int			mp_naps;
 extern int			mp_nbusses;
 extern int			mp_napics;
@@ -81,14 +85,11 @@ struct apic_intmapinfo {
 	int redirindex;
 };
 extern struct apic_intmapinfo	int_to_apicintpin[];
-extern u_int			all_cpus;
 extern struct pcb		stoppcbs[];
 
 /* functions in mp_machdep.c */
+void	i386_mp_probe		__P((void));
 u_int	mp_bootaddress		__P((u_int));
-int	mp_probe		__P((void));
-void	mp_start		__P((void));
-void	mp_announce		__P((void));
 u_int	isa_apic_mask		__P((u_int));
 int	isa_apic_irq		__P((int));
 int	pci_apic_irq		__P((int, int, int));
@@ -107,20 +108,17 @@ void	revoke_apic_irq		__P((int irq));
 void	bsp_apic_configure	__P((void));
 void	init_secondary		__P((void));
 void	smp_invltlb		__P((void));
-int	stop_cpus		__P((u_int));
-int	restart_cpus		__P((u_int));
-void	forward_statclock	__P((int pscnt));
-void	forward_hardclock	__P((int pscnt));
-void	forward_signal		__P((struct proc *));
-void	forward_roundrobin	__P((void));
+void	forward_statclock	__P((void));
+void	forwarded_statclock	__P((struct trapframe frame));
+void	forward_hardclock	__P((void));
+void	forwarded_hardclock	__P((struct trapframe frame));
+void	ipi_selected		__P((u_int cpus, u_int ipi));
+void	ipi_all			__P((u_int ipi));
+void	ipi_all_but_self	__P((u_int ipi));
+void	ipi_self		__P((u_int ipi));
 #ifdef	APIC_INTR_REORDER
 void	set_lapic_isrloc	__P((int, int));
 #endif /* APIC_INTR_REORDER */
-void	smp_rendezvous_action	__P((void));
-void	smp_rendezvous		__P((void (*)(void *), 
-				     void (*)(void *),
-				     void (*)(void *),
-				     void *arg));
 
 /* global data in mpapic.c */
 extern volatile lapic_t		lapic;
@@ -147,8 +145,6 @@ void	io_apic_write		__P((int, int, u_int));
 
 /* global data in init_smp.c */
 extern int			invltlb_ok;
-extern int			smp_active;
-extern int			smp_started;
 extern volatile int		smp_idle_loops;
 
 #endif /* !LOCORE */

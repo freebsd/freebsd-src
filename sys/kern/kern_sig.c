@@ -62,6 +62,7 @@
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
 #include <sys/resourcevar.h>
+#include <sys/smp.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/syslog.h>
@@ -70,7 +71,6 @@
 #include <sys/malloc.h>
 
 #include <machine/cpu.h>
-#include <machine/smp.h>
 
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
 
@@ -1301,12 +1301,11 @@ psignal(p, sig)
 		 */
 		if (p->p_stat == SRUN) {
 			signotify(p);
-			mtx_unlock_spin(&sched_lock);
 #ifdef SMP
 			forward_signal(p);
 #endif
-		} else
-			mtx_unlock_spin(&sched_lock);
+		}
+		mtx_unlock_spin(&sched_lock);
 		goto out;
 	}
 	/*NOTREACHED*/

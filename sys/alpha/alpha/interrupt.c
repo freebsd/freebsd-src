@@ -52,6 +52,7 @@
 #include <sys/kthread.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
+#include <sys/smp.h>
 #include <sys/unistd.h>
 
 #include <machine/reg.h>
@@ -83,7 +84,7 @@ void (*perf_irq)(unsigned long, struct trapframe *) = dummy_perf;
 
 
 static u_int schedclk2;
-static driver_intr_t alpha_clock_interrupt;
+static void alpha_clock_interrupt(struct trapframe *framep);
 
 void
 interrupt(a0, a1, a2, framep)
@@ -453,7 +454,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 }
 
 static void
-alpha_clock_interrupt(void *framep)
+alpha_clock_interrupt(struct trapframe *framep)
 {
 
 	cnt.v_intr++;
@@ -462,10 +463,26 @@ alpha_clock_interrupt(void *framep)
 #else
 	intrcnt[INTRCNT_CLOCK]++;
 #endif
-	if (platform.clockintr){
-		(*platform.clockintr)((struct trapframe *)framep);
-		/* divide hz (1024) by 8 to get stathz (128) */
-		if((++schedclk2 & 0x7) == 0)
-			statclock((struct clockframe *)framep);
+	if (platform.clockintr) {
+#ifdef SMP
+		/*
+		 * Only one processor drives the actual timer.
+		 */
+		if (PCPU_GET(cpuid) == boot_cpu_id) {
+#endif
+			(*platform.clockintr)(framep);
+			/* divide hz (1024) by 8 to get stathz (128) */
+			if ((++schedclk2 & 0x7) == 0)
+				statclock((struct clockframe *)framep);
+#ifdef SMP
+		} else {
+			mtx_lock_spin(&sched_lock);
+			hardclock_process(curproc, TRAPF_USERMODE(framep));
+			if ((schedclk2 & 0x7) == 0)
+				statclock_process(curproc, TRAPF_PC(framep),
+				    TRAPF_USERMODE(framep));
+			mtx_unlock_spin(&sched_lock);
+		}
+#endif
 	}
 }

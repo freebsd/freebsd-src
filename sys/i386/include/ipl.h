@@ -42,23 +42,4 @@
 #include <i386/isa/icu_ipl.h>
 #endif
 
-#ifndef LOCORE
-#ifdef SMP
-
-/*
- * Interprocessor interrupts for SMP.
- */
-#define IPI_INVLTLB		XINVLTLB_OFFSET
-#define IPI_RENDEZVOUS		XRENDEZVOUS_OFFSET
-#define IPI_AST			XCPUAST_OFFSET
-#define IPI_CHECKSTATE		XCPUCHECKSTATE_OFFSET
-#define IPI_STOP		XCPUSTOP_OFFSET
-
-void ipi_selected(u_int32_t cpus, u_int ipi);
-void ipi_all(u_int ipi);
-void ipi_all_but_self(u_int ipi);
-void ipi_self(u_int ipi);
-#endif /* SMP */
-#endif /* !LOCORE */
-
 #endif /* !_MACHINE_IPL_H_ */

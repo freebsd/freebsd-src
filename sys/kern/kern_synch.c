@@ -52,6 +52,7 @@
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
+#include <sys/smp.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
@@ -64,7 +65,6 @@
 #endif
 
 #include <machine/cpu.h>
-#include <machine/smp.h>
 
 static void sched_setup __P((void *dummy));
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
@@ -110,7 +110,7 @@ maybe_resched(p)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (p->p_pri.pri_level < curproc->p_pri.pri_level)
-		need_resched();
+		need_resched(curproc);
 }
 
 int 
@@ -129,11 +129,11 @@ roundrobin(arg)
 {
 
 	mtx_lock_spin(&sched_lock);
-	need_resched();
-	mtx_unlock_spin(&sched_lock);
+	need_resched(curproc);
 #ifdef SMP
 	forward_roundrobin();
 #endif
+	mtx_unlock_spin(&sched_lock);
 
 	callout_reset(&roundrobin_callout, sched_quantum, roundrobin, NULL);
 }
@@ -911,7 +911,7 @@ mi_switch()
 	sched_nest = sched_lock.mtx_recurse;
 	curproc->p_lastcpu = curproc->p_oncpu;
 	curproc->p_oncpu = NOCPU;
-	clear_resched();
+	clear_resched(curproc);
 	cpu_switch();
 	curproc->p_oncpu = PCPU_GET(cpuid);
 	sched_lock.mtx_recurse = sched_nest;

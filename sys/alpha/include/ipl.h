@@ -30,23 +30,4 @@
 #define	_MACHINE_IPL_H_
 
 
-#include <machine/cpu.h> 	/* for pal inlines */
-
-#ifdef SMP
-/*
- * Interprocessor interrupts for SMP.
- */
-#define IPI_INVLTLB		0x0001
-#define IPI_RENDEZVOUS		0x0002
-#define IPI_AST			0x0004
-#define IPI_CHECKSTATE		0x0008
-#define IPI_STOP		0x0010
-
-void ipi_selected(u_int32_t cpus, u_int64_t ipi);
-void ipi_all(u_int64_t ipi);
-void ipi_all_but_self(u_int64_t ipi);
-void ipi_self(u_int64_t ipi);
-void smp_handle_ipi(struct trapframe *frame);
-#endif
-
 #endif /* !_MACHINE_IPL_H_ */

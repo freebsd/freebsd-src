@@ -66,14 +66,7 @@ struct globaldata {
 #endif
 };
 
-SLIST_HEAD(cpuhead, globaldata);
-extern struct cpuhead cpuhead;
-
 void globaldata_init(struct globaldata *pcpu, int cpuid, size_t sz);
-struct globaldata *globaldata_find(int cpuid);
-#ifdef SMP
-void globaldata_register(struct globaldata *pcpu);
-#endif
 
 #endif	/* _KERNEL */
 

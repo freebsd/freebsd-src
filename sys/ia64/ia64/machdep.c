@@ -82,8 +82,6 @@ u_int32_t cycles_per_sec;
 int cold = 1;
 struct bootinfo_kernel bootinfo;
 
-struct cpuhead cpuhead;
-
 struct mtx sched_lock;
 struct mtx Giant;
 
@@ -578,12 +576,6 @@ ia64_init()
 	proc0.p_addr->u_pcb.pcb_bspstore = (u_int64_t) (proc0.p_addr + 1);
 	proc0.p_md.md_tf =
 	    (struct trapframe *)(proc0.p_addr->u_pcb.pcb_sp + 16);
-
-	/*
-	 * Record all cpus in a list.
-	 */
-	SLIST_INIT(&cpuhead);
-	SLIST_INSERT_HEAD(&cpuhead, GLOBALP, gd_allcpu);
 
 	/* Setup curproc so that mutexes work */
 	PCPU_SET(curproc, &proc0);
@@ -1366,4 +1358,17 @@ ia64_fpstate_switch(struct proc *p)
 	p->p_md.md_tf->tf_cr_ipsr &= ~IA64_PSR_DFH;
 
 	p->p_md.md_flags |= MDP_FPUSED;
+}
+
+/*
+ * Initialise a struct globaldata.
+ */
+void
+globaldata_init(struct globaldata *globaldata, int cpuid, size_t sz)
+{
+	bzero(globaldata, sz);
+	globaldata->gd_cpuid = cpuid;
+#ifdef SMP
+	globaldata_register(globaldata);
+#endif
 }

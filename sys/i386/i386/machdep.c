@@ -66,6 +66,7 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/reboot.h>
+#include <sys/smp.h>
 #include <sys/callout.h>
 #include <sys/msgbuf.h>
 #include <sys/sysent.h>
@@ -104,9 +105,6 @@
 #include <machine/globaldata.h>
 #include <machine/globals.h>
 #include <machine/intrcnt.h>
-#ifdef SMP
-#include <machine/smp.h>
-#endif
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
@@ -248,8 +246,6 @@ static struct trapframe proc0_tf;
 #ifndef SMP
 static struct globaldata __globaldata;
 #endif
-
-struct cpuhead cpuhead;
 
 struct mtx sched_lock;
 struct mtx Giant;
@@ -441,17 +437,12 @@ again:
 	bufinit();
 	vm_pager_bufferinit();
 
-	SLIST_INIT(&cpuhead);
-	SLIST_INSERT_HEAD(&cpuhead, GLOBALDATA, gd_allcpu);
-
 #ifdef SMP
-	/*
-	 * OK, enough kmem_alloc/malloc state should be up, lets get on with it!
-	 */
-	mp_start();			/* fire up the APs and APICs */
-	mp_announce();
-#endif  /* SMP */
+	globaldata_register(GLOBALDATA);
+#else
+	/* For SMP, we delay the cpu_setregs() until after SMP startup. */
 	cpu_setregs();
+#endif
 }
 
 /*
@@ -1631,7 +1622,7 @@ physmap_done:
 	physmap[1] = mp_bootaddress(physmap[1] / 1024);
 
 	/* look for the MP hardware - needed for apic addresses */
-	mp_probe();
+	i386_mp_probe();
 #endif
 
 	/*

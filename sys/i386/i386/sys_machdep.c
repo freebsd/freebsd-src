@@ -41,6 +41,7 @@
 #include <sys/ipl.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 
 #include <vm/vm.h>
 #include <sys/lock.h>
@@ -53,9 +54,6 @@
 #include <machine/cpu.h>
 #include <machine/pcb_ext.h>	/* pcb.h included by sys/user.h */
 #include <machine/sysarch.h>
-#ifdef SMP
-#include <machine/smp.h>
-#endif
 
 #include <vm/vm_kern.h>		/* for kernel_map */
 
@@ -154,7 +152,15 @@ i386_extend_pcb(struct proc *p)
 	ssdtosd(&ssd, &ext->ext_tssd);
 	
 	/* switch to the new TSS after syscall completes */
-	need_resched();
+	/*
+	 * XXX: The sched_lock here needs to be over a slightly larger area.
+	 * I have patches to more properly lock accesses to process ldt's
+	 * and tss's that still need to be reviewed, but this keeps us from
+	 * panic'ing on the mtx_assert() in need_resched() for the time being.
+	 */
+	mtx_lock_spin(&sched_lock);
+	need_resched(p);
+	mtx_unlock_spin(&sched_lock);
 
 	return 0;
 }
