@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.32 1997/06/22 16:04:18 peter Exp $
+ * $Id: kern_synch.c,v 1.33 1997/08/08 22:48:57 julian Exp $
  */
 
 #include "opt_ktrace.h"
@@ -349,8 +349,15 @@ tsleep(ident, priority, wmesg, timo)
 		return (0);
 	}
 #ifdef DIAGNOSTIC
+	if( p == NULL ) 
+		panic("tsleep1");
 	if (ident == NULL || p->p_stat != SRUN)
 		panic("tsleep");
+	/* XXX This is not exhaustive, just the most common case */
+	if ((p->p_procq.tqe_next != NULL)
+	&&  (p->p_procq.tqe_next == p->p_procq.tqe_prev)
+	&&  (*p->p_procq.tqe_prev == p))
+		panic("sleeping process on run queue");
 #endif
 	p->p_wchan = ident;
 	p->p_wmesg = wmesg;
