@@ -795,6 +795,7 @@ struct seeprom_config {
 	uint16_t res_1[10];		/* words 20-29 */
 	uint16_t signature;		/* Signature == 0x250 */
 #define		CFSIGNATURE	0x250
+#define		CFSIGNATURE2	0x300
 	uint16_t checksum;		/* word 31 */
 };
 
