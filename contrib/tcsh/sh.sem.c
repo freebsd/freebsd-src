@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.sem.c,v 3.48 1998/11/24 18:17:37 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.sem.c,v 3.51 2000/11/11 23:03:38 christos Exp $ */
 /*
  * sh.sem.c: I/O redirections and job forking. A touchy issue!
  *	     Most stuff with builtins is incorrect
@@ -37,13 +37,13 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.sem.c,v 3.48 1998/11/24 18:17:37 christos Exp $")
+RCSID("$Id: sh.sem.c,v 3.51 2000/11/11 23:03:38 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 #include "nt.const.h"
-#endif /*WINNT*/
+#endif /*WINNT_NATIVE*/
 
 #ifdef CLOSE_ON_EXEC
 # ifndef SUNOS4
@@ -116,7 +116,7 @@ execute(t, wanttty, pipein, pipeout)
     if (t == 0) 
 	return;
 
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     {
         if ((varval(STRNTslowexec) == STRNULL) &&
             !t->t_dcdr && !t->t_dcar && !t->t_dflg && !didfds &&
@@ -129,7 +129,7 @@ execute(t, wanttty, pipein, pipeout)
                 return;
         }
     }
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
     /*
      * Ed hutchins@sgi.com & Dominic dbg@sgi.com
@@ -164,9 +164,9 @@ execute(t, wanttty, pipein, pipeout)
 	pathname = short2str(sCName);
 	/* if this is a dir, tack a "cd" on as the first arg */
 	if ((stat(pathname, &stbuf) != -1 && S_ISDIR(stbuf.st_mode))
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 	    || (pathname[0] && pathname[1] == ':' && pathname[2] == '\0')
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 	) {
 	    Char *vCD[2];
 	    Char **ot_dcom = t->t_dcom;
@@ -349,7 +349,7 @@ execute(t, wanttty, pipein, pipeout)
 	 * We have to fork for eval too.
 	 */
 	    (bifunc && (t->t_dflg & F_PIPEIN) != 0 &&
-	     bifunc->bfunct == (bfunc_t)doeval))
+	     bifunc->bfunct == (bfunc_t)doeval)) {
 #ifdef VFORK
 	    if (t->t_dtyp == NODE_PAREN ||
 		t->t_dflg & (F_REPEAT | F_AMPERSAND) || bifunc)
@@ -586,6 +586,7 @@ execute(t, wanttty, pipein, pipeout)
 
 	    }
 #endif /* VFORK */
+	}
 	if (pid != 0) {
 	    /*
 	     * It would be better if we could wait for the whole job when we

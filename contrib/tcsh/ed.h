@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.h,v 3.28 1998/11/24 18:17:21 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.h,v 3.30 2000/11/11 23:03:34 christos Exp $ */
 /*
  * ed.h: Editor declarations and globals
  */
@@ -44,11 +44,9 @@
 #define TABSIZE		8	/* usually 8 spaces/tab */
 #define MAXMACROLEVELS	10	/* max number of nested kbd macros */
 
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 # define NT_NUM_KEYS	256
-#endif /* WINNT */
-
-extern int errno;
+#endif /* WINNT_NATIVE */
 
 /****************************************************************************/
 /* stuff for the different states returned by the character editor routines */
@@ -190,9 +188,9 @@ EXTERN Char T_HasMeta;		/* true if we have a meta key */
  * Terminal dependend data structures
  */
 typedef struct {
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     int dummy;
-#else /* !WINNT */
+#else /* !WINNT_NATIVE */
 # if defined(POSIX) || defined(TERMIO)
 #  ifdef POSIX
     struct termios d_t;
@@ -216,7 +214,7 @@ typedef struct {
 # ifdef TIOCGLTC
     struct ltchars d_ltc;
 # endif /* TIOCGLTC */
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 } ttydata_t;
 
 #define MODE_INSERT	0
