@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.63 1997/12/04 21:20:58 jmg Exp $
+#	$Id: options.i386,v 1.64 1997/12/09 11:56:19 yokota Exp $
 
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
@@ -24,7 +24,7 @@ COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
 DSI_SOFT_MODEM		opt_sio.h
 EXTRA_SIO		opt_sio.h
-I586_CTR_GUPROF		opt_i586_guprof.h
+TSC_GUPROF		opt_i586_guprof.h
 I586_PMC_GUPROF		opt_i586_guprof.h
 WLCACHE			opt_wavelan.h
 WLDEBUG			opt_wavelan.h
