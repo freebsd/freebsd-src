@@ -65,6 +65,11 @@ struct kevent {
 #define EV_ERROR	0x4000		/* error, data contains errno */
 
 /*
+ * data/hint flags for EVFILT_{READ|WRITE}, shared with userspace
+ */
+#define NOTE_LOWAT	0x0001			/* low water mark */
+
+/*
  * data/hint flags for EVFILT_VNODE, shared with userspace
  */
 #define	NOTE_DELETE	0x0001			/* vnode was removed */
