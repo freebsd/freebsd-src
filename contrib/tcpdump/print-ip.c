@@ -155,22 +155,95 @@ igmp_print(register const u_char *bp, register u_int len,
 	TCHECK2(bp[0], 8);
 	switch (bp[0]) {
 	case 0x11:
-		(void)printf("igmp query");
+		(void)printf("igmp %s query", bp[1] ? "v2" : "v1");
+		if (bp[1] && bp[1] != 100)
+			(void)printf(" [intvl %d]", bp[1]);
 		if (*(int *)&bp[4])
 			(void)printf(" [gaddr %s]", ipaddr_string(&bp[4]));
 		if (len != 8)
 			(void)printf(" [len %d]", len);
 		break;
 	case 0x12:
-		(void)printf("igmp report %s", ipaddr_string(&bp[4]));
+	case 0x16:
+		(void)printf("igmp %s report %s",
+			     bp[0] & 0x0f == 6 ? "v2" : "v1",
+			     ipaddr_string(&bp[4]));
 		if (len != 8)
 			(void)printf(" [len %d]", len);
-		break;
-	case 0x16:
-		(void)printf("igmp nreport %s", ipaddr_string(&bp[4]));
+		if (bp[1])
+			(void)printf(" [b1=0x%x]", bp[1]);
 		break;
 	case 0x17:
 		(void)printf("igmp leave %s", ipaddr_string(&bp[4]));
+		switch(bp[1]) {
+		case 1:
+			(void)printf(" probe");
+			if (len < 8)
+				(void)printf(" [len %d]", len);
+			if (vflag) {
+				if (len > 8)
+					(void)printf(" genid 0x%08x",
+						     ntohl(*(u_int32_t *)&bp[8]));
+				(void)printf(" [nf 0x%02x]", bp[5]);
+			}
+			if (len > 12) {
+				int i;
+				for (i = 12; i + 3 < len; i += 4)
+					(void)printf("\n\t%s",
+						     ipaddr_string(&bp[i]));
+			}
+			break;
+		case 2:
+			(void)printf(" report");
+			if (vflag)
+				(void)printf(" [nf 0x%02x]", bp[5]);
+			if (len < 8)
+				(void)printf(" [len %d]", len);
+			break;
+		case 3:
+		case 5:
+			(void)printf(" %sneighbor query",
+				     bp[1] == 5 ? "new " : "");
+			if (len < 8)
+				(void)printf(" [len %d]", len);
+			break;
+		case 4:
+		case 6:
+			(void)printf(" %sneighbor list",
+				     bp[1] == 6 ? "new " : "");
+			if (len < 8)
+				(void)printf(" [len %d]", len);
+			break;
+		case 7:
+			(void)printf(" prune %s from ", ipaddr_string(&bp[12]));
+			(void)printf(" %s timer %d", ipaddr_string(&bp[8]),
+				     ntohl(*(u_int32_t *)&bp[16]));
+			if (len != 20)
+				(void)printf(" [len %d]", len);
+			break;
+		case 8:
+			(void)printf(" graft %s from ", ipaddr_string(&bp[12]));
+			(void)printf(" %s", ipaddr_string(&bp[8]));
+			if (len != 16)
+				(void)printf(" [len %d]", len);
+			break;
+		case 9:
+			(void)printf(" graft ack %s from ",
+				     ipaddr_string(&bp[12]));
+			(void)printf(" %s", ipaddr_string(&bp[8]));
+			if (len != 16)
+				(void)printf(" [len %d]", len);
+			break;
+		default:
+			(void)printf("-%d", bp[1]);
+			if (len != 8)
+				(void)printf(" [len %d]", len);
+			break;
+		}
+
+		if (bp[7] != 3 || (bp[7] == 3 && (bp[6] > 5 || bp[6] < 4)))
+			(void)printf(" [v%d.%d]", bp[7], bp[6]);
+
 		break;
 	case 0x13:
 		(void)printf("igmp dvmrp");
@@ -191,10 +264,10 @@ igmp_print(register const u_char *bp, register u_int len,
 		break;
 	default:
 		(void)printf("igmp-%d", bp[0] & 0xf);
+		if (bp[1])
+			(void)printf(" [b1=0x%02x]", bp[1]);
 		break;
 	}
-	if ((bp[0] >> 4) != 1)
-		(void)printf(" [v%d]", bp[0] >> 4);
 
 	TCHECK2(bp[0], len);
 	if (vflag) {
@@ -294,6 +367,12 @@ ip_optprint(register const u_char *cp, u_int length)
 
 		case IPOPT_LSRR:
 			ip_printroute("LSRR", cp, len);
+			break;
+
+		case IPOPT_RA:
+			printf(" RA{%d}", len);
+			if (cp[2] != 0 || cp[3] != 0)
+				printf(" [b23=0x04%x]", cp[2] << 8 | cp[3]);
 			break;
 
 		default:
