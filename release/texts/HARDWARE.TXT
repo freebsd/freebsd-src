@@ -550,7 +550,7 @@ RealTek 8129/8139 fast ethernet NICs including the following:
   OvisLink LEF-8139TX
   Netronix Inc. EA-1210 NetEther 10/100
   KTX-9130TX 10/100 Fast Ethernet
-  Accton "Cheetah" EN1027D (MPX 5030/5038; RealTek 8139 clone?)
+  Accton "Cheetah" EN1207D (MPX 5030/5038; RealTek 8139 clone)
   SMC EZ Card 10/100 PCI 1211-TX
 
 Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:

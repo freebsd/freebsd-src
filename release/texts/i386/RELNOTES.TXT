@@ -48,6 +48,11 @@ Write combining for crashdumps has been implemented.  This feature
 is useful when write caching is disabled on both SCSI and IDE disks,
 where large memory dumps could take up to an hour to complete.
 
+The pccard driver and pccardc(8) now support multiple "beep types"
+upon card insertion and removal.
+
+The twe(4) driver for 3Ware Escalade controllers has been updated.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -65,6 +70,11 @@ Binutils have been upgraded to 2.10.1.
 OpenSSL has been upgraded to 0.9.6.
 
 file(1) has been contribify-ed, and imported as version 3.33.
+
+groff(1) and its related utilities have been updated to FSF version
+1.16.1.
+
+indent(1) has gained some new formatting options.
 
 
 2. Supported Configurations
@@ -287,7 +297,7 @@ RealTek 8129/8139 Fast Ethernet NICs including the following:
   OvisLink LEF-8139TX
   Netronix Inc. EA-1210 NetEther 10/100
   KTX-9130TX 10/100 Fast Ethernet
-  Accton "Cheetah" EN1027D (MPX 5030/5038; RealTek 8139 clone?)
+  Accton "Cheetah" EN1207D (MPX 5030/5038; RealTek 8139 clone)
   SMC EZ Card 10/100 PCI 1211-TX
 
 Lite-On 82c168/82c169 PNIC Fast Ethernet NICs including the following:
