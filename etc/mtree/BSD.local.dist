@@ -40,6 +40,7 @@
     libexec
     ..
     man
+/set uname=man
         cat1
         ..
         cat2
@@ -62,7 +63,7 @@
         ..
         catn
         ..
-        de.ISO8859-1
+        de.ISO8859-1    uname=root
             cat1
             ..
             cat2
@@ -85,6 +86,7 @@
             ..
             catn
             ..
+/set uname=root
             man1
             ..
             man2
@@ -109,6 +111,7 @@
             ..
         ..
         en.ISO8859-1
+/set uname=man
             cat1
             ..
             cat1aout
@@ -142,7 +145,7 @@
             catn
             ..
         ..
-        ja
+        ja              uname=root
             cat1
             ..
             cat2
@@ -165,6 +168,7 @@
             ..
             catn
             ..
+/set uname=root
             man1
             ..
             man2
