@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.49 1996/05/31 00:37:58 dyson Exp $
+ * $Id: vm_map.c,v 1.50 1996/06/12 04:03:21 dyson Exp $
  */
 
 /*
@@ -663,11 +663,7 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 				map->size += (end - prev_entry->end);
 				prev_entry->end = end;
 				prev_object = prev_entry->object.vm_object;
-				if (prev_object &&
-					(prev_object->type == OBJT_DEFAULT) &&
-					(prev_object->size >= ((cnt.v_page_count - cnt.v_wire_count) / 4))) {
-					default_pager_convert_to_swap(prev_object);
-				}
+				default_pager_convert_to_swapq(prev_object);
 				return (KERN_SUCCESS);
 			}
 		}
@@ -715,13 +711,7 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 		(prev_entry->end >= new_entry->start))
 		map->first_free = new_entry;
 
-	if (object &&
-		(object != kernel_object) &&
-		(object != kmem_object) &&
-		(object->type == OBJT_DEFAULT) &&
-		(object->size >= ((cnt.v_page_count - cnt.v_wire_count) / 4))) {
-			default_pager_convert_to_swap(object);
-		}
+	default_pager_convert_to_swapq(object);
 	return (KERN_SUCCESS);
 }
 
@@ -861,7 +851,7 @@ vm_map_simplify_entry(map, entry)
 		prevsize = prev->end - prev->start;
 		if ( (prev->end == entry->start) &&
 		     (prev->object.vm_object == entry->object.vm_object) &&
-		     (prev->object.vm_object || (prev->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
+		     (!prev->object.vm_object || (prev->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
 		     (!prev->object.vm_object ||
 			(prev->offset + prevsize == entry->offset)) &&
 		     (prev->needs_copy == entry->needs_copy) &&
@@ -891,7 +881,7 @@ vm_map_simplify_entry(map, entry)
 		esize = entry->end - entry->start;
 		if ((entry->end == next->start) &&
 		    (next->object.vm_object == entry->object.vm_object) &&
-		    (next->object.vm_object || (next->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
+		    (!next->object.vm_object || (next->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
 		     (!entry->object.vm_object ||
 			(entry->offset + esize == next->offset)) &&
 		    (next->needs_copy == entry->needs_copy) &&
@@ -1462,7 +1452,8 @@ vm_map_pageable(map, start, end, new_pageable)
 				 * hold the lock on the sharing map.
 				 */
 				if (!entry->is_a_map && !entry->is_sub_map) {
-					if (entry->needs_copy &&
+					int copyflag = entry->needs_copy;
+					if (copyflag &&
 					    ((entry->protection & VM_PROT_WRITE) != 0)) {
 
 						vm_object_shadow(&entry->object.vm_object,
@@ -1476,6 +1467,7 @@ vm_map_pageable(map, start, end, new_pageable)
 							OFF_TO_IDX(entry->end - entry->start));
 						entry->offset = (vm_offset_t) 0;
 					}
+					default_pager_convert_to_swapq(entry->object.vm_object);
 				}
 			}
 			vm_map_clip_start(map, entry, start);
@@ -1707,16 +1699,14 @@ vm_map_entry_delete(map, entry)
 	register vm_map_t map;
 	register vm_map_entry_t entry;
 {
-	if (entry->wired_count != 0)
-		vm_map_entry_unwire(map, entry);
-
 	vm_map_entry_unlink(map, entry);
 	map->size -= entry->end - entry->start;
 
-	if (entry->is_a_map || entry->is_sub_map)
+	if (entry->is_a_map || entry->is_sub_map) {
 		vm_map_deallocate(entry->object.share_map);
-	else
+	} else {
 		vm_object_deallocate(entry->object.vm_object);
+	}
 
 	vm_map_entry_dispose(map, entry);
 }
@@ -2266,6 +2256,9 @@ RetryLookup:;
 		entry->offset = 0;
 		lock_write_to_read(&share_map->lock);
 	}
+
+	if (entry->object.vm_object != NULL)
+		default_pager_convert_to_swapq(entry->object.vm_object);
 	/*
 	 * Return the object/offset from this entry.  If the entry was
 	 * copy-on-write or empty, it has been fixed up.
