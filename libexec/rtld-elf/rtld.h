@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.h,v 1.1.1.1 1998/03/07 19:24:35 jdp Exp $
+ *      $Id: rtld.h,v 1.2 1998/04/30 07:48:02 dfr Exp $
  */
 
 #ifndef RTLD_H /* { */
@@ -65,8 +65,8 @@ typedef struct Struct_Obj_Entry {
      * These two items have to be set right for compatibility with the
      * original ElfKit crt1.o.
      */
-    Elf32_Word magic;		/* Magic number (sanity check) */
-    Elf32_Word version;		/* Version number of struct format */
+    Elf_Word magic;		/* Magic number (sanity check) */
+    Elf_Word version;		/* Version number of struct format */
 
     struct Struct_Obj_Entry *next;
     char *path;			/* Pathname of underlying file (%) */
@@ -77,26 +77,26 @@ typedef struct Struct_Obj_Entry {
     caddr_t mapbase;		/* Base address of mapped region */
     size_t mapsize;		/* Size of mapped region in bytes */
     size_t textsize;		/* Size of text segment in bytes */
-    Elf32_Addr vaddrbase;	/* Base address in shared object file */
+    Elf_Addr vaddrbase;		/* Base address in shared object file */
     caddr_t relocbase;		/* Relocation constant = mapbase - vaddrbase */
-    const Elf32_Dyn *dynamic;	/* Dynamic section */
+    const Elf_Dyn *dynamic;	/* Dynamic section */
     caddr_t entry;		/* Entry point */
-    const Elf32_Phdr *phdr;	/* Program header if it is mapped, else NULL */
+    const Elf_Phdr *phdr;	/* Program header if it is mapped, else NULL */
     size_t phsize;		/* Size of program header in bytes */
 
     /* Items from the dynamic section. */
-    Elf32_Addr *got;		/* GOT table */
-    const Elf32_Rel *rel;	/* Relocation entries */
+    Elf_Addr *got;		/* GOT table */
+    const Elf_Rel *rel;		/* Relocation entries */
     unsigned long relsize;	/* Size in bytes of relocation info */
-    const Elf32_Rel *pltrel;	/* PLT relocation entries */
+    const Elf_Rel *pltrel;	/* PLT relocation entries */
     unsigned long pltrelsize;	/* Size in bytes of PLT relocation info */
-    const Elf32_Sym *symtab;	/* Symbol table */
+    const Elf_Sym *symtab;	/* Symbol table */
     const char *strtab;		/* String table */
     unsigned long strsize;	/* Size in bytes of string table */
 
-    const Elf32_Word *buckets;	/* Hash table buckets array */
+    const Elf_Word *buckets;	/* Hash table buckets array */
     unsigned long nbuckets;	/* Number of buckets */
-    const Elf32_Word *chains;	/* Hash table chain array */
+    const Elf_Word *chains;	/* Hash table chain array */
     unsigned long nchains;	/* Number of chains */
 
     const char *rpath;		/* Search path specified in object */
