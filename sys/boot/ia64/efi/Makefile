@@ -38,6 +38,7 @@ CFLAGS+= -DLOADER
 
 LDSCRIPT=	${.CURDIR}/../libefi/arch/${MACHINE_ARCH}/ldscript.${MACHINE_ARCH}
 LDFLAGS=	-nostdlib -T ${LDSCRIPT} -shared -Bsymbolic
+OBJCOPY?=	objcopy
 
 CLEANFILES+=	setdef0.c setdef0.o setdef1.c setdef1.o setdefs.h start.o \
 		vers.c vers.o ${BASE}.efi ${BASE}.sym ${BASE}.list
