@@ -58,7 +58,6 @@
 #include <netatm/atm_pcb.h>
 #include <netatm/atm_var.h>
 
-#include <rpc/rpc.h>
 #include "spans_xdr.h"
 #include <netatm/spans/spans_var.h>
 
