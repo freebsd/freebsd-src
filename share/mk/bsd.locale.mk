@@ -2,6 +2,7 @@
 #
 # location-specific settings
 #
+#	$Id$
 
 .if !defined(LOCALE)
 LOCALE=			USA
