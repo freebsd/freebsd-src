@@ -170,8 +170,9 @@ static void zone_small_init(uma_zone_t zone);
 static void zone_large_init(uma_zone_t zone);
 static void zone_foreach(void (*zfunc)(uma_zone_t));
 static void zone_timeout(uma_zone_t zone);
-static void hash_expand(struct uma_hash *);
-static void hash_free(struct uma_hash *hash);
+static struct slabhead *hash_alloc(int *);
+static void hash_expand(struct uma_hash *, struct slabhead *, int);
+static void hash_free(struct slabhead *hash, int hashsize);
 static void uma_timeout(void *);
 static void uma_startup3(void);
 static void *uma_zalloc_internal(uma_zone_t, void *, int, uma_bucket_t);
@@ -286,8 +287,16 @@ zone_timeout(uma_zone_t zone)
 	if ((zone->uz_flags & UMA_ZFLAG_OFFPAGE) &&
 	    !(zone->uz_flags & UMA_ZFLAG_MALLOC)) {
 		if (zone->uz_pages / zone->uz_ppera
-		    >= zone->uz_hash.uh_hashsize)
-			hash_expand(&zone->uz_hash);
+		    >= zone->uz_hash.uh_hashsize) {
+			struct slabhead *newhash;
+			int newsize;
+
+			newsize = zone->uz_hash.uh_hashsize;
+			ZONE_UNLOCK(zone);
+			newhash = hash_alloc(&newsize);
+			ZONE_LOCK(zone);
+			hash_expand(&zone->uz_hash, newhash, newsize);
+		}
 	}
 
 	/*
@@ -307,6 +316,43 @@ zone_timeout(uma_zone_t zone)
 }
 
 /*
+ * Allocate and zero fill the next sized hash table from the appropriate
+ * backing store.
+ *
+ * Arguments:
+ *	oldsize  On input it's the size we're currently at and on output
+ *		 it is the expanded size.
+ *
+ * Returns:
+ *	slabhead The new hash bucket or NULL if the allocation failed.
+ */
+struct slabhead *
+hash_alloc(int *oldsize)
+{
+	struct slabhead *newhash;
+	int newsize;
+	int alloc;
+
+	/* We're just going to go to a power of two greater */
+	if (*oldsize)  {
+		newsize = (*oldsize) * 2;
+		alloc = sizeof(newhash[0]) * newsize;
+		/* XXX Shouldn't be abusing DEVBUF here */
+		newhash = (struct slabhead *)malloc(alloc, M_DEVBUF, M_NOWAIT);
+	} else {
+		alloc = sizeof(newhash[0]) * UMA_HASH_SIZE_INIT;
+		newhash = uma_zalloc_internal(hashzone, NULL, M_WAITOK, NULL);
+		newsize = UMA_HASH_SIZE_INIT;
+	}
+	if (newhash)
+		bzero(newhash, alloc);
+
+	*oldsize = newsize;
+
+	return (newhash);
+}
+
+/*
  * Expands the hash table for OFFPAGE zones.  This is done from zone_timeout
  * to reduce collisions.  This must not be done in the regular allocation path,
  * otherwise, we can recurse on the vm while allocating pages.
@@ -320,42 +366,24 @@ zone_timeout(uma_zone_t zone)
  * Discussion:
  */
 static void
-hash_expand(struct uma_hash *hash)
+hash_expand(struct uma_hash *hash, struct slabhead *newhash, int newsize)
 {
-	struct slabhead *newhash;
 	struct slabhead *oldhash;
 	uma_slab_t slab;
 	int oldsize;
-	int newsize;
-	int alloc;
 	int hval;
 	int i;
 
-
-	/*
-	 * Remember the old hash size and see if it has to go back to the
- 	 * hash zone, or malloc.  The hash zone is used for the initial hash
-	 */
+	if (!newhash)
+		return;
 
 	oldsize = hash->uh_hashsize;
 	oldhash = hash->uh_slab_hash;
 
-	/* We're just going to go to a power of two greater */
-	if (hash->uh_hashsize)  {
-		newsize = oldsize * 2;
-		alloc = sizeof(hash->uh_slab_hash[0]) * newsize;
-		/* XXX Shouldn't be abusing DEVBUF here */
-		newhash = (struct slabhead *)malloc(alloc, M_DEVBUF, M_NOWAIT);
-		if (newhash == NULL) {
-			return;
-		}
-	} else {
-		alloc = sizeof(hash->uh_slab_hash[0]) * UMA_HASH_SIZE_INIT;
-		newhash = uma_zalloc_internal(hashzone, NULL, M_WAITOK, NULL);
-		newsize = UMA_HASH_SIZE_INIT;
+	if (oldsize >= newsize) {
+		hash_free(newhash, newsize);
+		return;
 	}
-
-	bzero(newhash, alloc);
 
 	hash->uh_hashmask = newsize - 1;
 
@@ -373,7 +401,7 @@ hash_expand(struct uma_hash *hash)
 		}
 
 	if (oldhash) 
-		hash_free(hash);
+		hash_free(oldhash, oldsize);
 
 	hash->uh_slab_hash = newhash;
 	hash->uh_hashsize = newsize;
@@ -381,16 +409,24 @@ hash_expand(struct uma_hash *hash)
 	return;
 }
 
+/*
+ * Free the hash bucket to the appropriate backing store.
+ *
+ * Arguments:
+ *	slab_hash  The hash bucket we're freeing
+ *	hashsize   The number of entries in that hash bucket
+ *
+ * Returns:
+ *	Nothing
+ */
 static void
-hash_free(struct uma_hash *hash)
+hash_free(struct slabhead *slab_hash, int hashsize)
 {
-	if (hash->uh_hashsize == UMA_HASH_SIZE_INIT)
+	if (hashsize == UMA_HASH_SIZE_INIT)
 		uma_zfree_internal(hashzone,
-		    hash->uh_slab_hash, NULL, 0);
+		    slab_hash, NULL, 0);
 	else
-		free(hash->uh_slab_hash, M_DEVBUF);
-
-	hash->uh_slab_hash = NULL;
+		free(slab_hash, M_DEVBUF);
 }
 
 /*
@@ -1002,8 +1038,12 @@ zone_ctor(void *mem, int size, void *udata)
 			panic("UMA slab won't fit.\n");
 		}
 	} else {
-		/* hash_expand here to allocate the initial hash table */
-		hash_expand(&zone->uz_hash);
+		struct slabhead *newhash;
+		int hashsize;
+
+		hashsize = 0;
+		newhash = hash_alloc(&hashsize);
+		hash_expand(&zone->uz_hash, newhash, hashsize);	
 		zone->uz_pgoff = 0;
 	}
 
@@ -1071,7 +1111,8 @@ zone_dtor(void *arg, int size, void *udata)
 			CPU_LOCK_FINI(zone, cpu);
 
 	if ((zone->uz_flags & UMA_ZFLAG_OFFPAGE) != 0)
-		hash_free(&zone->uz_hash);
+		hash_free(zone->uz_hash.uh_slab_hash,
+		    zone->uz_hash.uh_hashsize);
 
 	ZONE_UNLOCK(zone);
 	ZONE_LOCK_FINI(zone);
