@@ -73,7 +73,7 @@ static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
-static int	pollscan __P((struct proc *, struct pollfd *, int));
+static int	pollscan __P((struct proc *, struct pollfd *, u_int));
 static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int));
 static int	dofileread __P((struct proc *, struct file *, int, void *,
 		    size_t, off_t, int));
@@ -852,13 +852,14 @@ struct poll_args {
 #endif
 int
 poll(p, uap)
-	register struct proc *p;
-	register struct poll_args *uap;
+	struct proc *p;
+	struct poll_args *uap;
 {
 	caddr_t bits;
 	char smallbits[32 * sizeof(struct pollfd)];
 	struct timeval atv, rtv, ttv;
-	int s, ncoll, error = 0, timo, nfds;
+	int s, ncoll, error = 0, timo;
+	u_int nfds;
 	size_t ni;
 
 	nfds = SCARG(uap, nfds);
@@ -869,8 +870,7 @@ poll(p, uap)
 	 * least enough for the current limits.  We want to be reasonably
 	 * safe, but not overly restrictive.
 	 */
-	if ((u_int)nfds > p->p_rlimit[RLIMIT_NOFILE].rlim_cur &&
-	    (u_int)nfds > FD_SETSIZE)
+	if (nfds > p->p_rlimit[RLIMIT_NOFILE].rlim_cur && nfds > FD_SETSIZE)
 		return (EINVAL);
 	ni = nfds * sizeof(struct pollfd);
 	if (ni > sizeof(smallbits))
@@ -946,7 +946,7 @@ static int
 pollscan(p, fds, nfd)
 	struct proc *p;
 	struct pollfd *fds;
-	int nfd;
+	u_int nfd;
 {
 	register struct filedesc *fdp = p->p_fd;
 	int i;
