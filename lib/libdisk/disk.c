@@ -173,8 +173,8 @@ Collapse_Disk(struct disk *d)
 static int
 qstrcmp(const void* a, const void* b)
 {
-	char *str1 = *(char**)a;
-	char *str2 = *(char**)b;
+	const char *str1 = *(char* const*)a;
+	const char *str2 = *(char* const*)b;
 
 	return strcmp(str1, str2);
 }

@@ -95,8 +95,9 @@ Int_Open_Disk(const char *name, char *conftxt)
 	d->sector_size = s;
 	len /= s;	/* media size in number of sectors. */
 
-	if (Add_Chunk(d, 0, len, name, whole, 0, 0, "-"))
+	if (Add_Chunk(d, 0, len, name, whole, 0, 0, "-")) {
 		DPRINT(("Failed to add 'whole' chunk"));
+	}
 
 	for (;;) {
 		a = strsep(&p, " ");
@@ -191,14 +192,16 @@ Int_Open_Disk(const char *name, char *conftxt)
 			o = d->chunks->size / (hd * sc);
 			o *= (hd * sc);
 			o -= alt * hd * sc;
-			if (Add_Chunk(d, 0, o, name, freebsd, 0, 0, "-"))
+			if (Add_Chunk(d, 0, o, name, freebsd, 0, 0, "-")) {
 				DPRINT(("Failed to add 'freebsd' chunk"));
+			}
 		}
 		if (platform == p_alpha && !strcmp(t, "BSD") &&
 		    d->chunks->part->part == NULL) {
 			if (Add_Chunk(d, 0, d->chunks->size, name, freebsd,
-				      0, 0, "-"))
+				      0, 0, "-")) {
 				DPRINT(("Failed to add 'freebsd' chunk"));
+			}
 		}
 		if (!strcmp(t, "BSD") && i == RAW_PART)
 			continue;
@@ -268,8 +271,9 @@ Int_Open_Disk(const char *name, char *conftxt)
 		o = d->chunks->size / (hd * sc);
 		o *= (hd * sc);
 		o -= 2 * hd * sc;
-		if (Add_Chunk(d, 0, o, name, freebsd, 0, 0, "-"))
+		if (Add_Chunk(d, 0, o, name, freebsd, 0, 0, "-")) {
 			DPRINT(("Failed to add 'freebsd' chunk"));
+		}
 	}
 	/* PLATFORM POLICY END --------------------------------------- */
 

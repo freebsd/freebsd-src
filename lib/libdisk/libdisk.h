@@ -273,6 +273,7 @@ struct disklabel;
 void Fill_Disklabel(struct disklabel *, const struct disk *,
 	const struct chunk *);
 void Debug_Chunk(struct chunk *);
+struct chunk *New_Chunk(void);
 void Free_Chunk(struct chunk *);
 struct chunk *Clone_Chunk(const struct chunk *);
 int Add_Chunk(struct disk *, daddr_t, daddr_t, const char *, chunk_e, int,
