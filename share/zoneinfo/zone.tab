@@ -1,4 +1,4 @@
-# @(#)zone.tab	1.20
+# @(#)zone.tab	1.22
 #
 # TZ zone descriptions
 #
@@ -37,6 +37,7 @@ AQ	-6448-06406	Antarctica/Palmer	Palmer Station, Anvers Island
 AQ	-6736+06253	Antarctica/Mawson	Mawson Station, Holme Bay
 AQ	-6835+07758	Antarctica/Davis	Davis Station, Vestfold Hills
 AQ	-6617+11031	Antarctica/Casey	Casey Station, Bailey Peninsula
+AQ	-7824+10654	Antarctica/Vostok	Vostok Station, S Magnetic Pole
 AQ	-6640+14001	Antarctica/DumontDUrville	Dumont-d'Urville Base, Terre Adelie
 AQ	-690022+0393524	Antarctica/Syowa	Syowa Station, E Ongul I
 AR	-3436-05827	America/Buenos_Aires	E Argentina (BA, DF, SC, TF)
@@ -51,7 +52,7 @@ AU	-3133+15905	Australia/Lord_Howe	Lord Howe Island
 AU	-4253+14719	Australia/Hobart	Tasmania
 AU	-3749+14458	Australia/Melbourne	Victoria
 AU	-3352+15113	Australia/Sydney	New South Wales - most locations
-AU	-3157+14127	Australia/Broken_Hill	New South Wales - Broken Hill
+AU	-3157+14127	Australia/Broken_Hill	New South Wales - Yancowinna
 AU	-2728+15302	Australia/Brisbane	Queensland - most locations
 AU	-2016+14900	Australia/Lindeman	Queensland - Holiday Islands
 AU	-3455+13835	Australia/Adelaide	South Australia
@@ -61,7 +62,7 @@ AW	+1230-06858	America/Aruba
 AZ	+4023+04951	Asia/Baku
 BA	+4352+01825	Europe/Sarajevo
 BB	+1306-05937	America/Barbados
-BD	+2343+09025	Asia/Dacca
+BD	+2343+09025	Asia/Dhaka
 BE	+5050+00420	Europe/Brussels
 BF	+1222-00131	Africa/Ouagadougou
 BG	+4241+02319	Europe/Sofia
@@ -71,17 +72,19 @@ BJ	+0629+00237	Africa/Porto-Novo
 BM	+3217-06446	Atlantic/Bermuda
 BN	+0456+11455	Asia/Brunei
 BO	-1630-06809	America/La_Paz
-BR	-0351-03225	America/Noronha	Fernando de Noronha
+BR	-0351-03225	America/Noronha	Atlantic islands
 BR	-0127-04829	America/Belem	Amapa, E Para
-BR	-0343-03830	America/Fortaleza	NE Brazil (MA, PI, CE, RN, PR, PE)
+BR	-0343-03830	America/Fortaleza	NE Brazil (MA, PI, CE, RN, PR)
+BR	-0803-03454	America/Recife	Pernambuco
 BR	-0712-04812	America/Araguaina	Tocantins
 BR	-0940-03543	America/Maceio	Alagoas, Sergipe
 BR	-2332-04637	America/Sao_Paulo	S & SE Brazil (BA, GO, DF, MG, ES, RJ, SP, PR, SC, RS)
 BR	-1535-05605	America/Cuiaba	Mato Grosso, Mato Grosso do Sul
 BR	-0846-06354	America/Porto_Velho	W Para, Rondonia
 BR	+0249-06040	America/Boa_Vista	Roraima
-BR	-0308-06001	America/Manaus	Amazonas
-BR	-0934-06731	America/Porto_Acre	Acre
+BR	-0308-06001	America/Manaus	E Amazonas
+BR	-0640-06952	America/Eirunepe	W Amazonas
+BR	-0958-06748	America/Rio_Branco	Acre
 BS	+2505-07721	America/Nassau
 BT	+2728+08939	Asia/Thimphu
 BW	-2545+02555	Africa/Gaborone
@@ -94,11 +97,11 @@ CA	+5320-06025	America/Goose_Bay	Atlantic Time - E Labrador
 CA	+4531-07334	America/Montreal	Eastern Time - Ontario & Quebec - most locations
 CA	+4901-08816	America/Nipigon	Eastern Time - Ontario & Quebec - places that did not observe DST 1967-1973
 CA	+4823-08915	America/Thunder_Bay	Eastern Time - Thunder Bay, Ontario
+CA	+6608-06544	America/Pangnirtung	Eastern Standard Time - Pangnirtung, Nunavut
+CA	+6344-06828	America/Iqaluit	Eastern Standard Time - east Nunavut
+CA	+6245-09210	America/Rankin_Inlet	Eastern Standard Time - central Nunavut
 CA	+4953-09709	America/Winnipeg	Central Time - Manitoba & west Ontario
 CA	+4843-09429	America/Rainy_River	Central Time - Rainy River & Fort Frances, Ontario
-CA	+6608-06544	America/Pangnirtung	Central Time - Pangnirtung, Nunavut
-CA	+6344-06828	America/Iqaluit	Central Time - east Nunavut
-CA	+6245-09210	America/Rankin_Inlet	Central Time - central Nunavut
 CA	+6903-10505	America/Cambridge_Bay	Central Time - west Nunavut
 CA	+5024-10439	America/Regina	Central Standard Time - Saskatchewan - most locations
 CA	+5017-10750	America/Swift_Current	Central Standard Time - Saskatchewan - midwest
@@ -225,8 +228,7 @@ LV	+5657+02406	Europe/Riga
 LY	+3254+01311	Africa/Tripoli
 MA	+3339-00735	Africa/Casablanca
 MC	+4342+00723	Europe/Monaco
-MD	+4700+02850	Europe/Chisinau	most locations
-MD	+4651+02938	Europe/Tiraspol	Transdniestria
+MD	+4700+02850	Europe/Chisinau
 MG	-1855+04731	Indian/Antananarivo
 MH	+0709+17112	Pacific/Majuro	most locations
 MH	+0905+16720	Pacific/Kwajalein	Kwajalein

@@ -1,4 +1,4 @@
-# @(#)southamerica	7.37
+# @(#)southamerica	7.40
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -249,7 +249,12 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 # <a href="http://pcdsh01.on.br/verao1.html">
 # Brazilian official page
 # </a>
-#
+
+# From Jesper Norgaard (2000-11-03):
+# [For an official list of which regions in Brazil use which time zones, see:]
+# http://pcdsh01.on.br/Fusbr.htm
+# http://pcdsh01.on.br/Fusbrhv.htm
+
 # From Paul Eggert (2000-10-02):
 # The official decrees referenced below are taken from
 # <a href="http://pcdsh01.on.br/DecHV.html">
@@ -373,6 +378,11 @@ Rule	Brazil	1999	only	-	Oct	 3	 0:00	1:00	S
 Rule	Brazil	2000	only	-	Feb	27	 0:00	0	-
 # Decree <a href="http://pcdsh01.on.br/DEC3592.htm">3,592</a> (2000-09-06)
 # adopted by the same states as before.
+# Decree <a href="http://pcdsh01.on.br/Dec3630.jpg">3,630</a> (2000-10-13)
+# repeals DST in PE and RR, effective 2000-10-15 00:00.
+# Decree <a href="http://pcdsh01.on.br/Dec3632.jpg">3,632</a> (2000-10-17)
+# repeals DST in SE, AL, PB, RN, CE, PI and MA, effective 2000-10-22 00:00.
+#
 # These give only one year's rules.  After that, the rules are guesses
 # and are quite possibly wrong, but are more likely than no DST at all.
 Rule	Brazil	2000	max	-	Oct	Sun>=8	 0:00	1:00	S
@@ -381,22 +391,32 @@ Rule	Brazil	2001	max	-	Feb	Sun>=15	 0:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 #
-# Fernando de Noronha
+# Atlantic islands: Fernando de Noronha, Trindade, Martin Vaz,
+# Atol das Rocas, and Penedos de Sao Pedro e Sao Paulo
 Zone America/Noronha	-2:09:40 -	LMT	1914
 			-2:00	Brazil	FN%sT	1990 Sep 17
 			-2:00	-	FNT
 #
 # Amapa (AP), east Para (PA)
+# East Para includes Belem, Maraba, Serra Norte, and Sao Felix do Xingu.
 Zone America/Belem	-3:13:56 -	LMT	1914
 			-3:00	Brazil	BR%sT	1988 Sep 12
 			-3:00	-	BRT
 #
 # Maranhao (MA), Piaui (PI), Ceara (CE), Rio Grande do Norte (RN),
-# Paraiba (PB), Pernambuco (PE) (except Fernando de Noronha)
+# Paraiba (PB)
 Zone America/Fortaleza	-2:34:00 -	LMT	1914
 			-3:00	Brazil	BR%sT	1990 Sep 17
 			-3:00	-	BRT	1999 Sep 30
-			-3:00	Brazil	BR%sT
+			-3:00	Brazil	BR%sT	2000 Oct 22
+			-3:00	-	BRT
+#
+# Pernambuco (PE) (except Atlantic islands)
+Zone America/Recife	-2:19:36 -	LMT	1914
+			-3:00	Brazil	BR%sT	1990 Sep 17
+			-3:00	-	BRT	1999 Sep 30
+			-3:00	Brazil	BR%sT	2000 Oct 15
+			-3:00	-	BRT
 #
 # Tocantins (TO)
 Zone America/Araguaina	-3:12:48 -	LMT	1914
@@ -410,7 +430,8 @@ Zone America/Maceio	-2:22:52 -	LMT	1914
 			-3:00	-	BRT	1995 Oct 13
 			-3:00	Brazil	BR%sT	1996 Sep  4
 			-3:00	-	BRT	1999 Sep 30
-			-3:00	Brazil	BR%sT
+			-3:00	Brazil	BR%sT	2000 Oct 22
+			-3:00	-	BRT
 #
 # Bahia (BA), Goias (GO), Distrito Federal (DF), Minas Gerais (MG),
 # Espirito Santo (ES), Rio de Janeiro (RJ), Sao Paulo (SP), Parana (PR),
@@ -425,6 +446,7 @@ Zone America/Cuiaba	-3:44:20 -	LMT	1914
 			-4:00	Brazil	AM%sT
 #
 # west Para (PA), Rondonia (RO)
+# West Para includes Altamira, Oribidos, Prainha, Oriximina, and Santarem.
 Zone America/Porto_Velho -4:15:36 -	LMT	1914
 			-4:00	Brazil	AM%sT	1988 Sep 12
 			-4:00	-	AMT
@@ -433,22 +455,28 @@ Zone America/Porto_Velho -4:15:36 -	LMT	1914
 Zone America/Boa_Vista	-4:02:40 -	LMT	1914
 			-4:00	Brazil	AM%sT	1988 Sep 12
 			-4:00	-	AMT	1999 Sep 30
-			-4:00	Brazil	AM%sT
+			-4:00	Brazil	AM%sT	2000 Oct 15
+			-4:00	-	AMT
 #
-# Amazonas (AM)
+# east Amazonas (AM): Boca do Acre, Jutai, Manaus, Floriano Peixoto
 Zone America/Manaus	-4:00:04 -	LMT	1914
 			-4:00	Brazil	AM%sT	1988 Sep 12
 			-4:00	-	AMT	1993 Sep 28
 			-4:00	Brazil	AM%sT	1994 Sep 22
 			-4:00	-	AMT
 #
-# Acre (AC)
-# Rio_Branco is too ambiguous, since there's a Rio Branco in Uruguay too.
-Zone America/Porto_Acre	-4:31:12 -	LMT	1914
+# west Amazonas (AM): Atalaia do Norte, Boca do Maoco, Benjamin Constant,
+#	Eirunepe, Envira, Ipixuna
+Zone America/Eirunepe	-4:39:28 -	LMT	1914
 			-5:00	Brazil	AC%sT	1988 Sep 12
+			-5:00	-	ACT	1993 Sep 28
+			-5:00	Brazil	AC%sT	1994 Sep 22
 			-5:00	-	ACT
 #
-# Martin Vaz and Trindade are like America/Noronha.
+# Acre (AC)
+Zone America/Rio_Branco	-4:31:12 -	LMT	1914
+			-5:00	Brazil	AC%sT	1988 Sep 12
+			-5:00	-	ACT
 
 
 # Chile
@@ -465,17 +493,29 @@ Zone America/Porto_Acre	-4:31:12 -	LMT	1914
 # Because of the same drought, the government decided to end DST later,
 # on April 3, (one-time change).
 
+# From Gwillim Law (2001-02-20):
+# I came across a Chilean on-line newspaper, La Tercera.  Its
+# <a href="http://www.tercera.cl/diario/1998/03/13/extras.html">
+# 1998-03-13 issue
+# </a>, says (my translation):
+# "At 24:00 (midnight) tomorrow (Saturday) - 22:00 in the insular
+# territory [Easter Island, Juan Fernandez, etc.] - winter time will
+# begin in the entire country."
+
+# From Paul Eggert (2001-02-21):
+# Assume this rule has been used since DST was introduced in the islands.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Chile	1918	only	-	Sep	 1	0:00	1:00	S
 Rule	Chile	1919	only	-	Jul	 2	0:00	0	-
 Rule	Chile	1927	1931	-	Sep	 1	0:00	1:00	S
 Rule	Chile	1928	1932	-	Apr	 1	0:00	0	-
-Rule	Chile	1969	1997	-	Oct	Sun>=9	0:00	1:00	S
-Rule	Chile	1970	1998	-	Mar	Sun>=9	0:00	0	-
-Rule	Chile	1998	only	-	Sep	27	0:00	1:00	S
-Rule	Chile	1999	only	-	Apr	 4	0:00	0	-
-Rule	Chile	1999	max	-	Oct	Sun>=9	0:00	1:00	S
-Rule	Chile	2000	max	-	Mar	Sun>=9	0:00	0	-
+Rule	Chile	1969	1997	-	Oct	Sun>=9	4:00u	1:00	S
+Rule	Chile	1970	1998	-	Mar	Sun>=9	3:00u	0	-
+Rule	Chile	1998	only	-	Sep	27	4:00u	1:00	S
+Rule	Chile	1999	only	-	Apr	 4	3:00u	0	-
+Rule	Chile	1999	max	-	Oct	Sun>=9	4:00u	1:00	S
+Rule	Chile	2000	max	-	Mar	Sun>=9	3:00u	0	-
 # IATA SSIM anomalies: (1990-09) says 1990-09-16; (1992-02) says 1992-03-14;
 # (1996-09) says 1998-03-08.  Ignore these.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -526,6 +566,56 @@ Zone Pacific/Galapagos	-5:58:24 -	LMT	1931 # Puerto Baquerizo Moreno
 			-6:00	-	GALT	     # Galapagos Time
 
 # Falklands
+
+# From Paul Eggert (2001-03-05):
+# Between 1990 and 2000 inclusive, Shanks and the IATA agree except
+# the IATA gives 1996-09-08.  Go with Shanks.
+
+# From Falkland Islands Government Office, London (2001-01-22)
+# via Jesper Norgaard:
+# ... the clocks revert back to Local Mean Time at 2 am on Sunday 15
+# April 2001 and advance one hour to summer time at 2 am on Sunday 2
+# September.  It is anticipated that the clocks will revert back at 2
+# am on Sunday 21 April 2002 and advance to summer time at 2 am on
+# Sunday 1 September.
+
+# From Rives McDow (2001-02-13):
+#
+# I have communicated several times with people there, and the last
+# time I had communications that was helpful was in 1998.  Here is
+# what was said then:
+#
+# "The general rule was that Stanley used daylight saving and the Camp
+# did not. However for various reasons many people in the Camp have
+# started to use daylight saving (known locally as 'Stanley Time')
+# There is no rule as to who uses daylight saving - it is a matter of
+# personal choice and so it is impossible to draw a map showing who
+# uses it and who does not. Any list would be out of date as soon as
+# it was produced. This year daylight saving ended on April 18/19th
+# and started again on September 12/13th.  I do not know what the rule
+# is, but can find out if you like.  We do not change at the same time
+# as UK or Chile."
+#
+# I did have in my notes that the rule was "Second Saturday in Sep at
+# 0:00 until third Saturday in Apr at 0:00".  I think that this does
+# not agree in some cases with Shanks; is this true?
+#
+# Also, there is no mention in the list that some areas in the
+# Falklands do not use DST.  I have found in my communications there
+# that these areas are on the western half of East Falkland and all of
+# West Falkland.  Stanley is the only place that consistently observes
+# DST.  Again, as in other places in the world, the farmers don't like
+# it.  West Falkland is almost entirely sheep farmers.
+#
+# I know one lady there that keeps a list of which farm keeps DST and
+# which doesn't each year.  She runs a shop in Stanley, and says that
+# the list changes each year.  She uses it to communicate to her
+# customers, catching them when they are home for lunch or dinner.
+
+# From Paul Eggert (2001-03-05):
+# For now, we'll just record the time in Stanley, since we have no
+# better info.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Falk	1937	1938	-	Sep	lastSun	0:00	1:00	S
 Rule	Falk	1938	1942	-	Mar	Sun>=19	0:00	0	-
@@ -535,9 +625,10 @@ Rule	Falk	1943	only	-	Jan	1	0:00	0	-
 Rule	Falk	1983	only	-	Sep	lastSun	0:00	1:00	S
 Rule	Falk	1984	1985	-	Apr	lastSun	0:00	0	-
 Rule	Falk	1984	only	-	Sep	16	0:00	1:00	S
-Rule	Falk	1985	1995	-	Sep	Sun>=9	0:00	1:00	S
-Rule	Falk	1986	max	-	Apr	Sun>=16	0:00	0	-
-Rule	Falk	1996	max	-	Sep	Sun>=8	0:00	1:00	S
+Rule	Falk	1985	2000	-	Sep	Sun>=9	0:00	1:00	S
+Rule	Falk	1986	2000	-	Apr	Sun>=16	0:00	0	-
+Rule	Falk	2001	max	-	Apr	Sun>=15	2:00	0	-
+Rule	Falk	2001	max	-	Sep	Sun>=1	2:00	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Atlantic/Stanley	-3:51:24 -	LMT	1890
 			-3:51:24 -	SMT	1912 Mar 12  # Stanley Mean Time
@@ -578,19 +669,32 @@ Rule	Para	1993	only	-	Mar	31	0:00	0	-
 Rule	Para	1993	1995	-	Oct	 1	0:00	1:00	S
 Rule	Para	1994	1995	-	Feb	lastSun	0:00	0	-
 Rule	Para	1996	only	-	Mar	 1	0:00	0	-
-# IATA SSIM (1997-09) says Mar 1; go with Shanks.
-Rule	Para	1997	only	-	Feb	lastSun	0:00	0	-
-Rule	Para	1998	only	-	Mar	 1	0:00	0	-
-Rule	Para	1996	1998	-	Oct	Sun>=1	0:00	1:00	S
-# IATA SSIM (1999-02) says lastSat, not lastSun; (1999-09) reports no date;
-# go with Shanks.
-Rule	Para	1999	max	-	Feb	lastSun	0:00	0	-
-# IATA SSIM (2000-02) says 1999-10-10.
-Rule	Para	1999	only	-	Oct	10	0:00	1:00	S
+# IATA SSIM (2000-02) says 1999-10-10; ignore this for now.
 # From Steffen Thorsen (2000-10-02):
 # I have three independent reports that Paraguay changed to DST this Sunday
 # (10-01).
-Rule	Para	2000	max	-	Oct	Sun>=1	0:00	1:00	S
+#
+# Translated by Gwillim Law (2001-02-27) from
+# <a href="http://www.diarionoticias.com.py/011000/nacional/naciona1.htm">
+# Noticias, a daily paper in Asuncion, Paraguay (2000-10-01)
+# </a>:
+# Starting at 0:00 today, the clock will be set forward 60 minutes, in
+# fulfillment of Decree No. 7,273 of the Executive Power....  The time change
+# system has been operating for several years.  Formerly there was a separate
+# decree each year; the new law has the same effect, but permanently.  Every
+# year, the time will change on the first Sunday of October; likewise, the
+# clock will be set back on the first Sunday of March.
+#
+# From Jesper Norgaard (2001-03-06) [an official URL saying similar things]:
+# http://gateway.abc.com.py:8000/pub/pag04.mbr/artic?FHA=2001-03-03-02.24.52.900592
+#
+Rule	Para	1996	max	-	Oct	Sun>=1	0:00	1:00	S
+# IATA SSIM (1997-09) says Mar 1; go with Shanks.
+Rule	Para	1997	only	-	Feb	lastSun	0:00	0	-
+# Shanks says 1999-02-28; IATA SSIM (1999-02) says 1999-02-27, but
+# (1999-09) reports no date; go with above sources and Gerd Knops (2001-02-27).
+Rule	Para	1998	max	-	Mar	Sun>=1	0:00	0	-
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Asuncion	-3:50:40 -	LMT	1890
 			-3:50:40 -	AMT	1931 Oct 10 # Asuncion Mean Time
