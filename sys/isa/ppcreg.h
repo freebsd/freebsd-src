@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppcreg.h,v 1.2 1997/08/16 14:07:26 msmith Exp $
+ *	$Id: ppcreg.h,v 1.3 1998/08/03 19:14:33 msmith Exp $
  *
  */
 #ifndef __PPCREG_H
@@ -58,6 +58,8 @@ struct ppc_data {
 #define ppc_epp ppc_link.epp_protocol
 #define ppc_irq ppc_link.id_irq
 #define ppc_subm ppc_link.submicroseq
+#define ppc_ptr ppc_link.ptr
+#define ppc_accum ppc_link.accum
 
 	unsigned char ppc_flags;
 

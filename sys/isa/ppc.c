@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.5 1998/08/24 02:28:16 bde Exp $
+ *	$Id: ppc.c,v 1.6 1998/09/02 20:34:34 nsouch Exp $
  *
  */
 #include "ppc.h"
@@ -34,6 +34,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
+#include <sys/kernel.h>
 
 #include <machine/clock.h>
 
@@ -450,7 +451,8 @@ config:
 
 	if (bootverbose) {
 		outb(csr, 0x1);
-		printf("SMC registers CR1=0x%x", inb(cio) & 0xff);
+		printf("SMC registers CR1=0x%x", ppc->ppc_unit,
+			inb(cio) & 0xff);
 
 		outb(csr, 0x4);
 		printf(" CR4=0x%x", inb(cio) & 0xff);
@@ -509,6 +511,7 @@ config:
 
 	} else {
 		/* mode forced */
+		ppc->ppc_avm = chipset_mode;
 
 		/* 666GT is ~certainly~ hardwired to an extended ECP+EPP mode */
 		if (type == SMC_37C666GT)
@@ -553,7 +556,7 @@ end_detect:
 	if (bootverbose)
 		printf ("\n");
 
-	if (chipset_mode & PPB_EPP) {
+	if (ppc->ppc_avm & PPB_EPP) {
 		/* select CR4 */
 		outb(csr, 0x4);
 		r = inb(cio);
@@ -881,13 +884,13 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
 	struct ppc_data	*ppc = ppcdata[unit];
 	struct ppb_microseq *pc;
 	char cc, *p;
-	int i, iter, reg;
+	int i, iter, len;
 	int error;
 
-	/* static to be reused after few ppc_exec_microseq()/return calls
-	 * XXX should be in a context variable shared with ppb level */
-	static int accum;
-	static char *ptr;
+	register int reg;
+	register char mask;
+	register int accum = 0;
+	register char *ptr = 0;
 
 	struct ppb_microseq *microseq_stack = 0;
 	struct ppb_microseq *pc_stack = 0;
@@ -907,37 +910,60 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
 		switch (mi->opcode) {                                           
 		case MS_OP_RSET:
 			cc = r_reg(mi->arg[0].i, ppc);
-			cc &= mi->arg[2].c;		/* clear mask */
-			cc |= mi->arg[1].c;		/* assert mask */
+			cc &= (char)mi->arg[2].i;	/* clear mask */
+			cc |= (char)mi->arg[1].i;	/* assert mask */
                         w_reg(mi->arg[0].i, ppc, cc);
 			INCR_PC;
                         break;
 
 		case MS_OP_RASSERT_P:
-			for (i=0; i<mi->arg[0].i; i++)
-				w_reg(mi->arg[1].i, ppc, *ptr++);
+			reg = mi->arg[1].i;
+			ptr = ppc->ppc_ptr;
+
+			if ((len = mi->arg[0].i) == MS_ACCUM) {
+				accum = ppc->ppc_accum;
+				for (; accum; accum--)
+					w_reg(reg, ppc, *ptr++);
+				ppc->ppc_accum = accum;
+			} else
+				for (i=0; i<len; i++)
+					w_reg(reg, ppc, *ptr++);
+			ppc->ppc_ptr = ptr;
+
 			INCR_PC;
 			break;
 
                 case MS_OP_RFETCH_P:
-			for (i=0; i<mi->arg[0].i; i++)
-				*ptr++ = r_reg(mi->arg[1].i, ppc) &
-								mi->arg[2].c;
+			reg = mi->arg[1].i;
+			mask = (char)mi->arg[2].i;
+			ptr = ppc->ppc_ptr;
+
+			if ((len = mi->arg[0].i) == MS_ACCUM) {
+				accum = ppc->ppc_accum;
+				for (; accum; accum--)
+					*ptr++ = r_reg(reg, ppc) & mask;
+				ppc->ppc_accum = accum;
+			} else
+				for (i=0; i<len; i++)
+					*ptr++ = r_reg(reg, ppc) & mask;
+			ppc->ppc_ptr = ptr;
+
 			INCR_PC;
                         break;                                        
 
                 case MS_OP_RFETCH:
 			*((char *) mi->arg[2].p) = r_reg(mi->arg[0].i, ppc) &
-							mi->arg[1].c;
+							(char)mi->arg[1].i;
 			INCR_PC;
                         break;                                        
 
 		case MS_OP_RASSERT:
+                case MS_OP_DELAY:
 		
 		/* let's suppose the next instr. is the same */
 		prefetch:
 			for (;mi->opcode == MS_OP_RASSERT; INCR_PC)
-				w_reg(mi->arg[0].i, ppc, mi->arg[1].c);
+				w_reg(mi->arg[0].i, ppc, (char)mi->arg[1].i);
 
 			if (mi->opcode == MS_OP_DELAY) {
 				DELAY(mi->arg[0].i);
@@ -946,16 +972,19 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
 			}
 			break;
 
-                case MS_OP_DELAY:
-                        DELAY(mi->arg[0].i);
+		case MS_OP_ADELAY:
+			if (mi->arg[0].i)
+				tsleep(NULL, PPBPRI, "ppbdelay",
+						mi->arg[0].i * (hz/1000));
 			INCR_PC;
-                        break;
+			break;
 
 		case MS_OP_TRIG:
 			reg = mi->arg[0].i;
 			iter = mi->arg[1].i;
 			p = (char *)mi->arg[2].p;
 
+			/* XXX delay limited to 255 us */
 			for (i=0; i<iter; i++) {
 				w_reg(reg, ppc, *p++);
 				DELAY((unsigned char)*p++);
@@ -964,12 +993,12 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
 			break;
 
                 case MS_OP_SET:
-                        accum = mi->arg[0].i;
+                        ppc->ppc_accum = mi->arg[0].i;
 			INCR_PC;
                         break;                                         
 
                 case MS_OP_DBRA:
-                        if (--accum > 0)
+                        if (--ppc->ppc_accum > 0)
                                 pc += mi->arg[0].i;
 			else
 				INCR_PC;
@@ -977,7 +1006,7 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
 
                 case MS_OP_BRSET:
                         cc = r_str(ppc);
-                        if ((cc & mi->arg[0].c) == mi->arg[0].c) 
+                        if ((cc & (char)mi->arg[0].i) == (char)mi->arg[0].i) 
                                 pc += mi->arg[1].i;                      
 			else
 				INCR_PC;
@@ -985,25 +1014,34 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
 
                 case MS_OP_BRCLEAR:
                         cc = r_str(ppc);
-                        if ((cc & mi->arg[0].c) == 0)    
+                        if ((cc & (char)mi->arg[0].i) == 0)    
                                 pc += mi->arg[1].i;                             
 			else
 				INCR_PC;
                         break;                                
+
+		case MS_OP_BRSTAT:
+			cc = r_str(ppc);
+			if ((cc & ((char)mi->arg[0].i | (char)mi->arg[1].i)) ==
+							(char)mi->arg[0].i)
+				pc += mi->arg[2].i;
+			else
+				INCR_PC;
+			break;
 
 		case MS_OP_C_CALL:
 			/*
 			 * If the C call returns !0 then end the microseq.
 			 * The current state of ptr is passed to the C function
 			 */
-			if ((error = mi->arg[0].f(mi->arg[1].p, ptr)))
+			if ((error = mi->arg[0].f(mi->arg[1].p, ppc->ppc_ptr)))
 				return (error);
 
 			INCR_PC;
 			break;
 
 		case MS_OP_PTR:
-			ptr = (char *)mi->arg[0].p;
+			ppc->ppc_ptr = (char *)mi->arg[0].p;
 			INCR_PC;
 			break;
 
@@ -1176,6 +1214,8 @@ ppcprobe(struct isa_device *dvp)
 		if((next_bios_ppc < BIOS_MAX_PPC) &&
 				(*(BIOS_PORTS+next_bios_ppc) != 0) ) {
 			dvp->id_iobase = *(BIOS_PORTS+next_bios_ppc++);
+			printf("ppc: parallel port found at 0x%x\n",
+							dvp->id_iobase);
 		} else
 			return (0);
 	}
