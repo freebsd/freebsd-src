@@ -48,4 +48,4 @@ typedef enum {
     FP_RP=3			/* round toward positive infinity */
 } fp_rnd_t;
 
-#endif /* _ALPHA_IEEEFP_H_ */
+#endif /* _MACHINE_IEEEFP_H_ */
