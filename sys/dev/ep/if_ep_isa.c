@@ -61,6 +61,7 @@ static void		ep_isa_identify	(driver_t *, device_t);
 #endif
 static int		ep_isa_probe	(device_t);
 static int		ep_isa_attach	(device_t);
+static int		ep_eeprom_cksum (struct ep_softc *);
 
 struct isa_ident {
 	u_int32_t	id;
@@ -343,6 +344,12 @@ ep_isa_attach (device_t dev)
 		goto bad;
 	}
 
+	error = ep_eeprom_cksum(sc);
+	if (error) {
+		device_printf(sc->dev, "Invalid EEPROM checksum!\n");
+		goto bad;
+	}
+
 	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, ep_intr,
 				   sc, &sc->ep_intrhand))) {
 		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
@@ -353,6 +360,42 @@ ep_isa_attach (device_t dev)
 bad:
 	ep_free(dev);
 	return (error);
+}
+
+static int
+ep_eeprom_cksum (sc)
+	struct ep_softc *	sc;
+{
+	int                     i;
+	int                     error;
+	u_int16_t               val;
+	u_int16_t               cksum;
+	u_int8_t                cksum_high = 0;
+	u_int8_t                cksum_low = 0;
+
+	error = get_e(sc, 0x0f, &val);
+	if (error)
+	       return (ENXIO);
+	cksum = val;
+
+	for (i = 0; i < 0x0f; i++) {
+		error = get_e(sc, i, &val);
+		if (error)
+			return (ENXIO);
+		switch (i) {
+			case 0x08:
+			case 0x09:
+			case 0x0d:
+				cksum_low ^= (u_int8_t)(val & 0x00ff) ^
+					     (u_int8_t)((val & 0xff00) >> 8);
+				break;
+			default:
+				cksum_high ^= (u_int8_t)(val & 0x00ff) ^
+					      (u_int8_t)((val & 0xff00) >> 8);
+				break;
+		}
+	}
+	return (cksum != ((u_int16_t)cksum_low | (u_int16_t)(cksum_high << 8)));
 }
 
 static device_method_t ep_isa_methods[] = {
