@@ -12,7 +12,7 @@ mk
 # mon_thousands_sep
 .
 # mon_grouping, separated by ;
-3
+3;0
 # positive_sign
 
 # negative_sign
