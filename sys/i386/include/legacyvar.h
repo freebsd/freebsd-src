@@ -36,12 +36,12 @@ enum legacy_device_ivars {
 #define LEGACY_ACCESSOR(var, ivar, type)				\
     __BUS_ACCESSOR(legacy, var, LEGACY, ivar, type)
 
-LEGACY_ACCESSOR(pcibus,			PCIBUS,		u_int32_t)
+LEGACY_ACCESSOR(pcibus,			PCIBUS,		uint32_t)
 
 #undef LEGACY_ACCESSOR
 
 int	legacy_pcib_maxslots(device_t dev);
-u_int32_t legacy_pcib_read_config(device_t dev, int bus, int slot, int func,
+uint32_t legacy_pcib_read_config(device_t dev, int bus, int slot, int func,
     int reg, int bytes);
 int	legacy_pcib_read_ivar(device_t dev, device_t child, int which,
     uintptr_t *result);
