@@ -110,8 +110,9 @@ TAILQ_HEAD(pglist, vm_page);
 
 struct vm_page {
 	TAILQ_ENTRY(vm_page) pageq;	/* queue info for FIFO queue or free list (P) */
-	struct vm_page	*hnext;		/* hash table link (O,P)	*/
 	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) 	*/
+	struct vm_page *left;		/* splay tree link (O)		*/
+	struct vm_page *right;		/* splay tree link (O)		*/
 
 	vm_object_t object;		/* which object am I in (O,P)*/
 	vm_pindex_t pindex;		/* offset into object (O,P) */
