@@ -48,31 +48,37 @@
 .Nm
 .Fl w
 .Op Fl nr
-.Ar disk disktype Ns | Ns Cm auto
+.Op Fl m Ar machine
+.Ar disk type
 .Op Ar packid
 .Nm
 .Fl e
 .Op Fl nr
+.Op Fl m Ar machine
 .Ar disk
 .Nm
 .Fl R
 .Op Fl nr
+.Op Fl m Ar machine
 .Ar disk protofile
 .Pp
 .Nm
 .Fl B
 .Op Fl b Ar boot
+.Op Fl m Ar machine
 .Ar disk
 .Nm
 .Fl w B
 .Op Fl n
 .Op Fl b Ar boot
-.Ar disk disktype Ns | Ns Cm auto
+.Op Fl m Ar machine
+.Ar disk type
 .Op Ar packid
 .Nm
 .Fl R B
 .Op Fl n
 .Op Fl b Ar boot
+.Op Fl m Ar machine
 .Ar disk protofile
 .Sh DESCRIPTION
 The
@@ -167,7 +173,8 @@ To write a standard label, use the form
 .Nm
 .Fl w
 .Op Fl nr
-.Ar disk disktype Ns | Ns Cm auto
+.Op Fl m Ar machine
+.Ar disk type
 .Op Ar packid
 .Pp
 The required arguments to
@@ -187,6 +194,13 @@ The
 .Ar packid
 must be quoted if it contains blanks.
 .Pp
+If the
+.Fl m
+option is given, then label will be written so that
+it is understood by the target
+.Ar machine ;
+defaults to the current hardware architecture.
+.Pp
 If
 .Fl n
 is used, no data will be written to the device, and instead the
@@ -199,7 +213,7 @@ will be written directly.
 A side-effect of this is that any existing bootstrap code will be overwritten
 and the disk rendered unbootable.
 See the boot options below for a method of
-writing the label and the bootstrap at the same time.
+writing the and the bootstrap at the same time.
 If
 .Fl r
 is not specified,
@@ -212,7 +226,7 @@ In either case, the kernel's in-core label is replaced.
 .Pp
 For a virgin disk that is not known to
 .Xr disktab 5 ,
-.Ar disktype
+.Ar type
 can be specified as
 .Cm auto .
 In this case, the driver is requested to produce a virgin label for the
@@ -270,6 +284,7 @@ To edit an existing disk label, use the form
 .Nm
 .Fl e
 .Op Fl nr
+.Op Fl m Ar machine
 .Ar disk
 .Pp
 This command reads the label from the in-core kernel copy, or directly from the
@@ -288,6 +303,14 @@ When the editor terminates, the label file is used to rewrite the disk label.
 Existing bootstrap code is unchanged regardless of whether
 .Fl r
 was specified.
+.Pp
+If the
+.Fl m
+option is given, then the label will be written so that
+it is understood by the target
+.Ar machine ;
+defaults to the current hardware architecture.
+.Pp
 If
 .Fl n
 is used, no data will be written to the device, and instead the
@@ -300,6 +323,7 @@ To restore a disk label from a file, use the form
 .Nm
 .Fl R
 .Op Fl nr
+.Op Fl m Ar machine
 .Ar disk protofile
 .Pp
 .Nm
@@ -317,6 +341,14 @@ clobbered if
 is specified, and will be unaffected otherwise.
 See the boot options below for a
 method of restoring the label and writing the bootstrap at the same time.
+.Pp
+If the
+.Fl m
+option is given, then the label will be written so that
+it is understood by the target
+.Ar machine ;
+defaults to the current hardware architecture.
+.Pp
 If
 .Fl n
 is used, no data will be written to the device, and instead the
@@ -345,6 +377,7 @@ on the base disk should probably be updated; see
 .Nm
 .Fl B
 .Op Fl b Ar boot
+.Op Fl m Ar machine
 .Ar disk
 .Pp
 This form installs the bootstrap only.
@@ -357,11 +390,18 @@ disk.
 This command is typically run on a slice such as
 .Pa da0s1 .
 .Pp
+The
+.Fl m
+option should be specified if the label was
+created for a different hardware architecture,
+.Ar machine .
+.Pp
 .Nm
 .Fl w B
 .Op Fl n
 .Op Fl b Ar boot
-.Ar disk disktype Ns | Ns Cm auto
+.Op Fl m Ar machine
+.Ar disk type
 .Op Ar packid
 .Pp
 This form corresponds to the
@@ -372,6 +412,14 @@ If run on a base disk, this command will create a
 .Dq dangerously-dedicated
 label.
 This command is normally run on a slice rather than a base disk.
+.Pp
+If the
+.Fl m
+option is given, then the label and bootstrap will be written so that
+they are understood by the target
+.Ar machine ;
+defaults to the current hardware architecture.
+.Pp
 If
 .Fl n
 is used, no data will be written to the device, and instead the
@@ -381,6 +429,7 @@ disk label that would have been written will be printed to standard output.
 .Fl R B
 .Op Fl n
 .Op Fl b Ar boot
+.Op Fl m Ar machine
 .Ar disk protofile
 .Pp
 This form corresponds to the
@@ -396,6 +445,14 @@ The bootstrap commands always access the disk directly, so it is not necessary
 to specify the
 .Fl r
 option.
+.Pp
+If the
+.Fl m
+option is given, then the label and bootstrap will be written so that
+they are understood by the target
+.Ar machine ;
+defaults to the current hardware architecture.
+.Pp
 If
 .Fl n
 is used, no data will be written to the device, and instead the
