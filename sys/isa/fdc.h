@@ -50,13 +50,10 @@ struct fdc_data
 	int	dmachan;
 	int	flags;
 #define FDC_ATTACHED	0x01
-#define FDC_HASFTAPE	0x02
-#define FDC_TAPE_BUSY	0x04
 #define FDC_STAT_VALID	0x08
 #define FDC_HAS_FIFO	0x10
 #define FDC_NEEDS_RESET	0x20
 #define FDC_NODMA	0x40
-#define FDC_UNLOADED	0x80
 	struct	fd_data *fd;
 	int	fdu;		/* the active drive	*/
 	int	state;
@@ -94,8 +91,8 @@ typedef	struct fd_data *fd_p;
 typedef struct fdc_data *fdc_p;
 typedef enum fdc_type fdc_t;
 
-#define FDUNIT(s)	(((s)>>6)&03)
-#define FDTYPE(s)	((s)&077)
+#define FDUNIT(s)	(((s) >> 6) & 3)
+#define FDTYPE(s)	((s) & 0x3f)
 
 /*
  * fdc maintains a set (1!) of ivars per child of each controller.
