@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.29 1996/03/28 14:31:40 scrappy Exp $
+ * $Id: kern_lkm.c,v 1.30 1996/05/01 02:42:54 bde Exp $
  */
 
 #include <sys/param.h>
@@ -149,7 +149,7 @@ lkmunreserve()
 	 * Actually unreserve the memory
 	 */
 	if (curp && curp->area) {
-		kmem_free(kmem_map, curp->area, curp->size);/**/
+		kmem_free(kernel_map, curp->area, curp->size);/**/
 		curp->area = 0;
 		if (curp->private.lkm_any != NULL)
 			curp->private.lkm_any = NULL;
@@ -234,7 +234,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 		 */
 		curp->size = resrvp->size;
 
-		curp->area = kmem_alloc(kmem_map, curp->size);/**/
+		curp->area = kmem_alloc(kernel_map, curp->size);/**/
 
 		curp->offset = 0;		/* load offset */
 
