@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.11 (Berkeley) 9/6/90
-#	$Id$
+#	$Id: Makefile.inc,v 1.12 1997/10/21 08:41:09 bde Exp $
 
 .PATH: ${.CURDIR}/../libc/rpc ${.CURDIR}/.
 
@@ -17,7 +17,7 @@ SRCS+=	auth_des.c auth_none.c auth_time.c auth_unix.c \
 	svc_tcp.c svc_udp.c svc_unix.c
 
 # generated sources
-SRCS+=	crypt_clnt.c crypt_xdr.c
+SRCS+=	crypt_clnt.c crypt_xdr.c crypt.h
 
 CFLAGS+= -DBROKEN_DES
 
