@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.23 1996/08/01 12:13:20 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.24 1996/10/14 19:41:44 jkh Exp $";
 #endif
 
 /*
@@ -24,6 +24,7 @@ static const char *rcsid = "$Id: file.c,v 1.23 1996/08/01 12:13:20 jkh Exp $";
 
 #include "lib.h"
 #include <ftpio.h>
+#include <netdb.h>
 #include <pwd.h>
 #include <time.h>
 #include <sys/wait.h>
@@ -180,7 +181,7 @@ fileGetURL(char *base, char *spec)
     struct passwd *pw;
     FILE *ftp;
     pid_t tpid;
-    int i;
+    int i, status;
     char *hint;
 
     rp = NULL;
@@ -246,7 +247,7 @@ fileGetURL(char *base, char *spec)
     }
     if (Verbose)
 	printf("Trying to fetch %s.\n", fname);
-    ftp = ftpGetURL(fname, uname, pword);
+    ftp = ftpGetURL(fname, uname, pword, &status);
     if (ftp) {
 	pen[0] = '\0';
 	if ((rp = make_playpen(pen, 0)) != NULL) {
@@ -272,7 +273,9 @@ fileGetURL(char *base, char *spec)
 	fclose(ftp);
     }
     else
-	printf("Error: FTP Unable to get %s\n", fname);
+	printf("Error: FTP Unable to get %s: %s\n",
+	       fname,
+	       status ? ftpErrString(status) : hstrerror(h_errno));
     return rp;
 }
 
