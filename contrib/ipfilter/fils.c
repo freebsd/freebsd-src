@@ -51,7 +51,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fils.c	1.21 4/20/96 (C) 1993-1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fils.c,v 2.2.2.4 1999/12/04 02:06:24 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: fils.c,v 2.2.2.5 2000/01/27 08:49:40 darrenr Exp $";
 #endif
 
 extern	char	*optarg;
@@ -238,11 +238,13 @@ struct	friostat	*fp;
 	PRINTF(" input packets:\t\tblocked %lu passed %lu nomatch %lu",
 			fp->f_st[0].fr_block, fp->f_st[0].fr_pass,
 			fp->f_st[0].fr_nom);
-	PRINTF(" counted %lu\n", fp->f_st[0].fr_acct);
+	PRINTF(" counted %lu short %lu\n", 
+			fp->f_st[0].fr_acct, fp->f_st[0].fr_short);
 	PRINTF("output packets:\t\tblocked %lu passed %lu nomatch %lu",
 			fp->f_st[1].fr_block, fp->f_st[1].fr_pass,
 			fp->f_st[1].fr_nom);
-	PRINTF(" counted %lu\n", fp->f_st[0].fr_acct);
+	PRINTF(" counted %lu short %lu\n", 
+			fp->f_st[1].fr_acct, fp->f_st[1].fr_short);
 	PRINTF(" input packets logged:\tblocked %lu passed %lu\n",
 			fp->f_st[0].fr_bpkl, fp->f_st[0].fr_ppkl);
 	PRINTF("output packets logged:\tblocked %lu passed %lu\n",
