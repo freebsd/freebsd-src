@@ -144,7 +144,7 @@ tconfig.h:
 	echo 'typedef union tree_node *tree;'		>> ${.TARGET}
 	echo ''						>> ${.TARGET}
 .if ${TARGET_ARCH} == "amd64"
-	echo '#include "i386/biarch64.h"		>> ${.TARGET}
+	echo '#include "i386/biarch64.h"'		>> ${.TARGET}
 .endif
 .if ${TARGET_ARCH} == "ia64"
 	echo '#define TARGET_CPU_DEFAULT (MASK_GNU_AS|MASK_GNU_LD)' >>${.TARGET}
