@@ -42,7 +42,6 @@
 #
 
 .if ${MACHINE_ARCH} == "alpha"
-.PATH:	${.CURDIR)/alpha
 ARCH=	alpha
 ARCH_SRCS = s_copysign.S s_copysignf.S
 # XXX Comment from NetBSD/Alpha:
@@ -52,7 +51,6 @@ ARCH_SRCS = s_copysign.S s_copysignf.S
 #CFLAGS += -mtrap-precision=i -mfp-trap-mode=su
 .elif ${MACHINE_ARCH} == "i386"
 ARCH=	i387
-ARCH_PREFIX= ${ARCH}_
 ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 	    e_remainder.S e_scalb.S e_sqrt.S s_atan.S s_ceil.S s_copysign.S \
 	    s_cos.S s_finite.S s_floor.S s_ilogb.S s_logb.S \
@@ -62,11 +60,16 @@ ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 # Broken
 # ARCH_SRCS+=	s_log1p.S
 
+.if defined(ARCH)
+.PATH:	${.CURDIR)/${ARCH}
+ARCH_PREFIX= ${ARCH}_
+.endif
+
 .PATH:	${.CURDIR}/bsdsrc
 .PATH:	${.CURDIR}/man
 .PATH:	${.CURDIR}/src
 
-CFLAGS+= -D_IEEE_LIBM -D_ARCH_INDIRECT=${ARCH_PREFIX}
+CFLAGS+= -D_IEEE_LIBM
 
 LIB=	m
 COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
@@ -103,9 +106,9 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 # FreeBSD's C library supplies these functions:
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
 
-CLEANFILES+=	${RENAMED_ARCH_SRCS}
 RENAMED_ARCH_SRCS=	${ARCH_SRCS:S/^/${ARCH_PREFIX}/g}
 SRCS=	${COMMON_SRCS} ${RENAMED_ARCH_SRCS}
+CLEANFILES+=	${RENAMED_ARCH_SRCS}
 
 # Generate rules to rename arch-specific sources to avoid conflicts.
 # The path to the arch-specific sources is given explicitly instead of
