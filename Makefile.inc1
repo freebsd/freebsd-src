@@ -227,7 +227,8 @@ LIB32MAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		LD="ld -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
 		AS="as --32" \
 		LIBDIR=/usr/lib32 \
-		SHLIBDIR=/usr/lib32
+		SHLIBDIR=/usr/lib32 \
+		LIBCOMPATDIR=/usr/lib32/compat
 
 LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		-DNO_BIND -DNOMAN -DNODOC -DNOINFO -DNOHTML \
@@ -237,7 +238,8 @@ LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		LD="ld -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
 		AS="as --32" \
 		LIBDIR=/usr/lib32 \
-		SHLIBDIR=/usr/lib32
+		SHLIBDIR=/usr/lib32 \
+		LIBCOMPATDIR=/usr/lib32/compat
 .endif
 
 # install stage
@@ -384,7 +386,7 @@ build32:
 	@echo ">>> stage 5.1: building 32 bit shim libraries"
 	@echo "--------------------------------------------------------------"
 .for _dir in \
-    lib lib32 usr/bin usr/include usr/lib32 usr/libdata/ldscripts \
+    lib lib32 usr/bin usr/include usr/lib32/compat usr/libdata/ldscripts \
     usr/libexec usr/sbin usr/share/misc \
     usr/share/snmp/defs usr/share/snmp/mibs
 	mkdir -p ${LIB32TMP}/${_dir}
@@ -416,7 +418,7 @@ build32:
 .endfor
 
 install32:
-	mkdir -p ${DESTDIR}/usr/lib32	# XXX add to mtree
+	mkdir -p ${DESTDIR}/usr/lib32/compat	# XXX add to mtree
 	cd ${.CURDIR}/lib; ${LIB32MAKE} install
 	cd ${.CURDIR}/gnu/lib; ${LIB32MAKE} install
 .if !defined(NOCRYPT)
