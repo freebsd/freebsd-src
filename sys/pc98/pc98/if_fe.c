@@ -267,12 +267,12 @@ static int	fe_probe_re1000p( DEVICE *, struct fe_softc * );
 static int	fe_probe_fmv	( DEVICE *, struct fe_softc * );
 static int	fe_probe_ati	( DEVICE *, struct fe_softc * );
 static void	fe_init_ati	( struct fe_softc * );
+#endif /* PC98 */
 static int	fe_probe_gwy	( DEVICE *, struct fe_softc * );
 #if NCRD > 0
 static int	fe_probe_mbh	( DEVICE *, struct fe_softc * );
 static void	fe_init_mbh	( struct fe_softc * );
 static int	fe_probe_tdk	( DEVICE *, struct fe_softc * );
-#endif
 #endif
 static int	fe_get_packet	( struct fe_softc *, u_short );
 static void	fe_stop		( int );
@@ -1434,6 +1434,7 @@ fe_init_ati ( struct fe_softc * sc )
 	/* How long do we have to wait after the reset?  FIXME.  */
 	DELAY( 300 );
 }
+#endif	/* PC98 */
 
 /*
  * Probe and initialization for Gateway Communications' old cards.
@@ -1647,8 +1648,6 @@ fe_init_mbh ( struct fe_softc * sc )
 	/* Enable master interrupt flag.  */
 	outb( sc->ioaddr[ FE_MBH0 ], FE_MBH0_MAGIC | FE_MBH0_INTR_ENABLE );
 }
-#endif	/* PC98 */
-
 #endif /* NCRD > 0 */
 
 #if NCRD > 0
