@@ -12,7 +12,7 @@
  * its use.
  */
 
-#define TITLE	"FreeBSD 2.0-BETA Installation"
+#define TITLE	"FreeBSD 2.0-RELEASE Installation"
 
 #define BOOT1 "/stand/sdboot"
 #define BOOT2 "/stand/bootsd"
