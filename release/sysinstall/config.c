@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.17 1995/06/04 07:06:43 jkh Exp $
+ * $Id: config.c,v 1.15.2.18 1995/06/04 22:24:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -283,7 +283,7 @@ configSysconfig(void)
     /* If we're an NFS server, we need an exports file */
     if (getenv("nfs_server") && !file_readable("/etc/exports")) {
 	msgConfirm("You have chosen to be an NFS server but have not yet configured\nthe /etc/exports file.  The format for an exports entry is:\n     <mountpoint> <opts> <host [..host]>\nWhere <mounpoint> is the name of a filesystem as specified\nin the Label editor, <opts> is a list of special options we\nwon't concern ourselves with here (``man exports'' when the\nsystem is fully installed) and <host> is one or more host\nnames who are allowed to mount this file system.  Press\n[ENTER] now to invoke the editor on /etc/exports");
-	vsystem("vi /etc/exports");
+	systemExecute("vi /etc/exports");
     }
 }
 
