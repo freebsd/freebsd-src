@@ -1,3 +1,6 @@
+.\"	$FreeBSD$
+.\"	$KAME: getipnodebyname.3,v 1.6 2000/08/09 21:16:17 itojun Exp $
+.\"
 .\" Copyright (c) 1983, 1987, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -30,12 +33,10 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)gethostbyname.3	8.4 (Berkeley) 5/25/95
-.\"     $Id: getipnodebyname.3,v 1.2 1999/09/13 16:04:51 itojun Exp $
-.\	$FreeBSD$
 .\"
 .Dd May 25, 1995
 .Dt GETIPNODEBYNAME 3
-.Os KAME
+.Os
 .\"
 .Sh NAME
 .Nm getipnodebyname ,
@@ -94,7 +95,7 @@ For
 .Fn getipnodebyname ,
 the
 .Ar name
-argument can be either a node name or a numeric address 
+argument can be either a node name or a numeric address
 string
 .Po
 i.e., a dotted-decimal IPv4 address or an IPv6 hex address
@@ -411,9 +412,9 @@ or
 .El
 .\"
 .Sh DIAGNOSTICS
-.Nm getipnodebyname
+.Fn getipnodebyname
 and
-.Nm getipnodebyaddr
+.Fn getipnodebyaddr
 returns
 .Dv NULL
 on errors.
@@ -432,8 +433,15 @@ The meanings of each error code are described in
 .Xr hostname 7 ,
 .Xr named 8
 .Pp
-R. Gilligan, S.  Thomson, J. Bound, and W. Stevens,
-``Basic Socket Interface Extensions for IPv6,'' RFC2553, March 1999.
+.Rs
+.%A R. Gilligan
+.%A S. Thomson
+.%A J. Bound
+.%A W. Stevens
+.%T Basic Socket Interface Extensions for IPv6
+.%R RFC2553
+.%D March 1999
+.Re
 .\"
 .Sh HISTORY
 The implementation first appeared in KAME advanced networking kit.
@@ -442,8 +450,23 @@ The implementation first appeared in KAME advanced networking kit.
 .Fn getipnodebyname
 and
 .Fn getipnodebyaddr
-are documented in ``Basic Socket Interface Extensions for IPv6''
+are documented in
+.Dq Basic Socket Interface Extensions for IPv6
 .Pq RFC2553 .
 .\"
 .Sh BUGS
+.Fn getipnodebyname
+and
+.Fn getipnodebyaddr
+do not handle scoped IPv6 address properly.
+If you use these functions,
+your program will not be able to handle scoped IPv6 addresses.
+For IPv6 address manipulation,
+.Fn getaddrinfo 3
+and
+.Fn getnameinfo 3
+are recommended.
+.Pp
+The current implementation is not thread-safe.
+.Pp
 The text was shamelessly copied from RFC2553.
