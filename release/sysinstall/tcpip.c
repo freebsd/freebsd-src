@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.48.2.4 1996/12/12 22:57:01 jkh Exp $
+ * $Id: tcpip.c,v 1.48.2.5 1996/12/14 16:23:50 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -314,7 +314,7 @@ tcpOpenDialog(Device *devp)
 	if (n == LAYOUT_HOSTNAME) {
 	    /* We are in the Hostname field - calculate the domainname */
 	    if ((tmp = index(hostname, '.')) != NULL) {
-		sstrncpy(domainname, tmp + 1, strlen(tmp + 1));
+		sstrncpy(domainname, tmp + 1, strlen(tmp));
 		RefreshStringObj(layout[LAYOUT_DOMAINNAME].obj);
 	    }
 	}

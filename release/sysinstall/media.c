@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.67 1996/12/11 09:35:03 jkh Exp $
+ * $Id: media.c,v 1.62.2.6 1996/12/12 11:18:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -520,29 +520,36 @@ mediaExtractDistEnd(int zpid, int cpid)
 
 
 Boolean
-mediaExtractDist(char *dir, FILE *fp)
+mediaExtractDist(char *dir, char *dist, FILE *fp)
 {
-    int i, j, zpid, cpid, pfd[2];
+    int i, j, total, seconds, zpid, cpid, pfd[2], qfd[2];
+    char buf[BUFSIZ];
+    struct timeval start, stop;
 
     if (!dir)
 	dir = "/";
 
     Mkdir(dir);
     chdir(dir);
-    pipe(pfd);
+    pipe(pfd);	/* read end */
+    pipe(qfd);	/* write end */
     zpid = fork();
     if (!zpid) {
 	char *gunzip = RunningAsInit ? "/stand/gunzip" : "/usr/bin/gunzip";
 
-	dup2(fileno(fp), 0); fclose(fp);
+	fclose(fp);
+	close(qfd[1]);
+	dup2(qfd[0], 0); close(qfd[0]);
+
+	close(pfd[0]); 
 	dup2(pfd[1], 1); close(pfd[1]);
+
 	if (DebugFD != -1)
 	    dup2(DebugFD, 2);
 	else {
 	    close(2);
 	    open("/dev/null", O_WRONLY);
 	}
-	close(pfd[0]);
 	i = execl(gunzip, gunzip, 0);
 	if (isDebug())
 	    msgDebug("%s command returns %d status\n", gunzip, i);
@@ -552,15 +559,16 @@ mediaExtractDist(char *dir, FILE *fp)
     if (!cpid) {
 	char *cpio = RunningAsInit ? "/stand/cpio" : "/usr/bin/cpio";
 
-	dup2(pfd[0], 0); close(pfd[0]);
-	fclose(fp);
 	close(pfd[1]);
+	dup2(pfd[0], 0); close(pfd[0]);
+	close (qfd[0]); close(qfd[1]);
+	fclose(fp);
 	if (DebugFD != -1) {
 	    dup2(DebugFD, 1);
 	    dup2(DebugFD, 2);
 	}
 	else {
-	    close(1); open("/dev/null", O_WRONLY);
+	    dup2(open("/dev/null", O_WRONLY), 1);
 	    dup2(1, 2);
 	}
 	if (strlen(cpioVerbosity()))
@@ -571,8 +579,32 @@ mediaExtractDist(char *dir, FILE *fp)
 	    msgDebug("%s command returns %d status\n", cpio, i);
 	exit(i);
     }
-    close(pfd[0]);
-    close(pfd[1]);
+    close(pfd[0]); close(pfd[1]);
+    close(qfd[0]);
+
+    total = 0;
+    (void)gettimeofday(&start, (struct timezone *)0);
+
+    while ((i = fread(buf, 1, BUFSIZ, fp)) > 0) {
+	if (write(qfd[1], buf, i) != i) {
+	    msgDebug("Write error on transfer to cpio process, try of %d bytes\n", i);
+	    break;
+	}
+	else {
+	    (void)gettimeofday(&stop, (struct timezone *)0);
+	    stop.tv_sec = stop.tv_sec - start.tv_sec;
+	    stop.tv_usec = stop.tv_usec - start.tv_usec;
+	    if (stop.tv_usec < 0)
+		stop.tv_sec--, stop.tv_usec += 1000000;
+	    seconds = stop.tv_sec + (stop.tv_usec / 1000000.0);
+	    if (!seconds)
+		seconds = 1;
+	    total += i;
+	    msgInfo("%10d bytes read from %s dist @ %.1f KB/sec.",
+		    total, dist, (total / seconds) / 1024.0);
+	}
+    }
+    close(qfd[1]);
 
     i = waitpid(zpid, &j, 0);
     /* Don't check exit status - gunzip seems to return a bogus one! */
@@ -620,7 +652,9 @@ mediaSetFTPUserPass(dialogMenuItem *self)
     dialog_clear_norefresh();
     if (variable_get_value(VAR_FTP_USER, "Please enter the username you wish to login as:")) {
 	dialog_clear_norefresh();
+	DialogInputAttrs |= DITEM_NO_ECHO;
 	pass = variable_get_value(VAR_FTP_PASS, "Please enter the password for this user:");
+	DialogInputAttrs &= ~DITEM_NO_ECHO;
     }
     else
 	pass = NULL;
