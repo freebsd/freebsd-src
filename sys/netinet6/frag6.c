@@ -30,6 +30,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_random_ip_id.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -80,16 +82,18 @@ static MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
 void
 frag6_init()
 {
+#ifndef RANDOM_IP_ID
 	struct timeval tv;
+#endif
 
 	ip6_maxfragpackets = nmbclusters / 4;
 
+#ifndef RANDOM_IP_ID
 	/*
 	 * in many cases, random() here does NOT return random number
 	 * as initialization during bootstrap time occur in fixed order.
 	 */
 	microtime(&tv);
-#ifndef RANDOM_IP_ID
 	ip6_id = random() ^ tv.tv_usec;
 #endif
 	ip6q.ip6q_next = ip6q.ip6q_prev = &ip6q;
