@@ -48,9 +48,9 @@ type devices will be attached to the
 .Nm
 driver.
 In FreeBSD releases prior to 2.1, the first found will be attached as
-.Em cd0
+.Em st0
 and the next, 
-.Em cd1
+.Em st1
 etc.
 Beginning in 2.1 it is possible to specify what cd unit a device should
 come on line as; refer to
@@ -72,10 +72,10 @@ These include:
 .It Pa closing an 'unmount device'
 This is referred to as sub-mode 00 (see below). An example is /dev/rst0.
 .It Pa an MTOFFL ioctl
-Reachable throught the 'offline' command of 
+Reachable through the 'offline' command of 
 .Xr st 1
-.It Pa Openning another mode.
-Openning a different mode will implicitly unmount the tape, thereby closing
+.It Pa Opening another mode.
+Opening a different mode will implicitly unmount the tape, thereby closing
 off the mode that was previously mounted. All parameters will be loaded
 freshly from the new mode. (see below for more on 'modes').
 .El
@@ -97,7 +97,7 @@ variant of the
 command. When a device corresponding to a particular mode is first mounted,
 The operating parameters for that
 .Em Mount Session
-Are copied from that mode. Further changes to the parameters during the
+are copied from that mode. Further changes to the parameters during the
 session will change those in effect for the session but not those set
 in the Operating Mode. To change the parameters for an Operating Mode, 
 One must either assign the parameters to the control device, or compile
@@ -262,7 +262,7 @@ mount session only, unless set on the control device.
 .It Pa MTSETDNSTY
 Set the Density value (see 
 .Xr st 1
-) to use when running in the mode openned (minor bits 2,3).
+) to use when running in the mode opened (minor bits 2,3).
 This parameter is in effect for the present
 mount session only, unless set on the control device.
 .El
@@ -272,7 +272,7 @@ mount session only, unless set on the control device.
 ?Set END of TAPE processing... not yet supported.
 .El
 .Pp
-In addition, The 
+In addition, the 
 .Nm
 driver will allow the use of any of the general 
 .Xr scsi 4
