@@ -91,8 +91,6 @@ void print_devclass_list(void);
 #define print_devclass_list()		/* nop */
 #endif
 
-extern char static_hints[];		/* by config for now */
-
 TAILQ_HEAD(,device)	bus_data_devices;
 static int bus_data_generation = 1;
 
@@ -2134,13 +2132,17 @@ bus_data_generation_update(void)
  * Access functions for device resources.
  */
 
+extern char static_hints[];		/* by config for now */
+extern int hintmode;			/* 0 = off. 1 = config, 2 = fallback */
+static char *hintp;
+
 /*
  * Evil wildcarding resource string lookup.
  * This walks the supplied env string table and returns a match.
  * The start point can be remembered for incremental searches.
  */
 static int
-res_find(const char *cp, int *line, int *startln,
+res_find(int *line, int *startln,
     const char *name, int *unit, const char *resname, const char *value,
     const char **ret_name, int *ret_namelen, int *ret_unit,
     const char **ret_resname, int *ret_resnamelen, const char **ret_value)
@@ -2150,9 +2152,43 @@ res_find(const char *cp, int *line, int *startln,
 	int r_unit;
 	char r_resname[32];
 	char r_value[128];
-	const char *s;
+	const char *s, *cp;
 	char *p;
 
+	if (hintp == NULL) {
+		switch (hintmode) {
+		case 0:		/* config supplied nothing */
+			hintp = kern_envp;
+			break;
+		case 1:		/* static hints only */
+			hintp = static_hints;
+			break;
+		case 2:		/* fallback mode */
+			cp = kern_envp;
+			while (cp) {
+				if (strncmp(cp, "hint.", 5) == 0) {
+					cp = NULL;
+					hintp = kern_envp;
+					break;
+				}
+				while (*cp != '\0')
+					cp++;
+				cp++;
+				if (*cp == '\0') {
+					cp = NULL;
+					hintp = static_hints;
+					break;
+				}
+			}
+			break;
+		default:
+			break;
+		}
+		if (hintp == NULL)
+			hintp = kern_envp;
+	}
+
+	cp = hintp;
 	while (cp) {
 		hit = 1;
 		(*line)++;
@@ -2231,12 +2267,7 @@ resource_find(int *line, int *startln,
 	*line = 0;
 
 	/* Search for exact unit matches first */
-	i = res_find(kern_envp, line, startln, name, unit, resname, value,
-	    ret_name, ret_namelen, ret_unit, ret_resname, ret_resnamelen,
-	    ret_value);
-	if (i == 0)
-		return 0;
-	i = res_find(static_hints, line, startln, name, unit, resname, value,
+	i = res_find(line, startln, name, unit, resname, value,
 	    ret_name, ret_namelen, ret_unit, ret_resname, ret_resnamelen,
 	    ret_value);
 	if (i == 0)
@@ -2245,13 +2276,7 @@ resource_find(int *line, int *startln,
 		return ENOENT;
 	/* If we are still here, search for wildcard matches */
 	un = -1;
-	i = res_find(kern_envp, line, startln, name, &un, resname, value,
-	    ret_name, ret_namelen, ret_unit, ret_resname, ret_resnamelen,
-	    ret_value);
-	if (i == 0)
-		return 0;
-	un = -1;
-	i = res_find(static_hints, line, startln, name, &un, resname, value,
+	i = res_find(line, startln, name, &un, resname, value,
 	    ret_name, ret_namelen, ret_unit, ret_resname, ret_resnamelen,
 	    ret_value);
 	if (i == 0)
