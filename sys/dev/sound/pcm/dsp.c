@@ -325,7 +325,7 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 #define THE_REAL_SNDCTL_DSP_GETBLKSIZE _IOWR('P', 4, int)
     	case THE_REAL_SNDCTL_DSP_GETBLKSIZE:
     	case SNDCTL_DSP_GETBLKSIZE:
-		*arg_i = wrch? wrch->blocksize : 0; /* XXX rdch? */
+		*arg_i = CHN_2NDBUFBLKSIZE;
 		break ;
 
     	case SNDCTL_DSP_SETBLKSIZE:
