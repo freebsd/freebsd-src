@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id$
+# $Id: extract.sh,v 1.5 1994/11/10 02:24:47 phk Exp $
 
 DDIR=/
 
@@ -18,8 +18,8 @@ fi
 for i in *.aa
 do
 	b=`basename $i .aa`
-	echo "Extracting $b"
 	if [ "$b" != bin_tgz ] ; then
+		echo "Extracting $b"
 		cat $b.?? | zcat | ( cd $DDIR ; tar xf - )
 	fi
 done
