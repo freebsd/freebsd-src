@@ -828,8 +828,10 @@ ciss_identify_adapter(struct ciss_softc *sc)
 	goto out;
     }
 
+#if 0
     /* XXX later revisions may not need this */
     sc->ciss_flags |= CISS_FLAG_FAKE_SYNCH;
+#endif
 
     /* XXX only really required for old 5300 adapters? */
     sc->ciss_flags |= CISS_FLAG_BMIC_ABORT;
@@ -2000,7 +2002,7 @@ ciss_cam_init(struct ciss_softc *sc)
      */
     if ((sc->ciss_cam_sim = cam_sim_alloc(ciss_cam_action, ciss_cam_poll, "ciss", sc,
 					  device_get_unit(sc->ciss_dev),
-					  sc->ciss_cfg->max_outstanding_commands,
+					  sc->ciss_max_requests - 2,
 					  1,
 					  sc->ciss_cam_devq)) == NULL) {
 	ciss_printf(sc, "can't allocate CAM SIM\n");
@@ -2421,6 +2423,9 @@ ciss_cam_complete(struct ciss_request *cr)
     /* handle post-command fixup */
     ciss_cam_complete_fixup(sc, csio);
 
+    /* tell CAM we're ready for more commands */
+    csio->ccb_h.status |= CAM_RELEASE_SIMQ;
+
     xpt_done((union ccb *)csio);
     ciss_release_request(cr);
 }
@@ -2442,15 +2447,15 @@ ciss_cam_complete_fixup(struct ciss_softc *sc, struct ccb_scsiio *csio)
 	target = csio->ccb_h.target_id;
 	cl = &sc->ciss_logical[target];
 	
-	padstr(inq->vendor, ciss_name_ldrive_org(cl->cl_ldrive->fault_tolerance), 8);
-	padstr(inq->product, ciss_name_ldrive_status(cl->cl_lstatus->status), 16);
-	padstr(inq->revision, "", 4);
+	padstr(inq->vendor, "COMPAQ", 8);
+	padstr(inq->product, ciss_name_ldrive_org(cl->cl_ldrive->fault_tolerance), 8);
+	padstr(inq->revision, ciss_name_ldrive_status(cl->cl_lstatus->status), 16);
     }
 }
 
 
 /********************************************************************************
- * Find a peripheral attahed at (target)
+ * Find a peripheral attached at (target)
  */
 static struct cam_periph *
 ciss_find_periph(struct ciss_softc *sc, int target)
@@ -2928,8 +2933,16 @@ ciss_notify_logical(struct ciss_softc *sc, struct ciss_notify *cn)
 	     */
 	    ostatus = ciss_decode_ldrive_status(cn->data.logical_status.previous_state);
 	    ld->cl_status = ciss_decode_ldrive_status(cn->data.logical_status.new_state);
-	    if (ld->cl_status != NULL)
+	    if (ld->cl_lstatus != NULL)
 		ld->cl_lstatus->status = cn->data.logical_status.new_state;
+
+#if 0
+	    /*
+	     * Have CAM rescan the drive if its status has changed.
+	     */
+	    if (ostatus != ld->cl_status)
+		ciss_cam_rescan_target(sc, cn->data.logical_status.logical_drive);
+#endif
 
 	    break;
 
@@ -3044,6 +3057,11 @@ ciss_print_ldrive(struct ciss_softc *sc, struct ciss_ldrive *ld)
 {
     int		bus, target, i;
 
+    if (ld->cl_lstatus == NULL) {
+	printf("does not exist\n");
+	return;
+    }
+
     /* print drive status */
     switch(ld->cl_lstatus->status) {
     case CISS_LSTATUS_OK:
@@ -3082,7 +3100,7 @@ ciss_print_ldrive(struct ciss_softc *sc, struct ciss_ldrive *ld)
 	break;
     }
 
-    /* print failed drives */
+    /* print failed physical drives */
     for (i = 0; i < CISS_BIG_MAP_ENTRIES / 8; i++) {
 	bus = CISS_BIG_MAP_BUS(sc, ld->cl_lstatus->drive_failure_map[i]);
 	target = CISS_BIG_MAP_TARGET(sc, ld->cl_lstatus->drive_failure_map[i]);
@@ -3092,6 +3110,54 @@ ciss_print_ldrive(struct ciss_softc *sc, struct ciss_ldrive *ld)
 		    ld->cl_lstatus->drive_failure_map[i]);
     }
 }
+
+#ifdef CISS_DEBUG
+/************************************************************************
+ * Print information about the controller/driver.
+ */
+static void
+ciss_print_adapter(struct ciss_softc *sc)
+{
+    int		i;
+
+    ciss_printf(sc, "ADAPTER:\n");
+    for (i = 0; i < CISSQ_COUNT; i++) {
+	ciss_printf(sc, "%s     %d/%d\n",
+	    i == 0 ? "free" :
+	    i == 1 ? "busy" : "complete",
+	    sc->ciss_qstat[i].q_length,
+	    sc->ciss_qstat[i].q_max);
+    }
+    ciss_printf(sc, "max_requests %d\n", sc->ciss_max_requests);
+    ciss_printf(sc, "notify_head/tail %d/%d\n",
+	sc->ciss_notify_head, sc->ciss_notify_tail);
+    ciss_printf(sc, "flags %b\n", sc->ciss_flags,
+	"\20\1notify_ok\2control_open\3aborting\4running\21fake_synch\22bmic_abort\n");
+
+    for (i = 0; i < CISS_MAX_LOGICAL; i++) {
+	ciss_printf(sc, "LOGICAL DRIVE %d:  ", i);
+	ciss_print_ldrive(sc, sc->ciss_logical + i);
+    }
+
+    for (i = 1; i < sc->ciss_max_requests; i++)
+	ciss_print_request(sc->ciss_request + i);
+
+}
+
+/* DDB hook */
+void
+ciss_print0(void)
+{
+    struct ciss_softc	*sc;
+    
+    sc = devclass_get_softc(devclass_find("ciss"), 0);
+    if (sc == NULL) {
+	printf("no ciss controllers\n");
+    } else {
+	ciss_print_adapter(sc);
+    }
+}
+#endif
 
 /************************************************************************
  * Return a name for a logical drive status value.
