@@ -12,7 +12,7 @@
 Author=''
 Date='$Date'
 Header=''
-Id='$Id'
+Id='$FreeBSD$'
 Locker=''
 Log='$Log'
 Mcc='Mcc'
