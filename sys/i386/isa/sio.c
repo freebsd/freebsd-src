@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.106 1995/07/29 04:05:57 bde Exp $
+ *	$Id: sio.c,v 1.107 1995/07/29 08:33:13 bde Exp $
  */
 
 #include "sio.h"
@@ -1548,31 +1548,6 @@ repeat:
 		if (incc <= 0 || !(tp->t_state & TS_ISOPEN))
 			continue;
 		/*
-		 * XXX only do this when we bypass ttyinput.
-		 */
-		if (tp->t_rawq.c_cc + incc >= RB_I_HIGH_WATER
-		    && (com->state & CS_RTS_IFLOW || tp->t_iflag & IXOFF)
-		    && !(tp->t_state & TS_TBLOCK)
-		    /*
-		     * XXX - need flow control for all line disciplines.
-		     * Only have it in standard one now.
-		     */
-		    && linesw[tp->t_line].l_rint == ttyinput) {
-			int	putc_status = 0;
-
-			if ((tp->t_iflag & IXOFF
-			     && tp->t_cc[VSTOP] != _POSIX_VDISABLE
-			     && (putc_status = putc(tp->t_cc[VSTOP],
-						    &tp->t_outq)) == 0)
-			    || com->state & CS_RTS_IFLOW) {
-				tp->t_state |= TS_TBLOCK;
-				ttstart(tp);
-				if (putc_status != 0)
-					/* Try again later. */
-					tp->t_state &= ~TS_TBLOCK;
-			}
-		}
-		/*
 		 * Avoid the grotesquely inefficient lineswitch routine
 		 * (ttyinput) in "raw" mode.  It usually takes about 450
 		 * instructions (that's without canonical processing or echo!).
@@ -1580,6 +1555,11 @@ repeat:
 		 * call overhead).
 		 */
 		if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
+			if (tp->t_rawq.c_cc + incc >= RB_I_HIGH_WATER
+			    && (com->state & CS_RTS_IFLOW
+				|| tp->t_iflag & IXOFF)
+			    && !(tp->t_state & TS_TBLOCK))
+				ttyblock(tp);
 			tk_nin += incc;
 			tk_rawcc += incc;
 			tp->t_rawcc += incc;
