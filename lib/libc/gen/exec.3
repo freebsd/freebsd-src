@@ -144,10 +144,13 @@ character.
 The search path is the path specified in the environment by
 .Dq Ev PATH
 variable.
-If this variable isn't specified, the default path
-.Dq Ev /bin:/usr/bin:
-is
-used.
+If this variable isn't specified,
+the default path is set according to the 
+.Dv _PATH_DEFPATH
+definition in
+.Aq paths.h ,
+which is set to
+.Dq Ev /usr/bin:/bin .
 In addition, certain errors are treated specially.
 .Pp
 If an error is ambiguous (for simplicity, we shall consider all
