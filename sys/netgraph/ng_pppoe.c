@@ -39,6 +39,11 @@
  * $FreeBSD$
  * $Whistle: ng_pppoe.c,v 1.7 1999/10/16 10:16:43 julian Exp $
  */
+#if 0
+#define AAA printf("pppoe: %s\n", __FUNCTION__ );
+#else
+#define AAA
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -98,14 +103,6 @@ enum state {
     PPPOE_NEWCONNECTED,	/* [Both] Connection established, No data received */
     PPPOE_CONNECTED,	/* [Both] Connection established, Data received */
     PPPOE_DEAD		/* [Both] */
-};
-/*
- * Events for the state machine
- */
-enum event {
-    PPPOE_TIMEOUT,	/* It's time to do something */
-    PPPOE_PACKET,	/* a packet has been received. */
-    PPPOE_CLOSE		/* start shutdown processing */
 };
 
 #define NUMTAGS 20 /* number of tags we are set up to work with */
@@ -194,6 +191,7 @@ get_new_sid(node_p node)
 	u_int16_t val; 
 	priv_p privp = node->private;
 
+AAA
 restart:
 	val = pppoe_sid++;
 	/*
@@ -243,6 +241,7 @@ get_tag(struct pppoe_hdr* ph, u_int16_t idx)
 	/*
 	 * Keep processing tags while a tag header will still fit.
 	 */
+AAA
 	while((char*)(pt + 1) <= end) {
 	    /*
 	     * If the tag data would go past the end of the packet, abort.
@@ -268,6 +267,7 @@ get_tag(struct pppoe_hdr* ph, u_int16_t idx)
 static void
 init_tags(sessp sp)
 {
+AAA
 	if(sp->neg == NULL) {
 		printf("pppoe: asked to init NULL neg pointer\n");
 		return;
@@ -281,6 +281,7 @@ insert_tag(sessp sp, struct pppoe_tag *tp)
 	int	i;
 	negp neg;
 
+AAA
 	if((neg = sp->neg) == NULL) {
 		printf("pppoe: asked to use NULL neg pointer\n");
 		return;
@@ -309,7 +310,8 @@ make_packet(sessp sp) {
 	int tlen;
 	u_int16_t length = 0;
 
-	if ((sp->neg == NULL) || (sp->neg->m = NULL)) {
+AAA
+	if ((sp->neg == NULL) || (sp->neg->m == NULL)) {
 		printf("pppoe: make_packet called from wrong state\n");
 	}
 	dp = (char *)wh->ph.tag;
@@ -349,6 +351,7 @@ pppoe_match_svc(node_p node, char *svc_name, int svc_len)
 	priv_p	privp	= node->private;
 	hook_p hook;
 
+AAA
 	LIST_FOREACH(hook, &node->hooks, hooks) {
 
 		/* skip any hook that is debug or ethernet */
@@ -399,6 +402,7 @@ pppoe_findsession(node_p node, struct pppoe_full_hdr *wh)
 	/*
 	 * find matching peer/session combination.
 	 */
+AAA
 	LIST_FOREACH(hook, &node->hooks, hooks) {
 		/* don't check special hooks */
 		if ((hook->private == &privp->debug_hook)
@@ -425,6 +429,7 @@ pppoe_finduniq(node_p node, struct pppoe_tag *tag)
 	priv_p	privp = node->private;
 	union uniq		uniq;
 
+AAA
 	bcopy(tag->tag_data, uniq.bytes, sizeof(void *));
 	/* cycle through all known hooks */
 	LIST_FOREACH(hook, &node->hooks, hooks) {
@@ -461,6 +466,7 @@ ng_PPPoE_constructor(node_p *nodep)
 	priv_p privdata;
 	int error;
 
+AAA
 	/* Initialize private descriptor */
 	MALLOC(privdata, priv_p, sizeof(*privdata), M_NETGRAPH, M_WAITOK);
 	if (privdata == NULL)
@@ -493,6 +499,7 @@ ng_PPPoE_newhook(node_p node, hook_p hook, const char *name)
 	const priv_p privp = node->private;
 	sessp sp;
 
+AAA
 	if (strcmp(name, NG_PPPOE_HOOK_ETHERNET) == 0) {
 		privp->ethernet_hook = hook;
 		hook->private = &privp->ethernet_hook;
@@ -513,7 +520,6 @@ ng_PPPoE_newhook(node_p node, hook_p hook, const char *name)
 
 		hook->private = sp;
 		sp->hook = hook;
-		callout_handle_init( &sp->neg->timeout_handle);
 	}
 	return(0);
 }
@@ -536,6 +542,7 @@ ng_PPPoE_rcvmsg(node_p node,
 	sessp sp = NULL;
 	negp neg = NULL;
 
+AAA
 	/* Deal with message according to cookie and command */
 	switch (msg->header.typecookie) {
 	case NGM_PPPOE_COOKIE: 
@@ -576,10 +583,10 @@ ng_PPPoE_rcvmsg(node_p node,
 				printf("pppoe: Session already active\n");
 				LEAVE(EISCONN);
 			}
+
 			/*
 			 * set up prototype header
 			 */
-
 			MALLOC(neg, negp, sizeof(*neg), M_NETGRAPH, M_WAITOK);
 
 			if (neg == NULL) {
@@ -589,17 +596,20 @@ ng_PPPoE_rcvmsg(node_p node,
 			bzero(neg, sizeof(*neg));
 			MGETHDR(neg->m, M_DONTWAIT, MT_DATA);
 			if(neg->m == NULL) {
+				printf("pppoe: Session out of mbufs\n");
 				FREE(neg, M_NETGRAPH);
 				LEAVE(ENOBUFS);
 			}
 			neg->m->m_pkthdr.rcvif = NULL;
 			MCLGET(neg->m, M_DONTWAIT);
 			if ((neg->m->m_flags & M_EXT) == 0) {
+				printf("pppoe: Session out of mcls\n");
 				m_freem(neg->m);
 				FREE(neg, M_NETGRAPH);
 				LEAVE(ENOBUFS);
 			}
 			sp->neg = neg;
+			callout_handle_init( &neg->timeout_handle);
 			neg->m->m_len = sizeof(struct pppoe_full_hdr);
 			neg->pkt = mtod(neg->m, union packet*);
 			neg->pkt->pkt_header.eh = eh_prototype;
@@ -638,10 +648,11 @@ ng_PPPoE_rcvmsg(node_p node,
 			neg->service.hdr.tag_type = PTT_SRV_NAME;
 			neg->service.hdr.tag_len =
 					htons((u_int16_t)ourmsg->data_len);
-			bcopy(ourmsg->data,
-				neg->service.data, ourmsg->data_len);
+			if (ourmsg->data_len) {
+				bcopy(ourmsg->data,
+					neg->service.data, ourmsg->data_len);
+			}
 			neg->service_len = ourmsg->data_len;
-			neg->pkt->pkt_header.ph.code = PADI_CODE;
 			pppoe_start(sp);
 			break;
 		case NGM_PPPOE_LISTEN:
@@ -651,12 +662,16 @@ ng_PPPoE_rcvmsg(node_p node,
 			 * Store the originator of this message so we can send
 			 * a success of fail message to them later.
 			 * Move the hook to 'LISTENING'
+
 			 */
 			neg->service.hdr.tag_type = PTT_SRV_NAME;
 			neg->service.hdr.tag_len =
 					htons((u_int16_t)ourmsg->data_len);
-			bcopy(ourmsg->data,
-				neg->service.data, ourmsg->data_len);
+
+			if (ourmsg->data_len) {
+				bcopy(ourmsg->data,
+					neg->service.data, ourmsg->data_len);
+			}
 			neg->service_len = ourmsg->data_len;
 			neg->pkt->pkt_header.ph.code = PADT_CODE;
 			/*
@@ -674,8 +689,10 @@ ng_PPPoE_rcvmsg(node_p node,
 			neg->ac_name.hdr.tag_type = PTT_AC_NAME;
 			neg->ac_name.hdr.tag_len =
 					htons((u_int16_t)ourmsg->data_len);
-			bcopy(ourmsg->data,
-				neg->ac_name.data, ourmsg->data_len);
+			if (ourmsg->data_len) {
+				bcopy(ourmsg->data,
+					neg->ac_name.data, ourmsg->data_len);
+			}
 			neg->ac_name_len = ourmsg->data_len;
 			neg->pkt->pkt_header.ph.code = PADO_CODE;
 			/*
@@ -703,6 +720,10 @@ quit:
 	return(error);
 }
 
+/*
+ * Start a client into the first state. A separate function because
+ * it can be needed if the negotiation times out.
+ */
 static void
 pppoe_start(sessp sp)
 {
@@ -714,7 +735,11 @@ pppoe_start(sessp sp)
 	/* 
 	 * kick the state machine into starting up
 	 */
+AAA
 	sp->state = PPPOE_SINIT;
+	/* reset the packet header to broadcast */
+	sp->neg->pkt->pkt_header.eh = eh_prototype;
+	sp->neg->pkt->pkt_header.ph.code = PADI_CODE;
 	uniqtag.hdr.tag_type = PTT_HOST_UNIQ;
 	uniqtag.hdr.tag_len = htons((u_int16_t)sizeof(uniqtag.data));
 	uniqtag.data.pointer = sp;
@@ -750,6 +775,7 @@ ng_PPPoE_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	} uniqtag;
 	negp			neg = NULL;
 
+AAA
 	if (hook->private == &privp->debug_hook) {
 		/*
 		 * Data from the debug hook gets sent without modification
@@ -764,6 +790,9 @@ ng_PPPoE_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		 * use them to decide where to send it.
 		 */
 		
+printf("got packet\n");
+LEAVE(0);
+
  		privp->packets_in++;
 		m_pullup(m, sizeof(*wh)); /* Checks length */
 		if (m == NULL) {
@@ -1095,6 +1124,11 @@ ng_PPPoE_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 			session = ntohs(wh->ph.sid);
 			length = ntohs(wh->ph.length);
 			code = wh->ph.code; 
+			if ( code != PADI_CODE) {
+				LEAVE(EINVAL);
+			};
+			untimeout(pppoe_ticker, hook,
+				    neg->timeout_handle);
 
 			/*
 			 * This is the first time we hear
@@ -1156,6 +1190,7 @@ ng_PPPoE_rmnode(node_p node)
 {
 	const priv_p privdata = node->private;
 
+AAA
 	node->flags |= NG_INVALID;
 	ng_cutlinks(node);
 	ng_unname(node);
@@ -1189,6 +1224,7 @@ ng_PPPoE_disconnect(hook_p hook)
 	priv_p privp = node->private;
 	sessp	sp;
 
+AAA
 	if (hook->private == &privp->debug_hook) {
 		privp->debug_hook = NULL;
 	} else if (hook->private == &privp->ethernet_hook) {
@@ -1198,8 +1234,14 @@ ng_PPPoE_disconnect(hook_p hook)
 		if (sp->state != PPPOE_SNONE ) {
 			pppoe_send_event(sp, NGM_PPPOE_CLOSE);
 		}
-		untimeout(pppoe_ticker, hook, sp->neg->timeout_handle);
+		if (sp->neg) {
+			untimeout(pppoe_ticker, hook, sp->neg->timeout_handle);
+			if (sp->neg->m)
+				m_freem(sp->neg->m);
+			FREE(sp->neg, M_NETGRAPH);
+		}
 		FREE(sp, M_NETGRAPH);
+		hook->private = NULL;
 	}
 	if (node->numhooks == 0)
 		ng_rmnode(node);
@@ -1221,6 +1263,7 @@ pppoe_ticker(void *arg)
 	priv_p privp = hook->node->private;
 	meta_p dummy = NULL;
 
+AAA
 	switch(sp->state) {
 		/*
 		 * resend the last packet, using an exponential backoff.
@@ -1266,6 +1309,7 @@ sendpacket(sessp sp)
 	priv_p	privp = hook->node->private;
 	meta_p dummy = NULL;
 
+AAA
 	switch(sp->state) {
 	case	PPPOE_LISTENING:
 	case	PPPOE_DEAD:
@@ -1321,6 +1365,7 @@ scan_tags(sessp	sp, struct pppoe_hdr* ph)
 	/*
 	 * Keep processing tags while a tag header will still fit.
 	 */
+AAA
 	while((char*)(pt + 1) <= end) {
 		/*
 		 * If the tag data would go past the end of the packet, abort.
@@ -1357,6 +1402,7 @@ pppoe_send_event(sessp sp, enum cmd cmdid)
 	struct ng_mesg *msg;
 	struct ngPPPoE_sts *sts;
 
+AAA
 	NG_MKMESSAGE(msg, NGM_PPPOE_COOKIE, cmdid,
 			sizeof(struct ngPPPoE_sts), M_NOWAIT);
 	sts = (struct ngPPPoE_sts *)msg->data;
