@@ -794,10 +794,9 @@ lf_print(tag, lock)
 	else
 		printf("id %p", (void *)lock->lf_id);
 	if (lock->lf_inode != (struct inode *)0)
-		printf(" in ino %ju on dev <%d, %d>, %s, start %jd, end %jd",
+		printf(" in ino %ju on dev <%s>, %s, start %jd, end %jd",
 		    (uintmax_t)lock->lf_inode->i_number,
-		    major(lock->lf_inode->i_dev),
-		    minor(lock->lf_inode->i_dev),
+		    devtoname(lock->lf_inode->i_dev),
 		    lock->lf_type == F_RDLCK ? "shared" :
 		    lock->lf_type == F_WRLCK ? "exclusive" :
 		    lock->lf_type == F_UNLCK ? "unlock" : "unknown",
