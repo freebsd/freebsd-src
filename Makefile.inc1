@@ -124,12 +124,11 @@ BMAKEENV=	MAKEOBJDIRPREFIX=${WORLDTMP} \
 		MACHINE_ARCH=${BUILD_ARCH} \
 		PATH=${TMPPATH}
 BMAKE=		${BMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO \
-		-DNO_FORTRAN -DNO_GDB -DNO_OBJC
+		-DNO_FORTRAN -DNO_GDB
 
 CROSSENV=	COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
-		CFLAGS="-nostdinc ${CFLAGS}" \
 		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.00503 \
 		MAKEOBJDIRPREFIX=${OBJTREE}
 
@@ -343,8 +342,9 @@ _aout_tools=	usr.bin/size usr.bin/strip gnu/usr.bin/as gnu/usr.bin/ld
 .endif
 
 tools::
-.for _tool in ${_strfile} ${_aout_tools} gnu/usr.bin/binutils \
-    usr.bin/objformat usr.bin/yacc gnu/usr.bin/bison gnu/usr.bin/cc
+.for _tool in ${_strfile} ${_aout_tools} usr.bin/gensetdefs \
+    gnu/usr.bin/binutils usr.bin/objformat usr.bin/yacc gnu/usr.bin/bison \
+    gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
