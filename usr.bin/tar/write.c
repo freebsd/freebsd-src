@@ -141,16 +141,17 @@ tar_mode_c(struct bsdtar *bsdtar)
 	a = archive_write_new();
 
 	/* Support any format that the library supports. */
-	if (bsdtar->create_format == NULL)
-		archive_write_set_format_pax_restricted(a);
-	else {
+	if (bsdtar->create_format == NULL) {
+		r = archive_write_set_format_pax_restricted(a);
+		bsdtar->create_format = "pax restricted";
+	} else {
 		r = archive_write_set_format_by_name(a, bsdtar->create_format);
-		if (r != ARCHIVE_OK) {
-			fprintf(stderr, "Can't use format %s: %s\n",
-			    bsdtar->create_format,
-			    archive_error_string(a));
-			usage(bsdtar);
-		}
+	}
+	if (r != ARCHIVE_OK) {
+		fprintf(stderr, "Can't use format %s: %s\n",
+		    bsdtar->create_format,
+		    archive_error_string(a));
+		usage(bsdtar);
 	}
 
 	/*
@@ -242,10 +243,10 @@ tar_mode_r(struct bsdtar *bsdtar)
 	if (format == ARCHIVE_FORMAT_TAR_GNUTAR)
 		format = ARCHIVE_FORMAT_TAR_USTAR;
 	archive_write_set_format(a, format);
-	lseek(bsdtar->fd, end_offset, SEEK_SET);
-	archive_write_open_fd(a, bsdtar->fd);
+	lseek(bsdtar->fd, end_offset, SEEK_SET); /* XXX check return val XXX */
+	archive_write_open_fd(a, bsdtar->fd); /* XXX check return val XXX */
 
-	write_archive(a, bsdtar);
+	write_archive(a, bsdtar); /* XXX check return val XXX */
 
 	archive_write_finish(a);
 	close(bsdtar->fd);
@@ -400,7 +401,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 			 * directories; such requests will only fail
 			 * if the directory must be accessed.
 			 */
-			if (pending_dir && *arg == '/') {
+			if (pending_dir != NULL && *arg == '/') {
 				/* The -C /foo -C /bar case; dump first one. */
 				free(pending_dir);
 				pending_dir = NULL;
@@ -408,7 +409,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 			if (pending_dir) {
 				/* The -C /foo -C bar case; concatenate */
 				char *old_pending = pending_dir;
-				int old_len = strlen(old_pending);
+				size_t old_len = strlen(old_pending);
 
 				pending_dir =
 				    malloc(old_len + 1 + strlen(arg));
@@ -433,7 +434,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 			if (pending_dir != NULL &&
 			    (*arg != '/' || (*arg == '@' && arg[1] != '/'))) {
 				/* Handle a deferred -C */
-				if (chdir(pending_dir)) {
+				if (chdir(pending_dir) != 0) {
 					bsdtar_warnc(bsdtar, 0,
 					    "could not chdir to '%s'\n",
 					    pending_dir);
@@ -445,7 +446,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 			}
 
 			if (*arg == '@') {
-				if (append_archive(bsdtar, a, arg+1))
+				if (append_archive(bsdtar, a, arg + 1) != 0)
 					break;
 			} else
 				write_heirarchy(bsdtar, a, arg);
@@ -582,6 +583,8 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 	 * copy 'path' to mutable storage.
 	 */
 	fts_argv[0] = strdup(path);
+	if (fts_argv[0] == NULL)
+		bsdtar_errc(bsdtar, 1, ENOMEM, "Can't open %s", path);
 	fts_argv[1] = NULL;
 	ftsoptions = FTS_PHYSICAL;
 	switch (bsdtar->symlink_mode) {
@@ -794,9 +797,9 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 		st->st_size = 0;
 
 	/* Strip redundant "./" from start of filename. */
-	if (pathname && pathname[0] == '.' && pathname[1] == '/') {
+	if (pathname != NULL && pathname[0] == '.' && pathname[1] == '/') {
 		pathname += 2;
-		if (*pathname == 0)	/* This is the "./" directory. */
+		if (*pathname == '\0')	/* This is the "./" directory. */
 			goto cleanup;	/* Don't archive it ever. */
 	}
 
@@ -1080,12 +1083,18 @@ lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 
 	/* Add this entry to the links cache. */
 	le = malloc(sizeof(struct links_entry));
-	if (le == NULL) {
+	if (le != NULL)
+		le->name = strdup(archive_entry_pathname(entry));
+	if ((le == NULL) || (le->name == NULL)) {
+		/* TODO: Just flush the entire links cache when we
+		 * run out of memory; don't hold onto anything. */
 		links_cache->stop_allocating = 1;
 		bsdtar_warnc(bsdtar, ENOMEM,
 		    "No more memory for recording hard links");
 		bsdtar_warnc(bsdtar, 0,
 		    "Remaining hard links will be dumped as full files");
+		if (le != NULL)
+			free(le);
 		return;
 	}
 	if (links_cache->buckets[hash] != NULL)
@@ -1097,7 +1106,6 @@ lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 	le->dev = st->st_dev;
 	le->ino = st->st_ino;
 	le->links = st->st_nlink - 1;
-	le->name = strdup(archive_entry_pathname(entry));
 }
 
 #ifdef HAVE_POSIX_ACL
@@ -1218,6 +1226,8 @@ lookup_name(struct bsdtar *bsdtar, struct name_cache **name_cache_variable,
 
 	if (*name_cache_variable == NULL) {
 		*name_cache_variable = malloc(sizeof(struct name_cache));
+		if (*name_cache_variable == NULL)
+			bsdtar_errc(bsdtar, 1, ENOMEM, "No more memory");
 		memset(*name_cache_variable, 0, sizeof(struct name_cache));
 		(*name_cache_variable)->size = name_cache_size;
 	}
@@ -1245,8 +1255,15 @@ lookup_name(struct bsdtar *bsdtar, struct name_cache **name_cache_variable,
 			cache->cache[slot].id = id;
 		} else {
 			cache->cache[slot].name = strdup(name);
-			cache->cache[slot].id = id;
-			return (cache->cache[slot].name);
+			if (cache->cache[slot].name != NULL) {
+				cache->cache[slot].id = id;
+				return (cache->cache[slot].name);
+			}
+			/*
+			 * Conveniently, NULL marks an empty slot, so
+			 * if the strdup() fails, we've just failed to
+			 * cache it.  No recovery necessary.
+			 */
 		}
 	}
 	return (NULL);
@@ -1361,7 +1378,12 @@ add_dir_list(struct bsdtar *bsdtar, const char *path,
 	}
 
 	p = malloc(sizeof(*p));
+	if (p == NULL)
+		bsdtar_errc(bsdtar, 1, ENOMEM, "Can't read archive directory");
+
 	p->name = strdup(path);
+	if (p->name == NULL)
+		bsdtar_errc(bsdtar, 1, ENOMEM, "Can't read archive directory");
 	p->mtime_sec = mtime_sec;
 	p->mtime_nsec = mtime_nsec;
 	p->next = NULL;
