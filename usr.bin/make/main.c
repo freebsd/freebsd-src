@@ -138,7 +138,7 @@ Boolean			jobsRunning;	/* TRUE if the jobs might be running */
 
 static void		MainParseArgs(int, char **);
 char			*chdir_verify_path(const char *, char *);
-static int		ReadMakefile(const void *, const void *);
+static int		ReadMakefile(const char *);
 static void		usage(void);
 
 static char *curdir;			/* startup directory */
@@ -775,7 +775,10 @@ main(int argc, char **argv)
 		Dir_Expand(PATH_DEFSYSMK, &sysIncPath, &sysMkPath);
 		if (Lst_IsEmpty(&sysMkPath))
 			Fatal("make: no system rules (%s).", PATH_DEFSYSMK);
-		ln = Lst_Find(&sysMkPath, NULL, ReadMakefile);
+		LST_FOREACH(ln, &sysMkPath) {
+			if (!ReadMakefile(Lst_Datum(ln)))
+				break;
+		}
 		if (ln != NULL)
 			Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
 		Lst_Destroy(&sysMkPath, free);
@@ -784,14 +787,17 @@ main(int argc, char **argv)
 	if (!Lst_IsEmpty(&makefiles)) {
 		LstNode *ln;
 
-		ln = Lst_Find(&makefiles, NULL, ReadMakefile);
+		LST_FOREACH(ln, &makefiles) {
+			if (!ReadMakefile(Lst_Datum(ln)))
+				break;
+		}
 		if (ln != NULL)
 			Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
-	} else if (!ReadMakefile("BSDmakefile", NULL))
-	    if (!ReadMakefile("makefile", NULL))
-		ReadMakefile("Makefile", NULL);
+	} else if (!ReadMakefile("BSDmakefile"))
+	    if (!ReadMakefile("makefile"))
+		ReadMakefile("Makefile");
 
-	ReadMakefile(".depend", NULL);
+	ReadMakefile(".depend");
 
 	/* Install all the flags into the MAKE envariable. */
 	if (((p = Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1)) != NULL) && *p)
@@ -947,7 +953,7 @@ main(int argc, char **argv)
  *	lots
  */
 static Boolean
-ReadMakefile(const void *p, const void *q __unused)
+ReadMakefile(const char *p)
 {
 	char *fname;			/* makefile to read */
 	FILE *stream;
