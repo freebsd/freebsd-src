@@ -179,6 +179,11 @@ procedure for the package.  This can be any
 executable program (or shell script).  It will be invoked automatically
 at installation/deinstallation time to determine whether or not
 installation/deinstallation should proceed.
+To differentiate between installation and deinstallation, the keywords
+.Ar INSTALL
+and
+.Ar DEINSTALL
+are passed respectively, along with the package's name.
 .It Fl s Ar srcdir
 .Ar srcdir
 will override the value of
