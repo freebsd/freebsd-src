@@ -2385,7 +2385,7 @@ void
 ipi_selected(u_int32_t cpus, u_int ipi)
 {
 
-	CTR2(KTR_SMP, __func__ ": cpus: %x ipi: %x", cpus, ipi);
+	CTR3(KTR_SMP, "%s: cpus: %x ipi: %x", __func__, cpus, ipi);
 	selected_apic_ipi(cpus, ipi, APIC_DELMODE_FIXED);
 }
 
@@ -2396,7 +2396,7 @@ void
 ipi_all(u_int ipi)
 {
 
-	CTR1(KTR_SMP, __func__ ": ipi: %x", ipi);
+	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	apic_ipi(APIC_DEST_ALLISELF, ipi, APIC_DELMODE_FIXED); 
 }
 
@@ -2407,7 +2407,7 @@ void
 ipi_all_but_self(u_int ipi)
 {
 
-	CTR1(KTR_SMP, __func__ ": ipi: %x", ipi);
+	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	apic_ipi(APIC_DEST_ALLESELF, ipi, APIC_DELMODE_FIXED); 
 }
 
@@ -2418,7 +2418,7 @@ void
 ipi_self(u_int ipi)
 {
 
-	CTR1(KTR_SMP, __func__ ": ipi: %x", ipi);
+	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	apic_ipi(APIC_DEST_SELF, ipi, APIC_DELMODE_FIXED); 
 }
 
