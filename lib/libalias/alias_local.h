@@ -38,7 +38,7 @@
  * This software is placed into the public domain with no restrictions
  * on its distribution.
  *
- * Initial version:  August, 1996  (cjm)    
+ * Initial version:  August, 1996  (cjm)
  *
  * <updated several times by original author and Eivind Eklund>
  */

@@ -31,7 +31,7 @@
 /*-
  * Alias.h defines the outside world interfaces for the packet aliasing
  * software.
- * 
+ *
  * This software is placed into the public domain with no restrictions on its
  * distribution.
  */
