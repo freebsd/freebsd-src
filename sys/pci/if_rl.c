@@ -158,6 +158,8 @@ static struct rl_type rl_devs[] = {
 		"Corega FEtherII CB-TXD" },
 	{ PEPPERCON_VENDORID, PEPPERCON_DEVICEID_ROLF,
 		"Peppercon AG ROL-F" },
+	{ PLANEX_VENDORID, PLANEX_DEVICEID_FNW3800TX,
+		"Planex FNW-3800-TX" },
 	{ 0, 0, NULL }
 };
 
@@ -987,7 +989,8 @@ rl_attach(dev)
 	    rl_did == RT_DEVICEID_8138 || rl_did == DLINK_DEVICEID_530TXPLUS ||
 	    rl_did == DLINK_DEVICEID_690TXD ||
 	    rl_did == COREGA_DEVICEID_FETHERCBTXD ||
-	    rl_did == COREGA_DEVICEID_FETHERIICBTXD)
+	    rl_did == COREGA_DEVICEID_FETHERIICBTXD ||
+	    rl_did == PLANEX_DEVICEID_FNW3800TX)
 		sc->rl_type = RL_8139;
 	else if (rl_did == RT_DEVICEID_8129)
 		sc->rl_type = RL_8129;
