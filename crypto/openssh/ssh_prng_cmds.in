@@ -1,0 +1,75 @@
+# entropy gathering commands
+
+# Format is: "program-name args" path rate
+
+# The "rate" represents the number of bits of usuable entropy per 
+# byte of command output. Be conservative.
+#
+# $Id: ssh_prng_cmds.in,v 1.7 2001/07/22 19:32:01 mouring Exp $
+
+"ls -alni /var/log"			@PROG_LS@	0.02
+"ls -alni /var/adm"			@PROG_LS@	0.02
+"ls -alni /usr/adm"                     @PROG_LS@       0.02
+"ls -alni /var/mail"			@PROG_LS@	0.02
+"ls -alni /usr/mail"                    @PROG_LS@       0.02
+"ls -alni /var/adm/syslog"		@PROG_LS@	0.02
+"ls -alni /usr/adm/syslog"		@PROG_LS@	0.02
+"ls -alni /var/spool/mail"		@PROG_LS@	0.02
+"ls -alni /proc"			@PROG_LS@	0.02
+"ls -alni /tmp"				@PROG_LS@	0.02
+"ls -alni /var/tmp"			@PROG_LS@	0.02
+"ls -alni /usr/tmp"			@PROG_LS@	0.02
+"ls -alTi /var/log"			@PROG_LS@	0.02
+"ls -alTi /var/adm"			@PROG_LS@	0.02
+"ls -alTi /var/mail"			@PROG_LS@	0.02
+"ls -alTi /var/adm/syslog"		@PROG_LS@	0.02
+"ls -alTi /var/spool/mail"		@PROG_LS@	0.02
+"ls -alTi /proc"			@PROG_LS@	0.02
+"ls -alTi /tmp"				@PROG_LS@	0.02
+"ls -alTi /var/tmp"			@PROG_LS@	0.02
+"ls -alTi /usr/tmp"			@PROG_LS@	0.02
+
+"netstat -an"				@PROG_NETSTAT@	0.05
+"netstat -in"				@PROG_NETSTAT@	0.05
+"netstat -rn"				@PROG_NETSTAT@	0.02
+"netstat -pn"				@PROG_NETSTAT@	0.02
+"netstat -ia"                           @PROG_NETSTAT@  0.05
+"netstat -s"				@PROG_NETSTAT@	0.02
+"netstat -is"				@PROG_NETSTAT@	0.07
+
+"arp -a -n"				@PROG_ARP@	0.02
+
+"ifconfig -a"				@PROG_IFCONFIG@	0.02
+
+"ps laxww"				@PROG_PS@	0.03
+"ps -al"				@PROG_PS@	0.03
+"ps -efl"				@PROG_PS@	0.03
+"jstat"				        @PROG_JSTAT@    0.07
+
+"w"					@PROG_W@	0.05
+
+"who -i"				@PROG_WHO@	0.01
+
+"last"					@PROG_LAST@	0.01
+
+"lastlog"				@PROG_LASTLOG@	0.01
+
+"df"					@PROG_DF@	0.01
+"df -i"					@PROG_DF@	0.01
+
+"sar -d"				@PROG_SAR@	0.04
+
+"vmstat"				@PROG_VMSTAT@	0.01
+"uptime"				@PROG_UPTIME@	0.01
+
+"ipcs -a"				@PROG_IPCS@	0.01
+
+"tail -200 /var/log/messages"		@PROG_TAIL@	0.01
+"tail -200 /var/log/syslog"		@PROG_TAIL@	0.01
+"tail -200 /var/adm/messages"		@PROG_TAIL@	0.01
+"tail -200 /var/adm/syslog"		@PROG_TAIL@	0.01
+"tail -200 /var/adm/syslog/syslog.log"	@PROG_TAIL@	0.01
+"tail -200 /var/log/maillog"		@PROG_TAIL@	0.01
+"tail -200 /var/adm/maillog"		@PROG_TAIL@	0.01
+"tail -200 /var/adm/syslog/mail.log"	@PROG_TAIL@	0.01
+
