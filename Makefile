@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.143 1997/09/05 09:11:24 peter Exp $
+#	$Id: Makefile,v 1.144 1997/09/15 05:58:50 rgrimes Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -260,7 +260,7 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding /usr/include"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} includes
+	cd ${.CURDIR} && SHARED=symlinks ${BMAKE} includes
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding tools needed to build the libraries"
@@ -450,7 +450,7 @@ includes:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
 .endif
-	cd ${.CURDIR}/include &&		${MAKE} all beforeinstall
+	cd ${.CURDIR}/include &&		${MAKE} all install
 	cd ${.CURDIR}/gnu/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libmp &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libobjc &&	${MAKE} beforeinstall
