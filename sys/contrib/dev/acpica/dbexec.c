@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 38 $
+ *              $Revision: 39 $
  *
  ******************************************************************************/
 
@@ -389,7 +389,7 @@ AcpiDbExecute (
  *
  ******************************************************************************/
 
-void
+void ACPI_SYSTEM_XFACE
 AcpiDbMethodThread (
     void                    *Context)
 {

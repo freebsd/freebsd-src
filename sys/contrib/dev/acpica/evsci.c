@@ -2,7 +2,7 @@
  *
  * Module Name: evsci - System Control Interrupt configuration and
  *                      legacy to ACPI mode state transition functions
- *              $Revision: 82 $
+ *              $Revision: 83 $
  *
  ******************************************************************************/
 
@@ -140,7 +140,7 @@
  *
  ******************************************************************************/
 
-static UINT32
+static UINT32 ACPI_SYSTEM_XFACE
 AcpiEvSciHandler (
     void                    *Context)
 {
