@@ -10,6 +10,7 @@
 .\" Created: Sat Apr 22 21:55:14 1995 ylo
 .\"
 .\" $Id: sshd.8,v 1.33 2000/02/21 14:19:09 deraadt Exp $
+.\" $FreeBSD$
 .\"
 .Dd September 25, 1999
 .Dt SSHD 8
@@ -228,6 +229,31 @@ Specifies whether
 should check for new mail for interactive logins.
 The default is
 .Dq no .
+.It Cm ConnectionsPerPeriod
+This keyword allows for rate-limiting of connections, and
+is followed by two numbers in the format
+.Dq n/s ,
+where
+.Ar n
+is the number of connections from a certain address group
+accepted per period of
+.Ar s
+seconds.  Any connection after the number
+.Ar n
+connection in the period of
+.Ar s
+seconds will be dropped, and an informational message will be logged.
+A connection will belong to a certain group, of which there are 13
+by default, according to its IP address.
+The default for this keyword is
+.Dq 0/0 ,
+and rate-limiting can be explicitly turned off by using an
+.Ar n
+parameter of
+.Ql 0
+and any
+.Ar s
+parameter.
 .It Cm DenyGroups
 This keyword can be followed by a number of group names, separated
 by spaces.  Users whose primary group matches one of the patterns
@@ -466,8 +492,9 @@ section).
 If the login is on a tty, records login time.
 .It
 Checks
-.Pa /etc/nologin ;
-if it exists, prints contents and quits
+.Pa /etc/nologin and
+.Pa /var/run/nologin ;
+if one exists, it prints the contents and quits
 (unless root).
 .It
 Changes to run with normal user privileges.

@@ -1,6 +1,8 @@
 # This is ssh client systemwide configuration file.  This file provides 
 # defaults for users, and the values can be changed in per-user configuration
 # files or on the command line.
+#
+# $FreeBSD$
 
 # Configuration data is parsed as follows:
 #  1. command line options

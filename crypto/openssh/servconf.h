@@ -11,6 +11,7 @@
  * 
  * Definitions for server configuration data and for the functions reading it.
  * 
+ * $FreeBSD$
  */
 
 /* RCSID("$Id: servconf.h,v 1.15 2000/01/04 00:08:00 markus Exp $"); */
@@ -87,6 +88,12 @@ typedef struct {
 	char   *allow_groups[MAX_ALLOW_GROUPS];
 	unsigned int num_deny_groups;
 	char   *deny_groups[MAX_DENY_GROUPS];
+	unsigned int connections_per_period;	/*
+						 * If not 0, number of sshd
+						 * connections accepted per
+						 * connections_period.
+						 */
+	unsigned int connections_period;
 }       ServerOptions;
 /*
  * Initializes the server options to special values that indicate that they
