@@ -1,5 +1,5 @@
   $Id: BUGS.TODO,v 1.1.1.1 1999/08/08 23:30:57 itojun Exp $
-  $FreeBSD$
+  $FreeBSD: src/usr.sbin/pim6sd/BUGS.TODO,v 1.1.2.1 2000/07/15 07:36:34 kris Exp $
 
 THIS LIST IS FAR AWAY FROM BEING COMPLETE, so these are the few things 
 that came up at the right moment to be written down.

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/ip6_fw.h,v 1.3.2.2 2000/10/24 19:27:39 ume Exp $	*/
 /*	$KAME: ip6_fw.h,v 1.3 2000/04/06 08:30:44 sumikawa Exp $	*/
 
 /*

@@ -15,7 +15,7 @@
  *
  * Additional arguments specify more Vendor Release Tags.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/import.c,v 1.7.2.1 2000/10/31 09:37:53 obrien Exp $
  */
 
 #include "cvs.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/dsp.c,v 1.15.2.5 2000/10/31 22:43:31 cg Exp $
  */
 
 #include <sys/param.h>

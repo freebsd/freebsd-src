@@ -5,7 +5,7 @@
  *
  *	$Id: cable.txt,v 1.4 1999/12/13 21:25:26 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/cable.txt,v 1.6 1999/12/14 21:07:49 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:55:42 1999]
  *

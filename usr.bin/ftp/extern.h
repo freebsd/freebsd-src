@@ -1,4 +1,4 @@
-/* $FreeBSD$	*/
+/* $FreeBSD: src/usr.bin/ftp/extern.h,v 1.10.2.2 2000/06/17 18:43:56 ume Exp $	*/
 /*	$NetBSD: extern.h,v 1.17.2.1 1997/11/18 00:59:50 mellon Exp $	*/
 
 /*-

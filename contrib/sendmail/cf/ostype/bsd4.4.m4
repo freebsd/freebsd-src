@@ -10,7 +10,7 @@ divert(-1)
 # forth in the LICENSE file which can be found at the top level of
 # the sendmail distribution.
 #
-# $FreeBSD$
+# $FreeBSD: src/contrib/sendmail/cf/ostype/bsd4.4.m4,v 1.3.6.1 2000/08/27 17:31:10 gshapiro Exp $
 #
 
 divert(0)

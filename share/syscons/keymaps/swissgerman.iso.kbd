@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/swissgerman.iso.kbd,v 1.5.2.1 2000/07/18 00:47:53 ache Exp $
 #
 # swissgerman ISO 8859-1 keymap, no dead keys
 # created 14.11.1999 by Martin Blapp <mb@imp.ch>

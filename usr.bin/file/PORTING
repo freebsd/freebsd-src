@@ -1,5 +1,5 @@
 Portability of the new file(1) command.
-@(#) $FreeBSD$
+@(#) $FreeBSD: src/usr.bin/file/PORTING,v 1.4 1999/08/28 01:00:55 peter Exp $
 
 Read this file only if the program doesn't compile on your system.
 

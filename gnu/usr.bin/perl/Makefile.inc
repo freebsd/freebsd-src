@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/Makefile.inc,v 1.12.2.1 2000/10/05 09:54:38 markm Exp $
 
 PERL5SRC?= ${.CURDIR}/../../../../contrib/perl5
 PERL5LIBSRC?= ${.CURDIR}/../libperl

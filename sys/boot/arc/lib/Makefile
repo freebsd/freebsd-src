@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/arc/lib/Makefile,v 1.4 1999/11/14 13:54:40 marcel Exp $
 
 LIB=		arc
 NOPIC=		true

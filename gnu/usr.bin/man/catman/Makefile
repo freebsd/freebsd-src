@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/catman/Makefile,v 1.11 1999/08/27 23:36:08 peter Exp $
 
 MAINTAINER= wosch
 

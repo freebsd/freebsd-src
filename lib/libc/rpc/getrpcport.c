@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)getrpcport.c 1.3 87/08/11 SMI";*/
 /*static char *sccsid = "from: @(#)getrpcport.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$FreeBSD$";
+static char *rcsid = "$FreeBSD: src/lib/libc/rpc/getrpcport.c,v 1.10 1999/08/28 00:00:40 peter Exp $";
 #endif
 
 /*

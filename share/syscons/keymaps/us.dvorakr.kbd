@@ -1,6 +1,6 @@
 # A right handed Dvorak keyboard for US English
 #
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/us.dvorakr.kbd,v 1.3.2.1 2000/07/18 00:47:53 ache Exp $
 #                                                         alt
 # scan                       cntrl          alt    alt   cntrl lock
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/cdboot/boot.c,v 1.3 1999/08/28 00:43:17 peter Exp $
  */
 
 

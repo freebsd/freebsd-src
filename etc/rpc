@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rpc,v 1.7 1999/08/27 23:23:44 peter Exp $
 # rpc 88/08/01 4.0 RPCSRC; from 1.12   88/02/07 SMI
 #
 portmapper	100000	portmap sunrpc

@@ -1,0 +1,31 @@
+Things to do, not in any particular order...
+
+- Dynamic DNS support
+
+- SNMP support
+
+- Asynchronous DNS support (look up names while serving other requests)
+
+- Authentication heirarchies (particularly by MAC address or by DHCP
+  Authentication Protocol key).
+
+- Authentication protocol
+
+- Server-to-server protocol
+
+- Token ring support for bpf/nit interfaces
+
+- FDDI support for bpf/nit interfaces (mostly done)
+
+- Other network hardware support for low-level interfaces?
+
+- Standard socket API for sending to all-ones broadcast and figuring
+  out which interface a packet came in on?
+
+- IPv6/DHCPv6 support
+
+- Dhcpd running on MacOS Open Transport
+
+- Dhcpd running on Windows/NT
+
+- Dhcpd running on Windows95

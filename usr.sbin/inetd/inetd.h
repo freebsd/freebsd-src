@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/inetd/inetd.h,v 1.4.2.1 2000/10/24 19:18:29 dwmalone Exp $
  */
 
 #include <sys/time.h>

@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/rpc.statd/procs.c,v 1.4 1999/08/28 01:19:37 peter Exp $";
 #endif /* not lint */
 
 #include <errno.h>

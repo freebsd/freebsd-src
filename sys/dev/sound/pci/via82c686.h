@@ -33,7 +33,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/via82c686.h,v 1.1.2.1 2000/10/05 05:32:45 cg Exp $
  */
 
 #ifndef _VIA_H

@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_elsa_qs1p.c,v 1.2 1999/12/13 21:25:26 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_elsa_qs1p.c,v 1.6.2.1 2000/08/02 23:52:55 peter Exp $
  *
  *      last edit-date: [Mon Dec 13 21:59:51 1999]
  *

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/chflags/Makefile,v 1.8.2.1 2000/06/28 02:33:15 joe Exp $
 
 NOSHARED?=yes
 

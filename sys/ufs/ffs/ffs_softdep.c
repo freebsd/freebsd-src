@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.56 (McKusick) 1/17/00
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ffs/ffs_softdep.c,v 1.57.2.4 2000/11/19 22:32:35 dillon Exp $
  */
 
 /*

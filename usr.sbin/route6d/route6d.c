@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/route6d/route6d.c,v 1.2.2.3 2000/10/29 00:18:04 kris Exp $	*/
 /*	$KAME: route6d.c,v 1.35 2000/08/13 00:39:44 itojun Exp $	*/
 
 /*

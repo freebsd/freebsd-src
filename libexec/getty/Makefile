@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/libexec/getty/Makefile,v 1.9 1999/08/28 00:09:34 peter Exp $
 
 PROG=	getty
 SRCS=	main.c init.c subr.c chat.c

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/in_cksum.c,v 1.2.2.1 2000/05/05 13:37:02 jlemon Exp $ */
 /* $NetBSD: in_cksum.c,v 1.7 1997/09/02 13:18:15 thorpej Exp $ */
 
 /*

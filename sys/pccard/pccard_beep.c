@@ -3,7 +3,7 @@
  * Nate Williams, October 1997.
  * This file is in the public domain.
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pccard/pccard_beep.c,v 1.3 1999/12/02 19:46:41 imp Exp $ */
 
 #include <sys/param.h>
 #include <sys/kernel.h>

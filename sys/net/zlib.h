@@ -1,4 +1,4 @@
-/* $FreeBSD$	*/
+/* $FreeBSD: src/sys/net/zlib.h,v 1.7 1999/12/29 04:38:38 peter Exp $	*/
 
 /*
  * This file is derived from zlib.h and zconf.h from the zlib-1.0.4

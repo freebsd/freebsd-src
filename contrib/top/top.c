@@ -11,7 +11,7 @@ char *copyright =
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/top/top.c,v 1.4.6.2 2000/11/04 23:51:42 imp Exp $
  */
 
 /*

@@ -1,2 +1,2 @@
-$FreeBSD$
+$FreeBSD: src/sys/dev/asr/MAINTAINER,v 1.1.2.1 2000/09/21 20:33:49 msmith Exp $
 MAINTAINER = msmith@freebsd.org, mark_salyzyn@adaptec.com

@@ -29,7 +29,7 @@
  *
  *	$Id: facility.c,v 1.4 1999/12/13 21:25:25 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/facility.c,v 1.6 1999/12/14 21:07:37 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:49:56 1999]
  *

@@ -1,5 +1,5 @@
 # Makefile
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/manctl/Makefile,v 1.10 1999/08/28 01:16:59 peter Exp $
 
 MAN8=	manctl.8
 

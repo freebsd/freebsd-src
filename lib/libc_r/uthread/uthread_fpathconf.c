@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_fpathconf.c,v 1.1.2.1 2000/09/20 10:28:52 sobomax Exp $
  */
 #include <unistd.h>
 #ifdef _THREAD_SAFE

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/binutils/FREEBSD-upgrade,v 1.2.2.2 2000/07/07 05:32:59 obrien Exp $
 
 To get a copy of the Binutils source from the Sourceware CVS repository
 this command line was used:

@@ -40,7 +40,7 @@
 /*
  * This version is for use with mbufs on BSD-derived systems.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/bsd_comp.c,v 1.11 1999/08/28 00:48:14 peter Exp $
  */
 
 #include <sys/param.h>

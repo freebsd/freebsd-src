@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+#	$FreeBSD: src/lib/libpam/modules/pam_skey/Makefile,v 1.2 1999/01/20 21:55:27 jdp Exp $
 
 PAMDIR=		${.CURDIR}/../../../../contrib/libpam
 

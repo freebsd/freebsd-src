@@ -30,7 +30,7 @@
  *
  * $Id: //depot/src/aic7xxx/aicasm/aicasm.c#5 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aicasm/aicasm.c,v 1.28.2.2 2000/10/05 04:30:06 gibbs Exp $
  */
 #include <sys/types.h>
 #include <sys/mman.h>

@@ -71,7 +71,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: res_send.c,v 8.20 1998/04/06 23:27:51 halley Exp $";
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/libc/net/res_send.c,v 1.31.2.4 2000/09/20 21:37:01 ps Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*

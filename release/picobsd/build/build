@@ -1,7 +1,7 @@
 #!/bin/sh -
 
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/build/build,v 1.24.2.3 2000/11/08 02:11:54 joe Exp $
 #
 # You can set the SRC variable which points to your source tree. It's
 # /usr/src by default (most people shouldn't change it).

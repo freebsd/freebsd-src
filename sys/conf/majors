@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/conf/majors,v 1.98.2.9 2000/10/30 10:33:27 n_hibma Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.

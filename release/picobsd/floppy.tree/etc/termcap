@@ -2,7 +2,7 @@
 # All rights reserved.
 #	@(#)termcap.src	5.88 (Berkeley) 4/30/91
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/floppy.tree/etc/termcap,v 1.2 2000/02/08 14:20:53 luigi Exp $
 #
 # for syscons
 # common entry without semigraphics

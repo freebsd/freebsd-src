@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet/ip_encap.c,v 1.1.2.1 2000/07/15 07:14:30 kris Exp $	*/
 /*	$KAME: ip_encap.c,v 1.36 2000/06/17 20:34:24 itojun Exp $	*/
 
 /*

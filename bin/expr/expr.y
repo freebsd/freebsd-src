@@ -4,7 +4,7 @@
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
  *
- * $FreeBSD$
+ * $FreeBSD: src/bin/expr/expr.y,v 1.14.2.2 2000/08/07 08:07:10 ps Exp $
  */
 
 #include <sys/types.h>

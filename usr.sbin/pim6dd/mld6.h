@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6dd/mld6.h,v 1.1.2.1 2000/07/15 07:36:29 kris Exp $
  */
 
 /*

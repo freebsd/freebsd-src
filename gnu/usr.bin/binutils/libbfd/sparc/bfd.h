@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/libbfd/sparc/bfd.h,v 1.1.2.1 2000/07/06 22:16:06 obrien Exp $ */
 
 /* Main header file for the bfd library -- portable access to object files.
    Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000

@@ -2,7 +2,7 @@
  *
  * Simple diff mode test.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/test/hello_d.c,v 1.1.2.1 2000/07/17 22:18:32 jasone Exp $
  *
  ****************************************************************************/
 

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/in6_ifattach.h,v 1.1.2.1 2000/07/15 07:14:33 kris Exp $	*/
 /*	$KAME: in6_ifattach.h,v 1.10 2000/05/27 02:57:05 itojun Exp $	*/
 
 /*

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ex/if_ex.c,v 1.26.2.2 2000/07/17 21:24:26 archie Exp $
  *
  * MAINTAINER: Matthew N. Dodd <winter@jurai.net>
  *                             <mdodd@FreeBSD.org>

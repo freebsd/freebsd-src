@@ -29,7 +29,7 @@
  *
  *	BSDI trace.c,v 2.2 1996/04/08 19:33:07 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/trace.c,v 1.3 1999/09/29 20:09:18 marcel Exp $
  */
 
 #include "doscmd.h"

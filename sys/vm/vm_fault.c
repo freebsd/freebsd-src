@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_fault.c,v 1.108.2.2 2000/08/04 22:31:11 peter Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/ah6.h,v 1.2.2.1 2000/07/15 07:14:32 kris Exp $	*/
 /*	$KAME: ah.h,v 1.10 2000/07/02 13:23:33 itojun Exp $	*/
 
 /*

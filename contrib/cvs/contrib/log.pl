@@ -5,7 +5,7 @@
 #
 # XXX -- I HATE Perl!  This *will* be re-written in shell/awk/sed soon!
 #
-# $FreeBSD$
+# $FreeBSD: src/contrib/cvs/contrib/log.pl,v 1.4.2.1 2000/10/31 09:37:44 obrien Exp $
 
 # Usage:  log.pl [-u user] [[-m mailto] ...] [-s] -f logfile 'dirname file ...'
 #

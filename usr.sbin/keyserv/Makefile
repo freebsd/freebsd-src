@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/keyserv/Makefile,v 1.5 1999/08/28 01:16:41 peter Exp $
 
 PROG=	keyserv
 SRCS=	keyserv.c setkey.c keyserv_uid.c crypt_svc.c crypt_server.c crypt.h

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/in.c,v 1.44.2.2 2000/08/19 22:14:05 bde Exp $
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 # Makefile for xtend (Stark) 10/30/93
-# $FreeBSD$
+# $FreeBSD: src/libexec/xtend/Makefile,v 1.7 1999/08/28 00:10:29 peter Exp $
 
 BINMODE=	555
 

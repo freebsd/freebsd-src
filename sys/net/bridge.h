@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/bridge.h,v 1.4.2.1 2000/05/24 01:47:56 archie Exp $
  */
 
 extern int do_bridge;

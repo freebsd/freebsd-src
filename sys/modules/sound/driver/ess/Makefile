@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/ess/Makefile,v 1.1.2.1 2000/09/23 19:15:03 cg Exp $
 
 .PATH:		${.CURDIR}/../../../../dev/sound/isa
 KMOD		= snd_ess

@@ -15,7 +15,7 @@
 # device lines is also present in the ./LINT configuration file. If you are
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/custom/PICOBSD-C,v 1.2.2.1 2000/03/19 19:40:56 patrick Exp $
 
 machine		i386
 cpu		I386_CPU

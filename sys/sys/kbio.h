@@ -1,5 +1,5 @@
 /*-
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/kbio.h,v 1.5.2.1 2000/10/29 16:59:32 dwmalone Exp $
  */
 
 #ifndef	_SYS_KBIO_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic/aic_cbus.c,v 1.1.2.2 2000/06/21 09:37:09 nyan Exp $
  */
 
 #include <sys/param.h>

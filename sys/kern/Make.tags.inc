@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/Make.tags.inc,v 1.6 2000/01/27 01:21:58 mckusick Exp $
 #	@(#)Make.tags.inc	8.1 (Berkeley) 6/11/93
 
 SYS?=	/sys

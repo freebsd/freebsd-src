@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** $FreeBSD$
+** $FreeBSD: src/sys/pci/pcisupport.c,v 1.154.2.4 2000/11/01 19:19:36 alc Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/ncv/ncr53c500reg.h,v 1.1.2.1 2000/10/29 11:05:42 non Exp $	*/
 /*	$NecBSD: ncr53c500reg.h,v 1.5 1998/12/26 11:50:01 honda Exp $	*/
 /*	$NetBSD$	*/
 

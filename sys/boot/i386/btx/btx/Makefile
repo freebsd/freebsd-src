@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/btx/btx/Makefile,v 1.7.2.1 2000/07/06 23:04:28 obrien Exp $
 
 M4?=	m4
 

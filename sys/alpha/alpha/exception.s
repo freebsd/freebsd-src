@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/exception.s,v 1.3.2.2 2000/10/24 16:09:35 gallatin Exp $ */
 /* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
 
 /*

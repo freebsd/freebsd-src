@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/libi386/pxe.c,v 1.3.2.6 2000/09/10 02:52:18 ps Exp $
  */
 
 #include <stand.h>

@@ -1,5 +1,5 @@
 /*	$OpenBSD: basename.c,v 1.4 1999/05/30 17:10:30 espie Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libc/gen/basename.c,v 1.1.2.1 2000/11/12 18:01:57 adrian Exp $	*/
 
 /*
  * Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com>

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdlib/malloc.c,v 1.49.2.1 2000/08/23 00:12:17 jhb Exp $
  *
  */
 

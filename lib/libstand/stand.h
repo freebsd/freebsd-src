@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/stand.h,v 1.18.2.4 2000/09/20 09:49:18 jkh Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_bus.c,v 1.54.2.7 2000/08/03 06:36:38 imp Exp $
  */
 
 #include "opt_bus.h"

@@ -1,5 +1,5 @@
 /*	$NetBSD: uhub.c,v 1.34 1999/11/18 23:32:29 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/uhub.c,v 1.21.2.4 2000/10/31 22:33:54 n_hibma Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

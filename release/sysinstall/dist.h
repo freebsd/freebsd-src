@@ -1,4 +1,4 @@
-/* $FreeBSD$  */
+/* $FreeBSD: src/release/sysinstall/dist.h,v 1.48.2.2 2000/10/27 04:38:03 jkh Exp $  */
 
 #ifndef _DIST_H_INCLUDE
 #define _DIST_H_INCLUDE

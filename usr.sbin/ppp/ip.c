@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/ip.c,v 1.78.2.5 2000/09/16 23:09:04 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet

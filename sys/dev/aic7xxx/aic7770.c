@@ -28,7 +28,7 @@
  *
  * $Id$
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic7770.c,v 1.1.2.1 2000/09/23 00:24:00 gibbs Exp $
  */
 
 #ifdef	__linux__

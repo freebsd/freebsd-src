@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)setup.c	8.10 (Berkeley) 5/9/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/fsck/setup.c,v 1.17 2000/02/28 20:02:41 mckusick Exp $";
 #endif /* not lint */
 
 #define DKTYPENAMES

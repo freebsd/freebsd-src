@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/interrupt.c,v 1.15.2.2 2000/08/08 19:05:17 peter Exp $ */
 /* $NetBSD: interrupt.c,v 1.23 1998/02/24 07:38:01 thorpej Exp $ */
 
 /*

@@ -1,5 +1,0 @@
-$FreeBSD$
-
-This directory is for the EXACT same use as src/contrib, except it
-holds crypto sources.  It is the result of an old USA law, which
-made these sources export controlled, so they had to be kept seperate.

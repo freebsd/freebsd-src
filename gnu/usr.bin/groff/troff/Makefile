@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/troff/Makefile,v 1.12 1999/09/21 20:51:36 ache Exp $
 
 PROG=		troff
 SRCS=		env.cc node.cc input.cc div.cc symbol.cc dictionary.cc reg.cc \

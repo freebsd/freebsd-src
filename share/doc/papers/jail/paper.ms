@@ -1,5 +1,5 @@
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/jail/paper.ms,v 1.4.2.1 2000/08/20 13:16:44 mpp Exp $
 .\"
 .ds CH "
 .nr PI 2n

@@ -1,5 +1,5 @@
 # Makefile for kbdmap / vidfont
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/kbdmap/Makefile,v 1.9 1999/08/28 01:16:38 peter Exp $
 
 MAINTAINER= wosch
 

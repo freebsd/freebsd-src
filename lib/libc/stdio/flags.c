@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)flags.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/stdio/flags.c,v 1.6 1999/08/28 00:01:01 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ypserv/Makefile,v 1.17 1999/08/28 01:21:10 peter Exp $
 
 PROG=	ypserv
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \

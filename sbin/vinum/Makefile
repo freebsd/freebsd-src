@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/vinum/Makefile,v 1.12 2000/01/03 12:01:26 marcel Exp $
 
 MAINTAINER  =  grog@FreeBSD.org
 PROG=	vinum

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/floppy.tree/etc/update,v 1.1 2000/02/08 14:20:54 luigi Exp $
 pwd=`pwd`
 set `df /` ; dev="/dev/$8"
 echo -n "Updating /etc contents on ${dev}... "

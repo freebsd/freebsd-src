@@ -32,7 +32,7 @@
  *
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/in_cksum.c,v 1.17.2.2 2000/05/25 02:15:07 jlemon Exp $
  */
 
 #include <sys/param.h>

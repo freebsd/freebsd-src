@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/vfs_bio.c,v 1.242.2.3 2000/11/19 01:28:49 dillon Exp $
  */
 
 /*

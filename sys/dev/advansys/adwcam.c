@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/advansys/adwcam.c,v 1.7.2.1 2000/10/31 08:09:50 dwmalone Exp $
  */
 /*
  * Ported from:

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/isa/pnp.c,v 1.5 1999/10/14 21:03:01 dfr Exp $
  *      from: pnp.c,v 1.11 1999/05/06 22:11:19 peter Exp
  */
 

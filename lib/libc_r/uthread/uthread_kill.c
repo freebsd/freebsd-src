@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_kill.c,v 1.10 1999/12/17 00:56:36 deischen Exp $
  */
 #include <errno.h>
 #include <signal.h>

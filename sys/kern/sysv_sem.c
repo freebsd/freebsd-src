@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/kern/sysv_sem.c,v 1.24.2.4 2000/11/01 17:58:06 rwatson Exp $ */
 
 /*
  * Implementation of SVID semaphores

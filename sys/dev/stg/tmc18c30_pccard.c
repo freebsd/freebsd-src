@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/stg/tmc18c30_pccard.c,v 1.2.2.1 2000/10/29 11:05:43 non Exp $	*/
 /*	$NecBSD: tmc18c30_pisa.c,v 1.22 1998/11/26 01:59:21 honda Exp $	*/
 /*	$NetBSD$	*/
 

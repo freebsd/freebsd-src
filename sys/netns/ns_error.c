@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_error.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/ns_error.c,v 1.9 1999/08/28 00:49:49 peter Exp $
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/router/PICOBSD,v 1.6.2.1 2000/03/19 19:41:04 patrick Exp $
 #
 #Line starting with #PicoBSD contains PicoBSD build parameters
 #marker        def_sz  init    MFS_inodes      floppy_inodes

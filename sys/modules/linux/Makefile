@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/linux/Makefile,v 1.34.2.4 2000/11/05 07:41:42 marcel Exp $
 
 .PATH:	${.CURDIR}/../../compat/linux ${.CURDIR}/../../${MACHINE_ARCH}/linux
 

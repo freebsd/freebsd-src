@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 static const char sccsid[] = "@(#)rlogin.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/rlogin/rlogin.c,v 1.24 2000/02/24 21:06:17 markm Exp $";
 #endif /* not lint */
 
 /*

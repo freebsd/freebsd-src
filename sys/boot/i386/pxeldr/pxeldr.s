@@ -13,7 +13,7 @@
 # purpose.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/pxeldr/pxeldr.s,v 1.1.2.2 2000/07/06 23:04:30 obrien Exp $
 
 #
 # This simple program is a preloader for the normal boot3 loader.  It is simply

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libdisk/tst01.c,v 1.23.2.4 2000/08/07 08:55:19 ps Exp $
  *
  */
 

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_da.c,v 1.42.2.7 2000/10/23 11:51:56 n_hibma Exp $
  */
 
 #ifdef _KERNEL

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/custom/floppy.etc/rc,v 1.1 1999/12/10 21:52:07 grog Exp $
 ### Special setup for PicoBSD ###
 mount -a -t nonfs
 reply=y

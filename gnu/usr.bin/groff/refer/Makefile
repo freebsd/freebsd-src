@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/refer/Makefile,v 1.7 1999/08/27 23:35:46 peter Exp $
 
 PROG=		refer
 SRCS=		command.cc label.cc ref.cc refer.cc token.cc

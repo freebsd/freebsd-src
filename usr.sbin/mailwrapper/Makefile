@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mailwrapper/Makefile,v 1.4.2.1 2000/07/01 11:05:40 ps Exp $
 
 PROG=	mailwrapper
 MAN8=	mailwrapper.8

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/inetd/builtins.c,v 1.19.2.2 2000/10/24 19:18:29 dwmalone Exp $
  *
  */
 

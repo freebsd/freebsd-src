@@ -1,5 +1,5 @@
 /*	$NetBSD: fparseln.c,v 1.9 1999/09/20 04:48:06 lukem Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libutil/fparseln.c,v 1.2 1999/12/29 17:50:33 peter Exp $ */
 
 /*
  * Copyright (c) 1997 Christos Zoulas.  All rights reserved.
@@ -32,7 +32,7 @@
 
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/lib/libutil/fparseln.c,v 1.2 1999/12/29 17:50:33 peter Exp $");
 #endif
 
 #include <sys/types.h>

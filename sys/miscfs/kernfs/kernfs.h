@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs.h	8.6 (Berkeley) 3/29/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/kernfs/kernfs.h,v 1.13 1999/12/29 04:54:43 peter Exp $
  */
 
 #define	_PATH_KERNFS	"/kern"		/* Default mountpoint */

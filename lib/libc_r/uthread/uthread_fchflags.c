@@ -2,7 +2,7 @@
  * David Leonard <d@openbsd.org>, 1999. Public Domain.
  *
  * $OpenBSD: uthread_fchflags.c,v 1.1 1999/01/08 05:42:18 d Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_fchflags.c,v 1.4 2000/01/29 22:53:43 jasone Exp $
  */
 
 #include <sys/stat.h>

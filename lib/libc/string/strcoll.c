@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/string/strcoll.c,v 1.11 1999/09/12 21:15:28 dt Exp $
  */
 
 #include <stdlib.h>

@@ -37,7 +37,7 @@
 /* Header files used by all modules */
 /*
  * $Id: vinumhdr.h,v 1.15 1999/10/12 09:40:35 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumhdr.h,v 1.16 1999/12/29 04:35:48 peter Exp $
  */
 
 #include <sys/param.h>

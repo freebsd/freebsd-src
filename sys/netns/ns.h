@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/ns.h,v 1.13 1999/12/29 04:46:19 peter Exp $
  */
 
 #ifndef _NETNS_NS_H_

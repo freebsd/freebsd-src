@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)find.h	8.1 (Berkeley) 6/6/93
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.bin/find/find.h,v 1.6.2.2 2000/06/23 18:38:46 roberto Exp $
  */
 
 /* node type */

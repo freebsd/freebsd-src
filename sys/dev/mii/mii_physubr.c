@@ -61,7 +61,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/mii/mii_physubr.c,v 1.2 1999/08/28 00:42:14 peter Exp $";
 #endif
 
 void	mii_phy_auto_timeout __P((void *));

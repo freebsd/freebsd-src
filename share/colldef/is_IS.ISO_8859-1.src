@@ -1,6 +1,6 @@
 # icelandic (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/is_IS.ISO_8859-1.src,v 1.5 1999/08/28 00:59:47 peter Exp $
 #
 charmap map.ISO_8859-1
 order \

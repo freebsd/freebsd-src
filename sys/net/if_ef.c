@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_ef.c,v 1.2.2.3 2000/10/20 18:26:30 bp Exp $
  */
 
 #include "opt_inet.h"

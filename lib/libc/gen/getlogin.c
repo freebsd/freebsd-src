@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/getlogin.c,v 1.4 1999/11/28 22:41:38 wes Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

@@ -5,7 +5,7 @@
 #
 # ac - check if the FreeBSD handbook is in sync with the committers list
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/diag/ac/ac,v 1.3 1999/11/04 08:45:02 phantom Exp $
 
 : ${CVSROOT=/home/ncvs}
 contrib=doc/en_US.ISO_8859-1/books/handbook/staff/chapter.sgml

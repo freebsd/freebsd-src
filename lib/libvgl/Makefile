@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libvgl/Makefile,v 1.6 2000/01/14 07:57:45 rgrimes Exp $
 LIB=	vgl
 SHLIB_MAJOR= 2
 SHLIB_MINOR= 0

@@ -40,7 +40,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinuminterrupt.c,v 1.11 2000/05/10 22:32:51 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinuminterrupt.c,v 1.25.2.1 2000/05/11 08:49:22 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/15/93
-# $FreeBSD$
+# $FreeBSD: src/libexec/telnetd/Makefile,v 1.13 2000/01/25 14:51:59 shin Exp $
 
 PROG=	telnetd
 CFLAGS+=-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS

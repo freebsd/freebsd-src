@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/perl5/ext/POSIX/POSIX.xs,v 1.2.2.1 2000/05/11 23:51:52 ache Exp $ */
 #ifdef WIN32
 #define _POSIX_
 #endif

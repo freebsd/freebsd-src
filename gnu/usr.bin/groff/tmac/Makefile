@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/tmac/Makefile,v 1.21.2.1 2000/10/06 11:07:19 ru Exp $
 
 .include "../Makefile.inc"
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/intr_machdep.c,v 1.29.2.2 2000/08/16 05:35:34 ps Exp $
  */
 /*
  * This file contains an aggregated module marked:
@@ -546,7 +546,7 @@ icu_unset(intr, handler)
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/intr_machdep.c,v 1.29.2.2 2000/08/16 05:35:34 ps Exp $
  *
  */
 

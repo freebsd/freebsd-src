@@ -38,7 +38,7 @@
  *	Fritz!Card PnP specific routines for isic driver
  *	------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_avm_fritz_pnp.c,v 1.3 1999/08/28 00:45:36 peter Exp $
  *
  *      last edit-date: [Thu 10 Jun 08:50:28 CEST 1999]
  *

@@ -32,7 +32,7 @@
  *
  * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#5 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic7xxx_pci.c,v 1.2.2.4 2000/10/31 18:54:59 gibbs Exp $
  */
 
 #ifdef	__linux__

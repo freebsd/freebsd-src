@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/nls/finnish/Makefile,v 1.5.2.1 2000/07/04 05:29:27 obrien Exp $
 
 NL=     finnish
 DL=     fi_FI.ISO_8859-1

@@ -35,7 +35,7 @@
  *
  * Author: Erik Salander <erik@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libalias/alias_pptp.c,v 1.1.2.3 2000/10/31 08:48:22 ru Exp $
  */
 
 /*

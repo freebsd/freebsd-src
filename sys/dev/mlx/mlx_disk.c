@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mlx/mlx_disk.c,v 1.8.2.3 2000/04/26 01:43:21 billf Exp $
  */
 
 /*

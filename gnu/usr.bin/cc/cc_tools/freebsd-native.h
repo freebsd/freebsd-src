@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/cc/cc_tools/freebsd-native.h,v 1.5.2.1 2000/11/11 21:52:40 obrien Exp $ */
 
 /* FREEBSD_NATIVE is defined when gcc is integrated into the FreeBSD
    source tree so it can be configured appropriately without using

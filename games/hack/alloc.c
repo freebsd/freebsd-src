@@ -1,5 +1,5 @@
 /* alloc.c - version 1.0.2 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/alloc.c,v 1.4 1999/11/16 02:57:01 billf Exp $ */
 
 #include <stdlib.h>
 

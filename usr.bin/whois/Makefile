@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/whois/Makefile,v 1.3 1999/11/17 19:11:51 ache Exp $
 
 PROG=	whois
 

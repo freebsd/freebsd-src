@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/basename/basename.c,v 1.3.6.1 2000/11/12 20:33:17 adrian Exp $
  */
 
 #ifndef lint

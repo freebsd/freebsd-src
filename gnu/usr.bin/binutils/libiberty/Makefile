@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libiberty/Makefile,v 1.3.2.1 2000/07/06 22:16:08 obrien Exp $
 #
 
 .include "../Makefile.inc0"

@@ -1,6 +1,6 @@
 #
 # Makefile for ntpd.
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/Makefile,v 1.2 2000/01/10 09:20:27 phantom Exp $
 #
 MAINTAINER=	roberto
 

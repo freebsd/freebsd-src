@@ -62,7 +62,7 @@
  *          Junichi SATOH <junichi@astec.co.jp>
  *                        <junichi@junichi.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libalias/alias_smedia.c,v 1.1.2.3 2000/10/31 08:48:22 ru Exp $
  */
 
 /*

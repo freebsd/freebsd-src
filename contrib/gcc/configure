@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/contrib/gcc/configure,v 1.8 2000/01/22 16:05:31 obrien Exp $
 
 # Guess values for system-dependent variables and create Makefiles.
 # Generated automatically using autoconf version 2.13 

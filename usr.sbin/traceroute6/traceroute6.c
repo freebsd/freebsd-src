@@ -76,7 +76,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)traceroute.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/traceroute6/traceroute6.c,v 1.4.2.3 2000/10/29 03:50:07 kris Exp $";
 #endif /* not lint */
 
 /*

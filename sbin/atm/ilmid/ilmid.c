@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *      @(#) $FreeBSD$
+ *      @(#) $FreeBSD: src/sbin/atm/ilmid/ilmid.c,v 1.6.2.1 2000/07/01 06:11:51 ps Exp $
  *
  */
 
@@ -73,7 +73,7 @@
 #include <unistd.h>
 
 #ifndef	lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sbin/atm/ilmid/ilmid.c,v 1.6.2.1 2000/07/01 06:11:51 ps Exp $");
 #endif
 
 

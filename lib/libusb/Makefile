@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.5 1999/07/23 09:44:38 mrg Exp $
-#	$FreeBSD$
+#	$FreeBSD: src/lib/libusb/Makefile,v 1.1.2.1 2000/07/02 13:14:00 n_hibma Exp $
 
 MAINTAINER=	n_hibma@FreeBSD.ORG
 

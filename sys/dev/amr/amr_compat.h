@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/amr/amr_compat.h,v 1.2.2.1 2000/10/28 10:16:59 msmith Exp $
  */
 /*
  * Backwards compatibility support.

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/dlfcn.h,v 1.10.2.1 2000/09/22 02:22:44 jdp Exp $
  */
 
 #ifndef _DLFCN_H_

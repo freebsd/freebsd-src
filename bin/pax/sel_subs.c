@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)sel_subs.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/pax/sel_subs.c,v 1.11 1999/08/27 23:14:46 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

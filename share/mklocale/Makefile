@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mklocale/Makefile,v 1.28 1999/12/24 08:05:20 ache Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}

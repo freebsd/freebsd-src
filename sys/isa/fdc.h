@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/isa/fdc.h,v 1.20 2000/01/09 17:13:35 bde Exp $
  *
  */
 

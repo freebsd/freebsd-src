@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pkg_install/create/create.h,v 1.15.2.1 2000/10/31 07:21:28 sobomax Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance

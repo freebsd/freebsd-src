@@ -35,7 +35,7 @@
 #if 0
 static char sccsid[] = "@(#)setenv.c	8.1 (Berkeley) 6/4/93";
 #endif
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/lib/libc/stdlib/setenv.c,v 1.5.2.1 2000/09/20 19:46:03 brian Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stddef.h>

@@ -21,7 +21,7 @@
 ** Code is written in ANSI C for portability. 
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/ficl.c,v 1.13.2.1 2000/07/06 23:51:45 obrien Exp $ */
 
 #ifdef TESTMAIN
 #include <stdlib.h>

@@ -43,7 +43,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$FreeBSD$')
+VERSIONID(`$FreeBSD: src/etc/sendmail/freebsd.mc,v 1.10.2.2 2000/10/19 21:17:28 gshapiro Exp $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 FEATURE(relay_based_on_MX)dnl

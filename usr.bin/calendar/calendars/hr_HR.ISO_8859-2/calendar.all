@@ -1,7 +1,7 @@
 /*
  *  hrvatski calendar
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/hr_HR.ISO_8859-2/calendar.all,v 1.4 1999/08/28 00:59:27 peter Exp $
  */
 
 #ifndef _hr_HR_ISO_8859_2_all

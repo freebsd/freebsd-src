@@ -38,7 +38,7 @@
  *
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/linux/linprocfs/linprocfs.h,v 1.2.2.3 2000/10/30 19:57:04 des Exp $
  */
 
 /*

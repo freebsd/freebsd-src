@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ibcs2/Makefile,v 1.26 1999/11/28 18:52:48 bde Exp $
 
 .PATH:	${.CURDIR}/../../i386/ibcs2
 KMOD=	ibcs2

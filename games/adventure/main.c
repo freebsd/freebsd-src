@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/2/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/adventure/main.c,v 1.9 1999/12/19 00:21:50 billf Exp $";
 #endif /* not lint */
 
 /*      Re-coding of advent in C: main program                          */

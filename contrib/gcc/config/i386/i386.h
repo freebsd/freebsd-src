@@ -34,7 +34,7 @@ Boston, MA 02111-1307, USA. */
    PUT_OP_SIZE, USE_STAR, ADDR_BEG, ADDR_END, PRINT_IREG, PRINT_SCALE,
    PRINT_B_I_S, and many that start with ASM_ or end in ASM_OP.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/i386/i386.h,v 1.5 1999/10/16 08:10:36 obrien Exp $ */
 
 /* Names to predefine in the preprocessor for this target machine.  */
 

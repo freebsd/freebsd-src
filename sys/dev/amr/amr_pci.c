@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/amr/amr_pci.c,v 1.1.2.3 2000/10/28 10:48:00 msmith Exp $
  */
 
 #include <sys/param.h>

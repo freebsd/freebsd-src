@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/isp_target.h,v 1.3.4.5 2000/10/27 21:58:59 mjacob Exp $ */
 /*
  * Qlogic Target Mode Structure and Flag Definitions
  *

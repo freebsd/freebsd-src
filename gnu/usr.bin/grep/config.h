@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/grep/config.h,v 1.4 2000/01/04 03:37:56 obrien Exp $ */
 
 /* config.h.  Generated automatically by configure.  */
 /* config.hin.  Generated automatically from configure.in by autoheader.  */

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/miscfs/devfs/devfs_proto.h,v 1.14.8.1 2000/08/03 01:04:28 peter Exp $ */
 /* THIS FILE HAS BEEN PRODUCED AUTOMATICALLY */
 void	devfs_sinit(void *junk);
 devnm_p	dev_findname(dn_p dir,char *name);

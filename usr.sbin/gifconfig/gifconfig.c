@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/gifconfig/gifconfig.c,v 1.2.2.1 2000/07/15 07:36:26 kris Exp $	*/
 /*	$KAME: gifconfig.c,v 1.12 2000/05/22 05:50:43 itojun Exp $	*/
 
 /*

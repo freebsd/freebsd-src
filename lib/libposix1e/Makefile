@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/lib/libposix1e/Makefile,v 1.3 2000/01/28 20:06:56 rwatson Exp $
 
 LIB=	posix1e
 SRCS+=	acl_delete.c			\

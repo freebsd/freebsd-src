@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/man/man9/Makefile,v 1.60.2.8 2000/11/16 01:02:10 alfred Exp $
 
 MAN9=	MD5.9 KASSERT.9 SPLASSERT.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mpool.h	8.2 (Berkeley) 7/14/94
- * $FreeBSD$
+ * $FreeBSD: src/include/mpool.h,v 1.5.6.1 2000/08/17 08:10:05 jhb Exp $
  */
 
 #ifndef _MPOOL_H_

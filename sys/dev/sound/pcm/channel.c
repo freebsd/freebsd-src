@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/channel.c,v 1.19.2.7 2000/10/14 20:59:41 cg Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

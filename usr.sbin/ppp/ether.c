@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/ether.c,v 1.9.2.3 2000/11/01 00:19:25 brian Exp $
  */
 
 #include <sys/param.h>

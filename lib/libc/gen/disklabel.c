@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 5/3/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/disklabel.c,v 1.9 1999/11/04 04:46:18 ache Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

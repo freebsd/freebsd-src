@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/dos.c,v 1.23 1999/08/28 01:34:12 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -1,7 +1,7 @@
 /*
  * misc.c  Phantasia miscellaneous support routines
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/phantasia/misc.c,v 1.7 1999/11/16 02:57:34 billf Exp $
  */
 
 #include <string.h>

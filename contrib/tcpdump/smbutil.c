@@ -5,7 +5,7 @@
    BSD-style license that accompanies tcpdump or the GNU GPL version 2
    or later */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/tcpdump/smbutil.c,v 1.1.1.1.2.1 2000/10/05 02:56:32 kris Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

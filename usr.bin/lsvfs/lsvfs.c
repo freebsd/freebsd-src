@@ -3,7 +3,7 @@
  * Garrett A. Wollman, September 1994
  * This file is in the public domain.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/lsvfs/lsvfs.c,v 1.13 1999/08/28 01:03:17 peter Exp $
  */
 
 #define _NEW_VFSCONF

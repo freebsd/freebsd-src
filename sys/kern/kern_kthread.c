@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_kthread.c,v 1.5 2000/01/10 08:00:58 imp Exp $
  */
 
 #include <sys/param.h>

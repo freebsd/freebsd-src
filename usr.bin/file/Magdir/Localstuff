@@ -2,6 +2,6 @@
 #------------------------------------------------------------------------------
 # Localstuff:  file(1) magic for locally observed files
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/file/Magdir/Localstuff,v 1.4 1999/08/28 01:01:04 peter Exp $
 # Add any locally observed files here.  Remember:
 # text if readable, executable if runnable binary, data if unreadable.

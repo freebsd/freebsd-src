@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/dec_eb64plus.c,v 1.4.2.2 2000/07/20 06:12:12 obrien Exp $ */
 
 /*
  * Copyright (c) 1995, 1996, 1997 Carnegie-Mellon University.

@@ -1,5 +1,5 @@
 # This is the Makefile for the Taylor UUCP uuconf library
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/libuuconf/Makefile,v 1.6 1999/08/27 23:33:13 peter Exp $
 
 LIB=		uuconf
 SRCS = addblk.c addstr.c allblk.c alloc.c base.c bool.c callin.c \

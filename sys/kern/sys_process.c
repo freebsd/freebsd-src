@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/sys_process.c,v 1.51.2.1 2000/10/26 04:34:41 jwd Exp $
  */
 
 #include <sys/param.h>

@@ -26,7 +26,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/prom_disp.s,v 1.2.2.1 2000/07/03 19:59:44 mjacob Exp $
  */
 
 #ifndef _LOCORE

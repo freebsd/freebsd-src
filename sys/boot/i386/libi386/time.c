@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/libi386/time.c,v 1.3 1999/12/29 09:54:30 msmith Exp $
  */
 
 #include <stand.h>

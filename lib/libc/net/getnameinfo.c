@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libc/net/getnameinfo.c,v 1.4.2.2 2000/09/25 23:12:25 itojun Exp $	*/
 /*	$KAME: getnameinfo.c,v 1.45 2000/09/25 22:43:56 itojun Exp $	*/
 
 /*

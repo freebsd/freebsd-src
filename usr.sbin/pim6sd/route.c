@@ -45,7 +45,7 @@
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6sd/route.c,v 1.1.2.1 2000/07/15 07:36:37 kris Exp $
  */
 
 #include <sys/types.h>

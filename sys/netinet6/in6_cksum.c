@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/in6_cksum.c,v 1.1.2.2 2000/10/31 18:45:20 ume Exp $	*/
 /*	$KAME: in6_cksum.c,v 1.9 2000/09/09 15:33:31 itojun Exp $	*/
 
 /*

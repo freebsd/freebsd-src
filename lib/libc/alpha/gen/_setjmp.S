@@ -26,7 +26,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/alpha/gen/_setjmp.S,v 1.4.2.2 2000/08/21 21:08:35 jhb Exp $
  */
 
 #include <machine/asm.h>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet/in_gif.c,v 1.5.2.2 2000/08/30 02:37:06 itojun Exp $	*/
 /*	$KAME: in_gif.c,v 1.44 2000/08/15 07:24:24 itojun Exp $	*/
 
 /*

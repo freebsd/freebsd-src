@@ -21,7 +21,7 @@
  */
 
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/libc/net/res_mkupdate.c,v 1.2 1999/08/28 00:00:18 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

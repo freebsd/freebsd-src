@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)netstat.h	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/netstat/netstat.h,v 1.16.2.1 2000/07/15 07:29:30 kris Exp $
  */
 
 #include <sys/cdefs.h>

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libopcodes/Makefile.i386,v 1.2.2.1 2000/07/06 22:16:09 obrien Exp $
 #
 
 SRCS+=		i386-dis.c

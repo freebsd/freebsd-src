@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/cbcp.c,v 1.18.2.2 2000/08/19 09:29:59 brian Exp $
  */
 
 #include <sys/param.h>

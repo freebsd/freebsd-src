@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-bgp.c,v 1.1.1.1.2.1 2000/10/05 02:56:32 kris Exp $
  */
 
 #ifdef HAVE_CONFIG_H

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/config/mkheaders.c,v 1.14 2000/01/08 15:57:21 peter Exp $";
 #endif /* not lint */
 
 /*

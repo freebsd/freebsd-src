@@ -55,7 +55,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)finger.c	8.5 (Berkeley) 5/4/95";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/finger/finger.c,v 1.15.2.5 2000/10/05 17:33:16 ru Exp $";
 #endif
 #endif /* not lint */
 

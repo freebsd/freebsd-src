@@ -24,7 +24,7 @@ static char copyright[] =
 static char id[] = "@(#)$Id: mailstats.c,v 8.53.16.11 2000/09/17 17:04:26 gshapiro Exp $";
 #endif /* ! lint */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/mailstats/mailstats.c,v 1.5.2.2 2000/10/10 05:07:23 gshapiro Exp $ */
 
 #include <unistd.h>
 #include <stddef.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/t4dwave.c,v 1.9.2.3 2000/10/05 05:12:32 cg Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

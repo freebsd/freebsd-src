@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/phys_pager.c,v 1.3.2.1 2000/08/04 22:31:11 peter Exp $
  */
 
 #include <sys/param.h>

@@ -41,7 +41,7 @@
  *
  *	$Id: i4b_asuscom_ipac.c,v 1.4 1999/12/13 21:25:26 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_asuscom_ipac.c,v 1.4 1999/12/14 20:48:17 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:58:27 1999]
  *

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.info.mk,v 1.57.2.1 2000/08/28 02:58:20 ps Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source

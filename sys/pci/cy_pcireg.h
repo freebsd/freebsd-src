@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/cy_pcireg.h,v 1.7 1999/08/28 00:50:45 peter Exp $
  */
 
 #define CY_PCI_BASE_ADDR0		0x10

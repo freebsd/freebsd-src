@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/genassym/Makefile,v 1.1 1999/12/23 11:07:44 marcel Exp $
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 

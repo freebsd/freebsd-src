@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_descrip.c,v 1.81.2.5 2000/10/31 23:11:23 alc Exp $
  */
 
 #include "opt_compat.h"

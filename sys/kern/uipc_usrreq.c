@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/uipc_usrreq.c,v 1.54.2.4 2000/09/07 19:13:38 truckman Exp $
  */
 
 #include <sys/param.h>

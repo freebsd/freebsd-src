@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/alpha/sys/Makefile.inc,v 1.6 1999/10/09 12:11:31 dfr Exp $
 
 MDASM+=	Ovfork.S brk.S cerror.S exect.S fork.S pipe.S ptrace.S \
 	sbrk.S setlogin.S sigreturn.S syscall.S

@@ -1,7 +1,7 @@
 /*
  * mjs copyright
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/common/pnp.c,v 1.9.2.1 2000/08/03 00:48:57 peter Exp $
  */
 /*
  * "Plug and Play" functionality.

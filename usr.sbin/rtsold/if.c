@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rtsold/if.c,v 1.2.2.2 2000/10/29 00:14:33 kris Exp $
  */
 
 #include <sys/param.h>

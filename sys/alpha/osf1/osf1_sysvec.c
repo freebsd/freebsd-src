@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/osf1/osf1_sysvec.c,v 1.1.2.1 2000/11/04 07:35:46 obrien Exp $
  */
 
 /* XXX we use functions that might not exist. */

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/ld/Makefile,v 1.30 2000/01/03 10:41:11 obrien Exp $
 #
 
 RTLD=	${.CURDIR}/../../../libexec/rtld-aout

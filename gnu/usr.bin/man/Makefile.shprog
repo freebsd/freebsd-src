@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/Makefile.shprog,v 1.4 1999/08/27 23:36:06 peter Exp $
 
 # This may become bsd.shprog.mk.  The general version would have to handle:
 # - arbitrary sed substitutions.

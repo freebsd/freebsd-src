@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/pci/tsunami.c,v 1.10 1999/12/14 17:35:08 gallatin Exp $
  */
 
 #include "opt_cpu.h"

@@ -35,7 +35,7 @@
 # From @(#)makedevops.sh 1.1 1998/06/14 13:53:12 dfr Exp $
 # From @(#)makedevops.sh ?.? 1998/10/05
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/makedevops.pl,v 1.12.2.1 2000/10/23 11:53:40 n_hibma Exp $
 
 #
 # Script to produce device front-end sugar.

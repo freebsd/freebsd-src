@@ -45,7 +45,7 @@ static char const copyright[] =
 static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/arp/arp.c,v 1.22 2000/03/03 13:01:57 shin Exp $";
 #endif /* not lint */
 
 /*

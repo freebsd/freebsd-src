@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.docb.mk,v 1.4 1999/08/28 00:21:46 peter Exp $
 #
 # The include file <bsd.docb.mk> handles installing SGML/docbook documents.
 #

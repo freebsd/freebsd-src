@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/fortune/fortune/fortune.c,v 1.18 1999/11/30 03:48:52 billf Exp $ */
 
 #ifndef lint
 static const char copyright[] =
@@ -46,7 +46,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)fortune.c   8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/fortune/fortune/fortune.c,v 1.18 1999/11/30 03:48:52 billf Exp $";
 #endif /* not lint */
 
 # include	<sys/param.h>

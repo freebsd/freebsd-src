@@ -3,7 +3,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/usr.bin/make/util.c,v 1.5.2.1 2000/07/01 12:24:21 ps Exp $";
 #endif
 
 #include <stdio.h>

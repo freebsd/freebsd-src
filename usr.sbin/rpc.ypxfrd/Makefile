@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rpc.ypxfrd/Makefile,v 1.8 1999/08/28 01:19:46 peter Exp $
 
 PROG=	rpc.ypxfrd
 SRCS=	ypxfrd_svc.c ypxfrd.h ypxfrd_server.c yp_error.c \

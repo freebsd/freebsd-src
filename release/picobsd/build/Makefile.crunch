@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/build/Makefile.crunch,v 1.1.4.3 2000/11/16 10:54:05 joe Exp $
 #
 SRC?=/usr/src
 

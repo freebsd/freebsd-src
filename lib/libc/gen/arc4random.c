@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/gen/arc4random.c,v 1.4 2000/01/27 23:06:13 jasone Exp $ */
 
 /*
  * Arc4 random number generator for OpenBSD.

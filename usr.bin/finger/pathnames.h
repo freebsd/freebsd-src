@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/finger/pathnames.h,v 1.1.2.2 2000/09/01 20:14:16 brian Exp $
  */
 
 #ifndef PATHNAMES_H

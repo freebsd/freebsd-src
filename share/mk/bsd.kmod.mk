@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.kmod.mk,v 1.75.2.2 2000/07/07 09:45:29 peter Exp $
 
 # Search for kernel source tree in standard places.
 .for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. ${.CURDIR}/../../../.. /sys /usr/src/sys

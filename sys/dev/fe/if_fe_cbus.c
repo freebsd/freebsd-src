@@ -19,7 +19,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fe/if_fe_cbus.c,v 1.2.2.3 2000/11/11 00:03:27 nyan Exp $
  */
 
 #include "opt_fe.h"

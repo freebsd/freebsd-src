@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/cons.h,v 1.24 2000/01/11 14:54:01 yokota Exp $
  */
 
 #ifndef _MACHINE_CONS_H_

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/wargames/Makefile,v 1.7 2000/02/15 07:15:41 jkh Exp $
 
 MAN6=	wargames.6
 

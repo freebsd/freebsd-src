@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/Makefile,v 1.21.2.1 2000/07/04 05:32:51 obrien Exp $
 
 # The order of some of these are rather important.  Some depend on previous
 # subdirs.

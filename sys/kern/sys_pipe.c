@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/sys_pipe.c,v 1.60.2.3 2000/09/14 20:27:13 jlemon Exp $
  */
 
 /*
