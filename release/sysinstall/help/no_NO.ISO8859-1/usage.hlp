@@ -6,7 +6,7 @@ TAST            FUNKSJON
 PIL OPP         Flytte til forrige dataelement (eller opp, i et tekstfelt).
 PIL NED         Flytte til neste dataelement (eller ned, i et tekstfelt).
 TAB             Flytte til neste dataelement eller gruppe.
-HØYRE PIL    Flytte til neste dataelement eller gruppe (samme som TAB).
+HØYRE PIL       Flytte til neste dataelement eller gruppe (samme som TAB).
 SKIFT-TAB       Flytte til forrige dataelement eller gruppe.
 VENSTRE PIL     Flytte til forrige dataelement eller gruppe (samme 
                 som SKIFT-TAB).
@@ -45,4 +45,5 @@ rulle-tilbake funksjonen, trykk på "Scroll Lock" tasten  på tastaturet.
 Piltastene og Side Opp/Ned tastene kan nå brukes til å gå 
 igjennom den lagrete teksten. For å forlate rulle-tilbake modusen, 
 trykk på "Scroll Lock" tasten igjen. Dette momentet er best egnet for å 
-håndtere underordnede-skjell og andre "vidundermoduser" som ikke bruker menyer.
+håndtere underordnede-skjell og andre "vidundermoduser" som ikke bruker
+menyer.
