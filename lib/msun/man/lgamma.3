@@ -56,19 +56,19 @@
 .Ft double
 .Fn lgamma "double x"
 .Ft double
-.Fn lgamma_r "double x, int *signgamp"
+.Fn lgamma_r "double x" "int *signgamp"
 .Ft float
 .Fn lgammaf "float x"
 .Ft float
-.Fn lgammaf_r "float x, int *signgamp"
+.Fn lgammaf_r "float x" "int *signgamp"
 .Ft double
 .Fn gamma "double x"
 .Ft double
-.Fn gamma_r "double x, int *signgamp"
+.Fn gamma_r "double x" "int *signgamp"
 .Ft float
 .Fn gammaf "float x"
 .Ft float
-.Fn gammaf_r "float x, int *signgamp"
+.Fn gammaf_r "float x" "int *signgamp"
 .Ft double
 .Fn tgamma "double x"
 .Sh DESCRIPTION
@@ -97,7 +97,7 @@ provide the same functionality as
 .Fn lgamma x
 and
 .Fn lgammaf x
-but the caller must provide an integer to store the sign of \(*G(x)
+but the caller must provide an integer to store the sign of \(*G(x).
 .Pp
 .Fn gamma ,
 .Fn gammaf ,
@@ -138,12 +138,12 @@ Exponentiation of
 will lose up to 10 significant bits.
 .Sh RETURN VALUES
 .Fn gamma ,
-.Fn gamma_r,
+.Fn gamma_r ,
 .Fn gammaf ,
 .Fn gammaf_r ,
 .Fn lgamma ,
 .Fn lgamma_r ,
-.Fn lgammaf,
+.Fn lgammaf ,
 and
 .Fn lgammaf_r
 return appropriate values unless an argument is out of range.

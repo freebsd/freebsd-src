@@ -229,8 +229,10 @@ When vty switching is off,
 attempts to switch to a different virtual terminal will fail.
 (The default is to permit vty switching.)
 This protection can be easily bypassed when the kernel is compiled with
-the DDB option.
-However, you probably shouldn't compile the kernel debugger on a box which
+the
+.Dv DDB
+option.
+However, you probably should not compile the kernel debugger on a box which
 is supposed to be physically secure.
 .It Fl s Ar number
 Set the current vty to
