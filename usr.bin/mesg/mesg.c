@@ -79,28 +79,30 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if ((tty = ttyname(STDERR_FILENO)) == NULL)
-		err(1, "ttyname");
+	if ((tty = ttyname(STDIN_FILENO)) == NULL &&
+	    (tty = ttyname(STDOUT_FILENO)) == NULL &&
+	    (tty = ttyname(STDERR_FILENO)) == NULL)
+		err(2, "ttyname");
 	if (stat(tty, &sb) < 0)
-		err(1, "%s", tty);
+		err(2, "%s", tty);
 
 	if (*argv == NULL) {
 		if (sb.st_mode & S_IWGRP) {
-			(void)fprintf(stderr, "is y\n");
+			(void)puts("is y");
 			exit(0);
 		}
-		(void)fprintf(stderr, "is n\n");
+		(void)puts("is n");
 		exit(1);
 	}
 
 	switch (*argv[0]) {
 	case 'y':
 		if (chmod(tty, sb.st_mode | S_IWGRP) < 0)
-			err(1, "%s", tty);
+			err(2, "%s", tty);
 		exit(0);
 	case 'n':
 		if (chmod(tty, sb.st_mode & ~S_IWGRP) < 0)
-			err(1, "%s", tty);
+			err(2, "%s", tty);
 		exit(1);
 	}
 
