@@ -79,7 +79,7 @@ FILESMODE_loader= ${BINMODE} -b
 FILESDIR_loader.conf=	/boot/defaults
 
 .if !exists(${DESTDIR}/boot/loader.rc)
-FILES+=	${.CURDIR}/loader.rc
+FILES+=	loader.rc
 .endif
 
 # XXX crt0.o needs to be first for pxeboot(8) to work
