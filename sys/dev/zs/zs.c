@@ -145,7 +145,7 @@ static d_close_t zsttyclose;
 static void zsttystart(struct tty *tp);
 static void zsttystop(struct tty *tp, int rw);
 static int zsttyparam(struct tty *tp, struct termios *t);
-static int zsttybreak(struct tty *tp, int brk);
+static void zsttybreak(struct tty *tp, int brk);
 static int zsttymodem(struct tty *tp, int biton, int bitoff);
 
 static struct cdevsw zstty_cdevsw = {
@@ -608,7 +608,7 @@ zsttyparam(struct tty *tp, struct termios *t)
 }
 
 
-static int
+static void
 zsttybreak(struct tty *tp, int brk)
 {
 	struct zstty_softc *sc;
@@ -619,7 +619,6 @@ zsttybreak(struct tty *tp, int brk)
 		ZS_WRITE_REG(sc, 5, ZS_READ_REG(sc, 5) | ZSWR5_BREAK);
 	else
 		ZS_WRITE_REG(sc, 5, ZS_READ_REG(sc, 5) & ~ZSWR5_BREAK);
-	return (0);
 }
 
 static int
