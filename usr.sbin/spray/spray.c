@@ -26,9 +26,12 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	$Id$
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,7 +44,7 @@
 #define SPRAYOVERHEAD	86
 #endif
 
-void usage ();
+static void usage ();
 void print_xferstats ();
 
 /* spray buffer */
@@ -57,7 +60,6 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	char *progname;
 	spraycumul	host_stats;
 	sprayarr	host_array;
 	CLIENT *cl;
@@ -68,7 +70,6 @@ main(argc, argv)
 	int length = 0;
 	double xmit_time;			/* time to receive data */
 
-	progname = *argv;
 	while ((c = getopt(argc, argv, "c:d:l:")) != -1) {
 		switch (c) {
 		case 'c':
@@ -123,7 +124,7 @@ main(argc, argv)
 	/* create connection with server */
 	cl = clnt_create(*argv, SPRAYPROG, SPRAYVERS, "udp");
 	if (cl == NULL) {
-		clnt_pcreateerror(progname);
+		clnt_pcreateerror("spray");
 		exit(1);
 	}
 
@@ -140,7 +141,7 @@ main(argc, argv)
 
 	/* Clear server statistics */
 	if (clnt_call(cl, SPRAYPROC_CLEAR, xdr_void, NULL, xdr_void, NULL, TIMEOUT) != RPC_SUCCESS) {
-		clnt_perror(cl, progname);
+		clnt_perror(cl, "spray");
 		exit(1);
 	}
 
@@ -160,7 +161,7 @@ main(argc, argv)
 
 	/* Collect statistics from server */
 	if (clnt_call(cl, SPRAYPROC_GET, xdr_void, NULL, xdr_spraycumul, &host_stats, TIMEOUT) != RPC_SUCCESS) {
-		clnt_perror(cl, progname);
+		clnt_perror(cl, "spray");
 		exit(1);
 	}
 
@@ -216,9 +217,10 @@ print_xferstats(packets, packetlen, xfertime)
 }
 
 
-void
+static void
 usage ()
 {
-	fprintf(stderr, "usage: spray [-c count] [-l length] [-d delay] host\n");
+	fprintf(stderr,
+		"usage: spray [-c count] [-l length] [-d delay] host\n");
 	exit(1);
 }
