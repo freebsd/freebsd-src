@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.52 1998/02/06 02:42:21 kato Exp $
+ * $Id: union_vnops.c,v 1.53 1998/02/06 12:13:44 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -266,9 +266,8 @@ union_lookup(ap)
 		 */
 		if (cnp->cn_flags & ISDOTDOT) {
 			/* retain lock on underlying VP: */
-			SETKLOCK(dun);
+			dun->un_flags |= UN_KLOCK;
 			VOP_UNLOCK(dvp, 0, p);
-			CLEARKLOCK(dun);
 		}
 		uerror = union_lookup1(um->um_uppervp, &upperdvp,
 					&uppervp, cnp);
@@ -504,10 +503,9 @@ union_create(ap)
 		FIXUP(un, p);
 
 		VREF(dvp);
-		SETKLOCK(un);
+		un->un_flags |= UN_KLOCK;
 		mp = ap->a_dvp->v_mount;
 		vput(ap->a_dvp);
-		CLEARKLOCK(un);
 		error = VOP_CREATE(dvp, &vp, cnp, ap->a_vap);
 		if (error)
 			return (error);
@@ -564,10 +562,9 @@ union_mknod(ap)
 		FIXUP(un, p);
 
 		VREF(dvp);
-		SETKLOCK(un);
+		un->un_flags |= UN_KLOCK;
 		mp = ap->a_dvp->v_mount;
 		vput(ap->a_dvp);
-		CLEARKLOCK(un);
 		error = VOP_MKNOD(dvp, &vp, cnp, ap->a_vap);
 		if (error)
 			return (error);
@@ -1073,14 +1070,12 @@ union_remove(ap)
 
 		FIXUP(dun, p);
 		VREF(dvp);
-		SETKLOCK(dun);
+		dun->un_flags |= UN_KLOCK;
 		vput(ap->a_dvp);
-		CLEARKLOCK(dun);
 		FIXUP(un, p);
 		VREF(vp);
-		SETKLOCK(un);
+		un->un_flags |= UN_KLOCK;
 		vput(ap->a_vp);
-		CLEARKLOCK(un);
 
 		if (union_dowhiteout(un, cnp->cn_cred, cnp->cn_proc))
 			cnp->cn_flags |= DOWHITEOUT;
@@ -1151,9 +1146,8 @@ union_link(ap)
 
 	FIXUP(un, p);
 	VREF(tdvp);
-	SETKLOCK(un);
+	un->un_flags |= UN_KLOCK;
 	vput(ap->a_tdvp);
-	CLEARKLOCK(un);
 
 	return (VOP_LINK(tdvp, vp, cnp));
 }
@@ -1175,7 +1169,6 @@ union_rename(ap)
 	struct vnode *fvp = ap->a_fvp;
 	struct vnode *tdvp = ap->a_tdvp;
 	struct vnode *tvp = ap->a_tvp;
-	int isklockset = 0;
 
 	if (fdvp->v_op == union_vnodeop_p) {	/* always true */
 		struct union_node *un = VTOUNION(fdvp);
@@ -1226,9 +1219,8 @@ union_rename(ap)
 
 		tdvp = un->un_uppervp;
 		VREF(tdvp);
-		SETKLOCK(un);
+		un->un_flags |= UN_KLOCK;
 		vput(ap->a_tdvp);
-		CLEARKLOCK(un);
 	}
 
 	if (tvp != NULLVP && tvp->v_op == union_vnodeop_p) {
@@ -1237,12 +1229,9 @@ union_rename(ap)
 		tvp = un->un_uppervp;
 		if (tvp != NULLVP) {
 			VREF(tvp);
-			SETKLOCK(un);
-			isklockset = 1;
+			un->un_flags |= UN_KLOCK;
 		}
 		vput(ap->a_tvp);
-		if (isklockset)
-			CLEARKLOCK(un);
 	}
 
 	return (VOP_RENAME(fdvp, fvp, ap->a_fcnp, tdvp, tvp, ap->a_tcnp));
@@ -1277,9 +1266,8 @@ union_mkdir(ap)
 
 		FIXUP(un, p);
 		VREF(dvp);
-		SETKLOCK(un);
+		un->un_flags |= UN_KLOCK;
 		VOP_UNLOCK(ap->a_dvp, 0, p);
-		CLEARKLOCK(un);
 		error = VOP_MKDIR(dvp, &vp, cnp, ap->a_vap);
 		if (error) {
 			vrele(ap->a_dvp);
@@ -1321,14 +1309,12 @@ union_rmdir(ap)
 
 		FIXUP(dun, p);
 		VREF(dvp);
-		SETKLOCK(dun);
+		dun->un_flags |= UN_KLOCK;
 		vput(ap->a_dvp);
-		CLEARKLOCK(dun);
 		FIXUP(un, p);
 		VREF(vp);
-		SETKLOCK(un);
+		un->un_flags |= UN_KLOCK;
 		vput(ap->a_vp);
-		CLEARKLOCK(un);
 
 		if (union_dowhiteout(un, cnp->cn_cred, cnp->cn_proc))
 			cnp->cn_flags |= DOWHITEOUT;
@@ -1371,9 +1357,8 @@ union_symlink(ap)
 
 		FIXUP(un, p);
 		VREF(dvp);
-		SETKLOCK(un);
+		un->un_flags |= UN_KLOCK;
 		vput(ap->a_dvp);
-		CLEARKLOCK(un);
 		error = VOP_SYMLINK(dvp, &vp, cnp, ap->a_vap, ap->a_target);
 		*ap->a_vpp = NULLVP;
 		return (error);
@@ -1548,13 +1533,19 @@ start:
 	if (un->un_uppervp != NULLVP) {
 		if (((un->un_flags & UN_ULOCK) == 0) &&
 		    (vp->v_usecount != 0)) {
-			if ((un->un_flags & UN_KLOCK) == 0) {
+			if ((un->un_flags & UN_GLOCK) == 0) {
 				error = vn_lock(un->un_uppervp, flags, p);
 				if (error)
 					return (error);
 			}
 			un->un_flags |= UN_ULOCK;
 		}
+#ifdef DIAGNOSTIC
+		if (un->un_flags & UN_KLOCK) {
+			vprint("dangling upper lock", vp);
+			panic("union: dangling upper lock");
+		}
+#endif
 	}
 
 	if (un->un_flags & UN_LOCKED) {
@@ -1590,10 +1581,6 @@ start:
  *
  * If UN_KLOCK isn't set, then the upper vnode is unlocked here.
  */
-/*
- * FreeBSD:  Do not cleark UN_KLOCK flag.  UN_KLOCK flag is tested
- * in union_lock().
- */
 static int
 union_unlock(ap)
 	struct vop_unlock_args /* {
@@ -1615,20 +1602,10 @@ union_unlock(ap)
 
 	un->un_flags &= ~UN_LOCKED;
 
-	if ((un->un_flags & (UN_ULOCK|UN_KLOCK)) == UN_ULOCK) {
-		/*
-		 * XXX
-		 * Workarround for lockmgr violation.  Need to implement
-		 * real lockmgr-style lock/unlock.
-		 */
-		if ((ap->a_vp->v_flag & VDOOMED) &&
-		    ((struct lock *)un->un_uppervp->v_data)->lk_lockholder
-		    == LK_KERNPROC)
-			VOP_UNLOCK(un->un_uppervp, 0, 0);
-		else
-			VOP_UNLOCK(un->un_uppervp, 0, p);
-	}
-	un->un_flags &= ~UN_ULOCK;
+	if ((un->un_flags & (UN_ULOCK|UN_KLOCK|UN_GLOCK)) == UN_ULOCK)
+		VOP_UNLOCK(un->un_uppervp, 0, p);
+
+	un->un_flags &= ~(UN_ULOCK|UN_KLOCK);
 
 	if (un->un_flags & UN_WANT) {
 		un->un_flags &= ~UN_WANT;
