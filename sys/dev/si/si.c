@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.51 1996/08/12 17:12:07 peter Exp $
+ *	$Id: si.c,v 1.52 1996/09/06 23:08:03 phk Exp $
  */
 
 #ifndef lint
@@ -391,10 +391,10 @@ got_card:
 	DPRINT((0, DBG_AUTOBOOT, "si%d: found type %d card, try memory test\n",
 		id->id_unit, type));
 	/* Try the acid test */
-	ux = (BYTE *)(maddr + SIRAM);
+	ux = maddr + SIRAM;
 	for (i=0; i<ramsize; i++, ux++)
 		*ux = (BYTE)(i&0xff);
-	ux = (BYTE *)(maddr + SIRAM);
+	ux = maddr + SIRAM;
 	for (i=0; i<ramsize; i++, ux++) {
 		if ((was = *ux) != (BYTE)(i&0xff)) {
 			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
@@ -405,10 +405,10 @@ got_card:
 	}
 
 	/* clear out the RAM */
-	ux = (BYTE *)(maddr + SIRAM);
+	ux = maddr + SIRAM;
 	for (i=0; i<ramsize; i++)
 		*ux++ = 0;
-	ux = (BYTE *)(maddr + SIRAM);
+	ux = maddr + SIRAM;
 	for (i=0; i<ramsize; i++) {
 		if ((was = *ux++) != 0) {
 			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
@@ -710,7 +710,7 @@ siopen(dev, flag, mode, p)
 
 	/* quickly let in /dev/si_control */
 	if (IS_CONTROLDEV(mynor)) {
-		if (error = suser(p->p_ucred, &p->p_acflag))
+		if ((error = suser(p->p_ucred, &p->p_acflag)))
 			return(error);
 		return(0);
 	}
@@ -941,9 +941,9 @@ sihardclose(pp)
 	tp = pp->sp_tty;
 	ccbp = pp->sp_ccb;			/* Find control block */
 	if (tp->t_cflag & HUPCL
-	    || !pp->sp_active_out
-	       && !(ccbp->hi_ip & IP_DCD)
-	       && !(pp->sp_iin.c_cflag && CLOCAL)
+	    || (!pp->sp_active_out
+	        && !(ccbp->hi_ip & IP_DCD)
+	        && !(pp->sp_iin.c_cflag && CLOCAL))
 	    || !(tp->t_state & TS_ISOPEN)) {
 
 		(void) si_modem(pp, BIC, TIOCM_DTR|TIOCM_RTS);
@@ -1032,8 +1032,8 @@ siwrite(dev, uio, flag)
 	while (pp->sp_state & SS_BLOCKWRITE) {
 		pp->sp_state |= SS_WAITWRITE;
 		DPRINT((pp, DBG_WRITE, "in siwrite, wait for SS_BLOCKWRITE to clear\n"));
-		if (error = ttysleep(tp, (caddr_t)pp, TTOPRI|PCATCH,
-				     "siwrite", tp->t_timeout)) {
+		if ((error = ttysleep(tp, (caddr_t)pp, TTOPRI|PCATCH,
+				     "siwrite", tp->t_timeout))) {
 			if (error == EWOULDBLOCK)
 				error = EIO;
 			goto out;
@@ -1270,7 +1270,7 @@ si_Sioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	ip = (int *)data;
 
-#define SUCHECK if (error = suser(p->p_ucred, &p->p_acflag)) goto out
+#define SUCHECK if ((error = suser(p->p_ucred, &p->p_acflag))) goto out
 
 	switch (cmd) {
 	case TCSIPORTS:
@@ -2024,7 +2024,6 @@ si_start(tp)
 	struct si_port *pp;
 	volatile struct si_channel *ccbp;
 	register struct clist *qp;
-	register char *dptr;
 	BYTE ipos;
 	int nchar;
 	int oldspl, count, n, amount, buffer_full;
@@ -2057,8 +2056,6 @@ si_start(tp)
 
 	count = (int)ccbp->hi_txipos - (int)ccbp->hi_txopos;
 	DPRINT((pp, DBG_START, "count %d\n", (BYTE)count));
-
-	dptr = (char *)ccbp->hi_txbuf;	/* data buffer */
 
 	while ((nchar = qp->c_cc) > 0) {
 		if ((BYTE)count >= 255) {
