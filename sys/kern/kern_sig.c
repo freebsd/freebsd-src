@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.48 1998/10/21 16:31:38 jdp Exp $
+ * $Id: kern_sig.c,v 1.49 1998/11/11 10:03:55 truckman Exp $
  */
 
 #include "opt_compat.h"
@@ -1279,6 +1279,8 @@ const char *name; int uid; int pid; {
 	char *format = corefilename;
 
 	temp = malloc(MAXPATHLEN + 3, M_TEMP, M_NOWAIT);
+	if (temp == NULL)
+		return NULL;
 	bzero(temp, MAXPATHLEN+3);
 	for (i = 0, n = 0; i < MAXPATHLEN && format[i]; i++) {
 		int l;
