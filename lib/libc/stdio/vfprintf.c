@@ -413,7 +413,10 @@ vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
 #define	BUF		((MAXEXP*2)+MAXFRACT+1)		/* + decimal point */
 #define	DEFPREC		6
 
-static char *cvt(double, int, int, char *, int *, int, int *, char **);
+extern char *__dtoa(double, int, int, int *, int *, char **);
+extern void __freedtoa(char *s);
+
+static char *cvt(double, int, int, char *, int *, int, int *);
 static int exponent(char *, int, int);
 
 #else /* no FLOATING_POINT */
@@ -840,11 +843,11 @@ fp_begin:		if (prec == -1)
 			}
 			flags |= FPT;
 			if (dtoaresult != NULL) {
-				free(dtoaresult);
+				__freedtoa(dtoaresult);
 				dtoaresult = NULL;
 			}
-			cp = cvt(_double, prec, flags, &softsign,
-				&expt, ch, &ndig, &dtoaresult);
+			dtoaresult = cp = cvt(_double, prec, flags, &softsign,
+				&expt, ch, &ndig);
 			if (ch == 'g' || ch == 'G') {
 				if (expt <= -4 || expt > prec)
 					ch = (ch == 'g') ? 'e' : 'E';
@@ -1138,7 +1141,7 @@ done:
 error:
 #ifdef FLOATING_POINT
 	if (dtoaresult != NULL)
-		free(dtoaresult);
+		__freedtoa(dtoaresult);
 #endif
 	if (convbuf != NULL)
 		free(convbuf);
@@ -1508,11 +1511,9 @@ __grow_type_table (int nextarg, enum typeid **typetable, int *tablesize)
 
 #ifdef FLOATING_POINT
 
-extern char *__dtoa(double, int, int, int *, int *, char **, char **);
-
 static char *
 cvt(double value, int ndigits, int flags, char *sign, int *decpt,
-    int ch, int *length, char **dtoaresultp)
+    int ch, int *length)
 {
 	int mode, dsgn;
 	char *digits, *bp, *rve;
@@ -1529,7 +1530,7 @@ cvt(double value, int ndigits, int flags, char *sign, int *decpt,
 			ndigits++;
 		mode = 2;		/* ndigits significant digits */
 	}
-	digits = __dtoa(value, mode, ndigits, decpt, &dsgn, &rve, dtoaresultp);
+	digits = __dtoa(value, mode, ndigits, decpt, &dsgn, &rve);
 	*sign = dsgn != 0;
 	if ((ch != 'g' && ch != 'G') || flags & ALT) {
 		/* print trailing zeros */
