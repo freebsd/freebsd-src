@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.15 1995/08/24 10:32:36 davidg Exp $
+ *	$Id: imgact_aout.c,v 1.16 1995/09/08 13:24:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -44,11 +44,11 @@
 #include <vm/vm.h>
 
 int
-exec_aout_imgact(iparams)
-	struct image_params *iparams;
+exec_aout_imgact(imgp)
+	struct image_params *imgp;
 {
-	struct exec *a_out = (struct exec *) iparams->image_header;
-	struct vmspace *vmspace = iparams->proc->p_vmspace;
+	struct exec *a_out = (struct exec *) imgp->image_header;
+	struct vmspace *vmspace = imgp->proc->p_vmspace;
 	unsigned long vmaddr, virtual_offset, file_offset;
 	unsigned long bss_size;
 	int error;
@@ -111,7 +111,7 @@ exec_aout_imgact(iparams)
 		return (-1);
 
 	/* text + data can't exceed file size */
-	if (a_out->a_data + a_out->a_text > iparams->attr->va_size)
+	if (a_out->a_data + a_out->a_text > imgp->attr->va_size)
 		return (EFAULT);
 
 	/*
@@ -125,18 +125,18 @@ exec_aout_imgact(iparams)
 
 	    /* data + bss can't exceed rlimit */
 	    a_out->a_data + bss_size >
-		iparams->proc->p_rlimit[RLIMIT_DATA].rlim_cur)
+		imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur)
 			return (ENOMEM);
 
 	/* copy in arguments and/or environment from old process */
-	error = exec_extract_strings(iparams);
+	error = exec_extract_strings(imgp);
 	if (error)
 		return (error);
 
 	/*
 	 * Destroy old process VM and create a new one (with a new stack)
 	 */
-	exec_new_vmspace(iparams);
+	exec_new_vmspace(imgp);
 
 	/*
 	 * Map text read/execute
@@ -149,7 +149,7 @@ exec_aout_imgact(iparams)
 		VM_PROT_READ | VM_PROT_EXECUTE,		/* protection */
 		VM_PROT_READ | VM_PROT_EXECUTE | VM_PROT_WRITE,	/* max protection */
 		MAP_PRIVATE | MAP_FIXED,		/* flags */
-		(caddr_t)iparams->vnodep,		/* vnode */
+		(caddr_t)imgp->vp,			/* vnode */
 		file_offset);				/* offset */
 	if (error)
 		return (error);
@@ -165,7 +165,7 @@ exec_aout_imgact(iparams)
 		a_out->a_data,
 		VM_PROT_READ | VM_PROT_WRITE | (a_out->a_text ? 0 : VM_PROT_EXECUTE),
 		VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED,
-		(caddr_t) iparams->vnodep,
+		(caddr_t) imgp->vp,
 		file_offset + a_out->a_text);
 	if (error)
 		return (error);
@@ -189,13 +189,13 @@ exec_aout_imgact(iparams)
 	vmspace->vm_daddr = (caddr_t) virtual_offset + a_out->a_text;
 
 	/* Fill in image_params */
-	iparams->interpreted = 0;
-	iparams->entry_addr = a_out->a_entry;
+	imgp->interpreted = 0;
+	imgp->entry_addr = a_out->a_entry;
 
-	iparams->proc->p_sysent = &aout_sysvec;
+	imgp->proc->p_sysent = &aout_sysvec;
 
 	/* Indicate that this file should not be modified */
-	iparams->vnodep->v_flag |= VTEXT;
+	imgp->vp->v_flag |= VTEXT;
 
 	return (0);
 }

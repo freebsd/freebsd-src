@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.1 1995/06/25 17:32:37 sos Exp $
+ *  $Id: linux_misc.c,v 1.2 1995/10/04 07:08:04 julian Exp $
  */
 
 #include <i386/linux/linux.h>
@@ -162,7 +162,7 @@ int
 linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
 {
     struct nameidata ni;
-    struct vnode *vnodep;
+    struct vnode *vp;
     struct exec *a_out = 0;
     struct vattr attr;
     unsigned long vmaddr, virtual_offset, file_offset;
@@ -192,46 +192,46 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
     if (error = namei(&ni))
 	return error;
 
-    vnodep = ni.ni_vp;
-    if (vnodep == NULL)
+    vp = ni.ni_vp;
+    if (vp == NULL)
 	    return ENOEXEC;
 
-    if (vnodep->v_writecount) {
-	    VOP_UNLOCK(vnodep);
+    if (vp->v_writecount) {
+	    VOP_UNLOCK(vp);
 	    return ETXTBSY;
     }
 
-    if (error = VOP_GETATTR(vnodep, &attr, p->p_ucred, p)) {
-	    VOP_UNLOCK(vnodep);
+    if (error = VOP_GETATTR(vp, &attr, p->p_ucred, p)) {
+	    VOP_UNLOCK(vp);
 	    return error;
     }
 
-    if ((vnodep->v_mount->mnt_flag & MNT_NOEXEC)
+    if ((vp->v_mount->mnt_flag & MNT_NOEXEC)
 	|| ((attr.va_mode & 0111) == 0)
 	|| (attr.va_type != VREG)) {
-	    VOP_UNLOCK(vnodep);
+	    VOP_UNLOCK(vp);
 	    return ENOEXEC;
     }
 
     if (attr.va_size == 0) {
-	    VOP_UNLOCK(vnodep);
+	    VOP_UNLOCK(vp);
 	    return ENOEXEC;
     }
 
-    if (error = VOP_ACCESS(vnodep, VEXEC, p->p_ucred, p)) {
-	VOP_UNLOCK(vnodep);
+    if (error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p)) {
+	VOP_UNLOCK(vp);
 	return error;
     }
 
-    if (error = VOP_OPEN(vnodep, FREAD, p->p_ucred, p)) {
-	VOP_UNLOCK(vnodep);
+    if (error = VOP_OPEN(vp, FREAD, p->p_ucred, p)) {
+	VOP_UNLOCK(vp);
 	return error;
     }
 
-    VOP_UNLOCK(vnodep);	/* lock no longer needed */
+    VOP_UNLOCK(vp);	/* lock no longer needed */
 
     error = vm_mmap(kernel_map, (vm_offset_t *)&a_out, 1024,
-	    	    VM_PROT_READ, VM_PROT_READ, 0, (caddr_t)vnodep, 0);
+	    	    VM_PROT_READ, VM_PROT_READ, 0, (caddr_t)vp, 0);
     if (error)
 	return (error);
 
@@ -257,7 +257,7 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
 	return ENOEXEC;
     }
 
-    vnodep->v_flag |= VTEXT;
+    vp->v_flag |= VTEXT;
     bss_size = round_page(a_out->a_bss);
     /*
      * Check if file_offset page aligned,.
@@ -280,7 +280,7 @@ printf("uselib: Non page aligned binary %d\n", file_offset);
 	error = vm_mmap(kernel_map, &buffer,
 			round_page(a_out->a_text + a_out->a_data + file_offset),
 		   	VM_PROT_READ, VM_PROT_READ, MAP_FILE,
-			(caddr_t)vnodep, trunc_page(file_offset));
+			(caddr_t)vp, trunc_page(file_offset));
 	if (error)
 	    return error;
 
@@ -306,7 +306,7 @@ printf("uselib: Page aligned binary %d\n", file_offset);
 	error = vm_mmap(&p->p_vmspace->vm_map, &vmaddr,
 			a_out->a_text + a_out->a_data,
 			VM_PROT_ALL, VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED,
-			(caddr_t)vnodep, file_offset);
+			(caddr_t)vp, file_offset);
 	if (error)
 	    return (error);
     }

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.7 1995/09/13 02:12:51 sef Exp $
+ *	$Id: imgact_coff.c,v 1.9 1995/10/10 17:33:19 swallace Exp $
  */
 
 #include <sys/param.h>
@@ -49,7 +49,7 @@
 extern struct sysentvec ibcs2_svr3_sysvec;
 
 extern int coff_load_file __P((struct proc *p, char *name));
-extern int exec_coff_imgact __P((struct image_params *iparams));
+extern int exec_coff_imgact __P((struct image_params *imgp));
 
 static int load_coff_section __P((struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot));
 
@@ -154,7 +154,7 @@ coff_load_file(struct proc *p, char *name)
   	struct vmspace *vmspace = p->p_vmspace;
   	int error;
   	struct nameidata nd;
-  	struct vnode *vnodep;
+  	struct vnode *vp;
   	struct vattr attr;
   	struct filehdr *fhdr;
   	struct aouthdr *ahdr;
@@ -173,19 +173,19 @@ coff_load_file(struct proc *p, char *name)
   	if (error)
     		return error;
 
-  	vnodep = nd.ni_vp;
-  	if (vnodep == NULL)
+  	vp = nd.ni_vp;
+  	if (vp == NULL)
     		return ENOEXEC;
 
-  	if (vnodep->v_writecount) {
+  	if (vp->v_writecount) {
     		error = ETXTBSY;
     		goto fail;
   	}
 
-  	if (error = VOP_GETATTR(vnodep, &attr, p->p_ucred, p))
+  	if (error = VOP_GETATTR(vp, &attr, p->p_ucred, p))
     		goto fail;
 
-  	if ((vnodep->v_mount->mnt_flag & MNT_NOEXEC)
+  	if ((vp->v_mount->mnt_flag & MNT_NOEXEC)
 	    || ((attr.va_mode & 0111) == 0)
 	    || (attr.va_type != VREG))
     		goto fail;
@@ -195,17 +195,17 @@ coff_load_file(struct proc *p, char *name)
     		goto fail;
   	}
 
-  	if (error = VOP_ACCESS(vnodep, VEXEC, p->p_ucred, p))
+  	if (error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p))
     		goto fail;
 
-  	if (error = VOP_OPEN(vnodep, FREAD, p->p_ucred, p))
+  	if (error = VOP_OPEN(vp, FREAD, p->p_ucred, p))
     		goto fail;
 
 	/*
 	 * Lose the lock on the vnode. It's no longer needed, and must not
 	 * exist for the pagefault paging to work below.
 	 */
-	VOP_UNLOCK(vnodep);
+	VOP_UNLOCK(vp);
 
   	if (error = vm_mmap(kernel_map,
 			    (vm_offset_t *) &ptr,
@@ -213,7 +213,7 @@ coff_load_file(struct proc *p, char *name)
 			    VM_PROT_READ,
 		       	    VM_PROT_READ,
 			    MAP_FILE,
-			    (caddr_t) vnodep,
+			    (caddr_t) vp,
 			    0))
     	goto fail;
 
@@ -256,13 +256,13 @@ coff_load_file(struct proc *p, char *name)
     		}
   	}
 
-  	if (error = load_coff_section(vmspace, vnodep, text_offset,
+  	if (error = load_coff_section(vmspace, vp, text_offset,
 				      (caddr_t)text_address,
 				      text_size, text_size,
 				      VM_PROT_READ | VM_PROT_EXECUTE)) {
     		goto dealloc_and_fail;
   	}
-  	if (error = load_coff_section(vmspace, vnodep, data_offset,
+  	if (error = load_coff_section(vmspace, vp, data_offset,
 				      (caddr_t)data_address,
 				      data_size + bss_size, data_size,
 				      VM_PROT_ALL)) {
@@ -284,14 +284,14 @@ coff_load_file(struct proc *p, char *name)
 }
 
 int
-exec_coff_imgact(iparams)
-	struct image_params *iparams;
+exec_coff_imgact(imgp)
+	struct image_params *imgp;
 {
-	struct filehdr *fhdr = (struct filehdr*)iparams->image_header;
+	struct filehdr *fhdr = (struct filehdr*)imgp->image_header;
 	struct aouthdr *ahdr;
 	struct scnhdr *scns;
 	int i;
-	struct vmspace *vmspace = iparams->proc->p_vmspace;
+	struct vmspace *vmspace = imgp->proc->p_vmspace;
 	unsigned long vmaddr;
 	int nscns;
 	int error, len;
@@ -323,20 +323,20 @@ exec_coff_imgact(iparams)
 		return -1;
 	}
 
-	ahdr = (struct aouthdr*)((char*)(iparams->image_header) +
+	ahdr = (struct aouthdr*)((char*)(imgp->image_header) +
 				 sizeof(struct filehdr));
-	iparams->entry_addr = ahdr->entry;
+	imgp->entry_addr = ahdr->entry;
 
-	scns = (struct scnhdr*)((char*)(iparams->image_header) +
+	scns = (struct scnhdr*)((char*)(imgp->image_header) +
 				sizeof(struct filehdr) +
 				sizeof(struct aouthdr));
 
-	if (error = exec_extract_strings(iparams)) {
+	if (error = exec_extract_strings(imgp)) {
 		DPRINTF(("%s(%d):  return %d\n", __FILE__, __LINE__, error));
 		return error;
 	}
 
-	exec_new_vmspace(iparams);
+	exec_new_vmspace(imgp);
 
 	for (i = 0; i < nscns; i++) {
 
@@ -375,7 +375,7 @@ exec_coff_imgact(iparams)
 				    VM_PROT_READ,
 				    VM_PROT_READ,
 				    MAP_FILE,
-				    (caddr_t) iparams->vnodep,
+				    (caddr_t) imgp->vp,
 				    foff)) {
 	      		return ENOEXEC;
 	    	}
@@ -396,9 +396,9 @@ exec_coff_imgact(iparams)
 				DPRINTF(("%s(%d):  shared library %s\n",
 					 __FILE__, __LINE__, libname));
 				strcpy(&libbuf[emul_path_len], libname);
-		      		error = coff_load_file(iparams->proc, libbuf);
+		      		error = coff_load_file(imgp->proc, libbuf);
 		      		if (error)
-	      				error = coff_load_file(iparams->proc,
+	      				error = coff_load_file(imgp->proc,
 							       libname);
 		      		if (error)
 					break;
@@ -418,10 +418,10 @@ exec_coff_imgact(iparams)
 	 */
 
 	DPRINTF(("%s(%d):  load_coff_section(vmspace, "
-		"iparams->vnodep, %08lx, %08lx, 0x%x, 0x%x, 0x%x)\n",
+		"imgp->vp, %08lx, %08lx, 0x%x, 0x%x, 0x%x)\n",
 		__FILE__, __LINE__, text_offset, text_address,
 		text_size, text_size, VM_PROT_READ | VM_PROT_EXECUTE));
-	if (error = load_coff_section(vmspace, iparams->vnodep,
+	if (error = load_coff_section(vmspace, imgp->vp,
 				      text_offset, (caddr_t)text_address,
 				      text_size, text_size,
 				      VM_PROT_READ | VM_PROT_EXECUTE)) {
@@ -434,10 +434,10 @@ exec_coff_imgact(iparams)
 
 
 	DPRINTF(("%s(%d): load_coff_section(vmspace, "
-		"iparams->vnodep, 0x%08lx, 0x%08lx, 0x%x, 0x%x, 0x%x)\n",
+		"imgp->vp, 0x%08lx, 0x%08lx, 0x%x, 0x%x, 0x%x)\n",
 		__FILE__, __LINE__, data_offset, data_address,
 		data_size + bss_size, data_size, VM_PROT_ALL));
-	if (error = load_coff_section(vmspace, iparams->vnodep,
+	if (error = load_coff_section(vmspace, imgp->vp,
 				      data_offset, (caddr_t)data_address,
 				      data_size + bss_size, data_size,
 				      VM_PROT_ALL)) {
@@ -446,8 +446,8 @@ exec_coff_imgact(iparams)
 		return error;
 	}
 
-	iparams->interpreted = 0;
-	iparams->proc->p_sysent = &ibcs2_svr3_sysvec;
+	imgp->interpreted = 0;
+	imgp->proc->p_sysent = &ibcs2_svr3_sysvec;
 
 	vmspace->vm_tsize = round_page(text_size) >> PAGE_SHIFT;
 	vmspace->vm_dsize = round_page(data_size + bss_size) >> PAGE_SHIFT;
@@ -470,7 +470,7 @@ exec_coff_imgact(iparams)
 	DPRINTF(("%s(%d):  returning successfully!\n", __FILE__, __LINE__));
 
 	/* Indicate that this file should not be modified */
-	iparams->vnodep->v_flag |= VTEXT;
+	imgp->vp->v_flag |= VTEXT;
 	return 0;
 }
 

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_shell.c,v 1.7 1995/09/08 13:24:33 davidg Exp $
+ *	$Id: imgact_shell.c,v 1.8 1995/10/08 00:05:58 swallace Exp $
  */
 
 #include <sys/param.h>
@@ -50,13 +50,13 @@
 
 /*
  * Shell interpreter image activator. A interpreter name beginning
- *	at iparams->stringbase is the minimal successful exit requirement.
+ *	at imgp->stringbase is the minimal successful exit requirement.
  */
 int
-exec_shell_imgact(iparams)
-	struct image_params *iparams;
+exec_shell_imgact(imgp)
+	struct image_params *imgp;
 {
-	const char *image_header = iparams->image_header;
+	const char *image_header = imgp->image_header;
 	const char *ihp, *line_endp;
 	char *interp;
 
@@ -68,10 +68,10 @@ exec_shell_imgact(iparams)
 	 * Don't allow a shell script to be the shell for a shell
 	 *	script. :-)
 	 */
-	if (iparams->interpreted)
+	if (imgp->interpreted)
 		return(ENOEXEC);
 
-	iparams->interpreted = 1;
+	imgp->interpreted = 1;
 
 	/*
 	 * Copy shell name and arguments from image_header into string
@@ -94,13 +94,13 @@ exec_shell_imgact(iparams)
 	while ((*ihp == ' ') || (*ihp == '\t')) ihp++;
 
 	/* copy the interpreter name */
-	interp = iparams->interpreter_name;
+	interp = imgp->interpreter_name;
 	while ((ihp < line_endp) && (*ihp != ' ') && (*ihp != '\t'))
 		*interp++ = *ihp++;
 	*interp = '\0';
 
 	/* Disallow a null interpreter filename */
-	if (*iparams->interpreter_name == '\0')
+	if (*imgp->interpreter_name == '\0')
 		return(ENOEXEC);
 
 	/* reset for another pass */
@@ -118,19 +118,19 @@ exec_shell_imgact(iparams)
 			 *	and the maximum shell command length is tiny.
 			 */
 			while ((ihp < line_endp) && (*ihp != ' ') && (*ihp != '\t')) {
-				*iparams->stringp++ = *ihp++;
-				iparams->stringspace--;
+				*imgp->stringp++ = *ihp++;
+				imgp->stringspace--;
 			}
 
-			*iparams->stringp++ = 0;
-			iparams->stringspace--;
+			*imgp->stringp++ = 0;
+			imgp->stringspace--;
 
-			iparams->argc++;
+			imgp->argc++;
 		}
 	}
 
 	/* set argv[0] to point to original file name */
-	suword(iparams->uap->argv, (int)iparams->uap->fname);
+	suword(imgp->uap->argv, (int)imgp->uap->fname);
 
 	return(0);
 }

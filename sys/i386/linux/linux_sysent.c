@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysent.c,v 1.3 1995/06/08 13:50:52 sos Exp $
+ *  $Id: linux_sysent.c,v 1.1 1995/06/25 17:32:43 sos Exp $
  */
 
 #include <i386/linux/linux.h>
@@ -341,18 +341,18 @@ int linux_to_bsd_signal[LINUX_NSIG] = {
     SIGXCPU, SIGXFSZ, SIGVTALRM, SIGPROF, SIGWINCH, SIGURG, SIGURG, 0
 };
 
-int linux_fixup(int **stack_base, struct image_params *iparams)
+int linux_fixup(int **stack_base, struct image_params *imgp)
 {
     int *argv, *envp;
 
     argv = *stack_base;
-    envp = *stack_base + (iparams->argc + 1);
+    envp = *stack_base + (imgp->argc + 1);
     (*stack_base)--;
     **stack_base = (int)envp;
     (*stack_base)--;
     **stack_base = (int)argv;
     (*stack_base)--;
-    **stack_base = (int)iparams->argc;
+    **stack_base = (int)imgp->argc;
 }
 
 struct sysentvec linux_sysvec = {
