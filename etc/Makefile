@@ -111,6 +111,11 @@ distribution:
 	    ${PPPCF2} ${DESTDIR}/etc/ppp
 	cd ${.CURDIR}/mail; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${ETCMAIL} ${DESTDIR}/etc/mail
+	@if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
+	      ! -f ${DESTDIR}/etc/aliases ]; then \
+		set -x; \
+		ln -s mail/aliases ${DESTDIR}/etc/aliases; \
+	fi
 	${INSTALL} -c -o ${BINOWN} -g operator -m 664 /dev/null \
 	    ${DESTDIR}/etc/dumpdates
 	${INSTALL} -c -o nobody -g ${BINGRP} -m 644 /dev/null \
