@@ -37,7 +37,7 @@
 .\" $FreeBSD$
 .\" $xMach: xargs.1,v 1.2 2002/02/23 05:23:37 tim Exp $
 .\"
-.Dd May 7, 2001
+.Dd August 2, 2004
 .Dt XARGS 1
 .Os
 .Sh NAME
@@ -312,3 +312,12 @@ size of the environment is increased, it risks
 .Xr execvp 3
 failing with
 .Er E2BIG .
+.Pp
+The
+.Nm
+utility does not take multibyte characters into account when performing
+string comparisons for the
+.Fl I
+and
+.Fl J
+options, which may lead to incorrect results in some locales.
