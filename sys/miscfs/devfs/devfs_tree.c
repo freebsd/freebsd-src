@@ -912,7 +912,7 @@ DBPRINT(("	vntodn "));
 int
 devfs_dntovn(dn_p dnp, struct vnode **vn_pp)
 {
-	struct vnode *vn_p, *nvp;
+	struct vnode *vn_p;
 	int error = 0;
 	struct proc *p = curproc;	/* XXX */
 
