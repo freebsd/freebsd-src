@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.28 1996/02/06 18:51:10 wollman Exp $
+ * $Id: if.h,v 1.29 1996/06/10 23:07:28 gpalmer Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -251,6 +251,35 @@ struct ifnet {
 		(ifq)->ifq_len--; \
 	} \
 }
+
+#ifdef KERNEL
+#define	IF_ENQ_DROP(ifq, m)	if_enq_drop(ifq, m)
+
+#if defined(__GNUC__) && defined(MT_HEADER)
+static inline int
+if_queue_drop(struct ifqueue *ifq, struct mbuf *m)
+{
+	IF_QDROP(ifq);
+	return 0;
+}
+
+static inline int
+if_enq_drop(struct ifqueue *ifq, struct mbuf *m)
+{
+	if (IF_QFULL(ifq) &&
+	    !if_queue_drop(ifq, m))
+		return 0;
+	IF_ENQUEUE(ifq, m);
+	return 1;
+}
+#else
+
+#ifdef MT_HEADER
+int	if_enq_drop __P((struct ifqueue *, struct mbuf *));
+#endif
+
+#endif
+#endif /* KERNEL */
 
 #define	IFQ_MAXLEN	50
 #define	IFNET_SLOWHZ	1		/* granularity is 1 second */
