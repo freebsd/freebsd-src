@@ -410,7 +410,6 @@ vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
 #include <math.h>
 #include "floatio.h"
 
-#define	BUF		((MAXEXP*2)+MAXFRACT+1)		/* + decimal point */
 #define	DEFPREC		6
 
 extern char *__dtoa(double, int, int, int *, int *, char **);
@@ -419,11 +418,16 @@ extern void __freedtoa(char *s);
 static char *cvt(double, int, int, char *, int *, int, int *);
 static int exponent(char *, int, int);
 
-#else /* no FLOATING_POINT */
-
-#define	BUF		136
-
 #endif /* FLOATING_POINT */
+
+/*
+ * The size of the buffer we use as scratch space for integer
+ * conversions, among other things.  Technically, we would need the
+ * most space for base 10 conversions with thousands' grouping
+ * characters between each pair of digits.  100 bytes is a
+ * conservative overestimate even for a 128-bit uintmax_t.
+ */
+#define	BUF	100
 
 #define STATIC_ARG_TBL_SIZE 8           /* Size of static argument table. */
 
@@ -471,7 +475,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	int expt;		/* integer value of exponent */
 	int expsize;		/* character count for expstr */
 	int ndig;		/* actual number of digits returned by cvt */
-	char expstr[7];		/* buffer for exponent string */
+	char expstr[MAXEXPDIG+2];	/* buffer for exponent string */
 	char *dtoaresult;	/* buffer allocated by dtoa */
 #endif
 	u_long	ulval;		/* integer arguments %[diouxX] */
@@ -485,7 +489,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 #define NIOV 8
 	struct __suio uio;	/* output information: summary */
 	struct __siov iov[NIOV];/* ... and individual io vectors */
-	char buf[BUF];		/* space for %c, %[diouxX], %[eEfFgG] */
+	char buf[BUF];		/* buffer with space for digits of uintmax_t */
 	char ox[2];		/* space for 0x hex-prefix */
 	union arg *argtable;    /* args, built due to positional arg */
 	union arg statargtable [STATIC_ARG_TBL_SIZE];
@@ -1022,6 +1026,8 @@ number:			if ((dprec = prec) >= 0)
 					    grouping);
 			}
 			size = buf + BUF - cp;
+			if (size > BUF)	/* should never happen */
+				abort();
 			break;
 		default:	/* "%?" prints ?, unless ? is NUL */
 			if (ch == '\0')
@@ -1553,7 +1559,7 @@ static int
 exponent(char *p0, int exp, int fmtch)
 {
 	char *p, *t;
-	char expbuf[MAXEXP];
+	char expbuf[MAXEXPDIG];
 
 	p = p0;
 	*p++ = fmtch;
@@ -1563,13 +1569,13 @@ exponent(char *p0, int exp, int fmtch)
 	}
 	else
 		*p++ = '+';
-	t = expbuf + MAXEXP;
+	t = expbuf + MAXEXPDIG;
 	if (exp > 9) {
 		do {
 			*--t = to_char(exp % 10);
 		} while ((exp /= 10) > 9);
 		*--t = to_char(exp);
-		for (; t < expbuf + MAXEXP; *p++ = *t++);
+		for (; t < expbuf + MAXEXPDIG; *p++ = *t++);
 	}
 	else {
 		*p++ = '0';
