@@ -39,7 +39,8 @@ After updating the
 .Nm master.passwd
 file and returning a success
 notifications to the client,
-.Nm yppasswdd executes the
+.Nm yppasswdd
+executes the
 .Nm yppwupdate
 script that updates the NIS server's
 .Nm master.passwd.*
@@ -62,9 +63,13 @@ password maps. This file is normally kept in
 (it must be owned by root and not world readable for security reasons). 
 If you move it somewhere else you'll have to tell yppasswdd using the
 .Fl m
-option. (You'll have to change the location of master.passwd specified in
+option. The location of this file is also passed to
 .Nm /var/yp/Makefile
-as well.) When the server is ready to change
+when time comes to rebuild the NIS password maps. It is recommended,
+however, that you edit
+.Nm /var/yp/Makefile
+to reflect the new location as well.
+When the server is ready to change
 a password database entry, it will modify master.passwd, then
 call the yppwupdate script, which will in turn call
 .Nm /var/yp/Makefile.
@@ -118,7 +123,7 @@ IP address and the user name and UID contained in the request. The
 user-supplied password itself is not logged.
 .Ss Security
 Unless I've screwed up completely (as I did with versions prior to
-version 0.5),
+version 0.7),
 .Nm yppasswdd
 should be as secure or insecure as any
 program relying on simple password authentication.  If you feel that
@@ -176,7 +181,6 @@ option isn't supplied)
 .Xr passwd 5 ,
 .Xr passwd 1 ,
 .Xr portmap 8 ,
-.Xr pwunconv 8 ,
 .Xr yppasswd 1 ,
 .Xr ypchsh 1 ,
 .Xr ypchfn 1 ,

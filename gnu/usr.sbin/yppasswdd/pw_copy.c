@@ -44,14 +44,16 @@ static char sccsid[] = "@(#)pw_copy.c	8.4 (Berkeley) 4/2/94";
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
+#include <syslog.h>
 
 #include <pw_util.h>
-#include "pw_copy.h"
+
+int     pw_copy __P((int, int, struct passwd *));
 
 extern char *tempname;
 extern char *passfile;
 
-void
+int
 pw_copy(ffd, tfd, pw)
 	int ffd, tfd;
 	struct passwd *pw;
@@ -60,15 +62,19 @@ pw_copy(ffd, tfd, pw)
 	int done;
 	char *p, buf[8192];
 
-	if (!(from = fdopen(ffd, "r")))
+	if (!(from = fdopen(ffd, "r"))) {
 		pw_error(passfile, 1, 1);
-	if (!(to = fdopen(tfd, "w")))
+		return(-1);
+	}
+	if (!(to = fdopen(tfd, "w"))) {
 		pw_error(tempname, 1, 1);
-
+		return(-1);
+	}
 	for (done = 0; fgets(buf, sizeof(buf), from);) {
 		if (!strchr(buf, '\n')) {
-			warnx("%s: line too long", passfile);
+			syslog(LOG_ERR, "%s: line too long", passfile);
 			pw_error(NULL, 0, 1);
+			goto err;
 		}
 		if (done) {
 			(void)fprintf(to, "%s", buf);
@@ -77,8 +83,9 @@ pw_copy(ffd, tfd, pw)
 			continue;
 		}
 		if (!(p = strchr(buf, ':'))) {
-			warnx("%s: corrupted entry", passfile);
+			syslog(LOG_ERR, "%s: corrupted entry", passfile);
 			pw_error(NULL, 0, 1);
+			goto err;
 		}
 		*p = '\0';
 		if (strcmp(buf, pw->pw_name)) {
@@ -96,13 +103,17 @@ pw_copy(ffd, tfd, pw)
 		if (ferror(to))
 			goto err;
 	}
-	if (!done)
-		(void)fprintf(to, "%s:%s:%d:%d:%s:%ld:%ld:%s:%s:%s\n",
-		    pw->pw_name, pw->pw_passwd, pw->pw_uid, pw->pw_gid,
-		    pw->pw_class, pw->pw_change, pw->pw_expire, pw->pw_gecos,
-		    pw->pw_dir, pw->pw_shell);
-
-	if (ferror(to))
+	if (!done) {
+		syslog(LOG_ERR, "user \"%s\" not found in %s -- NIS maps and password file possibly out of sync", pw->pw_name, passfile);
+		goto err;
+	}
+	if (ferror(to)) {
 err:		pw_error(NULL, 1, 1);
+		(void)fclose(to);
+		(void)fclose(from);
+		return(-1);
+	}
 	(void)fclose(to);
+	(void)fclose(from);
+	return(0);
 }
