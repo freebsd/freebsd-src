@@ -521,7 +521,7 @@ mediaExtractDistEnd(int zpid, int cpid)
 static void
 media_timeout(int sig)
 {
-    AlarmWentOff = TRUE;
+    alarm(0);
 }
 
 /* Return the timeout interval */
@@ -612,8 +612,7 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
 
     alarm_set(mediaTimeout(), media_timeout);
     while ((i = fread(buf, 1, BUFSIZ, fp)) > 0) {
-	alarm_clear();
-	if (AlarmWentOff) {
+	if (!alarm_clear()) {
 	    msgConfirm("Failure to read from media - timeout or user abort.\n");
 	    break;
 	}
