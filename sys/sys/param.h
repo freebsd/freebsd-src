@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.2 (Berkeley) 1/21/94
- * $Id: param.h,v 1.11 1996/01/30 23:01:04 mpp Exp $
+ * $Id: param.h,v 1.12 1996/02/23 18:49:21 peter Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -226,20 +226,4 @@
 #define	FSHIFT	11		/* bits to right of fixed binary point */
 #define FSCALE	(1<<FSHIFT)
 
-/*
- * rfork() options.
- *
- * XXX currently, operations without RFPROC set are not supported.
- */
-#define RFNAMEG		(1<<0)	/* UNIMPL new plan9 `name space' */
-#define RFENVG		(1<<1)	/* UNIMPL copy plan9 `env space' */
-#define RFFDG		(1<<2)	/* copy fd table */
-#define RFNOTEG		(1<<3)	/* UNIMPL create new plan9 `note group' */
-#define RFPROC		(1<<4)	/* change child (else changes curproc) */
-#define RFMEM		(1<<5)	/* share `address space' */
-#define RFNOWAIT	(1<<6)	/* UNIMPL parent need not wait() on child */ 
-#define RFCNAMEG	(1<<10) /* UNIMPL zero plan9 `name space' */
-#define RFCENVG		(1<<11) /* UNIMPL zero plan9 `env space' */
-#define RFCFDG		(1<<12)	/* zero fd table */
-
-#endif
+#endif	/* _SYS_PARAM_H_ */

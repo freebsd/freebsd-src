@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.36 1995/12/10 13:45:11 phk Exp $
+ * $Id: init_main.c,v 1.37 1996/01/19 03:57:59 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -98,7 +98,7 @@ static struct vmspace vmspace0;
 struct	proc *curproc = &proc0;
 struct	proc *initproc;
 
-static int cmask = CMASK;
+int cmask = CMASK;
 extern	struct user *proc0paddr;
 
 struct	vnode *rootvp;

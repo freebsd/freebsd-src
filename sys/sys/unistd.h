@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unistd.h	8.2 (Berkeley) 1/7/94
- * $Id: unistd.h,v 1.2 1994/08/02 07:54:04 davidg Exp $
+ * $Id: unistd.h,v 1.4 1995/05/11 07:52:49 bde Exp $
  */
 
 #ifndef _SYS_UNISTD_H_
@@ -118,5 +118,21 @@
 
 /* configurable system strings */
 #define	_CS_PATH		 1
+
+/*
+ * rfork() options.
+ *
+ * XXX currently, operations without RFPROC set are not supported.
+ */
+#define RFNAMEG		(1<<0)	/* UNIMPL new plan9 `name space' */
+#define RFENVG		(1<<1)	/* UNIMPL copy plan9 `env space' */
+#define RFFDG		(1<<2)	/* copy fd table */
+#define RFNOTEG		(1<<3)	/* UNIMPL create new plan9 `note group' */
+#define RFPROC		(1<<4)	/* change child (else changes curproc) */
+#define RFMEM		(1<<5)	/* share `address space' */
+#define RFNOWAIT	(1<<6)	/* UNIMPL parent need not wait() on child */ 
+#define RFCNAMEG	(1<<10) /* UNIMPL zero plan9 `name space' */
+#define RFCENVG		(1<<11) /* UNIMPL zero plan9 `env space' */
+#define RFCFDG		(1<<12)	/* zero fd table */
 
 #endif /* !_SYS_UNISTD_H_ */
