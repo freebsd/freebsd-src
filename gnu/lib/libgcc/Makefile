@@ -1,6 +1,9 @@
 #
-# $Id: Makefile,v 1.18 1998/10/06 11:28:29 peter Exp $
+# $Id: Makefile,v 1.19 1999/01/09 21:50:55 jdp Exp $
 #
+
+GCCDIR=	${.CURDIR}/../../../contrib/gcc
+.PATH:  ${GCCDIR}/cp ${GCCDIR}
 
 LIB=	gcc
 
@@ -45,7 +48,7 @@ LIB2FUNCS= _muldi3 _divdi3 _moddi3 _udivdi3 _umoddi3 _negdi2 \
 	   _eh _pure
 
 COMMONHDRS=	config.h tconfig.h tm.h
-CFLAGS+=	-I.
+CFLAGS+=	-I${GCCDIR}/config -I.
 CLEANFILES+=	${COMMONHDRS}
 
 LIB1OBJS=	${LIB1FUNCS:S/$/.o/}
