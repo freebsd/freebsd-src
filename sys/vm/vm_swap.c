@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.77 1999/07/17 18:43:50 phk Exp $
+ * $Id: vm_swap.c,v 1.78 1999/07/17 19:59:55 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -314,7 +314,7 @@ swaponvp(p, vp, dev, nblks)
 	nblks = dbtoc(nblks);
 
 	sp->sw_vp = vp;
-	sp->sw_dev = dev2udev(dev);
+	sp->sw_dev = dev2budev(dev);
 	sp->sw_device = dev;
 	sp->sw_flags |= SW_FREED;
 	sp->sw_nblks = nblks;
