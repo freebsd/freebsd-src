@@ -220,7 +220,6 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
 		ptr, val, sysctl_handle_long, "L", descr)
 
-/* Oid for an unsigned long.  If ptr is NULL, val is returned. */
 #define SYSCTL_ADD_LONG(ctx, parent, nbr, name, access, ptr, descr)	    \
 	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_INT|access,	    \
 	ptr, 0, sysctl_handle_long, "L", descr);
@@ -595,6 +594,7 @@ int	sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 __BEGIN_DECLS
 int	sysctl __P((int *, u_int, void *, size_t *, void *, size_t));
 int	sysctlbyname __P((const char *, void *, size_t *, void *, size_t));
+int	sysctlnametomib __P((const char *, int *, size_t *));
 __END_DECLS
 #endif	/* _KERNEL */
 
