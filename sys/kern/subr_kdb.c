@@ -66,6 +66,18 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, current, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
 SYSCTL_PROC(_debug_kdb, OID_AUTO, enter, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
     kdb_sysctl_enter, "I", "set to enter the debugger");
 
+/*
+ * Flag indicating whether or not to IPI the other CPUs to stop them on
+ * entering the debugger.  Sometimes, this will result in a deadlock as
+ * stop_cpus() waits for the other cpus to stop, so we allow it to be
+ * disabled.
+ */
+#ifdef SMP
+static int kdb_stop_cpus = 1;
+SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus, CTLTYPE_INT | CTLFLAG_RW,
+    &kdb_stop_cpus, 0, "");
+#endif
+
 static int
 kdb_sysctl_available(SYSCTL_HANDLER_ARGS)
 {
@@ -374,6 +386,9 @@ kdb_thr_select(struct thread *thr)
 int
 kdb_trap(int type, int code, struct trapframe *tf)
 {
+#ifdef SMP
+	int did_stop_cpus;
+#endif
 	int handled;
 
 	if (kdb_dbbe == NULL || kdb_dbbe->dbbe_trap == NULL)
@@ -392,7 +407,8 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	kdb_thr_select(curthread);
 
 #ifdef SMP
-	stop_cpus(PCPU_GET(other_cpus));
+	if ((did_stop_cpus = kdb_stop_cpus) != 0)
+		stop_cpus(PCPU_GET(other_cpus));
 #endif
 
 	/* Let MD code do its thing first... */
@@ -401,7 +417,8 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	handled = kdb_dbbe->dbbe_trap(type, code);
 
 #ifdef SMP
-	restart_cpus(stopped_cpus);
+	if (did_stop_cpus)
+		restart_cpus(stopped_cpus);
 #endif
 
 	kdb_active--;
