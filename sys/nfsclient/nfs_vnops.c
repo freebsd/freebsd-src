@@ -213,6 +213,11 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW,
 static int	nfsv3_commit_on_close = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfsv3_commit_on_close, CTLFLAG_RW,
 	   &nfsv3_commit_on_close, 0, "write+commit on close, else only write");
+
+static int	nfs_clean_pages_on_close = 1;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, clean_pages_on_close, CTLFLAG_RW,
+	   &nfs_clean_pages_on_close, 0, "NFS clean dirty pages on close");
+
 #if 0
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_hits, CTLFLAG_RD,
 	   &nfsstats.accesscache_hits, 0, "NFS ACCESS cache hit count");
@@ -475,6 +480,19 @@ nfs_close(struct vop_close_args *ap)
 	int error = 0;
 
 	if (vp->v_type == VREG) {
+	    /*
+	     * Examine and clean dirty pages, regardless of NMODIFIED.
+	     * This closes a major hole in close-to-open consistency.
+	     * We want to push out all dirty pages (and buffers) on
+	     * close, regardless of whether they were dirtied by
+	     * mmap'ed writes or via write().
+	     */
+	    if (nfs_clean_pages_on_close && vp->v_object) {
+		VM_OBJECT_LOCK(vp->v_object);
+		vm_object_page_clean(vp->v_object, 0, 0, 0);
+		VM_OBJECT_UNLOCK(vp->v_object);
+	    }
+
 	    if (np->n_flag & NMODIFIED) {
 		if (NFS_ISV3(vp)) {
 		    /*
