@@ -10,4 +10,6 @@ CFLAGS+= -I${.CURDIR}
 DPADD=	${LIBL}
 LDADD=	-ll
 
+WARNS?=	4
+
 .include <bsd.prog.mk>
