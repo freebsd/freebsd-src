@@ -63,7 +63,9 @@ it is connection-oriented.
 .Pp
 If
 .Fa from
-is non-nil, and the socket is not connection-oriented,
+is not
+.Dv NULL ,
+and the socket is not connection-oriented,
 the source address of the message is filled in.
 The
 .Fa fromlen
@@ -82,7 +84,8 @@ socket (see
 .Xr connect 2 )
 and is identical to
 .Fn recvfrom
-with a nil
+with a
+.Dv NULL
 .Fa from
 argument.
 As it is redundant, it may not be supported in future releases.
