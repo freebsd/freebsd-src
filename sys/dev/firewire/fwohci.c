@@ -144,7 +144,6 @@ static void fwohci_irx_post __P((struct firewire_comm *, u_int32_t *));
 static int fwohci_itxbuf_enable __P((struct firewire_comm *, int));
 static int fwohci_itx_disable __P((struct firewire_comm *, int));
 static void fwohci_timeout __P((void *));
-static void fwohci_poll __P((struct firewire_comm *, int, int));
 static void fwohci_set_intr __P((struct firewire_comm *, int));
 
 static int fwohci_add_rx_buf __P((struct fwohci_dbch *, struct fwohcidb_tr *, int, struct fwdma_alloc *));
@@ -2010,7 +2009,7 @@ again:
 #endif
 }
 
-static void
+void
 fwohci_poll(struct firewire_comm *fc, int quick, int count)
 {
 	int s;
