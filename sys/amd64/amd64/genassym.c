@@ -34,13 +34,14 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.10 1994/09/02 05:58:50 davidg Exp $
+ *	$Id: genassym.c,v 1.11 1994/09/12 11:38:03 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/map.h>
 #include <sys/proc.h>
+#include <sys/mount.h>
 #include <sys/mbuf.h>
 #include <sys/msgbuf.h>
 #include <machine/cpu.h>
@@ -50,6 +51,10 @@
 #include <sys/syscall.h>
 #include <vm/vm.h>
 #include <sys/user.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <nfs/nfsv2.h>
+#include <nfs/nfsdiskless.h>
 
 main()
 {
@@ -186,6 +191,7 @@ main()
 	printf("#define\tENOENT %d\n", ENOENT);
 	printf("#define\tEFAULT %d\n", EFAULT);
 	printf("#define\tENAMETOOLONG %d\n", ENAMETOOLONG);
+	printf("#define\tNFSDISKLESS_SIZE %d\n", sizeof(struct nfs_diskless));
 	exit(0);
 }
 
