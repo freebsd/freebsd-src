@@ -10,7 +10,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
+.\"    must display the following acknowledgment:
 .\"	This product includes software developed by the University of
 .\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)clri.8	8.2 (Berkeley) 4/19/94
-.\"	$Id$
+.\"	$Id: clri.8,v 1.5 1997/02/22 14:32:11 peter Exp $
 .\"
 .Dd April 19, 1994
 .Dt CLRI 8
@@ -55,8 +55,8 @@ on the filesystem residing on the given
 The
 .Xr fsck 8
 utility is usually run after
-.Nm clri
-to reclaim the zero'ed inode(s) and the
+.Nm
+to reclaim the zeroed inode(s) and the
 blocks previously claimed by those inode(s).
 Both read and write permission are required on the specified
 .Ar special_device .
@@ -69,10 +69,10 @@ Once removed,
 it is anticipated that
 .Xr fsck 8
 will be able to clean up the resulting mess.
-.Sh "SEE ALSO"
+.Sh SEE ALSO
 .Xr fsck 8 ,
 .Xr fsdb 8
 .Sh BUGS
 If the file is open, the work of
-.Nm clri
+.Nm
 will be lost when the inode is written back to disk from the inode cache.
