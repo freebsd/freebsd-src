@@ -308,7 +308,7 @@ sowakeup(so, sb)
 	register struct sockbuf *sb;
 {
 
-	selwakeup(&sb->sb_sel);
+	selwakeuppri(&sb->sb_sel, PSOCK);
 	sb->sb_flags &= ~SB_SEL;
 	if (sb->sb_flags & SB_WAIT) {
 		sb->sb_flags &= ~SB_WAIT;

@@ -1963,7 +1963,7 @@ fw_rcv(struct fw_rcv_buf *rb)
 #else
 		if (&xferq->rsel.si_pid != 0)
 #endif
-			selwakeup(&xferq->rsel);
+			selwakeuppri(&xferq->rsel, FWPRI);
 		if (xferq->flag & FWXFERQ_WAKEUP) {
 			xferq->flag &= ~FWXFERQ_WAKEUP;
 			wakeup((caddr_t)xferq);

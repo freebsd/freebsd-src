@@ -433,7 +433,7 @@ spictimeout(void *arg)
 			sc->sc_sleeping = 0;
 			wakeup( sc);
 		}
-		selwakeup(&sc->sc_rsel);
+		selwakeuppri(&sc->sc_rsel, PZERO);
 	}
 	spic_call2(sc, 0x81, 0xff); /* Clear event */
 

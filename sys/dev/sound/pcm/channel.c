@@ -116,7 +116,7 @@ chn_wakeup(struct pcm_channel *c)
 
 	CHN_LOCKASSERT(c);
 	if (SEL_WAITING(sndbuf_getsel(bs)) && chn_polltrigger(c))
-		selwakeup(sndbuf_getsel(bs));
+		selwakeuppri(sndbuf_getsel(bs), PRIBIO);
 	wakeup(bs);
 }
 

@@ -820,7 +820,7 @@ i4bputqueue(struct mbuf *m)
 	if(selflag)
 	{
 		selflag = 0;
-		selwakeup(&select_rd_info);
+		selwakeuppri(&select_rd_info, TTIPRI);
 	}
 }
 
@@ -863,6 +863,6 @@ i4bputqueue_hipri(struct mbuf *m)
 	if(selflag)
 	{
 		selflag = 0;
-		selwakeup(&select_rd_info);
+		selwakeuppri(&select_rd_info, TTIPRI);
 	}
 }

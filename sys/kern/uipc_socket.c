@@ -1744,7 +1744,7 @@ sohasoutofband(so)
 {
 	if (so->so_sigio != NULL)
 		pgsigio(&so->so_sigio, SIGURG, 0);
-	selwakeup(&so->so_rcv.sb_sel);
+	selwakeuppri(&so->so_rcv.sb_sel, PSOCK);
 }
 
 int
