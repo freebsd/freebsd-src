@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1991, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -204,7 +208,7 @@ main(argc, argv)
 		    strncmp(utmp.ut_name, sel_user, UT_NAMESIZE) != 0))
 			continue;
 		if ((ep = calloc(1, sizeof(struct entry))) == NULL)
-			err(1, NULL);
+			errx(1, "calloc");
 		*nextp = ep;
 		nextp = &(ep->next);
 		memmove(&(ep->utmp), &utmp, sizeof(struct utmp));
@@ -306,7 +310,7 @@ main(argc, argv)
 		}
 
 	if ((vis_args = malloc(argwidth * 4 + 1)) == NULL)
-		err(1, NULL);
+		errx(1, "malloc");
 	for (ep = ehead; ep != NULL; ep = ep->next) {
 		p = *ep->utmp.ut_host ? ep->utmp.ut_host : "-";
 		if ((x = strchr(p, ':')) != NULL)
@@ -451,8 +455,9 @@ usage(wcmd)
 {
 	if (wcmd)
 		(void)fprintf(stderr,
-		    "usage: w: [-hin] [-M core] [-N system] [user]\n");
+		    "usage: w [-hin] [-M core] [-N system] [user]\n");
 	else
-		(void)fprintf(stderr, "uptime\n");
+		(void)fprintf(stderr,
+			"usage: uptime\n");
 	exit (1);
 }
