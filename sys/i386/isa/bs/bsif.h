@@ -1,4 +1,5 @@
 /*	$NecBSD: bsif.h,v 1.5 1997/10/23 20:52:34 honda Exp $	*/
+/* $FreeBSD$ */
 /*
  * Copyright (c) HONDA Naofumi, KATO Takenori, 1996.  All rights reserved.
  * 
@@ -105,7 +106,6 @@
 
 #ifdef __FreeBSD__
 #include <sys/conf.h>
-#include <sys/device.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>

@@ -47,7 +47,6 @@
 
 #include <sys/buf.h>
 #include <sys/bus.h>
-#include <sys/device.h>
 #include <sys/devicestat.h>
 
 #if NPCI > 0

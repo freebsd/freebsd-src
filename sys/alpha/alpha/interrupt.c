@@ -51,7 +51,6 @@
 #include <machine/intr.h>
 
 #ifdef EVCNT_COUNTERS
-#include <sys/device.h>
 struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
 #else
 #include <machine/intrcnt.h>
