@@ -144,7 +144,7 @@ struct alias_link;
    controlled by PacketAliasSetFWBase(base, size). The hole will be
    attached to that particular alias_link, so when the link goes away
    so do the hole.  */
-#define PKT_ALIAS_PUNCH_FW 0x40
+#define PKT_ALIAS_PUNCH_FW 0x100
 #endif
 
 /* If PKT_ALIAS_PROXY_ONLY is set, then NAT will be disabled and only
