@@ -220,18 +220,37 @@ struct ray_stats_req {
 #define	RAY_MIB_PRIVACY_MUST_START		43
 #define	RAY_MIB_PRIVACY_CAN_JOIN		44
 #define	RAY_MIB_BASIC_RATE_SET			45
-#define	RAY_MIB_MAX				46
+#define RAY_MIB_VERSION				46
+#define RAY_MIB_CUR_BSSID			47
+#define RAY_MIB_CUR_INITED			48
+#define RAY_MIB_CUR_DEF_TXRATE			49
+#define RAY_MIB_CUR_ENCRYPT			50
+#define RAY_MIB_CUR_NET_TYPE			51
+#define RAY_MIB_CUR_SSID			52
+#define RAY_MIB_CUR_PRIV_START			53
+#define RAY_MIB_CUR_PRIV_JOIN			54
+#define RAY_MIB_DES_BSSID			55
+#define RAY_MIB_DES_INITED			56
+#define RAY_MIB_DES_DEF_TXRATE			57
+#define RAY_MIB_DES_ENCRYPT			58
+#define RAY_MIB_DES_NET_TYPE			59
+#define RAY_MIB_DES_SSID			60
+#define RAY_MIB_DES_PRIV_START			61
+#define RAY_MIB_DES_PRIV_JOIN			62
+
+#define	RAY_MIB_LASTUSER			45
+#define	RAY_MIB_MAX				62
 
 /*
  * Strings for the MIB
  */
 #define RAY_MIB_STRINGS {		\
-	"NET_TYPE",			\
-	"AP_STATUS",			\
+	"Network type",			\
+	"AP status",			\
 	"SSID",				\
-	"SCAN_MODE",			\
-	"APM_MODE",			\
-	"MAC_ADDR",			\
+	"Scan mode",			\
+	"APM mode",			\
+	"MAC address",			\
 	"FRAG_THRESH",			\
 	"DWELL_TIME",			\
 	"BEACON_PERIOD",		\
@@ -271,7 +290,90 @@ struct ray_stats_req {
 	"ALLOW_PROBE_RESP",		\
 	"PRIVACY_MUST_START",		\
 	"PRIVACY_CAN_JOIN",		\
-	"BASIC_RATE_SET"		\
+	"BASIC_RATE_SET",		\
+	"Firmware version",		\
+	"Current BSS Id",		\
+	"Current INITED",		\
+	"Current DEF_TXRATE",		\
+	"Current ENCRYPT",		\
+	"Current NET_TYPE",		\
+	"Current SSID",			\
+	"Current PRIV_START",		\
+	"Current PRIV_JOIN",		\
+	"Desired BSSID",		\
+	"Desired INITED",		\
+	"Desired DEF_TXRATE",		\
+	"Desired ENCRYPT",		\
+	"Desired NET_TYPE",		\
+	"Desired SSID",			\
+	"Desired PRIV_START",		\
+	"Desired PRIV_JOIN"		\
+}
+
+#define RAY_MIB_HELP_STRINGS {			\
+	"0 Ad hoc, 1 Infrastructure",		\
+	"0 Station, 1 Access Point",		\
+	"",					\
+	"0 Passive, 1 Active",			\
+	"0 Off, 1 On",				\
+	"",					\
+	"FRAG_THRESH",				\
+	"DWELL_TIME",				\
+	"BEACON_PERIOD",			\
+	"DTIM_INTERVAL",			\
+	"MAX_RETRY",				\
+	"ACK_TIMO",				\
+	"SIFS",					\
+	"DIFS",					\
+	"PIFS",					\
+	"RTS_THRESH",				\
+	"SCAN_DWELL",				\
+	"SCAN_MAX_DWELL",			\
+	"ASSOC_TIMO",				\
+	"ADHOC_SCAN_CYCLE",			\
+	"INFRA_SCAN_CYCLE",			\
+	"INFRA_SUPER_SCAN_CYCLE",		\
+	"PROMISC",				\
+	"UNIQ_WORD",				\
+	"SLOT_TIME",				\
+	"ROAM_LOW_SNR_THRESH",			\
+	"LOW_SNR_COUNT",			\
+	"INFRA_MISSED_BEACON_COUNT",		\
+	"ADHOC_MISSED_BEACON_COUNT",		\
+	"COUNTRY_CODE",				\
+	"HOP_SEQ",				\
+	"HOP_SEQ_LEN",				\
+	"CW_MAX",				\
+	"CW_MIN",				\
+	"NOISE_FILTER_GAIN",			\
+	"NOISE_LIMIT_OFFSET",			\
+	"RSSI_THRESH_OFFSET",			\
+	"BUSY_THRESH_OFFSET",			\
+	"SYNC_THRESH",				\
+	"TEST_MODE",				\
+	"TEST_MIN_CHAN",			\
+	"TEST_MAX_CHAN",			\
+	"ALLOW_PROBE_RESP",			\
+	"PRIVACY_MUST_START",			\
+	"PRIVACY_CAN_JOIN",			\
+	"BASIC_RATE_SET",			\
+	"",					\
+	"",					\
+	"0 Joined a net, 1 Created a net",	\
+	"Current DEF_TXRATE",			\
+	"Current ENCRYPT",			\
+	"Current NET_TYPE",			\
+	"",					\
+	"Current PRIV_START",			\
+	"Current PRIV_JOIN",			\
+	"N/A",					\
+	"N/A",					\
+	"Desired DEF_TXRATE",			\
+	"Desired ENCRYPT",			\
+	"Desired NET_TYPE",			\
+	"",					\
+	"Desired PRIV_START",			\
+	"Desired PRIV_JOIN"			\
 }
 
 /*
@@ -323,7 +425,24 @@ struct ray_stats_req {
 	1,	/* RAY_MIB_ALLOW_PROBE_RESP */		\
 	1,	/* RAY_MIB_PRIVACY_MUST_START */	\
 	1,	/* RAY_MIB_PRIVACY_CAN_JOIN */		\
-	8	/* RAY_MIB_BASIC_RATE_SET */		\
+	8,	/* RAY_MIB_BASIC_RATE_SET */		\
+	1,	/* RAY_MIB_VERSION */			\
+	ETHER_ADDR_LEN,	/* RAY_MIB_CUR_BSSID */		\
+	1,	/* RAY_MIB_CUR_INITED */		\
+	1,	/* RAY_MIB_CUR_DEF_TXRATE */		\
+	1,	/* RAY_MIB_CUR_ENCRYPT */		\
+	1,	/* RAY_MIB_CUR_NET_TYPE */		\
+	IEEE80211_NWID_LEN, /* RAY_MIB_CUR_SSID */	\
+	1,	/* RAY_MIB_CUR_PRIV_START */		\
+	1,	/* RAY_MIB_CUR_PRIV_JOIN */		\
+	ETHER_ADDR_LEN,	/* RAY_MIB_DES_BSSID */		\
+	1,	/* RAY_MIB_DES_INITED */		\
+	1,	/* RAY_MIB_DES_DEF_TXRATE */		\
+	1,	/* RAY_MIB_DES_ENCRYPT */		\
+	1,	/* RAY_MIB_DES_NET_TYPE */		\
+	IEEE80211_NWID_LEN, /* RAY_MIB_DES_SSID */	\
+	1,	/* RAY_MIB_DES_PRIV_START */		\
+	1 	/* RAY_MIB_DES_PRIV_JOIN */		\
 }
 
 /*
@@ -592,7 +711,7 @@ struct ray_stats_req {
  * Linux.c	0xff
  * NetBSD	0xff
  * Symb		0xXX	- so what happens in adhoc if the beacon is missed?
-  *			  do we create our own beacon
+ *			  do we create our own beacon
  */
 #define	RAY_MIB_ADHOC_MISSED_BEACON_COUNT_DISABLED	0xff
 #define	RAY_MIB_ADHOC_MISSED_BEACON_COUNT_DEFAULT	RAY_MIB_ADHOC_MISSED_BEACON_COUNT_DISABLED
@@ -670,4 +789,5 @@ struct ray_stats_req {
 #define	RAY_MIB_BASIC_RATE_SET_1000K		2
 #define	RAY_MIB_BASIC_RATE_SET_1500K		3
 #define	RAY_MIB_BASIC_RATE_SET_2000K		4
-#define	RAY_MIB_BASIC_RATE_SET_DEFAULT		RAY_MIB_BASIC_RATE_SET_1000K
+#define	RAY_MIB_BASIC_RATE_SET_MAX		5
+#define	RAY_MIB_BASIC_RATE_SET_DEFAULT		RAY_MIB_BASIC_RATE_SET_2000K
