@@ -50,7 +50,6 @@
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
-#include <cam/scsi/scsi_da.h>
 #include <cam/scsi/scsi_pass.h>
 
 static	u_int		camperiphnextunit(struct periph_driver *p_drv,
