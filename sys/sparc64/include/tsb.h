@@ -32,8 +32,8 @@
 #ifndef	_MACHINE_TSB_H_
 #define	_MACHINE_TSB_H_
 
-#define	TSB_KERNEL_MIN_ADDRESS		(0x6e000000000)
-#define	TSB_USER_MIN_ADDRESS		(0x6f000000000)
+#define	TSB_KERNEL_MIN_ADDRESS		(0xd0000000)
+#define	TSB_USER_MIN_ADDRESS		(0xe0000000)
 
 #define	TSB_MASK_WIDTH			(6)
 
@@ -44,9 +44,9 @@
 #define	TSB_SECONDARY_BUCKET_SIZE	(1 << TSB_SECONDARY_BUCKET_SHIFT)
 #define	TSB_SECONDARY_BUCKET_MASK	(TSB_SECONDARY_BUCKET_SIZE - 1)
 
-#define	TSB_SECONDARY_STTE_SHIFT \
-	(STTE_SHIFT + TSB_SECONDARY_BUCKET_SHIFT)
-#define	TSB_SECONDARY_STTE_MASK		(1 << TSB_SECONDARY_STTE_SHIFT)
+#define	TSB_PRIMARY_STTE_SHIFT \
+	(STTE_SHIFT + TSB_PRIMARY_BUCKET_SHIFT)
+#define	TSB_PRIMARY_STTE_MASK		((1 << TSB_PRIMARY_STTE_SHIFT) - 1)
 
 #define	TSB_LEVEL1_BUCKET_MASK \
 	((TSB_SECONDARY_BUCKET_MASK & ~TSB_PRIMARY_BUCKET_MASK) << \
@@ -175,30 +175,6 @@ static __inline struct stte *
 tsb_kvtostte(vm_offset_t va)
 {
 	return (tsb_kvpntostte(va >> PAGE_SHIFT));
-}
-
-static __inline void
-tsb_tte_enter_kernel(vm_offset_t va, struct tte tte)
-{
-	struct stte *stp;
-
-	stp = tsb_kvtostte(va);
-	stp->st_tte = tte;
-#if 0
-	pv_insert(kernel_pmap, TD_PA(tte.tte_data), va, stp);
-#endif
-}
-
-static __inline void
-tsb_remove_kernel(vm_offset_t va)
-{
-	struct stte *stp;
-
-	stp = tsb_kvtostte(va);
-	tte_invalidate(&stp->st_tte);
-#if 0
-	pv_remove_virt(stp);
-#endif
 }
 
 struct	stte *tsb_get_bucket(pmap_t pm, u_int level, vm_offset_t va,
