@@ -1,6 +1,6 @@
 <!--
 
-  $Id$
+  $Id: linuxdoc-latex.ts,v 1.1.1.1 1996/09/08 02:37:39 jfieber Exp $
 
   Copyright (C) 1996
        John R. Fieber.  All rights reserved.
@@ -540,7 +540,6 @@
 <rule>
 <match>
 <gi>URL
-<attval>NAME .
 <action>
 <start>\texttt{&lt;URL:${URL}>}</start>
 </rule>
