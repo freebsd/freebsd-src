@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.44 1999/06/25 07:49:00 grog Exp $
+ * $Id: kern_conf.c,v 1.45 1999/06/26 11:39:27 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -112,10 +112,20 @@ cdevsw_add(struct cdevsw *newentry)
 		return EINVAL;
 	}
 
+	if (cdevsw[newentry->d_maj]) {
+		printf("WARNING: \"%s\" is usurping \"%s\"'s cdevsw[]\n",
+		    newentry->d_name, cdevsw[newentry->d_maj]->d_name);
+	}
 	cdevsw[newentry->d_maj] = newentry;
 
-	if (newentry->d_bmaj >= 0 && newentry->d_bmaj < NUMCDEVSW) 
+	if (newentry->d_bmaj >= 0 && newentry->d_bmaj < NUMCDEVSW) {
+		if (bmaj2cmaj[newentry->d_bmaj] != 254) {
+			printf("WARNING: \"%s\" is usurping \"%s\"'s bmaj\n",
+			    newentry->d_name, 
+			    cdevsw[bmaj2cmaj[newentry->d_bmaj]]->d_name);
+		}
 		bmaj2cmaj[newentry->d_bmaj] = newentry->d_maj;
+	}
 
 	return 0;
 } 
