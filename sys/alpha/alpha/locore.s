@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: locore.s,v 1.6 1998/11/28 09:55:15 dfr Exp $
+ *	$Id: locore.s,v 1.7 1999/05/09 19:03:55 peter Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -146,7 +146,7 @@
  * On entry, stack & registers look like:
  *
  *      a0	signal number
- *      a1	signal specific code
+ *      a1	pointer to siginfo_t
  *      a2	pointer to signal context frame (scp)
  *      a3	address of handler
  *      sp+0	saved hardware state
