@@ -61,14 +61,16 @@ directory of the mfsroot floppy will automatically be loaded by
 If the user requires additional drivers, then the drivers present
 on
 .Pa drivers.flp
-may be loaded from sysinstall.
+may be loaded from
+.Xr sysinstall 8 .
 .Pp
 The
 .Pa /usr/src/release/${arch}/drivers.conf
 file contains a list of drivers that should be omitted from the boot
 kernel and installed as kernel modules on the mfsroot floppy or the
 driver floppy.
-This is necessary because a static kernel with all of the FreeBSD
+This is necessary because a static kernel with all of the
+.Fx
 device drivers would be far too large for a single floppy disk.
 Each driver is described on a separate line; fields on each line are
 separated by tabs or spaces.
@@ -93,7 +95,7 @@ specifies which floppy disk should include the kernel module.
 A value of 2 represents the
 .Pa mfsroot.flp
 floppy image, and a value of 3 represents the optional
-.Pa driver.flp
+.Pa drivers.flp
 floppy image.
 .Pp
 The fourth field,
@@ -112,7 +114,7 @@ This description is displayed to the user by
 .Xr sysinstall 8
 when the module is loaded.
 The descriptions for all drivers on the optional
-.Pa driver.flp
+.Pa drivers.flp
 image are listed in the file
 .Pa DRIVERS.TXT
 which is created by
