@@ -141,7 +141,7 @@ kernel: buildkernel installkernel
 #
 upgrade_checks:
 	@if ! (cd ${.CURDIR}/tools/regression/usr.bin/make && \
-	    PATH=${PATH} ${MAKE} >/dev/null 2>&1); \
+	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
 	then \
 	    (cd ${.CURDIR} && make make); \
 	fi
