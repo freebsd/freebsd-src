@@ -60,7 +60,9 @@ of
 .Dv SO_ACCEPTFILTER .
 .Sh IMPLEMENTATION NOTES
 A module that wants to be an accept filter
-must provide a struct accept_filter to the system:
+must provide a
+.Vt struct accept_filter
+to the system:
 .Bd -literal
 struct accept_filter {
 	char	accf_name[16];
@@ -73,51 +75,58 @@ struct accept_filter {
 .Pp
 The module should register it with the function
 .Fn accept_filt_add ,
-passing a pointer to a struct accept_filter, allocated with
-.Xr MALLOC 9
+passing a pointer to a
+.Fa struct accept_filter ,
+allocated with
+.Fn malloc .
 .Pp
 The fields of
-.Fa struct accept_filter
+.Vt struct accept_filter
 are as follows:
 .Bl -tag -width accf_callbackXXX
-.It accf_name
+.It Vt accf_name
 Name of the filter;
 this is how it will be accessed from userland.
-.It accf_callback
+.It Fn accf_callback
 The callback that the kernel will do
 once the connection is established.
 It is the same as a socket upcall
 and will be called when the connection is established
 and whenever new data arrives on the socket,
 unless the callback modifies the socket's flags.
-.It accf_create
+.It Fn accf_create
 Called whenever a
 .Xr setsockopt 2
 installs the filter onto
 a listening socket.
-.It accf_destroy
+.It Fn accf_destroy
 Called whenever the user removes the accept filter on the socket.
 .El
 .Pp
+The
 .Fn accept_filt_del
-passed the same string used in accept_filter.accf_name during registration
-with
+function
+passed the same string used in
+.Va accept_filter.accf_name
+during registration with
 .Fn accept_filt_add ,
 the kernel will then disallow and further userland use of the filter.
 .Pp
+The
 .Fn accept_filt_get
-is used internally to locate which accept filter to use via the
+function is used internally to locate which accept filter to use via the
 .Fn setsockopt
-syscall.
+system call.
 .Pp
+The
 .Fn accept_filt_generic_mod_event
-provides a simple way to avoid duplicate
-code for accept filters which don't use
-argument field to load and unload
-themselves.  It is a function that can be
-put in the load/unload struct
-for the
-.Fn DECLARE_MODULE
+function provides a simple way to avoid duplication of code
+for accept filters which don't use the argument field to load
+and unload themselves.
+This function can be used in the
+.Vt moduledata_t
+struct for the
+.Xr DECLARE_MODULE 9
 macro.
 .Sh SEE ALSO
 .Xr setsockopt 2 ,
@@ -129,7 +138,14 @@ The accept filter mechanism was introduced in
 .Fx 4.0 .
 .Sh AUTHORS
 This manual page was written by
+.An -nosplit
 .An Alfred Perlstein ,
-Sheldon Hearn and Jeroen Ruigrok van der Werven.
-The accept filter concept was pioneered by David Filo at Yahoo!
-and refined to be a loadable module system by Alfred Perlstein.
+.An Sheldon Hearn
+and
+Jeroen Ruigrok van der Werven.
+.Pp
+The accept filter concept was pioneered by
+.An David Filo
+at Yahoo!
+and refined to be a loadable module system by
+.An Alfred Perlstein.
