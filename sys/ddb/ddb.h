@@ -79,6 +79,9 @@ extern db_expr_t db_tab_stop_width;
 
 struct vm_map;
 
+#ifdef ALT_BREAK_TO_DEBUGGER
+int		db_alt_break(int, int *);
+#endif
 void		db_check_interrupt(void);
 void		db_clear_watchpoints(void);
 db_addr_t	db_disasm(db_addr_t loc, boolean_t altfmt);
