@@ -45,7 +45,6 @@
 #include <sys/errno.h>
 #include <sys/stat.h>
 #include <sys/acl.h>
-#include <vm/vm_zone.h>
 
 static MALLOC_DEFINE(M_ACL, "acl", "access control list");
 
