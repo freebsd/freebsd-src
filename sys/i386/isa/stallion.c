@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.23 1998/10/22 05:58:40 bde Exp $
+ * $Id: stallion.c,v 1.24 1999/01/12 00:36:36 eivind Exp $
  */
 
 /*****************************************************************************/
@@ -119,7 +119,7 @@ static unsigned int	stl_irqshared = 0;
 
 #define	STL_MEMDEV	0x07000000
 
-#define	STL_DEFSPEED	9600
+#define	STL_DEFSPEED	TTYDEF_SPEED
 #define	STL_DEFCFLAG	(CS8 | CREAD | HUPCL)
 
 /*
@@ -825,7 +825,8 @@ stlopen_restart:
 				goto stlopen_restart;
 			}
 		}
-		if ((tp->t_state & TS_XCLUDE) && (p->p_ucred->cr_uid != 0)) {
+		if ((tp->t_state & TS_XCLUDE) &&
+		    suser(p->p_ucred, &p->p_acflag)) {
 			error = EBUSY;
 			goto stlopen_end;
 		}

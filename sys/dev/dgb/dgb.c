@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.40 1998/08/23 08:26:39 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.41 1998/12/07 21:58:17 archie Exp $
  *
  *  Digiboard driver.
  *
@@ -1032,7 +1032,8 @@ open_top:
 				goto open_top;
 			}
 		}
-		if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0) {
+		if (tp->t_state & TS_XCLUDE &&
+		    suser(p->p_ucred, &p->p_acflag)) {
 			error = EBUSY;
 			goto out;
 		}
