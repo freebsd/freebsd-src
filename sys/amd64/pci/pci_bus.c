@@ -443,6 +443,7 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 	probe.hose = 0;
 	probe.bus = 0;
 	for (probe.slot = 0; probe.slot <= PCI_SLOTMAX; probe.slot++) {
+		probe.func = 0;
 		hdrtype = pci_cfgread(&probe, PCIR_HEADERTYPE, 1);
 		if (hdrtype & PCIM_MFDEV)
 			pcifunchigh = 7;
