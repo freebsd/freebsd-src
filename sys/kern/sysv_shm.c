@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.9 1995/09/09 18:10:09 davidg Exp $ */
+/*	$Id: sysv_shm.c,v 1.10 1995/10/21 19:50:00 bde Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -244,7 +244,7 @@ shmat(p, uap, retval)
 			return EINVAL;
 	} else {
 		/* This is just a hint to vm_mmap() about where to put it. */
-		attach_va = round_page(p->p_vmspace->vm_daddr + MAXDSIZ);
+		attach_va = round_page(p->p_vmspace->vm_taddr + MAXTSIZ + MAXDSIZ);
 	}
 	error = vm_mmap(&p->p_vmspace->vm_map, &attach_va, size, prot,
 	    VM_PROT_DEFAULT, flags, (caddr_t) uap->shmid, 0);
