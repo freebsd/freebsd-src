@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.3 1999/03/19 15:58:05 kato Exp $
+ *	$Id: bootinfo.c,v 1.4 1999/06/06 12:46:40 kato Exp $
  */
 
 #include <stand.h>
@@ -264,6 +264,10 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
 	return(EINVAL);
     }
 
+    /* Try reading the /etc/fstab file to select the root device */
+    getrootmount(i386_fmtdev((void *)rootdev));
+
+    /* Do legacy rootdev guessing */
     switch(rootdev->d_type) {
     case DEVT_DISK:
 	/* pass in the BIOS device number of the current disk */
@@ -275,7 +279,7 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
 	return(EINVAL);
 
     default:
-	printf("aout_exec: WARNING - don't know how to boot from device type %d\n", rootdev->d_type);
+	printf("WARNING - don't know how to boot from device type %d\n", rootdev->d_type);
     }
     free(rootdev);
     *bootdevp = bootdevnr;
