@@ -214,36 +214,30 @@ struct ip6_frag {
  * supposed to never be matched but is prepared just in case.
  */
 
-#ifdef INET6
-#define IP6_EXTHDR_STAT(x)	x
-#else
-#define IP6_EXTHDR_STAT(x)
-#endif
-
 #define IP6_EXTHDR_CHECK(m, off, hlen, ret)				\
 do {									\
     if ((m)->m_next != NULL) {						\
 	if (((m)->m_flags & M_LOOP) &&					\
 	    ((m)->m_len < (off) + (hlen)) &&				\
 	    (((m) = m_pullup((m), (off) + (hlen))) == NULL)) {		\
-		IP6_EXTHDR_STAT(ip6stat.ip6s_exthdrtoolong++);		\
+		ip6stat.ip6s_exthdrtoolong++;				\
 		return ret;						\
 	} else if ((m)->m_flags & M_EXT) {				\
 		if ((m)->m_len < (off) + (hlen)) {			\
-			IP6_EXTHDR_STAT(ip6stat.ip6s_exthdrtoolong++);	\
+			ip6stat.ip6s_exthdrtoolong++;			\
 			m_freem(m);					\
 			return ret;					\
 		}							\
 	} else {							\
 		if ((m)->m_len < (off) + (hlen)) {			\
-			IP6_EXTHDR_STAT(ip6stat.ip6s_exthdrtoolong++);	\
+			ip6stat.ip6s_exthdrtoolong++;			\
 			m_freem(m);					\
 			return ret;					\
 		}							\
 	}								\
     } else {								\
 	if ((m)->m_len < (off) + (hlen)) {				\
-		IP6_EXTHDR_STAT(ip6stat.ip6s_tooshort++);		\
+		ip6stat.ip6s_tooshort++;				\
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_truncated);	\
 		m_freem(m);						\
 		return ret;						\
@@ -265,7 +259,6 @@ do {									\
 do {									\
 	struct mbuf *t;							\
 	int tmp;							\
-	IP6_EXTHDR_STAT(ip6stat.ip6s_exthdrget++);			\
 	if ((m)->m_len >= (off) + (len))				\
 		(val) = (typ)(mtod((m), caddr_t) + (off));		\
 	else {								\
@@ -284,7 +277,6 @@ do {									\
 #define IP6_EXTHDR_GET0(val, typ, m, off, len) \
 do {									\
 	struct mbuf *t;							\
-	IP6_EXTHDR_STAT(ip6stat.ip6s_exthdrget0++);			\
 	if ((off) == 0)							\
 		(val) = (typ)mtod(m, caddr_t);				\
 	else {								\
