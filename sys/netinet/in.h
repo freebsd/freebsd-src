@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.28 1998/02/16 19:23:53 guido Exp $
+ * $Id: in.h,v 1.29 1998/02/25 02:14:03 julian Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -126,7 +126,7 @@
 #define	IPPROTO_TTP		84		/* TTP */
 #define	IPPROTO_IGP		85		/* NSFNET-IGP */
 #define	IPPROTO_DGP		86		/* dissimilar gateway prot. */
-#define	IPPROTO_TCP		87		/* TCF */
+#define	IPPROTO_TCF		87		/* TCF */
 #define	IPPROTO_IGRP		88		/* Cisco/GXS IGRP */
 #define	IPPROTO_OSPFIGP		89		/* OSPFIGP */
 #define	IPPROTO_SRPC		90		/* Strite RPC protocol */
