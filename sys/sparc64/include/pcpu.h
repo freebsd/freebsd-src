@@ -38,7 +38,7 @@
 
 #define	ALT_STACK_SIZE	128
 
-struct vmspace;
+struct pmap;
 
 /*
  * Inside the kernel, the globally reserved register g7 is used to
@@ -49,7 +49,7 @@ struct vmspace;
 	struct	intr_request *pc_irhead;				\
 	struct	intr_request **pc_irtail;				\
 	struct	intr_request *pc_irfree;				\
-	struct	vmspace *pc_vmspace;					\
+	struct 	pmap *pc_pmap;						\
 	vm_offset_t pc_addr;						\
 	u_int 	pc_mid;							\
 	u_int	pc_node;						\

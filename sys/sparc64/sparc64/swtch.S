@@ -127,15 +127,16 @@ ENTRY(cpu_switch)
 	sub	%fp, CCFSZ, %sp
 
 	/*
-	 * Point to the vmspaces of the new process, and of the last non-kernel
+	 * Point to the pmaps of the new process, and of the last non-kernel
 	 * process to run.
 	 */
 	ldx	[%i0 + TD_PROC], %i2
-	ldx	[PCPU(VMSPACE)], %l2
-	ldx	[%i2 + P_VMSPACE], %i2
+	ldx	[PCPU(PMAP)], %l2
+	ldx	[%i2 + P_VMSPACE], %i5
+	add	%i5, VM_PMAP, %i2
 
 #if KTR_COMPILE & KTR_PROC
-	CATR(KTR_PROC, "cpu_switch: new vm=%p old vm=%p"
+	CATR(KTR_PROC, "cpu_switch: new pmap=%p old pmap=%p"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	stx	%i2, [%g1 + KTR_PARM1]
 	stx	%l2, [%g1 + KTR_PARM2]
@@ -154,12 +155,12 @@ ENTRY(cpu_switch)
 	 * context active and avoid recycling its context number.
 	 */
 	SET(vmspace0, %i4, %i3)
-	cmp	%i2, %i3
+	cmp	%i5, %i3
 	be,a,pn %xcc, 5f
 	 nop
 
 	/*
-	 * If there was no non-kernel vmspace, don't try to deactivate it.
+	 * If there was no non-kernel pmap, don't try to deactivate it.
 	 */
 	brz,a,pn %l2, 3f
 	 nop
@@ -168,17 +169,17 @@ ENTRY(cpu_switch)
 	 * Mark the pmap of the last non-kernel vmspace to run as no longer
 	 * active on this cpu.
 	 */
-	lduw	[%l2 + VM_PMAP + PM_ACTIVE], %l3
+	lduw	[%l2 + PM_ACTIVE], %l3
 	lduw	[PCPU(CPUMASK)], %l4
 	andn	%l3, %l4, %l3
-	stw	%l3, [%l2 + VM_PMAP + PM_ACTIVE]
+	stw	%l3, [%l2 + PM_ACTIVE]
 
 	/*
 	 * Take away its context number.
 	 */
 	lduw	[PCPU(CPUID)], %l3
 	sllx	%l3, INT_SHIFT, %l3
-	add	%l2, VM_PMAP + PM_CONTEXT, %l4
+	add	%l2, PM_CONTEXT, %l4
 	mov	-1, %l5
 	stw	%l5, [%l3 + %l4]
 
@@ -208,27 +209,27 @@ ENTRY(cpu_switch)
 	 */
 	lduw	[PCPU(CPUID)], %i4
 	sllx	%i4, INT_SHIFT, %i4
-	add	%i2, VM_PMAP + PM_CONTEXT, %i5
+	add	%i2, PM_CONTEXT, %i5
 	stw	%i3, [%i4 + %i5]
 
 	/*
 	 * Mark the pmap as active on this cpu.
 	 */
-	lduw	[%i2 + VM_PMAP + PM_ACTIVE], %i4
+	lduw	[%i2 + PM_ACTIVE], %i4
 	lduw	[PCPU(CPUMASK)], %i5
 	or	%i4, %i5, %i4
-	stw	%i4, [%i2 + VM_PMAP + PM_ACTIVE]
+	stw	%i4, [%i2 + PM_ACTIVE]
 
 	/*
-	 * Make note of the change in vmspace.
+	 * Make note of the change in pmap.
 	 */
-	stx	%i2, [PCPU(VMSPACE)]
+	stx	%i2, [PCPU(PMAP)]
 
 	/*
 	 * Fiddle the hardware bits.  Set the tsb registers and install the
 	 * new context number in the cpu.
 	 */
-	ldx	[%i2 + VM_PMAP + PM_TSB], %i4
+	ldx	[%i2 + PM_TSB], %i4
 	mov	AA_DMMU_TSB, %i5
 	stxa	%i4, [%i5] ASI_DMMU
 	mov	AA_IMMU_TSB, %i5
