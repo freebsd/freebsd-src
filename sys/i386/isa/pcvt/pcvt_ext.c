@@ -2619,7 +2619,7 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 	{
 		struct trapframe *fp = td->td_frame;
 
-		error = suser_td(td);
+		error = suser(td);
 		if (error != 0)
 			return (error);
 		error = securelevel_gt(td->td_ucred, 0);

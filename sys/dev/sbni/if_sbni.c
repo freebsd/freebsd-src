@@ -1042,6 +1042,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct sbni_softc *sc;
 	struct ifreq *ifr;
+	struct thread *td;
 	struct proc *p;
 	struct sbni_in_stats *in_stats;
 	struct sbni_flags flags;
@@ -1049,7 +1050,8 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	sc = ifp->if_softc;
 	ifr = (struct ifreq *)data;
-	p = curproc;
+	td = curthread;
+	p = td->td_proc;
 	error = 0;
 
 	s = splimp();
@@ -1114,7 +1116,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	case SIOCSHWFLAGS:	/* set flags */
 		/* root only */
-		error = suser(p);
+		error = suser(td);
 		if (error)
 			break;
 		flags = *(struct sbni_flags*)&ifr->ifr_data;
@@ -1136,7 +1138,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCRINSTATS:
-		if (!(error = suser(p)))	/* root only */
+		if (!(error = suser(td)))	/* root only */
 			bzero(&sc->in_stats, sizeof(struct sbni_in_stats));
 		break;
 

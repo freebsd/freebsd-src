@@ -45,7 +45,7 @@
  * Credentials.
  *
  * Please do not inspect cr_uid directly to determine superuserness.
- * Only the suser()/suser_xxx() function should be used for this.
+ * Only the suser() or suser_cred() function should be used for this.
  */
 struct ucred {
 	u_int		cr_ref;		/* reference count */

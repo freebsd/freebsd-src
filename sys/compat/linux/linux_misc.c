@@ -980,7 +980,7 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	 * Keep cr_groups[0] unchanged to prevent that.
 	 */
 
-	if ((error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
+	if ((error = suser_cred(oldcred, PRISON_ROOT)) != 0)
 		return (error);
 
 	if (ngrp >= NGROUPS)

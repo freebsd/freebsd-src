@@ -1286,7 +1286,7 @@ ip_ctloutput(so, sopt)
 			if ((error = soopt_mcopyin(sopt, m)) != 0) /* XXX */
 				break;
 			priv = (sopt->sopt_td != NULL &&
-				suser_td(sopt->sopt_td) != 0) ? 0 : 1;
+				suser(sopt->sopt_td) != 0) ? 0 : 1;
 			req = mtod(m, caddr_t);
 			len = m->m_len;
 			optname = sopt->sopt_name;

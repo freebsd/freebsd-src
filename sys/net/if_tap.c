@@ -399,7 +399,7 @@ tapopen(dev, flag, mode, td)
 	int			 unit, error;
 	struct resource		*r = NULL;
 
-	if ((error = suser_td(td)) != 0)
+	if ((error = suser(td)) != 0)
 		return (error);
 
 	unit = dev2unit(dev) & TAPMAXUNIT;

@@ -607,7 +607,7 @@ siopen(dev_t dev, int flag, int mode, struct thread *td)
 
 	/* quickly let in /dev/si_control */
 	if (IS_CONTROLDEV(mynor)) {
-		if ((error = suser_td(td)))
+		if ((error = suser(td)))
 			return(error);
 		return(0);
 	}
@@ -686,7 +686,7 @@ open_top:
 			}
 		}
 		if (tp->t_state & TS_XCLUDE &&
-		    suser_td(td)) {
+		    suser(td)) {
 			DPRINT((pp, DBG_OPEN|DBG_FAIL,
 				"already open and EXCLUSIVE set\n"));
 			error = EBUSY;
@@ -951,7 +951,7 @@ siioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		}
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser_td(td);
+			error = suser(td);
 			if (error != 0)
 				return (error);
 			*ct = *(struct termios *)data;
@@ -1064,7 +1064,7 @@ siioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		break;
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
-		error = suser_td(td);
+		error = suser(td);
 		if (error == 0)
 			pp->sp_dtr_wait = *(int *)data * hz / 100;
 		break;
@@ -1117,7 +1117,7 @@ si_Sioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 
 	ip = (int *)data;
 
-#define SUCHECK if ((error = suser_td(td))) goto out
+#define SUCHECK if ((error = suser(td))) goto out
 
 	switch (cmd) {
 	case TCSIPORTS:

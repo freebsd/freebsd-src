@@ -316,7 +316,7 @@ pcvt_open(dev_t dev, int flag, int mode, struct thread *td)
 		(*linesw[tp->t_line].l_modem)(tp, 1);	/* fake connection */
 		winsz = 1;			/* set winsize later */
 	}
-	else if (tp->t_state & TS_XCLUDE && suser_td(td))
+	else if (tp->t_state & TS_XCLUDE && suser(td))
 	{
 		return (EBUSY);
 	}

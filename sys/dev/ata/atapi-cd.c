@@ -573,7 +573,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	break;
 
     case CDIOCRESET:
-	error = suser(td->td_proc);
+	error = suser(td);
 	if (error)
 	    break;
 	error = atapi_test_ready(cdp->device);

@@ -129,7 +129,7 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	int error;
 
 	mtx_lock(&Giant);
-	error = suser_td(td);
+	error = suser(td);
 	if (error)
 		goto done2;
 	while (nfssvc_sockhead_flag & SLP_INIT) {

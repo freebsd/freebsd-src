@@ -1230,7 +1230,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCSIFFLAGS:
-		error = suser_td(td);
+		error = suser(td);
 		if (error)
 			return (error);
 		ifr->ifr_prevflags = ifp->if_flags;
@@ -1255,7 +1255,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCSIFCAP:
-		error = suser_td(td);
+		error = suser(td);
 		if (error)
 			return (error);
 		if (ifr->ifr_reqcap & ~ifp->if_capabilities)
@@ -1264,7 +1264,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCSIFMETRIC:
-		error = suser_td(td);
+		error = suser(td);
 		if (error)
 			return (error);
 		ifp->if_metric = ifr->ifr_metric;
@@ -1272,7 +1272,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCSIFPHYS:
-		error = suser_td(td);
+		error = suser(td);
 		if (error)
 			return error;
 		if (!ifp->if_ioctl)
@@ -1286,7 +1286,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	{
 		u_long oldmtu = ifp->if_mtu;
 
-		error = suser_td(td);
+		error = suser(td);
 		if (error)
 			return (error);
 		if (ifr->ifr_mtu < IF_MINMTU || ifr->ifr_mtu > IF_MAXMTU)
@@ -1311,7 +1311,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		error = suser_td(td);
+		error = suser(td);
 		if (error)
 			return (error);
 
@@ -1341,7 +1341,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	case SIOCSLIFPHYADDR:
         case SIOCSIFMEDIA:
 	case SIOCSIFGENERIC:
-		error = suser_td(td);
+		error = suser(td);
 		if (error)
 			return (error);
 		if (ifp->if_ioctl == NULL)
@@ -1366,7 +1366,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCSIFLLADDR:
-		error = suser_td(td);
+		error = suser(td);
 		if (error)
 			return (error);
 		error = if_setlladdr(ifp,
@@ -1405,7 +1405,7 @@ ifioctl(so, cmd, data, td)
 	switch (cmd) {
 	case SIOCIFCREATE:
 	case SIOCIFDESTROY:
-		if ((error = suser_td(td)) != 0)
+		if ((error = suser(td)) != 0)
 			return (error);
 		return ((cmd == SIOCIFCREATE) ?
 			if_clone_create(ifr->ifr_name, sizeof(ifr->ifr_name)) :

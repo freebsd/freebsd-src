@@ -659,7 +659,6 @@ vm86_sysarch(td, args)
 	struct thread *td;
 	char *args;
 {
-	struct proc *p = td->td_proc;
 	int error = 0;
 	struct i386_vm86_args ua;
 	struct vm86_kernel *vm86;
@@ -716,7 +715,7 @@ vm86_sysarch(td, args)
 	case VM86_INTCALL: {
 		struct vm86_intcall_args sa;
 
-		if ((error = suser(p)))
+		if ((error = suser(td)))
 			return (error);
 		if ((error = copyin(ua.sub_args, &sa, sizeof(sa))))
 			return (error);

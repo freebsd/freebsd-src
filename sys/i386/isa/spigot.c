@@ -175,7 +175,7 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 	 * require sufficient privilege soon and nothing much can be done
 	 * without them.
 	 */
-	error = suser_td(td);
+	error = suser(td);
 	if (error != 0)
 		return error;
 	error = securelevel_gt(td->td_ucred, 0);
@@ -232,7 +232,7 @@ struct	spigot_info	*info;
 		break;
 	case	SPIGOT_IOPL_ON:	/* allow access to the IO PAGE */
 #if !defined(SPIGOT_UNSECURE)
-		error = suser_td(td);
+		error = suser(td);
 		if (error != 0)
 			return error;
 		error = securelevel_gt(td->td_ucred, 0);

@@ -2204,7 +2204,7 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 		 * from within kernel mode?
 		 */
 
-		if (suser_td(td) != 0) {
+		if (suser(td) != 0) {
 			if (dbregs->dr7 & 0x3) {
 				/* dr0 is enabled */
 				if (dbregs->dr0 >= VM_MAXUSER_ADDRESS)

@@ -52,10 +52,6 @@
 
 #include <machine/md_var.h>
 
-#if __FreeBSD_version < 500000
-#define suser_td(a)	suser(a)
-#endif
-
 #define MIN(a,b)	((a)<(b)?(a):(b))
 
 static int		allocate_driver(struct slot *, struct dev_desc *);
@@ -517,7 +513,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 	 * At the very least, we only allow root to set the context.
 	 */
 	case PIOCSMEM:
-		if (suser_td(td))
+		if (suser(td))
 			return (EPERM);
 		if (slt->state != filled)
 			return (ENXIO);
@@ -542,7 +538,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 	 * Set I/O port context.
 	 */
 	case PIOCSIO:
-		if (suser_td(td))
+		if (suser(td))
 			return (EPERM);
 		if (slt->state != filled)
 			return (ENXIO);
@@ -568,7 +564,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 			*(unsigned long *)data = pccard_mem;
 			break;
 		}
-		if (suser_td(td))
+		if (suser(td))
 			return (EPERM);
 		/*
 		 * Validate the memory by checking it against the I/O
@@ -600,7 +596,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 	 * Allocate a driver to this slot.
 	 */
 	case PIOCSDRV:
-		if (suser_td(td))
+		if (suser(td))
 			return (EPERM);
 		err = allocate_driver(slt, (struct dev_desc *)data);
 		if (!err)

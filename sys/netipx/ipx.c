@@ -108,7 +108,7 @@ ipx_control(so, cmd, data, ifp, td)
 		return (0);
 	}
 
-	if (td && (error = suser_td(td)) != 0)
+	if (td && (error = suser(td)) != 0)
 		return (error);
 
 	switch (cmd) {

@@ -521,7 +521,11 @@ awi_ioctl(ifp, cmd, data)
 		break;
 	case SIOCS80211NWID:
 #ifdef __FreeBSD__
+#if __FreeBSD__ >= 5
+		error = suser(curthread);
+#else
 		error = suser(curproc);
+#endif
 		if (error)
 			break;
 #endif
@@ -555,7 +559,11 @@ awi_ioctl(ifp, cmd, data)
 		break;
 	case SIOCS80211NWKEY:
 #ifdef __FreeBSD__
+#if __FreeBSD__ >= 5
+		error = suser(curthread);
+#else
 		error = suser(curproc);
+#endif
 		if (error)
 			break;
 #endif
@@ -613,7 +621,11 @@ awi_ioctl(ifp, cmd, data)
 			error = awi_wep_getkey(sc, ireq->i_val, tmpstr, &len);
 			if(error)
 				break;
+#if __FreeBSD__ >= 5
+			if(!suser(curthread))
+#else
 			if(!suser(curproc))
+#endif
 				bzero(tmpstr, len);
 			ireq->i_len = len;
 			error = copyout(tmpstr, ireq->i_data, len);
@@ -650,7 +662,11 @@ awi_ioctl(ifp, cmd, data)
 		}
 		break;
 	case SIOCS80211:
+#if __FreeBSD__ >= 5
+		error = suser(curthread);
+#else
 		error = suser(curproc);
+#endif
 		if(error)
 			break;
 		switch(ireq->i_type) {

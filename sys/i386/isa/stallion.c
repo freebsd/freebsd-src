@@ -832,7 +832,7 @@ stlopen_restart:
 			}
 		}
 		if ((tp->t_state & TS_XCLUDE) &&
-		    suser_td(td)) {
+		    suser(td)) {
 			error = EBUSY;
 			goto stlopen_end;
 		}
@@ -970,7 +970,7 @@ STATIC int stlioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 
 		switch (cmd) {
 		case TIOCSETA:
-			if ((error = suser_td(td)) == 0)
+			if ((error = suser(td)) == 0)
 				*localtios = *((struct termios *) data);
 			break;
 		case TIOCGETA:
@@ -1088,7 +1088,7 @@ STATIC int stlioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 		*((int *) data) = (stl_getsignals(portp) | TIOCM_LE);
 		break;
 	case TIOCMSDTRWAIT:
-		if ((error = suser_td(td)) == 0)
+		if ((error = suser(td)) == 0)
 			portp->dtrwait = *((int *) data) * hz / 100;
 		break;
 	case TIOCMGDTRWAIT:

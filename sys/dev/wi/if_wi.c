@@ -1672,7 +1672,7 @@ wi_ioctl(ifp, command, data)
 	struct wi_req		wreq;
 	struct ifreq		*ifr;
 	struct ieee80211req	*ireq;
-	struct proc		*p = curproc;
+	struct thread		*td = curthread;
 
 	sc = ifp->if_softc;
 	WI_LOCK(sc);
@@ -1724,7 +1724,7 @@ wi_ioctl(ifp, command, data)
 		if (error)
 			break;
 		/* Don't show WEP keys to non-root users. */
-		if (wreq.wi_type == WI_RID_DEFLT_CRYPT_KEYS && suser(p))
+		if (wreq.wi_type == WI_RID_DEFLT_CRYPT_KEYS && suser(td))
 			break;
 		if (wreq.wi_type == WI_RID_IFACE_STATS) {
 			bcopy((char *)&sc->wi_stats, (char *)&wreq.wi_val,
@@ -1768,7 +1768,7 @@ wi_ioctl(ifp, command, data)
 		error = copyout(&wreq, ifr->ifr_data, sizeof(wreq));
 		break;
 	case SIOCSWAVELAN:
-		if ((error = suser(p)))
+		if ((error = suser(td)))
 			goto out;
 		error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
 		if (error)
@@ -1809,7 +1809,7 @@ wi_ioctl(ifp, command, data)
 			error = copyout(&wreq, ifr->ifr_data, sizeof(wreq));
 		break;
 	case SIOCSPRISM2DEBUG:
-		if ((error = suser(p)))
+		if ((error = suser(td)))
 			goto out;
 		error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
 		if (error)
@@ -1858,7 +1858,7 @@ wi_ioctl(ifp, command, data)
 				break;
 			}
 			len = sc->wi_keys.wi_keys[ireq->i_val].wi_keylen;
-			if (suser(p))
+			if (suser(td))
 				bcopy(sc->wi_keys.wi_keys[ireq->i_val].wi_keydat,
 				    tmpkey, len);
 			else
@@ -1911,7 +1911,7 @@ wi_ioctl(ifp, command, data)
 		}
 		break;
 	case SIOCS80211:
-		if ((error = suser(p)))
+		if ((error = suser(td)))
 			goto out;
 		switch(ireq->i_type) {
 		case IEEE80211_IOC_SSID:

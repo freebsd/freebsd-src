@@ -559,7 +559,7 @@ linux_iopl(struct thread *td, struct linux_iopl_args *args)
 
 	if (args->level < 0 || args->level > 3)
 		return (EINVAL);
-	if ((error = suser_td(td)) != 0)
+	if ((error = suser(td)) != 0)
 		return (error);
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		return (error);

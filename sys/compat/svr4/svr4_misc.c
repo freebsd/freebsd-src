@@ -607,7 +607,7 @@ svr4_sys_fchroot(td, uap)
 	struct file	*fp;
 	int		 error;
 
-	if ((error = suser_td(td)) != 0)
+	if ((error = suser(td)) != 0)
 		return error;
 	if ((error = getvnode(fdp, SCARG(uap, fd), &fp)) != 0)
 		return error;

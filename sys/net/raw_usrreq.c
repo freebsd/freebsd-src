@@ -157,7 +157,7 @@ raw_uattach(struct socket *so, int proto, struct thread *td)
 
 	if (rp == 0)
 		return EINVAL;
-	if (td && (error = suser_td(td)) != 0)
+	if (td && (error = suser(td)) != 0)
 		return error;
 	return raw_attach(so, proto);
 }

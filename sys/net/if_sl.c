@@ -341,7 +341,7 @@ slopen(dev, tp)
 	register struct sl_softc *sc;
 	int s, error;
 
-	error = suser_td(curthread);
+	error = suser(curthread);
 	if (error)
 		return (error);
 

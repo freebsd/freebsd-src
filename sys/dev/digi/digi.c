@@ -783,7 +783,7 @@ open_top:
 			}
 			goto open_top;
 		}
-		if (tp->t_state & TS_XCLUDE && suser(td->td_proc) != 0) {
+		if (tp->t_state & TS_XCLUDE && suser(td) != 0) {
 			error = EBUSY;
 			goto out;
 		}
@@ -1146,7 +1146,7 @@ digiioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser_td(td);
+			error = suser(td);
 			if (error != 0)
 				return (error);
 			*ct = *(struct termios *)data;
@@ -1317,7 +1317,7 @@ digiioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		*(int *)data = digimctl(port, 0, DMGET);
 		break;
 	case TIOCMSDTRWAIT:
-		error = suser_td(td);
+		error = suser(td);
 		if (error != 0) {
 			splx(s);
 			return (error);

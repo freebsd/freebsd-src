@@ -376,7 +376,7 @@ in6_control(so, cmd, data, ifp, td)
 	int privileged;
 
 	privileged = 0;
-	if (td == NULL || !suser_td(td))
+	if (td == NULL || !suser(td))
 		privileged++;
 
 	switch (cmd) {

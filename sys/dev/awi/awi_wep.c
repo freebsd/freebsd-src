@@ -189,7 +189,11 @@ awi_wep_getnwkey(sc, nwkey)
 	nwkey->i_defkid = sc->sc_wep_defkid + 1;
 	/* do not show any keys to non-root user */
 #ifdef __FreeBSD__
+#if __FreeBSD__ >= 5
+	suerr = suser(curthread);
+#else
 	suerr = suser(curproc);
+#endif
 #else
 	suerr = suser(curproc->p_ucred, &curproc->p_acflag);
 #endif

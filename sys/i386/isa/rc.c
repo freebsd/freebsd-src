@@ -764,7 +764,7 @@ again:
 			}
 		}
 		if (tp->t_state & TS_XCLUDE &&
-		    suser_td(td)) {
+		    suser(td)) {
 			error = EBUSY;
 			goto out;
 		}
@@ -1118,7 +1118,7 @@ struct thread  *td;
 		break;
 
 	    case TIOCMSDTRWAIT:
-		error = suser_td(td);
+		error = suser(td);
 		if (error != 0) {
 			splx(s);
 			return (error);

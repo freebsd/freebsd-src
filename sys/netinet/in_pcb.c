@@ -178,7 +178,6 @@ in_pcbbind(inp, nam, td)
 	struct sockaddr *nam;
 	struct thread *td;
 {
-	struct proc *p = td->td_proc;
 	register struct socket *so = inp->inp_socket;
 	unsigned short *lastport;
 	struct sockaddr_in *sin;
@@ -228,8 +227,8 @@ in_pcbbind(inp, nam, td)
 		if (lport) {
 			struct inpcb *t;
 			/* GROSS */
-			if (ntohs(lport) < IPPORT_RESERVED && p &&
-			    suser_xxx(0, p, PRISON_ROOT))
+			if (ntohs(lport) < IPPORT_RESERVED && td &&
+			    suser_cred(td->td_ucred, PRISON_ROOT))
 				return (EACCES);
 			if (td && jailed(td->td_ucred))
 				prison = 1;
@@ -292,7 +291,7 @@ in_pcbbind(inp, nam, td)
 			last  = ipport_hilastauto;
 			lastport = &pcbinfo->lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
-			if (p && (error = suser_xxx(0, p, PRISON_ROOT))) {
+			if (td && (error = suser_cred(td->td_ucred, PRISON_ROOT))) {
 				inp->inp_laddr.s_addr = INADDR_ANY;
 				return error;
 			}

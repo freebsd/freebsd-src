@@ -99,7 +99,7 @@ null_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 
 	if (cmd != DIOCGKERNELDUMP)
 		return (noioctl(dev, cmd, data, fflag, td));
-	error = suser_td(td);
+	error = suser(td);
 	if (error)
 		return (error);
 	return (set_dumper(NULL));

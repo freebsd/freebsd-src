@@ -59,7 +59,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		break;
 	case PIOCSFL:
 		flags = *(unsigned int *)data;
-		if (flags & PF_ISUGID && (error = suser(td->td_proc)) != 0)
+		if (flags & PF_ISUGID && (error = suser(td)) != 0)
 			break;
 		p->p_pfsflags = flags;
 		break;
