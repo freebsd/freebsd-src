@@ -154,6 +154,9 @@
     <sect3>
       <title>Contributed Software</title>
 
+	<para><application>sendmail</application> has been updated 
+	  from version 8.12.3 to version 8.12.4.</para>
+
       <para></para>
     </sect3>
   </sect2>
