@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <fnmatch.h>
 #include <glob.h>
 #include <grp.h>
 #include <paths.h>
@@ -57,29 +58,32 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
+/*
+ * Bit-values for the 'flags' parsed from a config-file entry.
+ */
+#define CE_COMPACT	0x0001	/* Compact the achived log files with gzip. */
+#define CE_BZCOMPACT	0x0002	/* Compact the achived log files with bzip2. */
+#define CE_COMPACTWAIT	0x0004	/* wait until compressing one file finishes */
+				/*    before starting the next step. */
+#define CE_BINARY	0x0008	/* Logfile is in binary, do not add status */
+				/*    messages to logfile(s) when rotating. */
+#define CE_NOSIGNAL	0x0010	/* There is no process to signal when */
+				/*    trimming this file. */
+#define CE_TRIMAT	0x0020	/* trim file at a specific time. */
+#define CE_GLOB		0x0040	/* name of the log is file name pattern. */
+
+#define MIN_PID         5	/* Don't touch pids lower than this */
+#define MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
+
 #define kbytes(size)  (((size) + 1023) >> 10)
-
-#ifdef _IBMR2
-/* Calculates (db * DEV_BSIZE) */
-#define dbtob(db)  ((unsigned)(db) << UBSHIFT)
-#endif
-
-#define CE_COMPACT 1		/* Compact the achived log files */
-#define CE_BINARY  2		/* Logfile is in binary, don't add */
-#define CE_BZCOMPACT 8		/* Compact the achived log files with bzip2 */
-				/*  status messages */
-#define	CE_TRIMAT  4		/* trim at a specific time */
-#define	CE_GLOB    16		/* name of the log is file name pattern */
-#define	CE_COMPACTWAIT 32	/* wait till compressing finishes before */
-				/* starting the next one */
-
-#define NONE -1
 
 struct conf_entry {
 	char *log;		/* Name of the log */
 	char *pid_file;		/* PID file */
-	int uid;		/* Owner of log */
-	int gid;		/* Group of log */
+	char *r_reason;		/* The reason this file is being rotated */
+	int rotate;		/* Non-zero if this file should be rotated */
+	uid_t uid;		/* Owner of log */
+	gid_t gid;		/* Group of log */
 	int numlogs;		/* Number of logs to keep */
 	int size;		/* Size cutoff to trigger trimming the log */
 	int hours;		/* Hours between log trimming */
@@ -97,17 +101,23 @@ int archtodir = 0;		/* Archive old logfiles to other directory */
 int verbose = 0;		/* Print out what's going on */
 int needroot = 1;		/* Root privs are necessary */
 int noaction = 0;		/* Don't do anything, just show it */
+int nosignal;			/* Do not send any signals */
 int force = 0;			/* Force the trim no matter what */
+int rotatereq = 0;		/* -R = Always rotate the file(s) as given */
+				/*    on the command (this also requires   */
+				/*    that a list of files *are* given on  */
+				/*    the run command). */
+char *requestor;		/* The name given on a -R request */
 char *archdirname;		/* Directory path to old logfiles archive */
-const char *conf = _PATH_CONF;	/* Configuration file to use */
+const char *conf;		/* Configuration file to use */
 time_t timenow;
 
-#define MIN_PID         5
-#define MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
 char hostname[MAXHOSTNAMELEN];	/* hostname */
 char daytime[16];		/* timenow in human readable form */
 
-static struct conf_entry *parse_file(char **files);
+static struct conf_entry *get_worklist(char **files);
+static void parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
+		struct conf_entry **defconf_p);
 static char *sob(char *p);
 static char *son(char *p);
 static char *missing_field(char *p, char *errline);
@@ -115,21 +125,30 @@ static void do_entry(struct conf_entry * ent);
 static void free_entry(struct conf_entry *ent);
 static struct conf_entry *init_entry(const char *fname,
 		struct conf_entry *src_entry);
-static void PRS(int argc, char **argv);
+static void parse_args(int argc, char **argv);
 static void usage(void);
-static void dotrim(char *log, const char *pid_file, int numdays, int falgs,
-		int perm, int owner_uid, int group_gid, int sig, int def_cfg);
-static int log_trim(char *log, int def_cfg);
+static void dotrim(const struct conf_entry *ent, char *log,
+		int numdays, int flags);
+static int log_trim(const char *log, const struct conf_entry *log_ent);
 static void compress_log(char *log, int dowait);
 static void bzcompress_log(char *log, int dowait);
 static int sizefile(char *file);
 static int age_old_log(char *file);
 static pid_t get_pid(const char *pid_file);
 static time_t parse8601(char *s, char *errline);
-static void movefile(char *from, char *to, int perm, int owner_uid,
-		int group_gid);
+static void movefile(char *from, char *to, int perm, uid_t owner_uid,
+		gid_t group_gid);
 static void createdir(char *dirpart);
 static time_t parseDWM(char *s, char *errline);
+
+/*
+ * All the following are defined to work on an 'int', in the
+ * range 0 to 255, plus EOF.  Define wrappers which can take
+ * values of type 'char', either signed or unsigned.
+ */
+#define isprintch(Anychar)    isprint(((int) Anychar) & 255)
+#define isspacech(Anychar)    isspace(((int) Anychar) & 255)
+#define tolowerch(Anychar)    tolower(((int) Anychar) & 255)
 
 int
 main(int argc, char **argv)
@@ -139,15 +158,20 @@ main(int argc, char **argv)
 	glob_t pglob;
 	int i;
 
-	PRS(argc, argv);
+	parse_args(argc, argv);
+	argc -= optind;
+	argv += optind;
+
 	if (needroot && getuid() && geteuid())
 		errx(1, "must have root privs");
-	p = q = parse_file(argv + optind);
+	p = q = get_worklist(argv);
 
 	while (p) {
 		if ((p->flags & CE_GLOB) == 0) {
 			do_entry(p);
 		} else {
+			if (verbose > 2)
+				printf("\t+ Processing pattern %s\n", p->log);
 			if (glob(p->log, GLOB_NOCHECK, NULL, &pglob) != 0) {
 				warn("can't expand pattern: %s", p->log);
 			} else {
@@ -158,6 +182,8 @@ main(int argc, char **argv)
 				}
 				globfree(&pglob);
 				p->log = savglob;
+				if (verbose > 2)
+					printf("\t+ Done with pattern\n");
 			}
 		}
 		p = p->next;
@@ -189,6 +215,8 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 		tempwork->pid_file = NULL;
 		if (src_entry->pid_file)
 			tempwork->pid_file = strdup(src_entry->pid_file);
+		tempwork->r_reason = NULL;
+		tempwork->rotate = 0;
 		tempwork->uid = src_entry->uid;
 		tempwork->gid = src_entry->gid;
 		tempwork->numlogs = src_entry->numlogs;
@@ -202,8 +230,10 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 	} else {
 		/* Initialize as a "do-nothing" entry */
 		tempwork->pid_file = NULL;
-		tempwork->uid = NONE;
-		tempwork->gid = NONE;
+		tempwork->r_reason = NULL;
+		tempwork->rotate = 0;
+		tempwork->uid = (uid_t)-1;
+		tempwork->gid = (gid_t)-1;
 		tempwork->numlogs = 1;
 		tempwork->size = -1;
 		tempwork->hours = -1;
@@ -237,14 +267,20 @@ free_entry(struct conf_entry *ent)
 		ent->pid_file = NULL;
 	}
 
+	if (ent->r_reason != NULL) {
+		free(ent->r_reason);
+		ent->r_reason = NULL;
+	}
+
 	free(ent);
 }
 
 static void
 do_entry(struct conf_entry * ent)
 {
+#define REASON_MAX	80
 	int size, modtime;
-	const char *pid_file;
+	char temp_reason[REASON_MAX];
 
 	if (verbose) {
 		if (ent->flags & CE_COMPACT)
@@ -256,11 +292,12 @@ do_entry(struct conf_entry * ent)
 	}
 	size = sizefile(ent->log);
 	modtime = age_old_log(ent->log);
+	ent->rotate = 0;
 	if (size < 0) {
 		if (verbose)
 			printf("does not exist.\n");
 	} else {
-		if (ent->flags & CE_TRIMAT && !force) {
+		if (ent->flags & CE_TRIMAT && !force && !rotatereq) {
 			if (timenow < ent->trim_at
 			    || difftime(timenow, ent->trim_at) >= 60 * 60) {
 				if (verbose)
@@ -275,10 +312,35 @@ do_entry(struct conf_entry * ent)
 			printf("size (Kb): %d [%d] ", size, ent->size);
 		if (verbose && (ent->hours > 0))
 			printf(" age (hr): %d [%d] ", modtime, ent->hours);
-		if (force || ((ent->size > 0) && (size >= ent->size)) ||
-		    (ent->hours <= 0 && (ent->flags & CE_TRIMAT)) ||
-		    ((ent->hours > 0) && ((modtime >= ent->hours)
-			    || (modtime < 0)))) {
+
+		/*
+		 * Figure out if this logfile needs to be rotated.
+		 */
+		temp_reason[0] = '\0';
+		if (rotatereq) {
+			ent->rotate = 1;
+			snprintf(temp_reason, REASON_MAX, " due to -R from %s",
+			    requestor);
+		} else if (force) {
+			ent->rotate = 1;
+			snprintf(temp_reason, REASON_MAX, " due to -F request");
+		} else if ((ent->size > 0) && (size >= ent->size)) {
+			ent->rotate = 1;
+			snprintf(temp_reason, REASON_MAX, " due to size>%dK",
+			    ent->size);
+		} else if (ent->hours <= 0 && (ent->flags & CE_TRIMAT)) {
+			ent->rotate = 1;
+		} else if ((ent->hours > 0) && ((modtime >= ent->hours) ||
+		    (modtime < 0))) {
+			ent->rotate = 1;
+		}
+
+		/*
+		 * If the file needs to be rotated, then rotate it.
+		 */
+		if (ent->rotate) {
+			if (temp_reason[0] != '\0')
+				ent->r_reason = strdup(temp_reason);
 			if (verbose)
 				printf("--> trimming log....\n");
 			if (noaction && !verbose) {
@@ -292,66 +354,79 @@ do_entry(struct conf_entry * ent)
 					printf("%s <%d>: trimming\n",
 					    ent->log, ent->numlogs);
 			}
-			if (ent->pid_file) {
-				pid_file = ent->pid_file;
-			} else {
-				/* Only try to notify syslog if we are root */
-				if (needroot)
-					pid_file = _PATH_SYSLOGPID;
-				else
-					pid_file = NULL;
-			}
-			dotrim(ent->log, pid_file, ent->numlogs,
-			    ent->flags, ent->permissions, ent->uid, ent->gid,
-			    ent->sig, ent->def_cfg);
+			dotrim(ent, ent->log, ent->numlogs, ent->flags);
 		} else {
 			if (verbose)
 				printf("--> skipping\n");
 		}
 	}
+#undef REASON_MAX
 }
 
 static void
-PRS(int argc, char **argv)
+parse_args(int argc, char **argv)
 {
-	int c;
+	int ch;
 	char *p;
 
-	timenow = time((time_t *) 0);
+	timenow = time(NULL);
 	(void)strncpy(daytime, ctime(&timenow) + 4, 15);
 	daytime[15] = '\0';
 
 	/* Let's get our hostname */
-	(void) gethostname(hostname, sizeof(hostname));
+	(void)gethostname(hostname, sizeof(hostname));
 
 	/* Truncate domain */
-	if ((p = strchr(hostname, '.'))) {
+	if ((p = strchr(hostname, '.')) != NULL)
 		*p = '\0';
-	}
-	while ((c = getopt(argc, argv, "nrvFf:a:")) != -1)
-		switch (c) {
-		case 'n':
-			noaction++;
-			break;
+
+	/* Parse command line options. */
+	while ((ch = getopt(argc, argv, "a:f:nrsvFR:")) != -1)
+		switch (ch) {
 		case 'a':
 			archtodir++;
 			archdirname = optarg;
 			break;
+		case 'f':
+			conf = optarg;
+			break;
+		case 'n':
+			noaction++;
+			break;
 		case 'r':
 			needroot = 0;
+			break;
+		case 's':
+			nosignal = 1;
 			break;
 		case 'v':
 			verbose++;
 			break;
-		case 'f':
-			conf = optarg;
-			break;
 		case 'F':
 			force++;
 			break;
+		case 'R':
+			rotatereq++;
+			requestor = strdup(optarg);
+			break;
+		case 'm':	/* Used by OpenBSD for "monitor mode" */
 		default:
 			usage();
+			/* NOTREACHED */
 		}
+
+	if (rotatereq) {
+		if (optind == argc) {
+			warnx("At least one filename must be given when -R is specified.");
+			usage();
+			/* NOTREACHED */
+		}
+		/* Make sure "requestor" value is safe for a syslog message. */
+		for (p = requestor; *p != '\0'; p++) {
+			if (!isprintch(*p) && (*p != '\t'))
+				*p = '.';
+		}
+	}
 }
 
 static void
@@ -359,35 +434,187 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: newsyslog [-Fnrv] [-f config-file] [-a directory] [ filename ... ]\n");
+	    "usage: newsyslog [-Fnrsv] [-a directory] [-f config-file]\n"
+	    "                 [ [-R requestor] filename ... ]\n");
 	exit(1);
 }
 
 /*
- * Parse a configuration file and return a linked list of all the logs to
- * process
+ * Parse a configuration file and return a linked list of all the logs
+ * which should be processed.
  */
 static struct conf_entry *
-parse_file(char **files)
+get_worklist(char **files)
 {
 	FILE *f;
+	const char *fname;
+	char **given;
+	struct conf_entry *defconf, *dupent, *ent, *firstnew;
+	struct conf_entry *newlist, *worklist;
+	int gmatch;
+
+	defconf = worklist = NULL;
+
+	fname = conf;
+	if (fname == NULL)
+		fname = _PATH_CONF;
+
+	if (strcmp(fname, "-") != 0)
+		f = fopen(fname, "r");
+	else {
+		f = stdin;
+		fname = "<stdin>";
+	}
+	if (!f)
+		err(1, "%s", conf);
+
+	parse_file(f, fname, &worklist, &defconf);
+	(void) fclose(f);
+
+	/*
+	 * All config-file information has been read in and turned into
+	 * a worklist.  If there were no specific files given on the run
+	 * command, then the work of this routine is done.
+	 */
+	if (*files == NULL) {
+		if (defconf != NULL)
+			free_entry(defconf);
+		return (worklist);
+		/* NOTREACHED */
+	}
+
+	/*
+	 * If newsyslog was given a specific list of files to process,
+	 * it may be that some of those files were not listed in any
+	 * config file.  Those unlisted files should get the default
+	 * rotation action.  First, create the default-rotation action
+	 * if none was found in a system config file.
+	 */
+	if (defconf == NULL) {
+		defconf = init_entry(DEFAULT_MARKER, NULL);
+		defconf->numlogs = 3;
+		defconf->size = 50;
+		defconf->permissions = S_IRUSR|S_IWUSR;
+	}
+
+	/*
+	 * If newsyslog was run with a list of specific filenames,
+	 * then create a new worklist which has only those files in
+	 * it, picking up the rotation-rules for those files from
+	 * the original worklist.
+	 *
+	 * XXX - Note that this will copy multiple rules for a single
+	 *	logfile, if multiple entries are an exact match for
+	 *	that file.  That matches the historic behavior, but do
+	 *	we want to continue to allow it?  If so, it should
+	 *	probably be handled more intelligently.
+	 */
+	firstnew = newlist = NULL;
+	for (given = files; *given; ++given) {
+		gmatch = 0;
+		/*
+		 * First try to find exact-matches for this given file.
+		 */
+		for (ent = worklist; ent; ent = ent->next) {
+			if ((ent->flags & CE_GLOB) != 0)
+				continue;
+			if (strcmp(ent->log, *given) == 0) {
+				gmatch++;
+				dupent = init_entry(*given, ent);
+				if (!firstnew)
+					firstnew = dupent;
+				else
+					newlist->next = dupent;
+				newlist = dupent;
+			}
+		}
+		if (gmatch) {
+			if (verbose > 2)
+				printf("\t+ Matched entry %s\n", *given);
+			continue;
+		}
+
+		/*
+		 * There was no exact-match for this given file, so look
+		 * for a "glob" entry which does match.
+		 */
+		for (ent = worklist; ent; ent = ent->next) {
+			if ((ent->flags & CE_GLOB) == 0)
+				continue;
+			if (fnmatch(ent->log, *given, FNM_PATHNAME) == 0) {
+				gmatch++;
+				dupent = init_entry(*given, ent);
+				if (!firstnew)
+					firstnew = dupent;
+				else
+					newlist->next = dupent;
+				newlist = dupent;
+				/* This work entry is *not* a glob! */
+				dupent->flags &= ~CE_GLOB;
+				/* Only allow a match to one glob-entry */
+				break;
+			}
+		}
+		if (gmatch) {
+			if (verbose > 2)
+				printf("\t+ Matched %s via %s\n", *given,
+				    ent->log);
+			continue;
+		}
+
+		/*
+		 * This given file was not found in any config file, so
+		 * add a worklist item based on the default entry.
+		 */
+		if (verbose > 2)
+			printf("\t+ No entry matched %s  (will use %s)\n",
+			    *given, DEFAULT_MARKER);
+		dupent = init_entry(*given, defconf);
+		if (!firstnew)
+			firstnew = dupent;
+		else
+			newlist->next = dupent;
+		/* Mark that it was *not* found in a config file */
+		dupent->def_cfg = 1;
+		newlist = dupent;
+	}
+
+	/*
+	 * Free all the entries in the original work list, and then
+	 * return the new work list.
+	 */
+	while (worklist) {
+		ent = worklist->next;
+		free_entry(worklist);
+		worklist = ent;
+	}
+
+	free_entry(defconf);
+	return (firstnew);
+}
+
+/*
+ * Parse a configuration file and update a linked list of all the logs to
+ * process.
+ */
+static void
+parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
+    struct conf_entry **defconf_p)
+{
 	char line[BUFSIZ], *parse, *q;
 	char *cp, *errline, *group;
-	char **given;
-	struct conf_entry *defconf, *first, *working, *worklist;
-	struct passwd *pass;
+	struct conf_entry *working, *worklist;
+	struct passwd *pwd;
 	struct group *grp;
 	int eol;
 
-	defconf = first = working = worklist = NULL;
+	/*
+	 * XXX - for now, assume that only one config file will be read,
+	 *	ie, this routine is only called one time.
+	 */
+	worklist = NULL;
 
-	if (strcmp(conf, "-"))
-		f = fopen(conf, "r");
-	else
-		f = stdin;
-	if (!f)
-		err(1, "%s", conf);
-	while (fgets(line, BUFSIZ, f)) {
+	while (fgets(line, BUFSIZ, cf)) {
 		if ((line[0] == '\n') || (line[0] == '#') ||
 		    (strlen(line) == 0))
 			continue;
@@ -411,51 +638,22 @@ parse_file(char **files)
 			    errline);
 		*parse = '\0';
 
-		/*
-		 * If newsyslog was run with a list of specific filenames,
-		 * then this line of the config file should be skipped if
-		 * it is NOT one of those given files (except that we do
-		 * want any line that defines the <default> action).
-		 *
-		 * XXX - note that CE_GLOB processing is *NOT* done when
-		 *       trying to match a filename given on the command!
-		 */
-		if (*files) {
-			if (strcasecmp(DEFAULT_MARKER, q) != 0) {
-				for (given = files; *given; ++given) {
-					if (strcmp(*given, q) == 0)
-						break;
-				}
-				if (!*given)
-					continue;
-			}
-			if (verbose > 2)
-				printf("\t+ Matched entry %s\n", q);
-		} else {
-			/*
-			 * If no files were specified on the command line,
-			 * then we can skip any line which defines the
-			 * default action.
-			 */
-			if (strcasecmp(DEFAULT_MARKER, q) == 0) {
-				if (verbose > 2)
-					printf("\t+ Ignoring entry for %s\n",
-					    q);
-				continue;
-			}
-		}
-
 		working = init_entry(q, NULL);
 		if (strcasecmp(DEFAULT_MARKER, q) == 0) {
-			if (defconf != NULL) {
+			if (defconf_p == NULL) {
+				warnx("Ignoring entry for %s in %s!", q,
+				    cfname);
+				free_entry(working);
+				continue;
+			} else if (*defconf_p != NULL) {
 				warnx("Ignoring duplicate entry for %s!", q);
 				free_entry(working);
 				continue;
 			}
-			defconf = working;
+			*defconf_p = working;
 		} else {
-			if (!first)
-				first = working;
+			if (!*work_p)
+				*work_p = working;
 			else
 				worklist->next = working;
 			worklist = working;
@@ -472,15 +670,15 @@ parse_file(char **files)
 			*group++ = '\0';
 			if (*q) {
 				if (!(isnumber(*q))) {
-					if ((pass = getpwnam(q)) == NULL)
+					if ((pwd = getpwnam(q)) == NULL)
 						errx(1,
 				     "error in config file; unknown user:\n%s",
 						    errline);
-					working->uid = pass->pw_uid;
+					working->uid = pwd->pw_uid;
 				} else
 					working->uid = atoi(q);
 			} else
-				working->uid = NONE;
+				working->uid = (uid_t)-1;
 
 			q = group;
 			if (*q) {
@@ -493,7 +691,7 @@ parse_file(char **files)
 				} else
 					working->gid = atoi(q);
 			} else
-				working->gid = NONE;
+				working->gid = (gid_t)-1;
 
 			q = parse = missing_field(sob(++parse), errline);
 			parse = son(parse);
@@ -501,8 +699,10 @@ parse_file(char **files)
 				errx(1, "malformed line (missing fields):\n%s",
 				    errline);
 			*parse = '\0';
-		} else
-			working->uid = working->gid = NONE;
+		} else {
+			working->uid = (uid_t)-1;
+			working->gid = (gid_t)-1;
+		}
 
 		if (!sscanf(q, "%o", &working->permissions))
 			errx(1, "error in config file; bad permissions:\n%s",
@@ -574,21 +774,45 @@ parse_file(char **files)
 			*parse = '\0';
 		}
 
-		while (q && *q && !isspace(*q)) {
-			if ((*q == 'Z') || (*q == 'z'))
-				working->flags |= CE_COMPACT;
-			else if ((*q == 'J') || (*q == 'j'))
-				working->flags |= CE_BZCOMPACT;
-			else if ((*q == 'B') || (*q == 'b'))
+		for (; q && *q && !isspacech(*q); q++) {
+			switch (tolowerch(*q)) {
+			case 'b':
 				working->flags |= CE_BINARY;
-			else if ((*q == 'G') || (*q == 'c'))
+				break;
+			case 'c':	/* Used by NetBSD  for "CE_CREATE" */
+				/*
+				 * netbsd uses 'c' for "create".  We will
+				 * temporarily accept it for 'g', because
+				 * earlier freebsd versions had a typo
+				 * of ('G' || 'c')...
+				 */
+				warnx("Assuming 'g' for 'c' in flags for line:\n%s",
+				    errline);
+				/* FALLTHROUGH */
+			case 'g':
 				working->flags |= CE_GLOB;
-			else if ((*q == 'W') || (*q == 'w'))
+				break;
+			case 'j':
+				working->flags |= CE_BZCOMPACT;
+				break;
+			case 'n':
+				working->flags |= CE_NOSIGNAL;
+				break;
+			case 'w':
 				working->flags |= CE_COMPACTWAIT;
-			else if (*q != '-')
+				break;
+			case 'z':
+				working->flags |= CE_COMPACT;
+				break;
+			case '-':
+				break;
+			case 'f':	/* Used by OpenBSD for "CE_FOLLOW" */
+			case 'm':	/* Used by OpenBSD for "CE_MONITOR" */
+			case 'p':	/* Used by NetBSD  for "CE_PLAIN0" */
+			default:
 				errx(1, "illegal flag in config file -- %c",
 				    *q);
-			q++;
+			}
 		}
 
 		if (eol)
@@ -633,60 +857,37 @@ parse_file(char **files)
 			if (working->sig < 1 || working->sig >= NSIG)
 				goto err_sig;
 		}
-		free(errline);
-	}
-	(void) fclose(f);
 
-	/*
-	 * The entire config file has been processed.  If there were
-	 * no specific files given on the run command, then the work
-	 * of this routine is done.
-	 */
-	if (*files == NULL)
-		return (first);
-
-	/*
-	 * If the program was given a specific list of files to process,
-	 * it may be that some of those files were not listed in the
-	 * config file.  Those unlisted files should get the default
-	 * rotation action.  First, create the default-rotation action
-	 * if none was found in the config file.
-	 */
-	if (defconf == NULL) {
-		working = init_entry(DEFAULT_MARKER, NULL);
-		working->numlogs = 3;
-		working->size = 50;
-		working->permissions = S_IRUSR|S_IWUSR;
-		defconf = working;
-	}
-
-	for (given = files; *given; ++given) {
-		for (working = first; working; working = working->next) {
-			if (strcmp(*given, working->log) == 0)
-				break;
-		}
-		if (working != NULL)
-			continue;
-		if (verbose > 2)
-			printf("\t+ No entry for %s  (will use %s)\n",
-			    *given, DEFAULT_MARKER);
 		/*
-		 * This given file was not found in the config file.
-		 * Add another item on to our work list, based on the
-		 * default entry.
+		 * Finish figuring out what pid-file to use (if any) in
+		 * later processing if this logfile needs to be rotated.
 		 */
-		working = init_entry(*given, defconf);
-		if (!first)
-			first = working;
-		else
-			worklist->next = working;
-		/* This is a file that was *not* found in config file */
-		working->def_cfg = 1;
-		worklist = working;
-	}
+		if ((working->flags & CE_NOSIGNAL) == CE_NOSIGNAL) {
+			/*
+			 * This config-entry specified 'n' for nosignal,
+			 * see if it also specified an explicit pid_file.
+			 * This would be a pretty pointless combination.
+			 */
+			if (working->pid_file != NULL) {
+				warnx("Ignoring '%s' because flag 'n' was specified in line:\n%s",
+				    working->pid_file, errline);
+				free(working->pid_file);
+				working->pid_file = NULL;
+			}
+		} else if (working->pid_file == NULL) {
+			/*
+			 * This entry did not specify the 'n' flag, which
+			 * means it should signal syslogd unless it had
+			 * specified some other pid-file.  But we only
+			 * try to notify syslog if we are root
+			 */
+			if (needroot)
+				working->pid_file = strdup(_PATH_SYSLOGPID);
+		}
 
-	free_entry(defconf);
-	return (first);
+		free(errline);
+		errline = NULL;
+	}
 }
 
 static char *
@@ -699,8 +900,7 @@ missing_field(char *p, char *errline)
 }
 
 static void
-dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
-    int owner_uid, int group_gid, int sig, int def_cfg)
+dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 {
 	char dirpart[MAXPATHLEN], namepart[MAXPATHLEN];
 	char file1[MAXPATHLEN], file2[MAXPATHLEN];
@@ -710,16 +910,6 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 	int notified, need_notification, fd, _numdays;
 	struct stat st;
 	pid_t pid;
-
-#ifdef _IBMR2
-	/*
-	 * AIX 3.1 has a broken fchown- if the owner_uid is -1, it will
-	 * actually change it to be owned by uid -1, instead of leaving it
-	 * as is, as it is supposed to.
-	 */
-	if (owner_uid == -1)
-		owner_uid = geteuid();
-#endif
 
 	if (archtodir) {
 		char *p;
@@ -764,9 +954,9 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 	}
 
 	if (noaction) {
-		printf("rm -f %s\n", file1);
-		printf("rm -f %s\n", zfile1);
-		printf("rm -f %s\n", jfile1);
+		printf("\trm -f %s\n", file1);
+		printf("\trm -f %s\n", zfile1);
+		printf("\trm -f %s\n", jfile1);
 	} else {
 		(void) unlink(file1);
 		(void) unlink(zfile1);
@@ -805,77 +995,98 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 			}
 		}
 		if (noaction) {
-			printf("mv %s %s\n", zfile1, zfile2);
-			printf("chmod %o %s\n", perm, zfile2);
-			printf("chown %d:%d %s\n",
-			    owner_uid, group_gid, zfile2);
+			printf("\tmv %s %s\n", zfile1, zfile2);
+			printf("\tchmod %o %s\n", ent->permissions, zfile2);
+			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
+				printf("\tchown %u:%u %s\n",
+				    ent->uid, ent->gid, zfile2);
 		} else {
 			(void) rename(zfile1, zfile2);
-			(void) chmod(zfile2, perm);
-			(void) chown(zfile2, owner_uid, group_gid);
+			if (chmod(zfile2, ent->permissions))
+				warn("can't chmod %s", file2);
+			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
+				if (chown(zfile2, ent->uid, ent->gid))
+					warn("can't chown %s", zfile2);
 		}
 	}
 	if (!noaction && !(flags & CE_BINARY)) {
 		/* Report the trimming to the old log */
-		(void) log_trim(log, def_cfg);
+		(void) log_trim(log, ent);
 	}
 
 	if (!_numdays) {
 		if (noaction)
-			printf("rm %s\n", log);
+			printf("\trm %s\n", log);
 		else
 			(void) unlink(log);
 	} else {
 		if (noaction)
-			printf("mv %s to %s\n", log, file1);
+			printf("\tmv %s to %s\n", log, file1);
 		else {
 			if (archtodir)
-				movefile(log, file1, perm, owner_uid,
-				    group_gid);
+				movefile(log, file1, ent->permissions, ent->uid,
+				    ent->gid);
 			else
 				(void) rename(log, file1);
 		}
 	}
 
-	if (noaction)
-		printf("Start new log...");
-	else {
-		strlcpy(tfile, log, sizeof(tfile));
-		strlcat(tfile, ".XXXXXX", sizeof(tfile));
+	/* Now move the new log file into place */
+	strlcpy(tfile, log, sizeof(tfile));
+	strlcat(tfile, ".XXXXXX", sizeof(tfile));
+	if (noaction) {
+		printf("Start new log...\n");
+		printf("\tmktemp %s\n", tfile);
+	} else {
 		mkstemp(tfile);
-		fd = creat(tfile, perm);
+		fd = creat(tfile, ent->permissions);
 		if (fd < 0)
 			err(1, "can't start new log");
-		if (fchown(fd, owner_uid, group_gid))
-			err(1, "can't chmod new log file");
+		if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
+			if (fchown(fd, ent->uid, ent->gid))
+			    err(1, "can't chown new log file");
 		(void) close(fd);
 		if (!(flags & CE_BINARY)) {
 			/* Add status message to new log file */
-			if (log_trim(tfile, def_cfg))
+			if (log_trim(tfile, ent))
 				err(1, "can't add status message to log");
 		}
 	}
-	if (noaction)
-		printf("chmod %o %s...\n", perm, log);
-	else {
-		(void) chmod(tfile, perm);
+	if (noaction) {
+		printf("\tchmod %o %s\n", ent->permissions, tfile);
+		printf("\tmv %s %s\n", tfile, log);
+	} else {
+		(void) chmod(tfile, ent->permissions);
 		if (rename(tfile, log) < 0) {
 			err(1, "can't start new log");
 			(void) unlink(tfile);
 		}
 	}
 
+	/*
+	 * Find out if there is a process to signal.  If nosignal (-s) was
+	 * specified, then do not signal any process.  Note that nosignal
+	 * will trigger a warning message if the rotated logfile needs to
+	 * be compressed, *unless* -R was specified.  This is because there
+	 * presumably still are process(es) writing to the old logfile, but
+	 * we assume that a -sR request comes from a process which writes 
+	 * to the logfile, and as such, that process has already made sure
+	 * that the logfile is not presently in use.
+	 */
 	pid = 0;
 	need_notification = notified = 0;
-	if (pid_file != NULL) {
+	if (ent->pid_file != NULL) {
 		need_notification = 1;
-		pid = get_pid(pid_file);
+		if (!nosignal)
+			pid = get_pid(ent->pid_file);	/* the normal case! */
+		else if (rotatereq)
+			need_notification = 0;
 	}
 	if (pid) {
 		if (noaction) {
 			notified = 1;
-			printf("kill -%d %d\n", sig, (int) pid);
-		} else if (kill(pid, sig))
+			printf("\tkill -%d %d\n", ent->sig, (int) pid);
+		} else if (kill(pid, ent->sig))
 			warn("can't notify daemon, pid %d", (int) pid);
 		else {
 			notified = 1;
@@ -886,10 +1097,13 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 	if ((flags & CE_COMPACT) || (flags & CE_BZCOMPACT)) {
 		if (need_notification && !notified)
 			warnx(
-			    "log %s not compressed because daemon not notified",
+			    "log %s.0 not compressed because daemon not notified",
 			    log);
 		else if (noaction)
-			printf("Compress %s.0\n", log);
+			if (flags & CE_COMPACT)
+				printf("\tgzip %s.0\n", log);
+			else
+				printf("\tbzip2 %s.0\n", log);
 		else {
 			if (notified) {
 				if (verbose)
@@ -919,7 +1133,7 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 
 /* Log the fact that the logs were turned over */
 static int
-log_trim(char *log, int def_cfg)
+log_trim(const char *log, const struct conf_entry *log_ent)
 {
 	FILE *f;
 	const char *xtra;
@@ -927,10 +1141,14 @@ log_trim(char *log, int def_cfg)
 	if ((f = fopen(log, "a")) == NULL)
 		return (-1);
 	xtra = "";
-	if (def_cfg)
+	if (log_ent->def_cfg)
 		xtra = " using <default> rule";
-	fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s\n",
-	    daytime, hostname, (int) getpid(), xtra);
+	if (log_ent->r_reason != NULL)
+		fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s%s\n",
+		    daytime, hostname, (int) getpid(), log_ent->r_reason, xtra);
+	else
+		fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s\n",
+		    daytime, hostname, (int) getpid(), xtra);
 	if (fclose(f) == EOF)
 		err(1, "log_trim: fclose:");
 	return (0);
@@ -1022,7 +1240,7 @@ age_old_log(char *file)
 	if (stat(strcat(tmp, ".0"), &sb) < 0)
 		if (stat(strcat(tmp, COMPRESS_POSTFIX), &sb) < 0)
 			return (-1);
-	return ((int) (timenow - sb.st_mtime + 1800) / 3600);
+	return ((int)(timenow - sb.st_mtime + 1800) / 3600);
 }
 
 static pid_t
@@ -1052,7 +1270,7 @@ get_pid(const char *pid_file)
 }
 
 /* Skip Over Blanks */
-char *
+static char *
 sob(char *p)
 {
 	while (p && *p && isspace(*p))
@@ -1061,7 +1279,7 @@ sob(char *p)
 }
 
 /* Skip Over Non-Blanks */
-char *
+static char *
 son(char *p)
 {
 	while (p && *p && !isspace(*p))
@@ -1156,7 +1374,7 @@ parse8601(char *s, char *errline)
 
 /* physically move file */
 static void
-movefile(char *from, char *to, int perm, int owner_uid, int group_gid)
+movefile(char *from, char *to, int perm, uid_t owner_uid, gid_t group_gid)
 {
 	FILE *src, *dst;
 	int c;
@@ -1165,8 +1383,10 @@ movefile(char *from, char *to, int perm, int owner_uid, int group_gid)
 		err(1, "can't fopen %s for reading", from);
 	if ((dst = fopen(to, "w")) == NULL)
 		err(1, "can't fopen %s for writing", to);
-	if (fchown(fileno(dst), owner_uid, group_gid))
-		err(1, "can't fchown %s", to);
+	if (owner_uid != (uid_t)-1 || group_gid != (gid_t)-1) {
+		if (fchown(fileno(dst), owner_uid, group_gid))
+			err(1, "can't fchown %s", to);
+	}
 	if (fchmod(fileno(dst), perm))
 		err(1, "can't fchmod %s", to);
 
@@ -1205,7 +1425,7 @@ createdir(char *dirpart)
 		res = lstat(mkdirpath, &st);
 		if (res != 0) {
 			if (noaction) {
-				printf("mkdir %s\n", mkdirpath);
+				printf("\tmkdir %s\n", mkdirpath);
 			} else {
 				res = mkdir(mkdirpath, 0755);
 				if (res != 0)
