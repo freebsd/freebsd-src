@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.39 1997/08/21 07:55:10 fsmp Exp $
+ * $Id: if_le.c,v 1.40 1997/08/21 09:01:00 fsmp Exp $
  */
 
 /*
@@ -101,7 +101,7 @@ typedef u_short le_mcbits_t;
  * Start of DEC EtherWORKS III (LEMAC) dependent structures
  *
  */
-#include "i386/isa/ic/lemac.h"		/* Include LEMAC definitions */
+#include <i386/isa/ic/lemac.h>		/* Include LEMAC definitions */
 
 static int lemac_probe(le_softc_t *sc, const le_board_t *bd, int *msize);
 
@@ -134,7 +134,7 @@ struct le_lemac_info {
  *
  */
 
-#include "i386/isa/ic/am7990.h"
+#include <i386/isa/ic/am7990.h>
 
 #ifndef LN_DOSTATS
 #define	LN_DOSTATS	1
