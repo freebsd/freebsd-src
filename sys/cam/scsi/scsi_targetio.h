@@ -1,6 +1,7 @@
 /*
- * Ioctl definitions for the Target Mode SCSI Proccessor Target driver for CAM.
+ * Ioctl definitions for the SCSI Target Driver
  *
+ * Copyright (c) 2002 Nate Lawson.
  * Copyright (c) 1998 Justin T. Gibbs.
  * All rights reserved.
  *
@@ -34,96 +35,43 @@
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>
+
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 
-TAILQ_HEAD(ccb_queue, ccb_hdr);
-
-/* Determine and clear exception state in the driver */
-typedef enum {
-	TARG_EXCEPT_NONE	   = 0x00,
-	TARG_EXCEPT_DEVICE_INVALID = 0x01,
-	TARG_EXCEPT_BDR_RECEIVED   = 0x02,
-	TARG_EXCEPT_BUS_RESET_SEEN = 0x04,
-	TARG_EXCEPT_ABORT_SEEN	   = 0x08,
-	TARG_EXCEPT_ABORT_TAG_SEEN = 0x10,
-	TARG_EXCEPT_UNKNOWN_ATIO   = 0x80
-} targ_exception;
-
-#define TARGIOCFETCHEXCEPTION	_IOR('C', 1, targ_exception)
-#define TARGIOCCLEAREXCEPTION	_IOW('C', 2, targ_exception)
+/*
+ * CCBs (ATIO, CTIO, INOT, REL_SIMQ) are sent to the kernel driver
+ * by writing one or more pointers.  The user receives notification
+ * of CCB completion through poll/select/kqueue and then calls
+ * read(2) which outputs pointers to the completed CCBs.
+ */
 
 /*
- * Retreive an Accept Target I/O CCB for a command that is not handled
- * directly by the kernel target driver.
+ * Enable and disable a target mode instance.  For enabling, the path_id,
+ * target_id, and lun_id fields must be set.  The grp6/7_len fields
+ * specify the length of vendor-specific CDBs the target expects and
+ * should normally be set to 0.  On successful completion
+ * of enable, the specified target instance will answer selection.
+ * Disable causes the target instance to abort any outstanding commands
+ * and stop accepting new ones.  The aborted CCBs will be returned to
+ * the user via read(2) or discarded if the user closes the device.
+ * The user can then re-enable the device for a new path.
  */
-#define TARGIOCFETCHATIO	_IOR('C', 3, struct ccb_accept_tio)
-
-/*
- * Used for responding to incoming ATIO requests.  XPT_CONTINUE_TARG_IO
- * operations are the norm, but ccb types for manipulating the device
- * queue, etc. can also be used if error handling is to be performed by the
- * user land process.
- */
-#define TARGIOCCOMMAND		_IOWR('C', 4, union ccb)
-
-
-typedef enum {
-	UA_NONE		= 0x00,
-	UA_POWER_ON	= 0x01,
-	UA_BUS_RESET	= 0x02,
-	UA_BDR		= 0x04
-} ua_types;
-
-typedef enum {
-	CA_NONE		= 0x00,
-	CA_UNIT_ATTN	= 0x01,
-	CA_CMD_SENSE	= 0x02
-} ca_types;
-
-struct initiator_state {
-	ua_types   pending_ua;
-	ca_types   pending_ca;
-	struct	   scsi_sense_data sense_data;
-	struct	   ccb_queue held_queue;
-};
-
-struct ioc_initiator_state {
-	u_int	initiator_id;
-	struct	initiator_state istate;
-};
-
-/*
- * Get and Set Contingent Allegiance and Unit Attention state 
- * presented by the target driver.  This is usually used to
- * properly report and error condition in response to an incoming
- * ATIO request handled by the userland process.
- *
- * The initiator_id must be properly initialized in the ioc_initiator_state
- * structure before calling TARGIOCGETISTATE.
- */
-#define TARGIOCGETISTATE	_IOWR('C', 6, struct ioc_initiator_state)
-#define TARGIOCSETISTATE	_IOW('C', 5, struct ioc_initiator_state)
-
-struct ioc_alloc_unit {
+struct ioc_enable_lun {
 	path_id_t	path_id;
 	target_id_t	target_id;
 	lun_id_t	lun_id;
-	u_int		unit;
+	int		grp6_len;
+	int		grp7_len;
 };
-
-/*
- * Allocate and Free a target mode instance.  For allocation, the path_id,
- * target_id, and lun_id fields must be set.  On successful completion
- * of the ioctl, the unit field will indicate the unit number of the
- * newly created instance.  For de-allocation, all fields must match
- * an instance in the inactive (i.e. closed) state.
- */
-#define TARGCTLIOALLOCUNIT	_IOWR('C', 7, struct ioc_alloc_unit)
-#define TARGCTLIOFREEUNIT	_IOW('C', 8, struct ioc_alloc_unit)
+#define TARGIOCENABLE	_IOW('C', 5, struct ioc_enable_lun)
+#define TARGIOCDISABLE	 _IO('C', 6)
 
 /*
  * Set/clear debugging for this target mode instance
  */
-#define	TARGIODEBUG		_IOW('C', 9, int)
+#define	TARGIOCDEBUG	_IOW('C', 7, int)
+
+TAILQ_HEAD(ccb_queue, ccb_hdr);
+
 #endif /* _CAM_SCSI_SCSI_TARGETIO_H_ */
