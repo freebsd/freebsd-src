@@ -101,11 +101,6 @@ static uma_zone_t slabzone;
 static uma_zone_t hashzone;
 
 /*
- * Zone that buckets come from.
- */
-static uma_zone_t bucketzone;
-
-/*
  * Are we allowed to allocate buckets?
  */
 static int bucketdisable = 1;
@@ -150,6 +145,27 @@ struct uma_zctor_args {
 	u_int16_t flags;
 };
 
+struct uma_bucket_zone {
+	uma_zone_t	ubz_zone;
+	char		*ubz_name;
+	int		ubz_entries;
+};
+
+#define	BUCKET_MAX	128
+
+struct uma_bucket_zone bucket_zones[] = {
+	{ NULL, "16 Bucket", 16 },
+	{ NULL, "32 Bucket", 32 },
+	{ NULL, "64 Bucket", 64 },
+	{ NULL, "128 Bucket", 128 },
+	{ NULL, NULL, 0}
+};
+
+#define	BUCKET_SHIFT	4
+#define	BUCKET_ZONES	((BUCKET_MAX >> BUCKET_SHIFT) + 1)
+
+uint8_t bucket_size[BUCKET_ZONES];
+
 /* Prototypes.. */
 
 static void *obj_alloc(uma_zone_t, int, u_int8_t *, int);
@@ -174,6 +190,10 @@ static void uma_startup3(void);
 static void *uma_zalloc_internal(uma_zone_t, void *, int);
 static void uma_zfree_internal(uma_zone_t, void *, void *, int);
 static void bucket_enable(void);
+static void bucket_init(void);
+static uma_bucket_t bucket_alloc(int, int);
+static void bucket_free(uma_bucket_t);
+static void bucket_zone_drain(void);
 static int uma_zalloc_bucket(uma_zone_t zone, int flags);
 static uma_slab_t uma_zone_slab(uma_zone_t zone, int flags);
 static void *uma_slab_alloc(uma_zone_t zone, uma_slab_t slab);
@@ -198,6 +218,76 @@ bucket_enable(void)
 		bucketdisable = 1;
 	else
 		bucketdisable = 0;
+}
+
+static void
+bucket_init(void)
+{
+	struct uma_bucket_zone *ubz;
+	int i;
+	int j;
+
+	for (i = 0, j = 0; bucket_zones[j].ubz_entries != 0; j++) {
+		int size;
+
+		ubz = &bucket_zones[j];
+		size = roundup(sizeof(struct uma_bucket), sizeof(void *));
+		size += sizeof(void *) * ubz->ubz_entries;
+		ubz->ubz_zone = uma_zcreate(ubz->ubz_name, size,
+	    	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_INTERNAL);
+		for (; i <= ubz->ubz_entries; i += (1 << BUCKET_SHIFT))
+			bucket_size[i >> BUCKET_SHIFT] = j;
+	}
+}
+
+static uma_bucket_t
+bucket_alloc(int entries, int bflags)
+{
+	struct uma_bucket_zone *ubz;
+	uma_bucket_t bucket;
+	int idx;
+
+	/*
+	 * This is to stop us from allocating per cpu buckets while we're
+	 * running out of UMA_BOOT_PAGES.  Otherwise, we would exhaust the
+	 * boot pages.  This also prevents us from allocating buckets in
+	 * low memory situations.
+	 */
+
+	if (bucketdisable)
+		return (NULL);
+	idx = howmany(entries, 1 << BUCKET_SHIFT);
+	ubz = &bucket_zones[bucket_size[idx]];
+	bucket = uma_zalloc_internal(ubz->ubz_zone, NULL, bflags);
+	if (bucket) {
+#ifdef INVARIANTS
+		bzero(bucket->ub_bucket, sizeof(void *) * ubz->ubz_entries);
+#endif
+		bucket->ub_cnt = 0;
+		bucket->ub_entries = ubz->ubz_entries;
+	}
+
+	return (bucket);
+}
+
+static void
+bucket_free(uma_bucket_t bucket)
+{
+	struct uma_bucket_zone *ubz;
+	int idx;
+
+	idx = howmany(bucket->ub_entries, 1 << BUCKET_SHIFT);
+	ubz = &bucket_zones[bucket_size[idx]];
+	uma_zfree_internal(ubz->ubz_zone, bucket, NULL, 0);
+}
+
+static void
+bucket_zone_drain(void)
+{
+	struct uma_bucket_zone *ubz;
+
+	for (ubz = &bucket_zones[0]; ubz->ubz_entries != 0; ubz++)
+		zone_drain(ubz->ubz_zone);
 }
 
 
@@ -452,14 +542,14 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 	if (zone->uz_flags & UMA_ZFLAG_MALLOC)
 		mzone = 1;
 
-	while (bucket->ub_ptr > -1)  {
-		item = bucket->ub_bucket[bucket->ub_ptr];
+	while (bucket->ub_cnt > 0)  {
+		bucket->ub_cnt--;
+		item = bucket->ub_bucket[bucket->ub_cnt];
 #ifdef INVARIANTS
-		bucket->ub_bucket[bucket->ub_ptr] = NULL;
+		bucket->ub_bucket[bucket->ub_cnt] = NULL;
 		KASSERT(item != NULL,
 		    ("bucket_drain: botched ptr, item is NULL"));
 #endif
-		bucket->ub_ptr--;
 		/* 
 		 * This is extremely inefficient.  The slab pointer was passed
 		 * to uma_zfree_arg, but we lost it because the buckets don't
@@ -514,11 +604,9 @@ cache_drain(uma_zone_t zone, int destroy)
 		bucket_drain(zone, cache->uc_freebucket);
 		if (destroy) {
 			if (cache->uc_allocbucket != NULL)
-				uma_zfree_internal(bucketzone,
-				    cache->uc_allocbucket, NULL, 0);
+				bucket_free(cache->uc_allocbucket);
 			if (cache->uc_freebucket != NULL)
-				uma_zfree_internal(bucketzone,
-				    cache->uc_freebucket, NULL, 0);
+				bucket_free(cache->uc_freebucket);
 			cache->uc_allocbucket = cache->uc_freebucket = NULL;
 		}
 	}
@@ -532,14 +620,14 @@ cache_drain(uma_zone_t zone, int destroy)
 		LIST_REMOVE(bucket, ub_link);
 		ZONE_UNLOCK(zone);
 		bucket_drain(zone, bucket);
-		uma_zfree_internal(bucketzone, bucket, NULL, 0);
+		bucket_free(bucket);
 		ZONE_LOCK(zone);
 	}
 
 	/* Now we do the free queue.. */
 	while ((bucket = LIST_FIRST(&zone->uz_free_bucket)) != NULL) {
 		LIST_REMOVE(bucket, ub_link);
-		uma_zfree_internal(bucketzone, bucket, NULL, 0);
+		bucket_free(bucket);
 	}
 
 	/* We unlock here, but they will all block until the zone is unlocked */
@@ -659,8 +747,7 @@ finished:
 
 }
 
-static __inline
-void
+static __inline void
 zone_drain(uma_zone_t zone)
 {
 	zone_drain_common(zone, 0);
@@ -1132,10 +1219,10 @@ zone_ctor(void *mem, int size, void *udata)
 	if (zone->uz_flags & UMA_ZFLAG_INTERNAL)
 		return;
 
-	if (zone->uz_ipers < UMA_BUCKET_SIZE)
-		zone->uz_count = zone->uz_ipers - 1;
+	if (zone->uz_ipers <= BUCKET_MAX)
+		zone->uz_count = zone->uz_ipers;
 	else
-		zone->uz_count = UMA_BUCKET_SIZE - 1;
+		zone->uz_count = BUCKET_MAX;
 }
 
 /* 
@@ -1266,9 +1353,7 @@ uma_startup(void *bootmem)
 	    NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_INTERNAL);
 
-	bucketzone = uma_zcreate("UMA Buckets", sizeof(struct uma_bucket),
-	    NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_INTERNAL);
+	bucket_init();
 
 #ifdef UMA_MD_SMALL_ALLOC
 	booted = 1;
@@ -1385,12 +1470,12 @@ zalloc_start:
 	bucket = cache->uc_allocbucket;
 
 	if (bucket) {
-		if (bucket->ub_ptr > -1) {
-			item = bucket->ub_bucket[bucket->ub_ptr];
+		if (bucket->ub_cnt > 0) {
+			bucket->ub_cnt--;
+			item = bucket->ub_bucket[bucket->ub_cnt];
 #ifdef INVARIANTS
-			bucket->ub_bucket[bucket->ub_ptr] = NULL;
+			bucket->ub_bucket[bucket->ub_cnt] = NULL;
 #endif
-			bucket->ub_ptr--;
 			KASSERT(item != NULL,
 			    ("uma_zalloc: Bucket pointer mangled."));
 			cache->uc_allocs++;
@@ -1410,7 +1495,7 @@ zalloc_start:
 			 * We have run out of items in our allocbucket.
 			 * See if we can switch with our free bucket.
 			 */
-			if (cache->uc_freebucket->ub_ptr > -1) {
+			if (cache->uc_freebucket->ub_cnt > 0) {
 				uma_bucket_t swap;
 
 #ifdef UMA_DEBUG_ALLOC
@@ -1431,7 +1516,7 @@ zalloc_start:
 
 	/* Our old one is now a free bucket */
 	if (cache->uc_allocbucket) {
-		KASSERT(cache->uc_allocbucket->ub_ptr == -1,
+		KASSERT(cache->uc_allocbucket->ub_cnt == 0,
 		    ("uma_zalloc_arg: Freeing a non free bucket."));
 		LIST_INSERT_HEAD(&zone->uz_free_bucket,
 		    cache->uc_allocbucket, ub_link);
@@ -1440,7 +1525,7 @@ zalloc_start:
 
 	/* Check the free list for a new alloc bucket */
 	if ((bucket = LIST_FIRST(&zone->uz_full_bucket)) != NULL) {
-		KASSERT(bucket->ub_ptr != -1,
+		KASSERT(bucket->ub_cnt != 0,
 		    ("uma_zalloc_arg: Returning an empty bucket."));
 
 		LIST_REMOVE(bucket, ub_link);
@@ -1452,7 +1537,7 @@ zalloc_start:
 	CPU_UNLOCK(cpu);
 
 	/* Bump up our uz_count so we get here less */
-	if (zone->uz_count < UMA_BUCKET_SIZE - 1)
+	if (zone->uz_count < BUCKET_MAX)
 		zone->uz_count++;
 
 	/*
@@ -1489,7 +1574,7 @@ uma_zone_slab(uma_zone_t zone, int flags)
 	 * things happen.  So instead we return a NULL bucket, and make
 	 * the code that allocates buckets smart enough to deal with it
 	 */ 
-	if (zone == bucketzone && zone->uz_recurse != 0)
+	if (zone->uz_flags & UMA_ZFLAG_INTERNAL && zone->uz_recurse != 0)
 		return (NULL);
 
 	slab = NULL;
@@ -1586,26 +1671,19 @@ uma_zalloc_bucket(uma_zone_t zone, int flags)
 	 */
 
 	if ((bucket = LIST_FIRST(&zone->uz_free_bucket)) != NULL) {
-		KASSERT(bucket->ub_ptr == -1,
+		KASSERT(bucket->ub_cnt == 0,
 		    ("uma_zalloc_bucket: Bucket on free list is not empty."));
 		LIST_REMOVE(bucket, ub_link);
 	} else {
 		int bflags;
 
-		bflags = flags;
+		bflags = (flags & ~M_ZERO);
 		if (zone->uz_flags & UMA_ZFLAG_CACHEONLY)
 			bflags |= M_NOVM;
 
 		ZONE_UNLOCK(zone);
-		bucket = uma_zalloc_internal(bucketzone,
-		    NULL, bflags);
+		bucket = bucket_alloc(zone->uz_count, bflags);
 		ZONE_LOCK(zone);
-		if (bucket != NULL) {
-#ifdef INVARIANTS
-			bzero(bucket, bucketzone->uz_size);
-#endif
-			bucket->ub_ptr = -1;
-		}
 	}
 
 	if (bucket == NULL)
@@ -1624,11 +1702,11 @@ uma_zalloc_bucket(uma_zone_t zone, int flags)
 	zone->uz_fills++;
 
 	/* Try to keep the buckets totally full */
-	while (bucket->ub_ptr < zone->uz_count &&
+	while (bucket->ub_cnt < bucket->ub_entries &&
 	    (slab = uma_zone_slab(zone, flags)) != NULL) {
 		while (slab->us_freecount &&
-		    bucket->ub_ptr < zone->uz_count) {
-			bucket->ub_bucket[++bucket->ub_ptr] =
+		    bucket->ub_cnt < bucket->ub_entries) {
+			bucket->ub_bucket[bucket->ub_cnt++] =
 			    uma_slab_alloc(zone, slab);
 		}
 		/* Don't block on the next fill */
@@ -1637,7 +1715,7 @@ uma_zalloc_bucket(uma_zone_t zone, int flags)
 
 	zone->uz_fills--;
 
-	if (bucket->ub_ptr != -1) {
+	if (bucket->ub_cnt != 0) {
 		LIST_INSERT_HEAD(&zone->uz_full_bucket,
 		    bucket, ub_link);
 		return (1);
@@ -1645,7 +1723,7 @@ uma_zalloc_bucket(uma_zone_t zone, int flags)
 #ifdef SMP
 done:
 #endif
-	uma_zfree_internal(bucketzone, bucket, NULL, 0);
+	bucket_free(bucket);
 
 	return (0);
 }
@@ -1669,15 +1747,6 @@ uma_zalloc_internal(uma_zone_t zone, void *udata, int flags)
 	void *item;
 
 	item = NULL;
-
-	/*
-	 * This is to stop us from allocating per cpu buckets while we're
-	 * running out of UMA_BOOT_PAGES.  Otherwise, we would exhaust the
-	 * boot pages.
-	 */
-
-	if (bucketdisable && zone == bucketzone)
-		return (NULL);
 
 #ifdef UMA_DEBUG_ALLOC
 	printf("INTERNAL: Allocating one item from %s(%p)\n", zone->uz_name, zone);
@@ -1744,11 +1813,11 @@ zfree_start:
 		 * check to be slightly out of sync.
 		 */
 
-		if (bucket->ub_ptr < zone->uz_count) {
-			bucket->ub_ptr++;
-			KASSERT(bucket->ub_bucket[bucket->ub_ptr] == NULL,
+		if (bucket->ub_cnt < bucket->ub_entries) {
+			KASSERT(bucket->ub_bucket[bucket->ub_cnt] == NULL,
 			    ("uma_zfree: Freeing to non free bucket index."));
-			bucket->ub_bucket[bucket->ub_ptr] = item;
+			bucket->ub_bucket[bucket->ub_cnt] = item;
+			bucket->ub_cnt++;
 #ifdef INVARIANTS
 			ZONE_LOCK(zone);
 			if (zone->uz_flags & UMA_ZFLAG_MALLOC)
@@ -1767,8 +1836,8 @@ zfree_start:
 			 * We have run out of space in our freebucket.
 			 * See if we can switch with our alloc bucket.
 			 */
-			if (cache->uc_allocbucket->ub_ptr < 
-			    cache->uc_freebucket->ub_ptr) {
+			if (cache->uc_allocbucket->ub_cnt < 
+			    cache->uc_freebucket->ub_cnt) {
 				uma_bucket_t swap;
 
 				swap = cache->uc_freebucket;
@@ -1798,8 +1867,8 @@ zfree_start:
 #ifdef UMA_DEBUG_ALLOC
 		printf("uma_zfree: Putting old bucket on the free list.\n");
 #endif
-		/* ub_ptr is pointing to the last free item */
-		KASSERT(bucket->ub_ptr != -1,
+		/* ub_cnt is pointing to the last free item */
+		KASSERT(bucket->ub_cnt != 0,
 		    ("uma_zfree: Attempting to insert an empty bucket onto the full list.\n"));
 		LIST_INSERT_HEAD(&zone->uz_full_bucket,
 		    bucket, ub_link);
@@ -1823,13 +1892,8 @@ zfree_start:
 
 	if (zone->uz_flags & UMA_ZFLAG_CACHEONLY)
 		bflags |= M_NOVM;
-#ifdef INVARIANTS
-	bflags |= M_ZERO;
-#endif
-	bucket = uma_zalloc_internal(bucketzone,
-	    NULL, bflags);
+	bucket = bucket_alloc(zone->uz_count, bflags);
 	if (bucket) {
-		bucket->ub_ptr = -1;
 		ZONE_LOCK(zone);
 		LIST_INSERT_HEAD(&zone->uz_free_bucket,
 		    bucket, ub_link);
@@ -2067,8 +2131,8 @@ uma_reclaim(void)
 	 * we visit again so that we can free pages that are empty once other
 	 * zones are drained.  We have to do the same for buckets.
 	 */
-	zone_drain(slabzone);
-	zone_drain(bucketzone);
+	zone_drain_common(slabzone, 0);
+	bucket_zone_drain();
 }
 
 void *
@@ -2182,14 +2246,14 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 					continue;
 				cache = &z->uz_cpu[cpu];
 				if (cache->uc_allocbucket != NULL)
-					cachefree += cache->uc_allocbucket->ub_ptr + 1;
+					cachefree += cache->uc_allocbucket->ub_cnt;
 				if (cache->uc_freebucket != NULL)
-					cachefree += cache->uc_freebucket->ub_ptr + 1;
+					cachefree += cache->uc_freebucket->ub_cnt;
 				CPU_UNLOCK(cpu);
 			}
 		}
 		LIST_FOREACH(bucket, &z->uz_full_bucket, ub_link) {
-			cachefree += bucket->ub_ptr + 1;
+			cachefree += bucket->ub_cnt;
 		}
 		totalfree = z->uz_free + cachefree;
 		len = snprintf(offset, linesize,
