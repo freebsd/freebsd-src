@@ -87,6 +87,7 @@ static struct targ_cdb_handlers cdb_handlers[] = {
 	{ SYNCHRONIZE_CACHE,	tcmd_null_ok,		NULL },
 	{ MODE_SENSE_6,		tcmd_illegal_req,	NULL },
 	{ MODE_SELECT_6,	tcmd_illegal_req,	NULL },
+	/* XXX REPORT_LUNS should be handled here. */
 #ifdef READ_16
 	{ READ_16,		tcmd_rdwr,		tcmd_rdwr_done },
 	{ WRITE_16,		tcmd_rdwr,		tcmd_rdwr_done },
@@ -258,7 +259,7 @@ tcmd_sense(u_int init_id, struct ccb_scsiio *ctio, u_int8_t flags,
 		bcopy(sense, &ctio->sense_data, sizeof(*sense));
 		ctio->sense_len = sizeof(*sense);  /* XXX */
 		ctio->ccb_h.flags &= ~CAM_DIR_MASK;
-		ctio->ccb_h.flags |= CAM_DIR_NONE | /* CAM_SEND_SENSE | */
+		ctio->ccb_h.flags |= CAM_DIR_NONE | CAM_SEND_SENSE |
 				     CAM_SEND_STATUS;
 		ctio->dxfer_len = 0;
 		ctio->scsi_status = SCSI_STATUS_CHECK_COND;
