@@ -31,8 +31,8 @@ aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	   \
 	compile-with	"${NORMAL_C}"					   \
 	no-implicit-rule local
 miidevs.h			standard				   \
-	dependency	"$S/tools/devlist2h.awk $S/dev/mii/miidevs"	   \
-	compile-with	"${AWK} -f $S/tools/devlist2h.awk $S/dev/mii/miidevs" \
+	dependency	"$S/tools/miidevs2h.awk $S/dev/mii/miidevs"	   \
+	compile-with	"${AWK} -f $S/tools/miidevs2h.awk $S/dev/mii/miidevs" \
 	no-obj no-implicit-rule						   \
 	clean		"miidevs.h"
 emu10k1-alsa%diked.h		optional pcm pci			   \

@@ -332,9 +332,9 @@ CLEANFILES+=	miidevs.h
 miidevs.h: @
 .endif
 .if exists(@)
-miidevs.h: @/tools/devlist2h.awk @/dev/mii/miidevs
+miidevs.h: @/tools/miidevs2h.awk @/dev/mii/miidevs
 .endif
-	${AWK} -f @/tools/devlist2h.awk @/dev/mii/miidevs
+	${AWK} -f @/tools/miidevs2h.awk @/dev/mii/miidevs
 .endif
 
 regress:
