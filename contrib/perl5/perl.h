@@ -3306,6 +3306,10 @@ typedef struct am_table_short AMTS;
 
 #endif /* IAMSUID */
 
+#ifdef I_LIBUTIL
+#   include <libutil.h>		/* setproctitle() in some FreeBSDs */
+#endif
+
 /* and finally... */
 #define PERL_PATCHLEVEL_H_IMPLICIT
 #include "patchlevel.h"
