@@ -142,7 +142,6 @@ struct aiocblist {
         struct	buf *bp;		/* Buffer pointer */
         struct	proc *userproc;		/* User process */
         struct	file *fd_file;		/* Pointer to file structure */ 
-	struct	aioproclist *jobaioproc;/* AIO process descriptor */
         struct	aio_liojob *lio;	/* Optional lio job */
         struct	aiocb *uuaiocb;		/* Pointer in userspace of aiocb */
 	struct	klist klist;		/* list of knotes */

@@ -558,7 +558,7 @@ void
 aio_process(struct aiocblist *aiocbe)
 {
 	struct filedesc *fdp;
-	struct proc *userp, *mycp;
+	struct proc *mycp;
 	struct aiocb *cb;
 	struct file *fp;
 	struct uio auio;
@@ -566,11 +566,9 @@ aio_process(struct aiocblist *aiocbe)
 	unsigned int fd;
 	int cnt;
 	int error;
-	off_t offset;
 	int oublock_st, oublock_end;
 	int inblock_st, inblock_end;
 
-	userp = aiocbe->userproc;
 	cb = &aiocbe->uaiocb;
 
 	mycp = curproc;
@@ -590,7 +588,7 @@ aio_process(struct aiocblist *aiocbe)
 
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
-	auio.uio_offset = offset = cb->aio_offset;
+	auio.uio_offset = cb->aio_offset;
 	auio.uio_resid = cb->aio_nbytes;
 	cnt = cb->aio_nbytes;
 	auio.uio_segflg = UIO_USERSPACE;
@@ -621,7 +619,7 @@ aio_process(struct aiocblist *aiocbe)
 		if (error == ERESTART || error == EINTR || error == EWOULDBLOCK)
 			error = 0;
 		if ((error == EPIPE) && (cb->aio_lio_opcode == LIO_WRITE))
-			psignal(userp, SIGPIPE);
+			psignal(aiocbe->userproc, SIGPIPE);
 	}
 
 	cnt -= auio.uio_resid;
@@ -782,7 +780,6 @@ aio_daemon(void *uproc)
 			ki->kaio_active_count++;
 
 			/* Do the I/O function. */
-			aiocbe->jobaioproc = aiop;
 			aio_process(aiocbe);
 
 			/* Decrement the active job count. */
@@ -1480,7 +1477,7 @@ aio_return(struct proc *p, struct aio_return_args *uap)
 	return ENOSYS;
 #else
 	int s;
-	int jobref;
+	long jobref;
 	struct aiocblist *cb, *ncb;
 	struct aiocb *ujob;
 	struct kaioinfo *ki;
@@ -1558,7 +1555,7 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 	int i;
 	int njoblist;
 	int error, s, timo;
-	int *ijoblist;
+	long *ijoblist;
 	struct aiocb **ujoblist;
 	
 	if (uap->nent > AIO_LISTIO_MAX)
@@ -1784,7 +1781,7 @@ aio_error(struct proc *p, struct aio_error_args *uap)
 	int s;
 	struct aiocblist *cb;
 	struct kaioinfo *ki;
-	int jobref;
+	long jobref;
 
 	ki = p->p_aioinfo;
 	if (ki == NULL)
@@ -2156,7 +2153,6 @@ aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 #else
 	struct timeval atv;
 	struct timespec ts;
-	struct aiocb **cbptr;
 	struct kaioinfo *ki;
 	struct aiocblist *cb = NULL;
 	int error, s, timo;
@@ -2182,8 +2178,6 @@ aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 	ki = p->p_aioinfo;
 	if (ki == NULL)
 		return EAGAIN;
-
-	cbptr = uap->aiocbp;
 
 	for (;;) {
 		if ((cb = TAILQ_FIRST(&ki->kaio_jobdone)) != 0) {
