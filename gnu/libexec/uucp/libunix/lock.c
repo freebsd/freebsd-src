@@ -1,7 +1,7 @@
 /* lock.c
    Lock and unlock a file name.
 
-   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char lock_rcsid[] = "$Id: lock.c,v 1.2 1994/05/07 18:10:40 ache Exp $";
+const char lock_rcsid[] = "$Id: lock.c,v 1.20 1995/06/21 19:19:38 ian Rel $";
 #endif
 
 #include "uudefs.h"
@@ -34,6 +34,7 @@ const char lock_rcsid[] = "$Id: lock.c,v 1.2 1994/05/07 18:10:40 ache Exp $";
 #include "system.h"
 
 #include <errno.h>
+#include <ctype.h>
 
 #if HAVE_FCNTL_H
 #include <fcntl.h>
@@ -178,7 +179,7 @@ fsdo_lock (zlock, fspooldir, pferr)
     }
 
 #if HAVE_QNX_LOCKFILES
-  sprintf (ab, "%10ld %10ld\n", (long) ime, (long) inid);
+  sprintf (ab, "%10ld %10ld\n", (long) ime, (long) inme);
   cwrote = write (o, ab, strlen (ab));
 #else
 #if HAVE_V2_LOCKFILES
@@ -274,6 +275,25 @@ fsdo_lock (zlock, fspooldir, pferr)
 	  break;
 	}
 
+#if DEBUG > 0
+#if HAVE_V2_LOCKFILES
+      {
+	char ab[10];
+
+	if (read (o, ab, sizeof ab) > 4
+	    && isdigit (BUCHAR (ab[0])))
+	  ulog (LOG_ERROR,
+		"Lock file %s may be HDB format; check LOCKFILES in policy.h",
+		zpath);
+      }
+#else
+      if (cgot == 4)
+	ulog (LOG_ERROR,
+	      "Lock file %s may be V2 format; check LOCKFILES in policy.h",
+	      zpath);
+#endif
+#endif /* DEBUG > 0 */
+
 #if HAVE_QNX_LOCKFILES
       ab[cgot] = '\0';
       ipid = (pid_t) strtol (ab, &zend, 10);
@@ -308,17 +328,23 @@ fsdo_lock (zlock, fspooldir, pferr)
 	    }
 	}
 
+      /* If the lock file is empty (cgot == 0), we assume that it is
+         stale.  This can happen if the system crashed after the lock
+         file was created but before the process ID was written out.  */
+      if (cgot > 0)
+	{
 #if HAVE_QNX_LOCKFILES
-      if (! fsqnx_stale ((unsigned long) ipid, (unsigned long) inme,
-			 (unsigned long) inid, pferr))
-	break;
+	  if (! fsqnx_stale ((unsigned long) ipid, (unsigned long) inme,
+			     (unsigned long) inid, pferr))
+	    break;
 #else
-      /* If the process still exists, we will get EPERM rather than
-	 ESRCH.  We then return FALSE to indicate that we cannot make
-	 the lock.  */
-      if (kill (ipid, 0) == 0 || errno == EPERM)
-	break;
+	  /* If the process still exists, we will get EPERM rather
+	     than ESRCH.  We then return FALSE to indicate that we
+	     cannot make the lock.  */
+	  if (kill (ipid, 0) == 0 || errno == EPERM)
+	    break;
 #endif
+	}
 
       if (fstat (o, &st) < 0)
 	strcpy (abtime, "unknown");
@@ -411,7 +437,7 @@ fsdo_lock (zlock, fspooldir, pferr)
 	}
 
 #if HAVE_QNX_LOCKFILES
-      sprintf (ab, "%10ld %10ld\n", (long) ime, (long) inid);
+      sprintf (ab, "%10ld %10ld\n", (long) ime, (long) inme);
       cwrote = write (o, ab, strlen (ab));
 #else
 #if HAVE_V2_LOCKFILES
@@ -620,7 +646,7 @@ fsqnx_stale (ipid, inme, inid, pferr)
       /* Use the local pid of the local process manager. */
       ivid = PROC_PID;
     }
-
+        
   /* Request the process information. */
   ifound_pid = qnx_psinfo (ivid /* process manager handling request */,
 			   ipid /* get info on this process */,
@@ -636,7 +662,7 @@ fsqnx_stale (ipid, inme, inid, pferr)
 	    strerror (errno));
     errno = isaved_errno;
   }
-
+          
   /* If the returned pid matches then the process still holds the lock. */
   if ((ifound_pid == ipid) && (spsdata.pid == ipid))
     return FALSE;

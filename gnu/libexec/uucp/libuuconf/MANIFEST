@@ -67,6 +67,7 @@ snams.c
 split.c
 spool.c
 stafil.c
+strip.c
 syssub.c
 tcalou.c
 tdial.c

@@ -1,7 +1,7 @@
 /* uucp.c
    Prepare to copy a file to or from a remote system.
 
-   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uucp_rcsid[] = "$Id: uucp.c,v 1.57 1994/01/30 20:59:40 ian Rel $";
+const char uucp_rcsid[] = "$Id: uucp.c,v 1.63 1995/08/02 01:22:53 ian Rel $";
 #endif
 
 #include <ctype.h>
@@ -256,7 +256,7 @@ main (argc, argv)
 
 	case 'v':
 	  /* Print version and exit.  */
-	  printf ("%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	  printf ("%s: Taylor UUCP %s, copyright (C) 1991, 92, 93, 94, 1995 Ian Lance Taylor\n",
 		  zProgram, VERSION);
 	  exit (EXIT_SUCCESS);
 	  /*NOTREACHED*/
@@ -630,7 +630,7 @@ ucusage ()
 static void
 uchelp ()
 {
-  printf ("Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+  printf ("Taylor UUCP %s, copyright (C) 1991, 92, 93, 94, 1995 Ian Lance Taylor\n",
 	   VERSION);
   printf ("Usage: %s [options] file1 [file2 ...] dest\n", zProgram);
   printf (" -c,--nocopy: Do not copy local files to spool directory\n");
@@ -741,7 +741,7 @@ uccopy (zfile, zdest)
 	  efrom = esysdep_user_fopen (zfile, TRUE, TRUE);
 	  if (! ffileisopen (efrom))
 	    ucabort ();
-	  if (! fcopy_open_file (efrom, zto, FALSE, fCmkdirs))
+	  if (! fcopy_open_file (efrom, zto, FALSE, fCmkdirs, TRUE))
 	    ucabort ();
 	  (void) ffileclose (efrom);
 	  ubuffree (zto);
@@ -795,7 +795,7 @@ uccopy (zfile, zdest)
 	      if (! ffileisopen (efrom))
 		ucabort ();
 	      ucrecord_file (ztemp);
-	      if (! fcopy_open_file (efrom, ztemp, FALSE, TRUE))
+	      if (! fcopy_open_file (efrom, ztemp, FALSE, TRUE, TRUE))
 		ucabort ();
 	      (void) ffileclose (efrom);
 	    }
@@ -864,6 +864,8 @@ uccopy (zfile, zdest)
 
 	      ubuffree (zbase);
 
+	      if (! fstdiosync (e, zxqt))
+		ulog (LOG_FATAL, "fsync failed");
 	      if (fclose (e) != 0)
 		ulog (LOG_FATAL, "fclose: %s", strerror (errno));
 
@@ -1073,6 +1075,8 @@ uccopy (zfile, zdest)
 
 	  fprintf (e, " %s\n", zcmd);
 
+	  if (! fstdiosync (e, zxqt))
+	    ulog (LOG_FATAL, "fsync failed");
 	  if (fclose (e) != 0)
 	    ulog (LOG_FATAL, "fclose: %s", strerror (errno));
 

@@ -1,7 +1,7 @@
 /* prot.h
    Protocol header file.
 
-   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,10 +17,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 /* We need the definition of uuconf_cmdtab to declare the protocol
@@ -234,11 +234,13 @@ extern boolean fiwait P((struct sdaemon *qdaemon));
 /* Prototypes for 'j' protocol functions.  The 'j' protocol mostly
    uses the 'i' protocol functions, but it has a couple of functions
    of its own.  */
+
 extern boolean fjstart P((struct sdaemon *qdaemon, char **pzlog));
 extern boolean fjshutdown P((struct sdaemon *qdaemon));
 
 /* Prototypes for 'a' protocol functions (these use 'z' as the second
    character because 'a' is a modified Zmodem protocol).  */
+
 extern struct uuconf_cmdtab asZproto_params[];
 extern boolean fzstart P((struct sdaemon *qdaemon, char **pzlog));
 extern boolean fzshutdown P((struct sdaemon *qdaemon));
@@ -249,5 +251,20 @@ extern boolean fzsenddata P((struct sdaemon *qdaemon, char *z, size_t c,
 			     int ilocal, int iremote, long ipos));
 extern boolean fzwait P((struct sdaemon *qdaemon));
 extern boolean fzfile P((struct sdaemon *qdaemon, struct stransfer *qtrans,
+			 boolean fstart, boolean fsend, long cbytes,
+			 boolean *pfhandled));
+
+/* Prototypes for 'y' protocol functions.  */
+
+extern struct uuconf_cmdtab asYproto_params[];
+extern boolean fystart P((struct sdaemon *qdaemon, char **pzlog));
+extern boolean fyshutdown P((struct sdaemon *qdaemon));
+extern boolean fysendcmd P((struct sdaemon *qdaemon, const char *z,
+			    int ilocal, int iremote));
+extern char *zygetspace P((struct sdaemon *qdaemon, size_t *pcdata));
+extern boolean fysenddata P((struct sdaemon *qdaemon, char *z, size_t c,
+			     int ilocal, int iremote, long ipos));
+extern boolean fywait P((struct sdaemon *qdaemon));
+extern boolean fyfile P((struct sdaemon *qdaemon, struct stransfer *qtrans,
 			 boolean fstart, boolean fsend, long cbytes,
 			 boolean *pfhandled));

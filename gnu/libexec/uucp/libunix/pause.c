@@ -7,25 +7,27 @@
 #include "system.h"
 
 /* Pick a timing routine to use.  I somewhat arbitrarily picked usleep
-   above nap above napms above poll above select.  */
-#if HAVE_USLEEP || HAVE_NAP || HAVE_NAPMS || HAVE_POLL
+   above napms above poll above select above nap.  The nap function is
+   last because on different systems the argument has different
+   meanings.  */
+#if HAVE_USLEEP || HAVE_NAPMS || HAVE_POLL || HAVE_SELECT
+#undef HAVE_NAP
+#define HAVE_NAP 0
+#endif
+
+#if HAVE_USLEEP || HAVE_NAPMS || HAVE_POLL
 #undef HAVE_SELECT
 #define HAVE_SELECT 0
 #endif
 
-#if HAVE_USLEEP || HAVE_NAP || HAVE_NAPMS
+#if HAVE_USLEEP || HAVE_NAPMS
 #undef HAVE_POLL
 #define HAVE_POLL 0
 #endif
 
-#if HAVE_USLEEP || HAVE_NAP
+#if HAVE_USLEEP
 #undef HAVE_NAPMS
 #define HAVE_NAPMS 0
-#endif
-
-#if HAVE_USLEEP
-#undef HAVE_NAP
-#define HAVE_NAP 0
 #endif
 
 #if HAVE_SELECT
@@ -81,6 +83,7 @@ usysdep_pause ()
 
   /* We need to pass an unused pollfd structure because poll checks
      the address before checking the number of elements.  */
+  memset (&sdummy, 0, sizeof sdummy);
   poll (&sdummy, 0, 500);
 #endif /* HAVE_POLL */
 #if HAVE_SELECT

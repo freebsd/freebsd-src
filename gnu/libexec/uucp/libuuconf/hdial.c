@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_hdial_rcsid[] = "$Id: hdial.c,v 1.2 1994/05/07 18:12:20 ache Exp $";
+const char _uuconf_hdial_rcsid[] = "$Id: hdial.c,v 1.6 1995/06/21 19:22:42 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -133,7 +133,7 @@ uuconf_hdb_dialer_info (pglobal, zname, qdialer)
 		  bnext = *zsubs;
 		  while (bnext != '\0')
 		    {
-		      if (bnext == '=')
+		      if (bnext == '=') 
 			qdialer->uuconf_zdialtone = zsubs + 1;
 		      else if (bnext == '-')
 			qdialer->uuconf_zpause = zsubs + 1;

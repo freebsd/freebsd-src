@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_rdlocs_rcsid[] = "$Id: rdlocs.c,v 1.2 1994/05/07 18:12:46 ache Exp $";
+const char _uuconf_rdlocs_rcsid[] = "$Id: rdlocs.c,v 1.7 1995/06/21 19:23:52 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -174,7 +174,7 @@ _uuconf_iread_locations (qglobal)
       qglobal->qprocess->qsyslocs = si.qlocs;
       qglobal->qprocess->qvalidate = si.qvals;
       qglobal->qprocess->fread_syslocs = TRUE;
-    }
+    }	
 
   return iret;
 }

@@ -1,7 +1,7 @@
 /* syssub.c
    System information subroutines.
 
-   Copyright (C) 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_syssub_rcsid[] = "$Id: syssub.c,v 1.2 1994/05/07 18:12:59 ache Exp $";
+const char _uuconf_syssub_rcsid[] = "$Id: syssub.c,v 1.14 1995/06/21 19:24:20 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -80,6 +80,7 @@ const char _uuconf_syssub_rcsid[] = "$Id: syssub.c,v 1.2 1994/05/07 18:12:59 ach
     { \
       OP (uuconf_qtimegrade); \
       OP (uuconf_qcalltimegrade); \
+      OP (uuconf_qcalledtimegrade); \
       OP (uuconf_qcall_local_size); \
       OP (uuconf_qcall_remote_size); \
       OP (uuconf_qcalled_local_size); \
@@ -451,7 +452,7 @@ _uuconf_isystem_basic_default (qglobal, q)
 	      qglobal->ierrno = errno;
 	      return UUCONF_MALLOC_FAILED | UUCONF_ERROR_ERRNO;
 	    }
-
+		  
 	  memcpy ((pointer) zdup, (pointer) CMDPATH, sizeof CMDPATH);
 	  pz = NULL;
 	  csplit = 0;

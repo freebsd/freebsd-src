@@ -28,6 +28,7 @@
 #define HAVE_SYS_IOCTL_H 1 /* <sys/ioctl.h> */
 #define HAVE_DIRENT_H 1 /* <dirent.h> */
 #define HAVE_MEMORY_H 1 /* <memory.h> */
+#define HAVE_TERMIOS_H 1 /* <termios.h> */
 #define HAVE_SYS_PARAM_H 1 /* <sys/param.h> */
 #define HAVE_UTIME_H 1 /* <utime.h> */
 #define HAVE_FCNTL_H 1 /* <fcntl.h> */
@@ -45,6 +46,14 @@
 #define HAVE_GLOB_H 1 /* <glob.h> */
 #define HAVE_SYS_SELECT_H 0 /* <sys/select.h> */
 #define HAVE_SYS_TYPES_TCP_H 0 /* <sys/types.tcp.h> */
+#define HAVE_SYS_MOUNT_H 1 /* <sys/mount.h> */
+#define HAVE_SYS_VFS_H 0 /* <sys/vfs.h> */
+#define HAVE_SYS_FILSYS_H 0 /* <sys/filsys.h> */
+#define HAVE_SYS_STATFS_H 0 /* <sys/statfs.h> */
+#define HAVE_SYS_DUSTAT_H 0 /* <sys/dustat.h> */
+#define HAVE_SYS_FS_TYPES_H 0 /* <sys/fs_types.h> */
+#define HAVE_USTAT_H 0 /* <ustat.h> */
+#define HAVE_SYS_STATVFS_H 0 /* <sys/statvfs.h> */
 
 /* If major and minor are not defined in <sys/types.h>, but are in
    <sys/mkdev.h>, set MAJOR_IN_MKDEV to 1.  If they are in
@@ -177,19 +186,19 @@
    another instance of Taylor UUCP.
 
    STAT_STATVFS          statvfs function
+   STAT_STATFS3_OSF1	 three argument statfs function (OSF/1)
    STAT_STATFS2_BSIZE    two argument statfs function with f_bsize field
    STAT_STATFS2_FSIZE    two argument statfs function with f_fsize field
    STAT_STATFS2_FS_DATA  two argument statfs function with fd_req field
    STAT_STATFS4          four argument statfs function
-   STAT_DUSTAT		 dustat function (AIX PS/2)
    STAT_DISK_SPACE	 disk_space function (QNX)
    STAT_USTAT            the ustat function with 512 byte blocks.  */
 #define STAT_STATVFS 0
+#define STAT_STATFS3_OSF1 0
 #define STAT_STATFS2_BSIZE 1
 #define STAT_STATFS2_FSIZE 0
 #define STAT_STATFS2_FS_DATA 0
 #define STAT_STATFS4 0
-#define STAT_DUSTAT 0
 #define STAT_DISK_SPACE 0
 #define STAT_USTAT 0
 
@@ -358,7 +367,7 @@
    Otherwise, the code will use OPEN_MAX if defined, then NOFILE if
    defined, then 20.  */
 #define HAVE_GETDTABLESIZE 1
-#define HAVE_SYSCONF 0
+#define HAVE_SYSCONF 1
 
 /* The code will use one of the following functions when detaching
    from a terminal.  One of these must exist.  */

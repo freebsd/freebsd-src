@@ -1,7 +1,7 @@
 /* sysh.unx -*- C -*-
    The header file for the UNIX system dependent routines.
 
-   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,10 +17,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #ifndef SYSH_UNX_H
@@ -227,6 +227,9 @@ typedef struct termios sterminal;
 
 /* The name of the directory to which we move corrupt files.  */
 #define CORRUPTDIR ".Corrupt"
+
+/* The name of the directory to which we move failed execution files.  */
+#define FAILEDDIR ".Failed"
 
 /* The length of the sequence number used in a file name.  */
 #define CSEQLEN (4)
@@ -470,6 +473,14 @@ extern boolean fsdo_unlock P((const char *, boolean fspooldir));
    for any user.  */
 extern boolean fsuser_access P((const struct stat *, int imode,
 				const char *zuser));
+
+/* Switch to the permissions of the invoking user.  This sets the
+   argument to a value to pass to fsuucp_perms.  */
+extern boolean fsuser_perms P((uid_t *));
+
+/* Switch back to the permissions of the UUCP user ID.  This should be
+   passed the value returned by fsuser_perms in its argument.  */
+extern boolean fsuucp_perms P((long));
 
 /* Stick two directories and a file name together.  */
 extern char *zsappend3 P((const char *zdir1, const char *zdir2,

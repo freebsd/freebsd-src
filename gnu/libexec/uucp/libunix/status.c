@@ -1,7 +1,7 @@
 /* status.c
    Routines to get and set the status for a system.
 
-   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,10 +17,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
@@ -31,6 +31,7 @@
 #include "system.h"
 
 #include <errno.h>
+#include <ctype.h>
 
 #if SPOOLDIR_HDB || SPOOLDIR_SVR4
 
@@ -104,6 +105,7 @@ fsysdep_get_status (qsys, qret, pfnone)
       qret->cretries = 0;
       qret->ilast = 0;
       qret->cwait = 0;
+      qret->zstring = NULL;
       if (pfnone != NULL)
 	*pfnone = TRUE;
       ubuffree (zname);
@@ -157,6 +159,33 @@ fsysdep_get_status (qsys, qret, pfnone)
   if (zend == znext)
     fbad = TRUE;
 
+  if (! fbad)
+    {
+      znext = zend;
+      while (isspace (BUCHAR (*znext)))
+	++znext;
+      if (*znext == '\0')
+	qret->zstring = NULL;
+      else
+	{
+	  if (*znext == '"')
+	    ++znext;
+	  qret->zstring = zbufcpy (znext);
+	  zend = qret->zstring + strlen (qret->zstring);
+	  while (zend != qret->zstring && *zend != ' ')
+	    --zend;
+	  if (*zend == '"' && zend != qret->zstring)
+	    --zend;
+	  if (zend != qret->zstring)
+	    *zend = '\0';
+	  else
+	    {
+	      ubuffree (qret->zstring);
+	      qret->zstring = NULL;
+	    }
+	}
+    }
+
   xfree ((pointer) zline);
 
   if (fbad)
@@ -199,9 +228,16 @@ fsysdep_set_status (qsys, qset)
     istat = aiMapstatus[istat];
 #endif /* MAP_STATUS */
 
-  fprintf (e, "%d %d %ld %d %s %s\n", istat, qset->cretries,
-	   qset->ilast, qset->cwait, azStatus[(int) qset->ttype],
-	   qsys->uuconf_zname);
+  fprintf (e, "%d %d %ld %d ", istat, qset->cretries, qset->ilast,
+	   qset->cwait);
+
+#if SPOOLDIR_SVR4
+  fprintf (e, "\"%s\"", azStatus[(int) qset->ttype]);
+#else
+  fprintf (e, "%s", azStatus[(int) qset->ttype]);
+#endif
+
+  fprintf (e, " %s\n", qsys->uuconf_zname);
   if (fclose (e) != 0)
     {
       ulog (LOG_ERROR, "fclose: %s", strerror (errno));

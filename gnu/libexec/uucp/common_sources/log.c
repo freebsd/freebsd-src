@@ -1,7 +1,7 @@
 /* log.c
    Routines to add entries to the log files.
 
-   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char log_rcsid[] = "$Id: log.c,v 1.2 1994/05/07 18:08:47 ache Exp $";
+const char log_rcsid[] = "$Id: log.c,v 1.61 1995/06/21 19:14:58 ian Rel $";
 #endif
 
 #include <ctype.h>
@@ -199,7 +199,7 @@ ulog_system (zsystem)
     {
       ubuffree (zLsystem);
       zLsystem = zbufcpy (zsystem);
-#if HAVE_HDB_LOGGING
+#if HAVE_HDB_LOGGING      
       /* Under HDB logging we now must write to a different log file.  */
       ulog_close ();
 #endif /* HAVE_HDB_LOGGING */
@@ -287,9 +287,6 @@ ulog (ttype, zmsg, a, b, c, d, f, g, h, i, j)
       }
   }
 
-  if (zmsg == NULL)
-    return;
-
 #if DEBUG > 1
   /* If we've had a debugging file open in the past, then we want to
      write all log file entries to the debugging file even if it's
@@ -321,9 +318,12 @@ ulog (ttype, zmsg, a, b, c, d, f, g, h, i, j)
     {
       if (eLlog == NULL && ! fLlog_tried)
 	{
+	  const char *zprint = NULL;
+
 	  fLlog_tried = TRUE;
 #if ! HAVE_HDB_LOGGING
 	  eLlog = esysdep_fopen (zLogfile, TRUE, TRUE, TRUE);
+	  zprint = zLogfile;
 #else /* HAVE_HDB_LOGGING */
 	  {
 	    const char *zsys;
@@ -331,7 +331,7 @@ ulog (ttype, zmsg, a, b, c, d, f, g, h, i, j)
 	    char *zlower;
 	    char *zfile;
 
-	    /* We want to write to .Log/program/system, e.g.
+	    /* We want to write to .Log/program/system, e.g.  	
 	       .Log/uucico/uunet.  The system name may not be set.  */
 	    if (zLsystem == NULL)
 	      zsys = "ANY";
@@ -356,7 +356,10 @@ ulog (ttype, zmsg, a, b, c, d, f, g, h, i, j)
 	    sprintf (zfile, zLogfile, zbase, zsys);
 	    ubuffree (zbase);
 	    eLlog = esysdep_fopen (zfile, TRUE, TRUE, TRUE);
-	    ubuffree (zfile);
+	    if (eLlog != NULL)
+	      ubuffree (zfile);
+	    else
+	      zprint = zfile;
 	  }
 #endif /* HAVE_HDB_LOGGING */
 
@@ -367,8 +370,8 @@ ulog (ttype, zmsg, a, b, c, d, f, g, h, i, j)
 		 running on an inbound call stderr is actually
 		 connected to a remote system, but is better than
 		 doing nothing.  */
-	      fprintf (stderr, "%s: %s: can not open log file\n",
-		       zProgram, zLogfile);
+	      fprintf (stderr, "%s: %s: can not open log file: %s\n",
+		       zProgram, zprint, strerror (errno));
 	      if (pfLfatal != NULL)
 		(*pfLfatal) ();
 	      usysdep_exit (FALSE);
@@ -382,6 +385,9 @@ ulog (ttype, zmsg, a, b, c, d, f, g, h, i, j)
       if (e == NULL)
 	return;
     }
+
+  if (zmsg == NULL)
+    return;
 
   if (pfLstart != NULL)
     (*pfLstart) ();
@@ -610,7 +616,7 @@ ulog_close ()
 
 /*ARGSUSED*/
 void
-ustats (fsucceeded, zuser, zsystem, fsent, cbytes, csecs, cmicros, fmaster)
+ustats (fsucceeded, zuser, zsystem, fsent, cbytes, csecs, cmicros, fcaller)
      boolean fsucceeded;
      const char *zuser;
      const char *zsystem;
@@ -618,7 +624,7 @@ ustats (fsucceeded, zuser, zsystem, fsent, cbytes, csecs, cmicros, fmaster)
      long cbytes;
      long csecs;
      long cmicros;
-     boolean fmaster;
+     boolean fcaller;
 {
   long cbps;
 
@@ -633,7 +639,7 @@ ustats (fsucceeded, zuser, zsystem, fsent, cbytes, csecs, cmicros, fmaster)
     {
       csecs += cmicros / 10000000L;
       cmicros = cmicros % 1000000L;
-    }
+    }      
 
   /* On a system which can determine microseconds we might very well
      have both csecs == 0 and cmicros == 0.  */
@@ -701,7 +707,7 @@ ustats (fsucceeded, zuser, zsystem, fsent, cbytes, csecs, cmicros, fmaster)
     ++iseq;
     fprintf (eLstats,
 	     "%s!%s %c (%s) (C,%d,%d) [%s] %s %ld / %ld.%03ld secs, %ld%s%s\n",
-	     zsystem, zuser, fmaster ? 'M' : 'S', zldate_and_time (),
+	     zsystem, zuser, fcaller ? 'M' : 'S', zldate_and_time (),
 	     iLid, iseq, zLdevice == NULL ? "unknown" : zLdevice,
 	     fsent ? "->" : "<-",
 	     cbytes, csecs, cmicros / 1000, cbps,
@@ -761,7 +767,7 @@ zldate_and_time ()
 	   s.tm_hour, s.tm_min);
 #endif
 #if HAVE_HDB_LOGGING
-  sprintf (ab, "%d/%d-%02d:%02d:%02d", s.tm_mon + 1, s.tm_mday,
+  sprintf (ab, "%d/%d-%d:%02d:%02d", s.tm_mon + 1, s.tm_mday,
 	   s.tm_hour, s.tm_min, s.tm_sec);
 #endif
 

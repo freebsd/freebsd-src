@@ -37,7 +37,7 @@ zsysdep_local_file_cwd (zfile, zpubdir, pfbadname)
     return zsysdep_local_file (zfile, zpubdir, pfbadname);
   else
     return zsysdep_add_cwd (zfile);
-}
+}      
 
 /* Add the current working directory to a remote file name.  */
 

@@ -1,7 +1,7 @@
 /* uucnfi.h
    Internal header file for the uuconf package.
 
-   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -17,10 +17,10 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 /* This is the internal header file for the uuconf package.  It should
@@ -78,6 +78,10 @@ struct sprocess
   const char *zdebugfile;
   /* The default debugging level.  */
   const char *zdebug;
+  /* Whether login information should be stripped.  */
+  boolean fstrip_login;
+  /* Whether protocol information should be stripped.  */
+  boolean fstrip_proto;
   /* The maximum number of simultaneously executing uuxqts.  */
   int cmaxuuxqts;
   /* How often to spawn a uuxqt process.  */
@@ -150,7 +154,7 @@ struct sunknown
   int cargs;
   /* Arguments.  */
   char **pzargs;
-};
+};     
 
 /* This structure is used to hold the locations of systems within the
    Taylor UUCP sys files.  */

@@ -17,6 +17,7 @@ dup2.c
 efopen.c
 epopen.c
 exists.c
+failed.c
 filnam.c
 fsusg.c
 fsusg.h
@@ -64,11 +65,15 @@ srmdir.c
 statsb.c
 status.c
 strerr.c
+sync.c
+tcp.c
 time.c
+tli.c
 tmpfil.c
 trunc.c
 uacces.c
 ufopen.c
+uid.c
 ultspl.c
 unknwn.c
 uuto.c

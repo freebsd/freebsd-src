@@ -1,7 +1,7 @@
 /* uuconv.c
    Convert one type of UUCP configuration file to another.
 
-   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char uuconv_rcsid[] = "$Id: uuconv.c,v 1.2 1994/05/07 18:14:06 ache Exp $";
+const char uuconv_rcsid[] = "$Id: uuconv.c,v 1.27 1995/06/29 19:36:27 ian Rel $";
 #endif
 
 #include "getopt.h"
@@ -158,7 +158,7 @@ main (argc, argv)
 	  /* Print version and exit.  */
 	  fprintf
 	    (stderr,
-	     "%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	     "%s: Taylor UUCP %s, copyright (C) 1991, 92, 93, 94, 1995 Ian Lance Taylor\n",
 	     zProgram, VERSION);
 	  exit (EXIT_SUCCESS);
 	  /*NOTREACHED*/
@@ -395,7 +395,7 @@ main (argc, argv)
 				     piportfn, (pointer) eport, &sport);
 	break;
       }
-
+	
     if (iret != UUCONF_NOT_FOUND)
       uvuuconf_error (pinput, iret);
 
@@ -524,7 +524,7 @@ static void
 uvhelp ()
 {
   fprintf (stderr,
-	   "Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	   "Taylor UUCP %s, copyright (C) 1991, 92, 93, 94, 1995 Ian Lance Taylor\n",
 	   VERSION);
   fprintf (stderr, "Converts UUCP configuration files from one format to another.\n");
   fprintf (stderr,
@@ -740,7 +740,7 @@ uvwrite_chat (e, q, qlast, zprefix, fforce)
 	  || qlast->uuconf_pzfail != q->uuconf_pzfail))
     for (pz = q->uuconf_pzfail; *pz != NULL; pz++)
       fprintf (e, "%schat-fail %s\n", zprefix, *pz);
-
+      
   if (qlast == NULL || qlast->uuconf_fstrip != q->uuconf_fstrip)
     {
       sprintf (ab, "%schat-strip", zprefix);
@@ -849,6 +849,20 @@ uvwrite_taylor_system (e, q)
 	    }
 	}
 
+      if (CHANGED (uuconf_qcalledtimegrade)
+	  && (q->uuconf_qcalledtimegrade
+	      != (struct uuconf_timespan *) &_uuconf_unset))
+	{
+	  for (qtime = q->uuconf_qcalledtimegrade;
+	       qtime != NULL;
+	       qtime = qtime->uuconf_qnext)
+	    {
+	      fprintf (e, "called-timegrade %c ", (char) qtime->uuconf_ival);
+	      uvwrite_time (e, qtime);
+	      fprintf (e, "\n");
+	    }
+	}
+
       if (CHANGED (uuconf_qcall_local_size))
 	uvwrite_size (e, q->uuconf_qcall_local_size, "call-local-size");
 
@@ -924,7 +938,7 @@ uvwrite_taylor_system (e, q)
 
       if (CHANGED (uuconf_qproto_params))
 	uvwrite_proto_params (e, q->uuconf_qproto_params, "");
-
+      
       uvwrite_chat (e, &q->uuconf_scalled_chat,
 		    (qlast == NULL
 		     ? (struct uuconf_chat *) NULL
@@ -1064,7 +1078,7 @@ uvwrite_v2_system (e, q)
 			  && q->uuconf_zphone != NULL)
 			{
 			  char **pzc;
-
+			  
 			  fprintf (e, " %s", q->uuconf_zphone);
 			  pzc = q->uuconf_schat.uuconf_pzchat;
 			  if (pzc != (char **) &_uuconf_unset
@@ -1142,7 +1156,7 @@ uvwrite_hdb_system (e, qsys)
 			  && q->uuconf_zphone != NULL)
 			{
 			  char **pzc;
-
+			  
 			  fprintf (e, " %s", q->uuconf_zphone);
 			  pzc = q->uuconf_schat.uuconf_pzchat;
 			  if (pzc != (char **) &_uuconf_unset
@@ -1312,7 +1326,7 @@ fvperm_array_cmp (pz1, pz2)
       break;
 
   return *pz1 == NULL && *pz2 == NULL;
-}
+}      
 
 /* Add a Permissions entry to a global list, combining entries where
    possible.  */
@@ -1502,7 +1516,7 @@ uvwrite_perm_array (e, pzarg, zcmd, pccol)
     return;
 
   c = strlen (zcmd) + 1;
-
+  
   for (pz = pzarg; *pz != NULL; pz++)
     c += strlen (*pz) + 1;
 
@@ -1739,7 +1753,7 @@ uvwrite_taylor_port (e, qport, zprefix)
 	    else
 	      {
 		sprintf (ab, "%sdialer-sequence", zprefix);
-		uvwrite_string_array (e, qm->uuconf_pzdialer, zprefix);
+		uvwrite_string_array (e, qm->uuconf_pzdialer, ab);
 	      }
 	  }
 	if (qm->uuconf_qdialer != NULL)
@@ -2001,7 +2015,7 @@ uvwrite_taylor_dialer (e, qdialer, zprefix)
     qdialer->uuconf_sabort.uuconf_ctimeout = -1;
   if (qdialer->uuconf_sabort.uuconf_fstrip)
     qdialer->uuconf_sabort.uuconf_fstrip = -1;
-
+  
   uvwrite_chat (e, &qdialer->uuconf_schat, (struct uuconf_chat *) NULL,
 		zprefix, FALSE);
   if (qdialer->uuconf_zdialtone != NULL

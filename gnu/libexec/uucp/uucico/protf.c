@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char protf_rcsid[] = "$Id: protf.c,v 1.2 1994/05/07 18:13:45 ache Exp $";
+const char protf_rcsid[] = "$Id: protf.c,v 1.33 1995/06/21 19:15:17 ian Rel $";
 #endif
 
 #include <ctype.h>
@@ -247,7 +247,7 @@ ffsenddata (qdaemon, zdata, cdata, ilocal, iremote, ipos)
   char ab[CFBUFSIZE * 2];
   char *ze;
   register unsigned int itmpchk;
-
+      
   cFsent_data += cdata;
 
   ze = ab;
@@ -759,7 +759,7 @@ ffawait_cksum (qtrans, qdaemon, zdata, cdata)
       xfree (qtrans->pinfo);
       return FALSE;
     }
-
+	  
   icheck = (unsigned int) strtol ((char *) zdata, (char **) NULL, 16);
 
   if (icheck != (iFcheck & 0xffff))

@@ -1,7 +1,7 @@
 /* chat.c
    Chat routine for the UUCP package.
 
-   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char chat_rcsid[] = "$Id: chat.c,v 1.2 1994/05/07 18:08:33 ache Exp $";
+const char chat_rcsid[] = "$Id: chat.c,v 1.46 1995/06/21 19:14:29 ian Rel $";
 #endif
 
 #include <ctype.h>
@@ -728,9 +728,9 @@ fcsend (qconn, puuconf, z, qsys, qdial, zphone, ftranslate, fstrip)
 		  if (isdigit (BUCHAR (z[1])))
 		    bsend = (char) (16 * bsend + *++z - '0');
 		  else if (isupper (BUCHAR (z[1])))
-		    bsend = (char) (16 * bsend + *++z - 'A');
+		    bsend = (char) (16 * bsend + *++z - 'A' + 10);
 		  else
-		    bsend = (char) (16 * bsend + *++z - 'a');
+		    bsend = (char) (16 * bsend + *++z - 'a' + 10);
 		}
 	      break;
 	    case 'L':
@@ -926,7 +926,7 @@ fcsend (qconn, puuconf, z, qsys, qdial, zphone, ftranslate, fstrip)
 	  break;
 #endif
 	}
-
+      
       if (fsend)
 	{
 	  fquote = fcsend_debug (fquote, (size_t) 1, &bsend);
@@ -1190,7 +1190,7 @@ fcprogram (qconn, puuconf, pzprogram, qsys, qdial, zphone, zport, ibaud)
 	  *pzarg = zbufcpy (*pz);
 	  continue;
 	}
-
+      
       *pzarg = NULL;
       zto = NULL;
       calc = 0;

@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char picksb_rcsid[] = "$Id: picksb.c,v 1.2 1994/05/07 18:10:54 ache Exp $";
+const char picksb_rcsid[] = "$Id: picksb.c,v 1.10 1995/06/21 19:19:54 ian Rel $";
 #endif
 
 #include "uudefs.h"
@@ -219,7 +219,7 @@ zsysdep_uupick_local_file (zfile, pfbadname)
   if (zfile[0] != '~'
       || (zfile[1] != '/' && zfile[1] != '\0'))
     return zsysdep_local_file_cwd (zfile, (const char *) NULL, pfbadname);
-
+  
   q = getpwuid (getuid ());
   if (q == NULL)
     {
