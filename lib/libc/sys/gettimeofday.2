@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)gettimeofday.2	8.1 (Berkeley) 6/4/93
+.\"     @(#)gettimeofday.2	8.2 (Berkeley) 5/26/95
+.\"     $Id$
 .\"
-.Dd June 4, 1993
+.Dd May 26, 1995
 .Dt GETTIMEOFDAY 2
 .Os BSD 4
 .Sh NAME
@@ -43,12 +44,13 @@
 .Ft int
 .Fn gettimeofday "struct timeval *tp" "struct timezone *tzp"
 .Ft int
-.Fn settimeofday "struct timeval *tp" "struct timezone *tzp"
+.Fn settimeofday "const struct timeval *tp" "const struct timezone *tzp"
 .Sh DESCRIPTION
 .Bf -symbolic
 Note: timezone is no longer used; this information is kept outside
 the kernel.
 .Ef
+.Pp
 The system's notion of the current Greenwich time and the current time
 zone is obtained with the
 .Fn gettimeofday
@@ -74,7 +76,7 @@ as:
 .Pp
 .Bd -literal
 struct timeval {
-	long	tv_sec;		/* seconds */
+	long	tv_sec;		/* seconds since Jan. 1, 1970 */
 	long	tv_usec;	/* and microseconds */
 };
 
@@ -93,6 +95,14 @@ Daylight Saving time applies locally during
 the appropriate part of the year.
 .Pp
 Only the super-user may set the time of day or time zone.
+If the system is running in secure mode (see
+.Xr init 8 ),
+the time may only be advanced.
+This limitation is imposed to prevent a malicious super-user
+from setting arbitrary time stamps on files.
+The system time can still be adjusted backwards using the
+.Xr adjtime 2
+system call even when the system is secure.
 .Sh RETURN
 A 0 return value indicates that the call succeeded.
 A -1 return value indicates an error occurred, and in this
