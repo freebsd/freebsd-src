@@ -69,13 +69,12 @@ MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
 static int	pollscan __P((struct proc *, struct pollfd *, int));
 static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int));
-static struct file* getfp __P((struct filedesc *, int, int));
 static int	dofileread __P((struct proc *, struct file *, int, void *,
 		    size_t, off_t, int));
 static int	dofilewrite __P((struct proc *, struct file *, int,
 		    const void *, size_t, off_t, int));
 
-static struct file*
+struct file*
 getfp(fdp, fd, flag)
 	struct filedesc* fdp;
 	int fd, flag;
