@@ -49,13 +49,13 @@
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/smp.h>
 
 #include <machine/clock.h>
 #include <machine/reg.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
 #include <machine/sapicvar.h>
-#include <machine/smp.h>
 
 #ifdef EVCNT_COUNTERS
 struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
@@ -120,6 +120,24 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		if((++schedclk2 & 0x7) == 0)
 			statclock((struct clockframe *)framep);
 #ifdef SMP
+	} else if (vector == mp_ipi_vector[IPI_AST]) {
+		ast(framep);
+	} else if (vector == mp_ipi_vector[IPI_RENDEZVOUS]) {
+		smp_rendezvous_action();
+	} else if (vector == mp_ipi_vector[IPI_STOP]) {
+		u_int32_t mybit = 1 << PCPU_GET(cpuid);
+
+		savectx(PCPU_GET(pcb));
+		stopped_cpus |= mybit;
+		while ((started_cpus & mybit) == 0)
+			/* spin */;
+		started_cpus &= ~mybit;
+		stopped_cpus &= ~mybit;
+		if (PCPU_GET(cpuid) == 0 && cpustop_restartfunc != NULL) {
+			void (*f)(void) = cpustop_restartfunc;
+			cpustop_restartfunc = NULL;
+			(*f)();
+		}
 	} else if (vector == mp_ipi_vector[IPI_TEST]) {
 		mp_ipi_test++;
 #endif
