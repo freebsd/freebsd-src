@@ -27,9 +27,9 @@
  *	i4b_l3l4.h - layer 3 / layer 4 interface
  *	------------------------------------------
  *
- *	$Id: i4b_l3l4.h,v 1.23 1999/02/15 09:55:47 hm Exp $
+ *	$Id: i4b_l3l4.h,v 1.24 1999/03/18 14:33:40 hm Exp $
  *
- *	last edit-date: [Sun Feb 14 10:04:19 1999]
+ *	last edit-date: [Wed Mar 17 16:16:40 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -81,7 +81,7 @@ typedef struct i4l_driver_bchan_linktab {
 #define ACT_TX 1
 	void (*line_connected)(int unit, void *cde);
 	void (*line_disconnected)(int unit, void *cde);
-	void (*dial_response)(int unit, int stat);
+	void (*dial_response)(int unit, int stat, cause_t cause);
 	void (*updown_ind)(int unit, int updown);		
 } drvr_link_t;
 

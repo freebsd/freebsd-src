@@ -27,9 +27,9 @@
  *	i4b - Siemens HSCX chip (B-channel) handling
  *	--------------------------------------------
  *
- *	$Id: i4b_hscx.c,v 1.39 1999/02/14 19:51:01 hm Exp $ 
+ *	$Id: i4b_hscx.c,v 1.42 1999/03/17 13:44:50 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:26:49 1999]
+ *      last edit-date: [Wed Mar 17 11:59:05 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -288,14 +288,23 @@ isic_hscx_irq(register struct isic_softc *sc, u_char ista, int h_chan, u_char ex
 					MPH_Trace_Ind(&hdr, chan->in_mbuf->m_len, chan->in_mbuf->m_data);
 				}
 
-				/* move rx'd data to rx queue */
-
-				IF_ENQUEUE(&chan->rx_queue, chan->in_mbuf);
+				/* silence detection */
 				
-				(*chan->drvr_linktab->bch_rx_data_ready)(chan->drvr_linktab->unit);
-
 				if(!(isic_hscx_silence(chan->in_mbuf->m_data, chan->in_mbuf->m_len)))
 					activity = ACT_RX;
+
+				if(!(IF_QFULL(&chan->rx_queue)))
+				{
+					IF_ENQUEUE(&chan->rx_queue, chan->in_mbuf);
+				}
+				else
+				{
+					i4b_Bfreembuf(chan->in_mbuf);
+				}
+
+				/* signal upper driver that data is available */
+
+				(*chan->drvr_linktab->bch_rx_data_ready)(chan->drvr_linktab->unit);
 				
 				/* alloc new buffer */
 				

@@ -1,14 +1,14 @@
 #---------------------------------------------------------------------------
 #
-#	$Id: Makefile,v 1.1 1999/02/15 19:13:47 hm Exp $
+#	$Id: Makefile,v 1.1 1999/03/07 17:09:03 hm Exp $
 #
-#	last edit-date: [Mon Feb 15 20:04:40 1999]
+#	last edit-date: [Thu May 20 12:04:05 1999]
 #
 #---------------------------------------------------------------------------
 
 PROG            =       dtmfdecode
 SRC             =       dtmfdecode.c
-LDADD		+=	-lm
+#LDADD		+=	-lm
 CFLAGS          +=      -Wall -g -DDEBUG
 MAN1		=	dtmfdecode.1
 

@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.112 1999/04/24 21:46:56 peter Exp $
+#	$Id: options.i386,v 1.113 1999/05/09 13:10:49 peter Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -138,6 +138,7 @@ TEL_S0_16_3		opt_i4b.h
 AVM_A1			opt_i4b.h
 USR_STI			opt_i4b.h
 ITKIX1			opt_i4b.h
+ELSA_PCC16              opt_i4b.h
 # -------------------------------
 # isdn4bsd: passive ISA PnP cards
 # -------------------------------

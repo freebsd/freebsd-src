@@ -27,9 +27,9 @@
  *	isic - I4B Siemens ISDN Chipset Driver for ELSA Quickstep 1000pro ISA
  *	=====================================================================
  *
- *	$Id: i4b_elsa_qs1i.c,v 1.14 1999/02/14 11:02:04 hm Exp $
+ *	$Id: i4b_elsa_qs1i.c,v 1.15 1999/03/16 14:57:53 hm Exp $
  *
- *      last edit-date: [Sun Feb 14 11:59:45 1999]
+ *      last edit-date: [Tue Mar 16 15:42:10 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,7 +46,11 @@
 
 #endif
 
-#if (NISIC > 0) && (NPNP > 0) && defined(ELSA_QS1ISA)
+/* 
+ * this driver works for both the ELSA QuickStep 1000 PNP and the ELSA
+ * PCC-16
+ */
+#if (NISIC > 0) && (((NPNP > 0) && defined(ELSA_QS1ISA)) || defined(ELSA_PCC16))
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -22,16 +22,16 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: dtmfdecode.1,v 1.1 1999/02/15 19:13:47 hm Exp $
+.\"	$Id: dtmfdecode.1,v 1.4 1999/04/26 11:42:33 hm Exp $
 .\"
-.\"	last edit-date: [Mon Feb 15 20:11:30 1999]
+.\"	last edit-date: [Mon Apr 26 13:42:15 1999]
 .\"
 .\"
 .Dd February, 15 1999
 .Dt dtmfdecode 1
 .Sh NAME
 .Nm dtmfdecode
-.Nd decodes DTMF tones from i4b .g711a files
+.Nd decodes DTMF tones from A-law audio data
 .Sh SYNOPSIS
 .Nm
 .Sh DESCRIPTION
@@ -42,11 +42,14 @@ audio stream.
 It reads audio G.711 A-Law coded data from stdin and outputs the detected
 numbers values as ASCII charcters to stdout.
 .Pp
+The detector is implemented as 8 narrow band-pass filters realized with
+an integer double-cross recursive algorithm.  Various ad-hoc methods are 
+employed to provide hysteresis and anti-bounce for the detected signals.
 
 .Sh EXAMPLES
 The command:
 .Bd -literal -offset indent
-dtmfdecode < beep.g711a 
+dtmfdecode < beep.al 
 .Ed
 .Pp
 will print a "1" to stdout.

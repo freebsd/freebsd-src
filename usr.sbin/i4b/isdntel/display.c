@@ -27,9 +27,9 @@
  *	isdntel - isdn4bsd telephone answering machine support
  *      ======================================================
  *
- *	$Id: display.c,v 1.5 1999/02/14 09:44:57 hm Exp $ 
+ *	$Id: display.c,v 1.6 1999/04/26 12:10:39 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:19:32 1999]
+ *      last edit-date: [Mon Apr 26 13:57:08 1999]
  *
  *----------------------------------------------------------------------------*/
 
@@ -60,7 +60,7 @@ init_screen(void)
 	keypad(main_w, TRUE);			/* use special keys */
 	scrollok(main_w, TRUE);
 
-	sprintf(buffer, " isdntel %s.%s ", VERSION, REL);
+	sprintf(buffer, " isdntel %d.%d.%d ", VERSION, REL, STEP);
 
 	move(0, 0);
 	standout();

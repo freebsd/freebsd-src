@@ -27,9 +27,9 @@
  *	isic - I4B Siemens ISDN Chipset Driver for ELSA Quickstep 1000pro PCI
  *	=====================================================================
  *
- *	$Id: i4b_elsa_qs1p.c,v 1.5 1999/02/14 09:44:59 hm Exp $
+ *	$Id: i4b_elsa_qs1p.c,v 1.6 1999/03/16 15:21:55 hm Exp $
  *
- *      last edit-date: [Sun Feb 14 10:26:43 1999]
+ *      last edit-date: [Wed Mar 10 07:24:32 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -86,8 +86,7 @@
 #include <i4b/layer1/i4b_ipac.h>
 
 #ifndef __FreeBSD__
-/* we don't have the function prototypes in the global i4b_l1.h any more */
-void isic_attach_Eqs1pp __P((struct isic_softc *sc, struct pci_attach_args *pa));
+#include <i4b/layer1/pci_isic.h>
 #endif
 
 /* masks for register encoded in base addr */
@@ -400,10 +399,12 @@ isic_attach_Eqs1pp(int unit, unsigned int iobase1, unsigned int iobase2)
 #else	/* !FreeBSD */
 
 void
-isic_attach_Eqs1pp(sc, pa)
-	struct isic_softc *sc;
+isic_attach_Eqs1pp(psc, pa)
+	struct pci_isic_softc *psc;
 	struct pci_attach_args *pa;
 {
+	struct isic_softc *sc = &psc->sc_isic;
+
 	/* setup io mappings */
 	sc->sc_num_mappings = 2;
 	MALLOC_MAPS(sc);

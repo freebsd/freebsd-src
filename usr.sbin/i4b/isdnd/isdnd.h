@@ -27,9 +27,9 @@
  *	i4b daemon - main header file
  *	-----------------------------
  *
- *	$Id: isdnd.h,v 1.59 1999/02/15 15:02:58 hm Exp $ 
+ *	$Id: isdnd.h,v 1.62 1999/04/29 08:27:10 hm Exp $ 
  *
- *      last edit-date: [Mon Feb 15 15:42:37 1999]
+ *      last edit-date: [Thu Apr 29 09:35:01 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -265,11 +265,12 @@ typedef struct cfg_entry {
 	int idle_time_in;		/* max idle time incoming calls */
 	int idle_time_out;		/* max idle time outgoing calls */
 
-	msg_shorthold_algorithm_t shorthold_algorithm;	/* shorthold algorithm		*/
-	int  unitlength;		/* length of a charging unit	*/
+	int shorthold_algorithm;	/* shorthold algorithm		*/
+
+	int unitlength;			/* length of a charging unit	*/
 #define UNITLENGTH_DEFAULT	60	/* last resort unit length	*/
 
-	int  earlyhangup;		/* time in seconds to hangup 	*/
+	int earlyhangup;		/* time in seconds to hangup 	*/
 					/* before the next expected	*/
 					/* charging unit		*/
 #define EARLYHANGUP_DEFAULT	5
@@ -547,6 +548,8 @@ int accepted = 0;
 
 int isdntime = 0;		/* flag, log time from exchange	*/
 
+char tinainitprog[MAXPATHLEN] = TINA_FILE_DEF;
+
 #else /* !MAIN */
 
 int isdnfd;
@@ -618,6 +621,8 @@ int accepted;
 
 int isdntime;
 
+char tinainitprog[MAXPATHLEN];
+
 #endif /* MAIN */
 
 char * bdrivername ( int drivertype );
@@ -645,6 +650,7 @@ int exec_answer ( cfg_entry_t *cep );
 int exec_connect_prog ( cfg_entry_t *cep, const char *prog, int link_down );
 pid_t exec_prog ( char *prog, char **arglist );
 cfg_entry_t * find_by_device_for_dialout ( int drivertype, int driverunit );
+cfg_entry_t *find_by_device_for_dialoutnumber(int drivertype, int driverunit, int cmdlen, char *cmd);
 cfg_entry_t * find_matching_entry_incoming ( msg_connect_ind_t *mp );
 cfg_entry_t * find_active_entry_by_driver ( int drivertype, int driverunit );
 void finish_log ( void );
@@ -673,6 +679,7 @@ void msg_negcomplete_ind(msg_negcomplete_ind_t *ind);
 void msg_ifstatechg_ind(msg_ifstatechg_ind_t *ind);
 void msg_drvrdisc_req(msg_drvrdisc_req_t *mp);
 void msg_dialout ( msg_dialout_ind_t *mp );
+void msg_dialoutnumber(msg_dialoutnumber_ind_t *mp);
 void msg_disconnect_ind ( msg_disconnect_ind_t *mp );
 void msg_idle_timeout_ind ( msg_idle_timeout_ind_t *mp );
 void msg_l12stat_ind(msg_l12stat_ind_t *ml);
@@ -736,6 +743,7 @@ void monitor_evnt_log(int prio, const char * what, const char * msg);
 /* controller.c */
 
 int init_controller_state(int controller, int ctrl_type, int card_type, int tei);
+void init_active_controller(void);
 int set_controller_state(int controller, int state);
 int get_controller_state(int controller);
 int decr_free_channels(int controller);

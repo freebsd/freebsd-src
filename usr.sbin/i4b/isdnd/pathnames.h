@@ -27,9 +27,9 @@
  *	i4b daemon - location of files
  *	------------------------------
  *
- *	$Id: pathnames.h,v 1.7 1999/02/14 19:51:01 hm Exp $ 
+ *	$Id: pathnames.h,v 1.8 1999/04/29 08:27:10 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:11:43 1999]
+ *      last edit-date: [Thu Apr 29 09:07:29 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -41,6 +41,8 @@
 #define ETCPATH		"/etc/isdn"
 #define CONFIG_FILE_DEF	"/etc/isdn/isdnd.rc"
 #define RATES_FILE_DEF	"/etc/isdn/isdnd.rates"
+
+#define TINA_FILE_DEF	"/etc/isdn/tinainitprog"
 
 #define LIBDIR		"/usr/local/lib/isdn"
 

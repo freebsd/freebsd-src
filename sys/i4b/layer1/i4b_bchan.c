@@ -27,7 +27,7 @@
  *	i4b_bchan.c - B channel handling L1 procedures
  *	----------------------------------------------
  *
- *	$Id: i4b_bchan.c,v 1.30 1999/02/14 19:51:01 hm Exp $
+ *	$Id: i4b_bchan.c,v 1.32 1999/03/17 10:41:08 hm Exp $
  *
  *      last edit-date: [Sun Feb 14 10:25:27 1999]
  *

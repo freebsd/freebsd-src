@@ -4,22 +4,22 @@
 #	isdn telephone answering
 #	-------------------------
 #
-#	$Id: isdntel.sh,v 1.7 1998/12/18 17:17:57 hm Exp $
+#	$Id: isdntel.sh,v 1.9 1999/04/23 09:42:05 hm Exp $
 #
-#	last edit-date: [Fri Dec 18 18:05:26 1998]
-#
-#	-hm	answering script
-#	-hm	curses interface
-#	-hm	update for release
+#	last edit-date: [Thu May 20 11:45:04 1999]
 #
 #---------------------------------------------------------------------------
-LIBDIR=/usr/local/lib/isdn
+#FreeBSD < 3.1, NetBSD, OpenBSD, BSD/OS
+#LIBDIR=/usr/local/lib/isdn
+#FreeBSD 3.1 and up
+LIBDIR=/usr/share/isdn
+
 VARDIR=/var/isdn
 DEVICE=/dev/i4btel0
 
 # sounds 
-MESSAGE=$LIBDIR/msg.g711a
-BEEP=$LIBDIR/beep.g711a
+MESSAGE=$LIBDIR/msg.al
+BEEP=$LIBDIR/beep.al
 
 # dd options
 SKIP=25

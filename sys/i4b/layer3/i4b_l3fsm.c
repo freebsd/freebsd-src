@@ -27,9 +27,9 @@
  *	i4b_l3fsm.c - layer 3 FSM
  *	-------------------------
  *
- *	$Id: i4b_l3fsm.c,v 1.14 1999/02/14 09:45:01 hm Exp $ 
+ *	$Id: i4b_l3fsm.c,v 1.16 1999/04/21 07:50:31 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:33:25 1999]
+ *      last edit-date: [Wed Apr 21 09:42:26 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -889,6 +889,13 @@ static void F_DISC(call_desc_t *cd)
 static void F_DCRQ(call_desc_t *cd)
 {
 	DBGL3(L3_F_MSG, "F_DCRQ", ("FSM function F_DCRQ executing\n"));
+
+	/* stop T310 in case this is the result of an incoming call for a */
+	/* calledback connection */
+
+	if(cd->T310 == TIMER_ACTIVE)
+		T310_stop(cd);
+		
 	/* cause from L4 */
 	i4b_l3_tx_disconnect(cd);
 	T305_start(cd);

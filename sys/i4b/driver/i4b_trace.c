@@ -27,9 +27,9 @@
  *	i4btrc - device driver for trace data read device
  *	---------------------------------------------------
  *
- *	$Id: i4b_trace.c,v 1.16 1999/02/14 19:51:01 hm Exp $
+ *	$Id: i4b_trace.c,v 1.18 1999/04/28 08:23:21 hm Exp $
  *
- *	last edit-date: [Sun Feb 14 10:03:01 1999]
+ *	last edit-date: [Wed Apr 28 10:21:09 1999]
  *
  *	NOTE: the code assumes that SPLI4B >= splimp !
  *
@@ -125,7 +125,7 @@ static d_open_t	i4btrcopen;
 static d_close_t i4btrcclose;
 static d_read_t i4btrcread;
 static d_ioctl_t i4btrcioctl;
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#ifdef OS_USES_POLL
 static d_poll_t i4btrcpoll;
 #endif
 
@@ -133,7 +133,7 @@ static d_poll_t i4btrcpoll;
 static struct cdevsw i4btrc_cdevsw = {
 	i4btrcopen,	i4btrcclose,	i4btrcread,	nowrite,
   	i4btrcioctl,	nostop,		noreset,	nodevtotty,
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#ifdef OS_USES_POLL
 	i4btrcpoll,	nommap, 	NULL, "i4btrc", NULL, -1
 #else
 	noselect,	nommap, 	NULL, "i4btrc", NULL, -1
@@ -441,10 +441,10 @@ i4btrcread(dev_t dev, struct uio * uio, int ioflag)
 	return(error);
 }
 
+#if defined(__FreeBSD__) && defined(OS_USES_POLL)
 /*---------------------------------------------------------------------------*
  *	poll device
  *---------------------------------------------------------------------------*/
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 PDEVSTATIC int
 i4btrcpoll(dev_t dev, int events, struct proc *p)
 {

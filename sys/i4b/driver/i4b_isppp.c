@@ -34,9 +34,9 @@
  *	the "cx" driver for Cronyx's HDLC-in-hardware device).  This driver
  *	is only the glue between sppp and i4b.
  *
- *	$Id: i4b_isppp.c,v 1.22 1999/02/14 09:44:55 hm Exp $
+ *	$Id: i4b_isppp.c,v 1.27 1999/05/03 08:48:25 hm Exp $
  *
- *	last edit-date: [Sun Feb 14 10:02:43 1999]
+ *	last edit-date: [Sun May  2 10:52:57 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -63,7 +63,7 @@
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__)
 #include <net/if_sppp.h>
 #else
 #include <i4b/sppp/if_sppp.h>
@@ -83,9 +83,11 @@
 #ifdef __FreeBSD__
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_cause.h>
+#include <machine/i4b_debug.h>
 #else
 #include <i4b/i4b_ioctl.h>
 #include <i4b/i4b_cause.h>
+#include <i4b/i4b_debug.h>
 #endif
 
 #include <i4b/include/i4b_global.h>
@@ -373,11 +375,19 @@ i4bisppp_start(struct ifnet *ifp)
 
 		microtime(&ifp->if_lastchange);
 
-		IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
+		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
+		{
+			DBGL4(L4_ISPDBG, "i4bisppp_start", ("isp%d, tx queue full!\n", unit));
+			m_freem(m);
+		}
+		else
+		{
+			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
 
-		sc->sc_if.if_obytes += m->m_pkthdr.len;
-		sc->sc_outb += m->m_pkthdr.len;
-		sc->sc_if.if_opackets++;
+			sc->sc_if.if_obytes += m->m_pkthdr.len;
+			sc->sc_outb += m->m_pkthdr.len;
+			sc->sc_if.if_opackets++;
+		}
 	}
 	isdn_linktab[unit]->bch_tx_start(isdn_linktab[unit]->unit,
 					 isdn_linktab[unit]->channel);
@@ -553,10 +563,7 @@ i4bisppp_disconnect(int unit, void *cdp)
 	/* new stuff to check that the active channel is being closed */
 	if (cd != sc->sc_cdp)
 	{
-#ifdef I4BISPPPDISCDEBUG		
-		printf("i4bisppp_disconnect: isppp%d channel%d not active\n",
-			cd->driver_unit, cd->channelid);
-#endif
+		DBGL4(L4_ISPDBG, "i4bisppp_disconnect", ("isp%d, channel%d not active!\n", unit, cd->channelid));
 		splx(s);
 		return;
 	}
@@ -587,9 +594,24 @@ i4bisppp_disconnect(int unit, void *cdp)
  *	in case of dial problems
  *---------------------------------------------------------------------------*/
 static void
-i4bisppp_dialresponse(int unit, int status)
+i4bisppp_dialresponse(int unit, int status, cause_t cause)
 {
-/*	struct i4bisppp_softc *sc = &i4bisppp_softc[unit];	*/
+	struct i4bisppp_softc *sc = &i4bisppp_softc[unit];
+
+	DBGL4(L4_ISPDBG, "i4bisppp_dialresponse", ("isp%d: status=%d, cause=%d\n", unit, status, cause));
+
+	if(status != DSTAT_NONE)
+	{
+		struct mbuf *m;
+		
+		DBGL4(L4_ISPDBG, "i4bisppp_dialresponse", ("isp%d: clearing queues\n", unit));
+
+		if(!(sppp_isempty(&sc->sc_if)))
+		{
+			while((m = sppp_dequeue(&sc->sc_if)) != NULL)
+				m_freem(m);
+		}
+	}
 }
 	
 /*---------------------------------------------------------------------------*

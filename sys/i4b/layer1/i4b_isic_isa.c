@@ -27,9 +27,9 @@
  *	i4b_isic_isa.c - ISA bus interface
  *	==================================
  *
- *	$Id: i4b_isic_isa.c,v 1.2 1999/03/07 16:08:15 hm Exp $ 
+ *	$Id: i4b_isic_isa.c,v 1.20 1999/05/10 09:37:35 hm Exp $ 
  *
- *      last edit-date: [Tue Mar 16 10:35:38 1999]
+ *      last edit-date: [Tue Apr 20 11:47:59 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -98,7 +98,7 @@ void isicintr ( int unit );
 void isicintr_sc(struct isic_softc *sc);
 
 static int isicprobe(struct isa_device *dev);
-static int isicattach(struct isa_device *dev);
+int isicattach(struct isa_device *dev);
 
 struct isa_driver isicdriver = {
 	isicprobe,
@@ -198,6 +198,12 @@ isicprobe(struct isa_device *dev)
 			break;
 #endif
 
+#ifdef ELSA_PCC16
+		case FLAG_ELSA_PCC16:
+			ret = isic_probe_Eqs1pi(dev, 0);
+			break;
+#endif
+
 		default:
 			break;
 	}
@@ -250,6 +256,12 @@ isa_isicmatch(struct device *parent, struct cfdata *cf, struct isa_attach_args *
 			break;
 #endif
 
+#ifdef ELSA_PCC16
+                case FLAG_ELSA_PCC16:
+			ret = isic_probe_Eqs1pi(dev, 0);
+			break;
+#endif
+
 		default:
 			break;
 	}
@@ -274,7 +286,7 @@ isicprobe(struct isic_attach_args *args)
 /*---------------------------------------------------------------------------*
  *	isic - non-pnp device driver attach routine
  *---------------------------------------------------------------------------*/
-static int
+int
 isicattach(struct isa_device *dev)
 {
 	return(isic_realattach(dev, 0));
@@ -395,6 +407,12 @@ isicattach(int flags, struct isic_softc *sc)
 			break;
 #endif
 
+#ifdef ELSA_PCC16
+		case FLAG_ELSA_PCC16:
+			ret = isic_attach_Eqs1pi(dev, 0);
+			break;
+#endif
+
 /* ======================================================================
  * Only P&P cards follow below!!!
  */
@@ -404,7 +422,7 @@ isicattach(int flags, struct isic_softc *sc)
 
 #ifdef AVM_A1_PCMCIA
 		case FLAG_AVM_A1_PCMCIA:
-                      ret = isic_attach_fritz(PARM);
+                      ret = isic_attach_fritzpcmcia(PARM);
 			break;
 #endif
 
@@ -590,6 +608,10 @@ isicattach(int flags, struct isic_softc *sc)
 
 		case FLAG_ITK_IX1:
 			drvid = "ITK ix1 micro";
+			break;
+
+		case FLAG_ELSA_PCC16:
+			drvid = "ELSA PCC-16";
 			break;
 
 		default:
