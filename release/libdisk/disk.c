@@ -20,7 +20,6 @@
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
-#include <sys/queue.h>
 #include "libdisk.h"
 
 #define DOSPTYP_EXTENDED        5
@@ -66,6 +65,7 @@ Int_Open_Disk(char *name, u_long size)
 		size = ds.dss_slices[WHOLE_DISK_SLICE].ds_size;
 
 	Add_Chunk(d, 0, size, name,whole,0,0);
+	Add_Chunk(d, 0, 1, "-",reserved,0,0);
 	
 	for(i=2;i<ds.dss_nslices;i++) {
 		char sname[20];
@@ -94,6 +94,9 @@ Int_Open_Disk(char *name, u_long size)
 		flags |= CHUNK_ALIGN;
 		Add_Chunk(d,ds.dss_slices[i].ds_offset,
 			ds.dss_slices[i].ds_size, sname,ce,subtype,flags);
+		if (ce == extended)
+			Add_Chunk(d,ds.dss_slices[i].ds_offset,
+				1, "-",reserved, subtype, flags);
 		if (ds.dss_slices[i].ds_type == 0xa5) {
 			struct disklabel *dl;
 			int j;
