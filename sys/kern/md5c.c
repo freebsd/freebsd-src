@@ -22,7 +22,7 @@
  * These notices must be retained in any copies of any part of this
  * documentation and/or software.
  *
- * $Id: md5c.c,v 1.9 1997/08/02 14:31:35 bde Exp $
+ * $Id: md5c.c,v 1.10 1997/10/21 13:28:36 phk Exp $
  *
  * This code is the same as the code published by RSA Inc.  It has been
  * edited for clarity and style only.
@@ -191,13 +191,11 @@ MD5Update (context, input, inputLen)
 }
 
 /*
- * MD5 finalization. Ends an MD5 message-digest operation, writing the
- * the message digest and zeroizing the context.
+ * MD5 padding. Adds padding followed by original length.
  */
 
 void
-MD5Final (digest, context)
-	unsigned char digest[16];
+MD5Pad (context)
 	MD5_CTX *context;
 {
 	unsigned char bits[8];
@@ -213,6 +211,20 @@ MD5Final (digest, context)
 
 	/* Append length (before padding) */
 	MD5Update (context, bits, 8);
+}
+
+/*
+ * MD5 finalization. Ends an MD5 message-digest operation, writing the
+ * the message digest and zeroizing the context.
+ */
+
+void
+MD5Final (digest, context)
+	unsigned char digest[16];
+	MD5_CTX *context;
+{
+	/* Do padding. */
+	MD5Pad (context);
 
 	/* Store state in digest */
 	Encode (digest, context->state, 16);
