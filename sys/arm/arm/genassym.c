@@ -54,7 +54,6 @@ ASSYM(PCB_NOALIGNFLT, PCB_NOALIGNFLT);
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_DACR, offsetof(struct pcb, pcb_dacr));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
-ASSYM(PCB_CSTATE, offsetof(struct pcb, pcb_cstate));
 ASSYM(PCB_UND_SP, offsetof(struct pcb, un_32.pcb32_und_sp));
 ASSYM(PCB_PAGEDIR, offsetof(struct pcb, pcb_pagedir));
 ASSYM(PCB_L1VEC, offsetof(struct pcb, pcb_l1vec));
@@ -80,12 +79,8 @@ ASSYM(CF_CONTEXT_SWITCH, offsetof(struct cpu_functions, cf_context_switch));
 ASSYM(CF_DCACHE_WB_RANGE, offsetof(struct cpu_functions, cf_dcache_wb_range));
 ASSYM(CF_IDCACHE_WBINV_ALL, offsetof(struct cpu_functions, cf_idcache_wbinv_all));
 ASSYM(CF_TLB_FLUSHID_SE, offsetof(struct cpu_functions, cf_tlb_flushID_SE));
+ASSYM(CF_ICACHE_SYNC, offsetof(struct cpu_functions, cf_icache_sync_all));
 
-ASSYM(CS_ALL, offsetof(union pmap_cache_state, cs_all));
-ASSYM(CS_CACHE_ID, offsetof(union pmap_cache_state, cs_cache_id));
-ASSYM(CS_TLB_ID, offsetof(union pmap_cache_state, cs_tlb_id));
-ASSYM(CS_CACHE_D, offsetof(union pmap_cache_state, cs_cache_d));
-ASSYM(PMAP_CSTATE, offsetof(struct pmap, pm_cstate));
 ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
 ASSYM(V_SOFT, offsetof(struct vmmeter, v_soft));
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
@@ -104,7 +99,11 @@ ASSYM(P_FLAG, offsetof(struct proc, p_flag));
 
 ASSYM(PDESIZE, PDESIZE);
 ASSYM(PMAP_DOMAIN_KERNEL, PMAP_DOMAIN_KERNEL);
+#ifdef PMAP_INCLUDE_PTE_SYNC
+ASSYM(PMAP_INCLUDE_PTE_SYNC, 1);
+#endif
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
+ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(USER_SIZE, sizeof(struct user));
 ASSYM(P_TRACED, P_TRACED);
 ASSYM(P_SIGEVENT, P_SIGEVENT);
