@@ -267,8 +267,8 @@ static struct trapframe proc0_tf;
 
 struct cpuhead cpuhead;
 
-mtx_t	sched_lock;
-mtx_t	Giant;
+struct mtx	sched_lock;
+struct mtx	Giant;
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
