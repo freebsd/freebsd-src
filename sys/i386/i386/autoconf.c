@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.21 1995/03/16 18:11:24 bde Exp $
+ *	$Id: autoconf.c,v 1.22 1995/04/10 07:44:25 phk Exp $
  */
 
 /*
@@ -118,12 +118,35 @@ find_cdrom_root()
 }
 #endif
 
+#include "scbus.h"
+#if NSCBUS > 0
+      #include <scsi/scsiconf.h>
+#endif
+
+void
+configure_start()
+{
+#if NSCBUS > 0
+	scsi_configure_start();
+#endif
+}
+
+void
+configure_finish()
+{
+#if NSCBUS > 0
+	scsi_configure_finish();
+#endif
+}
+
 /*
  * Determine i/o configuration for a machine.
  */
 void
 configure()
 {
+
+	configure_start();
 
 #if NISA > 0
 	isa_configure();
@@ -132,6 +155,8 @@ configure()
 #if NPCI > 0
 	pci_configure();
 #endif
+
+	configure_finish();
 
 #ifdef CD9660
 #ifdef BOOTCDROM
