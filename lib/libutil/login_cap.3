@@ -23,19 +23,21 @@
 .Os FreeBSD
 .Dt LOGIN_CAP 3
 .Sh NAME
-.Nm login_getclassbyname ,
 .Nm login_close ,
-.Nm login_getclass ,
-.Nm login_getpwclass ,
-.Nm login_getuserclass ,
-.Nm login_getcapstr ,
-.Nm login_getcaplist ,
-.Nm login_getcaptime ,
-.Nm login_getcapnum ,
-.Nm login_getcapsize ,
 .Nm login_getcapbool ,
-.Nm login_getstyle
+.Nm login_getcaplist ,
+.Nm login_getcapnum ,
+.Nm login_getcapstr ,
+.Nm login_getcapsize ,
+.Nm login_getcaptime ,
+.Nm login_getclass ,
+.Nm login_getclassbyname ,
+.Nm login_getpwclass ,
+.Nm login_getstyle ,
+.Nm login_getuserclass
 .Nd functions for accessing the login class capabilities database.
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <login_cap.h>
@@ -306,7 +308,8 @@ Case of the units suffix is ignored.
 Time values are normally used for setting resource, accounting and
 session limits.
 If supported by the operating system and compiler (which is true of
-FreeBSD), the value returned is a quad (long long), of type
+.Fx ),
+the value returned is a quad (long long), of type
 .Em rlim_t .
 A value "inf" or "infinity" may be used to express an infinite
 value, in which case RLIM_INFINITY is returned.

@@ -34,6 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)kvm_read.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
 .\"
 .Dd June 4, 1993
 .Dt KVM_READ 3
@@ -42,6 +43,8 @@
 .Nm kvm_read ,
 .Nm kvm_write
 .Nd read or write kernel virtual memory
+.Sh LIBRARY
+.Lb libkvm
 .Sh SYNOPSIS
 .Fd #include <kvm.h>
 .Ft ssize_t

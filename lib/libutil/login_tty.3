@@ -31,16 +31,12 @@
 .Sh NAME
 .Nm login_tty
 .Nd prepare a tty for a new login session
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <libutil.h>
 .Ft int
 .Fn login_tty "int fd"
-.Pp
-Link with
-.Va -lutil
-on the
-.Xr cc 1
-command line.
 .Sh DESCRIPTION
 The function
 .Fn login_tty

@@ -46,10 +46,12 @@
 .Nm fetchStatHTTP ,
 .Nm fetchListHTTP ,
 .Nm fetchGetFTP ,
-.Nm fetchPutFTP
-.Nm fetchStatFTP
-.Nm fetchListFTP ,
-.Nd file transfer library
+.Nm fetchPutFTP ,
+.Nm fetchStatFTP ,
+.Nm fetchListFTP
+.Nd file transfer functions
+.Sh LIBRARY
+.Lb libfetch
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <stdio.h>
@@ -277,7 +279,7 @@ to report errors.
 The error code passed to
 .Fn com_err
 is one of:
-.Bl -tag -width Er
+.Bl -tag -width 18n
 .It Bq Er FETCH_ABORT
 Operation aborted    
 .It Bq Er FETCH_AUTH
@@ -385,7 +387,7 @@ examples of this are
 .Fn fetchPutHTTP ,
 .Fn fetchStatHTTP ,
 .Fn fetchListHTTP ,
-.Fn fetchListFTP ,
+.Fn fetchListFTP
 and FTP proxy support.
 .Pp
 There's no way to select a proxy at run-time other than setting the

@@ -25,6 +25,8 @@
 .Sh NAME
 .Nm _secure_path
 .Nd determine if a file appears to be secure
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <libutil.h>
@@ -66,7 +68,7 @@ to eliminate race conditions between use of this function and
 access to the file referenced.
 .Sh SEE ALSO
 .Xr lstat 2 ,
-.Xr syslog 3 .
+.Xr syslog 3
 .Sh HISTORY
 Code from which this function was derived was contributed to the
 .Fx
