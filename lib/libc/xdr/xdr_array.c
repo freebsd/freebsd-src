@@ -47,10 +47,10 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <err.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 
 #include <rpc/types.h>
 #include <rpc/xdr.h>
