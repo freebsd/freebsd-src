@@ -35,7 +35,7 @@
  *
  *	@(#)null_vnops.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: null_vnops.c,v 1.3 1994/08/20 03:48:51 davidg Exp $
+ * $Id: null_vnops.c,v 1.4 1994/09/21 03:47:02 wollman Exp $
  */
 
 /*
@@ -162,6 +162,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/types.h>
