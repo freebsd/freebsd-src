@@ -1,11 +1,11 @@
-<!-- $Id: history.sgml,v 1.10 1995/11/15 07:44:56 jkh Exp $ -->
+<!-- $Id: history.sgml,v 1.11 1995/11/24 07:55:26 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>A brief history of FreeBSD<label id="history"></heading>
 
 <p><em>Contributed by &a.jkh;</em>.
 
-The FreeBSD project had its genesis in the early part of 1992,
+The FreeBSD project had its genesis in the early part of 1993,
 partially as an outgrowth of the "Unofficial 386BSD Patchkit" by the
 patchkit's last 3 coordinators: Nate Williams, Rod Grimes and myself.
 David Greenman and Julian Elischer were also lurking in the background
