@@ -614,11 +614,7 @@ ifa_ifwithnet(addr)
 
 			if (ifa->ifa_addr->sa_family != af)
 next:				continue;
-			if (
-#ifdef INET6 /* XXX: for maching gif tunnel dst as routing entry gateway */
-			    addr->sa_family != AF_INET6 &&
-#endif
-			    ifp->if_flags & IFF_POINTOPOINT) {
+			if (af == AF_INET && ifp->if_flags & IFF_POINTOPOINT) {
 				/*
 				 * This is a bit broken as it doesn't
 				 * take into account that the remote end may
