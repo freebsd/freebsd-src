@@ -95,6 +95,7 @@ int	prom_getenv __P((int, char *, int));
 
 #ifndef ASSEMBLER
 #ifdef _KERNEL
+void	promcnattach __P((int));
 void	promcnputc __P((dev_t, int));
 int	promcngetc __P((dev_t));
 int	promcncheckc __P((dev_t));
