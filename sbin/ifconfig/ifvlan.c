@@ -61,9 +61,8 @@ static const char rcsid[] =
 static int			__tag = 0;
 static int			__have_tag = 0;
 
-void vlan_status(s, info)
-	int			s;
-	struct rt_addrinfo *info __unused;
+void
+vlan_status(int s, struct rt_addrinfo *info __unused)
 {
 	struct vlanreq		vreq;
 
@@ -80,10 +79,8 @@ void vlan_status(s, info)
 	return;
 }
 
-void setvlantag(val, d, s, afp)
-	const char		*val;
-	int			d, s;
-	const struct afswtch	*afp;
+void
+setvlantag(const char *val, int d, int s, const struct afswtch	*afp)
 {
 	u_int16_t		tag;
 	struct vlanreq		vreq;
@@ -105,10 +102,8 @@ void setvlantag(val, d, s, afp)
 	return;
 }
 
-void setvlandev(val, d, s, afp)
-	const char		*val;
-	int			d, s;
-	const struct afswtch	*afp;
+void
+setvlandev(const char *val, int d, int s, const struct afswtch	*afp)
 {
 	struct vlanreq		vreq;
 
@@ -130,10 +125,8 @@ void setvlandev(val, d, s, afp)
 	return;
 }
 
-void unsetvlandev(val, d, s, afp)
-	const char		*val;
-	int			d, s;
-	const struct afswtch	*afp;
+void
+unsetvlandev(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct vlanreq		vreq;
 
