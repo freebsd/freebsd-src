@@ -175,44 +175,38 @@ static void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	unsigned long val;
+	u_long val;
 
 	val = ctob(physmem);
-	int error = sysctl_handle_int(oidp, &val, req);
-	return (error);
+	return (sysctl_handle_long(oidp, &val, 0, req));
 }
 
-SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG|CTLFLAG_RD,
+SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG | CTLFLAG_RD,
 	0, 0, sysctl_hw_physmem, "LU", "");
 
 static int
 sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	unsigned long val;
+	u_long val;
 
 	val = ctob(physmem - cnt.v_wire_count);
-	int error = sysctl_handle_int(oidp, &val, 0, req);
-	return (error);
+	return (sysctl_handle_long(oidp, &val, 0, req));
 }
 
-SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG|CTLFLAG_RD,
+SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG | CTLFLAG_RD,
 	0, 0, sysctl_hw_usermem, "LU", "");
 
 static int
 sysctl_hw_availpages(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	long val;
- 
+	u_long val;
+
 	val = i386_btop(avail_end - avail_start);
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	return (error);
+	return (sysctl_handle_long(oidp, &val, 0, req));
 }
 
-SYSCTL_PROC(_hw, OID_AUTO, availpages, CTLTYPE_LONG|CTLFLAG_RD,
-	0, 0, sysctl_hw_availpages, "L", "");
+SYSCTL_PROC(_hw, OID_AUTO, availpages, CTLTYPE_ULONG | CTLFLAG_RD,
+	0, 0, sysctl_hw_availpages, "LU", "");
 
 long Maxmem = 0;
 #ifdef PC98
@@ -1535,7 +1529,7 @@ physmap_done:
 
 	if (atop(physmap[physmap_idx + 1]) != Maxmem &&
 	    (boothowto & RB_VERBOSE))
-		printf("Physical memory use set to %uK\n", Maxmem * 4);
+		printf("Physical memory use set to %ldK\n", Maxmem * 4);
 
 	/*
 	 * If Maxmem has been increased beyond what the system has detected,

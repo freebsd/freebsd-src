@@ -158,41 +158,38 @@ static void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	unsigned long val;
+	u_long val;
 
 	val = ctob(physmem);
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	return (error);
+	return (sysctl_handle_long(oidp, &val, 0, req));
 }
 
-SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG|CTLFLAG_RD,
+SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG | CTLFLAG_RD,
 	0, 0, sysctl_hw_physmem, "LU", "");
 
 static int
 sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	unsigned long val;
+	u_long val;
 
 	val = ctob(physmem - cnt.v_wire_count);
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	return (error);
+	return (sysctl_handle_long(oidp, &val, 0, req));
 }
 
-SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG|CTLFLAG_RD,
+SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG | CTLFLAG_RD,
 	0, 0, sysctl_hw_usermem, "LU", "");
 
 static int
 sysctl_hw_availpages(SYSCTL_HANDLER_ARGS)
 {
-	int error = sysctl_handle_int(oidp, 0,
-		i386_btop(avail_end - avail_start), req);
-	return (error);
+	u_long val;
+
+	val = i386_btop(avail_end - avail_start);
+	return (sysctl_handle_long(oidp, &val, 0, req));
 }
 
-SYSCTL_PROC(_hw, OID_AUTO, availpages, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_availpages, "I", "");
+SYSCTL_PROC(_hw, OID_AUTO, availpages, CTLTYPE_ULONG | CTLFLAG_RD,
+	0, 0, sysctl_hw_availpages, "LU", "");
 
 long Maxmem = 0;
 
