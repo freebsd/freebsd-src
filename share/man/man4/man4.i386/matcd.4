@@ -76,12 +76,14 @@
 .\"
 .\"	Please note any documentation updates here including your name
 .\"	and the date.
-.\"<2>	Code brought in sync with changes made in versions 1(17) - 1(21)
+.\"<2>	Text brought in sync with changes made in versions 1(17) - 1(21)
 .\"	Frank Durda IV	4-Jul-95
+.\"<3>	Text brought in sync with changes made in versions 1(22) - 1(25)
+.\"	Frank Durda IV  24-Sep-95
 .\"
-.Dd June 24th, 1995
+.Dd September 24th, 1995
 .Dt MATCD 4 i386
-.\"Synchronized to Version 1(21) of matcd.c
+.\"Synchronized to Version 1(25) of matcd.c
 .Os FreeBSD 2.1
 .Sh NAME
 .Nm matcd
@@ -198,9 +200,10 @@ version of these drives that does not have the volume control or headphone
 jack (seen on some Tandy computers), but this drive also works with
 .Nm matcd.
 
-The Matsushita CR-523-x CD-ROM drive is not usable with 
+The Matsushita CR-522-x and CR-523-x CD-ROM drive is not usable with 
 .Nm matcd.
-The CR-523 can also be identified from the front as it requires a CD-caddy.
+The CR-522 and CR-523 can also be identified from the front as it
+requires a CD-caddy.
 
 Drives with IDE interfaces must use an IDE driver.
 
@@ -286,7 +289,7 @@ remain locked until all of the devs on that drive are closed.
 .Nm Matcd 
 accepts numerous 
 .Fn ioctl
-commands, including disk and functions related to CD-ROM  audio and tray
+commands, including disk and functions related to CD-ROM audio and tray
 control features.  The commands are:
 .sp
 .Bl -tag -width CDIOCREADSUBCHANNELXXX -compact -offset indent
@@ -319,6 +322,12 @@ stops playing a disc.
 opens the disc tray.
 .It CDIOCCLOSE
 closes the disc tray.
+.It CDIOCPREVENT
+blocks further attempts to open the drive door until all devices close
+or a CDIOCALLOW ioctl is issued.
+.It CDIOCALLOW
+unlocks the drive door if it was locked.  This ioctl is rejected if
+any locking devices are open.
 .It CDIOCGETVOL
 returns the current volume settings of the drive.
 .It CDIOCSETVOL
@@ -402,4 +411,4 @@ The
 .Nm matcd
 driver appeared in FreeBSD Release 2.0.5.
 
-507043
+509253
