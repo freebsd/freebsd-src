@@ -52,6 +52,7 @@
 #include <i386/isa/icu.h>
 
 #include <pccard/card.h>
+#include <pccard/driver.h>
 #include <pccard/slot.h>
 
 
@@ -130,7 +131,6 @@ pccard_configure()
 #include "pcic.h"
 #if NPCIC > 0
 	{
-	extern void	pcic_probe(); /* XXX Should be linker set */
 	pcic_probe();
 	}
 #endif
