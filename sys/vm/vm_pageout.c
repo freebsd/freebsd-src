@@ -372,7 +372,7 @@ vm_pageout_flush(mc, count, flags)
 	 */
 
 	for (i = 0; i < count; i++) {
-		KASSERT(mc[i]->valid == VM_PAGE_BITS_ALL && mc[i]->dirty == VM_PAGE_BITS_ALL, ("vm_pageout_flush page %p index %d/%d: partially dirty page", mc[i], i, count));
+		KASSERT(mc[i]->valid == VM_PAGE_BITS_ALL, ("vm_pageout_flush page %p index %d/%d: partially invalid page", mc[i], i, count));
 		vm_page_io_start(mc[i]);
 		vm_page_protect(mc[i], VM_PROT_READ);
 	}
