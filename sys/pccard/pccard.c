@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.55 1998/01/24 02:54:45 eivind Exp $
+ *	$Id: pccard.c,v 1.56 1998/02/25 05:58:50 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -562,6 +562,7 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 			slt->ctrl->mapirq(slt, slt->irq);
 		}
 	}
+	devi->running = 1;
 	MALLOC(devi, struct pccard_devinfo *, sizeof(*devi), M_DEVBUF, M_WAITOK);
 	bzero(devi, sizeof(*devi));
 	/*
@@ -594,12 +595,11 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	 *	If the enable functions returns no error, then the
 	 *	device has been successfully installed. If so, then
 	 *	attach it to the slot, otherwise free it and return
-	 *	the error.
+	 *	the error.  We assume that when we free the device,
+	 *	it will also set 'running' to off.
 	 */
 	if (err)
 		remove_device(devi);
-	else
-		devi->running = 1;
 	return(err);
 }
 
