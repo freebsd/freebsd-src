@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass1.c,v 1.6 1995/02/04 19:20:47 phk Exp $
+ * $Id: ctm_pass1.c,v 1.7 1995/02/25 05:02:18 phk Exp $
  *
  */
 
@@ -18,7 +18,7 @@
  */
 
 int
-Pass1(FILE *fd)
+Pass1(FILE *fd, unsigned applied)
 {
     u_char *p,*q;
     MD5_CTX ctx;
@@ -26,7 +26,8 @@ Pass1(FILE *fd)
     u_char *md5=0,*trash=0;
     struct CTM_Syntax *sp;
     int slashwarn=0;
-
+    unsigned current;
+    
     if(Verbose>3) 
 	printf("Pass1 -- Checking integrity of incoming CTM-patch\n");
     MD5Init (&ctx);
@@ -52,6 +53,14 @@ Pass1(FILE *fd)
     GETFIELDCOPY(TimeStamp,' ');			/* <TimeStamp> */
     GETFIELDCOPY(Prefix,'\n');				/* <Prefix> */
 
+    sscanf(Nbr, "%u", &current);
+    if(current <= applied) {
+	if(Verbose)
+	    fprintf(stderr,"Delta number %u is already applied; ignoring.\n",
+		    current);
+	return Exit_Version;
+    }
+    
     for(;;) {
 	if(md5)		{Free(md5), md5 = 0;}
 	if(trash)	{Free(trash), trash = 0;}
