@@ -1369,11 +1369,33 @@ DMenu MenuNetworking = {
       { " Rwhod",	"This machine wants to run the rwho daemon",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "rwhod_enable=YES" },
       { " Sendmail",	"This machine wants to run the sendmail daemon",
-	dmenuVarCheck,	dmenuToggleVariable, NULL, "sendmail_enable=YES" },
+	NULL,		dmenuSubmenu, NULL, &MenuSendmail },
       { " Sshd",	"This machine wants to run the ssh daemon",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "sshd_enable=YES" },
       { " TCP Extensions", "Allow RFC1323 and RFC1644 TCP extensions?",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "tcp_extensions=YES" },
+      { NULL } },
+};
+
+DMenu MenuSendmail = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Sendmail Invocation Selection",
+    "There are three options for invoking sendmail at startup.\n"
+    "Please select Yes if you want to use sendmail as your mail transfer\n"
+    "agent.  Selecting No disables sendmail's network socket for incoming\n"
+    "email, but still enables sendmail for local and outbound mail.\n"
+    "None disables sendmail completely at startup and disables inbound,\n"
+    "outbound, and local mail.  See /etc/mail/README for more\n"
+    "information.\n",
+    NULL,
+    NULL,
+    {
+      { " Yes",		"Start sendmail",
+	dmenuVarCheck, dmenuSetVariable, NULL, "sendmail_enable=YES" },
+      { " No",		"Start sendmail, but don't listen from network",
+	dmenuVarCheck, dmenuSetVariable, NULL, "sendmail_enable=NO" },
+      { " None",	"Don't start any sendmail processes",
+	dmenuVarCheck, dmenuSetVariable, NULL, "sendmail_enable=NONE" },
       { NULL } },
 };
 
