@@ -572,13 +572,6 @@ for the super-user.)
 A process is recognized as a
 .Em super-user
 process and is granted special privileges if its effective user ID is 0.
-.It  Special Processes
-The processes with process IDs of 0, 1, and 2 are special.
-Process 0 is the scheduler.  Process 1 is the initialization process
-.Xr init 8 ,
-and is the ancestor of every other process in the system.
-It is used to control the process structure.
-Process 2 is the paging daemon.
 .It  Descriptor
 An integer assigned by the system when a file is referenced
 by
