@@ -101,11 +101,6 @@ main(argc, argv)
 	char *from_path, *from_sys, *from_user;
 	char *args[100], buf[2048], lbuf[2048];
 
-#ifdef lint
-	fplen = fptlen = 0;
-	addrp = NULL;
-#endif
-
 	debug = 0;
 	domain = "UUCP";		/* Default "domain". */
 	while ((ch = getopt(argc, argv, "D:T")) != -1)
