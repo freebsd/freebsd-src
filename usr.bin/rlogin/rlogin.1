@@ -84,7 +84,9 @@ option turns off all Kerberos authentication.
 .It Fl L
 The
 .Fl L
-option allows the rlogin session to be run in ``litout'' (see
+option allows the rlogin session to be run in
+.Dq litout
+(see
 .Xr tty 4 )
 mode.
 .It Fl d
@@ -97,7 +99,8 @@ on the TCP sockets used for communication with the remote host.
 The
 .Fl e
 option allows user specification of the escape character, which is
-``~'' by default.
+.Dq ~
+by default.
 This specification may be as a literal character, or as an octal
 value in the form \ennn.
 .It Fl i
@@ -133,13 +136,23 @@ utilization, but provides
 increased security.
 .El
 .Pp
-A line of the form ``<escape char>.'' disconnects from the remote host.
-Similarly, the line ``<escape char>^Z'' will suspend the
+A line of the form
+.Dq Aq escape char .
+disconnects from the remote host.
+Similarly, the line
+.Dq Ao escape char Ac Ns ^Z
+will suspend the
 .Nm
-session, and ``<escape char><delayed-suspend char>'' suspends the
+session, and
+.Dq Ao escape char Ac Ao delayed-suspend char Ac
+suspends the
 send portion of the rlogin, but allows output from the remote system.
-By default, the tilde (``~'') character is the escape character, and
-normally control-Y (``^Y'') is the delayed-suspend character.
+By default, the tilde
+.Pq Dq ~
+character is the escape character, and
+normally control-Y
+.Pq Dq ^Y
+is the delayed-suspend character.
 .Pp
 All echoing takes place at the remote site, so that (except for delays)
 the
@@ -178,13 +191,13 @@ standard Berkeley
 is used instead.
 .Sh ENVIRONMENT
 The following environment variable is utilized by
-.Nm rlogin :
+.Nm Ns :
 .Bl -tag -width TERM
 .It Ev TERM
 Determines the user's terminal type.
 .El
 .Sh SEE ALSO
-.Xr login ,
+.Xr login 1 ,
 .Xr rsh 1 ,
 .Xr telnet 1 ,
 .Xr setsockopt 2 ,
@@ -193,19 +206,21 @@ Determines the user's terminal type.
 .Xr krb_sendauth 3 ,
 .Xr ruserok 3 ,
 .Xr tty 4 ,
+.Xr auth.conf 5 ,
+.Xr hosts.equiv 5 ,
 .Xr hosts 5 ,
 .Xr rlogind 8 ,
-.Xr rshd 8
-
+.Xr rshd 8 .
 .Sh FILES
 .Bl -tag -width /etc/hosts -compact
 .It Pa /etc/hosts
 .It Pa /etc/hosts.equiv
 .It Pa /etc/auth.conf
-.It Pa $HOME/.rhosts
-.It Pa $HOME/.klogin
+.Sm off
+.It Pa Ev $HOME /.rhosts
+.It Pa Ev $HOME /.klogin
+.Sm on
 .El
-
 .Sh HISTORY
 The
 .Nm
