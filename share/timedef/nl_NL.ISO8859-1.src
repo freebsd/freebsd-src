@@ -34,14 +34,13 @@ november
 december
 #
 # Short weekday names
-# (padded with a space to conform with other languages)
-zo 
-ma 
-di 
-wo 
-do 
-vr 
-za 
+zo
+ma
+di
+wo
+do
+vr
+za
 #
 # Long weekday names
 #

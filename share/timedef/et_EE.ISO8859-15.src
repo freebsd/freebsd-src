@@ -5,36 +5,18 @@
 #
 # Short month names
 #
-#jaan
-#veebr
-#märts
-#apr
-#mai
-#juuni
-#juuli
-#aug
-#sept
-#okt
-#nov
-#dets
-#
-# For now, we'll be forced to 3 chars long month name abbreviations.
-# Authoritative sources say that Estonian language can not use three
-# chars long month name abbreviations. We'll be forced to numeric
-# representation until current implementation deficiency will be fixed.
-#
-01 
-02 
-03 
-04 
-05 
-06 
-07 
-08 
-09 
-10 
-11 
-12 
+jaan
+veebr
+märts
+apr
+mai
+juuni
+juuli
+aug
+sept
+okt
+nov
+dets
 #
 # Long month names
 #
@@ -52,14 +34,14 @@ november
 detsember
 #
 # Short weekday names
-# (padded with a space to conform with other languages)
-P  
-E  
-T  
-K  
-N  
-R  
-L  
+#
+P
+E
+T
+K
+N
+R
+L
 #
 # Long weekday names
 #
