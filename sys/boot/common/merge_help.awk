@@ -20,13 +20,13 @@ BEGIN \
 }
 
 # entry header
-/^# T[\x21-\x7e]+ (S[\x21-\x7e]+ )*D[\x21-\x7e][\x20-\x7e]*$/ && (state == 1) \
+/^# T[[:graph:]]+ (S[[:graph:]]+ )*D[[:graph:]][[:print:]]*$/ && (state == 1) \
 {
-  match($0, " T[\x21-\x7e]+");
+  match($0, " T[[:graph:]]+");
   T = substr($0, RSTART + 2, RLENGTH - 2);
-  match($0, " S[\x21-\x7e]+");
+  match($0, " S[[:graph:]]+");
   S = (RLENGTH == -1) ? "" : substr($0, RSTART + 2, RLENGTH - 2);
-  match($0, " D[\x21-\x7e][\x20-\x7e]*$");
+  match($0, " D[[:graph:]][[:print:]]*$");
   D = substr($0, RSTART + 2);
 
   # find a suitable place to store this one...
