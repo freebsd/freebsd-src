@@ -208,7 +208,7 @@ void
 bpad(pr)
 	PR *pr;
 {
-	static char spec[] = " -0+#";
+	static char const *spec = " -0+#";
 	register char *p1, *p2;
 
 	/*
