@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.115 1995/10/22 15:38:05 bde Exp $
+ *	$Id: sio.c,v 1.116 1995/11/04 13:23:43 bde Exp $
  */
 
 #include "sio.h"
@@ -251,8 +251,7 @@ struct com_s {
  */
 
 /* Interrupt handling entry points. */
-void	siointr		__P((int unit));
-void	siointrts	__P((int unit));
+inthand2_t	siointrts;
 void	siopoll		__P((void));
 
 /* Device switch entry points. */

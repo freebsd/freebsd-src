@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.16 1995/10/22 15:38:08 bde Exp $
+ *	$Id: cy.c,v 1.17 1995/11/04 13:23:31 bde Exp $
  */
 
 #include "cy.h"
@@ -325,8 +325,7 @@ struct com_s {
  */
 
 /* Interrupt handling entry points. */
-void	siointr		__P((int unit));
-void	siointrts	__P((int unit));
+inthand2_t	siointrts;
 void	siopoll		__P((void));
 
 /* Device switch entry points. */

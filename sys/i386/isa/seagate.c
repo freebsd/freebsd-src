@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.10 1995/08/23 23:02:30 gibbs Exp $
+ * $Id: seagate.c,v 1.11 1995/09/19 18:55:17 bde Exp $
  */
 
 /*
@@ -330,7 +330,6 @@ adapter_t seadata[NSEA];
 		(t)->ndelay.op = 1;\
 	(t)->init.op = 1; }
 
-inthand2_t seaintr;
 static int sea_probe (struct isa_device *dev);
 static int sea_detect (adapter_t *z, struct isa_device *dev);
 static int sea_attach (struct isa_device *dev);

@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.67 1995/10/28 15:38:57 phk Exp $
+ *	$Id: fd.c,v 1.68 1995/11/04 13:23:34 bde Exp $
  *
  */
 
@@ -274,7 +274,6 @@ static int fdattach(struct isa_device *);
 
 /* exported functions */
 int fdsize (dev_t);
-void fdintr(fdcu_t);
 
 /* needed for ft driver, thus exported */
 int in_fdc(fdcu_t);

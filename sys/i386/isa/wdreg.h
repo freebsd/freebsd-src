@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.8 1995/03/22 05:23:01 davidg Exp $
+ *	$Id: wdreg.h,v 1.9 1995/11/04 13:23:45 bde Exp $
  */
 
 /*
@@ -138,7 +138,6 @@ struct wdparams {
 /*
  * wd driver entry points
  */
-void wdintr(int unit);
 #ifdef	B_FORMAT
 int wdformat(struct buf *bp);
 #endif

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.21 1995/10/26 20:29:48 julian Exp $
+ * $Id: if_le.c,v 1.22 1995/10/28 15:39:08 phk Exp $
  */
 
 /*
@@ -250,7 +250,6 @@ struct le_softc {
 static int le_probe(struct isa_device *dvp);
 static int le_attach(struct isa_device *dvp);
 static int le_ioctl(struct ifnet *ifp, int command, caddr_t data);
-extern inthand2_t le_intr;
 static void le_input(le_softc_t *sc, caddr_t seg1, size_t total_len,
 		     size_t len2, caddr_t seg2);
 static void le_multi_filter(le_softc_t *sc);

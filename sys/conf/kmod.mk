@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.14 1995/10/15 16:46:00 phk Exp $
+#	$Id: bsd.kmod.mk,v 1.15 1995/10/15 16:56:56 phk Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -12,7 +12,8 @@
 # ${.CURDIR}/../../sys.  We don't bother adding a .PATH since nothing
 # actually lives in /sys directly.
 #
-CFLAGS+=${COPTS} -DKERNEL -I${.CURDIR}/../../sys -W -Wcomment -Wredundant-decls
+CFLAGS+=${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL -I${.CURDIR}/../../sys \
+	-W -Wcomment -Wredundant-decls
 
 KMODGRP?=	bin
 KMODOWN?=	bin

@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.37 1995/09/19 18:55:06 bde Exp $
+ *      $Id: aha1742.c,v 1.38 1995/10/28 15:38:42 phk Exp $
  */
 
 #include <sys/types.h>
@@ -266,7 +266,6 @@ static int		ahbprobe();
 static int		ahbprobe1 __P((struct isa_device *dev));
 static int		ahb_attach();
 static int 		ahb_init __P((int unit));
-inthand2_t		ahbintr;
 static int32		ahb_scsi_cmd();
 static timeout_t	ahb_timeout;
 static void		ahb_done();
