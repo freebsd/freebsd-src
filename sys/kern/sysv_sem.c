@@ -28,6 +28,7 @@ static void seminit __P((void));
 static int sysvsem_modload __P((struct module *, int, void *));
 static int semunload __P((void));
 static void semexit_myhook __P((struct proc *p));
+static int sysctl_sema __P((SYSCTL_HANDLER_ARGS));
 
 #ifndef _SYS_SYSPROTO_H_
 struct __semctl_args;
@@ -148,6 +149,8 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, semume, CTLFLAG_RD, &seminfo.semume, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semusz, CTLFLAG_RD, &seminfo.semusz, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semvmx, CTLFLAG_RW, &seminfo.semvmx, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semaem, CTLFLAG_RW, &seminfo.semaem, 0, "");
+SYSCTL_PROC(_kern_ipc, OID_AUTO, sema, CTLFLAG_RD,
+    NULL, 0, sysctl_sema, "", "");
 
 #if 0
 RO seminfo.semmap	/* SEMMAP unused */
@@ -1065,4 +1068,12 @@ semexit_myhook(p)
 #endif
 	suptr->un_proc = NULL;
 	*supptr = suptr->un_next;
+}
+
+static int
+sysctl_sema(SYSCTL_HANDLER_ARGS)
+{
+
+	return (SYSCTL_OUT(req, sema,
+	    sizeof(struct semid_ds) * seminfo.semmni));
 }
