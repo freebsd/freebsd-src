@@ -111,6 +111,8 @@ _set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 	if (ldt_free == NULL) {
 		/* Concurrent thread limit reached */
 		*err = curthread->error = EAGAIN;
+		if (thr != _thread_initial)
+			_SPINUNLOCK(&ldt_lock);
 		return (NULL);
 	}
 
