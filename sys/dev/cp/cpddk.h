@@ -15,10 +15,9 @@
  * as long as this message is kept with the software, all derivative
  * works or modified versions.
  *
- * $Cronyx: cpddk.h,v 1.8.4.14 2004/01/13 13:35:27 rik Exp $
+ * $Cronyx: cpddk.h,v 1.8.4.20 2004/12/06 16:21:06 rik Exp $
  * $FreeBSD$
  */
-
 #define NBRD		6	/* the maximum number of installed boards */
 #define NCHAN		4	/* the number of channels on the board */
 #define NRBUF		64	/* the number of receive buffers per channel,
@@ -179,6 +178,7 @@ typedef struct _cp_chan_t {
 	unsigned long e3status;		/* E3 status */
 #define E3STS_LOS	0x00000002	/* Lost of synchronization */
 #define E3STS_TXE	0x00000004	/* Transmit error */
+#define E3STS_AIS	0x00000008	/* Transmit error */
 	unsigned long e3csec_5;		/* 1/5 of second counter */
 	unsigned long e3tsec;		/* total seconds coounter */
 	unsigned long e3ccv;		/* E3 current 15-min cv errors */
@@ -231,6 +231,7 @@ typedef struct _cp_board_t {
 #define B_TAUPCI_2E1	9		/* 2 channels E1, 4 data ports */
 #define B_TAUPCI4_E1	10		/* 2 channels E1 + 2 channels V.35/RS */
 #define B_TAUPCI4_4E1	11		/* 4 channels E1 */
+#define B_TAUPCI_L	12		/* 1 channel V.35/RS */
 
 	unsigned long osc;		/* oscillator frequency */
 	char name[16];			/* board version name */
@@ -246,11 +247,12 @@ typedef struct _cp_board_t {
 	int iln;
 	unsigned char fw_type;		/* firmware type */
 #define FW_TAUPCI_NONE	0
+#define FW_TAUPCI_E3_B	1
 #define FW_TAUPCI_2E1_B	2
 #define FW_TAUPCI_2E1_A	3
 #define FW_TAUPCI_4E1_B	6
 #define FW_TAUPCI_4E1_A	7
-	unsigned char *firmware;	/* external firmware */
+	unsigned char *firmware[8];	/* external firmware */
 	void *sys;
 } cp_board_t;
 
