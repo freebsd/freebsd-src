@@ -30,9 +30,8 @@
    Bugs & suggestions are completely welcome.  This is free software.
    Please help us make it better.  */
 
-#include <ctype.h>
-
 #include "as.h"
+#include "safe-ctype.h"
 #include "subsegs.h"
 #include "dwarf2dbg.h"
 #include "opcode/i386.h"
@@ -82,7 +81,7 @@ static bfd_reloc_code_real_type reloc
 #ifndef DEFAULT_ARCH
 #define DEFAULT_ARCH "i386"
 #endif
-static char *default_arch = DEFAULT_ARCH;
+static const char *default_arch = DEFAULT_ARCH;
 
 /* 'md_assemble ()' gathers together information and puts it into a
    i386_insn.  */
@@ -161,7 +160,7 @@ const char extra_symbol_chars[] = "*%-(";
 
 /* This array holds the chars that always start a comment.  If the
    pre-processor is disabled, these aren't very useful.  */
-#if defined (TE_I386AIX) || ((defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)) && ! defined (TE_LINUX) && !defined(TE_FreeBSD))
+#if defined (TE_I386AIX) || ((defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)) && ! defined (TE_LINUX) && !defined(TE_FreeBSD) && !defined(TE_NetBSD))
 /* Putting '/' here makes it impossible to use the divide operator.
    However, we need it for compatibility with SVR4 systems.  */
 const char comment_chars[] = "#/";
@@ -179,7 +178,7 @@ const char comment_chars[] = "#";
    #NO_APP at the beginning of its output.
    Also note that comments started like this one will always work if
    '/' isn't otherwise defined.  */
-#if defined (TE_I386AIX) || ((defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)) && ! defined (TE_LINUX) && !defined(TE_FreeBSD))
+#if defined (TE_I386AIX) || ((defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)) && ! defined (TE_LINUX) && !defined(TE_FreeBSD) && !defined(TE_NetBSD))
 const char line_comment_chars[] = "";
 #else
 const char line_comment_chars[] = "/";
@@ -544,8 +543,7 @@ static int
 smallest_imm_type (num)
      offsetT num;
 {
-  if (cpu_arch_flags != (Cpu086 | Cpu186 | Cpu286 | Cpu386 | Cpu486 | CpuNo64)
-      && !(cpu_arch_flags & (CpuUnknown)))
+  if (cpu_arch_flags != (Cpu086 | Cpu186 | Cpu286 | Cpu386 | Cpu486 | CpuNo64))
     {
       /* This code is disabled on the 486 because all the Imm1 forms
 	 in the opcode table are slower on the i486.  They're the
@@ -895,27 +893,27 @@ md_begin ()
 
     for (c = 0; c < 256; c++)
       {
-	if (isdigit (c))
+	if (ISDIGIT (c))
 	  {
 	    digit_chars[c] = c;
 	    mnemonic_chars[c] = c;
 	    register_chars[c] = c;
 	    operand_chars[c] = c;
 	  }
-	else if (islower (c))
+	else if (ISLOWER (c))
 	  {
 	    mnemonic_chars[c] = c;
 	    register_chars[c] = c;
 	    operand_chars[c] = c;
 	  }
-	else if (isupper (c))
+	else if (ISUPPER (c))
 	  {
-	    mnemonic_chars[c] = tolower (c);
+	    mnemonic_chars[c] = TOLOWER (c);
 	    register_chars[c] = mnemonic_chars[c];
 	    operand_chars[c] = c;
 	  }
 
-	if (isalpha (c) || isdigit (c))
+	if (ISALPHA (c) || ISDIGIT (c))
 	  identifier_chars[c] = c;
 	else if (c >= 128)
 	  {
@@ -1273,7 +1271,8 @@ md_assemble (line)
 	  }
 	if (!is_space_char (*l)
 	    && *l != END_OF_INSN
-	    && *l != PREFIX_SEPARATOR)
+	    && *l != PREFIX_SEPARATOR
+	    && *l != ',')
 	  {
 	    as_bad (_("invalid character %s in mnemonic"),
 		    output_invalid (*l));
@@ -1364,19 +1363,48 @@ md_assemble (line)
 	  }
       }
 
-    /* Check if instruction is supported on specified architecture.  */
-    if (cpu_arch_flags != 0)
+    if (current_templates->start->opcode_modifier & (Jump | JumpByte))
       {
-	if ((current_templates->start->cpu_flags & ~(Cpu64 | CpuNo64))
-	    & ~(cpu_arch_flags & ~(Cpu64 | CpuNo64)))
+	/* Check for a branch hint.  We allow ",pt" and ",pn" for
+	   predict taken and predict not taken respectively.
+	   I'm not sure that branch hints actually do anything on loop
+	   and jcxz insns (JumpByte) for current Pentium4 chips.  They
+	   may work in the future and it doesn't hurt to accept them
+	   now.  */
+	if (l[0] == ',' && l[1] == 'p')
 	  {
-	    as_warn (_("`%s' is not supported on `%s'"),
-		     current_templates->start->name, cpu_arch_name);
+	    if (l[2] == 't')
+	      {
+		if (! add_prefix (DS_PREFIX_OPCODE))
+		  return;
+		l += 3;
+	      }
+	    else if (l[2] == 'n')
+	      {
+		if (! add_prefix (CS_PREFIX_OPCODE))
+		  return;
+		l += 3;
+	      }
 	  }
-	else if ((Cpu386 & ~cpu_arch_flags) && (flag_code != CODE_16BIT))
-	  {
-	    as_warn (_("use .code16 to ensure correct addressing mode"));
-	  }
+      }
+    /* Any other comma loses.  */
+    if (*l == ',')
+      {
+	as_bad (_("invalid character %s in mnemonic"),
+		output_invalid (*l));
+	return;
+      }
+
+    /* Check if instruction is supported on specified architecture.  */
+    if ((current_templates->start->cpu_flags & ~(Cpu64 | CpuNo64))
+	& ~(cpu_arch_flags & ~(Cpu64 | CpuNo64)))
+      {
+	as_warn (_("`%s' is not supported on `%s'"),
+		 current_templates->start->name, cpu_arch_name);
+      }
+    else if ((Cpu386 & ~cpu_arch_flags) && (flag_code != CODE_16BIT))
+      {
+	as_warn (_("use .code16 to ensure correct addressing mode"));
       }
 
     /* Check for rep/repne without a string instruction.  */
@@ -2699,6 +2727,9 @@ md_assemble (line)
       {
 	int code16;
 	int prefix;
+	relax_substateT subtype;
+	symbolS *sym;
+	offsetT off;
 
 	code16 = 0;
 	if (flag_code == CODE_16BIT)
@@ -2743,19 +2774,29 @@ md_assemble (line)
 	if (i.prefix[REX_PREFIX])
 	  *p++ = i.prefix[REX_PREFIX];
 	*p = i.tm.base_opcode;
-	/* 1 possible extra opcode + displacement go in var part.
+
+	if ((unsigned char) *p == JUMP_PC_RELATIVE)
+	  subtype = ENCODE_RELAX_STATE (UNCOND_JUMP, SMALL);
+	else if ((cpu_arch_flags & Cpu386) != 0)
+	  subtype = ENCODE_RELAX_STATE (COND_JUMP, SMALL);
+	else
+	  subtype = ENCODE_RELAX_STATE (COND_JUMP86, SMALL);
+	subtype |= code16;
+
+	sym = i.op[0].disps->X_add_symbol;
+	off = i.op[0].disps->X_add_number;
+
+	if (i.op[0].disps->X_op != O_constant
+	    && i.op[0].disps->X_op != O_symbol)
+	  {
+	    /* Handle complex expressions.  */
+	    sym = make_expr_symbol (i.op[0].disps);
+	    off = 0;
+	  }
+
+	/* 1 possible extra opcode + 4 byte displacement go in var part.
 	   Pass reloc in fr_var.  */
-	frag_var (rs_machine_dependent,
-		  1 + 4,
-		  i.reloc[0],
-		  ((unsigned char) *p == JUMP_PC_RELATIVE
-		   ? ENCODE_RELAX_STATE (UNCOND_JUMP, SMALL) | code16
-		   : ((cpu_arch_flags & Cpu386) != 0
-		      ? ENCODE_RELAX_STATE (COND_JUMP, SMALL) | code16
-		      : ENCODE_RELAX_STATE (COND_JUMP86, SMALL) | code16)),
-		  i.op[0].disps->X_add_symbol,
-		  i.op[0].disps->X_add_number,
-		  p);
+	frag_var (rs_machine_dependent, 5, i.reloc[0], subtype, sym, off, p);
       }
     else if (i.tm.opcode_modifier & (JumpByte | JumpDword))
       {
@@ -3139,27 +3180,41 @@ lex_got (reloc, adjust)
       int len;
 
       len = strlen (gotrel[j].str);
-      if (strncmp (cp + 1, gotrel[j].str, len) == 0)
+      if (strncasecmp (cp + 1, gotrel[j].str, len) == 0)
 	{
 	  if (gotrel[j].rel[(unsigned int) flag_code] != 0)
 	    {
-	      int first;
-	      char *tmpbuf;
+	      int first, second;
+	      char *tmpbuf, *past_reloc;
 
 	      *reloc = gotrel[j].rel[(unsigned int) flag_code];
+	      if (adjust)
+		*adjust = len;
 
 	      if (GOT_symbol == NULL)
 		GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
 
 	      /* Replace the relocation token with ' ', so that
 		 errors like foo@GOTOFF1 will be detected.  */
+
+	      /* The length of the first part of our input line.  */
 	      first = cp - input_line_pointer;
-	      tmpbuf = xmalloc (strlen (input_line_pointer));
+
+	      /* The second part goes from after the reloc token until
+		 (and including) an end_of_line char.  Don't use strlen
+		 here as the end_of_line char may not be a NUL.  */
+	      past_reloc = cp + 1 + len;
+	      for (cp = past_reloc; !is_end_of_line[(unsigned char) *cp++]; )
+		;
+	      second = cp - past_reloc;
+
+	      /* Allocate and copy string.  The trailing NUL shouldn't
+		 be necessary, but be safe.  */
+	      tmpbuf = xmalloc (first + second + 2);
 	      memcpy (tmpbuf, input_line_pointer, first);
 	      tmpbuf[first] = ' ';
-	      strcpy (tmpbuf + first + 1, cp + 1 + len);
-	      if (adjust)
-		*adjust = len;
+	      memcpy (tmpbuf + first + 1, past_reloc, second);
+	      tmpbuf[first + second + 1] = '\0';
 	      return tmpbuf;
 	    }
 
@@ -4046,15 +4101,6 @@ md_convert_frag (abfd, sec, fragP)
 
   /* Address we want to reach in file space.  */
   target_address = S_GET_VALUE (fragP->fr_symbol) + fragP->fr_offset;
-#ifdef BFD_ASSEMBLER
-  /* Not needed otherwise?  */
-  {
-    /* Local symbols which have already been resolved have a NULL frag.  */
-    fragS *sym_frag = symbol_get_frag (fragP->fr_symbol);
-    if (sym_frag)
-      target_address += sym_frag->fr_address;
-  }
-#endif
 
   /* Address opcode resides at in file space.  */
   opcode_address = fragP->fr_address + fragP->fr_fix;
@@ -4169,19 +4215,17 @@ md_create_long_jump (ptr, from_addr, to_addr, frag, to_symbol)
    the same (little-endian) format, so we don't need to care about which
    we are handling.  */
 
-int
-md_apply_fix3 (fixP, valp, seg)
+void
+md_apply_fix3 (fixP, valP, seg)
      /* The fix we're to put in.  */
      fixS *fixP;
-
      /* Pointer to the value of the bits.  */
-     valueT *valp;
-
+     valueT * valP;
      /* Segment fix is from.  */
      segT seg ATTRIBUTE_UNUSED;
 {
-  register char *p = fixP->fx_where + fixP->fx_frag->fr_literal;
-  valueT value = *valp;
+  char *p = fixP->fx_where + fixP->fx_frag->fr_literal;
+  valueT value = * valP;
 
 #if defined (BFD_ASSEMBLER) && !defined (TE_Mach)
   if (fixP->fx_pcrel)
@@ -4315,30 +4359,26 @@ md_apply_fix3 (fixP, valp, seg)
       case BFD_RELOC_VTABLE_INHERIT:
       case BFD_RELOC_VTABLE_ENTRY:
 	fixP->fx_done = 0;
-	return 1;
+	return;
 
       default:
 	break;
       }
 #endif /* defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)  */
-  *valp = value;
+  * valP = value;
 #endif /* defined (BFD_ASSEMBLER) && !defined (TE_Mach)  */
 
-#ifndef BFD_ASSEMBLER
-  md_number_to_chars (p, value, fixP->fx_size);
-#else
   /* Are we finished with this relocation now?  */
-  if (fixP->fx_addsy == 0 && fixP->fx_pcrel == 0)
+  if (fixP->fx_addsy == NULL && fixP->fx_pcrel == 0)
     fixP->fx_done = 1;
+#ifdef BFD_ASSEMBLER
   else if (use_rela_relocations)
     {
       fixP->fx_no_overflow = 1;
       value = 0;
     }
-  md_number_to_chars (p, value, fixP->fx_size);
 #endif
-
-  return 1;
+  md_number_to_chars (p, value, fixP->fx_size);
 }
 
 #define MAX_LITTLENUMS 6
@@ -4401,7 +4441,7 @@ static char *
 output_invalid (c)
      int c;
 {
-  if (isprint (c))
+  if (ISPRINT (c))
     sprintf (output_invalid_buf, "'%c'", c);
   else
     sprintf (output_invalid_buf, "(0x%x)", (unsigned) c);
@@ -4615,6 +4655,48 @@ i386_target_format ()
 }
 
 #endif /* OBJ_MAYBE_ more than one  */
+
+#if (defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF))
+void i386_elf_emit_arch_note ()
+{
+  if (OUTPUT_FLAVOR == bfd_target_elf_flavour
+      && cpu_arch_name != NULL)
+    {
+      char *p;
+      asection *seg = now_seg;
+      subsegT subseg = now_subseg;
+      Elf_Internal_Note i_note;
+      Elf_External_Note e_note;
+      asection *note_secp;
+      int len;
+
+      /* Create the .note section.  */
+      note_secp = subseg_new (".note", 0);
+      bfd_set_section_flags (stdoutput,
+			     note_secp,
+			     SEC_HAS_CONTENTS | SEC_READONLY);
+
+      /* Process the arch string.  */
+      len = strlen (cpu_arch_name);
+
+      i_note.namesz = len + 1;
+      i_note.descsz = 0;
+      i_note.type = NT_ARCH;
+      p = frag_more (sizeof (e_note.namesz));
+      md_number_to_chars (p, (valueT) i_note.namesz, sizeof (e_note.namesz));
+      p = frag_more (sizeof (e_note.descsz));
+      md_number_to_chars (p, (valueT) i_note.descsz, sizeof (e_note.descsz));
+      p = frag_more (sizeof (e_note.type));
+      md_number_to_chars (p, (valueT) i_note.type, sizeof (e_note.type));
+      p = frag_more (len + 1);
+      strcpy (p, cpu_arch_name);
+
+      frag_align (2, 0, 0);
+
+      subseg_set (seg, subseg);
+    }
+}
+#endif
 #endif /* BFD_ASSEMBLER  */
 
 symbolS *
@@ -4745,8 +4827,9 @@ tc_gen_reloc (section, fixp)
 	  switch (fixp->fx_size)
 	    {
 	    default:
-	      as_bad (_("can not do %d byte pc-relative relocation"),
-		      fixp->fx_size);
+	      as_bad_where (fixp->fx_file, fixp->fx_line,
+			    _("can not do %d byte pc-relative relocation"),
+			    fixp->fx_size);
 	      code = BFD_RELOC_32_PCREL;
 	      break;
 	    case 1: code = BFD_RELOC_8_PCREL;  break;
@@ -4759,7 +4842,9 @@ tc_gen_reloc (section, fixp)
 	  switch (fixp->fx_size)
 	    {
 	    default:
-	      as_bad (_("can not do %d byte relocation"), fixp->fx_size);
+	      as_bad_where (fixp->fx_file, fixp->fx_line,
+			    _("can not do %d byte relocation"),
+			    fixp->fx_size);
 	      code = BFD_RELOC_32;
 	      break;
 	    case 1: code = BFD_RELOC_8;  break;
