@@ -282,7 +282,7 @@ schedcpu(arg)
 				 * the kse slptimes are not touched in wakeup
 				 * because the thread may not HAVE a KSE
 				 */
-				if (ke->ke_state == KES_ONRUNQ &&
+				if (ke->ke_state == KES_ONRUNQ ||
 				    ke->ke_state == KES_RUNNING) {
 					ke->ke_slptime++;
 				} else {
