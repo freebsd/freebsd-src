@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.45 1996/10/17 18:44:56 jkh Exp $
+#	$Id: Makefile,v 1.45.2.1 1997/06/05 21:23:49 jkh Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -81,12 +81,12 @@ beforeinstall: ${SHARED}
 .endfor
 
 copies:
-.for i in ${LDIRS} ${UDIRS} ${LUDIR} machine
+.for i in ${LDIRS} ${LUDIR} ${UDIRS} machine
 	if [ -h ${DESTDIR}/usr/include/$i ]; then \
 		rm -f ${DESTDIR}/usr/include/$i; \
 	fi
 .endfor
-.for i in ${LDIRS} ${UDIRS} ${LUDIR} machine
+.for i in ${LDIRS} ${LUDIR} ${UDIRS} machine
 	if [ ! -d ${DESTDIR}/usr/include/$i ]; then \
 		mkdir ${DESTDIR}/usr/include/$i; \
 		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$i; \
