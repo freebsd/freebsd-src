@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: irix4.m4,v 8.19 1999/04/24 05:37:41 gshapiro Exp $')
+VERSIONID(`$Id: irix4.m4,v 1.1.1.3 2000/08/12 21:55:39 gshapiro Exp $')
 _DEFIFNOT(`LOCAL_MAILER_FLAGS', `Ehm9')dnl
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /usr/spool/mqueue)')dnl
 define(`confEBINDIR', `/usr/lib')dnl

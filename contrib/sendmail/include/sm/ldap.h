@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: ldap.h,v 1.22 2002/03/05 02:17:26 ca Exp $
+ *	$Id: ldap.h,v 1.1.1.2 2002/04/10 03:04:54 gshapiro Exp $
  */
 
 #ifndef	SM_LDAP_H

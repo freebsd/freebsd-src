@@ -25,7 +25,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.876 2002/02/27 23:49:52 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 1.1.1.11 2002/04/10 03:04:49 gshapiro Exp $")
 
 
 #if NETINET || NETINET6
@@ -642,6 +642,8 @@ main(argc, argv, envp)
 	(void) sm_signal(SIGPIPE, SIG_IGN);
 	OldUmask = umask(022);
 	FullName = getextenv("NAME");
+	if (FullName != NULL)
+		FullName = newstr(FullName);
 
 	/*
 	**  Initialize name server if it is going to be used.

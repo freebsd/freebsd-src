@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: cf.h,v 1.2 2001/03/08 03:23:07 ca Exp $
+ *	$Id: cf.h,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $
  */
 
 #ifndef SM_CF_H

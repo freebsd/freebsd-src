@@ -46,7 +46,7 @@
 # if NAMED_BIND
 #  include "sm_resolve.h"
 
-SM_RCSID("$Id: sm_resolve.c,v 8.24 2001/09/11 04:05:16 gshapiro Exp $")
+SM_RCSID("$Id: sm_resolve.c,v 1.1.1.1 2002/02/17 21:56:41 gshapiro Exp $")
 
 static struct stot
 {

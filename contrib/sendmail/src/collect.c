@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.241 2002/03/15 01:32:47 gshapiro Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 1.1.1.12 2002/04/10 03:04:47 gshapiro Exp $")
 
 static void	collecttimeout __P((time_t));
 static void	dferror __P((SM_FILE_T *volatile, char *, ENVELOPE *));

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: envelope.c,v 8.281 2002/02/06 19:54:54 ca Exp $")
+SM_RCSID("@(#)$Id: envelope.c,v 1.1.1.9 2002/04/10 03:04:49 gshapiro Exp $")
 
 /*
 **  NEWENVELOPE -- fill in a new envelope

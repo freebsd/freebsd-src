@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: authinfo.m4,v 1.7 2001/03/16 00:51:25 gshapiro Exp $')
+VERSIONID(`$Id: authinfo.m4,v 1.1.1.1 2002/02/17 21:56:44 gshapiro Exp $')
 divert(-1)
 
 define(`_AUTHINFO_TABLE_', `')

@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: riscos4.5.m4,v 8.15 1999/04/24 05:37:43 gshapiro Exp $')
+VERSIONID(`$Id: riscos4.5.m4,v 1.1.1.3 2000/08/12 21:55:40 gshapiro Exp $')
 
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `rmail -d $u')')dnl
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', `/usr/spool/mqueue')')dnl

@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: svr4.m4,v 8.17 1999/10/21 00:31:41 gshapiro Exp $')
+VERSIONID(`$Id: svr4.m4,v 1.1.1.3 2000/08/12 21:55:41 gshapiro Exp $')
 
 define(`LOCAL_MAILER_PATH', `/usr/ucblib/binmail')dnl
 define(`LOCAL_SHELL_FLAGS', `ehuP')dnl

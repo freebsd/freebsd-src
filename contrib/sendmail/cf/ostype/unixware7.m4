@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: unixware7.m4,v 8.8 2000/02/26 01:32:04 gshapiro Exp $')
+VERSIONID(`$Id: unixware7.m4,v 1.1.1.3 2000/08/12 21:55:41 gshapiro Exp $')
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /var/spool/mqueue)')dnl
 define(`confEBINDIR', `/usr/lib')dnl
 define(`confTIME_ZONE', `USE_TZ')dnl

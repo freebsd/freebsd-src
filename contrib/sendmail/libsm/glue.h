@@ -11,7 +11,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- * $Id: glue.h,v 1.6 2001/01/22 23:09:49 ca Exp $
+ * $Id: glue.h,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $
  */
 
 /*

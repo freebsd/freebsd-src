@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: access_db.m4,v 8.24 2002/03/06 21:50:25 ca Exp $')
+VERSIONID(`$Id: access_db.m4,v 1.1.1.5 2002/04/10 03:04:57 gshapiro Exp $')
 divert(-1)
 
 define(`_ACCESS_TABLE_', `')

@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: lookupdotdomain.m4,v 1.1 2000/04/13 22:32:49 ca Exp $')
+VERSIONID(`$Id: lookupdotdomain.m4,v 1.1.1.1 2002/02/17 21:56:44 gshapiro Exp $')
 divert(-1)
 
 ifdef(`_ACCESS_TABLE_',

@@ -14,9 +14,9 @@
 #include <sendmail.h>
 
 #if NAMED_BIND
-SM_RCSID("@(#)$Id: domain.c,v 8.180 2002/03/05 05:47:12 gshapiro Exp $ (with name server)")
+SM_RCSID("@(#)$Id: domain.c,v 1.1.1.8 2002/04/10 03:04:49 gshapiro Exp $ (with name server)")
 #else /* NAMED_BIND */
-SM_RCSID("@(#)$Id: domain.c,v 8.180 2002/03/05 05:47:12 gshapiro Exp $ (without name server)")
+SM_RCSID("@(#)$Id: domain.c,v 1.1.1.8 2002/04/10 03:04:49 gshapiro Exp $ (without name server)")
 #endif /* NAMED_BIND */
 
 #if NAMED_BIND

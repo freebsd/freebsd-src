@@ -11,7 +11,7 @@ divert(-1)
 
 divert(0)
 ifdef(`_DNSBL_R_',`dnl',`dnl
-VERSIONID(`$Id: dnsbl.m4,v 8.26 2001/11/12 16:04:14 ca Exp $')
+VERSIONID(`$Id: dnsbl.m4,v 1.1.1.3 2002/02/17 21:56:44 gshapiro Exp $')
 define(`_DNSBL_R_',`')
 LOCAL_CONFIG
 # map for DNS based blacklist lookups
