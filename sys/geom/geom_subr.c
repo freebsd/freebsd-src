@@ -584,12 +584,12 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	g_topology_assert();
 	G_VALID_CONSUMER(cp);
 	pp = cp->provider;
+	KASSERT(pp != NULL, ("access but not attached"));
 	G_VALID_PROVIDER(pp);
 
 	g_trace(G_T_ACCESS, "g_access(%p(%s), %d, %d, %d)",
 	    cp, pp->name, dcr, dcw, dce);
 
-	KASSERT(cp->provider != NULL, ("access but not attached"));
 	KASSERT(cp->acr + dcr >= 0, ("access resulting in negative acr"));
 	KASSERT(cp->acw + dcw >= 0, ("access resulting in negative acw"));
 	KASSERT(cp->ace + dce >= 0, ("access resulting in negative ace"));
