@@ -1,22 +1,22 @@
                                  RELEASE NOTES
-                             FreeBSD 4.1.1-RELEASE
+                          FreeBSD 4.1.1-STABLE snapshot
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a Web-based interface can also see
 http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 4.1.1-RELEASE
+For information about FreeBSD and the layout of the 4.1.1-STABLE
 directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
 
-For the latest of these 4.1.1-stable snapshots, you should always see:
+For the latest of these 4-stable snapshots, you should always see:
 
         ftp://releng4.freebsd.org/pub/FreeBSD
 
 Table of contents:
 ------------------
-1. What's new since 4.1-RELEASE
+1. What's new since 4.1.1-RELEASE
    1.1 KERNEL CHANGES
    1.2 SECURITY FIXES
    1.3 USERLAND CHANGES
@@ -39,93 +39,17 @@ Table of contents:
 6. Acknowledgements
 
 
-1. What's new since 4.1-RELEASE
+1. What's new since 4.1.1-RELEASE
 --------------------------------------
 
 1.1. KERNEL CHANGES
 -------------------
-
-The tap driver, a virtual Ethernet device driver for bridged 
-configurations, has been added.
-
-accept_filters, a kernel feature to reduce overheads when accepting
-and reading new connections on listening sockets, has been added.
-
-POSIX.1b Shared Memory Objects are now supported.  The implementation
-uses regular files, but automatically enables the MAP_NOSYNC flag
-when they are mmap(2)ed.
-
-The ata(4) driver now has support for ATA100 controllers.
-
-The ti(4) driver now supports the Alteon AceNIC 1000baseT Gigabit 
-Ethernet and Netgear GA620T 1000baseT Gigabit Ethernet cards.
-
-The ng_bridge(4) node type has been added to the netgraph subsystem.
-Miscellaneous bug fixes and enhancements have also been made.
-
 
 1.2. SECURITY FIXES
 -------------------
 
 1.3. USERLAND CHANGES
 ---------------------
-
-GDB now supports hardware watchpoints.
-
-sendmail upgraded from version 8.9.3 to version 8.11.0.  Important changes
-include: new default file locations (see
-/usr/src/contrib/sendmail/cf/README); newaliases is limited to root and
-trusted users; and the MSA port (587) is turned on by default.  See
-/usr/src/contrib/sendmail/RELEASE_NOTES for more information.
-
-routed(8) has been updated to version 2.22.
-
-The truncate(1) utility, which truncates or extends the length
-of files, has been added.
-
-syslogd(8) can take a -n option to disable DNS queries for every
-request.
-
-kenv(1), a command to dump the kernel environment, has been added. 
-
-The behavior of periodic(8) is now controlled by /etc/defaults/periodic.conf
-and /etc/periodic.conf.
-
-logger(1) can now send messages directly to a remote syslog.
-
-OpenSSL has been upgraded to 0.9.5a, which includes numerous bugfixes
-and enhancements.
-
-finger(1) now has the ability to support fingering aliases, via the
-finger.conf(5) file.
-
-RSA Security has waived all patent rights to the RSA algorithm (two
-weeks before the patent was due to expire).  As a result, the native
-OpenSSL implementation of the RSA algorithm is now activated by
-default, and the rsaref port and librsaUSA are no longer
-required for USA residents.
-
-sshd now enabled by default on new installs.
-
-The xl(4) driver now supports the 3Com 3C556 and 3C556B MiniPCI
-adapters used on some laptops.
-
-killall(1) is now a C program, rather than a Perl script.  As a
-result, killall's -m option now uses the regular expression syntax of
-regex(3), rather than that of perl(1).
-
-boot98cfg(8), a PC-98 boot manager installation and configuration
-utility, has been added.
-
-Binutils have been upgraded to 2.10.0.
-
-libreadline has been upgraded to 4.1.
-
-The ifconfig(8) command can set the link-layer address of an interface. 
-
-bktr(4) driver update to 2.1.5.  New tuner types have been added, 
-and improvememts to the KLD module and to memory allocation have been
-made.
 
 
 2. Supported Configurations
