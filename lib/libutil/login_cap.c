@@ -152,6 +152,7 @@ login_close(login_cap_t * lc)
     if (lc) {
 	free(lc->lc_style);
 	free(lc->lc_class);
+	free(lc->lc_cap);
 	free(lc);
 	if (--lc_object_count == 0) {
 	    free(internal_string);
