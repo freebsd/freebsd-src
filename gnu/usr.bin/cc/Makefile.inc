@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile.inc,v 1.19 1997/02/22 15:44:48 peter Exp $
 #
 
 # Sometimes this is .include'd several times...
@@ -16,8 +16,8 @@ OUT_OBJ=	i386
 .PATH:		${GCCDIR}/config/i386
 
 # Pick aout for now. the elf config is not binary compatable.
-BINFORMAT=	aout
-#BINFORMAT=	elf
+BINFORMAT?=	aout
+#BINFORMAT?=	elf
 
 .if ${BINFORMAT} == aout
 CFLAGS+=	-DFREEBSD_AOUT
