@@ -174,10 +174,6 @@ struct buf {
 	struct	vm_page *b_pages[btoc(MAXPHYS)];
 	int		b_npages;
 	struct	workhead b_dep;		/* List of filesystem dependencies. */
-	struct chain_info {		/* buffer chaining */
-		struct buf *parent;
-		int count;
-	} b_chain;
 };
 
 #define b_spc	b_pager.pg_spc
@@ -230,8 +226,10 @@ struct buf {
 #define BIO_DELETE	4
 #define BIO_FORMAT	8
 
-#define BIO_ERROR	0x00000001
-#define BIO_ORDERED	0x00000002
+#define BIO_ERROR	0x00000001	/* I/O error occurred. */
+#define BIO_ORDERED	0x00000002	/* Must guarantee I/O ordering */
+#define BIO_FLAG2	0x40000000	/* Available for local hacks */
+#define BIO_FLAG1	0x80000000	/* Available for local hacks */
 
 #define	B_AGE		0x00000001	/* Move to age queue when I/O done. */
 #define	B_NEEDCOMMIT	0x00000002	/* Append-write in progress. */
@@ -243,7 +241,7 @@ struct buf {
 #define	B_DELWRI	0x00000080	/* Delay I/O until buffer reused. */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
-#define	B_ERROR		0x00000800	/* I/O error occurred. */
+#define	B_00000800	0x00000800	/* Available flag. */
 #define	B_SCANNED	0x00001000	/* VOP_FSYNC funcs mark written bufs */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
 #define	B_LOCKED	0x00004000	/* Locked in core (not reusable). */
@@ -258,11 +256,11 @@ struct buf {
 #define	B_WRITEINPROG	0x01000000	/* Write in progress. */
 #define	B_XXX		0x02000000	/* Debugging flag. */
 #define	B_PAGING	0x04000000	/* volatile paging I/O -- bypass VMIO */
-#define	B_ORDERED	0x08000000	/* Must guarantee I/O ordering */
+#define	B_08000000	0x08000000	/* Available flag. */
 #define B_RAM		0x10000000	/* Read ahead mark (flag) */
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
-#define B_AUTOCHAINDONE	0x80000000	/* Available flag */
+#define B_80000000	0x80000000	/* Available flag. */
 
 #define PRINT_BUF_FLAGS "\20\40autochain\37cluster\36vmio\35ram\34ordered" \
 	"\33paging\32xxx\31writeinprog\30want\27relbuf\26dirty" \
