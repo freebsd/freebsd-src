@@ -198,7 +198,6 @@ foreach $src ( @filenames ) {
 
       if ( $line =~ m/^$/ ) {          # skip empty lines
          # nop
-
       } elsif ( $line =~ m/^INTERFACE\s*([^\s;]*)(\s*;?)/i ) {
          $intname = $1;
          $semicolon = $2;
@@ -222,7 +221,6 @@ foreach $src ( @filenames ) {
             if $hfile;
          print CFILE '#include "'.$intname.'_if.h"'."\n\n"
             if $cfile;
-
       } elsif ( $line =~ m/^CODE\s*{$/i ) {
          $code = "";
          $line = <SRC>;
@@ -249,7 +247,7 @@ foreach $src ( @filenames ) {
             $lineno++
          }
          if ( $hfile ) {
-             print HFILLE $header;
+             print HFILE $header;
          }
       } elsif ( $line =~ m/^(STATIC|)METHOD/i ) {
          # Get the return type function name and delete that from
@@ -351,9 +349,9 @@ foreach $src ( @filenames ) {
             # the method description 
             print HFILE "extern struct device_op_desc $mname\_desc;\n";
             # the method typedef
-            print HFILE &format_line("typedef $ret $mname\_t($arguments);",
-                              $line_width, ', ',
-                              ',',' ' x length("typedef $ret $mname\_t("))
+	    my $prototype = "typedef $ret $mname\_t(";
+            print HFILE &format_line("$prototype$arguments);",
+                              $line_width, ', ', ',',' ' x length($prototype))
                       . "\n";
             # the method declaration
             print HFILE "$mname\_t $umname;\n\n";
@@ -370,9 +368,10 @@ foreach $src ( @filenames ) {
                print CFILE "$ret $umname($varnames)\n";
                print CFILE "\t".join(";\n\t", @arguments).";\n";
             } else {
-               print CFILE &format_line("$ret $umname($arguments)",
-                              $line_width, ', ',
-                              ',', ' ' x length("$ret $umname(")) . "\n";
+	       my $prototype = "$ret $umname(";
+               print CFILE &format_line("$prototype$arguments)",
+                              $line_width, ', ', ',', ' ' x length($prototype))
+			 . "\n";
             }
             print CFILE "{\n";
             if ($static) {
