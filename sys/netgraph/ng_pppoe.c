@@ -888,6 +888,26 @@ AAA
 	sendpacket(sp);
 }
 
+static int
+send_acname(sessp sp, struct pppoe_tag *tag)
+{
+	int error;
+	struct ng_mesg *msg;
+	struct ngpppoe_sts *sts;
+
+	NG_MKMESSAGE(msg, NGM_PPPOE_COOKIE, NGM_PPPOE_ACNAME,
+	    sizeof(struct ngpppoe_sts), M_NOWAIT);
+	if (msg == NULL)
+		return (ENOMEM);
+
+	sts = (struct ngpppoe_sts *)msg->data;
+	strncpy(sts->hook, tag->tag_data,
+	    min(NG_HOOKLEN + 1, ntohs(tag->tag_len)));
+	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, NULL);
+
+	return (error);
+}
+
 /*
  * Receive data, and do something with it.
  * The caller will never free m or meta, so
@@ -1063,8 +1083,10 @@ AAA
 				insert_tag(sp, utag);      /* Host Unique */
 				if ((tag = get_tag(ph, PTT_AC_COOKIE)))
 					insert_tag(sp, tag); /* return cookie */
-				if ((tag = get_tag(ph, PTT_AC_NAME)))
+				if ((tag = get_tag(ph, PTT_AC_NAME))) {	
 					insert_tag(sp, tag); /* return it */
+					send_acname(sp, tag);
+				}
 				insert_tag(sp, &neg->service.hdr); /* Service */
 				scan_tags(sp, ph);
 				make_packet(sp);
