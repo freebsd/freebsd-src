@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.11 1995/03/20 19:18:51 wollman Exp $
+#	$Id: bsd.kmod.mk,v 1.12 1995/10/02 20:01:43 wollman Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -36,7 +36,14 @@ PROG=	${KMOD}.o
 .endif
 
 ${PROG}: ${DPSRCS} ${OBJS} ${DPADD} 
-	${LD} -r ${LDFLAGS} -o ${.TARGET} ${OBJS}
+	${LD} -r ${LDFLAGS} -o tmp.o ${OBJS}
+.if defined(EXPORT_SYMS)
+	@rm -f symb.tmp
+	@for i in ${EXPORT_SYMS} ; do echo $$i >> symb.tmp ; done
+	symorder -c symb.tmp tmp.o
+	@rm -f symb.tmp
+.endif
+	mv tmp.o ${.TARGET}
 
 .if	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
 	!defined(MAN4) && !defined(MAN5) && !defined(MAN6) && \
