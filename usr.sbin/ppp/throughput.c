@@ -1,5 +1,5 @@
 /*
- * $Id: throughput.c,v 1.1 1997/11/18 14:52:07 brian Exp $
+ * $Id: throughput.c,v 1.2 1997/11/22 03:37:52 brian Exp $
  */
 
 #include <sys/param.h>
@@ -34,7 +34,7 @@ throughput_disp(struct pppThroughput *t, FILE *f)
 {
   int secs_up;
 
-  secs_up = time(NULL) - t->uptime;
+  secs_up = t->uptime ? time(NULL) - t->uptime : 0;
   fprintf(f, "Connect time: %d secs\n", secs_up);
   if (secs_up == 0)
     secs_up = 1;
@@ -55,7 +55,7 @@ throughput_log(struct pppThroughput *t, int level, const char *title)
   if (t->uptime) {
     int secs_up;
 
-    secs_up = time(NULL) - t->uptime;
+    secs_up = t->uptime ? time(NULL) - t->uptime : 0;
     if (title)
       LogPrintf(level, "%s: Connect time: %d secs: %ld octets in, %ld octets"
                 " out\n", title, secs_up, t->OctetsIn, t->OctetsOut);
