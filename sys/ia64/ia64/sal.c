@@ -40,16 +40,11 @@ struct ia64_fdesc {
 	u_int64_t	gp;
 };
 
-int64_t		sal_info_size[SAL_INFO_TYPES];
-vm_offset_t	sal_info_block;
-
 static struct ia64_fdesc sal_fdesc;
 static sal_entry_t	fake_sal;
 
 extern u_int64_t	ia64_pal_entry;
 sal_entry_t		*ia64_sal_entry = fake_sal;
-
-static void ia64_sal_init_state(void *p);
 
 void os_boot_rendez(void);
 
@@ -127,39 +122,3 @@ ia64_sal_init(struct sal_system_table *saltab)
 		p += sizes[*p];
 	}
 }
-
-static void
-ia64_sal_init_state(void *p)
-{
-	struct ia64_sal_result result;
-	uint64_t max_size;
-	int i;
-
-	/*
-	 * Get the sizes of the state information we can get from SAL and
-	 * allocate a common block (forgive me my Fortran) for use by
-	 * support functions. We create a region 7 address to make it
-	 * easy on the OS_MCA or OS_INIT handlers.
-	 */
-	max_size = 0;
-	for (i = 0; i <= SAL_INFO_TYPES; i++) {
-		result = ia64_sal_entry(SAL_GET_STATE_INFO_SIZE, i, 0, 0, 0,
-		    0, 0, 0);
-		if (result.sal_status == 0) {
-			sal_info_size[i] = result.sal_result[0];
-			if (sal_info_size[i] > max_size)
-				max_size = sal_info_size[i];
-		} else
-			sal_info_size[i] = -1;
-	}
-	max_size = round_page(max_size);
-	p = contigmalloc(max_size, M_TEMP, M_WAITOK, 0ul, 256*1024*1024 - 1,
-	    PAGE_SIZE, 256*1024*1024);
-	sal_info_block = IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t)p));
-
-	if (bootverbose)
-		printf("SAL: allocated %d bytes for state information\n",
-		    max_size);
-}
-
-SYSINIT(sal_mca, SI_SUB_CPU, SI_ORDER_MIDDLE, ia64_sal_init_state, NULL);
