@@ -43,6 +43,7 @@
  * External virtual filesystem routines
  */
 #include "opt_ddb.h"
+#include "opt_ffs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1030,7 +1031,9 @@ sched_sync(void)
 		/*
 		 * Do soft update processing.
 		 */
+#ifdef SOFTUPDATES
 		softdep_process_worklist(NULL);
+#endif
 
 		/*
 		 * The variable rushjob allows the kernel to speed up the
