@@ -453,6 +453,24 @@ log_SetLevel(struct cmdargs const *arg)
 
   while (argc--) {
     argp = **argv == '+' || **argv == '-' ? *argv + 1 : *argv;
+    /* Special case 'all' */
+    if (strcasecmp(argp, "all") == 0) {
+        if (**argv == '-') {
+          if (local)
+            for (i = LogMIN; i <= LogMAX; i++)
+              log_DiscardLocal(i, &arg->prompt->logmask);
+          else
+            for (i = LogMIN; i <= LogMAX; i++)
+              log_Discard(i);
+        } else if (local)
+          for (i = LogMIN; i <= LogMAX; i++)
+            log_KeepLocal(i, &arg->prompt->logmask);
+        else
+          for (i = LogMIN; i <= LogMAX; i++)
+            log_Keep(i);
+        argv++;
+        continue;
+    }
     for (i = LogMIN; i <= LogMAX; i++)
       if (strcasecmp(argp, log_Name(i)) == 0) {
 	if (**argv == '-') {
