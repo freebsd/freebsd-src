@@ -38,7 +38,7 @@ static const char rcsid[] =
 	"Id: mbufs.c,v 1.5 1997/02/24 20:59:03 wollman Exp";
 */
 static const char rcsid[] =
-	"$Id: icmp.c,v 1.1 1997/09/24 02:43:39 wollman Exp $";
+	"$Id: ip.c,v 1.1 1997/09/25 00:37:32 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -143,7 +143,7 @@ static void
 domode(struct stat *ret)
 {
 	const struct stat *sub;
-	int i, divisor = 1;
+	int divisor = 1;
 
 	switch(currentmode) {
 	case display_RATE:
@@ -203,7 +203,6 @@ showip(void)
 {
 	struct stat stats;
 	u_long totalout;
-	int i;
 
 	domode(&stats);
 	totalout = stats.i.ips_forward + stats.i.ips_localout;
