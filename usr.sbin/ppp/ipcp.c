@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.67 1998/10/22 02:32:49 brian Exp $
+ * $Id: ipcp.c,v 1.68 1998/10/26 19:07:39 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backward compatibility
@@ -73,6 +73,9 @@
 #include "link.h"
 #include "physical.h"
 #include "mp.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 #include "id.h"
 #include "arp.h"
@@ -278,7 +281,7 @@ ipcp_Show(struct cmdargs const *arg)
 
   if (ipcp->route) {
     prompt_Printf(arg->prompt, "\n");
-    route_ShowSticky(arg->prompt, ipcp->route);
+    route_ShowSticky(arg->prompt, ipcp->route, "Sticky routes", 1);
   }
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
@@ -378,7 +381,7 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
 
   throughput_init(&ipcp->throughput);
   memset(ipcp->Queue, '\0', sizeof ipcp->Queue);
-  ipcp_Setup(ipcp);
+  ipcp_Setup(ipcp, INADDR_NONE);
 }
 
 void
@@ -388,13 +391,14 @@ ipcp_SetLink(struct ipcp *ipcp, struct link *l)
 }
 
 void
-ipcp_Setup(struct ipcp *ipcp)
+ipcp_Setup(struct ipcp *ipcp, u_int32_t mask)
 {
   struct iface *iface = ipcp->fsm.bundle->iface;
   int pos, n;
 
   ipcp->fsm.open_mode = 0;
   ipcp->fsm.maxconfig = 10;
+  ipcp->ifmask.s_addr = mask == INADDR_NONE ? ipcp->cfg.netmask.s_addr : mask;
 
   if (iplist_isvalid(&ipcp->cfg.peer_list)) {
     /* Try to give the peer a previously configured IP address */
@@ -446,7 +450,11 @@ ipcp_Setup(struct ipcp *ipcp)
       ipcp->my_ip = ipcp->cfg.my_range.ipaddr;
   }
 
-  if (IsEnabled(ipcp->cfg.vj.neg))
+  if (IsEnabled(ipcp->cfg.vj.neg)
+#ifndef NORADIUS
+      || (ipcp->fsm.bundle->radius.valid && ipcp->fsm.bundle->radius.vj)
+#endif
+     )
     ipcp->my_compproto = (PROTO_VJCOMP << 16) +
                          ((ipcp->cfg.vj.slots - 1) << 8) +
                          ipcp->cfg.vj.slotcomp;
@@ -496,16 +504,11 @@ ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
   u_int32_t addr;
 
   addr = htonl(myaddr.s_addr);
-  if (IN_CLASSA(addr))
-    mask.s_addr = htonl(IN_CLASSA_NET);
-  else if (IN_CLASSB(addr))
-    mask.s_addr = htonl(IN_CLASSB_NET);
-  else
-    mask.s_addr = htonl(IN_CLASSC_NET);
+  mask.s_addr = addr2mask(addr);
 
-  if (bundle->ncp.ipcp.cfg.netmask.s_addr != INADDR_ANY &&
-      (ntohl(bundle->ncp.ipcp.cfg.netmask.s_addr) & mask.s_addr) == mask.s_addr)
-    mask.s_addr = htonl(bundle->ncp.ipcp.cfg.netmask.s_addr);
+  if (bundle->ncp.ipcp.ifmask.s_addr != INADDR_ANY &&
+      (ntohl(bundle->ncp.ipcp.ifmask.s_addr) & mask.s_addr) == mask.s_addr)
+    mask.s_addr = htonl(bundle->ncp.ipcp.ifmask.s_addr);
 
   oaddr.s_addr = bundle->iface->in_addrs ?
                  bundle->iface->in_addr[0].ifa.s_addr : INADDR_ANY;
@@ -523,6 +526,11 @@ ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
 
   if (Enabled(bundle, OPT_SROUTES))
     route_Change(bundle, bundle->ncp.ipcp.route, myaddr, hisaddr);
+
+#ifndef NORADIUS
+  if (bundle->radius.valid)
+    route_Change(bundle, bundle->radius.routes, myaddr, hisaddr);
+#endif
 
   if (Enabled(bundle, OPT_PROXY) || Enabled(bundle, OPT_PROXYALL)) {
     int s = ID0socket(AF_INET, SOCK_DGRAM, 0);
@@ -705,7 +713,7 @@ IpcpLayerDown(struct fsm *fp)
       system_Select(fp->bundle, "MYADDR", LINKDOWNFILE, NULL, NULL);
   }
 
-  ipcp_Setup(ipcp);
+  ipcp_Setup(ipcp, INADDR_NONE);
 }
 
 int
@@ -1115,6 +1123,23 @@ ipcp_Input(struct ipcp *ipcp, struct bundle *bundle, struct mbuf *bp)
 }
 
 int
+ipcp_UseHisIPaddr(struct bundle *bundle, struct in_addr hisaddr)
+{
+  struct ipcp *ipcp = &bundle->ncp.ipcp;
+
+  memset(&ipcp->cfg.peer_range, '\0', sizeof ipcp->cfg.peer_range);
+  iplist_reset(&ipcp->cfg.peer_list);
+  ipcp->peer_ip = ipcp->cfg.peer_range.ipaddr = hisaddr;
+  ipcp->cfg.peer_range.mask.s_addr = INADDR_BROADCAST;
+  ipcp->cfg.peer_range.width = 32;
+
+  if (ipcp_SetIPaddress(bundle, ipcp->cfg.my_range.ipaddr, hisaddr, 0) < 0)
+    return 0;
+
+  return 1;	/* Ok */
+}
+
+int
 ipcp_UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
 {
   struct ipcp *ipcp = &bundle->ncp.ipcp;
@@ -1138,7 +1163,7 @@ ipcp_UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
       log_Printf(LogWARN, "%s: Invalid range !\n", hisaddr);
       return 0;
     }
-  } else if (ParseAddr(ipcp, 1, &hisaddr, &ipcp->cfg.peer_range.ipaddr,
+  } else if (ParseAddr(ipcp, hisaddr, &ipcp->cfg.peer_range.ipaddr,
 		       &ipcp->cfg.peer_range.mask,
                        &ipcp->cfg.peer_range.width) != 0) {
     ipcp->peer_ip.s_addr = ipcp->cfg.peer_range.ipaddr.s_addr;

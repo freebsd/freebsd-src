@@ -17,12 +17,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.33 1998/08/26 17:39:36 brian Exp $
+ * $Id: auth.c,v 1.34 1998/12/17 00:28:12 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -53,6 +53,9 @@
 #include "lcpproto.h"
 #include "filter.h"
 #include "mp.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 
 const char *
@@ -105,12 +108,12 @@ auth_SetPhoneList(const char *name, char *phone, int phonelen)
       if (n < 5)
         continue;
       if (strcmp(vector[0], name) == 0) {
-	CloseSecret(fp);
-	if (*vector[4] == '\0')
+        CloseSecret(fp);
+        if (*vector[4] == '\0')
           return 0;
         strncpy(phone, vector[4], phonelen - 1);
         phone[phonelen - 1] = '\0';
-	return 1;		/* Valid */
+        return 1;		/* Valid */
       }
     }
     CloseSecret(fp);
@@ -128,9 +131,19 @@ auth_Select(struct bundle *bundle, const char *name)
   char buff[LINE_LEN];
 
   if (*name == '\0') {
-    ipcp_Setup(&bundle->ncp.ipcp);
+    ipcp_Setup(&bundle->ncp.ipcp, INADDR_NONE);
     return 1;
   }
+
+#ifndef NORADIUS
+  if (bundle->radius.valid && bundle->radius.ip.s_addr != INADDR_NONE) {
+    /* We've got a radius IP - it overrides everything */
+    if (!ipcp_UseHisIPaddr(bundle, bundle->radius.ip))
+      return 0;
+    ipcp_Setup(&bundle->ncp.ipcp, bundle->radius.mask.s_addr);
+    /* Continue with ppp.secret in case we've got a new label */
+  }
+#endif
 
   fp = OpenSecret(SECRETFILE);
   if (fp != NULL) {
@@ -143,14 +156,20 @@ auth_Select(struct bundle *bundle, const char *name)
       if (n < 2)
         continue;
       if (strcmp(vector[0], name) == 0) {
-	CloseSecret(fp);
-	if (n > 2 && *vector[2] && strcmp(vector[2], "*") &&
-            !ipcp_UseHisaddr(bundle, vector[2], 1))
-	  return 0;
-	ipcp_Setup(&bundle->ncp.ipcp);
-	if (n > 3 && *vector[3] && strcmp(vector[3], "*"))
-	  bundle_SetLabel(bundle, vector[3]);
-	return 1;		/* Valid */
+        CloseSecret(fp);
+#ifndef NORADIUS
+        if (!bundle->radius.valid || bundle->radius.ip.s_addr == INADDR_NONE) {
+#endif
+          if (n > 2 && *vector[2] && strcmp(vector[2], "*") &&
+              !ipcp_UseHisaddr(bundle, vector[2], 1))
+            return 0;
+          ipcp_Setup(&bundle->ncp.ipcp, INADDR_NONE);
+#ifndef NORADIUS
+        }
+#endif
+        if (n > 3 && *vector[3] && strcmp(vector[3], "*"))
+          bundle_SetLabel(bundle, vector[3]);
+        return 1;		/* Valid */
       }
     }
     CloseSecret(fp);
@@ -158,16 +177,21 @@ auth_Select(struct bundle *bundle, const char *name)
 
 #ifndef NOPASSWDAUTH
   /* Let 'em in anyway - they must have been in the passwd file */
-  ipcp_Setup(&bundle->ncp.ipcp);
+  ipcp_Setup(&bundle->ncp.ipcp, INADDR_NONE);
   return 1;
 #else
-  /* Disappeared from ppp.secret ? */
+#ifndef NORADIUS
+  if (bundle->radius.valid)
+    return 1;
+#endif
+
+  /* Disappeared from ppp.secret ??? */
   return 0;
 #endif
 }
 
 int
-auth_Validate(struct bundle *bundle, const char *system,
+auth_Validate(struct bundle *bundle, const char *name,
              const char *key, struct physical *physical)
 {
   /* Used by PAP routines */
@@ -176,6 +200,11 @@ auth_Validate(struct bundle *bundle, const char *system,
   int n;
   char *vector[5];
   char buff[LINE_LEN];
+
+#ifndef NORADIUS
+  if (*bundle->radius.cfg.file)
+    return radius_Authenticate(&bundle->radius, bundle, name, key, NULL);
+#endif
 
   fp = OpenSecret(SECRETFILE);
   if (fp != NULL) {
@@ -187,9 +216,9 @@ auth_Validate(struct bundle *bundle, const char *system,
       n = MakeArgs(buff, vector, VECSIZE(vector));
       if (n < 2)
         continue;
-      if (strcmp(vector[0], system) == 0) {
-	CloseSecret(fp);
-        return auth_CheckPasswd(vector[0], vector[1], key);
+      if (strcmp(vector[0], name) == 0) {
+        CloseSecret(fp);
+        return auth_CheckPasswd(name, vector[1], key);
       }
     }
     CloseSecret(fp);
@@ -197,14 +226,14 @@ auth_Validate(struct bundle *bundle, const char *system,
 
 #ifndef NOPASSWDAUTH
   if (Enabled(bundle, OPT_PASSWDAUTH))
-    return auth_CheckPasswd(system, "*", key);
+    return auth_CheckPasswd(name, "*", key);
 #endif
 
   return 0;			/* Invalid */
 }
 
 char *
-auth_GetSecret(struct bundle *bundle, const char *system, int len,
+auth_GetSecret(struct bundle *bundle, const char *name, int len,
               struct physical *physical)
 {
   /* Used by CHAP routines */
@@ -226,7 +255,7 @@ auth_GetSecret(struct bundle *bundle, const char *system, int len,
     n = MakeArgs(buff, vector, VECSIZE(vector));
     if (n < 2)
       continue;
-    if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {
+    if (strlen(vector[0]) == len && strncmp(vector[0], name, len) == 0) {
       CloseSecret(fp);
       return vector[1];
     }

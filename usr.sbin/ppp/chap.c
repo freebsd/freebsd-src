@@ -17,11 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.36 1998/08/07 18:42:47 brian Exp $
+ * $Id: chap.c,v 1.37 1998/08/26 18:07:56 brian Exp $
  *
  *	TODO:
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -57,6 +57,9 @@
 #include "link.h"
 #include "physical.h"
 #include "mp.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 #include "chat.h"
 #include "cbcp.h"
@@ -102,12 +105,24 @@ chap_SendChallenge(struct authinfo *auth, int chapid, struct physical *physical)
 
   randinit();
   cp = chap->challenge_data;
-  *cp++ = chap->challenge_len = random() % 32 + 16;
-  for (i = 0; i < chap->challenge_len; i++)
-    *cp++ = random() & 0xff;
-  len = strlen(physical->dl->bundle->cfg.auth.name);
-  memcpy(cp, physical->dl->bundle->cfg.auth.name, len);
-  cp += len;
+#ifndef NORADIUS
+  if (*physical->dl->bundle->radius.cfg.file) {
+    /* For radius, our challenge is 16 readable NUL terminated bytes :*/
+    *cp++ = chap->challenge_len = 16;
+    for (i = 0; i < chap->challenge_len; i++)
+      *cp++ = (random() & (0x7f - 0x20)) + 0x20;
+    *cp = '\0';
+  } else {
+#endif
+    *cp++ = chap->challenge_len = random() % (CHAPCHALLENGELEN-16) + 16;
+    for (i = 0; i < chap->challenge_len; i++)
+      *cp++ = random() & 0xff;
+    len = strlen(physical->dl->bundle->cfg.auth.name);
+    memcpy(cp, physical->dl->bundle->cfg.auth.name, len);
+    cp += len;
+#ifndef NORADIUS
+  }
+#endif
   ChapOutput(physical, CHAP_CHALLENGE, chapid, chap->challenge_data,
 	     cp - chap->challenge_data, NULL);
 }
@@ -121,7 +136,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
   char *cp, *argp, *ap, *name, *digest;
   char *keyp;
   MD5_CTX MD5context;		/* context for MD5 */
-  char answer[100];
+  char answer[CHAPDIGESTLEN];
   char cdigest[16];
 #ifdef HAVE_DES
   int ix;
@@ -214,11 +229,25 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
     /*
      * Get a secret key corresponds to the peer
      */
-    keyp = auth_GetSecret(bundle, name, namelen, physical);
-    if (keyp) {
-      /*
-       * Compute correct digest value
-       */
+#ifndef NORADIUS
+    if (*bundle->radius.cfg.file) {
+      char chapname[AUTHLEN];
+
+      if (namelen > AUTHLEN - 1)
+        namelen = AUTHLEN - 1;
+      strncpy(chapname, name, namelen);
+      chapname[namelen] = '\0';
+      strncpy(answer, cp-1, 17);
+      answer[17] = '\0';
+
+      if (radius_Authenticate(&bundle->radius, bundle, chapname, answer,
+                              physical->dl->chap.challenge_data + 1))
+        break;		/* And there was much rejoicing ! */
+
+    } else
+#endif
+    if ((keyp = auth_GetSecret(bundle, name, namelen, physical))) {
+      /* Compute correct digest value */
       keylen = strlen(keyp);
       ap = answer;
       *ap++ = chp->id;

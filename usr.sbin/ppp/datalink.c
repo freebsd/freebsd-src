@@ -23,10 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.24 1999/01/12 21:50:20 brian Exp $
+ *	$Id: datalink.c,v 1.25 1999/01/20 18:06:52 brian Exp $
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -58,6 +58,9 @@
 #include "ipcp.h"
 #include "filter.h"
 #include "mp.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 #include "chat.h"
 #include "auth.h"

@@ -17,11 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.35 1998/08/01 01:02:12 brian Exp $
+ * $Id: hdlc.c,v 1.36 1998/08/07 18:42:48 brian Exp $
  *
  *	TODO:
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -61,6 +61,9 @@
 #include "cbcp.h"
 #include "datalink.h"
 #include "filter.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 
 static u_int16_t const fcstab[256] = {

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.h,v 1.10.2.6 1998/05/05 23:30:13 brian Exp $
+ * $Id: route.h,v 1.11 1998/05/21 21:48:12 brian Exp $
  *
  */
 
@@ -50,4 +50,5 @@ extern void route_Add(struct sticky_route **, int, struct in_addr,
 extern void route_Delete(struct sticky_route **, int, struct in_addr);
 extern void route_DeleteAll(struct sticky_route **);
 extern void route_Clean(struct bundle *, struct sticky_route *);
-extern void route_ShowSticky(struct prompt *, struct sticky_route *);
+extern void route_ShowSticky(struct prompt *, struct sticky_route *,
+                             const char *, int);

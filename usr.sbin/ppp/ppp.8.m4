@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.141 1999/01/19 22:15:41 brian Exp $
+.\" $Id: ppp.8,v 1.142 1999/01/19 22:16:02 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -109,11 +109,29 @@ CHAP authentication and
 .Nm
 is compiled with DES support, an appropriate MD4/DES response will be
 made.
+.It Supports RADIUS authentication.
+An extension to PAP and CHAP,
+.Em \&R Ns No emote
+.Em \&A Ns No ccess
+.Em \&D Ns No ial
+.Em \&I Ns No n
+.Em \&U Ns No ser
+.Em \&S Ns No ervice
+allows authentication information to be stored in a central or
+distributed database along with various per-user framed connection
+characteristics.  If
+.Pa libradius
+is available at compile time,
+.Nm
+will use it to make
+.Em RADIUS
+requests when configured to do so.
 .It Supports Proxy Arp.
 When
-.Em PPP
-is set up as server, you can also configure it to do proxy arp for your
-connection.
+.Nm
+is set up as server, it can be configured to make one or more proxy arp
+entries on behalf of the client.  This allows routing to the LAN without
+configuring each machine on that LAN.
 .It Supports packet filtering.
 User can define four kinds of filters: the
 .Em in
@@ -3498,6 +3516,95 @@ command must appear in
 as it is not known when the commands in
 .Pa ppp.conf
 are executed.
+.It set radius Op Ar config-file
+This command enables RADIUS support (if it's compiled in).
+.Ar config-file
+refers to the radius client configuration file as described in
+.Xr radius.conf 5 .
+If PAP or CHAP are
+.Dq enable Ns No d ,
+.Nm
+behaves as a
+.Em \&N Ns No etwork
+.Em \&A Ns No ccess
+.Em \&S Ns No erver
+and uses the configured RADIUS server to authenticate rather than
+authenticating from the
+.Pa ppp.secret
+file or from the passwd database.
+.Pp
+If neither PAP or CHAP are enabled,
+.Dq set radius
+will do nothing.
+.Pp
+.Nm
+uses the following attributes from the RADIUS reply:
+.Bl -tag -width XXX -offset XXX
+.It RAD_FRAMED_IP_ADDRESS
+The peer IP address is set to the given value.
+.It RAD_FRAMED_IP_NETMASK
+The tun interface netmask is set to the given value.
+.It RAD_FRAMED_MTU
+If the given MTU is less than the peers MRU as agreed during LCP
+negotiation, *and* it is less that any configured MTU (see the
+.Dq set mru
+command), the tun interface MTU is set to the given value.
+.It RAD_FRAMED_COMPRESSION
+If the received compression type is
+.Dq 1 ,
+.Nm
+will request VJ compression during IPCP negotiations despite any
+.Dq disable vj
+configuration command.
+.It RAD_FRAMED_ROUTE
+The received string is expected to be in the format
+.Ar dest Ns Op / Ns Ar bits
+.Ar gw
+.Op Ar metrics .
+Any specified metrics are ignored.
+.Dv MYADDR
+and
+.Dv HISADDR
+are understood as valid values for
+.Ar dest
+and
+.Ar gw ,
+.Dq default
+can be used for
+.Ar dest
+to sepcify the default route, and
+.Dq 0.0.0.0
+is understood to be the same as
+.Dq default
+for
+.Ar dest
+and
+.Dv HISADDR
+for
+.Ar gw .
+.Pp
+For example, a returned value of
+.Dq 1.2.3.4/24 0.0.0.0 1 2 -1 3 400
+would result in a routing table entry to the 1.2.3.0/24 network via
+.Dv HISADDR
+and a returned value of
+.Dq 0.0.0.0 0.0.0.0
+or
+.Dq default HISADDR
+would result in a default route to
+.Dv HISADDR .
+.Pp
+All RADIUS routes are applied after any sticky routes are applied, making
+RADIUS routes override configured routes.  This also applies for RADIUS
+routes that don't include the
+.Dv MYADDR
+or
+.Dv HISADDR
+keywords.
+.Pp
+.El
+Values received from the RADIUS server may be viewed using
+.Dq show bundle .
 .It set reconnect Ar timeout ntries
 Should the line drop unexpectedly (due to loss of CD or LQR
 failure), a connection will be re-established after the given
@@ -3841,6 +3948,7 @@ This socket is used to pass links between different instances of
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppd 8 ,
+.Xr radius.conf 5 ,
 .Xr route 8 ,
 .Xr syslogd 8 ,
 .Xr traceroute 8 ,
