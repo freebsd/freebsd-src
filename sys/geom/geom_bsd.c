@@ -65,6 +65,129 @@ struct g_bsd_softc {
 };
 
 static void
+g_bsd_ledec_partition(u_char *ptr, struct partition *d)
+{
+	d->p_size = g_dec_le4(ptr + 0);
+	d->p_offset = g_dec_le4(ptr + 4);
+	d->p_fsize = g_dec_le4(ptr + 8);
+	d->p_fstype = ptr[12];
+	d->p_frag = ptr[13];
+	d->p_cpg = g_dec_le2(ptr + 14);
+}
+
+static void
+g_bsd_ledec_disklabel(u_char *ptr, struct disklabel *d)
+{
+	d->d_magic = g_dec_le4(ptr + 0);
+	d->d_type = g_dec_le2(ptr + 4);
+	d->d_subtype = g_dec_le2(ptr + 6);
+	bcopy(ptr + 8, d->d_typename, 16);
+	bcopy(d->d_packname, ptr + 24, 16);
+	d->d_secsize = g_dec_le4(ptr + 40);
+	d->d_nsectors = g_dec_le4(ptr + 44);
+	d->d_ntracks = g_dec_le4(ptr + 48);
+	d->d_ncylinders = g_dec_le4(ptr + 52);
+	d->d_secpercyl = g_dec_le4(ptr + 56);
+	d->d_secperunit = g_dec_le4(ptr + 60);
+	d->d_sparespertrack = g_dec_le2(ptr + 64);
+	d->d_sparespercyl = g_dec_le2(ptr + 66);
+	d->d_acylinders = g_dec_le4(ptr + 68);
+	d->d_rpm = g_dec_le2(ptr + 72);
+	d->d_interleave = g_dec_le2(ptr + 74);
+	d->d_trackskew = g_dec_le2(ptr + 76);
+	d->d_cylskew = g_dec_le2(ptr + 78);
+	d->d_headswitch = g_dec_le4(ptr + 80);
+	d->d_trkseek = g_dec_le4(ptr + 84);
+	d->d_flags = g_dec_le4(ptr + 88);
+	d->d_drivedata[0] = g_dec_le4(ptr + 92);
+	d->d_drivedata[1] = g_dec_le4(ptr + 96);
+	d->d_drivedata[2] = g_dec_le4(ptr + 100);
+	d->d_drivedata[3] = g_dec_le4(ptr + 104);
+	d->d_drivedata[4] = g_dec_le4(ptr + 108);
+	d->d_spare[0] = g_dec_le4(ptr + 112);
+	d->d_spare[1] = g_dec_le4(ptr + 116);
+	d->d_spare[2] = g_dec_le4(ptr + 120);
+	d->d_spare[3] = g_dec_le4(ptr + 124);
+	d->d_spare[4] = g_dec_le4(ptr + 128);
+	d->d_magic2 = g_dec_le4(ptr + 132);
+	d->d_checksum = g_dec_le2(ptr + 136);
+	d->d_npartitions = g_dec_le2(ptr + 138);
+	d->d_bbsize = g_dec_le4(ptr + 140);
+	d->d_sbsize = g_dec_le4(ptr + 144);
+	g_bsd_ledec_partition(ptr + 148, &d->d_partitions[0]);
+	g_bsd_ledec_partition(ptr + 164, &d->d_partitions[1]);
+	g_bsd_ledec_partition(ptr + 180, &d->d_partitions[2]);
+	g_bsd_ledec_partition(ptr + 196, &d->d_partitions[3]);
+	g_bsd_ledec_partition(ptr + 212, &d->d_partitions[4]);
+	g_bsd_ledec_partition(ptr + 228, &d->d_partitions[5]);
+	g_bsd_ledec_partition(ptr + 244, &d->d_partitions[6]);
+	g_bsd_ledec_partition(ptr + 260, &d->d_partitions[7]);
+}
+
+#if 0
+static void
+g_bsd_leenc_partition(u_char *ptr, struct partition *d)
+{
+	g_enc_le4(ptr + 0, d->p_size);
+	g_enc_le4(ptr + 4, d->p_offset);
+	g_enc_le4(ptr + 8, d->p_fsize);
+	ptr[12] = d->p_fstype;
+	ptr[13] = d->p_frag;
+	g_enc_le2(ptr + 14, d->p_cpg);
+}
+
+static void
+g_bsd_leenc_disklabel(u_char *ptr, struct disklabel *d)
+{
+	g_enc_le4(ptr + 0, d->d_magic);
+	g_enc_le2(ptr + 4, d->d_type);
+	g_enc_le2(ptr + 6, d->d_subtype);
+	bcopy(d->d_typename, ptr + 8, 16);
+	bcopy(d->d_packname, ptr + 24, 16);
+	g_enc_le4(ptr + 40, d->d_secsize);
+	g_enc_le4(ptr + 44, d->d_nsectors);
+	g_enc_le4(ptr + 48, d->d_ntracks);
+	g_enc_le4(ptr + 52, d->d_ncylinders);
+	g_enc_le4(ptr + 56, d->d_secpercyl);
+	g_enc_le4(ptr + 60, d->d_secperunit);
+	g_enc_le2(ptr + 64, d->d_sparespertrack);
+	g_enc_le2(ptr + 66, d->d_sparespercyl);
+	g_enc_le4(ptr + 68, d->d_acylinders);
+	g_enc_le2(ptr + 72, d->d_rpm);
+	g_enc_le2(ptr + 74, d->d_interleave);
+	g_enc_le2(ptr + 76, d->d_trackskew);
+	g_enc_le2(ptr + 78, d->d_cylskew);
+	g_enc_le4(ptr + 80, d->d_headswitch);
+	g_enc_le4(ptr + 84, d->d_trkseek);
+	g_enc_le4(ptr + 88, d->d_flags);
+	g_enc_le4(ptr + 92, d->d_drivedata[0]);
+	g_enc_le4(ptr + 96, d->d_drivedata[1]);
+	g_enc_le4(ptr + 100, d->d_drivedata[2]);
+	g_enc_le4(ptr + 104, d->d_drivedata[3]);
+	g_enc_le4(ptr + 108, d->d_drivedata[4]);
+	g_enc_le4(ptr + 112, d->d_spare[0]);
+	g_enc_le4(ptr + 116, d->d_spare[1]);
+	g_enc_le4(ptr + 120, d->d_spare[2]);
+	g_enc_le4(ptr + 124, d->d_spare[3]);
+	g_enc_le4(ptr + 128, d->d_spare[4]);
+	g_enc_le4(ptr + 132, d->d_magic2);
+	g_enc_le2(ptr + 136, d->d_checksum);
+	g_enc_le2(ptr + 138, d->d_npartitions);
+	g_enc_le4(ptr + 140, d->d_bbsize);
+	g_enc_le4(ptr + 144, d->d_sbsize);
+	g_bsd_leenc_partition(ptr + 148, &d->d_partitions[0]);
+	g_bsd_leenc_partition(ptr + 164, &d->d_partitions[1]);
+	g_bsd_leenc_partition(ptr + 180, &d->d_partitions[2]);
+	g_bsd_leenc_partition(ptr + 196, &d->d_partitions[3]);
+	g_bsd_leenc_partition(ptr + 212, &d->d_partitions[4]);
+	g_bsd_leenc_partition(ptr + 228, &d->d_partitions[5]);
+	g_bsd_leenc_partition(ptr + 244, &d->d_partitions[6]);
+	g_bsd_leenc_partition(ptr + 260, &d->d_partitions[7]);
+}
+
+#endif
+
+static void
 ondisk2inram(struct g_bsd_softc *sc)
 {
 	struct partition *ppp;
@@ -80,6 +203,66 @@ ondisk2inram(struct g_bsd_softc *sc)
 	}
 	sc->inram.d_checksum = 0;
 	sc->inram.d_checksum = dkcksum(&sc->inram);
+}
+
+/*
+ * It is rather fortunate that this checksum only covers up to the
+ * actual end of actual data, otherwise the pointer-screwup in
+ * alpha architectures would have been much harder to handle.
+ */
+static int
+g_bsd_lesum(struct disklabel *dl, u_char *p)
+{
+	u_char *pe;
+	uint16_t sum;
+
+	pe = p + 148 + 16 * dl->d_npartitions;
+	sum = 0;
+	while (p < pe) {
+		sum ^= g_dec_le2(p);
+		p += 2;
+	}
+	return (sum);
+}
+
+static int
+g_bsd_i386(struct g_consumer *cp, int secsize, struct disklabel *dl)
+{
+	int error;
+	u_char *buf;
+
+	buf = g_read_data(cp, secsize * 1, secsize, &error);
+	if (buf == NULL || error != 0)
+		return(ENOENT);
+	g_bsd_ledec_disklabel(buf, dl);
+	if (dl->d_magic == DISKMAGIC &&
+	    dl->d_magic2 == DISKMAGIC &&
+	    g_bsd_lesum(dl, buf) == 0) 
+		error = 0;
+	else
+		error = ENOENT;
+	g_free(buf);
+	return(error);
+}
+
+static int
+g_bsd_alpha(struct g_consumer *cp, int secsize, struct disklabel *dl)
+{
+	int error;
+	u_char *buf;
+
+	buf = g_read_data(cp, 0, secsize, &error);
+	if (buf == NULL || error != 0)
+		return(ENOENT);
+	g_bsd_ledec_disklabel(buf + 64, dl);
+	if (dl->d_magic == DISKMAGIC &&
+	    dl->d_magic2 == DISKMAGIC &&
+	    g_bsd_lesum(dl, buf) == 0) 
+		error = 0;
+	else
+		error = ENOENT;
+	g_free(buf);
+	return(error);
 }
 
 static int
@@ -142,7 +325,6 @@ g_bsd_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp, int f
 	struct g_consumer *cp;
 	struct g_provider *pp2;
 	int error, i, j, npart;
-	u_char *buf;
 	struct g_bsd_softc *ms;
 	struct disklabel *dl;
 	u_int secsize;
@@ -180,18 +362,12 @@ g_bsd_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp, int f
 			printf("g_error %d Mediasize is %lld bytes\n",
 			    error, mediasize);
 		}
-		buf = g_read_data(cp, secsize * LABELSECTOR, secsize, &error);
-		if (buf == NULL || error != 0)
+		error = g_bsd_i386(cp, secsize, &ms->ondisk);
+		if (error)
+			error = g_bsd_alpha(cp, secsize, &ms->ondisk);
+		if (error)
 			break;
-		bcopy(buf, &ms->ondisk, sizeof(ms->ondisk));
 		dl = &ms->ondisk;
-		g_free(buf);
-		if (dl->d_magic != DISKMAGIC)
-			break;
-		if (dl->d_magic2 != DISKMAGIC)
-			break;
-		if (dkcksum(dl) != 0)
-			break;
 		if (bootverbose)
 			g_hexdump(dl, sizeof(*dl));
 		if (dl->d_secsize < secsize)
