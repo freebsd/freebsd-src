@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_send.c,v 4.9.1.12 1994/06/26 04:00:18 vixie Exp $";
+static char rcsid[] = "$Id: res_send.c,v 1.2 1994/09/25 02:12:49 pst Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 	/* change this to "0"
@@ -87,50 +87,45 @@ static int s = -1;	/* socket used for communications */
 static int connected = 0;	/* is the socket connected */
 static int vc = 0;	/* is the socket a virtual ciruit? */
 
-#ifndef DEBUG
-#   define Dprint(cond, args) /*empty*/
-#   define DprintQ(cond, args, query) /*empty*/
-#   define Aerror(file, string, error, address) /*empty*/
-#   define Perror(file, string, error) /*empty*/
-#else
 #   define Dprint(cond, args) if (cond) {fprintf args;} else {}
 #   define DprintQ(cond, args, query) if (cond) {\
 			fprintf args;\
 			__p_query(query);\
 		} else {}
-    static void
-    Aerror(file, string, error, address)
-	FILE *file;
-	char *string;
-	int error;
-	struct sockaddr_in address;
-    {
-	int save = errno;
 
-	if (_res.options & RES_DEBUG) {
-		fprintf(file, "res_send: %s ([%s].%d): %s\n",
-			string,
-			inet_ntoa(address.sin_addr),
-			address.sin_port,
-			strerror(error));
-	}
-	errno = save;
-    }
-    static void
-    Perror(file, string, error)
-	FILE *file;
-	char *string;
-	int error;
-    {
-	int save = errno;
+static void
+Aerror(file, string, error, address)
+    FILE *file;
+    char *string;
+    int error;
+    struct sockaddr_in address;
+{
+    int save = errno;
 
-	if (_res.options & RES_DEBUG) {
-		fprintf(file, "res_send: %s: %s\n",
-			string, strerror(error));
-	}
-	errno = save;
+    if (_res.options & RES_DEBUG) {
+	    fprintf(file, "res_send: %s ([%s].%d): %s\n",
+		    string,
+		    inet_ntoa(address.sin_addr),
+		    address.sin_port,
+		    strerror(error));
     }
-#endif
+    errno = save;
+}
+
+static void
+Perror(file, string, error)
+    FILE *file;
+    char *string;
+    int error;
+{
+    int save = errno;
+
+    if (_res.options & RES_DEBUG) {
+	    fprintf(file, "res_send: %s: %s\n",
+		    string, strerror(error));
+    }
+    errno = save;
+}
 
 static res_send_qhook Qhook = NULL;
 static res_send_rhook Rhook = NULL;

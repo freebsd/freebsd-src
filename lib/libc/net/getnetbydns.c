@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: getnetbydns.c,v 1.1 1994/09/25 02:12:20 pst Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -253,10 +253,8 @@ _getnetbydnsaddr(net, net_type)
 	}
 	anslen = res_query(qbuf, C_IN, T_PTR, buf.buf, sizeof buf.buf);
 	if (anslen < 0) {
-#ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf("res_query failed\n");
-#endif
 		return (NULL);
 	}
 	net_entry = getnetanswer(&buf, anslen, BYADDR);
@@ -283,10 +281,8 @@ _getnetbydnsname(net)
 	(void)strcpy(&qbuf[0],net);
 	anslen = res_search(qbuf, C_IN, T_PTR, buf.buf, sizeof buf.buf);
 	if (anslen < 0) {
-#ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf("res_query failed\n");
-#endif
 		return NULL;
 	}
 	return getnetanswer(&buf, anslen, BYNAME);

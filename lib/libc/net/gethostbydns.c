@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethnamaddr.c,v 4.9.1.19 1994/07/22 08:42:54 vixie Exp $";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.1 1994/09/25 02:12:05 pst Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -327,10 +327,8 @@ gethostanswer(answer, anslen, qname, qclass, qtype)
 			bp += sizeof(align) - ((u_long)bp % sizeof(align));
 
 			if (bp + n >= &hostbuf[sizeof hostbuf]) {
-#ifdef DEBUG
 				if (_res.options & RES_DEBUG)
 					printf("size (%d) too big\n", n);
-#endif
 				had_error++;
 				continue;
 			}
@@ -417,10 +415,8 @@ _gethostbydnsname(name)
 		}
 
 	if ((n = res_search(name, C_IN, T_A, buf.buf, sizeof(buf))) < 0) {
-#ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf("res_search failed\n");
-#endif
 		return (NULL);
 	}
 	return (gethostanswer(&buf, n, name, C_IN, T_A));
@@ -445,10 +441,8 @@ _gethostbydnsaddr(addr, len, type)
 		((unsigned)addr[0] & 0xff));
 	n = res_query(qbuf, C_IN, T_PTR, (u_char *)buf.buf, sizeof buf.buf);
 	if (n < 0) {
-#ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf("res_query failed\n");
-#endif
 		return (NULL);
 	}
 	if (!(hp = gethostanswer(&buf, n, qbuf, C_IN, T_PTR)))
