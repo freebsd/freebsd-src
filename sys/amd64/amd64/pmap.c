@@ -5,6 +5,8 @@
  * All rights reserved.
  * Copyright (c) 1994 David Greenman
  * All rights reserved.
+ * Copyright (c) 2003 Peter Wemm
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * the Systems Programming Group of the University of Utah Computer
