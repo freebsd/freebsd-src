@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.100 1996/09/14 04:40:33 dyson Exp $
+ * $Id: vfs_bio.c,v 1.101 1996/09/18 15:57:41 dyson Exp $
  */
 
 /*
@@ -314,11 +314,39 @@ bwrite(struct buf * bp)
 	VOP_STRATEGY(bp);
 
 	/*
-	 * It is possible that the buffer is reused
-	 * before this point if B_ASYNC... What to do?
+	 * Handle ordered writes here.
+	 * If the write was originally flagged as ordered,
+	 * then we check to see if it was converted to async.
+	 * If it was converted to async, and is done now, then
+	 * we release the buffer.  Otherwise we clear the
+	 * ordered flag because it is not needed anymore.
+	 *
+ 	 * Note that biodone has been modified so that it does
+	 * not release ordered buffers.  This allows us to have
+	 * a chance to determine whether or not the driver
+	 * has set the async flag in the strategy routine.  Otherwise
+	 * if biodone was not modified, then the buffer may have been
+	 * reused before we have had a chance to check the flag.
 	 */
- 
-	/* if ((bp->b_flags & B_ASYNC) == 0) { */
+
+	if ((oldflags & B_ORDERED) == B_ORDERED) {
+		int s;
+		s = splbio();
+		if (bp->b_flags & B_ASYNC)  {
+			if ((bp->b_flags & B_DONE)) {
+				if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_RELBUF)) != 0)
+					brelse(bp);
+				else
+					bqrelse(bp);
+			}
+			splx(s);
+			return (0);
+		} else {
+			bp->b_flags &= ~B_ORDERED;
+		}
+		splx(s);
+	}
+
 	if ((oldflags & B_ASYNC) == 0) {
 		int rtval = biowait(bp);
 
@@ -436,7 +464,7 @@ brelse(struct buf * bp)
 
 	/* anyone need this block? */
 	if (bp->b_flags & B_WANTED) {
-		bp->b_flags &= ~(B_WANTED | B_AGE);
+		bp->b_flags &= ~B_WANTED;
 		wakeup(bp);
 	} 
 
@@ -575,7 +603,8 @@ brelse(struct buf * bp)
 	}
 
 	/* unlock */
-	bp->b_flags &= ~(B_WANTED | B_BUSY | B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
+	bp->b_flags &= ~(B_ORDERED | B_WANTED | B_BUSY |
+				B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
 	splx(s);
 }
 
@@ -614,7 +643,8 @@ bqrelse(struct buf * bp)
 	}
 
 	/* unlock */
-	bp->b_flags &= ~(B_WANTED | B_BUSY | B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
+	bp->b_flags &= ~(B_ORDERED | B_WANTED | B_BUSY |
+		B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
 	splx(s);
 }
 
@@ -623,27 +653,49 @@ vfs_vmio_release(bp)
 	struct buf *bp;
 {
 	int i;
+	vm_page_t m;
 
 	for (i = 0; i < bp->b_npages; i++) {
-		int s;
-		vm_page_t m;
-
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
-
-		s = splbio();
-		while ((m->flags & PG_BUSY) || (m->busy != 0)) {
-			m->flags |= PG_WANTED;
-			tsleep(m, PVM, "vmiorl", 0);
+		if ((bp->b_flags & B_ASYNC) == 0) {
+			while ((m->flags & PG_BUSY) || (m->busy != 0)) {
+				m->flags |= PG_WANTED;
+				tsleep(m, PVM, "vmiorl", 0);
+			}
 		}
-		splx(s);
 			
 		vm_page_unwire(m);
 			
 		if (m->wire_count == 0) {
+
 			if (m->flags & PG_WANTED) {
 				m->flags &= ~PG_WANTED;
 				wakeup(m);
+			}
+
+			if (bp->b_flags & B_ASYNC) {
+				if (m->hold_count == 0) {
+					if ((m->flags & PG_BUSY) == 0 &&
+						(m->busy == 0) &&
+						(m->valid == 0)) {
+						if(m->dirty == 0)
+							vm_page_test_dirty(m);
+						if (m->dirty == 0) {
+							vm_page_protect(m, VM_PROT_NONE);
+							vm_page_free(m);
+						} else {
+							pagedaemon_wakeup();
+						}
+					/*
+					 * This is likely at interrupt time,
+					 * and we cannot block here.
+					 */
+					} else if (cnt.v_free_count < cnt.v_free_min) {
+						pagedaemon_wakeup();
+					}
+				}
+				continue;
 			}
 
 			if (m->valid) {
@@ -654,7 +706,8 @@ vfs_vmio_release(bp)
 				 */
 				if ((vm_swap_size == 0) ||
 					(cnt.v_free_count < cnt.v_free_min)) {
-					if ((m->dirty == 0) && (m->hold_count == 0))
+					if ((m->dirty == 0) &&
+						(m->hold_count == 0)) 
 						vm_page_cache(m);
 					else
 						vm_page_deactivate(m);
@@ -1250,7 +1303,7 @@ allocbuf(struct buf * bp, int size)
 					 * is the responsibility of vnode_pager_setsize
 					 */
 					m = bp->b_pages[i];
-					s = splhigh();
+					s = splvm();
 					while ((m->flags & PG_BUSY) || (m->busy != 0)) {
 						m->flags |= PG_WANTED;
 						tsleep(m, PVM, "biodep", 0);
@@ -1328,12 +1381,12 @@ allocbuf(struct buf * bp, int size)
 						vm_page_wire(m);
 						bp->b_flags &= ~B_CACHE;
 					} else if (m->flags & PG_BUSY) {
-
-						s = splhigh();
-						m->flags |= PG_WANTED;
-						tsleep(m, PVM, "pgtblk", 0);
+						s = splvm();
+						if (m->flags & PG_BUSY) {
+							m->flags |= PG_WANTED;
+							tsleep(m, PVM, "pgtblk", 0);
+						}
 						splx(s);
-
 						goto doretry;
 					} else {
 						if ((curproc != pageproc) &&
@@ -1534,11 +1587,14 @@ biodone(register struct buf * bp)
 	 */
 
 	if (bp->b_flags & B_ASYNC) {
-		if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_RELBUF)) != 0)
-			brelse(bp);
-		else
-			bqrelse(bp);
+		if ((bp->b_flags & B_ORDERED) == 0) {
+			if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_RELBUF)) != 0)
+				brelse(bp);
+			else
+				bqrelse(bp);
+		}
 	} else {
+		bp->b_flags &= ~B_WANTED;
 		wakeup(bp);
 	}
 	splx(s);
