@@ -89,6 +89,7 @@ main(argc, argv)
 			break;
 		case 'm':
 			missing = 1;
+			break;
 		case '?':
 		default:
 			usage();
