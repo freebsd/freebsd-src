@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Tue May  8 10:19:36 2001]
+ *	last edit-date: [Sat Aug 11 18:07:05 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -207,6 +207,7 @@ static struct cdevsw i4btel_cdevsw = {
 	/* dump */      nodump,
 	/* psize */     nopsize,
 	/* flags */     0,
+	/* bmaj */      -1
 };
 
 PDEVSTATIC void i4btelinit(void *unused);
