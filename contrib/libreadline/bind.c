@@ -19,7 +19,12 @@
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
+
 #define READLINE_LIBRARY
+
+#if defined (__TANDEM)
+#  include <floss.h>
+#endif
 
 #if defined (HAVE_CONFIG_H)
 #  include <config.h>
@@ -148,6 +153,34 @@ rl_bind_key_in_map (key, function, map)
   return (result);
 }
 
+/* Bind key sequence KEYSEQ to DEFAULT_FUNC if KEYSEQ is unbound.  Right
+   now, this is always used to attempt to bind the arrow keys, hence the
+   check for rl_vi_movement_mode. */
+int
+rl_bind_key_if_unbound_in_map (key, default_func, kmap)
+     int key;
+     rl_command_func_t *default_func;
+     Keymap kmap;
+{
+  char keyseq[2];
+
+  keyseq[0] = (unsigned char)key;
+  keyseq[1] = '\0';
+  return (rl_bind_keyseq_if_unbound_in_map (keyseq, default_func, kmap));
+}
+
+int
+rl_bind_key_if_unbound (key, default_func)
+     int key;
+     rl_command_func_t *default_func;
+{
+  char keyseq[2];
+
+  keyseq[0] = (unsigned char)key;
+  keyseq[1] = '\0';
+  return (rl_bind_keyseq_if_unbound_in_map (keyseq, default_func, _rl_keymap));
+}
+
 /* Make KEY do nothing in the currently selected keymap.
    Returns non-zero in case of error. */
 int
@@ -200,8 +233,29 @@ rl_unbind_command_in_map (command, map)
 }
 
 /* Bind the key sequence represented by the string KEYSEQ to
+   FUNCTION, starting in the current keymap.  This makes new
+   keymaps as necessary. */
+int
+rl_bind_keyseq (keyseq, function)
+     const char *keyseq;
+     rl_command_func_t *function;
+{
+  return (rl_generic_bind (ISFUNC, keyseq, (char *)function, _rl_keymap));
+}
+
+/* Bind the key sequence represented by the string KEYSEQ to
    FUNCTION.  This makes new keymaps as necessary.  The initial
    place to do bindings is in MAP. */
+int
+rl_bind_keyseq_in_map (keyseq, function, map)
+     const char *keyseq;
+     rl_command_func_t *function;
+     Keymap map;
+{
+  return (rl_generic_bind (ISFUNC, keyseq, (char *)function, map));
+}
+
+/* Backwards compatibility; equivalent to rl_bind_keyseq_in_map() */
 int
 rl_set_key (keyseq, function, map)
      const char *keyseq;
@@ -209,6 +263,40 @@ rl_set_key (keyseq, function, map)
      Keymap map;
 {
   return (rl_generic_bind (ISFUNC, keyseq, (char *)function, map));
+}
+
+/* Bind key sequence KEYSEQ to DEFAULT_FUNC if KEYSEQ is unbound.  Right
+   now, this is always used to attempt to bind the arrow keys, hence the
+   check for rl_vi_movement_mode. */
+int
+rl_bind_keyseq_if_unbound_in_map (keyseq, default_func, kmap)
+     const char *keyseq;
+     rl_command_func_t *default_func;
+     Keymap kmap;
+{
+  rl_command_func_t *func;
+
+  if (keyseq)
+    {
+      func = rl_function_of_keyseq (keyseq, kmap, (int *)NULL);
+#if defined (VI_MODE)
+      if (!func || func == rl_do_lowercase_version || func == rl_vi_movement_mode)
+#else
+      if (!func || func == rl_do_lowercase_version)
+#endif
+	return (rl_bind_keyseq_in_map (keyseq, default_func, kmap));
+      else
+	return 1;
+    }
+  return 0;
+}
+
+int
+rl_bind_keyseq_if_unbound (keyseq, default_func)
+     const char *keyseq;
+     rl_command_func_t *default_func;
+{
+  return (rl_bind_keyseq_if_unbound_in_map (keyseq, default_func, _rl_keymap));
 }
 
 /* Bind the key sequence represented by the string KEYSEQ to
@@ -912,9 +1000,15 @@ parser_else (args)
       return 0;
     }
 
+#if 0
   /* Check the previous (n - 1) levels of the stack to make sure that
      we haven't previously turned off parsing. */
   for (i = 0; i < if_stack_depth - 1; i++)
+#else
+  /* Check the previous (n) levels of the stack to make sure that
+     we haven't previously turned off parsing. */
+  for (i = 0; i < if_stack_depth; i++)
+#endif
     if (if_stack[i] == 1)
       return 0;
 
@@ -1161,7 +1255,7 @@ rl_parse_and_bind (string)
     }
 
   /* If this is a new-style key-binding, then do the binding with
-     rl_set_key ().  Otherwise, let the older code deal with it. */
+     rl_bind_keyseq ().  Otherwise, let the older code deal with it. */
   if (*string == '"')
     {
       char *seq;
@@ -1200,7 +1294,7 @@ rl_parse_and_bind (string)
 	  rl_macro_bind (seq, &funname[1], _rl_keymap);
 	}
       else
-	rl_set_key (seq, rl_named_function (funname), _rl_keymap);
+	rl_bind_keyseq (seq, rl_named_function (funname));
 
       free (seq);
       return 0;
@@ -1281,6 +1375,7 @@ static struct {
   { "prefer-visible-bell",	&_rl_prefer_visible_bell,	V_SPECIAL },
   { "print-completions-horizontally", &_rl_print_completions_horizontally, 0 },
   { "show-all-if-ambiguous",	&_rl_complete_show_all,		0 },
+  { "show-all-if-unmodified",	&_rl_complete_show_unmodified,	0 },
 #if defined (VISIBLE_STATS)
   { "visible-stats",		&rl_visible_stats,		0 },
 #endif /* VISIBLE_STATS */
@@ -1650,7 +1745,7 @@ rl_get_keymap_name_from_edit_mode ()
 /* Each of the following functions produces information about the
    state of keybindings and functions known to Readline.  The info
    is always printed to rl_outstream, and in such a way that it can
-   be read back in (i.e., passed to rl_parse_and_bind (). */
+   be read back in (i.e., passed to rl_parse_and_bind ()). */
 
 /* Print the names of functions known to Readline. */
 void
@@ -2110,28 +2205,6 @@ rl_dump_variables (count, key)
   rl_variable_dumper (rl_explicit_arg);
   rl_on_new_line ();
   return (0);
-}
-
-/* Bind key sequence KEYSEQ to DEFAULT_FUNC if KEYSEQ is unbound.  Right
-   now, this is always used to attempt to bind the arrow keys, hence the
-   check for rl_vi_movement_mode. */
-void
-_rl_bind_if_unbound (keyseq, default_func)
-     const char *keyseq;
-     rl_command_func_t *default_func;
-{
-  rl_command_func_t *func;
-
-  if (keyseq)
-    {
-      func = rl_function_of_keyseq (keyseq, _rl_keymap, (int *)NULL);
-#if defined (VI_MODE)
-      if (!func || func == rl_do_lowercase_version || func == rl_vi_movement_mode)
-#else
-      if (!func || func == rl_do_lowercase_version)
-#endif
-	rl_set_key (keyseq, default_func, _rl_keymap);
-    }
 }
 
 /* Return non-zero if any members of ARRAY are a substring in STRING. */

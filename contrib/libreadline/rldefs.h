@@ -77,7 +77,7 @@ extern int _rl_stricmp PARAMS((char *, char *));
 extern int _rl_strnicmp PARAMS((char *, char *, int));
 #endif
 
-#if defined (HAVE_STRPBRK)
+#if defined (HAVE_STRPBRK) && !defined (HAVE_MULTIBYTE)
 #  define _rl_strpbrk(a,b)	strpbrk((a),(b))
 #else
 extern char *_rl_strpbrk PARAMS((const char *, const char *));

@@ -97,7 +97,7 @@ sunos5*|solaris2*)
 	;;
 
 # All versions of Linux or the semi-mythical GNU Hurd.
-linux*|gnu*)
+linux*-*|gnu*-*|k*bsd*-gnu-*)
 	SHOBJ_CFLAGS=-fPIC
 	SHOBJ_LD='${CC}'
 	SHOBJ_LDFLAGS='-shared -Wl,-soname,$@'
@@ -138,17 +138,23 @@ darwin*|macosx*)
 	SHOBJ_STATUS=unsupported
 	SHLIB_STATUS=supported
 
-	SHOBJ_CFLAGS='-dynamic -fno-common'
+	SHOBJ_CFLAGS='-fno-common'
 
-	SHOBJ_LD=/usr/bin/libtool
+	SHOBJ_LD='${CC}'
 
 	SHLIB_LIBVERSION='$(SHLIB_MAJOR)$(SHLIB_MINOR).$(SHLIB_LIBSUFF)'
 	SHLIB_LIBSUFF='dylib'
 
-	SHOBJ_LDFLAGS='-dynamic'
-	SHLIB_XLDFLAGS='-arch_only `/usr/bin/arch` -install_name $(libdir)/$@ -current_version $(SHLIB_MAJOR)$(SHLIB_MINOR) -compatibility_version $(SHLIB_MAJOR) -v'
+	case "${host_os}" in
+	darwin7*)	SHOBJ_LDFLAGS=''
+			SHLIB_XLDFLAGS='-dynamiclib -arch_only `/usr/bin/arch` -install_name $(libdir)/$@ -current_version $(SHLIB_MAJOR)$(SHLIB_MINOR) -compatibility_version $(SHLIB_MAJOR) -v'
+			;;
+	*)		SHOBJ_LDFLAGS='-dynamic'
+			SHLIB_XLDFLAGS='-arch_only `/usr/bin/arch` -install_name $(libdir)/$@ -current_version $(SHLIB_MAJOR)$(SHLIB_MINOR) -compatibility_version $(SHLIB_MAJOR) -v'
+			;;
+	esac
 
-	SHLIB_LIBS='-lSystem'
+	SHLIB_LIBS='-lncurses'	# see if -lcurses works on MacOS X 10.1 
 	;;
 
 openbsd*)
@@ -296,6 +302,8 @@ hpux10*-*gcc*)
 	# must use gcc; the bundled cc cannot compile PIC code
 	SHOBJ_CFLAGS='-fpic'
 	SHOBJ_LD='${CC}'
+	# if you have problems linking here, moving the `-Wl,+h,$@' from
+	# SHLIB_XLDFLAGS to SHOBJ_LDFLAGS has been reported to work
 	SHOBJ_LDFLAGS='-shared -Wl,-b -Wl,+s'
 
 	SHLIB_XLDFLAGS='-Wl,+h,$@ -Wl,+b,$(libdir)'

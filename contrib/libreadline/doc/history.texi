@@ -1,0 +1,104 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header (This is for running Texinfo on a region.)
+@setfilename history.info
+@settitle GNU History Library
+@c %**end of header (This is for running Texinfo on a region.)
+
+@setchapternewpage odd
+
+@include version.texi
+
+@copying
+This document describes the GNU History library
+(version @value{VERSION}, @value{UPDATED}),
+a programming tool that provides a consistent user interface for
+recalling lines of previously typed input.
+
+Copyright @copyright{} 1988-2004 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+@quotation
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, with the Front-Cover texts being ``A GNU Manual,''
+and with the Back-Cover Texts as in (a) below.  A copy of the license is
+included in the section entitled ``GNU Free Documentation License.''
+
+(a) The FSF's Back-Cover Text is: ``You have freedom to copy and modify
+this GNU Manual, like GNU software.  Copies published by the Free
+Software Foundation raise funds for GNU development.''
+@end quotation
+@end copying
+
+@dircategory Libraries
+@direntry
+* History: (history).       The GNU history library API.
+@end direntry
+
+@titlepage
+@title GNU History Library
+@subtitle Edition @value{EDITION}, for @code{History Library} Version @value{VERSION}.
+@subtitle @value{UPDATED-MONTH}
+@author Chet Ramey, Case Western Reserve University
+@author Brian Fox, Free Software Foundation
+
+@page
+
+@vskip 0pt plus 1filll
+@insertcopying
+
+@sp 1
+Published by the Free Software Foundation @*
+59 Temple Place, Suite 330, @*
+Boston, MA 02111-1307 @*
+USA @*
+
+@end titlepage
+
+@contents
+
+@ifnottex
+@node Top
+@top GNU History Library
+
+This document describes the GNU History library, a programming tool that
+provides a consistent user interface for recalling lines of previously
+typed input.
+
+@menu
+* Using History Interactively::	  GNU History User's Manual.
+* Programming with GNU History::  GNU History Programmer's Manual.
+* Copying This Manual::		  Copying This Manual.
+* Concept Index::		  Index of concepts described in this manual.
+* Function and Variable Index::	  Index of externally visible functions
+				  and variables.
+@end menu
+@end ifnottex
+
+@syncodeindex fn vr
+
+@include hsuser.texi
+@include hstech.texi
+
+@node Copying This Manual
+@appendix Copying This Manual
+
+@menu
+* GNU Free Documentation License::	License for copying this manual.
+@end menu
+
+@include fdl.texi
+
+@node Concept Index
+@appendix Concept Index
+@printindex cp
+
+@node Function and Variable Index
+@appendix Function and Variable Index
+@printindex vr
+
+@bye
