@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.296 1999/01/28 17:31:58 dillon Exp $
+ *	$Id: syscons.c,v 1.297 1999/01/30 12:17:30 phk Exp $
  */
 
 #include "sc.h"
@@ -2327,7 +2327,7 @@ set_scrn_saver_mode(scr_stat *scp, int mode, u_char *pal, int border)
 	return 0;
     scp->mode = mode;
     if (set_mode(scp) == 0) {
-	if (scp->adp->va_mode_flags & V_INFO_GRAPHICS)
+	if (scp->adp->va_info.vi_flags & V_INFO_GRAPHICS)
 	    scp->status |= GRAPHICS_MODE;
 	if (pal != NULL)
 	    load_palette(scp->adp, pal);

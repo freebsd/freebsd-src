@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: scvidctl.c,v 1.6 1999/01/11 03:18:26 yokota Exp $
+ * $Id: scvidctl.c,v 1.7 1999/01/19 11:31:16 yokota Exp $
  */
 
 #include "sc.h"
@@ -392,11 +392,11 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 	((video_adapter_info_t *)data)->va_buffer_size
 	    = scp->adp->va_buffer_size;
 	((video_adapter_info_t *)data)->va_mode = scp->adp->va_mode;
-	((video_adapter_info_t *)data)->va_mode_flags = scp->adp->va_mode_flags;
 	((video_adapter_info_t *)data)->va_initial_mode
 	    = scp->adp->va_initial_mode;
 	((video_adapter_info_t *)data)->va_initial_bios_mode
 	    = scp->adp->va_initial_bios_mode;
+	((video_adapter_info_t *)data)->va_line_width = scp->adp->va_line_width;
 	return 0;
 
     case CONS_GET:      	/* get current video mode */

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.14 1999/01/16 12:56:00 yokota Exp $
+ * $Id: vesa.c,v 1.15 1999/01/17 14:12:48 yokota Exp $
  */
 
 #include "vga.h"
@@ -167,6 +167,7 @@ static int vesa_bios_load_palette(int start, int colors, u_char *palette,
 #define STATE_ALL	(STATE_HW | STATE_DATA | STATE_DAC | STATE_REG)
 static int vesa_bios_state_buf_size(void);
 static int vesa_bios_save_restore(int code, void *p, size_t size);
+static int vesa_bios_get_line_length(void);
 static int vesa_map_gen_mode_num(int type, int color, int mode);
 static int vesa_translate_flags(u_int16_t vflags);
 static void *vesa_fix_ptr(u_int32_t p, u_int16_t seg, u_int16_t off, 
@@ -335,6 +336,21 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	return ((err != 0) || (vmf.vmf_eax != 0x4f));
 }
 
+static int
+vesa_bios_get_line_length(void)
+{
+	struct vm86frame vmf;
+	int err;
+
+	bzero(&vmf, sizeof(vmf));
+	vmf.vmf_eax = 0x4f06; 
+	vmf.vmf_ebx = 1;	/* get scan line length */
+	err = vm86_intcall(0x10, &vmf);
+	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+		return -1;
+	return vmf.vmf_bx;	/* line length in bytes */
+}
+
 /* map a generic video mode to a known mode */
 static int
 vesa_map_gen_mode_num(int type, int color, int mode)
@@ -480,8 +496,14 @@ vesa_bios_init(void)
 		vesa_vmode[modes].vi_window_size = vmode.v_wsize*1024;
 		vesa_vmode[modes].vi_window_gran = vmode.v_wgran*1024;
 		vesa_vmode[modes].vi_buffer = vmode.v_lfb;
-		vesa_vmode[modes].vi_buffer_size = vmode.v_offscreen;
+		/* XXX */
+		if (vmode.v_offscreen > vmode.v_lfb)
+			vesa_vmode[modes].vi_buffer_size
+				= vmode.v_offscreen - vmode.v_lfb;
+		else
+			vesa_vmode[modes].vi_buffer_size = vmode.v_offscreen;
 		/* pixel format, memory model... */
+
 		vesa_vmode[modes].vi_flags 
 			= vesa_translate_flags(vmode.v_modeattr) | V_INFO_VESA;
 		++modes;
@@ -656,9 +678,7 @@ static int
 vesa_set_mode(video_adapter_t *adp, int mode)
 {
 	video_info_t info;
-#if 0
 	size_t len;
-#endif
 
 	if (adp != vesa_adp)
 		return (*prevvidsw->set_mode)(adp, mode);
@@ -740,7 +760,6 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	printf("VESA: mode set!\n");
 #endif
 	vesa_adp->va_mode = mode;
-	vesa_adp->va_mode_flags = info.vi_flags;
 	vesa_adp->va_flags &= ~V_ADP_COLOR;
 	vesa_adp->va_flags |= 
 		(info.vi_flags & V_INFO_COLOR) ? V_ADP_COLOR : 0;
@@ -756,6 +775,18 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		vesa_adp->va_buffer = BIOS_PADDRTOVADDR(info.vi_buffer);
 		vesa_adp->va_buffer_size = info.vi_buffer_size;
 	}
+	bcopy(&info, &adp->va_info, sizeof(adp->va_info));
+	len = vesa_bios_get_line_length();
+	if (len > 0)
+		adp->va_line_width = len;
+	else if (info.vi_flags & V_INFO_GRAPHICS)
+		adp->va_line_width = info.vi_width/8;
+	else
+		adp->va_line_width = info.vi_width;
+#if VESA_DEBUG > 0
+	printf("vesa_set_mode(): vi_width:%d, len:%d, line_width:%d\n",
+	       info.vi_width, len, adp->va_line_width);
+#endif
 
 	/* move hardware cursor out of the way */
 	(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
@@ -874,7 +905,14 @@ vesa_set_origin(video_adapter_t *adp, off_t offset)
 	vmf.vmf_ebx = 0;		/* WINDOW_A, XXX */
 	vmf.vmf_edx = offset/vesa_adp->va_window_gran;
 	err = vm86_intcall(0x10, &vmf); 
-	return ((err != 0) || (vmf.vmf_eax != 0x4f));
+	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+		return 1;
+	bzero(&vmf, sizeof(vmf));
+	vmf.vmf_eax = 0x4f05; 
+	vmf.vmf_ebx = 1;		/* WINDOW_B, XXX */
+	vmf.vmf_edx = offset/vesa_adp->va_window_gran;
+	err = vm86_intcall(0x10, &vmf); 
+	return 0;			/* XXX */
 }
 
 static int
