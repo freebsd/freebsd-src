@@ -114,6 +114,7 @@ main(argc, argv)
 	char *argv[];
 {
 	int c, fflag;
+	char *tmp_arg;
 
 	(void) setlocale(LC_ALL, "");
 
@@ -125,7 +126,10 @@ main(argc, argv)
 			break;
 		case 'e':
 			eflag = 1;
-			add_compunit(CU_STRING, optarg);
+			temp_arg = xmalloc(strlen(optarg) + 2);
+			strcpy(temp_arg, optarg);
+			strcat(temp_arg, "\n");
+			add_compunit(CU_STRING, temp_arg);
 			break;
 		case 'f':
 			fflag = 1;
