@@ -9,8 +9,6 @@ vidcontrol -f 8x8 cp866-8x8
 kbdcontrol -l ru.koi8-r # Not needed for kernel compiled with RUKEYMAP option
 # Remap Del to Esc[K.
 kbdcontrol -f 54 "[K"
-# Remap -5- to Esc[E.
-kbdcontrol -f 48 "[E"
 # Maximum key rate
 kbdcontrol -r fast
 # Blank after 5 min
