@@ -40,7 +40,7 @@
 
 #ifdef BCACHE_DEBUG
 #define BCACHE_TIMEOUT	10
-# define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __FUNCTION__ , ## args)
+# define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __func__ , ## args)
 #else
 #define BCACHE_TIMEOUT	2
 # define DEBUG(fmt, args...)

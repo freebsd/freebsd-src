@@ -198,7 +198,7 @@ iicbus_attach(device_t dev)
 			break;
 
 		default:
-			panic("%s: unknown class!", __FUNCTION__);
+			panic("%s: unknown class!", __func__);
 		}
 
 		if (iicdev->iicd_alive) {
@@ -249,7 +249,7 @@ iicbus_print_child(device_t bus, device_t dev)
 		break;
 
 	default:
-		panic("%s: unknown class!", __FUNCTION__);
+		panic("%s: unknown class!", __func__);
 	}
 
 	return (retval);

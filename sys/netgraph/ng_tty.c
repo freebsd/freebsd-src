@@ -108,7 +108,7 @@ typedef struct ngt_sc *sc_p;
 	k <= MAX_MBUFQ && *mp;						\
 	k++, mp = &(*mp)->m_nextpkt);					\
       if (k != sc->qlen || k > MAX_MBUFQ || *mp || mp != sc->qtail)	\
-	panic(__FUNCTION__ ": queue");					\
+	panic("%s: queue", __func__);					\
     } while (0)
 #else
 #define QUEUECHECK(sc)	do {} while (0)
@@ -536,7 +536,7 @@ ngt_disconnect(hook_p hook)
 
 	s = spltty();
 	if (hook != sc->hook)
-		panic(__FUNCTION__);
+		panic(__func__);
 	sc->hook = NULL;
 	m_freem(sc->m);
 	sc->m = NULL;
@@ -576,7 +576,7 @@ ngt_rcvdata(hook_p hook, item_p item)
 	struct mbuf *m;
 
 	if (hook != sc->hook)
-		panic(__FUNCTION__);
+		panic(__func__);
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
@@ -666,7 +666,7 @@ ngt_mod_event(module_t mod, int event, void *data)
 		if ((ngt_ldisc = ldisc_register(NETGRAPHDISC, &ngt_disc)) < 0) {
 			splx(s);
 			log(LOG_ERR, "%s: can't register line discipline",
-			    __FUNCTION__);
+			    __func__);
 			return (EIO);
 		}
 		splx(s);

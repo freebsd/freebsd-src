@@ -103,7 +103,7 @@ static int coda_lockdebug = 0;
  *   coda_init is called at boot time.
  */
 
-#define ENTRY  if(coda_vnop_print_entry) myprintf(("Entered %s\n",__FUNCTION__))
+#define ENTRY  if(coda_vnop_print_entry) myprintf(("Entered %s\n",__func__))
 
 /* Definition of the vnode operation vector */
 

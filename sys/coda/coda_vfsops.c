@@ -67,7 +67,7 @@ MALLOC_DEFINE(M_CODA, "CODA storage", "Various Coda Structures");
 
 int codadebug = 0;
 int coda_vfsop_print_entry = 0;
-#define ENTRY    if(coda_vfsop_print_entry) myprintf(("Entered %s\n",__FUNCTION__))
+#define ENTRY    if(coda_vfsop_print_entry) myprintf(("Entered %s\n",__func__))
 
 struct vnode *coda_ctlvp;
 struct coda_mntinfo coda_mnttbl[NVCODA]; /* indexed by minor device number */

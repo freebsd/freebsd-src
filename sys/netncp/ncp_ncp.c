@@ -444,7 +444,7 @@ ncp_write(struct ncp_conn *conn, ncp_fh *file, struct uio *uiop, struct ucred *c
 	int error = 0, len, tsiz, backup;
 
 	if (uiop->uio_iovcnt != 1) {
-		printf("%s: can't handle iovcnt>1 !!!\n", __FUNCTION__);
+		printf("%s: can't handle iovcnt>1 !!!\n", __func__);
 		return EIO;
 	}
 	tsiz = uiop->uio_resid;

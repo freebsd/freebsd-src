@@ -442,7 +442,7 @@ ng_vjc_rcvdata(hook_p hook, item_p item)
 			hook = priv->vjcomp;
 			break;
 		default:
-			panic("%s: type=%d", __FUNCTION__, type);
+			panic("%s: type=%d", __func__, type);
 		}
 	} else if (hook == priv->vjcomp) {	/* incoming compressed packet */
 		int vjlen, need2pullup;
@@ -536,7 +536,7 @@ ng_vjc_rcvdata(hook_p hook, item_p item)
 	} else if (hook == priv->vjip)	/* incoming regular packet (bypass) */
 		hook = priv->ip;
 	else
-		panic("%s: unknown hook", __FUNCTION__);
+		panic("%s: unknown hook", __func__);
 
 	/* Send result back out */
 	NG_FWD_NEW_DATA(error, item, hook, m);
@@ -577,7 +577,7 @@ ng_vjc_disconnect(hook_p hook)
 	else if (hook == priv->vjip)
 		priv->vjip = NULL;
 	else
-		panic("%s: unknown hook", __FUNCTION__);
+		panic("%s: unknown hook", __func__);
 
 	/* Go away if no hooks left */
 	if ((NG_NODE_NUMHOOKS(node) == 0)

@@ -606,7 +606,7 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 		/* Convert index into a link number */
 		linkNum = (u_int16_t)~index;
 		KASSERT(linkNum < NG_PPP_MAX_LINKS,
-		    ("%s: bogus index 0x%x", __FUNCTION__, index));
+		    ("%s: bogus index 0x%x", __func__, index));
 		link = &priv->links[linkNum];
 
 		/* Stats */
@@ -732,7 +732,7 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 		}
 		break;
 	default:
-		panic("%s: bogus index 0x%x", __FUNCTION__, index);
+		panic("%s: bogus index 0x%x", __func__, index);
 	}
 
 	/* Now figure out what to do with the frame */
@@ -1235,11 +1235,11 @@ ng_ppp_get_packet(node_p node, struct mbuf **mp, meta_p *metap)
 
 	qent = TAILQ_FIRST(&priv->frags);
 	KASSERT(!TAILQ_EMPTY(&priv->frags) && qent->first,
-	    ("%s: no packet", __FUNCTION__));
+	    ("%s: no packet", __func__));
 	for (tail = NULL; qent != NULL; qent = qnext) {
 		qnext = TAILQ_NEXT(qent, f_qent);
 		KASSERT(!TAILQ_EMPTY(&priv->frags),
-		    ("%s: empty q", __FUNCTION__));
+		    ("%s: empty q", __func__));
 		TAILQ_REMOVE(&priv->frags, qent, f_qent);
 		if (tail == NULL) {
 			tail = m = qent->data;
@@ -1285,7 +1285,7 @@ ng_ppp_frag_trim(node_p node)
 				break;
 			qnext = TAILQ_NEXT(qent, f_qent);
 			KASSERT(qnext != NULL,
-			    ("%s: last frag < MSEQ?", __FUNCTION__));
+			    ("%s: last frag < MSEQ?", __func__));
 			if (qnext->seq != MP_NEXT_RECV_SEQ(priv, qent->seq)
 			    || qent->last || qnext->first) {
 				dead = 1;
@@ -1298,7 +1298,7 @@ ng_ppp_frag_trim(node_p node)
 		/* Remove fragment and all others in the same packet */
 		while ((qent = TAILQ_FIRST(&priv->frags)) != qnext) {
 			KASSERT(!TAILQ_EMPTY(&priv->frags),
-			    ("%s: empty q", __FUNCTION__));
+			    ("%s: empty q", __func__));
 			priv->bundleStats.dropFragments++;
 			TAILQ_REMOVE(&priv->frags, qent, f_qent);
 			NG_FREE_M(qent->data);
@@ -1348,7 +1348,7 @@ ng_ppp_frag_process(node_p node)
 
 		/* Get oldest fragment */
 		KASSERT(!TAILQ_EMPTY(&priv->frags),
-		    ("%s: empty q", __FUNCTION__));
+		    ("%s: empty q", __func__));
 		qent = TAILQ_FIRST(&priv->frags);
 
 		/* Bump MSEQ if necessary */
@@ -1442,7 +1442,7 @@ ng_ppp_frag_checkstale(node_p node)
 		/* Throw away junk fragments in front of the completed packet */
 		while ((qent = TAILQ_FIRST(&priv->frags)) != beg) {
 			KASSERT(!TAILQ_EMPTY(&priv->frags),
-			    ("%s: empty q", __FUNCTION__));
+			    ("%s: empty q", __func__));
 			priv->bundleStats.dropFragments++;
 			TAILQ_REMOVE(&priv->frags, qent, f_qent);
 			NG_FREE_M(qent->data);
@@ -1491,9 +1491,9 @@ ng_ppp_frag_timeout(void *arg)
 	}
 
 	/* Reset timer state after timeout */
-	KASSERT(priv->timerActive, ("%s: !timerActive", __FUNCTION__));
+	KASSERT(priv->timerActive, ("%s: !timerActive", __func__));
 	priv->timerActive = 0;
-	KASSERT(node->nd_refs > 1, ("%s: nd_refs=%d", __FUNCTION__, node->nd_refs));
+	KASSERT(node->nd_refs > 1, ("%s: nd_refs=%d", __func__, node->nd_refs));
 	NG_NODE_UNREF(node);
 
 	/* Start timer again */
@@ -2076,7 +2076,7 @@ ng_ppp_stop_frag_timer(node_p node)
 		untimeout(ng_ppp_frag_timeout, node, priv->fragTimer);
 		priv->timerActive = 0;
 		KASSERT(node->nd_refs > 1,
-		    ("%s: nd_refs=%d", __FUNCTION__, node->nd_refs));
+		    ("%s: nd_refs=%d", __func__, node->nd_refs));
 		NG_NODE_UNREF(node);
 	}
 }

@@ -1205,7 +1205,7 @@ ip6_fw_init(void)
 	default_rule.fw_flg |= IPV6_FW_F_IN | IPV6_FW_F_OUT;
 	if (check_ip6fw_struct(&default_rule) == NULL ||
 		add_entry6(&ip6_fw_chain, &default_rule))
-		panic(__FUNCTION__);
+		panic(__func__);
 
 	printf("IPv6 packet filtering initialized, ");
 #ifdef IPV6FIREWALL_DEFAULT_TO_ACCEPT

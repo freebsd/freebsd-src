@@ -276,7 +276,7 @@ coff_load_file(struct thread *td, char *name)
 	if (vm_map_remove(kernel_map,
 			  (vm_offset_t) ptr,
 			  (vm_offset_t) ptr + PAGE_SIZE))
-    		panic(__FUNCTION__ " vm_map_remove failed");
+    		panic("%s vm_map_remove failed", __func__);
 
  fail:
 	VOP_UNLOCK(vp, 0, td);
