@@ -82,8 +82,8 @@
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
 
 #define TXP_USEIOSPACE
 #define __STRICT_ALIGNMENT
@@ -223,48 +223,24 @@ txp_attach(dev)
 	sc->sc_dev = dev;
 	sc->sc_cold = 1;
 
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_DEF|MTX_RECURSE);
-
-	/*
-	 * Handle power management nonsense.
-	 */
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		u_int32_t		iobase, membase, irq;
-
-		/* Save important PCI config data. */
-		iobase = pci_read_config(dev, TXP_PCI_LOIO, 4);
-		membase = pci_read_config(dev, TXP_PCI_LOMEM, 4);
-		irq = pci_read_config(dev, TXP_PCI_INTLINE, 4);
-
-		/* Reset the power state. */
-		device_printf(dev, "chip is in D%d power mode "
-		    "-- setting to D0\n", pci_get_powerstate(dev));
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-
-		/* Restore PCI config data. */
-		pci_write_config(dev, TXP_PCI_LOIO, iobase, 4);
-		pci_write_config(dev, TXP_PCI_LOMEM, membase, 4);
-		pci_write_config(dev, TXP_PCI_INTLINE, irq, 4);
-	}
-
 	/*
 	 * Map control/status registers.
 	 */
-	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_IOPORT);
-	pci_enable_io(dev, SYS_RES_MEMORY);
+	command = pci_read_config(dev, PCIR_COMMAND, 4);
+	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
+	pci_write_config(dev, PCIR_COMMAND, command, 4);
 	command = pci_read_config(dev, PCIR_COMMAND, 4);
 
 #ifdef TXP_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		device_printf(dev, "failed to enable I/O ports!\n");
-		error = ENXIO;
+		error = ENXIO;;
 		goto fail;
 	}
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		device_printf(dev, "failed to enable memory mapping!\n");
-		error = ENXIO;
+		error = ENXIO;;
 		goto fail;
 	}
 #endif
@@ -393,7 +369,6 @@ txp_attach(dev)
 
 fail:
 	txp_release_resources(sc);
-	mtx_destroy(&sc->sc_mtx);
 	return(error);
 }
 
@@ -419,7 +394,6 @@ txp_detach(dev)
 
 	txp_release_resources(sc);
 
-	mtx_destroy(&sc->sc_mtx);
 	return(0);
 }
 
@@ -1823,7 +1797,8 @@ txp_set_filter(sc)
 	else {
 		hash[0] = hash[1] = 0;
 
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
+		    ifma = ifma->ifma_link.le_next) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 

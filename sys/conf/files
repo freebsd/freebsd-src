@@ -414,6 +414,7 @@ dev/iicbus/if_ic.c	optional ic
 dev/iicbus/iic.c	optional iic
 dev/twe/twe.c			optional twe
 dev/twe/twe_freebsd.c		optional twe
+dev/txp/if_txp.c		optional txp
 dev/vinum/vinum.c		optional vinum
 dev/vinum/vinumconfig.c		optional vinum
 dev/vinum/vinumdaemon.c		optional vinum
