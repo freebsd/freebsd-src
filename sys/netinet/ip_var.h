@@ -170,7 +170,8 @@ void	 ip_init(void);
 extern int	 (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 			  struct ip_moptions *);
 int	 ip_output(struct mbuf *,
-	    struct mbuf *, struct route *, int, struct ip_moptions *);
+	    struct mbuf *, struct route *, int, struct ip_moptions *,
+	    struct inpcb *);
 struct in_ifaddr *
 	 ip_rtaddr(struct in_addr, struct route *);
 void	 ip_savecontrol(struct inpcb *, struct mbuf **, struct ip *,

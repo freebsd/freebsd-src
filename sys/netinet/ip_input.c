@@ -299,10 +299,10 @@ ip_input(struct mbuf *m)
 
 	/* Grab info from MT_TAG mbufs prepended to the chain.	*/
 	for (; m && m->m_type == MT_TAG; m = m->m_next) {
-		switch(m->m_tag_id) {
+		switch(m->_m_tag_id) {
 		default:
 			printf("ip_input: unrecognised MT_TAG tag %d\n",
-			    m->m_tag_id);
+			    m->_m_tag_id);
 			break;
 
 		case PACKET_TAG_DUMMYNET:
@@ -1750,7 +1750,7 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 		m = (struct mbuf *)&tag;
 	}
 	error = ip_output(m, (struct mbuf *)0, &ipforward_rt, 
-			  IP_FORWARDING, 0);
+			  IP_FORWARDING, 0, NULL);
     }
 	if (error)
 		ipstat.ips_cantforward++;
@@ -1788,10 +1788,7 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 	case EMSGSIZE:
 		type = ICMP_UNREACH;
 		code = ICMP_UNREACH_NEEDFRAG;
-#ifndef IPSEC
-		if (ipforward_rt.ro_rt)
-			destifp = ipforward_rt.ro_rt->rt_ifp;
-#else
+#ifdef IPSEC
 		/*
 		 * If the packet is routed over IPsec tunnel, tell the
 		 * originator the tunnel MTU.
@@ -1842,6 +1839,9 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 				key_freesp(sp);
 			}
 		}
+#else
+		if (ipforward_rt.ro_rt)
+			destifp = ipforward_rt.ro_rt->rt_ifp;
 #endif /*IPSEC*/
 		ipstat.ips_cantfrag++;
 		break;

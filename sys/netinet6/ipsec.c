@@ -221,9 +221,6 @@ static int ipsec4_encapsulate __P((struct mbuf *, struct secasvar *));
 #ifdef INET6
 static int ipsec6_encapsulate __P((struct mbuf *, struct secasvar *));
 #endif
-static struct mbuf *ipsec_addaux __P((struct mbuf *));
-static struct mbuf *ipsec_findaux __P((struct mbuf *));
-static void ipsec_optaux __P((struct mbuf *, struct mbuf *));
 
 /*
  * For OUTBOUND packet having a socket. Searching SPD for packet,
@@ -3457,91 +3454,14 @@ ipsec_copypkt(m)
 	return(NULL);
 }
 
-static struct mbuf *
-ipsec_addaux(m)
-	struct mbuf *m;
-{
-	struct mbuf *n;
-
-	n = m_aux_find(m, AF_INET, IPPROTO_ESP);
-	if (!n)
-		n = m_aux_add(m, AF_INET, IPPROTO_ESP);
-	if (!n)
-		return n;	/* ENOBUFS */
-	n->m_len = sizeof(struct socket *);
-	bzero(mtod(n, void *), n->m_len);
-	return n;
-}
-
-static struct mbuf *
-ipsec_findaux(m)
-	struct mbuf *m;
-{
-	struct mbuf *n;
-
-	n = m_aux_find(m, AF_INET, IPPROTO_ESP);
-#ifdef DIAGNOSTIC
-	if (n && n->m_len < sizeof(struct socket *))
-		panic("invalid ipsec m_aux");
-#endif
-	return n;
-}
-
 void
 ipsec_delaux(m)
 	struct mbuf *m;
 {
-	struct mbuf *n;
+	struct m_tag *tag;
 
-	n = m_aux_find(m, AF_INET, IPPROTO_ESP);
-	if (n)
-		m_aux_delete(m, n);
-}
-
-/* if the aux buffer is unnecessary, nuke it. */
-static void
-ipsec_optaux(m, n)
-	struct mbuf *m;
-	struct mbuf *n;
-{
-
-	if (!n)
-		return;
-	if (n->m_len == sizeof(struct socket *) && !*mtod(n, struct socket **))
-		ipsec_delaux(m);
-}
-
-int
-ipsec_setsocket(m, so)
-	struct mbuf *m;
-	struct socket *so;
-{
-	struct mbuf *n;
-
-	/* if so == NULL, don't insist on getting the aux mbuf */
-	if (so) {
-		n = ipsec_addaux(m);
-		if (!n)
-			return ENOBUFS;
-	} else
-		n = ipsec_findaux(m);
-	if (n && n->m_len >= sizeof(struct socket *))
-		*mtod(n, struct socket **) = so;
-	ipsec_optaux(m, n);
-	return 0;
-}
-
-struct socket *
-ipsec_getsocket(m)
-	struct mbuf *m;
-{
-	struct mbuf *n;
-
-	n = ipsec_findaux(m);
-	if (n && n->m_len >= sizeof(struct socket *))
-		return *mtod(n, struct socket **);
-	else
-		return NULL;
+	while ((tag = m_tag_find(m, PACKET_TAG_IPSEC_HISTORY, NULL)) != NULL)
+		m_tag_delete(m, tag);
 }
 
 int
@@ -3550,19 +3470,18 @@ ipsec_addhist(m, proto, spi)
 	int proto;
 	u_int32_t spi;
 {
-	struct mbuf *n;
+	struct m_tag *tag;
 	struct ipsec_history *p;
 
-	n = ipsec_addaux(m);
-	if (!n)
+	tag = m_tag_get(PACKET_TAG_IPSEC_HISTORY,
+			sizeof (struct ipsec_history), M_NOWAIT);
+	if (tag == NULL)
 		return ENOBUFS;
-	if (M_TRAILINGSPACE(n) < sizeof(*p))
-		return ENOSPC;	/* XXX */
-	p = (struct ipsec_history *)(mtod(n, caddr_t) + n->m_len);
-	n->m_len += sizeof(*p);
+	p = (struct ipsec_history *)(tag+1);
 	bzero(p, sizeof(*p));
 	p->ih_proto = proto;
 	p->ih_spi = spi;
+	m_tag_prepend(m, tag);
 	return 0;
 }
 
@@ -3571,32 +3490,13 @@ ipsec_gethist(m, lenp)
 	struct mbuf *m;
 	int *lenp;
 {
-	struct mbuf *n;
-	int l;
+	struct m_tag *tag;
 
-	n = ipsec_findaux(m);
-	if (!n)
+	tag = m_tag_find(m, PACKET_TAG_IPSEC_HISTORY, NULL);
+	if (tag == NULL)
 		return NULL;
-	l = n->m_len;
-	if (sizeof(struct socket *) > l)
-		return NULL;
-	if ((l - sizeof(struct socket *)) % sizeof(struct ipsec_history))
-		return NULL;
-	/* XXX does it make more sense to divide by sizeof(ipsec_history)? */
+	/* XXX NB: noone uses this so fake it */
 	if (lenp)
-		*lenp = l - sizeof(struct socket *);
-	return (struct ipsec_history *)
-	    (mtod(n, caddr_t) + sizeof(struct socket *));
-}
-
-void
-ipsec_clearhist(m)
-	struct mbuf *m;
-{
-	struct mbuf *n;
-
-	n = ipsec_findaux(m);
-	if ((n) && n->m_len > sizeof(struct socket *))
-		n->m_len = sizeof(struct socket *);
-	ipsec_optaux(m, n);
+		*lenp = sizeof (struct ipsec_history);
+	return ((struct ipsec_history *)(tag+1));
 }
