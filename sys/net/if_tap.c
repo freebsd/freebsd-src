@@ -340,7 +340,8 @@ tapopen(dev, flag, mode, td)
 	struct thread	*td;
 {
 	struct tap_softc	*tp = NULL;
-	int			 error;
+	struct ifnet		*ifp = NULL;
+	int			 error, s;
 
 	if ((error = suser(td)) != 0)
 		return (error);
@@ -368,10 +369,15 @@ tapopen(dev, flag, mode, td)
 	bcopy(tp->arpcom.ac_enaddr, tp->ether_addr, sizeof(tp->ether_addr));
 	tp->tap_pid = td->td_proc->p_pid;
 	tp->tap_flags |= TAP_OPEN;
+	ifp = &tp->tap_if;
 	mtx_unlock(&tp->tap_mtx);
 
-	TAPDEBUG("%s is open. minor = %#x\n", 
-		tp->tap_if.if_xname, minor(dev));
+	s = splimp();
+	ifp->if_flags |= IFF_RUNNING;
+	ifp->if_flags &= ~IFF_OACTIVE;
+	splx(s);
+
+	TAPDEBUG("%s is open. minor = %#x\n", ifp->if_xname, minor(dev));
 
 	return (0);
 } /* tapopen */
