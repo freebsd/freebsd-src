@@ -35,7 +35,6 @@
  * $FreeBSD$
  */
 
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -49,7 +48,6 @@
 #include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <geom/geom.h>
-
 
 #define CDEV_MAJOR	4
 
@@ -131,11 +129,9 @@ g_dev_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp __unus
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	static int unit;
-#if 1
 	u_int secsize;
 	off_t mediasize;
 	int error, j;
-#endif
 	dev_t dev;
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
@@ -146,7 +142,6 @@ g_dev_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp __unus
 	gp = g_new_geomf(mp, pp->name);
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
-#if 1
 	error = g_access_rel(cp, 1, 0, 0);
 	g_topology_unlock();
 	if (!error) {
@@ -171,17 +166,12 @@ g_dev_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp __unus
 		secsize = 512;
 		mediasize = 0;
 	}
-#else
-	g_topology_unlock();
-#endif
 	mtx_lock(&Giant);
-#if 1
 	if (mediasize != 0)
 		printf("GEOM: \"%s\" %lld bytes in %lld sectors of %u bytes\n",
 		    pp->name, mediasize, mediasize / secsize, secsize);
 	else
 		printf("GEOM: \"%s\" (size unavailable)\n", pp->name);
-#endif
 	dev = make_dev(&g_dev_cdevsw, unit++,
 	    UID_ROOT, GID_WHEEL, 0600, gp->name);
 	gp->softc = dev;
@@ -249,22 +239,38 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	char *nm;
 	int i, error;
+	struct g_ioctl *gio;
 
 	gp = dev->si_drv1;
 	cp = dev->si_drv2;
 
 	error = 0;
 	mtx_unlock(&Giant);
-	switch (cmd) {
-	case DIOCGDINFO:	nm = "IOCTL::DIOCGDINFO";	break;
-	case DIOCGDVIRGIN:	nm = "IOCTL::DIOCGDVIRGIN";	break;
-	case DIOCGPART:		nm = "IOCTL::DIOCGPART";	break;
-	default:		nm = "?";			break;
+
+	gio = g_malloc(sizeof *gio, M_WAITOK);
+	gio->cmd = cmd;
+	gio->data = data;
+	gio->fflag = fflag;
+	gio->td = td;
+	i = sizeof *gio;
+	if (cmd & IOC_IN)
+		error = g_io_setattr("GEOM::ioctl", cp, i, gio, td);
+	else
+		error = g_io_getattr("GEOM::ioctl", cp, &i, gio, td);
+	g_free(gio);
+
+	if (error == 0) {
+		if (error != 0 && cmd == DIOCGDVIRGIN) {
+			g_topology_lock();
+			gp = g_create_geomf("BSD-method", cp->provider, NULL);
+			g_topology_unlock();
+		}
 	}
-	i = IOCGROUP(cmd);
-	if (*nm == '?') {
+	mtx_lock(&Giant);
+	g_rattle();
+	if (error == ENOIOCTL) {
+		i = IOCGROUP(cmd);
 		printf("IOCTL(0x%lx) \"%s\"", cmd, gp->name);
 		if (i > ' ' && i <= '~')
 			printf(" '%c'", (int)IOCGROUP(cmd));
@@ -275,23 +281,9 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 			printf("I");
 		if (cmd & IOC_OUT)
 			printf("O");
-		printf("(%ld)", IOCPARM_LEN(cmd));
-		printf(" \"%s\"\n", nm);
-		error = ENOIOCTL;
-	}
-	if (error == 0) {
-		i = IOCPARM_LEN(cmd);
-		error = g_io_getattr(nm, cp, &i, data, td);
-		if (error != 0 && cmd == DIOCGDVIRGIN) {
-			g_topology_lock();
-			gp = g_create_geomf("BSD-method", cp->provider, NULL);
-			g_topology_unlock();
-		}
-	}
-	mtx_lock(&Giant);
-	g_rattle();
-	if (error == ENOIOCTL)
+		printf("(%ld) = ENOIOCTL\n", IOCPARM_LEN(cmd));
 		error = ENOTTY;
+	}
 	return (error);
 }
 
