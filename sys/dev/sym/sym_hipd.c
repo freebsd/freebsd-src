@@ -57,7 +57,7 @@
 
 /* $FreeBSD$ */
 
-#define SYM_DRIVER_NAME	"sym-1.6.3-20000626"
+#define SYM_DRIVER_NAME	"sym-1.6.4-20000701"
 
 /* #define SYM_DEBUG_GENERIC_SUPPORT */
 
@@ -305,7 +305,7 @@ static __inline struct sym_quehead *sym_remque_tail(struct sym_quehead *head)
 }
 
 /*
- *  This one may be usefull.
+ *  This one may be useful.
  */
 #define FOR_EACH_QUEUED_ELEMENT(head, qp) \
 	for (qp = (head)->flink; qp != (head); qp = qp->flink)
@@ -446,9 +446,9 @@ static void MDELAY(int ms) { while (ms--) UDELAY(1000); }
  *  This allocator has been developped for the Linux sym53c8xx  
  *  driver, since this O/S does not provide naturally aligned 
  *  allocations.
- *  It has the vertue to allow the driver to use private pages 
- *  of memory that will be useful if we ever need to deal with 
- *  IO MMU for PCI.
+ *  It has the advantage of allowing the driver to use private 
+ *  pages of memory that will be useful if we ever need to deal 
+ *  with IO MMUs for PCI.
  */
 
 #define MEMO_SHIFT	4	/* 16 bytes minimum memory chunk */
@@ -1209,7 +1209,7 @@ struct sym_nvram {
 /*
  *  Device quirks.
  *  Some devices, for example the CHEETAH 2 LVD, disconnects without 
- *  saving the DATA POINTER then reconnect and terminates the IO.
+ *  saving the DATA POINTER then reselects and terminates the IO.
  *  On reselection, the automatic RESTORE DATA POINTER makes the 
  *  CURRENT DATA POINTER not point at the end of the IO.
  *  This behaviour just breaks our calculation of the residual.
@@ -1543,7 +1543,7 @@ struct sym_ccbh {
 struct sym_dsb {
 	/*
 	 *  CCB header.
-	 *  Also Assumed at offset 0 of the sym_ccb structure.
+	 *  Also assumed at offset 0 of the sym_ccb structure.
 	 */
 /*0*/	struct sym_ccbh head;
 
@@ -1716,7 +1716,7 @@ struct sym_hcb {
 		rv_ctest5, rv_stest2, rv_ccntl0, rv_ccntl1, rv_scntl4;
 
 	/*
-	 *  Target data used by the CPU.
+	 *  Target data.
 	 */
 	struct sym_tcb	target[SYM_CONF_MAX_TARGET];
 
@@ -2026,7 +2026,7 @@ sym_fw1_patch(hcb_p np)
 #endif	/* SYM_CONF_GENERIC_SUPPORT */
 
 /*
- *  Patch routine for firmware 2.
+ *  Patch routine for firmware #2.
  */
 static void
 sym_fw2_patch(hcb_p np)
@@ -2172,7 +2172,7 @@ sym_fw1_setup(hcb_p np, struct sym_fw *fw)
 #endif	/* SYM_CONF_GENERIC_SUPPORT */
 
 /*
- *  Setup routine for firmware 2.
+ *  Setup routine for firmware #2.
  */
 static void 
 sym_fw2_setup(hcb_p np, struct sym_fw *fw)
@@ -2527,8 +2527,6 @@ static void PRINT_ADDR (ccb_p cp)
 
 /*
  *  Take into account this ccb in the freeze count.
- *  The flag that tells user about avoids doing that 
- *  more than once for a ccb.
  */	
 static void sym_freeze_cam_ccb(union ccb *ccb)
 {
@@ -2614,7 +2612,6 @@ static u32 div_10M[] = {2*_5M, 3*_5M, 4*_5M, 6*_5M, 8*_5M, 12*_5M, 16*_5M};
  *
  *  For PCI 32 bit data transfers each transfer is a DWORD.
  *  It is a QUADWORD (8 bytes) for PCI 64 bit data transfers.
- *  Only the 896 is able to perform 64 bit data transfers.
  *
  *  We use log base 2 (burst length) as internal code, with 
  *  value 0 meaning "burst disabled".
@@ -2924,8 +2921,8 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	/*
 	 *  Set LED support from SCRIPTS.
 	 *  Ignore this feature for boards known to use a 
-	 *  specific GPIO wiring and for the 895A or 896 
-	 *  that drive the LED directly.
+	 *  specific GPIO wiring and for the 895A, 896 
+	 *  and 1010 that drive the LED directly.
 	 */
 	if ((SYM_SETUP_SCSI_LED || nvram->type == SYM_SYMBIOS_NVRAM) &&
 	    !(np->features & FE_LEDC) && !(np->sv_gpcntl & 0x01))
@@ -3266,6 +3263,10 @@ out:
 
 /*
  *  The chip may have completed jobs. Look at the DONE QUEUE.
+ *
+ *  On architectures that may reorder LOAD/STORE operations, 
+ *  a memory barrier may be needed after the reading of the 
+ *  so-called `flag' and prior to dealing with the data.
  */
 static int sym_wakeup_done (hcb_p np)
 {
@@ -3285,6 +3286,7 @@ static int sym_wakeup_done (hcb_p np)
 
 		cp = sym_ccb_from_dsa(np, dsa);
 		if (cp) {
+			MEMORY_BARRIER();
 			sym_complete_ok (np, cp);
 			++n;
 		}
@@ -3567,8 +3569,8 @@ sym_getsync(hcb_p np, u_char dt, u_char sfac, u_char *divp, u_char *fakp)
 		kpc <<= 1;
 
 	/*
-	 *  For earliest C10, the extra clocks does not apply 
-	 *  to CRC cycles, so it may be safe not to use them.
+	 *  For earliest C10 revision 0, we cannot use extra 
+	 *  clocks for the setting of the SCSI clocking.
 	 *  Note that this limits the lowest sync data transfer 
 	 *  to 5 Mega-transfers per second and may result in
 	 *  using higher clock divisors.
@@ -4003,13 +4005,15 @@ static void sym_intr1 (hcb_p np)
 
 	/*
 	 *  interrupt on the fly ?
+	 *
+	 *  A `dummy read' is needed to ensure that the 
+	 *  clear of the INTF flag reaches the device 
+	 *  before the scanning of the DONE queue.
 	 */
 	istat = INB (nc_istat);
 	if (istat & INTF) {
 		OUTB (nc_istat, (istat & SIGP) | INTF | np->istat_sem);
-#if 1
 		istat = INB (nc_istat);		/* DUMMY READ */
-#endif
 		if (DEBUG_FLAGS & DEBUG_TINY) printf ("F ");
 		(void)sym_wakeup_done (np);
 	};
@@ -4050,6 +4054,12 @@ static void sym_intr1 (hcb_p np)
 			dstat,sist,
 			(unsigned)INL(nc_dsp),
 			(unsigned)INL(nc_dbc));
+	/*
+	 *  On paper, a memory barrier may be needed here.
+	 *  And since we are paranoid ... :)
+	 */
+	MEMORY_BARRIER();
+
 	/*
 	 *  First, interrupts we want to service cleanly.
 	 *
@@ -4556,8 +4566,8 @@ static void sym_int_ma (hcb_p np)
 	 *
 	 *  Look at the PM_SAVE SCRIPT if you want to understand 
 	 *  this stuff. The equivalent code is implemented in 
-	 *  SCRIPTS for the 895A and 896 that are able to handle 
-	 *  PM from the SCRIPTS processor.
+	 *  SCRIPTS for the 895A, 896 and 1010 that are able to 
+	 *  handle PM from the SCRIPTS processor.
 	 */
 	hflags0 = INB (HF_PRT);
 	hflags = hflags0;
@@ -7265,7 +7275,7 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 	}
 
 	/*
-	 *  Get command, target and lun pointers.
+	 *  Get CAM command pointer.
 	 */
 	csio = &cp->cam_ccb->csio;
 
@@ -7940,6 +7950,12 @@ sym_execute_ccb(void *arg, bus_dma_segment_t *psegs, int nsegs, int error)
 	 */
 	sym_enqueue_cam_ccb(np, ccb);
 
+	/*
+	 *  When `#ifed 1', the code below makes the driver 
+	 *  panic on the first attempt to write to a SCSI device.
+	 *  It is the first test we want to do after a driver 
+	 *  change that does not seem obviously safe. :)
+	 */
 #if 0
 	switch (cp->cdb_buf[0]) {
 	case 0x0A: case 0x2A: case 0xAA:
@@ -9244,8 +9260,8 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 
 	/*
 	 *  Prepare the bus address array that contains the bus 
-	 *  address of each target control bloc.
-	 *  For now, assume all logical unit are wrong. :)
+	 *  address of each target control block.
+	 *  For now, assume all logical units are wrong. :)
 	 */
 	for (i = 0 ; i < SYM_CONF_MAX_TARGET ; i++) {
 		np->targtbl[i] = cpu_to_scr(vtobus(&np->target[i]));
