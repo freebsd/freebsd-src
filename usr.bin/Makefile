@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.23 1994/10/15 20:50:05 gpalmer Exp $
+#	$Id: Makefile,v 1.24 1994/10/16 02:56:01 gpalmer Exp $
 
 # XXX MISSING:		bc dc deroff diction diff ex graph learn plot
 #			ptx spell spline struct units xsend
@@ -31,7 +31,7 @@ SUBDIR=	apply ar at banner basename biff cal calendar \
 .if	make(clean) || make(cleandir)
 # XXX Should have `f77', `pascal' & `vmstat.sparc' judging by the
 #     machine dependant lines, but we don't have them
-SUBDIR+=cmp ld look systat tail vmstat
+SUBDIR+=cmp look systat tail vmstat
 .elif	${MACHINE} == "hp300"
 SUBDIR+=cmp ld look systat tail vmstat
 .elif	${MACHINE} == "i386"
