@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.c,v 1.7 1994/12/01 21:05:28 phk Exp $
+ * $Id: ctm.c,v 1.8 1995/03/04 20:36:45 phk Exp $
  *
  * This is the client program of 'CTM'.  It will apply a CTM-patch to a 
  * collection of files.
@@ -164,8 +164,8 @@ Proc(char *filename, unsigned applied)
     if(!p)
 	rewind(f);
 
-    if((i=Pass1(f, applied))) 
-	return i;
+    if((i=Pass1(f, applied)))
+	goto exit_and_close;
 
     if(!p) {
         rewind(f);
@@ -187,16 +187,18 @@ Proc(char *filename, unsigned applied)
 
     if(i) {
 	if((!Force) || (i & ~Exit_Forcible))
-	    return i;
+	    goto exit_and_close;
     }
 
     if(CheckIt) {
         fprintf(stderr,"All checks out ok.\n");
-	return Exit_Done;
+	i = Exit_Done;
+	goto exit_and_close;
     }
 
     i=Pass3(f);
 
+exit_and_close:
     if(!p) {
         fclose(f);
     } else {
