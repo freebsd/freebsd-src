@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.28 1996/09/26 21:03:35 pst Exp $
+ * $Id: main.c,v 1.29 1996/12/11 09:35:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -113,20 +113,20 @@ main(int argc, char **argv)
 
     {
 	FILE *fp;
-	Attribs attrs[512];
+	Attribs *attrs;
 
-	bzero(attrs, sizeof(attrs));
-
+	attrs = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
 	fp = fopen("install.cfg", "r");
 	if (fp) {
 	    msgNotify("Loading pre-configuration file");
 	    if (DITEM_STATUS(attr_parse(attrs, fp)) == DITEM_SUCCESS) {
 		int i;
 
-		for (i = 0; *attrs[i].name; i++)
+		for (i = 0; attrs[i].name; i++)
 		    variable_set2(attrs[i].name, attrs[i].value);
 	    }
 	    fclose(fp);
+	    attr_free(attrs);
 	}
 
 #if defined(LOAD_CONFIG_FILE)
@@ -150,10 +150,11 @@ main(int argc, char **argv)
 		    if (DITEM_STATUS(attr_parse(attrs, fp)) == DITEM_SUCCESS) {
 			int i;
 
-			for (i = 0; *attrs[i].name; i++)
+			for (i = 0; attrs[i].name; i++)
 			    variable_set2(attrs[i].name, attrs[i].value);
 		    }
 		    fclose(fp);
+		    attr_free(attrs);
 		}
 		mediaDevice->shutdown(mediaDevice);
 	    }
