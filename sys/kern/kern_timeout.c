@@ -36,20 +36,26 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_timeout.c,v 1.51 1998/01/11 00:44:31 phk Exp $
+ * $Id: kern_timeout.c,v 1.52 1998/01/14 19:42:47 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/callout.h>
 #include <sys/kernel.h>
 
-/* Exported to machdep.c. */
+/*
+ * TODO:
+ *	allocate more timeout table slots when table overflows.
+ */
+
+/* Exported to machdep.c and/or kern_clock.c.  */
 struct callout *callout;
 struct callout_list callfree;
 int callwheelsize, callwheelbits, callwheelmask;
 struct callout_tailq *callwheel;
+int softticks;			/* Like ticks, but for softclock(). */
 
-static int softticks;			/* Like ticks, but for softclock(). */
 static struct callout *nextsoftcheck;	/* Next callout to be checked. */
 
 /*
@@ -68,12 +74,6 @@ static struct callout *nextsoftcheck;	/* Next callout to be checked. */
  * Software (low priority) clock interrupt.
  * Run periodic events from timeout queue.
  */
-
-#ifndef MAX_SOFTCLOCK_STEPS
-#define MAX_SOFTCLOCK_STEPS 100 /* Maximum allowed value of steps. */
-#endif /* MAX_SOFTCLOCK_STEPS */
-
-/*ARGSUSED*/
 void
 softclock()
 {
@@ -81,13 +81,11 @@ softclock()
 	register struct callout_tailq *bucket;
 	register int s;
 	register int curticks;
-	register int steps;	/*
-				 * Number of steps taken since
-				 * we last allowed interrupts.
-				 */
+	register int steps;	/* #steps since we last allowed interrupts */
 
-
-	(void)splsoftclock();
+#ifndef MAX_SOFTCLOCK_STEPS
+#define MAX_SOFTCLOCK_STEPS 100 /* Maximum allowed value of steps. */
+#endif /* MAX_SOFTCLOCK_STEPS */
 
 	steps = 0;
 	s = splhigh();
