@@ -185,7 +185,11 @@ The resulting file-position
 indicator would be set to a negative value.
 .It Bq Er EOVERFLOW
 The resulting file offset would be a value which
-cannot be represented correctly in an object of type requested.
+cannot be represented correctly in an object of type off_t
+for
+.Fn fseeko
+or long for
+.Fn fseek .
 .El
 .Pp
 The functions
