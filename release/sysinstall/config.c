@@ -387,6 +387,10 @@ configRC_conf(void)
     if (write_header) {
 	fprintf(rcSite, "# This file now contains just the overrides from /etc/defaults/rc.conf\n");
 	fprintf(rcSite, "# please make all changes to this file.\n\n");
+	fprintf(rcSite, "# Enable network daemons for user convenience.\n");
+	fprintf(rcSite, "inetd_enable=\"YES\"\n");
+	fprintf(rcSite, "portmap_enable=\"YES\"\n");
+	fprintf(rcSite, "sendmail_enable=\"YES\"\n\b");
     }
 
     /* Now do variable substitutions */
