@@ -3149,8 +3149,12 @@ typedef enum tsubst_flags_t {
 				   (make_typename_type use) */
   tf_ptrmem_ok = 1 << 5,     /* pointers to member ok (internal
 				instantiate_type use) */
-  tf_parsing = 1 << 6	     /* called from parser
+  tf_parsing = 1 << 6,	     /* called from parser
 				(make_typename_type use) */
+  tf_conv = 1 << 8,          /* We are determining what kind of
+				conversion might be permissible, not
+				actually performing the
+				conversion.  */
 } tsubst_flags_t;
 
 /* The kind of checking we can do looking in a class hierarchy.  */
@@ -3623,7 +3627,7 @@ extern tree type_passed_as                      PARAMS ((tree));
 extern tree convert_for_arg_passing             PARAMS ((tree, tree));
 extern tree cp_convert_parm_for_inlining        PARAMS ((tree, tree, tree));
 extern int is_properly_derived_from             PARAMS ((tree, tree));
-extern tree initialize_reference                PARAMS ((tree, tree, tree));
+extern tree initialize_reference                PARAMS ((tree, tree, tree, tree *));
 extern tree make_temporary_var_for_ref_to_temp  (tree, tree);
 extern tree strip_top_quals                     PARAMS ((tree));
 extern tree perform_implicit_conversion         PARAMS ((tree, tree));
@@ -3696,6 +3700,7 @@ extern void adjust_clone_args			PARAMS ((tree));
 /* decl.c */
 extern int global_bindings_p			PARAMS ((void));
 extern int kept_level_p				PARAMS ((void));
+extern bool innermost_scope_is_class_p          (void);
 extern tree getdecls				PARAMS ((void));
 extern void pushlevel				PARAMS ((int));
 extern tree poplevel				PARAMS ((int,int, int));
@@ -4312,7 +4317,6 @@ extern tree build_min				PARAMS ((enum tree_code, tree,
 extern tree build_min_nt			PARAMS ((enum tree_code, ...));
 extern tree build_cplus_new			PARAMS ((tree, tree));
 extern tree get_target_expr			PARAMS ((tree));
-extern tree break_out_calls			PARAMS ((tree));
 extern tree build_cplus_method_type		PARAMS ((tree, tree, tree));
 extern tree build_cplus_staticfn_type		PARAMS ((tree, tree, tree));
 extern tree build_cplus_array_type		PARAMS ((tree, tree));
@@ -4405,7 +4409,7 @@ extern tree build_x_indirect_ref		PARAMS ((tree, const char *));
 extern tree build_indirect_ref			PARAMS ((tree, const char *));
 extern tree build_array_ref			PARAMS ((tree, tree));
 extern tree get_member_function_from_ptrfunc	PARAMS ((tree *, tree));
-extern tree build_function_call_real		PARAMS ((tree, tree, int, int));
+extern tree build_function_call_real		PARAMS ((tree, tree, int));
 extern tree build_function_call_maybe		PARAMS ((tree, tree));
 extern tree convert_arguments			PARAMS ((tree, tree, tree, int));
 extern tree build_x_binary_op			PARAMS ((enum tree_code, tree, tree));

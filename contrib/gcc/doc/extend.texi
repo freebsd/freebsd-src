@@ -2554,7 +2554,7 @@ Currently, the attribute is ignored for inlined functions. If the
 attribute is applied to a symbol @emph{definition}, an error is reported.
 If a symbol previously declared @code{dllimport} is later defined, the
 attribute is ignored in subsequent references, and a warning is emitted.
-The attribute is also overriden by a subsequent declaration as
+The attribute is also overridden by a subsequent declaration as
 @code{dllexport}. 
 
 When applied to C++ classes, the attribute marks non-inlined
@@ -2636,7 +2636,7 @@ found convenient to use @code{__attribute__} to achieve a natural
 attachment of attributes to their corresponding declarations, whereas
 @code{#pragma GCC} is of use for constructs that do not naturally form
 part of the grammar.  @xref{Other Directives,,Miscellaneous
-Preprocessing Directives, cpp, The C Preprocessor}.
+Preprocessing Directives, cpp, The GNU C Preprocessor}.
 
 @node Attribute Syntax
 @section Attribute Syntax
@@ -3666,7 +3666,7 @@ the single copy in the library.
 
 Since GCC eventually will implement ISO C99 semantics for
 inline functions, it is best to use @code{static inline} only
-to guarentee compatibility.  (The
+to guarantee compatibility.  (The
 existing semantics will remain available when @option{-std=gnu89} is
 specified, but eventually the default will be @option{-std=gnu99} and
 that will implement the C99 semantics, though it does not do so yet.)
@@ -5315,6 +5315,31 @@ Generates the @code{movhps} machine instruction as a store to memory.
 Generates the @code{movlps} machine instruction as a store to memory.
 @end table
 
+The following built-in functions are available when @option{-mpni} is used.
+All of them generate the machine instruction that is part of the name.
+
+@example
+v2df __builtin_ia32_addsubpd (v2df, v2df)
+v2df __builtin_ia32_addsubps (v2df, v2df)
+v2df __builtin_ia32_haddpd (v2df, v2df)
+v2df __builtin_ia32_haddps (v2df, v2df)
+v2df __builtin_ia32_hsubpd (v2df, v2df)
+v2df __builtin_ia32_hsubps (v2df, v2df)
+v16qi __builtin_ia32_lddqu (char const *)
+void __builtin_ia32_monitor (void *, unsigned int, unsigned int)
+v2df __builtin_ia32_movddup (v2df)
+v4sf __builtin_ia32_movshdup (v4sf)
+v4sf __builtin_ia32_movsldup (v4sf)
+void __builtin_ia32_mwait (unsigned int, unsigned int)
+@end example
+
+The following built-in functions are available when @option{-mpni} is used.
+
+@table @code
+@item v2df __builtin_ia32_loadddup (double const *)
+Generates the @code{movddup} machine instruction as a load from memory.
+@end table
+
 The following built-in functions are available when @option{-m3dnow} is used.
 All of them generate the machine instruction that is part of the name.
 
@@ -6895,8 +6920,8 @@ can also use most of the C language extensions in your C++ programs).  If you
 want to write code that checks whether these features are available, you can
 test for the GNU compiler the same way as for C programs: check for a
 predefined macro @code{__GNUC__}.  You can also use @code{__GNUG__} to
-test specifically for GNU C++ (@pxref{Standard Predefined,,Standard
-Predefined Macros,cpp.info,The C Preprocessor}).
+test specifically for GNU C++ (@pxref{Common Predefined Macros,,
+Predefined Macros,cpp,The GNU C Preprocessor}).
 
 @menu
 * Min and Max::		C++ Minimum and maximum operators.
