@@ -869,34 +869,32 @@ fxp_detach(device_t dev)
 	struct fxp_softc *sc = device_get_softc(dev);
 	int s;
 
-	/* disable interrupts */
-	CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
-
 	s = splimp();
+	/*
+	 * Close down routes etc.
+	 */
+	ether_ifdetach(&sc->arpcom.ac_if);
 
-	if (device_is_alive(dev)) {
-		/*
-		 * Stop DMA and drop transmit queue.
-		 */
-		if (bus_child_present(dev))
-			fxp_stop(sc);
-		/*
-		 * Close down routes etc.
-		 */
-		ether_ifdetach(&sc->arpcom.ac_if);
-		device_delete_child(dev, sc->miibus);
-		bus_generic_detach(dev);
-		/*
-		 * Free all media structures.
-		 */
-		ifmedia_removeall(&sc->sc_media);
+	/*
+	 * Stop DMA and drop transmit queue.
+	 */
+	if (bus_child_present(dev)) {
+		/* disable interrupts */
+		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
+		fxp_stop(sc);
 	}
+
+	device_delete_child(dev, sc->miibus);
+	bus_generic_detach(dev);
+	/*
+	 * Free all media structures.
+	 */
+	ifmedia_removeall(&sc->sc_media);
 
 	splx(s);
 
 	/* Release our allocated resources. */
 	fxp_release(sc);
-
 	return (0);
 }
 
