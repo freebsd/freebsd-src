@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.93 1995/01/20 08:35:32 sos Exp $
+ *	$Id: syscons.c,v 1.96 1995/01/28 22:16:03 sos Exp $
  */
 
 #include "sc.h"
@@ -95,8 +95,9 @@
 #define SWITCH_WAIT_ACQ	0x00080
 #define BUFFER_SAVED	0x00100
 #define CURSOR_ENABLED 	0x00200
-#define MOUSE_ENABLED	0x00400
-#define UPDATE_NEEDED	0x00800
+#define CURSOR_SHOWN 	0x00400
+#define MOUSE_ENABLED	0x00800
+#define UPDATE_NEEDED	0x01000
 
 /* configuration flags */
 #define VISUAL_BELL	0x00001
@@ -443,6 +444,7 @@ scattach(struct isa_device *dev)
 	scp->history_head = scp->history_pos = scp->history =
 		(u_short *)malloc(scp->history_size*sizeof(u_short),
 				  M_DEVBUF, M_NOWAIT);
+	bzero(scp->history_head, scp->history_size*sizeof(u_short));
 	if (crtc_vga) {
 #if defined(HARDFONTS)
 		font_8 = font_8x8;
@@ -723,13 +725,19 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	case CONS_HISTORY:	/* set history size */
 		if (*data) {
-			free(scp->history, M_DEVBUF); 
-			scp->history_size = *data;
+		    free(scp->history, M_DEVBUF); 
+		    scp->history_size = *(int*)data;
+		    if (scp->history_size < scp->ysize)
+			scp->history = NULL;
+		    else {
+			scp->history_size *= scp->xsize;
 			scp->history_head = scp->history_pos = scp->history =
-			    (u_short *)malloc(
-				scp->history_size*scp->xsize*sizeof(u_short),
-				M_DEVBUF, M_NOWAIT);
-			return 0;
+			    (u_short *)malloc(scp->history_size*sizeof(u_short),
+					      M_DEVBUF, M_NOWAIT);
+			bzero(scp->history_head, 
+			      scp->history_size*sizeof(u_short));
+		    }
+		    return 0;
 		}
 		else
 			return EINVAL;
@@ -1523,28 +1531,28 @@ static void
 scrn_timer()
 {
 	static int cursor_blinkrate;
+	scr_stat *scp = cur_console;
 
-	if (cur_console->status & UNKNOWN_MODE) {
+	if (scp->status & UNKNOWN_MODE) {
 		timeout((timeout_func_t)scrn_timer, 0, hz/10);
 		return;
 	}
 	/* update physical screen */
-	if (cur_console->status & UPDATE_NEEDED) {
-		bcopyw(cur_console->scr_buf, Crtat, 
-	       	       cur_console->xsize*cur_console->ysize*sizeof(u_short));
-		if (!(configuration&BLINK_CURSOR) && 
-		    cur_console->status & CURSOR_ENABLED)
-			draw_cursor(cur_console);
-		cur_console->status &= ~UPDATE_NEEDED;
+	if (scp->status & UPDATE_NEEDED) {
+		bcopyw(scp->scr_buf, Crtat, 
+	       	       scp->xsize*scp->ysize*sizeof(u_short));
+		if (!(configuration&BLINK_CURSOR) && scp->status&CURSOR_ENABLED)
+			draw_cursor(scp);
+		scp->status &= ~UPDATE_NEEDED;
 	}
-	if ((configuration&BLINK_CURSOR) && cur_console->status&CURSOR_ENABLED){
-	 	if (cursor_blinkrate++ & 0x04)
-			undraw_cursor(cur_console);
-		else
-			draw_cursor(cur_console);
+	if ((configuration & BLINK_CURSOR) && (scp->status & CURSOR_ENABLED)) {
+		if (cursor_blinkrate++ & 0x04)
+			draw_cursor(scp);
+	    	else	
+			undraw_cursor(scp);
 	}
 	if (scrn_blank_time && (time.tv_sec>scrn_time_stamp+scrn_blank_time)) {
-		cur_console->status &= ~CURSOR_ENABLED;
+		scp->status &= ~CURSOR_ENABLED;
 		SCRN_SAVER(TRUE);
 	}
 	timeout((timeout_func_t)scrn_timer, 0, hz/25);
@@ -2096,7 +2104,9 @@ scan_esc(scr_stat *scp, u_char c)
 static inline void 
 undraw_cursor(scr_stat *scp)
 {
-	*(Crtat+(scp->cursor_pos - scp->scr_buf)) = *scp->cursor_pos;
+	if (scp->status & CURSOR_SHOWN)
+		*(Crtat+(scp->cursor_pos - scp->scr_buf)) = *scp->cursor_pos;
+	scp->status &= ~CURSOR_SHOWN;
 }
 
 static inline void 
@@ -2114,6 +2124,7 @@ draw_cursor(scr_stat *scp)
 			cursor_image &= 0xf8ff;
 	}
 	*(Crtat+(cur_console->cursor_pos-cur_console->scr_buf)) = cursor_image;
+	scp->status |= CURSOR_SHOWN;
 }
 
 static void 
@@ -2305,6 +2316,7 @@ static scr_stat
 	scp->history_head = scp->history_pos = scp->history =
 		(u_short *)malloc(scp->history_size*sizeof(u_short),
 				  M_DEVBUF, M_NOWAIT);
+	bzero(scp->history_head, scp->history_size*sizeof(u_short));
         if (crtc_vga && video_mode_ptr)
 		set_mode(scp);
 	clear_screen(scp);
@@ -2565,7 +2577,7 @@ next_code:
 	}
 
 	/* if scroll-lock pressed allow history browsing */
-	if (cur_console->history != NULL && cur_console->status & SLKED) {
+	if (cur_console->history && cur_console->status & SLKED) {
 		int i;
 
 		cur_console->status &= ~CURSOR_ENABLED;
@@ -2585,6 +2597,7 @@ next_code:
 			        cur_console->history_head=cur_console->history;
 		    }
 		    cur_console->history_pos = cur_console->history_head;
+		    history_to_screen(cur_console);
 		}
 		switch (scancode) {
 		case 0x47:	/* home key */
@@ -3145,6 +3158,7 @@ static void
 undraw_mouse_image(scr_stat *scp)
 {
 	u_short *crt_pos = Crtat + (scp->mouse_pos - scp->scr_buf);
+
 	*(crt_pos) = *(scp->mouse_pos);
 	*(crt_pos+1) = *(scp->mouse_pos+1);
 	*(crt_pos+scp->xsize) = *(scp->mouse_pos+scp->xsize);
@@ -3156,9 +3170,10 @@ draw_mouse_image(scr_stat *scp)
 {
 	caddr_t address;
 	int i, font_size;
-	u_short buffer[32];
-	u_short xoffset, yoffset, *crt_pos;
 	char *font_buffer;
+	u_short buffer[32];
+	u_short xoffset, yoffset;
+	u_short *crt_pos = Crtat + (scp->mouse_pos - scp->scr_buf);
 
 	xoffset = scp->mouse_xpos % 8;
 	switch (scp->font) {
@@ -3183,10 +3198,10 @@ draw_mouse_image(scr_stat *scp)
 		break;
 	}
 
-	scp->mouse_saveunder[0] = *(scp->mouse_pos);
-	scp->mouse_saveunder[1] = *(scp->mouse_pos+1);
-	scp->mouse_saveunder[2] = *(scp->mouse_pos+scp->xsize);
-	scp->mouse_saveunder[3] = *(scp->mouse_pos+scp->xsize+1);
+	scp->mouse_saveunder[0] = *(crt_pos);
+	scp->mouse_saveunder[1] = *(crt_pos+1);
+	scp->mouse_saveunder[2] = *(crt_pos+scp->xsize);
+	scp->mouse_saveunder[3] = *(crt_pos+scp->xsize+1);
 
 	bcopyw(font_buffer+((scp->mouse_saveunder[0] & 0xff)*font_size),
 	       &scp->mouse_cursor[0], font_size);
@@ -3216,7 +3231,6 @@ draw_mouse_image(scr_stat *scp)
 		scp->mouse_cursor[i+96] = buffer[i+font_size] & 0xff;
 	}
 
-	crt_pos = Crtat + (scp->mouse_pos - scp->scr_buf);
 	while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
 	*(crt_pos) = (scp->mouse_saveunder[0]&0xff00)|0xc0;
 	*(crt_pos+1) = (scp->mouse_saveunder[1]&0xff00)|0xc1;
