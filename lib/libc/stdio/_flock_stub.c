@@ -1,9 +1,6 @@
-/*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Chris Torek.
+/*
+ * Copyright (c) 1998 John Birrell <jb@cimlogic.com.au>.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,13 +12,12 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ *	This product includes software developed by John Birrell.
+ * 4. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
@@ -32,42 +28,51 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
+ *
  */
-
-#if defined(LIBC_SCCS) && !defined(lint)
-#if 0
-static char sccsid[] = "@(#)puts.c	8.1 (Berkeley) 6/4/93";
-#endif
-static const char rcsid[] =
-		"$Id: puts.c,v 1.5 1997/02/22 15:02:20 peter Exp $";
-#endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
-#include <string.h>
-#include "fvwrite.h"
-#include "libc_private.h"
 
 /*
- * Write the given string to stdout, appending a newline.
+ * Declare weak references in case the application is not linked
+ * with libpthread.
+ */
+#pragma weak _flockfile=_flockfile_stub
+#pragma weak _flockfile_debug=_flockfile_debug_stub
+#pragma weak _ftrylockfile=_ftrylockfile_stub
+#pragma weak _funlockfile=_funlockfile_stub
+
+/*
+ * This function is a stub for the _flockfile function in libpthread.
+ */
+void
+_flockfile_stub(FILE *fp)
+{
+}
+
+/*
+ * This function is a stub for the _flockfile_debug function in libpthread.
+ */
+void
+_flockfile_debug_stub(FILE *fp, char *fname, int lineno)
+{
+}
+
+/*
+ * This function is a stub for the _ftrylockfile function in libpthread.
  */
 int
-puts(s)
-	char const *s;
+_ftrylockfile_stub(FILE *fp)
 {
-	int retval;
-	size_t c = strlen(s);
-	struct __suio uio;
-	struct __siov iov[2];
+	return(0);
+}
 
-	iov[0].iov_base = (void *)s;
-	iov[0].iov_len = c;
-	iov[1].iov_base = "\n";
-	iov[1].iov_len = 1;
-	uio.uio_resid = c + 1;
-	uio.uio_iov = &iov[0];
-	uio.uio_iovcnt = 2;
-	FLOCKFILE(stdout);
-	retval = __sfvwrite(stdout, &uio) ? EOF : '\n';
-	FUNLOCKFILE(stdout);
-	return (retval);
+/*
+ * This function is a stub for the _funlockfile function in libpthread.
+ */
+void
+_funlockfile_stub(FILE *fp)
+{
 }

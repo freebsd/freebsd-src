@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)fseek.c	8.3 (Berkeley) 1/2/94";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: fseek.c,v 1.6 1997/02/22 15:02:05 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -49,10 +49,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <errno.h>
 #include "local.h"
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 #define	POS_ERR	(-(fpos_t)1)
 
@@ -76,14 +73,13 @@ fseek(fp, offset, whence)
 	if (!__sdidinit)
 		__sinit();
 
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(fp);
 	/*
 	 * Have to be able to seek.
 	 */
 	if ((seekfn = fp->_seek) == NULL) {
 		errno = ESPIPE;			/* historic practice */
+		FUNLOCKFILE(fp);
 		return (EOF);
 	}
 
@@ -104,9 +100,7 @@ fseek(fp, offset, whence)
 		else {
 			curoff = (*seekfn)(fp->_cookie, (fpos_t)0, SEEK_CUR);
 			if (curoff == -1) {
-#ifdef _THREAD_SAFE
-				_thread_funlockfile(fp);
-#endif
+				FUNLOCKFILE(fp);
 				return (EOF);
 			}
 		}
@@ -130,9 +124,7 @@ fseek(fp, offset, whence)
 
 	default:
 		errno = EINVAL;
-#ifdef _THREAD_SAFE
-		_thread_funlockfile(fp);
-#endif
+		FUNLOCKFILE(fp);
 		return (EOF);
 	}
 
@@ -216,9 +208,7 @@ fseek(fp, offset, whence)
 		if (HASUB(fp))
 			FREEUB(fp);
 		fp->_flags &= ~__SEOF;
-#ifdef _THREAD_SAFE
-		_thread_funlockfile(fp);
-#endif
+		FUNLOCKFILE(fp);
 		return (0);
 	}
 
@@ -245,9 +235,7 @@ fseek(fp, offset, whence)
 		fp->_p += n;
 		fp->_r -= n;
 	}
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
 	return (0);
 
 	/*
@@ -257,9 +245,7 @@ fseek(fp, offset, whence)
 dumb:
 	if (__sflush(fp) ||
 	    (*seekfn)(fp->_cookie, (fpos_t)offset, whence) == POS_ERR) {
-#ifdef _THREAD_SAFE
-		_thread_funlockfile(fp);
-#endif
+		FUNLOCKFILE(fp);
 		return (EOF);
 	}
 	/* success: clear EOF indicator and discard ungetc() data */
@@ -269,8 +255,6 @@ dumb:
 	fp->_r = 0;
 	/* fp->_w = 0; */	/* unnecessary (I think...) */
 	fp->_flags &= ~__SEOF;
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
 	return (0);
 }
