@@ -1,14 +1,21 @@
-#	$Id: dot.login,v 1.7 1995/06/29 06:30:43 joerg Exp $
+# csh .login file
 #
-tset -Q \?$TERM
-stty crt erase ^H
-umask 2
-# plain csh is too stupid to get any information on ARGV[0] back
-if (! $?tcsh) then
-  echo "Don't login as root, login as yourself and use the 'su' command"
-else
-  # for tcsh, check if we have been invoked by an "su -"
-  if ("$0" != "-su") \
-    echo "Don't login as root, login as yourself and use the 'su' command"
-endif
 
+stty crt erase 
+# PATH und MANPATH Grundeinstellung
+set path = (/sbin /bin /usr/sbin /usr/bin /usr/games /usr/local/bin /usr/X11R6/bin $HOME/bin)
+setenv MANPATH "/usr/share/man:/usr/X11R6/man:/usr/local/man"
+
+# Interviews settings
+setenv CPU "FREEBSD"
+set path = ($path /usr/local/interviews/bin/$CPU)
+setenv MANPATH "${MANPATH}:/usr/local/interviews/man"
+
+# 8-bit locale (germany)
+#setenv ENABLE_STARTUP_LOCALE
+#setenv LANG de_DE.ISO8859-1
+
+# A rightous umask
+umask 22
+
+/usr/games/fortune
