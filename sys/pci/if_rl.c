@@ -152,6 +152,8 @@ static struct rl_type rl_devs[] = {
 		"Addtron Technolgy 8139 10/100BaseTX" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_530TXPLUS,
 		"D-Link DFE-530TX+ 10/100BaseTX" },
+	{ NORTEL_VENDORID, ACCTON_DEVICEID_5030,
+		"Nortel Networks 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
