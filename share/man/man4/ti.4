@@ -38,6 +38,8 @@
 .Nd "Alteon Networks Tigon I and Tigon II gigabit ethernet driver"
 .Sh SYNOPSIS
 .Cd "device ti"
+.Cd "options TI_PRIVATE_JUMBOS"
+.Cd "options TI_JUMBO_HDRSPLIT"
 .Sh DESCRIPTION
 The
 .Nm
@@ -109,6 +111,24 @@ utility configures the adapter to receive and transmit jumbo frames.
 Using jumbo frames can greatly improve performance for certain tasks,
 such as file transfers and data streaming.
 .Pp
+Header splitting support for Tigon 2 boards (this option has no effect for
+the Tigon 1) can be turned on with the
+.Dv TI_JUMBO_HDRSPLIT
+option.  See
+.Xr zero_copy 9
+for more discussion on zero copy receive and header splitting.
+.Pp
+The
+.Nm
+driver normally uses jumbo receive buffers allocated by the
+.Xr jumbo 9
+buffer allocator, but can be configured to use its own private pool of
+jumbo buffers that are contiguous instead of buffers from the jumbo
+allocator, which are made up of multiple page sized chunks.  To turn on
+private jumbos, use the
+.Dv TI_PRIVATE_JUMBOS
+option.
+.Pp
 Support for vlans is also available using the
 .Xr vlan 4
 mechanism.
@@ -165,6 +185,64 @@ Force half duplex operation.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh IOCTLS
+In addition to the standard
+.Xr socket 2
+.Xr ioctl 2
+calls implemented by most network drivers, the
+.Nm
+driver also includes a character device interface that can be used for
+additional diagnostics, configuration and debugging.  With this character
+device interface, and a specially patched version of gdb, the user can
+debug firmware running on the Tigon board.
+.Pp
+These ioctls and their arguments are defined in the
+.Aq Pa sys/tiio.h
+header file.
+.Bl -tag -width ALT_WRITE_TG_MEM
+.It Dv TIIOCGETSTATS
+Return card statistics DMAed from the card into kernel memory approximately
+every 2 seconds.  (That time interval can be changed via the
+.Dv TIIOCSETPARAMS
+ioctl.)  The argument is
+.Va struct ti_stats .
+.It Dv TIIOCGETPARAMS
+Get various performance-related firmware parameters that largely affect how
+interrupts are coalesced.  The argument is
+.Va struct ti_params .
+.It Dv TIIOCSETPARAMS
+Set various performance-related firmware parameters that largely affect how
+interrupts are coalesced.  The argument is
+.Va struct ti_params .
+.It Dv TIIOCSETTRACE
+Tell the NIC to trace the requested types of information.
+The argument is
+.Va ti_trace_type .
+.It Dv TIIOCGETTRACE
+Dump the trace buffer from the card.  The argument is
+.Va struct ti_trace_buf .
+.It Dv ALT_ATTACH
+This ioctl is used for compatibility with Alteon's Solaris driver.  They
+apparantly only have one character interface for debugging, so they have
+to tell it which Tigon instance they want to debug.  This ioctl is a noop
+for FreeBSD.
+.It Dv ALT_READ_TG_MEM
+Read the requested memory region from the Tigon board.  The argument is
+.Va struct tg_mem .
+.It Dv ALT_WRITE_TG_MEM
+Write to the requested memory region on the Tigon board.  The argument is
+.Va struct tg_mem .
+.It Dv ALT_READ_TG_REG
+Read the requested register on the Tigon board.  The argument is
+.Va struct tg_reg .
+.It Dv ALT_WRITE_TG_REG
+Write to the requested register on the Tigon board.  The argument is
+.Va struct tg_reg .
+.El
+.Sh FILES
+.Bl -tag -width /dev/ti[0-255] -compact
+.It Pa /dev/ti[0-255]
+Tigon driver character interface.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ti%d: couldn't map memory"
@@ -206,7 +284,9 @@ the network connection (cable).
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr vlan 4 ,
-.Xr ifconfig 8
+.Xr ifconfig 8 ,
+.Xr zero_copy 9 ,
+.Xr jumbo 9
 .Rs
 .%T Alteon Gigabit Ethernet/PCI NIC manuals
 .%O http://sanjose.alteon.com/open.shtml
@@ -221,3 +301,8 @@ The
 .Nm
 driver was written by
 .An Bill Paul Aq wpaul@bsdi.com .
+The header splitting firmware modifications, character ioctl interface and
+debugging support were written by
+.An Kenneth Merry Aq ken@FreeBSD.org .
+Initial zero copy support was written by
+.An Andrew Gallatin Aq gallatin@FreeBSD.org .

@@ -311,6 +311,20 @@ RetryFault:;
 		fs.m = vm_page_lookup(fs.object, fs.pindex);
 		if (fs.m != NULL) {
 			int queue, s;
+
+			/* 
+			 * check for page-based copy on write
+			 */
+
+			if ((fs.m->cow) && 
+			    (fault_type & VM_PROT_WRITE)) {
+				s = splvm();
+				vm_page_cowfault(fs.m);
+				splx(s);
+				unlock_things(&fs);
+				goto RetryFault;
+			}
+
 			/*
 			 * Wait/Retry if the page is busy.  We have to do this
 			 * if the page is busy via either PG_BUSY or 

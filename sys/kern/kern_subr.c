@@ -39,6 +39,8 @@
  * $FreeBSD$
  */
 
+#include "opt_zero.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -57,6 +59,82 @@
 
 SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, NULL, UIO_MAXIOV, 
 	"Maximum number of elements in an I/O vector; sysconf(_SC_IOV_MAX)");
+
+#ifdef ZERO_COPY_SOCKETS
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <sys/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_page.h>
+#include <vm/vm_object.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
+#include <vm/swap_pager.h>
+#include <sys/mbuf.h>
+#include <machine/cpu.h>
+
+/* Declared in uipc_socket.c */
+extern int so_zero_copy_receive;
+
+static int vm_pgmoveco(vm_map_t mapa, vm_object_t srcobj, vm_offset_t kaddr,
+		       vm_offset_t uaddr);
+static int userspaceco(caddr_t cp, u_int cnt, struct uio *uio,
+			    struct vm_object *obj, int disposable);
+
+static int
+vm_pgmoveco(mapa, srcobj,  kaddr, uaddr)
+        vm_map_t mapa;
+	vm_object_t srcobj;
+	vm_offset_t kaddr, uaddr;
+{
+	vm_map_t map = mapa;
+	vm_page_t kern_pg, user_pg;
+	vm_object_t uobject;
+	vm_map_entry_t entry;
+	vm_pindex_t upindex, kpindex;
+	vm_prot_t prot;
+	boolean_t wired;
+
+	/*
+	 * First lookup the kernel page.
+	 */
+	kern_pg = PHYS_TO_VM_PAGE(vtophys(kaddr));
+
+	if ((vm_map_lookup(&map, uaddr,
+			   VM_PROT_READ, &entry, &uobject,
+			   &upindex, &prot, &wired)) != KERN_SUCCESS) {
+		return(EFAULT);
+	}
+	if ((user_pg = vm_page_lookup(uobject, upindex)) != NULL) {
+		vm_page_sleep_busy(user_pg, 1, "vm_pgmoveco");
+		pmap_remove(map->pmap, uaddr, uaddr+PAGE_SIZE);
+		vm_page_busy(user_pg);
+		vm_page_free(user_pg);
+	}
+
+	if (kern_pg->busy || ((kern_pg->queue - kern_pg->pc) == PQ_FREE) ||
+	    (kern_pg->hold_count != 0)|| (kern_pg->flags & PG_BUSY)) {
+		printf("vm_pgmoveco: pindex(%lu), busy(%d), PG_BUSY(%d), "
+		       "hold(%d) paddr(0x%lx)\n", (u_long)kern_pg->pindex,
+			kern_pg->busy, (kern_pg->flags & PG_BUSY) ? 1 : 0,
+			kern_pg->hold_count, (u_long)kern_pg->phys_addr);
+		if ((kern_pg->queue - kern_pg->pc) == PQ_FREE)
+			panic("vm_pgmoveco: renaming free page");
+		else
+			panic("vm_pgmoveco: renaming busy page");
+	}
+	kpindex = kern_pg->pindex;
+	vm_page_busy(kern_pg);
+	vm_page_rename(kern_pg, uobject, upindex);
+	vm_page_flag_clear(kern_pg, PG_BUSY);
+	kern_pg->valid = VM_PAGE_BITS_ALL;
+	
+	vm_map_lookup_done(map, entry);
+	return(KERN_SUCCESS);
+}
+#endif /* ZERO_COPY_SOCKETS */
 
 int
 uiomove(cp, n, uio)
@@ -133,16 +211,100 @@ out:
 	return (error);
 }
 
-#ifdef ENABLE_VFS_IOOPT
+#if defined(ENABLE_VFS_IOOPT) || defined(ZERO_COPY_SOCKETS)
 /*
  * Experimental support for zero-copy I/O
  */
+static int
+userspaceco(cp, cnt, uio, obj, disposable)
+	caddr_t cp;
+	u_int cnt;
+	struct uio *uio;
+	struct vm_object *obj;
+	int disposable;
+{
+	struct iovec *iov;
+	int error;
+
+	iov = uio->uio_iov;
+
+#ifdef ZERO_COPY_SOCKETS
+
+	if (uio->uio_rw == UIO_READ) {
+		if ((so_zero_copy_receive != 0)
+		 && (obj != NULL)
+		 && ((cnt & PAGE_MASK) == 0)
+		 && ((((intptr_t) iov->iov_base) & PAGE_MASK) == 0)
+		 && ((uio->uio_offset & PAGE_MASK) == 0)
+		 && ((((intptr_t) cp) & PAGE_MASK) == 0)
+		 && (obj->type == OBJT_DEFAULT)
+		 && (disposable != 0)) {
+			/* SOCKET: use page-trading */
+			/*
+			 * We only want to call vm_pgmoveco() on
+			 * disposeable pages, since it gives the
+			 * kernel page to the userland process.
+			 */
+			error =	vm_pgmoveco(&curproc->p_vmspace->vm_map,
+					    obj, (vm_offset_t)cp, 
+					    (vm_offset_t)iov->iov_base);
+
+			/*
+			 * If we get an error back, attempt
+			 * to use copyout() instead.  The
+			 * disposable page should be freed
+			 * automatically if we weren't able to move
+			 * it into userland.
+			 */
+			if (error != 0)
+				error = copyout(cp, iov->iov_base, cnt);
+#ifdef ENABLE_VFS_IOOPT
+		} else if ((vfs_ioopt != 0)
+		 && ((cnt & PAGE_MASK) == 0)
+		 && ((((intptr_t) iov->iov_base) & PAGE_MASK) == 0)
+		 && ((uio->uio_offset & PAGE_MASK) == 0)
+		 && ((((intptr_t) cp) & PAGE_MASK) == 0)) {
+			error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
+					   uio->uio_offset, cnt,
+					   (vm_offset_t) iov->iov_base, NULL);
+#endif /* ENABLE_VFS_IOOPT */
+		} else {
+			error = copyout(cp, iov->iov_base, cnt);
+		}
+	} else {
+		error = copyin(iov->iov_base, cp, cnt);
+	}
+#else /* ZERO_COPY_SOCKETS */
+	if (uio->uio_rw == UIO_READ) {
+#ifdef ENABLE_VFS_IOOPT
+		if ((vfs_ioopt != 0)
+		 && ((cnt & PAGE_MASK) == 0)
+		 && ((((intptr_t) iov->iov_base) & PAGE_MASK) == 0)
+		 && ((uio->uio_offset & PAGE_MASK) == 0)
+		 && ((((intptr_t) cp) & PAGE_MASK) == 0)) {
+			error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
+					   uio->uio_offset, cnt,
+					   (vm_offset_t) iov->iov_base, NULL);
+		} else
+#endif /* ENABLE_VFS_IOOPT */
+		{
+			error = copyout(cp, iov->iov_base, cnt);
+		}
+	} else {
+		error = copyin(iov->iov_base, cp, cnt);
+	}
+#endif /* ZERO_COPY_SOCKETS */
+
+	return (error);
+}
+
 int
-uiomoveco(cp, n, uio, obj)
+uiomoveco(cp, n, uio, obj, disposable)
 	caddr_t cp;
 	int n;
 	struct uio *uio;
 	struct vm_object *obj;
+	int disposable;
 {
 	struct iovec *iov;
 	u_int cnt;
@@ -169,23 +331,9 @@ uiomoveco(cp, n, uio, obj)
 		case UIO_USERSPACE:
 			if (ticks - PCPU_GET(switchticks) >= hogticks)
 				uio_yield();
-			if (uio->uio_rw == UIO_READ) {
-#ifdef ENABLE_VFS_IOOPT
-				if (vfs_ioopt && ((cnt & PAGE_MASK) == 0) &&
-					((((intptr_t) iov->iov_base) & PAGE_MASK) == 0) &&
-					((uio->uio_offset & PAGE_MASK) == 0) &&
-					((((intptr_t) cp) & PAGE_MASK) == 0)) {
-						error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
-								uio->uio_offset, cnt,
-								(vm_offset_t) iov->iov_base, NULL);
-				} else
-#endif
-				{
-					error = copyout(cp, iov->iov_base, cnt);
-				}
-			} else {
-				error = copyin(iov->iov_base, cp, cnt);
-			}
+
+			error = userspaceco(cp, cnt, uio, obj, disposable);
+
 			if (error)
 				return (error);
 			break;
@@ -208,6 +356,9 @@ uiomoveco(cp, n, uio, obj)
 	}
 	return (0);
 }
+#endif /* ENABLE_VFS_IOOPT || ZERO_COPY_SOCKETS */
+
+#ifdef ENABLE_VFS_IOOPT
 
 /*
  * Experimental support for zero-copy I/O
@@ -277,7 +428,7 @@ uioread(n, uio, obj, nread)
 	}
 	return error;
 }
-#endif
+#endif /* ENABLE_VFS_IOOPT */
 
 /*
  * Give next character to user as result of read.

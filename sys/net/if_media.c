@@ -303,8 +303,10 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 
 		if (ifmr->ifm_count != 0) {
 			kptr = (int *)malloc(ifmr->ifm_count * sizeof(int),
-			    M_TEMP, M_WAITOK);
+			    M_TEMP, M_NOWAIT);
 
+			if (kptr == NULL)
+				return (ENOMEM);
 			/*
 			 * Get the media words from the interface's list.
 			 */
