@@ -6,11 +6,12 @@ SUBDIR=	aha al ax ccd cd9660 coda dm fdesc fxp if_disc if_ppp if_sl if_tun \
 	ipfw kernfs md mfs mii msdos mx netgraph nfs ntfs nullfs pn portal \
 	procfs rl sf sis sk ste ti tl umapfs union vn vr wb xl
 
+SUBDIR+=usb ugen uhid ukbd ulpt ums umodem umass
+
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=amr bktr coff fpu gnufpu ibcs2 linux mlx ncp nwfs splash streams \
 	svr4 syscons vesa vinum
-SUBDIR+=ugen uhid ukbd ulpt ums umodem umass
 .endif
 
 .include <bsd.subdir.mk>
