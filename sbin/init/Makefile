@@ -17,3 +17,19 @@ LDADD=	-lutil -L${SCRYPTOBJDIR} -lscrypt
 .endif
 
 .include <bsd.prog.mk>
+
+.if exists(${.OBJDIR}/../../lib/libcrypt)
+SCRYPTOBJDIR=	${.OBJDIR}/../../lib/libcrypt
+.else
+SCRYPTOBJDIR=	${.CURDIR}/../../lib/libcrypt
+.endif
+
+.if exists (${.CURDIR}/../../secure)
+
+.if exists(${.OBJDIR}/../../secure/lib/libcrypt)
+DESCRYPTOBJDIR=	${.OBJDIR}/../../secure/lib/libcrypt
+.else
+DESCRYPTOBJDIR=	${.CURDIR}/../../secure/lib/libcrypt
+.endif
+
+.endif
