@@ -154,6 +154,7 @@ EXTERN bitstr_t *mem_init;
 EXTERN bitstr_t *io_avail;
 EXTERN bitstr_t *io_init;
 EXTERN int pccard_init_sleep;			/* Time to sleep on init */
+EXTERN int use_kern_irq;
 EXTERN int debug_level;
 
 /* cardd.c functions */
