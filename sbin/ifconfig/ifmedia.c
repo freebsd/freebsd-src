@@ -164,8 +164,6 @@ media_status(s, info)
 			/* XXX: Different value for adhoc? */
 			if (ifmr.ifm_status & IFM_ACTIVE)
 				printf("associated");
-			else if (ifmr.ifm_status & IFM_AVALID)
-				printf("ad hoc");
 			else
 				printf("no carrier");
 			break;
