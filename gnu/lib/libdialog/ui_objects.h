@@ -59,6 +59,7 @@ typedef struct {
     WINDOW	*win;		/* the windows it's contained in */
     char	*title;		/* the title of the list */
     char 	**name;		/* the names of the list */
+    int		*seld;		/* the currently selected names */
     char	*elt;		/* the current element in the list list[sel] */
     int		x, y, w, h, n;	/* dimensions of list and # of elements (n) */
     int		scroll, sel;	/* current position in the list */
@@ -95,6 +96,9 @@ ListObj 	*NewListObj(WINDOW *win, char *title, char **list,
 void		UpdateListObj(ListObj *lo, char **list, int n);
 int		SelectListObj(ListObj *lo);
 void		DelListObj(ListObj *obj);
+void            MarkCurrentListObj(ListObj *lo);
+void            MarkAllListObj(ListObj *lo);
+void            UnMarkAllListObj(ListObj *lo);
 
 void		RefreshButtonObj(ButtonObj *bo);
 ButtonObj 	*NewButtonObj(WINDOW *win, char *title, int *pushed, 

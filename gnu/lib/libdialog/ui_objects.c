@@ -355,9 +355,13 @@ DrawNames(ListObj *lo)
     x = lo->x + 1;
     y = lo->y + 2;
     h = lo->h - 2;
-    wattrset(lo->win, item_attr);
     for (i=lo->scroll; i<lo->n && i<lo->scroll+h; i++) {
 	wmove(lo->win, y+i-lo->scroll, x);
+	if (lo->seld[i]) {
+	    wattrset(lo->win, A_BOLD);
+	} else {
+	    wattrset(lo->win, item_attr);
+	}
 	if (strlen(lo->name[i]) > lo->w-2) {
 	    strncpy(tmp, lo->name[i], lo->w-2);
 	    tmp[lo->w - 2] = 0;
@@ -367,6 +371,7 @@ DrawNames(ListObj *lo)
 	    for (j=strlen(lo->name[i]); j<lo->w-2; j++) waddstr(lo->win, " ");
 	}
     }
+    wattrset(lo->win, item_attr);
     while (i<lo->scroll+h) {
 	wmove(lo->win, y+i-lo->scroll, x);
 	for (j=0; j<lo->w-2; j++) waddstr(lo->win, " ");
@@ -411,20 +416,33 @@ NewListObj(WINDOW *win, char *title, char **list, char *listelt, int y, int x,
  */
 {
     ListObj	*lo;
+    int		i;
 
     /* Initialize a new object */
     lo = (ListObj *) malloc( sizeof(ListObj) );
     if (!lo) {
-	printf("NewListObj: Error malloc'ing ListObj\n");
+	fprintf(stderr, "NewListObj: Error malloc'ing ListObj\n");
 	exit(-1);
     }
     lo->title = (char *) malloc( strlen(title) + 1);
     if (!lo->title) {
-	printf("NewListObj: Error malloc'ing lo->title\n");
+	fprintf(stderr, "NewListObj: Error malloc'ing lo->title\n");
 	exit(-1);
     }
     strcpy(lo->title, title);
     lo->name = list;
+    if (n>0) {
+        lo->seld = (int *) malloc( n * sizeof(int) );
+        if (!lo->seld) {
+            fprintf(stderr, "NewListObj: Error malloc'ing lo->seld\n");
+            exit(-1);
+        }
+        for (i=0; i<n; i++) {
+            lo->seld[i] = FALSE;
+        }
+    } else {
+        lo->seld = NULL;
+    }
     lo->y = y;
     lo->x = x;
     lo->w = w;
@@ -445,22 +463,30 @@ void
 UpdateListObj(ListObj *lo, char **list, int n)
 /*
  * Desc: Update the list in the listobject with the provided list
- * Pre:  lo->name "has been allocated" 
- *	 (A i: 0<=i<lo->n: "lo->name[i] has been allocated")
+ * Pre:  lo->name "has been freed"
+ *	 "(A i: 0<=i<lo->n: "lo->name[i] has been freed")"
  */
 {
     int i;
 
-    /* Free the current names */
-    if (lo->name != NULL) {
-	for (i=0; i<lo->n; i++) {
-	    free(lo->name[i]);
-	}
-	free(lo->name);
+    if (lo->seld) {
+	free(lo->seld);
     }
 
     /* Rewrite the list in the object */
     lo->name = list;
+    if (n>0) {
+	lo->seld = (int *) malloc( n * sizeof(int) );
+	if (!lo->seld) {
+	    fprintf(stderr, "UpdateListObj: Error malloc'ing lo->seld\n");
+	    exit(-1);
+	}
+	for (i=0; i<n; i++) {
+	    lo->seld[i] = FALSE;
+	}
+    } else {
+        lo->seld = NULL;
+    }    
     lo->n = n;
     lo->scroll = 0;
     lo->sel = 0;
@@ -478,7 +504,7 @@ SelectListObj(ListObj *lo)
  * Pre:	 lo->n >= 1
  */
 {
-    int 	key, sel_x, sel_y;
+    int 	key, sel_x, sel_y, quit;
     char	tmp[MAXPATHLEN];
     char	perc[4];
 
@@ -495,11 +521,16 @@ SelectListObj(ListObj *lo)
     waddstr(lo->win, lo->name[lo->sel]);
 
     key = wgetch(lo->win);
+    quit = FALSE;
     while ((key != '\t') && (key != '\n') && (key != '\r') 
-	   && (key != ESC) && (key != KEY_F(1)) && (key != '?')) {
+	   && (key != ESC) && (key != KEY_F(1)) && (key != '?') && !quit) {
 	/* first draw current item in normal video */
 	wmove(lo->win, sel_y, sel_x);
-	wattrset(lo->win, item_attr);
+	if (lo->seld[lo->sel]) {
+	    wattrset(lo->win, A_BOLD);
+	} else {
+	    wattrset(lo->win, item_attr);
+	}
 	if (strlen(lo->name[lo->sel]) > lo->w - 2) {
 	    strncpy(tmp, lo->name[lo->sel], lo->w - 2);
 	    tmp[lo->w - 2] = 0;
@@ -585,6 +616,9 @@ SelectListObj(ListObj *lo)
 	    DrawNames(lo);
 	    wrefresh(lo->win);
 	    break;
+	default:
+	    quit = TRUE;
+	    break;
 	}
 	/* Draw % indication */
 	sprintf(perc, "(%3d%%)", MIN(100, (int) 
@@ -607,7 +641,7 @@ SelectListObj(ListObj *lo)
 	} else {
 	    waddstr(lo->win, lo->name[lo->sel]);
 	}
-	key = wgetch(lo->win);
+	if (!quit) key = wgetch(lo->win);
     }
 		
     if (key == ESC) {
@@ -632,19 +666,56 @@ DelListObj(ListObj *lo)
  * Desc: Free the space occupied by the listobject
  */
 {
-    int i;
-
     free(lo->title);
-    if (lo->name != NULL) {
-	for (i=0; i<lo->n; i++) {
-	    free(lo->name[i]);
-	}
-	free(lo->name);
-    }
-	
+    if (lo->seld != NULL) free(lo->seld);
     free(lo);
 
+    return;
 } /* DelListObj() */
+
+void
+MarkCurrentListObj(ListObj *lo)
+/* 
+ * Desc: mark the current item for the selection list 
+ */
+{
+    lo->seld[lo->sel] = !(lo->seld[lo->sel]);
+    DrawNames(lo);
+
+    return;
+} /* MarkCurrentListObj() */
+
+void
+MarkAllListObj(ListObj *lo)
+/*
+ * Desc: mark all items
+ */
+{
+    int i;
+
+    for (i=0; i<lo->n; i++) {
+        lo->seld[i] = TRUE;
+    }
+    DrawNames(lo);
+
+    return;
+} /* MarkAllListObj() */
+
+void
+UnMarkAllListObj(ListObj *lo)
+/*
+ * Desc: unmark all items
+ */
+{
+    int i;
+    
+    for (i=0; i<lo->n; i++) {
+        lo->seld[i] = FALSE;
+    }
+    DrawNames(lo);
+
+    return;
+} /* UnMarkAllListObj() */
 
 
 /***********************************************************************
