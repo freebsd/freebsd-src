@@ -2103,7 +2103,9 @@ umass_cam_rescan(void *addr)
 	 * is disconnected before umass_cam_rescan has been able to run the
 	 * driver might bomb.
 	 */
+#ifdef UMASS_DEBUG
 	struct umass_softc *sc = (struct umass_softc *) addr;
+#endif
 	struct cam_path *path;
 	union ccb *ccb = malloc(sizeof(union ccb), M_USBDEV, M_WAITOK);
 
