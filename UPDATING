@@ -17,6 +17,12 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20021202:
+	The recent binutils upgrade marks a kernel flag day on
+	sparc64: modules built with the old binutils will not work
+	with new kernels and vice versa. Mismatches will result in
+	panics.  Make sure your kernel and modules are in sync.
+
 20021029:
 	The value of IPPROTO_DIVERT has changed.  Make sure to keep
 	your kernel, netstat, natd and any third-party DIVERT
