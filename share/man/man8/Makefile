@@ -9,15 +9,12 @@ MAN=	adding_user.8 \
 	intro.8 \
 	picobsd.8 \
 	rc.8 \
+	rc.sendmail.8 \
 	sticky.8 \
 	yp.8
 
 .if exists(${.CURDIR}/../../../release/sysinstall)
 MAN+=	sysinstall.8
-.endif
-
-.if !defined(NO_SENDMAIL)
-MAN+=	rc.sendmail.8
 .endif
 
 MLINKS=	rc.8 rc.early.8 rc.8 rc.serial.8 rc.8 rc.pccard.8 rc.8 rc.network.8
