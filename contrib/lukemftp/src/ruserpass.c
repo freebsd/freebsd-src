@@ -33,7 +33,26 @@
  * SUCH DAMAGE.
  */
 
-#include "lukemftp.h"
+#include <sys/cdefs.h>
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)ruserpass.c	8.4 (Berkeley) 4/27/95";
+#else
+__RCSID("$NetBSD: ruserpass.c,v 1.28 2000/11/15 00:11:04 lukem Exp $");
+#endif
+#endif /* not lint */
+
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "ftp_var.h"
 

@@ -1,0 +1,64 @@
+diff -ru src.orig/cmds.c src/cmds.c
+--- src.orig/cmds.c	Sun Jun 15 22:11:43 2003
++++ src/cmds.c	Sun Jun 15 21:46:37 2003
+@@ -131,6 +131,7 @@
+ #include <string.h>
+ #include <time.h>
+ #include <unistd.h>
++#include <libutil.h>
+ 
+ #include "ftp_var.h"
+ #include "version.h"
+diff -ru src.orig/fetch.c src/fetch.c
+--- src.orig/fetch.c	Sun Jun 15 22:11:43 2003
++++ src/fetch.c	Sun Jun 15 21:46:53 2003
+@@ -69,6 +69,7 @@
+ #include <string.h>
+ #include <unistd.h>
+ #include <time.h>
++#include <libutil.h>
+ 
+ #include "ftp_var.h"
+ #include "version.h"
+Only in src: ftp.cat1
+diff -ru src.orig/progressbar.c src/progressbar.c
+--- src.orig/progressbar.c	Sun Jun 15 22:11:43 2003
++++ src/progressbar.c	Sun Jun 15 21:50:48 2003
+@@ -50,6 +50,7 @@
+  */
+ #include <sys/types.h>
+ #include <sys/param.h>
++#include <sys/time.h>
+ 
+ #include <err.h>
+ #include <errno.h>
+@@ -57,10 +58,12 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <time.h>
+-#include <tzfile.h>
+ #include <unistd.h>
+ 
+ #include "progressbar.h"
++
++#define SECSPERHOUR	60
++#define SECSPERDAY	((long)60 * 60 * 24)
+ 
+ #if !defined(NO_PROGRESS)
+ /*
+diff -ru src.orig/util.c src/util.c
+--- src.orig/util.c	Sun Jun 15 22:11:44 2003
++++ src/util.c	Sun Jun 15 21:51:31 2003
+@@ -101,10 +101,11 @@
+ #include <string.h>
+ #include <termios.h>
+ #include <time.h>
+-#include <tzfile.h>
+ #include <unistd.h>
+ 
+ #include "ftp_var.h"
++
++#define TM_YEAR_BASE	1900
+ 
+ /*
+  * Connect to peer server and auto-login, if possible.
