@@ -140,8 +140,7 @@ m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
 	mac_create_mbuf_from_mbuf(from, to);
 #endif
 	SLIST_INIT(&to->m_pkthdr.tags);
-	return (m_tag_copy_chain(to, from, (how & M_TRYWAIT) ? M_WAITOK :
-	    M_NOWAIT));
+	return (m_tag_copy_chain(to, from, MBTOM(how)));
 }
 
 /*
