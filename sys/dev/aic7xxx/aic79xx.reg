@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#69 $"
+VERSION = "$Id: aic79xx.reg,v 1.13 2003/05/26 21:26:51 gibbs Exp $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -1377,7 +1377,10 @@ register LUNLEN {
 	address			0x030
 	access_mode	RW
 	modes		M_CFG
+	mask		ILUNLEN	0x0F
+	mask		TLUNLEN	0xF0
 }
+const LUNLEN_SINGLE_LEVEL_LUN 0xF
 
 /*
  * CDB Limit
@@ -3797,32 +3800,8 @@ scb {
 		size	4
 		alias	SCB_NEXT_COMPLETE
 	}
-	SCB_DATAPTR {
-		size	8
-	}
-	SCB_DATACNT {
-		/*
-		 * The last byte is really the high address bits for
-		 * the data address.
-		 */
-		size	4
-		field	SG_LAST_SEG		0x80	/* In the fourth byte */
-		field	SG_HIGH_ADDR_BITS	0x7F	/* In the fourth byte */
-	}
-	SCB_SGPTR {
-		size	4
-		field	SG_STATUS_VALID	0x04	/* In the first byte */
-		field	SG_FULL_RESID	0x02	/* In the first byte */
-		field	SG_LIST_NULL	0x01	/* In the first byte */
-	}
-	SCB_BUSADDR {
-		size	4
-	}
-	SCB_NEXT {
-		alias	SCB_NEXT_SCB_BUSADDR
-		size	2
-	}
-	SCB_NEXT2 {
+	SCB_TAG {
+		alias	SCB_FIFO_USE_COUNT
 		size	2
 	}
 	SCB_CONTROL {
@@ -3859,8 +3838,32 @@ scb {
 	SCB_TASK_MANAGEMENT {
 		size	1
 	}
-	SCB_TAG {
-		alias	SCB_FIFO_USE_COUNT
+	SCB_DATAPTR {
+		size	8
+	}
+	SCB_DATACNT {
+		/*
+		 * The last byte is really the high address bits for
+		 * the data address.
+		 */
+		size	4
+		field	SG_LAST_SEG		0x80	/* In the fourth byte */
+		field	SG_HIGH_ADDR_BITS	0x7F	/* In the fourth byte */
+	}
+	SCB_SGPTR {
+		size	4
+		field	SG_STATUS_VALID	0x04	/* In the first byte */
+		field	SG_FULL_RESID	0x02	/* In the first byte */
+		field	SG_LIST_NULL	0x01	/* In the first byte */
+	}
+	SCB_BUSADDR {
+		size	4
+	}
+	SCB_NEXT {
+		alias	SCB_NEXT_SCB_BUSADDR
+		size	2
+	}
+	SCB_NEXT2 {
 		size	2
 	}
 	SCB_SPARE {
