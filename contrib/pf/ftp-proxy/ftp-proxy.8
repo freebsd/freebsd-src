@@ -27,6 +27,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd August 17, 2001
 .Dt FTP-PROXY 8
 .Os
@@ -182,7 +184,7 @@ must then be configured to run
 .Nm
 on the port from above using
 .Bd -literal -offset 2n
-127.0.0.1:8021 stream tcp nowait root /usr/libexec/ftp-proxy ftp-proxy
+ftp-proxy stream tcp nowait root /usr/libexec/ftp-proxy ftp-proxy
 .Ed
 .Pp
 in
