@@ -19,13 +19,16 @@
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  *
- *      $Id: ultra14f.c,v 1.20 1994/08/13 03:50:17 wollman Exp $
+ * today: Fri Jun  2 17:21:03 EST 1994
+ * added 24F support  ++sg
+ *
+ *      $Id: ultra14f.c,v 1.21 1994/08/18 23:36:40 phk Exp $
  */
 
 #include <sys/types.h>
 
 #ifdef	KERNEL			/* don't laugh.. this compiles to a program too.. look */
-#include "uha.h"
+#include <uha.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,10 +53,6 @@
 #define NUHA 1
 #endif /*KERNEL */
 
-#ifndef NetBSD
-typedef timeout_func_t timeout_t;
-#endif
-
 typedef struct {
 	unsigned char addr[4];
 } physaddr;
@@ -77,40 +76,51 @@ extern int hz;
 #define UHA_NSEG        33	/* number of dma segments supported */
 
 /************************** board definitions *******************************/
-/*
- * I/O Port Interface
- */
-#define UHA_LMASK              (0x000)	/* local doorbell mask reg */
-#define UHA_LINT               (0x001)	/* local doorbell int/stat reg */
-#define UHA_SMASK              (0x002)	/* system doorbell mask reg */
-#define UHA_SINT               (0x003)	/* system doorbell int/stat reg */
-#define UHA_ID0                (0x004)	/* product id reg 0 */
-#define UHA_ID1                (0x005)	/* product id reg 1 */
-#define UHA_CONF1              (0x006)	/* config reg 1 */
-#define UHA_CONF2              (0x007)	/* config reg 2 */
-#define UHA_OGM0               (0x008)	/* outgoing mail ptr 0 least sig */
-#define UHA_OGM1               (0x009)	/* outgoing mail ptr 1 least mid */
-#define UHA_OGM2               (0x00a)	/* outgoing mail ptr 2 most mid  */
-#define UHA_OGM3               (0x00b)	/* outgoing mail ptr 3 most sig  */
-#define UHA_ICM0               (0x00c)	/* incoming mail ptr 0 */
-#define UHA_ICM1               (0x00d)	/* incoming mail ptr 1 */
-#define UHA_ICM2               (0x00e)	/* incoming mail ptr 2 */
-#define UHA_ICM3               (0x00f)	/* incoming mail ptr 3 */
+struct uha_reg
+{
+	int id;			/* product id reg		*/
+	int type;		/* product type reg		*/
+	int ectl;		/* EISA expansion control bits	*/
+	int config;		/* configuration bits 		*/
+	int lmask;		/* local doorbell mask reg	*/
+	int lint;		/* local doorbell int/stat reg	*/
+	int smask;		/* system doorbell mask reg	*/
+	int sint;		/* system doorbell int/stat reg	*/
+	int ogmcmd;		/* outgoing mail command	*/
+	int ogmptr;		/* outgoing mail ptr		*/
+	int icmcmd;		/* incoming mail command	*/
+	int icmptr;		/* incoming mail ptr		*/
+} *uhareg[NUHA];
 
-/*
- * UHA_LMASK bits (read only) 
- */
+struct uha_bits
+{
+	/* uha_lint (read) */
+	unsigned char ldip;
 
-#define UHA_LDIE                0x80	/* local doorbell int enabled */
-#define UHA_SRSTE               0x40	/* soft reset enabled */
-#define UHA_ABORTEN             0x10	/* abort MSCP enabled */
-#define UHA_OGMINTEN            0x01	/* outgoing mail interrupt enabled */
+	/* uha_lint (write) */
+	unsigned char adrst;
+	unsigned char sbrst;
+	unsigned char asrst;
+	unsigned char abort;
+	unsigned char ogmint;
+
+	/* uha_sint (read) */
+	unsigned char sintp;
+	unsigned char abort_succ;
+	unsigned char abort_fail;
+
+	/* uha_sint (write) */
+	unsigned char abort_ack;
+	unsigned char icm_ack;
+} *uhabits[NUHA];
+
 
 /*
  * UHA_LINT bits (read)
  */
 
 #define UHA_LDIP                0x80	/* local doorbell int pending */
+#define U24_LDIP		0x02
 
 /*
  * UHA_LINT bits (write)
@@ -121,6 +131,11 @@ extern int hz;
 #define UHA_ASRST               0x60	/* adapter and scsi reset */
 #define UHA_ABORT               0x10	/* abort MSCP */
 #define UHA_OGMINT              0x01	/* tell adapter to get mail */
+#define U24_SBRST		0x40	/* scsi bus reset */
+#define U24_ADRST		0x80	/* adapter soft reset */
+#define U24_ASRST		0xc0	/* adapter and scsi reset */
+#define U24_ABORT		0x10	/* same? */
+#define U24_OGMINT		0x02	/* enable OGM interrupt */
 
 /*
  * UHA_SMASK bits (read)
@@ -145,6 +160,9 @@ extern int hz;
 #define UHA_SINTP               0x80	/* system doorbell int pending */
 #define UHA_ABORT_SUCC          0x10	/* abort MSCP successful */
 #define UHA_ABORT_FAIL          0x18	/* abort MSCP failed */
+#define U24_SINTP		0x02	/* system doorbell int pending */
+#define U24_ABORT_SUCC		0x10	/* same? */
+#define U24_ABORT_FAIL		0x18	/* same? */
 
 /*
  * UHA_SINT bits (write)
@@ -152,6 +170,8 @@ extern int hz;
 
 #define UHA_ABORT_ACK           0x18	/* acknowledge status and clear */
 #define UHA_ICM_ACK             0x01	/* acknowledge ICM and clear */
+#define U24_ABORT_ACK		0x18	/* same */
+#define U24_ICM_ACK		0x02	/* 24F acknowledge ICM and clear */
 
 /* 
  * UHA_CONF1 bits (read only)
@@ -164,6 +184,9 @@ extern int hz;
 #define UHA_IRQ14               0x10	/* 14 */
 #define UHA_IRQ11               0x20	/* 11 */
 #define UHA_IRQ10               0x30	/* 10 */
+
+#define EISA_CONFIG		0x0c80	/* Configuration base port */
+#define EISA_DISABLE		0x01	/* EISA disable bit */
 
 /*
  * ha_status error codes
@@ -227,7 +250,8 @@ struct mscp {
 
 struct uha_data {
 	int     flags;
-#define UHA_INIT        0x01;
+#define UHA_INIT        0x01
+#define UHA_24F		0x02
 	int     baseport;
 	struct mscp *mscphash[MSCP_HASH_SIZE];
 	struct mscp *free_mscp;
@@ -242,7 +266,7 @@ int     uhaprobe();
 int     uha_attach();
 int     uhaintr();
 int32   uha_scsi_cmd();
-void    uha_timeout(caddr_t);
+void    uha_timeout(caddr_t, int);
 void	uha_free_mscp();
 int     uha_abort();
 void    uhaminphys();
@@ -311,10 +335,12 @@ uha_send_mbox(int unit, struct mscp *mscp)
 	struct uha_data *uha = uhadata[unit];
 	int     port = uha->baseport;
 	int     spincount = 100000;	/* 1s should be enough */
+	struct uha_reg *ur = uhareg[unit];
+	struct uha_bits *ub = uhabits[unit];
 	int     s = splbio();
 
 	while (--spincount) {
-		if ((inb(port + UHA_LINT) & UHA_LDIP) == 0)
+		if ((inb(ur->lint) & ub->ldip) == 0)
 			break;
 		DELAY(100);
 	}
@@ -322,8 +348,9 @@ uha_send_mbox(int unit, struct mscp *mscp)
 		printf("uha%d: uha_send_mbox, board not responding\n", unit);
 		Debugger("ultra14f");
 	}
-	outl(port + UHA_OGM0, KVTOPHYS(mscp));
-	outb(port + UHA_LINT, (UHA_OGMINT));
+	outl(ur->ogmptr, KVTOPHYS(mscp)); 
+	if (uha->flags & UHA_24F) outb(ur->ogmcmd, 1);
+	outb(ur->lint, ub->ogmint);
 	splx(s);
 }
 
@@ -337,10 +364,12 @@ uha_abort(int unit, struct mscp *mscp)
 	int     port = uha->baseport;
 	int     spincount = 100;	/* 1 mSec */
 	int     abortcount = 200000;	/*2 secs */
+	struct uha_reg *ur = uhareg[unit];
+	struct uha_bits *ub = uhabits[unit];
 	int     s = splbio();
 
 	while (--spincount) {
-		if ((inb(port + UHA_LINT) & UHA_LDIP) == 0)
+		if ((inb(ur->lint) & ub->ldip) == 0)
 			break;
 		DELAY(10);
 	}
@@ -348,11 +377,12 @@ uha_abort(int unit, struct mscp *mscp)
 		printf("uha%d: uha_abort, board not responding\n", unit);
 		Debugger("ultra14f");
 	}
-	outl(port + UHA_OGM0, KVTOPHYS(mscp));
-	outb(port + UHA_LINT, UHA_ABORT);
+	outl(ur->ogmptr,KVTOPHYS(mscp));
+	if (uha->flags & UHA_24F) outb(ur->ogmcmd, 1);
+	outb(ur->lint, ub->abort);
 
 	while (--abortcount) {
-		if (inb(port + UHA_SINT) & UHA_ABORT_FAIL)
+		if (inb(ur->sint) & ub->abort_fail)
 			break;
 		DELAY(10);
 	}
@@ -360,12 +390,12 @@ uha_abort(int unit, struct mscp *mscp)
 		printf("uha%d: uha_abort, board not responding\n", unit);
 		Debugger("ultra14f");
 	}
-	if ((inb(port + UHA_SINT) & 0x10) != 0) {
-		outb(port + UHA_SINT, UHA_ABORT_ACK);
+	if ((inb(ur->sint) & 0x10) != 0) {
+		outb(ur->sint, ub->abort_ack);
 		splx(s);
 		return (1);
 	} else {
-		outb(port + UHA_SINT, UHA_ABORT_ACK);
+		outb(ur->sint, ub->abort_ack);
 		splx(s);
 		return (0);
 	}
@@ -381,11 +411,13 @@ uha_poll(int unit, int wait)
 {
 	struct	uha_data *uha = uhadata[unit];
 	int	port = uha->baseport;
-	int	stport = port + UHA_SINT;
+	struct uha_reg *ur = uhareg[unit];
+	struct uha_bits *ub = uhabits[unit];
+	int	stport = ur->sint;
 
       retry:
 	while (--wait) {
-		if (inb(stport) & UHA_SINTP)
+		if (inb(stport) & ub->sintp)
 			break;
 		DELAY(1000);	/* 1 mSec per loop */
 	}
@@ -408,6 +440,8 @@ uhaprobe(dev)
 {
 	int     unit = uha_unit;
 	struct uha_data *uha;
+	struct uha_reg *ur;
+	struct uha_bits *ub;
 
 	dev->id_unit = unit;
 
@@ -433,20 +467,40 @@ uhaprobe(dev)
 		return 0;
 	}
 	bzero(uha, sizeof(struct uha_data));
+
+	ur = malloc(sizeof(struct uha_reg), M_TEMP, M_NOWAIT);
+	if (!ur) {
+		printf("uha%d: cannot malloc!\n", unit);
+		return 0;
+	}
+	bzero(ur, sizeof(struct uha_reg));
+
+	ub = malloc(sizeof(struct uha_bits), M_TEMP, M_NOWAIT);
+	if (!ub) {
+		printf("uha%d: cannot malloc!\n", unit);
+		return 0;
+	}
+	bzero(ub, sizeof(struct uha_bits));
+
+	uhareg[unit] = ur;
+	uhabits[unit] = ub;
 	uhadata[unit] = uha;
 	uha->baseport = dev->id_iobase;
 	/*
 	 * Try initialise a unit at this location
 	 * sets up dma and bus speed, loads uha->vect
 	 */
-	if (uha_init(unit) != 0) {
+	if (uha_init(unit) != 0 && uha24_init(unit) != 0) {
 		uhadata[unit] = NULL;
 		free(uha, M_TEMP);
+		free(ur, M_TEMP);
+		free(ub, M_TEMP);
 		return (0);
 	}
 	/* if it's there put in its interrupt and DRQ vectors */
 	dev->id_irq = (1 << uha->vect);
 	dev->id_drq = uha->dma;
+	dev->id_iobase = uha->baseport;
 
 	uha_unit++;
 	return (16);
@@ -501,6 +555,8 @@ uhaintr(unit)
 	struct mscp *mscp;
 	u_char  uhastat;
 	unsigned long int mboxval;
+	struct uha_reg *ur = uhareg[unit];
+	struct uha_bits *ub = uhabits[unit];
 
 	int     port = uha->baseport;
 
@@ -508,14 +564,14 @@ uhaintr(unit)
 	printf("uhaintr ");
 #endif /*UHADEBUG */
 
-	while (inb(port + UHA_SINT) & UHA_SINTP) {
+	while ((uhastat = inb(ur->sint)) & ub->sintp) {
 		/*
 		 * First get all the information and then
 		 * acknowledge the interrupt
 		 */
-		uhastat = inb(port + UHA_SINT);
-		mboxval = inl(port + UHA_ICM0);
-		outb(port + UHA_SINT, UHA_ICM_ACK);
+		mboxval = inl(ur->icmptr);
+		outb(ur->sint, ub->icm_ack);
+		if (uha->flags & UHA_24F) outb(ur->icmcmd, 0);
 
 #ifdef	UHADEBUG
 		printf("status = 0x%x ", uhastat);
@@ -529,7 +585,7 @@ uhaintr(unit)
 			printf("uha: BAD MSCP RETURNED\n");
 			return (0);	/* whatever it was, it'll timeout */
 		}
-		untimeout((timeout_t)uha_timeout, (caddr_t)mscp);
+		untimeout(uha_timeout, (caddr_t)mscp);
 
 		uha_done(unit, mscp);
 	}
@@ -735,17 +791,44 @@ uha_init(unit)
 	int     port = uha->baseport;
 	int     i;
 	int     resetcount = 4000;	/* 4 secs? */
+	struct uha_reg *ur = uhareg[unit];
+	struct uha_bits *ub = uhabits[unit];
 
-	model = inb(port + UHA_ID0);
-	submodel = inb(port + UHA_ID1);
-	if ((model != 0x56) & (submodel != 0x40)) {
-		printf("uha%d: uha_init, board not responding\n", unit);
-		return (ENXIO);
-	}
+	/*
+	 *  Prepare to use a 14/34F.
+	 */
+	ur->id		= port + 0x04;
+	ur->type	= port + 0x00;		/* 24F only */
+	ur->ectl	= port + 0x00;		/* 24F only */
+	ur->config	= port + 0x06;		/* 0-1 for 14F */
+	ur->lmask	= port + 0x00;
+	ur->lint	= port + 0x01;
+	ur->smask	= port + 0x02;
+	ur->sint	= port + 0x03;
+	ur->ogmcmd	= port + 0x00;		/* 24F only */
+	ur->ogmptr	= port + 0x08;
+	ur->icmcmd	= port + 0x00;		/* 24F only */
+	ur->icmptr	= port + 0x0c;
+
+	ub->ldip	= UHA_LDIP;
+	ub->adrst	= UHA_ADRST;
+	ub->sbrst	= UHA_SBRST;
+	ub->asrst	= UHA_ASRST;
+	ub->abort	= UHA_ABORT;
+	ub->ogmint	= UHA_OGMINT;
+	ub->sintp	= UHA_SINTP;
+	ub->abort_succ	= UHA_ABORT_SUCC;
+	ub->abort_fail	= UHA_ABORT_FAIL;
+	ub->abort_ack	= UHA_ABORT_ACK;
+	ub->icm_ack	= UHA_ICM_ACK;
+
+	model = inb(ur->id);
+	submodel = inb(ur->id + 1);
+	if ((model != 0x56) & (submodel != 0x40)) return(ENXIO);
 	printf("uha%d: reading board settings, ", unit);
 
-	config_reg1 = inb(port + UHA_CONF1);
-	config_reg2 = inb(port + UHA_CONF2);
+	config_reg1 = inb(ur->config);
+	config_reg2 = inb(ur->config + 1);
 	dma_ch = (config_reg1 & 0xc0);
 	irq_ch = (config_reg1 & 0x30);
 	uha_id = (config_reg2 & 0x07);
@@ -796,9 +879,9 @@ uha_init(unit)
 	/*
 	 * Note that we are going and return (to probe)
 	 */
-	outb(port + UHA_LINT, UHA_ASRST);
+	outb(ur->lint, ub->asrst);
 	while (--resetcount) {
-		if (inb(port + UHA_LINT))
+		if (inb(ur->lint))
 			break;
 		DELAY(1000);	/* 1 mSec per loop */
 	}
@@ -806,9 +889,124 @@ uha_init(unit)
 		printf("uha%d: board timed out during reset\n", unit);
 		return (ENXIO);
 	}
-	outb(port + UHA_SMASK, 0x81);	/* make sure interrupts are enabled */
+	outb(ur->smask, 0x81);		/* make sure interrupts are enabled */
 	uha->flags |= UHA_INIT;
 	return (0);
+}
+  
+
+/*
+ *  Initialize an Ultrastor 24F
+ */
+int
+uha24_init(unit)
+int	unit;
+{
+  unsigned char p0, p1, p2, p3, p5, p6, p7;
+  unsigned char id[7], rev, emu, haid;
+  int slot, port, irq, i;
+  int resetcount = 4000;
+  struct uha_data *uha = uhadata[unit];
+  struct uha_reg *ur = uhareg[unit];
+  struct uha_bits *ub = uhabits[unit];
+
+  /* Search for the 24F's product ID */
+  for (slot = 1; slot < 15; slot++) {
+	/*
+	 *  Prepare to use a 24F.
+	 */
+	port = EISA_CONFIG | (slot << 12);
+	ur->id		= port + 0x00;
+	ur->type	= port + 0x02;
+	ur->ectl	= port + 0x04;
+	ur->config	= port + 0x05;		/* 0-2 for 24F */
+	ur->lmask	= port + 0x0c;
+	ur->lint	= port + 0x0d;
+	ur->smask	= port + 0x0e;
+	ur->sint	= port + 0x0f;
+	ur->ogmcmd	= port + 0x16;
+	ur->ogmptr	= port + 0x17;
+	ur->icmcmd	= port + 0x1b;
+	ur->icmptr	= port + 0x1c;
+
+	ub->ldip	= U24_LDIP;
+	ub->adrst	= U24_ADRST;
+	ub->sbrst	= U24_SBRST;
+	ub->asrst	= U24_ASRST;
+	ub->abort	= U24_ABORT;
+	ub->ogmint	= U24_OGMINT;
+	ub->sintp	= U24_SINTP;
+	ub->abort_succ	= U24_ABORT_SUCC;
+	ub->abort_fail	= U24_ABORT_FAIL;
+	ub->abort_ack	= U24_ABORT_ACK;
+	ub->icm_ack	= U24_ICM_ACK;
+
+	/* Make sure an EISA card is installed in this slot. */
+	outb(ur->id, 0xff);
+	p0 = inb(ur->id);
+	if (p0 == 0xff || (p0 & 0x80) != 0) continue;
+
+	/* It's EISA, so make sure the card is enabled. */
+	if ((inb(ur->ectl) & EISA_DISABLE) == 0) continue;
+
+	/* Found an enabled card.  Grab the product ID. */
+	p1 = inb(ur->id+1);
+	p2 = inb(ur->type);
+	p3 = inb(ur->type+1);
+	id[0] = 0x40 + ((p0 >> 2) & 0x1f);
+	id[1] = 0x40 + (((p0 & 0x03) << 3) | ((p1 >> 5) & 0x07));
+	id[2] = 0x40 + (p1 & 0x1f);
+	id[3] = "0123456789abcdef"[(p2 >> 4) & 0x0f];
+	id[4] = "0123456789abcdef"[p2 & 0x0f];
+	id[5] = "0123456789abcdef"[(p3 >> 4) & 0x0f];
+	id[6] = '\0';
+	rev = p3 & 0xf;
+
+	/* We only want the 24F product ID. */
+	if (!strcmp(id, "USC024")) break;
+  }
+  if (slot == 15) return(ENODEV);
+
+  /* We have the card!  Grab remaining config. */
+  p5 = inb(ur->config);
+  p6 = inb(ur->config+1);
+  p7 = inb(ur->config+2);
+
+  /* If the 24F is currently emulating an ISA device, leave. */
+  emu = ((p6 & 0x04) >> 1) | ((p5 & 0x08) >> 3);
+  if (emu != 3) return(ENODEV);
+
+  switch (p5 & 0xf0) {
+     case 0x10: irq = 15; break;
+     case 0x20: irq = 14; break;
+     case 0x40: irq = 11; break;
+     case 0x80: irq = 10; break;
+     default:
+	printf("uha%d: bad 24F irq\n", unit);
+	return(ENXIO);
+  }
+
+  haid = (p7 & 0x07);
+  printf("uha%d: UltraStor 24F int=%d id=%d\n", unit, irq, haid);
+
+  /* Issue SCSI and adapter reset */
+  outb(ur->lint, ub->asrst);
+  while (--resetcount) {
+	if (inb(ur->lint))
+		break;
+	DELAY(1000);	/* 1 mSec per loop */
+  }
+  if (resetcount == 0) {
+	printf("uha%d: board timed out during reset\n", unit);
+	return (ENXIO);
+  }
+  outb(ur->smask, 0xc2);	/* make sure interrupts are enabled */
+  uha->flags |= (UHA_INIT | UHA_24F);
+  uha->baseport = port;
+  uha->our_id = haid;
+  uha->vect = irq;
+  uha->dma = -1;
+  return(0);
 }
 
 #ifndef min
@@ -1050,7 +1248,7 @@ uha_scsi_cmd(xs)
 	if (!(flags & SCSI_NOMASK)) {
 		s = splbio();
 		uha_send_mbox(unit, mscp);
-		timeout((timeout_t)uha_timeout, (caddr_t)mscp, (xs->timeout * hz) / 1000);
+		timeout(uha_timeout, (caddr_t)mscp, (xs->timeout * hz) / 1000);
 		splx(s);
 		SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
 		return (SUCCESSFULLY_QUEUED);
@@ -1081,7 +1279,7 @@ uha_scsi_cmd(xs)
 }
 
 void
-uha_timeout(caddr_t arg1)
+uha_timeout(caddr_t arg1, int arg2)
 {
 	struct mscp *mscp = (struct mscp *)arg1;
 	int     unit;
@@ -1107,7 +1305,7 @@ uha_timeout(caddr_t arg1)
 		uha_done(unit, mscp, FAIL);
 	} else {		/* abort the operation that has timed out */
 		printf("\n");
-		timeout((timeout_t)uha_timeout, (caddr_t)mscp, 2 * hz);
+		timeout(uha_timeout, (caddr_t)mscp, 2 * hz);
 		mscp->flags = MSCP_ABORTED;
 	}
 	splx(s);
