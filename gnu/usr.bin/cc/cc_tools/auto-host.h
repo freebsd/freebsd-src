@@ -357,7 +357,10 @@
 /* #undef _GNU_SOURCE */
 
 /* Define if you have a working <stdbool.h> header file. */
+#if (__FreeBSD_version >= 440003 && __FreeBSD_version < 500000) || \
+    __FreeBSD_version >= 500014
 #define HAVE_STDBOOL_H 1
+#endif
 
 /* Define if you can safely include both <string.h> and <strings.h>. */
 #define STRING_WITH_STRINGS 1
