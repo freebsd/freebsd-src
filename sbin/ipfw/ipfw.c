@@ -217,6 +217,12 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		goto done ;
 	}
 
+	if (chain->fw_flg & IP_FW_F_RND_MATCH) {
+		double d = 1.0 * (int)(chain->pipe_ptr) ;
+		d = 1 - (d / 0x7fffffff) ;
+		printf("prob %f ", d);
+	}
+
 	switch (chain->fw_flg & IP_FW_F_COMMAND)
 	{
 		case IP_FW_F_ACCEPT:
@@ -260,11 +266,6 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 			errx(EX_OSERR, "impossible");
 	}
 
-	if (chain->fw_flg & IP_FW_F_RND_MATCH) {
-		double d = 1.0 * (int)(chain->pipe_ptr) ;
-		d = 1 - (d / 0x7fffffff) ;
-		printf(" prob %f", d);
-	}
 	if (chain->fw_flg & IP_FW_F_PRN) {
 		printf(" log");
 		if (chain->fw_logamount)
@@ -451,6 +452,24 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		if (chain->fw_tcpf  & IP_FW_TCPF_URG)  PRINTFLG("urg");
 		if (chain->fw_tcpnf & IP_FW_TCPF_URG)  PRINTFLG("!urg");
 	} 
+	if (chain->fw_tcpopt || chain->fw_tcpnopt) {
+		int 	_opt_printed = 0;
+#define PRINTTOPT(x)	{if (_opt_printed) printf(",");\
+			printf(x); _opt_printed = 1;}
+
+		printf(" tcpoptions ");
+		if (chain->fw_tcpopt  & IP_FW_TCPOPT_MSS)  PRINTTOPT("mss");
+		if (chain->fw_tcpnopt & IP_FW_TCPOPT_MSS)  PRINTTOPT("!mss");
+		if (chain->fw_tcpopt  & IP_FW_TCPOPT_WINDOW)  PRINTTOPT("window");
+		if (chain->fw_tcpnopt & IP_FW_TCPOPT_WINDOW)  PRINTTOPT("!window");
+		if (chain->fw_tcpopt  & IP_FW_TCPOPT_SACK)  PRINTTOPT("sack");
+		if (chain->fw_tcpnopt & IP_FW_TCPOPT_SACK)  PRINTTOPT("!sack");
+		if (chain->fw_tcpopt  & IP_FW_TCPOPT_TS)  PRINTTOPT("ts");
+		if (chain->fw_tcpnopt & IP_FW_TCPOPT_TS)  PRINTTOPT("!ts");
+		if (chain->fw_tcpopt  & IP_FW_TCPOPT_CC)  PRINTTOPT("cc");
+		if (chain->fw_tcpnopt & IP_FW_TCPOPT_CC)  PRINTTOPT("!cc");
+	} 
+
 	if (chain->fw_flg & IP_FW_F_ICMPBIT) {
 		int type_index;
 		int first = 1;
@@ -1061,6 +1080,45 @@ fill_tcpflag(u_char *set, u_char *reset, char **vp)
 			}
 		if (i == sizeof(flags) / sizeof(flags[0]))
 			show_usage("invalid tcp flag ``%s''", p);
+		p = q;
+	}
+}
+
+static void
+fill_tcpopts(u_char *set, u_char *reset, char **vp)
+{
+	char *p = *vp,*q;
+	u_char *d;
+
+	while (p && *p) {
+		struct tpcopts {
+			char * name;
+			u_char value;
+		} opts[] = {
+			{ "mss", IP_FW_TCPOPT_MSS },
+			{ "window", IP_FW_TCPOPT_WINDOW  },
+			{ "sack", IP_FW_TCPOPT_SACK },
+			{ "ts", IP_FW_TCPOPT_TS },
+			{ "cc", IP_FW_TCPOPT_CC },
+		};
+		int i;
+
+		if (*p == '!') {
+			p++;
+			d = reset;
+		} else {
+			d = set;
+		}
+		q = strchr(p, ',');
+		if (q) 
+			*q++ = '\0';
+		for (i = 0; i < sizeof(opts) / sizeof(opts[0]); ++i)
+			if (!strncmp(p, opts[i].name, strlen(p))) {
+				*d |= opts[i].value;
+				break;
+			}
+		if (i == sizeof(opts) / sizeof(opts[0]))
+			show_usage("invalid tcp option ``%s''", p);
 		p = q;
 	}
 }
@@ -1844,6 +1902,14 @@ badviacombo:
 					show_usage("missing argument"
 					    " for ``tcpflags''");
 				fill_tcpflag(&rule.fw_tcpf, &rule.fw_tcpnf, av);
+				av++; ac--; continue;
+			}
+			if (!strncmp(*av,"tcpoptions",strlen(*av)) || !strncmp(*av, "tcpopts",strlen(*av))) { 
+				av++; ac--; 
+				if (!ac)
+					show_usage("missing argument"
+					    " for ``tcpoptions''");
+				fill_tcpopts(&rule.fw_tcpopt, &rule.fw_tcpnopt, av);
 				av++; ac--; continue;
 			}
 		}
