@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.19 1995/11/13 22:53:21 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.20 1995/11/20 22:32:13 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -254,7 +254,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           SLIP/PPP, sendmail, INN/NNTP, printing, etc..  It's expensive
           (approx. US&dollar;45-&dollar;55), but worth it.  It also
           includes a CDROM with the sources for various tools; most of
-          these, however, are also on the FreeBSD 2.0.5R CDROM (and the
+          these, however, are also on the FreeBSD 2.1.0R CDROM (and the
           FreeBSD CDROM often has newer versions).
  
       <sect1>
@@ -309,7 +309,7 @@ Any entries with a &lt;XXX&gt; are under construction.
 	<heading>How do I install FreeBSD?</heading>
         <p>
 
-          <bf/IMPORTANT NOTE/ if you  are installing 2.0.5R from tape,  see
+          <bf/IMPORTANT NOTE/ if you  are installing 2.1.0R from tape,  see
           the question  titled, 
           <ref id="install-tape" name="Help!  I can't install from tape!">
  
@@ -370,7 +370,7 @@ Any entries with a &lt;XXX&gt; are under construction.
 	<heading>Can I mount my DOS extended partitions?</heading>
 
         <p>
-          This feature isn't in FreeBSD 2.0.5 but should be in 2.1.  We've
+          This feature isn't in FreeBSD 2.1 but should be in 2.2.  We've
           laid all the groundwork for making this happen, now we just need
           to do the last 1% of the work involved.
 
@@ -394,10 +394,10 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>Help! I  can't  install from tape! The  install fails with a ``record too big'' error!<label id="install-tape"></heading>
         <p> 
-          If you are installing 2.0.5R from tape, you  must create the tape
+          If you are installing 2.1.0R from tape, you  must create the tape
           using a  tar blocksize  of  10  (5120  bytes).  The  default  tar
           blocksize is 20  (10240   bytes), and  tapes  created using  this
-          default size cannot be used to  install 2.0.5R; with these tapes,
+          default size cannot be used to  install 2.1.0R; with these tapes,
           you will get an error that complains about  the record size being
           too big.
  
@@ -1279,6 +1279,40 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 
           This file describes how to setup sup on your machine.  You may
           also want to look at
+      <sect1><heading>Has anyone done any temperature testing while running FreeBSD? I know linux runs cooler than dos, but have never seen a mention of FreeBSD.  It seems to run really hot</heading>
+        <p>
+          No, but we have done numerous taste tests on blindfolded
+          volunteers who have also had 250 micrograms of LSD-25
+          administered beforehand.  35% of the volunteers said that FreeBSD
+          tasted sort of orange, whereas Linux tasted like purple haze.
+          Neither group mentioned any particular variances in temperature
+          that I can remember.  We eventually had to throw the results of
+          this survey out entirely anyway when we found that too many
+          volunteers were wandering out of the room during the tests, thus
+          skewing the results.  I think most of the volunteers are at Apple
+          now, working on their new ``scratch and sniff'' GUI.  It's a
+          funny old business we're in!
+
+      <sect1><heading>Is there anything "odd" that FreeBSD does when compiling the kernel which would cause the memory to make a scratchy sound? When compiling (and for a brief moment after recognizing the floppy drive upon startup, as well), a strange scratchy sound emanates from what appears to be the memory banks.</heading>
+        <p>
+          Yes!  You'll see frequent references to ``daemons'' in the BSD
+          documentation, and what most people don't know is that this
+          refers to genuine, non-corporeal entities that now possess your
+          computer.  The scratchy sound coming from your memory is actually
+          high-pitched whispering exchanged among the daemons as they best
+          decide how to deal with various system administration tasks.
+ 
+          If the noise gets to you, a good ``<tt>fdisk /mbr</tt>'' from DOS
+          will get rid of them, but don't be surprised if they react
+          adversely and try to stop you.  In fact, if at any point during
+          the exercise you hear the satanic voice of Bill Gates coming from
+          the built-in speaker, take off running and don't ever look back!
+          Freed from the counterbalancing influence of the BSD daemons, the
+          twin demons of DOS and Windows are often able to re-assert total
+          control over your machine to the eternal damnation of your soul.
+          Given a choice, I think I'd prefer to get used to the scratchy
+          noises, myself!
+
           <tt>/usr/src/share/examples/sup/*-supfile</tt>, or you may grab
           updated supfiles from:
 
@@ -1616,8 +1650,8 @@ disk        fd1   at fdc0 drive 1
           This can be configured in <tt>/etc/sysconfig</tt>. See the
           appropriate comments in tis file.
 
-          In 2.0.5R, everything related to text fonts, keyboard mapping is
-          in <tt>/usr/share/examples/syscons</tt>.
+          In 2.0.5R and later, everything related to text fonts, keyboard
+          mapping is in <tt>/usr/share/examples/syscons</tt>.
 
           The following mappings are currently supported:
           <itemize>
@@ -1645,6 +1679,21 @@ disk        fd1   at fdc0 drive 1
             rm /var/db/kvm_*.db
           </verb>
 
+      <sect1>
+        <heading>I'm trying to use quotas for my users and it keeps bombing...</heading>   
+        <p>
+          <enum>
+            <item>Don't turn on quotas on '/',
+            <item>Put the quota file on the file system that the quotas are
+              to be enforced on. ie: 
+              <verb>
+                FS      QUOTA FILE
+                /usr    /usr/admin/quotas
+                /home   /home/admin/quotas
+                ...
+              </verb>
+         </enum>
+
     <sect>
       <heading>Networking</heading>
 
@@ -1657,13 +1706,6 @@ disk        fd1   at fdc0 drive 1
 
           <url url="http://www.FreeBSD.ORG/How/handbook/diskless.html"
             name="Handbook's section on diskless boot">
-
-      <sect1>
-        <heading>I want to setup aliases for my hosts but each time I get
-          the following message: ``File exists''.
-        <p>
-          Try adding <tt/nettmask 0xffffffff/ to each <tt/ifconfig(8)/
-          command line.
 
       <sect1>
 	<heading>I've heard that you can use a FreeBSD box as a dedicated network router - is there any easy support for this?</heading>
@@ -1722,6 +1764,15 @@ disk        fd1   at fdc0 drive 1
           operating system; with few significant exceptions, administering
           networking on FreeBSD is basically the same as on SunOS 4.0 or
           Ultrix.
+
+      <sect1>
+        <heading>How can I setup Ethernet aliases ? It always says: ``File exists''.</heading>
+        <p>
+          Add ``<tt/netmask 0xffffffff/'' to your <tt/ifconfig/
+          command-line like the following:
+          <verb>
+            ifconfig ed0 alias 204.141.95.2 netmask 0xffffffff
+          </verb>
 
       <sect1>
 	<heading>How do I get my 3C503 to use the other network port?</heading>
