@@ -152,6 +152,8 @@ hme_sbus_attach(device_t dev)
 	u_long start, count;
 	int error = 0;
 
+	mtx_init(&sc->sc_lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
 	/*
 	 * Map five register banks:
 	 *
@@ -167,7 +169,8 @@ hme_sbus_attach(device_t dev)
 	    &hsc->hsc_seb_rid, RF_ACTIVE);
 	if (hsc->hsc_seb_res == NULL) {
 		device_printf(dev, "cannot map SEB registers\n");
-		return (ENXIO);
+		error = ENXIO;
+		goto fail_mtx_res;
 	}
 	sc->sc_sebt = rman_get_bustag(hsc->hsc_seb_res);
 	sc->sc_sebh = rman_get_bushandle(hsc->hsc_seb_res);
@@ -265,8 +268,8 @@ hme_sbus_attach(device_t dev)
 		goto fail_ires;
 	}
 
-	if ((error = bus_setup_intr(dev, hsc->hsc_ires, INTR_TYPE_NET, hme_intr,
-	     sc, &hsc->hsc_ih)) != 0) {
+	if ((error = bus_setup_intr(dev, hsc->hsc_ires, INTR_TYPE_NET |
+	    INTR_MPSAFE, hme_intr, sc, &hsc->hsc_ih)) != 0) {
 		device_printf(dev, "couldn't establish interrupt\n");
 		hme_detach(sc);
 		goto fail_ires;
@@ -292,6 +295,8 @@ fail_etx_res:
 fail_seb_res:
 	bus_release_resource(dev, SYS_RES_MEMORY, hsc->hsc_seb_rid,
 	    hsc->hsc_seb_res);
+fail_mtx_res:
+	mtx_destroy(&sc->sc_lock);
 	return (error);
 }
 
@@ -301,9 +306,8 @@ hme_sbus_detach(device_t dev)
 	struct hme_sbus_softc *hsc = device_get_softc(dev);
 	struct hme_softc *sc = &hsc->hsc_hme;
 
-	hme_detach(sc);
-
 	bus_teardown_intr(dev, hsc->hsc_ires, hsc->hsc_ih);
+	hme_detach(sc);
 	if (hsc->hsc_mif_res != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY, hsc->hsc_mif_rid,
 		    hsc->hsc_mif_res);
@@ -316,6 +320,7 @@ hme_sbus_detach(device_t dev)
 	    hsc->hsc_etx_res);
 	bus_release_resource(dev, SYS_RES_MEMORY, hsc->hsc_seb_rid,
 	    hsc->hsc_seb_res);
+	mtx_destroy(&sc->sc_lock);
 	return (0);
 }
 
