@@ -1,5 +1,5 @@
 .\" Copyright (c) 1989, 1990, 1993
-.\"	The Regents of the University of California.  All rights reserved.
+.\"     The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -11,8 +11,8 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
 .\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
+.\"     This product includes software developed by the University of
+.\"     California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)calendar.1	8.1 (Berkeley) 6/29/93
+.\"     @(#)calendar.1  8.1 (Berkeley) 6/29/93
 .\"
 .Dd June 29, 1993
 .Dt CALENDAR 1
@@ -40,6 +40,9 @@
 .Sh SYNOPSIS
 .Nm calendar
 .Op Fl a
+.Op Fl A Ar num
+.Op Fl B Ar num
+.Op Fl f Ar calendarfile
 .Sh DESCRIPTION
 .Nm Calendar
 checks the current directory for a file named
@@ -54,6 +57,20 @@ The following options are available:
 Process the ``calendar'' files of all users and mail the results
 to them.
 This requires super-user privileges.
+.It Fl A Ar num
+print lines from today and next
+.Ar num
+days (forward, future)
+
+.It Fl B Ar num
+print lines from today and previous
+.Ar num
+days (backward, past)
+.It Fl f Pa calendarfile
+use 
+.Pa calendarfile
+as default calendar file.
+
 .El
 .Pp
 Lines should begin with a month and day.
@@ -65,6 +82,11 @@ A month without a day matches the first of that month.
 Two numbers default to the month followed by the day.
 Lines with leading tabs default to the last entered date, allowing
 multiple line specifications for a single date.
+``Easter'', may be followed by an positive or negative integer, is
+Easter for this year. Weekdays may be followed by ``-4'' ... ``+5'' (aliases
+last, first, second, third, fourth) for moving events like 
+``the last Monday in April''
+
 By convention, dates followed by an asterisk are not fixed, i.e., change
 from year to year.
 .Pp
@@ -83,17 +105,46 @@ are ignored.
 .Pp
 Some possible calendar entries:
 .Bd -unfilled -offset indent
-#include	<calendar.usholiday>
-#include	<calendar.birthday>
+#include        <calendar.usholiday>
+#include        <calendar.birthday>
 
-6/15		... June 15 (if ambiguous, will default to month/day).
-Jun. 15		... June 15.
-15 June		... June 15.
-Thursday	... Every Thursday.
-June		... Every June 1st.
-15 *		... 15th of every month.
+6/15            ... June 15 (if ambiguous, will default to month/day).
+Jun. 15         ... June 15.
+15 June         ... June 15.
+Thursday        ... Every Thursday.
+June            ... Every June 1st.
+15 *            ... 15th of every month.
+
+May Sun+2       ... second Sunday in May (Muttertag)
+04/SunLast      ... last Sunday in April, summer time in Europe
+Easter          ... Easter
+Easter-2        ... Good Friday (2 days before Easter)
+
 .Ed
 .Sh FILES
+
+.Pp
+.Bl -tag -width calendar.christian -compact
+.It Pa calendar
+file in current directory
+
+.It Pa ~/.calendar
+.Pa calendar
+HOME directory. 
+.Nm calendar
+did a chdir into this directory if exist.
+
+
+.It Pa ~/.calendar/calendar
+file in calendar HOME directory, used if no calendar file
+in current directory.
+
+.It Pa ~/.calendar/nomail
+don't send mail if 
+.Pa ~/.calendar/nomail
+exist.
+.El
+
 The following default calendar files are provided:
 .Pp
 .Bl -tag -width calendar.christian -compact
@@ -122,6 +173,10 @@ Strongly  oriented  toward  rock 'n' roll.
 U.S. holidays.
 This calendar should be updated yearly by the local system administrator
 so that roving holidays are set correctly for the current year.
+
+.It Pa calendar.german
+German calendar.
+
 .El
 .Sh SEE ALSO
 .Xr at 1 ,
@@ -139,7 +194,7 @@ first on the line.
 A
 .Nm
 command appeared in Version 7 AT&T UNIX.
+
 .Sh BUGS
 .Nm Calendar
-doesn't handle events that move around from year to year, i.e.,
-``the last Monday in April''.
+doesn't handle Jewish holidays and moon phases.
