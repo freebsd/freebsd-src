@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.317 1997/07/31 10:57:30 jkh Exp $
+#	$Id: Makefile,v 1.318 1997/09/03 23:15:38 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -646,6 +646,7 @@ doMFSKERN:
 	@mkdir -p /tmp/mnt_xx
 	@mount /dev/vn0 /tmp/mnt_xx
 	./dumpnlist ${RD}/boot.${FSIMAGE}/kernel > /tmp/mnt_xx/stand/symbols
+	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help /tmp/mnt_xx
 	@umount /tmp/mnt_xx
 	@vnconfig -u /dev/vn0
 	@rmdir /tmp/mnt_xx
