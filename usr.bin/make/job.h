@@ -211,7 +211,7 @@ Boolean Job_CheckCommands(GNode *, void (*abortProc)(const char *, ...));
 void Job_CatchChildren(Boolean);
 void Job_CatchOutput(void);
 void Job_Make(GNode *);
-void Job_Init(int, int);
+void Job_Init(int);
 Boolean Job_Full(void);
 Boolean Job_Empty(void);
 ReturnStatus Job_ParseShell(char *);
