@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	beyond4.3 diskperf fsinterface kernmalloc kerntune malloc memfs \
+SUBDIR=	beyond4.3 diskperf fsinterface jail kernmalloc kerntune malloc memfs \
 	newvm nqnfs px relengr sysperf \
 	contents
 
