@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: rpc.sprayd.8,v 1.1.1.1 1996/01/05 08:53:39 graichen Exp $
+.\"	$Id: rpc.sprayd.8,v 1.2 1996/04/07 00:05:54 mpp Exp $
 .\"
 .Dd June 22, 1994
 .Dt RPC.SPRAYD 8
@@ -38,17 +38,19 @@
 .Sh SYNOPSIS
 .Nm /usr/libexec/rpc.sprayd
 .Sh DESCRIPTION
-.Nm rpc.sprayd
+.Nm Rpc.sprayd
 is a server which records packets sent by the
 .Xr spray 8
 command and sends a traffic report to the originator of the packets.
 The
-.Nm rpc.sprayd
+.Nm
 daemon is normally invoked by
 .Xr inetd 8 .
 .Pp
-.Nm rpc.sprayd
-uses an RPC protocol defined in 
+.Nm Rpc.sprayd
+uses an
+.Tn RPC
+protocol defined in 
 .Pa /usr/include/rpcsvc/spray.x .
 .Sh SEE ALSO
 .Xr spray 8
