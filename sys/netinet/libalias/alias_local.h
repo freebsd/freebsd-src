@@ -19,6 +19,9 @@
 #ifndef ALIAS_LOCAL_H
 #define ALIAS_LOCAL_H
 
+#ifndef NULL
+#define NULL 0
+#endif
 
 /*
     Macros
