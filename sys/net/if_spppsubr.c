@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.50 1998/12/26 12:43:26 phk Exp $
+ * $Id: if_spppsubr.c,v 1.51 1998/12/26 13:14:45 phk Exp $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,9 @@
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#include <machine/random.h>
+#endif
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 
@@ -51,6 +54,7 @@
 #include <net/if.h>
 #include <net/netisr.h>
 #include <net/if_types.h>
+#include <net/route.h>
 
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <machine/random.h>
@@ -58,6 +62,7 @@
 #if defined (__NetBSD__) || defined (__OpenBSD__)
 #include <machine/cpu.h> /* XXX for softnet */
 #endif
+
 #include <machine/stdarg.h>
 
 #ifdef INET
@@ -97,10 +102,13 @@
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 # define UNTIMEOUT(fun, arg, handle) untimeout(fun, arg, handle)
 # define TIMEOUT(fun, arg1, arg2, handle) handle = timeout(fun, arg1, arg2)
+# define IOCTL_CMD_T	u_long
 #else
 # define UNTIMEOUT(fun, arg, handle) untimeout(fun, arg)
 # define TIMEOUT(fun, arg1, arg2, handle) timeout(fun, arg1, arg2)
+# define IOCTL_CMD_T	int
 #endif
+
 #define MAXALIVECNT     3               /* max. alive packets */
 
 /*
@@ -291,13 +299,11 @@ static void sppp_cp_input(const struct cp *cp, struct sppp *sp,
 			  struct mbuf *m);
 static void sppp_cp_send(struct sppp *sp, u_short proto, u_char type,
 			 u_char ident, u_short len, void *data);
-#ifdef notyet
-static void sppp_cp_timeout(void *arg);
-#endif
+/* static void sppp_cp_timeout(void *arg); */
 static void sppp_cp_change_state(const struct cp *cp, struct sppp *sp,
 				 int newstate);
 static void sppp_auth_send(const struct cp *cp,
-			   struct sppp *sp, u_char type, u_char id,
+			   struct sppp *sp, unsigned int type, unsigned int id,
 			   ...);
 
 static void sppp_up_event(const struct cp *cp, struct sppp *sp);
@@ -643,15 +649,36 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 
 	ifq = &ifp->if_snd;
 #ifdef INET
-	/*
-	 * Put low delay, telnet, rlogin and ftp control packets
-	 * in front of the queue.
-	 */
 	if (dst->sa_family == AF_INET) {
 		/* XXX Check mbuf length here? */
 		struct ip *ip = mtod (m, struct ip*);
 		struct tcphdr *tcp = (struct tcphdr*) ((long*)ip + ip->ip_hl);
 
+		/*
+		 * When using dynamic local IP address assignment by using
+		 * 0.0.0.0 as a local address, the first TCP session will
+		 * not connect because the local TCP checksum is computed
+		 * using 0.0.0.0 which will later become our real IP address
+		 * so the TCP checksum computed at the remote end will
+		 * become invalid. So we
+		 * - don't let packets with src ip addr 0 thru
+		 * - we flag TCP packets with src ip 0 as an error
+		 */	
+
+		if(ip->ip_src.s_addr == INADDR_ANY)	/* -hm */
+		{
+			m_freem(m);
+			splx(s);
+			if(ip->ip_p == IPPROTO_TCP)
+				return(EADDRNOTAVAIL);
+			else
+				return(0);
+		}
+		
+		/*
+		 * Put low delay, telnet, rlogin and ftp control packets
+		 * in front of the queue.
+		 */
 		if (IF_QFULL (&sp->pp_fastq))
 			;
 		else if (ip->ip_tos & IPTOS_LOWDELAY)
@@ -782,7 +809,9 @@ sppp_attach(struct ifnet *ifp)
 	sp->pp_if.if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 	sp->pp_if.if_type = IFT_PPP;
 	sp->pp_if.if_output = sppp_output;
+#if 0
 	sp->pp_flags = PP_KEEPALIVE;
+#endif
 	sp->pp_fastq.ifq_maxlen = 32;
 	sp->pp_cpq.ifq_maxlen = 20;
 	sp->pp_loopcnt = 0;
@@ -904,7 +933,7 @@ sppp_pick(struct ifnet *ifp)
  * Process an ioctl request.  Called on low priority level.
  */
 int
-sppp_ioctl(struct ifnet *ifp, u_long cmd, void *data)
+sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 {
 	struct ifreq *ifr = (struct ifreq*) data;
 	struct sppp *sp = (struct sppp*) ifp;
@@ -2290,6 +2319,10 @@ sppp_lcp_tlu(struct sppp *sp)
 		if (sp->lcp.protos & mask && ((cps[i])->flags & CP_LCP) == 0)
 			(cps[i])->Up(sp);
 
+	/* notify low-level driver of state change */
+	if (sp->pp_chg)
+		sp->pp_chg(sp, (int)sp->pp_phase);
+	
 	if (sp->pp_phase == PHASE_NETWORK)
 		/* if no NCP is starting, close down */
 		sppp_lcp_check_and_close(sp);
@@ -2468,6 +2501,8 @@ sppp_ipcp_open(struct sppp *sp)
 	STDDCL;
 	u_long myaddr, hisaddr;
 
+	sp->ipcp.flags &= ~(IPCP_HISADDR_SEEN|IPCP_MYADDR_SEEN|IPCP_MYADDR_DYN);
+
 	sppp_get_ip_addrs(sp, &myaddr, &hisaddr, 0);
 	/*
 	 * If we don't have his address, this probably means our
@@ -2490,7 +2525,8 @@ sppp_ipcp_open(struct sppp *sp)
 		 */
 		sp->ipcp.flags |= IPCP_MYADDR_DYN;
 		sp->ipcp.opts |= (1 << IPCP_OPT_ADDRESS);
-	}
+	} else
+		sp->ipcp.flags |= IPCP_MYADDR_SEEN;
 	sppp_open_event(&ipcp, sp);
 }
 
@@ -2524,6 +2560,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	struct ifnet *ifp = &sp->pp_if;
 	int rlen, origlen, debug = ifp->if_flags & IFF_DEBUG;
 	u_long hisaddr, desiredaddr;
+	int gotmyaddr = 0;
 
 	len -= 4;
 	origlen = len;
@@ -2597,10 +2634,11 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			continue;
 #endif
 		case IPCP_OPT_ADDRESS:
+			/* This is the address he wants in his end */
 			desiredaddr = p[2] << 24 | p[3] << 16 |
 				p[4] << 8 | p[5];
 			if (desiredaddr == hisaddr ||
-			    hisaddr == 1 && desiredaddr != 0) {
+			    (hisaddr == 1 && desiredaddr != 0)) {
 				/*
 				 * Peer's address is same as our value,
 				 * or we have set it to 0.0.0.1 to 
@@ -2610,7 +2648,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				 */
 				if (debug)
 					addlog("%s [ack] ",
-					       sppp_dotted_quad(desiredaddr));
+						sppp_dotted_quad(hisaddr));
 				/* record that we've seen it already */
 				sp->ipcp.flags |= IPCP_HISADDR_SEEN;
 				continue;
@@ -2621,13 +2659,14 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			 * address, or he send us another address not
 			 * matching our value.  Either case, we gonna
 			 * conf-nak it with our value.
+			 * XXX: we should "rej" if hisaddr == 0
 			 */
 			if (debug) {
 				if (desiredaddr == 0)
 					addlog("[addr requested] ");
 				else
 					addlog("%s [not agreed] ",
-					       sppp_dotted_quad(desiredaddr));
+						sppp_dotted_quad(desiredaddr));
 
 				p[2] = hisaddr >> 24;
 				p[3] = hisaddr >> 16;
@@ -2652,7 +2691,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	 * doesn't want to send us his address.  Q: What should we do
 	 * about it?  XXX  A: implement the max-failure counter.
 	 */
-	if (rlen == 0 && !(sp->ipcp.flags & IPCP_HISADDR_SEEN)) {
+	if (rlen == 0 && !(sp->ipcp.flags & IPCP_HISADDR_SEEN) && !gotmyaddr) {
 		buf[0] = IPCP_OPT_ADDRESS;
 		buf[1] = 6;
 		buf[2] = hisaddr >> 24;
@@ -2708,6 +2747,7 @@ sppp_ipcp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 			/*
 			 * Peer doesn't grok address option.  This is
 			 * bad.  XXX  Should we better give up here?
+			 * XXX We could try old "addresses" option...
 			 */
 			sp->ipcp.opts &= ~(1 << IPCP_OPT_ADDRESS);
 			break;
@@ -2768,11 +2808,14 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				 * we accept his offer.  Otherwise, we
 				 * ignore it and thus continue to negotiate
 				 * our already existing value.
+			 	 * XXX: Bogus, if he said no once, he'll
+				 * just say no again, might as well die.
 				 */
 				if (sp->ipcp.flags & IPCP_MYADDR_DYN) {
 					sppp_set_ip_addr(sp, wantaddr);
 					if (debug)
 						addlog("[agree] ");
+					sp->ipcp.flags |= IPCP_MYADDR_SEEN;
 				}
 			}
 			break;
@@ -2794,6 +2837,9 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 static void
 sppp_ipcp_tlu(struct sppp *sp)
 {
+	/* we are up - notify isdn daemon */
+	if (sp->pp_con)
+		sp->pp_con(sp);
 }
 
 static void
@@ -3307,17 +3353,17 @@ sppp_chap_scr(struct sppp *sp)
 {
 	u_long *ch, seed;
 	u_char clen;
-#if defined (__NetBSD__) || defined (__OpenBSD__)
-	struct timeval tv;
-#endif
 
 	/* Compute random challenge. */
 	ch = (u_long *)sp->myauth.challenge;
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	read_random(&seed, sizeof seed);
 #else
+	{
+	struct timeval tv;
 	microtime(&tv);
 	seed = tv.tv_sec ^ tv.tv_usec;
+	}
 #endif
 	ch[0] = seed ^ random();
 	ch[1] = seed ^ random();
@@ -3654,10 +3700,14 @@ sppp_pap_scr(struct sppp *sp)
  * Varadic function, each of the elements for the ellipsis is of type
  * ``size_t mlen, const u_char *msg''.  Processing will stop iff
  * mlen == 0.
+ * NOTE: never declare variadic functions with types subject to type
+ * promotion (i.e. u_char). This is asking for big trouble depending
+ * on the architecture you are on...
  */
 
 static void
-sppp_auth_send(const struct cp *cp, struct sppp *sp, u_char type, u_char id,
+sppp_auth_send(const struct cp *cp, struct sppp *sp,
+               unsigned int type, unsigned int id,
 	       ...)
 {
 	STDDCL;
@@ -3666,7 +3716,7 @@ sppp_auth_send(const struct cp *cp, struct sppp *sp, u_char type, u_char id,
 	struct mbuf *m;
 	u_char *p;
 	int len;
-	size_t mlen;
+	unsigned int mlen;
 	const char *msg;
 	va_list ap;
 
@@ -3688,7 +3738,7 @@ sppp_auth_send(const struct cp *cp, struct sppp *sp, u_char type, u_char id,
 	va_start(ap, id);
 	len = 0;
 
-	while ((mlen = va_arg(ap, size_t)) != 0) {
+	while ((mlen = (unsigned int)va_arg(ap, size_t)) != 0) {
 		msg = va_arg(ap, const char *);
 		len += mlen;
 		if (len > MHLEN - PPP_HEADER_LEN - LCP_HEADER_LEN) {
@@ -3816,10 +3866,14 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 	si = 0;
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-#else
+#elif defined(__NetBSD__) || defined (__OpenBSD__)
 	for (ifa = ifp->if_addrlist.tqh_first;
 	     ifa;
 	     ifa = ifa->ifa_list.tqe_next)
+#else
+	for (ifa = ifp->if_addrlist;
+	     ifa;
+	     ifa = ifa->ifa_next)
 #endif
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			si = (struct sockaddr_in *)ifa->ifa_addr;
@@ -3849,7 +3903,7 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 static void
 sppp_set_ip_addr(struct sppp *sp, u_long src)
 {
-	struct ifnet *ifp = &sp->pp_if;
+	STDDCL;
 	struct ifaddr *ifa;
 	struct sockaddr_in *si;
 
@@ -3857,14 +3911,17 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 	 * Pick the first AF_INET address from the list,
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
-
 	si = 0;
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-#else
+#elif defined(__NetBSD__) || defined (__OpenBSD__)
 	for (ifa = ifp->if_addrlist.tqh_first;
 	     ifa;
 	     ifa = ifa->ifa_list.tqe_next)
+#else
+	for (ifa = ifp->if_addrlist;
+	     ifa;
+	     ifa = ifa->ifa_next)
 #endif
 	{
 		if (ifa->ifa_addr->sa_family == AF_INET)
@@ -3876,8 +3933,40 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 	}
 
 	if (ifa && si)
+	{
+		int error;
+#if __NetBSD_Version__ >= 103080000
+		struct sockaddr_in new_sin = *si;
+
+		new_sin.sin_addr.s_addr = htonl(src);
+		error = in_ifinit(ifp, ifatoia(ifa), &new_sin, 1);
+		if(debug && error)
+		{
+			log(LOG_DEBUG, SPP_FMT "sppp_set_ip_addr: in_ifinit "
+			" failed, error=%d\n", SPP_ARGS(ifp), error);
+		}
+#else
+		/* delete old route */
+		error = rtinit(ifa, (int)RTM_DELETE, RTF_HOST);
+		if(debug && error)
+		{
+			log(LOG_DEBUG, SPP_FMT "sppp_set_ip_addr: rtinit DEL failed, error=%d\n",
+		    		SPP_ARGS(ifp), error);
+		}
+
+		/* set new address */
 		si->sin_addr.s_addr = htonl(src);
-}
+
+		/* add new route */
+		error = rtinit(ifa, (int)RTM_ADD, RTF_HOST);		
+		if (debug && error)
+		{
+			log(LOG_DEBUG, SPP_FMT "sppp_set_ip_addr: rtinit ADD failed, error=%d",
+		    		SPP_ARGS(ifp), error);
+		}
+#endif
+	}
+}			
 
 static int
 sppp_params(struct sppp *sp, u_long cmd, void *data)
@@ -4183,10 +4272,3 @@ sppp_null(struct sppp *unused)
 {
 	/* do just nothing */
 }
-/*
- * This file is large.  Tell emacs to highlight it nevertheless.
- *
- * Local Variables:
- * hilit-auto-highlight-maxout: 120000
- * End:
- */
