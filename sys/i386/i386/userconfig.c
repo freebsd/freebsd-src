@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.4 1994/10/30 20:44:20 bde Exp $
+ *      $Id: userconfig.c,v 1.5 1994/11/02 09:30:27 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -273,14 +273,14 @@ set_device_mem(CmdParm *parms)
 static int
 set_device_enable(CmdParm *parms)
 {
-    printf("This command currently not implemented.\n");
+    parms[0].parm.dparm->id_enabled = TRUE;
     return 0;
 }
 
 static int
 set_device_disable(CmdParm *parms)
 {
-    printf("This command currently not implemented.\n");
+    parms[0].parm.dparm->id_enabled = FALSE;
     return 0;
 }
 
@@ -323,7 +323,7 @@ lsdevtab(struct isa_device *dt)
 	printf("%s%d	0x%x	%d	%d	0x%x	0x%x	%s\n",
  	       dt->id_driver->name, dt->id_unit, dt->id_iobase,
 	       ffs(dt->id_irq) - 1, dt->id_drq, dt->id_maddr,
-	       dt->id_flags, "Yes");
+	       dt->id_flags, dt->id_enabled ? "Yes" : "No");
     }
 }
 
