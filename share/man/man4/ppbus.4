@@ -36,7 +36,7 @@ Parallel port bus system
 .Pp
 .Cd "device vpo0 at ppbus?"
 .Pp
-.Cd "device nlpt0 at ppbus?"
+.Cd "device lpt0 at ppbus?"
 .Cd "device plip0 at ppbus?"
 .Cd "device ppi0 at ppbus?"
 .Cd "device pps0 at ppbus?"
@@ -81,7 +81,7 @@ Various drivers have already been ported:
 .Pp
 .Bl -column "Driver" -compact
 .It Em Driver Ta Em Description
-.It Sy nlpt Ta "lpt printer driver"
+.It Sy lpt Ta "lpt printer driver"
 .It Sy plip Ta "lp parallel network interface driver"
 .El
 .Pp
@@ -248,12 +248,6 @@ Finally, the
 .Em device
 layer gathers the parallel peripheral device drivers.
 .Pp
-Each layer has its own C structure respectively ppb_adapter, ppb_data and 
-ppb_device. The ppb_link structure gathers pointers to other structures and
-info shared among different layers.
-.Pp
-See description of these structures in
-.Xr ppbconf 9 .
 .Ss Parallel modes management
 We have to differentiate operating modes at various ppbus system layers.
 Actually, ppbus and adapter operating modes on one hands and for each
@@ -270,12 +264,10 @@ This architecture should support IEEE1284-1994 modes.
 The boot process starts with the probe phasis of the
 .Xr ppc 4
 driver during ISA bus (PC architecture) initialization. During attachment of
-the ppc driver, a new ppbus structure is allocated, initialized
-(linked to the adapter structure) then passed to the function
-.Fn ppb_attachdevs "struct ppb_data *ppb" .
+the ppc driver, a new ppbus structure is allocated, then probe and attachment
+for this new bus node are called.
 .Pp
-.Fn ppb_attachdevs ""
-tries to detect any PnP parallel peripheral (according to
+ppbus attachment tries to detect any PnP parallel peripheral (according to
 .%T "Plug and Play Parallel Port Devices"
 draft from (c)1993-4 Microsoft Corporation)
 then probes and attaches known device drivers.
@@ -288,13 +280,15 @@ ppbus allocation is mandatory not to corrupt I/O of other devices. An other
 usage of ppbus allocation is to reserve the port and receive incoming
 interrupts.
 .Pp
-Interrupts are connected to the
-.Fn ppcintr ""
-function which delivers them to ppbus directly with a
-.Fn ppb_intr "struct ppb_link *pl"
-call. ppbus redirects the
-interrupt to the bus owner's handler if defined. Consequently, if a device
-wants to be delivered an interrupt, it must own the ppbus.
+High level interrupt handlers are connected to the ppbus system thanks to the
+newbus
+.Fn BUS_SETUP_INTR
+and
+.Fn BUS_TEARDOWN_INTR
+functions. But, in order to attach a handler, drivers must
+own the bus. Consequently, a ppbus request is mandatory in order to call the above
+functions (see existing drivers for more info). Note that the interrupt handler
+is automatically released when the ppbus is released.
 .Ss Microsequences
 .Em Microsequences
 is a general purpose mechanism to allow fast low-level
@@ -319,12 +313,11 @@ a modified version of the NIBBLE transfer mode
 various I/O sequences to initialize, select and allocate the peripheral
 .El
 .Sh SEE ALSO
-.Xr nlpt 4 ,
+.Xr lpt 4 ,
 .Xr plip 4 ,
 .Xr ppc 4 ,
 .Xr ppi 4 ,
 .Xr vpo 4 ,
-.Xr ppbconf 9
 .Sh HISTORY
 The
 .Nm
