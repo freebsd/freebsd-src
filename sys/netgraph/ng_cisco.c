@@ -199,7 +199,7 @@ cisco_constructor(node_p node)
 		return (ENOMEM);
 
 	callout_handle_init(&sc->handle);
-	node->private = sc;
+	NG_NODE_SET_PRIVATE(node, sc);
 	sc->node = node;
 
 	/* Initialise the varous protocol hook holders */
@@ -217,25 +217,25 @@ cisco_constructor(node_p node)
 static int
 cisco_newhook(node_p node, hook_p hook, const char *name)
 {
-	const sc_p sc = node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 
 	if (strcmp(name, NG_CISCO_HOOK_DOWNSTREAM) == 0) {
 		sc->downstream.hook = hook;
-		hook->private = &sc->downstream;
+		NG_HOOK_SET_PRIVATE(hook, &sc->downstream);
 
 		/* Start keepalives */
 		sc->handle = timeout(cisco_keepalive, sc, hz * KEEPALIVE_SECS);
 	} else if (strcmp(name, NG_CISCO_HOOK_INET) == 0) {
 		sc->inet.hook = hook;
-		hook->private = &sc->inet;
+		NG_HOOK_SET_PRIVATE(hook, &sc->inet);
 	} else if (strcmp(name, NG_CISCO_HOOK_APPLETALK) == 0) {
 		sc->atalk.hook = hook;
-		hook->private = &sc->atalk;
+		NG_HOOK_SET_PRIVATE(hook, &sc->atalk);
 	} else if (strcmp(name, NG_CISCO_HOOK_IPX) == 0) {
 		sc->ipx.hook = hook;
-		hook->private = &sc->ipx;
+		NG_HOOK_SET_PRIVATE(hook, &sc->ipx);
 	} else if (strcmp(name, NG_CISCO_HOOK_DEBUG) == 0) {
-		hook->private = NULL;	/* unimplemented */
+		NG_HOOK_SET_PRIVATE(hook, NULL);	/* unimplemented */
 	} else
 		return (EINVAL);
 	return 0;
@@ -248,7 +248,7 @@ static int
 cisco_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	struct ng_mesg *msg;
-	const sc_p sc = node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 
@@ -344,13 +344,13 @@ cisco_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static int
 cisco_rcvdata(hook_p hook, item_p item)
 {
-	const sc_p sc = hook->node->private;
+	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct protoent *pep;
 	struct cisco_header *h;
 	int error = 0;
 	struct mbuf *m;
 
-	if ((pep = hook->private) == NULL)
+	if ((pep = NG_HOOK_PRIVATE(hook)) == NULL)
 		goto out;
 
 	/* If it came from our downlink, deal with it separately */
@@ -402,11 +402,10 @@ out:
 static int
 cisco_shutdown(node_p node)
 {
-	const sc_p sc = node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 
-	node->flags |= NG_INVALID;
-	node->private = NULL;
-	ng_unref(sc->node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(sc->node);
 	FREE(sc, M_NETGRAPH);
 	return (0);
 }
@@ -419,11 +418,11 @@ cisco_shutdown(node_p node)
 static int
 cisco_disconnect(hook_p hook)
 {
-	const sc_p sc = hook->node->private;
+	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct protoent *pep;
 
 	/* Check it's not the debug hook */
-	if ((pep = hook->private)) {
+	if ((pep = NG_HOOK_PRIVATE(hook))) {
 		pep->hook = NULL;
 		if (pep->af == 0xffff) {
 			/* If it is the downstream hook, stop the timers */
@@ -432,9 +431,9 @@ cisco_disconnect(hook_p hook)
 	}
 
 	/* If no more hooks, remove the node */
-	if ((hook->node->numhooks == 0)
-	&& ((hook->node->flags & NG_INVALID) == 0))
-		ng_rmnode_self(hook->node);
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
 

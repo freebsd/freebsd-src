@@ -192,7 +192,7 @@ nglmi_constructor(node_p node)
 	if (sc == NULL)
 		return (ENOMEM);
 	callout_handle_init(&sc->handle);
-	node->private = sc;
+	NG_NODE_SET_PRIVATE(node, sc);
 	sc->protoname = NAME_NONE;
 	sc->node = node;
 	sc->liv_per_full = NG_LMI_SEQ_PER_FULL;	/* make this dynamic */
@@ -207,10 +207,10 @@ nglmi_constructor(node_p node)
 static int
 nglmi_newhook(node_p node, hook_p hook, const char *name)
 {
-	sc_p sc = node->private;
+	sc_p sc = NG_NODE_PRIVATE(node);
 
 	if (strcmp(name, NG_LMI_HOOK_DEBUG) == 0) {
-		hook->private = NULL;
+		NG_HOOK_SET_PRIVATE(hook, NULL);
 		return (0);
 	}
 	if (sc->flags & SCF_CONNECTED) {
@@ -219,21 +219,21 @@ nglmi_newhook(node_p node, hook_p hook, const char *name)
 	}
 	if (strcmp(name, NG_LMI_HOOK_ANNEXA) == 0) {
 		sc->lmi_annexA = hook;
-		hook->private = node->private;
+		NG_HOOK_SET_PRIVATE(hook, NG_NODE_PRIVATE(node));
 		sc->protoID = 8;
 		SETLMITYPE(sc, SCF_ANNEX_A);
 		sc->protoname = NAME_ANNEXA;
 		nglmi_startup_fixed(sc, hook);
 	} else if (strcmp(name, NG_LMI_HOOK_ANNEXD) == 0) {
 		sc->lmi_annexD = hook;
-		hook->private = node->private;
+		NG_HOOK_SET_PRIVATE(hook, NG_NODE_PRIVATE(node));
 		sc->protoID = 8;
 		SETLMITYPE(sc, SCF_ANNEX_D);
 		sc->protoname = NAME_ANNEXD;
 		nglmi_startup_fixed(sc, hook);
 	} else if (strcmp(name, NG_LMI_HOOK_GROUPOF4) == 0) {
 		sc->lmi_group4 = hook;
-		hook->private = node->private;
+		NG_HOOK_SET_PRIVATE(hook, NG_NODE_PRIVATE(node));
 		sc->protoID = 9;
 		SETLMITYPE(sc, SCF_GROUP4);
 		sc->protoname = NAME_GROUP4;
@@ -242,14 +242,14 @@ nglmi_newhook(node_p node, hook_p hook, const char *name)
 		/* Note this, and if B is already installed, we're complete */
 		sc->lmi_channel0 = hook;
 		sc->protoname = NAME_NONE;
-		hook->private = node->private;
+		NG_HOOK_SET_PRIVATE(hook, NG_NODE_PRIVATE(node));
 		if (sc->lmi_channel1023)
 			nglmi_startup_auto(sc);
 	} else if (strcmp(name, NG_LMI_HOOK_AUTO1023) == 0) {
 		/* Note this, and if A is already installed, we're complete */
 		sc->lmi_channel1023 = hook;
 		sc->protoname = NAME_NONE;
-		hook->private = node->private;
+		NG_HOOK_SET_PRIVATE(hook, NG_NODE_PRIVATE(node));
 		if (sc->lmi_channel0)
 			nglmi_startup_auto(sc);
 	} else
@@ -445,7 +445,7 @@ ngauto_state_machine(sc_p sc)
 static int
 nglmi_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	sc_p    sc = node->private;
+	sc_p    sc = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int     error = 0;
 	struct ng_mesg *msg;
@@ -557,7 +557,7 @@ nglmi_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static int
 nglmi_rcvdata(hook_p hook, item_p item)
 {
-	sc_p    sc = hook->node->private;
+	sc_p    sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	u_char *data;
 	unsigned short dlci;
 	u_short packetlen;
@@ -567,7 +567,7 @@ nglmi_rcvdata(hook_p hook, item_p item)
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
-	if (hook->private == NULL) {
+	if (NG_HOOK_PRIVATE(hook) == NULL) {
 		goto drop;
 	}
 	packetlen = m->m_hdr.mh_len;
@@ -742,7 +742,7 @@ drop:
 static int
 nglmi_checkdata(hook_p hook, struct mbuf *m)
 {
-	sc_p    sc = hook->node->private;
+	sc_p    sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	u_char *data;
 	u_short packetlen;
 	unsigned short dlci;
@@ -1055,11 +1055,10 @@ reject:
 static int
 nglmi_shutdown(node_p node)
 {
-	const sc_p sc = node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 
-	node->flags |= NG_INVALID;
-	node->private = NULL;
-	ng_unref(sc->node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(sc->node);
 	FREE(sc, M_NETGRAPH);
 	return (0);
 }
@@ -1071,10 +1070,10 @@ nglmi_shutdown(node_p node)
 static int
 nglmi_disconnect(hook_p hook)
 {
-	const sc_p sc = hook->node->private;
+	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 	/* OK to remove debug hook(s) */
-	if (hook->private == NULL)
+	if (NG_HOOK_PRIVATE(hook) == NULL)
 		return (0);
 
 	/* Stop timer if it's currently active */
@@ -1082,8 +1081,8 @@ nglmi_disconnect(hook_p hook)
 		untimeout(LMI_ticker, sc, sc->handle);
 
 	/* Self-destruct */
-	if ((hook->node->flags & NG_INVALID) == 0)
-		ng_rmnode_self(hook->node);
+	if (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
 

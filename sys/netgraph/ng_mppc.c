@@ -180,7 +180,7 @@ ng_mppc_constructor(node_p node)
 	if (priv == NULL)
 		return (ENOMEM);
 
-	node->private = priv;
+	NG_NODE_SET_PRIVATE(node, priv);
 
 	/* Done */
 	return (0);
@@ -192,7 +192,7 @@ ng_mppc_constructor(node_p node)
 static int
 ng_mppc_newhook(node_p node, hook_p hook, const char *name)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	hook_p *hookPtr;
 
 	/* Check hook name */
@@ -218,7 +218,7 @@ ng_mppc_newhook(node_p node, hook_p hook, const char *name)
 static int
 ng_mppc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -328,8 +328,8 @@ done:
 static int
 ng_mppc_rcvdata(hook_p hook, item_p item)
 {
-	const node_p node = hook->node;
-	const priv_p priv = node->private;
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct mbuf *out;
 	int error;
 	struct mbuf *m;
@@ -390,10 +390,9 @@ ng_mppc_rcvdata(hook_p hook, item_p item)
 static int
 ng_mppc_shutdown(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* Take down netgraph node */
-	node->flags |= NG_INVALID;
 #ifdef NETGRAPH_MPPC_COMPRESSION
 	if (priv->xmit.history != NULL)
 		FREE(priv->xmit.history, M_NETGRAPH);
@@ -402,8 +401,8 @@ ng_mppc_shutdown(node_p node)
 #endif
 	bzero(priv, sizeof(*priv));
 	FREE(priv, M_NETGRAPH);
-	node->private = NULL;
-	ng_unref(node);		/* let the node escape */
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);		/* let the node escape */
 	return (0);
 }
 
@@ -413,8 +412,8 @@ ng_mppc_shutdown(node_p node)
 static int
 ng_mppc_disconnect(hook_p hook)
 {
-	const node_p node = hook->node;
-	const priv_p priv = node->private;
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* Zero out hook pointer */
 	if (hook == priv->xmit.hook)
@@ -423,8 +422,8 @@ ng_mppc_disconnect(hook_p hook)
 		priv->recv.hook = NULL;
 
 	/* Go away if no longer connected */
-	if ((node->numhooks == 0)
-	&& ((node->flags & NG_INVALID) == 0))
+	if ((NG_NODE_NUMHOOKS(node) == 0)
+	&& NG_NODE_IS_VALID(node))
 		ng_rmnode_self(node);
 	return (0);
 }
@@ -440,7 +439,7 @@ ng_mppc_disconnect(hook_p hook)
 static int
 ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mppc_dir *const d = &priv->xmit;
 	u_char *inbuf, *outbuf;
 	int outlen, inlen;
@@ -556,7 +555,7 @@ ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 static int
 ng_mppc_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mppc_dir *const d = &priv->recv;
 	u_int16_t header, cc, numLost;
 	u_char *buf;
@@ -719,7 +718,7 @@ failed:
 static void
 ng_mppc_reset_req(node_p node)
 {   
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mppc_dir *const d = &priv->xmit;
 
 #ifdef NETGRAPH_MPPC_COMPRESSION

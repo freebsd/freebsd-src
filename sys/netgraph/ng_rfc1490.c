@@ -128,7 +128,7 @@ ng_rfc1490_constructor(node_p node)
 	if (priv == NULL)
 		return (ENOMEM);
 
-	node->private = priv;
+	NG_NODE_SET_PRIVATE(node, priv);
 
 	/* Done */
 	return (0);
@@ -140,7 +140,7 @@ ng_rfc1490_constructor(node_p node)
 static int
 ng_rfc1490_newhook(node_p node, hook_p hook, const char *name)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	if (!strcmp(name, NG_RFC1490_HOOK_DOWNSTREAM)) {
 		if (priv->downlink)
@@ -208,8 +208,8 @@ ng_rfc1490_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static int
 ng_rfc1490_rcvdata(hook_p hook, item_p item)
 {
-	const node_p node = hook->node;
-	const priv_p priv = node->private;
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	int error = 0;
 	struct mbuf *m;
 
@@ -306,13 +306,12 @@ done:
 static int
 ng_rfc1490_shutdown(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* Take down netgraph node */
-	node->flags |= NG_INVALID;
 	bzero(priv, sizeof(*priv));
-	node->private = NULL;
-	ng_unref(node);		/* let the node escape */
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);		/* let the node escape */
 	return (0);
 }
 
@@ -322,11 +321,11 @@ ng_rfc1490_shutdown(node_p node)
 static int
 ng_rfc1490_disconnect(hook_p hook)
 {
-	const priv_p priv = hook->node->private;
+	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
-	if ((hook->node->numhooks == 0)
-	&& ((hook->node->flags & NG_INVALID) == 0))
-		ng_rmnode_self(hook->node);
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	else if (hook == priv->downlink)
 		priv->downlink = NULL;
 	else if (hook == priv->inet)

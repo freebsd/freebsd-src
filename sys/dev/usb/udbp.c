@@ -357,11 +357,11 @@ USB_ATTACH(udbp)
 		char	nodename[128];
 		sprintf(nodename, "%s", USBDEVNAME(sc->sc_dev));
 		if ((err = ng_name_node(sc->node, nodename))) {
-			ng_unref(sc->node);
+			NG_NODE_UNREF(sc->node);
 			sc->node = NULL;
 			goto bad;
 		} else {
-			sc->node->private = sc;
+			NG_NODE_SET_PRIVATE(sc->node, sc);
 			sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
 			sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
 			mtx_init(&sc->xmitq.ifq_mtx, "usb_xmitq", MTX_DEF);
@@ -420,10 +420,9 @@ USB_DETACH(udbp)
 	}
 
 	if (sc->flags & NETGRAPH_INITIALISED) {
-		ng_unname(sc->node);
-		ng_udbp_rmnode(sc->node);
-		sc->node->private = NULL;
-		ng_unref(sc->node);
+		ng_rmnode_self(sc->node);
+		NG_NODE_SET_PRIVATE(sc->node, NULL);
+		NG_NODE_UNREF(sc->node);
 		sc->node = NULL;	/* Paranoid */
 	}
 
@@ -629,7 +628,7 @@ ng_udbp_constructor(node_p node)
 Static int
 ng_udbp_newhook(node_p node, hook_p hook, const char *name)
 {
-	const udbp_p sc = node->private;
+	const udbp_p sc = NG_NODE_PRIVATE(node);
 
 #if 0
 	/* Possibly start up the device if it's not already going */
@@ -640,7 +639,7 @@ ng_udbp_newhook(node_p node, hook_p hook, const char *name)
 
 	if (strcmp(name, NG_UDBP_HOOK_NAME) == 0) {
 		sc->hook = hook;
-		hook->private = NULL;
+		NG_HOOK_SET_PRIVATE(hook, NULL);
 	} else {
 		return (EINVAL);	/* not a hook we know about */
 	}
@@ -661,7 +660,7 @@ ng_udbp_newhook(node_p node, hook_p hook, const char *name)
 Static int
 ng_udbp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const udbp_p sc = node->private;
+	const udbp_p sc = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -714,7 +713,7 @@ ng_udbp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 Static int
 ng_udbp_rcvdata(hook_p hook, item_p item)
 {
-	const udbp_p sc = hook->node->private;
+	const udbp_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	int error;
 	struct ifqueue	*xmitq_p;
 	int	s;
@@ -765,29 +764,37 @@ bad:	/*
 Static int
 ng_udbp_rmnode(node_p node)
 {
-	const udbp_p sc = node->private;
+	const udbp_p sc = NG_NODE_PRIVATE(node);
 	int err;
 
-	node->flags |= NG_INVALID;
+	if (sc->flags & DISCONNECTED) {
+		/* 
+		 * WE are really going away.. hardware must have gone.
+		 * Assume that the hardware drive part will clear up the 
+		 * sc, in fact it may already have done so..
+		 * In which case we may have just segfaulted..XXX
+		 */
+		return (0);
+	}
 
+	/* stolen from attach routine */
 	/* Drain the queues */
 	IF_DRAIN(&sc->xmitq_hipri);
 	IF_DRAIN(&sc->xmitq);
 
 	sc->packets_in = 0;		/* reset stats */
 	sc->packets_out = 0;
-	ng_unref(node);			/* forget it ever existed */
+	NG_NODE_UNREF(node);			/* forget it ever existed */
 
-	/* stolen from attach routine */
 	if ((err = ng_make_node_common(&ng_udbp_typestruct, &sc->node)) == 0) {
 		char	nodename[128];
 		sprintf(nodename, "%s", USBDEVNAME(sc->sc_dev));
 		if ((err = ng_name_node(sc->node, nodename))) {
-			ng_unref(sc->node); /* out damned spot! */
+			NG_NODE_UNREF(sc->node); /* out damned spot! */
 			sc->flags &= ~NETGRAPH_INITIALISED;
 			sc->node = NULL;
 		} else {
-			sc->node->private = sc;
+			NG_NODE_SET_PRIVATE(sc->node, sc);
 		}
 	}
 	return (err);
@@ -801,7 +808,7 @@ Static int
 ng_udbp_connect(hook_p hook)
 {
 	/* probably not at splnet, force outward queueing */
-	hook->peer->flags |= HK_QUEUE;
+	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 	/* be really amiable and just say "YUP that's OK by me! " */
 	return (0);
 }
@@ -814,12 +821,12 @@ ng_udbp_connect(hook_p hook)
 Static int
 ng_udbp_disconnect(hook_p hook)
 {
-	const udbp_p sc = hook->node->private;
+	const udbp_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	sc->hook = NULL;
 
-	if ((hook->node->numhooks == 0)
-	&& ((hook->node->flags & NG_INVALID) == 0))
-		ng_rmnode_self(hook->node);
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
 

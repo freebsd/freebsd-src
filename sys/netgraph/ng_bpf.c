@@ -219,7 +219,7 @@ static const struct ng_bpf_hookprog ng_bpf_default_prog = {
 static int
 ng_bpf_constructor(node_p node)
 {
-	node->private = NULL;
+	NG_NODE_SET_PRIVATE(node, NULL);
 	return (0);
 }
 
@@ -237,13 +237,13 @@ ng_bpf_newhook(node_p node, hook_p hook, const char *name)
 	if (hip == NULL)
 		return (ENOMEM);
 	hip->hook = hook;
-	hook->private = hip;
+	NG_HOOK_SET_PRIVATE(hook, hip);
 	hip->node = node;
 
 	/* Attach the default BPF program */
 	if ((error = ng_bpf_setprog(hook, &ng_bpf_default_prog)) != 0) {
 		FREE(hip, M_NETGRAPH);
-		hook->private = NULL;
+		NG_HOOK_SET_PRIVATE(hook, NULL);
 		return (error);
 	}
 
@@ -304,7 +304,7 @@ ng_bpf_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ERROUT(ENOENT);
 
 			/* Build response */
-			hp = ((hinfo_p)hook->private)->prog;
+			hp = ((hinfo_p)NG_HOOK_PRIVATE(hook))->prog;
 			NG_MKRESPONSE(resp, msg,
 			    NG_BPF_HOOKPROG_SIZE(hp->bpf_prog_len), M_NOWAIT);
 			if (resp == NULL)
@@ -329,7 +329,7 @@ ng_bpf_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			/* Find hook */
 			if ((hook = ng_findhook(node, msg->data)) == NULL)
 				ERROUT(ENOENT);
-			stats = &((hinfo_p)hook->private)->stats;
+			stats = &((hinfo_p)NG_HOOK_PRIVATE(hook))->stats;
 
 			/* Build response (if desired) */
 			if (msg->header.cmd != NGM_BPF_CLR_STATS) {
@@ -371,7 +371,7 @@ done:
 static int
 ng_bpf_rcvdata(hook_p hook, item_p item)
 {
-	const hinfo_p hip = hook->private;
+	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
 	int totlen;
 	int needfree = 0, error = 0;
 	u_char *data, buf[256];
@@ -431,10 +431,10 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Deliver frame out destination hook */
-	dhip = (hinfo_p)dest->private;
+	dhip = NG_HOOK_PRIVATE(dest);
 	dhip->stats.xmitOctets += totlen;
 	dhip->stats.xmitFrames++;
-	NG_FWD_DATA(error, item, dest);
+	NG_FWD_ITEM_HOOK(error, item, dest);
 	return (error);
 }
 
@@ -444,8 +444,7 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 static int
 ng_bpf_shutdown(node_p node)
 {
-	node->flags |= NG_INVALID;
-	ng_unref(node);
+	NG_NODE_UNREF(node);
 	return (0);
 }
 
@@ -455,16 +454,16 @@ ng_bpf_shutdown(node_p node)
 static int
 ng_bpf_disconnect(hook_p hook)
 {
-	const hinfo_p hip = hook->private;
+	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
 
 	KASSERT(hip != NULL, ("%s: null info", __FUNCTION__));
 	FREE(hip->prog, M_NETGRAPH);
 	bzero(hip, sizeof(*hip));
 	FREE(hip, M_NETGRAPH);
-	hook->private = NULL;			/* for good measure */
-	if ((hook->node->numhooks == 0)
-	&& ((hook->node->flags && NG_INVALID) == 0)) {
-		ng_rmnode_self(hook->node);
+	NG_HOOK_SET_PRIVATE(hook, NULL);			/* for good measure */
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	}
 	return (0);
 }
@@ -479,7 +478,7 @@ ng_bpf_disconnect(hook_p hook)
 static int
 ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 {
-	const hinfo_p hip = hook->private;
+	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
 	struct ng_bpf_hookprog *hp;
 	int size;
 

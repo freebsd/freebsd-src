@@ -170,8 +170,10 @@ static const char *const ng_ppp_hook_names[] = {
 
 /* We store index numbers in the hook private pointer. The HOOK_INDEX()
    for a hook is either the index (above) for normal hooks, or the ones
-   complement of the link number for link hooks. */
+   complement of the link number for link hooks.
+XXX Not any more.. (what a hack)
 #define HOOK_INDEX(hook)	(*((int16_t *) &(hook)->private))
+*/
 
 /* Per-link private information */
 struct ng_ppp_link {
@@ -384,7 +386,7 @@ ng_ppp_constructor(node_p node)
 	if (priv == NULL)
 		return (ENOMEM);
 
-	node->private = priv;
+	NG_NODE_SET_PRIVATE(node, priv);
 
 	/* Initialize state */
 	TAILQ_INIT(&priv->frags);
@@ -402,7 +404,7 @@ ng_ppp_constructor(node_p node)
 static int
 ng_ppp_newhook(node_p node, hook_p hook, const char *name)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	int linkNum = -1;
 	hook_p *hookPtr = NULL;
 	int hookIndex = -1;
@@ -446,7 +448,7 @@ ng_ppp_newhook(node_p node, hook_p hook, const char *name)
 
 	/* OK */
 	*hookPtr = hook;
-	HOOK_INDEX(hook) = hookIndex;
+	NG_HOOK_SET_PRIVATE(hook, (void *)hookIndex);
 	ng_ppp_update(node, 0);
 	return (0);
 }
@@ -457,7 +459,7 @@ ng_ppp_newhook(node_p node, hook_p hook, const char *name)
 static int
 ng_ppp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -553,11 +555,16 @@ ng_ppp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		/*
 		 * Forward it to the vjc node. leave the 
 		 * old return address alone.
+		 * If we have no hook, let NG_RESPOND_MSG
+		 * clean up any remaining resources.
+		 * Because we have no resp, the item will be freed
+		 * along with anything it references. Don't
+		 * let msg be freed twice.
 		 */
 		NGI_MSG(item) = msg;	/* put it back in the item */
-		if (priv->links[HOOK_INDEX_VJC_IP].hook) {
-			NG_FWD_MSG_HOOK(error, NULL, item,
-				priv->links[HOOK_INDEX_VJC_IP].hook, NULL);
+		msg = NULL;
+		if ((lasthook = priv->links[HOOK_INDEX_VJC_IP].hook)) {
+			NG_FWD_ITEM_HOOK(error, item, lasthook);
 		}
 		return (error);
 	    }
@@ -577,9 +584,9 @@ done:
 static int
 ng_ppp_rcvdata(hook_p hook, item_p item)
 {
-	const node_p node = hook->node;
-	const priv_p priv = node->private;
-	const int index = HOOK_INDEX(hook);
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
+	const int index = (int)NG_HOOK_PRIVATE(hook);
 	u_int16_t linkNum = NG_PPP_BUNDLE_LINKNUM;
 	hook_p outHook = NULL;
 	int proto = 0, error;
@@ -780,13 +787,7 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Send packet out hook */
-	NG_FWD_DATA(error, item, outHook);
-#if 0
-	/* help archie... what's going on? */
-	/* Looks like you were acrually USING the stub functions
-	(now gone again) */
-		return ng_ppp_rcvdata(outHook, item);
-#endif
+	NG_FWD_ITEM_HOOK(error, item, outHook);
 	return (error);
 }
 
@@ -796,18 +797,17 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 static int
 ng_ppp_shutdown(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* Stop fragment queue timer */
 	ng_ppp_stop_frag_timer(node);
 
 	/* Take down netgraph node */
-	node->flags |= NG_INVALID;
 	ng_ppp_frag_reset(node);
 	bzero(priv, sizeof(*priv));
 	FREE(priv, M_NETGRAPH);
-	node->private = NULL;
-	ng_unref(node);		/* let the node escape */
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);		/* let the node escape */
 	return (0);
 }
 
@@ -817,9 +817,9 @@ ng_ppp_shutdown(node_p node)
 static int
 ng_ppp_disconnect(hook_p hook)
 {
-	const node_p node = hook->node;
-	const priv_p priv = node->private;
-	const int index = HOOK_INDEX(hook);
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
+	const int index = (int)NG_HOOK_PRIVATE(hook);
 
 	/* Zero out hook pointer */
 	if (index < 0)
@@ -828,10 +828,10 @@ ng_ppp_disconnect(hook_p hook)
 		priv->hooks[index] = NULL;
 
 	/* Update derived info (or go away if no hooks left) */
-	if (node->numhooks > 0) {
+	if (NG_NODE_NUMHOOKS(node) > 0) {
 		ng_ppp_update(node, 0);
 	} else {
-		if ((node->flags & NG_INVALID) == 0) {
+		if (NG_NODE_IS_VALID(node)) {
 			ng_rmnode_self(node);
 		}
 	}
@@ -849,7 +849,7 @@ ng_ppp_disconnect(hook_p hook)
 static int
 ng_ppp_input(node_p node, int bypass, int linkNum, item_p item)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	hook_p outHook = NULL;
 	int proto, error;
 	struct mbuf *m;
@@ -947,7 +947,7 @@ static int
 ng_ppp_output(node_p node, int bypass,
 	int proto, int linkNum, item_p item)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_ppp_link *link;
 	int len, error;
 	struct mbuf *m;
@@ -1070,7 +1070,7 @@ ng_ppp_output(node_p node, int bypass,
 static int
 ng_ppp_mp_input(node_p node, int linkNum, item_p item)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_ppp_link *const link = &priv->links[linkNum];
 	struct ng_ppp_frag frag0, *frag = &frag0;
 	struct ng_ppp_frag *qent;
@@ -1190,7 +1190,7 @@ ng_ppp_mp_input(node_p node, int linkNum, item_p item)
 static int
 ng_ppp_check_packet(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_ppp_frag *qent, *qnext;
 
 	/* Check for empty queue */
@@ -1223,7 +1223,7 @@ ng_ppp_check_packet(node_p node)
 static void
 ng_ppp_get_packet(node_p node, struct mbuf **mp, meta_p *metap)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_ppp_frag *qent, *qnext;
 	struct mbuf *m = NULL, *tail;
 
@@ -1261,7 +1261,7 @@ ng_ppp_get_packet(node_p node, struct mbuf **mp, meta_p *metap)
 static int
 ng_ppp_frag_trim(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_ppp_frag *qent, *qnext = NULL;
 	int removed = 0;
 
@@ -1311,7 +1311,7 @@ ng_ppp_frag_trim(node_p node)
 static int
 ng_ppp_frag_process(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct mbuf *m;
 	meta_p meta;
 	item_p item;
@@ -1389,7 +1389,7 @@ ng_ppp_frag_process(node_p node)
 static void
 ng_ppp_frag_checkstale(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_ppp_frag *qent, *beg, *end;
 	struct timeval now, age;
 	struct mbuf *m;
@@ -1474,12 +1474,12 @@ static void
 ng_ppp_frag_timeout(void *arg)
 {
 	const node_p node = arg;
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	int s = splnet();
 
 	/* Handle the race where shutdown happens just before splnet() above */
-	if ((node->flags & NG_INVALID) != 0) {
-		ng_unref(node);
+	if (NG_NODE_NOT_VALID(node)) {
+		NG_NODE_UNREF(node);
 		splx(s);
 		return;
 	}
@@ -1487,8 +1487,8 @@ ng_ppp_frag_timeout(void *arg)
 	/* Reset timer state after timeout */
 	KASSERT(priv->timerActive, ("%s: !timerActive", __FUNCTION__));
 	priv->timerActive = 0;
-	KASSERT(node->refs > 1, ("%s: refs=%d", __FUNCTION__, node->refs));
-	ng_unref(node);
+	KASSERT(node->nd_refs > 1, ("%s: nd_refs=%d", __FUNCTION__, node->nd_refs));
+	NG_NODE_UNREF(node);
 
 	/* Start timer again */
 	ng_ppp_start_frag_timer(node);
@@ -1505,7 +1505,7 @@ ng_ppp_frag_timeout(void *arg)
 static int
 ng_ppp_mp_output(node_p node, struct mbuf *m, meta_p meta)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	int distrib[NG_PPP_MAX_LINKS];
 	int firstFragment;
 	int activeLinkNum;
@@ -1720,7 +1720,7 @@ deliver:
 static void
 ng_ppp_mp_strategy(node_p node, int len, int *distrib)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	int latency[NG_PPP_MAX_LINKS];
 	int sortByLatency[NG_PPP_MAX_LINKS];
 	int activeLinkNum;
@@ -1906,7 +1906,7 @@ ng_ppp_prepend(struct mbuf *m, const void *buf, int len)
 static void
 ng_ppp_update(node_p node, int newConf)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	int i;
 
 	/* Update active status for VJ Compression */
@@ -1983,7 +1983,7 @@ ng_ppp_update(node_p node, int newConf)
 static int
 ng_ppp_config_valid(node_p node, const struct ng_ppp_node_conf *newConf)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	int i, newNumLinksActive;
 
 	/* Check per-link config and count how many links would be active */
@@ -2029,7 +2029,7 @@ ng_ppp_config_valid(node_p node, const struct ng_ppp_node_conf *newConf)
 static void
 ng_ppp_frag_reset(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_ppp_frag *qent, *qnext;
 
 	for (qent = TAILQ_FIRST(&priv->frags); qent; qent = qnext) {
@@ -2048,13 +2048,13 @@ ng_ppp_frag_reset(node_p node)
 static void
 ng_ppp_start_frag_timer(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	if (!priv->timerActive) {
 		priv->fragTimer = timeout(ng_ppp_frag_timeout,
 		    node, MP_FRAGTIMER_INTERVAL);
 		priv->timerActive = 1;
-		node->refs++;
+		NG_NODE_REF(node);
 	}
 }
 
@@ -2064,14 +2064,14 @@ ng_ppp_start_frag_timer(node_p node)
 static void
 ng_ppp_stop_frag_timer(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	if (priv->timerActive) {
 		untimeout(ng_ppp_frag_timeout, node, priv->fragTimer);
 		priv->timerActive = 0;
-		KASSERT(node->refs > 1,
-		    ("%s: refs=%d", __FUNCTION__, node->refs));
-		ng_unref(node);
+		KASSERT(node->nd_refs > 1,
+		    ("%s: nd_refs=%d", __FUNCTION__, node->nd_refs));
+		NG_NODE_UNREF(node);
 	}
 }
 

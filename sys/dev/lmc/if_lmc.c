@@ -1132,10 +1132,10 @@ lmc_attach(lmc_softc_t * const sc)
 		return (0);
 	sprintf(sc->lmc_nodename, "%s%d", NG_LMC_NODE_TYPE, sc->lmc_unit);
 	if (ng_name_node(sc->lmc_node, sc->lmc_nodename)) {
-		ng_unref(sc->lmc_node); /* make it go away again */
+		NG_NODE_UNREF(sc->lmc_node); /* make it go away again */
 		return (0);
 	}
-	sc->lmc_node->private = sc;
+	NG_NODE_SET_PRIVATE(sc->lmc_node, sc);
 	callout_handle_init(&sc->lmc_handle);
 	sc->lmc_xmitq.ifq_maxlen = IFQ_MAXLEN;
 	sc->lmc_xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
@@ -1265,13 +1265,13 @@ ng_lmc_constructor(node_p node)
 static  int
 ng_lmc_newhook(node_p node, hook_p hook, const char *name)
 {
-        lmc_softc_t *       sc = (lmc_softc_t *) node->private;
+        lmc_softc_t *       sc = NG_NODE_PRIVATE(node);
 
         /*
          * check if it's our friend the debug hook
          */
         if (strcmp(name, NG_LMC_HOOK_DEBUG) == 0) {
-                hook->private = NULL; /* paranoid */
+                NG_HOOK_SET_PRIVATE(hook, NULL); /* paranoid */
                 sc->lmc_debug_hook = hook;
                 return (0);
         }
@@ -1282,7 +1282,7 @@ ng_lmc_newhook(node_p node, hook_p hook, const char *name)
         if (strcmp(name, NG_LMC_HOOK_RAW) != 0) {
                 return (EINVAL);
         }
-        hook->private = sc;
+        NG_HOOK_SET_PRIVATE(hook, sc);
         sc->lmc_hook = hook;
         sc->lmc_datahooks++;
         lmc_ifup(sc);
@@ -1296,7 +1296,7 @@ ng_lmc_newhook(node_p node, hook_p hook, const char *name)
 static  int
 ng_lmc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	lmc_softc_t *sc = (lmc_softc_t *) node->private;
+	lmc_softc_t *sc = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -1390,7 +1390,7 @@ ng_lmc_rcvdata(hook_p hook, item_p item)
 {
         int s;
         int error = 0;
-        lmc_softc_t * sc = (lmc_softc_t *) hook->node->private;
+        lmc_softc_t * sc = (lmc_softc_t *) NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
         struct ifqueue  *xmitq_p;
 	struct mbuf *m;
 	meta_p meta;
@@ -1403,7 +1403,7 @@ ng_lmc_rcvdata(hook_p hook, item_p item)
         /*
          * data doesn't come in from just anywhere (e.g control hook)
          */
-        if ( hook->private == NULL) {
+        if ( NG_HOOK_PRIVATE(hook) == NULL) {
                 error = ENETDOWN;
                 goto bad;
         }
@@ -1449,16 +1449,15 @@ bad:
 static  int
 ng_lmc_rmnode(node_p node)
 {
-        lmc_softc_t * sc = (lmc_softc_t *) node->private;
+        lmc_softc_t * sc = NG_NODE_PRIVATE(node);
 
         lmc_ifdown(sc);
 	
 	/*
 	 * Get rid of the old node.
 	 */
-	node->flags |= NG_INVALID;
-	node->private = NULL;
-	ng_unref(node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);
 	
 	/*
 	 * Create a new node. This is basically what a device
@@ -1470,10 +1469,10 @@ ng_lmc_rmnode(node_p node)
 	sprintf(sc->lmc_nodename, "%s%d", NG_LMC_NODE_TYPE, sc->lmc_unit);
 	if (ng_name_node(sc->lmc_node, sc->lmc_nodename)) {
 		sc->lmc_node = NULL; /* to be sure */
-		ng_unref(sc->lmc_node); /* make it go away */
+		NG_NODE_UNREF(sc->lmc_node); /* make it go away */
 		return (0);
 	}
-	sc->lmc_node->private = sc;
+	NG_NODE_SET_PRIVATE(sc->lmc_node, sc);
 	callout_handle_init(&sc->lmc_handle);
 	sc->lmc_running = 0;
 	/*
@@ -1488,7 +1487,7 @@ static  int
 ng_lmc_connect(hook_p hook)
 {
 	/* We are probably not at splnet.. force outward queueing */
-	hook->peer->flags |= HK_QUEUE;
+	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
         /* be really amiable and just say "YUP that's OK by me! " */
         return (0);
 }
@@ -1506,12 +1505,12 @@ ng_lmc_connect(hook_p hook)
 static  int
 ng_lmc_disconnect(hook_p hook)
 {
-        lmc_softc_t * sc = (lmc_softc_t *) hook->node->private;
+        lmc_softc_t * sc = (lmc_softc_t *) NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
         int     s;
         /*
          * If it's the data hook, then free resources etc.
          */
-        if (hook->private) {
+        if (NG_HOOK_PRIVATE(hook)) {
                 s = splimp();
                 sc->lmc_datahooks--;
                 if (sc->lmc_datahooks == 0)

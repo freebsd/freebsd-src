@@ -602,43 +602,139 @@ and
 .Pa sys/netgraph/ng_message.h 
 (for message definitions also of interest to user programs).
 
-The following structures exist and have the following access
-fields of interest to the node writers. If applicable I show the
-access method for that information.
-for their fields:
+The two basic object types that are of interest to node authors are 
+.Em nodes
+and
+.Em hooks .
+These two objects have the following
+properties that are also of interest to the node writers.
 .Bl -tag -width xxx
 ./.Bl  -bullet -compact -offset 2n
 .It struct  ng_node
+Node authors should always use the following typedef to declare
+their pointers, and should never actually declare the structure.
+.Pp
 typedef struct ng_node *node_p;
-.Bl -tag -width xxx
-.It  char    name[NG_NODELEN+1]
+.Pp
+The following properties are associated with a node, and can be
+accessed in the following manner:
+.Bl -bullet -compact -offset 2n
+./.Bl -tag -width xxx
+.Pp
+.It
+Validity
+.Pp
+A driver or interrupt routine may want to check whether
+the node is still valid. It is assumed that the caller holds a reference
+on the node so it will not have been freed, however it may have been
+disabled or otherwise shut down. Using the
+.Fn NG_NODE_IS_VALID "node"
+macro will return this state. Eventually it should be almost impossible
+for code to run in an invalid node but at this time that work has not been
+completed.
+.Pp
+.It
+node ID
+.Pp
+Of type 
+.Em ng_ID_t ,
+This property can be retrieved using the macro 
+.Fn NG_NODE_ID "node".
+.Pp
+.It
+node name
+.Pp
 Optional globally unique name, null terminated string. If there
 is a value in here, it is the name of the node.
 .Pp
-if (node->name[0]) ....
+if (
+.Fn NG_NODE_NAME "node"
+[0]) ....
 .Pp
-.It  void    *private
-Node implementation private info.
-You may place anything you wish here.
-.It  int     numhooks
-Number of connected hooks.
-.It  hook_p  hooks
-Linked list of (connected) hooks.
+if (strncmp(
+.Fn NG_NODE_NAME "node"
+, "fred", NG_NODELEN)) ...
+.Pp
+.It
+A node dependent opaque cookie
+.Pp
+You may place anything of type 
+.Em pointer
+here.
+Use the macros
+.Fn NG_NODE_SET_PRIVATE "node, value"
+and
+.Fn NG_NODE_PRIVATE "node"
+to set and retrieve this property.
+.Pp
+.It
+number of hooks
+.Pp
+Use
+.Fn NG_NODE_NUMHOOKS "node" 
+to retrieve this value.
+.Pp
+.It
+hooks
+.Pp
+The node may have a number of hooks.
+A traversal method is provided to allow all the hooks to be
+tested for some condition.
+.Fn NG_NODE_FOREACH_HOOK "node, fn, arg, rethook"
+where fn is a function that will be called for each hook
+with the form
+.Fn fn "hook, arg"
+and returning 0 to terminate the search. If the search is terminated, then 
+.Em rethook
+will be set to the hook at which the search was terminated.
 .El
 .It struct  ng_hook 
+Node authors should always use the following typedef to declare
+their hook pointers.
+.Pp
 typedef struct ng_hook *hook_p;
-.Bl -tag -width xxx
-.It  void           *private;      
-Node implementation private info.
-You may place anything you wish in this field.
-.It  struct ng_node *node;         
-The node this hook is attached to.
-.It  struct ng_hook *peer;         
-The other hook in this connected pair.
-.It  struct ng_hook *next;         
-Next in list of hooks for this node.
-A hook list traversal method will be supplied so use of this field
-directly will go away.
+.Pp
+The following properties are associated with a hook, and can be
+accessed in the following manner:
+.Bl -bullet -compact -offset 2n
+./.Bl -tag -width xxx
+.Pp
+.It
+A node dependent opaque cookie.
+.Pp
+You may place anything of type 
+.Em pointer
+here.
+Use the macros
+.Fn NG_HOOK_SET_PRIVATE "hook, value"
+and
+.Fn NG_HOOK_PRIVATE "hook"
+to set and retrieve this property.
+.Pp
+.It
+An associate node.
+.Pp
+You may use the macro 
+.Fn NG_HOOK_NODE "hook"
+to find the associated node.
+.Pp
+.It
+A peer hook
+.Pp
+The other hook in this connected pair. Of type hook_p. You can
+use
+.Fn NG_HOOK_PEER "hook"
+to find the peer.
+.Pp
+.It
+references
+.Pp
+.Fn NG_HOOK_REF "hook"
+and
+.Fn NG_HOOK_UNREF "hook"
+increment and decrement the hook reference count accordingly.
+After decrement you should always sume the hook has been freed.
+In fact the macro may set it to NULL.
 .El
 .Pp
 The maintenance of the names, reference counts, and linked list
@@ -650,11 +746,11 @@ structure, which counts as a new reference that must be included
 in the reference count for the node. When the node constructor is called
 there is already a reference for this calculated in, so that
 when the node is destroyed, it should remember to do a
-.Fn ng_unref
+.Fn NG_NODE_UNREF
 on the node.
 .Pp
 From a hook you can obtain the corresponding node, and from
-a node, the list of all active hooks.
+a node, it is possible to traverse all the active hooks.
 .Pp
 A current example of how to define a node can always be seen in 
 .Em sys/netgraph/ng_sample.c

@@ -550,7 +550,7 @@ ng_iface_constructor(node_p node)
 	}
 
 	/* Link together node and private info */
-	node->private = priv;
+	NG_NODE_SET_PRIVATE(node, priv);
 	priv->node = node;
 
 	/* Initialize interface structure */
@@ -594,7 +594,7 @@ ng_iface_newhook(node_p node, hook_p hook, const char *name)
 
 	if (iffam == NULL)
 		return (EPFNOSUPPORT);
-	hookptr = get_hook_from_iffam((priv_p) node->private, iffam);
+	hookptr = get_hook_from_iffam(NG_NODE_PRIVATE(node), iffam);
 	if (*hookptr != NULL)
 		return (EISCONN);
 	*hookptr = hook;
@@ -607,7 +607,7 @@ ng_iface_newhook(node_p node, hook_p hook, const char *name)
 static int
 ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ifnet *const ifp = priv->ifp;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
@@ -709,7 +709,7 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static int
 ng_iface_rcvdata(hook_p hook, item_p item)
 {
-	const priv_p priv = hook->node->private;
+	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	const iffam_p iffam = get_iffam_from_hook(priv, hook);
 	struct ifnet *const ifp = priv->ifp;
 	struct mbuf *m;
@@ -746,15 +746,15 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 static int
 ng_iface_shutdown(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	bpfdetach(priv->ifp);
 	if_detach(priv->ifp);
 	priv->ifp = NULL;
 	ng_iface_free_unit(priv->unit);
 	FREE(priv, M_NETGRAPH);
-	node->private = NULL;
-	ng_unref(node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);
 	return (0);
 }
 
@@ -765,7 +765,7 @@ ng_iface_shutdown(node_p node)
 static int
 ng_iface_disconnect(hook_p hook)
 {
-	const priv_p priv = hook->node->private;
+	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	const iffam_p iffam = get_iffam_from_hook(priv, hook);
 
 	if (iffam == NULL)
