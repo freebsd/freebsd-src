@@ -27,6 +27,7 @@ struct bcachectl
 {
     daddr_t	bc_blkno;
     time_t	bc_stamp;
+    int		bc_count;
 };
 
 static struct bcachectl	*bcache_ctl;
@@ -35,6 +36,7 @@ static bitstr_t		*bcache_miss;
 static int		bcache_nblks;
 static int		bcache_blksize;
 static int		bcache_hits, bcache_misses, bcache_ops, bcache_bypasses;
+static int		bcache_bcount;
 
 static void	bcache_insert(caddr_t buf, daddr_t blkno);
 static int	bcache_lookup(caddr_t buf, daddr_t blkno);
@@ -73,7 +75,7 @@ bcache_init(int nblks, size_t bsize)
 
     /* Invalidate the cache */
     for (i = 0; i < bcache_nblks; i++)
-	bcache_ctl[i].bc_stamp = 0;
+	bcache_ctl[i].bc_count = -1;
 
     return(0);
 }
@@ -160,35 +162,42 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t size, void *buf, size
 
 /*
  * Insert a block into the cache.  Retire the oldest block to do so, if required.
+ *
+ * XXX the LRU algorithm will fail after 2^31 blocks have been transferred.
  */
 static void
 bcache_insert(caddr_t buf, daddr_t blkno) 
 {
     time_t	now;
-    int		i, cand;
+    int		i, cand, ocount;
     
     time(&now);
+    cand = 0;				/* assume the first block */
+    ocount = bcache_ctl[0].bc_count;
 
     /* find the oldest block */
-    for (cand = 0, i = 1; i < bcache_nblks; i++) {
+    for (i = 1; i < bcache_nblks; i++) {
 	if (bcache_ctl[i].bc_blkno == blkno) {
 	    /* reuse old entry */
 	    cand = i;
 	    break;
 	}
-	if (bcache_ctl[i].bc_stamp < now)
+	if (bcache_ctl[i].bc_count < ocount) {
+	    ocount = bcache_ctl[i].bc_count;
 	    cand = i;
+	}
     }
     
-    DEBUG("insert blk %d -> %d @ %d", blkno, cand, now);
+    DEBUG("insert blk %d -> %d @ %d # %d", blkno, cand, now, bcache_bcount);
     bcopy(buf, bcache_data + (bcache_blksize * cand), bcache_blksize);
     bcache_ctl[cand].bc_blkno = blkno;
     bcache_ctl[cand].bc_stamp = now;
+    bcache_ctl[cand].bc_count = bcache_bcount++;
 }
 
 /*
  * Look for a block in the cache.  Blocks more than BCACHE_TIMEOUT seconds old
- *  may be stale (removable media) and thus are discarded.  Copy the block out 
+ * may be stale (removable media) and thus are discarded.  Copy the block out 
  * if successful and return zero, or return nonzero on failure.
  */
 static int
@@ -217,7 +226,7 @@ command_bcache(int argc, char *argv[])
     int		i;
     
     for (i = 0; i < bcache_nblks; i++) {
-	printf("  %02x: %08x %04x", i, bcache_ctl[i].bc_blkno, bcache_ctl[i].bc_stamp & 0xffff);
+	printf("%08x %04x %04x|", bcache_ctl[i].bc_blkno, bcache_ctl[i].bc_stamp & 0xffff, bcache_ctl[i].bc_count & 0xffff);
 	if (((i + 1) % 4) == 0)
 	    printf("\n");
     }
