@@ -34,7 +34,7 @@
 // Written by Benjamin Kosnik <bkoz@redhat.com>
 
 #include <locale>
-#include "c++locale_internal.h"
+#include <bits/c++locale_internal.h>
 
 namespace std
 {
@@ -317,7 +317,11 @@ namespace std
   template<> 
     void
     moneypunct<wchar_t, true>::_M_initialize_moneypunct(__c_locale __cloc, 
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2)
+							const char*)
+#else
 							const char* __name)
+#endif
     {
       if (!__cloc)
 	{
@@ -413,8 +417,12 @@ namespace std
 
   template<> 
     void
-    moneypunct<wchar_t, false>::_M_initialize_moneypunct(__c_locale __cloc, 
+    moneypunct<wchar_t, false>::_M_initialize_moneypunct(__c_locale __cloc,
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2) 
+							 const char*)
+#else
 							 const char* __name)
+#endif
     {
       if (!__cloc)
 	{

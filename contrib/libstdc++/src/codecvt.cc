@@ -1,4 +1,4 @@
-// Copyright (C) 2000, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2000, 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -82,7 +82,7 @@ namespace std
 	const extern_type*, const extern_type*& __from_next,
 	intern_type* __to, intern_type*, 
 	intern_type*& __to_next) const
-  { 
+  {
     // _GLIBCPP_RESOLVE_LIB_DEFECTS
     // According to the resolution of DR19, "If returns noconv [...]
     // there are no changes to the values in [to, to_limit)."
