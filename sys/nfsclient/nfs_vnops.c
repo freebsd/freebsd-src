@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.124 1999/03/12 02:24:58 julian Exp $
+ * $Id: nfs_vnops.c,v 1.125 1999/05/02 23:56:26 alc Exp $
  */
 
 
@@ -408,9 +408,9 @@ nfs_access(ap)
 				error = nfs_readrpc(vp, &auio, ap->a_cred);
 			else if (vp->v_type == VDIR) {
 				char* bp;
-				bp = malloc(DIRBLKSIZ, M_TEMP, M_WAITOK);
+				bp = malloc(NFS_DIRBLKSIZ, M_TEMP, M_WAITOK);
 				aiov.iov_base = bp;
-				aiov.iov_len = auio.uio_resid = DIRBLKSIZ;
+				aiov.iov_len = auio.uio_resid = NFS_DIRBLKSIZ;
 				error = nfs_readdirrpc(vp, &auio, ap->a_cred);
 				free(bp, M_TEMP);
 			} else if (vp->v_type == VLNK)
