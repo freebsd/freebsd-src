@@ -1199,11 +1199,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * instruction to halt it in its tracks.
 		 */
 		PROC_LOCK(p);
-		SIGACTION(p, SIGILL) = SIG_DFL;	
-		SIGDELSET(p->p_sigignore, SIGILL);
-		SIGDELSET(p->p_sigcatch, SIGILL);
-		SIGDELSET(p->p_sigmask, SIGILL);
-		psignal(p, SIGILL);
+		sigexit(td, SIGILL);
 		return;
 	}
 
@@ -1305,11 +1301,7 @@ freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * instruction to halt it in its tracks.
 		 */
 		PROC_LOCK(p);
-		SIGACTION(p, SIGILL) = SIG_DFL;
-		SIGDELSET(p->p_sigignore, SIGILL);
-		SIGDELSET(p->p_sigcatch, SIGILL);
-		SIGDELSET(p->p_sigmask, SIGILL);
-		psignal(p, SIGILL);
+		sigexit(td, SIGILL);
 		return;
 	}
 
@@ -1430,11 +1422,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * instruction to halt it in its tracks.
 		 */
 		PROC_LOCK(p);
-		SIGACTION(p, SIGILL) = SIG_DFL;
-		SIGDELSET(p->p_sigignore, SIGILL);
-		SIGDELSET(p->p_sigcatch, SIGILL);
-		SIGDELSET(p->p_sigmask, SIGILL);
-		psignal(p, SIGILL);
+		sigexit(td, SIGILL);
 		return;
 	}
 
