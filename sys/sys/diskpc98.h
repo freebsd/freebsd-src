@@ -69,7 +69,6 @@ CTASSERT(sizeof (struct pc98_partition) == 32);
 void pc98_partition_dec(void const *pp, struct pc98_partition *d);
 void pc98_partition_enc(void *pp, struct pc98_partition *d);
 
-#define DIOCGPC98	_IOR('M', 128, u_char[8192])
 #define DIOCSPC98	_IOW('M', 129, u_char[8192])
 
 #endif /* !_SYS_DISKPC98_H_ */
