@@ -1350,7 +1350,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 		def = SWAP_MIN_SIZE * ONE_MEG;
 	    if (def > SWAP_AUTO_LIMIT_SIZE * ONE_MEG)
 		def = SWAP_AUTO_LIMIT_SIZE * ONE_MEG;
-	    nom = (int)(physmem / 512) / 2;
+	    nom = (int)(physmem / 512) / 8;
 	    sz = nom + (def - nom) * perc / 100;
 	}
 	swap_chunk = Create_Chunk_DWIM(label_chunk_info[here].c->disk, 
