@@ -89,6 +89,12 @@ Set debugging flags.
 .in +1i
 Detach a plex or subdisk from the volume or plex to which it is attached.
 .in
+.Cd dumpconfig
+.Op Ar drive ...
+.in +1i
+List the configuration information stored on the specified drives, or all drives
+in the system if no drive names are specified.
+.in
 .Cd info
 .Op Fl v
 .Op Fl V
@@ -627,6 +633,18 @@ does not reduce the number of subdisks in a striped or RAID-5 plex.  Instead,
 the subdisk is marked absent, and can later be replaced with the
 .Nm attach
 command.
+.It Nm dumpconfig  Op Ar drive ...
+.Pp
+.Nm
+.Ar dumpconfig
+shows the configuration information stored on the specified drives.  If no drive
+names are specified,
+.Nm dumpconfig
+searches all drives on the system for Vinum partitions and dumps the
+information.  If configuration updates are disabled, it is possible that this
+information is not the same as the information returned by the
+.Nm list
+command.  This command is used primarily for maintenance and debugging.
 .It Nm info
 .br
 .Nm
