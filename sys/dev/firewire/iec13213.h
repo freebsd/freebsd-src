@@ -236,8 +236,7 @@ struct crom_chunk {
 	int ref_index; 
 	int offset;
 	struct {
-		u_int32_t crc:16,
-			  crc_len:16;
+		BIT16x2(crc_len, crc);
 		u_int32_t buf[CROM_MAX_CHUNK_LEN]; 
 	} data;
 };
