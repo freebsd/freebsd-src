@@ -835,7 +835,7 @@ pci_add_children(device_t dev, int busno, size_t dinfo_size)
 		pcifunchigh = 0;
 		f = 0;
 		hdrtype = REG(PCIR_HEADERTYPE, 1);
-		if ((hdrtype & ~PCIM_MFDEV) > 2)
+		if ((hdrtype & ~PCIM_MFDEV) > PCI_MAXHDRTYPE)
 			continue;
 		if (hdrtype & PCIM_MFDEV)
 			pcifunchigh = PCI_FUNCMAX;
