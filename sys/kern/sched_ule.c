@@ -1225,7 +1225,7 @@ sched_prio(struct thread *td, u_char prio)
 }
 
 void
-sched_switch(struct thread *td, struct thread *newtd)
+sched_switch(struct thread *td, struct thread *newtd, int flags)
 {
 	struct kse *ke;
 
