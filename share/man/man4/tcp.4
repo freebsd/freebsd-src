@@ -164,6 +164,9 @@ allocated;
 when an attempt is made to create a 
 socket with a network address for which no network interface
 exists.
+.It Bq Er EAFNOSUPPORT
+when an attempt is made to bind or connect a socket to a multicast
+address.
 .El
 .Sh SEE ALSO
 .Xr getsockopt 2 ,
