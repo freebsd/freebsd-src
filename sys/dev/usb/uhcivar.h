@@ -119,15 +119,14 @@ typedef struct uhci_softc {
 	struct usbd_bus sc_bus;		/* base device */
 #if defined(__NetBSD__)
 	void *sc_ih;			/* interrupt vectoring */
+#endif
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
 
+#if defined(__NetBSD__)
 	bus_dma_tag_t sc_dmatag;	/* DMA tag */
 	/* XXX should keep track of all DMA memory */
-#elif defined(__FreeBSD__)
-	bus_space_tag_t iot;
-	bus_space_handle_t ioh;
-#endif /* defined(__FreeBSD__) */
+#endif
 
 	uhci_physaddr_t *sc_pframes;
 	struct uhci_vframe sc_vframes[UHCI_VFRAMELIST_COUNT];
