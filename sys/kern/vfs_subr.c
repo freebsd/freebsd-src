@@ -1814,43 +1814,43 @@ vget(vp, flags, td)
 	 * the VI_DOOMED flag is set.
 	 */
 	if (vp->v_iflag & VI_DOOMED && vp->v_vxthread != td &&
-	    (flags & LK_NOWAIT)) {
+	    ((flags & LK_NOWAIT) || (flags & LK_TYPE_MASK) == 0)) {
 		VI_UNLOCK(vp);
 		return (EBUSY);
 	}
 	v_incr_usecount(vp, 1);
-
 	if (VSHOULDBUSY(vp))
 		vbusy(vp);
 	if ((flags & LK_TYPE_MASK) == 0) {
-		if (vp->v_iflag & VI_DOOMED)
-			error = ENOENT;
 		VI_UNLOCK(vp);
-		return (error);
+		return (0);
 	}
-	if ((error = vn_lock(vp, flags | LK_INTERLOCK, td)) != 0) {
-		/*
-		 * must expand vrele here because we do not want
-		 * to call VOP_INACTIVE if the reference count
-		 * drops back to zero since it was never really
-		 * active. We must remove it from the free list
-		 * before sleeping so that multiple processes do
-		 * not try to recycle it.
-		 */
-		VI_LOCK(vp);
-		v_incr_usecount(vp, -1);
-		if (VSHOULDFREE(vp))
-			vfree(vp);
-		else
-			vlruvp(vp);
-		VI_UNLOCK(vp);
-		return (error);
-	}
+	if ((error = vn_lock(vp, flags | LK_INTERLOCK, td)) != 0)
+		goto drop;
 	if (vp->v_iflag & VI_DOOMED && vp->v_vxthread != td) {
 		VOP_UNLOCK(vp, 0, td);
-		return (ENOENT);
+		error = ENOENT;
+		goto drop;
 	}
 	return (0);
+
+drop:
+	/*
+	 * must expand vrele here because we do not want
+	 * to call VOP_INACTIVE if the reference count
+	 * drops back to zero since it was never really
+	 * active. We must remove it from the free list
+	 * before sleeping so that multiple processes do
+	 * not try to recycle it.
+	 */
+	VI_LOCK(vp);
+	v_incr_usecount(vp, -1);
+	if (VSHOULDFREE(vp))
+		vfree(vp);
+	else
+		vlruvp(vp);
+	VI_UNLOCK(vp);
+	return (error);
 }
 
 /*
