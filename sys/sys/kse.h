@@ -58,8 +58,8 @@ struct kse_thr_mailbox {
 	unsigned int		tm_flags;	/* Thread flags */
 	struct kse_thr_mailbox	*tm_next;	/* Next thread in list */
 	void			*tm_udata;	/* For use by the UTS */
-	unsigned int		tm_uticks;
-	unsigned int		tm_sticks;
+	uint32_t		tm_uticks;
+	uint32_t		tm_sticks;
 	siginfo_t		tm_syncsig;
 	int			tm_spare[8];
 };
@@ -75,7 +75,7 @@ struct kse_mailbox {
 	struct kse_thr_mailbox	*km_curthread;	/* Currently running thread */
 	struct kse_thr_mailbox	*km_completed;	/* Threads back from kernel */
 	sigset_t		km_sigscaught;	/* Caught signals */
-	unsigned int		km_flags;	/* KSE flags */
+	uint32_t		km_flags;	/* KSE flags */
 	kse_func_t		*km_func;	/* UTS function */
 	stack_t			km_stack;	/* UTS context */
 	void			*km_udata;	/* For use by the UTS */
