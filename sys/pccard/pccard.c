@@ -555,7 +555,6 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 		break;
 	/*
 	 * Set the memory window to be used for the read/write interface.
-	 * Not available on the alpha.
 	 */
 	case PIOCRWMEM:
 		if (*(unsigned long *)data == 0) {
