@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.87 1996/03/27 18:50:09 bde Exp $
+ *      $Id: sd.c,v 1.88 1996/05/02 14:20:54 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -44,6 +44,7 @@
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/vm_prot.h>
 #include <vm/pmap.h>
 #include <machine/md_var.h>
 #include <i386/i386/cons.h>		/* XXX *//* for aborting dump */
@@ -951,9 +952,8 @@ sddump(dev_t dev)
 
 	blknum = dumplo + blkoff;
 	while (num > 0) {
-                *(int *)CMAP1 =		/* XXX use pmap_enter() */
-			PG_V | PG_KW | trunc_page(addr);
-                pmap_update();
+		pmap_enter(kernel_pmap, (vm_offset_t)CADDR1, trunc_page(addr),
+			VM_PROT_READ, TRUE);
 		/*
 		 *  Fill out the scsi command
 		 */
