@@ -875,7 +875,8 @@ to remind you which command is being continued, and cause the command
 to resume execution.  Unless any input files in use by the suspended
 command have been changed in the meantime, the suspension has no effect
 whatsoever on the execution of the command.  This feature can be very useful
-during editing, when you need to look at another file before continuing. An
+during editing, when you need to look at another file before continuing.
+An
 example of command suspension follows.
 .DS
 % mail harold
@@ -891,7 +892,8 @@ prog.o
 [1]  + Stopped	mail harold
 % fg
 mail harold
-funnyfile. Do you know who did it?
+funnyfile.
+Do you know who did it?
 EOT
 %
 .so tabs
@@ -903,7 +905,8 @@ suspended, it typed `Stopped' and prompted for a new command.  Then the
 .I ls
 command was typed to find out the name of the file.  The
 .I jobs
-command was run to find out which command was suspended. At this time the
+command was run to find out which command was suspended.
+At this time the
 .I fg
 command was typed to continue execution of the mail program.  Input
 to the mail program was then continued and ended with a ^D
