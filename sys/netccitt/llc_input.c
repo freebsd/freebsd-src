@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_input.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: llc_input.c,v 1.2 1994/08/02 07:47:16 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -179,7 +179,8 @@ llcintr()
 		 */
 		cmdrsp = (frame->llc_ssap & 0x01);
 		frame->llc_ssap &= ~0x01;
-		if (llrt = rtalloc1((struct sockaddr *)&sdlhdr->sdlhdr_src, 0))
+		if (llrt = rtalloc1((struct sockaddr *)&sdlhdr->sdlhdr_src, 0,
+				    0UL))
 			llrt->rt_refcnt--;
 #ifdef notyet
 		else llrt = npaidb_enter(&sdlhdr->sdlhdr_src, 0, 0, 0);
@@ -383,7 +384,7 @@ llc_ctlinput(int prc, struct sockaddr *addr, caddr_t info)
 		pcb = ctlinfo->dlcti_pcb;
 		nlrt = ctlinfo->dlcti_rt;
 
-		if ((llrt = rtalloc1(nlrt->rt_gateway, 0)))
+		if ((llrt = rtalloc1(nlrt->rt_gateway, 0, 0UL)))
 			llrt->rt_refcnt--;
 		else return 0;
 
