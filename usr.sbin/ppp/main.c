@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.96 1997/11/13 14:43:18 brian Exp $
+ * $Id: main.c,v 1.97 1997/11/13 14:44:06 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -69,6 +69,7 @@
 #include "main.h"
 #include "vjcomp.h"
 #include "async.h"
+#include "pathnames.h"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -356,6 +357,21 @@ main(int argc, char **argv)
     VarTerm = stdout;
 
   ID0init();
+  if (ID0realuid() != 0) {
+    char conf[200], *ptr;
+
+    snprintf(conf, sizeof conf, "%s/%s", _PATH_PPP, CONFFILE);
+    do {
+      if (!access(conf, W_OK)) {
+        LogPrintf(LogALERT, "ppp: Access violation: Please protect %s\n", conf);
+        return -1;
+      }
+      ptr = conf + strlen(conf)-2;
+      while (ptr > conf && *ptr != '/')
+        *ptr-- = '\0';
+    } while (ptr >= conf);
+  }
+
   if (!ValidSystem(GetLabel())) {
     fprintf(stderr, "You may not use ppp in this mode with this label\n");
     if (mode & MODE_DIRECT) {
