@@ -60,13 +60,14 @@
 /*
  * Allocation zone for namei
  */
-struct vm_zone *namei_zone;
+vm_zone_t namei_zone;
 
 static void
 nameiinit(void *dummy __unused)
 {
+	namei_zone = uma_zcreate("NAMEI", MAXPATHLEN, NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
 
-	namei_zone = zinit("NAMEI", MAXPATHLEN, 0, 0, 2);
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL)
 

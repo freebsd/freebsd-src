@@ -61,7 +61,9 @@
 #include <machine/tsb.h>
 
 vm_zone_t pvzone;
+#if 0
 struct vm_zone pvzone_store;
+#endif
 struct vm_object pvzone_obj;
 int pv_entry_count;
 int pv_entry_max;
@@ -79,6 +81,14 @@ pv_alloc(void)
 		wakeup(&vm_pages_needed);
 	}
 	return (zalloc(pvzone));
+}
+
+void *
+pv_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+{
+
+	*flags = UMA_SLAB_PRIV;
+	return (void *)kmem_alloc(kernel_map, bytes);
 }
 
 void

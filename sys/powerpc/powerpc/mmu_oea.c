@@ -249,6 +249,8 @@ vm_zone_t	pmap_upvo_zone;	/* zone for pvo entries for unmanaged pages */
 vm_zone_t	pmap_mpvo_zone;	/* zone for pvo entries for managed pages */
 struct		vm_object pmap_upvo_zone_obj;
 struct		vm_object pmap_mpvo_zone_obj;
+static vm_object_t	pmap_pvo_obj;
+static u_int		pmap_pvo_count;
 
 #define	PMAP_PVO_SIZE	1024
 static struct	pvo_entry *pmap_bpvo_pool;
@@ -312,6 +314,7 @@ static struct	pte *pmap_pvo_to_pte(const struct pvo_entry *, int);
 /*
  * Utility routines.
  */
+static void *		pmap_pvo_allocf(uma_zone_t, int, u_int8_t *, int);
 static struct		pvo_entry *pmap_rkva_alloc(void);
 static void		pmap_pa_map(struct pvo_entry *, vm_offset_t,
 			    struct pte *, int *);
@@ -934,10 +937,14 @@ pmap_init2(void)
 
 	CTR(KTR_PMAP, "pmap_init2");
 
+	pmap_pvo_obj = vm_object_allocate(OBJT_PHYS, 16);
+	pmap_pvo_count = 0;
 	pmap_upvo_zone = zinit("UPVO entry", sizeof (struct pvo_entry),
 	    0, 0, 0);
+	uma_zone_set_allocf(pmap_upvo_zone, pmap_pvo_allocf);
 	pmap_mpvo_zone = zinit("MPVO entry", sizeof(struct pvo_entry),
 	    PMAP_PVO_SIZE, ZONE_INTERRUPT, 1);
+	uma_zone_set_allocf(pmap_mpvo_zone, pmap_pvo_allocf);
 	pmap_initialized = TRUE;
 }
 
@@ -1852,6 +1859,22 @@ pmap_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 	}
 
 	return (NULL);
+}
+
+static void *
+pmap_pvo_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+{
+	vm_page_t	m;
+
+	if (bytes != PAGE_SIZE)
+		panic("pmap_pvo_allocf: benno was shortsighted.  hit him.");
+
+	*flags = UMA_SLAB_PRIV;
+	m = vm_page_alloc(pmap_pvo_obj, pmap_pvo_count, VM_ALLOC_SYSTEM);
+	pmap_pvo_count++;
+	if (m == NULL)
+		return (NULL);
+	return ((void *)VM_PAGE_TO_PHYS(m));
 }
 
 /*

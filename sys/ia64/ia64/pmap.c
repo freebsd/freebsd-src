@@ -226,7 +226,6 @@ struct mtx pmap_ridmutex;
  * Data for the pv entry allocation mechanism
  */
 static vm_zone_t pvzone;
-static struct vm_zone pvzone_store;
 static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
@@ -238,7 +237,6 @@ static int pvbootnext, pvbootmax;
  * Data for allocating PTEs for user processes.
  */
 static vm_zone_t ptezone;
-static struct vm_zone ptezone_store;
 static struct vm_object ptezone_obj;
 static struct ia64_lpte *pteinit;
 
@@ -264,6 +262,7 @@ static void	ia64_protection_init __P((void));
 static void	pmap_invalidate_all  __P((pmap_t pmap));
 static void	pmap_remove_all __P((vm_page_t m));
 static void	pmap_enter_quick __P((pmap_t pmap, vm_offset_t va, vm_page_t m));
+static void	*pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);       
 
 vm_offset_t
 pmap_steal_memory(vm_size_t size)
@@ -486,6 +485,13 @@ pmap_bootstrap()
 	pmap_invalidate_all(kernel_pmap);
 }
 
+static void *
+pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+{
+	*flags = UMA_SLAB_PRIV;
+	return (void *)kmem_alloc(kernel_map, bytes);
+}
+
 /*
  *	Initialize the pmap module.
  *	Called by vm_init, to initialize any structures that the pmap
@@ -518,6 +524,7 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 	initial_pvs = vm_page_array_size;
 	if (initial_pvs < MINPV)
 		initial_pvs = MINPV;
+#if 0
 	pvzone = &pvzone_store;
 	pvinit = (struct pv_entry *) kmem_alloc(kernel_map,
 		initial_pvs * sizeof (struct pv_entry));
@@ -529,6 +536,14 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 		initial_pvs * sizeof (struct ia64_lpte));
 	zbootinit(ptezone, "PT ENTRY", sizeof (struct ia64_lpte), pteinit,
 		  vm_page_array_size);
+#endif
+	pvzone = zinit("PV ENTRY", sizeof (struct pv_entry), 0, 0, 0);
+	uma_zone_set_allocf(pvzone, pmap_allocf);
+	uma_prealloc(pvzone, initial_pvs);
+
+	ptezone = zinit("PT ENTRY", sizeof (struct ia64_lpte), 0, 0, 0);
+	uma_zone_set_allocf(ptezone, pmap_allocf);
+	uma_prealloc(ptezone, initial_pvs);
 
 	/*
 	 * Create the object for the kernel's page tables.
@@ -554,8 +569,12 @@ pmap_init2()
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
 	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
+#if 0
 	zinitna(pvzone, &pvzone_obj, NULL, 0, pv_entry_max, ZONE_INTERRUPT, 1);
 	zinitna(ptezone, &ptezone_obj, NULL, 0, pv_entry_max, ZONE_INTERRUPT, 1);
+#endif
+	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
+	uma_zone_set_obj(ptezone, &ptezone_obj, pv_entry_max);
 }
 
 

@@ -57,6 +57,7 @@
 #endif
 #include <sys/ucred.h>
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
+#include <vm/vm_zone.h>
 
 /*
  * One structure allocated per session.
@@ -408,6 +409,7 @@ struct proc {
 	struct proc	*p_pptr;	/* (c + e) Pointer to parent process. */
 	LIST_ENTRY(proc) p_sibling;	/* (e) List of sibling processes. */
 	LIST_HEAD(, proc) p_children;	/* (e) Pointer to list of children. */
+	struct mtx	p_mtx;		/* (k) Lock for this struct. */
 
 /* The following fields are all zeroed upon creation in fork. */
 #define	p_startzero	p_oppid
@@ -420,7 +422,6 @@ struct proc {
 	struct vnode	*p_tracep;	/* (j?) Trace to vnode. */
 	sigset_t	p_siglist;	/* (c) Sigs arrived, not delivered. */
 	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
-	struct mtx	p_mtx;		/* (k) Lock for this struct. */
 	char		p_lock;		/* (c) Proclock (prevent swap) count. */
 	struct klist p_klist;		/* (c) Knotes attached to this proc. */
 	struct sigiolst	p_sigiolst;	/* (c) List of sigio sources. */
@@ -701,7 +702,7 @@ extern struct proclist zombproc;	/* List of zombie processes. */
 extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 extern struct proc *updateproc;		/* Process slot for syncer (sic). */
 
-extern struct vm_zone *proc_zone;
+extern vm_zone_t proc_zone;
 
 extern int lastpid;
 

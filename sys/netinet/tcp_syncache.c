@@ -114,7 +114,7 @@ static struct syncache *syncookie_lookup(struct in_conninfo *,
 
 struct tcp_syncache {
 	struct	syncache_head *hashbase;
-	struct	vm_zone *zone;
+	vm_zone_t zone;
 	u_int	hashsize;
 	u_int	hashmask;
 	u_int	bucket_limit;

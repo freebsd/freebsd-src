@@ -320,15 +320,15 @@ swap_pager_swap_init()
 	if (maxswzone && n > maxswzone / sizeof(struct swblock))
 		n = maxswzone / sizeof(struct swblock);
 	n2 = n;
+	swap_zone = zinit(
+	       "SWAPMETA", 
+	       sizeof(struct swblock), 
+	       n,
+	       ZONE_INTERRUPT, 
+	       1
+	       );
 	do {
-		swap_zone = zinit(
-		       "SWAPMETA", 
-		       sizeof(struct swblock), 
-		       n,
-		       ZONE_INTERRUPT, 
-		       1
-		       );
-		if (swap_zone != NULL)
+		if (uma_zone_set_obj(swap_zone, NULL, n))
 			break;
 		/*
 		 * if the allocation failed, try a zone two thirds the

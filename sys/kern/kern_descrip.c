@@ -67,10 +67,12 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_zone.h>
 
 static MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
-MALLOC_DEFINE(M_FILE, "file", "Open file structure");
 static MALLOC_DEFINE(M_SIGIO, "sigio", "sigio structures");
+
+uma_zone_t file_zone;
 
 static	 d_open_t  fdopen;
 #define NUMFDESC 64
@@ -1095,7 +1097,8 @@ falloc(td, resultfp, resultfd)
 	 * of open files at that point, otherwise put it at the front of
 	 * the list of open files.
 	 */
-	MALLOC(fp, struct file *, sizeof(struct file), M_FILE, M_WAITOK | M_ZERO);
+	fp = uma_zalloc(file_zone, M_WAITOK);
+	bzero(fp, sizeof(*fp));
 
 	/*
 	 * wait until after malloc (which may have blocked) returns before
@@ -1108,7 +1111,7 @@ falloc(td, resultfp, resultfd)
 		sx_xlock(&filelist_lock);
 		nfiles--;
 		sx_xunlock(&filelist_lock);
-		FREE(fp, M_FILE);
+		uma_zfree(file_zone, fp);
 		return (error);
 	}
 	fp->f_mtxp = mtx_pool_alloc();
@@ -1149,7 +1152,7 @@ ffree(fp)
 	nfiles--;
 	sx_xunlock(&filelist_lock);
 	crfree(fp->f_cred);
-	FREE(fp, M_FILE);
+	uma_zfree(file_zone, fp);
 }
 
 /*
@@ -2111,5 +2114,8 @@ static void
 filelistinit(dummy)
 	void *dummy;
 {
+	file_zone = uma_zcreate("Files", sizeof(struct file), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
+
 	sx_init(&filelist_lock, "filelist lock");
 }

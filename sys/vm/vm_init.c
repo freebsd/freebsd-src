@@ -114,7 +114,6 @@ vm_mem_init(dummy)
 	/*
 	 * Initialize other VM packages
 	 */
-	vm_zone_init();
 	vm_object_init();
 	vm_map_startup();
 	kmem_init(virtual_avail, virtual_end);

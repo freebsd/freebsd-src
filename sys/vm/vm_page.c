@@ -118,6 +118,8 @@
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
+#include <vm/uma.h>
+#include <vm/uma_int.h>
 
 /*
  *	Associated with page of user-allocatable memory is a
@@ -176,6 +178,7 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	vm_offset_t biggestone, biggestsize;
 
 	vm_offset_t total;
+	vm_size_t bootpages;
 
 	total = 0;
 	biggestsize = 0;
@@ -206,6 +209,19 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	 * and the inactive queue.
 	 */
 	vm_pageq_init();
+
+	/*
+	 * Allocate memory for use when boot strapping the kernel memory allocator
+	 */
+	bootpages = UMA_BOOT_PAGES * UMA_SLAB_SIZE;
+	new_end = end - bootpages;
+	new_end = trunc_page(new_end);
+	mapped = pmap_map(&vaddr, new_end, end,
+	    VM_PROT_READ | VM_PROT_WRITE);
+	bzero((caddr_t) mapped, end - new_end);
+	uma_startup((caddr_t)mapped);
+
+	end = new_end;
 
 	/*
 	 * Allocate (and initialize) the hash table buckets.
