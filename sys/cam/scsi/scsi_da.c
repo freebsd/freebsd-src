@@ -399,6 +399,30 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "HP", "USB CAMERA", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * Fujitsu-Siemens Memorybird pen drive
+		 * PR: kern/34712
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Fujitsu", "Memorybird", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * Sony USB Key-Storage
+		 * PR: kern/46386
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Storage Media", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Lexar Media Jumpdrive
+		 * PR: kern/47006
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "LEXAR", "DIGITAL FILM", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
 	}
 };
 
