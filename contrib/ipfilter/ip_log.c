@@ -5,7 +5,8 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_log.c,v 2.5 2000/03/13 22:10:21 darrenr Exp $
+ * $Id: ip_log.c,v 2.1.2.2 1999/09/21 11:55:44 darrenr Exp $
+ * $FreeBSD$
  */
 #include <sys/param.h>
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -15,15 +16,20 @@
 # include "opt_ipfilter_log.h"
 #endif
 #ifdef  __FreeBSD__
-# if defined(_KERNEL) && !defined(IPFILTER_LKM)
-#  if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
-#   include "opt_ipfilter.h"
+# if defined(IPFILTER_LKM) || defined(_KERNEL)
+#  if !defined(__FreeBSD_version) 
+#   include <sys/osreldate.h>
+#  endif
+#  if !defined(IPFILTER_LKM)
+#   if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
+#    include "opt_ipfilter.h"
+#   endif
 #  endif
 # else
 #  include <osreldate.h>
 # endif
 #endif
-#ifdef	IPFILTER_LOG
+#ifdef  IPFILTER_LOG
 # ifndef SOLARIS
 #  define SOLARIS (defined(sun) && (defined(__svr4__) || defined(__SVR4)))
 # endif
