@@ -65,6 +65,7 @@ int		s,			/* main RAW socket */
 		do_sort,		/* field to sort results (0 = no) */
 		do_dynamic,		/* display dynamic rules */
 		do_expired,		/* display expired dynamic rules */
+		do_compact,		/* show rules in compact mode */
 		show_sets,		/* display rule sets */
 		verbose;
 
@@ -931,7 +932,8 @@ show_ipfw(struct ip_fw *rule)
 	 * then print the body.
 	 */
 	if (rule->_pad & 1) {	/* empty rules before options */
-		printf (" all from any to any");
+		if (!do_compact)
+			printf(" ip from any to any");
 		flags |= HAVE_IP | HAVE_OPTIONS;
 	}
 
@@ -2325,7 +2327,7 @@ add_mac(ipfw_insn *cmd, int ac, char *av[])
 	ipfw_insn_mac *mac;
 
 	if (ac < 2)
-		errx(EX_DATAERR, "MAC dst src [not] type");
+		errx(EX_DATAERR, "MAC dst src");
 
 	cmd->opcode = O_MACADDR2;
 	cmd->len = (cmd->len & (F_NOT | F_OR)) | F_INSN_SIZE(ipfw_insn_mac);
@@ -2362,7 +2364,7 @@ add_proto(ipfw_insn *cmd, char *av)
 	else if ((pe = getprotobyname(av)) != NULL)
 		proto = pe->p_proto;
 	else
-		errx(EX_DATAERR, "invalid protocol ``%s''", av);
+		return NULL;
 	if (proto != IPPROTO_IP)
 		fill_cmd(cmd, O_PROTO, 0, proto);
 	return cmd;
@@ -2673,6 +2675,8 @@ add(int ac, char *av[])
 	CLOSE_PAR;
 
 	first_cmd = cmd;
+
+#if 0
 	/*
 	 * MAC addresses, optional.
 	 * If we have this, we skip the part "proto from src to dst"
@@ -2693,6 +2697,7 @@ add(int ac, char *av[])
 		ac--; av++;	/* any or mac-type */
 		goto read_options;
 	}
+#endif
 
 	/*
 	 * protocol, mandatory
@@ -2709,7 +2714,10 @@ add(int ac, char *av[])
 			prev = cmd;
 			cmd = next_cmd(cmd);
 		}
-	}
+	} else if (first_cmd != cmd) {
+		errx(EX_DATAERR, "invalid protocol ``%s''", av);
+	} else
+		goto read_options;
     OR_BLOCK(get_proto);
 
 	/*
@@ -3040,7 +3048,8 @@ read_options:
 			if (add_proto(cmd, *av)) {
 				proto = cmd->arg1;
 				ac--; av++;
-			}
+			} else
+				errx(EX_DATAERR, "invalid protocol ``%s''", av);
 			break;
 				
 		case TOK_SRCIP:
@@ -3291,7 +3300,7 @@ ipfw_main(int ac, char **av)
 	do_force = !isatty(STDIN_FILENO);
 
 	optind = optreset = 1;
-	while ((ch = getopt(ac, av, "hs:adefNqStv")) != -1)
+	while ((ch = getopt(ac, av, "hs:acdefNqStv")) != -1)
 		switch (ch) {
 		case 'h': /* help */
 			help();
@@ -3302,6 +3311,9 @@ ipfw_main(int ac, char **av)
 			break;
 		case 'a':
 			do_acct = 1;
+			break;
+		case 'c':
+			do_compact = 1;
 			break;
 		case 'd':
 			do_dynamic = 1;
