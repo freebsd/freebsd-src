@@ -101,6 +101,7 @@ int
 get_ifmib_general(int row, struct ifmibdata *ifmd)
 {
 	int name[6];
+	size_t len;
 
 	name[0] = CTL_NET;
 	name[1] = PF_LINK;
@@ -109,7 +110,9 @@ get_ifmib_general(int row, struct ifmibdata *ifmd)
 	name[4] = row;
 	name[5] = IFDATA_GENERAL;
 
-	return sysctl(name, 6, ifmd, sizeof *ifmd, (void *)0, 0);
+	len = sizeof(*ifmd);
+
+	return sysctl(name, 6, ifmd, &len, (void *)0, 0);
 }
 .Ed
 .Pp
