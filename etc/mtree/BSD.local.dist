@@ -10,6 +10,9 @@ bin	type=dir uname=bin gname=bin mode=0755
 etc	type=dir uname=bin gname=bin mode=0755
 ..
 
+info	type=dir uname=bin gname=bin mode=0755
+..
+
 lib	type=dir uname=bin gname=bin mode=0755
 ..
 
