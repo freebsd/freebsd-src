@@ -32,7 +32,7 @@ struct ddpstat {
 
 #ifdef _KERNEL
 extern int	ddp_cksum;
-extern struct ddpcb		*ddpcb;
+extern struct ddpcb		*ddpcb_list;
 extern struct pr_usrreqs	ddp_usrreqs;
 #endif
 #endif /* _NETATALK_DDP_VAR_H_ */
