@@ -250,6 +250,7 @@
 .	el .ie "\\$2"2.2.8"     \c
 .	el .ie "\\$2"3.0"       \c
 .	el .ie "\\$2"3.1"       \c
+.	el .ie "\\$2"3.2"       \c
 .	el .ie "\\$2"4.0"       \c
 .	el .tm Unknown FreeBSD version ``\\$2'' at line \\n(c.
 .\}
