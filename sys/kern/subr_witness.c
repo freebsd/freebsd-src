@@ -244,6 +244,7 @@ STAILQ_HEAD(, lock_object) all_locks = STAILQ_HEAD_INITIALIZER(all_locks);
 static struct mtx all_mtx = {
 	{ &lock_class_mtx_sleep,	/* mtx_object.lo_class */
 	  "All locks list",		/* mtx_object.lo_name */
+	  "All locks list",		/* mtx_object.lo_type */
 	  LO_INITIALIZED,		/* mtx_object.lo_flags */
 	  { NULL },			/* mtx_object.lo_list */
 	  NULL },			/* mtx_object.lo_witness */
@@ -283,7 +284,8 @@ witness_initialize(void *dummy __unused)
 
 	CTR1(KTR_WITNESS, "%s: initializing witness", __func__);
 	STAILQ_INSERT_HEAD(&all_locks, &all_mtx.mtx_object, lo_list);
-	mtx_init(&w_mtx, "witness lock", MTX_SPIN | MTX_QUIET | MTX_NOWITNESS);
+	mtx_init(&w_mtx, "witness lock", NULL, MTX_SPIN | MTX_QUIET |
+	    MTX_NOWITNESS);
 	for (i = 0; i < WITNESS_COUNT; i++)
 		witness_free(&w_data[i]);
 	for (i = 0; i < WITNESS_CHILDCOUNT; i++)
@@ -311,7 +313,7 @@ witness_initialize(void *dummy __unused)
 	mtx_lock(&all_mtx);
 	STAILQ_FOREACH(lock, &all_locks, lo_list) {
 		if (lock->lo_flags & LO_WITNESS)
-			lock->lo_witness = enroll(lock->lo_name,
+			lock->lo_witness = enroll(lock->lo_type,
 			    lock->lo_class);
 		else
 			lock->lo_witness = NULL;
@@ -356,7 +358,7 @@ witness_init(struct lock_object *lock)
 	mtx_unlock(&all_mtx);
 	if (!witness_cold && !witness_dead && panicstr == NULL &&
 	    (lock->lo_flags & LO_WITNESS) != 0)
-		lock->lo_witness = enroll(lock->lo_name, class);
+		lock->lo_witness = enroll(lock->lo_type, class);
 	else
 		lock->lo_witness = NULL;
 }
@@ -551,9 +553,10 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 			goto out;
 		w->w_same_squawked = 1;
 		printf("acquiring duplicate lock of same type: \"%s\"\n", 
-			lock->lo_name);
-		printf(" 1st @ %s:%d\n", lock1->li_file, lock1->li_line);
-		printf(" 2nd @ %s:%d\n", file, line);
+			lock->lo_type);
+		printf(" 1st %s @ %s:%d\n", lock1->li_lock->lo_name,
+		    lock1->li_file, lock1->li_line);
+		printf(" 2nd %s @ %s:%d\n", lock->lo_name, file, line);
 #ifdef DDB
 		go_into_ddb = 1;
 #endif /* DDB */
@@ -647,20 +650,23 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 				}
 			} while (i >= 0);
 			if (i < 0) {
-				printf(" 1st %p %s @ %s:%d\n", lock1->li_lock,
-				    lock1->li_lock->lo_name, lock1->li_file,
+				printf(" 1st %p %s (%s) @ %s:%d\n",
+				    lock1->li_lock, lock1->li_lock->lo_name,
+				    lock1->li_lock->lo_type, lock1->li_file,
 				    lock1->li_line);
-				printf(" 2nd %p %s @ %s:%d\n", lock,
-				    lock->lo_name, file, line);
+				printf(" 2nd %p %s (%s) @ %s:%d\n", lock,
+				    lock->lo_name, lock->lo_type, file, line);
 			} else {
-				printf(" 1st %p %s @ %s:%d\n", lock2->li_lock,
-				    lock2->li_lock->lo_name, lock2->li_file,
+				printf(" 1st %p %s (%s) @ %s:%d\n",
+				    lock2->li_lock, lock2->li_lock->lo_name,
+				    lock2->li_lock->lo_type, lock2->li_file,
 				    lock2->li_line);
-				printf(" 2nd %p %s @ %s:%d\n", lock1->li_lock,
-				    lock1->li_lock->lo_name, lock1->li_file,
+				printf(" 2nd %p %s (%s) @ %s:%d\n",
+				    lock1->li_lock, lock1->li_lock->lo_name,
+				    lock1->li_lock->lo_type, lock1->li_file,
 				    lock1->li_line);
-				printf(" 3rd %p %s @ %s:%d\n", lock,
-				    lock->lo_name, file, line);
+				printf(" 3rd %p %s (%s) @ %s:%d\n", lock,
+				    lock->lo_name, lock->lo_type, file, line);
 			}
 #ifdef DDB
 			go_into_ddb = 1;
@@ -678,7 +684,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 		mtx_unlock_spin(&w_mtx);
 	else {
 		CTR3(KTR_WITNESS, "%s: adding %s as a child of %s", __func__,
-		    lock->lo_name, lock1->li_lock->lo_name);
+		    lock->lo_type, lock1->li_lock->lo_type);
 		if (!itismychild(lock1->li_lock->lo_witness, w))
 			mtx_unlock_spin(&w_mtx);
 	} 
@@ -1289,10 +1295,13 @@ witness_list_locks(struct lock_list_entry **lock_list)
 		for (i = lle->ll_count - 1; i >= 0; i--) {
 			instance = &lle->ll_children[i];
 			lock = instance->li_lock;
-			printf("%s (%s) %s (%p) locked @ %s:%d\n",
+			printf("%s %s %s",
 			    (instance->li_flags & LI_EXCLUSIVE) != 0 ?
 			    "exclusive" : "shared",
-			    lock->lo_class->lc_name, lock->lo_name, lock,
+			    lock->lo_class->lc_name, lock->lo_name);
+			if (lock->lo_type != lock->lo_name)
+				printf("(%s) ", lock->lo_type);
+			printf(" (%p) locked @ %s:%d\n", lock,
 			    instance->li_file, instance->li_line);
 			nheld++;
 		}
