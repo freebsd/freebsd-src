@@ -283,7 +283,7 @@ distSetXF86(dialogMenuItem *self)
 	if (XF86FontDists)
 	    XF86Dists |= DIST_XF86_FONTS;
 	if (XF86Dists)
-	    Dists |= DIST_XF86;
+	    Dists |= (DIST_XF86 | DIST_COMPAT21);	/* XXX for now we need compat21 for X to work XXX */
 	msgDebug("SetXF86 Masks: Server: %0x, Fonts: %0x, XDists: %0x, Dists: %0x\n",
 		 XF86ServerDists, XF86FontDists, XF86Dists, Dists);
     }

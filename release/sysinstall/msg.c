@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.32 1996/04/28 00:37:36 jkh Exp $
+ * $Id: msg.c,v 1.33 1996/05/16 11:47:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -185,7 +185,7 @@ msgFatal(char *fmt, ...)
     if (OnVTY)
 	msgDebug("Fatal error `%s'!\n", errstr);
     getch();
-    systemShutdown();
+    systemShutdown(1);
 }
 
 /* Put up a message in a popup confirmation box */

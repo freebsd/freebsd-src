@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.58 1996/05/01 03:31:08 jkh Exp $
+ * $Id: system.c,v 1.59 1996/05/16 11:47:46 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -33,7 +33,7 @@ static void
 handle_intr(int sig)
 {
     if (!msgYesNo("Are you sure you want to abort the installation?"))
-	systemShutdown();
+	systemShutdown(1);
 }
 
 /* Initialize system defaults */
@@ -79,12 +79,21 @@ systemInitialize(int argc, char **argv)
 
 /* Close down and prepare to exit */
 void
-systemShutdown(void)
+systemShutdown(int status)
 {
+    /* If some media is open, close it down */
+    if (mediaDevice)
+	mediaDevice->shutdown(mediaDevice);
+
+    /* Shut down the dialog library */
     if (DialogActive) {
 	end_dialog();
 	DialogActive = FALSE;
     }
+
+    /* Shut down curses */
+    endwin();
+
     /* REALLY exit! */
     if (RunningAsInit) {
 	/* Put the console back */
@@ -92,7 +101,7 @@ systemShutdown(void)
 	reboot(0);
     }
     else
-	exit(1);
+	exit(status);
 }
 
 /* Run some general command */
@@ -153,6 +162,9 @@ systemHelpFile(char *file, char *buf)
 
     snprintf(buf, FILENAME_MAX, "/stand/help/%s.hlp", file);
     if (file_readable(buf)) 
+	return buf;
+    snprintf(buf, FILENAME_MAX, "/usr/src/release/sysinstall/help/%s.hlp", file);
+    if (file_readable(buf))
 	return buf;
     return NULL;
 }
