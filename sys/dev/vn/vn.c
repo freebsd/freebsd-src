@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.37 1996/07/23 21:51:26 phk Exp $
+ *	$Id: vn.c,v 1.38 1996/08/19 20:06:41 julian Exp $
  */
 
 /*
@@ -621,9 +621,9 @@ vn_drvinit(void *unused)
 
 	if( ! vn_devsw_installed ) {
 		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &vn_bdevsw);
-		vn_devsw_installed = 1;
-		if(at_shutdown(&vnshutdown,NULL) {
+		if(at_shutdown(&vnshutdown,NULL)) {
 			printf("vn: could not install shutdown hook\n");
+			return;
 		}
 #ifdef DEVFS
 		for (unit = 0; unit < NVN; unit++) {
@@ -641,6 +641,7 @@ vn_drvinit(void *unused)
 					 "rvn%d", unit);
 		}
 #endif
+		vn_devsw_installed = 1;
 	}
 }
 
