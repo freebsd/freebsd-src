@@ -52,6 +52,8 @@
 #include "bundle.h"
 
 
+#define NAT_EXTRABUF (13)
+
 static int StrToAddr(const char *, struct in_addr *);
 static int StrToPortRange(const char *, u_short *, u_short *, const char *);
 static int StrToAddrAndPort(const char *, struct in_addr *, u_short *,
@@ -344,8 +346,10 @@ nat_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
 
   log_Printf(LogDEBUG, "nat_LayerPush: PROTO_IP -> PROTO_IP\n");
   m_settype(bp, MB_NATOUT);
-  bp = m_pullup(bp);
+  /* Ensure there's a bit of extra buffer for the NAT code... */
+  bp = m_pullup(m_append(bp, NULL, NAT_EXTRABUF));
   PacketAliasOut(MBUF_CTOP(bp), bp->m_len);
+  bp->m_len = ntohs(((struct ip *)MBUF_CTOP(bp))->ip_len);
 
   return bp;
 }
@@ -372,6 +376,8 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
       (pip->ip_p == IPPROTO_IPIP && IN_CLASSD(ntohl(piip->ip_dst.s_addr))))
     return bp;
 
+  /* Ensure there's a bit of extra buffer for the NAT code... */
+  bp = m_pullup(m_append(bp, NULL, NAT_EXTRABUF));
   ret = PacketAliasIn(MBUF_CTOP(bp), bp->m_len);
 
   bp->m_len = ntohs(pip->ip_len);
