@@ -32,16 +32,6 @@
 
 #include <machine/ansi.h>
 
-#if 0
-typedef struct {
-	char __gpr;	/* GPR offset */
-	char __fpr;	/* FPR offset */
-/*	char __pad[2]; */
-	char *__stack;	/* args passed on stack */
-	char *__base;	/* args passed by registers (r3-r10, f1-f8) */
-} va_list;
-#endif
-
 typedef _BSD_VA_LIST_	va_list;
 
 #ifdef __lint__
@@ -51,10 +41,11 @@ typedef _BSD_VA_LIST_	va_list;
 
 #else
 
-#if defined __GNUC__ && (__GNUC__ > 2 || __GNUC__ == 2 && __GNUC_MINOR__ == 95)
+#if defined(__GNUC__) && (__GNUC__ > 2 || __GNUC__ == 2 && __GNUC_MINOR__ >= 95)
 #define	va_start(ap, last)						\
 	(__builtin_next_arg(last),					\
-	 __builtin_memcpy ((ap), __builtin_saveregs (), sizeof(__gnuc_va_list)))
+	 __builtin_memcpy((void *)&(ap), __builtin_saveregs (),		\
+	 sizeof(__gnuc_va_list)))
 #else
 #define	va_start(ap, last)						\
 	(__builtin_next_arg(last),					\
@@ -89,28 +80,6 @@ typedef _BSD_VA_LIST_	va_list;
 #define	__va_size(type)							\
 	((sizeof(type) + sizeof(int) - 1) / sizeof(int) * sizeof(int))
 
-#if defined __GNUC__ && (__GNUC__ > 2 || __GNUC__ == 2 && __GNUC_MINOR__ == 95)
-#define	__va_savedgpr(ap, type)						\
-	((ap)->__base + (ap)->__gpr * sizeof(int) - sizeof(type))
-
-#define	__va_savedfpr(ap, type)						\
-	((ap)->__base + 8 * sizeof(int) + (ap)->__fpr * sizeof(double) -	\
-	 sizeof(type))
-
-#define	__va_stack(ap, type)						\
-	((ap)->__stack += __va_size(type) +				\
-			(__va_longlong(type) ? (int)(ap)->__stack & 4 : 0), \
-	 (ap)->__stack - sizeof(type))
-
-#define	__va_gpr(ap, type)						\
-	((ap)->__gpr += __va_size(type) / sizeof(int) +			\
-		      (__va_longlong(type) ? (ap)->__gpr & 1 : 0),	\
-	 (ap)->__gpr <= 8 ? __va_savedgpr(ap, type) : __va_stack(ap, type))
-
-#define	__va_fpr(ap, type)						\
-	((ap)->__fpr++,							\
-	 (ap)->__fpr <= 8 ? __va_savedfpr(ap, type) : __va_stack(ap, type))
-#else
 #define	__va_savedgpr(ap, type)						\
 	((ap).__base + (ap).__gpr * sizeof(int) - sizeof(type))
 
@@ -131,7 +100,6 @@ typedef _BSD_VA_LIST_	va_list;
 #define	__va_fpr(ap, type)						\
 	((ap).__fpr++,							\
 	 (ap).__fpr <= 8 ? __va_savedfpr(ap, type) : __va_stack(ap, type))
-#endif
 
 #define	va_arg(ap, type)						\
 	(*(type *)(__va_struct(type) ? (*(void **)__va_gpr(ap, void *)) : \
