@@ -253,8 +253,7 @@ case ${ipv6_firewall_type} in
 	;;
 *)
 	if [ -r "${ipv6_firewall_type}" ]; then
-		# Can't use ${fw6cmd} as ip6fw doesn't support -q with a file
-		/sbin/ip6fw ${ipv6_firewall_flags} ${ipv6_firewall_type}
+		${fw6cmd} ${ipv6_firewall_flags} ${ipv6_firewall_type}
 	fi
 	;;
 esac
