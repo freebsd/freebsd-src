@@ -53,7 +53,10 @@
 #include <machine/vm86.h>
 #endif
 
-static int apm_display __P((int newstate));
+/* Used by the apm_saver screen saver module */
+int apm_display __P((int newstate));
+struct apm_softc apm_softc;
+
 static int apm_int __P((u_long *eax, u_long *ebx, u_long *ecx, u_long *edx));
 static void apm_resume __P((void));
 static int apm_check_function_supported __P((u_int version, u_int func));
@@ -68,7 +71,6 @@ int	apm_evindex;
 #define APMDEV_NORMAL	0
 #define APMDEV_CTL	8
 
-static struct apm_softc apm_softc;
 static struct apmhook	*hook[NAPM_HOOK];		/* XXX */
 
 #define is_enabled(foo) ((foo) ? "enabled" : "disabled")
