@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
- * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -62,7 +62,9 @@ MALLOC_DECLARE(M_MACTEMP);
 extern struct mac_policy_list_head	mac_policy_list;
 extern struct mac_policy_list_head	mac_static_policy_list;
 extern int				mac_late;
+extern int				mac_enforce_network;
 extern int				mac_enforce_process;
+extern int				mac_enforce_socket;
 extern int				mac_enforce_sysv;
 extern int				mac_enforce_vm;
 #ifndef MAC_ALWAYS_LABEL_MBUF
@@ -117,6 +119,8 @@ int	mac_externalize_cred_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);
 int	mac_internalize_cred_label(struct label *label, char *string);
 void	mac_relabel_cred(struct ucred *cred, struct label *newlabel);
+
+struct label	*mac_mbuf_to_label(struct mbuf *m);
 
 void	mac_copy_pipe_label(struct label *src, struct label *dest);
 int	mac_externalize_pipe_label(struct label *label, char *elements,
