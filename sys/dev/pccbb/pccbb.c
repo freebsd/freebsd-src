@@ -893,6 +893,10 @@ cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
 	 * things since those interrupts are PCI and shared.  Since we use
 	 * the PCI interrupt for the status change interrupts, it can't be
 	 * free for use by the driver.  Fast interrupts must not be shared.
+	 * Well, this is no longer strictly true.  You can have multiple
+	 * FAST ISRs, but can't mix fast and slow, so we have to assume
+	 * least common denominator until the base system supports mixing
+	 * and matching better.
 	 */
 	if ((flags & INTR_FAST) != 0)
 		return (EINVAL);
