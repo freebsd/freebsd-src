@@ -576,9 +576,9 @@ pcic_pci_ti113x_func(struct pcic_slot *sp, enum pcic_intr_way way)
 	else
 		cardcntl &= ~TI113X_CARDCNTL_PCI_IREQ;
 	if (cardcntl & (TI113X_CARDCNTL_PCI_IREQ | TI113X_CARDCNTL_PCI_CSC))
-		cardcntl &= ~TI113X_CARDCNTL_PCI_IRQ_ENA;
-	else
 		cardcntl |= TI113X_CARDCNTL_PCI_IRQ_ENA;
+	else
+		cardcntl &= ~TI113X_CARDCNTL_PCI_IRQ_ENA;
 	pci_write_config(dev, TI113X_PCI_CARD_CONTROL,  cardcntl, 1);
 
 	return (pcic_pci_gen_func(sp, way));
@@ -609,9 +609,9 @@ pcic_pci_ti113x_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 	else
 		cardcntl &= ~TI113X_CARDCNTL_PCI_CSC;
 	if (cardcntl & (TI113X_CARDCNTL_PCI_IREQ | TI113X_CARDCNTL_PCI_CSC))
-		cardcntl &= ~TI113X_CARDCNTL_PCI_IRQ_ENA;
-	else
 		cardcntl |= TI113X_CARDCNTL_PCI_IRQ_ENA;
+	else
+		cardcntl &= ~TI113X_CARDCNTL_PCI_IRQ_ENA;
 	pci_write_config(dev, TI113X_PCI_CARD_CONTROL,  cardcntl, 1);
 
 	return (0);
