@@ -22,9 +22,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -34,7 +35,6 @@
 #include <sys/kerneldump.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/bootinfo.h>
 #include <machine/efi.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
@@ -50,7 +50,7 @@ CTASSERT(sizeof(struct kerneldumpheader) == 512);
 #define	MD_ALIGN(x)	(((off_t)(x) + EFI_PAGE_MASK) & ~EFI_PAGE_MASK)
 #define	DEV_ALIGN(x)	(((off_t)(x) + (DEV_BSIZE-1)) & ~(DEV_BSIZE-1))
 
-typedef int callback_t(EFI_MEMORY_DESCRIPTOR*, int, void*);
+typedef int callback_t(struct efi_md*, int, void*);
 
 static struct kerneldumpheader kdh;
 static off_t dumplo, fileofs;
@@ -121,7 +121,7 @@ buf_flush(struct dumperinfo *di)
 }
 
 static int
-cb_dumpdata(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
+cb_dumpdata(struct efi_md *mdp, int seqnr, void *arg)
 {
 	struct dumperinfo *di = (struct dumperinfo*)arg;
 	vm_offset_t pa;
@@ -129,11 +129,11 @@ cb_dumpdata(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
 	size_t counter, sz;
 	int c, error, twiddle;
 
-	error = 0;	/* catch case in which mdp->NumberOfPages is 0 */
+	error = 0;	/* catch case in which mdp->md_pages is 0 */
 	counter = 0;	/* Update twiddle every 16MB */
 	twiddle = 0;
-	pgs = mdp->NumberOfPages;
-	pa = IA64_PHYS_TO_RR7(mdp->PhysicalStart);
+	pgs = mdp->md_pages;
+	pa = IA64_PHYS_TO_RR7(mdp->md_phys);
 
 	printf("  chunk %d: %ld pages ", seqnr, (long)pgs);
 
@@ -164,7 +164,7 @@ cb_dumpdata(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
 }
 
 static int
-cb_dumphdr(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
+cb_dumphdr(struct efi_md *mdp, int seqnr, void *arg)
 {
 	struct dumperinfo *di = (struct dumperinfo*)arg;
 	Elf64_Phdr phdr;
@@ -174,10 +174,10 @@ cb_dumphdr(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
 	phdr.p_type = PT_LOAD;
 	phdr.p_flags = PF_R;			/* XXX */
 	phdr.p_offset = fileofs;
-	phdr.p_vaddr = mdp->VirtualStart;	/* XXX probably bogus. */
-	phdr.p_paddr = mdp->PhysicalStart;
-	phdr.p_filesz = mdp->NumberOfPages << EFI_PAGE_SHIFT;
-	phdr.p_memsz = mdp->NumberOfPages << EFI_PAGE_SHIFT;
+	phdr.p_vaddr = (uintptr_t)mdp->md_virt;	/* XXX probably bogus. */
+	phdr.p_paddr = mdp->md_phys;
+	phdr.p_filesz = mdp->md_pages << EFI_PAGE_SHIFT;
+	phdr.p_memsz = mdp->md_pages << EFI_PAGE_SHIFT;
 	phdr.p_align = EFI_PAGE_SIZE;
 
 	error = buf_write(di, (char*)&phdr, sizeof(phdr));
@@ -186,35 +186,30 @@ cb_dumphdr(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
 }
 
 static int
-cb_size(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
+cb_size(struct efi_md *mdp, int seqnr, void *arg)
 {
 	uint64_t *sz = (uint64_t*)arg;
 
-	*sz += (uint64_t)mdp->NumberOfPages << EFI_PAGE_SHIFT;
+	*sz += (uint64_t)mdp->md_pages << EFI_PAGE_SHIFT;
 	return (0);
 }
 
 static int
 foreach_chunk(callback_t cb, void *arg)
 {
-	EFI_MEMORY_DESCRIPTOR *mdp;
-	int error, i, mdcount, seqnr;
+	struct efi_md *mdp;
+	int error, seqnr;
 
-	mdp = (EFI_MEMORY_DESCRIPTOR *)IA64_PHYS_TO_RR7(bootinfo.bi_memmap);
-	mdcount = bootinfo.bi_memmap_size / bootinfo.bi_memdesc_size;
-
-	if (mdp == NULL || mdcount == 0)
-		return (0);
-
-	for (i = 0, seqnr = 0; i < mdcount; i++) {
-		if (mdp->Type == EfiConventionalMemory) {
+	seqnr = 0;
+	mdp = efi_md_first();
+	while (mdp != NULL) {
+		if (mdp->md_type == EFI_MD_TYPE_FREE) {
 			error = (*cb)(mdp, seqnr++, arg);
 			if (error)
 				return (-error);
 		}
-		mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size);
+		mdp = efi_md_next(mdp);
 	}
-
 	return (seqnr);
 }
 

@@ -23,58 +23,52 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
 
-/*
- * 6.1 : Environmental support
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/linker_set.h>
 #include <sys/sysctl.h>
+#include <machine/efi.h>
 
 #include "acpi.h"
 
-extern u_int64_t ia64_efi_acpi_table;
-extern u_int64_t ia64_efi_acpi20_table;
+static struct uuid acpi_root_uuid = EFI_TABLE_ACPI20;
 
-static u_long ia64_acpi_root;
+static u_long acpi_root_phys;
 
-SYSCTL_ULONG(_machdep, OID_AUTO, acpi_root, CTLFLAG_RD, &ia64_acpi_root, 0,
-	     "The physical address of the RSDP");
+SYSCTL_ULONG(_machdep, OID_AUTO, acpi_root, CTLFLAG_RD, &acpi_root_phys, 0,
+    "The physical address of the RSDP");
 
 ACPI_STATUS
 AcpiOsInitialize(void)
 {
+
 	return(AE_OK);
 }
 
 ACPI_STATUS
 AcpiOsTerminate(void)
 {
+
 	return(AE_OK);
 }
 
 ACPI_STATUS
 AcpiOsGetRootPointer(UINT32 Flags, ACPI_POINTER *RsdpAddress)
 {
-	if (ia64_acpi_root == 0) {
-		if (ia64_efi_acpi20_table) {
-			/* XXX put under bootverbose. */
-			printf("Using ACPI2.0 table at 0x%lx\n",
-			       ia64_efi_acpi20_table);
-			ia64_acpi_root = ia64_efi_acpi20_table;
-		} else if (ia64_efi_acpi_table) {
-			/* XXX put under bootverbose. */
-			printf("Using ACPI1.x table at 0x%lx\n",
-			       ia64_efi_acpi_table);
-			ia64_acpi_root = ia64_efi_acpi_table;
-		} else
+	void *acpi_root;
+
+	if (acpi_root_phys == 0) {
+		acpi_root = efi_get_table(&acpi_root_uuid);
+		if (acpi_root == NULL)
 			return (AE_NOT_FOUND);
+		acpi_root_phys = IA64_RR_MASK((u_long)acpi_root);
 	}
 
 	RsdpAddress->PointerType = ACPI_PHYSICAL_POINTER;
-	RsdpAddress->Pointer.Physical = ia64_acpi_root;
+	RsdpAddress->Pointer.Physical = acpi_root_phys;
 	return (AE_OK);
 }
