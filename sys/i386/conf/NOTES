@@ -238,6 +238,7 @@ device		gzip		#Exec gzipped a.out's
 #
 # ISA bus
 #
+device		isa
 
 #
 # Options for `isa':
@@ -265,7 +266,6 @@ device		gzip		#Exec gzipped a.out's
 # reset the CPU for reboot.  This is needed on some systems with broken
 # keyboard controllers.
 
-options 	COMPAT_OLDISA	#Use ISA shims and glue for old drivers
 options 	AUTO_EOI_1
 #options 	AUTO_EOI_2
 
@@ -280,14 +280,6 @@ options 	MAXMEM="(128*1024)"
 
 device		eisa
 
-# By default, only 10 EISA slots are probed, since the slot numbers
-# above clash with the configuration address space of the PCI subsystem,
-# and the EISA probe is not very smart about this.  This is sufficient
-# for most machines, but in particular the HP NetServer LC series comes
-# with an onboard AIC7770 dual-channel SCSI controller on EISA slot #11,
-# thus you need to bump this figure to 12 for them.
-options 	EISA_SLOTS=12
-
 #
 # MCA bus:
 #
@@ -300,6 +292,7 @@ device		mca
 #
 # PCI bus & PCI options:
 #
+device		pci
 
 #
 # AGP GART support
@@ -318,82 +311,11 @@ options 	PCI_ENABLE_IO_MODES
 # Mandatory devices:
 #
 
-# The keyboard controller; it controls the keyboard and the PS/2 mouse.
-device		atkbdc	1
-hint.atkbdc.0.at="isa"
-hint.atkbdc.0.port="0x060"
-
-# The AT keyboard
-device		atkbd
-hint.atkbd.0.at="atkbdc"
-hint.atkbd.0.irq="1"
-
-# Options for atkbd:
-options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
-makeoptions	ATKBD_DFLT_KEYMAP="jp.106"
-
-# These options are valid for other keyboard drivers as well.
-options 	KBD_DISABLE_KEYMAP_LOAD	# refuse to load a keymap
-options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-
-# `flags' for atkbd:
-#       0x01    Force detection of keyboard, else we always assume a keyboard
-#       0x02    Don't reset keyboard, useful for some newer ThinkPads
-#	0x03	Force detection and avoid reset, might help with certain
-#		dockingstations
-#       0x04    Old-style (XT) keyboard support, useful for older ThinkPads
-
-# PS/2 mouse
-device		psm
-hint.psm.0.at="atkbdc"
-hint.psm.0.irq="12"
-
-# Options for psm:
-options 	PSM_HOOKRESUME		#hook the system resume event, useful
-					#for some laptops
-options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
-
-# The video card driver.
-device		vga
-hint.vga.0.at="isa"
-
-# Options for vga:
-# Try the following option if the mouse pointer is not drawn correctly
-# or font does not seem to be loaded properly.  May cause flicker on
-# some systems.
-options 	VGA_ALT_SEQACCESS
-
-# If you can dispense with some vga driver features, you may want to
-# use the following options to save some memory.
-#options 	VGA_NO_FONT_LOADING	# don't save/load font
-#options 	VGA_NO_MODE_CHANGE	# don't change video modes
-
-# Older video cards may require this option for proper operation.
-options 	VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
-
-# The following option probably won't work with the LCD displays.
-options 	VGA_WIDTH90		# support 90 column modes
-
-# To include support for VESA video modes
+# To include support for VGA VESA video modes
 options 	VESA
 
-options 	FB_DEBUG		# Frame buffer debugging
-options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
-
-# Splash screen at start up!  Screen savers require this too.
-device		splash
-
-# Various screen savers.
-device		apm_saver		# Requires APM
-device		blank_saver
-device		daemon_saver
-device		fade_saver
-device		fire_saver
-device		green_saver
-device		logo_saver
-device		rain_saver
-device		star_saver
-device		warp_saver
+# Turn on extra debugging checks and output for VESA support.
+options 	VESA_DEBUG
 
 # The pcvt console driver (vt220 compatible).
 device		vt
@@ -412,18 +334,6 @@ options 	PCVT_SCREENSAVER
 options 	PCVT_USEKBDSEC
 options 	PCVT_VT220KEYB
 options 	PCVT_GREENSAVER
-
-# 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support. This will create
-# the /dev/3dfx0 device to work with glide implementations. This should get
-# linked to /dev/3dfx and /dev/voodoo. Note that this is not the same as
-# the tdfx DRI module from XFree86 and is completely unrelated.
-#
-# To enable Linuxulator support, one must also include COMPAT_LINUX in the
-# config as well, or you will not have the dependencies. The other option
-# is to load both as modules.
-
-device 		tdfx			# Enable 3Dfx Voodoo support
-options 	TDFX_LINUX		# Enable Linuxulator support
 
 #
 # The Numeric Processing eXtension driver.  In addition to this, you
@@ -458,76 +368,8 @@ hint.npx.0.irq="13"
 #
 
 #
-# ACPI support using the Intel ACPI Component Architecture reference
-# implementation.
-#
-# ACPI_DEBUG enables the use of the debug.acpi.level and debug.acpi.layer
-# kernel environment variables to select initial debugging levels for the
-# Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
-# defined when it is built).
-#
-# Note that building ACPI into the kernel is deprecated; the module is
-# normally loaded automatically by the loader.
-#
-device		acpica
-options 	ACPI_DEBUG
-
-#
 # Optional devices:
 #
-
-#
-# SCSI host adapters:
-#
-# adv: All Narrow SCSI bus AdvanSys controllers.
-# aha: Adaptec 154x/1535/1640
-# ahb: Adaptec 174x EISA controllers
-# ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
-#      19160x/29160x, aic7770/aic78xx
-# aic: Adaptec 6260/6360, APA-1460 (PC Card), NEC PC9801-100 (C-BUS)
-# amd: Support for the AMD 53C974 SCSI host adapter chip as found on devices
-#      such as the Tekram DC-390(T).
-# bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
-#      BT-75x, BT-946, BT-948, BT-956, BT-958, SDC3211B, SDC3211F, SDC3222F
-# isp: Qlogic ISP 1020, 1040 and 1040B PCI SCSI host adapters,
-#      ISP 1240 Dual Ultra SCSI, ISP 1080 and 1280 (Dual) Ultra2,
-#      ISP 12160 Ultra3 SCSI,
-#      Qlogic ISP 2100 and ISP 2200 1Gb Fibre Channel host adapters.
-#      Qlogic ISP 2300 and ISP 2312 2Gb Fibre Channel host adapters.
-# ispfw: Firmware module for Qlogic host adapters
-# ncr: NCR 53C810, 53C825 self-contained SCSI host adapters.
-# ncv: NCR 53C500 based SCSI host adapters.
-# nsp: Workbit Ninja SCSI-3 based PC Card SCSI host adapters.
-# sym: Symbios/Logic 53C8XX family of PCI-SCSI I/O processors:
-#      53C810, 53C810A, 53C815, 53C825,  53C825A, 53C860, 53C875, 
-#      53C876, 53C885,  53C895, 53C895A, 53C896,  53C897, 53C1510D, 
-#      53C1010-33, 53C1010-66.
-# stg: TMC 18C30, 18C50 based SCSI host adapters.
-# wds: WD7000
-
-#
-# Note that the order is important in order for Buslogic ISA/EISA cards to be
-# probed correctly.
-#
-device		bt
-hint.bt.0.at="isa"
-hint.bt.0.port="0x330"
-device		adv
-hint.adv.0.at="isa"
-device		aha
-hint.aha.0.at="isa"
-device		aic
-hint.aic.0.at="isa"
-device		ahb
-device		stg
-hint.stg.0.at="isa"
-hint.stg.0.port="0x140"
-hint.stg.0.port="11"
-device		wds
-hint.wds.0.at="isa"
-hint.wds.0.port="0x350"
-hint.wds.0.irq="11"
-hint.wds.0.drq="6"
 
 # M-systems DiskOnchip products see src/sys/contrib/dev/fla/README
 device		fla
@@ -545,86 +387,30 @@ hint.mse.0.irq="5"
 # Network interfaces:
 #
 
-# an:   Aironet 4500/4800 802.11 wireless adapters. Supports the PCMCIA,
-#       PCI and ISA varieties.
-# ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
-#       (requires sppp)
-# awi:  Support for IEEE 802.11 PC Card devices using the AMD Am79C930 and
-#       Harris (Intersil) Chipset with PCnetMobile firmware by AMD.
-# cnw:  Xircom CNW/Netware Airsurfer PC Card adapter
-# cm:	Arcnet SMC COM90c26 / SMC COM90c56
-#	(and SMC COM90c66 in '56 compatibility mode) adapters.
-# cs:   IBM Etherjet and other Crystal Semi CS89x0-based adapters
 # cx:   Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
-# ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
-#       HP PC Lan+, various PC Card devices (refer to etc/defauls/pccard.conf)
-#       (requires miibus)
 # el:   3Com 3C501 (slow!)
-# ep:   3Com 3C509, 3C529, 3C556, 3C562D, 3C563D, 3C572, 3C574X, 3C579, 3C589
-#       and PC Card devices using these chipsets.
-# ex:   Intel EtherExpress Pro/10 and other i82595-based adapters,
-#       Olicom Ethernet PC Card devices.
-# fe:   Fujitsu MB86960A/MB86965A Ethernet
-# fea:  DEC DEFEA EISA FDDI adapter
 # ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
 #       Intel EtherExpress
 # le:   Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
 #       DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
-# lnc:  Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
-#       Am79C960)
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133
 #       (no hints needed).
 #       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
 #       OC-3141, OC-3540, OC-3250
 # rdp:  RealTek RTL 8002-based pocket ethernet adapters
 # sbni:	Granch SBNI12-xx ISA and PCI adapters
-# sn:   Support for ISA and PC Card Ethernet devices using the
-#       SMC91C90/92/94/95 chips.
-# sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
-# wl:   Lucent Wavelan (ISA card only).
-# wi:   Lucent WaveLAN/IEEE 802.11 PCMCIA adapters. Note: this supports both
-#       the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
-#       bridge with a PCMCIA adapter plugged into it.
-# xe:   Xircom/Intel EtherExpress Pro100/16 PC Card ethernet controller,
-#       Accton Fast EtherCard-16, Compaq Netelligent 10/100 PC Card,
-#       Toshiba 10/100 Ethernet PC Card, Xircom 16-bit Ethernet + Modem 56
 
 # Order for ISA/EISA devices is important here
 
-device		ar	1
-hint.ar.0.at="isa"
-hint.ar.0.port="0x300"
-hint.ar.0.irq="10"
-hint.ar.0.maddr="0xd0000"
-device		cm
-hint.cm.0.at="isa"
-hint.cm.0.port="0x2e0"
-hint.cm.0.irq="9"
-hint.cm.0.maddr="0xdc000"
-device		cs
-hint.cs.0.at="isa"
-hint.cs.0.port="0x300"
 device		cx	1
 hint.cx.0.at="isa"
 hint.cx.0.port="0x240"
 hint.cx.0.irq="15"
 hint.cx.0.drq="7"
-device		ed
-#options 	ED_NO_MIIBUS		# Disable ed miibus support
-hint.ed.0.at="isa"
-hint.ed.0.port="0x280"
-hint.ed.0.irq="5"
-hint.ed.0.maddr="0xd8000"
 device		el	1
 hint.el.0.at="isa"
 hint.el.0.port="0x300"
 hint.el.0.irq="9"
-device		ep
-device		ex
-device		fe	1
-hint.fe.0.at="isa"
-hint.fe.0.port="0x300"
-device		fea
 device		ie	2
 hint.ie.0.at="isa"
 hint.ie.0.port="0x300"
@@ -639,11 +425,6 @@ hint.le.0.at="isa"
 hint.le.0.port="0x300"
 hint.le.0.irq="5"
 hint.le.0.maddr="0xd0000"
-device		lnc	1
-hint.lnc.0.at="isa"
-hint.lnc.0.port="0x280"
-hint.lnc.0.irq="10"
-hint.lnc.0.drq="0"
 device		rdp	1
 hint.rdp.0.at="isa"
 hint.rdp.0.port="0x378"
@@ -654,94 +435,14 @@ hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
 hint.sbni.0.irq="0xefdead"
 hint.sbni.0.flags="0"
-device		sr	1
-hint.sr.0.at="isa"
-hint.sr.0.port="0x300"
-hint.sr.0.irq="5"
-hint.sr.0.maddr="0xd0000"
-device		sn
-hint.sn.0.at="isa"
-hint.sn.0.port="0x300"
-hint.sn.0.irq="10"
-device		an
-device		awi
-device		cnw
-device		wi
-options 	WLCACHE		# enables the signal-strength cache
-options 	WLDEBUG		# enables verbose debugging output
-device		wl	1
-hint.wl.0.at="isa"
-hint.wl.0.port="0x300"
-device		xe
 
 device		oltr
 hint.oltr.0.at="isa"
 
 #
-# Audio drivers: `pcm', `sbc', `gusc', `pca'
-#
-# pcm: PCM audio through various sound cards.
-#
-# The flags of the device tells the device a bit more info about the
-# device that normally is obtained through the PnP interface.
-#	bit  2..0   secondary DMA channel;
-#	bit  4      set if the board uses two dma channels;
-#	bit 15..8   board type, overrides autodetection; leave it
-#		    zero if don't know what to put in (and you don't,
-#		    since this is unsupported at the moment...).
+# Audio drivers: `pca'
 #
 # pca: PCM audio through your PC speaker
-#
-# Supported cards include:
-# Creative SoundBlaster ISA PnP/non-PnP
-# Supports ESS and Avance ISA chips as well.
-# Gravis UltraSound ISA PnP/non-PnP
-# Most of the more common ISA/PnP sb/mss/ess compatable cards.
-
-# For non-pnp sound cards with no bridge drivers only:
-hint.pcm.0.at="isa"
-hint.pcm.0.irq="10"
-hint.pcm.0.drq="1"
-hint.pcm.0.flags="0x0"
-
-#
-# midi: MIDI interfaces and synthesizers
-#
-
-# For non-pnp sound cards with no bridge drivers:
-hint.midi.0.at="isa"
-hint.midi.0.irq="5"
-hint.midi.0.flags="0x0"
-
-# For serial ports (this example configures port 2):
-# TODO: implement generic tty-midi interface so that we can use
-#	other uarts.
-hint.midi.0.at="isa"
-hint.midi.0.port="0x2F8"
-hint.midi.0.irq="3"
-
-# The bridge drivers for sound cards.  These can be separately configured
-# for providing services to the likes of new-midi.
-# When used with 'device pcm' they also provide pcm sound services.
-#
-# sbc:  Creative SoundBlaster ISA PnP/non-PnP
-#	Supports ESS and Avance ISA chips as well.
-# gusc: Gravis UltraSound ISA PnP/non-PnP
-# csa:  Crystal Semiconductor CS461x/428x PCI
-
-# For non-PnP cards:
-device		sbc
-hint.sbc.0.at="isa"
-hint.sbc.0.port="0x220"
-hint.sbc.0.irq="5"
-hint.sbc.0.drq="1"
-hint.sbc.0.flags="0x15"
-device		gusc
-hint.gusc.0.at="isa"
-hint.gusc.0.port="0x220"
-hint.gusc.0.irq="5"
-hint.gusc.0.drq="1"
-hint.gusc.0.flags="0x13"
 
 device		pca
 hint.pca.0.at="isa"
@@ -758,15 +459,11 @@ hint.pca.0.port="0x040"
 # apm: Laptop Advanced Power Management (experimental)
 # pmtimer: Timer device driver for power management events (APM or ACPI)
 # spigot: The Creative Labs Video Spigot video-acquisition board
-# dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
-# digi: Digiboard driver
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
 # asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
 # gsc: Genius GS-4500 hand scanner.
-# joy: joystick (including IO DATA PCJOY PC Card joystick)
 # rc: RISCom/8 multiport card
 # tw: TW-523 power line interface for use with X-10 home control products
-# si: Specialix SI/XIO 4-32 port terminal multiplexor
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
 # stli: Stallion EasyConnection 8/64, ONboard, Brumby (intelligent)
@@ -787,12 +484,6 @@ hint.pca.0.port="0x040"
 #  to access the spigot.  This option is not secure because it allows users
 #  direct access to the I/O page.
 #  	options SPIGOT_UNSECURE
-
-# Notes on the Digiboard driver:
-#
-# The following flag values have special meanings in dgb:
-#	0x01 - alternate layout of pins
-#	0x02 - use the windowed PC/Xe in 64K mode
 
 # Notes on the Specialix SI/XIO driver:
 #  The host card is memory, not IO mapped.
@@ -864,26 +555,6 @@ device		gsc	1
 hint.gsc.0.at="isa"
 hint.gsc.0.port="0x270"
 hint.gsc.0.drq="3"
-device		joy			# PnP aware, hints for nonpnp only
-hint.joy.0.at="isa"
-hint.joy.0.port="0x201"
-device		dgb	1
-options 	NDGBPORTS=16		# Defaults to 16*NDGB
-hint.dgb.0.at="isa"
-hint.dgb.0.port="0x220"
-hint.dgb.0.maddr="0xfc000"
-device		digi
-hint.digi.0.at="isa"
-hint.digi.0.port="0x104"
-hint.digi.0.maddr="0xd0000"
-# BIOS & FEP/OS components of device digi.  Normally left as modules
-device		digi_CX
-device		digi_CX_PCI
-device		digi_EPCX
-device		digi_EPCX_PCI
-device		digi_Xe
-device		digi_Xem
-device		digi_Xr
 device		rc	1
 hint.rc.0.at="isa"
 hint.rc.0.port="0x220"
@@ -893,11 +564,6 @@ device		tw	1
 hint.tw.0.at="isa"
 hint.tw.0.port="0x380"
 hint.tw.0.irq="11"
-device		si
-options 	SI_DEBUG
-hint.si.0.at="isa"
-hint.si.0.maddr="0xd0000"
-hint.si.0.irq="12"
 device		asc	1
 hint.asc.0.at="isa"
 hint.asc.0.port="0x3EB"
@@ -920,33 +586,6 @@ hint.stli.0.msize="0x1000"
 device		loran
 hint.loran.0.at="isa"
 hint.loran.0.irq="5"
-# HOT1 Xilinx 6200 card (http://www.vcc.com/)
-device		xrpu
-
-#
-# PC Card/PCMCIA
-# (OLDCARD)
-#
-# card: pccard slots
-# pcic: isa/pccard bridge
-device		pcic
-hint.pcic.0.at="isa"
-hint.pcic.1.at="isa"
-device		card
-
-#
-# PC Card/PCMCIA and Cardbus
-# (NEWCARD)
-#
-# Note that NEWCARD and OLDCARD are incompatible.  Do not use both at the same
-# time.
-#
-# pccbb: isa/pccard and pci/cardbus bridge
-# pccard: pccard slots
-# cardbus: cardbus slots
-#device		pccbb
-#device		pccard
-#device		cardbus
 
 #
 # Laptop/Notebook options:
@@ -959,20 +598,6 @@ device		card
 # power supply dropped, or battery state low) by issuing an NMI:
 
 options 	POWERFAIL_NMI	# make it beep instead of panicing
-
-#
-# SMB bus
-#
-# Supported SMB interfaces:
-# intpm		Intel PIIX4 (82371AB, 82443MX) Power Management Unit
-# alpm		Acer Aladdin-IV/V/Pro2 Power Management Unit
-# ichsmb	Intel ICH SMBus controller chips (82801AA, 82801AB, 82801BA)
-# viapm		VIA VT82C586B/596B/686A and VT8233 Power Management Unit 
-#
-device		intpm
-device		alpm
-device		ichsmb
-device		viapm
 
 #
 # I2C Bus
@@ -1299,5 +924,3 @@ options 	VM_KMEM_SIZE_SCALE
 
 # Yet more undocumented options for linting.
 options 	COMPAT_SUNOS
-options 	VESA_DEBUG
-options 	VGA_DEBUG
