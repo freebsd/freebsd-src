@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.40 1995/12/07 12:48:23 davidg Exp $
+ *	$Id: vm_page.c,v 1.41 1995/12/11 04:58:25 dyson Exp $
  */
 
 /*
@@ -564,11 +564,11 @@ vm_page_alloc(object, pindex, page_req)
 	register vm_page_t mem;
 	int s;
 
-/* #ifdef DIAGNOSTIC */
+#ifdef DIAGNOSTIC
 	mem = vm_page_lookup(object, pindex);
 	if (mem)
 		panic("vm_page_alloc: page already allocated");
-/* #endif */
+#endif
 
 	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT)) {
 		page_req = VM_ALLOC_SYSTEM;
