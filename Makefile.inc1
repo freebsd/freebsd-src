@@ -279,13 +279,9 @@ _worldtmp:
 	mkdir -p ${WORLDTMP}/legacy/${_dir}
 .endfor
 .for _dir in \
-    usr/bin usr/lib/compat/aout usr/libdata/ldscripts usr/libexec usr/share/misc
+    usr/bin usr/include usr/lib/compat/aout usr/libdata/ldscripts \
+    usr/libexec usr/share/misc
 	mkdir -p ${WORLDTMP}/${_dir}
-.endfor
-.for _dir in \
-    arpa dev fs g++/backward g++/bits g++/ext isc isofs libmilter \
-    objc openssl protocols readline rpc rpcsvc security ufs
-	mkdir -p ${WORLDTMP}/usr/include/${_dir}
 .endfor
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 _legacy:
