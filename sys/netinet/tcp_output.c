@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
- * $Id: tcp_output.c,v 1.10 1995/05/09 13:35:47 davidg Exp $
+ * $Id: tcp_output.c,v 1.11 1995/05/30 08:09:56 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -486,8 +486,11 @@ send:
 			m->m_len += len;
 		} else {
 			m->m_next = m_copy(so->so_snd.sb_mb, off, (int) len);
-			if (m->m_next == 0)
-				len = 0;
+			if (m->m_next == 0) {
+				m_free(m);
+				error = ENOBUFS;
+				goto out;
+			}
 		}
 #endif
 		/*
