@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.58 1998/05/29 18:32:40 brian Exp $
+ * $Id: lcp.c,v 1.59 1998/06/15 19:06:13 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -414,6 +414,7 @@ LcpLayerDown(struct fsm *fp)
   log_Printf(LogLCP, "%s: LcpLayerDown\n", fp->link->name);
   hdlc_StopTimer(&p->hdlc);
   lqr_StopTimer(p);
+  lcp_Setup(fsm2lcp(fp), 0);
 }
 
 static void

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.147 1998/06/16 23:23:54 brian Exp $
+ * $Id: command.c,v 1.148 1998/06/20 00:19:33 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/16 23:23:54 $";
+const char VersionDate[] = "$Date: 1998/06/20 00:19:33 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -470,7 +470,7 @@ static struct cmdtab const Commands[] = {
   {"load", NULL, LoadCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Load settings", "load [remote]"},
   {"open", NULL, OpenCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Open an FSM", "open [lcp|ccp]"},
+  "Open an FSM", "open [lcp|ccp|ipcp]"},
   {"passwd", NULL, PasswdCommand, LOCAL_NO_AUTH,
   "Password for manipulation", "passwd LocalPassword"},
   {"quit", "bye", QuitCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
@@ -837,30 +837,48 @@ QuitCommand(struct cmdargs const *arg)
 static int
 OpenCommand(struct cmdargs const *arg)
 {
-  if (arg->argc == arg->argn ||
-      (arg->argc == arg->argn+1 && !strcasecmp(arg->argv[arg->argn], "lcp")))
+  if (arg->argc == arg->argn)
     bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL, PHYS_ALL);
-  else if (arg->argc == arg->argn+1 &&
-           !strcasecmp(arg->argv[arg->argn], "ccp")) {
-    struct link *l;
-    struct fsm *fp;
+  else if (arg->argc == arg->argn + 1) {
+    if (!strcasecmp(arg->argv[arg->argn], "lcp")) {
+      if (arg->cx) {
+        if (arg->cx->physical->link.lcp.fsm.state == ST_OPENED)
+          fsm_Reopen(&arg->cx->physical->link.lcp.fsm);
+        else
+          bundle_Open(arg->bundle, arg->cx->name, PHYS_ALL);
+      } else
+        log_Printf(LogWARN, "open lcp: You must specify a link\n");
+    } else if (!strcasecmp(arg->argv[arg->argn], "ccp")) {
+      struct link *l;
+      struct fsm *fp;
 
-    if (!(l = command_ChooseLink(arg)))
-      return -1;
-    fp = &l->ccp.fsm;
+      if (!(l = command_ChooseLink(arg)))
+        return -1;
+      fp = &l->ccp.fsm;
 
-    if (fp->link->lcp.fsm.state != ST_OPENED)
-      log_Printf(LogWARN, "open: LCP must be open before opening CCP\n");
-    else if (fp->state != ST_OPENED) {
-      fp->open_mode = 0;	/* Not passive any more */
-      if (fp->state == ST_STOPPED) {
-        fsm_Down(fp);
-        fsm_Up(fp);
-      } else {
-        fsm_Up(fp);
-        fsm_Open(fp);
+      if (fp->link->lcp.fsm.state != ST_OPENED)
+        log_Printf(LogWARN, "open: LCP must be open before opening CCP\n");
+      else if (fp->state == ST_OPENED)
+        fsm_Reopen(fp);
+      else {
+        fp->open_mode = 0;	/* Not passive any more */
+        if (fp->state == ST_STOPPED) {
+          fsm_Down(fp);
+          fsm_Up(fp);
+        } else {
+          fsm_Up(fp);
+          fsm_Open(fp);
+        }
       }
-    }
+    } else if (!strcasecmp(arg->argv[arg->argn], "ipcp")) {
+      if (arg->cx)
+        log_Printf(LogWARN, "open ipcp: You need not specify a link\n");
+      if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED)
+        fsm_Reopen(&arg->bundle->ncp.ipcp.fsm);
+      else
+        bundle_Open(arg->bundle, NULL, PHYS_ALL);
+    } else
+      return -1;
   } else
     return -1;
 
