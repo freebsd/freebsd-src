@@ -51,7 +51,7 @@ while ($line = <>) {
 	}
 }
 
-if (!$error) {
+if (@lines && !$error) {
 	print shift(@lines);
 	while (@lines > $thresh) {
 		shift(@lines);
