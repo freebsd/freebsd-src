@@ -158,26 +158,33 @@ The
 .Vt mbuf
 header includes:
 .Pp
-.Bl -tag -width "m_nextpkt" -compact -offset indent
+.Bl -tag -width "m_nextpkt" -offset indent
 .It Va m_next
-a pointer to the next
+.Pq Vt struct mbuf *
+A pointer to the next
 .Vt mbuf
 in the
-.Vt mbuf chain
+.Vt mbuf chain .
 .It Va m_nextpkt
-a pointer to the next
+.Pq Vt struct mbuf *
+A pointer to the next
 .Vt mbuf chain
-in the queue
+in the queue.
 .It Va m_data
-a pointer to the data
+.Pq Vt caddr_t
+A pointer to data attached to this
+.Vt mbuf .
 .It Va m_len
-the length of the data
+.Pq Vt int
+The length of the data.
 .It Va m_type
-the type of data
+.Pq Vt short
+The type of the data.
 .It Va m_flags
-the
+.Pq Vt int
+The
 .Vt mbuf
-flags
+flags.
 .El
 .Pp
 The
