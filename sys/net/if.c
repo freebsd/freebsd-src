@@ -52,7 +52,9 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_dl.h>
+#include <net/if_types.h>
 #include <net/radix.h>
 #include <net/route.h>
 
@@ -910,6 +912,13 @@ ifioctl(so, cmd, data, p)
 			return (EOPNOTSUPP);
 		return ((*ifp->if_ioctl)(ifp, cmd, data));
 
+	case SIOCSIFLLADDR:
+		error = suser(p);
+		if (error)
+			return (error);
+		return if_setlladdr(ifp,
+		    ifr->ifr_addr.sa_data, ifr->ifr_addr.sa_len);
+
 	default:
 		oif_flags = ifp->if_flags;
 		if (so->so_proto == 0)
@@ -1307,6 +1316,52 @@ if_delmulti(ifp, sa)
 	free(ifma, M_IFMADDR);
 
 	return 0;
+}
+
+/*
+ * Set the link layer address on an interface.
+ *
+ * At this time we only support certain types of interfaces,
+ * and we don't allow the length of the address to change.
+ */
+int
+if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
+{
+	struct sockaddr_dl *sdl;
+	struct ifaddr *ifa;
+
+	ifa = ifnet_addrs[ifp->if_index - 1];
+	if (ifa == NULL)
+		return (EINVAL);
+	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+	if (sdl == NULL)
+		return (EINVAL);
+	if (len != sdl->sdl_alen)	/* don't allow length to change */
+		return (EINVAL);
+	switch (ifp->if_type) {
+	case IFT_ETHER:			/* these types use struct arpcom */
+	case IFT_FDDI:
+	case IFT_XETHER:
+	case IFT_ISO88025:
+	case IFT_PROPVIRTUAL:		/* XXX waiting for IFT_8021_VLAN */
+		bcopy(lladdr, ((struct arpcom *)ifp->if_softc)->ac_enaddr, len);
+		bcopy(lladdr, LLADDR(sdl), len);
+		break;
+	default:
+		return (ENODEV);
+	}
+	/*
+	 * If the interface is already up, we need
+	 * to re-init it in order to reprogram its
+	 * address filter.
+	 */
+	if ((ifp->if_flags & IFF_UP) != 0) {
+		ifp->if_flags &= ~IFF_UP;
+		(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, NULL);
+		ifp->if_flags |= IFF_UP;
+		(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, NULL);
+	}
+	return (0);
 }
 
 struct ifmultiaddr *
