@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.11 1997/07/01 01:18:38 bde Exp $
+ *	$Id: perfmon.c,v 1.12 1997/10/28 15:58:10 bde Exp $
  */
 
 #include <sys/param.h>
@@ -343,7 +343,7 @@ perfmon_ioctl(dev_t dev, int cmd, caddr_t param, int flags, struct proc *p)
 	case PMIOTSTAMP:
 		pmct = (struct pmc_tstamp *)param;
 		/* XXX interface loses precision. */
-		pmct->pmct_rate = i586_ctr_freq / 1000000;
+		pmct->pmct_rate = tsc_freq / 1000000;
 		pmct->pmct_value = rdtsc();
 		rv = 0;
 		break;

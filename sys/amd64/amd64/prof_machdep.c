@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prof_machdep.c,v 1.6 1997/02/22 09:36:59 peter Exp $
+ *	$Id: prof_machdep.c,v 1.7 1997/11/24 18:16:23 bde Exp $
  */
 
 #ifdef GUPROF
@@ -51,7 +51,7 @@
 #ifdef GUPROF
 #define	CPUTIME_CLOCK_UNINITIALIZED	0
 #define	CPUTIME_CLOCK_I8254		1
-#define	CPUTIME_CLOCK_I586_CTR		2
+#define	CPUTIME_CLOCK_TSC		2
 #define	CPUTIME_CLOCK_I586_PMC		3
 #define	CPUTIME_CLOCK_I8254_SHIFT	7
 
@@ -177,7 +177,7 @@ cputime()
 	static u_int prev_count;
 
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
-	if (cputime_clock == CPUTIME_CLOCK_I586_CTR) {
+	if (cputime_clock == CPUTIME_CLOCK_TSC) {
 		count = (u_int)rdtsc();
 		delta = (int)(count - prev_count);
 		prev_count = count;
@@ -279,14 +279,14 @@ startguprof(gp)
 	if (cputime_clock == CPUTIME_CLOCK_UNINITIALIZED) {
 		cputime_clock = CPUTIME_CLOCK_I8254;
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
-		if (i586_ctr_freq != 0)
-			cputime_clock = CPUTIME_CLOCK_I586_CTR;
+		if (tsc_freq != 0)
+			cputime_clock = CPUTIME_CLOCK_TSC;
 #endif
 	}
 	gp->profrate = timer_freq << CPUTIME_CLOCK_I8254_SHIFT;
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
-	if (cputime_clock == CPUTIME_CLOCK_I586_CTR)
-		gp->profrate = i586_ctr_freq;
+	if (cputime_clock == CPUTIME_CLOCK_TSC)
+		gp->profrate = tsc_freq;
 #if defined(PERFMON) && defined(I586_PMC_GUPROF)
 	else if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
 		if (perfmon_avail() &&
