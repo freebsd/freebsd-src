@@ -299,6 +299,19 @@ You can make a log of your terminal session with script(1).
 %
 "man ports" gives many useful hints about installing FreeBSD ports. 
 %
+"man security" gives very good advice on how to tune the security of your
+FreeBSD system.
+%
+Want to find a specific port, just type the following under /usr/ports,
+or one its subdirectories:
+
+	"make search port=<port-name>"
+    or
+	"make search key="<keyword>"
+%
+Want to see how much virtual memory you're using? Just type "swapinfo" to
+be shown information about the usage of your swap partitions.
+%
 ports/net/netcat port is useful not only for redirecting input/output 
 to TCP or UDP connections, but also for proxying them. See inetd(8) for 
 details. 
@@ -308,7 +321,7 @@ reinstall it either with /stand/sysinstall or with boot0cfg(8). See
 "man boot0cfg" for details.
 %
 Need to see the calendar for this month? Simply type "cal".  To see the 
-whole year, type "cal 2001". 
+whole year, type "cal 2002". 
 		-- Dru <genesis@istar.ca>
 %
 Need to quickly return to your home directory? Type "cd". 
@@ -432,7 +445,7 @@ grep port_name".
 Got some time to kill? Try typing "hangman". 
 		-- Dru <genesis@istar.ca>
 %
-To erase a line you've written at the command prompt, use "Ctrl u". 
+To erase a line you've written at the command prompt, use "Ctrl-U". 
 		-- Dru <genesis@istar.ca>
 %
 To repeat the last command in the C shell, type "!!". 
