@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.11.2.2 1997/06/21 15:48:22 jkh Exp $
+#	$Id: bsd.subdir.mk,v 1.11.2.3 1998/03/07 13:18:04 jkh Exp $
 #
 # The include file <bsd.subdir.mk> contains the default targets
 # for building subdirectories. It has the same seven targets
@@ -76,7 +76,7 @@ tags:	_SUBDIRUSE
 .endif
 .endif
 
-.if !defined(cleandepend)
+.if !target(cleandepend)
 cleandepend:	_SUBDIRUSE
 .if defined(TAGS)
 	@rm -f ${.CURDIR}/GTAGS ${.CURDIR}/GRTAGS
