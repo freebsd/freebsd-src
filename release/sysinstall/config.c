@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.3 1995/05/24 01:27:08 jkh Exp $
+ * $Id: config.c,v 1.4 1995/05/24 09:00:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -190,6 +190,7 @@ configFstab(void)
 void
 configSysconfig(void)
 {
+#if 0
     FILE *fp;
     char *lines[5001];	/* Some big number we're not likely to ever reach - I'm being really lazy here, I know */
     char line[256];
@@ -211,6 +212,7 @@ configSysconfig(void)
 	for (i = 0; i < nlines; i++) {
 	}
     }
+#endif
 }
 
 int
