@@ -301,6 +301,8 @@ cpu_mp_probe(void)
 
 	/* XXX: Need to check for valid platforms here. */
 
+	mp_ncpus = 1;
+
 	/* Make sure we have at least one secondary CPU. */
 	cpus = 0;
 	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
@@ -327,8 +329,6 @@ cpu_mp_start()
 	int i;
 
 	mtx_init(&ap_boot_mtx, "ap boot", MTX_SPIN);
-
-	mp_ncpus = 1;
 
 	boot_cpu_id = PCPU_GET(cpuid);
 	KASSERT(boot_cpu_id == hwrpb->rpb_primary_cpu_id,
