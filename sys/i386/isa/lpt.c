@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.22 1994/10/27 05:08:28 phk Exp $
+ *	$Id: lpt.c,v 1.23 1994/11/13 21:14:30 nate Exp $
  */
 
 /*
@@ -894,7 +894,8 @@ lpioctl(struct ifnet *ifp, int cmd, caddr_t data)
 	    sc->sc_ifbuf = ptr;
 	    return ENOBUFS;
 	} 
-	free(ptr,M_DEVBUF);
+	if (ptr)
+		free(ptr,M_DEVBUF);
 	sc->sc_if.if_mtu = ifr->ifr_metric; 
 	break;
 
