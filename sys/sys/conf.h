@@ -323,7 +323,6 @@ typedef void devfs_destroy_t(dev_t dev);
 
 extern devfs_create_t *devfs_create_hook;
 extern devfs_destroy_t *devfs_destroy_hook;
-extern int devfs_present;
 
 #define		UID_ROOT	0
 #define		UID_BIN		3
