@@ -195,37 +195,6 @@ in_pseudo(u_int32_t a, u_int32_t b, u_int32_t c)
 	return (sum);
 }
 
-int
-in_cksum(m, len)
-	register struct mbuf *m;
-	register int len;
-{
-	register u_int64_t sum = 0;
-	register int mlen = 0;
-	register int clen = 0;
-	register caddr_t addr;
-	union q_util q_util;
-	union l_util l_util;
-
-	for (; m && len; m = m->m_next) {
-		if (m->m_len == 0)
-			continue;
-		mlen = m->m_len;
-		if (len < mlen)
-			mlen = len;
-		addr = mtod(m, caddr_t);
-		if ((clen ^ (long) addr) & 1)
-		    sum += in_cksumdata(addr, mlen) << 8;
-		else
-		    sum += in_cksumdata(addr, mlen);
-
-		clen += mlen;
-		len -= mlen;
-	}
-	REDUCE16;
-	return (~sum & 0xffff);
-}
-
 u_short
 in_cksum_skip(m, len, skip)
 	struct mbuf *m;
@@ -279,4 +248,3 @@ u_int in_cksum_hdr(ip)
     REDUCE16;
     return (~sum & 0xffff);
 }
-
