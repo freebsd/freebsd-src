@@ -80,17 +80,55 @@
 	__asm __volatile("flushw" : :);					\
 } while (0)
 
-#define	ldxa(va, asi) ({						\
-	u_long __r;							\
-	__asm __volatile("ldxa [%1] %2, %0"				\
+/* Generate ld*a/st*a functions for non-constant ASI's. */
+#define LDNC_GEN(tp, o)							\
+	static __inline tp						\
+	o ## _nc(caddr_t va, int asi)					\
+	{								\
+		tp r;							\
+		__asm __volatile("wr %2, 0, %%asi;" #o " [%1] %%asi, %0"\
+		    : "=r" (r) : "r" (va), "r" (asi));			\
+		return (r);						\
+	}
+
+LDNC_GEN(u_char, lduba);
+LDNC_GEN(u_short, lduha);
+LDNC_GEN(u_int, lduwa);
+LDNC_GEN(u_long, ldxa);
+
+#define	LD_GENERIC(va, asi, op, type) ({				\
+	type __r;							\
+	__asm __volatile(#op " [%1] %2, %0"				\
 	    : "=r" (__r) : "r" (va), "n" (asi));			\
 	__r;								\
 })
 
-#define	stxa(va, asi, val) do {						\
-	__asm __volatile("stxa %0, [%1] %2"				\
+#define	lduba(va, asi)	LD_GENERIC(va, asi, lduba, u_char)
+#define	lduha(va, asi)	LD_GENERIC(va, asi, lduha, u_short)
+#define	lduwa(va, asi)	LD_GENERIC(va, asi, lduwa, u_int)
+#define	ldxa(va, asi)	LD_GENERIC(va, asi, ldxa, u_long)
+
+#define STNC_GEN(tp, o)							\
+	static __inline void						\
+	o ## _nc(caddr_t va, int asi, tp val)				\
+	{								\
+		__asm __volatile("wr %2, 0, %%asi;" #o " %0, [%1] %%asi"\
+		    : : "r" (val), "r" (va), "r" (asi));		\
+	}
+
+STNC_GEN(u_char, stba);
+STNC_GEN(u_short, stha);
+STNC_GEN(u_int, stwa);
+STNC_GEN(u_long, stxa);
+
+#define	ST_GENERIC(va, asi, val, op)					\
+	__asm __volatile(#op " %0, [%1] %2"				\
 	    : : "r" (val), "r" (va), "n" (asi));			\
-} while (0)
+
+#define	stba(va, asi, val)	ST_GENERIC(va, asi, val, stba)
+#define	stha(va, asi, val)	ST_GENERIC(va, asi, val, stha)
+#define	stwa(va, asi, val)	ST_GENERIC(va, asi, val, stwa)
+#define	stxa(va, asi, val)	ST_GENERIC(va, asi, val, stxa)
 
 #define	membar(mask) do {						\
 	__asm __volatile("membar %0" : : "n" (mask));			\
@@ -140,6 +178,9 @@ critical_exit(critical_t pil)
 	wrpr(pil, pil, 0);
 }
 
+void ascopyfrom(u_long sasi, vm_offset_t src, caddr_t dst, size_t len);
+void ascopyto(caddr_t src, u_long dasi, vm_offset_t dst, size_t len);
+
 /*
  * Ultrasparc II doesn't implement popc in hardware.  Suck.
  */
@@ -164,5 +205,8 @@ ffs(int mask)
 	return (result);
 }
 #endif
+
+#undef LDNC_GEN
+#undef STNC_GEN
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
