@@ -451,10 +451,13 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 #ifdef PC98
 		/* PC-98: the type of bus_space_handle_t is the structure. */
 		rv->r_bushandle->bsh_base = rv->r_start;
-		rv->r_bushandle->bsh_iat = NULL;
+		rv->r_bushandle->bsh_maxiatsz = BUS_SPACE_IAT_MAXSIZE;
 		rv->r_bushandle->bsh_iatsz = 0;
 		rv->r_bushandle->bsh_res = NULL;
 		rv->r_bushandle->bsh_ressz = 0;
+
+		/* default: direct access */
+		rv->r_bushandle->bsh_bam = rv->r_bustag->bs_da;
 #else
 		/* IBM-PC: the type of bus_space_handle_t is u_int */
 		rman_set_bushandle(rv, rv->r_start);
@@ -504,10 +507,13 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 #ifdef PC98
 		/* PC-98: the type of bus_space_handle_t is the structure. */
 		r->r_bushandle->bsh_base = (bus_addr_t) vaddr;
-		r->r_bushandle->bsh_iat = NULL;
+		r->r_bushandle->bsh_maxiatsz = BUS_SPACE_IAT_MAXSIZE;
 		r->r_bushandle->bsh_iatsz = 0;
 		r->r_bushandle->bsh_res = NULL;
 		r->r_bushandle->bsh_ressz = 0;
+
+		/* default: direct access */
+		r->r_bushandle->bsh_bam = r->r_bustag->bs_da;
 #else
 		/* IBM-PC: the type of bus_space_handle_t is u_int */
 		rman_set_bushandle(r, (bus_space_handle_t) vaddr);
