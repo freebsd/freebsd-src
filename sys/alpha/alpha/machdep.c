@@ -998,7 +998,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 * Look at arguments passed to us and compute boothowto.
 	 */
 
-	boothowto = RB_SINGLE;
+	boothowto = 0;
 #ifdef KADB
 	boothowto |= RB_KDB;
 #endif
