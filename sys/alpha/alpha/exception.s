@@ -1,3 +1,4 @@
+/* $Id$ */
 /* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
 
 /*
