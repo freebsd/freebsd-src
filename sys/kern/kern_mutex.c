@@ -915,7 +915,7 @@ mtx_init(struct mtx *m, const char *name, const char *type, int opts)
 
 	lock = &m->mtx_object;
 	KASSERT((lock->lo_flags & LO_INITIALIZED) == 0,
-	    ("mutex %s %p already initialized", name, m));
+	    ("mutex \"%s\" %p already initialized", name, m));
 	bzero(m, sizeof(*m));
 	if (opts & MTX_SPIN)
 		lock->lo_class = &lock_class_mtx_spin;
