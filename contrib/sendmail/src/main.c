@@ -4209,7 +4209,7 @@ testmodeline(line, e)
 						     "Usage: /parse address\n");
 				return;
 			}
-			q = crackaddr(p);
+			q = crackaddr(p, e);
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "Cracked address = ");
 			xputs(q);
