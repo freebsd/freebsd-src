@@ -13,9 +13,9 @@ MANDEPEND=	${MAN7}
 CLEANFILES+=	${MANDEPEND}
 
 afterinstall:
-	install -c -o $(TMACOWN) -g $(TMACGRP) -m $(TMACMODE) \
+	${INSTALL} -c -o $(TMACOWN) -g $(TMACGRP) -m $(TMACMODE) \
 		$(.CURDIR)/tmac.m $(DESTDIR)$(TMACDIR)/tmac.m
-	install -c -o $(TMACOWN) -g $(TMACGRP) -m $(TMACMODE) \
+	${INSTALL} -c -o $(TMACOWN) -g $(TMACGRP) -m $(TMACMODE) \
 		$(.CURDIR)/tmac.m $(DESTDIR)$(TMACDIR)/tmac.mse
 
 	test -d $(DESTDIR)$(TMACDIR)/mm || mkdir $(DESTDIR)$(TMACDIR)/mm
@@ -23,8 +23,7 @@ afterinstall:
 	chmod 755 $(DESTDIR)$(TMACDIR)/mm
 
 	for f in $(FILES); do \
-		rm -f $(DESTDIR)$(TMACDIR)/mm/$$f; \
-		install -c -o $(TMACOWN) -g $(TMACGRP) -m $(TMACMODE) \
+		$(INSTALL) -c -o $(TMACOWN) -g $(TMACGRP) -m $(TMACMODE) \
 			$(.CURDIR)/mm/$$f $(DESTDIR)$(TMACDIR)/mm/$$f; \
 	done
 	for f in $(LOCALE); do \
