@@ -255,12 +255,9 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 
 			_thread_kern_sig_undefer();
 
-			if (((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) && 
-			    (_thread_run->cancelflags & PTHREAD_CANCEL_DISABLE) != 0) {
-				_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
-				_thread_exit_cleanup();
-				pthread_exit(PTHREAD_CANCELED);
-			}
+			if (_thread_run->interrupted != 0 &&
+			    _thread_run->continuation != NULL)
+				_thread_run->continuation((void *)_thread_run);
 		}
 	}
 	return;

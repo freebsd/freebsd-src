@@ -37,19 +37,24 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <setjmp.h>
 #include <errno.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
 /* Prototypes: */
-static void	_thread_sig_check_state(pthread_t pthread, int sig);
+static void	thread_sig_check_state(pthread_t pthread, int sig);
+static void	thread_sig_finish_longjmp(void *arg);
+static void	handle_state_change(pthread_t pthread);
+
 
 /* Static variables: */
 static spinlock_t	signal_lock = _SPINLOCK_INITIALIZER;
 static unsigned int	pending_sigs[NSIG];
 static unsigned int	handled_sigs[NSIG];
 static int		volatile check_pending = 0;
+static int		volatile check_waiting = 0;
 
 /* Initialize signal handling facility: */
 void
@@ -73,7 +78,7 @@ _thread_sig_init(void)
 void
 _thread_sig_handler(int sig, int code, ucontext_t * scp)
 {
-	pthread_t pthread;
+	pthread_t pthread, pthread_next;
 	int	i;
 	char	c;
 
@@ -126,8 +131,7 @@ _thread_sig_handler(int sig, int code, ucontext_t * scp)
 
 		/* Indicate that there are queued signals in the pipe. */
 		_sigq_check_reqd = 1;
-	}
-	else {
+	} else {
 		if (_atomic_lock(&signal_lock.access_lock)) {
 			/* There is another signal handler running: */
 			pending_sigs[sig - 1]++;
@@ -145,6 +149,18 @@ _thread_sig_handler(int sig, int code, ucontext_t * scp)
 				signal_lock.access_lock = 0;
 			else {
 				sigaddset(&pthread->sigmask, sig);
+				
+				/*
+				 * Make sure not to deliver the same signal to
+				 * the thread twice.  sigpend is potentially
+				 * modified by the call chain
+				 * _thread_sig_handle() -->
+				 * thread_sig_check_state(), which can happen
+				 * just above.
+				 */
+				if (sigismember(&pthread->sigpend, sig))
+					sigdelset(&pthread->sigpend, sig);
+			
 				signal_lock.access_lock = 0;
 				_thread_sig_deliver(pthread, sig);
 				sigdelset(&pthread->sigmask, sig);
@@ -161,17 +177,56 @@ _thread_sig_handler(int sig, int code, ucontext_t * scp)
 					pthread = _thread_sig_handle(i, scp);
 					if (pthread != NULL) {
 						sigaddset(&pthread->sigmask, i);
+						/* Save the old state: */
+						pthread->oldstate = pthread->state;
 						signal_lock.access_lock = 0;
 						_thread_sig_deliver(pthread, i);
 						sigdelset(&pthread->sigmask, i);
 						if (_atomic_lock(&signal_lock.access_lock)) {
 							check_pending = 1;
+							/*
+							 * Have the lock holder take care
+							 * of any state changes:
+							 */
+							if (pthread->state != pthread->oldstate)
+								check_waiting = 1;
 							return;
 						}
+						if (pthread->state != pthread->oldstate)
+							handle_state_change(pthread);
 					}
 				}
 			}
+			while (check_waiting != 0) {
+				check_waiting = 0;
+				/*
+				 * Enter a loop to wake up all threads waiting
+				 * for a process to complete:
+				 */
+				for (pthread = TAILQ_FIRST(&_waitingq);
+				    pthread != NULL; pthread = pthread_next) {
+					pthread_next = TAILQ_NEXT(pthread, pqe);
+					if (pthread->state == PS_RUNNING)
+						handle_state_change(pthread);
+				}
+			}
+			/* Release the lock: */
 			signal_lock.access_lock = 0;
+		}
+
+		/*
+		 * Check to see if the current thread performed a
+		 * [sig|_]longjmp() out of a signal handler.
+		 */
+		if ((_thread_run->jmpflags & (JMPFLAGS_LONGJMP |
+		    JMPFLAGS__LONGJMP)) != 0) {
+			_thread_run->jmpflags = JMPFLAGS_NONE;
+			__longjmp(_thread_run->nested_jmp.jmp,
+			    _thread_run->longjmp_val);
+		} else if ((_thread_run->jmpflags & JMPFLAGS_SIGLONGJMP) != 0) {
+			_thread_run->jmpflags = JMPFLAGS_NONE;
+			__siglongjmp(_thread_run->nested_jmp.sigjmp,
+			    _thread_run->longjmp_val);
 		}
 	}
 }
@@ -353,7 +408,7 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 				 * Perform any state changes due to signal
 				 * arrival:
 				 */
-				_thread_sig_check_state(pthread, sig);
+				thread_sig_check_state(pthread, sig);
 				return (pthread);
 			}
 		}
@@ -363,9 +418,99 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 	return (NULL);
 }
 
+static void
+thread_sig_finish_longjmp(void *arg)
+{
+	/*
+	 * Check to see if the current thread performed a [_]longjmp() out of a
+	 * signal handler.
+	 */
+	if ((_thread_run->jmpflags & (JMPFLAGS_LONGJMP | JMPFLAGS__LONGJMP))
+	    != 0) {
+		_thread_run->jmpflags = JMPFLAGS_NONE;
+		_thread_run->continuation = NULL;
+		__longjmp(_thread_run->nested_jmp.jmp,
+		    _thread_run->longjmp_val);
+	}
+	/*
+	 * Check to see if the current thread performed a siglongjmp
+	 * out of a signal handler:
+	 */
+	else if ((_thread_run->jmpflags & JMPFLAGS_SIGLONGJMP) != 0) {
+		_thread_run->jmpflags = JMPFLAGS_NONE;
+		_thread_run->continuation = NULL;
+		__siglongjmp(_thread_run->nested_jmp.sigjmp,
+		    _thread_run->longjmp_val);
+	}
+}
+
+static void
+handle_state_change(pthread_t pthread)
+{
+	/*
+	 * We should only need to handle threads whose state was
+	 * changed to running:
+	 */
+	if (pthread->state == PS_RUNNING) {
+		switch (pthread->oldstate) {
+		/*
+		 * States which do not change when a signal is trapped:
+		 */
+		case PS_DEAD:
+		case PS_DEADLOCK:
+		case PS_RUNNING:
+		case PS_SIGTHREAD:
+		case PS_STATE_MAX:
+			break;
+
+		/*
+		 * States which need to return to critical sections
+		 * before they can switch contexts:
+		 */
+		case PS_COND_WAIT:
+		case PS_FDLR_WAIT:
+		case PS_FDLW_WAIT:
+		case PS_FILE_WAIT:
+		case PS_JOIN:
+		case PS_MUTEX_WAIT:
+			/* Indicate that the thread was interrupted: */
+			pthread->interrupted = 1;
+			/*
+			 * Defer the [sig|_]longjmp until leaving the critical
+			 * region:
+			 */
+			pthread->jmpflags |= JMPFLAGS_DEFERRED;
+
+			/* Set the continuation routine: */
+			pthread->continuation = thread_sig_finish_longjmp;
+			/* FALLTHROUGH */
+		case PS_FDR_WAIT:
+		case PS_FDW_WAIT:
+		case PS_POLL_WAIT:
+		case PS_SELECT_WAIT:
+		case PS_SIGSUSPEND:
+		case PS_SIGWAIT:
+		case PS_SLEEP_WAIT:
+		case PS_SPINBLOCK:
+		case PS_SUSPENDED:
+		case PS_WAIT_WAIT:
+			if ((pthread->flags & PTHREAD_FLAGS_IN_WAITQ) != 0) {
+				PTHREAD_WAITQ_REMOVE(pthread);
+				if (pthread->flags & PTHREAD_FLAGS_IN_WORKQ)
+					PTHREAD_WORKQ_REMOVE(pthread);
+			}
+			break;
+		}
+
+		if ((pthread->flags & PTHREAD_FLAGS_IN_PRIOQ) == 0)
+			PTHREAD_PRIOQ_INSERT_TAIL(pthread);
+	}
+}
+
+
 /* Perform thread specific actions in response to a signal: */
 static void
-_thread_sig_check_state(pthread_t pthread, int sig)
+thread_sig_check_state(pthread_t pthread, int sig)
 {
 	/*
 	 * Process according to thread state:
@@ -401,7 +546,6 @@ _thread_sig_check_state(pthread_t pthread, int sig)
 			/* Increment the pending signal count. */
 			sigaddset(&pthread->sigpend,sig);
 		break;
-
 
 	/*
 	 * The wait state is a special case due to the handling of
@@ -483,12 +627,25 @@ _thread_sig_send(pthread_t pthread, int sig)
 		} else if (pthread->state != PS_SIGWAIT &&
 		    !sigismember(&pthread->sigmask, sig)) {
 			/* Perform any state changes due to signal arrival: */
-			_thread_sig_check_state(pthread, sig);
+			thread_sig_check_state(pthread, sig);
 
-			/* Call the installed signal handler: */
-			_thread_sig_deliver(pthread, sig);
-		}
-		else {
+#ifndef _NO_UNDISPATCH
+			if (_thread_run != pthread) {
+				/*
+				 * Make a note to call the signal handler once
+				 * the signaled thread is running.  This is
+				 * necessary in order to make sure that the
+				 * signal is delivered on the correct stack.
+				 */
+				pthread->undispatched_signals++;
+			} else {
+#endif
+				/* Call the installed signal handler. */
+				_thread_sig_deliver(pthread, sig);
+#ifndef _NO_UNDISPATCH
+			}
+#endif
+		} else {
 			/* Increment the pending signal count. */
 			sigaddset(&pthread->sigpend,sig);
 		}
@@ -553,6 +710,7 @@ _thread_sig_deliver(pthread_t pthread, int sig)
 {
 	sigset_t	mask;
 	pthread_t	pthread_saved;
+	jmp_buf		jb, *saved_sighandler_jmp_buf;
 
 	/*
 	 * Check that a custom handler is installed
@@ -568,7 +726,7 @@ _thread_sig_deliver(pthread_t pthread, int sig)
 
 		/*
 		 * Add the current signal and signal handler
-		 * mask to the threads current signal mask:
+		 * mask to the thread's current signal mask:
 		 */
 		SIGSETOR(pthread->sigmask, _thread_sigact[sig - 1].sa_mask);
 		sigaddset(&pthread->sigmask, sig);
@@ -577,15 +735,35 @@ _thread_sig_deliver(pthread_t pthread, int sig)
 		if (_thread_run->sig_defer_count > 0)
 			pthread->sig_defer_count++;
 
-		_thread_run = pthread;
+		/* Increment the number of nested signals being handled. */
+		pthread->signal_nest_level++;
 
 		/*
-		 * Dispatch the signal via the custom signal
-		 * handler:
+		 * The jump buffer is allocated off the stack and the current
+		 * jump buffer is saved.  If the signal handler tries to
+		 * [sig|_]longjmp(), our version of [sig|_]longjmp() will copy
+		 * the user supplied jump buffer into
+		 * _thread_run->nested_jmp.[sig]jmp and _longjmp() back to here.
 		 */
-		(*(_thread_sigact[sig - 1].sa_handler))(sig);
+		saved_sighandler_jmp_buf = pthread->sighandler_jmp_buf;
+		pthread->sighandler_jmp_buf = &jb;
+
+		_thread_run = pthread;
+
+		if (_setjmp(jb) == 0) {
+			/*
+			 * Dispatch the signal via the custom signal
+			 * handler:
+			 */
+			(*(_thread_sigact[sig - 1].sa_handler))(sig);
+		}
 
 		_thread_run = pthread_saved;
+
+		pthread->sighandler_jmp_buf = saved_sighandler_jmp_buf;
+
+		/* Decrement the signal nest level. */
+		pthread->signal_nest_level--;
 
 		/* Current thread inside critical region? */
 		if (_thread_run->sig_defer_count > 0)
