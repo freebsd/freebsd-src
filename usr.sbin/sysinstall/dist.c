@@ -466,7 +466,7 @@ distSetCustom(dialogMenuItem *self)
 
     cp = alloca(strlen(tmp) + 1);
     if (!cp)
-	msgFatal("Couldn't alloca() %d bytes!\n", strlen(tmp) + 1);
+	msgFatal("Couldn't alloca() %d bytes!\n", (int)(strlen(tmp) + 1));
     strcpy(cp, tmp);
     while (cp) {
 	if ((cp2 = index(cp, ' ')) != NULL)
@@ -492,7 +492,7 @@ distUnsetCustom(dialogMenuItem *self)
 
     cp = alloca(strlen(tmp) + 1);
     if (!cp)
-	msgFatal("Couldn't alloca() %d bytes!\n", strlen(tmp) + 1);
+	msgFatal("Couldn't alloca() %d bytes!\n", (int)(strlen(tmp) + 1));
     strcpy(cp, tmp);
     while (cp) {
 	if ((cp2 = index(cp, ' ')) != NULL)
