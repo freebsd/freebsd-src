@@ -150,6 +150,32 @@ printcpuinfo(void)
 			switch (cpu_id & 0xf00) {
 			case 0x400:
 				strcat(cpu_model, "i486 ");
+			        /* Check the particular flavor of 486 */
+				switch (cpu_id & 0xf0) {
+				case 0x00:
+				case 0x10:
+					strcat(cpu_model, "DX");
+					break;
+				case 0x20:
+					strcat(cpu_model, "SX");
+					break;
+				case 0x30:
+					strcat(cpu_model, "DX2");
+					break;
+				case 0x40:
+					strcat(cpu_model, "SL");
+					break;
+				case 0x50:
+					strcat(cpu_model, "SX2");
+					break;
+				case 0x70:
+					strcat(cpu_model,
+					    "DX2 Write-Back Enhanced");
+					break;
+				case 0x80:
+					strcat(cpu_model, "DX4");
+					break;
+				}
 				break;
 			case 0x500:
 			        /* Check the particular flavor of 586 */
@@ -227,26 +253,6 @@ printcpuinfo(void)
 				break;
 			}
 
-			switch (cpu_id & 0xff0) {
-			case 0x400:
-				strcat(cpu_model, "DX"); break;
-			case 0x410:
-				strcat(cpu_model, "DX"); break;
-			case 0x420:
-				strcat(cpu_model, "SX"); break;
-			case 0x430:
-				strcat(cpu_model, "DX2"); break;
-			case 0x440:
-				strcat(cpu_model, "SL"); break;
-			case 0x450:
-				strcat(cpu_model, "SX2"); break;
-			case 0x470:
-				strcat(cpu_model, "DX2 Write-Back Enhanced");
-				break;
-			case 0x480:
-				strcat(cpu_model, "DX4"); break;
-				break;
-			}
 		}
 	} else if (strcmp(cpu_vendor,"AuthenticAMD") == 0) {
 		/*
@@ -263,13 +269,11 @@ printcpuinfo(void)
 			strcat(cpu_model, "Am486DX2/4 Write-Through");
 			break;
 		case 0x470:
+		case 0x490:
 			strcat(cpu_model, "Enhanced Am486DX4 Write-Back");
 			break;
 		case 0x480:
 			strcat(cpu_model, "Enhanced Am486DX4 Write-Through");
-			break;
-		case 0x490:
-			strcat(cpu_model, "Enhanced Am486DX4 Write-Back");
 			break;
 		case 0x4E0:
 			strcat(cpu_model, "Am5x86 Write-Through");
@@ -540,7 +544,7 @@ printcpuinfo(void)
 		break;
 #endif
 	default:
-		printf("unknown");	/* will panic below... */
+		printf("Unknown");	/* will panic below... */
 	}
 	printf("-class CPU)\n");
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
