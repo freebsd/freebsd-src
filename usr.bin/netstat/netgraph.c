@@ -57,7 +57,6 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <netgraph.h>
 #include <err.h>
 #include "netstat.h"
 
