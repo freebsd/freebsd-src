@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
+#include <sys/namei.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -1067,54 +1068,48 @@ copy_stat( struct stat *in, struct stat32 *out)
 int
 freebsd32_stat(struct thread *td, struct freebsd32_stat_args *uap)
 {
+	struct stat sb;
+	struct stat32 sb32;
 	int error;
-	caddr_t sg;
-	struct stat32 *p32, s32;
-	struct stat *p = NULL, s;
+	struct nameidata nd;
 
-	p32 = uap->ub;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct stat));
-		uap->ub = (struct stat32 *)p;
-	}
-	error = stat(td, (struct stat_args *) uap);
+#ifdef LOOKUP_SHARED
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | NOOBJ,
+	    UIO_USERSPACE, uap->path, td);
+#else
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
+	    uap->path, td);
+#endif
+	if ((error = namei(&nd)) != 0)
+		return (error);
+	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vput(nd.ni_vp);
 	if (error)
 		return (error);
-	if (p32) {
-		error = copyin(p, &s, sizeof(s));
-		if (error)
-			return (error);
-		copy_stat(&s, &s32);
-		error = copyout(&s32, p32, sizeof(s32));
-	}
+	copy_stat(&sb, &sb32);
+	error = copyout(&sb32, uap->ub, sizeof (sb32));
 	return (error);
 }
 
 int
 freebsd32_fstat(struct thread *td, struct freebsd32_fstat_args *uap)
 {
+	struct file *fp;
+	struct stat ub;
+	struct stat32 ub32;
 	int error;
-	caddr_t sg;
-	struct stat32 *p32, s32;
-	struct stat *p = NULL, s;
 
-	p32 = uap->ub;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct stat));
-		uap->ub = (struct stat32 *)p;
-	}
-	error = fstat(td, (struct fstat_args *) uap);
+	if ((error = fget(td, uap->fd, &fp)) != 0)
+		return (error);
+	mtx_lock(&Giant);
+	error = fo_stat(fp, &ub, td->td_ucred, td);
+	mtx_unlock(&Giant);
+	fdrop(fp, td);
 	if (error)
 		return (error);
-	if (p32) {
-		error = copyin(p, &s, sizeof(s));
-		if (error)
-			return (error);
-		copy_stat(&s, &s32);
-		error = copyout(&s32, p32, sizeof(s32));
-	}
+	copy_stat(&ub, &ub32);
+	error = copyout(&ub32, uap->ub, sizeof(ub32));
 	return (error);
 }
 
@@ -1122,26 +1117,23 @@ int
 freebsd32_lstat(struct thread *td, struct freebsd32_lstat_args *uap)
 {
 	int error;
-	caddr_t sg;
-	struct stat32 *p32, s32;
-	struct stat *p = NULL, s;
+	struct vnode *vp;
+	struct stat sb;
+	struct stat32 sb32;
+	struct nameidata nd;
 
-	p32 = uap->ub;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct stat));
-		uap->ub = (struct stat32 *)p;
-	}
-	error = lstat(td, (struct lstat_args *) uap);
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
+	    uap->path, td);
+	if ((error = namei(&nd)) != 0)
+		return (error);
+	vp = nd.ni_vp;
+	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vput(vp);
 	if (error)
 		return (error);
-	if (p32) {
-		error = copyin(p, &s, sizeof(s));
-		if (error)
-			return (error);
-		copy_stat(&s, &s32);
-		error = copyout(&s32, p32, sizeof(s32));
-	}
+	copy_stat(&sb, &sb32);
+	error = copyout(&sb32, uap->ub, sizeof (sb32));
 	return (error);
 }
 
