@@ -671,10 +671,6 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	bp = NULL;
 	fs = ump->um_fs;
 	fs->fs_ronly = ronly;
-	if (ronly == 0) {
-		fs->fs_fmod = 1;
-		fs->fs_clean = 0;
-	}
 	size = fs->fs_cssize;
 	blks = howmany(size, fs->fs_fsize);
 	if (fs->fs_contigsumsize > 0)
@@ -747,6 +743,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 			free(base, M_UFSMNT);
 			goto out;
 		}
+		fs->fs_fmod = 1;
 		fs->fs_clean = 0;
 		(void) ffs_sbupdate(ump, MNT_WAIT);
 	}
@@ -964,9 +961,9 @@ loop:
 		simple_lock(&vp->v_interlock);
 		nvp = vp->v_mntvnodes.le_next;
 		ip = VTOI(vp);
-		if ((vp->v_type == VNON) || (((ip->i_flag &
-		     (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0) &&
-		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || (waitfor == MNT_LAZY)))) {
+		if (vp->v_type == VNON || ((ip->i_flag &
+		     (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
+		     TAILQ_EMPTY(&vp->v_dirtyblkhd))) {
 			simple_unlock(&vp->v_interlock);
 			continue;
 		}
@@ -1080,7 +1077,7 @@ restart:
 		return (error);
 	}
 	bzero((caddr_t)ip, sizeof(struct inode));
-	lockinit(&ip->i_lock, PINOD, "inode", 0, 0);
+	lockinit(&ip->i_lock, PINOD, "inode", 0, LK_CANRECURSE);
 	vp->v_data = ip;
 	ip->i_vnode = vp;
 	ip->i_fs = fs = ump->um_fs;
