@@ -183,6 +183,12 @@ Alternatively, a value of 0 for \fInr\fR or \fInt\fR disables
 compression in the corresponding direction.  Use \fInobsdcomp\fR or
 \fIbsdcomp 0\fR to disable BSD-Compress compression entirely.
 .TP
+.B callback \fIphone_number
+Request a call-back to the \fIphone_number\fR.  This only works if the peer
+is speaking the Call Back Configuration Protocol.  Do not put this into the
+main options file if you sometimes connect to servers that don't support
+it.
+.TP
 .B chap-interval \fIn
 If this option is given, pppd will rechallenge the peer every \fIn\fR
 seconds.
