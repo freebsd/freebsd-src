@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
-	$Id$
+	$Id: bootpd.c,v 1.6 1997/02/22 14:21:02 peter Exp $
 
 ************************************************************************/
 
@@ -257,7 +257,7 @@ main(argc, argv)
 	timeout = &actualtimeout;
 
 	if (uname(&my_uname) < 0) {
-		fprintf(stderr, "bootpd: can't get hostname\n");
+		report(LOG_ERR, "bootpd: can't get hostname\n");
 		exit(1);
 	}
 	hostname = my_uname.nodename;
@@ -279,7 +279,7 @@ main(argc, argv)
 				stmp = argv[0];
 			}
 			if (!stmp || (stmp[0] != '/')) {
-				fprintf(stderr,
+				report(LOG_ERR,
 						"bootpd: invalid chdir specification\n");
 				break;
 			}
@@ -302,7 +302,7 @@ main(argc, argv)
 				stmp = argv[0];
 			}
 			if (!stmp || (sscanf(stmp, "%d", &n) != 1) || (n < 0)) {
-				fprintf(stderr,
+				report(LOG_ERR,
 						"%s: invalid debug level\n", progname);
 				break;
 			}
@@ -318,7 +318,7 @@ main(argc, argv)
 				stmp = argv[0];
 			}
 			if (!stmp) {
-				fprintf(stderr,
+				report(LOG_ERR,
 						"bootpd: missing hostname\n");
 				break;
 			}
@@ -342,7 +342,7 @@ main(argc, argv)
 				stmp = argv[0];
 			}
 			if (!stmp || (sscanf(stmp, "%d", &n) != 1) || (n < 0)) {
-				fprintf(stderr,
+				report(LOG_ERR,
 						"%s: invalid timeout specification\n", progname);
 				break;
 			}
@@ -356,7 +356,7 @@ main(argc, argv)
 			break;
 
 		default:
-			fprintf(stderr, "%s: unknown switch: -%c\n",
+			report(LOG_ERR, "%s: unknown switch: -%c\n",
 					progname, argv[0][1]);
 			usage();
 			break;
@@ -379,7 +379,7 @@ main(argc, argv)
 
 	hep = gethostbyname(hostname);
 	if (!hep) {
-		fprintf(stderr, "Can not get my IP address\n");
+		report(LOG_ERR, "Can not get my IP address\n");
 		exit(1);
 	}
 	bcopy(hep->h_addr, (char *)&my_ip_addr, sizeof(my_ip_addr));
