@@ -312,22 +312,6 @@ vmapbuf(struct buf *bp)
 	bp->b_npages = pidx;
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = kva + (((vm_offset_t)bp->b_data) & PAGE_MASK);
-	if (CACHE_BADALIAS(trunc_page(bp->b_data),
-	    trunc_page(bp->b_saveaddr))) {
-		/*
-		 * bp->data (the virtual address the buffer got mapped to in the
-		 * kernel) is an illegal alias to the user address.
-		 * If the kernel had mapped this buffer previously (during a
-		 * past IO operation) at this address, there might still be
-		 * stale but valid tagged data in the cache, so flush it.
-		 * XXX: the kernel address should be selected such that this
-		 * cannot happen.
-		 * XXX: pmap_kenter() maps physically uncacheable right now, so
-		 * this cannot happen.
-		 */
-		dcache_inval(pmap, (vm_offset_t)bp->b_data,
-		    (vm_offset_t)bp->b_data + bp->b_bufsize - 1);
-	}
 }
 
 /*
@@ -351,19 +335,5 @@ vunmapbuf(struct buf *bp)
 	for (pidx = 0; pidx < npages; pidx++)
 		vm_page_unhold(bp->b_pages[pidx]);
 
-	if (CACHE_BADALIAS(trunc_page(bp->b_data),
-	    trunc_page(bp->b_saveaddr))) {
-		/*
-		 * bp->data (the virtual address the buffer got mapped to in the
-		 * kernel) is an illegal alias to the user address. In this
-		 * case, D$ of the user adress needs to be flushed to avoid the
-		 * user reading stale data.
-		 * XXX: the kernel address should be selected such that this
-		 * cannot happen.
-		 */
-		dcache_inval(&curproc->p_vmspace->vm_pmap,
-		    (vm_offset_t)bp->b_saveaddr, (vm_offset_t)bp->b_saveaddr +
-		    bp->b_bufsize - 1);
-	}
 	bp->b_data = bp->b_saveaddr;
 }
