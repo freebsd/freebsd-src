@@ -323,7 +323,7 @@ show_today(users, logins, secs)
 	char date[64];
 	time_t yesterday = secs - 1;
 
-	(void)strftime(date, sizeof (date), "%b %e  total",
+	(void)strftime(date, sizeof (date), "%Ef  total",
 	    localtime(&yesterday));
 
 	/* restore the missing second */
