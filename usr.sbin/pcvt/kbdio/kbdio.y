@@ -34,10 +34,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ident "$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/pcvt/kbdio/kbdio.y,v 1.2 1995/04/01 17:16:26 joerg Exp $"
+#ident "$Header: /home/ncvs/src/usr.sbin/pcvt/kbdio/kbdio.y,v 1.2.4.1 1996/06/05 02:57:41 jkh Exp $"
 
 /*
  * $Log: kbdio.y,v $
+ * Revision 1.2.4.1  1996/06/05 02:57:41  jkh
+ * This 3rd mega-commit should hopefully bring us back to where we were.
+ * I can get it to `make world' succesfully, anyway!
+ *
  * Revision 1.2  1995/04/01  17:16:26  joerg
  * Update pcvt to 3.20b23
  *

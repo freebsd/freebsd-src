@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.6 (Berkeley) 2/17/94
- * $Id: union_vnops.c,v 1.8 1994/11/04 14:41:46 davidg Exp $
+ * $Id: union_vnops.c,v 1.8.8.1 1995/09/18 05:33:21 davidg Exp $
  */
 
 #include <sys/param.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.11.2.17 1996/06/08 07:10:57 gibbs Exp $
+ *	$Id: aic7870.c,v 1.11.2.18 1996/10/06 16:42:35 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)

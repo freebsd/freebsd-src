@@ -1,6 +1,10 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/patch/pch.c,v 1.5.4.2 1996/04/11 10:33:45 markm Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.5.4.4 1996/06/05 02:41:41 jkh Exp $
  *
  * $Log: pch.c,v $
+ * Revision 1.5.4.4  1996/06/05 02:41:41  jkh
+ * This 3rd mega-commit should hopefully bring us back to where we were.
+ * I can get it to `make world' succesfully, anyway!
+ *
  * Revision 1.5.4.2  1996/04/11  10:33:45  markm
  * Merge with HEAD an improved Index: priority fix.
  *

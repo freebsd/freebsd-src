@@ -1,7 +1,7 @@
 #
 # Bmakefile for sgmls
 #
-# $Id: Makefile,v 1.2 1996/06/04 19:08:26 jfieber Exp $
+# $Id: Makefile,v 1.1.1.1.4.1 1996/06/19 20:55:25 jkh Exp $
 #
 
 PROG=	sgmls

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)stab.c	8.6 (Berkeley) 8/31/95";
+static char sccsid[] = "@(#)stab.c	8.9 (Berkeley) 10/17/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -71,6 +71,7 @@ stab(name, type, op)
 	register STAB **ps;
 	register int hfunc;
 	register char *p;
+	int len;
 	extern char lower();
 
 	if (tTd(36, 5))
@@ -129,11 +130,73 @@ stab(name, type, op)
 	if (tTd(36, 5))
 		printf("entered\n");
 
+	/* determine size of new entry */
+#ifdef FFR_MEMORY_MISER
+	if (type >= ST_MCI)
+		len = sizeof s->s_mci;
+	else
+		len = -1;
+	switch (type)
+	{
+	  case ST_CLASS:
+		len = sizeof s->s_class;
+		break;
+
+	  case ST_ADDRESS:
+		len = sizeof s->s_address;
+		break;
+
+	  case ST_MAILER:
+		len = sizeof s->s_mailer;
+
+	  case ST_ALIAS:
+		len = sizeof s->s_alias;
+		break;
+
+	  case ST_MAPCLASS:
+		len = sizeof s->s_mapclass;
+		break;
+
+	  case ST_MAP:
+		len = sizeof s->s_map;
+		break;
+
+	  case ST_HOSTSIG:
+		len = sizeof s->s_hostsig;
+		break;
+
+	  case ST_NAMECANON:
+		len = sizeof s->s_namecanon;
+		break;
+
+	  case ST_MACRO:
+		len = sizeof s->s_macro;
+		break;
+
+	  case ST_RULESET:
+		len = sizeof s->s_ruleset;
+		break;
+
+	  case ST_SERVICE:
+		len = sizeof s->s_service;
+		break;
+	}
+	if (len < 0)
+	{
+		syserr("stab: unknown symbol type %d", type);
+		len = sizeof s->s_value;
+	}
+	len += sizeof *s - sizeof s->s_value;
+#else
+	len = sizeof *s;
+#endif
+
 	/* make new entry */
-	s = (STAB *) xalloc(sizeof *s);
-	bzero((char *) s, sizeof *s);
+	s = (STAB *) xalloc(len);
+	bzero((char *) s, len);
 	s->s_name = newstr(name);
 	s->s_type = type;
+	s->s_len = len;
 
 	/* link it in */
 	*ps = s;

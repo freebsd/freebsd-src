@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.42 1996/11/07 09:16:51 jkh Exp $
+ * $Id: dist.c,v 1.36.2.43 1996/11/10 13:14:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.68 1996/11/07 09:17:38 jkh Exp $
+ * $Id: menus.c,v 1.42.2.69 1996/11/10 13:14:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -34,12 +34,12 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)svr4.m4	8.2 (Berkeley) 5/26/95')
+VERSIONID(`@(#)svr4.m4	8.4 (Berkeley) 9/25/96')
 
-ifdef(`ALIAS_FILE',,`define(`ALIAS_FILE', /usr/ucblib/aliases)')dnl
+define(`ALIAS_FILE', /usr/ucblib/aliases)dnl
 ifdef(`HELP_FILE',,`define(`HELP_FILE', /usr/ucblib/sendmail.hf)')dnl
 ifdef(`STATUS_FILE',,`define(`STATUS_FILE', /usr/ucblib/sendmail.st)')dnl
 define(`LOCAL_MAILER_PATH', `/usr/ucblib/binmail')dnl
-define(`LOCAL_MAILER_FLAGS', `rmn')dnl
+define(`LOCAL_MAILER_FLAGS', `rmn9')dnl
 define(`LOCAL_SHELL_FLAGS', `ehuP')dnl
 define(`UUCP_MAILER_ARGS', `uux - -r -a$g -gmedium $h!rmail ($u)')dnl

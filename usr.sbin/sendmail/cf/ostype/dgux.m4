@@ -34,6 +34,8 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)dgux.m4	8.2 (Berkeley) 11/13/95')
-ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', m)')dnl
+VERSIONID(`@(#)dgux.m4	8.4 (Berkeley) 9/19/96')
+ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', m9)')dnl
 define(`confTIME_ZONE', `USE_TZ')dnl
+LOCAL_CONFIG
+E_FORCE_MAIL_LOCAL_=yes

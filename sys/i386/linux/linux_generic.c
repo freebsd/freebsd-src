@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_generic.c,v 1.1 1995/06/25 17:32:34 sos Exp $
+ *  $Id: linux_generic.c,v 1.1.4.1 1996/02/22 19:20:46 peter Exp $
  */
 
 #include <i386/linux/linux.h>

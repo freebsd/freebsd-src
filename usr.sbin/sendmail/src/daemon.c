@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -37,9 +37,9 @@
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.119.1.2 (Berkeley) 9/16/96 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.148 (Berkeley) 11/8/96 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.119.1.2 (Berkeley) 9/16/96 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.148 (Berkeley) 11/8/96 (without daemon mode)";
 #endif
 #endif /* not lint */
 
@@ -70,7 +70,7 @@ static char sccsid[] = "@(#)daemon.c	8.119.1.2 (Berkeley) 9/16/96 (without daemo
 **	thing yourself, I recommend chucking the entire file
 **	and starting from scratch.  Basic semantics are:
 **
-**	getrequests()
+**	getrequests(e)
 **		Opens a port and initiates a connection.
 **		Returns in a child.  Must set InChannel and
 **		OutChannel appropriately.
@@ -80,7 +80,7 @@ static char sccsid[] = "@(#)daemon.c	8.119.1.2 (Berkeley) 9/16/96 (without daemo
 **		etc., to avoid having extra file descriptors during
 **		the queue run and to avoid confusing the network
 **		code (if it cares).
-**	makeconnection(host, port, outfile, infile, usesecureport)
+**	makeconnection(host, port, outfile, infile, e)
 **		Make a connection to the named host on the given
 **		port.  Set *outfile and *infile to the files
 **		appropriate for communication.  Returns zero on
@@ -93,10 +93,12 @@ static char sccsid[] = "@(#)daemon.c	8.119.1.2 (Berkeley) 9/16/96 (without daemo
 **  GETREQUESTS -- open mail IPC port and get requests.
 **
 **	Parameters:
-**		none.
+**		e -- the current envelope.
 **
 **	Returns:
-**		none.
+**		TRUE -- if a "null server" should be used -- that is, one
+**			that rejects all commands.
+**		FALSE -- to use a normal server.
 **
 **	Side Effects:
 **		Waits until some interesting activity occurs.  When
@@ -113,8 +115,9 @@ int		ListenQueueSize = 10;		/* size of listen queue */
 int		TcpRcvBufferSize = 0;		/* size of TCP receive buffer */
 int		TcpSndBufferSize = 0;		/* size of TCP send buffer */
 
-void
-getrequests()
+bool
+getrequests(e)
+	ENVELOPE *e;
 {
 	int t;
 	bool refusingconnections = TRUE;
@@ -124,6 +127,7 @@ getrequests()
 	bool j_has_dot;
 #endif
 	extern void reapchild();
+	extern int opendaemonsocket __P((bool));
 
 	/*
 	**  Set up the address for the mailer.
@@ -166,7 +170,7 @@ getrequests()
 		extern char *CommandLineArgs;
 
 		/* write the process id on line 1 */
-		fprintf(pidf, "%d\n", getpid());
+		fprintf(pidf, "%ld\n", (long) getpid());
 
 		/* line 2 contains all command line flags */
 		fprintf(pidf, "%s\n", CommandLineArgs);
@@ -179,7 +183,7 @@ getrequests()
 	{
 		char jbuf[MAXHOSTNAMELEN];
 
-		expand("\201j", jbuf, sizeof jbuf, CurEnv);
+		expand("\201j", jbuf, sizeof jbuf, e);
 		j_has_dot = strchr(jbuf, '.') != NULL;
 	}
 #endif
@@ -189,14 +193,13 @@ getrequests()
 
 	for (;;)
 	{
-		register int pid;
+		register pid_t pid;
 		auto int lotherend;
 		extern bool refuseconnections();
 		extern int getla();
 
 		/* see if we are rejecting connections */
-		CurrentLA = getla();
-		if (refuseconnections())
+		if (refuseconnections(ntohs(DaemonAddr.sin.sin_port)))
 		{
 			if (DaemonSocket >= 0)
 			{
@@ -220,8 +223,9 @@ getrequests()
 		/* check for disaster */
 		{
 			char jbuf[MAXHOSTNAMELEN];
+			extern void dumpstate __P((char *));
 
-			expand("\201j", jbuf, sizeof jbuf, CurEnv);
+			expand("\201j", jbuf, sizeof jbuf, e);
 			if (!wordinclass(jbuf, 'w'))
 			{
 				dumpstate("daemon lost $j");
@@ -238,7 +242,18 @@ getrequests()
 #endif
 
 		/* wait for a connection */
-		setproctitle("accepting connections");
+		setproctitle("accepting connections on port %d",
+			     ntohs(DaemonAddr.sin.sin_port));
+#if 0
+		/*
+		**  Andrew Sun <asun@ieps-sun.ml.com> claims that this will
+		**  fix the SVr4 problem.  But it seems to have gone away,
+		**  so is it worth doing this?
+		*/
+
+		if (SetNonBlocking(DaemonSocket, FALSE) < 0)
+			log an error here;
+#endif
 		do
 		{
 			errno = 0;
@@ -277,9 +292,9 @@ getrequests()
 		if (pid == 0)
 		{
 			char *p;
-			extern char *hostnamebyanyaddr();
 			extern void intsig();
 			FILE *inchannel, *outchannel;
+			bool nullconn;
 
 			/*
 			**  CHILD -- return to caller.
@@ -296,7 +311,7 @@ getrequests()
 
 			/* determine host name */
 			p = hostnamebyanyaddr(&RealHostAddr);
-			if (strlen(p) > MAXNAME)
+			if (strlen(p) > (SIZE_T) MAXNAME)
 				p[MAXNAME] = '\0';
 			RealHostName = newstr(p);
 			setproctitle("startup with %s", p);
@@ -313,7 +328,13 @@ getrequests()
 			OutChannel = outchannel;
 			DisConnected = FALSE;
 
-			/* should we check for illegal connection here? XXX */
+			/* validate the connection */
+			HoldErrs = TRUE;
+			nullconn = !validate_connection(&RealHostAddr, RealHostName, e);
+			HoldErrs = FALSE;
+			if (nullconn)
+				break;
+
 #ifdef XLA
 			if (!xla_host_ok(RealHostName))
 			{
@@ -323,16 +344,19 @@ getrequests()
 #endif
 
 			if (tTd(15, 2))
-				printf("getreq: returning\n");
-			return;
+				printf("getreq: returning (normal server)\n");
+			return FALSE;
 		}
 
-		CurChildren++;
+		/* parent -- keep track of children */
+		proc_list_add(pid);
 
 		/* close the port so that others will hang (for a while) */
 		(void) close(t);
 	}
-	/*NOTREACHED*/
+	if (tTd(15, 2))
+		printf("getreq: returning (null server)\n");
+	return TRUE;
 }
 /*
 **  OPENDAEMONSOCKET -- open the SMTP socket
@@ -446,6 +470,7 @@ opendaemonsocket(firsttime)
 	} while (ntries++ < MAXOPENTRIES && transienterror(saveerrno));
 	syserr("!opendaemonsocket: server SMTP socket wedged: exiting");
 	finis();
+	return -1;  /* avoid compiler warning on IRIX */
 }
 /*
 **  CLRDAEMON -- reset the daemon connection
@@ -536,16 +561,16 @@ setdaemonoptions(p)
 #if NETINET
 			  case AF_INET:
 				if (isascii(*v) && isdigit(*v))
-					DaemonAddr.sin.sin_addr.s_addr = htonl(inet_network(v));
+					DaemonAddr.sin.sin_addr.s_addr = inet_addr(v);
 				else
 				{
-					register struct netent *np;
+					register struct hostent *hp;
 
-					np = getnetbyname(v);
-					if (np == NULL)
-						syserr("554 network \"%s\" unknown", v);
+					hp = sm_gethostbyname(v);
+					if (hp == NULL)
+						syserr("554 host \"%s\" unknown", v);
 					else
-						DaemonAddr.sin.sin_addr.s_addr = np->n_net;
+						bcopy(hp->h_addr, &DaemonAddr.sin.sin_addr, INADDRSZ);
 				}
 				break;
 #endif
@@ -630,8 +655,7 @@ setdaemonoptions(p)
 **		port -- the port number to connect to.
 **		mci -- a pointer to the mail connection information
 **			structure to be filled in.
-**		usesecureport -- if set, use a low numbered (reserved)
-**			port to provide some rudimentary authentication.
+**		e -- the current envelope.
 **
 **	Returns:
 **		An exit code telling whether the connection could be
@@ -653,11 +677,11 @@ connecttimeout()
 SOCKADDR	CurHostAddr;		/* address of current host */
 
 int
-makeconnection(host, port, mci, usesecureport)
+makeconnection(host, port, mci, e)
 	char *host;
 	u_short port;
 	register MCI *mci;
-	bool usesecureport;
+	ENVELOPE *e;
 {
 	register int i = 0;
 	register int s;
@@ -691,7 +715,7 @@ makeconnection(host, port, mci, usesecureport)
 			*p = '\0';
 #if NETINET
 			hid = inet_addr(&host[1]);
-			if (hid == -1)
+			if (hid == INADDR_NONE)
 #endif
 			{
 				/* try it as a host name (avoid MX lookup) */
@@ -717,9 +741,11 @@ makeconnection(host, port, mci, usesecureport)
 		}
 		if (p == NULL)
 		{
+			extern char MsgBuf[];
+
 			usrerr("553 Invalid numeric domain spec \"%s\"", host);
-			mci->mci_status = "5.1.2";
-			return (EX_NOHOST);
+			mci_setstat(mci, EX_NOHOST, "5.1.2", MsgBuf);
+			return EX_NOHOST;
 		}
 #if NETINET
 		addr.sin.sin_family = AF_INET;		/*XXX*/
@@ -728,22 +754,25 @@ makeconnection(host, port, mci, usesecureport)
 	}
 	else
 	{
-		register char *p = &host[strlen(host) - 1];
-
-		hp = sm_gethostbyname(host);
-		if (hp == NULL && *p == '.')
+		/* contortion to get around SGI cc complaints */
 		{
-#if NAMED_BIND
-			int oldopts = _res.options;
+			register char *p = &host[strlen(host) - 1];
 
-			_res.options &= ~(RES_DEFNAMES|RES_DNSRCH);
-#endif
-			*p = '\0';
 			hp = sm_gethostbyname(host);
-			*p = '.';
+			if (hp == NULL && *p == '.')
+			{
 #if NAMED_BIND
-			_res.options = oldopts;
+				int oldopts = _res.options;
+
+				_res.options &= ~(RES_DEFNAMES|RES_DNSRCH);
 #endif
+				*p = '\0';
+				hp = sm_gethostbyname(host);
+				*p = '.';
+#if NAMED_BIND
+				_res.options = oldopts;
+#endif
+			}
 		}
 gothostent:
 		if (hp == NULL)
@@ -753,10 +782,11 @@ gothostent:
 			if (errno == ETIMEDOUT || h_errno == TRY_AGAIN ||
 			    (errno == ECONNREFUSED && UseNameServer))
 			{
-				mci->mci_status = "4.4.3";
-				return (EX_TEMPFAIL);
+				mci_setstat(mci, EX_TEMPFAIL, "4.4.3", NULL);
+				return EX_TEMPFAIL;
 			}
 #endif
+			mci_setstat(mci, EX_NOHOST, "5.1.2", NULL);
 			return (EX_NOHOST);
 		}
 		addr.sa.sa_family = hp->h_addrtype;
@@ -818,6 +848,7 @@ gothostent:
 
 	  default:
 		syserr("Can't connect to address family %d", addr.sa.sa_family);
+		mci_setstat(mci, EX_NOHOST, "5.1.2", NULL);
 		return (EX_NOHOST);
 	}
 
@@ -841,7 +872,7 @@ gothostent:
 		/* save for logging */
 		CurHostAddr = addr;
 
-		if (usesecureport)
+		if (bitnset(M_SECURE_PORT, mci->mci_mailer->m_flags))
 		{
 			int rport = IPPORT_RESERVED - 1;
 
@@ -855,7 +886,11 @@ gothostent:
 		{
 			sav_errno = errno;
 			syserr("makeconnection: cannot create socket");
-			goto failure;
+#ifdef XLA
+			xla_host_end(host);
+#endif
+			mci_setstat(mci, EX_TEMPFAIL, "4.4.5", NULL);
+			return EX_TEMPFAIL;
 		}
 
 #ifdef SO_SNDBUF
@@ -878,8 +913,8 @@ gothostent:
 			(void) setsockopt(s, SOL_SOCKET, SO_DEBUG,
 					  (char *)&on, sizeof on);
 		}
-		if (CurEnv->e_xfp != NULL)
-			(void) fflush(CurEnv->e_xfp);		/* for debugging */
+		if (e->e_xfp != NULL)
+			(void) fflush(e->e_xfp);		/* for debugging */
 		errno = 0;					/* for debugging */
 
 		/*
@@ -889,10 +924,12 @@ gothostent:
 
 		if (setjmp(CtxConnectTimeout) == 0)
 		{
-			if (TimeOuts.to_connect == 0)
-				ev = NULL;
-			else
+			if (e->e_ntries <= 0 && TimeOuts.to_iconnect != 0)
+				ev = setevent(TimeOuts.to_iconnect, connecttimeout, 0);
+			else if (TimeOuts.to_connect != 0)
 				ev = setevent(TimeOuts.to_connect, connecttimeout, 0);
+			else
+				ev = NULL;
 			if (connect(s, (struct sockaddr *) &addr, addrlen) >= 0)
 			{
 				if (ev != NULL)
@@ -941,18 +978,12 @@ gothostent:
 			continue;
 		}
 
-		/* failure, decide if temporary or not */
-	failure:
+		/* couldn't open connection */
 #ifdef XLA
 		xla_host_end(host);
 #endif
-		if (transienterror(sav_errno))
-			return EX_TEMPFAIL;
-		else
-		{
-			message("%s", errstring(sav_errno));
-			return (EX_UNAVAILABLE);
-		}
+		mci_setstat(mci, EX_TEMPFAIL, "4.4.1", NULL);
+		return EX_TEMPFAIL;
 	}
 
 	/* connection ok, put it into canonical form */
@@ -961,9 +992,11 @@ gothostent:
 	    (mci->mci_in = fdopen(s, "r")) == NULL)
 	{
 		syserr("cannot open SMTP client channel, fd=%d", s);
+		mci_setstat(mci, EX_TEMPFAIL, "4.4.5", NULL);
 		return EX_TEMPFAIL;
 	}
 
+	mci_setstat(mci, EX_OK, NULL, NULL);
 	return (EX_OK);
 }
 /*
@@ -986,7 +1019,6 @@ myhostname(hostbuf, size)
 	int size;
 {
 	register struct hostent *hp;
-	extern bool getcanonname();
 
 	if (gethostname(hostbuf, size) < 0)
 	{
@@ -1087,7 +1119,6 @@ getauthinfo(fd)
 	int nleft;
 	char ibuf[MAXNAME + 1];
 	static char hbuf[MAXNAME * 2 + 2];
-	extern char *hostnamebyanyaddr();
 
 	falen = sizeof RealHostAddr;
 	if (isatty(fd) || getpeername(fd, &RealHostAddr.sa, &falen) < 0 ||
@@ -1104,6 +1135,8 @@ getauthinfo(fd)
 	{
 		/* translate that to a host name */
 		RealHostName = newstr(hostnamebyanyaddr(&RealHostAddr));
+		if (strlen(RealHostName) > MAXNAME)
+			RealHostName[MAXNAME - 1] = '\0';
 	}
 
 	if (TimeOuts.to_ident == 0)
@@ -1170,6 +1203,9 @@ getauthinfo(fd)
 	{
 		p += i;
 		nleft -= i;
+		*p = '\0';
+		if (strchr(ibuf, '\n') != NULL)
+			break;
 	}
 	(void) close(s);
 	clrevent(ev);
@@ -1207,14 +1243,6 @@ getauthinfo(fd)
 	}
 
 	/* p now points to the OSTYPE field */
-	while (isascii(*p) && isspace(*p))
-		p++;
-	if (strncasecmp(p, "other", 5) == 0 &&
-	    (p[5] == ':' || p[5] == ' ' || p[5] == ',' || p[5] == '\0'))
-	{
-		/* not useful information */
-		goto noident;
-	}
 	p = strchr(p, ':');
 	if (p == NULL)
 	{
@@ -1432,25 +1460,28 @@ host_map_lookup(map, name, av, statp)
 
 	if (*name != '[')
 	{
-		extern bool getcanonname();
-
 		if (tTd(9, 1))
 			printf("host_map_lookup(%s) => ", name);
 		s->s_namecanon.nc_flags |= NCF_VALID;		/* will be soon */
-		if (strlen(name) < sizeof hbuf)
 		snprintf(hbuf, sizeof hbuf, "%s", name);
 		if (getcanonname(hbuf, sizeof hbuf - 1, !HasWildcardMX))
 		{
 			if (tTd(9, 1))
 				printf("%s\n", hbuf);
-			cp = map_rewrite(map, hbuf, strlen(hbuf), av);
-			s->s_namecanon.nc_cname = newstr(cp);
+			if (bitset(MF_MATCHONLY, map->map_mflags))
+			{
+				cp = map_rewrite(map, name, strlen(name), av);
+				s->s_namecanon.nc_cname = newstr(hbuf);
+			}
+			else
+			{
+				cp = map_rewrite(map, hbuf, strlen(hbuf), av);
+				s->s_namecanon.nc_cname = newstr(cp);
+			}
 			return cp;
 		}
 		else
 		{
-			register struct hostent *hp;
-
 			s->s_namecanon.nc_errno = errno;
 #if NAMED_BIND
 			s->s_namecanon.nc_herrno = h_errno;

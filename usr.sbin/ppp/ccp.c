@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.3 1995/05/30 03:50:27 rgrimes Exp $
+ * $Id: ccp.c,v 1.3.4.1 1996/02/05 17:02:47 dfr Exp $
  *
  *	TODO:
  *		o Support other compression protocols

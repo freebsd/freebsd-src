@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 1996/02/18 02:25:32 wosch Exp $
+# $Id: Makefile,v 1.6.4.1 1996/06/23 22:10:13 wosch Exp $
 
 FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	cp437-thin-8x8.fnt cp437-thin-8x16.fnt \

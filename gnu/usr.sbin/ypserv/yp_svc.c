@@ -6,7 +6,7 @@
  * And thus replied Lpd@NannyMUD:
  *    Who cares? :-) /Peter Eriksson <pen@signum.se>
  *
- *	$Id: yp_svc.c,v 1.3 1995/05/30 05:05:37 rgrimes Exp $
+ *	$Id: yp_svc.c,v 1.3.4.1 1995/08/25 11:18:41 davidg Exp $
  */
 
 #include "system.h"

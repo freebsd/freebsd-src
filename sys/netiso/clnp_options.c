@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_options.c	8.1 (Berkeley) 6/10/93
- * $Id: clnp_options.c,v 1.3 1995/05/30 08:10:20 rgrimes Exp $
+ * $Id: clnp_options.c,v 1.3.4.1 1996/06/05 02:54:52 jkh Exp $
  */
 
 /***********************************************************
@@ -60,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp_options.c,v 1.3 1995/05/30 08:10:20 rgrimes Exp $ */
-/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp_options.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/Attic/clnp_options.c,v 1.3.4.1 1996/06/05 02:54:52 jkh Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/Attic/clnp_options.c,v $ */
 
 #ifdef ISO
 

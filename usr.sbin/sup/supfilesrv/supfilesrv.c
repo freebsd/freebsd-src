@@ -42,6 +42,13 @@
  *	across the network to save BandWidth
  *
  * $Log: supfilesrv.c,v $
+ * Revision 1.3.2.2  1996/07/09 23:07:53  peter
+ * Back out the temp disable of setproctitle, it's been in -stable for a while.
+ * Shorten the line passed to setproctitle, as in rev 1.4
+ *
+ * OK'ed by:	jkh
+ * Reviewed by:	freefall :-)
+ *
  * Revision 1.3.2.1  1996/02/11 07:17:00  jkh
  * Disable use of setproctitle() in 2.1 until it arrives.
  * Thanks to Rod Grimes for helping me get my cvs mess straightened out!

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.67 1996/11/13 13:15:43 jkh Exp $
+#	$Id: Makefile,v 1.193.2.68 1996/11/14 14:21:44 jkh Exp $
 #
 # How to roll a release:
 #

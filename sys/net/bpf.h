@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.h	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpf.h,v 1.6 1995/09/08 11:08:55 bde Exp $
+ * $Id: bpf.h,v 1.4.4.2 1995/09/14 07:10:16 davidg Exp $
  */
 
 #ifndef _NET_BPF_H_

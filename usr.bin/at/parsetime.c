@@ -130,7 +130,7 @@ static size_t sc_len;   /* scanner - lenght of token buffer */
 static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
-static char rcsid[] = "$Id: parsetime.c,v 1.4 1995/05/30 06:29:25 rgrimes Exp $";
+static char rcsid[] = "$Id: parsetime.c,v 1.4.4.1 1996/09/25 12:03:27 jdp Exp $";
 
 /* Local functions */
 

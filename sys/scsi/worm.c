@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.7.4.3 1996/06/23 14:48:39 joerg Exp $
+ *      $Id: worm.c,v 1.7.4.4 1996/11/06 12:42:11 joerg Exp $
  */
 
 /* XXX This is PRELIMINARY.

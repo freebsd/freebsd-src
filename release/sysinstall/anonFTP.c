@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.16 1996/09/01 08:17:12 jkh Exp $
+ * $Id: anonFTP.c,v 1.17 1996/09/06 05:58:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.

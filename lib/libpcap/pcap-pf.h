@@ -15,5 +15,5 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libpcap/pcap-pf.h,v 1.1.1.1 1995/01/20 04:13:05 jkh Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/lib/libpcap/Attic/pcap-pf.h,v 1.1.1.1.4.1 1996/06/05 02:52:58 jkh Exp $ (LBL)
  */

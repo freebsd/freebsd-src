@@ -45,7 +45,7 @@ POPDIVERT
 #  sendmail.
 #
 
-VERSIONID(`@(#)nullclient.m4	8.6 (Berkeley) 6/29/95')
+VERSIONID(`@(#)nullclient.m4	8.7 (Berkeley) 2/11/96')
 
 PUSHDIVERT(6)
 # hub host (to which all mail is sent)
@@ -65,7 +65,8 @@ ifdef(`confRELAY_MAILER',,
 	`define(`confRELAY_MAILER', `nullclient')')dnl
 ifdef(`confFROM_HEADER',,
 	`define(`confFROM_HEADER', <$g>)')dnl
+ifdef(`SMTP_MAILER_ARGS',, `define(`SMTP_MAILER_ARGS', `IPC $h')')dnl
 
 Mnullclient,	P=[IPC], F=CONCAT(mDFMuXa, SMTP_MAILER_FLAGS),ifdef(`SMTP_MAILER_MAX', ` M=SMTP_MAILER_MAX,')
-		A=IPC $h
+		A=SMTP_MAILER_ARGS
 POPDIVERT

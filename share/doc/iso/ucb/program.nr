@@ -1,5 +1,5 @@
-.\"$Header: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/ucb/program.nr,v 1.1.1.1 1994/05/30 19:08:12 rgrimes Exp $
-.\"$Source: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/ucb/program.nr,v $
+.\"$Header: /home/ncvs/src/share/doc/iso/ucb/program.nr,v 1.1.1.1.6.1 1996/06/05 02:53:28 jkh Exp $
+.\"$Source: /home/ncvs/src/share/doc/iso/ucb/program.nr,v $
 .\"
 .\"
 .\" FONT CONVENTIONS

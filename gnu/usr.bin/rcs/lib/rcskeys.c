@@ -63,7 +63,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(keysId, "$Id: rcskeys.c,v 1.8 1995/10/29 22:06:24 peter Exp $")
+libId(keysId, "$Id: rcskeys.c,v 1.5.4.1 1996/02/23 09:31:43 peter Exp $")
 
 
 char const *const Keyword[] = {

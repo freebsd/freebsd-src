@@ -29,14 +29,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)sendmail.8	8.6 (Berkeley) 5/27/95
+.\"     @(#)sendmail.8	8.10 (Berkeley) 9/20/96
 .\"
-.Dd May 27, 1995
+.Dd September 20, 1996
 .Dt SENDMAIL 8
 .Os BSD 4
 .Sh NAME
 .Nm sendmail
-.Nd send mail over the internet
+.Nd an electronic mail transport agent
 .Sh SYNOPSIS
 .Nm sendmail
 .Op Ar flags
@@ -108,6 +108,14 @@ listening on socket 25 for incoming
 connections.
 This is normally run from
 .Pa /etc/rc .
+.It Fl bD
+Same as
+.Fl bd
+except runs in foreground.
+.It Fl bh
+Print the persistent host status database.
+.It Fl bH
+Purge the persistent host status database.
 .It Fl bi
 Initialize the alias database.
 .It Fl bm
@@ -165,14 +173,41 @@ the mail is returned with an error message,
 the victim of an aliasing loop.
 If not specified,
 ``Received:'' lines in the message are counted.
+.It Fl i
+Ignore dots alone on lines by themselves in incoming messages.
+This should be set if you are reading data from a file.
+.It Fl N Ar dsn
+Set delivery status notification conditions to
+.Ar dsn,
+which can be
+.Ql never
+for no notifications
+or a comma separated list of the values
+.Ql failure
+to be notified if delivery failed,
+.Ql delay
+to be notified if delivery is delayed, and
+.Ql success
+to be notified when the message is successfully delivered.
 .It Fl n
 Don't do aliasing.
+.It Fl O Ar option Ns = Ns Em value
+Set option
+.Ar option
+to the specified
+.Em value .
+This form uses long names.
+See below for more details.
 .It Fl o Ns Ar x Em value
 Set option
 .Ar x
 to the specified
 .Em value .
-Options are described below.
+This form uses single character names only.
+The short names are not described in this manual page;
+see the
+.%T "Sendmail Installation and Operation Guide"
+for details.
 .It Fl p Ns Ar protocol
 Set the name of the protocol used to receive the message.
 This can be a simple protocol name such as ``UUCP''
@@ -221,6 +256,16 @@ as a substring of one of the recipients.
 Limit processed jobs to those containing
 .Ar substr
 as a substring of the sender.
+.It Fl R Ar return
+Set the amount of the message to be returned
+if the message bounces.
+The
+.Ar return
+parameter can be
+.Ql full
+to return the entire message or
+.Ql hdrs
+to return only the headers.
 .It Fl r Ns Ar name
 An alternate and obsolete form of the
 .Fl f
@@ -234,6 +279,22 @@ that is,
 they will
 .Em not
 receive copies even if listed in the message header.
+.It Fl U
+Initial (user) submission.
+This should
+.Em always
+be set when called from a user agent such as
+.Nm Mail
+or
+.Nm exmh
+and
+.Em never
+be set when called by a network delivery agent such as
+.Nm rmail .
+.It Fl V Ar envid
+Set the original envelope id.
+This is propogated across SMTP to servers that support DSNs
+and is returned in DSN-compliant error messages.
 .It Fl v
 Go into verbose mode.
 Alias expansions will be announced, etc.
@@ -249,22 +310,25 @@ Normally these will only be used by a system administrator.
 Options may be set either on the command line
 using the
 .Fl o
-flag
+flag (for short names),
+the
+.Fl O
+flag (for long names),
 or in the configuration file.
-This is a partial list;
+This is a partial list limited to those options that are likely to be useful
+on the command line
+and only shows the long names;
 for a complete list (and details), consult the
 .%T "Sendmail Installation and Operation Guide" .
 The options are:
 .Bl -tag -width Fl
-.It Li A Ns Ar file
+.It Li AliasFile= Ns Ar file
 Use alternate alias file.
-.It Li b Ns Ar nblocks
-The minimum number of free blocks needed on the spool filesystem.
-.It Li c
+.It Li HoldExpensive
 On mailers that are considered ``expensive'' to connect to,
 don't initiate immediate connection.
 This requires queueing.
-.It Li C Ar N
+.It Li CheckpointInterval= Ns Ar N
 Checkpoint the queue file after every
 .Ar N
 successful deliveries (default 10).
@@ -272,7 +336,7 @@ This avoids excessive duplicate deliveries
 when sending to long mailing lists
 interrupted by system crashes.
 .ne 1i
-.It Li d Ns Ar x
+.It Li DeliveryMode= Ns Ar x
 Set the delivery mode to
 .Ar x .
 Delivery modes are
@@ -280,14 +344,14 @@ Delivery modes are
 for interactive (synchronous) delivery,
 .Ql b
 for background (asynchronous) delivery,
-and
 .Ql q
 for queue only \- i.e.,
-actual delivery is done the next time the queue is run.
-.It Li D
-Try to automatically rebuild the alias database
-if necessary.
-.It Li e Ns Ar x
+actual delivery is done the next time the queue is run, and
+.Ql d
+for deferred \- the same as
+.Ql q
+except that database lookups (notably DNS and NIS lookups) are avoided.
+.It Li ErrorMode= Ns Ar x
 Set error processing to mode
 .Ar x .
 Valid modes are
@@ -315,41 +379,33 @@ and if the sender is local to this machine,
 a copy of the message is appended to the file
 .Pa dead.letter
 in the sender's home directory.
-.It Li f
+.It Li SaveFromLine
 Save
 .Tn UNIX Ns \-style
 From lines at the front of messages.
-.It Li G
-Match local mail names against the GECOS portion of the password file.
-.It Li g Ar N
-The default group id to use when calling mailers.
-.It Li H Ns Ar file
-The
-.Tn SMTP
-help file.
-.It Li h Ar N
+.It Li MaxHopCount= Ar N
 The maximum number of times a message is allowed to ``hop''
 before we decide it is in a loop.
-.It Li i
+.It Li IgnoreDots
 Do not take dots on a line by themselves
 as a message terminator.
-.It Li j
+.It Li SendMimeErrors
 Send error messages in MIME format.
-.It Li K Ns Ar timeout
+If not set, the DSN (Delivery Status Notification) SMTP extension
+is disabled.
+.It Li ConnectionCacheTimeout= Ns Ar timeout
 Set connection cache timeout.
-.It Li k Ns Ar N
+.It Li ConnectionCacheSize= Ns Ar N
 Set connection cache size.
-.It Li L Ns Ar n
+.It Li LogLevel= Ns Ar n
 The log level.
-.It Li l
-Pay attention to the Errors-To: header.
-.It Li m
+.It Li MeToo
 Send to ``me'' (the sender) also if I am in an alias expansion.
-.It Li n
+.It Li CheckAliases
 Validate the right hand side of aliases during a
 .Xr newaliases 1
 command.
-.It Li o
+.It Li OldStyleHeaders
 If set, this message may have
 old style headers.
 If not set,
@@ -357,24 +413,18 @@ this message is guaranteed to have new style headers
 (i.e., commas instead of spaces between addresses).
 If set, an adaptive algorithm is used that will correctly
 determine the header format in most cases.
-.It Li Q Ns Ar queuedir
+.It Li QueueDirectory= Ns Ar queuedir
 Select the directory in which to queue messages.
-.It Li S Ns Ar file
+.It Li StatusFile= Ns Ar file
 Save statistics in the named file.
-.It Li s
-Always instantiate the queue file,
-even under circumstances where it is not strictly necessary.
-This provides safety against system crashes during delivery.
-.It Li T Ns Ar time
+.It Li Timeout.queuereturn= Ns Ar time
 Set the timeout on undelivered messages in the queue to the specified time.
 After delivery has failed
 (e.g., because of a host being down)
 for this amount of time,
 failed messages will be returned to the sender.
-The default is three days.
-.It Li t Ns Ar stz , Ar dtz
-Set the name of the time zone.
-.It Li U Ns Ar userdatabase
+The default is five days.
+.It Li UserDatabaseSpec= Ns Ar userdatabase
 If set, a user database is consulted to get forwarding information.
 You can consider this an adjunct to the aliasing mechanism,
 except that the database is intended to be distributed;
@@ -382,13 +432,54 @@ aliases are local to a particular host.
 This may not be available if your sendmail does not have the
 .Dv USERDB
 option compiled in.
-.It Li u Ns Ar N
-Set the default user id for mailers.
-.It Li Y
+.It Li ForkEachJob
 Fork each job during queue runs.
 May be convenient on memory-poor machines.
-.It Li 7
+.It Li SevenBitInput
 Strip incoming messages to seven bits.
+.It Li EightBitMode= Ns Ar mode
+Set the handling of eight bit input to seven bit destinations to
+.Ar mode :
+.Li m
+(mimefy) will convert to seven-bit MIME format,
+.Li p
+(pass) will pass it as eight bits (but violates protocols),
+and
+.Li s
+(strict) will bounce the message.
+.It Li MinQueueAge= Ns Ar timeout
+Sets how long a job must ferment in the queue between attempts to send it.
+.It Li DefaultCharSet= Ns Ar charset
+Sets the default character set used to label 8-bit data
+that is not otherwise labelled.
+.It Li DialDelay= Ns Ar sleeptime
+If opening a connection fails,
+sleep for
+.Ar sleeptime
+seconds and try again.
+Useful on dial-on-demand sites.
+.It Li NoRecipientAction= Ns Ar action
+Set the behaviour when there are no recipient headers (To:, Cc: or Bcc:)
+in the message to
+.Ar action :
+.Li none
+leaves the message unchanged,
+.Li add-to
+adds a To: header with the envelope recipients,
+.Li add-apparently-to
+adds an Apparently-To: header with the envelope recipients,
+.Li add-bcc
+adds an empty Bcc: header, and
+.Li add-to-undisclosed
+adds a header reading
+.Ql "To: undisclosed-recipients:;" .
+.It Li MaxDaemonChildren= Ns Ar N
+Sets the maximum number of children that an incoming SMTP daemon
+will allow to spawn at any time to
+.Ar N .
+.It Li ConnectionRateThrottle= Ns Ar N
+Sets the maximum number of connections per second to the SMTP port to
+.Ar N .
 .El
 .Pp
 In aliases,

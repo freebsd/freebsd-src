@@ -1,6 +1,10 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/patch/version.c,v 1.2 1995/05/30 05:02:39 rgrimes Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/version.c,v 1.2.4.1 1996/06/05 02:41:43 jkh Exp $
  *
  * $Log: version.c,v $
+ * Revision 1.2.4.1  1996/06/05 02:41:43  jkh
+ * This 3rd mega-commit should hopefully bring us back to where we were.
+ * I can get it to `make world' succesfully, anyway!
+ *
  * Revision 1.2  1995/05/30  05:02:39  rgrimes
  * Remove trailing whitespace.
  *

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
- * $Id: nfs_node.c,v 1.8.4.1 1995/07/22 03:40:56 davidg Exp $
+ * $Id: nfs_node.c,v 1.8.4.2 1996/06/12 03:42:38 davidg Exp $
  */
 
 #include <sys/param.h>

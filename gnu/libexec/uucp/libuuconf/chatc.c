@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_chatc_rcsid[] = "$Id: chatc.c,v 1.3 1995/08/19 21:26:45 ache Exp $";
+const char _uuconf_chatc_rcsid[] = "$Id: chatc.c,v 1.2.6.1 1995/09/01 06:03:30 davidg Exp $";
 #endif
 
 #include <ctype.h>

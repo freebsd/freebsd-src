@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)savemail.c	8.87.1.2 (Berkeley) 9/16/96";
+static char sccsid[] = "@(#)savemail.c	8.100 (Berkeley) 9/27/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -86,7 +86,7 @@ savemail(e, sendbody)
 	auto ADDRESS *q = NULL;
 	register char *p;
 	MCI mcibuf;
-	int sfflags;
+	int flags;
 	char buf[MAXLINE+1];
 	extern char *ttypath();
 	typedef int (*fnptr)();
@@ -283,7 +283,9 @@ savemail(e, sendbody)
 				break;
 			}
 			if (returntosender(e->e_message, e->e_errorqueue,
-					   sendbody, e) == 0)
+					   sendbody ? RTSF_SEND_BODY
+						    : RTSF_NO_BODY,
+					   e) == 0)
 			{
 				state = ESM_DONE;
 				break;
@@ -299,14 +301,17 @@ savemail(e, sendbody)
 			*/
 
 			q = NULL;
-			if (sendtolist("postmaster", NULL, &q, 0, e) <= 0)
+			if (sendtolist(DoubleBounceAddr, NULL, &q, 0, e) <= 0)
 			{
-				syserr("553 cannot parse postmaster!");
+				syserr("553 cannot parse %s!", DoubleBounceAddr);
 				ExitStat = EX_SOFTWARE;
 				state = ESM_USRTMP;
 				break;
 			}
-			if (returntosender(e->e_message, q, sendbody, e) == 0)
+			flags = RTSF_PM_BOUNCE;
+			if (sendbody)
+				flags |= RTSF_SEND_BODY;
+			if (returntosender(e->e_message, q, flags, e) == 0)
 			{
 				state = ESM_DONE;
 				break;
@@ -344,9 +349,9 @@ savemail(e, sendbody)
 			/* we have a home directory; write dead.letter */
 			define('z', p, e);
 			expand("\201z/dead.letter", buf, sizeof buf, e);
-			sfflags = SFF_NOSLINK|SFF_CREAT|SFF_REGONLY|SFF_RUNASREALUID;
+			flags = SFF_NOSLINK|SFF_CREAT|SFF_REGONLY|SFF_RUNASREALUID;
 			e->e_to = buf;
-			if (mailfile(buf, NULL, sfflags, e) == EX_OK)
+			if (mailfile(buf, NULL, flags, e) == EX_OK)
 			{
 				bool oldverb = Verbose;
 
@@ -378,10 +383,10 @@ savemail(e, sendbody)
 
 			snprintf(buf, sizeof buf, "%sdead.letter", _PATH_VARTMP);
 
-			sfflags = SFF_NOSLINK|SFF_CREAT|SFF_REGONLY|SFF_ROOTOK|SFF_OPENASROOT;
-			if (!writable(buf, NULL, sfflags) ||
+			flags = SFF_NOSLINK|SFF_CREAT|SFF_REGONLY|SFF_ROOTOK|SFF_OPENASROOT;
+			if (!writable(buf, NULL, flags) ||
 			    (fp = safefopen(buf, O_WRONLY|O_CREAT|O_APPEND,
-					    FileMode, sfflags)) == NULL)
+					    FileMode, flags)) == NULL)
 			{
 				state = ESM_PANIC;
 				break;
@@ -398,7 +403,9 @@ savemail(e, sendbody)
 			(*e->e_putbody)(&mcibuf, e, NULL);
 			putline("\n", &mcibuf);
 			(void) fflush(fp);
-			if (!ferror(fp))
+			if (ferror(fp))
+				state = ESM_PANIC;
+			else
 			{
 				bool oldverb = Verbose;
 
@@ -410,9 +417,7 @@ savemail(e, sendbody)
 					syslog(LOG_NOTICE, "Saved message in %s", buf);
 #endif
 				state = ESM_DONE;
-				break;
 			}
-			state = ESM_PANIC;
 			(void) xfclose(fp, "savemail", buf);
 			break;
 
@@ -434,8 +439,10 @@ savemail(e, sendbody)
 **	Parameters:
 **		msg -- the explanatory message.
 **		returnq -- the queue of people to send the message to.
-**		sendbody -- if TRUE, also send back the body of the
-**			message; otherwise just send the header.
+**		flags -- flags tweaking the operation:
+**			RTSF_SENDBODY -- include body of message (otherwise
+**				just send the header).
+**			RTSF_PMBOUNCE -- this is a postmaster bounce.
 **		e -- the current envelope.
 **
 **	Returns:
@@ -451,10 +458,10 @@ savemail(e, sendbody)
 #define ERRORFUDGE	100	/* nominal size of error message text */
 
 int
-returntosender(msg, returnq, sendbody, e)
+returntosender(msg, returnq, flags, e)
 	char *msg;
 	ADDRESS *returnq;
-	bool sendbody;
+	int flags;
 	register ENVELOPE *e;
 {
 	register ENVELOPE *ee;
@@ -509,15 +516,20 @@ returntosender(msg, returnq, sendbody, e)
 		ee->e_flags &= ~EF_OLDSTYLE;
 	ee->e_sendqueue = returnq;
 	ee->e_msgsize = ERRORFUDGE;
-	if (sendbody)
+	if (bitset(RTSF_SEND_BODY, flags))
 		ee->e_msgsize += e->e_msgsize;
 	else
 		ee->e_flags |= EF_NO_BODY_RETN;
 	initsys(ee);
 	for (q = returnq; q != NULL; q = q->q_next)
 	{
+		extern bool pruneroute __P((char *));
+
 		if (bitset(QBADADDR, q->q_flags))
 			continue;
+
+		q->q_flags &= ~(QHASNOTIFY|Q_PINGFLAGS);
+		q->q_flags |= QPINGONFAILURE;
 
 		if (!DontPruneRoutes && pruneroute(q->q_paddr))
 		{
@@ -543,8 +555,10 @@ returntosender(msg, returnq, sendbody, e)
 	{
 		if (bitset(EF_RESPONSE|EF_WARNING, e->e_flags))
 			p = "return to sender";
-		else
+		else if (bitset(RTSF_PM_BOUNCE, flags))
 			p = "postmaster notify";
+		else
+			p = "DSN";
 		syslog(LOG_INFO, "%s: %s: %s: %s",
 			e->e_id, ee->e_id, p, shortenstring(msg, 203));
 	}
@@ -589,6 +603,13 @@ returntosender(msg, returnq, sendbody, e)
 		addheader("Subject", msg, &ee->e_header);
 		p = "return-receipt";
 	}
+	else if (bitset(RTSF_PM_BOUNCE, flags))
+	{
+		snprintf(buf, sizeof buf, "Postmaster notify: %.*s",
+			sizeof buf - 20, msg);
+		addheader("Subject", buf, &ee->e_header);
+		p = "postmaster-notification";
+	}
 	else
 	{
 		snprintf(buf, sizeof buf, "Returned mail: %.*s",
@@ -608,6 +629,8 @@ returntosender(msg, returnq, sendbody, e)
 		returndepth--;
 		return (-1);
 	}
+	ee->e_from.q_flags &= ~(QHASNOTIFY|Q_PINGFLAGS);
+	ee->e_from.q_flags |= QPINGONFAILURE;
 	ee->e_sender = ee->e_from.q_paddr;
 
 	/* push state into submessage */
@@ -623,7 +646,7 @@ returntosender(msg, returnq, sendbody, e)
 	sendall(ee, SM_DEFAULT);
 
 	/* restore state */
-	dropenvelope(ee);
+	dropenvelope(ee, TRUE);
 	CurEnv = oldcur;
 	returndepth--;
 
@@ -647,7 +670,6 @@ returntosender(msg, returnq, sendbody, e)
 **		mci -- the mailer connection information.
 **		e -- the envelope we are working in.
 **		separator -- any possible MIME separator.
-**		flags -- to modify the behaviour.
 **
 **	Returns:
 **		none
@@ -667,8 +689,8 @@ errbody(mci, e, separator)
 	register ADDRESS *q;
 	bool printheader;
 	bool sendbody;
+	bool pm_notify;
 	char buf[MAXLINE];
-	extern char *xuntextify();
 
 	if (bitset(MCIF_INHEADER, mci->mci_flags))
 	{
@@ -699,10 +721,17 @@ errbody(mci, e, separator)
 	**  Output introductory information.
 	*/
 
-	for (q = e->e_parent->e_sendqueue; q != NULL; q = q->q_next)
-		if (bitset(QBADADDR, q->q_flags))
-			break;
-	if (q == NULL &&
+	pm_notify = FALSE;
+	p = hvalue("subject", e->e_header);
+	if (p != NULL && strncmp(p, "Postmaster ", 11) == 0)
+		pm_notify = TRUE;
+	else
+	{
+		for (q = e->e_parent->e_sendqueue; q != NULL; q = q->q_next)
+			if (bitset(QBADADDR, q->q_flags))
+				break;
+	}
+	if (!pm_notify && q == NULL &&
 	    !bitset(EF_FATALERRS|EF_SENDRECEIPT, e->e_parent->e_flags))
 	{
 		putline("    **********************************************",
@@ -757,16 +786,63 @@ errbody(mci, e, separator)
 	printheader = TRUE;
 	for (q = e->e_parent->e_sendqueue; q != NULL; q = q->q_next)
 	{
-		if (bitset(QBADADDR, q->q_flags))
-		{
-			if (!bitset(QPINGONFAILURE, q->q_flags))
-				continue;
-			p = "unrecoverable error";
-		}
-		else if (!bitset(QPRIMARY, q->q_flags))
+		if (!bitset(QBADADDR, q->q_flags) ||
+		    !bitset(QPINGONFAILURE, q->q_flags))
 			continue;
-		else if (bitset(QDELAYED, q->q_flags))
-			p = "transient failure";
+
+		if (printheader)
+		{
+			putline("   ----- The following addresses had permanent fatal errors -----",
+				mci);
+			printheader = FALSE;
+		}
+
+		snprintf(buf, sizeof buf, "%s", shortenstring(q->q_paddr, 203));
+		putline(buf, mci);
+		if (q->q_alias != NULL)
+		{
+			snprintf(buf, sizeof buf, "    (expanded from: %s)",
+				shortenstring(q->q_alias->q_paddr, 203));
+			putline(buf, mci);
+		}
+	}
+	if (!printheader)
+		putline("", mci);
+
+	printheader = TRUE;
+	for (q = e->e_parent->e_sendqueue; q != NULL; q = q->q_next)
+	{
+		if (bitset(QBADADDR, q->q_flags) ||
+		    !bitset(QPRIMARY, q->q_flags) ||
+		    !bitset(QDELAYED, q->q_flags))
+			continue;
+
+		if (printheader)
+		{
+			putline("   ----- The following addresses had transient non-fatal errors -----",
+				mci);
+			printheader = FALSE;
+		}
+
+		snprintf(buf, sizeof buf, "%s", shortenstring(q->q_paddr, 203));
+		putline(buf, mci);
+		if (q->q_alias != NULL)
+		{
+			snprintf(buf, sizeof buf, "    (expanded from: %s)",
+				shortenstring(q->q_alias->q_paddr, 203));
+			putline(buf, mci);
+		}
+	}
+	if (!printheader)
+		putline("", mci);
+
+	printheader = TRUE;
+	for (q = e->e_parent->e_sendqueue; q != NULL; q = q->q_next)
+	{
+		if (bitset(QBADADDR, q->q_flags) ||
+		    !bitset(QPRIMARY, q->q_flags) ||
+		    bitset(QDELAYED, q->q_flags))
+			continue;
 		else if (!bitset(QPINGONSUCCESS, q->q_flags))
 			continue;
 		else if (bitset(QRELAYED, q->q_flags))
@@ -785,7 +861,7 @@ errbody(mci, e, separator)
 
 		if (printheader)
 		{
-			putline("   ----- The following addresses have delivery notifications -----",
+			putline("   ----- The following addresses had successful delivery notifications -----",
 				mci);
 			printheader = FALSE;
 		}
@@ -801,7 +877,7 @@ errbody(mci, e, separator)
 		}
 	}
 	if (!printheader)
-		putline("\n", mci);
+		putline("", mci);
 
 	/*
 	**  Output transcript of errors
@@ -1164,20 +1240,25 @@ smtptodsn(smtpstat)
 **
 **	Parameters:
 **		t -- the text to convert.
+**		taboo -- additional characters that must be encoded.
 **
 **	Returns:
 **		The xtext-ified version of the same string.
 */
 
 char *
-xtextify(t)
+xtextify(t, taboo)
 	register char *t;
+	char *taboo;
 {
 	register char *p;
 	int l;
 	int nbogus;
 	static char *bp = NULL;
 	static int bplen = 0;
+
+	if (taboo == NULL)
+		taboo = "";
 
 	/* figure out how long this xtext will have to be */
 	nbogus = l = 0;
@@ -1186,7 +1267,8 @@ xtextify(t)
 		register int c = (*p & 0xff);
 
 		/* ASCII dependence here -- this is the way the spec words it */
-		if (c < '!' || c > '~' || c == '+' || c == '\\' || c == '(')
+		if (c < '!' || c > '~' || c == '+' || c == '\\' || c == '(' ||
+		    strchr(taboo, c) != NULL)
 			nbogus++;
 		l++;
 	}
@@ -1209,7 +1291,8 @@ xtextify(t)
 		register int c = (*t++ & 0xff);
 
 		/* ASCII dependence here -- this is the way the spec words it */
-		if (c < '!' || c > '~' || c == '+' || c == '\\' || c == '(')
+		if (c < '!' || c > '~' || c == '+' || c == '\\' || c == '(' ||
+		    strchr(taboo, c) != NULL)
 		{
 			*p++ = '+';
 			*p++ = "0123456789abcdef"[c >> 4];
@@ -1298,6 +1381,7 @@ xuntextify(t)
 			c -= 'a' - 10;
 		*p++ |= c;
 	}
+	*p = '\0';
 	return bp;
 }
 /*

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.8 1996/03/10 07:11:45 gibbs Exp $
+ *      $Id: bt.c,v 1.3.2.4 1996/04/01 00:23:16 gibbs Exp $
  */
 
 /*

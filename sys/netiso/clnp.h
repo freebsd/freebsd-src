@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp.h	8.2 (Berkeley) 4/16/94
- * $Id: clnp.h,v 1.4 1995/05/30 08:10:12 rgrimes Exp $
+ * $Id: clnp.h,v 1.4.4.1 1996/06/05 02:54:48 jkh Exp $
  */
 
 #ifndef _NETISO_CLNP_H_
@@ -63,8 +63,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp.h,v 1.4 1995/05/30 08:10:12 rgrimes Exp $ */
-/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp.h,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/Attic/clnp.h,v 1.4.4.1 1996/06/05 02:54:48 jkh Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/Attic/clnp.h,v $ */
 
 /* should be config option but cpp breaks with too many #defines */
 #define	DECBIT

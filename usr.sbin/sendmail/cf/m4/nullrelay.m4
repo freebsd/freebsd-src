@@ -34,7 +34,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`@(#)nullrelay.m4	8.10 (Berkeley) 9/29/95')
+VERSIONID(`@(#)nullrelay.m4	8.12 (Berkeley) 10/12/96')
 
 #
 #  This configuration applies only to relay-only hosts.  They send
@@ -74,25 +74,30 @@ R$* ;			$: $1				strip trailing semi
 R$@			$@ :; <@>
 
 # basic textual canonicalization -- note RFC733 heuristic here
-R$*<$*>$*<$*>$*		$2$3<$4>$5			strip multiple <> <>
-R$*<$*<$+>$*>$*		<$3>$5				2-level <> nesting
-R$*<>$*			$@ <@>				MAIL FROM:<> case
-R$*<$+>$*		$2				basic RFC821/822 parsing
+R$*			$: < $1 >		housekeeping <>
+R$+ < $* >		   < $2 >		strip excess on left
+R< $* > $+		   < $1 >		strip excess on right
+R<>			$@ < @ >		MAIL FROM:<> case
+R< $+ >			$: $1			remove housekeeping <>
 
 ifdef(`_NO_CANONIFY_', `dnl',
 `# eliminate local host if present
 R@ $=w $=: $+		$@ @ $M $2 $3			@thishost ...
 R@ $+			$@ @ $1				@somewhere ...
 
+R$=E @ $=w		$@ $1 @ $2			leave exposed
 R$+ @ $=w		$@ $1 @ $M			...@thishost
 R$+ @ $+		$@ $1 @ $2			...@somewhere
 
+R$=w ! $=E		$@ $2 @ $1			leave exposed
 R$=w ! $+		$@ $2 @ $M			thishost!...
 R$+ ! $+		$@ $1 ! $2 @ $M			somewhere ! ...
 
+R$=E % $=w		$@ $1 @ $2			leave exposed
 R$+ % $=w		$@ $1 @ $M			...%thishost
 R$+ % $+		$@ $1 @ $2			...%somewhere
 
+R$=E			$@ $1 @ $j			leave exposed
 R$+			$@ $1 @ $M			unadorned user')
 
 

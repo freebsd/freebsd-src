@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/fddi.h,v 1.1 1995/03/08 12:52:14 olah Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/Attic/fddi.h,v 1.1.4.1 1996/06/05 02:58:14 jkh Exp $ (LBL)
  */
 
 /*

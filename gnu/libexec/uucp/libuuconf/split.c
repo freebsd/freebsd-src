@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_split_rcsid[] = "$Id: split.c,v 1.3 1995/08/19 21:28:04 ache Exp $";
+const char _uuconf_split_rcsid[] = "$Id: split.c,v 1.2.6.1 1995/09/01 06:04:19 davidg Exp $";
 #endif
 
 #include <ctype.h>

@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libpcap/etherent.c,v 1.1.1.1 1995/01/20 04:13:05 jkh Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/lib/libpcap/Attic/etherent.c,v 1.1.1.1.4.1 1996/06/05 02:52:43 jkh Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

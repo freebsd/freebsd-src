@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cache.c,v 1.2 1994/09/24 02:56:14 davidg Exp $
+ *	$Id: cache.c,v 1.2.6.2 1996/06/05 02:35:50 jkh Exp $
  */
 
 #ifndef lint

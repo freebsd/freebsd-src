@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.8 1996/01/31 14:26:01 mpp Exp $ -->
+<!-- $Id: synching.sgml,v 1.1 1996/02/11 00:16:20 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Synchronizing source trees over the Internet<label id="synching"></heading>
@@ -7,7 +7,7 @@
 
 <!--
 
-Last updated: $Date: 1996/01/31 14:26:01 $
+Last updated: $Date: 1996/02/11 00:16:20 $
 
 This document tries to describe the various ways in which a user may
 use the internet to keep development sources in synch.

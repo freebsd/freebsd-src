@@ -34,11 +34,11 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)amdahl-uts.m4	8.2 (Berkeley) 11/13/95')
+VERSIONID(`@(#)amdahl-uts.m4	8.4 (Berkeley) 9/25/96')
 divert(-1)
 
-ifdef(`ALIAS_FILE',, `define(`ALIAS_FILE', /etc/mail/aliases)')
+define(`ALIAS_FILE', /etc/mail/aliases)
 ifdef(`HELP_FILE',, `define(`HELP_FILE', /etc/mail/sendmail.hf)')
 ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /usr/lib/sendmail.st)')
-ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `fSn')')
+ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `fSn9')')
 define(`confCW_FILE', /etc/mail/sendmail.cw)

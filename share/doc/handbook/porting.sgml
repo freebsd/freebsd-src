@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.21 1996/05/24 19:33:33 jfieber Exp $ -->
+<!-- $Id: porting.sgml,v 1.2.4.5 1996/06/19 20:28:08 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -156,7 +156,7 @@ The pattern is the year followed by the month.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.21 1996/05/24 19:33:33 jfieber Exp $
+ # $Id: porting.sgml,v 1.2.4.5 1996/06/19 20:28:08 jkh Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -976,7 +976,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.21 1996/05/24 19:33:33 jfieber Exp $
+ # $Id: porting.sgml,v 1.2.4.5 1996/06/19 20:28:08 jkh Exp $
  [ ^^^^ do not worry about this...it will be automatically filled in by CVS 
   when it is committed to our repository]
  #

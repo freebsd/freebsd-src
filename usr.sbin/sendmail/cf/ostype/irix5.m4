@@ -50,11 +50,11 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)irix5.m4	8.2 (Berkeley) 11/13/95')
-ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', Ehmu)')dnl
+VERSIONID(`@(#)irix5.m4	8.4 (Berkeley) 9/25/96')
+ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', Ehmu9)')dnl
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `mail -s -d $u')')dnl
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /var/spool/mqueue)')dnl
-ifdef(`ALIAS_FILE',, `define(`ALIAS_FILE', /etc/aliases)')dnl
+define(`ALIAS_FILE', /etc/aliases)dnl
 ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /var/sendmail.st)')dnl
 ifdef(`HELP_FILE',, `define(`HELP_FILE', /etc/sendmail.hf)')dnl
 define(`confDEF_USER_ID', `998:998')dnl

@@ -28,7 +28,7 @@
  */
 
 static const char rcsid[] =
-	"$Id: tzmenu.c,v 1.2.4.1 1996/03/22 22:24:16 joerg Exp $";
+	"$Id: tzmenu.c,v 1.2.4.2 1996/03/31 09:59:43 joerg Exp $";
 
 #include <stdio.h>
 #include <ncurses.h>

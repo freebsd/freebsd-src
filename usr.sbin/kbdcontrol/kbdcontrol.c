@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdcontrol.c,v 1.8 1996/11/09 16:16:19 joerg Exp $
+ *	$Id: kbdcontrol.c,v 1.7.2.1 1996/11/10 12:45:04 jkh Exp $
  */
 
 #include <ctype.h>

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: samba.c,v 1.10 1996/11/04 12:56:31 jkh Exp $
+ * $Id: samba.c,v 1.3.2.7 1996/11/07 09:17:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.

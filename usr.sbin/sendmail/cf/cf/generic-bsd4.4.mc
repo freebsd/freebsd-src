@@ -41,7 +41,8 @@ divert(-1)
 #  and do the modifications there.
 #
 
-VERSIONID(`@(#)generic-bsd4.4.mc	8.1 (Berkeley) 9/12/95')
+divert(0)dnl
+VERSIONID(`@(#)generic-bsd4.4.mc	8.2 (Berkeley) 3/23/96')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl

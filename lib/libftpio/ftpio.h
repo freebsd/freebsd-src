@@ -20,7 +20,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.h,v 1.2.2.2 1996/06/26 20:33:57 gpalmer Exp $
+ * $Id: ftpio.h,v 1.2.2.3 1996/07/04 05:47:31 jkh Exp $
  */
 
 /* Internal housekeeping data structure for FTP sessions */

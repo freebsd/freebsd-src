@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1995/01/11 00:15:20 wollman Exp $
+#	$Id: Makefile,v 1.1 1996/04/19 21:26:26 wosch Exp $
 
 VOLUME=	papers
 DOC=	CONTENTS

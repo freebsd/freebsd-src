@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)parseaddr.c	8.87.1.1 (Berkeley) 9/16/96";
+static char sccsid[] = "@(#)parseaddr.c	8.114 (Berkeley) 9/20/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -169,7 +169,7 @@ parseaddr(addr, a, flags, delim, delimptr, e)
 	**  If there was a parsing failure, mark it for queueing.
 	*/
 
-	if (queueup)
+	if (queueup && OpMode != MD_INITALIAS)
 	{
 		char *msg = "Transient parse error -- message queued for future delivery";
 
@@ -220,14 +220,6 @@ invalidaddr(addr, delimptr)
 		if (savedelim != '\0')
 			*delimptr = '\0';
 	}
-#if 0
-	/* for testing.... */
-	if (strcmp(addr, "INvalidADDR") == 0)
-	{
-		usrerr("553 INvalid ADDRess");
-		goto addrfailure;
-	}
-#endif
 	for (; *addr != '\0'; addr++)
 	{
 		if ((*addr & 0340) == 0200)
@@ -241,7 +233,6 @@ invalidaddr(addr, delimptr)
 	}
 	setstat(EX_USAGE);
 	usrerr("553 Address contained invalid control characters");
-  addrfailure:
 	if (delimptr != NULL && savedelim != '\0')
 		*delimptr = savedelim;
 	return TRUE;
@@ -343,12 +334,12 @@ allocaddr(a, flags, paddr)
 static short StateTab[NSTATES][NSTATES] =
 {
    /*	oldst	chtype>	OPR	ATM	QST	SPC	ONE	ILL	*/
-	/*OPR*/		OPR|B,	ATM|B,	QST|B,	SPC|MB,	ONE|B,	ILL|MB,
-	/*ATM*/		OPR|B,	ATM,	QST|B,	SPC|MB,	ONE|B,	ILL|MB,
-	/*QST*/		QST,	QST,	OPR,	QST,	QST,	QST,
-	/*SPC*/		OPR,	ATM,	QST,	SPC|M,	ONE,	ILL|MB,
-	/*ONE*/		OPR,	OPR,	OPR,	OPR,	OPR,	ILL|MB,
-	/*ILL*/		OPR|B,	ATM|B,	QST|B,	SPC|MB,	ONE|B,	ILL|M,
+	/*OPR*/	{	OPR|B,	ATM|B,	QST|B,	SPC|MB,	ONE|B,	ILL|MB	},
+	/*ATM*/	{	OPR|B,	ATM,	QST|B,	SPC|MB,	ONE|B,	ILL|MB	},
+	/*QST*/	{	QST,	QST,	OPR,	QST,	QST,	QST	},
+	/*SPC*/	{	OPR,	ATM,	QST,	SPC|M,	ONE,	ILL|MB	},
+	/*ONE*/	{	OPR,	OPR,	OPR,	OPR,	OPR,	ILL|MB	},
+	/*ILL*/	{	OPR|B,	ATM|B,	QST|B,	SPC|MB,	ONE|B,	ILL|M	},
 };
 
 /* token type table -- it gets modified with $o characters */
@@ -444,6 +435,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 	register int c;
 	char **avp;
 	bool bslashmode;
+	bool route_syntax;
 	int cmntcnt;
 	int anglecnt;
 	char *tok;
@@ -483,6 +475,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 
 	q = pvpbuf;
 	bslashmode = FALSE;
+	route_syntax = FALSE;
 	cmntcnt = 0;
 	anglecnt = 0;
 	avp = av;
@@ -510,7 +503,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 				if (q >= &pvpbuf[pvpbsize - 5])
 				{
 					usrerr("553 Address too long");
-					if (strlen(addr) > MAXNAME)
+					if (strlen(addr) > (SIZE_T) MAXNAME)
 						addr[MAXNAME] = '\0';
 	returnnull:
 					if (delimptr != NULL)
@@ -548,9 +541,19 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 
 				p--;
 			}
-			else if (c == delim && anglecnt <= 0 &&
-					cmntcnt <= 0 && state != QST)
-				break;
+			else if (c == delim && cmntcnt <= 0 && state != QST)
+			{
+				if (anglecnt <= 0)
+					break;
+
+				/* special case for better error management */
+				if (delim == ',' && !route_syntax)
+				{
+					usrerr("653 Unbalanced '<'");
+					c = '>';
+					p--;
+				}
+			}
 
 			if (tTd(22, 101))
 				printf("c=%c, s=%d; ", c, state);
@@ -600,7 +603,15 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 			else if (cmntcnt > 0)
 				c = NOCHAR;
 			else if (c == '<')
+			{
+				char *q = p;
+
 				anglecnt++;
+				while (isascii(*q) && isspace(*q))
+					q++;
+				if (*q == '@')
+					route_syntax = TRUE;
+			}
 			else if (c == '>')
 			{
 				if (anglecnt <= 0)
@@ -610,6 +621,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 				}
 				else
 					anglecnt--;
+				route_syntax = FALSE;
 			}
 			else if (delim == ' ' && isascii(c) && isspace(c))
 				c = ' ';
@@ -743,10 +755,11 @@ rewrite(pvp, ruleset, reclevel, e)
 	int loopcount;
 	struct match mlist[MAXMATCH];	/* stores match on LHS */
 	char *npvp[MAXATOM+1];		/* temporary space for rebuild */
+	extern int callsubr __P((char**, int, ENVELOPE *));
 
 	if (OpMode == MD_TEST || tTd(21, 1))
 	{
-		printf("rewrite: ruleset %2d   input:", ruleset);
+		printf("rewrite: ruleset %3d   input:", ruleset);
 		printav(pvp);
 	}
 	if (ruleset < 0 || ruleset >= MAXRWSETS)
@@ -772,6 +785,12 @@ rewrite(pvp, ruleset, reclevel, e)
 	loopcount = 0;
 	for (rwr = RewriteRules[ruleset]; rwr != NULL; )
 	{
+		int stat;
+
+		/* if already canonical, quit now */
+		if (pvp[0] != NULL && (pvp[0][0] & 0377) == CANONNET)
+			break;
+
 		if (tTd(21, 12))
 		{
 			printf("-----trying rule:");
@@ -1002,8 +1021,6 @@ rewrite(pvp, ruleset, reclevel, e)
 			rvp++;
 			rwr = NULL;
 		}
-		else if ((*rp & 0377) == CANONNET)
-			rwr = NULL;
 
 		/* substitute */
 		for (avp = npvp; *rvp != NULL; rvp++)
@@ -1091,6 +1108,7 @@ rewrite(pvp, ruleset, reclevel, e)
 			char *argvect[10];
 			char pvpbuf[PSBUFSIZE];
 			char *nullpvp[1];
+			extern char *map_lookup __P((STAB *, char *, char **, int *, ENVELOPE *));
 
 			if ((**rvp & 0377) != HOSTBEGIN &&
 			    (**rvp & 0377) != LOOKUPBEGIN)
@@ -1173,55 +1191,7 @@ rewrite(pvp, ruleset, reclevel, e)
 			/* look it up */
 			cataddr(key_rvp, NULL, buf, sizeof buf, '\0');
 			argvect[0] = buf;
-			if (e->e_sendmode == SM_DEFER)
-			{
-				/* don't do any map lookups */
-				if (tTd(60, 1))
-					printf("map_lookup(%s, %s) => DEFERRED\n",
-						mapname, buf);
-				replac = NULL;
-				rstat = EX_TEMPFAIL;
-			}
-			else if (map != NULL && bitset(MF_OPEN, map->s_map.map_mflags))
-			{
-				auto int stat = EX_OK;
-
-				if (!bitset(MF_KEEPQUOTES, map->s_map.map_mflags))
-					stripquotes(buf);
-
-				/* XXX should try to auto-open the map here */
-
-				if (tTd(60, 1))
-					printf("map_lookup(%s, %s) => ",
-						mapname, buf);
-				replac = (*map->s_map.map_class->map_lookup)(&map->s_map,
-						buf, argvect, &stat);
-				if (tTd(60, 1))
-					printf("%s (%d)\n",
-						replac ? replac : "NOT FOUND",
-						stat);
-
-				/* should recover if stat == EX_TEMPFAIL */
-				if (stat == EX_TEMPFAIL)
-				{
-					rstat = EX_TEMPFAIL;
-					if (tTd(60, 1))
-						printf("map_lookup(%s, %s) tempfail: errno=%d\n",
-							mapname, buf, errno);
-					if (e->e_message == NULL)
-					{
-						char mbuf[300];
-
-						snprintf(mbuf, sizeof mbuf,
-							"%.80s map: lookup (%s): deferred",
-							mapname,
-							shortenstring(buf, 203));
-						e->e_message = newstr(mbuf);
-					}
-				}
-			}
-			else
-				replac = NULL;
+			replac = map_lookup(map, buf, argvect, &rstat, e);
 
 			/* if no replacement, use default */
 			if (replac == NULL && default_rvp != NULL)
@@ -1273,38 +1243,16 @@ rewrite(pvp, ruleset, reclevel, e)
 		**  Check for subroutine calls.
 		*/
 
-		if (*npvp != NULL && (**npvp & 0377) == CALLSUBR)
-		{
-			int stat;
+		stat = callsubr(npvp, reclevel, e);
+		if (rstat == EX_OK || stat == EX_TEMPFAIL)
+			rstat = stat;
 
-			if (npvp[1] == NULL)
-			{
-				syserr("parseaddr: NULL subroutine call in ruleset %d, rule %d",
-					ruleset, ruleno);
-				*pvp = NULL;
-			}
-			else
-			{
-				int ruleset;
-				STAB *s;
-
-				bcopy((char *) &npvp[2], (char *) pvp,
-					(int) (avp - npvp - 2) * sizeof *avp);
-				if (tTd(21, 3))
-					printf("-----callsubr %s\n", npvp[1]);
-				ruleset = strtorwset(npvp[1], NULL, ST_FIND);
-				stat = rewrite(pvp, ruleset, reclevel, e);
-				if (rstat == EX_OK || stat == EX_TEMPFAIL)
-					rstat = stat;
-				if (*pvp != NULL && (**pvp & 0377) == CANONNET)
-				rwr = NULL;
-			}
-		}
-		else
-		{
-			bcopy((char *) npvp, (char *) pvp,
-				(int) (avp - npvp) * sizeof *avp);
-		}
+		/* copy vector back into original space. */
+		for (avp = npvp; *avp++ != NULL;)
+			continue;
+		bcopy((char *) npvp, (char *) pvp,
+		      (int) (avp - npvp) * sizeof *avp);
+		
 		if (tTd(21, 4))
 		{
 			printf("rewritten as:");
@@ -1314,11 +1262,190 @@ rewrite(pvp, ruleset, reclevel, e)
 
 	if (OpMode == MD_TEST || tTd(21, 1))
 	{
-		printf("rewrite: ruleset %2d returns:", ruleset);
+		printf("rewrite: ruleset %3d returns:", ruleset);
 		printav(pvp);
 	}
 
 	return rstat;
+}
+/*
+**  CALLSUBR -- call subroutines in rewrite vector
+**
+**	Parameters:
+**		pvp -- pointer to token vector.
+**		reclevel -- the current recursion level.
+**		e -- the current envelope.
+**
+**	Returns:
+**		The status from the subroutine call.
+**
+**	Side Effects:
+**		pvp is modified.
+*/
+
+int
+callsubr(pvp, reclevel, e)
+	char **pvp;
+	int reclevel;
+	ENVELOPE *e;
+{
+    	char **avp;
+    	char **rvp;
+	register int i;
+	int subr;
+	int stat;
+	int rstat = EX_OK;
+	char *tpvp[MAXATOM + 1];
+
+	for (avp = pvp; *avp != NULL; avp++)
+	{
+		if ((**avp & 0377) == CALLSUBR && avp[1] != NULL)
+		{
+			subr = strtorwset(avp[1], NULL, ST_FIND);
+			if (subr < 0)
+			{
+				syserr("Unknown ruleset %s", avp[1]);
+				return EX_CONFIG;
+			}
+
+			if (tTd(21, 3))
+				printf("-----callsubr %s (%d)\n", avp[1], subr);
+				
+			/*
+			**  Take care of possible inner calls first.
+			**  use a full size temporary buffer to avoid
+			**  overflows in rewrite, but strip off the
+			**  subroutine call.
+			*/
+
+			for (i = 2; avp[i] != NULL; i++)
+				tpvp[i - 2] = avp[i];
+			tpvp[i - 2] = NULL;
+
+			stat = callsubr(tpvp, reclevel, e);
+			if (rstat == EX_OK || stat == EX_TEMPFAIL)
+				rstat = stat;
+
+			/*
+			**  Now we need to call the ruleset specified for
+			**  the subroutine. we can do this with the
+			**  temporary buffer that we set up earlier,
+			**  since it has all the data we want to rewrite.
+			*/
+
+			stat = rewrite(tpvp, subr, reclevel, e);
+			if (rstat == EX_OK || stat == EX_TEMPFAIL)
+				rstat = stat;
+
+			/*
+			**  Find length of tpvp and current offset into
+			**  pvp, if the total is greater than MAXATOM,
+			**  then it would overflow the buffer if we copied
+			**  it back in to pvp, in which case we throw a
+			**  fit.
+			*/
+
+			for (rvp = tpvp; *rvp != NULL; rvp++)
+				continue;
+			if (((rvp - tpvp) + (avp - pvp)) > MAXATOM)
+			{
+			    	syserr("554 callsubr: expansion too long");
+				return EX_DATAERR;
+			}
+
+			/*
+			**  Now we can copy the rewritten code over
+			**  the initial subroutine call in the buffer.
+			*/
+
+			for (i = 0; tpvp[i] != NULL; i++)
+				avp[i] = tpvp[i];
+			avp[i] = NULL;
+
+			/*
+			**  If we got this far, we've processed the left
+			**  most subroutine, and recursively called ourselves
+			**  to handle any other subroutines.  We're done.
+			*/
+
+			break;
+		}
+	}
+	return rstat;
+}
+/*
+**  MAP_LOOKUP -- do lookup in map
+**
+**	Parameters:
+**		map -- the map to use for the lookup.
+**		key -- the key to look up.
+**		argvect -- arguments to pass to the map lookup.
+**		pstat -- a pointer to an integer in which to store the
+**			status from the lookup.
+**		e -- the current envelope.
+**
+**	Returns:
+**		The result of the lookup.
+**		NULL -- if there was no data for the given key.
+*/
+
+char *
+map_lookup(map, key, argvect, pstat, e)
+	STAB *map;
+	char key[];
+	char **argvect;
+	int *pstat;
+	ENVELOPE *e;
+{
+	auto int stat = EX_OK;
+	char *replac;
+
+	if (e->e_sendmode == SM_DEFER)
+	{
+		/* don't do any map lookups */
+		if (tTd(60, 1))
+			printf("map_lookup(%s, %s) => DEFERRED\n",
+				map->s_name, key);
+		*pstat = EX_TEMPFAIL;
+		return NULL;
+	}
+	if (map == NULL || !bitset(MF_OPEN, map->s_map.map_mflags))
+		return NULL;
+
+	if (!bitset(MF_KEEPQUOTES, map->s_map.map_mflags))
+		stripquotes(key);
+
+	/* XXX should try to auto-open the map here */
+
+	if (tTd(60, 1))
+		printf("map_lookup(%s, %s) => ",
+			map->s_name, key);
+	replac = (*map->s_map.map_class->map_lookup)(&map->s_map,
+			key, argvect, &stat);
+	if (tTd(60, 1))
+		printf("%s (%d)\n",
+			replac != NULL ? replac : "NOT FOUND",
+			stat);
+
+	/* should recover if stat == EX_TEMPFAIL */
+	if (stat == EX_TEMPFAIL && !bitset(MF_NODEFER, map->s_map.map_mflags))
+	{
+		*pstat = EX_TEMPFAIL;
+		if (tTd(60, 1))
+			printf("map_lookup(%s, %s) tempfail: errno=%d\n",
+				map->s_name, key, errno);
+		if (e->e_message == NULL)
+		{
+			char mbuf[300];
+
+			snprintf(mbuf, sizeof mbuf,
+				"%.80s map: lookup (%s): deferred",
+				map->s_name,
+				shortenstring(key, 203));
+			e->e_message = newstr(mbuf);
+		}
+	}
+	return replac;
 }
 /*
 **  BUILDADDR -- build address from token vector.
@@ -1345,17 +1472,17 @@ struct errcodes
 	int	ec_code;		/* numeric code */
 } ErrorCodes[] =
 {
-	"usage",	EX_USAGE,
-	"nouser",	EX_NOUSER,
-	"nohost",	EX_NOHOST,
-	"unavailable",	EX_UNAVAILABLE,
-	"software",	EX_SOFTWARE,
-	"tempfail",	EX_TEMPFAIL,
-	"protocol",	EX_PROTOCOL,
+	{ "usage",		EX_USAGE	},
+	{ "nouser",		EX_NOUSER	},
+	{ "nohost",		EX_NOHOST	},
+	{ "unavailable",	EX_UNAVAILABLE	},
+	{ "software",		EX_SOFTWARE	},
+	{ "tempfail",		EX_TEMPFAIL	},
+	{ "protocol",		EX_PROTOCOL	},
 #ifdef EX_CONFIG
-	"config",	EX_CONFIG,
+	{ "config",		EX_CONFIG	},
 #endif
-	NULL,		EX_UNAVAILABLE,
+	{ NULL,			EX_UNAVAILABLE	}
 };
 
 ADDRESS *
@@ -1386,7 +1513,7 @@ buildaddr(tv, a, flags, e)
 	bzero((char *) a, sizeof *a);
 
 	/* set up default error return flags */
-	a->q_flags |= QPINGONFAILURE|QPINGONDELAY;
+	a->q_flags |= DefaultNotify;
 
 	/* figure out what net/mailer to use */
 	if (*tv == NULL || (**tv & 0377) != CANONNET)
@@ -1407,7 +1534,7 @@ badaddr:
 	mname = *++tv;
 
 	/* extract host and user portions */
-	if ((**++tv & 0377) == CANONHOST)
+	if (*++tv != NULL && (**tv & 0377) == CANONHOST)
 		hostp = ++tv;
 	else
 		hostp = NULL;
@@ -1433,6 +1560,8 @@ badaddr:
 
 			if (strchr(hbuf, '.') != NULL)
 			{
+				extern int dsntoexitstat __P((char *));
+
 				a->q_status = newstr(hbuf);
 				setstat(dsntoexitstat(hbuf));
 			}
@@ -1703,27 +1832,27 @@ struct qflags
 
 struct qflags	AddressFlags[] =
 {
-	"QDONTSEND",		QDONTSEND,
-	"QBADADDR",		QBADADDR,
-	"QGOODUID",		QGOODUID,
-	"QPRIMARY",		QPRIMARY,
-	"QQUEUEUP",		QQUEUEUP,
-	"QSENT",		QSENT,
-	"QNOTREMOTE",		QNOTREMOTE,
-	"QSELFREF",		QSELFREF,
-	"QVERIFIED",		QVERIFIED,
-	"QBOGUSSHELL",		QBOGUSSHELL,
-	"QUNSAFEADDR",		QUNSAFEADDR,
-	"QPINGONSUCCESS",	QPINGONSUCCESS,
-	"QPINGONFAILURE",	QPINGONFAILURE,
-	"QPINGONDELAY",		QPINGONDELAY,
-	"QHASNOTIFY",		QHASNOTIFY,
-	"QRELAYED",		QRELAYED,
-	"QEXPANDED",		QEXPANDED,
-	"QDELIVERED",		QDELIVERED,
-	"QDELAYED",		QDELAYED,
-	"QTHISPASS",		QTHISPASS,
-	NULL
+	{ "QDONTSEND",		QDONTSEND	},
+	{ "QBADADDR",		QBADADDR	},
+	{ "QGOODUID",		QGOODUID	},
+	{ "QPRIMARY",		QPRIMARY	},
+	{ "QQUEUEUP",		QQUEUEUP	},
+	{ "QSENT",		QSENT		},
+	{ "QNOTREMOTE",		QNOTREMOTE	},
+	{ "QSELFREF",		QSELFREF	},
+	{ "QVERIFIED",		QVERIFIED	},
+	{ "QBOGUSSHELL",	QBOGUSSHELL	},
+	{ "QUNSAFEADDR",	QUNSAFEADDR	},
+	{ "QPINGONSUCCESS",	QPINGONSUCCESS	},
+	{ "QPINGONFAILURE",	QPINGONFAILURE	},
+	{ "QPINGONDELAY",	QPINGONDELAY	},
+	{ "QHASNOTIFY",		QHASNOTIFY	},
+	{ "QRELAYED",		QRELAYED	},
+	{ "QEXPANDED",		QEXPANDED	},
+	{ "QDELIVERED",		QDELIVERED	},
+	{ "QDELAYED",		QDELAYED	},
+	{ "QTHISPASS",		QTHISPASS	},
+	{ NULL }
 };
 
 void
@@ -1781,10 +1910,14 @@ printaddr(a, follow)
 		       a->q_owner == NULL ? "(none)" : a->q_owner,
 		       a->q_home == NULL ? "(none)" : a->q_home,
 		       a->q_fullname == NULL ? "(none)" : a->q_fullname);
-		printf("\torcpt=\"%s\", statmta=%s, rstatus=%s\n",
+		printf("\torcpt=\"%s\", statmta=%s, status=%s\n",
 		       a->q_orcpt == NULL ? "(none)" : a->q_orcpt,
 		       a->q_statmta == NULL ? "(none)" : a->q_statmta,
+		       a->q_status == NULL ? "(none)" : a->q_status);
+		printf("\trstatus=\"%s\"\n",
 		       a->q_rstatus == NULL ? "(none)" : a->q_rstatus);
+		printf("\tspecificity=%d, statdate=%s\n",
+			a->q_specificity, ctime(&a->q_statdate));
 
 		if (!follow)
 			return;
@@ -1993,7 +2126,12 @@ maplocaluser(a, sendq, aliaslevel, e)
 	if (pvp == NULL)
 		return;
 
-	(void) rewrite(pvp, 5, 0, e);
+	if (rewrite(pvp, 5, 0, e) == EX_TEMPFAIL)
+	{
+		a->q_flags |= QQUEUEUP;
+		a->q_status = "4.4.3";
+		return;
+	}
 	if (pvp[0] == NULL || (pvp[0][0] & 0377) != CANONNET)
 		return;
 
@@ -2154,5 +2292,111 @@ dequote_map(map, name, av, statp)
 	    quotemode || quotecnt <= 0 || spacecnt != 0)
 		return NULL;
 	*q++ = '\0';
-	return name;
+	return map_rewrite(map, name, strlen(name), NULL);
+}
+/*
+**  RSCHECK -- check string(s) for validity using rewriting sets
+**
+**	Parameters:
+**		rwset -- the rewriting set to use.
+**		p1 -- the first string to check.
+**		p2 -- the second string to check -- may be null.
+**		e -- the current envelope.
+**
+**	Returns:
+**		EX_OK -- if the rwset doesn't resolve to $#error
+**		else -- the failure status (message printed)
+*/
+
+int
+rscheck(rwset, p1, p2, e)
+	char *rwset;
+	char *p1;
+	char *p2;
+	ENVELOPE *e;
+{
+	char *buf;
+	int bufsize;
+	int saveexitstat;
+	int rstat;
+	char **pvp;
+	int rsno;
+	auto ADDRESS a1;
+	bool saveQuickAbort = QuickAbort;
+	char buf0[MAXLINE];
+	char pvpbuf[PSBUFSIZE];
+	extern char MsgBuf[];
+
+	if (tTd(48, 2))
+		printf("rscheck(%s, %s, %s)\n", rwset, p1,
+			p2 == NULL ? "(NULL)" : p2);
+
+	rsno = strtorwset(rwset, NULL, ST_FIND);
+	if (rsno < 0)
+		return EX_OK;
+
+	if (p2 != NULL)
+	{
+		bufsize = strlen(p1) + strlen(p2) + 2;
+		if (bufsize > sizeof buf0)
+			buf = xalloc(bufsize);
+		else
+		{
+			buf = buf0;
+			bufsize = sizeof buf0;
+		}
+		(void) snprintf(buf, bufsize, "%s%c%s", p1, CONDELSE, p2);
+	}
+	else
+	{
+		bufsize = strlen(p1) + 1;
+		if (bufsize > sizeof buf0)
+			buf = xalloc(bufsize);
+		else
+		{
+			buf = buf0;
+			bufsize = sizeof buf0;
+		}
+		(void) snprintf(buf, bufsize, "%s", p1);
+	}
+	pvp = prescan(buf, '\0', pvpbuf, sizeof pvpbuf, NULL, NULL);
+	if (pvp == NULL)
+	{
+		rstat = EX_DATAERR;
+		goto finis;
+	}
+	(void) rewrite(pvp, rsno, 0, e);
+	if (pvp[0] == NULL || (pvp[0][0] & 0377) != CANONNET ||
+	    pvp[1] == NULL || strcmp(pvp[1], "error") != 0)
+		return EX_OK;
+
+	/* got an error -- process it */
+	saveexitstat = ExitStat;
+	QuickAbort = FALSE;
+	(void) buildaddr(pvp, &a1, 0, e);
+	QuickAbort = saveQuickAbort;
+	rstat = ExitStat;
+	ExitStat = saveexitstat;
+
+#ifdef LOG
+	if (LogLevel >= 4)
+	{
+		if (p2 == NULL)
+			syslog(LOG_NOTICE, "Ruleset %s (%s) rejection: %s",
+				rwset, p1, MsgBuf);
+		else
+			syslog(LOG_NOTICE, "Ruleset %s (%s, %s) rejection: %s",
+				rwset, p1, p2, MsgBuf);
+	}
+#endif
+
+	if (QuickAbort)
+		longjmp(TopFrame, 2);
+
+	/* clean up */
+ finis:
+	setstat(rstat);
+	if (buf != buf0)
+		free(buf);
+	return rstat;
 }

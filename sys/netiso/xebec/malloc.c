@@ -1,5 +1,5 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/malloc.c,v 1.2 1995/05/30 08:12:07 rgrimes Exp $ */
-/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/malloc.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/xebec/Attic/malloc.c,v 1.2.4.1 1996/06/05 02:56:07 jkh Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/xebec/Attic/malloc.c,v $ */
 /*
  * This code is such a kludge that I don't want to put my name on it.
  * It was a ridiculously fast hack and needs rewriting.

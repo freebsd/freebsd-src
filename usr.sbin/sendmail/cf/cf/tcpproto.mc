@@ -46,7 +46,8 @@ divert(-1)
 #  will not trash your changes.
 #
 
-VERSIONID(`@(#)tcpproto.mc	8.4 (Berkeley) 8/6/95')
+divert(0)dnl
+VERSIONID(`@(#)tcpproto.mc	8.5 (Berkeley) 3/23/96')
 OSTYPE(unknown)
 FEATURE(nouucp)
 MAILER(local)

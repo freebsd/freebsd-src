@@ -1,4 +1,4 @@
-;# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/lib/validate.pl,v 1.1.1.1 1994/09/10 06:27:53 gclarkii Exp $
+;# $Header: /home/ncvs/src/gnu/usr.bin/perl/lib/validate.pl,v 1.1.1.1.6.1 1996/06/05 02:42:18 jkh Exp $
 
 ;# The validate routine takes a single multiline string consisting of
 ;# lines containing a filename plus a file test to try on it.  (The

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: vidcontrol.c,v 1.11 1995/05/30 03:52:53 rgrimes Exp $
+ *	$Id: vidcontrol.c,v 1.11.4.1 1996/07/03 22:07:39 gpalmer Exp $
  */
 
 #include <ctype.h>

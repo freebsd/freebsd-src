@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.6 1995/05/30 08:06:24 rgrimes Exp $
+ * $Id: uipc_syscalls.c,v 1.6.4.1 1996/02/26 14:01:20 phk Exp $
  */
 
 #include <sys/param.h>

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.6 (Berkeley) 4/1/94
- * $Id: ufs_lookup.c,v 1.3 1994/10/08 06:57:26 phk Exp $
+ * $Id: ufs_lookup.c,v 1.3.8.1 1995/10/26 09:17:44 davidg Exp $
  */
 
 #include <sys/param.h>

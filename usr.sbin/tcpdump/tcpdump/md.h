@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/md.h,v 1.2 1995/03/08 12:52:17 olah Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/Attic/md.h,v 1.2.4.1 1996/06/05 02:58:17 jkh Exp $ (LBL)
  */
 
 #define TCPDUMP_ALIGN

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.9 1995/05/08 16:10:34 ache Exp $
+# $Id: Makefile,v 1.9.4.1 1995/08/30 06:46:26 davidg Exp $
 #
 SRCS=	bitand.c bitany.c bitblt.c bitclear.c bitcopy.c bitcount.c \
 	bitinvert.c bitlcomp.c bitset1.c bitxor.c cleanup.c except.c \

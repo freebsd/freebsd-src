@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)macro.c	8.13 (Berkeley) 7/10/95";
+static char sccsid[] = "@(#)macro.c	8.17 (Berkeley) 5/13/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -70,8 +70,10 @@ expand(s, buf, bufsize, e)
 	bool skipping;		/* set if conditionally skipping output */
 	bool recurse = FALSE;	/* set if recursion required */
 	int i;
+	int skiplev;		/* skipping nesting level */
 	int iflev;		/* if nesting level */
 	char xbuf[BUFSIZ];
+	static int explevel = 0;
 
 	if (tTd(35, 24))
 	{
@@ -81,6 +83,7 @@ expand(s, buf, bufsize, e)
 	}
 
 	skipping = FALSE;
+	skiplev = 0;
 	iflev = 0;
 	if (s == NULL)
 		s = "";
@@ -98,23 +101,29 @@ expand(s, buf, bufsize, e)
 		switch (c & 0377)
 		{
 		  case CONDIF:		/* see if var set */
+			iflev++;
 			c = *++s;
 			if (skipping)
-				iflev++;
+				skiplev++;
 			else
 				skipping = macvalue(c, e) == NULL;
 			continue;
 
 		  case CONDELSE:	/* change state of skipping */
 			if (iflev == 0)
+				break;
+			if (skiplev == 0)
 				skipping = !skipping;
 			continue;
 
 		  case CONDFI:		/* stop skipping */
 			if (iflev == 0)
+				break;
+			iflev--;
+			if (skiplev == 0)
 				skipping = FALSE;
 			if (skipping)
-				iflev--;
+				skiplev--;
 			continue;
 
 		  case MACROEXPAND:	/* macro interpolation */
@@ -135,7 +144,7 @@ expand(s, buf, bufsize, e)
 		**  Interpolate q or output one character
 		*/
 
-		if (skipping || xp >= &xbuf[sizeof xbuf])
+		if (skipping || xp >= &xbuf[sizeof xbuf - 1])
 			continue;
 		if (q == NULL)
 			*xp++ = c;
@@ -163,8 +172,15 @@ expand(s, buf, bufsize, e)
 	/* recurse as appropriate */
 	if (recurse)
 	{
-		expand(xbuf, buf, bufsize, e);
-		return;
+		if (explevel < MaxMacroRecursion)
+		{
+			explevel++;
+			expand(xbuf, buf, bufsize, e);
+			explevel--;
+			return;
+		}
+		syserr("expand: recursion too deep (%d max)",
+			MaxMacroRecursion);
 	}
 
 	/* copy results out */

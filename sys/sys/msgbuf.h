@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)msgbuf.h	8.1 (Berkeley) 6/2/93
- * $Id: msgbuf.h,v 1.5 1995/03/16 18:16:21 bde Exp $
+ * $Id: msgbuf.h,v 1.5.4.1 1995/08/11 04:04:20 davidg Exp $
  */
 
 #ifndef _SYS_MSGBUF_H_

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.25 1995/04/15 08:24:33 phk Exp $
+#	$Id: Makefile,v 1.25.4.1 1996/11/08 05:21:01 jkh Exp $
 
 SUBDIR=	biosboot netboot dosboot kzipboot rawboot
 

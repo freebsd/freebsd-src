@@ -40,7 +40,8 @@ divert(-1)
 #  and do the modifications there.
 #
 
-VERSIONID(`@(#)generic-solaris2.mc	8.2 (Berkeley) 8/6/95')
+divert(0)dnl
+VERSIONID(`@(#)generic-solaris2.mc	8.3 (Berkeley) 3/23/96')
 OSTYPE(solaris2)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.99.4.4 1996/11/07 17:53:06 bde Exp $
+ *	$Id: sio.c,v 1.99.4.5 1996/11/15 23:36:37 jkh Exp $
  */
 
 #include "sio.h"

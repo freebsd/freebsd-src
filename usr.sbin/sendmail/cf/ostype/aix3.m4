@@ -34,8 +34,8 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)aix3.m4	8.5 (Berkeley) 11/13/95')
+VERSIONID(`@(#)aix3.m4	8.6 (Berkeley) 9/19/96')
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /bin/bellmail)')dnl
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', mail $u)')dnl
-ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `mn')')dnl
+ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `mn9')')dnl
 define(`confTIME_ZONE', `USE_TZ')dnl

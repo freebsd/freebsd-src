@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.14 1996/10/08 22:25:19 bde Exp $
+ *	$Id: boot.h,v 1.10.4.2 1996/11/12 12:42:47 jkh Exp $
  */
 
 #include <sys/param.h>

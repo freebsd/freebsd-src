@@ -1,4 +1,4 @@
-#       @(#)Makefile	8.12 (Berkeley) 5/29/95
+#       @(#)Makefile	8.15 (Berkeley) 9/21/96
 
 VER=	XX
 SUBDIR= src mailstats makemap praliases smrsh cf/cf
@@ -12,6 +12,11 @@ tar: sccs-check compile-world run-pax
 sccs-check:
 	sccs check
 	(cd src; sccs check)
+	(cd mail.local; sccs check)
+	(cd mailstats; sccs check)
+	(cd makemap; sccs check)
+	(cd praliases; sccs check)
+	(cd smrsh; sccs check)
 	(cd doc/op; sccs check)
 	(cd doc/intro; sccs check)
 	(cd doc/usenix; sccs check)
@@ -24,7 +29,12 @@ sccs-check:
 	(cd cf/domain; sccs check)
 
 compile-world:
-	(cd src; ${MAKE})
+	(cd src; sh makesendmail)
+	(cd mail.local; ${MAKE})
+	(cd mailstats; ${MAKE})
+	(cd makemap; ${MAKE})
+	(cd praliases; ${MAKE})
+	(cd smrsh; ${MAKE})
 	(cd doc; PRINTER=ps ${MAKE})
 	(cd doc; chmod 444 op/op.ps intro/intro.ps usenix/usenix.ps)
 	(cd cf/cf; ${MAKE})

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_logfil_rcsid[] = "$Id: logfil.c,v 1.3 1995/08/19 21:27:41 ache Exp $";
+const char _uuconf_logfil_rcsid[] = "$Id: logfil.c,v 1.2.6.1 1995/09/01 06:04:06 davidg Exp $";
 #endif
 
 /* Get the name of the UUCP log file.  */

@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.port.subdir.mk,v 1.11 1995/03/21 03:59:13 jkh Exp $
+#	$Id: bsd.port.subdir.mk,v 1.11.4.2 1996/06/05 02:54:01 jkh Exp $
 
 .MAIN: all
 

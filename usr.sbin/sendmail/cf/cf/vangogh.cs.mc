@@ -43,7 +43,8 @@ divert(-1)
 #  set up (to stress sendmail) and accepts mail for some other machines.
 #
 
-VERSIONID(`@(#)vangogh.cs.mc	8.4 (Berkeley) 8/6/95')
+divert(0)dnl
+VERSIONID(`@(#)vangogh.cs.mc	8.5 (Berkeley) 3/23/96')
 DOMAIN(CS.Berkeley.EDU)dnl
 OSTYPE(bsd4.4)dnl
 MAILER(local)dnl

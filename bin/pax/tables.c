@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tables.c,v 1.3 1995/05/30 00:07:01 rgrimes Exp $
+ *	$Id: tables.c,v 1.3.4.2 1996/06/05 02:35:59 jkh Exp $
  */
 
 #ifndef lint

@@ -1,5 +1,5 @@
 /*
- *	$Id: ld.h,v 1.16 1996/04/20 18:27:55 jdp Exp $
+ *	$Id: ld.h,v 1.14.4.1 1996/05/02 16:07:26 jdp Exp $
  */
 /*-
  * This code is derived from software copyrighted by the Free Software

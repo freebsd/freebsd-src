@@ -1,6 +1,6 @@
 #!./perl
 
-# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/perl/t/op/s.t,v 1.1.1.1 1994/09/10 06:27:43 gclarkii Exp $
+# $Header: /home/ncvs/src/gnu/usr.bin/perl/perl/t/op/s.t,v 1.1.1.1.6.1 1996/06/05 02:43:11 jkh Exp $
 
 print "1..51\n";
 

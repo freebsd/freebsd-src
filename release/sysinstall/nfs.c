@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.11 1996/08/23 07:55:59 jkh Exp $
+ * $Id: nfs.c,v 1.5.2.24 1996/11/07 09:17:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

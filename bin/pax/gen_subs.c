@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: gen_subs.c,v 1.4.4.1 1995/08/28 10:41:14 davidg Exp $
+ *	$Id: gen_subs.c,v 1.4.4.3 1996/06/05 02:35:54 jkh Exp $
  */
 
 #ifndef lint

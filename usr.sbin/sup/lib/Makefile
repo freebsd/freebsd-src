@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1995/12/26 22:32:21 peter Exp $
+# $Id: Makefile,v 1.3 1996/01/04 16:10:36 peter Exp $
 
 LIB=	sup
 SRCS=	scm.c scmio.c stree.c log.c supmsg.c netcrypt.c atoo.c errmsg.c \

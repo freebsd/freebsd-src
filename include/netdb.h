@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
- *	$Id: netdb.h,v 1.2.4.1 1995/08/30 04:06:24 davidg Exp $
+ *	$Id: netdb.h,v 1.2.4.3 1996/06/05 02:44:14 jkh Exp $
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  *

@@ -1,5 +1,5 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/xebec.c,v 1.2 1995/05/30 08:12:16 rgrimes Exp $ */
-/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/xebec.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/xebec/Attic/xebec.c,v 1.2.4.1 1996/06/05 02:56:13 jkh Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/xebec/Attic/xebec.c,v $ */
 
 #include "xebec.h"
 #include "llparse.h"

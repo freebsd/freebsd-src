@@ -1,7 +1,7 @@
 /*
 **	dynamically loadable clk driver
 **
-**	$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/xntpd/kernel/clkinit.c,v 1.2 1995/05/30 03:53:31 rgrimes Exp $
+**	$Header: /home/ncvs/src/usr.sbin/xntpd/kernel/clkinit.c,v 1.2.4.1 1996/06/05 02:58:57 jkh Exp $
 **
 **	william robertson <rob@agate.berkeley.edu>
 */

@@ -62,9 +62,11 @@
 53	util.c		xfclose
 54	err.c		putoutmsg
 55	conf.c		lockfile
-59	Extended Load Average implementation from Christophe Wolfhugel
+56	mci.c		persistent host status
+57	util.c		snprintf
 60	map.c
 61	conf.c		sm_gethostbyname
+62	multiple	file descriptor checking
 80			content length
 81			sun remote mode
 91	mci.c		syslogging of MCI cache information

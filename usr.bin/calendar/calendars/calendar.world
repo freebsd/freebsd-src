@@ -1,7 +1,7 @@
 /*
  * World wide calendar files, except national calendars
  *
- * $Id: calendar.world,v 1.1 1996/01/28 19:12:24 wosch Exp $
+ * $Id: calendar.world,v 1.1 1996/01/29 00:33:02 wosch Exp $
  */
 
 #ifndef _calendar_world_

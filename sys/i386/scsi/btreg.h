@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: btreg.h,v 1.3 1996/01/30 22:56:45 mpp Exp $
+ *      $Id: btreg.h,v 1.2.2.1 1996/04/01 00:23:17 gibbs Exp $
  */
 
 #ifndef _BTREG_H_

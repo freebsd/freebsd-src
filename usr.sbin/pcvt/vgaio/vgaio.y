@@ -33,10 +33,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ident "$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/pcvt/vgaio/vgaio.y,v 1.1.1.1 1995/02/05 13:49:24 jkh Exp $"
+#ident "$Header: /home/ncvs/src/usr.sbin/pcvt/vgaio/vgaio.y,v 1.1.1.1.4.1 1996/06/05 02:57:48 jkh Exp $"
 
 /*
  * $Log: vgaio.y,v $
+ * Revision 1.1.1.1.4.1  1996/06/05 02:57:48  jkh
+ * This 3rd mega-commit should hopefully bring us back to where we were.
+ * I can get it to `make world' succesfully, anyway!
+ *
  * Revision 1.1.1.1  1995/02/05  13:49:24  jkh
  * PCVT userland utilities.
  * Submitted by:	hm

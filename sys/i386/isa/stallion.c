@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.3 1996/06/12 04:26:36 gpalmer Exp $
+ * $Id: stallion.c,v 1.3.2.1 1996/06/23 23:24:36 peter Exp $
  */
 
 /*****************************************************************************/

@@ -50,7 +50,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: mtrace.c,v 1.9 1996/11/11 03:50:05 fenner Exp $";
+    "@(#) $Id: mtrace.c,v 1.4.4.2 1996/11/12 18:18:32 jkh Exp $";
 #endif
 
 #include <netdb.h>

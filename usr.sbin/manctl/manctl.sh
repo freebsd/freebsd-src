@@ -30,7 +30,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: manctl.sh,v 1.6 1996/01/23 23:59:36 wosch Exp $
+# $Id: manctl.sh,v 1.5.4.1 1996/06/23 22:03:54 wosch Exp $
 #
 # manctl: 
 #	a utility for manipulating manual pages

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.13.4.1 1995/09/14 07:09:21 davidg Exp $
+ *	$Id: pcaudio.c,v 1.13.4.2 1996/06/09 14:25:45 joerg Exp $
  */
 
 #include "pca.h"

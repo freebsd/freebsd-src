@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/06/15 19:23:02 wollman Exp $
+#	$Id: Makefile,v 1.1.6.2 1996/11/12 18:16:16 jkh Exp $
 
 SUBDIR=	common mrouted mrinfo map-mbone mtrace testrsrr
 

@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libpcap/gencode.h,v 1.2 1995/05/30 05:47:20 rgrimes Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/lib/libpcap/Attic/gencode.h,v 1.2.4.1 1996/06/05 02:52:45 jkh Exp $ (LBL)
  */
 
 /*

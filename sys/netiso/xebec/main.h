@@ -1,5 +1,5 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/main.h,v 1.2 1995/05/30 08:12:05 rgrimes Exp $ */
-/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/main.h,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/xebec/Attic/main.h,v 1.2.4.1 1996/06/05 02:56:06 jkh Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/xebec/Attic/main.h,v $ */
 
 #define TRUE 1
 #define FALSE 0
