@@ -3,10 +3,40 @@
 # $FreeBSD$
 #
 
-if [ -f /etc/security -a -x /usr/sbin/sendmail ] ; then
-    echo ""
-    echo "Security check:"
-    echo "    (output mailed separately)"
-
-    sh /etc/security 2>&1 | sendmail root
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+case "$daily_status_security_enable" in
+    [Yy][Ee][Ss])
+	if [ -f /etc/security -a -x /usr/sbin/sendmail ]
+	then
+	    echo ""
+	    echo "Security check:"
+
+	    case "$daily_status_security_noamd" in
+		[Yy][Ee][Ss])
+			args=-a;;
+		*)
+			args=;;
+	    esac
+
+	    case "$daily_status_security_nomfs" in
+		[Yy][Ee][Ss])
+			args="$args -m";;
+	    esac
+
+	    case "$daily_status_security_inline" in
+		[Yy][Ee][Ss])
+		    sh /etc/security -s $args;;
+
+		*)
+		    echo "    (output mailed separately)"
+		    sh /etc/security $args 2>&1 | sendmail root;;
+	    esac
+	fi;;
+esac

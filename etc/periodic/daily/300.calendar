@@ -8,11 +8,21 @@
 # or run it from your ~/.profile or ~/.login.
 #
 
-exit 0		# do not run by default
-
-if [ -f /usr/bin/calendar ] ; then
-    echo ""
-    echo "Running calendar:"
-
-    calendar -a
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+case "$daily_calendar_enable" in
+    [Yy][Ee][Ss])
+	if [ -f /usr/bin/calendar ]
+	then
+	    echo ""
+	    echo "Running calendar:"
+
+	    calendar -a
+	fi;;
+esac

@@ -5,10 +5,22 @@
 # Local cleanup of UUCP files.  This is for backwards compatibility,
 # /etc/uuclean.daily doesn't exist by default.
 #
-if [ -d /var/spool/uucp -a -f /etc/uuclean.daily ]; then
-	echo ""
-	echo "Cleaning up UUCP:"
 
-	echo /etc/uuclean.daily | su -m uucp
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
 
+case "$daily_uuclean_enable" in
+    [Yy][Ee][Ss])
+	if [ -d /var/spool/uucp -a -f /etc/uuclean.daily ]
+	then
+	    echo ""
+	    echo "Cleaning up UUCP:"
+
+	    echo /etc/uuclean.daily | su -m uucp
+	fi;;
+esac

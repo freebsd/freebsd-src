@@ -6,6 +6,21 @@
 # (This is present only for backwards compatibility, usually the news
 # system handles this on its own).
 
-if [ -f /etc/news.expire ]; then
-	/etc/news.expire
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+case "$daily_news_expire_enable" in
+    [Yy][Ee][Ss])
+	if [ -f /etc/news.expire ]
+	then
+	    echo ""
+	    echo "Running news.expire:"
+
+	    /etc/news.expire
+	fi;;
+esac
