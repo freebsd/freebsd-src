@@ -8,7 +8,7 @@ prior to 4.0 Release.
 
 This is for the 4.3 release branch.  All entries since 4.3 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.3.0p9.
+By this count, we're at 4.3.0p12.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
