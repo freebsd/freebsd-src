@@ -1,0 +1,263 @@
+The enclosed two messages describe a bug in GNU diff 2.6 and 2.7 which
+may cause CVS to perform an erroneous merge.  You may wish to use GNU
+diff 2.5 or apply the patch supplied by Loren James Rittle below.  It
+would be nice to add this to the CVS testsuite, but I haven't done so
+because probably a lot of people who would like to run the testsuite
+are using the buggy diff.
+
+From: friedman@splode.com (Noah Friedman)
+To: bug-gnu-utils@prep.ai.mit.edu
+Cc: info-cvs@prep.ai.mit.edu
+Subject: diffutils 2.7 -- diff3 merge bug
+Date: Tue, 29 Oct 96 17:02:54 CST
+
+I believe a change first introduced in GNU diff 2.6 causes diff3 sometimes
+to produce incorrect merges.
+
+Since this is a not a bug in CVS itself but can cause commits to CVS
+repositories to be incorrect, am warning info-cvs@prep.ai.mit.edu as
+well as reporting the bug to bug-gnu-utils@prep.ai.mit.edu.
+
+I am including a simple test case as well as some sample outputs from
+different versions of `diff' and `diff3' in the enclosed shar archive.
+In addition, the file DESCRIPTION in that archive describes the problem
+more fully.
+
+If anyone has any advice for how to fix or to work around this bug, I would
+appreciate it.  Using diff 2.5 seems like the most immediately obvious
+solution, but I don't know if it will introduce other problems.
+I do not understand the algorithms used by GNU diff well enough to suggest
+any patches.
+
+Unshar and enjoy.  ;-)
+
+begin 666 merge-testcase.shar.gz
+M'XL(",&,=C("`VUE<F=E+71E<W1C87-E+G-H87(`[5Q[;]M&$O_[^"FF;E#9
+M@41)?C!GYX&V;MPS<$F+V+FZP.&:%;F26)-<E;NTHC[NL]_,+%^29;USUP-L
+M&)9$[CQW]C?#W;$^_ZS="Y.V'CJ?P_4PU("_`O101A&(U!^&=Q+V1ZD*,E\&
+MT)O`MV_?XVV19B:,-!R[W0.72!7(CR85O@$SE-`/(ZFAGZH8/Q)'RZD)6B"_
+M$`<IT"J6<''Y]]=-2&6L[B2RD7<RG2!%,H">[*M4,K</A8X-B,)$@N@IXH6W
+M$C"3$0[00^;40%60RQL12%`)=$]/O5:WTSH\A:YW=G(,YU?79,*+?AK*(!;)
+MEWH4J4"ZOHI?D157*DM]"4&82M^H=`)CH>%#.]-I.U*^B-HZ]=N#)&L'8;_/
+M#FC',AW(EI':^$++7('7'T-MR`CKAW&(SGR:*/,4K0+4/1VGH3&H?9;@?131
+M\AOD>#V2?MA'W2P;G@_R-?@J,2),]!E>C60R,$.(47&P/XF(R7DM_LE?9MXN
+M^T%R_#DZ]:"5CO-?F+:M7;QI3=!-VE(\ZQRM0A'CM%D"[_1X%0(5!3*U%,<G
+MAPLHWHA;25[FL8?=PV<+QG[S^NK\W>7WUY??O<U9=Q;92Y-\Z)Y87>I&>R>K
+MD)'-=:I5A'ESA!T_6X'LOK"3%52LYH?N!ZM,:2%P'FFW>[1HJJ[>OWGSU;L?
+M,;2-ROPAM$0,W<,C_#TY/3V%)T]<>_U5.Y!W[23#17/XZHNN$_:!>,!GT.K7
+M";[XPE['JP7M<P8%!WC5_,277O)?1T9:3E\_PX_2'ZK\!1H_?/7N[>7;;\\`
+M5RI"DD8$H#5LPAC?BWBD78!SE>@09P@&TO`*%TG0*#CLX0HU(HKH.L'D/S^P
+MI$83$46;-.QE!C$T3/CF!08MO$<,"4THM>NZ>X4^_=!)XQE;"P,9%U[6?Q:O
+MTNFQ+^N^#*`Q`UZE]ZP_/D(+_%0*MK/"Q!DB'![?XMU[W,B.0AP:TUBH9Z.<
+MS9N])]T]^.PEOFGY>W-4TK?A:$0J+39\GU`!1(0&!!-,3C@#^J!1Q$'%+D];
+M*S`T./2`[-4XBPW=_M=-N]V`%R^@<?6WK][]]/J[BP:\6L%.I]V&KS-C5.+^
+M+.Z$<^.,A'\K!A)2C"85NV(TBD(?_:Z2YW@WC$<J-<5-2CON4[H^RGHX#/Q(
+M8`JQ#)W?G!N`]E.XI$A,3"A0/.9S>Q<3$28.C.H!QN!^IPF=`XI?^%6F"N\%
+M>),^#F4X&!J7.,%3^%%E$&<X,9C_L"1(,'XQ8D44(A5ZS`Q50-D<2X213*-)
+M[3;G[MQ0RZQ-+[G:N4K[!W2-U4;'9L@#+Y%U?.$G$YI(GJM(I?`2^-7M1>BM
+MY_E]7%BB%\G@^OZX02HFS^ML+C")XEUZ<0/9%UED^!++`_C#^<,I)A(G^4D%
+M%1:I.H>GW9-##U/D"E,,X`\Q0T/'\Y:/__WW,B(M[&"1T%\2C7V!X<W0PWKZ
+M*DO,R[T/8Q]:/KQ8)O(#@0TO-T[Y\A?8>U+QV;,:%:BVD-59'D\B`DUSCOR:
+MX&=I*M&S?*7.F#!A5?RBE/80?"W"$Z+;)9RP'CM$$\MO2S`IC'S$DI6Q!#VU
+M#$YHR&J(4C);"BHWN1>Q<KB322@3?,#`<A[K@8SR*>!3#H2EA[FDJ+LX]UP/
+MET^@X6,3)DWKWF;=OP"O?\G".Q'1JC,J)Z*?OE*H7B+'E9.>3]]VR<NP/\7:
+MLBU&SG-UB(*0A%XF]B4GI;<Y>6TV^"FP$`U+)*Z&Q,\6(7&Y/E8#8CM\/1SF
+M=;PI#+/`"H6YYMX,A8G3+`@CNQV!,#^.;(+"3+A+&+::[!"'<X9;`G%IYR,2
+M_TFKND<`_D0`O+`4KM;%:@B<CU\/@NT2WA2#K<@*A'EK:C,09E:S*(S\MD/A
+M8F]K#?PM2':`O*7T[3&W8K49VM:M<KZYO+@XPB5%.U%'_"G_@"N=Z<Z<F[^T
+MGNSSN`-HO>:8G4[;,Q$TL[-YPWNO:'(ZR&*</,T8@8[32#E68/"&Q*MCB>$9
+M2"-38LJ[X[CX9.K+$7D!N;".#6U1%@.9/C-L(.",I/65F9*$ZW*$R,];P*3$
+MQ.X>WXET@J)&,@F(!@&`R,)DE!G>9'8=8EW?/20O6">@#P2T6D.,SE]5TJ(M
+M=/VRV\%+B_V`L9)F$KW!K*L=QII_Y[/N3K&>=GB=\S*(\;K=.1`S%0P+P:4:
+MN1*LE%&Z)J"48BHHX3WKM:"D8#(+(LAI.Q"I;7JO@2,UJAU`25V'[=%DBMMF
+M@#)CGF-/6J2AJ+!G-KCHL#Q*\TJ+S2=*&`]YT=.Z9KU(O_QX3#MAXJN4]DEI
+M^Q@+$4W#$\ATL2-<GAO!H>OA3%-=(%.L'E@!7V0:N?@JCD.DQ?KK_!]7R&JD
+M=$B;T9*O]6C=YW*:H!5<`BZ81)FP/R$YYQ,?ZP3G2O7-6-A`)ZQ`);&DBD$0
+M;E'-IZ&7#5J#)&NQ1E^.4)`K0A=ENS+(L+ASD+/)]ZVG>*`6?,JGHDB-<06*
+M9$">"7'Q8I4K42IO<S/:H:%-A[`-ZU["2#2CSP4ELWC[^H<KL(N.(5:8:J\<
+M"<Z*DG'/==WO16J04M"$6/\V2Z<BQJK,$!JB'VG_7G[$X,'1)$2+&"-.6T[V
+M7-&%]SI#4)X0X/*19P_?Z!@OR;2)GC%\/LE[_U-#(L+^U-TCQ9PWDUIDU".F
+M\@[-B/9E(M)0Y=9\90W.S_1X`!V%^G2@1U$PE/XM>@KMH8Q""6<DU8@P_@8X
+M+_7#%(5B4:TQ#P0RDC9(^UGBD],XP11!Q'%E)\C.&C$I0VI2\M02]0D*ID3-
+MZ8B4&*'?*8H$^G5(]59=#@:(C$<<K<3*BJU)I4.3K\D2R=%MHQ'O<FQ@`/(Q
+MKEWA$"C)DV=5I"/A/.KD7:@R'4U:UMB@4B$_8I[1OU%))UY7J@BW/@.KKT9E
+M`%:NL)K<DS"DA2(1Z%@ISAVT-*[+4^ZI1-><2:G-F<Q'9]UHC^;'!)R,6;6)
+MI56D3`/V$OG:S,Q],=Y!AEQ-W,EH4E<.'CCHXW!.\J<>GR=%0`%==B[L0V7?
+M(9EFF$H)=R@3'8(FE.T`/*B.:2=N$:'H&>?^22B;,>=<==HK/`)#-TMNZ8X(
+M$%AI*5C4I<=2F>(BCLO0P34TQVQOKMEV]G-0K`";1U2F.?=,\W+3[!HH)#S-
+M@X"`5N!LJ0$&:K[2PK3P`'"VEBFM)`I)AQZ_N:XCV/9MF-]*:R'F%YJ3/#ZM
+M$V1,_0)<81;^H6'&R2>EK"T)12LF%+EF+*E-8JH:XV":BDM&>RN1P:S@A\H_
+ML"Z$G2HL2`MGLNNI@R1Q"'G4.&'M65H!Q[$PB&^ZOF1Y3"ZO5-A94>$RQ5C5
+M[:(GSJ1C/BWH9G2F`,K"D?5H,\]6ER@O"N6==&*LORS2QP@(.NSE*:F,.4-)
+MTU+Q-#)O*S!@_?B>4]W#B,+E6#C.75[M'I[.J79G*Y6%!>_4X)5JWGHMM6;9
+M6Q=65;ZV!6.MTK?&:+;Z)6[;E;_SP&;U,G@.]0[*X7DZ;5\6S^6Z67G\@-G.
+MC>M6K4\M',&?-GR\=`X[S:-.T#UU7@#^;K5'1^3K;]+E5`_NTDW?7[A-9X>V
+M^763C3JB^\URJ;;J[,=E8I=OU7F=><CRT"0O1)BY1"LAS;SP7!-QY@FO/7-W
+MUCW)GL/OWN-WQ]L-_M1JH/7AIR+>(?K4--H=^-29;H<]TS:O`SU+MY^<KM?L
+M_M7GO_DB6WPX7(U9>C(QPV[1Z02U7;Z")0<B^8"E<NN,%@E]!-T_!>C.1/=*
+MF%NG60MR:XMR0\2MB:Z=EYQL"KBUO>39,Y.3G>"MMU6]YWV2>L_[)/6>M[MZ
+MSUM:[WF/]=[_!?1T.P]"C[=)O>=M7.]YV]=[WH[K/>^_4.]YV]1[WJ>H][Q/
+M4>]Y.ZOWO&7UGK=EO7=X^C^O]^SB?02_3<'O?U(O;X>UZY=YWJ9EGK=UF><]
+M4.8=/]L09Q>4><<[VM:;W>%?_]EZAL,.'[!G==O=4_8]SML]:L]QP6,WXY^]
+MKWR5,O!PP1/HO$E?Z3'T'N%:SZ*SH;OA`^FL$O6R\&3#I](9GO=+PY/=E(;;
+M8I;WR3#+^V28Y>T6L[Q'S'K\7YC'5NP5@-[;%.B]K8#>VPW0>PN`?OW_F7F`
+MY\[_>R;_1_<U@#VGV`&0%[*W!^Z2TV9`73/)N;E(57P&<[YV`_;?*C&$B_S.
+M@7.MSA;W)3KG_ADNFKYJ^7?W;UYEO9^E;\ZF6G>>T09!U;(I28#S3HZB28O$
+MS5'+^08!_@RN,]F$PU/XSC?\92+\-2)'9]UC:'6\3@?VSZ^N#YP+'S7Z=UL:
+MOQUCD+>1NZ[V+O"QE1R8MP-JN_IIYP*?9LOV$VI+LDUZMK\+@:/HL<J_+J!H
+M=,F;1'-SRAY%QZ8*(IEM:N)6F:LPX3:CX@M>J$52D!^(/W69AD;+J,^-CSXF
+M(]NL-]V)ZBSN1$4T&HN4^QD?FAYJPBR:3XE96C;`DR;$<86.U)B$1EE@TX/&
+M+![)6AMFK;^5VRJUX`&V.]1^)XU3]D^536T$9!^XD913R0?;N%\T86&BBA1%
+M/W\92_YE-B[U'XD@"*F>:%8=4/66&J87IOPFG4!J/PU[>0-4WD[KQ(2D_2RR
+MS7N7U&DY48GDUD-\BT+NJ$F,LN-0C<E/_?`C=0_CN[%*;Y$]I40[O=Q3>8G7
+MLRAPL.+!R:%J!2<8,^-[;;_+P79VX8*6,07CK:TI8D6A%\<R(`JL.52/&R\=
+MK:+,6DGQ<0F!2AH&;A-4!D$M-+:7K0S:O$<N-P_CCR@XY%!+=+@IFAE%-,!@
+M,D-4(M/5UPNQ?CR),E'98,C?%I0-,)2-0_X8V28R<M;[Q$X)M9@E/ZL)VOB\
+M=;`\8YX<S<F8=<A:F"'+@2MEQ`)(U\R`A9`JX]GO5UDKY>5,9E,<<5J2XS!E
+-&.@X_P&I*Y$W($H``"'+
+`
+end
+
+Date: Wed, 30 Oct 96 14:54:13 CST
+From: Loren James Rittle <rittle@comm.mot.com>
+To: friedman@splode.com
+Cc: bug-gnu-utils@prep.ai.mit.edu, info-cvs@prep.ai.mit.edu
+Subject: Re: diffutils 2.7 -- diff3 merge bug
+
+Noah,
+
+I have seen the problem you discuss in your e-mail, however I fail to
+see how this situation is as critical as might be implied since it can
+never arise without at least some user involvement (an update that
+caused a merge is never automatically followed by a commit --- the
+user has a chance to inspect the merged file).  However, I will agree
+that I don't always look very closely at non-conflicted merges before
+checking them back in.
+
+You didn't give the exact CVS commands used to create a lossage,
+but I added the following to your Makefile, to help me see the problem
+in a CVS usage context:
+
+t-older: testcase-older
+	cp testcase-older t-older
+
+t-yours: testcase-yours
+	cp testcase-yours t-yours
+
+t-mine: testcase-mine
+	cp testcase-mine t-mine
+
+# Assume cvs-1.9
+cvs-test: t-older t-yours t-mine
+	rm -rf /tmp/cvs-test-root x x2
+	cvs -d /tmp/cvs-test-root init
+	mkdir x
+	cp t-older x/testcase
+	cd x; cvs -d /tmp/cvs-test-root import -m '' x X X1
+	rm -rf x
+	cvs -d /tmp/cvs-test-root co x
+	cvs -d /tmp/cvs-test-root co -d x2 x
+	cp t-yours x/testcase
+	cp t-mine x2/testcase
+	cd x; cvs ci -m ''
+	-cd x2; cvs ci -m ''
+	cd x2; cvs update
+	cat x2/testcase # at this point, user may commit blindly
+
+It looks like whomever added shift_boundaries() in analyze.c, which
+seems to be the source of the diff3 induced mischief, already provided
+a means to disable the boundary shifting optimization (at least with
+a recompile).
+
+Here is the patch I applied to diff to disable this (currently)
+overaggressive optimization:
+
+[ rittle@supra ]; diff -c analyze.c-old analyze.c    
+*** analyze.c-old       Wed Oct 30 14:10:27 1996
+--- analyze.c   Wed Oct 30 13:48:57 1996
+***************
+*** 616,622 ****
+     but usually it is cleaner to consider the following identical line
+     to be the "change".  */
+  
+! int inhibit;
+  
+  static void
+  shift_boundaries (filevec)
+--- 616,622 ----
+     but usually it is cleaner to consider the following identical line
+     to be the "change".  */
+  
+! int inhibit = 1;
+  
+  static void
+  shift_boundaries (filevec)
+
+Now, diff-2.7 with the above patch produces:
+
+[ rittle@supra ]; make diff-mine-yours 'DIFF=/usr/src/diffutils-2.7/diff'
+/usr/src/diffutils-2.7/diff -a --horizon-lines=11 -- testcase-mine testcase-yours; true
+16,18c16,18
+<     // _titleColor = Color.black;
+<     // _disabledTitleColor = Color.gray;
+<     // _titleFont = Font.defaultFont ();
+---
+>     _titleColor = Color.black;
+>     _disabledTitleColor = Color.gray;
+>     _titleFont = Font.defaultFont ();
+20,30d19
+< 
+<   /* Convenience constructor for instantiating a Button with
+<    * bounds x, y, width, and height.  Equivalent to
+<    *     foo = new Button ();
+<    *     foo.init (x, y, width, height);
+<    */
+<   public Button (int x, int y, int width, int height)
+<   {
+<     this ();
+<     init (x, y, width, height);
+<   }
+
+Whereas, stock diff-2.7 produces:
+
+[ rittle@supra ]; make diff-mine-yours
+diff -a --horizon-lines=11 -- testcase-mine testcase-yours; true
+16,29c16,18
+<     // _titleColor = Color.black;
+<     // _disabledTitleColor = Color.gray;
+<     // _titleFont = Font.defaultFont ();
+<   }
+< 
+<   /* Convenience constructor for instantiating a Button with
+<    * bounds x, y, width, and height.  Equivalent to
+<    *     foo = new Button ();
+<    *     foo.init (x, y, width, height);
+<    */
+<   public Button (int x, int y, int width, int height)
+<   {
+<     this ();
+<     init (x, y, width, height);
+---
+>     _titleColor = Color.black;
+>     _disabledTitleColor = Color.gray;
+>     _titleFont = Font.defaultFont ();
+
+A better solution might be to disable the boundary shifting code
+unless explicitly turned on via command line argument.  That way
+programs, like diff3, expecting unoptimized diff regions will work
+correctly, yet users can get smaller diffs, if desired.  The problem
+is that diff3 doesn't properly track changes once they have been
+optimized.
+
+BTW, I never did like the look of the `optimized diff regions', so I
+consider this a good change for other reasons... :-)
+
+Enjoy!
+
+Regards,
+Loren
+-- 
+Loren J. Rittle (rittle@comm.mot.com)	PGP KeyIDs: 1024/B98B3249 2048/ADCE34A5
+Systems Technology Research (IL02/2240)	FP1024:6810D8AB3029874DD7065BC52067EAFD
+Motorola, Inc.				FP2048:FDC0292446937F2A240BC07D42763672
+(847) 576-7794				Call for verification of fingerprints.
