@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.73.2.3 1997/05/24 22:19:15 jmg Exp $
+ *      $Id: cd.c,v 1.73.2.4 1997/08/17 14:13:08 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -1061,7 +1061,7 @@ cd_getdisklabel(unit)
 	 * make partition 0 the whole disk
 	 */
 	strncpy(cd->disklabel.d_typename, "scsi cd_rom", 16);
-	strncpy(cd->disklabel.d_packname, "ficticious", 16);
+	strncpy(cd->disklabel.d_packname, "fictitious", 16);
 	cd->disklabel.d_secsize = cd->params.blksize;	/* as long as it's not 0 */
 	cd->disklabel.d_nsectors = 100;
 	cd->disklabel.d_ntracks = 1;

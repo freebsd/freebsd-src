@@ -1,4 +1,4 @@
-/*
+z/*
  * Written by Julian Elischer (julian@dialix.oz.au)
  * for TRW Financial Systems for use under the MACH(2.5) operating system.
  *
@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.95.2.5 1997/10/15 16:16:03 joerg Exp $
+ *      $Id: sd.c,v 1.95.2.6 1998/03/06 23:07:07 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -757,9 +757,9 @@ sd_get_parms(unit, flags)
 		flags | SCSI_DATA_IN) != 0) {
 
 		printf("sd%d could not mode sense (4).", unit);
-		printf(" Using ficticious geometry\n");
+		printf(" Using fictitious geometry\n");
 		/*
-		 * use adaptec standard ficticious geometry
+		 * use adaptec standard fictitious geometry
 		 * this depends on which controller (e.g. 1542C is
 		 * different. but we have to put SOMETHING here..)
 		 */
