@@ -1,6 +1,6 @@
-<!-- $Id: hw.sgml,v 1.2 1996/12/05 13:43:30 max Exp $ -->
+<!-- $Id: hw.sgml,v 1.3 1996/12/10 07:17:04 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.53 -->
+<!-- Original revision: 1.57 -->
 
 <!--
 <!DOCTYPE chapt PUBLIC "-//FreeBSD//DTD linuxdoc//EN"> -->
@@ -166,8 +166,8 @@ name="FreeBSD POWERED hardwares">
 
   <sect2><heading>CD-R (CD Recordable: WORM) ドライブ</heading>
     <p>この原稿を書いている時点で, FreeBSDは 3種類の CDRドライブ
-    (私は これらすべては結局は Phillips社のドライブであるのではない
-    かと考えているのですが) をサポートしています : Phillips CDD 522
+    (私は これらすべては結局は Philips社のドライブであるのではない
+    かと考えているのですが) をサポートしています : Philips CDD 522
     (Plasmon のドライブと同様の動作をします), PLASMON RF4100, HP 4020i 
     です. 私は HP 4020i を CDROMを焼くのに使っています(2.2-current で
     使っています - 2.1.5以前のリリースの SCSIコードでは動きません).
@@ -319,28 +319,40 @@ name="FreeBSD POWERED hardwares">
                 もちろん Intelの公式の回答は Triton チップセットへの
                 移行で, 「こちらでは修整した」ということです.
 
-              <tag>Triton:</tag> 知られているキャッシュコヒーレンシ
+              <tag>Triton <em>(430FX)</em>:</tag> 知られている
+	        キャッシュコヒーレンシ
                 やバスマスタの問題はありませんがパリティチェック機能が
                 ありません.  パリティを使いたいような場合は, 可能であ
 		れば Triton-IIベースのマザーボードを選びましょう.
 
-              <tag>Triton-II:</tag> このチップセットを使っているマザー
-	      ボードについてのすべての報告によれば今のところ好評です.
-	      知られている問題はありません.
+              <tag>Triton-II <em>(430HX)</em>:</tag> このチップセット
+	      を使っているマザーボードに関するすべての報告によれば今の
+	      ところ好評です. しかし ECCメモリを利用するのであれば 
+	      82439HX Triton-II チップセットの A2以降のリビジョンを手
+	      にいれるように注意して下さい. 82371SBのリビジョンと混乱
+	      しないでください - リビジョンがA2であれば 82439HXチップ
+	      に "SU102"とマークされています. リビジョンがA1であれば S
+	      で始まる番号はマークされていない, あるいは "SU087"とマー
+	      クされています.
 
-	      訳注: <ref id="hw:configs" name="組合せの見本">で言及さ
-	      れているように 430HXの初期の製品には ECCが動作しないとい
-	      う問題があります.
+             <tag>430VX <em>(誤って Triton-IIIと呼ばれることもあります)
+	     </em>:</tag>
+	       430VX は 430HXとは異るローコストの設計で, ビデオカード
+	       が自身のボード上のメモリの替りにメインメモリを使うこと
+	       ができるように設計されています. またメモリ空間は 128MB
+	       に制限されますが SDRAMのサポートが加えられています.
+	       しかし, 64MB以上のメモリについてはキャッシュされません.
 
-             <tag>Orion:</tag> このチップセットの初期のバージョンでは
+             <tag>Orion <em>(450KX)</em>:</tag> このチップセットの初期
+	       のバージョンでは
 	       PCI write-posting にバグがあり, 大量の PCIバストラフィッ
 	       クのあるアプリケーションでは性能の著しい低下があるとい
 	       う障害がありました. B0以降のリビジョンのチップセットで
 	       はこの問題は解決されています.
 
              <tag><htmlurl
-             url="http://www-cs.intel.com/oem_developer/motherbd/vs_index.htm"
-             name="VS440FX">:</tag>これは <htmlurl
+	     url="http://www.intel.com/design/motherbd/vs/index.htm"
+	     name="VS440FX"><em> (Natoma)</em>:</tag>これは<htmlurl
              url="http://www.intel.com/procs/ppro/intro/index.htm"
              name="Pentium Pro"> に対応したチップセットで, 初期の 
 	     Orionチップセットにあったような問題は見られず, 問題なく動
@@ -394,10 +406,11 @@ name="FreeBSD POWERED hardwares">
        不可能でしょう.
 
 <sect1><heading>メモリ</heading>
-  <p>FreeBSDをインストールするのに最低限必要なメモリ量は 5 MBです.
+  <p>FreeBSDをインストールするのに最低限必要なメモリ量は 8 MBです.
     いったんシステムが起動して<ref id="kernelconfig:building"
     name="カスタムカーネルを作る">ことができるならば, もっと少ないメモリ
-    で動かすこともできます.
+    で動かすこともできます. FreeBSD 2.1, 2.1.5, 2.1.6 では必要なメモリ
+    の最小値は 5MBです.
     boot4.flp を使えば 4 MB しかメモリがなくてもインストールできます.
 
 <sect1><heading>* BIOS</heading>
