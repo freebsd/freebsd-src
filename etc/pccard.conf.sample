@@ -18,6 +18,22 @@ irq	3 5 10 11 13 15
 memory	0xd4000  96k
 
 
+# Aironet PC4500 2Mbps 802.11 wireless NIC
+card "Aironet" "PC4800"
+        config  0x5 "an0" ?
+        insert  echo Aironet PC4500 inserted
+        insert  /etc/pccard_ether an0
+        remove  echo Aironet PC4500 removed
+        remove  /sbin/ifconfig an0 delete
+
+# Aironet PC4800 11Mbps 802.11 wireless NIC
+card "Aironet" "PC4800"
+        config  0x5 "an0" ?
+        insert  echo Aironet PC4800 inserted
+        insert  /etc/pccard_ether an0
+        remove  echo Aironet PC4800 removed
+        remove  /sbin/ifconfig an0 delete
+
 # Lucent WaveLAN/IEEE
 card "Lucent Technologies" "WaveLAN/IEEE"
 	config	0x1 "wi0" ?

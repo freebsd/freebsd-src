@@ -149,6 +149,9 @@ Driver support has been added for USB ethernet adapters based on
 the CATC USB-EL1201A chip, including the CATC Netmate and Netmate II,
 and the Belkin F5U111.
 
+Driver support has been added for Aironet 4500/4800 802.11 wireless
+adapters. This includes PCMCIA, PCI and ISA models.
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -543,6 +546,9 @@ Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
 ISA versions of these adapters are actually PCMCIA cards combined with
 an ISA to PCMCIA bridge card, so both kinds of devices work with
 the same driver.
+
+Aironet 4500/4800 series 802.11 wireless adapters. The PCI and ISA
+models are supported for the Alpha architecture.
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
 
