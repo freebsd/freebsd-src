@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.69 1997/11/20 16:08:56 bde Exp $
+ * $Id: ufs_vnops.c,v 1.70 1997/12/12 14:14:44 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -50,6 +50,7 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
@@ -79,6 +80,7 @@ static int ufs_mkdir __P((struct vop_mkdir_args *));
 static int ufs_mknod __P((struct vop_mknod_args *));
 static int ufs_mmap __P((struct vop_mmap_args *));
 static int ufs_open __P((struct vop_open_args *));
+static int ufs_pathconf __P((struct vop_pathconf_args *));
 static int ufs_print __P((struct vop_print_args *));
 static int ufs_readdir __P((struct vop_readdir_args *));
 static int ufs_readlink __P((struct vop_readlink_args *));
@@ -1852,6 +1854,43 @@ ufsfifo_close(ap)
 }
 
 /*
+ * Return POSIX pathconf information applicable to ufs filesystems.
+ */
+int
+ufs_pathconf(ap)
+	struct vop_pathconf_args /* {
+		struct vnode *a_vp;
+		int a_name;
+		int *a_retval;
+	} */ *ap;
+{
+
+	switch (ap->a_name) {
+	case _PC_LINK_MAX:
+		*ap->a_retval = LINK_MAX;
+		return (0);
+	case _PC_NAME_MAX:
+		*ap->a_retval = NAME_MAX;
+		return (0);
+	case _PC_PATH_MAX:
+		*ap->a_retval = PATH_MAX;
+		return (0);
+	case _PC_PIPE_BUF:
+		*ap->a_retval = PIPE_BUF;
+		return (0);
+	case _PC_CHOWN_RESTRICTED:
+		*ap->a_retval = 1;
+		return (0);
+	case _PC_NO_TRUNC:
+		*ap->a_retval = 1;
+		return (0);
+	default:
+		return (EINVAL);
+	}
+	/* NOTREACHED */
+}
+
+/*
  * Advisory record locking support
  */
 int
@@ -2092,7 +2131,7 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_mknod_desc,		(vop_t *) ufs_mknod },
 	{ &vop_mmap_desc,		(vop_t *) ufs_mmap },
 	{ &vop_open_desc,		(vop_t *) ufs_open },
-	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
+	{ &vop_pathconf_desc,		(vop_t *) ufs_pathconf },
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_readdir_desc,		(vop_t *) ufs_readdir },
 	{ &vop_readlink_desc,		(vop_t *) ufs_readlink },
