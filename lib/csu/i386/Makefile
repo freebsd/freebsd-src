@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.9 1993/10/24 01:34:24 pk Exp $
+#	$Id: Makefile,v 1.3 1993/11/04 01:09:08 paul Exp $
 
 CFLAGS+=	-DLIBC_SCCS #-DDYNAMIC
 OBJS=		crt0.o gcrt0.o
@@ -26,7 +26,6 @@ gmon.o: gmon.c gmon.h
 	mv a.out ${.TARGET}
 
 install:
-	install -d -o ${BINOWN} -g ${BINGRP} -m 0755 ${DESTDIR}/usr/lib
 	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${OBJS} \
 	    ${DESTDIR}/usr/lib
 
