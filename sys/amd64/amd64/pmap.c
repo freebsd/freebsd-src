@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.139 1997/04/07 07:15:52 peter Exp $
+ *	$Id: pmap.c,v 1.140 1997/04/13 01:48:08 dyson Exp $
  */
 
 /*
@@ -102,6 +102,7 @@
 #include <machine/specialreg.h>
 
 #define PMAP_KEEP_PDIRS
+#define PMAP_SHPGPERPROC 200
 
 #if defined(DIAGNOSTIC)
 #define PMAP_DIAGNOSTIC
@@ -1429,17 +1430,22 @@ pmap_alloc_pv_entry()
 /*
  * init the pv_entry allocation system
  */
-#define PVSPERPAGE 64
 void
 init_pv_entries(npg)
 	int npg;
 {
 	/*
-	 * allocate enough kvm space for PVSPERPAGE entries per page (lots)
-	 * kvm space is fairly cheap, be generous!!!  (the system can panic if
-	 * this is too small.)
+	 * Allocate enough kvm space for one entry per page, and
+	 * each process having PMAP_SHPGPERPROC pages shared with other
+	 * processes.  (The system can panic if this is too small, but also
+	 * can fail on bootup if this is too big.)
+	 * XXX The pv management mechanism needs to be fixed so that systems
+	 * with lots of shared mappings amongst lots of processes will still
+	 * work.  The fix will likely be that once we run out of pv entries
+	 * we will free other entries (and the associated mappings), with
+	 * some policy yet to be determined.
 	 */
-	npvvapg = ((npg * PVSPERPAGE) * sizeof(struct pv_entry)
+	npvvapg = ((PMAP_SHPGPERPROC * maxproc + npg) * sizeof(struct pv_entry)
 		+ PAGE_SIZE - 1) / PAGE_SIZE;
 	pvva = kmem_alloc_pageable(kernel_map, npvvapg * PAGE_SIZE);
 	/*
