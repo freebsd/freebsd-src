@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.22 1997/05/31 12:43:11 kato Exp $
+ *	$Id: trap.c,v 1.23 1997/06/02 15:45:32 kato Exp $
  */
 
 /*
@@ -380,6 +380,25 @@ trap(frame)
 	} while (0)
 
 			if (intr_nesting_level == 0) {
+				/*
+				 * Invalid %fs's and %gs's can be created using
+				 * procfs or PT_SETREGS or by invalidating the
+				 * underlying LDT entry.  This causes a fault
+				 * in kernel mode when the kernel attempts to
+				 * switch contexts.  Lose the bad context
+				 * (XXX) so that we can continue, and generate
+				 * a signal.
+				 */
+				if (frame.tf_eip == (int)cpu_switch_load_fs) {
+					curpcb->pcb_fs = 0;
+					psignal(p, SIGBUS);
+					return;
+				}
+				if (frame.tf_eip == (int)cpu_switch_load_gs) {
+					curpcb->pcb_gs = 0;
+					psignal(p, SIGBUS);
+					return;
+				}
 				MAYBE_DORETI_FAULT(doreti_iret,
 						   doreti_iret_fault);
 				MAYBE_DORETI_FAULT(doreti_popl_ds,
