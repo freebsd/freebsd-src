@@ -4325,6 +4325,9 @@ key_timehandler(arg)
 			}
 		}
 	}
+
+	/* invalidate all cached SPD pointers on pcb */
+	ipsec_invalpcbcacheall();
     }
 
 	/* SAD */
