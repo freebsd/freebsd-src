@@ -84,6 +84,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
@@ -858,10 +859,11 @@ rl_attach(dev)
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
+	u_int16_t		as[3];
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
 	u_int16_t		rl_did = 0;
-	int			unit, error = 0, rid;
+	int			unit, error = 0, rid, i;
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -961,7 +963,11 @@ rl_attach(dev)
 	/*
 	 * Get station address from the EEPROM.
 	 */
-	rl_read_eeprom(sc, (caddr_t)&eaddr, RL_EE_EADDR, 3, 0);
+	rl_read_eeprom(sc, (caddr_t)as, RL_EE_EADDR, 3, 0);
+	for (i = 0; i < 3; i++) {
+		eaddr[(i * 2) + 0] = as[i] & 0xff;
+		eaddr[(i * 2) + 1] = as[i] >> 8;
+	}
 
 	/*
 	 * A RealTek chip was detected. Inform the world.
@@ -1188,7 +1194,7 @@ rl_rxeof(sc)
 	ifp = &sc->arpcom.ac_if;
 
 	bus_dmamap_sync(sc->rl_tag, sc->rl_cdata.rl_rx_dmamap,
-	    BUS_DMASYNC_POSTWRITE);
+	    BUS_DMASYNC_POSTREAD);
 
 	cur_rx = (CSR_READ_2(sc, RL_CURRXADDR) + 16) % RL_RXBUFLEN;
 
@@ -1209,7 +1215,7 @@ rl_rxeof(sc)
 		}
 #endif /* DEVICE_POLLING */
 		rxbufpos = sc->rl_cdata.rl_rx_buf + cur_rx;
-		rxstat = *(u_int32_t *)rxbufpos;
+		rxstat = le32toh(*(u_int32_t *)rxbufpos);
 
 		/*
 		 * Here's a totally undocumented fact for you. When the
