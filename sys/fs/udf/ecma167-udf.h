@@ -318,6 +318,11 @@ struct fileid_desc {
 	uint8_t		data[1];
 } __attribute__ ((packed));
 #define	UDF_FID_SIZE	38
+#define	UDF_FILE_CHAR_VIS	(1 << 0) /* Visible */
+#define	UDF_FILE_CHAR_DIR	(1 << 1) /* Directory */
+#define	UDF_FILE_CHAR_DEL	(1 << 2) /* Deleted */
+#define	UDF_FILE_CHAR_PAR	(1 << 3) /* Parent Directory */
+#define	UDF_FILE_CHAR_META	(1 << 4) /* Stream metadata */
 
 /* File Entry [4/14.9] */
 struct file_entry {
