@@ -188,8 +188,6 @@ pax_options(argc, argv)
 	unsigned int bflg = 0;
 	register char *pt;
         FSUB tmp;
-	extern char *optarg;
-	extern int optind;
 
 	/*
 	 * process option flags
