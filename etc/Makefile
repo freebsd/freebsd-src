@@ -56,7 +56,13 @@ ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
 # Special top level files for FreeBSD
 FREEBSD=COPYRIGHT
 
+afterinstall:
+.if !defined(NOMAN)
+	cd ${.CURDIR}/../share/man; ${MAKE} makedb
+.endif
+
 distribute:
+	cd ${.CURDIR} ; ${MAKE} install DESTDIR=${DISTDIR}/${DISTRIBUTION}
 	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints \
@@ -156,9 +162,6 @@ distribution:
 	    ${DESTDIR}/var/crash
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${FREEBSD} ${DESTDIR}/
-.if !defined(NOMAN)
-	cd ${.CURDIR}/../share/man; ${MAKE} makedb
-.endif
 
 distrib-dirs:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/

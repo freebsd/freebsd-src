@@ -535,7 +535,7 @@ release.2:
 release.3:
 	# Handle some grief caused by the munition braindeadness.
 	cd ${.CURDIR}/..; \
-	${CROSSMAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DNOCRYPT \
+	${CROSSMAKE} ${WORLD_FLAGS} -DNOCRYPT \
 	    SUBDIR_OVERRIDE="${FIXCRYPTO}" \
 	    buildworld distributeworld DISTDIR=${RD}/trees
 	-chflags -R noschg ${RD}/trees
