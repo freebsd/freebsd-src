@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		kpropd
-MAN8=		${KRB4DIR}/man/kpropd.8
+MAN=		${KRB4DIR}/man/kpropd.8
 SRCS=		kpropd.c protos.h
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \

@@ -30,7 +30,7 @@ SRCS=		check_time.c cr_err_reply.c create_auth_reply.c \
 		strcasecmp.c strlcat.c strlcpy.c strdup.c strncasecmp.c \
 		strnlen.c strtok_r.c swab.c ${KRBOBJDIR}/krb_err.c \
 		${KRBOBJDIR}/krb_err.h protos.h
-MAN3=		${KRB4DIR}/man/kerberos.3 \
+MAN=		${KRB4DIR}/man/kerberos.3 \
 		${KRB4DIR}/man/krb_realmofhost.3 \
 		${KRB4DIR}/man/krb_sendauth.3 \
 		${KRB4DIR}/man/krb_set_tkt_string.3 \
