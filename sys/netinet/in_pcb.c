@@ -153,10 +153,12 @@ in_pcballoc(so, pcbinfo, p)
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
+#if defined(INET6)
 	if (ip6_mapped_addr_on)
 		inp->inp_flags &= ~IN6P_BINDV6ONLY;
 	else
 		inp->inp_flags |= IN6P_BINDV6ONLY;
+#endif
 	LIST_INSERT_HEAD(pcbinfo->listhead, inp, inp_list);
 	pcbinfo->ipi_count++;
 	so->so_pcb = (caddr_t)inp;
