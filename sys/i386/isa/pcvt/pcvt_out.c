@@ -892,12 +892,16 @@ sput (u_char *s, U_char kernel, int len, int page)
 static void
 vt_coldinit(void)
 {
-	u_short volatile *cp = Crtat + (CGA_BUF-MONO_BUF)/CHR;
+	u_short volatile *cp;
 	u_short was;
 	int nscr, charset;
 	int equipment;
-	u_short *SaveCrtat = Crtat;
+	u_short *SaveCrtat;
 	struct video_state *svsp;
+
+	Crtat = (u_short *)MONO_BUF;	/* XXX assume static relocation works */
+	SaveCrtat = Crtat;
+	cp = Crtat + (CGA_BUF-MONO_BUF)/CHR;
 
 	do_initialization = 0;		/* reset init necessary flag */
 
@@ -1120,6 +1124,16 @@ vt_coldinit(void)
 			cursorat = inb(addr_6845+1) << 8;
 			outb(addr_6845, CRTC_CURSORL);
 			cursorat |= inb(addr_6845+1);
+
+			/*
+			 * Reject cursors that are more than one row off a
+			 * 25-row screen.  syscons sets the cursor offset
+			 * to 0xffff. The scroll up fixup fails for this
+			 * because the assignment to svsp->row overflows
+			 * and perhaps for other reasons.
+			 */
+			if (cursorat > 25 * svsp->maxcol)
+				cursorat = 25 * svsp->maxcol;
 
 			svsp->cur_offset = cursorat;
 			svsp->row = cursorat / svsp->maxcol;

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.123 1995/08/08 05:14:40 dyson Exp $
+ *  $Id: syscons.c,v 1.124 1995/08/16 22:36:43 nate Exp $
  */
 
 #include "sc.h"
@@ -47,6 +47,7 @@
 #include <sys/devconf.h>
 
 #include <machine/clock.h>
+#include <machine/cons.h>
 #include <machine/console.h>
 #include <machine/psl.h>
 #include <machine/frame.h>
@@ -57,7 +58,6 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
 #include <i386/isa/kbdtables.h>
-#include <i386/i386/cons.h>
 #include <i386/isa/syscons.h>
 
 #if !defined(MAXCONS)
@@ -132,7 +132,7 @@ int			nsccons = MAXCONS+1;
 #endif
 #define MONO_BUF    	pa_to_va(0xB0000)
 #define CGA_BUF     	pa_to_va(0xB8000)
-u_short         	*Crtat = (u_short *)MONO_BUF;
+u_short         	*Crtat;
 
 #define WRAPHIST(scp, pointer, offset)\
     ((scp->history) + ((((pointer) - (scp->history)) + (scp->history_size)\
@@ -140,6 +140,20 @@ u_short         	*Crtat = (u_short *)MONO_BUF;
 
 struct  isa_driver scdriver = {
     scprobe, scattach, "sc", 1
+};
+
+static	d_open_t	scopen;
+static	d_close_t	scclose;
+static	d_rdwr_t	scread;
+static	d_rdwr_t	scwrite;
+static	d_ioctl_t	scioctl;
+static	d_ttycv_t	scdevtotty;
+static	d_mmap_t	scmmap;
+
+static	struct cdevsw	scdevsw = {
+	scopen,		scclose,	scread,		scwrite,
+	scioctl,	nullstop,	noreset,	scdevtotty,
+	ttselect,	scmmap,		nostrategy,
 };
 
 int
@@ -295,6 +309,9 @@ scattach(struct isa_device *dev)
     scp->r_hook.ah_order = APM_MID_ORDER;
     apm_hook_establish(APM_HOOK_RESUME , &scp->r_hook);
 #endif
+
+    register_cdev("sc", &scdevsw);
+
     return 0;
 }
 
@@ -1107,14 +1124,20 @@ scstart(struct tty *tp)
 }
 
 void
-pccnprobe(struct consdev *cp)
+sccnprobe(struct consdev *cp)
 {
+    struct isa_device *dvp;
     int maj;
 
-    /* locate the major number */
-    for (maj = 0; maj < nchrdev; maj++)
-	if ((void*)cdevsw[maj].d_open == (void*)scopen)
-	    break;
+    /*
+     * Take control if we are the highest priority enabled display device.
+     */
+    dvp = find_display();
+    maj = getmajorbyname("sc");
+    if (dvp->id_driver != &scdriver || maj < 0) {
+	cp->cn_pri = CN_DEAD;
+	return;
+    }
 
     /* initialize required fields */
     cp->cn_dev = makedev(maj, MAXCONS);
@@ -1122,13 +1145,13 @@ pccnprobe(struct consdev *cp)
 }
 
 void
-pccninit(struct consdev *cp)
+sccninit(struct consdev *cp)
 {
     scinit();
 }
 
 void
-pccnputc(dev_t dev, int c)
+sccnputc(dev_t dev, int c)
 {
     u_char buf[1];
     scr_stat *scp = console[0];
@@ -1156,7 +1179,7 @@ pccnputc(dev_t dev, int c)
 }
 
 int
-pccngetc(dev_t dev)
+sccngetc(dev_t dev)
 {
     int s = spltty();       /* block scintr while we poll */
     int c = scgetc(0);
@@ -1165,7 +1188,7 @@ pccngetc(dev_t dev)
 }
 
 int
-pccncheckc(dev_t dev)
+sccncheckc(dev_t dev)
 {
     return (scgetc(1) & 0xff);
 }
@@ -1945,27 +1968,42 @@ outloop:
 static void
 scinit(void)
 {
-    u_short volatile *cp = Crtat + (CGA_BUF-MONO_BUF)/sizeof(u_short), was;
-    unsigned hw_cursor;
+    u_short volatile *cp;
+    u_short was;
+    unsigned hw_cursor, startaddr;
     int i;
 
     if (init_done)
 	return;
     init_done = TRUE;
     /*
-     * Crtat initialized to point to MONO buffer, if not present change
-     * to CGA_BUF offset. ONLY add the difference since locore.s adds
-     * in the remapped offset at the "right" time
+     * Finish defaulting crtc variables for a mono screen.  Crtat is a
+     * bogus common variable so that it can be shared with pcvt, so it
+     * can't be statically initialized.  XXX.
      */
+     Crtat = (u_short *)MONO_BUF;
+    /*
+     * If CGA memory seems to work, switch to color.
+     */
+    cp = (u_short *)CGA_BUF;
     was = *cp;
     *cp = (u_short) 0xA55A;
-    if (*cp != 0xA55A)
-	crtc_addr = MONO_BASE;
-    else {
-	*cp = was;
+    if (*cp == 0xA55A) {
+	Crtat = (u_short *)cp;
 	crtc_addr = COLOR_BASE;
-	Crtat = Crtat + (CGA_BUF-MONO_BUF)/sizeof(u_short);
     }
+    *cp = was;
+
+    /*
+     * Ensure a zero start address.  This is mainly to recover after
+     * switching from pcvt using userconfig().  The registers are r/o
+     * for old hardware so it's too hard to relocate the active screen
+     * memory.
+     */
+    outb(crtc_addr, 12);
+    outb(crtc_addr + 1, 0);
+    outb(crtc_addr, 13);
+    outb(crtc_addr + 1, 0);
 
     /* extract cursor location */
     outb(crtc_addr, 14);

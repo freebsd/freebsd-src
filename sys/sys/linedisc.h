@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.15 1995/05/30 08:14:14 rgrimes Exp $
+ * $Id: conf.h,v 1.16 1995/09/08 19:18:02 bde Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -138,12 +138,28 @@ struct swdevt {
 #define sw_freed	sw_flags	/* XXX compat */
 
 #ifdef KERNEL
-extern int setdumpdev __P((dev_t));
+d_reset_t	noreset;
+d_mmap_t	nommap;
+d_strategy_t	nostrategy;
+
+d_open_t	nullopen;
+d_close_t	nullclose;
+d_stop_t	nullstop;
+d_reset_t	nullreset;
+/*
+ * XXX d_strategy seems to be unused for cdevs and called without checking
+ * for it being non-NULL for bdevs.
+ */
+#define	nullstrategy	((d_strategy *)NULL)
 
 dev_t	chrtoblk __P((dev_t dev));
+int	getmajorbyname __P((const char *name));
 int	isdisk __P((dev_t dev, int type));
 int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
+int	register_cdev __P((const char *name, const struct cdevsw *cdp));
+int	setdumpdev __P((dev_t));
+int	unregister_cdev __P((const char *name, const struct cdevsw *cdp));
 #endif
 
 #endif /* !_SYS_CONF_H_ */

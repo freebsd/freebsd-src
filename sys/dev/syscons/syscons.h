@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.9 1995/05/30 08:03:15 rgrimes Exp $
+ *	$Id: syscons.h,v 1.10 1995/07/11 18:34:30 bde Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -168,18 +168,11 @@ typedef struct default_attr {
 /* function prototypes */
 int scprobe(struct isa_device *dev);
 int scattach(struct isa_device *dev);
-int scopen(dev_t dev, int flag, int mode, struct proc *p);
-int scclose(dev_t dev, int flag, int mode, struct proc *p);
-int scread(dev_t dev, struct uio *uio, int flag);
-int scwrite(dev_t dev, struct uio *uio, int flag);
 int scparam(struct tty *tp, struct termios *t);
-int scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p);
 void scstart(struct tty *tp);
 void scintr(int unit);
-int pcmmap(dev_t dev, int offset, int nprot);
 static void scinit(void);
 static u_int scgetc(int noblock);
-       struct tty *scdevtotty(dev_t dev);
 static scr_stat *get_scr_stat(dev_t dev);
 static scr_stat *alloc_scp(void);
 static void init_scp(scr_stat *scp);
