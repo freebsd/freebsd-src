@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reboot.h	8.1 (Berkeley) 6/2/93
- * $Id: reboot.h,v 1.2 1994/08/02 07:53:26 davidg Exp $
+ * $Id: reboot.h,v 1.3 1994/08/21 04:41:57 paul Exp $
  */
 
 #ifndef _SYS_REBOOT_H_
@@ -54,6 +54,7 @@
 #define	RB_RDONLY	0x80	/* mount root fs read-only */
 #define	RB_DUMP		0x100	/* dump kernel memory before reboot */
 #define	RB_MINIROOT	0x200	/* mini-root present in memory at boot time */
+#define RB_CONFIG	0x400	/* invoke user configuration routing */
 
 /*
  * Constants for converting boot-style device number to type,
