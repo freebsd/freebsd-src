@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.70 1998/09/12 18:46:06 sos Exp $
+ *	$Id: vn.c,v 1.71 1998/09/14 19:56:38 sos Exp $
  */
 
 /*
@@ -84,6 +84,7 @@
 #include <sys/diskslice.h>
 #include <sys/stat.h>
 #include <sys/conf.h>
+#include <sys/module.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -144,8 +145,8 @@ static u_long	vn_options;
 
 static void	vniodone (struct buf *bp);
 static int	vnsetcred (struct vn_softc *vn, struct ucred *cred);
-static void	vnshutdown (int, void *);
 static void	vnclear (struct vn_softc *vn);
+static int	vn_modevent (module_t, int, void *);
 
 static	int
 vnclose(dev_t dev, int flags, int mode, struct proc *p)
@@ -594,16 +595,6 @@ vnsetcred(struct vn_softc *vn, struct ucred *cred)
 }
 
 void
-vnshutdown(int howto, void *ignored)
-{
-	int i;
-
-	for (i = 0; i < NVN; i++)
-		if (vn_softc[i] && vn_softc[i]->sc_flags & VNF_INITED)
-			vnclear(vn_softc[i]);
-}
-
-void
 vnclear(struct vn_softc *vn)
 {
 	register struct vnode *vp = vn->sc_vp;
@@ -640,45 +631,62 @@ vndump(dev_t dev)
 	return (ENODEV);
 }
 
-static vn_devsw_installed = 0;
-
-static void 
-vn_drvinit(void *unused)
+static int 
+vn_modevent(module_t mod, int type, void *data)
 {
-#ifdef DEVFS
 	int unit;
-#endif
-	if(!vn_devsw_installed ) {
-		if (at_shutdown(&vnshutdown, NULL, SHUTDOWN_POST_SYNC)) {
-			printf("vn: could not install shutdown hook\n");
-			return;
-		}
-		cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &vn_cdevsw);
-		vn_devsw_installed = 1;
-	}
-#ifdef DEVFS
-	for (unit = 0; unit < NVN; unit++) {
-		struct vn_softc *vn;
+	struct vn_softc *vn;
 
-		vn = malloc(sizeof *vn, M_DEVBUF, M_NOWAIT);
-		if (!vn)
-			return;
-		bzero(vn, sizeof *vn);
-		vn_softc[unit] = vn;
-		vn->r_devfs_token = devfs_add_devswf(&vn_cdevsw, 
-						     dkmakeminor(unit, 0, 0),
-                                 		     DV_CHR, UID_ROOT, 
-						     GID_OPERATOR, 0640,
-                                 		     "rvn%d", unit);
-        	vn->devfs_token = devfs_add_devswf(&vn_cdevsw,
-						   dkmakeminor(unit, 0, 0),
-                                 		   DV_BLK, UID_ROOT, 
-						   GID_OPERATOR, 0640,
-                                 		   "vn%d", unit);
-	}
+	switch (type) {
+	case MOD_LOAD:
+#ifdef DEVFS
+		for (unit = 0; unit < NVN; unit++) {
+			vn = malloc(sizeof *vn, M_DEVBUF, M_WAITOK);
+			if (!vn)
+				continue;	/* "oops" */
+			bzero(vn, sizeof *vn);
+			vn_softc[unit] = vn;
+			vn->r_devfs_token = devfs_add_devswf(&vn_cdevsw, 
+						dkmakeminor(unit, 0, 0),
+						DV_CHR, UID_ROOT, 
+						GID_OPERATOR, 0640,
+						"rvn%d", unit);
+			vn->devfs_token = devfs_add_devswf(&vn_cdevsw,
+						dkmakeminor(unit, 0, 0),
+						DV_BLK, UID_ROOT, 
+						GID_OPERATOR, 0640,
+						"vn%d", unit);
+		}
 #endif
+		break;
+
+	case MOD_UNLOAD:
+#ifdef DEVFS
+		for (unit = 0; unit < NVN; unit++) {
+			vn = vn_softc[unit];
+			if (vn->r_devfs_token) {
+				devfs_remove_dev(vn->r_devfs_token);
+				vn->r_devfs_token = 0;
+			}
+			if (vn->devfs_token) {
+				devfs_remove_dev(vn->devfs_token);
+				vn->devfs_token = 0;
+			}
+		}
+#endif
+		/* fall through */
+	case MOD_SHUTDOWN:
+		for (unit = 0; unit < NVN; unit++)
+			if (vn_softc[unit] &&
+			    vn_softc[unit]->sc_flags & VNF_INITED)
+				vnclear(vn_softc[unit]);
+		break;
+	default:
+		break;
+	}
+	return 0;
 }
 
-SYSINIT(vndev, SI_SUB_DRIVERS, SI_ORDER_ANY, vn_drvinit, NULL)
+BDEV_MODULE(vn, BDEV_MAJOR, CDEV_MAJOR, vn_cdevsw, vn_modevent, 0);
 
 #endif
