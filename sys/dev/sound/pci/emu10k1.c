@@ -791,7 +791,7 @@ emu_memalloc(struct sc_info *sc, u_int32_t sz)
 		mem->bmap[idx >> 3] |= 1 << (idx & 7);
 		tmp = (u_int32_t)vtophys((u_int8_t *)buf + ofs);
 		/* printf("pte[%d] -> %x phys, %x virt\n", idx, tmp, ((u_int32_t)buf) + ofs); */
-		mem->ptb_pages[idx] = (tmp << 1);/* | idx;*/
+		mem->ptb_pages[idx] = (tmp << 1) | idx;
 		ofs += EMUPAGESIZE;
 	}
 	SLIST_INSERT_HEAD(&mem->blocks, blk, link);
@@ -1040,7 +1040,7 @@ emu_init(struct sc_info *sc)
 	bzero(sc->mem.silent_page, EMUPAGESIZE);
 	tmp = (u_int32_t)vtophys(sc->mem.silent_page) << 1;
 	for (i = 0; i < MAXPAGES; i++)
-		sc->mem.ptb_pages[i] = tmp;
+		sc->mem.ptb_pages[i] = tmp | i;
 
 	emu_wrptr(sc, 0, PTB, vtophys(sc->mem.ptb_pages));
 	emu_wrptr(sc, 0, TCB, 0);	/* taken from original driver */
