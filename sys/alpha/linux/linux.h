@@ -31,7 +31,7 @@
 #ifndef _ALPHA_LINUX_LINUX_H_
 #define	_ALPHA_LINUX_LINUX_H_
 
-#include <linux_syscall.h>
+#include <alpha/linux/linux_syscall.h>
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_LINUX);
