@@ -120,8 +120,8 @@ Do not use files in
 for files in the kernel.
 .Pp
 Leave a blank line before the next group, the
-.Pa /usr
-include files,
+.Pa /usr/include 
+files,
 which should be sorted alphabetically by name.
 .Bd -literal
 #include <stdio.h>
@@ -246,6 +246,19 @@ is treated as
 /* Or here. */
 #endif /* !COMPAT_43*/
 .Ed
+.Pp
+The project is slowly moving to use the 
+.St -isoC-99 
+unsigned integer identifiers of the form
+.Ic uintXX_t 
+in preference to the older BSD-style integer identifiers of the form
+.Ic u_intXX_t .
+New code should use the former, and old code should be converted to
+the new form if other major work is being done in that area and
+there's no overriding reason to prefer the older BSD-style.
+Like white-space commits, care should be taken in making
+.Ic uintXX_t 
+only commits.
 .Pp
 Enumeration values are all uppercase.
 .Bd -literal
