@@ -38,6 +38,7 @@
 #include <sys/malloc.h>
 
 #include <pci/pcivar.h>
+#include <alpha/isa/isavar.h>
 #include <alpha/pci/tsunamireg.h>
 #include <alpha/pci/tsunamivar.h>
 #include <alpha/pci/pcibus.h>
