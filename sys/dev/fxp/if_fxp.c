@@ -365,15 +365,18 @@ fxp_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 fxp_attach(device_t dev)
 {
-	int error = 0;
-	struct fxp_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp;
+	struct fxp_softc *sc;
+	struct fxp_cb_tx *tcbp;
+	struct fxp_tx *txp;
 	struct fxp_rx *rxp;
+	struct ifnet *ifp;
 	u_int32_t val;
 	u_int16_t data, myea[ETHER_ADDR_LEN / 2];
 	int i, rid, m1, m2, prefer_iomap, maxtxseg;
-	int s;
+	int error, s;
 
+	error = 0;
+	sc = device_get_softc(dev);
 	sc->dev = dev;
 	callout_init(&sc->stat_ch, CALLOUT_MPSAFE);
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
@@ -659,11 +662,14 @@ fxp_attach(device_t dev)
 	}
 
 	/*
-	 * Pre-allocate the TX DMA maps.
+	 * Pre-allocate the TX DMA maps and setup the pointers to
+	 * the TX command blocks.
 	 */
+	txp = sc->fxp_desc.tx_list;
+	tcbp = sc->fxp_desc.cbl_list;
 	for (i = 0; i < FXP_NTXCB; i++) {
-		error = bus_dmamap_create(sc->fxp_mtag, 0,
-		    &sc->fxp_desc.tx_list[i].tx_map);
+		txp[i].tx_cb = tcbp + i;
+		error = bus_dmamap_create(sc->fxp_mtag, 0, &txp[i].tx_map);
 		if (error) {
 			device_printf(dev, "can't create DMA map for TX\n");
 			goto fail;
@@ -2136,7 +2142,6 @@ fxp_init_body(struct fxp_softc *sc)
 	tcbp = sc->fxp_desc.cbl_list;
 	bzero(tcbp, FXP_TXCB_SZ);
 	for (i = 0; i < FXP_NTXCB; i++) {
-		txp[i].tx_cb = tcbp + i;
 		txp[i].tx_mbuf = NULL;
 		tcbp[i].cb_status = htole16(FXP_CB_STATUS_C | FXP_CB_STATUS_OK);
 		tcbp[i].cb_command = htole16(FXP_CB_COMMAND_NOP);
