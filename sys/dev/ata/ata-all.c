@@ -858,28 +858,40 @@ ata_reinit(struct ata_channel *ch)
     }
     newdev = ~devices & ch->devices;
 #ifdef DEV_ATADISK
-    if (newdev & ATA_ATA_SLAVE && !ch->device[SLAVE].driver)
+    if (newdev & ATA_ATA_SLAVE && !ch->device[SLAVE].driver) {
+	ATA_UNLOCK_CH(ch);
 	ad_attach(&ch->device[SLAVE]);
+	ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
+    }
     else if (ch->devices & (ATA_ATA_SLAVE) && ch->device[SLAVE].driver) {
 	ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY);
 	ad_reinit(&ch->device[SLAVE]);
     }
-    if (newdev & ATA_ATA_MASTER && !ch->device[MASTER].driver)
+    if (newdev & ATA_ATA_MASTER && !ch->device[MASTER].driver) {
+	ATA_UNLOCK_CH(ch);
 	ad_attach(&ch->device[MASTER]);
+	ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
+    }
     else if (ch->devices & ATA_ATA_MASTER && ch->device[MASTER].driver) {
 	ata_getparam(&ch->device[MASTER], ATA_C_ATA_IDENTIFY);
 	ad_reinit(&ch->device[MASTER]);
     }
 #endif
 #if DEV_ATAPIALL
-    if (newdev & ATA_ATAPI_SLAVE && !ch->device[SLAVE].driver)
+    if (newdev & ATA_ATAPI_SLAVE && !ch->device[SLAVE].driver) {
+	ATA_UNLOCK_CH(ch);
 	atapi_attach(&ch->device[SLAVE]);
+	ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
+    }
     else if (ch->devices & (ATA_ATAPI_SLAVE) && ch->device[SLAVE].driver) {
 	ata_getparam(&ch->device[SLAVE], ATA_C_ATAPI_IDENTIFY);
 	atapi_reinit(&ch->device[SLAVE]);
     }
-    if (newdev & ATA_ATAPI_MASTER && !ch->device[MASTER].driver)
+    if (newdev & ATA_ATAPI_MASTER && !ch->device[MASTER].driver) {
+	ATA_UNLOCK_CH(ch);
 	atapi_attach(&ch->device[MASTER]);
+	ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
+    }
     else if (ch->devices & (ATA_ATAPI_MASTER) && ch->device[MASTER].driver) {
 	ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY);
 	atapi_reinit(&ch->device[MASTER]);
