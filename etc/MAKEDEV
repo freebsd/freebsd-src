@@ -20,6 +20,7 @@
 # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
 #	@(#)MAKEDEV	5.2 (Berkeley) 6/22/90
+# $FreeBSD$
 #
 # Device "make" file.  Valid arguments:
 #	all	makes all known devices, standard number of units (or close)
@@ -130,8 +131,6 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #	kbd	keyboard devices
-#
-# $FreeBSD$
 #
 
 if [ -n "$MAKEDEVPATH" ]; then
@@ -606,7 +605,6 @@ targ[0-9]*)
 
 # CAM transport layer device
 xpt*)
-	umask 077
 	# This major number is temporary
 	chr=104
 	name=xpt
@@ -623,9 +621,9 @@ xpt*)
 		i=$(($i + 1))
 	done	
 	;;
+
 # CAM passthrough device
 pass*|uk*)
-	umask 077
 	# This major number is temporary
 	chr=31
 	name=pass
@@ -1293,13 +1291,15 @@ gsc*)
 	chmod 666 gsc${unit}*
 	;;
 
-apm*)
-	chr=39
-	mknod apm c $chr 0
-	mknod apmctl c $chr 8
+apm)
+	mknod apm c 39 0
 	chgrp operator apm
-	chgrp operator apmctl
 	chmod 660 apm
+	;;
+
+apmctl)
+	mknod apmctl c 39 8
+	chgrp operator apmctl
 	chmod 660 apmctl
 	;;
 
