@@ -172,3 +172,48 @@ vop_stdpathconf(ap)
 	}
 	/* NOTREACHED */
 }
+
+/*
+ * Standard lock, unlock and islocked functions.
+ *
+ * These depend on the lock structure being the first element in the
+ * inode, ie: vp->v_data points to the the lock!
+ */
+int
+vop_stdlock(ap)
+	struct vop_lock_args /* {
+		struct vnode *a_vp;
+		int a_flags;
+		struct proc *a_p;
+	} */ *ap;
+{               
+	struct lock *l = (struct lock*)ap->a_vp->v_data;
+
+	return (lockmgr(l, ap->a_flags, &ap->a_vp->v_interlock, ap->a_p));
+}
+
+int
+vop_stdunlock(ap)
+	struct vop_unlock_args /* {
+		struct vnode *a_vp;
+		int a_flags;
+		struct proc *a_p;
+	} */ *ap;
+{
+	struct lock *l = (struct lock*)ap->a_vp->v_data;
+
+	return (lockmgr(l, ap->a_flags | LK_RELEASE, &ap->a_vp->v_interlock, 
+	    ap->a_p));
+}
+
+int
+vop_stdislocked(ap)
+	struct vop_islocked_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	struct lock *l = (struct lock*)ap->a_vp->v_data;
+
+	return (lockstatus(l));
+}
+

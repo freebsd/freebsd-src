@@ -1,4 +1,4 @@
-/*	$Id: denode.h,v 1.12 1997/02/26 14:23:09 bde Exp $ */
+/*	$Id: denode.h,v 1.13 1997/08/26 07:32:36 phk Exp $ */
 /*	$NetBSD: denode.h,v 1.8 1994/08/21 18:43:49 ws Exp $	*/
 
 /*-
@@ -135,6 +135,7 @@ struct fatcache {
  * contained within a vnode.
  */
 struct denode {
+	struct lock de_lock;	/* denode lock >Keep this first< */
 	struct denode *de_next;	/* Hash chain forward */
 	struct denode **de_prev; /* Hash chain back */
 	struct vnode *de_vnode;	/* addr of vnode we are part of */
@@ -148,7 +149,6 @@ struct denode {
 	long de_refcnt;		/* reference count */
 	struct msdosfsmount *de_pmp;	/* addr of our mount struct */
 	struct lockf *de_lockf;	/* byte level lock list */
-	struct lock de_lock;	/* denode lock */
 	/* the next two fields must be contiguous in memory... */
 	u_char de_Name[8];	/* name, from directory entry */
 	u_char de_Extension[3];	/* extension, from directory entry */

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.48 1997/10/16 10:48:52 phk Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.49 1997/10/16 20:32:31 phk Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -94,12 +94,9 @@ static int msdosfs_rmdir __P((struct vop_rmdir_args *));
 static int msdosfs_symlink __P((struct vop_symlink_args *));
 static int msdosfs_readdir __P((struct vop_readdir_args *));
 static int msdosfs_abortop __P((struct vop_abortop_args *));
-static int msdosfs_lock __P((struct vop_lock_args *));
-static int msdosfs_unlock __P((struct vop_unlock_args *));
 static int msdosfs_bmap __P((struct vop_bmap_args *));
 static int msdosfs_strategy __P((struct vop_strategy_args *));
 static int msdosfs_print __P((struct vop_print_args *));
-static int msdosfs_islocked __P((struct vop_islocked_args *));
 static int msdosfs_pathconf __P((struct vop_pathconf_args *ap));
 
 /*
@@ -1709,44 +1706,6 @@ msdosfs_abortop(ap)
 	return 0;
 }
 
-static int
-msdosfs_lock(ap)
-	struct vop_lock_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		struct proc *a_p;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	return (lockmgr(&VTODE(vp)->de_lock, ap->a_flags, &vp->v_interlock,
-		ap->a_p));
-}
-
-int
-msdosfs_unlock(ap)
-	struct vop_unlock_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		struct proc *a_p;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	return (lockmgr(&VTODE(vp)->de_lock, ap->a_flags | LK_RELEASE,
-		&vp->v_interlock, ap->a_p));
-}
-
-int
-msdosfs_islocked(ap)
-	struct vop_islocked_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-
-	return (lockstatus(&VTODE(ap->a_vp)->de_lock));
-}
-
 /*
  * vp  - address of vnode file the file
  * bn  - which cluster we are interested in mapping to a filesystem block number.
@@ -1884,9 +1843,9 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_fsync_desc,		(vop_t *) msdosfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) msdosfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) msdosfs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) msdosfs_islocked },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_link_desc,		(vop_t *) msdosfs_link },
-	{ &vop_lock_desc,		(vop_t *) msdosfs_lock },
+	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) msdosfs_mkdir },
 	{ &vop_mknod_desc,		(vop_t *) msdosfs_mknod },
@@ -1901,7 +1860,7 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) msdosfs_setattr },
 	{ &vop_strategy_desc,		(vop_t *) msdosfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) msdosfs_symlink },
-	{ &vop_unlock_desc,		(vop_t *) msdosfs_unlock },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) msdosfs_write },
 	{ NULL, NULL }
 };

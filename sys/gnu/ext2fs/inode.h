@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.9 (Berkeley) 5/14/95
- * $Id: inode.h,v 1.16 1997/07/13 15:40:31 bde Exp $
+ * $Id: inode.h,v 1.17 1997/10/14 18:46:45 phk Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
@@ -59,6 +59,7 @@
  * active, and is put back when the file is no longer being used.
  */
 struct inode {
+	struct	 lock i_lock;	/* Inode lock. >Keep this first< */
 	LIST_ENTRY(inode) i_hash;/* Hash chain. */
 	struct	vnode  *i_vnode;/* Vnode associated with this inode. */
 	struct	vnode  *i_devvp;/* Vnode for block I/O. */
@@ -77,7 +78,6 @@ struct inode {
 	struct	 dquot *i_dquot[MAXQUOTAS]; /* Dquot structures. */
 	u_quad_t i_modrev;	/* Revision level for NFS lease. */
 	struct	 lockf *i_lockf;/* Head of byte-level lock list. */
-	struct	 lock i_lock;	/* Inode lock. */
 	/*
 	 * Side effects; used during directory lookup.
 	 */
