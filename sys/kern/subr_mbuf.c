@@ -1038,15 +1038,8 @@ mb_reclaim(void)
 	struct domain *dp;
 	struct protosw *pr;
 
-/*
- * XXX: Argh, we almost always trip here with witness turned on now-a-days
- * XXX: because we often come in with Giant held. For now, there's no way
- * XXX: to avoid this.
- */
-#ifdef WITNESS
-	KASSERT(witness_list(curthread) == 0,
-	    ("mb_reclaim() called with locks held"));
-#endif
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK | WARN_PANIC, NULL,
+	    "mb_reclaim()");
 
 	mbstat.m_drain++;	/* XXX: No consistency. */
 

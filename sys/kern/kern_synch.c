@@ -149,7 +149,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
 #endif
-	WITNESS_SLEEP(0, &mtx->mtx_object);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mtx->mtx_object,
+	    "Sleeping on \"%s\"", wmesg);
 	KASSERT(timo != 0 || mtx_owned(&Giant) || mtx != NULL,
 	    ("sleeping without a mutex"));
 	/*

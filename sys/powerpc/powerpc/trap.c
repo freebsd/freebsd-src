@@ -473,12 +473,8 @@ syscall(struct trapframe *frame)
 	 */
 	STOPEVENT(p, S_SCX, code);
 
-#ifdef WITNESS
-	if (witness_list(td)) {
-		panic("system call %s returning with mutex(s) held\n",
-		    syscallnames[code]);
-	}
-#endif
+	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
+	    syscallnames[code]);
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	mtx_assert(&Giant, MA_NOTOWNED);	
 }

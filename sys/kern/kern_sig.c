@@ -1648,7 +1648,8 @@ issignal(td)
 
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	WITNESS_SLEEP(1, &p->p_mtx.mtx_object);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &p->p_mtx.mtx_object,
+	    "Checking for signals");
 	for (;;) {
 		int traced = (p->p_flag & P_TRACED) || (p->p_stops & S_SIG);
 
