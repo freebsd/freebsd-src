@@ -37,14 +37,14 @@
 
 #include "isic.h"
 #include "opt_i4b.h"
-#include "pnp.h"
 
 #else
 
 #define	NISIC	1
-#define	NPNP	1
 
 #endif
+
+#define	NPNP	1
 
 /* 
  * this driver works for both the ELSA QuickStep 1000 PNP and the ELSA

@@ -45,7 +45,7 @@
 
 #ifdef __FreeBSD__
 
-#include "pnp.h"
+#define NPNP 1
 #include "isic.h"
 #include "opt_i4b.h"
 
