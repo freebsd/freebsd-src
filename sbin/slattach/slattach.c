@@ -239,8 +239,7 @@ int main(int argc, char **argv)
 			kill (getpid(), SIGHUP);
 		} else
 			configure_network();
-	}
-	else
+	} else
 		configure_network(); /* configure the network if needed. */
 
 	for (;;) {
@@ -450,14 +449,18 @@ void configure_network()
 void sighup_handler()
 {
 	if(exiting) return;
-again:
-	acquire_line(); /* reopen dead line */
 
+	if (redial_cmd == NULL) {
+		syslog(LOG_NOTICE,"SIGHUP on %s (sl%d); exiting", dev, unit);
+		exit_handler(1);
+	}
+again:
 	/* invoke a shell for redial_cmd or punt. */
-	if (redial_cmd) {
+	if (*redial_cmd) {
+		syslog(LOG_NOTICE,"SIGHUP on %s (sl%d); running '%s'",
+		       dev, unit, redial_cmd);
+		acquire_line(); /* reopen dead line */
 		setup_line(CLOCAL);
-		syslog(LOG_NOTICE,"SIGHUP on %s (sl%d); running %s",
-		       dev,unit,redial_cmd);
 		if (locked) {
 			if (uucp_lock)
 				uu_unlock(dvname);      /* for redial */
@@ -487,12 +490,16 @@ again:
 			}
 		} else
 			setup_line(0);
-	} else {
+	} else {        /* Empty redial command */
+		syslog(LOG_NOTICE,"SIGHUP on %s (sl%d); reestablish connection",
+			dev, unit);
+		acquire_line(); /* reopen dead line */
 		setup_line(0);  /* restore ospeed from hangup (B0) */
 		/* If modem control, just wait for carrier before attaching.
 		   If no modem control, just fall through immediately. */
 		if (!(modem_control & CLOCAL)) {
 			int carrier = 0;
+
 			syslog(LOG_NOTICE, "Waiting for carrier on %s (sl%d)",
 			       dev, unit);
 			/* Now wait for carrier before attaching line. */
