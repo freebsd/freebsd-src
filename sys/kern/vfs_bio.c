@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.5 1994/08/04 19:43:13 davidg Exp $
+ * $Id: vfs_bio.c,v 1.6 1994/08/06 09:15:28 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -692,7 +692,6 @@ vm_hold_load_pages(vm_offset_t froma, vm_offset_t toa) {
 		vm_page_wire(p);
 		pmap_kenter( pg, VM_PAGE_TO_PHYS(p));
 	}
-	pmap_update();
 }
 
 void
@@ -707,7 +706,6 @@ vm_hold_free_pages(vm_offset_t froma, vm_offset_t toa) {
 		pmap_kremove( pg);
 		vm_page_free(p);
 	}
-	pmap_update();
 }
 
 void
