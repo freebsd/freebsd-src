@@ -50,6 +50,9 @@ where large memory dumps could take up to an hour to complete.
 
 The twe(4) driver for 3Ware Escalade controllers has been updated.
 
+A bug in the machine-dependent code for AlphaServer 1000 and 1000A 
+has been fixed that caused only EV4-equipped AS1000 and EV5-equipped
+AS1000A to work.
 
 1.2. SECURITY FIXES
 -------------------
