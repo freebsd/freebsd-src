@@ -95,21 +95,24 @@ static int pipe_write __P((struct file *fp, struct uio *uio,
 static int pipe_close __P((struct file *fp, struct proc *p));
 static int pipe_poll __P((struct file *fp, int events, struct ucred *cred,
 		struct proc *p));
+static int pipe_kqfilter __P((struct file *fp, struct knote *kn));
 static int pipe_stat __P((struct file *fp, struct stat *sb, struct proc *p));
 static int pipe_ioctl __P((struct file *fp, u_long cmd, caddr_t data, struct proc *p));
 
-static struct fileops pipeops =
-    { pipe_read, pipe_write, pipe_ioctl, pipe_poll, pipe_stat, pipe_close };
+static struct fileops pipeops = {
+	pipe_read, pipe_write, pipe_ioctl, pipe_poll, pipe_kqfilter,
+	pipe_stat, pipe_close
+};
 
-static int	filt_pipeattach(struct knote *kn);
 static void	filt_pipedetach(struct knote *kn);
 static int	filt_piperead(struct knote *kn, long hint);
 static int	filt_pipewrite(struct knote *kn, long hint);
 
-struct filterops pipe_rwfiltops[] = {
-	{ 1, filt_pipeattach, filt_pipedetach, filt_piperead },
-	{ 1, filt_pipeattach, filt_pipedetach, filt_pipewrite },
-};
+static struct filterops pipe_rfiltops =
+	{ 1, NULL, filt_pipedetach, filt_piperead };
+static struct filterops pipe_wfiltops =
+	{ 1, NULL, filt_pipedetach, filt_pipewrite };
+
 
 /*
  * Default pipe buffer size(s), this can be kind-of large now because pipe
@@ -1185,11 +1188,23 @@ pipeclose(cpipe)
 	}
 }
 
+/*ARGSUSED*/
 static int
-filt_pipeattach(struct knote *kn)
+pipe_kqfilter(struct file *fp, struct knote *kn)
 {
 	struct pipe *rpipe = (struct pipe *)kn->kn_fp->f_data;
 
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+		kn->kn_fop = &pipe_rfiltops;
+		break;
+	case EVFILT_WRITE:
+		kn->kn_fop = &pipe_wfiltops;
+		break;
+	default:
+		return (1);
+	}
+	
 	SLIST_INSERT_HEAD(&rpipe->pipe_sel.si_note, kn, kn_selnext);
 	return (0);
 }

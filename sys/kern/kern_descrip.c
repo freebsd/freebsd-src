@@ -93,6 +93,7 @@ static int badfo_ioctl __P((struct file *fp, u_long com, caddr_t data,
     struct proc *p));
 static int badfo_poll __P((struct file *fp, int events,
     struct ucred *cred, struct proc *p));
+static int badfo_kqfilter __P((struct file *fp, struct knote *kn));
 static int badfo_stat __P((struct file *fp, struct stat *sb, struct proc *p));
 static int badfo_close __P((struct file *fp, struct proc *p));
 
@@ -1480,6 +1481,7 @@ struct fileops badfileops = {
 	badfo_readwrite,
 	badfo_ioctl,
 	badfo_poll,
+	badfo_kqfilter,
 	badfo_stat,
 	badfo_close
 };
@@ -1513,6 +1515,15 @@ badfo_poll(fp, events, cred, p)
 	int events;
 	struct ucred *cred;
 	struct proc *p;
+{
+
+	return (0);
+}
+
+static int
+badfo_kqfilter(fp, kn)
+	struct file *fp;
+	struct knote *kn;
 {
 
 	return (0);

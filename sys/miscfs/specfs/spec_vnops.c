@@ -62,6 +62,7 @@ static int	spec_inactive __P((struct  vop_inactive_args *));
 static int	spec_ioctl __P((struct vop_ioctl_args *));
 static int	spec_open __P((struct vop_open_args *));
 static int	spec_poll __P((struct vop_poll_args *));
+static int	spec_kqfilter __P((struct vop_kqfilter_args *));
 static int	spec_print __P((struct vop_print_args *));
 static int	spec_read __P((struct vop_read_args *));  
 static int	spec_strategy __P((struct vop_strategy_args *));
@@ -87,6 +88,7 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) spec_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_poll_desc,		(vop_t *) spec_poll },
+	{ &vop_kqfilter_desc,		(vop_t *) spec_kqfilter },
 	{ &vop_print_desc,		(vop_t *) spec_print },
 	{ &vop_read_desc,		(vop_t *) spec_read },
 	{ &vop_readdir_desc,		(vop_t *) vop_panic },
@@ -320,6 +322,23 @@ spec_poll(ap)
 	dev = ap->a_vp->v_rdev;
 	return (*devsw(dev)->d_poll)(dev, ap->a_events, ap->a_p);
 }
+
+/* ARGSUSED */
+static int
+spec_kqfilter(ap)
+	struct vop_kqfilter_args /* {
+		struct vnode *a_vp;
+		struct knote *a_kn;
+	} */ *ap;
+{
+	dev_t dev;
+
+	dev = ap->a_vp->v_rdev;
+	if (devsw(dev)->d_flags & D_KQFILTER)
+		return (*devsw(dev)->d_kqfilter)(dev, ap->a_kn);
+	return (1);
+}
+
 /*
  * Synch buffers associated with a block device
  */
