@@ -33,4 +33,7 @@
 #ifndef	_MACHINE_MD_VAR_H_
 #define	_MACHINE_MD_VAR_H_
 
+extern char sigcode[];
+extern int szsigcode;
+
 #endif /* !_MACHINE_MD_VAR_H_ */
