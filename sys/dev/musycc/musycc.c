@@ -47,7 +47,6 @@
 #include <sys/bus.h>
 #include <sys/mbuf.h>
 #include <sys/queue.h>
-#include <sys/stdint.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
 #include <sys/rman.h>

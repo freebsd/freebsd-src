@@ -29,7 +29,6 @@
 #include "opt_clock.h"
 
 #include <sys/param.h>
-#include <sys/stdint.h>
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/timetc.h>

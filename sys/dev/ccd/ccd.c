@@ -63,7 +63,6 @@
 #include <sys/namei.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
-#include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/disk.h>
 #include <sys/fcntl.h>

@@ -78,7 +78,6 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>		/* for curproc, pageproc */
 #include <sys/socket.h>
-#include <sys/stdint.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/sx.h>

@@ -76,7 +76,6 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
-#include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 

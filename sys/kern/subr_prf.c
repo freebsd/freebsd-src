@@ -51,7 +51,6 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/stddef.h>
-#include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/tty.h>
 #include <sys/syslog.h>
