@@ -94,8 +94,10 @@ static int  bfe_detach				(device_t);
 static void bfe_release_resources	(struct bfe_softc *);
 static void bfe_intr				(void *);
 static void bfe_start				(struct ifnet *);
+static void bfe_start_locked			(struct ifnet *);
 static int  bfe_ioctl				(struct ifnet *, u_long, caddr_t);
 static void bfe_init				(void *);
+static void bfe_init_locked			(void *);
 static void bfe_stop				(struct bfe_softc *);
 static void bfe_watchdog			(struct ifnet *);
 static void bfe_shutdown			(device_t);
@@ -329,7 +331,7 @@ bfe_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	mtx_init(&sc->bfe_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-			MTX_DEF | MTX_RECURSE);
+			MTX_DEF);
 
 	unit = device_get_unit(dev);
 	sc->bfe_dev = dev;
@@ -411,7 +413,9 @@ bfe_attach(device_t dev)
 	bfe_get_config(sc);
 
 	/* Reset the chip and turn on the PHY */
+	BFE_LOCK(sc);
 	bfe_chip_reset(sc);
+	BFE_UNLOCK(sc);
 
 	if (mii_phy_probe(dev, &sc->bfe_miibus,
 				bfe_ifmedia_upd, bfe_ifmedia_sts)) {
@@ -433,7 +437,7 @@ bfe_attach(device_t dev)
 	/*
 	 * Hook interrupt last to avoid having to lock softc
 	 */
-	error = bus_setup_intr(dev, sc->bfe_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->bfe_irq, INTR_TYPE_NET | INTR_MPSAFE,
 			bfe_intr, sc, &sc->bfe_intrhand);
 
 	if (error) {
@@ -456,7 +460,7 @@ bfe_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	KASSERT(mtx_initialized(&sc->bfe_mtx), ("bfe mutex not initialized"));
-	BFE_LOCK(scp);
+	BFE_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -674,15 +678,13 @@ bfe_clear_stats(struct bfe_softc *sc)
 {
 	u_long reg;
 
-	BFE_LOCK(sc);
+	BFE_LOCK_ASSERT(sc);
 
 	CSR_WRITE_4(sc, BFE_MIB_CTRL, BFE_MIB_CLR_ON_READ);
 	for (reg = BFE_TX_GOOD_O; reg <= BFE_TX_PAUSE; reg += 4)
 		CSR_READ_4(sc, reg);
 	for (reg = BFE_RX_GOOD_O; reg <= BFE_RX_NPAUSE; reg += 4)
 		CSR_READ_4(sc, reg);
-
-	BFE_UNLOCK(sc);
 }
 
 static int
@@ -690,23 +692,20 @@ bfe_resetphy(struct bfe_softc *sc)
 {
 	u_int32_t val;
 
-	BFE_LOCK(sc);
 	bfe_writephy(sc, 0, BMCR_RESET);
 	DELAY(100);
 	bfe_readphy(sc, 0, &val);
 	if (val & BMCR_RESET) {
 		printf("bfe%d: PHY Reset would not complete.\n", sc->bfe_unit);
-		BFE_UNLOCK(sc);
 		return (ENXIO);
 	}
-	BFE_UNLOCK(sc);
 	return (0);
 }
 
 static void
 bfe_chip_halt(struct bfe_softc *sc)
 {
-	BFE_LOCK(sc);
+	BFE_LOCK_ASSERT(sc);
 	/* disable interrupts - not that it actually does..*/
 	CSR_WRITE_4(sc, BFE_IMASK, 0);
 	CSR_READ_4(sc, BFE_IMASK);
@@ -717,8 +716,6 @@ bfe_chip_halt(struct bfe_softc *sc)
 	CSR_WRITE_4(sc, BFE_DMARX_CTRL, 0);
 	CSR_WRITE_4(sc, BFE_DMATX_CTRL, 0);
 	DELAY(10);
-
-	BFE_UNLOCK(sc);
 }
 
 static void
@@ -726,7 +723,7 @@ bfe_chip_reset(struct bfe_softc *sc)
 {
 	u_int32_t val;
 
-	BFE_LOCK(sc);
+	BFE_LOCK_ASSERT(sc);
 
 	/* Set the interrupt vector for the enet core */
 	bfe_pci_setup(sc, BFE_INTVEC_ENET0);
@@ -804,8 +801,6 @@ bfe_chip_reset(struct bfe_softc *sc)
 
 	bfe_resetphy(sc);
 	bfe_setupphy(sc);
-
-	BFE_UNLOCK(sc);
 }
 
 static void
@@ -1032,7 +1027,6 @@ bfe_readphy(struct bfe_softc *sc, u_int32_t reg, u_int32_t *val)
 {
 	int err;
 
-	BFE_LOCK(sc);
 	/* Clear MII ISR */
 	CSR_WRITE_4(sc, BFE_EMAC_ISTAT, BFE_EMAC_INT_MII);
 	CSR_WRITE_4(sc, BFE_MDIO_DATA, (BFE_MDIO_SB_START |
@@ -1043,7 +1037,6 @@ bfe_readphy(struct bfe_softc *sc, u_int32_t reg, u_int32_t *val)
 	err = bfe_wait_bit(sc, BFE_EMAC_ISTAT, BFE_EMAC_INT_MII, 100, 0);
 	*val = CSR_READ_4(sc, BFE_MDIO_DATA) & BFE_MDIO_DATA_DATA;
 
-	BFE_UNLOCK(sc);
 	return (err);
 }
 
@@ -1052,7 +1045,6 @@ bfe_writephy(struct bfe_softc *sc, u_int32_t reg, u_int32_t val)
 {
 	int status;
 
-	BFE_LOCK(sc);
 	CSR_WRITE_4(sc, BFE_EMAC_ISTAT, BFE_EMAC_INT_MII);
 	CSR_WRITE_4(sc, BFE_MDIO_DATA, (BFE_MDIO_SB_START |
 				(BFE_MDIO_OP_WRITE << BFE_MDIO_OP_SHIFT) |
@@ -1061,7 +1053,6 @@ bfe_writephy(struct bfe_softc *sc, u_int32_t reg, u_int32_t val)
 				(BFE_MDIO_TA_VALID << BFE_MDIO_TA_SHIFT) |
 				(val & BFE_MDIO_DATA_DATA)));
 	status = bfe_wait_bit(sc, BFE_EMAC_ISTAT, BFE_EMAC_INT_MII, 100, 0);
-	BFE_UNLOCK(sc);
 
 	return (status);
 }
@@ -1074,7 +1065,6 @@ static int
 bfe_setupphy(struct bfe_softc *sc)
 {
 	u_int32_t val;
-	BFE_LOCK(sc);
 
 	/* Enable activity LED */
 	bfe_readphy(sc, 26, &val);
@@ -1085,7 +1075,6 @@ bfe_setupphy(struct bfe_softc *sc)
 	bfe_readphy(sc, 27, &val);
 	bfe_writephy(sc, 27, val | (1 << 6));
 
-	BFE_UNLOCK(sc);
 	return (0);
 }
 
@@ -1111,7 +1100,7 @@ bfe_txeof(struct bfe_softc *sc)
 	struct ifnet *ifp;
 	int i, chipidx;
 
-	BFE_LOCK(sc);
+	BFE_LOCK_ASSERT(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -1141,8 +1130,6 @@ bfe_txeof(struct bfe_softc *sc)
 		ifp->if_timer = 0;
 	else
 		ifp->if_timer = 5;
-
-	BFE_UNLOCK(sc);
 }
 
 /* Pass a received packet up the stack */
@@ -1156,7 +1143,7 @@ bfe_rxeof(struct bfe_softc *sc)
 	int cons;
 	u_int32_t status, current, len, flags;
 
-	BFE_LOCK(sc);
+	BFE_LOCK_ASSERT(sc);
 	cons = sc->bfe_rx_cons;
 	status = CSR_READ_4(sc, BFE_DMARX_STAT);
 	current = (status & BFE_STAT_CDMASK) / sizeof(struct bfe_desc);
@@ -1206,7 +1193,6 @@ bfe_rxeof(struct bfe_softc *sc)
 		BFE_INC(cons, BFE_RX_LIST_CNT);
 	}
 	sc->bfe_rx_cons = cons;
-	BFE_UNLOCK(sc);
 }
 
 static void
@@ -1248,7 +1234,7 @@ bfe_intr(void *xsc)
 			ifp->if_ierrors++;
 
 		ifp->if_flags &= ~IFF_RUNNING;
-		bfe_init(sc);
+		bfe_init_locked(sc);
 	}
 
 	/* A packet was received */
@@ -1261,7 +1247,7 @@ bfe_intr(void *xsc)
 
 	/* We have packets pending, fire them out */
 	if (ifp->if_flags & IFF_RUNNING && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		bfe_start(ifp);
+		bfe_start_locked(ifp);
 
 	BFE_UNLOCK(sc);
 }
@@ -1350,10 +1336,21 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 }
 
 /*
- * Set up to transmit a packet
+ * Set up to transmit a packet.
  */
 static void
 bfe_start(struct ifnet *ifp)
+{
+	BFE_LOCK((struct bfe_softc *)ifp->if_softc);
+	bfe_start_locked(ifp);
+	BFE_UNLOCK((struct bfe_softc *)ifp->if_softc);
+}
+
+/*
+ * Set up to transmit a packet. The softc is already locked.
+ */
+static void
+bfe_start_locked(struct ifnet *ifp)
 {
 	struct bfe_softc *sc;
 	struct mbuf *m_head = NULL;
@@ -1362,21 +1359,17 @@ bfe_start(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	idx = sc->bfe_tx_prod;
 
-	BFE_LOCK(sc);
+	BFE_LOCK_ASSERT(sc);
 
 	/*
 	 * Not much point trying to send if the link is down
 	 * or we have nothing to send.
 	 */
-	if (!sc->bfe_link && ifp->if_snd.ifq_len < 10) {
-		BFE_UNLOCK(sc);
+	if (!sc->bfe_link && ifp->if_snd.ifq_len < 10)
 		return;
-	}
 
-	if (ifp->if_flags & IFF_OACTIVE) {
-		BFE_UNLOCK(sc);
+	if (ifp->if_flags & IFF_OACTIVE)
 		return;
-	}
 
 	while(sc->bfe_tx_ring[idx].bfe_mbuf == NULL) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
@@ -1413,22 +1406,26 @@ bfe_start(struct ifnet *ifp)
 		 */
 		ifp->if_timer = 5;
 	}
-
-	BFE_UNLOCK(sc);
 }
 
 static void
 bfe_init(void *xsc)
 {
+	BFE_LOCK((struct bfe_softc *)xsc);
+	bfe_init_locked(xsc);
+	BFE_UNLOCK((struct bfe_softc *)xsc);
+}
+
+static void
+bfe_init_locked(void *xsc)
+{
 	struct bfe_softc *sc = (struct bfe_softc*)xsc;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
-	BFE_LOCK(sc);
+	BFE_LOCK_ASSERT(sc);
 
-	if (ifp->if_flags & IFF_RUNNING) {
-		BFE_UNLOCK(sc);
+	if (ifp->if_flags & IFF_RUNNING)
 		return;
-	}
 
 	bfe_stop(sc);
 	bfe_chip_reset(sc);
@@ -1452,7 +1449,6 @@ bfe_init(void *xsc)
 	ifp->if_flags &= ~IFF_OACTIVE;
 
 	sc->bfe_stat_ch = timeout(bfe_tick, sc, hz);
-	BFE_UNLOCK(sc);
 }
 
 /*
@@ -1466,8 +1462,6 @@ bfe_ifmedia_upd(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	BFE_LOCK(sc);
-
 	mii = device_get_softc(sc->bfe_miibus);
 	sc->bfe_link = 0;
 	if (mii->mii_instance) {
@@ -1478,7 +1472,6 @@ bfe_ifmedia_upd(struct ifnet *ifp)
 	}
 	mii_mediachg(mii);
 
-	BFE_UNLOCK(sc);
 	return (0);
 }
 
@@ -1491,14 +1484,10 @@ bfe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct bfe_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
 
-	BFE_LOCK(sc);
-
 	mii = device_get_softc(sc->bfe_miibus);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
-
-	BFE_UNLOCK(sc);
 }
 
 static int
@@ -1509,22 +1498,24 @@ bfe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct mii_data *mii;
 	int error = 0;
 
-	BFE_LOCK(sc);
-
 	switch(command) {
 		case SIOCSIFFLAGS:
+			BFE_LOCK(sc);
 			if(ifp->if_flags & IFF_UP)
 				if(ifp->if_flags & IFF_RUNNING)
 					bfe_set_rx_mode(sc);
 				else
-					bfe_init(sc);
+					bfe_init_locked(sc);
 			else if(ifp->if_flags & IFF_RUNNING)
 				bfe_stop(sc);
+			BFE_UNLOCK(sc);
 			break;
 		case SIOCADDMULTI:
 		case SIOCDELMULTI:
+			BFE_LOCK(sc);
 			if(ifp->if_flags & IFF_RUNNING)
 				bfe_set_rx_mode(sc);
+			BFE_UNLOCK(sc);
 			break;
 		case SIOCGIFMEDIA:
 		case SIOCSIFMEDIA:
@@ -1537,7 +1528,6 @@ bfe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			break;
 	}
 
-	BFE_UNLOCK(sc);
 	return (error);
 }
 
@@ -1553,7 +1543,7 @@ bfe_watchdog(struct ifnet *ifp)
 	printf("bfe%d: watchdog timeout -- resetting\n", sc->bfe_unit);
 
 	ifp->if_flags &= ~IFF_RUNNING;
-	bfe_init(sc);
+	bfe_init_locked(sc);
 
 	ifp->if_oerrors++;
 
@@ -1598,7 +1588,7 @@ bfe_stop(struct bfe_softc *sc)
 {
 	struct ifnet *ifp;
 
-	BFE_LOCK(sc);
+	BFE_LOCK_ASSERT(sc);
 
 	untimeout(bfe_tick, sc, sc->bfe_stat_ch);
 
@@ -1609,6 +1599,4 @@ bfe_stop(struct bfe_softc *sc)
 	bfe_rx_ring_free(sc);
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-
-	BFE_UNLOCK(sc);
 }
