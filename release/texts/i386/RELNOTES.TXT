@@ -118,6 +118,9 @@ possible remote root explots.
 
 amd has been updated to correct a remotely exploitable root hole.
 
+inn has been updated to a new version that corrects some buffer
+overflows.
+
 Since FreeBSD 3.0 RELEASE, many minor problems with the network stack
 have been corrected which could have been exploited for denial of
 service attacks.
