@@ -30,9 +30,9 @@
 .Dt VM_PAGE_FREE 9
 .Os
 .Sh NAME
-.Nm vm_page_free
-.Nm vm_page_free_toq
-.Nm vm_page_free_zero
+.Nm vm_page_free ,
+.Nm vm_page_free_toq ,
+.Nm vm_page_free_zero ,
 .Nm vm_page_try_to_free
 .Nd "free a page"
 .Sh SYNOPSIS
@@ -53,15 +53,15 @@ The
 function moves a page into the free queue, and disassociates it from
 its object.
 If the page is held, wired, already free, or its busy count is not
-zero the system will panic.
+zero, the system will panic.
 If the
 .Dv PG_ZERO
-flag is set on the page is it placed at the end of the free queue;
+flag is set on the page, it is placed at the end of the free queue;
 otherwise, it is placed at the front.
 .Pp
 If the page's object is of type
 .Dv OBJT_VNODE
-and it is the last page associated with the object the underlying
+and it is the last page associated with the object, the underlying
 vnode may be freed.
 .Pp
 The
@@ -70,8 +70,8 @@ and
 .Fn vm_page_free_zero
 functions both call
 .Fn vm_page_free_toq
-to actually free page, but
-.Fn vm_page_free_zero 
+to actually free the page, but
+.Fn vm_page_free_zero
 sets the
 .Dv PG_ZERO
 flag and
@@ -84,7 +84,7 @@ flag prior to the call to
 The
 .Fn vm_page_try_to_free
 function verifies that the page is not held, wired, busy or dirty, and
-if so marks the page as busy, drops any protection that may be set on
+if so, marks the page as busy, drops any protection that may be set on
 the page, and frees it.
 .Sh RETURN VALUES
 .Fn vm_page_try_to_free
