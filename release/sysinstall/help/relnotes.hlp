@@ -1,71 +1,64 @@
                                  RELEASE NOTES
-                          FreeBSD Release 2.2 SNAPSHOT
-
-
-0. What's new since 2.2-960501-SNAP?
-------------------------------------
-A considerable number of changes to the VM system have been made
-to increase the stability under certain types of load.  If you
-had panics under the last snapshot, try this one and see if they
-persist.
-
-The AHC driver now does considerably more in the way of handling errors
-gracefully.
-
-More cosmetic work on the installation, /stand/sysinstall now genuinely
-useful after installation time (though still missing a man page - urk!).
-
-Basically, lots-o-fixes.
+                             FreeBSD Release 2.1.5
 
 
 1. What's New since 2.1.0-RELEASE?
 ----------------------------------
 
-Early support for APM (automated power management) and PCCARD
-(formerly PCMCIA) features of laptops.  Many PCCARD devices
-are supported, from modems to ethernet cards to SCSI adaptors.
+Device Drivers:
+---------------
 
-Adaptec AIC7850 support has been added.
+Support for the Adaptec AIC7850 on-board SCSI adapter.
 
-The Yellow Pages (NIS) support has had many optimizations made
-and no longer has portions copyright under the GPL.
+Support for Specialix SI and XIO serial cards.
 
-Various VM system enhancements and a few bugs fixed (gzip'd binaries
-now work again, for example).
+Support for the Stallion EasyIO, EasyConnection 8/32 and EasyConnection 8/64,
+as well as the older Onboard and Brumby serial cards.
 
-The system installation tool has been revamped with slightly different
-menu behavior and a number of bugs have been fixed.  It's hoped that
-this installation will be more intuitive for new users than previous
-ones (feedback welcomed, of course).
+Support for the Intel EtherExpress Pro/100B PCI ethernet card.
 
-The Intel EtherExpress Pro/100B PCI ethernet card is now supported.
+Support for the 3COM 3C590 and 3C595 ethernet cards.
 
-The 3COM 3C590 and 3C595 ethernet cards are now supported.
+Real PCI Buslogic support (new driver and probing order).
 
-The ARNET (now Digiboard) Sync 570i high-speed serial card is now supported.
+Support for the ARNET (now Digiboard) Sync 570i high-speed serial card.
+
+Better support for the Matrox Meteor frame grabber card.
+
+Support for the Connectix Quickcam.
+
+Worm driver - it is now possible to burn CDROMs using the Plasmon or HP 4080i
+CDR drives (see `wormcontrol(1)').
+
+
+Kernel features:
+----------------
+
+Various VM system enhancements and more than a few bugs fixed.
+
+A concatenated disk driver for simple types of RAID applications.
+See the man page for ccd(4) for more inforamation.
+
+Real PCI support (probed before ISA).
 
 The Linux emulation is now good enough to run the Linux version of
 Netscape, with JAVA support (as well as a number of other Linux
 utilities).
 
-The Matrox Meteor frame grabber card is better supported.
-
-It is now possible to burn CDROMs using the Plasmon or HP 4080i
-CDR drives (see `wormcontrol(1)').
-
 The pipe code has been substantially sped up, as have some components
 of the VM system.
 
-A /dev/random device (and associated "pool of entropy") has been added
-for applications which require more unpredicatable sequences of random
-numbers for security.  See the random(4) man page for more info.
 
-Early NFS v3 support (not enabled by default).
+Userland code updates:
+----------------------
 
-An early implementation of the Device Filesystem (devfs) is available
-(see mount_devfs).  Device switch tables are now also dynamically built.
+The system installation tool has been revamped with slightly different
+menu behavior and a number of bugs have been fixed.  It's hoped that
+this installation will be more intuitive for new users than previous
+ones (feedback welcomed, of course) as well as more useful in the
+post-install scenario (I know, I keep saying this :-).
 
-Early IPX routing support.
+Many improvements to the NIS code.
 
 
 2. Technical overview
@@ -498,6 +491,9 @@ Special mention to:
 
         Larry Altneu and Wilko Bulte for providing us with Wangtek
         and Archive QIC-02 tape drives for testing and driver hacking.
+
+        CalWeb Internet Services for the loan of a P6/200 machine for
+        speedy package building.
 
         Everyone at Montana State University for their initial support.
 
