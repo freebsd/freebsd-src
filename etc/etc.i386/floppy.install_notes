@@ -3,7 +3,7 @@
 Welcome to FreeBSD!  This document has been put together in an effort
 to make initial installation of the system as easy as possible.
 
-1.  To install FreeBSD you will need 3 floppies, as well as the bulk of
+1.  To install FreeBSD you will need 4 floppies, as well as the bulk of
     the distribution on some other medium (floppy, tape, CD, etc).  If
     you've retrieved this release from the net, you'll first have to make
     the floppies yourself using the supplied images.
@@ -38,7 +38,7 @@ to make initial installation of the system as easy as possible.
     Finally, make a fourth floppy from the disk image:	dos-floppy
     You'll need this for the last stage of the boot process.
     This disk is MS-DOS readable and contains the os-bs boot manager
-    (for if you are installing more than one operating system on disk.)
+    (for use if you are installing more than one operating system on disk.)
 
 2.  Boot the first floppy.  When it asks you to insert the file system,
     insert your second ``filesystem-floppy.''  Follow the instructions
@@ -72,13 +72,13 @@ to make initial installation of the system as easy as possible.
     remove the floppy and then press the return key to boot from the hard
     disk.
 
-7.  At this point you will get 4 errors from the fsck on boot, this
-    is normal and is caused by files that were open when the
+7.  At this point you will get 4 errors from the fsck on boot, these
+    are normal and are caused by files that were open when the
     /dev entries were built - just ignore them.  The system will
     correct these errors and then halt, after which you should press
     the return key again to reboot with a clean system.
 
-8.  Congratulations, you've got the mini FreeBSD system on the disk!
+8.  Congratulations, you've got the mini FreeBSD system on your disk!
 
 9.  Follow the instructions about set_tmp_dir and extract that
     will come on your screen after you've pressed the return key.
@@ -113,4 +113,4 @@ to make initial installation of the system as easy as possible.
     please have a look around!  You may also find this a good time to
     read the release notes in /usr/src/RELNOTES.FreeBSD.
     
-End of $Id: floppy.install_notes,v 1.3 1993/09/02 02:04:33 rgrimes Exp $
+End of $Id: floppy.install_notes,v 1.4 1993/09/08 11:25:14 alm Exp $
