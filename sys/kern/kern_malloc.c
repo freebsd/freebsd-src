@@ -95,7 +95,7 @@ static char *kmemlimit;
 #define KMEM_ZBASE	16
 #define KMEM_ZMASK	(KMEM_ZBASE - 1)
 
-#define KMEM_ZMAX	65536
+#define KMEM_ZMAX	PAGE_SIZE
 #define KMEM_ZSIZE	(KMEM_ZMAX >> KMEM_ZSHIFT)
 static u_int8_t kmemsize[KMEM_ZSIZE + 1];
 
@@ -114,10 +114,21 @@ struct {
 	{1024, "1024", NULL},
 	{2048, "2048", NULL},
 	{4096, "4096", NULL},
+#if PAGE_SIZE > 4096
 	{8192, "8192", NULL},
+#if PAGE_SIZE > 8192
 	{16384, "16384", NULL},
+#if PAGE_SIZE > 16384
 	{32768, "32768", NULL},
+#if PAGE_SIZE > 32768
 	{65536, "65536", NULL},
+#if PAGE_SIZE > 65536
+#error	"Unsupported PAGE_SIZE"
+#endif	/* 65536 */
+#endif	/* 32768 */
+#endif	/* 16384 */
+#endif	/* 8192 */
+#endif	/* 4096 */
 	{0, NULL},
 };
 
