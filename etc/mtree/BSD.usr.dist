@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.62 1996/06/30 13:06:50 peter Exp $
+#	$Id: BSD.usr.dist,v 1.63 1996/07/12 19:58:44 wosch Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -142,6 +142,8 @@
 		..
 		pcl-cvs
 		..
+            ..
+            cvsup
             ..
             etc
 	    ..
