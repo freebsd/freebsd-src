@@ -147,9 +147,6 @@ __FBSDID("$FreeBSD$");
 typedef struct Job {
 	int		pid;	/* The child's process ID */
 
-	/* Temporary file to use for job */
-	char		tfile[sizeof(TMPPAT)];
-
 	struct GNode	*node;	/* The target the child is making */
 
 	/*
