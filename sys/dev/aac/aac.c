@@ -236,9 +236,9 @@ aac_attach(struct aac_softc *sc)
 	/*
 	 * Initialize locks
 	 */
-	AAC_LOCK_INIT(&sc->aac_aifq_lock, "AAC AIF lock");
-	AAC_LOCK_INIT(&sc->aac_io_lock, "AAC I/O lock");
-	AAC_LOCK_INIT(&sc->aac_container_lock, "AAC container lock");
+	mtx_init(&sc->aac_aifq_lock, "AAC AIF lock", NULL, MTX_DEF);
+	mtx_init(&sc->aac_io_lock, "AAC I/O lock", NULL, MTX_DEF);
+	mtx_init(&sc->aac_container_lock, "AAC container lock", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->aac_container_tqh);
 
 	/* Initialize the local AIF queue pointers */
@@ -384,9 +384,9 @@ aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f)
 		co->co_found = f;
 		bcopy(&mir->MntTable[0], &co->co_mntobj,
 		      sizeof(struct aac_mntobj));
-		AAC_LOCK_ACQUIRE(&sc->aac_container_lock);
+		mtx_lock(&sc->aac_container_lock);
 		TAILQ_INSERT_TAIL(&sc->aac_container_tqh, co, co_link);
-		AAC_LOCK_RELEASE(&sc->aac_container_lock);
+		mtx_unlock(&sc->aac_container_lock);
 	}
 }
 
@@ -720,7 +720,7 @@ aac_command_thread(struct aac_softc *sc)
 
 	debug_called(2);
 
-	AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
+	mtx_lock(&sc->aac_io_lock);
 	sc->aifflags = AAC_AIFFLAGS_RUNNING;
 
 	while ((sc->aifflags & AAC_AIFFLAGS_EXIT) == 0) {
@@ -736,9 +736,9 @@ aac_command_thread(struct aac_softc *sc)
 		 * will grab Giant, and would result in an LOR.
 		 */
 		if ((sc->aifflags & AAC_AIFFLAGS_ALLOCFIBS) != 0) {
-			AAC_LOCK_RELEASE(&sc->aac_io_lock);
+			mtx_unlock(&sc->aac_io_lock);
 			aac_alloc_commands(sc);
-			AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
+			mtx_lock(&sc->aac_io_lock);
 			sc->aifflags &= ~AAC_AIFFLAGS_ALLOCFIBS;
 			aac_startio(sc);
 		}
@@ -798,7 +798,7 @@ aac_command_thread(struct aac_softc *sc)
 		}
 	}
 	sc->aifflags &= ~AAC_AIFFLAGS_RUNNING;
-	AAC_LOCK_RELEASE(&sc->aac_io_lock);
+	mtx_unlock(&sc->aac_io_lock);
 	wakeup(sc->aac_dev);
 
 	kthread_exit(0);
@@ -819,7 +819,7 @@ aac_complete(void *context, int pending)
 
 	sc = (struct aac_softc *)context;
 
-	AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
+	mtx_lock(&sc->aac_io_lock);
 
 	/* pull completed commands off the queue */
 	for (;;) {
@@ -852,7 +852,7 @@ aac_complete(void *context, int pending)
 	sc->flags &= ~AAC_QUEUE_FRZN;
 	aac_startio(sc);
 
-	AAC_LOCK_RELEASE(&sc->aac_io_lock);
+	mtx_unlock(&sc->aac_io_lock);
 }
 
 /*
@@ -1151,7 +1151,7 @@ aac_alloc_commands(struct aac_softc *sc)
 			      aac_map_command_helper, &fibphys, 0);
 
 	/* initialise constant fields in the command structure */
-	AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
+	mtx_lock(&sc->aac_io_lock);
 	bzero(fm->aac_fibs, AAC_FIB_COUNT * sizeof(struct aac_fib));
 	for (i = 0; i < AAC_FIB_COUNT; i++) {
 		cm = sc->aac_commands + sc->total_fibs;
@@ -1172,11 +1172,11 @@ aac_alloc_commands(struct aac_softc *sc)
 	if (i > 0) {
 		TAILQ_INSERT_TAIL(&sc->aac_fibmap_tqh, fm, fm_link);
 		debug(1, "total_fibs= %d\n", sc->total_fibs);
-		AAC_LOCK_RELEASE(&sc->aac_io_lock);
+		mtx_unlock(&sc->aac_io_lock);
 		return (0);
 	} 
 
-	AAC_LOCK_RELEASE(&sc->aac_io_lock);
+	mtx_unlock(&sc->aac_io_lock);
 	bus_dmamap_unload(sc->aac_fib_dmat, fm->aac_fibmap);
 	bus_dmamem_free(sc->aac_fib_dmat, fm->aac_fibs, fm->aac_fibmap);
 	free(fm, M_AACBUF);
@@ -2443,12 +2443,12 @@ aac_poll(struct cdev *dev, int poll_events, d_thread_t *td)
 	sc = dev->si_drv1;
 	revents = 0;
 
-	AAC_LOCK_ACQUIRE(&sc->aac_aifq_lock);
+	mtx_lock(&sc->aac_aifq_lock);
 	if ((poll_events & (POLLRDNORM | POLLIN)) != 0) {
 		if (sc->aac_aifq_tail != sc->aac_aifq_head)
 			revents |= poll_events & (POLLIN | POLLRDNORM);
 	}
-	AAC_LOCK_RELEASE(&sc->aac_aifq_lock);
+	mtx_unlock(&sc->aac_aifq_lock);
 
 	if (revents == 0) {
 		if (poll_events & (POLLIN | POLLRDNORM))
@@ -2474,7 +2474,7 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 	/*
 	 * Get a command
 	 */
-	AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
+	mtx_lock(&sc->aac_io_lock);
 	if (aac_alloc_command(sc, &cm)) {
 		error = EBUSY;
 		goto out;
@@ -2522,7 +2522,7 @@ out:
 		aac_release_command(cm);
 	}
 
-	AAC_LOCK_RELEASE(&sc->aac_io_lock);
+	mtx_unlock(&sc->aac_io_lock);
 	return(error);
 }
 
@@ -2632,12 +2632,10 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 					device_delete_child(sc->aac_dev,
 							    co->co_disk);
 					co_next = TAILQ_NEXT(co, co_link);
-					AAC_LOCK_ACQUIRE(&sc->
-							aac_container_lock);
+					mtx_lock(&sc->aac_container_lock);
 					TAILQ_REMOVE(&sc->aac_container_tqh, co,
 						     co_link);
-					AAC_LOCK_RELEASE(&sc->
-							 aac_container_lock);
+					mtx_unlock(&sc->aac_container_lock);
 					FREE(co, M_AACBUF);
 					co = co_next;
 				} else {
@@ -2661,7 +2659,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 	}
 
 	/* Copy the AIF data to the AIF queue for ioctl retrieval */
-	AAC_LOCK_ACQUIRE(&sc->aac_aifq_lock);
+	mtx_lock(&sc->aac_aifq_lock);
 	next = (sc->aac_aifq_head + 1) % AAC_AIFQ_LENGTH;
 	if (next != sc->aac_aifq_tail) {
 		bcopy(aif, &sc->aac_aifq[next], sizeof(struct aac_aif_command));
@@ -2673,7 +2671,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 		/* Wakeup any poll()ers */
 		selwakeuppri(&sc->rcv_select, PRIBIO);
 	}
-	AAC_LOCK_RELEASE(&sc->aac_aifq_lock);
+	mtx_unlock(&sc->aac_aifq_lock);
 
 	return;
 }
@@ -2763,9 +2761,9 @@ aac_return_aif(struct aac_softc *sc, caddr_t uptr)
 
 	debug_called(2);
 
-	AAC_LOCK_ACQUIRE(&sc->aac_aifq_lock);
+	mtx_lock(&sc->aac_aifq_lock);
 	if (sc->aac_aifq_tail == sc->aac_aifq_head) {
-		AAC_LOCK_RELEASE(&sc->aac_aifq_lock);
+		mtx_unlock(&sc->aac_aifq_lock);
 		return (EAGAIN);
 	}
 
@@ -2778,7 +2776,7 @@ aac_return_aif(struct aac_softc *sc, caddr_t uptr)
 	else
 		sc->aac_aifq_tail = next;
 
-	AAC_LOCK_RELEASE(&sc->aac_aifq_lock);
+	mtx_unlock(&sc->aac_aifq_lock);
 	return(error);
 }
 
@@ -2808,7 +2806,7 @@ aac_query_disk(struct aac_softc *sc, caddr_t uptr)
 	if (id == -1)
 		return (EINVAL);
 
-	AAC_LOCK_ACQUIRE(&sc->aac_container_lock);
+	mtx_lock(&sc->aac_container_lock);
 	TAILQ_FOREACH(co, &sc->aac_container_tqh, co_link) {
 		if (co->co_mntobj.ObjectId == id)
 			break;
@@ -2831,7 +2829,7 @@ aac_query_disk(struct aac_softc *sc, caddr_t uptr)
 		sprintf(&query_disk.diskDeviceName[0], "%s%d",
 		        disk->ad_disk->d_name, disk->ad_disk->d_unit);
 	}
-	AAC_LOCK_RELEASE(&sc->aac_container_lock);
+	mtx_unlock(&sc->aac_container_lock);
 
 	error = copyout((caddr_t)&query_disk, uptr,
 			sizeof(struct aac_query_disk));
