@@ -68,7 +68,8 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int ch;
+	int ch, failed;
+	char *filename;
 
 	nstops = 1;
 	tabstops[0] = 8;
@@ -89,15 +90,19 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	do {
-		if (argc > 0) {
-			if (freopen(argv[0], "r", stdin) == NULL)
-				err(1, "%s", argv[0]);
-			argc--, argv++;
-		}
+	failed = 0;
+	if (argc == 0)
 		tabify();
-	} while (argc > 0);
-	exit(0);
+	else {
+		while ((filename = *argv++) != NULL) {
+			if (freopen(filename, "r", stdin) == NULL) {
+				warn("%s", filename);
+				failed++;
+			} else
+				tabify();
+		}
+	}
+	exit(failed != 0);
 }
 
 static void
@@ -116,16 +121,10 @@ tabify()
 
 	doneline = ocol = dcol = 0;
 	while ((ch = getchar()) != EOF) {
-		if (ch == '\n') {
-			putchar('\n');
-			doneline = ocol = dcol = 0;
-			continue;
-		} else if (ch == ' ' && !doneline) {
+		if (ch == ' ' && !doneline) {
 			if (++dcol >= limit)
 				doneline = 1;
 			continue;
-		} else if (ch == '\b' && dcol > 0) {
-			dcol--;
 		} else if (ch == '\t') {
 			if (nstops == 1) {
 				dcol = (1 + dcol / tabstops[0]) *
@@ -168,7 +167,14 @@ tabify()
 			ocol++;
 		}
 
-		if (ch != ' ' || dcol > limit) {
+		if (ch == '\b') {
+			putchar('\b');
+			if (ocol > 0)
+				ocol--, dcol--;
+		} else if (ch == '\n') {
+			putchar('\n');
+			doneline = ocol = dcol = 0;
+		} else if (ch != ' ' || dcol > limit) {
 			putchar(ch);
 			ocol++, dcol++;
 		}
@@ -181,7 +187,8 @@ tabify()
 			while ((ch = getchar()) != '\n' && ch != EOF)
 				putchar(ch);
 			if (ch == '\n')
-				ungetc(ch, stdin);
+				putchar('\n');
+			doneline = ocol = dcol = 0;
 		}
 	}
 }
