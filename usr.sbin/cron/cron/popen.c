@@ -150,12 +150,12 @@ cron_popen(program, type, e)
 			(void)open(_PATH_DEVNULL, O_RDWR);
 			(void)close(pdes[1]);
 		}
-# if defined(LOGIN_CAP)
 		if (e != NULL) {
 			/* Set user's entire context, but skip the environment
 			 * as cron provides a separate interface for this
 			 */
 			usernm = env_get("LOGNAME", e->envp);
+# if defined(LOGIN_CAP)
 			if ((pwd = getpwnam(usernm)) == NULL)
 				pwd = getpwuid(e->uid);
 			lc = NULL;
