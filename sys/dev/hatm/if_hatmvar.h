@@ -220,19 +220,19 @@ SLIST_HEAD(tpd_list, tpd);
  * queue for both tasks. This is done with the lbufs member of softc. The
  * handle for these buffer is the lbufs index ored with a flag.
  */
-#define MBUF0_SIZE	(5 * 48)	/* 240 */
-#define MBUF1_SIZE	(52)
 
+/* data space in each external mbuf */
+#define MBUF0_SIZE	(5 * 48)	/* 240 */
+#define MBUF1_SIZE	(52)		/* 1 raw cell */
+
+/* size of the buffer. Must fit data, offset and header */
 #define MBUF0_CHUNK	256		/* 16 free bytes */
 #define MBUF1_CHUNK	96		/* 44 free bytes */
-#ifdef XXX
-#define MBUF0_OFFSET	(MBUF0_CHUNK - sizeof(struct mbuf_chunk_hdr) \
-    - MBUF0_SIZE)
-#else
+
+/* start of actual data in buffer */
 #define MBUF0_OFFSET	0
-#endif
-#define MBUF1_OFFSET	(MBUF1_CHUNK - sizeof(struct mbuf_chunk_hdr) \
-    - MBUF1_SIZE)
+#define MBUF1_OFFSET	16
+
 #define MBUFL_OFFSET	16		/* two pointers for HARP */
 
 #define MBUF_ALLOC_SIZE	(PAGE_SIZE)
@@ -261,15 +261,25 @@ struct mbuf_page {
 #define MBUF_SET_BIT(ARRAY, BIT) ((ARRAY)[(BIT) / 8] |= (1 << ((BIT) % 8)))
 #define MBUF_TST_BIT(ARRAY, BIT) ((ARRAY)[(BIT) / 8] & (1 << ((BIT) % 8)))
 
+/*
+ * Convert to/from handles
+ */
+/* small buffers */
 #define MBUF_MAKE_HANDLE(PAGENO, CHUNKNO) \
-	(((PAGENO) << 10) | (CHUNKNO))
+	((((PAGENO) << 10) | (CHUNKNO)) << HE_REGS_RBRQ_ADDR)
+#define	MBUF_MAKE_LHANDLE(INDEX) \
+	(MBUF_LARGE_FLAG | ((INDEX) << HE_REGS_RBRQ_ADDR))
 
-#define MBUF_PARSE_HANDLE(HANDLE, PAGENO, CHUNKNO) do {	\
-	(CHUNKNO) = (HANDLE) & 0x3ff;			\
-	(PAGENO) = ((HANDLE) >> 10) & 0x3ff;		\
+/* large buffers */
+#define MBUF_PARSE_HANDLE(HANDLE, PAGENO, CHUNKNO) do {			\
+	(CHUNKNO) = ((HANDLE) >> HE_REGS_RBRQ_ADDR) & 0x3ff;		\
+	(PAGENO) = (((HANDLE) >> 10) >> HE_REGS_RBRQ_ADDR) & 0x3fff;	\
+    } while (0)
+#define	MBUF_PARSE_LHANDLE(HANDLE, INDEX) do {				\
+	(INDEX) = ((HANDLE) >> HE_REGS_RBRQ_ADDR) & 0xffffff;		\
     } while (0)
 
-#define MBUF_LARGE_FLAG	(1 << 20)
+#define MBUF_LARGE_FLAG	0x80000000
 
 /* chunks have the following structure at the end (4 byte) */
 struct mbuf_chunk_hdr {
