@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.15 1999/01/14 06:14:14 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.16 1999/01/15 23:24:23 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -3347,7 +3347,7 @@ ahc_init(struct ahc_softc *ahc)
 			      AHC_TERM_ENB_A|AHC_TERM_ENB_B;
 		ahc->discenable = ALL_TARGETS_MASK;
 		if ((ahc->features & AHC_ULTRA) != 0)
-			ahc->ultraenb = 0xffff;
+			ahc->ultraenb = ALL_TARGETS_MASK;
 	} else {
 		ahc->discenable = ~((ahc_inb(ahc, DISC_DSB + 1) << 8)
 				   | ahc_inb(ahc, DISC_DSB));
@@ -4114,6 +4114,12 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 			op = BUS_DMASYNC_PREWRITE;
 
 		bus_dmamap_sync(ahc->dmat, scb->dmamap, op);
+
+		if (ccb->ccb_h.func_code == XPT_CONT_TARGET_IO) {
+			scb->hscb->cmdpointer |= DPHASE_PENDING;
+			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) 
+				scb->hscb->cmdpointer |= (TARGET_DATA_IN << 8);
+		}
 	} else {
 		scb->hscb->SG_pointer = 0;
 		scb->hscb->data = 0;
@@ -4271,11 +4277,6 @@ ahc_setup_data(struct ahc_softc *ahc, struct ccb_scsiio *csio,
 			/* Just use the segments provided */
 			segs = (struct bus_dma_segment *)csio->data_ptr;
 			ahc_execute_scb(scb, segs, csio->sglist_cnt, 0);
-		}
-		if (ccb_h->func_code == XPT_CONT_TARGET_IO) {
-			hscb->cmdpointer |= DPHASE_PENDING;
-			if ((ccb_h->flags & CAM_DIR_MASK) == CAM_DIR_IN) 
-				hscb->cmdpointer |= (TARGET_DATA_IN << 8);
 		}
 	} else {
 		ahc_execute_scb(scb, NULL, 0, 0);
