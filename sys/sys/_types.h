@@ -80,12 +80,7 @@ typedef	__ct_rune_t	__rune_t;	/* rune_t (see above) */
 typedef	__ct_rune_t	__wchar_t;	/* wchar_t (see above) */
 typedef	__ct_rune_t	__wint_t;	/* wint_t (see above) */
 
-/*
- * dev_t has differing meanings in userland and the kernel.
- */
-#ifdef _KERNEL
-typedef	struct cdev	*__dev_t;
-#else
+#ifndef _KERNEL
 typedef	__udev_t	__dev_t;	/* device number */
 #endif
 

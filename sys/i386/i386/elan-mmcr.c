@@ -78,7 +78,7 @@ static u_int	echo_a, echo_d;
 #endif /* CPU_ELAN_PPS */
 
 static u_int	led_cookie[32];
-static dev_t	led_dev[32];
+static struct cdev *led_dev[32];
 
 static void
 gpio_led(void *cookie, int state)
@@ -405,7 +405,7 @@ elan_watchdog(void *foo __unused, u_int spec, int *error)
 }
 
 static int
-elan_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+elan_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 
 	if (offset >= 0x1000) 
@@ -414,7 +414,7 @@ elan_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 	return (0);
 }
 static int
-elan_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct  thread *tdr)
+elan_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct  thread *tdr)
 {
 	int error;
 

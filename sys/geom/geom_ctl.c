@@ -444,7 +444,7 @@ g_ctl_req(void *arg, int flag __unused)
 
 
 static int
-g_ctl_ioctl_ctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	struct gctl_req *req;
 
@@ -479,7 +479,7 @@ g_ctl_ioctl_ctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *t
 }
 
 static int
-g_ctl_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+g_ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	int error;
 

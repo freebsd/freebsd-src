@@ -145,7 +145,7 @@ struct ch_softc {
 	ch_quirks	quirks;
 	union ccb	saved_ccb;
 	struct devstat	*device_stats;
-	dev_t		dev;
+	struct cdev *dev;
 
 	int		sc_picker;	/* current picker */
 
@@ -405,7 +405,7 @@ chregister(struct cam_periph *periph, void *arg)
 }
 
 static int
-chopen(dev_t dev, int flags, int fmt, struct thread *td)
+chopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct ch_softc *softc;
@@ -453,7 +453,7 @@ chopen(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-chclose(dev_t dev, int flag, int fmt, struct thread *td)
+chclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	ch_softc *softc;
@@ -702,7 +702,7 @@ cherror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 }
 
 static int
-chioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+chioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct ch_softc *softc;

@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 int
-physio(dev_t dev, struct uio *uio, int ioflag)
+physio(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int i;
 	int error;

@@ -39,10 +39,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus.h>
 
-static dev_t wd_dev;
+static struct cdev *wd_dev;
 
 static int
-wd_ioctl(dev_t dev __unused, u_long cmd, caddr_t data,
+wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
     int flags __unused, struct thread *td)
 {
 	int error;

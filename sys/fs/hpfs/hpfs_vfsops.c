@@ -217,7 +217,7 @@ hpfs_mountfs(devvp, mp, argsp, td)
 	struct hpfsmount *hpmp;
 	struct buf *bp = NULL;
 	struct vnode *vp;
-	dev_t dev = devvp->v_rdev;
+	struct cdev *dev = devvp->v_rdev;
 
 	dprintf(("hpfs_mountfs():\n"));
 	/*

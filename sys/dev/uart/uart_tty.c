@@ -361,7 +361,7 @@ int uart_tty_detach(struct uart_softc *sc)
 }
 
 static int
-uart_tty_open(dev_t dev, int flags, int mode, struct thread *td)
+uart_tty_open(struct cdev *dev, int flags, int mode, struct thread *td)
 {
 	struct uart_softc *sc;
 	struct tty *tp;
@@ -450,7 +450,7 @@ uart_tty_open(dev_t dev, int flags, int mode, struct thread *td)
 }
 
 static int
-uart_tty_close(dev_t dev, int flags, int mode, struct thread *td)
+uart_tty_close(struct cdev *dev, int flags, int mode, struct thread *td)
 {
 	struct uart_softc *sc;
 	struct tty *tp;
@@ -485,7 +485,7 @@ uart_tty_close(dev_t dev, int flags, int mode, struct thread *td)
 }
 
 static int
-uart_tty_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
+uart_tty_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
     struct thread *td)
 {
 	struct uart_softc *sc;

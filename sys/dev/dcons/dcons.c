@@ -129,7 +129,7 @@ struct dcons_buf *dcons_buf;		/* for local dconschat */
 
 /* per device data */
 static struct dcons_softc {
-	dev_t dev;
+	struct cdev *dev;
 	struct dcons_ch	o, i;
 	int brk_state;
 #define DC_GDB	1
@@ -159,7 +159,7 @@ CONS_DRIVER(dcons, dcons_cnprobe, dcons_cninit, NULL, dcons_cngetc,
 #endif
 
 static int
-dcons_open(dev_t dev, int flag, int mode, struct THREAD *td)
+dcons_open(struct cdev *dev, int flag, int mode, struct THREAD *td)
 {
 	struct tty *tp;
 	int unit, error, s;
@@ -198,7 +198,7 @@ dcons_open(dev_t dev, int flag, int mode, struct THREAD *td)
 }
 
 static int
-dcons_close(dev_t dev, int flag, int mode, struct THREAD *td)
+dcons_close(struct cdev *dev, int flag, int mode, struct THREAD *td)
 {
 	int	unit;
 	struct	tty *tp;
@@ -312,17 +312,17 @@ dcons_cnputc(struct consdev *cp, int c)
 }
 #else
 static int
-dcons_cngetc(dev_t dev)
+dcons_cngetc(struct cdev *dev)
 {
 	return(dcons_getc((struct dcons_softc *)dev->si_drv1));
 }
 static int
-dcons_cncheckc(dev_t dev)
+dcons_cncheckc(struct cdev *dev)
 {
 	return(dcons_checkc((struct dcons_softc *)dev->si_drv1));
 }
 static void
-dcons_cnputc(dev_t dev, int c)
+dcons_cnputc(struct cdev *dev, int c)
 {
 	dcons_putc((struct dcons_softc *)dev->si_drv1, c);
 }

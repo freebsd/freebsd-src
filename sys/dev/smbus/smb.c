@@ -46,7 +46,7 @@
 struct smb_softc {
 
 	int sc_count;			/* >0 if device opened */
-	dev_t sc_devnode;
+	struct cdev *sc_devnode;
 };
 
 #define IIC_SOFTC(unit) \
@@ -137,7 +137,7 @@ smb_detach(device_t dev)
 }
 
 static int
-smbopen (dev_t dev, int flags, int fmt, struct thread *td)
+smbopen (struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct smb_softc *sc = IIC_SOFTC(minor(dev));
 
@@ -153,7 +153,7 @@ smbopen (dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-smbclose(dev_t dev, int flags, int fmt, struct thread *td)
+smbclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct smb_softc *sc = IIC_SOFTC(minor(dev));
 
@@ -170,7 +170,7 @@ smbclose(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
+smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	char buf[SMB_MAXBLOCKSIZE];
 	device_t parent;

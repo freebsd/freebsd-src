@@ -33,7 +33,7 @@ struct udf_node {
 	struct vnode	*i_vnode;
 	struct vnode	*i_devvp;
 	struct udf_mnt	*udfmp;
-	dev_t		i_dev;
+	struct cdev *i_dev;
 	ino_t		hash_id;
 	long		diroff;
 	struct file_entry *fentry;
@@ -42,7 +42,7 @@ struct udf_node {
 struct udf_mnt {
 	int			im_flags;
 	struct mount		*im_mountp;
-	dev_t			im_dev;
+	struct cdev *im_dev;
 	struct vnode		*im_devvp;
 	int			bsize;
 	int			bshift;

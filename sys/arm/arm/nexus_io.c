@@ -190,7 +190,7 @@ nexus_bs_subregion(t, bsh, offset, size, nbshp)
 }
 
 int
-nexus_bs_mmap(dev_t dev, vm_offset_t off, vm_paddr_t *addr, int prot)
+nexus_bs_mmap(struct cdev *dev, vm_offset_t off, vm_paddr_t *addr, int prot)
 {
 	*addr = off;
 	return (0);

@@ -107,7 +107,7 @@ static u_char end_mfs_root[] __unused = "MFS Filesystem had better STOP here";
 static g_init_t md_drvinit;
 
 static int	mdunits;
-static dev_t	status_dev = 0;
+static struct cdev *status_dev = 0;
 
 static d_ioctl_t mdctlioctl;
 
@@ -137,7 +137,7 @@ struct md_s {
 	LIST_ENTRY(md_s) list;
 	struct bio_queue_head bio_queue;
 	struct mtx queue_mtx;
-	dev_t dev;
+	struct cdev *dev;
 	enum md_types type;
 	unsigned nsect;
 	unsigned opencount;
@@ -1078,7 +1078,7 @@ mddetach(int unit, struct thread *td)
 }
 
 static int
-mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct md_ioctl *mdio;
 	struct md_s *sc;

@@ -271,7 +271,7 @@ pcvt_attach(device_t dev)
  *	driver open
  *---------------------------------------------------------------------------*/
 static int
-pcvt_open(dev_t dev, int flag, int mode, struct thread *td)
+pcvt_open(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	register struct tty *tp;
 	register struct video_state *vsx;
@@ -339,7 +339,7 @@ pcvt_open(dev_t dev, int flag, int mode, struct thread *td)
  *	driver close
  *---------------------------------------------------------------------------*/
 static int
-pcvt_close(dev_t dev, int flag, int mode, struct thread *td)
+pcvt_close(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	register struct tty *tp;
 	register struct video_state *vsx;
@@ -369,7 +369,7 @@ pcvt_close(dev_t dev, int flag, int mode, struct thread *td)
  *	driver ioctl
  *---------------------------------------------------------------------------*/
 static int
-pcvt_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+pcvt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	register int error;
 	register struct tty *tp;
@@ -404,7 +404,7 @@ pcvt_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
  *	driver mmap
  *---------------------------------------------------------------------------*/
 static int
-pcvt_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+pcvt_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	if (offset > 0x20000 - PAGE_SIZE)
 		return -1;

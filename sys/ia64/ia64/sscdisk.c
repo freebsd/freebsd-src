@@ -85,7 +85,7 @@ struct ssc_s {
 	LIST_ENTRY(ssc_s) list;
 	struct bio_queue_head bio_queue;
 	struct disk *disk;
-	dev_t dev;
+	struct cdev *dev;
 	int busy;
 	int fd;
 };

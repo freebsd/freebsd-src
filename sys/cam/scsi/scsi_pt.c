@@ -83,7 +83,7 @@ struct pt_softc {
 	pt_flags flags;	
 	union	 ccb saved_ccb;
 	int	 io_timeout;
-	dev_t	 dev;
+	struct cdev *dev;
 };
 
 static	d_open_t	ptopen;
@@ -134,7 +134,7 @@ static struct cdevsw pt_cdevsw = {
 #endif
 
 static int
-ptopen(dev_t dev, int flags, int fmt, struct thread *td)
+ptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct pt_softc *softc;
@@ -178,7 +178,7 @@ ptopen(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-ptclose(dev_t dev, int flag, int fmt, struct thread *td)
+ptclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	pt_softc *softc;
@@ -645,7 +645,7 @@ pterror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 }
 
 static int
-ptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+ptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct pt_softc *softc;

@@ -165,7 +165,7 @@ struct mly_command {
 struct mly_softc {
     /* bus connections */
     device_t		mly_dev;
-    dev_t		mly_dev_t;
+    struct cdev *mly_dev_t;
     struct resource	*mly_regs_resource;	/* register interface window */
     int			mly_regs_rid;		/* resource ID */
     bus_space_handle_t	mly_bhandle;		/* bus space handle */

@@ -184,7 +184,7 @@ struct _drive
 #ifdef _KERNEL
     u_int sectorsize;
     off_t mediasize;
-    dev_t dev;						    /* device information */
+    struct cdev *dev;						    /* device information */
 #ifdef VINUMDEBUG
     char lockfilename[16];				    /* name of file from which we were locked */
     int lockline;					    /* and the line number */
@@ -234,7 +234,7 @@ struct _sd
     int init_interval;					    /* and time to wait between transfers */
 #ifdef _KERNEL
     struct request *waitlist;				    /* list of requests waiting on revive op */
-    dev_t dev;						    /* associated device */
+    struct cdev *dev;						    /* associated device */
 #endif
 };
 
@@ -276,7 +276,7 @@ struct _plex
     struct rangelock *lock;				    /* ranges of locked addresses */
     struct mtx *lockmtx;				    /* lock mutex, one of plexmutex [] */
     daddr_t last_addr;					    /* last address read from this plex */
-    dev_t dev;						    /* associated device */
+    struct cdev *dev;						    /* associated device */
 #endif
 };
 
@@ -316,6 +316,6 @@ struct _volume
      */
     int plex[MAXPLEX];					    /* index of plexes */
 #ifdef _KERNEL
-    dev_t dev;						    /* associated device */
+    struct cdev *dev;						    /* associated device */
 #endif
 };

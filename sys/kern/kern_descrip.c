@@ -2153,7 +2153,7 @@ done2:
 /* ARGSUSED */
 static int
 fdopen(dev, mode, type, td)
-	dev_t dev;
+	struct cdev *dev;
 	int mode, type;
 	struct thread *td;
 {
@@ -2393,7 +2393,7 @@ SYSCTL_INT(_kern, OID_AUTO, openfiles, CTLFLAG_RD,
 static void
 fildesc_drvinit(void *unused)
 {
-	dev_t dev;
+	struct cdev *dev;
 
 	dev = make_dev(&fildesc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0666, "fd/0");
 	make_dev_alias(dev, "stdin");

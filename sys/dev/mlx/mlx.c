@@ -204,7 +204,7 @@ mlx_free(struct mlx_softc *sc)
 	free(sc->mlx_enq2, M_DEVBUF);
 
     /* destroy control device */
-    if (sc->mlx_dev_t != (dev_t)NULL)
+    if (sc->mlx_dev_t != (struct cdev *)NULL)
 	destroy_dev(sc->mlx_dev_t);
 }
 
@@ -721,7 +721,7 @@ mlx_submit_buf(struct mlx_softc *sc, mlx_bio *bp)
  * Accept an open operation on the control device.
  */
 int
-mlx_open(dev_t dev, int flags, int fmt, struct thread *td)
+mlx_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
     struct mlx_softc	*sc = devclass_get_softc(mlx_devclass, unit);
@@ -734,7 +734,7 @@ mlx_open(dev_t dev, int flags, int fmt, struct thread *td)
  * Accept the last close on the control device.
  */
 int
-mlx_close(dev_t dev, int flags, int fmt, struct thread *td)
+mlx_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
     struct mlx_softc	*sc = devclass_get_softc(mlx_devclass, unit);
@@ -747,7 +747,7 @@ mlx_close(dev_t dev, int flags, int fmt, struct thread *td)
  * Handle controller-specific control operations.
  */
 int
-mlx_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
+mlx_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 {
     int				unit = minor(dev);
     struct mlx_softc		*sc = devclass_get_softc(mlx_devclass, unit);

@@ -313,7 +313,7 @@ struct drm_device {
 #ifdef __FreeBSD__
 	device_t	  device;	/* Device instance from newbus     */
 #endif
-	dev_t		  devnode;	/* Device number for mknod	   */
+	struct cdev *devnode;	/* Device number for mknod	   */
 	int		  if_version;	/* Highest interface version set */
 
 	int		  flags;	/* Flags to open(2)		   */

@@ -174,7 +174,7 @@ struct twa_softc {
 					between ioctl calls */
     
 	device_t		twa_bus_dev;	/* bus device */
-	dev_t			twa_ctrl_dev;	/* control device */
+	struct cdev *twa_ctrl_dev;	/* control device */
 	struct resource		*twa_io_res;	/* register interface window */
 	bus_space_handle_t	twa_bus_handle;	/* bus space handle */
 	bus_space_tag_t		twa_bus_tag;	/* bus space tag */

@@ -131,7 +131,9 @@ typedef	__critical_t	critical_t;	/* Critical section value */
 typedef	__int64_t	daddr_t;	/* disk address */
 
 #ifndef _DEV_T_DECLARED
+#ifndef _KERNEL
 typedef	__dev_t		dev_t;		/* device number or struct cdev */
+#endif
 #define	_DEV_T_DECLARED
 #endif
 

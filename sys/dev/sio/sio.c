@@ -271,7 +271,7 @@ struct com_s {
 	struct resource *ioportres;
 	int	ioportrid;
 	void	*cookie;
-	dev_t	devs[6];
+	struct cdev *devs[6];
 
 	/*
 	 * Data area for output buffers.  Someday we should build the output
@@ -1180,7 +1180,7 @@ determined_type: ;
 
 static int
 sioopen(dev, flag, mode, td)
-	dev_t		dev;
+	struct cdev *dev;
 	int		flag;
 	int		mode;
 	struct thread	*td;
@@ -1363,7 +1363,7 @@ out:
 
 static int
 sioclose(dev, flag, mode, td)
-	dev_t		dev;
+	struct cdev *dev;
 	int		flag;
 	int		mode;
 	struct thread	*td;
@@ -1460,7 +1460,7 @@ comhardclose(com)
 
 static int
 sioread(dev, uio, flag)
-	dev_t		dev;
+	struct cdev *dev;
 	struct uio	*uio;
 	int		flag;
 {
@@ -1478,7 +1478,7 @@ sioread(dev, uio, flag)
 
 static int
 siowrite(dev, uio, flag)
-	dev_t		dev;
+	struct cdev *dev;
 	struct uio	*uio;
 	int		flag;
 {
@@ -1961,7 +1961,7 @@ txrdy:
 
 static int
 sioioctl(dev, cmd, data, flag, td)
-	dev_t		dev;
+	struct cdev *dev;
 	u_long		cmd;
 	caddr_t		data;
 	int		flag;

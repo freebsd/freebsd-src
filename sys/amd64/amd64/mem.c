@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-static dev_t memdev, kmemdev, iodev;
+static struct cdev *memdev, *kmemdev, *iodev;
 
 static	d_open_t	mmopen;
 static	d_close_t	mmclose;
@@ -95,7 +95,7 @@ MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
 struct mem_range_softc mem_range_softc;
 
 static int
-mmclose(dev_t dev, int flags, int fmt, struct thread *td)
+mmclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	switch (minor(dev)) {
 	case 14:
@@ -105,7 +105,7 @@ mmclose(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-mmopen(dev_t dev, int flags, int fmt, struct thread *td)
+mmopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	int error;
 
@@ -133,7 +133,7 @@ mmopen(dev_t dev, int flags, int fmt, struct thread *td)
 
 /*ARGSUSED*/
 static int
-mmrw(dev_t dev, struct uio *uio, int flags)
+mmrw(struct cdev *dev, struct uio *uio, int flags)
 {
 	int o;
 	u_long c = 0, v;
@@ -214,7 +214,7 @@ kmemphys:
 * instead of going through read/write			*
 \*******************************************************/
 static int
-memmmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
 	switch (minor(dev))
 	{
@@ -242,7 +242,7 @@ memmmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
  * and mem_range_attr_set.
  */
 static int 
-mmioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
+mmioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	int nd, error = 0;
 	struct mem_range_op *mo = (struct mem_range_op *)data;

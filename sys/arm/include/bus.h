@@ -118,7 +118,7 @@ struct bus_space {
 	void *		(*bs_vaddr) (void *, bus_space_handle_t);
 
 	/* mmap bus space for user */
-	int		(*bs_mmap) (dev_t, vm_offset_t, vm_paddr_t *, int);
+	int		(*bs_mmap) (struct cdev *, vm_offset_t, vm_paddr_t *, int);
 
 	/* barrier */
 	void		(*bs_barrier) (void *, bus_space_handle_t,
@@ -411,7 +411,7 @@ void	__bs_c(f,_bs_free) (void *t, bus_space_handle_t bsh,	\
 void *	__bs_c(f,_bs_vaddr) (void *t, bus_space_handle_t bsh);
 
 #define bs_mmap_proto(f)						\
-int	__bs_c(f,_bs_mmap) (dev_t, vm_offset_t, vm_paddr_t *, int);
+int	__bs_c(f,_bs_mmap) (struct cdev *, vm_offset_t, vm_paddr_t *, int);
 
 #define bs_barrier_proto(f)						\
 void	__bs_c(f,_bs_barrier) (void *t, bus_space_handle_t bsh,	\

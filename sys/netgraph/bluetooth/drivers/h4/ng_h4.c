@@ -78,7 +78,7 @@ MALLOC_DEFINE(M_NETGRAPH_H4, "netgraph_h4", "Netgraph Bluetooth H4 node");
 #endif /* NG_SEPARATE_MALLOC */
 
 /* Line discipline methods */
-static int	ng_h4_open	(dev_t, struct tty *);
+static int	ng_h4_open	(struct cdev *, struct tty *);
 static int	ng_h4_close	(struct tty *, int);
 static int	ng_h4_read	(struct tty *, struct uio *, int);
 static int	ng_h4_write	(struct tty *, struct uio *, int);
@@ -147,7 +147,7 @@ static int	ng_h4_node = 0;
  */
 
 static int
-ng_h4_open(dev_t dev, struct tty *tp)
+ng_h4_open(struct cdev *dev, struct tty *tp)
 {
 	char		 name[NG_NODESIZ];
 	ng_h4_info_p	 sc = NULL;

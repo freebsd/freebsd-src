@@ -938,7 +938,7 @@ mac_check_mount_stat(struct ucred *cred, struct mount *mount)
 }
 
 void
-mac_create_devfs_device(struct mount *mp, dev_t dev, struct devfs_dirent *de)
+mac_create_devfs_device(struct mount *mp, struct cdev *dev, struct devfs_dirent *de)
 {
 
 	MAC_PERFORM(create_devfs_device, mp, dev, de, de->de_label);

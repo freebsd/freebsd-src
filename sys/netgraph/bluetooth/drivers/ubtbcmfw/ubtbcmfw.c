@@ -61,9 +61,9 @@
 struct ubtbcmfw_softc {
 	USBBASEDEVICE		sc_dev;			/* base device */
 	usbd_device_handle	sc_udev;		/* USB device handle */
-	dev_t			sc_ctrl_dev;		/* control device */
-	dev_t			sc_intr_in_dev;		/* interrupt device */
-	dev_t			sc_bulk_out_dev;	/* bulk device */
+	struct cdev *sc_ctrl_dev;		/* control device */
+	struct cdev *sc_intr_in_dev;		/* interrupt device */
+	struct cdev *sc_bulk_out_dev;	/* bulk device */
 	usbd_pipe_handle	sc_intr_in_pipe;	/* interrupt pipe */
 	usbd_pipe_handle	sc_bulk_out_pipe;	/* bulk out pipe */
 	int			sc_flags;
@@ -264,7 +264,7 @@ USB_DETACH(ubtbcmfw)
  */
 
 Static int
-ubtbcmfw_open(dev_t dev, int flag, int mode, usb_proc_ptr p)
+ubtbcmfw_open(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
 	int			error = 0;
@@ -316,7 +316,7 @@ ubtbcmfw_open(dev_t dev, int flag, int mode, usb_proc_ptr p)
  */
 
 Static int
-ubtbcmfw_close(dev_t dev, int flag, int mode, usb_proc_ptr p)
+ubtbcmfw_close(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
 
@@ -353,7 +353,7 @@ ubtbcmfw_close(dev_t dev, int flag, int mode, usb_proc_ptr p)
  */
 
 Static int
-ubtbcmfw_read(dev_t dev, struct uio *uio, int flag)
+ubtbcmfw_read(struct cdev *dev, struct uio *uio, int flag)
 {
 	ubtbcmfw_softc_p	sc = NULL;
 	u_int8_t		buf[UBTBCMFW_BSIZE];
@@ -417,7 +417,7 @@ ubtbcmfw_read(dev_t dev, struct uio *uio, int flag)
  */
 
 Static int
-ubtbcmfw_write(dev_t dev, struct uio *uio, int flag)
+ubtbcmfw_write(struct cdev *dev, struct uio *uio, int flag)
 {
 	ubtbcmfw_softc_p	sc = NULL;
 	u_int8_t		buf[UBTBCMFW_BSIZE];
@@ -482,7 +482,7 @@ ubtbcmfw_write(dev_t dev, struct uio *uio, int flag)
  */
 
 Static int
-ubtbcmfw_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
+ubtbcmfw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
 	int			error = 0;
@@ -519,7 +519,7 @@ ubtbcmfw_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
  */
 
 Static int
-ubtbcmfw_poll(dev_t dev, int events, usb_proc_ptr p)
+ubtbcmfw_poll(struct cdev *dev, int events, usb_proc_ptr p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
 	int			revents = 0;

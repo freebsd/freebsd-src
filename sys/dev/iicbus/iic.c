@@ -52,7 +52,7 @@ struct iic_softc {
 	char sc_buffer[BUFSIZE];	/* output buffer */
 	char sc_inbuf[BUFSIZE];		/* input buffer */
 
-	dev_t sc_devnode;
+	struct cdev *sc_devnode;
 };
 
 #define IIC_SOFTC(unit) \
@@ -146,7 +146,7 @@ iic_detach(device_t dev)
 }
 
 static int
-iicopen (dev_t dev, int flags, int fmt, struct thread *td)
+iicopen (struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct iic_softc *sc = IIC_SOFTC(minor(dev));
 
@@ -162,7 +162,7 @@ iicopen (dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-iicclose(dev_t dev, int flags, int fmt, struct thread *td)
+iicclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct iic_softc *sc = IIC_SOFTC(minor(dev));
 
@@ -181,7 +181,7 @@ iicclose(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-iicwrite(dev_t dev, struct uio * uio, int ioflag)
+iicwrite(struct cdev *dev, struct uio * uio, int ioflag)
 {
 	device_t iicdev = IIC_DEVICE(minor(dev));
 	struct iic_softc *sc = IIC_SOFTC(minor(dev));
@@ -208,7 +208,7 @@ iicwrite(dev_t dev, struct uio * uio, int ioflag)
 }
 
 static int
-iicread(dev_t dev, struct uio * uio, int ioflag)
+iicread(struct cdev *dev, struct uio * uio, int ioflag)
 {
 	device_t iicdev = IIC_DEVICE(minor(dev));
 	struct iic_softc *sc = IIC_SOFTC(minor(dev));
@@ -240,7 +240,7 @@ iicread(dev_t dev, struct uio * uio, int ioflag)
 }
 
 static int
-iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
+iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	device_t iicdev = IIC_DEVICE(minor(dev));
 	struct iic_softc *sc = IIC_SOFTC(minor(dev));

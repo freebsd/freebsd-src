@@ -2291,7 +2291,7 @@ done:
  */
 
 Static int
-ubt_open(dev_t dev, int flag, int mode, usb_proc_ptr p)
+ubt_open(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	ubt_softc_p	sc = NULL;
 	int		ep = UBT_ENDPOINT(dev);
@@ -2331,7 +2331,7 @@ ubt_open(dev_t dev, int flag, int mode, usb_proc_ptr p)
  */
 
 Static int
-ubt_close(dev_t dev, int flag, int mode, usb_proc_ptr p)
+ubt_close(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	ubt_softc_p	sc = NULL;
 	int		ep = UBT_ENDPOINT(dev);
@@ -2368,7 +2368,7 @@ ubt_close(dev_t dev, int flag, int mode, usb_proc_ptr p)
  */
 
 Static int
-ubt_read(dev_t dev, struct uio *uio, int flag)
+ubt_read(struct cdev *dev, struct uio *uio, int flag)
 {
 	ubt_softc_p		sc = NULL;
 	int			error = 0, n, tn, ep = UBT_ENDPOINT(dev);
@@ -2436,7 +2436,7 @@ ubt_read(dev_t dev, struct uio *uio, int flag)
  */
 
 Static int
-ubt_write(dev_t dev, struct uio *uio, int flag)
+ubt_write(struct cdev *dev, struct uio *uio, int flag)
 {
 	ubt_softc_p	sc = NULL;
 	int		error = 0, n, ep = UBT_ENDPOINT(dev);
@@ -2495,7 +2495,7 @@ ubt_write(dev_t dev, struct uio *uio, int flag)
  */
 
 Static int
-ubt_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
+ubt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 {
 	ubt_softc_p		 sc = NULL;
 	int			 len, error = 0, ep = UBT_ENDPOINT(dev);
@@ -2613,7 +2613,7 @@ ret:
  */
 
 Static int
-ubt_poll(dev_t dev, int events, usb_proc_ptr p)
+ubt_poll(struct cdev *dev, int events, usb_proc_ptr p)
 {
 	ubt_softc_p	sc = NULL;
 	int		revents = 0, ep = UBT_ENDPOINT(dev);

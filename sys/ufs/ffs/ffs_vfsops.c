@@ -556,7 +556,7 @@ ffs_mountfs(devvp, mp, td)
 	struct ufsmount *ump;
 	struct buf *bp;
 	struct fs *fs;
-	dev_t dev;
+	struct cdev *dev;
 	void *space;
 	ufs2_daddr_t sblockloc;
 	int error, i, blks, size, ronly;
@@ -1222,7 +1222,7 @@ ffs_vget(mp, ino, flags, vpp)
 	struct ufsmount *ump;
 	struct buf *bp;
 	struct vnode *vp;
-	dev_t dev;
+	struct cdev *dev;
 	int error;
 
 	ump = VFSTOUFS(mp);

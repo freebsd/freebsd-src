@@ -575,7 +575,7 @@ struct cmd_info {
 static struct cmd_info *ida_cmd_lookup(int);
 
 static int
-ida_ioctl (dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
+ida_ioctl (struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 {
 	struct ida_softc *sc;
 	struct ida_user_command *uc;

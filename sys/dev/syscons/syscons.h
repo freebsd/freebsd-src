@@ -208,7 +208,7 @@ typedef struct sc_softc {
 
 	int		first_vty;
 	int		vtys;
-	dev_t		*dev;
+	struct cdev **dev;
 	struct scr_stat	*cur_scp;
 	struct scr_stat	*new_scp;
 	struct scr_stat	*old_scp;
@@ -518,7 +518,7 @@ typedef struct {
 		(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))
 
 /* syscons.c */
-extern int 	(*sc_user_ioctl)(dev_t dev, u_long cmd, caddr_t data,
+extern int 	(*sc_user_ioctl)(struct cdev *dev, u_long cmd, caddr_t data,
 				 int flag, struct thread *td);
 
 int		sc_probe_unit(int unit, int flags);

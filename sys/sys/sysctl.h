@@ -351,7 +351,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_BOOTFILE		26	/* string: name of booted kernel */
 #define	KERN_MAXFILESPERPROC	27	/* int: max open files per proc */
 #define	KERN_MAXPROCPERUID 	28	/* int: max processes per uid */
-#define KERN_DUMPDEV		29	/* dev_t: device to dump on */
+#define KERN_DUMPDEV		29	/* struct cdev *: device to dump on */
 #define	KERN_IPC		30	/* node: anything related to IPC */
 #define	KERN_DUMMY		31	/* unused */
 #define	KERN_PS_STRINGS		32	/* int: address of PS_STRINGS */

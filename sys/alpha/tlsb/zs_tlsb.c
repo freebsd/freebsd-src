@@ -258,7 +258,7 @@ zs_cnputc(struct consdev *cp, int c)
 
 
 static int
-zsopen(dev_t dev, int flag, int mode, struct thread *td)
+zsopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct zs_softc *sc = ZS_SOFTC(minor(dev));
 	struct tty *tp;
@@ -305,7 +305,7 @@ zsopen(dev_t dev, int flag, int mode, struct thread *td)
 }
  
 static int
-zsclose(dev_t dev, int flag, int mode, struct thread *td)
+zsclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct zs_softc *sc = ZS_SOFTC(minor(dev));
 	struct tty *tp;

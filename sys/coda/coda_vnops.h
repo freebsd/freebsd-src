@@ -82,6 +82,6 @@ int coda_pathconf(void *);
 
 int coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw,
     int ioflag, struct ucred *cred, struct thread *td);
-int coda_grab_vnode(dev_t dev, ino_t ino, struct vnode **vpp);
+int coda_grab_vnode(struct cdev *dev, ino_t ino, struct vnode **vpp);
 void print_vattr(struct vattr *attr);
 void print_cred(struct ucred *cred);

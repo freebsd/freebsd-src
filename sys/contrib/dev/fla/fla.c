@@ -79,7 +79,7 @@ static struct fla_s {
 	struct doc2k_stat ds;
 	struct bio_queue_head bio_queue;
 	struct disk *disk;
-	dev_t dev;
+	struct cdev *dev;
 } softc[8];
 
 static int

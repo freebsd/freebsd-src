@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 static d_ioctl_t *prev_user_ioctl;
 
 static int
-vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+vesa_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	scr_stat *scp;
 	struct tty *tp;

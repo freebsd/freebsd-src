@@ -260,7 +260,7 @@ pcigfb_detach(device_t dev)
 #ifdef FB_INSTALL_CDEV
 
 int
-pcigfb_open(dev_t dev, int flag, int mode, struct thread *td)
+pcigfb_open(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct gfb_softc *sc;
 	int error;
@@ -277,7 +277,7 @@ pcigfb_open(dev_t dev, int flag, int mode, struct thread *td)
 }
 
 int
-pcigfb_close(dev_t dev, int flag, int mode, struct thread *td)
+pcigfb_close(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct gfb_softc *sc;
 
@@ -286,7 +286,7 @@ pcigfb_close(dev_t dev, int flag, int mode, struct thread *td)
 }
 
 int
-pcigfb_read(dev_t dev, struct uio *uio, int flag)
+pcigfb_read(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct gfb_softc *sc;
 
@@ -295,7 +295,7 @@ pcigfb_read(dev_t dev, struct uio *uio, int flag)
 }
 
 int
-pcigfb_write(dev_t dev, struct uio *uio, int flag)
+pcigfb_write(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct gfb_softc *sc;
 
@@ -304,7 +304,7 @@ pcigfb_write(dev_t dev, struct uio *uio, int flag)
 }
 
 int
-pcigfb_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
+pcigfb_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	struct gfb_softc *sc;
 
@@ -313,7 +313,7 @@ pcigfb_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 }
 
 int
-pcigfb_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+pcigfb_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
 	struct gfb_softc *sc;
 

@@ -158,7 +158,7 @@ struct ubser_softc {
 	u_int			sc_opkthdrlen;	/* header length of
 						   output packet */
 
-	dev_t dev[8];
+	struct cdev *dev[8];
 };
 
 Static d_open_t  ubser_open;
@@ -853,7 +853,7 @@ ubser_cleanup(struct ubser_softc *sc)
 }
 
 static int
-ubser_open(dev_t dev, int flag, int mode, usb_proc_ptr p)
+ubser_open(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct ubser_softc *sc;
 	struct tty *tp;
@@ -929,7 +929,7 @@ bad:
 }
 
 static int
-ubser_close(dev_t dev, int flag, int mode, usb_proc_ptr p)
+ubser_close(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct ubser_softc *sc;
 	struct tty *tp;
@@ -952,7 +952,7 @@ quit:
 }
 
 static int
-ubser_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
+ubser_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 {
 	usb_device_request_t req;
 	struct ubser_softc *sc;
@@ -997,7 +997,7 @@ ubser_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 }
 
 static int
-ubser_read(dev_t dev, struct uio *uio, int flag)
+ubser_read(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct ubser_softc *sc;
 	struct tty *tp;
@@ -1019,7 +1019,7 @@ ubser_read(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-ubser_write(dev_t dev, struct uio *uio, int flag)
+ubser_write(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct ubser_softc *sc;
 	struct tty *tp;

@@ -125,7 +125,7 @@ struct slot {
 	void		*cdata;		/* Controller specific data */
 	int		pwr_off_pending;/* Power status of slot */
 	device_t	dev;		/* Config system device. */
-	dev_t		d;		/* fs device */
+	struct cdev *d;		/* fs device */
 };
 
 #define PCCARD_DEVICE2SOFTC(d)	((struct slot *) device_get_softc(d))

@@ -123,7 +123,7 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, stru
 {
 	int error;
 	struct vnode *vp;
-	dev_t dev;
+	struct cdev *dev;
 
 	if (td == NULL)
 		td = curthread; /* XXX */
@@ -213,7 +213,7 @@ devfs_getattr(ap)
 	struct vattr *vap = ap->a_vap;
 	int error = 0;
 	struct devfs_dirent *de;
-	dev_t dev;
+	struct cdev *dev;
 
 	de = vp->v_data;
 	if (vp->v_type == VDIR)
@@ -304,7 +304,7 @@ devfs_lookupx(ap)
 	struct devfs_dirent *de, *dd;
 	struct devfs_dirent **dde;
 	struct devfs_mount *dmp;
-	dev_t cdev;
+	struct cdev *cdev;
 	int error, flags, nameiop;
 	char specname[SPECNAMELEN + 1], *pname;
 

@@ -332,7 +332,7 @@ sxattach(
  */
 static int
 sxopen(
-	dev_t dev,
+	struct cdev *dev,
 	int flag,
 	int mode,
 	d_thread_t *p)
@@ -501,7 +501,7 @@ out:
  */
 static int
 sxclose(
-	dev_t dev,
+	struct cdev *dev,
 	int flag,
 	int mode,
 	d_thread_t *p)
@@ -641,7 +641,7 @@ sxdtrwakeup(void *chan)
  */
 static int
 sxwrite(
-	dev_t dev,
+	struct cdev *dev,
 	struct uio *uio,
 	int flag)
 {
@@ -690,7 +690,7 @@ out:	splx(oldspl);
  */
 static int
 sxioctl(
-	dev_t dev,
+	struct cdev *dev,
 	u_long cmd,
 	caddr_t data,
 	int flag,

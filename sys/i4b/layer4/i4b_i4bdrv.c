@@ -111,7 +111,7 @@ i4battach(void *dummy)
  *	i4bopen - device driver open routine
  *---------------------------------------------------------------------------*/
 static int
-i4bopen(dev_t dev, int flag, int fmt, struct thread *td)
+i4bopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	int x;
 	
@@ -133,7 +133,7 @@ i4bopen(dev_t dev, int flag, int fmt, struct thread *td)
  *	i4bclose - device driver close routine
  *---------------------------------------------------------------------------*/
 static int
-i4bclose(dev_t dev, int flag, int fmt, struct thread *td)
+i4bclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	int x = splimp();	
 	openflag = 0;
@@ -147,7 +147,7 @@ i4bclose(dev_t dev, int flag, int fmt, struct thread *td)
  *	i4bread - device driver read routine
  *---------------------------------------------------------------------------*/
 static int
-i4bread(dev_t dev, struct uio *uio, int ioflag)
+i4bread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct mbuf *m;
 	int x;
@@ -192,7 +192,7 @@ i4bread(dev_t dev, struct uio *uio, int ioflag)
  *	i4bioctl - device driver ioctl routine
  *---------------------------------------------------------------------------*/
 static int
-i4bioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+i4bioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	call_desc_t *cd;
 	int error = 0;
@@ -755,7 +755,7 @@ diag_done:
  *	i4bpoll - device driver poll routine
  *---------------------------------------------------------------------------*/
 static int
-i4bpoll(dev_t dev, int events, struct thread *td)
+i4bpoll(struct cdev *dev, int events, struct thread *td)
 {
 	int x;
 	

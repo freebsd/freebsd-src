@@ -52,7 +52,7 @@
 /*
  * CTL_MACHDEP definitions.
  */
-#define CPU_CONSDEV		1	/* dev_t: console terminal device */
+#define CPU_CONSDEV		1	/* struct cdev *: console terminal device */
 #define	CPU_ADJKERNTZ		2	/* int:	timezone offset	(seconds) */
 #define	CPU_DISRTCSET		3	/* int: disable resettodr() call */
 #define CPU_BOOTINFO		4	/* struct: bootinfo */

@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
-static void	addalias(struct vnode *vp, dev_t nvp_rdev);
+static void	addalias(struct vnode *vp, struct cdev *nvp_rdev);
 static void	insmntque(struct vnode *vp, struct mount *mp);
 static void	vclean(struct vnode *vp, int flags, struct thread *td);
 static void	vlruvp(struct vnode *vp);
@@ -1737,7 +1737,7 @@ reassignbuf(bp, newvp)
  */
 int
 bdevvp(dev, vpp)
-	dev_t dev;
+	struct cdev *dev;
 	struct vnode **vpp;
 {
 	register struct vnode *vp;
@@ -1776,7 +1776,7 @@ v_incr_usecount(struct vnode *vp, int delta)
 }
 
 /*
- * Add vnode to the alias list hung off the dev_t.
+ * Add vnode to the alias list hung off the struct cdev *.
  *
  * The reason for this gunk is that multiple vnodes can reference
  * the same physical device, so checking vp->v_usecount to see
@@ -1790,7 +1790,7 @@ addaliasu(nvp, nvp_rdev)
 {
 	struct vnode *ovp;
 	vop_t **ops;
-	dev_t dev;
+	struct cdev *dev;
 
 	if (nvp->v_type == VBLK)
 		return (nvp);
@@ -1836,11 +1836,11 @@ addaliasu(nvp, nvp_rdev)
 }
 
 /* This is a local helper function that do the same as addaliasu, but for a
- * dev_t instead of an udev_t. */
+ * struct cdev *instead of an udev_t. */
 static void
 addalias(nvp, dev)
 	struct vnode *nvp;
-	dev_t dev;
+	struct cdev *dev;
 {
 
 	KASSERT(nvp->v_type == VCHR, ("addalias on non-special vnode"));
@@ -2440,7 +2440,7 @@ vop_revoke(ap)
 	} */ *ap;
 {
 	struct vnode *vp, *vq;
-	dev_t dev;
+	struct cdev *dev;
 
 	KASSERT((ap->a_flags & REVOKEALL) != 0, ("vop_revoke"));
 	vp = ap->a_vp;
@@ -2622,7 +2622,7 @@ vgonel(vp, td)
  */
 int
 vfinddev(dev, vpp)
-	dev_t dev;
+	struct cdev *dev;
 	struct vnode **vpp;
 {
 	struct vnode *vp;
@@ -2653,11 +2653,11 @@ vcount(vp)
 }
 
 /*
- * Same as above, but using the dev_t as argument
+ * Same as above, but using the struct cdev *as argument
  */
 int
 count_dev(dev)
-	dev_t dev;
+	struct cdev *dev;
 {
 	int count;
 
@@ -3399,9 +3399,9 @@ sync_reclaim(ap)
 }
 
 /*
- * extract the dev_t from a VCHR
+ * extract the struct cdev *from a VCHR
  */
-dev_t
+struct cdev *
 vn_todev(vp)
 	struct vnode *vp;
 {

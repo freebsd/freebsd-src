@@ -75,7 +75,7 @@ struct nfs4dev_upcall {
 
 static int nfs4dev_nopen = 0;
 static struct thread * nfs4dev_reader = NULL;
-static dev_t nfs4device = 0;
+static struct cdev *nfs4device = 0;
 static struct mtx nfs4dev_daemon_mtx;
 
 static int nfs4dev_xid = 0;
@@ -252,7 +252,7 @@ nfs4dev_uninit(void)
 
 /* device interface functions */
 static int
-nfs4dev_open(dev_t dev, int flags, int fmt, d_thread_t *td)
+nfs4dev_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
 	if (dev != nfs4device) 
 		return ENODEV;
@@ -271,7 +271,7 @@ nfs4dev_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 }
 
 static int
-nfs4dev_close(dev_t dev, int flags, int fmt, d_thread_t *td)
+nfs4dev_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
 	struct nfs4dev_upcall * u;
 
@@ -303,7 +303,7 @@ nfs4dev_close(dev_t dev, int flags, int fmt, d_thread_t *td)
 }
 
 static int 
-nfs4dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+nfs4dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
   	int error;
 
@@ -333,7 +333,7 @@ nfs4dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 }
 
 static int 
-nfs4dev_poll(dev_t dev, int events, struct thread *td)
+nfs4dev_poll(struct cdev *dev, int events, struct thread *td)
 {
   	int revents;
 

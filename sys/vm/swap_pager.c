@@ -2441,7 +2441,7 @@ swapgeom_close(struct thread *td, struct swdevt *sw)
 
 
 struct swh0h0 {
-	dev_t	dev;
+	struct cdev *dev;
 	struct vnode *vp;
 	int	error;
 };

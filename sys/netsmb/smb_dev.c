@@ -99,7 +99,7 @@ static struct cdevsw nsmb_cdevsw = {
 static eventhandler_tag nsmb_dev_tag;
 
 static void
-nsmb_dev_clone(void *arg, char *name, int namelen, dev_t *dev)
+nsmb_dev_clone(void *arg, char *name, int namelen, struct cdev **dev)
 {
 	int u;
 
@@ -112,7 +112,7 @@ nsmb_dev_clone(void *arg, char *name, int namelen, dev_t *dev)
 }
 
 static int
-nsmb_dev_open(dev_t dev, int oflags, int devtype, struct thread *td)
+nsmb_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct smb_dev *sdp;
 	struct ucred *cred = td->td_ucred;
@@ -146,7 +146,7 @@ nsmb_dev_open(dev_t dev, int oflags, int devtype, struct thread *td)
 }
 
 static int
-nsmb_dev_close(dev_t dev, int flag, int fmt, struct thread *td)
+nsmb_dev_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct smb_dev *sdp;
 	struct smb_vc *vcp;
@@ -180,7 +180,7 @@ nsmb_dev_close(dev_t dev, int flag, int fmt, struct thread *td)
 
 
 static int
-nsmb_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct smb_dev *sdp;
 	struct smb_vc *vcp;
@@ -385,7 +385,7 @@ smb_dev2share(int fd, int mode, struct smb_cred *scred,
 	struct vnode *vp;
 	struct smb_dev *sdp;
 	struct smb_share *ssp;
-	dev_t dev;
+	struct cdev *dev;
 	int error;
 
 	fp = nsmb_getfp(scred->scr_td->td_proc->p_fd, fd, FREAD | FWRITE);

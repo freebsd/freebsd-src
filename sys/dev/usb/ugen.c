@@ -100,7 +100,7 @@ SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RW,
 struct ugen_endpoint {
 	struct ugen_softc *sc;
 #if defined(__FreeBSD__)
-	dev_t dev;
+	struct cdev *dev;
 #endif
 	usb_endpoint_descriptor_t *edesc;
 	usbd_interface_handle iface;
@@ -127,7 +127,7 @@ struct ugen_softc {
 	USBBASEDEVICE sc_dev;		/* base device */
 	usbd_device_handle sc_udev;
 #if defined(__FreeBSD__)
-	dev_t dev;
+	struct cdev *dev;
 #endif
 
 	char sc_is_open[USB_MAX_ENDPOINTS];
@@ -253,7 +253,7 @@ Static void
 ugen_make_devnodes(struct ugen_softc *sc)
 {
 	int endptno;
-	dev_t dev;
+	struct cdev *dev;
 
 	for (endptno = 1; endptno < USB_MAX_ENDPOINTS; endptno++) {
 		if (sc->sc_endpoints[endptno][IN].sc != NULL ||
@@ -283,7 +283,7 @@ Static void
 ugen_destroy_devnodes(struct ugen_softc *sc)
 {
 	int endptno;
-	dev_t dev;
+	struct cdev *dev;
 
 	/* destroy all devices for the other (existing) endpoints as well */
 	for (endptno = 1; endptno < USB_MAX_ENDPOINTS; endptno++) {
@@ -379,7 +379,7 @@ ugen_set_config(struct ugen_softc *sc, int configno)
 }
 
 int
-ugenopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
+ugenopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct ugen_softc *sc;
 	int unit = UGENUNIT(dev);
@@ -519,7 +519,7 @@ ugenopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 }
 
 int
-ugenclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
+ugenclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	int endpt = UGENENDPOINT(dev);
 	struct ugen_softc *sc;
@@ -725,7 +725,7 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 }
 
 int
-ugenread(dev_t dev, struct uio *uio, int flag)
+ugenread(struct cdev *dev, struct uio *uio, int flag)
 {
 	int endpt = UGENENDPOINT(dev);
 	struct ugen_softc *sc;
@@ -825,7 +825,7 @@ ugen_do_write(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 }
 
 int
-ugenwrite(dev_t dev, struct uio *uio, int flag)
+ugenwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	int endpt = UGENENDPOINT(dev);
 	struct ugen_softc *sc;
@@ -1390,7 +1390,7 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 }
 
 int
-ugenioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
+ugenioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 {
 	int endpt = UGENENDPOINT(dev);
 	struct ugen_softc *sc;
@@ -1406,7 +1406,7 @@ ugenioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 }
 
 int
-ugenpoll(dev_t dev, int events, usb_proc_ptr p)
+ugenpoll(struct cdev *dev, int events, usb_proc_ptr p)
 {
 	struct ugen_softc *sc;
 	struct ugen_endpoint *sce;

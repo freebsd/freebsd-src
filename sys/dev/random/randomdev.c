@@ -74,7 +74,7 @@ static struct cdevsw random_cdevsw = {
 struct random_systat random_systat;
 
 /* For use with make_dev(9)/destroy_dev(9). */
-static dev_t random_dev;
+static struct cdev *random_dev;
 
 /* Used to fake out unused random calls in random_systat */
 void
@@ -84,7 +84,7 @@ random_null_func(void)
 
 /* ARGSUSED */
 static int
-random_close(dev_t dev __unused, int flags, int fmt __unused,
+random_close(struct cdev *dev __unused, int flags, int fmt __unused,
     struct thread *td)
 {
 	if ((flags & FWRITE) && (suser(td) == 0)
@@ -98,7 +98,7 @@ random_close(dev_t dev __unused, int flags, int fmt __unused,
 
 /* ARGSUSED */
 static int
-random_read(dev_t dev __unused, struct uio *uio, int flag)
+random_read(struct cdev *dev __unused, struct uio *uio, int flag)
 {
 	int c, error = 0;
 	void *random_buf;
@@ -136,7 +136,7 @@ random_read(dev_t dev __unused, struct uio *uio, int flag)
 
 /* ARGSUSED */
 static int
-random_write(dev_t dev __unused, struct uio *uio, int flag __unused)
+random_write(struct cdev *dev __unused, struct uio *uio, int flag __unused)
 {
 	int c, error = 0;
 	void *random_buf;
@@ -158,7 +158,7 @@ random_write(dev_t dev __unused, struct uio *uio, int flag __unused)
 
 /* ARGSUSED */
 static int
-random_ioctl(dev_t dev __unused, u_long cmd, caddr_t addr __unused,
+random_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr __unused,
     int flags __unused, struct thread *td __unused)
 {
 	int error = 0;
@@ -176,7 +176,7 @@ random_ioctl(dev_t dev __unused, u_long cmd, caddr_t addr __unused,
 
 /* ARGSUSED */
 static int
-random_poll(dev_t dev __unused, int events, struct thread *td)
+random_poll(struct cdev *dev __unused, int events, struct thread *td)
 {
 	int revents = 0;
 

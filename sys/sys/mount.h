@@ -496,7 +496,7 @@ struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
 	    (struct mount *, struct sockaddr *);
 int	vfs_allocate_syncvnode(struct mount *);
 void	vfs_getnewfsid(struct mount *);
-dev_t	vfs_getrootfsid(struct mount *);
+struct cdev *vfs_getrootfsid(struct mount *);
 struct	mount *vfs_getvfs(fsid_t *);      /* return vfs given fsid */
 int	vfs_modevent(module_t, int, void *);
 int	vfs_mountedon(struct vnode *);    /* is a vfs mounted on vp */

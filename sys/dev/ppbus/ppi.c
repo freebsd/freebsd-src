@@ -255,7 +255,7 @@ ppiintr(void *arg)
 #endif /* PERIPH_1284 */
 
 static int
-ppiopen(dev_t dev, int flags, int fmt, struct thread *td)
+ppiopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	u_int unit = minor(dev);
 	struct ppi_data *ppi = UNITOSOFTC(unit);
@@ -288,7 +288,7 @@ ppiopen(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-ppiclose(dev_t dev, int flags, int fmt, struct thread *td)
+ppiclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	u_int unit = minor(dev);
 	struct ppi_data *ppi = UNITOSOFTC(unit);
@@ -330,7 +330,7 @@ ppiclose(dev_t dev, int flags, int fmt, struct thread *td)
  * If no data is available, wait for it otherwise transfer as much as possible
  */
 static int
-ppiread(dev_t dev, struct uio *uio, int ioflag)
+ppiread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 #ifdef PERIPH_1284
 	u_int unit = minor(dev);
@@ -414,7 +414,7 @@ error:
  * Once negotiation done, transfer data
  */
 static int
-ppiwrite(dev_t dev, struct uio *uio, int ioflag)
+ppiwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 #ifdef PERIPH_1284
 	u_int unit = minor(dev);
@@ -501,7 +501,7 @@ error:
 }
 
 static int
-ppiioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
+ppiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	u_int unit = minor(dev);
 	device_t ppidev = UNITODEVICE(unit);

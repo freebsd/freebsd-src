@@ -161,7 +161,7 @@ typedef struct _drv_t {
 	struct sppp pp;
 #endif
 #if __FreeBSD_version >= 400000
-	dev_t  devt;
+	struct cdev *devt;
 #endif
 } drv_t;
 
@@ -967,7 +967,7 @@ static void cp_error (cp_chan_t *c, int data)
 #if __FreeBSD_version < 500000
 static int cp_open (dev_t dev, int oflags, int devtype, struct proc *p)
 #else
-static int cp_open (dev_t dev, int oflags, int devtype, struct thread *td)
+static int cp_open (struct cdev *dev, int oflags, int devtype, struct thread *td)
 #endif
 {
 	int unit = minor (dev);
@@ -985,7 +985,7 @@ static int cp_open (dev_t dev, int oflags, int devtype, struct thread *td)
 #if __FreeBSD_version < 500000
 static int cp_close (dev_t dev, int fflag, int devtype, struct proc *p)
 #else
-static int cp_close (dev_t dev, int fflag, int devtype, struct thread *td)
+static int cp_close (struct cdev *dev, int fflag, int devtype, struct thread *td)
 #endif
 {
 	drv_t *d = channel [minor (dev)];
@@ -1013,7 +1013,7 @@ static int cp_modem_status (cp_chan_t *c)
 #if __FreeBSD_version < 500000
 static int cp_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 #else
-static int cp_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #endif
 {
         drv_t *d = channel [minor (dev)];
@@ -2652,7 +2652,7 @@ static int cp_modevent (module_t mod, int type, void *unused)
 #else /* __FreeBSD_version >= 400000 */
 static int cp_modevent (module_t mod, int type, void *unused)
 {
-        dev_t dev;
+        struct cdev *dev;
 	static int load_count = 0;
 	struct cdevsw *cdsw;
 

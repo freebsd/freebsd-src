@@ -45,7 +45,7 @@ typedef vm_offset_t vm_paddr_t;
 
 struct acpi_softc {
     device_t		acpi_dev;
-    dev_t		acpi_dev_t;
+    struct cdev *acpi_dev_t;
 
     struct resource	*acpi_irq;
     int			acpi_irq_rid;

@@ -238,7 +238,7 @@ coda_open(v)
 /* locals */
     int error;
     struct vnode *vp;
-    dev_t dev;
+    struct cdev *dev;
     ino_t inode;
 
     MARK_ENTRY(CODA_OPEN_STATS);
@@ -1806,7 +1806,7 @@ coda_islocked(v)
 
 /* How one looks up a vnode given a device/inode pair: */
 int
-coda_grab_vnode(dev_t dev, ino_t ino, struct vnode **vpp)
+coda_grab_vnode(struct cdev *dev, ino_t ino, struct vnode **vpp)
 {
     /* This is like VFS_VGET() or igetinode()! */
     int           error;

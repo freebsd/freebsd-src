@@ -84,7 +84,7 @@ i4bctlattach(void *dummy)
  *	i4bctlopen - device driver open routine
  *---------------------------------------------------------------------------*/
 static int
-i4bctlopen(dev_t dev, int flag, int fmt, struct thread *td)
+i4bctlopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	if(minor(dev))
 		return (ENXIO);
@@ -101,7 +101,7 @@ i4bctlopen(dev_t dev, int flag, int fmt, struct thread *td)
  *	i4bctlclose - device driver close routine
  *---------------------------------------------------------------------------*/
 static int
-i4bctlclose(dev_t dev, int flag, int fmt, struct thread *td)
+i4bctlclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	openflag = 0;
 	return (0);
@@ -111,7 +111,7 @@ i4bctlclose(dev_t dev, int flag, int fmt, struct thread *td)
  *	i4bctlioctl - device driver ioctl routine
  *---------------------------------------------------------------------------*/
 static int
-i4bctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+i4bctlioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 #if DO_I4B_DEBUG
 	ctl_debug_t *cdbg;	
@@ -206,7 +206,7 @@ i4bctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
  *	i4bctlpoll - device driver poll routine
  *---------------------------------------------------------------------------*/
 static int
-i4bctlpoll (dev_t dev, int events, struct thread *td)
+i4bctlpoll (struct cdev *dev, int events, struct thread *td)
 {
 	return (ENODEV);
 }

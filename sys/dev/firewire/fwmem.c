@@ -274,7 +274,7 @@ fwmem_write_block(
 
 
 int
-fwmem_open (dev_t dev, int flags, int fmt, fw_proc *td)
+fwmem_open (struct cdev *dev, int flags, int fmt, fw_proc *td)
 {
 	struct fwmem_softc *fms;
 
@@ -300,7 +300,7 @@ fwmem_open (dev_t dev, int flags, int fmt, fw_proc *td)
 }
 
 int
-fwmem_close (dev_t dev, int flags, int fmt, fw_proc *td)
+fwmem_close (struct cdev *dev, int flags, int fmt, fw_proc *td)
 {
 	struct fwmem_softc *fms;
 
@@ -343,7 +343,7 @@ fwmem_strategy(struct bio *bp)
 	struct fwmem_softc *fms;
 	struct fw_device *fwdev;
 	struct fw_xfer *xfer;
-	dev_t dev;
+	struct cdev *dev;
 	int unit, err=0, s, iolen;
 
 	dev = bp->bio_dev;
@@ -406,7 +406,7 @@ error:
 }
 
 int
-fwmem_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
+fwmem_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 {
 	struct fwmem_softc *fms;
 	int err = 0;
@@ -425,15 +425,15 @@ fwmem_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 	return(err);
 }
 int
-fwmem_poll (dev_t dev, int events, fw_proc *td)
+fwmem_poll (struct cdev *dev, int events, fw_proc *td)
 {  
 	return EINVAL;
 }
 int
 #if defined(__DragonFly__) || __FreeBSD_version < 500102
-fwmem_mmap (dev_t dev, vm_offset_t offset, int nproto)
+fwmem_mmap (struct cdev *dev, vm_offset_t offset, int nproto)
 #else
-fwmem_mmap (dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nproto)
+fwmem_mmap (struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nproto)
 #endif
 {  
 	return EINVAL;

@@ -1783,7 +1783,7 @@ pci_assign_interrupt_method(device_t dev, device_t child)
 static int
 pci_modevent(module_t mod, int what, void *arg)
 {
-	static dev_t pci_cdev;
+	static struct cdev *pci_cdev;
 
 	switch (what) {
 	case MOD_LOAD:

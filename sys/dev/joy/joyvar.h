@@ -35,7 +35,7 @@ struct joy_softc {
 	int timeout[2];
 	struct resource *res;
 	int rid;
-	dev_t d;
+	struct cdev *d;
 };
 
 int joy_probe(device_t);

@@ -83,7 +83,7 @@ ntfs_nthashdestroy(void)
  */
 struct ntnode *
 ntfs_nthashlookup(dev, inum)
-	dev_t dev;
+	struct cdev *dev;
 	ino_t inum;
 {
 	struct ntnode *ip;

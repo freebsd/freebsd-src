@@ -574,12 +574,12 @@ extern	int	iplidentify __P((char *));
       (NetBSD >= 199511) || defined(__OpenBSD__)
 #    if defined(__NetBSD__) || (_BSDI_VERSION >= 199701) || \
        defined(__OpenBSD__) || (__FreeBSD_version >= 300000)
-extern	int	iplioctl __P((dev_t, u_long, caddr_t, int, struct thread *));
+extern	int	iplioctl __P((struct cdev *, u_long, caddr_t, int, struct thread *));
 #    else
 extern	int	iplioctl __P((dev_t, int, caddr_t, int, struct thread *));
 #    endif
-extern	int	iplopen __P((dev_t, int, int, struct thread *));
-extern	int	iplclose __P((dev_t, int, int, struct thread *));
+extern	int	iplopen __P((struct cdev *, int, int, struct thread *));
+extern	int	iplclose __P((struct cdev *, int, int, struct thread *));
 #   else
 #    ifndef	linux
 extern	int	iplopen __P((dev_t, int));
@@ -592,7 +592,7 @@ extern	void	iplclose __P((struct inode *, struct file *));
 #    endif /* !linux */
 #   endif /* (_BSDI_VERSION >= 199510) */
 #   if	BSD >= 199306
-extern	int	iplread __P((dev_t, struct uio *, int));
+extern	int	iplread __P((struct cdev *, struct uio *, int));
 #   else
 #    ifndef linux
 extern	int	iplread __P((dev_t, struct uio *));
