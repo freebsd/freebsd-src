@@ -229,6 +229,8 @@ diskpsize(dev_t dev)
 	if (!dp) {
 		pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
 		dp = pdev->si_disk;
+		if (!dp)
+			return (-1);
 		dev->si_drv1 = pdev->si_drv1;
 		dev->si_drv2 = pdev->si_drv2;
 		/* XXX: don't set bp->b_dev->si_disk (?) */
