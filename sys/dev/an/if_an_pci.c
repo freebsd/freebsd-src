@@ -229,14 +229,17 @@ an_attach_pci(dev)
 		goto fail;
         }
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-	    an_intr, sc, &sc->irq_handle);
+	sc->an_dev = dev;
+	error = an_attach(sc, device_get_unit(dev), flags);
 	if (error) {
 		goto fail;
 	}
 
-	sc->an_dev = dev;
-	error = an_attach(sc, device_get_unit(dev), flags);
+	/*
+	 * Must setup the interrupt after the an_attach to prevent racing.
+	 */
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
+	    an_intr, sc, &sc->irq_handle);
 
 fail:
 	if (error)
