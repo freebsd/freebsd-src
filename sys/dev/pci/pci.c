@@ -1315,7 +1315,7 @@ int pci_map_int (pcici_t tag, pci_inthand_t *func, void *arg, unsigned *maskptr)
 	*/
 
 	irq = getirq (tag);
-	if (irq >= PCI_MAX_IRQ) {
+	if ((irq == 0) || (irq >= PCI_MAX_IRQ)) {
 		printf ("\tillegal irq %d.\n", irq);
 		return (0);
 	};
