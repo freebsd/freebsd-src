@@ -34,13 +34,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)sprint.c	8.3 (Berkeley) 4/28/95";
+static const char sccsid[] = "@(#)sprint.c	8.3 (Berkeley) 4/28/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <db.h>
 #include <err.h>
@@ -59,9 +59,9 @@ sflag_print()
 {
 	extern time_t now;
 	extern int    oflag;
-	register PERSON *pn;
-	register WHERE *w;
-	register int sflag, r, namelen;
+	PERSON *pn;
+	WHERE *w;
+	int sflag, r, namelen;
 	char p[80];
 	PERSON *tmp;
 	DBT data, key;
@@ -161,7 +161,7 @@ static void
 stimeprint(w)
 	WHERE *w;
 {
-	register struct tm *delta;
+	struct tm *delta;
 
 	delta = gmtime(&w->idletime);
 	if (!delta->tm_yday)
