@@ -19,7 +19,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.Dd July 19, 1993
+.Dd November 16, 2001
 .Dt RARPD 8
 .Os
 .Sh NAME
@@ -95,18 +95,18 @@ Supply a response to any RARP request for which an ethernet to IP address
 mapping exists; do not depend on the existence of
 .Pa /tftpboot/\fIipaddr\fP* .
 .It Fl t
-Supple an alternative tftp root directory to
+Supply an alternate tftp root directory to
 .Pa /tftpboot ,
-matching similar behavior of the
+similar to the
 .Fl s
-flag on
+option of
 .Xr tftpd 8 .
 This permits
 .Nm
-to selectively respond to RARP requests, but use an alternative directory
+to selectively respond to RARP requests, but use an alternate directory
 for IP checking.
 .It Fl v
-Enable verbose sysloging.
+Enable verbose syslogging.
 .El
 .Sh FILES
 .Bl -tag -width /etc/ethers -compact
