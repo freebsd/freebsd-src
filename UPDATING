@@ -3,6 +3,11 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19990622:
+	The second phase of syscons cleanup has happened.  Some
+	functionality has been made optional.  For details, see
+        http://www.freebsd.org/~yokota/sc_update-June.txt
+
 19990620:
 	IPFW uid/gid-based filtering support has been committed. This
 	breaks binary compatibility with previous copies of
@@ -278,4 +283,4 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 Please filter your entries through Warner (imp@village.org) so that
 the style, formatting, etc of this file can be maintained.
 
-$Id: UPDATING,v 1.32 1999/05/10 05:34:32 imp Exp $
+$Id: UPDATING,v 1.33 1999/06/20 09:56:32 imp Exp $
