@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.21 1997/10/10 18:19:48 phk Exp $";
+	"$Id: vmstat.c,v 1.22 1997/12/05 19:28:28 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -559,7 +559,9 @@ dosum()
 	(void)printf("%9u pages examined by the page daemon\n", sum.v_pdpages);
 	(void)printf("%9u pages reactivated\n", sum.v_reactivated);
 	(void)printf("%9u copy-on-write faults\n", sum.v_cow_faults);
+	(void)printf("%9u copy-on-write optimized faults\n", sum.v_cow_optim);
 	(void)printf("%9u zero fill pages zeroed\n", sum.v_zfod);
+	(void)printf("%9u zero fill pages prezeroed\n", sum.v_ozfod);
 	(void)printf("%9u intransit blocking page faults\n", sum.v_intrans);
 	(void)printf("%9u total VM faults taken\n", sum.v_vm_faults);
 	(void)printf("%9u pages freed\n", sum.v_tfree);
