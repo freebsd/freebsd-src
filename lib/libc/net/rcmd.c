@@ -80,6 +80,17 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 	const char *locuser, *remuser, *cmd;
 	int *fd2p;
 {
+	return rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, AF_INET);
+}
+
+int
+rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
+	char **ahost;
+	u_short rport;
+	const char *locuser, *remuser, *cmd;
+	int *fd2p;
+	int af;
+{
 	struct addrinfo hints, *res, *ai;
 	struct sockaddr_storage from;
 	fd_set reads;
@@ -94,7 +105,7 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags = AI_CANONNAME;
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_family = af;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = 0;
 	(void)snprintf(num, sizeof(num), "%d", ntohs(rport));

@@ -71,6 +71,12 @@ static const char rcsid[] =
 #include <sys/secparm.h>
 #include <sys/usrv.h>
 # endif /* SO_SEC_MULTI */
+
+/* wrapper for KAME-special getnameinfo() */
+#ifndef NI_WITHSCOPEID
+#define	NI_WITHSCOPEID	0
+#endif
+
 int	secflag;
 char	tty_dev[16];
 struct	secdev dv;
@@ -137,7 +143,7 @@ int debug = 0;
 int keepalive = 1;
 char *altlogin;
 
-void doit __P((struct sockaddr_in *));
+void doit __P((struct sockaddr *));
 int terminaltypeok __P((char *));
 void startslave __P((char *, int, char *));
 extern void usage P((void));
@@ -149,6 +155,7 @@ extern void usage P((void));
  */
 char valid_opts[] = {
 	'd', ':', 'h', 'k', 'n', 'p', ':', 'S', ':', 'u', ':', 'U',
+	'4', '6',
 #ifdef	AUTHENTICATION
 	'a', ':', 'X', ':',
 #endif
@@ -173,11 +180,13 @@ char valid_opts[] = {
 	'\0'
 };
 
-	int
+int family = AF_INET;
+
+int
 main(argc, argv)
 	char *argv[];
 {
-	struct sockaddr_in from;
+	struct sockaddr_storage from;
 	int on = 1, fromlen;
 	register int ch;
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
@@ -381,6 +390,16 @@ main(argc, argv)
 			break;
 #endif	/* AUTHENTICATION */
 
+		case '4':
+			family = AF_INET;
+			break;
+
+#ifdef INET6
+		case '6':
+			family = AF_INET6;
+			break;
+#endif
+
 		default:
 			warnx("%c: unknown option", ch);
 			/* FALLTHROUGH */
@@ -394,43 +413,41 @@ main(argc, argv)
 	argv += optind;
 
 	if (debug) {
-	    int s, ns, foo;
-	    struct servent *sp;
-	    static struct sockaddr_in sin = { AF_INET };
+	    int s, ns, foo, error;
+	    char *service = "telnet";
+	    struct addrinfo hints, *res;
 
 	    if (argc > 1) {
 		usage();
 		/* NOT REACHED */
-	    } else if (argc == 1) {
-		    if ((sp = getservbyname(*argv, "tcp"))) {
-			sin.sin_port = sp->s_port;
-		    } else {
-			sin.sin_port = atoi(*argv);
-			if ((int)sin.sin_port <= 0) {
-			    warnx("%s: bad port #", *argv);
-			    usage();
-			    /* NOT REACHED */
-			}
-			sin.sin_port = htons((u_short)sin.sin_port);
-		   }
-	    } else {
-		sp = getservbyname("telnet", "tcp");
-		if (sp == 0)
-		    errx(1, "tcp/telnet: unknown service");
-		sin.sin_port = sp->s_port;
+	    } else if (argc == 1)
+		service = *argv;
+
+	    memset(&hints, 0, sizeof(hints));
+	    hints.ai_flags = AI_PASSIVE;
+	    hints.ai_family = family;
+	    hints.ai_socktype = SOCK_STREAM;
+	    hints.ai_protocol = 0;
+	    error = getaddrinfo(NULL, service, &hints, &res);
+
+	    if (error) {
+		errx(1, "tcp/%s: %s\n", service, gai_strerror(error));
+		if (error == EAI_SYSTEM)
+		    errx(1, "tcp/%s: %s\n", service, strerror(errno));
+		usage();
 	    }
 
-	    s = socket(AF_INET, SOCK_STREAM, 0);
+	    s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	    if (s < 0)
 		    err(1, "socket");
 	    (void) setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
 				(char *)&on, sizeof(on));
-	    if (bind(s, (struct sockaddr *)&sin, sizeof sin) < 0)
+	    if (bind(s, res->ai_addr, res->ai_addrlen) < 0)
 		err(1, "bind");
 	    if (listen(s, 1) < 0)
 		err(1, "listen");
-	    foo = sizeof sin;
-	    ns = accept(s, (struct sockaddr *)&sin, &foo);
+	    foo = res->ai_addrlen;
+	    ns = accept(s, res->ai_addr, &foo);
 	    if (ns < 0)
 		err(1, "accept");
 	    (void) dup2(ns, 0);
@@ -512,7 +529,7 @@ main(argc, argv)
 	}
 
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
-	{
+	if (from.ss_family == AF_INET) {
 # if	defined(HAS_GETTOS)
 		struct tosent *tp;
 		if (tos < 0 && (tp = gettosbyname("telnet", "tcp")))
@@ -528,7 +545,7 @@ main(argc, argv)
 	}
 #endif	/* defined(IPPROTO_IP) && defined(IP_TOS) */
 	net = 0;
-	doit(&from);
+	doit((struct sockaddr *)&from);
 	/* NOTREACHED */
 	return(0);
 }  /* end of main */
@@ -773,8 +790,9 @@ char user_name[256];
  */
 	void
 doit(who)
-	struct sockaddr_in *who;
+	struct sockaddr *who;
 {
+	int err;
 	int ptynum;
 
 	/*
@@ -817,16 +835,18 @@ doit(who)
 #endif	/* _SC_CRAY_SECURE_SYS */
 
 	/* get name of connected client */
-	if (realhostname(remote_hostname, sizeof(remote_hostname) - 1,
-	    &who->sin_addr) == HOSTNAME_INVALIDADDR && registerd_host_only)
+	if (realhostname_sa(remote_hostname, sizeof(remote_hostname) - 1,
+	    who, who->sa_len) == HOSTNAME_INVALIDADDR && registerd_host_only)
 		fatal(net, "Couldn't resolve your address into a host name.\r\n\
          Please contact your net administrator");
 	remote_hostname[sizeof(remote_hostname) - 1] = '\0';
 
 	trimdomain(remote_hostname, UT_HOSTSIZE);
 	if (!isdigit(remote_hostname[0]) && strlen(remote_hostname) > utmp_len)
-		strncpy(remote_hostname, inet_ntoa(who->sin_addr),
-			sizeof(remote_hostname) - 1);
+		err = getnameinfo(who, who->sa_len, remote_hostname,
+				  sizeof(remote_hostname), NULL, 0,
+				  NI_NUMERICHOST|NI_WITHSCOPEID);
+		/* XXX: do 'err' check */
 
 	(void) gethostname(host_name, sizeof(host_name) - 1);
 	host_name[sizeof(host_name) - 1] = '\0';

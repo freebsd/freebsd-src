@@ -154,6 +154,8 @@ main(argc, argv)
 #ifdef KERBEROS
 	char *k;
 #endif
+        struct sockaddr_storage ss;
+	int sslen;
 
 	argoff = dflag = Dflag = 0;
 	one = 1;
@@ -331,10 +333,11 @@ main(argc, argv)
 		if (doencrypt)
 			errx(1, "the -x flag requires Kerberos authentication");
 #endif /* CRYPT */
-		rem = rcmd(&host, sp->s_port, localname, user, term, 0);
+		rem = rcmd_af(&host, sp->s_port, localname, user, term, 0,
+			      PF_UNSPEC);
 	}
 #else
-	rem = rcmd(&host, sp->s_port, localname, user, term, 0);
+	rem = rcmd_af(&host, sp->s_port, localname, user, term, 0, PF_UNSPEC);
 #endif /* KERBEROS */
 
 	if (rem < 0)
@@ -347,9 +350,16 @@ main(argc, argv)
 	    setsockopt(rem, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one)) < 0)
 		warn("setsockopt NODELAY (ignored)");
 
+	sslen = sizeof(ss);
 	one = IPTOS_LOWDELAY;
-	if (setsockopt(rem, IPPROTO_IP, IP_TOS, (char *)&one, sizeof(int)) < 0)
-		warn("setsockopt TOS (ignored)");
+	if (getsockname(rem, (struct sockaddr *)&ss, &sslen) == 0 &&
+	    ss.ss_family == AF_INET) {
+		if (setsockopt(rem, IPPROTO_IP, IP_TOS, (char *)&one,
+			       sizeof(int)) < 0)
+			warn("setsockopt TOS (ignored)");
+	} else
+		if (ss.ss_family == AF_INET)
+			warn("setsockopt getsockname failed");
 
 	(void)setuid(uid);
 	doit(omask);

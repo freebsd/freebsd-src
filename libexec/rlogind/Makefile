@@ -6,7 +6,7 @@ SRCS=	rlogind.c
 MAN8=	rlogind.8
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
-CFLAGS+= -Wall
+CFLAGS+= -Wall -DINET6
 
 .if defined(NOPAM)
 CFLAGS+= -DNO_PAM

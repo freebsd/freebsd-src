@@ -38,6 +38,17 @@
 
 #include "libutil.h"
 
+/* wrapper for KAME-special getnameinfo() */
+#ifndef NI_WITHSCOPEID
+#define	NI_WITHSCOPEID	0
+#endif
+
+struct sockinet {
+	u_char	si_len;
+	u_char	si_family;
+	u_short	si_port;
+};
+
 int
 realhostname(char *host, size_t hsize, const struct in_addr *ip)
 {
@@ -71,3 +82,87 @@ realhostname(char *host, size_t hsize, const struct in_addr *ip)
 
 	return result;
 }
+
+int
+realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
+{
+	int result, error;
+
+	result = HOSTNAME_INVALIDADDR;
+
+	error = getnameinfo(addr, addrlen, host, hsize, NULL, 0, 0);
+	if (error == NULL) {
+		struct addrinfo hints, *res, *ores;
+		struct sockaddr *sa;
+
+		memset(&hints, 0, sizeof(struct addrinfo));
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_flags = AI_CANONNAME;
+
+		error = getaddrinfo(host, NULL, &hints, &res);
+		if (error) {
+			result = HOSTNAME_INVALIDNAME;
+			goto numeric;
+		} else for (ores = res; ; res = res->ai_next) {
+			if (res == NULL) {
+				freeaddrinfo(ores);
+				result = HOSTNAME_INCORRECTNAME;
+				goto numeric;
+			}
+			sa = res->ai_addr;
+			if (sa == NULL) {
+				freeaddrinfo(ores);
+				result = HOSTNAME_INCORRECTNAME;
+				goto numeric;
+			}
+			if (sa->sa_len == addrlen &&
+			    sa->sa_family == addr->sa_family) {
+				u_int16_t port;
+
+				port = ((struct sockinet *)addr)->si_port;
+				((struct sockinet *)addr)->si_port = 0;
+				if (!memcmp(sa, addr, sa->sa_len)) {
+					strncpy(host, res->ai_canonname,
+						hsize);
+					result = HOSTNAME_FOUND;
+					((struct sockinet *)addr)->si_port =
+						port;
+					break;
+				}
+				((struct sockinet *)addr)->si_port = port;
+			}
+#ifdef INET6
+			/*
+			 * XXX IPv4 mapped IPv6 addr consideraton,
+			 * specified in rfc2373.
+			 */
+			if (sa->sa_family == AF_INET &&
+			    addr->sa_family == AF_INET6) {
+				struct in_addr *in;
+				struct in6_addr *in6;
+
+				in = &((struct sockaddr_in *)sa)->sin_addr;
+				in6 = &((struct sockaddr_in6 *)addr)->sin6_addr;
+				if (IN6_IS_ADDR_V4MAPPED(in6) &&
+				    !memcmp(&in6->s6_addr[12], in,
+					    sizeof(*in))) {
+					strncpy(host, res->ai_canonname,
+						hsize);
+					result = HOSTNAME_FOUND;
+					break;
+				}
+			}
+#endif
+		}
+		freeaddrinfo(ores);
+	} else {
+    numeric:
+		getnameinfo(addr, addrlen, host, hsize, NULL, 0,
+			    NI_NUMERICHOST|NI_WITHSCOPEID);
+		/* XXX: do 'error' check */
+	}
+
+	return result;
+}
+
+
