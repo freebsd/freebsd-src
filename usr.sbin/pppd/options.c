@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: options.c,v 1.10 1994/05/27 00:43:34 paulus Exp $";
+static char rcsid[] = "$Id: options.c,v 1.2 1994/09/25 02:32:08 wollman Exp $";
 #endif
 
 #include <stdio.h>
@@ -1009,7 +1009,7 @@ setescape(argv)
 	}
 	p = endp;
 	if (n < 0 || 0x20 <= n && n <= 0x3F || n == 0x5E || n > 0xFF) {
-	    fprintf(stderr, "%s: can't escape character 0x%x\n", n);
+	    fprintf(stderr, "%s: can't escape character 0x%x\n", progname, n);
 	    ret = 0;
 	} else
 	    xmit_accm[0][n >> 5] |= 1 << (n & 0x1F);
