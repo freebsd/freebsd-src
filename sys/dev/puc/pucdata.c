@@ -950,13 +950,13 @@ const struct puc_device_description puc_devices[] = {
 	},
 
 	/* Oxford Semiconductor OX12PCI840 PCI Parallel port */
-	{   "Qxford Semiconductor OX12PCI840 Parallel port",
-		NULL,
-		{   0x1415, 0x8403, 0,      0       },
-		{   0xffff, 0xffff, 0,      0 },
-		{
-		    { PUC_PORT_TYPE_LPT, 0x10, 0x00, 0x00 },
-		},
+	{   "Oxford Semiconductor OX12PCI840 Parallel port",
+	    NULL,
+	    {	0x1415,	0x8403,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_LPT, 0x10, 0x00, 0x00 },
+	    },
 	},
 
 	/*
