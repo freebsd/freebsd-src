@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.8 1995/10/27 16:43:00 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.9 1995/10/30 08:04:55 jkh Exp $
 
 Table of Contents
 -----------------
@@ -23,13 +23,15 @@ throughout this document to differentiate it from the machine output.
 The following table contains a list of all of the devices that are
 present in the GENERIC kernel, that being the kernel (the operating
 system) that was placed in your root partition during the FreeBSD
-installation process.  (A compressed version of the GENERIC kernel is
-also used on this installation floppy diskette or DOS boot image.)
+installation process.  A compressed version of the GENERIC kernel is
+also used on the installation floppy diskette and DOS boot image.
 
 The table describes the various parameters used by the driver to
 communicate with the hardware in your system.  There are four
-parameters in the table, but not all are used by each device.  They
-are:
+parameters in the table, though not all are used by each and every
+device.
+
+Detail:
 
    Port   The starting I/O port used by the device, shown in hexadecimal.
 
@@ -42,10 +44,10 @@ are:
    DRQ    The DMA (direct memory access) channel the device uses to move
           data to and from main memory, also given in decimal.
 
-If an entry in the table has `n/a' for the value, it means that the
-parameter does not apply to that device.  A value of `dyn' means that
-the correct value should be determined automatically by the kernel
-when the system boots.
+If an entry in the table has `n/a' for a value then it means that the
+parameter in question does not apply to that device.  A value of `dyn'
+means that the correct value should be determined automatically by the
+kernel when the system boots.
 
 
 FreeBSD GENERIC kernel:
@@ -110,10 +112,10 @@ zp0     300     10      dyn     d8000   3Com PCMCIA Etherlink III
 
 
 If the hardware in your computer is not set to the same settings as
-those shown in this table and the item is not marked 'dyn', you will 
-have to either reconfigure your hardware, or use UserConfig ('-c' boot
-option) to reconfigure the kernel to match the way your hardware is
-currently set (see section 2).   
+those shown in the table and the item in conflict is not marked 'dyn',
+you will have to either reconfigure your hardware or use UserConfig
+('-c' boot option) to reconfigure the kernel to match the way your
+hardware is currently set (see the next section).
 
 If the settings do not match, the kernel may be unable to locate
 or reliably access the devices in your system.
@@ -180,11 +182,12 @@ generic kernel.  This includes reassigning IRQs, disabling troublesome
 devices (or drivers that conflict with the hardware your system has),
 setting special device flags, etc.
 
-Since people vary widely in terms of personal taste, we have provided
-two interfaces to the UserConfig utility.  If you type `visual' you
-will be placed into the "GUI" based device attributes editor.  If
-you're someone more at home with command-line flavored interfaces then
-simply don't type `visual' at any point! :)
+Since people's tastes in user interface design vary widely, we have
+provided two different interfaces to the UserConfig utility.  If you
+type `visual' you will be placed in the "GUI" oriented device
+attributes editor.  If you're someone who's more at home with
+command-line flavored interfaces then simply don't type `visual' at
+any point! :)
 
 Since the visual interface pretty much describes itself, we'll use the
 more verbose command line interface while describing UserConfig in the
