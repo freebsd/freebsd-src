@@ -70,12 +70,13 @@ static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
 #include <dirent.h>
 #include <errno.h>
 #include <glob.h>
-#include <locale.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "collate.h"
 
 #define	DOLLAR		'$'
 #define	DOT		'.'
@@ -703,8 +704,8 @@ match(name, pat, patend)
 				++pat;
 			while (((c = *pat++) & M_MASK) != M_END)
 				if ((*pat & M_MASK) == M_RNG) {
-					if (   collate_range_cmp(CHAR(c), CHAR(k)) <= 0
-					    && collate_range_cmp(CHAR(k), CHAR(pat[1])) <= 0
+					if (   __collate_range_cmp(CHAR(c), CHAR(k)) <= 0
+					    && __collate_range_cmp(CHAR(k), CHAR(pat[1])) <= 0
 					   )
 						ok = 1;
 					pat += 2;
