@@ -211,7 +211,8 @@ To disable the
 .Nm
 driver completely, set the kernel environment variable
 .Va hint.acpi.0.disabled
-to 1.
+to 1 in the device resource hints file
+.Pa /boot/device.hints .
 Some i386 machines totally fail to operate with some or all of ACPI disabled.
 Other i386 machines fail with ACPI enabled.
 Non-i386 platforms do not support operating systems which do not use ACPI.
@@ -363,7 +364,9 @@ latency when an interrupt occurs.
 .Sh COMPATIBILITY
 ACPI is only found and supported on i386/ia32, ia64, and amd64.
 .Sh SEE ALSO
+.Xr kenv 1 ,
 .Xr acpi_thermal 4 ,
+.Xr device.hints 5 ,
 .Xr loader.conf 5 ,
 .Xr acpiconf 8 ,
 .Xr acpidump 8 ,
