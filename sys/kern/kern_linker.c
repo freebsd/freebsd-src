@@ -362,10 +362,18 @@ linker_load_file(const char *filename, linker_file_t *result)
 	 * Less than ideal, but tells the user whether it failed to load or
 	 * the module was not found.
 	 */
-	if (foundfile)
-		/* Format not recognized (or unloadable). */
-		error = ENOEXEC;
-	else
+	if (foundfile) {
+		/*
+		 * Format not recognized or otherwise unloadable.
+		 * When loading a module that is statically built into
+		 * the kernel EEXIST percolates back up as the return
+		 * value.  Preserve this so that apps like sysinstall
+		 * can recognize this special case and not post bogus
+		 * dialog boxes.
+		 */
+		if (error != EEXIST)
+			error = ENOEXEC;
+	} else
 		error = ENOENT;		/* Nothing found */
 out:
 	return (error);
