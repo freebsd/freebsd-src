@@ -42,13 +42,12 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)wc.c	8.1 (Berkeley) 6/6/93";
 #else
 static const char rcsid[] =
-	"$Id: wc.c,v 1.8 1997/08/25 06:44:59 charnier Exp $";
+	"$Id: wc.c,v 1.8.2.1 1999/08/06 14:38:41 sheldonh Exp $";
 #endif
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -70,8 +69,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int ch;
-	int errors, total;
+	int ch, errors, total;
 
 	(void) setlocale(LC_CTYPE, "");
 
@@ -115,11 +113,11 @@ main(argc, argv)
 
 	if (total > 1) {
 		if (doline)
-			(void)printf(" %7qu", (u_quad_t)tlinect);
+			(void)printf(" %7qu", tlinect);
 		if (doword)
-			(void)printf(" %7qu", (u_quad_t)twordct);
+			(void)printf(" %7qu", twordct);
 		if (dochar)
-			(void)printf(" %7qu", (u_quad_t)tcharct);
+			(void)printf(" %7qu", tcharct);
 		(void)printf(" total\n");
 	}
 	exit(errors == 0 ? 0 : 1);
@@ -129,13 +127,12 @@ int
 cnt(file)
 	char *file;
 {
-	u_char *p, ch;
-	short gotsp;
-	int len;
-	u_quad_t linect, wordct, charct;
 	struct stat sb;
-	int fd;
-	u_char buf[MAXBSIZE];
+	u_quad_t linect, wordct, charct;
+	int fd, len;
+	short gotsp;
+	u_char *p;
+	u_char buf[MAXBSIZE], ch;
 
 	linect = wordct = charct = 0;
 	if (file == NULL) {
@@ -166,10 +163,10 @@ cnt(file)
 						++linect;
 			}
 			tlinect += linect;
-			(void)printf(" %7qu", (u_quad_t)linect);
+			(void)printf(" %7qu", linect);
 			if (dochar) {
 				tcharct += charct;
-				(void)printf(" %7qu", (u_quad_t)charct);
+				(void)printf(" %7qu", charct);
 			}
 			(void)close(fd);
 			return (0);
@@ -185,7 +182,7 @@ cnt(file)
 				return (1);
 			}
 			if (S_ISREG(sb.st_mode) || S_ISLNK(sb.st_mode)) {
-				(void)printf(" %7qu", sb.st_size);
+				(void)printf(" %7lld", (long long)sb.st_size);
 				tcharct += sb.st_size;
 				(void)close(fd);
 				return (0);
@@ -220,15 +217,15 @@ word:	for (gotsp = 1; (len = read(fd, buf, MAXBSIZE));) {
 	}
 	if (doline) {
 		tlinect += linect;
-		(void)printf(" %7qu", (u_quad_t)linect);
+		(void)printf(" %7qu", linect);
 	}
 	if (doword) {
 		twordct += wordct;
-		(void)printf(" %7qu", (u_quad_t)wordct);
+		(void)printf(" %7qu", wordct);
 	}
 	if (dochar) {
 		tcharct += charct;
-		(void)printf(" %7qu", (u_quad_t)charct);
+		(void)printf(" %7qu", charct);
 	}
 	(void)close(fd);
 	return (0);
