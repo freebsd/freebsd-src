@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.13 1999/07/29 01:02:52 mdodd Exp $
+ *	$Id: nexus.c,v 1.14 1999/08/22 19:56:55 peter Exp $
  */
 
 /*
@@ -74,6 +74,7 @@
 static struct rman irq_rman, drq_rman, port_rman, mem_rman;
 
 static	int nexus_probe(device_t);
+static	int nexus_attach(device_t);
 static	int nexus_print_child(device_t, device_t);
 static device_t nexus_add_child(device_t bus, int order, const char *name,
 				int unit);
@@ -93,7 +94,7 @@ static	int nexus_teardown_intr(device_t, device_t, struct resource *,
 static device_method_t nexus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_attach,	nexus_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
@@ -193,14 +194,11 @@ static int
 nexus_attach(device_t dev)
 {
 	device_t	child;
-	int		rv;
 
 	/*
 	 * First, deal with the children we know about already
 	 */
-	rv = bus_generic_attach(dev);
-	if (rv)
-		return rv;
+	bus_generic_attach(dev);
 	/*
 	 * And if we didn't see EISA or ISA on a pci bridge, create some
 	 * connection points now so they show up "on motherboard".
@@ -209,17 +207,13 @@ nexus_attach(device_t dev)
 		child = device_add_child(dev, "eisa", 0, 0);
 		if (child == NULL)
 			panic("nexus_attach eisa");
-		rv = device_probe_and_attach(child);
-		if (rv)
-			return rv;
+		device_probe_and_attach(child);
 	}
 	if (!devclass_get_device(devclass_find("isa"), 0)) {
 		child = device_add_child(dev, "isa", 0, 0);
 		if (child == NULL)
 			panic("nexus_attach isa");
-		rv = device_probe_and_attach(child);
-		if (rv)
-			return rv;
+		device_probe_and_attach(child);
 	}
 	return 0;
 }
