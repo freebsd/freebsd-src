@@ -50,6 +50,7 @@ extern	uint16_t *elan_mmcr;
 extern	char	kstack[];
 extern	char	sigcode[];
 extern	int	szsigcode;
+extern	u_int	basemem;
 
 typedef void alias_for_inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
 struct	thread;
