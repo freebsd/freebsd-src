@@ -290,7 +290,6 @@ DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
 int	count_dev(dev_t _dev);
 void	destroy_dev(dev_t _dev);
-void	revoke_and_destroy_dev(dev_t _dev);
 struct cdevsw *devsw(dev_t _dev);
 const char *devtoname(dev_t _dev);
 int	dev_named(dev_t _pdev, const char *_name);
