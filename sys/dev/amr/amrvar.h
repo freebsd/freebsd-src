@@ -62,6 +62,8 @@
 # include <sys/mutex.h>
 #endif
 
+#define LSI_DESC_PCI "LSILogic MegaRAID 1.51"
+
 #ifdef AMR_DEBUG
 # define debug(level, fmt, args...)	do {if (level <= AMR_DEBUG) printf("%s: " fmt "\n", __func__ , ##args);} while(0)
 # define debug_called(level)		do {if (level <= AMR_DEBUG) printf("%s: called\n", __func__);} while(0)
