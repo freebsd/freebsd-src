@@ -190,7 +190,7 @@ chn_dmaupdate(pcm_channel *c)
 	delta = (b->bufsize + hwptr - b->hp) % b->bufsize;
 	if (delta >= ((b->bufsize * 15) / 16)) {
 		if (!(c->flags & (CHN_F_CLOSING | CHN_F_ABORTING)))
-			device_printf(c->parent->dev, "hwptr went backwards %d -> %d\n", b->hp, hwptr);
+			/* device_printf(c->parent->dev, "hwptr went backwards %d -> %d\n", b->hp, hwptr); */
 	}
 	if (c->direction == PCMDIR_PLAY) {
 		delta = (b->bufsize + hwptr - b->rp) % b->bufsize;
