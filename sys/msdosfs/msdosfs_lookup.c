@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.17 1998/02/22 17:26:27 ache Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.18 1998/02/22 18:00:52 ache Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
@@ -257,7 +257,9 @@ msdosfs_lookup(ap)
 							    (struct winentry *)dep,
 							    chksum,
 							    (pmp->pm_flags & MSDOSFSMNT_U2WTABLE) ?
-							    pmp->pm_u2w : NULL);
+							    pmp->pm_u2w : NULL,
+							    (pmp->pm_flags & MSDOSFSMNT_ULTABLE) ?
+							    pmp->pm_ul : NULL);
 					continue;
 				}
 
