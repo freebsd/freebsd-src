@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.40 1996/03/25 20:13:21 wollman Exp $
+ *	$Id: tcp_input.c,v 1.41 1996/04/04 10:46:39 phk Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -77,7 +77,7 @@ struct	tcpstat tcpstat;
 SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats,
 	CTLFLAG_RD, &tcpstat , tcpstat, "");
 
-static int log_in_vain = 1;
+static int log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
 	&log_in_vain, 0, "");
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.20 1996/03/11 15:13:38 davidg Exp $
+ *	$Id: udp_usrreq.c,v 1.21 1996/04/04 10:46:44 phk Exp $
  */
 
 #include <sys/param.h>
@@ -73,7 +73,7 @@ static int	udpcksum = 0;		/* XXX */
 SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW,
 		&udpcksum, 0, "");
 
-static int log_in_vain = 1;
+static int log_in_vain = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
 	&log_in_vain, 0, "");
 
