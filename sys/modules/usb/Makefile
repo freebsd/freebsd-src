@@ -25,14 +25,6 @@ SRCS		+= ohci_pci.c ohci.c ohcireg.h ohcivar.h
 SRCS		+= opt_bus.h pci_if.h
 
 NOMAN		 =
-
-opt_usb.h:
-	echo > opt_usb.h
-#	echo "#define USB_DEBUG 1" >> opt_usb.h
-#	echo "#define UHCI_DEBUG 1" >> opt_usb.h
-#	echo "#define OHCI_DEBUG 1" >> opt_usb.h
-
-usb_devs.h:
-	perl $S/kern/makedevlist.pl -h $S/dev/usb/usb.devs
+CFLAGS		+= ${DEBUG_FLAGS}
 
 .include <bsd.kmod.mk>
