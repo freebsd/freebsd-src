@@ -151,7 +151,7 @@ int	savectx __P((struct pcb *));
 void	restorectx __P((struct pcb *));
 void	set_iointr __P((void (*)(void *, unsigned long)));
 void    switch_exit __P((struct proc *));			/* MAGIC */
-void	switch_trampoline __P((void));				/* MAGIC */
+void	fork_trampoline __P((void));				/* MAGIC */
 void	syscall __P((int, u_int64_t *, struct trapframe *));
 void	trap __P((int vector, int imm, struct trapframe *framep));
 
