@@ -200,11 +200,11 @@ flag precludes an interactive file extraction and can be
 detrimental to one's health if not used carefully (not to mention
 the disk). An example:
 .Bd -literal -offset indent
-newfs /dev/rrp0g eagle
-mount /dev/rp0g /mnt
+newfs /dev/da0s1a
+mount /dev/da0s1a /mnt
 cd /mnt
 
-restore rf /dev/rst8
+restore rf /dev/rsa0
 .Ed
 .Pp
 Note that 
@@ -281,9 +281,9 @@ Read the backup from
 .Ar file
 may be a special device file
 like
-.Pa /dev/rmt12
+.Pa /dev/rsa0
 (a tape drive),
-.Pa /dev/rda1c
+.Pa /dev/da1c
 (a disk drive),
 an ordinary file,
 or
