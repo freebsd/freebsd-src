@@ -173,7 +173,7 @@ poly_atan(FPU_REG * arg)
 	pos_poly.exp = EXP_BIAS;
 
 	/* Do the basic fixed point polynomial evaluation */
-	polynomial(&pos_poly.sigl, (unsigned *) &argSqSq,
+	polynomial((u_int *) &pos_poly.sigl, (unsigned *) &argSqSq,
 	    (unsigned short (*)[4]) oddplterms, HIPOWERop - 1);
 	mul64((long long *) (&argSq.sigl), (long long *) (&pos_poly.sigl),
 	    (long long *) (&pos_poly.sigl));
@@ -183,7 +183,7 @@ poly_atan(FPU_REG * arg)
 	neg_poly.exp = EXP_BIAS;
 
 	/* Do the basic fixed point polynomial evaluation */
-	polynomial(&neg_poly.sigl, (unsigned *) &argSqSq,
+	polynomial((u_int *) &neg_poly.sigl, (unsigned *) &argSqSq,
 	    (unsigned short (*)[4]) oddnegterms, HIPOWERon - 1);
 
 	/* Subtract the mantissas */
