@@ -126,6 +126,8 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
+	<para>The &man.hme.4; driver is now MPSAFE.</para>
+
 	<para arch="amd64">The &man.ndis.4; device driver wrapper now
 	  supports &windows;/x86-64 binaries on amd64
 	  systems.</para>
@@ -161,6 +163,12 @@
 
       <para>The &man.amr.4; driver is now safe for use on systems
 	using &man.pae.4;.</para>
+
+      <para>Information about newly-mounted cd9660 file systems (such
+	as the presence of Rockridge extensions) is now only printed
+	if the kernel was booted in verbose mode.  This change was
+	made to reduce the amount of (generally unnecessary) kernel
+	log messages.</para>
 
     </sect3>
 
