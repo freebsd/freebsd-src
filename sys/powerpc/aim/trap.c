@@ -226,7 +226,12 @@ trap(struct trapframe *frame)
 	if (user) {
 		sticks = td->td_kse->ke_sticks;
 		td->td_frame = frame;
-		KASSERT(td->td_ucred == NULL, ("already have a ucred"));
+#ifdef DIAGNOSTIC 			/* see the comment in ast() */
+		if (td->td_ucred)
+			panic("trap:thread got a cred while userspace");
+		td->td_ucred = td->td_ucred_cache;
+		td->td_ucred_cache = NULL;
+#endif /* DIAGNOSTIC */
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
 
@@ -288,6 +293,7 @@ trap(struct trapframe *frame)
 		default:
 			trap_fatal(frame);
 		}
+		/* NOTREACHED */
 	}
 	if (sig != 0) {
 		if (p->p_sysent->sv_transtrap != NULL)
@@ -296,12 +302,12 @@ trap(struct trapframe *frame)
 	}
 	userret(td, frame, sticks);
 	mtx_assert(&Giant, MA_NOTOWNED);
-#ifdef	INVARIANTS
-	mtx_lock(&Giant);
-	crfree(td->td_ucred);
-	mtx_unlock(&Giant);
-	td->td_ucred = NULL;
-#endif
+#ifdef DIAGNOSTIC 			/* see the comment in ast() */
+	if (td->td_ucred_cache)
+		panic("trap:thread already has cached ucred");
+	td->td_ucred_cache = td->td_ucred;
+       	td->td_ucred = NULL;
+#endif /* DIAGNOSTIC */
 }
 
 void
