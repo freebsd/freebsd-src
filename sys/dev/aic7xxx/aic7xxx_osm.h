@@ -329,7 +329,7 @@ ahc_done_unlock(struct ahc_softc *ahc, unsigned long *flags)
 
 /* Lock held during ahc_list manipulation and ahc softc frees */
 static __inline void
-ahc_list_lockinit()
+ahc_list_lockinit(void)
 {
 }
 
