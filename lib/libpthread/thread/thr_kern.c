@@ -142,7 +142,7 @@ static void	kseg_init(struct kse_group *kseg);
 static void	kseg_reinit(struct kse_group *kseg);
 static void	kse_waitq_insert(struct pthread *thread);
 static void	kse_wakeup_multi(struct kse *curkse);
-static void	kse_wakeup_one(struct pthread *thread);
+static struct kse_mailbox *kse_wakeup_one(struct pthread *thread);
 static void	thr_cleanup(struct kse *kse, struct pthread *curthread);
 static void	thr_link(struct pthread *thread);
 static void	thr_resume_wrapper(int sig, siginfo_t *, ucontext_t *);
@@ -341,7 +341,7 @@ _kse_single_thread(struct pthread *curthread)
 #else
 	if (__isthreaded)
 		_thr_signal_deinit();
-	_ksd_readandclear_tmbx();
+	_ksd_set_tmbx(NULL);
 	__isthreaded   = 0;
 	active_threads = 0;
 #endif
@@ -505,10 +505,9 @@ _thr_lock_wait(struct lock *lock, struct lockuser *lu)
 	struct pthread *curthread = (struct pthread *)lu->lu_private;
 
 	do {
-		THR_SCHED_LOCK(curthread, curthread);
+		THR_LOCK_SWITCH(curthread);
 		THR_SET_STATE(curthread, PS_LOCKWAIT);
-		THR_SCHED_UNLOCK(curthread, curthread);
-		_thr_sched_switch(curthread);
+		_thr_sched_switch_unlocked(curthread);
 	} while (!_LCK_GRANTED(lu));
 }
 
@@ -517,14 +516,17 @@ _thr_lock_wakeup(struct lock *lock, struct lockuser *lu)
 {
 	struct pthread *thread;
 	struct pthread *curthread;
+	struct kse_mailbox *kmbx;
 
 	curthread = _get_curthread();
 	thread = (struct pthread *)_LCK_GET_PRIVATE(lu);
 
 	THR_SCHED_LOCK(curthread, thread);
 	_lock_grant(lock, lu);
-	_thr_setrunnable_unlocked(thread);
+	kmbx = _thr_setrunnable_unlocked(thread);
 	THR_SCHED_UNLOCK(curthread, thread);
+	if (kmbx != NULL)
+		kse_wakeup(kmbx);
 }
 
 kse_critical_t
@@ -532,7 +534,8 @@ _kse_critical_enter(void)
 {
 	kse_critical_t crit;
 
-	crit = _ksd_readandclear_tmbx();
+	crit = _ksd_get_tmbx();
+	_ksd_set_tmbx(NULL);
 	return (crit);
 }
 
@@ -841,8 +844,8 @@ kse_sched_single(struct kse *curkse)
 				if (SIGISMEMBER(curthread->sigmask, i))
 					continue;
 				if (SIGISMEMBER(curthread->sigpend, i))
-					_thr_sig_add(curthread, i, 
-						&curthread->siginfo[i-1]);
+					(void)_thr_sig_add(curthread, i, 
+					    &curthread->siginfo[i-1]);
 			}
 			__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask,
 				NULL);
@@ -1142,6 +1145,7 @@ static void
 thr_cleanup(struct kse *curkse, struct pthread *thread)
 {
 	struct pthread *joiner;
+	struct kse_mailbox *kmbx = NULL;
 	int sys_scope;
 
 	if ((joiner = thread->joiner) != NULL) {
@@ -1150,7 +1154,7 @@ thr_cleanup(struct kse *curkse, struct pthread *thread)
 			if (joiner->join_status.thread == thread) {
 				joiner->join_status.thread = NULL;
 				joiner->join_status.ret = thread->ret;
-				_thr_setrunnable_unlocked(joiner);
+				(void)_thr_setrunnable_unlocked(joiner);
 			}
 		} else {
 			KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
@@ -1160,10 +1164,12 @@ thr_cleanup(struct kse *curkse, struct pthread *thread)
 				if (joiner->join_status.thread == thread) {
 					joiner->join_status.thread = NULL;
 					joiner->join_status.ret = thread->ret;
-					_thr_setrunnable_unlocked(joiner);
+					kmbx = _thr_setrunnable_unlocked(joiner);
 				}
 				KSE_SCHED_UNLOCK(curkse, joiner->kseg);
 				_thr_ref_delete(thread, joiner);
+				if (kmbx != NULL)
+					kse_wakeup(kmbx);
 			}
 			KSE_SCHED_LOCK(curkse, curkse->k_kseg);
 		}
@@ -1436,7 +1442,8 @@ kse_check_completed(struct kse *kse)
 				if (SIGISMEMBER(thread->sigmask, sig))
 					SIGADDSET(thread->sigpend, sig);
 				else
-					_thr_sig_add(thread, sig, &thread->tmbx.tm_syncsig);
+					(void)_thr_sig_add(thread, sig,
+					    &thread->tmbx.tm_syncsig);
 				thread->tmbx.tm_syncsig.si_signo = 0;
 			}
 			completed = completed->tm_next;
@@ -1653,10 +1660,11 @@ kse_switchout_thread(struct kse *kse, struct pthread *thread)
 			if (SIGISMEMBER(thread->sigmask, i))
 				continue;
 			if (SIGISMEMBER(thread->sigpend, i))
-				_thr_sig_add(thread, i, &thread->siginfo[i-1]);
+				(void)_thr_sig_add(thread, i,
+				    &thread->siginfo[i-1]);
 			else if (SIGISMEMBER(_thr_proc_sigpending, i) &&
 				_thr_getprocsig_unlocked(i, &siginfo)) {
-				_thr_sig_add(thread, i, &siginfo);
+				(void)_thr_sig_add(thread, i, &siginfo);
 			}
 		}
 		KSE_LOCK_RELEASE(kse, &_thread_signal_lock);
@@ -1823,23 +1831,31 @@ void
 _thr_setrunnable(struct pthread *curthread, struct pthread *thread)
 {
 	kse_critical_t crit;
+	struct kse_mailbox *kmbx;
 
 	crit = _kse_critical_enter();
 	KSE_SCHED_LOCK(curthread->kse, thread->kseg);
-	_thr_setrunnable_unlocked(thread);
+	kmbx = _thr_setrunnable_unlocked(thread);
 	KSE_SCHED_UNLOCK(curthread->kse, thread->kseg);
 	_kse_critical_leave(crit);
+	if (kmbx != NULL)
+		kse_wakeup(kmbx);
 }
 
-void
+struct kse_mailbox *
 _thr_setrunnable_unlocked(struct pthread *thread)
 {
+	struct kse_mailbox *kmbx = NULL;
+
 	if ((thread->kseg->kg_flags & KGF_SINGLE_THREAD) != 0) {
 		/* No silly queues for these threads. */
 		if ((thread->flags & THR_FLAGS_SUSPENDED) != 0)
 			THR_SET_STATE(thread, PS_SUSPENDED);
-		else
+		else {
 			THR_SET_STATE(thread, PS_RUNNING);
+			kmbx = kse_wakeup_one(thread);
+		}
+
 	} else if (thread->state != PS_RUNNING) {
 		if ((thread->flags & THR_FLAGS_IN_WAITQ) != 0)
 			KSE_WAITQ_REMOVE(thread->kse, thread);
@@ -1850,25 +1866,31 @@ _thr_setrunnable_unlocked(struct pthread *thread)
 			if ((thread->blocked == 0) && (thread->active == 0) &&
 			    (thread->flags & THR_FLAGS_IN_RUNQ) == 0)
 				THR_RUNQ_INSERT_TAIL(thread);
+			/*
+			 * XXX - Threads are not yet assigned to specific
+			 *       KSEs; they are assigned to the KSEG.  So
+			 *       the fact that a thread's KSE is waiting
+			 *       doesn't necessarily mean that it will be
+			 *       the KSE that runs the thread after the
+			 *       lock is granted.  But we don't know if the
+			 *       other KSEs within the same KSEG are also
+			 *       in a waiting state or not so we err on the
+			 *       side of caution and wakeup the thread's
+			 *       last known KSE.  We ensure that the
+			 *       threads KSE doesn't change while it's
+			 *       scheduling lock is held so it is safe to
+			 *       reference it (the KSE).  If the KSE wakes
+			 *       up and doesn't find any more work it will
+			 *       again go back to waiting so no harm is
+			 *       done.
+			 */
+			kmbx = kse_wakeup_one(thread);
 		}
 	}
-        /*
-         * XXX - Threads are not yet assigned to specific KSEs; they are
-         *       assigned to the KSEG.  So the fact that a thread's KSE is
-         *       waiting doesn't necessarily mean that it will be the KSE
-         *       that runs the thread after the lock is granted.  But we
-         *       don't know if the other KSEs within the same KSEG are
-         *       also in a waiting state or not so we err on the side of
-         *       caution and wakeup the thread's last known KSE.  We
-         *       ensure that the threads KSE doesn't change while it's
-         *       scheduling lock is held so it is safe to reference it
-         *       (the KSE).  If the KSE wakes up and doesn't find any more
-         *       work it will again go back to waiting so no harm is done.
-         */
-	kse_wakeup_one(thread);
+	return (kmbx);
 }
 
-static void
+static struct kse_mailbox *
 kse_wakeup_one(struct pthread *thread)
 {
 	struct kse *ke;
@@ -1876,17 +1898,17 @@ kse_wakeup_one(struct pthread *thread)
 	if (KSE_IS_IDLE(thread->kse)) {
 		KSE_CLEAR_IDLE(thread->kse);
 		thread->kseg->kg_idle_kses--;
-		KSE_WAKEUP(thread->kse);
+		return (&thread->kse->k_mbx);
 	} else {
 		TAILQ_FOREACH(ke, &thread->kseg->kg_kseq, k_kgqe) {
 			if (KSE_IS_IDLE(ke)) {
 				KSE_CLEAR_IDLE(ke);
 				ke->k_kseg->kg_idle_kses--;
-				KSE_WAKEUP(ke);
-				return;
+				return (&ke->k_mbx);
 			}
 		}
 	}
+	return (NULL);
 }
 
 static void

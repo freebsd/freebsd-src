@@ -20,6 +20,7 @@ _pthread_cancel(pthread_t pthread)
 {
 	struct pthread *curthread = _get_curthread();
 	struct pthread *joinee = NULL;
+	struct kse_mailbox *kmbx = NULL;
 	int ret;
 
 	if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0)) == 0) {
@@ -65,7 +66,7 @@ _pthread_cancel(pthread_t pthread)
 				/* Interrupt and resume: */
 				pthread->interrupted = 1;
 				pthread->cancelflags |= THR_CANCELLING;
-				_thr_setrunnable_unlocked(pthread);
+				kmbx = _thr_setrunnable_unlocked(pthread);
 				break;
 
 			case PS_JOIN:
@@ -73,7 +74,7 @@ _pthread_cancel(pthread_t pthread)
 				joinee = pthread->join_status.thread;
 				pthread->join_status.thread = NULL;
 				pthread->cancelflags |= THR_CANCELLING;
-				_thr_setrunnable_unlocked(pthread);
+				kmbx = _thr_setrunnable_unlocked(pthread);
 				if ((joinee != NULL) &&
 				    (pthread->kseg == joinee->kseg)) {
 					/* Remove the joiner from the joinee. */
@@ -97,7 +98,7 @@ _pthread_cancel(pthread_t pthread)
 				 */
 				pthread->interrupted = 1;
 				pthread->cancelflags |= THR_CANCEL_NEEDED;
-				_thr_setrunnable_unlocked(pthread);
+				kmbx = _thr_setrunnable_unlocked(pthread);
 				pthread->continuation = finish_cancellation;
 				break;
 
@@ -120,6 +121,8 @@ _pthread_cancel(pthread_t pthread)
 		 */
 		THR_SCHED_UNLOCK(curthread, pthread);
 		_thr_ref_delete(curthread, pthread);
+		if (kmbx != NULL)
+			kse_wakeup(kmbx);
 
 		if ((joinee != NULL) &&
 		    (_thr_ref_add(curthread, joinee, /* include dead */1) == 0)) {
