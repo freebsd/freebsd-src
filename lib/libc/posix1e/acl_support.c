@@ -31,7 +31,9 @@
  */
 
 #include <sys/types.h>
+#include "namespace.h"
 #include <sys/acl.h>
+#include "un-namespace.h"
 #include <errno.h>
 #include <grp.h>
 #include <pwd.h>

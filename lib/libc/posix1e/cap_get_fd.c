@@ -30,7 +30,9 @@
  */
 
 #include <sys/types.h>
+#include "namespace.h"
 #include <sys/capability.h>
+#include "un-namespace.h"
 #include <sys/errno.h>
 
 #include <stdlib.h>
@@ -45,7 +47,7 @@ cap_get_fd(int fd)
 	if (!cap)
 		return (NULL);
 
-	error = __cap_get_fd(fd, cap);
+	error = ___cap_get_fd(fd, cap);
 	if (error) {
 		errno = error;
 		cap_free(cap);

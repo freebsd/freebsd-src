@@ -35,7 +35,9 @@
  */
 
 #include <sys/types.h>
+#include "namespace.h"
 #include <sys/acl.h>
+#include "un-namespace.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -72,7 +74,7 @@ acl_get_fd(int fd)
 		return (NULL);
 	}
 
-	error = __acl_get_fd(fd, ACL_TYPE_ACCESS, aclp);
+	error = ___acl_get_fd(fd, ACL_TYPE_ACCESS, aclp);
 	if (error) {
 		acl_free(aclp);
 		return (NULL);
@@ -92,7 +94,7 @@ acl_get_fd_np(int fd, acl_type_t type)
 		return (NULL);
 	}
 
-	error = __acl_get_fd(fd, type, aclp);
+	error = ___acl_get_fd(fd, type, aclp);
 	if (error) {
 		acl_free(aclp);
 		return (NULL);
