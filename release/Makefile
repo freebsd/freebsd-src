@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.126 1995/03/28 18:14:03 phk Exp $
+#	$Id: Makefile,v 1.127 1995/03/28 19:28:32 phk Exp $
 #
 # How to roll a release:
 #
@@ -74,6 +74,8 @@ release:
 .else
 	cd ${CHROOTDIR}/usr ; cvs export -r ${RELEASETAG} src
 .endif
+	# To be used in development...
+	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
@@ -207,7 +209,7 @@ release.5:
 				${RD}/trees/dict/usr/share/misc ; \
 		fi ; \
 	done
-	mv ${RD}/trees/bin/usr/share/info/* \
+	-mv ${RD}/trees/bin/usr/share/info/* \
 		${RD}/trees/info/usr/share/info
 	for i in ${RD}/trees/bin/usr/lib/*_p.a ; do \
 		if [ -f $$i ] ; then \
@@ -215,7 +217,7 @@ release.5:
 				${RD}/trees/proflibs/usr/lib ; \
 		fi ; \
 	done
-	cd ${RD}/usr/share/misc && rm -f termcap.db vgrindefs.db
+	cd ${RD}/trees/bin/usr/share/misc && rm -f termcap.db vgrindefs.db
 	-cd ${RD}/trees ; \
 		find bin ${EXPORT_DISTS} -depth -type d -print | xargs rmdir
 
@@ -261,7 +263,7 @@ release.7:
 	gzip -1 -c < ${RD}/floppies/cpio.flp > ${RD}/floppies/cpio.flp.gz
 	touch release.7
 
-# Make binary dists
+# Make binary dists, notice that secure dist isn't done yet.
 release.8:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/dists
@@ -286,20 +288,22 @@ release.8:
 release.9:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	@cd ${.CURDIR} ; $(MAKE) doTARBALL SD=/usr/src \
-		TD=src TN=srcbase ARG="[A-Z]*"
-	@for i in `cd /usr/src ; echo *` ; do \
+		TD=src TN=sbase ARG="[A-Z]*"
+	@for i in `cd /usr/src ; echo [a-z]*` ; do \
 		if [ -d /usr/src/$$i -a "$$i" != "CVS" ] ; then \
 			cd ${.CURDIR} ; \
 			$(MAKE) doTARBALL SD=/usr/src \
-				TN=`echo src$$i | tr -d '.' | sed 's/usr/u/'` \
+				TN=`echo s$$i | tr -d '.' | sed 's/usr/u/'` \
 				TD=src ARG="$$i" ; \
 		fi ; \
 	done
-	( cd ${RD}/dists/src; \
-	sh -e ${.CURDIR}/scripts/mkchecksums.sh ) ; \
-	cp ${.CURDIR}/scripts/extract_src.sh \
-		${RD}/dists/src/extract.sh;\
-	echo "src distribution is finished."; \
+	( cd ${RD}/dists/src && \
+	if [ -f ssecure.aa ] ; then mv ssecure.* ../secure ; fi && \
+	if [ -f sebones.aa ] ; then mv sebones.* ../secure ; fi && \
+	sh -e ${.CURDIR}/scripts/mkchecksums.sh )
+	cp ${.CURDIR}/scripts/extract_src.sh ${RD}/dists/src/extract.sh
+	( cd ${RD}/dists/secure && sh -e ${.CURDIR}/scripts/mkchecksums.sh ) 
+	@echo "src distribution is finished."
 	touch release.9
 
 # Complete the fixitfd
@@ -356,10 +360,11 @@ doTARBALL:
 .endif               
 	rm -rf ${RD}/dists/${TD}/${TN}*
 	mkdir -p ${RD}/dists/${TD}
-	( cd ${SD} ; \
-		echo rolling ${TD}/${TN} tarball ;\
+	( cd ${SD} && \
+		tn=`echo ${TN} | tr '[A-Z]' '[a-z]' | cut -c1-8` && \
+		echo rolling ${TD}/$$tn tarball &&\
 		tar --exclude CVS --exclude obj -cf - ${ARG} | \
-		${ZIPNSPLIT} ${RD}/dists/${TD}/${TN}. )
+		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. )
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9 release.10
