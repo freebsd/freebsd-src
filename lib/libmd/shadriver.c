@@ -1,4 +1,4 @@
-/* MDDRIVER.C - test driver for MD2, MD4 and MD5
+/* SHADRIVER.C - test driver for SHA-1 (and SHA-0)
  * $Id: mddriver.c,v 1.4 1997/08/25 05:24:26 joerg Exp $
  */
 
@@ -14,11 +14,11 @@
    documentation and/or software.
  */
 
-/* The following makes MD default to MD5 if it has not already been
+/* The following makes SHA default to SHA-1 if it has not already been
      defined with C compiler flags.
  */
-#ifndef MD
-#define MD 5
+#ifndef SHA
+#define SHA 1
 #endif
 
 #include <sys/types.h>
@@ -26,44 +26,35 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
-#if MD == 2
-#include "md2.h"
-#define MDData MD2Data
-#endif
-#if MD == 4
-#include "md4.h"
-#define MDData MD4Data
-#endif
-#if MD == 5
-#include "md5.h"
-#define MDData MD5Data
+#include "sha.h"
+#if SHA == 1
+#define SHA_Data SHA1_Data
 #endif
 
 /* Digests a string and prints the result.
  */
-static void MDString (string)
+static void SHAString (string)
 char *string;
 {
-  char buf[33];
+  char buf[2*20+1];
 
-  printf ("MD%d (\"%s\") = %s\n", 
-	MD, string, MDData(string,strlen(string),buf));
+  printf ("SHA-%d (\"%s\") = %s\n", 
+	SHA, string, SHA_Data(string,strlen(string),buf));
 }
 
 /* Digests a reference suite of strings and prints the results.
  */
 main()
 {
-  printf ("MD%d test suite:\n", MD);
+  printf ("SHA-%d test suite:\n", SHA);
 
-  MDString ("");
-  MDString ("a");
-  MDString ("abc");
-  MDString ("message digest");
-  MDString ("abcdefghijklmnopqrstuvwxyz");
-  MDString
+  SHAString ("");
+  SHAString ("abc");
+  SHAString ("message digest");
+  SHAString ("abcdefghijklmnopqrstuvwxyz");
+  SHAString
     ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
-  MDString
+  SHAString
     ("1234567890123456789012345678901234567890\
 1234567890123456789012345678901234567890");
   return 0;

@@ -1,27 +1,47 @@
-#	$Id: Makefile,v 1.27 1998/09/11 05:41:29 imp Exp $
+#	$Id: Makefile,v 1.28 1998/11/12 04:08:10 jdp Exp $
 
 LIB=	md
-SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c
-MAN3+=  md2.3 md4.3 md5.3
+SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c \
+	sha0c.c sha0hl.c sha1c.c sha1hl.c
+MAN3+=  md2.3 md4.3 md5.3 sha.3
 MLINKS+=md2.3 MD2Init.3 md2.3 MD2Update.3 md2.3 MD2Final.3
 MLINKS+=md2.3 MD2End.3  md2.3 MD2File.3   md2.3 MD2Data.3
 MLINKS+=md4.3 MD4Init.3 md4.3 MD4Update.3 md4.3 MD4Final.3
 MLINKS+=md4.3 MD4End.3  md4.3 MD4File.3   md4.3 MD4Data.3
 MLINKS+=md5.3 MD5Init.3 md5.3 MD5Update.3 md5.3 MD5Final.3
 MLINKS+=md5.3 MD5End.3  md5.3 MD5File.3   md5.3 MD5Data.3
-CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver
+CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver \
+		sha0.ref sha0hl.c sha1.ref sha1hl.c shadriver
 CFLAGS+= -I${.CURDIR}
+
+.if exists(${MACHINE_ARCH}/sha.S)
+SRCS+=	${MACHINE_ARCH}/sha.S
+CFLAGS+= -DSHA1_ASM -DELF
+.endif
 
 all: md2.3 md4.3 md5.3
 
 md2hl.c: mdXhl.c
-	sed -e 's/mdX/md2/g' -e 's/MDX/MD2/g' ${.ALLSRC} > ${.TARGET}
+	(echo '#define LENGTH 16'; \
+		sed -e 's/mdX/md2/g' -e 's/MDX/MD2/g' ${.ALLSRC}) > ${.TARGET}
 
 md4hl.c: mdXhl.c
-	sed -e 's/mdX/md4/g' -e 's/MDX/MD4/g' ${.ALLSRC} > ${.TARGET}
+	(echo '#define LENGTH 16'; \
+		sed -e 's/mdX/md4/g' -e 's/MDX/MD4/g' ${.ALLSRC}) > ${.TARGET}
 
 md5hl.c: mdXhl.c
-	sed -e 's/mdX/md5/g' -e 's/MDX/MD5/g' ${.ALLSRC} > ${.TARGET}
+	(echo '#define LENGTH 16'; \
+		sed -e 's/mdX/md5/g' -e 's/MDX/MD5/g' ${.ALLSRC}) > ${.TARGET}
+
+sha0hl.c: mdXhl.c
+	(echo '#define LENGTH 20'; \
+		sed -e 's/mdX/sha/g' -e 's/MDX/SHA_/g' -e 's/SHA__/SHA_/g' \
+		${.ALLSRC}) > ${.TARGET}
+
+sha1hl.c: mdXhl.c
+	(echo '#define LENGTH 20'; \
+		sed -e 's/mdX/sha/g' -e 's/MDX/SHA1_/g' -e 's/SHA1__/SHA1_/g' \
+		${.ALLSRC}) > ${.TARGET}
 
 md2.3: ${.CURDIR}/mdX.3
 	sed -e 's/mdX/md2/g' -e 's/MDX/MD2/g' ${.ALLSRC} > ${.TARGET}
@@ -65,7 +85,33 @@ md5.ref:
 	@echo 'MD5 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") = d174ab98d277d9f5a5611c2c9f419d9f' >> ${.TARGET}
 	@echo 'MD5 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") = 57edf4a22be3c955ac49da2e2107b67a' >> ${.TARGET}
 
-test:	md2.ref md4.ref md5.ref
+sha0.ref:
+	(echo 'SHA-0 test suite:'; \
+	echo 'SHA-0 ("") = f96cea198ad1dd5617ac084a3d92c6107708c0ef'; \
+	echo 'SHA-0 ("abc") = 0164b8a914cd2a5e74c4f7ff082c4d97f1edf880'; \
+	echo 'SHA-0 ("message digest") =' \
+		'c1b0f222d150ebb9aa36a40cafdc8bcbed830b14'; \
+	echo 'SHA-0 ("abcdefghijklmnopqrstuvwxyz") =' \
+		'b40ce07a430cfd3c033039b9fe9afec95dc1bdcd'; \
+	echo 'SHA-0 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") =' \
+		'79e966f7a3a990df33e40e3d7f8f18d2caebadfa'; \
+	echo 'SHA-0 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") =' \
+		'4aa29d14d171522ece47bee8957e35a41f3e9cff' ) > ${.TARGET}
+
+sha1.ref:
+	(echo 'SHA-1 test suite:'; \
+	echo 'SHA-1 ("") = da39a3ee5e6b4b0d3255bfef95601890afd80709'; \
+	echo 'SHA-1 ("abc") = a9993e364706816aba3e25717850c26c9cd0d89d'; \
+	echo 'SHA-1 ("message digest") =' \
+		'c12252ceda8be8994d5fa0290a47231c1d16aae3'; \
+	echo 'SHA-1 ("abcdefghijklmnopqrstuvwxyz") =' \
+		'32d10c7b8cf96570ca04ce37f2a19d84240d3a89'; \
+	echo 'SHA-1 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") =' \
+		'761c457bf73b14d27e9e9265c46f4b4dda11f940'; \
+	echo 'SHA-1 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") =' \
+		'50abf5706a150990a08b2c5ea40fa0e585554732' ) > ${.TARGET}
+
+test:	md2.ref md4.ref md5.ref sha0.ref sha1.ref
 	@${ECHO} if any of these test fail, the code produces wrong results
 	@${ECHO} and should NOT be used.
 	${CC} -static ${CFLAGS} ${LDFLAGS} -DMD=2 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
@@ -78,9 +124,16 @@ test:	md2.ref md4.ref md5.ref
 	./mddriver | cmp md5.ref -
 	@${ECHO} MD5 passed test
 	-rm -f mddriver
+	${CC} -static ${CFLAGS} ${LDFLAGS} -DSHA=0 -o shadriver ${.CURDIR}/shadriver.c -L. -lmd
+	./shadriver | cmp sha0.ref -
+	@${ECHO} SHA-0 passed test
+	${CC} -static ${CFLAGS} ${LDFLAGS} -DSHA=1 -o shadriver ${.CURDIR}/shadriver.c -L. -lmd
+	./shadriver | cmp sha1.ref -
+	@${ECHO} SHA-1 passed test
+	-rm -f shadriver
 
 beforeinstall:
-.for i in md2.h md4.h md5.h
+.for i in md2.h md4.h md5.h sha.h
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/$i \
 		${DESTDIR}/usr/include
 .endfor
