@@ -208,7 +208,7 @@ kmemphys:
 
 		if (error)
 			break;
-		iov->iov_base += c;
+		iov->iov_base = (char *)iov->iov_base + c;
 		iov->iov_len -= c;
 		uio->uio_offset += c;
 		uio->uio_resid -= c;

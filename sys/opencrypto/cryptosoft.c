@@ -388,7 +388,7 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 			 * we only use it in the while() loop, only if
 			 * there are indeed enough data.
 			 */
-			idat = iov->iov_base + k;
+			idat = (char *)iov->iov_base + k;
 
 	   		while (iov->iov_len >= k + blks && i > 0) {
 				if (crd->crd_flags & CRD_F_ENCRYPT) {

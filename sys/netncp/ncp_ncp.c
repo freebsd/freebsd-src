@@ -475,7 +475,8 @@ ncp_write(struct ncp_conn *conn, ncp_fh *file, struct uio *uiop, struct ucred *c
 			break;
 		if (error) {
 			backup = len;
-			uiop->uio_iov->iov_base -= backup;
+			uiop->uio_iov->iov_base =
+			    (char *)uiop->uio_iov->iov_base - backup;
 			uiop->uio_iov->iov_len += backup;
 			uiop->uio_offset -= backup;
 			uiop->uio_resid += backup;
