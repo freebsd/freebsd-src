@@ -197,8 +197,8 @@ nwfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred) {
 
 int
 nwfs_writevnode(vp, uiop, cred, ioflag)
-	register struct vnode *vp;
-	register struct uio *uiop;
+	struct vnode *vp;
+	struct uio *uiop;
 	struct ucred *cred;
 	int ioflag;
 {
@@ -256,12 +256,12 @@ nwfs_writevnode(vp, uiop, cred, ioflag)
  */
 int
 nwfs_doio(bp, cr, p)
-	register struct buf *bp;
+	struct buf *bp;
 	struct ucred *cr;
 	struct proc *p;
 {
-	register struct uio *uiop;
-	register struct vnode *vp;
+	struct uio *uiop;
+	struct vnode *vp;
 	struct nwnode *np;
 	struct nwmount *nmp;
 	int error = 0;
@@ -591,7 +591,7 @@ nwfs_vinvalbuf(vp, flags, cred, p, intrflg)
 	struct proc *p;
 	int intrflg;
 {
-	register struct nwnode *np = VTONW(vp);
+	struct nwnode *np = VTONW(vp);
 /*	struct nwmount *nmp = VTONWFS(vp);*/
 	int error = 0, slpflag, slptimeo;
 

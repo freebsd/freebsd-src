@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Boris Popov
+ * Copyright (c) 1999, 2000 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,13 +86,13 @@ void nwfs_hash_init(void);
 void nwfs_hash_free(void);
 int  nwfs_allocvp(struct mount *mp, ncpfid fid, struct vnode **vpp);
 int  nwfs_lookupnp(struct nwmount *nmp, ncpfid fid, struct nwnode **npp);
-int  nwfs_inactive __P((struct vop_inactive_args *));
-int  nwfs_reclaim __P((struct vop_reclaim_args *));
+int  nwfs_inactive(struct vop_inactive_args *);
+int  nwfs_reclaim(struct vop_reclaim_args *);
 int nwfs_nget(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
     struct vnode *dvp, struct vnode **vpp);
 
-int  nwfs_getpages __P((struct vop_getpages_args *));
-int  nwfs_putpages __P((struct vop_putpages_args *));
+int  nwfs_getpages(struct vop_getpages_args *);
+int  nwfs_putpages(struct vop_putpages_args *);
 int  nwfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred);
 int  nwfs_writevnode(struct vnode *vp, struct uio *uiop, struct ucred *cred, int ioflag);
 void nwfs_attr_cacheenter(struct vnode *vp, struct nw_entry_info *fi);
