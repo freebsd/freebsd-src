@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- *	$Id$
+ *	$Id: uipc_mbuf.c,v 1.28 1997/02/18 20:43:05 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #define MBTYPES
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
@@ -63,6 +64,15 @@ int	max_protohdr;
 int	max_hdr;
 int	max_datalen;
 
+SYSCTL_INT(_kern_ipc, KIPC_MAX_LINKHDR, max_linkhdr, CTLFLAG_RW,
+	   &max_linkhdr, 0, "");
+SYSCTL_INT(_kern_ipc, KIPC_MAX_PROTOHDR, max_protohdr, CTLFLAG_RW,
+	   &max_protohdr, 0, "");
+SYSCTL_INT(_kern_ipc, KIPC_MAX_HDR, max_hdr, CTLFLAG_RW, &max_hdr, 0, "");
+SYSCTL_INT(_kern_ipc, KIPC_MAX_DATALEN, max_datalen, CTLFLAG_RW,
+	   &max_datalen, 0, "");
+SYSCTL_STRUCT(_kern_ipc, KIPC_MBSTAT, mbstat, CTLFLAG_RW, &mbstat, mbstat, "");
+
 static void	m_reclaim __P((void));
 
 /* "number of clusters of pages" */
@@ -78,6 +88,12 @@ mbinit(dummy)
 	int s;
 
 	mmbfree = NULL; mclfree = NULL;
+	mbstat.m_msize = MSIZE;
+	mbstat.m_mclbytes = MCLBYTES;
+	mbstat.m_minclsize = MINCLSIZE;
+	mbstat.m_mlen = MLEN;
+	mbstat.m_mhlen = MHLEN;
+
 	s = splimp();
 	if (m_mballoc(NMB_INIT, M_DONTWAIT) == 0)
 		goto bad;
@@ -385,7 +401,7 @@ m_prepend(m, len, how)
  * continuing for "len" bytes.  If len is M_COPYALL, copy to end of mbuf.
  * The wait parameter is a choice of M_WAIT/M_DONTWAIT from caller.
  */
-static int MCFail;
+#define MCFail (mbstat.m_mcfail)
 
 struct mbuf *
 m_copym(m, off0, len, wait)
@@ -656,7 +672,7 @@ m_adj(mp, req_len)
  * If there is room, it will add up to max_protohdr-len extra bytes to the
  * contiguous region in an attempt to avoid being called next time.
  */
-static int MPFail;
+#define MPFail (mbstat.m_mpfail)
 
 struct mbuf *
 m_pullup(n, len)
