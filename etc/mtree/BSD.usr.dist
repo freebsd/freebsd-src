@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.28 1995/01/17 17:57:52 ache Exp $
+#	$Id: BSD.usr.dist,v 1.29 1995/01/19 22:23:13 wollman Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -59,6 +59,8 @@
             ..
             sunrpc         
             ..
+	    syscons
+	    ..
         ..
 /set type=dir uname=games gname=bin mode=0755
         games           uname=bin
@@ -87,6 +89,8 @@
                 generate       
                 ..
             ..
+	    devkoi8-r
+            ..
             devlatin1      
             ..
             devps          
@@ -97,13 +101,9 @@
 	info
 	..
 	locale
-		Ja_JP.EUC
-		..
-		POSIX
-		..
-		Russian.koi8-r
-		..
 		ja_JP.EUC
+		..
+		lt_LN.ISO8859-1
 		..
 		ru_SU.KOI8-R
 		..
