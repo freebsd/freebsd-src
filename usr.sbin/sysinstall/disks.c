@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.70 1996/10/09 09:53:27 jkh Exp $
+ * $Id: disks.c,v 1.71 1996/11/05 19:53:20 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -184,6 +184,7 @@ diskPartition(Device *dev, Disk *d)
     /* Flush both the dialog and curses library views of the screen
        since we don't always know who called us */
     dialog_clear_norefresh(), clear();
+    current_chunk = 0;
 
     /* Set up the chunk array */
     record_chunks(d);
