@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.28 1995/04/12 16:58:06 ache Exp $
+#	$Id: netstart,v 1.29 1995/04/24 23:52:15 rgrimes Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # If there is a global system configuration file, suck it in.
@@ -16,6 +16,16 @@ fi
 # Set the domainname if we're using NIS
 if [ -n "$defaultdomainname" -a "x$defaultdomainname" != "xNO" ] ; then
 	domainname $defaultdomainname
+fi
+
+#
+# XXX This is known to cause an error if /usr is nfs mounted since it
+# will not be avaliable until after the network is up :-(.  Once the
+# relocation of sysctl to /sbin is done that problem will go away.
+#
+if [ -n "$tcp_extensions" -a "x$tcp_extensions" = "xNO" ] ; then
+	sysctl -nw net.inet.tcp.rfc1323=0
+	sysctl -nw net.inet.tcp.rfc1644=0
 fi
 
 # Set up all the network interfaces, calling startup scripts if needed
