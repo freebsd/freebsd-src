@@ -441,7 +441,7 @@ Collapse_Disk(struct disk *d)
 }
 #endif
 
-static char * device_list[] = {"wd", "ad", "da", "afd", "fla", "idad", "mlxd", "amrd", "twed", "fd", 0};
+static char * device_list[] = {"ad", "da", "afd", "fla", "idad", "mlxd", "amrd", "twed", "fd", 0};
 
 char **
 Disk_Names()
