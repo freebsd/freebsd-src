@@ -158,8 +158,14 @@ nd6_ifattach(ifp)
 
 #define ND nd_ifinfo[ifp->if_index]
 
-	/* don't initialize if called twice */
-	if (ND.linkmtu)
+	/*
+	 * Don't initialize if called twice.
+	 * XXX: to detect this, we should choose a member that is never set
+	 * before initialization of the ND structure itself.  We formaly used
+	 * the linkmtu member, which was not suitable because it could be 
+	 * initialized via "ifconfig mtu".
+	 */
+	if (ND.basereachable)
 		return;
 
 	ND.linkmtu = ifindex2ifnet[ifp->if_index]->if_mtu;
