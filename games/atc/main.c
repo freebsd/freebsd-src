@@ -59,7 +59,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
 main(ac, av)
 	char	*av[];
 {
-	int			seed;
+	int                     seed = 0;
 	int			f_usage = 0, f_list = 0, f_showscore = 0;
 	int			f_printpath = 0;
 	char			*file = NULL;
@@ -70,11 +70,7 @@ main(ac, av)
 	extern char		*default_game(), *okay_game();
 	extern void		log_score(), quit(), update();
 
-	/* revoke privs */
-	setegid(getgid());
-	setgid(getgid());
-
-	start_time = seed = time(0);
+	start_time = time(0);
 
 	name = *av++;
 	while (*av) {
@@ -102,7 +98,8 @@ main(ac, av)
 				f_printpath++;
 				break;
 			case 'r':
-				seed = atoi(*av);
+				srandom(atoi(*av));
+				seed = 1;
 				av++;
 				break;
 			case 'f':
@@ -119,7 +116,8 @@ main(ac, av)
 			ptr++;
 		}
 	}
-	srandom(seed);
+	if (!seed)
+		srandomdev();
 
 	if (f_usage)
 		fprintf(stderr,
