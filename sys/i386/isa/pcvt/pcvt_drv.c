@@ -169,13 +169,12 @@ pcprobe(struct isa_device *dev)
 #ifdef _DEV_KBD_KBDREG_H_
 	int i;
 
-	kbd = NULL;
-	kbd_configure(KB_CONF_PROBE_ONLY);
-	i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)dev->id_unit);
-	if ((i < 0) || ((kbd = kbd_get_keyboard(i)) == NULL))
-	{
+	if (kbd == NULL) {
 		reset_keyboard = 0;
-		return (-1);
+		kbd_configure(KB_CONF_PROBE_ONLY);
+		i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)dev->id_unit);
+		if ((i < 0) || ((kbd = kbd_get_keyboard(i)) == NULL))
+			return (-1);
 	}
 	reset_keyboard = 1;		/* it's now safe to do kbd reset */
 #endif /* _DEV_KBD_KBDREG_H_ */
@@ -898,6 +897,7 @@ pcevent(keyboard_t *thiskbd, int event, void *arg)
 		pcrint(unit);
 		return 0;
 	case KBDIO_UNLOADING:
+		reset_keyboard = 0;
 		kbd = NULL;
 		kbd_release(thiskbd, (void *)&kbd);
 		timeout(detect_kbd, (void *)unit, hz*4);
@@ -1182,17 +1182,17 @@ pccnprobe(struct consdev *cp)
 	}
 
 #ifdef _DEV_KBD_KBDREG_H_
-	kbd = NULL;
-	kbd_configure(KB_CONF_PROBE_ONLY);
-	i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)dvp->id_unit);
-	if (i >= 0)
-		kbd = kbd_get_keyboard(i);
-
 	/*
 	 * Don't reset the keyboard via `kbdio' just yet.
 	 * The system clock has not been calibrated...
 	 */
 	reset_keyboard = 0;
+	if (kbd == NULL) {
+		kbd_configure(KB_CONF_PROBE_ONLY);
+		i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)dvp->id_unit);
+		if (i >= 0)
+			kbd = kbd_get_keyboard(i);
+	}
 
 #if PCVT_SCANSET == 2
 	/*
