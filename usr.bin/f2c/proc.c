@@ -433,6 +433,8 @@ startproc(progname, class)
 startproc(Extsym *progname, int class)
 #endif
 {
+	extern flag echo;
+
 	register struct Entrypoint *p;
 
 	p = ALLOC(Entrypoint);
@@ -458,13 +460,15 @@ startproc(Extsym *progname, int class)
 	entries = p;
 
 	procclass = class;
-	fprintf(diagfile, "   %s", (class==CLMAIN ? "MAIN" : "BLOCK DATA") );
-	if(progname) {
-		fprintf(diagfile, " %s", progname->fextname);
-		procname = progname->cextname;
+	if (echo) {
+		fprintf(diagfile, "   %s", (class==CLMAIN ? "MAIN" : "BLOCK DATA") );
+		if(progname) {
+			fprintf(diagfile, " %s", progname->fextname);
+			procname = progname->cextname;
+			}
+		fprintf(diagfile, ":\n");
+		fflush(diagfile);
 		}
-	fprintf(diagfile, ":\n");
-	fflush(diagfile);
 }
 
 /* subroutine or function statement */
@@ -521,15 +525,19 @@ entrypt(class, type, length, entry, args)
 entrypt(int class, int type, ftnint length, Extsym *entry, chainp args)
 #endif
 {
+	extern flag echo;
+
 	register Namep q;
 	register struct Entrypoint *p;
 
 	if(class != CLENTRY)
 		puthead( procname = entry->cextname, class);
-	else
+	else if (echo)
 		fprintf(diagfile, "       entry ");
-	fprintf(diagfile, "   %s:\n", entry->fextname);
-	fflush(diagfile);
+	if (echo){
+		fprintf(diagfile, "   %s:\n", entry->fextname);
+		fflush(diagfile);
+		}
 	q = mkname(entry->fextname);
 	if (type == TYSUBR)
 		q->vstg = STGEXT;
