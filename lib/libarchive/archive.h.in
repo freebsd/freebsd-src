@@ -29,9 +29,8 @@
 #ifndef ARCHIVE_H_INCLUDED
 #define	ARCHIVE_H_INCLUDED
 
-#include <stdarg.h>
-#include <stdint.h>
-#include <unistd.h>
+#include <inttypes.h>  /* For int64_t */
+#include <unistd.h>  /* For ssize_t and size_t */
 
 #define	ARCHIVE_BYTES_PER_RECORD	  512
 #define	ARCHIVE_DEFAULT_BYTES_PER_BLOCK	10240

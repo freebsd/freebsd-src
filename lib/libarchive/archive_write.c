@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
  * needlessly bloating statically-linked clients.
  */
 
-#include <sys/errno.h>
 #include <sys/wait.h>
 #ifdef HAVE_DMALLOC
 #include <dmalloc.h>
@@ -169,18 +168,6 @@ archive_write_finish(struct archive *a)
 
 	/* Release various dynamic buffers. */
 	free((void *)(uintptr_t)(const void *)a->nulls);
-	if (a->entry_name.s != NULL)
-		free(a->entry_name.s);
-	if (a->entry_linkname.s != NULL)
-		free(a->entry_linkname.s);
-	if (a->entry_uname.s != NULL)
-		free(a->entry_uname.s);
-	if (a->entry_gname.s != NULL)
-		free(a->entry_gname.s);
-	if (a->gnu_name.s != NULL)
-		free(a->gnu_name.s);
-	if (a->gnu_linkname.s != NULL)
-		free(a->gnu_linkname.s);
 	if (a->extract_mkdirpath.s != NULL)
 		free(a->extract_mkdirpath.s);
 	free(a);
