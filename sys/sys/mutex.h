@@ -255,10 +255,17 @@ do {									\
                 #ex, __FILE__, __LINE__)
 #define MPASS2(ex, what) if (!(ex)) panic("Assertion %s failed at %s:%d", \
                 what, __FILE__, __LINE__)
-
+#define MPASS3(ex, file, line)						\
+	if (!(ex))							\
+		panic("Assertion %s failed at %s:%d", #ex, file, line)
+#define MPASS4(ex, what, file, line)					\
+	if (!(ex))							\
+		panic("Assertion %s failed at %s:%d", what, file, line)
 #else	/* MUTEX_DEBUG */
 #define	MPASS(ex)
 #define	MPASS2(ex, where)
+#define	MPASS3(ex, file, line)
+#define	MPASS4(ex, what, file, line)
 #endif	/* MUTEX_DEBUG */
 
 #ifdef	WITNESS
@@ -482,8 +489,8 @@ _mtx_enter(struct mtx *mtxp, int type, const char *file, int line)
 	struct mtx	*mpp = mtxp;
 
 	/* bits only valid on mtx_exit() */
-	MPASS2(((type) & (MTX_NORECURSE | MTX_NOSWITCH)) == 0,
-	    STR_mtx_bad_type);
+	MPASS4(((type) & (MTX_NORECURSE | MTX_NOSWITCH)) == 0,
+	    STR_mtx_bad_type, file, line);
 
 	if ((type) & MTX_SPIN) {
 		/*
@@ -567,7 +574,7 @@ _mtx_exit(struct mtx *mtxp, int type, const char *file, int line)
 {
 	struct mtx	*const mpp = mtxp;
 
-	MPASS2(mtx_owned(mpp), STR_mtx_owned);
+	MPASS4(mtx_owned(mpp), STR_mtx_owned, file, line);
 	WITNESS_EXIT(mpp, type, file, line);
 	CTR5(KTR_LOCK, STR_mtx_exit_fmt,
 	    mpp->mtx_description, mpp, mpp->mtx_recurse, file, line);
@@ -575,7 +582,8 @@ _mtx_exit(struct mtx *mtxp, int type, const char *file, int line)
 		if ((type) & MTX_NORECURSE) {
 			int mtx_intr = mpp->mtx_saveintr;
 
-			MPASS2(mpp->mtx_recurse == 0, STR_mtx_recurse);
+			MPASS4(mpp->mtx_recurse == 0, STR_mtx_recurse,
+			    file, line);
 			_release_lock_quick(mpp);
 			if (((type) & MTX_TOPHALF) == 0) {
 				if ((type) & MTX_FIRST) {
