@@ -62,7 +62,16 @@ fseek(fp, offset, whence)
 	long offset;
 	int whence;
 {
-	return (fseeko(fp, offset, whence));
+	int ret;
+
+	/* make sure stdio is set up */
+	if (!__sdidinit)
+		__sinit();
+
+	FLOCKFILE(fp);
+	ret = _fseeko(fp, (off_t)offset, whence, 1);
+	FUNLOCKFILE(fp);
+	return (ret);
 }
 
 int
@@ -78,7 +87,7 @@ fseeko(fp, offset, whence)
 		__sinit();
 
 	FLOCKFILE(fp);
-	ret = _fseeko(fp, offset, whence);
+	ret = _fseeko(fp, offset, whence, 0);
 	FUNLOCKFILE(fp);
 	return (ret);
 }
@@ -88,10 +97,11 @@ fseeko(fp, offset, whence)
  * `Whence' must be one of the three SEEK_* macros.
  */
 int
-_fseeko(fp, offset, whence)
+_fseeko(fp, offset, whence, ltest)
 	FILE *fp;
 	off_t offset;
 	int whence;
+	int ltest;
 {
 	register fpos_t (*seekfn) __P((void *, fpos_t, int));
 	fpos_t target, curoff;
@@ -134,7 +144,8 @@ _fseeko(fp, offset, whence)
 			curoff += fp->_p - fp->_bf._base;
 
 		/* curoff always >= 0 */
-		if (offset > 0 && curoff > OFF_MAX - offset) {
+		if (offset > 0 &&
+		    curoff > (ltest ? LONG_MAX : OFF_MAX) - offset) {
 			errno = EOVERFLOW;
 			return (EOF);
 		}
@@ -197,7 +208,8 @@ _fseeko(fp, offset, whence)
 		if (_fstat(fp->_file, &st))
 			goto dumb;
 		/* st.st_size always >= 0 */
-		if (offset > 0 && st.st_size > OFF_MAX - offset) {
+		if (offset > 0 &&
+		    st.st_size > (ltest ? LONG_MAX : OFF_MAX) - offset) {
 			errno = EOVERFLOW;
 			return (EOF);
 		}
@@ -290,6 +302,12 @@ dumb:
 	if (__sflush(fp) ||
 	    (*seekfn)(fp->_cookie, (fpos_t)offset, whence) == POS_ERR)
 		return (EOF);
+	/* POSIX require long type resulting offset for fseek() */
+	if (ltest && fp->_offset != (long)fp->_offset)  {
+		fp->_flags &= ~__SOFF;
+		errno = EOVERFLOW;
+		return (EOF);
+	}
 	/* success: clear EOF indicator and discard ungetc() data */
 	if (HASUB(fp))
 		FREEUB(fp);
