@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.7 1996/07/14 11:09:12 peter Exp $
+#	$Id: bsd.obj.mk,v 1.8 1996/09/05 17:53:13 bde Exp $
 #
 # The include file <bsd.obj.mk> handles creating 'obj' directory
 # and cleaning up object files, log files etc.
@@ -8,16 +8,16 @@
 #
 # CLEANFILES	Additional files to remove for the clean and cleandir targets.
 #
-# MAKEOBJDIR 	Specify somewhere other than /usr/obj to root the object
-#		tree. Note: MAKEOBJDIR is an *enviroment* variable
+# MAKEOBJDIRPREFIX  Specify somewhere other than /usr/obj to root the object
+#		tree. Note: MAKEOBJDIRPREFIX is an *enviroment* variable
 #		and does work proper only if set as enviroment variable,
 #		not as global or command line variable! [obj]
 #
-#		E.g. use `env MAKEOBJDIR=/somewhere/obj make'
+#		E.g. use `env MAKEOBJDIRPREFIX=/somewhere/obj make'
 #
 # NOOBJ		Do not create build directory in object tree.
 #
-# OBJLINK	Create a symbolic link from ${.TARGETOBJDIR} to ${.CURDIR}/obj
+# OBJLINK	Create a symbolic link from ${CANONICALOBJDIR} to ${.CURDIR}/obj
 #		Note:  This BREAKS the read-only src tree rule!
 #
 # +++ targets +++
@@ -32,6 +32,26 @@
 #		create build directory.
 #
 
+.if defined(MAKEOBJDIRPREFIX)
+CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
+.else
+CANONICALOBJDIR:=/usr/obj${.CURDIR}
+.endif
+
+#
+# Warn of unorthodox object directory
+#
+objwarn:
+.if ${.OBJDIR} == ${.CURDIR}
+	${ECHO}	"Warning: Object directory not changed from original ${.CURDIR}"
+.elif !defined(MAKEOBJDIRPREFIX) && ${.OBJDIR} != ${CANONICALOBJDIR}
+.if !defined(MAKEOBJDIR)
+	${ECHO} "Warning: Using ${.OBJDIR} as object directory instead of\
+		canonical ${CANONICALOBJDIR}"
+.endif
+.endif
+
+
 
 .if !target(obj)
 .if defined(NOOBJ)
@@ -39,25 +59,25 @@ obj:
 .else
 .if !defined(OBJLINK)
 obj:	_SUBDIR
-	@if ! test -d ${.TARGETOBJDIR}; then \
-		mkdir -p ${.TARGETOBJDIR}; \
-		if ! test -d ${.TARGETOBJDIR}; then \
-			${ECHO} "Unable to create ${.TARGETOBJDIR}."; \
+	@if ! test -d ${CANONICALOBJDIR}; then \
+		mkdir -p ${CANONICALOBJDIR}; \
+		if ! test -d ${CANONICALOBJDIR}; then \
+			${ECHO} "Unable to create ${CANONICALOBJDIR}."; \
 			exit 1; \
 		fi; \
-		${ECHO} "${.TARGETOBJDIR} created for ${.CURDIR}"; \
+		${ECHO} "${CANONICALOBJDIR} created for ${.CURDIR}"; \
 	fi
 .else
 obj:	_SUBDIR
-	@if ! test -d ${.TARGETOBJDIR}; then \
-		mkdir -p ${.TARGETOBJDIR}; \
-		if ! test -d ${.TARGETOBJDIR}; then \
-			${ECHO} "Unable to create ${.TARGETOBJDIR}."; \
+	@if ! test -d ${CANONICALOBJDIR}; then \
+		mkdir -p ${CANONICALOBJDIR}; \
+		if ! test -d ${CANONICALOBJDIR}; then \
+			${ECHO} "Unable to create ${CANONICALOBJDIR}."; \
 			exit 1; \
 		fi; \
 		rm -f ${.CURDIR}/obj; \
-		ln -s ${.TARGETOBJDIR} ${.CURDIR}/obj; \
-		${ECHO} "${.CURDIR} -> ${.TARGETOBJDIR}"; \
+		ln -s ${CANONICALOBJDIR} ${.CURDIR}/obj; \
+		${ECHO} "${.CURDIR} -> ${CANONICALOBJDIR}"; \
 	fi
 .endif
 .endif
@@ -65,11 +85,11 @@ obj:	_SUBDIR
 
 .if !target(objlink)
 objlink: _SUBDIR
-	@if test -d ${.TARGETOBJDIR}; then \
+	@if test -d ${CANONICALOBJDIR}; then \
 		rm -f ${.CURDIR}/obj; \
-		ln -s ${.TARGETOBJDIR} ${.CURDIR}/obj; \
+		ln -s ${CANONICALOBJDIR} ${.CURDIR}/obj; \
 	else \
-		echo "No ${.TARGETOBJDIR} to link to - do a make obj."; \
+		echo "No ${CANONICALOBJDIR} to link to - do a make obj."; \
 	fi
 .endif
 
@@ -81,10 +101,10 @@ whereobj:
 .if defined(NOOBJ)
 	@echo ${.CURDIR}
 .else
-	@if ! test -d ${.TARGETOBJDIR}; then \
+	@if ! test -d ${CANONICALOBJDIR}; then \
 	    echo ${.CURDIR}; \
 	else \
-	    echo ${.TARGETOBJDIR}; \
+	    echo ${CANONICALOBJDIR}; \
 	fi
 .endif
 .endif
@@ -93,8 +113,8 @@ whereobj:
 # cleanup
 #
 cleanobj:
-	@if [ -d ${.TARGETOBJDIR} ]; then \
-		rm -rf ${.TARGETOBJDIR}; \
+	@if [ -d ${CANONICALOBJDIR} ]; then \
+		rm -rf ${CANONICALOBJDIR}; \
 	else \
 		cd ${.CURDIR} && ${MAKE} clean cleandepend; \
 	fi
