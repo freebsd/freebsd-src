@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.157 1996/06/26 13:04:52 sos Exp $
+ *  $Id: syscons.c,v 1.158 1996/06/27 21:36:11 joerg Exp $
  */
 
 #include "sc.h"
@@ -54,6 +54,7 @@
 #include <machine/clock.h>
 #include <machine/cons.h>
 #include <machine/console.h>
+#include <machine/md_var.h>
 #include <machine/psl.h>
 #include <machine/frame.h>
 #include <machine/pc/display.h>
