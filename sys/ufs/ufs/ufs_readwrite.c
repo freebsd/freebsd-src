@@ -464,9 +464,9 @@ WRITE(ap)
 
 	resid = uio->uio_resid;
 	osize = ip->i_size;
-	flags = 0;
+	flags = ioflag & B_SEQMASK;	/* sequential heuristic high 16 bits */
 	if ((ioflag & IO_SYNC) && !DOINGASYNC(vp))
-		flags = B_SYNC;
+		flags |= B_SYNC;
 
 	if (object && (object->flags & OBJ_OPT)) {
 		vm_freeze_copyopts(object,
