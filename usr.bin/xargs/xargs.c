@@ -255,10 +255,9 @@ arg2:
 				*p++ = '\0';
 				*xp++ = argp;
 				if (Iflag) {
-					char *realloc_holder;
 					size_t curlen;
-					realloc_holder = inpline;
-					if (realloc_holder == NULL)
+
+					if (inpline == NULL)
 						curlen = 0;
 					else {
 						/*
@@ -267,7 +266,7 @@ arg2:
 						 * seperation before the next
 						 * argument.
 						 */
-						if (*inpline != '\0')
+						if ((curlen = strlen(inpline)))
 							strcat(inpline, " ");
 					}
 					curlen++;
@@ -277,8 +276,8 @@ arg2:
 					 * a space next time through, if we have
 					 * to.
 					 */
-					inpline = realloc(realloc_holder, strlen(argp) +
-					    curlen + 2);
+					inpline = realloc(inpline, curlen + 2 +
+					    strlen(argp));
 					if (inpline == NULL)
 						err(1, "realloc");
 					if (curlen == 1)
