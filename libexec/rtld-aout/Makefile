@@ -9,7 +9,7 @@ LDFLAGS+=-nostdlib -Wl,-Bshareable,-Bsymbolic,-assert,nosymbolic
 ASFLAGS+=-k
 DPADD+=	${LIBC:S/c.a/c_pic.a/} ${LIBC:S/c.a/gcc_pic.a/}
 LDADD+=	-lc_pic -lgcc_pic
-INSTALLFLAGS+=	-fschg -C	# -C to install as atomically as possible
+INSTALLFLAGS=	-fschg -C	# -C to install as atomically as possible
 MLINKS= rtld.1aout ld.so.1aout
 
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
