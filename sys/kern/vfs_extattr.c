@@ -41,6 +41,7 @@
 
 /* For 4.3 integer FS ID compatibility */
 #include "opt_compat.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -48,6 +49,7 @@
 #include <sys/buf.h>
 #include <sys/sysent.h>
 #include <sys/malloc.h>
+#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
@@ -225,6 +227,11 @@ statfs(td, uap)
 	sp = &mp->mnt_stat;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
+#ifdef MAC
+	error = mac_check_mount_stat(td->td_ucred, mp);
+	if (error)
+		return (error);
+#endif
 	error = VFS_STATFS(mp, sp, td);
 	if (error)
 		return (error);
@@ -267,6 +274,11 @@ fstatfs(td, uap)
 	fdrop(fp, td);
 	if (mp == NULL)
 		return (EBADF);
+#ifdef MAC
+	error = mac_check_mount_stat(td->td_ucred, mp);
+	if (error)
+		return (error);
+#endif
 	sp = &mp->mnt_stat;
 	error = VFS_STATFS(mp, sp, td);
 	if (error)
@@ -309,6 +321,12 @@ getfsstat(td, uap)
 	count = 0;
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
+#ifdef MAC
+		if (mac_check_mount_stat(td->td_ucred, mp) != 0) {
+			nmp = TAILQ_NEXT(mp, mnt_list);
+			continue;
+		}
+#endif
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
@@ -3415,6 +3433,11 @@ fhstatfs(td, uap)
 	mp = vp->v_mount;
 	sp = &mp->mnt_stat;
 	vput(vp);
+#ifdef MAC
+	error = mac_check_mount_stat(td->td_ucred, mp);
+	if (error)
+		return (error);
+#endif
 	if ((error = VFS_STATFS(mp, sp, td)) != 0)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
