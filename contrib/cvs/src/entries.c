@@ -157,7 +157,9 @@ write_entries (list)
     rename_file (entfilename, CVSADM_ENT);
 
     /* now, remove the log file */
-    unlink_file (CVSADM_ENTLOG);
+    if (unlink_file (CVSADM_ENTLOG) < 0
+	&& !existence_error (errno))
+	error (0, errno, "cannot remove %s", CVSADM_ENTLOG);
 }
 
 /*
@@ -171,12 +173,8 @@ Scratch_Entry (list, fname)
     Node *node;
 
     if (trace)
-#ifdef SERVER_SUPPORT
-	(void) fprintf (stderr, "%c-> Scratch_Entry(%s)\n",
-			(server_active) ? 'S' : ' ', fname);
-#else
-	(void) fprintf (stderr, "-> Scratch_Entry(%s)\n", fname);
-#endif
+	(void) fprintf (stderr, "%s-> Scratch_Entry(%s)\n",
+			CLIENT_SERVER_STR, fname);
 
     /* hashlookup to see if it is there */
     if ((node = findnode_fn (list, fname)) != NULL)
@@ -231,18 +229,11 @@ Register (list, fname, vn, ts, options, tag, date, ts_conflict)
 
     if (trace)
     {
-#ifdef SERVER_SUPPORT
-	(void) fprintf (stderr, "%c-> Register(%s, %s, %s%s%s, %s, %s %s)\n",
-			(server_active) ? 'S' : ' ',
+	(void) fprintf (stderr, "%s-> Register(%s, %s, %s%s%s, %s, %s %s)\n",
+			CLIENT_SERVER_STR,
 			fname, vn, ts ? ts : "",
 			ts_conflict ? "+" : "", ts_conflict ? ts_conflict : "",
 			options, tag ? tag : "", date ? date : "");
-#else
-	(void) fprintf (stderr, "-> Register(%s, %s, %s%s%s, %s, %s %s)\n",
-			fname, vn, ts ? ts : "",
-			ts_conflict ? "+" : "", ts_conflict ? ts_conflict : "",
-			options, tag ? tag : "", date ? date : "");
-#endif
     }
 
     entnode = Entnode_Create (ENT_FILE, fname, vn, ts, options, tag, date,
@@ -252,7 +243,15 @@ Register (list, fname, vn, ts, options, tag, date, ts_conflict)
     if (!noexec)
     {
 	entfilename = CVSADM_ENTLOG;
-	entfile = open_file (entfilename, "a");
+	entfile = CVS_FOPEN (entfilename, "a");
+
+	if (entfile == NULL)
+	{
+	    /* Warning, not error, as in write_entries.  */
+	    /* FIXME-update-dir: should be including update_dir in message.  */
+	    error (0, errno, "cannot open %s", entfilename);
+	    return;
+	}
 
 	if (fprintf (entfile, "A ") < 0)
 	    error (1, errno, "cannot write %s", entfilename);
@@ -507,7 +506,9 @@ Entries_Open (aflag, update_dir)
 	    (void) AddEntryNode (entries, ent);
 	}
 
-	fclose (fpin);
+	if (fclose (fpin) < 0)
+	    /* FIXME-update-dir: should include update_dir in message.  */
+	    error (0, errno, "cannot close %s", CVSADM_ENT);
     }
 
     fpin = CVS_FOPEN (CVSADM_ENTLOG, "r");
@@ -535,7 +536,9 @@ Entries_Open (aflag, update_dir)
 	    }
 	}
 	do_rewrite = 1;
-	fclose (fpin);
+	if (fclose (fpin) < 0)
+	    /* FIXME-update-dir: should include update_dir in message.  */
+	    error (0, errno, "cannot close %s", CVSADM_ENTLOG);
     }
 
     /* Update the list private data to indicate whether subdirectory

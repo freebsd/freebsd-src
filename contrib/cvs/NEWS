@@ -1,4 +1,27 @@
-Changes since 1.9:
+Changes since 1.10:
+
+* There is a new access method :fork: which is similar to :local:
+except that it is implemented via the CVS remote protocol, and thus
+has a somewhat different set of quirks and bugs.
+
+* The -d command line option no longer updates the CVS/Root file.  For
+one thing, the CVS 1.9/1.10 behavior never had updated CVS/Root in
+subdirectories, and for another, it didn't seem that popular in
+general.  So this change restores the CVS 1.8 behavior (which is also
+the CVS 1.9/1.10 behavior if the environment variable
+CVS_IGNORE_REMOTE_ROOT is set; with this change,
+CVS_IGNORE_REMOTE_ROOT no longer has any effect).
+
+* It is now possible for a single CVS command to recurse into several
+CVS roots.  This includes roots which are located on several servers,
+or which are both remote and local.  CVS will make connections to as
+many servers as necessary.
+
+* It is now possible to put the CVS lock files in a directory
+set by the new LockDir option in CVSROOT/config.  The default
+continues to be to put the lock files in the repository itself.
+
+Changes from 1.9 to 1.10:
 
 * There is a new feature, enabled by TopLevelAdmin in CVSROOT/config,
 which tells CVS to modify the behavior of the "checkout" command.  The

@@ -11,6 +11,8 @@ too?).  (perhaps should think a little harder about what this is
 trying to accomplish and what the best way is -kingdon, Jul 1997).
 
 31. Think hard about ^C recovery.
+    One particular issue: RCS removes the ,foo.c, file on ^C and CVS
+    doesn't.
 
 38. Think hard about using RCS state information to allow one to checkin
     a new vendor release without having it be accessed until it has been
@@ -254,10 +256,10 @@ trying to accomplish and what the best way is -kingdon, Jul 1997).
      probably want to give an error if it disagreed with CVS/Root, as
      CVS 1.8 and earlier did).  The other is the "reposmv"
      functionality above (in which the two repositories really are the
-     same, and we want to update the CVS/Root files).  A related issue
-     is that the fact that CVS only sets and looks at the CVS/Root
-     file in the directory where CVS is run; it doesn't do anything
-     about CVS/Root files in subdirectories.
+     same, and we want to update the CVS/Root files).  In CVS 1.9 and
+     1.10, -d rewrites the CVS/Root file (but not in subdirectories).
+     This behavior was not particularly popular and has been since
+     reverted.
 
      Note also RELATIVE_REPOS in options.h; it needs to be set for
      changing CVS/Root (not CVS/Repository) to be sufficient in the
@@ -767,7 +769,8 @@ or vice versa.
 
 a.  Cases in which the status quo already sends a diff.  For most text
 files, this is probably already close to optimal.  For binary files,
-and anomalous text files, it might be worth looking into other
+and anomalous (?) text files (e.g. those in which it would help to do
+moves, as well as adds and deletes), it might be worth looking into other
 difference algorithms (see item #191).
 
 b.  Cases in which the status quo does not send a diff (e.g. "cvs
@@ -777,9 +780,9 @@ b1.  With some frequency, people suggest rsync or a similar algorithm
 (see ftp://samba.anu.edu.au/pub/rsync/).  This could speed things up,
 and in some ways involves the most minimal changes to the default CVS
 paradigm.  There are some downsides though: (1) there is an extra
-network turnaround, (2) the algorithm is not as efficient with network
-bandwidth as difference type programs (it transmits a fair bit of data
-to discover what a difference program discovers locally).
+network turnaround, (2) the algorithm needs to transmit some data to
+discover what difference type programs can discover locally (although
+this is only about 1% of the size of the files).
 
 b2.  If one is willing to require that users use "cvs edit" before
 editing a file on the client side (in some cases, a development
@@ -788,3 +791,7 @@ request in the protocol could be extended to allow the client to just
 send differences instead of entire files.  In the degenerate case
 (e.g. "cvs diff" without arguments) the required network traffic is
 reduced to zero, and the client need not even contact the server.
+
+196.  Using a CVSROOT with a trailing slash will confuse CVS.  I think
+we need to add a call to strip_trailing_slashes in root.c
+(parse_cvsroot), but I haven't considered all of the ramifications.

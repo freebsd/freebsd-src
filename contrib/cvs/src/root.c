@@ -7,8 +7,6 @@
  * Name of Root
  * 
  * Determine the path to the CVSROOT and set "Root" accordingly.
- * If this looks like of modified clone of Name_Repository() in
- * repos.c, it is... 
  */
 
 #include "cvs.h"
@@ -18,7 +16,7 @@
    Watch out if the enum is changed in cvs.h! */
 
 char *method_names[] = {
-    "local", "server (rsh)", "pserver", "kserver", "gserver", "ext"
+    "local", "server (rsh)", "pserver", "kserver", "gserver", "ext", "fork"
 };
 
 #ifndef DEBUG
@@ -268,6 +266,11 @@ error 0 Server configuration missing --allow-root in inetd.conf\n");
     return 0;
 }
 
+/* This global variable holds the global -d option.  It is NULL if -d
+   was not used, which means that we must get the CVSroot information
+   from the CVSROOT environment variable or from a CVS/Root file.  */
+
+char *CVSroot_cmdline;
 
 /* Parse a CVSROOT variable into its constituent parts -- method,
  * username, hostname, directory.  The prototypical CVSROOT variable
@@ -286,30 +289,6 @@ CVSmethod CVSroot_method;	/* one of the enum values defined in cvs.h */
 char *CVSroot_username;		/* the username or NULL if method == local */
 char *CVSroot_hostname;		/* the hostname or NULL if method == local */
 char *CVSroot_directory;	/* the directory name */
-
-#ifdef AUTH_SERVER_SUPPORT
-/* Die if CVSroot_directory and Pserver_Repos don't match. */
-static void
-check_root_consistent ()
-{
-    /* FIXME: Should be using a deferred error, as the rest of
-       serve_root does.  As it is now the call to error could conceivably
-       cause deadlock, as noted in server_cleanup.  Best solution would
-       presumably be to write some code so that error() automatically
-       defers the error in those cases where that is needed.  */
-    /* FIXME?  Possible that the wording should be more clear (e.g.
-          Root says "%s" but pserver protocol says "%s"
-       or something which would aid people who are writing implementations
-       of the client side of the CVS protocol.  I don't see any security
-       problem with revealing that information.  */
-    if ((Pserver_Repos != NULL) && (CVSroot_directory != NULL))
-	if (strcmp (Pserver_Repos, CVSroot_directory) != 0)
-	    error (1, 0, "repository mismatch: \"%s\" vs \"%s\"",
-		   Pserver_Repos, CVSroot_directory);
-}
-
-#endif /* AUTH_SERVER_SUPPORT */
-
 
 int
 parse_cvsroot (CVSroot)
@@ -335,8 +314,9 @@ parse_cvsroot (CVSroot)
 
 	/* Access method specified, as in
 	 * "cvs -d :pserver:user@host:/path",
-	 * "cvs -d :local:e:\path", or
-	 * "cvs -d :kserver:user@host:/path".
+	 * "cvs -d :local:e:\path",
+	 * "cvs -d :kserver:user@host:/path", or
+	 * "cvs -d :fork:/path".
 	 * We need to get past that part of CVSroot before parsing the
 	 * rest of it.
 	 */
@@ -363,6 +343,8 @@ parse_cvsroot (CVSroot)
 	    CVSroot_method = server_method;
 	else if (strcmp (method, "ext") == 0)
 	    CVSroot_method = ext_method;
+	else if (strcmp (method, "fork") == 0)
+	    CVSroot_method = fork_method;
 	else
 	{
 	    error (0, 0, "unknown method in CVSroot: %s", CVSroot);
@@ -391,7 +373,8 @@ parse_cvsroot (CVSroot)
     CVSroot_username = NULL;
     CVSroot_hostname = NULL;
 
-    if (CVSroot_method != local_method)
+    if ((CVSroot_method != local_method)
+	&& (CVSroot_method != fork_method))
     {
 	/* Check to see if there is a username in the string. */
 
@@ -416,9 +399,6 @@ parse_cvsroot (CVSroot)
     }
 
     CVSroot_directory = cvsroot_copy;
-#ifdef AUTH_SERVER_SUPPORT
-    check_root_consistent ();
-#endif /* AUTH_SERVER_SUPPORT */
 
 #if ! defined (CLIENT_SUPPORT) && ! defined (DEBUG)
     if (CVSroot_method != local_method)
@@ -442,10 +422,12 @@ parse_cvsroot (CVSroot)
     switch (CVSroot_method)
     {
     case local_method:
+    case fork_method:
 	if (CVSroot_username || CVSroot_hostname)
 	{
 	    error (0, 0, "can't specify hostname and username in CVSROOT");
-	    error (0, 0, "when using local access method");
+	    error (0, 0, "when using %s access method",
+		   CVSroot_method == local_method ? "local" : "fork");
 	    error (0, 0, "(%s)", CVSroot);
 	    return 1;
 	}
@@ -464,18 +446,20 @@ parse_cvsroot (CVSroot)
 	error (0, 0, "but your CVS executable doesn't support it");
 	error (0, 0, "(%s)", CVSroot);
 	return 1;
-#endif
+#else
 	check_hostname = 1;
 	break;
+#endif
     case gserver_method:
 #ifndef HAVE_GSSAPI
 	error (0, 0, "Your CVSROOT is set for a GSSAPI access method");
 	error (0, 0, "but your CVS executable doesn't support it");
 	error (0, 0, "(%s)", CVSroot);
 	return 1;
-#endif
+#else
 	check_hostname = 1;
 	break;
+#endif
     case server_method:
     case ext_method:
     case pserver_method:
@@ -504,18 +488,17 @@ parse_cvsroot (CVSroot)
 
 
 /* Set up the global CVSroot* variables as if we're using the local
-   repository DIR. */
+   repository DIR.  DIR must point to storage which will last for the
+   rest of the CVS invocation (for example, the caller might malloc it
+   and never free it, or free it just before exiting CVS).  */
 
 void
 set_local_cvsroot (dir)
     char *dir;
 {
-    CVSroot_original = xstrdup (dir);
+    CVSroot_original = dir;
     CVSroot_method = local_method;
     CVSroot_directory = CVSroot_original;
-#ifdef AUTH_SERVER_SUPPORT
-    check_root_consistent ();
-#endif /* AUTH_SERVER_SUPPORT */
     CVSroot_username = NULL;
     CVSroot_hostname = NULL;
     client_active = 0;
@@ -523,13 +506,41 @@ set_local_cvsroot (dir)
 
 
 #ifdef DEBUG
-/* This is for testing the parsing function. */
+/* This is for testing the parsing function.  Use
+
+     gcc -I. -I.. -I../lib -DDEBUG root.c -o root
+
+   to compile.  */
 
 #include <stdio.h>
 
 char *CVSroot;
 char *program_name = "testing";
 char *command_name = "parse_cvsroot";		/* XXX is this used??? */
+
+/* Toy versions of various functions when debugging under unix.  Yes,
+   these make various bad assumptions, but they're pretty easy to
+   debug when something goes wrong.  */
+
+void
+error_exit PROTO ((void))
+{
+    exit (1);
+}
+
+char *
+xstrdup (str)
+     const char *str;
+{
+    return strdup (str);
+}
+
+int
+isabsolute (dir)
+    const char *dir;
+{
+    return (dir && (*dir == '/'));
+}
 
 void
 main (argc, argv)
@@ -546,7 +557,7 @@ main (argc, argv)
   
     if (parse_cvsroot (argv[1]))
     {
-	fprintf (stderr, "%s: Parsing failed.", program_name);
+	fprintf (stderr, "%s: Parsing failed.\n", program_name);
 	exit (1);
     }
     printf ("CVSroot: %s\n", argv[1]);

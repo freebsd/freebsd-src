@@ -98,32 +98,25 @@ Filenames for .c and .h files may contain _ but should not contain -
 (the latter causes Visual C++ 2.1 to create makefiles which Visual C++
 4.0 cannot use).
 
-* Submitting patches (strategy)
+* Writing patches (strategy)
 
 Only some kinds of changes are suitable for inclusion in the
 "official" CVS.  Bugfixes, where CVS's behavior contradicts the
 documentation and/or expectations that everyone agrees on, should be
 OK (strategically).  For features, the desirable attributes are that
 the need is clear and that they fit nicely into the architecture of
-CVS.
+CVS.  Is it worth the cost (in terms of complexity or any other
+tradeoffs involved)?  Are there better solutions?
 
-However, if there is reason to think that a change would significantly
-inconvenience any significant body of CVS users, or would be
-controversial for other reasons, then the design should be re-thought.
-Go back to the requirements (writing documentation might help, if you
-write the documentation to explain why one would use the feature not
-just what the feature does).  Think about whether there is a behavior
-which works in both your situation and the other situations.  Make a
-list of the issues (for example, submit a comment or documentation
-change).  Ask your coworkers, a newsgroup, or a mailing list, and see
-what other people think.  Distribute some experimental patches outside
-the "official" CVS and see what people think.  By this process, the
-intention is that once-controversial changes can be refined to the
-point where they are relatively uncontroversial before they are
-actually checked in to the "official" CVS.  Features like zlib,
-encryption, and others have benefitted from this process in the past
-by being mentioned in the documentation and/or discussed, before an
-implementation was checked in.
+If the design is not yet clear (which is true of most features), then
+the design is likely to benefit from more work and community input.
+Make a list of issues, or write documentation including rationales for
+how one would use the feature.  Discuss it with coworkers, a
+newsgroup, or a mailing list, and see what other people think.
+Distribute some experimental patches and see what people think.  The
+intention is arrive at some kind of rough community consensus before
+changing the "official" CVS.  Features like zlib, encryption, and
+the RCS library have benefitted from this process in the past.
 
 If longstanding CVS behavior, that people may be relying on, is
 clearly deficient, it can be changed, but only slowly and carefully.
@@ -131,37 +124,49 @@ For example, the global -q option was introduced in CVS 1.3 but the
 command -q options, which the global -q replaced, were not removed
 until CVS 1.6.
 
-* Submitting patches (tactics)
+* Writing patches (tactics)
 
-Please include a ChangeLog entry (see the GNU coding standards for
-information on writing one) with patches.  Include a description of
-what the patch does (sometimes the ChangeLog entry and/or comments in
-the code are appropriate for this, but not always)--patches should not
-be checked in unless there is some reason for them, and the
-description may be helpful if there is a better way to solve the
-problem.  In addition to the ChangeLog entry, there should be a change
-to the NEWS file and cvs.texinfo, if the change is a user-visible
-change worth mentioning.
+When you first distribute a patch it may be suitable to just put forth
+a rough patch, or even just an idea.  But before the end of the
+process the following should exist:
 
-It is nice to have a test case (see TESTS), especially for fixes which
-involve subtle behaviors or twisted sections of the code.
+  - ChangeLog entry (see the GNU coding standards for details).
 
-If you solve several unrelated problems, submit a separate
-patch for each one.  Patches should be tested before submission.  Use
-context diffs or unidiffs for patches.
+  - Changes to the NEWS file and cvs.texinfo, if the change is a
+    user-visible change worth mentioning.
 
-Note that all submitted changes may be distributed under the terms of
-the GNU Public License, so if you don't like this, don't submit them.
-Submit changes to bug-cvs@gnu.org.
+  - Somewhere, a description of what the patch fixes (often in
+    comments in the code, or maybe the ChangeLog or documentation).
 
-Generally speaking if you follow the guidelines in this file you can
-expect a yes or no answer about whether your patch is accepted.  But
-even in this case there is no guarantee because wading through a bunch
-of submissions can be time consuming, and noone has volunteered to
-offer any such guarantee.  If you don't receive an answer one way or
-another within a month, feel free to ask what the status is.  You can,
-if you wish, distribute your patch on mailing lists or newsgroups, if
-you want to make it available before it gets merged.
+  - Most of the time, a test case (see TESTS).  It can be quite
+    frustrating to fix a bug only to see it reappear later, and adding
+    the case to the testsuite, where feasible, solves this and other
+    problems.
+
+If you solve several unrelated problems, it is generally easier to
+consider the desirability of the changes if there is a separate patch
+for each issue.  Use context diffs or unidiffs for patches.
+
+Include words like "I grant permission to distribute this patch under
+the terms of the GNU Public License" with your patch.  By sending a
+patch to bug-cvs@gnu.org, you implicitly grant this permission.
+
+Submitting a patch to bug-cvs is the way to reach the people who have
+signed up to receive such submissions (including CVS developers), but
+there may or may not be much (or any) response.  If you want to pursue
+the matter further, you are probably best off working with the larger
+CVS community.  Distribute your patch as widely as desired (mailing
+lists, newsgroups, web sites, whatever).  Write a web page or other
+information describing what the patch is for.  It is neither practical
+nor desirable for all/most contributions to be distributed through the
+"official" (whatever that means) mechanisms of CVS releases and CVS
+developers.  Now, the "official" mechanisms do try to incorporate
+those patches which seem most suitable for widespread usage, together
+with test cases and documentation.  So if a patch becomes sufficiently
+popular in the CVS community, it is likely that one of the CVS
+developers will eventually try to do something with it.  But dealing
+with the CVS developers may be the last step of the process rather
+than the first.
 
 * What is the schedule for the next release?
 
@@ -195,5 +200,5 @@ list which users are requested to send bug reports to.  Anyone can
 subscribe; to do so send mail to bug-cvs-request@gnu.org.
 
 Other CVS discussions take place on the info-cvs mailing list
-(send mail to info-cvs-request@prep.ai.mit.edu to subscribe) or on
+(send mail to info-cvs-request@gnu.org to subscribe) or on
 the newsgroup comp.software.config-mgmt.

@@ -20,6 +20,7 @@
  *	command line.
  */
 
+#include <assert.h>
 #include "cvs.h"
 #include "savecwd.h"
 
@@ -120,7 +121,8 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     int xmodargc;
     char **modargv;
     char **xmodargv;
-    char *value;
+    /* Found entry from modules file, including options and such.  */
+    char *value = NULL;
     char *zvalue = NULL;
     char *mwhere = NULL;
     char *mfile = NULL;
@@ -147,8 +149,8 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 		       + strlen (msg)
 		       + (where ? strlen (where) : 0)
 		       + (extra_arg ? strlen (extra_arg) : 0));
-	sprintf (buf, "%c-> do_module (%s, %s, %s, %s)\n",
-		 (server_active) ? 'S' : ' ',
+	sprintf (buf, "%s-> do_module (%s, %s, %s, %s)\n",
+		 CLIENT_SERVER_STR,
 		 mname, msg, where ? where : "",
 		 extra_arg ? extra_arg : "");
 	cvs_outerr (buf, 0);
@@ -192,13 +194,13 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 	{
 	    do
 		*cp-- = '\0';
-	    while (isspace (*cp));
+	    while (isspace ((unsigned char) *cp));
 	}
 	else
 	{
 	    /* Always strip trailing spaces */
 	    cp = strchr (val.dptr, '\0');
-	    while (cp > val.dptr && isspace(*--cp))
+	    while (cp > val.dptr && isspace ((unsigned char) *--cp))
 		*cp = '\0';
 	}
 
@@ -231,7 +233,9 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 
 	if (isdir (file))
 	{
-	    value = mname;
+	    modargv = xmalloc (sizeof (*modargv));
+	    modargv[0] = xstrdup (mname);
+	    modargc = 1;
 	    is_found = 1;
 	}
 	else
@@ -242,14 +246,12 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 		/* if mname was a file, we have to split it into "dir file" */
 		if ((cp = strrchr (mname, '/')) != NULL && cp != mname)
 		{
-		    char *slashp;
-
-		    /* put the ' ' in a copy so we don't mess up the
-		       original */
-		    xvalue = xmalloc (strlen (mname) + 2);
-		    value = strcpy (xvalue, mname);
-		    slashp = strrchr (value, '/');
-		    *slashp = ' ';
+		    modargv = xmalloc (2 * sizeof (*modargv));
+		    modargv[0] = xmalloc (strlen (mname) + 2);
+		    strncpy (modargv[0], mname, cp - mname);
+		    modargv[0][cp - mname] = '\0';
+		    modargv[1] = xstrdup (cp + 1);
+		    modargc = 2;
 		}
 		else
 		{
@@ -261,31 +263,54 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 		    if (cp == mname)
 		    {
 			/* drop the leading / if specified */
-			xvalue = xmalloc (strlen (mname) + 10);
-			value = strcpy (xvalue, ". ");
-			(void) strcat (xvalue, mname + 1);
+			modargv = xmalloc (2 * sizeof (*modargv));
+			modargv[0] = xstrdup (".");
+			modargv[1] = xstrdup (mname + 1);
+			modargc = 2;
 		    }
 		    else
 		    {
 			/* otherwise just copy it */
-			xvalue = xmalloc (strlen (mname) + 10);
-			value = strcpy (xvalue, ". ");
-			(void) strcat (xvalue, mname);
+			modargv = xmalloc (2 * sizeof (*modargv));
+			modargv[0] = xstrdup (".");
+			modargv[1] = xstrdup (mname);
+			modargc = 2;
 		    }
 		}
 		is_found = 1;
-	    }
-	    else
-	    {
-		/* This initialization suppresses a warning from gcc -Wall.  */
-	        value = NULL;
 	    }
 	}
 	free (attic_file);
 	free (file);
 
 	if (is_found)
-	    goto found;
+	{
+	    assert (value == NULL);
+
+	    /* OK, we have now set up modargv with the actual
+	       file/directory we want to work on.  We duplicate a
+	       small amount of code here because the vast majority of
+	       the code after the "found" label does not pertain to
+	       the case where we found a file/directory rather than
+	       finding an entry in the modules file.  */
+	    if (save_cwd (&cwd))
+		error_exit ();
+	    cwd_saved = 1;
+
+	    err += callback_proc (&modargc, modargv, where, mwhere, mfile,
+				  shorten,
+				  local_specified, mname, msg);
+
+	    free_names (&modargc, modargv);
+
+	    /* cd back to where we started.  */
+	    if (restore_cwd (&cwd, NULL))
+		error_exit ();
+	    free_cwd (&cwd);
+	    cwd_saved = 0;
+
+	    goto do_module_return;
+	}
     }
 
     /* look up everything to the first / as a module */
@@ -315,7 +340,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 	    {
 		do
 		    *cp2-- = '\0';
-		while (isspace (*cp2));
+		while (isspace ((unsigned char) *cp2));
 	    }
 	    value = val.dptr;
 
@@ -352,6 +377,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 
     /* copy value to our own string since if we go recursive we'll be
        really screwed if we do another dbm lookup */
+    assert (value != NULL);
     zvalue = xstrdup (value);
     value = zvalue;
 
@@ -362,7 +388,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 	spec_opt = cp + 1;		/* save the options for later */
 
 	if (cp != value)		/* strip whitespace if necessary */
-	    while (isspace (*--cp))
+	    while (isspace ((unsigned char) *--cp))
 		*cp = '\0';
 
 	if (cp == value)
@@ -609,13 +635,13 @@ module `%s' is a request for a file in a module which is not a directory",
 	    /* strip whitespace off the end */
 	    do
 		*cp = '\0';
-	    while (isspace (*--cp));
+	    while (isspace ((unsigned char) *--cp));
 	}
 	else
 	    next_opt = NULL;
 
 	/* strip whitespace from front */
-	while (isspace (*spec_opt))
+	while (isspace ((unsigned char) *spec_opt))
 	    spec_opt++;
 
 	if (*spec_opt == '\0')
@@ -836,15 +862,15 @@ save_d (k, ks, d, ds)
     cp = d;
     *(cp + ds) = '\0';	/* Assumes an extra byte at end of static dbm buffer */
 
-    while (isspace (*cp))
+    while (isspace ((unsigned char) *cp))
 	cp++;
     /* Turn <spaces> into one ' ' -- makes the rest of this routine simpler */
     while (*cp)
     {
-	if (isspace (*cp))
+	if (isspace ((unsigned char) *cp))
 	{
 	    *cp2++ = ' ';
-	    while (isspace (*cp))
+	    while (isspace ((unsigned char) *cp))
 		cp++;
 	}
 	else

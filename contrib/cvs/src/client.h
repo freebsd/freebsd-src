@@ -6,8 +6,6 @@ extern int change_mode PROTO((char *, char *, int));
 
 extern int gzip_level;
 extern int file_gzip_level;
-extern int filter_through_gzip PROTO((int, int, int, pid_t *));
-extern int filter_through_gunzip PROTO((int, int, pid_t *));
 
 #if defined (CLIENT_SUPPORT) || defined (SERVER_SUPPORT)
 
@@ -195,7 +193,8 @@ extern char *toplevel_wd;
 extern void client_import_setup PROTO((char *repository));
 extern int client_process_import_file
     PROTO((char *message, char *vfile, char *vtag,
-	   int targc, char *targv[], char *repository, int all_files_binary));
+	   int targc, char *targv[], char *repository, int all_files_binary,
+	   int modtime));
 extern void client_import_done PROTO((void));
 extern void client_notify PROTO((char *, char *, char *, int, char *));
 #endif /* CLIENT_SUPPORT */

@@ -6,9 +6,8 @@
  */
 
 #include "cvs.h"
+#include "savecwd.h"
 #include "getline.h"
-
-static void release_delete PROTO((char *dir));
 
 static const char *const release_usage[] =
 {
@@ -76,6 +75,7 @@ release (argc, argv)
     int arg_start_idx;
     int err = 0;
     short delete_flag = 0;
+    struct saved_cwd cwd;
 
 #ifdef SERVER_SUPPORT
     if (server_active)
@@ -111,6 +111,10 @@ release (argc, argv)
     /* We're going to run "cvs -n -q update" and check its output; if
      * the output is sufficiently unalarming, then we release with no
      * questions asked.  Else we prompt, then maybe release.
+     * (Well, actually we ask no matter what.  Our notion of "sufficiently
+     * unalarming" doesn't take into account "? foo.c" files, so it is
+     * up to the user to take note of them, at least currently
+     * (ignore-193 in testsuite)).
      */
     /* Construct the update command. */
     update_cmd = xmalloc (strlen (program_path)
@@ -127,6 +131,12 @@ release (argc, argv)
 	ign_setup ();
     }
 #endif /* CLIENT_SUPPORT */
+
+    /* Remember the directory where "cvs release" was invoked because
+       all args are relative to this directory and we chdir around.
+       */
+    if (save_cwd (&cwd))
+        error_exit ();
 
     arg_start_idx = 0;
 
@@ -146,6 +156,8 @@ release (argc, argv)
 	    {
 		if (!really_quiet)
 		    error (0, 0, "no repository directory: %s", thisarg);
+		if (restore_cwd (&cwd, NULL))
+		    error_exit ();
 		continue;
 	    }
 	}
@@ -190,6 +202,9 @@ release (argc, argv)
 	    if ((pclose (fp)) != 0)
 	    {
 		error (0, 0, "unable to release `%s'", thisarg);
+		free (repository);
+		if (restore_cwd (&cwd, NULL))
+		    error_exit ();
 		continue;
 	    }
 
@@ -203,6 +218,8 @@ release (argc, argv)
 		(void) fprintf (stderr, "** `%s' aborted by user choice.\n",
 				command_name);
 		free (repository);
+		if (restore_cwd (&cwd, NULL))
+		    error_exit ();
 		continue;
 	    }
 	}
@@ -239,13 +256,29 @@ release (argc, argv)
         }
 
         free (repository);
-        if (delete_flag) release_delete (thisarg);
+
+	if (restore_cwd (&cwd, NULL))
+	    error_exit ();
+
+	if (delete_flag)
+	{
+	    /* FIXME?  Shouldn't this just delete the CVS-controlled
+	       files and, perhaps, the files that would normally be
+	       ignored and leave everything else?  */
+
+	    if (unlink_file_dir (thisarg) < 0)
+		error (0, errno, "deletion of directory %s failed", thisarg);
+	}
 
 #ifdef CLIENT_SUPPORT
         if (client_active)
 	    err += get_server_responses ();
 #endif /* CLIENT_SUPPORT */
     }
+
+    if (restore_cwd (&cwd, NULL))
+	error_exit ();
+    free_cwd (&cwd);
 
 #ifdef CLIENT_SUPPORT
     if (client_active)
@@ -263,38 +296,4 @@ release (argc, argv)
     if (line != NULL)
 	free (line);
     return err;
-}
-
-
-/* We want to "rm -r" the working directory, but let us be a little
-   paranoid.  */
-static void
-release_delete (dir)
-    char *dir;
-{
-    struct stat st;
-    ino_t ino;
-
-    (void) CVS_STAT (".", &st);
-    ino = st.st_ino;
-    (void) CVS_CHDIR ("..");
-    (void) CVS_STAT (dir, &st);
-    if (ino != st.st_ino)
-    {
-	/* This test does not work on cygwin32, because under cygwin32
-	   the st_ino field is not the same when you refer to a file
-	   by a different name.  This is a cygwin32 bug, but then I
-	   don't see what the point of this test is anyhow.  */
-#ifndef __CYGWIN32__
-	error (0, 0,
-	       "Parent dir on a different disk, delete of %s aborted", dir);
-	return;
-#endif
-    }
-    /*
-     * XXX - shouldn't this just delete the CVS-controlled files and, perhaps,
-     * the files that would normally be ignored and leave everything else?
-     */
-    if (unlink_file_dir (dir) < 0)
-	error (0, errno, "deletion of directory %s failed", dir);
 }
