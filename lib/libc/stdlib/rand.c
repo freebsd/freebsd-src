@@ -39,6 +39,7 @@ static char sccsid[] = "@(#)rand.c	8.1 (Berkeley) 6/14/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <sys/time.h>          /* for sranddev() */
 #include <sys/types.h>
 #include <fcntl.h>             /* for sranddev() */
