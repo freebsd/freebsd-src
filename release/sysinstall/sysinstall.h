@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.42 1997/06/22 09:48:08 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.43 1997/07/16 05:23:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -556,6 +556,7 @@ extern int	diskLabelCommit(dialogMenuItem *self);
 extern int	lndir(char *from, char *to);
 
 /* makedevs.c (auto-generated) */
+extern const char	termcap_ansi[];
 extern const char	termcap_vt100[];
 extern const char	termcap_cons25[];
 extern const char	termcap_cons25_m[];
