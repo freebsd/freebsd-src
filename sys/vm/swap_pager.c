@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.109 1999/01/21 09:33:07 dillon Exp $
+ * $Id: swap_pager.c,v 1.110 1999/01/24 02:32:14 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -1098,7 +1098,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			    blk + j,
 			    0
 			);
-			mreq->dirty = VM_PAGE_BITS_ALL;
+			vm_page_dirty(mreq);
 			rtvals[i+j] = VM_PAGER_OK;
 
 			vm_page_flag_set(mreq, PG_SWAPINPROG);
@@ -1319,7 +1319,7 @@ swp_pager_async_iodone(bp)
 				 * so it doesn't clog the inactive list,
 				 * then finish the I/O.
 				 */
-				m->dirty = VM_PAGE_BITS_ALL;
+				vm_page_dirty(m);
 				vm_page_activate(m);
 				vm_page_io_finish(m);
 			}

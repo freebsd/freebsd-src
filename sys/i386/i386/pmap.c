@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.219 1999/01/12 00:17:53 eivind Exp $
+ *	$Id: pmap.c,v 1.220 1999/01/21 08:29:03 dillon Exp $
  */
 
 /*
@@ -1070,7 +1070,7 @@ pmap_swapout_proc(p)
 	for(i=0;i<UPAGES;i++) {
 		if ((m = vm_page_lookup(upobj, i)) == NULL)
 			panic("pmap_swapout_proc: upage already missing???");
-		m->dirty = VM_PAGE_BITS_ALL;
+		vm_page_dirty(m);
 		vm_page_unwire(m, 0);
 		pmap_kremove( (vm_offset_t) p->p_addr + PAGE_SIZE * i);
 	}
@@ -1787,7 +1787,7 @@ pmap_remove_pte(pmap, ptq, va)
 			}
 #endif
 			if (pmap_track_modified(va))
-				ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
+				vm_page_dirty(ppv->pv_vm_page);
 		}
 		if (oldpte & PG_A)
 			vm_page_flag_set(ppv->pv_vm_page, PG_REFERENCED);
@@ -1989,7 +1989,7 @@ pmap_remove_all(pa)
 			}
 #endif
 			if (pmap_track_modified(pv->pv_va))
-				ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
+				vm_page_dirty(ppv->pv_vm_page);
 		}
 		if (!update_needed &&
 			((!curproc || (&curproc->p_vmspace->vm_pmap == pv->pv_pmap)) ||
@@ -2087,7 +2087,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 					if (pmap_track_modified(i386_ptob(sindex))) {
 						if (ppv == NULL)
 							ppv = pa_to_pvh(pbits);
-						ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
+						vm_page_dirty(ppv->pv_vm_page);
 						pbits &= ~PG_M;
 					}
 				}
@@ -2231,7 +2231,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_prot_t prot,
 			if ((origpte & PG_M) && pmap_track_modified(va)) {
 				pv_table_t *ppv;
 				ppv = pa_to_pvh(opa);
-				ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
+				vm_page_dirty(ppv->pv_vm_page);
 			}
 			pa |= PG_MANAGED;
 		}
@@ -3015,7 +3015,7 @@ pmap_remove_pages(pmap, sva, eva)
 		 * Update the vm_page_t clean and reference bits.
 		 */
 		if (tpte & PG_M) {
-			ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
+			vm_page_dirty(ppv->pv_vm_page);
 		}
 
 
@@ -3145,7 +3145,7 @@ pmap_changebit(pa, bit, setem)
 				changed = 1;
 				if (bit == PG_RW) {
 					if (pbits & PG_M) {
-						ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
+						vm_page_dirty(ppv->pv_vm_page);
 					}
 					*(int *)pte = pbits & ~(PG_M|PG_RW);
 				} else {
