@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.92 1998/03/17 00:28:02 msmith Exp $
+ *	$Id: autoconf.c,v 1.93 1998/04/19 23:31:33 julian Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
  * devices are determined (from possibilities mentioned in ioconf.c),
  * and the drivers are initialized.
  */
+#include "opt_devfs.h" /* for SLICE */
 #include "opt_bootp.h"
 #include "opt_ffs.h"
 #include "opt_cd9660.h"

@@ -36,9 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.35 1998/03/08 09:56:41 julian Exp $
+ * $Id: cd9660_vfsops.c,v 1.36 1998/04/19 23:31:48 julian Exp $
  */
 
+#include "opt_devfs.h" /* for SLICE */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
