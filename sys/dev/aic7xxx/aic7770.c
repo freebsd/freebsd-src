@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7770.c#8 $
+ * $Id: //depot/src/aic7xxx/aic7770.c#9 $
  *
  * $FreeBSD$
  */
@@ -216,6 +216,11 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry)
 	 * Enable the board's BUS drivers
 	 */
 	ahc_outb(ahc, BCTL, ENABLE);
+
+	/*
+	 * Allow interrupts.
+	 */
+	ahc_intr_enable(ahc, TRUE);
 
 	return (0);
 }

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#19 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#21 $
  *
  * $FreeBSD$
  */
@@ -759,6 +759,8 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	if (error != 0)
 		return (error);
 
+	ahc->bus_intr = ahc_pci_intr;
+
 	/* Remeber how the card was setup in case there is no SEEPROM */
 	if ((ahc_inb(ahc, HCNTRL) & POWRDN) == 0) {
 		ahc_pause(ahc);
@@ -795,6 +797,7 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	error = ahc_pci_map_int(ahc);
 	if (error != 0)
 		return (error);
+
 	dscommand0 = ahc_inb(ahc, DSCOMMAND0);
 	dscommand0 |= MPARCKEN|CACHETHEN;
 	if ((ahc->features & AHC_ULTRA2) != 0) {
@@ -900,6 +903,11 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	 * Link this softc in with all other ahc instances.
 	 */
 	ahc_softc_insert(ahc);
+
+	/*
+	 * Allow interrupts now that we are completely setup.
+	 */
+	ahc_intr_enable(ahc, TRUE);
 
 	return (0);
 }
