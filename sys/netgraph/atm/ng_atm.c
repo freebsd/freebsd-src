@@ -67,7 +67,7 @@ extern void	(*ng_atm_input_p)(struct ifnet *, struct mbuf **,
 		    struct atm_pseudohdr *, void *);
 extern void	(*ng_atm_input_orphan_p)(struct ifnet *, struct mbuf *,
 		    struct atm_pseudohdr *, void *);
-extern void	(*ng_atm_message_p)(struct ifnet *, uint32_t, uint32_t);
+extern void	(*ng_atm_event_p)(struct ifnet *, uint32_t, void *);
 
 /*
  * Sysctl stuff.
@@ -112,13 +112,33 @@ struct priv {
 };
 
 /*
- * Parse carrier state
+ * Parse ifstate state
  */
-static const struct ng_parse_struct_field ng_atm_carrier_change_info[] =
-    NGM_ATM_CARRIER_CHANGE_INFO;
-static const struct ng_parse_type ng_atm_carrier_change_type = {
+static const struct ng_parse_struct_field ng_atm_if_change_info[] =
+    NGM_ATM_IF_CHANGE_INFO;
+static const struct ng_parse_type ng_atm_if_change_type = {
 	&ng_parse_struct_type,
-	&ng_atm_carrier_change_info
+	&ng_atm_if_change_info
+};
+
+/*
+ * Parse vcc state change
+ */
+static const struct ng_parse_struct_field ng_atm_vcc_change_info[] =
+    NGM_ATM_VCC_CHANGE_INFO;
+static const struct ng_parse_type ng_atm_vcc_change_type = {
+	&ng_parse_struct_type,
+	&ng_atm_vcc_change_info
+};
+
+/*
+ * Parse acr change
+ */
+static const struct ng_parse_struct_field ng_atm_acr_change_info[] =
+    NGM_ATM_ACR_CHANGE_INFO;
+static const struct ng_parse_type ng_atm_acr_change_type = {
+	&ng_parse_struct_type,
+	&ng_atm_acr_change_info
 };
 
 /*
@@ -247,13 +267,6 @@ static const struct ng_cmdlist ng_atm_cmdlist[] = {
 	},
 	{
 	  NGM_ATM_COOKIE,
-	  NGM_ATM_CARRIER_CHANGE,
-	  "carrier",
-	  &ng_atm_carrier_change_type,
-	  &ng_atm_carrier_change_type,
-	},
-	{
-	  NGM_ATM_COOKIE,
 	  NGM_ATM_GET_VCC,
 	  "getvcc",
 	  &ng_parse_hookbuf_type,
@@ -272,6 +285,29 @@ static const struct ng_cmdlist ng_atm_cmdlist[] = {
 	  "getstats",
 	  NULL,
 	  &ng_atm_stats_type
+	},
+
+	/* events */
+	{
+	  NGM_ATM_COOKIE,
+	  NGM_ATM_IF_CHANGE,
+	  "if_change",
+	  &ng_atm_if_change_type,
+	  &ng_atm_if_change_type,
+	},
+	{
+	  NGM_ATM_COOKIE,
+	  NGM_ATM_VCC_CHANGE,
+	  "vcc_change",
+	  &ng_atm_vcc_change_type,
+	  &ng_atm_vcc_change_type,
+	},
+	{
+	  NGM_ATM_COOKIE,
+	  NGM_ATM_ACR_CHANGE,
+	  "acr_change",
+	  &ng_atm_acr_change_type,
+	  &ng_atm_acr_change_type,
 	},
 	{ 0 }
 };
@@ -489,39 +525,33 @@ ng_atm_rcvdrop(hook_p hook, item_p item)
 
 /************************************************************
  *
- * Message from driver.
+ * Event from driver.
  */
-#ifdef notyet
 static void
-ng_atm_message_func(node_p node, hook_p hook, void *arg1, int arg2)
+ng_atm_event_func(node_p node, hook_p hook, void *arg, int event)
 {
-	uint32_t msg = (uintptr_t)arg1;
-	uint32_t arg = (uint32_t)arg2;
 	const struct priv *priv = NG_NODE_PRIVATE(node);
 	struct ngvcc *vcc;
-	u_int vci, vpi, state;
 	struct ng_mesg *mesg;
 	int error;
 
-	switch (msg) {
+	switch (event) {
 
-	  case ATM_MSG_FLOW_CONTROL:
+	  case ATMEV_FLOW_CONTROL:
 	    {
+		struct atmev_flow_control *ev = arg;
 		struct ngm_queue_state *qstate;
 
 		/* find the connection */
-		vci = arg & 0xffff;
-		vpi = (arg >> 16) & 0xff;
-		state = (arg >> 24) & 1;
 		LIST_FOREACH(vcc, &priv->vccs, link)
-			if (vcc->vci == vci && vcc->vpi == vpi)
+			if (vcc->vci == ev->vci && vcc->vpi == ev->vpi)
 				break;
 		if (vcc == NULL)
 			break;
 
 		/* convert into a flow control message */
 		NG_MKMESSAGE(mesg, NGM_FLOW_COOKIE,
-		    state ? NGM_HIGH_WATER_PASSED : NGM_LOW_WATER_PASSED,
+		    ev->busy ? NGM_HIGH_WATER_PASSED : NGM_LOW_WATER_PASSED,
 		    sizeof(struct ngm_queue_state), M_NOWAIT);
 		if (mesg == NULL)
 			break;
@@ -533,8 +563,9 @@ ng_atm_message_func(node_p node, hook_p hook, void *arg1, int arg2)
 		break;
 	    }
 
-	  case ATM_MSG_VCC_CHANGED:
+	  case ATMEV_VCC_CHANGED:
 	    {
+		struct atmev_vcc_changed *ev = arg;
 		struct ngm_atm_vcc_change *chg;
 
 		if (priv->manage == NULL)
@@ -544,46 +575,73 @@ ng_atm_message_func(node_p node, hook_p hook, void *arg1, int arg2)
 		if (mesg == NULL)
 			break;
 		chg = (struct ngm_atm_vcc_change *)mesg->data;
-		chg->vci = arg & 0xffff;
-		chg->vpi = (arg >> 16) & 0xff;
-		chg->state = (arg >> 24) & 1;
+		chg->vci = ev->vci;
+		chg->vpi = ev->vpi;
+		chg->state = (ev->up != 0);
 		chg->node = NG_NODE_ID(node);
 		NG_SEND_MSG_HOOK(error, node, mesg, priv->manage, NULL);
 		break;
 	    }
 
-	  case ATM_MSG_CARRIER_CHANGE:
+	  case ATMEV_IFSTATE_CHANGED:
 	    {
-		struct ngm_atm_carrier_change *chg;
+		struct atmev_ifstate_changed *ev = arg;
+		struct ngm_atm_if_change *chg;
 
 		if (priv->manage == NULL)
 			break;
-		NG_MKMESSAGE(mesg, NGM_ATM_COOKIE, NGM_ATM_CARRIER_CHANGE,
-		    sizeof(struct ngm_atm_carrier_change), M_NOWAIT);
+		NG_MKMESSAGE(mesg, NGM_ATM_COOKIE, NGM_ATM_IF_CHANGE,
+		    sizeof(struct ngm_atm_if_change), M_NOWAIT);
 		if (mesg == NULL)
 			break;
-		chg = (struct ngm_atm_carrier_change *)mesg->data;
-		chg->state = arg & 1;
+		chg = (struct ngm_atm_if_change *)mesg->data;
+		chg->carrier = (ev->carrier != 0);
+		chg->running = (ev->running != 0);
 		chg->node = NG_NODE_ID(node);
 		NG_SEND_MSG_HOOK(error, node, mesg, priv->manage, NULL);
+		break;
+	    }
+
+	  case ATMEV_ACR_CHANGED:
+	    {
+		struct atmev_acr_changed *ev = arg;
+		struct ngm_atm_acr_change *acr;
+
+		/* find the connection */
+		LIST_FOREACH(vcc, &priv->vccs, link)
+			if (vcc->vci == ev->vci && vcc->vpi == ev->vpi)
+				break;
+		if (vcc == NULL)
+			break;
+
+		/* convert into a flow control message */
+		NG_MKMESSAGE(mesg, NGM_ATM_COOKIE, NGM_ATM_ACR_CHANGE,
+		    sizeof(struct ngm_atm_acr_change), M_NOWAIT);
+		if (mesg == NULL)
+			break;
+		acr = (struct ngm_atm_acr_change *)mesg->data;
+		acr->node = NG_NODE_ID(node);
+		acr->vci = ev->vci;
+		acr->vpi = ev->vpi;
+		acr->acr = ev->acr;
+
+		NG_SEND_MSG_HOOK(error, node, mesg, vcc->hook, NULL);
 		break;
 	    }
 	}
 }
-#endif
 
 /*
  * Use send_fn to get the right lock
  */
 static void
-ng_atm_message(struct ifnet *ifp, uint32_t msg, uint32_t arg)
+ng_atm_event(struct ifnet *ifp, uint32_t event, void *arg)
 {
-#ifdef notyet
 	const node_p node = IFP2NG(ifp);
 
-	(void)ng_send_fn(node, NULL, ng_atm_message_func,
-	    (void *)(uintptr_t)msg, arg);
-#endif
+	if (node != NULL)
+		/* may happen during attach/detach */
+		(void)ng_send_fn(node, NULL, ng_atm_event_func, arg, event);
 }
 
 /************************************************************
@@ -1343,7 +1401,7 @@ ng_atm_mod_event(module_t mod, int event, void *data)
 		ng_atm_output_p = ng_atm_output;
 		ng_atm_input_p = ng_atm_input;
 		ng_atm_input_orphan_p = ng_atm_input_orphans;
-		ng_atm_message_p = ng_atm_message;
+		ng_atm_event_p = ng_atm_event;
 
 		/* Create nodes for existing ATM interfaces */
 		TAILQ_FOREACH(ifp, &ifnet, if_link) {
@@ -1361,7 +1419,7 @@ ng_atm_mod_event(module_t mod, int event, void *data)
 		ng_atm_output_p = NULL;
 		ng_atm_input_p = NULL;
 		ng_atm_input_orphan_p = NULL;
-		ng_atm_message_p = NULL;
+		ng_atm_event_p = NULL;
 
 		TAILQ_FOREACH(ifp, &ifnet, if_link) {
 			if (ifp->if_type == IFT_ATM)
