@@ -95,6 +95,8 @@ static struct ndis_type ndis_devs[] = {
 static int ndis_probe		(device_t);
 static int ndis_attach		(device_t);
 static int ndis_detach		(device_t);
+static int ndis_suspend		(device_t);
+static int ndis_resume		(device_t);
 
 static __stdcall void ndis_txeof	(ndis_handle,
 	ndis_packet *, ndis_status);
@@ -138,6 +140,8 @@ static device_method_t ndis_methods[] = {
 	DEVMETHOD(device_attach,	ndis_attach),
 	DEVMETHOD(device_detach,	ndis_detach),
 	DEVMETHOD(device_shutdown,	ndis_shutdown),
+	DEVMETHOD(device_suspend,	ndis_suspend),
+	DEVMETHOD(device_resume,	ndis_resume),
 
 	{ 0, 0 }
 };
@@ -940,6 +944,38 @@ ndis_detach(dev)
 	bus_dma_tag_destroy(sc->ndis_parent_tag);
 
 	sysctl_ctx_free(&sc->ndis_ctx);
+
+	return(0);
+}
+
+static int
+ndis_suspend(dev)
+	device_t		dev;
+{
+	struct ndis_softc	*sc;
+	struct ifnet		*ifp;
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	if (ifp->if_flags & IFF_UP)
+        	ndis_stop(sc);
+
+	return(0);
+}
+
+static int
+ndis_resume(dev)
+	device_t		dev;
+{
+	struct ndis_softc	*sc;
+	struct ifnet		*ifp;
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	if (ifp->if_flags & IFF_UP)
+        	ndis_init(sc);
 
 	return(0);
 }
