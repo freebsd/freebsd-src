@@ -184,18 +184,17 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
     login_cap_t	*lc;
   
     if ((lc = malloc(sizeof(login_cap_t))) != NULL) {
-	int	    r, i = 0;
+	int         r, me, i = 0;
 	uid_t euid = 0;
 	gid_t egid = 0;
 	const char  *msg = NULL;
-	const char  *dir = (pwd == NULL) ? NULL : pwd->pw_dir;
+	const char  *dir;
 	char	    userpath[MAXPATHLEN];
 
 	static char *login_dbarray[] = { NULL, NULL, NULL };
 
-#ifndef _FILE_LOGIN_CONF_WORKS
-	dir = NULL;
-#endif
+	me = (name != NULL && strcmp(name, LOGIN_MECLASS) == 0);
+	dir = (!me || pwd == NULL) ? NULL : pwd->pw_dir;
 	/*
 	 * Switch to user mode before checking/reading its ~/.login_conf
 	 * - some NFSes have root read access disabled.
@@ -227,7 +226,7 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 
 	switch (cgetent(&lc->lc_cap, login_dbarray, (char*)name)) {
 	case -1:		/* Failed, entry does not exist */
-	    if (strcmp(name, LOGIN_MECLASS) == 0)
+	    if (me)
 		break;	/* Don't retry default on 'me' */
 	    if (i == 0)
 	        r = -1;
