@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: intpm.c,v 1.1 1999/01/24 18:13:31 nsouch Exp $
  */
 
 #include "pci.h"
@@ -286,6 +286,10 @@ static void intsmb_alrintr(device_t dev)
 {
 	struct intsmb_softc *sc = (struct intsmb_softc *)device_get_softc(dev);
 	int slvcnt;
+#ifdef ENABLE_ALART
+	int error;
+#endif
+
 	/*stop generating INTR from ALART*/
 	slvcnt=bus_space_read_1(sc->st,sc->sh,PIIX4_SMBSLVCNT);
 #ifdef ENABLE_ALART
@@ -301,6 +305,7 @@ static void intsmb_alrintr(device_t dev)
                                   |LSB);
 		intsmb_start(dev,PIIX4_SMBHSTCNT_PROT_BYTE,1);
 		if(!(error=intsmb_stop_poll(dev))){
+			volatile u_int8_t *addr;
 			addr=bus_space_read_1(sc->st,sc->sh,
 					      PIIX4_SMBHSTDAT0);
 			printf("ALART_RESPONSE: %x\n",(int) addr);
