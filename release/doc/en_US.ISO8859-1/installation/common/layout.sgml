@@ -18,11 +18,22 @@ INSTALL.HTM     boot            compat3x        floppies        proflibs
 INSTALL.TXT     catpages        compat4x        games           src
 README.HTM      cdrom.inf       crypto          info            tools</screen>
 
-  <para>If you want to do a CDROM, FTP or NFS installation from this
-  distribution directory, all you need to do is make the 1.44MB boot
-  floppies from the floppies directory (see
+  <para>These same files are contained in the first CDROM of a
+    multi-disk set, but they are laid out slightly differently on the
+    disk.  On most architectures, the installation CDROM also contains
+    a <quote>live filesystem</quote> in addition to the distribution
+    files.  The live filesystem is useful when repairing or
+    troubleshooting an existing &os; installation (see <xref
+    linkend="trouble"> for how to use this).</para>
+
+  <para>The <filename>floppies</filename> directory will be of
+  particular interest to users who are unable to boot from the CDROM
+  media (but are able to read the CDROM by other means).  It is easy
+  to generate a set of 1.44MB boot
+  floppies from the <filename>floppies</filename> directory (see
   <xref linkend="floppies"> for instructions on how to
-  do this), boot them and follow the instructions.  The rest of the
+  do this) and use these to start an installation from CDROM, FTP, or
+  NFS.  The rest of the
   data needed during the installation will be obtained automatically
   based on your selections.  If you've never installed &os; before,
   you also want to read the entirety of this document (the
