@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam_get_authtok.3#12 $
+.\" $P4: //depot/projects/openpam/doc/man/pam_get_authtok.3#13 $
 .\"
 .Dd April 14, 2002
 .Dt PAM_GET_AUTHTOK 3
@@ -58,20 +58,17 @@ argument.
 The
 .Va item
 argument must have one of the following values:
-.Pp
-.Bd -literal
-	=PAM_AUTHTOK
-		Returns the current authentication token, or the new token
-		when changing authentication tokens.
-	=PAM_OLDAUTHTOK
-		Returns the previous authentication token when changing
-		authentication tokens.
-
-.Ed
+.Bl -tag -width 18n
+.It Dv PAM_AUTHTOK
+Returns the current authentication token, or the new token
+when changing authentication tokens.
+.It Dv PAM_OLDAUTHTOK
+Returns the previous authentication token when changing
+authentication tokens.
+.El
 The
 .Va prompt
 argument specifies a prompt to use if no token is cached.
-.Ed
 If it is
 .Dv NULL ,
 the
@@ -79,31 +76,25 @@ the
 or
 .Dv PAM_OLDAUTHTOK_PROMPT
 item,
-.Ed
 as appropriate, will be used.  If that item is also
 .Dv NULL ,
 a hardcoded
-.Ed
 default prompt will be used.
-
-.Ed
+.Pp
 If
 .Va item
 is set to
 .Dv PAM_AUTHTOK
 and there is a non-null
 .Dv PAM_OLDAUTHTOK
-.Ed
 item,
 .Nm
 will ask the user to confirm the new token by
-.Ed
 retyping it.  If there is a mismatch,
 .Nm
 will return
-.Ed
 .Dv PAM_TRY_AGAIN .
-
+.Pp
 .Sh RETURN VALUES
 The
 .Nm
