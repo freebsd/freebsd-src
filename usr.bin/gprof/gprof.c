@@ -417,7 +417,7 @@ void
 readsamples(pfile)
     FILE	*pfile;
 {
-    register i;
+    int		i;
     intmax_t	sample;
 
     if (samples == 0) {

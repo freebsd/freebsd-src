@@ -91,6 +91,7 @@ char *sperc2(int, int);
 
 #define DELTA(field)	(nfsstats.field - lastst.field)
 
+int
 main(argc, argv)
 	int argc;
 	char **argv;

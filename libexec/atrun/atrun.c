@@ -83,7 +83,7 @@ static const char rcsid[] =
 
 /* File scope variables */
 
-static debug = 0;
+static int debug = 0;
 
 void perr(const char *a);
 static void usage(void);
