@@ -319,7 +319,7 @@ ip6_input(m)
 
 		MGETHDR(n, M_DONTWAIT, MT_HEADER);
 		if (n)
-			M_COPY_PKTHDR(n, m);
+			M_MOVE_PKTHDR(n, m);
 		if (n && m->m_pkthdr.len > MHLEN) {
 			MCLGET(n, M_DONTWAIT);
 			if ((n->m_flags & M_EXT) == 0) {

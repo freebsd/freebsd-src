@@ -177,8 +177,9 @@ struct mbuf {
 /*
  * Flags copied when copying m_pkthdr.
  */
-#define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_PROTO1|M_PROTO1|M_PROTO2|M_PROTO3 | \
-			    M_PROTO4|M_PROTO5|M_BCAST|M_MCAST|M_FRAG|M_RDONLY)
+#define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_RDONLY|M_PROTO1|M_PROTO1|M_PROTO2|\
+			    M_PROTO3|M_PROTO4|M_PROTO5|M_BCAST|M_MCAST|\
+			    M_FRAG|M_FIRSTFRAG|M_LASTFRAG)
 
 /*
  * Flags indicating hw checksum support and sw checksum requirements.
@@ -294,7 +295,8 @@ struct mbstat {
  * mbuf, cluster, and external object allocation macros
  * (for compatibility purposes).
  */
-#define	M_COPY_PKTHDR(to, from)	m_copy_pkthdr((to), (from))
+/* NB: M_COPY_PKTHDR is deprecated, use M_MOVE_PKTHDR or m_dup_pktdr */
+#define	M_MOVE_PKTHDR(to, from)	m_move_pkthdr((to), (from))
 #define	m_getclr(how, type)	m_get_clrd((how), (type))
 #define	MGET(m, how, type)	((m) = m_get((how), (type)))
 #define	MGETHDR(m, how, type)	((m) = m_gethdr((how), (type)))
@@ -428,6 +430,7 @@ void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
 struct	mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));
 struct	mbuf	*m_dup(struct mbuf *, int);
+int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct	mbuf	*m_free(struct mbuf *);
 void		 m_freem(struct mbuf *);
@@ -438,6 +441,7 @@ struct	mbuf	*m_gethdr(int, short);
 struct	mbuf	*m_gethdr_clrd(int, short);
 struct	mbuf	*m_getm(struct mbuf *, int, int, short);
 u_int		 m_length(struct mbuf *, struct mbuf **);
+void		 m_move_pkthdr(struct mbuf *, struct mbuf *);
 struct	mbuf	*m_prepend(struct mbuf *, int, int);
 void		 m_print(const struct mbuf *);
 struct	mbuf	*m_pulldown(struct mbuf *, int, int, int *);
@@ -528,8 +532,8 @@ void		 m_tag_unlink(struct mbuf *, struct m_tag *);
 void		 m_tag_delete(struct mbuf *, struct m_tag *);
 void		 m_tag_delete_chain(struct mbuf *, struct m_tag *);
 struct	m_tag	*m_tag_locate(struct mbuf *, u_int32_t, int, struct m_tag *);
-struct	m_tag	*m_tag_copy(struct m_tag *);
-int		 m_tag_copy_chain(struct mbuf *, struct mbuf *);
+struct	m_tag	*m_tag_copy(struct m_tag *, int);
+int		 m_tag_copy_chain(struct mbuf *, struct mbuf *, int);
 void		 m_tag_init(struct mbuf *);
 struct	m_tag	*m_tag_first(struct mbuf *);
 struct	m_tag	*m_tag_next(struct mbuf *, struct m_tag *);

@@ -101,7 +101,7 @@ m_clone(struct mbuf *m0)
 					m_freem(m0);
 					return (NULL);
 				}
-				M_COPY_PKTHDR(n, m);
+				M_MOVE_PKTHDR(n, m);
 				MCLGET(n, M_DONTWAIT);
 				if ((n->m_flags & M_EXT) == 0) {
 					m_free(n);

@@ -66,30 +66,70 @@ SYSCTL_INT(_kern_ipc, KIPC_MAX_DATALEN, max_datalen, CTLFLAG_RW,
 	   &max_datalen, 0, "");
 
 /*
- * Copy mbuf pkthdr from "from" to "to".
+ * "Move" mbuf pkthdr from "from" to "to".
  * "from" must have M_PKTHDR set, and "to" must be empty.
- * aux pointer will be moved to "to".
  */
 void
-m_copy_pkthdr(struct mbuf *to, struct mbuf *from)
+m_move_pkthdr(struct mbuf *to, struct mbuf *from)
 {
 
 #if 0
+	/* see below for why these are not enabled */
 	KASSERT(to->m_flags & M_PKTHDR,
-	    ("m_copy_pkthdr() called on non-header"));
+	    ("m_move_pkthdr: called on non-header"));
+	KASSERT(SLIST_EMPTY(&to->m_pkthdr.tags),
+	    ("m_move_pkthdr: to has tags"));
 #endif
+	KASSERT((to->m_flags & M_EXT) == 0, ("m_move_pkthdr: to has cluster"));
 #ifdef MAC
 	if (to->m_flags & M_PKTHDR)
 		mac_destroy_mbuf(to);
 #endif
-	to->m_data = to->m_pktdat;
 	to->m_flags = from->m_flags & M_COPYFLAGS;
+	to->m_data = to->m_pktdat;
+	to->m_pkthdr = from->m_pkthdr;		/* especially tags */
+#ifdef MAC
+	mac_init_mbuf(to, 1);			/* XXXMAC no way to fail */
+	mac_create_mbuf_from_mbuf(from, to);
+#endif
+	SLIST_INIT(&from->m_pkthdr.tags);	/* purge tags from src */
+	from->m_flags &= ~M_PKTHDR;
+}
+
+/*
+ * Duplicate "from"'s mbuf pkthdr in "to".
+ * "from" must have M_PKTHDR set, and "to" must be empty.
+ * In particular, this does a deep copy of the packet tags.
+ */
+int
+m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
+{
+
+#if 0
+	/*
+	 * The mbuf allocator only initializes the pkthdr
+	 * when the mbuf is allocated with MGETHDR. Many users
+	 * (e.g. m_copy*, m_prepend) use MGET and then
+	 * smash the pkthdr as needed causing these
+	 * assertions to trip.  For now just disable them.
+	 */
+	KASSERT(to->m_flags & M_PKTHDR, ("m_dup_pkthdr: called on non-header"));
+	KASSERT(SLIST_EMPTY(&to->m_pkthdr.tags), ("m_dup_pkthdr: to has tags"));
+#endif
+	KASSERT((to->m_flags & M_EXT) == 0, ("m_dup_pkthdr: to has cluster"));
+#ifdef MAC
+	if (to->m_flags & M_PKTHDR)
+		mac_destroy_mbuf(to);
+#endif
+	to->m_flags = from->m_flags & M_COPYFLAGS;
+	to->m_data = to->m_pktdat;
 	to->m_pkthdr = from->m_pkthdr;
 #ifdef MAC
 	mac_init_mbuf(to, 1);			/* XXXMAC no way to fail */
 	mac_create_mbuf_from_mbuf(from, to);
 #endif
-	SLIST_INIT(&from->m_pkthdr.tags);
+	SLIST_INIT(&to->m_pkthdr.tags);
+	return (m_tag_copy_chain(to, from, how));
 }
 
 /*
@@ -108,11 +148,10 @@ m_prepend(struct mbuf *m, int len, int how)
 		return (NULL);
 	}
 	if (m->m_flags & M_PKTHDR) {
-		M_COPY_PKTHDR(mn, m);
+		M_MOVE_PKTHDR(mn, m);
 #ifdef MAC
 		mac_destroy_mbuf(m);
 #endif
-		m->m_flags &= ~M_PKTHDR;
 	}
 	mn->m_next = m;
 	m = mn;
@@ -161,7 +200,8 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 		if (n == NULL)
 			goto nospace;
 		if (copyhdr) {
-			M_COPY_PKTHDR(n, m);
+			if (!m_dup_pkthdr(n, m, wait))
+				goto nospace;
 			if (len == M_COPYALL)
 				n->m_pkthdr.len -= off0;
 			else
@@ -212,7 +252,8 @@ m_copypacket(struct mbuf *m, int how)
 	if (n == NULL)
 		goto nospace;
 
-	M_COPY_PKTHDR(n, m);
+	if (!m_dup_pkthdr(n, m, how))
+		goto nospace;
 	n->m_len = m->m_len;
 	if (m->m_flags & M_EXT) {
 		n->m_data = m->m_data;
@@ -309,7 +350,8 @@ m_dup(struct mbuf *m, int how)
 		if (n == NULL)
 			goto nospace;
 		if (top == NULL) {		/* first one, must be PKTHDR */
-			M_COPY_PKTHDR(n, m);
+			if (!m_dup_pkthdr(n, m, how))
+				goto nospace;
 			nsize = MHLEN;
 		} else				/* not the first one */
 			nsize = MLEN;
@@ -484,10 +526,8 @@ m_pullup(struct mbuf *n, int len)
 		if (m == NULL)
 			goto bad;
 		m->m_len = 0;
-		if (n->m_flags & M_PKTHDR) {
-			M_COPY_PKTHDR(m, n);
-			n->m_flags &= ~M_PKTHDR;
-		}
+		if (n->m_flags & M_PKTHDR)
+			M_MOVE_PKTHDR(m, n);
 	}
 	space = &m->m_dat[MLEN] - (m->m_data + m->m_len);
 	do {
