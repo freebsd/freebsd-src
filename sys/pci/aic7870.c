@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.26 1996/03/10 07:12:48 gibbs Exp $
+ *	$Id: aic7870.c,v 1.27 1996/03/11 02:49:48 gibbs Exp $
  */
 
 #include <pci.h>
@@ -28,6 +28,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/queue.h>
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
@@ -228,8 +229,6 @@ aic7870_attach(config_id, unit)
 			if(!(aic3940_count & 0x01))
 				/* Even count implies second channel */
 				ahc_f |= AHC_CHNLB;
-			/* Even though it doesn't turn on RAMPS, it has them */
-			ahc_f |= AHC_EXTSCB;
 			break;
 		case PCI_DEVICE_ID_ADAPTEC_2944U:
 		case PCI_DEVICE_ID_ADAPTEC_2940U:
@@ -278,8 +277,6 @@ aic7870_attach(config_id, unit)
 			 */
 			devconfig &= ~(RAMPSM|SCBRAMSEL);
 			pci_conf_write(config_id, DEVCONFIG, devconfig);
-			
-			ahc_f |= AHC_EXTSCB;
 		}
 	}
 
@@ -336,7 +333,6 @@ aic7870_attach(config_id, unit)
 		   {
 			id_string = "aic7880 ";
 			load_seeprom(ahc);
-			ahc->maxscbs = 16;
 			break;
 		   }
 		   case AHC_394:
@@ -345,13 +341,11 @@ aic7870_attach(config_id, unit)
 		   {
 			id_string = "aic7870 ";
 			load_seeprom(ahc);
-			ahc->maxscbs = 16;
 			break;
 		   }
 		   case AHC_AIC7850:
 		   {
 			id_string = "aic7850 ";
-			ahc->maxscbs = 3;
 			/* Assume there is no BIOS for these cards? */
 			ahc->flags |= AHC_USEDEFAULTS;
 			break;
@@ -388,27 +382,6 @@ aic7870_attach(config_id, unit)
 			outb(SCSICONF + iobase, 7);
 			/* In case we are a wide card */
 			outb(SCSICONF + 1 + iobase, 7);
-		}
-
-		if(ahc->flags & AHC_EXTSCB) {
-			/*
-			 * This adapter has external SCB memory.
-			 * Walk the SCBs to determine how many there are.
-			 */
-			int i;
-
-			for(i = 0; i < AHC_SCB_MAX; i++) {
-				outb(SCBPTR + iobase, i);
-				outb(SCBARRAY + iobase, 0xaa);
-				if(inb(SCBARRAY + iobase) == 0xaa){
-					outb(SCBARRAY + iobase, 0x55);
-					if(inb(SCBARRAY + iobase) == 0x55) {
-						continue;
-					}
-				}
-				break;
-			}
-			ahc->maxscbs = i;
 		}
 	}
 

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.67 1996/03/11 19:36:07 se Exp $
+**  $Id: ncr.c,v 1.68 1996/03/19 15:03:00 bde Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1254,7 +1254,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.67 1996/03/11 19:36:07 se Exp $\n";
+	"\n$Id: ncr.c,v 1.68 1996/03/19 15:03:00 bde Exp $\n";
 
 static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -4229,8 +4229,13 @@ void ncr_complete (ncb_p np, ccb_p cp)
 		*/
 		xp->error = XS_BUSY;
 
-	} else if ((cp->host_status == HS_SEL_TIMEOUT)
-		|| (cp->host_status == HS_TIMEOUT)) {
+	} else if (cp->host_status == HS_SEL_TIMEOUT) {
+
+		/*
+		**   Device failed selection
+		*/
+		xp->error = XS_SELTIMEOUT;
+	} else if(cp->host_status == HS_TIMEOUT) {
 
 		/*
 		**   No response
