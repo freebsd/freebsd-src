@@ -209,6 +209,7 @@ SUBDIR+=telnet
 # Things that don't compile on alpha or are aout specific:
 SUBDIR+=ar \
 	brandelf \
+	doscmd \
 	gcore \
 	gprof4 \
 	nm \
@@ -217,7 +218,6 @@ SUBDIR+=ar \
 	size \
 	strings \
 	strip
-#	doscmd \
 .endif
 
 .include <bsd.subdir.mk>
