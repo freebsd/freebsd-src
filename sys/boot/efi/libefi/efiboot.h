@@ -88,4 +88,4 @@ extern int		fpswa_init(u_int64_t *fpswa_interface);
 struct bootinfo;
 struct preloaded_file;
 extern int		bi_load(struct bootinfo *, struct preloaded_file *,
-				UINTN *mapkey);
+				UINTN *mapkey, UINTN pages);

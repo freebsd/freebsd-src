@@ -143,15 +143,31 @@ elf_exec(struct preloaded_file *fp)
 	struct ia64_pte		pte;
 	struct bootinfo		*bi;
 	u_int64_t		psr;
-	UINTN			mapkey;
+	UINTN			mapkey, pages, size;
+	UINTN			descsz;
+	UINT32			descver;
 	EFI_STATUS		status;
 
 	if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
 		return(EFTYPE);			/* XXX actually EFUCKUP */
 	hdr = (Elf_Ehdr *)&(md->md_data);
 
-	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-	    EFI_SIZE_TO_PAGES(sizeof(struct bootinfo)), (void*)&bi);
+	/*
+	 * Allocate enough pages to hold the bootinfo block and the memory
+	 * map EFI will return to us. The memory map has an unknown size,
+	 * so we have to determine that first. Note that the AllocatePages
+	 * call can itself modify the memory map, so we have to take that
+	 * into account as well. The changes to the memory map are caused
+	 * by splitting a range of free memory into two (AFAICT), so that
+	 * one is marked as being loader data.
+	 */
+	size = 0;
+	descsz = sizeof(EFI_MEMORY_DESCRIPTOR);
+	BS->GetMemoryMap(&size, NULL, &mapkey, &descsz, &descver);
+	size += descsz + ((sizeof(struct bootinfo) + 0x0f) & ~0x0f);
+	pages = EFI_SIZE_TO_PAGES(size);
+	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData, pages,
+	    (void*)&bi);
 	if (EFI_ERROR(status)) {
 		printf("unable to create bootinfo block (status=0x%lx)\n",
 		    (long)status);
@@ -159,7 +175,7 @@ elf_exec(struct preloaded_file *fp)
 	}
 
 	bzero(bi, sizeof(struct bootinfo));
-	bi_load(bi, fp, &mapkey);
+	bi_load(bi, fp, &mapkey, pages);
 
 	printf("Entering %s at 0x%lx...\n", fp->f_name, hdr->e_entry);
 
