@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.11.4.3 1995/10/26 08:38:05 davidg Exp $
+ * $Id: tty_pty.c,v 1.11.4.4 1996/04/12 07:45:07 bde Exp $
  */
 
 /*
@@ -505,8 +505,19 @@ again:
 					return (EIO);
 				}
 			}
-			if (cc)
-				cc -= b_to_q((char *)cp, cc, &tp->t_canq);
+			if (cc > 0) {
+				cc = b_to_q((char *)cp, cc, &tp->t_canq);
+				/*
+				 * XXX we don't guarantee that the canq size
+				 * is >= TTYHOG, so the above b_to_q() may
+				 * leave some bytes uncopied.  However, space
+				 * is guaranteed for the null terminator if
+				 * we don't fail here since (TTYHOG - 1) is
+				 * not a multiple of CBSIZE.
+				 */
+				if (cc > 0)
+					break;
+			}
 		}
 		/* adjust for data copied in but not written */
 		uio->uio_resid += cc;
@@ -545,7 +556,7 @@ again:
 block:
 	/*
 	 * Come here to wait for slave to open, for space
-	 * in outq, or space in rawq.
+	 * in outq, or space in rawq, or an empty canq.
 	 */
 	if ((tp->t_state & TS_CONNECTED) == 0) {
 		/* adjust for data copied in but not written */
