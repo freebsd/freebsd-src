@@ -55,7 +55,7 @@ struct devsw *devsw[] = {
 
 struct fs_ops *file_system[] = {
     &ufs_fsops,
-    &zipfs_fsops,
+    &gzipfs_fsops,
     NULL
 };
 
