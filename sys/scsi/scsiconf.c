@@ -16,18 +16,19 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.26 1995/03/21 11:21:04 dufault Exp $
+ *      $Id: scsiconf.c,v 1.27 1995/04/14 15:10:37 dufault Exp $
  */
 
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/stat.h>
-
 #include <sys/malloc.h>
 #include <sys/devconf.h>
 #include <sys/conf.h>
+
 #include <machine/clock.h>
+#include <machine/cpu.h>	/* XXX For bootverbose (funny place) */
 
 #include "scbus.h"
 

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.21 1995/03/21 11:21:05 dufault Exp $
+ *	$Id: scsiconf.h,v 1.22 1995/04/14 15:10:39 dufault Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -30,8 +30,6 @@ typedef	unsigned char 		u_int8;
 #include <scsi/scsi_debug.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_driver.h>
-
-#include <machine/cpu.h>	/* XXX For bootverbose (funny place) */
 
 /* Minor number fields:
  *
