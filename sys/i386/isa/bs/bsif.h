@@ -96,6 +96,7 @@
 #endif	/* __NetBSD__ */
 
 #ifdef __FreeBSD__
+#include <sys/conf.h>
 #include <sys/device.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
