@@ -42,7 +42,6 @@
 #include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <sys/malloc.h>
-#include <sys/devicestat.h>	/* for struct devstat */
 
 
 #include <cam/cam.h>

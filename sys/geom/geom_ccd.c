@@ -66,7 +66,6 @@
 #include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/disk.h>
-#include <sys/devicestat.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
 
@@ -389,14 +388,6 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 	ccg->ccg_nsectors = 1024 * 1024 / ccg->ccg_secsize;
 	ccg->ccg_ncylinders = cs->sc_size / ccg->ccg_nsectors;
 
-	/*
-	 * Add a devstat entry for this device.
-	 */
-	devstat_add_entry(&cs->device_stats, "ccd", cs->sc_unit,
-			  ccg->ccg_secsize, DEVSTAT_ALL_SUPPORTED,
-			  DEVSTAT_TYPE_STORARRAY |DEVSTAT_TYPE_IF_OTHER,
-			  DEVSTAT_PRIORITY_ARRAY);
-
 	cs->sc_flags |= CCDF_INITED;
 	cs->sc_cflags = cs->sc_flags;	/* So we can find out later... */
 	return (0);
@@ -573,10 +564,6 @@ ccdstart(struct ccd_s *cs, struct bio *bp)
 	caddr_t addr;
 	daddr_t bn;
 	int err;
-
-
-	/* Record the transaction start  */
-	devstat_start_transaction(&cs->device_stats);
 
 	/*
 	 * Translate the partition-relative block number to an absolute.
@@ -909,7 +896,7 @@ ccdiodone(struct bio *ibp)
 	if (bp->bio_resid == 0) {
 		if (bp->bio_flags & BIO_ERROR)
 			bp->bio_resid = bp->bio_bcount;
-		biofinish(bp, &cs->device_stats, 0);
+		biodone(bp);
 	}
 }
 
@@ -1179,9 +1166,6 @@ ccdioctltoo(int unit, u_long cmd, caddr_t data, int flag, struct thread *td)
 		free(cs->sc_cinfo, M_CCD);
 		free(cs->sc_itable, M_CCD);
 		free(cs->sc_vpp, M_CCD);
-
-		/* And remove the devstat entry. */
-		devstat_remove_entry(&cs->device_stats);
 
 		/* This must be atomic. */
 		ccdunlock(cs);

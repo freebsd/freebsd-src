@@ -38,7 +38,6 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
-#include <sys/devicestat.h>
 #include <sys/cons.h>
 #include <sys/sysctl.h>
 #include <vm/vm.h>
@@ -185,11 +184,6 @@ ad_attach(struct ata_device *atadev)
 #endif
     ATA_UNLOCK_CH(atadev->channel);
 
-    devstat_add_entry(&adp->stats, "ad", adp->lun, DEV_BSIZE,
-		      DEVSTAT_NO_ORDERED_TAGS,
-		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
-		      DEVSTAT_PRIORITY_DISK);
-
     adp->disk.d_open = adopen;
     adp->disk.d_close = adclose;
     adp->disk.d_strategy = adstrategy;
@@ -242,7 +236,6 @@ ad_detach(struct ata_device *atadev, int flush) /* get rid of flush XXX SOS */
 	biofinish(bp, NULL, ENXIO);
     }
     disk_destroy(&adp->disk);
-    devstat_remove_entry(&adp->stats);
     if (flush) {
 	if (ata_command(atadev, ATA_C_FLUSHCACHE, 0, 0, 0, ATA_WAIT_READY))
 	    ata_prtdev(atadev, "flushing cache on detach failed\n");
@@ -437,8 +430,6 @@ ad_transfer(struct ad_request *request)
 	    adp->device->flags |= ATA_D_USE_CHS;
 	}
 
-	devstat_start_transaction(&adp->stats);
-
 	/* does this drive & transfer work with DMA ? */
 	request->flags &= ~ADR_F_DMA_USED;
 	if (adp->device->mode >= ATA_DMA &&
@@ -546,7 +537,7 @@ transfer_failed:
 	request->bp->bio_error = EIO;
 	request->bp->bio_flags |= BIO_ERROR;
 	request->bp->bio_resid = request->bytecount;
-	biofinish(request->bp, &adp->stats, 0);
+	biodone(request->bp);
 	ad_free(request);
     }
     ata_reinit(adp->device->channel);
@@ -660,7 +651,7 @@ ad_interrupt(struct ad_request *request)
 
     request->bp->bio_resid = request->bytecount;
 
-    biofinish(request->bp, &adp->stats, 0);
+    biodone(request->bp);
     ad_free(request);
     adp->outstanding--;
 
@@ -856,7 +847,7 @@ ad_timeout(struct ad_request *request)
 	/* retries all used up, return error */
 	request->bp->bio_error = EIO;
 	request->bp->bio_flags |= BIO_ERROR;
-	biofinish(request->bp, &adp->stats, 0);
+	biodone(request->bp);
 	ad_free(request);
     }
     ata_reinit(adp->device->channel);

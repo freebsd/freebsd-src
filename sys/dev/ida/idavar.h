@@ -170,7 +170,6 @@ struct idad_softc {
 	device_t	dev;
 	struct 		ida_softc *controller;
 	struct		disk disk;
-	struct		devstat stats;
 	int		drive;			/* per controller */
 	int		unit;			/* global */
 	int		cylinders;

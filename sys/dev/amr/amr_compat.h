@@ -91,7 +91,7 @@
 #else
 # include <sys/bio.h>
 # define BIO_IS_READ(x)				((x)->bio_cmd == BIO_READ)
-# define AMR_BIO_FINISH(x)                      biofinish(x, &sc->amrd_stats, 0)
+# define AMR_BIO_FINISH(x)                      biodone(x)
 #endif
 
 /************************************************************************

@@ -46,7 +46,6 @@
 
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/devicestat.h>
 #include <sys/disk.h>
 #include <sys/signalvar.h>
 #include <sys/time.h>

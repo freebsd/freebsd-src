@@ -44,8 +44,6 @@
 #include <dev/twe/twevar.h>
 #include <dev/twe/twe_tables.h>
 
-#include <sys/devicestat.h>
-
 static devclass_t	twe_devclass;
 
 #ifdef TWE_DEBUG
@@ -539,7 +537,6 @@ struct twed_softc
     struct twe_softc	*twed_controller;	/* parent device softc */
     struct twe_drive	*twed_drive;		/* drive data in parent softc */
     struct disk		twed_disk;		/* generic disk handle */
-    struct devstat	twed_stats;		/* accounting */
 };
 
 /*
@@ -705,11 +702,6 @@ twed_attach(device_t dev)
 		sc->twed_drive->td_size / ((1024 * 1024) / TWE_BLOCK_SIZE),
 		sc->twed_drive->td_size);
     
-    devstat_add_entry(&sc->twed_stats, "twed", device_get_unit(dev), TWE_BLOCK_SIZE,
-		      DEVSTAT_NO_ORDERED_TAGS,
-		      DEVSTAT_TYPE_STORARRAY | DEVSTAT_TYPE_IF_OTHER, 
-		      DEVSTAT_PRIORITY_ARRAY);
-
     /* attach a generic disk device to ourselves */
 
     sc->twed_disk.d_open = twed_open;
@@ -746,7 +738,6 @@ twed_detach(device_t dev)
     if (sc->twed_disk.d_flags & DISKFLAG_OPEN)
 	return(EBUSY);
 
-    devstat_remove_entry(&sc->twed_stats);
 #ifdef FREEBSD_4
     if (--disks_registered == 0)
 	cdevsw_remove(&tweddisk_cdevsw);
