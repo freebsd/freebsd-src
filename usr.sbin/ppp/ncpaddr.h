@@ -59,6 +59,7 @@ struct ncpaddr {
 struct ncp;
 
 extern void ncpaddr_init(struct ncpaddr *);
+extern int ncpaddr_isset(const struct ncpaddr *);
 extern int ncpaddr_isdefault(const struct ncpaddr *);
 extern int ncpaddr_equal(const struct ncpaddr *, const struct ncpaddr *);
 extern void ncpaddr_copy(struct ncpaddr *, const struct ncpaddr *);

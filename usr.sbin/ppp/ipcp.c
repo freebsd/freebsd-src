@@ -659,8 +659,14 @@ ipcp_SetIPaddress(struct ipcp *ipcp, struct in_addr myaddr,
 {
   struct bundle *bundle = ipcp->fsm.bundle;
   struct ncpaddr myncpaddr, hisncpaddr;
-  struct ncprange myrange, dst;
+  struct ncprange myrange;
   struct in_addr mask;
+  struct sockaddr_storage ssdst, ssgw, ssmask;
+  struct sockaddr *sadst, *sagw, *samask;
+
+  sadst = (struct sockaddr *)&ssdst;
+  sagw = (struct sockaddr *)&ssgw;
+  samask = (struct sockaddr *)&ssmask;
 
   ncpaddr_setip4(&hisncpaddr, hisaddr);
   ncpaddr_setip4(&myncpaddr, myaddr);
@@ -681,8 +687,9 @@ ipcp_SetIPaddress(struct ipcp *ipcp, struct in_addr myaddr,
                 IFACE_CLEAR_ALIASES|IFACE_SYSTEM);
 
   if (bundle->ncp.cfg.sendpipe > 0 || bundle->ncp.cfg.recvpipe > 0) {
-    ncprange_sethost(&dst, &hisncpaddr);
-    rt_Update(bundle, &dst);
+    ncprange_getsa(&myrange, &ssgw, &ssmask);
+    ncpaddr_getsa(&hisncpaddr, &ssdst);
+    rt_Update(bundle, sadst, sagw, samask);
   }
 
   if (Enabled(bundle, OPT_SROUTES))
