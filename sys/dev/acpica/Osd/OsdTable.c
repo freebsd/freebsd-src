@@ -66,30 +66,17 @@ AcpiOsTableOverride (
     caddr_t                 acpi_dsdt, p;
 
     if (ExistingTable == NULL || NewTable == NULL)
-    {
         return(AE_BAD_PARAMETER);
-    }
 
-    (*NewTable) = NULL;
-
+    *NewTable = NULL;
     if (strncmp(ExistingTable->Signature, "DSDT", 4) != 0)
-    {
         return(AE_OK);
-    }
-
     if ((acpi_dsdt = preload_search_by_type("acpi_dsdt")) == NULL)
-    {
         return(AE_OK);
-    }
-        
     if ((p = preload_search_info(acpi_dsdt, MODINFO_ADDR)) == NULL)
-    {
         return(AE_OK);
-    }
 
-    (*NewTable) = *(void **)p;
-
+    *NewTable = *(void **)p;
     printf("ACPI: DSDT was overridden.\n");
-
-    return(AE_OK);
+    return (AE_OK);
 }
