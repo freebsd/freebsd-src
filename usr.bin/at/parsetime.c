@@ -143,7 +143,7 @@ static size_t sc_len;   /* scanner - lenght of token buffer */
 static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
-static char rcsid[] = "$Id: parsetime.c,v 1.13 1998/07/09 22:51:59 des Exp $";
+static char rcsid[] = "$Id: parsetime.c,v 1.14 1998/08/08 14:02:06 alex Exp $";
 
 /* Local functions */
 
@@ -370,7 +370,7 @@ tod(struct tm *tm)
     else if (tlen == 4) {
 	minute = hour%100;
 	if (minute > 59)
-	    panic("garbeld time");
+	    panic("garbled time");
 	hour = hour/100;
     }
 
