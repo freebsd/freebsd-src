@@ -1,9 +1,9 @@
-#!/usr/gnu/bin/perl
+#!/usr/bin/perl
 
-eval 'exec /usr/gnu/bin/perl -S $0 ${1+"$@"}'
+eval 'exec /usr/bin/perl -S $0 ${1+"$@"}'
 	if $running_under_some_shell;
 
-$bin = "/usr/gnu/bin";
+$bin = "/usr/bin";
 
 
 while ($ARGV[0] =~ /^[^-!(]/) {
