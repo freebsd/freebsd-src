@@ -47,6 +47,8 @@
 #include <sys/types.h>
 #include <stdio.h>
 
+__BEGIN_DECLS
+
 /*
  * ==== Editing ====
  */
@@ -193,5 +195,7 @@ int		history(History *, HistEvent *, int, ...);
 #define	H_LOAD		17	/* , const char *);	*/
 #define	H_SAVE		18	/* , const char *);	*/
 #define	H_CLEAR		19	/* , void);		*/
+
+__END_DECLS
 
 #endif /* _HISTEDIT_H_ */
