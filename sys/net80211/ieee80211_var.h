@@ -65,12 +65,15 @@
 #define	IEEE80211_DTIM_MIN	1	/* min DTIM period */
 #define	IEEE80211_DTIM_DEFAULT	1	/* default DTIM period */
 
-#define	IEEE80211_BINTVAL_MAX	500	/* max beacon interval (ms) */
-#define	IEEE80211_BINTVAL_MIN	25	/* min beacon interval */
-#define	IEEE80211_BINTVAL_DEFAULT 100	/* default beacon interval */
+#define	IEEE80211_BINTVAL_MAX	500	/* max beacon interval (TU's) */
+#define	IEEE80211_BINTVAL_MIN	25	/* min beacon interval (TU's) */
+#define	IEEE80211_BINTVAL_DEFAULT 100	/* default beacon interval (TU's) */
 
 #define	IEEE80211_PS_SLEEP	0x1	/* STA is in power saving mode */
 #define	IEEE80211_PS_MAX_QUEUE	50	/* maximum saved packets */
+
+#define	IEEE80211_MS_TO_TU(x)	(((x) * 1000) / 1024)
+#define	IEEE80211_TU_TO_MS(x)	(((x) * 1024) / 1000)
 
 struct ieee80211_aclator;
 struct sysctl_ctx_list;
