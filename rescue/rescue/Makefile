@@ -119,30 +119,28 @@ CRUNCH_PROGS+=atm adjkerntz atacontrol badsect bsdlabel camcontrol 	\
 # CRUNCH_PROGS+= devd
 
 CRUNCH_LIBS+=-lalias -latm -lbsdxml -lcam -lcurses -ldevstat -lipsec -lipx \
-	-lgeom -lmd -lncp -lreadline -lsbuf -lsmb -lufs -lz 
+	-lgeom -lmd -lreadline -lsbuf -lufs -lz 
 
 .if ${MACHINE_ARCH} == "i386"
-CRUNCH_PROGS+= cxconfig fdisk mount_nwfs mount_smbfs
+CRUNCH_PROGS+= cxconfig fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
+#CRUNCH_PROGS+= mount_nwfs mount_smbfs
+#CRUNCH_LIBS+= -lncp -lsmb
 .endif
 
 .if ${MACHINE} == "pc98"
-CRUNCH_PROGS+= fdisk_pc98
-CRUNCH_ALIAS_bsdlabel= disklabel
-CRUNCH_ALIAS_fdisk_pc98= fdisk
+CRUNCH_SRCDIR_fdisk=$(.CURDIR)/../../sbin/fdisk_pc98
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
 CRUNCH_PROGS+= mca gpt fdisk
-CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
-CRUNCH_PROGS+= fdisk sunlabel
+CRUNCH_PROGS+= sunlabel
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
-CRUNCH_PROGS+= fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
