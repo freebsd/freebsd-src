@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	tty
-WARNS?=	2
 
 .include <bsd.prog.mk>
