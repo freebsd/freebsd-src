@@ -1,0 +1,5 @@
+#!/bin/sh
+# This file was generated automatically by configure.  Do not edit.
+# This directory was configured as follows:
+../../configure --host=i386-unknown-freebsd --target=i386-unknown-freebsd -norecursion 
+# 

@@ -1,0 +1,1601 @@
+/* YACC parser for C expressions, for GDB.
+   Copyright (C) 1986, 1989, 1990, 1991 Free Software Foundation, Inc.
+
+This file is part of GDB.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+/* Parse a C expression from text in a string,
+   and return the result as a  struct expression  pointer.
+   That structure contains arithmetic operations in reverse polish,
+   with constants represented by operations that are followed by special data.
+   See expression.h for the details of the format.
+   What is important here is that it can be built up sequentially
+   during the process of parsing; the lower levels of the tree always
+   come first in the result.
+
+   Note that malloc's and realloc's in this file are transformed to
+   xmalloc and xrealloc respectively by the same sed command in the
+   makefile that remaps any other malloc/realloc inserted by the parser
+   generator.  Doing this with #defines and trying to control the interaction
+   with include files (<malloc.h> and <stdlib.h> for example) just became
+   too messy, particularly when such includes can be inserted at random
+   times by the parser generator.  */
+   
+%{
+
+#include "defs.h"
+#include "expression.h"
+#include "parser-defs.h"
+#include "value.h"
+#include "language.h"
+#include "c-lang.h"
+
+/* Remap normal yacc parser interface names (yyparse, yylex, yyerror, etc),
+   as well as gratuitiously global symbol names, so we can have multiple
+   yacc generated parsers in gdb.  Note that these are only the variables
+   produced by yacc.  If other parser generators (bison, byacc, etc) produce
+   additional global names that conflict at link time, then those parser
+   generators need to be fixed instead of adding those names to this list. */
+
+#define	yymaxdepth c_maxdepth
+#define	yyparse	c_parse
+#define	yylex	c_lex
+#define	yyerror	c_error
+#define	yylval	c_lval
+#define	yychar	c_char
+#define	yydebug	c_debug
+#define	yypact	c_pact	
+#define	yyr1	c_r1			
+#define	yyr2	c_r2			
+#define	yydef	c_def		
+#define	yychk	c_chk		
+#define	yypgo	c_pgo		
+#define	yyact	c_act		
+#define	yyexca	c_exca
+#define yyerrflag c_errflag
+#define yynerrs	c_nerrs
+#define	yyps	c_ps
+#define	yypv	c_pv
+#define	yys	c_s
+#define	yy_yys	c_yys
+#define	yystate	c_state
+#define	yytmp	c_tmp
+#define	yyv	c_v
+#define	yy_yyv	c_yyv
+#define	yyval	c_val
+#define	yylloc	c_lloc
+#define yyreds	c_reds		/* With YYDEBUG defined */
+#define yytoks	c_toks		/* With YYDEBUG defined */
+
+#ifndef YYDEBUG
+#define	YYDEBUG	0		/* Default to no yydebug support */
+#endif
+
+int
+yyparse PARAMS ((void));
+
+static int
+yylex PARAMS ((void));
+
+void
+yyerror PARAMS ((char *));
+
+%}
+
+/* Although the yacc "value" of an expression is not used,
+   since the result is stored in the structure being created,
+   other node types do have values.  */
+
+%union
+  {
+    LONGEST lval;
+    struct {
+      LONGEST val;
+      struct type *type;
+    } typed_val;
+    double dval;
+    struct symbol *sym;
+    struct type *tval;
+    struct stoken sval;
+    struct ttype tsym;
+    struct symtoken ssym;
+    int voidval;
+    struct block *bval;
+    enum exp_opcode opcode;
+    struct internalvar *ivar;
+
+    struct type **tvec;
+    int *ivec;
+  }
+
+%{
+/* YYSTYPE gets defined by %union */
+static int
+parse_number PARAMS ((char *, int, int, YYSTYPE *));
+%}
+
+%type <voidval> exp exp1 type_exp start variable qualified_name lcurly
+%type <lval> rcurly
+%type <tval> type typebase
+%type <tvec> nonempty_typelist
+/* %type <bval> block */
+
+/* Fancy type parsing.  */
+%type <voidval> func_mod direct_abs_decl abs_decl
+%type <tval> ptype
+%type <lval> array_mod
+
+%token <typed_val> INT
+%token <dval> FLOAT
+
+/* Both NAME and TYPENAME tokens represent symbols in the input,
+   and both convey their data as strings.
+   But a TYPENAME is a string that happens to be defined as a typedef
+   or builtin type name (such as int or char)
+   and a NAME is any other symbol.
+   Contexts where this distinction is not important can use the
+   nonterminal "name", which matches either NAME or TYPENAME.  */
+
+%token <sval> STRING
+%token <ssym> NAME /* BLOCKNAME defined below to give it higher precedence. */
+%token <tsym> TYPENAME
+%type <sval> name
+%type <ssym> name_not_typename
+%type <tsym> typename
+
+/* A NAME_OR_INT is a symbol which is not known in the symbol table,
+   but which would parse as a valid number in the current input radix.
+   E.g. "c" when input_radix==16.  Depending on the parse, it will be
+   turned into a name or into a number.  */
+
+%token <ssym> NAME_OR_INT 
+
+%token STRUCT CLASS UNION ENUM SIZEOF UNSIGNED COLONCOLON
+%token TEMPLATE
+%token ERROR
+
+/* Special type cases, put in to allow the parser to distinguish different
+   legal basetypes.  */
+%token SIGNED_KEYWORD LONG SHORT INT_KEYWORD CONST_KEYWORD VOLATILE_KEYWORD
+%token <lval> LAST REGNAME
+
+%token <ivar> VARIABLE
+
+%token <opcode> ASSIGN_MODIFY
+
+/* C++ */
+%token THIS
+
+%left ','
+%left ABOVE_COMMA
+%right '=' ASSIGN_MODIFY
+%right '?'
+%left OROR
+%left ANDAND
+%left '|'
+%left '^'
+%left '&'
+%left EQUAL NOTEQUAL
+%left '<' '>' LEQ GEQ
+%left LSH RSH
+%left '@'
+%left '+' '-'
+%left '*' '/' '%'
+%right UNARY INCREMENT DECREMENT
+%right ARROW '.' '[' '('
+%token <ssym> BLOCKNAME 
+%type <bval> block
+%left COLONCOLON
+
+
+%%
+
+start   :	exp1
+	|	type_exp
+	;
+
+type_exp:	type
+			{ write_exp_elt_opcode(OP_TYPE);
+			  write_exp_elt_type($1);
+			  write_exp_elt_opcode(OP_TYPE);}
+	;
+
+/* Expressions, including the comma operator.  */
+exp1	:	exp
+	|	exp1 ',' exp
+			{ write_exp_elt_opcode (BINOP_COMMA); }
+	;
+
+/* Expressions, not including the comma operator.  */
+exp	:	'*' exp    %prec UNARY
+			{ write_exp_elt_opcode (UNOP_IND); }
+
+exp	:	'&' exp    %prec UNARY
+			{ write_exp_elt_opcode (UNOP_ADDR); }
+
+exp	:	'-' exp    %prec UNARY
+			{ write_exp_elt_opcode (UNOP_NEG); }
+	;
+
+exp	:	'!' exp    %prec UNARY
+			{ write_exp_elt_opcode (UNOP_LOGICAL_NOT); }
+	;
+
+exp	:	'~' exp    %prec UNARY
+			{ write_exp_elt_opcode (UNOP_COMPLEMENT); }
+	;
+
+exp	:	INCREMENT exp    %prec UNARY
+			{ write_exp_elt_opcode (UNOP_PREINCREMENT); }
+	;
+
+exp	:	DECREMENT exp    %prec UNARY
+			{ write_exp_elt_opcode (UNOP_PREDECREMENT); }
+	;
+
+exp	:	exp INCREMENT    %prec UNARY
+			{ write_exp_elt_opcode (UNOP_POSTINCREMENT); }
+	;
+
+exp	:	exp DECREMENT    %prec UNARY
+			{ write_exp_elt_opcode (UNOP_POSTDECREMENT); }
+	;
+
+exp	:	SIZEOF exp       %prec UNARY
+			{ write_exp_elt_opcode (UNOP_SIZEOF); }
+	;
+
+exp	:	exp ARROW name
+			{ write_exp_elt_opcode (STRUCTOP_PTR);
+			  write_exp_string ($3);
+			  write_exp_elt_opcode (STRUCTOP_PTR); }
+	;
+
+exp	:	exp ARROW qualified_name
+			{ /* exp->type::name becomes exp->*(&type::name) */
+			  /* Note: this doesn't work if name is a
+			     static member!  FIXME */
+			  write_exp_elt_opcode (UNOP_ADDR);
+			  write_exp_elt_opcode (STRUCTOP_MPTR); }
+	;
+exp	:	exp ARROW '*' exp
+			{ write_exp_elt_opcode (STRUCTOP_MPTR); }
+	;
+
+exp	:	exp '.' name
+			{ write_exp_elt_opcode (STRUCTOP_STRUCT);
+			  write_exp_string ($3);
+			  write_exp_elt_opcode (STRUCTOP_STRUCT); }
+	;
+
+exp	:	exp '.' qualified_name
+			{ /* exp.type::name becomes exp.*(&type::name) */
+			  /* Note: this doesn't work if name is a
+			     static member!  FIXME */
+			  write_exp_elt_opcode (UNOP_ADDR);
+			  write_exp_elt_opcode (STRUCTOP_MEMBER); }
+	;
+
+exp	:	exp '.' '*' exp
+			{ write_exp_elt_opcode (STRUCTOP_MEMBER); }
+	;
+
+exp	:	exp '[' exp1 ']'
+			{ write_exp_elt_opcode (BINOP_SUBSCRIPT); }
+	;
+
+exp	:	exp '(' 
+			/* This is to save the value of arglist_len
+			   being accumulated by an outer function call.  */
+			{ start_arglist (); }
+		arglist ')'	%prec ARROW
+			{ write_exp_elt_opcode (OP_FUNCALL);
+			  write_exp_elt_longcst ((LONGEST) end_arglist ());
+			  write_exp_elt_opcode (OP_FUNCALL); }
+	;
+
+lcurly	:	'{'
+			{ start_arglist (); }
+	;
+
+arglist	:
+	;
+
+arglist	:	exp
+			{ arglist_len = 1; }
+	;
+
+arglist	:	arglist ',' exp   %prec ABOVE_COMMA
+			{ arglist_len++; }
+	;
+
+rcurly	:	'}'
+			{ $$ = end_arglist () - 1; }
+	;
+exp	:	lcurly arglist rcurly	%prec ARROW
+			{ write_exp_elt_opcode (OP_ARRAY);
+			  write_exp_elt_longcst ((LONGEST) 0);
+			  write_exp_elt_longcst ((LONGEST) $3);
+			  write_exp_elt_opcode (OP_ARRAY); }
+	;
+
+exp	:	lcurly type rcurly exp  %prec UNARY
+			{ write_exp_elt_opcode (UNOP_MEMVAL);
+			  write_exp_elt_type ($2);
+			  write_exp_elt_opcode (UNOP_MEMVAL); }
+	;
+
+exp	:	'(' type ')' exp  %prec UNARY
+			{ write_exp_elt_opcode (UNOP_CAST);
+			  write_exp_elt_type ($2);
+			  write_exp_elt_opcode (UNOP_CAST); }
+	;
+
+exp	:	'(' exp1 ')'
+			{ }
+	;
+
+/* Binary operators in order of decreasing precedence.  */
+
+exp	:	exp '@' exp
+			{ write_exp_elt_opcode (BINOP_REPEAT); }
+	;
+
+exp	:	exp '*' exp
+			{ write_exp_elt_opcode (BINOP_MUL); }
+	;
+
+exp	:	exp '/' exp
+			{ write_exp_elt_opcode (BINOP_DIV); }
+	;
+
+exp	:	exp '%' exp
+			{ write_exp_elt_opcode (BINOP_REM); }
+	;
+
+exp	:	exp '+' exp
+			{ write_exp_elt_opcode (BINOP_ADD); }
+	;
+
+exp	:	exp '-' exp
+			{ write_exp_elt_opcode (BINOP_SUB); }
+	;
+
+exp	:	exp LSH exp
+			{ write_exp_elt_opcode (BINOP_LSH); }
+	;
+
+exp	:	exp RSH exp
+			{ write_exp_elt_opcode (BINOP_RSH); }
+	;
+
+exp	:	exp EQUAL exp
+			{ write_exp_elt_opcode (BINOP_EQUAL); }
+	;
+
+exp	:	exp NOTEQUAL exp
+			{ write_exp_elt_opcode (BINOP_NOTEQUAL); }
+	;
+
+exp	:	exp LEQ exp
+			{ write_exp_elt_opcode (BINOP_LEQ); }
+	;
+
+exp	:	exp GEQ exp
+			{ write_exp_elt_opcode (BINOP_GEQ); }
+	;
+
+exp	:	exp '<' exp
+			{ write_exp_elt_opcode (BINOP_LESS); }
+	;
+
+exp	:	exp '>' exp
+			{ write_exp_elt_opcode (BINOP_GTR); }
+	;
+
+exp	:	exp '&' exp
+			{ write_exp_elt_opcode (BINOP_BITWISE_AND); }
+	;
+
+exp	:	exp '^' exp
+			{ write_exp_elt_opcode (BINOP_BITWISE_XOR); }
+	;
+
+exp	:	exp '|' exp
+			{ write_exp_elt_opcode (BINOP_BITWISE_IOR); }
+	;
+
+exp	:	exp ANDAND exp
+			{ write_exp_elt_opcode (BINOP_LOGICAL_AND); }
+	;
+
+exp	:	exp OROR exp
+			{ write_exp_elt_opcode (BINOP_LOGICAL_OR); }
+	;
+
+exp	:	exp '?' exp ':' exp	%prec '?'
+			{ write_exp_elt_opcode (TERNOP_COND); }
+	;
+			  
+exp	:	exp '=' exp
+			{ write_exp_elt_opcode (BINOP_ASSIGN); }
+	;
+
+exp	:	exp ASSIGN_MODIFY exp
+			{ write_exp_elt_opcode (BINOP_ASSIGN_MODIFY);
+			  write_exp_elt_opcode ($2);
+			  write_exp_elt_opcode (BINOP_ASSIGN_MODIFY); }
+	;
+
+exp	:	INT
+			{ write_exp_elt_opcode (OP_LONG);
+			  write_exp_elt_type ($1.type);
+			  write_exp_elt_longcst ((LONGEST)($1.val));
+			  write_exp_elt_opcode (OP_LONG); }
+	;
+
+exp	:	NAME_OR_INT
+			{ YYSTYPE val;
+			  parse_number ($1.stoken.ptr, $1.stoken.length, 0, &val);
+			  write_exp_elt_opcode (OP_LONG);
+			  write_exp_elt_type (val.typed_val.type);
+			  write_exp_elt_longcst ((LONGEST)val.typed_val.val);
+			  write_exp_elt_opcode (OP_LONG);
+			}
+	;
+
+
+exp	:	FLOAT
+			{ write_exp_elt_opcode (OP_DOUBLE);
+			  write_exp_elt_type (builtin_type_double);
+			  write_exp_elt_dblcst ($1);
+			  write_exp_elt_opcode (OP_DOUBLE); }
+	;
+
+exp	:	variable
+	;
+
+exp	:	LAST
+			{ write_exp_elt_opcode (OP_LAST);
+			  write_exp_elt_longcst ((LONGEST) $1);
+			  write_exp_elt_opcode (OP_LAST); }
+	;
+
+exp	:	REGNAME
+			{ write_exp_elt_opcode (OP_REGISTER);
+			  write_exp_elt_longcst ((LONGEST) $1);
+			  write_exp_elt_opcode (OP_REGISTER); }
+	;
+
+exp	:	VARIABLE
+			{ write_exp_elt_opcode (OP_INTERNALVAR);
+			  write_exp_elt_intern ($1);
+			  write_exp_elt_opcode (OP_INTERNALVAR); }
+	;
+
+exp	:	SIZEOF '(' type ')'	%prec UNARY
+			{ write_exp_elt_opcode (OP_LONG);
+			  write_exp_elt_type (builtin_type_int);
+			  write_exp_elt_longcst ((LONGEST) TYPE_LENGTH ($3));
+			  write_exp_elt_opcode (OP_LONG); }
+	;
+
+exp	:	STRING
+			{ /* C strings are converted into array constants with
+			     an explicit null byte added at the end.  Thus
+			     the array upper bound is the string length.
+			     There is no such thing in C as a completely empty
+			     string. */
+			  char *sp = $1.ptr; int count = $1.length;
+			  while (count-- > 0)
+			    {
+			      write_exp_elt_opcode (OP_LONG);
+			      write_exp_elt_type (builtin_type_char);
+			      write_exp_elt_longcst ((LONGEST)(*sp++));
+			      write_exp_elt_opcode (OP_LONG);
+			    }
+			  write_exp_elt_opcode (OP_LONG);
+			  write_exp_elt_type (builtin_type_char);
+			  write_exp_elt_longcst ((LONGEST)'\0');
+			  write_exp_elt_opcode (OP_LONG);
+			  write_exp_elt_opcode (OP_ARRAY);
+			  write_exp_elt_longcst ((LONGEST) 0);
+			  write_exp_elt_longcst ((LONGEST) ($1.length));
+			  write_exp_elt_opcode (OP_ARRAY); }
+	;
+
+/* C++.  */
+exp	:	THIS
+			{ write_exp_elt_opcode (OP_THIS);
+			  write_exp_elt_opcode (OP_THIS); }
+	;
+
+/* end of C++.  */
+
+block	:	BLOCKNAME
+			{
+			  if ($1.sym != 0)
+			      $$ = SYMBOL_BLOCK_VALUE ($1.sym);
+			  else
+			    {
+			      struct symtab *tem =
+				  lookup_symtab (copy_name ($1.stoken));
+			      if (tem)
+				$$ = BLOCKVECTOR_BLOCK
+					 (BLOCKVECTOR (tem), STATIC_BLOCK);
+			      else
+				error ("No file or function \"%s\".",
+				       copy_name ($1.stoken));
+			    }
+			}
+	;
+
+block	:	block COLONCOLON name
+			{ struct symbol *tem
+			    = lookup_symbol (copy_name ($3), $1,
+					     VAR_NAMESPACE, (int *) NULL,
+					     (struct symtab **) NULL);
+			  if (!tem || SYMBOL_CLASS (tem) != LOC_BLOCK)
+			    error ("No function \"%s\" in specified context.",
+				   copy_name ($3));
+			  $$ = SYMBOL_BLOCK_VALUE (tem); }
+	;
+
+variable:	block COLONCOLON name
+			{ struct symbol *sym;
+			  sym = lookup_symbol (copy_name ($3), $1,
+					       VAR_NAMESPACE, (int *) NULL,
+					       (struct symtab **) NULL);
+			  if (sym == 0)
+			    error ("No symbol \"%s\" in specified context.",
+				   copy_name ($3));
+
+			  write_exp_elt_opcode (OP_VAR_VALUE);
+			  /* block_found is set by lookup_symbol.  */
+			  write_exp_elt_block (block_found);
+			  write_exp_elt_sym (sym);
+			  write_exp_elt_opcode (OP_VAR_VALUE); }
+	;
+
+qualified_name:	typebase COLONCOLON name
+			{
+			  struct type *type = $1;
+			  if (TYPE_CODE (type) != TYPE_CODE_STRUCT
+			      && TYPE_CODE (type) != TYPE_CODE_UNION)
+			    error ("`%s' is not defined as an aggregate type.",
+				   TYPE_NAME (type));
+
+			  write_exp_elt_opcode (OP_SCOPE);
+			  write_exp_elt_type (type);
+			  write_exp_string ($3);
+			  write_exp_elt_opcode (OP_SCOPE);
+			}
+	|	typebase COLONCOLON '~' name
+			{
+			  struct type *type = $1;
+			  struct stoken tmp_token;
+			  if (TYPE_CODE (type) != TYPE_CODE_STRUCT
+			      && TYPE_CODE (type) != TYPE_CODE_UNION)
+			    error ("`%s' is not defined as an aggregate type.",
+				   TYPE_NAME (type));
+
+			  if (!STREQ (type_name_no_tag (type), $4.ptr))
+			    error ("invalid destructor `%s::~%s'",
+				   type_name_no_tag (type), $4.ptr);
+
+			  tmp_token.ptr = (char*) alloca ($4.length + 2);
+			  tmp_token.length = $4.length + 1;
+			  tmp_token.ptr[0] = '~';
+			  memcpy (tmp_token.ptr+1, $4.ptr, $4.length);
+			  tmp_token.ptr[tmp_token.length] = 0;
+			  write_exp_elt_opcode (OP_SCOPE);
+			  write_exp_elt_type (type);
+			  write_exp_string (tmp_token);
+			  write_exp_elt_opcode (OP_SCOPE);
+			}
+	;
+
+variable:	qualified_name
+	|	COLONCOLON name
+			{
+			  char *name = copy_name ($2);
+			  struct symbol *sym;
+			  struct minimal_symbol *msymbol;
+
+			  sym =
+			    lookup_symbol (name, (const struct block *) NULL,
+					   VAR_NAMESPACE, (int *) NULL,
+					   (struct symtab **) NULL);
+			  if (sym)
+			    {
+			      write_exp_elt_opcode (OP_VAR_VALUE);
+			      write_exp_elt_block (NULL);
+			      write_exp_elt_sym (sym);
+			      write_exp_elt_opcode (OP_VAR_VALUE);
+			      break;
+			    }
+
+			  msymbol = lookup_minimal_symbol (name,
+				      (struct objfile *) NULL);
+			  if (msymbol != NULL)
+			    {
+			      write_exp_elt_opcode (OP_LONG);
+			      write_exp_elt_type (builtin_type_long);
+			      write_exp_elt_longcst ((LONGEST) SYMBOL_VALUE_ADDRESS (msymbol));
+			      write_exp_elt_opcode (OP_LONG);
+			      write_exp_elt_opcode (UNOP_MEMVAL);
+			      if (msymbol -> type == mst_data ||
+				  msymbol -> type == mst_bss)
+				write_exp_elt_type (builtin_type_int);
+			      else if (msymbol -> type == mst_text)
+				write_exp_elt_type (lookup_function_type (builtin_type_int));
+			      else
+				write_exp_elt_type (builtin_type_char);
+			      write_exp_elt_opcode (UNOP_MEMVAL);
+			    }
+			  else
+			    if (!have_full_symbols () && !have_partial_symbols ())
+			      error ("No symbol table is loaded.  Use the \"file\" command.");
+			    else
+			      error ("No symbol \"%s\" in current context.", name);
+			}
+	;
+
+variable:	name_not_typename
+			{ struct symbol *sym = $1.sym;
+
+			  if (sym)
+			    {
+			      if (symbol_read_needs_frame (sym))
+				{
+				  if (innermost_block == 0 ||
+				      contained_in (block_found, 
+						    innermost_block))
+				    innermost_block = block_found;
+				}
+
+			      write_exp_elt_opcode (OP_VAR_VALUE);
+			      /* We want to use the selected frame, not
+				 another more inner frame which happens to
+				 be in the same block.  */
+			      write_exp_elt_block (NULL);
+			      write_exp_elt_sym (sym);
+			      write_exp_elt_opcode (OP_VAR_VALUE);
+			    }
+			  else if ($1.is_a_field_of_this)
+			    {
+			      /* C++: it hangs off of `this'.  Must
+			         not inadvertently convert from a method call
+				 to data ref.  */
+			      if (innermost_block == 0 || 
+				  contained_in (block_found, innermost_block))
+				innermost_block = block_found;
+			      write_exp_elt_opcode (OP_THIS);
+			      write_exp_elt_opcode (OP_THIS);
+			      write_exp_elt_opcode (STRUCTOP_PTR);
+			      write_exp_string ($1.stoken);
+			      write_exp_elt_opcode (STRUCTOP_PTR);
+			    }
+			  else
+			    {
+			      struct minimal_symbol *msymbol;
+			      register char *arg = copy_name ($1.stoken);
+
+			      msymbol = lookup_minimal_symbol (arg,
+					  (struct objfile *) NULL);
+			      if (msymbol != NULL)
+				{
+				  write_exp_elt_opcode (OP_LONG);
+				  write_exp_elt_type (builtin_type_long);
+				  write_exp_elt_longcst ((LONGEST) SYMBOL_VALUE_ADDRESS (msymbol));
+				  write_exp_elt_opcode (OP_LONG);
+				  write_exp_elt_opcode (UNOP_MEMVAL);
+				  if (msymbol -> type == mst_data ||
+				      msymbol -> type == mst_bss)
+				    write_exp_elt_type (builtin_type_int);
+				  else if (msymbol -> type == mst_text)
+				    write_exp_elt_type (lookup_function_type (builtin_type_int));
+				  else
+				    write_exp_elt_type (builtin_type_char);
+				  write_exp_elt_opcode (UNOP_MEMVAL);
+				}
+			      else if (!have_full_symbols () && !have_partial_symbols ())
+				error ("No symbol table is loaded.  Use the \"file\" command.");
+			      else
+				error ("No symbol \"%s\" in current context.",
+				       copy_name ($1.stoken));
+			    }
+			}
+	;
+
+
+/* shift/reduce conflict: "typebase ." and the token is '('.  (Shows up
+   twice, once where qualified_name is a possibility and once where
+   it is not).  */
+/* shift/reduce conflict: "typebase CONST_KEYWORD ." and the token is '('.  */
+/* shift/reduce conflict: "typebase VOLATILE_KEYWORD ." and the token is
+   '('.  */
+ptype	:	typebase
+	/* "const" and "volatile" are curently ignored.  A type qualifier
+	   before the type is currently handled in the typebase rule.  */
+	|	typebase CONST_KEYWORD
+	|	typebase VOLATILE_KEYWORD
+	|	typebase abs_decl
+		{ $$ = follow_types ($1); }
+	|	typebase CONST_KEYWORD abs_decl
+		{ $$ = follow_types ($1); }
+	|	typebase VOLATILE_KEYWORD abs_decl
+		{ $$ = follow_types ($1); }
+	;
+
+abs_decl:	'*'
+			{ push_type (tp_pointer); $$ = 0; }
+	|	'*' abs_decl
+			{ push_type (tp_pointer); $$ = $2; }
+	|	'&'
+			{ push_type (tp_reference); $$ = 0; }
+	|	'&' abs_decl
+			{ push_type (tp_reference); $$ = $2; }
+	|	direct_abs_decl
+	;
+
+direct_abs_decl: '(' abs_decl ')'
+			{ $$ = $2; }
+	|	direct_abs_decl array_mod
+			{
+			  push_type_int ($2);
+			  push_type (tp_array);
+			}
+	|	array_mod
+			{
+			  push_type_int ($1);
+			  push_type (tp_array);
+			  $$ = 0;
+			}
+
+     /* shift/reduce conflict.  "direct_abs_decl . func_mod", and the token
+	is '('.  */
+
+	| 	direct_abs_decl func_mod
+			{ push_type (tp_function); }
+	|	func_mod
+			{ push_type (tp_function); }
+	;
+
+array_mod:	'[' ']'
+			{ $$ = -1; }
+	|	'[' INT ']'
+			{ $$ = $2.val; }
+	;
+
+func_mod:	'(' ')'
+			{ $$ = 0; }
+	|	'(' nonempty_typelist ')'
+			{ free ((PTR)$2); $$ = 0; }
+	;
+
+/* shift/reduce conflict: "type '(' typebase COLONCOLON '*' ')' ." and the
+   token is '('.  */
+type	:	ptype
+	|	typebase COLONCOLON '*'
+			{ $$ = lookup_member_type (builtin_type_int, $1); }
+	|	type '(' typebase COLONCOLON '*' ')'
+			{ $$ = lookup_member_type ($1, $3); }
+	|	type '(' typebase COLONCOLON '*' ')' '(' ')'
+			{ $$ = lookup_member_type
+			    (lookup_function_type ($1), $3); }
+	|	type '(' typebase COLONCOLON '*' ')' '(' nonempty_typelist ')'
+			{ $$ = lookup_member_type
+			    (lookup_function_type ($1), $3);
+			  free ((PTR)$8); }
+	;
+
+typebase  /* Implements (approximately): (type-qualifier)* type-specifier */
+	:	TYPENAME
+			{ $$ = $1.type; }
+	|	INT_KEYWORD
+			{ $$ = builtin_type_int; }
+	|	LONG
+			{ $$ = builtin_type_long; }
+	|	SHORT
+			{ $$ = builtin_type_short; }
+	|	LONG INT_KEYWORD
+			{ $$ = builtin_type_long; }
+	|	UNSIGNED LONG INT_KEYWORD
+			{ $$ = builtin_type_unsigned_long; }
+	|	LONG LONG
+			{ $$ = builtin_type_long_long; }
+	|	LONG LONG INT_KEYWORD
+			{ $$ = builtin_type_long_long; }
+	|	UNSIGNED LONG LONG
+			{ $$ = builtin_type_unsigned_long_long; }
+	|	UNSIGNED LONG LONG INT_KEYWORD
+			{ $$ = builtin_type_unsigned_long_long; }
+	|	SHORT INT_KEYWORD
+			{ $$ = builtin_type_short; }
+	|	UNSIGNED SHORT INT_KEYWORD
+			{ $$ = builtin_type_unsigned_short; }
+	|	STRUCT name
+			{ $$ = lookup_struct (copy_name ($2),
+					      expression_context_block); }
+	|	CLASS name
+			{ $$ = lookup_struct (copy_name ($2),
+					      expression_context_block); }
+	|	UNION name
+			{ $$ = lookup_union (copy_name ($2),
+					     expression_context_block); }
+	|	ENUM name
+			{ $$ = lookup_enum (copy_name ($2),
+					    expression_context_block); }
+	|	UNSIGNED typename
+			{ $$ = lookup_unsigned_typename (TYPE_NAME($2.type)); }
+	|	UNSIGNED
+			{ $$ = builtin_type_unsigned_int; }
+	|	SIGNED_KEYWORD typename
+			{ $$ = lookup_signed_typename (TYPE_NAME($2.type)); }
+	|	SIGNED_KEYWORD
+			{ $$ = builtin_type_int; }
+	|	TEMPLATE name '<' type '>'
+			{ $$ = lookup_template_type(copy_name($2), $4,
+						    expression_context_block);
+			}
+	/* "const" and "volatile" are curently ignored.  A type qualifier
+	   after the type is handled in the ptype rule.  I think these could
+	   be too.  */
+	|	CONST_KEYWORD typebase { $$ = $2; }
+	|	VOLATILE_KEYWORD typebase { $$ = $2; }
+	;
+
+typename:	TYPENAME
+	|	INT_KEYWORD
+		{
+		  $$.stoken.ptr = "int";
+		  $$.stoken.length = 3;
+		  $$.type = builtin_type_int;
+		}
+	|	LONG
+		{
+		  $$.stoken.ptr = "long";
+		  $$.stoken.length = 4;
+		  $$.type = builtin_type_long;
+		}
+	|	SHORT
+		{
+		  $$.stoken.ptr = "short";
+		  $$.stoken.length = 5;
+		  $$.type = builtin_type_short;
+		}
+	;
+
+nonempty_typelist
+	:	type
+		{ $$ = (struct type **) malloc (sizeof (struct type *) * 2);
+		  $<ivec>$[0] = 1;	/* Number of types in vector */
+		  $$[1] = $1;
+		}
+	|	nonempty_typelist ',' type
+		{ int len = sizeof (struct type *) * (++($<ivec>1[0]) + 1);
+		  $$ = (struct type **) realloc ((char *) $1, len);
+		  $$[$<ivec>$[0]] = $3;
+		}
+	;
+
+name	:	NAME { $$ = $1.stoken; }
+	|	BLOCKNAME { $$ = $1.stoken; }
+	|	TYPENAME { $$ = $1.stoken; }
+	|	NAME_OR_INT  { $$ = $1.stoken; }
+	;
+
+name_not_typename :	NAME
+	|	BLOCKNAME
+/* These would be useful if name_not_typename was useful, but it is just
+   a fake for "variable", so these cause reduce/reduce conflicts because
+   the parser can't tell whether NAME_OR_INT is a name_not_typename (=variable,
+   =exp) or just an exp.  If name_not_typename was ever used in an lvalue
+   context where only a name could occur, this might be useful.
+  	|	NAME_OR_INT
+ */
+	;
+
+%%
+
+/* Take care of parsing a number (anything that starts with a digit).
+   Set yylval and return the token type; update lexptr.
+   LEN is the number of characters in it.  */
+
+/*** Needs some error checking for the float case ***/
+
+static int
+parse_number (p, len, parsed_float, putithere)
+     register char *p;
+     register int len;
+     int parsed_float;
+     YYSTYPE *putithere;
+{
+  register LONGEST n = 0;
+  register LONGEST prevn = 0;
+  register int i = 0;
+  register int c;
+  register int base = input_radix;
+  int unsigned_p = 0;
+  int long_p = 0;
+  unsigned LONGEST high_bit;
+  struct type *signed_type;
+  struct type *unsigned_type;
+
+  if (parsed_float)
+    {
+      /* It's a float since it contains a point or an exponent.  */
+      putithere->dval = atof (p);
+      return FLOAT;
+    }
+
+  /* Handle base-switching prefixes 0x, 0t, 0d, 0 */
+  if (p[0] == '0')
+    switch (p[1])
+      {
+      case 'x':
+      case 'X':
+	if (len >= 3)
+	  {
+	    p += 2;
+	    base = 16;
+	    len -= 2;
+	  }
+	break;
+
+      case 't':
+      case 'T':
+      case 'd':
+      case 'D':
+	if (len >= 3)
+	  {
+	    p += 2;
+	    base = 10;
+	    len -= 2;
+	  }
+	break;
+
+      default:
+	base = 8;
+	break;
+      }
+
+  while (len-- > 0)
+    {
+      c = *p++;
+      if (c >= 'A' && c <= 'Z')
+	c += 'a' - 'A';
+      if (c != 'l' && c != 'u')
+	n *= base;
+      if (c >= '0' && c <= '9')
+	n += i = c - '0';
+      else
+	{
+	  if (base > 10 && c >= 'a' && c <= 'f')
+	    n += i = c - 'a' + 10;
+	  else if (len == 0 && c == 'l') 
+            long_p = 1;
+	  else if (len == 0 && c == 'u')
+	    unsigned_p = 1;
+	  else
+	    return ERROR;	/* Char not a digit */
+	}
+      if (i >= base)
+	return ERROR;		/* Invalid digit in this base */
+
+      /* Portably test for overflow (only works for nonzero values, so make
+	 a second check for zero).  */
+      if((prevn >= n) && n != 0)
+	 unsigned_p=1;		/* Try something unsigned */
+      /* If range checking enabled, portably test for unsigned overflow.  */
+      if(RANGE_CHECK && n!=0)
+      {	
+	 if((unsigned_p && (unsigned)prevn >= (unsigned)n))
+	    range_error("Overflow on numeric constant.");	 
+      }
+      prevn=n;
+    }
+ 
+     /* If the number is too big to be an int, or it's got an l suffix
+	then it's a long.  Work out if this has to be a long by
+	shifting right and and seeing if anything remains, and the
+	target int size is different to the target long size.
+
+	In the expression below, we could have tested
+        	(n >> TARGET_INT_BIT)
+	to see if it was zero,
+	but too many compilers warn about that, when ints and longs
+	are the same size.  So we shift it twice, with fewer bits
+	each time, for the same result.  */
+
+    if (   (TARGET_INT_BIT != TARGET_LONG_BIT 
+            && ((n >> 2) >> (TARGET_INT_BIT-2)))   /* Avoid shift warning */
+        || long_p)
+      {
+         high_bit = ((unsigned LONGEST)1) << (TARGET_LONG_BIT-1);
+	 unsigned_type = builtin_type_unsigned_long;
+	 signed_type = builtin_type_long;
+      }
+    else 
+      {
+	 high_bit = ((unsigned LONGEST)1) << (TARGET_INT_BIT-1);
+	 unsigned_type = builtin_type_unsigned_int;
+	 signed_type = builtin_type_int;
+      }    
+
+   putithere->typed_val.val = n;
+
+   /* If the high bit of the worked out type is set then this number
+      has to be unsigned. */
+
+   if (unsigned_p || (n & high_bit)) 
+     {
+        putithere->typed_val.type = unsigned_type;
+     }
+   else 
+     {
+        putithere->typed_val.type = signed_type;
+     }
+
+   return INT;
+}
+
+struct token
+{
+  char *operator;
+  int token;
+  enum exp_opcode opcode;
+};
+
+static const struct token tokentab3[] =
+  {
+    {">>=", ASSIGN_MODIFY, BINOP_RSH},
+    {"<<=", ASSIGN_MODIFY, BINOP_LSH}
+  };
+
+static const struct token tokentab2[] =
+  {
+    {"+=", ASSIGN_MODIFY, BINOP_ADD},
+    {"-=", ASSIGN_MODIFY, BINOP_SUB},
+    {"*=", ASSIGN_MODIFY, BINOP_MUL},
+    {"/=", ASSIGN_MODIFY, BINOP_DIV},
+    {"%=", ASSIGN_MODIFY, BINOP_REM},
+    {"|=", ASSIGN_MODIFY, BINOP_BITWISE_IOR},
+    {"&=", ASSIGN_MODIFY, BINOP_BITWISE_AND},
+    {"^=", ASSIGN_MODIFY, BINOP_BITWISE_XOR},
+    {"++", INCREMENT, BINOP_END},
+    {"--", DECREMENT, BINOP_END},
+    {"->", ARROW, BINOP_END},
+    {"&&", ANDAND, BINOP_END},
+    {"||", OROR, BINOP_END},
+    {"::", COLONCOLON, BINOP_END},
+    {"<<", LSH, BINOP_END},
+    {">>", RSH, BINOP_END},
+    {"==", EQUAL, BINOP_END},
+    {"!=", NOTEQUAL, BINOP_END},
+    {"<=", LEQ, BINOP_END},
+    {">=", GEQ, BINOP_END}
+  };
+
+/* Read one token, getting characters through lexptr.  */
+
+static int
+yylex ()
+{
+  int c;
+  int namelen;
+  unsigned int i;
+  char *tokstart;
+  char *tokptr;
+  int tempbufindex;
+  static char *tempbuf;
+  static int tempbufsize;
+  
+ retry:
+
+  tokstart = lexptr;
+  /* See if it is a special token of length 3.  */
+  for (i = 0; i < sizeof tokentab3 / sizeof tokentab3[0]; i++)
+    if (STREQN (tokstart, tokentab3[i].operator, 3))
+      {
+	lexptr += 3;
+	yylval.opcode = tokentab3[i].opcode;
+	return tokentab3[i].token;
+      }
+
+  /* See if it is a special token of length 2.  */
+  for (i = 0; i < sizeof tokentab2 / sizeof tokentab2[0]; i++)
+    if (STREQN (tokstart, tokentab2[i].operator, 2))
+      {
+	lexptr += 2;
+	yylval.opcode = tokentab2[i].opcode;
+	return tokentab2[i].token;
+      }
+
+  switch (c = *tokstart)
+    {
+    case 0:
+      return 0;
+
+    case ' ':
+    case '\t':
+    case '\n':
+      lexptr++;
+      goto retry;
+
+    case '\'':
+      /* We either have a character constant ('0' or '\177' for example)
+	 or we have a quoted symbol reference ('foo(int,int)' in C++
+	 for example). */
+      lexptr++;
+      c = *lexptr++;
+      if (c == '\\')
+	c = parse_escape (&lexptr);
+
+      yylval.typed_val.val = c;
+      yylval.typed_val.type = builtin_type_char;
+
+      c = *lexptr++;
+      if (c != '\'')
+	{
+	  namelen = skip_quoted (tokstart) - tokstart;
+	  if (namelen > 2)
+	    {
+	      lexptr = tokstart + namelen;
+	      if (lexptr[-1] != '\'')
+		error ("Unmatched single quote.");
+	      namelen -= 2;
+	      tokstart++;
+	      goto tryname;
+	    }
+	  error ("Invalid character constant.");
+	}
+      return INT;
+
+    case '(':
+      paren_depth++;
+      lexptr++;
+      return c;
+
+    case ')':
+      if (paren_depth == 0)
+	return 0;
+      paren_depth--;
+      lexptr++;
+      return c;
+
+    case ',':
+      if (comma_terminates && paren_depth == 0)
+	return 0;
+      lexptr++;
+      return c;
+
+    case '.':
+      /* Might be a floating point number.  */
+      if (lexptr[1] < '0' || lexptr[1] > '9')
+	goto symbol;		/* Nope, must be a symbol. */
+      /* FALL THRU into number case.  */
+
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      {
+	/* It's a number.  */
+	int got_dot = 0, got_e = 0, toktype;
+	register char *p = tokstart;
+	int hex = input_radix > 10;
+
+	if (c == '0' && (p[1] == 'x' || p[1] == 'X'))
+	  {
+	    p += 2;
+	    hex = 1;
+	  }
+	else if (c == '0' && (p[1]=='t' || p[1]=='T' || p[1]=='d' || p[1]=='D'))
+	  {
+	    p += 2;
+	    hex = 0;
+	  }
+
+	for (;; ++p)
+	  {
+	    /* This test includes !hex because 'e' is a valid hex digit
+	       and thus does not indicate a floating point number when
+	       the radix is hex.  */
+	    if (!hex && !got_e && (*p == 'e' || *p == 'E'))
+	      got_dot = got_e = 1;
+	    /* This test does not include !hex, because a '.' always indicates
+	       a decimal floating point number regardless of the radix.  */
+	    else if (!got_dot && *p == '.')
+	      got_dot = 1;
+	    else if (got_e && (p[-1] == 'e' || p[-1] == 'E')
+		     && (*p == '-' || *p == '+'))
+	      /* This is the sign of the exponent, not the end of the
+		 number.  */
+	      continue;
+	    /* We will take any letters or digits.  parse_number will
+	       complain if past the radix, or if L or U are not final.  */
+	    else if ((*p < '0' || *p > '9')
+		     && ((*p < 'a' || *p > 'z')
+				  && (*p < 'A' || *p > 'Z')))
+	      break;
+	  }
+	toktype = parse_number (tokstart, p - tokstart, got_dot|got_e, &yylval);
+        if (toktype == ERROR)
+	  {
+	    char *err_copy = (char *) alloca (p - tokstart + 1);
+
+	    memcpy (err_copy, tokstart, p - tokstart);
+	    err_copy[p - tokstart] = 0;
+	    error ("Invalid number \"%s\".", err_copy);
+	  }
+	lexptr = p;
+	return toktype;
+      }
+
+    case '+':
+    case '-':
+    case '*':
+    case '/':
+    case '%':
+    case '|':
+    case '&':
+    case '^':
+    case '~':
+    case '!':
+    case '@':
+    case '<':
+    case '>':
+    case '[':
+    case ']':
+    case '?':
+    case ':':
+    case '=':
+    case '{':
+    case '}':
+    symbol:
+      lexptr++;
+      return c;
+
+    case '"':
+
+      /* Build the gdb internal form of the input string in tempbuf,
+	 translating any standard C escape forms seen.  Note that the
+	 buffer is null byte terminated *only* for the convenience of
+	 debugging gdb itself and printing the buffer contents when
+	 the buffer contains no embedded nulls.  Gdb does not depend
+	 upon the buffer being null byte terminated, it uses the length
+	 string instead.  This allows gdb to handle C strings (as well
+	 as strings in other languages) with embedded null bytes */
+
+      tokptr = ++tokstart;
+      tempbufindex = 0;
+
+      do {
+	/* Grow the static temp buffer if necessary, including allocating
+	   the first one on demand. */
+	if (tempbufindex + 1 >= tempbufsize)
+	  {
+	    tempbuf = (char *) realloc (tempbuf, tempbufsize += 64);
+	  }
+	switch (*tokptr)
+	  {
+	  case '\0':
+	  case '"':
+	    /* Do nothing, loop will terminate. */
+	    break;
+	  case '\\':
+	    tokptr++;
+	    c = parse_escape (&tokptr);
+	    if (c == -1)
+	      {
+		continue;
+	      }
+	    tempbuf[tempbufindex++] = c;
+	    break;
+	  default:
+	    tempbuf[tempbufindex++] = *tokptr++;
+	    break;
+	  }
+      } while ((*tokptr != '"') && (*tokptr != '\0'));
+      if (*tokptr++ != '"')
+	{
+	  error ("Unterminated string in expression.");
+	}
+      tempbuf[tempbufindex] = '\0';	/* See note above */
+      yylval.sval.ptr = tempbuf;
+      yylval.sval.length = tempbufindex;
+      lexptr = tokptr;
+      return (STRING);
+    }
+
+  if (!(c == '_' || c == '$'
+	|| (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')))
+    /* We must have come across a bad character (e.g. ';').  */
+    error ("Invalid character '%c' in expression.", c);
+
+  /* It's a name.  See how long it is.  */
+  namelen = 0;
+  for (c = tokstart[namelen];
+       (c == '_' || c == '$' || (c >= '0' && c <= '9')
+	|| (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
+       c = tokstart[++namelen])
+    ;
+
+  /* The token "if" terminates the expression and is NOT 
+     removed from the input stream.  */
+  if (namelen == 2 && tokstart[0] == 'i' && tokstart[1] == 'f')
+    {
+      return 0;
+    }
+
+  lexptr += namelen;
+
+  /* Handle the tokens $digits; also $ (short for $0) and $$ (short for $$1)
+     and $$digits (equivalent to $<-digits> if you could type that).
+     Make token type LAST, and put the number (the digits) in yylval.  */
+
+  tryname:
+  if (*tokstart == '$')
+    {
+      register int negate = 0;
+      c = 1;
+      /* Double dollar means negate the number and add -1 as well.
+	 Thus $$ alone means -1.  */
+      if (namelen >= 2 && tokstart[1] == '$')
+	{
+	  negate = 1;
+	  c = 2;
+	}
+      if (c == namelen)
+	{
+	  /* Just dollars (one or two) */
+	  yylval.lval = - negate;
+	  return LAST;
+	}
+      /* Is the rest of the token digits?  */
+      for (; c < namelen; c++)
+	if (!(tokstart[c] >= '0' && tokstart[c] <= '9'))
+	  break;
+      if (c == namelen)
+	{
+	  yylval.lval = atoi (tokstart + 1 + negate);
+	  if (negate)
+	    yylval.lval = - yylval.lval;
+	  return LAST;
+	}
+    }
+
+  /* Handle tokens that refer to machine registers:
+     $ followed by a register name.  */
+
+  if (*tokstart == '$') {
+    for (c = 0; c < NUM_REGS; c++)
+      if (namelen - 1 == strlen (reg_names[c])
+	  && STREQN (tokstart + 1, reg_names[c], namelen - 1))
+	{
+	  yylval.lval = c;
+	  return REGNAME;
+	}
+    for (c = 0; c < num_std_regs; c++)
+     if (namelen - 1 == strlen (std_regs[c].name)
+	 && STREQN (tokstart + 1, std_regs[c].name, namelen - 1))
+       {
+	 yylval.lval = std_regs[c].regnum;
+	 return REGNAME;
+       }
+  }
+  /* Catch specific keywords.  Should be done with a data structure.  */
+  switch (namelen)
+    {
+    case 8:
+      if (STREQN (tokstart, "unsigned", 8))
+	return UNSIGNED;
+      if (current_language->la_language == language_cplus
+	  && STREQN (tokstart, "template", 8))
+	return TEMPLATE;
+      if (STREQN (tokstart, "volatile", 8))
+	return VOLATILE_KEYWORD;
+      break;
+    case 6:
+      if (STREQN (tokstart, "struct", 6))
+	return STRUCT;
+      if (STREQN (tokstart, "signed", 6))
+	return SIGNED_KEYWORD;
+      if (STREQN (tokstart, "sizeof", 6))      
+	return SIZEOF;
+      break;
+    case 5:
+      if (current_language->la_language == language_cplus
+	  && STREQN (tokstart, "class", 5))
+	return CLASS;
+      if (STREQN (tokstart, "union", 5))
+	return UNION;
+      if (STREQN (tokstart, "short", 5))
+	return SHORT;
+      if (STREQN (tokstart, "const", 5))
+	return CONST_KEYWORD;
+      break;
+    case 4:
+      if (STREQN (tokstart, "enum", 4))
+	return ENUM;
+      if (STREQN (tokstart, "long", 4))
+	return LONG;
+      if (current_language->la_language == language_cplus
+	  && STREQN (tokstart, "this", 4))
+	{
+	  static const char this_name[] =
+				 { CPLUS_MARKER, 't', 'h', 'i', 's', '\0' };
+
+	  if (lookup_symbol (this_name, expression_context_block,
+			     VAR_NAMESPACE, (int *) NULL,
+			     (struct symtab **) NULL))
+	    return THIS;
+	}
+      break;
+    case 3:
+      if (STREQN (tokstart, "int", 3))
+	return INT_KEYWORD;
+      break;
+    default:
+      break;
+    }
+
+  yylval.sval.ptr = tokstart;
+  yylval.sval.length = namelen;
+
+  /* Any other names starting in $ are debugger internal variables.  */
+
+  if (*tokstart == '$')
+    {
+      yylval.ivar =  lookup_internalvar (copy_name (yylval.sval) + 1);
+      return VARIABLE;
+    }
+
+  /* Use token-type BLOCKNAME for symbols that happen to be defined as
+     functions or symtabs.  If this is not so, then ...
+     Use token-type TYPENAME for symbols that happen to be defined
+     currently as names of types; NAME for other symbols.
+     The caller is not constrained to care about the distinction.  */
+  {
+    char *tmp = copy_name (yylval.sval);
+    struct symbol *sym;
+    int is_a_field_of_this = 0;
+    int hextype;
+
+    sym = lookup_symbol (tmp, expression_context_block,
+			 VAR_NAMESPACE,
+			 current_language->la_language == language_cplus
+			 ? &is_a_field_of_this : (int *) NULL,
+			 (struct symtab **) NULL);
+    if ((sym && SYMBOL_CLASS (sym) == LOC_BLOCK) ||
+        lookup_partial_symtab (tmp))
+      {
+	yylval.ssym.sym = sym;
+	yylval.ssym.is_a_field_of_this = is_a_field_of_this;
+	return BLOCKNAME;
+      }
+    if (sym && SYMBOL_CLASS (sym) == LOC_TYPEDEF)
+        {
+	  char *p;
+	  char *namestart;
+	  struct symbol *best_sym;
+
+	  /* Look ahead to detect nested types.  This probably should be
+	     done in the grammar, but trying seemed to introduce a lot
+	     of shift/reduce and reduce/reduce conflicts.  It's possible
+	     that it could be done, though.  Or perhaps a non-grammar, but
+	     less ad hoc, approach would work well.  */
+
+	  /* Since we do not currently have any way of distinguishing
+	     a nested type from a non-nested one (the stabs don't tell
+	     us whether a type is nested), we just ignore the
+	     containing type.  */
+
+	  p = lexptr;
+	  best_sym = sym;
+	  while (1)
+	    {
+	      /* Skip whitespace.  */
+	      while (*p == ' ' || *p == '\t' || *p == '\n')
+		++p;
+	      if (*p == ':' && p[1] == ':')
+		{
+		  /* Skip the `::'.  */
+		  p += 2;
+		  /* Skip whitespace.  */
+		  while (*p == ' ' || *p == '\t' || *p == '\n')
+		    ++p;
+		  namestart = p;
+		  while (*p == '_' || *p == '$' || (*p >= '0' && *p <= '9')
+			 || (*p >= 'a' && *p <= 'z')
+			 || (*p >= 'A' && *p <= 'Z'))
+		    ++p;
+		  if (p != namestart)
+		    {
+		      struct symbol *cur_sym;
+		      /* As big as the whole rest of the expression, which is
+			 at least big enough.  */
+		      char *tmp = alloca (strlen (namestart));
+
+		      memcpy (tmp, namestart, p - namestart);
+		      tmp[p - namestart] = '\0';
+		      cur_sym = lookup_symbol (tmp, expression_context_block,
+					       VAR_NAMESPACE, (int *) NULL,
+					       (struct symtab **) NULL);
+		      if (cur_sym)
+			{
+			  if (SYMBOL_CLASS (cur_sym) == LOC_TYPEDEF)
+			    {
+			      best_sym = cur_sym;
+			      lexptr = p;
+			    }
+			  else
+			    break;
+			}
+		      else
+			break;
+		    }
+		  else
+		    break;
+		}
+	      else
+		break;
+	    }
+
+	  yylval.tsym.type = SYMBOL_TYPE (best_sym);
+	  return TYPENAME;
+        }
+    if ((yylval.tsym.type = lookup_primitive_typename (tmp)) != 0)
+	return TYPENAME;
+
+    /* Input names that aren't symbols but ARE valid hex numbers,
+       when the input radix permits them, can be names or numbers
+       depending on the parse.  Note we support radixes > 16 here.  */
+    if (!sym && 
+        ((tokstart[0] >= 'a' && tokstart[0] < 'a' + input_radix - 10) ||
+         (tokstart[0] >= 'A' && tokstart[0] < 'A' + input_radix - 10)))
+      {
+ 	YYSTYPE newlval;	/* Its value is ignored.  */
+	hextype = parse_number (tokstart, namelen, 0, &newlval);
+	if (hextype == INT)
+	  {
+	    yylval.ssym.sym = sym;
+	    yylval.ssym.is_a_field_of_this = is_a_field_of_this;
+	    return NAME_OR_INT;
+	  }
+      }
+
+    /* Any other kind of symbol */
+    yylval.ssym.sym = sym;
+    yylval.ssym.is_a_field_of_this = is_a_field_of_this;
+    return NAME;
+  }
+}
+
+void
+yyerror (msg)
+     char *msg;
+{
+  error (msg ? msg : "Invalid syntax in expression.");
+}
