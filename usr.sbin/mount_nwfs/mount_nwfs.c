@@ -32,9 +32,7 @@
  * $FreeBSD$
  */
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/errno.h>
-#include <sys/time.h>
 #include <sys/mount.h>
 
 #include <stdio.h>
@@ -82,14 +80,11 @@ main(int argc, char *argv[]) {
 	struct vfsconf vfc;
 	struct nw_entry_info einfo;
 
-	if (argc < 2) {
+	if (argc < 2)
 		usage();
-		exit(1);
-	}
 	if (argc == 2) {
 		if (strcmp(argv[1], "-h") == 0) {
 			usage();
-			exit(0);
 		} else if (strcmp(argv[1], "-v") == 0) {
 			errx(EX_OK, "version %d.%d.%d", NWFS_VERSION / 100000,
 			    (NWFS_VERSION % 10000) / 1000,
@@ -139,7 +134,7 @@ main(int argc, char *argv[]) {
 			while (*p != '/' && *p != 0) *p1++ = *p++;
 			*p1 = 0;
 			if (strlen(tmp) > NCP_VOLNAME_LEN) {
-				fprintf(stderr, "Volume name too long: %s\n", tmp);
+				warnx("volume name too long: %s\n", tmp);
 				break;
 			}
 			ncp_str_upper(strcpy(mdata.mounted_vol,tmp));
@@ -165,7 +160,7 @@ main(int argc, char *argv[]) {
 		} while(0);
 		if (error)
 			errx(EX_DATAERR, 
-			    "An error occured while parsing '%s'",
+			    "an error occured while parsing '%s'",
 			    argv[argc - 2]);
 	}
 	if (ncp_li_readrc(&li)) return 1;
@@ -182,7 +177,7 @@ main(int argc, char *argv[]) {
 			break;
 		    case 'V':
 			if (strlen(optarg) > NCP_VOLNAME_LEN)
-				errx(EX_DATAERR, "Volume too long: %s\n", optarg);
+				errx(EX_DATAERR, "volume too long: %s\n", optarg);
 			ncp_str_upper(strcpy(mdata.mounted_vol,optarg));
 			break;
 		    case 'u': {
@@ -219,7 +214,7 @@ main(int argc, char *argv[]) {
 			break;
 		    case '?':
 			usage();
-			exit(1); /*NOTREACHED*/
+			/*NOTREACHED*/
 		    case 'n': {
 			char *inp, *nsp;
 
@@ -272,19 +267,16 @@ main(int argc, char *argv[]) {
 			break;
 		    default:
 			usage();
-			return 1;
 		}
 	}
 
 	if (optind == argc - 2) {
 		optind++;
 	} else if (mdata.mounted_vol[0] == 0)
-		errx(EX_USAGE, "Volume name should be specified");
+		errx(EX_USAGE, "volume name should be specified");
 	
-	if (optind != argc - 1) {
+	if (optind != argc - 1)
 		usage();
-		return 1;
-	}
 	realpath(argv[optind], mount_point);
 
 	if (stat(mount_point, &st) == -1)
@@ -327,22 +319,21 @@ main(int argc, char *argv[]) {
 	li.opt |= NCP_OPT_WDOG;
 	/* well, now we can try to login, or use already established connection */
 	error = ncp_li_login(&li,&connHandle);
-	if( error ){
-	    fprintf(stderr,"Cannot login to server %s,%s\n",li.server,strerror(errno));
-	    ncp_disconnect(connHandle);
-	    return(1);
+	if (error) {
+		ncp_error("cannot login to server %s", error, li.server);
+		exit(1);
 	}
 	error = ncp_conn2ref(connHandle, &mdata.connRef);
 	if (error) {
-	    fprintf(stderr,"Cannot convert handle to refernce. Consider this as a big bug.\n");
-	    ncp_disconnect(connHandle);
-	    return(1);
+		ncp_error("could not convert handle to refernce.", error);
+		ncp_disconnect(connHandle);
+		exit(1);
 	}
 	strcpy(mdata.mount_point,mount_point);
 	mdata.version = NWFS_VERSION;
 	error = mount(NWFS_VFSNAME, mdata.mount_point, mntflags, (void*)&mdata);
 	if (error) {
-		fprintf(stderr,"mount error: %s\n", strerror(errno));
+		ncp_error("mount error: %s", errno);
 		ncp_disconnect(connHandle);
 		exit(1);
 	}
@@ -357,7 +348,7 @@ main(int argc, char *argv[]) {
 static void
 usage(void) {
 	printf("usage: %s [connection options] [options] \n"
-	       "       server:user/volume[/path] mount-point\n\n", __progname);
+	       "       /server:user/volume[/path] mount-point\n\n", __progname);
 	printf(
 	    "see ncplogin(1) for details on connection options\n"
 	    "    -A host        Netware/IP host address\n"
@@ -369,4 +360,5 @@ usage(void) {
 	    "    -v             print nwfs version number\n"
 	    "\n"
 	);
+	exit(1);
 }
