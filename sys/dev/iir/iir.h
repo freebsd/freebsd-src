@@ -737,12 +737,6 @@ gdt_dec32(addr)
 }
 #endif
 
-#if defined(__alpha__)
-/* XXX XXX NEED REAL DMA MAPPING SUPPORT XXX XXX */
-#undef vtophys
-#define vtophys(va)     alpha_XXX_dmamap((vm_offset_t)(va))
-#endif
-
 extern TAILQ_HEAD(gdt_softc_list, gdt_softc) gdt_softcs;
 extern u_int8_t gdt_polling;
 
