@@ -27,7 +27,7 @@ SRCS+=		nfs_prot_x.c
 CLEANFILES+=	nfs_prot_x.c
 
 nfs_prot_x.c: ${NFS_PROT_X}
-	${RPCCOM} -c ${NFS_PROT_X} -o ${.TARGET}
+	${RPCCOM} -c -DWANT_NFS3 ${NFS_PROT_X} -o ${.TARGET}
 
 install:
 
