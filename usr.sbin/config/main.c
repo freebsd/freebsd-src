@@ -32,23 +32,28 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/mman.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <err.h>
+#include <stdio.h>
 #include <sysexits.h>
+#include <unistd.h>
 #include "y.tab.h"
 #include "config.h"
 
@@ -64,17 +69,19 @@ static char *PREFIX;
 static int no_config_clobber = FALSE;
 int old_config_present;
 
+static void usage __P((void));
+void configfile __P((void));
+
 /*
  * Config builds a set of files for building a UNIX
  * system given a description of the desired system.
  */
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
 
-	extern char *optarg;
-	extern int optind;
 	struct stat buf;
 	int ch;
 	char *p;
@@ -92,33 +99,26 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			goto usage;
+			usage();
 		}
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 1) {
-usage:		fputs("usage: config [-gpn] sysname\n", stderr);
-		exit(1);
-	}
+	if (argc != 1)
+		usage();
 
-	if (freopen(PREFIX = *argv, "r", stdin) == NULL) {
-		perror(PREFIX);
-		exit(2);
-	}
+	if (freopen(PREFIX = *argv, "r", stdin) == NULL)
+		err(2, "%s", PREFIX);
 	if (getenv("NO_CONFIG_CLOBBER"))
 		no_config_clobber = TRUE;
 
 	p = path((char *)NULL);
 	if (stat(p, &buf)) {
-		if (mkdir(p, 0777)) {
-			perror(p);
-			exit(2);
-		}
+		if (mkdir(p, 0777))
+			err(2, "%s", p);
 	}
 	else if ((buf.st_mode & S_IFMT) != S_IFDIR) {
-		fprintf(stderr, "config: %s isn't a directory.\n", p);
-		exit(2);
+		errx(2, "%s isn't a directory", p);
 	}
 #ifndef NO_CLOBBER_EVER
 	else if (!no_config_clobber) {
@@ -129,14 +129,11 @@ usage:		fputs("usage: config [-gpn] sysname\n", stderr);
 		sprintf(tmp, "rm -rf %s", p);
 		if (system(tmp)) {
 			fprintf(stderr, "Failed!\n");
-			perror(tmp);
-			exit(2);
+			err(2, "%s", tmp);
 		}
 		fprintf(stderr, "Done.\n");
-		if (mkdir(p, 0777)) {
-			perror(p);
-			exit(2);
-		}
+		if (mkdir(p, 0777))
+			err(2, "%s", p);
 	}
 #endif
 	else
@@ -202,6 +199,13 @@ usage:		fputs("usage: config [-gpn] sysname\n", stderr);
 	configfile();			/* put config file into kernel*/
 	printf("Kernel build directory is %s\n", p);
 	exit(0);
+}
+
+static void
+usage()
+{
+		fprintf(stderr, "usage: config [-gpn] sysname\n");
+		exit(1);
 }
 
 /*
@@ -333,6 +337,7 @@ path(file)
 	return (cp);
 }
 
+void
 configfile()
 {
 	FILE *fi, *fo;
@@ -340,15 +345,11 @@ configfile()
 	int i;
 	
 	fi = fopen(PREFIX,"r");
-	if(!fi) {
-		perror(PREFIX);
-		exit(2);
-	}
+	if(!fi)
+		err(2, "%s", PREFIX);
 	fo = fopen(p=path("config.c.new"),"w");
-	if(!fo) {
-		perror(p);
-		exit(2);
-	}
+	if(!fo)
+		err(2, "%s", p);
 	fprintf(fo,"#include \"opt_config.h\"\n");
 	fprintf(fo,"#ifdef INCLUDE_CONFIG_FILE \n");
 	fprintf(fo,"static char *config = \"\n");
