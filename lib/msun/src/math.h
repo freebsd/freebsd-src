@@ -17,6 +17,7 @@
 #ifndef _MATH_H_
 #define	_MATH_H_
 
+#include <sys/cdefs.h>
 #include <sys/_types.h>
 
 /*
@@ -149,8 +150,6 @@ struct exception {
 #define	PLOSS		6
 
 #endif /* __BSD_VISIBLE */
-
-#include <sys/cdefs.h>
 
 /*
  * Most of these functions have the side effect of setting errno, so they
