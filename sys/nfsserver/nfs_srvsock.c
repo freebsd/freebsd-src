@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.14 1996/01/13 23:27:52 phk Exp $
+ * $Id: nfs_socket.c,v 1.15 1996/02/13 18:16:28 wollman Exp $
  */
 
 /*
@@ -141,9 +141,9 @@ static void	nfs_realign __P((struct mbuf *m, int hsiz));
 static int	nfs_receive __P((struct nfsreq *rep, struct mbuf **aname,
 				 struct mbuf **mp));
 static int	nfs_reconnect __P((struct nfsreq *rep));
+#ifndef NFS_NOSERVER 
 static int	nfsrv_getstream __P((struct nfssvc_sock *,int));
 
-#ifndef NFS_NOSERVER 
 int (*nfsrv3_procs[NFS_NPROCS]) __P((struct nfsrv_descript *nd,
 				    struct nfssvc_sock *slp,
 				    struct proc *procp,
@@ -1267,6 +1267,7 @@ nfs_rephead(siz, nd, slp, err, cache, frev, mrq, mbp, bposp)
 }
 
 
+#endif /* NFS_NOSERVER */
 /*
  * Nfs timer routine
  * Scan the nfsreq list and retranmit any requests that have timed out
@@ -1282,10 +1283,12 @@ nfs_timer(arg)
 	register struct socket *so;
 	register struct nfsmount *nmp;
 	register int timeo;
-	register struct nfssvc_sock *slp;
-	static long lasttime = 0;
 	int s, error;
+#ifndef NFS_NOSERVER
+	static long lasttime = 0;
+	register struct nfssvc_sock *slp;
 	u_quad_t cur_usec;
+#endif /* NFS_NOSERVER */
 
 	s = splnet();
 	for (rep = nfs_reqq.tqh_first; rep != 0; rep = rep->r_chain.tqe_next) {
@@ -1374,7 +1377,7 @@ nfs_timer(arg)
 			}
 		}
 	}
-
+#ifndef NFS_NOSERVER
 	/*
 	 * Call the nqnfs server timer once a second to handle leases.
 	 */
@@ -1393,11 +1396,11 @@ nfs_timer(arg)
 	    if (slp->ns_tq.lh_first && slp->ns_tq.lh_first->nd_time<=cur_usec)
 		nfsrv_wakenfsd(slp);
 	}
+#endif /* NFS_NOSERVER */
 	splx(s);
 	timeout(nfs_timer, (void *)0, nfs_ticks);
 }
 
-#endif /* NFS_NOSERVER */
 
 /*
  * Test for a termination condition pending on the process.
