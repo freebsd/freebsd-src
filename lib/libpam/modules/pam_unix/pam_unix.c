@@ -578,7 +578,7 @@ local_passwd(const char *user, const char *pass)
 
 	pfd = pw_lock();
 	tfd = pw_tmp();
-	pw_copy(pfd, tfd, pwd);
+	pw_copy(pfd, tfd, pwd, NULL);
 
 	if (!pw_mkdb(user))
 		pw_error((char *)NULL, 0, 1);

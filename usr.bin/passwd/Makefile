@@ -20,6 +20,7 @@ LDADD=	-lcrypt -lutil
 CFLAGS+= -DLOGIN_CAP -DCRYPT -I. -I${.CURDIR} \
 	-I${.CURDIR}/../../usr.sbin/vipw \
 	-I${.CURDIR}/../../usr.bin/chpass \
+	-I${.CURDIR}/../../lib/libc/gen \
 	-Dyp_error=warnx -DLOGGING
 
 .else
@@ -42,6 +43,7 @@ CFLAGS+= -DLOGIN_CAP -DCRYPT -DYP -I. -I${.CURDIR} \
 	-I${.CURDIR}/../../usr.bin/chpass \
 	-I${.CURDIR}/../../libexec/ypxfr \
 	-I${.CURDIR}/../../usr.sbin/rpc.yppasswdd \
+	-I${.CURDIR}/../../lib/libc/gen \
 	-Dyp_error=warnx -DLOGGING
 
 .endif
