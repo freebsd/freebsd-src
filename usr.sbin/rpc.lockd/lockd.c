@@ -49,6 +49,7 @@ static const char rcsid[] =
 
 void nlm_prog_1 __P((struct svc_req *, SVCXPRT *));
 void nlm_prog_3 __P((struct svc_req *, SVCXPRT *));
+void nlm_prog_4 __P((struct svc_req *, SVCXPRT *));
 static void usage __P((void));
 
 int debug_level = 0;	/* Zero means no debugging syslog() calls	*/
@@ -70,6 +71,7 @@ main(int argc, char **argv)
 
   (void)pmap_unset(NLM_PROG, NLM_VERS);
   (void)pmap_unset(NLM_PROG, NLM_VERSX);
+  (void)pmap_unset(NLM_PROG, NLM4_VERS);
 
   transp = svcudp_create(RPC_ANYSOCK);
   if (transp == NULL)
@@ -78,6 +80,8 @@ main(int argc, char **argv)
     errx(1, "unable to register (NLM_PROG, NLM_VERS, udp)");
   if (!svc_register(transp, NLM_PROG, NLM_VERSX, nlm_prog_3, IPPROTO_UDP))
     errx(1, "unable to register (NLM_PROG, NLM_VERSX, udp)");
+  if (!svc_register(transp, NLM_PROG, NLM4_VERS, nlm_prog_4, IPPROTO_UDP))
+    errx(1, "unable to register (NLM_PROG, NLM4_VERS, udp)");
 
   transp = svctcp_create(RPC_ANYSOCK, 0, 0);
   if (transp == NULL)
@@ -86,6 +90,8 @@ main(int argc, char **argv)
     errx(1, "unable to register (NLM_PROG, NLM_VERS, tcp)");
   if (!svc_register(transp, NLM_PROG, NLM_VERSX, nlm_prog_3, IPPROTO_TCP))
     errx(1, "unable to register (NLM_PROG, NLM_VERSX, tcp)");
+  if (!svc_register(transp, NLM_PROG, NLM4_VERS, nlm_prog_4, IPPROTO_TCP))
+    errx(1, "unable to register (NLM_PROG, NLM4_VERS, tcp)");
 
   /* Note that it is NOT sensible to run this program from inetd - the 	*/
   /* protocol assumes that it will run immediately at boot time.	*/

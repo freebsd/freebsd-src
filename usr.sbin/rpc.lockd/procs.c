@@ -49,6 +49,13 @@ static const char rcsid[] =
 #define	CLIENT_CACHE_SIZE	64	/* No. of client sockets cached	*/
 #define	CLIENT_CACHE_LIFETIME	120	/* In seconds			*/
 
+#if 0
+#undef LOG_DEBUG
+#undef LOG_ERR
+#define LOG_DEBUG stderr
+#define LOG_ERR stderr
+#define syslog fprintf
+#endif
 
 /* log_from_addr ----------------------------------------------------------- */
 /*
@@ -200,7 +207,7 @@ static CLIENT *get_client(struct sockaddr_in *host_addr)
 		without expecting a result
 */
 
-static void transmit_result(int opcode, nlm_res *result, struct svc_req *req)
+static void transmit_result(int opcode, void *result, struct svc_req *req)
 {
   static char dummy;
   struct sockaddr_in *addr;
@@ -217,7 +224,7 @@ static void transmit_result(int opcode, nlm_res *result, struct svc_req *req)
     success = clnt_call(cli, opcode, xdr_nlm_res, result, xdr_void,
       &dummy, timeo);
 
-    if (debug_level > 2) syslog(LOG_DEBUG, "clnt_call returns %d\n", success);
+    if (debug_level > 2) syslog(LOG_DEBUG, "clnt_call returns %d", success);
   }
 }
 
@@ -271,6 +278,21 @@ nlm_testres *nlm_test_1_svc(nlm_testargs *arg, struct svc_req *rqstp)
   return (&res);
 }
 
+nlm4_testres *nlmproc4_test_4_svc(nlm4_testargs *arg, struct svc_req *rqstp)
+{
+  static nlm4_testres res;
+  if (debug_level) log_from_addr("nlm_test", rqstp);
+
+  /* Copy the cookie from the argument into the result.  Note that this	*/
+  /* is slightly hazardous, as the structure contains a pointer to a	*/
+  /* malloc()ed buffer that will get freed by the caller.  However, the	*/
+  /* main function transmits the result before freeing the argument	*/
+  /* so it is in fact safe.						*/
+  res.cookie = arg->cookie;
+  res.stat.stat = nlm4_granted;
+  return (&res);
+}
+
 void *nlm_test_msg_1_svc(nlm_testargs *arg, struct svc_req *rqstp)
 {
   nlm_testres res;
@@ -296,10 +318,42 @@ void *nlm_test_msg_1_svc(nlm_testargs *arg, struct svc_req *rqstp)
     success = clnt_call(cli, NLM_TEST_RES, xdr_nlm_testres, &res, xdr_void,
       &dummy, timeo);
 
-    if (debug_level > 2) syslog(LOG_DEBUG, "clnt_call returns %d\n", success);
+    if (debug_level > 2) syslog(LOG_DEBUG, "clnt_call returns %d", success);
   }
   return (NULL);
 }
+
+void *nlmproc4_test_msg_4_svc(nlm4_testargs *arg, struct svc_req *rqstp)
+{
+  nlm4_testres res;
+  static char dummy;
+  struct sockaddr_in *addr;
+  CLIENT *cli;
+  int success;
+  struct timeval timeo;
+
+  if (debug_level) log_from_addr("nlm_test_msg", rqstp);
+
+  res.cookie = arg->cookie;
+  res.stat.stat = nlm4_granted;
+
+  /* nlm_test has different result type to the other operations, so	*/
+  /* can't use transmit_result() in this case				*/
+  addr = svc_getcaller(rqstp->rq_xprt);
+  if ((cli = get_client(addr)))
+  {
+    timeo.tv_sec = 0;		/* No timeout - not expecting response	*/
+    timeo.tv_usec = 0;
+
+    success = clnt_call(cli, NLMPROC4_TEST_RES, xdr_nlm_testres, &res, xdr_void,
+      &dummy, timeo);
+
+    if (debug_level > 2) syslog(LOG_DEBUG, "clnt_call returns %d", success);
+  }
+  return (NULL);
+}
+
+
 
 /* nlm_lock ---------------------------------------------------------------- */
 /*
@@ -320,6 +374,19 @@ nlm_res *nlm_lock_1_svc(nlm_lockargs *arg, struct svc_req *rqstp)
   return (&res);
 }
 
+nlm4_res *nlmproc4_lock_4_svc(nlm4_lockargs *arg, struct svc_req *rqstp)
+{
+  static nlm4_res res;
+
+  if (debug_level) log_from_addr("nlm_lock", rqstp);
+
+  /* copy cookie from arg to result.  See comment in nlm_test_1()	*/
+  res.cookie = arg->cookie;
+
+  res.stat.stat = nlm4_granted;
+  return (&res);
+}
+
 void *nlm_lock_msg_1_svc(nlm_lockargs *arg, struct svc_req *rqstp)
 {
   static nlm_res res;
@@ -332,6 +399,20 @@ void *nlm_lock_msg_1_svc(nlm_lockargs *arg, struct svc_req *rqstp)
 
   return (NULL);
 }
+
+void *nlmproc4_lock_msg_4_svc(nlm4_lockargs *arg, struct svc_req *rqstp)
+{
+  static nlm4_res res;
+
+  if (debug_level) log_from_addr("nlm_lock_msg", rqstp);
+
+  res.cookie = arg->cookie;
+  res.stat.stat = nlm4_granted;
+  transmit_result(NLMPROC4_LOCK_RES, &res, rqstp);
+
+  return (NULL);
+}
+
 
 /* nlm_cancel -------------------------------------------------------------- */
 /*
@@ -354,6 +435,20 @@ nlm_res *nlm_cancel_1_svc(nlm_cancargs *arg, struct svc_req *rqstp)
   return (&res);
 }
 
+nlm4_res *nlmproc4_cancel_4_svc(nlm4_cancargs *arg, struct svc_req *rqstp)
+{
+  static nlm4_res res;
+  if (debug_level) log_from_addr("nlm_cancel", rqstp);
+
+  /* copy cookie from arg to result.  See comment in nlm_test_1()	*/
+  res.cookie = arg->cookie;
+
+  /* Since at present we never return 'nlm_blocked', there can never be	*/
+  /* a lock to cancel, so this call always fails.			*/
+  res.stat.stat = nlm4_denied;
+  return (&res);
+}
+
 void *nlm_cancel_msg_1_svc(nlm_cancargs *arg, struct svc_req *rqstp)
 {
   static nlm_res res;
@@ -364,6 +459,19 @@ void *nlm_cancel_msg_1_svc(nlm_cancargs *arg, struct svc_req *rqstp)
   /* a lock to cancel, so this call always fails.			*/
   res.stat.stat = nlm_denied;
   transmit_result(NLM_CANCEL_RES, &res, rqstp);
+  return (NULL);
+}
+
+void *nlmproc4_cancel_msg_4_svc(nlm4_cancargs *arg, struct svc_req *rqstp)
+{
+  static nlm4_res res;
+  if (debug_level) log_from_addr("nlm_cancel_msg", rqstp);
+
+  res.cookie = arg->cookie;
+  /* Since at present we never return 'nlm_blocked', there can never be	*/
+  /* a lock to cancel, so this call always fails.			*/
+  res.stat.stat = nlm4_denied;
+  transmit_result(NLMPROC4_CANCEL_RES, &res, rqstp);
   return (NULL);
 }
 
@@ -387,6 +495,17 @@ nlm_res *nlm_unlock_1_svc(nlm_unlockargs *arg, struct svc_req *rqstp)
   return (&res);
 }
 
+nlm4_res *nlmproc4_unlock_4_svc(nlm4_unlockargs *arg, struct svc_req *rqstp)
+{
+  static nlm4_res res;
+  if (debug_level) log_from_addr("nlm_unlock", rqstp);
+
+  res.stat.stat= nlm4_granted;
+  res.cookie = arg->cookie;
+
+  return (&res);
+}
+
 void *nlm_unlock_msg_1_svc(nlm_unlockargs *arg, struct svc_req *rqstp)
 {
   static nlm_res res;
@@ -396,6 +515,18 @@ void *nlm_unlock_msg_1_svc(nlm_unlockargs *arg, struct svc_req *rqstp)
   res.cookie = arg->cookie;
 
   transmit_result(NLM_UNLOCK_RES, &res, rqstp);
+  return (NULL);
+}
+
+void *nlmproc4_unlock_msg_4_svc(nlm4_unlockargs *arg, struct svc_req *rqstp)
+{
+  static nlm4_res res;
+  if (debug_level) log_from_addr("nlm_unlock_msg", rqstp);
+
+  res.stat.stat = nlm4_granted;
+  res.cookie = arg->cookie;
+
+  transmit_result(NLMPROC4_UNLOCK_RES, &res, rqstp);
   return (NULL);
 }
 
@@ -430,6 +561,18 @@ nlm_res *nlm_granted_1_svc(nlm_testargs *arg, struct svc_req *rqstp)
   return (&res);
 }
 
+nlm4_res *nlmproc4_granted_4_svc(nlm4_testargs *arg, struct svc_req *rqstp)
+{
+  static nlm4_res res;
+  if (debug_level) log_from_addr("nlm_granted", rqstp);
+
+  /* copy cookie from arg to result.  See comment in nlm_test_1()	*/
+  res.cookie = arg->cookie;
+
+  res.stat.stat = nlm4_granted;
+  return (&res);
+}
+
 void *nlm_granted_msg_1_svc(nlm_testargs *arg, struct svc_req *rqstp)
 {
   nlm_res res;
@@ -441,6 +584,17 @@ void *nlm_granted_msg_1_svc(nlm_testargs *arg, struct svc_req *rqstp)
   return (NULL);
 }
 
+void *nlmproc4_granted_msg_4_svc(nlm4_testargs *arg, struct svc_req *rqstp)
+{
+  nlm4_res res;
+  if (debug_level) log_from_addr("nlm_granted_msg", rqstp);
+
+  res.cookie = arg->cookie;
+  res.stat.stat = nlm4_granted;
+  transmit_result(NLMPROC4_GRANTED_RES, &res, rqstp);
+  return (NULL);
+}
+
 /* nlm_test_res ------------------------------------------------------------ */
 /*
    Purpose:	Accept result from earlier nlm_test_msg() call
@@ -448,6 +602,12 @@ void *nlm_granted_msg_1_svc(nlm_testargs *arg, struct svc_req *rqstp)
 */
 
 void *nlm_test_res_1_svc(nlm_testres *arg, struct svc_req *rqstp)
+{
+  if (debug_level) log_from_addr("nlm_test_res", rqstp);
+  return (NULL);
+}
+
+void *nlmproc4_test_res_4_svc(nlm4_testres *arg, struct svc_req *rqstp)
 {
   if (debug_level) log_from_addr("nlm_test_res", rqstp);
   return (NULL);
@@ -466,6 +626,13 @@ void *nlm_lock_res_1_svc(nlm_res *arg, struct svc_req *rqstp)
   return (NULL);
 }
 
+void *nlmproc4_lock_res_4_svc(nlm4_res *arg, struct svc_req *rqstp)
+{
+  if (debug_level) log_from_addr("nlm_lock_res", rqstp);
+
+  return (NULL);
+}
+
 /* nlm_cancel_res ---------------------------------------------------------- */
 /*
    Purpose:	Accept result from earlier nlm_cancel_msg() call
@@ -473,6 +640,12 @@ void *nlm_lock_res_1_svc(nlm_res *arg, struct svc_req *rqstp)
 */
 
 void *nlm_cancel_res_1_svc(nlm_res *arg, struct svc_req *rqstp)
+{
+  if (debug_level) log_from_addr("nlm_cancel_res", rqstp);
+  return (NULL);
+}
+
+void *nlmproc4_cancel_res_4_svc(nlm4_res *arg, struct svc_req *rqstp)
 {
   if (debug_level) log_from_addr("nlm_cancel_res", rqstp);
   return (NULL);
@@ -490,6 +663,12 @@ void *nlm_unlock_res_1_svc(nlm_res *arg, struct svc_req *rqstp)
   return (NULL);
 }
 
+void *nlmproc4_unlock_res_4_svc(nlm4_res *arg, struct svc_req *rqstp)
+{
+  if (debug_level) log_from_addr("nlm_unlock_res", rqstp);
+  return (NULL);
+}
+
 /* nlm_granted_res --------------------------------------------------------- */
 /*
    Purpose:	Accept result from earlier nlm_granted_msg() call
@@ -497,6 +676,12 @@ void *nlm_unlock_res_1_svc(nlm_res *arg, struct svc_req *rqstp)
 */
 
 void *nlm_granted_res_1_svc(nlm_res *arg, struct svc_req *rqstp)
+{
+  if (debug_level) log_from_addr("nlm_granted_res", rqstp);
+  return (NULL);
+}
+
+void *nlmproc4_granted_res_4_svc(nlm4_res *arg, struct svc_req *rqstp)
 {
   if (debug_level) log_from_addr("nlm_granted_res", rqstp);
   return (NULL);
@@ -530,6 +715,17 @@ nlm_shareres *nlm_share_3_svc(nlm_shareargs *arg, struct svc_req *rqstp)
   return (&res);
 }
 
+nlm4_shareres *nlmproc4_share_4_svc(nlm4_shareargs *arg, struct svc_req *rqstp)
+{
+  static nlm4_shareres res;
+  if (debug_level) log_from_addr("nlm_share", rqstp);
+
+  res.cookie = arg->cookie;
+  res.stat = nlm4_granted;
+  res.sequence = 1234356;	/* X/Open says this field is ignored?	*/
+  return (&res);
+}
+
 /* nlm_unshare ------------------------------------------------------------ */
 /*
    Purpose:	Release a DOS-style lock
@@ -544,6 +740,17 @@ nlm_shareres *nlm_unshare_3_svc(nlm_shareargs *arg, struct svc_req *rqstp)
 
   res.cookie = arg->cookie;
   res.stat = nlm_granted;
+  res.sequence = 1234356;	/* X/Open says this field is ignored?	*/
+  return (&res);
+}
+
+nlm4_shareres *nlmproc4_unshare_4_svc(nlm4_shareargs *arg, struct svc_req *rqstp)
+{
+  static nlm4_shareres res;
+  if (debug_level) log_from_addr("nlm_unshare", rqstp);
+
+  res.cookie = arg->cookie;
+  res.stat = nlm4_granted;
   res.sequence = 1234356;	/* X/Open says this field is ignored?	*/
   return (&res);
 }
@@ -570,6 +777,17 @@ nlm_res *nlm_nm_lock_3_svc(nlm_lockargs *arg, struct svc_req *rqstp)
   return (&res);
 }
 
+nlm4_res *nlmproc4_nm_lock_4_svc(nlm4_lockargs *arg, struct svc_req *rqstp)
+{
+  static nlm4_res res;
+  if (debug_level) log_from_addr("nlm_nm_lock", rqstp);
+
+  /* copy cookie from arg to result.  See comment in nlm_test_1()	*/
+  res.cookie = arg->cookie;
+  res.stat.stat = nlm4_granted;
+  return (&res);
+}
+
 /* nlm_free_all ------------------------------------------------------------ */
 /*
    Purpose:	Release all locks held by a named client
@@ -582,6 +800,22 @@ nlm_res *nlm_nm_lock_3_svc(nlm_lockargs *arg, struct svc_req *rqstp)
 */
 
 void *nlm_free_all_3_svc(nlm_notify *arg, struct svc_req *rqstp)
+{
+  static char dummy;
+
+  if (debug_level) log_from_addr("nlm_free_all", rqstp);
+  return (&dummy);
+}
+
+void *nlmproc4_free_all_4_svc(nlm4_notify *arg, struct svc_req *rqstp)
+{
+  static char dummy;
+
+  if (debug_level) log_from_addr("nlm_free_all", rqstp);
+  return (&dummy);
+}
+
+void *nlmproc4_null_4_svc(void *arg, struct svc_req *rqstp)
 {
   static char dummy;
 
