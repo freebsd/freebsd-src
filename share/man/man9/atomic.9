@@ -39,11 +39,11 @@
 .Sh SYNOPSIS
 .Fd #include <machine/atomic.h>
 .Ft void
-.Fn atomic_add{acq_,rel_,}_<type> "volatile <type> *p" "<type> v"
+.Fn atomic_add_{acq_,rel_,}<type> "volatile <type> *p" "<type> v"
 .Ft void
-.Fn atomic_clear{acq_,rel_,}_<type> "volatile <type> *p" "<type> v"
+.Fn atomic_clear_{acq_,rel_,}<type> "volatile <type> *p" "<type> v"
 .Ft int
-.Fo atomic_cmpset{acq_,rel_,}_<type>
+.Fo atomic_cmpset_{acq_,rel_,}<type>
 .Fa "volatile <type> *dst"
 .Fa "<type> old"
 .Fa "<type> new"
@@ -53,9 +53,9 @@
 .Ft <type>
 .Fn atomic_readandclear_<type> "volatile <type> *p"
 .Ft void
-.Fn atomic_set{acq_,rel_,}_<type> "volatile <type> *p" "<type> v"
+.Fn atomic_set_{acq_,rel_,}<type> "volatile <type> *p" "<type> v"
 .Ft void
-.Fn atomic_subtract{acq_,rel_},_<type> "volatile <type> *p" "<type> v"
+.Fn atomic_subtract_{acq_,rel_,}<type> "volatile <type> *p" "<type> v"
 .Ft void
 .Fn atomic_store_rel_<type> "volatile <type> *p" "<type> v"
 .Sh DESCRIPTION
