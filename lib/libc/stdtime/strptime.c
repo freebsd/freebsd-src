@@ -53,7 +53,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: strptime.c,v 1.4 1998/09/12 21:13:29 dt Exp $";
+	"$Id: strptime.c,v 1.8 1999/07/06 05:05:39 obrien Exp $";
 #endif
 
 #ifndef lint
@@ -67,12 +67,24 @@ static char sccsid[] = "@(#)strptime.c	0.1 (Powerdog) 94/03/27";
 #include <time.h>
 #include <ctype.h>
 #include <string.h>
+#ifdef	_THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif
 #include "timelocal.h"
+
+static char * _strptime(const char *, const char *, struct tm *);
+
+#ifdef	_THREAD_SAFE
+static struct pthread_mutex	_gotgmt_mutexd = PTHREAD_MUTEX_STATIC_INITIALIZER;
+static pthread_mutex_t		gotgmt_mutex   = &_gotgmt_mutexd;
+#endif
+static int got_GMT;
 
 #define asizeof(a)	(sizeof (a) / sizeof ((a)[0]))
 
-char *
-strptime(const char *buf, const char *fmt, struct tm *tm)
+static char *
+_strptime(const char *buf, const char *fmt, struct tm *tm)
 {
 	char	c;
 	const char *ptr;
@@ -104,49 +116,49 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 			break;
 
 		case 'C':
-			buf = strptime(buf, Locale->date_fmt, tm);
+			buf = _strptime(buf, Locale->date_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'c':
-			buf = strptime(buf, "%x %X", tm);
+			buf = _strptime(buf, "%x %X", tm);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'D':
-			buf = strptime(buf, "%m/%d/%y", tm);
+			buf = _strptime(buf, "%m/%d/%y", tm);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'R':
-			buf = strptime(buf, "%H:%M", tm);
+			buf = _strptime(buf, "%H:%M", tm);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'r':
-			buf = strptime(buf, "%I:%M:%S %p", tm);
+			buf = _strptime(buf, "%I:%M:%S %p", tm);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'T':
-			buf = strptime(buf, "%H:%M:%S", tm);
+			buf = _strptime(buf, "%H:%M:%S", tm);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'X':
-			buf = strptime(buf, Locale->X_fmt, tm);
+			buf = _strptime(buf, Locale->X_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'x':
-			buf = strptime(buf, Locale->x_fmt, tm);
+			buf = _strptime(buf, Locale->x_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
@@ -344,8 +356,58 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 				while (*ptr != 0 && !isspace((unsigned char)*ptr))
 					ptr++;
 			break;
+
+		case 'Z':
+			{
+			const char *cp;
+			char *zonestr;
+
+			for (cp = buf; *cp && isupper(*cp); ++cp) {/*empty*/}
+			if (cp - buf) {
+				zonestr = alloca(cp - buf + 1);
+				strncpy(zonestr, buf, cp - buf);
+				zonestr[cp - buf] = '\0';
+				tzset();
+				if (0 == strcmp(zonestr, "GMT")) {
+				    got_GMT = 1;
+				} else if (0 == strcmp(zonestr, tzname[0])) {
+				    tm->tm_isdst = 0;
+				} else if (0 == strcmp(zonestr, tzname[1])) {
+				    tm->tm_isdst = 1;
+				} else {
+				    return 0;
+				}
+				buf += cp - buf;
+			}
+			}
+			break;
 		}
 	}
 
 	return (char *)buf;
+}
+
+
+char *
+strptime(const char *buf, const char *fmt, struct tm *tm)
+{
+	char *ret;
+
+#ifdef	_THREAD_SAFE
+	pthread_mutex_lock(&gotgmt_mutex);
+#endif
+
+	got_GMT = 0;
+	ret = _strptime(buf, fmt, tm);
+	if (ret && got_GMT) {
+		time_t t = timegm(tm);
+	    localtime_r(&t, tm);
+		got_GMT = 0;
+	}
+
+#ifdef	_THREAD_SAFE
+	pthread_mutex_unlock(&gotgmt_mutex);
+#endif
+
+	return ret;
 }
