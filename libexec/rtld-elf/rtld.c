@@ -57,7 +57,7 @@
 #endif
 
 #define END_SYM		"_end"
-#define PATH_RTLD	"/usr/libexec/ld-elf.so.1"
+#define PATH_RTLD	"/libexec/ld-elf.so.1"
 
 /* Types. */
 typedef void (*func_ptr_type)();
