@@ -72,23 +72,22 @@ NAMEBLOCKMAGIC=	0xfadefeed /* value of magicnumebr for block2 	*/
 	data32			; \
 	call	message
 
+	.code16
 	.text	
 	.globl	start
 
-ENTRY(boot1)
-	jmp	start
-
+start:
+	jmp	main
 boot_cyl:
 	.word	0
 	String	"IPL1   "
 
-start:
+main:
 	/* set up %ds */
 	xor	%ax, %ax
 	mov	%ax, %ds
 
 	/* set up %ss and %esp */
-	data32
 	mov	$BOOTSEG, %eax
 	mov	%ax, %ss
 	/*
@@ -96,17 +95,15 @@ start:
 	 * us to save the default bootstring we might find..
 	 * effectively, we push the bootstring.
 	 */
-	data32
 	mov	$BOOTSTACK-64, %esp
 
 	/* set up %es, (where we will load boot2 to) */
 	mov	%ax, %es
 
 	push	%es
-	push	%cx
+	push	%ecx
 	push	%dx
 
-	data32
 	mov	$0xa000, %eax
 	mov	%ax, %es
 
@@ -117,7 +114,6 @@ start:
 	movb	$0x40, %ah
 	int	$0x18
 
-	data32
 	mov	$0x0a00, %eax		/* 80 x 25 mode  */
 
 	int	$0x18
@@ -125,7 +121,7 @@ start:
 	int	$0x18
 
 	/* cursor home and on */
-	xor	%edx, %edx
+	xor	%dx, %dx
 	movb	$0x13, %ah
 	int	$0x18
 	movb	$0x11, %ah
@@ -136,11 +132,8 @@ start:
 	int	$0x18
 
 	/* transfer PC-9801 system common area to 0xa1000 */
-	data32
 	mov	$0x0000, %esi
-	data32
 	mov	$0x1000, %edi
-	data32
 	mov	$0x0630, %ecx
 	cld
 	rep
@@ -148,37 +141,24 @@ start:
 
 	/* transfer EPSON machine type to 0xa1200 */
 	push	%ds
-	data32
 	mov	$0xfd00, %eax
 	mov	%ax, %ds
-	addr32
-	data32
 	mov	0x804, %eax
-	data32
 	and	$0x00ffffff, %eax
-	addr32
-	data32
-	.byte	0x26
 	mov	%eax, %es: (0x1624)
 
 	pop	%ds
 	pop	%dx
-	pop	%cx
+	pop	%ecx
 	pop	%es
 
 	/* bootstrap passes */
 	mov	%cs, %bx
-	data32
-	cmp	$0x1fe0, %ebx
+	cmp	$0x1fe0, %bx
 	jz	fd
-	data32
-	cmp	$0x1fc0, %ebx
+	cmp	$0x1fc0, %bx
 	jnz	hd
-	data32
-	mov	%ebp, %ecx
-	data32
-	mov	%ebp, %edx
-	addr32
+	xor	%cx, %cx
 	movb	0x584, %al
 	andb	$0xf0, %al
 	cmpb	$0x30, %al
@@ -186,20 +166,19 @@ start:
 	cmpb	$0x90, %al
 	jnz	hd
 fd:
-	data32
-	mov	$0x0200, %ecx
-	data32
-	mov	$0x0001, %edx
+	mov	$0x0200, %cx
+	mov	$0x0001, %dx
 	movb	$0xd6, %ah
 	jmp	load
 hd:
-	data32
-	and	%ecx, %ecx
+	and	%cx, %cx
 	jnz	1f
+	.code32
 	addr32
-	data32
-	mov	%cs: (boot_cyl), %ecx
+	mov	%cs: (boot_cyl), %ecx	/* actualy %cx in real mode */
+	.code16
 1:
+	xor	%dx, %dx
 	movb	$0x06, %ah	
 
 /*
@@ -375,11 +354,9 @@ notours:
 	data32
 	pop	%ecx
 #endif
-	data32
 	mov	$LOADSZ, %ebx
-	addr32
 	movb	0x584, %al
-	xor	%ebp, %ebp	/* %bp = 0, put it at 0 in the BOOTSEG */
+	xor	%bp, %bp	/* %bp = 0, put it at 0 in the BOOTSEG */
 	int	$0x1b
 	jc	read_error
 
@@ -389,19 +366,18 @@ notours:
 	 * as an internal buffer "intbuf".
 	 */
 
+	.code32
 	data32
 	ljmp	$BOOTSEG, $ EXT(boot2)
+	.code16
 
 /*
  * read_error
  */
 read_error:
-	data32
 	mov	$eread, %esi
 err_stop:
-	data32
 	call	message
-	data32
 	jmp	stop
 
 /*
@@ -409,30 +385,22 @@ err_stop:
  */
 message:
 
-	data32
 	push	%eax
-	data32
 	push	%ebx
 	push	%ds
 	push	%es
-	data32
-	mov	$0xe000, %eax
-	mov	%ax, %es
-	addr32
+	mov	$0xe000, %dx
 	mov	0x501, %al
 	testb	$0x08, %al
 	jnz	1f
-	data32
-	mov	$0xa000, %eax
-	mov	%ax, %es
+	mov	$0xa000, %dx
 1:
+	mov	%dx, %es
 	mov	%cs, %ax
 	mov	%ax, %ds
-	addr32
-	data32
-	mov	vram, %edi
-	data32
-	mov	$0x00e1, %ebx
+	mov	vram, %di
+	mov	$0x00e1, %bx
+	mov	$160, %cx
 	cld
 
 nextb:
@@ -443,48 +411,36 @@ nextb:
 	je	cr_code
 	cmpb	$0x0a, %al
 	je	lf_code
-	addr32
-	movb	%al, (%edi)
-	addr32
-	movb	%bl, 0x2000(%edi)
-	data32
-	inc	%edi
-	data32
-	inc	%edi
-	jmp	nextb
-cr_code:
-	data32
-	add	$80, %edi
-	jmp	nextb
+	movb	%bl, %es:0x2000(%di)
+	stosb
+	inc	%di
+	jmp	move_cursor
 lf_code:
-	data32
-	mov	%edi, %eax
-	data32
-	mov	$80, %edx
-	data32
-	div	%ebx
-	data32
-	sub	%ebx, %edi
+	add	%cx, %di
+	jmp	move_cursor
+cr_code:
+	xor	%dx, %dx
+	mov	%di, %ax
+	div	%cx
+	sub	%dx, %di
+move_cursor:
+	mov	%di, %dx
+	movb	$0x13, %ah
+	int	$0x18
 	jmp	nextb
 done:
-	addr32
-	data32
-	mov	%edi, vram
+	mov	%di, vram
 	pop	%es
 	pop	%ds
-	data32
 	pop	%ebx
-	data32
 	pop	%eax
-	data32
 	ret
 
 stop:	hlt
-	data32
 	jmp	stop		/* halt doesnt actually halt forever */
 
 vram:
-	.long	0
+	.word	0
 
 /* error messages */
 
@@ -502,7 +458,7 @@ eread:	String		"Read error\r\n\0"
 enoboot: String		"No bootable partition\r\n\0"
 endofcode:
 
-	. = EXT(boot1) + 0x1be
+	. = EXT(start) + 0x1be
 
 /* Partition table */
 
@@ -516,4 +472,4 @@ endofcode:
 	.value	SIGNATURE
 
 ENTRY(disklabel)
-	. = EXT(boot1) + 0x400	
+	. = EXT(start) + 0x400	

@@ -58,7 +58,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 CR0_PE_ON	=	0x1
 CR0_PE_OFF	=	0xfffffffe
-
+	.code16
 	.text
 
 /*
@@ -72,14 +72,15 @@ ENTRY(real_to_prot)
 	cli
 
 	/* load the gdtr */
+	.code32
 	addr32
 	data32
 	lgdt	EXT(Gdtr)
+	.code16
 
 	/* set the PE bit of CR0 */
 	mov	%cr0, %eax
 
-	data32
 	or	$CR0_PE_ON, %eax
 	mov	%eax, %cr0 
 
@@ -87,18 +88,22 @@ ENTRY(real_to_prot)
 	 * make intrasegment jump to flush the processor pipeline and
 	 * reload CS register
 	 */
+	.code32
 	data32
 	ljmp	$0x18, $xprot
+	.code16
 xprot:
 
 	/*
 	 * we are in USE32 mode now
 	 * set up the protected mode segment registers : DS, SS, ES, FS
 	 */
+	data32
 	movw	$0x20, %ax	/* data segment */
 	mov	%ax, %ds	/* gas would waste a prefix byte for movw */
 	mov	%ax, %ss
 	mov	%ax, %es
+	data32
 	movw	$0x10, %ax	/* flat segment */
 	mov	%ax, %fs
 
@@ -119,10 +124,13 @@ xprot:
 ENTRY(prot_to_real)
 
 	/* Prepare %ax while we're still in a mode that gas understands. */
+	data32
 	movw	$0x30, %ax
 
 	/* Change to use16 mode. */
+	.code32
 	ljmp	$0x28, $x16
+	.code16
 x16:
 
 	mov	%ax, %ds
@@ -132,7 +140,6 @@ x16:
 
 	/* clear the PE bit of CR0 */
 	mov	%cr0, %eax
-	data32
 	and 	$CR0_PE_OFF, %eax
 	mov	%eax, %cr0
 
@@ -140,8 +147,10 @@ x16:
 	 * make intersegment jmp to flush the processor pipeline
 	 * and reload CS register
 	 */
+	.code32
 	data32
 	ljmp	$BOOTSEG, $xreal
+	.code16
 xreal:
 
 	/*
@@ -174,12 +183,14 @@ xreal:
  */
 
 ENTRY(startprog)
+	.code32
 	push	%ebp
 	mov	%esp, %ebp
 	movl	%esp, %eax		/* Use eax as the old stack pointer */
 
 	/* convert the current stack to a 32 bit flat model */
 	movw	$0x10, %bx
+	data32
 	mov	%bx, %ss
 	addl	$(BOOTSEG<<4),%esp
 	
@@ -200,7 +211,9 @@ ENTRY(startprog)
 
 	/* convert over the other data segs */
 	movw	$0x10, %bx
+	data32
 	mov	%bx, %ds
+	data32
 	mov	%bx, %es
 
 	/* convert the PC (and code seg) */
@@ -215,6 +228,7 @@ ourreturn:
  */
 
 ENTRY(pcpy)
+	.code32
 	push	%ebp
 	mov	%esp, %ebp
 	push	%es

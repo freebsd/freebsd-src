@@ -110,6 +110,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 ENTRY(biosread)
+	.code32
 	push	%ebp
 	mov	%esp, %ebp
 
@@ -141,20 +142,20 @@ fd:
 	xor	%ebx, %ebx
 	addr32
 	movb	0x18(%ebp), %bl		/* number of sectors */
-	data32
+	.code16
 	shl	$9, %ebx
-	data32
 	push	%ebx
+	.code32
 	addr32
 	data32
 	mov	0x1c(%ebp), %ebx
-	data32
+	.code16
 	mov	%ebx, %ebp
-	data32
 	pop	%ebx
 
 	int	$0x1b
 	jc	1f
+	.code32
 	xor	%eax, %eax
 1:
 	/* save return value (actually movw %ax, %bx) */
@@ -274,6 +275,7 @@ ENTRY(biosreadlba)
  */
 
 ENTRY(getc)
+	.code32
 	push	%ebp
 	mov	%esp, %ebp
 	push	%ebx			/* save %ebx */
@@ -281,12 +283,14 @@ ENTRY(getc)
 	push    %edi
 
 	call	EXT(prot_to_real)
+	.code16
 
 	movb	$0x0, %ah
 	int	$0x18
 
 	movb	%al, %bl		/* real_to_prot uses %eax */
 
+	.code32
 	data32
 	call	EXT(real_to_prot)
 
@@ -312,6 +316,7 @@ ENTRY(getc)
  *			%bh = 0
  */
 ENTRY(ischar)
+	.code32
 	push	%ebp
 	mov	%esp, %ebp
 	push	%ebx
@@ -321,6 +326,7 @@ ENTRY(ischar)
 	call	EXT(prot_to_real)	/* enter real mode */
 
 	xor	%ebx, %ebx
+	.code16
 	movb	$0x1, %ah
 	int	$0x18
 	andb	%bh, %bh
@@ -329,6 +335,7 @@ ENTRY(ischar)
 	movb	%al, %bl
 
 nochar:
+	.code32
 	data32
 	call	EXT(real_to_prot)
 
@@ -349,6 +356,7 @@ nochar:
  */
 
 ENTRY(get_diskinfo)
+	.code32
 	push	%ebp
 	mov	%esp, %ebp
 	push	%ebx
@@ -357,6 +365,7 @@ ENTRY(get_diskinfo)
 
 	movb	0x8(%ebp), %dl		/* diskinfo(drive #) */
 	call	EXT(prot_to_real)	/* enter real mode */
+	.code16
 
 	movb	%dl, %al		/* ask for disk info */
 	andb	$0xf0, %al
@@ -392,7 +401,7 @@ fdd:
 	/* es:di = parameter table */
 	/* carry = 0 */
 ok:
-
+	.code32
 	data32
 	call	EXT(real_to_prot)	/* back to protected mode */
 
@@ -422,6 +431,7 @@ ok:
  */
 
 ENTRY(memsize)
+	.code32
 	push	%ebp
 	mov	%esp, %ebp
 	push	%ebx

@@ -53,37 +53,36 @@
  * boot2() -- second stage boot
  * SP points to default string if found
  */
-
+	.code16
 ENTRY(boot2)
-	data32
 	subl	%eax, %eax
 	mov	%cs, %ax
 	mov	%ax, %ds
 	mov	%ax, %es
-	data32
 	shll	$4, %eax
 
 	/* fix up GDT entries for bootstrap */
 #define FIXUP(gdt_index) \
+	.code32; \
 	addr32; \
 	movl	%eax, EXT(Gdt)+(8*gdt_index)+2;	/* actually movw %ax */ \
 	addr32; \
-	movb	%bl, EXT(Gdt)+(8*gdt_index)+4
+	movb	%bl, EXT(Gdt)+(8*gdt_index)+4; \
+	.code16
 
-	data32
 	shld	$16, %eax, %ebx
 	FIXUP(BOOT_CS_INDEX)
 	FIXUP(BOOT_CS16_INDEX)
 	FIXUP(BOOT_DS_INDEX)
 
 	/* fix up GDT pointer */
-	data32
 	movl	%eax, %ecx
-	data32
 	addl	$ EXT(Gdt), %eax
+	.code32
 	addr32
 	data32
 	movl	%eax, EXT(Gdtr)+2
+	.code16
 
 #ifdef BDE_DEBUGGER
 	/* fix up GDT entry for GDT */
@@ -158,6 +157,7 @@ ENTRY(boot2)
 #endif /* BDE_DEBUGGER */
 
 	/* change to protected mode */
+	.code32
 	data32
 	call	EXT(real_to_prot)
 
