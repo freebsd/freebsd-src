@@ -20,11 +20,6 @@ SUBDIR+=libalias libc libcompat libcom_err libcurses libdisk libedit \
 SUBDIR+= libc_r
 .endif
 
-.if !defined(NOTCL) && exists (${.CURDIR}/../contrib/tcl) && \
-	exists(${.CURDIR}/../usr.bin/tclsh) && exists (${.CURDIR}/libtcl)
-SUBDIR+=libtcl
-.endif
-
 .if !exists(${.CURDIR}/../secure) || defined(NOSECURE) || defined(NOCRYPT)
 SUBDIR+= libcrypt
 .else
