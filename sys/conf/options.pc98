@@ -86,10 +86,6 @@ I4B_SMP_WORKAROUND	opt_i4b.h
 IPR_VJ			opt_i4b.h
 IPR_LOG			opt_i4b.h
 
-# bs driver options
-BS_TARG_SAFEMODE	opt_bs.h
-SCSI_BOUNCE_SIZE	opt_bs.h
-
 # ct driver options
 CT_BUS_WEIGHT		opt_ct.h
 CT_USE_RELOCATE_OFFSET	opt_ct.h
@@ -107,7 +103,3 @@ PC98			opt_global.h
 DEV_APIC		opt_apic.h
 DEV_MECIA		opt_mecia.h
 DEV_NPX			opt_npx.h
-DEV_WCD			opt_wcd.h
-
-# Static unit counts
-NWDC			opt_wdc.h
