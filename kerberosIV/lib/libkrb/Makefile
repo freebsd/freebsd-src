@@ -23,7 +23,8 @@ SRCS=		cr_err_reply.c create_auth_reply.c create_ciph.c \
 	  	rw.c kdc_reply.c encrypt_ktext.c swab.c gettimeofday.c \
 	  	check_time.c krb_err.c et_list.c resolve.c unparse_name.c \
 	  	logging.c k_concat.c \
-		snprintf.c strdup.c strtok_r.c strcasecmp.c
+		snprintf.c strdup.c strtok_r.c strcasecmp.c \
+		${KRBOBJDIR}/krb_err.h
 MAN3=		${KRB4DIR}/man/kerberos.3 \
 		${KRB4DIR}/man/krb_realmofhost.3 \
 		${KRB4DIR}/man/krb_sendauth.3 \
@@ -62,5 +63,3 @@ INCLUDES=	${KRB4DIR}/lib/krb/krb.h ${KRB4DIR}/lib/krb/klog.h \
 
 .PATH:		${KRB4DIR}/lib/krb
 .PATH:		${KRB4DIR}/lib/roken
-
-beforedepend all: ${KRBOBJDIR}/krb_err.h
