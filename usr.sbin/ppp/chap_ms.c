@@ -19,7 +19,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap_ms.c,v 1.4 1997/12/24 09:28:53 brian Exp $
+ * $Id: chap_ms.c,v 1.5 1998/01/21 02:15:10 brian Exp $
  *
  */
 
@@ -36,11 +36,11 @@
 
 /* unused, for documentation only */
 /* only NTResp is filled in for FreeBSD */
-typedef struct {
+struct MS_ChapResponse {
     u_char LANManResp[24];
     u_char NTResp[24];
     u_char UseNT;	/* If 1, ignore the LANMan response field */
-} MS_ChapResponse;
+};
 
 static void DesEncrypt(u_char *, u_char *, u_char *);
 static void MakeKey(u_char *, u_char *);

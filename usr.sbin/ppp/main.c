@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.32 1998/03/13 21:07:39 brian Exp $
+ * $Id: main.c,v 1.121.2.33 1998/03/16 22:52:28 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -98,12 +98,11 @@ static void TerminalStop(int);
 static const char *ex_desc(int);
 
 static struct bundle *SignalBundle;
-int CleaningUp;
 
 void
 Cleanup(int excode)
 {
-  CleaningUp = 1;
+  SignalBundle->CleaningUp = 1;
   if (bundle_Phase(SignalBundle) != PHASE_DEAD)
     bundle_Close(SignalBundle, NULL, 0);
 }
@@ -511,7 +510,7 @@ DoLoop(struct bundle *bundle)
   if (mode & (MODE_DIRECT|MODE_DEDICATED|MODE_BACKGROUND))
     bundle_Open(bundle, NULL);
 
-  while (!CleaningUp || bundle_Phase(SignalBundle) != PHASE_DEAD) {
+  while (!bundle->CleaningUp || bundle_Phase(SignalBundle) != PHASE_DEAD) {
     nfds = 0;
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
@@ -533,7 +532,7 @@ DoLoop(struct bundle *bundle)
 
     descriptor_UpdateSet(&prompt.desc, &rfds, &wfds, &efds, &nfds);
 
-    if (CleaningUp && bundle_Phase(SignalBundle) == PHASE_DEAD)
+    if (bundle->CleaningUp && bundle_Phase(bundle) == PHASE_DEAD)
       /* Don't select - we'll be here forever */
       break;
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.12 1998/03/13 21:07:43 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.13 1998/03/16 22:52:48 brian Exp $
  */
 
 #include <sys/param.h>
@@ -267,7 +267,7 @@ prompt_Display(struct prompt *p, struct bundle *bundle)
 {
   const char *pconnect, *pauth;
 
-  if (!p->Term || p->TermMode != NULL || CleaningUp)
+  if (!p->Term || p->TermMode != NULL || bundle->CleaningUp)
     return;
 
   if (prompt_nonewline)

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.16 1998/03/13 21:07:27 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.17 1998/03/16 22:51:47 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -46,6 +46,8 @@ struct bundle {
   int routing_seq;            /* The current routing sequence number */
   u_int phase;                /* Curent phase */
 
+  unsigned CleaningUp : 1;    /* Going to exit.... */
+
   struct fsm_parent fsm;      /* Our callback functions */
   struct datalink *links;     /* Our data links */
 
@@ -63,7 +65,6 @@ struct bundle {
     struct filter dial;		/* dial-out packet filter */
     struct filter alive;	/* keep-alive packet filter */
   } filter;
-
 
   struct pppTimer IdleTimer;  /* timeout after cfg.idle_timeout */
 };

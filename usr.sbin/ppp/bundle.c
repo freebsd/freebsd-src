@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.25 1998/03/13 21:07:27 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.26 1998/03/16 22:51:45 brian Exp $
  */
 
 #include <sys/param.h>
@@ -391,7 +391,8 @@ bundle_Create(const char *prefix)
   LogPrintf(LogPHASE, "Using interface: %s\n", bundle.ifname);
 
   bundle.routing_seq = 0;
-  bundle.phase = 0;
+  bundle.phase = PHASE_DEAD;
+  bundle.CleaningUp = 0;
 
   bundle.fsm.LayerStart = bundle_LayerStart;
   bundle.fsm.LayerUp = bundle_LayerUp;
@@ -607,7 +608,7 @@ bundle_LinkLost(struct bundle *bundle, struct link *link, int staydown)
    * and MAY cause a program exit.
    */
 
-  if ((mode & MODE_DIRECT) || CleaningUp)
+  if ((mode & MODE_DIRECT) || bundle->CleaningUp)
     staydown = 1;
   datalink_Down(bundle->links, staydown);
 }
@@ -622,7 +623,7 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
    */
 
   if (mode & (MODE_BACKGROUND|MODE_DIRECT))
-     CleaningUp = 1;
+     bundle->CleaningUp = 1;
 
   if (!(mode & MODE_AUTO))
     bundle_DownInterface(bundle);
