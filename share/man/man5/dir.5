@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)dir.5	8.3 (Berkeley) 4/19/94
-.\"	$Id: dir.5,v 1.8 1997/03/19 03:48:12 bde Exp $
+.\"	$Id: dir.5,v 1.9 1998/02/24 02:39:00 bde Exp $
 .\"
 .Dd April 19, 1994
 .Dt DIR 5
@@ -148,6 +148,9 @@ struct dirent {
 .Sh SEE ALSO
 .Xr fs 5 ,
 .Xr inode 5
+.Sh BUGS
+The usage of the member d_type of struct dirent is unportable as it is FreeBSD-specific.
+It also may fail on certain filesystems, for example the cd9660 filesystem.
 .Sh HISTORY
 A
 .Nm
