@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_xe.c,v 1.16 1999/03/08 16:28:50 root Exp $
+ *	$Id: if_xe.c,v 1.17 1999/03/28 20:27:24 scott Exp $
  */
 
 /*
@@ -60,28 +60,29 @@
  */
 
 /*		
- * FreeBSD device driver for Xircom CreditCard PCMCIA Ethernet adapters.
- * The following cards and media are supported (Ethernet part only on the
- * multifunction CEM cards):
+ * FreeBSD device driver for Xircom CreditCard PCMCIA Ethernet adapters.  The
+ * following cards and media are, or will eventually be, supported (Ethernet
+ * part only on the multifunction CEM cards):
  *   CE2	10BASE-2, 10BASE-T (I think)
  *   CEM28	ditto
  *   CEM33	ditto
  *   CE3	10BASE-T, 100BASE-TX
  *   CEM56	ditto
  *   RealPort   ditto
- * Some Compaq and Intel cards using the Xircom hardware are also known to
+ * Compaq and Intel cards using the Xircom CE3 hardware are also known to
  * work.  See the website for full details of supported hardware.
  *
- * <Acknowledgements to go here>
+ * Thanks to all who assisted with the development and testing of the driver,
+ * especially: Werner Koch, Duke Kamstra, Duncan Barclay, Ade Lovett, Jason
+ * George, Dru Nelson, Mike Kephart, Bill Rainey and Douglas Rand.  Apologies
+ * if I've left out anyone who deserves a mention here.
  *
- * The web page for the driver is located at:
- * http://www.dcs.qmw.ac.uk/~scott/xe_drv/
- * Check here first for new releases, bug fixes, etc.
+ * Driver web page: http://www.freebsd-uk.eu.org/~scott/xe_drv/
  *
- * Please send all feedback, bug reports, patches, etc. to
- * <scott@dcs.qmw.ac.uk>.  Mail with the tag "[XE]" in the subject line will
- * be automatically filed in an appropriate folder where I'm more likely to
- * see it and respond promptly.
+ * Mailing list: http://www.lovett.com/lists/freebsd-xircom/
+ * or send "subscribe freebsd-xircom" to <majordomo@lovett.com>
+ *
+ * Author email: <scott@freebsd-uk.eu.org>
  */
 
 #define XE_DEBUG 1
@@ -303,6 +304,9 @@ struct isa_driver xedriver = {
  */
 static int
 xe_probe (struct isa_device *dev) {
+#ifdef XE_DEBUG
+  printf("xe: probe\n");
+#endif
   bzero(sca, MAXSLOT * sizeof(sca[0]));
   return 0;
 }
@@ -383,6 +387,7 @@ xe_card_init(struct pccard_devinfo *devi)
      * XXX - If the stuff we need isn't in attribute memory, or (worse yet)
      * XXX - attribute memory isn't mapped, we're FUBAR.  Maybe need to do an
      * XXX - ioctl on the card device and follow links?
+     * XXX - Not really the driver's problem, PCCARD should handle all this!
      */
     if ((rc = cdevsw[CARD_MAJOR]->d_read(makedev(CARD_MAJOR, devi->slt->slotnum), &uios, 0)) == 0) {
 
@@ -942,7 +947,7 @@ xe_card_intr(struct pccard_devinfo *devi) {
 	 * any outstanding collisions count will be held against the next
 	 * frame to be successfully sent.  Hopefully it averages out in the
 	 * end!
-	 * XXX - This will screw up if tx_collisions/sent > 14.
+	 * XXX - This will screw up if tx_collisions/sent > 14. FIX IT!
 	 */
 	switch (scp->tx_collisions) {
 	 case 0:
@@ -1065,10 +1070,13 @@ xe_card_intr(struct pccard_devinfo *devi) {
 	      int i;
 
 	      /*
-	       * XXX - this i-- seems very wrong, but it's what the Linux guys 
+	       * XXX - This i-- seems very wrong, but it's what the Linux guys 
 	       * XXX - do.  Need someone with an old CE2 to test this for me.
+	       * XXX - 99/3/28: Changed the first i-- to an i++, maybe that'll
+	       * XXX - fix it?  It seems as though the previous version would
+	       * XXX - have caused an infinite loop (what, another one?).
 	       */
-	      for (i = 0; i < len; i--, rhs++) {
+	      for (i = 0; i < len; i++, rhs++) {
 		((char *)ehp)[i] = XE_INB(XE_EDP);
 		if (rhs = 0x8000) {
 		  rhs = 0;
@@ -1139,7 +1147,7 @@ xe_card_intr(struct pccard_devinfo *devi) {
   XE_SELECT_PAGE(psr);				/* Restore saved page */
   XE_OUTB(XE_CR, XE_CR_ENABLE_INTR);		/* Re-enable interrupts */
 
-  /* XXX - Maybe force an int here, instead of dropping packets?     */
+  /* XXX - Could force an int here, instead of dropping packets?     */
   /* XXX - XE_OUTB(XE_CR, XE_CR_ENABLE_INTR|XE_CE_FORCE_INTR); */
 
   return result;
@@ -1216,7 +1224,7 @@ xe_media_status(struct ifnet *ifp, struct ifmediareq *mrp) {
  */
 static void xe_setmedia(void *xscp) {
   struct xe_softc *scp = xscp;
-  u_int16_t bmcr, bmsr, anar, lpar, aner;
+  u_int16_t bmcr, bmsr, anar, lpar;
 
 #ifdef XE_DEBUG
   printf("xe%d: setmedia\n", scp->unit);
@@ -1319,10 +1327,24 @@ static void xe_setmedia(void *xscp) {
 	  scp->autoneg_status = XE_AUTONEG_NONE;
 	}
 	else {
+	  /*
+	   * XXX - Bit of a hack going on in here.
+	   * XXX - This is derived from Ken Hughes patch to the Linux driver
+	   * XXX - to make it work with 10Mbit _autonegotiated_ links on CE3B
+	   * XXX - cards.  What's a CE3B and how's it differ from a plain CE3?
+	   * XXX - these are the things we need to find out.
+	   */
 	  xe_phy_writereg(scp, PHY_BMCR, 0x0000);
 	  XE_SELECT_PAGE(2);
-	  XE_OUTB(XE_MSR, XE_INB(XE_MSR) & ~0x08);	/* Disable PHY? */
-	  scp->autoneg_status = XE_AUTONEG_FAIL;
+	  /* BEGIN HACK */
+	  XE_OUTB(XE_MSR, XE_INB(XE_MSR) | 0x08);
+	  XE_SELECT_PAGE(0x42);
+	  XE_OUTB(XE_SWC1, 0x80);
+	  scp->media = IFM_ETHER|IFM_10_T;
+	  scp->autoneg_status = XE_AUTONEG_NONE;
+	  /* END HACK */
+	  /*XE_OUTB(XE_MSR, XE_INB(XE_MSR) & ~0x08);*/	/* Disable PHY? */
+	  /*scp->autoneg_status = XE_AUTONEG_FAIL;*/
 	}
       }
       else {
@@ -1558,7 +1580,10 @@ xe_soft_reset(struct xe_softc *scp) {
     scp->srev = (XE_INB(XE_BOV) & 0x70) >> 4;
   else
     scp->srev = (XE_INB(XE_BOV) & 0x30) >> 4;
-
+#ifdef XE_DEBUG
+  printf("xe%d: silicon revision = %d\n", scp->unit, scp->srev);
+#endif
+  
   /*
    * Shut off interrupts.
    */
@@ -1692,10 +1717,12 @@ xe_setmulti(struct xe_softc *scp) {
      * Program the filters for up to 9 addresses
      */
     XE_SELECT_PAGE(0x42);
-    XE_OUTB(XE_SWC1, 0);
+    XE_OUTB(XE_SWC1, 0x01);
     XE_SELECT_PAGE(0x40);
     XE_OUTB(XE_OCR, XE_OCR_OFFLINE);
+    /*xe_reg_dump(scp);*/
     xe_setaddrs(scp);
+    /*xe_reg_dump(scp);*/
     XE_SELECT_PAGE(0x40);
     XE_OUTB(XE_OCR, XE_OCR_RX_ENABLE|XE_OCR_ONLINE);
   }
@@ -1714,9 +1741,11 @@ xe_setmulti(struct xe_softc *scp) {
  * Set up all on-chip addresses (for multicast).  AFAICS, there are 10
  * of these things; the first is our MAC address, the other 9 are mcast
  * addresses, padded with the MAC address if there aren't enough.
- * XXX - I think the Linux code gets this wrong and only writes one byte for
- * XXX - each address.  I *think* this code does it right, but it needs more
- * XXX - intensive testing to be sure.
+ * XXX - This doesn't work right, but I'm not sure why yet.  We seem to be
+ * XXX - doing much the same as the Linux code, which is weird enough that
+ * XXX - it's probably right (despite my earlier comments to the contrary).
+ * XXX - I wonder if this thing has a multicast hash filter like most other
+ * XXX - Ethernet hardware seems to?
  */
 static void
 xe_setaddrs(struct xe_softc *scp) {
@@ -1742,6 +1771,12 @@ xe_setaddrs(struct xe_softc *scp) {
     }
 
     for (i = 0; i < 6; i++, byte++) {
+#ifdef XE_DEBUG
+      if (i)
+	printf(":%x", addr[i]);
+      else
+	printf("xe%d: individual addresses %d: %x", scp->unit, slot, addr[0]);
+#endif
 
       if (byte > 15) {
 	page++;
@@ -1754,7 +1789,11 @@ xe_setaddrs(struct xe_softc *scp) {
       else
 	XE_OUTB(byte, addr[i]);
     }
+#ifdef XE_DEBUG
+    printf("\n");
+#endif
   }
+
   XE_SELECT_PAGE(0);
 }
 
@@ -2131,10 +2170,16 @@ xe_phy_writereg(struct xe_softc *scp, u_int16_t reg, u_int16_t data) {
 
 
 #ifdef XE_DEBUG
+/*
+ * A bit of debugging code.
+ */
 static void
 xe_mii_dump(struct xe_softc *scp) {
-  int i, unit = scp->dev->id_unit;
+  int i, s;
 
+  s = splimp();
+
+  printf("xe%d: MII registers: ", scp->unit);
   for (i = 0; i < 2; i++) {
     printf(" %d:%04x", i, xe_phy_readreg(scp, i));
   }
@@ -2142,21 +2187,24 @@ xe_mii_dump(struct xe_softc *scp) {
     printf(" %d:%04x", i, xe_phy_readreg(scp, i));
   }
   printf("\n");
+
+  (void)splx(s);
 }
 
 static void
 xe_reg_dump(struct xe_softc *scp) {
-  int unit = scp->dev->id_unit;
-  int page, i;
+  int page, i, s;
 
-  printf("xe%d: Common registers: ", unit);
+  s = splimp();
+
+  printf("xe%d: Common registers: ", scp->unit);
   for (i = 0; i < 8; i++) {
     printf(" %2.2x", XE_INB(i));
   }
   printf("\n");
 
-  for (page = 0; page < 8; page++) {
-    printf("xe%d: Register page %2.2x: ", unit, page);
+  for (page = 0; page <= 8; page++) {
+    printf("xe%d: Register page %2.2x: ", scp->unit, page);
     XE_SELECT_PAGE(page);
     for (i = 8; i < 16; i++) {
       printf(" %2.2x", XE_INB(i));
@@ -2164,16 +2212,21 @@ xe_reg_dump(struct xe_softc *scp) {
     printf("\n");
   }
 
-  for (page = 0x40; page < 0x5f; page++) {
-    if (page==0x43 || (page>=0x46 && page<=0x4f) || (page>=0x51 && page<=0x5e))
+  for (page = 0x10; page < 0x5f; page++) {
+    if ((page >= 0x11 && page <= 0x3f) ||
+	(page == 0x41) ||
+	(page >= 0x43 && page <= 0x4f) ||
+	(page >= 0x59))
       continue;
-    printf("xe%d: Register page %2.2x: ", unit, page);
+    printf("xe%d: Register page %2.2x: ", scp->unit, page);
     XE_SELECT_PAGE(page);
     for (i = 8; i < 16; i++) {
       printf(" %2.2x", XE_INB(i));
     }
     printf("\n");
   }
+
+  (void)splx(s);
 }
 #endif
 
