@@ -140,7 +140,8 @@ ttyflush(drop)
 		n1 = n0 - n;
 		if (!drop)
 			n1 = TerminalWrite(ttyoring.bottom, n1);
-		n += n1;
+		if (n1 > 0)
+			n += n1;
 	}
 	ring_consumed(&ttyoring, n);
     }
