@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.5 (Berkeley) 5/20/95
- * $Id: ufs_quota.c,v 1.20 1998/03/08 09:59:33 julian Exp $
+ * $Id: ufs_quota.c,v 1.21 1998/03/30 09:56:27 phk Exp $
  */
 
 #include <sys/param.h>
@@ -688,7 +688,7 @@ again:
  * Code pertaining to management of the in-core dquot data structures.
  */
 #define DQHASH(dqvp, id) \
-	(&dqhashtbl[((((int)(dqvp)) >> 8) + id) & dqhash])
+	(&dqhashtbl[((((long)(dqvp)) >> 8) + id) & dqhash])
 static LIST_HEAD(dqhash, dquot) *dqhashtbl;
 static u_long dqhash;
 
