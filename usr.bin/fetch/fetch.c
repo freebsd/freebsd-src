@@ -107,9 +107,26 @@ struct xferstat {
     off_t		 rcvd;
 };
 
-void	 stat_start(struct xferstat *, char *, off_t, off_t);
-void	 stat_update(struct xferstat *, off_t);
-void	 stat_end(struct xferstat *);
+void
+stat_display(struct xferstat *xs, int force)
+{
+    struct timeval now;
+    
+    if (!v_tty)
+	return;
+    
+    gettimeofday(&now, NULL);
+    if (!force && now.tv_sec <= xs->last.tv_sec)
+	return;
+    xs->last = now;
+    
+    fprintf(stderr, "\rReceiving %s", xs->name);
+    if (xs->size == -1)
+	fprintf(stderr, ": %lld bytes", xs->rcvd);
+    else
+	fprintf(stderr, " (%lld bytes): %d%%", xs->size,
+		(int)((100.0 * (xs->rcvd + xs->offset)) / xs->size));
+}
 
 void
 stat_start(struct xferstat *xs, char *name, off_t size, off_t offset)
@@ -120,30 +137,15 @@ stat_start(struct xferstat *xs, char *name, off_t size, off_t offset)
     xs->end = xs->last;
     xs->size = size;
     xs->offset = offset;
-    stat_update(xs, 0);
+    xs->rcvd = 0;
+    stat_display(xs, 1);
 }
 
 void
-stat_update(struct xferstat *xs, off_t rcvd)
+stat_update(struct xferstat *xs, off_t rcvd, int force)
 {
-    struct timeval now;
-    
     xs->rcvd = rcvd;
-
-    if (v_level <= 1 || !v_tty)
-	return;
-    
-    gettimeofday(&now, NULL);
-    if (now.tv_sec <= xs->last.tv_sec)
-	return;
-    xs->last = now;
-    
-    fprintf(stderr, "\rReceiving %s", xs->name);
-    if (xs->size == -1)
-	fprintf(stderr, ": %lld bytes", xs->size);
-    else
-	fprintf(stderr, " (%lld bytes): %d%%", xs->size,
-		(int)((100.0 * (xs->rcvd + xs->offset)) / xs->size));
+    stat_display(xs, 0);
 }
 
 void
@@ -154,9 +156,7 @@ stat_end(struct xferstat *xs)
     
     gettimeofday(&xs->end, NULL);
     
-    if (!v_level)
-	return;
-    
+    stat_display(xs, 1);
     fputc('\n', stderr);
     delta = (xs->end.tv_sec + (xs->end.tv_usec / 1.e6))
 	- (xs->start.tv_sec + (xs->start.tv_usec / 1.e6));
@@ -182,7 +182,7 @@ fetch(char *URL, char *path)
     size_t size;
     off_t count;
     char flags[8];
-    int ch, n, r;
+    int n, r;
     u_int timeout;
 
     f = of = NULL;
@@ -233,7 +233,7 @@ fetch(char *URL, char *path)
 
     /* stat remote file */
     if (fetchStat(url, &us, flags) == -1)
-	warnx("%s: size not known", path);
+	goto failure;
 
     /* just print size */
     if (s_flag) {
@@ -305,54 +305,21 @@ fetch(char *URL, char *path)
     /* start the counter */
     stat_start(&xs, path, us.size, count);
 
-    n = 0;
     sigint = sigalrm = 0;
-    if (us.size == -1) {
-	/*	  
-	 * We have no idea how much data to expect, so do it byte by
-         * byte. This is incredibly inefficient, but there's not much
-         * we can do about it... :(	 
-	 */
-	while (!sigint && !sigalrm) {
-	    if (timeout)
-		alarm(timeout);
-#ifdef STDIO_HACK
-	    /*	      
-	     * This is a non-portable hack, but it makes things go
-	     * faster. Basically, if there is data in the input file's
-	     * buffer, write it out; then fall through to the fgetc()
-	     * which forces a refill. It saves a memcpy() and reduces
-	     * the number of iterations, i.e the number of calls to
-	     * alarm(). Empirical evidence shows this can cut user
-	     * time by up to 90%. There may be better (even portable)
-	     * ways to do this.
-	     */
-	    if (f->_r && (f->_ub._base == NULL)) {
-		if (fwrite(f->_p, f->_r, 1, of) < 1)
-		    break;
-		count += f->_r;
-		f->_p += f->_r;
-		f->_r = 0;
-	    }
-#endif
-	    if ((ch = fgetc(f)) == EOF || fputc(ch, of) == EOF)
-		break;
-	    stat_update(&xs, count++);
-	    n++;
-	}
-    } else {
-	/* we know exactly how much to transfer, so do it efficiently */
-	for (size = B_size; count != us.size && !sigint && !sigalrm; n++) {
-	    if (us.size - count < B_size)
-		size = us.size - count;
-	    if (timeout)
-		alarm(timeout);
-	    if ((size = fread(buf, 1, size, f)) <= 0)
-		break;
-	    stat_update(&xs, count += size);
-	    if (fwrite(buf, size, 1, of) != 1)
-		break;
-	}
+
+    /* suck in the data */
+    for (n = 0; !sigint && !sigalrm; ++n) {
+	if (us.size != -1 && us.size - count < B_size)
+	    size = us.size - count;
+	else
+	    size = B_size;
+	if (timeout)
+	    alarm(timeout);
+	if ((size = fread(buf, 1, size, f)) <= 0)
+	    break;
+	stat_update(&xs, count += size, 0);
+	if (fwrite(buf, size, 1, of) != 1)
+	    break;
     }
 
     if (timeout)
@@ -360,49 +327,46 @@ fetch(char *URL, char *path)
 
     stat_end(&xs);
 
-    /* check the status of our files */
-    if (ferror(f))
-	warn("%s", URL);
-    if (ferror(of))
-	warn("%s", path);
-    if (ferror(f) || ferror(of)) {
-	if (!R_flag && !r_flag && !o_stdout)
-	    unlink(path);
-	goto failure;
-    }
-
-    /* need to close the file before setting mtime */
-    if (of != stdout) {
-	fclose(of);
-	of = NULL;
-    }
-    
     /* Set mtime of local file */
-    if (!n_flag && us.size != -1 && !o_stdout) {
+    if (!n_flag && us.mtime && !o_stdout) {
 	struct timeval tv[2];
 	
-	tv[0].tv_sec = (long)us.atime;
+	fflush(of);
+	tv[0].tv_sec = (long)(us.atime ? us.atime : us.mtime);
 	tv[1].tv_sec = (long)us.mtime;
 	tv[0].tv_usec = tv[1].tv_usec = 0;
 	if (utimes(path, tv))
 	    warn("%s: utimes()", path);
     }
     
-    /* did the transfer complete normally? */
+    /* timed out or interrupted? */
     if (sigalrm)
 	warnx("transfer timed out");
-    else if (sigint)
+    if (sigint)
 	warnx("transfer interrupted");
-    else if (us.size != -1 && count < us.size) {
+    
+    /* check the status of our files */
+    if (ferror(f))
+	warn("%s", URL);
+    if (ferror(of))
+	warn("%s", path);
+    if (ferror(f) || ferror(of))
+	goto failure;
+
+    /* did the transfer complete normally? */
+    if (us.size != -1 && count < us.size) {
 	warnx("%s appears to be truncated: %lld/%lld bytes",
 	      path, count, us.size);
-	goto failure;
+	goto failure_keep;
     }
     
  success:
-    r = (!sigalrm && !sigint);
+    r = 0;
     goto done;
  failure:
+    if (of && of != stdout && !R_flag && !r_flag)
+	unlink(path);
+ failure_keep:
     r = -1;
     goto done;
  done:
