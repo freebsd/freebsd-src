@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.16 1994/09/23 07:00:12 davidg Exp $
+ *	$Id: vmparam.h,v 1.17 1995/01/09 16:04:44 davidg Exp $
  */
 
 
@@ -127,7 +127,6 @@
 #define VM_MAX_KERNEL_ADDRESS	((vm_offset_t)KERNBASE + NKPDE*NBPG*NPTEPG)
 
 /* virtual sizes (bytes) for various kernel submaps */
-#define VM_MBUF_SIZE		(NMBCLUSTERS*MCLBYTES)
 #define VM_KMEM_SIZE		(32 * 1024 * 1024)
 #define VM_PHYS_SIZE		(USRIOSIZE*CLBYTES)
 
