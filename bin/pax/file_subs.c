@@ -335,7 +335,7 @@ mk_link(char *to, struct stat *to_sb, char *from,
 
 /*
  * node_creat()
- *	create an entry in the filesystem (other than a file or hard link).
+ *	create an entry in the file system (other than a file or hard link).
  *	If successful, sets uid/gid modes and times as required.
  * Return:
  *	0 if ok, -1 otherwise
@@ -495,7 +495,7 @@ node_creat(ARCHD *arcn)
 
 /*
  * unlnk_exist()
- *	Remove node from filesystem with the specified name. We pass the type
+ *	Remove node from file system with the specified name. We pass the type
  *	of the node that is going to replace it. When we try to create a
  *	directory and find that it already exists, we allow processing to
  *	continue as proper modes etc will always be set for it later on.
@@ -544,13 +544,13 @@ unlnk_exist(char *name, int type)
 
 /*
  * chk_path()
- *	We were trying to create some kind of node in the filesystem and it
+ *	We were trying to create some kind of node in the file system and it
  *	failed. chk_path() makes sure the path up to the node exists and is
  *	writeable. When we have to create a directory that is missing along the
  *	path somewhere, the directory we create will be set to the same
  *	uid/gid as the file has (when uid and gid are being preserved).
  *	NOTE: this routine is a real performance loss. It is only used as a
- *	last resort when trying to create entries in the filesystem.
+ *	last resort when trying to create entries in the file system.
  * Return:
  *	-1 when it could find nothing it is allowed to fix.
  *	0 otherwise
@@ -581,7 +581,7 @@ chk_path( char *name, uid_t st_uid, gid_t st_gid)
 		/*
 		 * if it exists we assume it is a directory, it is not within
 		 * the spec (at least it seems to read that way) to alter the
-		 * filesystem for nodes NOT EXPLICITLY stored on the archive.
+		 * file system for nodes NOT EXPLICITLY stored on the archive.
 		 * If that assumption is changed, you would test the node here
 		 * and figure out how to get rid of it (probably like some
 		 * recursive unlink()) or fix up the directory permissions if
@@ -673,7 +673,7 @@ set_ftime(char *fnm, time_t mtime, time_t atime, int frc)
 
 /*
  * set_ids()
- *	set the uid and gid of a filesystem node
+ *	set the uid and gid of a file system node
  * Return:
  *	0 when set, -1 on failure
  */
@@ -697,7 +697,7 @@ set_ids(char *fnm, uid_t uid, gid_t gid)
 
 /*
  * set_lids()
- *	set the uid and gid of a filesystem node
+ *	set the uid and gid of a file system node
  * Return:
  *	0 when set, -1 on failure
  */
@@ -748,7 +748,7 @@ set_pmode(char *fnm, mode_t mode)
  *	with holes. However, on extraction (or during copy, -rw) we have to
  *	deal with these files. Without detecting the holes, the files can
  *	consume a lot of file space if just written to disk. This replacement
- *	for write when passed the basic allocation size of a filesystem block,
+ *	for write when passed the basic allocation size of a file system block,
  *	uses lseek whenever it detects the input data is all 0 within that
  *	file block. In more detail, the strategy is as follows:
  *	While the input is all zero keep doing an lseek. Keep track of when we
@@ -768,11 +768,11 @@ set_pmode(char *fnm, mode_t mode)
  *	are not desired, just do a conditional test in those routines that
  *	call file_write() and have it call write() instead. BEFORE CLOSING THE
  *	FILE, make sure to call file_flush() when the last write finishes with
- *	an empty block. A lot of filesystems will not create an lseek hole at
+ *	an empty block. A lot of file systems will not create an lseek hole at
  *	the end. In this case we drop a single 0 at the end to force the
  *	trailing 0's in the file.
  *	---Parameters---
- *	rem: how many bytes left in this filesystem block
+ *	rem: how many bytes left in this file system block
  *	isempt: have we written to the file block yet (is it empty)
  *	sz: basic file block allocation size
  *	cnt: number of bytes on this write
@@ -796,7 +796,7 @@ file_write(int fd, char *str, int cnt, int *rem, int *isempt, int sz,
 	while (cnt) {
 		if (!*rem) {
 			/*
-			 * We are now at the start of filesystem block again
+			 * We are now at the start of file system block again
 			 * (or what we think one is...). start looking for
 			 * empty blocks again
 			 */
@@ -844,7 +844,7 @@ file_write(int fd, char *str, int cnt, int *rem, int *isempt, int sz,
 		}
 
 		/*
-		 * have non-zero data in this filesystem block, have to write
+		 * have non-zero data in this file system block, have to write
 		 */
 		if (write(fd, st, wcnt) != wcnt) {
 			syswarn(1, errno, "Failed write to file %s", name);
@@ -857,7 +857,7 @@ file_write(int fd, char *str, int cnt, int *rem, int *isempt, int sz,
 
 /*
  * file_flush()
- *	when the last file block in a file is zero, many filesystems will not
+ *	when the last file block in a file is zero, many file systems will not
  *	let us create a hole at the end. To get the last block with zeros, we
  *	write the last BYTE with a zero (back up one byte and write a zero).
  */

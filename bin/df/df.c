@@ -289,8 +289,8 @@ getmntpt(char *name)
 }
 
 /*
- * Make a pass over the filesystem info in ``mntbuf'' filtering out
- * filesystem types not in vfslist and possibly re-stating to get
+ * Make a pass over the file system info in ``mntbuf'' filtering out
+ * file system types not in vfslist and possibly re-stating to get
  * current (not cached) info.  Returns the new count of valid statfs bufs.
  */
 static long
@@ -367,15 +367,15 @@ prthumanval(double bytes)
 }
 
 /*
- * Convert statfs returned filesystem size into BLOCKSIZE units.
- * Attempts to avoid overflow for large filesystems.
+ * Convert statfs returned file system size into BLOCKSIZE units.
+ * Attempts to avoid overflow for large file systems.
  */
 #define fsbtoblk(num, fsbs, bs) \
 	(((fsbs) != 0 && (fsbs) < (bs)) ? \
 		(num) / ((bs) / (fsbs)) : (num) * ((fsbs) / (bs)))
 
 /*
- * Print out status about a filesystem.
+ * Print out status about a file system.
  */
 static void
 prtstat(struct statfs *sfsp, struct maxwidths *mwp)
@@ -435,7 +435,7 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 
 /*
  * Update the maximum field-width information in `mwp' based on
- * the filesystem specified by `sfsp'.
+ * the file system specified by `sfsp'.
  */
 static void
 update_maxwidths(struct maxwidths *mwp, struct statfs *sfsp)
@@ -483,7 +483,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	    "usage: df [-b | -H | -h | -k | -m | -P] [-ailn] [-t type] [file | filesystem ...]\n");
+	    "usage: df [-b | -H | -h | -k | -m | -P] [-ailn] [-t type] [file | file system ...]\n");
 	exit(EX_USAGE);
 }
 
