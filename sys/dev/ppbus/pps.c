@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.2 1998/02/13 17:35:33 phk Exp $
+ * $Id: pps.c,v 1.3 1998/02/15 14:54:09 phk Exp $
  *
  */
 
@@ -103,9 +103,6 @@ ppsattach(struct ppb_device *dev)
 	devfs_add_devswf(&pps_cdevsw,
 		dev->id_unit, DV_CHR,
 		UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%d", dev->id_unit);
-	devfs_add_devswf(&pps_cdevsw,
-		dev->id_unit | LP_BYPASS, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%d.ctl", dev->id_unit);
 #endif
 
 	return (1);
