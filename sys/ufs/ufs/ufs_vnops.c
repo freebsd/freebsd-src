@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.78 1998/02/09 06:11:14 eivind Exp $
+ * $Id: ufs_vnops.c,v 1.79 1998/03/08 09:59:44 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -120,6 +120,27 @@ union _qcvt {
 	tmp.qcvt = (q); \
 	tmp.val[_QUAD_LOWWORD] = (l); \
 	(q) = tmp.qcvt; \
+}
+
+/*
+ * XXX this is too long to be a macro, and isn't used in any time-critical
+ * place; 
+ */
+#define	ITIMES(ip) {							\
+	struct timeval tv;						\
+	getmicrotime(&tv);						\
+	if ((ip)->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) {	\
+		(ip)->i_flag |= IN_MODIFIED;				\
+		if ((ip)->i_flag & IN_ACCESS)				\
+			(ip)->i_atime = tv.tv_sec;			\
+		if ((ip)->i_flag & IN_UPDATE) {				\
+			(ip)->i_mtime = tv.tv_sec;			\
+			(ip)->i_modrev++;				\
+		}							\
+		if ((ip)->i_flag & IN_CHANGE)				\
+			(ip)->i_ctime = tv.tv_sec;			\
+		(ip)->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);	\
+	}								\
 }
 
 /*
@@ -246,7 +267,7 @@ ufs_close(ap)
 
 	simple_lock(&vp->v_interlock);
 	if (vp->v_usecount > 1)
-		ITIMES(ip, &time, &time);
+		ITIMES(ip);
 	simple_unlock(&vp->v_interlock);
 	return (0);
 }
@@ -349,7 +370,7 @@ ufs_getattr(ap)
 	register struct inode *ip = VTOI(vp);
 	register struct vattr *vap = ap->a_vap;
 
-	ITIMES(ip, &time, &time);
+	ITIMES(ip);
 	/*
 	 * Copy from inode table
 	 */
@@ -1807,7 +1828,7 @@ ufsspec_close(ap)
 
 	simple_lock(&vp->v_interlock);
 	if (ap->a_vp->v_usecount > 1)
-		ITIMES(ip, &time, &time);
+		ITIMES(ip);
 	simple_unlock(&vp->v_interlock);
 	return (VOCALL (spec_vnodeop_p, VOFFSET(vop_close), ap));
 }
@@ -1871,7 +1892,7 @@ ufsfifo_close(ap)
 
 	simple_lock(&vp->v_interlock);
 	if (ap->a_vp->v_usecount > 1)
-		ITIMES(ip, &time, &time);
+		ITIMES(ip);
 	simple_unlock(&vp->v_interlock);
 	return (VOCALL (fifo_vnodeop_p, VOFFSET(vop_close), ap));
 }

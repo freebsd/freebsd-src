@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.19 1998/02/25 02:14:14 bde Exp $
+ * $Id: time.h,v 1.20 1998/03/04 10:26:44 dufault Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -78,20 +78,22 @@ struct timezone {
 #define	DST_CAN		6	/* Canada */
 
 /*
- * Structure used to interface to the machine dependent hardware
- * support for timekeeping.
+ * Structure used to interface to the machine dependent hardware support
+ * for timekeeping.
  *
- * A timecounter is a binary counter which has two simple properties:
- *    * it runs at a fixed frequency.
- *    * must not roll over in less than (1+epsilon)/HZ
+ * A timecounter is a (hard or soft) binary counter which has two properties:
+ *    * it runs at a fixed, known frequency.
+ *    * it must not roll over in less than (1 + delta)/HZ seconds.  "delta"
+ *	is expected to be less than 20 msec, but no hard data has been 
+ *      collected on this.  16 bit at 5 MHz (31 msec) is known to work.
  *
- * get_timecount reads the counter.
+ * get_timedelta() returns difference between the counter now and offset_count.
  *
- * get_timedelta returns difference between the counter now and offset_count
+ * get_timecount() reads the counter.
  *
- * counter_mask removes unimplemented bits from the count value
+ * counter_mask removes unimplemented bits from the count value.
  *
- * frequency should be obvious
+ * frequency is the counter frequency in hz.
  *
  * name is a short mnemonic name for this counter.
  *
@@ -100,34 +102,44 @@ struct timezone {
  * adjustment [PPM << 16] which means that the smallest unit of correction
  *     you can apply amounts to 481.5 usec/year.
  *
- * scale_micro [2^32 * usec/tick]
- *
- * scale_nano_i [ns/tick]
- *
- * scale_nano_f [(ns/2^32)/tick]
+ * scale_micro [2^32 * usec/tick].
+ * scale_nano_i [ns/tick].
+ * scale_nano_f [(ns/2^32)/tick].
  *
  * offset_count is the contents of the counter which corresponds to the
- *     rest of the offset_* values
+ *     rest of the offset_* values.
  *
- * offset_sec [s]
- * offset_micro [usec]
+ * offset_sec [s].
+ * offset_micro [usec].
  * offset_nano [ns/2^32] is misnamed, the real unit is .23283064365...
  *     attoseconds (10E-18) and before you ask: yes, they are in fact 
  *     called attoseconds, it comes from "atten" for 18 in Danish/Swedish.
+ *
+ * Each timecounter must supply an array of three timecounters, this is needed
+ * to guarantee atomicity in the code.  Index zero is used to transport 
+ * modifications, for instance done with sysctl, into the timecounter being 
+ * used in a safe way.  Such changes may be adopted with a delay of up to 1/HZ,
+ * index one & two are used alternately for the actual timekeeping.
+ *
+ * `other' points to the opposite "work" timecounter, ie, in index one it
+ *      points to index two and vice versa
+ *
+ * `tweak' points to index zero.
+ *
  */
 
 struct timecounter;
-typedef u_int timecounter_get_t __P((struct timecounter *));
+typedef unsigned timecounter_get_t __P((struct timecounter *));
 typedef	u_int64_t timecounter_delta_t __P((void));
 
 struct timecounter {
-	/* These fields must be initialized by the driver */
+	/* These fields must be initialized by the driver. */
 	timecounter_get_t	*get_timedelta;
 	timecounter_delta_t	*get_timecount;
 	u_int64_t		counter_mask;
 	u_int32_t		frequency;
 	char			*name;
-	/* These fields will be managed by the generic code */
+	/* These fields will be managed by the generic code. */
 	int			cost;
 	int32_t			adjustment;
 	u_int32_t		scale_micro;
@@ -211,14 +223,16 @@ struct clockinfo {
 extern struct timecounter *timecounter;
 
 void	forward_timecounter __P((void));
-void	gettime __P((struct timeval *tv));
-void	init_timecounter __P((struct timecounter *));
+void	getmicrotime __P((struct timeval *tv));
+void	getnanotime __P((struct timespec *tv));
+#define	gettime(xxx) getmicrotime(xxx)	/* XXX be compatible */
+void	init_timecounter __P((struct timecounter *tc));
 int	itimerfix __P((struct timeval *tv));
 int	itimerdecr __P((struct itimerval *itp, int usec));
 void	microtime __P((struct timeval *tv));
 void	nanotime __P((struct timespec *ts));
 void	second_overflow __P((u_int32_t *psec));
-void	set_timecounter __P((struct timespec *));
+void	set_timecounter __P((struct timespec *ts));
 void	timevaladd __P((struct timeval *, struct timeval *));
 void	timevalsub __P((struct timeval *, struct timeval *));
 #else /* !KERNEL */

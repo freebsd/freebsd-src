@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.37 1998/03/16 01:55:43 dyson Exp $
+ * $Id: ffs_inode.c,v 1.38 1998/03/19 22:49:42 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -102,6 +102,7 @@ ffs_update(vp, access, modify, waitfor)
 	 *
 	 * XXX there should be a function or macro for reading the time
 	 * (e.g., some machines may require splclock()).
+	 * XXX there are: they're called get{micro|nano}time
 	 */
 	tv_sec = time.tv_sec;
 	if (ip->i_flag & IN_ACCESS)
