@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.19 1994/09/09 20:10:28 csgr Exp $
+#	$Id: BSD.usr.dist,v 1.20 1994/09/13 02:14:57 wollman Exp $
 #
 
 .	type=dir uname=root gname=wheel mode=0755
@@ -192,83 +192,13 @@ share	type=dir uname=bin gname=bin mode=0755
 		..
 		Australia	type=dir uname=bin gname=bin mode=0555
 		..
-		Brazil		type=dir uname=bin gname=bin mode=0555
-		..
-		Canada		type=dir uname=bin gname=bin mode=0555
-		..
-		Chile		type=dir uname=bin gname=bin mode=0555
+		Etc		type=dir uname=bin gname=bin mode=0555
 		..
 		Europe		type=dir uname=bin gname=bin mode=0555
-		..
-		Indian		type=dir uname=bin gname=bin mode=0555
-		..
-		Mexico		type=dir uname=bin gname=bin mode=0555
 		..
 		Pacific		type=dir uname=bin gname=bin mode=0555
 		..
 		SystemV		type=dir uname=bin gname=bin mode=0555
-		..
-		US		type=dir uname=bin gname=bin mode=0555
-		..
-		posix		type=dir uname=bin gname=bin mode=0555
-			Africa		type=dir uname=bin gname=bin mode=0555
-			..
-			America		type=dir uname=bin gname=bin mode=0555
-			..
-			Asia		type=dir uname=bin gname=bin mode=0555
-			..
-			Atlantic	type=dir uname=bin gname=bin mode=0555
-			..
-			Australia	type=dir uname=bin gname=bin mode=0555
-			..
-			Brazil		type=dir uname=bin gname=bin mode=0555
-			..
-			Canada		type=dir uname=bin gname=bin mode=0555
-			..
-			Chile		type=dir uname=bin gname=bin mode=0555
-			..
-			Europe		type=dir uname=bin gname=bin mode=0555
-			..
-			Indian		type=dir uname=bin gname=bin mode=0555
-			..
-			Mexico		type=dir uname=bin gname=bin mode=0555
-			..
-			Pacific		type=dir uname=bin gname=bin mode=0555
-			..
-			SystemV		type=dir uname=bin gname=bin mode=0555
-			..
-			US		type=dir uname=bin gname=bin mode=0555
-			..
-		..
-		right		type=dir uname=bin gname=bin mode=0555
-			Africa		type=dir uname=bin gname=bin mode=0555
-			..
-			America		type=dir uname=bin gname=bin mode=0555
-			..
-			Asia		type=dir uname=bin gname=bin mode=0555
-			..
-			Atlantic	type=dir uname=bin gname=bin mode=0555
-			..
-			Australia	type=dir uname=bin gname=bin mode=0555
-			..
-			Brazil		type=dir uname=bin gname=bin mode=0555
-			..
-			Canada		type=dir uname=bin gname=bin mode=0555
-			..
-			Chile		type=dir uname=bin gname=bin mode=0555
-			..
-			Europe		type=dir uname=bin gname=bin mode=0555
-			..
-			Indian		type=dir uname=bin gname=bin mode=0555
-			..
-			Mexico		type=dir uname=bin gname=bin mode=0555
-			..
-			Pacific		type=dir uname=bin gname=bin mode=0555
-			..
-			SystemV		type=dir uname=bin gname=bin mode=0555
-			..
-			US		type=dir uname=bin gname=bin mode=0555
-			..
 		..
 	..
 ..
