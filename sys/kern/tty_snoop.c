@@ -65,7 +65,7 @@ devtotty (dev)
 	if (major(dev) > nchrdev)
 		return (NULL);		/* no such device available */
 
-	return (*cdevsw[major(dev)].d_devtotty)(dev);
+	return (*cdevsw[major(dev)]->d_devtotty)(dev);
 }
 
 #define SNP_INPUT_BUF	5	/* This is even too  much,the maximal
