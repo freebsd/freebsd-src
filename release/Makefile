@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.389 1998/09/20 08:52:23 jkh Exp $
+#	$Id: Makefile,v 1.390 1998/09/23 07:38:51 gpalmer Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -678,6 +678,9 @@ doMFSKERN:
 	@cd ${.CURDIR}/../sys/i386/conf && \
 	  sed	-e '/pty/d' \
 		-e '/pass0/d' \
+		-e '/apm0/d' \
+		-e '/ppp/d' \
+		-e '/gzip/d' \
 		-e '/PROCFS/d' \
 		-e '/MSDOSFS/d' \
 		-e '/SYSVSHM/d' \
