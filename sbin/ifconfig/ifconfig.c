@@ -750,8 +750,8 @@ in_getaddr(s, which)
 	if (which != MASK)
 		sin->sin_family = AF_INET;
 
-	if ((val = inet_addr(s)) != -1)
-		sin->sin_addr.s_addr = val;
+	if (inet_aton(s, &sin->sin_addr))
+		;
 	else if (hp = gethostbyname(s))
 		bcopy(hp->h_addr, (char *)&sin->sin_addr, hp->h_length);
 	else if (np = getnetbyname(s))
