@@ -41,7 +41,7 @@ struct snddev_channel {
 struct snddev_info {
 	SLIST_HEAD(, snddev_channel) channels;
 	struct pcm_channel *fakechan;
-	unsigned devcount, chancount, vchancount;
+	unsigned devcount, reccount, chancount, vchancount;
 	unsigned flags;
 	int inprog;
 	void *devinfo;
@@ -174,7 +174,7 @@ pcm_getfakechan(struct snddev_info *d)
 
 /* return a locked channel */
 struct pcm_channel *
-pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid)
+pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid, int chnum)
 {
 	struct pcm_channel *c;
     	struct snddev_channel *sce;
@@ -187,9 +187,11 @@ pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid)
 		c = sce->channel;
 		CHN_LOCK(c);
 		if ((c->direction == direction) && !(c->flags & CHN_F_BUSY)) {
-			c->flags |= CHN_F_BUSY;
-			c->pid = pid;
-			return c;
+			if (chnum == -1 || c->num == chnum) {
+				c->flags |= CHN_F_BUSY;
+				c->pid = pid;
+				return c;
+			}
 		}
 		CHN_UNLOCK(c);
 	}
@@ -203,7 +205,7 @@ pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid)
 				if (!SLIST_EMPTY(&c->children)) {
 					err = vchan_create(c);
 					if (!err)
-						return pcm_chnalloc(d, direction, pid);
+						return pcm_chnalloc(d, direction, pid, -1);
 					else
 						device_printf(d->dev, "vchan_create(%s) == %d\n", c->name, err);
 				}
@@ -422,8 +424,18 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch, int mkdev)
 		SLIST_INSERT_AFTER(after, sce, link);
 	}
 
-	if (mkdev)
+	if (ch->direction == PCMDIR_REC)
+		ch->num = d->reccount++;
+/*
+	else
+		ch->num = d->playcount++;
+*/
+
+	if (mkdev) {
 		dsp_register(unit, d->devcount++);
+		if (ch->direction == PCMDIR_REC)
+			dsp_registerrec(unit, ch->num);
+	}
     	d->chancount++;
 	if (ch->flags & CHN_F_VIRTUAL)
 		d->vchancount++;
@@ -453,8 +465,11 @@ gotit:
 	SLIST_REMOVE(&d->channels, sce, snddev_channel, link);
 	free(sce, M_DEVBUF);
 
-	if (rmdev)
+	if (rmdev) {
 		dsp_unregister(unit, --d->devcount);
+		if (ch->direction == PCMDIR_REC)
+			dsp_unregisterrec(unit, --d->reccount);
+	}
 	snd_mtxunlock(d->lock);
 
 	return 0;
@@ -552,6 +567,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->dev = dev;
 	d->devinfo = devinfo;
 	d->devcount = 0;
+	d->reccount = 0;
 	d->chancount = 0;
 	d->vchancount = 0;
 	d->inprog = 0;

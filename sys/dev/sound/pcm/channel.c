@@ -279,7 +279,7 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 
 	if (count <= 0) {
 		c->flags |= CHN_F_DEAD;
-		printf("play interrupt timeout, channel dead\n", c->name);
+		printf("%s: play interrupt timeout, channel dead\n", c->name);
 	}
 
 	return ret;
@@ -402,7 +402,7 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 
 	if (count <= 0) {
 		c->flags |= CHN_F_DEAD;
-		printf("%s record interrupt timeout, channel dead\n", c->name);
+		printf("%s: record interrupt timeout, channel dead\n", c->name);
 	}
 
 	return ret;

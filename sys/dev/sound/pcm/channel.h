@@ -41,6 +41,7 @@ struct pcmchan_caps {
 struct pcm_channel {
 	kobj_t methods;
 
+	int num;
 	pid_t pid;
 	int refcount;
 	struct pcm_feeder *feeder;

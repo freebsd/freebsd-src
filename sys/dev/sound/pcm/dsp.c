@@ -199,6 +199,14 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 		fmt = 0;
 		break;
 
+	case SND_DEV_DSPREC:
+		fmt = AFMT_U8;
+		if (mode & FWRITE) {
+			splx(s);
+			return EINVAL;
+		}
+		break;
+
 	default:
 		panic("impossible devtype %d", devtype);
 	}
@@ -220,7 +228,10 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 		/* open for read */
 		if (rdch == NULL) {
 			/* not already open, try to get a channel */
-			rdch = pcm_chnalloc(d, PCMDIR_REC, p->p_pid);
+			if (devtype == SND_DEV_DSPREC)
+				rdch = pcm_chnalloc(d, PCMDIR_REC, p->p_pid, PCMCHAN(i_dev));
+			else
+				rdch = pcm_chnalloc(d, PCMDIR_REC, p->p_pid, -1);
 			if (!rdch) {
 				/* no channel available, exit */
 				pcm_unlock(d);
@@ -240,7 +251,7 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 		/* open for write */
 		if (wrch == NULL) {
 			/* not already open, try to get a channel */
-			wrch = pcm_chnalloc(d, PCMDIR_PLAY, p->p_pid);
+			wrch = pcm_chnalloc(d, PCMDIR_PLAY, p->p_pid, -1);
 			if (!wrch) {
 				/* no channel available */
 				if (rdch && (flags & FREAD)) {
@@ -1036,6 +1047,15 @@ dsp_register(int unit, int channel)
 }
 
 int
+dsp_registerrec(int unit, int channel)
+{
+	make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_DSPREC, channel),
+		 UID_ROOT, GID_WHEEL, 0666, "dspr%d.%d", unit, channel);
+
+	return 0;
+}
+
+int
 dsp_unregister(int unit, int channel)
 {
 	dev_t pdev;
@@ -1045,6 +1065,17 @@ dsp_unregister(int unit, int channel)
 	pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSP16, channel));
 	destroy_dev(pdev);
 	pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_AUDIO, channel));
+	destroy_dev(pdev);
+
+	return 0;
+}
+
+int
+dsp_unregisterrec(int unit, int channel)
+{
+	dev_t pdev;
+
+	pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSPREC, channel));
 	destroy_dev(pdev);
 
 	return 0;
