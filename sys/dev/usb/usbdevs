@@ -785,6 +785,7 @@ product FUJIPHOTO MASS0100	0x0100	Mass Storage
 product	FUJITSU	AH_F401U	0x105b	AH-F401U Air H device
 
 /* Qualcomm products */
+product	QUALCOMM CDMA_MSM	0x3196	CDMA Technologies MSM modem
 product QUALCOMM2 CDMA_MSM	0x6000	CDMA Technologies MSM phone
 
 /* General Instruments (Motorola) products */
