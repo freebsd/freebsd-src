@@ -56,7 +56,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
 static char fromrcsid[] = "From: Id: gethnamaddr.c,v 8.20 1996/09/28 06:51:07 vixie Exp";
-static char rcsid[] = "$Id: gethostbydns.c,v 1.15 1996/12/27 18:21:05 wpaul Exp $";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.16 1996/12/30 13:18:37 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -497,6 +497,11 @@ _gethostbydnsname(name, af)
 			if (!isdigit(*cp) && *cp != '.') 
 				break;
 		}
+/*
+ * XXX: isxdigit(name[0]) gives false failures on short names which looks
+ * like hexadecimal digits, f.e. "fade", "babe", "d133", etc.
+ */
+#if 0
 	if (isxdigit(name[0]) || name[0] == ':')
 		for (cp = name;; ++cp) {
 			if (!*cp) {
@@ -527,7 +532,7 @@ _gethostbydnsname(name, af)
 			if (!isxdigit(*cp) && *cp != ':' && *cp != '.') 
 				break;
 		}
-
+#endif  /* XXX */
 	if ((n = res_search(name, C_IN, type, buf.buf, sizeof(buf))) < 0) {
 		dprintf("res_search failed (%d)\n", n);
 		return (NULL);
