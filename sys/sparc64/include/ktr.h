@@ -55,11 +55,11 @@
  */
 #define	ATR(desc, r1, r2, r3, l1, l2) \
 	.sect	.rodata ; \
-l1 ## :	.asciz	desc ; \
+l1:	.asciz	desc ; \
 	.previous ; \
 	SET(ktr_idx, r2, r1) ; \
 	lduw	[r1], r2 ; \
-l2 ## :	add	r2, 1, r3 ; \
+l2:	add	r2, 1, r3 ; \
 	set	KTR_ENTRIES - 1, r1 ; \
 	and	r3, r1, r3 ; \
 	set	ktr_idx, r1 ; \
