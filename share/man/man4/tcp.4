@@ -32,7 +32,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2004
+.Dd October 12, 2004
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -482,6 +482,9 @@ Enable support for RFC 2018, TCP Selective Acknowledgment option,
 which allows the receiver to inform the sender about all successfully
 arrived segments, allowing the sender to retransmit the missing segments
 only.
+.It Va sack.initburst
+Control the number of SACK retransmissions done upon initiation of SACK
+recovery.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
