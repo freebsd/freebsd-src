@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.28 1996/09/13 09:20:08 bde Exp $
+ * $Id: proc.h,v 1.29 1996/10/12 16:11:58 bde Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -215,6 +215,7 @@ struct	proc {
 #define	P_OWEUPC	0x20000	/* Owe process an addupc() call at next ast. */
 
 #define	P_SWAPPING	0x40000	/* Process is being swapped. */
+#define	P_SWAPINREQ	0x80000	/* Swapin request due to wakeup */
 
 /*
  * MOVE TO ucred.h?
