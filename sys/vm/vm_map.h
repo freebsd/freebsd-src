@@ -320,6 +320,8 @@ int vm_map_stack (vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int);
 int vm_map_growstack (struct proc *p, vm_offset_t addr);
 int vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
     boolean_t user_unwire);
+int vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
+    boolean_t user_wire);
 int vmspace_swap_count (struct vmspace *vmspace);
 int vm_uiomove(vm_map_t, vm_object_t, off_t, int, vm_offset_t, int *);
 #endif				/* _KERNEL */

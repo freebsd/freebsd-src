@@ -1486,7 +1486,7 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
 /*
  *	vm_map_unwire:
  *
- *	Implements both kernel and user unwire.
+ *	Implements both kernel and user unwiring.
  */
 int
 vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
@@ -1505,7 +1505,6 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		return (KERN_INVALID_ADDRESS);
 	}
 	last_timestamp = map->timestamp;
-	need_wakeup = FALSE;
 	entry = first_entry;
 	while (entry != &map->header && entry->start < end) {
 		if (entry->eflags & MAP_ENTRY_IN_TRANSITION) {
@@ -1515,10 +1514,6 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			saved_start = (start >= entry->start) ? start :
 			    entry->start;
 			entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
-			if (need_wakeup) {
-				vm_map_wakeup(map);
-				need_wakeup = FALSE;
-			}
 			if (vm_map_unlock_and_wait(map, user_unwire)) {
 				/*
 				 * Allow interruption of user unwiring?
@@ -1600,6 +1595,7 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	}
 	rv = KERN_SUCCESS;
 done:
+	need_wakeup = FALSE;
 	if (first_entry == NULL) {
 		result = vm_map_lookup_entry(map, start, &first_entry);
 		KASSERT(result, ("vm_map_unwire: lookup failed"));
@@ -1620,6 +1616,19 @@ done:
 	if (need_wakeup)
 		vm_map_wakeup(map);
 	return (rv);
+}
+
+/*
+ *	vm_map_wire:
+ *
+ *	Implements both kernel and user wiring.
+ */
+int
+vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
+	boolean_t user_wire)
+{
+
+	return (KERN_FAILURE);
 }
 
 /*
