@@ -45,6 +45,7 @@ int sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz);
 int sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz);
 void sndbuf_reset(struct snd_dbuf *b);
 void sndbuf_clear(struct snd_dbuf *b, unsigned int length);
+void sndbuf_fillsilence(struct snd_dbuf *b);
 
 u_int32_t sndbuf_getfmt(struct snd_dbuf *b);
 int sndbuf_setfmt(struct snd_dbuf *b, u_int32_t fmt);
