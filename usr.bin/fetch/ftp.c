@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.9 1997/10/08 18:43:53 fenner Exp $
+ *	$Id: ftp.c,v 1.10 1998/09/20 00:01:26 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -375,6 +375,20 @@ ftp_retrieve(struct fetch_state *fs)
 		}
 	}
 	size = ftpGetSize(ftp, ftps->ftp_remote_file);
+
+	if (fs->fs_reportsize) {
+		fclose(ftp);
+		if (size == -1) {
+			warnx("%s: size not known\n", fs->fs_outputfile);
+			printf("Unknown\n");
+			return 1;
+		}
+		else {
+			printf("%qd\n", (quad_t)size);
+			return 0;
+		}
+	}
+
 	if (size > 0 && fs->fs_expectedsize != -1 && size != fs->fs_expectedsize) {
 		warnx("%s: size mismatch, expected=%lu / actual=%lu",
 		      ftps->ftp_remote_path, 
