@@ -296,7 +296,7 @@ __CONCAT(dname,_detach)(self, flags) \
 #define PWR_SUSPEND 1
 #define PWR_RESUME 0
 
-#define USB_DECLARE_DRIVER_INIT(dname, init) \
+#define USB_DECLARE_DRIVER_INIT(dname, init...) \
 static device_probe_t __CONCAT(dname,_match); \
 static device_attach_t __CONCAT(dname,_attach); \
 static device_detach_t __CONCAT(dname,_detach); \
