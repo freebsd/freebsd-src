@@ -102,6 +102,7 @@ static struct {
 	{0x1385, 0x4100, WI_BUS_PCI_PLX, "Netgear MA301"},
 	{0x1638, 0x1100, WI_BUS_PCI_PLX, "PRISM2STA WaveLAN"},
 	{0x111a, 0x1023, WI_BUS_PCI_PLX, "Siemens SpeedStream"},
+	{0x10b5, 0x9050, WI_BUS_PCI_PLX, "SMC 2602W"},
 	{0x16ec, 0x3685, WI_BUS_PCI_PLX, "US Robotics 2415"},
 	{0, 0, 0, NULL}
 };
