@@ -177,6 +177,13 @@ system mailboxes
 makes login quieter
 .It Pa /etc/auth.conf
 configure authentication services
+.It Pa /etc/pam.conf
+if
+.Nm
+is configured with PAM support, it uses
+.Pa /etc/pam.conf
+entries with service name
+.Dq login
 .El
 .Sh SEE ALSO
 .Xr builtin 1 ,

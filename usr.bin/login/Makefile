@@ -10,9 +10,8 @@ CFLAGS+=-Wall -DLOGIN_ACCESS -DLOGALL
 DPADD=	${LIBUTIL} ${LIBCRYPT}
 LDADD=	-lutil -lcrypt
 
-.if defined(NOPAM)
-CFLAGS+= -DNO_PAM
-.else
+.if !defined(NOPAM)
+CFLAGS+= -DUSE_PAM
 DPADD+=	${LIBPAM}
 LDADD+=	${MINUSLPAM}
 .endif

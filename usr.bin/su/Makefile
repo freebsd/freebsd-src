@@ -4,9 +4,18 @@
 PROG=	su
 SRCS=	su.c
 
-COPTS+=	-DLOGIN_CAP -DSKEY
-DPADD=	${LIBUTIL} ${LIBSKEY} ${LIBMD} ${LIBCRYPT}
-LDADD=	-lutil -lskey -lmd -lcrypt
+DPADD+= ${LIBUTIL}
+LDADD+= -lutil
+
+.if !defined(NOPAM)
+CFLAGS+= -DUSE_PAM
+DPADD+= ${LIBPAM}
+LDADD+= ${MINUSLPAM}
+.else
+COPTS+= -DSKEY
+DPADD+= ${LIBSKEY} ${LIBMD} ${LIBCRYPT}
+LDADD+= -lskey -lmd -lcrypt
+.endif
 
 .if defined(WHEELSU)
 COPTS+=	-DWHEELSU
