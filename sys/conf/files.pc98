@@ -315,8 +315,12 @@ pc98/pc98/syscons_pc98.c	optional	sc
 dev/syscons/schistory.c		optional	sc
 dev/syscons/scmouse.c		optional	sc
 pc98/pc98/scgdcrndr.c		optional	sc
+dev/syscons/scterm.c		optional	sc
+dev/syscons/scterm-dumb.c	optional	sc
+pc98/pc98/scterm-sck.c		optional	sc
 dev/syscons/scvidctl.c		optional	sc
 pc98/pc98/scvtbpc98.c		optional	sc
+dev/syscons/sysmouse.c		optional	sc
 i386/isa/tw.c			optional	tw
 pc98/pc98/wd.c			optional	wdc
 pc98/pc98/wd.c			optional	wd
