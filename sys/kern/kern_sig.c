@@ -1011,7 +1011,9 @@ psignal(p, sig)
 		panic("psignal signal number");
 	}
 
+	s = splhigh();
 	KNOTE(&p->p_klist, NOTE_SIGNAL | sig);
+	splx(s);
 
 	prop = sigprop(sig);
 
