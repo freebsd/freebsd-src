@@ -31,7 +31,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/bfe/if_bfe.c,v 1.4.4.8 2004/03/17 17:39:12 dwmalone Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

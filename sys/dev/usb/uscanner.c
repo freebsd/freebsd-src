@@ -5,7 +5,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/uscanner.c,v 1.2.2.20 2004/04/16 18:12:58 julian Exp $");
 
 /*
  * Copyright (c) 2000 The NetBSD Foundation, Inc.

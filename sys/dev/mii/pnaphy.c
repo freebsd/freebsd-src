@@ -30,7 +30,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/pnaphy.c,v 1.1.2.3 2002/11/08 21:53:49 semenu Exp $
  */
 
 /*
@@ -63,7 +63,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/mii/pnaphy.c,v 1.1.2.3 2002/11/08 21:53:49 semenu Exp $";
 #endif
 
 static int pnaphy_probe		__P((device_t));

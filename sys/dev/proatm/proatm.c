@@ -79,7 +79,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/proatm/proatm.c,v 1.1.2.2 2003/07/23 08:18:26 harti Exp $");
 
 /* replace with #define XDEBUG 1 or #define XDEBUG 2 for extra debug printing */
 #define XDEBUG 0

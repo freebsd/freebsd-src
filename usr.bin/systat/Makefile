@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/systat/Makefile,v 1.7.6.1 2003/08/15 15:09:52 dwmalone Exp $
 
 PROG=	systat
 CFLAGS+=-I${.CURDIR}/../../sys

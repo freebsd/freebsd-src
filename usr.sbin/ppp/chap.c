@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/chap.c,v 1.61.2.7 2002/09/01 02:12:23 brian Exp $
  */
 
 #include <sys/param.h>

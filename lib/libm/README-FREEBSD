@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/lib/libm/README-FREEBSD,v 1.1.2.1 2000/08/17 00:57:08 jhb Exp $
 
 The libm library has been superceded by the msun library.  The
 source has not been delegated to the attic yet because there are

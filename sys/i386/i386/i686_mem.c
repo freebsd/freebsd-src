@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/i686_mem.c,v 1.8.2.5 2003/08/07 04:31:51 imp Exp $
  */
 
 #include <sys/param.h>

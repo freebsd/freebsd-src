@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/uhub.c,v 1.21.2.8 2004/03/01 00:07:22 julian Exp $");
 
 /*
  * USB spec: http://www.usb.org/developers/docs/usbspec.zip

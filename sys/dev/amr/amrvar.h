@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $FreeBSD$
+ *      $FreeBSD: src/sys/dev/amr/amrvar.h,v 1.2.2.6 2003/10/29 09:11:38 ps Exp $
  */
 
 #if __FreeBSD_version >= 500005

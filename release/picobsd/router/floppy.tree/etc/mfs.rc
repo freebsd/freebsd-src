@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/router/floppy.tree/etc/mfs.rc,v 1.2 1999/08/28 01:33:49 peter Exp $
 # This file is interpreted by oinit(8)
 #
 ncons 2

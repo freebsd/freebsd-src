@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:33:55  rpd
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/biosboot/README.MACH,v 1.7 1999/08/28 00:43:10 peter Exp $
  */
 
 ********NOTE: This is not all relevant to the 386BSD version**********

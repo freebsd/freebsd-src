@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/aac/aac_linux.c,v 1.1.4.1 2003/03/28 19:50:17 scottl Exp $
  */
 
 #include <sys/param.h>

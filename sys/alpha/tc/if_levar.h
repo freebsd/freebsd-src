@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/if_levar.h,v 1.2 1999/08/28 00:39:08 peter Exp $ */
 /*	$NetBSD: if_levar.h,v 1.4 1997/03/15 18:12:07 is Exp $	*/
 
 /*-

@@ -36,7 +36,7 @@
  * This are binary copies of the PCA200E firmware versions 3.0.1 and
  * 4.1.12
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/atm/fore_dnld/pca200e.c,v 1.1.2.1 2003/08/20 11:15:42 harti Exp $
  */
 
 #include <sys/types.h>

@@ -21,7 +21,7 @@
  * Cronyx Id: if_ct.c,v 1.1.2.22 2004/02/26 19:06:51 rik Exp $
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ctau/if_ct.c,v 1.2.2.2.2.1 2004/05/12 17:19:15 rik Exp $");
 
 #include <sys/param.h>
  

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/umct/Makefile,v 1.2.2.1 2004/04/13 03:39:17 rwatson Exp $
 
 S=	${.CURDIR}/../..
 .PATH: $S/dev/usb

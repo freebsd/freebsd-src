@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)csh.g	8.1 (Berkeley) 6/8/93
-.\" $FreeBSD$
+.\" $FreeBSD: src/bin/csh/USD.doc/csh.g,v 1.5.2.2 2003/01/24 02:08:54 keramida Exp $
 .\"
 .SH
 Glossary

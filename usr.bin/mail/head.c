@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)head.c	8.2 (Berkeley) 4/20/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/mail/head.c,v 1.1.1.1.14.5 2003/06/17 04:25:07 mikeh Exp $");
 
 #include "rcv.h"
 #include "extern.h"

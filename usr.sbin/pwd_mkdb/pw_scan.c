@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)pw_scan.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/pwd_mkdb/pw_scan.c,v 1.14.2.2 2004/02/22 11:28:06 charnier Exp $";
 #endif /* not lint */
 
 /*

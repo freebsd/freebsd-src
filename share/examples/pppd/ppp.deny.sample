@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/pppd/ppp.deny.sample,v 1.5.2.3 2002/06/30 18:23:00 maxim Exp $
 #
 # list of users disallowed any pppd access via 'system
 # password login'.

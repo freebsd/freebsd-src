@@ -27,7 +27,7 @@
  *	i4brunppp - run userland ppp for incoming call from rbch i/f
  *	------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/examples/isdn/i4brunppp/i4brunppp.c,v 1.2.2.1 2001/08/12 01:57:09 obrien Exp $
  *
  *      last edit-date: [Sat Jul 21 13:38:10 2001]
  *

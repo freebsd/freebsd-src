@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/TESTS/yesno.c,v 1.5.2.1 2000/12/15 05:54:37 jkh Exp $
  */
 
 #include <stdio.h>

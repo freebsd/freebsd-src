@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/mount_hpfs/mount_hpfs.c,v 1.1 1999/12/09 19:09:15 semenu Exp $
  */
 
 #include <sys/cdefs.h>

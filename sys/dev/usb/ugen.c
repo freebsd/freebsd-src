@@ -7,7 +7,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/ugen.c,v 1.38.2.10 2004/03/01 00:07:22 julian Exp $");
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

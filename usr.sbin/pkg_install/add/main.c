@@ -19,7 +19,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/add/main.c,v 1.29.2.21.2.1 2004/05/08 23:59:16 bmah Exp $");
 
 #include <err.h>
 #include <sys/param.h>

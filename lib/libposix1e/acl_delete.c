@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libposix1e/acl_delete.c,v 1.4 2000/01/26 04:19:36 rwatson Exp $
  */
 /*
  * acl_delete_def_file -- remove a default acl from a file

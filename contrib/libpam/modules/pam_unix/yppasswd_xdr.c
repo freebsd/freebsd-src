@@ -8,7 +8,7 @@
  * 
  * This file was generated automatically by rpcgen from yppasswd.x, and
  * editied manually.
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_unix/yppasswd_xdr.c,v 1.1.1.1.2.2 2001/06/11 15:28:30 markm Exp $
  */
 
 #include <security/_pam_aconf.h>

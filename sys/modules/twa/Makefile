@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/twa/Makefile,v 1.1.2.3 2004/04/10 02:46:27 vkashyap Exp $
 
 #
 # In the line following this comment, a value of 0 on the right hand

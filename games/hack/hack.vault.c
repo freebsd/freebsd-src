@@ -1,6 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.vault.c - version 1.0.2 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/hack.vault.c,v 1.4 1999/11/16 10:26:38 marcel Exp $ */
 
 #include	"hack.h"
 #ifdef QUEST

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/Makefile,v 1.183.2.15 2003/11/14 12:21:00 simokawa Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR=	IPXrouted \

@@ -5,7 +5,7 @@
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/logmsg.c,v 1.6.2.4 2002/12/19 21:17:56 peter Exp $
  */
 
 #include <assert.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/atomic.c,v 1.3.18.1 2004/05/06 01:55:21 jdp Exp $
  */
 
 /* This file creates publically callable functions to perform various

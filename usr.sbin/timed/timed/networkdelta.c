@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)networkdelta.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/timed/timed/networkdelta.c,v 1.3.2.1 2000/07/01 01:28:10 ps Exp $";
 #endif /* not lint */
 
 #include "globals.h"

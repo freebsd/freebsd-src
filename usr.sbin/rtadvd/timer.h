@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rtadvd/timer.h,v 1.1.2.4 2003/08/15 09:05:12 ume Exp $
  */
 
 /* a < b */

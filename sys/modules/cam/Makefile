@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/cam/Makefile,v 1.10.2.2 2004/04/19 17:32:16 njl Exp $ 
 
 MAINTAINER=	n_hibma@freebsd.org
 S=	${.CURDIR}/../..

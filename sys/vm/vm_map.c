@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_map.c,v 1.187.2.24.2.4 2004/05/22 23:09:19 kensmith Exp $
  */
 
 /*

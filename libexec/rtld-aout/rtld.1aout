@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/libexec/rtld-aout/rtld.1aout,v 1.17.2.4 2001/08/16 10:44:20 ru Exp $
 .\"
 .\" Copyright (c) 1995 Paul Kranenburg
 .\" All rights reserved.

@@ -100,7 +100,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/if_xl.c,v 1.72.2.29 2004/03/19 23:21:05 silby Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

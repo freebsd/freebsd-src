@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)process.c	8.2 (Berkeley) 11/16/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/talkd/process.c,v 1.9 1999/08/28 00:10:16 peter Exp $";
 #endif /* not lint */
 
 /*

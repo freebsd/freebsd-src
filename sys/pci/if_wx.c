@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pci/if_wx.c,v 1.5.2.12 2003/03/05 18:42:34 njl Exp $ */
 /*
  * Principal Author: Matthew Jacob <mjacob@feral.com>
  * Copyright (c) 1999, 2001 by Traakan Software

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libstand/read.c,v 1.1.1.1.6.2 2004/01/28 17:34:26 jhb Exp $ */
 /*	$NetBSD: read.c,v 1.8 1997/01/22 00:38:12 cgd Exp $	*/
 
 /*-

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/examples/scsi_target/scsi_cmds.c,v 1.2.2.3 2004/01/29 18:02:41 njl Exp $
  */
 
 #include <stdio.h>

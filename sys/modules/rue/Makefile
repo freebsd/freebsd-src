@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/rue/Makefile,v 1.1.4.2 2004/03/01 00:07:25 julian Exp $
 
 S=	${.CURDIR}/../..
 .PATH: $S/dev/usb

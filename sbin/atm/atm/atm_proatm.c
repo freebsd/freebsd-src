@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/atm/atm/atm_proatm.c,v 1.1.2.1 2003/07/22 15:04:50 harti Exp $");
 
 #include <sys/param.h>  
 #include <sys/socket.h> 

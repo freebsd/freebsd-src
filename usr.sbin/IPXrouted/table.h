@@ -36,7 +36,7 @@
  *
  *	@(#)table.h	8.1 (Berkeley) 6/5/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/IPXrouted/table.h,v 1.6 1999/08/28 01:15:05 peter Exp $
  */
 
 /*

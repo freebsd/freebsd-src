@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/files.i386,v 1.307.2.43 2004/04/07 08:39:06 rik Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and

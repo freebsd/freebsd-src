@@ -37,7 +37,7 @@
  *	@(#)procfs_regs.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/procfs/procfs_regs.c,v 1.10.2.5 2003/10/04 15:50:35 nectar Exp $
  */
 
 #include <sys/param.h>

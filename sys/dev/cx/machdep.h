@@ -15,7 +15,7 @@
  * all derivative works or modified versions.
  *
  * Cronyx Id: machdep.h,v 1.3.4.3 2003/11/27 14:21:58 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cx/machdep.h,v 1.2.2.1 2004/03/29 18:06:33 rik Exp $
  */
 
 /*

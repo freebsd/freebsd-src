@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/alpha/alpha/clock_if.m,v 1.4.2.1 2000/07/03 19:59:44 mjacob Exp $
 #
 
 #include <machine/clockvar.h>

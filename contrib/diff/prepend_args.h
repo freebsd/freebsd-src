@@ -16,6 +16,6 @@
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/diff/prepend_args.h,v 1.1 1999/11/26 02:51:44 obrien Exp $ */
 
 void prepend_default_options PARAMS ((char const *, int *, char ***));

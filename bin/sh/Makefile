@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.4 (Berkeley) 5/5/95
-# $FreeBSD$
+# $FreeBSD: src/bin/sh/Makefile,v 1.30.2.2 2004/03/22 07:40:12 ru Exp $
 
 PROG=	sh
 INSTALLFLAGS= -S

@@ -3,7 +3,7 @@
 /* created by Michael K. Johnson, johnsonm@redhat.com
  *
  * $Id: pam_static.c,v 1.4 1996/12/01 03:14:13 morgan Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_static.c,v 1.2.6.2 2001/06/11 15:28:12 markm Exp $
  *
  * $Log: pam_static.c,v $
  * Revision 1.4  1996/12/01 03:14:13  morgan

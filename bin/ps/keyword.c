@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)keyword.c	8.5 (Berkeley) 4/2/94";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/ps/keyword.c,v 1.24.2.5 2004/03/25 19:16:40 gad Exp $");
 
 #include <sys/param.h>
 #include <sys/time.h>

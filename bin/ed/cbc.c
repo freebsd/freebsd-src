@@ -42,7 +42,7 @@
 static char * const rcsid = "@(#)cbc.c,v 1.2 1994/02/01 00:34:36 alm Exp";
 #else
 static char * const rcsid =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/ed/cbc.c,v 1.12.2.1 2001/07/04 22:32:18 kris Exp $";
 #endif
 #endif /* not lint */
 

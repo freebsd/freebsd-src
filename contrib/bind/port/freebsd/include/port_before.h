@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/bind/port/freebsd/include/port_before.h,v 1.1.1.2.2.6 2003/11/28 22:13:48 dougb Exp $ */
 #define WANT_IRS_NIS
 #define WANT_IRS_PW
 #define HAVE_PW_CLASS

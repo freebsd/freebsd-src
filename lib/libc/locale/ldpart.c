@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/ldpart.c,v 1.7.2.4 2003/12/22 20:45:16 jkh Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)compress.c	8.2 (Berkeley) 1/7/94";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/compress/compress.c,v 1.7.6.6 2003/06/23 18:04:04 trhodes Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

@@ -27,7 +27,7 @@
  *	Eicon Diehl DIVA 2.0 or 2.02 (ISA PnP) support for isic driver
  *	--------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/isic/i4b_diva.c,v 1.1.2.1 2001/08/10 14:08:38 obrien Exp $
  *
  *      last edit-date: [Fri Jan 26 13:57:10 2001]
  *

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/user.c,v 1.15.2.3 2004/02/22 11:21:27 charnier Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.

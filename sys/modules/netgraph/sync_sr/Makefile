@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/sync_sr/Makefile,v 1.1.2.1 2002/06/17 15:11:05 jhay Exp $
  
 .PATH:  ${.CURDIR}/../../../dev/sr
 KMOD    = ng_sync_sr

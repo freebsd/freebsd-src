@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_dummynet.c,v 1.24.2.26 2003/12/30 12:28:09 maxim Exp $
  */
 
 #if !defined(KLD_MODULE)

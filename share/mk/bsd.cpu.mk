@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.cpu.mk,v 1.2.2.5 2002/07/19 08:09:32 ru Exp $
 
 # Set default baseline values of CPUTYPE based on MACHINE_ARCH -- this is
 # the minimum CPU type we support for each architecture

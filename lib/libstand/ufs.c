@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libstand/ufs.c,v 1.5.6.2 2004/01/28 17:34:26 jhb Exp $ */
 /*	$NetBSD: ufs.c,v 1.20 1998/03/01 07:15:39 ross Exp $	*/
 
 /*-

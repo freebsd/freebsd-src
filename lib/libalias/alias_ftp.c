@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libalias/alias_ftp.c,v 1.5.2.9 2003/06/27 09:06:34 ru Exp $");
 
 /*
     Alias_ftp.c performs special processing for FTP sessions under

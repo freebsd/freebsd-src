@@ -25,11 +25,11 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/i386/sys/i386_get_ldt.c,v 1.7 1999/09/02 21:03:31 luoqi Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/lib/libc/i386/sys/i386_get_ldt.c,v 1.7 1999/09/02 21:03:31 luoqi Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <sys/cdefs.h>

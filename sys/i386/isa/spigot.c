@@ -42,7 +42,7 @@
  *
  * Version 1.7, December 1995.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/spigot.c,v 1.44.2.1 2003/08/10 23:09:28 nectar Exp $
  *
  */
 

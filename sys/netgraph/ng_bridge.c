@@ -36,7 +36,7 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_bridge.c,v 1.1.2.6 2004/01/09 08:58:06 ru Exp $
  */
 
 /*

@@ -2,7 +2,7 @@
 
 /*
  * $Id: pam_session.c,v 1.3 1996/12/01 03:14:13 morgan Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_session.c,v 1.1.1.1.6.2 2001/06/11 15:28:12 markm Exp $
  *
  * $Log: pam_session.c,v $
  * Revision 1.3  1996/12/01 03:14:13  morgan

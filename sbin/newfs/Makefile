@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/27/94
-# $FreeBSD$
+# $FreeBSD: src/sbin/newfs/Makefile,v 1.6.6.2 2001/04/25 10:58:41 ru Exp $
 
 PROG=	newfs
 SRCS=	getmntopts.c newfs.c mkfs.c

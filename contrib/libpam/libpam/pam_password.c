@@ -2,7 +2,7 @@
 
 /*
  * $Id: pam_password.c,v 1.7 1997/04/05 06:56:45 morgan Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_password.c,v 1.1.1.1.6.2 2001/06/11 15:28:12 markm Exp $
  *
  * $Log: pam_password.c,v $
  */

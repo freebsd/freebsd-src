@@ -23,7 +23,7 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $FreeBSD$
+#	@(#) $FreeBSD: src/usr.sbin/atm/Makefile.inc,v 1.2.2.1 2001/04/25 12:09:18 ru Exp $
 #
 #
 

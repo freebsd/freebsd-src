@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/rman.h,v 1.5.2.1 2001/06/05 08:06:07 imp Exp $
  */
 
 #ifndef _SYS_RMAN_H_

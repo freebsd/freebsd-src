@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdtime/timelocal.c,v 1.8.2.5 2003/12/24 01:10:34 jkh Exp $");
 
 #include <stddef.h>
 

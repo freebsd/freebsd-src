@@ -31,7 +31,7 @@
  * Rewritten by:
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/mga_state.c,v 1.6.2.1 2003/04/26 07:05:29 anholt Exp $
  */
 
 #include "dev/drm/mga.h"

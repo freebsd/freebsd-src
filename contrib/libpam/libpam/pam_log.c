@@ -2,7 +2,7 @@
  * pam_log.c -- PAM system logging
  *
  * $Id$
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_log.c,v 1.2.6.2 2001/06/11 15:28:12 markm Exp $
  *
  * $Log$
  */

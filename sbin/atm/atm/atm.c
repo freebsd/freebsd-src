@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sbin/atm/atm/atm.c,v 1.3.2.3 2003/08/20 10:53:58 harti Exp $
  *
  */
 
@@ -60,7 +60,7 @@
 #include "atm.h"
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sbin/atm/atm/atm.c,v 1.3.2.3 2003/08/20 10:53:58 harti Exp $");
 #endif
 
 

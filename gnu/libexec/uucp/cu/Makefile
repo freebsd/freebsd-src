@@ -1,5 +1,5 @@
 # Makefile for cu
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/cu/Makefile,v 1.8.2.2 2002/07/17 13:25:19 ru Exp $
 
 PROG=		cu
 SRCS=           cu.c prot.c log.c chat.c conn.c copy.c

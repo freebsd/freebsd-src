@@ -11,7 +11,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/natd/natd.c,v 1.25.2.9 2003/11/01 03:50:03 marcus Exp $");
 
 #define SYSLOG_NAMES
 

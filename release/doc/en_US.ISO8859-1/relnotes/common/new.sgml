@@ -1,7 +1,7 @@
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
 
-  <pubdate>$FreeBSD$</pubdate>
+  <pubdate>$FreeBSD: src/release/doc/en_US.ISO8859-1/relnotes/common/new.sgml,v 1.22.2.410.2.3 2004/05/22 00:22:41 hrs Exp $</pubdate>
 
   <corpauthor>The FreeBSD Project</corpauthor>
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/stat/Makefile,v 1.2.8.1 2003/12/15 10:58:08 des Exp $
 
 PROG=	stat
 MAN=	stat.1

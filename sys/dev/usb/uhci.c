@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/uhci.c,v 1.40.2.14 2004/04/16 18:12:57 julian Exp $");
 
 
 /*

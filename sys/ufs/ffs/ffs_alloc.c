@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ffs/ffs_alloc.c,v 1.64.2.3.2.1 2004/05/14 23:03:50 kensmith Exp $
  */
 
 #include "opt_quota.h"

@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/TESTS/menu2.c,v 1.8 2000/01/10 11:52:07 phantom Exp $
  */
 
 #include <stdio.h>

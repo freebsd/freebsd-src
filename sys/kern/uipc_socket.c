@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/uipc_socket.c,v 1.68.2.25 2004/03/22 23:59:54 ps Exp $
  */
 
 #include "opt_inet.h"

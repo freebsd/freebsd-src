@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.6 (Berkeley) 3/5/91
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/key/Makefile,v 1.4.6.1 2001/04/25 11:29:23 ru Exp $
 
 PROG=	key
 SRCS=	skey.c

@@ -20,7 +20,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/info/main.c,v 1.22.2.16 2004/04/06 03:49:11 cperciva Exp $");
 
 #include "lib.h"
 #include "info.h"

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/lnumeric.c,v 1.10.2.3 2003/12/24 01:08:47 jkh Exp $");
 
 #include <limits.h>
 #include "lnumeric.h"

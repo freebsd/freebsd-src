@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nodes.c.pat	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/nodes.c.pat,v 1.7.2.2 2003/07/22 13:11:26 dds Exp $
  */
 
 #include <stdlib.h>

@@ -23,7 +23,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/i386/freebsd.h,v 1.34.2.5 2002/06/20 23:12:37 obrien Exp $ */
 
 #undef  CPP_PREDEFINES
 #define CPP_PREDEFINES 							\

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_kern.c,v 1.61.2.3 2003/08/09 16:21:20 luoqi Exp $
  */
 
 /*

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/ipatm/ipatm_var.h,v 1.2.2.2 2003/08/11 07:08:30 harti Exp $
  *
  */
 

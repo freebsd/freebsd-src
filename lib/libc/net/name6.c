@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libc/net/name6.c,v 1.6.2.10 2004/04/12 23:07:29 pb Exp $	*/
 /*	$KAME: name6.c,v 1.25 2000/06/26 16:44:40 itojun Exp $	*/
 
 /*

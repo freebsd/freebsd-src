@@ -110,4 +110,4 @@ the debugger, the debugger should fork and the child should stop itself
 "attach".  as before, the child will hit a breakpoint on the first
 instruction in any newly exec'd image.
 
-$FreeBSD$
+$FreeBSD: src/sys/miscfs/procfs/README,v 1.4 1999/08/28 00:46:53 peter Exp $

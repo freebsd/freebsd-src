@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/msgdef/Makefile,v 1.38.2.5 2003/11/04 05:03:28 murray Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/viapm.c,v 1.1.2.2 2003/06/22 06:52:42 mdodd Exp $
  *
  */
 #include <sys/param.h>

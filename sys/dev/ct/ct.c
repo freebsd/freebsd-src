@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/ct/ct.c,v 1.4.2.2 2003/08/09 06:18:30 non Exp $ */
 /*	$NecBSD: ct.c,v 1.13.12.5 2001/06/26 07:31:53 honda Exp $	*/
 /*	$NetBSD$	*/
 

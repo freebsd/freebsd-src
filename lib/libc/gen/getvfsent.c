@@ -3,7 +3,7 @@
  * Written September 1994 by Garrett A. Wollman
  * This file is in the public domain.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/getvfsent.c,v 1.14.2.1 2001/03/05 09:19:38 obrien Exp $
  */
 
 #include <sys/param.h>

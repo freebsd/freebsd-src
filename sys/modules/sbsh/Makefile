@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sbsh/Makefile,v 1.1.2.1 2003/04/15 18:15:08 fjoe Exp $
 
 .PATH: ${.CURDIR}/../../dev/sbsh
 

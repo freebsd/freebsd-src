@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/pathchk/pathchk.c,v 1.2.2.1 2002/11/08 04:20:33 tjr Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

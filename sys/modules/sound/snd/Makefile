@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/snd/Makefile,v 1.1.2.3 2001/08/01 05:37:31 cg Exp $
 
 .PATH: ${.CURDIR}/../../../dev/sound
 

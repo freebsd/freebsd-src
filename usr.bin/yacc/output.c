@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/yacc/output.c,v 1.13.2.3 2001/10/05 03:03:14 obrien Exp $
  */
 
 #ifndef lint

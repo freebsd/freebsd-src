@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/usb/Makefile,v 1.7.2.1 2004/03/01 00:07:26 julian Exp $ 
 
 MAINTAINER=	n_hibma@freebsd.org
 

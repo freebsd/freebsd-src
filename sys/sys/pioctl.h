@@ -33,7 +33,7 @@
 /*
  * procfs ioctl definitions.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/pioctl.h,v 1.8 1999/08/28 00:51:55 peter Exp $
  */
 
 #ifndef _SYS_PIOCTL_H

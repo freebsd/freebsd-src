@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/texinfo/info/doc.c,v 1.3.2.1 2002/03/30 17:09:18 ru Exp $ */
 /* doc.c -- Generated structure containing function names and doc strings.
 
    This file was automatically made from various source files with the

@@ -25,7 +25,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)rc	5.27 (Berkeley) 6/5/91
-# $FreeBSD$
+# $FreeBSD: src/etc/rc,v 1.212.2.51 2002/10/17 17:25:07 schweikh Exp $
 #
 
 # System startup script run by init on autoboot

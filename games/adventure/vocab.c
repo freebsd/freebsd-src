@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)vocab.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/adventure/vocab.c,v 1.9 1999/12/19 00:21:51 billf Exp $";
 #endif /* not lint */
 
 /*      Re-coding of advent in C: data structure routines               */

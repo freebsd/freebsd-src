@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/crypto/Makefile,v 1.1.2.3 2004/02/10 17:37:10 bms Exp $
 
 .PATH:	${.CURDIR}/../../opencrypto
 .PATH:	${.CURDIR}/../../crypto

@@ -51,7 +51,7 @@ static char sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/ps/ps.c,v 1.30.2.14 2004/04/04 18:16:37 gad Exp $");
 
 #include <sys/param.h>
 #include <sys/proc.h>

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  * $TSHeader: src/sbin/ffsinfo/ffsinfo.c,v 1.4 2000/12/12 19:30:55 tomsoft Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ffsinfo/ffsinfo.c,v 1.3.2.1 2001/07/16 15:01:56 tomsoft Exp $
  *
  */
 
@@ -49,7 +49,7 @@ All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/ffsinfo/ffsinfo.c,v 1.3.2.1 2001/07/16 15:01:56 tomsoft Exp $";
 #endif /* not lint */
 
 /* ********************************************************** INCLUDES ***** */

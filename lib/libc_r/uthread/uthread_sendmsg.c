@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_sendmsg.c,v 1.7.2.5 2003/01/17 07:56:43 ru Exp $
  */
 #include <errno.h>
 #include <sys/types.h>

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/bios.c,v 1.5.2.1 2002/04/25 11:04:50 tg Exp $");
 
 #include "doscmd.h"
 #include "mouse.h"

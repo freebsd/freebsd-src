@@ -1,5 +1,5 @@
 /* report.h */
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/bootpd/report.h,v 1.1.1.1.14.2 2003/02/15 05:36:01 kris Exp $ */
 
 #ifdef	__STDC__
 #define P(args) args

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/isa/isahint.c,v 1.8.2.1 2001/03/21 11:18:25 nyan Exp $
  */
 
 #include <sys/param.h>

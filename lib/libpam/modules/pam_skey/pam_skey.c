@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libpam/modules/pam_skey/pam_skey.c,v 1.2.6.2 2003/02/10 12:15:30 des Exp $
  */
 
 #include <syslog.h>	/* XXX */

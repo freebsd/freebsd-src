@@ -1,5 +1,5 @@
 # Cronyx Id: Makefile,v 1.1.2.2 2003/01/13 08:28:48 rik Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ctau/Makefile,v 1.1.2.1 2004/04/07 08:17:14 rik Exp $
 
 .PATH:  ${.CURDIR}/../../dev/ctau
 KMOD=   if_ct

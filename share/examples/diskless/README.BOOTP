@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/diskless/README.BOOTP,v 1.2.4.1 2002/02/12 17:43:11 luigi Exp $
 # Notes on diskless boot.
 
 IMPORTANT NOTE:

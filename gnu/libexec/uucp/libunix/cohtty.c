@@ -2,7 +2,7 @@
    Hemedinger <bob@dalek.mwc.com> of Mark Williams Corporation and
    lightly edited by Ian Lance Taylor.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/libexec/uucp/libunix/cohtty.c,v 1.4.8.1 2000/12/11 01:03:17 obrien Exp $ */
 
 /* The bottom part of this file is lock.c.
  * This is a hacked lock.c. A full lock.c can be found in the libmisc sources 

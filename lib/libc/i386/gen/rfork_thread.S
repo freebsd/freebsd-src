@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/i386/gen/rfork_thread.S,v 1.2.2.2 2004/03/02 18:20:35 fjoe Exp $
  */
 
 /*

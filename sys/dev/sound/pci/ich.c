@@ -32,7 +32,7 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/ich.c,v 1.3.2.13 2003/08/18 15:41:01 orion Exp $");
 
 /* -------------------------------------------------------------------- */
 

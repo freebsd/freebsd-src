@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/mse.c,v 1.49.2.1 2000/03/20 13:58:47 yokota Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and

@@ -3,7 +3,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libz/zopen.c,v 1.2.2.2 2003/02/01 13:33:12 sobomax Exp $");
 
 #include <stdio.h>
 #include <zlib.h>

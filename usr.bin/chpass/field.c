@@ -34,7 +34,7 @@
 #ifndef lint
 static const char sccsid[] = "@(#)field.c	8.4 (Berkeley) 4/2/94";
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/chpass/field.c,v 1.4.6.1 2004/02/22 11:11:13 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

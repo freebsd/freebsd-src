@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/rndtest/rndtest.h,v 1.1.4.1 2003/06/04 17:10:30 sam Exp $	*/
 /*	$OpenBSD$	*/
 
 /*
