@@ -12,7 +12,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <strings.h>
+#include <ctype.h>
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -271,6 +272,13 @@ read_piece(char *input_file)
     while (fgets(line, sizeof(line), ifp) != NULL)
 	{
 	line_no++;
+
+	/*
+	 * Remove all trailing white space.
+	 */
+	i = strlen(line) - 1;
+	while (i > 0 && isspace(line[i]))
+		line[--i] = '\0';
 
 	/*
 	 * Look for the beginning of an encoded piece.
