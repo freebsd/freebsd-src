@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic7xxx_osm.c#10 $
  *
  * $FreeBSD$
  */
@@ -228,14 +228,16 @@ fail:
 		ahc->platform_data->sim_b = sim2;
 		ahc->platform_data->path_b = path2;
 	}
-	ahc_unlock(ahc, &s);
 
-	if (count != 0)
+	if (count != 0) {
 		/* We have to wait until after any system dumps... */
 		ahc->platform_data->eh =
 		    EVENTHANDLER_REGISTER(shutdown_final, ahc_shutdown,
 					  ahc, SHUTDOWN_PRI_DEFAULT);
+		ahc_intr_enable(ahc, TRUE);
+	}
 
+	ahc_unlock(ahc, &s);
 	return (count);
 }
 
@@ -1222,7 +1224,7 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 
 	if ((ccb->ccb_h.flags & CAM_NEGOTIATE) != 0
 	 && (tinfo->goal.width != 0
-	  || tinfo->goal.period != 0
+	  || tinfo->goal.offset != 0
 	  || tinfo->goal.ppr_options != 0)) {
 		scb->flags |= SCB_NEGOTIATE;
 		scb->hscb->control |= MK_MESSAGE;
@@ -1276,8 +1278,7 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 		ahc_pause(ahc);
 		if ((ahc->flags & AHC_PAGESCBS) == 0)
 			ahc_outb(ahc, SCBPTR, scb->hscb->tag);
-		ahc_outb(ahc, SCB_TAG, scb->hscb->tag);
-		ahc_outb(ahc, RETURN_1, CONT_MSG_LOOP);
+		ahc_outb(ahc, TARG_IMMEDIATE_SCB, scb->hscb->tag);
 		ahc_unpause(ahc);
 	} else {
 		ahc_queue_scb(ahc, scb);
@@ -1289,7 +1290,10 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 static void
 ahc_poll(struct cam_sim *sim)
 {
-	ahc_intr(cam_sim_softc(sim));
+	struct ahc_softc *ahc;
+
+	ahc = (struct ahc_softc *)cam_sim_softc(sim);
+	ahc_intr(ahc);
 }
 
 static void
@@ -1519,8 +1523,7 @@ bus_reset:
 		saved_scbptr = ahc_inb(ahc, SCBPTR);
 		active_scb_index = ahc_inb(ahc, SCB_TAG);
 
-		if (last_phase != P_BUSFREE 
-		  && (ahc_inb(ahc, SEQ_FLAGS) & IDENTIFY_SEEN) != 0
+		if ((ahc_inb(ahc, SEQ_FLAGS) & IDENTIFY_SEEN) != 0
 		  && (active_scb_index < ahc->scb_data->numscbs)) {
 			struct scb *active_scb;
 
@@ -1899,14 +1902,24 @@ int
 ahc_detach(device_t dev)
 {
 	struct ahc_softc *ahc;
+	u_long l;
 	u_long s;
 
+	ahc_list_lock(&l);
 	device_printf(dev, "detaching device\n");
 	ahc = device_get_softc(dev);
+	ahc = ahc_find_softc(ahc);
+	if (ahc == NULL) {
+		device_printf(dev, "aic7xxx already detached\n");
+		ahc_list_unlock(&l);
+		return (ENOENT);
+	}
 	ahc_lock(ahc, &s);
+	ahc_intr_enable(ahc, FALSE);
 	bus_teardown_intr(dev, ahc->platform_data->irq, ahc->platform_data->ih);
 	ahc_unlock(ahc, &s);
 	ahc_free(ahc);
+	ahc_list_unlock(&l);
 	return (0);
 }
 

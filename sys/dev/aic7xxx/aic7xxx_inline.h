@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_inline.h#33 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_inline.h#38 $
  *
  * $FreeBSD$
  */
@@ -494,6 +494,15 @@ ahc_intr(struct ahc_softc *ahc)
 {
 	u_int	intstat;
 
+	if ((ahc->pause & INTEN) == 0) {
+		/*
+		 * Our interrupt is not enabled on the chip
+		 * and may be disabled for re-entrancy reasons,
+		 * so just return.  This is likely just a shared
+		 * interrupt.
+		 */
+		return;
+	}
 	/*
 	 * Instead of directly reading the interrupt status register,
 	 * infer the cause of the interrupt by checking our in-core
