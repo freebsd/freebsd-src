@@ -576,14 +576,12 @@ release.7:
 # |boot.flp                                                                |
 # +-----+-----+------------------------------------------------------------+
 # |boot1|boot2|floppy filesystem "bootfd"                                  |
-# +-----+-----+-+--------------------------------------------------------+-+
-#               |kernel                                                  |
-#               +------------+-----------------------------------------+-+
-#                            |mfs filesystem "mfsfd"                   |
-#                            +-----------------------------------------+
+# +-----+-----+-+----------------------+---------------------------------+-+
+#               |kernel.gz             |mfsroot.gz                       |
+#               +----------------------+---------------------------------+
 #
 
-release.8: write_mfs_in_kernel
+release.8:
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
@@ -659,7 +657,7 @@ release.8: write_mfs_in_kernel
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot FDSIZE=BIG
 .endif
-	@rm mfsroot mfsroot.gz mfsroot.size
+	@rm mfsroot mfsroot.gz
 	@echo "Regular and MFS boot floppies made."
 	touch release.8
 
@@ -735,9 +733,6 @@ cdrom.1:
 	@mkdir -p ${CD_DISC1} ${CD_DISC2}
 	@cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
-.if ${MACHINE} != "pc98"
-	@ln -f ${RD}/kernels/MFSKERNEL.boot ${CD_DISC1}/kernel
-.endif
 	@for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
@@ -766,9 +761,12 @@ cdrom.1:
 .if ${MACHINE_ARCH} == "alpha"
 	@echo "Setting up Alpha CD disc1 for booting"
 	@cp -Rp ${RD}/image.boot/boot ${CD_DISC1}
+	@ln -f ${RD}/image.boot/kernel.gz ${CD_DISC1}/kernel.gz
+	@ln -f ${RD}/image.boot/mfsroot.gz ${CD_DISC1}/mfsroot.gz
 	@ln -f ${CD_DISC2}/boot/cdboot ${CD_DISC1}/boot
 	@ln -f ${CD_DISC1}/boot/loader.rc ${CD_DISC2}/boot
-	@ln -f ${CD_DISC1}/kernel ${CD_DISC2}/kernel
+	@ln -f ${CD_DISC1}/kernel.gz ${CD_DISC2}/kernel.gz
+	@ln -f ${CD_DISC1}/mfsroot.gz ${CD_DISC2}/mfsroot.gz
 .elif ${MACHINE} == "i386"
 	@mkdir -p ${CD_DISC2}/floppies
 	@cp ${CD_DISC1}/floppies/boot.flp ${CD_DISC2}/floppies
@@ -917,10 +915,6 @@ createBOOTMFS:
 	@echo "options  INTRO_USERCONFIG" >> \
 	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
 .endif
-.if defined(FDSIZE) && ${FDSIZE} == "BIG"
-	@echo "options MD_ROOT_SIZE=`cat mfsroot.size`" >> \
-	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
-.endif
 .if exists(${.CURDIR}/${MACHINE_ARCH}/drivers.conf)
 	@perl ${.CURDIR}/scripts/driver-remove.pl \
 		${.CURDIR}/${MACHINE_ARCH}/drivers.conf \
@@ -993,21 +987,17 @@ doMFSKERN:
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .endif
+	@echo "load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "autoboot 10" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .if ${MACHINE_ARCH} == "i386" && ${AUTO_KEYBOARD_DETECT}
 	@echo "-P" >> ${RD}/image.${FSIMAGE}/boot.config
 .endif
-.if defined(FDSIZE) && ${FDSIZE} == "BIG"
-	@echo "Writing MFS image into kernel for ${FSIMAGE} floppy"
-	@./write_mfs_in_kernel ${RD}/image.${FSIMAGE}/kernel mfsroot
-	@cp ${RD}/image.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
-.endif
 	@gzip -9v ${RD}/image.${FSIMAGE}/kernel
 	@rm -f ${RD}/floppies/${FSIMAGE}.flp
 .if defined(FDSIZE) && ${FDSIZE} == "BIG"
+	@cp mfsroot.gz ${RD}/image.${FSIMAGE}
 	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${BIGBOOTSIZE} ${RD}/image.${FSIMAGE} \
 		${BOOTINODE} ${BIGBOOTLABEL}
