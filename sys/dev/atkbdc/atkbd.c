@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: atkbd.c,v 1.1 1999/01/09 02:44:49 yokota Exp $
  */
 
 #include "atkbd.h"
@@ -375,7 +375,7 @@ atkbd_configure(int flags)
 
 	/* initialize it */
 	kbdc = ((atkbd_state_t *)kbd->kb_data)->kbdc;
-	if (!(flags & KB_CONF_PROBE_ONLY) && !KBD_IS_PROBED(kbd)) {
+	if (!(flags & KB_CONF_PROBE_ONLY) && !KBD_IS_INITIALIZED(kbd)) {
 		if (KBD_HAS_DEVICE(kbd)
 		    && init_keyboard(kbdc, &kbd->kb_type, flags)
 		    && (flags & KB_CONF_FAIL_IF_NO_KBD))
