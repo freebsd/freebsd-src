@@ -123,7 +123,6 @@ soisconnected(so)
 		head->so_incqlen--;
 		so->so_state &= ~SS_INCOMP;
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
-		head->so_qlen++;
 		so->so_state |= SS_COMP;
 		sorwakeup(head);
 		wakeup_one(&head->so_timeo);
@@ -250,17 +249,12 @@ sonewconn3(head, connstatus, p)
 	if (connstatus) {
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
 		so->so_state |= SS_COMP;
-		head->so_qlen++;
 	} else {
-		if (head->so_incqlen > head->so_qlimit) {
-			struct socket *sp;
-			sp = TAILQ_FIRST(&head->so_incomp);
-			(void) soabort(sp);
-		}
 		TAILQ_INSERT_TAIL(&head->so_incomp, so, so_list);
 		so->so_state |= SS_INCOMP;
 		head->so_incqlen++;
 	}
+	head->so_qlen++;
 	if (connstatus) {
 		sorwakeup(head);
 		wakeup((caddr_t)&head->so_timeo);
