@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.93 1996/12/12 08:33:38 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.8 1996/12/12 11:18:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -532,7 +532,7 @@ extern int	mediaSetNFS(dialogMenuItem *self);
 extern int	mediaSetFTPUserPass(dialogMenuItem *self);
 extern int	mediaSetCPIOVerbosity(dialogMenuItem *self);
 extern int	mediaGetType(dialogMenuItem *self);
-extern Boolean	mediaExtractDist(char *dir, FILE *fp);
+extern Boolean	mediaExtractDist(char *dir, char *dist, FILE *fp);
 extern Boolean	mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpic);
 extern Boolean	mediaExtractDistEnd(int zpid, int cpid);
 extern Boolean	mediaVerify(void);
