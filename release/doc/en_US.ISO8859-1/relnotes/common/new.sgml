@@ -637,6 +637,9 @@ hw.pcic.irq="0"</programlisting>
     affect the operation of &man.sysinstall.8; or the actual installation process
     and can safely be ignored.</para>
 
+    <para arch="alpha">&man.savecore.8; now works correctly on Alpha 
+    machines.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
