@@ -469,8 +469,8 @@ cd9660_readdir(ap)
 		 * Guess the number of cookies needed.
 		 */
 		ncookies = uio->uio_resid / 16;
-		MALLOC(cookies, u_long *, ncookies * sizeof(u_int), M_TEMP,
-		    M_WAITOK);
+		MALLOC(cookies, u_long *, ncookies * sizeof(u_long),
+		    M_TEMP, M_WAITOK);
 		idp->cookies = cookies;
 		idp->ncookies = ncookies;
 	}
