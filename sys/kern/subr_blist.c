@@ -148,8 +148,8 @@ blist_create(daddr_t blocks)
 	radix = BLIST_BMAP_RADIX;
 
 	while (radix < blocks) {
-		radix <<= BLIST_META_RADIX_SHIFT;
-		skip = (skip + 1) << BLIST_META_RADIX_SHIFT;
+		radix *= BLIST_META_RADIX;
+		skip = (skip + 1) * BLIST_META_RADIX;
 	}
 
 	bl = malloc(sizeof(struct blist), M_SWAP, M_WAITOK);
@@ -373,7 +373,7 @@ blst_meta_alloc(
 	int skip
 ) {
 	int i;
-	int next_skip = (skip >> BLIST_META_RADIX_SHIFT);
+	int next_skip = ((u_int)skip / BLIST_META_RADIX);
 
 	if (scan->u.bmu_avail == 0)  {
 		/*
@@ -384,7 +384,7 @@ blst_meta_alloc(
 	}
 
 	if (scan->u.bmu_avail == radix) {
-		radix >>= BLIST_META_RADIX_SHIFT;
+		radix /= BLIST_META_RADIX;
 
 		/*
 		 * ALL-FREE special case, initialize uninitialize
@@ -402,7 +402,7 @@ blst_meta_alloc(
 			}
 		}
 	} else {
-		radix >>= BLIST_META_RADIX_SHIFT;
+		radix /= BLIST_META_RADIX;
 	}
 
 	for (i = 1; i <= skip; i += next_skip) {
@@ -504,7 +504,7 @@ blst_meta_free(
 	daddr_t blk
 ) {
 	int i;
-	int next_skip = (skip >> BLIST_META_RADIX_SHIFT);
+	int next_skip = ((u_int)skip / BLIST_META_RADIX);
 
 #if 0
 	printf("FREE (%x,%d) FROM (%x,%d)\n",
@@ -552,7 +552,7 @@ blst_meta_free(
 	 * Break the free down into its components
 	 */
 
-	radix >>= BLIST_META_RADIX_SHIFT;
+	radix /= BLIST_META_RADIX;
 
 	i = (freeBlk - blk) / radix;
 	blk += i * radix;
@@ -642,8 +642,8 @@ static void blst_copy(
 	}
 
 
-	radix >>= BLIST_META_RADIX_SHIFT;
-	next_skip = (skip >> BLIST_META_RADIX_SHIFT);
+	radix /= BLIST_META_RADIX;
+	next_skip = ((u_int)skip / BLIST_META_RADIX);
 
 	for (i = 1; count && i <= skip; i += next_skip) {
 		if (scan[i].bm_bighint == (daddr_t)-1)
@@ -715,8 +715,8 @@ blst_radix_init(blmeta_t *scan, daddr_t radix, int skip, daddr_t count)
 		scan->u.bmu_avail = 0;
 	}
 
-	radix >>= BLIST_META_RADIX_SHIFT;
-	next_skip = (skip >> BLIST_META_RADIX_SHIFT);
+	radix /= BLIST_META_RADIX;
+	next_skip = ((u_int)skip / BLIST_META_RADIX);
 
 	for (i = 1; i <= skip; i += next_skip) {
 		if (count >= radix) {
@@ -803,8 +803,8 @@ blst_radix_print(blmeta_t *scan, daddr_t blk, daddr_t radix, int skip, int tab)
 	    scan->bm_bighint
 	);
 
-	radix >>= BLIST_META_RADIX_SHIFT;
-	next_skip = (skip >> BLIST_META_RADIX_SHIFT);
+	radix /= BLIST_META_RADIX;
+	next_skip = ((u_int)skip / BLIST_META_RADIX);
 	tab += 4;
 
 	for (i = 1; i <= skip; i += next_skip) {
