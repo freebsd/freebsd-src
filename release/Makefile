@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.20 1996/12/23 23:27:50 jkh Exp $
+#	$Id: Makefile,v 1.246.2.21 1997/01/03 06:38:02 jkh Exp $
 #
 # How to roll a release:
 #
@@ -46,8 +46,9 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 # Upper size for the mfs in the boot.flp kernel.
 # These are adjusted down to the minimum needed by doFS.sh.
 BOOTMFSSIZE=		1440
-MFSINODE=		80000
-FIXITINODE=		28000
+MFSINODE=		60000
+FIXITINODE=		20000
+BOOTINODE=		100000
 
 # Things which will get you into trouble if you change them
 DISTRIBUTIONS=		bin ${EXTRA_DISTS}
@@ -377,8 +378,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
-		mkdir -p etc dev mnt stand/help && \
-		ln -s 'AH<<<<' etc/malloc.conf
+		mkdir -p etc dev mnt stand/help
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
@@ -611,14 +611,9 @@ doMFSKERN:
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
 	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
-	@ls -l ${RD}/boot.${FSIMAGE}/kernel
 	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
-	cat ${RD}/trees/bin/usr/mdec/rawboot ${RD}/boot.${FSIMAGE}/kernel | \
-		dd conv=sync of=${RD}/floppies/boot${FSIMAGE}.flp
-	@echo 'USERCONFIG' > startup_foo
-	@echo 'intro' >> startup_foo
-	dd if=startup_foo of=${RD}/floppies/boot${FSIMAGE}.flp \
-	  seek=1 bs=512 count=1 conv=notrunc
-	@rm -f startup_foo
+	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/boot.${FSIMAGE} \
+		${BOOTINODE} ${FDLABEL}
+	mv fs-image ${RD}/floppies/boot${FSIMAGE}.flp
 
 .include <bsd.prog.mk>
