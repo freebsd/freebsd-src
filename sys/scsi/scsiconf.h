@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.42 1996/06/14 11:02:18 asami Exp $
+ *	$Id: scsiconf.h,v 1.43 1996/06/23 15:02:02 bde Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -239,8 +239,8 @@ extern struct scsi_device_config scsi_dinit[];
 struct st_mode {
 /*  4*/	u_int32_t blksiz;
 /*  6*/	u_int16_t quirks;		/* same definitions as in XXX */
-/*  7*/	char    density;
-/*  8*/	char    spare[1];
+/*  7*/	u_int8_t  density;
+/*  8*/	u_int8_t  spare[1];
 };
 
 typedef struct st_mode st_modes[4];
