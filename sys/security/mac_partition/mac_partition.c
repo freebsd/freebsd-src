@@ -183,13 +183,11 @@ mac_partition_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 
 	/* Treat "0" as a no-op request. */
 	if (SLOT(newlabel) != 0) {
-		/* If we're already in a partition, can't repartition. */
-		if (SLOT(&cred->cr_label) != 0)
-			return (EPERM);
-
 		/*
-		 * If not in a partition, must have privilege to create
-		 * one.
+		 * Require BSD privilege in order to change the partition.
+		 * Originally we also required that the process not be
+		 * in a partition in the first place, but this didn't
+		 * interact well with sendmail.
 		 */
 		error = suser_cred(cred, 0);
 	}
