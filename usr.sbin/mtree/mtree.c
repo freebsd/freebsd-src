@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mtree.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mtree.c,v 1.6 1997/10/01 06:30:02 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -59,7 +59,7 @@ extern long int crc_total;
 
 int ftsoptions = FTS_LOGICAL;
 int cflag, dflag, eflag, iflag, nflag, rflag, sflag, uflag, Uflag;
-u_short keys;
+u_int keys;
 char fullpath[MAXPATHLEN];
 
 static void usage __P((void));

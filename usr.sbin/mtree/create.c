@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)create.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: create.c,v 1.9 1997/10/01 06:30:00 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -61,7 +61,7 @@ static const char rcsid[] =
 extern long int crc_total;
 extern int ftsoptions;
 extern int dflag, iflag, nflag, sflag;
-extern u_short keys;
+extern u_int keys;
 extern char fullpath[MAXPATHLEN];
 extern int lineno;
 
