@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.80 1996/05/09 23:04:31 mpp Exp $ -->
+<!-- $Id: contrib.sgml,v 1.81 1996/05/09 23:32:43 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -149,7 +149,7 @@
 	  <item>Adrian T. Filipi-Martin &lt;atf3r@agate.cs.virginia.edu&gt;
 	  <item>Akito Fujita &lt;fujita@zoo.ncl.omron.co.jp&gt;
 	  <item>Alain Kalker &lt;A.C.P.M.Kalker@student.utwente.nl&gt;
-	  <item>Alex Nash &lt;alex@zen.nash.org&gt;
+	  <item>Alex Nash &lt;nash@mcs.com&gt;
 	  <item>Andreas Klemm &lt;andreas@knobel.GUN.de&gt;
 	  <item>Andrew Gordon &lt;andrew.gordon@net-tel.co.uk&gt;
 	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
