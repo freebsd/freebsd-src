@@ -72,8 +72,9 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
     status = AcpiGetIrqRoutingTable(acpi_get_handle(dev), prt);
     if (ACPI_FAILURE(status))
 	/* This is not an error, but it may reduce functionality. */
-	device_printf(dev, "could not get PCI interrupt routing table - %s\n",
-	    AcpiFormatException(status));
+	device_printf(dev,
+	    "could not get PCI interrupt routing table for %s - %s\n",
+	    acpi_name(acpi_get_handle(dev)), AcpiFormatException(status));
 
     /*
      * Attach the PCI bus proper.
