@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.55 1996/10/06 15:27:36 davidg Exp $
+ **      $Id: userconfig.c,v 1.56 1996/10/06 16:30:15 bde Exp $
  **/
 
 /**
@@ -2212,7 +2212,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.55 1996/10/06 15:27:36 davidg Exp $
+ *      $Id: userconfig.c,v 1.56 1996/10/06 16:30:15 bde Exp $
  */
 
 #include "scbus.h"
@@ -2591,8 +2591,12 @@ introfunc(CmdParm *parms)
     putxy(2, y++, "proceed with the booting process.");
     ++y;
     center(y, "!iPress a key to continue!n");
-    cngetc();
-    return 0;
+    y = cngetc();
+    /* detect special "I want outta here!" characters */
+    if (y == '\033' || y == 'Q')
+	return 1;
+    else
+	return 0;
 }
 #endif
 
