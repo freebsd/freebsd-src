@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_osfp.c,v 1.4 2003/08/27 17:42:00 frantzen Exp $ */
+/*	$OpenBSD: pfctl_osfp.c,v 1.8 2004/02/27 10:42:00 henning Exp $ */
 
 /*
  * Copyright (c) 2003 Mike Frantzen <frantzen@openbsd.org>
@@ -31,6 +31,7 @@
 #include <string.h>
 
 #include "pfctl_parser.h"
+#include "pfctl.h"
 
 #ifndef MIN
 # define MIN(a,b)	(((a) < (b)) ? (a) : (b))
@@ -308,11 +309,17 @@ pfctl_load_fingerprints(int dev, int opts)
 void
 pfctl_show_fingerprints(int opts)
 {
-	printf("Passive OS Fingerprints:\n");
-	printf("\tClass\tVersion\tSubtype(subversion)\n");
-	printf("\t-----\t-------\t-------------------\n");
-	sort_name_list(opts, &classes);
-	print_name_list(opts, &classes, "\t");
+	if (LIST_FIRST(&classes) != NULL) {
+		if (opts & PF_OPT_SHOWALL) {
+			pfctl_print_title("OS FINGERPRINTS:");
+			printf("%u fingerprints loaded\n", fingerprint_count);
+		} else {
+			printf("Class\tVersion\tSubtype(subversion)\n");
+			printf("-----\t-------\t-------------------\n");
+			sort_name_list(opts, &classes);
+			print_name_list(opts, &classes, "");
+		}
+	}
 }
 
 /* Lookup a fingerprint */
@@ -825,7 +832,7 @@ get_int(char **line, size_t *len, int *var, int *mod,
 	}
 
 	for (; i < fieldlen; i++) {
-		if (field[i] < '0'  || field[i] > '9') {
+		if (field[i] < '0' || field[i] > '9') {
 			fprintf(stderr, "%s:%d non-digit character in %s\n",
 			    filename, lineno, name);
 			return (1);
