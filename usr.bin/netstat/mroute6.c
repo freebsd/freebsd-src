@@ -94,7 +94,8 @@
 extern char	*routename6 __P((struct sockaddr_in6 *));
 
 void
-mroute6pr(u_long mfcaddr, u_long mifaddr)
+mroute6pr(mfcaddr, mifaddr)
+	u_long mfcaddr, mifaddr;
 {
 	struct mf6c *mf6ctable[MF6CTBLSIZ], *mfcp;
 	struct mif6 mif6table[MAXMIFS];
@@ -195,7 +196,8 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 }
 
 void
-mrt6_stats(u_long mstaddr)
+mrt6_stats(mstaddr)
+	u_long mstaddr;
 {
 	struct mrt6stat mrtstat;
 

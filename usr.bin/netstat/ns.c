@@ -85,7 +85,9 @@ static	int first = 1;
  */
 
 void
-nsprotopr(u_long off, char *name, int af __unused)
+nsprotopr(off, name)
+	u_long off;
+	char *name;
 {
 	struct nspcb cb;
 	register struct nspcb *prev, *next;
@@ -158,7 +160,9 @@ nsprotopr(u_long off, char *name, int af __unused)
  * Dump SPP statistics structure.
  */
 void
-spp_stats(u_long off, char *name, int af __unused)
+spp_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct spp_istat spp_istat;
 #define sppstat spp_istat.newstats
@@ -234,7 +238,9 @@ spp_stats(u_long off, char *name, int af __unused)
  * Dump IDP statistics structure.
  */
 void
-idp_stats(u_long off, char *name, int af __unused)
+idp_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct idpstat idpstat;
 
@@ -268,7 +274,9 @@ static	struct {
  */
 /*ARGSUSED*/
 void
-nserr_stats(u_long off, char *name, int af __unused)
+nserr_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct ns_errstat ns_errstat;
 	register int j;
@@ -309,7 +317,8 @@ nserr_stats(u_long off, char *name, int af __unused)
 }
 
 static void
-ns_erputil(int z, int c)
+ns_erputil(z, c)
+	int z, c;
 {
 	int j;
 	char codebuf[30];
@@ -336,7 +345,8 @@ ns_erputil(int z, int c)
 static struct sockaddr_ns ssns = {AF_NS};
 
 static
-char *ns_prpr(struct ns_addr *x)
+char *ns_prpr(x)
+	struct ns_addr *x;
 {
 	struct sockaddr_ns *sns = &ssns;
 

@@ -94,7 +94,8 @@ static struct mbtypenames {
  * Print mbuf statistics.
  */
 void
-mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr)
+mbpr(mbaddr, mbtaddr, nmbcaddr, nmbufaddr)
+	u_long mbaddr, mbtaddr, nmbcaddr, nmbufaddr;
 {
 	u_long totmem, totpossible, totmbufs;
 	register int i;

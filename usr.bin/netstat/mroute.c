@@ -67,7 +67,8 @@ static const char rcsid[] =
 #include "netstat.h"
 
 void
-mroutepr(u_long mfcaddr, u_long vifaddr)
+mroutepr(mfcaddr, vifaddr)
+	u_long mfcaddr, vifaddr;
 {
 	struct mfc *mfctable[MFCTBLSIZ];
 	struct vif viftable[MAXVIFS];
@@ -149,7 +150,8 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 
 
 void
-mrt_stats(u_long mstaddr)
+mrt_stats(mstaddr)
+	u_long mstaddr;
 {
 	struct mrtstat mrtstat;
 
