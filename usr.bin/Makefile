@@ -157,6 +157,7 @@ SUBDIR=	apply \
 	tput \
 	tr \
 	true \
+	truncate \
 	truss \
 	tset \
 	tsort \
