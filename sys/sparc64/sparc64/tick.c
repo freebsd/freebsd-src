@@ -41,11 +41,37 @@ extern u_long tick_increment;
 extern u_long tick_freq;
 extern u_long tick_MHz;
 
+int tick_missed;	/* statistics */
+
+#define	TICK_GRACE	1000
+
 void
 tick_hardclock(struct clockframe *cf)
 {
+	critical_t c;
+	int missed;
+	u_long next;
+
 	hardclock(cf);
-	wr(asr23, rd(asr23) + tick_increment, 0);
+	/*
+	 * Avoid stopping of hardclock in case we missed one tick period by
+	 * ensuring that the the value of the next tick is at least TICK_GRACE
+	 * ticks in the future.
+	 * Missed ticks need to be accounted for by repeatedly calling
+	 * hardclock.
+	 */
+	missed = 0;
+	next = rd(asr23) + tick_increment;
+	c = critical_enter();
+	while (next < rd(tick) + TICK_GRACE) {
+		next += tick_increment;
+		missed++;
+	}
+	atomic_add_int(&tick_missed, missed);
+	wr(asr23, next, 0);
+	critical_exit(c);
+	for (; missed > 0; missed--)
+		hardclock(cf);
 }
 
 void
