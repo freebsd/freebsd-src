@@ -379,7 +379,6 @@ dev/pci/pci_if.m	optional pci
 dev/pci/pci_pci.c	optional pci
 dev/pci/pci_user.c	optional pci
 dev/pci/pcib_if.m	optional pci
-dev/pci/vga_pci.c	optional pci
 dev/pcic/i82365.c	optional pcic pccard
 dev/pcic/i82365_isa.c	optional pcic pccard
 dev/pdq/if_fea.c	optional fea eisa
