@@ -44,7 +44,7 @@ DMenu MenuPCICMem = {
 DMenu MenuCardIRQ = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Please select IRQs that can be used by PC-cards",
-    "Please specify an IRQs that CANNOT be used by PC-card.\n"
+    "Please specify IRQs that CAN be used by PC-card.\n"
     "For example, if you have a sound card that can't be probed by\n"
     "this installation floppy and it uses IRQ 10, you have to \n"
     "choose \"Option 1\" or \"Option 2\" at this menu.\n",
