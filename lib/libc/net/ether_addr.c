@@ -121,7 +121,7 @@ char
         i = sprintf(a,"%02x:%02x:%02x:%02x:%02x:%02x",
 			n->octet[0],n->octet[1],n->octet[2],
 			n->octet[3],n->octet[4],n->octet[5]);
-        if (i < 11)
+        if (i < 17)
                 return (NULL);
         return ((char *)&a);
 }
