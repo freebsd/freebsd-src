@@ -45,6 +45,7 @@ static const char rcsid[] =
  * playgame:
  *	play a game
  */
+void
 playgame()
 {
 	bool	*bp;

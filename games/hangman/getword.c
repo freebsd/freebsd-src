@@ -46,6 +46,7 @@ static const char rcsid[] =
  * getword:
  *	Get a valid word out of the dictionary file
  */
+void
 getword()
 {
 	FILE		*inf;

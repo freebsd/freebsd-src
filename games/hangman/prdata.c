@@ -45,6 +45,7 @@ static const char rcsid[] =
  * prdata:
  *	Print out the current guesses
  */
+void
 prdata()
 {
 	bool	*bp;
