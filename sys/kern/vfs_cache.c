@@ -48,6 +48,7 @@
 #include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/filedesc.h>
+#include <sys/fnv_hash.h>
 
 /*
  * This structure describes the elements in the cache of recent
@@ -85,8 +86,8 @@ struct	namecache {
 /*
  * Structures associated with name cacheing.
  */
-#define NCHHASH(dvp, hash) \
-	(&nchashtbl[((dvp)->v_id + (hash)) & nchash])
+#define NCHHASH(hash) \
+	(&nchashtbl[(hash) & nchash])
 static LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
 static TAILQ_HEAD(, namecache) ncneg;	/* Hash Table */
 static u_long	nchash;			/* size of hash table */
@@ -176,9 +177,7 @@ cache_lookup(dvp, vpp, cnp)
 	struct componentname *cnp;
 {
 	struct namecache *ncp;
-	u_long hash;
-	u_char *cp;
-	int len;
+	u_int32_t hash;
 
 	if (!doingcache) {
 		cnp->cn_flags &= ~MAKEENTRY;
@@ -205,11 +204,9 @@ cache_lookup(dvp, vpp, cnp)
 		}
 	}
 
-	hash = 0;
-	len = cnp->cn_namelen;
-	for (cp = cnp->cn_nameptr; len; len--, cp++)
-		hash += *cp;
-	LIST_FOREACH(ncp, (NCHHASH(dvp, hash)), nc_hash) {
+	hash = fnv_32_buf(cnp->cn_nameptr, cnp->cn_namelen, FNV1_32_INIT);
+	hash = fnv_32_buf(&dvp->v_id, sizeof(dvp->v_id), hash);
+	LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
 		numchecks++;
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
@@ -275,8 +272,7 @@ cache_enter(dvp, vp, cnp)
 {
 	struct namecache *ncp;
 	struct nchashhead *ncpp;
-	u_long hash;
-	u_char *cp, *dp;
+	u_int32_t hash;
 	int len;
 
 	if (!doingcache)
@@ -319,11 +315,10 @@ cache_enter(dvp, vp, cnp)
 	ncp->nc_vp = vp;
 	ncp->nc_dvp = dvp;
 	len = ncp->nc_nlen = cnp->cn_namelen;
-	hash = 0;
-	dp = ncp->nc_name;
-	for (cp = cnp->cn_nameptr; len; len--, cp++, dp++)
-		hash += (*dp = *cp);
-	ncpp = NCHHASH(dvp, hash);
+	hash = fnv_32_buf(cnp->cn_nameptr, len, FNV1_32_INIT);
+	bcopy(cnp->cn_nameptr, ncp->nc_name, len);
+	hash = fnv_32_buf(&dvp->v_id, sizeof(dvp->v_id), hash);
+	ncpp = NCHHASH(hash);
 	LIST_INSERT_HEAD(ncpp, ncp, nc_hash);
 	if (LIST_EMPTY(&dvp->v_cache_src))
 		vhold(dvp);
