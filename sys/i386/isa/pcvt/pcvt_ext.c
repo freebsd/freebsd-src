@@ -2098,8 +2098,6 @@ switch_screen(int n, int oldgrafx, int newgrafx)
 	/* update global screen pointers/variables */
 	current_video_screen = n;	/* current screen no */
 
-	pcvt_ttyp = &pcvt_tty[n];		/* current tty */
-
 	vsp = &vs[n];			/* current video state ptr */
 
 	if(oldgrafx && !newgrafx)

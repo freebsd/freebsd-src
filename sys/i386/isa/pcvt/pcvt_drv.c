@@ -257,8 +257,8 @@ pcvt_attach(device_t dev)
 
 	for(i = 0; i < totalscreens; i++)
 	{
-		ttyregister(&pcvt_tty[i]);
-		vs[i].vs_tty = &pcvt_tty[i];
+		pcvt_tty[i] = ttymalloc(pcvt_tty[i]);
+		vs[i].vs_tty = pcvt_tty[i];
 		make_dev(&vt_cdevsw, i, UID_ROOT, GID_WHEEL, 0600, "ttyv%r", i);
 	}
 
@@ -284,7 +284,7 @@ pcvt_open(dev_t dev, int flag, int mode, struct thread *td)
 	if(i >= PCVT_NSCREENS)
 		return ENXIO;
 
-	tp = &pcvt_tty[i];
+	tp = pcvt_tty[i];
 
 	dev->si_tty = tp;
 
@@ -350,7 +350,7 @@ pcvt_close(dev_t dev, int flag, int mode, struct thread *td)
 	if(i >= PCVT_NSCREENS)
 		return ENXIO;
 
-	tp = &pcvt_tty[i];
+	tp = pcvt_tty[i];
 
 	(*linesw[tp->t_line].l_close)(tp, flag);
 
@@ -378,7 +378,7 @@ pcvt_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	if(i >= PCVT_NSCREENS)
 		return ENXIO;
 
-	tp = &pcvt_tty[i];
+	tp = pcvt_tty[i];
 
 	/* note that some ioctl's are global, e.g.  KBSTPMAT: There is
 	 * only one keyboard and different repeat rates for instance between
@@ -419,6 +419,7 @@ static void
 pcvt_timeout(void *arg)
 {
 	u_char *cp;
+	struct tty *tp;
 
 #if PCVT_SLOW_INTERRUPT
 	int	s;
@@ -430,6 +431,7 @@ pcvt_timeout(void *arg)
 	pcvt_scrnsv_reset();
 #endif /* PCVT_SCREENSAVER */
 
+	tp = pcvt_tty[current_video_screen];
 	while (pcvt_kbd_count)
 	{
 		if (((cp = sgetc(1)) != 0) &&
@@ -440,13 +442,13 @@ pcvt_timeout(void *arg)
 			if(*cp == '\0')
 			{
 				/* pass a NULL character */
-				(*linesw[pcvt_ttyp->t_line].l_rint)('\0', pcvt_ttyp);
+				(*linesw[tp->t_line].l_rint)('\0', tp);
 			}
 /* XXX */		else
 #endif /* PCVT_NULLCHARS */
 
 			while (*cp)
-				(*linesw[pcvt_ttyp->t_line].l_rint)(*cp++ & 0xff, pcvt_ttyp);
+				(*linesw[tp->t_line].l_rint)(*cp++ & 0xff, tp);
 		}
 
 		PCVT_DISABLE_INTR ();
@@ -647,7 +649,8 @@ pcvt_cn_probe(struct consdev *cp)
 
 	sprintf(cp->cn_name, "ttyv%r", 0);
 	cp->cn_pri = CN_INTERNAL;
-	cp->cn_tp = &pcvt_tty[0];
+	pcvt_tty[0] = ttymalloc(pcvt_tty[0]);
+	cp->cn_tp = pcvt_tty[0];
 }
 
 /*---------------------------------------------------------------------------*
