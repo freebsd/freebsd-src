@@ -81,28 +81,6 @@ struct bpb710 {
 	/* There is a 12 byte filler here, but we ignore it */
 };
 
-#ifdef	atari
-/*
- * BPB for gemdos filesystems. Atari leaves the obsolete stuff undefined.
- * Currently there is no need for a separate BPB structure.
- */
-#if 0
-struct bpb_a {
-	u_int16_t	bpbBytesPerSec;	/* bytes per sector		*/
-	u_int8_t	bpbSecPerClust;	/* sectors per cluster		*/
-	u_int16_t	bpbResSectors;	/* number of reserved sectors	*/
-	u_int8_t	bpbFATs;	/* number of FATs		*/
-	u_int16_t	bpbRootDirEnts;	/* number of root directory entries */
-	u_int16_t	bpbSectors;	/* total number of sectors	*/
-	u_int8_t	bpbUseless1;	/* meaningless on gemdos fs	*/
-	u_int16_t	bpbFATsecs;	/* number of sectors per FAT	*/
-	u_int16_t	bpbUseless2;	/* meaningless for harddisk fs	*/
-	u_int16_t	bpbUseless3;	/* meaningless for harddisk fs	*/
-	u_int16_t	bpbHiddenSecs;	/* the TOS-BIOS ignores this	*/
-};
-#endif
-#endif	/* atari */
-
 /*
  * The following structures represent how the bpb's look on disk.  shorts
  * and longs are just character arrays of the appropriate length.  This is
