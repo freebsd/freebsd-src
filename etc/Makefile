@@ -39,38 +39,63 @@ MDEC=		usr/mdec/bootfd usr/mdec/fdboot
 MDEC+=		usr/mdec/bootsd usr/mdec/sdboot
 MDEC+=		usr/mdec/bootwd usr/mdec/wdboot
 #
-KC_DIRS=	dev mnt
+KC_DIRS=	dev mnt bin sbin
 KC_FILES=	${COPYRIGHT}
-KC_FILES+=	bin/[ bin/cp bin/echo bin/sh bin/test
-KC_FILES+=	sbin/fsck sbin/halt sbin/init sbin/mount sbin/umount
+KC_FILES+=	bin/sh					# XXX Crunch is broken!
+KC_LINKS=	bin/[ bin/cp bin/echo bin/test
+KC_LINKS+=	sbin/fsck sbin/halt sbin/init sbin/mount sbin/umount
 #
-FILESYSTEM_DIRS=	bin dev etc mnt sbin usr usr/bin usr/mdec usr/sbin
+FILESYSTEM_DIRS=	bin dev etc mnt proc sbin usr usr/bin usr/mdec usr/sbin
 FILESYSTEM_TREES=	dev
 FILESYSTEM_FILES=	${COPYRIGHT}
-FILESYSTEM_FILES+=	bin/[ bin/expr bin/ls bin/mkdir bin/rm
-FILESYSTEM_FILES+=	bin/sh bin/sync bin/test
+FILESYSTEM_FILES+=	bin/sh				# XXX Crunch is broken!
 FILESYSTEM_FILES+=	dev/MAKEDEV
 FILESYSTEM_FILES+=	etc/group
 FILESYSTEM_FILES+=	etc/master.passwd etc/passwd etc/pwd.db
-FILESYSTEM_FILES+=	sbin/disklabel sbin/halt sbin/init
-FILESYSTEM_FILES+=	sbin/mount sbin/mount_pcfs
-FILESYSTEM_FILES+=	sbin/newfs
-FILESYSTEM_FILES+=	sbin/umount
-FILESYSTEM_FILES+=	sbin/fdisk
-FILESYSTEM_FILES+=	usr/bin/cpio
 FILESYSTEM_FILES+=	${MDEC}
-FILESYSTEM_FILES+=	usr/sbin/bad144
+FILESYSTEM_LINKS=	bin/[ bin/expr bin/ls bin/mkdir bin/rm
+FILESYSTEM_LINKS+=	bin/sync bin/test
+FILESYSTEM_LINKS+=	sbin/disklabel sbin/fdisk sbin/halt sbin/init
+FILESYSTEM_LINKS+=	sbin/mount sbin/mount_pcfs
+FILESYSTEM_LINKS+=	sbin/newfs
+FILESYSTEM_LINKS+=	sbin/umount
+FILESYSTEM_LINKS+=	usr/bin/cpio
+FILESYSTEM_LINKS+=	usr/bin/gunzip usr/bin/gzcat usr/bin/gzip usr/bin/zcat
+FILESYSTEM_LINKS+=	usr/sbin/bad144
+FILESYSTEM_CPIO=	.profile
+FILESYSTEM_CPIO+=	root/.profile
+FILESYSTEM_CPIO+=	bin/[
+FILESYSTEM_CPIO+=	bin/chmod bin/cat bin/cp bin/df bin/expr bin/ls
+FILESYSTEM_CPIO+=	bin/ln bin/mkdir bin/mv bin/rm bin/sync
+FILESYSTEM_CPIO+=	bin/test
+FILESYSTEM_CPIO+=	etc/spwd.db
+FILESYSTEM_CPIO+=	sbin/disklabel sbin/fdisk sbin/halt sbin/init
+FILESYSTEM_CPIO+=	sbin/mount sbin/mount_pcfs
+FILESYSTEM_CPIO+=	sbin/newfs
+FILESYSTEM_CPIO+=	sbin/umount
 
 CPIO_FILES=	${COPYRIGHT}
-CPIO_FILES+=	usr/bin/gunzip usr/bin/gzcat usr/bin/gzip usr/bin/zcat
-CPIO_CPIO=	bin/chmod bin/cat bin/cp bin/dd bin/df bin/mv bin/pwd bin/stty
-CPIO_CPIO+=	etc/protocols etc/remote etc/services etc/spwd.db
+CPIO_CPIO=	bin/dd bin/ps bin/pwd bin/stty
+CPIO_CPIO+=	etc/protocols etc/remote etc/services
+CPIO_CPIO+=	etc/termcap
+CPIO_CPIO+=	sbin/dmesg
 CPIO_CPIO+=	sbin/ifconfig sbin/fsck sbin/mknod sbin/mount_isofs
+CPIO_CPIO+=	sbin/mount_procfs
 CPIO_CPIO+=	sbin/reboot sbin/route sbin/slattach
-CPIO_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/ftp
+CPIO_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/cpio usr/bin/ex usr/bin/ftp
+CPIO_CPIO+=	usr/bin/gunzip usr/bin/gzcat usr/bin/gzip
 CPIO_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip
-CPIO_CPIO+=	usr/bin/elvis usr/bin/ex usr/bin/vi usr/bin/view
-CPIO_CPIO+=	usr/sbin/update usr/sbin/chown
+CPIO_CPIO+=	usr/bin/vi usr/bin/view usr/bin/zcat
+CPIO_CPIO+=	usr/libexec/ld.so
+CPIO_CPIO+=	usr/lib/libc.so.1.0
+CPIO_CPIO+=	usr/lib/libcurses.so.1.0
+CPIO_CPIO+=	usr/lib/libgcc.so.1.0
+CPIO_CPIO+=	usr/lib/libm.so.1.0
+CPIO_CPIO+=	usr/lib/libtermlib.so.1.0
+CPIO_CPIO+=	usr/lib/libtermcap.so.1.0
+CPIO_CPIO+=	usr/lib/libutil.so.1.0
+CPIO_CPIO+=	usr/sbin/bad144 usr/sbin/chown
+CPIO_CPIO+=	usr/share/misc/termcap
 CPIO_CPIO_DIRS=	tmp var var/tmp var/run var/spool var/spool/lock
 
 CRYPT_LIB=	lib/libcrypt
@@ -207,6 +232,12 @@ kcopy-floppy:
 	    ls ${KC_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o root -g wheel -m 755 etc.i386/kc.profile \
 	    ${MOUNT}/.profile
+	install -c -o root -g wheel -m 755 ${RELEASEDIR}/distbin/kcopy \
+	    ${MOUNT}/bin/kcopy
+	(cd ${MOUNT}/; \
+	    for i in ${KC_LINKS}; do \
+		ln bin/kcopy $$i; \
+	    done)
 
 kcopy-ah-floppy:
 	${MAKE} kcopy-floppy
@@ -248,13 +279,23 @@ filesystem-floppy:
 	    sh ${DESTDIR}/dev/MAKEDEV fd0 fd1 wd0 sd0 sd1; \
 	    rm -f fd0?* fd1?* rfd0?* rfd1?*)
 	(cd ${DESTDIR}/; \
-	    ls ${FILESYSTEM_FILES} | cpio -pdamuv ${MOUNT})
+	    ls ${FILESYSTEM_FILES} | cpio -pdamuv ${MOUNT}; \
+	    ls ${FILESYSTEM_CPIO} | \
+		cpio -H newc --block-size=16 -oav | \
+		gzip -9 >${MOUNT}/inst1.cpio.gz)
 	install -c -o root -g wheel -m 755 etc.i386/inst1.profile \
 	    ${MOUNT}/.profile
 	install -c -o root -g wheel -m 755 etc.i386/inst1.install \
 	    ${MOUNT}/install
+	install -c -o root -g wheel -m 755 ${RELEASEDIR}/distbin/filesystem \
+	    ${MOUNT}/bin/filesystem
+	(cd ${MOUNT}/; \
+	    for i in ${FILESYSTEM_LINKS}; do \
+		ln bin/filesystem $$i; \
+	    done)
 	(cd ${MOUNT}/; \
 	    ls ${FILESYSTEM_FILES} >/tmp/filelist; \
+	    ls ${FILESYSTEM_LINKS} >>/tmp/filelist; \
 	    ls -d ${FILESYSTEM_DIRS} >>/tmp/filelist; \
 	    find ${FILESYSTEM_TREES} >>/tmp/filelist; \
 	    sort -u /tmp/filelist >filelist; \
@@ -279,11 +320,14 @@ cpio-floppy:
 		ls ${CPIO_FILES} | cpio -pdamuv ${MOUNT})
 	(cd ${DESTDIR}/; \
 	    (find ${CPIO_CPIO}; ls -d ${CPIO_CPIO_DIRS}) | \
-		cpio -oav | gzip -9 >${MOUNT}/inst2.cpio.gz)
-	install -c -o root -g wheel -m 755 etc.i386/inst2.profile \
-	    ${MOUNT}/.profile
-	install -c -o root -g wheel -m 755 etc.i386/inst2.install \
+		cpio -H newc --block-size=16 -oav | \
+		gzip -9 >${MOUNT}/inst2.cpio.gz)
+	install -c -o root -g wheel -m 755 etc.i386/cpio.rc \
+	    ${MOUNT}/rc
+	install -c -o root -g wheel -m 755 etc.i386/cpio.install \
 	    ${MOUNT}/install
+	install -c -o root -g wheel -m 755 etc.i386/cpio.magic \
+	    ${MOUNT}/magic
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
