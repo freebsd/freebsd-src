@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.7 1994/10/04 16:07:46 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.8 1994/10/14 05:55:57 jkh Exp $";
 #endif
 
 /*
@@ -97,7 +97,7 @@ pkg_do(char *pkg)
 	    whinge("Can't stat package file '%s'.", fname);
 	    return 1;
 	}
-	home = make_playpen(PlayPen, sb.st_size / 2);
+	(void)make_playpen(PlayPen, sb.st_size / 2);
 	if (unpack(fname, "+*")) {
 	    whinge("Error during unpacking, no info for '%s' available.", pkg);
 	    return 1;
