@@ -114,7 +114,7 @@ digi_isa_check(struct digi_softc *sc)
 	outb(sc->port, FEPRST);
 	for (i = 0; (inb(sc->port) & FEPMASK) != FEPRST; i++) {
 		if (i == hz / 10)
-			return (NULL);
+			return (0);
 		digi_delay(sc, "digirst", 1);
 	}
 	DLOG(DIGIDB_INIT, (sc->dev, "got reset after %d iterations\n", i));
@@ -188,7 +188,7 @@ digi_isa_check(struct digi_softc *sc)
 
 		if (ident & 0x1) {
 			device_printf(sc->dev, "PC/Xm is unsupported\n");
-			return (NULL);
+			return (0);
 		}
 
 		sc->mem_seg = 0xf000;

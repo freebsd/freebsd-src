@@ -119,7 +119,7 @@ static struct gx_device gx_devs[] = {
 	    8 | 8 << 10 | 6 << 20,
 	    "Intel Gigabit Ethernet (82544GC-T)" },
 #endif
-	{ 0, 0, 0, NULL }
+	{ 0, 0, 0, 0, NULL }
 };
 
 static struct gx_regs new_regs = {

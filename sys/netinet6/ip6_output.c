@@ -1296,10 +1296,10 @@ ip6_ctloutput(so, sopt)
 				struct mbuf *m;
 
 				error = soopt_getm(sopt, &m); /* XXX */
-				if (error != NULL)
+				if (error != 0)
 					break;
 				error = soopt_mcopyin(sopt, m); /* XXX */
-				if (error != NULL)
+				if (error != 0)
 					break;
 				error = ip6_pcbopts(&in6p->in6p_outputopts,
 						    m, so, sopt);
@@ -1646,10 +1646,10 @@ do { \
 				struct mbuf **mp = &m;
 
 				error = soopt_getm(sopt, &m); /* XXX */
-				if (error != NULL)
+				if (error != 0)
 					break;
 				error = soopt_mcopyin(sopt, m); /* XXX */
-				if (error != NULL)
+				if (error != 0)
 					break;
 				if (m) {
 					req = mtod(m, caddr_t);
@@ -2496,7 +2496,7 @@ ip6_mloopback(ifp, m, dst)
 	in6_clearscope(&ip6->ip6_dst);
 #endif
 
-	(void)if_simloop(ifp, copym, dst->sin6_family, NULL);
+	(void)if_simloop(ifp, copym, dst->sin6_family, 0);
 }
 
 /*

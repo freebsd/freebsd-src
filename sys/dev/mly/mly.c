@@ -1505,11 +1505,11 @@ mly_start(struct mly_command *mc)
 	/* copy in new command */
 	bcopy(mc->mc_packet->mmbox.data, pkt->mmbox.data, sizeof(pkt->mmbox.data));
 	/* barrier to ensure completion of previous write before we write the flag */
-	bus_space_barrier(NULL, NULL, 0, 0, BUS_SPACE_BARRIER_WRITE);	/* tag/handle? */
+	bus_space_barrier(0, 0, 0, 0, BUS_SPACE_BARRIER_WRITE);	/* tag/handle? */
 	/* copy flag last */
 	pkt->mmbox.flag = mc->mc_packet->mmbox.flag;
 	/* barrier to ensure completion of previous write before we notify the controller */
-	bus_space_barrier(NULL, NULL, 0, 0, BUS_SPACE_BARRIER_WRITE);	/* tag/handle */
+	bus_space_barrier(0, 0, 0, 0, BUS_SPACE_BARRIER_WRITE);	/* tag/handle */
 
 	/* signal controller, update index */
 	MLY_SET_REG(sc, sc->mly_idbr, MLY_AM_CMDSENT);

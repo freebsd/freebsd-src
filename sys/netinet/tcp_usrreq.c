@@ -971,7 +971,7 @@ tcp6_connect(tp, nam, td)
 		inp->in6p_laddr = *addr6;
 	inp->in6p_faddr = sin6->sin6_addr;
 	inp->inp_fport = sin6->sin6_port;
-	if ((sin6->sin6_flowinfo & IPV6_FLOWINFO_MASK) != NULL)
+	if ((sin6->sin6_flowinfo & IPV6_FLOWINFO_MASK) != 0)
 		inp->in6p_flowinfo = sin6->sin6_flowinfo;
 	in_pcbrehash(inp);
 
@@ -1163,7 +1163,7 @@ tcp_attach(so, td)
 	struct inpcb *inp;
 	int error;
 #ifdef INET6
-	int isipv6 = INP_CHECK_SOCKAF(so, AF_INET6) != NULL;
+	int isipv6 = INP_CHECK_SOCKAF(so, AF_INET6) != 0;
 #endif
 
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {

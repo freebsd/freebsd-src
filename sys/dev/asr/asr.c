@@ -1712,7 +1712,7 @@ ASR_queue(
 	  I2O_SGL_FLAGS_SIMPLE_ADDRESS_ELEMENT | (Flags));	   \
 	I2O_SGE_SIMPLE_ELEMENT_setPhysicalAddress(		   \
 	  &(((PI2O_SG_ELEMENT)(SGL))->u.Simple[Index]),		   \
-	  (Buffer == NULL) ? NULL : KVTOPHYS(Buffer))
+	  (Buffer == NULL) ? 0 : KVTOPHYS(Buffer))
 
 /*
  *	Retrieve Parameter Group.

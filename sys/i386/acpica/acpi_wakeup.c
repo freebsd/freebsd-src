@@ -188,7 +188,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	int			pteobj_allocated = 0;
 	u_long			ef;
 
-	if (sc->acpi_wakeaddr == NULL) {
+	if (sc->acpi_wakeaddr == 0) {
 		return (0);
 	}
 
