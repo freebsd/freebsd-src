@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vfscanf.c,v 1.8 1997/03/03 17:53:02 bde Exp $";
+		"$Id: vfscanf.c,v 1.9 1997/04/04 18:28:38 ache Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -730,8 +730,9 @@ doswitch:
 			 */
 			n = *fmt;
 			if (n == ']'
-			    || (__collate_load_error && n < c)
-			    || __collate_range_cmp (n, c) < 0
+			    || (__collate_load_error ? n < c :
+				__collate_range_cmp (n, c) < 0
+			       )
 			   ) {
 				c = '-';
 				break;	/* resume the for(;;) */
