@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.16 1996/05/03 14:58:09 phk Exp $ */
+/* $Id: matcd.c,v 1.17 1996/05/03 16:49:14 phk Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -432,6 +432,10 @@ static	struct matcd_data {
 	void	*rc_devfs_token;
 	void	*a_devfs_token;
 	void	*c_devfs_token;
+	void	*rla_devfs_token;
+	void	*rlc_devfs_token;
+	void	*la_devfs_token;
+	void	*lc_devfs_token;
 #endif DEVFS
 } matcd_data[TOTALDRIVES];
 
@@ -1424,25 +1428,30 @@ matcd_attach(struct isa_device *dev)
 				cd->partflags[i]=0;
 			}
 #ifdef DEVFS
-#define MATCD_UID 0
-#define MATCD_GID 13
-			cd->ra_devfs_token = 
-				devfs_add_devswf(&matcd_cdevsw, 0, DV_CHR,
-						 MATCD_UID,  MATCD_GID, 0600,
-						 "rmatcd%da", i);
-			cd->rc_devfs_token = 
-				devfs_add_devswf(&matcd_cdevsw, RAW_PART, 
-						 DV_CHR, MATCD_UID, MATCD_GID, 
-						 0600, "rmatcd%dc", i);
-			cd->a_devfs_token = 
-				devfs_add_devswf(&matcd_bdevsw, 0, DV_BLK,
-						 MATCD_UID, MATCD_GID, 0600,
-						 "matcd%da", i);
-
-			cd->c_devfs_token = 
-				devfs_add_devswf(&matcd_bdevsw, RAW_PART,
-						 DV_BLK, MATCD_UID, MATCD_GID, 
-						 0600, "matcd%dc", i);
+			cd->ra_devfs_token = devfs_add_devswf(&matcd_cdevsw,
+				dkmakeminor(i, 0, 0), DV_CHR,
+				UID_ROOT, GID_OPERATOR, 0640, "rmatcd%da", i);
+			cd->rc_devfs_token = devfs_add_devswf(&matcd_cdevsw,
+				dkmakeminor(i, 0, RAW_PART), DV_CHR,
+				UID_ROOT, GID_OPERATOR, 0640, "rmatcd%dc", i);
+			cd->a_devfs_token = devfs_add_devswf(&matcd_bdevsw,
+				dkmakeminor(i, 0, 0), DV_BLK,
+				UID_ROOT, GID_OPERATOR, 0640, "matcd%da", i);
+			cd->c_devfs_token = devfs_add_devswf(&matcd_bdevsw,
+				dkmakeminor(i, 0, RAW_PART), DV_BLK,
+				UID_ROOT, GID_OPERATOR, 0640, "matcd%dc", i);
+			cd->rla_devfs_token = devfs_add_devswf(&matcd_cdevsw,
+				0x80 | dkmakeminor(i, 0, 0), DV_CHR,
+				UID_ROOT, GID_OPERATOR, 0640, "rmatcd%dla", i);
+			cd->rlc_devfs_token = devfs_add_devswf(&matcd_cdevsw,
+				0x80 | dkmakeminor(i, 0, RAW_PART), DV_CHR,
+				UID_ROOT, GID_OPERATOR, 0640, "rmatcd%dc", i);
+			cd->la_devfs_token = devfs_add_devswf(&matcd_bdevsw,
+				0x80 | dkmakeminor(i, 0, 0), DV_BLK,
+				UID_ROOT, GID_OPERATOR, 0640, "matcd%dla", i);
+			cd->lc_devfs_token = devfs_add_devswf(&matcd_bdevsw,
+				0x80 | dkmakeminor(i, 0, RAW_PART), DV_BLK,
+				UID_ROOT, GID_OPERATOR, 0640, "matcd%dlc", i);
 #endif
 		}
 	}
