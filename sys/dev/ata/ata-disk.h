@@ -75,7 +75,7 @@ struct ad_softc {
     dev_t			dev;		/* device place holder */
 };
 
-void ad_attach(struct ata_device *);
+void ad_attach(struct ata_device *, int);
 void ad_detach(struct ata_device *, int);
 void ad_reinit(struct ata_device *);
 void ad_start(struct ata_device *);

@@ -105,7 +105,7 @@ SYSCTL_INT(_hw_ata, OID_AUTO, tags, CTLFLAG_RD, &ata_tags, 0,
 	   "ATA disk tagged queuing support");
 
 void
-ad_attach(struct ata_device *atadev)
+ad_attach(struct ata_device *atadev, int alreadylocked)
 {
     struct ad_softc *adp;
     dev_t dev;
@@ -141,7 +141,8 @@ ad_attach(struct ata_device *atadev)
 	atadev->param->lba_size48 > 268435455)
 	adp->total_secs = atadev->param->lba_size48;
     
-    ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
+    if (!alreadylocked)
+    	ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
     /* use multiple sectors/interrupt if device supports it */
     adp->transfersize = DEV_BSIZE;
     if (ad_version(atadev->param->version_major)) {

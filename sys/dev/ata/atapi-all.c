@@ -69,14 +69,15 @@ SYSCTL_INT(_hw_ata, OID_AUTO, atapi_dma, CTLFLAG_RD, &atapi_dma, 0,
 	   "ATAPI device DMA mode control");
 
 void
-atapi_attach(struct ata_device *atadev)
+atapi_attach(struct ata_device *atadev, int alreadylocked)
 {
     if (bootverbose) 
 	ata_prtdev(atadev, "piomode=%d dmamode=%d udmamode=%d dmaflag=%d\n",
 		   ata_pmode(atadev->param), ata_wmode(atadev->param),
 		   ata_umode(atadev->param), atadev->param->support_dma);
 
-    ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
+    if (!alreadylocked)
+	ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
     if (atapi_dma && !(atadev->param->drq_type == ATAPI_DRQT_INTR)) {
 	ata_dmainit(atadev,
 		    (ata_pmode(atadev->param) < 0) ? 

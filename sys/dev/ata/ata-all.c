@@ -209,15 +209,15 @@ ata_attach(device_t dev)
 		ch->devices &= ~ATA_ATAPI_MASTER;
 #if NATADISK > 0
 	if (ch->devices & ATA_ATA_MASTER)
-	    ad_attach(&ch->device[MASTER]);
+	    ad_attach(&ch->device[MASTER], 0);
 	if (ch->devices & ATA_ATA_SLAVE)
-	    ad_attach(&ch->device[SLAVE]);
+	    ad_attach(&ch->device[SLAVE], 0);
 #endif
 #if DEV_ATAPIALL
 	if (ch->devices & ATA_ATAPI_MASTER)
-	    atapi_attach(&ch->device[MASTER]);
+	    atapi_attach(&ch->device[MASTER], 0);
 	if (ch->devices & ATA_ATAPI_SLAVE)
-	    atapi_attach(&ch->device[SLAVE]);
+	    atapi_attach(&ch->device[SLAVE], 0);
 #endif
 #if NATAPICAM > 0
 	atapi_cam_attach_bus(ch);
@@ -552,9 +552,9 @@ ata_boot_attach(void)
 	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
 	    continue;
 	if (ch->devices & ATA_ATA_MASTER)
-	    ad_attach(&ch->device[MASTER]);
+	    ad_attach(&ch->device[MASTER], 0);
 	if (ch->devices & ATA_ATA_SLAVE)
-	    ad_attach(&ch->device[SLAVE]);
+	    ad_attach(&ch->device[SLAVE], 0);
     }
     ata_raid_attach();
 #endif
@@ -564,9 +564,9 @@ ata_boot_attach(void)
 	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
 	    continue;
 	if (ch->devices & ATA_ATAPI_MASTER)
-	    atapi_attach(&ch->device[MASTER]);
+	    atapi_attach(&ch->device[MASTER], 0);
 	if (ch->devices & ATA_ATAPI_SLAVE)
-	    atapi_attach(&ch->device[SLAVE]);
+	    atapi_attach(&ch->device[SLAVE], 0);
 #if NATAPICAM > 0
 	atapi_cam_attach_bus(ch);
 #endif
@@ -896,13 +896,13 @@ ata_reinit(struct ata_channel *ch)
 	printf("\n");
 #if NATADISK > 0
     if (newdev & ATA_ATA_MASTER && !ch->device[MASTER].driver)
-	ad_attach(&ch->device[MASTER]);
+	ad_attach(&ch->device[MASTER], 1);
     else if (ch->devices & ATA_ATA_MASTER && ch->device[MASTER].driver) {
 	ata_getparam(&ch->device[MASTER], ATA_C_ATA_IDENTIFY);
 	ad_reinit(&ch->device[MASTER]);
     }
     if (newdev & ATA_ATA_SLAVE && !ch->device[SLAVE].driver)
-	ad_attach(&ch->device[SLAVE]);
+	ad_attach(&ch->device[SLAVE], 1);
     else if (ch->devices & (ATA_ATA_SLAVE) && ch->device[SLAVE].driver) {
 	ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY);
 	ad_reinit(&ch->device[SLAVE]);
@@ -910,13 +910,13 @@ ata_reinit(struct ata_channel *ch)
 #endif
 #if DEV_ATAPIALL
     if (newdev & ATA_ATAPI_MASTER && !ch->device[MASTER].driver)
-	atapi_attach(&ch->device[MASTER]);
+	atapi_attach(&ch->device[MASTER], 1);
     else if (ch->devices & (ATA_ATAPI_MASTER) && ch->device[MASTER].driver) {
 	ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY);
 	atapi_reinit(&ch->device[MASTER]);
     }
     if (newdev & ATA_ATAPI_SLAVE && !ch->device[SLAVE].driver)
-	atapi_attach(&ch->device[SLAVE]);
+	atapi_attach(&ch->device[SLAVE], 1);
     else if (ch->devices & (ATA_ATAPI_SLAVE) && ch->device[SLAVE].driver) {
 	ata_getparam(&ch->device[SLAVE], ATA_C_ATAPI_IDENTIFY);
 	atapi_reinit(&ch->device[SLAVE]);

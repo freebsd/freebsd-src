@@ -170,7 +170,7 @@ struct atapi_request {
     TAILQ_ENTRY(atapi_request)	chain;		/* list management */
 };
 
-void atapi_attach(struct ata_device *);
+void atapi_attach(struct ata_device *, int);
 void atapi_cam_attach_bus(struct ata_channel *);
 void atapi_detach(struct ata_device *);
 void atapi_cam_detach_bus(struct ata_channel *);
