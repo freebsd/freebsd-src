@@ -22,7 +22,7 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	for them, finishing switching to the new scheme. Check your
 	LANG environment variable.
 
-20030509:
+20030609:
 	CCD has been changed to be a fully GEOMified class.  Kernel
 	and ccdconfig(8) needs to be in sync, this is particularly
 	important to remember beforehand if your source tree is on
