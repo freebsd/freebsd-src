@@ -51,7 +51,7 @@
                 (literal "doc@FreeBSD.org"))
 	      (literal "> まで, ")
               (make empty-element gi: "br")
-	      (literal "日本語版に関するお問い合わせは, <")
+	      (literal "日本語訳に関するお問い合わせは, <")
 	      (create-link (list (list "HREF" "mailto:doc-jp@jp.FreeBSD.org"))
                  (literal "doc-jp@jp.FreeBSD.org"))
 	      (literal "> まで電子メールでお願いします."))))))
