@@ -765,7 +765,6 @@ doopen(int unit, int command_byte)
 				--verbose;   				\
                             kbdc_set_device_mask(sc->kbdc, mask);	\
 			    kbdc_lock(sc->kbdc, FALSE);			\
- 	                    free(sc, M_DEVBUF);                         \
 			    return (v);	     				\
 			}
 
