@@ -32,14 +32,19 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rstatd.c,v 1.2 1994/11/18 22:31:05 ats Exp $";
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <rpc/rpc.h>
 #include <signal.h>
 #include <syslog.h>
+#include <rpc/pmap_clnt.h>
 #include <rpcsvc/rstat.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 extern void rstat_service();
 
@@ -55,6 +60,7 @@ cleanup()
         exit(0);
 }
 
+int
 main(argc, argv)
         int argc;
         char *argv[];
@@ -96,19 +102,19 @@ main(argc, argv)
 
 	transp = svcudp_create(sock);
 	if (transp == NULL) {
-		syslog(LOG_ERR, "cannot create udp service.");
+		syslog(LOG_ERR, "cannot create udp service");
 		exit(1);
 	}
 	if (!svc_register(transp, RSTATPROG, RSTATVERS_TIME, rstat_service, proto)) {
-		syslog(LOG_ERR, "unable to register (RSTATPROG, RSTATVERS_TIME, udp).");
+		syslog(LOG_ERR, "unable to register (RSTATPROG, RSTATVERS_TIME, udp)");
 		exit(1);
 	}
 	if (!svc_register(transp, RSTATPROG, RSTATVERS_SWTCH, rstat_service, proto)) {
-		syslog(LOG_ERR, "unable to register (RSTATPROG, RSTATVERS_SWTCH, udp).");
+		syslog(LOG_ERR, "unable to register (RSTATPROG, RSTATVERS_SWTCH, udp)");
 		exit(1);
 	}
 	if (!svc_register(transp, RSTATPROG, RSTATVERS_ORIG, rstat_service, proto)) {
-		syslog(LOG_ERR, "unable to register (RSTATPROG, RSTATVERS_ORIG, udp).");
+		syslog(LOG_ERR, "unable to register (RSTATPROG, RSTATVERS_ORIG, udp)");
 		exit(1);
 	}
 
