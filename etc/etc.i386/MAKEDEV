@@ -71,7 +71,7 @@
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #
-#	$Id: MAKEDEV,v 1.46 1994/11/01 01:47:08 pst Exp $
+#	$Id: MAKEDEV,v 1.47 1994/11/02 06:36:42 phk Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -595,10 +595,10 @@ vat)
 	;;
 
 apm)
-	rm -f apm
-	mknod apm c 39 0
-	chown root.wheel apm
-	chmod 660 apm
+	rm -f apm0
+	mknod apm0 c 39 0
+	chown root.wheel apm0
+	chmod 660 apm0
 	;;
 
 local)
