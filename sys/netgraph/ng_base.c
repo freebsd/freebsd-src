@@ -3587,7 +3587,7 @@ ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
  * Official timeout routines for Netgraph nodes.
  */
 static void
-ng_timeout_trapoline(void *arg)
+ng_callout_trapoline(void *arg)
 {
 	item_p item = arg;
 
@@ -3596,7 +3596,7 @@ ng_timeout_trapoline(void *arg)
 
 
 int
-ng_timeout(struct callout *c, node_p node, hook_p hook, int ticks,
+ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
     ng_item_fn *fn, void * arg1, int arg2)
 {
 	item_p item;
@@ -3614,13 +3614,13 @@ ng_timeout(struct callout *c, node_p node, hook_p hook, int ticks,
 	NGI_FN(item) = fn;
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
-	callout_reset(c, ticks, &ng_timeout_trapoline, item);
+	callout_reset(c, ticks, &ng_callout_trapoline, item);
 	return (0);
 }
 
 /* A special modified version of untimeout() */
 int 
-ng_untimeout(struct callout *c, node_p node)
+ng_uncallout(struct callout *c, node_p node)
 {
 	item_p item;
 	int rval;
@@ -3635,7 +3635,7 @@ ng_untimeout(struct callout *c, node_p node)
 	mtx_unlock_spin(&callout_lock);
 	item = c->c_arg;
 	/* Do an extra check */
-	if ((rval > 0) && (c_func == &ng_timeout_trapoline) &&
+	if ((rval > 0) && (c_func == &ng_callout_trapoline) &&
 	    (NGI_NODE(item) == node)) {
 		/*
 		 * We successfully removed it from the queue before it ran
