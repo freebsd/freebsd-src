@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_maint.c	4.39 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: ns_maint.c,v 8.8 1995/06/29 09:26:17 vixie Exp $";
+static char rcsid[] = "$Id: ns_maint.c,v 1.1.1.3 1995/10/23 09:26:20 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -362,6 +362,9 @@ startxfer(zp)
 #ifdef GEN_AXFR
 	char class_str[10];
 #endif
+#ifdef POSIX_SIGNALS
+      sigset_t sset;
+#endif
 
 	dprintf(1, (ddt, "startxfer() %s\n", zp->z_origin));
 
@@ -441,12 +444,22 @@ startxfer(zp)
 
 	gettime(&tt);
 #ifndef SYSV
+#if defined(POSIX_SIGNALS)
+      sigemptyset(&sset);
+      sigaddset(&sset,SIGCHLD);
+      sigprocmask(SIG_BLOCK,&sset,NULL);
+#else
 	omask = sigblock(sigmask(SIGCHLD));
+#endif
 #endif
 	if ((pid = vfork()) == -1) {
 		syslog(LOG_ERR, "xfer vfork: %m");
 #ifndef SYSV
+#if defined(POSIX_SIGNALS)
+              sigprocmask(SIG_UNBLOCK,&sset,NULL);
+#else
 		(void) sigsetmask(omask);
+#endif
 #endif
 		zp->z_time = tt.tv_sec + 10;
 		return;
@@ -466,7 +479,11 @@ startxfer(zp)
 	xfers_running++;
 	zp->z_time = tt.tv_sec + MAX_XFER_TIME;
 #ifndef SYSV
+#if defined(POSIX_SIGNALS)
+      sigprocmask(SIG_UNBLOCK,&sset,NULL);
+#else
 	(void) sigsetmask(omask);
+#endif
 #endif
 }
 
