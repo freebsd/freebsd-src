@@ -665,7 +665,7 @@ hpfs_inactive(ap)
 	if (hp->h_flag & H_INVAL) {
 		VOP__UNLOCK(vp,0,ap->a_p);
 #if defined(__FreeBSD__)
-		vrecycle(vp, (struct simplelock *)0, ap->a_p);
+		vrecycle(vp, NULL, ap->a_p);
 #else /* defined(__NetBSD__) */
 		vgone(vp);
 #endif
@@ -700,6 +700,7 @@ hpfs_reclaim(ap)
 	}
 
 	lockdestroy(&hp->h_lock);
+	mtx_destroy(&hp->h_interlock);
 
 	vp->v_data = NULL;
 

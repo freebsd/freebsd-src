@@ -40,8 +40,7 @@
 #include <sys/lock.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
-
-#include <machine/mutex.h>
+#include <sys/mutex.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
@@ -54,9 +53,7 @@ static MALLOC_DEFINE(M_UFSIHASH, "UFS ihash", "UFS Inode hash tables");
 static LIST_HEAD(ihashhead, inode) *ihashtbl;
 static u_long	ihash;		/* size of hash table - 1 */
 #define	INOHASH(device, inum)	(&ihashtbl[(minor(device) + (inum)) & ihash])
-#ifndef NULL_SIMPLELOCKS
-static struct simplelock ufs_ihash_slock;
-#endif
+static struct mtx ufs_ihash_mtx;
 
 /*
  * Initialize inode hash table.
@@ -66,7 +63,7 @@ ufs_ihashinit()
 {
 
 	ihashtbl = hashinit(desiredvnodes, M_UFSIHASH, &ihash);
-	simple_lock_init(&ufs_ihash_slock);
+	mtx_init(&ufs_ihash_mtx, "ufs ihash", MTX_DEF);
 }
 
 /*
@@ -80,11 +77,11 @@ ufs_ihashlookup(dev, inum)
 {
 	struct inode *ip;
 
-	simple_lock(&ufs_ihash_slock);
+	mtx_enter(&ufs_ihash_mtx, MTX_DEF);
 	for (ip = INOHASH(dev, inum)->lh_first; ip; ip = ip->i_hash.le_next)
 		if (inum == ip->i_number && dev == ip->i_dev)
 			break;
-	simple_unlock(&ufs_ihash_slock);
+	mtx_exit(&ufs_ihash_mtx, MTX_DEF);
 
 	if (ip)
 		return (ITOV(ip));
@@ -105,18 +102,18 @@ ufs_ihashget(dev, inum)
 	struct vnode *vp;
 
 loop:
-	simple_lock(&ufs_ihash_slock);
+	mtx_enter(&ufs_ihash_mtx, MTX_DEF);
 	for (ip = INOHASH(dev, inum)->lh_first; ip; ip = ip->i_hash.le_next) {
 		if (inum == ip->i_number && dev == ip->i_dev) {
 			vp = ITOV(ip);
 			mtx_enter(&vp->v_interlock, MTX_DEF);
-			simple_unlock(&ufs_ihash_slock);
+			mtx_exit(&ufs_ihash_mtx, MTX_DEF);
 			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
 				goto loop;
 			return (vp);
 		}
 	}
-	simple_unlock(&ufs_ihash_slock);
+	mtx_exit(&ufs_ihash_mtx, MTX_DEF);
 	return (NULL);
 }
 
@@ -133,11 +130,11 @@ ufs_ihashins(ip)
 	/* lock the inode, then put it on the appropriate hash list */
 	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct mtx *)0, p);
 
-	simple_lock(&ufs_ihash_slock);
+	mtx_enter(&ufs_ihash_mtx, MTX_DEF);
 	ipp = INOHASH(ip->i_dev, ip->i_number);
 	LIST_INSERT_HEAD(ipp, ip, i_hash);
 	ip->i_flag |= IN_HASHED;
-	simple_unlock(&ufs_ihash_slock);
+	mtx_exit(&ufs_ihash_mtx, MTX_DEF);
 }
 
 /*
@@ -147,7 +144,7 @@ void
 ufs_ihashrem(ip)
 	struct inode *ip;
 {
-	simple_lock(&ufs_ihash_slock);
+	mtx_enter(&ufs_ihash_mtx, MTX_DEF);
 	if (ip->i_flag & IN_HASHED) {
 		ip->i_flag &= ~IN_HASHED;
 		LIST_REMOVE(ip, i_hash);
@@ -156,5 +153,5 @@ ufs_ihashrem(ip)
 		ip->i_hash.le_prev = NULL;
 #endif
 	}
-	simple_unlock(&ufs_ihash_slock);
+	mtx_exit(&ufs_ihash_mtx, MTX_DEF);
 }

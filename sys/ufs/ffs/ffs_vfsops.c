@@ -50,8 +50,7 @@
 #include <sys/fcntl.h>
 #include <sys/disklabel.h>
 #include <sys/malloc.h>
-
-#include <machine/mutex.h>
+#include <sys/mutex.h>
 
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
@@ -455,23 +454,23 @@ ffs_reload(mp, cred, p)
 	}
 
 loop:
-	simple_lock(&mntvnode_slock);
+	mtx_enter(&mntvnode_mtx, MTX_DEF);
 	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
 		if (vp->v_mount != mp) {
-			simple_unlock(&mntvnode_slock);
+			mtx_exit(&mntvnode_mtx, MTX_DEF);
 			goto loop;
 		}
 		nvp = vp->v_mntvnodes.le_next;
 		/*
 		 * Step 4: invalidate all inactive vnodes.
 		 */
-		if (vrecycle(vp, &mntvnode_slock, p))
+		if (vrecycle(vp, &mntvnode_mtx, p))
 			goto loop;
 		/*
 		 * Step 5: invalidate all cached file data.
 		 */
 		mtx_enter(&vp->v_interlock, MTX_DEF);
-		simple_unlock(&mntvnode_slock);
+		mtx_exit(&mntvnode_mtx, MTX_DEF);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
 			goto loop;
 		}
@@ -493,9 +492,9 @@ loop:
 		ip->i_effnlink = ip->i_nlink;
 		brelse(bp);
 		vput(vp);
-		simple_lock(&mntvnode_slock);
+		mtx_enter(&mntvnode_mtx, MTX_DEF);
 	}
-	simple_unlock(&mntvnode_slock);
+	mtx_exit(&mntvnode_mtx, MTX_DEF);
 	return (0);
 }
 
@@ -938,7 +937,7 @@ ffs_sync(mp, waitfor, cred, p)
 		wait = 1;
 		lockreq = LK_EXCLUSIVE | LK_INTERLOCK;
 	}
-	simple_lock(&mntvnode_slock);
+	mtx_enter(&mntvnode_mtx, MTX_DEF);
 loop:
 	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
 		/*
@@ -957,9 +956,9 @@ loop:
 			continue;
 		}
 		if (vp->v_type != VCHR) {
-			simple_unlock(&mntvnode_slock);
+			mtx_exit(&mntvnode_mtx, MTX_DEF);
 			if ((error = vget(vp, lockreq, p)) != 0) {
-				simple_lock(&mntvnode_slock);
+				mtx_enter(&mntvnode_mtx, MTX_DEF);
 				if (error == ENOENT)
 					goto loop;
 				continue;
@@ -968,15 +967,15 @@ loop:
 				allerror = error;
 			VOP_UNLOCK(vp, 0, p);
 			vrele(vp);
-			simple_lock(&mntvnode_slock);
+			mtx_enter(&mntvnode_mtx, MTX_DEF);
 		} else {
-			simple_unlock(&mntvnode_slock);
+			mtx_exit(&mntvnode_mtx, MTX_DEF);
 			mtx_exit(&vp->v_interlock, MTX_DEF);
 			UFS_UPDATE(vp, wait);
-			simple_lock(&mntvnode_slock);
+			mtx_enter(&mntvnode_mtx, MTX_DEF);
 		}
 	}
-	simple_unlock(&mntvnode_slock);
+	mtx_exit(&mntvnode_mtx, MTX_DEF);
 	/*
 	 * Force stale file system control information to be flushed.
 	 */
@@ -985,7 +984,7 @@ loop:
 			allerror = error;
 		/* Flushed work items may create new vnodes to clean */
 		if (count) {
-			simple_lock(&mntvnode_slock);
+			mtx_enter(&mntvnode_mtx, MTX_DEF);
 			goto loop;
 		}
 	}

@@ -1896,6 +1896,13 @@ init386(first)
 	LIST_INIT(&proc0.p_contested);
 
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
+#ifdef SMP
+	/*
+	 * Interrupts can happen very early, so initialize imen_mtx here, rather
+	 * than in init_locks().
+	 */
+	mtx_init(&imen_mtx, "imen", MTX_SPIN);
+#endif
 
 	/*
 	 * Giant is used early for at least debugger traps and unexpected traps.

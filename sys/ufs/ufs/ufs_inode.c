@@ -46,6 +46,7 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
@@ -108,7 +109,7 @@ out:
 	 * so that it can be reused immediately.
 	 */
 	if (ip->i_mode == 0)
-		vrecycle(vp, (struct simplelock *)0, p);
+		vrecycle(vp, NULL, p);
 	return (error);
 }
 

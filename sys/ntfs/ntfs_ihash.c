@@ -43,6 +43,7 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 
 #include <ntfs/ntfs.h>
 #include <ntfs/ntfs_inode.h>
@@ -56,9 +57,7 @@ MALLOC_DEFINE(M_NTFSNTHASH, "NTFS nthash", "NTFS ntnode hash tables");
 static LIST_HEAD(nthashhead, ntnode) *ntfs_nthashtbl;
 static u_long	ntfs_nthash;		/* size of hash table - 1 */
 #define	NTNOHASH(device, inum)	(&ntfs_nthashtbl[(minor(device) + (inum)) & ntfs_nthash])
-#ifndef NULL_SIMPLELOCKS
-static struct simplelock ntfs_nthash_slock;
-#endif
+static struct mtx ntfs_nthash_mtx;
 struct lock ntfs_hashlock;
 
 /*
@@ -70,7 +69,7 @@ ntfs_nthashinit()
 	lockinit(&ntfs_hashlock, PINOD, "ntfs_nthashlock", 0, 0);
 	ntfs_nthashtbl = HASHINIT(desiredvnodes, M_NTFSNTHASH, M_WAITOK,
 	    &ntfs_nthash);
-	simple_lock_init(&ntfs_nthash_slock);
+	mtx_init(&ntfs_nthash_mtx, "ntfs nthash", MTX_DEF);
 }
 
 /*
@@ -80,6 +79,7 @@ void
 ntfs_nthashdestroy(void)
 {
 	lockdestroy(&ntfs_hashlock);
+	mtx_destroy(&ntfs_nthash_mtx);
 }
 
 /*
@@ -93,11 +93,11 @@ ntfs_nthashlookup(dev, inum)
 {
 	struct ntnode *ip;
 
-	simple_lock(&ntfs_nthash_slock);
+	mtx_enter(&ntfs_nthash_mtx, MTX_DEF);
 	for (ip = NTNOHASH(dev, inum)->lh_first; ip; ip = ip->i_hash.le_next)
 		if (inum == ip->i_number && dev == ip->i_dev)
 			break;
-	simple_unlock(&ntfs_nthash_slock);
+	mtx_exit(&ntfs_nthash_mtx, MTX_DEF);
 
 	return (ip);
 }
@@ -111,11 +111,11 @@ ntfs_nthashins(ip)
 {
 	struct nthashhead *ipp;
 
-	simple_lock(&ntfs_nthash_slock);
+	mtx_enter(&ntfs_nthash_mtx, MTX_DEF);
 	ipp = NTNOHASH(ip->i_dev, ip->i_number);
 	LIST_INSERT_HEAD(ipp, ip, i_hash);
 	ip->i_flag |= IN_HASHED;
-	simple_unlock(&ntfs_nthash_slock);
+	mtx_exit(&ntfs_nthash_mtx, MTX_DEF);
 }
 
 /*
@@ -125,7 +125,7 @@ void
 ntfs_nthashrem(ip)
 	struct ntnode *ip;
 {
-	simple_lock(&ntfs_nthash_slock);
+	mtx_enter(&ntfs_nthash_mtx, MTX_DEF);
 	if (ip->i_flag & IN_HASHED) {
 		ip->i_flag &= ~IN_HASHED;
 		LIST_REMOVE(ip, i_hash);
@@ -134,5 +134,5 @@ ntfs_nthashrem(ip)
 		ip->i_hash.le_prev = NULL;
 #endif
 	}
-	simple_unlock(&ntfs_nthash_slock);
+	mtx_exit(&ntfs_nthash_mtx, MTX_DEF);
 }

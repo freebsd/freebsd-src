@@ -686,7 +686,8 @@ hpfs_vget(
 	if (ino == (ino_t)hpmp->hpm_su.su_rootfno) 
 		vp->v_flag |= VROOT;
 
-	simple_lock_init(&hp->h_interlock);
+
+	mtx_init(&hp->h_interlock, "hpfsnode interlock", MTX_DEF);
 	lockinit(&hp->h_lock, PINOD, "hpnode", 0, 0);
 
 	hp->h_flag = H_INVAL;

@@ -29,26 +29,6 @@
 #ifndef _MACHINE_LOCK_H_
 #define _MACHINE_LOCK_H_
 
-
-/*
- * Simple spin lock.
- * It is an error to hold one of these locks while a process is sleeping.
- */
-struct simplelock {
-	volatile int	lock_data;
-};
-
-/* functions in mp_machdep.c */
-void	s_lock_init		__P((struct simplelock *));
-void	s_lock			__P((struct simplelock *));
-int	s_lock_try		__P((struct simplelock *));
-void	s_unlock		__P((struct simplelock *));
-
-#define	simple_lock_init(alp)	s_lock_init(alp)
-#define	simple_lock(alp)	s_lock(alp)
-#define	simple_lock_try(alp)	s_lock_try(alp)
-#define	simple_unlock(alp)	s_unlock(alp)
-
 #define COM_LOCK()
 #define COM_UNLOCK()
 

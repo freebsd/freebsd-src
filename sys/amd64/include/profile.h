@@ -66,8 +66,8 @@
 #ifdef SMP
 #define	MCOUNT_ENTER(s)	{ s = read_eflags(); \
  			  __asm __volatile("cli" : : : "memory"); \
-			  s_lock_np(&mcount_lock); }
-#define	MCOUNT_EXIT(s)	{ s_unlock_np(&mcount_lock); write_eflags(s); }
+			  mtx_enter(&mcount_mtx, MTX_DEF); }
+#define	MCOUNT_EXIT(s)	{ mtx_exit(&mcount_mtx, MTX_DEF); write_eflags(s); }
 #else
 #define	MCOUNT_ENTER(s)	{ s = read_eflags(); disable_intr(); }
 #define	MCOUNT_EXIT(s)	(write_eflags(s))

@@ -61,8 +61,7 @@
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/stat.h> 				/* defines ALLPERMS */
-
-#include <machine/mutex.h>
+#include <sys/mutex.h>
 
 #include <msdosfs/bpb.h>
 #include <msdosfs/bootsect.h>
@@ -863,7 +862,7 @@ msdosfs_sync(mp, waitfor, cred, p)
 	/*
 	 * Write back each (modified) denode.
 	 */
-	simple_lock(&mntvnode_slock);
+	mtx_enter(&mntvnode_mtx, MTX_DEF);
 loop:
 	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nvp) {
 		/*
@@ -883,10 +882,10 @@ loop:
 			mtx_exit(&vp->v_interlock, MTX_DEF);
 			continue;
 		}
-		simple_unlock(&mntvnode_slock);
+		mtx_exit(&mntvnode_mtx, MTX_DEF);
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
 		if (error) {
-			simple_lock(&mntvnode_slock);
+			mtx_enter(&mntvnode_mtx, MTX_DEF);
 			if (error == ENOENT)
 				goto loop;
 			continue;
@@ -896,9 +895,9 @@ loop:
 			allerror = error;
 		VOP_UNLOCK(vp, 0, p);
 		vrele(vp);
-		simple_lock(&mntvnode_slock);
+		mtx_enter(&mntvnode_mtx, MTX_DEF);
 	}
-	simple_unlock(&mntvnode_slock);
+	mtx_exit(&mntvnode_mtx, MTX_DEF);
 
 	/*
 	 * Flush filesystem control info.

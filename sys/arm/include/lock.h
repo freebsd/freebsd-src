@@ -28,20 +28,6 @@
 #ifndef _MACHINE_LOCK_H_
 #define _MACHINE_LOCK_H_
 
-/*
- * Simple spin lock.
- * It is an error to hold one of these locks while a process is sleeping.
- */
-struct simplelock {
-	volatile u_int	lock_data;
-};
-
-/* functions in mp_machdep.c */
-void	s_lock_init		__P((struct simplelock *));
-void	s_lock			__P((struct simplelock *));
-int	s_lock_try		__P((struct simplelock *));
-void	s_unlock_np		__P((struct simplelock *));
-
 #define COM_LOCK()
 #define COM_UNLOCK()
 #define COM_DISABLE_INTR()	COM_LOCK()

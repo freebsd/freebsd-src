@@ -56,11 +56,10 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
+#include <sys/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
-
-#include <machine/mutex.h>
 
 #include <msdosfs/bpb.h>
 #include <msdosfs/msdosfsmount.h>
@@ -74,9 +73,7 @@ static struct denode **dehashtbl;
 static u_long dehash;			/* size of hash table - 1 */
 #define	DEHASH(dev, dcl, doff)	(dehashtbl[(minor(dev) + (dcl) + (doff) / 	\
 				sizeof(struct direntry)) & dehash])
-#ifndef NULL_SIMPLELOCKS
-static struct simplelock dehash_slock;
-#endif
+static struct mtx dehash_mtx;
 
 union _qcvt {
 	quad_t qcvt;
@@ -107,7 +104,7 @@ msdosfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
 	dehashtbl = hashinit(desiredvnodes/2, M_MSDOSFSMNT, &dehash);
-	simple_lock_init(&dehash_slock);
+	mtx_init(&dehash_mtx, "msdosfs dehash", MTX_DEF);
 	return (0);
 }
 
@@ -118,6 +115,7 @@ msdosfs_uninit(vfsp)
 
 	if (dehashtbl)
 		free(dehashtbl, M_MSDOSFSMNT);
+	mtx_destroy(&dehash_mtx);
 	return (0);
 }
 
@@ -132,7 +130,7 @@ msdosfs_hashget(dev, dirclust, diroff)
 	struct vnode *vp;
 
 loop:
-	simple_lock(&dehash_slock);
+	mtx_enter(&dehash_mtx, MTX_DEF);
 	for (dep = DEHASH(dev, dirclust, diroff); dep; dep = dep->de_next) {
 		if (dirclust == dep->de_dirclust
 		    && diroff == dep->de_diroffset
@@ -140,13 +138,13 @@ loop:
 		    && dep->de_refcnt != 0) {
 			vp = DETOV(dep);
 			mtx_enter(&vp->v_interlock, MTX_DEF);
-			simple_unlock(&dehash_slock);
+			mtx_exit(&dehash_mtx, MTX_DEF);
 			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
 				goto loop;
 			return (dep);
 		}
 	}
-	simple_unlock(&dehash_slock);
+	mtx_exit(&dehash_mtx, MTX_DEF);
 	return (NULL);
 }
 
@@ -156,7 +154,7 @@ msdosfs_hashins(dep)
 {
 	struct denode **depp, *deq;
 
-	simple_lock(&dehash_slock);
+	mtx_enter(&dehash_mtx, MTX_DEF);
 	depp = &DEHASH(dep->de_dev, dep->de_dirclust, dep->de_diroffset);
 	deq = *depp;
 	if (deq)
@@ -164,7 +162,7 @@ msdosfs_hashins(dep)
 	dep->de_next = deq;
 	dep->de_prev = depp;
 	*depp = dep;
-	simple_unlock(&dehash_slock);
+	mtx_exit(&dehash_mtx, MTX_DEF);
 }
 
 static void
@@ -173,7 +171,7 @@ msdosfs_hashrem(dep)
 {
 	struct denode *deq;
 
-	simple_lock(&dehash_slock);
+	mtx_enter(&dehash_mtx, MTX_DEF);
 	deq = dep->de_next;
 	if (deq)
 		deq->de_prev = dep->de_prev;
@@ -182,7 +180,7 @@ msdosfs_hashrem(dep)
 	dep->de_next = NULL;
 	dep->de_prev = NULL;
 #endif
-	simple_unlock(&dehash_slock);
+	mtx_exit(&dehash_mtx, MTX_DEF);
 }
 
 /*
@@ -721,6 +719,6 @@ out:
 	       dep->de_Name[0]);
 #endif
 	if (dep->de_Name[0] == SLOT_DELETED)
-		vrecycle(vp, (struct simplelock *)0, p);
+		vrecycle(vp, NULL, p);
 	return (error);
 }

@@ -42,6 +42,7 @@
 #include <sys/mount.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/mutex.h>
 
 #include <fs/hpfs/hpfs.h>
 
@@ -53,9 +54,7 @@ MALLOC_DEFINE(M_HPFSHASH, "HPFS hash", "HPFS node hash tables");
 static LIST_HEAD(hphashhead, hpfsnode) *hpfs_hphashtbl;
 static u_long	hpfs_hphash;		/* size of hash table - 1 */
 #define	HPNOHASH(dev, lsn)	(&hpfs_hphashtbl[(minor(dev) + (lsn)) & hpfs_hphash])
-#ifndef NULL_SIMPLELOCKS
-static struct simplelock hpfs_hphash_slock;
-#endif
+static struct mtx hpfs_hphash_mtx;
 struct lock hpfs_hphash_lock;
 
 /*
@@ -68,7 +67,7 @@ hpfs_hphashinit()
 	lockinit (&hpfs_hphash_lock, PINOD, "hpfs_hphashlock", 0, 0);
 	hpfs_hphashtbl = HASHINIT(desiredvnodes, M_HPFSHASH, M_WAITOK,
 	    &hpfs_hphash);
-	simple_lock_init(&hpfs_hphash_slock);
+	mtx_init(&hpfs_hphash_mtx, "hpfs hphash", MTX_DEF);
 }
 
 /*
@@ -79,6 +78,7 @@ hpfs_hphashdestroy(void)
 {
 
 	lockdestroy(&hpfs_hphash_lock);
+	mtx_destroy(&hpfs_hphash_mtx);
 }
 
 /*
@@ -92,11 +92,11 @@ hpfs_hphashlookup(dev, ino)
 {
 	struct hpfsnode *hp;
 
-	simple_lock(&hpfs_hphash_slock);
+	mtx_enter(&hpfs_hphash_mtx, MTX_DEF);
 	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash)
 		if (ino == hp->h_no && dev == hp->h_dev)
 			break;
-	simple_unlock(&hpfs_hphash_slock);
+	mtx_exit(&hpfs_hphash_mtx, MTX_DEF);
 
 	return (hp);
 }
@@ -110,14 +110,14 @@ hpfs_hphashget(dev, ino)
 	struct hpfsnode *hp;
 
 loop:
-	simple_lock(&hpfs_hphash_slock);
+	mtx_enter(&hpfs_hphash_mtx, MTX_DEF);
 	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash) {
 		if (ino == hp->h_no && dev == hp->h_dev) {
 			LOCKMGR(&hp->h_intlock, LK_EXCLUSIVE | LK_INTERLOCK, &hpfs_hphash_slock, NULL);
 			return (hp);
 		}
 	}
-	simple_unlock(&hpfs_hphash_slock);
+	mtx_exit(&hpfs_hphash_mtx, MTX_DEF);
 	return (hp);
 }
 #endif
@@ -132,7 +132,7 @@ hpfs_hphashvget(dev, ino, p)
 	struct vnode *vp;
 
 loop:
-	simple_lock(&hpfs_hphash_slock);
+	mtx_enter(&hpfs_hphash_mtx, MTX_DEF);
 	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash) {
 		if (ino == hp->h_no && dev == hp->h_dev) {
 			vp = HPTOV(hp);
@@ -143,7 +143,7 @@ loop:
 			return (vp);
 		}
 	}
-	simple_unlock(&hpfs_hphash_slock);
+	mtx_exit(&hpfs_hphash_mtx, MTX_DEF);
 	return (NULLVP);
 }
 
@@ -156,11 +156,11 @@ hpfs_hphashins(hp)
 {
 	struct hphashhead *hpp;
 
-	simple_lock(&hpfs_hphash_slock);
+	mtx_enter(&hpfs_hphash_mtx, MTX_DEF);
 	hpp = HPNOHASH(hp->h_dev, hp->h_no);
 	hp->h_flag |= H_HASHED;
 	LIST_INSERT_HEAD(hpp, hp, h_hash);
-	simple_unlock(&hpfs_hphash_slock);
+	mtx_exit(&hpfs_hphash_mtx, MTX_DEF);
 }
 
 /*
@@ -170,7 +170,7 @@ void
 hpfs_hphashrem(hp)
 	struct hpfsnode *hp;
 {
-	simple_lock(&hpfs_hphash_slock);
+	mtx_enter(&hpfs_hphash_mtx, MTX_DEF);
 	if (hp->h_flag & H_HASHED) {
 		hp->h_flag &= ~H_HASHED;
 		LIST_REMOVE(hp, h_hash);
@@ -179,5 +179,5 @@ hpfs_hphashrem(hp)
 		hp->h_hash.le_prev = NULL;
 #endif
 	}
-	simple_unlock(&hpfs_hphash_slock);
+	mtx_exit(&hpfs_hphash_mtx, MTX_DEF);
 }
