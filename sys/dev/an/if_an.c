@@ -107,6 +107,7 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <machine/mutex.h>
 #include <machine/resource.h>
 
 #include <net/if.h>
@@ -290,6 +291,9 @@ int an_attach(sc, unit, flags)
 {
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 
+	mtx_init(&sc->an_mtx, device_get_nameunit(sc->an_dev), MTX_DEF);
+	AN_LOCK(sc);
+
 	sc->an_gone = 0;
 	sc->an_associated = 0;
 
@@ -299,6 +303,8 @@ int an_attach(sc, unit, flags)
 	/* Load factory config */
 	if (an_cmd(sc, AN_CMD_READCFG, 0)) {
 		printf("an%d: failed to load config data\n", sc->an_unit);
+		AN_UNLOCK(sc);
+		mtx_destroy(&sc->an_mtx);
 		return(EIO);
 	}
 
@@ -307,6 +313,8 @@ int an_attach(sc, unit, flags)
 	sc->an_config.an_len = sizeof(struct an_ltv_genconfig);
 	if (an_read_record(sc, (struct an_ltv_gen *)&sc->an_config)) {
 		printf("an%d: read record failed\n", sc->an_unit);
+		AN_UNLOCK(sc);
+		mtx_destroy(&sc->an_mtx);
 		return(EIO);
 	}
 
@@ -315,6 +323,8 @@ int an_attach(sc, unit, flags)
 	sc->an_caps.an_len = sizeof(struct an_ltv_caps);
 	if (an_read_record(sc, (struct an_ltv_gen *)&sc->an_caps)) {
 		printf("an%d: read record failed\n", sc->an_unit);
+		AN_UNLOCK(sc);
+		mtx_destroy(&sc->an_mtx);
 		return(EIO);
 	}
 
@@ -323,6 +333,8 @@ int an_attach(sc, unit, flags)
 	sc->an_ssidlist.an_len = sizeof(struct an_ltv_ssidlist);
 	if (an_read_record(sc, (struct an_ltv_gen *)&sc->an_ssidlist)) {
 		printf("an%d: read record failed\n", sc->an_unit);
+		AN_UNLOCK(sc);
+		mtx_destroy(&sc->an_mtx);
 		return(EIO);
 	}
 
@@ -331,6 +343,8 @@ int an_attach(sc, unit, flags)
 	sc->an_aplist.an_len = sizeof(struct an_ltv_aplist);
 	if (an_read_record(sc, (struct an_ltv_gen *)&sc->an_aplist)) {
 		printf("an%d: read record failed\n", sc->an_unit);
+		AN_UNLOCK(sc);
+		mtx_destroy(&sc->an_mtx);
 		return(EIO);
 	}
 
@@ -373,6 +387,7 @@ int an_attach(sc, unit, flags)
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->an_stat_ch);
+	AN_UNLOCK(sc);
 
 	return(0);
 }
@@ -504,11 +519,9 @@ void an_stats_update(xsc)
 {
 	struct an_softc		*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = xsc;
+	AN_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	sc->an_status.an_type = AN_RID_STATUS;
@@ -522,8 +535,8 @@ void an_stats_update(xsc)
 
 	/* Don't do this while we're transmitting */
 	if (ifp->if_flags & IFF_OACTIVE) {
-		splx(s);
 		sc->an_stat_ch = timeout(an_stats_update, sc, hz);
+		AN_UNLOCK(sc);
 		return;
 	}
 
@@ -531,8 +544,8 @@ void an_stats_update(xsc)
 	sc->an_stats.an_type = AN_RID_32BITS_CUM;
 	an_read_record(sc, (struct an_ltv_gen *)&sc->an_stats.an_len);
 
-	splx(s);
 	sc->an_stat_ch = timeout(an_stats_update, sc, hz);
+	AN_UNLOCK(sc);
 
 	return;
 }
@@ -546,14 +559,19 @@ void an_intr(xsc)
 
 	sc = (struct an_softc*)xsc;
 
-	if (sc->an_gone)
+	AN_LOCK(sc);
+
+	if (sc->an_gone) {
+		AN_UNLOCK(sc);
 		return;
+	}
 
 	ifp = &sc->arpcom.ac_if;
 
 	if (!(ifp->if_flags & IFF_UP)) {
 		CSR_WRITE_2(sc, AN_EVENT_ACK, 0xFFFF);
 		CSR_WRITE_2(sc, AN_INT_EN, 0);
+		AN_UNLOCK(sc);
 		return;
 	}
 
@@ -598,6 +616,8 @@ void an_intr(xsc)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		an_start(ifp);
+
+	AN_UNLOCK(sc);
 
 	return;
 }
@@ -964,15 +984,14 @@ static int an_ioctl(ifp, command, data)
 	u_long			command;
 	caddr_t			data;
 {
-	int			s, error = 0;
+	int			error = 0;
 	struct an_softc		*sc;
 	struct an_req		areq;
 	struct ifreq		*ifr;
 	struct proc		*p = curproc;
 
-	s = splimp();
-
 	sc = ifp->if_softc;
+	AN_LOCK(sc);
 	ifr = (struct ifreq *)data;
 
 	if (sc->an_gone) {
@@ -1049,7 +1068,7 @@ static int an_ioctl(ifp, command, data)
 		break;
 	}
 out:
-	splx(s);
+	AN_UNLOCK(sc);
 
 	return(error);
 }
@@ -1082,12 +1101,13 @@ static void an_init(xsc)
 {
 	struct an_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	int			s;
 
-	if (sc->an_gone)
+	AN_LOCK(sc);
+
+	if (sc->an_gone) {
+		AN_UNLOCK(sc);
 		return;
-
-	s = splimp();
+	}
 
 	if (ifp->if_flags & IFF_RUNNING)
 		an_stop(sc);
@@ -1100,7 +1120,7 @@ static void an_init(xsc)
 		if (an_init_tx_ring(sc)) {
 			printf("an%d: tx buffer allocation "
 			    "failed\n", sc->an_unit);
-			splx(s);
+			AN_UNLOCK(sc);
 			return;
 		}
 	}
@@ -1128,7 +1148,7 @@ static void an_init(xsc)
 	sc->an_ssidlist.an_len = sizeof(struct an_ltv_ssidlist);
 	if (an_write_record(sc, (struct an_ltv_gen *)&sc->an_ssidlist)) {
 		printf("an%d: failed to set ssid list\n", sc->an_unit);
-		splx(s);
+		AN_UNLOCK(sc);
 		return;
 	}
 
@@ -1137,7 +1157,7 @@ static void an_init(xsc)
 	sc->an_aplist.an_len = sizeof(struct an_ltv_aplist);
 	if (an_write_record(sc, (struct an_ltv_gen *)&sc->an_aplist)) {
 		printf("an%d: failed to set AP list\n", sc->an_unit);
-		splx(s);
+		AN_UNLOCK(sc);
 		return;
 	}
 
@@ -1146,26 +1166,25 @@ static void an_init(xsc)
 	sc->an_config.an_type = AN_RID_GENCONFIG;
 	if (an_write_record(sc, (struct an_ltv_gen *)&sc->an_config)) {
 		printf("an%d: failed to set configuration\n", sc->an_unit);
-		splx(s);
+		AN_UNLOCK(sc);
 		return;
 	}
 
 	/* Enable the MAC */
 	if (an_cmd(sc, AN_CMD_ENABLE, 0)) {
 		printf("an%d: failed to enable MAC\n", sc->an_unit);
-		splx(s);
+		AN_UNLOCK(sc);
 		return;
 	}
 
 	/* enable interrupts */
 	CSR_WRITE_2(sc, AN_INT_EN, AN_INTRS);
 
-	splx(s);
-
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
 	sc->an_stat_ch = timeout(an_stats_update, sc, hz);
+	AN_UNLOCK(sc);
 
 	return;
 }
@@ -1264,8 +1283,12 @@ void an_stop(sc)
 	struct ifnet		*ifp;
 	int			i;
 
-	if (sc->an_gone)
+	AN_LOCK(sc);
+
+	if (sc->an_gone) {
+		AN_UNLOCK(sc);
 		return;
+	}
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -1280,6 +1303,8 @@ void an_stop(sc)
 
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
 
+	AN_UNLOCK(sc);
+
 	return;
 }
 
@@ -1289,9 +1314,12 @@ static void an_watchdog(ifp)
 	struct an_softc		*sc;
 
 	sc = ifp->if_softc;
+	AN_LOCK(sc);
 
-	if (sc->an_gone)
+	if (sc->an_gone) {
+		AN_UNLOCK(sc);
 		return;
+	}
 
 	printf("an%d: device timeout\n", sc->an_unit);
 
@@ -1299,6 +1327,7 @@ static void an_watchdog(ifp)
 	an_init(sc);
 
 	ifp->if_oerrors++;
+	AN_UNLOCK(sc);
 
 	return;
 }
