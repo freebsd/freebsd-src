@@ -76,8 +76,10 @@ enum { 					/* encrypt, decrypt, authenticate */
 	MODE_ENCRYPT, MODE_DECRYPT, MODE_AUTHENTICATE
 } mode = MODE_ENCRYPT;
 
+#ifdef DES
 DES_cblock ivec;			/* initialization vector */
 DES_cblock pvec;			/* padding vector */
+#endif
 
 char bits[] = {				/* used to extract bits from a char */
 	'\200', '\100', '\040', '\020', '\010', '\004', '\002', '\001'
@@ -85,7 +87,9 @@ char bits[] = {				/* used to extract bits from a char */
 
 int pflag;				/* 1 to preserve parity bits */
 
+#ifdef DES
 DES_key_schedule schedule;		/* expanded DES key */
+#endif
 
 unsigned char des_buf[8];	/* shared buffer for get_des_char/put_des_char */
 int des_ct = 0;			/* count for get_des_char/put_des_char */
