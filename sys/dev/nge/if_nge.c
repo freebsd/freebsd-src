@@ -87,8 +87,6 @@
  * if the user selects an MTU larger than 8152 (8170 - 18).
  */
 
-#include "vlan.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -102,11 +100,8 @@
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-
-#if NVLAN > 0
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
-#endif
 
 #include <net/bpf.h>
 
@@ -1335,16 +1330,14 @@ static void nge_rxeof(sc)
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 
-#if NVLAN > 0
 		/*
 		 * If we received a packet with a vlan tag, pass it
 		 * to vlan_input() instead of ether_input().
 		 */
 		if (extsts & NGE_RXEXTSTS_VLANPKT) {
-			vlan_input_tag(eh, m, extsts & NGE_RXEXTSTS_VTCI);
+			VLAN_INPUT_TAG(ifp, eh, m, extsts & NGE_RXEXTSTS_VTCI);
                         continue;
                 }
-#endif
 
 		ether_input(ifp, eh, m);
 	}
@@ -1539,14 +1532,12 @@ static int nge_encap(sc, m_head, txidx)
 	struct nge_desc		*f = NULL;
 	struct mbuf		*m;
 	int			frag, cur, cnt = 0;
-#if NVLAN > 0
 	struct ifvlan		*ifv = NULL;
 
 	if ((m_head->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
 	    m_head->m_pkthdr.rcvif != NULL &&
 	    m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
 		ifv = m_head->m_pkthdr.rcvif->if_softc;
-#endif
 
 	/*
  	 * Start packing the mbufs in this chain into
@@ -1588,12 +1579,10 @@ static int nge_encap(sc, m_head, txidx)
 			    NGE_TXEXTSTS_UDPCSUM;
 	}
 
-#if NVLAN > 0
 	if (ifv != NULL) {
 		sc->nge_ldata->nge_tx_list[cur].nge_extsts |=
 			(NGE_TXEXTSTS_VLANPKT|ifv->ifv_tag);
 	}
-#endif
 
 	sc->nge_ldata->nge_tx_list[cur].nge_mbuf = m_head;
 	sc->nge_ldata->nge_tx_list[cur].nge_ctl &= ~NGE_CMDSTS_MORE;
@@ -1754,15 +1743,13 @@ static void nge_init(xsc)
 	 */
 	CSR_WRITE_4(sc, NGE_VLAN_IP_RXCTL, NGE_VIPRXCTL_IPCSUM_ENB);
 
-#if NVLAN > 0
 	/*
-	 * If VLAN support is enabled, tell the chip to detect
-	 * and strip VLAN tag info from received frames. The tag
-	 * will be provided in the extsts field in the RX descriptors.
+	 * Tell the chip to detect and strip VLAN tag info from
+	 * received frames. The tag will be provided in the extsts
+	 * field in the RX descriptors.
 	 */
 	NGE_SETBIT(sc, NGE_VLAN_IP_RXCTL,
 	    NGE_VIPRXCTL_TAG_DETECT_ENB|NGE_VIPRXCTL_TAG_STRIP_ENB);
-#endif
 
 	/* Set TX configuration */
 	CSR_WRITE_4(sc, NGE_TX_CFG, NGE_TXCFG);
@@ -1772,14 +1759,11 @@ static void nge_init(xsc)
 	 */
 	CSR_WRITE_4(sc, NGE_VLAN_IP_TXCTL, NGE_VIPTXCTL_CSUM_PER_PKT);
 
-#if NVLAN > 0
 	/*
-	 * If VLAN support is enabled, tell the chip to insert
-	 * VLAN tags on a per-packet basis as dictated by the
-	 * code in the frame encapsulation routine.
+	 * Tell the chip to insert VLAN tags on a per-packet basis as
+	 * dictated by the code in the frame encapsulation routine.
 	 */
 	NGE_SETBIT(sc, NGE_VLAN_IP_TXCTL, NGE_VIPTXCTL_TAG_PER_PKT);
-#endif
 
 	/* Set full/half duplex mode. */
 	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
