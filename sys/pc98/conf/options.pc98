@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.61 1998/06/06 05:21:56 kato Exp $
+#	$Id: options.pc98,v 1.62 1998/06/06 05:25:37 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
@@ -9,6 +9,9 @@ VM86			opt_vm86.h
 
 IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
+LINUX			opt_dontuse.h
+
+DEBUG_LINUX		opt_linux.h
 
 SHOW_BUSYBUFS
 TUNE_1542
@@ -20,16 +23,11 @@ AUTO_EOI_1		opt_auto_eoi.h
 AUTO_EOI_2		opt_auto_eoi.h
 BREAK_TO_DEBUGGER	opt_comconsole.h
 CONSPEED		opt_comconsole.h
-COMCONSOLE		opt_defunct.h
-CONADDR			opt_defunct.h
-CONUNIT			opt_defunct.h
 COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
 DSI_SOFT_MODEM		opt_sio.h
 EXTRA_SIO		opt_sio.h
-I586_CTR_GUPROF		opt_defunct.h
 I586_PMC_GUPROF		opt_i586_guprof.h
-TSC_GUPROF		opt_defunct.h
 WLCACHE			opt_wavelan.h
 WLDEBUG			opt_wavelan.h
 
@@ -73,7 +71,6 @@ I386_CPU		opt_global.h
 I486_CPU		opt_global.h
 I586_CPU		opt_global.h
 I686_CPU		opt_global.h
-LINUX			opt_global.h
 
 SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
@@ -121,9 +118,11 @@ PCVT_SCANSET		opt_pcvt.h
 PCVT_SCREENSAVER	opt_pcvt.h
 PCVT_USEKBDSEC		opt_pcvt.h
 PCVT_VT220KEYB		opt_pcvt.h
-# give bktr an opt_bktr.h file
-OVERRIDE_TUNER		opt_bktr.h
 
+# voxware options
+GUS_DMA2		opt_sound.h
+GUS_DMA			opt_sound.h
+GUS_IRQ			opt_sound.h
 
 # bs driver options
 SCSI_BOUNCE_SIZE	opt_bs.h
