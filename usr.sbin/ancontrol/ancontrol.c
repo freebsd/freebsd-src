@@ -1,4 +1,6 @@
 /*	$OpenBSD: ancontrol.c,v 1.4 2000/06/18 22:27:41 aaron Exp $	*/
+
+/*
  * Copyright 1997, 1998, 1999
  *	Bill Paul <wpaul@ee.columbia.edu>.  All rights reserved.
  *
