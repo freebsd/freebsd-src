@@ -36,7 +36,7 @@
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
  *	from: i386/isa Id: diskslice_machdep.c,v 1.31 1998/08/10 07:22:14 phk Exp
- *	$Id: diskslice_machdep.c,v 1.2 1998/07/31 09:13:25 dfr Exp $
+ *	$Id: diskslice_machdep.c,v 1.3 1998/08/11 07:17:36 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -164,6 +164,7 @@ dsinit(dname, dev, strat, lp, sspp)
 	int	dospart;
 	struct dos_partition *dp;
 	struct dos_partition *dp0;
+	struct dos_partition dpcopy[NDOSPART];
 	int	error;
 	int	max_ncyls;
 	int	max_nsectors;
@@ -203,7 +204,13 @@ reread_mbr:
 		error = EINVAL;
 		goto done;
 	}
-	dp0 = (struct dos_partition *)(cp + DOSPARTOFF);
+	/*
+	 * Take a temporary copy of the partition table to avoid
+	 * alignment problems.
+	 */
+	memcpy(dpcopy, cp + DOSPARTOFF,
+	       NDOSPART * sizeof(struct dos_partition));
+	dp0 = &dpcopy[0];
 
 	/* Check for "Ontrack Diskmanager". */
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
@@ -360,6 +367,8 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	u_char	*cp;
 	int	dospart;
 	struct dos_partition *dp;
+	struct dos_partition *dp0;
+	struct dos_partition dpcopy[NDOSPART];
 	u_long	ext_offsets[NDOSPART];
 	u_long	ext_sizes[NDOSPART];
 	char	partname[2];
@@ -391,9 +400,15 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 			       sname);
 		goto done;
 	}
+	/*
+	 * Take a temporary copy of the partition table to avoid
+	 * alignment problems.
+	 */
+	memcpy(dpcopy, cp + DOSPARTOFF,
+	       NDOSPART * sizeof(struct dos_partition));
+	dp0 = &dpcopy[0];
 
-	for (dospart = 0,
-	     dp = (struct dos_partition *)(bp->b_data + DOSPARTOFF),
+	for (dospart = 0, dp = dp0,
 	     slice = ssp->dss_nslices, sp = &ssp->dss_slices[slice];
 	     dospart < NDOSPART; dospart++, dp++) {
 		ext_sizes[dospart] = 0;
