@@ -24,12 +24,12 @@ provided "as is" without express or implied warranty.
  *      newsyslog - roll over selected logs at the appropriate time,
  *              keeping the a specified number of backup files around.
  *
- *      $Source: /usr/cvs/src/usr.sbin/newsyslog/newsyslog.c,v $
+ *      $Source: /home/ncvs/src/usr.sbin/newsyslog/newsyslog.c,v $
  *      $Author: alex $
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: newsyslog.c,v 1.4 1996/06/07 16:27:28 alex Exp $";
+static char rcsid[] = "$Id: newsyslog.c,v 1.5 1996/06/08 23:32:10 alex Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -420,10 +420,19 @@ static void dotrim(log,numdays,flags,perm,owner_uid,group_gid)
         if (!noaction && !(flags & CE_BINARY))
                 (void) log_trim(log);  /* Report the trimming to the old log */
 
-        if (noaction) 
-                printf("mv %s to %s\n",log,file1);
-        else
-                (void) rename(log,file1);
+	if (numdays == -1) {
+		if (noaction)
+			printf("rm %s\n",log);
+		else
+			(void)unlink(log);
+	}
+	else {
+		if (noaction)
+			printf("mv %s to %s\n",log,file1);
+		else
+			(void)rename(log, file1);
+	}
+
         if (noaction) 
                 printf("Start new log...");
         else {
