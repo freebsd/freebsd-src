@@ -1027,6 +1027,8 @@ char	print[DWIDTH];
 int	debug, i, j, linen, max, nchars, pc, term, trace, x, y;
 int	width = DWIDTH;	/* -w option: scrunch letters to 80 columns */
 
+static void usage __P((void));
+
 int
 main(argc, argv)
 	int argc;
@@ -1049,8 +1051,7 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			(void)fprintf(stderr, "usage: banner [-w width]\n");
-			exit(1);
+			usage();
 		}
 	argc -= optind;
 	argv += optind;
@@ -1109,7 +1110,7 @@ main(argc, argv)
 	for (i = 0; i < nchars; i++)
 		if ((u_char) message[i] >= NCHARS ||
 		    asc_ptr[(u_char) message[i]] == 0) {
-			warnx("The character '%c' is not in my character set",
+			warnx("the character '%c' is not in my character set",
 				message[i]);
 			j++;
 		}
@@ -1168,4 +1169,11 @@ main(argc, argv)
 
 	free(message);
 	exit(0);
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: banner [-d] [-t] [-w width] message ...\n");
+	exit(1);
 }

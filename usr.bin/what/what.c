@@ -54,6 +54,7 @@ static int sflag;
 static int found;
 
 void search __P((void));
+static void usage __P((void));
 
 /*
  * what
@@ -71,9 +72,7 @@ main(argc, argv)
 			sflag = 1;
 			break;
 		default:
-			(void)fprintf(stderr,
-			    "usage: what [-s] file ...\n");
-			exit(1);
+			usage();
 		}
 	argv += optind;
 
@@ -88,6 +87,13 @@ main(argc, argv)
 		}
 	} while(*++argv);
 	exit(!found);
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr, "usage: what [-s] file ...\n");
+	exit(1);
 }
 
 void
