@@ -283,6 +283,8 @@ vm_pager_object_lookup(pg_list, handle)
 static void
 initpbuf(struct buf *bp)
 {
+	KASSERT(bp->b_bufobj == NULL, ("initpbuf with bufobj"));
+	KASSERT(bp->b_vp == NULL, ("initpbuf with vp"));
 	bp->b_rcred = NOCRED;
 	bp->b_wcred = NOCRED;
 	bp->b_qindex = 0;	/* On no queue (QUEUE_NONE) */
@@ -400,6 +402,9 @@ relpbuf(struct buf *bp, int *pfreecnt)
 		bp->b_wcred = NOCRED;
 	}
 
+	KASSERT(bp->b_vp == NULL, ("relpbuf with vp"));
+	KASSERT(bp->b_bufobj == NULL, ("relpbuf with bufobj"));
+
 	BUF_UNLOCK(bp);
 
 	mtx_lock(&pbuf_mtx);
@@ -429,6 +434,7 @@ pbgetvp(struct vnode *vp, struct buf *bp)
 {
 
 	KASSERT(bp->b_vp == NULL, ("pbgetvp: not free"));
+	KASSERT(bp->b_bufobj == NULL, ("pbgetvp: not free (bufobj)"));
 
 	bp->b_vp = vp;
 	bp->b_flags |= B_PAGING;
@@ -459,4 +465,3 @@ pbrelvp(struct buf *bp)
 	bp->b_bufobj = NULL;
 	bp->b_flags &= ~B_PAGING;
 }
-
