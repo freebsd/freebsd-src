@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.20 1999/03/20 11:49:23 foxfair Exp $
+# $Id: Makefile,v 1.21 1999/04/10 12:22:25 foxfair Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -19,7 +19,7 @@ LOCALES=	de_DE.DIS_8859-15 \
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
 ASCIILINKS = \
-	ko_KR.EUC ja_JP.EUC ja_JP.SJIS zh_CN.EUC
+	ko_KR.EUC ja_JP.EUC ja_JP.SJIS ja_JP.Shift_JIS zh_CN.EUC
 
 ZHLINKS =    zh_TW.BIG5
 
