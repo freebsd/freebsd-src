@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.32 1999/07/27 23:43:58 brian Exp $
+ * $Id: filter.c,v 1.33 1999/07/28 03:01:51 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -261,12 +261,31 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
   return 1;
 }
 
-static int ParseIgmp(int argc, char const * const *argv, struct filterent *tgt)
+static int
+ParseIgmp(int argc, char const * const *argv, struct filterent *tgt)
 {
-  /* Filter currently is a catch-all. Requests are either permitted or
-     dropped. */
+  /*
+   * Filter currently is a catch-all. Requests are either permitted or
+   * dropped.
+   */
   if (argc != 0) {
     log_Printf(LogWARN, "ParseIgmp: Too many parameters\n");
+    return 0;
+  } else
+    tgt->f_srcop = OP_NONE;
+
+  return 1;
+}
+
+static int
+ParseOspf(int argc, char const * const *argv, struct filterent *tgt)
+{
+  /*
+   * Filter currently is a catch-all. Requests are either permitted or
+   * dropped.
+   */
+  if (argc != 0) {
+    log_Printf(LogWARN, "ParseOspf: Too many parameters\n");
     return 0;
   } else
     tgt->f_srcop = OP_NONE;
@@ -432,6 +451,9 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
   case P_IGMP:
     val = ParseIgmp(argc, argv, &filterdata);
     break;
+  case P_OSPF:
+    val = ParseOspf(argc, argv, &filterdata);
+    break;
   }
 
   log_Printf(LogDEBUG, "Parse: Src: %s\n", inet_ntoa(filterdata.f_src.ipaddr));
@@ -569,7 +591,9 @@ filter_Show(struct cmdargs const *arg)
   return 0;
 }
 
-static const char *protoname[] = { "none", "tcp", "udp", "icmp", "igmp" };
+static const char *protoname[] = {
+  "none", "tcp", "udp", "icmp", "ospf", "igmp"
+};
 
 const char *
 filter_Proto2Nam(int proto)
