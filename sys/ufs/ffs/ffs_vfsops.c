@@ -181,10 +181,15 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 	}
 
 	/*
-	 * Mounting non-root filesystem or updating a filesystem
+	 * Get mount options, if any.
 	 */
-	if ((error = copyin(data, (caddr_t)&args, sizeof(struct ufs_args)))!= 0)
-		return (error);
+	if (data != NULL) {
+		error = copyin(data, (caddr_t)&args, sizeof args);
+		if (error)
+			return (error);
+	} else {
+		memset(&args, 0, sizeof args);
+	}
 
 	/*
 	 * If updating, check whether changing from read-only to
@@ -392,7 +397,7 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 	 * Save "mounted from" device name info for mount point (NULL pad).
 	 */
 	copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &size);
-	bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 	return (0);
 }
 
@@ -573,7 +578,6 @@ ffs_mountfs(devvp, mp, td)
 
 	dev = devvp->v_rdev;
 	cred = td ? td->td_ucred : NOCRED;
-
 
 	vfs_object_create(devvp, td, td->td_ucred);
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
