@@ -1208,14 +1208,12 @@ SYSINIT(preload, SI_SUB_KLD, SI_ORDER_MIDDLE, linker_preload, 0);
  * character as a separator to be consistent with the bootloader.
  */
 
-static char def_linker_path[] = "/boot/modules/;/modules/;/boot/kernel/";
-static char linker_path[MAXPATHLEN] = "";
+static char linker_path[MAXPATHLEN] = "/boot/modules/;/modules/;/boot/kernel/";
 
 SYSCTL_STRING(_kern, OID_AUTO, module_path, CTLFLAG_RW, linker_path,
 	      sizeof(linker_path), "module load search path");
 
-TUNABLE_STR_DECL("module_path", def_linker_path, linker_path,
-		 sizeof(linker_path));
+TUNABLE_STR("module_path", linker_path, sizeof(linker_path));
 
 static char *linker_ext_list[] = {
 	".ko",
