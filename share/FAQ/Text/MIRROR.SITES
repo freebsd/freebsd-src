@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.4 1995/05/04 15:32:25 jkh Exp $
+$Id: MIRROR.SITES,v 1.5 1995/05/06 09:10:49 asami Exp $
 
 The latest versions of FreeBSD (2.0 or later) are being mirrored at the
 following locations:
@@ -71,7 +71,7 @@ Japan		ftp://ftp.tut.ac.jp/FreeBSD
 Japan		ftp://ftp.sra.co.jp/pub/os/FreeBSD
 		<ftp-admin@sra.co.jp>
 
-Japan		ftp://ftp.ee.uec.ac.jp/pub/os/FreeBSD.other
+Japan		ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org
 		<ftp-admin@ftp.ee.uec.ac.jp>
 
 Japan		ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD
