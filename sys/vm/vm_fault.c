@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.25 1995/05/30 08:15:59 rgrimes Exp $
+ * $Id: vm_fault.c,v 1.26 1995/07/13 08:48:20 davidg Exp $
  */
 
 /*
@@ -310,8 +310,8 @@ RetryFault:;
 			/*
 			 * Allocate a new page for this object/offset pair.
 			 */
-
-			m = vm_page_alloc(object, offset, VM_ALLOC_NORMAL);
+			m = vm_page_alloc(object, offset,
+				vp?VM_ALLOC_NORMAL:(VM_ALLOC_NORMAL|VM_ALLOC_ZERO));
 
 			if (m == NULL) {
 				UNLOCK_AND_DEALLOCATE;
@@ -439,7 +439,8 @@ readrest:
 			}
 			first_m = NULL;
 
-			vm_page_zero_fill(m);
+			if ((m->flags & PG_ZERO) == 0)
+				vm_page_zero_fill(m);
 			m->valid = VM_PAGE_BITS_ALL;
 			cnt.v_zfod++;
 			break;
@@ -637,7 +638,7 @@ readrest:
 		}
 	}
 
-	m->flags |= PG_MAPPED;
+	m->flags |= PG_MAPPED|PG_REFERENCED;
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
 #if 0
