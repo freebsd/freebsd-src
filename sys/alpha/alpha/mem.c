@@ -57,6 +57,7 @@
 #include <sys/msgbuf.h>
 #include <sys/random.h>
 #include <sys/signalvar.h>
+#include <sys/fcntl.h>
 
 #include <machine/frame.h>
 #include <machine/psl.h>
