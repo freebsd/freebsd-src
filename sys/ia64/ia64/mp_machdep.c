@@ -43,10 +43,14 @@
 
 #include <machine/atomic.h>
 #include <machine/globaldata.h>
+#include <machine/pal.h>
 #include <machine/pmap.h>
 #include <machine/clock.h>
 
-int	boot_cpu_id;
+static void ipi_send(u_int64_t, u_int64_t);
+
+u_int64_t	cpu_to_lid[MAXCPU];
+int		ncpus;
 
 int
 cpu_mp_probe()
@@ -71,9 +75,13 @@ cpu_mp_announce()
 void
 ipi_selected(u_int cpus, u_int64_t ipi)
 {
+	u_int mask;
+	int cpu;
 
-	CTR2(KTR_SMP, "ipi_selected: cpus: %x ipi: %lx", cpus, ipi);
-	panic(__func__": not implemented");
+	for (mask = 1, cpu = 0; cpu < ncpus; mask <<= 1, cpu++) {
+		if (cpus & mask)
+			ipi_send(cpu_to_lid[cpu], ipi);
+	}
 }
 
 /*
@@ -82,7 +90,10 @@ ipi_selected(u_int cpus, u_int64_t ipi)
 void
 ipi_all(u_int64_t ipi)
 {
-	ipi_selected(all_cpus, ipi);
+	int cpu;
+
+	for (cpu = 0; cpu < ncpus; cpu++)
+		ipi_send(cpu_to_lid[cpu], ipi);
 }
 
 /*
@@ -91,7 +102,14 @@ ipi_all(u_int64_t ipi)
 void
 ipi_all_but_self(u_int64_t ipi)
 {
-	ipi_selected(PCPU_GET(other_cpus), ipi);
+	u_int64_t lid;
+	int cpu;
+
+	for (cpu = 0; cpu < ncpus; cpu++) {
+		lid = cpu_to_lid[cpu];
+		if (lid != ia64_get_lid())
+			ipi_send(lid, ipi);
+	}
 }
 
 /*
@@ -100,5 +118,22 @@ ipi_all_but_self(u_int64_t ipi)
 void
 ipi_self(u_int64_t ipi)
 {
-	ipi_selected(1 << PCPU_GET(cpuid), ipi);
+
+	ipi_send(ia64_get_lid(), ipi);
+}
+
+/*
+ * Send an IPI to the specified processor. The lid parameter holds the
+ * cr.lid (CR64) contents of the target processor. Only the id and eid
+ * fields are used here.
+ */
+static void
+ipi_send(u_int64_t lid, u_int64_t ipi)
+{
+	volatile u_int64_t *pipi;
+
+	CTR2(KTR_SMP, __func__ ": lid=%lx, ipi=%lx", lid, ipi);
+	pipi = ia64_memory_address(PAL_PIB_DEFAULT_ADDR |
+	    ((lid >> 12) & 0xFFFF0L));
+	*pipi = ipi & 0xFF;
 }
