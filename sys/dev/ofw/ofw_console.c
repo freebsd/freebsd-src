@@ -283,7 +283,8 @@ static void
 ofw_cons_init(struct consdev *cp)
 {
 
-	cp->cn_dev = makedev(CDEV_MAJOR, 0);
+	/* XXX: This is the alias, but that should be good enough */
+	sprintf(cp->cn_name, "ofwcons");
 	cp->cn_tp = ofw_tp;
 }
 
