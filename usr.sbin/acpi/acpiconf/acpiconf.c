@@ -45,16 +45,14 @@
 
 static int	acpifd;
 
-static int
-acpi_init()
+static void
+acpi_init(void)
 {
 	acpifd = open(ACPIDEV, O_RDWR);
-	if (acpifd == -1){
+	if (acpifd == -1)
 		acpifd = open(ACPIDEV, O_RDONLY);
-	}
-	if (acpifd == -1){
+	if (acpifd == -1)
 		err(EX_OSFILE, ACPIDEV);
-	}
 }
 
 static int
@@ -85,6 +83,9 @@ acpi_sleep(int sleep_type)
 	return (0);
 }
 
+/* should be a acpi define, but doesn't appear to be */
+#define UNKNOWN_CAP 0xffffffff
+
 static int
 acpi_battinfo(int num)
 {
@@ -103,11 +104,21 @@ acpi_battinfo(int num)
 	else
 		pwr_units = "mAh";
 
-	printf("Design capacity:\t%d %s\n", battio.bif.dcap, pwr_units);
-	printf("Last full capacity:\t%d %s\n", battio.bif.lfcap, pwr_units);
+	if (battio.bif.dcap == UNKNOWN_CAP)
+		printf("Design capacity:\tUnknown\n");
+	else
+		printf("Design capacity:\t%d %s\n", battio.bif.dcap, pwr_units);
+	if (battio.bif.lfcap == UNKNOWN_CAP)
+		printf("Last full capacity:\tUnknown\n");
+	else
+		printf("Last full capacity:\t%d %s\n", battio.bif.lfcap,
+		    pwr_units);
 	printf("Technology:\t\t%s\n", battio.bif.btech == 0 ?
 	    "primary (non-rechargeable)" : "secondary (rechargeable)");
-	printf("Design voltage:\t\t%d mV\n", battio.bif.dvol);
+	if (battio.bif.dvol == UNKNOWN_CAP)
+		printf("Design voltage:\t\tUnknown\n");
+	else
+		printf("Design voltage:\t\t%d mV\n", battio.bif.dvol);
 	printf("Capacity (warn):\t%d %s\n", battio.bif.wcap, pwr_units);
 	printf("Capacity (low):\t\t%d %s\n", battio.bif.lcap, pwr_units);
 	printf("Low/warn granularity:\t%d %s\n", battio.bif.gra1, pwr_units);
@@ -117,6 +128,36 @@ acpi_battinfo(int num)
 	printf("Type:\t\t\t%s\n", battio.bif.type);
 	printf("OEM info:\t\t%s\n", battio.bif.oeminfo);
 
+	battio.unit = num;
+	if (ioctl(acpifd, ACPIIO_CMBAT_GET_BST, &battio) == -1)
+		err(EX_IOERR, "get battery info (%d) failed", num);
+
+	if (battio.bst.state != ACPI_BATT_STAT_NOT_PRESENT) {
+		printf("State:\t\t\t");
+		if (battio.bst.state & ACPI_BATT_STAT_CRITICAL)
+			printf("CRITICAL ");
+		if (battio.bst.state & ACPI_BATT_STAT_DISCHARG)
+			printf("Discharging ");
+		if (battio.bst.state & ACPI_BATT_STAT_CHARGING)
+			printf("Charging");
+		printf("\n");
+		if (battio.bst.rate == UNKNOWN_CAP)
+			printf("Present Rate:\t\tUnknown\n");
+		else
+			printf("Present Rate:\t\t%d %s\n", battio.bst.rate,
+			    pwr_units);
+		if (battio.bst.cap == UNKNOWN_CAP)
+			printf("Remaining Capacity:\tUnknown\n");
+		else
+			printf("Remaining Capacity:\t%d %s\n", battio.bst.cap,
+			    pwr_units);
+		if (battio.bst.volt == UNKNOWN_CAP)
+			printf("Volt:\t\t\tUnknown\n");
+		else
+			printf("Volt:\t\t\t%d mV\n", battio.bst.volt);
+	} else {
+		printf("State:\t\t\tNot Present\n");
+	}
 	return (0);
 }
 
