@@ -4,14 +4,14 @@
      $FreeBSD$
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/pc98/proc-pc98.sgml,v 1.1 2004/05/27 06:09:43 den Exp $
 
-     Original revision: 1.4
+     Original revision: 1.5
 -->
 
 <sect1 id="support-sys">
   <title>Поддерживаемые системы</title>
 
   <para>NEC PC-9801/9821 series с почти всеми i386-совместимыми процессорами,
-    включая 80386, 80486, Pentium, Pentium Pro, Pentium II, и их варианты.
+    включая 80486, Pentium, Pentium Pro, Pentium II, и их варианты.
     Все i386-совместимые процессоры AMD, Cyrix, IBM и IDT также
     поддерживаются.</para>
 
