@@ -40,7 +40,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1068,10 +1067,10 @@ stgintr(arg)
 		scsi_low_print(slp, NULL);
 		printf("%s: st %x ist %x\n\n", slp->sl_xname,
 		       status, astatus);
-#ifdef	DDB
+#ifdef	KDB
 		if (stg_debug > 1)
 			SCSI_LOW_DEBUGGER("stg");
-#endif	/* DDB */
+#endif	/* KDB */
 	}
 #endif	/* STG_DEBUG */
 
