@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.4 1994/08/08 09:11:31 davidg Exp $
+ * $Id: vfs_cluster.c,v 1.5 1994/09/24 18:31:45 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -662,7 +662,7 @@ redo:
 		 * case we don't want to write it twice).
 		 */
 		if (!incore(vp, start_lbn) ||
-		    last_bp == NULL && start_lbn == lbn)
+		    (last_bp == NULL && start_lbn == lbn))
 			break;
 
 		/*
@@ -683,10 +683,10 @@ redo:
 
 		/* Move memory from children to parent */
 		if (tbp->b_blkno != (bp->b_blkno + btodb(bp->b_bufsize))) {
-			printf("Clustered Block: %d addr %x bufsize: %d\n",
-			    bp->b_lblkno, bp->b_blkno, bp->b_bufsize);
-			printf("Child Block: %d addr: %x\n", tbp->b_lblkno,
-			    tbp->b_blkno);
+			printf("Clustered Block: %lu addr %lx bufsize: %ld\n",
+			    (u_long)bp->b_lblkno, bp->b_blkno, bp->b_bufsize);
+			printf("Child Block: %lu addr: %lx\n", 
+			    (u_long)tbp->b_lblkno, tbp->b_blkno);
 			panic("Clustered write to wrong blocks");
 		}
 
