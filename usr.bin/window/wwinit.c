@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)wwinit.c	8.1 (Berkeley) 6/6/93";
 #include "tt.h"
 #include <sys/signal.h>
 #include <fcntl.h>
+#include <termcap.h>
 #include "char.h"
 
 wwinit()
@@ -122,11 +123,8 @@ wwinit()
 		goto bad;
 	}
 #ifdef OLD_TTY
-	wwospeed = wwoldtty.ww_sgttyb.sg_ospeed;
-#else
-	wwospeed = cfgetospeed(&wwoldtty.ww_termios);
-#endif
-	switch (wwospeed) {
+	ospeed = wwoldtty.ww_sgttyb.sg_ospeed;
+	switch (ospeed) {
 	default:
 	case B0:
 		goto bad;
@@ -194,6 +192,12 @@ wwinit()
 		break;
 #endif
 	}
+#else
+	if ((wwbaud = cfgetospeed(&wwoldtty.ww_termios)) == B0)
+		goto bad;
+	_set_ospeed(wwbaud);
+#endif
+	wwospeed = ospeed;
 
 	if (xxinit() < 0)
 		goto bad;
