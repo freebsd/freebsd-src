@@ -2212,6 +2212,7 @@ device		bktr	1
 
 #
 # PC Card/PCMCIA
+# (OLDCARD)
 #
 # card: pccard slots
 # pcic: isa/pccard bridge
@@ -2219,6 +2220,20 @@ device		pcic
 hint.pcic.0.at="isa"
 hint.pcic.1.at="isa"
 device		card
+
+#
+# PC Card/PCMCIA and Cardbus
+# (NEWCARD)
+#
+# Note that NEWCARD and OLDCARD are incompatible.  Do not use both at the same
+# time.
+#
+# pccbb: isa/pccard and pci/cardbus bridge
+# pccard: pccard slots
+# cardbus: cardbus slots
+#device		pccbb
+#device		pccard
+#device		cardbus
 
 # You may need to reset all pccards after resuming
 options 	PCIC_RESUME_RESET	# reset after resume
