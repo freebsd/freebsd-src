@@ -60,15 +60,77 @@ you know what you are doing!
 .BI "\-p\ " prefix
 Sets
 .I prefix
-as the directory in which to extract files from any packages
-which do not explicitly set theirs.
+as the directory in which to extract files from a package.
+If a package has set its default directory, it will be overridden
+by this flag.  Note that only the first directory default will
+be replaced, since
+.B pkg_add
+has no way of knowing which directory settings are relative and
+which are absolute.  It is rare, in any case, that more than one
+directory transition is made, but when such is the case then you
+may wish to look into the use of
+.B MASTER
+and
+.B SLAVE
+mode (see
+.B \-M
+and
+.B \-S
+options).
 .B "Optional."
+.TP
+.BI "\-t\ " template
+Use
+.I template
+as the input to mktemp(3).  By default, this is the string
+.B /tmp/instmp.XXXXXX
+, but it may be necessary to override it in the situation where
+space in your
+.B /tmp
+directory is limited.  Be sure to leave some number of `X' characters
+for mktemp(3) to fill in with a unique ID.
+.B "Optional."
+.TP
+.B \-M
+Run in
+.B MASTER
+mode.  This is a very specialized mode for running
+.B pkg_add
+and is meant to be run in conjunction with
+.B SLAVE
+mode.  When run in this mode,
+.B pkg_add
+does no work beyond extracting the package into a temporary staging
+area (see
+.B \-t
+option), reading in the packing list, and then dumping it (prefaced by
+the current staging area) to stdout where it may be filtered by a
+program such as
+.B sed(1).
+When used in conjunction with
+.B SLAVE
+mode, it allows you to make radical changes to the package structure
+before acting on its contents.
+.TP
+.B \-S
+Run in
+.B SLAVE
+mode.  This is a very specialized mode for running
+.B pkg_add
+and is meant to be run in conjunction with
+.B MASTER
+mode.  When run in this mode,
+.B pkg_add
+expects the release contents to be already extracted and waiting
+in the staging area, the location of which is read as a string
+from stdin.  The complete packing list is also read from stdin,
+and the contents then acted on as normal.
 .PP
 .SH "TECHNICAL DETAILS"
 .B
 pkg_add
 is fairly simple.  It simply extracts the requested packages into
-the current working directory and then performs the following steps:
+a "staging area" directory and then performs the following steps:
 .PP
 If the package contains a
 .B require
@@ -95,8 +157,8 @@ Where
 is the name of the package in question and
 .I PRE-INSTALL
 is a keyword denoting that this is the "pre installation" pass.
-Files are then copied from the packing list into their new homes, as expected,
-and the
+Using the packing list as a guide, files are then moved (or copied,
+as necessary) from the staging area into their new homes and the
 .B install
 script is then executed a second time with the flags
 .PP
@@ -113,6 +175,7 @@ to any
 script the package might have, is copied into /var/pkg/<pkg-name>
 for subsequent possible use by
 .B pkg-delete.
+Finally, the staging area is deleted and the program terminates.
 .PP
 .SH BUGS
 Sure to be some.
