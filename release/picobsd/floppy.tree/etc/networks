@@ -1,4 +1,5 @@
-# sample networks file. Picobsd scripts will look for entries of the form
-# hostname-netmask	255.255.255.0
+ample networks file. Picobsd scripts will look for entries of the form
+# hostname-netmask      255.255.255.0
 # when searching for masks
-vm-netmask		255.255.255.0
+vm-netmask              255.255.255.0
+
