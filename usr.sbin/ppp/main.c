@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.15 1997/05/19 03:04:06 brian Exp $
+ * $Id: main.c,v 1.22.2.16 1997/05/23 05:24:21 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -37,6 +37,7 @@
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <alias.h>
 #include "modem.h"
 #include "os.h"
 #include "hdlc.h"
@@ -48,7 +49,6 @@
 #include "filter.h"
 #include "systems.h"
 #include "ip.h"
-#include "alias.h"
 #include "sig.h"
 
 #define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
@@ -330,7 +330,7 @@ char **argv;
   Greetings();
   GetUid();
   IpcpDefAddress();
-  InitAlias();
+  InitPacketAlias();
 
   if (SelectSystem("default", CONFFILE) < 0) {
     fprintf(stderr, "Warning: No default entry is given in config file.\n");
@@ -1023,7 +1023,7 @@ DoLoop()
 	pri = PacketCheck(rbuff, n, FL_DIAL);
 	if (pri >= 0) {
 	  if (mode & MODE_ALIAS) {
-	    PacketAliasOut((struct ip *)rbuff);
+	    PacketAliasOut(rbuff, sizeof rbuff);
 	    n = ntohs(((struct ip *)rbuff)->ip_len);
 	  }
 	  IpEnqueue(pri, rbuff, n);
@@ -1034,7 +1034,7 @@ DoLoop()
       pri = PacketCheck(rbuff, n, FL_OUT);
       if (pri >= 0) {
         if (mode & MODE_ALIAS) {
-          PacketAliasOut((struct ip *)rbuff);
+          PacketAliasOut(rbuff, sizeof rbuff);
           n = ntohs(((struct ip *)rbuff)->ip_len);
         }
 	IpEnqueue(pri, rbuff, n);
