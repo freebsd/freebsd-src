@@ -130,9 +130,9 @@ vfs_opv_recalc(void)
 			panic("no memory for vop_t ** vector");
 		bzero(*opv_desc_vector_p, vfs_opv_numops * sizeof(vop_t *));
 
-		/* Fill in, with slot 0 being panic */
+		/* Fill in, with slot 0 being to return EOPNOTSUPP */
 		opv_desc_vector = *opv_desc_vector_p;
-		opv_desc_vector[0] = (vop_t *)vop_panic;
+		opv_desc_vector[0] = (vop_t *)vop_eopnotsupp;
 		for (j = 0; opv->opv_desc_ops[j].opve_op; j++) {
 			opve_descp = &(opv->opv_desc_ops[j]);
 			opv_desc_vector[opve_descp->opve_op->vdesc_offset] =
