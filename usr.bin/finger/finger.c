@@ -293,6 +293,16 @@ userlist(argc, argv)
 		goto net;
 
 	/*
+	 * Mark any arguments beginning with '/' as invalid so that we 
+	 * don't accidently confuse them with expansions from finger.conf
+	 */
+	for (p = argv, ip = used; *p; ++p, ++ip)
+	    if (**p == '/') {
+		*ip = 1;
+		warnx("%s: no such user", *p);
+	    }
+
+	/*
 	 * Traverse the finger alias configuration file of the form
 	 * alias:(user|alias), ignoring comment lines beginning '#'.
 	 */
