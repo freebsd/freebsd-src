@@ -200,7 +200,7 @@ refresh_progress_meter(void)
 			strlcat(buf, "    ", win_size);
 	}
 
-	atomicio(vwrite, STDOUT_FILENO, buf, win_size);
+	atomicio(vwrite, STDOUT_FILENO, buf, win_size - 1);
 	last_update = now;
 }
 
