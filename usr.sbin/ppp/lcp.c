@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.10.2.19 1997/09/23 19:53:53 brian Exp $
+ * $Id: lcp.c,v 1.10.2.20 1997/09/27 19:48:13 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -415,7 +415,7 @@ static void
 LcpDecodeConfig(u_char * cp, int plen, int mode)
 {
   char *request;
-  int type, length, mru;
+  int type, length, mru, mtu;
   u_long *lp, magic, accmap;
   u_short *sp, proto;
   struct lqrreq *req;
@@ -440,8 +440,11 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
 
       switch (mode) {
       case MODE_REQ:
-	if (mru > MAX_MRU) {
-	  *sp = htons(MAX_MRU);
+        mtu = VarPrefMTU;
+        if (mtu == 0)
+          mtu = MAX_MTU;
+	if (mru > mtu) {
+	  *sp = htons(mtu);
 	  bcopy(cp, nakp, 4);
 	  nakp += 4;
 	} else if (mru < MIN_MRU) {
