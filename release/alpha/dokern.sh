@@ -18,7 +18,6 @@ sed	\
 	-e '/MSDOSFS/d' \
 	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \
-	-e '/P1003_1B/d' \
 	-e '/PROCFS/d' \
 	-e '/PSEUDOFS/d' \
 	-e '/SMP/d' \
