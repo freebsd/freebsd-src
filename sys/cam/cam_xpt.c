@@ -1,7 +1,7 @@
 /*
  * Implementation of the Common Access Method Transport (XPT) layer.
  *
- * Copyright (c) 1997, 1998 Justin T. Gibbs.
+ * Copyright (c) 1997, 1998, 1999 Justin T. Gibbs.
  * Copyright (c) 1997, 1998 Kenneth D. Merry.
  * All rights reserved.
  *
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.34 1999/01/05 21:37:07 ken Exp $
+ *      $Id: cam_xpt.c,v 1.35 1999/01/07 01:11:24 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -197,7 +197,6 @@ struct cam_et {
 struct cam_eb { 
 	TAILQ_HEAD(, cam_et) et_entries;
 	TAILQ_ENTRY(cam_eb)  links;
-	struct async_list    asyncs;	/* Async callback info for this B/T/L */
 	path_id_t	     path_id;
 	struct cam_sim	     *sim;
 	u_int32_t	     flags;
@@ -332,17 +331,6 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "WN321010S*", "*" },
 		/*quirks*/0, /*mintags*/2, /*maxtags*/32
 	},
-        {
-		/*
-		 * Hack until multiple-luns are supported by
-		 * the target mode code.
-		 */
-		{
-			T_PROCESSOR, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
-			"FreeBSD", "TM-PT", "*"
-		},
-		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
-        },
 	{
 		/* Really only one LUN */
 		{
@@ -590,7 +578,6 @@ static void	 xptscandone(struct cam_periph *periph, union ccb *done_ccb);
 static xpt_busfunc_t	xptconfigbuscountfunc;
 static xpt_busfunc_t	xptconfigfunc;
 static void	 xpt_config(void *arg);
-static xpt_devicefunc_t	xptfinishconfigfunc;
 static xpt_devicefunc_t xptpassannouncefunc;
 static void	 xpt_finishconfig(struct cam_periph *periph, union ccb *ccb);
 static void	 xptaction(struct cam_sim *sim, union ccb *work_ccb);
@@ -2547,6 +2534,15 @@ xptsetasyncfunc(struct cam_ed *device, void *arg)
 
 	cur_entry = (struct async_node *)arg;
 
+	/*
+	 * Don't report unconfigured devices (Wildcard devs,
+	 * devices only for target mode, device instances
+	 * that have been invalidated but are waiting for
+	 * their last reference count to be released).
+	 */
+	if ((device->flags & CAM_DEV_UNCONFIGURED) != 0)
+		return (1);
+
 	xpt_compile_path(&path,
 			 NULL,
 			 device->target->bus->path_id,
@@ -2562,6 +2558,7 @@ xptsetasyncfunc(struct cam_ed *device, void *arg)
 
 	return(1);
 }
+
 static int
 xptsetasyncbusfunc(struct cam_eb *bus, void *arg)
 {
@@ -2875,10 +2872,6 @@ xpt_action(union ccb *start_ccb)
 	}
 	case XPT_SASYNC_CB:
 	{
-		/*
-		 * First off, determine the list we want to
-		 * be insterted into.
-		 */
 		struct ccb_setasync *csa;
 		struct async_node *cur_entry;
 		struct async_list *async_head;
@@ -2887,11 +2880,7 @@ xpt_action(union ccb *start_ccb)
 
 		csa = &start_ccb->csa;
 		added = csa->event_enable;
-		if (csa->ccb_h.path->device != NULL) {
-			async_head = &csa->ccb_h.path->device->asyncs;
-		} else {
-			async_head = &csa->ccb_h.path->bus->asyncs;
-		}
+		async_head = &csa->ccb_h.path->device->asyncs;
 
 		/*
 		 * If there is already an entry for us, simply
@@ -2915,6 +2904,7 @@ xpt_action(union ccb *start_ccb)
 			if (csa->event_enable == 0) {
 				SLIST_REMOVE(async_head, cur_entry,
 					     async_node, links);
+				csa->ccb_h.path->device->refcount--;
 				free(cur_entry, M_DEVBUF);
 			} else {
 				cur_entry->event_enable = csa->event_enable;
@@ -2931,6 +2921,7 @@ xpt_action(union ccb *start_ccb)
 			cur_entry->callback = csa->callback;
 			cur_entry->event_enable = csa->event_enable;
 			SLIST_INSERT_HEAD(async_head, cur_entry, links);
+			csa->ccb_h.path->device->refcount++;
 		}
 
 		if ((added & AC_FOUND_DEVICE) != 0) {
@@ -3566,49 +3557,35 @@ xpt_compile_path(struct cam_path *new_path, struct cam_periph *perph,
 	bus = xpt_find_bus(path_id);
 	if (bus == NULL) {
 		status = CAM_PATH_INVALID;
-	} else if (target_id != CAM_TARGET_WILDCARD) {
+	} else {
 		target = xpt_find_target(bus, target_id);
 		if (target == NULL) {
-			if (path_id == CAM_XPT_PATH_ID) {
-				status = CAM_TID_INVALID;
-			} else {
-				/* Create one */
-				struct cam_et *new_target;
+			/* Create one */
+			struct cam_et *new_target;
 
-				new_target = xpt_alloc_target(bus, target_id);
-				if (new_target == NULL) {
-					status = CAM_RESRC_UNAVAIL;
-				} else {
-					target = new_target;
-				}
+			new_target = xpt_alloc_target(bus, target_id);
+			if (new_target == NULL) {
+				status = CAM_RESRC_UNAVAIL;
+			} else {
+				target = new_target;
 			}
 		}
-		if (target != NULL && lun_id != CAM_LUN_WILDCARD) {
+		if (target != NULL) {
 			device = xpt_find_device(target, lun_id);
 			if (device == NULL) {
-				if (path_id == CAM_XPT_PATH_ID) {
-					status = CAM_LUN_INVALID;
-				} else {
-					/* Create one */
-					struct cam_ed *new_device;
+				/* Create one */
+				struct cam_ed *new_device;
 
-					new_device = xpt_alloc_device(bus,
-								      target,
-								      lun_id);
-					if (new_device == NULL) {
-						status = CAM_RESRC_UNAVAIL;
-					} else {
-						device = new_device;
-					}
+				new_device = xpt_alloc_device(bus,
+							      target,
+							      lun_id);
+				if (new_device == NULL) {
+					status = CAM_RESRC_UNAVAIL;
+				} else {
+					device = new_device;
 				}
 			}
 		}
-	} else if (lun_id != CAM_LUN_WILDCARD) {
-		/*
-		 * Specific luns are not allowed if the
-		 * target is wildcarded
-		 */
-		status = CAM_LUN_INVALID;
 	}
 
 	/*
@@ -3823,7 +3800,6 @@ xpt_bus_register(struct cam_sim *sim, u_int32_t bus)
 
 	new_bus->path_id = sim->path_id;
 	new_bus->sim = sim;
-	SLIST_INIT(&new_bus->asyncs);
 	TAILQ_INIT(&new_bus->et_entries);
 	s = splsoftcam();
 	TAILQ_INSERT_TAIL(&xpt_busses, new_bus, links);
@@ -4059,15 +4035,20 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 							  /*async_update*/TRUE);
 			}
 
-
 			xpt_async_bcast(&device->asyncs,
 					async_code,
 					path,
 					async_arg);
 		}
 	}
-	xpt_async_bcast(&bus->asyncs, async_code,
-			path, async_arg);
+	
+	/*
+	 * If this wasn't a fully wildcarded async, tell all
+	 * clients that want all async events.
+	 */
+	if (bus != xpt_periph->path->bus)
+		xpt_async_bcast(&xpt_periph->path->device->asyncs, async_code,
+				path, async_arg);
 	splx(s);
 }
 
@@ -4934,7 +4915,7 @@ probeschedule(struct cam_periph *periph)
 	 * lun 0.  This will insure that any bogus transfer settings are
 	 * invalidated.
 	 */
-	if (((ccb->ccb_h.path->device->flags & CAM_DEV_UNCONFIGURED)==0)
+	if (((ccb->ccb_h.path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
 	 && (ccb->ccb_h.target_lun == 0))
 		softc->action = PROBE_TUR;
 	else
@@ -5622,7 +5603,6 @@ xptconfigfunc(struct cam_eb *bus, void *arg)
 	}
 
 	return(1);
-
 }
 
 static void
@@ -5667,32 +5647,6 @@ xpt_config(void *arg)
 		}
 		xpt_for_all_busses(xptconfigfunc, NULL);
 	}
-}
-
-static int
-xptfinishconfigfunc(struct cam_ed *device, void *arg)
-{
-	union ccb work_ccb;
-	struct cam_path path;
-	cam_status status;
-
-	if ((status = xpt_compile_path(&path, xpt_periph,
-				       device->target->bus->path_id,
-				       device->target->target_id,
-				       device->lun_id)) != CAM_REQ_CMP) {
-		printf("xptfinishconfig: xpt_compile_path failed with status"
-		       " %#x, halting device registration\n", status);
-		return(0);
-	}
-
-	xpt_setup_ccb(&work_ccb.ccb_h, &path, /*priority*/1);
-
-	work_ccb.ccb_h.func_code = XPT_GDEV_TYPE;
-	xpt_action(&work_ccb);
-	xpt_async(AC_FOUND_DEVICE, &path, &work_ccb);
-
-	xpt_release_path(&path);
-	return(1);
 }
 
 /*
@@ -5750,12 +5704,6 @@ xpt_finishconfig(struct cam_periph *periph, union ccb *done_ccb)
 		for (i = 0; p_drv[i] != NULL; i++) {
 			(*p_drv[i]->init)();
 		}
-
-		/*
-		 * Itterate through our devices announcing
-		 * them in probed bus order.
-		 */
-		xpt_for_all_devices(xptfinishconfigfunc, NULL);
 
 		/*
 		 * Check for devices with no "standard" peripheral driver
