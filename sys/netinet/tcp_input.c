@@ -2717,13 +2717,14 @@ tcp_mss(tp, offer)
 #else
 		mss = ifp->if_mtu - min_protoh;
 #endif
+#ifdef INET6
 		if (isipv6) {
 			if (!in6_localaddr(&inp->in6p_faddr))
 				mss = min(mss, tcp_v6mssdflt);
-		} else {
+		} else
+#endif
 			if (!in_localaddr(inp->inp_faddr))
 				mss = min(mss, tcp_mssdflt);
-		}
 	}
 	mss = min(mss, offer);
 	/*
