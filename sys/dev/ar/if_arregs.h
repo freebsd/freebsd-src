@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1999 John Hay.  All rights reserved.
+ * Copyright (c) 1995 - 2001 John Hay.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -166,5 +166,62 @@
 #define AR_PIM_RESET		0x00 /* MODEG and MODEY 0 */
 #define AR_PIM_READ		AR_PIM_MODEG
 #define AR_PIM_WRITE		AR_PIM_MODEY
+
+#define ARC_GET_WIN(addr)	((addr >> ARC_WIN_SHFT) & AR_WIN_MSK)
+
+#define ARC_SET_MEM(iobase,win)	outb(iobase+AR_MSCA_EN, AR_ENA_MEM | \
+				ARC_GET_WIN(win))
+#define ARC_SET_SCA(iobase,ch)	outb(iobase+AR_MSCA_EN, AR_ENA_MEM | \
+				AR_ENA_SCA | (ch ? AR_SEL_SCA_1:AR_SEL_SCA_0))
+#define ARC_SET_OFF(iobase)	outb(iobase+AR_MSCA_EN, 0)
+
+struct ar_hardc {
+	int cunit;
+	struct ar_softc *sc;
+	u_short iobase;
+	int isa_irq;
+	int numports;
+	caddr_t mem_start;
+	caddr_t mem_end;
+	caddr_t plx_mem;
+	u_char *orbase;
+
+	u_int memsize;		/* in bytes */
+	u_int winsize;		/* in bytes */
+	u_int winmsk;
+	u_char bustype;		/* ISA, MCA, PCI.... */
+	u_char interface[NPORT];/* X21, V.35, EIA-530.... */
+	u_char revision;
+	u_char handshake;	/* handshake lines supported by card. */
+
+	u_char txc_dtr[NPORT/NCHAN]; /* the register is write only */
+	u_int txc_dtr_off[NPORT/NCHAN];
+
+	sca_regs *sca[NPORT/NCHAN];
+
+	bus_space_tag_t bt;
+	bus_space_handle_t bh;
+	int rid_ioport;
+	int rid_memory;
+	int rid_plx_memory;
+	int rid_irq;
+	int rid_drq;
+	struct resource* res_ioport;	/* resource for port range */
+	struct resource* res_memory;	/* resource for mem range */
+	struct resource* res_plx_memory;
+	struct resource* res_irq;	/* resource for irq range */
+	struct resource* res_drq;	/* resource for dma channel */
+	void	*intr_cookie;
+};
+
+extern devclass_t ar_devclass;
+
+int ar_allocate_ioport(device_t device, int rid, u_long size);
+int ar_allocate_irq(device_t device, int rid, u_long size);
+int ar_allocate_memory(device_t device, int rid, u_long size);
+int ar_allocate_plx_memory(device_t device, int rid, u_long size);
+int ar_deallocate_resources(device_t device);
+int ar_attach(device_t device);
+int ar_detach (device_t);
 
 #endif /* _IF_ARREGS_H_ */
