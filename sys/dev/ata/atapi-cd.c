@@ -504,11 +504,6 @@ acdopen(dev_t dev, int flags, int fmt, struct thread *td)
     if (!cdp)
 	return ENXIO;
 
-    if (flags & FWRITE) {
-	if (count_dev(dev) > 1)
-	    return EBUSY;
-    }
-
     /* wait if drive is not finished loading the medium */
     while (timeout--) {
 	struct atapi_reqsense *sense = cdp->device->result;
