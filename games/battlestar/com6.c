@@ -89,15 +89,7 @@ live()
 	exit(0);
 }
 
-/*
- * sigh -- this program thinks `clock' and `time' are ints.  It's easier
- * to hack around this than to fix it properly.
- */
-#define	clock	not_our_clock
-#define	time	not_our_time
 #include <sys/time.h>
-#undef clock
-#undef time
 
 post(ch)
 char ch;
