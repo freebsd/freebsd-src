@@ -172,6 +172,7 @@ char	*mfs_mtpt;		/* mount point for mfs		*/
 struct stat mfs_mtstat;		/* stat prior to mount		*/
 int	Nflag;			/* run without writing file system */
 int	Oflag;			/* format as an 4.3BSD file system */
+int	Uflag;			/* enable soft updates for file system */
 int	fssize;			/* file system size */
 int	ntracks = NTRACKS;	/* # tracks/cylinder */
 int	nsectors = NSECTORS;	/* # sectors/track */
@@ -248,8 +249,8 @@ main(argc, argv)
 	}
 
 	opstring = mfs ?
-	    "NF:T:a:b:c:d:e:f:i:m:o:s:" :
-	    "NOS:T:a:b:c:d:e:f:i:k:l:m:n:o:p:r:s:t:u:vx:";
+	    "NF:T:Ua:b:c:d:e:f:i:m:o:s:" :
+	    "NOS:T:Ua:b:c:d:e:f:i:k:l:m:n:o:p:r:s:t:u:vx:";
 	while ((ch = getopt(argc, argv, opstring)) != -1)
 		switch (ch) {
 		case 'N':
@@ -269,6 +270,9 @@ main(argc, argv)
 #endif
 		case 'F':
 			filename = optarg;
+			break;
+		case 'U':
+			Uflag = 1;
 			break;
 		case 'a':
 			if ((maxcontig = atoi(optarg)) <= 0)
@@ -750,6 +754,7 @@ usage()
 #ifdef COMPAT
 	fprintf(stderr, "\t-T disktype\n");
 #endif
+	fprintf(stderr, "\t-U enable soft updates\n");
 	fprintf(stderr, "\t-a maximum contiguous blocks\n");
 	fprintf(stderr, "\t-b block size\n");
 	fprintf(stderr, "\t-c cylinders/group\n");

@@ -41,7 +41,7 @@
 .Nd construct a new file system
 .Sh SYNOPSIS
 .Nm
-.Op Fl NO
+.Op Fl NOU
 .Op Fl S Ar sector-size
 .Op Fl T Ar disktype
 .Op Fl a Ar maxcontig
@@ -65,7 +65,7 @@
 .Op Fl x Ar sectors
 .Ar special
 .Nm mount_mfs
-.Op Fl N
+.Op Fl NU
 .Op Fl F Ar file
 .Op Fl T Ar disktype
 .Op Fl a Ar maxcontig
@@ -144,6 +144,8 @@ Cause the file system parameters to be printed out
 without really creating the file system.
 .It Fl O
 Create a
+.It Fl U
+Enables soft updates on the new filesystem.
 .Bx 4.3
 format filesystem.
 This options is primarily used to build root filesystems
