@@ -128,6 +128,11 @@ global:
 	_pthread_setspecific;
 	_pthread_sigmask;
 	_pthread_single_np;
+	_pthread_spin_destroy;
+	_pthread_spin_init;
+	_pthread_spin_lock;
+	_pthread_spin_trylock;
+	_pthread_spin_unlock;
 	_pthread_suspend_all_np;
 	_pthread_suspend_np;
 	_pthread_switch_add_np;
@@ -271,6 +276,11 @@ global:
 	pthread_setspecific;
 	pthread_sigmask;
 	pthread_single_np;
+	pthread_spin_destroy;
+	pthread_spin_init;
+	pthread_spin_lock;
+	pthread_spin_trylock;
+	pthread_spin_unlock;
 	pthread_suspend_all_np;
 	pthread_suspend_np;
 	pthread_switch_add_np;
