@@ -208,7 +208,7 @@ static __inline T pci_get_ ## A(device_t dev)				\
 									\
 static __inline void pci_set_ ## A(device_t dev, T t)			\
 {									\
-	u_long v = (u_long) t;						\
+	uintptr_t v = (uintptr_t) t;					\
 	BUS_WRITE_IVAR(device_get_parent(dev), dev, PCI_IVAR_ ## B, v);	\
 }
 
@@ -228,6 +228,8 @@ PCI_ACCESSOR(slot,		SLOT,		u_int8_t)
 PCI_ACCESSOR(function,		FUNCTION,	u_int8_t)
 PCI_ACCESSOR(secondarybus,	SECONDARYBUS,	u_int8_t)
 PCI_ACCESSOR(subordinatebus,	SUBORDINATEBUS,	u_int8_t)
+
+#undef PCI_ACCESSOR
 
 static __inline u_int32_t
 pci_read_config(device_t dev, int reg, int width)
@@ -261,11 +263,13 @@ static __inline T pcib_get_ ## A(device_t dev)				 \
 									 \
 static __inline void pcib_set_ ## A(device_t dev, T t)			 \
 {									 \
-	u_long v = (u_long) t;						 \
+	uintptr_t v = (uintptr_t) t;					 \
 	BUS_WRITE_IVAR(device_get_parent(dev), dev, PCIB_IVAR_ ## B, v); \
 }
 
 PCIB_ACCESSOR(bus,		BUS,		u_int32_t)
+
+#undef PCIB_ACCESSOR
 
 #endif
 
