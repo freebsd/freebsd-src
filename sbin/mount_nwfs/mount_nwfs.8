@@ -8,10 +8,10 @@
 .Sh SYNOPSIS
 .Nm mount_nwfs
 .Op Fl Chv
-.Ar -S Ar server
-.Ar -U Ar user
-.Ar "[connection options]"
-.Ar -V Ar volume
+.Fl S Ar server
+.Fl U Ar user
+.Op Fl connection\ options
+.Fl V Ar volume
 .Op Fl M Ar mode
 .Op Fl c Ar case
 .Op Fl d Ar mode
@@ -24,12 +24,12 @@
 .Ar node
 .Nm mount_nwfs
 .Op Fl options
-.Ar /server:user/volume/path
+.Ar /server:user/volume[/path]
 .Ar node
 .Sh DESCRIPTION
 The
 .Nm
-command allow to mount volume from a NetWare server. It may use either
+command allows to mount volume from a NetWare server. It may use either
 existing connection or create new: if no usable connection was found
 it will try to establish a new one. Connection has count of references to it,
 so when last mount will be dismounted connection will be closed. It is
@@ -50,16 +50,20 @@ command line arguments (the
 .Fl U
 and
 .Fl V
-options aren't used in this case). This allows use of fstab file (see EXAMPLES below).
+options aren't used in this case). This allows use of
+.Xr fstab 5
+file (see
+.Sx EXAMPLES
+below).
 .Pp
 The options are:
 .Bl -tag -width indent
 .It Fl S Ar server
-name of NetWare server to connect. For native IP you will need also
+Name of NetWare server to connect. For native IP you will need also
 .Fl A
 option.
 .It Fl U Ar user
-name of user used in login sequence.
+Name of user used in login sequence.
 .It Fl "[connection options]"
 See
 .Xr ncplogin 1
@@ -71,7 +75,7 @@ before
 .It Ar node
 Path to mount volume.
 .It Fl c Ar case
-Selects a
+Select a
 .Ar case 
 option which affects on name representation.
 .Ar Case 
@@ -96,46 +100,49 @@ u	All existing file names converted to upper case.
 U	Same as 'u' but file system tries to be case
 	insensitive. May not work well.
 .Ed
-.It Fl f Ar mode, Fl d Ar mode
-specifies permissions that should be assigned to files and directories.
+.It Fl f Ar mode , Fl d Ar mode
+Specify permissions that should be assigned to files and directories.
 The values must be specified as octal numbers. Default value for the file mode
-taken from mount point, default value for the dir mode adds execute permission
-where the file mode gives read permission.
+is taken from mount point, default value for the dir mode adds execute
+permission where the file mode gives read permission.
 
 Note that these permissions can differ from the rights granted by NetWare
 server. 
 .It Fl n Ar namespace
-don't use
+Don't use
 .Ar namespace .
 Currently only
 .Ar OS2
 can be here.
 .It Fl v
-prints version number.
-.It Fl u Ar uid, Fl g Ar gid
+Print version number.
+.It Fl u Ar uid , Fl g Ar gid
 User id and group id assigned to files. The default is owner and group id from
 directory where volume is mounted.
 .It Fl l Ar locale
-Sets the locale for case conversion. By default
+Set the locale for case conversion. By default
 .Nm
 tries to use an environment variable
-.Ar LC_* .
+.Ev LC_* .
 .It Fl w Ar scheme
-Selects a
+Select a
 .Ar scheme 
-used to convert file names between NetWare and FreeBSD. Currently only 
+used to convert file names between NetWare and
+.Bx Free .
+Currently only 
 .Ar koi2cp866 
 and 
 .Ar asis 
 can be here. Please note, that scheme should be enabled at compile 
-time in config.mk file.
+time in
+.Pa config.mk
+file.
 .It Fl M Ar mode
 See 
 .Xr ncplogin 1 
 for details. If this option is omitted, connection permissions
-assumed the same as directory mode (
-.Ar -d )
-option.
+assumed the same as directory mode
+.Pf ( Fl d Ns ) option.
 .El
 .Sh FILES
 .Bl -tag -width /var/log/wtmp -compact
@@ -143,19 +150,19 @@ option.
 keeps static parameters for connections and other information. See
 .Pa /usr/share/examples/nwclient/dot.nwfsrc
 for details.
-
+.El
 .Sh NOTES
 Before any NCP connection can be established kernel must be configured
 for IPX support, IPXrouted and KLD nwfs.ko should be loaded.
 .Sh EXAMPLES
 Next examples illustrates how to connect to NetWare server
-.Ar nwserv
+.Em nwserv
 as user
-.Ar GUEST
+.Em GUEST
 and mount volumes
-.Ar SYS
+.Em SYS
 and
-.Ar VOL1 :
+.Em VOL1 :
 .Bd -literal -offset indent
 mount_nwfs -S nwserv -U guest -V sys /nw/s1/sys
 mount_nwfs /nwserv:guest/sys /nw/s1/sys
@@ -166,7 +173,9 @@ mount -t nwfs /nwserv:boris/sys/home/boris /home/boris/nw/home
 The last example mounts only subdirectory on a volume and equivalent
 to NetWare 'map root' command.
 .Pp
-It is possible to use fstab for nwfs mounts:
+It is possible to use
+.Xr fstab 5
+for nwfs mounts:
 .Bd -literal -offset indent
 /nwserv:guest/sys       /nw/s1/sys     nwfs  rw,noauto 0   0
 /nwserv:guest/vol1      /nw/s1/vol2    nwfs  rw,noauto 0   0
@@ -176,17 +185,23 @@ It is possible to use fstab for nwfs mounts:
 to number a few
 
 .Sh CREDITS
-In development of NetWare client for FreeBSD, the following sources were used:
+In development of NetWare client for
+.Bx Free ,
+the following sources were used:
 .Pp
 Documentation from NetWare NDK.
 .Pp
-ncpfs for Linux - written by Volker Lendecke (lendecke@math.uni-goettingen.de).
+Ncpfs for Linux - written by
+.An Volker Lendecke Aq lendecke@math.uni-goettingen.de .
 He granted me permission to publish parts of his code under BSD-style license,
 .Pp
-"Interrupt List" from Ralf Brown,
+"Interrupt List" from
+.An Ralf Brown ,
 .Pp
-Many files from /sys directory.
+Many files from
+.Pa /sys
+directory.
 
-.Sh AUTHOR
+.Sh AUTHORS
 .An Boris Popov Aq bp@butya.kz ,
 .Aq rbp@chat.ru
