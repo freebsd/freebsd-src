@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 
-#include <machine/vmparam.h>
+#include <vm/vm_param.h>
 
 /*
  * System parameter formulae.
@@ -77,15 +77,15 @@ int	maxfilesperproc;		/* per-proc open files limit */
 int	ncallout;			/* maximum # of timer events */
 int	nbuf;
 int	nswbuf;
-int	maxswzone;			/* max swmeta KVA storage */
-int	maxbcache;			/* max buffer cache KVA storage */
+long	maxswzone;			/* max swmeta KVA storage */
+long	maxbcache;			/* max buffer cache KVA storage */
 int	maxpipekva;			/* Limit on pipe KVA */
-u_quad_t	maxtsiz;			/* max text size */
-u_quad_t	dfldsiz;			/* initial data size limit */
-u_quad_t	maxdsiz;			/* max data size */
-u_quad_t	dflssiz;			/* initial stack size limit */
-u_quad_t	maxssiz;			/* max stack size */
-u_quad_t	sgrowsiz;			/* amount to grow stack */
+u_long	maxtsiz;			/* max text size */
+u_long	dfldsiz;			/* initial data size limit */
+u_long	maxdsiz;			/* max data size */
+u_long	dflssiz;			/* initial stack size limit */
+u_long	maxssiz;			/* max stack size */
+u_long	sgrowsiz;			/* amount to grow stack */
 
 /*
  * These have to be allocated somewhere; allocating
@@ -108,24 +108,24 @@ init_param1(void)
 #ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;
 #endif
-	TUNABLE_INT_FETCH("kern.maxswzone", &maxswzone);
+	TUNABLE_LONG_FETCH("kern.maxswzone", &maxswzone);
 #ifdef VM_BCACHE_SIZE_MAX
 	maxbcache = VM_BCACHE_SIZE_MAX;
 #endif
-	TUNABLE_INT_FETCH("kern.maxbcache", &maxbcache);
+	TUNABLE_LONG_FETCH("kern.maxbcache", &maxbcache);
 
 	maxtsiz = MAXTSIZ;
-	TUNABLE_QUAD_FETCH("kern.maxtsiz", &maxtsiz);
+	TUNABLE_ULONG_FETCH("kern.maxtsiz", &maxtsiz);
 	dfldsiz = DFLDSIZ;
-	TUNABLE_QUAD_FETCH("kern.dfldsiz", &dfldsiz);
+	TUNABLE_ULONG_FETCH("kern.dfldsiz", &dfldsiz);
 	maxdsiz = MAXDSIZ;
-	TUNABLE_QUAD_FETCH("kern.maxdsiz", &maxdsiz);
+	TUNABLE_ULONG_FETCH("kern.maxdsiz", &maxdsiz);
 	dflssiz = DFLSSIZ;
-	TUNABLE_QUAD_FETCH("kern.dflssiz", &dflssiz);
+	TUNABLE_ULONG_FETCH("kern.dflssiz", &dflssiz);
 	maxssiz = MAXSSIZ;
-	TUNABLE_QUAD_FETCH("kern.maxssiz", &maxssiz);
+	TUNABLE_ULONG_FETCH("kern.maxssiz", &maxssiz);
 	sgrowsiz = SGROWSIZ;
-	TUNABLE_QUAD_FETCH("kern.sgrowsiz", &sgrowsiz);
+	TUNABLE_ULONG_FETCH("kern.sgrowsiz", &sgrowsiz);
 }
 
 /*
