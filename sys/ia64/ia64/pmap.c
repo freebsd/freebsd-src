@@ -740,7 +740,7 @@ static PMAP_INLINE void
 free_pv_entry(pv_entry_t pv)
 {
 	pv_entry_count--;
-	zfreei(pvzone, pv);
+	zfree(pvzone, pv);
 }
 
 /*
@@ -753,7 +753,7 @@ static pv_entry_t
 get_pv_entry(void)
 {
 	if (!pvinit)
-		return zalloci(pvbootzone);
+		return zalloc(pvbootzone);
 
 	pv_entry_count++;
 	if (pv_entry_high_water &&
@@ -762,7 +762,7 @@ get_pv_entry(void)
 		pmap_pagedaemon_waken = 1;
 		wakeup (&vm_pages_needed);
 	}
-	return (pv_entry_t) IA64_PHYS_TO_RR7(vtophys(zalloci(pvzone)));
+	return (pv_entry_t) IA64_PHYS_TO_RR7(vtophys(zalloc(pvzone)));
 }
 
 /*

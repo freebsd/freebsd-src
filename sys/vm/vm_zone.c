@@ -39,6 +39,9 @@ static MALLOC_DEFINE(M_ZONE, "ZONE", "Zone header");
 #define ZONE_ROUNDING	32
 
 #define ZENTRY_FREE	0x12342378
+
+static void *_zget(vm_zone_t z);
+
 /*
  * void *zalloc(vm_zone_t zone) --
  *	Returns an item from a specified zone.
@@ -298,40 +301,10 @@ zunlock(vm_zone_t z, int s)
  * void zfree(vm_zone_t zone, void *item) --
  *  Frees an item back to a specified zone.
  *
- * void *zalloci(vm_zone_t zone) --
- *	Returns an item from a specified zone, interrupt safe.
- *
- * void zfreei(vm_zone_t zone, void *item) --
- *  Frees an item back to a specified zone, interrupt safe.
- *
  */
 
 void *
 zalloc(vm_zone_t z)
-{
-#if defined(SMP)
-	return zalloci(z);
-#else
-	return _zalloc(z);
-#endif
-}
-
-void
-zfree(vm_zone_t z, void *item)
-{
-#ifdef SMP
-	zfreei(z, item);
-#else
-	_zfree(z, item);
-#endif
-}
- 
-/*
- * Zone allocator/deallocator.  These are interrupt / (or potentially SMP)
- * safe.  The raw zalloc/zfree routines are not interrupt safe, but are fast.
- */
-void *
-zalloci(vm_zone_t z)
 {
 	int s;
 	void *item;
@@ -343,7 +316,7 @@ zalloci(vm_zone_t z)
 }
 
 void
-zfreei(vm_zone_t z, void *item)
+zfree(vm_zone_t z, void *item)
 {
 	int s;
 
@@ -356,7 +329,7 @@ zfreei(vm_zone_t z, void *item)
 /*
  * Internal zone routine.  Not to be called from external (non vm_zone) code.
  */
-void *
+static void *
 _zget(vm_zone_t z)
 {
 	int i;
@@ -405,24 +378,16 @@ _zget(vm_zone_t z)
 		if (lockstatus(&kernel_map->lock, NULL)) {
 			int s;
 			s = splvm();
-#ifdef SMP
 			simple_unlock(&z->zlock);
-#endif
 			item = (void *) kmem_malloc(kmem_map, nbytes, M_WAITOK);
-#ifdef SMP
 			simple_lock(&z->zlock);
-#endif
 			if (item != NULL)
 				zone_kmem_pages += z->zalloc;
 			splx(s);
 		} else {
-#ifdef SMP
 			simple_unlock(&z->zlock);
-#endif
 			item = (void *) kmem_alloc(kernel_map, nbytes);
-#ifdef SMP
 			simple_lock(&z->zlock);
-#endif
 			if (item != NULL)
 				zone_kern_pages += z->zalloc;
 		}

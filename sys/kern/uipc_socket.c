@@ -113,7 +113,7 @@ soalloc(waitok)
 {
 	struct socket *so;
 
-	so = zalloci(socket_zone);
+	so = zalloc(socket_zone);
 	if (so) {
 		/* XXX race condition for reentrant kernel */
 		bzero(so, sizeof *so);
@@ -211,7 +211,7 @@ sodealloc(so)
 	}
 #endif
 	crfree(so->so_cred);
-	zfreei(so->so_zone, so);
+	zfree(so->so_zone, so);
 }
 
 int
