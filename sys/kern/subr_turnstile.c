@@ -973,8 +973,8 @@ static char *spin_order_list[] = {
 };
 
 static char *order_list[] = {
-	"Giant", "uidinfo hash", "uidinfo struct", NULL,
-	"Giant", "proctree", "allproc", "process lock", NULL,
+	"Giant", "proctree", "allproc", "process lock", "uidinfo hash",
+	    "uidinfo struct", NULL,
 	NULL
 };
 
