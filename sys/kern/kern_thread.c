@@ -339,13 +339,13 @@ thread_export_context(struct thread *td)
 #endif
 	/* Export the user/machine context. */
 	error = copyin((caddr_t)td->td_mailbox +
-	    offsetof(struct thread_mailbox, tm_context),
+	    offsetof(struct kse_thr_mailbox, tm_context),
 	    &uc,
 	    sizeof(ucontext_t));
 	if (error == 0) {
 		thread_getcontext(td, &uc);
 		error = copyout(&uc, (caddr_t)td->td_mailbox +
-		offsetof(struct thread_mailbox, tm_context),
+		offsetof(struct kse_thr_mailbox, tm_context),
 		sizeof(ucontext_t));
 	}
 
@@ -353,7 +353,7 @@ thread_export_context(struct thread *td)
 	addr1 = (caddr_t)ke->ke_mailbox
 			+ offsetof(struct kse_mailbox, km_completed);
 	addr2 = (caddr_t)td->td_mailbox
-			+ offsetof(struct thread_mailbox , tm_next);
+			+ offsetof(struct kse_thr_mailbox, tm_next);
 	/* Then link it into it's KSE's list of completed threads. */
 	if (!error) {
 		error = td2_mbx = fuword(addr1);
