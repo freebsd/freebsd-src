@@ -3,8 +3,24 @@
  * Based on the non-X based CD player by Jean-Marc Zucconi and
  * Andrey A. Chernov.
  *
- * $Id: cdcontrol.c,v 1.9 1996/02/03 15:07:32 ache Exp $
+ * Fixed and further modified on 5-Sep-1995 by Jukka Ukkonen <jau@funet.fi>.
+ *
+ * 11-Sep-1995: Jukka A. Ukkonen <jau@funet.fi>
+ *              A couple of further fixes to my own earlier "fixes".
+ *
+ * 18-Sep-1995: Jukka A. Ukkonen <jau@funet.fi>
+ *              Added an ability to specify addresses relative to the
+ *              beginning of a track. This is in fact a variation of
+ *              doing the simple play_msf() call.
+ *
+ * 11-Oct-1995: Serge V.Vakulenko <vak@cronyx.ru>
+ *              New eject algorithm.
+ *              Some code style reformatting.
+ *
+ * $Id: cdcontrol.c,v 1.10 1996/02/03 15:21:30 ache Exp $
  */
+
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,111 +32,124 @@
 
 #define VERSION "2.0"
 
-/*
- * Audio Status Codes
- */
-#define ASTS_INVALID    0x00    /* Audio status byte not valid */
-#define ASTS_PLAYING    0x11    /* Audio play operation in progress */
-#define ASTS_PAUSED     0x12    /* Audio play operation paused */
-#define ASTS_COMPLETED  0x13    /* Audio play operation successfully completed */
-#define ASTS_ERROR      0x14    /* Audio play operation stopped due to error */
-#define ASTS_VOID       0x15    /* No current audio status to return */
+#define ASTS_INVALID    0x00  /* Audio status byte not valid */
+#define ASTS_PLAYING    0x11  /* Audio play operation in progress */
+#define ASTS_PAUSED     0x12  /* Audio play operation paused */
+#define ASTS_COMPLETED  0x13  /* Audio play operation successfully completed */
+#define ASTS_ERROR      0x14  /* Audio play operation stopped due to error */
+#define ASTS_VOID       0x15  /* No current audio status to return */
+
+#ifndef DEFAULT_CD_DRIVE
+#  define DEFAULT_CD_DRIVE  "/dev/cd0c"
+#endif
+
+#ifndef DEFAULT_CD_PARTITION
+#  define DEFAULT_CD_PARTITION  "c"
+#endif
+
+#define CMD_DEBUG       1
+#define CMD_EJECT       2
+#define CMD_HELP        3
+#define CMD_INFO        4
+#define CMD_PAUSE       5
+#define CMD_PLAY        6
+#define CMD_QUIT        7
+#define CMD_RESUME      8
+#define CMD_STOP        9
+#define CMD_VOLUME      10
+#define CMD_CLOSE       11
+#define CMD_RESET       12
+#define CMD_SET         13
+#define CMD_STATUS      14
 
 struct cmdtab {
 	int command;
 	char *name;
+	unsigned  min;
 	char *args;
 } cmdtab[] = {
-#define CMD_DEBUG       1
-	{ CMD_DEBUG,    "Debug",        "on | off", },
-#define CMD_EJECT       2
-	{ CMD_EJECT,    "Eject",        "", },
-#define CMD_HELP        3
-	{ CMD_HELP,     "?",            0, },
-	{ CMD_HELP,     "Help",         "", },
-#define CMD_INFO        4
-	{ CMD_INFO,     "I",            0, },
-	{ CMD_INFO,     "Info",         "", },
-#define CMD_INJECT      5
-	{ CMD_INJECT,   "INJect",       "", },
-#define CMD_PAUSE       6
-	{ CMD_PAUSE,    "PAuse",        "", },
-#define CMD_PLAY        7
-	{ CMD_PLAY,     "P",            0, },
-	{ CMD_PLAY,     "Play",        "min1:sec1[.fr1] [min2:sec2[.fr2]]", },
-	{ CMD_PLAY,     "Play",        "track1[.index1] [track2.[index2]]", },
-	{ CMD_PLAY,     "Play",        "[#block [len]]", },
-#define CMD_QUIT        8
-	{ CMD_QUIT,     "Quit",         "", },
-#define CMD_RESET       9
-	{ CMD_RESET,    "RESEt",        "", },
-#define CMD_RESUME      10
-	{ CMD_RESUME,   "R",            0, },
-	{ CMD_RESUME,   "Resume",       "", },
-#define CMD_SET         11
-	{ CMD_SET,      "SEt",         "msf | lba", },
-#define CMD_STATUS      12
-	{ CMD_STATUS,   "S",            0, },
-	{ CMD_STATUS,   "Status",       "", },
-#define CMD_STOP        13
-	{ CMD_STOP,     "STOp",         "", },
-#define CMD_VOLUME      14
-	{ CMD_VOLUME,   "Volume",       "<l> <r> | left | right | mute | mono | stereo", },
-	{ 0,            0, },
+{ CMD_CLOSE,    "close",        1, "" },
+{ CMD_DEBUG,    "debug",        1, "on | off" },
+{ CMD_EJECT,    "eject",        1, "" },
+{ CMD_HELP,     "?",            1, 0 },
+{ CMD_HELP,     "help",         1, "" },
+{ CMD_INFO,     "info",         1, "" },
+{ CMD_PAUSE,    "pause",        2, "" },
+{ CMD_PLAY,     "play",         1, "min1:sec1[.fram1] [min2:sec2[.fram2]]" },
+{ CMD_PLAY,     "play",         1, "track1[.index1] [track2[.index2]]" },
+{ CMD_PLAY,     "play",         1, "tr1 m1:s1[.f1] [[tr2] [m2:s2[.f2]]]" },
+{ CMD_PLAY,     "play",         1, "[#block [len]]" },
+{ CMD_QUIT,     "quit",         1, "" },
+{ CMD_RESET,    "reset",        4, "" },
+{ CMD_RESUME,   "resume",       1, "" },
+{ CMD_SET,      "set",          2, "msf | lba" },
+{ CMD_STATUS,   "status",       1, "" },
+{ CMD_STOP,     "stop",         3, "" },
+{ CMD_VOLUME,   "volume",       1, "<l> <r> | left | right | mute | mono | stereo" },
+{ 0, }
 };
 
-struct cd_toc_entry toc_buffer[100];
+struct cd_toc_entry     toc_buffer[100];
 
-char *cdname;
-int fd = -1;
-int verbose = 1;
-int msf = 1;
+const char      *cdname;
+int             fd = -1;
+int             verbose = 1;
+int             msf = 1;
 
-extern char *optarg;
-extern int optind;
+extern char     *__progname;
 
-int setvol (int, int);
-int read_toc_entrys (int);
-int play_msf (int, int, int, int, int, int);
-int play_track (int, int, int, int);
-int get_vol (int *, int *);
-int status (int *, int *, int *, int *);
-int open_cd (void);
-int play (char *arg);
-int info (char *arg);
-int pstatus (char *arg);
-char *input (int*);
-void prtrack (struct cd_toc_entry *e, int lastflag);
-void lba2msf (int lba, u_char *m, u_char *s, u_char *f);
-int msf2lba (u_char m, u_char s, u_char f);
-int play_blocks (int blk, int len);
-int run (int cmd, char *arg);
-char *parse (char *buf, int *cmd);
-
-extern int errno;
+int             setvol __P((int, int));
+int             read_toc_entrys __P((int));
+int             play_msf __P((int, int, int, int, int, int));
+int             play_track __P((int, int, int, int));
+int             get_vol __P((int *, int *));
+int             status __P((int *, int *, int *, int *));
+int             open_cd __P((void));
+int             play __P((char *arg));
+int             info __P((char *arg));
+int             pstatus __P((char *arg));
+char            *input __P((int *));
+void            prtrack __P((struct cd_toc_entry *e, int lastflag));
+void            lba2msf __P((unsigned long lba,
+                            u_char *m, u_char *s, u_char *f));
+unsigned int    msf2lba __P((u_char m, u_char s, u_char f));
+int             play_blocks __P((int blk, int len));
+int             run __P((int cmd, char *arg));
+char            *parse __P((char *buf, int *cmd));
 
 void help ()
 {
 	struct cmdtab *c;
+	char *s, n;
+	int i;
 
 	for (c=cmdtab; c->name; ++c) {
 		if (! c->args)
 			continue;
-		printf ("\t%s", c->name);
+		printf("\t");
+		for (i = c->min, s = c->name; *s; s++, i--) {
+			if (i > 0)
+				n = toupper(*s);
+			else
+				n = *s;
+			putchar(n);
+		}
 		if (*c->args)
 			printf (" %s", c->args);
 		printf ("\n");
 	}
+	printf ("\n\tThe word \"play\" is not required for the play commands.\n");
+	printf ("\tThe plain target address is taken as a synonym for play.\n");
 }
 
 void usage ()
 {
-	printf ("Usage:\n\tcdcontrol [ -vs ] [ -f disc ] [ command args... ]\n");
+	printf ("Usage:\n\t%s [ -vs ] [ -f disc ] [ command args... ]\n", __progname);
 	printf ("Options:\n");
 	printf ("\t-v       - verbose mode\n");
 	printf ("\t-s       - silent mode\n");
-	printf ("\t-f disc  - device name such as /dev/cd0c\n");
-	printf ("\tDISC     - shell variable with device name\n");
+	printf ("\t-f disc  - a block device name such as /dev/cd0c\n");
+	printf ("\tMUSIC_CD - shell variable with device name\n");
 	printf ("Commands:\n");
 	help ();
 	exit (1);
@@ -131,7 +160,11 @@ int main (int argc, char **argv)
 	int cmd;
 	char *arg;
 
-	cdname = getenv ("DISC");
+	cdname = getenv ("MUSIC_CD");
+	if (! cdname)
+		cdname = getenv ("CD_DRIVE");
+	if (! cdname)
+		cdname = getenv ("DISC");
 	if (! cdname)
 		cdname = getenv ("CDPLAY");
 
@@ -157,36 +190,41 @@ int main (int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc > 0 && strcasecmp (*argv, "help") == 0)
+	if (argc > 0 && ! strcasecmp (*argv, "help"))
 		usage ();
 
 	if (! cdname) {
-		fprintf (stderr, "No CD device name specified.\n");
-		usage ();
+		cdname = DEFAULT_CD_DRIVE;
+		fprintf (stderr,
+			 "No CD device name specified. Defaulting to %s.\n", cdname);
 	}
 
 	if (argc > 0) {
 		char buf[80], *p;
 		int len;
 
-		for (p=buf; argc-- > 0; ++argv) {
+		for (p=buf; argc-->0; ++argv) {
 			len = strlen (*argv);
+
 			if (p + len >= buf + sizeof (buf) - 1)
 				usage ();
+
 			if (p > buf)
 				*p++ = ' ';
+
 			strcpy (p, *argv);
 			p += len;
 		}
 		*p = 0;
 		arg = parse (buf, &cmd);
-		return run (cmd, arg);
+		return (run (cmd, arg));
 	}
 
 	if (verbose == 1)
 		verbose = isatty (0);
+
 	if (verbose) {
-		printf ("Compact Disc Control Utility, Version %s\n", VERSION);
+		printf ("Compact Disc Control utility, version %s\n", VERSION);
 		printf ("Type `?' for command list\n\n");
 	}
 
@@ -194,7 +232,7 @@ int main (int argc, char **argv)
 		arg = input (&cmd);
 		if (run (cmd, arg) < 0) {
 			if (verbose)
-				perror ("cdcontrol");
+				perror (__progname);
 			close (fd);
 			fd = -1;
 		}
@@ -207,36 +245,48 @@ int run (int cmd, char *arg)
 	int l, r, rc;
 
 	switch (cmd) {
+
 	case CMD_QUIT:
 		exit (0);
 
-	default:
-	case CMD_HELP:
-		help ();
-		return (0);
-
 	case CMD_INFO:
-		if (fd<0 && ! open_cd ()) return (0);
+		if (fd < 0 && ! open_cd ())
+			return (0);
+
 		return info (arg);
 
 	case CMD_STATUS:
-		if (fd<0 && ! open_cd ()) return (0);
+		if (fd < 0 && ! open_cd ())
+			return (0);
+
 		return pstatus (arg);
 
 	case CMD_PAUSE:
-		if (fd<0 && ! open_cd ()) return (0);
+		if (fd < 0 && ! open_cd ())
+			return (0);
+
 		return ioctl (fd, CDIOCPAUSE);
 
 	case CMD_RESUME:
-		if (fd<0 && ! open_cd ()) return (0);
+		if (fd < 0 && ! open_cd ())
+			return (0);
+
 		return ioctl (fd, CDIOCRESUME);
 
 	case CMD_STOP:
-		if (fd<0 && ! open_cd ()) return (0);
-		return ioctl (fd, CDIOCSTOP);
+		if (fd < 0 && ! open_cd ())
+			return (0);
+
+		rc = ioctl (fd, CDIOCSTOP);
+
+		(void) ioctl (fd, CDIOCALLOW);
+
+		return (rc);
 
 	case CMD_RESET:
-		if (fd<0 && ! open_cd ()) return (0);
+		if (fd < 0 && ! open_cd ())
+			return (0);
+
 		rc = ioctl (fd, CDIOCRESET);
 		if (rc < 0)
 			return rc;
@@ -245,24 +295,34 @@ int run (int cmd, char *arg)
 		return (0);
 
 	case CMD_DEBUG:
-		if (fd<0 && ! open_cd ()) return (0);
-		if (strcasecmp (arg, "on") == 0)
+		if (fd < 0 && ! open_cd ())
+			return (0);
+
+		if (! strcasecmp (arg, "on"))
 			return ioctl (fd, CDIOCSETDEBUG);
-		if (strcasecmp (arg, "off") == 0)
+
+		if (! strcasecmp (arg, "off"))
 			return ioctl (fd, CDIOCCLRDEBUG);
-		printf ("Invalid command arguments\n");
+
+		printf ("%s: Invalid command arguments\n", __progname);
+
 		return (0);
 
 	case CMD_EJECT:
-		if (fd<0 && ! open_cd ()) return (0);
+		if (fd < 0 && ! open_cd ())
+			return (0);
+
 		(void) ioctl (fd, CDIOCALLOW);
 		rc = ioctl (fd, CDIOCEJECT);
 		if (rc < 0)
 			return (rc);
 		return (0);
 
-	case CMD_INJECT:
-		if (fd<0 && ! open_cd ()) return (0);
+	case CMD_CLOSE:
+		if (fd < 0 && ! open_cd ())
+			return (0);
+
+		(void) ioctl (fd, CDIOCALLOW);
 		rc = ioctl (fd, CDIOCCLOSE);
 		if (rc < 0)
 			return (rc);
@@ -271,37 +331,54 @@ int run (int cmd, char *arg)
 		return (0);
 
 	case CMD_PLAY:
-		if (fd<0 && ! open_cd ()) return (0);
+		if (fd < 0 && ! open_cd ())
+			return (0);
+
+		while (isspace (*arg))
+			arg++;
+
 		return play (arg);
 
 	case CMD_SET:
-		if (strcasecmp (arg, "msf") == 0)
+		if (! strcasecmp (arg, "msf"))
 			msf = 1;
-		else if (strcasecmp (arg, "lba") == 0)
+		else if (! strcasecmp (arg, "lba"))
 			msf = 0;
 		else
-			printf ("Invalid command arguments\n");
+			printf ("%s: Invalid command arguments\n", __progname);
 		return (0);
 
 	case CMD_VOLUME:
-		if (fd<0 && ! open_cd ()) return (0);
+		if (fd < 0 && !open_cd ())
+			return (0);
 
-		if (strcasecmp (arg, "left") == 0)
+		if (! strncasecmp (arg, "left", strlen(arg)))
 			return ioctl (fd, CDIOCSETLEFT);
-		else if (strcasecmp (arg, "right") == 0)
+
+		if (! strncasecmp (arg, "right", strlen(arg)))
 			return ioctl (fd, CDIOCSETRIGHT);
-		else if (strcasecmp (arg, "mute") == 0)
-			return ioctl (fd, CDIOCSETMUTE);
-		else if (strcasecmp (arg, "mono") == 0)
+
+		if (! strncasecmp (arg, "mono", strlen(arg)))
 			return ioctl (fd, CDIOCSETMONO);
-		else if (strcasecmp (arg, "stereo") == 0)
+
+		if (! strncasecmp (arg, "stereo", strlen(arg)))
 			return ioctl (fd, CDIOCSETSTERIO);
 
+		if (! strncasecmp (arg, "mute", strlen(arg)))
+			return ioctl (fd, CDIOCSETMUTE);
+
 		if (2 != sscanf (arg, "%d %d", &l, &r)) {
-			printf ("Invalid command arguments\n");
+			printf ("%s: Invalid command arguments\n", __progname);
 			return (0);
 		}
+
 		return setvol (l, r);
+
+	default:
+	case CMD_HELP:
+		help ();
+		return (0);
+
 	}
 }
 
@@ -311,53 +388,208 @@ int play (char *arg)
 	int rc, n, start, end = 0, istart = 1, iend = 1;
 
 	rc = ioctl (fd, CDIOREADTOCHEADER, &h);
+
 	if (rc < 0)
 		return (rc);
 
 	n = h.ending_track - h.starting_track + 1;
 	rc = read_toc_entrys ((n + 1) * sizeof (struct cd_toc_entry));
+
 	if (rc < 0)
 		return (rc);
 
-	if (! *arg)
-		/*
-		 * Play the whole disc
-		 */
+	if (! arg || ! *arg)
+		/* Play the whole disc */
 		return play_blocks (0, msf2lba (toc_buffer[n].addr.msf.minute,
-			toc_buffer[n].addr.msf.second,
-			toc_buffer[n].addr.msf.frame));
+						toc_buffer[n].addr.msf.second,
+						toc_buffer[n].addr.msf.frame));
 
 	if (strchr (arg, '#')) {
-		/*
-		 * Play block #blk [ len ]
-		 */
+		/* Play block #blk [ len ] */
 		int blk, len = 0;
 
 		if (2 != sscanf (arg, "#%d%d", &blk, &len) &&
-		    1 != sscanf (arg, "#%d", &blk)) {
-err:                    printf ("Invalid command arguments\n");
-			return (0);
-		}
+		    1 != sscanf (arg, "#%d", &blk))
+			goto Clean_up;
+
 		if (len == 0)
-			len = msf2lba (toc_buffer[n].addr.msf.minute,
-				toc_buffer[n].addr.msf.second,
-				toc_buffer[n].addr.msf.frame) - blk;
+		    len = msf2lba (toc_buffer[n].addr.msf.minute,
+				   toc_buffer[n].addr.msf.second,
+				   toc_buffer[n].addr.msf.frame) - blk;
 		return play_blocks (blk, len);
 	}
 
 	if (strchr (arg, ':')) {
 		/*
 		 * Play MSF m1:s1 [ .f1 ] [ m2:s2 [ .f2 ] ]
+		 *
+		 * Will now also undestand timed addresses relative
+		 * to the beginning of a track in the form...
+		 *
+		 *      tr1 m1:s1[.f1] [[tr2] [m2:s2[.f2]]]
 		 */
-		int m1, m2 = 0, s1, s2 = 0, f1 = 0, f2 = 0;
+		unsigned tr1, tr2;
+		unsigned m1, m2, s1, s2, f1, f2;
 
-		if (6 != sscanf (arg, "%d:%d.%d%d:%d.%d", &m1, &s1, &f1, &m2, &s2, &f2) &&
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		if (8 == sscanf (arg, "%d %d:%d.%d %d %d:%d.%d",
+		    &tr1, &m1, &s1, &f1, &tr2, &m2, &s2, &f2))
+			goto Play_Relative_Addresses;
+
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		if (7 == sscanf (arg, "%d %d:%d %d %d:%d.%d",
+		    &tr1, &m1, &s1, &tr2, &m2, &s2, &f2))
+			goto Play_Relative_Addresses;
+
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		if (7 == sscanf (arg, "%d %d:%d.%d %d %d:%d",
+		    &tr1, &m1, &s1, &f1, &tr2, &m2, &s2))
+			goto Play_Relative_Addresses;
+
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		if (7 == sscanf (arg, "%d %d:%d.%d %d:%d.%d",
+		    &tr1, &m1, &s1, &f1, &m2, &s2, &f2))
+			goto Play_Relative_Addresses;
+
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		if (6 == sscanf (arg, "%d %d:%d.%d %d:%d",
+		    &tr1, &m1, &s1, &f1, &m2, &s2))
+			goto Play_Relative_Addresses;
+
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		if (6 == sscanf (arg, "%d %d:%d %d:%d.%d",
+		    &tr1, &m1, &s1, &m2, &s2, &f2))
+			goto Play_Relative_Addresses;
+
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		if (6 == sscanf (arg, "%d %d:%d.%d %d %d",
+		    &tr1, &m1, &s1, &f1, &tr2, &m2))
+			goto Play_Relative_Addresses;
+
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		if (5 == sscanf (arg, "%d %d:%d %d:%d", &tr1, &m1, &s1, &m2, &s2))
+			goto Play_Relative_Addresses;
+
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		if (5 == sscanf (arg, "%d %d:%d %d %d",
+		    &tr1, &m1, &s1, &tr2, &m2))
+			goto Play_Relative_Addresses;
+
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		if (5 == sscanf (arg, "%d %d:%d.%d %d",
+		    &tr1, &m1, &s1, &f1, &tr2))
+			goto Play_Relative_Addresses;
+
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		if (4 == sscanf (arg, "%d %d:%d %d", &tr1, &m1, &s1, &tr2))
+			goto Play_Relative_Addresses;
+
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		if (4 == sscanf (arg, "%d %d:%d.%d", &tr1, &m1, &s1, &f1))
+			goto Play_Relative_Addresses;
+
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		if (3 == sscanf (arg, "%d %d:%d", &tr1, &m1, &s1))
+			goto Play_Relative_Addresses;
+
+		tr2 = m2 = s2 = f2 = f1 = 0;
+		goto Try_Absolute_Timed_Addresses;
+
+Play_Relative_Addresses:
+		if (! tr1)
+			tr1 = 1;
+		else if (tr1 > n)
+			tr1 = n;
+
+		if ((m1 > toc_buffer[tr1].addr.msf.minute)
+		    || ((m1 == toc_buffer[tr1].addr.msf.minute)
+		    && ((s1 > toc_buffer[tr1].addr.msf.second)
+		    || ((s1 == toc_buffer[tr1].addr.msf.second)
+		    && (f1 > toc_buffer[tr1].addr.msf.frame))))) {
+			printf ("Track %d is not that long.\n", tr1);
+			return (0);
+		}
+
+		tr1--;
+
+		f1 += toc_buffer[tr1].addr.msf.frame;
+		if (f1 >= 75) {
+			s1 += f1 / 75;
+			f1 %= 75;
+		}
+
+		s1 += toc_buffer[tr1].addr.msf.second;
+		if (s1 >= 60) {
+			m1 += s1 / 60;
+			s1 %= 60;
+		}
+
+		m1 += toc_buffer[tr1].addr.msf.minute;
+
+		if (! tr2) {
+			if (m2 || s2 || f2) {
+				tr2 = tr1;
+				f2 += f1;
+				if (f2 >= 75) {
+					s2 += f2 / 75;
+					f2 %= 75;
+				}
+
+				s2 += s1;
+				if (s2 > 60) {
+					m2 += s2 / 60;
+					s2 %= 60;
+				}
+
+				m2 += m1;
+			} else {
+				tr2 = n;
+				m2 = toc_buffer[n].addr.msf.minute;
+				s2 = toc_buffer[n].addr.msf.second;
+				f2 = toc_buffer[n].addr.msf.frame;
+			}
+		} else if (tr2 > n) {
+			tr2 = n;
+			m2 = s2 = f2 = 0;
+		} else {
+			if (m2 || s2 || f2)
+				tr2--;
+			f2 += toc_buffer[tr2].addr.msf.frame;
+			if (f2 >= 75) {
+				s2 += f2 / 75;
+				f2 %= 75;
+			}
+
+			s2 += toc_buffer[tr2].addr.msf.second;
+			if (s2 > 60) {
+				m2 += s2 / 60;
+				s2 %= 60;
+			}
+
+			m2 += toc_buffer[tr2].addr.msf.minute;
+		}
+
+		if ((tr2 < n)
+		    && ((m2 > toc_buffer[n].addr.msf.minute)
+		    || ((m2 == toc_buffer[n].addr.msf.minute)
+		    && ((s2 > toc_buffer[n].addr.msf.second)
+		    || ((s2 == toc_buffer[n].addr.msf.second)
+		    && (f2 > toc_buffer[n].addr.msf.frame)))))) {
+			printf ("The playing time of the disc is not that long.\n");
+			return (0);
+		}
+		return (play_msf (m1, s1, f1, m2, s2, f2));
+
+Try_Absolute_Timed_Addresses:
+		if (6 != sscanf (arg, "%d:%d.%d%d:%d.%d",
+			&m1, &s1, &f1, &m2, &s2, &f2) &&
 		    5 != sscanf (arg, "%d:%d.%d%d:%d", &m1, &s1, &f1, &m2, &s2) &&
 		    5 != sscanf (arg, "%d:%d%d:%d.%d", &m1, &s1, &m2, &s2, &f2) &&
 		    3 != sscanf (arg, "%d:%d.%d", &m1, &s1, &f1) &&
 		    4 != sscanf (arg, "%d:%d%d:%d", &m1, &s1, &m2, &s2) &&
 		    2 != sscanf (arg, "%d:%d", &m1, &s1))
-			goto err;
+			goto Clean_up;
+
 		if (m2 == 0) {
 			m2 = toc_buffer[n].addr.msf.minute;
 			s2 = toc_buffer[n].addr.msf.second;
@@ -375,10 +607,15 @@ err:                    printf ("Invalid command arguments\n");
 	    2 != sscanf (arg, "%d.%d", &start, &istart) &&
 	    2 != sscanf (arg, "%d%d", &start, &end) &&
 	    1 != sscanf (arg, "%d", &start))
-		goto err;
+		goto Clean_up;
+
 	if (end == 0)
 		end = n;
-	return play_track (start, istart, end, iend);
+	return (play_track (start, istart, end, iend));
+
+Clean_up:
+	printf ("%s: Invalid command arguments\n", __progname);
+	return (0);
 }
 
 char *strstatus (int sts)
@@ -461,10 +698,12 @@ int info (char *arg)
 	rc = read_toc_entrys ((n + 1) * sizeof (struct cd_toc_entry));
 	if (rc < 0)
 		return (rc);
+
 	if (verbose) {
 		printf ("track     start  duration   block  length   type\n");
 		printf ("-------------------------------------------------\n");
 	}
+
 	for (i = 0; i < n; i++) {
 		printf ("%5d  ", toc_buffer[i].track);
 		prtrack (toc_buffer + i, 0);
@@ -474,17 +713,17 @@ int info (char *arg)
 	return (0);
 }
 
-void lba2msf (int lba, u_char *m, u_char *s, u_char *f)
+void lba2msf (unsigned long lba, u_char *m, u_char *s, u_char *f)
 {
-	lba += 150;             /* block start offset */
-	lba &= 0xffffff;        /* negative lbas use only 24 bits */
+	lba += 150;                     /* block start offset */
+	lba &= 0xffffff;                /* negative lbas use only 24 bits */
 	*m = lba / (60 * 75);
 	lba %= (60 * 75);
 	*s = lba / 75;
 	*f = lba % 75;
 }
 
-int msf2lba (u_char m, u_char s, u_char f)
+unsigned int msf2lba (u_char m, u_char s, u_char f)
 {
 	return (((m * 60) + s) * 75 + f) - 150;
 }
@@ -523,7 +762,7 @@ void prtrack (struct cd_toc_entry *e, int lastflag)
 
 	/* Print duration, block, length, type */
 	printf ("%2d:%02d.%02d  %6d  %6d  %5s\n", m, s, f, block, len,
-		e->control & 4 ? "data" : "audio");
+		(e->control & 4) ? "data" : "audio");
 }
 
 int play_track (int tstart, int istart, int tend, int iend)
@@ -534,26 +773,29 @@ int play_track (int tstart, int istart, int tend, int iend)
 	t.start_index = istart;
 	t.end_track = tend;
 	t.end_index = iend;
+
 	return ioctl (fd, CDIOCPLAYTRACKS, &t);
 }
 
 int play_blocks (int blk, int len)
 {
-	struct ioc_play_blocks t;
+	struct ioc_play_blocks  t;
 
 	t.blk = blk;
 	t.len = len;
+
 	return ioctl (fd, CDIOCPLAYBLOCKS, &t);
 }
 
-int setvol (int l, int r)
+int setvol (int left, int right)
 {
-	struct ioc_vol v;
+	struct ioc_vol  v;
 
-	v.vol[0] = l;
-	v.vol[1] = r;
+	v.vol[0] = left;
+	v.vol[1] = right;
 	v.vol[2] = 0;
 	v.vol[3] = 0;
+
 	return ioctl (fd, CDIOCSETVOL, &v);
 }
 
@@ -565,13 +807,14 @@ int read_toc_entrys (int len)
 	t.starting_track = 0;
 	t.data_len = len;
 	t.data = toc_buffer;
-	return ioctl (fd, CDIOREADTOCENTRYS, (char *) &t);
+
+	return (ioctl (fd, CDIOREADTOCENTRYS, (char *) &t));
 }
 
 int play_msf (int start_m, int start_s, int start_f,
-     int end_m, int end_s, int end_f)
+	int end_m, int end_s, int end_f)
 {
-	struct ioc_play_msf a;
+	struct ioc_play_msf     a;
 
 	a.start_m = start_m;
 	a.start_s = start_s;
@@ -579,6 +822,7 @@ int play_msf (int start_m, int start_s, int start_f,
 	a.end_m = end_m;
 	a.end_s = end_s;
 	a.end_f = end_f;
+
 	return ioctl (fd, CDIOCPLAYMSF, (char *) &a);
 }
 
@@ -593,8 +837,10 @@ int status (int *trk, int *min, int *sec, int *frame)
 	s.data_len = sizeof (data);
 	s.address_format = msf ? CD_MSF_FORMAT : CD_LBA_FORMAT;
 	s.data_format = CD_CURRENT_POSITION;
+
 	if (ioctl (fd, CDIOCREADSUBCHANNEL, (char *) &s) < 0)
 		return -1;
+
 	*trk = s.data->what.position.track_number;
 	if (msf) {
 		*min = s.data->what.position.reladdr.msf.minute;
@@ -607,6 +853,7 @@ int status (int *trk, int *min, int *sec, int *frame)
 		*sec = ss;
 		*frame = ff;
 	}
+
 	return s.data->header.audio_status;
 }
 
@@ -617,10 +864,11 @@ char *input (int *cmd)
 
 	do {
 		if (verbose)
-			fprintf (stderr, "cd> ");
+			fprintf (stderr, "%s> ", __progname);
 		if (! fgets (buf, sizeof (buf), stdin)) {
 			*cmd = CMD_QUIT;
-			return 0;
+			fprintf (stderr, "\r\n");
+			return (0);
 		}
 		p = parse (buf, cmd);
 	} while (! p);
@@ -633,47 +881,56 @@ char *parse (char *buf, int *cmd)
 	char *p;
 	int len;
 
-	for (p=buf; *p; ++p)
-		if (*p == '\t')
-			*p = ' ';
-		else if (*p == '\n')
-			*p = 0;
+	for (p=buf; isspace (*p); p++)
+		continue;
 
-	for (p=buf; *p; ++p)
-		if (*p == ' ') {
-			*p++ = 0;
-			break;
-		}
-	while (*p == ' ')
-		++p;
+	if (isdigit (*p) || (p[0] == '#' && isdigit (p[1]))) {
+		*cmd = CMD_PLAY;
+		return (p);
+	}
 
-	len = strlen (buf);
+	for (buf = p; *p && ! isspace (*p); p++)
+		continue;
+  
+	len = p - buf;
 	if (! len)
 		return (0);
+
+	if (*p) {                       /* It must be a spacing character! */
+		char *q;
+
+		*p++ = 0;
+		for (q=p; *q && *q != '\n' && *q != '\r'; q++)
+			continue;
+		*q = 0;
+	}
+
 	*cmd = -1;
 	for (c=cmdtab; c->name; ++c) {
-		/* Try short command form. */
-		if (! c->args && len == strlen (c->name) &&
-		    strncasecmp (buf, c->name, len) == 0) {
+		/* Is it an exact match? */
+		if (! strcasecmp (buf, c->name)) {
+  			*cmd = c->command;
+  			break;
+  		}
+
+		/* Try short hand forms then... */
+		if (len >= c->min && ! strncasecmp (buf, c->name, len)) {
+			if (*cmd != -1 && *cmd != c->command) {
+				fprintf (stderr, "Ambiguous command\n");
+				return (0);
+			}
 			*cmd = c->command;
-			break;
-		}
-
-		/* Try long form. */
-		if (strncasecmp (buf, c->name, len) != 0)
-			continue;
-
-		/* Check inambiguity. */
-		if (*cmd != -1 && *cmd != c->command) {
-			fprintf (stderr, "Ambiguous command\n");
-			return (0);
-		}
-		*cmd = c->command;
+  		}
 	}
+
 	if (*cmd == -1) {
-		fprintf (stderr, "Invalid command, enter ``help'' for command list\n");
+		fprintf (stderr, "%s: Invalid command, enter ``help'' for commands.\n",
+			__progname);
 		return (0);
 	}
+
+	while (isspace (*p))
+		p++;
 	return p;
 }
 
@@ -683,25 +940,31 @@ int open_cd ()
 
 	if (fd > -1)
 		return (1);
+
 	if (*cdname == '/')
 		strcpy (devbuf, cdname);
 	else if (*cdname == 'r')
 		sprintf (devbuf, "/dev/%s", cdname);
 	else
 		sprintf (devbuf, "/dev/r%s", cdname);
+
 	fd = open (devbuf, O_RDONLY);
+
 	if (fd < 0 && errno == ENOENT) {
-		strcat (devbuf, "c");
+		strcat (devbuf, DEFAULT_CD_PARTITION);
 		fd = open (devbuf, O_RDONLY);
 	}
+
 	if (fd < 0) {
-		if (errno != ENXIO) {
-			perror (devbuf);
-			exit (1);
+		if (errno == ENXIO) {
+			/*  ENXIO has an overloaded meaning here.
+			 *  The original "Device not configured" should
+			 *  be interpreted as "No disc in drive %s". */
+			fprintf (stderr, "%s: No disc in drive %s.\n", __progname, devbuf);
+			return (0);
 		}
-		/* open says 'Device not configured' if no cd in */
-		fprintf (stderr, "open: No CD in\n");
-		return (0);
+		perror (devbuf);
+		exit (1);
 	}
 	return (1);
 }
