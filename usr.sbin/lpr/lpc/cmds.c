@@ -332,28 +332,126 @@ doselect(struct dirent *d)
 }
 
 /*
- * Comparison routine for scandir. Sort by job number and machine, then
- * by `cf', `tf', or `df', then by the sequence letter A-Z, a-z.
+ * Comparison routine that clean_q() uses for scandir.
+ *
+ * The purpose of this sort is to have all `df' files end up immediately
+ * after the matching `cf' file.  For files matching `cf', `df', or `tf',
+ * it sorts by job number and machine, then by `cf', `df', or `tf', then
+ * by the sequence letter A-Z, a-z.    This routine may also see filenames
+ * which do not start with `cf', `df', or `tf' (such as `errs.*'), and
+ * those are simply sorted by the full filename.
  */
 static int
 sortq(const void *a, const void *b)
 {
-	const struct dirent **d1, **d2;
-	int c1, c2;
+	const int a_lt_b = -1, a_gt_b = 1, cat_other = 10;
+	const char *fname_a, *fname_b, *jnum_a, *jnum_b;
+	int cat_a, cat_b, ch, res, seq_a, seq_b;
 
-	d1 = (const struct dirent **)a;
-	d2 = (const struct dirent **)b;
-	if ((c1 = strcmp((*d1)->d_name + 3, (*d2)->d_name + 3)))
-		return(c1);
-	c1 = (*d1)->d_name[0];
-	c2 = (*d2)->d_name[0];
-	if (c1 == c2)
-		return((*d1)->d_name[2] - (*d2)->d_name[2]);
-	if (c1 == 'c')
-		return(-1);
-	if (c1 == 'd' || c2 == 'c')
-		return(1);
-	return(-1);
+	fname_a = (*(const struct dirent **)a)->d_name;
+	fname_b = (*(const struct dirent **)b)->d_name;
+
+	/*
+	 * First separate filenames into cagatories.  Catagories are
+	 * legitimate `cf', `df', & `tf' filenames, and "other" - in
+	 * that order.  It is critical that the mapping be exactly
+	 * the same for 'a' vs 'b', so define a macro for the job.
+	 *
+	 * [aside: the standard `cf' file has the jobnumber start in
+	 * position 4, but some implementations have that as an extra
+	 * file-sequence letter, and start the job number in position 5.]
+	 */
+#define MAP_TO_CAT(fname_X,cat_X,jnum_X,seq_X) do { \
+	cat_X = cat_other;    \
+	ch = *(fname_X + 2);  \
+	jnum_X = fname_X + 3; \
+	seq_X = 0;            \
+	if ((*(fname_X + 1) == 'f') && (isalpha(ch))) { \
+		seq_X = ch; \
+		if (*fname_X == 'c') \
+			cat_X = 1; \
+		else if (*fname_X == 'd') \
+			cat_X = 2; \
+		else if (*fname_X == 't') \
+			cat_X = 3; \
+		if (cat_X != cat_other) { \
+			ch = *jnum_X; \
+			if (!isdigit(ch)) { \
+				if (isalpha(ch)) { \
+					jnum_X++; \
+					ch = *jnum_X; \
+					seq_X = (seq_X << 8) + ch; \
+				} \
+				if (!isdigit(ch)) \
+					cat_X = cat_other; \
+			} \
+		} \
+	} \
+} while (0)
+
+	MAP_TO_CAT(fname_a, cat_a, jnum_a, seq_a);
+	MAP_TO_CAT(fname_b, cat_b, jnum_b, seq_b);
+
+#undef MAP_TO_CAT
+
+	/* First handle all cases which have "other" files */
+	if ((cat_a >= cat_other) || (cat_b >= cat_other)) {
+		/* for two "other" files, just compare the full name */
+		if (cat_a == cat_b)
+			res = strcmp(fname_a, fname_b);
+		else if (cat_a < cat_b)
+			res = a_lt_b;
+		else
+			res = a_gt_b;
+		goto have_res;
+	}
+
+	/*
+	 * At this point, we know both files are legitimate `cf', `df',
+	 * or `tf' files.  Compare them by job-number and machine name.
+	 */
+	res = strcmp(jnum_a, jnum_b);
+	if (res != 0)
+		goto have_res;
+
+	/*
+	 * We have two files which belong to the same job.  Sort based
+	 * on the catagory of file (`c' before `d', etc).
+	 */
+	if (cat_a < cat_b) {
+		res = a_lt_b;
+		goto have_res;
+	} else if (cat_a > cat_b) {
+		res = a_gt_b;
+		goto have_res;
+	}
+
+	/*
+	 * Two files in the same catagory for a single job.  Sort based
+	 * on the sequence letter(s).  (usually `A' thru `Z', etc).
+	 */
+	if (seq_a < seq_b) {
+		res = a_lt_b;
+		goto have_res;
+	} else if (seq_a > seq_b) {
+		res = a_gt_b;
+		goto have_res;
+	}
+
+	/*
+	 * Given that the filenames in a directory are unique, this SHOULD
+	 * never happen (unless there are logic errors in this routine).
+	 * But if it does happen, we must return "is equal" or the caller
+	 * might see inconsistent results in the sorting order, and that
+	 * can trigger other problems.
+	 */
+	printf("\t*** Error in sortq: %s == %s !\n", fname_a, fname_b);
+	printf("\t***       cat %d == %d ; seq = %d %d\n", cat_a, cat_b,
+	    seq_a, seq_b);
+	res = 0;
+
+have_res:
+	return res;
 }
 
 /*
@@ -383,7 +481,7 @@ init_clean(int argc, char *argv[])
 			break;
 		if (strcmp(*argv, "-d") == 0) {
 			/* just an example of an option... */
-			cln_debug = 1;
+			cln_debug++;
 			*argv = generic_nullarg;	/* "erase" it */
 		} else {
 			printf("Invalid option '%s'\n", *argv);
@@ -454,6 +552,15 @@ clean_q(struct printer *pp)
 		return;
 	if (!didhead)
 		printf("%s:\n", pp->printer);
+	if (cln_debug) {
+		printf("\t** ----- Sorted list of files being checked:\n");
+		i = 0;
+		do {
+			cp = queue[i]->d_name;
+			printf("\t** [%3d] = %s\n", i, cp);
+		} while (++i < nitems);
+		printf("\t** ----- end of sorted list\n");
+	}
 	i = 0;
 	do {
 		cp = queue[i]->d_name;
@@ -546,7 +653,7 @@ unlinkf(char *name)
 
 	agemod = difftime(cln_now, stbuf.st_mtime);
 	agestat = difftime(cln_now,  stbuf.st_ctime);
-	if (cln_debug) {
+	if (cln_debug > 1) {
 		/* this debugging-aid probably is not needed any more... */
 		printf("\t\t  modify age=%g secs, stat age=%g secs\n",
 		    agemod, agestat);
