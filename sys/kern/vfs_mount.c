@@ -197,6 +197,10 @@ vfs_mountroot_try(char *mountfrom)
 	if ((path[0] != 0) && setrootbyname(path))
 		printf("setrootbyname failed\n");
 
+	/* If the root device is a type "memory disk", mount RW */
+	if (devsw(rootdev) && (devsw(rootdev)->d_flags & D_MEMDISK))
+		mp->mnt_flag &= ~MNT_RDONLY;
+
 	strcpy(mp->mnt_stat.f_mntfromname, path);
 	error = VFS_MOUNT(mp, NULL, NULL, NULL, curproc);
 
