@@ -219,6 +219,12 @@ struct ng_type {
 		(a) = NULL;						\
 	} while (0)
 
+#define NG_SEND_DATA_ONLY(error, hook, m)				\
+	do {								\
+		(error) = ng_send_data((hook), (m), NULL);		\
+		(m) = NULL;						\
+	} while (0)
+
 /* Send  queued data packet with meta-data */
 #define NG_SEND_DATAQ(error, hook, m, a)				\
 	do {								\
