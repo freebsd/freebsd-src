@@ -97,8 +97,8 @@ pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 #define	FUNC_EXP(name)		__CONCAT(name, _exp)
 
 #define	STUB_FUNC(name, idx, ret)				\
-	static ret FUNC_EXP(name)(void) __unused;		\
-	static ret FUNC_INT(name)(void) __unused;		\
+	static ret FUNC_EXP(name)(void) __used;		\
+	static ret FUNC_INT(name)(void) __used;		\
 	WEAK_REF(FUNC_EXP(name), name);				\
 	WEAK_REF(FUNC_INT(name), __CONCAT(_, name));		\
 	typedef ret (*FUNC_TYPE(name))(void);			\
@@ -116,8 +116,8 @@ pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 	}
 
 #define	STUB_FUNC1(name, idx, ret, p0_type)			\
-	static ret FUNC_EXP(name)(p0_type) __unused;		\
-	static ret FUNC_INT(name)(p0_type) __unused;		\
+	static ret FUNC_EXP(name)(p0_type) __used;		\
+	static ret FUNC_INT(name)(p0_type) __used;		\
 	WEAK_REF(FUNC_EXP(name), name);				\
 	WEAK_REF(FUNC_INT(name), __CONCAT(_, name));		\
 	typedef ret (*FUNC_TYPE(name))(p0_type);		\
@@ -135,8 +135,8 @@ pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 	}
 
 #define	STUB_FUNC2(name, idx, ret, p0_type, p1_type)		\
-	static ret FUNC_EXP(name)(p0_type, p1_type) __unused;	\
-	static ret FUNC_INT(name)(p0_type, p1_type) __unused;	\
+	static ret FUNC_EXP(name)(p0_type, p1_type) __used;	\
+	static ret FUNC_INT(name)(p0_type, p1_type) __used;	\
 	WEAK_REF(FUNC_EXP(name), name);				\
 	WEAK_REF(FUNC_INT(name), __CONCAT(_, name));		\
 	typedef ret (*FUNC_TYPE(name))(p0_type, p1_type);	\
@@ -154,8 +154,8 @@ pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 	}
 
 #define	STUB_FUNC3(name, idx, ret, p0_type, p1_type, p2_type)	\
-	static ret FUNC_EXP(name)(p0_type, p1_type, p2_type) __unused; \
-	static ret FUNC_INT(name)(p0_type, p1_type, p2_type) __unused; \
+	static ret FUNC_EXP(name)(p0_type, p1_type, p2_type) __used; \
+	static ret FUNC_INT(name)(p0_type, p1_type, p2_type) __used; \
 	WEAK_REF(FUNC_EXP(name), name);				\
 	WEAK_REF(FUNC_INT(name), __CONCAT(_, name));		\
 	typedef ret (*FUNC_TYPE(name))(p0_type, p1_type, p2_type); \
