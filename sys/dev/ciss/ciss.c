@@ -569,6 +569,10 @@ ciss_init_pci(struct ciss_softc *sc)
     sc->ciss_cfg->interrupt_coalesce_delay = CISS_INTERRUPT_COALESCE_DELAY;
     sc->ciss_cfg->interrupt_coalesce_count = CISS_INTERRUPT_COALESCE_COUNT;
 
+#ifdef __i386__
+    sc->ciss_cfg->host_driver |= CISS_DRIVER_SCSI_PREFETCH;
+#endif
+
     if (ciss_update_config(sc)) {
 	ciss_printf(sc, "adapter refuses to accept config update (IDBR 0x%x)\n",
 		    CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_IDBR));
