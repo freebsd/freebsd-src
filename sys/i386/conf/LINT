@@ -516,10 +516,6 @@ pseudo-device	stf	1		#6to4 IPv6 over IPv4 encapsulation
 #
 # Internet family options:
 #
-# TCP_COMPAT_42 causes the TCP code to emulate certain bugs present in
-# 4.2BSD.  This option should not be used unless you have a 4.2BSD
-# machine and TCP connections fail.
-#
 # MROUTING enables the kernel multicast packet forwarder, which works
 # with mrouted(8).
 #
@@ -551,7 +547,6 @@ pseudo-device	stf	1		#6to4 IPv6 over IPv4 encapsulation
 #
 # TCPDEBUG is undocumented.
 #
-options 	TCP_COMPAT_42		#emulate 4.2BSD TCP bugs
 options 	MROUTING		# Multicast routing
 options 	IPFIREWALL		#firewall
 options 	IPFIREWALL_VERBOSE	#print information about
