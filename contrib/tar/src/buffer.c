@@ -106,6 +106,7 @@ static int volno = 1;		/* which volume of a multi-volume tape we're
 				   on */
 static int global_volno = 1;	/* volume number to print in external
 				   messages */
+static pid_t grandchild_pid;
 
 /* The pointer save_name, which is set in function dump_file() of module
    create.c, points to the original long filename instead of the new,
@@ -318,7 +319,6 @@ child_open_for_compress (void)
 {
   int parent_pipe[2];
   int child_pipe[2];
-  pid_t grandchild_pid;
   int wait_status;
 
   xpipe (parent_pipe);
@@ -480,13 +480,19 @@ child_open_for_compress (void)
   exit (exit_status);
 }
 
+static void
+sig_propagate(int sig)
+{
+  kill (grandchild_pid, sig);
+  exit (TAREXIT_FAILURE);
+}
+
 /* Set ARCHIVE for uncompressing, then reading an archive.  */
 static void
 child_open_for_uncompress (void)
 {
   int parent_pipe[2];
   int child_pipe[2];
-  pid_t grandchild_pid;
   int wait_status;
 
   xpipe (parent_pipe);
@@ -549,6 +555,7 @@ child_open_for_uncompress (void)
     }
 
   /* The child tar is still here!  */
+  signal (SIGTERM, sig_propagate);
 
   /* Prepare for unblocking the data from the archive into the
      uncompressor.  */
