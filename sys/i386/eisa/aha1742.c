@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.50 1996/01/31 18:02:16 gibbs Exp $
+ *      $Id: aha1742.c,v 1.51 1996/02/26 01:01:38 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -260,7 +260,7 @@ struct ahb_data {
 	int     numecbs;
 };
 
-static u_int32	ahb_adapter_info __P((int unit));
+static u_int32_t ahb_adapter_info __P((int unit));
 static struct ahb_data *
 		ahb_alloc __P((int unit, u_long iobase, int irq));
 static int	ahb_attach __P((struct eisa_device *dev));
@@ -284,7 +284,7 @@ static void	ahb_print_ecb __P((struct ecb *ecb));
 #endif
 static int	ahbprobe __P((void));
 static int	ahb_reset __P((u_long port));
-static int32	ahb_scsi_cmd __P((struct scsi_xfer *xs));
+static int32_t	ahb_scsi_cmd __P((struct scsi_xfer *xs));
 static void	ahb_send_immed __P((struct ahb_data *ahb, int target,
 				    u_long cmd));
 static void	ahb_send_mbox __P((struct ahb_data *ahb, int opcode, int target,
@@ -688,7 +688,7 @@ ahb_bus_attach(ahb)
  * Return some information to the caller about
  * the adapter and it's capabilities
  */
-static u_int32
+static u_int32_t
 ahb_adapter_info(unit)
 	int     unit;
 {
@@ -1027,7 +1027,7 @@ ahbminphys(bp)
  * the data address. Also needs the unit, target
  * and lu
  */
-static int32
+static int32_t
 ahb_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
