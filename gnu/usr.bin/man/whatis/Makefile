@@ -1,26 +1,35 @@
-.include "../Makefile.inc"
+.if exists(${.CURDIR}/obj)
+MANP=  ${.CURDIR}/obj/whatis.1
+TARG=  ${.CURDIR}/obj/whatis
+.else
+MANP=  ${.CURDIR}/whatis.1
+TARG=  ${.CURDIR}/whatis
+.endif
 
-all:	whatis whatis.1
+all:	${TARG} ${MANP}
 
-obj depend rcsfreeze tags all:
+depend rcsfreeze tags all:
 	@echo -n
 
 cleandir: clean
+	cd ${.CURDIR}; rm -rf obj;
 
 clean:
-	@rm -f whatis whatis.1
+	@rm -f ${TARG} ${MANP}
 
-whatis: whatis.sh
+${TARG}: ${.CURDIR}/whatis.sh
 	sed -e 's,%libdir%,${libdir},' -e 's,%bindir%,${bindir},' \
 	    -e 's,%pager%,${pager},' \
-		whatis.sh > whatis
+		${.CURDIR}/whatis.sh > ${TARG}
 
-whatis.1: whatis.man
+${MANP}: ${.CURDIR}/whatis.man
 	sed -e 's,%libdir%,${libdir},' -e 's,%bindir%,${bindir},' \
 	    -e 's,%pager%,${pager},' -e 's,%troff%,${troff},' \
 	    -e 's,%manpath_config_file%,${manpath_config_file},' \
-	whatis.man > whatis.1
+	${.CURDIR}/whatis.man > ${MANP}
 
-install: whatis whatis.1
-	install -c -o bin -g bin -m 555 whatis /usr/bin
-	install -c -o bin -g bin -m 444 whatis.1 /usr/share/man/man1
+install: ${TARG} ${MANP}
+	install -c -o bin -g bin -m 555 ${TARG} /usr/bin
+	install -c -o bin -g bin -m 444 ${MANP} /usr/share/man/man1
+
+.include "../Makefile.inc"
