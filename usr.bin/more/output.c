@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 6/6/93";
 
 #ifndef lint
 static const char rcsid[] =
-        "$Id$";
+        "$Id: output.c,v 1.9 1999/05/30 18:06:56 hoek Exp $";
 #endif /* not lint */
 
 /*
@@ -196,10 +196,17 @@ put_line()
 			} while ((column % tabstop) != 0);
 			break;
 		case '\b':
-			    /* markup() before putbs() ? */
-			column += markup(&ent_ul, &ent_bo);
-			putbs();
-			column--;
+			/*
+			 * column must be at least one greater than
+			 * eff_horiz_off (ie. we must be in the second or
+			 * beyond screen column) or we'll just end-up
+			 * backspacing up to the previous line.
+			 */
+			if (column > eff_horiz_off) {
+				column += markup(&ent_ul, &ent_bo);
+				putbs();
+				column--;
+			}
 			break;
 		case '\r':
 			/* treat \r\n sequences like \n if -u flag not set. */
