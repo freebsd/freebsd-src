@@ -18,7 +18,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: rmail.c,v 8.61 2001/09/18 21:45:29 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: rmail.c,v 1.1.1.8 2002/02/17 21:56:45 gshapiro Exp $")
 
 /* $FreeBSD$ */
 

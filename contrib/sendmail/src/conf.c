@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.961 2002/04/04 21:32:14 gshapiro Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 1.1.1.12 2002/04/10 03:04:48 gshapiro Exp $")
 
 /* $FreeBSD$ */
 
