@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.33 1998/04/02 15:17:52 ache Exp $
+#	$Id: rc.i386,v 1.34 1998/04/02 15:33:49 ache Exp $
 #	Do i386 specific processing
 #
 
@@ -94,7 +94,7 @@ fi
 # screen saver
 if [ "X${saver}" != X"NO" ] ; then
 	echo -n ' screensaver'
-	modstat | grep _saver || \
+	modstat | grep -q _saver || \
 		modload -u -o /tmp/saver_mod -q /lkm/${saver}_saver_mod.o
 fi
 
