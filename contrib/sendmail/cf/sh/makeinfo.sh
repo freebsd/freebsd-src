@@ -1,6 +1,7 @@
 #!/bin/sh
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -10,7 +11,9 @@
 # the sendmail distribution.
 #
 #
-#	@(#)makeinfo.sh	8.11 (Berkeley) 5/19/1998
+#	$Id: makeinfo.sh,v 8.14 1999/02/07 07:26:25 gshapiro Exp $
+#
+# $FreeBSD$
 #
 
 usewhoami=0

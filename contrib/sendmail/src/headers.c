@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,11 +12,16 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)headers.c	8.136 (Berkeley) 1/26/1999";
-#endif /* not lint */
+static char id[] = "@(#)$Id: headers.c,v 8.203.4.6 2000/07/19 02:53:32 ca Exp $";
+#endif /* ! lint */
 
-# include <errno.h>
-# include "sendmail.h"
+/* $FreeBSD$ */
+
+#include <sendmail.h>
+
+static bool	fix_mime_header __P((char *));
+static int	priencode __P((char *));
+static void	put_vanilla_header __P((HDR *, char *, MCI *));
 
 /*
 **  SETUPHEADERS -- initialize headers in symbol table
@@ -43,11 +49,13 @@ setupheaders()
 /*
 **  CHOMPHEADER -- process and save a header line.
 **
-**	Called by collect and by readcf to deal with header lines.
+**	Called by collect, readcf, and readqf to deal with header lines.
 **
 **	Parameters:
 **		line -- header as a text line.
-**		def -- if set, this is a default value.
+**		pflag -- flags:
+**			CHHDR_DEF: this is a default value.
+**			CHHDR_CHECK: call rulesets.
 **		hdrp -- a pointer to the place to save the header.
 **		e -- the envelope including this header.
 **
@@ -59,32 +67,34 @@ setupheaders()
 **		Contents of 'line' are destroyed.
 */
 
-struct hdrinfo	NormalHeader =	{ NULL, 0, NULL };
+static struct hdrinfo	NormalHeader =	{ NULL, 0, NULL };
 
-int
-chompheader(line, def, hdrp, e)
+u_long
+chompheader(line, pflag, hdrp, e)
 	char *line;
-	bool def;
+	int pflag;
 	HDR **hdrp;
 	register ENVELOPE *e;
 {
+	u_char mid = '\0';
 	register char *p;
 	register HDR *h;
 	HDR **hp;
 	char *fname;
 	char *fvalue;
 	bool cond = FALSE;
+	bool dropfrom;
 	bool headeronly;
 	STAB *s;
 	struct hdrinfo *hi;
 	bool nullheader = FALSE;
-	BITMAP mopts;
+	BITMAP256 mopts;
 
 	if (tTd(31, 6))
 	{
-		printf("chompheader: ");
+		dprintf("chompheader: ");
 		xputs(line);
-		printf("\n");
+		dprintf("\n");
 	}
 
 	headeronly = hdrp != NULL;
@@ -94,21 +104,76 @@ chompheader(line, def, hdrp, e)
 	/* strip off options */
 	clrbitmap(mopts);
 	p = line;
-	if (*p == '?')
+	if (!bitset(pflag, CHHDR_USER) && *p == '?')
 	{
-		/* have some */
-		register char *q = strchr(p + 1, *p);
-		
-		if (q != NULL)
+		int c;
+		register char *q;
+
+		q = strchr(++p, '?');
+		if (q == NULL)
+			goto hse;
+
+		*q = '\0';
+		c = *p & 0377;
+
+		/* possibly macro conditional */
+		if (c == MACROEXPAND)
 		{
-			*q++ = '\0';
-			while (*++p != '\0')
-				setbitn(*p, mopts);
-			p = q;
+			/* catch ?$? */
+			if (*++p == '\0')
+			{
+				*q = '?';
+				goto hse;
+			}
+
+			mid = (u_char) *p++;
+
+			/* catch ?$abc? */
+			if (*p != '\0')
+			{
+				*q = '?';
+				goto hse;
+			}
+		}
+		else if (*p == '$')
+		{
+			/* catch ?$? */
+			if (*++p == '\0')
+			{
+				*q = '?';
+				goto hse;
+			}
+
+			mid = (u_char)macid(p, NULL);
+			if (bitset(0200, mid))
+				p += strlen(macname(mid)) + 2;
+			else
+				p++;
+
+			/* catch ?$abc? */
+			if (*p != '\0')
+			{
+				*q = '?';
+				goto hse;
+			}
+
 		}
 		else
-			syserr("553 header syntax error, line \"%s\"", line);
-		cond = TRUE;
+		{
+			while (*p != '\0')
+			{
+				if (!isascii(*p))
+				{
+					*q = '?';
+					goto hse;
+				}
+
+				setbitn(*p, mopts);
+				cond = TRUE;
+				p++;
+			}
+		}
+		p = q + 1;
 	}
 
 	/* find canonical name */
@@ -120,7 +185,8 @@ chompheader(line, def, hdrp, e)
 		p++;
 	if (*p++ != ':' || fname == fvalue)
 	{
-		syserr("553 header syntax error, line \"%s\"", line);
+hse:
+		syserr("553 5.3.0 header syntax error, line \"%s\"", line);
 		return 0;
 	}
 	*fvalue = '\0';
@@ -141,7 +207,7 @@ chompheader(line, def, hdrp, e)
 		return H_EOH;
 
 	/* check to see if it represents a ruleset call */
-	if (def)
+	if (bitset(pflag, CHHDR_DEF))
 	{
 		char hbuf[50];
 
@@ -151,12 +217,18 @@ chompheader(line, def, hdrp, e)
 		if ((*p++ & 0377) == CALLSUBR)
 		{
 			auto char *endp;
+			bool strc;
 
+			strc = *p == '+';	/* strip comments? */
+			if (strc)
+				++p;
 			if (strtorwset(p, &endp, ST_ENTER) > 0)
 			{
 				*endp = '\0';
 				s = stab(fname, ST_HEADER, ST_ENTER);
 				s->s_header.hi_ruleset = newstr(p);
+				if (!strc)
+					s->s_header.hi_flags |= H_STRIPCOMM;
 			}
 			return 0;
 		}
@@ -172,19 +244,20 @@ chompheader(line, def, hdrp, e)
 	if (tTd(31, 9))
 	{
 		if (s == NULL)
-			printf("no header flags match\n");
+			dprintf("no header flags match\n");
 		else
-			printf("header match, flags=%x, ruleset=%s\n", 
+			dprintf("header match, flags=%lx, ruleset=%s\n",
 				hi->hi_flags,
 				hi->hi_ruleset == NULL ? "<NULL>" : hi->hi_ruleset);
 	}
 
 	/* see if this is a resent message */
-	if (!def && !headeronly && bitset(H_RESENT, hi->hi_flags))
+	if (!bitset(pflag, CHHDR_DEF) && !headeronly &&
+	    bitset(H_RESENT, hi->hi_flags))
 		e->e_flags |= EF_RESENT;
 
 	/* if this is an Errors-To: header keep track of it now */
-	if (UseErrorsTo && !def && !headeronly &&
+	if (UseErrorsTo && !bitset(pflag, CHHDR_DEF) && !headeronly &&
 	    bitset(H_ERRORSTO, hi->hi_flags))
 		(void) sendtolist(fvalue, NULLADDR, &e->e_errorqueue, 0, e);
 
@@ -210,8 +283,74 @@ chompheader(line, def, hdrp, e)
 	**  If there is a check ruleset, verify it against the header.
 	*/
 
-	if (!def && hi->hi_ruleset != NULL)
-		(void) rscheck(hi->hi_ruleset, fvalue, NULL, e);
+	if (bitset(pflag, CHHDR_CHECK))
+	{
+		bool stripcom = FALSE;
+		char *rs;
+
+		/* no ruleset? look for default */
+		rs = hi->hi_ruleset;
+		if (rs == NULL)
+		{
+			s = stab("*", ST_HEADER, ST_FIND);
+			if (s != NULL)
+			{
+				rs = (&s->s_header)->hi_ruleset;
+				stripcom = bitset((&s->s_header)->hi_flags,
+						  H_STRIPCOMM);
+			}
+		}
+		else
+			stripcom = bitset(hi->hi_flags, H_STRIPCOMM);
+		if (rs != NULL)
+		{
+			int l;
+			char qval[MAXNAME];
+			char hlen[16];
+			char *sp, *dp;
+
+			dp = qval;
+			l = 0;
+			dp[l++] = '"';
+			for (sp = fvalue; *sp != '\0' && l < MAXNAME - 2; sp++)
+			{
+				switch(*sp)
+				{
+				  case '\011': /* ht */
+				  case '\012': /* nl */
+				  case '\013': /* vt */
+				  case '\014': /* np */
+				  case '\015': /* cr */
+					dp[l++] = ' ';
+					break;
+				  case '"':
+					dp[l++] = '\\';
+					/* FALLTHROUGH */
+				  default:
+					dp[l++] = *sp;
+					break;
+				}
+			}
+			dp[l++] = '"';
+			dp[l++] = '\0';
+			l = strlen(fvalue);
+			snprintf(hlen, sizeof hlen, "%d", l);
+			define(macid("{hdrlen}", NULL), newstr(hlen), e);
+			if (l >= MAXNAME)
+			{
+				if (LogLevel > 9)
+					sm_syslog(LOG_WARNING, e->e_id,
+						  "Warning: truncated header '%s' before check with '%s' len=%d max=%d",
+						  fname, rs, l, MAXNAME);
+			}
+			if ((sp = macvalue(macid("{currHeader}", NULL), e)) !=
+			    NULL)
+				free(sp);
+			define(macid("{currHeader}", NULL), newstr(qval), e);
+			define(macid("{hdr_name}", NULL), newstr(fname), e);
+			(void) rscheck(rs, fvalue, NULL, e, stripcom, TRUE, 4);
+		}
+	}
 
 	/*
 	**  Drop explicit From: if same as what we would generate.
@@ -219,28 +358,31 @@ chompheader(line, def, hdrp, e)
 	**  insert the full name information in all circumstances.
 	*/
 
+	dropfrom = FALSE;
 	p = "resent-from";
 	if (!bitset(EF_RESENT, e->e_flags))
 		p += 7;
-	if (!def && !headeronly && !bitset(EF_QUEUERUN, e->e_flags) &&
-	    strcasecmp(fname, p) == 0)
+	if (!bitset(pflag, CHHDR_DEF) && !headeronly &&
+	    !bitset(EF_QUEUERUN, e->e_flags) && strcasecmp(fname, p) == 0)
 	{
 		if (tTd(31, 2))
 		{
-			printf("comparing header from (%s) against default (%s or %s)\n",
+			dprintf("comparing header from (%s) against default (%s or %s)\n",
 				fvalue, e->e_from.q_paddr, e->e_from.q_user);
 		}
 		if (e->e_from.q_paddr != NULL &&
+		    e->e_from.q_mailer != NULL &&
+		    bitnset(M_LOCALMAILER, e->e_from.q_mailer->m_flags) &&
 		    (strcmp(fvalue, e->e_from.q_paddr) == 0 ||
 		     strcmp(fvalue, e->e_from.q_user) == 0))
-			return hi->hi_flags;
+			dropfrom = TRUE;
 	}
 
 	/* delete default value for this header */
 	for (hp = hdrp; (h = *hp) != NULL; hp = &h->h_link)
 	{
 		if (strcasecmp(fname, h->h_field) == 0 &&
-		    bitset(H_DEFAULT, h->h_flags) &&
+		    !bitset(H_USER, h->h_flags) &&
 		    !bitset(H_FORCE, h->h_flags))
 		{
 			if (nullheader)
@@ -248,13 +390,20 @@ chompheader(line, def, hdrp, e)
 				/* user-supplied value was null */
 				return 0;
 			}
+			if (dropfrom)
+			{
+				/* make this look like the user entered it */
+				h->h_flags |= H_USER;
+				return hi->hi_flags;
+			}
 			h->h_value = NULL;
 			if (!cond)
 			{
 				/* copy conditions from default case */
-				bcopy((char *)h->h_mflags, (char *)mopts,
-						sizeof mopts);
+				memmove((char *)mopts, (char *)h->h_mflags,
+					sizeof mopts);
 			}
+			h->h_macro = mid;
 		}
 	}
 
@@ -263,20 +412,24 @@ chompheader(line, def, hdrp, e)
 	h->h_field = newstr(fname);
 	h->h_value = newstr(fvalue);
 	h->h_link = NULL;
-	bcopy((char *) mopts, (char *) h->h_mflags, sizeof mopts);
+	memmove((char *) h->h_mflags, (char *) mopts, sizeof mopts);
+	h->h_macro = mid;
 	*hp = h;
 	h->h_flags = hi->hi_flags;
+	if (bitset(pflag, CHHDR_USER))
+		h->h_flags |= H_USER;
 
 	/* strip EOH flag if parsing MIME headers */
 	if (headeronly)
 		h->h_flags &= ~H_EOH;
-	if (def)
+	if (bitset(pflag, CHHDR_DEF))
 		h->h_flags |= H_DEFAULT;
-	if (cond)
+	if (cond || mid != '\0')
 		h->h_flags |= H_CHECK;
 
 	/* hack to see if this is a new format message */
-	if (!def && !headeronly && bitset(H_RCPT|H_FROM, h->h_flags) &&
+	if (!bitset(pflag, CHHDR_DEF) && !headeronly &&
+	    bitset(H_RCPT|H_FROM, h->h_flags) &&
 	    (strchr(fvalue, ',') != NULL || strchr(fvalue, '(') != NULL ||
 	     strchr(fvalue, '<') != NULL || strchr(fvalue, ';') != NULL))
 	{
@@ -293,7 +446,8 @@ chompheader(line, def, hdrp, e)
 **	Parameters:
 **		field -- the name of the header field.
 **		value -- the value of the field.
-**		hp -- an indirect pointer to the header structure list.
+**		flags -- flags to add to h_flags.
+**		hdrlist -- an indirect pointer to the header structure list.
 **
 **	Returns:
 **		none.
@@ -303,9 +457,10 @@ chompheader(line, def, hdrp, e)
 */
 
 void
-addheader(field, value, hdrlist)
+addheader(field, value, flags, hdrlist)
 	char *field;
 	char *value;
+	int flags;
 	HDR **hdrlist;
 {
 	register HDR *h;
@@ -327,10 +482,11 @@ addheader(field, value, hdrlist)
 	h->h_field = field;
 	h->h_value = newstr(value);
 	h->h_link = *hp;
-	h->h_flags = H_DEFAULT;
+	h->h_flags = flags;
 	if (s != NULL)
 		h->h_flags |= s->s_header.hi_flags;
 	clrbitmap(h->h_mflags);
+	h->h_macro = '\0';
 	*hp = h;
 }
 /*
@@ -362,9 +518,9 @@ hvalue(field, header)
 	{
 		if (!bitset(H_DEFAULT, h->h_flags) &&
 		    strcasecmp(h->h_field, field) == 0)
-			return (h->h_value);
+			return h->h_value;
 	}
-	return (NULL);
+	return NULL;
 }
 /*
 **  ISHEADER -- predicate telling if argument is a header.
@@ -439,7 +595,6 @@ eatheader(e, full)
 	int hopcnt = 0;
 	char *msgid;
 	char buf[MAXLINE];
-	extern int priencode __P((char *));
 
 	/*
 	**  Set up macros for possible expansion in headers.
@@ -456,12 +611,8 @@ eatheader(e, full)
 	p = hvalue("full-name", e->e_header);
 	if (p != NULL)
 	{
-		extern bool rfc822_string __P((char *));
-
 		if (!rfc822_string(p))
 		{
-			extern char *addquotes __P((char *));
-
 			/*
 			**  Quote a full name with special characters
 			**  as a comment so crackaddr() doesn't destroy
@@ -473,37 +624,34 @@ eatheader(e, full)
 	}
 
 	if (tTd(32, 1))
-		printf("----- collected header -----\n");
+		dprintf("----- collected header -----\n");
 	msgid = NULL;
 	for (h = e->e_header; h != NULL; h = h->h_link)
 	{
 		if (tTd(32, 1))
-			printf("%s: ", h->h_field);
+			dprintf("%s: ", h->h_field);
 		if (h->h_value == NULL)
 		{
 			if (tTd(32, 1))
-				printf("<NULL>\n");
+				dprintf("<NULL>\n");
 			continue;
 		}
 
 		/* do early binding */
-		if (bitset(H_DEFAULT, h->h_flags))
+		if (bitset(H_DEFAULT, h->h_flags) &&
+		    !bitset(H_BINDLATE, h->h_flags))
 		{
 			if (tTd(32, 1))
 			{
-				printf("(");
+				dprintf("(");
 				xputs(h->h_value);
-				printf(") ");
+				dprintf(") ");
 			}
 			expand(h->h_value, buf, sizeof buf, e);
 			if (buf[0] != '\0')
 			{
 				if (bitset(H_FROM, h->h_flags))
-				{
-					extern char *crackaddr __P((char *));
-
 					expand(crackaddr(buf), buf, sizeof buf, e);
-				}
 				h->h_value = newstr(buf);
 				h->h_flags &= ~H_DEFAULT;
 			}
@@ -512,7 +660,7 @@ eatheader(e, full)
 		if (tTd(32, 1))
 		{
 			xputs(h->h_value);
-			printf("\n");
+			dprintf("\n");
 		}
 
 		/* count the number of times it has been processed */
@@ -526,7 +674,7 @@ eatheader(e, full)
 		{
 #if 0
 			int saveflags = e->e_flags;
-#endif
+#endif /* 0 */
 
 			(void) sendtolist(h->h_value, NULLADDR,
 					  &e->e_sendqueue, 0, e);
@@ -536,11 +684,11 @@ eatheader(e, full)
 			**  Change functionality so a fatal error on an
 			**  address doesn't affect the entire envelope.
 			*/
-			 
+
 			/* delete fatal errors generated by this address */
 			if (!bitset(EF_FATALERRS, saveflags))
 				e->e_flags &= ~EF_FATALERRS;
-#endif
+#endif /* 0 */
 		}
 
 		/* save the message-id for logging */
@@ -555,7 +703,7 @@ eatheader(e, full)
 		}
 	}
 	if (tTd(32, 1))
-		printf("----------------------------\n");
+		dprintf("----------------------------\n");
 
 	/* if we are just verifying (that is, sendmail -t -bv), drop out now */
 	if (OpMode == MD_VERIFY)
@@ -640,7 +788,7 @@ eatheader(e, full)
 		if (hi->hi_field != NULL)
 		{
 			if (tTd(32, 2))
-				printf("eatheader: setsender(*%s == %s)\n",
+				dprintf("eatheader: setsender(*%s == %s)\n",
 					hi->hi_field, p);
 			setsender(p, e, NULL, '\0', TRUE);
 		}
@@ -684,7 +832,7 @@ logsender(e, msgid)
 		l = strlen(msgid);
 		if (l > sizeof mbuf - 1)
 			l = sizeof mbuf - 1;
-		bcopy(msgid, mbuf, l);
+		memmove(mbuf, msgid, l);
 		mbuf[l] = '\0';
 		p = mbuf;
 		while ((p = strchr(p, '\n')) != NULL)
@@ -694,6 +842,7 @@ logsender(e, msgid)
 	if (bitset(EF_RESPONSE, e->e_flags))
 		name = "[RESPONSE]";
 	else if ((name = macvalue('_', e)) != NULL)
+		/* EMPTY */
 		;
 	else if (RealHostName == NULL)
 		name = "localhost";
@@ -712,12 +861,12 @@ logsender(e, msgid)
 	}
 
 	/* some versions of syslog only take 5 printf args */
-#  if (SYSLOG_BUFSIZE) >= 256
+#if (SYSLOG_BUFSIZE) >= 256
 	sbp = sbuf;
 	snprintf(sbp, SPACELEFT(sbuf, sbp),
-	    "from=%.200s, size=%ld, class=%d, pri=%ld, nrcpts=%d",
+	    "from=%.200s, size=%ld, class=%d, nrcpts=%d",
 	    e->e_from.q_paddr == NULL ? "<NONE>" : e->e_from.q_paddr,
-	    e->e_msgsize, e->e_class, e->e_msgpriority, e->e_nrcpts);
+	    e->e_msgsize, e->e_class, e->e_nrcpts);
 	sbp += strlen(sbp);
 	if (msgid != NULL)
 	{
@@ -732,24 +881,47 @@ logsender(e, msgid)
 	}
 	p = macvalue('r', e);
 	if (p != NULL)
+	{
 		(void) snprintf(sbp, SPACELEFT(sbuf, sbp), ", proto=%.20s", p);
+		sbp += strlen(sbp);
+	}
+	p = macvalue(macid("{daemon_name}", NULL), e);
+	if (p != NULL)
+	{
+		(void) snprintf(sbp, SPACELEFT(sbuf, sbp), ", daemon=%.20s", p);
+		sbp += strlen(sbp);
+	}
+# if SASL
+	p = macvalue(macid("{auth_type}", NULL), e);
+	if (p != NULL)
+	{
+		(void) snprintf(sbp, SPACELEFT(sbuf, sbp), ", mech=%.12s", p);
+		sbp += strlen(sbp);
+	}
+	p = macvalue(macid("{auth_author}", NULL), e);
+	if (p != NULL)
+	{
+		(void) snprintf(sbp, SPACELEFT(sbuf, sbp), ", auth=%.30s", p);
+		sbp += strlen(sbp);
+	}
+# endif /* SASL */
 	sm_syslog(LOG_INFO, e->e_id,
-		"%.850s, relay=%.100s",
-		sbuf, name);
+		  "%.850s, relay=%.100s",
+		  sbuf, name);
 
-#  else			/* short syslog buffer */
+#else /* (SYSLOG_BUFSIZE) >= 256 */
 
 	sm_syslog(LOG_INFO, e->e_id,
-		"from=%s",
-		e->e_from.q_paddr == NULL ? "<NONE>"
-					  : shortenstring(e->e_from.q_paddr, 83));
+		  "from=%s",
+		  e->e_from.q_paddr == NULL ? "<NONE>"
+					    : shortenstring(e->e_from.q_paddr, 83));
 	sm_syslog(LOG_INFO, e->e_id,
-		"size=%ld, class=%ld, pri=%ld, nrcpts=%d",
-		e->e_msgsize, e->e_class, e->e_msgpriority, e->e_nrcpts);
+		  "size=%ld, class=%ld, nrcpts=%d",
+		  e->e_msgsize, e->e_class, e->e_nrcpts);
 	if (msgid != NULL)
 		sm_syslog(LOG_INFO, e->e_id,
-			"msgid=%s",
-			shortenstring(mbuf, 83));
+			  "msgid=%s",
+			  shortenstring(mbuf, 83));
 	sbp = sbuf;
 	*sbp = '\0';
 	if (e->e_bodytype != NULL)
@@ -764,8 +936,8 @@ logsender(e, msgid)
 		sbp += strlen(sbp);
 	}
 	sm_syslog(LOG_INFO, e->e_id,
-		"%.400srelay=%.100s", sbuf, name);
-#  endif
+		  "%.400srelay=%.100s", sbuf, name);
+#endif /* (SYSLOG_BUFSIZE) >= 256 */
 }
 /*
 **  PRIENCODE -- encode external priority names into internal values.
@@ -780,7 +952,7 @@ logsender(e, msgid)
 **		none.
 */
 
-int
+static int
 priencode(p)
 	char *p;
 {
@@ -788,12 +960,12 @@ priencode(p)
 
 	for (i = 0; i < NumPriorities; i++)
 	{
-		if (!strcasecmp(p, Priorities[i].pri_name))
-			return (Priorities[i].pri_val);
+		if (strcasecmp(p, Priorities[i].pri_name) == 0)
+			return Priorities[i].pri_val;
 	}
 
 	/* unknown priority */
-	return (0);
+	return 0;
 }
 /*
 **  CRACKADDR -- parse an address and turn it into a macro
@@ -848,7 +1020,7 @@ crackaddr(addr)
 	static char buf[MAXNAME + 1];
 
 	if (tTd(33, 1))
-		printf("crackaddr(%s)\n", addr);
+		dprintf("crackaddr(%s)\n", addr);
 
 	/* strip leading spaces */
 	while (*addr != '\0' && isascii(*addr) && isspace(*addr))
@@ -1147,19 +1319,19 @@ crackaddr(addr)
 
 	if (tTd(33, 1))
 	{
-		printf("crackaddr=>`");
+		dprintf("crackaddr=>`");
 		xputs(buf);
-		printf("'\n");
+		dprintf("'\n");
 	}
 
-	return (buf);
+	return buf;
 }
 /*
 **  PUTHEADER -- put the header part of a message from the in-core copy
 **
 **	Parameters:
 **		mci -- the connection information.
-**		h -- the header to put.
+**		hdr -- the header to put.
 **		e -- envelope to use.
 **		flags -- MIME conversion flags.
 **
@@ -1175,7 +1347,7 @@ crackaddr(addr)
  */
 #ifndef MAX
 # define MAX(a,b) (((a)>(b))?(a):(b))
-#endif
+#endif /* ! MAX */
 
 void
 putheader(mci, hdr, e, flags)
@@ -1189,7 +1361,7 @@ putheader(mci, hdr, e, flags)
 	char obuf[MAXLINE];
 
 	if (tTd(34, 1))
-		printf("--- putheader, mailer = %s ---\n",
+		dprintf("--- putheader, mailer = %s ---\n",
 			mci->mci_mailer->m_name);
 
 	/*
@@ -1204,30 +1376,30 @@ putheader(mci, hdr, e, flags)
 	for (h = hdr; h != NULL; h = h->h_link)
 	{
 		register char *p = h->h_value;
-		extern bool bitintersect __P((BITMAP, BITMAP));
 
 		if (tTd(34, 11))
 		{
-			printf("  %s: ", h->h_field);
+			dprintf("  %s: ", h->h_field);
 			xputs(p);
 		}
 
-#if _FFR_MAX_MIME_HEADER_LENGTH
+		/* Skip empty headers */
+		if (h->h_value == NULL)
+			continue;
+
 		/* heuristic shortening of MIME fields to avoid MUA overflows */
 		if (MaxMimeFieldLength > 0 &&
 		    wordinclass(h->h_field,
 				macid("{checkMIMEFieldHeaders}", NULL)))
 		{
-			extern bool fix_mime_header __P((char *));
-
 			if (fix_mime_header(h->h_value))
 			{
 				sm_syslog(LOG_ALERT, e->e_id,
-				  	"Truncated MIME %s header due to field size (possible attack)",
-				  	h->h_field);
+					  "Truncated MIME %s header due to field size (possible attack)",
+					  h->h_field);
 				if (tTd(34, 11))
-				  	printf("  truncated MIME %s header due to field size (possible attack)\n",
-					  	h->h_field);
+					dprintf("  truncated MIME %s header due to field size (possible attack)\n",
+						h->h_field);
 			}
 		}
 
@@ -1235,15 +1407,15 @@ putheader(mci, hdr, e, flags)
 		    wordinclass(h->h_field,
 				macid("{checkMIMETextHeaders}", NULL)))
 		{
-			if (strlen(h->h_value) > MaxMimeHeaderLength)
+			if (strlen(h->h_value) > (size_t)MaxMimeHeaderLength)
 			{
 				h->h_value[MaxMimeHeaderLength - 1] = '\0';
 				sm_syslog(LOG_ALERT, e->e_id,
-				  	"Truncated long MIME %s header (possible attack)",
-				  	h->h_field);
+					  "Truncated long MIME %s header (possible attack)",
+					  h->h_field);
 				if (tTd(34, 11))
-				  	printf("  truncated long MIME %s header (possible attack)\n",
-					  	h->h_field);
+					dprintf("  truncated long MIME %s header (possible attack)\n",
+						h->h_field);
 			}
 		}
 
@@ -1251,19 +1423,16 @@ putheader(mci, hdr, e, flags)
 		    wordinclass(h->h_field,
 				macid("{checkMIMEHeaders}", NULL)))
 		{
-			extern bool shorten_rfc822_string __P((char *, int));
-
 			if (shorten_rfc822_string(h->h_value, MaxMimeHeaderLength))
 			{
 				sm_syslog(LOG_ALERT, e->e_id,
-				  	"Truncated long MIME %s header (possible attack)",
-				  	h->h_field);
+					  "Truncated long MIME %s header (possible attack)",
+					  h->h_field);
 				if (tTd(34, 11))
-				  	printf("  truncated long MIME %s header (possible attack)\n",
-					  	h->h_field);
+					dprintf("  truncated long MIME %s header (possible attack)\n",
+						h->h_field);
 			}
 		}
-#endif
 
 		/*
 		**  Suppress Content-Transfer-Encoding: if we are MIMEing
@@ -1277,23 +1446,25 @@ putheader(mci, hdr, e, flags)
 		    !bitset(M87F_NO8TO7, flags))
 		{
 			if (tTd(34, 11))
-				printf(" (skipped (content-transfer-encoding))\n");
+				dprintf(" (skipped (content-transfer-encoding))\n");
 			continue;
 		}
 
 		if (bitset(MCIF_INMIME, mci->mci_flags))
 		{
 			if (tTd(34, 11))
-				printf("\n");
+				dprintf("\n");
 			put_vanilla_header(h, p, mci);
 			continue;
 		}
 
 		if (bitset(H_CHECK|H_ACHECK, h->h_flags) &&
-		    !bitintersect(h->h_mflags, mci->mci_mailer->m_flags))
+		    !bitintersect(h->h_mflags, mci->mci_mailer->m_flags) &&
+		    (h->h_macro == '\0' ||
+		     macvalue(h->h_macro & 0377, e) == NULL))
 		{
 			if (tTd(34, 11))
-				printf(" (skipped)\n");
+				dprintf(" (skipped)\n");
 			continue;
 		}
 
@@ -1301,32 +1472,29 @@ putheader(mci, hdr, e, flags)
 		if (bitset(H_RESENT, h->h_flags) && !bitset(EF_RESENT, e->e_flags))
 		{
 			if (tTd(34, 11))
-				printf(" (skipped (resent))\n");
+				dprintf(" (skipped (resent))\n");
 			continue;
 		}
 
 		/* suppress return receipts if requested */
 		if (bitset(H_RECEIPTTO, h->h_flags) &&
-#if _FFR_DSN_RRT_OPTION
 		    (RrtImpliesDsn || bitset(EF_NORECEIPT, e->e_flags)))
-#else
-		    bitset(EF_NORECEIPT, e->e_flags))
-#endif
 		{
 			if (tTd(34, 11))
-				printf(" (skipped (receipt))\n");
+				dprintf(" (skipped (receipt))\n");
 			continue;
 		}
 
 		/* macro expand value if generated internally */
-		if (bitset(H_DEFAULT, h->h_flags))
+		if (bitset(H_DEFAULT, h->h_flags) ||
+		    bitset(H_BINDLATE, h->h_flags))
 		{
 			expand(p, buf, sizeof buf, e);
 			p = buf;
 			if (*p == '\0')
 			{
 				if (tTd(34, 11))
-					printf(" (skipped -- null value)\n");
+					dprintf(" (skipped -- null value)\n");
 				continue;
 			}
 		}
@@ -1337,7 +1505,7 @@ putheader(mci, hdr, e, flags)
 			if (bitset(EF_DELETE_BCC, e->e_flags))
 			{
 				if (tTd(34, 11))
-					printf(" (skipped -- bcc)\n");
+					dprintf(" (skipped -- bcc)\n");
 			}
 			else
 			{
@@ -1350,7 +1518,7 @@ putheader(mci, hdr, e, flags)
 		}
 
 		if (tTd(34, 11))
-			printf("\n");
+			dprintf("\n");
 
 		if (bitset(H_FROM|H_RCPT, h->h_flags))
 		{
@@ -1369,7 +1537,7 @@ putheader(mci, hdr, e, flags)
 
 	/*
 	**  If we are converting this to a MIME message, add the
-	**  MIME headers.
+	**  MIME headers (but not in MIME mode!).
 	*/
 
 #if MIME8TO7
@@ -1377,10 +1545,10 @@ putheader(mci, hdr, e, flags)
 	    bitset(EF_HAS8BIT, e->e_flags) &&
 	    !bitset(EF_DONT_MIME, e->e_flags) &&
 	    !bitnset(M_8BITS, mci->mci_mailer->m_flags) &&
-	    !bitset(MCIF_CVT8TO7|MCIF_CVT7TO8, mci->mci_flags))
+	    !bitset(MCIF_CVT8TO7|MCIF_CVT7TO8|MCIF_INMIME, mci->mci_flags) &&
+	    hvalue("MIME-Version", e->e_header) == NULL)
 	{
-		if (hvalue("MIME-Version", e->e_header) == NULL)
-			putline("MIME-Version: 1.0", mci);
+		putline("MIME-Version: 1.0", mci);
 		if (hvalue("Content-Type", e->e_header) == NULL)
 		{
 			snprintf(obuf, sizeof obuf,
@@ -1391,7 +1559,7 @@ putheader(mci, hdr, e, flags)
 		if (hvalue("Content-Transfer-Encoding", e->e_header) == NULL)
 			putline("Content-Transfer-Encoding: 8bit", mci);
 	}
-#endif
+#endif /* MIME8TO7 */
 }
 /*
 **  PUT_VANILLA_HEADER -- output a fairly ordinary header
@@ -1405,7 +1573,7 @@ putheader(mci, hdr, e, flags)
 **		none.
 */
 
-void
+static void
 put_vanilla_header(h, v, mci)
 	HDR *h;
 	char *v;
@@ -1417,10 +1585,8 @@ put_vanilla_header(h, v, mci)
 	char obuf[MAXLINE];
 
 	putflags = PXLF_HEADER;
-#if _FFR_7BITHDRS
 	if (bitnset(M_7BITHDRS, mci->mci_mailer->m_flags))
 		putflags |= PXLF_STRIP8BIT;
-#endif
 	(void) snprintf(obuf, sizeof obuf, "%.200s: ", h->h_field);
 	obp = obuf + strlen(obuf);
 	while ((nlp = strchr(v, '\n')) != NULL)
@@ -1428,7 +1594,7 @@ put_vanilla_header(h, v, mci)
 		int l;
 
 		l = nlp - v;
-		if (SPACELEFT(obuf, obp) - 1 < l)
+		if (SPACELEFT(obuf, obp) - 1 < (size_t)l)
 			l = SPACELEFT(obuf, obp) - 1;
 
 		snprintf(obp, SPACELEFT(obuf, obp), "%.*s", l, v);
@@ -1439,7 +1605,7 @@ put_vanilla_header(h, v, mci)
 			*obp++ = ' ';
 	}
 	snprintf(obp, SPACELEFT(obuf, obp), "%.*s",
-		(int)(sizeof obuf - (obp - obuf) - 1), v);
+		(int) sizeof obuf - (obp - obuf) - 1, v);
 	putxline(obuf, strlen(obuf), mci, putflags);
 }
 /*
@@ -1480,12 +1646,10 @@ commaize(h, p, oldstyle, mci, e)
 	*/
 
 	if (tTd(14, 2))
-		printf("commaize(%s: %s)\n", h->h_field, p);
+		dprintf("commaize(%s: %s)\n", h->h_field, p);
 
-#if _FFR_7BITHDRS
 	if (bitnset(M_7BITHDRS, mci->mci_mailer->m_flags))
 		putflags |= PXLF_STRIP8BIT;
-#endif
 
 	obp = obuf;
 	(void) snprintf(obp, SPACELEFT(obuf, obp), "%.200s: ", h->h_field);
@@ -1507,7 +1671,7 @@ commaize(h, p, oldstyle, mci, e)
 		register int c;
 		char savechar;
 		int flags;
-		auto int stat;
+		auto int status;
 
 		/*
 		**  Find the end of the name.  New style names
@@ -1562,22 +1726,28 @@ commaize(h, p, oldstyle, mci, e)
 		else if (e->e_from.q_mailer != NULL &&
 			 bitnset(M_UDBRECIPIENT, e->e_from.q_mailer->m_flags))
 		{
-			extern char *udbsender __P((char *));
 			char *q;
 
 			q = udbsender(name);
 			if (q != NULL)
 				name = q;
 		}
-#endif
-		stat = EX_OK;
-		name = remotename(name, mci->mci_mailer, flags, &stat, e);
+#endif /* USERDB */
+		status = EX_OK;
+		name = remotename(name, mci->mci_mailer, flags, &status, e);
 		if (*name == '\0')
 		{
 			*p = savechar;
 			continue;
 		}
 		name = denlstring(name, FALSE, TRUE);
+
+		/*
+		**  record data progress so DNS timeouts
+		**  don't cause DATA timeouts
+		*/
+
+		DataProgress = TRUE;
 
 		/* output the name with nice formatting */
 		opos += strlen(name);
@@ -1588,7 +1758,7 @@ commaize(h, p, oldstyle, mci, e)
 			snprintf(obp, SPACELEFT(obuf, obp), ",\n");
 			putxline(obuf, strlen(obuf), mci, putflags);
 			obp = obuf;
-			(void) strcpy(obp, "        ");
+			(void) strlcpy(obp, "        ", sizeof obp);
 			opos = strlen(obp);
 			obp += opos;
 			opos += strlen(name);
@@ -1632,14 +1802,14 @@ copyheader(header)
 
 	while (header != NULL)
 	{
-		newhdr = (HDR *) xalloc(sizeof(HDR));
+		newhdr = (HDR *) xalloc(sizeof *newhdr);
 		STRUCTCOPY(*header, *newhdr);
 		*tail = newhdr;
 		tail = &newhdr->h_link;
 		header = header->h_link;
 	}
 	*tail = NULL;
-	
+
 	return ret;
 }
 /*
@@ -1659,40 +1829,38 @@ copyheader(header)
 **		string modified in place
 */
 
-bool
+static bool
 fix_mime_header(string)
 	char *string;
 {
 	bool modified = FALSE;
 	char *begin = string;
 	char *end;
-	extern char *find_character __P((char *, char));
-	extern bool shorten_rfc822_string __P((char *, int));
-	
+
 	if (string == NULL || *string == '\0')
 		return FALSE;
-	
+
 	/* Split on each ';' */
 	while ((end = find_character(begin, ';')) != NULL)
 	{
 		char save = *end;
 		char *bp;
-		
+
 		*end = '\0';
-		
+
 		/* Shorten individual parameter */
 		if (shorten_rfc822_string(begin, MaxMimeFieldLength))
 			modified = TRUE;
-		
+
 		/* Collapse the possibly shortened string with rest */
 		bp = begin + strlen(begin);
 		if (bp != end)
 		{
 			char *ep = end;
-			
+
 			*end = save;
 			end = bp;
-			
+
 			/* copy character by character due to overlap */
 			while (*ep != '\0')
 				*bp++ = *ep++;
@@ -1702,7 +1870,7 @@ fix_mime_header(string)
 			*end = save;
 		if (*end == '\0')
 			break;
-		
+
 		/* Move past ';' */
 		begin = end + 1;
 	}

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,33 +14,45 @@
 
 #ifndef lint
 static char copyright[] =
-"@(#) Copyright (c) 1988, 1993\n\
+"@(#) Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.\n\
+	All rights reserved.\n\
+     Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif /* ! lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mailstats.c	8.29 (Berkeley) 1/25/1999";
-#endif /* not lint */
+static char id[] = "@(#)$Id: mailstats.c,v 8.53.16.10 2000/07/18 05:51:15 gshapiro Exp $";
+#endif /* ! lint */
 
-#ifndef NOT_SENDMAIL
-# define NOT_SENDMAIL
-#endif
-#include <sendmail.h>
-#include <mailstats.h>
-#include <pathnames.h>
+/* $FreeBSD$ */
+
+#include <unistd.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
+#include <time.h>
+#ifdef EX_OK
+# undef EX_OK		/* unistd.h may have another use for this */
+#endif /* EX_OK */
+#include <sysexits.h>
+
+#include <sendmail/sendmail.h>
+#include <sendmail/mailstats.h>
+#include <sendmail/pathnames.h>
+
 
 #define MNAMELEN	20	/* max length of mailer name */
+
 
 int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind;
-	struct statistics stat;
 	register int i;
 	int mno;
+	int save_errno;
 	int ch, fd;
 	char *sfile;
 	char *cfile;
@@ -48,11 +61,15 @@ main(argc, argv)
 	bool progmode;
 	long frmsgs = 0, frbytes = 0, tomsgs = 0, tobytes = 0, rejmsgs = 0;
 	long dismsgs = 0;
-	char mtable[MAXMAILERS][MNAMELEN+1];
+	time_t now;
+	char mtable[MAXMAILERS][MNAMELEN + 1];
 	char sfilebuf[MAXLINE];
 	char buf[MAXLINE];
-	time_t now;
+	struct statistics stats;
 	extern char *ctime();
+	extern char *optarg;
+	extern int optind;
+
 
 	cfile = _PATH_SENDMAILCF;
 	sfile = NULL;
@@ -74,22 +91,15 @@ main(argc, argv)
 			mnames = FALSE;
 			break;
 
-#if _FFR_MAILSTATS_PROGMODE
 		  case 'p':
 			progmode = TRUE;
 			break;
-#endif
 
 		  case '?':
 		  default:
   usage:
-#if _FFR_MAILSTATS_PROGMODE
-			fputs("usage: mailstats [-o] [-C cffile] [-f stfile] -o -p\n",
-				stderr);
-#else
-			fputs("usage: mailstats [-o] [-C cffile] [-f stfile] -o \n",
-				stderr);
-#endif
+			(void) fputs("usage: mailstats [-C cffile] [-f stfile] [-o] [-p]\n",
+				     stderr);
 			exit(EX_USAGE);
 		}
 	}
@@ -101,15 +111,17 @@ main(argc, argv)
 
 	if ((cfp = fopen(cfile, "r")) == NULL)
 	{
+		save_errno = errno;
 		fprintf(stderr, "mailstats: ");
+		errno = save_errno;
 		perror(cfile);
 		exit(EX_NOINPUT);
 	}
 
 	mno = 0;
-	(void) strcpy(mtable[mno++], "prog");
-	(void) strcpy(mtable[mno++], "*file*");
-	(void) strcpy(mtable[mno++], "*include*");
+	(void) strlcpy(mtable[mno++], "prog", MNAMELEN + 1);
+	(void) strlcpy(mtable[mno++], "*file*", MNAMELEN + 1);
+	(void) strlcpy(mtable[mno++], "*include*", MNAMELEN + 1);
 
 	while (fgets(buf, sizeof(buf), cfp) != NULL)
 	{
@@ -141,14 +153,14 @@ main(argc, argv)
 			}
 
 			/* this is the S or StatusFile option -- save it */
-			if (strlen(b) >= sizeof sfilebuf)
+			if (strlcpy(sfilebuf, b, sizeof sfilebuf) >=
+			    sizeof sfilebuf)
 			{
 				fprintf(stderr,
 					"StatusFile filename too long: %.30s...\n",
 					b);
 				exit(EX_CONFIG);
 			}
-			strcpy(sfilebuf, b);
 			b = strchr(sfilebuf, '#');
 			if (b == NULL)
 				b = strchr(sfilebuf, '\n');
@@ -172,7 +184,7 @@ main(argc, argv)
 			exit(EX_SOFTWARE);
 		}
 		m = mtable[mno];
-		s = m + MNAMELEN;		/* is [MNAMELEN+1] */
+		s = m + MNAMELEN;		/* is [MNAMELEN + 1] */
 		while (*b != ',' && !(isascii(*b) && isspace(*b)) &&
 		       *b != '\0' && m < s)
 			*m++ = *b++;
@@ -195,66 +207,70 @@ main(argc, argv)
 		exit (EX_OSFILE);
 	}
 
-	if ((fd = open(sfile, O_RDONLY)) < 0 ||
-	    (i = read(fd, &stat, sizeof stat)) < 0)
+	fd = open(sfile, O_RDONLY);
+	if ((fd < 0) || (i = read(fd, &stats, sizeof stats)) < 0)
 	{
-		fputs("mailstats: ", stderr);
+		save_errno = errno;
+		(void) fputs("mailstats: ", stderr);
+		errno = save_errno;
 		perror(sfile);
 		exit(EX_NOINPUT);
 	}
 	if (i == 0)
 	{
-		sleep(1);
-		if ((i = read(fd, &stat, sizeof stat)) < 0)
+		(void) sleep(1);
+		if ((i = read(fd, &stats, sizeof stats)) < 0)
 		{
-			fputs("mailstats: ", stderr);
+			save_errno = errno;
+			(void) fputs("mailstats: ", stderr);
+			errno = save_errno;
 			perror(sfile);
 			exit(EX_NOINPUT);
 		}
 		else if (i == 0)
 		{
-			bzero((ARBPTR_T) &stat, sizeof stat);
-			(void) time(&stat.stat_itime);
+			memset((ARBPTR_T) &stats, '\0', sizeof stats);
+			(void) time(&stats.stat_itime);
 		}
 	}
 	if (i != 0)
 	{
-		if (stat.stat_magic != STAT_MAGIC)
+		if (stats.stat_magic != STAT_MAGIC)
 		{
 			fprintf(stderr,
 				"mailstats: incorrect magic number in %s\n",
 				sfile);
 			exit(EX_OSERR);
 		}
-		else if (stat.stat_version != STAT_VERSION)
+		else if (stats.stat_version != STAT_VERSION)
 		{
 			fprintf(stderr,
-				"mailstats version (%d) incompatible with %s version(%d)\n",
-				STAT_VERSION, sfile, stat.stat_version);
+				"mailstats version (%d) incompatible with %s version (%d)\n",
+				STAT_VERSION, sfile, stats.stat_version);
 			exit(EX_OSERR);
 		}
-		else if (i != sizeof stat || stat.stat_size != sizeof(stat))
+		else if (i != sizeof stats || stats.stat_size != sizeof(stats))
 		{
-			fputs("mailstats: file size changed.\n", stderr);
+			(void) fputs("mailstats: file size changed.\n", stderr);
 			exit(EX_OSERR);
 		}
 	}
 
 	if (progmode)
 	{
-		time(&now);
-		printf("%ld %ld\n", (long) stat.stat_itime, (long) now);
+		(void) time(&now);
+		printf("%ld %ld\n", (long) stats.stat_itime, (long) now);
 	}
 	else
 	{
-		printf("Statistics from %s", ctime(&stat.stat_itime));
+		printf("Statistics from %s", ctime(&stats.stat_itime));
 		printf(" M   msgsfr  bytes_from   msgsto    bytes_to  msgsrej msgsdis%s\n",
 			mnames ? "  Mailer" : "");
 	}
 	for (i = 0; i < MAXMAILERS; i++)
 	{
-		if (stat.stat_nf[i] || stat.stat_nt[i] ||
-		    stat.stat_nr[i] || stat.stat_nd[i])
+		if (stats.stat_nf[i] || stats.stat_nt[i] ||
+		    stats.stat_nr[i] || stats.stat_nd[i])
 		{
 			char *format;
 
@@ -263,34 +279,40 @@ main(argc, argv)
 			else
 				format = "%2d %8ld %10ldK %8ld %10ldK   %6ld  %6ld";
 			printf(format, i,
-			    stat.stat_nf[i], stat.stat_bf[i],
-			    stat.stat_nt[i], stat.stat_bt[i],
-			    stat.stat_nr[i], stat.stat_nd[i]);
+			    stats.stat_nf[i], stats.stat_bf[i],
+			    stats.stat_nt[i], stats.stat_bt[i],
+			    stats.stat_nr[i], stats.stat_nd[i]);
 			if (mnames)
 				printf("  %s", mtable[i]);
 			printf("\n");
-			frmsgs += stat.stat_nf[i];
-			frbytes += stat.stat_bf[i];
-			tomsgs += stat.stat_nt[i];
-			tobytes += stat.stat_bt[i];
-			rejmsgs += stat.stat_nr[i];
-			dismsgs += stat.stat_nd[i];
+			frmsgs += stats.stat_nf[i];
+			frbytes += stats.stat_bf[i];
+			tomsgs += stats.stat_nt[i];
+			tobytes += stats.stat_bt[i];
+			rejmsgs += stats.stat_nr[i];
+			dismsgs += stats.stat_nd[i];
 		}
 	}
 	if (progmode)
 	{
 		printf(" T %8ld %10ld %8ld %10ld   %6ld  %6ld\n",
 		       frmsgs, frbytes, tomsgs, tobytes, rejmsgs, dismsgs);
-		close(fd);
+		printf(" C %8ld %8ld %6ld\n",
+		       stats.stat_cf, stats.stat_ct, stats.stat_cr);
+		(void) close(fd);
 		fd = open(sfile, O_RDWR | O_TRUNC);
 		if (fd >= 0)
-			close(fd);
+			(void) close(fd);
 	}
 	else
 	{
 		printf("=============================================================\n");
 		printf(" T %8ld %10ldK %8ld %10ldK   %6ld  %6ld\n",
 			frmsgs, frbytes, tomsgs, tobytes, rejmsgs, dismsgs);
+		printf(" C %8ld %10s  %8ld %10s    %6ld\n",
+		       stats.stat_cf, "", stats.stat_ct, "", stats.stat_cr);
 	}
 	exit(EX_OK);
+	/* NOTREACHED */
+	return EX_OK;
 }
