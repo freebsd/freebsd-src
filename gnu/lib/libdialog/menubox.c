@@ -143,6 +143,7 @@ draw:
     /* create new window for the menu */
     menu = subwin(dialog, menu_height, menu_width, y + box_y + 1, x + box_x + 1);
     if (menu == NULL) {
+	delwin(dialog);
 	endwin();
 	fprintf(stderr, "\nsubwin(dialog,%d,%d,%d,%d) failed, maybe wrong dims\n", menu_height,menu_width,y+box_y+1,x+box_x+1);
 	return -1;
@@ -202,6 +203,7 @@ draw:
 	    }
 	    else
 		strcpy(result, items[(scroll + choice) * 2]);
+	    delwin(menu);
 	    delwin(dialog);
 	    return 0;
 	}
@@ -219,6 +221,7 @@ draw:
 		}
 		delwin(save);
 	    }
+	    delwin(menu);
 	    delwin(dialog);
 	    return 1;
 	}
@@ -385,6 +388,7 @@ draw:
 			wrefresh(save);
 		    }
 		    else if (status & DITEM_RECREATE) {
+			delwin(menu);
 			delwin(dialog);
 			delwin(save);
 			goto draw;
@@ -396,6 +400,7 @@ draw:
 		else if (result)
 		    strcpy(result, items[(scroll+choice)*2]);
 	    }
+	    delwin(menu);
 	    delwin(dialog);
 	    return button;
 	    
@@ -420,6 +425,7 @@ draw:
 	}
     }
     
+    delwin(menu);
     delwin(dialog);
     return -1;    /* ESC pressed */
 }
