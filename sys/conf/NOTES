@@ -470,8 +470,11 @@ options 	NETGRAPH_CISCO
 options 	NETGRAPH_ECHO
 options 	NETGRAPH_ETHER
 options 	NETGRAPH_FRAME_RELAY
+options 	NETGRAPH_GIF
+options 	NETGRAPH_GIF_DEMUX
 options 	NETGRAPH_HOLE
 options 	NETGRAPH_IFACE
+options 	NETGRAPH_IP_INPUT
 options 	NETGRAPH_KSOCKET
 options 	NETGRAPH_LMI
 # MPPC compression requires proprietary files (not included)
