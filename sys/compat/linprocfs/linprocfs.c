@@ -489,12 +489,12 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 {
 	struct kinfo_proc kp;
 
+	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
 	sbuf_printf(sb, "%d", p->p_pid);
 #define PS_ADD(name, fmt, arg) sbuf_printf(sb, " " fmt, arg)
 	PS_ADD("comm",		"(%s)",	p->p_comm);
 	PS_ADD("statr",		"%c",	'0'); /* XXX */
-	PROC_LOCK(p);
 	PS_ADD("ppid",		"%d",	p->p_pptr ? p->p_pptr->p_pid : 0);
 	PS_ADD("pgrp",		"%d",	p->p_pgid);
 	PS_ADD("session",	"%d",	p->p_session->s_sid);
@@ -571,6 +571,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 		state = state_str[(int)p->p_stat];
 	mtx_unlock_spin(&sched_lock);
 
+	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
 	sbuf_printf(sb, "Name:\t%s\n",		p->p_comm); /* XXX escape */
 	sbuf_printf(sb, "State:\t%s\n",		state);
@@ -579,7 +580,6 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	 * Credentials
 	 */
 	sbuf_printf(sb, "Pid:\t%d\n",		p->p_pid);
-	PROC_LOCK(p);
 	sbuf_printf(sb, "PPid:\t%d\n",		p->p_pptr ?
 						p->p_pptr->p_pid : 0);
 	sbuf_printf(sb, "Uid:\t%d %d %d %d\n",	p->p_ucred->cr_ruid,

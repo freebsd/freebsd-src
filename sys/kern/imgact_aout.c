@@ -263,7 +263,9 @@ aout_coredump(td, vp, limit)
 	if (ctob((UAREA_PAGES + KSTACK_PAGES)
 	    + vm->vm_dsize + vm->vm_ssize) >= limit)
 		return (EFAULT);
+	PROC_LOCK(p);
 	fill_kinfo_proc(p, &p->p_uarea->u_kproc);
+	PROC_UNLOCK(p);
 	error = cpu_coredump(td, vp, cred);
 	if (error == 0)
 		error = vn_rdwr(UIO_WRITE, vp, vm->vm_daddr,
