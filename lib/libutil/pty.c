@@ -47,7 +47,9 @@ static char sccsid[] = "@(#)pty.c	8.3 (Berkeley) 5/16/94";
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <libutil.h>
 
+int
 openpty(amaster, aslave, name, termp, winp)
 	int *amaster, *aslave;
 	char *name;

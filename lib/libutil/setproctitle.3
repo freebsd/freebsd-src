@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id$
+.\" $Id: setproctitle.3,v 1.1 1995/12/26 22:50:08 peter Exp $
 .\"
 .\" The following requests are required for all man pages.
 .Dd December 16, 1995
@@ -28,8 +28,16 @@
 .Nd set the process title for
 .Xr ps 1
 .Sh SYNOPSIS
+#include <libutil.h>
+.Pp
 .Ft void
 .Fn setproctitle "const char *fmt" "..."
+.Pp
+Link with
+.Va -lutil
+on the
+.Xr cc 1
+command line.
 .Sh DESCRIPTION
 The
 .Nm setproctitle
