@@ -25,6 +25,7 @@ SUBDIR=	3dfx \
 	ed \
 	fdescfs \
 	fdc \
+	firewire \
 	fxp \
 	gx \
 	if_disc \
@@ -146,7 +147,6 @@ SUBDIR+=aac \
 	el \
 	em \
 	fe \
-	firewire \
 	fpu \
 	gnufpu \
 	hea \
@@ -192,7 +192,6 @@ SUBDIR+=aic \
 	coff \
 	em \
 	fe \
-	firewire \
 	fpu \
 	gnufpu \
 	hea \
