@@ -163,7 +163,7 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 	irq_setup = BUS_SETUP_INTR(device_get_parent(dev), dev, res,
 	    INTR_TYPE_TTY | INTR_FAST, puc_intr, sc, &sc->intr_cookie);
 	if (irq_setup == 0)
-		sc->fastintr = 1;
+		sc->fastintr = INTR_FAST;
 	else
 		irq_setup = BUS_SETUP_INTR(device_get_parent(dev), dev, res,
 		    INTR_TYPE_TTY, puc_intr, sc, &sc->intr_cookie);
@@ -461,7 +461,7 @@ puc_setup_intr(device_t dev, device_t child, struct resource *r, int flags,
 	struct puc_softc *sc;
 
 	sc = (struct puc_softc *)device_get_softc(dev);
-	if ((flags & INTR_FAST) && !sc->fastintr)
+	if ((flags & INTR_FAST) != sc->fastintr)
 		return (ENXIO);
 	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
 		if (sc->sc_ports[i].dev == child) {
