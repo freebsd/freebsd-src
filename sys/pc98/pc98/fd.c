@@ -1167,11 +1167,11 @@ fdc_probe(device_t dev)
 		case 0x81:	/* not mentioned in any hardware doc */
 		case 0x90:
 			device_set_desc(dev,
-		"enhanced floppy controller (i82077, NE72065 or clone)");
+		"Enhanced floppy controller (i82077, NE72065 or clone)");
 			fdc->fdct = FDC_ENHANCED;
 			break;
 		default:
-			device_set_desc(dev, "generic floppy controller");
+			device_set_desc(dev, "Generic floppy controller");
 			fdc->fdct = FDC_UNKNOWN;
 			break;
 		}
