@@ -78,8 +78,6 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind;
 	register int ch, cnt;
 	register u_char *C;
 	EXEC *head;
