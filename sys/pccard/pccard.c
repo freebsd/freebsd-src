@@ -305,7 +305,7 @@ inserted(void *arg)
 	/*
 	 *	Enable 5V to the card so that the CIS can be read.
 	 */
-	slt->pwr.vcc = 50;
+	slt->pwr.vcc = -1;
 	slt->pwr.vpp = 50;
 
 	/*
