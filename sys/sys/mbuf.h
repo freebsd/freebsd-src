@@ -107,6 +107,7 @@ struct m_ext {
 	void	*ext_args;		/* optional argument pointer */
 	u_int	ext_size;		/* size of buffer, for ext_free */
 	union	mext_refcnt *ref_cnt;	/* pointer to ref count info */
+	short	ext_type;		/* type of external storage */
 };
 
 struct mbuf {
@@ -138,22 +139,28 @@ struct mbuf {
 #define	M_EXT		0x0001	/* has associated external storage */
 #define	M_PKTHDR	0x0002	/* start of record */
 #define	M_EOR		0x0004	/* end of record */
-#define	M_PROTO1	0x0008	/* protocol-specific */
-#define	M_PROTO2	0x0010	/* protocol-specific */
-#define	M_PROTO3	0x0020	/* protocol-specific */
-#define	M_PROTO4	0x0040	/* protocol-specific */
-#define	M_PROTO5	0x0080	/* protocol-specific */
+#define M_RDONLY	0x0008	/* associated data is marked read-only */
+#define	M_PROTO1	0x0010	/* protocol-specific */
+#define	M_PROTO2	0x0020	/* protocol-specific */
+#define	M_PROTO3	0x0040	/* protocol-specific */
+#define	M_PROTO4	0x0080	/* protocol-specific */
+#define	M_PROTO5	0x0100	/* protocol-specific */
 
 /* mbuf pkthdr flags, also in m_flags */
-#define	M_BCAST		0x0100	/* send/received as link-level broadcast */
-#define	M_MCAST		0x0200	/* send/received as link-level multicast */
-#define	M_FRAG		0x0400	/* packet is a fragment of a larger packet */
-#define	M_FIRSTFRAG	0x0800	/* packet is first fragment */
-#define	M_LASTFRAG	0x1000	/* packet is last fragment */
+#define	M_BCAST		0x0200	/* send/received as link-level broadcast */
+#define	M_MCAST		0x0400	/* send/received as link-level multicast */
+#define	M_FRAG		0x0800	/* packet is a fragment of a larger packet */
+#define	M_FIRSTFRAG	0x1000	/* packet is first fragment */
+#define	M_LASTFRAG	0x2000	/* packet is last fragment */
+
+/* external buffer types: identify ext_buf type */
+#define	EXT_CLUSTER	1	/* mbuf cluster */
+#define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
+#define	EXT_NET_DRV	100	/* custom ext_buf provided by net driver(s) */
 
 /* flags copied when copying m_pkthdr */
 #define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_PROTO1|M_PROTO1|M_PROTO2|M_PROTO3 | \
-			    M_PROTO4|M_PROTO5|M_BCAST|M_MCAST|M_FRAG)
+			    M_PROTO4|M_PROTO5|M_BCAST|M_MCAST|M_FRAG|M_RDONLY)
 
 /* flags indicating hw checksum support and sw checksum requirements */
 #define CSUM_IP			0x0001		/* will csum IP */
@@ -444,21 +451,23 @@ struct mcntfree_lst {
 			_mm->m_ext.ext_free = NULL;			\
 			_mm->m_ext.ext_args = NULL;			\
 			_mm->m_ext.ext_size = MCLBYTES;			\
+			_mm->m_ext.ext_type = EXT_CLUSTER;		\
 		}							\
 	}								\
 } while (0)
 
-#define MEXTADD(m, buf, size, free, args) do {				\
+#define MEXTADD(m, buf, size, free, args, flags, type) do {		\
 	struct mbuf *_mm = (m);						\
 									\
 	MEXT_INIT_REF(_mm, M_WAIT);					\
 	if (_mm->m_ext.ref_cnt != NULL) {				\
-		_mm->m_flags |= M_EXT;					\
+		_mm->m_flags |= (M_EXT | (flags));			\
 		_mm->m_ext.ext_buf = (caddr_t)(buf);			\
 		_mm->m_data = _mm->m_ext.ext_buf;			\
 		_mm->m_ext.ext_size = (size);				\
 		_mm->m_ext.ext_free = (free);				\
 		_mm->m_ext.ext_args = (args);				\
+		_mm->m_ext.ext_type = (type);				\
 	}								\
 } while (0)
 
@@ -478,7 +487,7 @@ struct mcntfree_lst {
 									\
 	if (MEXT_IS_REF(_mmm))						\
 		MEXT_REM_REF(_mmm);					\
-	else if (_mmm->m_ext.ext_free != NULL) {			\
+	else if (_mmm->m_ext.ext_type != EXT_CLUSTER) {			\
 		(*(_mmm->m_ext.ext_free))(_mmm->m_ext.ext_buf,		\
 		    _mmm->m_ext.ext_args);				\
 		_MEXT_DEALLOC_CNT(_mmm->m_ext.ref_cnt);			\
@@ -510,6 +519,15 @@ struct mcntfree_lst {
 	MBWAKEUP(m_mballoc_wid);					\
 	mtx_exit(&mmbfree.m_mtx, MTX_DEF); 				\
 } while (0)
+
+/*
+ * M_WRITABLE(m)
+ * Evaluate TRUE if it's safe to write to the mbuf m's data region (this
+ * can be both the local data payload, or an external buffer area,
+ * depending on whether M_EXT is set).
+ */
+#define M_WRITABLE(m)	(!((m)->m_flags & M_RDONLY) && (!((m)->m_flags  \
+			    & M_EXT) || !MEXT_IS_REF(m)))
 
 /*
  * Copy mbuf pkthdr from "from" to "to".
