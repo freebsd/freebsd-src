@@ -17,7 +17,7 @@
 
 #include "target.h"
 
-#define	TARGET_XFER_DIRTY	ia64_fbsd_xfer_dirty
+#define	NATIVE_XFER_DIRTY	ia64_fbsd_xfer_dirty
 extern LONGEST ia64_fbsd_xfer_dirty(struct target_ops *, enum target_object,
     const char *, void *, const void *, ULONGEST, LONGEST);
 

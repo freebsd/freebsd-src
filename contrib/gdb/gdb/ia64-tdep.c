@@ -667,7 +667,7 @@ ia64_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
 							regnum), reg);
 	  } else
 	    target_read_partial (&current_target, TARGET_OBJECT_DIRTY,
-				 (void*)bspstore, buf, reg_addr - bspstore,
+				 (void*)&bspstore, buf, reg_addr - bspstore,
 				 register_size (current_gdbarch, regnum));
 	}
       else
@@ -718,7 +718,7 @@ ia64_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
 	      else {
 		char natbuf[8];
 		target_read_partial (&current_target, TARGET_OBJECT_DIRTY,
-				     (void*)bspstore, natbuf,
+				     (void*)&bspstore, natbuf,
 				     nat_addr - bspstore,
 				     register_size (current_gdbarch, regnum));
 		nat_collection = *((uint64_t*)natbuf);
@@ -795,7 +795,7 @@ ia64_pseudo_register_write (struct gdbarch *gdbarch, struct regcache *regcache,
 	    write_memory (reg_addr, (void *)buf, 8);
 	  else
 	    target_write_partial (&current_target, TARGET_OBJECT_DIRTY,
-				  (void*)bspstore, buf, reg_addr - bspstore,
+				  (void*)&bspstore, buf, reg_addr - bspstore,
 				  register_size (current_gdbarch, regnum));
 	}
     }
@@ -859,7 +859,7 @@ ia64_pseudo_register_write (struct gdbarch *gdbarch, struct regcache *regcache,
 	      else {
 		char natbuf[8];
 		target_read_partial (&current_target, TARGET_OBJECT_DIRTY,
-				     (void*)bspstore, natbuf,
+				     (void*)&bspstore, natbuf,
 				     nat_addr - bspstore,
 				     register_size (current_gdbarch, regnum));
 		nat_collection = *((uint64_t*)natbuf);
@@ -875,7 +875,7 @@ ia64_pseudo_register_write (struct gdbarch *gdbarch, struct regcache *regcache,
 		write_memory (nat_addr, nat_buf, 8);
 	      else
 		target_write_partial (&current_target, TARGET_OBJECT_DIRTY,
-				      (void*)bspstore, nat_buf,
+				      (void*)&bspstore, nat_buf,
 				      nat_addr - bspstore,
 				      register_size (current_gdbarch, regnum));
 	    }
@@ -1828,6 +1828,8 @@ ia64_frame_prev_register (struct frame_info *next_frame, void **this_cache,
 	  CORE_ADDR r_addr;
 	  CORE_ADDR prev_cfm, prev_bsp, prev_bof;
 	  CORE_ADDR addr = 0;
+	  ULONGEST bspstore;
+
 	  if (regnum >= V32_REGNUM)
 	    regnum = IA64_GR32_REGNUM + (regnum - V32_REGNUM);
 	  ia64_frame_prev_register (next_frame, this_cache, IA64_CFM_REGNUM,
@@ -1839,10 +1841,24 @@ ia64_frame_prev_register (struct frame_info *next_frame, void **this_cache,
 	  prev_bof = rse_address_add (prev_bsp, -(prev_cfm & 0x7f));
 
 	  addr = rse_address_add (prev_bof, (regnum - IA64_GR32_REGNUM));
-	  /* XXX marcel */
-	  *lvalp = lval_memory;
-	  *addrp = addr;
-	  read_memory (addr, valuep, register_size (current_gdbarch, regnum));
+
+	  /* Figure out if the register was already flushed or is dirty.
+	     If the register was flushed already we can return the address
+	     on the backingstore for it.  */
+	  regcache_cooked_read_unsigned (current_regcache, IA64_BSPSTORE_REGNUM,
+					 &bspstore);
+	  if (addr < bspstore)
+	    {
+	      *lvalp = lval_memory;
+	      *addrp = addr;
+	      read_memory (addr, valuep, register_size (current_gdbarch, regnum));
+	    }
+	  else
+	    {
+	      target_read_partial (&current_target, TARGET_OBJECT_DIRTY,
+				   (void*)&bspstore, valuep, addr - bspstore,
+				   register_size (current_gdbarch, regnum));
+	    }
         }
     }
   else
