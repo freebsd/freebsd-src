@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.137 1998/03/07 21:35:35 dyson Exp $
+ * $Id: vfs_subr.c,v 1.138 1998/03/08 09:57:15 julian Exp $
  */
 
 /*
@@ -1227,12 +1227,13 @@ void
 vhold(vp)
 	register struct vnode *vp;
 {
+	int s;
 
-	simple_lock(&vp->v_interlock);
+  	s = splbio();
 	vp->v_holdcnt++;
 	if (VSHOULDBUSY(vp))
 		vbusy(vp);
-	simple_unlock(&vp->v_interlock);
+	splx(s);
 }
 
 /*
@@ -1242,14 +1243,15 @@ void
 vdrop(vp)
 	register struct vnode *vp;
 {
+	int s;
 
-	simple_lock(&vp->v_interlock);
+	s = splbio();
 	if (vp->v_holdcnt <= 0)
 		panic("vdrop: holdcnt");
 	vp->v_holdcnt--;
 	if (VSHOULDFREE(vp))
 		vfree(vp);
-	simple_unlock(&vp->v_interlock);
+	splx(s);
 }
 
 /*
