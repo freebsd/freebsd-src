@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.7 1997/07/25 19:35:43 wollman Exp $
+ *	$Id: http.c,v 1.8 1997/07/26 19:25:56 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -527,9 +527,13 @@ retry:
 			addstr(iov, n, "If-Modified-Since: ");
 			addstr(iov, n, format_http_date(stab.st_mtime));
 			addstr(iov, n, "\r\n");
-		} else if (errno != 0) {
-			warn("%s: cannot mirror; will retrieve anew", 
-			     fs->fs_outputfile);
+		} else if (errno != 0 || !S_ISREG(stab.st_mode)) {
+			if (errno != 0)
+				warn("%s", fs->fs_outputfile);
+			else
+				warnx("%s: not a regular file",
+				      fs->fs_outputfile);
+			warnx("cannot mirror; will retrieve anew");
 		}
 	}
 	if (restarting) {
@@ -545,14 +549,14 @@ retry:
 			sprintf(rangebuf, "Range: bytes=%qd-\r\n", 
 				(quad_t)stab.st_size);
 			addstr(iov, n, rangebuf);
-		} else if (errno != 0) {
-			warn("%s: cannot restart; will retrieve anew",
-			     fs->fs_outputfile);
+		} else if (errno != 0 || !S_ISREG(stab.st_mode)) {
+			if (errno != 0)
+				warn("%s", fs->fs_outputfile);
+			else
+				warnx("%s: not a regular file",
+				      fs->fs_outputfile);
 			restarting = 0;
-		} else {
-			warnx("%s: cannot restart; will retrieve anew",
-			      fs->fs_outputfile);
-			restarting = 0;
+			warnx("cannot restart; will retrieve anew");
 		}
 	}
 	addstr(iov, n, "\r\n");
