@@ -7,7 +7,7 @@ SUBDIR=	sendmail
 
 BIN1=	amd.map apmd.conf auth.conf \
 	crontab csh.cshrc csh.login csh.logout \
-	devd.conf dhclient.conf fbtab ftpusers gettytab group \
+	devd.conf dhclient.conf disktab fbtab ftpusers gettytab group \
 	hosts hosts.allow hosts.equiv hosts.lpd \
 	inetd.conf login.access login.conf \
 	mac.conf motd netconfig networks newsyslog.conf \
@@ -16,7 +16,6 @@ BIN1=	amd.map apmd.conf auth.conf \
 	rc.network rc.network6 rc.pccard rc.sendmail rc.serial rc.shutdown \
 	rc.subr rc.syscons rc.sysctl remote rpc services \
 	shells sysctl.conf syslog.conf usbd.conf \
-	etc.${MACHINE_ARCH}/disktab \
 	etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} \
 	etc.${MACHINE_ARCH}/ttys \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
