@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.55 1999/05/06 13:42:25 peter Exp $
+ * $Id: kernel.h,v 1.56 1999/07/01 13:21:43 peter Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -142,6 +142,7 @@ enum sysinit_sub_id {
 	SI_SUB_KTHREAD_INIT	= 0xe000000,	/* init process*/
 	SI_SUB_KTHREAD_PAGE	= 0xe400000,	/* pageout daemon*/
 	SI_SUB_KTHREAD_VM	= 0xe800000,	/* vm daemon*/
+	SI_SUB_KTHREAD_BUF	= 0xea00000,	/* buffer daemon*/
 	SI_SUB_KTHREAD_UPDATE	= 0xec00000,	/* update daemon*/
 	SI_SUB_KTHREAD_IDLE	= 0xee00000,	/* idle procs*/
 	SI_SUB_SMP		= 0xf000000,	/* idle procs*/

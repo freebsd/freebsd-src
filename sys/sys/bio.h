@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.73 1999/06/27 11:40:03 peter Exp $
+ * $Id: buf.h,v 1.74 1999/06/29 05:59:47 peter Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -429,10 +429,10 @@ bufq_first(struct buf_queue_head *head)
 
 #define QUEUE_NONE	0	/* on no queue */
 #define QUEUE_LOCKED	1	/* locked buffers */
-#define QUEUE_LRU	2	/* useful buffers */
-#define QUEUE_VMIO	3	/* VMIO buffers */
-#define QUEUE_AGE	4	/* not-useful buffers */
-#define QUEUE_EMPTY	5	/* empty buffer headers*/
+#define QUEUE_CLEAN	2	/* non-B_DELWRI buffers */
+#define QUEUE_DIRTY	3	/* B_DELWRI buffers */
+#define QUEUE_EMPTYKVA	4	/* empty buffer headers w/KVA assignment */
+#define QUEUE_EMPTY	5	/* empty buffer headers */
 
 /*
  * Zero out the buffer's data area.
