@@ -7,8 +7,8 @@ MAN8=	rshd.8
 
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 CFLAGS+=-DKERBEROS -DCRYPT
-DPADD=	${LIBKRB} ${LIBDES} ${LIBCRYPT}
-LDADD=	-lkrb -ldes -lcrypt
+DPADD=	${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBCOM_ERR}
+LDADD=	-lkrb -ldes -lcrypt -lcom_err
 DISTRIBUTION=	krb
 .endif
 
