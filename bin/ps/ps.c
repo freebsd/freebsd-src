@@ -807,35 +807,10 @@ add_list(struct listinfo *inf, const char *argp)
 		}
 		if (!toolong) {
 			*cp = '\0';
-#ifndef ADD_PS_LISTRESET
 			/*
-			 * This is how the standard expects lists to
-			 * be handled.
+			 * Add this single element to the given list.
 			 */
 			inf->addelem(inf, elemcopy);
-#else
-			/*-
-			 * This would add a simple non-standard-but-convienent
-			 * feature.
-			 *
-			 * XXX - The first time I tried to add this check,
-			 *	it increased the total size of `ps' by 3940
-			 *	bytes on i386!  That's 12% of the entire
-			 *	program!  The `ps.o' file grew by only about
-			 *	40 bytes, but the final (stripped) executable
-			 *	in /bin/ps grew by 12%.  I have not had time
-			 *	to investigate, so skip the feature for now.
-			 */
-			/*
-			 * We now have a single element.  Add it to the
-			 * list, unless the element is ":".  In that case,
-			 * reset the list so previous entries are ignored.
-			 */
-			if (strcmp(elemcopy, ":") == 0)
-				inf->count = 0;
-			else
-				inf->addelem(inf, elemcopy);
-#endif
 		} else {
 			/*
 			 * The string is too long to copy.  Find the end
