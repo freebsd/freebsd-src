@@ -43,7 +43,7 @@
 /*
  * The Aironet 4500/4800 series cards come in PCMCIA, ISA and PCI form.
  * This driver supports all three device types (PCI devices are supported
- * through an extra PCI shim: /sys/pci/if_an_p.c). ISA devices can be
+ * through an extra PCI shim: /sys/dev/an/if_an_pci.c). ISA devices can be
  * supported either using hard-coded IO port/IRQ settings or via Plug
  * and Play. The 4500 series devices support 1Mbps and 2Mbps data rates.
  * The 4800 devices support 1, 2, 5.5 and 11Mbps rates.
