@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.58 1998/06/09 13:10:53 phk Exp $
+ * $Id: kern_time.c,v 1.59 1998/10/25 17:44:51 phk Exp $
  */
 
 #include <sys/param.h>
@@ -77,7 +77,8 @@ static int
 settime(tv)
 	struct timeval *tv;
 {
-	struct timeval delta, tv1;
+	struct timeval delta, tv1, tv2;
+	static struct timeval maxtime, laststep;
 	struct timespec ts;
 	int s;
 
@@ -88,13 +89,39 @@ settime(tv)
 
 	/*
 	 * If the system is secure, we do not allow the time to be 
-	 * set to an earlier value (it may be slowed using adjtime,
-	 * but not set back). This feature prevent interlopers from
-	 * setting arbitrary time stamps on files.
+	 * set to a value earlier than 1 second less than the highest
+	 * time we have yet seen. The worst a miscreant can do in
+	 * this circumstance is "freeze" time. He couldn't go
+	 * back to the past.
+	 *
+	 * We similarly do not allow the clock to be stepped more
+	 * than one second, nor more than once per second. This allows
+	 * a miscreant to make the clock march double-time, but no worse.
 	 */
-	if (delta.tv_sec < 0 && securelevel > 1) {
-		splx(s);
-		return (EPERM);
+	if (securelevel > 1) {
+		if (delta.tv_sec < 0 || delta.tv_usec < 0) {
+			/*
+			 * Update maxtime to latest time we've seen.
+			 */
+			if (tv1.tv_sec > maxtime.tv_sec)
+				maxtime = tv1;
+			tv2 = *tv;
+			timevalsub(&tv2, &maxtime);
+			if (tv2.tv_sec < -1) {
+				tv->tv_sec = maxtime.tv_sec - 1;
+				printf("Time adjustment clamped to -1 second\n");
+			}
+		} else {
+			if (tv1.tv_sec == laststep.tv_sec) {
+				splx(s);
+				return (EPERM);
+			}
+			if (delta.tv_sec > 1) {
+				tv->tv_sec = tv1.tv_sec + 1;
+				printf("Time adjustment clamped to +1 second\n");
+			}
+			laststep = *tv;
+		}
 	}
 
 	ts.tv_sec = tv->tv_sec;
