@@ -2289,19 +2289,19 @@ static int sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vfs_ffs, FFS_ADJ_REFCNT, adjrefcnt, CTLFLAG_WR|CTLTYPE_STRUCT,
 	0, 0, sysctl_ffs_fsck, "S,fsck", "Adjust Inode Reference Count");
 
-SYSCTL_NODE(_vfs_ffs, FFS_ADJ_BLKCNT, adjblkcnt, CTLFLAG_WR,
+static SYSCTL_NODE(_vfs_ffs, FFS_ADJ_BLKCNT, adjblkcnt, CTLFLAG_WR,
 	sysctl_ffs_fsck, "Adjust Inode Used Blocks Count");
 
-SYSCTL_NODE(_vfs_ffs, FFS_DIR_FREE, freedirs, CTLFLAG_WR,
+static SYSCTL_NODE(_vfs_ffs, FFS_DIR_FREE, freedirs, CTLFLAG_WR,
 	sysctl_ffs_fsck, "Free Range of Directory Inodes");
 
-SYSCTL_NODE(_vfs_ffs, FFS_FILE_FREE, freefiles, CTLFLAG_WR,
+static SYSCTL_NODE(_vfs_ffs, FFS_FILE_FREE, freefiles, CTLFLAG_WR,
 	sysctl_ffs_fsck, "Free Range of File Inodes");
 
-SYSCTL_NODE(_vfs_ffs, FFS_BLK_FREE, freeblks, CTLFLAG_WR,
+static SYSCTL_NODE(_vfs_ffs, FFS_BLK_FREE, freeblks, CTLFLAG_WR,
 	sysctl_ffs_fsck, "Free Range of Blocks");
 
-SYSCTL_NODE(_vfs_ffs, FFS_SET_FLAGS, setflags, CTLFLAG_WR,
+static SYSCTL_NODE(_vfs_ffs, FFS_SET_FLAGS, setflags, CTLFLAG_WR,
 	sysctl_ffs_fsck, "Change Filesystem Flags");
 
 #ifdef DEBUG
