@@ -68,9 +68,7 @@ SUBDIR=	IPXrouted \
 	pciconf \
 	periodic \
 	pkg_install \
-	pnpinfo \
 	ppp \
-	pppctl \
 	pppd \
 	pppstats \
 	prefix \
@@ -130,6 +128,10 @@ SUBDIR=	IPXrouted \
 	ypset \
 	zic
 
+.if !defined(NOLIBC_R)
+SUBDIR+=pppctl
+.endif
+
 .if !defined(NO_BIND)
 SUBDIR+=named \
 	named.reload \
@@ -151,7 +153,8 @@ SUBDIR+=mailstats \
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
-SUBDIR+=elf2exe
+SUBDIR+=elf2exe \
+	pnpinfo
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
@@ -164,6 +167,7 @@ SUBDIR+=acpi \
 	lptcontrol \
 	mptable \
 	pcvt \
+	pnpinfo \
 	sgsc \
 	sicontrol \
 	spkrtest \
