@@ -39,11 +39,13 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
+#include <dev/uart/uart_cpu.h>
 
 static int uart_isa_probe(device_t dev);
 
 static device_method_t uart_isa_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	uart_cpu_identify),
 	DEVMETHOD(device_probe,		uart_isa_probe),
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	uart_bus_detach),

@@ -75,6 +75,7 @@ int uart_cpu_getdev(int, struct uart_devinfo *);
 int uart_getenv(int, struct uart_devinfo *);
 
 void uart_add_sysdev(struct uart_devinfo *);
+void uart_cpu_identify(driver_t *, device_t);
 
 /*
  * Operations for low-level access to the UART. Primarily for use
