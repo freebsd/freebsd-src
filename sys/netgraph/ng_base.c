@@ -81,7 +81,72 @@ static void ng_dumpnodes(void);
 static void ng_dumphooks(void);
 
 #endif	/* NETGRAPH_DEBUG */
+/*
+ * DEAD versions of the structures. 
+ * In order to avoid races, it is sometimes neccesary to point
+ * at SOMETHING even though theoretically, the current entity is 
+ * INVALID. Use these to avoid these races.
+ */
+struct ng_type ng_deadtype = {
+	NG_ABI_VERSION,
+	"dead",
+	NULL,	/* modevent */
+	NULL,	/* constructor */
+	NULL,	/* rcvmsg */
+	NULL,	/* shutdown */
+	NULL,	/* newhook */
+	NULL,	/* findhook */
+	NULL,	/* connect */
+	NULL,	/* rcvdata */
+	NULL,	/* disconnect */
+	NULL, 	/* cmdlist */
+};
 
+struct ng_node ng_deadnode = {
+	"dead",
+	&ng_deadtype,	
+	NG_INVALID,
+	1,	/* refs */
+	0,	/* numhooks */
+	NULL,	/* private */
+	0,	/* ID */
+	LIST_HEAD_INITIALIZER(ng_deadnode.hooks),
+	{},	/* all_nodes list entry */
+	{},	/* id hashtable list entry */
+	{},	/* workqueue entry */
+	{	0,
+		{}, /* should never use! (should hang) */
+		NULL,
+		&ng_deadnode.nd_input_queue.queue,
+		&ng_deadnode
+	},
+#ifdef	NETGRAPH_DEBUG
+	ND_MAGIC,
+	__FILE__,
+	__LINE__,
+	{NULL}
+#endif	/* NETGRAPH_DEBUG */
+};
+
+struct ng_hook ng_deadhook = {
+	"dead",
+	NULL,		/* private */
+	HK_INVALID | HK_DEAD,
+	1,		/* refs always >= 1 */
+	&ng_deadhook,	/* Peer is self */
+	&ng_deadnode,	/* attached to deadnode */
+	{},		/* hooks list */
+#ifdef	NETGRAPH_DEBUG
+	HK_MAGIC,
+	__FILE__,
+	__LINE__,
+	{NULL}
+#endif	/* NETGRAPH_DEBUG */
+};
+
+/*
+ * END DEAD STRUCTURES
+ */
 /* List nodes with unallocated work */
 static TAILQ_HEAD(, ng_node) ng_worklist = TAILQ_HEAD_INITIALIZER(ng_worklist);
 static struct mtx	ng_worklist_mtx;
@@ -500,7 +565,7 @@ ng_make_node(const char *typename, node_p *nodepp)
 		/*
 		 * Node has no constructor. We cannot ask for one
 		 * to be made. It must be brought into existance by
-		 * some external agency. The external acency should
+		 * some external agency. The external agency should
 		 * call ng_make_node_common() directly to get the
 		 * netgraph part initialised.
 		 */
@@ -904,12 +969,12 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 	NG_NODE_REF(node);		/* each hook counts as a reference */
 
 	/* Check if the node type code has something to say about it */
-	if (node->nd_type->newhook != NULL)
-		if ((error = (*node->nd_type->newhook)(node, hook, name)) != 0) {
+	if (node->nd_type->newhook != NULL) {
+		if ((error = (*node->nd_type->newhook)(node, hook, name))) {
 			NG_HOOK_UNREF(hook);	/* this frees the hook */
 			return (error);
 		}
-
+	}
 	/*
 	 * The 'type' agrees so far, so go ahead and link it in.
 	 * We'll ask again later when we actually connect the hooks.
@@ -1203,6 +1268,35 @@ ng_rmnode_self(node_p here)
 			printf("failed to free node 0x%x\n", ng_node2ID(here));
 			return (ENOMEM);
 		}
+	}
+	return (ng_snd_item(item, 0));
+}
+
+#define	NG_INTERNAL_RMHOOK	0x123456
+int
+ng_rmhook_self(hook_p hook)
+{
+	item_p	item;
+	struct	ng_mesg	*msg;
+	node_p node = NG_HOOK_NODE(hook);
+
+	NG_MKMESSAGE(msg, NGM_GENERIC_COOKIE, NG_INTERNAL_RMHOOK, 0, M_NOWAIT);
+	/*
+	 * Try get a queue item to send it with.
+	 * Hopefully since it has a reserve, we can get one.
+	 * If we can't we are screwed anyhow.
+	 * Increase the chances by flushing our queue first.
+	 * We may free an item, (if we were the hog).
+	 * Work in progress is allowed to complete.
+	 * We also pretty much ensure that we come straight
+	 * back in to do the shutdown. It may be a good idea
+	 * to hold a reference actually to stop it from all
+	 * going up in smoke.
+	 */
+	item = ng_package_msg_self(node, hook, msg);
+	if (item == NULL) {	/* couldn't allocate item. Freed msg */
+		/* try again after flushing our queue */
+		panic("Couldn't allocate item to remove hook");
 	}
 	return (ng_snd_item(item, 0));
 }
@@ -2231,6 +2325,9 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 			ng_destroy_hook(hook);
 		break;
 	    }
+	case NG_INTERNAL_RMHOOK:
+		ng_destroy_hook(lasthook);
+		break;
 	case NGM_NODEINFO:
 	    {
 		struct nodeinfo *ni;
