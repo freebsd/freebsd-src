@@ -1,4 +1,6 @@
-Try first:
+The example supfiles contained in this directory all obtain their sources 
+from the sup.freebsd.org.  In order to reduce the load on that host, 
+please try and use one of the alternate sup servers listed below.
 
 USA:
 sup2.freebsd.org
@@ -13,6 +15,7 @@ nic.funet.fi
 
 Australia:
 sup.au.freebsd.org
+sup2.au.freebsd.org
 
 South Africa:
 sup.za.freebsd.org
