@@ -15,17 +15,26 @@
 
 WINDOW *initscr()
 {
+static	bool initialized = FALSE;
+char *name;
 #ifdef TRACE
 	_init_trace();
 
 	T(("initscr() called"));
 #endif
 
-  	if (newterm(getenv("TERM"), stdout, stdin) == NULL)
-    	return NULL;
-	else {
-		def_shell_mode();
+	/* Portable applications must not call initscr() more than once */
+	if (!initialized) {
+		initialized = TRUE;
+
+		if ((name = getenv("TERM")) == 0)
+			name = "unknown";
+		if (newterm(name, stdout, stdin) == 0) {
+			fprintf(stderr, "Error opening terminal: %s.\n", name);
+			exit(1);
+		}
+		/* def_shell_mode - done in newterm */
 		def_prog_mode();
-		return(stdscr);
 	}
+	return(stdscr);
 }
