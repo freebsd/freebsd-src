@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.3 1998/04/17 22:36:37 des Exp $
+ *	$Id: ppc.c,v 1.4 1998/08/03 19:14:32 msmith Exp $
  *
  */
 #include "ppc.h"
@@ -449,8 +449,7 @@ config:
 
 	if (bootverbose) {
 		outb(csr, 0x1);
-		printf("SMC registers CR1=0x%x", ppc->ppc_unit,
-			inb(cio) & 0xff);
+		printf("SMC registers CR1=0x%x", inb(cio) & 0xff);
 
 		outb(csr, 0x4);
 		printf(" CR4=0x%x", inb(cio) & 0xff);
