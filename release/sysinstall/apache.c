@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.22 1996/04/29 19:34:23 jkh Exp $
+ * $Id: apache.c,v 1.23 1996/06/08 12:01:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -53,8 +53,8 @@
 
 /* These change if the package uses different defaults */
 
-#define DEFAULT_USER	"guest"
-#define DEFAULT_GROUP	"guest"
+#define DEFAULT_USER	"bin"
+#define DEFAULT_GROUP	"bin"
 #define WELCOME_FILE	"index.html"
 #define USER_HOMEDIR	"public_html"
 
