@@ -94,6 +94,7 @@
 #include <machine/cache.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
+#include <machine/metadata.h>
 #include <machine/pv.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
@@ -310,8 +311,8 @@ pmap_bootstrap(vm_offset_t ekva)
 	 * pmap_kextract() will work for them.
 	 */
 	for (i = 0; i < kernel_tlb_slots; i++) {
-		va = TTE_GET_VA(&kernel_ttes[i]);
-		pa = TTE_GET_PA(&kernel_ttes[i]);
+		pa = kernel_tlbs[i].te_pa;
+		va = kernel_tlbs[i].te_va;
 		for (off = 0; off < PAGE_SIZE_4M; off += PAGE_SIZE) {
 			tp = tsb_kvtotte(va + off);
 			tp->tte_vpn = TV_VPN(va + off);

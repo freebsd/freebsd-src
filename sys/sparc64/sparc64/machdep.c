@@ -107,7 +107,7 @@
 
 typedef int ofw_vec_t(void *);
 
-struct tte *kernel_ttes;
+struct tlb_entry *kernel_tlbs;
 int kernel_tlb_slots;
 
 int physmem;
@@ -229,7 +229,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 			end = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 			kernel_tlb_slots = MD_FETCH(kmdp, MODINFOMD_DTLB_SLOTS,
 			    int);
-			kernel_ttes = (struct tte *)preload_search_info(kmdp,
+			kernel_tlbs = (void *)preload_search_info(kmdp,
 			    MODINFO_METADATA | MODINFOMD_DTLB);
 		}
 	}
