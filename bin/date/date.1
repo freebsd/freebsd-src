@@ -130,7 +130,7 @@ by future calls to
 .Xr gettimeofday 2 .
 .It Fl u
 Display or set the date in
-.Tn UCT
+.Tn UTC
 .Pq universal
 time.
 .It Fl v
@@ -143,7 +143,9 @@ or backwards according to the remaining string, otherwise the relevant
 part of the date is set.  The date can be adjusted as many times as
 required using these flags.  Flags are processed in the order given.
 .Pp
-Seconds are in the range 0-59, minutes are in the range 0-59, hours are
+When setting values
+.Pq rather than adjusting them ,
+seconds are in the range 0-59, minutes are in the range 0-59, hours are
 in the range 1-12, month days are in the range 1-31, week days are in the
 range 0-6
 .Pq Sun-Sat ,
