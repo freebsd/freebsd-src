@@ -1,5 +1,5 @@
 /* Prints out tree in human readable form - GNU C-compiler
-   Copyright (C) 1990, 91, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1990, 91, 93-97, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
+
+/* $FreeBSD$ */
 
 
 #include "config.h"
@@ -64,7 +66,7 @@ debug_tree (node)
 void
 print_node_brief (file, prefix, node, indent)
      FILE *file;
-     char *prefix;
+     const char *prefix;
      tree node;
      int indent;
 {
@@ -176,7 +178,7 @@ indent_to (file, column)
 void
 print_node (file, prefix, node, indent)
      FILE *file;
-     char *prefix;
+     const char *prefix;
      tree node;
      int indent;
 {
@@ -404,6 +406,8 @@ print_node (file, prefix, node, indent)
 	fprintf (file, " built-in code %d", DECL_FUNCTION_CODE (node));
       if (TREE_CODE (node) == FIELD_DECL)
 	print_node (file, "bitpos", DECL_FIELD_BITPOS (node), indent + 4);
+      if (DECL_POINTER_ALIAS_SET_KNOWN_P (node))
+	fprintf (file, " alias set %d", DECL_POINTER_ALIAS_SET (node));
       print_node_brief (file, "context", DECL_CONTEXT (node), indent + 4);
       print_node_brief (file, "machine_attributes", DECL_MACHINE_ATTRIBUTES (node), indent + 4);
       print_node_brief (file, "abstract_origin",
@@ -532,7 +536,7 @@ print_node (file, prefix, node, indent)
       print_node (file, "chain", BLOCK_CHAIN (node), indent + 4);
       print_node (file, "abstract_origin",
 		  BLOCK_ABSTRACT_ORIGIN (node), indent + 4);
-      return;
+      break;
 
     case 'e':
     case '<':
@@ -545,7 +549,7 @@ print_node (file, prefix, node, indent)
 	  print_node (file, "vars", TREE_OPERAND (node, 0), indent + 4);
 	  print_node (file, "body", TREE_OPERAND (node, 1), indent + 4);
 	  print_node (file, "block", TREE_OPERAND (node, 2), indent + 4);
-	  return;
+	  break;
 	}
 
       len = tree_code_length[(int) TREE_CODE (node)];
