@@ -50,7 +50,7 @@
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 #include <sys/aio.h>
 
 #include <machine/limits.h>
@@ -271,7 +271,7 @@ static int	filt_aio(struct knote *kn, long hint);
  *	aiol	list io job pointer - internal to aio_suspend XXX
  *	aiolio	list io jobs
  */
-static vm_zone_t kaio_zone, aiop_zone, aiocb_zone, aiol_zone, aiolio_zone;
+static uma_zone_t kaio_zone, aiop_zone, aiocb_zone, aiol_zone, aiolio_zone;
 
 /* kqueue filters for aio */
 static struct filterops aio_filtops =
@@ -336,11 +336,16 @@ aio_onceonly(void)
 	TAILQ_INIT(&aio_activeproc);
 	TAILQ_INIT(&aio_jobs);
 	TAILQ_INIT(&aio_bufjobs);
-	kaio_zone = zinit("AIO", sizeof(struct kaioinfo), 0, 0, 1);
-	aiop_zone = zinit("AIOP", sizeof(struct aiothreadlist), 0, 0, 1);
-	aiocb_zone = zinit("AIOCB", sizeof(struct aiocblist), 0, 0, 1);
-	aiol_zone = zinit("AIOL", AIO_LISTIO_MAX*sizeof(intptr_t), 0, 0, 1);
-	aiolio_zone = zinit("AIOLIO", sizeof(struct aio_liojob), 0, 0, 1);
+	kaio_zone = uma_zcreate("AIO", sizeof(struct kaioinfo), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	aiop_zone = uma_zcreate("AIOP", sizeof(struct aiothreadlist), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	aiocb_zone = uma_zcreate("AIOCB", sizeof(struct aiocblist), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	aiol_zone = uma_zcreate("AIOL", AIO_LISTIO_MAX*sizeof(intptr_t) , NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	aiolio_zone = uma_zcreate("AIOLIO", sizeof(struct aio_liojob), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	aiod_timeout = AIOD_TIMEOUT_DEFAULT;
 	aiod_lifetime = AIOD_LIFETIME_DEFAULT;
 	jobrefid = 1;
@@ -377,7 +382,7 @@ aio_init_aioinfo(struct proc *p)
 {
 	struct kaioinfo *ki;
 	if (p->p_aioinfo == NULL) {
-		ki = zalloc(kaio_zone);
+		ki = uma_zalloc(kaio_zone, M_WAITOK);
 		p->p_aioinfo = ki;
 		ki->kaio_flags = 0;
 		ki->kaio_maxactive_count = max_aio_per_proc;
@@ -500,11 +505,11 @@ aio_free_entry(struct aiocblist *aiocbe)
 	}
 	if (lj && (lj->lioj_buffer_count == 0) && (lj->lioj_queue_count == 0)) {
 		TAILQ_REMOVE(&ki->kaio_liojoblist, lj, lioj_list);
-		zfree(aiolio_zone, lj);
+		uma_zfree(aiolio_zone, lj);
 	}
 	aiocbe->jobstate = JOBST_NULL;
 	untimeout(process_signal, aiocbe, aiocbe->timeouthandle);
-	zfree(aiocb_zone, aiocbe);
+	uma_zfree(aiocb_zone, aiocbe);
 	return 0;
 }
 
@@ -624,7 +629,7 @@ restart4:
 		if ((lj->lioj_buffer_count == 0) && (lj->lioj_queue_count ==
 		    0)) {
 			TAILQ_REMOVE(&ki->kaio_liojoblist, lj, lioj_list);
-			zfree(aiolio_zone, lj);
+			uma_zfree(aiolio_zone, lj);
 		} else {
 #ifdef DIAGNOSTIC
 			printf("LIO job not cleaned up: B:%d, BF:%d, Q:%d, "
@@ -636,7 +641,7 @@ restart4:
 		}
 	}
 
-	zfree(kaio_zone, ki);
+	uma_zfree(kaio_zone, ki);
 	p->p_aioinfo = NULL;
 }
 
@@ -789,7 +794,7 @@ aio_daemon(void *uproc)
 	 * Allocate and ready the aio control info.  There is one aiop structure
 	 * per daemon.
 	 */
-	aiop = zalloc(aiop_zone);
+	aiop = uma_zalloc(aiop_zone, M_WAITOK);
 	aiop->aiothread = td;
 	aiop->aiothreadflags |= AIOP_FREE;
 
@@ -955,7 +960,7 @@ aio_daemon(void *uproc)
 			s = splnet();
 			if (aiocbe->jobflags & AIOCBLIST_ASYNCFREE) {
 				aiocbe->jobflags &= ~AIOCBLIST_ASYNCFREE;
-				zfree(aiocb_zone, aiocbe);
+				uma_zfree(aiocb_zone, aiocbe);
 			} else {
 				TAILQ_REMOVE(&ki->kaio_jobqueue, aiocbe, plist);
 				TAILQ_INSERT_TAIL(&ki->kaio_jobdone, aiocbe,
@@ -1031,7 +1036,7 @@ aio_daemon(void *uproc)
 				    (num_aio_procs > target_aio_procs)) {
 					TAILQ_REMOVE(&aio_freeproc, aiop, list);
 					splx(s);
-					zfree(aiop_zone, aiop);
+					uma_zfree(aiop_zone, aiop);
 					num_aio_procs--;
 #ifdef DIAGNOSTIC
 					if (mycp->p_vmspace->vm_refcnt <= 1) {
@@ -1332,7 +1337,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	struct kqueue *kq;
 	struct file *kq_fp;
 
-	aiocbe = zalloc(aiocb_zone);
+	aiocbe = uma_zalloc(aiocb_zone, M_WAITOK);
 	aiocbe->inputcharge = 0;
 	aiocbe->outputcharge = 0;
 	callout_handle_init(&aiocbe->timeouthandle);
@@ -1345,12 +1350,12 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	error = copyin(job, &aiocbe->uaiocb, sizeof(aiocbe->uaiocb));
 	if (error) {
 		suword(&job->_aiocb_private.error, error);
-		zfree(aiocb_zone, aiocbe);
+		uma_zfree(aiocb_zone, aiocbe);
 		return error;
 	}
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_SIGNAL &&
 		!_SIG_VALID(aiocbe->uaiocb.aio_sigevent.sigev_signo)) {
-		zfree(aiocb_zone, aiocbe);
+		uma_zfree(aiocb_zone, aiocbe);
 		return EINVAL;
 	}
 
@@ -1370,7 +1375,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	 */
 	fd = aiocbe->uaiocb.aio_fildes;
 	if (fd >= fdp->fd_nfiles) {
-		zfree(aiocb_zone, aiocbe);
+		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EBADF);
 		return EBADF;
@@ -1379,14 +1384,14 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	fp = aiocbe->fd_file = fdp->fd_ofiles[fd];
 	if ((fp == NULL) || ((opcode == LIO_WRITE) && ((fp->f_flag & FWRITE) ==
 	    0))) {
-		zfree(aiocb_zone, aiocbe);
+		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EBADF);
 		return EBADF;
 	}
 
 	if (aiocbe->uaiocb.aio_offset == -1LL) {
-		zfree(aiocb_zone, aiocbe);
+		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EINVAL);
 		return EINVAL;
@@ -1394,7 +1399,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 
 	error = suword(&job->_aiocb_private.kernelinfo, jobrefid);
 	if (error) {
-		zfree(aiocb_zone, aiocbe);
+		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EINVAL);
 		return error;
@@ -1407,7 +1412,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 		jobrefid++;
 	
 	if (opcode == LIO_NOP) {
-		zfree(aiocb_zone, aiocbe);
+		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0) {
 			suword(&job->_aiocb_private.error, 0);
 			suword(&job->_aiocb_private.status, 0);
@@ -1417,7 +1422,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	}
 
 	if ((opcode != LIO_READ) && (opcode != LIO_WRITE)) {
-		zfree(aiocb_zone, aiocbe);
+		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0) {
 			suword(&job->_aiocb_private.status, 0);
 			suword(&job->_aiocb_private.error, EINVAL);
@@ -1461,7 +1466,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	error = kqueue_register(kq, &kev, td);
 aqueue_fail:
 	if (error) {
-		zfree(aiocb_zone, aiocbe);
+		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, error);
 		goto done;
@@ -1687,8 +1692,8 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 		return EAGAIN;
 
 	njoblist = 0;
-	ijoblist = zalloc(aiol_zone);
-	ujoblist = zalloc(aiol_zone);
+	ijoblist = uma_zalloc(aiol_zone, M_WAITOK);
+	ujoblist = uma_zalloc(aiol_zone, M_WAITOK);
 	cbptr = uap->aiocbp;
 
 	for (i = 0; i < uap->nent; i++) {
@@ -1701,8 +1706,8 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 	}
 
 	if (njoblist == 0) {
-		zfree(aiol_zone, ijoblist);
-		zfree(aiol_zone, ujoblist);
+		uma_zfree(aiol_zone, ijoblist);
+		uma_zfree(aiol_zone, ujoblist);
 		return 0;
 	}
 
@@ -1715,8 +1720,8 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 				    ijoblist[i]) {
 					if (ujoblist[i] != cb->uuaiocb)
 						error = EINVAL;
-					zfree(aiol_zone, ijoblist);
-					zfree(aiol_zone, ujoblist);
+					uma_zfree(aiol_zone, ijoblist);
+					uma_zfree(aiol_zone, ujoblist);
 					return error;
 				}
 			}
@@ -1732,8 +1737,8 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 					splx(s);
 					if (ujoblist[i] != cb->uuaiocb)
 						error = EINVAL;
-					zfree(aiol_zone, ijoblist);
-					zfree(aiol_zone, ujoblist);
+					uma_zfree(aiol_zone, ijoblist);
+					uma_zfree(aiol_zone, ujoblist);
 					return error;
 				}
 			}
@@ -1744,12 +1749,12 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 		splx(s);
 
 		if (error == ERESTART || error == EINTR) {
-			zfree(aiol_zone, ijoblist);
-			zfree(aiol_zone, ujoblist);
+			uma_zfree(aiol_zone, ijoblist);
+			uma_zfree(aiol_zone, ujoblist);
 			return EINTR;
 		} else if (error == EWOULDBLOCK) {
-			zfree(aiol_zone, ijoblist);
-			zfree(aiol_zone, ujoblist);
+			uma_zfree(aiol_zone, ijoblist);
+			uma_zfree(aiol_zone, ujoblist);
 			return EAGAIN;
 		}
 	}
@@ -2009,7 +2014,7 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 	if ((nent + ki->kaio_queue_count) > ki->kaio_qallowed_count)
 		return EAGAIN;
 
-	lj = zalloc(aiolio_zone);
+	lj = uma_zalloc(aiolio_zone, M_WAITOK);
 	if (!lj)
 		return EAGAIN;
 
@@ -2027,11 +2032,11 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 		error = copyin(uap->sig, &lj->lioj_signal,
 			       sizeof(lj->lioj_signal));
 		if (error) {
-			zfree(aiolio_zone, lj);
+			uma_zfree(aiolio_zone, lj);
 			return error;
 		}
 		if (!_SIG_VALID(lj->lioj_signal.sigev_signo)) {
-			zfree(aiolio_zone, lj);
+			uma_zfree(aiolio_zone, lj);
 			return EINVAL;
 		}
 		lj->lioj_flags |= LIOJ_SIGNAL;

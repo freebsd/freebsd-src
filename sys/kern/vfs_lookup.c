@@ -55,12 +55,12 @@
 #include <sys/ktrace.h>
 #endif
 
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 /*
  * Allocation zone for namei
  */
-vm_zone_t namei_zone;
+uma_zone_t namei_zone;
 
 static void
 nameiinit(void *dummy __unused)
@@ -118,7 +118,7 @@ namei(ndp)
 	 * name into the buffer.
 	 */
 	if ((cnp->cn_flags & HASBUF) == 0)
-		cnp->cn_pnbuf = zalloc(namei_zone);
+		cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 	if (ndp->ni_segflg == UIO_SYSSPACE)
 		error = copystr(ndp->ni_dirp, cnp->cn_pnbuf,
 			    MAXPATHLEN, (size_t *)&ndp->ni_pathlen);
@@ -133,7 +133,7 @@ namei(ndp)
 		error = ENOENT;
 
 	if (error) {
-		zfree(namei_zone, cnp->cn_pnbuf);
+		uma_zfree(namei_zone, cnp->cn_pnbuf);
 		ndp->ni_vp = NULL;
 		return (error);
 	}
@@ -171,7 +171,7 @@ namei(ndp)
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
 		if (error) {
-			zfree(namei_zone, cnp->cn_pnbuf);
+			uma_zfree(namei_zone, cnp->cn_pnbuf);
 			return (error);
 		}
 		/*
@@ -179,7 +179,7 @@ namei(ndp)
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0)
-				zfree(namei_zone, cnp->cn_pnbuf);
+				uma_zfree(namei_zone, cnp->cn_pnbuf);
 			else
 				cnp->cn_flags |= HASBUF;
 
@@ -199,7 +199,7 @@ namei(ndp)
 			break;
 		}
 		if (ndp->ni_pathlen > 1)
-			cp = zalloc(namei_zone);
+			cp = uma_zalloc(namei_zone, M_WAITOK);
 		else
 			cp = cnp->cn_pnbuf;
 		aiov.iov_base = cp;
@@ -214,25 +214,25 @@ namei(ndp)
 		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
 		if (error) {
 			if (ndp->ni_pathlen > 1)
-				zfree(namei_zone, cp);
+				uma_zfree(namei_zone, cp);
 			break;
 		}
 		linklen = MAXPATHLEN - auio.uio_resid;
 		if (linklen == 0) {
 			if (ndp->ni_pathlen > 1)
-				zfree(namei_zone, cp);
+				uma_zfree(namei_zone, cp);
 			error = ENOENT;
 			break;
 		}
 		if (linklen + ndp->ni_pathlen >= MAXPATHLEN) {
 			if (ndp->ni_pathlen > 1)
-				zfree(namei_zone, cp);
+				uma_zfree(namei_zone, cp);
 			error = ENAMETOOLONG;
 			break;
 		}
 		if (ndp->ni_pathlen > 1) {
 			bcopy(ndp->ni_next, cp + linklen, ndp->ni_pathlen);
-			zfree(namei_zone, cnp->cn_pnbuf);
+			uma_zfree(namei_zone, cnp->cn_pnbuf);
 			cnp->cn_pnbuf = cp;
 		} else
 			cnp->cn_pnbuf[linklen] = '\0';
@@ -240,7 +240,7 @@ namei(ndp)
 		vput(ndp->ni_vp);
 		dp = ndp->ni_dvp;
 	}
-	zfree(namei_zone, cnp->cn_pnbuf);
+	uma_zfree(namei_zone, cnp->cn_pnbuf);
 	vrele(ndp->ni_dvp);
 	vput(ndp->ni_vp);
 	ndp->ni_vp = NULL;

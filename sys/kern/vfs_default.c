@@ -63,7 +63,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
-#include <vm/vm_zone.h>
 
 static int	vop_nolookup(struct vop_lookup_args *);
 static int	vop_nostrategy(struct vop_strategy_args *);
