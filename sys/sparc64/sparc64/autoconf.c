@@ -43,7 +43,7 @@ static device_t nexusdev;
 
 static void configure(void *);
 
-SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure, NULL);
+SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL);
 
 static void
 configure(void *v)
