@@ -1,5 +1,5 @@
 /*	$NetBSD: usb_port.h,v 1.5 1999/01/08 11:58:25 augustss Exp $	*/
-/*	FreeBSD $Id: usb_port.h,v 1.8 1999/01/07 23:31:38 n_hibma Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -57,7 +57,7 @@ typedef struct device bdevice;			/* base device */
 #define usb_timeout(f, d, t, h) timeout((f), (d), (t))
 #define usb_untimeout(f, d, h) untimeout((f), (d))
 
-#define USB_DECLARE_DRIVER_NAME_INIT(_1, dname, _2)  \
+#define USB_DECLARE_DRIVER_INIT(dname, _2)  \
 int __CONCAT(dname,_match) __P((struct device *, struct cfdata *, void *)); \
 void __CONCAT(dname,_attach) __P((struct device *, struct device *, void *)); \
 \
@@ -141,7 +141,7 @@ __CONCAT(dname,_attach)(parent, self, aux) \
 #define usb_timeout(f, d, t, h) ((h) = timeout((f), (d), (t)))
 #define usb_untimeout(f, d, h) untimeout((f), (d), (h))
 
-#define USB_DECLARE_DRIVER_NAME_INIT(name, dname, init...) \
+#define USB_DECLARE_DRIVER_INIT(dname, init...) \
 static device_probe_t __CONCAT(dname,_match); \
 static device_attach_t __CONCAT(dname,_attach); \
 static device_detach_t __CONCAT(dname,_detach); \
@@ -157,7 +157,7 @@ static device_method_t __CONCAT(dname,_methods)[] = { \
 }; \
 \
 static driver_t __CONCAT(dname,_driver) = { \
-        name, \
+        #dname, \
         __CONCAT(dname,_methods), \
         DRIVER_TYPE_MISC, \
         sizeof(struct __CONCAT(dname,_softc)) \
@@ -213,9 +213,5 @@ __CONCAT(dname,_attach)(device_t self)
 
 
 
-#define USB_DECLARE_DRIVER_NAME(name, dname) \
-	USB_DECLARE_DRIVER_NAME_INIT(#name, dname, {0,0} )
-#define USB_DECLARE_DRIVER_INIT(dname, init) \
-	USB_DECLARE_DRIVER_NAME_INIT(#dname, dname, init )
 #define USB_DECLARE_DRIVER(dname) \
-	USB_DECLARE_DRIVER_NAME_INIT(#dname, dname, {0,0} )
+	USB_DECLARE_DRIVER_INIT(dname, {0,0} )
