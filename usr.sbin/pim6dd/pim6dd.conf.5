@@ -79,7 +79,7 @@ to ignore the interface even if the interface is multicast-capable.
 Interfaces are specified in the form of "name unit", such as
 .Ar gif0
 and
-.Ar ep1.
+.Ar ep1 .
 .\"
 .It Xo
 .Ic phyint Ar interface
@@ -97,7 +97,7 @@ If an incoming multicast packet's destination
 matches the specified
 .Ar groupaddrs ,
 the packet is not sent on the
-.Ar interfaces.
+.Ar interfaces .
 Moreover, if there is no other interface than the specified
 interfaces,
 .Xr pim6dd 8
@@ -124,7 +124,7 @@ out.
 If
 .Ar prefixlen
 is omitted, it means the exact match for
-.Ar multicastaddr.
+.Ar multicastaddr .
 .El
 .Ar interfaces
 are specified as a blank separated list of interfaces. Each interface is

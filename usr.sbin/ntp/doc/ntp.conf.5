@@ -1290,15 +1290,12 @@ Except where noted,
 these options apply to all clock drivers.
 .Ss Reference Clock Options
 .Bl -tag -width indent
-.It Xo Ic server No 127.127. Ns Xo
-.Ar t Ns No . Ns Xo
-.Ar u
+.It Xo Ic server No 127.127. Ns
+.Ar t . Ns Ar u
 .Op prefer
 .Op mode Ar int
 .Op minpoll Ar int
 .Op maxpoll Ar int
-.Xc
-.Xc
 .Xc
 This command can be used to configure reference clocks
 in special ways.
@@ -1331,9 +1328,8 @@ minpoll defaults to 10 (17.1 m)
 and maxpoll defaults to 14 (4.5 h).
 The allowable range is 4 (16 s) to 17 (36.4 h) inclusive.
 .El
-.It Xo Ic fudge No 127.127. Ns Xo
-.Ar t Ns No . Ns Xo
-.Ar u
+.It Xo Ic fudge No 127.127. Ns
+.Ar t . Ns Ar u
 .Op time1 Ar sec
 .Op time2 Ar sec
 .Op stratum Ar int
@@ -1343,8 +1339,6 @@ The allowable range is 4 (16 s) to 17 (36.4 h) inclusive.
 .Op flag2 Ar 0 Ns | Ns Ar 1
 .Op flag3 Ar 0 Ns | Ns Ar 1
 .Op flag4 Ar 0 Ns | Ns Ar 1
-.Xc
-.Xc
 .Xc
 This command can be used to configure reference clocks
 in special ways.

@@ -39,7 +39,9 @@
 The
 .Nm
 configuration file consists of a sequence of statements terminated
-by a semi-colon (`;'), each of which specifies how the daemon treats
+by a semi-colon
+.Pq Ql \&; ,
+each of which specifies how the daemon treats
 each interface on the system, specifies some parameters of the PIM
 protocol, and requires some special behavior defined by the protocol.
 .Pp
@@ -60,11 +62,7 @@ are comments.
 The following statements can be specified in the configuration file.
 .Pp
 .Bl -tag -width Ds
-.It Xo
-.Ic log
-.Ar option...
-.Ic ;
-.Xc
+.It Ic log Ar option... ;
 Specify debug messages to be printed out. Each
 .Ar option
 usually specifies a subset of the messages to be printed.
@@ -77,19 +75,23 @@ will not be printed. For example,
 .Ic `all nomld'
 means that all the messages except MLD related ones will be printed.
 Valid options are
-.Ic mld_proto, mld_timer, mld_member, mld, switch, trace, mtrace, traceroute,
-.Ic timeout, callout, pkt, packets, interfaces, vif, kernel, cache, mfc,
-.Ic k_cache, k_mfc, rsrr, pim_detail, pim_hello, pim_neighbors, pim_register,
-.Ic registers, pim_join_prune, pim_j_p, pim_jp, pim_bootstrap, pim_bsr, bsr,
-.Ic bootstrap, pim_asserts, pim_cand_rp, pim_c_rp, pim_rp, rp, pim_routes,
-.Ic pim_routing, pim_mrt, pim_timers, pim_rpf, rpf, pim, routes, routing,
-.Ic mrt, routers, mrouters, neighbors, timers, asserts,
+.Ic mld_proto , mld_timer , mld_member , mld ,
+.Ic switch , trace , mtrace , traceroute ,
+.Ic timeout , callout , pkt , packets ,
+.Ic interfaces , vif , kernel , cache ,
+.Ic mfc , k_cache , k_mfc , rsrr ,
+.Ic pim_detail , pim_hello , pim_neighbors , pim_register ,
+.Ic registers , pim_join_prune , pim_j_p , pim_jp ,
+.Ic pim_bootstrap , pim_bsr , bsr , bootstrap ,
+.Ic pim_asserts , pim_cand_rp , pim_c_rp , pim_rp ,
+.Ic rp , pim_routes , pim_routing , pim_mrt ,
+.Ic pim_timers , pim_rpf , rpf , pim ,
+.Ic routes , routing , mrt , routers ,
+.Ic mrouters , neighbors , timers , asserts ,
 and
 .Ic all .
 .\"
-.It Xo
-.Ic reverselookup (yes \(ba no);
-.Xc
+.It Ic reverselookup Pq Cm yes | no ;
 Specifies if a hostname for an IPv6 address should be resolved
 on logging.
 .Ic yes
@@ -98,11 +100,7 @@ means a hostname should be resolved, and
 means should not.
 By default, a hostname is not resolved.
 .\"
-.It Xo
-.Ic phyint Ar interface
-.Op disable
-.Ic ;
-.Xc
+.It Ic phyint Ar interface Op Cm disable ;
 Specifies
 .Xr pim6sd 8
 to ignore the interface even if the interface is multicast-capable.
@@ -111,14 +109,13 @@ the case where there is no configuration file).
 Interfaces are specified in the form of "name unit", such as
 .Ar gif0
 and
-.Ar ep1.
+.Ar ep1 .
 .\"
 .It Xo
 .Ic phyint Ar interface
-.Op preference Ar preference
-.Op metric Ar metric
-.Op nolistener
-.Ic ;
+.Op Cm preference Ar preference
+.Op Cm metric Ar metric
+.Op Cm nolistener ;
 .Xc
 Specifies the preference and/or metric values when sending a PIM
 assert message on the interface.
@@ -131,9 +128,7 @@ This option is usually meaningless but will be useful when
 MLD messages are noisy (e.g. when debugging) and there is surely no
 listner on the interface.
 .\"
-.It Xo
-.Ic default_source_preference Ar preference;
-.Xc
+.It Ic default_source_preference Ar preference ;
 Specifies a default preference value when sending a PIM assert message.
 Preferences are used by assert elections to determine upstream routers.
 Currently
@@ -142,21 +137,17 @@ cannot reliably obtain preferences and metrics from the
 unicast routing protocols, so a default value may be configured.
 The default preference is 1024.
 .\"
-.It Ic default_source_metric Ar metric;
+.It Ic default_source_metric Ar metric ;
 Specifies a default metric value when sending a PIM assert message.
 It is recommended that preferences be set such that metrics are never
 consulted. However, default metrics may also be set and will default to
 1024.
 .\"
-.It Xo
-.Ic granularity Ar second;
-.Xc
+.It Ic granularity Ar second ;
 Specifies timer granularity in seconds.
 The default value is 5.
 .\"
-.It Xo
-.Ic hello_period Ar period Ar coef;
-.Xc
+.It Ic hello_period Ar period coef ;
 .Ar Period
 specifies the period in second between 2 hello messages.
 .Ar Coef
@@ -168,9 +159,7 @@ the holdtime will be
 The default values of the period and the coefficient are 30 and 3.5,
 respectively. The default holdtime is 105 seconds as a result.
 .\"
-.It Xo
-.Ic join_prune_period Ar period Ar coef;
-.Xc
+.It Ic join_prune_period Ar period coef ;
 .Ar Period
 specifies the period in second between 2 join/prune messages.
 .Ar Coef
@@ -182,33 +171,25 @@ the holdtime will be
 The default values of the period and the coefficient are 60 and 3.5,
 respectively. Consequently, the default holdtime is 210 seconds.
 .\"
-.It Xo
-.Ic data_timeout Ar timer;
-.Xc
+.It Ic data_timeout Ar timer ;
 Specifies the time after which (S,G) state for a silent source will be
 deleted.
 The default value is 210.
 .\"
-.It Xo
-.Ic register_suppression_timeout Ar interval;
-.Xc
+.It Ic register_suppression_timeout Ar interval ;
 .Ar Interval
 specifies the interval between receiving a Register-Stop and allowing
 PIM Register to be send again.
 The default value is 60.
 .\"
-.It Xo
-.Ic probe_time Ar timer;
-.Xc
+.It Ic probe_time Ar timer ;
 .Ar Timer
 specifies the time between sending a null Register and the
 Register-Suppression-Timer expiring unless it is restarted by
 receiving a Register-Stop.
 The default value is 5.
 .\"
-.It Xo
-.Ic assert_timeout Ar interval;
-.Xc
+.It Ic assert_timeout Ar interval ;
 .Ar Interval
 specifies the interval between the last time an Assert is received and
 the time at which the assert is timeout.
@@ -217,9 +198,8 @@ The default value is 180.
 .It Xo
 .Ic cand_rp
 .Op Ar interface
-.Op Ic time Ar time
-.Op Ic priority Ar priority
-.Ic ;
+.Op Cm time Ar time
+.Op Cm priority Ar priority ;
 .Xc
 Specifies to act as a candidate Rendezvous Point(RP).
 It is recommended to specify
@@ -244,9 +224,7 @@ Another optional parameter
 specifies the priority of the RP.
 The default value is 0, which means the highest priority.
 .\"
-.It Xo
-.Ic group_prefix Ar prefix;
-.Xc
+.It Ic group_prefix Ar prefix ;
 When acting as a Rendezvous Point(RP),
 .Ar prefix
 specifies a group prefix that the RP will handle.
@@ -254,10 +232,9 @@ specifies a group prefix that the RP will handle.
 .It Xo
 .Ic cand_bootstrap_router
 .Op Ar interface
-.Op Ic time Ar time
-.Op Ic priority Ar priority
-.Op Ic masklen Ar masklen
-.Ic ;
+.Op Cm time Ar time
+.Op Cm priority Ar priority
+.Op Cm masklen Ar masklen ;
 .Xc
 Specifies to act as a candidate bootstrap router(BSR).
 It is recommended to specify
@@ -285,7 +262,8 @@ parametr. Its value,
 must be no less than 0 and no greater than 128.
 .\"
 .It Xo
-.Ic switch_register_threshold Ic rate Ar rate Ic interval Ar interval;
+.Ic switch_register_threshold
+.Cm rate Ar rate Cm interval Ar interval ;
 .Xc
 Specifies the threshold that a Rendezvous Point(RP) switches to a shortest
 path tree, which is valid only when acting as an RP.
@@ -296,7 +274,8 @@ specifies the interval of checking the rate in seconds.
 The default values are 50000 and 20, respectively.
 .\"
 .It Xo
-.Ic switch_data_threshold Ic rate Ar rate Ic interval Ar interval;
+.Ic switch_data_threshold
+.Cm rate Ar rate Cm interval Ar interval ;
 .Xc
 Specifies the threshold that a last hop router switches to a shortest
 path tree.

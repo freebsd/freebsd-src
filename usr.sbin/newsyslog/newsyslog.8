@@ -84,7 +84,7 @@ follows:
 .Bl -tag -width indent
 .It Ar logfile_name
 Name of the system log file to be archived.
-.It Ar owner:group
+.It Ar owner : Ns Ar group
 This optional field specifies the owner and group for the archive file.
 The ":" is essential, even if the
 .Ar owner
@@ -145,7 +145,7 @@ little point in specifying an explicit minutes or seconds component in
 the current implementation, since the only comparison is `within the
 hour'.
 .Pp
-.Em ISO 8601 restricted time format
+.Sy ISO 8601 restricted time format
 .Pp
 The lead-in character for a restricted
 .Tn ISO 8601
@@ -211,29 +211,15 @@ equivalent:
 .Sq Li \&
 .El
 .Pp
-.Em Day, week and month time format
+.Sy Day, week and month time format
 .Pp
 The lead-in character for day, week and month specification is a
 .So Li \&$ Sc Ns No -sign .
 The particular format of day, week and month specification is:
-.Sm off
-.Oo
-.Va D\&hh
-.Oc ,
-.Oo
-.Va W\&w
-.Oo
-.Va D\&hh
-.Oc
-.Oc 
+.Op Va D\&hh ,
+.Op Va W\&w Ns Op Va D\&hh
 and
-.Oo
-.Va M\&dd
-.Oo
-.Va D\&hh
-.Oc
-.Oc
-.Sm on
+.Op Va M\&dd Ns Op Va D\&hh
 respectively.
 Optional time fields default to midnight. 
 The ranges for day and hour secifications are:

@@ -28,7 +28,7 @@
 .Op Fl vInfrRMS
 .Op Fl t Ar template
 .Op Fl p Ar prefix
-.Ar pkg-name [pkg-name ...]
+.Ar pkg-name Op Ar pkg-name ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -67,7 +67,7 @@ command to examine the package file.
 .Sh OPTIONS
 The following command line arguments are supported:
 .Bl -tag -width indent
-.It Ar pkg-name [... pkg-name]
+.It Ar pkg-name Op Ar pkg-name ...
 The named packages are installed.  A package name of - will cause
 .Nm
 to read from stdin.
@@ -269,7 +269,7 @@ is the name of the package in question and
 .Ar PRE-INSTALL
 is a keyword denoting this as the preinstallation phase.
 .Pp
-.Cm Note:
+.Sy Note :
 The
 .Ar PRE-INSTALL
 keyword will not appear if separate scripts for pre-install and post-install
@@ -326,7 +326,7 @@ is the name of the package in question and
 .Ar POST-INSTALL
 is a keyword denoting this as the post-installation phase.
 .Pp
-.Cm Note:
+.Sy Note :
 The
 .Ar POST-INSTALL
 keyword will not appear if separate scripts for pre-install and post-install
