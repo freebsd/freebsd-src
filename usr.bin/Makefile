@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.64 1995/12/29 15:29:35 bde Exp $
+#	$Id: Makefile,v 1.65 1995/12/31 21:32:17 ats Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -30,6 +30,10 @@ SUBDIR+=gprof4
 .if !exists(../secure) || defined(NOSECURE)
 SUBDIR+=telnet
 .else
+.if defined(RELEASEDIR)
+# releases do need both
+SUBDIR+=telnet
+.endif
 SUBDIR+= ../secure/usr.bin/telnet
 .endif
 
