@@ -75,7 +75,7 @@
 #include <sys/vnode.h>
 #include <sys/file.h>
 #include <sys/uio.h>
-#include <sys/disklabel.h>		/* YF - needed anyway for disksort() */
+#include <sys/disklabel.h>
 #ifdef TEST_LABELLING
 #include <sys/diskslice.h>
 #include <sys/stat.h>
@@ -603,7 +603,7 @@ vnclear(struct vn_softc *vn)
 
 #ifdef DEBUG
 	if (vndebug & VDB_FOLLOW)
-		printf("vnclear(%p): vp %p\n", vn, vp);	/* YF - added vn */
+		printf("vnclear(%p): vp %p\n", vn, vp);
 #endif
 	vn->sc_flags &= ~VNF_INITED;
 	if (vp == (struct vnode *)0)
