@@ -105,8 +105,13 @@ typedef struct {
 __BEGIN_DECLS
 int	regcomp(regex_t * __restrict, const char * __restrict, int);
 size_t	regerror(int, const regex_t * __restrict, char * __restrict, size_t);
+/*
+ * XXX forth parameter should be `regmatch_t [__restrict]', but isn't because
+ * of a bug in GCC 3.2 (when -std=c99 is specified) which perceives this as a
+ * syntax error.
+ */
 int	regexec(const regex_t * __restrict, const char * __restrict, size_t,
-	    regmatch_t [__restrict], int);
+	    regmatch_t * __restrict, int);
 void	regfree(regex_t *);
 __END_DECLS
 
