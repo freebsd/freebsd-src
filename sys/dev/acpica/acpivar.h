@@ -149,6 +149,8 @@ extern int		acpi_set_magic(device_t dev, int m);
 extern void *		acpi_get_private(device_t dev);
 extern int		acpi_set_private(device_t dev, void *p);
 extern ACPI_OBJECT_TYPE	acpi_get_type(device_t dev);
+struct resource *	acpi_bus_alloc_gas(device_t dev, int *rid,
+					   ACPI_GENERIC_ADDRESS *gas);
 
 #ifdef ACPI_DEBUGGER
 extern void		acpi_EnterDebugger(void);
@@ -285,6 +287,19 @@ extern void	acpi_ec_ecdt_probe(device_t);
 
 /* AC adapter interface. */
 extern int	acpi_acad_get_acline(int *);
+
+/* Package manipulation convenience functions. */
+#define ACPI_PKG_VALID(pkg, size)				\
+    ((pkg) != NULL && (pkg)->Type == ACPI_TYPE_PACKAGE &&	\
+     (pkg)->Package.Count >= (size))
+int		acpi_PkgInt(device_t dev, ACPI_OBJECT *res, int idx,
+			    ACPI_INTEGER *dst);
+int		acpi_PkgInt32(device_t dev, ACPI_OBJECT *res, int idx,
+			      uint32_t *dst);
+int		acpi_PkgStr(device_t dev, ACPI_OBJECT *res, int idx, void *dst,
+			    size_t size);
+int		acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *rid,
+			    struct resource **dst);
 
 #if __FreeBSD_version >= 500000
 #ifndef ACPI_MAX_THREADS
