@@ -201,8 +201,19 @@ archive_read_format_tar_bid(struct archive *a)
 
 	/* Now let's look at the actual header and see if it matches. */
 	bytes_read = (a->compression_read_ahead)(a, &h, 512);
-	if (bytes_read < 512)
+	if (bytes_read < 0)
 		return (ARCHIVE_FATAL);
+	if (bytes_read == 0  &&  bid > 0) {
+		/* An archive without a proper end-of-archive marker. */
+		/* Hold our nose and bid 1 anyway. */
+		return (1);
+	}
+	if (bytes_read < 512) {
+		if (bid > 0)
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated tar archive");
+		return (ARCHIVE_FATAL);
+	}
 
 	/* If it's an end-of-archive mark, we can handle it. */
 	if ((*(const char *)h) == 0 && archive_block_is_null(h))
@@ -325,13 +336,21 @@ tar_read_header(struct archive *a, struct tar *tar,
 	/* Read 512-byte header record */
 	bytes = (a->compression_read_ahead)(a, &h, 512);
 	if (bytes < 512) {
-		/* TODO: Set error values */
-		return (-1);
+		/*
+		 * If we're here, it's becase the _bid function accepted
+		 * this file.  So just call a short read end-of-archive
+		 * and be done with it.
+		 */
+		return (ARCHIVE_EOF);
 	}
 	(a->compression_read_consume)(a, 512);
 
 	/* Check for end-of-archive mark. */
 	if (((*(const char *)h)==0) && archive_block_is_null(h)) {
+		/* Try to consume a second all-null record, as well. */
+		bytes = (a->compression_read_ahead)(a, &h, 512);
+		if (bytes > 0)
+			(a->compression_read_consume)(a, bytes);
 		archive_set_error(a, 0, NULL);
 		return (ARCHIVE_EOF);
 	}
