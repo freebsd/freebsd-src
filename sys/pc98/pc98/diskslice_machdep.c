@@ -51,11 +51,6 @@
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/disklabel.h>
-#ifndef PC98
-#define	DOSPTYP_EXTENDED	5
-#define	DOSPTYP_EXTENDEDX	15
-#define	DOSPTYP_ONTRACK		84
-#endif
 #if defined(PC98) && !defined(PC98_ATCOMPAT)
 #include <sys/diskpc98.h>
 #else
@@ -69,45 +64,26 @@
 
 static volatile u_char dsi_debug;
 
-#ifndef PC98
-static struct dos_partition historical_bogus_partition_table[NDOSPART] = {
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-	{ 0x80, 0, 1, 0, DOSPTYP_386BSD, 255, 255, 255, 0, 50000, },
-};
-#endif
 
 static int check_part(char *sname, struct dos_partition *dp,
 			   u_long offset, int nsectors, int ntracks,
 			   u_long mbr_offset);
-#ifndef PC98
-static void mbr_extended(dev_t dev, struct disklabel *lp,
-			      struct diskslices *ssp, u_long ext_offset,
-			      u_long ext_size, u_long base_ext_offset,
-			      int nsectors, int ntracks, u_long mbr_offset,
-			      int level);
-#endif
 static int mbr_setslice(char *sname, struct disklabel *lp,
 			     struct diskslice *sp, struct dos_partition *dp,
 			     u_long br_offset);
 
-#ifdef PC98
 #define DPBLKNO(cyl,hd,sect) ((cyl)*(lp->d_secpercyl))
 #if	NCOMPAT_ATDISK > 0
 int     atcompat_dsinit(dev_t dev,
 		 struct disklabel *lp, struct diskslices **sspp);
 #endif
-#endif
 
 static int
-check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
+check_part(sname, dp, nsectors, ntracks )
 	char	*sname;
 	struct dos_partition *dp;
-	u_long	offset;
 	int	nsectors;
 	int	ntracks;
-	u_long	mbr_offset;
 {
 	int	chs_ecyl;
 	int	chs_esect;
@@ -119,31 +95,18 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 	u_long	secpercyl;
 	u_long	ssector;
 	u_long	ssector1;
-#ifdef PC98
 	u_long	pc98_start;
 	u_long	pc98_size;
-#endif
 
 	secpercyl = (u_long)nsectors * ntracks;
-#ifdef PC98
 	chs_scyl = dp->dp_scyl;
 	chs_ssect = dp->dp_ssect;
 	ssector = chs_ssect + dp->dp_shd * nsectors + 
-		chs_scyl * secpercyl + mbr_offset;
-#else
-	chs_scyl = DPCYL(dp->dp_scyl, dp->dp_ssect);
-	chs_ssect = DPSECT(dp->dp_ssect);
-	ssector = chs_ssect - 1 + dp->dp_shd * nsectors + chs_scyl * secpercyl
-		  + mbr_offset;
-#endif
-#ifdef PC98
+		chs_scyl * secpercyl;
 	pc98_start = dp->dp_scyl * secpercyl;
 	pc98_size = dp->dp_ecyl ?
 		(dp->dp_ecyl + 1) * secpercyl - pc98_start : 0;
-	ssector1 = offset + pc98_start;
-#else
-	ssector1 = offset + dp->dp_start;
-#endif
+	ssector1 = pc98_start;
 
 	/*
 	 * If ssector1 is on a cylinder >= 1024, then ssector can't be right.
@@ -163,19 +126,11 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 		ssector = ssector1;
 	}
 
-#ifdef PC98
 	chs_ecyl = dp->dp_ecyl;
 	chs_esect = nsectors - 1;
 	esector = chs_esect + (ntracks - 1) * nsectors +
-		chs_ecyl * secpercyl + mbr_offset;
+		chs_ecyl * secpercyl;
 	esector1 = ssector1 + pc98_size - 1;
-#else
-	chs_ecyl = DPCYL(dp->dp_ecyl, dp->dp_esect);
-	chs_esect = DPSECT(dp->dp_esect);
-	esector = chs_esect - 1 + dp->dp_ehd * nsectors + chs_ecyl * secpercyl
-		  + mbr_offset;
-	esector1 = ssector1 + dp->dp_size - 1;
-#endif
 
 	/* Allow certain bogus C/H/S values for esector, as above. */
 	if ((esector < esector1
@@ -192,15 +147,9 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 
 	error = (ssector == ssector1 && esector == esector1) ? 0 : EINVAL;
 	if (bootverbose)
-#ifdef PC98
 		printf("%s: mid 0x%x, start %lu, end = %lu, size %lu%s\n",
 		       sname, dp->dp_mid, ssector1, esector1, pc98_size,
 			error ? "" : ": OK");
-#else
-		printf("%s: type 0x%x, start %lu, end = %lu, size %lu %s\n",
-		       sname, dp->dp_typ, ssector1, esector1,
-		       (u_long)dp->dp_size, error ? "" : ": OK");
-#endif
 	if (ssector != ssector1 && bootverbose)
 		printf("%s: C/H/S start %d/%d/%d (%lu) != start %lu: invalid\n",
 		       sname, chs_scyl, dp->dp_shd, chs_ssect,
@@ -227,33 +176,25 @@ dsinit(dev, lp, sspp)
 	int	max_ncyls;
 	int	max_nsectors;
 	int	max_ntracks;
-	u_long	mbr_offset;
+	u_long	0;
 	char	partname[2];
 	u_long	secpercyl;
 	char	*sname;
 	struct diskslice *sp;
 	struct diskslices *ssp;
 
-	mbr_offset = DOSBBSECTOR;
-#ifdef PC98
+	0 = DOSBBSECTOR;
 	/* Read master boot record. */
 	if ((int)lp->d_secsize < 1024)
 		bp = geteblk((int)1024);
 	else
 		bp = geteblk((int)lp->d_secsize);
-#else
-reread_mbr:
-	/* Read master boot record. */
-	bp = geteblk((int)lp->d_secsize);
-#endif
 	bp->b_dev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
-	bp->b_blkno = mbr_offset;
+	bp->b_blkno = 0;
 	bp->b_bcount = lp->d_secsize;
 	bp->b_iocmd = BIO_READ;
-#ifdef PC98
 	if (bp->b_bcount < 1024)
 		bp->b_bcount = 1024;
-#endif
 	DEV_STRATEGY(bp, 1);
 	if (bufwait(bp) != 0) {
 		disk_err(&bp->b_io, "reading primary partition table: error",
@@ -272,7 +213,6 @@ reread_mbr:
 		error = EINVAL;
 		goto done;
 	}
-#ifdef PC98
 	/*
 	 * entire disk for FreeBSD
 	 */
@@ -335,73 +275,13 @@ reread_mbr:
 	}
 #endif
 	dp0 = (struct dos_partition *)(cp + 512);
-#else
-	dp0 = (struct dos_partition *)(cp + DOSPARTOFF);
-
-	/* Check for "Ontrack Diskmanager". */
-	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
-		if (dp->dp_typ == DOSPTYP_ONTRACK) {
-			if (bootverbose)
-				printf(
-	    "%s: Found \"Ontrack Disk Manager\" on this disk.\n", sname);
-			bp->b_flags |= B_INVAL | B_AGE;
-			brelse(bp);
-			mbr_offset = 63;
-			goto reread_mbr;
-		}
-	}
-
-	if (bcmp(dp0, historical_bogus_partition_table,
-		 sizeof historical_bogus_partition_table) == 0) {
-		TRACE(("%s: invalid primary partition table: historical\n",
-		       sname));
-		error = EINVAL;
-		goto done;
-	}
-#endif
 
 	/* Guess the geometry. */
-	/*
-	 * TODO:
-	 * Perhaps skip entries with 0 size.
-	 * Perhaps only look at entries of type DOSPTYP_386BSD.
-	 */
-	max_ncyls = 0;
-	max_nsectors = 0;
-	max_ntracks = 0;
-	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
-		int	ncyls;
-		int	nsectors;
-		int	ntracks;
+	 
+	max_ncyls = lp->d_nscylinders;
+	max_nsectors = lp->d_nsectors;
+	max_ntracks = lp->d_ntracks;
 
-
-#ifdef PC98
-		ncyls = lp->d_ncylinders;
-#else
-		ncyls = DPCYL(dp->dp_ecyl, dp->dp_esect) + 1;
-#endif
-		if (max_ncyls < ncyls)
-			max_ncyls = ncyls;
-#ifdef PC98
-		nsectors = lp->d_nsectors;
-#else
-		nsectors = DPSECT(dp->dp_esect);
-#endif
-		if (max_nsectors < nsectors)
-			max_nsectors = nsectors;
-#ifdef PC98
-		ntracks = lp->d_ntracks;
-#else
-		ntracks = dp->dp_ehd + 1;
-#endif
-		if (max_ntracks < ntracks)
-			max_ntracks = ntracks;
-	}
-
-	/*
-	 * Check that we have guessed the geometry right by checking the
-	 * partition entries.
-	 */
 	/*
 	 * TODO:
 	 * As above.
@@ -409,20 +289,11 @@ reread_mbr:
 	 * Check against d_secperunit if the latter is reliable.
 	 */
 	error = 0;
-#ifdef PC98
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0)
 			continue;
 		sname = dsname(dev, dkunit(dev), BASE_SLICE + dospart,
 				RAW_PART, partname);
-#else
-	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
-		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0
-		    && dp->dp_start == 0 && dp->dp_size == 0)
-			continue;
-		sname = dsname(dev, dkunit(dev), BASE_SLICE + dospart,
-			       RAW_PART, partname);
-#endif
 		/*
 		 * Temporarily ignore errors from this check.  We could
 		 * simplify things by accepting the table eariler if we
@@ -430,8 +301,7 @@ reread_mbr:
 		 * accept the table if the magic is right but not let
 		 * bad entries affect the geometry.
 		 */
-		check_part(sname, dp, mbr_offset, max_nsectors, max_ntracks,
-			   mbr_offset);
+		check_part(sname, dp, max_nsectors, max_ntracks);
 	}
 	if (error != 0)
 		goto done;
@@ -465,28 +335,10 @@ reread_mbr:
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++, sp++) {
 		sname = dsname(dev, dkunit(dev), BASE_SLICE + dospart,
 			       RAW_PART, partname);
-		(void)mbr_setslice(sname, lp, sp, dp, mbr_offset);
+		(void)mbr_setslice(sname, lp, sp, dp, 0);
 	}
 	ssp->dss_nslices = BASE_SLICE + NDOSPART;
 
-#ifndef PC98
-	/* Handle extended partitions. */
-	sp -= NDOSPART;
-	for (dospart = 0; dospart < NDOSPART; dospart++, sp++)
-		if (sp->ds_type == DOSPTYP_EXTENDED ||
-		    sp->ds_type == DOSPTYP_EXTENDEDX)
-			mbr_extended(bp->b_dev, lp, ssp,
-				     sp->ds_offset, sp->ds_size, sp->ds_offset,
-				     max_nsectors, max_ntracks, mbr_offset, 1);
-
-	/*
-	 * mbr_extended() abuses ssp->dss_nslices for the number of slices
-	 * that would be found if there were no limit on the number of slices
-	 * in *ssp.  Cut it back now.
-	 */
-	if (ssp->dss_nslices > MAX_SLICES)
-		ssp->dss_nslices = MAX_SLICES;
-#endif
 
 done:
 	bp->b_flags |= B_INVAL | B_AGE;
@@ -496,117 +348,6 @@ done:
 	return (error);
 }
 
-#ifndef PC98
-void
-mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
-	     ntracks, mbr_offset, level)
-	dev_t	dev;
-	struct disklabel *lp;
-	struct diskslices *ssp;
-	u_long	ext_offset;
-	u_long	ext_size;
-	u_long	base_ext_offset;
-	int	nsectors;
-	int	ntracks;
-	u_long	mbr_offset;
-	int	level;
-{
-	struct buf *bp;
-	u_char	*cp;
-	int	dospart;
-	struct dos_partition *dp;
-	struct dos_partition dpcopy[NDOSPART];
-	u_long	ext_offsets[NDOSPART];
-	u_long	ext_sizes[NDOSPART];
-	char	partname[2];
-	int	slice;
-	char	*sname;
-	struct diskslice *sp;
-
-	if (level >= 16) {
-		printf(
-	"%s: excessive recursion in search for slices; aborting search\n",
-		       devtoname(dev));
-		return;
-	}
-
-	/* Read extended boot record. */
-	bp = geteblk((int)lp->d_secsize);
-	bp->b_dev = dev;
-	bp->b_blkno = ext_offset;
-	bp->b_bcount = lp->d_secsize;
-	bp->b_iocmd = BIO_READ;
-	DEV_STRATEGY(bp, 1);
-	if (bufwait(bp) != 0) {
-		disk_err(&bp->b_io, "reading extended partition table: error",
-		    0, 1);
-		goto done;
-	}
-
-	/* Weakly verify it. */
-	cp = bp->b_data;
-	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
-		sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
-			       partname);
-		if (bootverbose)
-			printf("%s: invalid extended partition table: no magic\n",
-			       sname);
-		goto done;
-	}
-
-	/* Make a copy of the partition table to avoid alignment problems. */
-	memcpy(&dpcopy[0], cp + DOSPARTOFF, sizeof(dpcopy));
-
-	slice = ssp->dss_nslices;
-	for (dospart = 0, dp = &dpcopy[0]; dospart < NDOSPART;
-	    dospart++, dp++) {
-		ext_sizes[dospart] = 0;
-		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0
-		    && dp->dp_start == 0 && dp->dp_size == 0)
-			continue;
-		if (dp->dp_typ == DOSPTYP_EXTENDED ||
-		    dp->dp_typ == DOSPTYP_EXTENDEDX) {
-			static char buf[32];
-
-			sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE,
-				       RAW_PART, partname);
-			snprintf(buf, sizeof(buf), "%s", sname);
-			if (strlen(buf) < sizeof buf - 11)
-				strcat(buf, "<extended>");
-			check_part(buf, dp, base_ext_offset, nsectors,
-				   ntracks, mbr_offset);
-			ext_offsets[dospart] = base_ext_offset + dp->dp_start;
-			ext_sizes[dospart] = dp->dp_size;
-		} else {
-			sname = dsname(dev, dkunit(dev), slice, RAW_PART,
-				       partname);
-			check_part(sname, dp, ext_offset, nsectors, ntracks,
-				   mbr_offset);
-			if (slice >= MAX_SLICES) {
-				printf("%s: too many slices\n", sname);
-				slice++;
-				continue;
-			}
-			sp = &ssp->dss_slices[slice];
-			if (mbr_setslice(sname, lp, sp, dp, ext_offset) != 0)
-				continue;
-			slice++;
-		}
-	}
-	ssp->dss_nslices = slice;
-
-	/* If we found any more slices, recursively find all the subslices. */
-	for (dospart = 0; dospart < NDOSPART; dospart++)
-		if (ext_sizes[dospart] != 0)
-			mbr_extended(dev, lp, ssp, ext_offsets[dospart],
-				     ext_sizes[dospart], base_ext_offset,
-				     nsectors, ntracks, mbr_offset, ++level);
-
-done:
-	bp->b_flags |= B_INVAL | B_AGE;
-	brelse(bp);
-}
-#endif
 
 static int
 mbr_setslice(sname, lp, sp, dp, br_offset)
@@ -619,59 +360,16 @@ mbr_setslice(sname, lp, sp, dp, br_offset)
 	u_long	offset;
 	u_long	size;
 
-#ifdef PC98
 	offset = DPBLKNO(dp->dp_scyl, dp->dp_shd, dp->dp_ssect);
 	size = dp->dp_ecyl ?
 	    DPBLKNO(dp->dp_ecyl + 1, dp->dp_ehd, dp->dp_esect) - offset : 0;
-#else
-	offset = br_offset + dp->dp_start;
-	if (offset > lp->d_secperunit || offset < br_offset) {
-		printf(
-		"%s: slice starts beyond end of the disk: rejecting it\n",
-		       sname);
-		return (1);
-	}
-	size = lp->d_secperunit - offset;
-	if (size >= dp->dp_size)
-		size = dp->dp_size;
-	else
-		printf(
-"%s: slice extends beyond end of disk: truncating from %lu to %lu sectors\n",
-		       sname, (u_long)dp->dp_size, size);
-#endif
 	sp->ds_offset = offset;
 	sp->ds_size = size;
-#ifdef PC98
 	sp->ds_type = dp->dp_mid;
 	sp->ds_subtype = dp->dp_sid;
 	strncpy(sp->ds_name, dp->dp_name, sizeof(sp->ds_name));
-#else
-	sp->ds_type = dp->dp_typ;
-#ifdef PC98_ATCOMPAT
-	/* Fake FreeBSD(98). */
-	if (sp->ds_type == DOSPTYP_386BSD)
-		sp->ds_type = 0x94;
-#endif
-#endif /* PC98 */
 #if 0
 	lp->d_subtype |= (lp->d_subtype & 3) | dospart | DSTYPE_INDOSPART;
 #endif
 	return (0);
 }
-
-#ifdef __alpha__
-void
-alpha_fix_srm_checksum(bp)
-	struct buf *bp;
-{
-	u_int64_t *p;
-	u_int64_t sum;
-	int i;
-
-	p = (u_int64_t *) bp->b_data;
-	sum = 0;
-	for (i = 0; i < 63; i++)
-		sum += p[i];
-	p[63] = sum;
-}
-#endif
