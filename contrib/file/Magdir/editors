@@ -7,3 +7,7 @@
 >4	string	1	CP 852
 >4	string	2	KOI8-CS
 >4	string	>2	unknown encoding
+
+# Vi IMproved Encrypted file 
+# by David Necas <yeti@physics.muni.cz>
+0	string	VimCrypt~	Vim encrypted file data

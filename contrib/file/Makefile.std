@@ -1,6 +1,6 @@
 # Makefile for file(1) cmd. 
 # Copyright (c) Ian F. Darwin 86/09/01 - see LEGAL.NOTICE.
-# @(#)$Id: Makefile.std,v 1.12 2001/09/03 14:44:21 christos Exp $
+# @(#)$Id: Makefile.std,v 1.15 2002/07/03 18:57:52 christos Exp $
 #
 # This software is not subject to any license of the American Telephone
 # and Telegraph Company or of the Regents of the University of California.
@@ -22,7 +22,7 @@
 #
 # 4. This notice may not be removed or altered.
 #
-VERSION	= 3.37
+VERSION	= 3.39
 SHELL	= /bin/sh
 #MAGIC	= /etc/magic
 MAGIC	= /usr/local/etc/magic
@@ -71,10 +71,10 @@ LOCALOBJS = # localsrc/getopt.o localsrc/strtol.o \
 LOCALINC = # localinc/*.h localinc/sys/*.h
 
 SRCS = file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
-	compress.c is_tar.c readelf.c internat.c \
+	compress.c is_tar.c readelf.c \
 	print.c $(LOCALSRCS) $(LOCALINC)
 OBJS = file.o apprentice.o fsmagic.o softmagic.o ascmagic.o \
-	compress.o is_tar.o readelf.o internat.o \
+	compress.o is_tar.o readelf.o \
 	print.o $(LOCALOBJS)
 HDRS = file.h names.h patchlevel.h readelf.h tar.h
 

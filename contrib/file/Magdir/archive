@@ -250,3 +250,9 @@
 >>14	beshort	0x677a		(gzipped)
 >>14	beshort	!0x677a		(not gzipped)
 >13	string	>3		version %s
+
+############################################################################
+# Parity archive reconstruction file, the 'par' file format now used on Usenet.
+0       string          PAR\0	PARity archive data
+>48	leshort		=0	- Index file
+>48	leshort		>0	- file number %d

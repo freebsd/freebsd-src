@@ -37,6 +37,10 @@
 0	string		\\documentclass	LaTeX 2e document text
 0	string		\\relax		LaTeX auxiliary file
 0	string		\\contentsline	LaTeX  table of contents
+0	string		%\ -*-latex-*-	LaTeX document text
+
+# Tex document, from Hendrik Scholz <hendrik@scholz.net>
+0   string      \\ifx       TeX document text
 
 # Index and glossary files
 0	string		\\indexentry	LaTeX raw index file
@@ -44,4 +48,56 @@
 0	string		\\glossaryentry	LaTeX raw glossary
 0	string		\\begin{theglossary}	LaTeX sorted glossary
 0	string		This\ is\ makeindex	Makeindex log file
+
 # End of TeX
+
+#------------------------------------------------------------------------------
+# file(1) magic for BibTex text files
+# From Hendrik Scholz <hendrik@scholz.net>
+
+0   string @article{          BibTex text file
+0   string @book{             BibTex text file
+0   string @inbook{           BibTex text file
+0   string @incollection{     BibTex text file
+0   string @inproceedings{    BibTex text file
+0   string @manual{           BibTex text file
+0   string @misc{             BibTex text file
+0   string @preamble{         BibTex text file
+0   string @phdthesis{        BibTex text file
+0   string @techreport{       BibTex text file
+0   string @unpublished{      BibTex text file
+
+0   string @Article{          BibTex text file
+0   string @Book{             BibTex text file
+0   string @Inbook{           BibTex text file
+0   string @Incollection{     BibTex text file
+0   string @Inproceedings{    BibTex text file
+0   string @Manual{           BibTex text file
+0   string @Misc{             BibTex text file
+0   string @Preamble{         BibTex text file
+0   string @Phdthesis{        BibTex text file
+0   string @Techreport{       BibTex text file
+0   string @Unpublished{      BibTex text file
+
+0   string @ARTICLE{          BibTex text file
+0   string @BOOK{             BibTex text file
+0   string @INBOOK{           BibTex text file
+0   string @INCOLLECTION{     BibTex text file
+0   string @INPROCEEDINGS{    BibTex text file
+0   string @MANUAL{           BibTex text file
+0   string @MISC{             BibTex text file
+0   string @PREAMBLE{         BibTex text file
+0   string @PHDTHESIS{        BibTex text file
+0   string @TECHREPORT{       BibTex text file
+0   string @UNPUBLISHED{      BibTex text file
+
+73  string %%%\ \ BibTeX-file{ BibTex text file (with full header)
+
+73  string %%%\ \ @BibTeX-style-file{   BibTeX style text file (with full header)
+
+0   string %\ BibTeX\ standard\ bibliography\      BibTeX standard bibliography style text file
+
+0   string %\ BibTeX\ `     BibTeX custom bibliography style text file
+
+0   string  @c\ @mapfile{   TeX font aliases text file
+

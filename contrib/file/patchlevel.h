@@ -1,11 +1,26 @@
 #define	FILE_VERSION_MAJOR	3
-#define	patchlevel		37
+#define	patchlevel		39
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.37 2001/09/03 14:44:22 christos Exp $
+ * $Id: patchlevel.h,v 1.39 2002/07/03 18:57:52 christos Exp $
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.39  2002/07/03 18:57:52  christos
+ * - ansify/c99ize
+ * - more magic
+ * - better COMPILE_ONLY support.
+ * - new magic files.
+ * - fix solaris compilation problems.
+ *
+ * Revision 1.38  2002/05/16 18:45:56  christos
+ * - pt_note elf additions from NetBSD
+ * - EMX os specific changes (Alexander Mai)
+ * - stdint.h detection, acconfig.h fixes (Maciej W. Rozycki, Franz Korntner)
+ * - regex file additions (Kim Cromie)
+ * - getopt_long support and misc cleanups (Michael Piefel)
+ * - many magic fixes and additions
+ *
  * Revision 1.37  2001/09/03 14:44:22  christos
  * daylight/tm_isdst detection
  * magic fixes
