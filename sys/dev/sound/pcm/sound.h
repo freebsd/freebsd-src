@@ -71,8 +71,8 @@
 #if __FreeBSD_version > 500000
 #define USING_MUTEX
 #define USING_DEVFS
-#define SND_DYNSYSCTL
 #endif
+#define SND_DYNSYSCTL
 
 #else
 struct isa_device { int dummy; };
