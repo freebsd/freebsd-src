@@ -46,6 +46,7 @@ int jail_attach(int);
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PRISON);
 #endif
+#endif /* _KERNEL */
 
 /*
  * This structure describes a prison.  It is pointed to by all struct
@@ -59,6 +60,7 @@ MALLOC_DECLARE(M_PRISON);
  *       required to read
  *   (d) set only during destruction of jail, no mutex needed
  */
+#if defined(_KERNEL) || defined(_WANT_PRISON)
 struct prison {
 	LIST_ENTRY(prison) pr_list;			/* (a) all prisons */
 	int		 pr_id;				/* (c) prison id */
@@ -72,7 +74,9 @@ struct prison {
 	struct task	 pr_task;			/* (d) destroy task */
 	struct mtx	 pr_mtx;
 };
+#endif /* _KERNEL || _WANT_PRISON */
 
+#ifdef _KERNEL
 /*
  * Sysctl-set variables that determine global jail policy
  *
@@ -105,5 +109,5 @@ int prison_if(struct ucred *cred, struct sockaddr *sa);
 int prison_ip(struct ucred *cred, int flag, u_int32_t *ip);
 void prison_remote_ip(struct ucred *cred, int flags, u_int32_t *ip);
 
-#endif /* !_KERNEL */
+#endif /* _KERNEL */
 #endif /* !_SYS_JAIL_H_ */
