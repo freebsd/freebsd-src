@@ -327,7 +327,7 @@ main(int argc, char **argv)
   if (ID0realuid() != 0) {
     char conf[200], *ptr;
 
-    snprintf(conf, sizeof conf, "%s/%s", _PATH_PPP, CONFFILE);
+    snprintf(conf, sizeof conf, "%s/%s", PPP_CONFDIR, CONFFILE);
     do {
       struct stat sb;
 
