@@ -246,6 +246,12 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>&man.arp.8; now supports a <option>-i</option> option
+      to limit the scope of the current operation to the ARP entries
+      on a particular interface.  This option applies to the display
+      operations only.  It should be useful on routers with numerous
+      network interfaces.</para>
+
     <para>&man.chroot.8; now allows the optional setting of a user,
       primary group, or group list to use inside the chroot
       environment via the <option>-u</option>, <option>-g</option>,
