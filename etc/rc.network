@@ -126,7 +126,14 @@ network_pass1() {
 			# The auth secrets might contain spaces; in order
 			# to retain the quotation, we need to eval them
 			# here.
-			eval spppcontrol ${ifn} ${spppcontrol_args}
+			case "${ifn}" in
+			isp*)
+				eval ispppcontrol ${ifn} ${spppcontrol_args}
+				;;
+			*)
+				eval spppcontrol ${ifn} ${spppcontrol_args}
+				;;
+			esac
 		fi
 	done
 
