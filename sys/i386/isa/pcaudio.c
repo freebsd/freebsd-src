@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pcaudio.c,v 1.43 1998/09/15 18:16:37 sos Exp $
  */
 
 #include "pca.h"
@@ -161,7 +161,7 @@ pca_init(void)
 	pca_status.buf[1] = (unsigned char *)&buffer2[0];
 	pca_status.buf[2] = (unsigned char *)&buffer3[0];
 	pca_status.buffer = pca_status.buf[0];
-	pca_status.in_use[0] = pca_status.in_use[1] = pca_status.in_use[3] = 0;
+	pca_status.in_use[0] = pca_status.in_use[1] = pca_status.in_use[2] = 0;
 	pca_status.current = 0;
 	pca_status.sample_rate = SAMPLE_RATE;
 	pca_status.scale = (pca_status.sample_rate << 8) / INTERRUPT_RATE;
