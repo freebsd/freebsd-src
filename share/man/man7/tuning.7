@@ -193,7 +193,7 @@ case of a crash but could very easily be several seconds (even a minute!)
 behind updating the physical disk.  If you crash you may lose more work
 than otherwise.  Secondly, softupdates delays the freeing of filesystem
 blocks.  If you have a filesystem (such as the root filesystem) which is
-close to full, doing a major update of it, e.g.
+close to full, doing a major update of it, e.g.\&
 .Em make installworld,
 can run it out of space and cause the update to fail.
 .Pp
@@ -226,7 +226,7 @@ and
 utilities may be used to create simple striped filesystems.  Generally
 speaking, striping smaller partitions such as the root and /var/tmp,
 or essentially read-only partitions such as /usr is a complete waste of
-time.  You should only stripe partitions that require serious I/O performance...
+time.  You should only stripe partitions that require serious I/O performance,
 typically /var, /home, or custom partitions used to hold databases and web
 pages.  Choosing the proper stripe size is also
 important.  Filesystems tend to store meta-data on power-of-2 boundaries
