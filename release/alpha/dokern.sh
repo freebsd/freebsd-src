@@ -36,7 +36,6 @@ sed	\
 	-e '/	sa/d' \
 	-e '/pass/d' \
 	-e '/ses/d' \
-	-e '/	amr/d' \
 	-e '/splash/d' \
 	-e '/	apm/d' \
 	-e '/pmtimer/d' \
@@ -44,13 +43,11 @@ sed	\
 	-e '/ppc/d' \
 	-e '/ppbus/d' \
 	-e '/plip/d' \
-	-e '/mlx/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
 	-e '/vpo/d' \
 	-e '/	le	/d' \
 	-e '/	xv	/d' \
-	-e '/	pcn	/d' \
 	-e '/	sf	/d' \
 	-e '/	sis	/d' \
 	-e '/	ste	/d' \
@@ -77,8 +74,6 @@ sed	\
 	-e '/cue/d' \
 	-e '/kue/d' \
 	-e '/maxusers/d' \
-	-e '/ahc/d' \
-	-e '/mpt.*MPT/d' \
 	-e '/ch.*media/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
