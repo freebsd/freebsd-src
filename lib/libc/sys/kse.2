@@ -85,7 +85,7 @@ for user threading without taking away any of the user threading library's
 ability to make scheduling decisions.
 A kernel-to-user upcall mechanism is used to pass control to the user
 threading library whenever a scheduling decision needs to be made.
-Arbitrarily many user threads are multiplexed onto a fixed number of
+An arbitrarily number of user threads are multiplexed onto a fixed number of
 virtual CPUs supplied by the kernel.
 This can be thought of as an
 .Dq "N to M"
@@ -126,11 +126,13 @@ to the thread.
 The KSE becomes
 .Sy unassigned ,
 and the associated thread is suspended, when the KSE has an associated
-.Sy mailbox
-(see below) and any of the following occurs:
+.Sy mailbox ,
+(see below) the thread has an associated 
+.Sy thread mailbox ,
+(also see below) and any of the following occurs:
 .Bl -bullet
 .It
-The thread invokes a blocking system call.
+The thread invokes a system call that blocks.
 .It
 The thread makes any other demand of the kernel that cannot be immediately
 satisfied, e.g., touches a page of memory that needs to be fetched from disk,
@@ -139,7 +141,8 @@ causing a page fault.
 Another thread that was previously blocked in the kernel completes its
 work in the kernel (or is
 .Sy interrupted )
-and becomes ready to return to user space.
+and becomes ready to return to user space, and the current thread is returning
+to user space.
 .It
 A signal is delivered to the process, and this KSE is chosen to deliver it.
 .El
@@ -163,13 +166,13 @@ A KSE group is the smallest entity to which a kernel scheduling
 priority may be assigned.
 For the purposes of process scheduling and accounting, each
 KSE group
-counts the same as a traditional unthreaded process.
+counts similarly to a traditional unthreaded process.
 Individual KSEs within a KSE group are effectively indistinguishable,
 and any KSE in a KSE group may be assigned by the kernel to any runnable
-thread associated with that KSE group.
+(in the kernel) thread associated with that KSE group.
 In practice, the kernel attempts to preserve the affinity between threads
 and actual CPUs to optimize cache behavior, but this is invisible to the
-user process.
+user process. (Affinity is not yet implemented).
 .Pp
 Each KSE has a unique
 .Sy "KSE mailbox"
@@ -234,7 +237,8 @@ by this initial thread with
 .Fa newgroup
 equal to zero does not create a new KSE; instead, it simply associates the
 current KSE with the supplied KSE mailbox, and no immediate upcall results.
-However, the upcall will be invoked the next time the thread blocks.
+However, an upcall will be triggered the next time the thread blocks and
+the required conditions are met.
 .Pp
 The kernel does not allow more KSEs to exist in a KSE group than the
 number of physical CPUs in the system (this number is available as the
@@ -256,7 +260,7 @@ system call
 causes the KSE assigned to the currently running thread to be destroyed.
 If this KSE is the last one in the KSE group, there must be no remaining
 threads associated with the KSE group blocked in the kernel.
-This system call does not return.
+This system call does not return unless there is an error.
 .Pp
 As a special case, if the last remaining KSE in the last remaining KSE group
 invokes this system call, then the KSE is not destroyed;
@@ -264,6 +268,7 @@ instead, the KSE just looses the association with its mailbox and
 .Fn kse_exit
 returns normally.
 This returns the process to its original, unthreaded state.
+(this is not yet implemented).
 .Pp
 The
 .Fn kse_release
@@ -272,18 +277,19 @@ is used to
 .Dq park
 the KSE assigned to the currently running thread when it is not needed,
 e.g., when there are more available KSEs than runnable user threads.
-The KSE remains unassigned but does not upcall until there is a new reason to
-do so, e.g., a previously blocked thread becomes runnable.
+The thread converts to an upcall but does not get scheduled until
+there is a new reason to do so, e.g., a previously
+blocked thread becomes runnable.
 If successful,
 .Fn kse_release
-does not return.
+does not return o the caller.
 .Pp
 The
 .Fn kse_wakeup
 system call
 is the opposite of
 .Fn kse_release .
-It causes the KSE associated with the mailbox pointed to by
+It causes the (parked) KSE associated with the mailbox pointed to by
 .Fa mbx
 to be woken up, causing it to upcall.
 If the KSE has already woken up for another reason, this system call has no
@@ -315,16 +321,13 @@ set to
 .Ss Signals
 .\"
 When a process has at least one KSE with an associated mailbox, then
-signals are no longer delivered on the process stack.
-Instead, signals are delivered via upcalls.
+signals might no longer be delivered on the process stack.
+Instead, signals may be delivered via upcalls.
 Multiple signals may be delivered with one upcall.
+(This feature is not yet coded).
 .Pp
 If there are multiple KSE groups in the process, which KSE group is
 chosen to deliver the signal is indeterminate.
-However, once a signal has been delivered to a specific KSE group,
-that KSE group then takes ownership of signal delivery and all subsequent
-signals are delivered via that KSE group.
-When this KSE group is destroyed, a new KSE group is chosen as needed.
 .\"
 .Ss KSE Mailboxes
 .\"
@@ -410,26 +413,30 @@ at the thread's mailbox, re-enabling upcalls, and then resume the thread.
 .Em Note :
 modification of
 .Va km_curthread
-by the user thread scheduler must be atomic to avoid the race condition
-where the kernel saves a partially modified value.
+by the user thread scheduler must be atomic
+with the loading of the context of the new thread, to avoid
+the situation where the thread context area
+may be modified by a blocking async operation, while there
+is still valid information to be read out of it.
 .Pp
 .Va km_completed
 points to a linked list of user threads that have completed their work
 in the kernel since the last upcall.
 The user thread scheduler should put these threads back into its
 own runnable queue.
-Each thread in a KSE group that completes is guaranteed to be
+Each thread in a KSE group that completes a kernel operation 
+(synchronous or asynchronous) that results in an upcall is guaranteed to be
 linked into exactly one KSE's
 .Va km_completed
 list; which KSE in the group, however, is indeterminate.
-Furthermore, the thread will appear in only one upcall.
+Furthermore, the completion will be reported in only one upcall.
 .Pp
 .Va km_sigscaught
 contains the list of signals caught by this process since the previous
 upcall to any KSE in the process.
 As long as there exists one or more KSEs with an associated mailbox in
 the user process, signals are delivered this way rather than the
-traditional way.
+traditional way. (This has not bein implemented and may change).
 .Pp
 .Va km_timeofday
 is set by the kernel to the current system time before performing
@@ -463,7 +470,7 @@ is an opaque pointer ignored by the kernel.
 .Pp
 .Va tm_context
 stores the context for the thread when the thread is blocked in user space.
-This field is updated by the kernel before a completed thread is returned
+This field is also updated by the kernel before a completed thread is returned
 to the user thread scheduler via
 .Va km_completed .
 .Pp
@@ -514,9 +521,6 @@ do not return if successful.
 .Pp
 All of these system calls return a non-zero error code in case of an error.
 .Pp
-.Em Note :
-error codes are returned directly rather than via
-.Va errno .
 .Sh ERRORS
 The
 .Fn kse_create
