@@ -186,15 +186,15 @@ add_user() {
 	_upasswd=
 	_passwdmethod=
 
-	_name="-n $username"
-	[ -n "$uuid" ] && _uid="-u $uuid"
-	[ -n "$ulogingroup" ] && _group="-g $ulogingroup"
-	[ -n "$ugroups" ] && _grouplist="-G $ugroups"
-	[ -n "$ushell" ] && _shell="-s $ushell"
-	[ -n "$uhome" ] && _home="-m -d $uhome"
-	[ -n "$uclass" ] && _class="-L $uclass"
+	_name="-n '$username'"
+	[ -n "$uuid" ] && _uid="-u '$uuid'"
+	[ -n "$ulogingroup" ] && _group="-g '$ulogingroup'"
+	[ -n "$ugroups" ] && _grouplist="-G '$ugroups'"
+	[ -n "$ushell" ] && _shell="-s '$ushell'"
+	[ -n "$uhome" ] && _home="-m -d '$uhome'"
+	[ -n "$uclass" ] && _class="-L '$uclass'"
 	[ -n "$ugecos" ] && _comment="-c '$ugecos'"
-	[ -n "$udotdir" ] && _dotdir="-k $udotdir"
+	[ -n "$udotdir" ] && _dotdir="-k '$udotdir'"
 	[ -n "$uexpire" ] && _expire="-e '$uexpire'"
 	[ -n "$upwexpire" ] && _pwexpire="-p '$upwexpire'"
 	case $passwdtype in
