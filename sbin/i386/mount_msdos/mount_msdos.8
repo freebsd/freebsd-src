@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: mount_msdos.8,v 1.10 1998/02/23 16:49:12 ache Exp $
+.\"	$Id: mount_msdos.8,v 1.11 1998/02/23 17:20:07 ache Exp $
 .\"
 .Dd April 7, 1994
 .Dt MOUNT_MSDOS 8
@@ -139,6 +139,8 @@ Specify text file with 3 conversion tables:
 .It
 Local character set to Unicode conversion table (upper half) for Win'95 long
 names, 128 Unicode codes.
+If some code not present in Unicode, use
+0x003F code ('?') as replacement.
 .It
 DOS to local character set conversion table (upper half) for DOS names,
 128 character codes.
@@ -155,7 +157,7 @@ prefix prepended.
 .Sh FILES
 .Bl -tag -width /usr/libdata/msdosfs -compact
 .It Pa /usr/libdata/msdosfs
-default place for Unicode conversion tables
+default place for character sets conversion tables
 .El
 .Sh SEE ALSO
 .Xr mount 2 ,
