@@ -279,8 +279,8 @@ ithread_remove_handler(void *cookie)
 
 	if (handler == NULL)
 		return (EINVAL);
-
-	KASSERT((ithread = handler->ih_ithread) != NULL,
+	ithread = handler->ih_ithread;
+	KASSERT(ithread != NULL,
 	    ("interrupt handler \"%s\" has a NULL interrupt thread",
 		handler->ih_name));
 	mtx_lock_spin(&ithread_list_lock);
