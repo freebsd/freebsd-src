@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 105 $
+ *              $Revision: 106 $
  *
  ******************************************************************************/
 
@@ -824,8 +824,8 @@ AcpiDbDisplayGpes (void)
                         (GpeBlock->RegisterCount * 8) -1);
             AcpiOsPrintf ("    RegisterInfo: %p  Status %8.8X%8.8X Enable %8.8X%8.8X\n",
                     GpeBlock->RegisterInfo,
-                    ACPI_FORMAT_UINT64 (GpeBlock->RegisterInfo->StatusAddress.Address),
-                    ACPI_FORMAT_UINT64 (GpeBlock->RegisterInfo->EnableAddress.Address));
+                    ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (GpeBlock->RegisterInfo->StatusAddress.Address)),
+                    ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (GpeBlock->RegisterInfo->EnableAddress.Address)));
             AcpiOsPrintf ("    EventInfo:    %p\n", GpeBlock->EventInfo);
 
             /* Examine each GPE Register within the block */
@@ -838,8 +838,8 @@ AcpiDbDisplayGpes (void)
                         "    Reg %u:  WakeEnable %2.2X, RunEnable %2.2X  Status %8.8X%8.8X Enable %8.8X%8.8X\n",
                         i, GpeRegisterInfo->EnableForWake,
                         GpeRegisterInfo->EnableForRun,
-                        ACPI_FORMAT_UINT64 (GpeRegisterInfo->StatusAddress.Address),
-                        ACPI_FORMAT_UINT64 (GpeRegisterInfo->EnableAddress.Address));
+                        ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (GpeRegisterInfo->StatusAddress.Address)),
+                        ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (GpeRegisterInfo->EnableAddress.Address)));
 
                 /* Now look at the individual GPEs in this byte register */
 
