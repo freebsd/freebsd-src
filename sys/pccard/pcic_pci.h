@@ -98,6 +98,12 @@
 #define	R5C47X_MISC_CONTROL_REGISTER_2	0xa0
 #define R5C47X_MCR2_CSC_TO_INTX_DISABLE 0x0010	/* Bit 7 */
 
+/*
+ * ToPIC specific stuff.
+ */
+#define TOPIC_INTERRUPT_CONTROL		0xa1
+#define TOPIC_ICR_INTA			0x1
+
 /* sanpei */
 
 /* For Bridge Control register (CB_PCI_BRIDGE_CTRL) */

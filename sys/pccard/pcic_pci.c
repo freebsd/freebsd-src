@@ -363,6 +363,11 @@ pcic_pci_oz67xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
 static int
 pcic_pci_oz67xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 {
+	/*
+	 * Need datasheet to find out what's going on.  However, the
+	 * 68xx datasheets are so vague that it is hard to know what
+	 * the right thing to do is.
+	 */
 	/* XXX */
 	return (0);
 }
@@ -371,9 +376,6 @@ pcic_pci_oz67xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 static void
 pcic_pci_oz67xx_init(device_t dev)
 {
-	/*
-	 * This is almost certainly incomplete.
-	 */
 	device_printf(dev, "Warning: O2micro OZ67xx chips may not work\n");
 	pcic_pci_cardbus_init(dev);
 }
@@ -390,6 +392,11 @@ pcic_pci_oz68xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
 static int
 pcic_pci_oz68xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 {
+	/*
+	 * The 68xx datasheets make it hard to know what the right thing
+	 * do do here is.  We do hwat we knjow, which is nothing, and
+	 * hope for the best.
+	 */
 	/* XXX */
 	return (0);
 }
@@ -410,6 +417,10 @@ pcic_pci_oz68xx_init(device_t dev)
 static int
 pcic_pci_pd67xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
 {
+	/*
+	 * We're only supporting ISA interrupts, so do nothing for the
+	 * moment.
+	 */
 	/* XXX */
 	return (0);
 }
@@ -417,6 +428,10 @@ pcic_pci_pd67xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
 static int
 pcic_pci_pd67xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 {
+	/*
+	 * We're only supporting ISA interrupts, so do nothing for the
+	 * moment.
+	 */
 	/* XXX */
 	return (0);
 }
@@ -614,7 +629,15 @@ pcic_pci_ti12xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
 static int
 pcic_pci_ti12xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 {
-	/* XXX */
+	/*
+	 * Nothing happens here.  The TI12xx parts will route the
+	 * CSC interrupt via PCI if ExCA register tells it to use
+	 * interrupt 0.  And via IRQ otherwise (except for reserved
+	 * values which may or may not do anything).
+	 *
+	 * We just hope for the best here that doing nothing is the
+	 * right thing to do.
+	 */
 	return (0);
 }
 
@@ -721,6 +744,15 @@ pcic_pci_topic_func(struct pcic_slot *sp, enum pcic_intr_way way)
 static int
 pcic_pci_topic_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 {
+	device_t	dev = sp->sc->dev;
+	u_int32_t	icr;
+
+	icr = pci_read_config(dev, TOPIC_INTERRUPT_CONTROL, 1);
+	if (way == pcic_iw_pci)
+		icr |= TOPIC_ICR_INTA;
+	else
+		icr &= ~TOPIC_ICR_INTA;
+	pci_write_config(dev, TOPIC_INTERRUPT_CONTROL, icr, 1);
 
 	return (0);
 }
