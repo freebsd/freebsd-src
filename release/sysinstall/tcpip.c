@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.29.2.2 1995/05/31 10:17:45 jkh Exp $
+ * $Id: tcpip.c,v 1.29.2.3 1995/06/01 05:13:20 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -474,5 +474,6 @@ int
 tcpMenuSelect(char *str)
 {
     (void)tcpDeviceSelect();
+    configResolv();
     return 0;
 }

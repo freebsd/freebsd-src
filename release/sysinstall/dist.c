@@ -1,10 +1,10 @@
-/*
+void
  * The new sysinstall program.
  *
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.2 1995/05/31 07:17:01 jkh Exp $
+ * $Id: dist.c,v 1.35.2.3 1995/05/31 10:17:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,7 +49,7 @@ unsigned int XF86Dists;
 unsigned int XF86ServerDists;
 unsigned int XF86FontDists;
 
-static int	distSetXF86(char *str);
+static int	distSetXF86(void);
 
 int
 distReset(char *str)
@@ -75,7 +75,7 @@ distSetXDeveloper(char *str)
 {
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-    distSetXF86(NULL);
+    distSetXF86();
     return 0;
 }
 
@@ -90,7 +90,7 @@ int
 distSetXUser(char *str)
 {
     Dists = _DIST_USER;
-    distSetXF86(NULL);
+    distSetXF86();
     return 0;
 }
 
@@ -106,7 +106,7 @@ distSetEverything(char *str)
 {
     Dists = DIST_ALL;
     SrcDists = DIST_SRC_ALL;
-    distSetXF86(NULL);
+    distSetXF86();
     return 0;
 }
 
@@ -121,7 +121,7 @@ distSetSrc(char *str)
 }
 
 static int
-distSetXF86(char *str)
+distSetXF86(void)
 {
     if (!dmenuOpenSimple(&MenuXF86Select))
 	return 0;
@@ -237,11 +237,7 @@ distExtract(char *parent, Distribution *me)
     Attribs *dist_attr;
 
     status = FALSE;
-    /* Nothing left to do?  Bail! */
-    if (!*(me[0].my_mask))
-	return TRUE;
-
-    /* Otherwise, loop through to see if we're in our parent's plans */
+    /* Loop through to see if we're in our parent's plans */
     for (i = 0; me[i].my_name; i++) {
 	/* If our bit isn't set, go to the next */
 	if (!(me[i].my_bit & *(me[i].my_mask)))
@@ -249,15 +245,12 @@ distExtract(char *parent, Distribution *me)
 
 	/* Recurse if actually have a sub-distribution */
 	if (me[i].my_dist) {
-	    (void)distExtract(me[i].my_name, me[i].my_dist);
-	    /* If all the subdistribution bits are cleared, we're done with it */
-	    if (!*(me[i].my_dist->my_mask)) {
-		*(me[i].my_mask) &= ~(me[i].my_bit);
-		return TRUE;
-	    }
-	    return FALSE;
+	    status = distExtract(me[i].my_name, me[i].my_dist);
+	    if (!status)
+		goto done;
+	    else
+		goto punt;
 	}
-
 	dist = me[i].my_name;
 	path = parent ? parent : me[i].my_name;
 
