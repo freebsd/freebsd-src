@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.15 1999/01/10 16:41:13 nsouch Exp $
+ *	$Id: ppc.c,v 1.16 1999/01/30 15:35:38 nsouch Exp $
  *
  */
 #include "ppc.h"
@@ -605,7 +605,7 @@ static int
 ppc_smc37c66xgt_detect(struct ppc_data *ppc, int chipset_mode)
 {
 	int s, i;
-	char r;
+	u_char r;
 	int type = -1;
 	int csr = SMC66x_CSR;	/* initial value is 0x3F0 */
 
@@ -657,7 +657,7 @@ config:
 
 	/* read the port's address: bits 0 and 1 of CR1 */
 	r = inb(cio) & SMC_CR1_ADDR;
-	if (port_address[r] != ppc->ppc_base)
+	if (port_address[(int)r] != ppc->ppc_base)
 		return (-1);
 
 	ppc->ppc_type = type;
