@@ -1721,7 +1721,16 @@ device		pci
 # The `fxp' device provides support for the Intel EtherExpress Pro/100B
 # PCI Fast Ethernet adapters.
 #
-# The pcn device provides support for PCI fast ethernet adapters based
+# The 'lge' device provides support for PCI gigabit ethernet adapters
+# based on the Level 1 LXT1001 NetCellerator chipset. This includes the
+# D-Link DGE-500SX, SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
+#
+# The 'nge' device provides support for PCI gigabit ethernet adapters
+# based on the National Semiconductor DP83820 and DP83821 chipset. This
+# includes the SMC EZ Card 1000 (SMC9462TX), D-Link DGE-500T, Asante
+# FriendlyNet GigaNIX 1000TA and 1000TPC, and the Addtron AEG320T.
+#
+# The 'pcn' device provides support for PCI fast ethernet adapters based
 # on the AMD Am79c97x chipsets, including the PCnet/FAST, PCnet/FAST+,
 # PCnet/PRO and PCnet/Home. These were previously handled by the lnc
 # driver (and still will be if you leave this driver out of the kernel).

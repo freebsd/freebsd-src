@@ -132,7 +132,8 @@ static int lge_detach		__P((device_t));
 static int lge_alloc_jumbo_mem	__P((struct lge_softc *));
 static void lge_free_jumbo_mem	__P((struct lge_softc *));
 static void *lge_jalloc		__P((struct lge_softc *));
-static void lge_jfree		__P((caddr_t, void *));
+static void lge_jfree		__P((caddr_t, u_int));
+static void lge_jref		__P((caddr_t, u_int));
 
 static int lge_newbuf		__P((struct lge_softc *,
 					struct lge_rx_desc *,
@@ -423,7 +424,8 @@ static void lge_setmulti(sc)
 	CSR_WRITE_4(sc, LGE_MAR1, 0);
 
 	/* now program new ones */
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
+	    ifma = ifma->ifma_link.le_next) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = lge_crc(sc, LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
@@ -506,32 +508,37 @@ static int lge_attach(dev)
 	/*
 	 * Handle power management nonsense.
 	 */
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		u_int32_t		iobase, membase, irq;
+	command = pci_read_config(dev, LGE_PCI_CAPID, 4) & 0x000000FF;
+	if (command == 0x01) {
 
-		/* Save important PCI config data. */
-		iobase = pci_read_config(dev, LGE_PCI_LOIO, 4);
-		membase = pci_read_config(dev, LGE_PCI_LOMEM, 4);
-		irq = pci_read_config(dev, LGE_PCI_INTLINE, 4);
+		command = pci_read_config(dev, LGE_PCI_PWRMGMTCTRL, 4);
+		if (command & LGE_PSTATE_MASK) {
+			u_int32_t		iobase, membase, irq;
 
-		/* Reset the power state. */
-		printf("lge%d: chip is in D%d power mode "
-		    "-- setting to D0\n", unit,
-		    pci_get_powerstate(dev));
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+			/* Save important PCI config data. */
+			iobase = pci_read_config(dev, LGE_PCI_LOIO, 4);
+			membase = pci_read_config(dev, LGE_PCI_LOMEM, 4);
+			irq = pci_read_config(dev, LGE_PCI_INTLINE, 4);
 
-		/* Restore PCI config data. */
-		pci_write_config(dev, LGE_PCI_LOIO, iobase, 4);
-		pci_write_config(dev, LGE_PCI_LOMEM, membase, 4);
-		pci_write_config(dev, LGE_PCI_INTLINE, irq, 4);
+			/* Reset the power state. */
+			printf("lge%d: chip is in D%d power mode "
+			"-- setting to D0\n", unit, command & LGE_PSTATE_MASK);
+			command &= 0xFFFFFFFC;
+			pci_write_config(dev, LGE_PCI_PWRMGMTCTRL, command, 4);
+
+			/* Restore PCI config data. */
+			pci_write_config(dev, LGE_PCI_LOIO, iobase, 4);
+			pci_write_config(dev, LGE_PCI_LOMEM, membase, 4);
+			pci_write_config(dev, LGE_PCI_INTLINE, irq, 4);
+		}
 	}
 
 	/*
 	 * Map control/status registers.
 	 */
-	pci_enable_busmaster(dev);
-	pci_enable_io(dev, PCIM_CMD_PORTEN);
-	pci_enable_io(dev, PCIM_CMD_MEMEN);
+	command = pci_read_config(dev, PCIR_COMMAND, 4);
+	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
+	pci_write_config(dev, PCIR_COMMAND, command, 4);
 	command = pci_read_config(dev, PCIR_COMMAND, 4);
 
 #ifdef LGE_USEIOSPACE
@@ -790,13 +797,15 @@ static int lge_newbuf(sc, c, m)
 			return(ENOBUFS);
 		}
 		/* Attach the buffer to the mbuf */
-		m_new->m_data = (void *)buf;
-		m_new->m_len = m_new->m_pkthdr.len = LGE_JUMBO_FRAMELEN;
-		MEXTADD(m_new, buf, LGE_JUMBO_FRAMELEN, lge_jfree,
-		    (struct lge_softc *)sc, 0, EXT_NET_DRV);
+		m_new->m_data = m_new->m_ext.ext_buf = (void *)buf;
+		m_new->m_flags |= M_EXT;
+		m_new->m_ext.ext_size = m_new->m_pkthdr.len =
+		    m_new->m_len = LGE_MCLBYTES;
+		m_new->m_ext.ext_free = lge_jfree;
+		m_new->m_ext.ext_ref = lge_jref;
 	} else {
 		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = LGE_JUMBO_FRAMELEN;
+		m_new->m_len = m_new->m_pkthdr.len = LGE_MCLBYTES;
 		m_new->m_data = m_new->m_ext.ext_buf;
 	}
 
@@ -856,8 +865,13 @@ static int lge_alloc_jumbo_mem(sc)
 	 */
 	ptr = sc->lge_cdata.lge_jumbo_buf;
 	for (i = 0; i < LGE_JSLOTS; i++) {
-		sc->lge_cdata.lge_jslots[i] = ptr;
-		ptr += LGE_JLEN;
+		u_int64_t		**aptr;
+		aptr = (u_int64_t **)ptr;
+		aptr[0] = (u_int64_t *)sc;
+		ptr += sizeof(u_int64_t);
+		sc->lge_cdata.lge_jslots[i].lge_buf = ptr;
+		sc->lge_cdata.lge_jslots[i].lge_inuse = 0;
+		ptr += LGE_MCLBYTES;
 		entry = malloc(sizeof(struct lge_jpool_entry), 
 		    M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
@@ -909,39 +923,92 @@ static void *lge_jalloc(sc)
 
 	SLIST_REMOVE_HEAD(&sc->lge_jfree_listhead, jpool_entries);
 	SLIST_INSERT_HEAD(&sc->lge_jinuse_listhead, entry, jpool_entries);
-	return(sc->lge_cdata.lge_jslots[entry->slot]);
+	sc->lge_cdata.lge_jslots[entry->slot].lge_inuse = 1;
+	return(sc->lge_cdata.lge_jslots[entry->slot].lge_buf);
+}
+
+/*
+ * Adjust usage count on a jumbo buffer. In general this doesn't
+ * get used much because our jumbo buffers don't get passed around
+ * a lot, but it's implemented for correctness.
+ */
+static void lge_jref(buf, size)
+	caddr_t			buf;
+	u_int			size;
+{
+	struct lge_softc	*sc;
+	u_int64_t		**aptr;
+	register int		i;
+
+	/* Extract the softc struct pointer. */
+	aptr = (u_int64_t **)(buf - sizeof(u_int64_t));
+	sc = (struct lge_softc *)(aptr[0]);
+
+	if (sc == NULL)
+		panic("lge_jref: can't find softc pointer!");
+
+	if (size != LGE_MCLBYTES)
+		panic("lge_jref: adjusting refcount of buf of wrong size!");
+
+	/* calculate the slot this buffer belongs to */
+
+	i = ((vm_offset_t)aptr 
+	     - (vm_offset_t)sc->lge_cdata.lge_jumbo_buf) / LGE_JLEN;
+
+	if ((i < 0) || (i >= LGE_JSLOTS))
+		panic("lge_jref: asked to reference buffer "
+		    "that we don't manage!");
+	else if (sc->lge_cdata.lge_jslots[i].lge_inuse == 0)
+		panic("lge_jref: buffer already free!");
+	else
+		sc->lge_cdata.lge_jslots[i].lge_inuse++;
+
+	return;
 }
 
 /*
  * Release a jumbo buffer.
  */
-static void lge_jfree(buf, args)
+static void lge_jfree(buf, size)
 	caddr_t			buf;
-	void			*args;
+	u_int			size;
 {
 	struct lge_softc	*sc;
+	u_int64_t		**aptr;
 	int		        i;
 	struct lge_jpool_entry   *entry;
 
 	/* Extract the softc struct pointer. */
-	sc = args;
+	aptr = (u_int64_t **)(buf - sizeof(u_int64_t));
+	sc = (struct lge_softc *)(aptr[0]);
 
 	if (sc == NULL)
 		panic("lge_jfree: can't find softc pointer!");
 
+	if (size != LGE_MCLBYTES)
+		panic("lge_jfree: freeing buffer of wrong size!");
+
 	/* calculate the slot this buffer belongs to */
-	i = ((vm_offset_t)buf
+	i = ((vm_offset_t)aptr
 	     - (vm_offset_t)sc->lge_cdata.lge_jumbo_buf) / LGE_JLEN;
 
 	if ((i < 0) || (i >= LGE_JSLOTS))
 		panic("lge_jfree: asked to free buffer that we don't manage!");
-
-	entry = SLIST_FIRST(&sc->lge_jinuse_listhead);
-	if (entry == NULL)
-		panic("lge_jfree: buffer not in use!");
-	entry->slot = i;
-	SLIST_REMOVE_HEAD(&sc->lge_jinuse_listhead, jpool_entries);
-	SLIST_INSERT_HEAD(&sc->lge_jfree_listhead, entry, jpool_entries);
+	else if (sc->lge_cdata.lge_jslots[i].lge_inuse == 0)
+		panic("lge_jfree: buffer already free!");
+	else {
+		sc->lge_cdata.lge_jslots[i].lge_inuse--;
+		if(sc->lge_cdata.lge_jslots[i].lge_inuse == 0) {
+			entry = SLIST_FIRST(&sc->lge_jinuse_listhead);
+			if (entry == NULL)
+				panic("lge_jfree: buffer not in use!");
+			entry->slot = i;
+			SLIST_REMOVE_HEAD(&sc->lge_jinuse_listhead,
+			    jpool_entries);
+			SLIST_INSERT_HEAD(&sc->lge_jfree_listhead,
+			    entry, jpool_entries);
+		}
+	}
 
 	return;
 }
