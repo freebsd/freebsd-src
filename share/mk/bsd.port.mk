@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.47 1994/10/04 15:48:21 jkh Exp $
+# $Id: bsd.port.mk,v 1.48 1994/10/04 15:50:43 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -45,6 +45,7 @@
 # NO_PACKAGE	- Use a dummy (do-nothing) package target.
 # NO_INSTALL	- Use a dummy (do-nothing) install target.
 # NO_WRKSUBDIR	- Assume port unpacks directly into ${WRKDIR}.
+# NO_DEPENDS	- Don't verify build of dependencies.
 # USE_GMAKE		- Says that the port uses gmake.
 # USE_IMAKE		- Says that the port uses imake.
 # HAS_CONFIGURE	- Says that the port has its own configure script.
@@ -229,15 +230,17 @@ build: configure pre-build
 	@echo "===>  Building for ${DISTNAME}"
 .if defined(DEPENDS)
 	@echo "===>  ${DISTNAME} depends on:  ${DEPENDS}"
+.if !defined(NO_DEPENDS)
 	@for i in ${DEPENDS}; do \
 		echo "===>  Verifying build for $$i"; \
-		if [ ! -d ${PORTSDIR}/$$i ]; then \
-			echo ">> No directory for ${PORTSDIR}/$$i.  Skipping.."; \
+		if [ ! -d $$i ]; then \
+			echo ">> No directory for $$i.  Skipping.."; \
 		else \
-			(cd ${PORTSDIR}/$$i; ${MAKE} is_depended) ; \
+			(cd $$i; ${MAKE} is_depended) ; \
 		fi \
 	done
 	@echo "===>  Returning to build of ${DISTNAME}"
+.endif
 .endif
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} all)
@@ -248,6 +251,7 @@ build: configure pre-build
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
+		  DEPENDS="${DEPENDS}" \
 		sh ${SCRIPTDIR}/post-build; \
 	fi
 .endif
@@ -275,12 +279,14 @@ ${CONFIGURE_COOKIE}:
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
+		  DEPENDS="${DEPENDS}" \
 		sh ${SCRIPTDIR}/pre-configure; \
 	fi
 	@if [ -f ${SCRIPTDIR}/configure ]; then \
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
+		  DEPENDS="${DEPENDS}" \
 		sh ${SCRIPTDIR}/configure; \
 	fi
 .if defined(HAS_CONFIGURE)
@@ -293,6 +299,7 @@ ${CONFIGURE_COOKIE}:
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
+		  DEPENDS="${DEPENDS}" \
 		sh ${SCRIPTDIR}/post-configure; \
 	fi
 	@touch -f ${CONFIGURE_COOKIE}
