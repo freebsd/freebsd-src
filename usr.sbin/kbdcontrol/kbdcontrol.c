@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.15 1998/08/03 09:12:39 yokota Exp $";
+	"$Id: kbdcontrol.c,v 1.16 1998/08/03 11:33:22 yokota Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -45,7 +45,7 @@ char ctrl_names[32][4] = {
 	"nul", "soh", "stx", "etx", "eot", "enq", "ack", "bel",
 	"bs ", "ht ", "nl ", "vt ", "ff ", "cr ", "so ", "si ",
 	"dle", "dc1", "dc2", "dc3", "dc4", "nak", "syn", "etb",
-	"can", "em ", "sub", "esc", "fs ", "gs ", "rs ", "ns "
+	"can", "em ", "sub", "esc", "fs ", "gs ", "rs ", "us "
 	};
 
 char acc_names[15][5] = {
