@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)telnetd.c	8.2 (Berkeley) 12/15/93";
 #endif
 static const char rcsid[] =
-	"$Id: telnetd.c,v 1.7.2.3 1997/12/19 07:33:32 charnier Exp $";
+	"$Id: telnetd.c,v 1.7.2.4 1998/03/06 01:47:55 jkh Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -59,6 +59,8 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <arpa/inet.h>
+
+#include <sys/mman.h>
 
 #if	defined(_SC_CRAY_SECURE_SYS)
 #include <sys/sysv.h>
@@ -892,6 +894,11 @@ telnet(f, p, host)
 	char *HE;
 	char *HN;
 	char *IM;
+	char *IF;
+	char *if_buf;
+	int if_fd;
+	struct stat statbuf;
+
 	void netflush();
 
 	/*
@@ -1090,8 +1097,11 @@ telnet(f, p, host)
 		HE = getstr("he", &cp);
 		HN = getstr("hn", &cp);
 		IM = getstr("im", &cp);
+		IF = getstr("if", &cp);
 		if (HN && *HN)
 			(void) strcpy(host_name, HN);
+		if (IF && (if_fd = open(IF, O_RDONLY, 000)) != -1)
+			IM = 0;
 		if (IM == 0)
 			IM = "";
 	} else {
@@ -1101,6 +1111,14 @@ telnet(f, p, host)
 	edithost(HE, host_name);
 	if (hostinfo && *IM)
 		putf(IM, ptyibuf2);
+	else if (IF && if_fd != -1) {
+		fstat (if_fd, &statbuf);
+		if_buf = (char *) mmap (0, statbuf.st_size, PROT_READ, 
+		    0, if_fd, 0);
+		putf(if_buf, ptyibuf2);
+		munmap (if_buf, statbuf.st_size);
+		close (if_fd);
+	}
 
 	if (pcc)
 		(void) strncat(ptyibuf2, ptyip, pcc+1);
