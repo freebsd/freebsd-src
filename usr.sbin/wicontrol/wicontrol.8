@@ -65,6 +65,10 @@
 .Fl i Ar iface Fl P Ar 0|1
 .Nm wicontrol
 .Fl i Ar iface Fl S Ar max_sleep_duration
+.Nm wicontrol
+.Fl i Ar iface Fl Z (zero signal cache)
+.Nm wicontrol
+.Fl i Ar iface Fl C (display signal cache)
 .Sh DESCRIPTION
 The
 .Nm
@@ -238,6 +242,19 @@ Specify the sleep interval to use when power management is enabled.
 The
 .Are max sleep interval
 is specified in milliseconds. The default is 100.
+.It Fl i Ar iface Fl Z
+Clear the signal strength cache maintained internally by the
+.Nm wi
+driver.
+.It Fl i Ar iface Fl C
+Display the cached signal strength information maintained by the
+.Nm wi
+driver. The driver retains information about signal strength and
+noise level for packets received from different hosts. The signal
+strength and noise level values are displayed in units of dBms.
+The signal quality values is produced by subtracting the noise level
+from the signal strength (i.e. less noise and better signal yields
+better signal quality).
 .El
 .Sh SEE ALSO
 .Xr wi 4 ,
