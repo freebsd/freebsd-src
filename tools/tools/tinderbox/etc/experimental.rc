@@ -8,4 +8,4 @@ comment		= Experimental platforms
 branches	= CURRENT
 env		= NOLIBC_R=YES, NOFORTH=YES
 platforms	= powerpc
-options		= --verbose --verbose
+options		= --verbose, --verbose
