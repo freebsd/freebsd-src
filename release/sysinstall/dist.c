@@ -497,8 +497,10 @@ distExtract(char *parent, Distribution *me)
 		alarm_set(MEDIA_TIMEOUT, media_timeout);
 		n = fread(buf, 1, BUFSIZ, fp);
 		alarm_clear();
-		if (n <= 0 || AlarmWentOff)
+		if (n <= 0 || AlarmWentOff) {
+		    msgConfirm("Read error on media (timeout or user abort).\n");
 		    break;
+		}
 		total += n;
 
 		/* Print statistics about how we're doing */
