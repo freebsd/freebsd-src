@@ -83,7 +83,7 @@ void gifattach __P((void *));
 /*
  * gif global variable definitions
  */
-int ngif = NGIF;		/* number of interfaces */
+int ngif = NGIF + 1;		/* number of interfaces. +1 for stf. */
 struct gif_softc *gif = 0;
 
 void
@@ -95,7 +95,7 @@ gifattach(dummy)
 
 	gif = sc = malloc (ngif * sizeof(struct gif_softc), M_DEVBUF, M_WAIT);
 	bzero(sc, ngif * sizeof(struct gif_softc));
-	for (i = 0; i < ngif; sc++, i++) {
+	for (i = 0; i < ngif - 1; sc++, i++) {  /* leave last one for stf */
 		sc->gif_if.if_name = "gif";
 		sc->gif_if.if_unit = i;
 		sc->gif_if.if_mtu    = GIF_MTU;
@@ -107,6 +107,16 @@ gifattach(dummy)
 		if_attach(&sc->gif_if);
 		bpfattach(&sc->gif_if, DLT_NULL, sizeof(u_int));
 	}
+	sc->gif_if.if_name = "stf";
+	sc->gif_if.if_unit = 0;
+	sc->gif_if.if_mtu    = GIF_MTU;
+	sc->gif_if.if_flags  = IFF_MULTICAST;
+	sc->gif_if.if_ioctl  = gif_ioctl;
+	sc->gif_if.if_output = gif_output;
+	sc->gif_if.if_type   = IFT_GIF;
+	sc->gif_if.if_snd.ifq_maxlen = ifqmaxlen;
+	if_attach(&sc->gif_if);
+	bpfattach(&sc->gif_if, DLT_NULL, sizeof(u_int));
 }
 
 PSEUDO_SET(gifattach, if_gif);
@@ -322,6 +332,11 @@ gif_ioctl(ifp, cmd, data)
 
 			/* only one gif can have dst = INADDR_ANY */
 #define	satosaddr(sa) (((struct sockaddr_in *)(sa))->sin_addr.s_addr)
+
+#ifdef INET6
+			if (bcmp(ifp->if_name, "stf", 3) == 0)
+				satosaddr(dst) = INADDR_BROADCAST;
+#endif
 
 			if (satosaddr(dst) == INADDR_ANY) {
 				int i;
