@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/reboot.h>
 #include <sys/sx.h>
 #include <sys/module.h>
 #include <sys/linker.h>
@@ -94,6 +95,8 @@ module_shutdown(void *arg1, int arg2)
 {
 	module_t mod;
 
+	if (arg2 & RB_NOSYNC)
+		return;
 	MOD_SLOCK;
 	TAILQ_FOREACH(mod, &modules, link)
 		MOD_EVENT(mod, MOD_SHUTDOWN);
