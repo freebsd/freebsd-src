@@ -265,7 +265,6 @@ contrib/pf/netinet/in4_cksum.c	optional pf inet
 crypto/blowfish/bf_ecb.c	optional ipsec ipsec_esp
 crypto/blowfish/bf_skey.c	optional crypto
 crypto/blowfish/bf_skey.c	optional ipsec ipsec_esp
-crypto/cast128/cast128.c	optional ipsec ipsec_esp
 crypto/des/des_ecb.c		optional crypto
 crypto/des/des_ecb.c		optional ipsec ipsec_esp
 crypto/des/des_setkey.c		optional crypto
@@ -1630,6 +1629,7 @@ nfsserver/nfs_srvsubs.c		optional nfsserver
 nfsserver/nfs_syscalls.c	optional nfsserver
 # crypto support
 opencrypto/cast.c		optional crypto
+opencrypto/cast.c		optional ipsec ipsec_esp
 opencrypto/criov.c		optional crypto
 opencrypto/crypto.c		optional crypto
 opencrypto/cryptodev.c		optional cryptodev
