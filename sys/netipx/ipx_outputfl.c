@@ -48,10 +48,6 @@
 #include <netipx/ipx_if.h>
 #include <netipx/ipx_var.h>
 
-#ifdef vax
-#include <machine/mtpr.h>
-#endif
-
 static int ipx_copy_output = 0;
 
 int
