@@ -2,14 +2,14 @@
 
 LIB=	md
 SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c
-MAN3+=	md2.3 md4.3 md5.3
-MLINKS+=md2.3 MD2Init.3 md2.3 MD2Update.3 md2.3 MD2Final.3 
-MLINKS+=md2.3 MD2End.3  md2.3 MD2File.3   md2.3 MD2Data.3
-MLINKS+=md4.3 MD4Init.3 md4.3 MD4Update.3 md4.3 MD4Final.3 
-MLINKS+=md4.3 MD4End.3  md4.3 MD4File.3   md4.3 MD4Data.3
-MLINKS+=md5.3 MD5Init.3 md5.3 MD5Update.3 md5.3 MD5Final.3 
-MLINKS+=md5.3 MD5End.3  md5.3 MD5File.3   md5.3 MD5Data.3
-CLEANFILES+=	md[245]hl.c md[245].ref md[245].3
+MAN3+=	mdX.3
+MLINKS+=mdX.3 MD2Init.3 mdX.3 MD2Update.3 mdX.3 MD2Final.3 
+MLINKS+=mdX.3 MD2End.3  mdX.3 MD2File.3   mdX.3 MD2Data.3
+MLINKS+=mdX.3 MD4Init.3 mdX.3 MD4Update.3 mdX.3 MD4Final.3 
+MLINKS+=mdX.3 MD4End.3  mdX.3 MD4File.3   mdX.3 MD4Data.3
+MLINKS+=mdX.3 MD5Init.3 mdX.3 MD5Update.3 mdX.3 MD5Final.3 
+MLINKS+=mdX.3 MD5End.3  mdX.3 MD5File.3   mdX.3 MD5Data.3
+CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver
 CFLAGS+= -I${.CURDIR}
 
 md2hl.c: mdXhl.c
@@ -23,15 +23,15 @@ md5hl.c: mdXhl.c
 
 md2.3: mdX.3
 	sed -e 's/mdX/md2/g' -e 's/MDX/MD2/g' $> > $@
-	cat md2.copyright >> $@
+	cat ${.CURDIR}/md2.copyright >> $@
 
 md4.3: mdX.3
 	sed -e 's/mdX/md4/g' -e 's/MDX/MD4/g' $> > $@
-	cat md4.copyright >> $@
+	cat ${.CURDIR}/md4.copyright >> $@
 
 md5.3: mdX.3
 	sed -e 's/mdX/md5/g' -e 's/MDX/MD5/g' $> > $@
-	cat md5.copyright >> $@
+	cat ${.CURDIR}/md5.copyright >> $@
 	
 md2.ref:
 	echo 'MD2 test suite:' > $@
@@ -66,14 +66,14 @@ md5.ref:
 beforeinstall: md2.ref md4.ref md5.ref md2.3 md4.3 md5.3
 	@echo if any of these test fail, the code produces wrong results
 	@echo and should NOT be used.
-	${CC} ${CFLAGS} -DMD=2 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
-	./mddriver | cmp ${.CURDIR}/md2.ref -
+	${CC} ${CFLAGS} -static -DMD=2 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
+	./mddriver | cmp md2.ref -
 	@echo MD2 passed test
-	${CC} ${CFLAGS} -DMD=4 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
-	./mddriver | cmp ${.CURDIR}/md4.ref -
+	${CC} ${CFLAGS} -static -DMD=4 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
+	./mddriver | cmp md4.ref -
 	@echo MD4 passed test
-	${CC} ${CFLAGS} -DMD=5 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
-	./mddriver | cmp ${.CURDIR}/md5.ref -
+	${CC} ${CFLAGS} -static -DMD=5 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
+	./mddriver | cmp md5.ref -
 	@echo MD5 passed test
 	-rm -f mddriver
 
