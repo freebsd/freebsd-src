@@ -314,9 +314,10 @@ extern struct mtx vm_page_queue_mtx;
 #define VM_ALLOC_SYSTEM		2
 #define	VM_ALLOC_CLASS_MASK	3
 /* page allocation flags: */
-#define	VM_ALLOC_WIRED		0x20
-#define	VM_ALLOC_ZERO		0x40
-#define	VM_ALLOC_RETRY		0x80	/* vm_page_grab() only */
+#define	VM_ALLOC_WIRED		0x0020	/* non pageable */
+#define	VM_ALLOC_ZERO		0x0040	/* Try to obtain a zeroed page */
+#define	VM_ALLOC_RETRY		0x0080	/* vm_page_grab() only */
+#define	VM_ALLOC_NOOBJ		0x0100	/* No associated object */
 
 void vm_page_flag_set(vm_page_t m, unsigned short bits);
 void vm_page_flag_clear(vm_page_t m, unsigned short bits);
