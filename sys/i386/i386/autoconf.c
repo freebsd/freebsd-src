@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.3 1997/07/20 17:06:24 smp Exp smp $
+ *	$Id: autoconf.c,v 1.72 1997/07/20 18:05:16 fsmp Exp $
  */
 
 /*
@@ -222,11 +222,7 @@ configure(dummy)
 	if (bootverbose) {
 
 #ifdef APIC_IO
-		printf("SMP: enabled INTs: ");
-		for (i = 0; i < 24; ++i)
-			if ((imen & (1 << i)) == 0)
-	        		printf("%d, ", i);
-		printf("imen: 0x%08x\n", imen);
+		imen_dump();
 #endif /* APIC_IO */
 
 		/*
