@@ -869,6 +869,8 @@ isab_match(device_t dev)
 	/* VIA Technologies -- vendor 0x1106 */
 	case 0x05861106: /* south bridge section */
 		return ("VIA 82C586 PCI-ISA bridge");
+	case 0x06861106:
+		return ("VIA 82C686 PCI-ISA bridge");
 
 	/* AcerLabs -- vendor 0x10b9 */
 	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
