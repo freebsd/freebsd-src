@@ -324,7 +324,7 @@ adjust(struct inodesc *idesc, int lcnt)
 		}
 		if (preen || reply("ADJUST") == 1) {
 			if (bkgrdflag == 0) {
-				DIP(dp, di_nlink) -= lcnt;
+				DIP_SET(dp, di_nlink, DIP(dp, di_nlink) - lcnt);
 				inodirty();
 			} else {
 				cmd.value = idesc->id_number;
@@ -474,7 +474,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 		    parentdir != (ino_t)-1)
 			(void)makeentry(orphan, lfdir, "..");
 		dp = ginode(lfdir);
-		DIP(dp, di_nlink)++;
+		DIP_SET(dp, di_nlink, DIP(dp, di_nlink) + 1);
 		inodirty();
 		inoinfo(lfdir)->ino_linkcnt++;
 		pwarn("DIR I=%lu CONNECTED. ", (u_long)orphan);
@@ -535,7 +535,7 @@ makeentry(ino_t parent, ino_t ino, const char *name)
 	idesc.id_name = strdup(name);
 	dp = ginode(parent);
 	if (DIP(dp, di_size) % DIRBLKSIZ) {
-		DIP(dp, di_size) = roundup(DIP(dp, di_size), DIRBLKSIZ);
+		DIP_SET(dp, di_size, roundup(DIP(dp, di_size), DIRBLKSIZ));
 		inodirty();
 	}
 	if ((ckinode(dp, &idesc) & ALTERED) != 0)
@@ -563,10 +563,10 @@ expanddir(union dinode *dp, char *name)
 		return (0);
 	if ((newblk = allocblk(sblock.fs_frag)) == 0)
 		return (0);
-	DIP(dp, di_db[lastbn + 1]) = DIP(dp, di_db[lastbn]);
-	DIP(dp, di_db[lastbn]) = newblk;
-	DIP(dp, di_size) += sblock.fs_bsize;
-	DIP(dp, di_blocks) += btodb(sblock.fs_bsize);
+	DIP_SET(dp, di_db[lastbn + 1], DIP(dp, di_db[lastbn]));
+	DIP_SET(dp, di_db[lastbn], newblk);
+	DIP_SET(dp, di_size, DIP(dp, di_size) + sblock.fs_bsize);
+	DIP_SET(dp, di_blocks, DIP(dp, di_blocks) + btodb(sblock.fs_bsize));
 	bp = getdirblk(DIP(dp, di_db[lastbn + 1]),
 		sblksize(&sblock, DIP(dp, di_size), lastbn + 1));
 	if (bp->b_errs)
@@ -595,10 +595,10 @@ expanddir(union dinode *dp, char *name)
 	inodirty();
 	return (1);
 bad:
-	DIP(dp, di_db[lastbn]) = DIP(dp, di_db[lastbn + 1]);
-	DIP(dp, di_db[lastbn + 1]) = 0;
-	DIP(dp, di_size) -= sblock.fs_bsize;
-	DIP(dp, di_blocks) -= btodb(sblock.fs_bsize);
+	DIP_SET(dp, di_db[lastbn], DIP(dp, di_db[lastbn + 1]));
+	DIP_SET(dp, di_db[lastbn + 1], 0);
+	DIP_SET(dp, di_size, DIP(dp, di_size) - sblock.fs_bsize);
+	DIP_SET(dp, di_blocks, DIP(dp, di_blocks) - btodb(sblock.fs_bsize));
 	freeblk(newblk, sblock.fs_frag);
 	return (0);
 }
@@ -632,7 +632,7 @@ allocdir(ino_t parent, ino_t request, int mode)
 	     cp += DIRBLKSIZ)
 		memmove(cp, &emptydir, sizeof emptydir);
 	dirty(bp);
-	DIP(dp, di_nlink) = 2;
+	DIP_SET(dp, di_nlink, 2);
 	inodirty();
 	if (ino == ROOTINO) {
 		inoinfo(ino)->ino_linkcnt = DIP(dp, di_nlink);
@@ -654,7 +654,7 @@ allocdir(ino_t parent, ino_t request, int mode)
 		inoinfo(parent)->ino_linkcnt++;
 	}
 	dp = ginode(parent);
-	DIP(dp, di_nlink)++;
+	DIP_SET(dp, di_nlink, DIP(dp, di_nlink) + 1);
 	inodirty();
 	return (ino);
 }
@@ -669,7 +669,7 @@ freedir(ino_t ino, ino_t parent)
 
 	if (ino != parent) {
 		dp = ginode(parent);
-		DIP(dp, di_nlink)--;
+		DIP_SET(dp, di_nlink, DIP(dp, di_nlink) - 1);
 		inodirty();
 	}
 	freeino(ino);
