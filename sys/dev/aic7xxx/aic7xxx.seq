@@ -681,7 +681,8 @@ idle_loop:
 		bmov	CCHADDR[1], SCB_RESIDUAL_SGPTR[1], 3;
 		mvi	CCSGCTL, CCSGEN|CCSGRESET ret;
 idle_sgfetch_complete:
-		mvi	CCSGCTL, CCSGRESET;
+		clr	CCSGCTL;
+		test	CCSGCTL, CCSGEN jnz .;
 		and	CCSGADDR, (CCSGADDR_MAX - 1), SCB_RESIDUAL_SGPTR;
 idle_sg_avail:
 		if ((ahc->features & AHC_ULTRA2) != 0) {
@@ -789,14 +790,12 @@ data_phase_loop:
 	 */
 	or	SXFRCTL1,BITBUCKET;
 	and	DMAPARAMS, ~(HDMAEN|SDMAEN);
-	/* Keep our idle loop from mucking with SG segments */
-	or	SCB_RESIDUAL_DATACNT[0], SG_LAST_SEG;
 	if ((ahc->features & AHC_ULTRA2) != 0) {
 		bmov	HCNT, ALLONES, 3;
+		or	SXFRCTL0, CLRCHN;	/* Ensure FIFO empty */
 	} else if ((ahc->features & AHC_CMD_CHAN) != 0) {
 		bmov	STCNT, ALLONES, 3;
 	} else {
-		/* XXX Use bcopy? */
 		mvi	STCNT[0], 0xFF;
 		mvi	STCNT[1], 0xFF;
 		mvi	STCNT[2], 0xFF;
@@ -823,6 +822,9 @@ ultra2_dmafinish:
 		test	DFCNTRL, DIRECTION jnz ultra2_dmafifoempty;
 		and	DFCNTRL, ~SCSIEN;
 		test	DFCNTRL, SCSIEN jnz .;
+		if ((ahc->bugs & AHC_AUTOFLUSH_BUG) != 0) {
+			test	DFSTATUS, FIFOEMP jnz ultra2_dmafifoempty;
+		}
 ultra2_dmafifoflush:
 		if ((ahc->bugs & AHC_AUTOFLUSH_BUG) != 0) {
 			/*
@@ -854,6 +856,33 @@ ultra2_dmahalt:
 		test	DFCNTRL, HDMAEN jnz .;
 
 		test	SXFRCTL1,BITBUCKET jnz data_phase_finish;
+
+		/*
+		 * If, by chance, we stopped before being able
+		 * to fetch additional segments for this transfer,
+		 * yet the last S/G was completely exhausted,
+		 * call our idle loop until it is able to load
+		 * another segment.  This will allow us to immediately
+		 * pickup on the next segment on the next data phase.
+		 *
+		 * If we happened to stop on the last segment, then
+		 * our residual information is still correct from
+		 * the idle loop and there is no need to perform
+		 * any fixups.  Just jump to data_phase_finish.
+		 */
+ultra2_ensure_sg:
+		test	SG_CACHE_SHADOW, LAST_SEG jz ultra2_shvalid;
+		/* Record if we've consumed all S/G entries */
+		test	SG_CACHE_SHADOW, LAST_SEG_DONE jz data_phase_finish;
+		or	SCB_RESIDUAL_SGPTR[0], SG_LIST_NULL;
+		jmp	data_phase_finish;
+
+ultra2_shvalid:
+                test    SSTAT2, SHVALID	jnz sgptr_fixup;
+		call	idle_loop;
+		jmp	ultra2_ensure_sg;
+
+sgptr_fixup:
 		/*
 		 * Fixup the residual next S/G pointer.  The S/G preload
 		 * feature of the chip allows us to load two elements
@@ -875,19 +904,17 @@ sgptr_fixup_done:
 		clr	DATA_COUNT_ODD;
 		test	SG_CACHE_SHADOW, ODD_SEG jz . + 2;
 		or	DATA_COUNT_ODD, 0x1;
-		clr	SCB_RESIDUAL_DATACNT[3];
-		test	SG_CACHE_SHADOW, LAST_SEG jz data_phase_finish;
-		or	SCB_RESIDUAL_DATACNT[3], SG_LAST_SEG;
-		/* Record if we've consumed all S/G entries */
-		test	SG_CACHE_SHADOW, LAST_SEG_DONE jz . + 2;
-		or	SCB_RESIDUAL_SGPTR[0], SG_LIST_NULL;
+		clr	SCB_RESIDUAL_DATACNT[3]; /* We are not the last seg */
 	} else {
 		/* If we are the last SG block, tell the hardware. */
 		test	SCB_RESIDUAL_DATACNT[3], SG_LAST_SEG jz dma_mid_sg;
 		if ((ahc->flags & AHC_TARGETMODE) != 0) {
-			test	SSTAT0, TARGET jz . + 2;
-			test	DMAPARAMS, DIRECTION jz dma_mid_sg;
+			test	SSTAT0, TARGET jz dma_last_sg;
+			if ((ahc->flags & AHC_TMODE_WIDEODD_BUG) != 0) {
+				test	DMAPARAMS, DIRECTION jz dma_mid_sg;
+			}
 		}
+dma_last_sg:
 		and	DMAPARAMS, ~WIDEODD;
 dma_mid_sg:
 		/* Start DMA data transfer. */
@@ -1071,6 +1098,7 @@ p_command:
 	if ((ahc->features & AHC_ULTRA2) != 0) {
 		bmov	HCNT[0], SCB_CDB_LEN,  1;
 		bmov	HCNT[1], ALLZEROS, 2;
+		mvi	SG_CACHE_PRE, LAST_SEG;
 	} else if ((ahc->features & AHC_CMD_CHAN) != 0) {
 		bmov	STCNT[0], SCB_CDB_LEN, 1;
 		bmov	STCNT[1], ALLZEROS, 2;

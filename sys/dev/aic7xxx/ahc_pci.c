@@ -777,8 +777,23 @@ ahc_pci_attach(device_t dev)
 		 * some MBs so don't use it.
 		 */
 		dscommand0 &= ~DPARCKEN;
+		/*
+		 * We default to using 32byte SCBs
+		 * and using cacheline streaming.
+		 * If external SCB ram is detected,
+		 * we'll switch to using 64 byte SCBs.
+		 */
 		dscommand0 |= CACHETHEN|USCBSIZE32;
 	}
+	/*
+	 * Handle chips that must have cache line
+	 * streaming (dis/en)abled.
+	 */
+	if ((ahc->bugs & AHC_CACHETHEN_DIS_BUG) != 0)
+		dscommand0 |= CACHETHEN;
+
+	if ((ahc->bugs & AHC_CACHETHEN_BUG) != 0)
+		dscommand0 &= ~CACHETHEN;
 
 	ahc_outb(ahc, DSCOMMAND0, dscommand0);
 
@@ -1856,7 +1871,7 @@ ahc_aic7890_setup(device_t dev, struct ahc_probe_config *probe_config)
 	probe_config->features = AHC_AIC7890_FE;
 	probe_config->flags |= AHC_NEWEEPROM_FMT;
 	if (pci_get_revid(dev) == 0)
-		probe_config->bugs |= AHC_AUTOFLUSH_BUG;
+		probe_config->bugs |= AHC_AUTOFLUSH_BUG|AHC_CACHETHEN_BUG;
 	return (0);
 }
 
@@ -1897,6 +1912,7 @@ ahc_aic7896_setup(device_t dev, struct ahc_probe_config *probe_config)
 	probe_config->chip = AHC_AIC7896;
 	probe_config->features = AHC_AIC7896_FE;
 	probe_config->flags |= AHC_NEWEEPROM_FMT;
+	probe_config->bugs |= AHC_CACHETHEN_DIS_BUG;
 	return (0);
 }
 
