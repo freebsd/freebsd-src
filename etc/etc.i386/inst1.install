@@ -1028,7 +1028,9 @@ echo	"If all goes well, you can enter the command \`copy' at the prompt to"
 echo	"copy the kernel to the hard disk.  When asked for which partition to"
 echo	"copy to, enter \`${drivename}a' (without the quotes)."
 echo
-echo	"Okay, that's all for now.  I'm waiting for you to enter \`halt'..."
+echo	"The light on the floppy may not go out, so don't wait for it."
+echo
+echo	"Okay, that's all for now.  I'm halting ..."
 
 sync;sync;sync;sync
-
+exit 1
