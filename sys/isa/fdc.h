@@ -76,23 +76,40 @@ struct fdc_data
 	int	fdu;		/* the active drive	*/
 	enum	fdc_states state;
 	int	retry;
+#ifndef PC98
 	int	fdout;		/* mirror of the w/o digital output reg */
+#endif
 	u_int	status[7];	/* copy of the registers */
 	enum	fdc_type fdct;	/* chip version of FDC */
 	int	fdc_errs;	/* number of logged errors */
 	int	dma_overruns;	/* number of DMA overruns */
 	struct	bio_queue_head head;
 	struct	bio *bp;	/* active buffer */
+#ifdef PC98
+	struct	resource *res_ioport, *res_fdsio, *res_fdemsio;
+	struct	resource *res_irq, *res_drq;
+	int	rid_ioport, rid_irq, rid_drq;
+#else
 	struct	resource *res_ioport, *res_ctl, *res_irq, *res_drq;
 	int	rid_ioport, rid_ctl, rid_irq, rid_drq;
+#endif
 	int	port_off;
 	bus_space_tag_t portt;
 	bus_space_handle_t porth;
+#ifdef PC98
+        bus_space_tag_t		sc_fdsiot;
+        bus_space_handle_t	sc_fdsioh;
+        bus_space_tag_t		sc_fdemsiot;
+        bus_space_handle_t	sc_fdemsioh;
+#else
 	bus_space_tag_t ctlt;
 	bus_space_handle_t ctlh;
+#endif
 	void	*fdc_intr;
 	struct	device *fdc_dev;
+#ifndef PC98
 	void	(*fdctl_wr)(struct fdc_data *fdc, u_int8_t v);
+#endif
 };
 
 /***********************************************************************\
