@@ -432,7 +432,7 @@ sub load_archlist {
 	    dlog(4, "For driver $1 setting arch to $2");
 	    $archlist{$1} = $2;
 	} else {
-	    dlog(1, "Could not parse line $lineno");
+	    dlog(1, "Warning: Could not parse archlist line $lineno");
 	}
     }
 
