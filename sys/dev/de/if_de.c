@@ -21,36 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.3 1994/10/12 11:19:35 se Exp $
- *
- * $Log: if_de.c,v $
- * Revision 1.3  1994/10/12  11:19:35  se
- * Submitted by:	Matt Thomas <thomas@lkg.dec.com>
- * Preliminary FAST Ethernet support added (DEC21140).
- *
- * Revision 1.6  1994/10/11  18:20:10  thomas
- * new pci interface
- * new 100mb/s prelim support
- *
- * Revision 1.5  1994/10/01  16:10:24  thomas
- * Modifications for FreeBSD 2.0
- *
- * Revision 1.4  1994/09/09  21:10:05  thomas
- * mbuf debugging code
- * transmit fifo owkraroudns
- *
- * Revision 1.3  1994/08/16  20:40:56  thomas
- * New README files (one per driver)
- * Minor updates to drivers (DEPCA support and add pass to attach
- * output)
- *
- * Revision 1.2  1994/08/15  20:41:22  thomas
- * Support AUI and TP.  Autosense either.
- * Revamp receive logic to use private kmem_alloc'ed 64K region.
- * Some cleanup
- *
- * Revision 1.1  1994/08/12  21:01:18  thomas
- * Initial revision
+ * $Id: if_de.c,v 1.4 1994/11/09 15:12:44 davidg Exp $
  *
  */
 
@@ -672,6 +643,10 @@ tulip_start(
 	 * it to transmit!
 	 */
 	IF_ENQUEUE(&sc->tulip_txq, m);
+#if NBPFILTER > 0
+	if (sc->tulip_bpf)
+		bpf_mtap(sc->tulip_bpf, m);
+#endif
 	eop->d_flag |= TULIP_DFLAG_TxLASTSEG|TULIP_DFLAG_TxWANTINTR;
 	sop->d_flag |= TULIP_DFLAG_TxFIRSTSEG;
 	sop->d_status = TULIP_DSTS_OWNER;
