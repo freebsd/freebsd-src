@@ -57,6 +57,15 @@
 #endif
 
 /*
+ * SMP and non-SMP kernels clearly have a different number of possible cpus.
+ */
+#ifdef	SMP
+#define	NCPU_PRESENT	mp_ncpus
+#else
+#define	NCPU_PRESENT	1
+#endif
+
+/*
  * The mbuf allocator is heavily based on Alfred Perlstein's
  * (alfred@FreeBSD.org) "memcache" allocator which is itself based
  * on concepts from several per-CPU memory allocators. The difference
@@ -379,7 +388,7 @@ mb_init(void *dummy)
 	/*
 	 * Allocate and initialize PCPU containers.
 	 */
-	for (i = 0; i < mp_ncpus; i++) {
+	for (i = 0; i < NCPU_PRESENT; i++) {
 		mb_list_mbuf.ml_cntlst[i] = malloc(sizeof(struct mb_pcpu_list),
 		    M_MBUF, M_NOWAIT);
 		mb_list_clust.ml_cntlst[i] = malloc(sizeof(struct mb_pcpu_list),
@@ -617,7 +626,7 @@ mb_alloc_wait(struct mb_lstmngr *mb_list)
 	 * Cycle all the PCPU containers. Increment starved counts if found
 	 * empty.
 	 */
-	for (i = 0; i < mp_ncpus; i++) {
+	for (i = 0; i < NCPU_PRESENT; i++) {
 		cnt_lst = MB_GET_PCPU_LIST_NUM(mb_list, i);
 		MB_LOCK_CONT(cnt_lst);
 
