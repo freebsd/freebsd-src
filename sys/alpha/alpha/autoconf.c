@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.23 1999/05/10 17:12:38 peter Exp $
+ *	$Id: autoconf.c,v 1.24 1999/05/14 11:13:19 dfr Exp $
  */
 
 #include "opt_bootp.h"
@@ -321,12 +321,12 @@ static int
 sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
 {
         int error;
-        dev_t ndumpdev;
+        udev_t ndumpdev;
 
-        ndumpdev = dumpdev;
+        ndumpdev = dev2udev(dumpdev);
         error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
         if (error == 0 && req->newptr != NULL)
-                error = setdumpdev(ndumpdev);
+                error = setdumpdev(udev2dev(ndumpdev, 1));
         return (error);
 }
 
