@@ -283,7 +283,7 @@ struct ntfsmount {
 
 #define	ntfs_bpbl	(daddr_t)((ntmp)->ntm_bps)
 
-#if __FreeBSD_version >= 300000
+#ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_NTFSMNT);
 MALLOC_DECLARE(M_NTFSNTNODE);
 MALLOC_DECLARE(M_NTFSFNODE);
