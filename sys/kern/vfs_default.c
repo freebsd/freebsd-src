@@ -475,10 +475,8 @@ vop_nounlock(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-
 	if (ap->a_flags & LK_INTERLOCK)
-		simple_unlock(&vp->v_interlock);
+		simple_unlock(&ap->a_vp->v_interlock);
 	return (0);
 }
 
