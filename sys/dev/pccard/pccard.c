@@ -1026,7 +1026,7 @@ pccard_setup_intr(device_t dev, device_t child,
 
 	func->intr_handler = intr;
 	func->intr_handler_arg = arg;
-	func->intr_handler_cookie = cookiep;
+	func->intr_handler_cookie = *cookiep = func;
 	pccard_ccr_write(func, PCCARD_CCR_OPTION,
 			 pccard_ccr_read(func, PCCARD_CCR_OPTION) |
 			 PCCARD_CCR_OPTION_IREQ_ENABLE);
