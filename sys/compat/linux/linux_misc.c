@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.52 1999/01/26 02:38:10 julian Exp $
+ *  $Id: linux_misc.c,v 1.53 1999/03/02 00:28:07 julian Exp $
  */
 
 #include <sys/param.h>
@@ -669,21 +669,8 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
 	bsd_args.flags |= MAP_FIXED;
     if (linux_args.flags & LINUX_MAP_ANON)
 	bsd_args.flags |= MAP_ANON;
-
-#ifndef VM_STACK
-    /* Linux Threads will map into the proc stack space, unless
-     * we prevent it.  This causes problems if we're not using
-     * our VM_STACK options.
-     */
-    if ((unsigned int)linux_args.addr + linux_args.len > (USRSTACK - MAXSSIZ))
-	return (EINVAL);
-#endif
-
     if (linux_args.flags & LINUX_MAP_GROWSDOWN) {
-
-#ifdef VM_STACK
 	bsd_args.flags |= MAP_STACK;      
-#endif
 
 	/* The linux MAP_GROWSDOWN option does not limit auto
 	 * growth of the region.  Linux mmap with this option
