@@ -1,4 +1,4 @@
-ardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.5 1996/12/17 00:54:52 nate Exp $
+ardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.6 1996/12/23 01:52:13 jkh Exp $
 
 Contents last changed:  December 22nd, 1996
 
@@ -60,7 +60,6 @@ wdc0    1f0     14      n/a     n/a     IDE/MFM/RLL disk controller
 wdc1    170     15      n/a     n/a     IDE/MFM/RLL disk controller
 
 ncr0    n/a     n/a     n/a     n/a     NCR PCI SCSI controller
-ahc0    n/a     n/a     n/a     n/a     Adaptec 294x PCI SCSI controller
 bt0     330     dyn     dyn     dyn     Buslogic SCSI controller
 uha0    330     dyn     6       dyn     Ultrastore 14f
 aha0    330     dyn     5       dyn     Adaptec 154x SCSI controller
@@ -94,7 +93,7 @@ ed1     300     5       dyn     d8000   Same as ed0
 eg0     310     5       dyn     dyn     3Com 3C505
 ep0     300     10      dyn     dyn     3Com 3C509
 fe0     300     dyn     n/a     n/a     Allied-Telesis AT1700, RE2000 and
-					Fujitsu FMV-180 series cards.
+                                        Fujitsu FMV-180 series cards.
 fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
 ie0     360     7       dyn     d0000   AT&T StarLAN 10 and EN100;
                                         3Com 3C507; NI5210
@@ -103,7 +102,7 @@ le0     300     5       dyn     d0000   Digital Equipment EtherWorks
                                         2 and EtherWorks 3
 lnc0    280     10      n/a     dyn     Lance/PCnet cards
                                         (Isolan, Novell NE2100, NE32-VL)
-vx0     dyn     dyn     n/a     dyn	3Com 3c590 / 3c595
+vx0     dyn     dyn     n/a     dyn     3Com 3c59x / 3c9xx
 ze0     300     5       dyn     d8000   IBM/National Semiconductor
                                         PCMCIA Ethernet Controller
 zp0     300     10      dyn     d8000   3Com PCMCIA Etherlink III
@@ -229,6 +228,9 @@ The allowable values for a given field are show in the Key Help area
 when the field is active.
 
 To finish configuring a driver, press 'Q'.
+
+Note that PCI and EISA devices can be probed reliably, therefore are
+not shown in the table above, nor can be changed using UserConfig.
 
 
 3.      LINT - other possible configurations

@@ -26,7 +26,8 @@ remove the old ones).
 
 Updated support for ethernet adaptors which use the DEC DC21X4X chipset.
 
-The 3COM 3c590 / 3c595 drivers have improved considerably.
+The 3COM 3c590 / 3c595 drivers have improved considerably, and also
+includes support for EISA and 3c90x devices now.
 
 Update to gcc 2.7.2.1 & add support for weak symbols.
 
@@ -51,6 +52,53 @@ drivers.
 Now use Robert Nordier's stand-alone DOS I/O library during installation,
 avoiding the somewhat buggy DOSFS code.  This should allow most, if not all,
 types of DOS installations to work now.
+
+/stand/sysinstall moved even more towards a system management tool.
+
+The syscons and psm drivers now have a new underlying shared keyboard
+driver, eliminating many of the previously existing problems with
+their mutual interaction.
+
+2.2 is the first release that includes full CD-R support for the
+Plasmon RF41xx, HP4020i, and Philips CDD2000 drives.  The driver is
+still under development (in particular to extend its usability for
+other devices), but it has been proved to be stable by now.
+
+Support for NFSv3 clients and servers went into the 2.2 sources
+shortly after branching off the 2.0.5/2.1.X tree.  There are also
+other options available with NFS, like the ability to turn an NFSv2
+server into asychronous write mode (which is in violation of the
+specs, but has precedents e.g. in SGI Irix).
+
+The mount option `async' allows asynchronous metadata updates on UFS
+file systems, something that is the default e.g. on Linux' ext2fs.
+This speeds up many i-node intensive filesystem operations (like
+rm -r) at the cost of an increased risk in case of a system crash.
+The installation itself makes use of this feature, and could be
+drastically accelerated by this.  (A bindist-only installation from a
+SCSI CD-ROM can now complete in less than 5 minutes on a fast
+machine!)
+
+The ATAPI CD-ROM support is now reported to work for quite an
+impressive number of drives.  In other words, all the drives that
+basically adhere to the ATAPI standard are likely to work.
+
+There are many new drivers available in the kernel, too many to keep
+them in mind.  Tekram supplied a driver for their DC390 and DC390T
+controllers.  These controllers are based on the AMD 53c974, and the
+driver is also able to handle other SCSI controllers based on that
+chip.  Of course, with Tekram being generous enough to support the
+FreeBSD project with their driver, we'd like to encourage you to buy
+their product.  The `ed' and `lnc' drivers now support auto-config-
+uration for the respective PCI ethernet cards, including many NE2000
+clones and the AMD PCnet chips.  The SDL RISCom N2 support is new, as
+well as the PCI version of the Cyclades driver.
+
+Support for APM BIOSes is now in a much better shape.
+
+The manual section 9 has been started, describing `official' kernel
+programming interfaces.  We are still seeking volunteers to document
+interfaces here!
 
 
 2. Technical overview
@@ -176,13 +224,17 @@ Buslogic 742A, 747S, 747c EISA SCSI controller.
 Buslogic 946c PCI SCSI controller
 Buslogic 956c PCI SCSI controller
 
-NCR 53C810, 53C825, 53c860 and 53c875 PCI SCSI controllers:
+SymBios (formerly NCR) 53C810, 53C825, 53c860 and 53c875 PCI SCSI
+controllers:
 	ASUS SC-200
   	Data Technology DTC3130 (all variants)
 	NCR cards (all)
 	Symbios cards (all)
 	Tekram DC390W, 390U and 390F
 	Tyan S1365
+
+Tekram DC390 and DC390T controllers (maybe other cards based on the
+AMD 53c974 as well).
 
 NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
 
@@ -229,7 +281,7 @@ DEC FDDI (DEFPA/DEFEA) NICs
 
 Fujitsu MB86960A/MB86965A
 
-HP PC Lan+ cards (model numbers: 27247B and 27252A)
+HP PC Lan+ cards (model numbers: 27247B and 27252A).
 
 Intel EtherExpress (not recommended due to driver instability)
 Intel EtherExpress Pro/100B PCI Fast Ethernet
@@ -247,7 +299,8 @@ Novell NE1000, NE2000, and NE2100 ethernet interface.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590 & 3C595 (PCI) Etherlink III
+3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905 PCI and EISA
+(Fast) Etherlink III / (Fast) Etherlink XL
 
 Toshiba ethernet cards
 
@@ -382,6 +435,12 @@ If, for some reason, you are unable to use the send-pr command to
 submit a bug report, you can try to send it to:
 
                 bugs@FreeBSD.org
+
+Note that send-pr itself is a shell script that should be easy to move
+even onto a totally different system.  We much prefer if you could use
+this interface, since it make it easier to keep track of the problem
+reports.  However, before submitting, please try to make sure whether
+the problem might have already been fixed since.
 
 
 Otherwise, for any questions or suggestions, please send mail to:
@@ -543,4 +602,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.17.2.6 1996/12/23 01:52:15 jkh Exp $
+$Id: relnotes.hlp,v 1.17.2.7 1996/12/23 18:16:45 jkh Exp $
