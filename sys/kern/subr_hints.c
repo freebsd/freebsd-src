@@ -150,9 +150,11 @@ res_find(int *line, int *startln,
 			break;
 		if (use_kenv)
 			cp = kenvp[++i];
-		while (*cp != '\0')
+		else {
+			while (*cp != '\0')
+				cp++;
 			cp++;
-		cp++;
+		}
 		if (*cp == '\0') {
 			cp = NULL;
 			break;
