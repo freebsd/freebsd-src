@@ -84,7 +84,8 @@ STAILQ_HEAD(jobspec_hdr, jobspec);
 #define SCQ_JSORDER	0x0001		/* follow the user-specified order */
 #define SCQ_QORDER	0x0002		/* the order of jobs in the queue */
 
-#include <sys/cdefs.h>
+#include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
+
 __BEGIN_DECLS
 struct	 jobqueue;
 

@@ -64,7 +64,7 @@ struct cjobinfo {
 	struct cjprivate *cji_priv;
 };
 
-#include <sys/cdefs.h>
+#include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
 
 __BEGIN_DECLS
 void		 ctl_freeinf(struct cjobinfo *_cjinf);
