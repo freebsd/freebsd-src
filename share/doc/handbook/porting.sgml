@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.41 1996/11/17 19:14:54 obrien Exp $ -->
+<!-- $Id: porting.sgml,v 1.42 1996/11/23 19:02:25 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -582,9 +582,9 @@ work/foozolix-1.0/
 	  to add support for automatically determining the closest
 	  master site and fetching from there!
 
-	<p>If your the original tarball is part of one of the following
+	<p>If the original tarball is part of one of the following
 	  popular archives:  X-contrib, GNU, Perl CPAN, TeX CTAN, or 
-	  Linux Sunsite, you refer to those sites in an easy compack
+	  Linux Sunsite, you refer to those sites in an easy compact
 	  form using MASTER_SITE_XCONTRIB, MASTER_SITE_GNU,
 	  MASTER_SITE_PERL_CPAN, MASTER_SITE_TEX_CTAN, and
 	  MASTER_SITE_SUNSITE.  Simply set MASTER_SITE_SUBDIR to the path
