@@ -67,7 +67,7 @@ typedef SigHandlerType SigHandler ();
 
 static SigHandlerType info_signal_handler ();
 static SigHandler *old_TSTP, *old_TTOU, *old_TTIN;
-static SigHandler *old_WINCH, *old_INT;
+static SigHandler *old_WINCH, *old_INT, *old_CONT;
 
 void
 initialize_info_signal_handler ()
@@ -80,7 +80,10 @@ initialize_info_signal_handler ()
 
 #if defined (SIGWINCH)
   old_WINCH = (SigHandler *) signal (SIGWINCH, info_signal_handler);
-#endif
+#if defined (SIGCONT)
+  old_CONT = (SigHandler *) signal (SIGCONT, info_signal_handler);
+#endif /* SIGCONT */
+#endif /* SIGWINCH */
 
 #if defined (SIGINT)
   old_INT = (SigHandler *) signal (SIGINT, info_signal_handler);
@@ -145,6 +148,15 @@ info_signal_handler (sig)
 	fflush (stdout);
       }
       break;
+
+#if defined (SIGWINCH) && defined(SIGCONT)
+    case SIGCONT:
+      if(old_CONT)
+	(void)(old_CONT)(sig);
+      /* pretend a SIGWINCH in case the terminal window size has changed
+	 while we've been asleep */
+      /* FALLTROUGH */
+#endif /* defined (SIGWINCH) && defined(SIGCONT) */
 
 #if defined (SIGWINCH)
     case SIGWINCH:

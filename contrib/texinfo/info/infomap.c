@@ -25,6 +25,12 @@
 #include "ctype.h"
 #include "infomap.h"
 #include "funs.h"
+#include "info.h"
+
+static void add_function_key(char *, VFunction *, Keymap);
+
+extern char *term_ku, *term_kd, *term_kr, *term_kl;
+extern char *term_kP, *term_kN, *term_kh, *term_kH;
 
 /* Return a new keymap which has all the uppercase letters mapped to run
    the function info_do_lowercase_version (). */
@@ -264,11 +270,59 @@ initialize_info_keymaps ()
   map['o'].function = info_next_window;
   map['t'].function = info_tile_windows;
   map['w'].function = info_toggle_wrap;
+
+  /* Add functions for the arrow keys, PageUp, PageDown, Home, HomeDown */
+  add_function_key(term_ku, info_prev_line,         info_keymap);
+  add_function_key(term_kd, info_next_line,         info_keymap);
+  add_function_key(term_kl, info_backward_char,     info_keymap);
+  add_function_key(term_kr, info_forward_char,      info_keymap);
+  add_function_key(term_kP, info_scroll_backward,   info_keymap);
+  add_function_key(term_kN, info_scroll_forward,    info_keymap);
+  add_function_key(term_kh, info_beginning_of_node, info_keymap);
+  add_function_key(term_kH, info_end_of_node,       info_keymap);
 }
 
-/* Strings which represent the sequence of characters that the arrow keys
-   produce.  If these keys begin with ESC, and the second character of the
-   sequence does not conflict with an existing binding in the Meta keymap,
-   then bind the keys to do what C-p, C-n, C-f, and C-b do. */
-extern char *term_ku, *term_kd, *term_kr, *term_kl;
-
+static void add_function_key(char *esc_seq, VFunction *func, Keymap map)
+{
+    char *end_str, *p;
+    
+    if (!esc_seq)
+        return;         /* don't add keys which don't exist */
+        
+    end_str = esc_seq + strlen(esc_seq);
+    
+    for (p = esc_seq; p < end_str; p++)
+    {
+        if (isupper(*p))
+            *p = tolower(*p);
+        switch (map[*p].type)
+        {
+            case ISKMAP:    /* Go one level down. Also has the effect
+                               that we're not overwriting a previous
+                               binding if we're at the end of p */
+                    map = (Keymap)map[*p].function;
+                    break;
+            case ISFUNC:    /* two possibilities here:
+                               1. map[*p].function == NULL means we have 
+                                  a virgin keymap to fill;
+                               2. else this entry is already taken */
+                    if (map[*p].function == NULL)
+                    {
+                        if (p == end_str - 1)
+                        {
+                            map[*p].function = func;
+                            return;
+                        }
+                        map[*p].type = ISKMAP;
+                        map[*p].function = (VFunction *)keymap_make_keymap();
+                        map = (Keymap)map[*p].function;
+                    } else
+                        return;
+                    break;
+            default:        /* can't happen */  
+                    info_error("unknown keymap type (%d).", map[*p].type);
+                    break;
+        }
+    }
+    return;
+}
