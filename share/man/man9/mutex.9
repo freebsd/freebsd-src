@@ -28,7 +28,7 @@
 .\"	from BSDI $Id: mutex.4,v 1.1.2.3 1998/04/27 22:53:13 ewv Exp $
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2001
+.Dd February 16, 2005
 .Dt MUTEX 9
 .Os
 .Sh NAME
@@ -192,7 +192,7 @@ on behalf of the currently running kernel thread.
 If another kernel thread is holding the mutex,
 the caller will be disconnected from the CPU
 until the mutex is available
-(i.e., it will sleep).
+(i.e., it will block).
 .Pp
 The
 .Fn mtx_lock_spin
