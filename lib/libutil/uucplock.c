@@ -139,13 +139,14 @@ uu_lock_txfr(const char *ttyname, pid_t pid)
 	if ((fd = open(lckname, O_RDWR)) < 0)
 		return UU_LOCK_OWNER_ERR;
 	if (get_pid(fd, &err) != getpid())
-		return UU_LOCK_OWNER_ERR;
-        lseek(fd, 0, SEEK_SET);
-	if (put_pid(fd, pid))
-		return UU_LOCK_WRITE_ERR;
+		err = UU_LOCK_OWNER_ERR;
+	else {
+        	lseek(fd, 0, SEEK_SET);
+		err = put_pid(fd, pid) ? 0 : UU_LOCK_WRITE_ERR;
+	}
 	close(fd);
 
-	return UU_LOCK_OK;
+	return err;
 }
 
 int
