@@ -121,6 +121,7 @@ write_pmbr(int fd, const struct disk *disk)
 	u_long nsects;
 	int error;
 
+	error = 0;
 	nsects = disk->media_size / disk->sector_size;
 	buffer = calloc(disk->sector_size, 1);
 	if (buffer == NULL)
@@ -153,6 +154,7 @@ read_gpt(int fd, const struct disk *disk, struct gpt_hdr *hdr,
 	size_t nsects, sz;
 	int error, i;
 
+	error = 0;
 	nsects = disk->gpt_size * sizeof(struct gpt_ent) / disk->sector_size;
 	nsects++;
 	sz = nsects * disk->sector_size;
@@ -191,7 +193,6 @@ read_gpt(int fd, const struct disk *disk, struct gpt_hdr *hdr,
 			uuid_create(&tbl[i].ent_uuid, NULL);
 		}
 
-		error = 0;
 		goto bail;
 	}
 
@@ -213,7 +214,6 @@ read_gpt(int fd, const struct disk *disk, struct gpt_hdr *hdr,
 		goto bail;
 	}
 	memcpy(&hdr[1], buffer, sizeof(struct gpt_hdr));
-	error = 0;
 
 bail:
 	free(buffer);
@@ -230,6 +230,8 @@ update_gpt(int fd, const struct disk *disk, struct gpt_hdr *hdr,
 	off_t off;
 	size_t bufsz;
 	int error, idx, sav;
+
+	error = 0;
 
 	/*
 	 * Save the entries of those chunks that have an index. They are
@@ -358,7 +360,6 @@ update_gpt(int fd, const struct disk *disk, struct gpt_hdr *hdr,
 		error = (errno) ? errno : EAGAIN;
 		goto bail;
 	}
-	error = 0;
 
 bail:
 	free(buffer);
