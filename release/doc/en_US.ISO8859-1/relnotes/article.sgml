@@ -170,11 +170,6 @@
       <literal>NODEVFS</literal> option has been removed from the set of
       possible kernel configuration options.</para>
 
-    <para arch="i386,pc98">The DRM kernel modules have been updated to
-      a snapshot from the DRI CVS repository, roughly equivalent to
-      XFree86 4.3.0 but also including some additional
-      bug fixes.</para>
-
     <para arch="i386,ia64,pc98">An ehci driver has been added; it supports
       the USB Enhanced Host Controller Interface used by USB 2.0
       controllers.</para>
@@ -316,6 +311,10 @@
 	the ASIX Electronics AX88172 USB 2.0 chipset.</para>
 
       <para>The cm driver now supports IPX. &merged;</para>
+
+      <para arch="i386,pc98">The &man.rue.4; network has been added,
+	providing support for Ethernet adapters based on the RealTek
+	RTL8150 USB to Fast Ethernet controller chip.</para>
 
       <para arch="i386">The &man.sbsh.4; driver for the Granch SBNI16
         SHDSL modem has been added. &merged;</para>
@@ -694,6 +693,13 @@
       administration of <application>Samba</application>
       services. &merged;</para>
 
+    <para>The format of the <filename>/etc/pwd.db</filename> and
+      <filename>/etc/spwd.db</filename> password databases created by
+      &man.pwd.mkdb.8; is now byte-order dependent.  The pre-processed
+      password databases can now be moved between machines of
+      different architectures.  The format includes version numbers on
+      entries to ensure compatibility with old binaries.</para>
+
     <para>A bug in &man.rand.3; that could cause a sequence to remain
       stuck at <literal>0</literal> has been fixed.  (&man.rand.3;
       remains unsuitable for all but trivial uses.)</para>
@@ -766,7 +772,14 @@
       before executing the command.  This is useful when the child
       process is an interactive application.</para>
 
-    <para>A 1:1 threading package (where for every pthread in an
+    <para arch="i386">The <filename>libkse</filename> library,
+      providing POSIX threading support using KSE, is now enabled and
+      installed by default.  It is still considered a
+      work-in-progress, and is not used by default.  However, it can
+      be used as a replacement for the <filename>libc_r</filename>
+      thread library.</para>
+
+    <para arch="i386,sparc64,ia64">A 1:1 threading package (where for every pthread in an
       application there is one KSE and thread) has been implemented.
       Under this model, the kernel handles all thread scheduling
       decisions and all signal delivery.  This uses some of the common
@@ -833,6 +846,12 @@
 
     <para><application>CVS</application> has been updated to
       1.11.5. &merged;</para>
+
+    <para arch="i386,pc98">The <application>DRM</application> kernel modules have been updated to
+      a snapshot from the DRI CVS repository, as of 24 April 2003.
+      The <literal>DRM_LINUX</literal> kernel option hsa been removed
+      because the handler is now provided by the Linux compatibility
+      code.</para>
 
     <para><application>FILE</application> has been updated to
       3.41. &merged;</para>
