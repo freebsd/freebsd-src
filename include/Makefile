@@ -1,12 +1,10 @@
-#	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.85 1998/10/02 00:49:43 ache Exp $
+#	@(#)Makefile	8.2 (Berkeley) 1/4/94
+#	$Id: Makefile,v 1.86 1998/10/02 13:00:58 ache Exp $
 #
 # Doing a make install builds /usr/include
 #
 # The ``rm -rf''s used below are safe because rm doesn't follow symbolic
 # links.
-#
-depend lint tags:
 
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= rpcsvc
@@ -40,9 +38,8 @@ PFILES=	mqueue.h sched.h semaphore.h \
 
 LFILES=	errno.h fcntl.h poll.h syslog.h termios.h
 
-LDIRS=	msdosfs net netns netatalk netatm netinet netipx netkey nfs \
-		pccard posix4 sys vm cam \
-		# netccitt netiso
+LDIRS=	cam msdosfs net netatalk netatm netinet netipx netkey netns nfs \
+	pccard posix4 sys vm
 
 LNOHEADERDIRS=	isofs ufs
 LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs cam/scsi
@@ -54,8 +51,6 @@ LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs cam/scsi
 #SHARED=	symlinks
 SHARED?=	copies
 
-
-.if exists (${.CURDIR}/../sys/conf/newvers.sh)
 all:	osreldate.h
 
 osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
@@ -66,13 +61,6 @@ osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
 	echo "$$COPYRIGHT" > osreldate.h;			\
 	echo \#'undef __FreeBSD_version' >> osreldate.h;	\
 	echo \#'define __FreeBSD_version' $$RELDATE >> osreldate.h
-.else
-all:
-	@${ECHO} creating osreldate.h from sysctl info
-	echo \#'undef __FreeBSD_version' > osreldate.h
-	echo \#'define __FreeBSD_version '`sysctl -n kern.osreldate` \
-		>> osreldate.h
-.endif
 
 beforeinstall: ${SHARED}
 	cd ${.CURDIR}; \
@@ -99,7 +87,6 @@ beforeinstall: ${SHARED}
 .for i in ${PFILES}
 	ln -sf posix4/$i ${DESTDIR}/usr/include/$i
 .endfor
-
 
 copies:
 .for i in ${LDIRS} ${LNOHEADERDIRS} machine
