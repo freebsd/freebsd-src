@@ -33,7 +33,9 @@ __FBSDID("$FreeBSD$");
 size_t
 wcstombs(char * __restrict s, const wchar_t * __restrict pwcs, size_t n)
 {
-	static mbstate_t mbs;
+	static const mbstate_t initial;
+	mbstate_t mbs;
 
+	mbs = initial;
 	return (wcsrtombs(s, &pwcs, n, &mbs));
 }
