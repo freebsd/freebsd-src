@@ -1001,6 +1001,11 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	    (struct trapframe *)proc0paddr->u_pcb.pcb_hw.apcb_ksp;
 
 	/*
+	 * Initialise entropy pool.
+	 */
+	rand_initialize();
+
+	/*
 	 * Look at arguments passed to us and compute boothowto.
 	 */
 
