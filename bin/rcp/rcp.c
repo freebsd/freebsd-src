@@ -213,7 +213,7 @@ main(int argc, char *argv[])
 void
 toremote(char *targ, int argc, char *argv[])
 {
-	int i, len, tos;
+	int i, tos;
 	char *bp, *host, *src, *suser, *thost, *tuser;
 
 	*targ++ = 0;
@@ -240,11 +240,6 @@ toremote(char *targ, int argc, char *argv[])
 			if (*src == 0)
 				src = period;
 			host = strchr(argv[i], '@');
-			len = strlen(_PATH_RSH) + strlen(argv[i]) +
-			    strlen(src) + (tuser ? strlen(tuser) : 0) +
-			    strlen(thost) + strlen(targ) + CMDNEEDS + 20;
-			if (!(bp = malloc(len)))
-				err(1, "malloc");
 			if (host) {
 				*host++ = 0;
 				suser = argv[i];
@@ -254,25 +249,26 @@ toremote(char *targ, int argc, char *argv[])
 					++errs;
 					continue;
 				}
-				(void)snprintf(bp, len,
+				if (asprintf(&bp, 
 				    "%s %s -l %s -n %s %s '%s%s%s:%s'",
 				    _PATH_RSH, host, suser, cmd, src,
 				    tuser ? tuser : "", tuser ? "@" : "",
-				    thost, targ);
+				    thost, targ) == -1)
+					err(1, "asprintf");
 			} else
-				(void)snprintf(bp, len,
+				if (asprintf(&bp,
 				    "exec %s %s -n %s %s '%s%s%s:%s'",
 				    _PATH_RSH, argv[i], cmd, src,
 				    tuser ? tuser : "", tuser ? "@" : "",
-				    thost, targ);
+				    thost, targ) == -1)
+					err(1, "asprintf");
 			(void)susystem(bp, userid);
 			(void)free(bp);
 		} else {			/* local to remote */
 			if (rem == -1) {
-				len = strlen(targ) + CMDNEEDS + 20;
-				if (!(bp = malloc(len)))
-					err(1, "malloc");
-				(void)snprintf(bp, len, "%s -t %s", cmd, targ);
+				if (asprintf(&bp, "%s -t %s", cmd, targ)
+					== -1)
+					err(1, "asprintf");
 				host = thost;
 				rem = rcmd_af(&host, port,
 				    pwd->pw_name,
