@@ -232,6 +232,9 @@ radius_Process(struct radius *r, int got)
   const char *stype;
   u_int32_t ipaddr, vendor;
   struct in_addr ip;
+#ifndef NOINET6
+  struct in6_addr ip6;
+#endif
 
   r->cx.fd = -1;		/* Stop select()ing */
   stype = r->cx.auth ? "auth" : "acct";
@@ -353,6 +356,7 @@ radius_Process(struct radius *r, int got)
         log_Printf(LogPHASE, " Route: %s\n", nuke);
         bundle = r->cx.auth->physical->dl->bundle;
         ip.s_addr = INADDR_ANY;
+        ncpaddr_setip4(&gw, ip);
         ncprange_setip4host(&dest, ip);
         argc = command_Interpret(nuke, strlen(nuke), argv);
         if (argc < 0)
@@ -401,6 +405,58 @@ radius_Process(struct radius *r, int got)
         }
         log_Printf(LogPHASE, " Reply-Message \"%s\"\n", r->repstr);
         break;
+
+#ifndef NOINET6
+      case RAD_FRAMED_IPV6_ROUTE:
+        /*
+         * We expect a string of the format ``dest[/bits] gw [metrics]''
+         * Any specified metrics are ignored.  MYADDR6 and HISADDR6 are
+         * understood for ``dest'' and ``gw'' and ``::'' is the same
+         * as ``HISADDR6''.
+         */
+
+        if ((nuke = rad_cvt_string(data, len)) == NULL) {
+          log_Printf(LogERROR, "rad_cvt_string: %s\n", rad_strerror(r->cx.rad));
+          auth_Failure(r->cx.auth);
+          rad_close(r->cx.rad);
+          return;
+        }
+
+        log_Printf(LogPHASE, " IPv6 Route: %s\n", nuke);
+        bundle = r->cx.auth->physical->dl->bundle;
+	ncpaddr_setip6(&gw, &in6addr_any);
+	ncprange_set(&dest, &gw, 0);
+        argc = command_Interpret(nuke, strlen(nuke), argv);
+        if (argc < 0)
+          log_Printf(LogWARN, "radius: %s: Syntax error\n",
+                     argc == 1 ? argv[0] : "\"\"");
+        else if (argc < 2)
+          log_Printf(LogWARN, "radius: %s: Invalid route\n",
+                     argc == 1 ? argv[0] : "\"\"");
+        else if ((strcasecmp(argv[0], "default") != 0 &&
+                  !ncprange_aton(&dest, &bundle->ncp, argv[0])) ||
+                 !ncpaddr_aton(&gw, &bundle->ncp, argv[1]))
+          log_Printf(LogWARN, "radius: %s %s: Invalid route\n",
+                     argv[0], argv[1]);
+        else {
+          addrs = 0;
+
+          if (!strncasecmp(argv[0], "HISADDR6", 8))
+            addrs = ROUTE_DSTHISADDR6;
+          else if (!strncasecmp(argv[0], "MYADDR6", 7))
+            addrs = ROUTE_DSTMYADDR6;
+
+          if (ncpaddr_getip6(&gw, &ip6) && IN6_IS_ADDR_UNSPECIFIED(&ip6)) {
+            addrs |= ROUTE_GWHISADDR6;
+            ncpaddr_copy(&gw, &bundle->ncp.ipv6cp.hisaddr);
+          } else if (strcasecmp(argv[1], "HISADDR6") == 0)
+            addrs |= ROUTE_GWHISADDR6;
+
+          route_Add(&r->ipv6routes, addrs, &dest, &gw);
+        }
+        free(nuke);
+        break;
+#endif
 
       case RAD_VENDOR_SPECIFIC:
         if ((res = rad_get_vendor_attr(&vendor, &data, &len)) <= 0) {
@@ -629,6 +685,9 @@ radius_Init(struct radius *r)
   r->mtu = DEF_MTU;
   r->msrepstr = NULL;
   r->repstr = NULL;
+#ifndef NOINET6
+  r->ipv6routes = NULL;
+#endif
   r->errstr = NULL;
   r->mppe.policy = 0;
   r->mppe.types = 0;
@@ -650,6 +709,9 @@ radius_Destroy(struct radius *r)
   log_Printf(LogDEBUG, "Radius: radius_Destroy\n");
   timer_Stop(&r->cx.timer);
   route_DeleteAll(&r->routes);
+#ifndef NOINET6
+  route_DeleteAll(&r->ipv6routes);
+#endif
   free(r->filterid);
   r->filterid = NULL;
   free(r->msrepstr);
@@ -1052,6 +1114,10 @@ radius_Show(struct radius *r, struct prompt *p)
     prompt_Printf(p, "     Error Message: %s\n", r->errstr ? r->errstr : "");
     if (r->routes)
       route_ShowSticky(p, r->routes, "            Routes", 16);
+#ifndef NOINET6
+    if (r->ipv6routes)
+      route_ShowSticky(p, r->ipv6routes, "            IPv6 Routes", 16);
+#endif
   } else
     prompt_Printf(p, " (not authenticated)\n");
 }

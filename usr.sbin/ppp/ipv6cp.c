@@ -252,7 +252,7 @@ ipcp_SetIPv6address(struct ipv6cp *ipv6cp, u_char *myifid, u_char *hisifid)
 
 #ifndef NORADIUS
   if (bundle->radius.valid)
-    route_Change(bundle, bundle->radius.routes, &ipv6cp->myaddr,
+    route_Change(bundle, bundle->radius.ipv6routes, &ipv6cp->myaddr,
                  &ipv6cp->hisaddr);
 #endif
 
