@@ -90,6 +90,8 @@
 #include <dev/lnc/if_lncvar.h>
 #include <dev/lnc/if_lncreg.h>
 
+devclass_t lnc_devclass;
+
 static char const * const nic_ident[] = {
 	"Unknown",
 	"BICC",

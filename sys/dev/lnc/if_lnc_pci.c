@@ -217,6 +217,4 @@ static driver_t lnc_pci_driver = {
 	sizeof(struct lnc_softc),
 };
 
-static devclass_t lnc_devclass;
-
 DRIVER_MODULE(lnc_pci, pci, lnc_pci_driver, lnc_devclass, 0, 0);
