@@ -872,7 +872,7 @@ static void aue_intr(xfer, priv, status)
 	if (p->aue_txstat0)
 		ifp->if_oerrors++;
 
-	if (p->aue_txstat0 & (AUE_TXSTAT0_LATECOLL & AUE_TXSTAT0_EXCESSCOLL))
+	if (p->aue_txstat0 & (AUE_TXSTAT0_LATECOLL | AUE_TXSTAT0_EXCESSCOLL))
 		ifp->if_collisions++;
 
 	splx(s);
