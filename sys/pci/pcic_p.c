@@ -314,7 +314,6 @@ pcic_pci_probe(device_t dev)
 	return 0;	/* exact match */
 }
 
-
 static void
 ricoh_init(device_t dev)
 {
@@ -357,9 +356,6 @@ pcic_pci_attach(device_t dev)
 	switch (device_id) {
 	case PCI_DEVICE_ID_RICOH_RL5C465:
 	case PCI_DEVICE_ID_RICOH_RL5C466:
-	case PCI_DEVICE_ID_RICOH_RL5C475:
-	case PCI_DEVICE_ID_RICOH_RL5C476:
-	case PCI_DEVICE_ID_RICOH_RL5C478:
 		ricoh_init(dev);
 		generic_cardbus_attach(dev);
 		break;
