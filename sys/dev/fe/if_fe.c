@@ -250,7 +250,7 @@ valid_Ether_p (u_char const * addr, unsigned vendor)
 	    case 0x020000:
 		/* Same as above, but a local address is allowed in
                    this context.  */
-		if ((addr[0] & 0x01) != 0) return 0;
+		if (ETHER_IS_MULTICAST(addr)) return 0;
 		break;
 	    default:
 		/* Make sure the vendor part matches if one is given.  */
