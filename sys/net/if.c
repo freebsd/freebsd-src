@@ -244,6 +244,8 @@ if_detach(ifp)
 	struct radix_node_head	*rnh;
 	int s;
 	int i;
+	struct ifnet *iter;
+	int found;
 
 	/*
 	 * Remove routes and flush queues.
@@ -300,9 +302,11 @@ if_detach(ifp)
 #endif
 
 	/* We can now free link ifaddr. */
-	ifa = TAILQ_FIRST(&ifp->if_addrhead);
-	TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-	IFAFREE(ifa);
+	if (!TAILQ_EMPTY(&ifp->if_addrhead)) {
+		ifa = TAILQ_FIRST(&ifp->if_addrhead);
+		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
+		IFAFREE(ifa);
+	}
 
 	/*
 	 * Delete all remaining routes using this interface
@@ -319,7 +323,14 @@ if_detach(ifp)
 	/* Announce that the interface is gone. */
 	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 
-	TAILQ_REMOVE(&ifnet, ifp, if_link);
+	found = 0;
+	TAILQ_FOREACH(iter, &ifnet, if_link)
+		if (iter == ifp) {
+			found = 1;
+			break;
+		}
+	if (found)
+		TAILQ_REMOVE(&ifnet, ifp, if_link);
 	splx(s);
 }
 
