@@ -924,7 +924,7 @@ sched_clock(struct kse *ke)
 	 */
 	ke->ke_slice--;
 #ifdef SMP
-	kseq->ksq_rslice--;
+	kseq->ksq_rslices--;
 #endif
 
 	if (ke->ke_slice > 0)
@@ -991,16 +991,11 @@ sched_choose(void)
 {
 	struct kseq *kseq;
 	struct kse *ke;
-#ifdef SMP
-	int steal;
 
-	steal = 0;
-#endif
-
-	kseq = KSEQ_SELF();
 #ifdef SMP
 retry:
 #endif
+	kseq = KSEQ_SELF();
 	ke = kseq_choose(kseq);
 	if (ke) {
 		runq_remove(ke->ke_runq, ke);
@@ -1011,28 +1006,30 @@ retry:
 			    ke, ke->ke_runq, ke->ke_slice,
 			    ke->ke_thread->td_priority);
 		}
-#ifdef SMP
-		/*
-		 * If we've stolen this thread we need to kill the pointer
-		 * to the run queue and reset the cpu id.
-		 */
-		if (steal) {
-			kseq_rem(kseq, ke);
-			ke->ke_cpu = PCPU_GET(cpuid);
-			kseq_add(KSEQ_SELF(), ke);
-		}
-#endif
 		return (ke);
 	}
 
 #ifdef SMP
-	if (ke == NULL && smp_started) {
+	if (smp_started) {
 		/*
 		 * Find the cpu with the highest load and steal one proc.
 		 */
-		steal = 1;
-		if ((kseq = kseq_load_highest()) != NULL)
-			goto retry;
+		if ((kseq = kseq_load_highest()) == NULL)
+			return (NULL);
+
+		/*
+		 * Remove this kse from this kseq and runq and then requeue
+		 * on the current processor.  Then we will dequeue it
+		 * normally above.
+		 */
+		ke = kseq_choose(kseq);
+		runq_remove(ke->ke_runq, ke);
+		ke->ke_state = KES_THREAD;
+		kseq_rem(kseq, ke);
+
+		ke->ke_cpu = PCPU_GET(cpuid);
+		sched_add(ke);
+		goto retry;
 	}
 #endif
 
