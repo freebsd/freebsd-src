@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.1 1995/09/18 17:00:26 peter Exp $
+ * $Id: system.c,v 1.44.2.2 1995/09/23 22:03:23 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -106,29 +106,6 @@ systemExecute(char *command)
     dialog_clear();
     dialog_update();
     return status;
-}
-
-/* Run some direct exec command */
-int
-execExecute(char *command, char *name)
-{
-    pid_t child;
-    int waitstatus;
-
-    dialog_clear();
-    dialog_update();
-    end_dialog();
-    DialogActive = FALSE;
-    if (child = fork())
-	(void)waitpid(child, &waitstatus, 0);
-    else {
-	execlp(command, name, 0);
-	return -1;
-    }
-    DialogActive = TRUE;
-    dialog_clear();
-    dialog_update();
-    return waitstatus;
 }
 
 /* Display a file in a filebox */

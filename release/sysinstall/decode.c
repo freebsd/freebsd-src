@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: decode.c,v 1.6 1995/06/11 19:29:44 rgrimes Exp $
+ * $Id: decode.c,v 1.6.2.1 1995/09/23 22:03:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -73,10 +73,6 @@ dispatch(DMenuItem *tmp, char *name)
 	break;
 
 	/* Execute it as a direct exec */
-    case DMENU_EXEC_COMMAND:
-	(void)execExecute((char *)tmp->title, (char *)tmp->ptr);
-	break;
-
     case DMENU_SYSTEM_COMMAND:
 	(void)systemExecute((char *)tmp->ptr);
 	break;

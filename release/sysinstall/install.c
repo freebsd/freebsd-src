@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.3 1995/09/22 23:22:20 jkh Exp $
+ * $Id: install.c,v 1.71.2.4 1995/09/23 22:20:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -194,6 +194,43 @@ installInitial(void)
 	exit(1);
     }
     alreadyDone = TRUE;
+    return TRUE;
+}
+
+int
+installFixit(char *str)
+{
+    struct ufs_args args;
+    pid_t child;
+    int waitstatus;
+
+    memset(&args, 0, sizeof(args));
+    args.fspec = "/dev/fd0";
+
+    while (1) {
+	int status;
+
+	msgConfirm("Please insert the fixit disk and press return");
+	if (mount(MOUNT_UFS, "/mnt", MNT_RDONLY, (caddr_t)&args) != -1)
+	    break;
+	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?"))
+	    return TRUE;
+    }
+    dialog_clear();
+    dialog_update();
+    end_dialog();
+    DialogActive = FALSE;
+    if (child = fork())
+	(void)waitpid(child, &waitstatus, 0);
+    else {
+	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:/mnt", 1);
+	execlp("sh", "-sh", 0);
+	return -1;
+    }
+    DialogActive = TRUE;
+    dialog_clear();
+    dialog_update();
+    unmount("/mnt", MNT_FORCE);
     return TRUE;
 }
 

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.2 1995/09/18 17:00:25 peter Exp $
+ * $Id: sysinstall.h,v 1.42.2.3 1995/09/23 22:03:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -123,7 +123,6 @@ typedef struct chunk Chunk;
 typedef enum {
     DMENU_DISPLAY_FILE,			/* Display a file's contents	*/
     DMENU_SUBMENU,			/* Recurse into another menu	*/
-    DMENU_EXEC_COMMAND,			/* Exec commmand directly	*/
     DMENU_SYSTEM_COMMAND,		/* Run shell commmand		*/
     DMENU_SYSTEM_COMMAND_BOX,		/* Same as above, but in prgbox	*/
     DMENU_SET_VARIABLE,			/* Set an environment/system var */
@@ -383,6 +382,7 @@ extern void	globalsInit(void);
 /* install.c */
 extern int	installCommit(char *str);
 extern int	installExpress(char *str);
+extern int	installFixit(char *str);
 extern Boolean	installFilesystems(void);
 
 /* lang.c */
