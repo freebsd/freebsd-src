@@ -417,7 +417,7 @@ main(int argc, char *argv[])
 {
 	int c;
 	int all, namesonly, downonly, uponly;
-	int need_nl = 0;
+	int need_nl = 0, count = 0;
 	const struct afswtch *afp = 0;
 	int addrcount, ifindex;
 	struct	if_msghdr *ifm, *nextifm;
@@ -543,6 +543,7 @@ main(int argc, char *argv[])
 			afp = NULL;	/* not a family, NULL */
 	}
 
+retry:
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
 	mib[2] = 0;
@@ -558,8 +559,15 @@ main(int argc, char *argv[])
 		errx(1, "iflist-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
 		errx(1, "malloc");
-	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
+	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+		if (errno == ENOMEM && count++ < 10) {
+			warnx("Routing table grew, retrying");
+			free(buf);
+			sleep(1);
+			goto retry;
+		}
 		errx(1, "actual retrieval of interface table");
+	}
 	lim = buf + needed;
 
 	next = buf;
