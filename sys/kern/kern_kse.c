@@ -399,10 +399,10 @@ kse_switchin(struct thread *td, struct kse_switchin_args *uap)
 	error = (uap->mcp == NULL) ? EINVAL : 0;
 	if (!error)
 		error = copyin(uap->mcp, &mc, sizeof(mc));
+	if (!error && uap->loc != NULL)
+		error = (suword(uap->loc, uap->val) != 0) ? EINVAL : 0;
 	if (!error)
 		error = set_mcontext(td, &mc);
-	if (!error && uap->loc != NULL)
-		suword(uap->loc, uap->val);
 	return ((error == 0) ? EJUSTRETURN : error);
 }
 
