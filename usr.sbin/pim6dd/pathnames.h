@@ -48,7 +48,7 @@
  */
 
 
-#define	_PATH_PIM6D_CONF		"/usr/local/v6/etc/pim6dd.conf"
+#define	_PATH_PIM6D_CONF		"/etc/pim6dd.conf"
 
 #if (defined(BSD) && (BSD >= 199103))
 #define	_PATH_PIM6D_PID		"/var/run/pim6dd.pid"
