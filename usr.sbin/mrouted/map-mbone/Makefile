@@ -10,6 +10,6 @@ SRCS=	mapper.c
 CFLAGS+= -I$S
 
 DPADD=	${LIBMROUTED}
-LDADD=	../common/libmrouted.a
+LDADD=	${LIBMROUTED}
 
 .include <bsd.prog.mk>
