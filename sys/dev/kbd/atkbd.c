@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd.c,v 1.5 1999/03/10 10:36:52 yokota Exp $
+ * $Id: atkbd.c,v 1.6 1999/04/16 21:21:55 peter Exp $
  */
 
 #include "atkbd.h"
@@ -380,22 +380,22 @@ atkbd_configure(int flags)
 	int arg[2];
 	int i;
 
-	/* XXX: a kludge to obtain the device configuration flags */
-	if (resource_int_value("atkbd", 0, "flags", &i) == 0) {
-		flags |= i;
-		/* if the driver is disabled, unregister the keyboard if any */
-		if (resource_int_value("atkbd", 0, "disabled", &i) == 0
-		    && i != 0) {
-			i = kbd_find_keyboard(ATKBD_DRIVER_NAME, ATKBD_DEFAULT);
-			if (i >= 0) {
-				kbd = kbd_get_keyboard(i);
-				kbd_unregister(kbd);
-				kbd->kb_flags &= ~KB_REGISTERED;
-				return 0;
-			}
+	/* if the driver is disabled, unregister the keyboard if any */
+	if ((resource_int_value("atkbd", ATKBD_DEFAULT, "disabled", &i) == 0)
+	    && i != 0) {
+		i = kbd_find_keyboard(ATKBD_DRIVER_NAME, ATKBD_DEFAULT);
+		if (i >= 0) {
+			kbd = kbd_get_keyboard(i);
+			kbd_unregister(kbd);
+			kbd->kb_flags &= ~KB_REGISTERED;
+			return 0;
 		}
 	}
 	
+	/* XXX: a kludge to obtain the device configuration flags */
+	if (resource_int_value("atkbd", ATKBD_DEFAULT, "flags", &i) == 0)
+		flags |= i;
+
 	/* probe the keyboard controller */
 	atkbdc_configure();
 
