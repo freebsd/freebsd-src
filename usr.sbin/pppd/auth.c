@@ -131,12 +131,18 @@ void
 link_terminated(unit)
     int unit;
 {
+    extern	time_t	etime, stime;
+    extern	int	minutes;
+
     if (phase == PHASE_DEAD)
 	return;
     if (logged_in)
 	ppplogout();
     phase = PHASE_DEAD;
-    syslog(LOG_NOTICE, "Connection terminated.");
+    etime = time((time_t *) NULL);
+    minutes = (etime-stime)/60;
+    syslog(LOG_NOTICE, "Connection terminated, connected for %d minutes\n",
+	minutes > 1 ? minutes : 1);
 }
 
 /*

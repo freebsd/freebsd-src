@@ -71,6 +71,8 @@ static char default_devnam[MAXPATHLEN];	/* name of default device */
 static pid_t	pid;		/* Our pid */
 static pid_t	pgrpid;		/* Process Group ID */
 static uid_t uid;		/* Our real user-id */
+time_t		etime,stime;	/* End and Start time */
+int		minutes;	/* connection duration */
 
 int fd = -1;			/* Device file descriptor */
 
@@ -221,6 +223,7 @@ main(argc, argv)
     }
     pid = getpid();
     p = getlogin();
+    stime = time((time_t *) NULL);
     if (p == NULL) {
 	pw = getpwuid(uid);
 	if (pw != NULL && pw->pw_name != NULL)
@@ -468,7 +471,9 @@ get_input()
 	return;
 
     if (len == 0) {
-	syslog(LOG_NOTICE, "Modem hangup");
+	etime = time((time_t *) NULL);
+	minutes = (etime-stime)/60;
+	syslog(LOG_NOTICE, "Modem hangup, connected for %d minutes", (minutes >1) ? minutes : 1);
 	hungup = 1;
 	lcp_lowerdown(0);	/* serial link is no longer available */
 	phase = PHASE_DEAD;
