@@ -700,7 +700,7 @@ syscall(code, framep)
 	PROC_UNLOCK(p);
 
 #ifdef DIAGNOSTIC
-	alpha_fpstate_check(p);
+	alpha_fpstate_check(td);
 #endif
 
 	if (p->p_sysent->sv_prepsyscall) {
