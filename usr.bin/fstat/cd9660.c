@@ -70,7 +70,7 @@ isofs_filestat(vp, fsp)
 	}
 	fsp->fsid = dev2udev(isonode.i_dev);
 	fsp->mode = (mode_t)isonode.inode.iso_mode;
-	fsp->rdev = isonode.i_dev;
+	fsp->rdev = isonode.inode.iso_rdev;
 
 	fsp->fileid = (long)isonode.i_number;
 	fsp->size = (u_long)isonode.i_size;

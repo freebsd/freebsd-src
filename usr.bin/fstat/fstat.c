@@ -594,7 +594,11 @@ ufs_filestat(vp, fsp)
 	fsp->mode = (mode_t)inode.i_mode;
 	fsp->size = (u_long)inode.i_size;
 #if should_be_but_is_hard
-	fsp->rdev = inode.i_rdev;
+	/* XXX - need to load i_ump and i_din[12] from kernel memory */
+	if (inode.i_ump->um_fstype == UFS1)
+		fsp->rdev = inode.i_din1->di_rdev;
+	else
+		fsp->rdev = inode.i_din2->di_rdev;
 #else
 	fsp->rdev = 0;
 #endif
