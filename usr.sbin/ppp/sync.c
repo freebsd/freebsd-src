@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sync.c,v 1.1 1999/05/08 11:07:40 brian Exp $
+ *	$Id: sync.c,v 1.2 1999/05/12 09:49:02 brian Exp $
  */
 
 #include <sys/types.h>
@@ -49,7 +49,7 @@
 #include "physical.h"
 
 static struct mbuf *
-async_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
+sync_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
                 int pri, u_short *proto)
 {
   log_DumpBp(LogSYNC, "Write", bp);
@@ -75,4 +75,4 @@ sync_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
   return bp;
 }
 
-struct layer synclayer = { LAYER_SYNC, "sync", NULL, sync_LayerPull };
+struct layer synclayer = { LAYER_SYNC, "sync", sync_LayerPush, sync_LayerPull };
