@@ -1,3 +1,4 @@
+.\" $FreeBSD$
 .br
 .po 10
 .if n \!.
@@ -59,7 +60,7 @@ Each sector contains one object
 .pp
 Navigation is handled in degrees,
 with zero being straight up
-and ninty being to the right.
+and ninety being to the right.
 Distances are measured in quadrants.
 One tenth quadrant is one sector.
 .pp
@@ -115,7 +116,7 @@ which restarts a previously saved game.
 You will then be prompted for the skill,
 to which you must respond
 "novice", "fair", "good", "expert",
-"commadore", or "impossible".
+"commodore", or "impossible".
 You should start out with a novice
 and work up,
 but if you really want to see how fast
@@ -211,7 +212,7 @@ As soon as you consume anything though -- POW!
 THE COMMANDS
 .bl "Short Range Scan"
 Mnemonic: srscan
-Shortest Appreviation: s
+Shortest Abbreviation: s
 Full Commands: srscan
 	srscan yes/no
 Consumes: nothing
@@ -546,7 +547,7 @@ to fire at you
 until you do something
 which consumes time.
 .bl "Fire Phasers"
-Mnmemonic: phasers
+Mnemonic: phasers
 Shortest Abbreviation: p
 Full Commands: phasers automatic amount
 	phasers manual amt1 course1 spread1 ...
@@ -635,7 +636,7 @@ Computer requests are:
 .qq
 score -- Shows your current score.
 .qq
-course quad/sect -- Computes the course and distance from whereever
+course quad/sect -- Computes the course and distance from wherever
 you are to the given location.
 If you type "course /x,y"
 you will be given the course
@@ -674,7 +675,7 @@ and starsystems.
 .pp
 More than one request may be stated
 on a line
-by seperating them
+by separating them
 with semicolons.
 .bl "Dock at Starbase"
 Mnemonic: dock
@@ -691,7 +692,7 @@ with energy, photon torpedoes, and life support reserves.
 Repairs are also done faster at starbase.
 Any prisoners you have taken
 are unloaded.
-You do not recieve points
+You do not receive points
 for taking prisoners
 until this time.
 .pp

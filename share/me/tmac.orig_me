@@ -32,6 +32,8 @@
 .\"
 .\"	@(#)tmac.e	8.1 (Berkeley) 6/5/93
 .\"
+.\"	$FreeBSD$
+.\"
 .\"	%beginstrip%
 .\"
 .\"**********************************************************************
@@ -603,7 +605,7 @@
 .uh "\\$1"
 .rm @T
 ..
-.\"		*** COLUMNNED OUTPUT ***
+.\"		*** COLUMNED OUTPUT ***
 .de 2c			\" *** double columned output
 .br
 .if \\n($m>1 \
@@ -613,7 +615,7 @@
 .if \\n(.$>1 \
 .	nr $m \\$2
 .if \\n(.$>0 \
-.	nr $s \\$1n		\" param 1: column seperation
+.	nr $s \\$1n		\" param 1: column separation
 .nr $l (\\n(.l-((\\n($m-1)*\\n($s))/\\n($m
 .xl \\n($lu
 .mk _k
