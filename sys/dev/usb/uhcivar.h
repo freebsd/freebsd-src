@@ -126,7 +126,6 @@ typedef struct uhci_softc {
 	/* XXX should keep track of all DMA memory */
 #elif defined(__FreeBSD__)
 	int		sc_iobase;
-	int		unit;
 #endif /* defined(__FreeBSD__) */
 
 	uhci_physaddr_t *sc_pframes;
