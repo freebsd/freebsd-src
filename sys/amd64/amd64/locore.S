@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.29 1994/09/26 16:56:22 pst Exp $
+ *	$Id: locore.s,v 1.30 1994/10/01 02:56:01 davidg Exp $
  */
 
 /*
@@ -125,9 +125,6 @@ _KERNend:	.long	0			/* phys addr end of kernel (just after bss) */
 _IdlePTD:	.long	0			/* phys addr of kernel PTD */
 _KPTphys:	.long	0			/* phys addr of kernel page tables */
 
-	.globl	_cyloffset
-_cyloffset:	.long	0			/* cylinder offset from boot blocks */
-
 	.globl	_proc0paddr
 _proc0paddr:	.long	0			/* address of proc 0 address space */
 
@@ -161,24 +158,93 @@ tmpstk:
 NON_GPROF_ENTRY(btext)
 	movw	$0x1234,0x472			/* warm boot */
 	jmp	1f
+	/*
+	 * XXX now that we load at 1MB is this still really used?
+	 */
 	.org	0x500				/* space for BIOS variables */
 
- 1:
+1:
 	/* Don't trust what the BIOS gives for eflags. */
 	pushl	$PSL_MBO
 	popfl
 
 	/*
-	 * pass parameters on stack (howto, bootdev, unit, cyloffset, esym)
-	 * note: (%esp) is return address of boot
-	 * ( if we want to hold onto /boot, it's physical %esp up to _end)
+	 * This code is called in different ways depending on what loaded
+	 * and started the kernel.  This is used to detect how we get the
+	 * arguments from the other code and what we do with them.
+	 *
+	 * Old disk boot blocks:
+	 *	(*btext)(howto, bootdev, cyloffset, esym);
+	 *	[return address == 0, and can NOT be returned to]
+	 *	[cyloffset was not supported by the FreeBSD boot code
+	 *	 and always passed in as 0]
+	 *	[esym is also known as total in the boot code, and
+	 *	 was never properly supported by the FreeBSD boot code]
+	 *
+	 * Old diskless netboot code:
+	 *	(*btext)(0,0,0,0,&nfsdiskless,0,0,0);
+	 *	[return address != 0, and can NOT be returned to]
+	 *	If we are being booted by this code it will NOT work,
+	 *	so we are just going to halt if we find this case.
+	 *
+	 * New uniform boot code:
+	 *	(*btext)(howto, bootdev, 0, 0, 0, &bootinfo)
+	 *	[return address != 0, and can be returned to]
+	 *
+	 * There may seem to be a lot of wasted arguments in here, but
+	 * that is so the newer boot code can still load very old kernels.
 	 */
+
+	/*
+	 * The old style disk boot blocks fake a frame on the stack and
+	 * did an lret to get here.  The frame on the stack has a return
+	 * address of 0.
+	 */
+	cmpl	$0,0x00(%esp)
+	je	2f				/* olddiskboot: */
+
+	/*
+	 * We have some form of return address, so this is either the
+	 * old diskless netboot code, or the new uniform code.  That can
+	 * be detected by looking at the 5th argument, it if is 0 we
+	 * we are being booted by the new unifrom boot code.
+	 */
+	cmpl	$0,0x14(%esp)
+	je	1f				/* newboot: */
+
+	/*
+	 * Seems we have been loaded by the old diskless boot code, we
+	 * don't stand a chance of running as the diskless structure
+	 * changed considerably between the two, so just halt.
+	 */
+	 hlt
+
+	/*
+	 * We have been loaded by the new uniform boot code, this kernel
+	 * is not yet ready to handle that, so for now fix up the stack
+	 * like a real subroutine and then return to the boot loader with
+	 * a status of 1 to indicate this error.
+	 */
+1:	/* newboot: */
+	 pushl	%ebp
+	 movl	%esp,%ebp
+	 movl	$1,%eax
+	 leave
+	 ret
+
+	/*
+	 * The old style disk boot.
+	 *	(*btext)(howto, bootdev, cyloffset, esym);
+	 * cyloffset is no longer copied
+	 * XXX Is esym still used for the end of the kernel some place???
+	 *     for now make sure we keep a correct value in it until I
+	 *     can deterimine that.
+	 */
+2:	/* olddiskboot: */
 	movl	4(%esp),%eax
 	movl	%eax,_boothowto-KERNBASE
 	movl	8(%esp),%eax
 	movl	%eax,_bootdev-KERNBASE
-	movl	12(%esp),%eax
-	movl	%eax,_cyloffset-KERNBASE
 	movl	16(%esp),%eax
 	addl	$KERNBASE,%eax
 	movl	%eax,_esym-KERNBASE
@@ -200,14 +266,6 @@ NON_GPROF_ENTRY(btext)
  	addl	$KERNBASE, %eax
  	movl	%eax, _video_mode_ptr-KERNBASE	
 
-#ifdef DISKLESS					/* Copy diskless structure */
-	movl	_nfs_diskless_size-KERNBASE,%ecx
-	movl	20(%esp),%esi
-	movl	$(_nfs_diskless-KERNBASE),%edi
-	cld
-	rep
-	movsb
-#endif
 #ifdef APM
 	/*
 	 * Setup APM BIOS:
