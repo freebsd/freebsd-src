@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wireg.h,v 1.30 1999/05/06 16:12:06 wpaul Exp $
+ *	$Id: if_wireg.h,v 1.31 1999/05/07 03:14:21 wpaul Exp $
  */
 
 struct wi_counters {
@@ -74,6 +74,8 @@ struct wi_softc	{
 	u_int16_t		wi_tx_rate;
 	u_int16_t		wi_create_ibss;
 	u_int16_t		wi_channel;
+	u_int16_t		wi_pm_enabled;
+	u_int16_t		wi_max_sleep;
 	char			wi_node_name[32];
 	char			wi_net_name[32];
 	char			wi_ibss_name[32];
@@ -107,6 +109,10 @@ struct wi_softc	{
 #define WI_DEFAULT_DATALEN	2304
 
 #define WI_DEFAULT_CREATE_IBSS	0
+
+#define WI_DEFAULT_PM_ENABLED	0
+
+#define WI_DEFAULT_MAX_SLEEP	100
 
 #define WI_DEFAULT_NODENAME	"FreeBSD WaveLAN/IEEE node"
 
@@ -464,7 +470,17 @@ struct wi_ltv_ssid {
 /*
  * Frame data size.
  */
-#define WI_RID_MAX_DATALEN		0xFC07
+#define WI_RID_MAX_DATALEN	0xFC07
+
+/*
+ * ESS power management enable
+ */
+#define WI_RID_PM_ENABLED	0xFC09
+
+/*
+ * ESS max PM sleep internal
+ */
+#define WI_RID_MAX_SLEEP	0xFC0C
 
 /*
  * Set our station name.

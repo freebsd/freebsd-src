@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wi.c,v 1.52 1999/05/06 16:28:02 wpaul Exp $
+ *	$Id: if_wi.c,v 1.53 1999/05/07 03:14:21 wpaul Exp $
  */
 
 /*
@@ -116,7 +116,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_wi.c,v 1.52 1999/05/06 16:28:02 wpaul Exp $";
+	"$Id: if_wi.c,v 1.53 1999/05/07 03:14:21 wpaul Exp $";
 #endif
 
 static struct wi_softc wi_softc[NWI];
@@ -330,6 +330,8 @@ static int wi_attach(isa_dev)
 	sc->wi_tx_rate = WI_DEFAULT_TX_RATE;
 	sc->wi_max_data_len = WI_DEFAULT_DATALEN;
 	sc->wi_create_ibss = WI_DEFAULT_CREATE_IBSS;
+	sc->wi_pm_enabled = WI_DEFAULT_PM_ENABLED;
+	sc->wi_max_sleep = WI_DEFAULT_MAX_SLEEP;
 
 	/*
 	 * Read the default channel from the NIC. This may vary
@@ -968,6 +970,12 @@ static void wi_setdef(sc, wreq)
 		bzero(sc->wi_ibss_name, sizeof(sc->wi_ibss_name));
 		bcopy((char *)&wreq->wi_val[1], sc->wi_ibss_name, 30);
 		break;
+	case WI_RID_PM_ENABLED:
+		sc->wi_pm_enabled = wreq->wi_val[0];
+		break;
+	case WI_RID_MAX_SLEEP:
+		sc->wi_max_sleep = wreq->wi_val[0];
+		break;
 	default:
 		break;
 	}
@@ -1105,6 +1113,12 @@ static void wi_init(xsc)
 
 	/* Access point density */
 	WI_SETVAL(WI_RID_SYSTEM_SCALE, sc->wi_ap_density);
+
+	/* Power Management Enabled */
+	WI_SETVAL(WI_RID_PM_ENABLED, sc->wi_pm_enabled);
+
+	/* Power Managment Max Sleep */
+	WI_SETVAL(WI_RID_MAX_SLEEP, sc->wi_max_sleep);
 
 	/* Specify the IBSS name */
 	WI_SETSTR(WI_RID_OWN_SSID, sc->wi_ibss_name);
