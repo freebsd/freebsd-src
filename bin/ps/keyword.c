@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)keyword.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: keyword.c,v 1.21 1998/12/19 02:55:32 julian Exp $";
+	"$Id: keyword.c,v 1.22 1999/01/13 03:11:43 julian Exp $";
 #endif
 #endif /* not lint */
 
@@ -157,17 +157,10 @@ VAR var[] = {
 	{"ruser", "RUSER", NULL, LJUST|DSIZ, runame, s_runame, USERLEN},
 	{"sess", "SESS", NULL, 0, evar, NULL, 6, EOFF(e_sess), KPTR, "lx"},
 	{"sig", "PENDING", NULL, 0, pvar, NULL, 8, POFF(p_siglist), INT, "x"},
-#ifndef COMPAT_LINUX_THREADS
-	{"sigcatch", "CAUGHT",
-		NULL, 0, pvar, NULL, 8, POFF(p_sigcatch), UINT, "x"},
-	{"sigignore", "IGNORED",
-		NULL, 0, pvar, NULL, 8, POFF(p_sigignore), UINT, "x"},
-#else
 	{"sigcatch", "CAUGHT",
 		NULL, 0, evar, NULL, 8, EOFF(e_procsig.ps_sigcatch), UINT, "x"},
 	{"sigignore", "IGNORED",
 		NULL, 0, evar, NULL, 8, EOFF(e_procsig.ps_sigignore), UINT, "x"},
-#endif /* COMPAT_LINUX_THREADS */
 	{"sigmask", "BLOCKED",
 		NULL, 0, pvar, NULL, 8, POFF(p_sigmask), UINT, "x"},
 	{"sl", "SL", NULL, 0, pvar, NULL, 3, POFF(p_slptime), UINT, "d"},

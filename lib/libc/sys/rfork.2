@@ -56,6 +56,12 @@ types will be unaffected.  Subsequent forks by the parent will then
 propagate the shared data and bss between children.  The stack segment
 is always split.  May be set only with
 .Dv RFPROC .
+.It RFSIGSHARE
+If set, the kernel will force sharing the sigacts structure between the
+child and the parent.
+.It RFLINUXTHPN
+If set, the kernel will return SIGUSR1 instead of SIGCHILD upon thread 
+exit for the child.  This is intended to mimic certain Linux clone behaviour.
 .El
 .Pp
 File descriptors in a shared file descriptor table are kept

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.29 1998/12/30 10:38:58 dfr Exp $
+ *	$Id: machdep.c,v 1.30 1999/01/15 18:00:19 msmith Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1268,11 +1268,21 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
 	} else
 		scp = (struct sigcontext *)(alpha_pal_rdusp() - rndfsize);
+#ifndef VM_STACK
 	if ((u_long)scp <= USRSTACK - ctob(p->p_vmspace->vm_ssize))
 #if defined(UVM)
 		(void)uvm_grow(p, (u_long)scp);
 #else
 		(void)grow(p, (u_long)scp);
+#endif
+#else
+	/* Note: uvm_grow doesn't seem to be defined anywhere, so we don't
+	 * know how to implement it for the VM_STACK case.  Also, we would
+	 * think that it would be wise to test for success of grow_stack,
+	 * but we don't since there is no test for success for grow in the
+	 * non VM_STACK case.
+	 */
+	(void)grow_stack(p, (u_long)scp);
 #endif
 #ifdef DEBUG
 	if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)

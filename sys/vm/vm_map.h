@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.32 1998/01/22 17:30:38 dyson Exp $
+ * $Id: vm_map.h,v 1.33 1999/01/06 23:05:42 julian Exp $
  */
 
 /*
@@ -102,9 +102,7 @@ struct vm_map_entry {
 	struct vm_map_entry *next;	/* next entry */
 	vm_offset_t start;		/* start address */
 	vm_offset_t end;		/* end address */
-#ifdef VM_STACK
 	vm_offset_t avail_ssize;	/* amt can grow if this is a stack */
-#endif
 	union vm_map_object object;	/* object I point to */
 	vm_ooffset_t offset;		/* offset into object */
 	u_char eflags;			/* map entry flags */
@@ -338,10 +336,8 @@ void vm_map_simplify_entry __P((vm_map_t, vm_map_entry_t));
 void vm_init2 __P((void));
 int vm_uiomove __P((vm_map_t, vm_object_t, off_t, int, vm_offset_t, int *));
 void vm_freeze_copyopts __P((vm_object_t, vm_pindex_t, vm_pindex_t));
-#ifdef VM_STACK
 int vm_map_stack __P((vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int));
 int vm_map_growstack __P((struct proc *p, vm_offset_t addr));
-#endif
 
 #endif
 #endif				/* _VM_MAP_ */
