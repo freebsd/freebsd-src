@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.8 1996/06/01 23:23:55 gpalmer Exp $
+ * $Id: if_fddisubr.c,v 1.9 1996/06/10 23:07:31 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -445,7 +445,6 @@ fddi_input(ifp, fh, m)
 			break;
 #endif
 		default:
-			printf("fddi_input: unknown protocol 0x%x\n", fddi_type);
 			ifp->if_noproto++;
 			goto dropanyway;
 		}
