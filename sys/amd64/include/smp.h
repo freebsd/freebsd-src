@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.9 1997/05/28 18:44:11 fsmp Exp $
+ * $Id: smp.h,v 1.10 1997/05/29 05:57:43 fsmp Exp $
  *
  */
 
@@ -56,6 +56,8 @@ extern u_int32_t		io_apic_versions[];
 extern int			cpu_num_to_apic_id[];
 extern int			io_num_to_apic_id[];
 extern int			apic_id_to_logical[];
+extern u_int			SMP_prvpt[];
+extern u_char			SMP_ioapic[];
 
 /* functions in mp_machdep.c */
 u_int	mp_bootaddress		__P((u_int));
@@ -79,18 +81,12 @@ void	init_secondary		__P((void));
 void	smp_invltlb		__P((void));
 
 /* global data in mpapic.c */
-extern volatile u_int*		apic_base;
-#if 1  /** XXX APIC_STRUCT */
-extern volatile lapic_t*	lapic;
-#endif  /** XXX APIC_STRUCT */
+extern volatile lapic_t		lapic;
 
 #if defined(MULTIPLE_IOAPICS)
 #error MULTIPLE_IOAPICSXXX
 #else
-extern volatile u_int*		io_apic_base;
-#if 1  /** XXX APIC_STRUCT */
-extern volatile ioapic_t*	ioapic;
-#endif  /** XXX APIC_STRUCT */
+extern volatile ioapic_t	*ioapic[];
 #endif /* MULTIPLE_IOAPICS */
 
 /* functions in mpapic.c */
@@ -114,32 +110,8 @@ void	u_sleep			__P((int));
 extern int			smp_active;
 extern int			invltlb_ok;
 
-/* in pmap.c FIXME: belongs in pmap.h??? */
-void	pmap_bootstrap_apics	__P((void));
-void	pmap_bootstrap2		__P((void));
-
-#if 0
-/* chicken and egg problem... */
-static __inline unsigned
-cpunumber(void)
-{
-	return (unsigned)ID_TO_CPU((apic_base[APIC_ID] & APIC_ID_MASK) >> 24);
-}
-#else
-/*
- * we 'borrow' this info from apic.h
- * this will go away soon...
- */
-static __inline unsigned
-cpunumber(void)
-{
-#if 0
-	return (unsigned)(apic_id_to_logical[(apic_base[8] & 0x0f000000) >> 24]);
-#else
-	return (unsigned)(apic_id_to_logical[(lapic__id & 0x0f000000) >> 24]);
-#endif
-}
-#endif /* 0 */
+extern volatile u_int		cpuid;
+extern volatile u_int		cpu_lockid;
 
 #endif /* SMP || APIC_IO */
 #endif /* KERNEL */

@@ -31,7 +31,7 @@
  * mpboot.s:	FreeBSD machine support for the Intel MP Spec
  *		multiprocessor systems.
  *
- *	$Id: mpboot.s,v 1.18 1997/04/25 03:11:27 fsmp Exp $
+ *	$Id: mpboot.s,v 1.1 1997/04/26 11:45:17 peter Exp $
  */
 
 
@@ -76,7 +76,7 @@ NON_GPROF_ENTRY(MPentry)
 	CHECKPOINT(0x36, 3)
 	movl	$mp_stk-KERNBASE,%esp		/* mp boot stack end loc. */
 	/* Now enable paging mode */
-	movl	_IdlePTD-KERNBASE, %eax
+	movl	_bootPTD-KERNBASE, %eax
 	movl	%eax,%cr3	
 	movl	%cr0,%eax	
 	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
@@ -96,13 +96,12 @@ mp_begin:	/* now running relocated at KERNBASE */
 	CHECKPOINT(0x38, 5)
 
 	/* disable the APIC, just to be SURE */
-	movl	_apic_base, %esi
-	movl	APIC_SVR(%esi), %eax		/* get spurious vector reg. */
+	movl	lapic_svr, %eax			/* get spurious vector reg. */
 	andl	$~APIC_SVR_SWEN, %eax		/* clear software enable bit */
-	movl	%eax, APIC_SVR(%esi)
+	movl	%eax, lapic_svr
 
 	/* signal our startup to the BSP */
-	movl	APIC_VER(%esi), %eax		/* our version reg contents */
+	movl	lapic_ver, %eax			/* our version reg contents */
 	movl	%eax, _cpu_apic_versions	/* into [ 0 ] */
 	incl	_mp_ncpus			/* signal BSP */
 

@@ -22,11 +22,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: init_smp.c,v 1.5 1997/05/04 02:08:09 peter Exp $
+ * $Id: init_smp.c,v 1.6 1997/05/06 07:10:06 fsmp Exp $
  */
 
 #include "opt_smp.h"
-#include "opt_smp_autostart.h"
 
 #include <sys/param.h>
 #include <sys/filedesc.h>
@@ -145,7 +144,7 @@ smp_kickoff(dummy)
 
 #define MSG_CPU_MADEIT \
 	printf("SMP: TADA! CPU #%d made it into the scheduler!.\n", \
-	       cpunumber())
+	       cpuid)
 #define MSG_NEXT_CPU \
 	printf("SMP: %d of %d CPU's online. Unlocking next CPU..\n", \
 	       smp_cpus, mp_ncpus)
@@ -171,11 +170,11 @@ secondary_main()
 	 * Record our ID so we know when we've released the mp_stk.
 	 * We must remain single threaded through this.
 	 */
-	cpu_starting = cpunumber();
+	cpu_starting = cpuid;
 	smp_cpus++;
 
 	printf("SMP: AP CPU #%d LAUNCHED!!  Starting Scheduling...\n",
-		cpunumber());
+		cpuid);
 
 	curproc = NULL;			/* ensure no context to save */
 	cpu_switch(curproc);		/* start first process */
@@ -192,6 +191,7 @@ smp_idleloop(dummy)
 void *dummy;
 {
 	int dcnt = 0;
+	int apic_id;
 
 	/*
 	 * This code is executed only on startup of the idleprocs
@@ -202,14 +202,14 @@ void *dummy;
 	if ( ++idle_loops == mp_ncpus ) {
 		printf("SMP: All idle procs online.\n");
 
-#if defined(SMP_AUTOSTART)
+#ifndef NO_AUTOSTART
 		printf("SMP: *** AUTO *** starting 1st AP!\n");
 		smp_cpus = 1;
 		smp_active = mp_ncpus;	/* XXX */
 		boot_unlock();
 #else
 		printf("You can now activate SMP processing, use: sysctl -w kern.smp_active=%d\n", mp_ncpus);
-#endif /* SMP_AUTOSTART */
+#endif
 	}
 
 	spl0();
@@ -222,38 +222,44 @@ void *dummy;
 		 */
 		__asm __volatile("" : : : "memory");
  
-#if !defined(SMP_AUTOSTART)
-		/*
-		 * Alternate code to enable a lockstep startup
-		 * via sysctl instead of automatically.
-		 */
+#ifdef NO_AUTOSTART
 		if (smp_cpus == 0 && smp_active != 0) {
 			get_mplock();
 			printf("SMP: Starting 1st AP!\n");
 			smp_cpus = 1;
-			smp_active = mp_ncpus;	/* XXX */
+			smp_active = mp_ncpus;  /* XXX */
 			boot_unlock();
 			rel_mplock();
 		}
-#endif /* !SMP_AUTOSTART */
+#endif
 
 		/*
 		 * If smp_active is set to (say) 1, we want cpu id's
 		 * 1,2,etc to freeze here.
 		 */
-		if (smp_active && smp_active <= cpunumber()) {
+		if (smp_active && smp_active <= cpuid) {
 			get_mplock();
-			printf("SMP: cpu#%d freezing\n", cpunumber());
+			printf("SMP: cpu#%d freezing\n", cpuid);
 			wakeup((caddr_t)&smp_active);
 			rel_mplock();
 
-			while (smp_active <= cpunumber()) {
+			while (smp_active <= cpuid) {
 				__asm __volatile("" : : : "memory");
 			}
 			get_mplock();
-			printf("SMP: cpu#%d waking up!\n", cpunumber());
+			printf("SMP: cpu#%d waking up!\n", cpuid);
 			rel_mplock();
 		}
+
+/* XXX DEBUG */
+		apic_id = (apic_id_to_logical[(lapic.id & 0x0f000000) >> 24]);
+		if (cpuid != apic_id) {
+			printf("SMP: cpuid = %d\n", cpuid);
+			printf("SMP: apic_id = %d\n", apic_id);
+			printf("PTD[MPPTDI] = %08x\n", PTD[MPPTDI]);
+			panic("cpuid mismatch! boom!!");
+		}
+/* XXX END DEBUG */
 			
 		if (whichqs || whichrtqs || (!ignore_idleprocs && whichidqs)) {
 			/* grab lock for kernel "entry" */
@@ -272,7 +278,7 @@ void *dummy;
 				microtime(&runtime);
 
 				if (cpu_starting != -1 &&
-				    cpu_starting == cpunumber()) {
+				    cpu_starting == cpuid) {
 					/*
 					 * TADA! we have arrived! unlock the
 					 * next cpu now that we have released
@@ -309,7 +315,7 @@ void *dummy;
 			if (idle_debug && (dcnt % idle_debug) == 0) {
 				get_mplock();
 				printf("idleproc pid#%d on cpu#%d, lock %08x\n",
-					curproc->p_pid, cpunumber(), mp_lock);
+					curproc->p_pid, cpuid, mp_lock);
 				rel_mplock();
 			}
 		}

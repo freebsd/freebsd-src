@@ -22,11 +22,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.16 1997/05/29 05:58:41 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.17 1997/06/02 10:44:08 dfr Exp $
  */
 
 #include "opt_smp.h"
-#include "opt_serial.h"
 
 #include <sys/param.h>		/* for KERNBASE */
 #include <sys/types.h>
@@ -38,18 +37,21 @@
 #include <vm/vm_param.h>	/* for KERNBASE */
 #include <vm/pmap.h>		/* for KERNBASE */
 #include <machine/pmap.h>	/* for KERNBASE */
+#include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
 
 #include <machine/smp.h>
 #include <machine/apic.h>
 #include <machine/mpapic.h>
 #include <machine/cpufunc.h>
 #include <machine/segments.h>
-#include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, LATE_START */
+#include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG */
+#include <machine/tss.h>
 
 #include <i386/i386/cons.h>	/* cngetc() */
 
 #if defined(APIC_IO)
-#include <i386/include/md_var.h>	/* setidt() */
+#include <machine/md_var.h>	/* setidt() */
 #include <i386/isa/icu.h>		/* Xinvltlb() */
 #include <i386/isa/intr_machdep.h>	/* Xinvltlb() */
 #endif	/* APIC_IO */
@@ -186,11 +188,6 @@ typedef struct BASETABLE_ENTRY {
 /** FIXME: what system files declare these??? */
 extern struct region_descriptor r_gdt, r_idt;
 
-/* global data */
-struct proc *SMPcurproc[NCPU];
-struct pcb *SMPcurpcb[NCPU];
-struct timeval SMPruntime[NCPU];
-
 int	mp_ncpus;		/* # of CPUs, including BSP */
 int	mp_naps;		/* # of Applications processors */
 int	mp_nbusses;		/* # of busses */
@@ -209,6 +206,15 @@ u_int32_t io_apic_versions[NAPIC];
 int     cpu_num_to_apic_id[NAPICID];
 int     io_num_to_apic_id[NAPICID];
 int     apic_id_to_logical[NAPICID];
+
+/* Boot of AP uses this PTD */
+u_int *bootPTD;
+
+/* Hotwire a 0->4MB V==P mapping */
+extern pt_entry_t KPTphys;
+
+/* virtual address of per-cpu common_tss */
+extern struct i386tss common_tss;
 
 /*
  * look for MP compliant motherboard.
@@ -283,11 +289,6 @@ found:				/* please forgive the 'goto'! */
 	if (mptable_pass1())
 		panic("you must reconfigure your kernel");
 
-#if defined(LATE_START)
-	/* create pages for (address common) cpu APIC and each IO APIC */
-	pmap_bootstrap_apics();
-#endif  /* LATE_START */
-
 	/* flag fact that we are running multiple processors */
 	mp_capable = 1;
 	return 1;
@@ -305,9 +306,6 @@ mp_start(void)
 		mp_enable(boot_address);
 	else
 		panic("MP hardware not found!");
-
-	/* finish pmap initialization - turn off V==P mapping at zero */
-	pmap_bootstrap2();
 }
 
 
@@ -321,22 +319,24 @@ mp_announce(void)
 
 	printf("FreeBSD/SMP: Multiprocessor motherboard\n");
 	printf(" cpu0 (BSP): apic id: %d", CPU_TO_ID(0));
-	printf(", version: 0x%08x\n", cpu_apic_versions[0]);
+	printf(", version: 0x%08x", cpu_apic_versions[0]);
+	printf(", at 0x%08x\n", cpu_apic_address);
 	for (x = 1; x <= mp_naps; ++x) {
 		printf(" cpu%d (AP):  apic id: %d", x, CPU_TO_ID(x));
-		printf(", version: 0x%08x\n", cpu_apic_versions[x]);
+		printf(", version: 0x%08x", cpu_apic_versions[x]);
+		printf(", at 0x%08x\n", cpu_apic_address);
 	}
 
 #if defined(APIC_IO)
 	for (x = 0; x < mp_napics; ++x) {
 		printf(" io%d (APIC): apic id: %d", x, IO_TO_ID(x));
-		printf(", version: 0x%08x\n", io_apic_versions[x]);
+		printf(", version: 0x%08x", io_apic_versions[x]);
+		printf(", at 0x%08x\n", io_apic_address[x]);
 	}
 #else
 	printf(" Warning: APIC I/O disabled\n");
 #endif	/* APIC_IO */
 }
-
 
 /*
  * AP cpu's call this to sync up protected mode.
@@ -352,12 +352,18 @@ init_secondary(void)
 	lidt(&r_idt);
 	lldt(_default_ldt);
 
-	slot = NGDT + cpunumber();
+	slot = NGDT + cpuid;
 	gsel_tss = GSEL(slot, SEL_KPL);
 	gdt[slot].sd.sd_type = SDT_SYS386TSS;
+	common_tss.tss_esp0 = 0;	/* not used until after switch */
+	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
+	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 	ltr(gsel_tss);
 
 	load_cr0(0x8005003b);	/* XXX! */
+
+	PTD[0] = 0;
+	invltlb();
 }
 
 
@@ -375,9 +381,9 @@ configure_local_apic(void)
 		outb(0x23, byte);	/* disconnect 8259s/NMI */
 	}
 	/* mask the LVT1 */
-	temp = lapic__lvt_lint0;
+	temp = lapic.lvt_lint0;
 	temp |= APIC_LVT_M;
-	lapic__lvt_lint0 = temp;
+	lapic.lvt_lint0 = temp;
 }
 #endif	/* APIC_IO */
 
@@ -398,13 +404,15 @@ mp_enable(u_int boot_addr)
 	u_int   ux;
 #endif	/* APIC_IO */
 
-	/* examine the MP table for needed info */
+	/* Turn on 4MB of V == P addressing so we can get to MP table */
+	*(int *)PTD = PG_V | PG_RW | ((u_long)KPTphys & PG_FRAME);
+	invltlb();
+
+	/* examine the MP table for needed info, uses physical addresses */
 	x = mptable_pass2();
 
-#if !defined(LATE_START)
-	/* create pages for (address common) cpu APIC and each IO APIC */
-	pmap_bootstrap_apics();
-#endif  /* LATE_START */
+	*(int *)PTD = 0;
+	invltlb();
 
 	/* can't process default configs till the CPU APIC is pmapped */
 	if (x)
@@ -832,7 +840,7 @@ fix_mp_table(void)
 		for (x = 0; x < mp_nbusses; ++x) {
 			if (bus_data[x].bus_type != PCI)
 				continue;
-			if (bus_data[x].bus_id >= num_pci_bus )
+			if (bus_data[x].bus_id >= num_pci_bus)
 				panic("bad PCI bus numbering");
 		}
 	}
@@ -1258,7 +1266,7 @@ default_mp_table(int type)
 	}
 #endif	/* 0 */
 
-	boot_cpu_id = (lapic__id & APIC_ID_MASK) >> 24;
+	boot_cpu_id = (lapic.id & APIC_ID_MASK) >> 24;
 	ap_cpu_id = (boot_cpu_id == 0) ? 1 : 0;
 
 	/* BSP */
@@ -1351,9 +1359,12 @@ default_mp_table(int type)
 static int
 start_all_aps(u_int boot_addr)
 {
-	int     x;
+	int     x, i;
 	u_char  mpbiosreason;
 	u_long  mpbioswarmvec;
+	pd_entry_t newptd;
+	pt_entry_t newpt;
+	int *newpp;
 
 	/**
          * NOTE: this needs further thought:
@@ -1362,13 +1373,14 @@ start_all_aps(u_int boot_addr)
          *
          * get the initial mp_lock with a count of 1 for the BSP
          */
-	mp_lock = (lapic__id & APIC_ID_MASK) + 1;
+	mp_lock = (lapic.id & APIC_ID_MASK) + 1;
 
 	/* initialize BSP's local APIC */
 	apic_initialize(1);
 
 	/* install the AP 1st level boot code */
 	install_ap_tramp(boot_addr);
+
 
 	/* save the current value of the warm-start vector */
 	mpbioswarmvec = *((u_long *) WARMBOOT_OFF);
@@ -1377,6 +1389,58 @@ start_all_aps(u_int boot_addr)
 
 	/* start each AP */
 	for (x = 1; x <= mp_naps; ++x) {
+
+		/* HACK HACK HACK !!! */
+
+		/* alloc new page table directory */
+		newptd = (pd_entry_t)(kmem_alloc(kernel_map, PAGE_SIZE));
+
+		/* clone currently active one (ie: IdlePTD) */
+		bcopy(PTD, newptd, PAGE_SIZE);	/* inc prv page pde */
+
+		/* set up 0 -> 4MB P==V mapping for AP boot */
+		newptd[0] = PG_V | PG_RW | ((u_long)KPTphys & PG_FRAME);
+
+		/* store PTD for this AP */
+		bootPTD = (pd_entry_t)vtophys(newptd);
+
+		/* alloc new page table page */
+		newpt = (pt_entry_t)(kmem_alloc(kernel_map, PAGE_SIZE));
+
+		/* set the new PTD's private page to point there */
+		newptd[MPPTDI] = PG_V | PG_RW | vtophys(newpt);
+
+		/* install self referential entry */
+		newptd[PTDPTDI] = PG_V | PG_RW | vtophys(newptd);
+
+		/* get a new private data page */
+		newpp = (int *)kmem_alloc(kernel_map, PAGE_SIZE);
+
+		/* wire it into the private page table page */
+		newpt[0] = PG_V | PG_RW | vtophys(newpp);
+
+		/* wire the ptp into itself for access */
+		newpt[1] = PG_V | PG_RW | vtophys(newpt);
+
+		/* and the local apic */
+		newpt[2] = SMP_prvpt[2];
+
+		/* and the IO apic mapping[s] */
+		for (i = 16; i < 32; i++)
+			newpt[i] = SMP_prvpt[i];
+
+		/* prime data page for it to use */
+		newpp[0] = x;		/* cpuid */
+		newpp[1] = 0;		/* curproc */
+		newpp[2] = 0;		/* curpcb */
+		newpp[3] = 0;		/* npxproc */
+		newpp[4] = 0;		/* runtime.tv_sec */
+		newpp[5] = 0;		/* runtime.tv_usec */
+		newpp[6] = x << 24;	/* cpu_lockid */
+
+		/* XXX NOTE: ABANDON bootPTD for now!!!! */
+
+		/* END REVOLTING HACKERY */
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
@@ -1401,7 +1465,7 @@ start_all_aps(u_int boot_addr)
 	}
 
 	/* fill in our (BSP) APIC version */
-	cpu_apic_versions[0] = lapic__version;
+	cpu_apic_versions[0] = lapic.version;
 
 	/* restore the warmstart vector */
 	*(u_long *) WARMBOOT_OFF = mpbioswarmvec;
@@ -1503,24 +1567,24 @@ start_ap(int logical_cpu, u_int boot_addr)
 	 */
 
 	/* setup the address for the target AP */
-	icr_hi = lapic__icr_hi & ~APIC_ID_MASK;
+	icr_hi = lapic.icr_hi & ~APIC_ID_MASK;
 	icr_hi |= (physical_cpu << 24);
-	lapic__icr_hi = icr_hi;
+	lapic.icr_hi = icr_hi;
 
 	/* do an INIT IPI: assert RESET */
-	icr_lo = lapic__icr_lo & 0xfff00000;
-	lapic__icr_lo = icr_lo | 0x0000c500;
+	icr_lo = lapic.icr_lo & 0xfff00000;
+	lapic.icr_lo = icr_lo | 0x0000c500;
 
 	/* wait for pending status end */
-	while (lapic__icr_lo & APIC_DELSTAT_MASK)
+	while (lapic.icr_lo & APIC_DELSTAT_MASK)
 		 /* spin */ ;
 
 	/* do an INIT IPI: deassert RESET */
-	lapic__icr_lo = icr_lo | 0x00008500;
+	lapic.icr_lo = icr_lo | 0x00008500;
 
 	/* wait for pending status end */
 	u_sleep(10000);		/* wait ~10mS */
-	while (lapic__icr_lo & APIC_DELSTAT_MASK)
+	while (lapic.icr_lo & APIC_DELSTAT_MASK)
 		 /* spin */ ;
 
 	/*
@@ -1533,8 +1597,8 @@ start_ap(int logical_cpu, u_int boot_addr)
 	 */
 
 	/* do a STARTUP IPI */
-	lapic__icr_lo = icr_lo | 0x00000600 | vector;
-	while (lapic__icr_lo & APIC_DELSTAT_MASK)
+	lapic.icr_lo = icr_lo | 0x00000600 | vector;
+	while (lapic.icr_lo & APIC_DELSTAT_MASK)
 		 /* spin */ ;
 	u_sleep(200);		/* wait ~200uS */
 
@@ -1545,8 +1609,8 @@ start_ap(int logical_cpu, u_int boot_addr)
 	 * recognized after hardware RESET or INIT IPI.
 	 */
 
-	lapic__icr_lo = icr_lo | 0x00000600 | vector;
-	while (lapic__icr_lo & APIC_DELSTAT_MASK)
+	lapic.icr_lo = icr_lo | 0x00000600 | vector;
+	while (lapic.icr_lo & APIC_DELSTAT_MASK)
 		 /* spin */ ;
 	u_sleep(200);		/* wait ~200uS */
 

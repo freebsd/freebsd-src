@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.28 1997/05/29 05:11:09 peter Exp $
+ *	$Id: exception.s,v 1.29 1997/05/31 09:27:28 peter Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -44,7 +44,7 @@
 #include <sys/cdefs.h>				/* CPP macros */
 
 #ifdef SMP
-#include <machine/smpasm.h>	/* this includes <machine/apic.h> */
+#include <machine/apic.h>			/* for apic_vector.s */
 #define GET_MPLOCK		call _get_mplock
 #define REL_MPLOCK		call _rel_mplock
 #define	MP_INSTR_LOCK		lock
@@ -270,13 +270,7 @@ ENTRY(fork_trampoline)
 	movl	$SWI_AST_MASK,_cpl
 	call	_splz
 
-#ifdef SMP
-	GETCPUID(%eax)
-	leal	_SMPruntime(,%eax,8), %eax
-	pushl	%eax
-#else
 	pushl	$_runtime
-#endif  /* SMP */
 
 	call	_microtime
 	popl	%eax

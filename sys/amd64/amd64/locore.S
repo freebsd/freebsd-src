@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.87 1997/05/15 19:12:56 tegge Exp $
+ *	$Id: locore.s,v 1.88 1997/05/29 05:11:09 peter Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -47,8 +47,7 @@
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_userconfig.h"
-#include "opt_smp_privpages.h"
-#include "opt_serial.h"
+#include "opt_smp.h"
 
 #include <sys/errno.h>
 #include <sys/syscall.h>
@@ -60,9 +59,9 @@
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
 
-#if defined(SMP) && defined(SMP_PRIVPAGES)
+#ifdef SMP
 #include <machine/apic.h>
-#endif /* SMP && PRIVPAGES */
+#endif /* SMP */
 
 #include "assym.s"
 
@@ -92,6 +91,31 @@
 	.set	_APTD,_APTmap + (APTDPTDI * PAGE_SIZE)
 	.set	_APTDpde,_PTD + (APTDPTDI * PDESIZE)
 
+#ifdef SMP
+	.globl	_SMP_prvstart
+	.set	_SMP_prvstart,(MPPTDI << PDRSHIFT)
+
+	.globl	_SMP_prvpage,_SMP_prvpt,_lapic,_SMP_ioapic
+	.set	_SMP_prvpage,_SMP_prvstart
+	.set	_SMP_prvpt,_SMP_prvstart + PAGE_SIZE
+	.set	_lapic,_SMP_prvstart + (2 * PAGE_SIZE)
+	.set	_SMP_ioapic,_SMP_prvstart + (16 * PAGE_SIZE)
+
+	.globl	_cpuid,_curproc,_curpcb,_npxproc,_runtime,_cpu_lockid
+	.globl	_common_tss
+	.set	_cpuid,_SMP_prvpage+0
+	.set	_curproc,_SMP_prvpage+4
+	.set	_curpcb,_SMP_prvpage+8
+	.set	_npxproc,_SMP_prvpage+12
+	.set	_runtime,_SMP_prvpage+16	/* 8 bytes struct timeval */
+	.set	_cpu_lockid,_SMP_prvpage+24
+	.set	_common_tss,_SMP_prvpage+28	/* 104 bytes long, next = 132 */
+
+/* Fetch the .set's for the local apic */
+#include "i386/i386/mp_apicdefs.s"
+
+#endif
+
 /*
  * Globals
  */
@@ -117,18 +141,21 @@ _bootinfo:	.space	BOOTINFO_SIZE		/* bootinfo that we can handle */
 _KERNend:	.long	0			/* phys addr end of kernel (just after bss) */
 physfree:	.long	0			/* phys addr of next free page */
 
-#if defined(SMP) && defined(SMP_PRIVPAGES)
+#ifdef SMP
 cpu0pp:		.long	0			/* phys addr cpu0 private pg */
 cpu0pt:		.long	0			/* phys addr cpu0 private pt */
 
 		.globl	_cpu0prvpage,_cpu0prvpt
 _cpu0prvpage:	.long	0			/* relocated version */
 _cpu0prvpt:	.long	0			/* relocated version */
-#endif /* SMP && PRIVPAGES */
+#endif /* SMP */
 
 	.globl	_IdlePTD
 _IdlePTD:	.long	0			/* phys addr of kernel PTD */
 
+#ifdef SMP
+	.globl	_KPTphys
+#endif
 _KPTphys:	.long	0			/* phys addr of kernel page tables */
 
 	.globl	_proc0paddr
@@ -769,7 +796,7 @@ over_symalloc:
 	addl	$KERNBASE, %esi
 	movl	%esi, R(_proc0paddr)
 
-#if defined(SMP) && defined(SMP_PRIVPAGES)
+#ifdef SMP
 /* Allocate cpu0's private data page */
 	ALLOCPAGES(1)
 	movl	%esi,R(cpu0pp)
@@ -781,7 +808,7 @@ over_symalloc:
 	movl	%esi,R(cpu0pt)
 	addl	$KERNBASE, %esi
 	movl	%esi, R(_cpu0prvpt)	/* relocated to KVM space */
-#endif	/* SMP && SMP_PRIVPAGES */
+#endif	/* SMP */
 
 /* Map read-only from zero to the end of the kernel text section */
 	xorl	%eax, %eax
@@ -830,41 +857,35 @@ map_read_write:
 	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
 	fillkptphys($PG_RW)
 
-#if defined(SMP) && defined(SMP_PRIVPAGES)
-/* Map cpu0's private page into global KVM */
+#ifdef SMP
+/* Map cpu0's private page into global kmem (4K @ cpu0prvpage) */
 	movl	R(cpu0pp), %eax
 	movl	$1, %ecx
 	fillkptphys($PG_RW)
 
-/* Map cpu0's private page table into global KVM */
+/* Map cpu0's private page table into global kmem FWIW */
 	movl	R(cpu0pt), %eax
 	movl	$1, %ecx
 	fillkptphys($PG_RW)
 
-/* Map the private page into the private page table (4K @ 0xff80000) */
+/* Map the private page into the private page table into private space */
 	movl	R(cpu0pp), %eax
 	movl	$0, %ebx		/* pte offset = 0 */
 	movl	$1, %ecx		/* one private page coming right up */
 	fillkpt(R(cpu0pt), $PG_RW)
 
-/* Map the default Local APIC address (4K @ 0xff801000) */
-	movl	$DEFAULT_APIC_BASE, %eax	/* XXX just testing.. */
+/* Map the page table page into private space */
+	movl	R(cpu0pt), %eax
 	movl	$1, %ebx		/* pte offset = 1 */
-	movl	$1, %ecx		/* Bing! Local APIC appears */
-	fillkpt(R(cpu0pt), $PG_RW|PG_N)
+	movl	$1, %ecx		/* one private pt coming right up */
+	fillkpt(R(cpu0pt), $PG_RW)
 
-/* Map the default IO APIC address (4K @ 0xff802000) */
-	movl	$DEFAULT_IO_APIC_BASE, %eax	/* XXX just testing.. */
-	movl	$2, %ebx		/* pte offset = 2 */
-	movl	$1, %ecx		/* Bing! Local APIC appears */
-	fillkpt(R(cpu0pt), $PG_RW|PG_N)
-
-/* ... and put the page table in the pde. */
+/* ... and put the page table table in the pde. */
 	movl	R(cpu0pt), %eax
 	movl	$MPPTDI, %ebx
 	movl	$1, %ecx
 	fillkpt(R(_IdlePTD), $PG_RW)
-#endif	/* SMP && SMP_PRIVPAGES */
+#endif	/* SMP */
 
 /* install a pde for temporary double map of bottom of VA */
 	movl	R(_KPTphys), %eax

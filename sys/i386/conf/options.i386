@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.46 1997/06/04 04:55:00 pst Exp $
+#	$Id: options.i386,v 1.47 1997/06/04 16:25:07 pst Exp $
 
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
@@ -40,12 +40,6 @@ NBUS			opt_smp.h
 NAPIC			opt_smp.h
 NINTR			opt_smp.h
 SMP_TIMER_NC		opt_smp.h
-
-# These three are known to be broken, don't enable them.
-SMP_PRIVPAGES		opt_smp_privpages.h
-SMP_AUTOSTART		opt_smp_autostart.h
-
-SERIAL_DEBUG		opt_serial.h
 
 AHC_TAGENABLE		opt_aic7xxx.h
 AHC_SCBPAGING_ENABLE	opt_aic7xxx.h

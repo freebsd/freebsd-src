@@ -32,14 +32,11 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.22 1997/04/26 19:47:59 peter Exp $
+ *	$Id: microtime.s,v 1.23 1997/05/29 05:11:10 peter Exp $
  */
 
 #include "opt_cpu.h"
 
-#ifdef APIC_IO
-#include <machine/apic.h>
-#endif /* APIC_IO */
 #include <machine/asmacros.h>
 
 #include <i386/isa/icu.h>
@@ -125,8 +122,7 @@ ENTRY(microtime)
 	jbe	1f
 
 #if defined(APIC_IO)
-	movl	_apic_base, %eax
-	movl	APIC_IRR1(%eax), %eax	/** XXX assumption: IRQ0-24 */
+	movl	lapic_irr1, %eax	/** XXX assumption: IRQ0-24 */
 	testl	%eax, _mask8254	/* is a hard timer interrupt pending? */
 #else
 	inb	$IO_ICU1, %al	/* read IRR in ICU */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.42 1997/05/29 04:52:04 peter Exp $
+ * $Id: kern_fork.c,v 1.43 1997/06/16 00:29:30 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -141,6 +141,19 @@ fork1(p1, flags, retval)
 
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
 		return (EINVAL);
+
+#ifdef SMP
+	/*
+	 * FATAL now, we cannot have the same PTD on both cpus, the PTD
+	 * needs to move out of PTmap and be per-process, even for shared
+	 * page table processes.  Unfortunately, this means either removing
+	 * PTD[] as a fixed virtual address, or move it to the per-cpu map
+	 * area for SMP mode.  Both cases require seperate management of
+	 * the per-process-even-if-PTmap-is-shared PTD.
+	 */
+	if (flags & RFMEM)
+		return (EOPNOTSUPP);
+#endif
 
 	/*
 	 * Here we don't create a new process, but we divorce

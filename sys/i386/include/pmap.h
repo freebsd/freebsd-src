@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.49 1997/04/07 09:30:20 peter Exp $
+ * 	$Id: pmap.h,v 1.50 1997/04/26 11:45:41 peter Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -91,11 +91,11 @@
 #define	NKPT			9	/* actual number of kernel page tables */
 #endif
 #ifndef NKPDE
-#if defined(SMP) && defined(SMP_PRIVPAGES)
+#ifdef SMP
 #define NKPDE			62	/* addressable number of page tables/pde's */
-#else	/* SMP && SMP_PRIVPAGES */
+#else
 #define NKPDE			63	/* addressable number of page tables/pde's */
-#endif	/* SMP && SMP_PRIVPAGES */
+#endif	/* SMP */
 #endif
 
 /*
@@ -107,12 +107,12 @@
  * SMP_PRIVPAGES: The per-cpu address space is 0xff80000 -> 0xffbfffff
  */
 #define	APTDPTDI	(NPDEPG-1)	/* alt ptd entry that points to APTD */
-#if defined(SMP) && defined(SMP_PRIVPAGES)
+#ifdef SMP
 #define MPPTDI		(APTDPTDI-1)	/* per cpu ptd entry */
 #define	KPTDI		(MPPTDI-NKPDE)	/* start of kernel virtual pde's */
-#else	/* SMP && SMP_PRIVPAGES */
+#else
 #define	KPTDI		(APTDPTDI-NKPDE)/* start of kernel virtual pde's */
-#endif	/* SMP && SMP_PRIVPAGES */
+#endif	/* SMP */
 #define	PTDPTDI		(KPTDI-1)	/* ptd entry that points to ptd! */
 #define	UMAXPTDI	(PTDPTDI-1)	/* ptd entry for user space end */
 #define	UMAXPTEOFF	(NPTEPG-UPAGES_HOLE) /* pte entry for user space end */
@@ -141,7 +141,7 @@ typedef unsigned int *pt_entry_t;
 extern pt_entry_t PTmap[], APTmap[], Upte;
 extern pd_entry_t PTD[], APTD[], PTDpde, APTDpde, Upde;
 
-extern int	IdlePTD;	/* physical address of "Idle" state directory */
+extern pd_entry_t IdlePTD;	/* physical address of "Idle" state directory */
 #endif
 
 /*
