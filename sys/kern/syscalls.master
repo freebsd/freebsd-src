@@ -550,11 +550,11 @@
 377	UNIMPL	BSD	afs_syscall
 378	STD	BSD	{ int nmount(struct iovec *iovp, unsigned int iovcnt, \
 			    int flags); }
-379	STD	BSD	{ int kse_exit(void); }
-380	STD	BSD	{ int kse_wakeup(struct kse_mailbox *mbx); }
+379	MSTD	BSD	{ int kse_exit(void); }
+380	MSTD	BSD	{ int kse_wakeup(struct kse_mailbox *mbx); }
 381	STD	BSD	{ int kse_create(struct kse_mailbox *mbx, \
 			    int newgroup); }
-382	STD	BSD	{ int kse_thr_interrupt(struct kse_thr_mailbox *tmbx); }
+382	MSTD	BSD	{ int kse_thr_interrupt(struct kse_thr_mailbox *tmbx); }
 383	MSTD	BSD	{ int kse_release(void); }
 384	MSTD	BSD	{ int __mac_get_proc(struct mac *mac_p); }
 385	MSTD	BSD	{ int __mac_set_proc(struct mac *mac_p); }
