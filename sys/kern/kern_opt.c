@@ -9,7 +9,11 @@
 #endif
 
 #ifdef GATEWAY
-#warning "obsolete option GATEWAY - use `sysctl -w net.inet.ip_forwarding=1'"
+#warning "obsolete option GATEWAY - use `sysctl -w net.inet.ip.forwarding=1'"
+#endif
+
+#ifdef ARP_PROXYALL
+#warning "obsolete option ARP_PROXYALL - use `sysctl -w net.link.ether.inet.proxyall=1'"
 #endif
 
 #ifdef OPEN_MAX
