@@ -298,7 +298,12 @@ ichchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 		if (sc->ac97rate <= 32000 || sc->ac97rate >= 64000)
 			sc->ac97rate = 48000;
 		r = (speed * 48000) / sc->ac97rate;
-		ch->spd = (ac97_setrate(sc->codec, ch->spdreg, r) * sc->ac97rate) / 48000;
+		/*
+		 * Cast the return value of ac97_setrate() to u_int so that
+		 * the math don't overflow into the negative range.
+		 */
+		ch->spd = ((u_int)ac97_setrate(sc->codec, ch->spdreg, r) *
+		    sc->ac97rate) / 48000;
 	} else {
 		ch->spd = 48000;
 	}
@@ -682,8 +687,8 @@ ich_pci_attach(device_t dev)
 	extcaps = ac97_getextcaps(sc->codec);
 	sc->hasvra = extcaps & AC97_EXTCAP_VRA;
 	sc->hasvrm = extcaps & AC97_EXTCAP_VRM;
-	sc->hasmic = extcaps & AC97_CAP_MICCHANNEL;
-	ac97_setextmode(sc->codec, sc->hasvra | sc->hasvrm | sc->hasmic);
+	sc->hasmic = ac97_getcaps(sc->codec) & AC97_CAP_MICCHANNEL;
+	ac97_setextmode(sc->codec, sc->hasvra | sc->hasvrm);
 
 	if (pcm_register(dev, sc, 1, sc->hasmic? 2 : 1))
 		goto bad;
