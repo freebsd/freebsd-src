@@ -14,6 +14,7 @@ MAN=	aac.4 \
 	atkbd.4 \
 	atkbdc.4 \
 	aue.4 \
+	awi.4 \
 	bktr.4 \
 	blackhole.4 \
 	bpf.4 \
