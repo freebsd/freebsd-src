@@ -1256,7 +1256,7 @@ cpio_options(int argc, char **argv)
 			 */
 			maxflt = 0;
 			while ((str = getline(stdin)) != NULL) {
-				ftree_add(str, NULL);
+				ftree_add(str, 0);
 			}
 			if (getline_error) {
 				paxwarn(1, "Problem while reading stdin");

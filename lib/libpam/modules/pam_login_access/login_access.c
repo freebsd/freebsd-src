@@ -126,7 +126,7 @@ list_match(char *list, const char *item,
     for (tok = strtok(list, sep); tok != 0; tok = strtok((char *) 0, sep)) {
 	if (strcasecmp(tok, "EXCEPT") == 0)	/* EXCEPT: give up */
 	    break;
-	if ((match = (*match_fn)(tok, item)) != NULL)	/* YES */
+	if ((match = (*match_fn)(tok, item)) != 0)	/* YES */
 	    break;
     }
     /* Process exceptions to matches. */

@@ -591,11 +591,11 @@ _dns_gethostbyname(void *rval, void *cb_data, va_list ap)
 	if (n < 0) {
 		free(buf);
 		dprintf("res_search failed (%d)\n", n);
-		return (NULL);
+		return (0);
 	} else if (n > sizeof(buf->buf)) {
 		free(buf);
 		dprintf("static buffer is too small (%d)\n", n);
-		return (NULL);
+		return (0);
 	}
 	*(struct hostent **)rval = gethostanswer(buf, n, name, type);
 	free(buf);

@@ -254,7 +254,7 @@ swaplist(int lflag, int sflag, int hflag)
 	for (n = 0; ; ++n) {
 		mib[mibsize] = n;
 		size = sizeof xsw;
-		if (sysctl(mib, mibsize + 1, &xsw, &size, NULL, NULL) == -1)
+		if (sysctl(mib, mibsize + 1, &xsw, &size, NULL, 0) == -1)
 			break;
 		if (xsw.xsw_version != XSWDEV_VERSION)
 			errx(1, "xswdev version mismatch");
