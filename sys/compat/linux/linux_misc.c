@@ -704,12 +704,12 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	linux_get_osrelease(td->td_proc, osrelease);
 
 	bzero(&utsname, sizeof(utsname));
-	strncpy(utsname.sysname, osname, LINUX_MAX_UTSNAME-1);
-	getcredhostname(td->td_ucred, utsname.nodename, LINUX_MAX_UTSNAME-1);
-	strncpy(utsname.release, osrelease, LINUX_MAX_UTSNAME-1);
-	strncpy(utsname.version, version, LINUX_MAX_UTSNAME-1);
-	strncpy(utsname.machine, machine, LINUX_MAX_UTSNAME-1);
-	strncpy(utsname.domainname, domainname, LINUX_MAX_UTSNAME-1);
+	strlcpy(utsname.sysname, osname, LINUX_MAX_UTSNAME);
+	getcredhostname(td->td_ucred, utsname.nodename, LINUX_MAX_UTSNAME);
+	strlcpy(utsname.release, osrelease, LINUX_MAX_UTSNAME);
+	strlcpy(utsname.version, version, LINUX_MAX_UTSNAME);
+	strlcpy(utsname.machine, machine, LINUX_MAX_UTSNAME);
+	strlcpy(utsname.domainname, domainname, LINUX_MAX_UTSNAME);
 
 	return (copyout(&utsname, (caddr_t)args->buf, sizeof(utsname)));
 }
