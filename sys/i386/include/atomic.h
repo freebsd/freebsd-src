@@ -172,7 +172,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
 
-#if defined(KERNEL) && !defined(SMP)
+#if defined(_KERNEL) && !defined(SMP)
 
 /*
  * We assume that a = b will do atomic loads and stores.  However, on a
