@@ -38,4 +38,12 @@ httperr.h: http.errors
 	@echo "    { -1, FETCH_UNKNOWN, \"Unknown HTTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
 
+.for MP in fetchFreeURL fetchGet fetchGetFTP fetchGetFile fetchGetHTTP \
+fetchGetURL fetchList fetchListFTP fetchListFile fetchListHTTP fetchListURL \
+fetchMakeURL fetchParseURL fetchPut fetchPutFTP fetchPutFile fetchPutHTTP \
+fetchPutURL fetchStat fetchStatFTP fetchStatFile fetchStatHTTP fetchStatURL \
+fetchXGet fetchXGetFTP fetchXGetFile fetchXGetHTTP fetchXGetURL
+MLINKS+= fetch.3 ${MP}.3
+.endfor
+
 .include <bsd.lib.mk>
