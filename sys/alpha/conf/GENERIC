@@ -124,11 +124,11 @@ device		sio0	at isa? port IO_COM1 irq 4
 device		sio1	at isa? port IO_COM2 irq 3 flags 0x50
 
 # Parallel port
-device          ppc0    at isa? irq 7
-device          ppbus           # Parallel port bus (required)
-device          lpt             # Printer
-device          ppi             # Parallel port interface device
-#device         vpo             # Requires scbus and da
+device		ppc0	at isa? irq 7
+device		ppbus		# Parallel port bus (required)
+device		lpt		# Printer
+device		ppi		# Parallel port interface device
+#device		vpo		# Requires scbus and da
  
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')

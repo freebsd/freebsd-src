@@ -114,7 +114,7 @@ device		pass		# Passthrough device (direct SCSI access)
 # RAID controllers interfaced to the SCSI subsystem
 device		asr		# DPT SmartRAID V, VI and Adaptec SCSI RAID
 device		dpt		# DPT Smartcache - See LINT for options!
-device          iir             # Intel Integrated RAID
+device		iir		# Intel Integrated RAID
 device		mly		# Mylex AcceleRAID/eXtremeRAID
 device		ciss		# Compaq SmartRAID 5* series
 
@@ -150,7 +150,7 @@ device		sc0	at isa? flags 0x100
 device		npx0	at nexus? port IO_NPX irq 13
 
 # Power management support (see LINT for more options)
-device		apm0    at nexus? disable flags 0x20 # Advanced Power Management
+device		apm0	at nexus? disable flags 0x20 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
 device		card
