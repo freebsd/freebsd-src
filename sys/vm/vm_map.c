@@ -590,7 +590,6 @@ vm_map_lookup_entry(
 	vm_map_entry_t cur;
 	vm_map_entry_t last;
 
-	GIANT_REQUIRED;
 	/*
 	 * Start looking either from the head of the list, or from the hint.
 	 */
@@ -2147,8 +2146,6 @@ vm_map_check_protection(vm_map_t map, vm_offset_t start, vm_offset_t end,
 {
 	vm_map_entry_t entry;
 	vm_map_entry_t tmp_entry;
-
-	GIANT_REQUIRED;
 
 	vm_map_lock_read(map);
 	if (!vm_map_lookup_entry(map, start, &tmp_entry)) {

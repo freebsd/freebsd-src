@@ -607,16 +607,15 @@ munmap(td, uap)
 	if (VM_MIN_ADDRESS > 0 && addr < VM_MIN_ADDRESS)
 		return (EINVAL);
 #endif
-	mtx_lock(&Giant);
 	map = &td->td_proc->p_vmspace->vm_map;
 	/*
 	 * Make sure entire range is allocated.
 	 */
-	if (!vm_map_check_protection(map, addr, addr + size, VM_PROT_NONE)) {
-		mtx_unlock(&Giant);
+	if (!vm_map_check_protection(map, addr, addr + size, VM_PROT_NONE))
 		return (EINVAL);
-	}
+
 	/* returns nothing but KERN_SUCCESS anyway */
+	mtx_lock(&Giant);
 	(void) vm_map_remove(map, addr, addr + size);
 	mtx_unlock(&Giant);
 	return (0);
