@@ -930,8 +930,10 @@ again:
 
 		if (bp->b_dirtyend > 0 &&
 		    (on > bp->b_dirtyend || (on + n) < bp->b_dirtyoff)) {
-			if (BUF_WRITE(bp) == EINTR)
-				return (EINTR);
+			if (BUF_WRITE(bp) == EINTR) {
+				error = EINTR;
+				break;
+			}
 			goto again;
 		}
 
