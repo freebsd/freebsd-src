@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.13 1995/11/04 17:07:05 bde Exp $
+ * $Id: aic6360.c,v 1.14 1995/11/29 10:26:51 phk Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -127,7 +127,6 @@
 #endif
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/queue.h>
 #ifndef __FreeBSD__
 #include <machine/pio.h>

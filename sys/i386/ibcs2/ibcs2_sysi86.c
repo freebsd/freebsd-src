@@ -33,7 +33,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/sysctl.h>
 
 #include <i386/ibcs2/ibcs2_types.h>
