@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999, 2000, 2001, 2002 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001, 2002, 2003 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -473,6 +473,64 @@ acl_posix1e_perms_to_mode(struct acl_entry *acl_user_obj_entry,
 }
 
 /*
+ * Utility function to generate a file mode given a complete POSIX.1e
+ * access ACL.  Note that if the ACL is improperly formed, this may
+ * result in a panic.
+ */
+mode_t
+acl_posix1e_acl_to_mode(struct acl *acl)
+{
+	struct acl_entry *acl_mask, *acl_user_obj, *acl_group_obj, *acl_other;
+	int i;
+
+	/*
+	 * Find the ACL entries relevant to a POSIX permission mode.
+	 */
+	acl_user_obj = acl_group_obj = acl_other = acl_mask = NULL;
+	for (i = 0; i < acl->acl_cnt; i++) {
+		switch (acl->acl_entry[i].ae_tag) {
+		case ACL_USER_OBJ:
+			acl_user_obj = &acl->acl_entry[i];
+			break;
+
+		case ACL_GROUP_OBJ:
+			acl_group_obj = &acl->acl_entry[i];
+			break;
+
+		case ACL_OTHER:
+			acl_other = &acl->acl_entry[i];
+			break;
+
+		case ACL_MASK:
+			acl_mask = &acl->acl_entry[i];
+			break;
+
+		case ACL_USER:
+		case ACL_GROUP:
+			break;
+
+		default:
+			panic("acl_posix1e_acl_to_mode: bad ae_tag");
+		}
+	}
+
+	if (acl_user_obj == NULL || acl_group_obj == NULL || acl_other == NULL)
+		panic("acl_posix1e_acl_to_mode: missing base ae_tags");
+
+	/*
+	 * POSIX.1e specifies that if there is an ACL_MASK entry, we replace
+	 * the mode "group" bits with its permissions.  If there isn't, we
+	 * use the ACL_GROUP_OBJ permissions.
+	 */
+	if (acl_mask != NULL)
+		return (acl_posix1e_perms_to_mode(acl_user_obj, acl_mask,
+		    acl_other));
+	else
+		return (acl_posix1e_perms_to_mode(acl_user_obj, acl_group_obj,
+		    acl_other));
+}
+
+/*
  * Perform a syntactic check of the ACL, sufficient to allow an
  * implementing filesystem to determine if it should accept this and
  * rely on the POSIX.1e ACL properties.
@@ -557,6 +615,31 @@ acl_posix1e_check(struct acl *acl)
 	    (num_acl_mask != 1))
 		return (EINVAL);
 	return (0);
+}
+
+/*
+ * Given a requested mode for a new object, and a default ACL, combine
+ * the two to produce a new mode.  Be careful not to clear any bits that
+ * aren't intended to be affected by the POSIX.1e ACL.  Eventually,
+ * this might also take the cmask as an argument, if we push that down
+ * into per-filesystem-code.
+ */
+mode_t
+acl_posix1e_newfilemode(mode_t cmode, struct acl *dacl)
+{
+	mode_t mode;
+
+	mode = cmode;
+	/*
+	 * The current composition policy is that a permission bit must
+	 * be set in *both* the ACL and the requested creation mode for
+	 * it to appear in the resulting mode/ACL.  First clear any
+	 * possibly effected bits, then reconstruct.
+	 */
+	mode &= ACL_PRESERVE_MASK;
+	mode |= (ACL_OVERRIDE_MASK & cmode & acl_posix1e_acl_to_mode(dacl));
+
+	return (mode);
 }
 
 /*
