@@ -481,8 +481,9 @@ pipe_read(fp, uio, active_cred, flags, td)
 				size = (u_int) uio->uio_resid;
 
 			PIPE_UNLOCK(rpipe);
-			error = uiomove(&rpipe->pipe_buffer.buffer[rpipe->pipe_buffer.out],
-					size, uio);
+			error = uiomove(
+			    &rpipe->pipe_buffer.buffer[rpipe->pipe_buffer.out],
+			    size, uio);
 			PIPE_LOCK(rpipe);
 			if (error)
 				break;
@@ -551,9 +552,9 @@ pipe_read(fp, uio, active_cred, flags, td)
 				break;
 
 			/*
-			 * Unlock the pipe buffer for our remaining processing.  We
-			 * will either break out with an error or we will sleep and
-			 * relock to loop.
+			 * Unlock the pipe buffer for our remaining processing. 
+			 * We will either break out with an error or we will
+			 * sleep and relock to loop.
 			 */
 			pipeunlock(rpipe);
 
@@ -1043,24 +1044,31 @@ pipe_write(fp, uio, active_cred, flags, td)
 					 */
 					if (wpipe->pipe_buffer.in + segsize != 
 					    wpipe->pipe_buffer.size)
-						panic("Expected pipe buffer wraparound disappeared");
+						panic("Expected pipe buffer "
+						    "wraparound disappeared");
 						
 					PIPE_UNLOCK(rpipe);
-					error = uiomove(&wpipe->pipe_buffer.buffer[0],
-							size - segsize, uio);
+					error = uiomove(
+					    &wpipe->pipe_buffer.buffer[0],
+				    	    size - segsize, uio);
 					PIPE_LOCK(rpipe);
 				}
 				if (error == 0) {
 					wpipe->pipe_buffer.in += size;
 					if (wpipe->pipe_buffer.in >=
 					    wpipe->pipe_buffer.size) {
-						if (wpipe->pipe_buffer.in != size - segsize + wpipe->pipe_buffer.size)
-							panic("Expected wraparound bad");
-						wpipe->pipe_buffer.in = size - segsize;
+						if (wpipe->pipe_buffer.in !=
+						    size - segsize +
+						    wpipe->pipe_buffer.size)
+							panic("Expected "
+							    "wraparound bad");
+						wpipe->pipe_buffer.in = size -
+						    segsize;
 					}
 				
 					wpipe->pipe_buffer.cnt += size;
-					if (wpipe->pipe_buffer.cnt > wpipe->pipe_buffer.size)
+					if (wpipe->pipe_buffer.cnt >
+					    wpipe->pipe_buffer.size)
 						panic("Pipe buffer overflow");
 				
 				}
