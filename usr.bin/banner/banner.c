@@ -38,7 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)banner.c	8.4 (Berkeley) 4/29/95";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -1018,7 +1022,7 @@ const char data_table[NBYTES] = {
 };
 
 char	line[DWIDTH];
-char	message[MAXMSG];
+char	*message;
 char	print[DWIDTH];
 int	debug, i, j, linen, max, nchars, pc, term, trace, x, y;
 int	width = DWIDTH;	/* -w option: scrunch letters to 80 columns */
@@ -1058,6 +1062,10 @@ main(argc, argv)
 
 	/* Have now read in the data. Next get the message to be printed. */
 	if (*argv) {
+		for(i=0, j=0; i < argc; i++)
+			j += strlen(argv[i]) + (i != 0);
+		if ((message = malloc(j)) == NULL) 
+			err(1, "malloc");
 		strcpy(message, *argv);
 		while (*++argv) {
 			strcat(message, " ");
@@ -1065,8 +1073,10 @@ main(argc, argv)
 		}
 		nchars = strlen(message);
 	} else {
+		if ((message = malloc(MAXMSG)) == NULL)
+			err(1, "malloc");
 		fprintf(stderr,"Message: ");
-		(void)fgets(message, sizeof(message), stdin);
+		(void)fgets(message, MAXMSG, stdin);
 		nchars = strlen(message);
 		message[nchars--] = '\0';	/* get rid of newline */
 	}
@@ -1156,5 +1166,6 @@ main(argc, argv)
 		}
 	}
 
+	free(message);
 	exit(0);
 }
