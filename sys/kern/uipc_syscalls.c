@@ -1782,24 +1782,24 @@ retry_lookup:
 		pg = vm_page_lookup(obj, pindex);
 
 		if (pg == NULL) {
-			pg = vm_page_alloc(obj, pindex, VM_ALLOC_NORMAL);
+			pg = vm_page_alloc(obj, pindex,
+			    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
 			if (pg == NULL) {
 				VM_WAIT;
 				goto retry_lookup;
 			}
 			vm_page_wakeup(pg);
-		} else if (vm_page_sleep_busy(pg, TRUE, "sfpbsy")) {
-			goto retry_lookup;
+		} else {
+			if (vm_page_sleep_busy(pg, TRUE, "sfpbsy"))
+				goto retry_lookup;
+			/*
+		 	 * Wire the page so it does not get ripped out from
+			 * under us.
+			 */
+			vm_page_lock_queues();
+			vm_page_wire(pg);
+			vm_page_unlock_queues();
 		}
-
-		/*
-		 * Wire the page so it does not get ripped out from under
-		 * us. 
-		 */
-
-		vm_page_lock_queues();
-		vm_page_wire(pg);
-		vm_page_unlock_queues();
 
 		/*
 		 * If page is not valid for what we need, initiate I/O
