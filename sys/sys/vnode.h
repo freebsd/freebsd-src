@@ -96,7 +96,7 @@ struct vpollinfo {
  *	2) Lock interlock so that the vnode does not go away.
  *	3) Unlock the list to avoid lock order reversals.
  *	4) vget with LK_INTERLOCK and check for ENOENT, or
- *	5) Check for XLOCK if the vnode lock is not required.
+ *	5) Check for DOOMED if the vnode lock is not required.
  *	6) Perform your operation, then vput().
  *
  * XXX Not all fields are locked yet and some fields that are marked are not
@@ -161,7 +161,7 @@ struct vnode {
 #endif
 	int	v_holdcnt;			/* i page & buffer references */
 	int	v_usecount;			/* i ref count of users */
-	struct thread *v_vxthread;		/* i thread owning VXLOCK */
+	struct thread *v_vxthread;		/* i thread running vgone. */
 	u_long	v_iflag;			/* i vnode flags (see below) */
 	u_long	v_vflag;			/* v vnode flags */
 	int	v_writecount;			/* v ref count of writers */
@@ -232,8 +232,6 @@ struct xvnode {
  *	VI flags are protected by interlock and live in v_iflag
  *	VV flags are protected by the vnode lock and live in v_vflag
  */
-#define	VI_XLOCK	0x0001	/* vnode is locked to change vtype */
-#define	VI_XWANT	0x0002	/* thread is waiting for vnode */
 #define	VI_OLOCK	0x0008	/* vnode is locked waiting for an object */
 #define	VI_OWANT	0x0010	/* a thread is waiting for VOLOCK */
 #define	VI_MOUNT	0x0020	/* Mount in progress */
@@ -390,26 +388,20 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 extern void	(*lease_updatetime)(int deltat);
 
 /* Requires interlock. */
-#define	VCANRECYCLE(vp)	\
-	(!((vp)->v_iflag & (VI_DOOMED|VI_DOINGINACT|VI_XLOCK)) && \
-	 ((vp)->v_iflag & VI_FREE) && \
+#define	VCANRECYCLE(vp)							\
+	(((vp)->v_iflag & VI_FREE) &&					\
 	 !(vp)->v_holdcnt && !(vp)->v_usecount)
 
 /* Requires interlock. */
-#define	VSHOULDFREE(vp)	\
-	(!((vp)->v_iflag & (VI_FREE|VI_DOOMED|VI_DOINGINACT)) && \
-	 !(vp)->v_holdcnt && !(vp)->v_usecount && \
-	 (!(vp)->v_object || \
+#define	VSHOULDFREE(vp)							\
+	(!((vp)->v_iflag & VI_FREE) &&					\
+	 !(vp)->v_holdcnt && !(vp)->v_usecount &&			\
+	 (!(vp)->v_object ||						\
 	  !((vp)->v_object->ref_count || (vp)->v_object->resident_page_count)))
 
 /* Requires interlock. */
-#define	VMIGHTFREE(vp) \
-	(!((vp)->v_iflag & (VI_FREE|VI_DOOMED|VI_XLOCK|VI_DOINGINACT)) && \
-	 LIST_EMPTY(&(vp)->v_cache_src) && !(vp)->v_usecount)
-
-/* Requires interlock. */
-#define	VSHOULDBUSY(vp)	\
-	(((vp)->v_iflag & VI_FREE) && \
+#define	VSHOULDBUSY(vp)							\
+	(((vp)->v_iflag & VI_FREE) &&					\
 	 ((vp)->v_holdcnt || (vp)->v_usecount))
 
 #define	VI_LOCK(vp)	mtx_lock(&(vp)->v_interlock)
@@ -698,9 +690,6 @@ void	vrele(struct vnode *vp);
 void	vref(struct vnode *vp);
 int	vrefcnt(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
-
-int	vx_wait(struct vnode *vp);
-int	vx_waitl(struct vnode *vp);
 
 int vnode_create_vobject(struct vnode *vp, size_t size, struct thread *td);
 void vnode_destroy_vobject(struct vnode *vp);
