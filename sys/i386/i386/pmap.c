@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.164 1997/10/24 23:41:04 dyson Exp $
+ *	$Id: pmap.c,v 1.165 1997/10/25 02:41:51 dyson Exp $
  */
 
 /*
@@ -170,7 +170,7 @@ vm_zone_t pvzone;
 struct vm_zone pvzone_store;
 struct vm_object pvzone_obj;
 int pv_entry_count=0, pv_entry_max=0,
-	pv_entry_high_water=0, pv_entry_low_water=0;
+	pv_entry_high_water=0;
 int pmap_pagedaemon_waken = 0;
 #define NPVINIT 8192
 struct pv_entry pvinit[NPVINIT];
@@ -539,15 +539,9 @@ pmap_init(phys_start, phys_end)
 
 void
 pmap_init2() {
-<<<<<<< pmap.c
 	pv_entry_max = PMAP_SHPGPERPROC * maxproc + pv_npg;
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
-	pv_entry_low_water = 4 * (pv_entry_max / 10);
 	zinitna(pvzone, &pvzone_obj, NULL, 0, pv_entry_max, ZONE_INTERRUPT, 1);
-=======
-	zinitna(pvzone, &pvzone_obj, NULL, 0,
-		PMAP_SHPGPERPROC * maxproc + pv_npg, ZONE_INTERRUPT, 1);
->>>>>>> 1.164
 }
 
 /*
