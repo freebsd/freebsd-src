@@ -68,10 +68,10 @@
    in words, or 1 if it is. */
 
 int _rl_allow_pathname_alphabetic_chars = 0;
-static char *pathname_alphabetic_chars = "/-_=~.#$";
+static const char *pathname_alphabetic_chars = "/-_=~.#$";
 
 int
-alphabetic (c)
+rl_alphabetic (c)
      int c;
 {
   if (ALPHABETIC (c))
@@ -85,16 +85,16 @@ alphabetic (c)
 int
 _rl_abort_internal ()
 {
-  ding ();
+  rl_ding ();
   rl_clear_message ();
   _rl_init_argument ();
-  rl_pending_input = 0;
+  rl_clear_pending_input ();
 
   _rl_defining_kbd_macro = 0;
-  while (_rl_executing_macro)
+  while (rl_executing_macro)
     _rl_pop_executing_macro ();
 
-  rl_last_func = (Function *)NULL;
+  rl_last_func = (rl_command_func_t *)NULL;
   longjmp (readline_top_level, 1);
   return (0);
 }
@@ -114,7 +114,7 @@ rl_tty_status (count, key)
   ioctl (1, TIOCSTAT, (char *)0);
   rl_refresh_line (count, key);
 #else
-  ding ();
+  rl_ding ();
 #endif
   return 0;
 }
@@ -216,13 +216,35 @@ rl_tilde_expand (ignore, key)
    match in s1.  The compare is case insensitive. */
 char *
 _rl_strindex (s1, s2)
-     register char *s1, *s2;
+     register const char *s1, *s2;
 {
   register int i, l, len;
 
   for (i = 0, l = strlen (s2), len = strlen (s1); (len - i) >= l; i++)
     if (_rl_strnicmp (s1 + i, s2, l) == 0)
-      return (s1 + i);
+      return ((char *) (s1 + i));
+  return ((char *)NULL);
+}
+
+/* Find the first occurrence in STRING1 of any character from STRING2.
+   Return a pointer to the character in STRING1. */
+char *
+_rl_strpbrk (string1, string2)
+     const char *string1, *string2;
+{
+  register const char *scan;
+
+  if (string2 == NULL)
+    return ((char *)NULL);
+
+  for (; *string1; string1++)
+    {
+      for (scan = string2; *scan; scan++)
+	{
+	  if (*string1 == *scan)
+	    return ((char *)string1);
+	}
+    }
   return ((char *)NULL);
 }
 
@@ -346,7 +368,7 @@ _rl_digit_value (c)
 #undef _rl_savestring
 char *
 _rl_savestring (s)
-     char *s;
+     const char *s;
 {
-  return ((char *)strcpy (xmalloc (1 + (int)strlen (s)), (s)));
+  return (strcpy (xmalloc (1 + (int)strlen (s)), (s)));
 }

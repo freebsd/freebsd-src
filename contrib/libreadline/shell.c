@@ -50,11 +50,12 @@
 
 #include <stdio.h>
 
+#include "rlstdc.h"
 #include "rlshell.h"
 #include "xmalloc.h"
 
 #if !defined (HAVE_GETPW_DECLS)
-extern struct passwd *getpwuid ();
+extern struct passwd *getpwuid __P((uid_t));
 #endif /* !HAVE_GETPW_DECLS */
 
 #ifndef NULL
@@ -66,7 +67,7 @@ extern struct passwd *getpwuid ();
 
 /* Does shell-like quoting using single quotes. */
 char *
-single_quote (string)
+sh_single_quote (string)
      char *string;
 {
   register int c;
@@ -97,7 +98,7 @@ single_quote (string)
 /* Set the environment variables LINES and COLUMNS to lines and cols,
    respectively. */
 void
-set_lines_and_columns (lines, cols)
+sh_set_lines_and_columns (lines, cols)
      int lines, cols;
 {
   char *b;
@@ -122,14 +123,14 @@ set_lines_and_columns (lines, cols)
 }
 
 char *
-get_env_value (varname)
-     char *varname;
+sh_get_env_value (varname)
+     const char *varname;
 {
   return ((char *)getenv (varname));
 }
 
 char *
-get_home_dir ()
+sh_get_home_dir ()
 {
   char *home_dir;
   struct passwd *entry;
@@ -148,7 +149,7 @@ get_home_dir ()
 #endif
 
 int
-unset_nodelay_mode (fd)
+sh_unset_nodelay_mode (fd)
      int fd;
 {
   int flags, bflags;

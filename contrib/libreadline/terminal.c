@@ -77,9 +77,6 @@ static char *term_string_buffer = (char *)NULL;
 
 static int tcap_initialized;
 
-/* Non-zero means this terminal can't really do anything. */
-static int dumb_term;
-
 #if !defined (__linux__)
 #  if defined (__EMX__) || defined (NEED_EXTERN_PC)
 extern 
@@ -88,27 +85,36 @@ char PC, *BC, *UP;
 #endif /* __linux__ */
 
 /* Some strings to control terminal actions.  These are output by tputs (). */
-char *term_goto, *term_clreol, *term_cr, *term_clrpag, *term_backspace;
-char *term_pc;
+char *_rl_term_clreol;
+char *_rl_term_clrpag;
+char *_rl_term_cr;
+char *_rl_term_backspace;
+char *_rl_term_goto;
+char *_rl_term_pc;
 
 /* Non-zero if we determine that the terminal can do character insertion. */
-int terminal_can_insert = 0;
+int _rl_terminal_can_insert = 0;
 
 /* How to insert characters. */
-char *term_im, *term_ei, *term_ic, *term_ip, *term_IC;
+char *_rl_term_im;
+char *_rl_term_ei;
+char *_rl_term_ic;
+char *_rl_term_ip;
+char *_rl_term_IC;
 
 /* How to delete characters. */
-char *term_dc, *term_DC;
+char *_rl_term_dc;
+char *_rl_term_DC;
 
 #if defined (HACK_TERMCAP_MOTION)
-char *term_forward_char;
+char *_rl_term_forward_char;
 #endif  /* HACK_TERMCAP_MOTION */
 
 /* How to go up a line. */
-char *term_up;
+char *_rl_term_up;
 
-/* A visible bell, if the terminal can be made to flash the screen. */
-static char *visible_bell;
+/* A visible bell; char if the terminal can be made to flash the screen. */
+static char *_rl_visible_bell;
 
 /* Non-zero means the terminal can auto-wrap lines. */
 int _rl_term_autowrap;
@@ -117,20 +123,26 @@ int _rl_term_autowrap;
 static int term_has_meta;
 
 /* The sequences to write to turn on and off the meta key, if this
-   terminal    has one. */
-static char *term_mm, *term_mo;
+   terminal has one. */
+static char *_rl_term_mm;
+static char *_rl_term_mo;
 
 /* The key sequences output by the arrow keys, if this terminal has any. */
-static char *term_ku, *term_kd, *term_kr, *term_kl;
+static char *_rl_term_ku;
+static char *_rl_term_kd;
+static char *_rl_term_kr;
+static char *_rl_term_kl;
 
 /* How to initialize and reset the arrow keys, if this terminal has any. */
-static char *term_ks, *term_ke;
+static char *_rl_term_ks;
+static char *_rl_term_ke;
 
 /* The key sequences sent by the Home and End keys, if any. */
-static char *term_kh, *term_kH;
+static char *_rl_term_kh;
+static char *_rl_term_kH;
 
 /* Variables that hold the screen dimensions, used by the display code. */
-int screenwidth, screenheight, screenchars;
+int _rl_screenwidth, _rl_screenheight, _rl_screenchars;
 
 /* Non-zero means the user wants to enable the keypad. */
 int _rl_enable_keypad;
@@ -170,72 +182,92 @@ _rl_get_screen_size (tty, ignore_env)
 #if defined (TIOCGWINSZ)
   if (ioctl (tty, TIOCGWINSZ, &window_size) == 0)
     {
-      screenwidth = (int) window_size.ws_col;
-      screenheight = (int) window_size.ws_row;
+      _rl_screenwidth = (int) window_size.ws_col;
+      _rl_screenheight = (int) window_size.ws_row;
     }
 #endif /* TIOCGWINSZ */
 
 #if defined (__EMX__)
-  _emx_get_screensize (&screenwidth, &screenheight);
+  _emx_get_screensize (&_rl_screenwidth, &_rl_screenheight);
 #endif
 
   /* Environment variable COLUMNS overrides setting of "co" if IGNORE_ENV
      is unset. */
-  if (screenwidth <= 0)
+  if (_rl_screenwidth <= 0)
     {
-      if (ignore_env == 0 && (ss = get_env_value ("COLUMNS")))
-	screenwidth = atoi (ss);
+      if (ignore_env == 0 && (ss = sh_get_env_value ("COLUMNS")))
+	_rl_screenwidth = atoi (ss);
 
 #if !defined (__DJGPP__)
-      if (screenwidth <= 0 && term_string_buffer)
-	screenwidth = tgetnum ("co");
+      if (_rl_screenwidth <= 0 && term_string_buffer)
+	_rl_screenwidth = tgetnum ("co");
 #endif
     }
 
   /* Environment variable LINES overrides setting of "li" if IGNORE_ENV
      is unset. */
-  if (screenheight <= 0)
+  if (_rl_screenheight <= 0)
     {
-      if (ignore_env == 0 && (ss = get_env_value ("LINES")))
-	screenheight = atoi (ss);
+      if (ignore_env == 0 && (ss = sh_get_env_value ("LINES")))
+	_rl_screenheight = atoi (ss);
 
 #if !defined (__DJGPP__)
-      if (screenheight <= 0 && term_string_buffer)
-	screenheight = tgetnum ("li");
+      if (_rl_screenheight <= 0 && term_string_buffer)
+	_rl_screenheight = tgetnum ("li");
 #endif
     }
 
   /* If all else fails, default to 80x24 terminal. */
-  if (screenwidth <= 1)
-    screenwidth = 80;
+  if (_rl_screenwidth <= 1)
+    _rl_screenwidth = 80;
 
-  if (screenheight <= 0)
-    screenheight = 24;
+  if (_rl_screenheight <= 0)
+    _rl_screenheight = 24;
 
   /* If we're being compiled as part of bash, set the environment
      variables $LINES and $COLUMNS to new values.  Otherwise, just
      do a pair of putenv () or setenv () calls. */
-  set_lines_and_columns (screenheight, screenwidth);
+  sh_set_lines_and_columns (_rl_screenheight, _rl_screenwidth);
 
   if (_rl_term_autowrap == 0)
-    screenwidth--;
+    _rl_screenwidth--;
 
-  screenchars = screenwidth * screenheight;
+  _rl_screenchars = _rl_screenwidth * _rl_screenheight;
 }
 
 void
 _rl_set_screen_size (rows, cols)
      int rows, cols;
 {
-  screenheight = rows;
-  screenwidth = cols;
+  if (rows == 0 || cols == 0)
+    return;
+
+  _rl_screenheight = rows;
+  _rl_screenwidth = cols;
 
   if (_rl_term_autowrap == 0)
-    screenwidth--;
+    _rl_screenwidth--;
 
-  screenchars = screenwidth * screenheight;
+  _rl_screenchars = _rl_screenwidth * _rl_screenheight;
 }
 
+void
+rl_set_screen_size (rows, cols)
+     int rows, cols;
+{
+  _rl_set_screen_size (rows, cols);
+}
+
+void
+rl_get_screen_size (rows, cols)
+     int *rows, *cols;
+{
+  if (rows)
+    *rows = _rl_screenheight;
+  if (cols)
+    *cols = _rl_screenwidth;
+}
+     
 void
 rl_resize_terminal ()
 {
@@ -247,7 +279,7 @@ rl_resize_terminal ()
 }
 
 struct _tc_string {
-     char *tc_var;
+     const char *tc_var;
      char **tc_value;
 };
 
@@ -255,32 +287,32 @@ struct _tc_string {
    search algorithm to something smarter. */
 static struct _tc_string tc_strings[] =
 {
-  { "DC", &term_DC },
-  { "IC", &term_IC },
-  { "ce", &term_clreol },
-  { "cl", &term_clrpag },
-  { "cr", &term_cr },
-  { "dc", &term_dc },
-  { "ei", &term_ei },
-  { "ic", &term_ic },
-  { "im", &term_im },
-  { "kd", &term_kd },
-  { "kh", &term_kh },	/* home */
-  { "@7", &term_kH },	/* end */
-  { "kl", &term_kl },
-  { "kr", &term_kr },
-  { "ku", &term_ku },
-  { "ks", &term_ks },
-  { "ke", &term_ke },
-  { "le", &term_backspace },
-  { "mm", &term_mm },
-  { "mo", &term_mo },
+  { "DC", &_rl_term_DC },
+  { "IC", &_rl_term_IC },
+  { "ce", &_rl_term_clreol },
+  { "cl", &_rl_term_clrpag },
+  { "cr", &_rl_term_cr },
+  { "dc", &_rl_term_dc },
+  { "ei", &_rl_term_ei },
+  { "ic", &_rl_term_ic },
+  { "im", &_rl_term_im },
+  { "kd", &_rl_term_kd },
+  { "kh", &_rl_term_kh },	/* home */
+  { "@7", &_rl_term_kH },	/* end */
+  { "kl", &_rl_term_kl },
+  { "kr", &_rl_term_kr },
+  { "ku", &_rl_term_ku },
+  { "ks", &_rl_term_ks },
+  { "ke", &_rl_term_ke },
+  { "le", &_rl_term_backspace },
+  { "mm", &_rl_term_mm },
+  { "mo", &_rl_term_mo },
 #if defined (HACK_TERMCAP_MOTION)
-  { "nd", &term_forward_char },
+  { "nd", &_rl_term_forward_char },
 #endif
-  { "pc", &term_pc },
-  { "up", &term_up },
-  { "vb", &visible_bell },
+  { "pc", &_rl_term_pc },
+  { "up", &_rl_term_up },
+  { "vb", &_rl_visible_bell },
 };
 
 #define NUM_TC_STRINGS (sizeof (tc_strings) / sizeof (struct _tc_string))
@@ -305,16 +337,17 @@ get_term_capabilities (bp)
 
 int
 _rl_init_terminal_io (terminal_name)
-     char *terminal_name;
+     const char *terminal_name;
 {
-  char *term, *buffer;
+  const char *term;
+  char *buffer;
   int tty, tgetent_ret;
   Keymap xkeymap;
 
-  term = terminal_name ? terminal_name : get_env_value ("TERM");
-  term_clrpag = term_cr = term_clreol = (char *)NULL;
+  term = terminal_name ? terminal_name : sh_get_env_value ("TERM");
+  _rl_term_clrpag = _rl_term_cr = _rl_term_clreol = (char *)NULL;
   tty = rl_instream ? fileno (rl_instream) : 0;
-  screenwidth = screenheight = 0;
+  _rl_screenwidth = _rl_screenheight = 0;
 
   if (term == 0)
     term = "dumb";
@@ -345,41 +378,40 @@ _rl_init_terminal_io (terminal_name)
       FREE (term_buffer);
       buffer = term_buffer = term_string_buffer = (char *)NULL;
 
-      dumb_term = 1;
       _rl_term_autowrap = 0;	/* used by _rl_get_screen_size */
 
 #if defined (__EMX__)
-      _emx_get_screensize (&screenwidth, &screenheight);
-      screenwidth--;
+      _emx_get_screensize (&_rl_screenwidth, &_rl_screenheight);
+      _rl_screenwidth--;
 #else /* !__EMX__ */
       _rl_get_screen_size (tty, 0);
 #endif /* !__EMX__ */
 
       /* Defaults. */
-      if (screenwidth <= 0 || screenheight <= 0)
+      if (_rl_screenwidth <= 0 || _rl_screenheight <= 0)
         {
-	  screenwidth = 79;
-	  screenheight = 24;
+	  _rl_screenwidth = 79;
+	  _rl_screenheight = 24;
         }
 
       /* Everything below here is used by the redisplay code (tputs). */
-      screenchars = screenwidth * screenheight;
-      term_cr = "\r";
-      term_im = term_ei = term_ic = term_IC = (char *)NULL;
-      term_up = term_dc = term_DC = visible_bell = (char *)NULL;
-      term_ku = term_kd = term_kl = term_kr = (char *)NULL;
-      term_mm = term_mo = (char *)NULL;
+      _rl_screenchars = _rl_screenwidth * _rl_screenheight;
+      _rl_term_cr = "\r";
+      _rl_term_im = _rl_term_ei = _rl_term_ic = _rl_term_IC = (char *)NULL;
+      _rl_term_up = _rl_term_dc = _rl_term_DC = _rl_visible_bell = (char *)NULL;
+      _rl_term_ku = _rl_term_kd = _rl_term_kl = _rl_term_kr = (char *)NULL;
+      _rl_term_mm = _rl_term_mo = (char *)NULL;
 #if defined (HACK_TERMCAP_MOTION)
       term_forward_char = (char *)NULL;
 #endif
-      terminal_can_insert = term_has_meta = 0;
+      _rl_terminal_can_insert = term_has_meta = 0;
 
       /* Reasonable defaults for tgoto().  Readline currently only uses
-         tgoto if term_IC or term_DC is defined, but just in case we
+         tgoto if _rl_term_IC or _rl_term_DC is defined, but just in case we
          change that later... */
       PC = '\0';
-      BC = term_backspace = "\b";
-      UP = term_up;
+      BC = _rl_term_backspace = "\b";
+      UP = _rl_term_up;
 
       return 0;
     }
@@ -388,12 +420,12 @@ _rl_init_terminal_io (terminal_name)
 
   /* Set up the variables that the termcap library expects the application
      to provide. */
-  PC = term_pc ? *term_pc : 0;
-  BC = term_backspace;
-  UP = term_up;
+  PC = _rl_term_pc ? *_rl_term_pc : 0;
+  BC = _rl_term_backspace;
+  UP = _rl_term_up;
 
-  if (!term_cr)
-    term_cr = "\r";
+  if (!_rl_term_cr)
+    _rl_term_cr = "\r";
 
   _rl_term_autowrap = tgetflag ("am") && tgetflag ("xn");
 
@@ -403,36 +435,36 @@ _rl_init_terminal_io (terminal_name)
       character insertion if *any one of* the capabilities `IC',
       `im', `ic' or `ip' is provided."  But we can't do anything if
       only `ip' is provided, so... */
-  terminal_can_insert = (term_IC || term_im || term_ic);
+  _rl_terminal_can_insert = (_rl_term_IC || _rl_term_im || _rl_term_ic);
 
   /* Check to see if this terminal has a meta key and clear the capability
      variables if there is none. */
   term_has_meta = (tgetflag ("km") || tgetflag ("MT"));
   if (!term_has_meta)
-    term_mm = term_mo = (char *)NULL;
+    _rl_term_mm = _rl_term_mo = (char *)NULL;
 
   /* Attempt to find and bind the arrow keys.  Do not override already
      bound keys in an overzealous attempt, however. */
   xkeymap = _rl_keymap;
 
   _rl_keymap = emacs_standard_keymap;
-  _rl_bind_if_unbound (term_ku, rl_get_previous_history);
-  _rl_bind_if_unbound (term_kd, rl_get_next_history);
-  _rl_bind_if_unbound (term_kr, rl_forward);
-  _rl_bind_if_unbound (term_kl, rl_backward);
+  _rl_bind_if_unbound (_rl_term_ku, rl_get_previous_history);
+  _rl_bind_if_unbound (_rl_term_kd, rl_get_next_history);
+  _rl_bind_if_unbound (_rl_term_kr, rl_forward);
+  _rl_bind_if_unbound (_rl_term_kl, rl_backward);
 
-  _rl_bind_if_unbound (term_kh, rl_beg_of_line);	/* Home */
-  _rl_bind_if_unbound (term_kH, rl_end_of_line);	/* End */
+  _rl_bind_if_unbound (_rl_term_kh, rl_beg_of_line);	/* Home */
+  _rl_bind_if_unbound (_rl_term_kH, rl_end_of_line);	/* End */
 
 #if defined (VI_MODE)
   _rl_keymap = vi_movement_keymap;
-  _rl_bind_if_unbound (term_ku, rl_get_previous_history);
-  _rl_bind_if_unbound (term_kd, rl_get_next_history);
-  _rl_bind_if_unbound (term_kr, rl_forward);
-  _rl_bind_if_unbound (term_kl, rl_backward);
+  _rl_bind_if_unbound (_rl_term_ku, rl_get_previous_history);
+  _rl_bind_if_unbound (_rl_term_kd, rl_get_next_history);
+  _rl_bind_if_unbound (_rl_term_kr, rl_forward);
+  _rl_bind_if_unbound (_rl_term_kl, rl_backward);
 
-  _rl_bind_if_unbound (term_kh, rl_beg_of_line);	/* Home */
-  _rl_bind_if_unbound (term_kH, rl_end_of_line);	/* End */
+  _rl_bind_if_unbound (_rl_term_kh, rl_beg_of_line);	/* Home */
+  _rl_bind_if_unbound (_rl_term_kH, rl_end_of_line);	/* End */
 #endif /* VI_MODE */
 
   _rl_keymap = xkeymap;
@@ -442,7 +474,7 @@ _rl_init_terminal_io (terminal_name)
 
 char *
 rl_get_termcap (cap)
-     char *cap;
+     const char *cap;
 {
   register int i;
 
@@ -460,7 +492,7 @@ rl_get_termcap (cap)
    has changed. */
 int
 rl_reset_terminal (terminal_name)
-     char *terminal_name;
+     const char *terminal_name;
 {
   _rl_init_terminal_io (terminal_name);
   return 0;
@@ -486,7 +518,7 @@ _rl_output_character_function (c)
 /* Write COUNT characters from STRING to the output stream. */
 void
 _rl_output_some_chars (string, count)
-     char *string;
+     const char *string;
      int count;
 {
   fwrite (string, 1, count, _rl_out_stream);
@@ -499,9 +531,9 @@ _rl_backspace (count)
 {
   register int i;
 
-  if (term_backspace)
+  if (_rl_term_backspace)
     for (i = 0; i < count; i++)
-      tputs (term_backspace, 1, _rl_output_character_function);
+      tputs (_rl_term_backspace, 1, _rl_output_character_function);
   else
     for (i = 0; i < count; i++)
       putc ('\b', _rl_out_stream);
@@ -510,11 +542,11 @@ _rl_backspace (count)
 
 /* Move to the start of the next line. */
 int
-crlf ()
+rl_crlf ()
 {
 #if defined (NEW_TTY_DRIVER)
-  if (term_cr)
-    tputs (term_cr, 1, _rl_output_character_function);
+  if (_rl_term_cr)
+    tputs (_rl_term_cr, 1, _rl_output_character_function);
 #endif /* NEW_TTY_DRIVER */
   putc ('\n', _rl_out_stream);
   return 0;
@@ -522,7 +554,7 @@ crlf ()
 
 /* Ring the terminal bell. */
 int
-ding ()
+rl_ding ()
 {
   if (readline_echoing_p)
     {
@@ -532,9 +564,9 @@ ding ()
 	default:
 	  break;
 	case VISIBLE_BELL:
-	  if (visible_bell)
+	  if (_rl_visible_bell)
 	    {
-	      tputs (visible_bell, 1, _rl_output_character_function);
+	      tputs (_rl_visible_bell, 1, _rl_output_character_function);
 	      break;
 	    }
 	  /* FALLTHROUGH */
@@ -558,8 +590,8 @@ void
 _rl_enable_meta_key ()
 {
 #if !defined (__DJGPP__)
-  if (term_has_meta && term_mm)
-    tputs (term_mm, 1, _rl_output_character_function);
+  if (term_has_meta && _rl_term_mm)
+    tputs (_rl_term_mm, 1, _rl_output_character_function);
 #endif
 }
 
@@ -568,9 +600,9 @@ _rl_control_keypad (on)
      int on;
 {
 #if !defined (__DJGPP__)
-  if (on && term_ks)
-    tputs (term_ks, 1, _rl_output_character_function);
-  else if (!on && term_ke)
-    tputs (term_ke, 1, _rl_output_character_function);
+  if (on && _rl_term_ks)
+    tputs (_rl_term_ks, 1, _rl_output_character_function);
+  else if (!on && _rl_term_ke)
+    tputs (_rl_term_ke, 1, _rl_output_character_function);
 #endif
 }
