@@ -11,9 +11,6 @@ setup.
 Any distribution may be further customized by selecting the `Custom'
 item before leaving the menu.
 
-N.B. All references in this document to `complete source' mean the
-complete source tree minus any legally encumbered cryptography code.
-
 The current "canned" installations are provided:
 
 Developer:      Base ("bin") distribution, man pages, dictionary
@@ -31,10 +28,6 @@ Everything:     The base distribution, man pages, dictionary files,
                 profiling libraries, the FreeBSD compatibility libraries,
                 the complete source tree, games and your choice of XFree86
                 distribution components.
-
-                Note that the cryptography source code is NOT included
-                in this collection.  You will need to select that by
-                hand if you're inside the United States.
 
 Custom:         Allows you to create or modify your distribution set on
                 a piece-by-piece basis.

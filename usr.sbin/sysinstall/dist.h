@@ -23,19 +23,11 @@
 #define DIST_COMPAT4X		0x02000
 #endif
 #define DIST_XF86		0x04000
-#define DIST_CRYPTO		0x08000
 #define DIST_CATPAGES		0x10000
 #define DIST_PORTS		0x20000
 #define DIST_LOCAL		0x40000
 #define DIST_PERL		0x80000
 #define DIST_ALL		0xFFFFF
-
-/* Subtypes for CRYPTO distribution */
-#define DIST_CRYPTO_CRYPTO	0x0001
-#define DIST_CRYPTO_SCRYPTO	0x0002
-#define DIST_CRYPTO_SSECURE	0x0004
-#define DIST_CRYPTO_SKERBEROS5	0x0008
-#define DIST_CRYPTO_ALL		0x000F
 
 /* Subtypes for SRC distribution */
 #define DIST_SRC_BASE		0x00001
@@ -54,7 +46,10 @@
 #define DIST_SRC_UBIN		0x02000
 #define DIST_SRC_USBIN		0x04000
 #define DIST_SRC_BIN		0x08000
-#define DIST_SRC_ALL		0x0FFFF
+#define DIST_SRC_SCRYPTO	0x10000
+#define DIST_SRC_SSECURE	0x20000
+#define DIST_SRC_SKERBEROS5	0x40000
+#define DIST_SRC_ALL		0x7FFFF
 
 /* Subtypes for XFree86 packages */
 #define	DIST_XF86_CLIENTS	0x0001
@@ -81,7 +76,7 @@
 
 /* Canned distribution sets */
 #define _DIST_USER \
-	( DIST_BASE | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_CRYPTO | DIST_PERL )
+	( DIST_BASE | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_PERL )
 
 #define _DIST_DEVELOPER \
 	( _DIST_USER | DIST_PROFLIBS | DIST_INFO | DIST_SRC )

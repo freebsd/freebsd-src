@@ -41,10 +41,6 @@ OPENPAM=	${.CURDIR}/../../../contrib/openpam
 LIB=	pam
 NOPROFILE=	YES
 
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
-DISTRIBUTION=	crypto
-.endif
-
 SRCS=	openpam_borrow_cred.c \
 	openpam_configure.c \
 	openpam_dispatch.c \

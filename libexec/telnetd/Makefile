@@ -30,7 +30,6 @@ LDADD=		-lutil -ltermcap ${LIBTELNET}
 
 .if !defined(RELEASE_CRUNCH)
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
-DISTRIBUTION=	crypto
 SRCS+=		authenc.c
 CFLAGS+=	-DAUTHENTICATION -DENCRYPTION
 DPADD+=		${LIBMP} ${LIBCRYPTO} ${LIBCRYPT} ${LIBPAM}
