@@ -1855,6 +1855,7 @@ struct bge_status_block {
  */
 #define ALTIMA_VENDORID			0x173b
 #define ALTIMA_DEVICE_AC1000		0x03e8
+#define ALTIMA_DEVICE_AC1002		0x03e9
 #define ALTIMA_DEVICE_AC9100	 	0x03ea			
 
 /*
