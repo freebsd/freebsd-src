@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.6 1998/05/25 02:22:38 brian Exp $
+ *	$Id: mp.c,v 1.7 1998/06/15 19:06:22 brian Exp $
  */
 
 #include <sys/types.h>
@@ -710,7 +710,7 @@ mp_ShowStatus(struct cmdargs const *arg)
 const char *
 mp_Enddisc(u_char c, const char *address, int len)
 {
-  static char result[100];
+  static char result[100];	/* Used immediately after it's returned */
   int f, header;
 
   switch (c) {

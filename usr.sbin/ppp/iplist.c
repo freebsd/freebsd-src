@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iplist.c,v 1.4.4.3 1998/05/01 19:24:54 brian Exp $
+ *	$Id: iplist.c,v 1.5 1998/05/21 21:45:53 brian Exp $
  */
 
 #include <sys/types.h>
@@ -40,7 +40,7 @@
 static int
 do_inet_aton(const char *start, const char *end, struct in_addr *ip)
 {
-  static char ipstr[16];
+  char ipstr[16];
 
   if (end - start > 15) {
     log_Printf(LogWARN, "%.*s: Invalid IP address\n", end-start, start);

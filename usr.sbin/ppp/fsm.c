@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.35 1998/05/01 19:24:32 brian Exp $
+ * $Id: fsm.c,v 1.28 1998/05/21 21:45:20 brian Exp $
  *
  *  TODO:
  */
@@ -914,6 +914,7 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
      * MUST send a unique id for each REQ....
      */
     static u_char id;
+
     fsm_Output(fp, CODE_CODEREJ, id++, MBUF_CTOP(bp), bp->cnt);
     mbuf_Free(bp);
     return;
