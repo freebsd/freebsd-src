@@ -193,13 +193,14 @@ intr_disable(void)
 	register_t psr;
 	__asm __volatile ("mov %0=psr;;" : "=r"(psr));
 	disable_intr();
-	return (psr);
+	return ((psr & IA64_PSR_I) ? 1 : 0);
 }
 
 static __inline void
-intr_restore(critical_t psr)
+intr_restore(register_t ie)
 {
-	__asm __volatile ("mov psr.l=%0;; srlz.d" :: "r"(psr));
+	if (ie)
+		enable_intr();
 }
 
 #endif /* _KERNEL */
