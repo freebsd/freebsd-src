@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.11 1998/10/10 18:32:18 gpalmer Exp $
+#	$Id: files.alpha,v 1.12 1998/11/08 18:39:57 nsouch Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -112,7 +112,6 @@ alpha/pci/apecs.c		optional	apecs
 alpha/pci/lca.c			optional	lca
 alpha/pci/pcibus.c		optional	pci
 alpha/isa/isa.c			optional	isa
-kern/link_elf.c			standard
 alpha/alpha/elf_machdep.c	standard
 libkern/bcd.c			standard
 libkern/bcmp.c			standard
