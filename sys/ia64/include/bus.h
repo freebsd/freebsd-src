@@ -1112,16 +1112,12 @@ struct mbuf;
 struct uio;
 
 /*
- *	bus_dmasync_op_t
- *
  *	Operations performed by bus_dmamap_sync().
  */
-typedef enum {
-	BUS_DMASYNC_PREREAD,
-	BUS_DMASYNC_POSTREAD,
-	BUS_DMASYNC_PREWRITE,
-	BUS_DMASYNC_POSTWRITE
-} bus_dmasync_op_t;
+#define	BUS_DMASYNC_PREREAD	1
+#define	BUS_DMASYNC_POSTREAD	2
+#define	BUS_DMASYNC_PREWRITE	4
+#define	BUS_DMASYNC_POSTWRITE	8
 
 /*
  *	bus_dma_tag_t
@@ -1251,7 +1247,7 @@ int bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 /*
  * Perform a syncronization operation on the given map.
  */
-void _bus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, bus_dmasync_op_t);
+void _bus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, int);
 #define bus_dmamap_sync(dmat, dmamap, op) 		\
 	if ((dmamap) != NULL)				\
 		_bus_dmamap_sync(dmat, dmamap, op)
