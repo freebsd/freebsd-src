@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.23 1995/04/14 15:13:23 dufault Exp $
+ *	$Id: autoconf.c,v 1.24 1995/04/23 04:14:41 phk Exp $
  */
 
 /*
@@ -78,6 +78,7 @@ int nfs_mountroot __P((void));
 int cd9660_mountroot __P((void));
 #endif
 
+#include "eisa.h"
 #include "isa.h"
 #if NISA > 0
       #include <i386/isa/isa_device.h>
@@ -145,6 +146,10 @@ configure_finish()
 void
 configure()
 {
+
+#if NEISA > 0
+	eisa_configure();
+#endif
 
 	configure_start();
 
