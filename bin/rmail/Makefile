@@ -4,12 +4,15 @@
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/rmail
 
+# Not much point this being static. It calls a shared sendmail...
+NOSHARED?= NO
+
 PROG=	rmail
 SRCS=	rmail.c
 MAN=	rmail.8
-CFLAGS+=-I${SENDMAIL_DIR}/include -I.
+
 WARNS?=	0
-WFORMAT=0
+CFLAGS+=-I${SENDMAIL_DIR}/include -I.
 
 .if exists(${.OBJDIR}/../../lib/libsm)
 LIBSMDIR:=	${.OBJDIR}/../../lib/libsm
@@ -33,9 +36,6 @@ LDFLAGS+=${SENDMAIL_LDFLAGS}
 # If you want to have your rmail queuing the mail only, uncomment the
 # following:
 # CFLAGS+= -DQUEUE_ONLY
-
-# Not much point this being static. It calls a shared sendmail...
-NOSHARED?= NO
 
 sm_os.h:
 	ln -sf ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h sm_os.h
