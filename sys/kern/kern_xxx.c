@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.9 1994/12/04 19:58:43 phk Exp $
+ * $Id: kern_xxx.c,v 1.10 1995/05/30 08:05:49 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -169,8 +169,8 @@ shutdown_nice(void)
 	register struct proc *p;
 
 	/* Send a signal to init(8) and have it shutdown the world */
-	p = pfind(1);
-	psignal(p, SIGINT);
+	if (initproc != NULL)
+		psignal(initproc, SIGINT);
 
 	return;
 }
