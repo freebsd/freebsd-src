@@ -1775,14 +1775,17 @@ vm_map_clean(map, start, end, syncio, invalidate)
 			    OFF_TO_IDX(offset),
 			    OFF_TO_IDX(offset + size + PAGE_MASK),
 			    flags);
-			if (invalidate) {
-				/*vm_object_pip_wait(object, "objmcl");*/
-				vm_object_page_remove(object,
-				    OFF_TO_IDX(offset),
-				    OFF_TO_IDX(offset + size + PAGE_MASK),
-				    FALSE);
-			}
 			VOP_UNLOCK(object->handle, 0, curproc);
+			vm_object_deallocate(object);
+		}
+		if (object && invalidate &&
+		   ((object->type == OBJT_VNODE) ||
+		    (object->type == OBJT_DEVICE))) {
+			vm_object_reference(object);
+			vm_object_page_remove(object,
+			    OFF_TO_IDX(offset),
+			    OFF_TO_IDX(offset + size + PAGE_MASK),
+			    FALSE);
 			vm_object_deallocate(object);
 		}
 		start += size;
