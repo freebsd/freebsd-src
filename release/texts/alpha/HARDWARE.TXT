@@ -996,7 +996,7 @@ The kernel config file must contain:
 Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
 kernel config file. A 'cpu EV5' is mandatory to keep config(8) happy.
 
-** DS20/DS20E ("Goldrush" ?):
+** DS20/DS20E ("Goldrush"):
 
 Features:
 - 21264 EV6 CPU at 500 or 600 MHz
@@ -1043,13 +1043,44 @@ The kernel config file must contain:
 Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
 kernel config file. A 'cpu EV5' is mandatory to keep config(8) happy.
 
-** DP264
+** AlphaPC 264DP <need more info on this one; please check for correctness>
 
-< need info on this one >
+Features:
+- 21264 EV6 CPU at 670 MHz
+- dual CPU capable 
+- L2 / Bcache: 4 Mbytes per CPU
+- memory bus: 256 bit 
+- memory: SDRAM DIMMs
+	  installed in sets of 4
+	  uses ECC 
+	  16 DIMM slots
+	  max. 4Gb
+- 21272 Core Logic chip-set ("Tsunami")
+- embedded Adaptec AIC7890/91 Wide Ultra SCSI 
+- 2x embedded IDE based on Cypress 82C693 chips
+- embedded USB via Cypress 82C693
+- expansion: 2 independent PCI buses (called hoses)
+	     6 64-bit PCI slots (3 per hose)
+	     1 ISA slot
 
-- onboard Adaptec is not bootable but works with FreeBSD 4.0 and later
-  as a datadisk-only SCSI bus.
+Memory:
+A maximum of 2Gb memory is supported by FreeBSD.
 
+CPU:
+DP264 can have 2 CPUs installed. FreeBSD/alpha is not currently SMP-capable 
+and will only use the primary CPU.
+
+Embedded SCSI:
+The onboard Adaptec is not bootable but works with FreeBSD 4.0 and later
+as a datadisk-only SCSI bus.
+
+Embedded IDE:
+Busmaster DMA is supported on the first IDE interface only.
+
+The kernel config file must contain:
+	options         DEC_ST6600    
+Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
+kernel config file. A 'cpu EV5' is mandatory to keep config(8) happy.
 
 Supported hardware overview
 ---------------------------
