@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: main.c,v 1.13 1997/08/19 17:52:43 peter Exp $";
+static char rcsid[] = "$Id: main.c,v 1.14 1997/08/22 12:03:55 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -175,6 +175,7 @@ main(argc, argv)
     sigset_t mask;
     struct protent *protp;
     struct stat statbuf;
+    int connect_attempts = 0;
 
     phase = PHASE_INITIALIZE;
     p = ttyname(0);
@@ -472,12 +473,15 @@ main(argc, argv)
 	    if (device_script(connector, ttyfd, ttyfd) < 0) {
 		syslog(LOG_ERR, "Connect script failed");
 		setdtr(ttyfd, FALSE);
+		connect_attempts++;
 		goto fail;
 	    }
 
 	    syslog(LOG_INFO, "Serial connection established.");
 	    sleep(1);		/* give it time to set up its terminal */
 	}
+
+	connect_attempts = 0;	/* we made it through ok */
 
 	/* set line speed, flow control, etc.; clear CLOCAL if modem option */
 	set_up_tty(ttyfd, 0);
@@ -487,7 +491,8 @@ main(argc, argv)
 	    while ((i = open(devnam, O_RDWR)) < 0) {
 		if (errno != EINTR)
 		    syslog(LOG_ERR, "Failed to reopen %s: %m", devnam);
-		if (!persist || errno != EINTR || hungup || kill_link)
+		if (!persist || errno != EINTR ||
+			hungup || kill_link)
 		    goto fail;
 	    }
 	    close(i);
@@ -601,6 +606,11 @@ main(argc, argv)
 			    syslog(LOG_WARNING, "unable to delete if file: %m");
 	    iffilename[0] = 0;
 	}
+
+	/* limit to retries? */
+	if (max_con_attempts)
+	    if (connect_attempts >= max_con_attempts)
+		break;
 
 	if (!persist)
 	    break;
