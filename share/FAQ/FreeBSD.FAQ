@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.21 1995/03/02 19:34:05 gclarkii Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.22 1995/03/07 13:54:44 roberto Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -24,7 +24,7 @@ Table of Contents
 6 Kernel Configuration 
 7 System Administration
 8 Networking
-9 Serial Communications <XXX> 
+9 Serial Communications
 
 
 
@@ -910,6 +910,371 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
 
 9 Serial Communications
 -----------------------
+
+This section answers common questions about serial communications with
+FreeBSD.
+
+9.1: How do I tell if FreeBSD found my serial ports or modem cards?
+
+As the FreeBSD kernel boots, it will probe for the serial ports in
+your system for which the kernel was configured.  You can either watch
+your system closely for the messages it prints or run the command
+
+    dmesg | grep sio
+
+after your system's up and running.
+
+Here's some example output from the above command:
+
+    sio0 at 0x3f8-0x3ff irq 4 on isa
+    sio0: type 16550A
+    sio1 at 0x2f8-0x2ff irq 3 on isa
+    sio1: type 16550A
+
+This shows two serial ports.  The first is on irq 4, is using port
+address 0x3f8, and has a 16550A-type UART chip.  The second uses the
+same kind of chip but is on irq 3 and is at port address 0x2f8.
+Internal modem cards are treated just like serial ports---except that
+they always have a modem ``attached'' to the port.
+
+The GENERIC kernel includes support for two serial ports using the
+same irq and port address settings in the above example.  If these
+settings aren't right for your system, or if you've added modem cards
+or have more serial ports than your kernel is configured for, just
+reconfigure your kernel.  See section 7 of the FAQ for more details.
+
+9.2: How do I access the serial ports once FreeBSD is running?
+
+The third serial port, sio2 (known as COM3 in DOS), is on /dev/tty02
+for directly-connected devices, on /dev/cuaa2 for dial-out devices,
+and on /dev/ttyd2 for dial-in devices.  What's the difference between
+these three classes of devices?
+
+You use ttyXX for directly-connected or hardwired devices, like
+printers or terminals.
+
+In place of ttyXX, you can use the pair of devices cuaaX and ttydX.
+You use ttydX for dial-ins.  The ttydX device acts like the ttyXX
+device, but it also uses the modem control lines.  When opening
+/dev/ttydX in blocking mode, a process will wait for the corresponding
+cuaaX device to become inactive, and then wait for the carrier detect
+line to go active.  When you open the cuaaX device, it makes sure the
+serial port isn't already in use by the ttydX device.  If the port's
+available, it ``steals'' it from the ttydX device.  Also, the cuaaX
+device doesn't care about carrier detect.  With this scheme and an
+auto-answer modem, you can have remote users log in and you can still
+dialout with the same modem and the system will take care of all the
+conflicts.
+
+9.3: How do I configure the kernel for my multiport serial card?
+
+Again, the section on kernel configuration provides information about
+configuring your kernel.  For a multiport serial card, place an sio
+line for each serial port on the card in the kernel configuration
+file.  But place the irq and vector specifiers on only one of the
+entries.  All of the ports on the card should share one irq.  For
+consistency, use the last serial port to specify the irq.  Also,
+specify the COM_MULTIPORT option.
+
+The following example is for an AST 4-port serial card on irq 7:
+
+    options "COM_MULTIPORT"
+    device sio4 at isa? port 0x2a0 tty flags 0x781
+    device sio5 at isa? port 0x2a8 tty flags 0x781
+    device sio6 at isa? port 0x2b0 tty flags 0x781
+    device sio7 at isa? port 0x2b8 tty flags 0x781 irq 7 vector siointr
+
+The flags indicate that the master port has minor number 7 (0x700),
+diagnostics enabled during probe (0x080), and all the ports share an
+irq (0x001).
+
+9.4: I have two multiport serial cards that can share irqs.  Can
+      FreeBSD handle this?
+
+Not yet.  You'll have to use a different irq for each card.
+
+9.5: What's the difference between tty01, ttyi01, and ttyl01?  Or,
+      how can I set the default serial parameters for a port?
+
+The ttyXX (or cuaaX or ttydX) device is the regular device you'll want
+to open for your applications.  When a process opens the device, it'll
+have a default set of terminal I/O settings.  You can see these
+settings with the command
+
+    stty -a -f /dev/tty01
+
+When you change the settings to this device, the settings are in
+effect until the device is closed.  When it's reopened, it goes back
+to the default set.  To make changes to the default set, you can open
+and adjust the settings of the ``initial state'' device.  For example,
+to turn on CLOCAL mode, 8 bits, and XON/XOFF flow control by default
+for tty05, do:
+
+    stty -f /dev/ttyi05 clocal cs8 ixon ixoff
+
+A good place to do this is in /etc/rc.serial.  Now, an application
+will have these settings by default when it opens tty05.  It can still
+change these settings to its liking, though.
+
+You can also prevent certain settings from being changed by an
+application by making adjustments to the ``lock state'' device.  For
+example, to lock the speed of tty05 to 57600 bps, do
+
+    stty -f /dev/ttyl05 57600
+
+Now, an application that opens tty05 and tries to change the speed of
+the port will be stuck with 57600 bps.
+
+Naturally, you should make the initial state and lock state devices
+writable only by root.  The MAKEDEV script does NOT do this when it
+creates the device entries.
+
+9.6: How can I enable dialup logins on my modem?
+
+So you want to become an Internet service provider, eh?  First, you'll
+need one or more modems that can autoanswer.  Your modem will need to
+assert carrier-detect when it detects a carrier and not assert it all
+the time.  It will need to hang up the phone and reset itself when the
+data terminal ready (DTR) line goes from on to off.  It should
+probably use RTS/CTS flow control or no local flow control at all.
+Finally, it must use a constant speed between the computer and itself,
+but (to be nice to your callers) it should negotiate a speed between
+itself and the remote modem.
+
+For many Hayes command-set--compatible modems, this command will
+make these settings and store them in nonvolatile memory:
+
+    AT &C1 &D3 &K3 &Q6 S0=1 &W
+
+See 9.10 below for information on how to make these settings without
+resorting to an MS-DOS terminal program.
+
+Next, make an entry in /etc/ttys for the modem.  This file lists all
+the ports on which the operating system will await logins.  Add a line
+that looks something like this:
+
+    ttyd1 "/usr/libexec/getty std.57600" dialup on insecure
+
+This line indicates that the second serial port (/dev/ttyd1) has a
+modem connected running at 57600 bps and no parity (std.57600, which
+comes from the file /etc/gettytab).  The terminal type for this port
+is ``dialup.''  The port is ``on'' and is ``insecure''---meaning root
+logins on the port aren't allowed.  For dialin ports like this one,
+use the ttydX entry.
+
+It's common practice to use ``dialup'' as the terminal type.  Many
+users set up in their .profile or .login files a prompt for the actual
+terminal type if the starting type is dialup.  The example shows the
+port as insecure.  To become root on this port, you have to login as a
+regular user, then ``su'' to root.  If you use ``secure'' then root
+can login in directly.
+
+After making modifications to /etc/ttys, you need to send a hangup or
+HUP signal to the init process:
+
+    kill -1 1
+
+This forces the init process to reread /etc/ttys.  The init process
+will then start getty processes on all ``on'' ports.  You can find out
+if logins are available for your port by typing
+
+    ps -ax | grep '[t]tyd1'
+
+You should see something like:
+
+    747 ??  I      0:00.04 /usr/libexec/getty std.57600 ttyd1 
+
+9.7: How can I make my spare computer a dumb terminal connected to my
+      FreeBSD box?
+
+If you're using another computer as a terminal into your FreeBSD
+system, get a null modem cable to go between the two serial ports.  If
+you're using an actual terminal, see its accompanying instructions.
+
+Then, modify /etc/ttys, like above.  For example, if you're hooking up
+a WYSE-50 terminal to the fifth serial port, use an entry like this:
+
+    tty04 "/usr/libexec/getty std.38400" wyse50 on secure
+
+This example shows that the port on /dev/tty04 has a wyse50 terminal
+connected at 38400 bps with no parity (std.38400 from /etc/gettytab)
+and root logins are allowed (secure).  For directly-connected
+terminals, use the ttyXX entry.
+
+9.8: Why can't I run tip or cu?
+
+On your system, the programs tip and cu are probably executable only
+by uucp and group dialer.  You can use the group dialer to control who
+has access to your modem or remote systems.  Just add yourself to
+group dialer.
+
+Alternatively, you can let everyone on your system run tip and cu by
+typing:
+
+    chmod 4511 /usr/bin/tip
+
+You don't have to run this command for cu, since cu is just a hard
+link to tip.
+
+9.9: My stock Hayes modem isn't supported---what should I do?
+
+Actually, the man page for tip is out of date.  There is a generic
+Hayes dialer already built in.  Just use ``at=hayes'' in your
+/etc/remote file.
+
+The Hayes driver isn't smart enough to recognize some of the advanced
+features of newer modems---messages like BUSY, NO DIALTONE, or CONNECT
+115200 will just confuse it.  You should turn those messages off when
+you use tip (using ATX0&W).
+
+Also, the dial timeout for tip is 60 seconds.  Your modem should use
+something less, or else tip will think there's a communication
+problem.  Try ATS7=45&W.
+
+9.10: How am I expected to enter these AT commands without
+       resorting to some DOS-based terminal program?
+
+Make what's called a ``direct'' entry in your /etc/remote file.  For
+example, if your modem's hooked up to the first serial port,
+/dev/cuaa0, then put in the following line:
+
+    cuaa0:dv=/dev/cuaa0:br#19200:pa=none
+
+Use the highest bps rate your modem supports in the br capability.
+Then, type ``tip cuaa0'' and you'll be connected to your modem.
+
+If there is no /dev/cuaa0 on your system, do this:
+
+    cd /dev
+    MAKEDEV cuaa0
+
+9.11: Why doesn't the @ sign for the phone number capability work?
+
+The @ sign in the pn capability tells tip to look in /etc/phones for a
+phone number.  But the @ sign is also a special character in
+capability files like /etc/remote.  Escape it with a backslash:
+``pn=\@''.
+
+9.12: How can I dial a phone number on the command line?
+
+Put what's called a ``generic'' entry in your /etc/remote file.  For
+example:
+
+    tip115200|Dial any phone number at 115200 bps:\
+        :dv=/dev/cuaa0:br#115200:at=hayes:pa=none:du:
+    tip57600|Dial any phone number at 57600 bps:\
+        :dv=/dev/cuaa0:br#57600:at=hayes:pa=none:du:
+
+Then you can things like ``tip -115200 5551234''.  If you prefer cu
+over tip, use a generic cu entry:
+
+    cu115200|Use cu to dial any number at 115200bps:\
+        :dv=/dev/cuaa1:br#57600:at=hayes:pa=none:du:
+
+and type ``cu 5551234 -s 115200''.
+
+9.13: Great---but how can I do that without having to specify the bps
+       rate on the command line?
+
+Put in an entry for tip1200 or cu1200, but go ahead and use whatever
+bps rate is appropriate with the br capability.  tip thinks a good
+default is 1200 bps which is why it looks for a ``tip1200'' entry.
+You don't have to use 1200 bps, though.
+
+9.14: I want separate entries for various hosts I access through a
+       terminal server, but I don't want to type ``CONNECT <host>''
+       each time once I'm connected.  Can tip do that for me?
+
+Yes.  Use the cm capability.  For example, these entries in
+/etc/remote:
+
+    pain|pain.deep13.com|Forrester's machine:\
+        :cm=CONNECT pain\n:tc=deep13:
+    muffin|muffin.deep13.com|Frank's machine:\
+        :cm=CONNECT muffin\n:tc=deep13:
+    deep13:Gizmonics Institute terminal server:\
+        :dv=/dev/cuaa2:br#38400:at=hayes:du:pa=none:pn=5551234:
+
+will let you type ``tip pain'' or ``tip muffin'' to connect to the
+hosts pain or muffin; and ``tip deep13'' to get to the terminal
+server.
+
+9.15: My university has 42 billion students but only 4 modem lines.
+       Can tip automatically try each line?
+
+Sure.  Make an entry for your university in /etc/remote and use \@ for
+the pn capability:
+
+    big-university:\
+        :pn=\@:tc=dialout
+    dialout:\
+        :dv=/dev/cuaa3:br#9600:at=courier:du:pa=none:
+
+Then, list the phone numbers for the university in /etc/phones:
+
+    big-university 5551111
+    big-university 5551112
+    big-university 5551113
+    big-university 5551114
+
+tip will try each one in the listed order, then give up.  If you want
+to keep retrying, run tip in a while loop.
+
+9.16: How come I have to hit CTRL+P twice to send CTRL+P once?
+
+CTRL+P is the default ``force'' character, used to tell tip that the
+next character is literal data.  You can set the force character to
+any other character with the ~s escape, which means ``set a
+variable.''
+
+Type ``~sforce=<single-char>'' followed by a newline.  <single-char>
+is any single character.  If you leave out <single-char>, then the
+force character is the nul character, which you can get by typing
+CTRL+2 or CTRL+SPACE.  A pretty good value for <single-char> is
+SHIFT+CTRL+6, which I've seen only used on some terminal servers.
+
+You can have the force character be whatever you want by specifying
+the following in your $HOME/.tiprc file:
+
+    force=<single-char>
+
+9.17: Suddenly everything I type is all UPPER CASE.  What gives?
+
+You must've pressed CTRL+A, tip's ``raise character,'' specially
+designed for people with broken caps-lock keys.  Use ~s as above and
+set the variable ``raisechar'' to something reasonable.  In fact, you
+can set it to the same as the force character, if you never expect to
+use either of these features.
+
+Here's a sample .tiprc file perfect for Emacs users who need to type
+CTRL+2 and CTRL+A a lot:
+
+    force=^^
+    raisechar=^^
+
+The ^^ is SHIFT+CTRL+6.
+
+9.18: How can I do file transfers with tip?
+
+If you're talking to another UNIX system, you can send and receive
+files with ~p (put) and ~t (take).  These commands run ``cat'' and
+``echo'' on the remote system to accept and send files.  The syntax
+is:
+
+    ~p <local-file> [<remote-file>]
+    ~t <remote-file> [<local-file>]
+
+There's no error checking, so you probably should use another
+protocol, like zmodem.
+
+9.19: Okay, how can I run zmodem with tip?
+
+To receive files, start the sending program on the remote end.  Then,
+type ``~C rz'' to begin receiving them locally.
+
+To send files, start the receiving program on the remote end.  Then,
+type ``~C sz <files>'' to send them to the remote system.
+
 
 
 NOTE: Anyone wishing to submit a FAQ entry on how to get tip and cu working
