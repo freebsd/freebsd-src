@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -48,17 +49,24 @@ __FBSDID("$FreeBSD$");
 ssize_t
 bread(struct uufsd *disk, ufs2_daddr_t blockno, void *data, size_t size)
 {
-	char *buf;
+	void *p2;
 	ssize_t cnt;
 
 	ERROR(disk, NULL);
 
+	p2 = data;
 	/*
-	 * For when we need to work with the data as a buffer.
+	 * XXX: various disk controllers require alignment of our buffer
+	 * XXX: which is stricter than struct alignment.
+	 * XXX: Bounce the buffer if not 64 byte aligned.
+	 * XXX: this can be removed if/when the kernel is fixed
 	 */
-	buf = data;
-
-	cnt = pread(disk->d_fd, data, size, (off_t)(blockno * disk->d_bsize));
+	if (((intptr_t)data) & 0x3f) {
+		p2 = malloc(size);
+		if (p2 == NULL)
+			ERROR(disk, "allocate bounce buffer");
+	}
+	cnt = pread(disk->d_fd, p2, size, (off_t)(blockno * disk->d_bsize));
 	if (cnt == -1) {
 		ERROR(disk, "read error from block device");
 		goto fail;
@@ -71,8 +79,15 @@ bread(struct uufsd *disk, ufs2_daddr_t blockno, void *data, size_t size)
 		ERROR(disk, "short read or read error from block device");
 		goto fail;
 	}
+	if (p2 != data) {
+		memcpy(data, p2, size);
+		free(p2);
+	}
 	return (cnt);
-fail:	memset(buf, 0, size);
+fail:	memset(data, 0, size);
+	if (p2 != data) {
+		free(p2);
+	}
 	return (-1);
 }
 
@@ -81,6 +96,7 @@ bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 {
 	ssize_t cnt;
 	int rv;
+	void *p2 = NULL;
 
 	ERROR(disk, NULL);
 
@@ -90,7 +106,22 @@ bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 		return (-1);
 	}
 
+	/*
+	 * XXX: various disk controllers require alignment of our buffer
+	 * XXX: which is stricter than struct alignment.
+	 * XXX: Bounce the buffer if not 64 byte aligned.
+	 * XXX: this can be removed if/when the kernel is fixed
+	 */
+	if (((intptr_t)data) & 0x3f) {
+		p2 = malloc(size);
+		if (p2 == NULL)
+			ERROR(disk, "allocate bounce buffer");
+		memcpy(p2, data, size);
+		data = p2;
+	}
 	cnt = pwrite(disk->d_fd, data, size, (off_t)(blockno * disk->d_bsize));
+	if (p2 != NULL)
+		free(p2);
 	if (cnt == -1) {
 		ERROR(disk, "write error to block device");
 		return (-1);
