@@ -24,7 +24,10 @@ modules-${target}:
 
 kernel-all: ${KERNEL_KO}
 
-kernel-cleandir kernel-obj:
+kernel-cleandir:
+	find . -maxdepth 1 ! -type d ! -name version -delete
+
+kernel-obj:
 
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
 modules: modules-all
