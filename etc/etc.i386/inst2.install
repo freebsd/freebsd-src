@@ -28,18 +28,10 @@ cd /mnt
 ls .profile install usr/bin/* | cpio -pdmu${cpioverbose} /
 cd /dev
 echo " done."
+echo
 echo "Building /dev files..."
 sh MAKEDEV all
 cd /
 echo " done."
 
 sync
-
-echo    "OK.  All of the base files are installed."
-echo    ""
-echo    "The next step: reboot from the hard disk, and follow"
-echo    "more instrutctions."
-echo    ""
-echo    "To do this, enter 'halt' at the prompt to halt the machine."
-echo	"Once the machine has halted, remove the floppy from the disk"
-echo	"drive, and hit any key to reboot from the hard disk."

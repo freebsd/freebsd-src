@@ -44,16 +44,16 @@ KC_FILES+=	sbin/fsck sbin/halt sbin/init sbin/mount sbin/umount
 FILESYSTEM_DIRS=	bin dev etc mnt sbin usr usr/bin usr/mdec usr/sbin
 FILESYSTEM_TREES=	dev
 FILESYSTEM_FILES=	${COPYRIGHT}
-FILESYSTEM_FILES+=	bin/[ bin/cat bin/expr bin/ls bin/mkdir
-FILESYSTEM_FILES+=	bin/df
+FILESYSTEM_FILES+=	bin/[ bin/expr bin/ls bin/mkdir
 FILESYSTEM_FILES+=	bin/sh bin/sync bin/test
-FILESYSTEM_FILES+=	dev/MAKEDEV dev/MAKEDEV.local
+FILESYSTEM_FILES+=	dev/MAKEDEV
 FILESYSTEM_FILES+=	etc/group
 FILESYSTEM_FILES+=	etc/master.passwd etc/passwd etc/pwd.db etc/spwd.db
 FILESYSTEM_FILES+=	sbin/disklabel sbin/halt sbin/init
 FILESYSTEM_FILES+=	sbin/mount sbin/mount_isofs sbin/mount_pcfs
 FILESYSTEM_FILES+=	sbin/newfs
 FILESYSTEM_FILES+=	sbin/umount
+FILESYSTEM_FILES+=	sbin/fdisk
 FILESYSTEM_FILES+=	usr/bin/cpio
 FILESYSTEM_FILES+=	${MDEC}
 FILESYSTEM_FILES+=	usr/sbin/bad144
@@ -70,6 +70,10 @@ CPIO_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip
 CPIO_CPIO+=	usr/bin/elvis usr/bin/ex usr/bin/vi usr/bin/view
 CPIO_CPIO+=	usr/sbin/update usr/sbin/chown
 CPIO_CPIO+=	var
+
+DOS_FILES=	bin/cat bin/dd bin/df bin/ed
+DOS_FILES+=	usr/bin/cksum usr/bin/mt 
+DOS_FILES+=	sbin/mknod sbin/ping sbin/shutdown sbin/st sbin/reboot
 
 CRYPT_LIB=	lib/libcrypt
 CRYPT_SRCS=	bin/ed bin/rcp
@@ -235,7 +239,8 @@ filesystem-floppy:
 	(cd ${MOUNT}/dev; \
 	    sh ${DESTDIR}/dev/MAKEDEV std; \
 	    rm -rf fd; \
-	    sh ${DESTDIR}/dev/MAKEDEV fd0 wd0 sd0 sd1)
+	    sh ${DESTDIR}/dev/MAKEDEV fd0 fd1 wd0 sd0 sd1
+	    rm -f ${DESTDIR}/dev/rfd1[b-z] ${DESTDIR}/dev/fd1[b-z])
 	(cd ${DESTDIR}/; \
 	    ls ${FILESYSTEM_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o root -g wheel -m 755 etc.i386/inst1.profile \
@@ -277,6 +282,18 @@ cpio-floppy:
 		bs=15b count=160
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cpio-floppy \
 		>${RELEASEDIR}/floppies/cpio-floppy.gz
+
+dos-floppy:
+	mount -t pcfs /dev/${FLOPPY}a ${MOUNT}
+	(cd ${DESTDIR}/; \
+		cp /sys/i386/floppy/* ${MOUNT}; \
+		cp ${DOS_FILES} ${MOUNT})
+	df -ik ${MOUNT}
+	umount /dev/${FLOPPY}a
+	dd if=/dev/r${FLOPPY}a of=${RELEASEDIR}/floppies/dos-floppy \
+		bs=15b count=160
+	gzip --no-name -9 -c ${RELEASEDIR}/floppies/dos-floppy \
+		>${RELEASEDIR}/floppies/dos-floppy.gz
 
 bin-tarball:
 	(cd ${DESTDIR}; \

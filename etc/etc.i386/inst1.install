@@ -115,28 +115,33 @@ force_offset=
 if [ $cyls_per_disk -gt 1024 ]; then
 	echo
 	echo "WARNING: >1024 cylinders."
-	echo "Overwriting existing partitions - okay? [y] "
+	echo -n "Overwriting existing partitions - okay? [y] "
 	read resp junk
 	[ ! "$resp" ] && resp=y
 	case "$resp" in
 	y*|Y*)
+		RUN_FDISK=""
 		force_offset=1
+		opsys_off=0
+		cyls_per_opsys=${cyls_per_disk}
+		opsys_part=${unused_last_part:-3}
+		return 0
 		;;
 	*)
 		echo
-		echo "If the number of disk cylinders does exceed 1024, then ${OPSYSTEM}"
+		echo "If the number of disk cylinders does not exceed 1024, then ${OPSYSTEM}"
 		echo "can be installed alongside other operating systems on a single disk."
-		echo "Otherwise, ${OPSYSTEM} MUST be installed at the beginning of the disk,"
-		echo "and existing partitions will be lost."
+		echo "Otherwise, it is system-dependent whether this will work or not."
+		echo "In the worst case, ${OPSYSTEM} MUST be installed at the beginning of"
+		echo "the disk, and existing partitions will be lost."
+		echo
+		echo "For now, we will assume that >1024 cylinders creates no problems..."
+		# FALL THROUGH
 		;;
 	esac
-	RUN_FDISK=""
-	opsys_off=0
-	cyls_per_opsys=${cyls_per_disk}
-	opsys_part=${unused_last_part:-3}
-	return 0
+fi
 # Case II: no partitions used
-elif [ $sysid_cnt -eq 0 ]; then
+if [ $sysid_cnt -eq 0 ]; then
 	echo
 	echo "WARNING: partition table is either missing or corrupt."
 	echo "Existing partitions will be lost."
@@ -845,6 +850,26 @@ echo "driveno=\${resp:-0}"
 echo "mount -o ro /dev/fd\${driveno}a /mnt"
 echo "cd /mnt"
 echo "install"
+echo "cd /"
+echo "umount /mnt >/dev/null 2>&1"
+echo "echo"
+echo "echo    \"Now insert third installation floppy in drive and\""
+echo "echo -n \"enter that drive's number (e.g. 0 or 1): [0] \""
+echo "read resp junk"
+echo "driveno=\${resp:-0}"
+echo "mount -t pcfs -o ro /dev/fd\${driveno}a /mnt"
+echo "mkdir -p /usr/distbin"
+echo "cp /mnt/* /usr/distbin/"
+echo "umount /mnt >/dev/null 2>&1"
+echo "echo"
+echo "echo    \"OK.  All of the base files are installed.\""
+echo "echo"
+echo "echo    \"The next step: reboot from the hard disk, and follow\""
+echo "echo    \"more instrutctions.\""
+echo "echo"
+echo "echo    \"To do this, enter 'halt' at the prompt to halt the machine.\""
+echo "echo	\"Once the machine has halted, remove the floppy from the disk\""
+echo "echo	\"drive, and hit any key to reboot from the hard disk.\""
 ) >.profile
 
 sync
@@ -856,8 +881,8 @@ echo
 echo    "To do this, enter 'halt' now to halt the machine.  After it"
 echo	"announces that it has halted, remove the floppy from the drive"
 echo	"and insert the kernel-copy disk that was booted before."
-echo	"Press any key to reboot.  Then when prompted to insert the file"
-echo	"system floppy this time, just hit RETURN without changing floppies."
+echo	"Press any key to reboot.  When prompted to insert the filesystem"
+echo	"floppy this time, just hit RETURN without changing floppies."
 echo
 echo	"If all goes well, you can enter the command \`copy' at the prompt to"
 echo	"copy the kernel to the hard disk.  When asked for which partition to"
