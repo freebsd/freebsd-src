@@ -436,10 +436,10 @@ parse_bdg_cfg()
 	 * now search in interface list for a matching name
 	 */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
-	    char buf[32];
+	    char buf[IFNAMSIZ];
 
-	    sprintf(buf, "%s%d", ifp->if_name, ifp->if_unit);
-	    if (!strncmp(beg, buf, l)) {
+	    snprintf(buf, sizeof(buf), "%s%d", ifp->if_name, ifp->if_unit);
+	    if (!strncmp(beg, buf, max(l, strlen(buf)))) {
 		struct bdg_softc *b = &ifp2sc[ifp->if_index];
 		if (ifp->if_type != IFT_ETHER && ifp->if_type != IFT_L2VLAN) {
 		    printf("%s is not an ethernet, continue\n", buf);
