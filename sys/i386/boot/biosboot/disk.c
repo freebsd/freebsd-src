@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.18 1996/09/10 21:18:39 phk Exp $
+ *	$Id: disk.c,v 1.19 1996/09/11 19:23:10 phk Exp $
  */
 
 /*
@@ -61,7 +61,7 @@ int spt, spc;
 
 struct fs *fs;
 struct inode inode;
-int dosdev, unit, slice, part, maj, boff, poff;
+int dosdev, unit, slice, part, maj, boff;
 
 /*#define EMBEDDED_DISKLABEL 1*/
 
@@ -82,13 +82,14 @@ devopen(void)
 	struct dos_partition *dptr;
 	struct disklabel *dl;
 	char *p;
-	int i, sector = 0, di;
+	int i, sector = 0, di, dosdev_copy;
 
-	di = get_diskinfo(dosdev);
+	dosdev_copy = dosdev;
+	di = get_diskinfo(dosdev_copy);
 	spt = SPT(di);
 
 	/* Hack for 2.88MB floppy drives. */
-	if (!(dosdev & 0x80) && spt == 36)
+	if (!(dosdev_copy & 0x80) && spt == 36)
 		spt = 18;
 
 	spc = spt * HEADS(di);
@@ -98,7 +99,7 @@ devopen(void)
 #ifdef	EMBEDDED_DISKLABEL
 		dl = &disklabel;
 #else	EMBEDDED_DISKLABEL
-		p = Bread(dosdev, 0);
+		p = Bread(dosdev_copy, 0);
 		dptr = (struct dos_partition *)(p+DOSPARTOFF);
 		slice = WHOLE_DISK_SLICE;
 		for (i = 0; i < NDOSPART; i++, dptr++)
@@ -107,7 +108,7 @@ devopen(void)
 				sector = dptr->dp_start;
 				break;
 			}
-		p = Bread(dosdev, sector + LABELSECTOR);
+		p = Bread(dosdev_copy, sector + LABELSECTOR);
 		dl=((struct disklabel *)p);
 		disklabel = *dl;	/* structure copy (maybe useful later)*/
 #endif	EMBEDDED_DISKLABEL
@@ -162,7 +163,7 @@ devopen(void)
 		    do_bad144 = 0;
 		    do {
 			/* XXX: what if the "DOS sector" < 512 bytes ??? */
-			p = Bread(dosdev, dkbbnum + i);
+			p = Bread(dosdev_copy, dkbbnum + i);
 			dkbptr = (struct dkbad *) p;
 /* XXX why is this not in <sys/dkbad.h> ??? */
 #define DKBAD_MAGIC 0x4321
@@ -194,10 +195,12 @@ devread(char *iodest, int sector, int cnt)
 {
 	int offset;
 	char *p;
+	int dosdev_copy;
 
 	for (offset = 0; offset < cnt; offset += BPS)
 	{
-		p = Bread(dosdev, badsect(dosdev, sector++));
+		dosdev_copy = dosdev;
+		p = Bread(dosdev_copy, badsect(dosdev_copy, sector++));
 		bcopy(p, iodest+offset, BPS);
 	}
 }
