@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ldconfig.c,v 1.23 1998/07/06 07:02:26 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -381,7 +381,7 @@ buildhints()
 
 	if (verbose)
 		printf("Totals: entries %d, buckets %ld, string size %d\n",
-					nhints, hdr.hh_nbucket, strtab_sz);
+			nhints, (long)hdr.hh_nbucket, strtab_sz);
 
 	/* Allocate buckets and string table */
 	blist = (struct hints_bucket *)xmalloc(n);
@@ -511,13 +511,14 @@ readhints()
 
 	hdr = (struct hints_header *)addr;
 	if (HH_BADMAG(*hdr)) {
-		warnx("%s: bad magic: %lo", hints_file, hdr->hh_magic);
+		warnx("%s: bad magic: %lo", hints_file,
+			(unsigned long)hdr->hh_magic);
 		return -1;
 	}
 
 	if (hdr->hh_version != LD_HINTS_VERSION_1 &&
 	    hdr->hh_version != LD_HINTS_VERSION_2) {
-		warnx("unsupported version: %ld", hdr->hh_version);
+		warnx("unsupported version: %ld", (long)hdr->hh_version);
 		return -1;
 	}
 

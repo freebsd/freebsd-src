@@ -42,7 +42,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)slattach.c	4.6 (Berkeley) 6/1/90";*/
-static char rcsid[] = "$Id: slattach.c,v 1.31 1998/02/20 07:28:50 jb Exp $";
+static char rcsid[] = "$Id: slattach.c,v 1.32 1998/06/28 20:33:36 bde Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -429,7 +429,9 @@ void configure_network()
 		if (unit < 0)
 			unit = new_unit;
 		if (new_unit != unit) {
-			syslog(LOG_ERR, "slip unit changed from sl%d to sl%d, but no -u CMD was specified!");
+			syslog(LOG_ERR,
+	"slip unit changed from sl%d to sl%d, but no -u CMD was specified!",
+			    unit, new_unit);
 			exit_handler(1);
 		}
 		syslog(LOG_NOTICE,"sl%d connected to %s at %d baud",unit,dev,speed);

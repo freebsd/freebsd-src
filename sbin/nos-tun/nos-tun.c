@@ -50,7 +50,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: nos-tun.c,v 1.3 1998/07/15 06:38:53 charnier Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -120,7 +120,7 @@ int tun_open(char *devname, struct sockaddr *ouraddr, char *theiraddr)
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    syslog(LOG_ERR,"can't open socket - %M");
+    syslog(LOG_ERR,"can't open socket - %m");
     goto tunc_return;
   }
 
