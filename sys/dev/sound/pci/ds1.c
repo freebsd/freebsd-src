@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Cameron Grant <gandalf@vilnya.demon.co.uk>
+ * Copyright (c) 2000 Cameron Grant <cg@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
 /* -------------------------------------------------------------------- */
 
 #define	DS1_CHANS 4
+#define DS1_RECPRIMARY 0
 
 struct pbank {
 	volatile u_int32_t	Format;
@@ -75,15 +76,30 @@ struct pbank {
 	volatile u_int32_t	LpfD2;
 };
 
+struct rbank {
+	volatile u_int32_t	PgBase;
+	volatile u_int32_t	PgLoopEnd;
+	volatile u_int32_t	PgStart;
+	volatile u_int32_t	NumOfLoops;
+};
+
 struct sc_info;
 
 /* channel registers */
-struct sc_chinfo {
+struct sc_pchinfo {
 	int run, spd, dir, fmt;
 	snd_dbuf *buffer;
 	pcm_channel *channel;
 	volatile struct pbank *lslot, *rslot;
 	int lsnum, rsnum;
+	struct sc_info *parent;
+};
+
+struct sc_rchinfo {
+	int run, spd, dir, fmt, num;
+	snd_dbuf *buffer;
+	pcm_channel *channel;
+	volatile struct rbank *slot;
 	struct sc_info *parent;
 };
 
@@ -103,9 +119,11 @@ struct sc_info {
 
 	u_int32_t *pbase, pbankbase, pbanksize;
 	volatile struct pbank *pbank[2 * 64];
+	volatile struct rbank *rbank;
 	int pslotfree, currbank, pchn, rchn;
 
-	struct sc_chinfo pch[DS1_CHANS], rch[2];
+	struct sc_pchinfo pch[DS1_CHANS];
+	struct sc_rchinfo rch[2];
 };
 
 struct {
@@ -137,14 +155,23 @@ struct {
  */
 
 /* channel interface */
-static void *ds1chan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int ds1chan_setdir(void *data, int dir);
-static int ds1chan_setformat(void *data, u_int32_t format);
-static int ds1chan_setspeed(void *data, u_int32_t speed);
-static int ds1chan_setblocksize(void *data, u_int32_t blocksize);
-static int ds1chan_trigger(void *data, int go);
-static int ds1chan_getptr(void *data);
-static pcmchan_caps *ds1chan_getcaps(void *data);
+static void *ds1pchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
+static int ds1pchan_setdir(void *data, int dir);
+static int ds1pchan_setformat(void *data, u_int32_t format);
+static int ds1pchan_setspeed(void *data, u_int32_t speed);
+static int ds1pchan_setblocksize(void *data, u_int32_t blocksize);
+static int ds1pchan_trigger(void *data, int go);
+static int ds1pchan_getptr(void *data);
+static pcmchan_caps *ds1pchan_getcaps(void *data);
+
+static void *ds1rchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
+static int ds1rchan_setdir(void *data, int dir);
+static int ds1rchan_setformat(void *data, u_int32_t format);
+static int ds1rchan_setspeed(void *data, u_int32_t speed);
+static int ds1rchan_setblocksize(void *data, u_int32_t blocksize);
+static int ds1rchan_trigger(void *data, int go);
+static int ds1rchan_getptr(void *data);
+static pcmchan_caps *ds1rchan_getcaps(void *data);
 
 /* talk to the codec - called from ac97.c */
 static u_int32_t ds_rdcd(void *, int);
@@ -172,15 +199,26 @@ static pcmchan_caps ds_playcaps = {
 	AFMT_STEREO | AFMT_S16_LE
 };
 
-static pcm_channel ds_chantemplate = {
-	ds1chan_init,
-	ds1chan_setdir,
-	ds1chan_setformat,
-	ds1chan_setspeed,
-	ds1chan_setblocksize,
-	ds1chan_trigger,
-	ds1chan_getptr,
-	ds1chan_getcaps,
+static pcm_channel ds_pchantemplate = {
+	ds1pchan_init,
+	ds1pchan_setdir,
+	ds1pchan_setformat,
+	ds1pchan_setspeed,
+	ds1pchan_setblocksize,
+	ds1pchan_trigger,
+	ds1pchan_getptr,
+	ds1pchan_getcaps,
+};
+
+static pcm_channel ds_rchantemplate = {
+	ds1rchan_init,
+	ds1rchan_setdir,
+	ds1rchan_setformat,
+	ds1rchan_setspeed,
+	ds1rchan_setblocksize,
+	ds1rchan_trigger,
+	ds1rchan_getptr,
+	ds1rchan_getcaps,
 };
 
 /* -------------------------------------------------------------------- */
@@ -410,34 +448,66 @@ ds_enapslot(struct sc_info *sc, int slot, int go)
 }
 
 static void
-ds_setupch(struct sc_chinfo *ch)
+ds_setuppch(struct sc_pchinfo *ch)
 {
-	int stereo, b16, c;
+	int stereo, b16, c, sz;
 	void *buf;
 
 	stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
 	b16 = (ch->fmt & AFMT_16BIT)? 1 : 0;
 	c = stereo? 1 : 0;
 	buf = ch->buffer->buf;
+	sz = ch->buffer->bufsize;
 
-	ds_initpbank(ch->lslot, c, stereo, b16, ch->spd, buf, ch->buffer->bufsize);
-	ds_initpbank(ch->lslot + 1, c, stereo, b16, ch->spd, buf, ch->buffer->bufsize);
-	ds_initpbank(ch->rslot, 2, stereo, b16, ch->spd, buf, ch->buffer->bufsize);
-	ds_initpbank(ch->rslot + 1, 2, stereo, b16, ch->spd, buf, ch->buffer->bufsize);
+	ds_initpbank(ch->lslot, c, stereo, b16, ch->spd, buf, sz);
+	ds_initpbank(ch->lslot + 1, c, stereo, b16, ch->spd, buf, sz);
+	ds_initpbank(ch->rslot, 2, stereo, b16, ch->spd, buf, sz);
+	ds_initpbank(ch->rslot + 1, 2, stereo, b16, ch->spd, buf, sz);
 }
 
-/* channel interface */
-void *
-ds1chan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+static void
+ds_setuprch(struct sc_rchinfo *ch)
+{
+	struct sc_info *sc = ch->parent;
+	int stereo, b16, i, sz, pri;
+	u_int32_t x, y;
+	void *buf;
+
+	stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
+	b16 = (ch->fmt & AFMT_16BIT)? 1 : 0;
+	buf = ch->buffer->buf;
+	sz = ch->buffer->bufsize;
+	pri = (ch->num == DS1_RECPRIMARY)? 1 : 0;
+
+	for (i = 0; i < 2; i++) {
+		ch->slot[i].PgBase = vtophys(buf);
+		ch->slot[i].PgLoopEnd = sz;
+		ch->slot[i].PgStart = 0;
+		ch->slot[i].NumOfLoops = 0;
+	}
+	x = (b16? 0x00 : 0x01) | (stereo? 0x02 : 0x00);
+	y = (48000 * 4096) / ch->spd;
+	y--;
+	/* printf("pri = %d, x = %d, y = %d\n", pri, x, y); */
+	ds_wr(sc, pri? YDSXGR_ADCFORMAT : YDSXGR_RECFORMAT, x, 4);
+	ds_wr(sc, pri? YDSXGR_ADCSLOTSR : YDSXGR_RECSLOTSR, y, 4);
+}
+
+/* play channel interface */
+static void *
+ds1pchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
-	struct sc_chinfo *ch;
+	struct sc_pchinfo *ch;
 
-	ch = (dir == PCMDIR_PLAY)? &sc->pch[sc->pchn++] : &sc->rch[sc->rchn++];
+	KASSERT(dir == PCMDIR_PLAY, ("ds1pchan_init: bad direction"));
+
+	ch = &sc->pch[sc->pchn++];
 	ch->buffer = b;
 	ch->buffer->bufsize = 4096;
 	ch->parent = sc;
 	ch->channel = c;
+	ch->dir = dir;
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
 	ch->run = 0;
@@ -448,21 +518,21 @@ ds1chan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 		ch->lslot = ds_allocpslot(sc);
 		ch->rsnum = sc->pslotfree;
 		ch->rslot = ds_allocpslot(sc);
-		ds_setupch(ch);
+		ds_setuppch(ch);
 		return ch;
 	}
 }
 
 static int
-ds1chan_setdir(void *data, int dir)
+ds1pchan_setdir(void *data, int dir)
 {
 	return 0;
 }
 
 static int
-ds1chan_setformat(void *data, u_int32_t format)
+ds1pchan_setformat(void *data, u_int32_t format)
 {
-	struct sc_chinfo *ch = data;
+	struct sc_pchinfo *ch = data;
 
 	ch->fmt = format;
 
@@ -470,9 +540,9 @@ ds1chan_setformat(void *data, u_int32_t format)
 }
 
 static int
-ds1chan_setspeed(void *data, u_int32_t speed)
+ds1pchan_setspeed(void *data, u_int32_t speed)
 {
-	struct sc_chinfo *ch = data;
+	struct sc_pchinfo *ch = data;
 
 	ch->spd = speed;
 
@@ -480,17 +550,17 @@ ds1chan_setspeed(void *data, u_int32_t speed)
 }
 
 static int
-ds1chan_setblocksize(void *data, u_int32_t blocksize)
+ds1pchan_setblocksize(void *data, u_int32_t blocksize)
 {
 	return blocksize;
 }
 
 /* semantic note: must start at beginning of buffer */
 static int
-ds1chan_trigger(void *data, int go)
+ds1pchan_trigger(void *data, int go)
 {
-	struct sc_chinfo *ch = data;
-	struct sc_info *sc  = ch->parent;
+	struct sc_pchinfo *ch = data;
+	struct sc_info *sc = ch->parent;
 	int stereo;
 
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
@@ -498,13 +568,13 @@ ds1chan_trigger(void *data, int go)
 	stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
 	if (go == PCMTRIG_START) {
 		ch->run = 1;
-		ds_setupch(ch);
+		ds_setuppch(ch);
 		ds_enapslot(sc, ch->lsnum, 1);
 		ds_enapslot(sc, ch->rsnum, stereo);
 		ds_wr(sc, YDSXGR_MODE, 0x00000003, 4);
 	} else {
 		ch->run = 0;
-		ds_setupch(ch);
+		/* ds_setuppch(ch); */
 		ds_enapslot(sc, ch->lsnum, 0);
 		ds_enapslot(sc, ch->rsnum, 0);
 	}
@@ -513,9 +583,9 @@ ds1chan_trigger(void *data, int go)
 }
 
 static int
-ds1chan_getptr(void *data)
+ds1pchan_getptr(void *data)
 {
-	struct sc_chinfo *ch = data;
+	struct sc_pchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
 	volatile struct pbank *bank;
 	int ss;
@@ -532,11 +602,110 @@ ds1chan_getptr(void *data)
 }
 
 static pcmchan_caps *
-ds1chan_getcaps(void *data)
+ds1pchan_getcaps(void *data)
 {
-	struct sc_chinfo *ch = data;
+	return &ds_playcaps;
+}
 
-	return (ch->dir == PCMDIR_PLAY)? &ds_playcaps : &ds_reccaps;
+/* record channel interface */
+static void *
+ds1rchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+{
+	struct sc_info *sc = devinfo;
+	struct sc_rchinfo *ch;
+
+	KASSERT(dir == PCMDIR_REC, ("ds1rchan_init: bad direction"));
+
+	ch = &sc->rch[sc->rchn];
+	ch->num = sc->rchn++;
+	ch->buffer = b;
+	ch->buffer->bufsize = 4096;
+	ch->parent = sc;
+	ch->channel = c;
+	ch->dir = dir;
+	ch->fmt = AFMT_U8;
+	ch->spd = 8000;
+	if (chn_allocbuf(ch->buffer, sc->parent_dmat) == -1)
+		return NULL;
+	else {
+		ch->slot = (ch->num == DS1_RECPRIMARY)? sc->rbank + 2: sc->rbank;
+		ds_setuprch(ch);
+		return ch;
+	}
+}
+
+static int
+ds1rchan_setdir(void *data, int dir)
+{
+	return 0;
+}
+
+static int
+ds1rchan_setformat(void *data, u_int32_t format)
+{
+	struct sc_rchinfo *ch = data;
+
+	ch->fmt = format;
+
+	return 0;
+}
+
+static int
+ds1rchan_setspeed(void *data, u_int32_t speed)
+{
+	struct sc_rchinfo *ch = data;
+
+	ch->spd = speed;
+
+	return speed;
+}
+
+static int
+ds1rchan_setblocksize(void *data, u_int32_t blocksize)
+{
+	return blocksize;
+}
+
+/* semantic note: must start at beginning of buffer */
+static int
+ds1rchan_trigger(void *data, int go)
+{
+	struct sc_rchinfo *ch = data;
+	struct sc_info *sc = ch->parent;
+	u_int32_t x;
+
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+	if (go == PCMTRIG_START) {
+		ch->run = 1;
+		ds_setuprch(ch);
+		x = ds_rd(sc, YDSXGR_MAPOFREC, 4);
+		x |= (ch->num == DS1_RECPRIMARY)? 0x02 : 0x01;
+		ds_wr(sc, YDSXGR_MAPOFREC, x, 4);
+		ds_wr(sc, YDSXGR_MODE, 0x00000003, 4);
+	} else {
+		ch->run = 0;
+		x = ds_rd(sc, YDSXGR_MAPOFREC, 4);
+		x &= ~((ch->num == DS1_RECPRIMARY)? 0x02 : 0x01);
+		ds_wr(sc, YDSXGR_MAPOFREC, x, 4);
+	}
+
+	return 0;
+}
+
+static int
+ds1rchan_getptr(void *data)
+{
+	struct sc_rchinfo *ch = data;
+	struct sc_info *sc = ch->parent;
+
+	return ch->slot[sc->currbank].PgStart;
+}
+
+static pcmchan_caps *
+ds1rchan_getcaps(void *data)
+{
+	return &ds_reccaps;
 }
 
 /* The interrupt handler */
@@ -547,17 +716,25 @@ ds_intr(void *p)
 	u_int32_t i, x;
 
 	i = ds_rd(sc, YDSXGR_STATUS, 4);
+	if (i & 0x00008000)
+		device_printf(sc->dev, "timeout irq\n");
 	if (i & 0x80008000) {
 		ds_wr(sc, YDSXGR_STATUS, i & 0x80008000, 4);
 		sc->currbank = ds_rd(sc, YDSXGR_CTRLSELECT, 4) & 0x00000001;
 
 		x = 0;
-		for (i = 0; i < DS1_CHANS; i++)
+		for (i = 0; i < DS1_CHANS; i++) {
 			if (sc->pch[i].run) {
 				x = 1;
 				chn_intr(sc->pch[i].channel);
 			}
-
+		}
+		for (i = 0; i < 2; i++) {
+			if (sc->rch[i].run) {
+				x = 1;
+				chn_intr(sc->rch[i].channel);
+			}
+		}
 		i = ds_rd(sc, YDSXGR_MODE, 4);
 		if (x)
 			ds_wr(sc, YDSXGR_MODE, i | 0x00000002, 4);
@@ -651,6 +828,7 @@ ds_init(struct sc_info *sc)
 	/* printf("pbase = %p -> 0x%x\n", sc->pbase, sc->ctrlbase + cb); */
 	ds_wr(sc, YDSXGR_PLAYCTRLBASE, sc->ctrlbase + cb, 4);
 	cb += (64 + 1) * 4;
+	sc->rbank = (struct rbank *)(t + cb);
 	ds_wr(sc, YDSXGR_RECCTRLBASE, sc->ctrlbase + cb, 4);
 	cb += 2 * 2 * rcs;
 	ds_wr(sc, YDSXGR_EFFCTRLBASE, sc->ctrlbase + cb, 4);
@@ -671,6 +849,8 @@ ds_init(struct sc_info *sc)
 
 	sc->pchn = sc->rchn = 0;
 	ds_wr(sc, YDSXGR_NATIVEDACOUTVOL, 0x3fff3fff, 4);
+	ds_wr(sc, YDSXGR_NATIVEADCINVOL, 0x3fff3fff, 4);
+	ds_wr(sc, YDSXGR_NATIVEDACINVOL, 0x3fff3fff, 4);
 	return 0;
 }
 
@@ -772,13 +952,12 @@ ds_pci_attach(device_t dev)
 	snprintf(status, SND_STATUSLEN, "at memory 0x%lx irq %ld",
 		 rman_get_start(sc->reg), rman_get_start(sc->irq));
 
-	if (pcm_register(dev, sc, DS1_CHANS, 0))
+	if (pcm_register(dev, sc, DS1_CHANS, 2))
 		goto bad;
 	for (i = 0; i < DS1_CHANS; i++)
-		pcm_addchan(dev, PCMDIR_PLAY, &ds_chantemplate, sc);
-	/*
-	pcm_addchan(dev, PCMDIR_REC, &ds_chantemplate, sc);
-	*/
+		pcm_addchan(dev, PCMDIR_PLAY, &ds_pchantemplate, sc);
+	for (i = 0; i < 2; i++)
+		pcm_addchan(dev, PCMDIR_REC, &ds_rchantemplate, sc);
 	pcm_setstatus(dev, status);
 
 	return 0;
