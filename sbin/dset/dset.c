@@ -13,21 +13,23 @@
  * Device configuration to kernel image saving utility.
  */
 
-#include <stdio.h>
-#include <nlist.h>
-#include <paths.h>
-#include <unistd.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <fcntl.h>
-#include <a.out.h>
 #include <kvm.h>
+#include <a.out.h>
 #include <limits.h>
+#include <paths.h>
+#include <stdio.h>
+#include <string.h>
 #include <unistd.h>
-#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/uio.h>
 #include <sys/param.h>
-#include <machine/param.h>
 #include "i386/isa/isa_device.h"
 
 #include "i386/isa/pnp.h"
@@ -36,8 +38,6 @@ struct pnp_cinfo old_ov[MAX_PNP_LDN];
 
 #define TRUE	1
 #define FALSE 	0
-
-extern int      errno;
 
 struct nlist    nl[] = {
 #define N_TABTTY 	0
@@ -48,13 +48,13 @@ struct nlist    nl[] = {
 	{"_isa_devtab_net"},
 #define N_TABNULL	3
 	{"_isa_devtab_null"},
-	"",
+	{""},
 };
 #define N_TABLAST	N_TABNULL
 
 struct nlist    nlk[] = {
 	{"_isa_devlist"},
-	"",
+	{""},
 };
 
 struct nlist	nlaux[] = {
@@ -81,10 +81,9 @@ fatal(name, str)
 	if (quiet)
 		exit(1);
 	if (str)
-		fprintf(stderr, "%s : %s\n", name, str);
+		errx(1, "%s: %s", name, str);
 	else
-		perror(name);
-	exit(1);
+		errx(1, "%s", name);
 }
 
 void
@@ -94,17 +93,19 @@ error(name, str)
 	if (quiet)
 		return;
 	if (str)
-		fprintf(stderr, "%s : %s\n", name, str);
+		warnx("%s: %s", name, str);
 	else
-		perror(name);
+		warnx("%s", name);
 }
 
 void
-usage(char *title)
+usage()
 {
-	fprintf(stderr, "usage: %s [-qtv]\n", title);
+	fprintf(stderr, "usage: dset [-qtv]\n");
+	exit(1);
 }
 
+int
 main(ac, av)
 	int             ac;
 	char          **av;
@@ -123,7 +124,6 @@ main(ac, av)
 	static char     errb[_POSIX2_LINE_MAX];
 	const char     *kernel = NULL;
 
-	extern char    *optarg;
 	char            ch;
 	int             testonly = FALSE;
 	int             verbose = FALSE;
@@ -143,8 +143,7 @@ main(ac, av)
 
 		case '?':
 		default:
-			usage(av[0]);
-			exit(1);
+			usage();
 		}
 
 
@@ -243,14 +242,14 @@ main(ac, av)
 			if (buf1.id_id != 0)
 				if (verbose)
 					printf(
-  "kernel: id=%u io=%X irq=%d drq=%d maddr=%X msize=%d flags=%X enabled=%X \n",
+  "kernel: id=%u io=%X irq=%d drq=%d maddr=%p msize=%d flags=%X enabled=%X \n",
 	buf1.id_id, buf1.id_iobase, buf1.id_irq, buf1.id_drq,
 	buf1.id_maddr, buf1.id_msize, buf1.id_flags, buf1.id_enabled);
 
 			if (buf.id_id != 0)
 				if (verbose)
 					printf(
-  "file: id=%u io=%X irq=%d drq=%d maddr=%X msize=%d flags=%X enabled=%X \n",
+  "file: id=%u io=%X irq=%d drq=%d maddr=%p msize=%d flags=%X enabled=%X \n",
 	buf.id_id, buf.id_iobase, buf.id_irq, buf.id_drq,
 	buf.id_maddr, buf.id_msize, buf.id_flags, buf.id_enabled);
 
@@ -398,7 +397,7 @@ main(ac, av)
 				if (new_ov[i].vendor_id > 0)
 				    printf(" 0x%08x", new_ov[i].vendor_id);
 				if (new_ov[i].flags > 0)
-				    printf(" flags 0x%08x", new_ov[i].flags);
+				    printf(" flags 0x%08lx", new_ov[i].flags);
 				if (maxp >=0) {
 				    int j;
 				    printf(" port 0x%x", new_ov[i].port[0]);
@@ -407,9 +406,9 @@ main(ac, av)
 				}
 				if (maxm >=0) {
 				    int j;
-				    printf(" mem 0x%x", new_ov[i].mem[0].base);
+				    printf(" mem 0x%lx", new_ov[i].mem[0].base);
 				    for(j=1;j<=maxm;j++)
-					printf(" 0x%x", new_ov[i].mem[j].base);
+					printf(" 0x%lx", new_ov[i].mem[j].base);
 				}
 				printf("\n");
 			    }
@@ -428,4 +427,5 @@ main(ac, av)
 
 	kvm_close(kd);
 	close(f);
+	return(0);
 }

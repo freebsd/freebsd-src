@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: reboot.c,v 1.3.2.2 1997/06/30 11:18:14 charnier Exp $
+ *	$Id: reboot.c,v 1.3.2.3 1997/09/14 19:41:49 jkh Exp $
  */
 
 #ifndef lint
@@ -178,6 +178,6 @@ restart:
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: %s [-nq]\n", dohalt ? "halt" : "reboot");
+	(void)fprintf(stderr, "usage: %s [-npq]\n", dohalt ? "halt" : "reboot");
 	exit(1);
 }

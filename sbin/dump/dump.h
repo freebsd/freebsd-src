@@ -144,6 +144,7 @@ void	interrupt __P((int signo));	/* in case operator bangs on console */
  *	Exit status codes
  */
 #define	X_FINOK		0	/* normal exit */
+#define	X_STARTUP	1	/* startup error */
 #define	X_REWRITE	2	/* restart writing from the check point */
 #define	X_ABORT		3	/* abort dump; don't attempt checkpointing */
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modunload.c,v 1.1.8.1 1996/12/14 13:57:48 joerg Exp $
+ *	$Id: modunload.c,v 1.1.8.2 1997/09/03 06:55:39 jkh Exp $
  */
 
 #include <stdio.h>
@@ -98,7 +98,7 @@ main(argc, argv)
 
 	/*
 	 * Open the virtual device device driver for exclusive use (needed
-	 * to ioctl() to retrive the loaded module(s) status).
+	 * to ioctl() to retrieve the loaded module(s) status).
 	 */
 	if ((devfd = open(_PATH_LKM, O_RDWR, 0)) == -1)
 		err(2, _PATH_LKM);

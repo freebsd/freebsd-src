@@ -32,28 +32,29 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)dumpfs.c	8.5 (Berkeley) 4/29/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
 
-#include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <fstab.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 union {
@@ -107,15 +108,22 @@ int
 dumpfs(name)
 	char *name;
 {
+	ssize_t n;
 	int fd, c, i, j, k, size;
 
 	if ((fd = open(name, O_RDONLY, 0)) < 0)
 		goto err;
 	if (lseek(fd, (off_t)SBOFF, SEEK_SET) == (off_t)-1)
 		goto err;
-	if (read(fd, &afs, SBSIZE) != SBSIZE)
+	if ((n = read(fd, &afs, SBSIZE)) == -1)
 		goto err;
 
+	if (n != SBSIZE) {
+		warnx("%s: non-existent or truncated superblock, skipped",
+		    name);
+		(void)close(fd);
+ 		return (1);
+	}
  	if (afs.fs_magic != FS_MAGIC) {
 		warnx("%s: superblock has bad magic number, skipped", name);
 		(void)close(fd);

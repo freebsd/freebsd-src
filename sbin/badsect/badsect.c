@@ -38,7 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)badsect.c	8.1 (Berkeley) 6/5/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -57,6 +61,7 @@ static const char sccsid[] = "@(#)badsect.c	8.1 (Berkeley) 6/5/93";
 #include <ufs/ffs/fs.h>
 #include <ufs/ufs/dinode.h>
 
+#include <err.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -84,6 +89,13 @@ char buf[MAXBSIZE];
 void	rdfs __P((daddr_t, int, char *));
 int	chkuse __P((daddr_t, int));
 
+static void
+usage(void)
+{
+	fprintf(stderr, "usage: badsect bbdir blkno ...\n");
+	exit(1);
+}
+
 int
 main(argc, argv)
 	int argc;
@@ -97,26 +109,18 @@ main(argc, argv)
 	char name[2 * MAXPATHLEN];
 	char *name_dir_end;
 
-	if (argc < 3) {
-		fprintf(stderr, "usage: badsect bbdir blkno [ blkno ]\n");
-		exit(1);
-	}
-	if (chdir(argv[1]) < 0 || stat(".", &stbuf) < 0) {
-		perror(argv[1]);
-		exit(2);
-	}
+	if (argc < 3)
+		usage();
+	if (chdir(argv[1]) < 0 || stat(".", &stbuf) < 0)
+		err(2, "%s", argv[1]);
 	strcpy(name, _PATH_DEV);
-	if ((dirp = opendir(name)) == NULL) {
-		perror(name);
-		exit(3);
-	}
+	if ((dirp = opendir(name)) == NULL)
+		err(3, "%s", name);
 	name_dir_end = name + strlen(name);
 	while ((dp = readdir(dirp)) != NULL) {
 		strcpy(name_dir_end, dp->d_name);
-		if (lstat(name, &devstat) < 0) {
-			perror(name);
-			exit(4);
-		}
+		if (lstat(name, &devstat) < 0)
+			err(4, "%s", name);
 		if (stbuf.st_dev == devstat.st_rdev &&
 		    (devstat.st_mode & IFMT) == IFBLK)
 			break;
@@ -124,7 +128,7 @@ main(argc, argv)
 	closedir(dirp);
 	if (dp == NULL) {
 		printf("Cannot find dev 0%lo corresponding to %s\n",
-			stbuf.st_rdev, argv[1]);
+		    (u_long)stbuf.st_rdev, argv[1]);
 		exit(5);
 	}
 	/*
@@ -133,10 +137,8 @@ main(argc, argv)
 	 */
 	memcpy(name_dir_end + 1, name_dir_end, strlen(name_dir_end) + 1);
 	*name_dir_end = 'r';
-	if ((fsi = open(name, O_RDONLY)) < 0) {
-		perror(name);
-		exit(6);
-	}
+	if ((fsi = open(name, O_RDONLY)) < 0)
+		err(6, "%s", name);
 	fs = &sblock;
 	rdfs(SBOFF, SBSIZE, (char *)fs);
 	dev_bsize = fs->fs_fsize / fsbtodb(fs, 1);
@@ -153,11 +155,11 @@ main(argc, argv)
 		diskbn = dbtofsb(fs, number);
 		if ((dev_t)diskbn != diskbn) {
 			printf("sector %ld cannot be represented as a dev_t\n",
-			       number);
+			    (long)number);
 			errs++;
 		}
 		else if (mknod(*argv, IFMT|0600, (dev_t)diskbn) < 0) {
-			perror(*argv);
+			warn("%s", *argv);
 			errs++;
 		}
 	}
@@ -175,20 +177,20 @@ chkuse(blkno, cnt)
 
 	fsbn = dbtofsb(fs, blkno);
 	if ((unsigned)(fsbn+cnt) > fs->fs_size) {
-		printf("block %ld out of range of file system\n", blkno);
+		printf("block %ld out of range of file system\n", (long)blkno);
 		return (1);
 	}
 	cg = dtog(fs, fsbn);
 	if (fsbn < cgdmin(fs, cg)) {
 		if (cg == 0 || (fsbn+cnt) > cgsblock(fs, cg)) {
 			printf("block %ld in non-data area: cannot attach\n",
-				blkno);
+			    (long)blkno);
 			return (1);
 		}
 	} else {
 		if ((fsbn+cnt) > cgbase(fs, cg+1)) {
 			printf("block %ld in non-data area: cannot attach\n",
-				blkno);
+			    (long)blkno);
 			return (1);
 		}
 	}
@@ -201,7 +203,7 @@ chkuse(blkno, cnt)
 	}
 	bn = dtogd(fs, fsbn);
 	if (isclr(cg_blksfree(&acg), bn))
-		printf("Warning: sector %ld is in use\n", blkno);
+		printf("Warning: sector %ld is in use\n", (long)blkno);
 	return (0);
 }
 
@@ -217,14 +219,12 @@ rdfs(bno, size, bf)
 	int n;
 
 	if (lseek(fsi, (off_t)bno * dev_bsize, SEEK_SET) < 0) {
-		printf("seek error: %ld\n", bno);
-		perror("rdfs");
-		exit(1);
+		printf("seek error: %ld\n", (long)bno);
+		err(1, "rdfs");
 	}
 	n = read(fsi, bf, size);
 	if (n != size) {
-		printf("read error: %ld\n", bno);
-		perror("rdfs");
-		exit(1);
+		printf("read error: %ld\n", (long)bno);
+		err(1, "rdfs");
 	}
 }

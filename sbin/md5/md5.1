@@ -5,12 +5,12 @@
 .Nm md5
 .Nd calculate a message-digest fingerprint (checksum) for a file
 .Sh SYNOPSIS
-.Nm
+.Nm md5
 .Op Fl ptx
 .Op Fl s Ar string
 .Op Ar file ...
 .Sh DESCRIPTION
-.Nm
+.Nm Md5
 takes as input a message of arbitrary length and produces
 as output a 128-bit
 .Dq fingerprint
@@ -31,16 +31,16 @@ The following four options may be used in any combination and must
 precede any files named on the command line.  The MD5
 sum of each file listed on the command line is printed after the options
 are processed.
-.Bl -tag -width Fl
+.Bl -tag -width indent
 .It Fl s Ar string
-prints a checksum of the given
+Print a checksum of the given
 .Ar string .
 .It Fl p
-echos stdin to stdout and appends the MD5 sum to stdout.
+Echo stdin to stdout and appends the MD5 sum to stdout.
 .It Fl t
-runs a built-in time trial.
+Run a built-in time trial.
 .It Fl x
-runs a built-in test script.
+Run a built-in test script.
 .El
 .Sh SEE ALSO
 .Xr cksum 1
@@ -49,6 +49,6 @@ runs a built-in test script.
 .%T The MD5 Message-Digest Algorithm
 .%O RFC1321
 .Re
-.Sh ACKNOWLEDGEMENTS
+.Sh ACKNOWLEDGMENTS
 This program is placed in the public domain for free general use by
 RSA Data Security.
