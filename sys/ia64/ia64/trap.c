@@ -76,7 +76,7 @@
 #endif
 
 static int print_usertrap = 0;
-SYSCTL_INT(_machdep, CPU_UNALIGNED_PRINT, print_usertrap,
+SYSCTL_INT(_machdep, OID_AUTO, print_usertrap,
         CTLFLAG_RW, &print_usertrap, 0, "");
 
 extern int unaligned_fixup(struct trapframe *framep, struct thread *td);
