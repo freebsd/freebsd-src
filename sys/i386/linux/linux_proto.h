@@ -644,6 +644,45 @@ struct linux_fcntl64_args {
 	char cmd_l_[PADL_(l_uint)]; l_uint cmd; char cmd_r_[PADR_(l_uint)];
 	char arg_l_[PADL_(l_ulong)]; l_ulong arg; char arg_r_[PADR_(l_ulong)];
 };
+struct linux_setxattr_args {
+	register_t dummy;
+};
+struct linux_lsetxattr_args {
+	register_t dummy;
+};
+struct linux_fsetxattr_args {
+	register_t dummy;
+};
+struct linux_getxattr_args {
+	register_t dummy;
+};
+struct linux_lgetxattr_args {
+	register_t dummy;
+};
+struct linux_fgetxattr_args {
+	register_t dummy;
+};
+struct linux_listxattr_args {
+	register_t dummy;
+};
+struct linux_llistxattr_args {
+	register_t dummy;
+};
+struct linux_flistxattr_args {
+	register_t dummy;
+};
+struct linux_removexattr_args {
+	register_t dummy;
+};
+struct linux_lremovexattr_args {
+	register_t dummy;
+};
+struct linux_fremovexattr_args {
+	register_t dummy;
+};
+struct linux_fadvise64_args {
+	register_t dummy;
+};
 int	linux_fork(struct thread *, struct linux_fork_args *);
 int	linux_open(struct thread *, struct linux_open_args *);
 int	linux_waitpid(struct thread *, struct linux_waitpid_args *);
@@ -797,6 +836,19 @@ int	linux_mincore(struct thread *, struct linux_mincore_args *);
 int	linux_madvise(struct thread *, struct linux_madvise_args *);
 int	linux_getdents64(struct thread *, struct linux_getdents64_args *);
 int	linux_fcntl64(struct thread *, struct linux_fcntl64_args *);
+int	linux_setxattr(struct thread *, struct linux_setxattr_args *);
+int	linux_lsetxattr(struct thread *, struct linux_lsetxattr_args *);
+int	linux_fsetxattr(struct thread *, struct linux_fsetxattr_args *);
+int	linux_getxattr(struct thread *, struct linux_getxattr_args *);
+int	linux_lgetxattr(struct thread *, struct linux_lgetxattr_args *);
+int	linux_fgetxattr(struct thread *, struct linux_fgetxattr_args *);
+int	linux_listxattr(struct thread *, struct linux_listxattr_args *);
+int	linux_llistxattr(struct thread *, struct linux_llistxattr_args *);
+int	linux_flistxattr(struct thread *, struct linux_flistxattr_args *);
+int	linux_removexattr(struct thread *, struct linux_removexattr_args *);
+int	linux_lremovexattr(struct thread *, struct linux_lremovexattr_args *);
+int	linux_fremovexattr(struct thread *, struct linux_fremovexattr_args *);
+int	linux_fadvise64(struct thread *, struct linux_fadvise64_args *);
 
 #ifdef COMPAT_43
 
