@@ -130,6 +130,8 @@ struct dn_pkt {
 #define DN_TO_IP_OUT	1
 #define DN_TO_IP_IN	2
 #define DN_TO_BDG_FWD	3
+#define DN_TO_ETH_DEMUX	4
+#define DN_TO_ETH_OUT	5
 
     dn_key  output_time;	/* when the pkt is due for delivery	*/
     struct ifnet *ifp;		/* interface, for ip_output		*/
