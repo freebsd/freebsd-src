@@ -1596,7 +1596,7 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 		return (ioctl(td, (struct ioctl_args *)args));
 
 	case LINUX_OSS_GETVERSION: {
-		int version = linux_get_oss_version(td->td_proc);
+		int version = linux_get_oss_version(td);
 		return (copyout(&version, (void *)args->arg, sizeof(int)));
 	}
 
