@@ -836,9 +836,8 @@ dointr(void)
 {
 	u_long *intrcnt, uptime;
 	u_int64_t inttotal;
-	int nintr, inamlen;
+	size_t clen, nintr, inamlen;
 	int i, istrnamlen;
-	size_t clen;
 	char *intrname, *tintrname;
 
 	uptime = getuptime();
@@ -847,11 +846,11 @@ dointr(void)
 		    namelist[X_INTRCNT].n_value;
 		inamlen = namelist[X_EINTRNAMES].n_value -
 		    namelist[X_INTRNAMES].n_value;
-		if ((intrcnt = malloc((size_t)nintr)) == NULL ||
-		    (intrname = malloc((size_t)inamlen)) == NULL)
+		if ((intrcnt = malloc(nintr)) == NULL ||
+		    (intrname = malloc(inamlen)) == NULL)
 			err(1, "malloc()");
-		kread(X_INTRCNT, intrcnt, (size_t)nintr);
-		kread(X_INTRNAMES, intrname, (size_t)inamlen);
+		kread(X_INTRCNT, intrcnt, nintr);
+		kread(X_INTRNAMES, intrname, inamlen);
 	} else {
 		for (intrcnt = NULL, nintr = 1024; ; nintr *= 2) {
 			if ((intrcnt = reallocf(intrcnt, nintr)) == NULL)
@@ -880,19 +879,23 @@ dointr(void)
 	(void)printf("%-*s %20s %10s\n", istrnamlen, "interrupt", "total",
 	    "rate");
 	inttotal = 0;
-	while (--nintr >= 0) {
+	for (i = 0; i < nintr; i++) {
 		const char *p;
 		if (intrname[0] != '\0' &&
 		    (aflag > 0 || *intrcnt != 0) &&
+#ifdef __ia64__
+		    (aflag > 1 || *intrname != '#'))
+#else
 		    (aflag > 1 || ((p = strchr(intrname, ' ')) && p[1] != ' ')) &&
 		    (aflag > 2 || strncmp(intrname, "stray ", 6) != 0))
+#endif
 			(void)printf("%-*s %20lu %10lu\n", istrnamlen, intrname,
 			    *intrcnt, *intrcnt / uptime);
 		intrname += strlen(intrname) + 1;
 		inttotal += *intrcnt++;
 	}
-	(void)printf("%-*s %20llu %10llu\n", istrnamlen, "Total", inttotal,
-			inttotal / (u_int64_t) uptime);
+	(void)printf("%-*s %20llu %10llu\n", istrnamlen, "Total",
+	    (long long)inttotal, (long long)(inttotal / uptime));
 }
 
 static void
