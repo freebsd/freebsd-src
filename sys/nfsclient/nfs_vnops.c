@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.121 1999/02/13 08:01:59 dillon Exp $
+ * $Id: nfs_vnops.c,v 1.122 1999/02/13 09:47:30 dillon Exp $
  */
 
 
@@ -247,6 +247,8 @@ struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 int nfs_numasync = 0;
 #define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
+
+SYSCTL_DECL(_vfs_nfs);
 
 static int	nfsaccess_cache_timeout = 2;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW, 

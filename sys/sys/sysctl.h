@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.68 1998/12/27 18:03:29 dfr Exp $
+ * $Id: sysctl.h,v 1.70 1999/01/10 07:45:27 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -110,11 +110,15 @@ struct sysctl_req {
 	int		(*newfunc)(struct sysctl_req *, void *, size_t);
 };
 
+SLIST_HEAD(sysctl_oid_list, sysctl_oid);
+
 /*
  * This describes one "oid" in the MIB tree.  Potentially more nodes can
  * be hidden behind it, expanded by the handler.
  */
 struct sysctl_oid {
+	struct sysctl_oid_list *oid_parent;
+	SLIST_ENTRY(sysctl_oid) oid_link;
 	int		oid_number;
 	int		oid_kind;
 	void		*oid_arg1;
@@ -133,18 +137,29 @@ int sysctl_handle_intptr SYSCTL_HANDLER_ARGS;
 int sysctl_handle_string SYSCTL_HANDLER_ARGS;
 int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 
+/*
+ * These functions are used to add/remove an oid from the mib.
+ */
+void sysctl_register_oid(struct sysctl_oid *oidp);
+void sysctl_unregister_oid(struct sysctl_oid *oidp);
+
+/* Declare an oid to allow child oids to be added to it. */
+#define SYSCTL_DECL(name)					\
+	extern struct sysctl_oid_list sysctl_##name##_children
+
 /* This constructs a "raw" MIB oid. */
 #define SYSCTL_OID(parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
-	static struct sysctl_oid sysctl__##parent##_##name = { \
-		nbr, kind, a1, a2, #name, handler, fmt }; \
-	DATA_SET(sysctl_##parent, sysctl__##parent##_##name)
+	static struct sysctl_oid sysctl__##parent##_##name = {		 \
+		&sysctl_##parent##_children, { 0 },			 \
+		nbr, kind, a1, a2, #name, handler, fmt };		 \
+	DATA_SET(sysctl_set, sysctl__##parent##_##name);
 
 /* This constructs a node from which other oids can hang. */
-#define SYSCTL_NODE(parent, nbr, name, access, handler, descr) \
-	extern struct linker_set sysctl_##parent##_##name; \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_NODE|access, \
-		(void*)&sysctl_##parent##_##name, 0, handler, "N", descr); \
-	DATA_SET(sysctl_##parent##_##name, sysctl__##parent##_##name)
+#define SYSCTL_NODE(parent, nbr, name, access, handler, descr)		    \
+	struct sysctl_oid_list sysctl_##parent##_##name##_children;	    \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_NODE|access,		    \
+		   (void*)&sysctl_##parent##_##name##_children, 0, handler, \
+		   "N", descr);
 
 /* Oid for a string.  len can be 0 to indicate '\0' termination. */
 #define SYSCTL_STRING(parent, nbr, name, access, arg, len, descr) \
@@ -452,14 +467,29 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 
 #ifdef KERNEL
 
+/*
+ * Declare some common oids.
+ */
+extern struct sysctl_oid_list sysctl__children;
+SYSCTL_DECL(_kern);
+SYSCTL_DECL(_sysctl);
+SYSCTL_DECL(_vm);
+SYSCTL_DECL(_vfs);
+SYSCTL_DECL(_net);
+SYSCTL_DECL(_debug);
+SYSCTL_DECL(_hw);
+SYSCTL_DECL(_machdep);
+SYSCTL_DECL(_user);
+
 extern char	machine[];
 extern char	osrelease[];
 extern char	ostype[];
 
+void	sysctl_register_set(struct linker_set *lsp);
+void	sysctl_unregister_set(struct linker_set *lsp);
 int	kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old,
 		      size_t *oldlenp, void *new, size_t newlen,
 		      size_t *retval);
-void	sysctl_order_all(void);
 int	userland_sysctl(struct proc *p, int *name, u_int namelen, void *old,
 			size_t *oldlenp, int inkernel, void *new, size_t newlen,
 			size_t *retval);

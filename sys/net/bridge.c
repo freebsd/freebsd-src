@@ -175,6 +175,7 @@ sysctl_bdg SYSCTL_HANDLER_ARGS
     return error ;
 }
 
+SYSCTL_DECL(_net_link_ether);
 SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge, CTLTYPE_INT|CTLFLAG_RW,
            &do_bridge, 0, &sysctl_bdg, "I", "Bridging");
 

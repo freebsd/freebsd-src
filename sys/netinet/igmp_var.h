@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp_var.h	8.1 (Berkeley) 7/19/93
- * $Id: igmp_var.h,v 1.11 1997/02/22 09:41:27 peter Exp $
+ * $Id: igmp_var.h,v 1.12 1997/09/07 05:26:37 bde Exp $
  */
 
 #ifndef _NETINET_IGMP_VAR_H_
@@ -103,6 +103,8 @@ void	igmp_slowtimo __P((void));
 	{ 0, 0 }, \
 	{ "stats", CTLTYPE_STRUCT }, \
 }
+
+SYSCTL_DECL(_net_inet_igmp);
 
 #endif
 
