@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.13.4.5 1995/10/15 14:08:42 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.13.4.6 1995/10/23 12:33:43 jkh Exp $";
 #endif
 
 /*
@@ -118,7 +118,7 @@ leave_playpen(char *save)
     oldsig = signal(SIGINT, SIG_IGN);
     if (Previous[0] && chdir(Previous) == FAIL)
 	barf("Can't chdir back to '%s'.", Previous);
-    else if (Current[0]) {
+    else if (Current[0] && strcmp(Current, Previous)) {
 	if (vsystem("rm -rf %s", Current))
 	    whinge("Couldn't remove temporary dir '%s'", Current);
 	strcpy(Current, Previous);

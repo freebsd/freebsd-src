@@ -14,10 +14,10 @@
 .\" Jordan K. Hubbard
 .\"
 .\"
-.\"     @(#)pkg_add.8
+.\"     @(#)pkg_add.1
 .\"
 .Dd November 25, 1994
-.Dt pkg_add 8
+.Dt pkg_add 1
 .Os FreeBSD 2.0
 .Sh NAME
 .Nm pkg_add
@@ -33,7 +33,7 @@ The
 .Nm
 command is used to extract packages that have been previously created
 with the
-.Xr pkg_create 8
+.Xr pkg_create 1
 command.
 
 .Sh WARNING
@@ -66,8 +66,10 @@ command to examine the package file.
 .Sh OPTIONS
 The following command line arguments are supported.
 .Bl -tag -width indent
-.It Ar pkg-name ...
-Packages in the named files are installed.
+.It Ar pkg-name [... pkg-name]
+The named packages are installed.  A package name of - will cause
+.Nm
+to read from stdin.
 .It Fl v
 Turns on verbose output.
 .Em "Optional."
@@ -198,7 +200,7 @@ terminate installation.
 Scan all the package dependencies (from
 .Cm @pkgdep
 directives, see
-.Xr pkg_create 8 )
+.Xr pkg_create 1 )
 and make sure each one is met. If not, print the missing dependencies and
 terminate the installation.
 .It
@@ -218,7 +220,7 @@ final location, otherwise it is extracted into the staging area.
 If the package contains a
 .Ar require
 file (see 
-.Xr pkg_create 8 ),
+.Xr pkg_create 1 ),
 then execute it with the following arguments:
 .Bd -filled -offset indent -compact
 .Ar <pkg-name>
@@ -255,7 +257,7 @@ If the package contains an
 file (see the
 .Fl m
 option to
-.Xr pkg_create 8 ),
+.Xr pkg_create 1 ),
 then mtree is invoked as
 .Bd -filled -offset indent -compact
 .Cm mtree
@@ -294,7 +296,7 @@ After installation is complete, a copy of the packing list,
 script, description, and display files are copied into
 .Pa /var/db/pkg/<pkg-name>
 for subsequent possible use by
-.Xr pkg_delete 8 .
+.Xr pkg_delete 1 .
 Any package dependencies are recorded in the other packages' 
 .Pa /var/db/pkg/<other-pkg>/+REQUIRED_BY
 file
@@ -320,8 +322,8 @@ flag to
 .Xr mktemp 3 ,
 .Xr sysconf 3 ,
 .Xr mtree 8 ,
-.Xr pkg_create 8 ,
-.Xr pkg_delete 8 .
+.Xr pkg_create 1 ,
+.Xr pkg_delete 1 .
 .Sh AUTHORS
 .Bl -tag -width indent -compact
 .It "Jordan Hubbard"
@@ -341,6 +343,6 @@ and the link names are extracted with a single
 command (not split between
 invocations due to exec argument-space limitations--this depends on the
 value returned by
-.Xr sysconf _SC_ARG_MAX ).
+.Fn sysconf _SC_ARG_MAX ) .
 .Pp
 Sure to be others.

@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.7.4.3 1995/11/03 02:54:56 jkh Exp $";
+static char *rcsid = "$Id: main.c,v 1.7.4.4 1995/11/10 06:44:41 jkh Exp $";
 #endif
 
 /*
@@ -113,7 +113,9 @@ main(int argc, char **argv)
 
 	/* Get all the remaining package names, if any */
 	for (ch = 0; *argv; ch++, argv++) {
-	    if (isURL(*argv))	/* preserve URLs */
+	    if (!strcmp(*argv, "-"))	/* stdin? */
+		pkgs[ch] = "-";
+	    else if (isURL(*argv))	/* preserve URLs */
 		pkgs[ch] = strcpy(pkgnames[ch], *argv);
 	    else {			/* expand all pathnames to fullnames */
 		if (fexists(*argv)) /* refers to a file directly */
