@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.59 1996/08/21 21:55:21 dyson Exp $
+ * $Id: vfs_subr.c,v 1.60 1996/09/19 18:20:22 nate Exp $
  */
 
 /*
@@ -831,6 +831,8 @@ vref(vp)
 	if (vp->v_usecount <= 0)
 		panic("vref used where vget required");
 
+	vp->v_usecount++;
+
 	if ((vp->v_type == VREG) &&
 		((vp->v_object == NULL) ||
 			((vp->v_object->flags & OBJ_VFS_REF) == 0)) ) {
@@ -842,8 +844,6 @@ vref(vp)
 		 */
 		vfs_object_create(vp, curproc, curproc->p_ucred, 0);
 	}
-
-	vp->v_usecount++;
 }
 
 /*
