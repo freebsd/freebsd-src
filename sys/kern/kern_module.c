@@ -37,7 +37,7 @@
 #include <sys/linker.h>
 #include <sys/proc.h>
 
-#define M_MODULE	M_TEMP		/* XXX */
+MALLOC_DEFINE(M_MODULE, "module", "module data structures");
 
 typedef TAILQ_HEAD(, module) modulelist_t;
 struct module {
@@ -93,19 +93,8 @@ module_register_init(const void *arg)
     module_t mod;
 
     mod = module_lookupbyname(data->name);
-    if (mod == NULL) {
-#if 0
+    if (mod == NULL)
 	panic("module_register_init: module named %s not found\n", data->name);
-#else
-	/* temporary kludge until kernel `file' attachment registers modules */
-	error = module_register(data, linker_kernel_file);
-	if (error)
-	    panic("module_register_init: register of module failed! %d", error);
-	mod = module_lookupbyname(data->name);
-	if (mod == NULL)
-	    panic("module_register_init: module STILL not found!");
-#endif
-    }
     error = MOD_EVENT(mod, MOD_LOAD);
     if (error) {
 	MOD_EVENT(mod, MOD_UNLOAD);
@@ -141,8 +130,6 @@ module_register(const moduledata_t *data, linker_file_t container)
     bzero(&newmod->data, sizeof(newmod->data));
     TAILQ_INSERT_TAIL(&modules, newmod, link);
 
-    if (container == NULL)
-	container = linker_current_file;
     if (container)
 	TAILQ_INSERT_TAIL(&container->modules, newmod, flink);
     newmod->file = container;
