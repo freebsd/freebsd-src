@@ -2285,6 +2285,7 @@ edintr(arg)
 	struct ed_softc *sc = (struct ed_softc*) arg;
 	struct ifnet *ifp = (struct ifnet *)sc;
 	u_char  isr;
+	int	count;
 
 	if (sc->gone)
 		return;
@@ -2294,9 +2295,12 @@ edintr(arg)
 	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STA);
 
 	/*
-	 * loop until there are no more new interrupts
+	 * loop until there are no more new interrupts.  When the card
+	 * goes away, the hardware will read back 0xff.  Looking at
+	 * the interrupts, it would appear that 0xff is impossible,
+	 * or at least extremely unlikely.
 	 */
-	while ((isr = ed_nic_inb(sc, ED_P0_ISR)) != 0) {
+	while ((isr = ed_nic_inb(sc, ED_P0_ISR)) != 0 && isr != 0xff) {
 
 		/*
 		 * reset all the bits that we are 'acknowledging' by writing a
@@ -2305,12 +2309,21 @@ edintr(arg)
 		 */
 		ed_nic_outb(sc, ED_P0_ISR, isr);
 
-		/* XXX workaround for AX88190 */
+		/* 
+		 * XXX workaround for AX88190
+		 * We limit this to 5000 iterations.  At 1us per inb/outb,
+		 * this translates to about 15ms, which should be plenty
+		 * of time, and also gives protection in the card eject
+		 * case.
+		 */
 		if (sc->chip_type == ED_CHIP_TYPE_AX88190) {
-			while (ed_nic_inb(sc, ED_P0_ISR) & isr) {
+			count = 5000;		/* 15ms */
+			while (count-- && (ed_nic_inb(sc, ED_P0_ISR) & isr)) {
 				ed_nic_outb(sc, ED_P0_ISR,0);
 				ed_nic_outb(sc, ED_P0_ISR,isr);
 			}
+			if (count == 0)
+				break;
 		}
 
 		/*
