@@ -246,6 +246,7 @@ struct tcptw {
 	struct inpcb	*tw_inpcb;	/* XXX back pointer to internet pcb */
 	tcp_seq		snd_nxt;
 	tcp_seq		rcv_nxt;
+	tcp_seq		iss;
 	tcp_cc		cc_recv;
 	tcp_cc		cc_send;
 	u_short		last_win;	/* cached window value */
@@ -471,6 +472,7 @@ void	 tcp_canceltimers(struct tcpcb *);
 struct tcpcb *
 	 tcp_close(struct tcpcb *);
 void	 tcp_twstart(struct tcpcb *);
+int	 tcp_twrecycleable(struct tcptw *tw);
 struct tcptw *
 	 tcp_twclose(struct tcptw *_tw, int _reuse);
 void	 tcp_ctlinput(int, struct sockaddr *, void *);
