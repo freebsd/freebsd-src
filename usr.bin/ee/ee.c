@@ -48,10 +48,12 @@
  |	This software and documentation contains
  |	proprietary information which is protected by
  |	copyright.  All rights are reserved.
- |
- |	$Header: /home/ncvs/src/usr.bin/ee/ee.c,v 1.7 1996/12/29 10:54:10 joerg Exp $
- |
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 char *ee_copyright_message = 
 "Copyright (c) 1986, 1990, 1991, 1992, 1993, 1994, 1995, 1996 Hugh Mahon ";
@@ -62,7 +64,7 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.3  $Revision: 1.7 $";
+char *version = "@(#) ee, version 1.3  $Revision: 1.8 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
@@ -72,34 +74,29 @@ char *version = "@(#) ee, version 1.3  $Revision: 1.7 $";
 #include <curses.h>
 #endif
 
-#include <signal.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <string.h>
-#include <pwd.h>
-
-#ifdef HAS_SYS_WAIT
-#include <sys/wait.h>
-#endif
-
-#ifdef HAS_STDLIB
-#include <stdlib.h>
-#endif
-
-#ifdef HAS_STDARG
-#include <stdarg.h>
-#endif
-
-#ifdef HAS_UNISTD
-#include <unistd.h>
-#endif
-
 #ifdef HAS_CTYPE
 #include <ctype.h>
 #endif
-
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <pwd.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#ifdef HAS_SYS_WAIT
+#include <sys/wait.h>
+#endif
+#ifdef HAS_STDARG
+#include <stdarg.h>
+#endif
+#ifdef HAS_STDLIB
+#include <stdlib.h>
+#endif
+#include <string.h>
+#ifdef HAS_UNISTD
+#include <unistd.h>
+#endif
 
 #ifndef NO_CATGETS
 #include <locale.h>
@@ -3054,8 +3051,7 @@ char *string;		/* string containing user command		*/
 			for (value = 1; value < 24; value++)
 				signal(value, SIG_DFL);
 			execl(path, last_slash, "-c", string, NULL);
-			printf(exec_err_msg, path);
-			exit(-1);
+			errx(1, exec_err_msg, path);
 		}
 		else	/* if the parent	*/
 		{
@@ -4973,7 +4969,7 @@ strings_init()
 	searching_msg = catgetlocal( 100, "           ...searching");
 	str_not_found_msg = catgetlocal( 101, "string \"%s\" not found");
 	search_prompt_str = catgetlocal( 102, "search for: ");
-	exec_err_msg = catgetlocal( 103, "could not exec %s\n");
+	exec_err_msg = catgetlocal( 103, "could not exec %s");
 	continue_msg = catgetlocal( 104, "press return to continue ");
 	menu_cancel_msg = catgetlocal( 105, "press Esc to cancel");
 	menu_size_err_msg = catgetlocal( 106, "menu too large for window");
