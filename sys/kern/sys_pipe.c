@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.49 1999/01/28 00:57:47 dillon Exp $
+ * $Id: sys_pipe.c,v 1.50 1999/02/04 23:50:49 dillon Exp $
  */
 
 /*
@@ -88,9 +88,9 @@
  * interfaces to the outside world
  */
 static int pipe_read __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred));
+		struct ucred *cred, int flags));
 static int pipe_write __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred));
+		struct ucred *cred, int flags));
 static int pipe_close __P((struct file *fp, struct proc *p));
 static int pipe_poll __P((struct file *fp, int events, struct ucred *cred,
 		struct proc *p));
@@ -319,10 +319,11 @@ pipeselwakeup(cpipe)
 
 /* ARGSUSED */
 static int
-pipe_read(fp, uio, cred)
+pipe_read(fp, uio, cred, flags)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	int flags;
 {
 
 	struct pipe *rpipe = (struct pipe *) fp->f_data;
@@ -702,10 +703,11 @@ error1:
 #endif
 	
 static int
-pipe_write(fp, uio, cred)
+pipe_write(fp, uio, cred, flags)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	int flags;
 {
 	int error = 0;
 	int orig_resid;

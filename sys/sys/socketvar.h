@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- *	$Id: socketvar.h,v 1.35 1999/01/31 09:40:14 bde Exp $
+ *	$Id: socketvar.h,v 1.36 1999/02/01 21:16:31 newton Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -287,8 +287,10 @@ struct uio;
 /*
  * File operations on sockets.
  */
-int	soo_read __P((struct file *fp, struct uio *uio, struct ucred *cred));
-int	soo_write __P((struct file *fp, struct uio *uio, struct ucred *cred));
+int	soo_read __P((struct file *fp, struct uio *uio, struct ucred *cred,
+	    int flags));
+int	soo_write __P((struct file *fp, struct uio *uio, struct ucred *cred,
+	    int flags));
 int	soo_close __P((struct file *fp, struct proc *p));
 int	soo_ioctl __P((struct file *fp, u_long cmd, caddr_t data,
 	    struct proc *p));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
- * $Id: sys_socket.c,v 1.22 1999/02/01 13:24:39 newton Exp $
+ * $Id: sys_socket.c,v 1.23 1999/02/01 21:16:29 newton Exp $
  */
 
 #include <sys/param.h>
@@ -54,10 +54,11 @@ struct	fileops socketops =
 
 /* ARGSUSED */
 int
-soo_read(fp, uio, cred)
+soo_read(fp, uio, cred, flags)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	int flags;
 {
 	struct socket *so = (struct socket *)fp->f_data;
 	return so->so_proto->pr_usrreqs->pru_soreceive(so, 0, uio, 0, 0, 0);
@@ -65,10 +66,11 @@ soo_read(fp, uio, cred)
 
 /* ARGSUSED */
 int
-soo_write(fp, uio, cred)
+soo_write(fp, uio, cred, flags)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	int flags;
 {
 	struct socket *so = (struct socket *)fp->f_data;
 	return so->so_proto->pr_usrreqs->pru_sosend(so, 0, uio, 0, 0, 0,
