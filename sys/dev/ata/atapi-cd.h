@@ -223,8 +223,8 @@ struct write_param {
     u_int8_t	test_write	:1;	/* test write enable */
     u_int8_t	reserved2_567	:3;
     u_int8_t	track_mode	:4;	/* track mode */
-#define CDR_TMODE_AUDIO		0x01
-#define CDR_TMODE_INCR_DATA	0x01
+#define CDR_TMODE_AUDIO		0x00
+#define CDR_TMODE_AUDIO_PREEMP	0x01
 #define CDR_TMODE_ALLOW_COPY	0x02
 #define CDR_TMODE_DATA		0x04
 #define CDR_TMODE_QUAD_AUDIO	0x08
@@ -314,10 +314,9 @@ struct acd_softc {
 #define 	F_BOPEN			0x0001	/* the block device is opened */
 #define 	F_LOCKED		0x0002	/* this unit is locked */
 #define 	F_WRITING		0x0004	/* this unit is writing */
-#define 	F_TRACK_PREP		0x0010	/* track should be prep'ed */
-#define 	F_TRACK_PREPED		0x0020	/* track has been prep'ed */
-#define 	F_DISK_PREPED		0x0040	/* disk has been prep'ed */
-#define 	F_WRITTEN		0x0080	/* medium has been written to */
+#define 	F_WRITTEN		0x0008	/* medium has been written to */
+#define 	F_DISK_OPEN		0x0010	/* disk open for writing */
+#define 	F_TRACK_OPEN		0x0020	/* track open for writing */
 
     int32_t			refcnt;		/* the number of raw opens */
     struct buf_queue_head	buf_queue;	/* Queue of i/o requests */
@@ -343,8 +342,6 @@ struct acd_softc {
     struct changer		*changer_info;	/* changer info */
     int32_t			slot;		/* this lun's slot number */
     u_int32_t			block_size;	/* blocksize currently used */
-    u_int8_t			dummy;		/* use dummy writes */
     u_int32_t			next_writeable_addr; /* next writable address */
-    struct wormio_prepare_track preptrack;	/* scratch region */
     struct devstat		*stats;		/* devstat entry */
 };
