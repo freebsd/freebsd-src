@@ -51,9 +51,10 @@ static const char copyright[] =
 static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/file.h>
@@ -64,6 +65,7 @@ static const char rcsid[] =
 #ifdef __sparc64__
 #include <sys/sun_disklabel.h>
 #endif
+
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
@@ -73,6 +75,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+
 #include "pathnames.h"
 
 /*
@@ -133,6 +136,8 @@ char	tmpfil[] = PATH_TMPFILE;
 char	namebuf[BBSIZE], *np = namebuf;
 struct	disklabel lab;
 char	bootarea[BBSIZE];
+char	blank[] = "";
+char	unknown[] = "unknown";
 
 #define MAX_PART ('z')
 #define MAX_NUM_PARTS (1 + MAX_PART - 'a')
@@ -462,7 +467,7 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 			flag = 1;
 			if (ioctl(f, DIOCWLABEL, &flag) < 0)
 				warn("ioctl DIOCWLABEL");
-			if (write(f, boot, lp->d_bbsize) != lp->d_bbsize) {
+			if (write(f, boot, lp->d_bbsize) != (int)lp->d_bbsize) {
 				warn("write");
 				return (1);
 			}
@@ -649,7 +654,7 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 	(void)close(b);
 #ifdef __i386__
 	for (i = DOSPARTOFF, found = 0;
-	     !found && i < DOSPARTOFF + NDOSPART*sizeof(struct dos_partition);
+	     !found && i < (int)(DOSPARTOFF + NDOSPART*sizeof(struct dos_partition));
 	     i++)
 		found = tmpbuf[i] != 0;
 	if (found)
@@ -863,8 +868,8 @@ int
 editit(void)
 {
 	int pid, xpid;
-	int stat, omask;
-	char *ed;
+	int locstat, omask;
+	const char *ed;
 
 	omask = sigblock(sigmask(SIGINT)|sigmask(SIGQUIT)|sigmask(SIGHUP));
 	while ((pid = fork()) < 0) {
@@ -887,11 +892,11 @@ editit(void)
 		execlp(ed, ed, tmpfil, (char *)0);
 		err(1, "%s", ed);
 	}
-	while ((xpid = wait(&stat)) >= 0)
+	while ((xpid = wait(&locstat)) >= 0)
 		if (xpid == pid)
 			break;
 	sigsetmask(omask);
-	return(!stat);
+	return(!locstat);
 }
 
 char *
@@ -953,7 +958,7 @@ getasciilabel(FILE *f, struct disklabel *lp)
 		*tp++ = '\0', tp = skip(tp);
 		if (streq(cp, "type")) {
 			if (tp == NULL)
-				tp = "unknown";
+				tp = unknown;
 			cpp = dktypenames;
 			for (; cpp < &dktypenames[DKMAXTYPES]; cpp++)
 				if (*cpp && streq(*cpp, tp)) {
@@ -1006,7 +1011,7 @@ getasciilabel(FILE *f, struct disklabel *lp)
 			continue;
 		}
 		if (tp == NULL)
-			tp = "";
+			tp = blank;
 		if (streq(cp, "disk")) {
 			strncpy(lp->d_typename, tp, sizeof (lp->d_typename));
 			continue;
@@ -1566,17 +1571,17 @@ checklabel(struct disklabel *lp)
 struct disklabel *
 getvirginlabel(void)
 {
-	static struct disklabel lab;
-	char namebuf[BBSIZE];
+	static struct disklabel loclab;
+	char lnamebuf[BBSIZE];
 	int f;
 
 	if (dkname[0] == '/') {
 		warnx("\"auto\" requires the usage of a canonical disk name");
 		return (NULL);
 	}
-	(void)snprintf(namebuf, BBSIZE, "%s%s", _PATH_DEV, dkname);
-	if ((f = open(namebuf, O_RDONLY)) == -1) {
-		warn("cannot open %s", namebuf);
+	(void)snprintf(lnamebuf, BBSIZE, "%s%s", _PATH_DEV, dkname);
+	if ((f = open(lnamebuf, O_RDONLY)) == -1) {
+		warn("cannot open %s", lnamebuf);
 		return (NULL);
 	}
 
@@ -1584,25 +1589,25 @@ getvirginlabel(void)
 	 * Try to use the new get-virgin-label ioctl.  If it fails,
 	 * fallback to the old get-disdk-info ioctl.
 	 */
-	if (ioctl(f, DIOCGDVIRGIN, &lab) == 0)
+	if (ioctl(f, DIOCGDVIRGIN, &loclab) == 0)
 		goto out;
-	if (ioctl(f, DIOCGDINFO, &lab) == 0)
+	if (ioctl(f, DIOCGDINFO, &loclab) == 0)
 		goto out;
 	close(f);
-	(void)snprintf(namebuf, BBSIZE, "%s%s%c", _PATH_DEV, dkname,
+	(void)snprintf(lnamebuf, BBSIZE, "%s%s%c", _PATH_DEV, dkname,
 	    'a' + RAW_PART);
-	if ((f = open(namebuf, O_RDONLY)) == -1) {
-		warn("cannot open %s", namebuf);
+	if ((f = open(lnamebuf, O_RDONLY)) == -1) {
+		warn("cannot open %s", lnamebuf);
 		return (NULL);
 	}
-	if (ioctl(f, DIOCGDINFO, &lab) == 0)
+	if (ioctl(f, DIOCGDINFO, &loclab) == 0)
 		goto out;
 	close(f);
-	warn("No virgin disklabel found %s", namebuf);
+	warn("No virgin disklabel found %s", lnamebuf);
 	return (NULL);
     out:
 	close(f);
-	return (&lab);
+	return (&loclab);
 }
 
 /*
