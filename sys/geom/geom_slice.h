@@ -65,7 +65,7 @@ struct g_slicer {
 
 	void			*softc;
 	g_slice_start_t		*start;
-	g_call_me_t		*hot;
+	g_event_t		*hot;
 };
 
 g_dumpconf_t g_slice_dumpconf;

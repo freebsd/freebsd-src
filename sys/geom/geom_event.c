@@ -210,18 +210,20 @@ g_cancel_event(void *ref)
 }
 
 int
-g_call_me(g_call_me_t *func, void *arg, ...)
+g_post_event(g_event_t *func, void *arg, int flag, ...)
 {
 	struct g_event *ep;
 	va_list ap;
 	void *p;
 	u_int n;
 
-	g_trace(G_T_TOPOLOGY, "g_call_me(%p, %p", func, arg);
-	ep = g_malloc(sizeof *ep, M_NOWAIT | M_ZERO);
+	g_trace(G_T_TOPOLOGY, "g_post_event(%p, %p, %d", func, arg, flag);
+	KASSERT(flag == M_NOWAIT || flag == M_WAITOK,
+	    ("Wrong flag to g_post_event"));
+	ep = g_malloc(sizeof *ep, flag | M_ZERO);
 	if (ep == NULL)
 		return (ENOMEM);
-	va_start(ap, arg);
+	va_start(ap, flag);
 	for (n = 0; n < G_N_EVENTREFS; n++) {
 		p = va_arg(ap, void *);
 		if (p == NULL)

@@ -210,7 +210,8 @@ g_slice_start(struct bio *bp)
 					g_io_deliver(bp, error);
 				return;
 			case G_SLICE_HOT_CALL:
-				error = g_call_me(gsp->hot, bp, gp, NULL);
+				error = g_post_event(gsp->hot, bp, M_NOWAIT,
+				    gp, NULL);
 				if (error)
 					g_io_deliver(bp, error);
 				return;
