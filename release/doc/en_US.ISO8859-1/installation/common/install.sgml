@@ -75,7 +75,7 @@ from {alpha,i386}/INSTALL.TXT.
     <title>Hardware Requirements</title>
 
     <para arch="i386">&os; for the &arch.print; requires an 80386 or better
-    processor.  The &man.sysinstall.8 installation program requires
+    processor.  The &man.sysinstall.8; installation program requires
     16MB of RAM; after installation, &os; itself can be run in 
     4&ndash;8MB of RAM with a pared-down kernel.
     You will need at least 100MB of free hard drive space for the
@@ -813,7 +813,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  <para>Ongoing work with BSDI's &man.doscmd.1; utility will
 	  suffice in many cases, though
 	  it still has some rough edges.  If you're interested in
-	  working on this, please send mail to the &a.emulation
+	  working on this, please send mail to the &a.emulation;
 	  and indicate that you're interested in joining this ongoing
 	  effort!</para>
 
