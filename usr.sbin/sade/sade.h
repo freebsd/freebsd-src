@@ -165,6 +165,7 @@
 #define VAR_NO_CONFIRM			"noConfirm"
 #define VAR_NO_ERROR			"noError"
 #define VAR_NO_HOLOSHELL		"noHoloShell"
+#define VAR_NO_INET6			"noInet6"
 #define VAR_NO_WARN			"noWarn"
 #define VAR_NO_USR			"noUsr"
 #define VAR_NO_TMP			"noTmp"

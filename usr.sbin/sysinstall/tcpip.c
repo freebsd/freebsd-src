@@ -368,8 +368,9 @@ tcpOpenDialog(Device *devp)
 	 * If it was configured to anything else, treat it as NO.
 	 * Otherwise, ask the question interactively.
 	 */
-	if (!variable_cmp(VAR_TRY_RTSOL, "YES") || 
-	    (variable_get(VAR_TRY_RTSOL)==0 && !msgNoYes("Do you want to try IPv6 configuration of the interface?"))) {
+	if (!variable_get(VAR_NO_INET6) &&
+	    (!variable_cmp(VAR_TRY_RTSOL, "YES") || 
+	    (variable_get(VAR_TRY_RTSOL)==0 && !msgNoYes("Do you want to try IPv6 configuration of the interface?")))) {
 	    int i;
 	    size_t len;
 
