@@ -74,6 +74,9 @@ as well as to set up pipes.
 The child process' resource utilizations
 are set to 0; see
 .Xr setrlimit 2 .
+.It
+All interval timers are cleared; see
+.Xr setitimer 2 .
 .El
 .Sh RETURN VALUES
 Upon successful completion,
@@ -119,6 +122,7 @@ There is insufficient swap space for the new process.
 .Sh SEE ALSO
 .Xr execve 2 ,
 .Xr rfork 2 ,
+.Xr setitimer 2 ,
 .Xr setrlimit 2 ,
 .Xr vfork 2 ,
 .Xr wait 2
