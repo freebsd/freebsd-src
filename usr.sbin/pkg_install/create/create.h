@@ -41,6 +41,7 @@ extern char	*Origin;
 extern char	PlayPen[];
 extern int	Dereference;
 extern int	PlistOnly;
+extern int	UseBzip2;
 
 void		check_list(char *, Package *);
 int		pkg_perform(char **);
