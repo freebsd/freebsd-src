@@ -49,7 +49,7 @@ main(int argc, char **argv)
 {
 	char namedata[256], *name = namedata;
 	const char *prog;
-	digiModel_t model;
+	enum digi_model model;
 	int ch, debug, fd, i, res;
 	int dflag, iflag, rflag;
 
