@@ -53,18 +53,18 @@
 .\"
 .\"	@(#)named.8	6.6 (Berkeley) 2/14/89
 .\"
-.TH @INDOT_U@NAMED @SYS_OPS_EXT_U@ "April 17, 1993"
+.TH NAMED 8 "June 20, 1995"
 .UC 4
 .SH NAME
-@INDOT@named \- Internet domain name server
+named \- Internet domain name server
 .SH SYNOPSIS
-.B @INDOT@named
+.B named
 [
 .B \-d
 .I debuglevel
 ] [
 .B \-p
-.I port#
+.IR port# [\fB/\fP\fIlocalport#\fP]
 ] [{\-b}
 .I bootfile
 ] [
@@ -90,8 +90,13 @@ A number after the ``d'' determines the level of
 messages printed.
 .TP
 .B \-p
-Use a different port number.  The default is the standard port number
-as returned by getservbyname(@LIB_NETWORK_EXT@) for service ``domain''.
+Use nonstandard port numbers.  The default is the standard port number
+as returned by getservbyname(3) for service ``domain''.
+The argument can specify two port numbers separated by a slash (``\fB/\fP'')
+in which case the first port is that used when contacting remote servers,
+and the second one is the service port bound by the local instance of
+.IR named .
+This is used mostly for debugging purposes.
 .TP
 .B \-b
 Use an alternate boot file.  This is optional and allows you to
@@ -99,11 +104,14 @@ specify a file with a leading dash.
 .TP
 .B \-q
 Trace all incoming queries if \fInamed\fP has been compiled with
-\fIQRYLOG\fP defined.
+\fIQRYLOG\fP defined.  \fINOTE:\fP this option is deprecated in favour
+of the boot file directive ``options query-log''.
 .TP
 .B \-r
 Turns recursion off in the server.  Answers can come only from local
 (primary or secondary) zones.  This can be used on root servers.
+\fINOTE:\fP this option is deprecated in favour
+of the boot file directive ``options no-recursion''.
 .PP
 Any additional argument is taken as the name of the boot file.
 If multiple boot files are specified, only the last is used.
@@ -130,7 +138,9 @@ secondary	CC.Berkeley.EDU	128.32.137.8 128.32.137.3	cc.zone.bak
 secondary	6.32.128.IN-ADDR.ARPA	128.32.137.8 128.32.137.3	cc.rev.bak
 primary	0.0.127.IN-ADDR.ARPA					localhost.rev
 forwarders	10.0.0.78 10.2.0.78
-; slave
+limit	max-xfers 10
+limit	datasize 64M
+options	forward-only query-log fake-iquery
 
 .DT
 .fi
@@ -151,7 +161,7 @@ root servers, and this list changes periodically.
 The first example ``primary'' line states that the file
 ``berkeley.edu.zone'' contains authoritative data for the ``Berkeley.EDU''
 zone.  The file ``berkeley.edu.zone'' contains data in the master file
-format described in RFC883.  All domain names are relative to the origin, in
+format described in RFC 883.  All domain names are relative to the origin, in
 this case, ``Berkeley.EDU'' (see below for a more detailed description).
 The second ``primary'' line states that the file ``ucbhosts.rev'' contains
 authoritative data for the domain ``32.128.IN-ADDR.ARPA,'' which is used to
@@ -180,29 +190,26 @@ specifies one or more forwarders, then the server will send all queries for
 data not in the cache to the forwarders first.  Each forwarder will be asked
 in turn until an answer is returned or the list is exhausted.  If no answer
 is forthcoming from a forwarder, the server will continue as it would have
-without the forwarders line unless it is in ``slave'' mode.  The forwarding
-facility is useful to cause a large sitewide cache to be generated on a
-master, and to reduce traffic over links to outside servers.  It can also be
-used to allow servers to run that do not have access directly to the
-Internet, but wish to act as though they do.
+without the forwarders line unless it is in ``forward-only'' mode.  The
+forwarding facility is useful to cause a large sitewide cache to be
+generated on a master, and to reduce traffic over links to outside servers.
+It can also be used to allow servers to run that do not have direct access
+to the Internet, but wish to look up exterior names anyway.
 .LP
-The ``slave'' line (shown commented out) is used to put the server in slave
-mode.  In this mode, the server will only make queries to forwarders.  This
-option is normally used on machine that wish to run a server but for
-physical or administrative reasons cannot be given access to the Internet,
-but have access to a host that does have access.
+The ``slave'' line (deprecated) is allowed for backward compatibility.  Its
+meaning is identical to ``options forward-only''.
 .LP
 The ``sortlist'' line can be used to indicate networks that are to be
-preferred over other networks Queries for host addresses from hosts on the
+preferred over other networks.  Queries for host addresses from hosts on the
 same network as the server will receive responses with local network
 addresses listed first, then addresses on the sort list, then other
 addresses.
 .LP
-The ``xfrnets'' directive (not shown) can be used to implement primative
+The ``xfrnets'' directive (not shown) can be used to implement primitive
 access control.  If this directive is given, then your name server will
 only answer zone transfer requests from hosts which are on networks listed
 in your ``xfrnets'' directives.  This directive may also be given as
-``tcplist'' for compatibility with older, interrim servers.
+``tcplist'' for compatibility with older, interim servers.
 .LP
 The ``include'' directive (not shown) can be used to process the contents
 of some other file as though they appeared in place of the ``include''
@@ -218,9 +225,38 @@ as dotted quads, not as domain names).  This is useful when you know that
 some popular server has bad data in a zone or cache, and you want to avoid
 contamination while the problem is being fixed.
 .LP
-The ``max-fetch'' directive (not shown) can be used to override the default
-limit (which is 10) to the number of named-xfer subprocesses which \s-1BIND\s+1
-can spawn at any one time.
+The ``limit'' directive can be used to change \s-1BIND\s+1's internal limits,
+some of which (\fBdatasize\fP, for example) are implemented by the system and
+others (like \fBtransfers-in\fP) by \s-1BIND\s+1 itself.  The number following
+the limit name can be scaled by postfixing a ``k,'' ``m,'' or ``g'' for
+kilobytes, megabytes, and gigabytes respectively.
+\fBdatasize\fP's argument sets the process data size enforced by the kernel.
+\fINote:\fP not all systems provide a call to implement this -- on such
+systems, the use of the \fBdatasize\fP parameter of ``limit'' will result in
+a warning message.
+\fBtransfers-in\fP's argument is the number of \fInamed-xfer\fP subprocesses
+which \s-1BIND\s+1 will spawn at any one time.
+\fBtransfers-per-ns\fP's argument is the maximum number of zone transfers to
+be simultaneously initiated to any given remote name server.
+.LP
+The ``options'' directive introduces a boolean specifier that changes the
+behaviour of \s-1BIND\s+1.  More than one option can be specified in a single
+directive.  The currently defined options are as follows:
+\fBno-recursion\fP, which will cause \s-1BIND\s+1 to answer with a referral
+rather than actual data whenever it receives a query for a name it is not
+authoritative for -- don't set this on a server that is listed in any host's
+\fIresolv.conf\fP file;
+\fBquery-log\fP, which causes all queries to be logged via
+syslog(8) -- this is a lot of data, don't turn it on lightly;
+\fBforward-only\fP, which causes the server to query only its forwarders --
+this option is normally used on machine that wishes to run a server but for
+physical or administrative reasons cannot be given access to the Internet;
+and \fBfake-iquery\fP, which tells \s-1BIND\s+1 to send back a useless and
+bogus reply to ``inverse queries'' rather than responding with an error --
+this is helpful if you have a lot of microcomputers or SunOS hosts or both.
+.LP
+The ``max-fetch'' directive (not shown) is allowed for backward compatibility;
+its meaning is identical to ``limit transfers-in''.
 .PP
 The master file consists of control information and a list of resource
 records for objects in the zone of the forms:
@@ -278,7 +314,7 @@ the canonical name for an alias (domain)
 .IP SOA
 marks the start of a zone of authority (domain of originating host,
 domain address of maintainer, a serial number and the following
-parameters in seconds: refresh, retry, expire and minimum TTL (see RFC883)).
+parameters in seconds: refresh, retry, expire and minimum TTL (see RFC 883)).
 .IP NULL
 a null resource record (no format or data)
 .IP RP
@@ -334,18 +370,19 @@ nameserver did not have complete information.
 .sp
 The following signals have the specified effect when sent to the
 server process using the
-.IR kill (@CMD_EXT@)
+.IR kill (1)
 command.
 .IP SIGHUP
-Causes server to read named.boot and reload database.  If the server
+Causes server to read named.boot and reload the database.  If the server
 is built with the FORCED_RELOAD compile-time option, then SIGHUP will
 also cause the server to check the serial number on all secondary zones.
 Normally the serial numbers are only checked at the SOA-specified intervals.
 .IP SIGINT
-Dumps current data base and cache to /var/tmp/named_dump.db
+Dumps the current data base and cache to /var/tmp/named_dump.db
 .IP SIGIOT
 Dumps statistics data into /var/tmp/named.stats if the server is
-compiled -DSTATS.  Statistics data is appended to the file.
+compiled with -DSTATS.  Statistics data is appended to the file.  Some
+systems use SIGABRT rather than SIGIOT for this.
 .IP SIGSYS
 Dumps the profiling data in /var/tmp if the server is compiled
 with profiling (server forks, chdirs and exits).
@@ -360,7 +397,7 @@ Turns on debugging; each SIGUSR1 increments debug level.
 Turns off debugging completely.
 (SIGFPE on older systems without SIGUSR2)
 .IP SIGWINCH
-Toggles logging of all incoming queries via syslog(@SYS_OPS_EXT@)
+Toggles logging of all incoming queries via syslog(8)
 (requires server to have been built with the QRYLOG option).
 .SH FILES
 .nf
@@ -372,7 +409,7 @@ Toggles logging of all incoming queries via syslog(@SYS_OPS_EXT@)
 /var/tmp/named.stats	nameserver statistics data
 .fi
 .SH "SEE ALSO"
-kill(@CMD_EXT@), gethostbyname(@LIB_NETWORK_EXT@), signal(@SYSCALL_EXT@), 
-resolver(@LIB_NETWORK_EXT@), resolver(@FORMAT_EXT@), hostname(@DESC_EXT@),
+kill(1), gethostbyname(3), signal(2), 
+resolver(3), resolver(5), hostname(7),
 RFC 882, RFC 883, RFC 973, RFC 974, RFC 1033, RFC 1034, RFC 1035, RFC 1123,
 \fIName Server Operations Guide for \s-1BIND\s+1\fR

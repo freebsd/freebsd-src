@@ -1,7 +1,7 @@
 /* options.h - specify the conditionally-compiled features
  * vix 28mar92 [moved out of the Makefile because they were getting too big]
  *
- * $Id: options.h,v 4.9.1.16 1994/07/22 08:42:30 vixie Exp $
+ * $Id: options.h,v 1.1.1.1 1995/10/23 09:26:10 peter Exp $
  */
 
 /*
@@ -70,11 +70,14 @@
  *	mpa = Mark Andrews of CSIRO - DMS
  *	rossc = Ross Cartlidge of The Univeritsy of Sydney
  *	mtr = Marshall Rose of TPC.INT
+ *      bg = Benoit Grange of INRIA
+ *      ckd = Christopher Davis of Kapor Enterprises
+ *      gns = Greg Shapiro of WPI
  */
 
 #define DEBUG		/* enable -d flag and SIGUSR[12] support (ucb) */
 /*#define ALLOW_T_UNSPEC /* enable the "unspec" RR type for old athena (ucb) */
-#define INVQ		/* enable inverse queries (nslookup) (ucb/vix) */
+/*#define INVQ		/* enable inverse queries (nslookup) (ucb/vix) */
 /*#define DSTORAGE	/* debug malloc overruns using storage.o (ucb/vix) */
 /*#define DMALLOC	/* trace malloc orphans using dmalloc.o (vix) */
 #define XFRNETS  	/* enable "xfrnets" command in named.boot (vix) */
@@ -92,13 +95,14 @@
 #define DOTTED_SERIAL	/* if you want to be able to specify dotted serial#s */
 /*#define SENSIBLE_DOTS	/* if you want dotted serial#s to make numeric sense */
 #define NCACHE		/* negative caching (anant@isi.edu) */
-#define VALIDATE	/* validation procedure (anant@isi.edu) */
+/*#define VALIDATE	/* validation procedure (anant@isi.edu) (DO NOT USE!)*/
 /*#define SHORT_FNAMES	/* file names used in named-xfer need to be short */
 #define RESOLVSORT	/* allow sorting of addresses in gethostbyname (mpa) */
-#define STUBS		/* allow transfers of NS only for a zone (mpa) (EXP) */
-/*#define SUNSECURITY	/* obscure fix for sunos (see below) */
+#define STUBS		/* allow transfers of NS only for a zone (mpa) */
+#ifndef LOGFAC
 #define	LOGFAC LOG_DAEMON /* what syslog facility should named use? */
-/*#define SECURE_ZONES	/* if you want to inhibit world access to zone(s) */
+#endif
+#define SECURE_ZONES	/* if you want to inhibit world access to zones (gns)*/
 #define ROUND_ROBIN	/* rotate databuf list after each access (mtr) */
 #define ADDAUTH 	/* return NS and glue w/ authorative answers (mpa) */
 #define RFC1535		/* use RFC 1535 default for "search" list (vix) */
@@ -109,8 +113,12 @@
 #define GETSER_LOGGING LOG_INFO /* log errors/timeouts getting serial number */
 /*#define RETURNSOA	/* good code that the world isn't ready for yet */
 #define CLEANCACHE	/* useful and necessary in the face of NCACHE */
+#define PURGE_ZONE	/* remove all traces of a zone when reloading (mpa) */
 #define STATS		/* keep nameserver statistics; uses more memory */
-/*#define RENICE  	/* named-xfer should run at normal priority */
+#define RENICE  	/* named-xfer should run at normal priority */
+#define XSTATS		/* extended statistics, syslogged periodically (bg) */
+/*#define BIND_NOTIFY	/* experimental - do not enable in customer products */
+/*#define LOC_RR	/* support for (draft) LOC record parsing (ckd) */
 
 /*--------------------------------------------*
  * no user-servicable parts beyond this point *
@@ -149,12 +157,10 @@
 # endif
 #endif
 
-#if defined(SUNOS4) || (defined(sun) && defined(SYSV))
-# ifndef SUNSECURITY
-#  define SUNSECURITY	/* mandatory on suns and rlogin etc. depend on this */
-# endif
-#endif
-
 #ifdef LAME_LOGGING
 # define LAME_DELEGATION
+#endif
+
+#if defined(XSTATS) && !defined(STATS)
+# define STATS
 #endif

@@ -1,7 +1,7 @@
-/* defs.h - include or define things that aren't present on all systems
+/* portability.h - include or define things that aren't present on all systems
  * vixie@decwrl 26dec92 [new]
  *
- * $Id: portability.h,v 4.9.1.24 1994/07/22 08:42:30 vixie Exp $
+ * $Id: portability.h,v 1.1.1.1 1995/10/23 09:26:09 peter Exp $
  */
 
 /*
@@ -69,6 +69,22 @@
 # define TIME_H_INCLUDED
 #endif
 
+#ifdef ISC
+# ifndef _POSIX_SOURCE
+#  define _POSIX_SOURCE
+# endif
+# define SYSV
+# define SVR3
+# define _SYSV3
+# define NEED_STRTOUL
+# define NEED_FTRUNCATE
+# define USE_POSIX
+# include <sys/bsdtypes.h>
+# include <sys/sioctl.h>
+# include <sys/stream.h>
+# include <net/errno.h>
+#endif
+
 #if defined(__convex__)
 # if !defined(_POSIX_SOURCE)
 #  define _POSIX_SOURCE
@@ -83,6 +99,14 @@
 # endif
 # define writev(a,b,c) __writev(a,b,c)
 # define setitimer(a,b,c) __setitimer(a,b,c)
+#endif
+
+/* This is defined in the Makefile for ISC compiles. */
+#if defined(ISC)
+# define ftruncate(a,b) __ftruncate(a,b)
+# define USE_MEMCPY
+# define USE_UTIME
+# define HAVE_FCHMOD 0
 #endif
 
 /* SCO UNIX defines only this unique symbol, apparently. */
@@ -109,13 +133,26 @@
 # define BSD 43
 #endif
 
-#if defined(_POSIX_SOURCE) || defined(__sgi) || defined(ultrix) || \
+#if defined(_AUX_SOURCE)
+# define vfork fork
+# define NEED_STRERROR
+# define NEED_STRTOUL
+# define SIG_FN void
+# define USE_MEMCPY
+#endif
+
+
+#if defined(SVR4) && !defined(SYSV)
+# define SYSV
+#endif
+
+#if defined(_POSIX_SOURCE) || defined(__sgi) || defined(__ultrix) || \
 	defined(__hpux) || (defined(BSD) && (BSD >= 199103)) || \
 	(defined(sun) && defined(SYSV))
 # define USE_POSIX
 #endif
 
-#if defined(ultrix) && !defined(BSD)
+#if defined(__ultrix) && !defined(BSD)
 # define BSD 42
 #endif
 
@@ -123,16 +160,29 @@
 # define RISCOS_BSD
 #endif
 
-#if defined(SVR4) && !defined(SYSV)
-# define SYSV
+#if defined(SYSV) || defined(__ultrix) || defined(__osf__) \
+	|| (defined(BSD) && BSD >= 199306) || defined(linux)
+# define USE_UTIME
+# define HAVE_SETVBUF
 #endif
 
-#if defined(SYSV) || defined(ultrix) || (defined(BSD) && BSD >= 199306)
-# define USE_UTIME
+#if defined(SYSV) && !defined(SVR4)
+# define vfork fork
+#endif
+
+#if defined(sun) || defined(SVR4)
+# define NETREAD_BROKEN
 #endif
 
 #if defined(BSD) && BSD >= 199006 && !defined(i386) && !defined(RISCOS_BSD)
 # define HAVE_DAEMON
+#endif
+
+#if !defined(BSD) || (BSD <= 199006)
+# if !defined(NeXT)
+#  define NEED_INETADDR
+# endif
+# define NEED_INETATON
 #endif
 
 #if defined(__hpux)
@@ -140,11 +190,20 @@
 #  define select(a,b,c,d,e) select(a, (int *)b, (int *)c, (int *)d, e)
 #  define ctime(x) ctime((const time_t *)x)
 # endif /*__STDC__*/
-# ifndef SYSV
-# define USE_UTIME
-# define setlinebuf(x) setvbuf(x, NULL, _IOLBF, BUFSIZ)
-# define SIGWINCH SIGWINDOW
+# if !defined(SYSV)
+#  define USE_UTIME
+#  define setlinebuf(x) setvbuf(x, NULL, _IOLBF, BUFSIZ)
+#  if !defined(SIGWINCH)  /*pre 9.0*/
+#   define SIGWINCH SIGWINDOW
+#  endif
 # endif /*SYSV*/
+/* XXX: better autodetection of the need for "struct linger" would be nice */
+# if 0
+struct	linger {
+	int	l_onoff;		/* option on/off */
+	int	l_linger;		/* linger time */
+};
+# endif
 #endif /*__hpux*/
 
 #if defined(_SEQUENT_)
@@ -219,6 +278,10 @@ extern long pathconf __P((const char *path, int name));
 # define INT_MAX	2147483647	/* max decimal value of an "int" */
 #endif
 
+#ifndef RAND_MAX
+# define RAND_MAX	0x7fffffff
+#endif
+
 #ifndef	IN_LOOPBACKNET
 # define IN_LOOPBACKNET	127
 #endif
@@ -245,8 +308,10 @@ int      strcasecmp __P((const char *, const char *));
 	!defined(NeXT) && \
 	!defined(__convex__) && \
 	!defined(USE_POSIX)
-extern void syslog();
-extern char *ctime __P((const time_t *clock));
+# if !defined(NCR)
+extern void	syslog();
+# endif
+extern char	*ctime __P((const time_t *clock));
 extern int	close(), setitimer(), recv(), sendto(), sigsetmask(),
 		atoi(), getpid(), fork(), read(), ioctl(),
 		setsockopt(), socket(), bind();
@@ -260,7 +325,11 @@ extern int	close(), setitimer(), recv(), sendto(), sigsetmask(),
  * define them in terms of bcopy et al if !defined(__STDC__)
  * but that's more work.
  */
+#if defined(USE_MEMCPY)
+#  define bcopy(a,b,c) memcpy(b,a,c)
+#else
 #  define bcopy(a,b,c) memmove(b,a,c)
+#endif
 #  define bzero(a,b) memset(a,0,b)
 #  define bcmp(a,b,c) memcmp(a,b,c)
 # else
@@ -274,19 +343,27 @@ extern int bcmp();
 	&& !defined(USE_POSIX) && !defined(apollo) && !defined(sequent) \
 	&& !defined(M_UNIX)
 # define NEED_STRERROR
+#if !defined(ultrix) && !defined(NCR)
 # define NEED_PUTENV
+#endif
 #endif
 
 #if defined(SUNOS4)
 # define NEED_STRERROR
+# if defined(sun386)
+#  define pid_t int
+#  define NEED_STRCASECMP
+# endif
 #endif
 
 #if (!defined(BSD) || (BSD < 43))
 # define NEED_MKSTEMP
-# if !defined(ultrix) && !defined(apollo)
+# if !defined(__ultrix) && !defined(apollo)
 #  define NEED_STRCASECMP
 #  define NEED_MKTEMP
-#  define NEED_STRPBRK
+#  if !defined(SVR4)
+#   define NEED_STRPBRK
+#  endif
 # endif
 #endif
 
@@ -302,7 +379,7 @@ extern int bcmp();
 #ifndef	SIG_FN
 # ifdef BSD
 #  if (BSD >= 199006) || defined(NeXT) || defined(__osf__) || defined(sun) \
-	|| defined(ultrix) || defined(apollo) || defined(POSIX_SIGNALS)
+	|| defined(__ultrix) || defined(apollo) || defined(POSIX_SIGNALS)
 #   define SIG_FN void		/* signal-catching functions return void */
 #  else
 #   define SIG_FN int		/* signal-catching functions return int */
@@ -319,7 +396,7 @@ extern u_long htonl(), ntohl();
 #endif
 
 #if defined(USE_POSIX) && !defined(sun) && !defined(__sgi) \
-	&& !defined(__convex__) && !defined(ultrix)
+	&& !defined(__convex__) && !defined(__ultrix) && !defined(_AUX_SOURCE)
 # define PORT_NONBLOCK	O_NONBLOCK
 # define PORT_WOULDBLK	EAGAIN
 #else
@@ -339,7 +416,7 @@ extern u_long htonl(), ntohl();
 #define waitpid(x,y,z) (wait3(y,z,(struct rusage *)NULL))
 #endif
 
-#if defined(NeXT) || defined(_AIX)
+#if defined(NeXT) || defined(_AIX) || defined(sun386)
 # undef WIFEXITED
 # undef WEXITSTATUS
 # undef WIFSIGNALED
@@ -352,13 +429,13 @@ extern u_long htonl(), ntohl();
 #endif /* sequent */
 
 #if !defined(WIFEXITED)
-# define WIFEXITED(x) (!(x & 0200))
+# define WIFEXITED(x) (!(x & 0177))
 #endif
 #if !defined(WEXITSTATUS)
 # define WEXITSTATUS(x) (x >> 8)
 #endif
 #if !defined(WIFSIGNALED)
-# define WIFSIGNALED(x) ((x & 0200) && ((x & 0200) != 0177))
+# define WIFSIGNALED(x) ((x & 0177) && ((x & 0377) != 0177))
 #endif
 #if !defined(WTERMSIG)
 # define WTERMSIG(x) (x & 0177)
@@ -394,11 +471,12 @@ extern u_long htonl(), ntohl();
 # define S_ISFIFO(m)	((m & S_IFMT) == S_IFIFO)
 #endif
 
-#if (defined(ultrix) || defined(__osf__)) && defined(NEED_STRTOUL)
+#if defined(NEED_STRTOUL) && \
+	(defined(__ultrix) || defined(__osf__) || defined(NeXT))
 # undef NEED_STRTOUL
 #endif
 
-#if defined(ultrix) || defined(__osf__)
+#if defined(__ultrix) || defined(__osf__)
 # define MAYBE_HESIOD
 #endif
 
@@ -428,6 +506,15 @@ extern u_long htonl(), ntohl();
 # endif
 #endif
 
+#if defined(BSD) || defined(__osf__) || defined(__convex__)
+# define HAVE_GETRUSAGE
+#endif
+
+/* May be set in the Makefile. */
+#if defined(HAVE_GETRUSAGE)
+# include <sys/resource.h>
+#endif
+
 /*
  *  Because Convex has true library function feof() which is
  *  patently wrong (it test bit _IOREAD) we need feof() as
@@ -435,6 +522,10 @@ extern u_long htonl(), ntohl();
  */
 #if defined(__convex__) && !defined(feof)
 #  define   feof(p)	((p)->_flag&_IOEOF)
+#endif
+
+#if defined(M_UNIX) || defined(linux)
+# define SPURIOUS_ECONNREFUSED
 #endif
 
 /*

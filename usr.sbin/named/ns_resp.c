@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_resp.c,v 8.8 1995/07/07 07:33:52 vixie Exp $";
+static char rcsid[] = "$Id: ns_resp.c,v 1.1.1.3 1995/10/23 09:26:24 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -270,10 +270,10 @@ ns_resp(msg, msglen)
 	 *  Here we handle bad responses from servers.
 	 *  Several possibilities come to mind:
 	 *	The server is sick and returns SERVFAIL
-	 *	The server returns some garbage opcode (its sick)
+	 *	The server returns some garbage opcode (it's sick)
 	 *	The server can't understand our query and return FORMERR
-	 *  In all these cases, we simply drop the packet and force
-	 *  a retry.  This will make him look bad due to unresponsiveness.
+	 *  In all these cases, we drop the packet, disable retries on
+	 *  this server and immediately force a retry.
 	 */
 	if ((hp->rcode != NOERROR && hp->rcode != NXDOMAIN)
 #ifndef NCACHE
@@ -299,6 +299,19 @@ ns_resp(msg, msglen)
 			nameserIncr(from_addr.sin_addr, nssRcvdErr);
 			break;
 		}
+		/* mark server as bad */
+		if (!qp->q_fwd)
+		    for (i = 0; i < (int)qp->q_naddr; i++)
+			if (qp->q_addr[i].ns_addr.sin_addr.s_addr
+			    == from_addr.sin_addr.s_addr)
+				qp->q_addr[i].nretry = MAXRETRY;
+		/* XXX - doesn't handle responses sent from the wrong
+		 * interface on a multihomed server
+		 */
+		if (qp->q_fwd ||
+		    qp->q_addr[qp->q_curaddr].ns_addr.sin_addr.s_addr
+		    == from_addr.sin_addr.s_addr)
+			retry(qp);
 		return;
 	}
 
@@ -357,9 +370,15 @@ ns_resp(msg, msglen)
 
 		if (type == T_NS && samedomain(qp->q_domain, name)) {
 			nameserIncr(from_addr.sin_addr, nssRcvdLDel);
+			/* mark server as bad */
+			if (!qp->q_fwd)
+			    for (i = 0; i < (int)qp->q_naddr; i++)
+				if (qp->q_addr[i].ns_addr.sin_addr.s_addr
+				    == from_addr.sin_addr.s_addr)
+					qp->q_addr[i].nretry = MAXRETRY;
 #ifdef LAME_LOGGING
 			if (class == C_IN &&
-			    !haveComplained((char*)nhash(name),
+			    !haveComplained((char*)nhash(inet_etoa(&from_addr)),
 					    (char*)nhash(qp->q_domain)))
 				syslog(LAME_LOGGING,
 				"Lame server on '%s' (in '%s'?): %s%s\n",
@@ -369,6 +388,13 @@ ns_resp(msg, msglen)
 					);
 
 #endif /* LAME_LOGGING */
+			/* XXX - doesn't handle responses sent from the wrong
+			 * interface on a multihomed server
+			 */
+			if (qp->q_fwd ||
+			    qp->q_addr[qp->q_curaddr].ns_addr.sin_addr.s_addr
+			    == from_addr.sin_addr.s_addr)
+				retry(qp);
 			return;
 		}
 	}
@@ -1002,16 +1028,16 @@ ns_resp(msg, msglen)
 		const char *result;
 
 		if (qp->q_addr[i].ns != NULL) {
+			dprintf(1, (ddt, "ns_resp: ns %s rcnt %d (%s)\n",
+				    qp->q_addr[i].ns->d_data,
+				    qp->q_addr[i].ns->d_rcnt,
+				    result));
 			if ((--(qp->q_addr[i].ns->d_rcnt)))
 				result = busy;
 			else {
 				free((char*)qp->q_addr[i].ns);
 				result = freed;
 			}
-			dprintf(1, (ddt, "ns_resp: ns %s rcnt %d (%s)\n",
-				    qp->q_addr[i].ns->d_data,
-				    qp->q_addr[i].ns->d_rcnt,
-				    result));
 		}
 		if (qp->q_addr[i].nsdata != NULL) {
 			if ((--(qp->q_addr[i].nsdata->d_rcnt)))

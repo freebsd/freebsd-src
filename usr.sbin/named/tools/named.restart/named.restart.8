@@ -53,10 +53,10 @@
 .\"
 .\"	from hostname.7	6.4 (Berkeley) 1/16/90
 .\"
-.TH @INDOT_U@NAMED.RESTART @SYS_OPS_EXT_U@ "June 26, 1993"
+.TH NAMED.RESTART 8 "June 26, 1993"
 .UC 5
 .SH NAME
-@INDOT@named.restart \- stop and restart the name server
+named.restart \- stop and restart the name server
 .SH DESCRIPTION
 This command sends a \s-1SIGKILL\s+1 to the running name server and then
 starts a new one.
@@ -70,4 +70,4 @@ the server could take some time to die and the new one will experience a
 fatal error if the old one isn't gone by the time it starts, you can be left
 in a situation where you have no name server at all.
 .SH SEE ALSO
-@INDOT@named(@SYS_OPS_EXT@), @INDOT@named.reload(@SYS_OPS_EXT@)
+named(8), named.reload(8)
