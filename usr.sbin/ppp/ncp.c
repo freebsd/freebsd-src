@@ -139,7 +139,13 @@ ncp_Destroy(struct ncp *ncp)
 }
 
 int
-ncp_fsmStart(struct ncp *ncp, struct bundle *bundle)
+ncp_fsmStart(struct ncp *ncp,
+#ifdef NOINET6
+	     struct bundle *bundle __unused
+#else
+	     struct bundle *bundle
+#endif
+	     )
 {
   int res = 0;
 
@@ -326,7 +332,13 @@ ncp_FillPhysicalQueues(struct ncp *ncp, struct bundle *bundle)
  * of what is to be pushed next, coming either from mp->out or ncp->afq.
  */
 int
-ncp_PushPacket(struct ncp *ncp __unused, int *af, struct link *l)
+ncp_PushPacket(struct ncp *ncp __unused,
+#ifdef NOINET6
+	       int *af __unused,
+#else
+	       int *af,
+#endif
+	       struct link *l)
 {
   struct bundle *bundle = l->lcp.fsm.bundle;
   int res;
