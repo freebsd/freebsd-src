@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-dma.c,v 1.4 1999/04/10 18:53:35 sos Exp $
+ *	$Id: ata-dma.c,v 1.5 1999/04/16 21:21:53 peter Exp $
  */
 
 #include "ata.h"
@@ -36,6 +36,7 @@
 #include <sys/kernel.h>
 #include <sys/buf.h>
 #include <sys/malloc.h> 
+#include <sys/bus.h>
 #include <vm/vm.h>           
 #include <vm/pmap.h>
 #include <pci/pcivar.h>
@@ -44,8 +45,7 @@
 
 #ifdef __alpha__
 #undef vtophys
-#define	vtophys(va)	(pmap_kextract(((vm_offset_t) (va))) \
-			 + 1*1024*1024*1024)
+#define	vtophys(va)	(pmap_kextract(((vm_offset_t) (va))) + 1*1024*1024*1024)
 #endif
 
 /* misc defines */
@@ -70,14 +70,15 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
     if (!(dmatab = malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT)))
         return -1;
 
-    if (((uintptr_t)dmatab>>PAGE_SHIFT)^(((uintptr_t)dmatab+PAGE_SIZE-1)>>PAGE_SHIFT)) {
+    if (((uintptr_t)dmatab >> PAGE_SHIFT) ^
+	(((uintptr_t)dmatab + PAGE_SIZE - 1) >> PAGE_SHIFT)) {
         printf("ata_dmainit: dmatab crosses page boundary, no DMA\n");
         free(dmatab, M_DEVBUF);
         return -1;
     }
     scp->dmatab[device ? 1 : 0] = dmatab;
 
-    type = pci_conf_read(scp->tag, PCI_ID_REG);
+    type = pci_get_devid(scp->dev);
 
     switch(type) {
 
@@ -97,8 +98,9 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    devno = (scp->unit << 1) + (device ? 1 : 0);
 	    mask48 = (1 << devno) + (3 << (16 + (devno << 2)));
 	    new48 = (1 << devno) + (2 << (16 + (devno << 2)));
-            pci_conf_write(scp->tag, 0x48, 
-			   (pci_conf_read(scp->tag, 0x48) & ~mask48) | new48);
+            pci_write_config(scp->dev, 0x48, 
+			     (pci_read_config(scp->dev, 0x48, 4) &
+			     ~mask48) | new48, 4);
 	    return 0;
 	}
 	/* FALLTHROUGH */
@@ -108,9 +110,9 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    int32_t mask40, new40, mask44, new44;
 
 	    /* if SITRE not set doit for both channels */
-	    if (!((pci_conf_read(scp->tag, 0x40) >> (scp->unit<<8)) & 0x4000)) {
-	        new40 = pci_conf_read(scp->tag, 0x40);
-                new44 = pci_conf_read(scp->tag, 0x44); 
+	    if (!((pci_read_config(scp->dev, 0x40, 4)>>(scp->unit<<8))&0x4000)){
+	        new40 = pci_read_config(scp->dev, 0x40, 4);
+                new44 = pci_read_config(scp->dev, 0x44, 4); 
                 if (!(new40 & 0x00004000)) {
                     new44 &= ~0x0000000f;
                     new44 |= ((new40&0x00003000)>>10)|((new40&0x00000300)>>8);
@@ -120,8 +122,8 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
                     new44 |= ((new40&0x30000000)>>22)|((new40&0x03000000)>>20);
                 }
                 new40 |= 0x40004000;
-                pci_conf_write(scp->tag, 0x40, new40);
-                pci_conf_write(scp->tag, 0x44, new44);
+                pci_write_config(scp->dev, 0x40, new40, 4);
+                pci_write_config(scp->dev, 0x44, new44, 4);
 	    }
 	    printf("ata%d: %s: settting up WDMA2 mode on PIIX3/4 chip ",
 		   scp->lun, (device) ? "slave" : "master");
@@ -149,10 +151,12 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
                 mask44 <<= 4;
                 new44 <<= 4;
             }
-            pci_conf_write(scp->tag, 0x40,
-                           (pci_conf_read(scp->tag, 0x40) & ~mask40) | new40);
-            pci_conf_write(scp->tag, 0x44,
-                           (pci_conf_read(scp->tag, 0x44) & ~mask44) | new44);
+            pci_write_config(scp->dev, 0x40,
+                             (pci_read_config(scp->dev, 0x40, 4) &
+			     ~mask40) | new40, 4);
+            pci_write_config(scp->dev, 0x44,
+                             (pci_read_config(scp->dev, 0x44, 4) &
+			     ~mask44) | new44, 4);
 	    return 0;
 	}	
 	break;
@@ -173,7 +177,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		break;
 	    }
 	    printf("OK\n");
-	    pci_conf_write(scp->tag, 0x60 + (devno << 2), 0x004127f3);
+	    pci_write_config(scp->dev, 0x60 + (devno << 2), 0x004127f3, 4);
 	    return 0;
 	}
 	else if (wdmamode >= 2 && apiomode >= 4) {
@@ -186,19 +190,19 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		break;
 	    }
 	    printf("OK\n");
-	    pci_conf_write(scp->tag, 0x60 + (devno << 2), 0x004367f3);
+	    pci_write_config(scp->dev, 0x60 + (devno << 2), 0x004367f3, 4);
 	    return 0;
         }
 	else {
 	    printf("ata%d: %s: settting up PIO mode on Promise chip OK\n",
 		   scp->lun, (device) ? "slave" : "master");
-	    pci_conf_write(scp->tag, 0x60 + (devno << 2), 0x004fe924);
+	    pci_write_config(scp->dev, 0x60 + (devno << 2), 0x004fe924, 4);
 	}
 	break;
     
     case 0x522910b9:	/* AcerLabs Aladdin IV/V */
 	if (udmamode >=2) {
-	    int32_t word54 = pci_conf_read(scp->tag, 0x54);
+	    int32_t word54 = pci_read_config(scp->dev, 0x54, 4);
 	
 	    printf("ata%d: %s: settting up UDMA2 mode on Aladdin chip ",
 		   scp->lun, (device) ? "slave" : "master");
@@ -211,7 +215,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    printf("OK\n");
 	    word54 |= 0x5555;
 	    word54 |= (0x0000000A << (16 + (scp->unit << 3) + (device << 2)));
-	    pci_conf_write(scp->tag, 0x54, word54);
+	    pci_write_config(scp->dev, 0x54, word54, 4);
 	    return 0;
 		
 	}

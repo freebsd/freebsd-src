@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-all.h,v 1.4 1999/03/07 21:49:14 sos Exp $
+ *	$Id: ata-all.h,v 1.5 1999/03/28 18:57:18 sos Exp $
  */
 
 /* ATA register defines */
@@ -125,7 +125,7 @@ struct ata_dmaentry {
 struct ata_softc {
     int32_t			unit;		/* unit on this controller */
     int32_t			lun;		/* logical unit # */
-    pcici_t			tag;		/* PCI tag for this device */
+    struct device		*dev;		/* device handle */
     int32_t			ioaddr;		/* port addr */
     int32_t			altioaddr;	/* alternate port addr */
     int32_t			bmaddr;		/* bus master DMA port */
