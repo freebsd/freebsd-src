@@ -70,6 +70,8 @@ static void kcore_detach PARAMS ((char *args, int from_tty));
 
 static void set_proc_cmd PARAMS ((char *arg, int from_tty));
 
+static void set_cpu_cmd PARAMS ((char *arg, int from_tty));
+
 static CORE_ADDR kvtophys PARAMS ((int, CORE_ADDR));
 
 static int physrd PARAMS ((int, u_int, char*, int));
@@ -105,6 +107,12 @@ static char *core_file;
 static int core_kd = -1;
 static struct proc *cur_proc;
 static CORE_ADDR kernel_start;
+
+static int ncpus;
+static int cpuid;
+static CORE_ADDR prv_space;	/* per-cpu private space */
+static int prv_space_size;
+#define prv_start	(prv_space + cpuid * prv_space_size)
 
 /*
  * Read the "thing" at kernel address 'addr' into the space pointed to
@@ -179,7 +187,7 @@ static struct proc *
 curProc ()
 {
   struct proc *p;
-  CORE_ADDR addr = ksym_lookup ("curproc");
+  CORE_ADDR addr = ksym_lookup ("gd_curproc") + prv_start;
 
   if (kvread (addr, &p))
     error ("cannot read proc pointer at %x\n", addr);
@@ -427,6 +435,16 @@ xfer_umem (memaddr, myaddr, len, write)
   return n;
 }
 
+#define	KERNOFF		((unsigned)KERNBASE)
+#define	INKERNEL(x)	((x) >= KERNOFF)
+
+static CORE_ADDR sbr;
+static CORE_ADDR curpcb;
+static int found_pcb;
+static int devmem;
+static int kfd;
+static struct pcb pcb;
+
 static void
 set_proc_cmd (arg, from_tty)
      char *arg;
@@ -455,17 +473,47 @@ set_proc_cmd (arg, from_tty)
   }
 }
 
+static void
+set_cpu_cmd (arg, from_tty)
+     char *arg;
+     int from_tty;
+{
+  CORE_ADDR paddr;
+  struct kinfo_proc *kp;
+  int cpu, cfd;
 
+  if (!arg)
+    error_no_arg ("cpu number");
+  if (!kernel_debugging)
+    error ("not debugging kernel");
+  if (!ncpus)
+    error ("not debugging SMP kernel");
 
-#define	KERNOFF		((unsigned)KERNBASE)
-#define	INKERNEL(x)	((x) >= KERNOFF)
+  cpu = (int)parse_and_eval_address (arg);
+  if (cpu < 0 || cpu > ncpus)
+    error ("cpu number out of range");
+  cpuid = cpu;
 
-static CORE_ADDR sbr;
-static CORE_ADDR curpcb;
-static int found_pcb;
-static int devmem;
-static int kfd;
-static struct pcb pcb;
+  cfd = core_kd;
+  curpcb = kvtophys(cfd, ksym_lookup ("gd_curpcb") + prv_start);
+  physrd (cfd, curpcb, (char*)&curpcb, sizeof curpcb);
+
+  if (!devmem)
+    paddr = ksym_lookup ("dumppcb") - KERNOFF;
+  else
+    paddr = kvtophys (cfd, curpcb);
+  read_pcb (cfd, paddr);
+  printf ("initial pcb at %lx\n", (unsigned long)paddr);
+
+  if ((cur_proc = curProc()))
+    target_fetch_registers (-1);
+
+  /* Now, set up the frame cache, and print the top of stack */
+  flush_cached_frames ();
+  set_current_frame (create_new_frame (read_fp (), read_pc ()));
+  select_frame (get_current_frame (), 0);
+  print_stack_frame (selected_frame, selected_frame_level, 1);
+}
 
 /* substitutes for the stuff in libkvm which doesn't work */
 /* most of this was taken from the old kgdb */
@@ -495,9 +543,22 @@ kvm_open (efile, cfile, sfile, perm, errout)
       kfd = open ("/dev/kmem", perm, 0);
     }
 
+  if (lookup_minimal_symbol("mp_ncpus", NULL, NULL)) {
+    physrd(cfd, ksym_lookup("mp_ncpus") - KERNOFF,
+	   (char*)&ncpus, sizeof(ncpus));
+    prv_space = ksym_lookup("SMP_prvspace");
+    prv_space_size = (int)ksym_lookup("gd_idlestack_top");
+    printf ("SMP %d cpus\n", ncpus);
+  } else {
+    ncpus = 0;
+    prv_space = 0;
+    prv_space_size = 0;
+  }
+  cpuid = 0;
+
   physrd (cfd, ksym_lookup ("IdlePTD") - KERNOFF, (char*)&sbr, sizeof sbr);
   printf ("IdlePTD %lu\n", (unsigned long)sbr);
-  curpcb = ksym_lookup ("curpcb") - KERNOFF;
+  curpcb = kvtophys(cfd, ksym_lookup ("gd_curpcb") + prv_start);
   physrd (cfd, curpcb, (char*)&curpcb, sizeof curpcb);
 
   found_pcb = 1; /* for vtophys */
@@ -835,9 +896,8 @@ read_pcb (fd, uaddr)
   supply_register (6, (char *)&pcb.pcb_esi);
   supply_register (7, (char *)&pcb.pcb_edi);
   supply_register (PC_REGNUM, (char *)&pcb.pcb_eip);
-  for (i = 9; i < 13; ++i)		/* eflags, cs, ss, ds, es */
+  for (i = 9; i < 14; ++i)		/* eflags, cs, ss, ds, es, fs */
     supply_register (i, (char *)&noreg);
-  supply_register (14, (char *)&pcb.pcb_fs);
   supply_register (15, (char *)&pcb.pcb_gs);
 
   /* XXX 80387 registers? */
@@ -933,4 +993,5 @@ _initialize_kcorelow()
 {
   add_target (&kcore_ops);
   add_com ("proc", class_obscure, set_proc_cmd, "Set current process context");
+  add_com ("cpu", class_obscure, set_cpu_cmd, "Set current cpu");
 }

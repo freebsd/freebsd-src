@@ -115,9 +115,7 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
   for (regno = 0; regno < NUM_REGS; regno++)
     {
       cregno = tregmap[regno];
-      if (cregno == tFS)
-        addr = offsetof (struct user, u_pcb) + offsetof (struct pcb, pcb_fs);
-      else if (cregno == tGS)
+      if (cregno == tGS)
         addr = offsetof (struct user, u_pcb) + offsetof (struct pcb, pcb_gs);
       else
         addr = offset + 4 * cregno;
