@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1 1996/08/29 21:46:45 peter Exp $
 
 .include "${.CURDIR}/../named/Makefile.inc"
 
@@ -11,7 +11,7 @@ CLEANFILES+= ndc
 all:	ndc
 
 realinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ndc \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ndc \
 		${DESTDIR}${BINDIR}
 
 ndc:	ndc.sh ndcedit.awk ${BIND_DIR}/Makefile
