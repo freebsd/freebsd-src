@@ -1,0 +1,722 @@
+.Dd July, 1997
+.Dt "libalias" 3 
+.Os 
+.Sh NAME
+.Nm "libalias"
+Packet Aliasing Library.  A collection of
+functions for aliasing and de-aliasing
+of IP packets, intended for masquerading and
+network address translation (NAT).  
+
+.Sh SYNOPSIS
+.Fd #include <netinet/in.h>
+.Fd #include <alias.h>
+
+Function prototypes are given in the main body
+of the text.
+
+.Sh CONTENTS
+.Bd -literal -offset left
+1. Introduction
+2. Initialization and Control
+    2.1 PacketAliasInit()
+    2.2 PacketAliasSetAddress()
+    2.3 PacketAliasSetMode()
+3. Packet Handling
+    3.1 PacketAliasOut()
+    3.2 PacketAliasIn()
+4. Port and Address Redirection
+    4.1 PacketAliasRedirectPort()
+    4.2 PacketAliasRedirectAddr()
+    4.3 PacketAliasRedirectDelete()
+5. Fragment Handling
+    5.1 PacketAliasSaveFragment()
+    5.2 PacketAliasGetFragment()
+    5.3 PacketAliasFragmentIn()
+6. Miscellaneous Functions
+    6.1 PacketAliasSetTarget()
+    6.2 PacketAliasCheckNewLink()
+    6.3 PacketAliasInternetChecksum()
+7. Authors
+8. Acknowledgments
+
+Appendix A: Conceptual Background
+    A.1 Aliasing Links
+    A.2 Static and Dynamic Links
+    A.3 Partially Specified Links
+    A.4 Dynamic Link Creation
+.Ed
+
+.Sh 1. Introduction
+This library is a moderately portable
+set of functions designed to assist
+in the process of IP masquerading and
+network address translation.  Outgoing
+packets from a local network with
+unregistered IP addresses can be aliased
+to appear as if they came from an
+accessible IP address.  Incoming packets
+are then de-aliased so that they are sent
+to the correct machine on the local network.
+
+A certain amount of flexibility is built
+into the packet aliasing engine.  In
+the simplest mode of operation, a
+many-to-one address mapping takes place
+between local network and the packet
+aliasing host.  This is known as IP
+masquerading.  In addition, one-to-one
+mappings between local and public addresses
+can also be implemented, which is known as
+static NAT.  In between these extremes,
+different groups of private addresses
+can be linked to different public addresses,
+comprising several distinct many-to-one
+mappings.  Also, a given public address
+and port can be staticly redirected to
+a private address/port.
+
+The packet aliasing engine was designed
+to operate in user space outside of the
+kernel, without any access to private
+kernel data structure, but the source code
+can also be ported to a kernel environment.
+
+.Sh 2. Initialization and Control
+Two specific functions, PacketAliasInit()
+and PacketAliasSetAddress(), must always be
+called before any packet handling may be
+performed.  In addition, the operating mode
+of the packet aliasing engine can be customized
+by calling PacketAliasSetMode().
+.Ss 2.1 PacketAliasInit()
+
+.Ft void
+.Fn PacketAliasInit "void"
+
+This function has no argument or return
+value and is used to initialize internal
+data structures. The following mode bits
+are always set after calling
+PacketAliasInit().  See section 2.3 for
+the meaning of these mode bits. 
+.Bd -literal -offset indent
+    PKT_ALIAS_USE_SAME_PORTS
+    PKT_ALIAS_USE_SOCKETS
+    PKT_ALIAS_RESET_ON_ADDR_CHANGE
+
+.Ed
+This function will always return the packet
+aliasing engine to the same initial state.
+PacketAliasSetAddress() must be called afterwards,
+and any desired changes from the default mode
+bits listed above require a call to
+PacketAliasSetMode().
+
+It is mandatory that this function be called
+at the beginning of a program prior to any
+packet handling.
+.Ss 2.2 PacketAliasSetAddress()
+
+.Ft void
+.Fn PacketAliasSetAddress "struct in_addr addr"
+
+This function sets the source address to which
+outgoing packets from the local area network
+are aliased.  All outgoing packets are remapped
+to this address unless overridden by a static
+address mapping established by
+PacketAliasRedirectAddr().
+
+If the PKT_ALIAS_RESET_ON_ADDR_CHANGE mode bit
+is set (the default mode of operation), then
+the internal aliasing link tables will be reset
+any time the aliasing address changes, as if
+PacketAliasReset() were called.  This is useful
+for interfaces such as ppp where the IP
+address may or may not change on successive
+dial-up attempts.
+
+If the PKT_ALIAS_RESET_ON_ADDR_CHANGE mode bit
+is set to zero, this function can also be used to
+dynamically change the aliasing address on a
+packet to packet basis (it is a low overhead
+call).  
+
+It is mandatory that this function be called
+prior to any packet handling.
+.Ss 2.3 PacketAliasSetMode()
+
+.Ft void
+.Fn PacketAliasSetMode "int mode" "int mask"
+
+This function sets or clears mode bits
+according to the value of
+.Em mode .
+Only bits marked in
+.Em mask
+are affected.  The following mode bits are
+defined in alias.h:
+.Bl -hang -offset left
+.It PKT_ALIAS_LOG.
+Enables logging /var/log/alias.log.  The log file
+shows total numbers of links (icmp, tcp, udp) each
+time an aliasing link is created or deleted.  Mainly
+useful for debugging when the log file is viewed
+continuously with "tail -f".
+.It PKT_ALIAS_DENY_INCOMING.
+If this mode bit is set, all incoming packets
+associated with new TCP connections or new
+UDP transactions will be marked for being
+ignored (PacketAliasIn() return code
+PKT_ALIAS_IGNORED) by the calling program.
+Response packets to connections or transactions
+initiated from the packet aliasing host or
+local network will be unaffected.  This mode
+bit is useful for implementing a one-way firewall.
+.It PKT_ALIAS_SAME_PORTS.
+If this mode bit is set, the packet aliasing
+engine will attempt to leave the alias port
+numbers unchanged from the actual local port
+number.  This can be done as long as the
+quintuple (proto, alias addr, alias port,
+remote addr, remote port) is unique.  If a
+conflict exists, an new aliasing port number is
+chosen even if this mode bit is set.
+.It PKT_ALIAS_USE_SOCKETS.
+This bit should be set when the the packet
+aliasing host originates network traffic as
+well as forwards it.  When the packet aliasing
+host is waiting for a connection from an
+unknown host address or unknown port number
+(e.g. an FTP data connection), this mode bit
+specifies that a socket be allocated as a place
+holder to prevent port conflicts.  Once a
+connection is extablished, usually within a
+minute or so, the socket is closed.
+.It PKT_ALIAS_UNREGISTERED_ONLY.
+If this mode bit is set, traffic on the
+local network which does not originate from
+unregistered address spaces will be ignored.
+Standard Class A, B and C unregistered addresses
+are:
+.Bd -literal -offset indent
+    10.0.0.0     ->   10.255.255.255   (Class A subnet)
+    172.16.0.0   ->   172.31.255.255   (Class B subnets)
+    192.168.0.0  ->   192.168.255.255  (Class C subnets)
+
+.Ed
+This option is useful in the case that
+packet aliasing host has both registered and
+unregistered subnets on different interfaces.
+The registered subnet is fully accessible to
+the outside world, so traffic from it doesn't 
+need to be passed through the packet aliasing
+engine.
+.It PKT_ALIAS_RESET_ON_ADDR_CHANGE.
+When this mode bit is set and
+PacketAliasSetAddress() is called to change
+the aliasing address, the internal link table
+of the packet aliasing engine will be cleared.
+This operating mode is useful for ppp links
+where the interface address can sometimes
+change or remain the same between dial-ups.
+If this mode bit is not set, it the link table
+will never be reset in the event of an
+address change.
+.El
+.Sh 3. Packet Handling
+The packet handling functions are used to 
+modify incoming (remote->local) and outgoing
+(local->remote) packets.  The calling program
+is responsible for receiving and sending
+packets via network interfaces.
+
+Along with PacketAliasInit() and PacketAliasSetAddress(),
+the two packet handling functions, PacketAliasIn()
+and PacketAliasOut(), comprise minimal set of functions
+needed for a basic IP masquerading implementation.
+.Ss 3.1 PacketAliasIn()
+
+.Ft int
+.Fn PacketAliasIn "char *buffer" "int maxpacketsize"
+
+An incoming packet coming from a remote machine to
+the local network is de-aliased by this function.
+The IP packet is pointed to by
+.Em buffer ,
+and
+.Em maxpacketsize
+indicates the size of the data structure containing
+the packet and should be at least as large as the
+actual packet size.
+
+Return codes:
+.Bl -hang -offset left
+.It PKT_ALIAS_ERROR.
+An internal error within the packet aliasing
+engine occured.
+.It PKT_ALIAS_OK.
+The packet aliasing process was successful.
+.It PKT_ALIAS_IGNORED.
+The packet was ignored and not de-aliased.
+This can happen if the protocal is unrecognized,
+possibly an ICMP message type is not handled or
+if incoming packets for new connections are being
+ignored (see PKT_ALIAS_DENY_INCOMING in section
+2.2).
+.It PKT_ALIAS_UNRESOLVED_FRAGMENT.
+This is returned when a fragment cannot be
+resolved because the header fragment has not
+been sent yet.  In this situation, fragments
+must be saved with PacketAliasSaveFragment()
+until a header fragment is found.
+.It PKT_ALIAS_FOUND_HEADER_FRAGMENT.
+The packet aliasing process was successful,
+and a header fragment was found.  This is a
+signal to retrieve any unresolved fragments
+with PacketAliasGetFragment() and de-alias
+them with PacketAliasFragmentIn().
+.El
+.Ss 3.2 PacketAliasOut()
+
+.Ft int
+.Fn PacketAliasIn "char *buffer" "int maxpacketsize"
+
+An outgoing packet coming from the local network
+to a remote machine is aliased by this function.
+The IP packet is pointed to by
+.Em buffer r,
+and
+.Em maxpacketsize
+indicates the maximum packet size permissable
+should the packet length be changed.  IP encoding
+protocols place addresss and port information in
+the encapsulated data stream which have to be
+modified and can account for changes in packet
+length.  Well known examples of such protocols
+are FTP and IRC.
+
+Return codes:
+.Bl -hang -offset left
+.It PKT_ALIAS_ERROR.
+An internal error within the packet aliasing
+engine occured.
+.It PKT_ALIAS_OK.
+The packet aliasing process was successful.
+.It PKT_ALIAS_IGNORED.
+The packet was ignored and not de-aliased.
+This can happen if the protocal is unrecognized,
+or possibly an ICMP message type is not handled.
+.El
+
+.Sh 4. Port and Address Redirection
+The functions described in this section allow machines
+on the local network to be accessible in some degree
+to new incoming connections from the external network.
+Individual ports can be re-mapped or static network
+address translations can be designated.
+.Ss 4.1 PacketAliasRedirectPort()
+
+.Ft struct alias_link *
+.Fo PacketAliasRedirectPort
+.Fa "struct in_addr local_addr"
+.Fa "u_short local_port"
+.Fa "struct in_addr remote_addr"
+.Fa "u_short remote_port"
+.Fa "struct in_addr alias_addr"
+.Fa "u_short alias_port"
+.Fa "u_char proto"
+.Fc
+
+This function specifies that traffic from a
+given remote address/port to an alias address/port
+be redirected to a specified local address/port.
+The paramater
+.Em proto
+can be either IPPROTO_TCP or IPPROTO_UDP, as
+defined in <netinet/in.h>.
+
+If
+.Em local_addr 
+or
+.Em alias_addr
+is zero, this indicates that the packet aliasing
+address as established by PacketAliasSetAddress()
+is to be used.  Even if PacketAliasAddress() is
+called to change the address after PacketAliasRedirectPort()
+is called, a zero reference will track this change.
+
+If 
+.Em remote_addr
+is zero, this indicates to redirect packets from
+any remote address.  Likewise, if
+.Em remote_port
+is zero, this indicates to redirect packets originating
+from any remote port number.  Almost always, the remote
+port specification will be zero, but non-zero remote
+addresses can be sometimes be useful for firewalling. 
+If two calls to PacketAliasRedirectPort() overlap in
+their address/port specifications, then the most recent
+call will have precedence.
+
+This function returns a pointer which can subsequently
+be used by PacketAliasRedirectDelete().  If NULL is
+returned, then the function call did not complete
+successfully.
+
+All port numbers are in network address byte order,
+so it is necessary to use htons() to convert these
+parameters from internally readable numbers to
+network byte order.  Addresses are also in network
+byte order, which is implicit in the use of the
+.Em struct in_addr 
+data type.
+.Ss 4.2 PacketAliasRedirectAddr()
+
+.Ft struct alias_link *
+.Fo PacketAliasRedirectAddress
+.Fa "struct in_addr local_addr"
+.Fa "struct in_addr alias_addr"
+.Fc
+
+This function desgnates that all incoming
+traffic to 
+.Em alias_addr
+be redirected to
+.Em local_addr.
+Similarly, all outgoing traffic from
+.Em local_addr
+is aliased to 
+.Em alias_addr .
+
+If
+.Em local_addr 
+or
+.Em alias_addr
+is zero, this indicates that the packet aliasing
+address as established by PacketAliasSetAddress()
+is to be used.  Even if PacketAliasAddress() is
+called to change the address after PacketAliasRedirectAddr()
+is called, a zero reference will track this change.
+
+If subsequent calls to PacketAliasRedirectAddr()
+use the same aliasing address, all new incoming
+traffic to this aliasing address will be redirected
+to the local address made in the last function call,
+but new traffic all of the local machines designated
+in the several function calls will be aliased to
+the same address.  Consider the following example:
+.Bd -literal -offset left
+    PacketAliasRedirectAddr(inet_aton("192.168.0.2"),
+                            inet_aton("141.221.254.101"));
+    PacketAliasRedirectAddr(inet_aton("192.168.0.3"),
+                            inet_aton("141.221.254.101"));
+    PacketAliasRedirectAddr(inet_aton("192.168.0.4"),
+                            inet_aton("141.221.254.101"));
+.Ed
+
+Any outgoing connections such as telnet or ftp
+from 192.168.0.2, 102.168.0.3, 192.168.0.4 will
+appear to come from 141.221.254.101.  Any incoming
+connections to 141.221.254.101 will be directed
+to 192.168.0.4.
+
+Any calls to PacketAliasRedirectPort() will
+have precedence over address mappings designated
+by PacketAliasRedirectAddr().
+
+This function returns a pointer which can subsequently
+be used by PacketAliasRedirectDelete().  If NULL is
+returned, then the function call did not complete
+successfully.
+.Ss 4.3 PacketAliasRedirectDelete()
+
+.Ft void
+.Fn PacketAliasRedirectDelete "struct alias_link *ptr"
+
+This function will delete a specific static redirect
+rule entered by PacketAliasRedirectPort() or
+PacketAliasRedirectAddr().  The parameter
+.Em ptr 
+is the pointer returned by either of the redirection
+functions.  If an invalid pointer is passed to
+PacketAliasRedirectDelete(), then a program crash
+or unpredictable operation could result, so it is
+necessary to be careful using this function.
+
+.Sh 5. Fragment Handling
+The functions in this section are used to deal with
+incoming fragments.
+
+Outgoing fragments are handled within PacketAliasOut()
+by changing the address according to any
+applicable mapping set by PacketAliasRedirectAddress(),
+or the default aliasing address set by
+PacketAliasSetAddress().
+ 
+Incoming fragments are handled in one of two ways.
+If the header of a fragmented IP packet has already
+been seen, then all subsequent fragments will be
+re-mapped in the same manner the header fragment
+was.  Fragments which arrive before the header
+are saved and then retrieved once the header fragment
+has been resolved.
+.Ss 5.1 PacketAliasSaveFragment()
+
+.Ft int
+.Fn PacketAliasSaveFragment "char *ptr"
+
+When PacketAliasIn() returns
+PKT_ALIAS_UNRESOLVED_FRAGMENT, this
+function can be used to save the pointer to
+the unresolved fragment.
+
+It is implicitly assumed that
+.Em ptr
+points to a block of memory allocated by
+malloc().  If the fragment is never
+resolved, the packet aliasing engine will
+automatically free the memory after a
+timeout period. [Eventually this function
+should be modified so that a callback 
+function for freeing memory is passed as
+an argument.]
+
+This function returns PKT_ALIAS_OK if it
+was successful and PKT_ALIAS_ERROR if there
+was an error.
+.Ss 5.2 PacketAliasGetNextFragment()
+
+.Ft char *
+.Fn PacketAliasGetFragment "char *buffer"
+
+This function can be used to retrieve fragment
+pointers saved by PacketAliasSaveFragment().
+The IP header fragment pointed to by
+Em buffer
+is the header fragment indicated when
+PacketAliasIn() returns PKT_ALIAS_FOUND_HEADER_FRAGMENT.
+Once a a fragment pointer is retrieved, it
+becomes the calling program's responsibility
+to free the dynamically allocated memory for
+the fragment.
+
+PacketAliasGetFragment() can be called
+sequentially until there are no more fragments
+available, at which time it returns NULL.
+.Ss 5.3 PacketAliasFragmentIn()
+
+.Ft void
+.Fn PacketAliasFragmentIn "char *header" "char *fragment" 
+
+When a fragment is retrieved with
+PacketAliasGetFragment(), it can then be
+de-aliased with a call to PacketAliasFragmentIn().
+.Em header 
+is the pointer to a header fragment used as a
+template, and
+.Em fragment
+is the pointer to the packet to be de-aliased.
+
+.Sh 6. Miscellaneous Functions
+
+.Ss 6.1 PacketAliasSetTarget()
+
+.Ft void
+.Fn PacketAliasSetTarget "struct in_addr addr"
+
+When an incoming packet not associated with
+any pre-existing aliasing link arrives at the
+host machine, it will be sent to the address
+indicated by a call to PacketAliasSetTarget().
+
+If this function is not called, or is called
+with a zero address argument, then all new
+incoming packets go to the address set by
+PacketAliasSetAddress.
+.Ss 6.2 PacketAliasCheckNewLink()
+
+.Ft int
+.Fn PacketAliasCheckNewLink "void"
+
+This function returns a non-zero value when
+a new aliasing link is created.  In circumstances
+where incoming traffic is being sequentially
+sent to different local servers, this function
+can be used to trigger when PacketAliasSetTarget()
+is called to change the default target address.
+.Ss 6.3 PacketAliasInternetChecksum() 
+
+.Ft u_short
+.Fn PacketAliasInternetChecksum "char *buffer" "int nbytes"
+
+This is a utility function that does not seem
+to be available elswhere and is included as a
+convenience.  It computes the internet checksum,
+which is used in both IP and protocol-specific
+headers (TCP, UDP, ICMP).  
+
+.Em buffer 
+points to the data block to be checksummed, and
+.Em nbytes
+is the number of bytes.  The 16-bit checksum
+field should be zeroed before computing the checksum.
+
+Checksums can also be verified by operating on a block
+of data including its checksum.  If the checksum is
+valid, PacketAliasInternetChecksum() will return zero.
+
+.Sh 7. Authors
+Charles Mott (cmott@srv.net), versions 1.0 - 1.8, 2.0 - 2.2. 
+
+Eivind Eiklund (eivind@freebsd.org), versions 1.8b and 1.9.
+Added IRC support as well as contributing a number of
+architectural improvements.
+
+.Sh 8. Acknowledgments
+
+Listed below, in approximate chronological
+order, are individuals who have provided
+valuable comments and/or debugging assistance.
+
+.Bl -inset -compact -offset left
+.It Gary Roberts
+.It Tom Torrance
+.It Reto Burkhalter
+.It Martin Renters
+.It Brian Somers
+.It Paul Traina
+.It Ari Suutari
+.It Dave Remien
+.It J. Fortes
+.It Andrzej Bialeki
+.El
+
+.Sh Appendix: Conceptual Background
+This appendix is intended for those who
+are planning to modify the source code or want
+to create somewhat esoteric applications using
+the packet aliasing functions.
+
+The conceptual framework under which the
+packet aliasing engine operates is described here.
+Central to the discussion is the idea of an
+"aliasing link" which  describes the relationship
+for a given packet transaction between the local
+machine, aliased identity and remote machine.  It
+is discussed how such links come into existence
+and are destroyed.
+.Ss A.1 Aliasing Links
+There is a notion of an "aliasing link",
+which is 7-tuple describing a specific
+translation:
+.Bd -literal -offset indent
+(local addr, local port, alias addr, alias port,
+ remote addr, remote port, protocol)
+.Ed
+
+Outgoing packets have the local address and
+port number replaced with the alias address
+and port number.  Incoming packets undergo the
+reverse process.  The packet aliasing engine
+attempts to match packets against an internal
+table of aliasing links to determine how to
+modify a given IP packet.  Both the IP
+header and protocol dependent headers are
+modified as necessary.  Aliasing links are
+created and deleted as necessary according
+to network traffic.
+
+Protocols can be TCP, UDP or even ICMP in
+certain circumstances.  (Some types of ICMP
+packets can be aliased according to sequence
+or id number which acts as an equivalent port
+number for identifying how individual packets
+should be handled.)
+
+Each aliasing link must have a unique
+combination of the following five quanties:
+alias address/port, remote address/port
+and protocol.  This ensures that several
+machines on a local network can share the
+same aliased IP address.  In cases where
+conflicts might arise, the aliasing port
+is chosen so that uniqueness is maintained.
+.Ss A.2 Static and Dynamic Links
+Aliasing links can either be static or dynamic.
+Static links persist indefinitely and represent
+fixed rules for translating IP packets.  Dynamic
+links come into existence for a specific TCP
+connection or UDP transaction or ICMP echo
+sequence.  For the case of TCP, the connection
+can be monitored to see when the associated
+aliasing link should be deleted.  Aliasing links
+for UDP transactions (and ICMP echo and timestamp
+equests) work on a simple timeout rule.  When
+no activity is observed on a dynamic link for
+a certain amount of time it is automatically
+deleted.  Timeout rules also apply to TCP
+connections which do not open or close
+properly.
+.Ss A.3 Partially Specified Aliasing Links
+Aliasing links can be partially specified,
+meaning that the remote address and/or remote
+ports are unkown.  In this case, when a packet
+matching the incomplete specification is found,
+a fully specified dynamic link is created.  If
+the original partially specified link is dynamic,
+it will be deleted after the fully specified link
+is created, otherwise it will persist.
+
+For instance, a partially specified link might
+be
+.Bd -literal -offset indent
+(192.168.0.4, 23, 204.228.203.215, 8066, 0, 0, tcp)
+.Ed
+
+The zeros denote unspecified components for
+the remote address and port.  If this link were
+static it would have the effect of redirecting
+all incoming traffic from port 8066 of
+204.228.203.215 to port 23 (telnet) of machine
+192.168.0.4 on the local network.  Each
+individual telnet connection would initiate
+the creation of a distinct dynamic link.
+.Ss A.4 Dynamic Link Creation
+In addition to aliasing links, there are
+also address mappings that can be stored
+within the internal data table of the packet
+aliasing mechanism.
+.Bd -literal -offset indent
+(local addr, alias addr)
+.Ed
+
+Address mappings are searched when creating
+new dynamic links.
+
+All outgoing packets from the local network
+automatically create a dynamic link if
+they do not match an already existing fully
+specified link.  If an address mapping exists
+for the the outgoing packet, this determines
+the alias address to be used.  If no mapping
+exists, then a default address, usually the
+address of the packet aliasing host, is used.
+If necessary, this default address can be
+changed as often as each indvidual packet
+arrives.
+
+The aliasing port number is determined
+such that the new dynamic link does not
+conflict with any existing links.  In the
+default operating mode, the packet aliasing
+engine attempts to set the aliasing port
+equal to the local port number.  If this
+results in a conflict, then port numbers
+are randomly chosen until a unique aliasing
+link can be established.  In an alternate
+operating mode, the first choice of an
+aliasing port is also random and unrelated
+to the local port number.
+
