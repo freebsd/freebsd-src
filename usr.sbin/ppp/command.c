@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.53 1998/11/26 07:14:39 jkh Exp $
+ * $Id: command.c,v 1.24.2.54 1998/12/14 01:26:41 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -134,7 +134,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/11/26 07:14:39 $";
+const char VersionDate[] = "$Date: 1998/12/14 01:26:41 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1264,22 +1264,6 @@ SetEscape(struct cmdargs const *arg)
   return 0;
 }
 
-static struct in_addr
-GetIpAddr(const char *cp)
-{
-  struct hostent *hp;
-  struct in_addr ipaddr;
-
-  if (inet_aton(cp, &ipaddr) == 0) {
-    hp = gethostbyname(cp);
-    if (hp && hp->h_addrtype == AF_INET)
-      memcpy(&ipaddr, hp->h_addr, hp->h_length);
-    else
-      ipaddr.s_addr = 0;
-  }
-  return (ipaddr);
-}
-
 static int
 SetInterfaceAddr(struct cmdargs const *arg)
 {
@@ -1898,10 +1882,11 @@ DeleteCommand(struct cmdargs const *arg)
         dest = arg->bundle->ncp.ipcp.peer_ip;
         addrs = ROUTE_DSTHISADDR;
       } else {
-        if (strcasecmp(arg->argv[arg->argn], "default") == 0)
-          dest.s_addr = INADDR_ANY;
-        else
-          dest = GetIpAddr(arg->argv[arg->argn]);
+        dest = GetIpAddr(arg->argv[arg->argn]);
+        if (dest.s_addr == INADDR_NONE) {
+          log_Printf(LogWARN, "%s: Invalid IP address\n", arg->argv[arg->argn]);
+          return -1;
+        }
         addrs = ROUTE_STATIC;
       }
       none.s_addr = INADDR_ANY;

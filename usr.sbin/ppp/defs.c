@@ -23,10 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.17 1998/06/27 14:18:05 brian Exp $
+ *	$Id: defs.c,v 1.11.2.4 1998/11/26 07:14:40 jkh Exp $
  */
 
 
+#include <sys/types.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/errno.h>
@@ -113,4 +120,34 @@ Nam2mode(const char *name)
     }
 
   return got == -1 ? 0 : modes[got].mode;
+}
+
+struct in_addr
+GetIpAddr(const char *cp)
+{
+  struct in_addr ipaddr;
+
+  if (!strcasecmp(cp, "default"))
+    ipaddr.s_addr = INADDR_ANY;
+  else if (inet_aton(cp, &ipaddr) == 0) {
+    const char *ptr;
+
+    /* Any illegal characters ? */
+    for (ptr = cp; *ptr != '\0'; ptr++)
+      if (!isalnum(*ptr) && strchr("-.", *ptr) == NULL)
+        break;
+
+    if (*ptr == '\0') {
+      struct hostent *hp;
+
+      hp = gethostbyname(cp);
+      if (hp && hp->h_addrtype == AF_INET)
+        memcpy(&ipaddr, hp->h_addr, hp->h_length);
+      else
+        ipaddr.s_addr = INADDR_NONE;
+    } else
+      ipaddr.s_addr = INADDR_NONE;
+  }
+
+  return ipaddr;
 }
