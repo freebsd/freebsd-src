@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_quirks.c,v 1.38 2001/04/15 10:26:36 augustss Exp $	*/
+/*	$NetBSD: usb_quirks.c,v 1.42 2003/01/02 04:19:00 imp Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
