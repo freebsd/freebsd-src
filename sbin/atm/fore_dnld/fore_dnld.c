@@ -67,8 +67,10 @@
 __RCSID("@(#) $FreeBSD$");
 #endif
 
-extern u_char pca200e_microcode[];
-extern int pca200e_microcode_size;
+extern u_char pca200e_microcode_3[];
+extern int pca200e_microcode_size_3;
+extern u_char pca200e_microcode_4[];
+extern int pca200e_microcode_size_4;
 
 #ifdef sun
 #define	DEV_NAME "/dev/sbus%d"
@@ -937,13 +939,17 @@ char *argv[];
 	char	base[64];		/* sba200/sba200e/pca200e basename */
 	int	ext = 0;		/* 0 == bin 1 == objd */
 	struct stat sbuf;		/* Used to find if .bin or .objd */
+ 	int	pca_vers = 4;
 	extern char *optarg;
 
 	progname = (char *)basename(argv[0]);
 	comm_mode = strcmp ( progname, "fore_comm" ) == 0;
 
-	while ( ( c = getopt ( argc, argv, "i:d:f:berv" ) ) != -1 )
+	while ( ( c = getopt ( argc, argv, "3i:d:f:berv" ) ) != -1 )
 	    switch ( c ) {
+ 		case '3':
+ 			pca_vers = 3;
+ 			break;
 		case 'b':
 			binary++;
 			break;
@@ -1299,8 +1305,13 @@ char *argv[];
 				    break;
 				case DEV_FORE_PCA200E:
 				    /* Use compiled in microcode */
-				    ucode = pca200e_microcode;
-				    ucode_size = pca200e_microcode_size;
+				    if (pca_vers == 3) {
+					    ucode = pca200e_microcode_3;
+					    ucode_size = pca200e_microcode_size_3;
+				    } else {
+					    ucode = pca200e_microcode_4;
+					    ucode_size = pca200e_microcode_size_4;
+				    }
 				    break;
 				default:
 				    break;
@@ -1355,6 +1366,5 @@ char *argv[];
 	 * Exit
 	 */
 	exit (0);
-
 }
 
