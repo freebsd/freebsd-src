@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.81 1998/03/01 04:18:18 dyson Exp $
+ * $Id: vm_fault.c,v 1.82 1998/03/07 20:45:47 dyson Exp $
  */
 
 /*
@@ -606,7 +606,8 @@ readrest:
 				 */
 				vm_page_rename(fs.m, fs.first_object, fs.first_pindex);
 				fs.first_m = fs.m;
-				fs.m->dirty = VM_PAGE_BITS_ALL;
+				fs.first_m->dirty = VM_PAGE_BITS_ALL;
+				fs.first_m->flags |= PG_BUSY;
 				fs.m = NULL;
 				cnt.v_cow_optim++;
 			} else {
