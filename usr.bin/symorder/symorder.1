@@ -39,6 +39,7 @@
 .Nd rearrange name list
 .Sh SYNOPSIS
 .Nm symorder
+.Fl c
 .Fl m
 .Fl t
 .Fl x
@@ -58,6 +59,10 @@ symbols read from
 .Ar symlist
 are relocated to the beginning of the table and in the order given.
 .Bl -tag -width flag
+.It Fl c
+Makes all any symbols not in
+.Ar symlist 
+local to this file.
 .It Fl t
 Restrict the symbol table to the symbols listed in
 .Ar symlist .
