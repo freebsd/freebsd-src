@@ -2196,12 +2196,10 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			sis_init(sc);
-		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
-				SIS_LOCK(sc);
-				sis_stop(sc);
-				SIS_UNLOCK(sc);
-			}
+		} else if (ifp->if_flags & IFF_RUNNING) {
+			SIS_LOCK(sc);
+			sis_stop(sc);
+			SIS_UNLOCK(sc);
 		}
 		error = 0;
 		break;
