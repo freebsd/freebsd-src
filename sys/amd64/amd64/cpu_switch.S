@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.29 1996/02/04 21:20:36 davidg Exp $
+ *	$Id: swtch.s,v 1.30 1996/03/12 05:44:23 nate Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -261,11 +261,11 @@ idle_loop:
 	call	_vm_page_zero_idle
 	testl	%eax, %eax
 	jnz	idle_loop
+	sti
 #if NAPM > 0
 	call    _apm_cpu_idle
 	call    _apm_cpu_busy
 #else
-	sti
 	hlt					/* wait for interrupt */
 #endif
 	jmp	idle_loop

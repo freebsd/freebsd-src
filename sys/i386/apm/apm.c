@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.31 1996/03/18 22:47:16 nate Exp $
+ *	$Id: apm.c,v 1.32 1996/03/18 23:30:14 nate Exp $
  */
 
 #include "apm.h"
@@ -511,7 +511,7 @@ apm_cpu_idle(void)
 	 * APM driver.
 	 */
 	if (!sc->active || sc->halt_cpu) {
-		__asm("sti ; hlt");	/* wait for interrupt */
+		__asm("hlt");	/* wait for interrupt */
 	}
 }
 
