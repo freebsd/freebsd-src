@@ -14,6 +14,6 @@ all: ${SRCS}
 
 config_local.h: newvers.sh
 	@rm -f ${.TARGET}
-	sh ${.ALLSRC} > ${.TARGET}
+	sh ${.ALLSRC} ${.CURDIR}/../../../sys/conf/newvers.sh > ${.TARGET}
 
 .include <bsd.prog.mk>
