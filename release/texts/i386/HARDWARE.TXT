@@ -290,7 +290,7 @@ mss:    Microsoft Sound System
 opl:    Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
 pas:    ProAudioSpectrum PCM and MIDI
 pca:    PCM audio ("/dev/audio") through your PC speaker
-pcm:    PCM audio on most modern ISA audio codecs
+pcm:    PCM audio on most modern PCI/ISA audio codecs
 psm:    PS/2 mouse port
 rc:     RISCom/8 multiport card
 sb:     SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
@@ -711,14 +711,6 @@ ISA, EISA and PCI are supported.
 Stallion multiport serial boards: EasyIO, EasyConnection 8/32 & 8/64,
 ONboard 4/16 and Brumby.
 
-Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
-and Roland MPU-401 sound cards.
-
-Matrox Meteor Video frame grabber
-Creative Labs Video Spigot frame grabber
-Cortex1 frame grabber
-Various Frame grabbers based on Brooktree Bt848 and Bt878 chip.
-
 HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R drives.
 
 Bus mice
@@ -754,3 +746,26 @@ aha:	Adaptec AHA-1640 SCSI controller
 bt:	Buslogic BT-640A and Storage Dimensions SDC3211 SCSI controllers
 ep:	3Com 3C529 network adapter
 
+
+4.7.    Multimedia
+----    ----------
+
+Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
+and Roland MPU-401 sound cards.
+(by Voxware)
+
+SoundBlaster(including ViBRA16)
+Advance Asound 100, 110 and Logic ALS120
+ESS ES1868, ES1869, ES1879 and ES1888
+MSS/WSS Compatible DSPs
+Gravis UltraSound MAX/PnP
+Trident 4DWave DX/NX
+ENSONIQ AudioPCI ES1370/1371
+NeoMagic 256AV/ZX
+Crystal Semiconductor CS461x/462x/428x
+(by newpcm)
+
+Matrox Meteor Video frame grabber
+Creative Labs Video Spigot frame grabber
+Cortex1 frame grabber
+Various Frame grabbers based on Brooktree Bt848 and Bt878 chip.
