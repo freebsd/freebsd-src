@@ -728,7 +728,7 @@ hpfs_print(ap)
  * Calculate the logical to physical mapping if not done already,
  * then call the device strategy routine.
  *
- * In order to be able to swap to a file, the VOP_BMAP operation may not
+ * In order to be able to swap to a file, the hpfs_hpbmap operation may not
  * deadlock on memory.  See hpfs_bmap() for details. XXXXXXX (not impl)
  */
 int
@@ -739,7 +739,7 @@ hpfs_strategy(ap)
 {
 	register struct buf *bp = ap->a_bp;
 	register struct vnode *vp = ap->a_vp;
-	struct vnode *nvp;
+	register struct hpfsnode *hp = VTOHP(ap->a_vp);
 	int error;
 
 	dprintf(("hpfs_strategy(): \n"));
@@ -747,9 +747,9 @@ hpfs_strategy(ap)
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("hpfs_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-		error = VOP_BMAP(vp, bp->b_lblkno, &nvp, &bp->b_blkno, NULL, NULL);
+		error = hpfs_hpbmap (hp, bp->b_lblkno, &bp->b_blkno, NULL);
 		if (error) {
-			printf("hpfs_strategy: VOP_BMAP FAILED %d\n", error);
+			printf("hpfs_strategy: hpfs_bpbmap FAILED %d\n", error);
 			bp->b_error = error;
 			bp->b_ioflags |= BIO_ERROR;
 			biodone(bp);
@@ -762,8 +762,8 @@ hpfs_strategy(ap)
 		biodone(bp);
 		return (0);
 	}
-	bp->b_dev = nvp->v_rdev;
-	VOP_STRATEGY(nvp, bp);
+	bp->b_dev = hp->h_devvp->v_rdev;
+	VOP_STRATEGY(hp->h_devvp, bp);
 	return (0);
 }
 
