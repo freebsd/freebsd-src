@@ -47,8 +47,9 @@
 #include <sys/fcntl.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/ipl.h>
+
 #include <machine/clock.h>
-#include <machine/ipl.h>
 
 #include <i386/isa/isa_device.h>
 
