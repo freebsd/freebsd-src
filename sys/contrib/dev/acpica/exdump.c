@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exdump - Interpreter debug output routines
- *              $Revision: 145 $
+ *              $Revision: 147 $
  *
  *****************************************************************************/
 
@@ -251,7 +251,7 @@ AcpiExDumpOperand (
     ACPI_FUNCTION_NAME ("ExDumpOperand")
 
 
-    if (!((ACPI_LV_INFO & AcpiDbgLevel) && (_COMPONENT & AcpiDbgLayer)))
+    if (!((ACPI_LV_EXEC & AcpiDbgLevel) && (_COMPONENT & AcpiDbgLayer)))
     {
         return (AE_OK);
     }
@@ -263,27 +263,27 @@ AcpiExDumpOperand (
          * since most (if not all)
          * code that dumps the stack expects something to be there!
          */
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Null stack entry ptr\n"));
+        AcpiOsPrintf ("Null stack entry ptr\n");
         return (AE_OK);
     }
 
     if (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) == ACPI_DESC_TYPE_NAMED)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%p NS Node: ", ObjDesc));
-        ACPI_DUMP_ENTRY (ObjDesc, ACPI_LV_INFO);
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%p NS Node: ", ObjDesc));
+        ACPI_DUMP_ENTRY (ObjDesc, ACPI_LV_EXEC);
         return (AE_OK);
     }
 
     if (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) != ACPI_DESC_TYPE_INTERNAL)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%p is not a local object\n", ObjDesc));
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%p is not a local object\n", ObjDesc));
         ACPI_DUMP_BUFFER (ObjDesc, sizeof (ACPI_OPERAND_OBJECT));
         return (AE_OK);
     }
 
     /*  ObjDesc is a valid object  */
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%p ", ObjDesc));
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%p ", ObjDesc));
 
     switch (ObjDesc->Common.Type)
     {
@@ -545,7 +545,7 @@ AcpiExDumpOperand (
 
         if (!ObjDesc->BufferField.BufferObj)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "*NULL* \n"));
+            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "*NULL* \n"));
         }
 
         else if (ACPI_TYPE_BUFFER !=
@@ -659,7 +659,7 @@ AcpiExDumpOperands (
     }
 
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
         "************* Operand Stack Contents (Opcode [%s], %d Operands)\n",
         Ident, NumLevels));
 
@@ -680,7 +680,7 @@ AcpiExDumpOperands (
         }
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
         "************* Stack dump from %s(%d), %s\n",
         ModuleName, LineNumber, Note));
     return;
@@ -852,7 +852,6 @@ AcpiExDumpObjectDescriptor (
         AcpiExOutInteger ("Flags",           ObjDesc->Package.Flags);
         AcpiExOutInteger ("Count",           ObjDesc->Package.Count);
         AcpiExOutPointer ("Elements",        ObjDesc->Package.Elements);
-        AcpiExOutPointer ("NextElement",     ObjDesc->Package.NextElement);
 
         /* Dump the package contents */
 

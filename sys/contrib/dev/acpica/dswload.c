@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 61 $
+ *              $Revision: 62 $
  *
  *****************************************************************************/
 
@@ -267,7 +267,7 @@ AcpiDsLoad1BeginOp (
 
     /* Initialize */
 
-    ((ACPI_PARSE2_OBJECT *)Op)->Name = Node->Name;
+    ((ACPI_PARSE2_OBJECT *)Op)->Name = Node->Name.Integer;
 
     /*
      * Put the Node in the "op" object that the parser uses, so we
@@ -503,7 +503,7 @@ AcpiDsLoad2BeginOp (
 
             /* Initialize the new op */
 
-            ((ACPI_PARSE2_OBJECT *)Op)->Name = Node->Name;
+            ((ACPI_PARSE2_OBJECT *)Op)->Name = Node->Name.Integer;
             *OutOp = Op;
         }
 

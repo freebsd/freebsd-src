@@ -2,7 +2,7 @@
  *
  * Module Name: dswexec - Dispatcher method execution callbacks;
  *                        dispatch to interpreter.
- *              $Revision: 89 $
+ *              $Revision: 90 $
  *
  *****************************************************************************/
 
@@ -412,6 +412,7 @@ AcpiDsExecBeginOp (
 }
 
 
+
 /*****************************************************************************
  *
  * FUNCTION:    AcpiDsExecEndOp
@@ -620,6 +621,53 @@ AcpiDsExecEndOp (
             }
 
             Status = AcpiDsEvalBufferFieldOperands (WalkState, Op);
+            break;
+
+
+        case AML_TYPE_CREATE_OBJECT:
+
+            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+                "Executing CreateObject (Buffer/Package) Op=%p\n", Op));
+
+            switch (Op->Parent->Opcode)
+            {
+            case AML_NAME_OP:
+
+                /*
+                 * Put the Node on the object stack (Contains the ACPI Name of
+                 * this object)
+                 */
+                WalkState->Operands[0] = (void *) Op->Parent->Node;
+                WalkState->NumOperands = 1;
+
+                Status = AcpiDsCreateNode (WalkState, Op->Parent->Node, Op->Parent);
+                if (ACPI_FAILURE (Status))
+                {
+                    break;
+                }
+
+                /* Fall through */
+
+            case AML_INT_EVAL_SUBTREE_OP:
+
+                Status = AcpiDsEvalDataObjectOperands (WalkState, Op, AcpiNsGetAttachedObject (Op->Parent->Node));
+                break;
+
+            default:
+
+                Status = AcpiDsEvalDataObjectOperands (WalkState, Op, NULL);
+                break;
+            }
+
+            /*
+             * If a result object was returned from above, push it on the
+             * current result stack
+             */
+            if (ACPI_SUCCESS (Status) &&
+                WalkState->ResultObj)
+            {
+                Status = AcpiDsResultPush (WalkState->ResultObj, WalkState);
+            }
             break;
 
 

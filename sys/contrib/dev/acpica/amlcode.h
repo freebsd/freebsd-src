@@ -3,7 +3,7 @@
  * Name: amlcode.h - Definitions for AML, as included in "definition blocks"
  *                   Declarations and definitions contained herein are derived
  *                   directly from the ACPI specification.
- *       $Revision: 66 $
+ *       $Revision: 67 $
  *
  *****************************************************************************/
 
@@ -276,6 +276,7 @@
 #define AML_INT_STATICSTRING_OP     (UINT16) 0x0034
 #define AML_INT_METHODCALL_OP       (UINT16) 0x0035
 #define AML_INT_RETURN_VALUE_OP     (UINT16) 0x0036
+#define AML_INT_EVAL_SUBTREE_OP     (UINT16) 0x0037
 
 
 #define ARG_NONE                    0x0
@@ -426,15 +427,16 @@
 /* Misc */
 
 #define AML_TYPE_CREATE_FIELD       0x11
-#define AML_TYPE_CONTROL            0x12
-#define AML_TYPE_NAMED_NO_OBJ       0x13
-#define AML_TYPE_NAMED_FIELD        0x14
-#define AML_TYPE_NAMED_SIMPLE       0x15
-#define AML_TYPE_NAMED_COMPLEX      0x16
-#define AML_TYPE_RETURN             0x17
+#define AML_TYPE_CREATE_OBJECT      0x12
+#define AML_TYPE_CONTROL            0x13
+#define AML_TYPE_NAMED_NO_OBJ       0x14
+#define AML_TYPE_NAMED_FIELD        0x15
+#define AML_TYPE_NAMED_SIMPLE       0x16
+#define AML_TYPE_NAMED_COMPLEX      0x17
+#define AML_TYPE_RETURN             0x18
 
-#define AML_TYPE_UNDEFINED          0x18
-#define AML_TYPE_BOGUS              0x19
+#define AML_TYPE_UNDEFINED          0x19
+#define AML_TYPE_BOGUS              0x1A
 
 
 /*

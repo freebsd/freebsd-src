@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstorob - AML Interpreter object store support, store to object
- *              $Revision: 41 $
+ *              $Revision: 42 $
  *
  *****************************************************************************/
 
@@ -199,6 +199,10 @@ AcpiExStoreBufferToBuffer (
             "Truncating src buffer from %X to %X\n",
             Length, TargetDesc->Buffer.Length));
     }
+
+    /* Copy flags */
+
+    TargetDesc->Buffer.Flags = SourceDesc->Buffer.Flags;
 
     return (AE_OK);
 }

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utdebug - Debug print routines
- *              $Revision: 96 $
+ *              $Revision: 97 $
  *
  *****************************************************************************/
 
@@ -610,6 +610,12 @@ AcpiUtDumpBuffer (
         return;
     }
 
+    if ((Count < 4) || (Count & 0x01))
+    {
+        Display = DB_BYTE_DISPLAY;
+    }
+
+    AcpiOsPrintf ("\nOffset   Value\n");
 
     /*
      * Nasty little dump buffer routine!
