@@ -61,7 +61,9 @@ asn1_compile:	parse.o lex.o main.c hash.c symbol.c emalloc.c gen.c \
 		get_window_size.c strupr.c
 	${CC} ${CFLAGS} ${.OODATE} -o ${.TARGET}
 
-.if defined(BOOTSTRAPPING)
+.if defined(BOOTSTRAPPING) && \
+    ( ${BOOTSTRAPPING} < 440001 || \
+    ( ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500023 ))
 asn1_compile: getprogname.c setprogname.c
 .endif
 

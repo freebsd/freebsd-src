@@ -51,12 +51,13 @@ static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/wait.h>
 
 #include <err.h>
 #include <errno.h>
-#ifndef BOOTSTRAPPING
+#if (__FreeBSD_version >= 450002 && __FreeBSD_version < 500000) || \
+    __FreeBSD_version >= 500017
 #include <langinfo.h>
 #endif
 #include <locale.h>
@@ -542,10 +543,11 @@ prompt(void)
 	(void)fflush(stderr);
 	if ((response = fgetln(ttyfp, &rsize)) == NULL ||
 	    regcomp(&cre,
-#ifdef BOOTSTRAPPING
-		"^[yY]",
-#else
+#if (__FreeBSD_version >= 450002 && __FreeBSD_version < 500000) || \
+    __FreeBSD_version >= 500017
 		nl_langinfo(YESEXPR),
+#else
+		"^[yY]",
 #endif
 		REG_BASIC) != 0) {
 		(void)fclose(ttyfp);
