@@ -709,9 +709,12 @@ putfsent(ent)
 		printf("\t%u %u\n", fst->fs_freq, fst->fs_passno);
 	else if ((fst = getfsfile(ent->f_mntonname)))
 		printf("\t%u %u\n", fst->fs_freq, fst->fs_passno);
-	else if (strcmp(ent->f_fstypename, "ufs") == 0)
-		printf("\t1 1\n");
-	else
+	else if (strcmp(ent->f_fstypename, "ufs") == 0) {
+		if (strcmp(ent->f_mntonname, "/") == 0)
+			printf("\t1 1\n");
+		else
+			printf("\t2 2\n");
+	} else
 		printf("\t0 0\n");
 }
 

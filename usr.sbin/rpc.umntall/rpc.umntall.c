@@ -96,9 +96,9 @@ main(int argc, char **argv) {
 	signal(SIGINT, SIG_IGN);
 	signal(SIGQUIT, SIG_IGN);
 
-	/* Default expiretime is two days */
+	/* Default expiretime is one day */
 	if (expire == 0)
-		expire = 172800;
+		expire = 86400;
 	/*
 	 * Read PATH_MOUNTTAB and check each entry
 	 * and do finally the unmounts.
@@ -106,7 +106,7 @@ main(int argc, char **argv) {
 	if (host == NULL && path == NULL) {
 	    	if (!read_mtab(mtab)) {
 			if (verbose)
-				warnx("nothing to do, remove %s",
+				warnx("nothing to do, %s does not exist",
 				    PATH_MOUNTTAB);
 		}
 		for (mtab = mtabhead; mtab != NULL; mtab = mtab->mtab_next) {
@@ -115,12 +115,13 @@ main(int argc, char **argv) {
 				if (keep && is_mounted(mtab->mtab_host,
 				    mtab->mtab_dirp)) {
 					if (verbose) {
-						warnx("skipping entry %s:%s",
+						warnx("skip entry %s:%s",
 						    mtab->mtab_host,
 						    mtab->mtab_dirp);
 					}
 				} else if (do_umount(mtab->mtab_host,
-				    mtab->mtab_dirp)) {
+				    mtab->mtab_dirp) || 
+				    mtab->mtab_time <= (time(now) - expire)) {
 					clean_mtab(mtab->mtab_host,
 					    mtab->mtab_dirp);
 				}
