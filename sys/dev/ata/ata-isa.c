@@ -59,7 +59,7 @@ static struct isa_pnp_id ata_ids[] = {
 };
 
 static void
-ata_isa_lock(struct ata_channel *ch, int type)
+ata_isa_locknoop(struct ata_channel *ch, int type)
 {
 }
 
@@ -114,7 +114,7 @@ ata_isa_probe(device_t dev)
     /* initialize softc for this channel */
     ch->unit = 0;
     ch->flags |= ATA_USE_16BIT;
-    ch->locking = ata_isa_lock;
+    ch->locking = ata_isa_locknoop;
     ch->device[MASTER].setmode = ata_isa_setmode;
     ch->device[SLAVE].setmode = ata_isa_setmode;
     ata_generic_hw(ch);
