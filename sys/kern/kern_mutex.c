@@ -421,7 +421,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 {
 	struct turnstile *ts;
 	struct thread *td = curthread;
-#if defined(SMP) && defined(ADAPTIVE_MUTEXES)
+#if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
 	struct thread *owner;
 #endif
 	uintptr_t v;
@@ -503,7 +503,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			continue;
 		}
 
-#if defined(SMP) && defined(ADAPTIVE_MUTEXES)
+#if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
 		/*
 		 * If the current owner of the lock is executing on another
 		 * CPU, spin instead of blocking.
@@ -518,7 +518,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			}
 			continue;
 		}
-#endif	/* SMP && ADAPTIVE_MUTEXES */
+#endif	/* SMP && !NO_ADAPTIVE_MUTEXES */
 
 		/*
 		 * We definitely must sleep for this lock.
