@@ -75,14 +75,12 @@ ssize_t
 bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 {
 	ssize_t cnt;
-	int rofd;
+	int rv;
 
 	ERROR(disk, NULL);
 
-	rofd = disk->d_fd;
-
-	disk->d_fd = open(disk->d_name, O_WRONLY);
-	if (disk->d_fd < 0) {
+	rv = ufs_disk_write(disk);
+	if (rv == -1) {
 		ERROR(disk, "failed to open disk for writing");
 		return -1;
 	}
@@ -93,8 +91,5 @@ bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 		return -1;
 	}
 
-	close(disk->d_fd);
-	disk->d_fd = rofd;
-	
 	return cnt;
 }
