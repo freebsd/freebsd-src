@@ -29,7 +29,7 @@ SSL_HDRS+= ${LCRYPTOSSL_SRC}/${h}
 .endfor
 
 beforeinstall:  openssl/opensslconf.h openssl/evp.h
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${SSL_HDRS} ${DESTDIR}/usr/include/openssl
 
 .include <bsd.lib.mk>
