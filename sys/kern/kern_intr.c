@@ -173,6 +173,8 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 		return (EINVAL);
 
 	ithd = malloc(sizeof(struct ithd), M_ITHREAD, M_WAITOK | M_ZERO);
+	if (ithd == NULL)
+		return (ENOMEM);
 	ithd->it_vector = vector;
 	ithd->it_disable = disable;
 	ithd->it_enable = enable;
@@ -232,6 +234,8 @@ ithread_add_handler(struct ithd* ithread, const char *name,
 		flags |= INTR_EXCL;
 
 	ih = malloc(sizeof(struct intrhand), M_ITHREAD, M_WAITOK | M_ZERO);
+	if (ih == NULL)
+		return (ENOMEM);
 	ih->ih_handler = handler;
 	ih->ih_argument = arg;
 	ih->ih_name = name;
@@ -353,6 +357,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 	}
 
 	p = ithread->it_proc;
+	KASSERT(p != NULL, ("ithread %s has no process", ithread->it_name));
 	CTR3(KTR_INTR, __func__ ": pid %d: (%s) need = %d", p->p_pid, p->p_comm,
 	    ithread->it_need);
 
@@ -370,7 +375,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 		CTR1(KTR_INTR, __func__ ": setrunqueue %d", p->p_pid);
 		p->p_stat = SRUN;
 		setrunqueue(p);
-		if (do_switch) {
+		if (do_switch && curproc->p_stat == SRUN) {
 			saveintr = sched_lock.mtx_saveintr;
 			mtx_intr_enable(&sched_lock);
 			if (curproc != PCPU_GET(idleproc))
