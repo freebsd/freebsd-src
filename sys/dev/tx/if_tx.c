@@ -214,7 +214,6 @@ epic_attach(dev)
 {
 	struct ifnet *ifp;
 	epic_softc_t *sc;
-	u_int32_t command;
 	int unit, error;
 	int i, s, rid, tmp;
 
@@ -235,7 +234,6 @@ epic_attach(dev)
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST;
 	ifp->if_ioctl = epic_ifioctl;
-	ifp->if_output = ether_output;
 	ifp->if_start = epic_ifstart;
 	ifp->if_watchdog = epic_ifwatchdog;
 	ifp->if_init = (if_init_f_t*)epic_init;
@@ -244,24 +242,7 @@ epic_attach(dev)
 	ifp->if_snd.ifq_maxlen = TX_RING_SIZE - 1;
 
 	/* Enable ports, memory and busmastering */
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-	command |= PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, command, 4);
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-
-#if defined(EPIC_USEIOSPACE)
-	if ((command & PCIM_CMD_PORTEN) == 0) {
-		device_printf(dev, "failed to enable I/O mapping!\n");
-		error = ENXIO;
-		goto fail;
-	}
-#else
-	if ((command & PCIM_CMD_MEMEN) == 0) {
-		device_printf(dev, "failed to enable memory mapping!\n");
-		error = ENXIO;
-		goto fail;
-	}
-#endif
+	pci_enable_busmaster(dev);
 
 	rid = EPIC_RID;
 	sc->res = bus_alloc_resource(dev, EPIC_RES, &rid, 0, ~0, 1,
