@@ -298,7 +298,7 @@ disable_slot(struct slot *sp)
 					INTRUNMASK(*devp->drv->imask,(1<<sp->irq));
 				/* Remove from the PCIC controller imask */
 				if (sp->ctrl->imask)
-					INTRUNMASK(*(sp->ctrl->imask), (i<<sp->irq));
+					INTRUNMASK(*(sp->ctrl->imask), (1<<sp->irq));
 				sp->irq = 0;
 			}
 			splx(s);
