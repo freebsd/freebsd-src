@@ -735,7 +735,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 			/*
 			 * Is this .text or .data?  Use VM_PROT_WRITE
-			 * to distinguish between the two for the purposes
+			 * to distinguish between the two for the purpose
 			 * of limit checking and vmspace fields.
 			 */
 			if (prot & VM_PROT_WRITE) {
@@ -762,7 +762,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 				goto fail;
 			}
 
-			/* Does the entry point belongs to this segment? */
+			/* Does the entry point belong to this segment? */
 			if (hdr->e_entry >= phdr[i].p_vaddr &&
 			    hdr->e_entry < (phdr[i].p_vaddr +
 			    phdr[i].p_memsz)) {
