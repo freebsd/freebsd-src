@@ -249,7 +249,9 @@ are specified in the same command, then
 .Nm
 will use the one which was specified last.
 .It Fl Z
-Add label to the list of keywords for which
+Add
+.Xr mac 4
+label to the list of keywords for which
 .Nm
 will display information.
 .El
@@ -601,10 +603,6 @@ attempts to automatically determine the terminal width.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /boot/kernel/kernel" -compact
-.It Pa /dev/lomac
-interface used to query the
-.Xr lomac 4
-KLD
 .It Pa /boot/kernel/kernel
 default system namelist
 .It Pa /proc
@@ -618,7 +616,7 @@ the mount point of
 .Xr w 1 ,
 .Xr kvm 3 ,
 .Xr strftime 3 ,
-.Xr lomac 4 ,
+.Xr mac 4 ,
 .Xr procfs 5 ,
 .Xr pstat 8 ,
 .Xr sysctl 8 ,
