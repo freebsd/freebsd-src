@@ -1,0 +1,21 @@
+.\" @(#)chkey.1 1.5 91/03/11 TIRPC 1.0;
+.\" Copyright (c) 1988 Sun Microsystems, Inc. - All Rights Reserved.
+.\"
+.TH CHKEY 1 "5 July 1989"
+.SH NAME
+chkey \- change your encryption key
+.SH SYNOPSIS
+.B chkey
+.SH DESCRIPTION
+.LP
+.B chkey
+prompts the user for their login password,
+and uses it to encrypt a new encryption key
+for the user to be stored in the
+.BR publickey (5)
+database.
+.SH "SEE ALSO"
+.BR keylogin (1),
+.BR publickey (5),
+.BR keyserv (8C),
+.BR newkey (8).
