@@ -1112,13 +1112,13 @@ p_command_embedded:
 	}
 	if ((ahc->features & AHC_CMD_CHAN) != 0) {
 		bmov	DFDAT, SCB_CDB_STORE, 12; 
+		if ((ahc->chip & AHC_CHIPID_MASK) == AHC_AIC7895) {
+			or	DFCNTRL, FIFOFLUSH;
+		}
 	} else {
-		/*
-		 * At most 12 bytes, but we copy 16 to fill
-		 * the 64bit words in the FIFO
-		 */
-		call	copy_to_fifo_8;
-		call	copy_to_fifo_8;
+		call	copy_to_fifo_6;
+		call	copy_to_fifo_6;
+		or	DFCNTRL, FIFOFLUSH;
 	}
 p_command_loop:
 	test	SSTAT0, SDONE jnz . + 2;
@@ -1849,10 +1849,6 @@ dfdat_in_2_continued:
 		mov	DINDIR,DFDAT ret;
 	}
 
-copy_to_fifo_8:
-	mov	DFDAT,SINDIR;
-copy_to_fifo_7:
-	mov	DFDAT,SINDIR;
 copy_to_fifo_6:
 	mov	DFDAT,SINDIR;
 copy_to_fifo_5:

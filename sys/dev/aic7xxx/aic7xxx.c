@@ -168,8 +168,10 @@
 	(0x01 << (SCB_GET_TARGET_OFFSET(ahc, scb)))
 #define TCL_TARGET_OFFSET(tcl) \
 	((((tcl) >> 4) & TID) >> 4)
+#define TCL_LUN(tcl) \
+	(tcl & (AHC_NUM_LUNS - 1))
 #define BUILD_TCL(scsiid, lun) \
-	((lun) | (((scsiid) & TID) >> 4))
+	((lun) | (((scsiid) & TID) << 4))
 #define BUILD_SCSIID(ahc, sim, target_id, our_id) \
 	((((target_id) << TID_SHIFT) & TID) | (our_id) \
 	| (SIM_IS_SCSIBUS_B(ahc, sim) ? TWIN_CHNLB : 0))
@@ -394,8 +396,8 @@ static void	ahc_queue_lstate_event(struct ahc_softc *ahc,
 				       u_int event_arg);
 static void	ahc_send_lstate_events(struct ahc_softc *ahc,
 				       struct tmode_lstate *lstate);
-static 		void restart_sequencer(struct ahc_softc *ahc);
-static __inline u_int ahc_index_busy_tcl(struct ahc_softc *ahc,
+static void	restart_sequencer(struct ahc_softc *ahc);
+static u_int	ahc_index_busy_tcl(struct ahc_softc *ahc,
 					 u_int tcl, int unbusy);
  
 static __inline void	   ahc_freeze_ccb(union ccb* ccb);
@@ -468,16 +470,29 @@ restart_sequencer(struct ahc_softc *ahc)
 	unpause_sequencer(ahc);
 }
 
-static __inline u_int
+static u_int
 ahc_index_busy_tcl(struct ahc_softc *ahc, u_int tcl, int unbusy)
 {
 	u_int scbid;
 	u_int target_offset;
 
-	target_offset = TCL_TARGET_OFFSET(tcl);
-	scbid = ahc_inb(ahc, BUSY_TARGETS + target_offset);
-	if (unbusy)
-		ahc_outb(ahc, BUSY_TARGETS + target_offset, SCB_LIST_NULL);
+	if ((ahc->features & AHC_SCB_BTT) != 0) {
+		u_int saved_scbptr;
+		
+		saved_scbptr = ahc_inb(ahc, SCBPTR);
+		ahc_outb(ahc, SCBPTR, TCL_LUN(tcl));
+		scbid = ahc_inb(ahc, SCB_64_BTT + TCL_TARGET_OFFSET(tcl));
+		if (unbusy)
+			ahc_outb(ahc, SCB_64_BTT + TCL_TARGET_OFFSET(tcl),
+				 SCB_LIST_NULL);
+		ahc_outb(ahc, SCBPTR, saved_scbptr);
+	} else {
+		target_offset = TCL_TARGET_OFFSET(tcl);
+		scbid = ahc_inb(ahc, BUSY_TARGETS + target_offset);
+		if (unbusy)
+			ahc_outb(ahc, BUSY_TARGETS + target_offset,
+				 SCB_LIST_NULL);
+	}
 
 	return (scbid);
 }
@@ -1199,10 +1214,10 @@ ahc_reset(struct ahc_softc *ahc)
 	 * not, STPWEN will be false (the value after a POST)
 	 * and this action will be harmless.
 	 *
-	 * We must actually always initialize STPWEN to 1
-	 * before we restore the saved value.  STPWEN is
-	 * initialized to a tri-state condition which is
-	 * only be cleared by turning it on.
+	 * We must always initialize STPWEN to 1 before we
+	 * restore the saved value.  STPWEN is initialized
+	 * to a tri-state condition which is only be cleared
+	 * by turning it on.
 	 */
 	ahc_outb(ahc, SXFRCTL1, sxfrctl1|STPWEN);
 	ahc_outb(ahc, SXFRCTL1, sxfrctl1);
@@ -4518,23 +4533,6 @@ ahc_init(struct ahc_softc *ahc)
 		if (ahcinitscbdata(ahc) != 0)
 			return (ENOMEM);
 
-	/* There are no untagged SCBs active yet. */
-	/* XXX will need to change for SCB ram approach */
-	for (i = 0; i < 16; i++)
-		ahc_index_busy_tcl(ahc, BUILD_TCL(i << 4, 0), /*unbusy*/TRUE);
-
-	/* All of our queues are empty */
-	for (i = 0; i < 256; i++)
-		ahc->qoutfifo[i] = SCB_LIST_NULL;
-
-	for (i = 0; i < 256; i++)
-		ahc->qinfifo[i] = SCB_LIST_NULL;
-
-	if ((ahc->features & AHC_MULTI_TID) != 0) {
-		ahc_outb(ahc, TARGID, 0);
-		ahc_outb(ahc, TARGID + 1, 0);
-	}
-
 	/*
 	 * Allocate a tstate to house information for our
 	 * initiator presence on the bus as well as the user
@@ -4746,6 +4744,36 @@ ahc_init(struct ahc_softc *ahc)
 	}
 	ahc->user_discenable = discenable;
 	ahc->user_tagenable = tagenable;
+
+	/* There are no untagged SCBs active yet. */
+	for (i = 0; i < 16; i++) {
+		ahc_index_busy_tcl(ahc, BUILD_TCL(i << 4, 0), /*unbusy*/TRUE);
+		if ((ahc->features & AHC_SCB_BTT) != 0) {
+			int lun;
+
+			/*
+			 * The SCB based BTT allows an entry per
+			 * target and lun pair.
+			 */
+			for (lun = 1; lun < AHC_NUM_LUNS; lun++) {
+				ahc_index_busy_tcl(ahc,
+						   BUILD_TCL(i << 4, lun),
+						   /*unbusy*/TRUE);
+			}
+		}
+	}
+
+	/* All of our queues are empty */
+	for (i = 0; i < 256; i++)
+		ahc->qoutfifo[i] = SCB_LIST_NULL;
+
+	for (i = 0; i < 256; i++)
+		ahc->qinfifo[i] = SCB_LIST_NULL;
+
+	if ((ahc->features & AHC_MULTI_TID) != 0) {
+		ahc_outb(ahc, TARGID, 0);
+		ahc_outb(ahc, TARGID + 1, 0);
+	}
 
 	/*
 	 * Tell the sequencer where it can find our arrays in memory.
@@ -5320,7 +5348,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		found = ahc_reset_channel(ahc, SIM_CHANNEL(ahc, sim),
 					  /*initiate reset*/TRUE);
 		splx(s);
-		if (1 || bootverbose) {
+		if (bootverbose) {
 			xpt_print_path(SIM_PATH(ahc, sim));
 			printf("SCSI bus reset delivered. "
 			       "%d SCBs aborted.\n", found);
@@ -6577,14 +6605,36 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 	for (;i < maxtarget; i++) {
 		u_int scbid;
 
-		/* XXX Will need lun loop for SCB ram version */
 		scbid = ahc_index_busy_tcl(ahc, BUILD_TCL(i << 4, 0),
 					   /*unbusy*/FALSE);
 		scbp = &ahc->scb_data->scbarray[scbid];
 		if (scbid < ahc->scb_data->numscbs
-		 && ahc_match_scb(ahc, scbp, target, channel, lun, tag, role))
-			ahc_index_busy_tcl(ahc, BUILD_TCL(i << 4, 0),
-					   /*unbusy*/TRUE);
+		 && ahc_match_scb(ahc, scbp, target, channel, lun, tag, role)) {
+			u_int minlun;
+			u_int maxlun;
+
+			if (lun == CAM_LUN_WILDCARD) {
+
+				/*
+				 * Unless we are using an SCB based
+				 * busy targets table, there is only
+				 * one table entry for all luns of
+				 * a target.
+				 */
+				minlun = 0;
+				maxlun = 1;
+				if ((ahc->flags & AHC_SCB_BTT) != 0)
+					maxlun = AHC_NUM_LUNS;
+			} else {
+				minlun = lun;
+				maxlun = lun + 1;
+			}
+			while (minlun < maxlun) {
+				ahc_index_busy_tcl(ahc, BUILD_TCL(i << 4,
+						   minlun), /*unbusy*/TRUE);
+				minlun++;
+			}
+		}
 	}
 
 	/*
