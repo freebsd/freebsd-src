@@ -1864,7 +1864,7 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata, int skip)
 			zone->uz_flags &= ~UMA_ZFLAG_FULL;
 
 		/* We can handle one more allocation */
-		wakeup_one(&zone);
+		wakeup_one(zone);
 	}
 
 	ZONE_UNLOCK(zone);
