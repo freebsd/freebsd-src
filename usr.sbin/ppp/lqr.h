@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.h,v 1.9 1997/10/26 12:42:12 brian Exp $
+ * $Id: lqr.h,v 1.10 1997/11/22 03:37:38 brian Exp $
  *
  *	TODO:
  */
@@ -24,26 +24,26 @@
  *  Structure of LQR packet defined in RFC1333
  */
 struct lqrdata {
-  u_long MagicNumber;
-  u_long LastOutLQRs;
-  u_long LastOutPackets;
-  u_long LastOutOctets;
-  u_long PeerInLQRs;
-  u_long PeerInPackets;
-  u_long PeerInDiscards;
-  u_long PeerInErrors;
-  u_long PeerInOctets;
-  u_long PeerOutLQRs;
-  u_long PeerOutPackets;
-  u_long PeerOutOctets;
+  u_int32_t MagicNumber;
+  u_int32_t LastOutLQRs;
+  u_int32_t LastOutPackets;
+  u_int32_t LastOutOctets;
+  u_int32_t PeerInLQRs;
+  u_int32_t PeerInPackets;
+  u_int32_t PeerInDiscards;
+  u_int32_t PeerInErrors;
+  u_int32_t PeerInOctets;
+  u_int32_t PeerOutLQRs;
+  u_int32_t PeerOutPackets;
+  u_int32_t PeerOutOctets;
 };
 
 struct lqrsave {
-  u_long SaveInLQRs;
-  u_long SaveInPackets;
-  u_long SaveInDiscards;
-  u_long SaveInErrors;
-  u_long SaveInOctets;
+  u_int32_t SaveInLQRs;
+  u_int32_t SaveInPackets;
+  u_int32_t SaveInDiscards;
+  u_int32_t SaveInErrors;
+  u_int32_t SaveInOctets;
 };
 
 struct lqrdata MyLqrData, HisLqrData;
