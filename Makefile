@@ -93,9 +93,12 @@
 #
 TGTS=	all all-man buildkernel buildworld checkdpadd clean \
 	cleandepend cleandir depend distribute distributeworld everything \
-	hierarchy includes incsinstall install installcheck installkernel \
+	hierarchy install installcheck installkernel \
 	reinstallkernel installmost installworld libraries lint maninstall \
 	mk most obj objlink regress rerelease tags update
+
+BITGTS=	includes
+BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
 
 .ORDER: buildworld installworld
 .ORDER: buildworld distributeworld
@@ -108,7 +111,7 @@ MAKE=	PATH=${PATH} make -m ${.CURDIR}/share/mk -f Makefile.inc1
 #
 # Handle the user-driven targets, using the source relative mk files.
 #
-${TGTS}: upgrade_checks
+${TGTS} ${BITGTS}: upgrade_checks
 	@cd ${.CURDIR}; \
 		${MAKE} ${.TARGET}
 
