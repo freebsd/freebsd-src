@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.24 1999/01/12 01:04:38 eivind Exp $
+ *	$Id: wdreg.h,v 1.25 1999/01/17 05:46:24 bde Exp $
  */
 
 /*
@@ -309,6 +309,9 @@ struct wddma {
 #define	WDDMA_UDMA0	0x40
 #define	WDDMA_UDMA1	0x41
 #define	WDDMA_UDMA2	0x42
+
+#define Q_CMD640B       0x00000001 /* CMD640B quirk: serialize IDE channels */
+void	wdc_pci(int quirks);
 
 extern struct wddma wddma[];
 
