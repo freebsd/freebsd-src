@@ -1001,6 +1001,7 @@ isp_fibre_init(isp)
 	isp_icb_t *icbp;
 	mbreg_t mbs;
 	int loopid;
+	u_int64_t nwwn, pwwn;
 
 	fcp = isp->isp_param;
 
@@ -1084,10 +1085,19 @@ isp_fibre_init(isp)
 	}
 	icbp->icb_logintime = 60;	/* 60 second login timeout */
 
-	if (fcp->isp_nodewwn) {
-		MAKE_NODE_NAME_FROM_WWN(icbp->icb_nodename, fcp->isp_nodewwn);
-		MAKE_NODE_NAME_FROM_WWN(icbp->icb_portname, fcp->isp_portwwn);
+	nwwn = ISP_NODEWWN(isp);
+	pwwn = ISP_PORTWWN(isp);
+	if (nwwn && pwwn) {
+		MAKE_NODE_NAME_FROM_WWN(icbp->icb_nodename, nwwn);
+		MAKE_NODE_NAME_FROM_WWN(icbp->icb_portname, pwwn);
+		isp_prt(isp, ISP_LOGDEBUG1,
+		    "Setting ICB Node 0x%08x%08x Port 0x%08x%08x",
+		    ((u_int32_t) (nwwn >> 32)),
+		    ((u_int32_t) (nwwn & 0xffffffff)),
+		    ((u_int32_t) (pwwn >> 32)),
+		    ((u_int32_t) (pwwn & 0xffffffff)));
 	} else {
+		isp_prt(isp, ISP_LOGDEBUG1, "Not using any WWNs");
 		fcp->isp_fwoptions &= ~(ICBOPT_USE_PORTNAME|ICBOPT_FULL_LOGIN);
 	}
 	icbp->icb_rqstqlen = RQUEST_QUEUE_LEN(isp);
@@ -4901,36 +4911,61 @@ isp_parse_nvram_2100(isp, nvram_data)
 	u_int64_t wwn;
 
 	/*
-	 * There is supposed to be WWNN storage as distinct
-	 * from WWPN storage in NVRAM, but it doesn't appear
-	 * to be used sanely across all cards.
+	 * There is NVRAM storage for both Port and Node entities-
+	 * but the Node entity appears to be unused on all the cards
+	 * I can find. However, we should account for this being set
+	 * at some point in the future.
+	 *
+	 * Qlogic WWNs have an NAA of 2, but usually nothing shows up in
+	 * bits 48..60. In the case of the 2202, it appears that they do
+	 * use bit 48 to distinguish between the two instances on the card.
+	 * The 2204, which I've never seen, *probably* extends this method.
 	 */
-
 	wwn = ISP2100_NVRAM_PORT_NAME(nvram_data);
-	if (wwn != 0LL) {
-		switch ((int) (wwn >> 60)) {
-		case 0:
-			/*
-			 * Broken PTI cards with nothing in the top nibble. Pah.
-			 */
-			wwn |= (2LL << 60); 
-			/* FALLTHROUGH */
-		case 2:
-			fcp->isp_nodewwn = wwn;
-			fcp->isp_nodewwn &= ~((0xfffLL) << 48);
-			fcp->isp_portwwn =
-			    PORT_FROM_NODE_WWN(isp, fcp->isp_nodewwn);
-			break;
-		default:
-			fcp->isp_portwwn = fcp->isp_nodewwn = wwn;
+	if (wwn) {
+		isp_prt(isp, ISP_LOGCONFIG, "NVRAM Port WWN 0x%08x%08x",
+		    (u_int32_t) (wwn >> 32), (u_int32_t) (wwn & 0xffffffff));
+		if ((wwn >> 60) == 0) {
+			wwn |= (((u_int64_t) 2)<< 60); 
 		}
 	}
-	isp_prt(isp, ISP_LOGCONFIG, "NVRAM Derived Node WWN 0x%08x%08x",
-	    (u_int32_t) (fcp->isp_nodewwn >> 32),
-	    (u_int32_t) (fcp->isp_nodewwn & 0xffffffff));
-	isp_prt(isp, ISP_LOGCONFIG, "NVRAM Derived Port WWN 0x%08x%08x",
-	    (u_int32_t) (fcp->isp_portwwn >> 32),
-	    (u_int32_t) (fcp->isp_portwwn & 0xffffffff));
+	fcp->isp_portwwn = wwn;
+	wwn = ISP2100_NVRAM_NODE_NAME(nvram_data);
+	if (wwn) {
+		isp_prt(isp, ISP_LOGCONFIG, "NVRAM Node WWN 0x%08x%08x",
+		    (u_int32_t) (wwn >> 32), (u_int32_t) (wwn & 0xffffffff));
+		if ((wwn >> 60) == 0) {
+			wwn |= (((u_int64_t) 2)<< 60); 
+		}
+	}
+	fcp->isp_nodewwn = wwn;
+
+	/*
+	 * Make sure we have both Node and Port as non-zero values.
+	 */
+	if (fcp->isp_nodewwn != 0 && fcp->isp_portwwn == 0) {
+		fcp->isp_portwwn = fcp->isp_nodewwn;
+	} else if (fcp->isp_nodewwn == 0 && fcp->isp_portwwn != 0) {
+		fcp->isp_nodewwn = fcp->isp_portwwn;
+	}
+
+	/*
+	 * Make the Node and Port values sane if they're NAA == 2.
+	 * This means to clear bits 48..56 for the Node WWN and
+	 * make sure that there's some non-zero value in 48..56
+	 * for the Port WWN.
+	 */
+	if (fcp->isp_nodewwn && fcp->isp_portwwn) {
+		if ((fcp->isp_nodewwn & (((u_int64_t) 0xfff) << 48)) != 0 &&
+		    (fcp->isp_nodewwn >> 60) == 2) {
+			fcp->isp_nodewwn &= ~((u_int64_t) 0xfff << 48);
+		}
+		if ((fcp->isp_portwwn & (((u_int64_t) 0xfff) << 48)) == 0 &&
+		    (fcp->isp_portwwn >> 60) == 2) {
+			fcp->isp_portwwn |= ((u_int64_t) 1 << 56);
+		}
+	}
+
 	fcp->isp_maxalloc =
 		ISP2100_NVRAM_MAXIOCBALLOCATION(nvram_data);
 	fcp->isp_maxfrmlen =
@@ -4944,4 +4979,6 @@ isp_parse_nvram_2100(isp, nvram_data)
 	fcp->isp_execthrottle =
 		ISP2100_NVRAM_EXECUTION_THROTTLE(nvram_data);
 	fcp->isp_fwoptions = ISP2100_NVRAM_OPTIONS(nvram_data);
+	isp_prt(isp, ISP_LOGDEBUG0,
+	    "fwoptions from nvram are 0x%x", fcp->isp_fwoptions);
 }
