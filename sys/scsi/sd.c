@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *	$Id: sd.c,v 1.7 1993/09/09 01:30:46 rgrimes Exp $
+ *	$Id: sd.c,v 1.8 1993/09/10 18:03:21 ats Exp $
  */
 
 #define SPLSD splbio
@@ -147,6 +147,8 @@ struct	scsi_switch *scsi_switch;
 		printf("malloc failed in sd.c\n");
 		return(0);
 	}
+	bzero(sd,sizeof(struct sd_data));
+
 	dp  = &(sd->params);
 	/*******************************************************\
 	* Store information needed to contact our base driver	*
