@@ -21,7 +21,6 @@ PERFMON			opt_perfmon.h
 POWERFAIL_NMI		opt_trap.h
 AUTO_EOI_1		opt_auto_eoi.h
 AUTO_EOI_2		opt_auto_eoi.h
-BREAK_TO_DEBUGGER	opt_comconsole.h
 CONSPEED		opt_comconsole.h
 I586_PMC_GUPROF		opt_i586_guprof.h
 WLCACHE			opt_wavelan.h
@@ -77,9 +76,6 @@ SC_NO_SYSMOUSE		opt_syscons.h
 SC_PIXEL_MODE		opt_syscons.h
 SC_RENDER_DEBUG		opt_syscons.h
 SC_VIDEO_DEBUG		opt_syscons.h
-
-FB_DEBUG		opt_fb.h
-FB_INSTALL_CDEV		opt_fb.h
 
 GDC			opt_gdc.h
 

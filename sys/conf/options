@@ -117,11 +117,6 @@ CD9660_ROOT	opt_cd9660.h
 FFS_ROOT	opt_ffs.h
 NFS_ROOT	opt_nfsroot.h
 
-# Multi-session CD-Rs might require a huge amount of time in order to
-# "settle".  If we are about mounting them as the root f/s, we gotta
-# wait a little.
-CD9660_ROOTDELAY	opt_cd9660.h
-
 # The union static file system has bogus static dependencies, so it isn't
 # hidden yet.
 UNION
@@ -161,7 +156,6 @@ CAM_DEBUG_TARGET	opt_cam.h
 CAM_DEBUG_LUN		opt_cam.h
 CAM_DEBUG_FLAGS		opt_cam.h
 SCSI_DELAY		opt_scsi.h
-SCSI_REPORT_GEOMETRY	opt_scsi.h
 SCSI_NO_SENSE_STRINGS	opt_scsi.h
 SCSI_NO_OP_STRINGS	opt_scsi.h
 
@@ -180,7 +174,6 @@ SCSI_PT_DEFAULT_TIMEOUT	opt_pt.h
 
 # Options used only in pci/ncr.c
 SCSI_NCR_DEBUG		opt_ncr.h
-SCSI_NCR_DFLT_TAGS	opt_ncr.h
 SCSI_NCR_MAX_SYNC	opt_ncr.h
 SCSI_NCR_MAX_WIDE	opt_ncr.h
 SCSI_NCR_MYADDR		opt_ncr.h
@@ -274,16 +267,10 @@ NATM			opt_natm.h
 DPT_ALLOW_MEMIO		opt_dpt.h	# Allow PCI devices to use memory
 					# mapped I/O
 # DPT driver debug flags
-DPT_VERIFY_HINTR	opt_dpt.h
-DPT_USE_SINTR		opt_dpt.h
-DPT_RESTRICTED_FREELIST	opt_dpt.h
 DPT_MEASURE_PERFORMANCE	opt_dpt.h
-DPT_FREELIST_IS_STACK	opt_dpt.h
 DPT_HANDLE_TIMEOUTS	opt_dpt.h
 DPT_TIMEOUT_FACTOR	opt_dpt.h
-DPT_INTR_DELAY		opt_dpt.h
 DPT_LOST_IRQ		opt_dpt.h
-DPT_SHUTDOWN_SLEEP	opt_dpt.h
 DPT_RESET_HBA		opt_dpt.h
 
 # Misc debug flags.  Most of these should probably be replaced with
@@ -300,6 +287,10 @@ NPX_DEBUG		opt_debug_npx.h
 NETATALKDEBUG		opt_atalk.h
 SI_DEBUG		opt_debug_si.h
 
+# Fb options
+FB_DEBUG		opt_fb.h
+FB_INSTALL_CDEV		opt_fb.h
+
 # ppbus related options
 PERIPH_1284		opt_ppb_1284.h
 DONTPROBE_1284		opt_ppb_1284.h
@@ -308,6 +299,7 @@ DONTPROBE_1284		opt_ppb_1284.h
 ENABLE_ALART		opt_intpm.h
 
 # These cause changes all over the kernel
+BLKDEV_IOSIZE		opt_global.h
 DEBUG			opt_global.h
 DEBUG_LOCKS		opt_global.h
 DEBUG_VFS_LOCKS		opt_global.h
@@ -317,7 +309,6 @@ INVARIANT_SUPPORT	opt_global.h
 INVARIANTS		opt_global.h
 SIMPLELOCK_DEBUG	opt_global.h
 VFS_BIO_DEBUG		opt_global.h
-BLKDEV_IOSIZE		opt_global.h
 
 # These are VM related options
 VM_KMEM_SIZE	opt_vm.h
@@ -381,6 +372,7 @@ METEOR_DEALLOC_ABOVE	opt_meteor.h
 COM_ESP                 opt_sio.h
 COM_MULTIPORT           opt_sio.h
 EXTRA_SIO               opt_sio.h
+BREAK_TO_DEBUGGER	opt_comconsole.h
 
 # Include tweaks for running under the SimOS machine simulator.
 SIMOS			opt_simos.h
