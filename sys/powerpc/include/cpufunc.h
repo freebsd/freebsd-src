@@ -102,6 +102,13 @@ mfdec(void)
 }
 
 static __inline void
+eieio(void)
+{
+
+	__asm __volatile ("eieio");
+}
+
+static __inline void
 isync(void)
 {
 
