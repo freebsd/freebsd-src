@@ -39,6 +39,8 @@
 # uucpdomain, virtusertable
 #
 
+SENDMAIL_M4_FLAGS+=	-D_FFR_TLS_O_T
+
 .ifndef SENDMAIL_MC
 SENDMAIL_MC!=           hostname
 SENDMAIL_MC:=           ${SENDMAIL_MC}.mc
@@ -124,8 +126,8 @@ M4FILES!=	find ${SENDMAIL_CF_DIR} -type f -name '*.m4' -print
 .SUFFIXES:	.cf .mc
 
 .mc.cf:		${M4FILES}
-	${M4} -D_CF_DIR_=${SENDMAIL_CF_DIR}/ ${SENDMAIL_CF_DIR}/m4/cf.m4 \
-		${@:R}.mc > ${.TARGET}
+	${M4} -D_CF_DIR_=${SENDMAIL_CF_DIR}/ ${SENDMAIL_M4_FLAGS} \
+		${SENDMAIL_CF_DIR}/m4/cf.m4 ${@:R}.mc > ${.TARGET}
 
 #
 # Aliases are handled separately since they normally reside in /etc
