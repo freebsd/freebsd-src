@@ -48,7 +48,7 @@ VERSIONID(`$FreeBSD$')
 OSTYPE(freebsd4)
 DOMAIN(generic)
 
-FEATURE(access_db, `hash -o /etc/mail/access')
+FEATURE(access_db, `hash -o -T<TMPF> /etc/mail/access')
 FEATURE(blacklist_recipients)
 FEATURE(local_lmtp)
 FEATURE(mailertable, `hash -o /etc/mail/mailertable')
