@@ -1066,7 +1066,7 @@
         <application>isdn4bsd</application> driver. &merged;</para> 
 
 	<para>The &man.isic.4; driver now supports the Compaq Microcom
-	610 ISDN ISA PnP card.</para>
+	610 ISDN ISA PnP card. &merged;</para>
 
 	<para>Active CAPI-based ISDN cards manufactured by AVM are now
 	supported using the &man.i4bcapi.4; and the &man.iavc.4; driver.  The
@@ -1079,7 +1079,7 @@
 
 	<para>&man.isdnphone.8; now supports a <option>-k</option> option for
 	sending messages via the keypad facility to a PBX or exchange
-	office.</para>
+	office. &merged;</para>
       </sect4>
 
       <sect4 id="kame-kernel">
