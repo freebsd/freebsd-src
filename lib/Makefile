@@ -11,7 +11,8 @@ SUBDIR=csu/${MACHINE}
 
 # XXX MISSING:		libmp libplot
 SUBDIR+=	libc libcompat libcrypt libcurses libedit libkvm libmd \
-libmytinfo libresolv librpcsvc libskey libtelnet libtermcap libutil liby
+libmytinfo libncurses libresolv librpcsvc libskey libtelnet libtermcap \
+libutil liby
 
 .if !defined(WANT_MSUN)
 SUBDIR+= libm
