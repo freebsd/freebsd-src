@@ -94,8 +94,10 @@
 #include <machine/resource.h>	/* used by newbus */
 #endif
 
+#if (__FreeBSD_version < 500000)
+#include <machine/clock.h>              /* for DELAY */
+#endif
 
-#include <machine/clock.h>      /* for DELAY */
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
@@ -247,8 +249,10 @@ static struct cdevsw bktr_cdevsw = {
 };
 
 DRIVER_MODULE(bktr, pci, bktr_driver, bktr_devclass, 0, 0);
+#if (__FreeBSD_version > 410000)
 MODULE_DEPEND(bktr, bktr_mem, 1,1,1);
 MODULE_VERSION(bktr, 1);
+#endif
 
 
 /*
@@ -260,20 +264,25 @@ bktr_probe( device_t dev )
 	unsigned int type = pci_get_devid(dev);
         unsigned int rev  = pci_get_revid(dev);
 
-	switch (type) {
-	case BROOKTREE_848_PCI_ID:
-		if (rev == 0x12) device_set_desc(dev, "BrookTree 848A");
-		else             device_set_desc(dev, "BrookTree 848");
-                return 0;
-        case BROOKTREE_849_PCI_ID:
-                device_set_desc(dev, "BrookTree 849A");
-                return 0;
-        case BROOKTREE_878_PCI_ID:
-                device_set_desc(dev, "BrookTree 878");
-                return 0;
-        case BROOKTREE_879_PCI_ID:
-                device_set_desc(dev, "BrookTree 879");
-                return 0;
+	if (PCI_VENDOR(type) == PCI_VENDOR_BROOKTREE)
+	{
+		switch (PCI_PRODUCT(type)) {
+		case PCI_PRODUCT_BROOKTREE_BT848:
+			if (rev == 0x12)
+				device_set_desc(dev, "BrookTree 848A");
+			else
+				device_set_desc(dev, "BrookTree 848");
+			return 0;
+		case PCI_PRODUCT_BROOKTREE_BT849:
+			device_set_desc(dev, "BrookTree 849A");
+			return 0;
+		case PCI_PRODUCT_BROOKTREE_BT878:
+			device_set_desc(dev, "BrookTree 878");
+			return 0;
+		case PCI_PRODUCT_BROOKTREE_BT879:
+			device_set_desc(dev, "BrookTree 879");
+			return 0;
+		}
 	};
 
         return ENXIO;
@@ -419,9 +428,24 @@ bktr_attach( device_t dev )
 	/* call the common attach code */
 	common_bktr_attach( bktr, unit, fun, rev );
 
-	make_dev(&bktr_cdevsw, unit,    0, 0, 0444, "bktr%d",  unit);
-	make_dev(&bktr_cdevsw, unit+16, 0, 0, 0444, "tuner%d", unit);
-	make_dev(&bktr_cdevsw, unit+32, 0, 0, 0444, "vbi%d", unit);
+	/* make the device entries */
+	bktr->bktrdev = make_dev(&bktr_cdevsw, unit,    
+				0, 0, 0444, "bktr%d",  unit);
+	bktr->tunerdev= make_dev(&bktr_cdevsw, unit+16,
+				0, 0, 0444, "tuner%d", unit);
+	bktr->vbidev  = make_dev(&bktr_cdevsw, unit+32,
+				0, 0, 0444, "vbi%d"  , unit);
+
+
+	/* if this is unit 0 (/dev/bktr0, /dev/tuner0, /dev/vbi0) then make */
+	/* alias entries to /dev/bktr /dev/tuner and /dev/vbi */
+#if (__FreeBSD_version >=500000)
+	if (unit == 0) {
+		bktr->bktrdev_alias = make_dev_alias(bktr->bktrdev,  "bktr");
+		bktr->tunerdev_alias= make_dev_alias(bktr->tunerdev, "tuner");
+		bktr->vbidev_alias  = make_dev_alias(bktr->vbidev,   "vbi");
+	}
+#endif
 
 	return 0;
 
@@ -440,13 +464,33 @@ fail:
 static int
 bktr_detach( device_t dev )
 {
+	unsigned int	unit;
+
 	struct bktr_softc *bktr = device_get_softc(dev);
+
+	unit = device_get_unit(dev);
 
 	/* Disable the brooktree device */
 	OUTL(bktr, BKTR_INT_MASK, ALL_INTS_DISABLED);
 	OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_RISC_DISABLED);
 
-	/* FIXME - Free memory for RISC programs, grab buffer, vbi buffers */
+	/* Note: We do not free memory for RISC programs, grab buffer, vbi buffers */
+	/* The memory is retained by the bktr_mem module so we can unload and */
+	/* then reload the main bktr driver module */
+
+	/* Unregister the /dev/bktrN, tunerN and vbiN devices */
+	destroy_dev(bktr->vbidev);
+	destroy_dev(bktr->tunerdev);
+	destroy_dev(bktr->bktrdev);
+
+	/* If this is unit 0, then destroy the alias entries too */
+#if (__FreeBSD_version >=500000)
+	if (unit == 0) {
+	    destroy_dev(bktr->vbidev_alias);
+	    destroy_dev(bktr->tunerdev_alias);
+	    destroy_dev(bktr->bktrdev_alias);
+	}
+#endif
 
 	/*
 	 * Deallocate resources.
@@ -830,17 +874,20 @@ static const char*
 bktr_probe( pcici_t tag, pcidi_t type )
 {
         unsigned int rev = pci_conf_read( tag, PCIR_REVID) & 0x000000ff;
-	 
-	switch (type) {
-	case BROOKTREE_848_PCI_ID:
-		if (rev == 0x12) return("BrookTree 848A");
-		else             return("BrookTree 848"); 
-        case BROOKTREE_849_PCI_ID:
-                return("BrookTree 849A");
-        case BROOKTREE_878_PCI_ID:
-                return("BrookTree 878");
-        case BROOKTREE_879_PCI_ID:
-                return("BrookTree 879");
+
+	if (PCI_VENDOR(type) == PCI_VENDOR_BROOKTREE)
+	{
+		switch (PCI_PRODUCT(type)) {
+		case PCI_PRODUCT_BROOKTREE_BT848:
+			if (rev == 0x12) return("BrookTree 848A");
+			else             return("BrookTree 848");
+		case PCI_PRODUCT_BROOKTREE_BT849:
+			return("BrookTree 849A");
+		case PCI_PRODUCT_BROOKTREE_BT878:
+			return("BrookTree 878");
+		case PCI_PRODUCT_BROOKTREE_BT879:
+			return("BrookTree 879");
+		}
 	};
 
 	return ((char *)0);
