@@ -7,7 +7,7 @@
     This software is placed into the public domain with no restrictions
     on its distribution.
 
-    $Id$
+    $Id: alias.h,v 1.7 1998/01/16 12:56:07 bde Exp $
 */
 
 
@@ -36,8 +36,10 @@ struct alias_link;
     extern unsigned int
     PacketAliasSetMode(unsigned int, unsigned int);
 
+#ifndef NO_FW_PUNCH
     extern void
     PacketAliasSetFWBase(unsigned int, unsigned int);
+#endif
 
 /* Packet Handling */
     extern int
@@ -150,6 +152,7 @@ extern u_short InternetChecksum(u_short *, int);
         bit is set after a call to PacketAliasInit(). */
 #define PKT_ALIAS_RESET_ON_ADDR_CHANGE 0x20
 
+#ifndef NO_FW_PUNCH
 /* If PKT_ALIAS_PUNCH_FW is set, active FTP and IRC DCC connections
    will create a 'hole' in the firewall to allow the transfers to
    work.  Where (IPFW "line-numbers") the hole is created is
@@ -157,6 +160,7 @@ extern u_short InternetChecksum(u_short *, int);
    attached to that particular alias_link, so when the link goes away
    so do the hole.  */
 #define PKT_ALIAS_PUNCH_FW 0x40
+#endif
 
 /* Return Codes */
 #define PKT_ALIAS_ERROR -1
