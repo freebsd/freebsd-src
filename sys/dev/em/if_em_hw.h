@@ -48,7 +48,8 @@ struct em_hw_stats;
 /* Enumerated types specific to the e1000 hardware */
 /* Media Access Controlers */
 typedef enum {
-    em_82542_rev2_0 = 0,
+    em_undefined = 0,
+    em_82542_rev2_0,
     em_82542_rev2_1,
     em_82543,
     em_82544,
@@ -57,6 +58,7 @@ typedef enum {
     em_82546,
     em_num_macs
 } em_mac_type;
+
 
 /* Media Types */
 typedef enum {
@@ -127,6 +129,7 @@ typedef enum {
     em_rev_polarity_undefined = 0xFF
 } em_rev_polarity;
 
+
 typedef enum {
     em_polarity_reversal_enabled = 0,
     em_polarity_reversal_disabled,
@@ -147,6 +150,7 @@ typedef enum {
     em_1000t_rx_status_undefined = 0xFF
 } em_1000t_rx_status;
 
+
 struct em_phy_info {
     em_cable_length cable_length;
     em_10bt_ext_dist_enable extended_10bt_distance;
@@ -165,16 +169,18 @@ struct em_phy_stats {
 
 
 /* Error Codes */
-#define E1000_SUCCESS    0
-#define E1000_ERR_EEPROM 1
-#define E1000_ERR_PHY    2
-#define E1000_ERR_CONFIG 3
-#define E1000_ERR_PARAM  4
+#define E1000_SUCCESS      0
+#define E1000_ERR_EEPROM   1
+#define E1000_ERR_PHY      2
+#define E1000_ERR_CONFIG   3
+#define E1000_ERR_PARAM    4
+#define E1000_ERR_MAC_TYPE 5
 
 /* Function prototypes */
 /* Initialization */
 void em_reset_hw(struct em_hw *hw);
 int32_t em_init_hw(struct em_hw *hw);
+int32_t em_set_mac_type(struct em_hw *hw);
 
 /* Link Configuration */
 int32_t em_setup_link(struct em_hw *hw);
@@ -225,6 +231,8 @@ void em_reset_adaptive(struct em_hw *hw);
 void em_update_adaptive(struct em_hw *hw);
 void em_tbi_adjust_stats(struct em_hw *hw, struct em_hw_stats *stats, uint32_t frame_len, uint8_t * mac_addr);
 void em_get_bus_info(struct em_hw *hw);
+void em_pci_set_mwi(struct em_hw *hw);
+void em_pci_clear_mwi(struct em_hw *hw);
 void em_read_pci_cfg(struct em_hw *hw, uint32_t reg, uint16_t * value);
 void em_write_pci_cfg(struct em_hw *hw, uint32_t reg, uint16_t * value);
 /* Port I/O is only supported on 82544 and newer */
@@ -232,26 +240,30 @@ uint32_t em_io_read(struct em_hw *hw, uint32_t port);
 uint32_t em_read_reg_io(struct em_hw *hw, uint32_t offset);
 void em_io_write(struct em_hw *hw, uint32_t port, uint32_t value);
 void em_write_reg_io(struct em_hw *hw, uint32_t offset, uint32_t value);
+
 #define E1000_READ_REG_IO(a, reg) \
     em_read_reg_io((a), E1000_##reg)
 #define E1000_WRITE_REG_IO(a, reg, val) \
     em_write_reg_io((a), E1000_##reg, val)
 
 /* PCI Device IDs */
-#define E1000_DEV_ID_82542          0x1000
-#define E1000_DEV_ID_82543GC_FIBER  0x1001
-#define E1000_DEV_ID_82543GC_COPPER 0x1004
-#define E1000_DEV_ID_82544EI_COPPER 0x1008
-#define E1000_DEV_ID_82544EI_FIBER  0x1009
-#define E1000_DEV_ID_82544GC_COPPER 0x100C
-#define E1000_DEV_ID_82544GC_LOM    0x100D
-#define E1000_DEV_ID_82540EM        0x100E
-#define E1000_DEV_ID_82540EM_LOM    0x1015
-#define E1000_DEV_ID_82545EM_COPPER 0x100F
-#define E1000_DEV_ID_82545EM_FIBER  0x1011
-#define E1000_DEV_ID_82546EB_COPPER 0x1010
-#define E1000_DEV_ID_82546EB_FIBER  0x1012
-#define NUM_DEV_IDS 13
+#define E1000_DEV_ID_82542               0x1000
+#define E1000_DEV_ID_82543GC_FIBER       0x1001
+#define E1000_DEV_ID_82543GC_COPPER      0x1004
+#define E1000_DEV_ID_82544EI_COPPER      0x1008
+#define E1000_DEV_ID_82544EI_FIBER       0x1009
+#define E1000_DEV_ID_82544GC_COPPER      0x100C
+#define E1000_DEV_ID_82544GC_LOM         0x100D
+#define E1000_DEV_ID_82540EM             0x100E
+#define E1000_DEV_ID_82540EM_LOM         0x1015
+#define E1000_DEV_ID_82540EP_LOM         0x1016
+#define E1000_DEV_ID_82540EP             0x1017
+#define E1000_DEV_ID_82540EP_LP          0x101E
+#define E1000_DEV_ID_82545EM_COPPER      0x100F
+#define E1000_DEV_ID_82545EM_FIBER       0x1011
+#define E1000_DEV_ID_82546EB_COPPER      0x1010
+#define E1000_DEV_ID_82546EB_FIBER       0x1012
+#define NUM_DEV_IDS 16
 
 #define NODE_ADDRESS_SIZE 6
 #define ETH_LENGTH_OF_ADDRESS 6
@@ -852,6 +864,7 @@ struct em_hw {
     em_bus_type bus_type;
     uint32_t io_base;
     uint32_t phy_id;
+    uint32_t phy_revision;
     uint32_t phy_addr;
     uint32_t original_fc;
     uint32_t txcw;
@@ -980,6 +993,7 @@ struct em_hw {
 #define E1000_EERD_ADDR_MASK  0x0000FF00 /* Read Address */
 #define E1000_EERD_DATA_SHIFT 16
 #define E1000_EERD_DATA_MASK  0xFFFF0000 /* Read Data */
+
 
 /* Extended Device Control */
 #define E1000_CTRL_EXT_GPI0_EN   0x00000001 /* Maps SDP4 to GPI0 */ 
@@ -1189,6 +1203,7 @@ struct em_hw {
 #define E1000_TXDCTL_WTHRESH 0x00FF0000 /* TXDCTL Writeback Threshold */
 #define E1000_TXDCTL_GRAN    0x01000000 /* TXDCTL Granularity */
 #define E1000_TXDCTL_LWTHRESH 0xFE000000 /* TXDCTL Low Threshold */
+#define E1000_TXDCTL_FULL_TX_DESC_WB 0x01010000 /* GRAN=1, WTHRESH=1 */
 
 /* Transmit Configuration Word */
 #define E1000_TXCW_FD         0x00000020        /* TXCW full duplex */
@@ -1428,6 +1443,8 @@ struct em_hw {
 #define PCIX_COMMAND_MMRBC_SHIFT     0x2
 #define PCIX_STATUS_HI_MMRBC_MASK    0x0060
 #define PCIX_STATUS_HI_MMRBC_SHIFT   0x5
+#define PCIX_STATUS_HI_MMRBC_4K      0x3
+#define PCIX_STATUS_HI_MMRBC_2K      0x2
 
 
 /* The number of bits that we need to shift right to move the "pause"
@@ -1540,6 +1557,7 @@ struct em_hw {
 #define M88E1000_INT_STATUS        0x13  /* Interrupt Status Register */
 #define M88E1000_EXT_PHY_SPEC_CTRL 0x14  /* Extended PHY Specific Control */
 #define M88E1000_RX_ERR_CNTR       0x15  /* Receive Error Counter */
+
 
 #define MAX_PHY_REG_ADDRESS 0x1F        /* 5 bit address bus (0-0x1F) */
 
@@ -1747,12 +1765,14 @@ struct em_hw {
 #define M88E1000_EPSCR_TX_CLK_25      0x0070 /* 25  MHz TX_CLK */
 #define M88E1000_EPSCR_TX_CLK_0       0x0000 /* NO  TX_CLK */
 
+
 /* Bit definitions for valid PHY IDs. */
 #define M88E1000_E_PHY_ID  0x01410C50
 #define M88E1000_I_PHY_ID  0x01410C30
 #define M88E1011_I_PHY_ID  0x01410C20
 #define M88E1000_12_PHY_ID M88E1000_E_PHY_ID
 #define M88E1000_14_PHY_ID M88E1000_E_PHY_ID
+#define M88E1011_I_REV_4   0x04
 
 /* Miscellaneous PHY bit definitions. */
 #define PHY_PREAMBLE        0xFFFFFFFF
