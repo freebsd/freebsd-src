@@ -32,7 +32,7 @@
  *
  *	@(#)if_slvar.h	8.3 (Berkeley) 2/1/94
  *
- * $Id: if_slvar.h,v 1.7 1995/08/30 00:33:21 bde Exp $
+ * $Id: if_slvar.h,v 1.8 1995/12/14 09:53:16 phk Exp $
  */
 
 #ifndef _NET_IF_SLVAR_H_
@@ -54,7 +54,7 @@ struct sl_softc {
 	u_int	sc_flags;		/* see below */
 	u_int	sc_escape;	/* =1 if last char input was FRAME_ESCAPE */
 	long	sc_lasttime;		/* last time a char arrived */
-	long	sc_abortcount;		/* number of abort esacpe chars */
+	long	sc_abortcount;		/* number of abort escape chars */
 	long	sc_starttime;		/* time of first abort in window */
 	u_int	sc_keepalive;		/* time	to decide link hang */
 	u_int	sc_outfill;		/* time	to send	FRAME_END when output idle */
@@ -71,7 +71,7 @@ struct sl_softc {
 
 /* visible flags */
 #define	SC_COMPRESS	IFF_LINK0	/* compress TCP traffic */
-#define	SC_NOICMP	IFF_LINK1	/* supress ICMP traffic */
+#define	SC_NOICMP	IFF_LINK1	/* suppress ICMP traffic */
 #define	SC_AUTOCOMP	IFF_LINK2	/* auto-enable TCP compression */
 
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)psl.h	5.2 (Berkeley) 1/18/91
- *	$Id: psl.h,v 1.5 1994/08/10 03:51:18 wollman Exp $
+ *	$Id: psl.h,v 1.6 1995/01/14 13:20:25 bde Exp $
  */
 
 #ifndef _MACHINE_PSL_H_
@@ -78,7 +78,7 @@
 /*
  * Bits that can be changed in user mode on 486's.  We allow these bits
  * to be changed using ptrace(), sigreturn() and procfs.  Setting PS_NT
- * is undesireable but it may as well be allowed since users can inflict
+ * is undesirable but it may as well be allowed since users can inflict
  * it on the kernel directly.  Changes to PSL_AC are silently ignored on
  * 386's.
  */

@@ -8,7 +8,7 @@
  * This software is distributed with NO WARRANTIES, not even the implied
  * warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
- * Authors grant any other persons or organisations permission to use
+ * Authors grant any other persons or organizations permission to use
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
@@ -35,7 +35,7 @@
 
 /*
  * Interrupt acknowledge register, P is board port, L is interrupt level,
- * as prodrammed in PILR.
+ * as programmed in PILR.
  */
 #define IACK(p,l)   (R(p,l) | 0x4000)
 

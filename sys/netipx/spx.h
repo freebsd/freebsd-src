@@ -33,7 +33,7 @@
  *
  *	@(#)spx.h
  *
- * $Id: spx.h,v 1.5 1995/11/24 12:25:11 bde Exp $
+ * $Id: spx.h,v 1.6 1995/12/16 02:14:34 bde Exp $
  */
 
 #ifndef _NETIPX_SPX_H_
@@ -131,7 +131,7 @@ struct spxpcb {
 	u_short	s_swl1;			/* == tcp snd_wl1 */
 	u_short	s_swl2;			/* == tcp snd_wl2 */
 	int	s_cwmx;			/* max allowable cwnd */
-	int	s_ssthresh;		/* s_cwnd size threshhold for
+	int	s_ssthresh;		/* s_cwnd size threshold for
 					 * slow start exponential-to-
 					 * linear switch */
 /* transmit timing stuff

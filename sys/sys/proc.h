@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.18 1995/07/13 08:48:03 davidg Exp $
+ * $Id: proc.h,v 1.19 1996/01/24 18:11:23 peter Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -76,8 +76,8 @@ struct	pgrp {
  * control, known in UN*X as a process; it has references to substructures
  * containing descriptions of things that the process uses, but may share
  * with related processes.  The process structure and the substructures
- * are always addressible except for those marked "(PROC ONLY)" below,
- * which might be addressible only on a processor on which the process
+ * are always addressable except for those marked "(PROC ONLY)" below,
+ * which might be addressable only on a processor on which the process
  * is running.
  */
 struct	proc {

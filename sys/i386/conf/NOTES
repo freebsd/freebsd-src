@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.233 1996/01/09 23:14:57 ats Exp $
+#	$Id: LINT,v 1.234 1996/01/13 23:30:10 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -51,7 +51,7 @@ options		OPEN_MAX=128
 #
 options		MATH_EMULATE		#Support for x87 emulation
 # Don't enable both of these in a real config.
-options		GPL_MATH_EMULATE	#Support for x87 emualtion via
+options		GPL_MATH_EMULATE	#Support for x87 emulation via
 					#new math emulator 
 
 #
@@ -75,7 +75,7 @@ config		kernel	root on wd0 dumps on wd0
 options		"COMPAT_43"
 
 #
-# Allow user-mode programs to manipulat their local descriptor tables.
+# Allow user-mode programs to manipulate their local descriptor tables.
 # This option is required for the WINE Windows(tm) emulator, and is
 # not used by anything else (that we know of).
 #
@@ -247,7 +247,7 @@ options		UNION			#Union filesystem
 # THis DEVFS is experimental but seems to work
 options		DEVFS			#devices filesystem
 
-# Make space in the kernel for a MFS rootfilesystem.  Define to the number
+# Make space in the kernel for a MFS root filesystem.  Define to the number
 # of kilobytes to reserve for the filesystem.
 options		MFS_ROOT=10
 # Allow the MFS_ROOT code to load the MFS image from floppy if it is missing.
@@ -584,7 +584,7 @@ options		BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to
 #
 # Network interfaces: `cx', `ed', `el', `ep', `ie', `is', `le', `lnc'
 #
-# ar: Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver (reqires sppp)
+# ar: Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver (requires sppp)
 # cx: Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
 # ed: Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 # el: 3Com 3C501 (slow!)
@@ -699,7 +699,7 @@ device pca0 at isa? port IO_TIMER1 tty
 # wt: Wangtek and Archive QIC-02/QIC-36 tape drives
 # ctx: Cortex-I frame grabber
 # apm: Laptop Advanced Power Management (experimental)
-# spigot: The Creative Labs Video Spigot video-aquisition board
+# spigot: The Creative Labs Video Spigot video-acquisition board
 # meteor: Matrox Meteor video capture board
 # cy: Cyclades serial driver
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
@@ -741,7 +741,7 @@ device pca0 at isa? port IO_TIMER1 tty
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 # for the Sony CDU31/33A CDROM
 device		scd0	at isa? port 0x230 bio
-# for the soundblaster 16 multicd - up to 4 devices
+# for the SoundBlaster 16 multicd - up to 4 devices
 controller      matcd0  at isa? port 0x230 bio
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 device		ctx0	at isa? port 0x230 iomem 0xd0000
@@ -830,7 +830,7 @@ controller	pcic0 at crd?
 # Laptop/Notebook options:
 #
 # See also:
-#  apm under `Miscellaneous hardare'
+#  apm under `Miscellaneous hardware'
 #  options		PSM_NO_RESET  for the `psm' driver
 # above.
 

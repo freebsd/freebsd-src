@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.10 1995/12/14 09:55:00 phk Exp $
+ * $Id: vm_map.h,v 1.11 1996/01/19 03:59:55 dyson Exp $
  */
 
 /*
@@ -170,7 +170,7 @@ struct vmspace {
  *	a sharing map, it is necessary to have a timestamp from each.
  *	[If the main map timestamp has changed, the share_map and
  *	associated timestamp are no longer valid; the map version
- *	does not include a reference for the imbedded share_map.]
+ *	does not include a reference for the embedded share_map.]
  */
 typedef struct {
 	int main_timestamp;

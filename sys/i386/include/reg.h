@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id: reg.h,v 1.9 1994/10/02 17:31:29 phk Exp $
+ *	$Id: reg.h,v 1.10 1995/01/14 10:41:41 bde Exp $
  */
 
 #ifndef _MACHINE_REG_H_
@@ -71,7 +71,7 @@
 /*
  * Registers accessible to ptrace(2) syscall for debugger
  * The machine-dependent code for PT_{SET,GET}REGS needs to
- * use whichver order, defined above, is correct, so that it
+ * use whichever order, defined above, is correct, so that it
  * is all invisible to the user.
  */
 struct reg {

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.16 1995/09/08 03:14:00 julian Exp $
+ *	$Id: isa.h,v 1.17 1995/11/18 09:29:39 bde Exp $
  */
 
 #ifndef _I386_ISA_ISA_H_
@@ -146,7 +146,7 @@
 #define	IO_CGASIZE	16		/* CGA controllers */
 #define	IO_COMSIZE	8		/* 8250, 16x50 com controllers */
 #define	IO_DMASIZE	16		/* 8237 DMA controllers */
-#define	IO_DPGSIZE	32		/* 74LS612 DMA page reisters */
+#define	IO_DPGSIZE	32		/* 74LS612 DMA page registers */
 #define	IO_EISASIZE	256		/* EISA controllers */
 #define	IO_FDCSIZE	8		/* Nec765 floppy controllers */
 #define	IO_GAMSIZE	16		/* AT compatible game controllers */

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.8 1995/02/14 19:21:15 sos Exp $
+ *	$Id: segments.h,v 1.9 1995/05/30 08:00:50 rgrimes Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
@@ -124,7 +124,7 @@ union	descriptor	{
 #define	SDT_MEMROD	20	/* memory read only expand dwn limit */
 #define	SDT_MEMRODA	21	/* memory read only expand dwn limit accessed */
 #define	SDT_MEMRWD	22	/* memory read write expand dwn limit */
-#define	SDT_MEMRWDA	23	/* memory read write expand dwn limit acessed */
+#define	SDT_MEMRWDA	23	/* memory read write expand dwn limit accessed */
 #define	SDT_MEME	24	/* memory execute only */
 #define	SDT_MEMEA	25	/* memory execute only accessed */
 #define	SDT_MEMER	26	/* memory execute read */
@@ -226,7 +226,7 @@ struct region_descriptor {
 #define	L43BSDCALLS_SEL	2	/* notyet */
 #define	LUCODE_SEL	3
 #define	LUDATA_SEL	4
-/* seperate stack, es,fs,gs sels ? */
+/* separate stack, es,fs,gs sels ? */
 /* #define	LPOSIXCALLS_SEL	5*/	/* notyet */
 #define NLDT		(LUDATA_SEL + 1)
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)idp.h	8.1 (Berkeley) 6/10/93
- * $Id: idp.h,v 1.2 1994/08/02 07:51:40 davidg Exp $
+ * $Id: idp.h,v 1.3 1994/08/21 06:22:05 paul Exp $
  */
 
 #ifndef _NETNS_IDP_H_
@@ -43,7 +43,7 @@
 struct idp {
 	u_short	idp_sum;	/* Checksum */
 	u_short	idp_len;	/* Length, in bytes, including header */
-	u_char	idp_tc;		/* Transport Crontrol (i.e. hop count) */
+	u_char	idp_tc;		/* Transport Control (i.e. hop count) */
 	u_char	idp_pt;		/* Packet Type (i.e. level 2 protocol) */
 	struct ns_addr	idp_dna;	/* Destination Network Address */
 	struct ns_addr	idp_sna;	/* Source Network Address */

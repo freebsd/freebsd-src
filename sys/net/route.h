@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.18 1995/11/16 19:00:09 phk Exp $
+ * $Id: route.h,v 1.19 1995/12/14 09:53:28 phk Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -63,8 +63,8 @@ struct rt_metrics {
 	u_long	rmx_mtu;	/* MTU for this path */
 	u_long	rmx_hopcount;	/* max hops expected */
 	u_long	rmx_expire;	/* lifetime for route, e.g. redirect */
-	u_long	rmx_recvpipe;	/* inbound delay-bandwith product */
-	u_long	rmx_sendpipe;	/* outbound delay-bandwith product */
+	u_long	rmx_recvpipe;	/* inbound delay-bandwidth product */
+	u_long	rmx_sendpipe;	/* outbound delay-bandwidth product */
 	u_long	rmx_ssthresh;	/* outbound gateway buffer limit */
 	u_long	rmx_rtt;	/* estimated round trip time */
 	u_long	rmx_rttvar;	/* estimated rtt variance */

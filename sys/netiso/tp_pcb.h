@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_pcb.h,v 1.4 1995/04/26 21:32:39 pst Exp $
+ * $Id: tp_pcb.h,v 1.5 1995/05/30 08:11:27 rgrimes Exp $
  */
 
 #ifndef _NETISO_TP_PCB_H_
@@ -66,7 +66,7 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_pcb.h,v 1.4 1995/04/26 21:32:39 pst Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_pcb.h,v 1.5 1995/05/30 08:11:27 rgrimes Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_pcb.h,v $
  *
  *
@@ -99,7 +99,7 @@ SOFTWARE.
  *
  * Possible improvement:
  * Might not need the ref_state stuff either...
- * REF_FREE could correspond to tp_state == CLOSED or nonexistend tpcb,
+ * REF_FREE could correspond to tp_state == CLOSED or nonexistent tpcb,
  * REF_OPEN to tp_state anywhere from AK_WAIT or CR_SENT to CLOSING
  * REF_OPENING could correspond to LISTENING, because that's the
  * way it's used, not because the correspondence is exact.

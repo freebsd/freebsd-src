@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.3 (Berkeley) 1/21/94
- * $Id: mbuf.h,v 1.11 1995/11/21 12:55:12 bde Exp $
+ * $Id: mbuf.h,v 1.12 1995/12/14 08:32:33 phk Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -340,7 +340,7 @@ union mcluster {
 /* length to m_copy to copy all */
 #define	M_COPYALL	1000000000
 
-/* compatiblity with 4.3 */
+/* compatibility with 4.3 */
 #define  m_copy(m, o, l)	m_copym((m), (o), (l), M_DONTWAIT)
 
 /*

@@ -1,5 +1,5 @@
 /*	from Id: if_ppp.h,v 1.12 1995/04/24 02:40:23 paulus Exp	*/
-/*	$Id$ */
+/*	$Id: if_ppp.h,v 1.5 1995/10/31 20:24:10 peter Exp $ */
 
 /*
  * if_ppp.h - Point-to-Point Protocol definitions.
@@ -17,7 +17,7 @@
  * from this software without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
- * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
 #ifndef _IF_PPP_H_
@@ -61,8 +61,8 @@
  */
 #define SC_TIMEOUT	0x00000400	/* timeout is currently pending */
 #define SC_VJ_RESET	0x00000800	/* need to reset VJ decomp */
-#define SC_COMP_RUN	0x00001000	/* compressor has been inited */
-#define SC_DECOMP_RUN	0x00002000	/* decompressor has been inited */
+#define SC_COMP_RUN	0x00001000	/* compressor has been initiated */
+#define SC_DECOMP_RUN	0x00002000	/* decompressor has been initiated */
 #define SC_DC_ERROR	0x00004000	/* non-fatal decomp error detected */
 #define SC_DC_FERROR	0x00008000	/* fatal decomp error detected */
 #define SC_TBUSY	0x10000000	/* xmitter doesn't need a packet yet */

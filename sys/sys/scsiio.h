@@ -1,5 +1,5 @@
 /*
- * $Id: scsiio.h,v 1.3 1995/01/08 13:39:46 dufault Exp $
+ * $Id: scsiio.h,v 1.4 1995/04/28 19:26:02 dufault Exp $
  */
 #ifndef _SYS_SCSIIO_H_
 #define _SYS_SCSIIO_H_
@@ -26,7 +26,7 @@ typedef struct	scsireq {
 	int	error;		/* error bits */
 } scsireq_t;
 
-/* bit defintions for flags */
+/* bit definitions for flags */
 #define SCCMD_READ		0x00000001
 #define SCCMD_WRITE		0x00000002
 #define SCCMD_IOV		0x00000004
@@ -57,7 +57,7 @@ struct	scsi_addr {
 
 #define SCIOCREPROBE	_IOW('Q', 3, struct scsi_addr) /* look for new devs */
 #define SCIOCIDENTIFY	_IOR('Q', 4, struct scsi_addr) /* where are you? */
-#define SCIOCDECONFIG	_IO('Q', 5)	/* please dissappear */
+#define SCIOCDECONFIG	_IO('Q', 5)	/* please disappear */
 #define SCIOCRECONFIG	_IO('Q', 6)	/* please check again */
 #define SCIOCRESET	_IO('Q', 7)	/* reset the device */
 #define SCIOCADDR	_IOW('Q', 8, struct scsi_addr) /* Change address */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_var.h	8.1 (Berkeley) 6/10/93
- * $Id: iso_var.h,v 1.6 1995/11/21 12:54:20 bde Exp $
+ * $Id: iso_var.h,v 1.7 1995/12/10 13:45:20 phk Exp $
  */
 
 #ifndef _NETISO_ISO_VAR_H_
@@ -63,14 +63,14 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso_var.h,v 1.6 1995/11/21 12:54:20 bde Exp $
+/* $Header: /home/ncvs/src/sys/netiso/iso_var.h,v 1.7 1995/12/10 13:45:20 phk Exp $
  * $Source: /home/ncvs/src/sys/netiso/iso_var.h,v $
  */
 
 /*
  *	Interface address, iso version. One of these structures is
  *	allocated for each interface with an osi address. The ifaddr
- *	structure conatins the protocol-independent part
+ *	structure contains the protocol-independent part
  *	of the structure, and is assumed to be first.
  */
 struct iso_ifaddr {

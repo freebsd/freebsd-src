@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.26 1995/11/20 12:41:46 phk Exp $
+ *	$Id: isa_device.h,v 1.27 1996/01/27 01:57:02 bde Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -116,7 +116,7 @@ struct isa_driver {
 extern char eintrnames[];	/* end of intrnames[] */
 extern u_long intrcnt[];	/* counts for for each device and stray */
 extern char intrnames[];	/* string table containing device names */
-extern u_long *intr_countp[];	/* indirectors into intrcnt[] */
+extern u_long *intr_countp[];	/* pointers into intrcnt[] */
 extern inthand2_t *intr_handler[];	/* C entry points of intr handlers */
 extern u_int intr_mask[];	/* sets of intrs masked during handling of 1 */
 extern int intr_unit[];		/* cookies to pass to intr handlers */

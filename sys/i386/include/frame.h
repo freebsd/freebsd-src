@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)frame.h	5.2 (Berkeley) 1/18/91
- *	$Id: frame.h,v 1.10 1995/03/16 18:11:42 bde Exp $
+ *	$Id: frame.h,v 1.11 1995/12/14 08:21:33 phk Exp $
  */
 
 #ifndef _MACHINE_FRAME_H_
@@ -67,7 +67,7 @@ struct trapframe {
 	int	tf_eip;
 	int	tf_cs;
 	int	tf_eflags;
-	/* below only when transitting rings (e.g. user to kernel) */
+	/* below only when crossing rings (e.g. user to kernel) */
 	int	tf_esp;
 	int	tf_ss;
 };
@@ -93,7 +93,7 @@ struct intrframe {
 	int	if_eip;
 	int	if_cs;
 	int	if_eflags;
-	/* below only when transitting rings (e.g. user to kernel) */
+	/* below only when crossing rings (e.g. user to kernel) */
 	int	if_esp;
 	int	if_ss;
 };
@@ -119,7 +119,7 @@ struct clockframe {
 	int	cf_eip;
 	int	cf_cs;
 	int	cf_eflags;
-	/* below only when transitting rings (e.g. user to kernel) */
+	/* below only when crossing rings (e.g. user to kernel) */
 	int	cf_esp;
 	int	cf_ss;
 };

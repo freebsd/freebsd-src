@@ -116,7 +116,7 @@ struct b004_struct {
 #define B004_BOARDTYPE(minor)		b004_table[minor].boardtype
 
 /*
- * Additonal defines for B008-boards
+ * Additional defines for B008-boards
  */
 #define B008_DMA(minor)			b004_table[minor].int
 #define B008_INT(minor)			b004_table[minor].dma

@@ -8,7 +8,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -21,9 +21,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdqreg.h,v 1.1 1995/03/14 09:16:07 davidg Exp $
+ * $Id: pdqreg.h,v 1.2 1995/05/30 08:13:15 rgrimes Exp $
  *
  * $Log: pdqreg.h,v $
+ * Revision 1.2  1995/05/30 08:13:15  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1  1995/03/14  09:16:07  davidg
  * Added support for generic FDDI and the DEC DEFEA and DEFPA FDDI adapters.
  *

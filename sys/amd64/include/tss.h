@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tss.h	5.4 (Berkeley) 1/18/91
- *	$Id: tss.h,v 1.4 1993/11/17 23:25:04 wollman Exp $
+ *	$Id: tss.h,v 1.5 1995/05/30 08:00:57 rgrimes Exp $
  */
 
 #ifndef _MACHINE_TSS_H_
@@ -46,12 +46,12 @@
 
 struct i386tss {
 	int	tss_link;	/* actually 16 bits: top 16 bits must be zero */
-	int	tss_esp0; 	/* kernel stack pointer priviledge level 0 */
+	int	tss_esp0; 	/* kernel stack pointer privilege level 0 */
 #define	tss_ksp	tss_esp0
 	int	tss_ss0;	/* actually 16 bits: top 16 bits must be zero */
-	int	tss_esp1; 	/* kernel stack pointer priviledge level 1 */
+	int	tss_esp1; 	/* kernel stack pointer privilege level 1 */
 	int	tss_ss1;	/* actually 16 bits: top 16 bits must be zero */
-	int	tss_esp2; 	/* kernel stack pointer priviledge level 2 */
+	int	tss_esp2; 	/* kernel stack pointer privilege level 2 */
 	int	tss_ss2;	/* actually 16 bits: top 16 bits must be zero */
 	int	tss_cr3; 	/* page table directory */
 #define	tss_ptd	tss_cr3

@@ -37,7 +37,7 @@
  *
  *      @(#)bpfdesc.h	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpfdesc.h,v 1.5 1995/06/15 18:11:00 pst Exp $
+ * $Id: bpfdesc.h,v 1.6 1995/12/14 09:53:11 phk Exp $
  */
 
 #ifndef _NET_BPFDESC_H_
@@ -98,7 +98,7 @@ struct bpf_if {
 	struct bpf_if **bif_driverp;	/* pointer into softc */
 	u_int bif_dlt;			/* link layer type */
 	u_int bif_hdrlen;		/* length of header (with padding) */
-	struct ifnet *bif_ifp;		/* correspoding interface */
+	struct ifnet *bif_ifp;		/* corresponding interface */
 };
 
 #endif

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk.h	8.1 (Berkeley) 6/10/93
- * $Id: pk.h,v 1.4 1995/05/30 08:08:57 rgrimes Exp $
+ * $Id: pk.h,v 1.5 1995/11/21 12:54:10 bde Exp $
  */
 
 #ifndef _NETCCITT_PK_H_
@@ -48,7 +48,7 @@
  *
  */
 
-/* Packet type identifier field defintions. */
+/* Packet type identifier field definitions. */
 
 #define X25_CALL                         11
 #define X25_CALL_ACCEPTED                15
@@ -104,7 +104,7 @@ typedef char    bool;
 /*
  *  X.25 Packet format definitions
  *  This will eventually have to be rewritten without reference
- *  to bit fields, to be ansi C compliant and allignment safe.
+ *  to bit fields, to be ansi C compliant and alignment safe.
  */
 
 typedef u_char octet;
