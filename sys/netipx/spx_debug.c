@@ -33,7 +33,7 @@
  *
  *	@(#)spx_debug.c
  *
- * $Id: spx_debug.c,v 1.2 1995/10/31 23:36:43 julian Exp $
+ * $Id: spx_debug.c,v 1.3 1995/11/04 09:03:32 julian Exp $
  */
 
 #include <sys/param.h>
@@ -102,7 +102,7 @@ spx_trace(act, ostate, sp, si, req)
 		printf("%x %s:", sp, tcpstates[ostate]);
 	else
 		printf("???????? ");
-	printf("%s ", sanames[act]);
+	printf("%s ", spxnames[act]);
 	switch (act) {
 
 	case SA_RESPOND:

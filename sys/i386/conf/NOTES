@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.237 1996/02/03 11:48:12 phk Exp $
+#	$Id: LINT,v 1.238 1996/02/06 20:57:46 wollman Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -129,7 +129,6 @@ options		UCONSOLE
 #  try to ensure that it actually compiles.
 #
 options		INET			#Internet communications protocols
-options		NS			#Xerox NS communications protocols
 
 options		IPX			#IPX/SPX communications protocols
 options		IPXIP			#IPX in IP encapsulation (not available)
@@ -146,6 +145,8 @@ options		IPX_ERRPRINTFS=0	#IPX/SPX Console Debugging Information
 #options		LLC			#X.25 link layer for Ethernets
 #options		HDLC			#X.25 link layer for serial lines
 #options		EON			#ISO CLNP over IP
+#options		NS			#Xerox NS protocols
+#options		NSIP			#XNS over IP
 
 #
 # Network interfaces:
@@ -176,8 +177,6 @@ pseudo-device	ppp	2		#Point-to-point protocol
 pseudo-device	bpfilter	4	#Berkeley packet filter
 pseudo-device	disc			#Discard device
 pseudo-device	tun	1		#Tunnel driver(user process ppp)
-
-options		NSIP			#XNS over IP
 
 #
 # Internet family options:

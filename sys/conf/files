@@ -270,16 +270,16 @@ netipx/spx_usrreq.c	optional ipx
 #netiso/tuba_subr.c	optional iso tuba
 #netiso/tuba_table.c	optional iso tuba
 #netiso/tuba_usrreq.c	optional iso tuba
-netns/idp_usrreq.c	optional ns
-netns/ns.c		optional ns
-netns/ns_error.c	optional ns
-netns/ns_input.c	optional ns
-netns/ns_ip.c		optional ns
-netns/ns_output.c	optional ns
-netns/ns_pcb.c		optional ns
-netns/ns_proto.c	optional ns
-netns/spp_debug.c	optional ns
-netns/spp_usrreq.c	optional ns
+#netns/idp_usrreq.c	optional ns
+#netns/ns.c		optional ns
+#netns/ns_error.c	optional ns
+#netns/ns_input.c	optional ns
+#netns/ns_ip.c		optional ns
+#netns/ns_output.c	optional ns
+#netns/ns_pcb.c		optional ns
+#netns/ns_proto.c	optional ns
+#netns/spp_debug.c	optional ns
+#netns/spp_usrreq.c	optional ns
 nfs/nfs_bio.c		optional nfs
 nfs/nfs_node.c		optional nfs
 nfs/nfs_nqlease.c	optional nfs
