@@ -72,10 +72,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		PAM_RETURN(PAM_SERVICE_ERR);
 
 	pwent = getpwnam(luser);
-	if (pwent == NULL)
-		PAM_RETURN(PAM_SERVICE_ERR);
-
-	if (opielookup(&opie, luser) != 0)
+	if (pwent == NULL || opielookup(&opie, luser) != 0)
 		PAM_RETURN(PAM_IGNORE);
 	
 	r = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
