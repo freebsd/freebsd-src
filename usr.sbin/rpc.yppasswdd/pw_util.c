@@ -61,7 +61,6 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include <pw_util.h>
 #include "yppasswdd_extern.h"
 
 int pstat;
