@@ -608,6 +608,7 @@ void	vfs_write_resume __P((struct mount *mp));
 void	vfs_write_suspend __P((struct mount *mp));
 int	vop_stdbwrite __P((struct vop_bwrite_args *ap));
 int	vop_stdgetwritemount __P((struct vop_getwritemount_args *));
+int	vop_stdinactive __P((struct vop_inactive_args *));
 int	vop_stdislocked __P((struct vop_islocked_args *));
 int	vop_stdlock __P((struct vop_lock_args *));
 int	vop_stdunlock __P((struct vop_unlock_args *));
