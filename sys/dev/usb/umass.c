@@ -579,6 +579,7 @@ struct umass_softc {
 	unsigned char 		cam_scsi_command2[CAM_MAX_CDBLEN];
 	struct scsi_sense	cam_scsi_sense;
 	struct scsi_sense	cam_scsi_test_unit_ready;
+	usb_callout_t		cam_scsi_rescan_ch;
 
 	int			timeout;		/* in msecs */
 
@@ -876,6 +877,7 @@ USB_ATTACH(umass)
 
 	sc->iface = uaa->iface;
 	sc->ifaceno = uaa->ifaceno;
+	usb_callout_init(sc->cam_scsi_rescan_ch);
 
 	/* initialise the proto and drive values in the umass_softc (again) */
 	(void) umass_match_proto(sc, sc->iface, uaa->device);
@@ -1123,6 +1125,16 @@ USB_DETACH(umass)
 
 	sc->flags |= UMASS_FLAGS_GONE;
 
+	/* abort all the pipes in case there are transfers active. */
+	usbd_abort_default_pipe(sc->sc_udev);
+	if (sc->bulkout_pipe)
+		usbd_abort_pipe(sc->bulkout_pipe);
+	if (sc->bulkin_pipe)
+		usbd_abort_pipe(sc->bulkin_pipe);
+	if (sc->intrin_pipe)
+		usbd_abort_pipe(sc->intrin_pipe);
+
+	usb_uncallout_drain(sc->cam_scsi_rescan_ch, umass_cam_rescan, sc);
 	if ((sc->proto & UMASS_PROTO_SCSI) ||
 	    (sc->proto & UMASS_PROTO_ATAPI) ||
 	    (sc->proto & UMASS_PROTO_UFI) ||
@@ -1432,6 +1444,14 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 	DPRINTF(UDMASS_BBB, ("%s: Handling BBB state %d (%s), xfer=%p, %s\n",
 		USBDEVNAME(sc->sc_dev), sc->transfer_state,
 		states[sc->transfer_state], xfer, usbd_errstr(err)));
+
+	/* Give up if the device has detached. */
+	if (sc->flags & UMASS_FLAGS_GONE) {
+		sc->transfer_state = TSTATE_IDLE;
+		sc->transfer_cb(sc, sc->transfer_priv, sc->transfer_datalen,
+		    STATUS_CMD_FAILED);
+		return;
+	}
 
 	switch (sc->transfer_state) {
 
@@ -1886,6 +1906,14 @@ umass_cbi_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 		USBDEVNAME(sc->sc_dev), sc->transfer_state,
 		states[sc->transfer_state], xfer, usbd_errstr(err)));
 
+	/* Give up if the device has detached. */
+	if (sc->flags & UMASS_FLAGS_GONE) {
+		sc->transfer_state = TSTATE_IDLE;
+		sc->transfer_cb(sc, sc->transfer_priv, sc->transfer_datalen,
+		    STATUS_CMD_FAILED);
+		return;
+	}
+
 	switch (sc->transfer_state) {
 
 	/***** CBI Transfer *****/
@@ -2235,17 +2263,15 @@ umass_cam_attach(struct umass_softc *sc)
 			cam_sim_path(sc->umass_sim));
 
 	if (!cold) {
-		/* Notify CAM of the new device after 1 second delay. Any
+		/* Notify CAM of the new device after a short delay. Any
 		 * failure is benign, as the user can still do it by hand
 		 * (camcontrol rescan <busno>). Only do this if we are not
 		 * booting, because CAM does a scan after booting has
 		 * completed, when interrupts have been enabled.
 		 */
 
-		/* XXX This will bomb if the driver is unloaded between attach
-		 * and execution of umass_cam_rescan.
-		 */
-		timeout(umass_cam_rescan, sc, MS_TO_TICKS(200));
+		usb_callout(sc->cam_scsi_rescan_ch, MS_TO_TICKS(200),
+		    umass_cam_rescan, sc);
 	}
 
 	return(0);	/* always succesfull */
@@ -2599,6 +2625,13 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 	union ccb *ccb = (union ccb *) priv;
 	struct ccb_scsiio *csio = &ccb->csio;		/* deref union */
 
+	/* If the device is gone, just fail the request. */
+	if (sc->flags & UMASS_FLAGS_GONE) {
+		ccb->ccb_h.status = CAM_TID_INVALID;
+		xpt_done(ccb);
+		return;
+	}
+
 	csio->resid = residue;
 
 	switch (status) {
@@ -2675,6 +2708,12 @@ umass_cam_sense_cb(struct umass_softc *sc, void *priv, int residue, int status)
 	struct ccb_scsiio *csio = &ccb->csio;		/* deref union */
 	unsigned char *rcmd;
 	int rcmdlen;
+
+	if (sc->flags & UMASS_FLAGS_GONE) {
+		ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
+		xpt_done(ccb);
+		return;
+	}
 
 	switch (status) {
 	case STATUS_CMD_OK:
@@ -2769,6 +2808,12 @@ umass_cam_quirk_cb(struct umass_softc *sc, void *priv, int residue, int status)
 
 	DPRINTF(UDMASS_SCSI, ("%s: Test unit ready returned status %d\n",
 	USBDEVNAME(sc->sc_dev), status));
+
+	if (sc->flags & UMASS_FLAGS_GONE) {
+		ccb->ccb_h.status = CAM_TID_INVALID;
+		xpt_done(ccb);
+		return;
+	}
 #if 0
 	ccb->ccb_h.status = CAM_REQ_CMP;
 #endif
