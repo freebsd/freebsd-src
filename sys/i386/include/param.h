@@ -34,11 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.13 1994/01/31 04:18:54 davidg Exp $
+ *	$Id: param.h,v 1.15 1994/05/25 08:56:14 rgrimes Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
-#define _MACHINE_PARAM_H_ 1
+#define	_MACHINE_PARAM_H_
 
 /*
  * Machine dependent constants for Intel 386.
@@ -49,11 +49,11 @@
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value
- * for all data types (int, long, ...).   The result is u_int and
- * must be cast to any desired pointer type.
+ * for all data types (int, long, ...).   The result is unsigned int
+ * and must be cast to any desired pointer type.
  */
 #define ALIGNBYTES	(sizeof(int) - 1)
-#define ALIGN(p)	(((u_int)(p) + ALIGNBYTES) &~ ALIGNBYTES)
+#define ALIGN(p)	(((unsigned)(p) + ALIGNBYTES) & ~ALIGNBYTES)
 
 /* XXX PGSHIFT and PG_SHIFT are two names for the same thing */
 #define PGSHIFT		12		/* LOG2(NBPG) */
@@ -165,4 +165,4 @@
 #define i386_btop(x)		((unsigned)(x) >> PGSHIFT)
 #define i386_ptob(x)		((unsigned)(x) << PGSHIFT)
 
-#endif /* _MACHINE_PARAM_H_ */
+#endif /* !_MACHINE_PARAM_H_ */
