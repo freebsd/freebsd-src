@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.115.2.21 1999/07/07 09:53:22 jkh Exp $
+ * $Id: config.c,v 1.115.2.22 1999/07/20 21:17:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -453,7 +453,7 @@ configLinux(dialogMenuItem *self)
 {
     variable_set2(VAR_LINUX_ENABLE, "YES", 1);
     msgNotify("Installing Linux compatibility library...");
-    return package_add("linux_lib");
+    return package_add("linux_base");
 }
 
 static void
