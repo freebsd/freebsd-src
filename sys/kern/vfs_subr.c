@@ -2379,19 +2379,8 @@ loop:
 
 		VI_LOCK(vp);
 		mtx_unlock(&mntvnode_mtx);
-		/*
-		 * XXX Does not check vn_lock error.  Should restart loop if
-		 * error == ENOENT.
-		 */
-		vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY, td);
-		/*
-		 * This vnode could have been reclaimed while we were
-		 * waiting for the lock since we are not holding a
-		 * reference.
-		 * Start over if the vnode was reclaimed.
-		 */
-		if (vp->v_mount != mp) {
-			VOP_UNLOCK(vp, 0, td);
+		error = vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td);
+		if (error) {
 			mtx_lock(&mntvnode_mtx);
 			goto loop;
 		}
