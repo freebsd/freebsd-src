@@ -701,7 +701,7 @@ static int dc_miibus_readreg(dev, phy, reg)
 {
 	struct dc_mii_frame	frame;
 	struct dc_softc		*sc;
-	int			i, rval, phy_reg;
+	int			i, rval, phy_reg = 0;
 
 	sc = device_get_softc(dev);
 	bzero((char *)&frame, sizeof(frame));
@@ -816,7 +816,7 @@ static int dc_miibus_writereg(dev, phy, reg, data)
 {
 	struct dc_softc		*sc;
 	struct dc_mii_frame	frame;
-	int			i, phy_reg;
+	int			i, phy_reg = 0;
 
 	sc = device_get_softc(dev);
 	bzero((char *)&frame, sizeof(frame));
