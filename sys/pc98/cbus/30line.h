@@ -24,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef __PC98_PC98_30LINE_H__
@@ -37,22 +39,22 @@
 
 #define	_CR	80
 #ifndef	_VS
-#define	_VS	7
+#define	_VS	2
 #endif
 #ifndef	_HS
-#define	_HS	6 + 1 
+#define	_HS	1 + 1
 #endif
 #ifndef	_HFP
-#define	_HFP	10 + 1
+#define	_HFP	3 + 1
 #endif
 #ifndef	_HBP
-#define	_HBP	7 + 1
+#define	_HBP	14 + 1
 #endif
 #ifndef	_VFP
-#define _VFP	7
+#define _VFP	11
 #endif
 #ifndef	_VBP
-#define _VBP	25
+#define _VBP	44
 #endif
 
 #define _LF	LINE30_ROW*16
@@ -75,6 +77,9 @@
 #define GDC_VBP	6
 #define GDC_LF	7
 
+
+#define _24KHZ	0
+#define _31KHZ	1
 
 #define _2_5MHZ	0
 #define _5MHZ	1
@@ -101,22 +106,30 @@ static void gdc_wait_vsync(void);
 static int check_gdc_clock(void);
 
 static int gdc_INFO = _25L;
-static void initialize_gdc(unsigned int);
+static void initialize_gdc(unsigned int, int);
 
-static unsigned int master_param[2][8] = {
-{78,	8,	7,	9,	7,	7,	25,	400},
-{_CR-2,	_VS,	_HS-1,	_HFP-1,	_HBP-1,	_VFP,	_VBP,	_LF}};
+static unsigned int master_param[2][2][8] = {
+{{78,	 8,	7,	9,	7,	7,	25,	400},	/* 400/24k */
+ {_CR-2, _VS,	_HS-1,	_HFP-1,	_HBP-1,	_VFP,	_VBP,	_LF}},	/* 480/24k */
+{{78,	 2,	7,	3,	7,	13,	34,	400},	/* 400/31k */
+ {78,	 2,	11,	3,	3,	6,	37,	480}}};	/* 480/31k */
 
-static unsigned int slave_param[6][8] = {
-{38,	8,	3,	4,	3,	7,	25,	400},	/* normal */
-{78,	8,	7,	9,	7,	7,	25,	400},
-{_CR/2-2,	_VS,	(_HS)/2-1,	(_HFP)/2-1,	(_HBP)/2-1,
-_VFP+(_LF-400)/2+8,	_VBP+(_LF-400)/2-8,	400},		/* 30 & 400 */
-{_CR-2,	_VS,	_HS-1,	_HFP-1,	_HBP-1,	
-_VFP+(_LF-400)/2+8,	_VBP+(_LF-400)/2-8,	400},
-{_CR/2-2,	_VS,	(_HS)/2-1,	(_HFP)/2-1,	(_HBP)/2-1,
-_VFP,	_VBP,	_LF},						/* 30 & 480 */
-{_CR-2,	_VS,	_HS-1,	_HFP-1,	_HBP-1,	_VFP,	_VBP,	_LF}};
+static unsigned int slave_param[2][6][8] = {
+{{38,	8,	3,	4,	3,	7,	25,	400},	/* normal */
+ {78,	8,	7,	9,	7,	7,	25,	400},
+ {_CR/2-2,	_VS,	(_HS)/2-1,	(_HFP)/2-1,	(_HBP)/2-1,
+  _VFP+(_LF-400)/2+8,	_VBP+(_LF-400)/2-8,	400},		/* 30 & 400 */
+ {_CR-2,	_VS,	_HS-1,	_HFP-1,	_HBP-1,
+  _VFP+(_LF-400)/2+8,	_VBP+(_LF-400)/2-8,	400},
+ {_CR/2-2,	_VS,	(_HS)/2-1,	(_HFP)/2-1,	(_HBP)/2-1,
+  _VFP,	_VBP,	_LF},						/* 30 & 480 */
+ {_CR-2,	_VS,	_HS-1,	_HFP-1,	_HBP-1,	_VFP,	_VBP,	_LF}},
+{{38,	2,	3,	1,	3,	13,	34,	400},	/* normal */
+ {78,	2,	7,	3,	7,	13,	34,	400},
+ {38,	2,	5,	1,	1,	6+48,	37+32,	400},	/* 30 & 400 */
+ {78,	2,	11,	3,	3,	6+48,	37+32,	400},
+ {38,	2,	5,	1,	1,	6,	37,	480},	/* 30 & 480 */
+ {78,	2,	11,	3,	3,	6,	37,	480}}};
 
 static int SlavePCH[2] = {40,80};
 static int MasterPCH = 80;
