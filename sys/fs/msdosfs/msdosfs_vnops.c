@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.4 1994/09/28 16:45:14 dfr Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.5 1994/10/06 21:06:53 davidg Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -787,20 +787,43 @@ msdosfs_fsync(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
+	register struct vnode *vp = ap->a_vp;
+	register struct buf *bp;
 	int wait = ap->a_waitfor == MNT_WAIT;
 	struct timespec ts;
+	struct buf *nbp;
+	int s;
 
 	TIMEVAL_TO_TIMESPEC(&time, &ts);
 
-#if 0
 	/*
-	 * Does this call to vflushbuf() do anything?  I can find no code
-	 * anywhere that sets v_dirtyblkhd in the vnode, which vflushbuf()
-	 * seems to depend upon.
+	 * Flush all dirty buffers associated with a vnode.
 	 */
-	vflushbuf(vp, wait ? B_SYNC : 0);
+loop:
+	s = splbio();
+	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
+		nbp = bp->b_vnbufs.le_next;
+		if ((bp->b_flags & B_BUSY))
+			continue;
+		if ((bp->b_flags & B_DELWRI) == 0)
+			panic("msdosfs_fsync: not dirty");
+		bremfree(bp);
+		bp->b_flags |= B_BUSY;
+		splx(s);
+		(void) bwrite(bp);
+		goto loop;
+	}
+	while (vp->v_numoutput) {
+		vp->v_flag |= VBWAIT;
+		(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "msdosfsn", 0);
+	}
+#ifdef DIAGNOSTIC
+	if (vp->v_dirtyblkhd.lh_first) {
+		vprint("msdosfs_fsync: dirty", vp);
+		goto loop;
+	}
 #endif
+	splx(s);
 	return deupdat(VTODE(vp), &ts, wait);
 }
 
