@@ -959,6 +959,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	in the presence of dynamic attachments and detatchments.  Full
 	support for VLANs is also supported. &merged;</para>
 
+      <para>A &man.gre.4; driver, which can encapsulate IP packets
+        using GRE (RFC 1701) or minimal IP encapsulation for Mobile IP
+        (RFC 2004), has been added.</para>
+
       <para>ICMP ECHO and TSTAMP replies are now rate limited.  TCP
 	RSTs generated due to packets sent to open and unopen ports
 	are now limited by separate counters.  Each rate limiting
@@ -1283,6 +1287,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>Some problems in &man.sa.4; error handling have been
 	fixed, including the <quote>tape drive spinning indefinitely
 	upon &man.mt.1; <option>stat</option></quote> problem.</para>
+
+      <para>The <varname>SCSI_DELAY</varname> configuration parameter
+	can now be set at boot time and runtime via the
+	<varname>kern.cam.scsi_delay</varname> tunable/sysctl.</para>
 
       <para arch="i386" role="historic">The &man.twe.4; 3ware ATA RAID driver has
 	added. &merged;</para>
