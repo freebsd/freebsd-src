@@ -237,7 +237,7 @@ static struct rtcache {
 	*(_ro) = ip_fwdcache.rc_ro;				\
 	if ((rt = (_ro)->ro_rt) != NULL) {			\
 		RT_LOCK(rt);					\
-		rt->rt_refcnt++;				\
+		RT_ADDREF(rt);					\
 		RT_UNLOCK(rt);					\
 	}							\
 	RTCACHE_UNLOCK();					\

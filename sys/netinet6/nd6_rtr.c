@@ -478,7 +478,7 @@ defrouter_addreq(new)
 	if (newrt) {
 		RT_LOCK(newrt);
 		nd6_rtmsg(RTM_ADD, newrt); /* tell user process */
-		newrt->rt_refcnt--;
+		RT_REMREF(newrt);
 		RT_UNLOCK(newrt);
 	}
 	return;
@@ -524,7 +524,7 @@ defrouter_addifreq(ifp)
 		if (newrt) {
 			RT_LOCK(newrt);
 			nd6_rtmsg(RTM_ADD, newrt);
-			newrt->rt_refcnt--;
+			RT_REMREF(newrt);
 			RT_UNLOCK(newrt);
 		}
 	}
@@ -1470,7 +1470,7 @@ nd6_prefix_onlink(pr)
 
 	if (rt != NULL) {
 		RT_LOCK(rt);
-		rt->rt_refcnt--;
+		RT_REMREF(rt);
 		RT_UNLOCK(rt);
 	}
 

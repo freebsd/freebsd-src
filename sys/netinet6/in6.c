@@ -197,7 +197,7 @@ in6_ifloop_request(int cmd, struct ifaddr *ifa)
 			rtfree(nrt);
 		} else {
 			/* the cmd must be RTM_ADD here */
-			nrt->rt_refcnt--;
+			RT_REMREF(nrt);
 			RT_UNLOCK(nrt);
 		}
 	}
