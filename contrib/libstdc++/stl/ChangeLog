@@ -1,6 +1,103 @@
-Sun Mar 14 02:38:07 PST 1999 Jeff Law  (law@cygnus.com)
+Mon Aug 16 01:29:24 PDT 1999 Jeff Law  (law@cygnus.com)
 
-	* egcs-1.1.2 Released.
+	* gcc-2.95.1 Released.
+
+Sun Aug  8 21:06:16 1999  Alexandre Oliva  <oliva@dcc.unicamp.br>
+
+	* pthread_alloc: Solaris' ctype.h defines _U to 01; use _Up as
+	template parameter instead.
+
+Wed Jul 28 21:39:31 PDT 1999 Jeff Law  (law@cygnus.com)
+
+	* gcc-2.95 Released.
+
+Sun Jul 25 23:40:51 PDT 1999 Jeff Law  (law@cygnus.com)
+
+	* gcc-2.95 Released.
+
+1999-07-11  Martin v. Löwis (loewis@informatik.hu-berlin.de)
+
+	* stl_function.h (bind1st, bind2nd): Rename __opr to __oper,
+	as __opr is used internally by egcs.
+	* stl_numeric.h (__power, power): Likewise.
+
+1999-06-18  Martin von Löwis  <loewis@informatik.hu-berlin.de>
+
+	* stl_queue.h: Rename _M_c to c, and _M_comp to comp.
+
+1999-06-17  Alexandre Oliva  <oliva@dcc.unicamp.br>
+
+	* stl_algo.h (transform): Rename __opr to __oper, as __opr is used 
+	internally by egcs.
+	Reported by Harri Porten <porten@tu-harburg.de>
+
+1999-05-17  Mark Kettenis  <kettenis@gnu.org>
+
+	* stl_config.h: Only define __STL_PTHREADS with GLIBC >= 2 for
+	Linux.
+
+Mon May 17 03:33:47 1999  Mumit Khan  <khan@xraylith.wisc.edu>
+
+	* stl_config.h (__CYGWIN__): Cygwin newlib RTL lacks drand48.
+
+1999-05-07  Ulrich Drepper  <drepper@cygnus.com>
+
+	* stl_alloc.h: Make it possible to compile with __USE_MALLOC.
+
+Tue Apr 13 00:32:57 1999  Mumit Khan  <khan@xraylith.wisc.edu>
+
+	* stl_config.h (__MINGW32__): Mingw32 RTL lacks drand48.
+
+Sun Apr 11 23:48:30 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* bitset: Re-install Alexandre's lost patch from 1998-11-27.
+
+1999-01-20  Ulrich Drepper  <drepper@cygnus.com>
+
+	* stl_construct.h (__destroy_aux): Use != instead of < for
+	ForwardIterator comparison.
+	Patch by jmaurer@menuett.rhein-main.de (Jens Maurer).
+
+1999-01-20  Mark Mitchell  <mark@markmitchell.com>
+
+	* stl_config.h (__STL_USE_NAMESPACES): Define.
+
+1998-11-27  Alexandre Oliva  <oliva@dcc.unicamp.br>
+
+	* bitset: Explicitly convert basic_string<...>::npos to size_t in
+	default argument to constructor, to avoid parse error at `>'.
+	(__STL_EXPLICIT_FUNCTION_TMPL_ARGS): Replace #if with #ifdef.
+
+1998-11-01  Mark Mitchell  <mark@markmitchell.com>
+
+	* stl_alloc.h (default_alloc_template::_S_free_list): Don't
+	qualify _NFREELISTS.
+
+1998-10-11  Mark Mitchell  <mark@markmitchell.com>
+
+	* stl_config.h (__SGI_STL_USE_AUTO_PTR_CONVERSIONS): Define.
+	* memory (auto_ptr::operator auto_ptr_ref<_Tp1>): Fix typo.
+	(auto_ptr::operator auto_ptr<_Tp1>): Add missing
+	semicolon.
+
+1998-09-03  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* stl_config.h: Define __STL_HAS_WCHAR_T,
+	__STL_MEMBER_TEMPLATE_CLASSES, __STL_HAS_NAMESPACES,
+	__STL_NO_NAMESPACES and __STL_LONG_LONG.
+
+1998-09-02  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* algorithm alloc.h defalloc.h hash_map.h hash_set.h iterator
+	memory pthread_alloc pthread_alloc.h rope ropeimpl.h stl_algo.h
+	stl_algobase.h stl_alloc.h stl_bvector.h stl_config.h
+	stl_construct.h stl_deque.h stl_function.h stl_hash_fun.h
+	stl_hash_map.h stl_hash_set.h stl_hashtable.h stl_heap.h
+	stl_iterator.h stl_list.h stl_map.h stl_multimap.h stl_multiset.h
+	stl_numeric.h stl_pair.h stl_queue.h stl_raw_storage_iter.h
+	stl_relops.h stl_rope.h stl_set.h stl_slist.h stl_stack.h
+	stl_tempbuf.h stl_tree.h stl_uninitialized.h stl_vector.h
+	tempbuf.h type_traits.h: Update to SGI STL 3.11.
 
 Fri Jul 10 15:20:09 1998  Klaus-Georg Adams <Klaus-Georg.Adams@chemie.uni-karlsruhe.de>
 
@@ -93,7 +190,7 @@ Fri Jul 04 02:17:15 1997  Ulrich Drepper  <drepper@cygnus.com>
 
 	* tree.h (rb_tree): Reverse order of member initializations
 	to prevent warnings.
-	
+
 Sun Jun 15 18:17:21 1997  Jason Merrill  <jason@yorick.cygnus.com>
 
 	* *.h: Update to 6/13 SGI release.
@@ -131,7 +228,7 @@ Mon Sep 30 17:56:43 1996  Jason Merrill  <jason@yorick.cygnus.com>
 
 Fri Sep 27 19:03:06 1996  Jason Merrill  <jason@yorick.cygnus.com>
 
-	* alloc.h (__default_alloc_template): lock is a friend. 
+	* alloc.h (__default_alloc_template): lock is a friend.
 
 Thu Sep 19 20:10:37 1996  Jason Merrill  <jason@yorick.cygnus.com>
 
@@ -269,5 +366,3 @@ Fri Dec 30 16:29:39 1994  Mike Stump  <mrs@cygnus.com>
 Tue Nov 29 15:30:30 1994  Per Bothner  <bothner@kalessin.cygnus.com>
 
 	* Initial check-in, based on HP's October 21, 1994.
-
-
