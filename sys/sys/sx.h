@@ -72,7 +72,7 @@ void	sx_xunlock(struct sx *sx);
 	mtx_lock(&(sx)->sx_lock);					\
 	KASSERT(((sx)->sx_xholder == curproc),				\
 	    ("%s: thread %p lacking xlock %s\n", __FUNCTION__,		\
-	    (sx)->sx_descr, curproc));					\
+	    curproc, (sx)->sx_descr));					\
 	mtx_unlock(&(sx)->sx_lock);					\
 } while (0)
 
