@@ -1120,64 +1120,44 @@ smbfs_lookup(ap)
 	if (error) {		/* name was found */
 		struct vattr vattr;
 
-		vhold(*vpp);
-		vp = *vpp;
-		if (dvp == vp) {	/* lookup on current */
-			vref(vp);
-			error = 0;
-			SMBVDEBUG("cached '.'\n");
-		} else if (flags & ISDOTDOT) {
-			VOP_UNLOCK(dvp, 0, td);	/* unlock parent */
-			error = vget(vp, LK_EXCLUSIVE, td);
-			if (error)
-				if (vn_lock(dvp, LK_EXCLUSIVE, td))
-					panic("smbfs_lookup: Can't " 
-					    "relock directory.");
-		} else
-			error = vget(vp, LK_EXCLUSIVE, td);
-		if (!error) {
-			killit = 0;
-			error = VOP_GETATTR(vp, &vattr, cnp->cn_cred, td);
-			/*
-			 * If the file type on the server is inconsistent
-			 * with what it was when we created the vnode,
-			 * kill the bogus vnode now and fall through to
-			 * the code below to create a new one with the
-			 * right type.
-			 */
-			if (error == 0 &&
-			   ((vp->v_type == VDIR &&
-			   (VTOSMB(vp)->n_dosattr & SMB_FA_DIR) == 0) ||
-			   (vp->v_type == VREG &&
-			   (VTOSMB(vp)->n_dosattr & SMB_FA_DIR) != 0)))
-			   killit = 1;
-			else if (error == 0
-		     /*    && vattr.va_ctime.tv_sec == VTOSMB(vp)->n_ctime*/) {
-			     if (nameiop != LOOKUP && islastcn)
-				     cnp->cn_flags |= SAVENAME;
-			     SMBVDEBUG("use cached vnode\n");
-			     vdrop(vp);
-			     return (0);
-			}
-			cache_purge(vp);
-			/*
-			 * XXX This is not quite right, if '.' is
-			 * inconsistent, we really need to start the lookup
-			 * all over again.  Hopefully there is some other
-			 * guarantee that prevents this case from happening.
-			 */
-			if (killit && vp != dvp)
-				vgone(vp);
-			if (vp != dvp)
-				vput(vp);
-			else
-				vrele(vp);
-			if (flags & ISDOTDOT)
-				if (vn_lock(dvp, LK_EXCLUSIVE, td))
-					panic("smbfs_lookup: Can't " 
-					    "relock directory.");
+		killit = 0;
+		error = VOP_GETATTR(vp, &vattr, cnp->cn_cred, td);
+		/*
+		 * If the file type on the server is inconsistent
+		 * with what it was when we created the vnode,
+		 * kill the bogus vnode now and fall through to
+		 * the code below to create a new one with the
+		 * right type.
+		 */
+		if (error == 0 &&
+		   ((vp->v_type == VDIR &&
+		   (VTOSMB(vp)->n_dosattr & SMB_FA_DIR) == 0) ||
+		   (vp->v_type == VREG &&
+		   (VTOSMB(vp)->n_dosattr & SMB_FA_DIR) != 0)))
+		   killit = 1;
+		else if (error == 0
+	     /*    && vattr.va_ctime.tv_sec == VTOSMB(vp)->n_ctime*/) {
+		     if (nameiop != LOOKUP && islastcn)
+			     cnp->cn_flags |= SAVENAME;
+		     SMBVDEBUG("use cached vnode\n");
+		     return (0);
 		}
-		vdrop(vp);
+		cache_purge(vp);
+		/*
+		 * XXX This is not quite right, if '.' is
+		 * inconsistent, we really need to start the lookup
+		 * all over again.  Hopefully there is some other
+		 * guarantee that prevents this case from happening.
+		 */
+		if (killit && vp != dvp)
+			vgone(vp);
+		if (vp != dvp)
+			vput(vp);
+		else
+			vrele(vp);
+		if (flags & ISDOTDOT)
+			if (vn_lock(dvp, LK_EXCLUSIVE, td))
+				panic("smbfs_lookup: Can't relock directory.");
 		*vpp = NULLVP;
 	}
 	/* 
