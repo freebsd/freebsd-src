@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.36 1998/04/04 11:01:52 jb Exp $
+ * $Id: malloc.c,v 1.37 1998/04/29 09:10:58 jb Exp $
  *
  */
 
@@ -56,9 +56,9 @@
      */
 #   include "libc_private.h"
 #   include "spinlock.h"
-    static long thread_lock	= 0;
-#   define THREAD_LOCK()		if (__isthreaded) _spinlock(&thread_lock);
-#   define THREAD_UNLOCK()		if (__isthreaded) _atomic_unlock(&thread_lock);
+    static spinlock_t thread_lock	= _SPINLOCK_INITIALIZER;
+#   define THREAD_LOCK()		if (__isthreaded) _SPINLOCK(&thread_lock);
+#   define THREAD_UNLOCK()		if (__isthreaded) _SPINUNLOCK(&thread_lock);
 #endif /* __FreeBSD__ */
 
 #if defined(__sparc__) && defined(sun)
