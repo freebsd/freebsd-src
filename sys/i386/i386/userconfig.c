@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.63.2.14 1997/02/08 14:19:48 joerg Exp $
+ **      $Id: userconfig.c,v 1.63.2.15 1997/02/13 07:49:51 bde Exp $
  **/
 
 /**
@@ -1314,7 +1314,7 @@ redrawactive(void)
 
     if (conflicts)
     {
-	sprintf(cbuf,"!i%d conflict%s",conflicts,(conflicts>1)?"s":"");
+	sprintf(cbuf,"!i%d conflict%s-",conflicts,(conflicts>1)?"s":"");
 	putxy(45,0,cbuf);
     }else{
 	putxyl(45,0,lines,16);
@@ -2358,7 +2358,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.63.2.14 1997/02/08 14:19:48 joerg Exp $
+ *      $Id: userconfig.c,v 1.63.2.15 1997/02/13 07:49:51 bde Exp $
  */
 
 #include "scbus.h"
