@@ -160,7 +160,7 @@ The pattern is the year followed by the month.
  # Date created:	5 December 1994
  # Whom:		asami
  #
- # &dollar;FreeBSD&dollar;
+ # &dollar;Id&dollar;
  #
  
  DISTNAME=	oneko-1.1b
@@ -175,7 +175,7 @@ The pattern is the year followed by the month.
 </verb></tscreen>
 
       <p>See if you can figure it out.  Do not worry about the contents
-	of the <tt>&dollar;FreeBSD&dollar;</tt> line, it will be filled in
+	of the <tt>&dollar;Id&dollar;</tt> line, it will be filled in
 	automatically by CVS when the port is imported to our main
 	ports tree.  You can find a more detailed example in the <ref
 	id="porting:samplem" name="sample Makefile"> section.
@@ -1223,8 +1223,8 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # &dollar;FreeBSD&dollar;
- [ ^^^^^^^^^ This will be automatically replaced with RCS ID string by CVS 
+ # &dollar;Id&dollar;
+ [ ^^^^ This will be automatically replaced with RCS ID string by CVS 
   when it is committed to our repository.]
  #
  
