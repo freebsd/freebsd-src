@@ -1472,7 +1472,7 @@ physmap_done:
 
 	if (atop(physmap[physmap_idx + 1]) != Maxmem &&
 	    (boothowto & RB_VERBOSE))
-		printf("Physical memory use set to %uK\n", Maxmem * 4);
+		printf("Physical memory use set to %ldK\n", Maxmem * 4);
 
 	/*
 	 * If Maxmem has been increased beyond what the system has detected,
