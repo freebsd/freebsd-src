@@ -1109,17 +1109,17 @@ exec_check_permissions(imgp)
 
 	td = curthread;			/* XXXKSE */
 
+	/* Get file attributes */
+	error = VOP_GETATTR(vp, attr, td->td_ucred, td);
+	if (error)
+		return (error);
+
 #ifdef MAC
 	error = mac_check_vnode_exec(td->td_ucred, imgp->vp, imgp);
 	if (error)
 		return (error);
 #endif
 	
-	/* Get file attributes */
-	error = VOP_GETATTR(vp, attr, td->td_ucred, td);
-	if (error)
-		return (error);
-
 	/*
 	 * 1) Check if file execution is disabled for the filesystem that this
 	 *	file resides on.
