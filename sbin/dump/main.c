@@ -123,9 +123,9 @@ main(argc, argv)
 
 	obsolete(&argc, &argv);
 #ifdef KERBEROS
-#define optstring "0123456789aB:b:cd:f:h:kns:T:uWw"
+#define optstring "0123456789aB:b:cd:f:h:kns:T:uWwD:"
 #else
-#define optstring "0123456789aB:b:cd:f:h:ns:T:uWw"
+#define optstring "0123456789aB:b:cd:f:h:ns:T:uWwD:"
 #endif
 	while ((ch = getopt(argc, argv, optstring)) != -1)
 #undef optstring
@@ -162,6 +162,10 @@ main(argc, argv)
 
 		case 'f':		/* output file */
 			tape = optarg;
+			break;
+
+		case 'D':
+			dumpdates = optarg;
 			break;
 
 		case 'h':
