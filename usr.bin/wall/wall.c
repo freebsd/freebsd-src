@@ -178,11 +178,9 @@ makemsg(fname)
 				putc('\r', fp);
 				putc('\n', fp);
 				cnt = 0;
-			} else if (!isprint(ch) && !isspace(ch) && ch != '\007')
- {
+			} else if (!isprint(ch) && !isspace(ch) && ch != '\007') {
 				putc('^', fp);
-				putc(ch^0x40, fp);	/* DEL to ?, others to a
-lpha */
+				putc(ch^0x40, fp);	/* DEL to ?, others to alpha */
 			} else
 				putc(ch, fp);
 		}
