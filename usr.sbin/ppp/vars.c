@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.21 1997/08/17 20:45:49 brian Exp $
+ * $Id: vars.c,v 1.22 1997/08/20 23:47:52 brian Exp $
  *
  */
 #include "fsm.h"
@@ -30,7 +30,7 @@
 #include "defs.h"
 
 char VarVersion[] = "PPP Version 1.00";
-char VarLocalVersion[] = "$Date: 1997/08/17 20:45:49 $";
+char VarLocalVersion[] = "$Date: 1997/08/20 23:47:52 $";
 
 /*
  * Order of conf option is important. See vars.h.
@@ -52,7 +52,7 @@ struct confdesc pppConfs[] = {
 struct pppvars pppVars = {
   DEF_MRU, DEF_MTU, 0, MODEM_SPEED, CS8, MODEM_CTSRTS, 180, 30, 3,
   RECONNECT_TIMER, RECONNECT_TRIES, REDIAL_PERIOD,
-  NEXT_REDIAL_PERIOD, 1, MODEM_DEV, BASE_MODEM_DEV,
+  NEXT_REDIAL_PERIOD, 1, 1, MODEM_DEV, BASE_MODEM_DEV,
   OPEN_ACTIVE, LOCAL_NO_AUTH,0
 };
 
