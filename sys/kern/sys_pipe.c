@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.2 1996/01/29 02:57:33 dyson Exp $
+ * $Id: sys_pipe.c,v 1.3 1996/01/31 02:05:12 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -191,10 +191,11 @@ static __inline int
 pipelock(cpipe)
 	struct pipe *cpipe;
 {
+	int error;
 	while (cpipe->pipe_state & PIPE_LOCK) {
 		cpipe->pipe_state |= PIPE_LWANT;
-		if (tsleep( &cpipe->pipe_state, PRIBIO|PCATCH, "pipelk", 0)) {
-			return ERESTART;
+		if (error = tsleep( &cpipe->pipe_state, PRIBIO|PCATCH, "pipelk", 0)) {
+			return error;
 		}
 	}
 	cpipe->pipe_state |= PIPE_LOCK;
@@ -290,8 +291,7 @@ pipe_read(fp, uio, cred)
 				break;
 			}
 			rpipe->pipe_state |= PIPE_WANTR;
-			if (tsleep(rpipe, PRIBIO|PCATCH, "piperd", 0)) {
-				error = ERESTART;
+			if (error = tsleep(rpipe, PRIBIO|PCATCH, "piperd", 0)) {
 				break;
 			}
 		}
@@ -387,8 +387,7 @@ pipe_write(fp, uio, cred)
 				break;
 			}
 			wpipe->pipe_state |= PIPE_WANTW;
-			if (tsleep(wpipe, (PRIBIO+1)|PCATCH, "pipewr", 0)) {
-				error = ERESTART;
+			if (error = tsleep(wpipe, (PRIBIO+1)|PCATCH, "pipewr", 0)) {
 				break;
 			}
 			/*
