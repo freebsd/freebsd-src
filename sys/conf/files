@@ -778,6 +778,7 @@ dev/uart/uart_bus_pci.c		optional	uart cardbus
 dev/uart/uart_bus_pci.c		optional	uart pci
 dev/uart/uart_bus_puc.c		optional	uart puc
 dev/uart/uart_core.c		optional	uart
+dev/uart/uart_dbg.c		optional	uart gdb
 dev/uart/uart_dev_i8251.c	optional	uart
 dev/uart/uart_dev_ns8250.c	optional	uart
 dev/uart/uart_dev_sab82532.c	optional	uart
@@ -932,6 +933,8 @@ fs/umapfs/umap_vnops.c	optional umapfs
 fs/unionfs/union_subr.c	optional unionfs
 fs/unionfs/union_vfsops.c	optional unionfs
 fs/unionfs/union_vnops.c	optional unionfs
+gdb/gdb_main.c			optional	gdb
+gdb/gdb_packet.c		optional	gdb
 geom/bde/g_bde.c		optional geom_bde
 geom/bde/g_bde_crypt.c		optional geom_bde
 geom/bde/g_bde_lock.c		optional geom_bde
