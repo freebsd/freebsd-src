@@ -630,7 +630,7 @@ tr_pci_attach(device_t dev)
 
 	codec = ac97_create(dev, tr, NULL, tr_rdcd, tr_wrcd);
 	if (codec == NULL) goto bad;
-	mixer_init(d, &ac97_mixer, codec);
+	if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
 
 	tr->irqid = 0;
 	tr->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &tr->irqid,
