@@ -490,6 +490,7 @@ ether_demux(ifp, eh, m)
 #if defined(NETATALK)
 	register struct llc *l;
 #endif
+
     if (! (BDG_ACTIVE(ifp) ) )
 	/* Discard packet if upper layers shouldn't see it because it was
 	   unicast to a different Ethernet address. If the driver is working
