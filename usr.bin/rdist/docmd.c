@@ -34,7 +34,7 @@
 #ifndef lint
 /*static char sccsid[] = "From: @(#)docmd.c	8.1 (Berkeley) 6/9/93";*/
 static const char rcsid[] =
-	"$Id$";
+	"$Id: docmd.c,v 1.9 1997/02/22 19:56:40 peter Exp $";
 #endif /* not lint */
 
 #include "defs.h"
@@ -177,7 +177,8 @@ doarrow(filev, files, rhost, cmds)
 done:
 	if (!nflag) {
 		(void) signal(SIGPIPE, cleanup);
-		(void) fclose(lfp);
+		if (lfp)
+			(void) fclose(lfp);
 		lfp = NULL;
 	}
 	for (sc = cmds; sc != NULL; sc = sc->sc_next)
