@@ -32,7 +32,7 @@
 .\"     @(#)sigsetops.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd December 16, 2004
 .Dt SIGSETOPS 3
 .Os
 .Sh NAME
@@ -92,21 +92,24 @@ The
 function returns whether a specified signal
 .Fa signo
 is contained in the signal set.
-.Pp
-These functions
-are provided as macros in the include file <signal.h>.
-Actual functions are available
-if their names are undefined (with
-.Ic #undef Ar name ) .
 .Sh RETURN VALUES
 The
 .Fn sigismember
 function returns 1
 if the signal is a member of the set,
 0 otherwise.
-The other functions return 0.
+The other functions return 0 upon success.
+A \-1 return value
+indicates an error occurred and the global variable
+.Va errno
+is set to indicate the reason.
 .Sh ERRORS
-Currently no errors are detected.
+These functions could fail if one of the following occurs:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa signo
+has an invalid value.
+.El
 .Sh SEE ALSO
 .Xr kill 2 ,
 .Xr sigaction 2 ,
