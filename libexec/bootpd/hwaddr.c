@@ -48,6 +48,13 @@
 #define	ATF_INUSE 0
 #endif
 
+/* For BSD 4.4, set arp entry by writing to routing socket */
+#if defined(BSD)
+#if BSD >= 199306
+extern int bsd_arp_set __P((struct in_addr *, char *, int));
+#endif
+#endif
+
 #include "bptypes.h"
 #include "hwaddr.h"
 #include "report.h"
@@ -175,6 +182,9 @@ setarp(s, ia, hafamily, haddr, halen)
 	}
 #endif	/* SVR4 */
 #else	/* SIOCSARP */
+#if defined(BSD) && (BSD >= 199306)
+	bsd_arp_set(ia, haddr, halen);
+#else
 	/*
 	 * Oh well, SIOCSARP is not defined.  Just run arp(8).
 	 * Need to delete partial entry first on some systems.
@@ -194,6 +204,7 @@ setarp(s, ia, hafamily, haddr, halen)
 	if (status)
 		report(LOG_ERR, "arp failed, exit code=0x%x", status);
 	return;
+#endif	/* ! 4.4 BSD */
 #endif	/* SIOCSARP */
 }
 
