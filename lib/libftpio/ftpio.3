@@ -83,8 +83,9 @@
 .Sh DESCRIPTION
 These functions implement a high-level library for managing FTP connections.
 .Pp
+The
 .Fn ftpLogin
-attempts to log in using the supplied
+function attempts to log in using the supplied
 .Fa user ,
 .Fa passwd ,
 .Fa ftp_port
@@ -99,19 +100,23 @@ On failure, NULL is returned and
 .Fa retcode
 will have the error code returned by the foreign server.
 .Pp
+The
 .Fn ftpChdir
-attempts to issue a server CD command to the directory named in
+function attempts to issue a server CD command to the directory named in
 .Fa dir .
 On success, zero is returned.  On failure, the error code from the server.
 .Pp
+The
 .Fn ftpErrno
-returns the server failure code for the last operation (useful for seeing
-more about what happened if you're familiar with FTP error codes).
+function returns the server failure code for the last operation (useful for
+seeing more about what happened if you're familiar with FTP error codes).
+The
 .Fn ftpErrString
-returns a human readable version of the supplied server failure code.
+function returns a human readable version of the supplied server failure code.
 .Pp
+The
 .Fn ftpGet
-attempts to retrieve the file named by the
+function attempts to retrieve the file named by the
 .Fa file
 argument (which is assumed to be relative to the FTP server's current directory,
 see
@@ -128,18 +133,21 @@ of
 .Fa *seekto
 will be zero'd.
 .Pp
+The
 .Fn ftpGetModtime
-returns the last modification time of the file named by the
+function returns the last modification time of the file named by the
 .Fa file
 argument.  If the file could not be opened or stat'd, 0 is returned.
 .Pp
+The
 .Fn ftpGetSize
-returns the size in bytes of the file named by the
+function returns the size in bytes of the file named by the
 .Fa file
 argument.  If the file could not be opened or stat'd, -1 is returned.
 .Pp
+The
 .Fn ftpPut
-attempts to create a new file named by the
+function attempts to create a new file named by the
 .Fa file
 argument (which is assumed to be relative to the FTP server's current directory,
 see
@@ -148,28 +156,36 @@ and returns a new
 .Fa stream
 pointer for the file or NULL on failure.
 .Pp
+The
 .Fn ftpAscii
-sets ASCII mode for the current server connection named by
+function sets
+.Tn ASCII
+mode for the current server connection named by
 .Fa stream .
 .Pp
+The
 .Fn ftpBinary
-sets binary mode for the current server connection named by
+function sets binary mode for the current server connection named by
 .Fa stream .
 .Pp
+The
 .Fn ftpPassive
-sets passive mode (for firewalls) for the current server connection named by
+function sets passive mode (for firewalls) for the current server connection
+named by
 .Fa stream
 to boolean value
 .Fa status .
 .Pp
+The
 .Fn ftpVerbose
-sets the verbosity mode for the current server connection named by
+function sets the verbosity mode for the current server connection named by
 .Fa stream
 to boolean value
 .Fa status .
 .Pp
+The
 .Fn ftpGetURL
-attempts to retrieve the file named by the supplied
+function attempts to retrieve the file named by the supplied
 .Fa URL
 and can be considered equivalent to the combined
 .Fn ftpLogin ,
@@ -182,8 +198,9 @@ is ever returned - the connection to the server closes when
 the file has been completely read.  Use the lower-level routines
 if multiple gets are required as it will be far more efficient.
 .Pp
+The
 .Fn ftpPutURL
-attempts to create the file named by the supplied
+function attempts to create the file named by the supplied
 .Fa URL
 and can be considered equivalent to the combined
 .Fn ftpLogin ,
@@ -195,10 +212,11 @@ to the server closes when the file has been completely written.  Use the
 lower-level routines if multiple puts are required as it will be far more
 efficient.
 .Pp
+The
 .Fn ftpLoginAf ,
 .Fn ftpGetURLAf ,
 .Fn ftpPutURLAf
-are same as
+functions are same as
 .Fn ftpLogin ,
 .Fn ftpGetURL ,
 .Fn ftpPutURL

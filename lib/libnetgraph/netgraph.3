@@ -82,30 +82,35 @@ graph-based networking system, by utilizing the netgraph
 node type (see
 .Xr ng_socket 4 ) .
 .Pp
+The
 .Fn NgMkSockNode
-should be called first, to create a new
+function should be called first, to create a new
 .Em socket
 type netgraph node with associated control and data sockets.  If
 .Fa name
 is non-NULL, the node will have that global name assigned to it.
-.Fa "*csp"
+The
+.Fa "csp"
 and
-.Fa "*dsp"
-will be set to the newly opened control and data sockets
+.Fa "dsp"
+arguments will be set to the newly opened control and data sockets
 associated with the node; either
 .Fa "csp"
 or
 .Fa "dsp"
 may be NULL if only one socket is desired.
+The
 .Fn NgMkSockNode
-loads the socket node type KLD if it's not already loaded.
+function loads the socket node type KLD if it's not already loaded.
 .Pp
+The
 .Fn NgNameNode
-assigns a global name to the node addressed by
+function assigns a global name to the node addressed by
 .Fa path .
 .Pp
+The
 .Fn NgSendMsg
-sends a binary control message from the socket node associated
+function sends a binary control message from the socket node associated
 with control socket
 .Fa cs
 to the node addressed by
@@ -133,14 +138,16 @@ to send reply to a previously received control message.
 The original message header should be pointed to by
 .Fa msg .
 .Pp
+The
 .Fn NgSendAsciiMsg
-performs the same function as
+function performs the same function as
 .Fn NgSendMsg ,
 but adds support for
 .Tn ASCII
 encoding of control messages.
+The
 .Fn NgSendAsciiMsg
-formats its input a la
+function formats its input a la
 .Xr printf 3
 and then sends the resulting
 .Tn ASCII
@@ -156,8 +163,9 @@ Note that
 .Tn ASCII
 conversion may not be supported by all node types.
 .Pp
+The
 .Fn NgRecvMsg
-reads the next control message received by the node associated with
+function reads the next control message received by the node associated with
 control socket
 .Fa cs .
 The message and any extra argument data must fit in
@@ -173,8 +181,9 @@ the node from which the message was received.
 The length of the control message is returned.
 A return value of zero indicates that the socket was closed.
 .Pp
+The
 .Fn NgRecvAsciiMsg
-works exactly like
+function works exactly like
 .Fn NgRecvMsg ,
 except that after the message is received, any binary arguments
 are converted to
@@ -189,14 +198,16 @@ a NUL-terminated
 version of the arguments (and the reply
 header argument length field will be adjusted).
 .Pp
+The
 .Fn NgSendData
-writes a data packet out on the specified hook of the node corresponding
-to data socket
+function writes a data packet out on the specified hook of the node
+corresponding to data socket
 .Fa ds .
 The node must already be connected to some other node via that hook.
 .Pp
+The
 .Fn NgRecvData
-reads the next data packet (of up to
+function reads the next data packet (of up to
 .Fa len
 bytes) received by the node corresponding to data socket
 .Fa ds
@@ -212,12 +223,14 @@ the hook on which the data was received.
 The length of the packet is returned.
 A return value of zero indicates that the socket was closed.
 .Pp
+The
 .Fn NgSetDebug
 and
 .Fn NgSetErrLog
-are used for debugging.
+functions are used for debugging.
+The
 .Fn NgSetDebug
-sets the debug level (if non-negative), and returns the old setting.
+function sets the debug level (if non-negative), and returns the old setting.
 Higher debug levels result in more verbosity.  The default is zero.
 All debug and error messages are logged via the functions
 specified in the most recent call to
@@ -256,10 +269,12 @@ and
 KLD modules must have been loaded via
 .Xr kldload 8 .
 .Sh RETURN VALUES
+The
 .Fn NgSetDebug
-returns the previous debug setting.
+function returns the previous debug setting.
+The
 .Fn NgSetErrLog
-has no return value.
+function has no return value.
 All other functions return \-1 if there was an error and set
 .Va errno
 accordingly.
