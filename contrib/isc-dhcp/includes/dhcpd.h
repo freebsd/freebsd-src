@@ -272,8 +272,7 @@ typedef enum {
 	FTS_ABANDONED = 5,
 	FTS_RESET = 6,
 	FTS_BACKUP = 7,
-	FTS_RESERVED = 8,
-	FTS_BOOTP = 9
+	FTS_LAST = 8
 } binding_state_t;
 
 /* A dhcp lease declaration structure. */
@@ -304,16 +303,19 @@ struct lease {
 
 	u_int8_t flags;
 #       define STATIC_LEASE		1
+#	define BOOTP_LEASE		2
 #	define PERSISTENT_FLAGS		(ON_ACK_QUEUE | ON_UPDATE_QUEUE)
 #	define MS_NULL_TERMINATION	8
 #	define ON_UPDATE_QUEUE		16
 #	define ON_ACK_QUEUE		32
 #	define UNICAST_BROADCAST_HACK	64
+#	define ON_DEFERRED_QUEUE	128
 #	define EPHEMERAL_FLAGS		(MS_NULL_TERMINATION | \
 					 UNICAST_BROADCAST_HACK)
 
 	binding_state_t __attribute__ ((mode (__byte__))) binding_state;
 	binding_state_t __attribute__ ((mode (__byte__))) next_binding_state;
+	binding_state_t __attribute__ ((mode (__byte__))) desired_binding_state;
 	
 	struct lease_state *state;
 
@@ -415,6 +417,7 @@ struct lease_state {
 #define SV_PING_CHECKS			42
 #define SV_UPDATE_STATIC_LEASES		43
 #define SV_LOG_FACILITY			44
+#define SV_DO_FORWARD_UPDATES		45
 
 #if !defined (DEFAULT_DEFAULT_LEASE_TIME)
 # define DEFAULT_DEFAULT_LEASE_TIME 43200
@@ -717,6 +720,9 @@ struct client_config {
 	int omapi_port;			/* port on which to accept OMAPI
 					   connections, or -1 for no
 					   listener. */
+	int do_forward_update;		/* If nonzero, and if we have the
+					   information we need, update the
+					   A record for the address we get. */
 };
 
 /* Per-interface state used in the dhcp client... */
@@ -737,6 +743,7 @@ struct client_state {
 	u_int16_t secs;			    /* secs value from DHCPDISCOVER. */
 	TIME first_sending;			/* When was first copy sent? */
 	TIME interval;		      /* What's the current resend interval? */
+	int dns_update_timeout;		 /* Last timeout set for DNS update. */
 	struct string_list *medium;		   /* Last media type tried. */
 	struct dhcp_packet packet;		    /* Outgoing DHCP packet. */
 	unsigned packet_length;	       /* Actual length of generated packet. */
@@ -1891,7 +1898,8 @@ void do_release PROTO ((struct client_state *));
 int dhclient_interface_shutdown_hook (struct interface_info *);
 int dhclient_interface_discovery_hook (struct interface_info *);
 isc_result_t dhclient_interface_startup_hook (struct interface_info *);
-void client_dns_update (struct client_state *client, int);
+void client_dns_update_timeout (void *cp);
+isc_result_t client_dns_update (struct client_state *client, int, int);
 
 /* db.c */
 int write_lease PROTO ((struct lease *));
@@ -1904,6 +1912,7 @@ int db_printable_len PROTO ((const unsigned char *, unsigned));
 void write_named_billing_class (const char *, unsigned, struct class *);
 void write_billing_classes (void);
 int write_billing_class PROTO ((struct class *));
+void commit_leases_timeout PROTO ((void *));
 int commit_leases PROTO ((void));
 void db_startup PROTO ((int));
 int new_lease_file PROTO ((void));

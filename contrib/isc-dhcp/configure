@@ -118,6 +118,7 @@ if [ "$sysname" = "" ]; then
       case $hw in
 	arm32) sysname=netbsd-nocast;;
 	alpha) sysname=netbsd-nocast;;
+	sparc) sysname=netbsd-nocast;;
 	*) sysname=netbsd;;
       esac;;
     OpenBSD)

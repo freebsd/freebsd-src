@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: print.c,v 1.53.2.4 2001/08/08 14:49:20 mellon Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: print.c,v 1.53.2.5 2002/02/09 03:23:19 mellon Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -1197,6 +1197,14 @@ void print_dns_status (int status, ns_updque *uq)
 			}
 			predicate = "and";
 		}
+		if (u -> r_dname) {
+			if (s + 1 < end)
+				*s++ = ' ';
+			if (s + strlen (u -> r_dname) < end) {
+				strcpy (s, u -> r_dname);
+				s += strlen (s);
+			}
+		}
 		if (ttlp) {
 			if (s + 1 < end)
 				*s++ = ' ';
@@ -1252,14 +1260,6 @@ void print_dns_status (int status, ns_updque *uq)
 				*s++ = ' ';
 			strcpy (s, en);
 			s += strlen (en);
-		}
-		if (u -> r_dname) {
-			if (s + 1 < end)
-				*s++ = ' ';
-			if (s + strlen (u -> r_dname) < end) {
-				strcpy (s, u -> r_dname);
-				s += strlen (s);
-			}
 		}
 		if (u -> r_data) {
 			if (s + 1 < end)
