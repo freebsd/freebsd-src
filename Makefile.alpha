@@ -1,4 +1,4 @@
-# $Id: Makefile.alpha,v 1.10 1998/05/05 08:40:38 jb Exp $
+# $Id: Makefile.alpha,v 1.11 1998/05/09 21:28:01 jb Exp $
 #
 # NOTE:
 #
@@ -46,7 +46,7 @@ CLEANDIR=	cleandir
 # While building tools for bootstrapping, we dont need to waste time on
 # profiled libraries or man pages.  This speeds things up somewhat.
 #
-MK_FLAGS=	-DNOINFO -DNOMAN -DNOPROFILE
+MK_FLAGS=	-DNOINFO -DNOMAN -DNOPROFILE -DNOPIC -DNOLIBC_R
 
 .if defined(MAKEOBJDIRPREFIX)
 WORLDTMP=	${MAKEOBJDIRPREFIX}${.CURDIR}/tmp
@@ -102,6 +102,8 @@ buildworld:
 	@echo " You will need to manually edit /etc/group on your NetBSD"
 	@echo " system to include any missing groups in FreeBSD's"
 	@echo " src/etc/group."
+	@echo
+	@echo " You will need to manually add the man user."
 	@echo
 	@echo " ABORT NOW IF UNSURE!"
 	@sleep 10
