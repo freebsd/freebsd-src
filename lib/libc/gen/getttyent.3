@@ -41,7 +41,7 @@
 .Nm endttyent
 .Nd get ttys file entry
 .Nm isdialuptty ,
-.Nm isnetworktty
+.Nm isnettty
 .Nd determine tty type from ttys file entry
 .Sh SYNOPSIS
 .Fd #include <ttyent.h>
@@ -56,7 +56,7 @@
 .Ft int
 .Fn isdialuptty "const char *name"
 .Ft int
-.Fn isnetworktty "const char *name"
+.Fn isnettty "const char *name"
 .Sh DESCRIPTION
 The
 .Fn getttyent ,
@@ -113,7 +113,7 @@ will return a non-zero value.
 .It Dv TTY_NETWORK
 Identifies a tty used for network connections.
 If this flag is set, then
-.Fn isnetworktty
+.Fn isnettty
 will return a non-zero value.
 .El
 .It Fa ty_window
@@ -178,7 +178,7 @@ return 0 on failure and 1 on success.
 The routines
 .Fn isdialuptty
 and
-.Fn isnetworktty
+.Fn isnettty
 return non-zero if the dialup or network flag is set for the
 tty entry relating to the tty named by the parameter, and
 zero otherwise.
