@@ -487,7 +487,7 @@ i386_set_watch(watchnum, watchaddr, size, access, d)
 	
 	if (watchnum == -1) {
 		for (i = 0, mask = 0x3; i < 4; i++, mask <<= 2)
-			if ((d->dr7 & mask) == 0)
+			if ((d->dr[7] & mask) == 0)
 				break;
 		if (i < 4)
 			watchnum = i;
@@ -518,13 +518,13 @@ i386_set_watch(watchnum, watchaddr, size, access, d)
 	mask |= access;
 
 	/* clear the bits we are about to affect */
-	d->dr7 &= ~((0x3 << (watchnum*2)) | (0x0f << (watchnum*4+16)));
+	d->dr[7] &= ~((0x3 << (watchnum*2)) | (0x0f << (watchnum*4+16)));
 
 	/* set drN register to the address, N=watchnum */
 	DBREG_DRX(d,watchnum) = watchaddr;
 
 	/* enable the watchpoint */
-	d->dr7 |= (0x2 << (watchnum*2)) | (mask << (watchnum*4+16));
+	d->dr[7] |= (0x2 << (watchnum*2)) | (mask << (watchnum*4+16));
 
 	return (watchnum);
 }
@@ -539,7 +539,7 @@ i386_clr_watch(watchnum, d)
 	if (watchnum < 0 || watchnum >= 4)
 		return (-1);
 	
-	d->dr7 = d->dr7 & ~((0x3 << (watchnum*2)) | (0x0f << (watchnum*4+16)));
+	d->dr[7] = d->dr[7] & ~((0x3 << (watchnum*2)) | (0x0f << (watchnum*4+16)));
 	DBREG_DRX(d,watchnum) = 0;
 	
 	return (0);
@@ -559,7 +559,7 @@ db_md_set_watchpoint(addr, size)
 	
 	avail = 0;
 	for(i=0; i<4; i++) {
-		if ((d.dr7 & (3 << (i*2))) == 0)
+		if ((d.dr[7] & (3 << (i*2))) == 0)
 			avail++;
 	}
 	
@@ -567,7 +567,7 @@ db_md_set_watchpoint(addr, size)
 		return (-1);
 	
 	for (i=0; i<4 && (size != 0); i++) {
-		if ((d.dr7 & (3<<(i*2))) == 0) {
+		if ((d.dr[7] & (3<<(i*2))) == 0) {
 			if (size > 4)
 				wsize = 4;
 			else
@@ -598,7 +598,7 @@ db_md_clr_watchpoint(addr, size)
 	fill_dbregs(NULL, &d);
 
 	for(i=0; i<4; i++) {
-		if (d.dr7 & (3 << (i*2))) {
+		if (d.dr[7] & (3 << (i*2))) {
 			if ((DBREG_DRX((&d), i) >= addr) && 
 			    (DBREG_DRX((&d), i) < addr+size))
 				i386_clr_watch(i, &d);
@@ -638,10 +638,10 @@ db_md_list_watchpoints()
 	db_printf("  watch    status        type  len     address\n");
 	db_printf("  -----  --------  ----------  ---  ----------\n");
 	for (i=0; i<4; i++) {
-		if (d.dr7 & (0x03 << (i*2))) {
+		if (d.dr[7] & (0x03 << (i*2))) {
 			unsigned type, len;
-			type = (d.dr7 >> (16+(i*4))) & 3;
-			len =  (d.dr7 >> (16+(i*4)+2)) & 3;
+			type = (d.dr[7] >> (16+(i*4))) & 3;
+			len =  (d.dr[7] >> (16+(i*4)+2)) & 3;
 			db_printf("  %-5d  %-8s  %10s  %3d  0x%08x\n",
 				  i, "enabled", watchtype_str(type), 
 				  len+1, DBREG_DRX((&d),i));
