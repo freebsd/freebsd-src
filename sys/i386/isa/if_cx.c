@@ -20,7 +20,7 @@
 
 #include "cx.h"
 #if NCX > 0
-#include <bpfilter.h>
+#include "bpfilter.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -44,7 +44,6 @@
 #   if __FreeBSD__ < 2
 #      include <machine/pio.h>
 #   else
-#      include <machine/cpufunc.h>
 #      include <sys/devconf.h>
 #   endif
 #   define init_func_t     void(*)(int)
@@ -78,6 +77,14 @@ struct cxsoftc {
 #include <net/if_sppp.h>
 #include <machine/cronyx.h>
 #include <i386/isa/cxreg.h>
+
+extern int cxprobe __P((struct isa_device *id));
+extern int cxattach __P((struct isa_device *id));
+extern void cxput __P((cx_chan_t *c, char b));
+extern void cxsend __P((cx_chan_t *c));
+extern void cxrinth __P((cx_chan_t *c));
+extern int cxtinth __P((cx_chan_t *c));
+extern void cxswitch __P((cx_chan_t *c, cx_soft_opt_t new));
 
 #ifdef DEBUG
 #   define print(s)     printf s
