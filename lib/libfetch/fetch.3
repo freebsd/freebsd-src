@@ -449,6 +449,10 @@ If this variable is set to an empty string, no proxy will be used for
 FTP requests, even if the
 .Ev HTTP_PROXY
 variable is set.
+.It Ev ftp_proxy
+Same as
+.Ev FTP_PROXY ,
+for compatibility.
 .It Ev HTTP_AUTH
 Specifies HTTP authorization parameters as a colon-separated list of
 items.
@@ -470,6 +474,10 @@ If no port number is specified, the default is 3128.
 Note that this proxy will also be used for FTP documents, unless the
 .Ev FTP_PROXY
 variable is set.
+.It Ev http_proxy
+Same as
+.Ev HTTP_PROXY ,
+for compatibility.
 .It Ev HTTP_PROXY_AUTH
 Specifies authorization parameters for the HTTP proxy in the same
 format as the

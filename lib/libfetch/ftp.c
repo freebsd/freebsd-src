@@ -875,10 +875,11 @@ _ftp_get_proxy(void)
     struct url *purl;
     char *p;
     
-    if (((p = getenv("FTP_PROXY")) || (p = getenv("HTTP_PROXY"))) &&
+    if (((p = getenv("FTP_PROXY")) || (p = getenv("ftp_proxy")) ||
+	 (p = getenv("HTTP_PROXY")) || (p = getenv("http_proxy"))) &&
 	*p && (purl = fetchParseURL(p)) != NULL) {
 	if (!*purl->scheme) {
-	    if (getenv("FTP_PROXY"))
+	    if (getenv("FTP_PROXY") || getenv("ftp_proxy"))
 		strcpy(purl->scheme, SCHEME_FTP);
 	    else
 		strcpy(purl->scheme, SCHEME_HTTP);
