@@ -345,7 +345,10 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 
 	VOP_UNLOCK(vp, 0, p);
 
-	return (ufs_extattr_enable(ump, attrnamespace, attrname, vp, p));
+	error = ufs_extattr_enable(ump, attrnamespace, attrname, vp, p);
+	if (error != 0)
+		vn_close(vp, FREAD|FWRITE, p->p_ucred, p);
+	return (error);
 }
 
 #ifdef UFS_EXTATTR_AUTOSTART
