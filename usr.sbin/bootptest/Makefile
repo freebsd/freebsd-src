@@ -5,10 +5,11 @@ PROG=	bootptest
 SRCDIR= ${.CURDIR}/../bootpd
 CFLAGS+= -I${SRCDIR}
 .PATH: ${SRCDIR}
+MANSRC= ${SRCDIR}
 
 SRCS=	bootptest.c print-bootp.c getif.c getether.c report.c
 
-MAN8=	bootptest.0
+MAN8=	bootptest.8
 
 .include <bsd.prog.mk>
 
