@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
 
 #include <sys/systm.h>
 #include <machine/clock.h>
@@ -76,12 +78,7 @@ __stdcall static void hal_readport_buf_ushort(uint16_t *,
 	uint16_t *, uint32_t);
 __stdcall static void hal_readport_buf_uchar(uint8_t *,
 	uint8_t *, uint32_t);
-__stdcall static uint8_t hal_lock(/*kspin_lock * */void);
-__stdcall static void hal_unlock(/*kspin_lock *, uint8_t*/void);
-__stdcall static uint8_t hal_irql(void);
 __stdcall static uint64_t hal_perfcount(uint64_t *);
-__stdcall static uint8_t hal_raise_irql(/*uint8_t*/ void);
-__stdcall static void hal_lower_irql(/*uint8_t*/ void);
 __stdcall static void dummy (void);
 
 extern struct mtx_pool *ndis_mtxpool;
@@ -208,33 +205,94 @@ hal_readport_buf_uchar(port, val, cnt)
 	return;
 }
 
-__stdcall static uint8_t
+/*
+ * The spinlock implementation in Windows differs from that of FreeBSD.
+ * The basic operation of spinlocks involves two steps: 1) spin in a
+ * tight loop while trying to acquire a lock, 2) after obtaining the
+ * lock, disable preemption. (Note that on uniprocessor systems, you're
+ * allowed to skip the first step and just lock out pre-emption, since
+ * it's not possible for you to be in contention with another running
+ * thread.) Later, you release the lock then re-enable preemption.
+ * The difference between Windows and FreeBSD lies in how preemption
+ * is disabled. In FreeBSD, it's done using critical_enter(), which on
+ * the x86 arch translates to a cli instruction. This masks off all
+ * interrupts, and effectively stops the scheduler from ever running
+ * so _nothing_ can execute except the current thread. In Windows,
+ * preemption is disabled by raising the processor IRQL to DISPATCH_LEVEL.
+ * This stops other threads from running, but does _not_ block device
+ * interrupts. This means ISRs can still run, and they can make other
+ * threads runable, but those other threads won't be able to execute
+ * until the current thread lowers the IRQL to something less than
+ * DISPATCH_LEVEL.
+ *
+ * In FreeBSD, ISRs run in interrupt threads, so to duplicate the
+ * Windows notion of IRQLs, we use the following rules:
+ *
+ * PASSIVE_LEVEL == normal kernel thread priority
+ * DISPATCH_LEVEL == lowest interrupt thread priotity (PI_SOFT)
+ * DEVICE_LEVEL == highest interrupt thread priority  (PI_REALTIME)
+ * HIGH_LEVEL == interrupts disabled (critical_enter())
+ *
+ * Be aware that, at least on the x86 arch, the Windows spinlock
+ * functions are divided up in peculiar ways. The actual spinlock
+ * functions are KfAcquireSpinLock() and KfReleaseSpinLock(), and
+ * they live in HAL.dll. Meanwhile, KeInitializeSpinLock(),
+ * KefAcquireSpinLockAtDpcLevel() and KefReleaseSpinLockFromDpcLevel()
+ * live in ntoskrnl.exe. Most Windows source code will call
+ * KeAcquireSpinLock() and KeReleaseSpinLock(), but these are just
+ * macros that call KfAcquireSpinLock() and KfReleaseSpinLock().
+ * KefAcquireSpinLockAtDpcLevel() and KefReleaseSpinLockFromDpcLevel()
+ * perform the lock aquisition/release functions without doing the
+ * IRQL manipulation, and are used when one is already running at
+ * DISPATCH_LEVEL. Make sense? Good.
+ *
+ * According to the Microsoft documentation, any thread that calls
+ * KeAcquireSpinLock() must be running at IRQL <= DISPATCH_LEVEL. If
+ * we detect someone trying to acquire a spinlock from DEVICE_LEVEL
+ * or HIGH_LEVEL, we panic.
+ */
+
+__stdcall uint8_t
 hal_lock(/*lock*/void)
 {
 	kspin_lock		*lock;
+	uint8_t			oldirql;
 
 	__asm__ __volatile__ ("" : "=c" (lock));
 
-	mtx_pool_lock(ndis_mtxpool, (struct mtx *)*lock);
-	return(0);
+	/* I am so going to hell for this. */
+	if (hal_irql() > DISPATCH_LEVEL)
+		panic("IRQL_NOT_LESS_THAN_OR_EQUAL");
+
+	oldirql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
+	FASTCALL1(ntoskrnl_lock_dpc, lock);
+	return(oldirql);
 }
 
-__stdcall static void
+__stdcall void
 hal_unlock(/*lock, newirql*/void)
 {
 	kspin_lock		*lock;
-	uint8_t			newiqrl;
+	uint8_t			newirql;
 
-	__asm__ __volatile__ ("" : "=c" (lock), "=d" (newiqrl));
+	__asm__ __volatile__ ("" : "=c" (lock), "=d" (newirql));
 
-	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)*lock);
+	FASTCALL1(ntoskrnl_unlock_dpc, lock);
+	FASTCALL1(hal_lower_irql, newirql);
+
 	return;
 }
 
-__stdcall static uint8_t
+__stdcall uint8_t
 hal_irql(void)
 {
-	return(DISPATCH_LEVEL);
+	if (AT_DISPATCH_LEVEL(curthread))
+		return(DISPATCH_LEVEL);
+	if (AT_DIRQL_LEVEL(curthread))
+		return(DEVICE_LEVEL);
+	if (AT_HIGH_LEVEL(curthread))
+		return(HIGH_LEVEL);
+	return(PASSIVE_LEVEL);
 }
 
 __stdcall static uint64_t
@@ -247,22 +305,63 @@ hal_perfcount(freq)
 	return((uint64_t)ticks);
 }
 
-__stdcall static uint8_t
+__stdcall uint8_t
 hal_raise_irql(/*irql*/ void)
 {
 	uint8_t			irql;
+	uint8_t			oldirql;
 
 	__asm__ __volatile__ ("" : "=c" (irql));
 
-	return(0);
+	switch(irql) {
+	case HIGH_LEVEL:
+		oldirql = hal_irql();
+		critical_enter();
+		break;
+	case DEVICE_LEVEL:
+		mtx_lock_spin(&sched_lock);
+		oldirql = curthread->td_priority;
+		sched_prio(curthread, PI_REALTIME);
+		mtx_unlock_spin(&sched_lock);
+		break;
+	case DISPATCH_LEVEL:
+		mtx_lock_spin(&sched_lock);
+		oldirql = curthread->td_priority;
+		sched_prio(curthread, PI_SOFT);
+		mtx_unlock_spin(&sched_lock);
+		break;
+	default:
+		panic("can't raise IRQL to unknown level %d", irql);
+		break;
+	}
+
+	return(oldirql);
 }
 
-__stdcall static void 
-hal_lower_irql(/*irql*/ void)
+__stdcall void 
+hal_lower_irql(/*oldirql*/ void)
 {
+	uint8_t			oldirql;
 	uint8_t			irql;
 
-	__asm__ __volatile__ ("" : "=c" (irql));
+	__asm__ __volatile__ ("" : "=c" (oldirql));
+
+	irql = hal_irql();
+
+	switch (irql) {
+	case HIGH_LEVEL:
+		critical_exit();
+		break;
+	case DEVICE_LEVEL:
+	case DISPATCH_LEVEL:
+		mtx_lock_spin(&sched_lock);
+		sched_prio(curthread, oldirql);
+		mtx_unlock_spin(&sched_lock);
+		break;
+	default:
+		panic("can't lower IRQL to unknown level %d", irql);
+		break;
+	}
 
 	return;
 }

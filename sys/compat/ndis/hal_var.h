@@ -45,4 +45,12 @@
 
 extern image_patch_table hal_functbl[];
 
+__BEGIN_DECLS
+__stdcall extern uint8_t hal_lock(/*kspin_lock * */void);
+__stdcall extern void hal_unlock(/*kspin_lock *, uint8_t*/void);
+__stdcall extern uint8_t hal_raise_irql(/*uint8_t*/ void);
+__stdcall extern void hal_lower_irql(/*uint8_t*/ void);
+__stdcall extern uint8_t hal_irql(void);
+__END_DECLS
+
 #endif /* _HAL_VAR_H_ */
