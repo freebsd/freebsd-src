@@ -369,6 +369,8 @@ getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 			memcpy(&addrbuf, src, len);
 			src = &addrbuf;
 		}
+		if (IN6_IS_ADDR_UNSPECIFIED((struct in6_addr *)src))
+			return NULL;
 		if (IN6_IS_ADDR_V4MAPPED((struct in6_addr *)src)
 		||  IN6_IS_ADDR_V4COMPAT((struct in6_addr *)src)) {
 			src = (char *)src +
