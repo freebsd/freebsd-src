@@ -234,7 +234,10 @@ ata_pci_match(device_t dev)
 	return "AMD 768 ATA100 controller";
 
     case 0x01bc10de:
-	return "nVIDIA nForce ATA100 controller";
+	return "nVidia nForce ATA100 controller";
+
+    case 0x006510de:
+	return "nVidia nForce ATA133 controller";
 
     case 0x02111166:
 	return "ServerWorks ROSB4 ATA33 controller";
@@ -284,10 +287,22 @@ ata_pci_match(device_t dev)
 	}
 	return "Promise TX2 ATA100 controller";
 
-    case 0x4d69105a:
     case 0x5275105a:
-    case 0x6269105a: 
     case 0x7275105a: 
+	{
+	    uintptr_t devid = 0;
+
+	    /* if we are on a SuperTrak SX6000 dont attach */
+	    if (!BUS_READ_IVAR(device_get_parent(GRANDPARENT(dev)),
+			       GRANDPARENT(dev), PCI_IVAR_DEVID, &devid) &&
+		devid == 0x09628086 &&
+		pci_get_class(GRANDPARENT(dev)) == PCIC_BRIDGE)
+		break;
+	}
+	/* FALLTHROUGH */
+
+    case 0x4d69105a:
+    case 0x6269105a: 
 	return "Promise TX2 ATA133 controller";
 
     case 0x00041103:

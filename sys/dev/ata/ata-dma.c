@@ -502,6 +502,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	break;
 
     case 0x01bc10de:	/* nVIDIA nForce */
+    case 0x006510de:	/* nVIDIA nForce2 */
     case 0x74411022:	/* AMD 768 */
     case 0x74111022:	/* AMD 766 */
     case 0x74091022:	/* AMD 756 */
@@ -512,7 +513,8 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		{ 0x00, 0x00, 0xea, 0x00, 0xe8, 0x00, 0x00 },	/* VIA ATA66 */
 		{ 0x00, 0x00, 0xf4, 0x00, 0xf1, 0xf0, 0x00 },	/* VIA ATA100 */
 		{ 0x00, 0x00, 0xf6, 0x00, 0xf2, 0xf1, 0xf0 },	/* VIA ATA133 */
-		{ 0x00, 0x00, 0xc0, 0x00, 0xc5, 0xc6, 0x00 }};	/* AMD/nVIDIA */
+		{ 0x00, 0x00, 0xc0, 0x00, 0xc5, 0xc6, 0xc7 }};	/* AMD/nVIDIA */
+	    int reg = 0x53 - devno;
 	    int *reg_val = NULL;
 	    char *chip = "VIA";
 
@@ -553,13 +555,23 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		reg_val = via_modes[4];
 		chip = "AMD";
 	    }
-	    else if (chiptype == 0x01bc10de) {			/* nVIDIA */
-		udmamode = imin(udmamode, 5);
+	    else if (chiptype == 0x006510de) {			/* nForce2 */
+		udmamode = imin(udmamode, 6);
+		reg += 0x10;
 		reg_val = via_modes[4];
-		chip = "nVIDIA";
+		chip = "nVidia";
+	    }
+	    else if (chiptype == 0x01bc10de) {			/* nForce */
+		udmamode = imin(udmamode, 5);
+		reg += 0x10;
+		reg_val = via_modes[4];
+		chip = "nVidia";
 	    }
 	    else 
 		udmamode = 0;
+
+	    if (udmamode || wdmamode)
+		    pci_write_config(parent, reg - 0x08, 0x20, 1);
 
 	    if (udmamode >= 6) {
 		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
@@ -568,7 +580,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		    ata_prtdev(atadev, "%s setting UDMA6 on %s chip\n",
 			       (error) ? "failed" : "success", chip);
 		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, reg_val[6], 1);
+		    pci_write_config(parent, reg, reg_val[6], 1);
 		    ata_dmacreate(atadev, apiomode, ATA_UDMA6);
 		    return;
 		}
@@ -580,7 +592,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		    ata_prtdev(atadev, "%s setting UDMA5 on %s chip\n",
 			       (error) ? "failed" : "success", chip);
 		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, reg_val[5], 1);
+		    pci_write_config(parent, reg, reg_val[5], 1);
 		    ata_dmacreate(atadev, apiomode, ATA_UDMA5);
 		    return;
 		}
@@ -592,7 +604,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		    ata_prtdev(atadev, "%s setting UDMA4 on %s chip\n",
 			       (error) ? "failed" : "success", chip);
 		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, reg_val[4], 1);
+		    pci_write_config(parent, reg, reg_val[4], 1);
 		    ata_dmacreate(atadev, apiomode, ATA_UDMA4);
 		    return;
 		}
@@ -604,7 +616,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		    ata_prtdev(atadev, "%s setting UDMA2 on %s chip\n",
 			       (error) ? "failed" : "success", chip);
 		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, reg_val[2], 1);
+		    pci_write_config(parent, reg, reg_val[2], 1);
 		    ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		    return;
 		}
@@ -616,8 +628,8 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		    ata_prtdev(atadev, "%s setting WDMA2 on %s chip\n",
 			       (error) ? "failed" : "success", chip);
 		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, 0x0b, 1);
-		    pci_write_config(parent, 0x4b - devno, 0x31, 1);
+		    pci_write_config(parent, reg, 0x0b, 1);
+		    pci_write_config(parent, reg - 0x08, 0x31, 1);
 		    ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		    return;
 		}
@@ -1325,7 +1337,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	}
 	if (udmamode >= 2) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
-				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
+				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting up UDMA2 mode on Acard chip\n",
 			   (error) ? "failed" : "success");
@@ -1510,6 +1522,19 @@ ata_dmastart(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
     if (ds->flags & ATA_DS_ACTIVE)
 	    panic("ata_dmasetup: transfer active on this device!");
 
+    switch(ch->chiptype) {
+    case 0x0d38105a:  /* Promise Fasttrak 66 */
+    case 0x4d38105a:  /* Promise Ultra/Fasttrak 66 */
+    case 0x0d30105a:  /* Promise OEM ATA 100 */
+    case 0x4d30105a:  /* Promise Ultra/Fasttrak 100 */
+	ATA_OUTB(ch->r_bmio, 0x11,
+		 ATA_INB(ch->r_bmio, 0x11) | (atadev->unit ? 0x08 : 0x02));
+
+	ATA_OUTL(ch->r_bmio, (atadev->unit ? 0x24 : 0x20), 
+                 (dir ? 0x05000000 : 0x06000000) | (count >> 1));
+        break;
+    }
+
     cba.dmatab = ds->dmatab;
     bus_dmamap_sync(ds->cdmatag, ds->cdmamap, BUS_DMASYNC_PREWRITE);
     if (bus_dmamap_load(ds->ddmatag, ds->ddmamap, data, count,
@@ -1521,33 +1546,40 @@ ata_dmastart(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
 		    BUS_DMASYNC_PREWRITE);
 
     ch->flags |= ATA_DMA_ACTIVE;
-    ds->flags = ATA_DS_ACTIVE;
-    if (dir)
-	    ds->flags |= ATA_DS_READ;
+    ds->flags = dir ? (ATA_DS_ACTIVE | ATA_DS_READ) : ATA_DS_ACTIVE;
 
     ATA_OUTL(ch->r_bmio, ATA_BMDTP_PORT, ds->mdmatab);
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, dir ? ATA_BMCMD_WRITE_READ : 0);
     ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, 
-	 (ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) | 
-	  (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
+	     (ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) | 
+	     (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, 
-	 ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) | ATA_BMCMD_START_STOP);
+	     ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) | ATA_BMCMD_START_STOP);
     return 0;
 }
 
 int
 ata_dmadone(struct ata_device *atadev)
 {
-    struct ata_channel *ch;
-    struct ata_dmastate *ds;
+    struct ata_channel *ch = atadev->channel;
+    struct ata_dmastate *ds = &atadev->dmastate;
     int error;
 
-    ch = atadev->channel;
-    ds = &atadev->dmastate;
+    switch(ch->chiptype) {
+    case 0x0d38105a:  /* Promise Fasttrak 66 */
+    case 0x4d38105a:  /* Promise Ultra/Fasttrak 66 */
+    case 0x0d30105a:  /* Promise OEM ATA 100 */
+    case 0x4d30105a:  /* Promise Ultra/Fasttrak 100 */
+	ATA_OUTL(ch->r_bmio, (atadev->unit ? 0x24 : 0x20), 0);
+	ATA_OUTB(ch->r_bmio, 0x11,
+		 ATA_INB(ch->r_bmio, 0x11) & ~(atadev->unit ? 0x08 : 0x02));
+        break;
+    }
+
     bus_dmamap_sync(ds->ddmatag, ds->ddmamap, (ds->flags & ATA_DS_READ) != 0 ?
 		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
     bus_dmamap_unload(ds->ddmatag, ds->ddmamap);
-
+        
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, 
 		ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     error = ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT);

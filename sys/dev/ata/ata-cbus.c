@@ -60,6 +60,10 @@ ata_cbus_probe(device_t dev)
     int rid;
     u_long tmp;
 
+    /* dont probe PnP devices */
+    if (isa_get_vendorid(dev))
+       return (ENXIO);
+
     /* allocate the ioport range */
     rid = ATA_IOADDR_RID;
     io = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid, ata_pc98_ports,
