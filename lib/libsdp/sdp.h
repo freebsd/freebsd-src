@@ -490,6 +490,41 @@ void               sdp_print      (uint32_t level, uint8_t const *start,
 #define SDP_LOCAL_PATH	"/var/run/sdp"
 #define SDP_LOCAL_MTU	4096
 
+/*
+ * These are NOT defined in spec and only accepted on control sockets.
+ * The response to these request always will be SDP_PDU_ERROR_RESPONSE.
+ * The first 2 bytes (after PDU header) is an error code (in network
+ * byte order). The rest of the data (pdu->len - 2) is a response data
+ * and depend on the request.
+ *
+ * SDP_PDU_SERVICE_REGISTER_REQUEST
+ * 	pdu_header_t	hdr;
+ *	u_int16_t	uuid;	service class UUID (network byte order)
+ *	bdaddr_t	bdaddr;	local BD_ADDR (or ANY)
+ *	profile data[pdu->len - sizeof(uuid) - sizeof(bdaddr)]
+ *
+ * in successful reponse additional data will contain 4 bytes record handle
+ *
+ *
+ * SDP_PDU_SERVICE_UNREGISTER_REQUEST
+ *	pdu_header_t	hdr;
+ *	u_int32_t	record_handle;	(network byte order)
+ * 
+ * no additional data in response.
+ *
+ *
+ * SDP_PDU_SERVICE_CHANGE_REQUEST
+ * 	pdu_header_t	hdr;
+ *	u_int32_t	record_handle;	(network byte order)
+ *	profile data[pdu->len - sizeof(record_handle)]
+ *
+ * no additional data in response.
+ */
+
+#define SDP_PDU_SERVICE_REGISTER_REQUEST	0x81
+#define SDP_PDU_SERVICE_UNREGISTER_REQUEST	0x82
+#define SDP_PDU_SERVICE_CHANGE_REQUEST		0x83
+
 struct sdp_dun_profile
 {
 	uint8_t	server_channel;
@@ -507,6 +542,7 @@ struct sdp_ftrn_profile
 typedef struct sdp_ftrn_profile		sdp_ftrn_profile_t;
 typedef struct sdp_ftrn_profile *	sdp_ftrn_profile_p;
 
+/* Keep this in sync with sdp_opush_profile */
 struct sdp_irmc_profile
 {
 	uint8_t	server_channel;
@@ -535,6 +571,7 @@ struct sdp_lan_profile
 typedef struct sdp_lan_profile		sdp_lan_profile_t;
 typedef struct sdp_lan_profile *	sdp_lan_profile_p;
 
+/* Keep this in sync with sdp_irmc_profile */
 struct sdp_opush_profile
 {
 	uint8_t	server_channel;
@@ -551,6 +588,13 @@ struct sdp_sp_profile
 };
 typedef struct sdp_sp_profile	sdp_sp_profile_t;
 typedef struct sdp_sp_profile *	sdp_sp_profile_p;
+
+int32_t	sdp_register_service	(void *xss, uint16_t uuid,
+				 bdaddr_p const bdaddr, uint8_t const *data,
+				 uint32_t datalen, uint32_t *handle);
+int32_t	sdp_unregister_service	(void *xss, uint32_t handle);
+int32_t	sdp_change_service	(void *xss, uint32_t handle,
+				 uint8_t const *data, uint32_t datalen);
 
 __END_DECLS
 
