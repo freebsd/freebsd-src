@@ -131,6 +131,7 @@ tx0     dyn     dyn     n/a     dyn     SMC 9432 'Epic' fast ethernet
 wb0     dyn     dyn     n/a     dyn     Winbond W89C840F PCI based cards.
 vr0     dyn     dyn     n/a     dyn     VIA VT3043/VT86C100A PCI based cards.
 vx0     dyn     dyn     n/a     dyn     3Com 3c59x ((Fast) Etherlink III)
+xe0     dyn     dyn     n/a     dyn     Xircom CreditCard adapters(16bit)
 xl0     dyn     dyn     n/a     dyn     3Com 3c900, 3c905, 3c905B, 3c905C,
                                         3c980, 3cSOHO100 ((Fast) Etherlink XL)
 cs0     0x300   dyn     n/a     n/a     Crystal Semiconductor CS89x0-based
