@@ -39,7 +39,7 @@
 
 /*
  * This file defines five types of data structures: singly-linked lists,
- * slingly-linked tail queues, lists, tail queues, and circular queues.
+ * singly-linked tail queues, lists, tail queues, and circular queues.
  *
  * A singly-linked list is headed by a single forward pointer. The elements
  * are singly linked for minimum space and pointer manipulation overhead at
