@@ -182,6 +182,7 @@ int	chkdq(struct inode *, int64_t, struct ucred *, int);
 int	chkiq(struct inode *, ino_t, struct ucred *, int);
 void	dqinit(void);
 void	dqrele(struct vnode *, struct dquot *);
+void	dquninit(void);
 int	getinoquota(struct inode *);
 int	getquota(struct mount *, u_long, int, caddr_t);
 int	qsync(struct mount *mp);
