@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.53 1999/01/31 00:44:37 paul Exp $
+ * $Id: if_lnc.c,v 1.54 1999/03/17 16:44:52 luigi Exp $
  */
 
 /*
@@ -1228,23 +1228,34 @@ lnc_attach_sc(struct lnc_softc *sc, int unit)
 	if (sc->nic.mem_mode == DMA_FIXED)
 		lnc_mem_size += (NDESC(sc->nrdre) * RECVBUFSIZE) + (NDESC(sc->ntdre) * TRANSBUFSIZE);
 
-	sc->recv_ring = malloc(lnc_mem_size, M_DEVBUF, M_NOWAIT);
+	if (sc->nic.mem_mode != SHMEM) {
+		if (sc->nic.ic < PCnet_32) {
+			/* ISA based cards */
+			sc->recv_ring = contigmalloc(lnc_mem_size, M_DEVBUF, M_NOWAIT,
+										 0ul, 0xfffffful, 4ul, 0x1000000);
+		} else {
+			/* Non-ISA based cards, 32 bit capable */
+#ifdef notyet
+			/*
+			 * For the 32 bit driver we're not fussed where we DMA to
+			 * though it'll still need to be contiguous
+			 */
+			sc->recv_ring = malloc(lnc_mem_size, M_DEVBUF, M_NOWAIT);
+#else
+			/*
+			 * For now it still needs to be below 16MB because the
+			 * descriptor's can only hold 16 bit addresses.
+			 */
+			sc->recv_ring = contigmalloc(lnc_mem_size, M_DEVBUF, M_NOWAIT,
+										 0ul, 0xfffffful, 4ul, 0x1000000);
+#endif
+		}    	
+	}
 
 	if (!sc->recv_ring) {
 		log(LOG_ERR, "lnc%d: Couldn't allocate memory for NIC\n", unit);
 		return (0);	/* XXX -- attach failed -- not tested in
 				 * calling routines */
-	}
-	/*
-	 * XXX - Shouldn't this be skipped for the EISA and PCI versions ???
-	 *       Print the message but do not return for the PCnet_PCI !
-	 */
-	if ((sc->nic.mem_mode != SHMEM) && (kvtop(sc->recv_ring) > 0x1000000)) {
-		log(LOG_ERR, "lnc%d: Memory allocated above 16Mb limit\n", unit);
-		if ((sc->nic.ic != PCnet_PCI) &&
-		    (sc->nic.ic != PCnet_PCI_II) &&
-		    (sc->nic.ic != PCnet_FAST))
-			return (0);
 	}
 
 	/* Set default mode */
