@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsdump - Functions do dump out the resource structures.
- *              $Revision: 12 $
+ *              $Revision: 13 $
  *
  ******************************************************************************/
 
@@ -158,12 +158,12 @@ AcpiRsDumpIrq (
                 SHARED == IrqData->SharedExclusive ?
                 "Shared" : "Exclusive");
 
-    AcpiOsPrintf ("\t\t%d Interrupts ( ",
+    AcpiOsPrintf ("\t\t%X Interrupts ( ",
                 IrqData->NumberOfInterrupts);
 
     for (Index = 0; Index < IrqData->NumberOfInterrupts; Index++)
     {
-        AcpiOsPrintf ("%d ", IrqData->Interrupts[Index]);
+        AcpiOsPrintf ("%X ", IrqData->Interrupts[Index]);
     }
 
     AcpiOsPrintf (")\n");
@@ -239,12 +239,12 @@ AcpiRsDumpDma (
         break;
     }
 
-    AcpiOsPrintf ("\t\tNumber of Channels: %d ( ",
+    AcpiOsPrintf ("\t\tNumber of Channels: %X ( ",
                 DmaData->NumberOfChannels);
 
     for (Index = 0; Index < DmaData->NumberOfChannels; Index++)
     {
-        AcpiOsPrintf ("%d ", DmaData->Channels[Index]);
+        AcpiOsPrintf ("%X ", DmaData->Channels[Index]);
     }
 
     AcpiOsPrintf (")\n");
@@ -341,16 +341,16 @@ AcpiRsDumpIo (
     AcpiOsPrintf ("\t\t%d bit decode\n",
                 DECODE_16 == IoData->IoDecode ? 16 : 10);
 
-    AcpiOsPrintf ("\t\tRange minimum base: 0x%08x\n",
+    AcpiOsPrintf ("\t\tRange minimum base: %08X\n",
                 IoData->MinBaseAddress);
 
-    AcpiOsPrintf ("\t\tRange maximum base: 0x%08x\n",
+    AcpiOsPrintf ("\t\tRange maximum base: %08X\n",
                 IoData->MaxBaseAddress);
 
-    AcpiOsPrintf ("\t\tAlignment: 0x%08x\n",
+    AcpiOsPrintf ("\t\tAlignment: %08X\n",
                 IoData->Alignment);
 
-    AcpiOsPrintf ("\t\tRange Length: 0x%08x\n",
+    AcpiOsPrintf ("\t\tRange Length: %08X\n",
                 IoData->RangeLength);
 
     return;
@@ -377,10 +377,10 @@ AcpiRsDumpFixedIo (
 
 
     AcpiOsPrintf ("\tFixed Io Resource\n");
-    AcpiOsPrintf ("\t\tRange base address: 0x%08x",
+    AcpiOsPrintf ("\t\tRange base address: %08X",
                 FixedIoData->BaseAddress);
 
-    AcpiOsPrintf ("\t\tRange length: 0x%08x",
+    AcpiOsPrintf ("\t\tRange length: %08X",
                 FixedIoData->RangeLength);
 
     return;
@@ -409,11 +409,11 @@ AcpiRsDumpVendorSpecific (
 
     AcpiOsPrintf ("\tVendor Specific Resource\n");
 
-    AcpiOsPrintf ("\t\tLength: 0x%08x\n", VendorData->Length);
+    AcpiOsPrintf ("\t\tLength: %08X\n", VendorData->Length);
 
     for (Index = 0; Index < VendorData->Length; Index++)
     {
-        AcpiOsPrintf ("\t\tByte %d: 0x%08x\n",
+        AcpiOsPrintf ("\t\tByte %X: %08X\n",
                     Index, VendorData->Reserved[Index]);
     }
 
@@ -447,16 +447,16 @@ AcpiRsDumpMemory24 (
                 Memory24Data->ReadWriteAttribute ?
                 "/Write" : " only");
 
-    AcpiOsPrintf ("\t\tRange minimum base: 0x%08x\n",
+    AcpiOsPrintf ("\t\tRange minimum base: %08X\n",
                 Memory24Data->MinBaseAddress);
 
-    AcpiOsPrintf ("\t\tRange maximum base: 0x%08x\n",
+    AcpiOsPrintf ("\t\tRange maximum base: %08X\n",
                 Memory24Data->MaxBaseAddress);
 
-    AcpiOsPrintf ("\t\tAlignment: 0x%08x\n",
+    AcpiOsPrintf ("\t\tAlignment: %08X\n",
                 Memory24Data->Alignment);
 
-    AcpiOsPrintf ("\t\tRange length: 0x%08x\n",
+    AcpiOsPrintf ("\t\tRange length: %08X\n",
                 Memory24Data->RangeLength);
 
     return;
@@ -489,16 +489,16 @@ AcpiRsDumpMemory32 (
                 Memory32Data->ReadWriteAttribute ?
                 "/Write" : " only");
 
-    AcpiOsPrintf ("\t\tRange minimum base: 0x%08x\n",
+    AcpiOsPrintf ("\t\tRange minimum base: %08X\n",
                 Memory32Data->MinBaseAddress);
 
-    AcpiOsPrintf ("\t\tRange maximum base: 0x%08x\n",
+    AcpiOsPrintf ("\t\tRange maximum base: %08X\n",
                 Memory32Data->MaxBaseAddress);
 
-    AcpiOsPrintf ("\t\tAlignment: 0x%08x\n",
+    AcpiOsPrintf ("\t\tAlignment: %08X\n",
                 Memory32Data->Alignment);
 
-    AcpiOsPrintf ("\t\tRange length: 0x%08x\n",
+    AcpiOsPrintf ("\t\tRange length: %08X\n",
                 Memory32Data->RangeLength);
 
     return;
@@ -531,10 +531,10 @@ AcpiRsDumpFixedMemory32 (
                 FixedMemory32Data->ReadWriteAttribute ?
                 "/Write" : " Only");
 
-    AcpiOsPrintf ("\t\tRange base address: 0x%08x\n",
+    AcpiOsPrintf ("\t\tRange base address: %08X\n",
                 FixedMemory32Data->RangeBaseAddress);
 
-    AcpiOsPrintf ("\t\tRange length: 0x%08x\n",
+    AcpiOsPrintf ("\t\tRange length: %08X\n",
                 FixedMemory32Data->RangeLength);
 
     return;
@@ -658,24 +658,24 @@ AcpiRsDumpAddress16 (
                 ADDRESS_FIXED == Address16Data->MaxAddressFixed ?
                 "" : "not");
 
-    AcpiOsPrintf ("\t\tGranularity: 0x%08x\n",
+    AcpiOsPrintf ("\t\tGranularity: %08X\n",
                 Address16Data->Granularity);
 
-    AcpiOsPrintf ("\t\tAddress range min: 0x%08x\n",
+    AcpiOsPrintf ("\t\tAddress range min: %08X\n",
                 Address16Data->MinAddressRange);
 
-    AcpiOsPrintf ("\t\tAddress range max: 0x%08x\n",
+    AcpiOsPrintf ("\t\tAddress range max: %08X\n",
                 Address16Data->MaxAddressRange);
 
-    AcpiOsPrintf ("\t\tAddress translation offset: 0x%08x\n",
+    AcpiOsPrintf ("\t\tAddress translation offset: %08X\n",
                 Address16Data->AddressTranslationOffset);
 
-    AcpiOsPrintf ("\t\tAddress Length: 0x%08x\n",
+    AcpiOsPrintf ("\t\tAddress Length: %08X\n",
                 Address16Data->AddressLength);
 
     if (0xFF != Address16Data->ResourceSourceIndex)
     {
-        AcpiOsPrintf ("\t\tResource Source Index: %d\n",
+        AcpiOsPrintf ("\t\tResource Source Index: %X\n",
                     Address16Data->ResourceSourceIndex);
         AcpiOsPrintf ("\t\tResource Source: %s\n",
                     Address16Data->ResourceSource);
@@ -801,24 +801,24 @@ AcpiRsDumpAddress32 (
                 ADDRESS_FIXED == Address32Data->MaxAddressFixed ?
                 "" : "not ");
 
-    AcpiOsPrintf ("\t\tGranularity: 0x%08x\n",
+    AcpiOsPrintf ("\t\tGranularity: %08X\n",
                 Address32Data->Granularity);
 
-    AcpiOsPrintf ("\t\tAddress range min: 0x%08x\n",
+    AcpiOsPrintf ("\t\tAddress range min: %08X\n",
                 Address32Data->MinAddressRange);
 
-    AcpiOsPrintf ("\t\tAddress range max: 0x%08x\n",
+    AcpiOsPrintf ("\t\tAddress range max: %08X\n",
                 Address32Data->MaxAddressRange);
 
-    AcpiOsPrintf ("\t\tAddress translation offset: 0x%08x\n",
+    AcpiOsPrintf ("\t\tAddress translation offset: %08X\n",
                 Address32Data->AddressTranslationOffset);
 
-    AcpiOsPrintf ("\t\tAddress Length: 0x%08x\n",
+    AcpiOsPrintf ("\t\tAddress Length: %08X\n",
                 Address32Data->AddressLength);
 
     if(0xFF != Address32Data->ResourceSourceIndex)
     {
-        AcpiOsPrintf ("\t\tResource Source Index: %d\n",
+        AcpiOsPrintf ("\t\tResource Source Index: %X\n",
                     Address32Data->ResourceSourceIndex);
         AcpiOsPrintf ("\t\tResource Source: %s\n",
                     Address32Data->ResourceSource);
@@ -866,19 +866,19 @@ AcpiRsDumpExtendedIrq (
                 SHARED == ExtIrqData->SharedExclusive ?
                 "Shared" : "Exclusive");
 
-    AcpiOsPrintf ("\t\tInterrupts : %d ( ",
+    AcpiOsPrintf ("\t\tInterrupts : %X ( ",
                 ExtIrqData->NumberOfInterrupts);
 
     for (Index = 0; Index < ExtIrqData->NumberOfInterrupts; Index++)
     {
-        AcpiOsPrintf ("%d ", ExtIrqData->Interrupts[Index]);
+        AcpiOsPrintf ("%X ", ExtIrqData->Interrupts[Index]);
     }
 
     AcpiOsPrintf (")\n");
 
     if(0xFF != ExtIrqData->ResourceSourceIndex)
     {
-        AcpiOsPrintf ("\t\tResource Source Index: %d",
+        AcpiOsPrintf ("\t\tResource Source Index: %X",
                     ExtIrqData->ResourceSourceIndex);
         AcpiOsPrintf ("\t\tResource Source: %s",
                     ExtIrqData->ResourceSource);
@@ -1017,16 +1017,16 @@ AcpiRsDumpIrqList (
 
         while (!Done)
         {
-            AcpiOsPrintf ("\tPCI IRQ Routing Table structure %x.\n", Count++);
+            AcpiOsPrintf ("\tPCI IRQ Routing Table structure %X.\n", Count++);
 
-            AcpiOsPrintf ("\t\tAddress: 0x%x\n",
+            AcpiOsPrintf ("\t\tAddress: %X\n",
                         PrtElement->Data.Address);
 
-            AcpiOsPrintf ("\t\tPin: 0x%x\n", PrtElement->Data.Pin);
+            AcpiOsPrintf ("\t\tPin: %X\n", PrtElement->Data.Pin);
 
             AcpiOsPrintf ("\t\tSource: %s\n", PrtElement->Data.Source);
 
-            AcpiOsPrintf ("\t\tSourceIndex: 0x%x\n",
+            AcpiOsPrintf ("\t\tSourceIndex: %X\n",
                         PrtElement->Data.SourceIndex);
 
             Buffer += PrtElement->Length;

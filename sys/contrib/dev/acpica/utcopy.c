@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmcopy - Internal to external object translation utilities
- *              $Revision: 58 $
+ *              $Revision: 59 $
  *
  *****************************************************************************/
 
@@ -445,7 +445,7 @@ AcpiCmBuildExternalPackageObject (
                  * for us to handle
                  */
                 DEBUG_PRINT (ACPI_ERROR,
-                    ("CmBuildPackageObject: Pkg nested too deep (max %d)\n",
+                    ("CmBuildPackageObject: Pkg nested too deep (max %X)\n",
                     MAX_PACKAGE_DEPTH));
                 return_ACPI_STATUS (AE_LIMIT);
             }
@@ -701,7 +701,7 @@ AcpiCmBuildInternalPackageObject (
                  * Too many nested levels of packages for us to handle
                  */
                 DEBUG_PRINT (ACPI_ERROR,
-                    ("CmBuildPackageObject: Pkg nested too deep (max %d)\n",
+                    ("CmBuildPackageObject: Pkg nested too deep (max %X)\n",
                     MAX_PACKAGE_DEPTH));
                 return_ACPI_STATUS (AE_LIMIT);
             }

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 23 $
+ *              $Revision: 24 $
  *
  *****************************************************************************/
 
@@ -860,7 +860,8 @@ AcpiDsLoad2EndOp (
 
         Status = AcpiAmlExecCreateRegion (((ACPI_PARSE2_OBJECT *) Op)->Data,
                                         ((ACPI_PARSE2_OBJECT *) Op)->Length,
-                                        Arg->Value.Integer, WalkState);
+                                        (ACPI_ADDRESS_SPACE_TYPE) Arg->Value.Integer, 
+                                        WalkState);
 
         DEBUG_PRINT (TRACE_DISPATCH,
             ("Completed OpRegion Init, Op=%p State=%p entry=%p\n",

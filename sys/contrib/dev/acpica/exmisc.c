@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: ammisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 70 $
+ *              $Revision: 71 $
  *
  *****************************************************************************/
 
@@ -178,7 +178,7 @@ AcpiAmlExecFatal (
         /* Invalid parameters on object stack  */
 
         DEBUG_PRINT (ACPI_ERROR,
-            ("AcpiAmlExecFatal/AML_FATAL_OP: bad operand(s) (0x%X)\n",
+            ("AcpiAmlExecFatal/AML_FATAL_OP: bad operand(s) (Status=%X)\n",
             Status));
 
         goto Cleanup;
@@ -271,7 +271,7 @@ AcpiAmlExecIndex (
         /* Invalid parameters on object stack  */
 
         DEBUG_PRINT (ACPI_ERROR,
-            ("AcpiAmlExecIndex/AML_INDEX_OP: bad operand(s) (0x%X)\n",
+            ("AcpiAmlExecIndex/AML_INDEX_OP: bad operand(s) (Status=%X)\n",
             Status));
 
         goto Cleanup;
@@ -452,7 +452,7 @@ AcpiAmlExecMatch (
         /* Invalid parameters on object stack  */
 
         DEBUG_PRINT (ACPI_ERROR,
-            ("ExecMatch/AML_MATCH_OP: bad operand(s) (0x%X)\n",
+            ("ExecMatch/AML_MATCH_OP: bad operand(s) (Status=%X)\n",
             Status));
 
         goto Cleanup;

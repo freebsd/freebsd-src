@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisasm - parser op tree display routines
- *              $Revision: 33 $
+ *              $Revision: 34 $
  *
  ******************************************************************************/
 
@@ -778,9 +778,10 @@ AcpiDbDisplayOpcode (
 
 #ifndef PARSER_ONLY
         if ((Op->Opcode == AML_RETURN_VALUE_OP) &&
-            (WalkState->NumResults))
+            (WalkState->Results) &&
+            (WalkState->Results->Results.NumResults))
         {
-            AcpiDbDecodeInternalObject (WalkState->Results [WalkState->NumResults-1]);
+            AcpiDbDecodeInternalObject (WalkState->Results->Results.ObjDesc [WalkState->Results->Results.NumResults-1]);
         }
 #endif
 

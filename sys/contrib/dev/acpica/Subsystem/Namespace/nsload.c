@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsload - namespace loading/expanding/contracting procedures
- *              $Revision: 32 $
+ *              $Revision: 33 $
  *
  *****************************************************************************/
 
@@ -179,7 +179,7 @@ AcpiNsLoadNamespace (
 
 
     DEBUG_PRINT_RAW (ACPI_OK,
-        ("ACPI Namespace successfully loaded at root 0x%p\n",
+        ("ACPI Namespace successfully loaded at root %p\n",
         AcpiGbl_RootNode));
 
 

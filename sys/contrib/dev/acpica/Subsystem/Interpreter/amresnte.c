@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amresnte - AML Interpreter object resolution
- *              $Revision: 24 $
+ *              $Revision: 25 $
  *
  *****************************************************************************/
 
@@ -218,8 +218,7 @@ AcpiAmlResolveNodeToValue (
      *  and Method locals and arguments have a pseudo-Node
      */
     if (EntryType == ACPI_TYPE_DEVICE ||
-        EntryType == INTERNAL_TYPE_METHOD_ARGUMENT ||
-        EntryType == INTERNAL_TYPE_METHOD_LOCAL_VAR)
+        (Node->Flags & (ANOBJ_METHOD_ARG | ANOBJ_METHOD_LOCAL)))
     {
         return_ACPI_STATUS (AE_OK);
     }

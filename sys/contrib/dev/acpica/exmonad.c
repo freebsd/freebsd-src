@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: ammonad - ACPI AML (p-code) execution for monadic operators
- *              $Revision: 83 $
+ *              $Revision: 85 $
  *
  *****************************************************************************/
 
@@ -256,8 +256,8 @@ AcpiAmlExecMonadic1 (
     if (ACPI_FAILURE (Status))
     {
         DEBUG_PRINT (ACPI_ERROR,
-            ("ExecMonadic1/%s: bad operand(s) (0x%X)\n",
-            AcpiPsGetOpcodeName (Opcode), Status));
+            ("ExecMonadic1/%s: bad operand(s) (Status=%s)\n",
+            AcpiPsGetOpcodeName (Opcode), AcpiCmFormatException(Status)));
 
         goto Cleanup;
     }
@@ -378,8 +378,8 @@ AcpiAmlExecMonadic2R (
     if (ACPI_FAILURE (Status))
     {
         DEBUG_PRINT (ACPI_ERROR,
-            ("ExecMonadic2R/%s: bad operand(s) (0x%X)\n",
-            AcpiPsGetOpcodeName (Opcode), Status));
+            ("ExecMonadic2R/%s: bad operand(s) (Status=%s)\n",
+            AcpiPsGetOpcodeName (Opcode), AcpiCmFormatException(Status)));
 
         goto Cleanup;
     }
@@ -783,8 +783,8 @@ AcpiAmlExecMonadic2 (
         if (ACPI_FAILURE (Status))
         {
             DEBUG_PRINT (ACPI_ERROR,
-                ("ExecMonadic2/%s: bad operand(s) (0x%X)\n",
-                AcpiPsGetOpcodeName (Opcode), Status));
+                ("ExecMonadic2/%s: bad operand(s) (Status=%s)\n",
+                AcpiPsGetOpcodeName (Opcode), AcpiCmFormatException(Status)));
 
             goto Cleanup;
         }
@@ -947,7 +947,7 @@ AcpiAmlExecMonadic2 (
             default:
 
                 DEBUG_PRINT (ACPI_ERROR,
-                    ("AmlExecMonadic2: Not Buf/Str/Pkg - found type 0x%X\n",
+                    ("AmlExecMonadic2: Not Buf/Str/Pkg - found type %X\n",
                     ObjDesc->Common.Type));
                 Status = AE_AML_OPERAND_TYPE;
                 goto Cleanup;

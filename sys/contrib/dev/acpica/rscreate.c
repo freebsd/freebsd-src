@@ -3,7 +3,7 @@
  * Module Name: rscreate - AcpiRsCreateResourceList
  *                         AcpiRsCreatePciRoutingTable
  *                         AcpiRsCreateByteStream
- *              $Revision: 21 $
+ *              $Revision: 22 $
  *
  ******************************************************************************/
 
@@ -181,7 +181,7 @@ AcpiRsCreateResourceList (
                                         &ListSizeNeeded);
 
     DEBUG_PRINT (VERBOSE_INFO,
-        ("RsCreateResourceList: Status=%d ListSizeNeeded=%d\n",
+        ("RsCreateResourceList: Status=%X ListSizeNeeded=%X\n",
         Status, ListSizeNeeded));
 
     /*
@@ -280,7 +280,7 @@ AcpiRsCreatePciRoutingTable (
                                                   &BufferSizeNeeded);
 
     DEBUG_PRINT (VERBOSE_INFO,
-        ("RsCreatePciRoutingTable: BufferSizeNeeded = %d\n",
+        ("RsCreatePciRoutingTable: BufferSizeNeeded = %X\n",
         BufferSizeNeeded));
 
     /*
@@ -500,7 +500,7 @@ AcpiRsCreateByteStream (
                                               &ByteStreamSizeNeeded);
 
     DEBUG_PRINT (VERBOSE_INFO,
-        ("RsCreateByteStream: ByteStreamSizeNeeded=%d, %s\n",
+        ("RsCreateByteStream: ByteStreamSizeNeeded=%X, %s\n",
         ByteStreamSizeNeeded,
         AcpiCmFormatException (Status)));
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbutils - AML debugger utilities
- *              $Revision: 32 $
+ *              $Revision: 33 $
  *
  ******************************************************************************/
 
@@ -183,7 +183,7 @@ AcpiDbDumpBuffer (
     UINT32                  Address)
 {
 
-    AcpiOsPrintf ("\nLocation 0x%X:\n", Address);
+    AcpiOsPrintf ("\nLocation %X:\n", Address);
 
     AcpiDbgLevel |= TRACE_TABLES;
     AcpiCmDumpBuffer ((UINT8 *) Address, 64, DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
@@ -231,7 +231,7 @@ AcpiDbDumpObject (
 
 
     case ACPI_TYPE_NUMBER:
-        AcpiOsPrintf ("[Number]  Value: %ld (0x%lX)\n", ObjDesc->Number.Value, ObjDesc->Number.Value);
+        AcpiOsPrintf ("[Number]  Value: %ld (%lX)\n", ObjDesc->Number.Value, ObjDesc->Number.Value);
         break;
 
 
@@ -278,7 +278,7 @@ AcpiDbDumpObject (
 
     default:
 
-        AcpiOsPrintf ("[Unknown Type] 0x%X \n", ObjDesc->Type);
+        AcpiOsPrintf ("[Unknown Type] %X \n", ObjDesc->Type);
         break;
     }
 }
