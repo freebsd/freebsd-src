@@ -42,27 +42,6 @@ Reset:          Clear all currently selected distributions.
 
 ---
 
-When using Custom, most of the sub-distribution choices are fairly
-obvious, though two possible exceptions may be the "commerce" and
-"xperimnt" distributions:
-
-        * The "commerce" directory, as its name implies, is devoted to
-        commercial offerings.  This includes commercial products released
-        under special arrangement, limited functionality demos, shareware
-        products (you like it, you buy it), etc.
-
-        * The "xperimnt" directory contains, not surprisingly, experimental
-        offerings.  Unfinished (or work-in-progress) features, special
-        purpose drivers and packages, strange proof-of-concept stuff,
-        it's a mixed bag!  Select this item on a distribution menu and
-        you'll get the whole collection (between 10 and 30MB).
-
-
-        If you're installing from a 2 disc CDROM set then all of the
-        commercial and "experimental" offerings are also available already
-        installed on the 2nd "live filesystem" CD.
-
-
 ENCRYPTION SOFTWARE:
 --------------------
 You may notice that certain distributions, like "des" and "krb",
