@@ -313,7 +313,7 @@ extern int		DebugFD;		/* Where diagnostic output goes			*/
 extern Boolean		Fake;			/* Don't actually modify anything - testing	*/
 extern Boolean		SystemWasInstalled;	/* Did we install it?				*/
 extern Boolean		RunningAsInit;		/* Are we running stand-alone?			*/
-extern Boolean		Chrooted;		/* Yow, are we chrooted yet?			*/
+extern Boolean		Chrooted;		/* Are we chroot()ed?			*/
 extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
 extern Boolean		ColorDisplay;		/* Are we on a color display?			*/
 extern Boolean		OnVTY;			/* On a syscons VTY?				*/
