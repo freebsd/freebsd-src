@@ -38,6 +38,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include "collate.h"
 #include "regmagic.h"
 
 /*
@@ -181,27 +182,9 @@ STATIC void regc();
 STATIC void reginsert();
 STATIC void regtail();
 STATIC void regoptail();
-STATIC int  collate_range_cmp();
 #ifdef STRCSPN
 STATIC int strcspn();
 #endif
-
-static int collate_range_cmp (c1, c2)
-	int c1, c2;
-{
-	static char s1[2], s2[2];
-	int ret;
-
-	c1 &= UCHAR_MAX;
-	c2 &= UCHAR_MAX;
-	if (c1 == c2)
-		return (0);
-	s1[0] = c1;
-	s2[0] = c2;
-	if ((ret = strcoll(s1, s2)) != 0)
-		return (ret);
-	return (c1 - c2);
-}
 
 /*
  - regcomp - compile a regular expression into internal code
@@ -525,14 +508,21 @@ int *flagp;
 					else {
 						class = UCHARAT(regparse-2);
 						classend = UCHARAT(regparse);
-						if (collate_range_cmp(class, classend) > 0)
-							FAIL("invalid [] range");
-						for (i = 0; i <= UCHAR_MAX; i++)
-							if (   i != class
-							    && collate_range_cmp(class, i) <= 0
-							    && collate_range_cmp(i, classend) <= 0
-							   )
-								regc(i);
+						if (__collate_load_error) {
+							if (class > classend)
+								FAIL("invalid [] range");
+							for (class++; class <= classend; class++)
+								regc(class);
+						} else {
+							if (__collate_range_cmp(class, classend) > 0)
+								FAIL("invalid [] range");
+							for (i = 0; i <= UCHAR_MAX; i++)
+								if (   i != class
+								    && __collate_range_cmp(class, i) <= 0
+								    && __collate_range_cmp(i, classend) <= 0
+								   )
+									regc(i);
+						}
 						regparse++;
 					}
 				} else
