@@ -379,9 +379,6 @@ extern	int crypto_devallowsoft;	/* only use hardware crypto */
  * XXX these don't really belong here; but for now they're
  *     kept apart from the rest of the system.
  */
-struct mbuf;
-struct	mbuf	*m_getptr(struct mbuf *, int, int *);
-
 struct uio;
 extern	void cuio_copydata(struct uio* uio, int off, int len, caddr_t cp);
 extern	void cuio_copyback(struct uio* uio, int off, int len, caddr_t cp);
