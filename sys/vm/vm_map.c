@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.174 1999/08/01 06:05:08 alc Exp $
+ * $Id: vm_map.c,v 1.175 1999/08/10 04:50:20 alc Exp $
  */
 
 /*
@@ -1005,88 +1005,113 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
  *	vm_map_madvise:
  *
  * 	This routine traverses a processes map handling the madvise
- *	system call.
+ *	system call.  Advisories are classified as either those effecting
+ *	the vm_map_entry structure, or those effecting the underlying 
+ *	objects.
  */
 void
-vm_map_madvise(map, start, end, advise)
+vm_map_madvise(map, start, end, behav)
 	vm_map_t map;
 	vm_offset_t start, end;
-	int advise;
+	int behav;
 {
-	vm_map_entry_t current;
-	vm_map_entry_t entry;
+	vm_map_entry_t current, entry;
+	int modify_map;
 
-	vm_map_lock(map);
+	modify_map = (behav == MADV_NORMAL || behav == MADV_SEQUENTIAL ||
+		      behav == MADV_RANDOM);
+
+	if (modify_map) {
+		vm_map_lock(map);
+	}
+	else
+		vm_map_lock_read(map);
 
 	VM_MAP_RANGE_CHECK(map, start, end);
 
 	if (vm_map_lookup_entry(map, start, &entry)) {
-		vm_map_clip_start(map, entry, start);
+		if (modify_map)
+			vm_map_clip_start(map, entry, start);
 	} else
 		entry = entry->next;
 
-	for(current = entry;
-		(current != &map->header) && (current->start < end);
-		current = current->next) {
+	if (modify_map) {
+		/*
+		 * madvise behaviors that are implemented in the vm_map_entry.
+		 *
+		 * We clip the vm_map_entry so that behavioral changes are
+		 * limited to the specified address range.
+		 */
+		for (current = entry;
+		     (current != &map->header) && (current->start < end);
+		     current = current->next) {
 
-		if (current->eflags & MAP_ENTRY_IS_SUB_MAP) {
-			continue;
-		}
+			if (current->eflags & MAP_ENTRY_IS_SUB_MAP)
+				continue;
 
-		vm_map_clip_end(map, current, end);
+			vm_map_clip_end(map, current, end);
 
-		switch (advise) {
-		case MADV_NORMAL:
-			vm_map_entry_set_behavior(current, MAP_ENTRY_BEHAV_NORMAL);
-			break;
-		case MADV_SEQUENTIAL:
-			vm_map_entry_set_behavior(current, MAP_ENTRY_BEHAV_SEQUENTIAL);
-			break;
-		case MADV_RANDOM:
-			vm_map_entry_set_behavior(current, MAP_ENTRY_BEHAV_RANDOM);
-			break;
-	/*
-	 * Right now, we could handle DONTNEED and WILLNEED with common code.
-	 * They are mostly the same, except for the potential async reads (NYI).
-	 */
-	case MADV_FREE:
-	case MADV_DONTNEED:
-			{
-				vm_pindex_t pindex;
-				int count;
-				pindex = OFF_TO_IDX(current->offset);
-				count = OFF_TO_IDX(current->end - current->start);
-				/*
-				 * MADV_DONTNEED removes the page from all
-				 * pmaps, so pmap_remove is not necessary.
-				 */
-				vm_object_madvise(current->object.vm_object,
-					pindex, count, advise);
+			switch (behav) {
+			case MADV_NORMAL:
+				vm_map_entry_set_behavior(current, MAP_ENTRY_BEHAV_NORMAL);
+				break;
+			case MADV_SEQUENTIAL:
+				vm_map_entry_set_behavior(current, MAP_ENTRY_BEHAV_SEQUENTIAL);
+				break;
+			case MADV_RANDOM:
+				vm_map_entry_set_behavior(current, MAP_ENTRY_BEHAV_RANDOM);
+				break;
+			default:
+				break;
 			}
-			break;
-
-	case MADV_WILLNEED:
-			{
-				vm_pindex_t pindex;
-				int count;
-				pindex = OFF_TO_IDX(current->offset);
-				count = OFF_TO_IDX(current->end - current->start);
-				vm_object_madvise(current->object.vm_object,
-					pindex, count, advise);
-				pmap_object_init_pt(map->pmap, current->start,
-					current->object.vm_object, pindex,
-					(count << PAGE_SHIFT), 0);
-			}
-			break;
-
-	default:
-			break;
+			vm_map_simplify_entry(map, current);
 		}
+		vm_map_unlock(map);
 	}
+	else {
+		if (behav == MADV_FREE || behav == MADV_DONTNEED ||
+		    behav == MADV_WILLNEED) {
+			vm_pindex_t pindex;
+			int count;
 
-	vm_map_simplify_entry(map, entry);
-	vm_map_unlock(map);
-	return;
+			/*
+			 * madvise behaviors that are implemented in the underlying
+			 * vm_object.
+			 *
+			 * Since we don't clip the vm_map_entry, we have to clip
+			 * the vm_object pindex and count.
+			 */
+			for (current = entry;
+			     (current != &map->header) && (current->start < end);
+			     current = current->next) {
+
+				if (current->eflags & MAP_ENTRY_IS_SUB_MAP)
+					continue;
+
+				pindex = OFF_TO_IDX(current->offset);
+				count = atop(current->end - current->start);
+
+				if (current->start < start) {
+					pindex += atop(start - current->start);
+					count -= atop(start - current->start);
+				}
+				if (current->end > end)
+					count -= atop(current->end - end);
+
+				if (count <= 0)
+					continue;
+
+				vm_object_madvise(current->object.vm_object,
+						  pindex, count, behav);
+				if (behav == MADV_WILLNEED)
+					pmap_object_init_pt(map->pmap, current->start,
+							    current->object.vm_object,
+							    pindex, (count << PAGE_SHIFT),
+							    0);
+			}
+		}
+		vm_map_unlock_read(map);
+	}
 }	
 
 
