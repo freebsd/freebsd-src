@@ -51,6 +51,7 @@ struct bsdtar {
 	int		  bytes_per_block; /* -b block_size */
 	int		  verbose;   /* -v */
 	int		  extract_flags; /* Flags for extract operation */
+	char		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
 	char		  symlink_mode; /* H or L, per BSD conventions */
 	char		  create_compression; /* j, y, or z */
 	char		  option_absolute_paths; /* -P */
