@@ -37,7 +37,8 @@
 
 #define _SEM_CHECK_VALIDITY(sem)		\
 	if ((*(sem))->magic != SEM_MAGIC) {	\
-		retval = EINVAL;		\
+		errno = EINVAL;			\
+		retval = -1;			\
 		goto RETURN;			\
 	}
 
@@ -55,34 +56,39 @@ sem_init(sem_t *sem, int pshared, unsigned int value)
 		 * processes, which this implementation can't do.  Sounds like a
 		 * permissions problem to me (yeah right).
 		 */
-		retval = EPERM;
+		errno = EPERM;
+		retval = -1;
 		goto RETURN;
 	}
 
 	if (value > SEM_VALUE_MAX) {
-		retval = EINVAL;
+		errno = EINVAL;
+		retval = -1;
 		goto RETURN;
 	}
 
 	*sem = (sem_t)malloc(sizeof(struct sem));
 	if (*sem == NULL) {
-		retval = ENOSPC;
+		errno = ENOSPC;
+		retval = -1;
 		goto RETURN;
 	}
 
 	/*
 	 * Initialize the semaphore.
 	 */
-	retval = pthread_mutex_init(&(*sem)->lock, NULL);
-	if (retval != 0) {
+	if (pthread_mutex_init(&(*sem)->lock, NULL) != 0) {
 		free(*sem);
+		errno = ENOSPC;
+		retval = -1;
 		goto RETURN;
 	}
 
-	retval = pthread_cond_init(&(*sem)->gtzero, NULL);
-	if (retval != 0) {
+	if (pthread_cond_init(&(*sem)->gtzero, NULL) != 0) {
 		pthread_mutex_destroy(&(*sem)->lock);
 		free(*sem);
+		errno = ENOSPC;
+		retval = -1;
 		goto RETURN;
 	}
 	
@@ -90,6 +96,7 @@ sem_init(sem_t *sem, int pshared, unsigned int value)
 	(*sem)->nwaiters = 0;
 	(*sem)->magic = SEM_MAGIC;
 
+	retval = 0;
   RETURN:
 	return retval;
 }
@@ -105,7 +112,8 @@ sem_destroy(sem_t *sem)
 	pthread_mutex_lock(&(*sem)->lock);
 	if ((*sem)->nwaiters > 0) {
 		pthread_mutex_unlock(&(*sem)->lock);
-		retval = EBUSY;
+		errno = EBUSY;
+		retval = -1;
 		goto RETURN;
 	}
 	pthread_mutex_unlock(&(*sem)->lock);
@@ -122,7 +130,7 @@ sem_destroy(sem_t *sem)
 }
 
 sem_t *
-sem_open(const char * name, int oflag, ...)
+sem_open(const char *name, int oflag, ...)
 {
 	errno = ENOSYS;
 	return SEM_FAILED;
@@ -146,7 +154,7 @@ int
 sem_wait(sem_t *sem)
 {
 	int	retval;
-	
+
 	_thread_enter_cancellation_point();
 	
 	_SEM_CHECK_VALIDITY(sem);
@@ -180,9 +188,11 @@ sem_trywait(sem_t *sem)
 	if ((*sem)->count > 0) {
 		(*sem)->count--;
 		retval = 0;
-	} else
-		retval = EAGAIN;
-
+	} else {
+		errno = EAGAIN;
+		retval = -1;
+	}
+	
 	pthread_mutex_unlock(&(*sem)->lock);
 
   RETURN:
@@ -199,8 +209,15 @@ sem_post(sem_t *sem)
 	pthread_mutex_lock(&(*sem)->lock);
 
 	(*sem)->count++;
-	if ((*sem)->nwaiters > 0)
-		pthread_cond_signal(&(*sem)->gtzero);
+	if ((*sem)->nwaiters > 0) {
+		/*
+		 * We must use pthread_cond_broadcast() rather than
+		 * pthread_cond_signal() in order to assure that the highest
+		 * priority thread is run by the scheduler, since
+		 * pthread_cond_signal() signals waiting threads in FIFO order.
+		 */
+		pthread_cond_broadcast(&(*sem)->gtzero);
+	}
 
 	pthread_mutex_unlock(&(*sem)->lock);
 
