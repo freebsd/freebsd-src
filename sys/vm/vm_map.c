@@ -211,7 +211,7 @@ vm_map_zinit(void *mem, int size)
 	map->nentries = 0;
 	map->size = 0;
 	map->infork = 0;
-	mtx_init(&map->system_mtx, "system map", NULL, MTX_DEF);
+	mtx_init(&map->system_mtx, "system map", NULL, MTX_DEF | MTX_DUPOK);
 	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
 }
 
@@ -543,7 +543,7 @@ void
 vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 {
 	_vm_map_init(map, min, max);
-	mtx_init(&map->system_mtx, "system map", NULL, MTX_DEF);
+	mtx_init(&map->system_mtx, "system map", NULL, MTX_DEF | MTX_DUPOK);
 	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
 }
 
