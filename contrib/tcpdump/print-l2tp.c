@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-l2tp.c,v 1.10 2001/11/10 21:37:58 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-l2tp.c,v 1.10.2.1 2002/05/25 09:47:07 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -38,6 +38,7 @@ static const char rcsid[] =
 
 #include "l2tp.h"
 #include "interface.h"
+#include "extract.h"
 
 static char tstr[] = " [|l2tp]";
 
@@ -263,13 +264,13 @@ print_octets(const u_char *dat, u_int length)
 static void
 print_16bits_val(const u_int16_t *dat)
 {
-	printf("%u", ntohs(*dat));
+	printf("%u", EXTRACT_16BITS(dat));
 }
 
 static void
 print_32bits_val(const u_int32_t *dat)
 {
-	printf("%lu", (u_long)ntohl(*dat));
+	printf("%lu", (u_long)EXTRACT_32BITS(dat));
 }
 
 /***********************************/
@@ -280,7 +281,8 @@ l2tp_msgtype_print(const u_char *dat)
 {
 	u_int16_t *ptr = (u_int16_t*)dat;
 
-	printf("%s", tok2str(l2tp_msgtype2str, "MSGTYPE-#%u", ntohs(*ptr)));
+	printf("%s", tok2str(l2tp_msgtype2str, "MSGTYPE-#%u",
+	    EXTRACT_16BITS(ptr)));
 }
 
 static void
@@ -288,11 +290,11 @@ l2tp_result_code_print(const u_char *dat, u_int length)
 {
 	u_int16_t *ptr = (u_int16_t *)dat;
 	
-	printf("%u", ntohs(*ptr++));		/* Result Code */
-	if (length > 2) {			/* Error Code (opt) */
-		printf("/%u", ntohs(*ptr++));	
+	printf("%u", EXTRACT_16BITS(ptr)); ptr++;	/* Result Code */
+	if (length > 2) {				/* Error Code (opt) */
+	        printf("/%u", EXTRACT_16BITS(ptr)); ptr++;
 	}
-	if (length > 4) {			/* Error Message (opt) */
+	if (length > 4) {				/* Error Message (opt) */
 		printf(" ");
 		print_string((u_char *)ptr, length - 4);
 	}
@@ -301,7 +303,8 @@ l2tp_result_code_print(const u_char *dat, u_int length)
 static void
 l2tp_proto_ver_print(const u_int16_t *dat)
 {
-	printf("%u.%u", (ntohs(*dat) >> 8), (ntohs(*dat) & 0xff));
+	printf("%u.%u", (EXTRACT_16BITS(dat) >> 8),
+	    (EXTRACT_16BITS(dat) & 0xff));
 }
 
 static void
@@ -309,10 +312,10 @@ l2tp_framing_cap_print(const u_char *dat)
 {
 	u_int32_t *ptr = (u_int32_t *)dat;
 
-	if (ntohl(*ptr) &  L2TP_FRAMING_CAP_ASYNC_MASK) {
+	if (EXTRACT_32BITS(ptr) &  L2TP_FRAMING_CAP_ASYNC_MASK) {
 		printf("A");
 	}
-	if (ntohl(*ptr) &  L2TP_FRAMING_CAP_SYNC_MASK) {
+	if (EXTRACT_32BITS(ptr) &  L2TP_FRAMING_CAP_SYNC_MASK) {
 		printf("S");
 	}
 }
@@ -322,10 +325,10 @@ l2tp_bearer_cap_print(const u_char *dat)
 {
 	u_int32_t *ptr = (u_int32_t *)dat;
 
-	if (ntohl(*ptr) &  L2TP_BEARER_CAP_ANALOG_MASK) {
+	if (EXTRACT_32BITS(ptr) &  L2TP_BEARER_CAP_ANALOG_MASK) {
 		printf("A");
 	}
-	if (ntohl(*ptr) &  L2TP_BEARER_CAP_DIGITAL_MASK) {
+	if (EXTRACT_32BITS(ptr) &  L2TP_BEARER_CAP_DIGITAL_MASK) {
 		printf("D");
 	}
 }
@@ -346,10 +349,10 @@ l2tp_bearer_type_print(const u_char *dat)
 {
 	u_int32_t *ptr = (u_int32_t *)dat;
 
-	if (ntohl(*ptr) &  L2TP_BEARER_TYPE_ANALOG_MASK) {
+	if (EXTRACT_32BITS(ptr) &  L2TP_BEARER_TYPE_ANALOG_MASK) {
 		printf("A");
 	}
-	if (ntohl(*ptr) &  L2TP_BEARER_TYPE_DIGITAL_MASK) {
+	if (EXTRACT_32BITS(ptr) &  L2TP_BEARER_TYPE_DIGITAL_MASK) {
 		printf("D");
 	}
 }
@@ -359,10 +362,10 @@ l2tp_framing_type_print(const u_char *dat)
 {
 	u_int32_t *ptr = (u_int32_t *)dat;
 
-	if (ntohl(*ptr) &  L2TP_FRAMING_TYPE_ASYNC_MASK) {
+	if (EXTRACT_32BITS(ptr) &  L2TP_FRAMING_TYPE_ASYNC_MASK) {
 		printf("A");
 	}
-	if (ntohl(*ptr) &  L2TP_FRAMING_TYPE_SYNC_MASK) {
+	if (EXTRACT_32BITS(ptr) &  L2TP_FRAMING_TYPE_SYNC_MASK) {
 		printf("S");
 	}
 }
@@ -379,7 +382,7 @@ l2tp_proxy_auth_type_print(const u_char *dat)
 	u_int16_t *ptr = (u_int16_t *)dat;
 
 	printf("%s", tok2str(l2tp_authentype2str, 
-			     "AuthType-#%u", ntohs(*ptr)));
+			     "AuthType-#%u", EXTRACT_16BITS(ptr)));
 }
 
 static void
@@ -387,7 +390,7 @@ l2tp_proxy_auth_id_print(const u_char *dat)
 {
 	u_int16_t *ptr = (u_int16_t *)dat;
 
-	printf("%u", ntohs(*ptr) & L2TP_PROXY_AUTH_ID_MASK);
+	printf("%u", EXTRACT_16BITS(ptr) & L2TP_PROXY_AUTH_ID_MASK);
 }
 
 static void
@@ -398,28 +401,28 @@ l2tp_call_errors_print(const u_char *dat)
 	
 	ptr++;		/* skip "Reserved" */
 
-	val_h = ntohs(*ptr++);
-	val_l = ntohs(*ptr++);
+	val_h = EXTRACT_16BITS(ptr); ptr++;
+	val_l = EXTRACT_16BITS(ptr); ptr++;
 	printf("CRCErr=%u ", (val_h<<16) + val_l);
 
-	val_h = ntohs(*ptr++);
-	val_l = ntohs(*ptr++);
+	val_h = EXTRACT_16BITS(ptr); ptr++;
+	val_l = EXTRACT_16BITS(ptr); ptr++;
 	printf("FrameErr=%u ", (val_h<<16) + val_l);
 
-	val_h = ntohs(*ptr++);
-	val_l = ntohs(*ptr++);
+	val_h = EXTRACT_16BITS(ptr); ptr++;
+	val_l = EXTRACT_16BITS(ptr); ptr++;
 	printf("HardOver=%u ", (val_h<<16) + val_l);
 
-	val_h = ntohs(*ptr++);
-	val_l = ntohs(*ptr++);
+	val_h = EXTRACT_16BITS(ptr); ptr++;
+	val_l = EXTRACT_16BITS(ptr); ptr++;
 	printf("BufOver=%u ", (val_h<<16) + val_l);
 
-	val_h = ntohs(*ptr++);
-	val_l = ntohs(*ptr++);
+	val_h = EXTRACT_16BITS(ptr); ptr++;
+	val_l = EXTRACT_16BITS(ptr); ptr++;
 	printf("Timeout=%u ", (val_h<<16) + val_l);
 
-	val_h = ntohs(*ptr++);
-	val_l = ntohs(*ptr++);
+	val_h = EXTRACT_16BITS(ptr); ptr++;
+	val_l = EXTRACT_16BITS(ptr); ptr++;
 	printf("AlignErr=%u ", (val_h<<16) + val_l);
 }
 
@@ -431,12 +434,12 @@ l2tp_accm_print(const u_char *dat)
 
 	ptr++;		/* skip "Reserved" */
 
-	val_h = ntohs(*ptr++);
-	val_l = ntohs(*ptr++);
+	val_h = EXTRACT_16BITS(ptr); ptr++;
+	val_l = EXTRACT_16BITS(ptr); ptr++;
 	printf("send=%08x ", (val_h<<16) + val_l);
 	
-	val_h = ntohs(*ptr++);
-	val_l = ntohs(*ptr++);
+	val_h = EXTRACT_16BITS(ptr); ptr++;
+	val_l = EXTRACT_16BITS(ptr); ptr++;
 	printf("recv=%08x ", (val_h<<16) + val_l);
 }
 
@@ -445,8 +448,8 @@ l2tp_ppp_discon_cc_print(const u_char *dat, u_int length)
 {
 	u_int16_t *ptr = (u_int16_t *)dat;
 	
-	printf("%04x, ", ntohs(*ptr++));	/* Disconnect Code */
-	printf("%04x ",  ntohs(*ptr++));	/* Control Protocol Number */
+	printf("%04x, ", EXTRACT_16BITS(ptr)); ptr++;	/* Disconnect Code */
+	printf("%04x ",  EXTRACT_16BITS(ptr)); ptr++;	/* Control Protocol Number */
 	printf("%s", tok2str(l2tp_cc_direction2str, 
 			     "Direction-#%u", *((u_char *)ptr++)));
 
@@ -471,33 +474,33 @@ l2tp_avp_print(const u_char *dat, int length)
 	printf(" ");
 
 	TCHECK(*ptr);	/* Flags & Length */
-	len = ntohs(*ptr) & L2TP_AVP_HDR_LEN_MASK;
+	len = EXTRACT_16BITS(ptr) & L2TP_AVP_HDR_LEN_MASK;
 
 	/* If it is not long enough to decode the entire AVP, we'll 
 	   abandon. */
 	TCHECK2(*ptr, len);
 	/* After this point, no need to worry about truncation */
 
-	if (ntohs(*ptr) & L2TP_AVP_HDR_FLAG_MANDATORY) {
+	if (EXTRACT_16BITS(ptr) & L2TP_AVP_HDR_FLAG_MANDATORY) {
 		printf("*");
 	}
-	if (ntohs(*ptr) & L2TP_AVP_HDR_FLAG_HIDDEN) {
+	if (EXTRACT_16BITS(ptr) & L2TP_AVP_HDR_FLAG_HIDDEN) {
 		hidden = TRUE;
 		printf("?");
 	}
 	ptr++;
 
-	if (ntohs(*ptr)) {
+	if (EXTRACT_16BITS(ptr)) {
 		/* Vendor Specific Attribute */
-		printf("VENDOR%04x:", ntohs(*ptr++));
-		printf("ATTR%04x", ntohs(*ptr++));
+	        printf("VENDOR%04x:", EXTRACT_16BITS(ptr)); ptr++;
+		printf("ATTR%04x", EXTRACT_16BITS(ptr)); ptr++;
 		printf("(");
 		print_octets((u_char *)ptr, len-6);
 		printf(")");
 	} else {
 		/* IETF-defined Attributes */ 
 		ptr++;
-		attr_type = ntohs(*ptr++);
+		attr_type = EXTRACT_16BITS(ptr); ptr++;
 		printf("%s", tok2str(l2tp_avp2str, "AVP-#%u", attr_type));
 		printf("(");
 		if (hidden) {
@@ -613,9 +616,9 @@ l2tp_print(const u_char *dat, u_int length)
 	flag_t = flag_l = flag_s = flag_o = flag_p = FALSE;
 
 	TCHECK(*ptr);	/* Flags & Version */
-	if ((ntohs(*ptr) & L2TP_VERSION_MASK) == L2TP_VERSION_L2TP) {
+	if ((EXTRACT_16BITS(ptr) & L2TP_VERSION_MASK) == L2TP_VERSION_L2TP) {
 		printf(" l2tp:");
-	} else if ((ntohs(*ptr) & L2TP_VERSION_MASK) == L2TP_VERSION_L2F) {
+	} else if ((EXTRACT_16BITS(ptr) & L2TP_VERSION_MASK) == L2TP_VERSION_L2F) {
 		printf(" l2f:");
 		return;		/* nothing to do */
 	} else {
@@ -624,23 +627,23 @@ l2tp_print(const u_char *dat, u_int length)
 	}
 
 	printf("[");
-	if (ntohs(*ptr) & L2TP_FLAG_TYPE) {
+	if (EXTRACT_16BITS(ptr) & L2TP_FLAG_TYPE) {
 		flag_t = TRUE;
 		printf("T");
 	}
-	if (ntohs(*ptr) & L2TP_FLAG_LENGTH) {
+	if (EXTRACT_16BITS(ptr) & L2TP_FLAG_LENGTH) {
 		flag_l = TRUE;
 		printf("L");
 	}
-	if (ntohs(*ptr) & L2TP_FLAG_SEQUENCE) {
+	if (EXTRACT_16BITS(ptr) & L2TP_FLAG_SEQUENCE) {
 		flag_s = TRUE;
 		printf("S");
 	}
-	if (ntohs(*ptr) & L2TP_FLAG_OFFSET) {
+	if (EXTRACT_16BITS(ptr) & L2TP_FLAG_OFFSET) {
 		flag_o = TRUE;
 		printf("O");
 	}
-	if (ntohs(*ptr) & L2TP_FLAG_PRIORITY) {
+	if (EXTRACT_16BITS(ptr) & L2TP_FLAG_PRIORITY) {
 		flag_p = TRUE;
 		printf("P");
 	}
@@ -651,31 +654,31 @@ l2tp_print(const u_char *dat, u_int length)
 	
 	if (flag_l) {
 		TCHECK(*ptr);	/* Length */
-		l2tp_len = ntohs(*ptr++);
+		l2tp_len = EXTRACT_16BITS(ptr); ptr++;
 		cnt += 2;
 	} else {
 		l2tp_len = 0;
 	}
 
 	TCHECK(*ptr);		/* Tunnel ID */
-	printf("(%u/", ntohs(*ptr++));
+	printf("(%u/", EXTRACT_16BITS(ptr)); ptr++;
 	cnt += 2;
 	TCHECK(*ptr);		/* Session ID */
-	printf("%u)",  ntohs(*ptr++));
+	printf("%u)",  EXTRACT_16BITS(ptr)); ptr++;
 	cnt += 2;
 
 	if (flag_s) {
 		TCHECK(*ptr);	/* Ns */
-		printf("Ns=%u,", ntohs(*ptr++));
+		printf("Ns=%u,", EXTRACT_16BITS(ptr)); ptr++;
 		cnt += 2;
 		TCHECK(*ptr);	/* Nr */
-		printf("Nr=%u",  ntohs(*ptr++));
+		printf("Nr=%u",  EXTRACT_16BITS(ptr)); ptr++;
 		cnt += 2;
 	}
 
 	if (flag_o) {
 		TCHECK(*ptr);	/* Offset Size */
-		pad =  ntohs(*ptr++);
+		pad =  EXTRACT_16BITS(ptr); ptr++;
 		ptr += pad / sizeof(*ptr);
 		cnt += (2 + pad);
 	}

@@ -13,6 +13,7 @@ The current maintainers:
 Additional people who have contributed patches:
 
 	Alfredo Andres			<aandres@s21sec.com>
+	Andrew Hintz			<adhintz@users.sourceforge.net>
 	Andrew Tridgell			<tridge@linuxcare.com>
 	Arkadiusz Miskiewicz 		<misiek@pld.org.pl>
 	Armando L. Caro Jr.		<acaro@mail.eecis.udel.edu>
@@ -46,13 +47,14 @@ Additional people who have contributed patches:
 	Kazushi Sugyo			<sugyo@pb.jp.nec.com>
 	Kelly Carmichael		<kcarmich@ipapp.com>
 	Ken Hornstein			<kenh@cmf.nrl.navy.mil>
-	Kevin Steves			<stevesk@sweden.hp.com>
+	Kevin Steves			<stevesk@pobox.com>
 	Klaus Klein			<kleink@reziprozitaet.de>
  	Kris Kennaway			<kris@freebsd.org>
 	Larry Lile			<lile@stdio.com>
 	Lennert Buytenhek 		<buytenh@gnu.org>
 	Love Hörnquist-Åstrand		<lha@stacken.kth.se>
 	Maciej W. Rozycki		<macro@ds2.pg.gda.pl>
+	Marc A. Lehmann			<pcg@goof.com>
 	Marko Kiiskila			<carnil@cs.tut.fi>
 	Marshall Rose			<mrose@dbc.mtview.ca.us>
 	Martin Husemann			<martin@netbsd.org>
@@ -72,11 +74,12 @@ Additional people who have contributed patches:
 	Peter Jeremy			<peter.jeremy@alcatel.com.au>
 	Rafal Maszkowski		<rzm@icm.edu.pl>
 	Rick Jones			<raj@cup.hp.com>
+	Rick Watson			<watsonrick@users.sourceforge.net>
 	Roderick Schertler		<roderick@argon.org>
 	Sebastian Krahmer		<krahmer@cs.uni-potsdam.de>
 	Seth Webster			<swebster@sst.ll.mit.edu>
 	Timo Koskiahde
-	Tony Li				<tli@jnx.com>
+	Tony Li				<tli@procket.com>
 	Uns Lider			<unslider@miranda.org>
 	Wilbert de Graaf		<wilbertdg@hetnet.nl>
 

@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/interface.h,v 1.178 2002/01/21 11:39:58 mcr Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/interface.h,v 1.178.4.2 2002/07/10 07:32:17 guy Exp $ (LBL)
  */
 
 #ifndef tcpdump_interface_h
@@ -81,8 +81,6 @@ extern int xflag;		/* print packet in hex */
 extern int Xflag;		/* print packet in hex/ascii */
 
 extern char *espsecret;
-extern struct esp_algorithm *espsecret_xform;   /* cache of decoded alg. */
-extern char                 *espsecret_key;
 
 extern int packettype;		/* as specified by -T */
 #define PT_VAT		1	/* Visual Audio Tool */
@@ -135,8 +133,16 @@ extern int snaplen;
 extern const u_char *packetp;
 extern const u_char *snapend;
 
-/* True if  "l" bytes of "var" were captured */
-#define TTEST2(var, l) ((const u_char *)&(var) <= snapend - (l))
+/*
+ * True if  "l" bytes of "var" were captured.
+ *
+ * The "snapend - (l) <= snapend" checks to make sure "l" isn't so large
+ * that "snapend - (l)" underflows.
+ *
+ * The check is for <= rather than < because "l" might be 0.
+ */
+#define TTEST2(var, l) (snapend - (l) <= snapend && \
+			(const u_char *)&(var) <= snapend - (l))
 
 /* True if "var" was captured */
 #define TTEST(var) TTEST2(var, sizeof(var))
