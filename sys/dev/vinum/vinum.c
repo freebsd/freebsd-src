@@ -213,16 +213,31 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 #ifdef VINUMDEBUG
 	if (total_malloced) {
 	    int i;
+	    int *poke;
 
-	    for (i = 0; i < malloccount; i++)
-		log(LOG_WARNING,
-		    "vinum: exiting with %d bytes malloced from %s:%d\n",
-		    malloced[i].size,
-		    malloced[i].file,
-		    malloced[i].line);
+	    for (i = 0; i < malloccount; i++) {
+		if (debug & DEBUG_EXITFREE)		    /* want to hear about them */
+		    log(LOG_WARNING,
+			"vinum: exiting with %d bytes malloced from %s:%d\n",
+			malloced[i].size,
+			malloced[i].file,
+			malloced[i].line);
+#ifdef INVARIANTS
+		poke = &((int *) malloced[i].address)
+		    [malloced[i].size / (2 * sizeof(int))]; /* middle of the area */
+		if (*poke == 0xdeadc0de)		    /* already freed */
+		    log(LOG_ERR,
+			"vinum: exiting with malloc table inconsistency at %p from %s:%d\n",
+			malloced[i].address,
+			malloced[i].file,
+			malloced[i].line);
+#endif
+		Free(malloced[i].address);
+	    }
 	}
 #endif
 	cdevsw[CDEV_MAJOR] = NULL;			    /* no cdevsw any more */
+	bdevsw[BDEV_MAJOR] = NULL;			    /* nor bdevsw */
 	log(LOG_INFO, "vinum: unloaded\n");		    /* tell the world */
 	return 0;
     default:
