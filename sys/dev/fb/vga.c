@@ -2891,10 +2891,13 @@ set_palette(video_adapter_t *adp, int base, int count,
     r = malloc(count*3, M_DEVBUF, M_WAITOK);
     g = r + count;
     b = g + count;
-    copyin(red, r, count);
-    copyin(green, g, count);
-    copyin(blue, b, count);
-    err = vga_load_palette2(adp, base, count, r, g, b);
+    err = copyin(red, r, count);
+    if (!err)
+        err = copyin(green, g, count);
+    if (!err)
+        err = copyin(blue, b, count);
+    if (!err)
+        err = vga_load_palette2(adp, base, count, r, g, b);
     free(r, M_DEVBUF);
 
     return (err ? ENODEV : 0);
