@@ -1771,7 +1771,10 @@ xl_attach(dev)
 #ifdef XL_BACKGROUND_AUTONEG
 		xl_autoneg_mii(sc, XL_FLAG_SCHEDDELAY, 1);
 #else
-		xl_autoneg_mii(sc, XL_FLAG_FORCEDELAY, 1);
+		if (cold)
+			xl_autoneg_mii(sc, XL_FLAG_FORCEDELAY, 1);
+		else
+			xl_autoneg_mii(sc, XL_FLAG_SCHEDDELAY, 1);
 #endif
 		media = sc->ifmedia.ifm_media;
 		break;
@@ -1780,7 +1783,10 @@ xl_attach(dev)
 #ifdef XL_BACKGROUND_AUTONEG
 		xl_autoneg_mii(sc, XL_FLAG_SCHEDDELAY, 1);
 #else
-		xl_autoneg_mii(sc, XL_FLAG_FORCEDELAY, 1);
+		if (cold)
+			xl_autoneg_mii(sc, XL_FLAG_FORCEDELAY, 1);
+		else
+			xl_autoneg_mii(sc, XL_FLAG_SCHEDDELAY, 1);
 #endif
 		media = sc->ifmedia.ifm_media;
 		break;
