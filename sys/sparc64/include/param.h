@@ -115,12 +115,11 @@
 #define MAXPHYS		(128 * 1024)	/* max raw I/O transfer size */
 #define MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
 
-#define IOPAGES	2		/* pages of i/o permission bitmap */
-
 #define KSTACK_PAGES	4	/* pages of kernel stack (with pcb) */
 #define UAREA_PAGES	1	/* pages of user area */
 
-/* #define KSTACK_GUARD */	/* compile in kstack guard page */
+#define KSTACK_GUARD 		/* compile in kstack guard page */
+#define KSTACK_GUARD_PAGES	1
 
 /*
  * Constants related to network buffer management.

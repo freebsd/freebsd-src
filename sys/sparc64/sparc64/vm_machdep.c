@@ -88,7 +88,7 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 		return;
 
 	td2 = &p2->p_thread;
-	pcb = (struct pcb *)td2->td_kstack;
+	pcb = (struct pcb *)(td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	td2->td_pcb = pcb;
 
 	/*
@@ -112,8 +112,7 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 	 * Copy the trap frame for the return to user mode as if from a
 	 * syscall.  This copies most of the user mode register values.
 	 */
-	tf = (struct trapframe *)
-	    (td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	tf = (struct trapframe *)pcb - 1;
 	bcopy(td1->td_frame, tf, sizeof(*tf));
 
 	tf->tf_out[0] = 0;			/* Child returns zero */
