@@ -50,6 +50,7 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
+#include <i386/include/clock.h>
 
 #include <pccard/card.h>
 #include <pccard/driver.h>
