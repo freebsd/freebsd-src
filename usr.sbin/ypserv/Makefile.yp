@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.23 1998/02/20 04:00:48 wpaul Exp $
+# $Id: Makefile.yp,v 1.24 1998/02/21 18:14:30 wpaul Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -85,9 +85,8 @@ YPMAPDIR = $(YPDIR)/$(DOMAIN)
 # the real /etc/passwd and /etc/master.passwd files by:
 #
 #
-# - invoking yppasswdd without the -m option (yppasswdd will use
-#   /etc/master.passwd if no alternate master.passwd file is specified
-#   and do a 'pwd_mkdb' as needed).
+# - invoking yppasswdd with `-t /etc/master.passwd' (yppasswdd will do a
+#   'pwd_mkdb' as needed if /etc/master.passwd is thus specified).
 # - Specifying the location of the master.passwd file using the
 #   MASTER_PASSWD variable, i.e.:
 #
