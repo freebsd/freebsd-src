@@ -194,9 +194,9 @@ freebsd4_ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
 	sf.sf_uc.uc_sigmask = *mask;
-	sf.sf_uc.uc_stack.ss_sp = (uintptr_t)p->p_sigstk.ss_sp;
-	sf.sf_uc.uc_stack.ss_size = p->p_sigstk.ss_size;
-	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	sf.sf_uc.uc_stack.ss_sp = (uintptr_t)td->td_sigstk.ss_sp;
+	sf.sf_uc.uc_stack.ss_size = td->td_sigstk.ss_size;
+	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
@@ -220,10 +220,10 @@ freebsd4_ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	sf.sf_uc.uc_mcontext.mc_ss = regs->tf_ss;
 
 	/* Allocate space for the signal handler context. */
-	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
+	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct ia32_sigframe4 *)(p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - sizeof(sf));
+		sfp = (struct ia32_sigframe4 *)(td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size - sizeof(sf));
 	} else
 		sfp = (struct ia32_sigframe4 *)regs->tf_rsp - 1;
 	PROC_UNLOCK(p);
@@ -308,9 +308,9 @@ ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
 	sf.sf_uc.uc_sigmask = *mask;
-	sf.sf_uc.uc_stack.ss_sp = (uintptr_t)p->p_sigstk.ss_sp;
-	sf.sf_uc.uc_stack.ss_size = p->p_sigstk.ss_size;
-	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	sf.sf_uc.uc_stack.ss_sp = (uintptr_t)td->td_sigstk.ss_sp;
+	sf.sf_uc.uc_stack.ss_size = td->td_sigstk.ss_size;
+	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
@@ -337,10 +337,10 @@ ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	fpstate_drop(td);
 
 	/* Allocate space for the signal handler context. */
-	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
+	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sp = p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - sizeof(sf);
+		sp = td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size - sizeof(sf);
 	} else
 		sp = (char *)regs->tf_rsp - sizeof(sf);
 	/* Align to 16 bytes. */

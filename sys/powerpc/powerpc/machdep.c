@@ -424,8 +424,8 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 */
 	memset(&sf, 0, sizeof(sf));
 	sf.sf_uc.uc_sigmask = *mask;
-	sf.sf_uc.uc_stack = p->p_sigstk;
-	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	sf.sf_uc.uc_stack = td->td_sigstk;
+	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
@@ -434,10 +434,10 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Allocate and validate space for the signal handler context. 
 	 */
-	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
+	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe *)((caddr_t)p->p_sigstk.ss_sp +
-		   p->p_sigstk.ss_size - rndfsize);
+		sfp = (struct sigframe *)((caddr_t)td->td_sigstk.ss_sp +
+		   td->td_sigstk.ss_size - rndfsize);
 	} else {
 		sfp = (struct sigframe *)(tf->fixreg[1] - rndfsize);
 	}
