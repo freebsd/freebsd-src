@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.14 1995/09/11 02:23:03 jfieber Exp $
+<date> $Id: freebsd-faq.sgml,v 1.15 1995/09/19 10:58:43 gclarkii Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -960,7 +960,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 
          <descrip>
          <tag/For more information/
-           <url url=http://www.conetic.com/" name="Conetic Software Systems"> 
+           <url url="http://www.conetic.com/" name="Conetic Software Systems"> 
          <tag/or mail/
            <url url="mailto:info@conetic.com" name="Information E-mail address">
          </descrip>
