@@ -155,7 +155,7 @@ static int	tcp_inflight_enable = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_enable, CTLFLAG_RW,
     &tcp_inflight_enable, 0, "Enable automatic TCP inflight data limiting");
 
-static int	tcp_inflight_debug = 1;
+static int	tcp_inflight_debug = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_debug, CTLFLAG_RW,
     &tcp_inflight_debug, 0, "Debug TCP inflight calculations");
 
