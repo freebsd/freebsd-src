@@ -41,7 +41,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.6 1996/01/05 16:19:07 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.7 1996/01/08 02:52:22 gibbs Exp $"
 
 #include "../../dev/aic7xxx/aic7xxx_reg.h"
 
@@ -512,12 +512,8 @@ p_mesgout_loop:
 	cmp	DINDEX,1	jne p_mesgout_outb	/* last byte? */
 	mvi	CLRSINT1,CLRATNO			/* drop ATN */
 p_mesgout_outb:
-	or	SXFRCTL0, CLRSTCNT
-	mvi	STCNT0, 1
 	dec	DINDEX
 	mov	SCSIDATL,SINDIR
-p_mesgout_outb_wait:
-	test	SSTAT0,SDONE	jz p_mesgout_outb_wait
 	
 p_mesgout4:
 	test	DINDEX,0xff	jnz p_mesgout_loop
@@ -885,19 +881,15 @@ mk_mesg1:
  */
 
 inb_next:
-	call	inb_last
-inb_first:
+	mov	NONE,SCSIDATL			/*dummy read from latch to ACK*/
+inb_next_wait:
 	test	SSTAT1,PHASEMIS	jnz mesgin_phasemis
-	test	SSTAT0,SPIORDY	jz inb_first /* wait for next byte */
+	test	SSTAT0,SPIORDY	jz inb_next_wait /* wait for next byte */
+inb_first:
 	mov	DINDEX,SINDEX
 	mov	DINDIR,SCSIBUSL	ret		/*read byte directly from bus*/
 inb_last:
-	or	SXFRCTL0,CLRSTCNT
-	mvi	STCNT0,0x01
-	mov	NONE,SCSIDATL			/*dummy read from latch to ACK*/
-inb_last_wait:
-	test	SSTAT0,SDONE	jz inb_last_wait /* Wait for completion */
-	ret
+	mov	NONE,SCSIDATL ret		/*dummy read from latch to ACK*/
 
 mesgin_phasemis:
 /*
