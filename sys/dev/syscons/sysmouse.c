@@ -201,9 +201,12 @@ smioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
 	case MOUSE_SETMODE:	/* set protocol/mode */
 		mode = (mousemode_t *)data;
-		if ((mode->level < 0) || (mode->level > 1))
+		if (mode->level == -1)
+			; 	/* don't change the current setting */
+		else if ((mode->level < 0) || (mode->level > 1))
 			return EINVAL;
-		mouse_level = mode->level;
+		else
+			mouse_level = mode->level;
 		return 0;
 
 	case MOUSE_GETLEVEL:	/* get operation level */
