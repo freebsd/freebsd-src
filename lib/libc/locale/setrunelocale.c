@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <wchar.h>
 #include "ldpart.h"
 #include "setlocale.h"
 
@@ -59,6 +60,16 @@ extern int		_GBK_init(_RuneLocale *);
 extern int		_BIG5_init(_RuneLocale *);
 extern int		_MSKanji_init(_RuneLocale *);
 extern _RuneLocale	*_Read_RuneMagi(FILE *);
+
+extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
+    size_t, mbstate_t * __restrict);
+extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
+extern size_t __emulated_mbrtowc(wchar_t * __restrict, const char * __restrict,
+    size_t, mbstate_t * __restrict ps);
+extern size_t __emulated_wcrtomb(char * __restrict, wchar_t,
+    mbstate_t * __restrict ps);
+extern rune_t __emulated_sgetrune(const char *, size_t, const char **);
+extern int __emulated_sputrune(rune_t, char *, size_t, char **);
 
 static int		__setrunelocale(const char *);
 
@@ -132,6 +143,10 @@ __setrunelocale(const char *encoding)
 	}
 	(void)fclose(fp);
 
+	__mbrtowc = __emulated_mbrtowc;
+	__wcrtomb = __emulated_wcrtomb;
+	rl->sputrune = __emulated_sputrune;
+	rl->sgetrune = __emulated_sgetrune;
 	if (strcmp(rl->encoding, "NONE") == 0)
 		ret = _none_init(rl);
 	else if (strcmp(rl->encoding, "UTF2") == 0)

@@ -10,7 +10,8 @@ SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
 	mbrlen.c \
 	mbrtowc.c mbrune.c mbsinit.c mbsrtowcs.c mbtowc.c mbstowcs.c \
 	mskanji.c nl_langinfo.c nomacros.c none.c rune.c \
-	runetype.c setinvalidrune.c setlocale.c setrunelocale.c table.c \
+	runetype.c setinvalidrune.c setlocale.c setrunelocale.c srune.c \
+	table.c \
 	tolower.c toupper.c utf2.c utf8.c wcrtomb.c wcsrtombs.c wcsftime.c \
 	wcstof.c wcstod.c \
 	wcstoimax.c wcstol.c wcstold.c wcstoll.c \
