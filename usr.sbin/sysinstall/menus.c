@@ -359,8 +359,8 @@ DMenu MenuMouse = {
     "somewhat.  Once you've selected one of the below, you can specify\n"
     "/dev/mouse as your mouse device when running the XFree86 configuration\n"
     "utility (see Configuration menu).  Please note that for PS/2 mice,\n"
-    "a kernel recompile is also required!  See the handbook for more details\n"
-    "on building a kernel.",
+    "you need to enable the psm driver in the kernel configuration menu\n"
+    "when installing for the first time.",
     "For more information, visit the Documentation menu",
     NULL,
     { { "COM1",	"Serial mouse on COM1",	whichMouse, dmenuSystemCommand, NULL,

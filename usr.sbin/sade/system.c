@@ -118,6 +118,10 @@ systemShutdown(int status)
     if (status >=0 && mediaDevice)
 	mediaDevice->shutdown(mediaDevice);
 
+    /* write out any changes to sysconfig .. */
+    if (!status)
+	configSysconfig("/etc/sysconfig");
+
     /* Shut down the dialog library */
     if (DialogActive) {
 	end_dialog();
