@@ -57,6 +57,7 @@
 #endif
 #include <sys/ucred.h>
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
+#include <vm/uma.h>
 
 /*
  * One structure allocated per session.
@@ -282,9 +283,9 @@ struct thread {
 	LIST_HEAD(, mtx) td_contested;	/* (j) Contested locks. */
 	struct lock_list_entry *td_sleeplocks; /* (k) Held sleep locks. */
 	int		td_intr_nesting_level; /* (k) Interrupt recursion. */
-	void 		*td_mailbox;	/* the userland mailbox address */
+	void 		*td_mailbox;	/* The userland mailbox address. */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
-	void		(*td_switchin)(void); /* (k) switchin special func */
+	void		(*td_switchin)(void); /* (k) Switchin special func. */
 	u_int		td_critnest;	/* (k) Critical section nest level. */
 #define	td_endzero td_md
 
@@ -315,23 +316,23 @@ struct thread {
 	vm_offset_t	td_kstack;	/* Kernel VA of kstack. */
 };
 /* flags kept in td_flags */ 
-#define TDF_UNBOUND	0x000001 /* may give away the kse, uses the kg runq */
-#define TDF_INPANIC	0x000002 /* Caused a panic, let it drive crashdump */
+#define TDF_UNBOUND	0x000001 /* May give away the kse, uses the kg runq. */
+#define TDF_INPANIC	0x000002 /* Caused a panic, let it drive crashdump. */
 #define TDF_SINTR	0x000008 /* Sleep is interruptible. */
 #define TDF_TIMEOUT	0x000010 /* Timing out during sleep. */
 #define TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
 #define TDF_CVWAITQ	0x000080 /* Thread is on a cv_waitq (not slpq). */
 #define TDF_UPCALLING	0x000100 /* This thread is doing an upcall. */
-#define TDF_ONSLEEPQ	0x000200 /* On the sleep queue */
-#define TDF_INMSLEEP	0x000400 /* Don't recurse in msleep() */
+#define TDF_ONSLEEPQ	0x000200 /* On the sleep queue. */
+#define TDF_INMSLEEP	0x000400 /* Don't recurse in msleep(). */
 #define TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
 #define TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
-#define TDI_SUSPENDED	0x01	/* on suspension queue */
-#define TDI_SLEEPING	0x02	/* Actually asleep! */ /* actually tricky */
-#define TDI_SWAPPED	0x04	/* stack not in mem.. bad juju if run */
-#define TDI_MUTEX	0x08	/* Stopped on a mutex */
-#define TDI_IWAIT	0x10	/* Awaiting interrupt */
+#define TDI_SUSPENDED	0x01	/* On suspension queue. */
+#define TDI_SLEEPING	0x02	/* Actually asleep! (tricky). */
+#define TDI_SWAPPED	0x04	/* Stack not in mem.. bad juju if run. */
+#define TDI_MUTEX	0x08	/* Stopped on a mutex. */
+#define TDI_IWAIT	0x10	/* Awaiting interrupt. */
 
 #define TD_IS_SLEEPING(td)	((td)->td_inhibitors & TDI_SLEEPING)
 #define TD_ON_SLEEPQ(td)	((td)->td_wchan != NULL)
@@ -816,7 +817,7 @@ extern struct proclist zombproc;	/* List of zombie processes. */
 extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 extern struct proc *updateproc;		/* Process slot for syncer (sic). */
 
-extern struct uma_zone *proc_zone;
+extern uma_zone_t proc_zone;
 
 extern int lastpid;
 
