@@ -534,7 +534,7 @@ distExtract(char *parent, Distribution *me)
     /* Make ^C fake a sudden timeout */
     new.sa_handler = handle_intr;
     new.sa_flags = 0;
-    new.sa_mask = 0;
+    (void)sigemptyset(&new.sa_mask);
     sigaction(SIGINT, &new, &old);
 
     /* Loop through to see if we're in our parent's plans */
