@@ -21,10 +21,11 @@ and this notice must be preserved on all copies.  */
 
 #include "diff.h"
 
-
-static void print_sdiff_hunk ();
-static void print_sdiff_common_lines ();
-static void print_1sdiff_line ();
+static unsigned print_half_line PARAMS((char const * const *, unsigned, unsigned));
+static unsigned tab_from_to PARAMS((unsigned, unsigned));
+static void print_1sdiff_line PARAMS((char const * const *, int, char const * const *));
+static void print_sdiff_common_lines PARAMS((int, int));
+static void print_sdiff_hunk PARAMS((struct change *));
 
 /* Next line number to be printed in the two input files.  */
 static int next0, next1;
@@ -70,12 +71,12 @@ tab_from_to (from, to)
  */
 static unsigned
 print_half_line (line, indent, out_bound)
-     const char * const *line;
+     char const * const *line;
      unsigned indent, out_bound;
 {
   FILE *out = outfile;
   register unsigned in_position = 0, out_position = 0;
-  register const char
+  register char const
 	*text_pointer = line[0],
 	*text_limit = line[1];
 
@@ -132,21 +133,21 @@ print_half_line (line, indent, out_bound)
 
 	case '\f':
 	case '\v':
+	control_char:
 	  if (in_position < out_bound)
 	    putc (c, out);
 	  break;
 
 	default:
-	  {
-	    register unsigned p = in_position;
-	    if (textchar[c])
-	      in_position++;
-	    if (p < out_bound)
-	      {
-		out_position = in_position;
-		putc (c, out);
-	      }
-	  }
+	  if (! isprint (c))
+	    goto control_char;
+	  /* falls through */
+	case ' ':
+	  if (in_position++ < out_bound)
+	    {
+	      out_position = in_position;
+	      putc (c, out);
+	    }
 	  break;
 
 	case '\n':
@@ -159,15 +160,15 @@ print_half_line (line, indent, out_bound)
 
 /*
  * Print side by side lines with a separator in the middle.
- * NULL parameters are taken to indicate whitespace text.
+ * 0 parameters are taken to indicate white space text.
  * Blank lines that can easily be caught are reduced to a single newline.
  */
 
 static void
 print_1sdiff_line (left, sep, right)
-     const char * const *left;
+     char const * const *left;
      int sep;
-     const char * const *right;
+     char const * const *right;
 {
   FILE *out = outfile;
   unsigned hw = sdiff_half_width, c2o = sdiff_column2_offset;

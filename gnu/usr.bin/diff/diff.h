@@ -1,5 +1,5 @@
 /* Shared definitions for GNU DIFF
-   Copyright (C) 1988, 89, 91, 92 Free Software Foundation, Inc.
+   Copyright (C) 1988, 89, 91, 92, 93 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -17,21 +17,14 @@ You should have received a copy of the GNU General Public License
 along with GNU DIFF; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#include "system.h"
 #include <ctype.h>
 #include <stdio.h>
-#include "system.h"
 #include "regex.h"
 
 #ifndef PR_FILE_NAME
 #define PR_FILE_NAME "/bin/pr"
 #endif
-
-/* Character classes.  */
-extern const char textchar[];
-
-/* Is_space is a little broader than ctype.h's isspace,
-   because it also includes backspace and no-break space.  */
-#define Is_space(c) (textchar[c] & 2)
 
 #define TAB_WIDTH 8
 
@@ -82,10 +75,10 @@ EXTERN int	always_text_flag;
 /* Number of lines to keep in identical prefix and suffix.  */
 EXTERN int      horizon_lines;
 
-/* Ignore changes in horizontal whitespace (-b).  */
+/* Ignore changes in horizontal white space (-b).  */
 EXTERN int      ignore_space_change_flag;
 
-/* Ignore all horizontal whitespace (-w).  */
+/* Ignore all horizontal white space (-w).  */
 EXTERN int      ignore_all_space_flag;
 
 /* Ignore changes that affect only blank lines (-B).  */
@@ -94,6 +87,10 @@ EXTERN int      ignore_blank_lines_flag;
 /* 1 if lines may match even if their lengths are different.
    This depends on various options.  */
 EXTERN int      length_varies;
+
+/* 1 if files may match even if their contents are not byte-for-byte identical.
+   This depends on various options.  */
+EXTERN int      ignore_some_changes;
 
 /* Ignore differences in case of letters (-i).  */
 EXTERN int      ignore_case_flag;
@@ -160,13 +157,13 @@ enum line_class {
 };
 
 /* Line group formats for old, new, unchanged, and changed groups.  */
-EXTERN const char *group_format[CHANGED + 1];
+EXTERN char *group_format[CHANGED + 1];
 
 /* Line formats for old, new, and unchanged lines.  */
-EXTERN const char *line_format[UNCHANGED + 1];
+EXTERN char *line_format[UNCHANGED + 1];
 
 /* If using OUTPUT_SDIFF print extra information to help the sdiff filter. */
-EXTERN int sdiff_help_sdiff;  
+EXTERN int sdiff_help_sdiff;
 
 /* Tell OUTPUT_SDIFF to show only the left version of common lines. */
 EXTERN int sdiff_left_only;
@@ -192,7 +189,7 @@ EXTERN char *	program;
 /* The result of comparison is an "edit script": a chain of `struct change'.
    Each `struct change' represents one place where some lines are deleted
    and some are inserted.
-   
+
    LINE0 and LINE1 are the first affected lines in the two files (origin 0).
    DELETED is the number of lines deleted here from file 0.
    INSERTED is the number of lines inserted here in file 1.
@@ -216,19 +213,19 @@ struct change
 
 struct file_data {
     int             desc;	/* File descriptor  */
-    char           *name;	/* File name  */
+    char const      *name;	/* File name  */
     struct stat     stat;	/* File status from fstat()  */
     int             dir_p;	/* nonzero if file is a directory  */
 
     /* Buffer in which text of file is read.  */
     char *	    buffer;
     /* Allocated size of buffer.  */
-    int		    bufsize;
+    size_t	    bufsize;
     /* Number of valid characters now in the buffer. */
-    int		    buffered_chars;
+    size_t	    buffered_chars;
 
     /* Array of pointers to lines in the file.  */
-    const char **linbuf;
+    char const **linbuf;
 
     /* linbuf_base <= buffered_lines <= valid_lines <= alloc_lines.
        linebuf[linbuf_base ... buffered_lines - 1] are possibly differing.
@@ -237,14 +234,14 @@ struct file_data {
     int linbuf_base, buffered_lines, valid_lines, alloc_lines;
 
     /* Pointer to end of prefix of this file to ignore when hashing. */
-    const char *prefix_end;
+    char const *prefix_end;
 
     /* Count of lines in the prefix.
        There are this many lines in the file before linbuf[0].  */
     int prefix_lines;
 
     /* Pointer to start of suffix of this file to ignore when hashing. */
-    const char *suffix_begin;
+    char const *suffix_begin;
 
     /* Vector, indexed by line number, containing an equivalence code for
        each line.  It is this vector that is actually compared with that
@@ -279,57 +276,73 @@ struct file_data {
 
 EXTERN struct file_data files[2];
 
-/* Queue up one-line messages to be printed at the end,
-   when -l is specified.  Each message is recorded with a `struct msg'.  */
-
-struct msg
-{
-  struct msg *next;
-  char *format;
-  char *arg1;
-  char *arg2;
-};
-
-/* Head of the chain of queues messages.  */
-
-EXTERN struct msg *msg_chain;
-
-/* Tail of the chain of queues messages.  */
-
-EXTERN struct msg *msg_chain_end;
-
 /* Stdio stream to output diffs to.  */
 
 EXTERN FILE *outfile;
 
 /* Declare various functions.  */
 
-#if __STDC__
-#define VOID void
-#else
-#define VOID char
-#endif
-VOID *xmalloc ();
-VOID *xrealloc ();
-char *concat ();
+/* analyze.c */
+int diff_2_files PARAMS((struct file_data[], int));
 
-int excluded_filename ();
-int sip ();
+/* context.c */
+void print_context_header PARAMS((struct file_data[], int));
+void print_context_script PARAMS((struct change *, int));
 
-struct change *find_change ();
+/* diff.c */
+int excluded_filename PARAMS((char const *));
 
-void analyze_hunk ();
-void begin_output ();
-void error ();
-void fatal ();
-void message ();
-void output_1_line ();
-void perror_with_name ();
-void pfatal_with_name ();
-void print_1_line ();
-void print_context_header ();
-void print_message_queue ();
-void print_number_range ();
-void print_script ();
-void slurp ();
-void translate_range ();
+/* dir.c */
+int diff_dirs PARAMS((struct file_data const[], int (*) PARAMS((char const *, char const *, char const *, char const *, int)), int));
+
+/* ed.c */
+void print_ed_script PARAMS((struct change *));
+void pr_forward_ed_script PARAMS((struct change *));
+
+/* ifdef.c */
+void print_ifdef_script PARAMS((struct change *));
+
+/* io.c */
+int read_files PARAMS((struct file_data[], int));
+int sip PARAMS((struct file_data *, int));
+void slurp PARAMS((struct file_data *));
+
+/* normal.c */
+void print_normal_script PARAMS((struct change *));
+
+/* rcs.c */
+void print_rcs_script PARAMS((struct change *));
+
+/* side.c */
+void print_sdiff_script PARAMS((struct change *));
+
+/* util.c */
+VOID *xmalloc PARAMS((size_t));
+VOID *xrealloc PARAMS((VOID *, size_t));
+char *concat PARAMS((char const *, char const *, char const *));
+char *dir_file_pathname PARAMS((char const *, char const *));
+int change_letter PARAMS((int, int));
+int line_cmp PARAMS((char const *, size_t, char const *, size_t));
+int translate_line_number PARAMS((struct file_data const *, int));
+struct change *find_change PARAMS((struct change *));
+struct change *find_reverse_change PARAMS((struct change *));
+void analyze_hunk PARAMS((struct change *, int *, int *, int *, int *, int *, int *));
+void begin_output PARAMS((void));
+void debug_script PARAMS((struct change *));
+void error PARAMS((char const *, char const *, char const *));
+void fatal PARAMS((char const *));
+void finish_output PARAMS((void));
+void message PARAMS((char const *, char const *, char const *));
+void message5 PARAMS((char const *, char const *, char const *, char const *, char const *));
+void output_1_line PARAMS((char const *, char const *, char const *, char const *));
+void perror_with_name PARAMS((char const *));
+void pfatal_with_name PARAMS((char const *));
+void print_1_line PARAMS((char const *, char const * const *));
+void print_message_queue PARAMS((void));
+void print_number_range PARAMS((int, struct file_data *, int, int));
+void print_script PARAMS((struct change *, struct change * (*) PARAMS((struct change *)), void (*) PARAMS((struct change *))));
+void setup_output PARAMS((char const *, char const *, int));
+void translate_range PARAMS((struct file_data const *, int, int, int *, int *));
+
+/* version.c */
+extern char const version_string[];
