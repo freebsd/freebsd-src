@@ -48,10 +48,13 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/smp.h>
 
+#ifdef SMP
 volatile u_int stopped_cpus;
 volatile u_int started_cpus;
 
 void (*cpustop_restartfunc)(void);
+#endif
+
 int mp_ncpus;
 
 volatile int smp_started;
@@ -73,6 +76,7 @@ int smp_cpus = 1;	/* how many cpu's running */
 SYSCTL_INT(_kern_smp, OID_AUTO, cpus, CTLFLAG_RD, &smp_cpus, 0,
     "Number of CPUs online");
 
+#ifdef SMP
 /* Enable forwarding of a signal to a process running on a different CPU */
 static int forward_signal_enabled = 1;
 SYSCTL_INT(_kern_smp, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
@@ -331,3 +335,35 @@ smp_rendezvous(void (* setup_func)(void *),
 	/* release lock */
 	mtx_unlock_spin(&smp_rv_mtx);
 }
+#else /* !SMP */
+
+/*
+ * Provide dummy SMP support for UP kernels.  Modules that need to use SMP
+ * APIs will still work using this dummy support.
+ */
+static void
+mp_setvariables_for_up(void *dummy)
+{
+	mp_ncpus = 1;
+	mp_maxid = PCPU_GET(cpuid);
+	all_cpus = PCPU_GET(cpumask);
+	KASSERT(PCPU_GET(cpuid) == 0, ("UP must have a CPU ID of zero"));
+}
+SYSINIT(cpu_mp_setvariables, SI_SUB_TUNABLES, SI_ORDER_FIRST,
+    mp_setvariables_for_up, NULL)
+
+void
+smp_rendezvous(void (* setup_func)(void *), 
+	       void (* action_func)(void *),
+	       void (* teardown_func)(void *),
+	       void *arg)
+{
+
+	if (setup_func != NULL)
+		setup_func(arg);
+	if (action_func != NULL)
+		action_func(arg);
+	if (teardown_func != NULL)
+		teardown_func(arg);
+}
+#endif /* SMP */
