@@ -374,7 +374,8 @@ Send a copy of packets matching this rule to the
 .Xr divert 4
 socket bound to port
 .Ar port .
-The search continues with the next rule. This feature is not yet implemented.
+The search terminates and the original packet is accepted
+(but see BUGS below).
 .It Ar fwd ipaddr Op ,port
 Change the next-hop on matching packets to
 .Ar ipaddr ,
@@ -427,12 +428,6 @@ A
 .Ar group
 may be matched by name or identification number.
 .El
-.Pp
-If a packet matches more than one
-.Ar divert
-and/or
-.Ar tee
-rule, all but the last are ignored.
 .Pp
 If the kernel was compiled with
 .Dv IPFIREWALL_VERBOSE ,
@@ -710,10 +705,10 @@ for information on system security levels
 .Pc .
 .Sh PACKET DIVERSION
 A divert socket bound to the specified port will receive all packets diverted
-to that port; see
+or tee'd to that port; see
 .Xr divert 4 .
 If no socket is bound to the destination port, or if the kernel
-wasn't compiled with divert socket support, diverted packets are dropped.
+wasn't compiled with divert socket support, the packets are dropped.
 .Sh EXAMPLES
 This command adds an entry which denies all tcp packets from
 .Em cracker.evil.org
@@ -771,13 +766,14 @@ not accepted.
 .Pp
 Incoming packet fragments diverted by
 .Ar divert
-are reassembled before delivery to the socket, whereas fragments diverted via
+or
 .Ar tee
-are not.
+are reassembled before delivery to the socket.
 .Pp
-The
-.Dq tee
-action is unimplemented.
+Packets that match a
+.Ar tee
+rule should not be immediately accepted, but should continue
+going through the rule list.  This may be fixed in a later version.
 .Sh AUTHORS
 .An Ugen J. S. Antsilevich ,
 .An Poul-Henning Kamp ,
