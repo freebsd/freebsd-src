@@ -23,7 +23,7 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $Id: Makefile,v 1.5 1998/07/10 16:01:58 jpt Exp $
+#	@(#) $Id: Makefile,v 1.1 1998/09/15 08:23:14 phk Exp $
 #
 #
 
@@ -32,7 +32,7 @@ SRCS=	atmarpd.c atmarp_config.c atmarp_log.c atmarp_scsp.c \
 	atmarp_subr.c atmarp_timer.c
 MAN8=	atmarpd.8
 
-CFLAGS+=	-I ${.CURDIR}/../../../sys
+CFLAGS+=	-I${.CURDIR}/../../../sys
 LDADD+=		-latm -lmd
 
 .include <bsd.prog.mk>
