@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)slcompress.c	8.2 (Berkeley) 4/16/94
- * $Id: slcompress.c,v 1.6 1995/10/31 19:22:31 peter Exp $
+ * $Id: slcompress.c,v 1.7 1996/04/11 06:46:24 davidg Exp $
  */
 
 /*
@@ -217,6 +217,8 @@ sl_compress_tcp(m, ip, comp, compress_cid)
 		comp->last_cs = lcs;
 		hlen += th->th_off;
 		hlen <<= 2;
+		if (hlen > m->m_len)
+		    return TYPE_IP;
 		goto uncompressed;
 
 	found:
@@ -247,6 +249,8 @@ sl_compress_tcp(m, ip, comp, compress_cid)
 	deltaS = hlen;
 	hlen += th->th_off;
 	hlen <<= 2;
+	if (hlen > m->m_len)
+	    return TYPE_IP;
 
 	if (((u_short *)ip)[0] != ((u_short *)&cs->cs_ip)[0] ||
 	    ((u_short *)ip)[3] != ((u_short *)&cs->cs_ip)[3] ||
