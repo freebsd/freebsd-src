@@ -248,8 +248,12 @@ loop:
 /*	case AF_INET6:	*/
 /*	case AF_ISO:	*/
 	default:
+		/*
+		 * XXXRW: Seems like we should only set RC_NAM if we
+		 * actually manage to set rc_nam to something non-NULL.
+		 */
 		rp->rc_flag |= RC_NAM;
-		rp->rc_nam = sodupsockaddr(nd->nd_nam, M_WAITOK);
+		rp->rc_nam = sodupsockaddr(nd->nd_nam, M_NOWAIT);
 		break;
 	};
 	rp->rc_proc = nd->nd_procnum;
