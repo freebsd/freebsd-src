@@ -175,6 +175,9 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
 		break;
 
 		/* AMD -- vendor 0x1022 */
+	case 0x30001022:
+		s = "AMD Elan SC520 host to PCI bridge";
+		break;
 	case 0x70061022:
 		s = "AMD-751 host to PCI bridge";
 		break;
