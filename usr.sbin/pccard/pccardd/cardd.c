@@ -370,6 +370,10 @@ escape:
 		strlcpy(sp->manufstr, sp->cis->manuf, sizeof(sp->manufstr));
 	if (sp->cis->vers)
 		strlcpy(sp->versstr, sp->cis->vers, sizeof(sp->versstr));
+	if (sp->cis->add_info1)
+		strlcpy(sp->cis3str, sp->cis->add_info1, sizeof(sp->cis3str));
+	if (sp->cis->add_info2)
+		strlcpy(sp->cis4str, sp->cis->add_info2, sizeof(sp->cis4str));
 
 	if (cp->ether) {
 		struct ether *e = 0;
@@ -994,6 +998,8 @@ setup_slot(struct slot *sp)
 	drv.prodext = sp->prodext;
 	strlcpy(drv.manufstr, sp->manufstr, sizeof(drv.manufstr));
 	strlcpy(drv.versstr, sp->versstr, sizeof(drv.versstr));
+	strlcpy(drv.cis3str, sp->cis3str, sizeof(drv.cis3str));
+	strlcpy(drv.cis4str, sp->cis4str, sizeof(drv.cis4str));
 	/*
 	 * If the driver fails to be connected to the device,
 	 * then it may mean that the driver did not recognise it.

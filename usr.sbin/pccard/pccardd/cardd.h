@@ -127,6 +127,8 @@ struct slot {
 	unsigned char eaddr[6];		/* If any */
 	char	manufstr[DEV_MAX_CIS_LEN];
 	char	versstr[DEV_MAX_CIS_LEN];
+	char	cis3str[DEV_MAX_CIS_LEN];
+	char	cis4str[DEV_MAX_CIS_LEN];
 	struct allocblk io;		/* I/O block spec */
 	struct allocblk mem;		/* Memory block spec */
 	int     irq;			/* Irq value */
