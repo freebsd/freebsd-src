@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.36 1998/05/17 11:52:43 phk Exp $
+ * $Id: kern_resource.c,v 1.37 1998/05/28 09:30:18 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -524,6 +524,16 @@ calcru(p, up, sp, ip)
 		microuptime(&tv);
 		totusec += (tv.tv_usec - p->p_switchtime.tv_usec) +
 		    (tv.tv_sec - p->p_switchtime.tv_sec) * (int64_t)1000000;
+
+		/*
+		 * Copy the time that was just read to `switchtime' in case
+		 * we are being called from exit1().  Exits don't go through
+		 * mi_switch(), so `switchtime' doesn't get set in the normal
+		 * way.  We set it here instead of more cleanly in exit1()
+		 * to avoid losing track of the time between the calls to
+		 * microuptime().
+		 */
+		switchtime = tv;
 	}
 	if (totusec < 0) {
 		/* XXX no %qd in kernel.  Truncate. */
