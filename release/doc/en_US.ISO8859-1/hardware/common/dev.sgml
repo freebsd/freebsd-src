@@ -688,7 +688,7 @@
 	  <para>ICM PSC-2401 SCSI</para>
         </listitem>
 	<listitem>
-	  <para>Melco IFC-SC</para>
+	  <para>MELCO IFC-SC</para>
         </listitem>
 	<listitem>
 	  <para>RATOC REX-5536, REX-5536AM, REX-5536M,
@@ -1273,7 +1273,7 @@
 	  (PCMPC100 V2)</para>
         </listitem>
 	<listitem>
-	  <para>Melco LPC-T/LPC2-T/LPC2-CLT/LPC2-TX/LPC3-TX/LPC3-CLX</para>
+	  <para>MELCO LPC-T/LPC2-T/LPC2-CLT/LPC2-TX/LPC3-TX/LPC3-CLX</para>
         </listitem>
 	<listitem>
 	  <para>NDC Ethernet Instant-Link</para>
@@ -1609,7 +1609,7 @@
 	  <para>LinkSys USB10T, USB10TA, USB10TX, USB100TX, USB100H1</para>
         </listitem>
         <listitem>
-	  <para>Melco LUA-TX, LUA2-TX</para>
+	  <para>MELCO LUA-TX, LUA2-TX</para>
         </listitem>
         <listitem>
 	  <para>Planex UE-200TX</para>
@@ -1716,7 +1716,7 @@
 	  <para>GREEN HOUSE GH-USB100B</para>
         </listitem>
         <listitem>
-	  <para>Melco LUA-KTX</para>
+	  <para>MELCO LUA-KTX</para>
         </listitem>
       </itemizedlist>
 
@@ -2345,7 +2345,7 @@
 	  <para>Lucent WaveLAN/IEEE 802.11</para>
 	</listitem>
 	<listitem>
-	  <para>Melco Airconnect WLI-PCM-S11, WLI-PCM-L11</para>
+	  <para>MELCO Airconnect WLI-PCM-S11, WLI-PCM-L11</para>
 	</listitem>
         <listitem>
 	  <para>NCR WaveLAN/IEEE 802.11</para>
@@ -2428,7 +2428,7 @@
 	  <para>Icom SL-200</para>
 	</listitem>
         <listitem>
-	  <para>Melco WLI-PCM</para>
+	  <para>MELCO WLI-PCM</para>
 	</listitem>
         <listitem>
 	  <para>NEL SSMagic</para>
@@ -3306,21 +3306,21 @@
 	  <para>Matshita CF-VFDU03 floppy drive</para>
 	</listitem>
         <listitem>
-	  <para>Melco USB2.0 MO Drive MO-CH640U2</para>
+	  <para>MELCO USB2.0 MO Drive MO-CH640U2</para>
 	</listitem>
         <listitem>
-	  <para>Melco USB/IEEE1394 Portable HD Drive HDP-i30P/CI, HDP-i40P/CI</para>
+	  <para>I-O DATA USB/IEEE1394 Portable HD Drive HDP-i30P/CI, HDP-i40P/CI</para>
 	</listitem>
         <listitem>
-	  <para>Melco USB Flash Disk <quote>PetitDrive</quote>,
+	  <para>MELCO USB Flash Disk <quote>PetitDrive</quote>,
             RUF-32M, -64M, -128M, -256M</para>
 	</listitem>
         <listitem>
-	  <para>Melco USB2.0 Flash Disk <quote>PetitDrive2</quote>,
+	  <para>MELCO USB2.0 Flash Disk <quote>PetitDrive2</quote>,
             RUF-256M/U2, -512M/U2</para>
 	</listitem>
         <listitem>
-	  <para>Melco USB Flash Disk <quote>ClipDrive</quote>,
+	  <para>MELCO USB Flash Disk <quote>ClipDrive</quote>,
             RUF-C32M, -C64M, -C128M, -C256M, -C512M</para>
 	</listitem>
         <listitem>
@@ -3521,7 +3521,7 @@
     <para arch="i386,pc98">FAX-Modem/PCCARD
       <itemizedlist>
         <listitem>
-	  <para>Melco IGM-PCM56K/IGM-PCM56KH</para>
+	  <para>MELCO IGM-PCM56K/IGM-PCM56KH</para>
 	</listitem>
         <listitem>
 	  <para>Nokia Card Phone 2.0 (gsm900/dcs1800 HSCSD terminal)</para>
