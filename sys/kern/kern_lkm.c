@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.17 1995/11/06 00:35:50 bde Exp $
+ * $Id: kern_lkm.c,v 1.18 1995/11/09 09:43:32 bde Exp $
  */
 
 /*
@@ -923,11 +923,15 @@ _lkm_exec(lkmtp, cmd)
 	return(err);
 }
 
-static const struct execsw lkm_exec_dummy = { NULL, "lkm" };
-TEXT_SET(execsw_set, lkm_exec_dummy);
-TEXT_SET(execsw_set, lkm_exec_dummy);
-TEXT_SET(execsw_set, lkm_exec_dummy);
-TEXT_SET(execsw_set, lkm_exec_dummy);
+/* XXX: This is bogus.  we should find a better method RSN! */
+static const struct execsw lkm_exec_dummy1 = { NULL, "lkm" };
+static const struct execsw lkm_exec_dummy2 = { NULL, "lkm" };
+static const struct execsw lkm_exec_dummy3 = { NULL, "lkm" };
+static const struct execsw lkm_exec_dummy4 = { NULL, "lkm" };
+TEXT_SET(execsw_set, lkm_exec_dummy1);
+TEXT_SET(execsw_set, lkm_exec_dummy2);
+TEXT_SET(execsw_set, lkm_exec_dummy3);
+TEXT_SET(execsw_set, lkm_exec_dummy4);
 
 /*
  * This code handles the per-module type "wiring-in" of loadable modules
