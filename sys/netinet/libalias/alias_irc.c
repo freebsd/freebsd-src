@@ -38,9 +38,6 @@
 	 The handling of this is copied more-or-less verbatim from
 	 ftp_alias.c
 
-    This software is placed into the public domain with no restrictions
-    on its distribution.
-
 	 Initial version: Eivind Eklund <perhaps@yes.no> (ee) 97-01-29
 
          Version 2.1:  May, 1997 (cjm)
