@@ -103,7 +103,7 @@ static void	rmskey(char const * name);
 int
 pw_user(struct userconf * cnf, int mode, struct cargs * args)
 {
-	int	        rc;
+	int	        rc, edited = 0;
 	char           *p = NULL;
 	char					 *passtmp;
 	struct carg    *a_name;
@@ -207,7 +207,6 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			errx(EX_OSFILE, "root home `%s' is not a directory", cnf->home);
 	}
 
-
 	if ((arg = getarg(args, 'e')) != NULL)
 		cnf->expire_days = atoi(arg->val);
 
@@ -229,7 +228,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		cnf->default_class = pw_checkname((u_char *)arg->val, 0);
 
 	if ((arg = getarg(args, 'G')) != NULL && arg->val) {
-		int             i = 0;
+		int i = 0;
 
 		for (p = strtok(arg->val, ", \t"); p != NULL; p = strtok(NULL, ", \t")) {
 			if ((grp = GETGRNAM(p)) == NULL) {
@@ -242,10 +241,12 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		while (i < cnf->numgroups)
 			cnf->groups[i++] = NULL;
 	}
+
 	if ((arg = getarg(args, 'k')) != NULL) {
 		if (stat(cnf->dotdir = arg->val, &st) == -1 || !S_ISDIR(st.st_mode))
 			errx(EX_OSFILE, "skeleton `%s' is not a directory or does not exist", cnf->dotdir);
 	}
+
 	if ((arg = getarg(args, 's')) != NULL)
 		cnf->shell_default = arg->val;
 
@@ -273,6 +274,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		warn("config update");
 		return EX_IOERR;
 	}
+
 	if (mode == M_PRINT && getarg(args, 'a')) {
 		int             pretty = getarg(args, 'P') != NULL;
 		int		v7 = getarg(args, '7') != NULL;
@@ -283,6 +285,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		ENDPWENT();
 		return EXIT_SUCCESS;
 	}
+
 	if ((a_name = getarg(args, 'n')) != NULL)
 		pwd = GETPWNAM(pw_checkname((u_char *)a_name->val, 0));
 	a_uid = getarg(args, 'u');
@@ -303,11 +306,13 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			a_name = NULL;
 		}
 	}
+
 	/*
 	 * Update, delete & print require that the user exists
 	 */
 	if (mode == M_UPDATE || mode == M_DELETE ||
 	    mode == M_PRINT  || mode == M_LOCK   || mode == M_UNLOCK) {
+
 		if (a_name == NULL && pwd == NULL)	/* Try harder */
 			pwd = GETPWUID(atoi(a_uid->val));
 
@@ -323,6 +328,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				errx(EX_NOUSER, "no such uid `%s'", a_uid->val);
 			errx(EX_NOUSER, "no such user `%s'", a_name->val);
 		}
+
 		if (a_name == NULL)	/* May be needed later */
 			a_name = addarg(args, 'n', newstr(pwd->pw_name));
 
@@ -345,16 +351,16 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			strcpy(passtmp, locked_str);
 			strcat(passtmp, pwd->pw_passwd);
 			pwd->pw_passwd = passtmp;
+			edited = 1;
 		} else if (mode == M_UNLOCK) {
 			if (strncmp(pwd->pw_passwd, locked_str, sizeof(locked_str)-1) != 0)
 				errx(EX_DATAERR, "user '%s' is not locked", pwd->pw_name);
 			pwd->pw_passwd += sizeof(locked_str)-1;
-		}
-
-		/*
-		 * Handle deletions now
-		 */
-		if (mode == M_DELETE) {
+			edited = 1;
+		} else if (mode == M_DELETE) {
+			/*
+			 * Handle deletions now
+			 */
 			char            file[MAXPATHLEN];
 			char            home[MAXPATHLEN];
 			uid_t           uid = pwd->pw_uid;
@@ -444,46 +450,84 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			if (strcmp(pwd->pw_name, "root") == 0)
 				errx(EX_DATAERR, "can't rename `root' account");
 			pwd->pw_name = pw_checkname((u_char *)arg->val, 0);
+			edited = 1;
 		}
+
 		if ((arg = getarg(args, 'u')) != NULL && isdigit(*arg->val)) {
 			pwd->pw_uid = (uid_t) atol(arg->val);
+			edited = 1;
 			if (pwd->pw_uid != 0 && strcmp(pwd->pw_name, "root") == 0)
 				errx(EX_DATAERR, "can't change uid of `root' account");
 			if (pwd->pw_uid == 0 && strcmp(pwd->pw_name, "root") != 0)
 				warnx("WARNING: account `%s' will have a uid of 0 (superuser access!)", pwd->pw_name);
 		}
-		if ((arg = getarg(args, 'g')) != NULL && pwd->pw_uid != 0)	/* Already checked this */
-			pwd->pw_gid = (gid_t) GETGRNAM(cnf->default_group)->gr_gid;
+
+		if ((arg = getarg(args, 'g')) != NULL && pwd->pw_uid != 0) {	/* Already checked this */
+			gid_t newgid = (gid_t) GETGRNAM(cnf->default_group)->gr_gid;
+			if (newgid != pwd->pw_gid) {
+				edited = 1;
+				pwd->pw_gid = pwd->pw_gid;
+			}
+		}
 
 		if ((arg = getarg(args, 'p')) != NULL) {
-			if (*arg->val == '\0' || strcmp(arg->val, "0") == 0)
-				pwd->pw_change = 0;
+			if (*arg->val == '\0' || strcmp(arg->val, "0") == 0) {
+				if (pwd->pw_change != 0) {
+					pwd->pw_change = 0;
+					edited = 1;
+				}
+			}
 			else {
 				time_t          now = time(NULL);
 				time_t          expire = parse_date(now, arg->val);
 
 				if (now == expire)
 					errx(EX_DATAERR, "invalid password change date `%s'", arg->val);
-				pwd->pw_change = expire;
+				if (pwd->pw_change != expire) {
+					pwd->pw_change = expire;
+					edited = 1;
+				}
 			}
 		}
+
 		if ((arg = getarg(args, 'e')) != NULL) {
-			if (*arg->val == '\0' || strcmp(arg->val, "0") == 0)
-				pwd->pw_expire = 0;
+			if (*arg->val == '\0' || strcmp(arg->val, "0") == 0) {
+				if (pwd->pw_expire != 0) {
+					pwd->pw_expire = 0;
+					edited = 1;
+				}
+			}
 			else {
 				time_t          now = time(NULL);
 				time_t          expire = parse_date(now, arg->val);
 
 				if (now == expire)
 					errx(EX_DATAERR, "invalid account expiry date `%s'", arg->val);
-				pwd->pw_expire = expire;
+				if (pwd->pw_expire != expire) {
+					pwd->pw_expire = expire;
+					edited = 1;
+				}
 			}
 		}
-		if ((arg = getarg(args, 's')) != NULL)
-			pwd->pw_shell = shell_path(cnf->shelldir, cnf->shells, arg->val);
 
-		if (getarg(args, 'L'))
-			pwd->pw_class = cnf->default_class;
+		if ((arg = getarg(args, 's')) != NULL) {
+			char *shell = shell_path(cnf->shelldir, cnf->shells, arg->val);
+			if (shell == NULL)
+				shell = "";
+			if (strcmp(shell, pwd->pw_shell) != 0) {
+				pwd->pw_shell = shell;
+				edited = 1;
+			}
+		}
+
+		if (getarg(args, 'L')) {
+			if (cnf->default_class == NULL)
+				cnf->default_class = "";
+			if (strcmp(pwd->pw_class, cnf->default_class) != 0) {
+				pwd->pw_class = cnf->default_class;
+				edited = 1;
+			}
+		}
 
 		if ((arg  = getarg(args, 'd')) != NULL) {
 			if (stat(pwd->pw_dir = arg->val, &st) == -1) {
@@ -493,10 +537,17 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				warnx("WARNING: home `%s' is not a directory", pwd->pw_dir);
 		}
 
-		if ((arg = getarg(args, 'w')) != NULL && getarg(args, 'h') == NULL)
+		if ((arg = getarg(args, 'w')) != NULL && getarg(args, 'h') == NULL) {
 			pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);
+			edited = 1;
+		}
 
 	} else {
+
+		/*
+		 * Add code
+		 */
+
 		if (a_name == NULL)	/* Required */
 			errx(EX_DATAERR, "login name required");
 		else if ((pwd = GETPWNAM(a_name->val)) != NULL)	/* Exists */
@@ -515,6 +566,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		pwd->pw_expire = pw_exppolicy(cnf, args);
 		pwd->pw_dir = pw_homepolicy(cnf, args, pwd->pw_name);
 		pwd->pw_shell = pw_shellpolicy(cnf, args, NULL);
+		edited = 1;
 
 		if (pwd->pw_uid == 0 && strcmp(pwd->pw_name, "root") != 0)
 			warnx("WARNING: new account `%s' has a uid of 0 (superuser access!)", pwd->pw_name);
@@ -523,8 +575,13 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	/*
 	 * Shared add/edit code
 	 */
-	if ((arg = getarg(args, 'c')) != NULL)
-		pwd->pw_gecos = pw_checkname((u_char *)arg->val, 1);
+	if ((arg = getarg(args, 'c')) != NULL) {
+		char	*gecos = pw_checkname((u_char *)arg->val, 1);
+		if (strcmp(pwd->pw_gecos, gecos) != 0) {
+			pwd->pw_gecos = gecos;
+			edited = 1;
+		}
+	}
 
 	if ((arg = getarg(args, 'h')) != NULL) {
 		if (strcmp(arg->val, "-") == 0)
@@ -564,6 +621,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			if (!*line)
 				errx(EX_DATAERR, "empty password read on file descriptor %d", fd);
 			pwd->pw_passwd = pw_pwcrypt(line);
+			edited = 1;
 		}
 	}
 
@@ -576,6 +634,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				  getarg(args, '7') != NULL);
 
 	if (mode == M_ADD) {
+		edited = 1;	/* Always */
 		rc = addpwent(pwd);
 		if (rc == -1) {
 			warnx("user '%s' already exists", pwd->pw_name);
@@ -593,21 +652,23 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			/* NOTE: we treat NIS-only update errors as non-fatal */
 		}
 	} else if (mode == M_UPDATE || mode == M_LOCK || mode == M_UNLOCK) {
-		rc = chgpwent(a_name->val, pwd);
-		if (rc == -1) {
-			warnx("user '%s' does not exist (NIS?)", pwd->pw_name);
-			return EX_IOERR;
-		} else if (rc != 0) {
-			warnc(rc, "passwd file update");
-			return EX_IOERR;
-		}
-		if ( cnf->nispasswd && *cnf->nispasswd=='/') {
-			rc = chgnispwent(cnf->nispasswd, a_name->val, pwd);
-			if (rc == -1)
-				warn("User '%s' not found in NIS passwd", pwd->pw_name);
-			else
-				warnc(rc, "NIS passwd update");
-			/* NOTE: NIS-only update errors are not fatal */
+		if (edited) {	/* Only updated this if required */
+			rc = chgpwent(a_name->val, pwd);
+			if (rc == -1) {
+				warnx("user '%s' does not exist (NIS?)", pwd->pw_name);
+				return EX_IOERR;
+			} else if (rc != 0) {
+				warnc(rc, "passwd file update");
+				return EX_IOERR;
+			}
+			if ( cnf->nispasswd && *cnf->nispasswd=='/') {
+				rc = chgnispwent(cnf->nispasswd, a_name->val, pwd);
+				if (rc == -1)
+					warn("User '%s' not found in NIS passwd", pwd->pw_name);
+				else
+					warnc(rc, "NIS passwd update");
+				/* NOTE: NIS-only update errors are not fatal */
+			}
 		}
 	}
 
@@ -664,6 +725,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			}
 		}
 	}
+
 	/*
 	 * Finally, let's create and populate the user's home directory. Note
 	 * that this also `works' for editing users if -m is used, but
@@ -674,6 +736,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		pw_log(cnf, mode, W_USER, "%s(%ld) home %s made",
 		       pwd->pw_name, (long) pwd->pw_uid, pwd->pw_dir);
 	}
+
 	return EXIT_SUCCESS;
 }
 
