@@ -37,8 +37,94 @@
 #ifndef _NETINET_IN_H_
 #define _NETINET_IN_H_
 
+#include <sys/cdefs.h>
 #include <sys/_types.h>
+#include <machine/endian.h>
 
+/* Protocols common to RFC 1700, POSIX, and X/Open. */
+#define	IPPROTO_IP		0		/* dummy for IP */
+#define	IPPROTO_ICMP		1		/* control message protocol */
+#define	IPPROTO_TCP		6		/* tcp */
+#define	IPPROTO_UDP		17		/* user datagram protocol */
+
+#define	INADDR_ANY		(u_int32_t)0x00000000
+#define	INADDR_BROADCAST	(u_int32_t)0xffffffff	/* must be masked */
+
+#ifndef _UINT8_T_DECLARED
+typedef	__uint8_t		uint8_t;
+#define	_UINT8_T_DECLARED
+#endif
+
+#ifndef _UINT16_T_DECLARED
+typedef	__uint16_t		uint16_t;
+#define	_UINT16_T_DECLARED
+#endif
+
+#ifndef _UINT32_T_DECLARED
+typedef	__uint32_t		uint32_t;
+#define	_UINT32_T_DECLARED
+#endif
+
+#ifndef _IN_ADDR_T_DECLARED
+typedef	uint32_t		in_addr_t;
+#define	_IN_ADDR_T_DECLARED
+#endif
+
+#ifndef _IN_PORT_T_DECLARED
+typedef	uint16_t		in_port_t;
+#define	_IN_PORT_T_DECLARED
+#endif
+
+#ifdef _BSD_SA_FAMILY_T_
+typedef	_BSD_SA_FAMILY_T_	sa_family_t;
+#undef _BSD_SA_FAMILY_T_ 
+#endif
+
+/* Internet address (a structure for historical reasons). */
+#ifndef	_STRUCT_IN_ADDR_DECLARED
+struct in_addr {
+	in_addr_t s_addr;
+};
+#define	_STRUCT_IN_ADDR_DECLARED
+#endif
+
+/* Socket address, internet style. */
+struct sockaddr_in {
+	uint8_t	sin_len;
+	sa_family_t	sin_family;
+	in_port_t	sin_port;
+	struct	in_addr sin_addr;
+	char	sin_zero[8];
+};
+
+#ifndef _KERNEL
+
+#ifndef _BYTEORDER_PROTOTYPED
+#define	_BYTEORDER_PROTOTYPED
+__BEGIN_DECLS
+uint32_t	htonl(uint32_t);
+uint16_t	htons(uint16_t);
+uint32_t	ntohl(uint32_t);
+uint16_t	ntohs(uint16_t);
+__END_DECLS
+#endif
+
+#ifndef _BYTEORDER_FUNC_DEFINED
+#define	_BYTEORDER_FUNC_DEFINED
+#define	htonl(x)	__htonl(x)
+#define	htons(x)	__htons(x)
+#define	ntohl(x)	__ntohl(x)
+#define	ntohs(x)	__ntohs(x)
+#endif
+
+#endif /* !_KERNEL */
+
+#if __POSIX_VISIBLE >= 200112
+#define	IPPROTO_RAW		255		/* raw IP packet */
+#define	INET_ADDRSTRLEN		16
+#endif
+
+#if __BSD_VISIBLE
 /*
  * Constants and structures defined by the internet system,
  * Per RFC 790, September 1981, and numerous additions.
@@ -47,14 +133,11 @@
 /*
  * Protocols (RFC 1700)
  */
-#define	IPPROTO_IP		0		/* dummy for IP */
 #define	IPPROTO_HOPOPTS		0		/* IP6 hop-by-hop options */
-#define	IPPROTO_ICMP		1		/* control message protocol */
 #define	IPPROTO_IGMP		2		/* group mgmt protocol */
 #define	IPPROTO_GGP		3		/* gateway^2 (deprecated) */
 #define IPPROTO_IPV4		4 		/* IPv4 encapsulation */
 #define IPPROTO_IPIP		IPPROTO_IPV4	/* for compatibility */
-#define	IPPROTO_TCP		6		/* tcp */
 #define	IPPROTO_ST		7		/* Stream protocol II */
 #define	IPPROTO_EGP		8		/* exterior gateway protocol */
 #define	IPPROTO_PIGP		9		/* private interior gateway */
@@ -65,7 +148,6 @@
 #define	IPPROTO_EMCON		14		/* EMCON */
 #define	IPPROTO_XNET		15		/* Cross Net Debugger */
 #define	IPPROTO_CHAOS		16		/* Chaos*/
-#define	IPPROTO_UDP		17		/* user datagram protocol */
 #define	IPPROTO_MUX		18		/* Multiplexing */
 #define	IPPROTO_MEAS		19		/* DCN Measurement Subsystems */
 #define	IPPROTO_HMP		20		/* Host Monitoring */
@@ -156,7 +238,6 @@
 /* 255: Reserved */
 /* BSD Private, local use, namespace incursion */
 #define	IPPROTO_DIVERT		254		/* divert pseudo-protocol */
-#define	IPPROTO_RAW		255		/* raw IP packet */
 #define	IPPROTO_MAX		256
 
 /* last return value of *_input(), meaning "all job for this pkt is done".  */
@@ -302,9 +383,7 @@ struct in_addr {
 #define	IN_EXPERIMENTAL(i)	(((u_int32_t)(i) & 0xf0000000) == 0xf0000000)
 #define	IN_BADCLASS(i)		(((u_int32_t)(i) & 0xf0000000) == 0xf0000000)
 
-#define	INADDR_ANY		(u_int32_t)0x00000000
 #define	INADDR_LOOPBACK		(u_int32_t)0x7f000001
-#define	INADDR_BROADCAST	(u_int32_t)0xffffffff	/* must be masked */
 #ifndef _KERNEL
 #define	INADDR_NONE		0xffffffff		/* -1 return */
 #endif
@@ -315,19 +394,6 @@ struct in_addr {
 #define	INADDR_MAX_LOCAL_GROUP	(u_int32_t)0xe00000ff	/* 224.0.0.255 */
 
 #define	IN_LOOPBACKNET		127			/* official! */
-
-/*
- * Socket address, internet style.
- */
-struct sockaddr_in {
-	u_char	sin_len;
-	u_char	sin_family;
-	u_short	sin_port;
-	struct	in_addr sin_addr;
-	char	sin_zero[8];
-};
-
-#define	INET_ADDRSTRLEN                 16
 
 /*
  * Options for use with [gs]etsockopt at the IP level.
@@ -496,16 +562,11 @@ struct ip_mreq {
 	{ "fastforwarding", CTLTYPE_INT }, \
 }
 
+#endif /* __BSD_VISIBLE */
+
 #ifdef _KERNEL
+
 struct ifnet; struct mbuf;	/* forward declarations for Standard C */
-#endif
-
-/* INET6 stuff */
-#define	__KAME_NETINET_IN_H_INCLUDED_
-#include <netinet6/in6.h>
-#undef __KAME_NETINET_IN_H_INCLUDED_
-
-#ifdef _KERNEL
 
 int	 in_broadcast(struct in_addr, struct ifnet *);
 int	 in_canforward(struct in_addr);
@@ -517,26 +578,13 @@ char	*inet_ntoa_r(struct in_addr ina, char *buf); /* in libkern */
 #define sintosa(sin)	((struct sockaddr *)(sin))
 #define ifatoia(ifa)	((struct in_ifaddr *)(ifa))
 
-#else /* !_KERNEL */
-
-#ifndef _BYTEORDER_PROTOTYPED
-#define	_BYTEORDER_PROTOTYPED
-__BEGIN_DECLS
-uint32_t	htonl(uint32_t);
-uint16_t	htons(uint16_t);
-uint32_t	ntohl(uint32_t);
-uint16_t	ntohs(uint16_t);
-__END_DECLS
-#endif
-
-#ifndef _BYTEORDER_FUNC_DEFINED
-#define	_BYTEORDER_FUNC_DEFINED
-#define	htonl(x)	__htonl(x)
-#define	htons(x)	__htons(x)
-#define	ntohl(x)	__ntohl(x)
-#define	ntohs(x)	__ntohs(x)
-#endif
-
 #endif /* _KERNEL */
 
+/* INET6 stuff */
+#if __POSIX_VISIBLE >= 200112
+#define	__KAME_NETINET_IN_H_INCLUDED_
+#include <netinet6/in6.h>
+#undef __KAME_NETINET_IN_H_INCLUDED_
 #endif
+
+#endif /* !_NETINET_IN_H_*/
