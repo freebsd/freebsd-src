@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.3 1998/09/16 00:11:33 ken Exp $
+ *      $Id: cam_xpt.c,v 1.4 1998/09/16 13:24:37 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1070,8 +1070,10 @@ xpt_init()
 
 	/* Install our software interrupt handlers */
 	/* XXX Should call some MI function to do this */
+#ifdef __i386__
 	ihandlers[SWI_CAMNET] = swi_camnet;
 	ihandlers[SWI_CAMBIO] = swi_cambio;
+#endif
 }
 
 static cam_status
