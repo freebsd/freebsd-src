@@ -234,7 +234,7 @@ getBootMgr(char *dname, u_char **bootipl, size_t *bootipl_size,
 static void
 getBootMgr(char *dname, u_char **bootCode, size_t *bootCodeSize)
 {
-#ifdef __i386__	/* only meaningful on x86 */
+#if defined(__i386__) || defined(__amd64__)	/* only meaningful on x86 */
     static u_char *mbr, *boot0;
     static size_t mbr_size, boot0_size;
     char str[80];
@@ -847,14 +847,14 @@ diskPartitionWrite(dialogMenuItem *self)
     for (i = 0; devs[i]; i++) {
 	Disk *d = (Disk *)devs[i]->private;
 	static u_char *boot1;
-#if defined(__i386__) || defined(__ia64__)
+#if defined(__i386__) || defined(__ia64__) || defined(__amd64__)
 	static u_char *boot2;
 #endif
 
 	if (!devs[i]->enabled)
 	    continue;
 
-#if defined(__i386__) || defined(__ia64__)
+#if defined(__i386__) || defined(__ia64__) || defined(__amd64__)
 	if (!boot1) boot1 = bootalloc("boot1", NULL);
 	if (!boot2) boot2 = bootalloc("boot2", NULL);
 	Set_Boot_Blocks(d, boot1, boot2);

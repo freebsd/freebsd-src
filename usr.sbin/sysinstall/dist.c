@@ -223,7 +223,7 @@ static Distribution XF86ServerDistTable[] = {
     DTE_TARBALL("XAGX",	 &XF86ServerDists, XF86_SERVER_AGX,    "/usr/X11R6"),
 #endif
     DTE_TARBALL("XI128", &XF86ServerDists, XF86_SERVER_I128,   "/usr/X11R6"),
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
     DTE_TARBALL("XMa8",	 &XF86ServerDists, XF86_SERVER_MACH8,  "/usr/X11R6"),
     DTE_TARBALL("XMa32", &XF86ServerDists, XF86_SERVER_MACH32, "/usr/X11R6"),
 #endif
@@ -233,7 +233,7 @@ static Distribution XF86ServerDistTable[] = {
     DTE_TARBALL("XS3",	 &XF86ServerDists, XF86_SERVER_S3,     "/usr/X11R6"),
     DTE_TARBALL("XS3V",	 &XF86ServerDists, XF86_SERVER_S3V,    "/usr/X11R6"),
     DTE_TARBALL("XSVGA", &XF86ServerDists, XF86_SERVER_SVGA,   "/usr/X11R6"),
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
     DTE_TARBALL("XVG16", &XF86ServerDists, XF86_SERVER_VGA16,  "/usr/X11R6"),
     DTE_TARBALL("XW32",	 &XF86ServerDists, XF86_SERVER_W32,    "/usr/X11R6"),
 #endif
