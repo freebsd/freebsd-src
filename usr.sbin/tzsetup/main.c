@@ -28,7 +28,7 @@
  */
 
 static const char rcsid[] =
-	"$Id: main.c,v 1.5 1996/03/22 22:22:38 joerg Exp $";
+	"$Id: main.c,v 1.6 1996/03/31 09:55:00 joerg Exp $";
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -242,12 +242,25 @@ setzone(const char *zone)
 	if (rv)
 		return 1;
 
-	snprintf(msg, sizeof msg, PATH_ZONEINFO "/%s", zone);
-	(void)unlink(PATH_LOCALTIME);
-	if (symlink(msg, PATH_LOCALTIME) == -1) {
-		dialog_notify("Could not create a symbolic link for "
-			      PATH_LOCALTIME);
-		return 1;
+	if (lstat(PATH_LOCALTIME, &sb) == 0 && S_ISLNK(sb.st_mode)) {
+		/* The destination is already a symlink, symlink it. */
+		(void)unlink(PATH_LOCALTIME);
+		snprintf(msg, sizeof msg, PATH_ZONEINFO "/%s", zone);
+		if (symlink(msg, PATH_LOCALTIME) == -1) {
+			dialog_notify("Could not create a symbolic link for "
+				      PATH_LOCALTIME);
+			return 1;
+		}
+	} else {
+		/* Copy it. */
+		snprintf(msg, sizeof msg,
+			 "install -C -o bin -g bin -m 0444 "
+			 PATH_ZONEINFO "/%s " PATH_LOCALTIME, zone);
+		if (system(msg) != 0) {
+			dialog_notify("Could not copy zone information into "
+				      PATH_LOCALTIME);
+			return 1;
+		}
 	}
 
 	snprintf(msg, sizeof msg, "Installed timezone file %s", zone);
