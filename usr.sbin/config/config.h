@@ -51,23 +51,7 @@ struct file_list {
 	char	*f_depends;		/* additional dependancies */
 	char	*f_clean;		/* File list to add to clean rule */
 	char	*f_needs;
-	/*
-	 * Random values:
-	 *	swap space parameters for swap areas
-	 *	root device, etc. for system specifications
-	 */
-	union {
-		struct {		/* when system specification */
-			char *	fus_rootdev;
-		} fus;
-		struct {		/* when component dev specification */
-			dev_t	fup_compdev;
-			int	fup_compinfo;
-		} fup;
-	} fun;
-#define	f_rootdev	fun.fus.fus_rootdev
-#define f_compdev	fun.fup.fup_compdev
-#define f_compinfo	fun.fup.fup_compinfo
+	char	*f_rootdev;
 };
 
 /*
@@ -189,7 +173,7 @@ extern struct	device *dtab;
 extern char	errbuf[80];
 extern int	yyline;
 
-extern struct	file_list *ftab, *conf_list, **confp, *comp_list, **compp;
+extern struct	file_list *ftab, *conf_list, **confp;
 
 extern int	profiling;
 extern int	debugging;
