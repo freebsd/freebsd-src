@@ -112,14 +112,12 @@ digi_isa_check(struct digi_softc *sc)
 
 	/* Invasive probe - reset the card */
 	outb(sc->port, FEPRST);
-	for (i = 0; i < 10; i++) {
-		if ((inb(sc->port) & FEPMASK) == FEPRST)
-			break;
+	for (i = 0; (inb(sc->port) & FEPMASK) != FEPRST; i++) {
+		if (i == hz / 10)
+			return (NULL);
 		digi_delay(sc, "digirst", 1);
 	}
-	if (i == 10)
-		return (NULL);
-	DLOG(DIGIDB_INIT, (sc->dev, "got reset after %d delays\n", i));
+	DLOG(DIGIDB_INIT, (sc->dev, "got reset after %d iterations\n", i));
 
 	ident = inb(sc->port);
 
@@ -375,17 +373,15 @@ digi_isa_attach(device_t dev)
 		reset |= FEPMEM;
 
 	outb(sc->port, reset);
-	for (i = 0; i < 10; i++) {
-		if ((inb(sc->port) & FEPMASK) == reset)
-			break;
+	for (i = 0; (inb(sc->port) & FEPMASK) != reset; i++) {
+		if (i == hz / 10) {
+			device_printf(dev, "1st reset failed\n");
+			sc->hidewin(sc);
+			goto failed;
+		}
 		digi_delay(sc, "digirst1", 1);
 	}
-	if (i == 10) {
-		device_printf(dev, "1st reset failed\n");
-		sc->hidewin(sc);
-		goto failed;
-	}
-	DLOG(DIGIDB_INIT, (sc->dev, "got reset after %d delays\n", i));
+	DLOG(DIGIDB_INIT, (sc->dev, "got reset after %d iterations\n", i));
 
 	if (sc->model != PCXI) {
 		t = (sc->pmem >> 8) & 0xffe0;
@@ -397,18 +393,18 @@ digi_isa_attach(device_t dev)
 
 	if (sc->model == PCXI || sc->model == PCXE) {
 		outb(sc->port, FEPRST | FEPMEM);
-		for (i = 0; i < 10; i++) {
-			if ((inb(sc->port) & FEPMASK) != FEPRST)
-				break;
+		for (i = 0; (inb(sc->port) & FEPMASK) != FEPRST; i++) {
+			if (i == hz / 10) {
+				device_printf(dev,
+				    "memory reservation failed (0x%02x)\n",
+				    inb(sc->port));
+				sc->hidewin(sc);
+				goto failed;
+			}
 			digi_delay(sc, "digirst2", 1);
 		}
-		if (i == 10) {
-			device_printf(dev, "2nd reset failed (0x%02x)\n",
-				inb(sc->port));
-			sc->hidewin(sc);
-			goto failed;
-		}
-		DLOG(DIGIDB_INIT, (sc->dev, "got memory after %d delays\n", i));
+		DLOG(DIGIDB_INIT, (sc->dev, "got memory after %d iterations\n",
+		    i));
 	}
 
 	DLOG(DIGIDB_INIT, (sc->dev, "short memory test\n"));
