@@ -60,7 +60,7 @@ struct g_class g_disk_class = {
 	"DISK",
 	NULL,
 	NULL,
-	G_CLASS_INITSTUFF
+	G_CLASS_INITIALIZER
 };
 
 static int
@@ -152,19 +152,19 @@ g_disk_start(struct bio *bp)
 		mtx_unlock(&Giant);
 		break;
 	case BIO_GETATTR:
-		if (g_haveattr_int(bp, "GEOM::sectorsize",
+		if (g_handleattr_int(bp, "GEOM::sectorsize",
 		    dp->d_label.d_secsize))
 			break;
-		else if (g_haveattr_int(bp, "GEOM::fwsectors",
+		else if (g_handleattr_int(bp, "GEOM::fwsectors",
 		    dp->d_label.d_nsectors))
 			break;
-		else if (g_haveattr_int(bp, "GEOM::fwheads",
+		else if (g_handleattr_int(bp, "GEOM::fwheads",
 		    dp->d_label.d_ntracks))
 			break;
-		else if (g_haveattr_off_t(bp, "GEOM::mediasize",
+		else if (g_handleattr_off_t(bp, "GEOM::mediasize",
 		    dp->d_label.d_secsize * (off_t)dp->d_label.d_secperunit))
 			break;
-		else if (g_haveattr_off_t(bp, "GEOM::frontstuff", 0))
+		else if (g_handleattr_off_t(bp, "GEOM::frontstuff", 0))
 			break;
 		else if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_disk_kerneldump(bp, dp);

@@ -58,7 +58,9 @@
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 
+#ifdef _KERNEL
 #include "opt_geom.h"
+#endif
 
 #define MBR_CLASS_NAME "MBR"
 #define MBREXT_CLASS_NAME "MBREXT"
@@ -117,7 +119,7 @@ g_mbr_start(struct bio *bp)
 	gsp = gp->softc;
 	mp = gsp->softc;
 	if (bp->bio_cmd == BIO_GETATTR) {
-		if (g_haveattr_int(bp, "MBR::type", mp->type[index]))
+		if (g_handleattr_int(bp, "MBR::type", mp->type[index]))
 			return (1);
 	}
 	return (0);
@@ -267,7 +269,7 @@ static struct g_class g_mbr_class	= {
 	MBR_CLASS_NAME,
 	g_mbr_taste,
 	NULL,
-	G_CLASS_INITSTUFF
+	G_CLASS_INITIALIZER
 };
 
 DECLARE_GEOM_CLASS(g_mbr_class, g_mbr);
@@ -292,7 +294,7 @@ g_mbrext_start(struct bio *bp)
 	gsp = gp->softc;
 	mp = gsp->softc;
 	if (bp->bio_cmd == BIO_GETATTR) {
-		if (g_haveattr_int(bp, "MBR::type", mp->type[index]))
+		if (g_handleattr_int(bp, "MBR::type", mp->type[index]))
 			return (1);
 	}
 	return (0);
@@ -416,7 +418,7 @@ static struct g_class g_mbrext_class	= {
 	MBREXT_CLASS_NAME,
 	g_mbrext_taste,
 	NULL,
-	G_CLASS_INITSTUFF
+	G_CLASS_INITIALIZER
 };
 
 DECLARE_GEOM_CLASS(g_mbrext_class, g_mbrext);

@@ -82,7 +82,7 @@ static struct g_class g_dev_class	= {
 	"DEV",
 	g_dev_taste,
 	NULL,
-	G_CLASS_INITSTUFF
+	G_CLASS_INITIALIZER
 };
 
 static void
@@ -94,7 +94,7 @@ g_dev_clone(void *arg, char *name, int namelen, dev_t *dev)
 		return;
 
 	g_trace(G_T_TOPOLOGY, "g_dev_clone(%s)", name);
-	g_rattle();
+	g_waitidle();
 
 	/* XXX: can I drop Giant here ??? */
 	/* g_topology_lock(); */
@@ -182,7 +182,7 @@ g_dev_open(dev_t dev, int flags, int fmt, struct thread *td)
 	error = g_access_rel(cp, r, w, e);
 	g_topology_unlock();
 	PICKUP_GIANT();
-	g_rattle();
+	g_waitidle();
 	return(error);
 }
 
@@ -208,7 +208,7 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 	error = g_access_rel(cp, r, w, e);
 	g_topology_unlock();
 	PICKUP_GIANT();
-	g_rattle();
+	g_waitidle();
 	return (error);
 }
 
@@ -295,7 +295,7 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		g_topology_unlock();
 	}
 	PICKUP_GIANT();
-	g_rattle();
+	g_waitidle();
 	if (error == ENOIOCTL) {
 		i = IOCGROUP(cmd);
 		printf("IOCTL(0x%lx) \"%s\"", cmd, gp->name);
@@ -403,7 +403,7 @@ g_dev_orphan(struct g_consumer *cp)
 	destroy_dev(dev);
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
 		g_access_rel(cp, -cp->acr, -cp->acw, -cp->ace);
-	g_dettach(cp);
+	g_detach(cp);
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 }

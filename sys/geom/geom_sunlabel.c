@@ -191,7 +191,7 @@ static struct g_class g_sunlabel_class = {
 	SUNLABEL_CLASS_NAME,
 	g_sunlabel_taste,
 	NULL,
-	G_CLASS_INITSTUFF
+	G_CLASS_INITIALIZER
 };
 
 DECLARE_GEOM_CLASS(g_sunlabel_class, g_sunlabel);
