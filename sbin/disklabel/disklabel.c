@@ -959,7 +959,6 @@ getasciilabel(f, lp)
 {
 	register char **cpp, *cp;
 	register struct partition *pp;
-	int i;
 	unsigned int part;
 	char *tp, *s, line[BUFSIZ];
 	int v, lineno = 0, errors = 0;
@@ -1392,7 +1391,6 @@ checklabel(lp)
 						hog_part = i;
 				}
 			} else {
-				char *type;
 				off_t size;
 
 				size = pp->p_size;
@@ -1452,7 +1450,6 @@ checklabel(lp)
 			for (i = 0; i < lp->d_npartitions; i++) {
 				pp = &lp->d_partitions[i];
 				if (part_set[i] && part_size_type[i] == '%') {
-					unsigned long old_size = pp->p_size;
 					/* careful of overflows! and integer roundoff */
 					pp->p_size = ((double)pp->p_size/100) * free_space;
 					total_size += pp->p_size;
