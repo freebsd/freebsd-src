@@ -1,6 +1,6 @@
-<!-- $Id: sup.sgml,v 1.3 1996/12/05 11:57:23 max Exp $ -->
+<!-- $Id: sup.sgml,v 1.4 1996/12/27 18:31:22 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.22 -->
+<!-- Original revision: 1.23 -->
 
 <sect><heading>SUP<label id="sup"></heading>
 
@@ -25,7 +25,7 @@ sup に, 何のコレクションが更新かつ / またはインストールされるか, ど
 <url url="file:/usr/share/examples/sup/ports-supfile"
 name="/usr/share/examples/sup/ports-supfile"> に目を通してください. 
 <p>もしソースツリーを構築する
-<url url="http://www.freebsd.org/cgi-bin/cvsweb" name="CVS"> files
+<url url="http://www.freebsd.org/cgi/cvsweb" name="CVS"> files
 ファイルの入手に興味があるのでしたら, 
 <url url="file:/usr/share/examples/sup/cvs-supfile"
 name="/usr/share/examples/sup/cvs-supfile"> を参照してください. 
