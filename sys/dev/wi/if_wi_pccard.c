@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_radiotap.h>
 
 #include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccard_cis.h>
 
 #include <dev/wi/if_wavelan_ieee.h>
 #include <dev/wi/if_wireg.h>
@@ -162,6 +163,15 @@ wi_pccard_match(dev)
 	device_t	dev;
 {
 	const struct pccard_product *pp;
+	u_int32_t fcn = PCCARD_FUNCTION_UNSPEC;
+	int error;
+
+	/* Make sure we're a network driver */
+	error = pccard_get_function(dev, &fcn);
+	if (error != 0)
+		return (error);
+	if (fcn != PCCARD_FUNCTION_NETWORK)
+		return (ENXIO);
 
 	if ((pp = pccard_product_lookup(dev, wi_pccard_products,
 	    sizeof(wi_pccard_products[0]), NULL)) != NULL) {
