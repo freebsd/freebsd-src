@@ -263,8 +263,9 @@ remove_conflicts()
 {
     int i;
     int symbol;
-    action *p, *pref = NULL;
+    action *p, *pref;
 
+    pref = NULL;
     SRtotal = 0;
     RRtotal = 0;
     SRconflicts = NEW2(nstates, short);
