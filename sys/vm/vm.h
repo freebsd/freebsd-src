@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm.h	8.2 (Berkeley) 12/13/93
- * $Id: vm.h,v 1.5 1995/07/13 08:48:18 davidg Exp $
+ * $Id: vm.h,v 1.6 1995/10/05 01:11:48 bde Exp $
  */
 
 #ifndef VM_H
@@ -51,8 +51,14 @@ typedef struct vm_map *vm_map_t;
 struct vm_object;
 typedef struct vm_object *vm_object_t;
 
+#ifndef KERNEL
+/*
+ * This is defined in <sys/types.h> for the kernel so that vnode_if.h
+ * doesn't have to include <vm/vm.h>.
+ */
 struct vm_page;
 typedef struct vm_page *vm_page_t;
+#endif
 
 #include <sys/vmmeter.h>
 #include <sys/queue.h>
