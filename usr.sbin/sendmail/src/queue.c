@@ -36,9 +36,9 @@
 
 #ifndef lint
 #ifdef QUEUE
-static char sccsid[] = "@(#)queue.c	8.98.1.1 (Berkeley) 2/18/96 (with queueing)";
+static char sccsid[] = "@(#)queue.c	8.98.1.3 (Berkeley) 9/16/96 (with queueing)";
 #else
-static char sccsid[] = "@(#)queue.c	8.98.1.1 (Berkeley) 2/18/96 (without queueing)";
+static char sccsid[] = "@(#)queue.c	8.98.1.3 (Berkeley) 9/16/96 (without queueing)";
 #endif
 #endif /* not lint */
 
@@ -66,7 +66,7 @@ typedef struct work	WORK;
 
 WORK	*WorkQ;			/* queue of things to be done */
 
-#define QF_VERSION	1	/* version number of this queue format */
+#define QF_VERSION	2	/* version number of this queue format */
 
 #if !defined(NGROUPS_MAX) && defined(NGROUPS)
 # define NGROUPS_MAX	NGROUPS	/* POSIX naming convention */
@@ -458,9 +458,11 @@ printctladdr(a, tfp)
 	FILE *tfp;
 {
 	char *uname;
+	char *paddr;
 	register struct passwd *pw;
 	register ADDRESS *q;
 	uid_t uid;
+	gid_t gid;
 	static ADDRESS *lastctladdr;
 	static uid_t lastuid;
 
@@ -477,9 +479,17 @@ printctladdr(a, tfp)
 	/* find the active uid */
 	q = getctladdr(a);
 	if (q == NULL)
+	{
+		uname = NULL;
 		uid = 0;
+		gid = 0;
+	}
 	else
+	{
+		uname = q->q_ruser != NULL ? q->q_ruser : q->q_user;
 		uid = q->q_uid;
+		gid = q->q_gid;
+	}
 	a = a->q_alias;
 
 	/* check to see if this is the same as last time */
@@ -489,12 +499,12 @@ printctladdr(a, tfp)
 	lastuid = uid;
 	lastctladdr = a;
 
-	if (uid == 0 || (pw = sm_getpwuid(uid)) == NULL)
-		uname = "";
+	paddr = denlstring(a->q_paddr, TRUE, FALSE);
+	if (uid == 0 || uname == NULL || uname[0] == '\0')
+		fprintf(tfp, "C:%s\n", paddr);
 	else
-		uname = pw->pw_name;
-
-	fprintf(tfp, "C%s:%s\n", uname, denlstring(a->q_paddr, TRUE, FALSE));
+		fprintf(tfp, "C%s:%ld:%ld:%s\n",
+			uname, (long) uid, (long) gid, paddr);
 }
 /*
 **  RUNQUEUE -- run the jobs in the queue.
@@ -1299,7 +1309,7 @@ readqf(e)
 	bool nomore = FALSE;
 	char qf[20];
 	char buf[MAXLINE];
-	extern ADDRESS *setctluser();
+	extern ADDRESS *setctluser __P((char *, int));
 	extern void loseqfile();
 
 	/*
@@ -1421,7 +1431,7 @@ readqf(e)
 			break;
 
 		  case 'C':		/* specify controlling user */
-			ctladdr = setctluser(&bp[1]);
+			ctladdr = setctluser(&bp[1], qfver);
 			break;
 
 		  case 'Q':		/* original recipient */
@@ -1876,7 +1886,7 @@ queuename(e, type)
 			c1 = 'A';
 			c2 = 'A' - 1;
 		}
-		(void) sprintf(qf, "qf%cAA%05d", c0, pid);
+		(void) snprintf(qf, sizeof qf, "qf%cAA%05d", c0, pid);
 
 		while (c1 < '~' || c2 < 'Z')
 		{
@@ -1933,7 +1943,7 @@ queuename(e, type)
 
 	if (type == '\0')
 		return (NULL);
-	(void) sprintf(buf, "%cf%s", type, e->e_id);
+	(void) snprintf(buf, sizeof buf, "%cf%s", type, e->e_id);
 	if (tTd(7, 2))
 		printf("queuename: %s\n", buf);
 	return (buf);
@@ -1984,6 +1994,7 @@ unlockqueue(e)
 **
 **	Parameters:
 **		user -- the user name of the controlling user.
+**		qfver -- the version stamp of this qf file.
 **
 **	Returns:
 **		An address descriptor for the controlling user.
@@ -1993,8 +2004,9 @@ unlockqueue(e)
 */
 
 ADDRESS *
-setctluser(user)
+setctluser(user, qfver)
 	char *user;
+	int qfver;
 {
 	register ADDRESS *a;
 	struct passwd *pw;
@@ -2014,26 +2026,40 @@ setctluser(user)
 	a = (ADDRESS *) xalloc(sizeof *a);
 	bzero((char *) a, sizeof *a);
 
-	p = strchr(user, ':');
-	if (p != NULL)
-		*p++ = '\0';
-	if (*user != '\0' && (pw = sm_getpwnam(user)) != NULL)
+	if (*user == '\0')
 	{
-		if (strcmp(pw->pw_dir, "/") == 0)
-			a->q_home = "";
-		else
-			a->q_home = newstr(pw->pw_dir);
-		a->q_uid = pw->pw_uid;
-		a->q_gid = pw->pw_gid;
-		a->q_flags |= QGOODUID;
-	}
-
-	if (*user != '\0')
-		a->q_user = newstr(user);
-	else if (p != NULL)
-		a->q_user = newstr(p);
-	else
+		p = NULL;
 		a->q_user = newstr(DefUser);
+	}
+	else if (*user == ':')
+	{
+		p = &user[1];
+		a->q_user = newstr(p);
+	}
+	else
+	{
+		p = strtok(user, ":");
+		a->q_user = newstr(user);
+		if (qfver >= 2)
+		{
+			if ((p = strtok(NULL, ":")) != NULL)
+				a->q_uid = atoi(p);
+			if ((p = strtok(NULL, ":")) != NULL)
+				a->q_gid = atoi(p);
+			if ((p = strtok(NULL, ":")) != NULL)
+				a->q_flags |= QGOODUID;
+		}
+		else if ((pw = sm_getpwnam(user)) != NULL)
+		{
+			if (strcmp(pw->pw_dir, "/") == 0)
+				a->q_home = "";
+			else
+				a->q_home = newstr(pw->pw_dir);
+			a->q_uid = pw->pw_uid;
+			a->q_gid = pw->pw_gid;
+			a->q_flags |= QGOODUID;
+		}
+	}
 
 	a->q_flags |= QPRIMARY;		/* flag as a "ctladdr"  */
 	a->q_mailer = LocalMailer;
