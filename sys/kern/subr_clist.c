@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.9 1994/11/26 19:23:50 bde Exp $
+ * $Id: tty_subr.c,v 1.10 1995/05/30 08:06:18 rgrimes Exp $
  */
 
 /*
@@ -86,6 +86,8 @@ static inline void
 cblock_free(cblockp)
 	struct cblock *cblockp;
 {
+	if (isset(cblockp->c_quote, CBQSIZE * NBBY - 1))
+		bzero(cblockp->c_quote, sizeof cblockp->c_quote);
 	cblockp->c_next = cfreelist;
 	cfreelist = cblockp;
 	cfreecount += CBSIZE;
@@ -99,19 +101,23 @@ cblock_alloc_cblocks(number)
 	int number;
 {
 	int i;
-	struct cblock *tmp;
+	struct cblock *cbp;
 
 	for (i = 0; i < number; ++i) {
-		tmp = malloc(sizeof(struct cblock), M_TTYS, M_WAITOK);
-		bzero((char *)tmp, sizeof(struct cblock));
-		cblock_free(tmp);
+		cbp = malloc(sizeof *cbp, M_TTYS, M_WAITOK);
+		/*
+		 * Freed cblocks have zero quotes and garbage elsewhere.
+		 * Set the may-have-quote bit to force zeroing the quotes.
+		 */
+		setbit(cbp->c_quote, CBQSIZE * NBBY - 1);
+		cblock_free(cbp);
 	}
 	ctotcount += number;
 }
 
 /*
  * Set the cblock allocation policy for a a clist.
- * Must be called at spltty().
+ * Must be called in process context at spltty().
  */
 void
 clist_alloc_cblocks(clistp, ccmax, ccreserved)
@@ -354,9 +360,14 @@ putc(chr, clistp)
 	/*
 	 * If this character is quoted, set the quote bit, if not, clear it.
 	 */
-	if (chr & TTY_QUOTE)
+	if (chr & TTY_QUOTE) {
 		setbit(cblockp->c_quote, clistp->c_cl - (char *)cblockp->c_info);
-	else
+		/*
+		 * Use one of the spare quote bits to record that something
+		 * may be quoted.
+		 */
+		setbit(cblockp->c_quote, CBQSIZE * NBBY - 1);
+	} else
 		clrbit(cblockp->c_quote, clistp->c_cl - (char *)cblockp->c_info);
 
 	*clistp->c_cl++ = chr;
@@ -435,33 +446,36 @@ b_to_q(src, amount, clistp)
 		bcopy(src, clistp->c_cl, numc);
 
 		/*
-		 * Clear quote bits. The following could probably be made into
-		 * a seperate "bitzero()" routine, but why bother?
+		 * Clear quote bits if they aren't known to be clear.
+		 * The following could probably be made into a seperate
+		 * "bitzero()" routine, but why bother?
 		 */
-		startbit = clistp->c_cl - (char *)cblockp->c_info;
-		endbit = startbit + numc - 1;
+		if (isset(cblockp->c_quote, CBQSIZE * NBBY - 1)) {
+			startbit = clistp->c_cl - (char *)cblockp->c_info;
+			endbit = startbit + numc - 1;
 
-		firstbyte = (u_char *)cblockp->c_quote + (startbit / NBBY);
-		lastbyte = (u_char *)cblockp->c_quote + (endbit / NBBY);
+			firstbyte = (u_char *)cblockp->c_quote + (startbit / NBBY);
+			lastbyte = (u_char *)cblockp->c_quote + (endbit / NBBY);
 
-		/*
-		 * Calculate mask of bits to preserve in first and
-		 * last bytes.
-		 */
-		startmask = NBBY - (startbit % NBBY);
-		startmask = 0xff >> startmask;
-		endmask = (endbit % NBBY);
-		endmask = 0xff << (endmask + 1);
+			/*
+			 * Calculate mask of bits to preserve in first and
+			 * last bytes.
+			 */
+			startmask = NBBY - (startbit % NBBY);
+			startmask = 0xff >> startmask;
+			endmask = (endbit % NBBY);
+			endmask = 0xff << (endmask + 1);
 
-		if (firstbyte != lastbyte) {
-			*firstbyte &= startmask;
-			*lastbyte &= endmask;
+			if (firstbyte != lastbyte) {
+				*firstbyte &= startmask;
+				*lastbyte &= endmask;
 
-			num_between = lastbyte - firstbyte - 1;
-			if (num_between)
-				bzero(firstbyte + 1, num_between);
-		} else {
-			*firstbyte &= (startmask | endmask);
+				num_between = lastbyte - firstbyte - 1;
+				if (num_between)
+					bzero(firstbyte + 1, num_between);
+			} else {
+				*firstbyte &= (startmask | endmask);
+			}
 		}
 
 		/*
