@@ -703,7 +703,7 @@ m_freem(m)
 {
 	int s = splimp();
 
-        if (mcl_pool_now < mcl_pool_max && m->m_next == NULL &&
+        if (mcl_pool_now < mcl_pool_max && m && m->m_next == NULL &&
             (m->m_flags & (M_PKTHDR|M_EXT)) == (M_PKTHDR|M_EXT) &&
             m->m_type == MT_DATA && M_EXT_WRITABLE(m) ) {
 		if (m->m_pkthdr.aux) {
