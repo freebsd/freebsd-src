@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: style.9,v 1.22.2.2 1999/06/27 02:40:35 mpp Exp $
+.\"	$Id: style.9,v 1.27 1999/08/02 04:00:33 hoek Exp $
 .\"
 .Dd December 14, 1995
 .Dt STYLE 9
@@ -33,7 +33,7 @@
 .Sh DESCRIPTION
 This file specifies the preferred style for kernel source files in the
 .Tn FreeBSD
-source tree.  It is also a guide for preferred user land code style.
+source tree.  It is also a guide for preferred userland code style.
 .Bd -literal -offset 0i
 /*
  * Style guide for the FreeBSD KNF (Kernel Normal Form).
@@ -87,9 +87,9 @@ Then, there's a blank line, and the user include files.
 .Pp
 Macros are capitalized, parenthesized, and should avoid side-effects.
 If they are an inline expansion of a function, the function is defined
-all in lowercase, the macro has the same name all in uppercase. If the
+all in lowercase, the macro has the same name all in uppercase.  If the
 macro needs more than a single line, use braces.  Right-justify the
-backslashes, it makes it easier to read.
+backslashes; it makes it easier to read.
 If the macro encapsulates a compound statement, enclose it in a
 .Dq Li do
 loop,
@@ -120,7 +120,7 @@ and
 .Ql struct^Ifoo *x; .
 .Pp
 Major structures should be declared at the top of the file in which they
-are used, or in separate header files, if they are used in multiple
+are used, or in separate header files if they are used in multiple
 source files.  Use of the structures should be by separate declarations
 and should be "extern" if they are declared in a header file.
 .Bd -literal -offset 0i
@@ -176,7 +176,7 @@ separate header file, e.g.
 .Pa extern.h .
 .Pp
 Only use the __P macro from the include file <sys/cdefs.h> if the source
-file in general is (to be) compilable with a K&R Old testament compiler.
+file in general is (to be) compilable with a K&R Old Testament compiler.
 Use of the __P macro in new code is discouraged, although modifications
 to existing files should be consistent with that file's conventions.
 .Pp
@@ -191,7 +191,7 @@ use:
 void	function(int fd);
 .Ed
 .Pp
-In header files visible to user land applications, prototypes that are
+In header files visible to userland applications, prototypes that are
 visible must use either protected names or no names with the types.  It
 is preferable to use protected names.
 e.g., use:
@@ -242,8 +242,11 @@ have a NOTREACHED comment.
 			break;
 		case 'n':
 			num = strtol(optarg, &ep, 10);
-			if (num <= 0 || *ep != '\e0')
-				errx("illegal number -- %s", optarg);
+			if (num <= 0 || *ep != '\e0') {
+				warnx("illegal number, -n argument -- %s",
+				    optarg);
+				usage();
+			}
 			break;
 		case '?':
 		default:
@@ -295,7 +298,8 @@ Second level indents are four spaces.
 		    on + the + second + and + subsequent + lines.
 .Ed
 .Pp
-Do not add whitespace at the end of a line, and only use tabs then spaces
+Do not add whitespace at the end of a line, and only use tabs
+followed by spaces
 to form the indentation.  Do not use more spaces than a tab will produce
 and do not use spaces in front of tabs.
 .Pp
@@ -326,10 +330,10 @@ characters.
 		exit(error);
 .Ed
 .Pp
-Unary operators don't require spaces, binary operators do. Don't
-use parentheses unless they're required for precedence, or the
-statement is confusing without them. Remember that other people may
-confuse easier then you. Do YOU understand the following?
+Unary operators don't require spaces, binary operators do.  Don't
+use parentheses unless they're required for precedence or unless the
+statement is confusing without them.  Remember that other people may
+confuse easier than you.  Do YOU understand the following?
 .Bd -literal -offset 0i
 	a = b->c[0] + ~d == (e || f) || g && h ? i : j >> 1;
 	k = !(l & FLAGS);
@@ -356,7 +360,7 @@ function(int a1, int a2, float fl, int a4)
 .Pp
 When declaring variables in functions declare them sorted by size,
 then in alphabetical order; multiple ones per line are okay.
-Declaring functions inside functions is not recommendable, since their
+Declaring functions inside functions is not recommended, since their
 linkage scope is always global.  If a line overflows reuse the type
 keyword.
 .Pp
@@ -385,7 +389,7 @@ NULL is the preferred null pointer constant.  Use NULL instead of
 (type *)0 or (type *)NULL in contexts where the compiler knows the
 type, e.g., in assignments.  Use (type *)NULL in other contexts,
 in particular for all function args.  (Casting is essential for
-varadic args and is necessary for other args if the function prototype
+variadic args and is necessary for other args if the function prototype
 might not be in scope.)
 Test pointers
 against NULL, e.g., use:
@@ -460,17 +464,17 @@ usage()
 .Pp
 Use
 .Xr printf 3 ,
-not fputs/puts/putchar/whatever, it's faster and usually cleaner, not
+not fputs/puts/putchar/whatever; it's faster and usually cleaner, not
 to mention avoiding stupid bugs.
 .Pp
 Usage statements should look like the manual pages.  Options w/o
 operands come first, in alphabetical order inside a single set of
-braces.  Followed by options with operands, in alphabetical order,
-each in braces.  Followed by required arguments in the order they
+braces, followed by options with operands, in alphabetical order,
+each in braces, followed by required arguments in the order they
 are specified, followed by optional arguments in the order they
 are specified.  A bar
 .Pq Sq \&|
-separates either/or options/arguments,
+separates either-or options/arguments,
 and multiple options/arguments which are specified together are
 placed in a single set of braces.
 .Pp
