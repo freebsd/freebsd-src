@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.48 1997/02/24 05:01:51 jkh Exp $
+ * $Id: media.c,v 1.25.2.49 1997/03/11 09:29:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -287,7 +287,7 @@ int
 mediaSetFTP(dialogMenuItem *self)
 {
     static Device ftpDevice;
-    char *cp, *hostname, *dir;
+    char *cp, hostname[MAXHOSTNAMELEN], *dir;
     extern int FtpPort;
     static Device *networkDev = NULL;
     int what = DITEM_RESTORE;
@@ -329,6 +329,7 @@ mediaSetFTP(dialogMenuItem *self)
 	return DITEM_FAILURE | what;
     }
     SAFE_STRCPY(ftpDevice.name, cp);
+    SAFE_STRCPY(hostname, cp + 6);
 
     dialog_clear_norefresh();
     if (!networkDev || msgYesNo("You've already done the network configuration once,\n"
@@ -346,7 +347,6 @@ mediaSetFTP(dialogMenuItem *self)
 	variable_unset(VAR_FTP_PATH);
 	return DITEM_FAILURE | what;
     }
-    hostname = cp + 6;
     if ((cp = index(hostname, ':')) != NULL) {
 	*(cp++) = '\0';
 	FtpPort = strtol(cp, 0, 0);
@@ -361,7 +361,7 @@ mediaSetFTP(dialogMenuItem *self)
 	msgDebug("port # = `%d'\n", FtpPort);
     }
     if (variable_get(VAR_NAMESERVER)) {
-	if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
+	if ((inet_addr(hostname) == INADDR_NONE) && (gethostbyname(hostname) == NULL)) {
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", hostname);
 	    if (networkDev)
@@ -427,7 +427,7 @@ mediaSetNFS(dialogMenuItem *self)
     static Device nfsDevice;
     static Device *networkDev = NULL;
     char *cp, *idx;
-
+    char hostname[MAXHOSTNAMELEN];
     mediaClose();
     dialog_clear_norefresh();
     cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
@@ -435,12 +435,13 @@ mediaSetNFS(dialogMenuItem *self)
 			    "This should be in the format:  hostname:/some/freebsd/dir");
     if (!cp)
 	return DITEM_FAILURE;
-    if (!(idx = index(cp, ':'))) {
+    SAFE_STRCPY(hostname, cp);
+    if (!(idx = index(hostname, ':'))) {
 	msgConfirm("Invalid NFS path specification.  Must be of the form:\n"
 		   "host:/full/pathname/to/FreeBSD/distdir");
 	return DITEM_FAILURE;
     }
-    SAFE_STRCPY(nfsDevice.name, cp);
+    SAFE_STRCPY(nfsDevice.name, hostname);
     *idx = '\0';
     if (!networkDev || msgYesNo("You've already done the network configuration once,\n"
 				"would you like to skip over it now?") != 0) {
@@ -454,9 +455,9 @@ mediaSetNFS(dialogMenuItem *self)
 	    msgDebug("mediaSetNFS: Net device init failed\n");
     }
     if (variable_get(VAR_NAMESERVER)) {
-	if ((gethostbyname(cp) == NULL) && (inet_addr(cp) == INADDR_NONE)) {
+	if ((inet_addr(hostname) == INADDR_NONE) && (gethostbyname(hostname) == NULL)) {
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
-		       "name server, gateway and network interface are correctly configured?", cp);
+		       "name server, gateway and network interface are correctly configured?", hostname);
 	    if (networkDev)
 		networkDev->shutdown(networkDev);
 	    networkDev = NULL;
@@ -464,9 +465,9 @@ mediaSetNFS(dialogMenuItem *self)
 	    return DITEM_FAILURE;
 	}
 	else
-	    msgDebug("Found DNS entry for %s successfully.\n", cp);
+	    msgDebug("Found DNS entry for %s successfully.\n", hostname);
     }
-    variable_set2(VAR_NFS_HOST, cp);
+    variable_set2(VAR_NFS_HOST, hostname);
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
     nfsDevice.get = mediaGetNFS;
