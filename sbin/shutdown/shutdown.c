@@ -97,15 +97,15 @@ static int dohalt, dopower, doreboot, killflg, mbuflen, oflag;
 static char mbuf[BUFSIZ];
 static const char *nosync, *whom;
 
-void badtime __P((void));
-void die_you_gravy_sucking_pig_dog __P((void));
-void finish __P((int));
-void getoffset __P((char *));
-void loop __P((void));
-void nolog __P((void));
-void timeout __P((int));
-void timewarn __P((int));
-void usage __P((const char *));
+void badtime(void);
+void die_you_gravy_sucking_pig_dog(void);
+void finish(int);
+void getoffset(char *);
+void loop(void);
+void nolog(void);
+void timeout(int);
+void timewarn(int);
+void usage(const char *);
 
 int
 main(argc, argv)

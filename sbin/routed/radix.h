@@ -113,21 +113,21 @@ struct radix_node_head {
 	int	rnh_addrsize;		/* permit, but not require fixed keys */
 	int	rnh_pktsize;		/* permit, but not require fixed keys */
 	struct	radix_node *(*rnh_addaddr)	/* add based on sockaddr */
-		__P((void *v, void *mask,
-		     struct radix_node_head *head, struct radix_node nodes[]));
+		(void *v, void *mask,
+		     struct radix_node_head *head, struct radix_node nodes[]);
 	struct	radix_node *(*rnh_addpkt)	/* add based on packet hdr */
-		__P((void *v, void *mask,
-		     struct radix_node_head *head, struct radix_node nodes[]));
+		(void *v, void *mask,
+		     struct radix_node_head *head, struct radix_node nodes[]);
 	struct	radix_node *(*rnh_deladdr)	/* remove based on sockaddr */
-		__P((void *v, void *mask, struct radix_node_head *head));
+		(void *v, void *mask, struct radix_node_head *head);
 	struct	radix_node *(*rnh_delpkt)	/* remove based on packet hdr */
-		__P((void *v, void *mask, struct radix_node_head *head));
+		(void *v, void *mask, struct radix_node_head *head);
 	struct	radix_node *(*rnh_matchaddr)	/* locate based on sockaddr */
-		__P((void *v, struct radix_node_head *head));
+		(void *v, struct radix_node_head *head);
 	struct	radix_node *(*rnh_lookup)	/* locate based on sockaddr */
-		__P((void *v, void *mask, struct radix_node_head *head));
+		(void *v, void *mask, struct radix_node_head *head);
 	struct	radix_node *(*rnh_matchpkt)	/* locate based on packet hdr */
-		__P((void *v, struct radix_node_head *head));
+		(void *v, struct radix_node_head *head);
 	int	(*rnh_walktree)			/* traverse tree */
 			(struct radix_node_head *head,
 			 int (*f)(struct radix_node *, struct walkarg *),
@@ -141,25 +141,25 @@ struct radix_node_head {
 #define Bzero(p, n) memset((void *)(p), 0, (size_t)(n));
 #define Free(p) free((void *)p);
 
-void	 rn_init __P((void));
-int	 rn_inithead __P((void **, int));
-int	 rn_refines __P((void *, void *));
-int	 rn_walktree __P((struct radix_node_head *,
-		     int (*)__P((struct radix_node *, struct walkarg *)),
-		     struct walkarg *));
+void	 rn_init(void);
+int	 rn_inithead(void **, int);
+int	 rn_refines(void *, void *);
+int	 rn_walktree(struct radix_node_head *,
+		     int (*)(struct radix_node *, struct walkarg *),
+		     struct walkarg *);
 
 struct radix_node
-	 *rn_addmask __P((void *, int, int)),
-	 *rn_addroute __P((void *, void *, struct radix_node_head *,
-			struct radix_node [2])),
-	 *rn_delete __P((void *, void *, struct radix_node_head *)),
-	 *rn_insert __P((void *, struct radix_node_head *, int *,
-			struct radix_node [2])),
-	 *rn_match __P((void *, struct radix_node_head *)),
-	 *rn_newpair __P((void *, int, struct radix_node[2])),
-	 *rn_search __P((void *, struct radix_node *)),
-	 *rn_search_m __P((void *, struct radix_node *, void *));
+	 *rn_addmask(void *, int, int),
+	 *rn_addroute(void *, void *, struct radix_node_head *,
+			struct radix_node [2]),
+	 *rn_delete(void *, void *, struct radix_node_head *),
+	 *rn_insert(void *, struct radix_node_head *, int *,
+			struct radix_node [2]),
+	 *rn_match(void *, struct radix_node_head *),
+	 *rn_newpair(void *, int, struct radix_node[2]),
+	 *rn_search(void *, struct radix_node *),
+	 *rn_search_m(void *, struct radix_node *, void *);
 
-struct radix_node *rn_lookup __P((void *, void *, struct radix_node_head *));
+struct radix_node *rn_lookup(void *, void *, struct radix_node_head *);
 
 #endif /* __RADIX_H_ */

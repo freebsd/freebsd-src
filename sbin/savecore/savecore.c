@@ -129,22 +129,22 @@ u_long	kernbase;			/* offset of kvm to core file */
 int	clear, compress, force, verbose;	/* flags */
 int	keep;			/* keep dump on device */
 
-void	 check_kmem __P((void));
-int	 check_space __P((void));
-void	 clear_dump __P((void));
-void	 DumpRead __P((int fd, void *bp, int size, off_t off, int flag));
-void	 DumpWrite __P((int fd, void *bp, int size, off_t off, int flag));
-int	 dump_exists __P((void));
-void     find_dev __P((dev_t));
-int	 get_crashtime __P((void));
-void	 get_dumpsize __P((void));
-void	 kmem_setup __P((void));
-void	 Lseek __P((int, off_t, int));
-int	 Open __P((const char *, int rw));
-int	 Read __P((int, void *, int));
-void	 save_core __P((void));
-void	 usage __P((void));
-void	 Write __P((int, void *, int));
+void	 check_kmem(void);
+int	 check_space(void);
+void	 clear_dump(void);
+void	 DumpRead(int fd, void *bp, int size, off_t off, int flag);
+void	 DumpWrite(int fd, void *bp, int size, off_t off, int flag);
+int	 dump_exists(void);
+void     find_dev(dev_t);
+int	 get_crashtime(void);
+void	 get_dumpsize(void);
+void	 kmem_setup(void);
+void	 Lseek(int, off_t, int);
+int	 Open(const char *, int rw);
+int	 Read(int, void *, int);
+void	 save_core(void);
+void	 usage(void);
+void	 Write(int, void *, int);
 
 int
 main(argc, argv)
