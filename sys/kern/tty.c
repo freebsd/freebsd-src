@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.109 1998/12/07 07:59:20 ache Exp $
+ * $Id: tty.c,v 1.110 1998/12/08 10:22:07 bde Exp $
  */
 
 /*-
@@ -1310,10 +1310,8 @@ ttrstrt(tp_arg)
 	struct tty *tp;
 	int s;
 
-#ifdef DIAGNOSTIC
-	if (tp_arg == NULL)
-		panic("ttrstrt");
-#endif
+	KASSERT(tp_arg != NULL, ("ttrstrt"));
+
 	tp = tp_arg;
 	s = spltty();
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.46 1998/11/11 10:03:56 truckman Exp $
+ *	$Id: uipc_socket.c,v 1.47 1998/12/07 21:58:29 archie Exp $
  */
 
 #include <sys/param.h>
@@ -637,10 +637,7 @@ restart:
 	    (so->so_rcv.sb_cc < so->so_rcv.sb_lowat ||
 	    ((flags & MSG_WAITALL) && uio->uio_resid <= so->so_rcv.sb_hiwat)) &&
 	    m->m_nextpkt == 0 && (pr->pr_flags & PR_ATOMIC) == 0)) {
-#ifdef DIAGNOSTIC
-		if (m == 0 && so->so_rcv.sb_cc)
-			panic("receive 1");
-#endif
+		KASSERT(m != 0 || !so->so_rcv.sb_cc, ("receive 1"));
 		if (so->so_error) {
 			if (m)
 				goto dontblock;
@@ -683,10 +680,7 @@ dontblock:
 		uio->uio_procp->p_stats->p_ru.ru_msgrcv++;
 	nextrecord = m->m_nextpkt;
 	if (pr->pr_flags & PR_ADDR) {
-#ifdef DIAGNOSTIC
-		if (m->m_type != MT_SONAME)
-			panic("receive 1a");
-#endif
+		KASSERT(m->m_type == MT_SONAME, ("receive 1a"));
 		orig_resid = 0;
 		if (psa)
 			*psa = dup_sockaddr(mtod(m, struct sockaddr *),
@@ -740,10 +734,9 @@ dontblock:
 				break;
 		} else if (type == MT_OOBDATA)
 			break;
-#ifdef DIAGNOSTIC
-		else if (m->m_type != MT_DATA && m->m_type != MT_HEADER)
-			panic("receive 3");
-#endif
+		else
+		    KASSERT(m->m_type == MT_DATA || m->m_type == MT_HEADER,
+			    ("receive 3"));
 		so->so_state &= ~SS_RCVATMARK;
 		len = uio->uio_resid;
 		if (so->so_oobmark && len > so->so_oobmark - offset)

@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.104 1998/11/19 06:20:42 bde Exp $
+ * $Id: swap_pager.c,v 1.105 1998/12/29 22:53:51 dt Exp $
  */
 
 /*
@@ -1297,7 +1297,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			swb[i]->swb_locked--;
 	}
 
-#if defined(DIAGNOSTIC)
+#if defined(INVARIANTS)
 	for (i = firstidx; i < lastidx; i++) {
 		if (reqaddr[i] == SWB_EMPTY) {
 			printf("I/O to empty block???? -- pindex: %d, i: %d\n",
@@ -1348,11 +1348,9 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		}
 
 		spc = TAILQ_FIRST(&swap_pager_free);
-#if defined(DIAGNOSTIC)
-		if (spc == NULL)
-			panic("swap_pager_putpages: free queue is empty, %d expected\n",
-				swap_pager_free_count);
-#endif
+		KASSERT(spc,
+		    ("swap_pager_putpages: free queue is empty, %d expected\n",
+		    swap_pager_free_count));
 		TAILQ_REMOVE(&swap_pager_free, spc, spc_list);
 		swap_pager_free_count--;
 

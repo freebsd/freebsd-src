@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.526 1999/01/01 08:09:57 peter Exp $
+#	$Id: LINT,v 1.527 1999/01/08 16:04:18 eivind Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -291,11 +291,28 @@ options		GDB_REMOTE_CHAT
 options		KTRACE			#kernel tracing
 
 #
-# The DIAGNOSTIC option is used in a number of source files to enable
+# The INVARIANTS option is used in a number of source files to enable
 # extra sanity checking of internal structures.  This support is not
 # enabled by default because of the extra time it would take to check
 # for these conditions, which can only occur as a result of
 # programming errors.
+#
+options		INVARIANTS
+
+#
+# The INVARIANT_SUPPORT option makes us compile in support for
+# verifying some of the internal structures.  It is a prerequisite for
+# 'INVARIANTS', as enabling 'INVARIANTS' will make these functions be
+# called.  The intent is that you can set 'INVARIANTS' for single
+# source files (by changing the source file or specifying it on the
+# command line) if you have 'INVARIANT_SUPPORT' enabled.
+#
+options		INVARIANT_SUPPORT
+
+#
+# The DIAGNOSTIC option is used to enable extra debugging information
+# from some parts of the kernel.  As this makes everything more noisy,
+# it is disabled by default.
 #
 options		DIAGNOSTIC
 
@@ -1867,6 +1884,7 @@ options		SHMSEG=9
 options		SI_DEBUG
 options		SIMPLELOCK_DEBUG
 options		SPX_HACK
+options		VFS_BIO_DEBUG
 
 # The 'dpt' driver provides support for DPT controllers (http://www.dpt.com/).
 # These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
