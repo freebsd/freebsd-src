@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.24 1995/05/20 11:10:35 jkh Exp $
+ * $Id: sysinstall.h,v 1.25 1995/05/20 20:30:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -200,8 +200,11 @@ extern DMenu		MenuOptionsLanguage;	/* Language options menu			*/
 extern DMenu		MenuOptionsFTP;		/* FTP options menu				*/
 extern DMenu		MenuMedia;		/* Media type menu				*/
 extern DMenu		MenuMediaCDROM;		/* CDROM media menu				*/
+extern DMenu		MenuMediaDOS;		/* DOS media menu				*/
 extern DMenu		MenuMediaFloppy;	/* Floppy media menu				*/
 extern DMenu		MenuMediaFTP;		/* FTP media menu				*/
+extern DMenu		MenuMediaTape;		/* Tape media menu				*/
+extern DMenu		MenuNetworkDevice;	/* Network device menu				*/
 extern DMenu		MenuInstall;		/* Installation menu				*/
 extern DMenu		MenuInstallType;	/* Installation type menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
@@ -299,9 +302,9 @@ extern int	mediaSetDOS(char *str);
 extern int	mediaSetTape(char *str);
 extern int	mediaSetFTP(char *str);
 extern int	mediaSetFS(char *str);
-extern FILE	*mediaOpen(char *parent, char *me);
+extern int	mediaOpen(char *parent, char *me);
 extern Boolean	mediaGetType(void);
-extern Boolean	mediaExtractDist(FILE *fp);
+extern Boolean	mediaExtractDist(char *dir, int fd);
 extern Boolean	mediaVerify(void);
 extern void	mediaClose(void);
 
@@ -316,13 +319,15 @@ extern Boolean	mediaGetCDROM(char *dist);
 extern Boolean	mediaGetDOS(char *dist);
 extern Boolean	mediaInitTape(Device *dev);
 extern Boolean	mediaGetTape(char *dist);
+extern Boolean	mediaInitFTP(Device *dev);
 extern Boolean	mediaInitNetwork(Device *dev);
-extern Boolean	mediaGetNetwork(char *dist);
+extern Boolean	mediaGetFTP(char *dist);
 extern void	mediaCloseTape(Device *dev);
 extern void	mediaCloseCDROM(Device *dev);
 extern void	mediaCloseDOS(Device *dev);
-extern void	mediaCloseNetwork(Device *dev);
+extern void	mediaCloseFTP(Device *dev);
 extern void	mediaCloseFloppy(Device *dev);
+extern void	mediaCloseNetwork(Device *dev);
 
 /* misc.c */
 extern Boolean	file_readable(char *fname);
@@ -369,6 +374,7 @@ extern int	vsystem(char *fmt, ...);
 
 /* tcpip.c */
 extern int	tcpOpenDialog(char *);
+extern Device	*tcpDeviceSelect(void);
 
 /* termcap.c */
 extern int	set_termcap(void);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.16 1995/05/21 06:12:43 phk Exp $
+ * $Id: label.c,v 1.17 1995/05/21 10:16:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -210,9 +210,9 @@ get_mountpoint(struct chunk *old)
     char *val;
     PartInfo *tmp;
 
+    dialog_clear(); clear();
     val = msgGetInput(old && old->private ? ((PartInfo *)old->private)->mountpoint : NULL,
 		      "Please specify a mount point for the partition");
-    clear();
     if (!val)
 	return NULL;
 

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.1 1995/05/17 14:39:53 jkh Exp $
+ * $Id: media_strategy.c,v 1.4 1995/05/20 18:38:39 gpalmer Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -87,7 +87,7 @@ attr_parse(struct attribs **attr, char *file)
     
     if ((fp=fopen(file, "r")) == NULL)
     {
-	msgFatal("Cannot open the information file `%s': %s (%d)", file, strerror(errno), errno);
+	msgConfirm("Cannot open the information file `%s': %s (%d)", file, strerror(errno), errno);
 	return 0;
     }
 
@@ -108,10 +108,8 @@ attr_parse(struct attribs **attr, char *file)
 		hold_n[n++] = ch;
 		state = NAME;
 	    }
-	    else {
-		msgConfirm("Invalid character '%c' at line %d\n", ch, lno);
-		return 0;
-	    }
+	    else
+		msgFatal("Invalid character '%c' at line %d\n", ch, lno);
 	    break;
 	    
 	case COMMENT:
@@ -141,16 +139,11 @@ attr_parse(struct attribs **attr, char *file)
 	    else if (ch == '{') {
 		/* multiline value */
 		while ((ch = fgetc(fp)) != '}') {
-		    if (ch == EOF) {
-			msgConfirm("Unexpected EOF on line %d", lno);
-			return 0;
-		    }
+		    if (ch == EOF)
+			msgFatal("Unexpected EOF on line %d", lno);
 		    else {
-		    	if (v == MAX_VALUE) {
-			    msgConfirm("Value length overflow at line %d",
-					  lno);
-			    return 0;
-		    	}
+		    	if (v == MAX_VALUE)
+			    msgFatal("Value length overflow at line %d", lno);
 		        hold_v[v++] = ch;
 		    }
 		}
@@ -162,10 +155,8 @@ attr_parse(struct attribs **attr, char *file)
 		state = COMMIT;
 	    }
 	    else {
-		if (v == MAX_VALUE) {
-		    msgConfirm("Value length overflow at line %d", lno);
-		    return 0;
-		}
+		if (v == MAX_VALUE)
+		    msgFatal("Value length overflow at line %d", lno);
 		else
 		    hold_v[v++] = ch;
 	    }
@@ -179,8 +170,7 @@ attr_parse(struct attribs **attr, char *file)
 	    break;
 
 	default:
-	    msgConfirm("Unknown state at line %d??\n", lno);
-	    return 0;
+	    msgFatal("Unknown state at line %d??\n", lno);
 	}
     }
     return 1;
@@ -346,6 +336,12 @@ mediaInitTape(Device *dev)
 }
 
 Boolean
+mediaInitNetwork(Device *dev)
+{
+    return TRUE;
+}
+
+Boolean
 mediaGetTape(char *dist)
 {
     return TRUE;
@@ -357,20 +353,26 @@ mediaCloseTape(Device *dev)
     return;
 }
 
+void
+mediaCloseNetwork(Device *dev)
+{
+    return;
+}
+
 Boolean
-mediaInitNetwork(Device *dev)
+mediaInitFTP(Device *dev)
 {
     return TRUE;
 }
 
 Boolean
-mediaGetNetwork(char *dist)
+mediaGetFTP(char *dist)
 {
     return TRUE;
 }
 
 void
-mediaCloseNetwork(Device *dev)
+mediaCloseFTP(Device *dev)
 {
 }
 
