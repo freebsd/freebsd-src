@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.10 1995/08/12 18:22:34 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.11 1995/08/17 21:18:48 ats Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -35,7 +35,7 @@ Any entries with a &lt;XXX&gt; are under construction.
 
         The current snapshot is 2.1.0-950726-SNAP.
 
-        This version of the FAQ use the <tt>linuxdoc-sgml</tt> utility
+        This version of the FAQ uses the <tt>linuxdoc-sgml</tt> utility
         written for Linux by Matt Welsh. The initial SGML translation was
         made by Ollivier Robert <url url="mailto:roberto@FreeBSD.ORG"
         name="roberto@FreeBSD.ORG">
@@ -667,9 +667,9 @@ sea32550N|Seagate 32550N:\
 
           Sony CDU 31/33A<newline>
           Sound Blaster Non-SCSI CD-ROM<newline>
-          Matsushita/Panasocnic CD-ROM.
+          Matsushita/Panasocnic CD-ROM<newline>
+          ATAPI compatiable IDE CD-ROMs &lt;Current-only&gt;.
  
-          FreeBSD does not support any of the ``IDE'' CD-ROM interfaces.
           All non-SCSI cards are known to be extremely slow compared to
           SCSI drives.
  
@@ -2057,8 +2057,6 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
             Janitorial services (I don't do windows)
           <tag/Garrett Wollman/
             Networking and formatting
-          <tag/Robert Oliver, Jr./
-            Ideas and dumb questions (That made me think)
           <tag/Jim Lowe/
             Multicast information 
           <tag/The FreeBSD Team/
