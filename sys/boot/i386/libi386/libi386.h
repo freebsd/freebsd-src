@@ -93,6 +93,10 @@ extern u_int32_t	bios_basemem;				/* base memory in bytes */
 extern u_int32_t	bios_extmem;				/* extended memory in bytes */
 extern vm_offset_t	memtop;
 
+int biospci_find_devclass(uint32_t class, int index);
+int biospci_write_config(uint32_t locator, int offset, int width, int val);
+int biospci_read_config(uint32_t locator, int offset, int width, uint32_t *val);
+
 void	biosacpi_detect();
 
 void	gateA20(void);
