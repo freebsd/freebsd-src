@@ -1926,6 +1926,8 @@ retry_lookup:
 			    IO_VMIO | ((MAXBSIZE / bsize) << 16),
 			    td->td_ucred, NOCRED, &resid, td);
 			VOP_UNLOCK(vp, 0, td);
+			if (error)
+				VM_OBJECT_LOCK(obj);  
 			vm_page_lock_queues();
 			vm_page_flag_clear(pg, PG_ZERO);
 			vm_page_io_finish(pg);
@@ -1942,6 +1944,7 @@ retry_lookup:
 					vm_page_free(pg);
 				}
 				vm_page_unlock_queues();
+				VM_OBJECT_UNLOCK(obj);
 				sbunlock(&so->so_snd);
 				goto done;
 			}

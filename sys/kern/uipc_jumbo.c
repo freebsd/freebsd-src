@@ -222,6 +222,7 @@ jumbo_pg_free(vm_offset_t addr)
 	paddr = pmap_kextract((vm_offset_t)addr);
 	pg = PHYS_TO_VM_PAGE(paddr);
 
+	VM_OBJECT_LOCK(jumbo_vm_object);
 	if (pg->object != jumbo_vm_object) {
 		jumbo_vmuiomove_pgs_freed++;
 /*		if(vm_page_lookup(jumbo_vm_object, atop(addr - jumbo_basekva)))
@@ -235,6 +236,7 @@ jumbo_pg_free(vm_offset_t addr)
 		vm_page_free(pg);
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_UNLOCK(jumbo_vm_object);
 
 	mtx_lock(&jumbo_mutex);
 
