@@ -4,6 +4,6 @@
 MAN8=	MAKEDEV.8
 MANSUBDIR=/alpha
 
-MLINKS= MAKEDEV.8 ../MAKEDEV.8
+MLINKS= MAKEDEV.8 ../MAKEDEV.8 ../rc.alpha.8 rc.alpha.8
 
 .include <bsd.prog.mk>
