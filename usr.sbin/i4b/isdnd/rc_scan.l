@@ -34,7 +34,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Oct  2 22:49:40 2000]
+ *      last edit-date: [Wed Jan 10 10:37:11 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -149,7 +149,7 @@ ppp-auth-rechallenge		{ return PPP_AUTH_RECHALLENGE; }
 ppp-auth-paranoid		{ return PPP_AUTH_PARANOID; }
 ppp-expect-auth			{ return PPP_EXPECT_AUTH; }
 ppp-expect-name			{ return PPP_EXPECT_NAME; }
-ppp-expect-password		{ return PPP_EXPECT_NAME; }
+ppp-expect-password		{ return PPP_EXPECT_PASSWORD; }
 ppp-send-auth			{ return PPP_SEND_AUTH; }
 ppp-send-name			{ return PPP_SEND_NAME; }
 ppp-send-password		{ return PPP_SEND_PASSWORD; }
