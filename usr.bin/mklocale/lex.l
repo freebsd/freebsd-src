@@ -53,7 +53,7 @@ XDIGIT	[0-9a-fA-F]
 W	[\t\n\r ]
 
 %%
-\'.\'				{ yylval.rune = yytext[1];
+\'.\'				{ yylval.rune = (unsigned char)yytext[1];
 				  return(RUNE); }
 
 '\\a'				{ yylval.rune = '\a';
