@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.34 1998/12/07 02:47:46 eivind Exp $
+ * $Id: union_subr.c,v 1.35 1998/12/07 21:58:34 archie Exp $
  */
 
 #include <sys/param.h>
@@ -307,7 +307,7 @@ union_allocvp(vpp, mp, undvp, dvp, cnp, uppervp, lowervp, docache)
 	struct union_node *un = 0;
 	struct vnode *xlowervp = NULLVP;
 	struct union_mount *um = MOUNTTOUNIONMOUNT(mp);
-	int hash;
+	int hash = 0;
 	int vflag;
 	int try;
 

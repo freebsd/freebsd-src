@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.38 1998/06/14 08:46:41 bde Exp $
+ * $Id: fdesc_vnops.c,v 1.39 1998/12/07 21:58:31 archie Exp $
  */
 
 /*
@@ -193,7 +193,7 @@ fdesc_lookup(ap)
 	char *pname = cnp->cn_nameptr;
 	struct proc *p = cnp->cn_proc;
 	int nfiles = p->p_fd->fd_nfiles;
-	unsigned fd;
+	unsigned fd = -1;
 	int error;
 	struct vnode *fvp;
 	char *ln;
