@@ -2,6 +2,8 @@
 DIALOG=${DIALOG=/usr/bin/dialog}
 
 $DIALOG --title "YES/NO BOX" --clear \
+	--hline "Press F1 or ? to see GNU GPL" \
+	--hfile ../COPYING \
         --yesno "Hi, this is a yes/no dialog box. You can use this to ask \
                  questions that have an answer of either yes or no. \
                  BTW, do you notice that long lines will be automatically \

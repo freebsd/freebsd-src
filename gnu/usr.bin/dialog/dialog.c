@@ -90,6 +90,7 @@ int main(int argc, unsigned char *argv[])
   int offset = 0, clear_screen = 0, end_common_opts = 0, retval;
   unsigned char *title = NULL;
   unsigned char result[MAX_LEN];
+  char *hline = NULL, *hfile = NULL;
 
   if (argc < 2) {
     Usage(argv[0]);
@@ -117,6 +118,28 @@ int main(int argc, unsigned char *argv[])
       }
       else {
         title = argv[offset+2];
+        offset += 2;
+      }
+    }
+    else if (!strcmp(argv[offset+1], "--hline")) {
+      if (argc-offset < 3 || hline != NULL) {    /* No two "--hline" please! */
+        Usage(argv[0]);
+        exit(-1);
+      }
+      else {
+	hline = argv[offset+2];
+	use_helpline(hline);
+        offset += 2;
+      }
+    }
+    else if (!strcmp(argv[offset+1], "--hfile")) {
+      if (argc-offset < 3 || hfile != NULL) {    /* No two "--hfile" please! */
+        Usage(argv[0]);
+        exit(-1);
+      }
+      else {
+	hfile = argv[offset+2];
+	use_helpfile(hfile);
         offset += 2;
       }
     }
@@ -325,12 +348,14 @@ void Usage(unsigned char *name)
   fprintf(stderr, "\
 \ndialog version 0.3, by Savio Lam (lam836@cs.cuhk.hk).\
 \n  patched to version %s by Stuart Herbert (S.Herbert@shef.ac.uk)\
+\n  Changes Copyright (C) 1995 by Andrey A. Chernov, Moscow, Russia\
 \n\
 \n* Display dialog boxes from shell scripts *\
 \n\
 \nUsage: %s --clear\
 \n       %s --create-rc <file>\
-\n       %s [--title <title>] [--clear] <Box options>\
+\n       %s [--title <title>] [--clear] [--hline <line>] [--hfile <file>]\\\
+\n              <Box options>\
 \n\
 \nBox options:\
 \n\
