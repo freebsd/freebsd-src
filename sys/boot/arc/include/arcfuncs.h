@@ -27,7 +27,7 @@
  *
  */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 #define INLINE inline
 #else
 #define INLINE /**/

@@ -753,7 +753,7 @@ int isp_async(struct ispsoftc *, ispasync_t, void *);
 /*
  * Platform Dependent Error and Debug Printout
  */
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 void isp_prt(struct ispsoftc *, int level, const char *, ...)
 	__attribute__((__format__(__printf__,3,4)));
 #else

@@ -143,7 +143,7 @@ main(int argc, char *argv[])
 	yydebug = 0;
 	mmdebug = 0;
 #endif
-	while ((ch = getopt(argc, argv, "d:i:l:n:o:p:r:I:")) != -1) {
+	while ((ch = getopt(argc, argv, "d:i:l:n:o:p:r:I:X")) != -1) {
 		switch(ch) {
 		case 'd':
 #if DEBUG
@@ -244,6 +244,9 @@ main(int argc, char *argv[])
 			}
 			break;
 		}
+		case 'X':
+			/* icc version of -nostdinc */
+			break;
 		case '?':
 		default:
 			usage();
@@ -309,7 +312,7 @@ usage()
 {
 
 	(void)fprintf(stderr,
-"usage: %-16s [-nostdinc] [-I-] [-I directory] [-o output_file]\n"
+"usage: %-16s [-nostdinc|-X] [-I-] [-I directory] [-o output_file]\n"
 "	[-r register_output_file [-p register_diag_file -i includefile]]\n"
 "	[-l program_list_file]\n"
 "	input_file\n", appname);

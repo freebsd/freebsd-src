@@ -52,7 +52,7 @@ struct region_descriptor;
 #define writew(va, d)	(*(volatile u_int16_t *) (va) = (d))
 #define writel(va, d)	(*(volatile u_int32_t *) (va) = (d))
 
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 
 static __inline void
 breakpoint(void)
@@ -614,7 +614,7 @@ intr_restore(register_t eflags)
 	write_eflags(eflags);
 }
 
-#else /* !__GNUC__ */
+#else /* !(__GNUC__ || __INTEL_COMPILER) */
 
 int	breakpoint(void);
 u_int	bsfl(u_int mask);
@@ -679,7 +679,7 @@ void	wbinvd(void);
 void	write_eflags(u_int ef);
 void	wrmsr(u_int msr, u_int64_t newval);
 
-#endif	/* __GNUC__ */
+#endif	/* __GNUC__ || __INTEL_COMPILER */
 
 void    reset_dbregs(void);
 

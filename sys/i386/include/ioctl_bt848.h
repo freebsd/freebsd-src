@@ -29,7 +29,7 @@
 #ifndef	_MACHINE_IOCTL_BT848_H_
 #define	_MACHINE_IOCTL_BT848_H_
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 #warning Include dev/bktr/ioctl_bt848.h instead of this header.
 #endif
 

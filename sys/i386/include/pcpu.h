@@ -59,7 +59,7 @@ extern struct pcpu *pcpup;
 #define PCPU_PTR(member)        (&pcpup->pc_ ## member)
 #define PCPU_SET(member,value)  (pcpup->pc_ ## member = (value))
  
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) || defined (__INTEL_COMPILER)
 
 /*
  * Evaluates to the byte offset of the per-cpu variable name.

@@ -68,7 +68,7 @@ typedef unsigned char   U8;
 typedef signed   short  S16;
 typedef unsigned short  U16;
 
-#if defined(unix) || defined(__arm) || defined(ALPHA) || defined(__GNUC__)
+#if defined(unix) || defined(__arm) || defined(ALPHA) || defined(__GNUC__) || defined(__INTEL_COMPILER)
 
     typedef signed   int   S32;
     typedef unsigned int   U32;

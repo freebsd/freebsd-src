@@ -39,16 +39,16 @@
 /*
  * Private macros, not to be used outside this header file.
  */
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 #define __MAKE_SET(set, sym)						\
 	static void const * const __set_##set##_sym_##sym 		\
 	__section("set_" #set) __unused = &sym
-#else /* !__GNUC__ */
+#else /* !(__GNUC__ || __INTEL_COMPILER) */
 #ifndef lint
-#error "This file needs to be compiled by GCC or lint"
+#error "This file needs to be compiled by GCC, an Intel compiler or lint"
 #endif /* lint */
 #define __MAKE_SET(set, sym)	extern void const * const (__set_##set##_sym_##sym)
-#endif /* __GNUC__ */
+#endif /* __GNUC__ || __INTEL_COMPILER */
 
 /*
  * Public macros.

@@ -43,7 +43,7 @@
 #define	_SYS_IOCTL_H_
 
 #ifdef _KERNEL
-#if __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 #warning "Don't #include ioctl.h in the kernel.  Include xxxio.h instead."
 #endif
 #endif
