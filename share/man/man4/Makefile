@@ -71,6 +71,7 @@ MAN=	aac.4 \
 	gre.4 \
 	gusc.4 \
 	gx.4 \
+	harp.4 \
 	hatm.4 \
 	hifn.4 \
 	hme.4 \
