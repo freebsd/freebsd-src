@@ -575,6 +575,28 @@ pcic_power(struct slot *slt)
 		if ((c & PCIC_VS1STAT) == 0)
 			slt->pwr.vcc = 33;
 	}
+	if (sc->flags & PCIC_PD_POWER) {
+		/*
+		 * Datasheets indicate that this is only supported on
+		 * the CL-PD6710.  However, my 6722 seems to support
+		 * it as well.  The datasheet for the '22 talks about
+		 * the need to read this from register 0x6f.0xa (both
+		 * slots are read from the same register).  The
+		 * datasheet is a little vauge.  The '29 datasheet is
+		 * clear and spells out the recommends way on the '22
+		 * is the way on the '29.  Note: PCIC_MISC1_5V_DETECT
+		 * is definitely not defined on the '29.
+		 */
+		c = sp->getb(sp, PCIC_MISC1);
+		if ((c & PCIC_MISC1_5V_DETECT) == 0)
+			slt->pwr.vcc = 33;
+
+		/*
+		 * Regardless of the above, setting the Auto Power Switch
+		 * enable for the CL-PD 6722 seems to help too.
+		 */
+		reg |= PCIC_APSENA;
+	}
 
 	/*
 	 * XXX Note: The Vpp controls varies quit a bit between bridge chips
