@@ -74,6 +74,7 @@ ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
 # Miscellaneous options.
 ADAPTIVE_MUTEXES
 ALQ
+CODA_COMPAT_5	opt_coda.h
 COMPAT_43	opt_compat.h
 COMPAT_FREEBSD4	opt_compat.h
 COMPAT_SUNOS	opt_compat.h
