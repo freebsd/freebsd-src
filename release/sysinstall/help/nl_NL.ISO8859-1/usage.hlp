@@ -49,3 +49,10 @@ modus te be‰indigen. Deze mogelijkheid is erg handig als je in een
 sub-shell zit of andere expert-modes gebruikt die geen menus
 hebben.
 
+Na installatie, en als het systeem in "multi-user" mode draait, kun 
+je gebruik maken van "virtuele consoles" om meerdere aktieve 
+sessies tegelijk te kunnen gebruiken. Gebruik ALT-F<n> om tussen de 
+verschillende sessies te wisselen, 'F<n>' is de funktietoets die
+overeenkomt met de sessie die je wilt zien. Standaard is het 
+systeem geconfigureerd voor 4 virtuele consoles. Bewerk /etc/ttys
+om meer virtuele consoles te configureren. Het maximum aantal is 12.
