@@ -3,33 +3,30 @@
  */
 
 /*
-
-Copyright 1988, 1989 by the Massachusetts Institute of Technology
-
-Permission to use, copy, modify, and distribute this software
-and its documentation for any purpose and without fee is
-hereby granted, provided that the above copyright notice
-appear in all copies and that both that copyright notice and
-this permission notice appear in supporting documentation,
-and that the names of M.I.T. and the M.I.T. S.I.P.B. not be
-used in advertising or publicity pertaining to distribution
-of the software without specific, written prior permission.
-M.I.T. and the M.I.T. S.I.P.B. make no representations about
-the suitability of this software for any purpose.  It is
-provided "as is" without express or implied warranty.
-
-*/
+ * Copyright 1988, 1989 by the Massachusetts Institute of Technology
+ *
+ * Permission to use, copy, modify, and distribute this software and its
+ * documentation for any purpose and without fee is hereby granted, provided
+ * that the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the names of M.I.T. and the M.I.T. S.I.P.B. not be
+ * used in advertising or publicity pertaining to distribution of the
+ * software without specific, written prior permission. M.I.T. and the M.I.T.
+ * S.I.P.B. make no representations about the suitability of this software
+ * for any purpose.  It is provided "as is" without express or implied
+ * warranty.
+ *
+ */
 
 /*
- *      newsyslog - roll over selected logs at the appropriate time,
- *              keeping the a specified number of backup files around.
+ * newsyslog - roll over selected logs at the appropriate time, keeping the a
+ * specified number of backup files around.
  */
 
 #ifndef lint
 static const char rcsid[] =
 "$FreeBSD$";
-
-#endif				/* not lint */
+#endif	/* not lint */
 
 #define OSF
 #ifndef COMPRESS_POSTFIX
@@ -56,6 +53,7 @@ static const char rcsid[] =
 #include "pathnames.h"
 
 #define kbytes(size)  (((size) + 1023) >> 10)
+
 #ifdef _IBMR2
 /* Calculates (db * DEV_BSIZE) */
 #define dbtob(db)  ((unsigned)(db) << UBSHIFT)
@@ -63,7 +61,7 @@ static const char rcsid[] =
 
 #define CE_COMPACT 1		/* Compact the achived log files */
 #define CE_BINARY  2		/* Logfile is in binary, don't add */
- /* status messages */
+				/*  status messages */
 #define	CE_TRIMAT  4		/* trim at a specific time */
 
 #define NONE -1
@@ -83,10 +81,12 @@ struct conf_entry {
 	struct conf_entry *next;/* Linked list pointer */
 };
 
+int archtodir = 0;		/* Archive old logfiles to other directory */
 int verbose = 0;		/* Print out what's going on */
 int needroot = 1;		/* Root privs are necessary */
 int noaction = 0;		/* Don't do anything, just show it */
 int force = 0;			/* Force the trim no matter what */
+char *archdirname;		/* Directory path to old logfiles archive */
 char *conf = _PATH_CONF;	/* Configuration file to use */
 time_t timenow;
 
@@ -108,12 +108,13 @@ static void compress_log(char *log);
 static int sizefile(char *file);
 static int age_old_log(char *file);
 static pid_t get_pid(char *pid_file);
-static time_t parse8601(const char *s);
+static time_t parse8601(char *s);
+static void movefile(char *from, char *to, int perm, int owner_uid, int group_gid);
+static void createdir(char *dirpart);
+static time_t parseDWM(char *s);
 
-int 
-main(argc, argv)
-	int argc;
-	char **argv;
+int
+main(int argc, char **argv)
 {
 	struct conf_entry *p, *q;
 
@@ -131,10 +132,8 @@ main(argc, argv)
 	return (0);
 }
 
-static void 
-do_entry(ent)
-	struct conf_entry *ent;
-
+static void
+do_entry(struct conf_entry * ent)
 {
 	int size, modtime;
 	char *pid_file;
@@ -198,10 +197,8 @@ do_entry(ent)
 	}
 }
 
-static void 
-PRS(argc, argv)
-	int argc;
-	char **argv;
+static void
+PRS(int argc, char **argv)
 {
 	int c;
 	char *p;
@@ -218,10 +215,14 @@ PRS(argc, argv)
 		*p = '\0';
 	}
 	optind = 1;		/* Start options parsing */
-	while ((c = getopt(argc, argv, "nrvFf:t:")) != -1)
+	while ((c = getopt(argc, argv, "nrvFf:a:t:")) != -1)
 		switch (c) {
 		case 'n':
 			noaction++;
+			break;
+		case 'a':
+			archtodir++;
+			archdirname = optarg;
 			break;
 		case 'r':
 			needroot = 0;
@@ -240,18 +241,19 @@ PRS(argc, argv)
 		}
 }
 
-static void 
-usage()
+static void
+usage(void)
 {
-	fprintf(stderr, "usage: newsyslog [-Fnrv] [-f config-file]\n");
+	fprintf(stderr, "usage: newsyslog [-Fnrv] [-f config-file] [-a directory]\n");
 	exit(1);
 }
 
-/* Parse a configuration file and return a linked list of all the logs
- * to process
+/*
+ * Parse a configuration file and return a linked list of all the logs to
+ * process
  */
 static struct conf_entry *
-parse_file()
+parse_file(void)
 {
 	FILE *f;
 	char line[BUFSIZ], *parse, *q;
@@ -370,10 +372,15 @@ parse_file()
 			else
 				working->hours = ul;
 
-			if (*ep != '\0' && *ep != '@' && *ep != '*')
+			if (*ep != '\0' && *ep != '@' && *ep != '*' && *ep != '$')
 				errx(1, "malformed interval/at:\n%s", errline);
 			if (*ep == '@') {
 				if ((working->trim_at = parse8601(ep + 1))
+				    == (time_t) - 1)
+					errx(1, "malformed at:\n%s", errline);
+				working->flags |= CE_TRIMAT;
+			} else if (*ep == '$') {
+				if ((working->trim_at = parseDWM(ep + 1))
 				    == (time_t) - 1)
 					errx(1, "malformed at:\n%s", errline);
 				working->flags |= CE_TRIMAT;
@@ -447,25 +454,18 @@ parse_file()
 }
 
 static char *
-missing_field(p, errline)
-	char *p, *errline;
+missing_field(char *p, char *errline)
 {
 	if (!p || !*p)
 		errx(1, "missing field in config file:\n%s", errline);
 	return (p);
 }
 
-static void 
-dotrim(log, pid_file, numdays, flags, perm, owner_uid, group_gid, sig)
-	char *log;
-	char *pid_file;
-	int numdays;
-	int flags;
-	int perm;
-	int owner_uid;
-	int group_gid;
-	int sig;
+static void
+dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
+    int owner_uid, int group_gid, int sig)
 {
+	char dirpart[MAXPATHLEN + 1], namepart[MAXPATHLEN + 1];
 	char file1[MAXPATHLEN + 1], file2[MAXPATHLEN + 1];
 	char zfile1[MAXPATHLEN + 1], zfile2[MAXPATHLEN + 1];
 	int notified, need_notification, fd, _numdays;
@@ -473,17 +473,51 @@ dotrim(log, pid_file, numdays, flags, perm, owner_uid, group_gid, sig)
 	pid_t pid;
 
 #ifdef _IBMR2
-/* AIX 3.1 has a broken fchown- if the owner_uid is -1, it will actually */
-/* change it to be owned by uid -1, instead of leaving it as is, as it is */
-/* supposed to. */
+	/*
+	 * AIX 3.1 has a broken fchown- if the owner_uid is -1, it will
+	 * actually change it to be owned by uid -1, instead of leaving it
+	 * as is, as it is supposed to.
+	 */
 	if (owner_uid == -1)
 		owner_uid = geteuid();
 #endif
 
-	/* Remove oldest log */
-	(void) sprintf(file1, "%s.%d", log, numdays);
-	(void) strcpy(zfile1, file1);
-	(void) strcat(zfile1, COMPRESS_POSTFIX);
+	if (archtodir) {
+		char *p;
+
+		/* build complete name of archive directory into dirpart */
+		if (*archdirname == '/') {	/* absolute */
+			strcpy(dirpart, archdirname);
+		} else {	/* relative */
+			/* get directory part of logfile */
+			strcpy(dirpart, log);
+			if ((p = rindex(dirpart, '/')) == NULL)
+				dirpart[0] = '\0';
+			else
+				*(p + 1) = '\0';
+			strcat(dirpart, archdirname);
+		}
+
+		/* check if archive directory exists, if not, create it */
+		if (lstat(dirpart, &st))
+			createdir(dirpart);
+
+		/* get filename part of logfile */
+		if ((p = rindex(log, '/')) == NULL)
+			strcpy(namepart, log);
+		else
+			strcpy(namepart, p + 1);
+
+		/* name of oldest log */
+		(void) sprintf(file1, "%s/%s.%d", dirpart, namepart, numdays);
+		(void) strcpy(zfile1, file1);
+		(void) strcat(zfile1, COMPRESS_POSTFIX);
+	} else {
+		/* name of oldest log */
+		(void) sprintf(file1, "%s.%d", log, numdays);
+		(void) strcpy(zfile1, file1);
+		(void) strcat(zfile1, COMPRESS_POSTFIX);
+	}
 
 	if (noaction) {
 		printf("rm -f %s\n", file1);
@@ -496,8 +530,14 @@ dotrim(log, pid_file, numdays, flags, perm, owner_uid, group_gid, sig)
 	/* Move down log files */
 	_numdays = numdays;	/* preserve */
 	while (numdays--) {
+
 		(void) strcpy(file2, file1);
-		(void) sprintf(file1, "%s.%d", log, numdays);
+
+		if (archtodir)
+			(void) sprintf(file1, "%s/%s.%d", dirpart, namepart, numdays);
+		else
+			(void) sprintf(file1, "%s.%d", log, numdays);
+
 		(void) strcpy(zfile1, file1);
 		(void) strcpy(zfile2, file2);
 		if (lstat(file1, &st)) {
@@ -528,8 +568,12 @@ dotrim(log, pid_file, numdays, flags, perm, owner_uid, group_gid, sig)
 	} else {
 		if (noaction)
 			printf("mv %s to %s\n", log, file1);
-		else
-			(void) rename(log, file1);
+		else {
+			if (archtodir)
+				movefile(log, file1, perm, owner_uid, group_gid);
+			else
+				(void) rename(log, file1);
+		}
 	}
 
 	if (noaction)
@@ -579,15 +623,19 @@ dotrim(log, pid_file, numdays, flags, perm, owner_uid, group_gid, sig)
 					printf("small pause to allow daemon to close log\n");
 				sleep(10);
 			}
-			compress_log(log);
+			if (archtodir) {
+				(void) sprintf(file1, "%s/%s", dirpart, namepart);
+				compress_log(file1);
+			} else {
+				compress_log(log);
+			}
 		}
 	}
 }
 
 /* Log the fact that the logs were turned over */
-static int 
-log_trim(log)
-	char *log;
+static int
+log_trim(char *log)
 {
 	FILE *f;
 
@@ -600,10 +648,9 @@ log_trim(log)
 	return (0);
 }
 
-/* Fork of /usr/ucb/compress to compress the old log file */
-static void 
-compress_log(log)
-	char *log;
+/* Fork of gzip to compress the old log file */
+static void
+compress_log(char *log)
 {
 	pid_t pid;
 	char tmp[MAXPATHLEN + 1];
@@ -619,9 +666,8 @@ compress_log(log)
 }
 
 /* Return size in kilobytes of a file */
-static int 
-sizefile(file)
-	char *file;
+static int
+sizefile(char *file)
 {
 	struct stat sb;
 
@@ -631,23 +677,47 @@ sizefile(file)
 }
 
 /* Return the age of old log file (file.0) */
-static int 
-age_old_log(file)
-	char *file;
+static int
+age_old_log(char *file)
 {
 	struct stat sb;
 	char tmp[MAXPATHLEN + sizeof(".0") + sizeof(COMPRESS_POSTFIX) + 1];
 
-	(void) strcpy(tmp, file);
+	if (archtodir) {
+		char *p;
+
+		/* build name of archive directory into tmp */
+		if (*archdirname == '/') {	/* absolute */
+			strcpy(tmp, archdirname);
+		} else {	/* relative */
+			/* get directory part of logfile */
+			strcpy(tmp, file);
+			if ((p = rindex(tmp, '/')) == NULL)
+				tmp[0] = '\0';
+			else
+				*(p + 1) = '\0';
+			strcat(tmp, archdirname);
+		}
+
+		strcat(tmp, "/");
+
+		/* get filename part of logfile */
+		if ((p = rindex(file, '/')) == NULL)
+			strcat(tmp, file);
+		else
+			strcat(tmp, p + 1);
+	} else {
+		(void) strcpy(tmp, file);
+	}
+
 	if (stat(strcat(tmp, ".0"), &sb) < 0)
 		if (stat(strcat(tmp, COMPRESS_POSTFIX), &sb) < 0)
 			return (-1);
 	return ((int) (timenow - sb.st_mtime + 1800) / 3600);
 }
 
-static pid_t 
-get_pid(pid_file)
-	char *pid_file;
+static pid_t
+get_pid(char *pid_file)
 {
 	FILE *f;
 	char line[BUFSIZ];
@@ -673,8 +743,7 @@ get_pid(pid_file)
 
 /* Skip Over Blanks */
 char *
-sob(p)
-	register char *p;
+sob(char *p)
 {
 	while (p && *p && isspace(*p))
 		p++;
@@ -683,8 +752,7 @@ sob(p)
 
 /* Skip Over Non-Blanks */
 char *
-son(p)
-	register char *p;
+son(char *p)
 {
 	while (p && *p && !isspace(*p))
 		p++;
@@ -692,16 +760,15 @@ son(p)
 }
 
 /*
- * Parse a limited subset of ISO 8601.
- * The specific format is as follows:
+ * Parse a limited subset of ISO 8601. The specific format is as follows:
  *
- *	[CC[YY[MM[DD]]]][THH[MM[SS]]]	(where `T' is the literal letter)
+ * [CC[YY[MM[DD]]]][THH[MM[SS]]]	(where `T' is the literal letter)
  *
- * We don't accept a timezone specification; missing fields (including
- * timezone) are defaulted to the current date but time zero.
+ * We don't accept a timezone specification; missing fields (including timezone)
+ * are defaulted to the current date but time zero.
  */
 static time_t
-parse8601(const char *s)
+parse8601(char *s)
 {
 	char *t;
 	struct tm tm, *tmp;
@@ -770,6 +837,174 @@ parse8601(const char *s)
 		if (tm.tm_sec < 0 || tm.tm_sec > 60 || tm.tm_min < 0
 		    || tm.tm_min > 59 || tm.tm_hour < 0 || tm.tm_hour > 23)
 			return -1;
+	}
+	return mktime(&tm);
+}
+
+/* physically move file */
+static void
+movefile(char *from, char *to, int perm, int owner_uid, int group_gid)
+{
+	FILE *src, *dst;
+	int c;
+
+	if ((src = fopen(from, "r")) == NULL)
+		err(1, "can't fopen %s for reading", from);
+	if ((dst = fopen(to, "w")) == NULL)
+		err(1, "can't fopen %s for writing", to);
+	if (fchown(fileno(dst), owner_uid, group_gid))
+		err(1, "can't fchown %s", to);
+	if (fchmod(fileno(dst), perm))
+		err(1, "can't fchmod %s", to);
+
+	while ((c = getc(src)) != EOF) {
+		if ((putc(c, dst)) == EOF)
+			err(1, "error writing to %s", to);
+	}
+
+	if (ferror(src))
+		err(1, "error reading from %s", from);
+	if ((fclose(src)) != 0)
+		err(1, "can't fclose %s", to);
+	if ((fclose(dst)) != 0)
+		err(1, "can't fclose %s", from);
+	if ((unlink(from)) != 0)
+		err(1, "can't unlink %s", from);
+}
+
+/* create one or more directory components of a path */
+static void
+createdir(char *dirpart)
+{
+	char *s, *d;
+	char mkdirpath[MAXPATHLEN + 1];
+	struct stat st;
+
+	s = dirpart;
+	d = mkdirpath;
+
+	for (;;) {
+		*d++ = *s++;
+		if (*s == '/' || *s == '\0') {
+			*d = '\0';
+			if (lstat(mkdirpath, &st))
+				mkdir(mkdirpath, 0755);
+		}
+		if (*s == '\0')
+			break;
+	}
+}
+
+/*-
+ * Parse a cyclic time specification, the format is as follows:
+ *
+ *	[Dhh] or [Wd[Dhh]] or [Mdd[Dhh]]
+ *
+ * to rotate a logfile cyclic at
+ *
+ *	- every day (D) within a specific hour (hh)	(hh = 0...23)
+ *	- once a week (W) at a specific day (d)     OR	(d = 0..6, 0 = Sunday)
+ *	- once a month (M) at a specific day (d)	(d = 1..31,l|L)
+ *
+ * We don't accept a timezone specification; missing fields
+ * are defaulted to the current date but time zero.
+ */
+static time_t
+parseDWM(char *s)
+{
+	char *t;
+	struct tm tm, *tmp;
+	u_long ul;
+	int nd;
+	static int mtab[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+	int WMseen = 0;
+	int Dseen = 0;
+
+	tmp = localtime(&timenow);
+	tm = *tmp;
+
+	/* set no. of days per month */
+
+	nd = mtab[tm.tm_mon];
+
+	if (tm.tm_mon == 1) {
+		if (((tm.tm_year + 1900) % 4 == 0) &&
+		    ((tm.tm_year + 1900) % 100 != 0) &&
+		    ((tm.tm_year + 1900) % 400 == 0)) {
+			nd++;	/* leap year, 29 days in february */
+		}
+	}
+	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
+
+	for (;;) {
+		switch (*s) {
+		case 'D':
+			if (Dseen)
+				return -1;
+			Dseen++;
+			s++;
+			ul = strtoul(s, &t, 10);
+			if (ul < 0 || ul > 23)
+				return -1;
+			tm.tm_hour = ul;
+			break;
+
+		case 'W':
+			if (WMseen)
+				return -1;
+			WMseen++;
+			s++;
+			ul = strtoul(s, &t, 10);
+			if (ul < 0 || ul > 6)
+				return -1;
+			if (ul != tm.tm_wday) {
+				int save;
+
+				if (ul < tm.tm_wday) {
+					save = 6 - tm.tm_wday;
+					save += (ul + 1);
+				} else {
+					save = ul - tm.tm_wday;
+				}
+
+				tm.tm_mday += save;
+
+				if (tm.tm_mday > nd) {
+					tm.tm_mon++;
+					tm.tm_mday = tm.tm_mday - nd;
+				}
+			}
+			break;
+
+		case 'M':
+			if (WMseen)
+				return -1;
+			WMseen++;
+			s++;
+			if (tolower(*s) == 'l') {
+				tm.tm_mday = nd;
+				s++;
+				t = s;
+			} else {
+				ul = strtoul(s, &t, 10);
+				if (ul < 1 || ul > 31)
+					return -1;
+
+				if (ul > nd)
+					return -1;
+				tm.tm_mday = ul;
+			}
+			break;
+
+		default:
+			return (-1);
+			break;
+		}
+
+		if (*t == '\0' || isspace(*t))
+			break;
+		else
+			s = t;
 	}
 	return mktime(&tm);
 }
