@@ -166,6 +166,20 @@ extern struct mtx			acpi_mutex;
 #define	ACPI_INTR_SAPIC		2
 
 /*
+ * Various features and capabilities for the acpi_get_features() method.
+ * In particular, these are used for the ACPI 3.0 _PDC and _OSC methods.
+ */
+#define ACPI_CAP_PERF_MSRS	(1 << 0) /* Intel SpeedStep PERF_CTL MSRs */
+#define ACPI_CAP_C1_IO_HALT	(1 << 1) /* Intel C1 "IO then halt" sequence */
+#define ACPI_CAP_THR_MSRS	(1 << 2) /* Intel OnDemand throttling MSRs */
+#define ACPI_CAP_SMP_SAME	(1 << 3) /* MP C1, Px, and Tx (all the same) */
+#define ACPI_CAP_SMP_SAME_C3	(1 << 4) /* MP C2 and C3 (all the same) */
+#define ACPI_CAP_SMP_DIFF_PX	(1 << 5) /* MP Px (different, using _PSD) */
+#define ACPI_CAP_SMP_DIFF_CX	(1 << 6) /* MP Cx (different, using _CSD) */
+#define ACPI_CAP_SMP_DIFF_TX	(1 << 7) /* MP Tx (different, using _TSD) */
+#define ACPI_CAP_SMP_C1_NATIVE	(1 << 8) /* MP C1 support other than halt */
+
+/*
  * Quirk flags.
  *
  * ACPI_Q_BROKEN: Disables all ACPI support.
