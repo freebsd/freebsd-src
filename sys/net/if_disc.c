@@ -42,6 +42,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -61,20 +62,39 @@
 #define DSMTU	65532
 #endif
 
-static void discattach(void);
+#define DISCNAME	"disc"
 
-static struct ifnet	discif;
-static int		discoutput(struct ifnet *, struct mbuf *,
-			    struct sockaddr *, struct rtentry *);
-static void		discrtrequest(int, struct rtentry *, struct rt_addrinfo *);
-static int		discioctl(struct ifnet *, u_long, caddr_t);
+struct disc_softc {
+	struct ifnet sc_if;	/* must be first */
+	LIST_ENTRY(disc_softc) sc_list;
+};
 
-static void
-discattach(void)
+static int	discoutput(struct ifnet *, struct mbuf *,
+		    struct sockaddr *, struct rtentry *);
+static void	discrtrequest(int, struct rtentry *, struct rt_addrinfo *);
+static int	discioctl(struct ifnet *, u_long, caddr_t);
+static int	disc_clone_create(struct if_clone *, int);
+static void	disc_clone_destroy(struct ifnet *);
+
+static MALLOC_DEFINE(M_DISC, DISCNAME, "Discard interface");
+static LIST_HEAD(, disc_softc) disc_softc_list;
+static struct if_clone disc_cloner = IF_CLONE_INITIALIZER(DISCNAME,
+    disc_clone_create, disc_clone_destroy, 0, IF_MAXUNIT);
+
+static int
+disc_clone_create(struct if_clone *ifc, int unit)
 {
-	struct ifnet *ifp = &discif;
+	struct ifnet		*ifp;
+	struct disc_softc	*sc;
 
-	ifp->if_name = "ds";
+	sc = malloc(sizeof(struct disc_softc), M_DISC, M_WAITOK);
+	bzero(sc, sizeof(struct disc_softc));
+
+	ifp = &sc->sc_if;
+
+	ifp->if_softc = sc;
+	ifp->if_name = DISCNAME;
+	ifp->if_unit = unit;
 	ifp->if_mtu = DSMTU;
 	ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
 	ifp->if_ioctl = discioctl;
@@ -85,6 +105,23 @@ discattach(void)
 	ifp->if_snd.ifq_maxlen = 20;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int));
+	LIST_INSERT_HEAD(&disc_softc_list, sc, sc_list);
+
+	return (0);
+}
+
+static void
+disc_clone_destroy(struct ifnet *ifp)
+{
+	struct disc_softc	*sc;
+
+	sc = ifp->if_softc;
+
+	LIST_REMOVE(sc, sc_list);
+	bpfdetach(ifp);
+	if_detach(ifp);
+
+	free(sc, M_DISC);
 }
 
 static int
@@ -92,11 +129,16 @@ disc_modevent(module_t mod, int type, void *data)
 { 
 	switch (type) { 
 	case MOD_LOAD: 
-		discattach();
+		LIST_INIT(&disc_softc_list);
+		if_clone_attach(&disc_cloner);
 		break; 
 	case MOD_UNLOAD: 
-		printf("if_disc module unload - not possible for this module type\n"); 
-		return EINVAL; 
+		if_clone_detach(&disc_cloner);
+
+		while (!LIST_EMPTY(&disc_softc_list))
+			disc_clone_destroy(
+			    &LIST_FIRST(&disc_softc_list)->sc_if);
+		break;
 	} 
 	return 0; 
 } 
@@ -123,7 +165,7 @@ discoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		m->m_data += sizeof(int);
 	}
 
-	if (discif.if_bpf) {
+	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
 		 * a four byte field.  Cons up a dummy header
@@ -138,7 +180,7 @@ discoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
 
-		bpf_mtap(&discif, &m0);
+		bpf_mtap(ifp, &m0);
 	}
 	m->m_pkthdr.rcvif = ifp;
 
