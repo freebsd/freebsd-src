@@ -348,7 +348,7 @@ struct nfsreq {
 	int		r_timer;	/* tick counter on reply */
 	u_int32_t	r_procnum;	/* NFS procedure number */
 	int		r_rtt;		/* RTT for rpc */
-	struct thread	*r_td;	/* Proc that did I/O system call */
+	struct thread	*r_td;		/* Proc that did I/O system call */
 };
 
 /*
@@ -598,7 +598,7 @@ int	nfs_readrpc __P((struct vnode *, struct uio *, struct ucred *));
 int	nfs_writerpc __P((struct vnode *, struct uio *, struct ucred *, int *, 
 			  int *));
 int	nfs_commit __P((struct vnode *vp, u_quad_t offset, int cnt, 
-			struct ucred *cred, struct thread *));
+			struct ucred *cred, struct thread *td));
 int	nfs_readdirrpc __P((struct vnode *, struct uio *, struct ucred *));
 int	nfs_asyncio __P((struct buf *, struct ucred *, struct thread *));
 int	nfs_doio __P((struct buf *, struct ucred *, struct thread *));
@@ -658,7 +658,7 @@ void	nfsrv_wakenfsd __P((struct nfssvc_sock *slp));
 int	nfsrv_writegather __P((struct nfsrv_descript **, struct nfssvc_sock *,
 			       struct thread *, struct mbuf **));
 int	nfs_fsinfo __P((struct nfsmount *, struct vnode *, struct ucred *,
-			struct thread *p));
+			struct thread *td));
 
 int	nfsrv3_access __P((struct nfsrv_descript *nfsd, 
 			   struct nfssvc_sock *slp,
