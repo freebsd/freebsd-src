@@ -259,7 +259,7 @@ main(int argc, char *argv[])
 static int
 sppd_ttys_open(char const *tty, int *amaster, int *aslave)
 {
-	char		 pty[PATH_MAX], *slash = NULL;
+	char		 pty[PATH_MAX], *slash;
 	struct group	*gr = NULL;
 	gid_t		 ttygid;
 	struct termios	 tio;
@@ -277,7 +277,7 @@ sppd_ttys_open(char const *tty, int *amaster, int *aslave)
 
 	strlcpy(pty, tty, sizeof(pty));
 	slash = strrchr(pty, '/');
-	if (slash == NULL || slash[1] == 0) {
+	if (slash == NULL || slash[1] == '\0') {
 		syslog(LOG_ERR, "Invalid slave tty name (%s)", tty);
 		return (-1);
 	}
