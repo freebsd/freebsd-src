@@ -83,8 +83,10 @@ The following keywords are recognized by
 .Bl -tag -width system -compact
 
 .It Li system
-This keyword starts the system configuration section. It must not 
-have a parameter and may be used only once. The keyword is mandatory.
+This keyword starts the system configuration section.
+It must not 
+have a parameter and may be used only once.
+The keyword is mandatory.
 The following keywords are valid in the system configuration section:
 .Bl -tag -width useacctfile -compact
 
@@ -127,12 +129,14 @@ ring the bell when connecting or disconnecting a call.
 If this parameter is set to
 .Em on ,
 date/time information from the exchange (if provided) is written to the
-logfile. The default is off. (optional)
+logfile.
+The default is off. (optional)
 
 .It Li mailer
 This keyword is used to specify the path/name of a mail program which
 which is able to use the "-s" flag to specify a subject on its 
-command line. In case of a fatal error exit of
+command line.
+In case of a fatal error exit of
 .Nm
 this program is used to send mail to an administrator specified by
 the keyword
@@ -164,7 +168,8 @@ This integer parameter is optional and is set to port 451 by default.
 
 .It Li monitor
 This keyword specifies a local socket name or a host or network for remote
-monitoring. The 
+monitoring.
+The 
 .Em monitor 
 specification may either be:
 .Pp
@@ -184,7 +189,8 @@ example: up-vision-net/24
 .It Li monitor-access
 This keyword specifies the access rights for a previously used 
 .Em monitor
-keyword. The supported access rights are:
+keyword.
+The supported access rights are:
 .Pp
 .Bl -tag -width Ds -compact -offset
 .It Ar fullcmd
@@ -196,11 +202,13 @@ keyword. The supported access rights are:
 .El
 
 .It Li ratesfile
-Specifies the name of the ratesfile. If this keyword is omitted the system
+Specifies the name of the ratesfile.
+If this keyword is omitted the system
 default is used. (optional)
 
 .It Li regexpr
-This keyword is used to specify regular expressions. It can be specified
+This keyword is used to specify regular expressions.
+It can be specified
 more than once up to a compile time dependent value (currently set to 5 by
 the MAX_RE definition in the source).
 .Pp
@@ -233,7 +241,8 @@ which is prepended to the string specified as a parameter to this keyword.
 (optional)
 
 .It Li rotatesuffix
-Specifies a suffix for renaming the log- and the accountingfilename. In case
+Specifies a suffix for renaming the log- and the accountingfilename.
+In case
 rotatesuffix is used and a USR1 signal is sent to isdnd, the logfile and the
 accounting file is not only closed and reopened but the old logfile is also
 renamed to the former filename with the rotatesuffix string appended.
@@ -244,7 +253,8 @@ is also the default behaviour. (optional)
 Specifies the realtime priority 
 .Nm isdnd
 runs at as an integer value in the range 0...31 with 0 being the highest
-priority. This keyword is optional; if not specified the process priority of 
+priority.
+This keyword is optional; if not specified the process priority of 
 .Nm isdnd
 is not touched in any way.
 ( See also
@@ -263,15 +273,19 @@ accounting file. (optional)
 .El
 
 .It Li controller
-This keyword starts the controller configuration section. It must not 
-have a parameter and may be used once for every controller. The keyword
-is optional. The following keywords are valid in a controller 
+This keyword starts the controller configuration section.
+It must not 
+have a parameter and may be used once for every controller.
+The keyword
+is optional.
+The following keywords are valid in a controller 
 configuration section:
 .Bl -tag -width useacctfile -compact
 
 .It Li protocol
 This keyword is used to set the D-channel protocol for the S0-bus a 
-controller is connected to. The following parameters are currently
+controller is connected to.
+The following parameters are currently
 supported:
 .Pp
 .Bl -tag -width calledback -compact -offset
@@ -284,7 +298,8 @@ An ISDN leased line with a single B-channel (called D64S in Germany).
 .El
 
 .It Li entry
-This keyword starts one configuration entry. It must not have a parameter.
+This keyword starts one configuration entry.
+It must not have a parameter.
 This keyword must be used at least once.
 The following keywords are valid in an entry section:
 .Bl -tag -width unitlengthsrc -compact
@@ -293,7 +308,8 @@ The following keywords are valid in an entry section:
 This keyword is used to specify the name of a program which is run in
 case an incoming telephone connection specified
 .Em answer
-in its configuration entry. The default name is
+in its configuration entry.
+The default name is
 .Em answer .
 .Nm Isdnd
 expects to find this program beneath the path
@@ -302,15 +318,18 @@ which is prepended to the string specified as a parameter to this keyword.
 (optional)
 
 .It Li alert
-is used to specify a time in seconds to wait before accepting a call. This
+is used to specify a time in seconds to wait before accepting a call.
+This
 keyword is only usable for incoming telephone calls (dialin-reaction = answer).
 It is used to have a chance to accept an incoming call on the phone before
-the answering machine starts to run. The minimum value for the alert parameter
+the answering machine starts to run.
+The minimum value for the alert parameter
 is 5 seconds and the maximum parameter allowed is 180 seconds.
 (optional)
 
 .It Li b1protocol
-The B channel layer 1 protocol used for this connection. The keyword is mandatory.
+The B channel layer 1 protocol used for this connection.
+The keyword is mandatory.
 The currently configurable values are:
 .Pp
 .Bl -tag -width Ds -compact -offset
@@ -411,7 +430,8 @@ expected next charging unit will occur. (optional)
 
 .It Li idle-algorithm-outgoing
 The algorithm used to determine when to hang up an outgoing call when the
-line becomes idle. The current algorithms are:
+line becomes idle.
+The current algorithms are:
 
 .Pp
 .Bl -tag -width calledback -compact -offset
@@ -452,8 +472,10 @@ A delay value suitable for the
 kernel subroutine to delay the transmittion of the first packet after a
 successfull connection is made by this value for 
 .Em incoming
-ISDN connections. The specification unit is 1/100 second. A zero (0) disables
-this feature and is the default value. This feature is implemented (and makes 
+ISDN connections. The specification unit is 1/100 second.
+A zero (0) disables
+this feature and is the default value.
+This feature is implemented (and makes 
 sense only) for the
 .Xr i4bipr 4
 IP over raw HDLC ISDN driver. (optional)
@@ -464,14 +486,17 @@ A delay value suitable for the
 kernel subroutine to delay the transmittion of the first packet after a
 successfull connection is made by this value for 
 .Em outgoing
-ISDN connections. The specification unit is 1/100 second. A zero (0) disables   
-this feature and is the default value. This feature is implemented (and makes
+ISDN connections. The specification unit is 1/100 second.
+A zero (0) disables   
+this feature and is the default value.
+This feature is implemented (and makes
 sense only) for the
 .Xr i4bipr 4
 IP over raw HDLC ISDN driver. (optional)
 
 .It Li local-phone-dialout
-The local telephone number used when the local site dials out. When dialing
+The local telephone number used when the local site dials out.
+When dialing
 out to a remote site, the number specified here is put into the
 .Em "Calling Party Number Information Element" .
 .Pp
@@ -481,8 +506,10 @@ userland interfaces.
 
 .It Li local-phone-incoming
 The local telephone number used for verifying the destination of incoming
-calls. When a remote site dials in, this number is used to verify that it 
-is the local site which the remote site wants to connect to. It is compared
+calls.
+When a remote site dials in, this number is used to verify that it 
+is the local site which the remote site wants to connect to.
+It is compared
 with the
 .Em "Called Party Number Information Element"
 got from the telephone exchange.
@@ -490,7 +517,8 @@ got from the telephone exchange.
 This keyword is mandatory for the ipr interfaces.
 
 .It Li name
-Defines a symbolic name for this configuration entry. It's purpose is to
+Defines a symbolic name for this configuration entry.
+It's purpose is to
 use this name in the full-screen display for easy identification of a link
 to a remote site and for accounting purposes. (mandatory)
 
@@ -521,19 +549,23 @@ follows the last one used.
 .El
 
 .It Li remote-phone-dialout
-The remote telephone number used when the local site dials out. When dialing
+The remote telephone number used when the local site dials out.
+When dialing
 out to a remote site, the number specified here is put into the
 .Em "Called Party Number Information Element" .
 .Pp
 This keyword is mandatory for the
 .Em ipr
-interfaces. It may be specified more than once to try to dial to several
+interfaces.
+It may be specified more than once to try to dial to several
 numbers until one succeeds.
 
 .It Li remote-phone-incoming
-The remote telephone number used to verify an incoming call. When a remote site
+The remote telephone number used to verify an incoming call.
+When a remote site
 dials in, this number is used to verify that it is the correct remote site
-which is herewith authorized to connect into the local system. This parameter
+which is herewith authorized to connect into the local system.
+This parameter
 is compared against the 
 .Em "Calling Party Number Information Element"
 got from the telephone exchange.
@@ -543,13 +575,15 @@ This keyword is mandatory for the ipr interfaces.
 This keyword may have a wildcard parameter '*' to permit anyone dialing in.
 
 .It Li unitlength
-The length of a charging unit in seconds. This is used in conjunction with
+The length of a charging unit in seconds.
+This is used in conjunction with
 the idletime to decide when to hangup a connection. (optional)
 
 .It Li unitlengthsrc
 This keyword is used to specify from which source
 .Xr isdnd 8
-takes the unitlength for shorthold mode. The currently configurable values are:
+takes the unitlength for shorthold mode.
+The currently configurable values are:
 .Pp
 .Bl -tag -width Ds -compact -offset
 .It Ar none
@@ -572,7 +606,8 @@ to indicate billable units).
 
 .It Li usrdevicename
 Specifies the userland interface which is used for interfacing ISDN B channel
-data to the userland. The keyword is mandatory.
+data to the userland.
+The keyword is mandatory.
 This keyword accepts the following parameters:
 .Pp
 .Bl -tag -width Ds -compact -offset
@@ -696,10 +731,13 @@ must be greater than 0 (zero);
 .Ed
 
 During the unchecked window which is (unitlength - (idle-time+earlyhangup))
-in length, no idle check is done. After the unchecked window has ended,
-the line is checked for idle-time length if no traffic takes place. In case
+in length, no idle check is done.
+After the unchecked window has ended,
+the line is checked for idle-time length if no traffic takes place.
+In case
 there was traffic detected in the check-window, the same procedure is restarted
-at the beginning of the next unit. In case no traffic was detected during
+at the beginning of the next unit.
+In case no traffic was detected during
 the check-window, the line is closed at the end of the check window.
 .Pp
 Notice: 

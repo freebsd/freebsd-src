@@ -44,7 +44,8 @@
 The
 .Nm ispcvt
 utility allows the user to check whether the current video driver compiled
-into the kernel is a pcvt driver. The major and minor release numbers of
+into the kernel is a pcvt driver.
+The major and minor release numbers of
 the driver are also checked.
 Furthermore
 .Nm ispcvt
@@ -58,13 +59,15 @@ The options are as follows:
 .It Fl d
 Specifies a device for which the check is done.
 .It Fl v
-Specifies being verbose. On success the name and revision is reported, on
+Specifies being verbose.
+On success the name and revision is reported, on
 failure which comparison failed.
 .It Fl c
 This options prints out the values of all
 .Dq Ar PCVT_XXXXXX
 #defines which were given to the compiler at the time the currently running
-kernel was compiled. Specifying
+kernel was compiled.
+Specifying
 .Fl v
 with the
 .Fl c

@@ -72,7 +72,8 @@ The
 .Nm
 server allows a normal NIS user to change
 his or her NIS password, full name (also
-known as 'GECOS' field) or shell. These updates are typically done using
+known as 'GECOS' field) or shell.
+These updates are typically done using
 the
 .Xr yppasswd 1 ,
 .Xr ypchfn 1 ,
@@ -104,7 +105,8 @@ and then runs the
 .Pa /usr/libexec/yppwupdate
 script to rebuild the NIS maps. (This script has two arguments passed
 to it: the absolute pathname of the password template that was modified
-and the name of the domain that is to be updated. These in turn are
+and the name of the domain that is to be updated.
+These in turn are
 passed to
 .Pa /var/yp/Makefile ) .
 .Pp
@@ -113,7 +115,8 @@ The
 version of
 .Nm
 also allows the super-user on the NIS master server to perform more
-sophisticated updates on the NIS passwd maps. The super-user can modify
+sophisticated updates on the NIS passwd maps.
+The super-user can modify
 any field in any user's master.passwd entry in any domain, and can
 do so without knowing the user's existing NIS password (when the server
 receives a request from the super-user, the password authentication
@@ -159,39 +162,46 @@ server can support multiple domains, however it must
 choose one domain as a default.
 It will try to use the system default domain name as set by the
 .Xr domainname 1
-command for this default. However,
+command for this default.
+However,
 if the system domain name is not
 set, a default domain must be specified on
-the command line. If the system default domain is set,
+the command line.
+If the system default domain is set,
 then this option can be used to override it.
 .It Fl p Ar path
 This option can be used to override the default path to
 the location of the NIS
-map databases. The compiled-in default path is
+map databases.
+The compiled-in default path is
 .Pa /var/yp .
 .It Fl s
 Disallow changing of shell information.
 .It Fl f
 Disallow changing of full name ('GECOS') information.
 .It Fl a
-Allow additions to be made to the NIS passwd databases. The super-user on the
+Allow additions to be made to the NIS passwd databases.
+The super-user on the
 NIS master server is permitted to use the
 .Xr ypchpass 1
 command to perform unrestricted modifications to any field in a user's
 .Pa master.passwd
-map entry. When
+map entry.
+When
 .Nm
 is started with this flag, it will also allow the super-user to add new
 records to the NIS passwd maps, just as is possible when using
 .Xr chpass 1
 to modify the local password database.
 .It Fl m
-Turn on multi-domain mode. Even though
+Turn on multi-domain mode.
+Even though
 .Xr ypserv 8
 can handle several simultaneous domains, most implementations of
 .Nm
 can only operate on a single NIS domain, which is generally the same as
-the system default domain of the NIS master server. The
+the system default domain of the NIS master server.
+The
 .Bx Free
 .Nm
 attempts to overcome this problem in spite of the inherent limitations
@@ -199,7 +209,8 @@ of the
 .Pa yppasswd
 protocol, which does not allow for a
 .Pa domain
-argument in client requests. In multi-domain mode,
+argument in client requests.
+In multi-domain mode,
 .Nm
 will search through all the passwd maps of all the domains it
 can find under
@@ -210,7 +221,8 @@ UID and GID fields.) The matched entry and corresponding domain are then
 used for the update.
 .Pp
 Note that in order for multi-domain mode to work, there have to be
-seperate template files for each domain. For example, if a server
+seperate template files for each domain.
+For example, if a server
 supports three domains,
 .Pa foo ,
 .Pa bar ,
@@ -232,26 +244,33 @@ The server will check for the latter file first and then use the former
 if it can't find it.
 .Pp
 Multi-domain mode is off by default since it can fail if there are
-duplicate or near-duplicate user entries in different domains. The server
+duplicate or near-duplicate user entries in different domains.
+The server
 will abort an update request if it finds more than one user entry that
-matches its search criteria. Even so, paranoid administrators
+matches its search criteria.
+Even so, paranoid administrators
 may wish to leave multi-domain mode disabled.
 .It Fl i
 If
 .Nm
-is invoked with this flag, it will perform map updates in place. This
+is invoked with this flag, it will perform map updates in place.
+This
 means that instead of just modifying the password template file and
 starting a map update, the server will modify the map databases
-directly. This is useful when the password maps are large: if, for
+directly.
+This is useful when the password maps are large: if, for
 example, the password database has tens of thousands of entries, it
-can take several minutes for a map update to complete. Updating the
+can take several minutes for a map update to complete.
+Updating the
 maps in place reduces this time to a few seconds.
 .It Fl v
-Turn on verbose logging mode. The server normally only logs messages
+Turn on verbose logging mode.
+The server normally only logs messages
 using the
 .Xr syslog 3
 facility when it encounters an error condition, or when processing
-updates for the super-user on the NIS master server. Running the server
+updates for the super-user on the NIS master server.
+Running the server
 with the
 .Fl v
 flag will cause it to log informational messages for all updates.
@@ -268,16 +287,19 @@ ports when establishing client connections for the super-user.
 By default,
 .Nm
 expects to receive requests from clients using reserved ports; requests
-received from non-privileged ports are rejected. Unfortunately, this
+received from non-privileged ports are rejected.
+Unfortunately, this
 behavior prevents any client systems that to not use privileged
-ports from sucessfully submitting password updates. Specifying
+ports from sucessfully submitting password updates.
+Specifying
 the
 .Fl u
 flag to
 .Nm
 disables the privileged port check so that it will work with
 .Xr yppasswd 1
-clients that don't use privileged ports. This reduces security to
+clients that don't use privileged ports.
+This reduces security to
 a certain small degree, but it might be necessary in cases where it
 is not possible to change the client behavior.
 .It Fl h
@@ -308,7 +330,8 @@ The template password file(s) for non-default domains
 As listed in the yppasswd.x protocol definition, the YPPASSWDPROC_UPDATE
 procedure takes two arguments: a V7-style passwd structure containing
 updated user information and the user's existing unencrypted (cleartext)
-password. Since
+password.
+Since
 .Nm
 is supposed to handle update requests from remote NIS client machines,
 this means that
@@ -320,7 +343,8 @@ This is not a problem for password updates since the plaintext password
 sent with the update will no longer be valid once the new encrypted password
 is put into place, but if the user is only updating his or her 'GECOS'
 information or shell, then the cleartext password sent with the update
-will still be valid once the update is completed. If the network is
+will still be valid once the update is completed.
+If the network is
 insecure, this cleartext password could be intercepted and used to
 gain unauthorized access to the user's account.
 .Sh AUTHORS

@@ -126,11 +126,13 @@ the version numbers in the on-line ports collection:
 .Dl % pkg_version ftp://ftp.FreeBSD.org/pub/FreeBSD/ports-current/INDEX
 .Pp
 The command below generates a file of commands to run to update the installed
-files. It is
+files.
+It is
 .Bf Em
 not
 .Ef
-suggested that you run these commands automatically. Always review the
+suggested that you run these commands automatically.
+Always review the
 suggestions, and then cut-and-paste (or retype) the commands you want to run.
 .Pp
 .Dl % pkg_version -c > do_update
@@ -150,7 +152,8 @@ Updates to packages
 that don't change the version number (e.g. small delta bugfixes in the
 package/port itself) aren't detected.
 .Pp
-Commands output doesn't know about dependencies between packages. For
+Commands output doesn't know about dependencies between packages.
+For
 example, you might have two versions of Tcl installed because two other
 packages require the different versions.
 .Nm

@@ -83,7 +83,8 @@ then debugging is enabled,
 If
 .Ic off
 is specified,
-then debugging is disabled. It is disabled by default.
+then debugging is disabled.
+It is disabled by default.
 .\"
 .It Ic dest Ar dest-list Op Ar retrycmd ;
 Specifies destinations to which router renumbering messages should be
@@ -180,7 +181,8 @@ Valid value for
 .Ar time
 is decimal seconds number or special format as "d00h00m00s00",
 where 00 can take any decimal number, and "d" means days, "h" means hours,
-"m" means minutes, "s" means seconds. And alternatively, special keyword
+"m" means minutes, "s" means seconds.
+And alternatively, special keyword
 "infinity" can be also be specified.
 .It Cm pltime Ar pltime-val
 Assign an
@@ -192,7 +194,8 @@ is same as for
 .Ar vltime-val .
 .It Cm raf_onlink Cm on|off
 Let the prefix to be added to have on-link or off-link nature
-for the assigned interface. If
+for the assigned interface.
+If
 .Cm on
 is specified, the prefix have on-link nature. (e.g. the prefix
 belong to the link) If
@@ -201,29 +204,36 @@ is specified, the prefix have off-link nature. (e.g. the
 prefix does not belong to the link)
 .It Cm raf_auto Cm on|off
 Enable or disable the autonomous address auto configuration
-for the prefix to be added. If
+for the prefix to be added.
+If
 .Cm on
 is specified, autonomous address auto configuration is
-enabled. If
+enabled.
+If
 .Cm off
 is specified, it is disabled.
 .It Cm rrf_decrprefd Cm on|off
-Enable or disable the decrementation of the pltime. If
+Enable or disable the decrementation of the pltime.
+If
 .Cm on
-is specified, decrementation of the pltime is enabled. If
+is specified, decrementation of the pltime is enabled.
+If
 .Cm off
 is specified, decrementation of the pltime is disabled.
 .It Cm rrf_decrvalid Cm on|off
-Enable or disable the decrementation of the vltime. If
+Enable or disable the decrementation of the vltime.
+If
 .Cm on
-is specified, decrementation of the vltime is enabled. If
+is specified, decrementation of the vltime is enabled.
+If
 .Cm off
 is specified, decrementation of the vltime is disabled.
 .El
 .\"
 .It seqnum Ar seqnum-val { Ar rrenum-cmd } ;
 Specifies contents of sending router renumbering message with some
-specific seqnum. Multiple of this statement can be specified if they
+specific seqnum.
+Multiple of this statement can be specified if they
 have different
 .Ar seqnum-val
 each other.
@@ -268,7 +278,8 @@ If you are going to do renumbering, then following procedure will be natural.
 Assigne new prefix.
 .It
 Set old prefix lifetimes to some appropriate transition
-period. In the followng example we use 1 week for valid
+period.
+In the followng example we use 1 week for valid
 lifetime, and 0 for preferred lifetime.
 Also, enable old prefix lifetime expiration.
 (By default, it is static and does not expire)

@@ -71,7 +71,8 @@ This functionality was added for the ease of configuration
 (e.g. it is possible to cut-and-paste into 
 .Pa syslog.conf
 ), 
-and to avoid possible mistakes. This change however preserves 
+and to avoid possible mistakes.
+This change however preserves 
 backwards compatibility with the old style of the
 .Pa syslog.conf
 (i.e. tab characters only).
@@ -135,7 +136,8 @@ values specified to the
 .Xr syslog 3
 library routine.
 .Pp
-Each block of lines is separated from the previous block by a tag. The tag
+Each block of lines is separated from the previous block by a tag.
+The tag
 is a line beginning with
 .Em #!prog
 or
@@ -144,7 +146,8 @@ or
 .Pa syslog.conf
 files, for example)
 and each block will be associated with calls to syslog from that specific
-program. A tag for ``foo'' will also match any message logged by the kernel
+program.
+A tag for ``foo'' will also match any message logged by the kernel
 with the prefix ``foo: ''.
 .Pp
 See
@@ -153,11 +156,13 @@ for a further descriptions of both the
 .Em facility
 and
 .Em level
-keywords and their significance. It's preferred that selections be made on
+keywords and their significance.
+It's preferred that selections be made on
 .Em facility
 rather than
 .Em program ,
-since the latter can easily vary in a networked environment. In some cases,
+since the latter can easily vary in a networked environment.
+In some cases,
 though, an appropriate
 .Em facility
 simply doesn't exist.

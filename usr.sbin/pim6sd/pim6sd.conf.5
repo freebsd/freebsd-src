@@ -65,7 +65,8 @@ The following statements can be specified in the configuration file.
 .Ar option...
 .Ic ;
 .Xc
-Specify debug messages to be printed out. Each
+Specify debug messages to be printed out.
+Each
 .Ar option
 usually specifies a subset of the messages to be printed.
 If an
@@ -73,7 +74,8 @@ If an
 begins with
 .Ic no ,
 it means that the set of the messages that are specified by the option
-will not be printed. For example,
+will not be printed.
+For example,
 .Ic `all nomld'
 means that all the messages except MLD related ones will be printed.
 Valid options are
@@ -145,7 +147,8 @@ The default preference is 1024.
 .It Ic default_source_metric Ar metric;
 Specifies a default metric value when sending a PIM assert message.
 It is recommended that preferences be set such that metrics are never
-consulted. However, default metrics may also be set and will default to
+consulted.
+However, default metrics may also be set and will default to
 1024.
 .\"
 .It Xo
@@ -166,7 +169,8 @@ the holdtime will be
 *
 .Ar coef .
 The default values of the period and the coefficient are 30 and 3.5,
-respectively. The default holdtime is 105 seconds as a result.
+respectively.
+The default holdtime is 105 seconds as a result.
 .\"
 .It Xo
 .Ic join_prune_period Ar period Ar coef;
@@ -180,7 +184,8 @@ the holdtime will be
 *
 .Ar coef .
 The default values of the period and the coefficient are 60 and 3.5,
-respectively. Consequently, the default holdtime is 210 seconds.
+respectively.
+Consequently, the default holdtime is 210 seconds.
 .\"
 .It Xo
 .Ic data_timeout Ar timer;
