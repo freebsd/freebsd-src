@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Lukas Ertl
+ * Copyright (c) 2004, 2005 Lukas Ertl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -294,7 +294,6 @@ gv_drive_worker(void *arg)
 	struct bio *bp, *cbp;
 	struct g_geom *gp;
 	struct g_provider *pp;
-	struct g_consumer *cp;
 	struct gv_drive *d;
 	struct gv_sd *s;
 	struct gv_bioq *bq, *bq2;
@@ -332,16 +331,9 @@ gv_drive_worker(void *arg)
 			/* The request had an error, we need to clean up. */
 			if (error != 0) {
 				g_topology_lock();
-				cp = LIST_FIRST(&gp->consumer);
-				if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
-					g_access(cp, -cp->acr, -cp->acw,
-					    -cp->ace);
 				gv_set_drive_state(d, GV_DRIVE_DOWN,
 				    GV_SETSTATE_FORCE | GV_SETSTATE_CONFIG);
-				if (cp->nstart == cp->nend) {
-					g_detach(cp);
-					g_destroy_consumer(cp);
-				}
+				g_wither_geom(d->geom, ENXIO);
 				g_topology_unlock();
 			}
 
