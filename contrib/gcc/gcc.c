@@ -3201,7 +3201,7 @@ process_command (argc, argv)
     switches[n_switches].part1 = "maout";
     switches[n_switches].args = 0;
     switches[n_switches].live_cond = 0;
-    switches[n_switches].valid = 0;
+    switches[n_switches].validated = 0;
     n_switches++;
     putenv("OBJFORMAT=aout");
   } else {
