@@ -1286,7 +1286,6 @@ brelse(struct buf * bp)
 	BUF_UNLOCK(bp);
 	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF | 
 			B_DIRECT | B_NOWDRAIN);
-	bp->b_ioflags &= ~BIO_ORDERED;
 	if ((bp->b_flags & B_DELWRI) == 0 && (bp->b_xflags & BX_VNDIRTY))
 		panic("brelse: not dirty");
 	splx(s);
@@ -1356,7 +1355,6 @@ bqrelse(struct buf * bp)
 	/* unlock */
 	BUF_UNLOCK(bp);
 	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
-	bp->b_ioflags &= ~BIO_ORDERED;
 	if ((bp->b_flags & B_DELWRI) == 0 && (bp->b_xflags & BX_VNDIRTY))
 		panic("bqrelse: not dirty");
 	splx(s);

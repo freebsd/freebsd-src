@@ -2078,7 +2078,7 @@ getchainbuf(struct bio *bp, struct vnode *vp, int flags)
 		waitchainbuf(bp, 4, 0);
 
 	nbp->b_iocmd = bp->bio_cmd;
-	nbp->b_ioflags = bp->bio_flags & BIO_ORDERED;
+	nbp->b_ioflags = 0;
 	nbp->b_flags = flags;
 	nbp->b_rcred = crhold(proc0.p_ucred);
 	nbp->b_wcred = crhold(proc0.p_ucred);

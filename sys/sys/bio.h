@@ -93,7 +93,6 @@ struct bio {
 
 /* bio_flags */
 #define BIO_ERROR	0x00000001
-#define BIO_ORDERED	0x00000002
 #define BIO_DONE	0x00000004
 #define BIO_FLAG2	0x40000000	/* Available for local hacks */
 #define BIO_FLAG1	0x80000000	/* Available for local hacks */
@@ -152,10 +151,7 @@ bioq_init(struct bio_queue_head *head)
 static __inline void
 bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
 {
-	if ((bp->bio_flags & BIO_ORDERED) != 0) {
-		head->insert_point = bp;
-		head->switch_point = NULL;
-	}
+
 	TAILQ_INSERT_TAIL(&head->queue, bp, bio_queue);
 }
 
