@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 12 $
+ *              $Revision: 14 $
  *
  *****************************************************************************/
 
@@ -283,7 +283,7 @@ AcpiEnterSleepState (
     PM1AControl |= (TypeA << AcpiHwGetBitShift (SLP_TYPE_X_MASK));
     PM1BControl |= (TypeB << AcpiHwGetBitShift (SLP_TYPE_X_MASK));
 
-    /* write #1: fill in SLP_TYPE data */
+    /* write #1: fill in SLP_TYP data */
     AcpiHwRegisterWrite(ACPI_MTX_LOCK, PM1A_CONTROL, PM1AControl);
     AcpiHwRegisterWrite(ACPI_MTX_LOCK, PM1B_CONTROL, PM1BControl);
 
@@ -291,9 +291,15 @@ AcpiEnterSleepState (
     PM1AControl |= (1 << AcpiHwGetBitShift (SLP_EN_MASK));
     PM1BControl |= (1 << AcpiHwGetBitShift (SLP_EN_MASK));
 
-    /* write #2: the whole tamale */
+    /* write #2: SLP_TYP + SLP_EN */
     AcpiHwRegisterWrite(ACPI_MTX_LOCK, PM1A_CONTROL, PM1AControl);
     AcpiHwRegisterWrite(ACPI_MTX_LOCK, PM1B_CONTROL, PM1BControl);
+
+    /* wait a second, then try again */
+    AcpiOsStall(1000000);
+
+    AcpiHwRegisterWrite(ACPI_MTX_LOCK, PM1_CONTROL,
+        (1 << AcpiHwGetBitShift (SLP_EN_MASK)));
 
     enable();
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utdebug - Debug print routines
- *              $Revision: 72 $
+ *              $Revision: 73 $
  *
  *****************************************************************************/
 
@@ -342,11 +342,8 @@ FunctionStatusExit (
 {
 
     DebugPrint (ModuleName, LineNumber, ComponentId,
-        TRACE_FUNCTIONS,
-        " %2.2ld Exiting Function: %s, %s\n",
-        AcpiGbl_NestingLevel,
-        FunctionName,
-        AcpiUtFormatException (Status));
+        TRACE_FUNCTIONS, " %2.2ld Exiting Function: %s, %s\n",
+        AcpiGbl_NestingLevel, FunctionName, AcpiFormatException (Status));
 
     AcpiGbl_NestingLevel--;
 }

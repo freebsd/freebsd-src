@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbutils - AML debugger utilities
- *              $Revision: 37 $
+ *              $Revision: 39 $
  *
  ******************************************************************************/
 
@@ -450,11 +450,11 @@ AcpiDbLocalNsLookup (
 
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Could not locate name: %s %s\n", Name, AcpiUtFormatException (Status));
+        AcpiOsPrintf ("Could not locate name: %s %s\n", Name, AcpiFormatException (Status));
     }
 
 
-    AcpiUtFree (InternalPath);
+    ACPI_MEM_FREE (InternalPath);
 
     return (Node);
 }

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstore - AML Interpreter object store support
- *              $Revision: 139 $
+ *              $Revision: 140 $
  *
  *****************************************************************************/
 
@@ -603,7 +603,6 @@ AcpiExStoreObjectToNode (
     /*
      * Assuming the parameters were already validated
      */
-    ACPI_ASSERT((Node) && (SourceDesc));
 
 
     /*
@@ -734,7 +733,6 @@ AcpiExStoreObjectToObject (
     /*
      *  Assuming the parameters are valid!
      */
-    ACPI_ASSERT((DestDesc) && (SourceDesc));
 
     DEBUG_PRINTP (ACPI_INFO, ("Storing %p(%s) to %p(%s)\n",
                     SourceDesc, AcpiUtGetTypeName (SourceDesc->Common.Type),

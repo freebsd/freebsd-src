@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 93 $
+ *              $Revision: 94 $
  *
  *****************************************************************************/
 
@@ -163,7 +163,7 @@ AcpiNsDumpPathname (
         return_ACPI_STATUS (AE_OK);
     }
 
-    Buffer = AcpiUtAllocate (PATHNAME_MAX);
+    Buffer = ACPI_MEM_ALLOCATE (PATHNAME_MAX);
     if (!Buffer)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -177,7 +177,7 @@ AcpiNsDumpPathname (
         AcpiOsPrintf ("%s %s (%p)\n", Msg, Buffer, Handle);
     }
 
-    AcpiUtFree (Buffer);
+    ACPI_MEM_FREE (Buffer);
 
     return_ACPI_STATUS (AE_OK);
 }

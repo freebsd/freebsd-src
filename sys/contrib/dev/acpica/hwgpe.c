@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: hwgpe - Low level GPE enable/disable/clear functions
- *              $Revision: 29 $
+ *              $Revision: 31 $
  *
  *****************************************************************************/
 
@@ -140,9 +140,9 @@ void
 AcpiHwEnableGpe (
     UINT32                  GpeNumber)
 {
-    UINT8                   InByte;
+    UINT32                  InByte;
     UINT32                  RegisterIndex;
-    UINT8                   BitMask;
+    UINT32                  BitMask;
 
     /*
      * Translate GPE number to index into global registers array.
@@ -158,9 +158,10 @@ AcpiHwEnableGpe (
      * Read the current value of the register, set the appropriate bit
      * to enable the GPE, and write out the new register.
      */
-    InByte = AcpiOsIn8 (AcpiGbl_GpeRegisters[RegisterIndex].EnableAddr);
-    AcpiOsOut8 (AcpiGbl_GpeRegisters[RegisterIndex].EnableAddr,
-                (UINT8)(InByte | BitMask));
+    InByte = 0;
+    AcpiOsReadPort (AcpiGbl_GpeRegisters[RegisterIndex].EnableAddr, &InByte, 8);
+    AcpiOsWritePort (AcpiGbl_GpeRegisters[RegisterIndex].EnableAddr,
+               (InByte | BitMask), 8);
 }
 
 
@@ -180,9 +181,9 @@ void
 AcpiHwDisableGpe (
     UINT32                  GpeNumber)
 {
-    UINT8                   InByte;
+    UINT32                  InByte;
     UINT32                  RegisterIndex;
-    UINT8                   BitMask;
+    UINT32                  BitMask;
 
     /*
      * Translate GPE number to index into global registers array.
@@ -198,9 +199,10 @@ AcpiHwDisableGpe (
      * Read the current value of the register, clear the appropriate bit,
      * and write out the new register value to disable the GPE.
      */
-    InByte = AcpiOsIn8 (AcpiGbl_GpeRegisters[RegisterIndex].EnableAddr);
-    AcpiOsOut8 (AcpiGbl_GpeRegisters[RegisterIndex].EnableAddr,
-                (UINT8)(InByte & ~BitMask));
+    InByte = 0;
+    AcpiOsReadPort (AcpiGbl_GpeRegisters[RegisterIndex].EnableAddr, &InByte, 8);
+    AcpiOsWritePort (AcpiGbl_GpeRegisters[RegisterIndex].EnableAddr,
+                (InByte & ~BitMask), 8);
 }
 
 
@@ -221,7 +223,8 @@ AcpiHwClearGpe (
     UINT32                  GpeNumber)
 {
     UINT32                  RegisterIndex;
-    UINT8                   BitMask;
+    UINT32                  BitMask;
+
 
     /*
      * Translate GPE number to index into global registers array.
@@ -237,7 +240,7 @@ AcpiHwClearGpe (
      * Write a one to the appropriate bit in the status register to
      * clear this GPE.
      */
-    AcpiOsOut8 (AcpiGbl_GpeRegisters[RegisterIndex].StatusAddr, BitMask);
+    AcpiOsWritePort (AcpiGbl_GpeRegisters[RegisterIndex].StatusAddr, BitMask, 8);
 }
 
 
@@ -258,9 +261,10 @@ AcpiHwGetGpeStatus (
     UINT32                  GpeNumber,
     ACPI_EVENT_STATUS       *EventStatus)
 {
-    UINT8                   InByte = 0;
+    UINT32                  InByte = 0;
     UINT32                  RegisterIndex = 0;
-    UINT8                   BitMask = 0;
+    UINT32                  BitMask = 0;
+
 
     if (!EventStatus)
     {
@@ -282,8 +286,8 @@ AcpiHwGetGpeStatus (
     /*
      * Enabled?:
      */
-    InByte = AcpiOsIn8 (AcpiGbl_GpeRegisters[RegisterIndex].EnableAddr);
-
+    InByte = 0;
+    AcpiOsReadPort (AcpiGbl_GpeRegisters[RegisterIndex].EnableAddr, &InByte, 8);
     if (BitMask & InByte)
     {
         (*EventStatus) |= ACPI_EVENT_FLAG_ENABLED;
@@ -292,8 +296,8 @@ AcpiHwGetGpeStatus (
     /*
      * Set?
      */
-    InByte = AcpiOsIn8 (AcpiGbl_GpeRegisters[RegisterIndex].StatusAddr);
-
+    InByte = 0;
+    AcpiOsReadPort (AcpiGbl_GpeRegisters[RegisterIndex].StatusAddr, &InByte, 8);
     if (BitMask & InByte)
     {
         (*EventStatus) |= ACPI_EVENT_FLAG_SET;

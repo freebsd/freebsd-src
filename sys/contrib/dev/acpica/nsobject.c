@@ -2,7 +2,7 @@
  *
  * Module Name: nsobject - Utilities for objects attached to namespace
  *                         table entries
- *              $Revision: 55 $
+ *              $Revision: 56 $
  *
  ******************************************************************************/
 
@@ -470,7 +470,7 @@ AcpiNsDetachObject (
         Node, ObjDesc, &Node->Name));
 
     /*
-     * Not every value is an object allocated via AcpiUtCallocate,
+     * Not every value is an object allocated via ACPI_MEM_CALLOCATE,
      * - must check
      */
 

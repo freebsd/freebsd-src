@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmisc - common utility procedures
- *              $Revision: 42 $
+ *              $Revision: 44 $
  *
  ******************************************************************************/
 
@@ -452,7 +452,7 @@ AcpiUtAcquireMutex (
     {
         DEBUG_PRINTP (ACPI_ERROR, ("Thread %X could not acquire Mutex [%s] %s\n",
                     ThisThreadId, AcpiUtGetMutexName (MutexId),
-                    AcpiUtFormatException (Status)));
+                    AcpiFormatException (Status)));
     }
 
     return (Status);
@@ -541,7 +541,7 @@ AcpiUtReleaseMutex (
     {
         DEBUG_PRINTP (ACPI_ERROR, ("Thread %X could not release Mutex [%s] %s\n",
                     ThisThreadId, AcpiUtGetMutexName (MutexId),
-                    AcpiUtFormatException (Status)));
+                    AcpiFormatException (Status)));
     }
     else
     {
@@ -743,7 +743,7 @@ AcpiUtCreateGenericState (void)
 
         AcpiUtReleaseMutex (ACPI_MTX_CACHES);
 
-        State = AcpiUtCallocate (sizeof (ACPI_GENERIC_STATE));
+        State = ACPI_MEM_CALLOCATE (sizeof (ACPI_GENERIC_STATE));
     }
 
     /* Initialize */
@@ -915,7 +915,7 @@ AcpiUtDeleteGenericState (
 
     if (AcpiGbl_GenericStateCacheDepth >= MAX_STATE_CACHE_DEPTH)
     {
-        AcpiUtFree (State);
+        ACPI_MEM_FREE (State);
     }
 
     /* Otherwise put this object back into the cache */
@@ -972,7 +972,8 @@ AcpiUtDeleteGenericStateCache (
         /* Delete one cached state object */
 
         Next = AcpiGbl_GenericStateCache->Common.Next;
-        AcpiUtFree (AcpiGbl_GenericStateCache);
+        ACPI_MEM_FREE (AcpiGbl_GenericStateCache);
+
         AcpiGbl_GenericStateCache = Next;
         AcpiGbl_GenericStateCacheDepth--;
     }

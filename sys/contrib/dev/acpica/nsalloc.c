@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsalloc - Namespace allocation and deletion utilities
- *              $Revision: 50 $
+ *              $Revision: 51 $
  *
  ******************************************************************************/
 
@@ -147,7 +147,7 @@ AcpiNsCreateNode (
     FUNCTION_TRACE ("NsCreateNode");
 
 
-    Node = AcpiUtCallocate (sizeof (ACPI_NAMESPACE_NODE));
+    Node = ACPI_MEM_CALLOCATE (sizeof (ACPI_NAMESPACE_NODE));
     if (!Node)
     {
         return_PTR (NULL);
@@ -222,9 +222,7 @@ AcpiNsDeleteNode (
         AcpiNsDetachObject (Node);
     }
 
-    AcpiUtFree (Node);
-
-
+    ACPI_MEM_FREE (Node);
     return_VOID;
 }
 
@@ -429,7 +427,7 @@ AcpiNsDeleteChildren (
             AcpiNsDetachObject (ChildNode);
         }
 
-        AcpiUtFree (ChildNode);
+        ACPI_MEM_FREE (ChildNode);
 
         /* And move on to the next child in the list */
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 61 $
+ *              $Revision: 62 $
  *
  ******************************************************************************/
 
@@ -600,7 +600,9 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_ALLOCATIONS:
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
         AcpiUtDumpCurrentAllocations ((UINT32) -1, NULL);
+#endif
         break;
 
     case CMD_ARGS:

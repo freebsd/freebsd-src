@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfobj - Public interfaces to the ACPI subsystem
  *                         ACPI Object oriented interfaces
- *              $Revision: 86 $
+ *              $Revision: 87 $
  *
  ******************************************************************************/
 
@@ -197,8 +197,8 @@ AcpiEvaluateObject (
         ParamLength     = (Count + 1) * sizeof (void *);
         ObjectLength    = Count * sizeof (ACPI_OPERAND_OBJECT);
 
-        ParamPtr = AcpiUtCallocate (ParamLength +   /* Parameter List part */
-                                    ObjectLength);  /* Actual objects */
+        ParamPtr = ACPI_MEM_CALLOCATE (ParamLength +    /* Parameter List part */
+                                    ObjectLength);      /* Actual objects */
         if (!ParamPtr)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);

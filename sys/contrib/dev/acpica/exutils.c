@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exutils - interpreter/scanner utilities
- *              $Revision: 79 $
+ *              $Revision: 80 $
  *
  *****************************************************************************/
 
@@ -295,7 +295,7 @@ AcpiExAcquireGlobalLock (
         else
         {
             DEBUG_PRINTP (ACPI_ERROR, ("Could not acquire Global Lock, %s\n",
-                AcpiUtFormatException (Status)));
+                AcpiFormatException (Status)));
         }
     }
 
