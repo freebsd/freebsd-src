@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.52 1996/05/24 05:20:15 dyson Exp $
+ *	$Id: vm_page.c,v 1.53 1996/05/31 00:38:03 dyson Exp $
  */
 
 /*
@@ -140,6 +140,10 @@ static u_short vm_page_dev_bsize_chunks[] = {
 static inline __pure int
 		vm_page_hash __P((vm_object_t object, vm_pindex_t pindex))
 		__pure2;
+
+static void vm_page_unqueue_nowakeup __P((vm_page_t m));
+static int vm_page_freechk_and_unqueue __P((vm_page_t m));
+static void vm_page_free_wakeup __P((void));
 
 /*
  *	vm_set_page_size:
@@ -520,23 +524,39 @@ vm_page_rename(m, new_object, new_pindex)
 }
 
 /*
+ * vm_page_unqueue without any wakeup
+ */
+static __inline void
+vm_page_unqueue_nowakeup(m)
+	vm_page_t m;
+{
+	int queue = m->queue;
+	if (queue != PQ_NONE) {
+		m->queue = PQ_NONE;
+		TAILQ_REMOVE(vm_page_queues[queue].pl, m, pageq);
+		--(*vm_page_queues[queue].cnt);
+	}
+}
+	
+
+/*
  * vm_page_unqueue must be called at splhigh();
  */
 __inline void
-vm_page_unqueue(vm_page_t m)
+vm_page_unqueue(m)
+	vm_page_t m;
 {
 	int queue = m->queue;
-	if (queue == PQ_NONE)
-		return;
-	m->queue = PQ_NONE;
-	TAILQ_REMOVE(vm_page_queues[queue].pl, m, pageq);
-	--(*vm_page_queues[queue].cnt);
-	if (queue == PQ_CACHE) {
-		if ((cnt.v_cache_count + cnt.v_free_count) <
-			(cnt.v_free_reserved + cnt.v_cache_min))
-			pagedaemon_wakeup();
+	if (queue != PQ_NONE) {
+		m->queue = PQ_NONE;
+		TAILQ_REMOVE(vm_page_queues[queue].pl, m, pageq);
+		--(*vm_page_queues[queue].cnt);
+		if (queue == PQ_CACHE) {
+			if ((cnt.v_cache_count + cnt.v_free_count) <
+				(cnt.v_free_reserved + cnt.v_cache_min))
+				pagedaemon_wakeup();
+		}
 	}
-	return;
 }
 
 /*
@@ -727,6 +747,69 @@ vm_page_activate(m)
 }
 
 /*
+ * helper routine for vm_page_free and vm_page_free_zero
+ */
+static int
+vm_page_freechk_and_unqueue(m)
+	vm_page_t m;
+{
+	if (m->busy ||
+		(m->flags & PG_BUSY) ||
+		(m->queue == PQ_FREE) ||
+		(m->hold_count != 0)) {
+		printf("vm_page_free: pindex(%ld), busy(%d), PG_BUSY(%d), hold(%d)\n",
+			m->pindex, m->busy,
+			(m->flags & PG_BUSY) ? 1 : 0, m->hold_count);
+		if (m->queue == PQ_FREE)
+			panic("vm_page_free: freeing free page");
+		else
+			panic("vm_page_free: freeing busy page");
+	}
+
+	vm_page_remove(m);
+	vm_page_unqueue_nowakeup(m);
+	if ((m->flags & PG_FICTITIOUS) != 0) {
+		return 0;
+	}
+	if (m->wire_count != 0) {
+		if (m->wire_count > 1) {
+			panic("vm_page_free: invalid wire count (%d), pindex: 0x%x",
+				m->wire_count, m->pindex);
+		}
+		m->wire_count = 0;
+	}
+
+	return 1;
+}
+
+/*
+ * helper routine for vm_page_free and vm_page_free_zero
+ */
+static __inline void
+vm_page_free_wakeup()
+{
+	
+/*
+ * if pageout daemon needs pages, then tell it that there are
+ * some free.
+ */
+	if (vm_pageout_pages_needed) {
+		wakeup(&vm_pageout_pages_needed);
+		vm_pageout_pages_needed = 0;
+	}
+	cnt.v_free_count++;
+	/*
+	 * wakeup processes that are waiting on memory if we hit a
+	 * high water mark. And wakeup scheduler process if we have
+	 * lots of memory. this process will swapin processes.
+	 */
+	if ((cnt.v_free_count + cnt.v_cache_count) == cnt.v_free_min) {
+		wakeup(&cnt.v_free_count);
+	}
+}
+
+	
+/*
  *	vm_page_free:
  *
  *	Returns the given page to the free list,
@@ -739,74 +822,57 @@ vm_page_free(m)
 	register vm_page_t m;
 {
 	int s;
-	int flags = m->flags;
 
 	s = splvm();
-	if (m->busy || (flags & PG_BUSY) || (m->queue == PQ_FREE)) {
-		printf("vm_page_free: pindex(%ld), busy(%d), PG_BUSY(%d)\n",
-		    m->pindex, m->busy, (flags & PG_BUSY) ? 1 : 0);
-		if (m->queue == PQ_FREE)
-			panic("vm_page_free: freeing free page");
-		else
-			panic("vm_page_free: freeing busy page");
-	}
 
- 	if (m->hold_count) {
- 		panic("freeing held page, count=%d, pindex=%d(0x%x)",
-			m->hold_count, m->pindex, m->pindex);
- 	}
-  
-	vm_page_remove(m);
-	vm_page_unqueue(m);
-
-	if ((flags & PG_FICTITIOUS) == 0) {
-		if (m->wire_count) {
-			if (m->wire_count > 1) {
-				printf("vm_page_free: wire count > 1 (%d)", m->wire_count);
-				panic("vm_page_free: invalid wire count");
-			}
-			cnt.v_wire_count--;
-			m->wire_count = 0;
-		}
-		m->queue = PQ_FREE;
-
-		/*
-		 * If the pageout process is grabbing the page, it is likely
-		 * that the page is NOT in the cache.  It is more likely that
-		 * the page will be partially in the cache if it is being
-		 * explicitly freed.
-		 */
-		if (curproc == pageproc) {
-			TAILQ_INSERT_TAIL(&vm_page_queue_free, m, pageq);
-		} else {
-			TAILQ_INSERT_HEAD(&vm_page_queue_free, m, pageq);
-		}
-
-		splx(s);
-		/*
-		 * if pageout daemon needs pages, then tell it that there are
-		 * some free.
-		 */
-		if (vm_pageout_pages_needed) {
-			wakeup(&vm_pageout_pages_needed);
-			vm_pageout_pages_needed = 0;
-		}
-
-		cnt.v_free_count++;
-		/*
-		 * wakeup processes that are waiting on memory if we hit a
-		 * high water mark. And wakeup scheduler process if we have
-		 * lots of memory. this process will swapin processes.
-		 */
-		if ((cnt.v_free_count + cnt.v_cache_count) == cnt.v_free_min) {
-			wakeup(&cnt.v_free_count);
-		}
-	} else {
-		splx(s);
-	}
 	cnt.v_tfree++;
+
+	if (!vm_page_freechk_and_unqueue(m)) {
+		splx(s);
+		return;
+	}
+
+	m->queue = PQ_FREE;
+
+	/*
+	 * If the pageout process is grabbing the page, it is likely
+	 * that the page is NOT in the cache.  It is more likely that
+	 * the page will be partially in the cache if it is being
+	 * explicitly freed.
+	 */
+	if (curproc == pageproc) {
+		TAILQ_INSERT_TAIL(&vm_page_queue_free, m, pageq);
+	} else {
+		TAILQ_INSERT_HEAD(&vm_page_queue_free, m, pageq);
+	}
+
+	splx(s);
+	vm_page_free_wakeup();
 }
 
+void
+vm_page_free_zero(m)
+	register vm_page_t m;
+{
+	int s;
+
+	s = splvm();
+
+	cnt.v_tfree++;
+
+	if (!vm_page_freechk_and_unqueue(m)) {
+		splx(s);
+		return;
+	}
+
+	m->queue = PQ_ZERO;
+
+	TAILQ_INSERT_HEAD(&vm_page_queue_zero, m, pageq);
+	++vm_page_zero_count;
+
+	splx(s);
+	vm_page_free_wakeup();
+}
 
 /*
  *	vm_page_wire:
@@ -922,7 +988,7 @@ vm_page_cache(m)
 		panic("vm_page_cache: caching a dirty page, pindex: %d", m->pindex);
 	}
 	s = splvm();
-	vm_page_unqueue(m);
+	vm_page_unqueue_nowakeup(m);
 	TAILQ_INSERT_TAIL(&vm_page_queue_cache, m, pageq);
 	m->queue = PQ_CACHE;
 	cnt.v_cache_count++;
