@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.18 1997/07/24 06:58:06 charnier Exp $";
+	"$Id: main.c,v 1.1 1997/08/13 23:36:11 smp Exp smp $";
 #endif /* not lint */
 
 /*-
@@ -118,6 +118,7 @@ static Lst		makefiles;	/* ordered list of makefiles to read */
 static Boolean		printVars;	/* print value of one or more vars */
 static Lst		variables;	/* list of variables to print */
 int			maxJobs;	/* -j argument */
+static Boolean          forceJobs;      /* -j argument given */
 static int		maxLocal;	/* -L argument */
 Boolean			compatMake;	/* -B argument */
 Boolean			debug;		/* -d flag */
@@ -162,7 +163,6 @@ MainParseArgs(argc, argv)
 	extern int optind;
 	extern char *optarg;
 	int c;
-	int forceJobs = 0;
 
 	optind = 1;	/* since we're called more than once */
 #ifdef REMOTE
@@ -337,13 +337,6 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			}
 			(void)Lst_AtEnd(create, (ClientData)estrdup(*argv));
 		}
-
-	/*
-	 * Be compatible if user did not specify -j and did not explicitly
-	 * turned compatibility on
-	 */
-	if (!compatMake && !forceJobs)
-		compatMake = TRUE;
 }
 
 /*-
@@ -559,6 +552,7 @@ main(argc, argv)
 #else
 	maxJobs = maxLocal;
 #endif
+	forceJobs = FALSE;              /* No -j flag */
 	compatMake = FALSE;		/* No compat mode */
 
 
@@ -605,6 +599,13 @@ main(argc, argv)
 #endif
 
 	MainParseArgs(argc, argv);
+
+	/*
+	 * Be compatible if user did not specify -j and did not explicitly
+	 * turned compatibility on
+	 */
+	if (!compatMake && !forceJobs)
+		compatMake = TRUE;
 
 	/*
 	 * Initialize archive, target and suffix modules in preparation for
