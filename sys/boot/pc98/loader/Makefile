@@ -35,6 +35,13 @@ LIBFICL=	${.CURDIR}/../../ficl/libficl.a
 .endif
 .endif
 
+.if defined(LOADER_BZIP2_SUPPORT)
+CFLAGS+=	-DLOADER_BZIP2_SUPPORT
+.endif
+.if !defined(LOADER_NO_GZIP_SUPPORT)
+CFLAGS+=	-DLOADER_GZIP_SUPPORT
+.endif
+
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
 .include	<${.CURDIR}/../../common/Makefile.inc>
