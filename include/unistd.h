@@ -145,7 +145,7 @@ typedef	__uid_t_	uid_t;
 
 /* Define the versions we target for compliance. */
 #define	_POSIX_VERSION		200112L
-#define	_POSIX2_VERSION		200112L
+#define	_POSIX2_VERSION		199212L
 
 /*
  * POSIX-style system configuration variable accessors (for the
