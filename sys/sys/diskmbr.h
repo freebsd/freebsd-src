@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.31 1998/02/22 10:11:23 dg Exp $
+ * $Id: disklabel.h,v 1.32 1998/06/07 17:12:58 dfr Exp $
  */
 
 #ifndef	_SYS_DISKLABEL_H_
@@ -370,8 +370,8 @@ struct dos_partition {
 	unsigned char	dp_ehd;		/* end head */
 	unsigned char	dp_esect;	/* end sector */
 	unsigned char	dp_ecyl;	/* end cylinder */
-	unsigned long	dp_start;	/* absolute starting sector number */
-	unsigned long	dp_size;	/* partition size in sectors */
+	u_int32_t	dp_start;	/* absolute starting sector number */
+	u_int32_t	dp_size;	/* partition size in sectors */
 };
 #endif
 
