@@ -569,6 +569,13 @@
       to prevent system overloads caused by starting several
       compression jobs on big files simultaneously. &merged;</para>
 
+    <para>&man.nsdispatch.3; is now thread-safe and implements support
+      for Name Service Switch (NSS) modules.  NSS modules may be
+      statically built into <filename>libc</filename> or dynamically
+      loaded via &man.dlopen.3;.  They are loaded/initialized at
+      configuration time (i.e. when &man.nsdispatch.3; is called and
+      &man.nsswitch.conf.5; is read or re-read).</para>
+
     <para>A new &man.pam.chroot.8; module has been added, which does a
       &man.chroot.2; operation for users into either a predetermined
       directory or one derived from their home directory.</para>
@@ -746,6 +753,13 @@
       been moved into each port's <filename>Makefile</filename>.  This
       change reduces the disk space and inodes used by the ports
       tree. &merged;</para>
+
+    <para>When fetching distfiles for building a port, the
+      <varname>FETCH_REGET</varname> <filename>Makefile</filename>
+      variable can be used to specify the number of times to try
+      continuing to fetch a distfile if it fails its MD5 checksum.
+      The port infrastructure also supports re-fetching interrupted
+      distfiles.</para>
 
     <para>&man.pkg.create.1; now supports a <option>-C</option>
       option, which allows packages to register a list of other
