@@ -645,18 +645,21 @@ usage(void)
 static void
 printline(const char *hname, char *msg)
 {
+	char *p, *q;
+	long n;
 	int c, pri;
-	char *p, *q, line[MAXLINE + 1];
+	char line[MAXLINE + 1];
 
 	/* test for special codes */
-	pri = DEFUPRI;
 	p = msg;
+	pri = DEFUPRI;
 	if (*p == '<') {
-		pri = 0;
-		while (isdigit(*++p))
-			pri = 10 * pri + (*p - '0');
-		if (*p == '>')
-			++p;
+		errno = 0;
+		n = strtol(p + 1, &q, 10);
+		if (*q == '>' && n >= 0 && n < INT_MAX && errno == 0) {
+			p = q + 1;
+			pri = n;
+		}
 	}
 	if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
 		pri = DEFUPRI;
@@ -736,24 +739,21 @@ readklog(void)
 static void
 printsys(char *msg)
 {
-	char *p;
-	int flags, isprintf, n, pri;
+	char *p, *q;
+	long n;
+	int flags, isprintf, pri;
 
 	flags = ISKERNEL | SYNC_FILE | ADDDATE;	/* fsync after write */
-	pri = DEFSPRI;
 	p = msg;
+	pri = DEFSPRI;
 	isprintf = 1;
 	if (*p == '<') {
-		n = 0;
-		while (isdigit(*++p))
-			n = 10 * n + (*p - '0');
-		if (*p == '>') {
-			++p;
+		errno = 0;
+		n = strtol(p + 1, &q, 10);
+		if (*q == '>' && n >= 0 && n < INT_MAX && errno == 0) {
+			p = q + 1;
 			pri = n;
 			isprintf = 0;
-		} else {
-			/* It wasn't actually a syslog message. */
-			p = msg;
 		}
 	}
 	/*
