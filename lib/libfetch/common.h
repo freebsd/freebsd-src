@@ -71,4 +71,9 @@ int		 _fetch_add_entry(struct url_ent **p, int *size, int *len,
 FILE		*_http_request(struct url *URL, char *op, struct url_stat *us,
 			       struct url *purl, char *flags);
 
+/*
+ * Check whether a particular flag is set
+ */
+#define CHECK_FLAG(x)	(flags && strchr(flags, (x)))
+
 #endif
