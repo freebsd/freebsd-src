@@ -49,13 +49,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
-#include <ctype.h>
 #include <err.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #define	TAB	8
 
@@ -65,14 +67,15 @@ void  maketbl(void);
 void  print(void);
 void  r_columnate(void);
 void  usage(void);
+int   width(const wchar_t *);
 
 int termwidth = 80;		/* default terminal width */
 
 int entries;			/* number of records */
 int eval;			/* exit value */
 int maxlength;			/* longest record */
-char **list;			/* array of pointers to records */
-const char *separator = "\t ";	/* field separator for table option */
+wchar_t **list;			/* array of pointers to records */
+const wchar_t *separator = L"\t ";	/* field separator for table option */
 
 int
 main(int argc, char **argv)
@@ -81,6 +84,11 @@ main(int argc, char **argv)
 	FILE *fp;
 	int ch, tflag, xflag;
 	char *p;
+	const char *src;
+	wchar_t *newsep;
+	size_t seplen;
+
+	setlocale(LC_ALL, "");
 
 	if (ioctl(1, TIOCGWINSZ, &win) == -1 || !win.ws_col) {
 		if ((p = getenv("COLUMNS")))
@@ -95,7 +103,15 @@ main(int argc, char **argv)
 			termwidth = atoi(optarg);
 			break;
 		case 's':
-			separator = optarg;
+			src = optarg;
+			seplen = mbsrtowcs(NULL, &src, 0, NULL);
+			if (seplen == (size_t)-1)
+				err(1, "bad separator");
+			newsep = malloc((seplen + 1) * sizeof(wchar_t));
+			if (newsep == NULL)
+				err(1, NULL);
+			mbsrtowcs(newsep, &src, seplen + 1, NULL);
+			separator = newsep;
 			break;
 		case 't':
 			tflag = 1;
@@ -140,28 +156,29 @@ void
 c_columnate(void)
 {
 	int chcnt, col, cnt, endcol, numcols;
-	char **lp;
+	wchar_t **lp;
 
 	numcols = termwidth / maxlength;
 	endcol = maxlength;
 	for (chcnt = col = 0, lp = list;; ++lp) {
-		chcnt += printf("%s", *lp);
+		wprintf(L"%ls", *lp);
+		chcnt += width(*lp);
 		if (!--entries)
 			break;
 		if (++col == numcols) {
 			chcnt = col = 0;
 			endcol = maxlength;
-			putchar('\n');
+			putwchar('\n');
 		} else {
 			while ((cnt = ((chcnt + TAB) & ~(TAB - 1))) <= endcol) {
-				(void)putchar('\t');
+				(void)putwchar('\t');
 				chcnt = cnt;
 			}
 			endcol += maxlength;
 		}
 	}
 	if (chcnt)
-		putchar('\n');
+		putwchar('\n');
 }
 
 void
@@ -177,16 +194,17 @@ r_columnate(void)
 	for (row = 0; row < numrows; ++row) {
 		endcol = maxlength;
 		for (base = row, chcnt = col = 0; col < numcols; ++col) {
-			chcnt += printf("%s", list[base]);
+			wprintf(L"%ls", list[base]);
+			chcnt += width(list[base]);
 			if ((base += numrows) >= entries)
 				break;
 			while ((cnt = ((chcnt + TAB) & ~(TAB - 1))) <= endcol) {
-				(void)putchar('\t');
+				(void)putwchar('\t');
 				chcnt = cnt;
 			}
 			endcol += maxlength;
 		}
-		putchar('\n');
+		putwchar('\n');
 	}
 }
 
@@ -194,14 +212,14 @@ void
 print(void)
 {
 	int cnt;
-	char **lp;
+	wchar_t **lp;
 
 	for (cnt = entries, lp = list; cnt--; ++lp)
-		(void)printf("%s\n", *lp);
+		(void)wprintf(L"%ls\n", *lp);
 }
 
 typedef struct _tbl {
-	char **list;
+	wchar_t **list;
 	int cols, *len;
 } TBL;
 #define	DEFCOLS	25
@@ -211,19 +229,21 @@ maketbl(void)
 {
 	TBL *t;
 	int coloff, cnt;
-	char *p, **lp;
+	wchar_t *p, **lp;
 	int *lens, maxcols;
 	TBL *tbl;
-	char **cols;
+	wchar_t **cols;
+	wchar_t *last;
 
 	if ((t = tbl = calloc(entries, sizeof(TBL))) == NULL)
 		err(1, (char *)NULL);
-	if ((cols = calloc((maxcols = DEFCOLS), sizeof(char *))) == NULL)
+	if ((cols = calloc((maxcols = DEFCOLS), sizeof(*cols))) == NULL)
 		err(1, (char *)NULL);
 	if ((lens = calloc(maxcols, sizeof(int))) == NULL)
 		err(1, (char *)NULL);
 	for (cnt = 0, lp = list; cnt < entries; ++cnt, ++lp, ++t) {
-		for (coloff = 0, p = *lp; (cols[coloff] = strtok(p, separator));
+		for (coloff = 0, p = *lp;
+		    (cols[coloff] = wcstok(p, separator, &last));
 		    p = NULL)
 			if (++coloff == maxcols) {
 				if (!(cols = realloc(cols, (u_int)maxcols +
@@ -235,22 +255,22 @@ maketbl(void)
 				    0, DEFCOLS * sizeof(int));
 				maxcols += DEFCOLS;
 			}
-		if ((t->list = calloc(coloff, sizeof(char *))) == NULL)
+		if ((t->list = calloc(coloff, sizeof(*t->list))) == NULL)
 			err(1, (char *)NULL);
 		if ((t->len = calloc(coloff, sizeof(int))) == NULL)
 			err(1, (char *)NULL);
 		for (t->cols = coloff; --coloff >= 0;) {
 			t->list[coloff] = cols[coloff];
-			t->len[coloff] = strlen(cols[coloff]);
+			t->len[coloff] = width(cols[coloff]);
 			if (t->len[coloff] > lens[coloff])
 				lens[coloff] = t->len[coloff];
 		}
 	}
 	for (cnt = 0, t = tbl; cnt < entries; ++cnt, ++t) {
 		for (coloff = 0; coloff < t->cols  - 1; ++coloff)
-			(void)printf("%s%*s", t->list[coloff],
-			    lens[coloff] - t->len[coloff] + 2, " ");
-		(void)printf("%s\n", t->list[coloff]);
+			(void)wprintf(L"%ls%*ls", t->list[coloff],
+			    lens[coloff] - t->len[coloff] + 2, L" ");
+		(void)wprintf(L"%ls\n", t->list[coloff]);
 	}
 }
 
@@ -262,33 +282,49 @@ input(FILE *fp)
 {
 	static int maxentry;
 	int len;
-	char *p, buf[MAXLINELEN];
+	wchar_t *p, buf[MAXLINELEN];
 
 	if (!list)
-		if ((list = calloc((maxentry = DEFNUM), sizeof(char *))) ==
+		if ((list = calloc((maxentry = DEFNUM), sizeof(*list))) ==
 		    NULL)
 			err(1, (char *)NULL);
-	while (fgets(buf, MAXLINELEN, fp)) {
-		for (p = buf; *p && isspace((unsigned char)*p); ++p);
+	while (fgetws(buf, MAXLINELEN, fp)) {
+		for (p = buf; *p && iswspace(*p); ++p);
 		if (!*p)
 			continue;
-		if (!(p = strchr(p, '\n'))) {
+		if (!(p = wcschr(p, L'\n'))) {
 			warnx("line too long");
 			eval = 1;
 			continue;
 		}
-		*p = '\0';
-		len = p - buf;
+		*p = L'\0';
+		len = width(buf);
 		if (maxlength < len)
 			maxlength = len;
 		if (entries == maxentry) {
 			maxentry += DEFNUM;
 			if (!(list = realloc(list,
-			    (u_int)maxentry * sizeof(char *))))
+			    (u_int)maxentry * sizeof(*list))))
 				err(1, NULL);
 		}
-		list[entries++] = strdup(buf);
+		list[entries] = malloc((wcslen(buf) + 1) * sizeof(wchar_t));
+		if (list[entries] == NULL)
+			err(1, NULL);
+		wcscpy(list[entries], buf);
+		entries++;
 	}
+}
+
+/* Like wcswidth(), but ignores non-printing characters. */
+int
+width(const wchar_t *wcs)
+{
+	int w, cw;
+
+	for (w = 0; *wcs != L'\0'; wcs++)
+		if ((cw = wcwidth(*wcs)) > 0)
+			w += cw;
+	return (w);
 }
 
 void
