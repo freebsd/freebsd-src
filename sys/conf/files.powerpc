@@ -42,6 +42,7 @@ powerpc/powerpc/vm_machdep.c	standard
 
 powerpc/powerpc/db_disasm.c	optional	ddb
 powerpc/powerpc/db_interface.c	optional	ddb
+powerpc/powerpc/db_hwwatch.c	optional	ddb
 powerpc/powerpc/db_memrw.c	optional	ddb
 powerpc/powerpc/db_trace.c	optional	ddb
 
