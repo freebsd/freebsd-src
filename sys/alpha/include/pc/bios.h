@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: bios.h,v 1.3 1998/08/06 09:15:54 dfr Exp $
  *      from: i386/include/pc bios.h,v 1.2
  */
 
@@ -71,9 +71,13 @@ struct bios32_args {
 };
 extern void		bios32(caddr_t func_addr, struct bios32_args *args);
 
+#if 0
 #define BIOS_PADDRTOVADDR(x)	(((x) - ISA_HOLE_START) + atdevbase)
 #define BIOS_VADDRTOPADDR(x)	(((x) - atdevbase) + ISA_HOLE_START)
-
+#else
+#define BIOS_PADDRTOVADDR(x)	(x)
+#define BIOS_VADDRTOPADDR(x)	(x)
+#endif
 
 /*
  * System Management BIOS / Desktop Management Interface tables
