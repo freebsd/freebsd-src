@@ -847,7 +847,7 @@ mly_rescan_btl(struct mly_softc *sc, int bus, int target)
     mci->addr.phys.controller = 0;
     mci->timeout.value = 30;
     mci->timeout.scale = MLY_TIMEOUT_SECONDS;
-    if (bus < sc->mly_controllerinfo->virtual_channels_present) {
+    if (MLY_BUS_IS_VIRTUAL(sc, bus)) {
 	mc->mc_length = mci->data_size = sizeof(struct mly_ioctl_getlogdevinfovalid);
 	mci->sub_ioctl = MDACIOCTL_GETLOGDEVINFOVALID;
 	mci->addr.log.logdev = MLY_LOGDEV_ID(sc, bus, target);
