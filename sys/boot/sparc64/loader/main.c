@@ -135,13 +135,13 @@ elf_exec(struct preloaded_file *fp)
 	entry = Ehdr->e_entry;
 
 	/* align the bootinfo structure on an eight byte boundary */
-	bip = (struct bootinfo *)(curkva + 8 & 0x7);
+	bip = (struct bootinfo *)((curkva + 8) & 0x7);
 
 	bi.bi_version = BOOTINFO_VERSION;
 	bi.bi_kpa = kernelpa;
 	bi.bi_end = (vm_offset_t)(bip + 1);
 	bi.bi_metadata = 0;
-	sparc64_copyin(&bi, bip, sizeof(struct bootinfo));
+	sparc64_copyin(&bi, (vm_offset_t)bip, sizeof(struct bootinfo));
 
 	printf("jumping to kernel entry at 0x%lx.\n", entry);
 #if 0
@@ -259,7 +259,7 @@ int main(int (*openfirm)(void *))
 	printf("%s\n", __progname);
 	printf("bootpath=\"%s\"\n", bootpath);
 	printf("loaddev=%s\n", getenv("loaddev"));
-	printf("kernelpa=0x%x\n", curkpg);
+	printf("kernelpa=0x%lx\n", curkpg);
 
 	/* Give control to the machine independent loader code. */
 	interact();
@@ -286,7 +286,7 @@ pmap_print_tte(tte_t tag, tte_t tte)
 	printf(tte & TD_L ? "\e[32mL\e[0m " : "  ");
 	printf(tte & TD_IE ? "IE " : "   ");
 	printf(tte & TD_NFO ? "NFO " : "    ");
-	printf("tag=0x%lx pa=0x%lx va=0x%lx ctx=%d\n", tag, TD_PA(tte),
+	printf("tag=0x%lx pa=0x%lx va=0x%lx ctx=%ld\n", tag, TD_PA(tte),
 	    TT_VA(tag), TT_CTX(tag));
 }
 void
