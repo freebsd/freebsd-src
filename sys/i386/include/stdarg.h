@@ -37,6 +37,10 @@
 #ifndef _STDARG_H_
 #define	_STDARG_H_
 
+#if defined __GNUC__ && ((__GNUC__ == 2 && __GNUC_MINOR__ >= 96) || __GNUC__ > 2)
+#include <machine/gcc_stdarg.h>
+#else /* __GNUC__ */
+
 #include <machine/ansi.h>
 
 typedef _BSD_VA_LIST_	va_list;
@@ -56,5 +60,7 @@ typedef _BSD_VA_LIST_	va_list;
 	(*(type *)((ap) += __va_size(type), (ap) - __va_size(type)))
 
 #define	va_end(ap)
+
+#endif /* __GNUC__ */
 
 #endif /* !_STDARG_H_ */
