@@ -32,7 +32,7 @@
 .Nm intro
 .Nd introduction to devices and device drivers
 .Sh DESCRIPTION
-This section contains information related to devices, device driver
+This section contains information related to devices, device drivers
 and miscellaneous hardware.
 .Ss The device abstraction
 Device is a term used mostly for hardware-related stuff that belongs
@@ -60,7 +60,7 @@ and
 .Xr mmap 2 .
 Not all drivers implement all system calls, for example, calling
 .Xr mmap 2
-on a terminal devices is likely to be not useful at all.
+on terminal devices is likely to be not useful at all.
 .Ss Accessing Devices
 Most of the devices in a unix-like operating system are accessed
 through so-called
@@ -93,7 +93,7 @@ Some devices come in two flavors:
 .Em block
 and
 .Em character
-devices, or by a better name, buffered and unbuffered
+devices, or to use better terms, buffered and unbuffered
 (raw)
 devices.  The traditional names are reflected by the letters
 .Ql b
@@ -104,7 +104,7 @@ as the file type identification in the output of
 Buffered devices are being accessed through the buffer cache of the
 operating system, and they are solely intended to layer a file system
 on top of them.  They are normally implemented for disks and disk-like
-devices only, for historical reasons also for tape devices.
+devices only and, for historical reasons, for tape devices.
 .Pp
 Raw devices are available for all drivers, including those that also
 implement a buffered device.  For the latter group of devices, the
@@ -124,8 +124,8 @@ to
 floppy disks
 (i.e. those used like tapes).
 .Pp
-Access restrictions to device nodes are usually subject of the regular
-file permissions of the device node entry, instead of being implied
+Access restrictions to device nodes are usually subject to the regular
+file permissions of the device node entry, instead of being enforced
 directly by the drivers in the kernel.
 .Ss Drivers without device nodes
 Drivers for network devices do not use device nodes in order to be
