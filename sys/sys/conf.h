@@ -138,11 +138,15 @@ typedef void devfs_remove_t __P((dev_t dev));
  * of surgery, reset the flag and restart all the stuff on the stall
  * queue.
  */
-#define DEV_STRATEGY(bp, dummy)			\
-	do {					\
+#define DEV_STRATEGY(bp, dummy)						\
+	do {								\
 	if ((!(bp)->b_iocmd) || ((bp)->b_iocmd & ((bp)->b_iocmd - 1)))	\
-		Debugger("d_iocmd botch");	\
-	(*devsw((bp)->b_dev)->d_strategy)(&(bp)->b_io);	\
+		Debugger("d_iocmd botch");				\
+	if ((bp)->b_flags & B_PHYS)					\
+		(bp)->b_io.bio_offset = (bp)->b_offset;			\
+	else								\
+		(bp)->b_io.bio_offset = dbtob((bp)->b_blkno);		\
+	(*devsw((bp)->b_dev)->d_strategy)(&(bp)->b_io);			\
 	} while (0)
 
 /*
