@@ -751,6 +751,7 @@ struct ndis_ansi_string {
 
 typedef struct ndis_ansi_string ndis_ansi_string;
 
+#ifdef notdef
 /*
  * nus_buf is really a wchar_t *, but it's inconvenient to include
  * all the necessary header goop needed to define it, and it's a
@@ -761,9 +762,10 @@ struct ndis_unicode_string {
 	uint16_t		nus_maxlen;
 	uint16_t		*nus_buf;
 };
-
 typedef struct ndis_unicode_string ndis_unicode_string;
+#endif
 
+typedef unicode_string ndis_unicode_string;
 
 enum ndis_parm_type {
 	ndis_parm_int,
@@ -1398,11 +1400,11 @@ struct ndis_miniport_block {
 	void			*nmb_resetdone_func;
 	ndis_medium		nmb_medium;
 	uint32_t		nmb_busnum;
-	uint32_t		nmb_bustye;
+	uint32_t		nmb_bustype;
 	uint32_t		nmb_adaptertype;
-	void			*nmb_deviceobj;
-	void			*nmb_physdeviceobj;
-	void			*nmb_nextdeviceobj;
+	device_object		*nmb_deviceobj; /* Functional device */
+	device_object		*nmb_physdeviceobj; /* Physical device */
+	device_object		*nmb_nextdeviceobj; /* Next dev in stack */
 	void			*nmb_mapreg;
 	void			*nmb_callmgraflist;
 	void			*nmb_miniportthread;
@@ -1480,7 +1482,7 @@ typedef void (*ndis_allocdone_handler)(ndis_handle, void *,
 		ndis_physaddr *, uint32_t, void *);
 typedef uint8_t (*ndis_checkforhang_handler)(ndis_handle);
 
-typedef __stdcall ndis_status (*driver_entry)(void *, ndis_unicode_string *);
+typedef __stdcall ndis_status (*driver_entry)(void *, unicode_string *);
 
 extern image_patch_table ndis_functbl[];
 
@@ -1529,6 +1531,7 @@ extern int ndis_thsuspend(struct proc *, int);
 extern void ndis_thresume(struct proc *);
 extern int ndis_strcasecmp(const char *, const char *);
 extern int ndis_strncasecmp(const char *, const char *, size_t);
+__stdcall extern uint32_t NdisAddDevice(driver_object *, device_object *);
 __END_DECLS
 
 #endif /* _NDIS_VAR_H_ */
