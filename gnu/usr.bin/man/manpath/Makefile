@@ -14,7 +14,8 @@ MAN1=${.CURDIR}/manpath.1
 .endif
 
 DPADD+=  ${MAN1}
-CFLAGS+= -I${.CURDIR}/../lib -DMAIN -DSTDC_HEADERS -DPOSIX -DHAS_TROFF -DDO_UNCOMPRESS -DALT_SYSTEMS
+CFLAGS+= -DMAIN -DSTDC_HEADERS -DPOSIX -DHAS_TROFF -DDO_UNCOMPRESS
+CFLAGS+= -DALT_SYSTEMS -I${.CURDIR}/../lib -I${.CURDIR}/../lib/obj
 
 ${MAN1}: ${.CURDIR}/manpath.man
 	sed -e 's,%libdir%,${libdir},' -e 's,%bindir%,${bindir},' \
