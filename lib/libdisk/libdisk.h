@@ -6,7 +6,7 @@
 * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 * ----------------------------------------------------------------------------
 *
-* $Id: libdisk.h,v 1.22.2.1 1996/11/28 21:51:12 phk Exp $
+* $Id: libdisk.h,v 1.22.2.2 1997/01/24 21:08:30 jkh Exp $
 *
 */
 
@@ -20,7 +20,7 @@ typedef enum {
 	freebsd,
 	extended,
 	part,
-	unused,
+	unused
 } chunk_e;
 
 __BEGIN_DECLS
@@ -166,7 +166,7 @@ Set_Boot_Mgr(struct disk *d, const u_char *bootmgr);
  */
 
 void
-Set_Boot_Blocks(struct disk *d, const u_char *boot1, const u_char *boot2);
+Set_Boot_Blocks(struct disk *d, const u_char *_boot1, const u_char *_boot2);
 /* Use these boot-blocks on this disk.  Gets written when Write_Disk()
  * is called
  */
