@@ -58,8 +58,7 @@
 #define MIN_FSMRETRY 3		/* Minimum FSM retry frequency */
 #define DEF_FSMRETRY 3		/* FSM retry frequency */
 #define DEF_FSMTRIES 5		/* Default max retries */
-#define DEF_FSMAUTHTRIES 3		/* Default max auth retries */
-#define DEF_CDDELAY  1		/* Delay before checking for carrier */
+#define DEF_FSMAUTHTRIES 3	/* Default max auth retries */
 
 #define	CONFFILE 	"ppp.conf"
 #define	LINKUPFILE 	"ppp.linkup"

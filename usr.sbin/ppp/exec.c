@@ -67,6 +67,7 @@
 static struct device execdevice = {
   EXEC_DEVICE,
   "exec",
+  { CD_NOTREQUIRED, 0 },
   NULL,
   NULL,
   NULL,
@@ -160,6 +161,8 @@ exec_Create(struct physical *p)
           waitpid(pid, &stat, 0);
           log_Printf(LogDEBUG, "Using descriptor %d for child\n", p->fd);
           physical_SetupStack(p, execdevice.name, PHYSICAL_FORCE_ASYNC);
+          if (p->cfg.cd.necessity != CD_DEFAULT)
+            log_Printf(LogWARN, "Carrier settings ignored\n");
           return &execdevice;
       }
     }

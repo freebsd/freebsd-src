@@ -1777,8 +1777,8 @@ SetVariable(struct cmdargs const *arg)
       } else
         cx->physical->cfg.cd.necessity = CD_NOTREQUIRED;
     } else {
-      cx->physical->cfg.cd.delay = DEF_CDDELAY;
-      cx->physical->cfg.cd.necessity = CD_VARIABLE;
+      cx->physical->cfg.cd.delay = 0;
+      cx->physical->cfg.cd.necessity = CD_DEFAULT;
     }
     break;
 

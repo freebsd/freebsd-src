@@ -273,6 +273,7 @@ ether_AwaitCarrier(struct physical *p)
 static const struct device baseetherdevice = {
   ETHER_DEVICE,
   "ether",
+  { CD_REQUIRED, DEF_ETHERCDDELAY },
   ether_AwaitCarrier,
   ether_RemoveFromSet,
   NULL,
@@ -584,13 +585,29 @@ ether_Create(struct physical *p)
       return ether_Abandon(dev, p);
     }
 
-    dev->timeout = p->cfg.cd.delay;
-    dev->connected = CARRIER_PENDING;
-
     /* Hook things up so that we monitor dev->cs */
     p->desc.UpdateSet = ether_UpdateSet;
     p->desc.IsSet = ether_IsSet;
     p->desc.Read = ether_DescriptorRead;
+
+    memcpy(&dev->dev, &baseetherdevice, sizeof dev->dev);
+    switch (p->cfg.cd.necessity) {
+      case CD_VARIABLE:
+        dev->dev.cd.delay = p->cfg.cd.delay;
+        break;
+      case CD_REQUIRED:
+        dev->dev.cd = p->cfg.cd;
+        break;
+      case CD_NOTREQUIRED:
+        log_Printf(LogWARN, "%s: Carrier must be set, using ``set cd %d!''\n",
+                   p->link.name, dev->dev.cd.delay);
+      case CD_DEFAULT:
+        break;
+    }
+
+    dev->timeout = dev->dev.cd.delay;
+    dev->connected = CARRIER_PENDING;
+
   } else {
     /* See if we're a netgraph socket */
     struct sockaddr_ng ngsock;
@@ -611,6 +628,7 @@ ether_Create(struct physical *p)
         return NULL;
       }
 
+      memcpy(&dev->dev, &baseetherdevice, sizeof dev->dev);
       dev->cs = -1;
       dev->timeout = 0;
       dev->connected = CARRIER_OK;
@@ -619,8 +637,6 @@ ether_Create(struct physical *p)
   }
 
   if (dev) {
-    memcpy(&dev->dev, &baseetherdevice, sizeof dev->dev);
-
     physical_SetupStack(p, dev->dev.name, PHYSICAL_FORCE_SYNCNOACF);
 
     /* Moan about (and fix) invalid LCP configurations */
