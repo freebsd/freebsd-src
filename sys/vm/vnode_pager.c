@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.96 1998/08/25 13:47:37 luoqi Exp $
+ *	$Id: vnode_pager.c,v 1.97 1998/09/04 08:06:57 dfr Exp $
  */
 
 /*
@@ -603,8 +603,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		 * blocksize, but it can handle large reads itself.
 		 */
 	} else if ((PAGE_SIZE / bsize) > 1 &&
-	    (vp->v_mount->mnt_stat.f_type != MOUNT_NFS)) {
-
+	    (vp->v_mount->mnt_stat.f_type != nfs_mount_type)) {
 		for (i = 0; i < count; i++) {
 			if (i != reqpage) {
 				vnode_pager_freepage(m[i]);

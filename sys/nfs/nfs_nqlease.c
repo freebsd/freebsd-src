@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.36 1998/05/31 17:27:46 peter Exp $
+ * $Id: nfs_nqlease.c,v 1.37 1998/05/31 20:08:52 peter Exp $
  */
 
 
@@ -137,7 +137,6 @@ extern nfstype nfsv3_type[9];
 extern struct nfssvc_sock *nfs_udpsock, *nfs_cltpsock;
 extern int nfsd_waiting;
 extern struct nfsstats nfsstats;
-extern int nfs_mount_type;
 
 #define TRUE	1
 #define	FALSE	0

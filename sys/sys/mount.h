@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.64 1998/09/02 17:03:49 bde Exp $
+ *	$Id: mount.h,v 1.65 1998/09/02 17:25:51 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -326,6 +326,7 @@ struct ovfsconf {
 MALLOC_DECLARE(M_MOUNT);
 #endif
 extern int maxvfsconf;		/* highest defined filesystem type */
+extern int nfs_mount_type;	/* vfc_typenum for nfs, or -1 */
 extern struct vfsconf *vfsconf;	/* head of list of filesystem types */
 
 /*

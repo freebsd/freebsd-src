@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.62 1998/06/14 15:52:00 bde Exp $
+ * $Id: nfs_subs.c,v 1.63 1998/06/21 12:50:12 bde Exp $
  */
 
 /*
@@ -98,7 +98,6 @@ enum vtype nv3tov_type[8]= {
 	VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO
 };
 
-int nfs_mount_type;
 int nfs_ticks;
 
 struct nfs_reqq nfs_reqq;
