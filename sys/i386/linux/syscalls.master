@@ -112,8 +112,8 @@
 73	MSTD	{ int linux_sigpending(l_osigset_t *mask); }
 74	MNOPROTO { int osethostname(char *hostname, u_int len); } \
 			    osethostname sethostname_args int
-75	STD	{ int linux_setrlimit(l_uint resource, struct l_rlimit *rlim); }
-76	STD	{ int linux_old_getrlimit(l_uint resource, \
+75	MSTD	{ int linux_setrlimit(l_uint resource, struct l_rlimit *rlim); }
+76	MSTD	{ int linux_old_getrlimit(l_uint resource, \
 				struct l_rlimit *rlim); }
 77	MNOPROTO { int getrusage(int who, struct rusage *rusage); }
 78	MNOPROTO { int gettimeofday(struct timeval *tp, struct timezone *tzp); }
@@ -258,7 +258,7 @@
 188	UNIMPL	getpmsg
 189	UNIMPL	putpmsg
 190	MSTD	{ int linux_vfork(void); }
-191	STD	{ int linux_getrlimit(l_uint resource, struct l_rlimit *rlim); }
+191	MSTD	{ int linux_getrlimit(l_uint resource, struct l_rlimit *rlim); }
 192	STD	{ int linux_mmap2(l_ulong addr, l_ulong len, \
 				l_ulong prot, l_ulong flags, l_ulong fd, \
 				l_ulong pgoff); }
