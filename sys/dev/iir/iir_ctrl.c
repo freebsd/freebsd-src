@@ -68,8 +68,6 @@ static d_write_t	iir_write;
 static d_read_t		iir_read;
 static d_ioctl_t	iir_ioctl;
 
-#define CDEV_MAJOR          IIR_CDEV_MAJOR
-
 /* Normally, this is a static structure.  But we need it in pci/iir_pci.c */
 static struct cdevsw iir_cdevsw = {
 	.d_open =	iir_open,
@@ -78,7 +76,6 @@ static struct cdevsw iir_cdevsw = {
 	.d_write =	iir_write,
 	.d_ioctl =	iir_ioctl,
 	.d_name =	"iir",
-	.d_maj =	CDEV_MAJOR,
 };
 
 /*
@@ -379,5 +376,5 @@ iir_drvinit(void *unused)
     }
 }
 
-SYSINIT(iir_dev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR, iir_drvinit, NULL)
+SYSINIT(iir_dev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, iir_drvinit, NULL)
 */
