@@ -350,6 +350,9 @@
     <para>The <application>ACPI-CA</application> code has been updated
       from the 20030228 snapshot to the 20030619 snapshot.</para>
 
+    <para><application>awk</application> from Bell Labs has been
+      updated from a 14 March 2003 snapshot to a 29 July 2003 snapshot.</para>
+
     <para><application>BIND</application> has been updated from 8.3.4
       to 8.3.6.</para>
 
