@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id: if_epreg.h,v 1.17.2.1 1996/11/12 09:08:33 phk Exp $
+ *  $Id: if_epreg.h,v 1.17.2.2 1997/11/10 23:53:31 itojun Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -103,7 +103,21 @@ struct ep_board {
 #define MAX_EEPROMBUSY  1000
 #define EP_LAST_TAG     0xd7
 #define EP_MAX_BOARDS   16
-#define EP_ID_PORT      0x100
+/*
+ * This `ID' port is a mere hack.  There's currently no chance to register
+ * it with config's idea of the ports that are in use.
+ *
+ * "After the automatic configuration is completed, the IDS is in it's initial
+ * state (ID-WAIT), and it monitors all write access to I/O port 01x0h, where
+ * 'x' is any hex digit.  If a zero is written to any one of these ports, then
+ * that address is remembered and becomes the ID port.  A second zero written
+ * to that port resets the ID sequence to its initial state.  The IDS watches
+ * for the ID sequence to be written to the ID port."
+ *
+ * We prefer 0x110 over 0x100 so to not conflict with the Plaque&Pray
+ * ports.
+ */
+#define EP_ID_PORT      0x110
 #define EP_IOSIZE	16	/* 16 bytes of I/O space used. */
 
 /*
