@@ -599,6 +599,7 @@ hpbadslave(mp, dp)
 #endif
 
 #if MACHINE_I386
+char *shandler();
 char *sirq();
 
 i386_ioconf()
@@ -619,14 +620,14 @@ i386_ioconf()
 	fprintf(fp, "#include \"machine/pte.h\"\n");
 	fprintf(fp, "#include \"sys/param.h\"\n");
 	fprintf(fp, "#include \"sys/buf.h\"\n");
-	fprintf(fp, "#include \"sys/map.h\"\n");
 	fprintf(fp, "\n");
-	fprintf(fp, "#define V(s)	__CONCAT(V,s)\n");
+	fprintf(fp, "#define V(s)\t__CONCAT(V,s)\n");
 	fprintf(fp, "#define C (caddr_t)\n\n");
 	/*
 	 * First print the isa initialization structures
 	 */
 	if (seen_isa) {
+		int seen_wdc = 0, seen_fdc = 0;
 
 		fprintf(fp, "/*\n");
 		fprintf(fp, " * ISA devices\n");
@@ -640,88 +641,107 @@ i386_ioconf()
 			if (mp == 0 || mp == TO_NEXUS ||
 			    !eq(mp->d_name, "isa"))
 				continue;
-			fprintf(fp,
-"extern struct isa_driver %sdriver; extern V(%s%d)();\n",
-			    dp->d_name, dp->d_name, dp->d_unit);
+			fprintf(fp, "extern struct isa_driver %3.3sdriver;",
+				dp->d_name);
+			if(eq(dp->d_name, "wdc")) seen_wdc++;
+			if(eq(dp->d_name, "fdc")) seen_fdc++;
+			if (dp->d_irq == 2)
+				{
+				fprintf(stderr, "remapped irq 2 to irq 9, please update your config file\n");
+				dp->d_irq = 9;
+				}
+			if (dp->d_irq != -1)
+				fprintf(fp, " extern void %s();", shandler(dp));
+			fprintf(fp, "\n");
 		}
-		fprintf(fp, "\nstruct isa_device isa_devtab_bio[] = {\n");
-		fprintf(fp, "\
-/* driver 	iobase	irq   drq     maddr    msiz    intr   unit */\n");
-		for (dp = dtab; dp != 0; dp = dp->d_next) {
-			mp = dp->d_conn;
-			if (dp->d_unit == QUES || mp == 0 ||
-			    mp == TO_NEXUS || !eq(mp->d_name, "isa"))
-				continue;
-			if (!eq(dp->d_mask, "bio")) continue;
-			if (dp->d_port)
-		 fprintf(fp, "{ &%sdriver,  %8.8s,", dp->d_name, dp->d_port);
-			else
-	 fprintf(fp, "{ &%sdriver,     0x%03x,", dp->d_name, dp->d_portn);
-		fprintf(fp, " %5.5s, %2d,  C 0x%05X, %5d, V(%s%d),  %2d },\n",
-			 	sirq(dp->d_irq), dp->d_drq, dp->d_maddr,
-			 dp->d_msize, dp->d_name, dp->d_unit, dp->d_unit);
-		}
-		fprintf(fp, "0\n};\n");
-
-		fprintf(fp, "struct isa_device isa_devtab_tty[] = {\n");
-		fprintf(fp, "\
-/* driver 	iobase	irq   drq     maddr    msiz    intr   unit */\n");
-		for (dp = dtab; dp != 0; dp = dp->d_next) {
-			mp = dp->d_conn;
-			if (dp->d_unit == QUES || mp == 0 ||
-			    mp == TO_NEXUS || !eq(mp->d_name, "isa"))
-				continue;
-			if (!eq(dp->d_mask, "tty")) continue;
-			if (dp->d_port)
-		 fprintf(fp, "{ &%sdriver,  %8.8s,", dp->d_name, dp->d_port);
-			else
-	 fprintf(fp, "{ &%sdriver,     0x%03x,", dp->d_name, dp->d_portn);
-		fprintf(fp, " %5.5s, %2d,  C 0x%05X, %5d, V(%s%d),  %2d },\n",
-			 	sirq(dp->d_irq), dp->d_drq, dp->d_maddr,
-			 dp->d_msize, dp->d_name, dp->d_unit, dp->d_unit);
-		}
-		fprintf(fp, "0\n};\n\n");
-
-		fprintf(fp, "struct isa_device isa_devtab_net[] = {\n");
-		fprintf(fp, "\
-/* driver 	iobase	irq   drq     maddr    msiz    intr   unit */\n");
-		for (dp = dtab; dp != 0; dp = dp->d_next) {
-			mp = dp->d_conn;
-			if (dp->d_unit == QUES || mp == 0 ||
-			    mp == TO_NEXUS || !eq(mp->d_name, "isa"))
-				continue;
-			if (!eq(dp->d_mask, "net")) continue;
-			if (dp->d_port)
-		 fprintf(fp, "{ &%sdriver,  %8.8s,", dp->d_name, dp->d_port);
-			else
-	 fprintf(fp, "{ &%sdriver,     0x%03x,", dp->d_name, dp->d_portn);
-		fprintf(fp, " %5.5s, %2d,  C 0x%05X, %5d, V(%s%d),  %2d },\n",
-			 	sirq(dp->d_irq), dp->d_drq, dp->d_maddr,
-			 dp->d_msize, dp->d_name, dp->d_unit, dp->d_unit);
-		}
-		fprintf(fp, "0\n};\n\n");
-
-		fprintf(fp, "struct isa_device isa_devtab_null[] = {\n");
-		fprintf(fp, "\
-/* driver 	iobase	irq   drq     maddr    msiz    intr   unit */\n");
-		for (dp = dtab; dp != 0; dp = dp->d_next) {
-			mp = dp->d_conn;
-			if (dp->d_unit == QUES || mp == 0 ||
-			    mp == TO_NEXUS || !eq(mp->d_name, "isa"))
-				continue;
-			if (!eq(dp->d_mask, "null")) continue;
-			if (dp->d_port)
-		 fprintf(fp, "{ &%sdriver,  %8.8s,", dp->d_name, dp->d_port);
-			else
-	 fprintf(fp, "{ &%sdriver,     0x%03x,", dp->d_name, dp->d_portn);
-		fprintf(fp, " %5.5s, %2d,  C 0x%05X, %5d, V(%s%d),  %2d },\n",
-			 	sirq(dp->d_irq), dp->d_drq, dp->d_maddr,
-			 dp->d_msize, dp->d_name, dp->d_unit, dp->d_unit);
-		}
-		fprintf(fp, "0\n};\n\n");
+		isa_devtab(fp, "bio");
+		if(seen_wdc)
+			isa_biotab(fp, "wdc");
+		if(seen_fdc)
+			isa_biotab(fp, "fdc");
+		isa_devtab(fp, "tty");
+		isa_devtab(fp, "net");
+		isa_devtab(fp, "null");
 	}
-	pseudo_ioconf(fp);
+	/* XXX David did this differently!!! */
+	/* pseudo_ioconf(fp); */
 	(void) fclose(fp);
+}
+
+isa_biotab(fp, table)
+	FILE	*fp;
+	char	*table;
+{
+	register struct device *dp, *mp;
+
+	fprintf(fp, "\n\nstruct isa_device isa_biotab_%s[] = {\n", table);
+	fprintf(fp, "\
+/*    driver    iobase    irq drq      maddr   msiz      intr unit   flags  drive*/\n");
+	for (dp = dtab; dp != 0; dp = dp->d_next) {
+		mp = dp->d_conn;
+		if (dp->d_unit == QUES || mp == 0 ||
+		    mp == TO_NEXUS || !eq(mp->d_name, table))
+			continue;
+		fprintf(fp, "{ &%3.3sdriver, %8.8s,",
+			mp->d_name, mp->d_port);
+		fprintf(fp, "%6.6s, %2d, C 0x%05X, %5d, %8.8s,  %2d, 0x%04X, %2d },\n",
+			sirq(mp->d_irq), mp->d_drq, mp->d_maddr,
+			mp->d_msize, shandler(mp), dp->d_unit,
+			dp->d_flags, dp->d_drive);
+	}
+	fprintf(fp, "0\n};\n");
+}
+
+/*
+ * Generized routine for isa bus device table, instead of repeating
+ * all this 4 times, call this with the table argument.
+ *
+ * 4/26/93 rgrimes
+ */
+isa_devtab(fp, table)
+	FILE	*fp;
+	char	*table;
+{
+	register struct device *dp, *mp;
+
+	fprintf(fp, "\n\nstruct isa_device isa_devtab_%s[] = {\n", table);
+	fprintf(fp, "\
+/*    driver    iobase    irq drq      maddr   msiz      intr unit   flags */\n");
+	for (dp = dtab; dp != 0; dp = dp->d_next) {
+		mp = dp->d_conn;
+		if (dp->d_unit == QUES || mp == 0 ||
+		    mp == TO_NEXUS || !eq(mp->d_name, "isa"))
+			continue;
+		if (strcmp(dp->d_mask, table)) continue;
+		if (dp->d_port)
+			fprintf(fp, "{ &%3.3sdriver, %8.8s,",
+				dp->d_name, dp->d_port);
+		else
+			fprintf(fp, "{ &%3.3sdriver,   0x%04x,",
+				dp->d_name, dp->d_portn);
+		fprintf(fp, "%6.6s, %2d, C 0x%05X, %5d, %8.8s,  %2d, 0x%04X },\n",
+			sirq(dp->d_irq), dp->d_drq, dp->d_maddr,
+			dp->d_msize, shandler(dp), dp->d_unit,
+			dp->d_flags);
+	}
+	fprintf(fp, "0\n};\n");
+}
+
+/*
+ * XXX - there should be a general function to print devtabs instead of these
+ * little pieces of it.
+ */
+
+char *
+shandler(dp)
+	register struct device *dp;
+{
+	static char buf[32 + 20];
+
+	if (dp->d_irq == -1)
+		return ("NULL");
+	sprintf(buf, "V(%.32s%d)", dp->d_name, dp->d_unit);
+	return (buf);
 }
 
 char *
