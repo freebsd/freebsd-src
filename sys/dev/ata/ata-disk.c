@@ -48,6 +48,7 @@
 #include <vm/vm_object.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
+#include <machine/bus.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 

@@ -54,6 +54,7 @@
 #include <sys/timetc.h>
 
 #include <machine/cpuconf.h>
+#include <machine/bus.h>
 #include <machine/clock.h>
 #include <machine/clockvar.h>
 #include <isa/isareg.h>

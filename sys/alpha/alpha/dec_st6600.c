@@ -42,7 +42,6 @@
 #include <machine/clock.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-#include <alpha/pci/tsunamireg.h>
 #include <alpha/pci/tsunamivar.h>
 
 #include "sio.h"

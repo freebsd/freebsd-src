@@ -143,7 +143,7 @@ kft_probe(device_t dev)
 		if (kd == NULL)
 			continue;
 
-		kd->kd_name = "dwlpx";
+		kd->kd_name = "pcib";
 		kd->kd_node = sc->sc_node;
 		kd->kd_dtype = sc->sc_dtype;
 		kd->kd_hosenum = hose;

@@ -160,7 +160,7 @@ atkbdc_configure(void)
 #if defined(__i386__)
 	tag = I386_BUS_SPACE_IO;
 #elif defined(__alpha__)
-	tag = ALPHA_BUS_SPACE_IO;
+	tag = busspace_isa_io;
 #endif
 
 #if notyet

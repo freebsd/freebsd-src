@@ -73,6 +73,18 @@ pci_conf_write(pcici_t cfg, u_long reg, u_long data)
 }
 
 int
+pci_cfgread (pcicfgregs *cfg, int reg, int bytes)
+{
+	return (pci_read_config(cfg->dev, reg, bytes));
+}
+
+void
+pci_cfgwrite (pcicfgregs *cfg, int reg, int data, int bytes)
+{
+	pci_write_config(cfg->dev, reg, data, bytes);
+}
+
+int
 pci_map_port(pcici_t cfg, u_long reg, pci_port_t* pa)
 {
 	int rid;

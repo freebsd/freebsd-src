@@ -1505,7 +1505,7 @@ static int ti_attach(dev)
 
 	rid = TI_PCI_LOMEM;
 	sc->ti_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	    0, ~0, 1, RF_ACTIVE|PCI_RF_DENSE);
 
 	if (sc->ti_res == NULL) {
 		printf ("ti%d: couldn't map memory\n", unit);
@@ -1516,22 +1516,6 @@ static int ti_attach(dev)
 	sc->ti_btag = rman_get_bustag(sc->ti_res);
 	sc->ti_bhandle = rman_get_bushandle(sc->ti_res);
 	sc->ti_vhandle = (vm_offset_t)rman_get_virtual(sc->ti_res);
-
-	/*
-	 * XXX FIXME: rman_get_virtual() on the alpha is currently
-	 * broken and returns a physical address instead of a kernel
-	 * virtual address. Consequently, we need to do a little
-	 * extra mangling of the vhandle on the alpha. This should
-	 * eventually be fixed! The whole idea here is to get rid
-	 * of platform dependencies.
-	 */
-#ifdef __alpha__
-	if (pci_cvt_to_bwx(sc->ti_vhandle))
-		sc->ti_vhandle = pci_cvt_to_bwx(sc->ti_vhandle);
-	else
-		sc->ti_vhandle = pci_cvt_to_dense(sc->ti_vhandle);
-	sc->ti_vhandle = ALPHA_PHYS_TO_K0SEG(sc->ti_vhandle);
-#endif
 
 	/* Allocate interrupt */
 	rid = 0;
