@@ -265,7 +265,7 @@ SYSCTL_INT(_machdep, OID_AUTO, wl_gather_snr, CTLFLAG_RW, &gathersnr, 0, "");
 static void	wlstart(struct ifnet *ifp);
 static void	wlinit(void *xsc);
 static int	wlioctl(struct ifnet *ifp, int cmd, caddr_t data);
-static void	wlwatchdog(struct wl_softc *sc);
+static timeout_t wlwatchdog;
 static void	wlxmt(int unt, struct mbuf *m);
 static int	wldiag(int unt); 
 static int	wlconfig(int unit); 
@@ -607,7 +607,7 @@ wlinit(void *xsc)
 		
 	sc->flags |= DSF_RUNNING;
 	sc->tbusy = 0;
-	untimeout((timeout_func_t)wlwatchdog, sc);
+	untimeout(wlwatchdog, sc);
 		
 	wlstart(ifp);
     } else {
@@ -778,7 +778,7 @@ wlstart(struct ifnet *ifp)
 	if((scb_status & 0x0700) == SCB_CUS_IDLE &&
 	   (cu_status & AC_SW_B) == 0){
 	    sc->tbusy = 0;
-	    untimeout((timeout_func_t)wlwatchdog, sc);
+	    untimeout(wlwatchdog, sc);
 	    sc->wl_ac.ac_if.if_flags &= ~IFF_OACTIVE;
 	    /*
 	     * This is probably just a race.  The xmt'r is just
@@ -817,7 +817,7 @@ wlstart(struct ifnet *ifp)
 	 * fails to interrupt we will restart
 	 */
 	/* try 10 ticks, not very long */
-	timeout((timeout_func_t)wlwatchdog, sc, 10);
+	timeout(wlwatchdog, sc, 10);
 	sc->wl_ac.ac_if.if_flags |= IFF_OACTIVE;
 	sc->wl_if.if_opackets++;
 	wlxmt(unit, m);
@@ -1264,8 +1264,9 @@ wlioctl(struct ifnet *ifp, int cmd, caddr_t data)
  *
  */
 static void
-wlwatchdog(struct wl_softc *sc)
+wlwatchdog(void *vsc)
 {
+    struct wl_softc *sc = vsc;
     int unit = sc->unit;
 
     log(LOG_ERR, "wl%d: wavelan device timeout on xmit\n", unit);
@@ -1412,7 +1413,7 @@ int unit;
 		}
 	    }
 	    sc->tbusy = 0;
-	    untimeout((timeout_func_t)wlwatchdog, sc);
+	    untimeout(wlwatchdog, sc);
 	    sc->wl_ac.ac_if.if_flags &= ~IFF_OACTIVE;
 	    wlstart(&(sc->wl_if));
 	}
@@ -2299,4 +2300,3 @@ wlpsacrc(u_char *buf)
     }
     return(crc);
 }
-
