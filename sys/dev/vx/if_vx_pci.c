@@ -126,7 +126,7 @@ vx_pci_attach(
      */
     at_shutdown(vx_pci_shutdown, sc, SHUTDOWN_POST_SYNC);
 
-    pci_map_int(config_id, vxintr, (void *) sc, &net_imask);
+    pci_map_int(config_id, (pci_inthand_t*)vxintr, (void *) sc, &net_imask);
 }
 
 static struct pci_device vxdevice = {
