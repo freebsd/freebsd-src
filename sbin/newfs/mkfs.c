@@ -208,9 +208,9 @@ mkfs(pp, fsys, fi, fo)
 #ifndef STANDALONE
 			get_memleft();
 #endif
-			if (fssize * sectorsize > (memleft - 16384))
-				fssize = (memleft - 16384) / sectorsize;
-			if ((membase = malloc(fssize * sectorsize)) == 0) {
+			if (fssize * sectorsize > (memleft - 131072))
+				fssize = (memleft - 131072) / sectorsize;
+			if ((membase = malloc(fssize * sectorsize)) == NULL) {
 				perror("malloc");
 				exit(13);
 			}
@@ -1210,18 +1210,28 @@ raise_data_limit()
 		perror("setrlimit");
 }
 
+#ifdef __ELF__
+extern char *_etext;
+#define etext _etext
+#else
+extern char *etext;
+#endif
+
 get_memleft()
 {
-	char *base;
-	static u_long pgsz, i;
+	static u_long pgsz;
 	struct rlimit rlp;
+	u_long freestart;
+	u_long dstart;
+	u_long memused;
 
-	base = sbrk(0);
 	pgsz = getpagesize() - 1;
-	i = ((u_long)(base + pgsz) &~ pgsz);
+	dstart = ((u_long)&etext) &~ pgsz;
+	freestart = ((u_long)(sbrk(0) + pgsz) &~ pgsz);
 	if (getrlimit(RLIMIT_DATA, &rlp) < 0)
 		perror("getrlimit");
-	memleft = rlp.rlim_cur - (u_long)base - i;
+	memused = freestart - dstart;
+	memleft = rlp.rlim_cur - memused;
 }
 #endif  /* STANDALONE */
 
