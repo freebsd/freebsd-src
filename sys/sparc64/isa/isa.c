@@ -217,7 +217,7 @@ isa_setup_children(device_t dev, phandle_t parent)
 			continue;
 		}
 
-		if ((cdev = BUS_ADD_CHILD(dev, ISA_ORDER_PNP, NULL, -1)) ==
+		if ((cdev = BUS_ADD_CHILD(dev, ISA_ORDER_PNPBIOS, NULL, -1)) ==
 		    NULL)
 			panic("isa_setup_children: BUS_ADD_CHILD failed");
 		isa_set_logicalid(cdev, pnp_map[i].id);
