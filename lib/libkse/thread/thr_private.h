@@ -430,6 +430,7 @@ struct pthread_attr {
 	int	prio;
 	int	suspend;
 #define	THR_STACK_USER		0x100	/* 0xFF reserved for <pthread.h> */
+#define	THR_SIGNAL_THREAD	0x200	/* This is a signal thread */
 	int	flags;
 	void	*arg_attr;
 	void	(*cleanup_attr) ();
@@ -582,15 +583,19 @@ struct pthread_specific_elem {
 	int		seqno;
 };
 
+struct pthread_key {
+	volatile int	allocated;
+	volatile int	count;
+	int		seqno;
+	void            (*destructor) (void *);
+};
 
 #define	MAX_THR_LOCKLEVEL	5	
 /*
  * Thread structure.
  */
 struct pthread {
-	/*
-	 * Thread mailbox is first so it cal be aligned properly.
-	 */
+	/* Thread control block */
 	struct tcb		*tcb;
 
 	/*
@@ -816,12 +821,14 @@ struct pthread {
 
 #define	THR_YIELD_CHECK(thrd)					\
 do {								\
-	if (((thrd)->critical_yield != 0) &&			\
-	    !(THR_IN_CRITICAL(thrd)))				\
-		_thr_sched_switch(thrd);			\
-	else if (((thrd)->check_pending != 0) &&		\
-	    !(THR_IN_CRITICAL(thrd)))				\
-		_thr_sig_check_pending(thrd);			\
+	if (!THR_IN_CRITICAL(thrd)) {				\
+		if (__predict_false(_libkse_debug))		\
+			_thr_debug_check_yield(thrd);		\
+		if ((thrd)->critical_yield != 0)		\
+			_thr_sched_switch(thrd);		\
+		if ((thrd)->check_pending != 0) 		\
+			_thr_sig_check_pending(thrd);		\
+	}							\
 } while (0)
 
 #define	THR_LOCK_ACQUIRE(thrd, lck)				\
@@ -882,8 +889,6 @@ do {									\
 	_pq_insert_tail(&(thrd)->kseg->kg_schedq.sq_runq, thrd)
 #define THR_RUNQ_REMOVE(thrd)		\
 	_pq_remove(&(thrd)->kseg->kg_schedq.sq_runq, thrd)
-#define THR_RUNQ_FIRST(thrd)		\
-	_pq_first(&(thrd)->kseg->kg_schedq.sq_runq)
 
 /*
  * Macros to insert/remove threads to the all thread list and
@@ -964,6 +969,8 @@ do {									\
 	(((thrd)->state == PS_SUSPENDED) || \
 	(((thrd)->flags & THR_FLAGS_SUSPENDED) != 0))
 #define	THR_IS_EXITING(thrd)	(((thrd)->flags & THR_FLAGS_EXITING) != 0)
+#define DBG_CAN_RUN(thrd) (((thrd)->tcb->tcb_tmbx.tm_dflags & \
+	TMDF_DONOTRUNUSER) == 0)
 
 extern int __isthreaded;
 
@@ -980,6 +987,9 @@ _kse_isthreaded(void)
 SCLASS void		*_usrstack	SCLASS_PRESET(NULL);
 SCLASS struct kse	*_kse_initial	SCLASS_PRESET(NULL);
 SCLASS struct pthread	*_thr_initial	SCLASS_PRESET(NULL);
+/* For debugger */
+SCLASS int		_libkse_debug		SCLASS_PRESET(0);
+SCLASS int		_thread_activated	SCLASS_PRESET(0);
 
 /* List of all threads: */
 SCLASS TAILQ_HEAD(, pthread)	_thread_list
@@ -989,7 +999,7 @@ SCLASS TAILQ_HEAD(, pthread)	_thread_list
 SCLASS TAILQ_HEAD(, pthread)	_thread_gc_list
     SCLASS_PRESET(TAILQ_HEAD_INITIALIZER(_thread_gc_list));
 
-SCLASS int	_thr_active_threads  SCLASS_PRESET(1);
+SCLASS int	_thread_active_threads  SCLASS_PRESET(1);
 
 SCLASS TAILQ_HEAD(atfork_head, pthread_atfork) _thr_atfork_list;
 SCLASS pthread_mutex_t		_thr_atfork_mutex;
@@ -1079,6 +1089,7 @@ void	_pq_remove(struct pq_queue *pq, struct pthread *);
 void	_pq_insert_head(struct pq_queue *pq, struct pthread *);
 void	_pq_insert_tail(struct pq_queue *pq, struct pthread *);
 struct pthread *_pq_first(struct pq_queue *pq);
+struct pthread *_pq_first_debug(struct pq_queue *pq);
 void	*_pthread_getspecific(pthread_key_t);
 int	_pthread_key_create(pthread_key_t *, void (*) (void *));
 int	_pthread_key_delete(pthread_key_t);
@@ -1150,6 +1161,7 @@ void	_thr_hash_remove(struct pthread *);
 struct pthread *_thr_hash_find(struct pthread *);
 void	_thr_finish_cancellation(void *arg);
 int	_thr_sigonstack(void *sp);
+void	_thr_debug_check_yield(struct pthread *);
 
 /*
  * Aliases for _pthread functions. Should be called instead of
