@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 
 $errpos = hex($ARGV[0])/4;
 $ofs=0;
