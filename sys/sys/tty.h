@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.27 1995/07/31 18:29:37 bde Exp $
+ * $Id: tty.h,v 1.28 1995/07/31 19:17:19 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -154,8 +154,10 @@ struct tty {
 
 /* Extras. */
 #define	TS_CAN_BYPASS_L_RINT 0x010000	/* Device in "raw" mode. */
+#define	TS_CONNECTED	0x020000	/* Connection open. */
 #define	TS_SNOOP	0x040000	/* Device is being snooped on. */
 #define	TS_SO_OCOMPLETE	0x080000	/* Wake up when output completes. */
+#define	TS_ZOMBIE	0x100000	/* Connection lost. */
 
 /* Character type information. */
 #define	ORDINARY	0
@@ -195,7 +197,8 @@ struct speedtab {
 	(isctty((p), (tp)) && (p)->p_pgrp != (tp)->t_pgrp)
 
 /* Unique sleep addresses. */
-#define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)	/* XXX overloaded */
+#define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)
+#define	TSA_HUP_OR_INPUT(tp)	((void *)&(tp)->t_rawq.c_cf)
 #define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq.c_cl)
 #define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)
 #define	TSA_PTC_READ(tp)	((void *)&(tp)->t_outq.c_cf)

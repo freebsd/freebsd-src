@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.16 1995/07/21 20:52:55 bde Exp $ */
+/* $Id: if_ppp.c,v 1.17 1995/07/29 13:39:44 bde Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -381,7 +381,7 @@ pppread(tp, uio, flag)
     register int s;
     int error = 0;
 
-    if ((tp->t_state & TS_CARR_ON) == 0 && (tp->t_cflag & CLOCAL) == 0)
+    if ((tp->t_state & TS_CONNECTED) == 0)
 	return 0;		/* end of file */
     if (sc == NULL || tp != (struct tty *) sc->sc_devp)
 	return 0;
@@ -391,7 +391,7 @@ pppread(tp, uio, flag)
 	    splx(s);
 	    return (EWOULDBLOCK);
 	}
-	error = ttysleep(tp, (caddr_t)&tp->t_rawq, TTIPRI|PCATCH, "pppin", 0);
+	error = ttysleep(tp, TSA_HUP_OR_INPUT(tp), TTIPRI | PCATCH, "pppin", 0);
 	if (error)
 	    return error;
     }
@@ -429,7 +429,7 @@ pppwrite(tp, uio, flag)
     struct ppp_header *ph1, *ph2;
     int len, error;
 
-    if ((tp->t_state & TS_CARR_ON) == 0 && (tp->t_cflag & CLOCAL) == 0)
+    if ((tp->t_state & TS_CONNECTED) == 0)
 	return 0;		/* wrote 0 bytes */
     if (tp->t_line != PPPDISC)
 	return (EINVAL);
@@ -891,7 +891,7 @@ pppstart(tp)
     int n, s, ndone, done;
     struct mbuf *m2;
 
-    if ((tp->t_state & TS_CARR_ON) == 0 && (tp->t_cflag & CLOCAL) == 0) {
+    if ((tp->t_state & TS_CONNECTED) == 0) {
 	/* sorry, I can't talk now */
 	return 0;
     }
@@ -1293,7 +1293,7 @@ pppinput(c, tp)
 
     ++sc->sc_bytesrcvd;
 
-    if (!(tp->t_state & TS_CARR_ON) && !(tp->t_cflag & CLOCAL)) {
+    if ((tp->t_state & TS_CONNECTED) == 0) {
 	if (sc->sc_flags & SC_DEBUG)
 	    printf("ppp%d: no carrier\n", sc->sc_if.if_unit);
 	goto flush;
