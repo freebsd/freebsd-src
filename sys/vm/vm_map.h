@@ -73,6 +73,13 @@
 
 #include <sys/lockmgr.h>
 
+#ifdef MAP_LOCK_DIAGNOSTIC
+#include <sys/systm.h>
+#define vm_map_printf(str, arg) printf(str,arg)
+#else
+#define vm_map_printf(str, arg)
+#endif
+
 /*
  *	Types defined:
  *
@@ -132,19 +139,6 @@ struct vm_map_entry {
 
 #define MAP_ENTRY_NOCOREDUMP		0x0400	/* don't include in a core */
 
-static __inline u_char   
-vm_map_entry_behavior(struct vm_map_entry *entry)
-{                  
-	return entry->eflags & MAP_ENTRY_BEHAV_MASK;
-}
-
-static __inline void
-vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior)
-{              
-	entry->eflags = (entry->eflags & ~MAP_ENTRY_BEHAV_MASK) |
-		(behavior & MAP_ENTRY_BEHAV_MASK);
-}                       
-
 /*
  *	Maps are doubly-linked lists of map entries, kept sorted
  *	by address.  A single hint is provided to start
@@ -197,6 +191,10 @@ struct vmspace {
 };
 
 #ifdef	_KERNEL
+
+u_char vm_map_entry_behavior(struct vm_map_entry *entry);
+void vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior);
+
 /*
  *	Macros:		vm_map_lock, etc.
  *	Function:
@@ -207,6 +205,7 @@ struct vmspace {
  *		as unbraced elements in a higher level statement.
  */
 
+#if 0
 /* XXX This macro is not called anywhere, and (map)->ref_lock doesn't exist. */
 #define	vm_map_lock_drain_interlock(map) \
 	do { \
@@ -214,95 +213,25 @@ struct vmspace {
 			&(map)->ref_lock, curproc); \
 		(map)->timestamp++; \
 	} while(0)
-
-/* #define MAP_LOCK_DIAGNOSTIC 1 */
-#ifdef MAP_LOCK_DIAGNOSTIC
-#include <sys/systm.h>
-#define vm_map_printf(str, arg)	printf(str,arg)
-#else
-#define vm_map_printf(str, arg)
 #endif
 
-#define	vm_map_lock(map) \
-	do { \
-		vm_map_printf("locking map LK_EXCLUSIVE: %p\n", map); \
-		if (lockmgr(&(map)->lock, LK_EXCLUSIVE, \
-		   	NULL, curproc) != 0) \
-			panic("vm_map_lock: failed to get lock"); \
-		(map)->timestamp++; \
-	} while(0)
+void vm_map_lock(vm_map_t map);
+void vm_map_unlock(vm_map_t map);
+void vm_map_lock_read(vm_map_t map);
+void vm_map_unlock_read(vm_map_t map);
+int vm_map_lock_upgrade(vm_map_t map);
+void vm_map_lock_downgrade(vm_map_t map);
+void vm_map_set_recursive(vm_map_t map);
+void vm_map_clear_recursive(vm_map_t map);
+vm_offset_t vm_map_min(vm_map_t map);
+vm_offset_t vm_map_max(vm_map_t map);
+struct pmap *vm_map_pmap(vm_map_t map);
 
-#define	vm_map_unlock(map) \
-	do { \
-		vm_map_printf("locking map LK_RELEASE: %p\n", map); \
-		lockmgr(&(map)->lock, LK_RELEASE, NULL, curproc); \
-	} while (0)
+struct pmap *vmspace_pmap(struct vmspace *vmspace);
+long vmspace_resident_count(struct vmspace *vmspace);
 
-#define	vm_map_lock_read(map) \
-	do { \
-		vm_map_printf("locking map LK_SHARED: %p\n", map); \
-		lockmgr(&(map)->lock, LK_SHARED, \
-		    NULL, curproc); \
-	} while (0)
-
-#define	vm_map_unlock_read(map) \
-	do { \
-		vm_map_printf("locking map LK_RELEASE: %p\n", map); \
-		lockmgr(&(map)->lock, LK_RELEASE, NULL, curproc); \
-	} while (0)
-
-static __inline__ int
-_vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
-	int error;
-
-	vm_map_printf("locking map LK_EXCLUPGRADE: %p\n", map); 
-	error = lockmgr(&map->lock, LK_EXCLUPGRADE, NULL, p);
-	if (error == 0)
-		map->timestamp++;
-	return error;
-}
-
-#define vm_map_lock_upgrade(map) _vm_map_lock_upgrade(map, curproc)
-
-#define vm_map_lock_downgrade(map) \
-	do { \
-		vm_map_printf("locking map LK_DOWNGRADE: %p\n", map); \
-		lockmgr(&(map)->lock, LK_DOWNGRADE, NULL, curproc); \
-	} while (0)
-
-#define vm_map_set_recursive(map) \
-	do { \
-		mtx_lock((map)->lock.lk_interlock); \
-		(map)->lock.lk_flags |= LK_CANRECURSE; \
-		mtx_unlock((map)->lock.lk_interlock); \
-	} while(0)
-
-#define vm_map_clear_recursive(map) \
-	do { \
-		mtx_lock((map)->lock.lk_interlock); \
-		(map)->lock.lk_flags &= ~LK_CANRECURSE; \
-		mtx_unlock((map)->lock.lk_interlock); \
-	} while(0)
-
-/*
- *	Functions implemented as macros
- */
-#define		vm_map_min(map)		((map)->min_offset)
-#define		vm_map_max(map)		((map)->max_offset)
-#define		vm_map_pmap(map)	((map)->pmap)
 #endif	/* _KERNEL */
 
-static __inline struct pmap *
-vmspace_pmap(struct vmspace *vmspace)
-{
-	return &vmspace->vm_pmap;
-}
-
-static __inline long
-vmspace_resident_count(struct vmspace *vmspace)
-{
-	return pmap_resident_count(vmspace_pmap(vmspace));
-}
 
 /* XXX: number of kernel maps and entries to statically allocate */
 #define MAX_KMAP	10
@@ -331,35 +260,35 @@ vmspace_resident_count(struct vmspace *vmspace)
 #define VM_FAULT_DIRTY 8		/* Dirty the page */
 
 #ifdef _KERNEL
-boolean_t vm_map_check_protection __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t));
+boolean_t vm_map_check_protection (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t);
 struct pmap;
-vm_map_t vm_map_create __P((struct pmap *, vm_offset_t, vm_offset_t));
-int vm_map_delete __P((vm_map_t, vm_offset_t, vm_offset_t));
-int vm_map_find __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t, boolean_t, vm_prot_t, vm_prot_t, int));
-int vm_map_findspace __P((vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *));
-int vm_map_inherit __P((vm_map_t, vm_offset_t, vm_offset_t, vm_inherit_t));
-void vm_map_init __P((struct vm_map *, vm_offset_t, vm_offset_t));
-void vm_map_destroy __P((struct vm_map *));
-int vm_map_insert __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_offset_t, vm_prot_t, vm_prot_t, int));
-int vm_map_lookup __P((vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_object_t *,
-    vm_pindex_t *, vm_prot_t *, boolean_t *));
-void vm_map_lookup_done __P((vm_map_t, vm_map_entry_t));
-boolean_t vm_map_lookup_entry __P((vm_map_t, vm_offset_t, vm_map_entry_t *));
-int vm_map_pageable __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t));
-int vm_map_user_pageable __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t));
-int vm_map_clean __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t));
-int vm_map_protect __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t));
-int vm_map_remove __P((vm_map_t, vm_offset_t, vm_offset_t));
-void vm_map_startup __P((void));
-int vm_map_submap __P((vm_map_t, vm_offset_t, vm_offset_t, vm_map_t));
-int vm_map_madvise __P((vm_map_t, vm_offset_t, vm_offset_t, int));
-void vm_map_simplify_entry __P((vm_map_t, vm_map_entry_t));
-void vm_init2 __P((void));
-int vm_uiomove __P((vm_map_t, vm_object_t, off_t, int, vm_offset_t, int *));
-void vm_freeze_copyopts __P((vm_object_t, vm_pindex_t, vm_pindex_t));
-int vm_map_stack __P((vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int));
-int vm_map_growstack __P((struct proc *p, vm_offset_t addr));
-int vmspace_swap_count __P((struct vmspace *vmspace));
+vm_map_t vm_map_create (struct pmap *, vm_offset_t, vm_offset_t);
+int vm_map_delete (vm_map_t, vm_offset_t, vm_offset_t);
+int vm_map_find (vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t, boolean_t, vm_prot_t, vm_prot_t, int);
+int vm_map_findspace (vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *);
+int vm_map_inherit (vm_map_t, vm_offset_t, vm_offset_t, vm_inherit_t);
+void vm_map_init (struct vm_map *, vm_offset_t, vm_offset_t);
+void vm_map_destroy (struct vm_map *);
+int vm_map_insert (vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_offset_t, vm_prot_t, vm_prot_t, int);
+int vm_map_lookup (vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_object_t *,
+    vm_pindex_t *, vm_prot_t *, boolean_t *);
+void vm_map_lookup_done (vm_map_t, vm_map_entry_t);
+boolean_t vm_map_lookup_entry (vm_map_t, vm_offset_t, vm_map_entry_t *);
+int vm_map_pageable (vm_map_t, vm_offset_t, vm_offset_t, boolean_t);
+int vm_map_user_pageable (vm_map_t, vm_offset_t, vm_offset_t, boolean_t);
+int vm_map_clean (vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t);
+int vm_map_protect (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t);
+int vm_map_remove (vm_map_t, vm_offset_t, vm_offset_t);
+void vm_map_startup (void);
+int vm_map_submap (vm_map_t, vm_offset_t, vm_offset_t, vm_map_t);
+int vm_map_madvise (vm_map_t, vm_offset_t, vm_offset_t, int);
+void vm_map_simplify_entry (vm_map_t, vm_map_entry_t);
+void vm_init2 (void);
+int vm_uiomove (vm_map_t, vm_object_t, off_t, int, vm_offset_t, int *);
+void vm_freeze_copyopts (vm_object_t, vm_pindex_t, vm_pindex_t);
+int vm_map_stack (vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int);
+int vm_map_growstack (struct proc *p, vm_offset_t addr);
+int vmspace_swap_count (struct vmspace *vmspace);
 
 #endif
 #endif				/* _VM_MAP_ */

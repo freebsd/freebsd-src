@@ -140,10 +140,7 @@ static int object_hash_rand;
 static struct vm_object vm_objects_init[VM_OBJECTS_INIT];
 
 void
-_vm_object_allocate(type, size, object)
-	objtype_t type;
-	vm_size_t size;
-	vm_object_t object;
+_vm_object_allocate(objtype_t type, vm_size_t size, vm_object_t object)
 {
 	int incr;
 
@@ -191,7 +188,7 @@ _vm_object_allocate(type, size, object)
  *	Initialize the VM objects module.
  */
 void
-vm_object_init()
+vm_object_init(void)
 {
 	GIANT_REQUIRED;
 
@@ -213,9 +210,87 @@ vm_object_init()
 }
 
 void
-vm_object_init2()
+vm_object_init2(void)
 {
 	zinitna(obj_zone, NULL, NULL, 0, 0, 0, 1);
+}
+
+void
+vm_object_set_flag(vm_object_t object, u_short bits)
+{
+	GIANT_REQUIRED;
+	atomic_set_short(&object->flags, bits);
+	/* object->flags |= bits; */
+}
+
+void
+vm_object_clear_flag(vm_object_t object, u_short bits)
+{
+	GIANT_REQUIRED;
+	atomic_clear_short(&object->flags, bits);
+	/* object->flags &= ~bits; */
+}
+
+void
+vm_object_pip_add(vm_object_t object, short i)
+{
+	GIANT_REQUIRED;
+	atomic_add_short(&object->paging_in_progress, i);
+	/* object->paging_in_progress += i; */
+}
+
+void
+vm_object_pip_subtract(vm_object_t object, short i)
+{
+	GIANT_REQUIRED;
+	atomic_subtract_short(&object->paging_in_progress, i);
+	/* object->paging_in_progress -= i; */
+}
+
+void
+vm_object_pip_wakeup(vm_object_t object)
+{
+	GIANT_REQUIRED;
+	atomic_subtract_short(&object->paging_in_progress, 1);
+	/* object->paging_in_progress--; */
+	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
+		vm_object_clear_flag(object, OBJ_PIPWNT);
+		wakeup(object);
+	}
+}
+
+void
+vm_object_pip_wakeupn(vm_object_t object, short i)
+{
+	GIANT_REQUIRED;
+	if (i)
+		atomic_subtract_short(&object->paging_in_progress, i);
+	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
+		vm_object_clear_flag(object, OBJ_PIPWNT);
+		wakeup(object);
+	}
+}
+
+void
+vm_object_pip_sleep(vm_object_t object, char *waitid)
+{
+	GIANT_REQUIRED;
+	if (object->paging_in_progress) {
+		int s = splvm();
+		if (object->paging_in_progress) {
+			vm_object_set_flag(object, OBJ_PIPWNT);
+			tsleep(object, PVM, waitid, 0);
+		}
+		splx(s);
+	}
+}
+
+void
+vm_object_pip_wait(vm_object_t object, char *waitid)
+{
+	GIANT_REQUIRED;
+	while (object->paging_in_progress)
+		vm_object_pip_sleep(object, waitid);
 }
 
 /*
@@ -225,9 +300,7 @@ vm_object_init2()
  */
 
 vm_object_t
-vm_object_allocate(type, size)
-	objtype_t type;
-	vm_size_t size;
+vm_object_allocate(objtype_t type, vm_size_t size)
 {
 	vm_object_t result;
 
@@ -246,8 +319,7 @@ vm_object_allocate(type, size)
  *	Gets another reference to the given object.
  */
 void
-vm_object_reference(object)
-	vm_object_t object;
+vm_object_reference(vm_object_t object)
 {
 	GIANT_REQUIRED;
 
@@ -269,8 +341,7 @@ vm_object_reference(object)
  * handle deallocating a object of type OBJT_VNODE
  */
 void
-vm_object_vndeallocate(object)
-	vm_object_t object;
+vm_object_vndeallocate(vm_object_t object)
 {
 	struct vnode *vp = (struct vnode *) object->handle;
 
@@ -308,8 +379,7 @@ vm_object_vndeallocate(object)
  *	No object may be locked.
  */
 void
-vm_object_deallocate(object)
-	vm_object_t object;
+vm_object_deallocate(vm_object_t object)
 {
 	vm_object_t temp;
 
@@ -403,8 +473,7 @@ doterm:
  *	This routine may block.
  */
 void
-vm_object_terminate(object)
-	vm_object_t object;
+vm_object_terminate(vm_object_t object)
 {
 	vm_page_t p;
 	int s;
@@ -504,11 +573,7 @@ vm_object_terminate(object)
  */
 
 void
-vm_object_page_clean(object, start, end, flags)
-	vm_object_t object;
-	vm_pindex_t start;
-	vm_pindex_t end;
-	int flags;
+vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int flags)
 {
 	vm_page_t p, np, tp;
 	vm_offset_t tstart, tend;
@@ -692,29 +757,6 @@ rescan:
 	return;
 }
 
-#ifdef not_used
-/* XXX I cannot tell if this should be an exported symbol */
-/*
- *	vm_object_deactivate_pages
- *
- *	Deactivate all pages in the specified object.  (Keep its pages
- *	in memory even though it is no longer referenced.)
- *
- *	The object must be locked.
- */
-static void
-vm_object_deactivate_pages(object)
-	vm_object_t object;
-{
-	vm_page_t p, next;
-
-	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = next) {
-		next = TAILQ_NEXT(p, listq);
-		vm_page_deactivate(p);
-	}
-}
-#endif
-
 /*
  * Same as vm_object_pmap_copy, except range checking really
  * works, and is meant for small sections of an object.
@@ -728,10 +770,7 @@ vm_object_deactivate_pages(object)
  */
 
 void
-vm_object_pmap_copy_1(object, start, end)
-	vm_object_t object;
-	vm_pindex_t start;
-	vm_pindex_t end;
+vm_object_pmap_copy_1(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 {
 	vm_pindex_t idx;
 	vm_page_t p;
@@ -758,10 +797,7 @@ vm_object_pmap_copy_1(object, start, end)
  *	The object must *not* be locked.
  */
 void
-vm_object_pmap_remove(object, start, end)
-	vm_object_t object;
-	vm_pindex_t start;
-	vm_pindex_t end;
+vm_object_pmap_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 {
 	vm_page_t p;
 
@@ -798,11 +834,7 @@ vm_object_pmap_remove(object, start, end)
  *	    without I/O.
  */
 void
-vm_object_madvise(object, pindex, count, advise)
-	vm_object_t object;
-	vm_pindex_t pindex;
-	int count;
-	int advise;
+vm_object_madvise(vm_object_t object, vm_pindex_t pindex, int count, int advise)
 {
 	vm_pindex_t end, tpindex;
 	vm_object_t tobject;
@@ -914,10 +946,10 @@ shadowlookup:
  */
 
 void
-vm_object_shadow(object, offset, length)
-	vm_object_t *object;	/* IN/OUT */
-	vm_ooffset_t *offset;	/* IN/OUT */
-	vm_size_t length;
+vm_object_shadow(
+	vm_object_t *object,	/* IN/OUT */
+	vm_ooffset_t *offset,	/* IN/OUT */
+	vm_size_t length)
 {
 	vm_object_t source;
 	vm_object_t result;
@@ -1177,10 +1209,11 @@ vm_object_backing_scan(vm_object_t object, int op)
  * operation, but should plug 99.9% of the rest of the leaks.
  */
 static void
-vm_object_qcollapse(object)
-	vm_object_t object;
+vm_object_qcollapse(vm_object_t object)
 {
 	vm_object_t backing_object = object->backing_object;
+
+	GIANT_REQUIRED;
 
 	if (backing_object->ref_count != 1)
 		return;
@@ -1200,8 +1233,7 @@ vm_object_qcollapse(object)
  *	parent, and the backing object is deallocated.
  */
 void
-vm_object_collapse(object)
-	vm_object_t object;
+vm_object_collapse(vm_object_t object)
 {
 	GIANT_REQUIRED;
 	
@@ -1406,11 +1438,7 @@ vm_object_collapse(object)
  *	The object must be locked.
  */
 void
-vm_object_page_remove(object, start, end, clean_only)
-	vm_object_t object;
-	vm_pindex_t start;
-	vm_pindex_t end;
-	boolean_t clean_only;
+vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end, boolean_t clean_only)
 {
 	vm_page_t p, next;
 	unsigned int size;
@@ -1527,10 +1555,7 @@ again:
  *	The object must *not* be locked.
  */
 boolean_t
-vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
-	vm_object_t prev_object;
-	vm_pindex_t prev_pindex;
-	vm_size_t prev_size, next_size;
+vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex, vm_size_t prev_size, vm_size_t next_size)
 {
 	vm_pindex_t next_pindex;
 
@@ -1599,15 +1624,8 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 
 #include <ddb/ddb.h>
 
-static int	_vm_object_in_map __P((vm_map_t map, vm_object_t object,
-				       vm_map_entry_t entry));
-static int	vm_object_in_map __P((vm_object_t object));
-
 static int
-_vm_object_in_map(map, object, entry)
-	vm_map_t map;
-	vm_object_t object;
-	vm_map_entry_t entry;
+_vm_object_in_map(vm_map_t map, vm_object_t object, vm_map_entry_t entry)
 {
 	vm_map_t tmpm;
 	vm_map_entry_t tmpe;
@@ -1646,8 +1664,7 @@ _vm_object_in_map(map, object, entry)
 }
 
 static int
-vm_object_in_map( object)
-	vm_object_t object;
+vm_object_in_map(vm_object_t object)
 {
 	struct proc *p;
 
@@ -1759,11 +1776,11 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 
 /* XXX need this non-static entry for calling from vm_map_print. */
 void
-vm_object_print(addr, have_addr, count, modif)
-        /* db_expr_t */ long addr;
-	boolean_t have_addr;
-	/* db_expr_t */ long count;
-	char *modif;
+vm_object_print(
+        /* db_expr_t */ long addr,
+	boolean_t have_addr,
+	/* db_expr_t */ long count,
+	char *modif)
 {
 	vm_object_print_static(addr, have_addr, count, modif);
 }
