@@ -315,6 +315,8 @@ try_connect:
 		if (pid < 0)
 			err(1, "fork");
 	}
+        else
+		(void)shutdown(rem, 1);
 
 #ifdef KERBEROS
 #ifdef CRYPT
