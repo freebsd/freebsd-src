@@ -1,13 +1,17 @@
 /* verify.c: The opieverify() library function.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
+This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
 	History:
 
+	Modified by cmetz for OPIE 2.32. Renamed _opieparsechallenge() to
+		__opieparsechallenge() and handle new argument. Fixed init
+		response parsing bug.
+	Modified by cmetz for OPIE 2.31. Renamed "init" to "init-hex".
 	Modified by cmetz for OPIE 2.31. Renamed "init" and "RESPONSE_INIT"
 		to "init-hex" and "RESPONSE_INIT_HEX". Removed active attack
 		protection support.
@@ -126,8 +130,6 @@ int opieverify FUNCTION((opie, response), struct opie *opie AND char *response)
   case RESPONSE_INIT_WORD:
     {
       char *c2;
-      char newkey[8];
-      char buf[OPIE_SEED_MAX + 48 + 1];
 
       if (!(c2 = strchr(c, ':')))
 	goto verret;
@@ -165,22 +167,17 @@ int opieverify FUNCTION((opie, response), struct opie *opie AND char *response)
       *(c2++) = 0;
 
       {
-	int j;
+	int j, k;
 
-	if (_opieparsechallenge(c, &j, &(opie->opie_n), &(opie->opie_seed)) || (j != MDX))
+	if (__opieparsechallenge(c, &j, &(opie->opie_n), &(opie->opie_seed), &k) || (j != MDX) || k)
 	  goto verret;
       }
 
-      if (!(c2 = strchr(c = c2, ':')))
-	goto verret;
-
-      *(c2++) = 0;
-
       if (i == RESPONSE_INIT_HEX) {
-	if (!opieatob8(newkey, c))
+	if (!opieatob8(key, c2))
 	  goto verret;
       } else {
-	if (opieetob(newkey, c) != 1)
+	if (opieetob(key, c2) != 1)
 	  goto verret;
       }
     }
