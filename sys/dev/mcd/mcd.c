@@ -578,12 +578,6 @@ MCD_TRACE("ioctl called 0x%lx\n", cmd);
 	case DIOCGDINFO:
 		*(struct disklabel *) addr = cd->dlabel;
 		return 0;
-	case DIOCGPART:
-		((struct partinfo *) addr)->disklab = &cd->dlabel;
-		((struct partinfo *) addr)->part =
-		    &cd->dlabel.d_partitions[mcd_part(dev)];
-		return 0;
-
 		/*
 		 * a bit silly, but someone might want to test something on a
 		 * section of cdrom.

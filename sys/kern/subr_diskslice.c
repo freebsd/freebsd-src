@@ -420,14 +420,6 @@ dsioctl(dev, cmd, data, flags, sspp)
 		    lp->d_secsize;
 		return (0);
 
-	case DIOCGPART:
-		if (lp == NULL)
-			return (EINVAL);
-		((struct partinfo *)data)->disklab = lp;
-		((struct partinfo *)data)->part
-			= &lp->d_partitions[dkpart(dev)];
-		return (0);
-
 	case DIOCGSLICEINFO:
 		bcopy(ssp, data, (char *)&ssp->dss_slices[ssp->dss_nslices] -
 				 (char *)ssp);
