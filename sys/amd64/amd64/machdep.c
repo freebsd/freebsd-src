@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.146 1995/10/31 19:07:53 peter Exp $
+ *	$Id: machdep.c,v 1.147 1995/11/02 09:52:40 peter Exp $
  */
 
 #include "npx.h"
@@ -1377,9 +1377,7 @@ init386(first)
 #if	NISA >0
 	isa_defaultirq();
 #endif
-#ifdef DEVRANDOM
 	rand_initialize();
-#endif
 
 	r_gdt.rd_limit = sizeof(gdt) - 1;
 	r_gdt.rd_base =  (int) gdt;

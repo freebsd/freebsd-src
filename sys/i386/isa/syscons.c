@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.126 1995/10/14 07:08:09 bde Exp $
+ *  $Id: syscons.c,v 1.127 1995/10/28 16:58:04 markm Exp $
  */
 
 #include "sc.h"
@@ -2203,9 +2203,7 @@ next_code:
     else
 	goto next_code;
 
-#ifdef DEVRANDOM
     add_keyboard_randomness(scancode);
-#endif
 
     if (cur_console->status & KBD_RAW_MODE)
 	return scancode;
