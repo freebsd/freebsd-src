@@ -233,6 +233,7 @@ typedef enum { TR_SENDING, TR_RECVING, TR_PRINTING } tr_sendrecv;
 #define SQS_STOPP	0x02	/* Stop the printing of jobs */
 #define SQS_ENABLEQ	0x10	/* Enable the queuing of new jobs */
 #define SQS_STARTP	0x20	/* Start the printing of jobs */
+#define SQS_QCHANGED	0x80	/* The queue has changed (new jobs, etc) */
 
 #define SQS_PARMERR	-9	/* Invalid parameters from caller */
 #define SQS_CREFAIL	-3	/* File did not exist, and create failed */
