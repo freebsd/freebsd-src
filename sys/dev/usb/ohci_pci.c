@@ -100,6 +100,10 @@ static const char *ohci_device_generic   = "OHCI (generic) USB controller";
 
 #define PCI_OHCI_BASE_REG	0x10
 
+
+static int ohci_pci_attach(device_t self);
+static int ohci_pci_detach(device_t self);
+
 static const char *
 ohci_pci_match(device_t self)
 {
@@ -149,8 +153,6 @@ ohci_pci_attach(device_t self)
 	ohci_softc_t *sc = device_get_softc(self);
 	int err;
 	int rid;
-	struct resource *io_res, *irq_res;
-	void *ih;
 	int intr;
 
 	/* For the moment, put in a message stating what is wrong */
@@ -165,30 +167,30 @@ ohci_pci_attach(device_t self)
 	sc->sc_bus.usbrev = USBREV_1_0;
 
 	rid = PCI_CBMEM;
-	io_res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
-				    0, ~0, 1, RF_ACTIVE);
-	if (!io_res) {
-		device_printf(self, "could not map memory\n");
+	sc->io_res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
+					0, ~0, 1, RF_ACTIVE);
+	if (!sc->io_res) {
+		device_printf(self, "Could not map memory\n");
 		return ENXIO;
         }
 
-	sc->iot = rman_get_bustag(io_res);
-	sc->ioh = rman_get_bushandle(io_res);
+	sc->iot = rman_get_bustag(sc->io_res);
+	sc->ioh = rman_get_bushandle(sc->io_res);
 
 	rid = 0;
-	irq_res = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->irq_res = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0, 1,
 				     RF_SHAREABLE | RF_ACTIVE);
-	if (irq_res == NULL) {
-		device_printf(self, "could not allocate irq\n");
-		err = ENOMEM;
-		goto bad1;
+	if (sc->irq_res == NULL) {
+		device_printf(self, "Could not allocate irq\n");
+		ohci_pci_detach(self);
+		return ENXIO;
 	}
 
 	sc->sc_bus.bdev = device_add_child(self, "usb", -1);
 	if (!sc->sc_bus.bdev) {
-		device_printf(self, "could not add USB device\n");
-		err = ENOMEM;
-		goto bad2;
+		device_printf(self, "Could not add USB device\n");
+		ohci_pci_detach(self);
+		return ENOMEM;
 	}
 	device_set_ivars(sc->sc_bus.bdev, sc);
 
@@ -229,11 +231,12 @@ ohci_pci_attach(device_t self)
 		sprintf(sc->sc_vendor, "(unknown)");
 	}
 
-	err = bus_setup_intr(self, irq_res, INTR_TYPE_BIO,
-			     (driver_intr_t *) ohci_intr, sc, &ih);
+	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_BIO,
+			     (driver_intr_t *) ohci_intr, sc, &sc->ih);
 	if (err) {
-		device_printf(self, "could not setup irq, %d\n", err);
-		goto bad3;
+		device_printf(self, "Could not setup irq, %d\n", err);
+		ohci_pci_detach(self);
+		return ENXIO;
 	}
 
 	err = ohci_init(sc);
@@ -242,29 +245,56 @@ ohci_pci_attach(device_t self)
 
 	if (err) {
 		device_printf(self, "USB init failed\n");
-		err = EIO;
-		goto bad4;
+		ohci_pci_detach(self);
+		return EIO;
 	}
 
 	return 0;
-bad4:
+}
+
+static int
+ohci_pci_detach(device_t self)
+{
+	ohci_softc_t *sc = device_get_softc(self);
+
+	/* XXX this code is not yet fit to be used as detach for
+	 * the OHCI controller
+	 */
+
 	/* disable interrupts that might have been switched on
 	 * in ohci_init
 	 */
-	bus_space_write_4(sc->iot, sc->ioh,
-			  OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
+	if (sc->iot && sc->ioh)
+		bus_space_write_4(sc->iot, sc->ioh,
+				  OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
 
-	err = bus_teardown_intr(self, irq_res, ih);
-	if (err)
-		/* XXX or should we panic? */
-		device_printf(self, "could not tear down irq, %d\n", err);
-bad3:
-	device_delete_child(self, sc->sc_bus.bdev);
-bad2:
-	bus_release_resource(self, SYS_RES_IOPORT, 0, irq_res);
-bad1:
-	bus_release_resource(self, SYS_RES_MEMORY, PCI_CBMEM, io_res);
-	return err;
+	if (sc->irq_res) {
+		int err = bus_teardown_intr(self, sc->irq_res, sc->ih);
+		if (err)
+			/* XXX or should we panic? */
+			device_printf(self, "Could not tear down irq, %d\n",
+				      err);
+		sc->irq_res = NULL;
+	}
+
+	if (sc->sc_bus.bdev) {
+		device_delete_child(self, sc->sc_bus.bdev);
+		sc->sc_bus.bdev = NULL;
+	}
+
+	if (sc->irq_res) {
+		bus_release_resource(self, SYS_RES_IOPORT, 0, sc->irq_res);
+		sc->irq_res = NULL;
+	}
+
+	if (sc->io_res) {
+		bus_release_resource(self, SYS_RES_MEMORY,PCI_CBMEM,sc->io_res);
+		sc->io_res = NULL;
+		sc->iot = 0;
+		sc->ioh = 0;
+	}
+
+	return 0;
 }
 
 static device_method_t ohci_methods[] = {
