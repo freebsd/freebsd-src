@@ -623,7 +623,8 @@ fs/umapfs/umap_vnops.c	optional umapfs
 fs/unionfs/union_subr.c	optional unionfs
 fs/unionfs/union_vfsops.c	optional unionfs
 fs/unionfs/union_vnops.c	optional unionfs
-gnu/ext2fs/ext2_alloc.c		optional ext2fs
+gnu/ext2fs/ext2_alloc.c		optional ext2fs \
+	warning "kernel contains GPL contaminated ext2fs file system"
 gnu/ext2fs/ext2_balloc.c	optional ext2fs
 gnu/ext2fs/ext2_inode.c		optional ext2fs
 gnu/ext2fs/ext2_inode_cnv.c	optional ext2fs
