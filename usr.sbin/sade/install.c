@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.29 1995/05/19 01:49:57 gpalmer Exp $
+ * $Id: install.c,v 1.30 1995/05/19 15:56:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -186,6 +186,7 @@ make_filesystems(void)
 			else {
 			    extern int makedevs(void);
 
+			    msgNotify("Making device files");
 			    if (Mkdir("/mnt/dev", NULL)
 				|| chdir("/mnt/dev")
 				|| makedevs())
