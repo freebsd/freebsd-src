@@ -15,8 +15,6 @@ CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	${CWARNFLAGS}
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
-CFLAGS+=	-DUFS1_ONLY
-
 # By default, if a serial port is going to be used as console, use COM1
 # (aka /dev/ttyd0).
 #BOOT_COMCONSOLE_PORT?=0x30
