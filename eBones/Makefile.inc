@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile.inc,v 1.10 1996/02/11 08:51:47 markm Exp $
+#	$Id: Makefile.inc,v 1.11 1996/06/24 04:22:24 jkh Exp $
 
 DISTRIBUTION=	krb
 
@@ -16,7 +16,7 @@ KRBOBJDIR=	${.CURDIR}/../../lib/libkrb
 .endif
 
 .if exists(${.OBJDIR}/../../lib/libkdb)
-KDBOBJDIR=	${.CURDIR}/../../lib/libkdb
+KDBOBJDIR=	${.OBJDIR}/../../lib/libkdb
 .else
 KDBOBJDIR=	${.CURDIR}/../../lib/libkdb
 .endif
