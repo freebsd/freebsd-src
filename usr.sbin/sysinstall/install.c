@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.137 1996/11/08 05:38:27 jkh Exp $
+ * $Id: install.c,v 1.138 1996/11/09 11:57:40 joerg Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -285,11 +285,13 @@ installFixitFloppy(dialogMenuItem *self)
 		       "be essentially usable.");
 	}
     }
-    /* Link the spwd.db file */
+    /* Link the /etc/ files */
     if (DITEM_STATUS(Mkdir("/etc")) != DITEM_SUCCESS)
 	msgConfirm("Unable to create an /etc directory!  Things are weird on this floppy..");
-    else if (symlink("/mnt2/etc/spwd.db", "/etc/spwd.db") == -1 && errno != EEXIST)
-	msgConfirm("Couldn't symlink the /etc/spwd.db file!  I'm not sure I like this..");
+    else if ((symlink("/mnt2/etc/spwd.db", "/etc/spwd.db") == -1 && errno != EEXIST) ||
+	     (symlink("/mnt2/etc/protocols", "/etc/protocols") == -1 && errno != EEXIST) ||
+	     (symlink("/mnt2/etc/services", "/etc/services") == -1 && errno != EEXIST))
+	msgConfirm("Couldn't symlink the /etc/ files!  I'm not sure I like this..");
     if (!file_readable(TERMCAP_FILE))
 	create_termcap();
     if (!(child = fork())) {
@@ -303,9 +305,10 @@ installFixitFloppy(dialogMenuItem *self)
 	}
 	else
 	    msgDebug("fixit shell: Unable to get terminal attributes!\n");
-	printf("When you're finished with this shell, please type exit.\n");
-	printf("The fixit floppy itself is mounted as /mnt2\n");
 	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:/mnt2/stand", 1);
+	/* use the .profile from the fixit floppy */
+	setenv("HOME", "/mnt2", 1);
+	chdir("/mnt2");
 	execlp("sh", "-sh", 0);
 	msgDebug("fixit shell: Failed to execute shell!\n");
 	return -1;
