@@ -42,17 +42,17 @@
  */
 #if (BYTE_ORDER == LITTLE_ENDIAN)
 
-#define htoles(x)	((u_int16_t)(x))
-#define letohs(x)	((u_int16_t)(x))
+#define	htoles(x)	((u_int16_t)(x))
+#define	letohs(x)	((u_int16_t)(x))
 #define	htolel(x)	((u_int32_t)(x))
 #define	letohl(x)	((u_int32_t)(x))
 #define	htoleq(x)	((int64_t)(x))
 #define	letohq(x)	((int64_t)(x))
 
-#define htobes(x)	(__htons(x))
-#define betohs(x)	(__ntohs(x))
-#define htobel(x)	(__htonl(x))
-#define betohl(x)	(__ntohl(x))
+#define	htobes(x)	(__htons(x))
+#define	betohs(x)	(__ntohs(x))
+#define	htobel(x)	(__htonl(x))
+#define	betohl(x)	(__ntohl(x))
 
 static __inline int64_t
 htobeq(int64_t x)
@@ -73,8 +73,8 @@ betohq(int64_t x)
 #error "Macros for Big-Endians are incomplete"
 
 /*
-#define htoles(x)	((u_int16_t)(x))
-#define letohs(x)	((u_int16_t)(x))
+#define	htoles(x)	((u_int16_t)(x))
+#define	letohs(x)	((u_int16_t)(x))
 #define	htolel(x)	((u_int32_t)(x))
 #define	letohl(x)	((u_int32_t)(x))
 */
@@ -88,8 +88,8 @@ betohq(int64_t x)
  * Type of copy for mb_{put|get}_mem()
  */
 #define	MB_MSYSTEM	0		/* use bcopy() */
-#define MB_MUSER	1		/* use copyin()/copyout() */
-#define MB_MINLINE	2		/* use an inline copy loop */
+#define	MB_MUSER	1		/* use copyin()/copyout() */
+#define	MB_MINLINE	2		/* use an inline copy loop */
 #define	MB_MZERO	3		/* bzero(), mb_put_mem only */
 #define	MB_MCUSTOM	4		/* use an user defined function */
 
