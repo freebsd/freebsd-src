@@ -202,9 +202,11 @@ get_dirlist ()
 
       if (!strncmp ("MANDATORY_MANPATH", bp, 17))
 	{
-	  if ((p = strchr (bp, ' ')) == NULL)
-	    if ((p = strchr (bp, '\t')) == NULL)
-	      return -1;
+	  if ((p = strchr (bp, ' ')) == NULL &&
+	      (p = strchr (bp, '\t')) == NULL) {
+	    fclose(config);
+	    return -1;
+	  }
 
 	  bp = p;
 
@@ -224,9 +226,11 @@ get_dirlist ()
 	}
       else if (!strncmp ("MANPATH_MAP", bp, 11))
 	{
-	  if ((p = strchr (bp, ' ')) == NULL)
-	    if ((p = strchr (bp, '\t')) == NULL)
-	      return -1;
+	  if ((p = strchr (bp, ' ')) == NULL &&
+	      (p = strchr (bp, '\t')) == NULL) {
+	    fclose(config);
+	    return -1;
+	  }
 
 	  bp = p;
 
@@ -259,6 +263,7 @@ get_dirlist ()
       dlp++;
     }
 
+  fclose(config);
   dlp->bin[0] = '\0';
   dlp->mandir[0] = '\0';
   dlp->mandatory = 0;
