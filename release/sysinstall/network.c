@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.6.2.9 1995/06/05 23:18:13 jkh Exp $
+ * $Id: network.c,v 1.6.2.10 1995/06/05 23:23:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,8 +68,6 @@ mediaInitNetwork(Device *dev)
 		msgConfirm("Unable to start PPP!  This installation method\ncannot be used.");
 		return FALSE;
 	    }
-	    networkInitialized = TRUE;
-	    return TRUE;
 	}
 	else {
 	    char *val;
@@ -109,7 +107,7 @@ mediaInitNetwork(Device *dev)
     }
 
     rp = getenv(VAR_GATEWAY);
-    if (!rp)
+    if (!rp || *rp == '0')
 	msgConfirm("No gateway has been set. You will not be able to access hosts\n
 not on the local network\n");
     else
