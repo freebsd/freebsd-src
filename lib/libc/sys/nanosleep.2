@@ -1,4 +1,4 @@
-.\"	$Id: nanosleep.2,v 1.4 1997/09/29 19:11:21 wosch Exp $
+.\"	$Id: nanosleep.2,v 1.5 1998/05/03 22:50:14 jraynard Exp $
 .\"	$OpenBSD: nanosleep.2,v 1.1 1997/04/20 20:56:20 tholo Exp $
 .\"	$NetBSD: nanosleep.2,v 1.1 1997/04/17 18:12:02 jtc Exp $
 .\"
@@ -39,29 +39,17 @@
 .Dt NANOSLEEP 2
 .Os 
 .Sh NAME
-.Nm nanosleep ,
-.Nm signanosleep
+.Nm nanosleep
 .Sh SYNOPSIS
 .Fd #include <time.h>
 .Ft int
 .Fn nanosleep "const struct timespec *rqtp" "struct timespec *rmtp"
-.Pp
-.Fd #include <signal.h>
-.Fd #include <time.h>
-.Ft int
-.Fn signanosleep "const struct timespec *rqtp" "struct timespec *rmtp" "sigset_t *mask"
 .Sh DESCRIPTION
 .Fn Nanosleep
 causes the process to sleep for the specified time.  An unmasked signal will
 cause it to terminate the sleep early, regardless of the
 .Dv SA_RESTART
 value on the interrupting signal.
-.Pp
-The
-.Fn signanosleep
-function temporarily (and atomically) sets the signal mask of the process
-for the duration of the system call so that specific signals can be
-nominated to cause an early termination of the sleep.
 .Sh RETURN VALUE
 If the 
 .Fn nanosleep
@@ -113,8 +101,3 @@ The
 .Fn nanosleep
 function conforms to
 .St -p1003.1b-93 .
-.Pp
-The
-.Fn signanosleep
-function is an extension that first appeared in
-.Fx 3.0
