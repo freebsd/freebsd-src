@@ -502,6 +502,5 @@ NDEVFSINO		opt_devfs.h
 NDEVFSOVERFLOW		opt_devfs.h
 
 # various 'device presence' options.
-DEV_SNP			opt_snp.h
 DEV_MCA			opt_mca.h
 DEV_BPF			opt_bpf.h
