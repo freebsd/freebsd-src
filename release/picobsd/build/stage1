@@ -1,27 +1,10 @@
 #! /bin/sh -
 
 #
-#	$Id: stage1,v 1.4 1998/08/10 19:06:48 abial Exp $
+#	$Id: stage1,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 #
 
 set -e
-
-if [ "${TYPE}" = "dial" ]
-then
-	suffix="-D"
-fi
-if [ "${TYPE}" = "net" ]
-then
-	suffix="-N"
-fi
-if [ "${TYPE}" = "isp" ]
-then
-	suffix="-I"
-fi
-if [ "${TYPE}" = "router" ]
-then
-	suffix="-R"
-fi
 
 if [ ! -f ${SRC}/sys/compile/PICOBSD${suffix}.${SIZE}/kernel ]; then
 	echo "-> ERROR: you must build PICOBSD${suffix}.${SIZE} first"
