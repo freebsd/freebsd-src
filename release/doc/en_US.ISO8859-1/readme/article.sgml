@@ -39,10 +39,8 @@
     <title>Introduction</title>
 
     <para>This distribution is a &release.type; of &os;
-      &release.current;, the latest point along the &release.branch;
-      branch.</para>
-
-    <para>&os; &release.current; is a <quote>point release</quote>.
+      &release.current;.  This
+      is a <quote>point release</quote>.
       It exists primarily to address some specific security and
       stability issues found (after-the-fact) in the &os;
       &release.base; distribution.  Changes made for this point
