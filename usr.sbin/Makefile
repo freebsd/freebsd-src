@@ -152,7 +152,6 @@ SUBDIR+=elf2exe
 SUBDIR+=apm \
 	apmd \
 	btxld \
-	i4b \
 	kgmon \
 	kgzip \
 	lptcontrol \
@@ -165,6 +164,9 @@ SUBDIR+=apm \
 	stallion \
 	wicontrol \
 	wlconfig
+.if !defined(NO_I4B)
+SUBDIR+=i4b
+.endif
 .endif
 
 .if ${MACHINE} == "i386"
