@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: subr_scanf.c,v 1.2 1999/01/27 21:36:14 dillon Exp $
+ * $Id: subr_scanf.c,v 1.3 1999/01/28 00:57:47 dillon Exp $
  * From: Id: vfscanf.c,v 1.13 1998/09/25 12:20:27 obrien Exp 
  */
 
@@ -81,7 +81,7 @@
 #define	CT_CCL		1	/* %[...] conversion */
 #define	CT_STRING	2	/* %s conversion */
 #define	CT_INT		3	/* integer, i.e., strtoq or strtouq */
-typedef u_quad_t (*ccfntype)(const char *, char **, int);
+typedef u_quad_t (*ccfntype)(const char *, const char **, int);
 
 #define isspace(c)	((c) == ' ' || (c) == '\t' || \
 			 (c) == '\r' || (c) == '\n')
@@ -514,7 +514,7 @@ literal:
 				u_quad_t res;
 
 				*p = 0;
-				res = (*ccfn)(buf, (char **)NULL, base);
+				res = (*ccfn)(buf, (const char **)NULL, base);
 				if (flags & POINTER)
 					*va_arg(ap, void **) =
 						(void *)(u_long)res;
