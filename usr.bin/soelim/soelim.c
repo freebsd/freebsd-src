@@ -95,6 +95,7 @@ process(const char *file)
 	char fname[BUFSIZ];
 	FILE *soee;
 	int isfile;
+	int line = 1;
 
 	if (!strcmp(file, STDIN_NAME)) {
 		soee = stdin;
@@ -105,7 +106,9 @@ process(const char *file)
 			return(-1);
 		}
 	}
+	printf (".lf %d %s\n", line, file);
 	for (;;) {
+		line++;
 		c = getc(soee);
 		if (c == EOF)
 			break;
@@ -151,6 +154,7 @@ donename:
 		if (process(fname) < 0)
 			if (isfile)
 				printf(".so %s\n", fname);
+		printf (".lf %d %s\n", line, file);
 		continue;
 simple:
 		if (c == EOF)
