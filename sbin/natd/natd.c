@@ -499,7 +499,6 @@ static void DoGlobal (int fd)
 	char			buf[IP_MAXPACKET];
 	struct sockaddr_in	addr;
 	int			wrote;
-	int			status;
 	int			addrSize;
 	struct ip*		ip;
 	char			msgBuf[80];
