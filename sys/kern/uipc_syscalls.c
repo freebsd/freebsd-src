@@ -89,6 +89,7 @@ static int getpeername1 __P((struct proc *p, struct getpeername_args *uap,
  * additional sf_lock mutex.
  */
 static struct {
+	/* XXX: FIXME!  This is a very improper use of <sys/queue.h> */
 	struct sf_buf *slh_first;
 	struct mtx sf_lock;
 } sf_freelist;
