@@ -1,4 +1,4 @@
-.\" Copyright (c) 2002 Alexey Zelkin <phantom@FreeBSD.org>
+.\" Copyright (c) 2002,2003 Alexey Zelkin <phantom@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 26, 2002
+.Dd January 31, 2003
 .Dt PTHREAD_ATTR_GET_NP 3
 .Os
 .Sh NAME
@@ -40,6 +40,16 @@
 The
 .Fn pthread_attr_get_np
 function is used to get existent thread's attributes.
+Most fields of
+.Vt pthread_attr_t
+structure are exact values of attributes provided at thread creation
+time (as parameter to
+.Fn pthread_create
+function), except stack address.
+.Fn pthread_attr_get_np
+will always return pointer to thread's real stack address regardless
+to its value in original attributes structure.
+.Pp
 Value returned as
 .Fa dst
 is supposed to be used in conjunction with
