@@ -1795,6 +1795,7 @@ hint.cx.0.port="0x240"
 hint.cx.0.irq="15"
 hint.cx.0.drq="7"
 device		ed
+#options	ED_NO_MIIBUS		# Disable ed miibus support
 hint.ed.0.at="isa"
 hint.ed.0.port="0x280"
 hint.ed.0.irq="5"
