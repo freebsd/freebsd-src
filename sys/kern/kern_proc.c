@@ -680,23 +680,11 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_dsize = vm->vm_dsize;
 		kp->ki_ssize = vm->vm_ssize;
 	}
-	if ((p->p_sflag & PS_INMEM) && p->p_stats) {
-		kp->ki_start = p->p_stats->p_start;
-		timevaladd(&kp->ki_start, &boottime);
-		kp->ki_rusage = p->p_stats->p_ru;
-		calcru(p, &kp->ki_rusage.ru_utime, &kp->ki_rusage.ru_stime,
-		    NULL);
-		kp->ki_childstime = p->p_stats->p_cru.ru_stime;
-		kp->ki_childutime = p->p_stats->p_cru.ru_utime;
-		/* Some callers want child-times in a single value */
-		kp->ki_childtime = kp->ki_childstime;
-		timevaladd(&kp->ki_childtime, &kp->ki_childutime);
-	}
 	kp->ki_sflag = p->p_sflag;
 	kp->ki_swtime = p->p_swtime;
 	kp->ki_pid = p->p_pid;
 	kp->ki_nice = p->p_nice;
-	bintime2timeval(&p->p_runtime, &tv);
+	bintime2timeval(&p->p_rux.rux_runtime, &tv);
 	kp->ki_runtime = tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
 	if (p->p_state != PRS_ZOMBIE) {
 #if 0
@@ -764,6 +752,17 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_stat = SZOMB;
 	}
 	mtx_unlock_spin(&sched_lock);
+	if ((p->p_sflag & PS_INMEM) && p->p_stats != NULL) {
+		kp->ki_start = p->p_stats->p_start;
+		timevaladd(&kp->ki_start, &boottime);
+		kp->ki_rusage = p->p_stats->p_ru;
+		calcru(p, &kp->ki_rusage.ru_utime, &kp->ki_rusage.ru_stime);
+		calccru(p, &kp->ki_childutime, &kp->ki_childstime);
+
+		/* Some callers want child-times in a single value */
+		kp->ki_childtime = kp->ki_childstime;
+		timevaladd(&kp->ki_childtime, &kp->ki_childutime);
+	}
 	sp = NULL;
 	tp = NULL;
 	if (p->p_pgrp) {

@@ -940,24 +940,14 @@ linux_nanosleep(struct thread *td, struct linux_nanosleep_args *uap)
 int
 linux_getrusage(struct thread *td, struct linux_getrusage_args *uap)
 {
+	struct l_rusage s32;
+	struct rusage s;
 	int error;
-	caddr_t sg;
-	struct l_rusage *p32, s32;
-	struct rusage *p = NULL, s;
 
-	p32 = uap->rusage;
-	if (p32 != NULL) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct rusage));
-		uap->rusage = (struct l_rusage *)p;
-	}
-	error = getrusage(td, (struct getrusage_args *) uap);
+	error = kern_getrusage(td, uap->who, &s);
 	if (error != 0)
 		return (error);
-	if (p32 != NULL) {
-		error = copyin(p, &s, sizeof(s));
-		if (error != 0)
-			return (error);
+	if (uap->rusage != NULL) {
 		s32.ru_utime.tv_sec = s.ru_utime.tv_sec;
 		s32.ru_utime.tv_usec = s.ru_utime.tv_usec;
 		s32.ru_stime.tv_sec = s.ru_stime.tv_sec;
@@ -976,7 +966,7 @@ linux_getrusage(struct thread *td, struct linux_getrusage_args *uap)
 		s32.ru_nsignals = s.ru_nsignals;
 		s32.ru_nvcsw = s.ru_nvcsw;
 		s32.ru_nivcsw = s.ru_nivcsw;
-		error = copyout(&s32, p32, sizeof(s32));
+		error = copyout(&s32, uap->rusage, sizeof(s32));
 	}
 	return (error);
 }

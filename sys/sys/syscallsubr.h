@@ -32,9 +32,10 @@
 #include <sys/uio.h>
 #include <sys/socket.h>
 
-struct sockaddr;
-struct msghdr;
 struct mbuf;
+struct msghdr;
+struct rusage;
+struct sockaddr;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
@@ -50,6 +51,7 @@ int	kern_connect(struct thread *td, int fd, struct sockaddr *sa);
 int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	    enum uio_seg tptrseg);
+int	kern_getrusage(struct thread *td, int who, struct rusage *rup);
 int	kern_getsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t *valsize);
 int	kern_lchown(struct thread *td, char *path, enum uio_seg pathseg,

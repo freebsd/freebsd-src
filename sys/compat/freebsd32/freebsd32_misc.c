@@ -89,9 +89,13 @@ freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 {
 	int error, status;
 	struct rusage32 ru32;
-	struct rusage ru;
+	struct rusage ru, *rup;
 
-	error = kern_wait(td, uap->pid, &status, uap->options, &ru);
+	if (uap->rusage != NULL)
+		rup = &ru;
+	else
+		rup = NULL;
+	error = kern_wait(td, uap->pid, &status, uap->options, rup);
 	if (error)
 		return (error);
 	if (uap->status != NULL)
@@ -637,24 +641,14 @@ freebsd32_gettimeofday(struct thread *td,
 int
 freebsd32_getrusage(struct thread *td, struct freebsd32_getrusage_args *uap)
 {
+	struct rusage32 s32;
+	struct rusage s;
 	int error;
-	caddr_t sg;
-	struct rusage32 *p32, s32;
-	struct rusage *p = NULL, s;
 
-	p32 = uap->rusage;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct rusage));
-		uap->rusage = (struct rusage32 *)p;
-	}
-	error = getrusage(td, (struct getrusage_args *) uap);
+	error = kern_getrusage(td, uap->who, &s);
 	if (error)
 		return (error);
-	if (p32) {
-		error = copyin(p, &s, sizeof(s));
-		if (error)
-			return (error);
+	if (uap->rusage != NULL) {
 		TV_CP(s, s32, ru_utime);
 		TV_CP(s, s32, ru_stime);
 		CP(s, s32, ru_maxrss);
@@ -671,7 +665,7 @@ freebsd32_getrusage(struct thread *td, struct freebsd32_getrusage_args *uap)
 		CP(s, s32, ru_nsignals);
 		CP(s, s32, ru_nvcsw);
 		CP(s, s32, ru_nivcsw);
-		error = copyout(&s32, p32, sizeof(s32));
+		error = copyout(&s32, uap->rusage, sizeof(s32));
 	}
 	return (error);
 }

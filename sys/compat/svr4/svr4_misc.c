@@ -861,44 +861,30 @@ svr4_sys_times(td, uap)
 	struct thread *td;
 	struct svr4_sys_times_args *uap;
 {
-	int			 error, *retval = td->td_retval;
-	struct tms		 tms;
-	struct timeval		 t;
-	struct rusage		*ru;
-	struct rusage		 r;
-	struct getrusage_args 	 ga;
+	struct timeval tv, utime, stime, cutime, cstime;
+	struct tms tms;
+	struct proc *p;
+	int error;
 
-	caddr_t sg = stackgap_init();
-	ru = stackgap_alloc(&sg, sizeof(struct rusage));
+	p = td->td_proc;
+	PROC_LOCK(p);
+	calcru(p, &utime, &stime);
+	calccru(p, &cutime, &cstime);
+	PROC_UNLOCK(p);
 
-	ga.who = RUSAGE_SELF;
-	ga.rusage = ru;
+	tms.tms_utime = timeval_to_clock_t(&utime);
+	tms.tms_stime = timeval_to_clock_t(&stime);
 
-	error = getrusage(td, &ga);
+	tms.tms_cutime = timeval_to_clock_t(&cutime);
+	tms.tms_cstime = timeval_to_clock_t(&cstime);
+
+	error = copyout(&tms, uap->tp, sizeof(tms));
 	if (error)
-		return error;
+		return (error);
 
-	if ((error = copyin(ru, &r, sizeof r)) != 0)
-		return error;
-
-	tms.tms_utime = timeval_to_clock_t(&r.ru_utime);
-	tms.tms_stime = timeval_to_clock_t(&r.ru_stime);
-
-	ga.who = RUSAGE_CHILDREN;
-	error = getrusage(td, &ga);
-	if (error)
-		return error;
-
-	if ((error = copyin(ru, &r, sizeof r)) != 0)
-		return error;
-
-	tms.tms_cutime = timeval_to_clock_t(&r.ru_utime);
-	tms.tms_cstime = timeval_to_clock_t(&r.ru_stime);
-
-	microtime(&t);
-	*retval = timeval_to_clock_t(&t);
-
-	return copyout(&tms, uap->tp, sizeof(tms));
+	microtime(&tv);
+	td->td_retval[0] = (int)timeval_to_clock_t(&tv);
+	return (0);
 }
 
 
@@ -1149,6 +1135,7 @@ svr4_setinfo(p, st, s)
 	int st;
 	svr4_siginfo_t *s;
 {
+	struct timeval utime, stime;
 	svr4_siginfo_t i;
 	int sig;
 
@@ -1159,16 +1146,11 @@ svr4_setinfo(p, st, s)
 
 	if (p) {
 		i.si_pid = p->p_pid;
-		mtx_lock_spin(&sched_lock);
-		if (p->p_state == PRS_ZOMBIE) {
-			i.si_stime = p->p_ru->ru_stime.tv_sec;
-			i.si_utime = p->p_ru->ru_utime.tv_sec;
-		}
-		else {
-			i.si_stime = p->p_stats->p_ru.ru_stime.tv_sec;
-			i.si_utime = p->p_stats->p_ru.ru_utime.tv_sec;
-		}
-		mtx_unlock_spin(&sched_lock);
+		PROC_LOCK(p);
+		calcru(p, &utime, &stime);
+		PROC_UNLOCK(p);
+		i.si_stime = stime.tv_sec;
+		i.si_utime = utime.tv_sec;
 	}
 
 	if (WIFEXITED(st)) {
@@ -1208,17 +1190,17 @@ svr4_sys_waitsys(td, uap)
 {
 	int nfound;
 	int error, *retval = td->td_retval;
-	struct proc *q, *t;
+	struct proc *p, *q, *t;
 
-
+	p = td->td_proc;
 	switch (uap->grp) {
 	case SVR4_P_PID:	
 		break;
 
 	case SVR4_P_PGID:
-		PROC_LOCK(td->td_proc);
-		uap->id = -td->td_proc->p_pgid;
-		PROC_UNLOCK(td->td_proc);
+		PROC_LOCK(p);
+		uap->id = -p->p_pgid;
+		PROC_UNLOCK(p);
 		break;
 
 	case SVR4_P_ALL:
@@ -1236,7 +1218,7 @@ svr4_sys_waitsys(td, uap)
 loop:
 	nfound = 0;
 	sx_slock(&proctree_lock);
-	LIST_FOREACH(q, &td->td_proc->p_children, p_sibling) {
+	LIST_FOREACH(q, &p->p_children, p_sibling) {
 		PROC_LOCK(q);
 		if (uap->id != WAIT_ANY &&
 		    q->p_pid != uap->id &&
@@ -1296,9 +1278,10 @@ loop:
 			PROC_UNLOCK(q);
 			sx_xunlock(&proctree_lock);
 			q->p_xstat = 0;
-			ruadd(&td->td_proc->p_stats->p_cru, q->p_ru);
+			ruadd(&p->p_stats->p_cru, &p->p_crux, q->p_ru,
+			    &q->p_rux);
 			FREE(q->p_ru, M_ZOMBIE);
-			q->p_ru = 0;
+			q->p_ru = NULL;
 
 			/*
 			 * Decrement the count of procs running with this uid.
@@ -1386,7 +1369,7 @@ loop:
 		return 0;
 	}
 
-	if ((error = tsleep(td->td_proc, PWAIT | PCATCH, "svr4_wait", 0)) != 0)
+	if ((error = tsleep(p, PWAIT | PCATCH, "svr4_wait", 0)) != 0)
 		return error;
 	goto loop;
 }

@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
- *
- * From:
- *	$Id: procfs_status.c,v 3.1 1993/12/15 09:40:17 jsp Exp $
- * $FreeBSD$
+ * From: $Id: procfs_status.c,v 3.1 1993/12/15 09:40:17 jsp Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -124,12 +124,12 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		} else
 			wmesg = "nochan";
 	}
+	mtx_unlock_spin(&sched_lock);
 
 	if (p->p_sflag & PS_INMEM) {
 		struct timeval start, ut, st;
 
-		calcru(p, &ut, &st, (struct timeval *) NULL);
-		mtx_unlock_spin(&sched_lock);
+		calcru(p, &ut, &st);
 		start = p->p_stats->p_start;
 		timevaladd(&start, &boottime);
 		sbuf_printf(sb, " %ld,%ld %ld,%ld %ld,%ld",
@@ -137,7 +137,6 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		    ut.tv_sec, ut.tv_usec,
 		    st.tv_sec, st.tv_usec);
 	} else {
-		mtx_unlock_spin(&sched_lock);
 		sbuf_printf(sb, " -1,-1 -1,-1 -1,-1");
 	}
 

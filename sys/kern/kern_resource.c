@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sx.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/time.h>
 
@@ -59,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
+static void calcru1(struct proc *p, struct rusage_ext *ruxp,
+		struct timeval *up, struct timeval *sp);
 static int donice(struct thread *td, struct proc *chgp, int n);
 
 static MALLOC_DEFINE(M_PLIMIT, "plimit", "plimit structures");
@@ -670,7 +673,6 @@ struct __getrlimit_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 getrlimit(td, uap)
 	struct thread *td;
@@ -695,65 +697,84 @@ getrlimit(td, uap)
  * system, and interrupt time usage.
  */
 void
-calcru(p, up, sp, ip)
+calcru(p, up, sp)
 	struct proc *p;
 	struct timeval *up;
 	struct timeval *sp;
-	struct timeval *ip;
 {
-	struct bintime bt, rt;
-	struct timeval tv;
+	struct bintime bt;
+	struct rusage_ext rux;
 	struct thread *td;
+	int bt_valid;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	mtx_assert(&sched_lock, MA_NOTOWNED);
+	bt_valid = 0;
+	mtx_lock_spin(&sched_lock);
+	rux = p->p_rux;
+	FOREACH_THREAD_IN_PROC(p, td) {
+		if (TD_IS_RUNNING(td)) {
+			/*
+			 * Adjust for the current time slice.  This is
+			 * actually fairly important since the error here is
+			 * on the order of a time quantum which is much
+			 * greater than the precision of binuptime().
+			 */
+			KASSERT(td->td_oncpu != NOCPU,
+			    ("%s: running thread has no CPU", __func__));
+			if (!bt_valid) {
+				binuptime(&bt);
+				bt_valid = 1;
+			}
+			bintime_add(&rux.rux_runtime, &bt);
+			bintime_sub(&rux.rux_runtime,
+			    &pcpu_find(td->td_oncpu)->pc_switchtime);
+		}
+	}
+	mtx_unlock_spin(&sched_lock);
+	calcru1(p, &rux, up, sp);
+	p->p_rux.rux_uu = rux.rux_uu;
+	p->p_rux.rux_su = rux.rux_su;
+	p->p_rux.rux_iu = rux.rux_iu;
+}
+
+void
+calccru(p, up, sp)
+	struct proc *p;
+	struct timeval *up;
+	struct timeval *sp;
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	calcru1(p, &p->p_crux, up, sp);
+}
+
+static void
+calcru1(p, ruxp, up, sp)
+	struct proc *p;
+	struct rusage_ext *ruxp;
+	struct timeval *up;
+	struct timeval *sp;
+{
+	struct timeval tv;
 	/* {user, system, interrupt, total} {ticks, usec}; previous tu: */
 	u_int64_t ut, uu, st, su, it, iu, tt, tu, ptu;
-	int problemcase;
 
-	mtx_assert(&sched_lock, MA_OWNED);
-	/* XXX: why spl-protect ?  worst case is an off-by-one report */
-
-	ut = p->p_uticks;
-	st = p->p_sticks;
-	it = p->p_iticks;
-
+	ut = ruxp->rux_uticks;
+	st = ruxp->rux_sticks;
+	it = ruxp->rux_iticks;
 	tt = ut + st + it;
 	if (tt == 0) {
 		st = 1;
 		tt = 1;
 	}
-	rt = p->p_runtime;
-	problemcase = 0;
-	FOREACH_THREAD_IN_PROC(p, td) {
-		/*
-		 * Adjust for the current time slice.  This is actually fairly
-		 * important since the error here is on the order of a time
-		 * quantum, which is much greater than the sampling error.
-		 */
-		if (td == curthread) {
-			binuptime(&bt);
-			bintime_sub(&bt, PCPU_PTR(switchtime));
-			bintime_add(&rt, &bt);
-		} else if (TD_IS_RUNNING(td)) {
-			/*
-			 * XXX: this case should add the difference between
-			 * the current time and the switch time as above,
-			 * but the switch time is inaccessible, so we can't
-			 * do the adjustment and will end up with a wrong
-			 * runtime.  A previous call with a different
-			 * curthread may have obtained a (right or wrong)
-			 * runtime that is in advance of ours.  Just set a
-			 * flag to avoid warning about this known problem.
-			 */
-			problemcase = 1;
-		}
-	}
-	bintime2timeval(&rt, &tv);
+	bintime2timeval(&ruxp->rux_runtime, &tv);
 	tu = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
-	ptu = p->p_uu + p->p_su + p->p_iu;
+	ptu = ruxp->rux_uu + ruxp->rux_su + ruxp->rux_iu;
 	if (tu < ptu) {
-		if (!problemcase)
-			printf(
+		printf(
 "calcru: runtime went backwards from %ju usec to %ju usec for pid %d (%s)\n",
-			    (uintmax_t)ptu, (uintmax_t)tu, p->p_pid, p->p_comm);
+		    (uintmax_t)ptu, (uintmax_t)tu, p->p_pid, p->p_comm);
 		tu = ptu;
 	}
 	if ((int64_t)tu < 0) {
@@ -768,38 +789,34 @@ calcru(p, up, sp, ip)
 	iu = tu - uu - su;
 
 	/* Enforce monotonicity. */
-	if (uu < p->p_uu || su < p->p_su || iu < p->p_iu) {
-		if (uu < p->p_uu)
-			uu = p->p_uu;
-		else if (uu + p->p_su + p->p_iu > tu)
-			uu = tu - p->p_su - p->p_iu;
+	if (uu < ruxp->rux_uu || su < ruxp->rux_su || iu < ruxp->rux_iu) {
+		if (uu < ruxp->rux_uu)
+			uu = ruxp->rux_uu;
+		else if (uu + ruxp->rux_su + ruxp->rux_iu > tu)
+			uu = tu - ruxp->rux_su - ruxp->rux_iu;
 		if (st == 0)
-			su = p->p_su;
+			su = ruxp->rux_su;
 		else {
 			su = ((tu - uu) * st) / (st + it);
-			if (su < p->p_su)
-				su = p->p_su;
-			else if (uu + su + p->p_iu > tu)
-				su = tu - uu - p->p_iu;
+			if (su < ruxp->rux_su)
+				su = ruxp->rux_su;
+			else if (uu + su + ruxp->rux_iu > tu)
+				su = tu - uu - ruxp->rux_iu;
 		}
-		KASSERT(uu + su + p->p_iu <= tu,
+		KASSERT(uu + su + ruxp->rux_iu <= tu,
 		    ("calcru: monotonisation botch 1"));
 		iu = tu - uu - su;
-		KASSERT(iu >= p->p_iu,
+		KASSERT(iu >= ruxp->rux_iu,
 		    ("calcru: monotonisation botch 2"));
 	}
-	p->p_uu = uu;
-	p->p_su = su;
-	p->p_iu = iu;
+	ruxp->rux_uu = uu;
+	ruxp->rux_su = su;
+	ruxp->rux_iu = iu;
 
 	up->tv_sec = uu / 1000000;
 	up->tv_usec = uu % 1000000;
 	sp->tv_sec = su / 1000000;
 	sp->tv_usec = su % 1000000;
-	if (ip != NULL) {
-		ip->tv_sec = iu / 1000000;
-		ip->tv_usec = iu % 1000000;
-	}
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -818,46 +835,65 @@ getrusage(td, uap)
 	register struct getrusage_args *uap;
 {
 	struct rusage ru;
+	int error;
+
+	error = kern_getrusage(td, uap->who, &ru);
+	if (error == 0)
+		error = copyout(&ru, uap->rusage, sizeof(struct rusage));
+	return (error);
+}
+
+int
+kern_getrusage(td, who, rup)
+	struct thread *td;
+	int who;
+	struct rusage *rup;
+{
 	struct proc *p;
 
 	p = td->td_proc;
-	switch (uap->who) {
+	PROC_LOCK(p);
+	switch (who) {
 
 	case RUSAGE_SELF:
-		mtx_lock(&Giant);
-		mtx_lock_spin(&sched_lock);
-		calcru(p, &p->p_stats->p_ru.ru_utime, &p->p_stats->p_ru.ru_stime,
-		    NULL);
-		mtx_unlock_spin(&sched_lock);
-		ru = p->p_stats->p_ru;
-		mtx_unlock(&Giant);
+		*rup = p->p_stats->p_ru;
+		calcru(p, &rup->ru_utime, &rup->ru_stime);
 		break;
 
 	case RUSAGE_CHILDREN:
-		mtx_lock(&Giant);
-		ru = p->p_stats->p_cru;
-		mtx_unlock(&Giant);
+		*rup = p->p_stats->p_cru;
+		calccru(p, &rup->ru_utime, &rup->ru_stime);
 		break;
 
 	default:
+		PROC_UNLOCK(p);
 		return (EINVAL);
-		break;
 	}
-	return (copyout(&ru, uap->rusage, sizeof(struct rusage)));
+	PROC_UNLOCK(p);
+	return (0);
 }
 
 void
-ruadd(ru, ru2)
-	register struct rusage *ru, *ru2;
+ruadd(ru, rux, ru2, rux2)
+	struct rusage *ru;
+	struct rusage_ext *rux;
+	struct rusage *ru2;
+	struct rusage_ext *rux2;
 {
 	register long *ip, *ip2;
 	register int i;
 
-	timevaladd(&ru->ru_utime, &ru2->ru_utime);
-	timevaladd(&ru->ru_stime, &ru2->ru_stime);
+	bintime_add(&rux->rux_runtime, &rux2->rux_runtime);
+	rux->rux_uticks += rux2->rux_uticks;
+	rux->rux_sticks += rux2->rux_sticks;
+	rux->rux_iticks += rux2->rux_iticks;
+	rux->rux_uu += rux2->rux_uu;
+	rux->rux_su += rux2->rux_su;
+	rux->rux_iu += rux2->rux_iu;
 	if (ru->ru_maxrss < ru2->ru_maxrss)
 		ru->ru_maxrss = ru2->ru_maxrss;
-	ip = &ru->ru_first; ip2 = &ru2->ru_first;
+	ip = &ru->ru_first;
+	ip2 = &ru2->ru_first;
 	for (i = &ru->ru_last - &ru->ru_first; i >= 0; i--)
 		*ip++ += *ip2++;
 }

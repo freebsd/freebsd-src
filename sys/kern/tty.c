@@ -2505,9 +2505,9 @@ ttyinfo(struct tty *tp)
 		tp->t_rocount = 0;
 		return;
 	}
-	PGRP_LOCK(tp->t_pgrp);
-	if ((p = LIST_FIRST(&tp->t_pgrp->pg_members)) == 0) {
-		PGRP_UNLOCK(tp->t_pgrp);
+	sx_slock(&proctree_lock);
+	if ((p = LIST_FIRST(&tp->t_pgrp->pg_members)) == NULL) {
+		sx_sunlock(&proctree_lock);
 		ttyprintf(tp, "empty foreground process group\n");
 		tp->t_rocount = 0;
 		return;
@@ -2522,10 +2522,9 @@ ttyinfo(struct tty *tp)
 	 * too much.
 	 */
 	mtx_lock_spin(&sched_lock);
-	for (pick = NULL; p != 0; p = LIST_NEXT(p, p_pglist))
+	for (pick = NULL; p != NULL; p = LIST_NEXT(p, p_pglist))
 		if (proc_compare(pick, p))
 			pick = p;
-	PGRP_UNLOCK(tp->t_pgrp);
 
 	td = FIRST_THREAD_IN_PROC(pick);	/* XXXKSE */
 #if 0
@@ -2533,6 +2532,7 @@ ttyinfo(struct tty *tp)
 #else
 	if (td == NULL) {
 		mtx_unlock_spin(&sched_lock);
+		sx_sunlock(&proctree_lock);
 		ttyprintf(tp, "foreground process without thread\n");
 		tp->t_rocount = 0;
 		return;
@@ -2558,13 +2558,15 @@ ttyinfo(struct tty *tp)
 		state = "intrwait";
 	else
 		state = "unknown";
-	calcru(pick, &utime, &stime, NULL);
 	pctcpu = (sched_pctcpu(td) * 10000 + FSCALE / 2) >> FSHIFT;
 	if (pick->p_state == PRS_NEW || pick->p_state == PRS_ZOMBIE)
 		rss = 0;
 	else
 		rss = pgtok(vmspace_resident_count(pick->p_vmspace));
 	mtx_unlock_spin(&sched_lock);
+	PROC_LOCK(pick);
+	calcru(pick, &utime, &stime);
+	PROC_UNLOCK(pick);
 
 	/* Print command, pid, state, utime, stime, %cpu, and rss. */
 	ttyprintf(tp,
@@ -2574,6 +2576,7 @@ ttyinfo(struct tty *tp)
 	    (long)stime.tv_sec, stime.tv_usec / 10000,
 	    pctcpu / 100, rss);
 	tp->t_rocount = 0;
+	sx_sunlock(&proctree_lock);
 }
 
 /*
