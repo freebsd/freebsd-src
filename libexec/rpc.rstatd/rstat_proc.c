@@ -331,13 +331,13 @@ haveadisk(void)
 	struct statinfo stats;
 	int num_devices, retval = 0;
 
-	if ((num_devices = getnumdevs()) < 0) {
+	if ((num_devices = devstat_getnumdevs(NULL)) < 0) {
 		syslog(LOG_ERR, "rstatd: can't get number of devices: %s",
 		       devstat_errbuf);
 		exit(1);
 	}
 
-	if (checkversion() < 0) {
+	if (devstat_checkversion(NULL) < 0) {
 		syslog(LOG_ERR, "rstatd: %s", devstat_errbuf);
 		exit(1);
 	}
@@ -345,7 +345,7 @@ haveadisk(void)
 	stats.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
 	bzero(stats.dinfo, sizeof(struct devinfo));
 
-	if (getdevs(&stats) == -1) {
+	if (devstat_getdevs(NULL, &stats) == -1) {
 		syslog(LOG_ERR, "rstatd: can't get device list: %s",
 		       devstat_errbuf);
 		exit(1);
@@ -375,13 +375,13 @@ updatexfers(int numdevs, int *devs)
 	int num_devices = 0;
 	u_int64_t total_transfers;
 
-	if ((num_devices = getnumdevs()) < 0) {
+	if ((num_devices = devstat_getnumdevs(NULL)) < 0) {
 		syslog(LOG_ERR, "rstatd: can't get number of devices: %s",
 		       devstat_errbuf);
 		exit(1);
 	}
 
-	if (checkversion() < 0) {
+	if (devstat_checkversion(NULL) < 0) {
 		syslog(LOG_ERR, "rstatd: %s", devstat_errbuf);
 		exit(1);
 	}
@@ -389,7 +389,7 @@ updatexfers(int numdevs, int *devs)
 	stats.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
 	bzero(stats.dinfo, sizeof(struct devinfo));
 
-	if (getdevs(&stats) == -1) {
+	if (devstat_getdevs(NULL, &stats) == -1) {
 		syslog(LOG_ERR, "rstatd: can't get device list: %s",
 		       devstat_errbuf);
 		exit(1);
