@@ -103,9 +103,12 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 	int error;
 	struct g_kerneldump *gkd;
 	struct dumperinfo di;
+	struct g_geom *gp;
 
 	gkd = (struct g_kerneldump*)bp->bio_data;
-	printf("Kerneldump off=%jd len=%jd\n", (intmax_t)gkd->offset, (intmax_t)gkd->length);
+	gp = bp->bio_to->geom;
+	g_trace(G_T_TOPOLOGY, "g_disk_kernedump(%s, %jd, %jd)",
+		gp->name, (intmax_t)gkd->offset, (intmax_t)gkd->length);
 	di.dumper = (dumper_t *)dp->d_devsw->d_dump;
 	di.priv = dp->d_dev;
 	di.blocksize = dp->d_sectorsize;
