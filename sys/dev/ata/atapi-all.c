@@ -447,11 +447,16 @@ op_finished:
 		break;
 
 	    default: 
-		printf("%s: %s - %s asc=%02x ascq=%02x error=%02x\n",
+		printf("%s: %s - %s asc=%02x ascq=%02x ",
 		       atp->devname, atapi_cmd2str(atp->cmd), 
 		       atapi_skey2str(request->sense.sense_key), 
-		       request->sense.asc, request->sense.ascq,
-		       request->result & ATAPI_E_MASK);
+		       request->sense.asc, request->sense.ascq);
+		if (request->sense.sksv)
+		    printf("sks=%02x %02x %02x ",
+			   request->sense.sk_specific,
+			   request->sense.sk_specific1,
+			   request->sense.sk_specific2);
+		printf("error=%02x\n", request->result & ATAPI_E_MASK);
 		request->error = EIO;
 	    }
 	}
