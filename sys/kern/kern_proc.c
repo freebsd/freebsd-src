@@ -922,8 +922,11 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 
 	switch (oidp->oid_number) {
 	case KERN_PROC_ALL:
-	case KERN_PROC_PROC:
 		if (namelen != 0)
+			return (EINVAL);
+		break;
+	case KERN_PROC_PROC:
+		if (namelen != 0 && namelen != 1)
 			return (EINVAL);
 		break;
 	default:
