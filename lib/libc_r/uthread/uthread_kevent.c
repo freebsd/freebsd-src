@@ -28,19 +28,16 @@
 
 #include <unistd.h>
 #include <errno.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/time.h>
-#include <sys/fcntl.h>
 #include <sys/event.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
-
 int 
-_kevent(int kq, const struct kevent *changelist, int nchanges,
-	struct kevent *eventlist, int nevents, const struct timespec *timeout)
+kevent(int kq, const struct kevent *changelist, int nchanges,
+    struct kevent *eventlist, int nevents, const struct timespec *timeout)
 {
 	struct timespec nullts = { 0, 0 };
 	int rc;
@@ -75,6 +72,4 @@ _kevent(int kq, const struct kevent *changelist, int nchanges,
 	}
 	return (rc);
 }
-
-__strong_reference(_kevent, kevent);
 #endif
