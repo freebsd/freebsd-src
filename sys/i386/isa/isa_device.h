@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.33.2.1 1998/02/01 06:05:20 steve Exp $
+ *	$Id: isa_device.h,v 1.33.2.2 1998/05/06 19:09:09 gibbs Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -159,7 +159,7 @@ int	isa_dma_acquire __P((int chan));
 void	isa_dma_release __P((int chan));
 int	isa_dmastatus __P((int chan));
 int	isa_dmastop __P((int chan));
-int	isa_irq_pending __P((struct isa_device *dvp));
+u_int	isa_irq_pending __P((void));
 int	isa_nmi __P((int cd));
 void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
 int	register_intr __P((int intr, int device_id, u_int flags,
