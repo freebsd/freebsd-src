@@ -166,7 +166,7 @@ proc_dtor(void *mem, int size, void *arg)
 	/*
 	 * We want to make sure we know the initial linkages.
 	 * so for now tear them down and remake them.
-	 * his is probably un-needed as we can probably rely
+	 * This is probably un-needed as we can probably rely
 	 * on the state coming in here from wait4().
 	 */
 	proc_linkup(p, kg, ke, td);
