@@ -7,7 +7,7 @@ INTERNALLIB=	true
 INTERNALSTATICLIB=	true
 
 SRCS=	libefi.c efi_console.c time.c copy.c devicename.c module.c exit.c
-SRCS+=	delay.c
+SRCS+=	delay.c efifs.c
 
 CFLAGS+=	-fpic
 CFLAGS+=	-I${.CURDIR}/../include
