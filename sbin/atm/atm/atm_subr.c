@@ -65,18 +65,20 @@ __RCSID("@(#) $FreeBSD$");
  */
 typedef struct {
 	int	type;
-	char	*name;
+	const char *name;
 } tbl_ent;
 
 
 /*
  * Table to translate vendor codes to ASCII
  */
-tbl_ent	vendors[] = {
-	{ VENDAPI_UNKNOWN,	"Unknown" },
-	{ VENDAPI_FORE_1,	"Fore" },
-	{ VENDAPI_ENI_1,	"ENI" },
-	{ VENDAPI_IDT_1,	"IDT" },
+static const tbl_ent	vendors[] = {
+	{ VENDOR_UNKNOWN,	"Unknown" },
+	{ VENDOR_FORE,		"Fore" },
+	{ VENDOR_ENI,		"ENI" },
+	{ VENDOR_IDT,		"IDT" },
+	{ VENDOR_PROSUM,	"ProSum" },
+	{ VENDOR_NETGRAPH,	"Netgraph" },
 	{ 0,			0 },
 };
 
@@ -84,7 +86,7 @@ tbl_ent	vendors[] = {
 /*
  * Table to translate adapter codes to ASCII
  */
-tbl_ent adapter_types[] = {
+static const tbl_ent adapter_types[] = {
 	{ DEV_UNKNOWN,		"Unknown" },
 	{ DEV_FORE_SBA200E,	"SBA-200E" },
 	{ DEV_FORE_SBA200,	"SBA-200" },
@@ -92,31 +94,46 @@ tbl_ent adapter_types[] = {
 	{ DEV_FORE_ESA200E,	"ESA-200E" },
 	{ DEV_ENI_155P,		"ENI-155p" },
 	{ DEV_IDT_155,		"IDT" },
+	{ DEV_PROATM_25,	"PROATM-25" },
+	{ DEV_PROATM_155,	"PROATM-155" },
+	{ DEV_VATMPIF,		"VATMPIF" },
+	{ DEV_FORE_LE25,	"ForeLE-25" },
+	{ DEV_FORE_LE155,	"ForeLE-155" },
+	{ DEV_IDT_25,		"NICStAR-25" },
+	{ DEV_IDTABR_25,	"IDT77252-25" },
+	{ DEV_IDTABR_155,	"IDT77252-155" },
+	{ DEV_FORE_HE155,	"ForeHE-155" },
+	{ DEV_FORE_HE622,	"ForeHE-622" },
 	{ 0,			0 },
 };
 
 /*
  * Table to translate medium types to ASCII
  */
-tbl_ent media_types[] = {
+static const tbl_ent media_types[] = {
 	{ MEDIA_UNKNOWN,	"Unknown" },
 	{ MEDIA_TAXI_100,	"100 Mbps 4B/5B" },
 	{ MEDIA_TAXI_140,	"140 Mbps 4B/5B" },
 	{ MEDIA_OC3C,		"OC-3c" },
 	{ MEDIA_OC12C,		"OC-12c" },
 	{ MEDIA_UTP155,		"155 Mbps UTP" },
+	{ MEDIA_UTP25,		"25.6 Mbps UTP" },
+	{ MEDIA_VIRTUAL,	"Virtual Link" },
+	{ MEDIA_DSL,		"xDSL" },
 	{ 0,			0 },
 };
 
 /*
  * Table to translate bus types to ASCII
  */
-tbl_ent bus_types[] = {
+static const tbl_ent bus_types[] = {
 	{ BUS_UNKNOWN,	"Unknown" },
 	{ BUS_SBUS_B16,	"SBus" },
 	{ BUS_SBUS_B32,	"SBus" },
 	{ BUS_PCI,	"PCI" },
 	{ BUS_EISA,	"EISA" },
+	{ BUS_USB,	"USB" },
+	{ BUS_VIRTUAL,	"Virtual" },
 	{ 0,			0 },
 };
 
@@ -133,9 +150,8 @@ tbl_ent bus_types[] = {
  *	char *	pointer to a string with the vendor name
  *
  */
-char *
-get_vendor(vendor)
-	int	vendor;
+const char *
+get_vendor(int vendor)
 {
 	int	i;
 
@@ -158,9 +174,8 @@ get_vendor(vendor)
  *	char *	pointer to a string with the adapter type
  *
  */
-char *
-get_adapter(dev)
-	int	dev;
+const char *
+get_adapter(int dev)
 {
 	int	i;
 
@@ -183,9 +198,8 @@ get_adapter(dev)
  *	char *	pointer to a string with the name of the medium
  *
  */
-char *
-get_media_type(media)
-	int	media;
+const char *
+get_media_type(int media)
 {
 	int	i;
 
@@ -208,9 +222,8 @@ get_media_type(media)
  *	char *	pointer to a string with the bus type
  *
  */
-char *
-get_bus_type(bus)
-	int	bus;
+const char *
+get_bus_type(int bus)
 {
 	int	i;
 
@@ -235,9 +248,8 @@ get_bus_type(bus)
  *	char *	pointer to a string identifying the adapter
  *
  */
-char *
-get_adapter_name(intf)
-	char	*intf;
+const char *
+get_adapter_name(const char *intf)
 {
 	int			buf_len;
 	struct atminfreq	air;
@@ -256,9 +268,9 @@ get_adapter_name(intf)
 	air.air_opcode = AIOCS_INF_CFG;
 	strcpy(air.air_cfg_intf, intf);
 	buf_len = do_info_ioctl(&air, sizeof(struct air_cfg_rsp));
-	if (buf_len < sizeof(struct air_cfg_rsp))
+	if ((size_t)buf_len < sizeof(struct air_cfg_rsp))
 		return("-");
-	cfg = (struct air_cfg_rsp *) air.air_buf_addr;
+	cfg = (struct air_cfg_rsp *)(void *)air.air_buf_addr;
 
 	/*
 	 * Build a string describing the adapter
@@ -283,9 +295,8 @@ get_adapter_name(intf)
  *		the address of a string representing the MAC address
  *
  */
-char *
-format_mac_addr(addr)
-	Mac_addr *addr;
+const char *
+format_mac_addr(const Mac_addr *addr)
 {
 	static char	str[256];
 
@@ -328,9 +339,7 @@ format_mac_addr(addr)
  *
  */
 int
-parse_ip_prefix(cp, op)
-	char		*cp;
-	struct in_addr	*op;
+parse_ip_prefix(const char *cp, struct in_addr *op)
 {
 	int		len;
 	char		*mp;
@@ -385,7 +394,7 @@ parse_ip_prefix(cp, op)
 	 * Convert the IP-address part of the prefix
 	 */
 	ip_addr.s_addr = inet_addr(cp);
-	if (ip_addr.s_addr == -1)
+	if (ip_addr.s_addr == INADDR_NONE)
 		return(-1);
 
 	/*
@@ -432,9 +441,7 @@ parse_ip_prefix(cp, op)
  *
  */
 int
-compress_prefix_list(ipp, ilen)
-	struct in_addr	*ipp;
-	int		ilen;
+compress_prefix_list(struct in_addr *ipp, int ilen)
 {
 	int		i, j, n;
 	struct in_addr	*ip1, *ip2, *m1, *m2;
@@ -543,15 +550,14 @@ compress_prefix_list(ipp, ilen)
  *
  */
 void
-check_netif_name(nif)
-	char	*nif;
+check_netif_name(const char *nif)
 {
 	int	rc;
 
 	/*
 	 * Look up the name in the kernel
 	 */
-	rc = verify_nif_name(nif);
+	rc = verify_nif_name(__DECONST(char *, nif));	/* XXX */
 
 	/*
 	 * Check the result
@@ -604,8 +610,7 @@ check_netif_name(nif)
  *
  */
 void
-sock_error(err)
-	int	err;
+sock_error(int err)
 {
 	fprintf(stderr, "%s: ", prog);
 

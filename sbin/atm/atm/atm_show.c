@@ -84,17 +84,14 @@ static int	arp_compare(const void *, const void *);
  *
  */
 void
-show_arp(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+show_arp(int argc, char **argv, const struct cmd *cmdp __unused)
 {
 	int			buf_len, arp_info_len;
 	struct atminfreq	air;
 	struct air_arp_rsp	*arp_info, *arp_info_base;
-	struct sockaddr_in	*sin;
+	struct sockaddr_in	*sain;
 	union {
-		struct sockaddr_in	sin;
+		struct sockaddr_in	sain;
 		struct sockaddr		sa;
 	} host_addr;
 
@@ -104,15 +101,15 @@ show_arp(argc, argv, cmdp)
 	bzero(&host_addr, sizeof(host_addr));
 	host_addr.sa.sa_family = AF_INET;
 	if (argc) {
-		sin = get_ip_addr(argv[0]);
-		if (!sin) {
+		sain = get_ip_addr(argv[0]);
+		if (!sain) {
 			fprintf(stderr, "%s: host \'%s\' not found\n",
 					prog, argv[0]);
 			exit(1);
 		}
-		host_addr.sin.sin_addr.s_addr = sin->sin_addr.s_addr;
+		host_addr.sain.sin_addr.s_addr = sain->sin_addr.s_addr;
 	} else {
-		host_addr.sin.sin_addr.s_addr = INADDR_ANY;
+		host_addr.sain.sin_addr.s_addr = INADDR_ANY;
 	}
 
 	/*
@@ -182,10 +179,7 @@ show_arp(argc, argv, cmdp)
  *
  */
 void
-show_arpserv(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+show_arpserv(int argc, char **argv, const struct cmd *cmdp __unused)
 {
 	int	asrv_info_len, buf_len = sizeof(struct air_asrv_rsp) * 3;
 	struct atminfreq	air;
@@ -232,8 +226,8 @@ show_arpserv(argc, argv, cmdp)
 	 * Print the interface information
 	 */
 	asrv_info_base = asrv_info =
-			(struct air_asrv_rsp *) air.air_buf_addr;
-	for (; buf_len >= sizeof(struct air_asrv_rsp);
+			(struct air_asrv_rsp *)(void *)air.air_buf_addr;
+	for (; (size_t)buf_len >= sizeof(struct air_asrv_rsp);
 			asrv_info = (struct air_asrv_rsp *)
 				((u_long)asrv_info + asrv_info_len),
 			buf_len -= asrv_info_len) {
@@ -262,10 +256,7 @@ show_arpserv(argc, argv, cmdp)
  *
  */
 void
-show_config(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+show_config(int argc, char **argv, const struct cmd *cmdp __unused)
 {
 	int	buf_len = sizeof(struct air_asrv_rsp) * 3;
 	struct atminfreq	air;
@@ -312,8 +303,8 @@ show_config(argc, argv, cmdp)
 	 * Print the interface information
 	 */
 	cfg_info_base = cfg_info =
-			(struct air_cfg_rsp *) air.air_buf_addr;
-	for (; buf_len >= sizeof(struct air_cfg_rsp); cfg_info++,
+			(struct air_cfg_rsp *)(void *)air.air_buf_addr;
+	for (; (size_t)buf_len >= sizeof(struct air_cfg_rsp); cfg_info++,
 			buf_len -= sizeof(struct air_cfg_rsp)) {
 		print_cfg_info(cfg_info);
 	}
@@ -337,10 +328,7 @@ show_config(argc, argv, cmdp)
  *
  */
 void
-show_intf(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+show_intf(int argc, char **argv, const struct cmd *cmdp __unused)
 {
 	int	buf_len = sizeof(struct air_int_rsp) * 3;
 	struct atminfreq	air;
@@ -387,8 +375,8 @@ show_intf(argc, argv, cmdp)
 	 * Print the interface information
 	 */
 	int_info_base = int_info =
-			(struct air_int_rsp *) air.air_buf_addr;
-	for (; buf_len >= sizeof(struct air_int_rsp); int_info++,
+			(struct air_int_rsp *)(void *)air.air_buf_addr;
+	for (; (size_t)buf_len >= sizeof(struct air_int_rsp); int_info++,
 			buf_len -= sizeof(struct air_int_rsp)) {
 		print_intf_info(int_info);
 	}
@@ -412,18 +400,15 @@ show_intf(argc, argv, cmdp)
  *
  */
 void
-show_ip_vcc(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+show_ip_vcc(int argc, char **argv, const struct cmd *cmdp __unused)
 {
 	int			buf_len, ip_info_len, rc;
 	char			*if_name = (char *)0;
 	struct atminfreq	air;
 	struct air_ip_vcc_rsp	*ip_info, *ip_info_base;
-	struct sockaddr_in	*sin;
+	struct sockaddr_in	*sain;
 	union {
-		struct sockaddr_in	sin;
+		struct sockaddr_in	sain;
 		struct sockaddr		sa;
 	} host_addr;
 
@@ -463,12 +448,12 @@ show_ip_vcc(argc, argv, cmdp)
 			/*
 			 * Get IP address of specified host name
 			 */
-			sin = get_ip_addr(argv[0]);
-			host_addr.sin.sin_addr.s_addr =
-					sin->sin_addr.s_addr;
+			sain = get_ip_addr(argv[0]);
+			host_addr.sain.sin_addr.s_addr =
+					sain->sin_addr.s_addr;
 		}
 	} else {
-		host_addr.sin.sin_addr.s_addr = INADDR_ANY;
+		host_addr.sain.sin_addr.s_addr = INADDR_ANY;
 	}
 
 	/*
@@ -495,7 +480,7 @@ show_ip_vcc(argc, argv, cmdp)
 		exit(1);
 	}
 	ip_info_base = ip_info =
-			(struct air_ip_vcc_rsp *) air.air_buf_addr;
+			(struct air_ip_vcc_rsp *)(void *)air.air_buf_addr;
 
 	/*
 	 * Sort the information
@@ -540,10 +525,7 @@ show_ip_vcc(argc, argv, cmdp)
  *
  */
 void
-show_netif(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+show_netif(int argc, char **argv, const struct cmd *cmdp __unused)
 {
 	int	buf_len = sizeof(struct air_netif_rsp) * 3;
 	struct atminfreq	air;
@@ -590,7 +572,7 @@ show_netif(argc, argv, cmdp)
 	 */
 	int_info_base = int_info =
 			(struct air_netif_rsp *) air.air_buf_addr;
-	for (; buf_len >= sizeof(struct air_netif_rsp); int_info++,
+	for (; (size_t)buf_len >= sizeof(struct air_netif_rsp); int_info++,
 			buf_len -= sizeof(struct air_netif_rsp)) {
 		print_netif_info(int_info);
 	}
@@ -614,10 +596,7 @@ show_netif(argc, argv, cmdp)
  *
  */
 void
-show_intf_stats(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+show_intf_stats(int argc, char **argv, const struct cmd *cmdp __unused)
 {
 	int			buf_len;
 	char			intf[IFNAMSIZ];
@@ -668,7 +647,7 @@ show_intf_stats(argc, argv, cmdp)
 			}
 			exit(1);
 		}
-		cfg_info = (struct air_cfg_rsp *)air.air_buf_addr;
+		cfg_info = (struct air_cfg_rsp *)(void *)air.air_buf_addr;
 
 		/*
 		 * Call the appropriate vendor-specific routine
@@ -716,9 +695,9 @@ show_intf_stats(argc, argv, cmdp)
 		/*
 		 * Display the interface statistics
 		 */
-		pstat_info_base = pstat_info =
-				(struct air_phy_stat_rsp *)air.air_buf_addr;
-		for (; buf_len >= sizeof(struct air_phy_stat_rsp);
+		pstat_info_base = pstat_info = (struct air_phy_stat_rsp *)
+		    (void *)air.air_buf_addr;
+		for (; (size_t)buf_len >= sizeof(struct air_phy_stat_rsp);
 				pstat_info++,
 				buf_len-=sizeof(struct air_phy_stat_rsp)) {
 			print_intf_stats(pstat_info);
@@ -744,10 +723,7 @@ show_intf_stats(argc, argv, cmdp)
  *
  */
 void
-show_vcc_stats(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+show_vcc_stats(int argc, char **argv, const struct cmd *cmdp __unused)
 {
 	int	vcc_info_len;
 	int	vpi = -1, vci = -1;
@@ -827,7 +803,7 @@ show_vcc_stats(argc, argv, cmdp)
 	 * Display the VCC statistics
 	 */
 	vcc_info_base = vcc_info;
-	for (; vcc_info_len >= sizeof(struct air_vcc_rsp);
+	for (; (size_t)vcc_info_len >= sizeof(struct air_vcc_rsp);
 			vcc_info_len-=sizeof(struct air_vcc_rsp),
 			vcc_info++) {
 		if (vpi != -1 && vcc_info->avp_vpi != vpi)
@@ -856,10 +832,7 @@ show_vcc_stats(argc, argv, cmdp)
  *
  */
 void
-show_vcc(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+show_vcc(int argc, char **argv, const struct cmd *cmdp __unused)
 {
 	int	vcc_info_len;
 	int	vpi = -1, vci = -1, show_pvc = 0, show_svc = 0;
@@ -946,7 +919,7 @@ show_vcc(argc, argv, cmdp)
 	 * Display the VCC information
 	 */
 	vcc_info_base = vcc_info;
-	for (; vcc_info_len >= sizeof(struct air_vcc_rsp);
+	for (; (size_t)vcc_info_len >= sizeof(struct air_vcc_rsp);
 			vcc_info_len-=sizeof(struct air_vcc_rsp),
 			vcc_info++) {
 		if (vpi != -1 && vcc_info->avp_vpi != vpi)
@@ -979,10 +952,8 @@ show_vcc(argc, argv, cmdp)
  *
  */
 void
-show_version(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+show_version(int argc __unused, char **argv __unused,
+    const struct cmd *cmdp __unused)
 {
 	int	buf_len = sizeof(struct air_version_rsp);
 	struct atminfreq	air;
@@ -1014,8 +985,8 @@ show_version(argc, argv, cmdp)
 	 * Print the network interface information
 	 */
 	ver_info_base = ver_info =
-			(struct air_version_rsp *) air.air_buf_addr;
-	for (; buf_len >= sizeof(struct air_version_rsp); ver_info++,
+			(struct air_version_rsp *)(void *)air.air_buf_addr;
+	for (; (size_t)buf_len >= sizeof(struct air_version_rsp); ver_info++,
 			buf_len -= sizeof(struct air_version_rsp)) {
 		print_version_info(ver_info);
 	}
@@ -1041,10 +1012,10 @@ vcc_compare(p1, p2)
 	const void *p1, *p2;
 {
 	int rc;
-	struct air_vcc_rsp	*c1, *c2;
+	const struct air_vcc_rsp	*c1, *c2;
 
-	c1 = (struct air_vcc_rsp *) p1;
-	c2 = (struct air_vcc_rsp *) p2;
+	c1 = (const struct air_vcc_rsp *) p1;
+	c2 = (const struct air_vcc_rsp *) p2;
 
 	/*
 	 * Compare the interface names
@@ -1093,10 +1064,10 @@ ip_vcc_compare(p1, p2)
 	const void *p1, *p2;
 {
 	int rc;
-	struct air_ip_vcc_rsp	*c1, *c2;
+	const struct air_ip_vcc_rsp	*c1, *c2;
 
-	c1 = (struct air_ip_vcc_rsp *) p1;
-	c2 = (struct air_ip_vcc_rsp *) p2;
+	c1 = (const struct air_ip_vcc_rsp *) p1;
+	c2 = (const struct air_ip_vcc_rsp *) p2;
 
 	/*
 	 * Compare the interface names
@@ -1138,13 +1109,13 @@ arp_compare(p1, p2)
 	const void *p1, *p2;
 {
 	int rc;
-	struct air_arp_rsp	*c1, *c2;
-	struct sockaddr_in	*sin1, *sin2;
+	const struct air_arp_rsp	*c1, *c2;
+	const struct sockaddr_in	*sin1, *sin2;
 
-	c1 = (struct air_arp_rsp *) p1;
-	c2 = (struct air_arp_rsp *) p2;
-	sin1 = (struct sockaddr_in *) &c1->aap_arp_addr;
-	sin2 = (struct sockaddr_in *) &c2->aap_arp_addr;
+	c1 = (const struct air_arp_rsp *)p1;
+	c2 = (const struct air_arp_rsp *)p2;
+	sin1 = (const struct sockaddr_in *)(const void *)&c1->aap_arp_addr;
+	sin2 = (const struct sockaddr_in *)(const void *)&c2->aap_arp_addr;
 
 	/*
 	 * Compare the IP addresses
@@ -1166,19 +1137,16 @@ arp_compare(p1, p2)
 		rc = 0;
 		break;
 	case T_ATM_ENDSYS_ADDR:
-		rc = bcmp((caddr_t)c1->aap_addr.address,
-				(caddr_t)c2->aap_addr.address,
-				sizeof(Atm_addr_nsap));
+		rc = bcmp(c1->aap_addr.address, c2->aap_addr.address,
+		    sizeof(Atm_addr_nsap));
 		break;
 	case T_ATM_E164_ADDR:
-		rc = bcmp((caddr_t)c1->aap_addr.address,
-				(caddr_t)c2->aap_addr.address,
-				sizeof(Atm_addr_e164));
+		rc = bcmp(c1->aap_addr.address, c2->aap_addr.address,
+		    sizeof(Atm_addr_e164));
 		break;
 	case T_ATM_SPANS_ADDR:
-		rc = bcmp((caddr_t)c1->aap_addr.address,
-				(caddr_t)c2->aap_addr.address,
-				sizeof(Atm_addr_spans));
+		rc = bcmp(c1->aap_addr.address, c2->aap_addr.address,
+		    sizeof(Atm_addr_spans));
 		break;
 	}
 

@@ -33,7 +33,7 @@ SRCS=	atm.c atm_fore200.c atm_eni.c atm_inet.c atm_print.c \
 MAN=	atm.8
 
 CFLAGS+=	-I${.CURDIR}/../../../sys
-WARNS=	0
+WARNS=		6
 LDADD+=		-latm
 DPADD+=		 ${LIBATM}
 
