@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1991-1996 the Free Software Foundation, Inc.
+ * Copyright (C) 1991-2000 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -216,7 +216,6 @@ NODE *t;
 {
 	NODE *t1;
 
-/* #	define	CASE	1 */
 	if ((t->re_flags & CASE) == IGNORECASE) {
 		if ((t->re_flags & CONST) != 0)
 			return t->re_reg;
@@ -237,7 +236,7 @@ NODE *t;
 		t->re_cnt++;
 	if (t->re_cnt > 10)
 		t->re_cnt = 0;
-	if (t->re_text == NULL) {
+	if (t->re_text == NULL || (t->re_flags & CASE) != IGNORECASE) {
 		t1 = force_string(tree_eval(t->re_exp));
 		t->re_text = dupnode(t1);
 		free_temp(t1);

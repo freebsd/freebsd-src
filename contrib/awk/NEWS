@@ -1,3 +1,74 @@
+Changes from 3.0.5 to 3.0.6
+---------------------------
+
+This is a bug fix release only, pending further development on 3.1.0.
+
+Bugs fixed and changes made:
+
+1. Subscripting an array with a variable that is just a number no
+   longer magically converts the variable into a string.
+
+2. Similarly, running a `for (iggy in foo)' loop where `foo' is a
+   function parameter now works correctly.
+
+3. Similarly, `i = ""; v[i] = a; if (v in a) ...' now works again.
+
+4. Gawk now special cases `for (iggy in foo) delete foo[iggy]' and
+   treats it as the moral equivalent of `delete foo'.  This should be
+   a major efficiency win when portably deleting large arrays.
+
+5. VMS port brought up to date.
+
+Changes from 3.0.4 to 3.0.5
+---------------------------
+
+This is a bug fix release only, pending further development on 3.1.0.
+
+Bugs Fixed:
+
+ 1. `function foo(foo)' is now a fatal error.
+
+ 2. Array indexing is now much more efficient: where possible, only one
+    copy of an index string is kept, even if used in multiple arrays.
+
+ 3. Support was added for MacOS X and an `install-strip' target.
+
+ 4. [s]printf formatting for `0' flag and floating point formats now
+    works correctly.
+
+ 5. HP-UX large file support with GCC 2.95.1 now works.
+
+ 6. Arguments that contain `=' but that aren't syntactically valid are
+    now treated as filenames, instead of as fatal errors.
+
+ 7. `-v NF=foo' now works.
+
+ 8. Non-ascii alphanumeric characters are now treated as such in the
+    right locales by regex.c.  Similarly, a Latin-1 y-umlaut (decimal
+    value 255) in the program text no longer acts like EOF.
+
+ 9. Array indexes are always compared as strings; fixes an obscure bug
+    when user input gets used for the `x in array' test.
+
+10. The usage message now points users to the documentation for how
+    to report bugs.
+
+11. `/=' now works after an array.
+
+12. `b += b += 1' now works correctly.
+
+13. IGNORECASE changing with calls match() now works better. (Fix for
+    semi-obscure bug.)
+
+14. Multicharacter values for RS now generate a lint warning.
+
+15. The gawk open file caching is now much more efficient.
+
+16. Global arrays passed to functions are now managed better.  In particular,
+    test/arynocls.awk won't crash referencing freed memory.
+
+17. In obscure cases, `getline var' can no longer clobber $0.
+
 Changes from 3.0.3 to 3.0.4
 ---------------------------
 

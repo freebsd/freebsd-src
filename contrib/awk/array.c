@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-2000 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -61,8 +61,8 @@ register NODE *tree;
 	r = force_string(tree_eval(tree->lnode));
 	if (tree->rnode == NULL)
 		return r;
-	subseplen = SUBSEP_node->lnode->stlen;
-	subsep = SUBSEP_node->lnode->stptr;
+	subseplen = SUBSEP_node->var_value->stlen;
+	subsep = SUBSEP_node->var_value->stptr;
 	len = r->stlen + subseplen + 2;
 	emalloc(str, char *, len, "concat_exp");
 	memcpy(str, r->stptr, r->stlen+1);
@@ -214,11 +214,23 @@ register NODE *subs;
 int hash1;
 {
 	register NODE *bucket;
+	NODE *s1, *s2;
 
 	for (bucket = symbol->var_array[hash1]; bucket != NULL;
 			bucket = bucket->ahnext) {
-		if (cmp_nodes(bucket->ahname, subs) == 0)
-			return bucket;
+		/*
+		 * This used to use cmp_nodes() here.  That's wrong.
+		 * Array indexes are strings; compare as such, always!
+		 */
+		s1 = bucket->ahname;
+		s1 = force_string(s1);
+		s2 = subs;
+
+		if (s1->stlen == s2->stlen) {
+			if (s1->stlen == 0	/* "" is a valid index */
+			    || STREQN(s1->stptr, s2->stptr, s1->stlen))
+				return bucket;
+		}
 	}
 	return NULL;
 }
@@ -234,6 +246,8 @@ NODE *symbol, *subs;
 
 	if (symbol->type == Node_param_list)
 		symbol = stack_ptr[symbol->param_cnt];
+	if (symbol->type == Node_array_ref)
+		symbol = symbol->orig_array;
 	if ((symbol->flags & SCALAR) != 0)
 		fatal("attempt to use scalar as array");
 	/*
@@ -265,6 +279,8 @@ NODE *symbol, *subs;
 {
 	register int hash1;
 	register NODE *bucket;
+
+	assert(symbol->type == Node_var_array || symbol->type == Node_var);
 
 	(void) force_string(subs);
 
@@ -308,20 +324,9 @@ NODE *symbol, *subs;
 
 	getnode(bucket);
 	bucket->type = Node_ahash;
-	if (subs->flags & TEMP)
-		bucket->ahname = dupnode(subs);
-	else {
-		unsigned int saveflags = subs->flags;
-
-		subs->flags &= ~MALLOC;
-		bucket->ahname = dupnode(subs);
-		subs->flags = saveflags;
-	}
+	bucket->ahname = dupnode(subs);
 	free_temp(subs);
 
-	/* array subscripts are strings */
-	bucket->ahname->flags &= ~NUMBER;
-	bucket->ahname->flags |= STRING;
 	bucket->ahvalue = Nnull_string;
 	bucket->ahnext = symbol->var_array[hash1];
 	symbol->var_array[hash1] = bucket;
@@ -343,6 +348,8 @@ NODE *symbol, *tree;
 		if (symbol->type == Node_var)
 			return;
 	}
+	if (symbol->type == Node_array_ref)
+		symbol = symbol->orig_array;
 	if (symbol->type == Node_var_array) {
 		if (symbol->var_array == NULL)
 			return;
@@ -360,9 +367,24 @@ NODE *symbol, *tree;
 
 	last = NULL;
 	for (bucket = symbol->var_array[hash1]; bucket != NULL;
-			last = bucket, bucket = bucket->ahnext)
-		if (cmp_nodes(bucket->ahname, subs) == 0)
-			break;
+			last = bucket, bucket = bucket->ahnext) {
+		/*
+		 * This used to use cmp_nodes() here.  That's wrong.
+		 * Array indexes are strings; compare as such, always!
+		 */
+		NODE *s1, *s2;
+
+		s1 = bucket->ahname;
+		s1 = force_string(s1);
+		s2 = subs;
+
+		if (s1->stlen == s2->stlen) {
+			if (s1->stlen == 0	/* "" is a valid index */
+			    || STREQN(s1->stptr, s2->stptr, s1->stlen))
+				break;
+		}
+	}
+
 	if (bucket == NULL) {
 		if (do_lint)
 			warning("delete: index `%s' not in array `%s'",
@@ -387,6 +409,50 @@ NODE *symbol, *tree;
 		free((char *) symbol->var_array);
 		symbol->var_array = NULL;
 	}
+}
+
+/* do_delete_loop --- simulate ``for (iggy in foo) delete foo[iggy]'' */
+
+/*
+ * The primary hassle here is that `iggy' needs to have some arbitrary
+ * array index put in it before we can clear the array, we can't
+ * just replace the loop with `delete foo'.
+ */
+
+void
+do_delete_loop(symbol, tree)
+NODE *symbol, *tree;
+{
+	size_t i;
+	NODE *n, **lhs;
+	Func_ptr after_assign = NULL;
+
+	if (symbol->type == Node_param_list) {
+		symbol = stack_ptr[symbol->param_cnt];
+		if (symbol->type == Node_var)
+			return;
+	}
+	if (symbol->type == Node_array_ref)
+		symbol = symbol->orig_array;
+	if (symbol->type == Node_var_array) {
+		if (symbol->var_array == NULL)
+			return;
+	} else
+		fatal("delete: illegal use of variable `%s' as array",
+			symbol->vname);
+
+	/* get first index value */
+	for (i = 0; i < symbol->array_size; i++) {
+		if (symbol->var_array[i] != NULL) {
+			lhs = get_lhs(tree->lnode, & after_assign);
+			unref(*lhs);
+			*lhs = dupnode(symbol->var_array[i]->ahname);
+			break;
+		}
+	}
+
+	/* blast the array in one shot */
+	assoc_clear(symbol);
 }
 
 /* assoc_scan --- start a ``for (iggy in foo)'' loop */
@@ -527,4 +593,83 @@ done:
 	 */
 	symbol->var_array = new;
 	symbol->array_size = newsize;
+}
+
+/* pr_node --- print simple node info */
+
+static void
+pr_node(n)
+NODE *n;
+{
+	if ((n->flags & (NUM|NUMBER)) != 0)
+		printf("%g", n->numbr);
+	else
+		printf("%.*s", (int) n->stlen, n->stptr);
+}
+
+/* assoc_dump --- dump the contents of an array */
+
+NODE *
+assoc_dump(symbol)
+NODE *symbol;
+{
+	int i;
+	NODE *bucket;
+
+	if (symbol->var_array == NULL) {
+		printf("%s: empty (null)\n", symbol->vname);
+		return tmp_number((AWKNUM) 0);
+	}
+
+	if (symbol->table_size == 0) {
+		printf("%s: empty (zero)\n", symbol->vname);
+		return tmp_number((AWKNUM) 0);
+	}
+
+	printf("%s: table_size = %d, array_size = %d\n", symbol->vname,
+			symbol->table_size, symbol->array_size);
+
+	for (i = 0; i < symbol->array_size; i++) {
+		for (bucket = symbol->var_array[i]; bucket != NULL;
+				bucket = bucket->ahnext) {
+			printf("%s: I: [(%p, %ld, %s) len %d <%.*s>] V: [",
+				symbol->vname,
+				bucket->ahname,
+				bucket->ahname->stref,
+				flags2str(bucket->ahname->flags),
+				(int) bucket->ahname->stlen,
+				(int) bucket->ahname->stlen,
+				bucket->ahname->stptr);
+			pr_node(bucket->ahvalue);
+			printf("]\n");
+		}
+	}
+
+	return tmp_number((AWKNUM) 0);
+}
+
+/* do_adump --- dump an array: interface to assoc_dump */
+
+NODE *
+do_adump(tree)
+NODE *tree;
+{
+	NODE *r, *a;
+
+	a = tree->lnode;
+
+	if (a->type == Node_param_list) {
+		printf("%s: is paramater\n", a->vname);
+		a = stack_ptr[a->param_cnt];
+	}
+
+	if (a->type == Node_array_ref) {
+		printf("%s: array_ref to %s\n", a->vname,
+					a->orig_array->vname);
+		a = a->orig_array;
+	}
+
+	r = assoc_dump(a);
+
+	return r;
 }

@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1976, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
+ * Copyright (C) 1976, 1988, 1989, 1991-2000 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -479,6 +479,15 @@ int *errflg;
 				}
 				if (rp->fp != NULL && isatty(fd))
 					rp->flag |= RED_NOBUF;
+				/* Move rp to the head of the list. */
+				if (red_head != rp) {
+					if ((rp->prev->next = rp->next) != NULL)
+						rp->next->prev = rp->prev;
+					red_head->prev = rp;
+					rp->prev = NULL;
+					rp->next = red_head;
+					red_head = rp;
+				}
 			}
 		}
 		if (rp->fp == NULL && rp->iop == NULL) {
@@ -489,6 +498,13 @@ int *errflg;
 			/* this works for solaris 2.5, not sunos */
 			/* it is also needed for MINGW32 */
 			else if (errno == 0)    /* HACK! */
+				close_one();
+#endif
+#ifdef VMS
+			/* Alpha/VMS V7.1's C RTL is returning this instead
+			   of EMFILE (haven't tried other post-V6.2 systems) */
+#define SS$_EXQUOTA 0x001C
+			else if (errno == EIO && vaxc$errno == SS$_EXQUOTA)
 				close_one();
 #endif
 			else {
@@ -628,10 +644,6 @@ int exitwarn;
 
 	what = ((rp->flag & RED_PIPE) != 0) ? "pipe" : "file";
 
-	if (exitwarn) 
-		warning("no explicit close of %s `%s' provided",
-			what, rp->value);
-
 	/* SVR4 awk checks and warns about status of close */
 	if (status != 0) {
 		char *s = strerror(errno);
@@ -650,6 +662,11 @@ int exitwarn;
 			ERRNO_node->var_value = make_string(s, strlen(s));
 		}
 	}
+
+	if (exitwarn) 
+		warning("no explicit close of %s `%s' provided",
+			what, rp->value);
+
 	if (rp->next != NULL)
 		rp->next->prev = rp->prev;
 	if (rp->prev != NULL)
@@ -1953,8 +1970,16 @@ set_RS()
 	}
 	if (RS->stlen == 0)
 		RS_is_null = TRUE;
-	else if (RS->stlen > 1)
+	else if (RS->stlen > 1) {
+		static int warned = FALSE;
+
 		RS_regexp = make_regexp(RS->stptr, RS->stlen, IGNORECASE, TRUE);
+
+		if (do_lint && ! warned) {
+			warning("multicharacter value of `RS' is not portable");
+			warned = TRUE;
+		}
+	}
 
 	set_FS_if_not_FIELDWIDTHS();
 }
