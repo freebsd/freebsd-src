@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.20 1999/01/11 03:20:24 yokota Exp $";
+	"$Id: kbdcontrol.c,v 1.22 1999/01/23 17:04:13 dfr Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -417,13 +417,8 @@ print_entry(FILE *fp, int value)
 }
 
 
-#ifdef __i386__
 void
 print_key_definition_line(FILE *fp, int scancode, struct keyent_t *key)
-#else
-void
-print_key_definition_line(FILE *fp, int scancode, struct key_t *key)
-#endif
 {
 	int i;
 
