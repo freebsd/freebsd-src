@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- * $Id: mount.h,v 1.5 1994/08/22 14:09:51 bde Exp $
+ * $Id: mount.h,v 1.6 1994/09/15 20:24:26 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -307,6 +307,19 @@ struct mfs_args {
 	u_long size;			/* size of file system */
 };
 #endif /* MFS */
+
+#ifdef MSDOSFS
+/*
+ *  Arguments to mount MSDOS filesystems.
+ */
+struct msdosfs_args {
+	char	*fspec;		/* blocks special holding the fs to mount */
+	struct	export_args export;	/* network export information */
+	uid_t	uid;		/* uid that owns msdosfs files */
+	gid_t	gid;		/* gid that owns msdosfs files */
+	mode_t	mask;		/* mask to be applied for msdosfs perms */
+};
+#endif
 
 #ifdef CD9660
 /*

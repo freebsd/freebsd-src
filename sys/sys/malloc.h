@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.3 (Berkeley) 1/12/94
- * $Id$
+ * $Id: malloc.h,v 1.3 1994/08/02 07:53:10 davidg Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -107,6 +107,9 @@
 #define	M_MRTABLE	56	/* multicast routing tables */
 #define M_ISOFSMNT	57	/* ISOFS mount structure */
 #define M_ISOFSNODE	58	/* ISOFS vnode private part */
+#define M_MSDOSFSMNT	59	/* MSDOSFS mount structure */
+#define M_MSDOSFSNODE	60	/* MSDOSFS vnode private part */
+#define M_MSDOSFSFAT	61	/* MSDOSFS file allocation table */
 #define	M_TEMP		74	/* misc temporary data buffers */
 #define M_TTYS		75	/* tty data structures */
 #define	M_LAST		76	/* Must be last type + 1 */
@@ -171,9 +174,12 @@
 	"mrt",		/* 56 M_MRTABLE */ \
 	"ISOFS mount",	/* 57 M_ISOFSMNT */ \
 	"ISOFS node",	/* 58 M_ISOFSNODE */ \
+	"MSDOSFS mount",/* 59 M_MSDOSFSMNT */ \
+	"MSDOSFS node",	/* 60 M_MSDOSFSNODE */ \
+	"MSDOSFS FAT",  /* 61 M_MSDOSFSFAR */ \
 	NULL, NULL, NULL, NULL, NULL, \
 	NULL, NULL, NULL, NULL, NULL, \
-	NULL, NULL, NULL, NULL, NULL, \
+	NULL, NULL, \
 	"temp",		/* 74 M_TEMP */ \
 	"ttys",		/* 75 M_TTYS */ \
 }
