@@ -55,7 +55,8 @@ putc(c, fp)
 {
 	int retval;
 	FLOCKFILE(fp);
-	ORIENT(fp, -1);
+	/* Orientation set by __sputc() when buffer is full. */
+	/* ORIENT(fp, -1); */
 	retval = __sputc(c, fp);
 	FUNLOCKFILE(fp);
 	return (retval);
