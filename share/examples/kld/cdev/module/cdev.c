@@ -95,10 +95,10 @@
 
 /* Stores string recv'd by _write() */
 static char buf[512+1];
-static int len;
+static size_t len;
 
 int
-mydev_open(dev_t dev, int flag, int otyp, struct thread *td)
+mydev_open(struct cdev *dev, int flag, int otyp, struct thread *td)
 {
     struct proc *procp = td->td_proc;
 
@@ -110,7 +110,7 @@ mydev_open(dev_t dev, int flag, int otyp, struct thread *td)
 }
 
 int
-mydev_close(dev_t dev, int flag, int otyp, struct thread *td)
+mydev_close(struct cdev *dev, int flag, int otyp, struct thread *td)
 {
     struct proc *procp = td->td_proc;
 
@@ -120,7 +120,8 @@ mydev_close(dev_t dev, int flag, int otyp, struct thread *td)
 }
 
 int
-mydev_ioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
+mydev_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
+    struct thread *td)
 {
     int error = 0;
     struct proc *procp = td->td_proc;
@@ -145,7 +146,7 @@ mydev_ioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
  * to buf for later accessing.
  */
 int
-mydev_write(dev_t dev, struct uio *uio, int ioflag)
+mydev_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
     int err = 0;
 
@@ -165,7 +166,7 @@ mydev_write(dev_t dev, struct uio *uio, int ioflag)
  * accessing.
  */
 int
-mydev_read(dev_t dev, struct uio *uio, int ioflag)
+mydev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
     int err = 0;
 
