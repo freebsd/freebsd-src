@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.90 1996/06/14 11:02:20 asami Exp $
+ *      $Id: sd.c,v 1.91 1996/07/23 21:52:27 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -430,9 +430,9 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
         scsi_minphys(bp,&sd_switch);
 
 	/*
-	 * Odd number of bytes
+	 * Odd number of bytes or negative offset
 	 */
-	if (bp->b_bcount % DEV_BSIZE != 0) {
+	if (bp->b_blkno < 0 || bp->b_bcount % DEV_BSIZE != 0) {
 		bp->b_error = EINVAL;
 		goto bad;
 	}
