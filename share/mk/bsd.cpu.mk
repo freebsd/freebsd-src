@@ -141,7 +141,7 @@ MACHINE_CPU = itanium
 _CPUCFLAGS += -mieee
 .endif
 
-# NB: COPTFLAGS is handled in /usr/src/sys/conf/Makefile.<arch>
+# NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk
 
 .if !defined(NO_CPU_CFLAGS)
 CFLAGS += ${_CPUCFLAGS}
