@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.13 1995/09/09 18:10:10 davidg Exp $
+ * $Id: tty_subr.c,v 1.14 1995/10/25 17:59:58 bde Exp $
  */
 
 /*
@@ -349,8 +349,13 @@ putc(chr, clistp)
 	s = spltty();
 
 	if (clistp->c_cl == NULL) {
-		if (clistp->c_cbreserved < 1)
-			panic("putc to a clist with no reserved cblocks");
+		if (clistp->c_cbreserved < 1) {
+			splx(s);
+#ifdef DIAGNOSTIC
+			printf("putc to a clist with no reserved cblocks");
+#endif
+			return (-1);
+		}
 		cblockp = cblock_alloc();
 		clistp->c_cbcount = 1;
 		clistp->c_cf = clistp->c_cl = cblockp->c_info;
@@ -425,8 +430,13 @@ b_to_q(src, amount, clistp)
 	 * then get one.
 	 */
 	if (clistp->c_cl == NULL) {
-		if (clistp->c_cbreserved < 1)
-			panic("b_to_q to a clist with no reserved cblocks");
+		if (clistp->c_cbreserved < 1) {
+			splx(s);
+#ifdef DIAGNOSTIC
+			printf("b_to_q to a clist with no reserved cblocks");
+#endif
+			return (amount);
+		}
 		cblockp = cblock_alloc();
 		clistp->c_cbcount = 1;
 		clistp->c_cf = clistp->c_cl = cblockp->c_info;
