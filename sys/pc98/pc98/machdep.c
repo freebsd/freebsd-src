@@ -59,6 +59,7 @@
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/linker.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
@@ -99,10 +100,12 @@
 #include <machine/bootinfo.h>
 #include <machine/ipl.h>
 #include <machine/md_var.h>
+#include <machine/mutex.h>
 #include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
+#include <machine/globaldata.h>
+#include <machine/globals.h>
 #ifdef SMP
 #include <machine/smp.h>
-#include <machine/globaldata.h>
 #endif
 #ifdef PERFMON
 #include <machine/perfmon.h>
@@ -111,6 +114,7 @@
 #ifdef OLD_BUS_ARCH
 #include <i386/isa/isa_device.h>
 #endif
+#include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
 #ifdef PC98
 #include <pc98/pc98/pc98_machdep.h>
@@ -260,6 +264,11 @@ static vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
 static vm_offset_t pager_sva, pager_eva;
 static struct trapframe proc0_tf;
+
+struct cpuhead cpuhead;
+
+mtx_t	sched_lock;
+mtx_t	Giant;
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
@@ -444,6 +453,11 @@ again:
 	 */
 	bufinit();
 	vm_pager_bufferinit();
+
+	SLIST_INIT(&cpuhead);
+	SLIST_INSERT_HEAD(&cpuhead, GLOBALDATA, gd_allcpu);
+
+	mtx_init(&sched_lock, "sched lock", MTX_SPIN);
 
 #ifdef SMP
 	/*
@@ -2107,11 +2121,6 @@ init386(first)
 #endif
 	int off;
 
-	/*
-	 * Prevent lowering of the ipl if we call tsleep() early.
-	 */
-	safepri = cpl;
-
 	proc0.p_addr = proc0paddr;
 
 	atdevbase = ISA_HOLE_START + KERNBASE;
@@ -2167,6 +2176,10 @@ init386(first)
 	r_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
 	r_gdt.rd_base =  (int) gdt;
 	lgdt(&r_gdt);
+
+	/* setup curproc so that mutexes work */
+	PCPU_SET(curproc, &proc0);
+	PCPU_SET(prevproc, &proc0);
 
 	/* make ldt memory segments */
 	/*
@@ -2250,7 +2263,7 @@ init386(first)
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	common_tss.tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE - 16;
-	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
+	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	private_tss = 0;
 	tss_gdt = &gdt[GPROC0_SEL].sd;
@@ -2270,6 +2283,12 @@ init386(first)
 	dblfault_tss.tss_fs = GSEL(GPRIV_SEL, SEL_KPL);
 	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
 	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
+
+	/*
+	 * We grab Giant during the vm86bios routines, so we need to ensure
+	 * that it is up and running before we use vm86.
+	 */
+	mtx_init(&Giant, "Giant", MTX_DEF);
 
 	vm86_initialize();
 	getmemsize(first);
@@ -2306,9 +2325,7 @@ init386(first)
 	/* setup proc 0's pcb */
 	proc0.p_addr->u_pcb.pcb_flags = 0;
 	proc0.p_addr->u_pcb.pcb_cr3 = (int)IdlePTD;
-#ifdef SMP
-	proc0.p_addr->u_pcb.pcb_mpnest = 1;
-#endif
+	proc0.p_addr->u_pcb.pcb_schednest = 0;
 	proc0.p_addr->u_pcb.pcb_ext = 0;
 	proc0.p_md.md_regs = &proc0_tf;
 }
