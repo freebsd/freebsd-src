@@ -757,12 +757,12 @@ ultimate_source (name, path)
  next:
 
   if ((fp = fopen (ult, "r")) == NULL)
-    return buf;
-
-  if (fgets (buf, BUFSIZ, fp) == NULL)
     return ult;
 
-  if (strlen (buf) < 5)
+  end = fgets (buf, BUFSIZ, fp);
+  fclose(fp);
+
+  if (!end || strlen (buf) < 5)
     return ult;
 
   beg = buf;
@@ -948,14 +948,13 @@ make_roff_command (file)
     {
       cp = line;
       fgets (line, BUFSIZ, fp);
+      fclose(fp);
       if (*cp++ == '\'' && *cp++ == '\\' && *cp++ == '"' && *cp++ == ' ')
 	{
 	  if (debug)
 	    fprintf (stderr, "parsing directive from file\n");
 
 	  status = parse_roff_directive (cp, file, buf, sizeof(buf));
-
-	  fclose (fp);
 
 	  if (status == 0)
 	    return buf;
