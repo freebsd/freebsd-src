@@ -41,7 +41,7 @@
  * and various other messes.
  */
 
-#define	MAC_MAX_POLICIES	4
+#define	MAC_MAX_SLOTS	4
 
 #define	MAC_FLAG_INITIALIZED	0x0000001	/* Is initialized for use. */
 
@@ -50,7 +50,7 @@ struct label {
 	union {
 		void	*l_ptr;
 		long	 l_long;
-	}	l_perpolicy[MAC_MAX_POLICIES];
+	}	l_perpolicy[MAC_MAX_SLOTS];
 };
 
 #endif /* !_SYS__LABEL_H */
