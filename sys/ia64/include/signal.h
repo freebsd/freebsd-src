@@ -58,8 +58,7 @@ typedef long	sig_atomic_t;
 #define MINSIGSTKSZ     (3072 * 4)
 #endif
 
-#ifdef _KERNEL
-
+#if __BSD_VISIBLE
 #ifndef _IA64_FPREG_DEFINED
 
 struct ia64_fpreg {
@@ -69,6 +68,9 @@ struct ia64_fpreg {
 #define _IA64_FPREG_DEFINED
 
 #endif
+#endif
+
+#ifdef _KERNEL
 
 /*
  * Information pushed on stack when a signal is delivered.
