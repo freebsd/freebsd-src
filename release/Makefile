@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.451 1999/01/08 05:33:11 jkh Exp $
+#	$Id: Makefile,v 1.452 1999/01/09 00:32:00 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -668,7 +668,7 @@ doMFSKERN:
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 	@cp /boot/* ${RD}/image.${FSIMAGE}/boot
-	@rm -f ${RD}/boot.${FSIMAGE}/boot/netboot
+	@rm -f ${RD}/image.${FSIMAGE}/boot/netboot
 	@echo "@load /kernel" > ${RD}/image.${FSIMAGE}/boot/boot.conf
 	@echo "@echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
 	@echo "@read" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
