@@ -161,7 +161,8 @@ printcpuinfo(void)
 	    (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
 	    strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
 	    strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
-	    strcmp(cpu_vendor, "TransmetaCPU") == 0)) {
+	    strcmp(cpu_vendor, "TransmetaCPU") == 0 ||
+	    strcmp(cpu_vendor, "Geode by NSC") == 0)) {
 		do_cpuid(0x80000000, regs);
 		if (regs[0] >= 0x80000000) {
 			cpu_exthigh = regs[0];
@@ -543,6 +544,16 @@ printcpuinfo(void)
 		}
 	} else if (strcmp(cpu_vendor, "IBM") == 0) {
 		strcpy(cpu_model, "Blue Lightning CPU");
+	} else if (strcmp(cpu_vendor, "Geode by NSC") == 0) {
+		switch (cpu_id & 0xfff) {
+		case 0x540:
+			strcpy(cpu_model, "Geode SC1100");
+			tsc_is_broken = 1;
+			break;
+		default:
+			strcpy(cpu_model, "Geode/NSC unknown");
+			break;
+		}
 	}
 
 	/*
