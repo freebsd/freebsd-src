@@ -35,16 +35,16 @@
  * identified by a "cluster-id" which is a number in the range 1..2^16-1.
  *
  * Bridging is enabled by the sysctl variable
- *	net.link.ether.bridge
+ *	net.link.ether.bridge.enable
  * the grouping of interfaces into clusters is done with
- *	net.link.ether.bridge_cfg
+ *	net.link.ether.bridge.config
  * containing a list of interfaces each optionally followed by
  * a colon and the cluster it belongs to (1 is the default).
  * Separators can be * spaces, commas or tabs, e.g.
- *	net.link.ether.bridge_cfg="fxp0:2 fxp1:2 dc0 dc1:1"
+ *	net.link.ether.bridge.config="fxp0:2 fxp1:2 dc0 dc1:1"
  * Optionally bridged packets can be passed through the firewall,
  * this is controlled by the variable
- *	net.link.ether.bridge_ipfw
+ *	net.link.ether.bridge.ipfw
  *
  * For each cluster there is a descriptor (cluster_softc) storing
  * the following data structures:
@@ -116,6 +116,9 @@
 
 /*--------------------*/
 
+#define	ETHER_ADDR_COPY(_dst,_src)	bcopy(_src, _dst, ETHER_ADDR_LEN)
+#define	ETHER_ADDR_EQ(_a1,_a2)		(bcmp(_a1, _a2, ETHER_ADDR_LEN) == 0)
+
 /*
  * For each cluster, source MAC addresses are stored into a hash
  * table which locates the port they reside on.
@@ -124,7 +127,7 @@
 
 typedef struct hash_table {		/* each entry.		*/
     struct ifnet *	name;
-    u_char		etheraddr[6];
+    u_char		etheraddr[ETHER_ADDR_LEN];
     u_int16_t		used;		/* also, padding	*/
 } bdg_hash_table ;
 
@@ -140,8 +143,8 @@ typedef struct hash_table {		/* each entry.		*/
  * This is the data structure where local addresses are stored.
  */
 struct bdg_addr {
-    u_char	etheraddr[6] ;
-    u_int16_t	_padding ;
+    u_char	etheraddr[ETHER_ADDR_LEN];
+    u_int16_t	_padding;
 };
 
 /*
@@ -162,6 +165,13 @@ extern u_char ip_protox[];			/* from netinet/ip_input.c */
 static int n_clusters;				/* number of clusters */
 static struct cluster_softc *clusters;
 
+static struct mtx bdg_mtx;
+#define	BDG_LOCK_INIT()		mtx_init(&bdg_mtx, "bridge", NULL, MTX_DEF)
+#define	BDG_LOCK_DESTROY()	mtx_destroy(&bdg_mtx)
+#define	BDG_LOCK()		mtx_lock(&bdg_mtx)
+#define	BDG_UNLOCK()		mtx_unlock(&bdg_mtx)
+#define	BDG_LOCK_ASSERT()	mtx_assert(&bdg_mtx, MA_OWNED)
+
 #define BDG_MUTED(ifp) (ifp2sc[ifp->if_index].flags & IFF_MUTE)
 #define BDG_MUTE(ifp) ifp2sc[ifp->if_index].flags |= IFF_MUTE
 #define BDG_CLUSTER(ifp) (ifp2sc[ifp->if_index].cluster)
@@ -178,11 +188,28 @@ static struct cluster_softc *clusters;
 	((u_int16_t *)(a))[2] == 0xffff )
 #else
 /* for machines that do not support unaligned access */
-#define	BDG_MATCH(a,b)		(!bcmp(a, b, ETHER_ADDR_LEN) )
-#define	IS_ETHER_BROADCAST(a)	(!bcmp(a, "\377\377\377\377\377\377", 6))
+#define	BDG_MATCH(a,b)		ETHER_ADDR_EQ(a,b)
+#define	IS_ETHER_BROADCAST(a)	ETHER_ADDR_EQ(a,"\377\377\377\377\377\377")
 #endif
 
+SYSCTL_DECL(_net_link_ether);
+SYSCTL_NODE(_net_link_ether, OID_AUTO, bridge, CTLFLAG_RD, 0,
+	"Bridge parameters");
+static char bridge_version[] = "$Revision$ $Date$";
+SYSCTL_STRING(_net_link_ether_bridge, OID_AUTO, version, CTLFLAG_RD,
+	bridge_version, 0, "software version");
 
+#define BRIDGE_DEBUG
+#ifdef BRIDGE_DEBUG
+int	bridge_debug = 0;
+SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, debug, CTLFLAG_RW, &bridge_debug,
+	    0, "control debugging printfs");
+#define	DPRINTF(X)	if (bridge_debug) printf X
+#else
+#define	DPRINTF(X)
+#endif
+
+#ifdef BRIDGE_TIMING
 /*
  * For timing-related debugging, you can use the following macros.
  * remember, rdtsc() only works on Pentium-class machines
@@ -194,17 +221,53 @@ static struct cluster_softc *clusters;
 
  *
  */
+#define DDB(x)	x
 
-#define DDB(x) x
-#define DEB(x)
+static int bdg_fw_avg;
+SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, fw_avg, CTLFLAG_RW,
+	    &bdg_fw_avg, 0,"Cycle counter avg");
+static int bdg_fw_ticks;
+SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, fw_ticks, CTLFLAG_RW,
+	    &bdg_fw_ticks, 0,"Cycle counter item");
+static int bdg_fw_count;
+SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, fw_count, CTLFLAG_RW,
+	    &bdg_fw_count, 0,"Cycle counter count");
+#else
+#define	DDB(x)
+#endif
 
 static int bdginit(void);
 static void parse_bdg_cfg(void);
 
 static int bdg_ipf;		/* IPFilter enabled in bridge */
+SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, ipf, CTLFLAG_RW,
+	    &bdg_ipf, 0,"Pass bridged pkts through IPFilter");
 static int bdg_ipfw;
+SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, ipfw, CTLFLAG_RW,
+	    &bdg_ipfw,0,"Pass bridged pkts through firewall");
 
-#if 0 /* debugging only */
+static int bdg_copy;
+SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, copy, CTLFLAG_RW,
+	&bdg_copy, 0, "Force packet copy in bdg_forward");
+
+int bdg_ipfw_drops;
+SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, ipfw_drop,
+	CTLFLAG_RW, &bdg_ipfw_drops,0,"");
+int bdg_ipfw_colls;
+SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, ipfw_collisions,
+	CTLFLAG_RW, &bdg_ipfw_colls,0,"");
+
+static int bdg_thru;
+SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, packets, CTLFLAG_RW,
+	&bdg_thru, 0, "Packets through bridge");
+static int bdg_dropped;
+SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, dropped, CTLFLAG_RW,
+	&bdg_dropped, 0, "Packets dropped in bdg_forward");
+static int bdg_predict;
+SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, predict, CTLFLAG_RW,
+	&bdg_predict, 0, "Correctly predicted header location");
+
+#ifdef BRIDGE_DEBUG
 static char *bdg_dst_names[] = {
 	"BDG_NULL    ",
 	"BDG_BCAST   ",
@@ -215,13 +278,16 @@ static char *bdg_dst_names[] = {
 	"BDG_IN      ",
 	"BDG_OUT     ",
 	"BDG_FORWARD " };
-#endif
+#endif /* BRIDGE_DEBUG */
+
 /*
  * System initialization
  */
-
 static struct bdg_stats bdg_stats ;
-static struct callout_handle bdg_timeout_h ;
+SYSCTL_STRUCT(_net_link_ether_bridge, OID_AUTO, stats, CTLFLAG_RD,
+	&bdg_stats, bdg_stats, "bridge statistics");
+
+static struct callout bdg_callout;
 
 /*
  * Add an interface to a cluster, possibly creating a new entry in
@@ -234,6 +300,8 @@ add_cluster(u_int16_t cluster_id, struct arpcom *ac)
     struct cluster_softc *c = NULL;
     int i;
 
+    BDG_LOCK_ASSERT();
+
     for (i = 0; i < n_clusters ; i++)
 	if (clusters[i].cluster_id == cluster_id)
 	    goto found;
@@ -242,24 +310,22 @@ add_cluster(u_int16_t cluster_id, struct arpcom *ac)
     c = malloc((1+n_clusters) * sizeof (*c), M_IFADDR, M_NOWAIT | M_ZERO);
     if (c == NULL) {/* malloc failure */
 	printf("-- bridge: cannot add new cluster\n");
-	return NULL;
+	goto bad;
     }
     c[n_clusters].ht = (struct hash_table *)
 	    malloc(HASH_SIZE * sizeof(struct hash_table),
-		M_IFADDR, M_WAITOK | M_ZERO);
+		M_IFADDR, M_NOWAIT | M_ZERO);
     if (c[n_clusters].ht == NULL) {
 	printf("-- bridge: cannot allocate hash table for new cluster\n");
-	free(c, M_IFADDR);
-	return NULL;
+	goto bad;
     }
     c[n_clusters].my_macs = (struct bdg_addr *)
 	    malloc(BDG_MAX_PORTS * sizeof(struct bdg_addr),
-		M_IFADDR, M_WAITOK | M_ZERO);
+		M_IFADDR, M_NOWAIT | M_ZERO);
     if (c[n_clusters].my_macs == NULL) {
         printf("-- bridge: cannot allocate mac addr table for new cluster\n");
 	free(c[n_clusters].ht, M_IFADDR);
-        free(c, M_IFADDR);
-        return NULL;
+	goto bad;
     }
 
     c[n_clusters].cluster_id = cluster_id;
@@ -283,9 +349,13 @@ add_cluster(u_int16_t cluster_id, struct arpcom *ac)
     n_clusters++;
 found:
     c = clusters + i;		/* the right cluster ... */
-    bcopy(ac->ac_enaddr, &(c->my_macs[c->ports]), 6);
+    ETHER_ADDR_COPY(c->my_macs[c->ports].etheraddr, ac->ac_enaddr);
     c->ports++;
     return c;
+bad:
+    if (c)
+	free(c, M_IFADDR);
+    return NULL;
 }
 
 
@@ -299,25 +369,26 @@ static void
 bridge_off(void)
 {
     struct ifnet *ifp ;
-    int i, s;
+    int i;
 
-    DEB(printf("bridge_off: n_clusters %d\n", n_clusters);)
+    BDG_LOCK_ASSERT();
+
+    DPRINTF(("%s: n_clusters %d\n", __func__, n_clusters));
+
     IFNET_RLOCK();
     TAILQ_FOREACH(ifp, &ifnet, if_link) {
 	struct bdg_softc *b;
 
 	if (ifp->if_index >= BDG_MAX_PORTS)
 	    continue;	/* make sure we do not go beyond the end */
-	b = &(ifp2sc[ifp->if_index]);
+	b = &ifp2sc[ifp->if_index];
 
 	if ( b->flags & IFF_BDG_PROMISC ) {
-	    s = splimp();
 	    ifpromisc(ifp, 0);
-	    splx(s);
 	    b->flags &= ~(IFF_BDG_PROMISC|IFF_MUTE) ;
-	    DEB(printf(">> now %s%d promisc OFF if_flags 0x%x bdg_flags 0x%x\n",
-		    ifp->if_name, ifp->if_unit,
-		    ifp->if_flags, b->flags);)
+	    DPRINTF(("%s: %s%d promisc OFF if_flags 0x%x "
+		"bdg_flags 0x%x\n", __func__, ifp->if_name, ifp->if_unit,
+		ifp->if_flags, b->flags));
 	}
 	b->flags &= ~(IFF_USED) ;
 	b->cluster = NULL;
@@ -326,7 +397,6 @@ bridge_off(void)
     IFNET_RUNLOCK();
     /* flush_tables */
 
-    s = splimp();
     for (i=0; i < n_clusters; i++) {
 	free(clusters[i].ht, M_IFADDR);
 	free(clusters[i].my_macs, M_IFADDR);
@@ -335,7 +405,6 @@ bridge_off(void)
 	free(clusters, M_IFADDR);
     clusters = NULL;
     n_clusters =0;
-    splx(s);
 }
 
 /*
@@ -345,7 +414,8 @@ static void
 bridge_on(void)
 {
     struct ifnet *ifp ;
-    int s ;
+
+    BDG_LOCK_ASSERT();
 
     IFNET_RLOCK();
     TAILQ_FOREACH(ifp, &ifnet, if_link) {
@@ -354,27 +424,24 @@ bridge_on(void)
 	if ( !(b->flags & IFF_USED) )
 	    continue ;
 	if ( !( ifp->if_flags & IFF_UP) ) {
-	    s = splimp();
 	    if_up(ifp);
-	    splx(s);
 	}
 	if ( !(b->flags & IFF_BDG_PROMISC) ) {
-	    int ret ;
-	    s = splimp();
-	    ret = ifpromisc(ifp, 1);
-	    splx(s);
+	    (void) ifpromisc(ifp, 1);
 	    b->flags |= IFF_BDG_PROMISC ;
-	    DEB(printf(">> now %s%d promisc ON if_flags 0x%x bdg_flags 0x%x\n",
-		    ifp->if_name, ifp->if_unit,
-		    ifp->if_flags, b->flags);)
+	    DPRINTF(("%s: %s%d promisc ON if_flags 0x%x bdg_flags 0x%x\n",
+		__func__, ifp->if_name, ifp->if_unit, ifp->if_flags, b->flags));
 	}
 	if (b->flags & IFF_MUTE) {
-	    DEB(printf(">> unmuting %s%d\n", ifp->if_name, ifp->if_unit);)
+	    DPRINTF(("%s: unmuting %s%d\n", __func__,
+		ifp->if_name, ifp->if_unit));
 	    b->flags &= ~IFF_MUTE;
 	}
     }
     IFNET_RUNLOCK();
 }
+
+static char bridge_cfg[1024];		/* NB: in BSS so initialized to zero */
 
 /**
  * reconfigure bridge.
@@ -385,14 +452,16 @@ bridge_on(void)
  * have to scan all interfaces.
  */
 static void
-reconfigure_bridge(void)
+reconfigure_bridge_locked(void)
 {
+    BDG_LOCK_ASSERT();
+
     bridge_off();
     if (do_bridge) {
 	if (if_index >= BDG_MAX_PORTS) {
 	    printf("-- sorry too many interfaces (%d, max is %d),"
 		" disabling bridging\n", if_index, BDG_MAX_PORTS);
-	    do_bridge=0;
+	    do_bridge = 0;
 	    return;
 	}
 	parse_bdg_cfg();
@@ -400,7 +469,13 @@ reconfigure_bridge(void)
     }
 }
 
-static char bridge_cfg[1024]; /* in BSS so initialized to all NULs */
+static void
+reconfigure_bridge(void)
+{
+    BDG_LOCK();
+    reconfigure_bridge_locked();
+    BDG_UNLOCK();
+}
 
 /*
  * parse the config string, set IFF_USED, name and cluster_id
@@ -411,11 +486,13 @@ static char bridge_cfg[1024]; /* in BSS so initialized to all NULs */
  * "ifconfig -l"
  */
 static void
-parse_bdg_cfg()
+parse_bdg_cfg(void)
 {
-    char *p, *beg ;
+    char *p, *beg;
     int l, cluster;
-    static char *sep = ", \t";
+    static const char *sep = ", \t";
+
+    BDG_LOCK_ASSERT();
 
     for (p = bridge_cfg; *p ; p++) {
 	struct ifnet *ifp;
@@ -459,8 +536,8 @@ parse_bdg_cfg()
 		sprintf(bdg_stats.s[ifp->if_index].name,
 			"%s%d:%d", ifp->if_name, ifp->if_unit, cluster);
 
-		DEB(printf("--++  found %s next c %d\n",
-		    bdg_stats.s[ifp->if_index].name, c);)
+		DPRINTF(("%s: found %s next c %d\n", __func__,
+		    bdg_stats.s[ifp->if_index].name, c));
 		found = 1;
 		break ;
 	    }
@@ -474,24 +551,26 @@ parse_bdg_cfg()
     }
 }
 
-
 /*
  * handler for net.link.ether.bridge
  */
 static int
 sysctl_bdg(SYSCTL_HANDLER_ARGS)
 {
-    int error, oldval = do_bridge ;
+    int enable = do_bridge;
+    int error;
 
-    error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
-    DEB( printf("called sysctl for bridge name %s arg2 %d val %d->%d\n",
-	oidp->oid_name, oidp->oid_arg2,
-	oldval, do_bridge); )
-
-    if (oldval != do_bridge)
-	reconfigure_bridge();
+    error = sysctl_handle_int(oidp, &enable, 0, req);
+    BDG_LOCK();
+    if (enable != do_bridge) {
+	do_bridge = enable;
+	reconfigure_bridge_locked();
+    }
+    BDG_UNLOCK();
     return error ;
 }
+SYSCTL_PROC(_net_link_ether_bridge, OID_AUTO, enable, CTLTYPE_INT|CTLFLAG_RW,
+	    &do_bridge, 0, &sysctl_bdg, "I", "Bridging");
 
 /*
  * handler for net.link.ether.bridge_cfg
@@ -499,22 +578,29 @@ sysctl_bdg(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_bdg_cfg(SYSCTL_HANDLER_ARGS)
 {
-    int error = 0 ;
-    char old_cfg[1024] ;
+    int error;
+    char *new_cfg;
 
-    strcpy(old_cfg, bridge_cfg) ;
+    new_cfg = malloc(sizeof(bridge_cfg), M_TEMP, M_WAITOK);
+    bcopy(bridge_cfg, new_cfg, sizeof(bridge_cfg));
 
-    error = sysctl_handle_string(oidp, bridge_cfg, oidp->oid_arg2, req);
-    DEB(
-	printf("called sysctl for bridge name %s arg2 %d err %d val %s->%s\n",
-		oidp->oid_name, oidp->oid_arg2,
-		error,
-		old_cfg, bridge_cfg);
-	)
-    if (strcmp(old_cfg, bridge_cfg))
-	reconfigure_bridge();
-    return error ;
+    error = sysctl_handle_string(oidp, new_cfg, oidp->oid_arg2, req);
+    if (error == 0) {
+        BDG_LOCK();
+	if (strcmp(new_cfg, bridge_cfg)) {
+	    bcopy(new_cfg, bridge_cfg, sizeof(bridge_cfg));
+	    reconfigure_bridge_locked();
+	}
+	BDG_UNLOCK();
+    }
+
+    free(new_cfg, M_TEMP);
+
+    return error;
 }
+SYSCTL_PROC(_net_link_ether_bridge, OID_AUTO, config, CTLTYPE_STRING|CTLFLAG_RW,
+	    &bridge_cfg, sizeof(bridge_cfg), &sysctl_bdg_cfg, "A",
+	    "Bridge configuration");
 
 static int
 sysctl_refresh(SYSCTL_HANDLER_ARGS)
@@ -524,63 +610,44 @@ sysctl_refresh(SYSCTL_HANDLER_ARGS)
 
     return 0;
 }
-
-
-SYSCTL_DECL(_net_link_ether);
-SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge_cfg, CTLTYPE_STRING|CTLFLAG_RW,
-	    &bridge_cfg, sizeof(bridge_cfg), &sysctl_bdg_cfg, "A",
-	    "Bridge configuration");
-
-SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge, CTLTYPE_INT|CTLFLAG_RW,
-	    &do_bridge, 0, &sysctl_bdg, "I", "Bridging");
-
-SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipfw, CTLFLAG_RW,
-	    &bdg_ipfw,0,"Pass bridged pkts through firewall");
-
-SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipf, CTLFLAG_RW,
-	    &bdg_ipf, 0,"Pass bridged pkts through IPFilter");
-
-/*
- * The follow macro declares a variable, and maps it to
- * a SYSCTL_INT entry with the same name.
- */
-#define SY(parent, var, comment)			\
-	static int var ;				\
-	SYSCTL_INT(parent, OID_AUTO, var, CTLFLAG_RW, &(var), 0, comment);
-
-int bdg_ipfw_drops;
-SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipfw_drop,
-	CTLFLAG_RW, &bdg_ipfw_drops,0,"");
-
-int bdg_ipfw_colls;
-SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipfw_collisions,
-	CTLFLAG_RW, &bdg_ipfw_colls,0,"");
-
-SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge_refresh, CTLTYPE_INT|CTLFLAG_WR,
+SYSCTL_PROC(_net_link_ether_bridge, OID_AUTO, refresh, CTLTYPE_INT|CTLFLAG_WR,
 	    NULL, 0, &sysctl_refresh, "I", "iface refresh");
 
-#if 1 /* diagnostic vars */
+#ifndef BURN_BRIDGES
+#define SYSCTL_OID_COMPAT(parent, nbr, name, kind, a1, a2, handler, fmt, descr)\
+	static struct sysctl_oid sysctl__##parent##_##name##_compat = {	 \
+		&sysctl_##parent##_children, { 0 },			 \
+		nbr, kind, a1, a2, #name, handler, fmt, 0, descr };	 \
+	DATA_SET(sysctl_set, sysctl__##parent##_##name##_compat)
+#define SYSCTL_INT_COMPAT(parent, nbr, name, access, ptr, val, descr)	 \
+	SYSCTL_OID_COMPAT(parent, nbr, name, CTLTYPE_INT|(access),	 \
+		ptr, val, sysctl_handle_int, "I", descr)
+#define SYSCTL_STRUCT_COMPAT(parent, nbr, name, access, ptr, type, descr)\
+	SYSCTL_OID_COMPAT(parent, nbr, name, CTLTYPE_OPAQUE|(access),	 \
+		ptr, sizeof(struct type), sysctl_handle_opaque,		 \
+		"S," #type, descr)
+#define SYSCTL_PROC_COMPAT(parent, nbr, name, access, ptr, arg, handler, fmt, descr) \
+	SYSCTL_OID_COMPAT(parent, nbr, name, (access),			 \
+		ptr, arg, handler, fmt, descr)
 
-SY(_net_link_ether, verbose, "Be verbose");
-SY(_net_link_ether, bdg_split_pkts, "Packets split in bdg_forward");
-
-SY(_net_link_ether, bdg_thru, "Packets through bridge");
-
-SY(_net_link_ether, bdg_copied, "Packets copied in bdg_forward");
-SY(_net_link_ether, bdg_dropped, "Packets dropped in bdg_forward");
-
-SY(_net_link_ether, bdg_copy, "Force copy in bdg_forward");
-SY(_net_link_ether, bdg_predict, "Correctly predicted header location");
-
-SY(_net_link_ether, bdg_fw_avg, "Cycle counter avg");
-SY(_net_link_ether, bdg_fw_ticks, "Cycle counter item");
-SY(_net_link_ether, bdg_fw_count, "Cycle counter count");
+SYSCTL_INT_COMPAT(_net_link_ether, OID_AUTO, bridge_ipf, CTLFLAG_RW,
+	    &bdg_ipf, 0,"Pass bridged pkts through IPFilter");
+SYSCTL_INT_COMPAT(_net_link_ether, OID_AUTO, bridge_ipfw, CTLFLAG_RW,
+	    &bdg_ipfw,0,"Pass bridged pkts through firewall");
+SYSCTL_STRUCT_COMPAT(_net_link_ether, PF_BDG, bdgstats, CTLFLAG_RD,
+	&bdg_stats, bdg_stats, "bridge statistics");
+SYSCTL_PROC_COMPAT(_net_link_ether, OID_AUTO, bridge_cfg, 
+	    CTLTYPE_STRING|CTLFLAG_RW,
+	    &bridge_cfg, sizeof(bridge_cfg), &sysctl_bdg_cfg, "A",
+	    "Bridge configuration");
+SYSCTL_PROC_COMPAT(_net_link_ether, OID_AUTO, bridge_refresh,
+	    CTLTYPE_INT|CTLFLAG_WR,
+	    NULL, 0, &sysctl_refresh, "I", "iface refresh");
 #endif
 
-SYSCTL_STRUCT(_net_link_ether, PF_BDG, bdgstats,
-	CTLFLAG_RD, &bdg_stats , bdg_stats, "bridge statistics");
-
-static int bdg_loops ;
+static int bdg_loops;
+static int bdg_slowtimer = 0;
+static int bdg_age_index = 0;	/* index of table position to age */
 
 /*
  * called periodically to flush entries etc.
@@ -588,39 +655,40 @@ static int bdg_loops ;
 static void
 bdg_timeout(void *dummy)
 {
-    static int slowtimer; /* in BSS so initialized to 0 */
-
     if (do_bridge) {
-	static int age_index = 0 ; /* index of table position to age */
-	int l = age_index + HASH_SIZE/4 ;
-	int i;
+	int l, i;
+
+	BDG_LOCK();
 	/*
 	 * age entries in the forwarding table.
 	 */
+	l = bdg_age_index + HASH_SIZE/4 ;
 	if (l > HASH_SIZE)
-	    l = HASH_SIZE ;
+	    l = HASH_SIZE;
 
-	for (i=0; i<n_clusters; i++) {
+	for (i = 0; i < n_clusters; i++) {
 	    bdg_hash_table *bdg_table = clusters[i].ht;
-	    for (; age_index < l ; age_index++)
-		if (bdg_table[age_index].used)
-		    bdg_table[age_index].used = 0 ;
-		else if (bdg_table[age_index].name) {
-		    /* printf("xx flushing stale entry %d\n", age_index); */
-		    bdg_table[age_index].name = NULL ;
+	    for (; bdg_age_index < l; bdg_age_index++)
+		if (bdg_table[bdg_age_index].used)
+		    bdg_table[bdg_age_index].used = 0;
+		else if (bdg_table[bdg_age_index].name) {
+		    DPRINTF(("%s: flushing stale entry %d\n",
+			__func__, bdg_age_index));
+		    bdg_table[bdg_age_index].name = NULL;
 		}
 	}
-	if (age_index >= HASH_SIZE)
-	    age_index = 0 ;
+	if (bdg_age_index >= HASH_SIZE)
+	    bdg_age_index = 0;
 
-	if (--slowtimer <= 0 ) {
-	    slowtimer = 5 ;
+	if (--bdg_slowtimer <= 0 ) {
+	    bdg_slowtimer = 5;
 
-	    bridge_on() ; /* we just need unmute, really */
-	    bdg_loops = 0 ;
+	    bridge_on();	/* we just need unmute, really */
+	    bdg_loops = 0;
 	}
+	BDG_UNLOCK();
     }
-    bdg_timeout_h = timeout(bdg_timeout, NULL, 2*hz );
+    callout_reset(&bdg_callout, 2*hz, bdg_timeout, NULL);
 }
 
 /*
@@ -634,35 +702,42 @@ bdg_timeout(void *dummy)
  * We assume this is only called for interfaces for which bridging
  * is enabled, i.e. BDG_USED(ifp) is true.
  */
-static __inline
-struct ifnet *
+static __inline struct ifnet *
 bridge_dst_lookup(struct ether_header *eh, struct cluster_softc *c)
 {
-    struct ifnet *dst ;
-    int index ;
-    struct bdg_addr *p ;
     bdg_hash_table *bt;		/* pointer to entry in hash table */
 
-    if (IS_ETHER_BROADCAST(eh->ether_dhost))
-	return BDG_BCAST ;
-    if (eh->ether_dhost[0] & 1)
-	return BDG_MCAST ;
+    BDG_LOCK_ASSERT();
+
+    if (ETHER_IS_MULTICAST(eh->ether_dhost))
+	return IS_ETHER_BROADCAST(eh->ether_dhost) ? BDG_BCAST : BDG_MCAST;
     /*
-     * Lookup local addresses in case one matches.
+     * Lookup local addresses in case one matches.  We optimize
+     * for the common case of two interfaces.
      */
-    for (index = c->ports, p = c->my_macs; index ; index--, p++ )
-	if (BDG_MATCH(p->etheraddr, eh->ether_dhost) )
-	    return BDG_LOCAL ;
+    switch (c->ports) {
+	int i;
+    default:
+	for (i = c->ports-1; i > 1; i--) {
+	    if (ETHER_ADDR_EQ(c->my_macs[i].etheraddr, eh->ether_dhost))
+	        return BDG_LOCAL;
+	}
+	/* fall thru... */
+    case 2:
+	if (ETHER_ADDR_EQ(c->my_macs[1].etheraddr, eh->ether_dhost))
+	    return BDG_LOCAL;
+    case 1:
+	if (ETHER_ADDR_EQ(c->my_macs[0].etheraddr, eh->ether_dhost))
+	    return BDG_LOCAL;
+    }
     /*
      * Look for a possible destination in table
      */
-    index= HASH_FN( eh->ether_dhost );
-    bt = &(c->ht[index]);
-    dst = bt->name;
-    if ( dst && BDG_MATCH( bt->etheraddr, eh->ether_dhost) )
-	return dst ;
+    bt = &c->ht[HASH_FN(eh->ether_dhost)];
+    if (bt->name && ETHER_ADDR_EQ(bt->etheraddr, eh->ether_dhost))
+	return bt->name;
     else
-	return BDG_UNKNOWN ;
+	return BDG_UNKNOWN;
 }
 
 /**
@@ -687,21 +762,22 @@ static struct ifnet *
 bridge_in(struct ifnet *ifp, struct ether_header *eh)
 {
     int index;
-    struct ifnet *dst , *old ;
+    struct ifnet *dst, *old;
     bdg_hash_table *bt;			/* location in hash table */
-    int dropit = BDG_MUTED(ifp) ;
+    int dropit = BDG_MUTED(ifp);
 
     /*
      * hash the source address
      */
-    index= HASH_FN(eh->ether_shost);
-    bt = &(ifp2sc[ifp->if_index].cluster->ht[index]);
-    bt->used = 1 ;
-    old = bt->name ;
-    if ( old ) { /* the entry is valid. */
-	if (!BDG_MATCH( eh->ether_shost, bt->etheraddr) ) {
-	    bdg_ipfw_colls++ ;
-	    bt->name = NULL ;
+    BDG_LOCK();
+    index = HASH_FN(eh->ether_shost);
+    bt = &BDG_CLUSTER(ifp)->ht[index];
+    bt->used = 1;
+    old = bt->name;
+    if (old) {				/* the entry is valid */
+	if (!ETHER_ADDR_EQ(eh->ether_shost, bt->etheraddr)) {
+	    bdg_ipfw_colls++;
+	    bt->name = NULL;		/* NB: will overwrite below */
 	} else if (old != ifp) {
 	    /*
 	     * Found a loop. Either a machine has moved, or there
@@ -711,16 +787,16 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
 	     * suspect a reconfiguration and disable forwarding
 	     * from the old interface.
 	     */
-	    bt->name = ifp ; /* relocate address */
+	    bt->name = ifp;		/* relocate address */
 	    printf("-- loop (%d) %6D to %s%d from %s%d (%s)\n",
 			bdg_loops, eh->ether_shost, ".",
 			ifp->if_name, ifp->if_unit,
 			old->if_name, old->if_unit,
 			BDG_MUTED(old) ? "muted":"active");
-	    dropit = 1 ;
-	    if ( !BDG_MUTED(old) ) {
-		if (++bdg_loops > 10)
-		    BDG_MUTE(old) ;
+	    dropit = 1;
+	    if (!BDG_MUTED(old)) {
+		if (bdg_loops++ > 10)
+		    BDG_MUTE(old);
 	    }
 	}
     }
@@ -729,12 +805,14 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
      * now write the source address into the table
      */
     if (bt->name == NULL) {
-	DEB(printf("new addr %6D at %d for %s%d\n",
-	    eh->ether_shost, ".", index, ifp->if_name, ifp->if_unit);)
-	bcopy(eh->ether_shost, bt->etheraddr, 6);
-	bt->name = ifp ;
+	DPRINTF(("%s: new addr %6D at %d for %s%d\n",
+	    __func__, eh->ether_shost, ".", index, ifp->if_name, ifp->if_unit));
+	ETHER_ADDR_COPY(bt->etheraddr, eh->ether_shost);
+	bt->name = ifp;
     }
-    dst = bridge_dst_lookup(eh, ifp2sc[ifp->if_index].cluster);
+    dst = bridge_dst_lookup(eh, BDG_CLUSTER(ifp));
+    BDG_UNLOCK();
+
     /*
      * bridge_dst_lookup can return the following values:
      *   BDG_BCAST, BDG_MCAST, BDG_LOCAL, BDG_UNKNOWN, BDG_DROP, ifp.
@@ -752,33 +830,54 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
     case (uintptr_t)BDG_UNKNOWN:
     case (uintptr_t)BDG_DROP:
 	BDG_STAT(ifp, dst);
-	break ;
-    default :
+	break;
+    default:
 	if (dst == ifp || dropit)
 	    BDG_STAT(ifp, BDG_DROP);
 	else
 	    BDG_STAT(ifp, BDG_FORWARD);
-	break ;
+	break;
     }
 
-    if ( dropit ) {
+    if (dropit) {
 	if (dst == BDG_BCAST || dst == BDG_MCAST || dst == BDG_LOCAL)
-	    dst = BDG_LOCAL ;
+	    dst = BDG_LOCAL;
 	else
-	    dst = BDG_DROP ;
+	    dst = BDG_DROP;
     } else {
 	if (dst == ifp)
 	    dst = BDG_DROP;
     }
-    DEB(printf("bridge_in %6D ->%6D ty 0x%04x dst %s%d\n",
+    DPRINTF(("%s: %6D ->%6D ty 0x%04x dst %s%d\n", __func__,
 	eh->ether_shost, ".",
 	eh->ether_dhost, ".",
 	ntohs(eh->ether_type),
 	(dst <= BDG_FORWARD) ? bdg_dst_names[(int)dst] :
 		dst->if_name,
-	(dst <= BDG_FORWARD) ? 0 : dst->if_unit); )
+	(dst <= BDG_FORWARD) ? 0 : dst->if_unit));
 
-    return dst ;
+    return dst;
+}
+
+/*
+ * Return 1 if it's ok to send a packet out the specified interface.
+ * The interface must be:
+ *	used for bridging,
+ *	not muted,
+ *	not full,
+ *	up and running,
+ *	not the source interface, and
+ *	belong to the same cluster as the 'real_dst'.
+ */
+static __inline int
+bridge_ifok(struct ifnet *ifp, struct ifnet *src, struct ifnet *dst)
+{
+    return (BDG_USED(ifp)
+	&& !BDG_MUTED(ifp)
+	&& !_IF_QFULL(&ifp->if_snd)
+	&& (ifp->if_flags & (IFF_UP|IFF_RUNNING)) == (IFF_UP|IFF_RUNNING)
+	&& ifp != src
+	&& BDG_SAMECLUSTER(ifp, dst));
 }
 
 /*
@@ -812,27 +911,27 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
     struct ether_header *eh;
     struct ifnet *src;
     struct ifnet *ifp, *last;
-    int shared = bdg_copy ; /* someone else is using the mbuf */
-    int once = 0;      /* loop only once */
-    struct ifnet *real_dst = dst ; /* real dst from ether_output */
+    int shared = bdg_copy;		/* someone else is using the mbuf */
+    struct ifnet *real_dst = dst;	/* real dst from ether_output */
     struct ip_fw_args args;
 #ifdef PFIL_HOOKS
     struct packet_filter_hook *pfh;
     int rv;
 #endif /* PFIL_HOOKS */
     struct ether_header save_eh;
+    struct mbuf *m;
 
-    DEB(quad_t ticks; ticks = rdtsc();)
+    DDB(quad_t ticks; ticks = rdtsc();)
 
     args.rule = NULL;		/* did we match a firewall rule ? */
     /* Fetch state from dummynet tag, ignore others */
     for (;m0->m_type == MT_TAG; m0 = m0->m_next)
 	if (m0->_m_tag_id == PACKET_TAG_DUMMYNET) {
 	    args.rule = ((struct dn_pkt *)m0)->rule;
-	    shared = 0;		/* For sure this is our own mbuf. */
+	    shared = 0;			/* For sure this is our own mbuf. */
 	}
     if (args.rule == NULL)
-	bdg_thru++; /* first time through bdg_forward, count packet */
+	bdg_thru++;			/* count 1st time through bdg_forward */
 
     /*
      * The packet arrives with the Ethernet header at the front.
@@ -840,22 +939,25 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
     eh = mtod(m0, struct ether_header *);
 
     src = m0->m_pkthdr.rcvif;
-    if (src == NULL)			/* packet from ether_output */
-	dst = bridge_dst_lookup(eh, ifp2sc[real_dst->if_index].cluster);
+    if (src == NULL) {			/* packet from ether_output */
+	BDG_LOCK();
+	dst = bridge_dst_lookup(eh, BDG_CLUSTER(real_dst));
+	BDG_UNLOCK();
+    }
 
-    if (dst == BDG_DROP) { /* this should not happen */
+    if (dst == BDG_DROP) {		/* this should not happen */
 	printf("xx bdg_forward for BDG_DROP\n");
 	m_freem(m0);
 	bdg_dropped++;
 	return NULL;
     }
-    if (dst == BDG_LOCAL) { /* this should not happen as well */
+    if (dst == BDG_LOCAL) {		/* this should not happen as well */
 	printf("xx ouch, bdg_forward for local pkt\n");
 	return m0;
     }
     if (dst == BDG_BCAST || dst == BDG_MCAST) {
 	 /* need a copy for the local stack */
-	 shared = 1 ;
+	 shared = 1;
     }
 
     /*
@@ -880,12 +982,12 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	 * the packet (shared==1) also better be in the first mbuf.
 	 */
 	i = min(m0->m_pkthdr.len, max_protohdr) ;
-	if ( shared || m0->m_len < i) {
-	    m0 = m_pullup(m0, i) ;
+	if (shared || m0->m_len < i) {
+	    m0 = m_pullup(m0, i);
 	    if (m0 == NULL) {
-		printf("-- bdg: pullup failed.\n") ;
+		printf("%s: m_pullup failed\n", __func__);	/* XXXDPRINTF*/
 		bdg_dropped++;
-		return NULL ;
+		return NULL;
 	    }
 	    eh = mtod(m0, struct ether_header *);
 	}
@@ -964,17 +1066,15 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 		EH_RESTORE(m0);	/* restore Ethernet header */
 
 	if ( (i & IP_FW_PORT_DENY_FLAG) || m0 == NULL) /* drop */
-	    return m0 ;
+	    return m0;
 
 	if (i == 0) /* a PASS rule.  */
-	    goto forward ;
+	    goto forward;
 	if (DUMMYNET_LOADED && (i & IP_FW_PORT_DYNT_FLAG)) {
 	    /*
 	     * Pass the pkt to dummynet, which consumes it.
 	     * If shared, make a copy and keep the original.
 	     */
-	    struct mbuf *m ;
-
 	    if (shared) {
 		m = m_copypacket(m0, M_DONTWAIT);
 		if (m == NULL) {	/* copy failed, give up */
@@ -988,27 +1088,27 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 
 	    args.oif = real_dst;
 	    ip_dn_io_ptr(m, (i & 0xffff),DN_TO_BDG_FWD, &args);
-	    return m0 ;
+	    return m0;
 	}
 	/*
 	 * XXX at some point, add support for divert/forward actions.
 	 * If none of the above matches, we have to drop the packet.
 	 */
-	bdg_ipfw_drops++ ;
-	return m0 ;
+	bdg_ipfw_drops++;
+	return m0;
     }
 forward:
     /*
      * Again, bring up the headers in case of shared bufs to avoid
      * corruptions in the future.
      */
-    if ( shared ) {
-	int i = min(m0->m_pkthdr.len, max_protohdr) ;
+    if (shared) {
+	int i = min(m0->m_pkthdr.len, max_protohdr);
 
-	m0 = m_pullup(m0, i) ;
+	m0 = m_pullup(m0, i);
 	if (m0 == NULL) {
-	    bdg_dropped++ ;
-	    return NULL ;
+	    bdg_dropped++;
+	    return NULL;
 	}
 	/* NB: eh is not used below; no need to recalculate it */
     }
@@ -1021,64 +1121,62 @@ forward:
      * was already saved into real_dst.
      */
     if (src != NULL)
-	real_dst = src ;
+	real_dst = src;
 
     last = NULL;
-    IFNET_RLOCK();
     if (dst == BDG_BCAST || dst == BDG_MCAST || dst == BDG_UNKNOWN) {
-	ifp = TAILQ_FIRST(&ifnet) ; /* scan all ports */
-	once = 0 ;
-    } else {
-	ifp = dst ;
-	once = 1 ;
-    }
-    if ((uintptr_t)(ifp) <= (u_int)BDG_FORWARD)
-	panic("bdg_forward: bad dst");
-
-    for (;;) {
-	if (last) { /* need to forward packet leftover from previous loop */
-	    struct mbuf *m ;
-	    if (shared == 0 && once ) { /* no need to copy */
-		m = m0 ;
-		m0 = NULL ; /* original is gone */
-	    } else {
-		m = m_copypacket(m0, M_DONTWAIT);
-		if (m == NULL) {
-		    IFNET_RUNLOCK();
-		    printf("bdg_forward: sorry, m_copypacket failed!\n");
-		    bdg_dropped++ ;
-		    return m0 ; /* the original is still there... */
-		}
-	    }
-	    if (!IF_HANDOFF(&last->if_snd, m, last)) {
-#if 0
-		BDG_MUTE(last); /* should I also mute ? */
-#endif
-	    }
-	    BDG_STAT(last, BDG_OUT);
-	    last = NULL ;
-	    if (once)
-		break ;
-	}
-	if (ifp == NULL)
-	    break ;
 	/*
-	 * If the interface is used for bridging, not muted, not full,
-	 * up and running, is not the source interface, and belongs to
-	 * the same cluster as the 'real_dst', then send here.
+	 * Scan all ports and send copies to all but the last.
 	 */
-	if ( BDG_USED(ifp) && !BDG_MUTED(ifp) && !_IF_QFULL(&ifp->if_snd)  &&
-	     (ifp->if_flags & (IFF_UP|IFF_RUNNING)) == (IFF_UP|IFF_RUNNING) &&
-	     ifp != src && BDG_SAMECLUSTER(ifp, real_dst) )
-	    last = ifp ;
-	ifp = TAILQ_NEXT(ifp, if_link) ;
-	if (ifp == NULL)
-	    once = 1 ;
+	IFNET_RLOCK();		/* XXX replace with generation # */
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	    if (bridge_ifok(ifp, src, real_dst)) {
+		if (last) {
+		    /*
+		     * At this point we know two interfaces need a copy
+		     * of the packet (last + ifp) so we must create a
+		     * copy to handoff to last.
+		     */
+		    m = m_copypacket(m0, M_DONTWAIT);
+		    if (m == NULL) {
+			IFNET_RUNLOCK();
+			printf("%s: , m_copypacket failed!\n", __func__);
+			bdg_dropped++;
+			return m0;	/* the original is still there... */
+		    }
+		    if (IF_HANDOFF(&last->if_snd, m, last))
+			BDG_STAT(last, BDG_OUT);
+		    else
+			bdg_dropped++;
+		}
+		last = ifp;
+	    }
+	}
+	IFNET_RUNLOCK();
+    } else {
+	if (bridge_ifok(dst, src, real_dst))
+	    last = dst;
     }
-    IFNET_RUNLOCK();
-    DEB(bdg_fw_ticks += (u_long)(rdtsc() - ticks) ; bdg_fw_count++ ;
+    if (last) {
+	if (shared) {			/* need to copy */
+	    m = m_copypacket(m0, M_DONTWAIT);
+	    if (m == NULL) {
+		printf("%s: sorry, m_copypacket failed!\n", __func__);
+		bdg_dropped++ ;
+		return m0;		/* the original is still there... */
+	    }
+	} else {			/* consume original */
+	    m = m0, m0 = NULL;
+	}
+	if (IF_HANDOFF(&last->if_snd, m, last))
+	    BDG_STAT(last, BDG_OUT);
+	else
+	    bdg_dropped++;
+    }
+
+    DDB(bdg_fw_ticks += (u_long)(rdtsc() - ticks) ; bdg_fw_count++ ;
 	if (bdg_fw_count != 0) bdg_fw_avg = bdg_fw_ticks/bdg_fw_count; )
-    return m0 ;
+    return m0;
 #undef EH_RESTORE
 }
 
@@ -1088,25 +1186,49 @@ forward:
 static int
 bdginit(void)
 {
-    printf("BRIDGE 020214 loaded\n");
+    if (bootverbose)
+	    printf("BRIDGE %s loaded\n", bridge_version);
 
     ifp2sc = malloc(BDG_MAX_PORTS * sizeof(struct bdg_softc),
 		M_IFADDR, M_WAITOK | M_ZERO );
     if (ifp2sc == NULL)
-	return ENOMEM ;
+	return ENOMEM;
+
+    BDG_LOCK_INIT();
+
+    n_clusters = 0;
+    clusters = NULL;
+    do_bridge = 0;
+
+    bzero(&bdg_stats, sizeof(bdg_stats));
 
     bridge_in_ptr = bridge_in;
     bdg_forward_ptr = bdg_forward;
     bdgtakeifaces_ptr = reconfigure_bridge;
 
-    n_clusters = 0;
-    clusters = NULL;
-    do_bridge=0;
+    bdgtakeifaces_ptr();		/* XXX does this do anything? */
 
-    bzero(&bdg_stats, sizeof(bdg_stats) );
-    bdgtakeifaces_ptr();
+    callout_init(&bdg_callout, CALLOUT_MPSAFE);
     bdg_timeout(0);
     return 0 ;
+}
+
+static void
+bdgdestroy(void)
+{
+    bridge_in_ptr = NULL;
+    bdg_forward_ptr = NULL;
+    bdgtakeifaces_ptr = NULL;
+
+    callout_stop(&bdg_callout);
+    BDG_LOCK();
+    bridge_off();
+
+    if (ifp2sc) {
+	free(ifp2sc, M_IFADDR);
+	ifp2sc = NULL;
+    }
+    BDG_LOCK_DESTROY();
 }
 
 /*
@@ -1115,40 +1237,22 @@ bdginit(void)
 static int
 bridge_modevent(module_t mod, int type, void *unused)
 {
-	int s;
-	int err = 0 ;
+	int err;
 
 	switch (type) {
 	case MOD_LOAD:
-		if (BDG_LOADED) {
+		if (BDG_LOADED)
 			err = EEXIST;
-			break ;
-		}
-		s = splimp();
-		err = bdginit();
-		splx(s);
+		else
+			err = bdginit();
 		break;
 	case MOD_UNLOAD:
-#if !defined(KLD_MODULE)
-		printf("bridge statically compiled, cannot unload\n");
-		err = EINVAL ;
-#else
-		s = splimp();
 		do_bridge = 0;
-		bridge_in_ptr = NULL;
-		bdg_forward_ptr = NULL;
-		bdgtakeifaces_ptr = NULL;
-		untimeout(bdg_timeout, NULL, bdg_timeout_h);
-		bridge_off();
-		if (clusters)
-		    free(clusters, M_IFADDR);
-		free(ifp2sc, M_IFADDR);
-		ifp2sc = NULL ;
-		splx(s);
-#endif
+		bdgdestroy();
+		err = 0;
 		break;
 	default:
-		err = EINVAL ;
+		err = EINVAL;
 		break;
 	}
 	return err;
