@@ -1009,7 +1009,6 @@ static int
 rescan_or_reset_bus(int bus, int rescan)
 {
 	union ccb ccb, matchccb;
-	int curbus;
 	int fd, retval;
 	int bufsize;
 
