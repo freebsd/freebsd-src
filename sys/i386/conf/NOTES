@@ -473,10 +473,6 @@ device		tdfxdrm
 
 options 	DRM_DEBUG
 
-# M-systems DiskOnchip products see src/sys/contrib/dev/fla/README
-device		fla
-hint.fla.0.at="isa"
-
 #
 # mse: Logitech and ATI InPort bus mouse ports
 
