@@ -32,6 +32,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <machine/md_var.h>
 #include <sys/rman.h>
 #include <pci/pcivar.h>
 
@@ -69,8 +70,8 @@ static device_method_t cia_pcib_methods[] = {
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_setup_intr,	alpha_platform_pci_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	alpha_platform_pci_teardown_intr),
 
 	{ 0, 0 }
 };

@@ -32,6 +32,8 @@
  */
 void isa_init_intr(void);
 struct resource *isa_alloc_intr(device_t bus, device_t child, int irq);
+struct resource *isa_alloc_intrs(device_t bus, device_t child, u_long start,
+				 u_long end);
 int isa_release_intr(device_t bus, device_t child, struct resource *r);
 int isa_setup_intr(device_t dev, device_t child,
 		   struct resource *irq, int flags,
