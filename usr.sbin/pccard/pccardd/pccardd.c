@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.24 1998/02/04 20:19:39 guido Exp $";
+	"$Id: pccardd.c,v 1.1 1998/02/27 08:19:25 hosokawa Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -45,19 +45,19 @@ char   *config_file = "/etc/pccard.conf";
 int
 main(int argc, char *argv[])
 {
-	struct slot *sp;
-	int     count, debug = 0;
-	int     verbose = 0;
+	struct slot *slots, *sp;
+	int count, dodebug = 0;
+	int doverbose = 0;
 
 	while ((count = getopt(argc, argv, ":dvf:")) != -1) {
 		switch (count) {
 		case 'd':
 			setbuf(stdout, 0);
 			setbuf(stderr, 0);
-			debug = 1;
+			dodebug = 1;
 			break;
 		case 'v':
-			verbose = 1;
+			doverbose = 1;
 			break;
 		case 'f':
 			config_file = optarg;
@@ -71,20 +71,20 @@ main(int argc, char *argv[])
 		}
 	}
 #ifdef	DEBUG
-	debug = 1;
+	dodebug = 1;
 #endif
 	io_avail = bit_alloc(IOPORTS);	/* Only supports ISA ports */
 
 	/* Mem allocation done in MEMUNIT units. */
 	mem_avail = bit_alloc(MEMBLKS);
 	readfile(config_file);
-	if (verbose)
+	if (doverbose)
 		dump_config_file();
 	log_setup();
-	if (!debug)
+	if (!dodebug)
 		if (daemon(0, 0))
 			die("fork failed");
-	readslots();
+	slots = readslots();
 	if (slots == 0)
 		die("no PC-CARD slots");
 	logmsg("pccardd started", NULL);
