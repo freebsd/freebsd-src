@@ -638,11 +638,11 @@ _ftp_connect(struct url *url, struct url *purl, char *flags)
     if (!user || !*user)
 	user = FTP_ANONYMOUS_USER;
     if (purl && url->port == FTP_DEFAULT_PORT)
-	e = _ftp_cmd(cd, "USER %s@%s", url->user, url->host);
+	e = _ftp_cmd(cd, "USER %s@%s", user, url->host);
     else if (purl)
-	e = _ftp_cmd(cd, "USER %s@%s@%d", url->user, url->host, url->port);
+	e = _ftp_cmd(cd, "USER %s@%s@%d", user, url->host, url->port);
     else
-	e = _ftp_cmd(cd, "USER %s", url->user);
+	e = _ftp_cmd(cd, "USER %s", user);
     
     /* did the server request a password? */
     if (e == FTP_NEED_PASSWORD) {
