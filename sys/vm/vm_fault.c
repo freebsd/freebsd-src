@@ -423,7 +423,7 @@ readrest:
 					if (mt == NULL || (mt->valid != VM_PAGE_BITS_ALL))
 						break;
 					if (mt->busy ||
-						(mt->flags & (PG_BUSY | PG_FICTITIOUS)) ||
+						(mt->flags & (PG_BUSY | PG_FICTITIOUS | PG_UNMANAGED)) ||
 						mt->hold_count ||
 						mt->wire_count) 
 						continue;

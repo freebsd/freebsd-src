@@ -688,7 +688,7 @@ vm_page_select_cache(object, pindex)
 		    (pindex + object->pg_color) & PQ_L2_MASK,
 		    FALSE
 		);
-		if (m && ((m->flags & PG_BUSY) || m->busy ||
+		if (m && ((m->flags & (PG_BUSY|PG_UNMANAGED)) || m->busy ||
 			       m->hold_count || m->wire_count)) {
 			vm_page_deactivate(m);
 			continue;
@@ -997,7 +997,7 @@ vm_page_activate(m)
 
 		vm_page_unqueue(m);
 
-		if (m->wire_count == 0) {
+		if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 			m->queue = PQ_ACTIVE;
 			vm_page_queues[PQ_ACTIVE].lcnt++;
 			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
@@ -1128,9 +1128,17 @@ vm_page_free_toq(vm_page_t m)
 		}
 	}
 
+	/*
+	 * Clear the UNMANAGED flag when freeing an unmanaged page.
+	 */
+
+	if (m->flags & PG_UNMANAGED) {
+	    m->flags &= ~PG_UNMANAGED;
+	} else {
 #ifdef __alpha__
-	pmap_page_is_free(m);
+	    pmap_page_is_free(m);
 #endif
+	}
 
 	m->queue = PQ_FREE + m->pc;
 	pq = &vm_page_queues[m->queue];
@@ -1155,6 +1163,39 @@ vm_page_free_toq(vm_page_t m)
 }
 
 /*
+ *	vm_page_unmanage:
+ *
+ * 	Prevent PV management from being done on the page.  The page is
+ *	removed from the paging queues as if it were wired, and as a 
+ *	consequence of no longer being managed the pageout daemon will not
+ *	touch it (since there is no way to locate the pte mappings for the
+ *	page).  madvise() calls that mess with the pmap will also no longer
+ *	operate on the page.
+ *
+ *	Beyond that the page is still reasonably 'normal'.  Freeing the page
+ *	will clear the flag.
+ *
+ *	This routine is used by OBJT_PHYS objects - objects using unswappable
+ *	physical memory as backing store rather then swap-backed memory and
+ *	will eventually be extended to support 4MB unmanaged physical 
+ *	mappings.
+ */
+
+void
+vm_page_unmanage(vm_page_t m)
+{
+	int s;
+
+	s = splvm();
+	if ((m->flags & PG_UNMANAGED) == 0) {
+		if (m->wire_count == 0)
+			vm_page_unqueue(m);
+	}
+	vm_page_flag_set(m, PG_UNMANAGED);
+	splx(s);
+}
+
+/*
  *	vm_page_wire:
  *
  *	Mark this page as wired down by yet
@@ -1170,9 +1211,15 @@ vm_page_wire(m)
 {
 	int s;
 
+	/*
+	 * Only bump the wire statistics if the page is not already wired,
+	 * and only unqueue the page if it is on some queue (if it is unmanaged
+	 * it is already off the queues).
+	 */
 	s = splvm();
 	if (m->wire_count == 0) {
-		vm_page_unqueue(m);
+		if ((m->flags & PG_UNMANAGED) == 0)
+			vm_page_unqueue(m);
 		cnt.v_wire_count++;
 	}
 	m->wire_count++;
@@ -1218,7 +1265,9 @@ vm_page_unwire(m, activate)
 		m->wire_count--;
 		if (m->wire_count == 0) {
 			cnt.v_wire_count--;
-			if (activate) {
+			if (m->flags & PG_UNMANAGED) {
+				;
+			} else if (activate) {
 				TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
 				m->queue = PQ_ACTIVE;
 				vm_page_queues[PQ_ACTIVE].lcnt++;
@@ -1259,7 +1308,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 		return;
 
 	s = splvm();
-	if (m->wire_count == 0) {
+	if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 		if ((m->queue - m->pc) == PQ_CACHE)
 			cnt.v_reactivated++;
 		vm_page_unqueue(m);
@@ -1293,7 +1342,7 @@ vm_page_cache(m)
 {
 	int s;
 
-	if ((m->flags & PG_BUSY) || m->busy || m->wire_count) {
+	if ((m->flags & (PG_BUSY|PG_UNMANAGED)) || m->busy || m->wire_count) {
 		printf("vm_page_cache: attempting to cache busy page\n");
 		return;
 	}

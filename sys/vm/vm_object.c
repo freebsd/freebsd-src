@@ -833,12 +833,14 @@ shadowlookup:
 
 		/*
 		 * If the page is busy or not in a normal active state,
-		 * we skip it.  Things can break if we mess with pages
-		 * in any of the below states.
+		 * we skip it.  If the page is not managed there are no
+		 * page queues to mess with.  Things can break if we mess
+		 * with pages in any of the below states.
 		 */
 		if (
 		    m->hold_count ||
 		    m->wire_count ||
+		    (m->flags & PG_UNMANAGED) ||
 		    m->valid != VM_PAGE_BITS_ALL
 		) {
 			continue;
@@ -1393,6 +1395,13 @@ vm_object_page_remove(object, start, end, clean_only)
 		return;
 
 	all = ((end == 0) && (start == 0));
+
+	/*
+	 * Since physically-backed objects do not use managed pages, we can't
+	 * remove pages from the object (we must instead remove the page
+	 * references, and then destroy the object).
+	 */
+	KASSERT(object->type != OBJT_PHYS, ("attempt to remove pages from a physical object"));
 
 	vm_object_pip_add(object, 1);
 again:
