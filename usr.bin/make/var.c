@@ -136,9 +136,6 @@ GNode          *VAR_CMD;      /* variables defined on the command-line */
 #define	FIND_GLOBAL	0x2   /* look in VAR_GLOBAL as well */
 #define	FIND_ENV  	0x4   /* look in the environment also */
 
-static void VarPossiblyExpand(char **, GNode *);
-static Var *VarFind(const char *, GNode *, int);
-static void VarAdd(const char *, const char *, GNode *);
 static void VarDelete(void *);
 static char *VarGetPattern(GNode *, int, char **, int, int *, size_t *,
 			   VarPattern *);
@@ -179,14 +176,23 @@ VarCmp(const void *v, const void *name)
  *	The caller must free the new contents or old contents of name.
  *-----------------------------------------------------------------------
  */
-static void
-VarPossiblyExpand(char **name, GNode *ctxt)
+static char *
+VarPossiblyExpand(const char *name, GNode *ctxt)
 {
+	char *tmp;
+	char *result;
 
-    if (strchr(*name, '$') != NULL)
-        *name = Var_Subst(NULL, *name, ctxt, 0);
-    else
-        *name = estrdup(*name);
+	/*
+	 * XXX make a temporary copy of the name because Var_Subst insists
+	 * on writing into the string.
+	 */
+	tmp = estrdup(name);
+	if (strchr(name, '$') != NULL) {
+		result = Var_Subst(NULL, tmp, ctxt, 0);
+		free(tmp);
+		return (result);
+	} else
+		return (tmp);
 }
 
 /*-
@@ -381,7 +387,7 @@ VarDelete(void *vp)
  *-----------------------------------------------------------------------
  */
 void
-Var_Delete(char *name, GNode *ctxt)
+Var_Delete(const char *name, GNode *ctxt)
 {
     LstNode *ln;
 
@@ -415,33 +421,34 @@ Var_Delete(char *name, GNode *ctxt)
  *-----------------------------------------------------------------------
  */
 void
-Var_Set(char *name, const char *val, GNode *ctxt)
+Var_Set(const char *name, const char *val, GNode *ctxt)
 {
-    Var		   *v;
+    Var		*v;
+    char	*n;
 
     /*
      * We only look for a variable in the given context since anything set
      * here will override anything in a lower context, so there's not much
      * point in searching them all just to save a bit of memory...
      */
-    VarPossiblyExpand(&name, ctxt);
-    v = VarFind(name, ctxt, 0);
+    n = VarPossiblyExpand(name, ctxt);
+    v = VarFind(n, ctxt, 0);
     if (v == NULL) {
-	VarAdd(name, val, ctxt);
+	VarAdd(n, val, ctxt);
     } else {
 	Buf_Discard(v->val, Buf_Size(v->val));
-	Buf_AddBytes(v->val, strlen(val), (Byte *)val);
+	Buf_AddBytes(v->val, strlen(val), (const Byte *)val);
 
-	DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, name, val));
+	DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n, val));
     }
     /*
      * Any variables given on the command line are automatically exported
      * to the environment (as per POSIX standard)
      */
     if (ctxt == VAR_CMD) {
-	setenv(name, val, 1);
+	setenv(n, val, 1);
     }
-    free(name);
+    free(n);
 }
 
 /*-
@@ -467,20 +474,21 @@ Var_Set(char *name, const char *val, GNode *ctxt)
  *-----------------------------------------------------------------------
  */
 void
-Var_Append(char *name, const char *val, GNode *ctxt)
+Var_Append(const char *name, const char *val, GNode *ctxt)
 {
-    Var		   *v;
+    Var		*v;
+    char	*n;
 
-    VarPossiblyExpand(&name, ctxt);
-    v = VarFind(name, ctxt, (ctxt == VAR_GLOBAL) ? FIND_ENV : 0);
+    n = VarPossiblyExpand(name, ctxt);
+    v = VarFind(n, ctxt, (ctxt == VAR_GLOBAL) ? FIND_ENV : 0);
 
     if (v == NULL) {
-	VarAdd(name, val, ctxt);
+	VarAdd(n, val, ctxt);
     } else {
 	Buf_AddByte(v->val, (Byte)' ');
-	Buf_AddBytes(v->val, strlen(val), (Byte *)val);
+	Buf_AddBytes(v->val, strlen(val), (const Byte *)val);
 
-	DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, name,
+	DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n,
 	       (char *)Buf_GetAll(v->val, (size_t *)NULL)));
 
 	if (v->flags & VAR_FROM_ENV) {
@@ -494,7 +502,7 @@ Var_Append(char *name, const char *val, GNode *ctxt)
 	    Lst_AtFront(&ctxt->context, v);
 	}
     }
-    free(name);
+    free(n);
 }
 
 /*-
@@ -511,13 +519,14 @@ Var_Append(char *name, const char *val, GNode *ctxt)
  *-----------------------------------------------------------------------
  */
 Boolean
-Var_Exists(char *name, GNode *ctxt)
+Var_Exists(const char *name, GNode *ctxt)
 {
     Var		*v;
+    char	*n;
 
-    VarPossiblyExpand(&name, ctxt);
-    v = VarFind(name, ctxt, FIND_CMD|FIND_GLOBAL|FIND_ENV);
-    free(name);
+    n = VarPossiblyExpand(name, ctxt);
+    v = VarFind(n, ctxt, FIND_CMD|FIND_GLOBAL|FIND_ENV);
+    free(n);
 
     if (v == NULL) {
 	return (FALSE);
@@ -542,13 +551,14 @@ Var_Exists(char *name, GNode *ctxt)
  *-----------------------------------------------------------------------
  */
 char *
-Var_Value(char *name, GNode *ctxt, char **frp)
+Var_Value(const char *name, GNode *ctxt, char **frp)
 {
     Var		*v;
+    char	*n;
 
-    VarPossiblyExpand(&name, ctxt);
-    v = VarFind(name, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
-    free(name);
+    n = VarPossiblyExpand(name, ctxt);
+    v = VarFind(n, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
+    free(n);
     *frp = NULL;
     if (v != NULL) {
 	char *p = (char *)Buf_GetAll(v->val, (size_t *)NULL);
@@ -1720,7 +1730,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
  *-----------------------------------------------------------------------
  */
 char *
-Var_Subst(char *var, char *str, GNode *ctxt, Boolean undefErr)
+Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 {
     Buffer  	  *buf;	    	    /* Buffer for forming things */
     char    	  *val;		    /* Value to substitute for a variable */
