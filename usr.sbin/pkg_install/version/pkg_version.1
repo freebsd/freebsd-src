@@ -35,8 +35,9 @@
 .Op Fl cdhv
 .Op Fl l Ar limchar
 .Op Fl L Ar limchar
+.Op Fl s Ar string
 .Op Ar index
-.Nm pkg_version
+.Nm
 .Op Fl t Ar version1 version2
 .Sh DESCRIPTION
 The
@@ -146,6 +147,9 @@ Note that because some of the status flag characters are also special
 to the shell, it is best to quote
 .Ar limchar
 with single quotes.
+.It Fl s
+Limit the output to those packages whose names match a given
+.Ar string .
 .It Fl t
 Test a pair of version number strings and exit.
 The output consists of one of the single characters
