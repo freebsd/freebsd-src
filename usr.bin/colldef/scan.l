@@ -111,6 +111,7 @@ YYSTYPE yylval;
 	yylval.ch = *yytext;
 	return CHAR;
 }
+<defn>^#.*\n            line_no++;
 <defn>[ \t]+            {
 	if (ptr == buf)
 		errx(EX_UNAVAILABLE, "map expected near line %u of %s",
