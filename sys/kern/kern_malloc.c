@@ -146,7 +146,7 @@ malloc(size, type, flags)
 #endif
 	register struct malloc_type *ksp = type;
 
-#if defined(INVARIANTS) && defined(__i386__)
+#if defined(INVARIANTS)
 	if (flags == M_WAITOK)
 		KASSERT(curproc->p_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
