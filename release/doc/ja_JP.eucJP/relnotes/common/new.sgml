@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.244
+    Original revision: 1.22.2.246
 -->
 
 <articleinfo>
@@ -133,7 +133,7 @@
 	BIOS で無効にされていた場合に有効化しようと試みるものです。</para>
 
       <para arch="i386">いくつかのシステムでは、
-	BIOS がデバイスの I/O ポートやメモリを活動させず、
+	BIOS が PCI デバイスの I/O ポートやメモリを活動させず、
 	利用することができません。
 	カーネルオプション <literal>PCI_ENABLE_IO_MODES</literal> は
 	デバイスを利用するために &os; に強制的に有効化させます。</para>
@@ -217,7 +217,7 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
 	ブリッジの動的な追加・削除に対する安定性が向上しました。
 	また、VLAN にも完全に対応しています。</para>
 
-      <para>IPSec にあった IPv4 を処理する際の
+      <para>IPsec にあった IPv4 を処理する際の
 	上り SPD チェックが無視される可能性があるバグが修正されました。</para>
 
       <para>新しい ng_eiface netgraph モジュールが追加されました。
@@ -304,7 +304,82 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
   <sect2 id="security">
     <title>セキュリティ勧告</title>
 
-    <para></para>
+    <para><application>OpenSSH</application> の多重化に関するコードにおいて
+      <quote>一つ違い (off-by-one)</quote> バグが修正されました。
+      このバグは認証されたリモートユーザが
+      &man.sshd.8;
+      に任意のコードをスーパユーザ権限で実行したり、
+      悪意のある SSH サーバがクライアントユーザの権限で
+      (クライアントユーザの) システム上の任意のコードを実行することが可能です。
+      詳細はセキュリティ勧告 <ulink
+	url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>
+      をご覧ください。</para>
+
+    <para><application>zlib</application> を利用した
+      プログラミング上の誤りから
+      メモリを複数回解放させようと仕向けることが可能です。
+      &os; が採用している &man.malloc.3;/&man.free.3; ルーチンは
+      この誤りによるセキュリティ上の弱点はありませんが、
+      アプリケーションが特殊な細工が施された不正な圧縮データブロックを
+      受け取った場合、この仕組みを悪用して
+      機能を正常に働かなくさせたり abort させることが可能です。
+      なお、この <application>zlib</application> のバグは修正済みです。
+      この問題の回避方法および解決策はセキュリティ勧告 <ulink
+	url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>
+      をご覧ください。</para>
+
+    <para>TCP SYN cache (<quote>syncache</quote>) と
+      SYN cookie (<quote>syncookie</quote>) の実装にあった、
+      正規の TCP/IP トラフィックによりマシンを
+      クラッシュさせる可能性のあるバグが修正されました。
+      この問題の回避方法やパッチはセキュリティ勧告 <ulink
+	url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>
+      をご覧ください。</para>
+
+    <para>リモートの攻撃者にターゲットのマシン上のメモリを
+      枯渇させる可能性のある経路表のメモリリークが修正されました。
+      回避方法やパッチはセキュリティ勧告 <ulink
+	url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>
+      をご覧ください。</para>
+
+    <para>システムクラッシュを起こす可能性のある
+      memory-mapped I/O のバグが修正されました。
+      詳細と解決策はセキュリティ勧告 <ulink
+	url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>
+      をご覧ください。</para>
+
+    <para>標準入出力ファイル記述子を操作することによって、
+      SUID されたプログラムを悪用して不正にファイルを
+      読み書きすることが可能なセキュリティーホールが修正されました。
+      この問題に関する解決策はセキュリティ勧告 <ulink
+	url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>
+      をご覧ください。</para>
+
+    <para>&man.k5su.8; が
+      (&man.su.1; を利用する場合に想定されている)
+      権限を行使するユーザが <groupname>wheel</groupname> グループに
+      所属していることを必要としないために予期しない挙動を示す可能性があります。
+      このような状況を回避するために、
+      &man.k5su.8; はデフォルトで (事実上、上記の機能を無効化するために)
+      SUID せずにインストールされるようになりました。
+      詳細はセキュリティ勧告 <ulink
+	url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>
+      をご覧ください。</para>
+
+    <para>&man.bzip2.1; ユーティリティに
+      事前に警告することなく既存のファイルを上書きしたり、
+      許可属性の競合状態により意図しないユーザにファイルのアクセスを許す
+      といった複数の弱点が発見されました。
+      この問題は新しい <application>bzip2</application> の
+      import により修正されました。
+      詳細はセキュリティ勧告 <ulink
+	url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>
+      をご覧ください。</para>
+
+    <para>TCP SYN cache (<quote>syncache</quote>) の実装において
+      accept filter (&man.accept.filter.9; 参照) が使用されていた時に
+      リモートの攻撃者がサービスへのアクセスを拒否できる
+      可能性のあるバグが修正されました。</para>
   </sect2>
 
   <sect2 id="userland">
@@ -355,7 +430,7 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
     <para>&man.k5su.8; がデフォルトで <username>root</username> に
       SUID されたバイナリとしてインストールされなくなりました。
       この機能をユーザは手動で
-      &man.k5su.8; の実行ファイルのパーミッションを変更するか、
+      &man.k5su.8; の実行ファイルの許可属性を変更するか、
       ソースアップグレードの前に
       <literal>ENABLE_SUID_K5SU=yes</literal> を
       <filename>/etc/make.conf</filename> に加えてください。</para>
@@ -405,7 +480,7 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       システムのアップグレードステップの
       <literal>buildworld</literal> と
       <literal>installworld</literal> の
-      成功に不可欠として知られているファイルに
+      成功に不可欠として知られているファイルを比較する
       <quote>pre-<literal>buildworld</literal></quote>
       モードを有効にします。
       <option>-C</option> フラグは &man.mergemaster.8; がうまく動作した後、
@@ -532,18 +607,16 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
 
 	<para><filename>/etc/mail/Makefile</filename> をから構築される
 	  <application>sendmail</application> のエイリアスと
-	  map database のパーミッションは
-	  ローカルのサービス拒否をロックするファイルに対して防御するために
-	  デフォルトでモード 0640 になりました。
+	  map database の許可属性はローカルのサービス拒否をロックする
+	  ファイルに対して防御するためにデフォルトでモード 0640 になりました。
 	  これは <filename>make.conf</filename> の
 	  <varname>SENDMAIL_MAP_PERMS</varname>
 	  オプションをセットして変更することが可能です。</para>
 
 	<para><application>sendmail</application> の統計ファイル
 	  (<filename>/var/log/sendmail.st</filename>)
-	  のパーミッションが
-	  ローカルのサービス拒否をロックするファイルに対して防御するために
-	  モード 0644 から 0640 へ変更されました。</para>
+	  の許可属性がローカルのサービス拒否をロックするファイルに
+	  対して防御するためにモード 0644 から 0640 へ変更されました。</para>
 
       </sect4>
 
