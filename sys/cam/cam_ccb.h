@@ -580,8 +580,8 @@ struct ccb_accept_tio {
 	cdb_t	   cdb_io;		/* Union for CDB bytes/pointer */
 	u_int8_t   cdb_len;		/* Number of bytes for the CDB */
 	u_int8_t   tag_action;		/* What to do for tag queueing */
-	u_int8_t   tag_id;		/* tag id from initator (target mode) */
-	u_int8_t   init_id;		/* initiator id of who selected */
+	u_int      tag_id;		/* tag id from initator (target mode) */
+	u_int      init_id;		/* initiator id of who selected */
 };
 
 /* Release SIM Queue */
