@@ -50,9 +50,9 @@ static const char rcsid[] =
 
 #include <sys/ioctl_compat.h>	/* XXX NTTYDISC is too well hidden */
 
-static void  binit __P((char *));
-static void  bput __P((char *));
-static char *ccval __P((struct cchar *, int));
+static void  binit __P((const char *));
+static void  bput __P((const char *));
+static const char *ccval __P((struct cchar *, int));
 
 void
 print(tp, wp, ldisc, fmt)
@@ -225,11 +225,11 @@ print(tp, wp, ldisc, fmt)
 }
 
 static int col;
-static char *label;
+static const char *label;
 
 static void
 binit(lb)
-	char *lb;
+	const char *lb;
 {
 
 	if (col) {
@@ -241,7 +241,7 @@ binit(lb)
 
 static void
 bput(s)
-	char *s;
+	const char *s;
 {
 
 	if (col == 0) {
@@ -256,7 +256,7 @@ bput(s)
 	col += printf(" %s", s);
 }
 
-static char *
+static const char *
 ccval(p, c)
 	struct cchar *p;
 	int c;
