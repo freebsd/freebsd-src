@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)rstat.c	1.2 91/03/11 TIRPC 1.0; from 1.6 89/03/24 SM
 #include <rpc/rpc.h>
 #include <rpcsvc/rstat.h>
 
-int
+enum clnt_stat
 rstat(host, statp)
 	char *host;
 	struct statstime *statp;
