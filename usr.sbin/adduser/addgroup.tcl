@@ -29,7 +29,7 @@
 #	signal handling
 # 	add only users who exist
 #
-# $Id: addgroup.tcl,v 1.5 1996/10/29 19:11:50 wosch Exp wosch $
+# $Id: addgroup.tcl,v 1.1 1996/10/29 20:31:43 wosch Exp $
 
 # set global variables
 set etc_group "/etc/group";        #set etc_group "/usr/tmp/group" 
@@ -68,7 +68,7 @@ proc double_name {groupmembers} {
 
 # check group(5) limits
 proc group_limit {string} {
-    set line_max 100;      # max group line length
+    set line_max 1000;      # max group line length
     set groups_max 200;     # max group members
 
     if {[string length $string] >= $line_max} {
