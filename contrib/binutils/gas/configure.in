@@ -138,6 +138,7 @@ changequote([,])dnl
       m8*)		cpu_type=m88k ;;
       mips*el)		cpu_type=mips endian=little ;;
       mips*)		cpu_type=mips endian=big ;;
+      or32*)		cpu_type=or32 endian=big ;;
       pjl*)		cpu_type=pj endian=little ;;
       pj*)		cpu_type=pj endian=big ;;
       powerpc*le*)	cpu_type=ppc endian=little ;;
@@ -145,6 +146,7 @@ changequote([,])dnl
       rs6000*)		cpu_type=ppc ;;
       s390x*)		cpu_type=s390 arch=s390x ;;
       s390*)		cpu_type=s390 arch=s390 ;;
+      sh64*)            cpu_type=sh64 endian=big;;
       sh*le)		cpu_type=sh endian=little ;;
       sh*)		cpu_type=sh endian=big ;;
       sparclite*)	cpu_type=sparc arch=sparclite ;;
@@ -222,6 +224,7 @@ changequote([,])dnl
 			    esac ;;
       hppa-*-*elf*)         fmt=elf em=hppa ;;
       hppa-*-lites*)        fmt=elf em=hppa ;;
+      hppa-*-netbsd*)       fmt=elf em=nbsd ;;
       hppa-*-osf*)          fmt=som em=hppa ;;
       hppa-*-rtems*)        fmt=elf em=hppa ;;
       hppa-*-hpux11*)	    case ${cpu} in
@@ -376,6 +379,9 @@ changequote([,])dnl
       mn10200-*-*)	    fmt=elf bfd_gas=yes ;;
       mn10300-*-*)	    fmt=elf bfd_gas=yes ;;
       openrisc-*-*)	    fmt=elf bfd_gas=yes ;;
+      or32-*-rtems*)	    fmt=coff ;;
+      or32-*-coff)	    fmt=coff ;;
+      or32-*-elf)           fmt=elf ;;
       pj*)		    fmt=elf ;;
       ppc-*-pe | ppc-*-cygwin* | ppc-*-winnt*)
 		            fmt=coff em=pe ;;
@@ -421,6 +427,7 @@ changequote([,])dnl
       sh-*-rtemself*)       fmt=elf ;;
       sh-*-rtems*)	    fmt=coff bfd_gas=yes;;
 
+      sh64-*-elf*)	    fmt=elf ;;
       ns32k-pc532-mach* | ns32k-pc532-ux*)    fmt=aout em=pc532mach ;;
       ns32k-pc532-netbsd* | ns32k-pc532-lites*)  fmt=aout em=nbsd532 ;;
       ns32k-pc532-openbsd*) fmt=aout em=nbsd532 ;;
