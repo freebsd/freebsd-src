@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.104 1995/02/25 21:01:48 phk Exp $
+#	$Id: Makefile,v 1.105 1995/02/26 20:29:37 ache Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -32,6 +32,7 @@ MAKEDEVS=	(cd ${MOUNT}/dev; \
 		    sh ${DESTDIR}/dev/MAKEDEV wd0 wd1 sd0 sd1 cd0 mcd0 mcd1; \
 		    rm -rf *wd[01][ijklm] rmcd*)
 
+NEWFS=		newfs -b 4096 -c 80 -f 512 -m 0 -o space -u 0 -t 0
 ZIPNSPLIT=	gzip --no-name -9 -c | split -b 240640 -
 
 MTREE=	BSD.local.dist BSD.root.dist BSD.usr.dist BSD.var.dist
@@ -254,8 +255,7 @@ kcopy-floppy:
 	echo y | fdformat ${FLOPPY}
 	disklabel -w -r -B -b ${DESTDIR}/usr/mdec/fdboot \
 		-s ${DESTDIR}/usr/mdec/bootfd ${FLOPPY} ${FLOPPY_TYPE}
-	newfs -b 4096 -c 80 -f 512 -i 8192 -m 0 -o space \
-		r${FLOPPY} ${FLOPPY_TYPE}
+	${NEWFS} -i 8192 r${FLOPPY} ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY} ${MOUNT}
 	chown ${BINOWN}.${BINGRP} ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
@@ -319,8 +319,7 @@ filesyst.flp:
 	echo y | fdformat ${FLOPPY}
 	disklabel -w -r -B -b ${DESTDIR}/usr/mdec/fdboot \
 		-s ${DESTDIR}/usr/mdec/bootfd ${FLOPPY} ${FLOPPY_TYPE}
-	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space \
-		r${FLOPPY}  ${FLOPPY_TYPE}
+	${NEWFS} -i 10240 r${FLOPPY}  ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY}  ${MOUNT}
 	chown ${BINOWN}.${BINGRP} ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
@@ -363,8 +362,7 @@ cpio.flp:
 	echo y | fdformat ${FLOPPY}
 	disklabel -w -r -B -b ${DESTDIR}/usr/mdec/fdboot \
 		-s ${DESTDIR}/usr/mdec/bootfd ${FLOPPY} ${FLOPPY_TYPE}
-	newfs -b 4096 -c 80 -f 512 -i 65536 -m 0 -o space \
-			r${FLOPPY}  ${FLOPPY_TYPE}
+	${NEWFS} -i 65536 r${FLOPPY}  ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY} ${MOUNT}
 	chown ${BINOWN}.${BINGRP} ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
