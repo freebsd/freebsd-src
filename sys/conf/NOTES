@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.335 1997/05/10 11:16:22 jhay Exp $
+#	$Id: LINT,v 1.336 1997/05/10 17:40:53 fsmp Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1168,6 +1168,13 @@ controller	pcic1 at crd?
 # power supply dropped, or battery state low) by issuing an NMI:
 
 options		POWERFAIL_NMI	# make it beep instead of panicing
+
+# Kernel BOOTP support 
+
+options		BOOTP		# Use BOOTP to obtain IP address/hostname
+options		BOOTP_NFSROOT	# NFS mount root filesystem using BOOTP info
+options		"BOOTP_NFSV3"	# Use NFS v3 to NFS mount root
+options		BOOTP_COMPAT	# Workaround for broken bootp daemons.
 
 #
 # An obsolete option to test kern_opt.c.

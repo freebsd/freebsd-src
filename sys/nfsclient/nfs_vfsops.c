@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.39 1997/05/03 13:42:50 phk Exp $
+ * $Id: nfs_vfsops.c,v 1.40 1997/05/04 15:04:49 phk Exp $
  */
 
 #include <sys/param.h>
@@ -131,23 +131,24 @@ VFS_SET(nfs_vfsops, nfs, MOUNT_NFS, VFCF_NETWORK);
  * to ensure that it is allocated to initialized data (.data not .bss).
  */
 struct nfs_diskless nfs_diskless = { 0 };
+struct nfsv3_diskless nfsv3_diskless = { 0 };
 int nfs_diskless_valid = 0;
 
 SYSCTL_INT(_vfs_nfs, OID_AUTO, diskless_valid, CTLFLAG_RD, 
 	&nfs_diskless_valid, 0, "");
 
 SYSCTL_STRING(_vfs_nfs, OID_AUTO, diskless_rootpath, CTLFLAG_RD,
-	nfs_diskless.root_hostnam, 0, "");
+	nfsv3_diskless.root_hostnam, 0, "");
 
 SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
-	&nfs_diskless.root_saddr, sizeof nfs_diskless.root_saddr,
+	&nfsv3_diskless.root_saddr, sizeof nfsv3_diskless.root_saddr,
 	"%Ssockaddr_in", "");
 
 SYSCTL_STRING(_vfs_nfs, OID_AUTO, diskless_swappath, CTLFLAG_RD,
-	nfs_diskless.swap_hostnam, 0, "");
+	nfsv3_diskless.swap_hostnam, 0, "");
 
 SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_swapaddr, CTLFLAG_RD,
-	&nfs_diskless.swap_saddr, sizeof nfs_diskless.swap_saddr, 
+	&nfsv3_diskless.swap_saddr, sizeof nfsv3_diskless.swap_saddr, 
 	"%Ssockaddr_in","");
 
 
@@ -156,6 +157,7 @@ static int nfs_mountdiskless __P((char *, char *, int,
 				  struct sockaddr_in *, struct nfs_args *,
 				  struct proc *, struct vnode **,
 				  struct mount **));
+void nfs_convert_diskless __P((void));
 
 static int nfs_iosize(nmp)
 	struct nfsmount* nmp;
@@ -171,6 +173,35 @@ static int nfs_iosize(nmp)
 	iosize = max(nmp->nm_rsize, nmp->nm_wsize);
 	if (iosize < PAGE_SIZE) iosize = PAGE_SIZE;
 	return iosize;
+}
+
+void nfs_convert_diskless()
+{
+  bcopy(&nfs_diskless.myif, &nfsv3_diskless.myif,
+	sizeof(struct ifaliasreq));
+  bcopy(&nfs_diskless.swap_args,&nfsv3_diskless.swap_args,
+	sizeof(struct nfs_args));
+  nfsv3_diskless.swap_fhsize = NFSX_V2FH;
+  bcopy(nfs_diskless.swap_fh,nfsv3_diskless.swap_fh,NFSX_V2FH);
+  bcopy(&nfs_diskless.swap_saddr,&nfsv3_diskless.swap_saddr,
+	sizeof(struct sockaddr_in));
+  bcopy(nfs_diskless.swap_hostnam,nfsv3_diskless.swap_hostnam,
+	MNAMELEN);
+  nfsv3_diskless.swap_nblks = nfs_diskless.swap_nblks;
+  bcopy(&nfs_diskless.swap_ucred, &nfsv3_diskless.swap_ucred,
+	sizeof(struct ucred));
+  bcopy(&nfs_diskless.root_args,&nfsv3_diskless.root_args,
+	sizeof(struct nfs_args));
+  nfsv3_diskless.root_fhsize = NFSX_V2FH;
+  bcopy(nfs_diskless.root_fh,nfsv3_diskless.root_fh,NFSX_V2FH);
+  bcopy(&nfs_diskless.root_saddr,&nfsv3_diskless.root_saddr,
+	sizeof(struct sockaddr_in));
+  bcopy(nfs_diskless.root_hostnam,nfsv3_diskless.root_hostnam,
+	MNAMELEN);
+  nfsv3_diskless.root_time = nfs_diskless.root_time;
+  bcopy(nfs_diskless.my_hostnam,nfsv3_diskless.my_hostnam,
+	MAXHOSTNAMELEN);
+  nfs_diskless_valid = 3;
 }
 
 /*
@@ -330,7 +361,7 @@ nfs_mountroot(mp)
 	struct mount *mp;
 {
 	struct mount  *swap_mp;
-	struct nfs_diskless *nd = &nfs_diskless;
+	struct nfsv3_diskless *nd = &nfsv3_diskless;
 	struct socket *so;
 	struct vnode *vp;
 	struct proc *p = curproc;		/* XXX */
@@ -344,6 +375,9 @@ nfs_mountroot(mp)
 	 */
 	if (time.tv_sec == 0)
 		time.tv_sec = 1;
+
+	if (nfs_diskless_valid==1) 
+	  nfs_convert_diskless();
 
 	/*
 	 * XXX splnet, so networks will receive...
@@ -410,10 +444,7 @@ nfs_mountroot(mp)
 	 * Create the rootfs mount point.
 	 */
 	nd->root_args.fh = nd->root_fh;
-	/*
-	 * If using nfsv3_diskless, replace NFSX_V2FH with nd->root_fhsize.
-	 */
-	nd->root_args.fhsize = NFSX_V2FH;
+	nd->root_args.fhsize = nd->root_fhsize;
 	l = ntohl(nd->root_saddr.sin_addr.s_addr);
 	sprintf(buf,"%ld.%ld.%ld.%ld:%s",
 		(l >> 24) & 0xff, (l >> 16) & 0xff,
@@ -439,11 +470,7 @@ nfs_mountroot(mp)
 		 * swap file can be on a different server from the rootfs.
 		 */
 		nd->swap_args.fh = nd->swap_fh;
-		/*
-		 * If using nfsv3_diskless, replace NFSX_V2FH with
-		 * nd->swap_fhsize.
-		 */
-		nd->swap_args.fhsize = NFSX_V2FH;
+		nd->swap_args.fhsize = nd->swap_fhsize;
 		l = ntohl(nd->swap_saddr.sin_addr.s_addr);
 		sprintf(buf,"%ld.%ld.%ld.%ld:%s",
 			(l >> 24) & 0xff, (l >> 16) & 0xff,
