@@ -864,9 +864,9 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 
 	mp = mp0;
 	if (psa != NULL)
-		*psa = 0;
+		*psa = NULL;
 	if (controlp != NULL)
-		*controlp = 0;
+		*controlp = NULL;
 	if (flagsp != NULL)
 		flags = *flagsp &~ MSG_EOR;
 	else
