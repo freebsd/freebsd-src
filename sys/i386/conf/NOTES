@@ -485,43 +485,6 @@ hint.pca.0.port="0x040"
 #  direct access to the I/O page.
 #  	options SPIGOT_UNSECURE
 
-# Notes on the Comtrol Rocketport driver:
-#
-# The exact values used for rp0 depend on how many boards you have
-# in the system.  The manufacturer's sample configs are listed as:
-#
-#               device	rp	# core driver support
-#
-#   Comtrol Rocketport ISA single card
-#		hints.rp.0.at="isa"
-#		hints.rp.0.port="0x280"
-#
-#   If instead you have two ISA cards, one installed at 0x100 and the
-#   second installed at 0x180, then you should add the following to
-#   your kernel probe hints:
-#		hints.rp.0.at="isa"
-#		hints.rp.0.port="0x100"
-#		hints.rp.1.at="isa"
-#		hints.rp.1.port="0x180"
-#
-#   For 4 ISA cards, it might be something like this:
-#		hints.rp.0.at="isa"
-#		hints.rp.0.port="0x180"
-#		hints.rp.1.at="isa"
-#		hints.rp.1.port="0x100"
-#		hints.rp.2.at="isa"
-#		hints.rp.2.port="0x340"
-#		hints.rp.3.at="isa"
-#		hints.rp.3.port="0x240"
-#
-#   And for PCI cards, you need no hints.
-
-# Notes on the Digiboard driver:
-#
-# The following flag values have special meanings in dgb:
-#	0x01 - alternate layout of pins
-#	0x02 - use the windowed PC/Xe in 64K mode
-
 # Notes on the Specialix SI/XIO driver:
 #  The host card is memory, not IO mapped.
 #  The Rev 1 host cards use a 64K chunk, on a 32K boundary.
