@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbxfroot - Find the root ACPI table (RSDT)
- *              $Revision: 46 $
+ *              $Revision: 47 $
  *
  *****************************************************************************/
 
@@ -157,7 +157,7 @@ AcpiFindRootPointer (
     Status = AcpiTbFindRsdp (&TableInfo, Flags);
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("RSDP structure not found\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "RSDP structure not found\n"));
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
 
@@ -206,14 +206,14 @@ AcpiTbScanMemoryForRsdp (
         {
             /* If so, we have found the RSDP */
 
-            DEBUG_PRINTP (ACPI_INFO,
-                ("RSDP located at physical address %p\n",MemRover));
+            ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+                "RSDP located at physical address %p\n",MemRover));
             return_PTR (MemRover);
         }
     }
 
     /* Searched entire block, no RSDP was found */
-    DEBUG_PRINTP (ACPI_INFO,("Searched entire block, no RSDP was found.\n"));
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,"Searched entire block, no RSDP was found.\n"));
 
     return_PTR (NULL);
 }
@@ -412,14 +412,14 @@ AcpiGetFirmwareTable (
     Status = AcpiOsGetRootPointer (Flags, &PhysicalAddress);
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINTP (ACPI_INFO, ("RSDP  not found\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "RSDP  not found\n"));
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
 
     AcpiGbl_RSDP = (RSDP_DESCRIPTOR *) (ACPI_TBLPTR) PhysicalAddress;
 
-    DEBUG_PRINTP (ACPI_INFO,
-        ("RSDP located at %p, RSDT physical=%8.8lX%8.8lX \n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        "RSDP located at %p, RSDT physical=%8.8lX%8.8lX \n",
         AcpiGbl_RSDP, HIDWORD(AcpiGbl_RSDP->RsdtPhysicalAddress),
         LODWORD(AcpiGbl_RSDP->RsdtPhysicalAddress)));
 

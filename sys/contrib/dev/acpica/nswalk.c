@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Module Name: nswalk - Functions for walking the APCI namespace
- *              $Revision: 22 $
+ * Module Name: nswalk - Functions for walking the ACPI namespace
+ *              $Revision: 23 $
  *
  *****************************************************************************/
 

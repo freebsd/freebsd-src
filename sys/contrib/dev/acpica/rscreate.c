@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rscreate - Create resource lists/tables
- *              $Revision: 34 $
+ *              $Revision: 35 $
  *
  ******************************************************************************/
 
@@ -161,7 +161,7 @@ AcpiRsCreateResourceList (
     FUNCTION_TRACE ("RsCreateResourceList");
 
 
-    DEBUG_PRINTP (VERBOSE_INFO, ("ByteStreamBuffer = %p\n", ByteStreamBuffer));
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "ByteStreamBuffer = %p\n", ByteStreamBuffer));
 
     /*
      * Params already validated, so we don't re-validate here
@@ -177,7 +177,7 @@ AcpiRsCreateResourceList (
     Status = AcpiRsCalculateListLength (ByteStreamStart, ByteStreamBufferLength,
                 &ListSizeNeeded);
 
-    DEBUG_PRINTP (VERBOSE_INFO, ("Status=%X ListSizeNeeded=%X\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Status=%X ListSizeNeeded=%X\n",
         Status, ListSizeNeeded));
 
     /*
@@ -211,7 +211,7 @@ AcpiRsCreateResourceList (
             return_ACPI_STATUS (Status);
         }
 
-        DEBUG_PRINTP (VERBOSE_INFO, ("OutputBuffer = %p\n", OutputBuffer));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "OutputBuffer = %p\n", OutputBuffer));
     }
 
     else
@@ -277,7 +277,7 @@ AcpiRsCreatePciRoutingTable (
         return_ACPI_STATUS (Status);
     }
 
-    DEBUG_PRINTP (VERBOSE_INFO, ("BufferSizeNeeded = %X\n", BufferSizeNeeded));
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "BufferSizeNeeded = %X\n", BufferSizeNeeded));
 
     /*
      * If the data will fit into the available buffer
@@ -344,7 +344,7 @@ AcpiRsCreatePciRoutingTable (
 
             else
             {
-                DEBUG_PRINTP (ACPI_ERROR, ("Need Integer, found %s\n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Need Integer, found %s\n",
                     AcpiUtGetTypeName ((*SubObjectList)->Common.Type)));
                 return_ACPI_STATUS (AE_BAD_DATA);
             }
@@ -361,7 +361,7 @@ AcpiRsCreatePciRoutingTable (
 
             else
             {
-                DEBUG_PRINTP (ACPI_ERROR, ("Need Integer, found %s\n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Need Integer, found %s\n",
                     AcpiUtGetTypeName ((*SubObjectList)->Common.Type)));
                 return_ACPI_STATUS (AE_BAD_DATA);
             }
@@ -377,7 +377,7 @@ AcpiRsCreatePciRoutingTable (
 
                 if ((*SubObjectList)->Reference.Opcode != AML_INT_NAMEPATH_OP)
                 {
-                   DEBUG_PRINTP (ACPI_ERROR, ("Need name, found reference op %X\n",
+                   ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Need name, found reference op %X\n",
                         (*SubObjectList)->Reference.Opcode));
                     return_ACPI_STATUS (AE_BAD_DATA);
                 }
@@ -421,7 +421,7 @@ AcpiRsCreatePciRoutingTable (
 
             default:
 
-               DEBUG_PRINTP (ACPI_ERROR, ("Need Integer, found %s\n",
+               ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Need Integer, found %s\n",
                     AcpiUtGetTypeName ((*SubObjectList)->Common.Type)));
                return_ACPI_STATUS (AE_BAD_DATA);
                break;
@@ -443,7 +443,7 @@ AcpiRsCreatePciRoutingTable (
 
             else
             {
-                DEBUG_PRINTP (ACPI_ERROR, ("Need Integer, found %s\n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Need Integer, found %s\n",
                     AcpiUtGetTypeName ((*SubObjectList)->Common.Type)));
                 return_ACPI_STATUS (AE_BAD_DATA);
             }
@@ -454,7 +454,7 @@ AcpiRsCreatePciRoutingTable (
             TopObjectList++;
         }
 
-        DEBUG_PRINTP (VERBOSE_INFO, ("OutputBuffer = %p\n", OutputBuffer));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "OutputBuffer = %p\n", OutputBuffer));
     }
 
     else
@@ -504,7 +504,7 @@ AcpiRsCreateByteStream (
     FUNCTION_TRACE ("RsCreateByteStream");
 
 
-    DEBUG_PRINTP (VERBOSE_INFO, ("LinkedListBuffer = %p\n", LinkedListBuffer));
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "LinkedListBuffer = %p\n", LinkedListBuffer));
 
     /*
      * Params already validated, so we don't re-validate here
@@ -515,7 +515,7 @@ AcpiRsCreateByteStream (
     Status = AcpiRsCalculateByteStreamLength (LinkedListBuffer,
                 &ByteStreamSizeNeeded);
 
-    DEBUG_PRINTP (VERBOSE_INFO, ("ByteStreamSizeNeeded=%X, %s\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "ByteStreamSizeNeeded=%X, %s\n",
         ByteStreamSizeNeeded, AcpiFormatException (Status)));
 
     /*
@@ -549,7 +549,7 @@ AcpiRsCreateByteStream (
             return_ACPI_STATUS (Status);
         }
 
-        DEBUG_PRINTP (VERBOSE_INFO, ("OutputBuffer = %p\n", OutputBuffer));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "OutputBuffer = %p\n", OutputBuffer));
     }
 
     else

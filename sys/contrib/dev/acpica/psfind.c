@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: psfind - Parse tree search routine
- *              $Revision: 24 $
+ *              $Revision: 25 $
  *
  *****************************************************************************/
 
@@ -288,7 +288,7 @@ AcpiPsFind (
 
     if (!Scope || !Path)
     {
-        DEBUG_PRINTP (TRACE_PARSE, ("Null path (%p) or scope (%p)!\n", 
+        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Null path (%p) or scope (%p)!\n", 
             Path, Scope));
         return_PTR (NULL);
     }
@@ -356,7 +356,7 @@ AcpiPsFind (
         }
 
 
-        DEBUG_PRINTP (TRACE_PARSE, ("Null path, returning current root scope Op=%p\n", Op));
+        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Null path, returning current root scope Op=%p\n", Op));
         return_PTR (Op);
         break;
 
@@ -375,7 +375,7 @@ AcpiPsFind (
         break;
     }
 
-    DEBUG_PRINTP (TRACE_PARSE, ("Search scope %p Segs=%d Opcode=%4.4X Create=%d\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Search scope %p Segs=%d Opcode=%4.4X Create=%d\n",
                     Scope, SegCount, Opcode, Create));
 
     /* match each name segment */
@@ -398,7 +398,7 @@ AcpiPsFind (
         Op = AcpiPsFindName (Scope, Name, NameOp);
         if (Op)
         {
-            DEBUG_PRINTP (TRACE_PARSE, ("[%4.4s] Found! Op=%p Opcode=%4.4X\n", &Name, Op, Op->Opcode));
+            ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Found! Op=%p Opcode=%4.4X\n", &Name, Op, Op->Opcode));
         }
 
         if (!Op)
@@ -421,7 +421,7 @@ AcpiPsFind (
                     AcpiPsSetName (Op, Name);
                     AcpiPsAppendArg (Scope, Op);
 
-                    DEBUG_PRINTP (TRACE_PARSE, ("[%4.4s] Not found, created Op=%p Opcode=%4.4X\n", &Name, Op, Opcode));
+                    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Not found, created Op=%p Opcode=%4.4X\n", &Name, Op, Opcode));
                 }
             }
 
@@ -435,19 +435,19 @@ AcpiPsFind (
                     Op = AcpiPsFindName (Scope, Name, Opcode);
                     if (Op)
                     {
-                        DEBUG_PRINTP (TRACE_PARSE, ("[%4.4s] Found in parent tree! Op=%p Opcode=%4.4X\n", &Name, Op, Op->Opcode));
+                        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Found in parent tree! Op=%p Opcode=%4.4X\n", &Name, Op, Op->Opcode));
                     }
 
                     else
                     {
-                        DEBUG_PRINTP (TRACE_PARSE, ("[%4.4s] Not found in parent=%p\n", &Name, Scope));
+                        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Not found in parent=%p\n", &Name, Scope));
                     }
                 }
             }
 
             else
             {
-                DEBUG_PRINTP (TRACE_PARSE, ("Segment [%4.4s] Not Found in scope %p!\n", &Name, Scope));
+                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Segment [%4.4s] Not Found in scope %p!\n", &Name, Scope));
             }
         }
 

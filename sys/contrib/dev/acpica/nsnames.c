@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsnames - Name manipulation and search
- *              $Revision: 60 $
+ *              $Revision: 61 $
  *
  ******************************************************************************/
 
@@ -209,7 +209,7 @@ AcpiNsGetTablePathname (
 
     if (Size != 0)
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("Bad pointer returned; size=%X\n", Size));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Bad pointer returned; size=%X\n", Size));
     }
 
     return_PTR (NameBuffer);
@@ -354,7 +354,7 @@ AcpiNsHandleToPathname (
 
     UserBuffer[Size] = '\\';
 
-    DEBUG_PRINTP (TRACE_EXEC, ("Len=%X, %s \n", PathLength, UserBuffer));
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Len=%X, %s \n", PathLength, UserBuffer));
 
 Exit:
     return_ACPI_STATUS (Status);

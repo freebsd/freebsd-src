@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 85 $
+ *              $Revision: 86 $
  *
  *****************************************************************************/
 
@@ -437,12 +437,12 @@ AcpiNsBuildInternalName (
 
     if (Info->FullyQualified)
     {
-        DEBUG_PRINTP (TRACE_EXEC, ("returning [%p] (abs) \"\\%s\"\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "returning [%p] (abs) \"\\%s\"\n",
             InternalName, &InternalName[0]));
     }
     else
     {
-        DEBUG_PRINTP (TRACE_EXEC, ("returning [%p] (rel) \"%s\"\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "returning [%p] (rel) \"%s\"\n",
             InternalName, &InternalName[2]));
     }
 
@@ -808,14 +808,14 @@ AcpiNsTerminate (void)
     }
 
     AcpiNsDeleteChildren (ThisNode);
-    DEBUG_PRINTP (ACPI_INFO, ("Namespace freed\n"));
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Namespace freed\n"));
 
 
     /*
      * 2) Now we can delete the ACPI tables
      */
     AcpiTbDeleteAcpiTables ();
-    DEBUG_PRINTP (ACPI_INFO, ("ACPI Tables freed\n"));
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "ACPI Tables freed\n"));
 
     return_VOID;
 }
@@ -922,7 +922,7 @@ AcpiNsGetNode (
 
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINTP (ACPI_INFO, ("%s, %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s, %s\n",
                 InternalPath, AcpiFormatException (Status)));
     }
 
@@ -967,7 +967,7 @@ AcpiNsFindParentName (
         ParentNode = AcpiNsGetParentObject (ChildNode);
         if (ParentNode)
         {
-            DEBUG_PRINTP (TRACE_EXEC, ("Parent of %p [%4.4s] is %p [%4.4s]\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Parent of %p [%4.4s] is %p [%4.4s]\n",
                 ChildNode, &ChildNode->Name, ParentNode, &ParentNode->Name));
 
             if (ParentNode->Name)
@@ -976,7 +976,7 @@ AcpiNsFindParentName (
             }
         }
 
-        DEBUG_PRINTP (TRACE_EXEC, ("unable to find parent of %p (%4.4s)\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "unable to find parent of %p (%4.4s)\n",
             ChildNode, &ChildNode->Name));
     }
 

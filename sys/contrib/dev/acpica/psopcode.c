@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psopcode - Parser opcode information table
- *              $Revision: 33 $
+ *              $Revision: 35 $
  *
  *****************************************************************************/
 
@@ -554,7 +554,7 @@ static ACPI_OPCODE_INFO    AmlOpInfo[] =
 /*  71 */   /* AML_MOD_OP */                OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_DYADIC2R|        AML_HAS_ARGS, "Mod",                ARGP_MOD_OP,               ARGI_MOD_OP),
 /*  72 */   /* AML_CREATE_QWORD_FIELD_OP */ OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_CREATE_FIELD|    AML_HAS_ARGS, "CreateQWordField",   ARGP_CREATE_QWORD_FIELD_OP,ARGI_CREATE_QWORD_FIELD_OP),
 /*  73 */   /* AML_TO_BUFFER_OP */          OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "ToBuffer",           ARGP_TO_BUFFER_OP,         ARGI_TO_BUFFER_OP),
-/*  74 */   /* AML_TO_DECSTR_OP */          OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "ToDecString",        ARGP_TO_DEC_STR_OP,        ARGI_TO_DEC_STR_OP),
+/*  74 */   /* AML_TO_DECSTR_OP */          OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "ToDecimalString",    ARGP_TO_DEC_STR_OP,        ARGI_TO_DEC_STR_OP),
 /*  75 */   /* AML_TO_HEXSTR_OP */          OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "ToHexString",        ARGP_TO_HEX_STR_OP,        ARGI_TO_HEX_STR_OP),
 /*  76 */   /* AML_TO_INTEGER_OP */         OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "ToInteger",          ARGP_TO_INTEGER_OP,        ARGI_TO_INTEGER_OP),
 /*  77 */   /* AML_TO_STRING_OP */          OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_DYADIC2R|        AML_HAS_ARGS, "ToString",           ARGP_TO_STRING_OP,         ARGI_TO_STRING_OP),
@@ -701,13 +701,13 @@ AcpiPsGetOpcodeInfo (
         /* This case is for the bogus opcodes LNOTEQUAL, LLESSEQUAL, LGREATEREQUAL */
         /* TBD: [Investigate] remove this case? */
 
-        DEBUG_PRINTP (ACPI_ERROR, ("Bad multi-byte opcode=%X\n", Opcode));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Bad multi-byte opcode=%X\n", Opcode));
         break;
 
 
     default:
 
-        DEBUG_PRINTP (ACPI_ERROR, ("Unknown extended opcode=%X\n", Opcode));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown extended opcode=%X\n", Opcode));
         break;
     }
 

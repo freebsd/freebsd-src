@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 41 $
+ *              $Revision: 43 $
  *
  ******************************************************************************/
 
@@ -378,6 +378,8 @@ AcpiDbDisplayStatistics (
 {
     UINT32                  i;
     UINT32                  Type;
+    UINT32                  Outstanding;
+    UINT32                  Size;
 
 
     if (!AcpiGbl_DSDT)
@@ -454,39 +456,48 @@ AcpiDbDisplayStatistics (
 
     case CMD_MEMORY:
 
-        AcpiOsPrintf ("\nDynamic Memory Estimates:\n\n");
-        AcpiOsPrintf ("Parse Tree without Methods:.% 7ld\n", SizeOfParseTree);
-        AcpiOsPrintf ("Control Method Parse Trees:.% 7ld (If parsed simultaneously)\n", SizeOfMethodTrees);
-        AcpiOsPrintf ("Namespace Nodes:............% 7ld (%d nodes)\n", sizeof (ACPI_NAMESPACE_NODE) * NumNodes, NumNodes);
-        AcpiOsPrintf ("Named Internal Objects......% 7ld\n", SizeOfAcpiObjects);
-        AcpiOsPrintf ("State Cache size............% 7ld\n", AcpiGbl_GenericStateCacheDepth * sizeof (ACPI_GENERIC_STATE));
-        AcpiOsPrintf ("Parse Cache size............% 7ld\n", AcpiGbl_ParseCacheDepth * sizeof (ACPI_PARSE_OBJECT));
-        AcpiOsPrintf ("Object Cache size...........% 7ld\n", AcpiGbl_ObjectCacheDepth * sizeof (ACPI_OPERAND_OBJECT));
-        AcpiOsPrintf ("WalkState Cache size........% 7ld\n", AcpiGbl_WalkStateCacheDepth * sizeof (ACPI_WALK_STATE));
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+        AcpiOsPrintf ("\n----Object and Cache Statistics---------------------------------------------\n");
 
-        AcpiOsPrintf ("\n");
+        for (i = 0; i < ACPI_NUM_MEM_LISTS; i++)
+        {
+            AcpiOsPrintf ("\n%s\n", AcpiGbl_MemoryLists[i].ListName);
 
-        AcpiOsPrintf ("Cache Statistics:\n\n");
-        AcpiOsPrintf ("State Cache requests........% 7ld\n", AcpiGbl_StateCacheRequests);
-        AcpiOsPrintf ("State Cache hits............% 7ld\n", AcpiGbl_StateCacheHits);
-        AcpiOsPrintf ("State Cache depth...........% 7ld (%d remaining entries)\n", AcpiGbl_GenericStateCacheDepth,
-                                                            MAX_STATE_CACHE_DEPTH - AcpiGbl_GenericStateCacheDepth);
-        AcpiOsPrintf ("Parse Cache requests........% 7ld\n", AcpiGbl_ParseCacheRequests);
-        AcpiOsPrintf ("Parse Cache hits............% 7ld\n", AcpiGbl_ParseCacheHits);
-        AcpiOsPrintf ("Parse Cache depth...........% 7ld (%d remaining entries)\n", AcpiGbl_ParseCacheDepth,
-                                                            MAX_PARSE_CACHE_DEPTH - AcpiGbl_ParseCacheDepth);
-        AcpiOsPrintf ("Ext Parse Cache requests....% 7ld\n", AcpiGbl_ExtParseCacheRequests);
-        AcpiOsPrintf ("Ext Parse Cache hits........% 7ld\n", AcpiGbl_ExtParseCacheHits);
-        AcpiOsPrintf ("Ext Parse Cache depth.......% 7ld (%d remaining entries)\n", AcpiGbl_ExtParseCacheDepth,
-                                                            MAX_EXTPARSE_CACHE_DEPTH - AcpiGbl_ExtParseCacheDepth);
-        AcpiOsPrintf ("Object Cache requests.......% 7ld\n", AcpiGbl_ObjectCacheRequests);
-        AcpiOsPrintf ("Object Cache hits...........% 7ld\n", AcpiGbl_ObjectCacheHits);
-        AcpiOsPrintf ("Object Cache depth..........% 7ld (%d remaining entries)\n", AcpiGbl_ObjectCacheDepth,
-                                                            MAX_OBJECT_CACHE_DEPTH - AcpiGbl_ObjectCacheDepth);
-        AcpiOsPrintf ("WalkState Cache requests....% 7ld\n", AcpiGbl_WalkStateCacheRequests);
-        AcpiOsPrintf ("WalkState Cache hits........% 7ld\n", AcpiGbl_WalkStateCacheHits);
-        AcpiOsPrintf ("WalkState Cache depth.......% 7ld (%d remaining entries)\n", AcpiGbl_WalkStateCacheDepth,
-                                                            MAX_WALK_CACHE_DEPTH - AcpiGbl_WalkStateCacheDepth);
+            if (AcpiGbl_MemoryLists[i].MaxCacheDepth > 0)
+            {
+                AcpiOsPrintf ("    Cache: [Depth Max Avail Size]         % 7d % 7d % 7d % 7d B\n", 
+                        AcpiGbl_MemoryLists[i].CacheDepth,
+                        AcpiGbl_MemoryLists[i].MaxCacheDepth, 
+                        AcpiGbl_MemoryLists[i].MaxCacheDepth - AcpiGbl_MemoryLists[i].CacheDepth,
+                        (AcpiGbl_MemoryLists[i].CacheDepth * AcpiGbl_MemoryLists[i].ObjectSize));
+
+                AcpiOsPrintf ("    Cache: [Requests Hits Misses ObjSize] % 7d % 7d % 7d % 7d B\n", 
+                        AcpiGbl_MemoryLists[i].CacheRequests,
+                        AcpiGbl_MemoryLists[i].CacheHits, 
+                        AcpiGbl_MemoryLists[i].CacheRequests - AcpiGbl_MemoryLists[i].CacheHits,
+                        AcpiGbl_MemoryLists[i].ObjectSize); 
+            }
+
+            Outstanding = AcpiGbl_MemoryLists[i].TotalAllocated - 
+                            AcpiGbl_MemoryLists[i].TotalFreed - 
+                            AcpiGbl_MemoryLists[i].CacheDepth;
+
+            if (AcpiGbl_MemoryLists[i].ObjectSize)
+            {
+                Size = ROUND_UP_TO_1K (Outstanding * AcpiGbl_MemoryLists[i].ObjectSize);
+            }
+            else
+            {
+                Size = ROUND_UP_TO_1K (AcpiGbl_MemoryLists[i].CurrentTotalSize);
+            }
+
+            AcpiOsPrintf ("    Mem:   [Alloc Free Outstanding Size]  % 7d % 7d % 7d % 7d Kb\n", 
+                    AcpiGbl_MemoryLists[i].TotalAllocated,
+                    AcpiGbl_MemoryLists[i].TotalFreed,
+                    Outstanding, Size);
+        }
+#endif
+
         break;
 
     case CMD_MISC:

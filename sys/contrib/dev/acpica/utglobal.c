@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utglobal - Global variables for the ACPI subsystem
- *              $Revision: 125 $
+ *              $Revision: 127 $
  *
  *****************************************************************************/
 
@@ -331,6 +331,14 @@ NATIVE_CHAR                 AcpiGbl_HexToAscii[] =
                                 {'0','1','2','3','4','5','6','7',
                                 '8','9','A','B','C','D','E','F'};
 
+UINT8
+AcpiUtHexToAsciiChar (
+    ACPI_INTEGER            Integer,
+    UINT32                  Position)
+{
+
+    return (AcpiGbl_HexToAscii[(Integer >> Position) & 0xF]);
+}
 
 /******************************************************************************
  *
@@ -674,6 +682,40 @@ AcpiUtInitGlobals (
     FUNCTION_TRACE ("UtInitGlobals");
 
 
+
+    /* Memory allocation and cache lists */
+
+    MEMSET (AcpiGbl_MemoryLists, 0, 
+            sizeof (ACPI_MEMORY_LIST) * ACPI_NUM_MEM_LISTS);
+
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_STATE].LinkOffset      = (UINT16) (NATIVE_UINT) &(((ACPI_GENERIC_STATE *) NULL)->Common.Next);
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE].LinkOffset     = (UINT16) (NATIVE_UINT) &(((ACPI_PARSE_OBJECT *) NULL)->Next);
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE_EXT].LinkOffset = (UINT16) (NATIVE_UINT) &(((ACPI_PARSE2_OBJECT *) NULL)->Next);
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_OPERAND].LinkOffset    = (UINT16) (NATIVE_UINT) &(((ACPI_OPERAND_OBJECT *) NULL)->Cache.Next);
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_WALK].LinkOffset       = (UINT16) (NATIVE_UINT) &(((ACPI_WALK_STATE *) NULL)->Next);
+
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_NSNODE].ObjectSize     = sizeof (ACPI_NAMESPACE_NODE);
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_STATE].ObjectSize      = sizeof (ACPI_GENERIC_STATE);
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE].ObjectSize     = sizeof (ACPI_PARSE_OBJECT);
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE_EXT].ObjectSize = sizeof (ACPI_PARSE2_OBJECT);
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_OPERAND].ObjectSize    = sizeof (ACPI_OPERAND_OBJECT);
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_WALK].ObjectSize       = sizeof (ACPI_WALK_STATE);
+
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_STATE].MaxCacheDepth      = MAX_STATE_CACHE_DEPTH;
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE].MaxCacheDepth     = MAX_PARSE_CACHE_DEPTH;
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE_EXT].MaxCacheDepth = MAX_EXTPARSE_CACHE_DEPTH;
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_OPERAND].MaxCacheDepth    = MAX_OBJECT_CACHE_DEPTH;
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_WALK].MaxCacheDepth       = MAX_WALK_CACHE_DEPTH;
+
+
+    ACPI_MEM_TRACKING (AcpiGbl_MemoryLists[ACPI_MEM_LIST_GLOBAL].ListName          = "Global Memory Allocation");
+    ACPI_MEM_TRACKING (AcpiGbl_MemoryLists[ACPI_MEM_LIST_NSNODE].ListName          = "Namespace Nodes");
+    ACPI_MEM_TRACKING (AcpiGbl_MemoryLists[ACPI_MEM_LIST_STATE].ListName           = "State Object Cache");
+    ACPI_MEM_TRACKING (AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE].ListName          = "Parse Node Cache");
+    ACPI_MEM_TRACKING (AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE_EXT].ListName      = "Extended Parse Node Cache");
+    ACPI_MEM_TRACKING (AcpiGbl_MemoryLists[ACPI_MEM_LIST_OPERAND].ListName         = "Operand Object Cache");
+    ACPI_MEM_TRACKING (AcpiGbl_MemoryLists[ACPI_MEM_LIST_WALK].ListName            = "Tree Walk Node Cache");
+
     /* ACPI table structure */
 
     for (i = 0; i < NUM_ACPI_TABLES; i++)
@@ -738,32 +780,6 @@ AcpiUtInitGlobals (
     AcpiGbl_NextMethodOwnerId           = FIRST_METHOD_ID;
     AcpiGbl_DebuggerConfiguration       = DEBUGGER_THREADING;
 
-    /* Cache of small "state" objects */
-
-    AcpiGbl_GenericStateCache           = NULL;
-    AcpiGbl_GenericStateCacheDepth      = 0;
-    AcpiGbl_StateCacheRequests          = 0;
-    AcpiGbl_StateCacheHits              = 0;
-
-    AcpiGbl_ParseCache                  = NULL;
-    AcpiGbl_ParseCacheDepth             = 0;
-    AcpiGbl_ParseCacheRequests          = 0;
-    AcpiGbl_ParseCacheHits              = 0;
-
-    AcpiGbl_ExtParseCache               = NULL;
-    AcpiGbl_ExtParseCacheDepth          = 0;
-    AcpiGbl_ExtParseCacheRequests       = 0;
-    AcpiGbl_ExtParseCacheHits           = 0;
-
-    AcpiGbl_ObjectCache                 = NULL;
-    AcpiGbl_ObjectCacheDepth            = 0;
-    AcpiGbl_ObjectCacheRequests         = 0;
-    AcpiGbl_ObjectCacheHits             = 0;
-
-    AcpiGbl_WalkStateCache              = NULL;
-    AcpiGbl_WalkStateCacheDepth         = 0;
-    AcpiGbl_WalkStateCacheRequests      = 0;
-    AcpiGbl_WalkStateCacheHits          = 0;
 
     /* Hardware oriented */
 
@@ -785,9 +801,6 @@ AcpiUtInitGlobals (
     AcpiGbl_RootNodeStruct.Object       = NULL;
     AcpiGbl_RootNodeStruct.Flags        = ANOBJ_END_OF_PEER_LIST;
 
-    /* Memory allocation metrics - compiled out in non-debug mode. */
-
-    INITIALIZE_ALLOCATION_METRICS();
 
     return_VOID;
 }
