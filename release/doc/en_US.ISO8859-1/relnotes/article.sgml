@@ -1951,6 +1951,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.
       &merged;</para>
 
+    <para>Multiple buffer overflows in
+      <application>OpenSSL</application> have been corrected, by way
+      of an upgrade to the base system version of
+      <application>OpenSSL</application>.  More details can be found
+      in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="userland">
