@@ -437,27 +437,9 @@ struct dos_partition {
 #define	dkmakeminor(unit, slice, part) \
 				(((slice) << 16) | (((unit) & 0x1e0) << 16) | \
 				(((unit) & 0x1f) << 3) | (part))
-static __inline dev_t
-dkmodpart(dev_t dev, int part)
-{
-	return (makedev(major(dev), (minor(dev) & ~7) | part));
-}
-
-static __inline dev_t
-dkmodslice(dev_t dev, int slice)
-{
-	return (makedev(major(dev), (minor(dev) & ~0x1f0000) | (slice << 16)));
-}
-
 #define	dkpart(dev)		(minor(dev) & 7)
 #define	dkslice(dev)		((minor(dev) >> 16) & 0x1f)
 #define	dksparebits(dev)       	((minor(dev) >> 25) & 0x7f)
-
-static __inline u_int
-dkunit(dev_t dev)
-{
-	return (((minor(dev) >> 16) & 0x1e0) | ((minor(dev) >> 3) & 0x1f));
-}
 
 struct	bio;
 struct	bio_queue_head;
@@ -466,6 +448,9 @@ int	bounds_check_with_label __P((struct bio *bp, struct disklabel *lp,
 				     int wlabel));
 void	diskerr __P((struct bio *bp, char *what, int blkdone,
 		     struct disklabel *lp));
+dev_t	dkmodpart __P((dev_t dev, int part));
+dev_t	dkmodslice __P((dev_t dev, int slice));
+u_int	dkunit __P((dev_t dev));
 char	*readdisklabel __P((dev_t dev, struct disklabel *lp));
 void	bioqdisksort __P((struct bio_queue_head *ap, struct bio *bp));
 int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp,
