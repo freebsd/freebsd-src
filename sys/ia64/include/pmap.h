@@ -48,6 +48,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <machine/atomic.h>
 #include <machine/pte.h>
 
 #ifdef _KERNEL

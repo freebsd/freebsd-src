@@ -381,20 +381,15 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 void
 map_pal_code(void)
 {
-	struct ia64_pte pte;
-	u_int64_t psr;
+	pt_entry_t pte;
+	uint64_t psr;
 
 	if (ia64_pal_base == 0)
 		return;
 
-	bzero(&pte, sizeof(pte));
-	pte.pte_p = 1;
-	pte.pte_ma = PTE_MA_WB;
-	pte.pte_a = 1;
-	pte.pte_d = 1;
-	pte.pte_pl = PTE_PL_KERN;
-	pte.pte_ar = PTE_AR_RWX;
-	pte.pte_ppn = ia64_pal_base >> 12;
+	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
+	    PTE_PL_KERN | PTE_AR_RWX;
+	pte |= ia64_pal_base & PTE_PPN_MASK;
 
 	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" ::
 	    "r"(IA64_PHYS_TO_RR7(ia64_pal_base)), "r"(IA64_ID_PAGE_SHIFT<<2));
@@ -405,9 +400,9 @@ map_pal_code(void)
 	__asm __volatile("mov	cr.ifa=%0" ::
 	    "r"(IA64_PHYS_TO_RR7(ia64_pal_base)));
 	__asm __volatile("mov	cr.itir=%0" :: "r"(IA64_ID_PAGE_SHIFT << 2));
-	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(1), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(1), "r"(pte));
 	__asm __volatile("srlz.d");		/* XXX not needed. */
-	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(1), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(1), "r"(pte));
 	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
 	__asm __volatile("srlz.i");
 }
@@ -415,17 +410,12 @@ map_pal_code(void)
 void
 map_gateway_page(void)
 {
-	struct ia64_pte pte;
-	u_int64_t psr;
+	pt_entry_t pte;
+	uint64_t psr;
 
-	bzero(&pte, sizeof(pte));
-	pte.pte_p = 1;
-	pte.pte_ma = PTE_MA_WB;
-	pte.pte_a = 1;
-	pte.pte_d = 1;
-	pte.pte_pl = PTE_PL_KERN;
-	pte.pte_ar = PTE_AR_X_RX;
-	pte.pte_ppn = IA64_RR_MASK((u_int64_t)ia64_gateway_page) >> 12;
+	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
+	    PTE_PL_KERN | PTE_AR_X_RX;
+	pte |= (uint64_t)ia64_gateway_page & PTE_PPN_MASK;
 
 	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" ::
 	    "r"(VM_MAX_ADDRESS), "r"(PAGE_SHIFT << 2));
@@ -435,9 +425,9 @@ map_gateway_page(void)
 	__asm __volatile("srlz.i");
 	__asm __volatile("mov	cr.ifa=%0" :: "r"(VM_MAX_ADDRESS));
 	__asm __volatile("mov	cr.itir=%0" :: "r"(PAGE_SHIFT << 2));
-	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(3), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(3), "r"(pte));
 	__asm __volatile("srlz.d");		/* XXX not needed. */
-	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(3), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(3), "r"(pte));
 	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
 	__asm __volatile("srlz.i");
 

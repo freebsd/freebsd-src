@@ -132,7 +132,20 @@ MALLOC_DEFINE(M_PMAP, "PMAP", "PMAP Structures");
 #define PMAP_INLINE
 #endif
 
-#define pmap_pte_pa(pte)	(((pte)->pte_ppn) << 12)
+#define	pmap_lpte_accessed(lpte)	((lpte)->pte & PTE_ACCESSED)
+#define	pmap_lpte_dirty(lpte)		((lpte)->pte & PTE_DIRTY)
+#define	pmap_lpte_managed(lpte)		((lpte)->pte & PTE_MANAGED)
+#define	pmap_lpte_ppn(lpte)		((lpte)->pte & PTE_PPN_MASK)
+#define	pmap_lpte_present(lpte)		((lpte)->pte & PTE_PRESENT)
+#define	pmap_lpte_prot(lpte)		(((lpte)->pte & PTE_PROT_MASK) >> 56)
+#define	pmap_lpte_wired(lpte)		((lpte)->pte & PTE_WIRED)
+
+#define	pmap_clear_accessed(lpte)	(lpte)->pte &= ~PTE_ACCESSED
+#define	pmap_clear_dirty(lpte)		(lpte)->pte &= ~PTE_DIRTY
+#define	pmap_clear_present(lpte)	(lpte)->pte &= ~PTE_PRESENT
+#define	pmap_clear_wired(lpte)		(lpte)->pte &= ~PTE_WIRED
+
+#define	pmap_set_wired(lpte)		(lpte)->pte |= PTE_WIRED
 
 /*
  * Statically allocated kernel pmap
@@ -147,9 +160,7 @@ vm_offset_t vhpt_base, vhpt_size;
 struct mtx pmap_vhptmutex;
 
 /*
- * We use an object to own the kernel's 'page tables'. For simplicity,
- * we use one page directory to index a set of pages containing
- * ia64_lptes. This gives us up to 2Gb of kernel virtual space.
+ * Kernel virtual memory management.
  */
 static int nkpt;
 struct ia64_lpte **ia64_kptdir;
@@ -766,17 +777,17 @@ pmap_enter_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 
 	vhpte = (struct ia64_lpte *) ia64_thash(va);
 
-	if (vhpte->pte_chain)
+	if (vhpte->chain)
 		pmap_vhpt_collisions++;
 
 	mtx_lock(&pmap_vhptmutex);
 
-	pte->pte_chain = vhpte->pte_chain;
+	pte->chain = vhpte->chain;
 	ia64_mf();
-	vhpte->pte_chain = ia64_tpa((vm_offset_t)pte);
+	vhpte->chain = ia64_tpa((vm_offset_t)pte);
 	ia64_mf();
 
-	if (!vhpte->pte_p && pte->pte_p)
+	if (!pmap_lpte_present(vhpte) && pmap_lpte_present(pte))
 		pmap_install_pte(vhpte, pte);
 
 	mtx_unlock(&pmap_vhptmutex);
@@ -794,7 +805,8 @@ pmap_update_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 
 	mtx_lock(&pmap_vhptmutex);
 
-	if ((!vhpte->pte_p || vhpte->pte_tag == pte->pte_tag) && pte->pte_p)
+	if ((!pmap_lpte_present(vhpte) || vhpte->tag == pte->tag) &&
+	    pmap_lpte_present(pte))
 		pmap_install_pte(vhpte, pte);
 
 	mtx_unlock(&pmap_vhptmutex);
@@ -817,8 +829,8 @@ pmap_remove_vhpt(vm_offset_t va)
 	/*
 	 * If the VHPTE is invalid, there can't be a collision chain.
 	 */
-	if (!vhpte->pte_p) {
-		KASSERT(!vhpte->pte_chain, ("bad vhpte"));
+	if (!pmap_lpte_present(vhpte)) {
+		KASSERT(!vhpte->chain, ("bad vhpte"));
 		return (ENOENT);
 	}
 
@@ -827,32 +839,32 @@ pmap_remove_vhpt(vm_offset_t va)
 
 	mtx_lock(&pmap_vhptmutex);
 
-	pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(vhpte->pte_chain);
+	pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(vhpte->chain);
 	KASSERT(pte != NULL, ("foo"));
 
-	while (pte->pte_tag != tag) {
+	while (pte->tag != tag) {
 		lpte = pte;
-		if (pte->pte_chain == 0) {
+		if (pte->chain == 0) {
 			mtx_unlock(&pmap_vhptmutex);
 			return (ENOENT);
 		}
-		pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(pte->pte_chain);
+		pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(pte->chain);
 	}
 
 	/* Snip this pv_entry out of the collision chain. */
-	lpte->pte_chain = pte->pte_chain;
+	lpte->chain = pte->chain;
 	ia64_mf();
 
 	/*
 	 * If the VHPTE matches as well, change it to map the first
 	 * element from the chain if there is one.
 	 */
-	if (vhpte->pte_tag == tag) {
-		if (vhpte->pte_chain) {
-			pte = (void*)IA64_PHYS_TO_RR7(vhpte->pte_chain);
+	if (vhpte->tag == tag) {
+		if (vhpte->chain) {
+			pte = (void*)IA64_PHYS_TO_RR7(vhpte->chain);
 			pmap_install_pte(vhpte, pte);
 		} else
-			vhpte->pte_p = 0;
+			pmap_clear_present(vhpte);
 	}
 
 	mtx_unlock(&pmap_vhptmutex);
@@ -871,13 +883,13 @@ pmap_find_vhpt(vm_offset_t va)
 
 	tag = ia64_ttag(va);
 	pte = (struct ia64_lpte *)ia64_thash(va);
-	if (pte->pte_chain == 0)
+	if (pte->chain == 0)
 		return (NULL);
-	pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(pte->pte_chain);
-	while (pte->pte_tag != tag) {
-		if (pte->pte_chain == 0)
+	pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(pte->chain);
+	while (pte->tag != tag) {
+		if (pte->chain == 0)
 			return (NULL);
-		pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(pte->pte_chain);
+		pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(pte->chain );
 	}
 	return (pte);
 }
@@ -953,8 +965,8 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	PMAP_LOCK(pmap);
 	oldpmap = pmap_install(pmap);
 	pte = pmap_find_vhpt(va);
-	if (pte != NULL && pte->pte_p)
-		pa = pmap_pte_pa(pte);
+	if (pte != NULL && pmap_lpte_present(pte))
+		pa = pmap_lpte_ppn(pte);
 	pmap_install(oldpmap);
 	PMAP_UNLOCK(pmap);
 	return (pa);
@@ -979,8 +991,9 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	PMAP_LOCK(pmap);
 	oldpmap = pmap_install(pmap);
 	pte = pmap_find_vhpt(va);
-	if (pte != NULL && pte->pte_p && (pte->pte_prot & prot) == prot) {
-		m = PHYS_TO_VM_PAGE(pmap_pte_pa(pte));
+	if (pte != NULL && pmap_lpte_present(pte) &&
+	    (pmap_lpte_prot(pte) & prot) == prot) {
+		m = PHYS_TO_VM_PAGE(pmap_lpte_ppn(pte));
 		vm_page_hold(m);
 	}
 	vm_page_unlock_queues();
@@ -1025,7 +1038,7 @@ pmap_find_pte(vm_offset_t va)
 	if (!pte) {
 		pte = uma_zalloc(ptezone, M_NOWAIT);
 		if (pte != NULL)
-			pte->pte_p = 0;
+			pmap_clear_present(pte);
 	}
 	return pte;
 }
@@ -1041,7 +1054,7 @@ pmap_free_pte(struct ia64_lpte *pte, vm_offset_t va)
 	if (va < VM_MAXUSER_ADDRESS)
 		uma_zfree(ptezone, pte);
 	else
-		pte->pte_p = 0;
+		pmap_clear_present(pte);
 }
 
 static PMAP_INLINE void
@@ -1054,10 +1067,11 @@ pmap_pte_prot(pmap_t pm, struct ia64_lpte *pte, vm_prot_t prot)
 		PTE_AR_RWX	/* VM_PROT_WRITE|VM_PROT_EXECUTE */
 	};
 
-	pte->pte_prot = prot;
-	pte->pte_pl = (prot == VM_PROT_NONE || pm == kernel_pmap)
+	pte->pte &= ~(PTE_PROT_MASK | PTE_PL_MASK | PTE_AR_MASK);
+	pte->pte |= (uint64_t)(prot & VM_PROT_ALL) << 56;
+	pte->pte |= (prot == VM_PROT_NONE || pm == kernel_pmap)
 	    ? PTE_PL_KERN : PTE_PL_USER;
-	pte->pte_ar = prot2ar[(prot & VM_PROT_ALL) >> 1];
+	pte->pte |= prot2ar[(prot & VM_PROT_ALL) >> 1];
 }
 
 /*
@@ -1071,26 +1085,18 @@ static void
 pmap_set_pte(struct ia64_lpte *pte, vm_offset_t va, vm_offset_t pa,
     boolean_t wired, boolean_t managed)
 {
-	int wasvalid = pte->pte_p;
+	int wasvalid = pmap_lpte_present(pte);
 
-	pte->pte_p = 1;
-	pte->pte_ma = PTE_MA_WB;
-	if (managed) {
-		pte->pte_a = 0;
-		pte->pte_d = 0;
-	} else {
-		pte->pte_a = 1;
-		pte->pte_d = 1;
-	}
-	pte->pte_ppn = pa >> 12;
-	pte->pte_ed = 0;
-	pte->pte_w = (wired) ? 1 : 0;
-	pte->pte_m = (managed) ? 1 : 0;
+	pte->pte &= PTE_PROT_MASK | PTE_PL_MASK | PTE_AR_MASK;
+	pte->pte |= PTE_PRESENT | PTE_MA_WB;
+	pte->pte |= (managed) ? PTE_MANAGED : (PTE_DIRTY | PTE_ACCESSED);
+	pte->pte |= (wired) ? PTE_WIRED : 0;
+	pte->pte |= pa & PTE_PPN_MASK;
 
-	pte->pte_ps = PAGE_SHIFT;
-	pte->pte_key = 0;
+	pte->itir.ps = PAGE_SHIFT;
+	pte->itir.key = 0;
 
-	pte->pte_tag = ia64_ttag(va);
+	pte->tag = ia64_ttag(va);
 
 	if (wasvalid) {
 		pmap_update_vhpt(pte, va);
@@ -1105,10 +1111,10 @@ pmap_set_pte(struct ia64_lpte *pte, vm_offset_t va, vm_offset_t pa,
 static void
 pmap_clear_pte(struct ia64_lpte *pte, vm_offset_t va)
 {
-	if (pte->pte_p) {
+	if (pmap_lpte_present(pte)) {
 		pmap_remove_vhpt(va);
 		ia64_ptc_g(va, PAGE_SHIFT << 2);
-		pte->pte_p = 0;
+		pmap_clear_present(pte);
 	}
 }
 
@@ -1136,18 +1142,18 @@ pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte, vm_offset_t va,
 	/*
 	 * Make sure pmap_set_pte() knows it isn't in the VHPT.
 	 */
-	pte->pte_p = 0;
+	pmap_clear_present(pte);
 
-	if (pte->pte_w)
+	if (pmap_lpte_wired(pte))
 		pmap->pm_stats.wired_count -= 1;
 
 	pmap->pm_stats.resident_count -= 1;
-	if (pte->pte_m) {
-		m = PHYS_TO_VM_PAGE(pmap_pte_pa(pte));
-		if (pte->pte_d)
+	if (pmap_lpte_managed(pte)) {
+		m = PHYS_TO_VM_PAGE(pmap_lpte_ppn(pte));
+		if (pmap_lpte_dirty(pte))
 			if (pmap_track_modified(va))
 				vm_page_dirty(m);
-		if (pte->pte_a)
+		if (pmap_lpte_accessed(pte))
 			vm_page_flag_set(m, PG_REFERENCED);
 
 		if (freepte)
@@ -1186,9 +1192,9 @@ pmap_kextract(vm_offset_t va)
 		return (0);
 
 	pte = pmap_find_kpte(va);
-	if (!pte->pte_p)
+	if (!pmap_lpte_present(pte))
 		return (0);
-	return (pmap_pte_pa(pte) | (va & PAGE_MASK));
+	return (pmap_lpte_ppn(pte) | (va & PAGE_MASK));
 }
 
 /*
@@ -1208,7 +1214,7 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 		vm_offset_t tva = va + i * PAGE_SIZE;
 		int wasvalid;
 		pte = pmap_find_kpte(tva);
-		wasvalid = pte->pte_p;
+		wasvalid = pmap_lpte_present(pte);
 		pmap_pte_prot(kernel_pmap, pte, VM_PROT_ALL);
 		pmap_set_pte(pte, tva, VM_PAGE_TO_PHYS(m[i]), FALSE, FALSE);
 		if (wasvalid)
@@ -1244,7 +1250,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	int wasvalid;
 
 	pte = pmap_find_kpte(va);
-	wasvalid = pte->pte_p;
+	wasvalid = pmap_lpte_present(pte);
 	pmap_pte_prot(kernel_pmap, pte, VM_PROT_ALL);
 	pmap_set_pte(pte, va, pa, FALSE, FALSE);
 	if (wasvalid)
@@ -1398,7 +1404,7 @@ pmap_remove_all(vm_page_t m)
 		oldpmap = pmap_install(pmap);
 		pte = pmap_find_vhpt(va);
 		KASSERT(pte != NULL, ("pte"));
-		if (pmap_pte_pa(pte) != VM_PAGE_TO_PHYS(m))
+		if (pmap_lpte_ppn(pte) != VM_PAGE_TO_PHYS(m))
 			panic("pmap_remove_all: pv_table for %lx is inconsistent", VM_PAGE_TO_PHYS(m));
 		pmap_remove_pte(pmap, pte, va, pv, 1);
 		pmap_invalidate_page(pmap, va);
@@ -1446,18 +1452,18 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			continue;
 		}
 
-		if (pte->pte_prot != prot) {
-			if (pte->pte_m) {
-				vm_offset_t pa = pmap_pte_pa(pte);
+		if (pmap_lpte_prot(pte) != prot) {
+			if (pmap_lpte_managed(pte)) {
+				vm_offset_t pa = pmap_lpte_ppn(pte);
 				vm_page_t m = PHYS_TO_VM_PAGE(pa);
-				if (pte->pte_d) {
+				if (pmap_lpte_dirty(pte)) {
 					if (pmap_track_modified(sva))
 						vm_page_dirty(m);
-					pte->pte_d = 0;
+					pmap_clear_dirty(pte);
 				}
-				if (pte->pte_a) {
+				if (pmap_lpte_accessed(pte)) {
 					vm_page_flag_set(m, PG_REFERENCED);
-					pte->pte_a = 0;
+					pmap_clear_accessed(pte);
 				}
 			}
 			pmap_pte_prot(pmap, pte, prot);
@@ -1518,43 +1524,38 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		oldpmap = pmap_install(pmap);
 	}
 	origpte = *pte;
-
-	if (origpte.pte_p)
-		opa = pmap_pte_pa(&origpte);
-	else
-		opa = 0;
+	opa = (pmap_lpte_present(&origpte)) ? pmap_lpte_ppn(&origpte) : 0UL;
 	managed = FALSE;
-
 	pa = VM_PAGE_TO_PHYS(m) & ~PAGE_MASK;
 
 	/*
 	 * Mapping has not changed, must be protection or wiring change.
 	 */
-	if (origpte.pte_p && (opa == pa)) {
+	if (pmap_lpte_present(&origpte) && (opa == pa)) {
 		/*
 		 * Wiring change, just update stats. We don't worry about
 		 * wiring PT pages as they remain resident as long as there
 		 * are valid mappings in them. Hence, if a user page is wired,
 		 * the PT page will be also.
 		 */
-		if (wired && !origpte.pte_w)
+		if (wired && !pmap_lpte_wired(&origpte))
 			pmap->pm_stats.wired_count++;
-		else if (!wired && origpte.pte_w)
+		else if (!wired && pmap_lpte_wired(&origpte))
 			pmap->pm_stats.wired_count--;
+
+		managed = (pmap_lpte_managed(&origpte)) ? TRUE : FALSE;
 
 		/*
 		 * We might be turning off write access to the page,
 		 * so we go ahead and sense modify status.
 		 */
-		if (origpte.pte_m) {
-			if (origpte.pte_d && pmap_track_modified(va)) {
-				vm_page_t om;
-				om = PHYS_TO_VM_PAGE(opa);
-				vm_page_dirty(om);
-			}
+		if (managed && pmap_lpte_dirty(&origpte) &&
+		    pmap_track_modified(va)) {
+			vm_page_t om;
+			om = PHYS_TO_VM_PAGE(opa);
+			vm_page_dirty(om);
 		}
 
-		managed = (origpte.pte_m) ? TRUE : FALSE;
 		goto validate;
 	}
 	/*
@@ -1636,7 +1637,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 		PMAP_LOCK(pmap);
 		oldpmap = pmap_install(pmap);
 	}
-	if (pte->pte_p)
+	if (pmap_lpte_present(pte))
 		goto reinstall;
 	managed = FALSE;
 
@@ -1704,16 +1705,13 @@ pmap_change_wiring(pmap, va, wired)
 
 	pte = pmap_find_vhpt(va);
 	KASSERT(pte != NULL, ("pte"));
-	if (wired && !pte->pte_w)
+	if (wired && !pmap_lpte_wired(pte)) {
 		pmap->pm_stats.wired_count++;
-	else if (!wired && pte->pte_w)
+		pmap_set_wired(pte);
+	} else if (!wired && pmap_lpte_wired(pte)) {
 		pmap->pm_stats.wired_count--;
-
-	/*
-	 * Wiring is not a hardware characteristic so there is no need to
-	 * invalidate TLB.
-	 */
-	pte->pte_w = (wired) ? 1 : 0;
+		pmap_clear_wired(pte);
+	}
 
 	pmap_install(oldpmap);
 	PMAP_UNLOCK(pmap);
@@ -1865,7 +1863,7 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 		pte = pmap_find_vhpt(pv->pv_va);
 		KASSERT(pte != NULL, ("pte"));
-		if (pte->pte_w)
+		if (pmap_lpte_wired(pte))
 			continue;
 
 		pmap_remove_pte(pmap, pte, pv->pv_va, pv, 1);
@@ -1939,9 +1937,9 @@ pmap_ts_referenced(vm_page_t m)
 		oldpmap = pmap_install(pv->pv_pmap);
 		pte = pmap_find_vhpt(pv->pv_va);
 		KASSERT(pte != NULL, ("pte"));
-		if (pte->pte_a) {
+		if (pmap_lpte_accessed(pte)) {
 			count++;
-			pte->pte_a = 0;
+			pmap_clear_accessed(pte);
 			pmap_update_vhpt(pte, pv->pv_va);
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
@@ -1972,7 +1970,7 @@ pmap_is_referenced(vm_page_t m)
 		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
 		pmap_install(oldpmap);
 		KASSERT(pte != NULL, ("pte"));
-		if (pte->pte_a)
+		if (pmap_lpte_accessed(pte))
 			return 1;
 	}
 
@@ -2004,7 +2002,7 @@ pmap_is_modified(vm_page_t m)
 		pte = pmap_find_vhpt(pv->pv_va);
 		pmap_install(oldpmap);
 		KASSERT(pte != NULL, ("pte"));
-		rv = pte->pte_d != 0;
+		rv = pmap_lpte_dirty(pte) ? TRUE : FALSE;
 		PMAP_UNLOCK(pv->pv_pmap);
 		if (rv)
 			break;
@@ -2025,7 +2023,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 	struct ia64_lpte *pte;
 
 	pte = pmap_find_vhpt(addr);
-	if (pte && pte->pte_p)
+	if (pte && pmap_lpte_present(pte))
 		return (FALSE);
 	return (TRUE);
 }
@@ -2048,8 +2046,8 @@ pmap_clear_modify(vm_page_t m)
 		oldpmap = pmap_install(pv->pv_pmap);
 		pte = pmap_find_vhpt(pv->pv_va);
 		KASSERT(pte != NULL, ("pte"));
-		if (pte->pte_d) {
-			pte->pte_d = 0;
+		if (pmap_lpte_dirty(pte)) {
+			pmap_clear_dirty(pte);
 			pmap_update_vhpt(pte, pv->pv_va);
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
@@ -2078,8 +2076,8 @@ pmap_clear_reference(vm_page_t m)
 		oldpmap = pmap_install(pv->pv_pmap);
 		pte = pmap_find_vhpt(pv->pv_va);
 		KASSERT(pte != NULL, ("pte"));
-		if (pte->pte_a) {
-			pte->pte_a = 0;
+		if (pmap_lpte_accessed(pte)) {
+			pmap_clear_accessed(pte);
 			pmap_update_vhpt(pte, pv->pv_va);
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
@@ -2132,22 +2130,22 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 	if (!pte)
 		return 0;
 
-	if (pte->pte_p) {
+	if (pmap_lpte_present(pte)) {
 		vm_page_t m;
 		vm_offset_t pa;
 
 		val = MINCORE_INCORE;
-		if (!pte->pte_m)
+		if (!pmap_lpte_managed(pte))
 			return val;
 
-		pa = pmap_pte_pa(pte);
+		pa = pmap_lpte_ppn(pte);
 
 		m = PHYS_TO_VM_PAGE(pa);
 
 		/*
 		 * Modified by us
 		 */
-		if (pte->pte_d)
+		if (pmap_lpte_dirty(pte))
 			val |= MINCORE_MODIFIED|MINCORE_MODIFIED_OTHER;
 		else {
 			/*
@@ -2161,7 +2159,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 		/*
 		 * Referenced by us
 		 */
-		if (pte->pte_a)
+		if (pmap_lpte_accessed(pte))
 			val |= MINCORE_REFERENCED|MINCORE_REFERENCED_OTHER;
 		else {
 			/*
@@ -2255,9 +2253,9 @@ print_trs(int type)
 	struct ia64_pal_result res;
 	int i, maxtr;
 	struct {
-		struct ia64_pte	pte;
-		struct ia64_itir itir;
 		uint64_t	ifa;
+		struct ia64_itir itir;
+		pt_entry_t	pte;
 		struct ia64_rr	rr;
 	} buf;
 	static const char *manames[] = {
@@ -2282,28 +2280,24 @@ print_trs(int type)
 		res = ia64_call_pal_stacked_physical
 			(PAL_VM_TR_READ, i, type, ia64_tpa((uint64_t) &buf));
 		if (!(res.pal_result[0] & 1))
-			buf.pte.pte_ar = 0;
+			buf.pte &= ~PTE_AR_MASK;
 		if (!(res.pal_result[0] & 2))
-			buf.pte.pte_pl = 0;
+			buf.pte &= ~PTE_PL_MASK;
 		if (!(res.pal_result[0] & 4))
-			buf.pte.pte_d = 0;
+			pmap_clear_dirty(&buf);
 		if (!(res.pal_result[0] & 8))
-			buf.pte.pte_ma = 0;
-		db_printf(
-			"%d %06x %013lx %013lx %4s %d  %d  %d  %d %d %-3s %d %06x\n",
-			(int)buf.ifa & 1,
-			buf.rr.rr_rid,
-			buf.ifa >> 12,
-			buf.pte.pte_ppn,
-			psnames[buf.itir.itir_ps],
-			buf.pte.pte_ed,
-			buf.pte.pte_ar,
-			buf.pte.pte_pl,
-			buf.pte.pte_d,
-			buf.pte.pte_a,
-			manames[buf.pte.pte_ma],
-			buf.pte.pte_p,
-			buf.itir.itir_key);
+			buf.pte &= ~PTE_MA_MASK;
+		db_printf("%d %06x %013lx %013lx %4s %d  %d  %d  %d %d %-3s "
+		    "%d %06x\n", (int)buf.ifa & 1, buf.rr.rr_rid,
+		    buf.ifa >> 12, (buf.pte & PTE_PPN_MASK) >> 12,
+		    psnames[buf.itir.ps], (buf.pte & PTE_ED) ? 1 : 0,
+		    (int)(buf.pte & PTE_AR_MASK) >> 9,
+		    (int)(buf.pte & PTE_PL_MASK) >> 7,
+		    (pmap_lpte_dirty(&buf)) ? 1 : 0,
+		    (pmap_lpte_accessed(&buf)) ? 1 : 0,
+		    manames[(buf.pte & PTE_MA_MASK) >> 2],
+		    (pmap_lpte_present(&buf)) ? 1 : 0,
+		    buf.itir.key);
 	}
 }
 
