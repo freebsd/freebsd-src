@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.1.1.1 1996/06/17 12:26:06 jkh Exp $
+ * $Id: ftpio.c,v 1.2 1996/06/17 12:42:33 jkh Exp $
  *
  */
 
@@ -57,7 +57,7 @@ static int	get_a_number(FTP_t ftp, char **q);
 static int	botch(char *func, char *botch_state);
 static int	cmd(FTP_t ftp, const char *fmt, ...);
 static int	ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port);
-static int	ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode);
+static int	ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, int *seekto);
 static int	ftp_close(FTP_t ftp);
 static int	get_url_info(char *url_in, char *host_ret, int *port_ret, char *name_ret);
 
@@ -149,16 +149,6 @@ ftpErrno(FILE *fp)
     return ftp->errno;
 }
 
-int
-ftpRestart(FILE *fp, int where)
-{
-    FTP_t ftp = fcookie(fp);
-    int old = ftp->seek;
-
-    ftp->seek = where;
-    return old;
-}
-
 size_t
 ftpGetSize(FILE *fp, char *name)
 {
@@ -207,12 +197,12 @@ ftpGetModtime(FILE *fp, char *name)
 }
 
 FILE *
-ftpGet(FILE *fp, char *file)
+ftpGet(FILE *fp, char *file, int *seekto)
 {
     FILE *fp2;
     FTP_t ftp = fcookie(fp);
 
-    if (ftp_file_op(ftp, "RETR", file, &fp2, "r") == SUCCESS)
+    if (ftp_file_op(ftp, "RETR", file, &fp2, "r", seekto) == SUCCESS)
 	return fp2;
     return NULL;
 }
@@ -223,7 +213,7 @@ ftpPut(FILE *fp, char *file)
     FILE *fp2;
     FTP_t ftp = fcookie(fp);
 
-    if (ftp_file_op(ftp, "STOR", file, &fp2, "w") == SUCCESS)
+    if (ftp_file_op(ftp, "STOR", file, &fp2, "w", NULL) == SUCCESS)
 	return fp2;
     return NULL;
 }
@@ -256,7 +246,7 @@ ftpGetURL(char *url, char *user, char *passwd)
     if (get_url_info(url, host, &port, name) == SUCCESS) {
 	fp = ftpLogin(host, user, passwd, port);
 	if (fp) {
-	    fp2 = ftpGet(fp, name);
+	    fp2 = ftpGet(fp, name, NULL);
 	    fclose(fp);
 	    return fp2;
 	}
@@ -327,7 +317,6 @@ ftp_new(void)
     ftp->fd_ctrl = -1;
     ftp->con_state = init;
     ftp->errno = 0;
-    ftp->seek = 0;
     if (getenv("FTP_PASSIVE_MODE"))
 	ftp->passive = 1;
     return ftp;
@@ -557,7 +546,7 @@ ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port)
 }
 
 static int
-ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode)
+ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, int *seekto)
 {
     int i,s;
     char *q;
@@ -610,15 +599,15 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode)
 	    (void)close(s);
 	    return FAILURE;
 	}
-	if (!strcmp(operation, "RETR") && ftp->seek) {
-	    i = cmd(ftp, "RETR %d", ftp->seek);
+	if (seekto && *seekto) {
+	    i = cmd(ftp, "RETR %d", *seekto);
 	    if (i < 0 || FTP_TIMEOUT(i)) {
 		close(s);
 		ftp->errno = i;
 		return i;
 	    }
 	    else if (i != 350)
-		ftp->seek = 0;
+		*seekto = 0;
 	}
 	i = cmd(ftp, "%s %s", operation, file);
 	if (i < 0 || i > 299) {
@@ -656,15 +645,15 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode)
 	    close(s);
 	    return i;
 	}
-	if (!strcmp(operation, "RETR") && ftp->seek) {
-	    i = cmd(ftp, "RETR %d", ftp->seek);
+	if (seekto && *seekto) {
+	    i = cmd(ftp, "RETR %d", *seekto);
 	    if (i < 0 || FTP_TIMEOUT(i)) {
 		close(s);
 		ftp->errno = i;
 		return i;
 	    }
 	    else if (i != 350)
-		ftp->seek = 0;
+		*seekto = 0;
 	}
 	i = cmd(ftp, "%s %s", operation, file);
 	if (i < 0 || i > 299) {
