@@ -179,6 +179,8 @@ zf_open(const char *fname, struct open_file *f)
 
     /* Construct new name */
     zfname = malloc(strlen(fname) + 4);
+    if (zfname == NULL)
+        return(ENOMEM);
     sprintf(zfname, "%s.gz", fname);
 
     /* Try to open the compressed datafile */
@@ -200,6 +202,8 @@ zf_open(const char *fname, struct open_file *f)
 
     /* Allocate a z_file structure, populate it */
     zf = malloc(sizeof(struct z_file));
+    if (zf == NULL)
+        return(ENOMEM);
     bzero(zf, sizeof(struct z_file));
     zf->zf_rawfd = rawfd;
 
