@@ -59,13 +59,13 @@ typedef struct __mcontext {
 	int	mc_ss;
 
 	int	mc_len;			/* sizeof(mcontext_t) */
-#define	_MC_FPFMT_NODEV		0	/* device not present or configured */
-#define	_MC_FPFMT_387		1
-#define	_MC_FPFMT_XMM		2
+#define	_MC_FPFMT_NODEV		0x10000	/* device not present or configured */
+#define	_MC_FPFMT_387		0x10001
+#define	_MC_FPFMT_XMM		0x10002
 	int	mc_fpformat;
-#define	_MC_FPOWNED_NONE	0	/* FP state not used */
-#define	_MC_FPOWNED_FPU		1	/* FP state came from FPU */
-#define	_MC_FPOWNED_PCB		2	/* FP state came from PCB */
+#define	_MC_FPOWNED_NONE	0x20000	/* FP state not used */
+#define	_MC_FPOWNED_FPU		0x20001	/* FP state came from FPU */
+#define	_MC_FPOWNED_PCB		0x20002	/* FP state came from PCB */
 	int	mc_ownedfp;
 	int	mc_spare1[1];		/* align next field to 16 bytes */
 	int	mc_fpstate[128];	/* must be multiple of 16 bytes */
