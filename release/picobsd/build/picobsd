@@ -154,7 +154,7 @@ create_includes_and_libraries2() {
     MAKEOBJDIRPREFIX=${l_objtree}
     export MAKEOBJDIRPREFIX
     ( cd ${SRC};
-    make -DNOCLEAN -DNO_PROFILE -DNOGAMES -DNO_LIBC_R -DPICOBSD buildworld
+    make -DNOCLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R -DPICOBSD buildworld
     )
 }
 
