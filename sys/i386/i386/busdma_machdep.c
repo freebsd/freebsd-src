@@ -818,7 +818,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 							 M_NOWAIT, 0ul,
 							 dmat->lowaddr,
 							 PAGE_SIZE,
-							 0);
+							 dmat->boundary);
 		mtx_unlock(&Giant);
 		if (bpage->vaddr == 0) {
 			free(bpage, M_DEVBUF);
