@@ -27,7 +27,7 @@
  *	i4b_ctl.c - i4b system control port driver
  *	------------------------------------------
  *
- *	$Id: i4b_ctl.c,v 1.20 1999/04/26 10:16:54 hm Exp $
+ *	$Id: i4b_ctl.c,v 1.4 1999/05/20 10:08:56 hm Exp $
  *
  *	last edit-date: [Mon Apr 26 11:16:28 1999]
  *
@@ -93,17 +93,33 @@ static	d_ioctl_t	i4bctlioctl;
 
 #ifdef OS_USES_POLL
 static d_poll_t		i4bctlpoll;
+#define POLLFIELD	i4bctlpoll
+#else
+#define POLLFIELD	noselect
 #endif
 
 #define CDEV_MAJOR 55
-static struct cdevsw i4bctl_cdevsw = 
-	{ i4bctlopen,	i4bctlclose,	noread,		nowrite,
-	  i4bctlioctl,	nostop,		nullreset,	nodevtotty,
-#ifdef OS_USES_POLL
-	  i4bctlpoll,	nommap,		NULL,	"i4bctl", NULL,	-1 };
-#else
-	  noselect,	nommap,		NULL,	"i4bctl", NULL,	-1 };
-#endif
+static struct cdevsw i4bctl_cdevsw = {
+	/* open */	i4bctlopen,
+	/* close */	i4bctlclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	i4bctlioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	POLLFIELD,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"i4bctl",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 static void i4bctlattach(void *);
 PSEUDO_SET(i4bctlattach, i4b_i4bctldrv);
@@ -134,11 +150,8 @@ int i4bctlioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 static void
 i4bctlinit(void *unused)
 {
-    dev_t dev;
     
-    dev = makedev(CDEV_MAJOR, 0);
-
-    cdevsw_add(&dev, &i4bctl_cdevsw, NULL);
+    cdevsw_add(&i4bctl_cdevsw);
 }
 
 SYSINIT(i4bctldev, SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR, &i4bctlinit, NULL);
