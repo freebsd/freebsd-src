@@ -115,9 +115,9 @@ int 		number;
 char 		letter;
 int		token;
 
-int		get_accent_definition_line __P((accentmap_t *));
-int		get_key_definition_line __P((keymap_t *));
-void		usage __P((void));
+int		get_accent_definition_line(accentmap_t *);
+int		get_key_definition_line(keymap_t *);
+void		usage(void);
 
 char *
 nextarg(int ac, char **av, int *indp, int oc)
