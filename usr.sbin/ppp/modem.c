@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.86 1998/05/28 23:15:38 brian Exp $
+ * $Id: modem.c,v 1.87 1998/05/28 23:17:51 brian Exp $
  *
  *  TODO:
  */
@@ -124,6 +124,7 @@ modem_Create(struct datalink *dl, int type)
   p->name.base = p->name.full;
 
   p->Utmp = 0;
+  p->session_owner = (pid_t)-1;
 
   p->cfg.rts_cts = MODEM_CTSRTS;
   p->cfg.speed = MODEM_SPEED;
@@ -760,6 +761,10 @@ modem_PhysicalClose(struct physical *modem)
   log_SetTtyCommandMode(modem->dl);
   throughput_stop(&modem->link.throughput);
   throughput_log(&modem->link.throughput, LogPHASE, modem->link.name);
+  if (modem->session_owner != (pid_t)-1) {
+    ID0kill(modem->session_owner, SIGHUP);
+    modem->session_owner = (pid_t)-1;
+  }
   if (newsid)
     bundle_setsid(modem->dl->bundle, 0);
 }
@@ -874,11 +879,14 @@ modem_ShowStatus(struct cmdargs const *arg)
       prompt_Printf(arg->prompt, "open\n");
   } else
     prompt_Printf(arg->prompt, "closed\n");
-  prompt_Printf(arg->prompt, " Device:          %s\n",
+  prompt_Printf(arg->prompt, " Device:          %s",
                 *modem->name.full ?  modem->name.full :
                 modem->type == PHYS_DIRECT ? "unknown" : "N/A");
+  if (modem->session_owner != (pid_t)-1)
+    prompt_Printf(arg->prompt, " (session owner: %d)",
+                  (int)modem->session_owner);
 
-  prompt_Printf(arg->prompt, " Link Type:       %s\n", mode2Nam(modem->type));
+  prompt_Printf(arg->prompt, "\n Link Type:       %s\n", mode2Nam(modem->type));
   prompt_Printf(arg->prompt, " Connect Count:   %d\n",
                 modem->connect_count);
 #ifdef TIOCOUTQ
@@ -1053,8 +1061,9 @@ modem2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
     timer_Stop(&p->link.ccp.fsm.StoppedTimer);
     if (p->Timer.state != TIMER_STOPPED) {
       timer_Stop(&p->Timer);
+      p->Timer.state = TIMER_RUNNING;	/* Special - see iov2modem() */
       if (tcgetpgrp(p->fd) == getpgrp())
-        p->Timer.state = TIMER_RUNNING;	/* Special - see iov2modem() */
+        p->session_owner = getpid();    /* So I'll eventually get HUP'd */
     }
     timer_Stop(&p->link.throughput.Timer);
     modem_ChangedPid(p, newpid);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.h,v 1.5 1998/05/21 21:45:34 brian Exp $
+ *	$Id: id.h,v 1.6 1998/05/28 23:15:37 brian Exp $
  */
 
 struct utmp;
@@ -44,3 +44,4 @@ extern void ID0login(struct utmp *);
 extern void ID0logout(const char *);
 extern int ID0bind_un(int, const struct sockaddr_un *);
 extern int ID0connect_un(int, const struct sockaddr_un *);
+extern int ID0kill(pid_t, int);
