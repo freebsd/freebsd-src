@@ -68,15 +68,15 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-const char *filename;
-char *outfile;
-FILE *infp, *outfp;
-int cflag, iflag, oflag, pflag, sflag;
+static const char *infile, *outfile;
+static FILE *infp, *outfp;
+static int cflag, iflag, oflag, pflag, sflag;
 
-static void usage(void);
-int	decode(void);
-int	decode2(void);
-int	base64_decode(const char *);
+static void	usage(void);
+static int	decode(void);
+static int	decode2(void);
+static int	uu_decode(void);
+static int	base64_decode(void);
 
 int
 main(int argc, char *argv[])
@@ -120,7 +120,7 @@ main(int argc, char *argv[])
 	if (*argv) {
 		rval = 0;
 		do {
-			infp = fopen(filename = *argv, "r");
+			infp = fopen(infile = *argv, "r");
 			if (infp == NULL) {
 				warn("%s", *argv);
 				rval = 1;
@@ -130,21 +130,21 @@ main(int argc, char *argv[])
 			fclose(infp);
 		} while (*++argv);
 	} else {
-		filename = "stdin";
+		infile = "stdin";
 		infp = stdin;
 		rval = decode();
 	}
 	exit(rval);
 }
 
-int
+static int
 decode(void)
 {
 	int r, v;
 
 	v = decode2();
 	if (v == EOF) {
-		warnx("%s: missing or bad \"begin\" line", filename);
+		warnx("%s: missing or bad \"begin\" line", infile);
 		return (1);
 	}
 	for (r = v; cflag; r |= v) {
@@ -155,17 +155,16 @@ decode(void)
 	return (r);
 }
 
-int
+static int
 decode2(void)
 {
-	int base64, i;
-	size_t n;
-	char ch, *p, *q;
-	void *mode;
+	int base64, flags, fd, mode;
+	size_t n, m;
+	char *p, *q;
+	void *handle;
 	struct passwd *pw;
 	struct stat st;
 	char buf[MAXPATHLEN+1];
-	char buffn[MAXPATHLEN+1]; /* file name buffer */
 
 	base64 = 0;
 	/* search for header line */
@@ -194,16 +193,15 @@ decode2(void)
 			break;
 	}
 
-	mode = setmode(p);
-	if (mode == NULL) {
-		warnx("%s: unable to parse file mode", filename);
+	handle = setmode(p);
+	if (handle == NULL) {
+		warnx("%s: unable to parse file mode", infile);
 		return (1);
 	}
+	mode = getmode(handle, 0) & 0666;
+	free(handle);
 
-	if (oflag) {
-		/* use command-line filename */
-		n = strlcpy(buffn, outfile, sizeof(buffn));
-	} else if (sflag) {
+	if (sflag) {
 		/* don't strip, so try ~user/file expansion */
 		p = NULL;
 		pw = NULL;
@@ -215,43 +213,47 @@ decode2(void)
 			*p = '/';
 		}
 		if (pw != NULL) {
-			strlcpy(buffn, pw->pw_dir, sizeof(buffn));
-			n = strlcat(buffn, p, sizeof(buffn));
-		} else {
-			n = strlcpy(buffn, q, sizeof(buffn));
+			n = strlen(pw->pw_dir);
+			if (buf + n > p) {
+				/* make room */
+				m = strlen(p);
+				if (sizeof(buf) < n + m) {
+					warnx("%s: bad output filename",
+					    infile);
+					return (1);
+				}
+				p = memmove(buf + n, p, m);
+			}
+			q = memcpy(p - n, pw->pw_dir, n);
 		}
 	} else {
 		/* strip down to leaf name */
 		p = strrchr(q, '/');
 		if (p != NULL)
-			n = strlcpy(buffn, p+1, sizeof(buffn));
-		else
-			n = strlcpy(buffn, q, sizeof(buffn));
+			q = p + 1;
 	}
-	if (n >= sizeof(buffn) || *buffn == '\0') {
-		warnx("%s: bad output filename", filename);
-		return (1);
-	}
+	if (!oflag)
+		outfile = q;
 
 	if (pflag)
 		outfp = stdout;
 	else {
-		int flags = O_WRONLY|O_CREAT|O_EXCL;
-		if (lstat(buffn, &st) == 0) {
+		flags = O_WRONLY|O_CREAT|O_EXCL;
+		if (lstat(outfile, &st) == 0) {
 			if (iflag) {
-				warnc(EEXIST, "%s: %s", filename, buffn);
+				warnc(EEXIST, "%s: %s", infile, outfile);
 				return (0);
 			}
 			switch (st.st_mode & S_IFMT) {
 			case S_IFREG:
 			case S_IFLNK:
 				/* avoid symlink attacks */
-				if (unlink(buffn) == 0 || errno == ENOENT)
+				if (unlink(outfile) == 0 || errno == ENOENT)
 					break;
-				warn("%s: unlink %s", filename, buffn);
+				warn("%s: unlink %s", infile, outfile);
 				return (1);
 			case S_IFDIR:
-				warnc(EISDIR, "%s: %s", filename, buffn);
+				warnc(EISDIR, "%s: %s", infile, outfile);
 				return (1);
 			default:
 				if (oflag) {
@@ -259,28 +261,37 @@ decode2(void)
 					flags &= ~O_EXCL;
 					break;
 				}
-				warnc(EEXIST, "%s: %s", filename, buffn);
+				warnc(EEXIST, "%s: %s", infile, outfile);
 				return (1);
 			}
 		} else if (errno != ENOENT) {
-			warn("%s: %s", filename, buffn);
+			warn("%s: %s", infile, outfile);
 			return (1);
 		}
-		if ((i = open(buffn, flags, getmode(mode, 0) & 0666)) < 0 ||
-		    (outfp = fdopen(i, "w")) == NULL) {
-			warn("%s: %s", filename, buffn);
+		if ((fd = open(outfile, flags, mode)) < 0 ||
+		    (outfp = fdopen(fd, "w")) == NULL) {
+			warn("%s: %s", infile, outfile);
 			return (1);
 		}
 	}
-	free(mode);
 
 	if (base64)
-		return (base64_decode(buffn));
+		return (base64_decode());
+	else
+		return (uu_decode());
+}
+
+static int
+uu_decode(void)
+{
+	int i, ch;
+	char *p;
+	char buf[MAXPATHLEN+1];
 
 	/* for each input line */
 	for (;;) {
 		if (fgets(p = buf, sizeof(buf), infp) == NULL) {
-			warnx("%s: short file", filename);
+			warnx("%s: short file", infile);
 			return (1);
 		}
 
@@ -289,7 +300,7 @@ decode2(void)
 
 #define OUT_OF_RANGE do {						\
 	warnx("%s: %s: character out of range: [%d-%d]",		\
-	    filename, buffn, 1 + ' ', 077 + ' ' + 1);			\
+	    infile, outfile, 1 + ' ', 077 + ' ' + 1);			\
         return (1);							\
 } while (0)
 
@@ -339,41 +350,46 @@ decode2(void)
 	if (fgets(buf, sizeof(buf), infp) == NULL ||
 	    (strcmp(buf, "end") && strcmp(buf, "end\n") &&
 	     strcmp(buf, "end\r\n"))) {
-		warnx("%s: no \"end\" line", filename);
+		warnx("%s: no \"end\" line", infile);
 		return (1);
 	}
 	if (fclose(outfp) != 0) {
-		warnx("%s: %s", filename, buffn);
+		warnx("%s: %s", infile, outfile);
 		return (1);
 	}
 	return (0);
 }
 
-int
-base64_decode(const char *outname)
+static int
+base64_decode(void)
 {
 	int n;
-	char buf[MAXPATHLEN+1];
-	unsigned char out[MAXPATHLEN * 4];
+	char inbuf[MAXPATHLEN+1];
+	unsigned char outbuf[MAXPATHLEN * 4];
 
 	for (;;) {
-		if (fgets(buf, sizeof(buf), infp) == NULL) {
-			warnx("%s: short file", filename);
+		if (fgets(inbuf, sizeof(inbuf), infp) == NULL) {
+			warnx("%s: short file", infile);
 			return (1);
 		}
-		if (strcmp(buf, "====") == 0 ||
-		    strcmp(buf, "====\n") == 0 ||
-		    strcmp(buf, "====\r\n") == 0)
+		if (strcmp(inbuf, "====") == 0 ||
+		    strcmp(inbuf, "====\n") == 0 ||
+		    strcmp(inbuf, "====\r\n") == 0) {
+			if (fclose(outfp) != 0) {
+				warnx("%s: %s", infile, outfile);
+				return (1);
+			}
 			return (0);
-		n = strlen(buf);
-		while (n > 0 && (buf[n-1] == '\n' || buf[n-1] == '\r'))
-			buf[--n] = '\0';
-		n = b64_pton(buf, out, sizeof(out));
+		}
+		n = strlen(inbuf);
+		while (n > 0 && (inbuf[n-1] == '\n' || inbuf[n-1] == '\r'))
+			inbuf[--n] = '\0';
+		n = b64_pton(inbuf, outbuf, sizeof(outbuf));
 		if (n < 0) {
-			warnx("%s: %s: error decoding base64 input stream", filename, outname);
+			warnx("%s: %s: error decoding base64 input stream", infile, outfile);
 			return (1);
 		}
-		fwrite(out, 1, n, outfp);
+		fwrite(outbuf, 1, n, outfp);
 	}
 }
 
