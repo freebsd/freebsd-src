@@ -535,7 +535,7 @@ CNAME(ipkdbsize) = .-CNAME(ipkdblow)
 	mfsrr1	31;							\
 	stmw	30,savearea+24(0);					\
 	mfmsr	30;							\
-	ori	30,30,(PSL_DR|PSL_IR)@l;				\
+	ori	30,30,(PSL_DR|PSL_IR|PSL_RI)@l;				\
 	mtmsr	30;							\
 	isync;								\
 	mfsprg	31,1;							\
@@ -580,7 +580,7 @@ CNAME(ipkdbsize) = .-CNAME(ipkdblow)
 	mtsprg	3,3;							\
 /* Disable translation, machine check and recoverability: */		\
 	mfmsr	2;							\
-	andi.	2,2,~(PSL_DR|PSL_IR|PSL_ME|PSL_RI)@l;			\
+	andi.	2,2,~(PSL_DR|PSL_IR|PSL_EE|PSL_ME|PSL_RI)@l;		\
 	mtmsr	2;							\
 	isync;								\
 /* Decide whether we return to user mode: */				\
@@ -679,7 +679,6 @@ trapagain:
 	.globl	CNAME(trapexit)
 CNAME(trapexit):
 
-#if 0	
 /* Disable interrupts: */
 	mfmsr	3
 	andi.	3,3,~PSL_EE@l
@@ -695,17 +694,14 @@ CNAME(trapexit):
 	lwz	4, KE_FLAGS(3)		/* get KSE flags value */
 	andi.	4,4,KEF_ASTPENDING|KEF_NEEDRESCHED
 	beq	1f
-	li	6,EXC_AST		/* update exception type */
-	stw	6,FRAME_EXC+8(1)
 	mfmsr	3			/* re-enable interrupts */
 	ori	3,3,PSL_EE@l
 	mtmsr	3
 	isync
 	addi	3,1,8
-	bl	CNAME(ast_test)
+	bl	CNAME(ast)
 	b	trapexit		/* test ast ret value ? */
 1:
-#endif	
 	FRAME_LEAVE(tempsave)
 	rfi
 
