@@ -13,7 +13,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclIOUtil.c 1.122 96/04/02 18:46:40
+ * SCCS: @(#) tclIOUtil.c 1.123 96/04/29 14:08:24
  */
 
 #include "tclInt.h"
@@ -497,10 +497,10 @@ Tcl_ReapDetachedProcs()
     register Detached *detPtr;
     Detached *nextPtr, *prevPtr;
     int status;
-    pid_t pid;
+    int pid;
 
     for (detPtr = detList, prevPtr = NULL; detPtr != NULL; ) {
-	pid = Tcl_WaitPid(detPtr->pid, &status, WNOHANG);
+	pid = (int) Tcl_WaitPid(detPtr->pid, &status, WNOHANG);
 	if ((pid == 0) || ((pid == -1) && (errno != ECHILD))) {
 	    prevPtr = detPtr;
 	    detPtr = detPtr->nextPtr;

@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclInt.h 1.200 96/04/11 17:24:12
+ * SCCS: @(#) tclInt.h 1.203 96/07/23 16:15:24
  */
 
 #ifndef _TCLINT
@@ -760,6 +760,7 @@ extern TclEventSource *		tclFirstEventSourcePtr;
 extern Tcl_ChannelType	 	tclFileChannelType;
 extern char *			tclMemDumpFileName;
 extern TclPlatformType		tclPlatform;
+extern int			tclInInterpreterDeletion;
 
 /*
  *----------------------------------------------------------------
@@ -804,11 +805,12 @@ EXTERN void		TclExprFloatError _ANSI_ARGS_((Tcl_Interp *interp,
 EXTERN int		TclFindElement _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *list, char **elementPtr, char **nextPtr,
 			    int *sizePtr, int *bracePtr));
+EXTERN Tcl_Channel	TclFindFileChannel _ANSI_ARGS_((Tcl_File inFile,
+		            Tcl_File outFile, int *fileUsedPtr));
 EXTERN Proc *		TclFindProc _ANSI_ARGS_((Interp *iPtr,
 			    char *procName));
 EXTERN void		TclFreePackageInfo _ANSI_ARGS_((Interp *iPtr));
 EXTERN char *		TclGetCwd _ANSI_ARGS_((Tcl_Interp *interp));
-EXTERN unsigned long	TclGetClicks _ANSI_ARGS_((void));
 EXTERN char *		TclGetExtension _ANSI_ARGS_((char *name));
 EXTERN void		TclGetAndDetachPids _ANSI_ARGS_((Tcl_Interp *interp,
 		            Tcl_Channel chan));
@@ -819,17 +821,12 @@ EXTERN Tcl_Channel	TclGetDefaultStdChannel _ANSI_ARGS_((int type));
 EXTERN char *		TclGetEnv _ANSI_ARGS_((char *name));
 EXTERN int		TclGetFrame _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *string, CallFrame **framePtrPtr));
-EXTERN int		TclGetOpenMode _ANSI_ARGS_((Tcl_Interp *interp,
-        		    char *string, int *seekFlagPtr));
-EXTERN unsigned long	TclGetSeconds _ANSI_ARGS_((void));
-EXTERN void		TclGetTime _ANSI_ARGS_((Tcl_Time *time));
-EXTERN int		TclGetTimeZone _ANSI_ARGS_((unsigned long time));
-EXTERN char *		TclGetUserHome _ANSI_ARGS_((char *name,
-			    Tcl_DString *bufferPtr));
 EXTERN int		TclGetListIndex _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *string, int *indexPtr));
 EXTERN int		TclGetLoadedPackages _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *targetName));
+EXTERN int		TclGetOpenMode _ANSI_ARGS_((Tcl_Interp *interp,
+        		    char *string, int *seekFlagPtr));
 EXTERN char *		TclGetUserHome _ANSI_ARGS_((char *name,
 			    Tcl_DString *bufferPtr));
 EXTERN int		TclGuessPackageName _ANSI_ARGS_((char *fileName,
@@ -862,6 +859,11 @@ EXTERN int		TclParseWords _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *string, int flags, int maxWords,
 			    char **termPtr, int *argcPtr, char **argv,
 			    ParseValue *pvPtr));
+EXTERN unsigned long	TclpGetClicks _ANSI_ARGS_((void));
+EXTERN unsigned long	TclpGetSeconds _ANSI_ARGS_((void));
+EXTERN void		TclpGetTime _ANSI_ARGS_((Tcl_Time *time));
+EXTERN int		TclpGetTimeZone _ANSI_ARGS_((unsigned long time));
+EXTERN char *		TclpGetTZName _ANSI_ARGS_((void));
 EXTERN void		TclPlatformExit _ANSI_ARGS_((int status));
 EXTERN void		TclPlatformInit _ANSI_ARGS_((Tcl_Interp *interp));
 EXTERN char *		TclPrecTraceProc _ANSI_ARGS_((ClientData clientData,

@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclClock.c 1.19 96/03/13 11:28:45
+ * SCCS: @(#) tclClock.c 1.20 96/07/23 16:14:45
  */
 
 #include "tcl.h"
@@ -71,7 +71,7 @@ Tcl_ClockCmd (dummy, interp, argc, argv)
 		    argv[0], " clicks\"", (char *) NULL);
 	    return TCL_ERROR;
 	}
-	sprintf(interp->result, "%lu", TclGetClicks());
+	sprintf(interp->result, "%lu", TclpGetClicks());
 	return TCL_OK;
     } else if ((c == 'f') && (strncmp(argv[1], "format", length) == 0)) {
 	char *format = "%a %b %d %X %Z %Y";
@@ -148,13 +148,13 @@ Tcl_ClockCmd (dummy, interp, argc, argv)
 	    if (ParseTime(interp, baseStr, &baseClock) != TCL_OK)
 		return TCL_ERROR;
 	} else {
-	    baseClock = TclGetSeconds();
+	    baseClock = TclpGetSeconds();
 	}
 
 	if (useGMT) {
 	    zone = -50000; /* Force GMT */
 	} else {
-	    zone = TclGetTimeZone(baseClock);
+	    zone = TclpGetTimeZone(baseClock);
 	}
 
 	if (TclGetDate(argv[2], baseClock, zone, &clockVal) < 0) {
@@ -171,7 +171,7 @@ Tcl_ClockCmd (dummy, interp, argc, argv)
 		    argv[0], " seconds\"", (char *) NULL);
 	    return TCL_ERROR;
 	}
-	sprintf(interp->result, "%lu", TclGetSeconds());
+	sprintf(interp->result, "%lu", TclpGetSeconds());
 	return TCL_OK;
     } else {
 	Tcl_AppendResult(interp, "unknown option \"", argv[1],
@@ -276,6 +276,7 @@ FormatClock(interp, clockVal, useGMT, format)
     struct tm *timeDataPtr;
     Tcl_DString buffer;
     int bufSize;
+    char *p;
 #ifdef TCL_USE_TIMEZONE_VAR
     int savedTimeZone;
     char *savedTZEnv;
@@ -315,23 +316,28 @@ FormatClock(interp, clockVal, useGMT, format)
     }
 #endif
 
-    if (useGMT) {
-        timeDataPtr = gmtime((time_t *) &clockVal);
-    } else {
-        timeDataPtr = localtime((time_t *) &clockVal);
-    }
+    timeDataPtr = TclpGetDate((time_t *) &clockVal, useGMT);
     
     /*
-     * Format the time, increasing the buffer size until strftime succeeds.
+     * Make a guess at the upper limit on the substituted string size
+     * based on the number of percents in the string.
      */
-    bufSize = TCL_DSTRING_STATIC_SIZE - 1;
+
+    for (bufSize = 0, p = format; *p != '\0'; p++) {
+	if (*p == '%') {
+	    bufSize += 40;
+	} else {
+	    bufSize++;
+	}
+    }
     Tcl_DStringInit(&buffer);
     Tcl_DStringSetLength(&buffer, bufSize);
 
-    while (strftime(buffer.string, (unsigned int) bufSize, format,
+    if (TclStrftime(buffer.string, (unsigned int) bufSize, format,
 	    timeDataPtr) == 0) {
-        bufSize *= 2;
-        Tcl_DStringSetLength(&buffer, bufSize);
+	Tcl_DStringFree(&buffer);
+	Tcl_AppendResult(interp, "bad format string", (char *)NULL);
+	return TCL_ERROR;
     }
 
 #ifdef TCL_USE_TIMEZONE_VAR

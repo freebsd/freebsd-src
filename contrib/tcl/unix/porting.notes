@@ -26,7 +26,7 @@ and Tk to compile.  You can also add new entries to that database
 when you install Tcl and Tk on a new platform.  The Web database is
 likely to be more up-to-date than this file.
 
-sccsid = SCCS: @(#) porting.notes 1.16 96/04/17 10:32:35
+sccsid = SCCS: @(#) porting.notes 1.17 96/05/18 16:49:24
 
 --------------------------------------------
 Solaris, various versions
@@ -355,3 +355,38 @@ Expect failures from socket tests 2.9 and 3.1.
 
 Contact me directly if you have problems on SCO systems.
 Mark Diekhans <markd@sco.com>
+ 
+--------------------------------------------
+Linux 1.2.13 (gcc 2.7.0, libc.so.5.0.9)
+--------------------------------------------
+
+Symptoms:
+
+*	Some extensions could not be loaded dynamically, most
+	prominently Blt 2.0
+
+	The given error message essentially said:
+	Could not resolve symbol '__eprintf'.
+
+	(This procedure is used by the macro 'assert')
+
+Cause
+
+*	'__eprintf' is defined in 'libgcc.a', not 'libc.so.x.y'.
+	It is therefore impossible to load it dynamically.
+
+*	Neither tcl nor tk make use of 'assert', thereby
+	preventing a static linkage.
+
+Workaround
+
+*	I included <assert.h> in 'tclAppInit.c' / 'tkAppInit.c'
+	and then executed 'assert (argc)' just before the call
+	to Tcl_Main / Tk_Main.
+
+	This forced the static linkage of '__eprintf' and
+	everything went fine from then on.
+
+	(Something like 'assert (1)', 'assert (a==a)' is not
+	sufficient, it will be optimized away).
+

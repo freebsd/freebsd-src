@@ -8,10 +8,11 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclFHandle.c 1.6 96/02/13 16:29:55
+ * SCCS: @(#) tclFHandle.c 1.8 96/06/27 15:31:34
  */
 
 #include "tcl.h"
+#include "tclInt.h"
 #include "tclPort.h"
 
 /*
@@ -112,7 +113,7 @@ Tcl_FreeFile(handle)
 {
     Tcl_HashEntry *entryPtr;
     FileHandle *handlePtr = (FileHandle *) handle;
-
+    
     /*
      * Invoke free procedure, then delete the handle.
      */
@@ -121,11 +122,24 @@ Tcl_FreeFile(handle)
 	(*handlePtr->proc)(handlePtr->data);
     }
 
-    entryPtr = Tcl_FindHashEntry(&fileTable, (char *) &handlePtr->key);
-    if (entryPtr) {
-	Tcl_DeleteHashEntry(entryPtr);
-	ckfree((char *) handlePtr);
+    /*
+     * Tcl_File structures may be freed as a result of running the
+     * channel table exit handler. The file table is freed by the file
+     * table exit handler, which may run before the channel table exit
+     * handler. The file table exit handler sets the "initialized"
+     * variable back to zero, so that the Tcl_FreeFile (when invoked
+     * from the channel table exit handler) can notice that the file
+     * table has already been destroyed. Otherwise, accessing a
+     * deleted hash table would cause a panic.
+     */
+     
+    if (initialized) {
+        entryPtr = Tcl_FindHashEntry(&fileTable, (char *) &handlePtr->key);
+        if (entryPtr) {
+            Tcl_DeleteHashEntry(entryPtr);
+        }
     }
+    ckfree((char *) handlePtr);
 }
 
 /*
@@ -240,15 +254,6 @@ static void
 FileExitProc(clientData)
     ClientData clientData;	/* Not used. */
 {
-    Tcl_HashSearch search;
-    Tcl_HashEntry *entryPtr;
-
-    entryPtr = Tcl_FirstHashEntry(&fileTable, &search);
-
-    while (entryPtr) {
-	ckfree(Tcl_GetHashValue(entryPtr));
-	entryPtr = Tcl_NextHashEntry(&search);
-    }
-
     Tcl_DeleteHashTable(&fileTable);
+    initialized = 0;
 }

@@ -18,7 +18,7 @@
 #	its .o file placed before all others in the command; then
 #	"ld" is executed to bind the objects together.
 #
-# SCCS: @(#) ldAout.tcl 1.9 96/04/11 10:03:24
+# SCCS: @(#) ldAout.tcl 1.10 96/05/18 16:40:42
 #
 # Copyright (c) 1995, by General Electric Company. All rights reserved.
 #
@@ -144,9 +144,14 @@ proc tclLdAout {{cc {}} {shlib_suffix {}} {shlib_cflags none}} {
   if [string compare [string range $m $l end] $shlib_suffix] {
     error "Output file does not appear to have a $shlib_suffix suffix"
   }
-  set modName [string toupper [string index $m 0]]
-  append modName [string tolower [string range $m 1 [expr $l-1]]]
-  regsub -all \\. $modName _ modName
+  set modName [string tolower [string range $m 0 [expr $l-1]]]
+  if [regexp {^lib} $modName] {
+    set modName [string range $modName 3 end]
+  }
+  if [regexp {[0-9\.]*(_g0)?$} $modName match] {
+    set modName [string range $modName 0 [expr [string length $modName]-[string length $match]-1]]
+  }
+  set modName "[string toupper [string index $modName 0]][string range $modName 1 end]"
   
   # Catalog initialization entry points found in the module
 

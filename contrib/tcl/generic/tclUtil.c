@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUtil.c 1.112 96/02/15 11:42:52
+ * SCCS: @(#) tclUtil.c 1.114 96/06/06 13:48:58
  */
 
 #include "tclInt.h"
@@ -977,9 +977,6 @@ Tcl_SetResult(interp, string, freeProc)
 	iPtr->resultSpace[0] = 0;
 	iPtr->result = iPtr->resultSpace;
 	iPtr->freeProc = 0;
-    } else if (freeProc == TCL_DYNAMIC) {
-	iPtr->result = string;
-	iPtr->freeProc = TCL_DYNAMIC;
     } else if (freeProc == TCL_VOLATILE) {
 	length = strlen(string);
 	if (length > TCL_RESULT_SIZE) {

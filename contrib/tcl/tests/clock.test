@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) clock.test 1.5 96/04/05 15:30:36
+# SCCS: @(#) clock.test 1.6 96/07/23 16:16:43
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -46,10 +46,17 @@ test clock-3.2 {clock format tests} {
 test clock-3.3 {clock format tests} {
     list [catch {clock format foo} msg] $msg
 } {1 {expected unsigned time but got "foo"}}
-test clock-3.4 {clock format tests} {unixOnly} {
+test clock-3.4 {clock format tests} {unixOrPc} {
     set clockval 657687766
     clock format $clockval -format "%a %b %d %I:%M:%S %p %Y" -gmt true
 } "Sun Nov 04 03:02:46 AM 1990"
+test clock-3.5 {clock format tests} {
+    list [catch {clock format a b c d e g} msg] $msg
+} {1 {wrong # args: clock format clockval ?-format string? ?-gmt boolean?}}
+test clock-3.6 {clock format tests} {unixOrPc} {
+    set clockval -1
+    clock format $clockval -format "%a %b %d %I:%M:%S %p %Y" -gmt true
+} "Wed Dec 31 11:59:59 PM 1969"
 
 # clock scan
 test clock-4.1 {clock scan tests} {

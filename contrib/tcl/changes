@@ -1,6 +1,6 @@
 Recent user-visible changes to Tcl:
 
-SCCS: @(#) changes 1.115 96/04/18 16:43:36
+SCCS: @(#) changes 1.142 96/08/01 17:00:22
 
 1. No more [command1] [command2] construct for grouping multiple
 commands on a single command line.
@@ -2029,3 +2029,153 @@ are not run if these commands are not present. (JL)
 on platformst that support exec, a separate process for remote testsing. (JL)
 
 ----------------- Released 7.5, 4/21/96 -----------------------
+
+5/1/96 (bug fix) "file tail ~" did not correctly return the tail
+portion of the user's home directory. (SS)
+
+5/1/96 (bug fix) Fixed bug in TclGetEnv where it didn't lookup environment
+variables correctly:  could confuse "H" and "HOME", for example.  (JO)
+
+5/1/96 (bug fix) Changed to install tclConfig.sh under "make install-binaries",
+not "make install-libraries".  (JO)
+
+5/2/96 (bug fix) Changed pkg_mkIndex not to attempt to "load" a file unless
+it has the standard shared library extension.  On SunOS, attempts to load
+Tcl scripts cause the whole application to be aborted (there's no way to
+get the error back into Tcl).  (JO)
+
+5/7/96 (bug fix) Moved initScript in tclUnixInit.c to writable memory to
+avoid potential core dumps. (JO)
+
+5/7/96 (bug fix) Auto_reset procedure was removing procedure from init.tcl,
+such as pkg_mkIndex.  (JO)
+
+5/7/96 (bug fix) Fixed cast on socket address resolution code that
+would cause a failure to connect on Dec Alphas. (JL)
+
+5/7/96 (bug fix) Added "time", "subst" and "fileevent" commands to set of
+commands available in a safe interpreter. (JL)
+
+5/13/96 (bug fix) Preventing OS level handles for stdin, stdout and stderr
+from being implicitly closed when the last reference to the standard
+channel containing that handle is discarded when an interpreter is deleted.
+Explicitly closing standard channels by using "close" still works. (JL)
+
+5/21/96 (bug fix) Do not create channels for stdin, stdout and stderr on
+Unix if the devices are closed. This prevents a duplicate channel name
+panic later on when the fd is used to open a channel and the channel is
+registered in an interpreter. (JL)
+
+5/23/96 (bug fix) Fixed bug that prevented the use of standard channels in
+interpreters created after the last interpreter was destroyed. In the sequence
+
+	interp = Tcl_CreateInterp();
+	Tcl_DeleteInterp(interp);
+	interp = Tcl_CreateInterp();
+
+channels for stdio would not be available in the second interpreter. (JL)
+
+5/23/96 (bug fix) Fixed bug that allowed Tcl_MakeFileChannel to create new
+channels with Tcl_Files in them that are already used by another channel.
+This would cause core dumps when the Tcl_Files were being freed twice. (JL)
+
+5/23/96 (bug fix) Fixed a logical timing bug that caused a standard channel
+to be removed from the standard channel table too early when the channel
+was being closed. If the channel was being flushed asynchronously, it could
+get recreated before being actually destroyed, and the recreated channel
+would contain the same Tcl_File as the one being closed, leading to
+dangling pointers and core dumps. (JL)
+
+5/27/96 (bug fix) Fixed a bug in Tcl_GetChannelOption which caused it to
+always return a list of one element, a list of the settings, for
+-translation and -eofchar options. Now correctly returns the value
+described by the documentation (Mark Diekhans found this, thanks!). (JL)
+
+5/30/96 (bug fix) Fixed a couple of syntax errors in io.test. (JL)
+
+5/30/96 (bug fix) If a fileevent scripts gets an error, delete it before
+causing a background error. This is to allow the error handler to reinstall
+the fileevent and to prevent infinite loops if the event loop is reentered
+in the error handler. (JL)
+
+5/31/96 (bug fix) Channels now will get properly flushed on exit. (JL)
+
+6/5/96 (bug fix) Changed Tcl_Ckalloc, Tcl_Ckfree, and Tcl_Ckrealloc to
+Tcl_Alloc, Tcl_Free, and Tcl_Realloc.  Added documentation for these
+routines now that they are officially supported.  Extension writers
+should use these routines instead of free() and malloc(). (SS)
+
+6/10/96 (bug fix) Changes the Tcl close command so that it no longer
+waits on nonblocking pipes for the piped processes to exit; instead it
+reaps them in the background. (JL)
+
+6/11/96 (bug fix) Increased the length of the listen queue for server
+sockets on Unix from 5 to 100. Some OSes will disregard this and reset it
+to 5, but we should try to get as long a queue as we can, for performance
+reasons. (JL)
+
+6/11/96 (bug fix) Fixed windows sockets bug that caused a cascade of events
+if the fileevent script read less than was available. Now reading less than
+is available does not cause a flood of Tcl events. (JL, SS)
+
+6/11/96 (bug fix) Fixed bug in background flushing on closed channels that
+would prevent the last buffer from getting flushed. (JL)
+
+6/13/96 (bug fix) Fixed bug in Windows sockets that caused a core dump if
+a DLL linked with tcl.dll and referred to e.g. ntohs() without opening a
+Tcl socket. The problem was that the indirection table was not being
+initialized. (JL)
+
+6/13/96 (bug fix) Fixed OS level resource leak that would occur when a
+Tcl channel was still registered in some interpreter when the process
+exits. Previously the channel was not being closed and the OS level handles
+were not being released; the output was being flushed but the device was
+not being closed. Now the device is properly closed. This was only a
+problem on Win3.1 and MacOS. (JL, SS)
+
+6/28/96 (bug fix) Fixed bug where transient errors were leaving an error
+code around, so that it would erroneously get reported later. This bug was
+exercised intermittently by closing a channel to a file on a very loaded
+NFS server, or to a socket whose other end blocked. (JL, BW)
+
+7/3/96 (bug fix) Fileevents declared in an interpreter are now deleted
+when the channel is closed in that interpreter. Before this fix, the
+fileevent would hang around until the channel is completely closed, and
+would cause errors if events happened before the channel was closed. This
+could happen in two cases: first if the channel is shared between several
+interpreters, and second if an async flush is in progress that prevents the
+channel from being closed until the flush finishes. (JL)
+
+7/10/96 (bug fix) Fixed bugs in both "lrange" and "lreplace" commands
+where too much white space was being removed. For example, the command
+		lreplace {\}\     hello} end end
+was returning "\}\", losing the significant space in the first list
+element and corrupting the list. (JO)
+
+7/20/96 (bug fix) The procedure pkg_mkIndex didn't work properly for
+extensions that depend on Tk, because it didn't load Tk into the child
+interpreter before loading the extension.  Now it loads Tk if Tk is
+present in the parent. (JO)
+
+7/23/96 (bug fix) Added compat version of strftime to fix crashes
+resulting from bad implementations under Windows. (SS)
+
+7/23/96 (bug fix) Standard implementations of gmtime() and localtime()
+under Windows did not handle dates before 1970, so they were replaced
+with a revised implementation. (SS)
+
+7/23/96 (bug fix) Tcl would crash on exit under Borland 5.0 because
+the global environ pointer was left pointing to freed memory. (SS)
+
+7/29/96 (bug fix) Fixed memory leak in Tcl_LoadCmd that could occur if
+a package's AppInit procedure called Tcl_StaticPackage to register
+static packages. (JO)
+
+8/1/96 (bug fix) Fixed a series of bugs in Windows sockets so that async
+writebehind in the presence of read event handlers now works, and so that
+async writebehind also works on sockets for which a read event handler was
+declared and whose channels were then closed before the async write
+finished. The bug was reported by John Loverso and Steven Wahl,
+independently, test case supplied by John Loverso. (JL)
+
+----------------- Released patch 7.5p1, 8/2/96 -----------------------
