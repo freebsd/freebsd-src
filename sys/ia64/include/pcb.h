@@ -60,6 +60,14 @@ struct pcb {
 	u_int64_t		pcb_pr;		/* predicates */
 	u_int64_t		pcb_pmap;	/* current pmap */
 
+	u_int64_t		pcb_fsr;
+	u_int64_t		pcb_fcr;
+	u_int64_t		pcb_fir;
+	u_int64_t		pcb_fdr;
+	u_int64_t		pcb_eflag;
+	u_int64_t		pcb_csd;
+	u_int64_t		pcb_ssd;
+
 	u_int64_t		pcb_onfault;	/* for copy faults */
 	u_int64_t		pcb_accessaddr;	/* for [fs]uswintr */
 
