@@ -61,6 +61,7 @@ static MALLOC_DEFINE(M_SPKR, "spkr", "Speaker buffer");
  * XXX PPI control values should be in a header and used in clock.c.
  */
 #ifdef PC98
+#define	SPKR_DESC	"PC98 speaker"
 #define	PPI_SPKR	0x08	/* turn these PPI bits on to pass sound */
 #define	PIT_COUNT	0x3fdb	/* PIT count address */
 
@@ -73,6 +74,7 @@ static MALLOC_DEFINE(M_SPKR, "spkr", "Speaker buffer");
 					outb(PIT_COUNT, (val >> 8)); \
 				}
 #else
+#define	SPKR_DESC	"PC speaker"
 #define PPI_SPKR	0x03	/* turn these PPI bits on to pass sound */
 
 #define	SPEAKER_ON	outb(IO_PPI, inb(IO_PPI) | PPI_SPKR)
@@ -602,7 +604,7 @@ spkrioctl(dev, cmd, cmdarg, flags, td)
  */
 static struct isa_pnp_id speaker_ids[] = {
 #ifndef PC98
-	{ 0x0008d041 /* PNP0800 */, "PC speaker" },
+	{ 0x0008d041 /* PNP0800 */, SPKR_DESC },
 #endif
 	{ 0 }
 };
@@ -628,7 +630,7 @@ speaker_probe(device_t dev)
 	if (strncmp(device_get_name(dev), "speaker", 9))
 		return (ENXIO);
 
-	device_set_desc(dev, "PC speaker");
+	device_set_desc(dev, SPKR_DESC);
 
 	return (0);
 }
