@@ -275,7 +275,7 @@ exports_find(struct sockaddr *s, const char *path)
 	struct export *ex;
 	in_addr_t ip;
 
-	ip = htonl(((struct sockaddr_in *)s)->sin_addr.s_addr);
+	ip = htonl(((struct sockaddr_in *)(void *)s)->sin_addr.s_addr);
 	SLIST_FOREACH(ex, &exports_list, e_next) {
 		if ((ip & ex->e_mask) != ex->e_ip)
 			continue;
