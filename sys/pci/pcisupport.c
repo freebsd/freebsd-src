@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.13 1995/03/21 23:01:05 se Exp $
+**  $Id: pcisupport.c,v 1.14 1995/06/28 11:28:43 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -115,8 +115,18 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	data = pci_conf_read(tag, PCI_CLASS_REG);
 	switch (data & (PCI_CLASS_MASK|PCI_SUBCLASS_MASK)) {
 
+	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_HOST:
+		return ("CPU-PCI bridge");
+	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_ISA:
+		return ("PCI-ISA bridge");
+	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_EISA:
+		return ("PCI-EISA bridge");
+	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_MC:
+		return ("PCI-MC bridge");
 	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_PCI:
 		return ("PCI-PCI bridge");
+	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_PCMCIA:
+		return ("PCI-PCMCIA bridge");
 	};
 	return ((char*)0);
 }
