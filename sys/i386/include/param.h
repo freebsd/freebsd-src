@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id$
+ *	$Id: param.h,v 1.26 1997/02/22 09:34:54 peter Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -72,6 +72,8 @@
 #define MAXPHYS		(64 * 1024)	/* max raw I/O transfer size */
 
 #define UPAGES	2		/* pages of u-area */
+#define UPAGES_HOLE	2	/* pages of "hole" at top of user space where */
+				/* the upages used to be. DO NOT CHANGE! */
 
 /*
  * Constants related to network buffer management.
