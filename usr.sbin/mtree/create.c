@@ -89,17 +89,18 @@ cwalk()
 {
 	register FTS *t;
 	register FTSENT *p;
-	time_t clock;
+	time_t cl;
 	char *argv[2], host[MAXHOSTNAMELEN];
+	char dot[] = ".";
 	int indent = 0;
 
-	(void)time(&clock);
+	(void)time(&cl);
 	(void)gethostname(host, sizeof(host));
 	(void)printf(
 	    "#\t   user: %s\n#\tmachine: %s\n#\t   tree: %s\n#\t   date: %s",
-	    getlogin(), host, fullpath, ctime(&clock));
+	    getlogin(), host, fullpath, ctime(&cl));
 
-	argv[0] = ".";
+	argv[0] = dot;
 	argv[1] = NULL;
 	if ((t = fts_open(argv, ftsoptions, dsort)) == NULL)
 		err(1, "line %d: fts_open", lineno);
@@ -208,7 +209,7 @@ statf(indent, p)
 		output(indent, &offset, "size=%qd", p->fts_statp->st_size);
 	if (keys & F_TIME)
 		output(indent, &offset, "time=%ld.%ld",
-		    p->fts_statp->st_mtimespec.tv_sec,
+		    (long)p->fts_statp->st_mtimespec.tv_sec,
 		    p->fts_statp->st_mtimespec.tv_nsec);
 	if (keys & F_CKSUM && S_ISREG(p->fts_statp->st_mode)) {
 		if ((fd = open(p->fts_accpath, O_RDONLY, 0)) < 0 ||

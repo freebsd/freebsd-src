@@ -63,7 +63,7 @@ static const char rcsid[] =
 extern int uflag;
 extern int lineno;
 
-static char *ftype(u_int);
+static const char *ftype(u_int);
 
 #define	INDENTNAMELEN	8
 #define	LABEL \
@@ -74,14 +74,15 @@ static char *ftype(u_int);
 
 int
 compare(name, s, p)
-	char *name;
+	char *name __unused;
 	register NODE *s;
 	register FTSENT *p;
 {
 	extern int uflag;
 	u_long len, val;
 	int fd, label;
-	char *cp, *tab = "";
+	char *cp;
+	const char *tab = "";
 	char *fflags;
 
 	label = 0;
@@ -304,7 +305,7 @@ typeerr:		LABEL;
 	return (label);
 }
 
-char *
+const char *
 inotype(type)
 	u_int type;
 {
@@ -329,7 +330,7 @@ inotype(type)
 	/* NOTREACHED */
 }
 
-static char *
+static const char *
 ftype(type)
 	u_int type;
 {
