@@ -26,8 +26,8 @@ SUBDIR=	${_3dfx} \
 	ath \
 	${_ath_hal} \
 	ath_rate_amrr \
-	ath_rate_onoe \
 	ath_rate_sample \
+	ath_rate_onoe \
 	aue \
 	${_auxio} \
 	${_awi} \
