@@ -68,6 +68,7 @@ struct msdosfsmount {
 	mode_t pm_mask;		/* mask to and with file protection bits */
 	struct vnode *pm_devvp;	/* vnode for block device mntd */
 	struct bpb50 pm_bpb;	/* BIOS parameter blk for this fs */
+	u_long pm_BlkPerSec;	/* How many DEV_BSIZE blocks fit inside a physical sector */
 	u_long pm_FATsecs;	/* actual number of fat sectors */
 	u_long pm_fatblk;	/* block # of first FAT */
 	u_long pm_rootdirblk;	/* block # (cluster # for FAT32) of root directory number */
@@ -189,6 +190,12 @@ struct msdosfsmount {
 	((dirclu) == MSDOSFSROOT \
 	 ? roottobn((pmp), (dirofs)) \
 	 : cntobn((pmp), (dirclu)))
+
+/*
+ * Calculate fsinfo block size
+ */
+#define	fsi_size(pmp) \
+	(1024 << ((pmp)->pm_BlkPerSec >> 2))
 
 int msdosfs_init __P((struct vfsconf *vfsp));
 int msdosfs_mountroot __P((void));
