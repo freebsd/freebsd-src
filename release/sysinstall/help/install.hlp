@@ -526,11 +526,12 @@ FreeBSD 2.1 now features a "Fixit" option in the top menu of the boot
 floppy.  To use it, you will also need a fixit.flp image floppy,
 generated in the same fashion as the boot floppy.
 
-To use it, simply boot the boot floppy, chose the "Fixit" item and
-insert the fixit floppy when asked.  You will then be placed into a
-shell with a wide variety of commants available for checking,
-repairing and examining file systems and their contents.  Some
-administration experience is required to use this option!
+To invoke fixit, simply boot the boot floppy, chose the "Fixit"
+item and insert the fixit floppy when asked.  You will then be placed
+into a shell with a wide variety of commands available (in the /stand
+and /mnt2/stand directories) for checking, repairing and examining file
+systems and their contents.  Some UNIX administration experience *is*
+required to use the fixit option!
 
 
 3.2     Upgrading from FreeBSD 2.0.5
