@@ -783,6 +783,13 @@ shminit()
 {
 	int i;
 
+	TUNABLE_INT_FETCH("kern.ipc.shmmaxpgs", &shminfo.shmall);
+	shminfo.shmmax = shminfo.shmall * PAGE_SIZE;
+	TUNABLE_INT_FETCH("kern.ipc.shmmin", &shminfo.shmmin);
+	TUNABLE_INT_FETCH("kern.ipc.shmmni", &shminfo.shmmni);
+	TUNABLE_INT_FETCH("kern.ipc.shmseg", &shminfo.shmseg);
+	TUNABLE_INT_FETCH("kern.ipc.shm_use_phys", &shm_use_phys);
+
 	shmalloced = shminfo.shmmni;
 	shmsegs = malloc(shmalloced * sizeof(shmsegs[0]), M_SHM, M_WAITOK);
 	if (shmsegs == NULL)
