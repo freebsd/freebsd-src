@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -48,8 +50,12 @@ static char sccsid[] = "@(#)unvis.c	8.1 (Berkeley) 6/4/93";
 #define	S_CTRL		4	/* control char started (^) */
 #define	S_OCTAL2	5	/* octal digit 2 */
 #define	S_OCTAL3	6	/* octal digit 3 */
+#define	S_HEX2		7	/* hex digit 2 */
+
+#define	S_HTTP		0x080	/* %HEXHEX escape */
 
 #define	isoctal(c)	(((u_char)(c)) >= '0' && ((u_char)(c)) <= '7')
+#define	ishex(c)	(((u_char)(c)) >= '0' && ((u_char)(c)) <= '9' || ((u_char)(c)) >= 'a' && ((u_char)(c)) <= 'f')
 
 /*
  * unvis - decode characters previously encoded by vis
@@ -68,7 +74,7 @@ unvis(cp, c, astate, flag)
 		return (*astate == S_GROUND ? UNVIS_NOCHAR : UNVIS_SYNBAD);
 	}
 
-	switch (*astate) {
+	switch (*astate & ~S_HTTP) {
 
 	case S_GROUND:
 		*cp = 0;
@@ -76,10 +82,21 @@ unvis(cp, c, astate, flag)
 			*astate = S_START;
 			return (0);
 		}
+		if (flag & VIS_HTTPSTYLE && c == '%') {
+			*astate = S_START | S_HTTP;
+			return (0);
+		}
 		*cp = c;
 		return (UNVIS_VALID);
 
 	case S_START:
+		if (*astate & S_HTTP) {
+		    if (ishex(tolower(c))) {
+			*cp = isdigit(c) ? (c - '0') : (tolower(c) - 'a');
+			*astate = S_HEX2;
+			return (0);
+		    }
+		}
 		switch(c) {
 		case '\\':
 			*cp = c;
@@ -199,6 +216,13 @@ unvis(cp, c, astate, flag)
 		 */
 		return (UNVIS_VALIDPUSH);
 
+	case S_HEX2:	/* second mandatory hex digit */
+		if (ishex(tolower(c))) {
+			*cp = (isdigit(c) ? (*cp << 4) + (c - '0') : (*cp << 4) + (tolower(c) - 'a' + 10));
+		}
+		*astate = S_GROUND;
+		return (UNVIS_VALID);
+
 	default:
 		/*
 		 * decoder in unknown state - (probably uninitialized)
@@ -227,6 +251,37 @@ strunvis(dst, src)
 	while ( (c = *src++) ) {
 	again:
 		switch (unvis(dst, c, &state, 0)) {
+		case UNVIS_VALID:
+			dst++;
+			break;
+		case UNVIS_VALIDPUSH:
+			dst++;
+			goto again;
+		case 0:
+		case UNVIS_NOCHAR:
+			break;
+		default:
+			return (-1);
+		}
+	}
+	if (unvis(dst, c, &state, UNVIS_END) == UNVIS_VALID)
+		dst++;
+	*dst = '\0';
+	return (dst - start);
+}
+
+int
+strunvisx(dst, src, flag)
+	register char *dst;
+	register const char *src;
+{
+	register char c;
+	char *start = dst;
+	int state = 0;
+    
+	while ( (c = *src++) ) {
+	again:
+		switch (unvis(dst, c, &state, flag)) {
 		case UNVIS_VALID:
 			dst++;
 			break;
