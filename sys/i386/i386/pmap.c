@@ -1293,7 +1293,7 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 		pmap_kremove((vm_offset_t) pmap->pm_pdir);
 	}
 
-	if (pmap->pm_ptphint && (pmap->pm_ptphint->pindex == p->pindex))
+	if (pmap->pm_ptphint == p)
 		pmap->pm_ptphint = NULL;
 
 	p->wire_count--;
