@@ -49,7 +49,7 @@
 /* structure for MTIOCTOP - mag tape op command */
 struct mtop {
 	short	mt_op;		/* operations defined below */
-	daddr_t	mt_count;	/* how many of them */
+	int32_t	mt_count;	/* how many of them */
 };
 
 /* operations */
@@ -125,17 +125,17 @@ struct mtget {
 	 */
 	short	mt_resid;	/* residual count */
 #if defined (__FreeBSD__)
-	daddr_t mt_blksiz;	/* presently operating blocksize */
-	daddr_t mt_density;	/* presently operating density */
+	int32_t mt_blksiz;	/* presently operating blocksize */
+	int32_t mt_density;	/* presently operating density */
 	u_int32_t mt_comp;	/* presently operating compression */
-	daddr_t mt_blksiz0;	/* blocksize for mode 0 */
-	daddr_t mt_blksiz1;	/* blocksize for mode 1 */
-	daddr_t mt_blksiz2;	/* blocksize for mode 2 */
-	daddr_t mt_blksiz3;	/* blocksize for mode 3 */
-	daddr_t mt_density0;	/* density for mode 0 */
-	daddr_t mt_density1;	/* density for mode 1 */
-	daddr_t mt_density2;	/* density for mode 2 */
-	daddr_t mt_density3;	/* density for mode 3 */
+	int32_t mt_blksiz0;	/* blocksize for mode 0 */
+	int32_t mt_blksiz1;	/* blocksize for mode 1 */
+	int32_t mt_blksiz2;	/* blocksize for mode 2 */
+	int32_t mt_blksiz3;	/* blocksize for mode 3 */
+	int32_t mt_density0;	/* density for mode 0 */
+	int32_t mt_density1;	/* density for mode 1 */
+	int32_t mt_density2;	/* density for mode 2 */
+	int32_t mt_density3;	/* density for mode 3 */
 /* the following are not yet implemented */
 	u_int32_t mt_comp0;	/* compression type for mode 0 */
 	u_int32_t mt_comp1;	/* compression type for mode 1 */
@@ -143,8 +143,8 @@ struct mtget {
 	u_int32_t mt_comp3;	/* compression type for mode 3 */
 /* end not yet implemented */
 #endif
-	daddr_t	mt_fileno;	/* relative file number of current position */
-	daddr_t	mt_blkno;	/* relative block number of current position */
+	int32_t	mt_fileno;	/* relative file number of current position */
+	int32_t	mt_blkno;	/* relative block number of current position */
 };
 
 /* structure for MTIOCERRSTAT - tape get error status command */
