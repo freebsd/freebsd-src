@@ -272,7 +272,6 @@ static int
 idprobe(device_t dev)
 {
 
-	id_drvinit();
 	device_set_desc(dev, "Compaq Logical Drive");
 	return (0);
 }
@@ -285,6 +284,7 @@ idattach(device_t dev)
 	device_t parent;
 	int error;
 
+	id_drvinit();
 	drv = (struct id_softc *)device_get_softc(dev);
 	parent = device_get_parent(dev);
 	drv->controller = (struct ida_softc *)device_get_softc(parent);
@@ -317,4 +317,4 @@ idattach(device_t dev)
 	return (0);
 }
 
-DEV_DRIVER_MODULE(id, ida, id_driver, id_devclass, id_cdevsw, 0, 0);
+DRIVER_MODULE(id, ida, id_driver, id_devclass, 0, 0);
