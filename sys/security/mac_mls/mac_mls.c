@@ -85,7 +85,7 @@ static int	mac_mls_label_size = sizeof(struct mac_mls);
 SYSCTL_INT(_security_mac_mls, OID_AUTO, label_size, CTLFLAG_RD,
     &mac_mls_label_size, 0, "Size of struct mac_mls");
 
-static int	mac_mls_enabled = 0;
+static int	mac_mls_enabled = 1;
 SYSCTL_INT(_security_mac_mls, OID_AUTO, enabled, CTLFLAG_RW,
     &mac_mls_enabled, 0, "Enforce MAC/MLS policy");
 TUNABLE_INT("security.mac.mls.enabled", &mac_mls_enabled);
