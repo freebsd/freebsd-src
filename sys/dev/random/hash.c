@@ -30,47 +30,22 @@
 #include <sys/systm.h>
 
 #include <crypto/rijndael/rijndael.h>
+#include <crypto/sha2/sha2.h>
 
 #include <dev/random/hash.h>
 
-/* initialise the hash by zeroing it */
+/* initialise the hash */
 void
 yarrow_hash_init(struct yarrowhash *context)
 {
-	rijndael_cipherInit(&context->cipher, MODE_CBC, NULL);
-	bzero(context->hash, KEYSIZE);
-	context->partial = 0;
+	SHA256_Init(&context->sha);
 }
 
-/* Do a Davies-Meyer hash using a block cipher.
- * H_0 = I
- * H_i = E_M_i(H_i-1) ^ H_i-1
- */
+/* iterate the hash */
 void
 yarrow_hash_iterate(struct yarrowhash *context, void *data, size_t size)
 {
-	u_char temp[KEYSIZE];
-	u_int i, j;
-	union {
-		void *pv;
-		char *pc;
-	} trans;
-
-	trans.pv = data;
-	for (i = 0; i < size; i++) {
-		context->accum[context->partial++] = trans.pc[i];
-		if (context->partial == (KEYSIZE - 1)) {
-			rijndael_makeKey(&context->hashkey, DIR_ENCRYPT,
-				KEYSIZE*8, context->accum);
-			rijndael_blockEncrypt(&context->cipher,
-				&context->hashkey, context->hash,
-				KEYSIZE*8, temp);
-			for (j = 0; j < KEYSIZE; j++)
-				context->hash[j] ^= temp[j];
-			bzero(context->accum, KEYSIZE);
-			context->partial = 0;
-		}
-	}
+	SHA256_Update(&context->sha, data, size);
 }
 
 /* Conclude by returning the hash in the supplied /buf/ which must be
@@ -80,20 +55,7 @@ yarrow_hash_iterate(struct yarrowhash *context, void *data, size_t size)
 void
 yarrow_hash_finish(struct yarrowhash *context, void *buf)
 {
-	u_char temp[KEYSIZE];
-	int i;
-
-	if (context->partial) {
-		rijndael_makeKey(&context->hashkey, DIR_ENCRYPT,
-			KEYSIZE*8, context->accum);
-		rijndael_blockEncrypt(&context->cipher,
-			&context->hashkey, context->hash,
-			KEYSIZE*8, temp);
-		for (i = 0; i < KEYSIZE; i++)
-			context->hash[i] ^= temp[i];
-	}
-	memcpy(buf, context->hash, KEYSIZE);
-	bzero(context->hash, KEYSIZE);
+	SHA256_Final(buf, &context->sha);
 }
 
 /* Initialise the encryption routine by setting up the key schedule
