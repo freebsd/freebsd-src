@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.17 1996/06/17 05:15:01 dyson Exp $
+ * $Id: sys_pipe.c,v 1.18 1996/07/04 04:36:56 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -122,7 +122,7 @@ static struct fileops pipeops =
  * the amount of kva for pipes in general though.
  */
 #define LIMITPIPEKVA (16*1024*1024)
-int amountpipekva;
+static int amountpipekva;
 
 static void pipeclose __P((struct pipe *cpipe));
 static void pipeinit __P((struct pipe *cpipe));
@@ -240,6 +240,7 @@ pipeinit(cpipe)
 	cpipe->pipe_buffer.size = PIPE_SIZE;
 	/* Buffer kva gets dynamically allocated */
 	cpipe->pipe_buffer.buffer = NULL;
+	/* cpipe->pipe_buffer.object = invalid */
 
 	cpipe->pipe_state = 0;
 	cpipe->pipe_peer = NULL;
@@ -250,6 +251,7 @@ pipeinit(cpipe)
 	cpipe->pipe_mtime = time;
 	splx(s);
 	bzero(&cpipe->pipe_sel, sizeof cpipe->pipe_sel);
+	cpipe->pipe_pgid = NO_PID;
 
 #ifndef PIPE_NODIRECT
 	/*
@@ -259,6 +261,7 @@ pipeinit(cpipe)
 	cpipe->pipe_map.kva = 0;
 	cpipe->pipe_map.pos = 0;
 	cpipe->pipe_map.npages = 0;
+	/* cpipe->pipe_map.ms[] = invalid */
 #endif
 }
 
@@ -295,7 +298,6 @@ pipeunlock(cpipe)
 		cpipe->pipe_state &= ~PIPE_LWANT;
 		wakeup(cpipe);
 	}
-	return;
 }
 
 static __inline void
@@ -921,7 +923,7 @@ pipe_ioctl(fp, cmd, data, p)
 		return (0);
 
 	}
-	return ENOSYS;
+	return (ENOTTY);
 }
 
 int
@@ -977,13 +979,18 @@ pipe_stat(pipe, ub)
 	register struct stat *ub;
 {
 	bzero((caddr_t)ub, sizeof (*ub));
-	ub->st_mode = S_IFSOCK;
+	ub->st_mode = S_IFIFO;
 	ub->st_blksize = pipe->pipe_buffer.size;
 	ub->st_size = pipe->pipe_buffer.cnt;
 	ub->st_blocks = (ub->st_size + ub->st_blksize - 1) / ub->st_blksize;
 	TIMEVAL_TO_TIMESPEC(&pipe->pipe_atime, &ub->st_atimespec);
 	TIMEVAL_TO_TIMESPEC(&pipe->pipe_mtime, &ub->st_mtimespec);
 	TIMEVAL_TO_TIMESPEC(&pipe->pipe_ctime, &ub->st_ctimespec);
+	/*
+	 * Left as 0: st_dev, st_ino, st_nlink, st_uid, st_gid, st_rdev,
+	 * st_flags, st_gen.
+	 * XXX (st_dev, st_ino) should be unique.
+	 */
 	return 0;
 }
 
