@@ -82,6 +82,7 @@ nodevice	bt
 nodevice	wds
 nodevice	ep
 nodevice	ex
+nodevice	vinum
 
 
 #####################################################################
