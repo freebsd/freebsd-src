@@ -137,10 +137,14 @@ ahc_isa_probe(device_t dev)
 	int	  error;
 	int	  zero;
 
-	error = ENODEV;
+	error = ENXIO;
 	zero = 0;
 	regs = NULL;
 	irq = NULL;
+
+	/* Skip probes for ISA PnP devices */
+	if (isa_get_logicalid(dev) != 0)
+		return (error);
 
 	regs = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &zero, RF_ACTIVE);
 	if (regs == NULL) {
