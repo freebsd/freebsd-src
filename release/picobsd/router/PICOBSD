@@ -16,7 +16,7 @@ options		FFS			#Berkeley Fast Filesystem
 options		FFS_ROOT		#FFS usable as root device [keep this!]
 #options		NFS			#Network Filesystem
 options		MFS			#Memory Filesystem
-options		MFS_ROOT		#MFS as root
+options		MD_ROOT			#MFS as root
 #options		MSDOSFS			#MSDOS Filesystem
 #options		CD9660			#ISO 9660 Filesystem
 #options		PROCFS			#Process filesystem
@@ -98,4 +98,5 @@ pseudo-device	ether
 #pseudo-device bpf	4
 pseudo-device ppp 	4
 pseudo-device	pty	16
+pseudo-device	md
 #pseudo-device	gzip		# Exec gzipped a.out's
