@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.54 1999/01/07 21:23:42 julian Exp $
+ * $Id: kern_fork.c,v 1.55 1999/01/26 02:38:10 julian Exp $
  */
 
 #include "opt_ktrace.h"
@@ -361,9 +361,10 @@ again:
 		/* Note that we fill in the values of sigacts in vm_fork */
 		p2->p_sigacts = NULL;
 	}
-	if (flags & RFLINUXTHPN) {
+	if (flags & RFLINUXTHPN) 
 	        p2->p_sigparent = SIGUSR1;
-	}
+	else
+	        p2->p_sigparent = SIGCHLD;
 
 	/* bump references to the text vnode (for procfs) */
 	p2->p_textvp = p1->p_textvp;
