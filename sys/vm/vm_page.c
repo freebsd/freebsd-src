@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.109 1998/10/21 14:46:41 dg Exp $
+ *	$Id: vm_page.c,v 1.110 1998/10/25 17:44:59 phk Exp $
  */
 
 /*
@@ -1252,8 +1252,9 @@ vm_page_wire(m)
  *	The page queues must be locked.
  */
 void
-vm_page_unwire(m)
+vm_page_unwire(m, activate)
 	register vm_page_t m;
+	int activate;
 {
 	int s;
 
@@ -1265,10 +1266,17 @@ vm_page_unwire(m)
 			if (m->object)
 				m->object->wire_count--;
 			cnt.v_wire_count--;
-			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
-			m->queue = PQ_ACTIVE;
-			(*vm_page_queues[PQ_ACTIVE].lcnt)++;
-			cnt.v_active_count++;
+			if (activate) {
+				TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+				m->queue = PQ_ACTIVE;
+				(*vm_page_queues[PQ_ACTIVE].lcnt)++;
+				cnt.v_active_count++;
+			} else {
+				TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+				m->queue = PQ_INACTIVE;
+				(*vm_page_queues[PQ_INACTIVE].lcnt)++;
+				cnt.v_inactive_count++;
+			}
 		}
 	} else {
 #if !defined(MAX_PERF)

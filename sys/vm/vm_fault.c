@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.88 1998/09/04 08:06:57 dfr Exp $
+ * $Id: vm_fault.c,v 1.89 1998/10/25 17:44:58 phk Exp $
  */
 
 /*
@@ -738,7 +738,7 @@ readrest:
 		if (wired)
 			vm_page_wire(fs.m);
 		else
-			vm_page_unwire(fs.m);
+			vm_page_unwire(fs.m, 1);
 	} else {
 		vm_page_activate(fs.m);
 	}
@@ -870,7 +870,7 @@ vm_fault_unwire(map, start, end)
 		pa = pmap_extract(pmap, va);
 		if (pa != (vm_offset_t) 0) {
 			pmap_change_wiring(pmap, va, FALSE);
-			vm_page_unwire(PHYS_TO_VM_PAGE(pa));
+			vm_page_unwire(PHYS_TO_VM_PAGE(pa), 1);
 		}
 	}
 

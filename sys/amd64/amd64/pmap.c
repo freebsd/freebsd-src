@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.209 1998/09/06 23:04:20 tegge Exp $
+ *	$Id: pmap.c,v 1.210 1998/10/21 11:38:14 dg Exp $
  */
 
 /*
@@ -1046,7 +1046,7 @@ pmap_dispose_proc(p)
 		*(ptek + i) = 0;
 		if ((oldpte & PG_G) || (cpu_class > CPUCLASS_386))
 			invlpg((vm_offset_t) p->p_addr + i * PAGE_SIZE);
-		vm_page_unwire(m);
+		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
 
@@ -1073,8 +1073,7 @@ pmap_swapout_proc(p)
 		if ((m = vm_page_lookup(upobj, i)) == NULL)
 			panic("pmap_swapout_proc: upage already missing???");
 		m->dirty = VM_PAGE_BITS_ALL;
-		vm_page_unwire(m);
-		vm_page_deactivate(m);
+		vm_page_unwire(m, 0);
 		pmap_kremove( (vm_offset_t) p->p_addr + PAGE_SIZE * i);
 	}
 }
