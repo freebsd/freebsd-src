@@ -14,7 +14,7 @@
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
- * the GNU Public License ("GPL").
+ * GNU Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -27,6 +27,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id: //depot/src/aic7xxx/aic7xxx.reg#3 $
  *
  * $FreeBSD$
  */
@@ -110,6 +112,8 @@ register SCSISIGI {
 	mask	PHASE_MASK	CDI|IOI|MSGI
 	mask	P_DATAOUT	0x00
 	mask	P_DATAIN	IOI
+	mask	P_DATAOUT_DT	P_DATAOUT|MSGI
+	mask	P_DATAIN_DT	P_DATAIN|MSGI
 	mask	P_COMMAND	CDI
 	mask	P_MESGOUT	CDI|MSGI
 	mask	P_STATUS	CDI|IOI
@@ -172,6 +176,8 @@ register SCSIID	{
 	address			0x005
 	access_mode RW
 	mask	TID		0xf0		/* Target ID mask */
+	mask	TWIN_TID	0x70
+	bit	TWIN_CHNLB	0x80
 	mask	OID		0x0f		/* Our ID mask */
 	/*
 	 * SCSI Maximum Offset (p. 4-61 aic7890/91 Data Book)
@@ -305,7 +311,12 @@ register SSTAT2 {
 	address			0x00d
 	access_mode RO
 	bit	OVERRUN		0x80
+	bit	SHVALID		0x40	/* Shaddow Layer non-zero */
 	bit	EXP_ACTIVE	0x10	/* SCSI Expander Active */
+	bit	CRCVALERR	0x08	/* CRC doesn't match (U3 only) */
+	bit	CRCENDERR	0x04	/* No terminal CRC packet (U3 only) */
+	bit	CRCREQERR	0x02	/* Illegal CRC packet req (U3 only) */
+	bit	DUAL_EDGE_ERR	0x01	/* Incorrect data phase (U3 only) */
 	mask	SFCNT		0x1f
 }
 
@@ -704,7 +715,6 @@ register HS_MAILBOX {
 	address			0x086
 	mask	HOST_MAILBOX	0xF0
 	mask	SEQ_MAILBOX	0x0F
-	mask	HOST_REQ_INT	0x10
 	mask	HOST_TQINPOS	0x80	/* Boundary at either 0 or 128 */
 }
 
@@ -746,7 +756,7 @@ register HCNT {
 
 /*
  * SCB Pointer (p. 3-49)
- * Gate one of the four SCBs into the SCBARRAY window.
+ * Gate one of the SCBs into the SCBARRAY window.
  */
 register SCBPTR {
 	address			0x090
@@ -768,10 +778,10 @@ register INTSTAT {
 	mask	SEND_REJECT	0x10|SEQINT	/* sending a message reject */
 	mask	NO_IDENT	0x20|SEQINT	/* no IDENTIFY after reconnect*/
 	mask	NO_MATCH	0x30|SEQINT	/* no cmd match for reconnect */
-	mask	UPDATE_TMSG_REQ	0x60|SEQINT	/* Update TMSG_REQ values */
+	mask	IGN_WIDE_RES	0x40|SEQINT	/* Complex IGN Wide Res Msg */
 	mask	BAD_STATUS	0x70|SEQINT	/* Bad status from target */
 	mask	RESIDUAL	0x80|SEQINT	/* Residual byte count != 0 */
-	mask	TRACE_POINT	0x90|SEQINT
+	mask	TRACEPOINT2	0x90|SEQINT
 	mask	HOST_MSG_LOOP	0xa0|SEQINT	/*
 						 * The bus is ready for the
 						 * host to perform another
@@ -787,11 +797,6 @@ register INTSTAT {
 						 * noticed a parity error.
 						 */
 	mask	TRACEPOINT	0xd0|SEQINT
-	mask	MSGIN_PHASEMIS	0xe0|SEQINT	/*
-						 * Target changed phase on us
-						 * when we were expecting
-						 * another msgin byte.
-						 */
 	mask	DATA_OVERRUN	0xf0|SEQINT	/*
 						 * Target attempted to write
 						 * beyond the bounds of its
@@ -960,35 +965,19 @@ register SFUNCT {
  */
 scb {
 	address			0x0a0
-	SCB_CONTROL {
-		size	1
-		bit	TARGET_SCB	0x80
-		bit	DISCENB         0x40
-		bit	TAG_ENB		0x20
-		bit	MK_MESSAGE      0x10
-		bit	ULTRAENB	0x08
-		bit	DISCONNECTED	0x04
-		mask	SCB_TAG_TYPE	0x03
+	SCB_CDB_PTR {
+		size	4
+		alias	SCB_RESIDUAL_DATACNT
+		alias	SCB_CDB_STORE
+		alias	SCB_TARGET_INFO
 	}
-	SCB_TCL {
-		size	1
-		bit	SELBUSB		0x08
-		mask	TID		0xf0
-		mask	LID		0x07
-	}
-	SCB_TARGET_STATUS {
-		size	1
-	}
-	SCB_SGCOUNT {
-		size	1
-	}
-	SCB_SGPTR {
+	SCB_RESIDUAL_SGPTR {
 		size	4
 	}
-	SCB_RESID_SGCNT {
+	SCB_SCSI_STATUS {
 		size	1
 	}
-	SCB_RESID_DCNT	{
+	SCB_CDB_STORE_PAD {
 		size	3
 	}
 	SCB_DATAPTR {
@@ -996,24 +985,44 @@ scb {
 	}
 	SCB_DATACNT {
 		/*
-		 * Really only 3 bytes, but padded to make
-		 * the kernel's job easier.
+		 * The last byte is really the high address bits for
+		 * the data address.
 		 */
 		size	4
+		bit	SG_LAST_SEG		0x80	/* In the fourth byte */
+		mask	SG_HIGH_ADDR_BITS	0x7F	/* In the fourth byte */
 	}
-	SCB_CMDPTR {
-		alias	SCB_TARGET_PHASES
-		bit	TARGET_DATA_IN	0x1	/* In the second byte */
+	SCB_SGPTR {
 		size	4
+		bit	SG_RESID_VALID	0x04	/* In the first byte */
+		bit	SG_FULL_RESID	0x02	/* In the first byte */
+		bit	SG_LIST_NULL	0x01	/* In the first byte */
 	}
-	SCB_CMDLEN {
-		alias	SCB_INITIATOR_TAG
+	SCB_CONTROL {
+		size	1
+		bit	TARGET_SCB			0x80
+		bit	DISCENB				0x40
+		bit	TAG_ENB				0x20
+		bit	MK_MESSAGE			0x10
+		bit	ULTRAENB			0x08
+		bit	DISCONNECTED			0x04
+		mask	SCB_TAG_TYPE			0x03
+	}
+	SCB_SCSIID {
+		size	1
+		bit	TWIN_CHNLB			0x80
+		mask	TWIN_TID			0x70
+		mask	TID				0xf0
+		mask	OID				0x0f
+	}
+	SCB_LUN {
+		mask	LID				0xff
 		size	1
 	}
 	SCB_TAG {
 		size	1
 	}
-	SCB_NEXT {
+	SCB_CDB_LEN {
 		size	1
 	}
 	SCB_SCSIRATE {
@@ -1022,22 +1031,20 @@ scb {
 	SCB_SCSIOFFSET {
 		size	1
 	}
-	SCB_SPARE	{
-		size	3
+	SCB_NEXT {
+		size	1
 	}
-	SCB_CMDSTORE	{
+	SCB_64_SPARE {
 		size	16
 	}
-	SCB_CMDSTORE_BUSADDR {
-		size	4
-	}
-	SCB_64BYTE_SPARE {
-		size	12
+	SCB_64_BTT {
+		size	16
 	}
 }
 
-const	SCB_32BYTE_SIZE	28
-const	SCB_64BYTE_SIZE	48
+const	SCB_UPLOAD_SIZE		32
+const	SCB_DOWNLOAD_SIZE	32
+const	SCB_DOWNLOAD_SIZE_64	48
 
 const	SG_SIZEOF	0x08		/* sizeof(struct ahc_dma) */
 
@@ -1083,7 +1090,7 @@ register CCSGCTL {
 	address			0x0EB
 	bit	CCSGDONE	0x80
 	bit	CCSGEN		0x08
-	bit	FLAG		0x02
+	bit	SG_FETCH_NEEDED 0x02	/* Bit used for software state */
 	bit	CCSGRESET	0x01
 }
 
@@ -1164,14 +1171,23 @@ register DFF_THRSH {
 	mask	WR_DFTHRSH_MAX	0x70
 }
 
-register SG_CACHEPTR {
-	access_mode RW
+register SG_CACHE_PRE {
+	access_mode WO
 	address			0x0fc
-	mask	SG_USER_DATA	0xfc
+	mask	SG_ADDR_MASK	0xf8
+	bit	ODD_SEG		0x04
 	bit	LAST_SEG	0x02
 	bit	LAST_SEG_DONE	0x01
 }
 
+register SG_CACHE_SHADOW {
+	access_mode RO
+	address			0x0fc
+	mask	SG_ADDR_MASK	0xf8
+	bit	ODD_SEG		0x04
+	bit	LAST_SEG	0x02
+	bit	LAST_SEG_DONE	0x01
+}
 /* ---------------------- Scratch RAM Offsets ------------------------- */
 /* These offsets are either to values that are initialized by the board's
  * BIOS or are specified by the sequencer code.
@@ -1193,18 +1209,30 @@ scratch_ram {
 	/*
 	 * 1 byte per target starting at this address for configuration values
 	 */
-	TARG_SCSIRATE {
-		alias		CMDSIZE_TABLE
+	CMDSIZE_TABLE {
+		alias		TARG_SCSIRATE
+		size		8
+	}
+	BUSY_TARGETS {
 		size		16
 	}
 	/*
-	 * Bit vector of targets that have ULTRA enabled.
+	 * Bit vector of targets that have ULTRA enabled as set by the BIOS.
+	 * The Sequencer relies in a per-SCB field to control the disconnect
+	 * priveldge.
 	 */
 	ULTRA_ENB {
 		size		2
+		/*
+		 * Partial transfer past cacheline end to be
+		 * transferred using an extra S/G.
+		 */
+		alias		MWI_RESIDUAL
 	}
 	/*
-	 * Bit vector of targets that have disconnection disabled.
+	 * Bit vector of targets that have disconnection disabled as set by
+	 * the BIOS.  The Sequencer relies in a per-SCB field to control the
+	 * disconnect priveldge.
 	 */
 	DISC_DSB {
 		size		2
@@ -1234,6 +1262,7 @@ scratch_ram {
 		size		1
 		bit	IDENTIFY_SEEN		0x80
 		bit	SCBPTR_VALID		0x40
+		bit	TARGET_CMD_IS_TAGGED	0x40
 		bit	DPHASE			0x20
 		/* Target flags */
 		bit	TARG_CMD_PENDING	0x10
@@ -1247,16 +1276,11 @@ scratch_ram {
 	 * target/channel/lun of a
 	 * reconnecting target
 	 */
-	SAVED_TCL {
+	SAVED_SCSIID {
 		size		1
 	}
-	/* Working value of the number of SG segments left */
-	SG_COUNT {
+	SAVED_LUN {
 		size		1
-	}
-	/* Working value of SG pointer */
-	SG_NEXT	{
-		size		4
 	}
 	/*
 	 * The last bus phase as seen by the sequencer. 
@@ -1304,17 +1328,11 @@ scratch_ram {
 		size		4
 	}
 	/*
-	 * Address of the 256 byte array storing the SCBID of outstanding
-	 * untagged SCBs indexed by TCL.
+	 * Base address of our shared data with the kernel driver in host
+	 * memory.  This includes the qinfifo, qoutfifo, and target mode
+	 * incoming command queue.
 	 */
-	SCBID_ADDR {
-		size		4
-	}
-	/*
-	 * Address of the array of command descriptors used to store
-	 * information about incoming selections.
-	 */
-	TMODE_CMDADDR {
+	SHARED_DATA_ADDR {
 		size		4
 	}
 	KERNEL_QINPOS {
@@ -1357,14 +1375,6 @@ scratch_ram {
 	 * Snapshot of MSG_OUT taken after each message is sent.
 	 */
 	LAST_MSG {
-		size		1
-	}
-
-	/*
-	 * Number of times we have filled the CCSGRAM with prefetched
-	 * SG elements.
-	 */
-	PREFETCH_CNT {
 		size		1
 	}
 
@@ -1421,6 +1431,12 @@ scratch_ram {
 		mask	HSCSIID		0x07	/* our SCSI ID */
 		mask	HWSCSIID	0x0f	/* our SCSI ID if Wide Bus */
 	}
+	INTDEF {
+		address		0x05c
+		size		1
+		bit	EDGE_TRIG	0x80
+		mask	VECTOR		0x0f
+	}
 	HOSTCONF {
 		address		0x05d
 		size		1
@@ -1441,16 +1457,12 @@ scratch_ram {
 	}
 }
 
+const TID_SHIFT		4
 const SCB_LIST_NULL	0xff
 const TARGET_CMD_CMPLT	0xfe
 
 const CCSGADDR_MAX	0x80
 const CCSGRAM_MAXSEGS	16
-
-/* Offsets into the SCBID array where different data is stored */
-const QOUTFIFO_OFFSET		0
-const QINFIFO_OFFSET		1
-const UNTAGGEDSCB_OFFSET	2
 
 /* WDTR Message values */
 const BUS_8_BIT			0x00
@@ -1466,18 +1478,19 @@ const HOST_MSG			0xff
 /* Target mode command processing constants */
 const CMD_GROUP_CODE_SHIFT	0x05
 
-const TCL_TARGET_SHIFT		4
-
 const STATUS_BUSY		0x08
-const STATUS_QUEUE_FULL		0x28
+const STATUS_QUEUE_FULL	0x28
+const SCB_TARGET_PHASES		0
+const SCB_TARGET_DATA_DIR	1
+const SCB_TARGET_STATUS		2
+const SCB_INITIATOR_TAG		3
+const TARGET_DATA_IN		1
 
 /*
  * Downloaded (kernel inserted) constants
  */
-
-/*
- * Number of command descriptors in the command descriptor array.
- * No longer used, but left here as an example for how downloaded
- * constantants can be defined.
-const TMODE_NUMCMDS	download
- */
+/* Offsets into the SCBID array where different data is stored */
+const QOUTFIFO_OFFSET download
+const QINFIFO_OFFSET download
+const CACHESIZE_MASK download
+const INVERTED_CACHESIZE_MASK download
