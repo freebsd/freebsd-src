@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.34 1998/10/05 11:10:55 obrien Exp $
+ * $Id: vfs_init.c,v 1.35 1998/10/16 03:55:00 peter Exp $
  */
 
 
@@ -278,7 +278,6 @@ vfs_register(vfc)
 	int error, i, maxtypenum, exists;
 
 	vfsp = NULL;
-	exists = 0;
 	l = &sysctl__vfs;
 	if (vfsconf)
 		for (vfsp = vfsconf; vfsp->vfc_next; vfsp = vfsp->vfc_next)
@@ -287,23 +286,33 @@ vfs_register(vfc)
 
 	vfc->vfc_typenum = maxvfsconf++;
 	if (vfc->vfc_vfsops->vfs_oid != NULL) {
-		oidpp = (struct sysctl_oid **)l->ls_items;
-		for (i = l->ls_length; i-- && !exists; oidpp++)
-			if (*oidpp == vfc->vfc_vfsops->vfs_oid)
+		/*
+		 * Attach the oid to the "vfs" node of the sysctl tree if
+		 * it isn't already there (it will be there for statically
+		 * configured vfs's).
+		 */
+		exists = 0;
+		for (i = l->ls_length,
+		    oidpp = (struct sysctl_oid **)l->ls_items;
+		    i-- != 0; oidpp++)
+			if (*oidpp == vfc->vfc_vfsops->vfs_oid) {
 				exists = 1;
-	}
-	if (exists == 0 && vfc->vfc_vfsops->vfs_oid != NULL) {
-		oidpp = (struct sysctl_oid **)l->ls_items;
-		for (i = l->ls_length; i--; oidpp++) {
-			if (*oidpp == NULL ||
-			    *oidpp == &sysctl___vfs_mod0 ||
-			    *oidpp == &sysctl___vfs_mod1) {
-				*oidpp = vfc->vfc_vfsops->vfs_oid;
-				(*oidpp)->oid_number = vfc->vfc_typenum;
-				sysctl_order_all();
 				break;
 			}
-		}
+		if (exists == 0)
+			for (i = l->ls_length,
+			    oidpp = (struct sysctl_oid **)l->ls_items;
+			    i-- != 0; oidpp++) {
+				if (*oidpp == NULL ||
+				    *oidpp == &sysctl___vfs_mod0 ||
+				    *oidpp == &sysctl___vfs_mod1) {
+					*oidpp = vfc->vfc_vfsops->vfs_oid;
+					break;
+				}
+			}
+
+		vfc->vfc_vfsops->vfs_oid->oid_number = vfc->vfc_typenum;
+		sysctl_order_all();
 	}
 	if (vfsp)
 		vfsp->vfc_next = vfc;
