@@ -144,9 +144,9 @@ static char		*olduser;	/* previous user name */
  * Prompts
  */
 static char		 default_prompt[] = DEFAULT_PROMPT;
-static char		*prompt;
+static const char	*prompt;
 static char		 default_passwd_prompt[] = DEFAULT_PASSWD_PROMPT;
-static char		*passwd_prompt;
+static const char	*passwd_prompt;
 
 static char		*tty;
 
@@ -172,7 +172,8 @@ main(int argc, char *argv[])
 	char *term;
 	char *p, *ttyn;
 	char tname[sizeof(_PATH_TTY) + 10];
-	char *arg0, *shell = NULL;
+	char *arg0;
+	const char *shell = NULL;
 	login_cap_t *lc = NULL;
 	pid_t pid;
 
@@ -537,7 +538,7 @@ main(int argc, char *argv[])
 	(void)setenv("PATH", rootlogin ? _PATH_STDPATH : _PATH_DEFPATH, 0);
 
 	if (!quietlog) {
-		char *cw;
+		const char *cw;
 
 		cw = login_getcapstr(lc, "copyright", NULL, NULL);
 		if (cw == NULL || motd(cw) == -1)
@@ -555,14 +556,14 @@ main(int argc, char *argv[])
 			/* $MAIL may have been set by class. */
 			cw = getenv("MAIL");
 			if (cw == NULL) {
-				asprintf(&cw, "%s/%s",
+				asprintf((char **)&cw, "%s/%s",
 				    _PATH_MAILDIR, pwd->pw_name);
 			}
 			if (cw && stat(cw, &st) == 0 && st.st_size != 0)
 				(void)printf("You have %smail.\n",
 				    (st.st_mtime > st.st_atime) ? "new " : "");
 			if (getenv("MAIL") == NULL)
-				free(cw);
+				free((char *)cw);
 		}
 	}
 

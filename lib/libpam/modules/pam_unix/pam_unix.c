@@ -121,8 +121,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	struct options options;
 	struct passwd *pwd;
 	int retval;
-	const char *pass, *user, *realpw;
-	char *prompt;
+	const char *pass, *user, *realpw, *prompt;
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -477,7 +476,8 @@ local_passwd(const char *user, const char *pass)
 	login_cap_t * lc;
 	struct passwd *pwd;
 	int pfd, tfd;
-	char *crypt_type, salt[SALTSIZE + 1];
+	const char *crypt_type;
+	char salt[SALTSIZE + 1];
 
 	pwd = getpwnam(user);
 	if (pwd == NULL)
