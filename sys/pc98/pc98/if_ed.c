@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.49 1998/06/17 16:29:27 kato Exp $
+ *	$Id: if_ed.c,v 1.50 1998/06/22 08:06:58 kato Exp $
  */
 
 /*
@@ -4252,7 +4252,7 @@ edpnp_probe(u_long csn, u_long vend_id)
 		struct pnp_cinfo d;
 		read_pnp_parms(&d, 0);
 		if (d.enable == 0 || d.flags & 1) {
-			printf("CSN %d is disabled.\n", csn);
+			printf("CSN %lu is disabled.\n", csn);
 			return (NULL);
 		}
 
