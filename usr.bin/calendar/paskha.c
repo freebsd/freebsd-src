@@ -26,15 +26,12 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+
+#include "calendar.h"
 
 #define PASKHA "paskha"
 #define PASKHALEN (sizeof(PASKHA) - 1)
-
-/* KOI8-R encoding, needed to fully handle Russian case */
-#define PASKHA1 "пасха"
-#define PASKHALEN1 (sizeof(PASKHA1) - 1)
-
-extern int *cumdays;
 
 /* return year day for Orthodox Easter using Gauss formula */
 /* (old style result) */
@@ -46,6 +43,7 @@ int R;  /*year*/
 	int a, b, c, d, e;
 	static int x = 15;
 	static int y = 6;
+	extern int *cumdays;
 
 	a = R % 19;
 	b = R % 4;
@@ -63,11 +61,14 @@ getpaskha(s, year)
         int year;
 {
 	int offset;
+	extern struct fixs npaskha;
 
 	if (strncasecmp(s, PASKHA, PASKHALEN) == 0)
 	    s += PASKHALEN;
-	else if (strncasecmp(s, PASKHA1, PASKHALEN1) == 0)
-	    s += PASKHALEN1;
+	else if (   npaskha.name != NULL
+		 && strncasecmp(s, npaskha.name, npaskha.len) == 0
+		)
+	    s += npaskha.len;
 	else
 	    return 0;
 
