@@ -185,6 +185,7 @@ exec_file_command (args, from_tty)
 			    &scratch_pathname);
       if (scratch_chan < 0)
 	perror_with_name (filename);
+      fcntl (scratch_chan, F_SETFD, 1);
       exec_bfd = bfd_fdopenr (scratch_pathname, gnutarget, scratch_chan);
 
       if (!exec_bfd)
