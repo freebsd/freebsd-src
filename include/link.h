@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: link.h,v 1.16 1997/11/28 19:05:11 jdp Exp $
+ *	$Id: link.h,v 1.17 1997/12/06 17:59:52 jdp Exp $
  */
 
 /*
@@ -40,6 +40,8 @@
 
 #ifndef _LINK_H_
 #define _LINK_H_
+
+struct dl_info;
 
 /*
  * A `Shared Object Descriptor' describes a shared object that is needed
@@ -158,6 +160,7 @@ struct so_debug {
 #define LDSO_VERSION_NONE	0	/* FreeBSD2.0, 2.0.5 */
 #define LDSO_VERSION_HAS_DLEXIT	1	/* includes dlexit in ld_entry */
 #define LDSO_VERSION_HAS_DLSYM3	2	/* includes 3-argument dlsym */
+#define LDSO_VERSION_HAS_DLADDR	3	/* includes dladdr in ld_entry */
 
 /*
  * Entry points into ld.so - user interface to the run-time linker.
@@ -171,6 +174,8 @@ struct ld_entry {
 	const char *(*dlerror) __P((void));		/* NONE */
 	void	(*dlexit) __P((void));			/* HAS_DLEXIT */
 	void	*(*dlsym3) __P((void *, const char *, void *)); /* HAS_DLSYM3 */
+	int	 (*dladdr) __P((const void *,
+			        struct dl_info *));	/* HAS_DLADDR */
 };
 
 /*
@@ -229,6 +234,7 @@ struct crt_ldso {
 	char		*crt_prog;	/* Program name (v3) */
 	char		*crt_ldso;	/* Link editor name (v4) */
 	struct ld_entry	*crt_ldentry;	/* dl*() access (v4) */
+	char		**crt_argv;	/* argument strings (v5) */
 };
 
 /*
@@ -238,6 +244,7 @@ struct crt_ldso {
 #define CRT_VERSION_BSD_2	2
 #define CRT_VERSION_BSD_3	3
 #define CRT_VERSION_BSD_4	4
+#define CRT_VERSION_BSD_5	5
 
 /*
  * Maximum number of recognized shared object version numbers.
