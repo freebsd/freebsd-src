@@ -359,10 +359,8 @@ ieee80211_status (s, info)
 	printf("\n");
 
 	ireq.i_type = IEEE80211_IOC_WEP;
-	if (ioctl(s, SIOCG80211, &ireq) < 0 ||
-	    ireq.i_val == IEEE80211_WEP_NOSUP)
-		goto nowep;
-	else {
+	if (ioctl(s, SIOCG80211, &ireq) != -1 &&
+	    ireq.i_val != IEEE80211_WEP_NOSUP) {
 		printf("\twepmode");
 		switch (ireq.i_val) {
 			case IEEE80211_WEP_OFF:
@@ -415,11 +413,9 @@ ieee80211_status (s, info)
 			if(spacer == '\t')
 				spacer = ' ';
 		}
-
-		printf("\n");
+		if (spacer == ' ')
+			printf("\n");
 	}
-nowep:
-
 
 end:
 	return;
