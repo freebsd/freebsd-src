@@ -143,8 +143,7 @@ typedef	__uid_t_	uid_t;
 #define	_XOPEN_UNIX			-1
 #endif
 
-/* Define the versions we target for compliance. */
-#define	_POSIX_VERSION		200112L
+/* Define the POSIX.2 version we target for compliance. */
 #define	_POSIX2_VERSION		199212L
 
 /*

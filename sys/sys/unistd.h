@@ -95,6 +95,9 @@
 #define	_POSIX_SAVED_IDS	1 /* saved set-user-ID and set-group-ID */
 #endif
 
+/* Define the POSIX.1 version we target for compliance. */
+#define	_POSIX_VERSION		200112L
+
 /* access function */
 #define	F_OK		0	/* test for existence of file */
 #define	X_OK		0x01	/* test for execute or search permission */
