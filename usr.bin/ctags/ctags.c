@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -97,6 +98,8 @@ main(argc, argv)
 	int	ch;				/* getopts char */
 	char	*cmd;
 
+	setlocale(LC_ALL, "");
+
 	aflag = uflag = NO;
 	tflag = YES;
 	while ((ch = getopt(argc, argv, "BFTadf:tuwvx")) != -1)
@@ -141,6 +144,9 @@ main(argc, argv)
 	argc -= optind;
 	if (!argc)
 		usage();
+
+	if (!xflag)
+		setlocale(LC_COLLATE, "C");
 
 	init();
 
