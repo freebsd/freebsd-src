@@ -637,6 +637,16 @@ pmap_ensure_rid(pmap_t pmap, vm_offset_t va)
 	int rr;
 
 	rr = va >> 61;
+
+	/*
+	 * We get called for virtual addresses that may just as well be
+	 * kernel addresses (ie region 5, 6 or 7). Since the pm_rid field
+	 * only holds region IDs for user regions, we have to make sure
+	 * the region is within bounds.
+	 */
+	if (rr >= 5)
+		return;
+
 	if (pmap->pm_rid[rr])
 		return;
 
