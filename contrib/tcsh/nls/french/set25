@@ -1,6 +1,0 @@
-$ $Id: set25,v 1.1 1995/04/25 14:04:35 christos Exp $
-$ tc.sig.c
-$set 25 
-1 notre attente %d\n
-2 erreur: bsd_signal(%d) signal hors limites\n
-3 erreur: bsd_signal(%d) - sigaction a échoué, errno %d\n

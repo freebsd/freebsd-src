@@ -1,9 +1,0 @@
-# $FreeBSD$
-res 240
-hor 24
-vert 40
-unitwidth 10
-sizes 10 0
-fonts 6 R I B BI S L
-tcommand
-postpro grotty

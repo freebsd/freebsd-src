@@ -1,4 +1,0 @@
-# Host: Intel 386 running Mach3 with OSF 1/MK
-
-XDEPFILES= os-mach3.o i386mach3-xdep.o i387-tdep.o
-XM_FILE= xm-i386osf1mk.h

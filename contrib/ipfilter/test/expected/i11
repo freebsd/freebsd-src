@@ -1,4 +1,0 @@
-pass in on ed0(!) proto tcp from 127.0.0.1/32 to 127.0.0.1/32 port = 23 keep state
-block in log first on lo0(!) proto tcp/udp from any to any keep state
-pass in proto udp from 127.0.0.1/32 to 127.0.0.1/32 port = 2049 keep frags
-pass in proto udp from 127.0.0.1/32 to 127.0.0.1/32 port = 53 keep state keep frags

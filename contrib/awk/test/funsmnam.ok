@@ -1,1 +1,0 @@
-gawk: funsmnam.awk:6: fatal: function `foo': can't use function name as parameter name

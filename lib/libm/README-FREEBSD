@@ -1,7 +1,0 @@
-$FreeBSD$
-
-The libm library has been superceded by the msun library.  The
-source has not been delegated to the attic yet because there are
-still bits that need to be merged into msun.
-
-(end)

@@ -1,5 +1,0 @@
-[1mdf[m	display free disk space
-
-	Usage:
-
-	df [-ikn] [-t type] [file | filesystem ...]

@@ -1,6 +1,0 @@
-# $FreeBSD$
-
-FILES=		${DEVFILES}
-FILESDIR?=	${fontdir}/dev${DEV}
-
-.include <bsd.prog.mk>

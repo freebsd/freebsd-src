@@ -1,8 +1,0 @@
-$ $Id: set10,v 1.1 2001/01/04 18:46:02 christos Exp $
-$ ma.setp.c
-$set 10 
-1 setpath: vigane k‰sk '%s'.\n
-2 setpath: k‰sule '%s' pole piisavalt argumente.\n
-3 setpath: teel '%s' pole v‰‰rtust\n
-4 setpath: %s ei leitud %s's\n
-5 setpath: %d ei ole korrektne positsioon %s's\n

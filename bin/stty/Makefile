@@ -1,9 +1,0 @@
-#	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
-
-PROG=	stty
-SRCS=	cchar.c gfmt.c key.c modes.c print.c stty.c util.c
-
-WARNS?=	2
-
-.include <bsd.prog.mk>

@@ -1,5 +1,0 @@
-pass in from 127.0.0.1/32 to 127.0.0.1/32 with short
-block in from any to any with ipopt
-pass in from any to any with opt nop,rr,zsu
-pass in from any to any with opt nop,rr,zsu not opt lsrr,ssrr
-pass in from 127.0.0.1/32 to 127.0.0.1/32 with not frag

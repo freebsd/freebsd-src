@@ -1,6 +1,0 @@
-#          Example of ppp.linkup file
-#
-# Otherwise, simply add peer as default gateway.
-#
-MYADDR:
- add 0 0 HISADDR

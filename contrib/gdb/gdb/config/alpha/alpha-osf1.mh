@@ -1,5 +1,0 @@
-# Host: Little-endian Alpha running OSF/1-1.x
-XDEPFILES= 
-XM_FILE= xm-alphaosf.h
-NAT_FILE= nm-osf.h
-NATDEPFILES= infptrace.o inftarg.o corelow.o alpha-nat.o fork-child.o osfsolib.o

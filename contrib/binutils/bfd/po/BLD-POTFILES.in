@@ -1,7 +1,0 @@
-elf32-ia64.c
-elf32-target.h
-elf64-ia64.c
-elf64-target.h
-peigen.c
-pepigen.c
-targmatch.h
