@@ -110,7 +110,7 @@ J.T. Conklin <jtc@winsey.com>
 James Clark <jjc@jclark.com>
 James da Silva <jds@cs.umd.edu> et al
 Jim Wilson <wilson@moria.cygnus.com>
-Jörg Wunsch <joerg_wunsch@uriah.sax.de>
+Jörg Wunsch <joerg_wunsch@uriah.heep.sax.de>
 Julian Elischer <julian@dialix.oz.au>
 Julian Stacey <stacey@guug.de> <fallback: <julian@meepmeep.pcs.com>>
 Keith Bostic <bostic@toe.CS.Berkeley.EDU>
@@ -191,7 +191,7 @@ James da Silva <jds@cs.umd.edu> et al
 Jay Fenlason <hack@datacube.com>
 Jim Wilson <wilson@moria.cygnus.com>
 Joerg Lohse <lohse@tech7.informatik.uni-hamburg.de>
-Jörg Wunsch <joerg_wunsch@uriah.sax.de>
+Jörg Wunsch <joerg_wunsch@uriah.heep.sax.de>
 John Dyson - <formerly dyson@ref.tfs.com>
 John Woods <jfw@eddie.mit.edu>
 Jordan K. Hubbard <jkh@whisker.hubbard.ie>
@@ -241,4 +241,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.19 1995/02/20 16:24:30 jkh Exp $
+$Id: CONTRIB.FreeBSD,v 1.20 1995/02/22 22:57:20 pst Exp $
