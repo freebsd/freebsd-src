@@ -1159,7 +1159,7 @@ out:
 
     case ATA_IDLE:
 	if (scp->flags & ATA_QUEUED) {
-	    scp->active = ATA_ACTIVE;
+	    scp->active = ATA_ACTIVE; /* XXX */
 	    if (ata_service(scp) == ATA_OP_CONTINUES)
 		return;
 	}
@@ -1192,10 +1192,8 @@ ata_start(struct ata_softc *scp)
     struct atapi_request *atapi_request;
 #endif
 
-    if (scp->active != ATA_IDLE)
+    if (!atomic_cmpset_int(&scp->active, ATA_IDLE, ATA_ACTIVE))
 	return;
-
-    scp->active = ATA_ACTIVE;
 
 #if NATADISK > 0
     /* find & call the responsible driver if anything on the ATA queue */
@@ -1728,9 +1726,9 @@ ata_change_mode(struct ata_softc *scp, int device, int mode)
 {
     int s = splbio();
 
-    while (scp->active != ATA_IDLE)
+    while (!atomic_cmpset_int(&scp->active, ATA_IDLE, ATA_ACTIVE))
 	tsleep((caddr_t)&s, PRIBIO, "atachm", hz/4);
-    scp->active = ATA_REINITING;
+
     ata_dmainit(scp, device, ata_pmode(ATA_PARAM(scp, device)),
 		mode < ATA_DMA ?  -1 : ata_wmode(ATA_PARAM(scp, device)),
 		mode < ATA_DMA ?  -1 : ata_umode(ATA_PARAM(scp, device)));
