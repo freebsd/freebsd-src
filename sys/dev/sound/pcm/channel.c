@@ -402,9 +402,7 @@ chn_write(pcm_channel *c, struct uio *buf)
 			timeout = (buf->uio_resid >= b->dl)? hz / 20 : 1;
    			ret = tsleep(b, PRIBIO | PCATCH, "pcmwr", timeout);
    			s = spltty();
-#if notdef
  			if (ret == EINTR) chn_abort(c);
-#endif /* notdef */
  			if (ret == EINTR || ret == ERESTART) break;
 			/* Check for underflow before writing into the buffers. */
 			chn_checkunderflow(c);
@@ -780,20 +778,19 @@ chn_poll(pcm_channel *c, int ev, struct proc *p)
 int
 chn_abort(pcm_channel *c)
 {
-    	long s;
-    	int missing = 0;
+    	int missing = 0, cnt = 0;
     	snd_dbuf *b = &c->buffer;
     	snd_dbuf *bs = &c->buffer2nd;
 
-    	s = spltty();
-    	if (b->dl) {
-		b->dl = 0;
-		c->flags &= ~((c->direction == PCMDIR_PLAY)? CHN_F_WRITING : CHN_F_READING);
-		chn_trigger(c, PCMTRIG_ABORT);
-		chn_dmadone(c);
-    	}
+	if (!b->dl) return 0;
+	c->flags |= CHN_F_ABORTING;
+	while (!b->underflow && (b->dl > 0) && (cnt < 20)) {
+		tsleep((caddr_t)b, PRIBIO, "pcmabr", hz / 20);
+		cnt++;
+	}
+	chn_trigger(c, PCMTRIG_ABORT);
+	b->dl = 0;
     	missing = b->rl + bs->rl;
-    	splx(s);
     	return missing;
 }
 
