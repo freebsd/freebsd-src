@@ -1269,6 +1269,8 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 static int
 decode_funce(struct pccard_tuple *tuple, struct pccard_function *pf)
 {
+	int i;
+	int len;
 	int type = pccard_tuple_read_1(tuple, 0);
 
 	switch (pf->function) {
@@ -1280,8 +1282,7 @@ decode_funce(struct pccard_tuple *tuple, struct pccard_function *pf)
 		break;
 	case PCCARD_FUNCTION_NETWORK:
 		if (type == PCCARD_TPLFE_TYPE_LAN_NID) {
-			int i;
-			int len = pccard_tuple_read_1(tuple, 1);
+			len = pccard_tuple_read_1(tuple, 1);
 			if (tuple->length < 2 + len || len > 8) {
 				/* tuple length not enough or nid too long */
 				break;
@@ -1291,6 +1292,17 @@ decode_funce(struct pccard_tuple *tuple, struct pccard_function *pf)
 					= pccard_tuple_read_1(tuple, i + 2);
 			}
 			pf->pf_funce_lan_nidlen = len;
+		} else if (type == PCCARD_TPLFE_TYPE_LAN_OLD_NID) {
+			/* Some older cards have this format, no idea if it is standard */
+			if (tuple->length != 13)
+				break;
+			len = pccard_tuple_read_1(tuple, 4);
+			if (len != 6)
+				break;
+			for (i = 0; i < len; i++) {
+				pf->pf_funce_lan_nid[i]
+					= pccard_tuple_read_1(tuple, i + 5);
+			}
 		}
 		break;
 	default:
