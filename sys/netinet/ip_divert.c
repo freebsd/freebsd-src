@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.30 1998/06/12 01:54:29 julian Exp $
+ *	$Id: ip_divert.c,v 1.31 1998/06/12 02:48:47 julian Exp $
  */
 
 #include "opt_inet.h"
@@ -83,11 +83,6 @@
 u_short ip_divert_port;
 
 /*
- * #ifdef IPFW_DIVERT_OLDRESTART
- * We set this value to a non-zero port number when we want the call to
- * ip_fw_chk() in ip_input() or ip_output() to ignore ``divert <port>''
- * chain entries. This is stored in host order.
- * #else
  * A 16 bit cookie is passed to the user process.
  * The user process can send it back to help the caller know something
  * about where the packet came from.
@@ -97,7 +92,6 @@ u_short ip_divert_port;
  * should continue. Leaving it the same will make processing start
  * at the rule number after that which sent it here. Setting it to
  * 0 will restart processing at the beginning. 
- * #endif 
  */
 u_int16_t ip_divert_cookie;
 
@@ -163,11 +157,7 @@ div_input(struct mbuf *m, int hlen)
 	ip = mtod(m, struct ip *);
 
 	/* Record divert port */
-#ifdef IPFW_DIVERT_OLDRESTART
-	divsrc.sin_port = htons(ip_divert_cookie);
-#else
 	divsrc.sin_port = ip_divert_cookie;
-#endif /* IPFW_DIVERT_OLDRESTART */
 	ip_divert_cookie = 0;
 
 	/* Restore packet header fields */
@@ -274,11 +264,7 @@ div_output(so, m, addr, control)
 	if (sin) {
 		int	len = 0;
 		char	*c = sin->sin_zero;
-#ifdef IPFW_DIVERT_OLDRESTART
-		ip_divert_cookie = ntohs(sin->sin_port);
-#else
 		ip_divert_cookie = sin->sin_port;
-#endif /* IPFW_DIVERT_OLDRESTART */
 
 		/*
 		 * Find receive interface with the given name or IP address.
