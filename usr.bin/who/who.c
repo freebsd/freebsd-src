@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/file.h>
 #include <err.h>
+#include <langinfo.h>
 #include <locale.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -137,12 +138,17 @@ output(up)
 	struct utmp *up;
 {
 	char buf[80];
+	static int d_first = -1;
+
+	if (d_first < 0)
+		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 
 	(void)printf("%-*.*s %-*.*s", UT_NAMESIZE, UT_NAMESIZE, up->ut_name,
 	    UT_LINESIZE, UT_LINESIZE, up->ut_line);
-	(void)strftime(buf, sizeof(buf), "%c", localtime(&up->ut_time));
-	buf[sizeof(buf) - 1] = '\0';
-	(void)printf("%.12s", buf + 4);
+	(void)strftime(buf, sizeof(buf),
+		       d_first ? "%e %b %R" : "%b %e %R",
+		       localtime(&up->ut_time));
+	(void)printf("%s", buf);
 	if (*up->ut_host)
 		printf("\t(%.*s)", UT_HOSTSIZE, up->ut_host);
 	(void)putchar('\n');
