@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.52 1995/12/10 20:02:47 bde Exp $
+ *      $Id: cd.c,v 1.53 1995/12/14 09:54:18 phk Exp $
  */
 
 #define SPLCD splbio
@@ -588,7 +588,7 @@ cdstart(unit, flags)
 		return;
 	}
 	cdqueues++;
-	if(cd->dkunit) {
+	if(cd->dkunit >= 0) {
 		dk_xfer[cd->dkunit]++;
 		dk_seek[cd->dkunit]++; /* don't know */
 		dk_wds[cd->dkunit] += bp->b_bcount >> 6;
