@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id: cdio.h,v 1.11 1996/02/01 18:18:54 ache Exp $
+ *	$Id: cdio.h,v 1.12 1996/02/02 20:41:11 ache Exp $
  */
 /*
 <1>	Fixed a conflict with ioctl usage.  There were two different
@@ -129,7 +129,6 @@ struct ioc_read_subchannel {
 #define CD_MEDIA_CATALOG	2
 #define CD_TRACK_INFO		3
 	u_char track;
-        u_char  :8;
 	int	data_len;
 	struct  cd_sub_channel_info *data;
 };
