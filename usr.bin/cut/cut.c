@@ -62,11 +62,11 @@ int	dflag;
 int	fflag;
 int	sflag;
 
-void	c_cut __P((FILE *, const char *));
-void	f_cut __P((FILE *, const char *));
-void	get_list __P((char *));
-int	main __P((int, char **));
-static 	void usage __P((void));
+void	c_cut (FILE *, const char *);
+void	f_cut (FILE *, const char *);
+void	get_list (char *);
+int	main (int, char **);
+static 	void usage (void);
 
 int
 main(argc, argv)
@@ -74,7 +74,7 @@ main(argc, argv)
 	char *argv[];
 {
 	FILE *fp;
-	void (*fcn) __P((FILE *, const char *)) = NULL;
+	void (*fcn) (FILE *, const char *) = NULL;
 	int ch;
 
 	fcn = NULL;
