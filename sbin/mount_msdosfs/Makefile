@@ -5,21 +5,17 @@
 PROG=	mount_msdosfs
 SRCS=	mount_msdosfs.c getmntopts.c
 MAN=	mount_msdosfs.8
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+DPADD=	${LIBKICONV}
+LDADD=	-lkiconv
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${MOUNT}
 WARNS=	0
 
+# Needs to be dynamically linked for optional dlopen() access to
+# userland libiconv
+NOSHARED?=	NO
+
 .PATH:	${MOUNT}
-
-TABDIR= ${DESTDIR}${LIBDATADIR}/msdosfs
-TABLES= iso22dos iso72dos koi2dos koi8u2dos
-
-afterinstall:
-	cd ${.CURDIR} && \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} \
-	    ${TABLES} ${TABDIR}
 
 .include <bsd.prog.mk>

@@ -293,7 +293,8 @@ cd9660_rrip_defname(isodir,ana)
 {
 	isofntrans(isodir->name,isonum_711(isodir->name_len),
 		   ana->outbuf,ana->outlen,
-		   1,isonum_711(isodir->flags)&4, ana->imp->joliet_level);
+		   1,isonum_711(isodir->flags)&4, ana->imp->joliet_level,
+		   ana->imp->im_flags, ana->imp->im_d2l);
 	switch (*ana->outbuf) {
 	default:
 		break;
@@ -491,7 +492,7 @@ cd9660_rrip_loop(isodir,ana,table)
 	register ISO_SUSP_HEADER *pend;
 	struct buf *bp = NULL;
 	char *pwhead;
-	u_char c;
+	u_short c;
 	int result;
 
 	/*
@@ -501,7 +502,8 @@ cd9660_rrip_loop(isodir,ana,table)
 	pwhead = isodir->name + isonum_711(isodir->name_len);
 	if (!(isonum_711(isodir->name_len)&1))
 		pwhead++;
-	isochar(isodir->name, pwhead, ana->imp->joliet_level, &c);
+	isochar(isodir->name, pwhead, ana->imp->joliet_level, &c, NULL,
+		ana->imp->im_flags, ana->imp->im_d2l);
 
 	/* If it's not the '.' entry of the root dir obey SP field */
 	if (c != 0 || isonum_733(isodir->extent) != ana->imp->root_extent)
@@ -627,7 +629,7 @@ cd9660_rrip_getname(isodir,outbuf,outlen,inump,imp)
 {
 	ISO_RRIP_ANALYZE analyze;
 	RRIP_TABLE *tab;
-	u_char c;
+	u_short c;
 
 	analyze.outbuf = outbuf;
 	analyze.outlen = outlen;
@@ -638,7 +640,7 @@ cd9660_rrip_getname(isodir,outbuf,outlen,inump,imp)
 	*outlen = 0;
 
 	isochar(isodir->name, isodir->name + isonum_711(isodir->name_len),
-		imp->joliet_level, &c);
+		imp->joliet_level, &c, NULL, imp->im_flags, imp->im_d2l);
 	tab = rrip_table_getname;
 	if (c == 0 || c == 1) {
 		cd9660_rrip_defname(isodir,&analyze);

@@ -38,6 +38,8 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <sys/module.h>
+#include <sys/iconv.h>
 
 #include <fs/msdosfs/msdosfsmount.h>
 
@@ -56,9 +58,11 @@ static const char rcsid[] =
 
 #include "mntopts.h"
 
+#define TRANSITION_PERIOD_HACK
+
 /*
  * XXX - no way to specify "foo=<bar>"-type options; that's what we'd
- * want for "-u", "-g", "-m", "-L", and "-W".
+ * want for "-u", "-g", "-m", "-L", "-D", and "-W".
  */
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
@@ -78,8 +82,7 @@ static gid_t	a_gid(char *);
 static uid_t	a_uid(char *);
 static mode_t	a_mask(char *);
 static void	usage(void) __dead2;
-static void     load_u2wtable(struct msdosfs_args *, char *);
-static void     load_ultable(struct msdosfs_args *, char *);
+static int	set_charset(struct msdosfs_args *);
 
 int
 main(argc, argv)
@@ -89,13 +92,20 @@ main(argc, argv)
 	struct msdosfs_args args;
 	struct stat sb;
 	int c, mntflags, set_gid, set_uid, set_mask, set_dirmask;
-	char *dev, *dir, mntpath[MAXPATHLEN];
+	char *dev, *dir, mntpath[MAXPATHLEN], *csp;
 
 	mntflags = set_gid = set_uid = set_mask = set_dirmask = 0;
 	(void)memset(&args, '\0', sizeof(args));
 	args.magic = MSDOSFS_ARGSMAGIC;
 
-	while ((c = getopt(argc, argv, "sl9u:g:m:M:o:L:W:")) != -1) {
+	args.cs_win = NULL;
+	args.cs_dos = NULL;
+	args.cs_local = NULL;
+#ifdef TRANSITION_PERIOD_HACK
+	while ((c = getopt(argc, argv, "sl9u:g:m:M:o:L:D:W:")) != -1) {
+#else
+	while ((c = getopt(argc, argv, "sl9u:g:m:M:o:L:D:")) != -1) {
+#endif
 		switch (c) {
 #ifdef MSDOSFSMNT_GEMDOSFS
 		case 'G':
@@ -128,16 +138,52 @@ main(argc, argv)
 			set_dirmask = 1;
 			break;
 		case 'L':
-			load_ultable(&args, optarg);
-			args.flags |= MSDOSFSMNT_ULTABLE;
+			if (setlocale(LC_CTYPE, optarg) == NULL)
+				err(EX_CONFIG, "%s", optarg);
+			csp = strchr(optarg,'.');
+			if (!csp)
+				err(EX_CONFIG, "%s", optarg);
+			args.cs_local = malloc(ICONV_CSNMAXLEN);
+			if (args.cs_local == NULL)
+				err(EX_OSERR, "malloc()");
+			strncpy(args.cs_local,
+			    kiconv_quirkcs(csp + 1, KICONV_VENDOR_MICSFT),
+			    ICONV_CSNMAXLEN);
 			break;
-		case 'W':
-			load_u2wtable(&args, optarg);
-			args.flags |= MSDOSFSMNT_U2WTABLE;
+		case 'D':
+			args.cs_dos = malloc(ICONV_CSNMAXLEN);
+			if (args.cs_dos == NULL)
+				err(EX_OSERR, "malloc()");
+			strncpy(args.cs_dos, optarg, ICONV_CSNMAXLEN);
 			break;
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, &args.flags);
 			break;
+#ifdef TRANSITION_PERIOD_HACK
+		case 'W':
+			args.cs_local = malloc(ICONV_CSNMAXLEN);
+			if (args.cs_local == NULL)
+				err(EX_OSERR, "malloc()");
+			args.cs_dos = malloc(ICONV_CSNMAXLEN);
+			if (args.cs_dos == NULL)
+				err(EX_OSERR, "malloc()");
+			if (strcmp(optarg, "iso22dos") == 0) {
+				strcpy(args.cs_local, "ISO8859-2");
+				strcpy(args.cs_dos, "CP852");
+			} else if (strcmp(optarg, "iso72dos") == 0) {
+				strcpy(args.cs_local, "ISO8859-7");
+				strcpy(args.cs_dos, "CP737");
+			} else if (strcmp(optarg, "koi2dos") == 0) {
+				strcpy(args.cs_local, "KOI8-R");
+				strcpy(args.cs_dos, "CP866");
+			} else if (strcmp(optarg, "koi8u2dos") == 0) {
+				strcpy(args.cs_local, "KOI8-U");
+				strcpy(args.cs_dos, "CP866");
+			} else {
+				err(EX_NOINPUT, "%s", optarg);
+			}
+			break;
+#endif /* TRANSITION_PERIOD_HACK */
 		case '?':
 		default:
 			usage();
@@ -159,6 +205,19 @@ main(argc, argv)
 
 	dev = argv[optind];
 	dir = argv[optind + 1];
+
+	if (args.cs_local) {
+		if (set_charset(&args) == -1)
+			err(EX_OSERR, "msdosfs_iconv");
+		args.flags |= MSDOSFSMNT_KICONV;
+	} else if (args.cs_dos) {
+		if ((args.cs_local = malloc(ICONV_CSNMAXLEN)) == NULL)
+			err(EX_OSERR, "malloc()");
+		strcpy(args.cs_local, "ISO8859-1");
+		if (set_charset(&args) == -1)
+			err(EX_OSERR, "msdosfs_iconv");
+		args.flags |= MSDOSFSMNT_KICONV;
+	}
 
 	/*
 	 * Resolve the mountpoint with realpath(3) and remove unnecessary
@@ -254,89 +313,52 @@ void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n", 
+#ifdef TRANSITION_PERIOD_HACK
+	"usage: mount_msdosfs [-o options] [-u user] [-g group] [-m mask] [-s] [-l]",
+	"                     [-9] [-L locale] [-D dos-codepage] [-W table] bdev dir");
+#else
 	"usage: mount_msdosfs [-o options] [-u user] [-g group] [-m mask]",
-	"                     [-s] [-l] [-9] [-L locale] [-W table] bdev dir");
+	"                     [-s] [-l] [-9] [-L locale] [-D dos-codepage] bdev dir");
+#endif
 	exit(EX_USAGE);
 }
 
-void
-load_u2wtable (pargs, name)
-	struct msdosfs_args *pargs;
-	char *name;
+int
+set_charset(struct msdosfs_args *args)
 {
-	FILE *f;
-	int i, j, code[8];
-	size_t line = 0;
-	char buf[128];
-	char *fn, *s, *p;
+	int error;
 
-	if (*name == '/')
-		fn = name;
-	else {
-		snprintf(buf, sizeof(buf), "/usr/libdata/msdosfs/%s", name);
-		buf[127] = '\0';
-		fn = buf;
-	}
-	if ((f = fopen(fn, "r")) == NULL)
-		err(EX_NOINPUT, "%s", fn);
-	p = NULL;
-	for (i = 0; i < 16; i++) {
-		do {
-			if (p != NULL) free(p);
-			if ((p = s = fparseln(f, NULL, &line, NULL, 0)) == NULL)
-				errx(EX_DATAERR, "can't read u2w table row %d near line %d", i, line);
-			while (isspace((unsigned char)*s))
-				s++;
-		} while (*s == '\0');
-		if (sscanf(s, "%i%i%i%i%i%i%i%i",
-code, code + 1, code + 2, code + 3, code + 4, code + 5, code + 6, code + 7) != 8)
-			errx(EX_DATAERR, "u2w table: missing item(s) in row %d, line %d", i, line);
-		for (j = 0; j < 8; j++)
-			pargs->u2w[i * 8 + j] = code[j];
-	}
-	for (i = 0; i < 16; i++) {
-		do {
-			free(p);
-			if ((p = s = fparseln(f, NULL, &line, NULL, 0)) == NULL)
-				errx(EX_DATAERR, "can't read d2u table row %d near line %d", i, line);
-			while (isspace((unsigned char)*s))
-				s++;
-		} while (*s == '\0');
-		if (sscanf(s, "%i%i%i%i%i%i%i%i",
-code, code + 1, code + 2, code + 3, code + 4, code + 5, code + 6, code + 7) != 8)
-			errx(EX_DATAERR, "d2u table: missing item(s) in row %d, line %d", i, line);
-		for (j = 0; j < 8; j++)
-			pargs->d2u[i * 8 + j] = code[j];
-	}
-	for (i = 0; i < 16; i++) {
-		do {
-			free(p);
-			if ((p = s = fparseln(f, NULL, &line, NULL, 0)) == NULL)
-				errx(EX_DATAERR, "can't read u2d table row %d near line %d", i, line);
-			while (isspace((unsigned char)*s))
-				s++;
-		} while (*s == '\0');
-		if (sscanf(s, "%i%i%i%i%i%i%i%i",
-code, code + 1, code + 2, code + 3, code + 4, code + 5, code + 6, code + 7) != 8)
-			errx(EX_DATAERR, "u2d table: missing item(s) in row %d, line %d", i, line);
-		for (j = 0; j < 8; j++)
-			pargs->u2d[i * 8 + j] = code[j];
-	}
-	free(p);
-	fclose(f);
-}
+	if (modfind("msdosfs_iconv") < 0)
+		if (kldload("msdosfs_iconv") < 0 || modfind("msdosfs_iconv") < 0) {
+			warnx( "cannot find or load \"msdosfs_iconv\" kernel module");
+			return (-1);
+		}
 
-void
-load_ultable (pargs, name)
-	struct msdosfs_args *pargs;
-	char *name;
-{
-	int i;
-
-	if (setlocale(LC_CTYPE, name) == NULL)
-		err(EX_CONFIG, "%s", name);
-	for (i = 0; i < 128; i++) {
-		pargs->ul[i] = tolower(i | 0x80);
-		pargs->lu[i] = toupper(i | 0x80);
+	if ((args->cs_win = malloc(ICONV_CSNMAXLEN)) == NULL)
+		return (-1);
+	strncpy(args->cs_win, ENCODING_UNICODE, ICONV_CSNMAXLEN);
+	error = kiconv_add_xlat16_cspair(args->cs_win, args->cs_local, 0);
+	if (error)
+		return (-1);
+	error = kiconv_add_xlat16_cspair(args->cs_local, args->cs_win, 0);
+	if (error)
+		return (-1);
+	if (args->cs_dos) {
+		error = kiconv_add_xlat16_cspair(args->cs_dos, args->cs_local, KICONV_FROM_UPPER);
+		if (error)
+			return (-1);
+		error = kiconv_add_xlat16_cspair(args->cs_local, args->cs_dos, KICONV_LOWER);
+		if (error)
+			return (-1);
+	} else {
+		if ((args->cs_dos = malloc(ICONV_CSNMAXLEN)) == NULL)
+			return (-1);
+		strcpy(args->cs_dos, args->cs_local);
+		error = kiconv_add_xlat16_cspair(args->cs_local, args->cs_local,
+				KICONV_FROM_UPPER | KICONV_LOWER);
+		if (error)
+			return (-1);
 	}
+
+	return (0);
 }

@@ -36,7 +36,20 @@
 
 #define	ICONV_CSNMAXLEN		31	/* maximum length of charset name */
 #define	ICONV_CNVNMAXLEN	31	/* maximum length of converter name */
-#define	ICONV_CSMAXDATALEN	1024	/* maximum size of data associated with cs pair */
+#define	ICONV_CSMAXDATALEN	(2048+262144)	/* maximum size of data associated with cs pair */
+
+#define	XLAT16_ACCEPT_NULL_OUT		0x01000000
+#define	XLAT16_ACCEPT_NULL_IN		0x02000000
+#define	XLAT16_HAS_LOWER_CASE		0x04000000
+#define	XLAT16_HAS_UPPER_CASE		0x08000000
+#define	XLAT16_HAS_FROM_LOWER_CASE	0x10000000
+#define	XLAT16_HAS_FROM_UPPER_CASE	0x20000000
+#define	XLAT16_IS_3BYTE_CHR		0x40000000
+
+#define	KICONV_LOWER		1	/* tolower converted character */
+#define	KICONV_UPPER		2	/* toupper converted character */
+#define	KICONV_FROM_LOWER	4	/* tolower source character, then convert */
+#define	KICONV_FROM_UPPER	8	/* toupper source character, then convert */
 
 /*
  * Entry for cslist sysctl
@@ -74,7 +87,13 @@ struct iconv_add_out {
 
 __BEGIN_DECLS
 
+#define	ENCODING_UNICODE	"ISO-10646-UCS-2"
+#define	KICONV_VENDOR_MICSFT	1	/* Microsoft Vendor Code for quirk */
+
 int   kiconv_add_xlat_table(const char *, const char *, const u_char *);
+int   kiconv_add_xlat16_cspair(const char *, const char *, int);
+int   kiconv_add_xlat16_table(const char *, const char *, const void *, int);
+const char *kiconv_quirkcs(const char *, int);
 
 __END_DECLS
 
@@ -133,8 +152,74 @@ int iconv_open(const char *to, const char *from, void **handle);
 int iconv_close(void *handle);
 int iconv_conv(void *handle, const char **inbuf,
 	size_t *inbytesleft, char **outbuf, size_t *outbytesleft);
+int iconv_conv_case(void *handle, const char **inbuf,
+	size_t *inbytesleft, char **outbuf, size_t *outbytesleft, int casetype);
+int iconv_convchr(void *handle, const char **inbuf,
+	size_t *inbytesleft, char **outbuf, size_t *outbytesleft);
+int iconv_convchr_case(void *handle, const char **inbuf,
+	size_t *inbytesleft, char **outbuf, size_t *outbytesleft, int casetype);
 char* iconv_convstr(void *handle, char *dst, const char *src);
 void* iconv_convmem(void *handle, void *dst, const void *src, int size);
+int iconv_vfs_refcount(const char *fsname);
+
+/*
+ * Bridge struct of iconv functions
+ */
+struct iconv_functions {
+	int (*open)(const char *to, const char *from, void **handle);
+	int (*close)(void *handle);
+	int (*conv)(void *handle, const char **inbuf, size_t *inbytesleft,
+		char **outbuf, size_t *outbytesleft);
+	int (*conv_case)(void *handle, const char **inbuf, size_t *inbytesleft,
+		char **outbuf, size_t *outbytesleft, int casetype);
+	int (*convchr)(void *handle, const char **inbuf, size_t *inbytesleft,
+		char **outbuf, size_t *outbytesleft);
+	int (*convchr_case)(void *handle, const char **inbuf, size_t *inbytesleft,
+		char **outbuf, size_t *outbytesleft, int casetype);
+};
+
+#define VFS_DECLARE_ICONV(fsname)					\
+	static struct iconv_functions fsname ## _iconv_core = {		\
+		iconv_open,						\
+		iconv_close,						\
+		iconv_conv,						\
+		iconv_conv_case,					\
+		iconv_convchr,						\
+		iconv_convchr_case					\
+	};								\
+	extern struct iconv_functions *fsname ## _iconv;		\
+	static int fsname ## _iconv_mod_handler(module_t mod,		\
+		int type, void *d);					\
+	static int							\
+	fsname ## _iconv_mod_handler(module_t mod, int type, void *d)	\
+	{								\
+		int error = 0;						\
+		switch(type) {						\
+		case MOD_LOAD:						\
+			fsname ## _iconv = & fsname ## _iconv_core;	\
+			break;						\
+		case MOD_UNLOAD:					\
+			error = iconv_vfs_refcount(#fsname);		\
+			if (error)					\
+				return (EBUSY);				\
+			fsname ## _iconv = NULL;			\
+			break;						\
+		default:						\
+			error = EINVAL;					\
+			break;						\
+		}							\
+		return (error);						\
+	}								\
+	static moduledata_t fsname ## _iconv_mod = {			\
+		#fsname"_iconv",					\
+		fsname ## _iconv_mod_handler,				\
+		NULL							\
+	};								\
+	DECLARE_MODULE(fsname ## _iconv, fsname ## _iconv_mod,		\
+		       SI_SUB_DRIVERS, SI_ORDER_ANY);			\
+	MODULE_DEPEND(fsname ## _iconv, fsname, 1, 1, 1);		\
+	MODULE_DEPEND(fsname ## _iconv, libiconv, 2, 2, 2);		\
+	MODULE_VERSION(fsname ## _iconv, 1)
 
 /*
  * Internal functions

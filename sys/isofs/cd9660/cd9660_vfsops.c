@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/stat.h>
 #include <sys/syslog.h>
+#include <sys/iconv.h>
 
 
 #include <isofs/cd9660/iso.h>
@@ -65,6 +66,8 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_ISOFSMNT, "ISOFS mount", "ISOFS mount structure");
 MALLOC_DEFINE(M_ISOFSNODE, "ISOFS node", "ISOFS vnode private part");
+
+struct iconv_functions *cd9660_iconv = NULL;
 
 static vfs_mount_t	cd9660_mount;
 static vfs_unmount_t	cd9660_unmount;
@@ -471,7 +474,16 @@ iso_mountfs(devvp, mp, td, argp)
 		bp = NULL;
 	}
 	isomp->im_flags = argp->flags & (ISOFSMNT_NORRIP | ISOFSMNT_GENS |
-					 ISOFSMNT_EXTATT | ISOFSMNT_NOJOLIET);
+					 ISOFSMNT_EXTATT | ISOFSMNT_NOJOLIET |
+					 ISOFSMNT_KICONV);
+
+	if (isomp->im_flags & ISOFSMNT_KICONV && cd9660_iconv) {
+		cd9660_iconv->open(argp->cs_local, argp->cs_disk, &isomp->im_d2l);
+		cd9660_iconv->open(argp->cs_disk, argp->cs_local, &isomp->im_l2d);
+	} else {
+		isomp->im_d2l = NULL;
+		isomp->im_l2d = NULL;
+	}
 
 	if (high_sierra) {
 		/* this effectively ignores all the mount flags */
@@ -551,6 +563,12 @@ cd9660_unmount(mp, mntflags, td)
 
 	isomp = VFSTOISOFS(mp);
 
+	if (isomp->im_flags & ISOFSMNT_KICONV && cd9660_iconv) {
+		if (isomp->im_d2l)
+			cd9660_iconv->close(isomp->im_d2l);
+		if (isomp->im_l2d)
+			cd9660_iconv->close(isomp->im_l2d);
+	}
 	isomp->im_devvp->v_rdev->si_mountpoint = NULL;
 	error = VOP_CLOSE(isomp->im_devvp, FREAD, NOCRED, td);
 	vrele(isomp->im_devvp);

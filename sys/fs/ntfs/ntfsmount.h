@@ -30,7 +30,7 @@
 
 #define	NTFS_MFLAG_CASEINS	0x00000001
 #define	NTFS_MFLAG_ALLNAMES	0x00000002
-#define	NTFSMNT_U2WTABLE	0x00000004
+#define	NTFS_MFLAG_KICONV	0x00000004
 
 struct ntfs_args {
 	char	*fspec;			/* block special device to mount */
@@ -39,5 +39,6 @@ struct ntfs_args {
 	gid_t	gid;			/* gid that owns ntfs files */
 	mode_t	mode;			/* mask to be applied for ntfs perms */
 	u_long	flag;			/* additional flags */
-	u_int16_t u2w[256];		/* Unix to Wchar */
+	char	*cs_ntfs;		/* NTFS Charset */
+	char	*cs_local;		/* Local Charset */
 };

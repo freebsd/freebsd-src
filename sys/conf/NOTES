@@ -788,6 +788,12 @@ options 	VFS_AIO
 # Cryptographically secure random number generator; /dev/[u]random
 device		random
 
+# Optional character code conversion support with LIBICONV.
+# Each option requires their base file system and LIBICONV.
+options		CD9660_ICONV
+options		MSDOSFS_ICONV
+options		NTFS_ICONV
+
 
 #####################################################################
 # POSIX P1003.1B
