@@ -13,7 +13,7 @@ fi
 
 catmsgs() {
 	find /var/log -name 'messages.*' -mtime -2 |
-	    sort -t. -r -n +1 -2 |
+	    sort -t. -r -n -k 2,2 |
 	    xargs zcat -f
 	[ -f /var/log/messages ] && cat /var/log/messages
 }

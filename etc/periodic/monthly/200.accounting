@@ -39,7 +39,7 @@ case "$monthly_accounting_enable" in
 	    echo ""
 	    echo "Doing login accounting:"
 
-	    rc=$(ac -p -w $W.0 | sort -nr +1 | tee /dev/stderr | wc -l)
+	    rc=$(ac -p -w $W.0 | sort -nr -k 2 | tee /dev/stderr | wc -l)
 	    [ $rc -gt 0 ] && rc=1
 	fi
 	[ $remove = YES ] && rm -f $W.0;;
