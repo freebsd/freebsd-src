@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.18 1998/09/21 08:55:50 jb Exp $
+#	$Id: Makefile.inc1,v 1.19 1998/09/23 06:11:35 markm Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -806,6 +806,7 @@ build-tools:
 		usr.bin/mkdep		\
 		usr.bin/mklocale	\
 		usr.bin/paste		\
+		usr.bin/printf		\
 		usr.bin/sed		\
 		${_aout_size}		\
 		usr.bin/soelim		\
