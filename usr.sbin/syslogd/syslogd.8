@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: syslogd.8,v 1.15 1998/06/25 19:39:18 guido Exp $
+.\"	$Id: syslogd.8,v 1.16 1998/07/22 06:15:18 phk Exp $
 .\"
 .Dd October 12, 1995
 .Dt SYSLOGD 8
@@ -128,9 +128,10 @@ The primary use for this is to place additional log sockets in
 .Pa /dev/log
 of various chroot filespaces.
 .It Fl s
-Operate in secure mode.  Do not log messages from remote machines.
-The messages will be received and counted and a log entry produced every time
-the count exceeds a power of two.
+Operate in secure mode.  Do not log messages from remote machines.  If
+specified once, the messages will be received and counted and a log
+entry produced every time the count exceeds a power of two.  If
+specified twice, no network socket will be opened at all.
 .It Fl u
 Unique priority logging.  Only log messages at the specified priority.
 Without this option, messages at the stated priority or higher are logged.
