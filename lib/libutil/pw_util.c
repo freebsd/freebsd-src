@@ -496,7 +496,8 @@ pw_copy(int ffd, int tfd, struct passwd *pw, struct passwd *old_pw)
 
 	/* if we got here, we have a new entry */
 	len = strlen(line);
-	if (write(tfd, line, len) != len)
+	if (write(tfd, line, len) != len ||
+	    write(tfd, "\n", 1) != 1)
 		goto err;
  done:
 	free(line);
