@@ -36,7 +36,7 @@ STRIP?=	-s
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
 # .So used for PIC object files
 .SUFFIXES:
-.SUFFIXES: .out .o .po .So .S .s .asm .c .cc .cpp .cxx .m .C .f .y .l .ln
+.SUFFIXES: .out .o .po .So .S .asm .s .c .cc .cpp .cxx .m .C .f .y .l .ln
 
 .if !defined(PICFLAG)
 .if ${MACHINE_ARCH} == "sparc64"
@@ -70,8 +70,15 @@ PICFLAG=-fpic
 .m.So:
 	${OBJC} ${PICFLAG} -DPIC ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.s.po .asm.po .s.So .asm.So:
+.s.po .s.So:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
+
+.asm.po:
+	${CC} -x assembler-with-cpp -DPROF ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+
+.asm.So:
+	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} \
+	    -c ${.IMPSRC} -o ${.TARGET}
 
 .S.po:
 	${CC} -DPROF ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
