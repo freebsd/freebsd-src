@@ -204,6 +204,10 @@ gather_inet(int proto)
 		varname = "net.inet.udp.pcblist";
 		protoname = "udp";
 		break;
+	case IPPROTO_DIVERT:
+		varname = "net.inet.divert.pcblist";
+		protoname = "div";
+		break;
 	default:
 		abort();
 	}
@@ -218,6 +222,8 @@ gather_inet(int proto)
 			len = bufsize;
 			if (sysctlbyname(varname, buf, &len, NULL, 0) == 0)
 				break;
+			if (errno == ENOENT)
+				goto out;
 			if (errno != ENOMEM)
 				err(1, "sysctlbyname()");
 			bufsize *= 2;
@@ -248,6 +254,7 @@ gather_inet(int proto)
 			so = &xtp->xt_socket;
 			break;
 		case IPPROTO_UDP:
+		case IPPROTO_DIVERT:
 			xip = (struct xinpcb *)xig;
 			if (xip->xi_len != sizeof *xip) {
 				warnx("struct xinpcb size mismatch");
@@ -620,6 +627,7 @@ main(int argc, char *argv[])
 	if (opt_4 || opt_6) {
 		gather_inet(IPPROTO_TCP);
 		gather_inet(IPPROTO_UDP);
+		gather_inet(IPPROTO_DIVERT);
 	}
 	if (opt_u) {
 		gather_unix(SOCK_STREAM);
