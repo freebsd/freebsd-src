@@ -7,15 +7,18 @@
 # SRCS to get dependencies.
 #
 
+#
 # ../Makefile.inc will put an absolute path to our objdir in CFLAGS.
 # Prevent mkdep from using it, so that we don't have to give rules for
 # aliases of generated headers.
-
-CFLAGS+=	-I. -static -DGENERATOR_FILE
+#
+CFLAGS+=	-I.
 
 .include "../Makefile.inc"
 
 .PATH: ${GCCDIR}
+
+CFLAGS+=	-DGENERATOR_FILE
 
 #-----------------------------------------------------------------------
 # insn-* gunk
