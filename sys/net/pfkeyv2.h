@@ -363,8 +363,8 @@ struct sadb_x_ipsecrequest {
 #define	PFKEY_UNIT64(a)		((a) >> 3)
 
 #ifndef _KERNEL
-extern void	pfkey_sadump(struct sadb_msg *m);
-extern void	pfkey_spdump(struct sadb_msg *m);
+void	pfkey_sadump __P((struct sadb_msg *m));
+void	pfkey_spdump __P((struct sadb_msg *m));
 
 struct	sockaddr;
 int	ipsec_check_keylen __P((u_int supported, u_int alg_id, u_int keylen));
@@ -415,6 +415,6 @@ int	pfkey_check __P((caddr_t *mhp));
 
 #endif /*!_KERNEL*/
 
-#endif /* __PFKEY_V2_H */
+#endif /* !__PFKEY_V2_H */
 
-#endif /* _NET_PFKEYV2_H_ */
+#endif /* !_NET_PFKEYV2_H_ */
