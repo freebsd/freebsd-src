@@ -27,8 +27,8 @@
    (u.u_kproc.kp_eproc.e_vm.vm_maxsaddr + MAXSSIZ), which should work on
    both BSDI and 386BSD, but that is believed not to work for BSD 4.4.  */
 
-#ifdef __bsdi__
-/* This seems to be the right thing for BSDI.  */
+#if defined (__bsdi__) || defined (__FreeBSD__)
+/* This seems to be the right thing for BSDI and FreeBSD.  */
 #define	HOST_STACK_END_ADDR		USRSTACK
 #else
 /* This seems to be the right thing for 386BSD release 0.1.  */
