@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mptable.c,v 1.1 1997/04/29 03:06:35 fsmp Exp $
+ *	$Id: mptable.c,v 1.2 1997/04/30 23:54:55 fsmp Exp $
  */
 
 /*
@@ -31,7 +31,7 @@
 
 #define VMAJOR			2
 #define VMINOR			0
-#define VDELTA			9
+#define VDELTA			10
 
 /*
  * this will cause the raw mp table to be dumped to /tmp/mpdump
@@ -1122,9 +1122,10 @@ doOptionList( void )
     printf( "# SMP kernel config file options:\n\n" );
     printf( "\n# Required:\n" );
     printf( "options		SMP\t\t\t# Symmetric MultiProcessor Kernel\n" );
-
-    printf( "\n# Recommended:\n" );
     printf( "options		APIC_IO\t\t\t# Symmetric (APIC) I/O\n" );
+
+    printf( "\n# Useful:\n" );
+    printf( "#options		SMP_AUTOSTART\t\t# start the additional CPUs during boot\n" );
 
     printf( "\n# Optional (built-in defaults will work in most cases):\n" );
     printf( "options		NCPU=%d\t\t\t# number of CPUs\n", ncpu );
@@ -1134,7 +1135,6 @@ doOptionList( void )
 
     printf( "\n# Currently broken:\n" );
     printf( "#options		SMP_PRIVPAGES\t\t# BROKEN, DO NOT use!\n" );
-    printf( "#options		SMP_AUTOSTART\t\t# BROKEN, DO NOT use!\n" );
 
     printf( "\n# Rogue hardware:\n" );
     printf( "#\n#  Tyan Tomcat II:\n" );
