@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wb.c,v 1.6 1999/01/16 06:25:58 wpaul Exp $
+ *	$Id: if_wb.c,v 1.6.2.1 1999/02/01 21:32:52 wpaul Exp $
  */
 
 /*
@@ -121,7 +121,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_wb.c,v 1.6 1999/01/16 06:25:58 wpaul Exp $";
+	"$Id: if_wb.c,v 1.6.2.1 1999/02/01 21:32:52 wpaul Exp $";
 #endif
 
 /*
@@ -1107,7 +1107,6 @@ wb_attach(config_id, unit)
 		printf ("wb%d: couldn't map memory\n", unit);
 		goto fail;
 	}
-	sc->csr = (volatile caddr_t)vbase;
 	sc->wb_btag = I386_BUS_SPACE_MEM;
 	sc->wb_bhandle = vbase;
 #endif
