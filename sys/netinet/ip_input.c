@@ -2062,14 +2062,25 @@ ip_savecontrol(inp, mp, ip, m)
 	register struct ip *ip;
 	register struct mbuf *m;
 {
-	if (inp->inp_socket->so_options & SO_TIMESTAMP) {
-		struct timeval tv;
+	if (inp->inp_socket->so_options & (SO_BINTIME | SO_TIMESTAMP)) {
+		struct bintime bt;
 
-		microtime(&tv);
-		*mp = sbcreatecontrol((caddr_t) &tv, sizeof(tv),
-			SCM_TIMESTAMP, SOL_SOCKET);
-		if (*mp)
-			mp = &(*mp)->m_next;
+		bintime(&bt);
+		if (inp->inp_socket->so_options & SO_BINTIME) {
+			*mp = sbcreatecontrol((caddr_t) &bt, sizeof(bt),
+			SCM_BINTIME, SOL_SOCKET);
+			if (*mp)
+				mp = &(*mp)->m_next;
+		}
+		if (inp->inp_socket->so_options & SO_TIMESTAMP) {
+			struct timeval tv;
+
+			bintime2timeval(&bt, &tv);
+			*mp = sbcreatecontrol((caddr_t) &tv, sizeof(tv),
+				SCM_TIMESTAMP, SOL_SOCKET);
+			if (*mp)
+				mp = &(*mp)->m_next;
+		}
 	}
 	if (inp->inp_flags & INP_RECVDSTADDR) {
 		*mp = sbcreatecontrol((caddr_t) &ip->ip_dst,
