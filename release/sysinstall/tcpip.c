@@ -346,12 +346,17 @@ tcpDeviceSelect(void)
 	rval = devs[0];
     }
     else {
+	int status;
+
 	menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook, NULL);
 	if (!menu)
 	    msgFatal("Unable to create network device menu!  Argh!");
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
-	rval = NetDev;
+	if (!status)
+	    rval = NULL;
+	else
+	    rval = NetDev;
     }
     return rval;
 }
