@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.1 1995/01/14 07:41:52 jkh Exp $
+# $Id: netinst.sh,v 1.2 1995/01/28 01:18:43 jkh Exp $
 
 if [ "${_NETINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -51,7 +51,7 @@ network_basic_setup()
 	echo ${HOSTNAME} > ${ETC}/myname
 	${HOSTNAME_CMD} ${HOSTNAME}
 
-	DEFAULT_VALUE=`echo ${HOSTNAME} | sed -e 's/[^.]*\.//' | grep \.`
+	DEFAULT_VALUE=`echo ${HOSTNAME} | sed -e 's/[^.]*\.//'`
 	if network_dialog "What is the domain name of this host (Internet, not YP/NIS)?"; then
 		DOMAIN=${ANSWER}
 	fi
