@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.115 1999/01/06 23:05:37 julian Exp $
+ *	$Id: vm_machdep.c,v 1.116 1999/01/29 08:36:42 dillon Exp $
  */
 
 #include "npx.h"
@@ -590,31 +590,32 @@ int
 vm_page_zero_idle()
 {
 	static int free_rover;
+	static int zero_state;
 	vm_page_t m;
 	int s;
 
 	/*
-	 * XXX
-	 * We stop zeroing pages when there are sufficent prezeroed pages.
-	 * This threshold isn't really needed, except we want to
-	 * bypass unneeded calls to vm_page_list_find, and the
-	 * associated cache flush and latency.  The pre-zero will
-	 * still be called when there are significantly more
-	 * non-prezeroed pages than zeroed pages.  The threshold
-	 * of half the number of reserved pages is arbitrary, but
-	 * approximately the right amount.  Eventually, we should
-	 * perhaps interrupt the zero operation when a process
-	 * is found to be ready to run.
+	 * Attempt to maintain approximately 1/2 of our free pages in a
+	 * PG_ZERO'd state.   Add some hysteresis to (attempt to) avoid
+	 * generally zeroing a page when the system is near steady-state.
+	 * Otherwise we might get 'flutter' during disk I/O / IPC or 
+	 * fast sleeps.  We also do not want to be continuously zeroing
+	 * pages because doing so may flush our L1 and L2 caches too much.
 	 */
-	if (cnt.v_free_count - vm_page_zero_count <= cnt.v_free_reserved / 2)
-		return (0);
+
+	if (zero_state && vm_page_zero_count >= cnt.v_free_count / 3)
+		return(0);
+	if (vm_page_zero_count >= cnt.v_free_count / 2)
+		return(0);
+
 #ifdef SMP
 	if (try_mplock()) {
 #endif
 		s = splvm();
 		__asm __volatile("sti" : : : "memory");
-		m = vm_page_list_find(PQ_FREE, free_rover);
-		if (m != NULL) {
+		zero_state = 0;
+		m = vm_page_list_find(PQ_FREE, free_rover, FALSE);
+		if (m != NULL && (m->flags & PG_ZERO) == 0) {
 			--(*vm_page_queues[m->queue].lcnt);
 			TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
 			m->queue = PQ_NONE;
@@ -627,14 +628,17 @@ vm_page_zero_idle()
 			get_mplock();
 #endif
 			(void)splvm();
-			m->queue = PQ_ZERO + m->pc;
+			vm_page_flag_set(m, PG_ZERO);
+			m->queue = PQ_FREE + m->pc;
 			++(*vm_page_queues[m->queue].lcnt);
-			TAILQ_INSERT_HEAD(vm_page_queues[m->queue].pl, m,
+			TAILQ_INSERT_TAIL(vm_page_queues[m->queue].pl, m,
 			    pageq);
-			free_rover = (free_rover + PQ_PRIME3) & PQ_L2_MASK;
 			++vm_page_zero_count;
 			++cnt_prezero;
+			if (vm_page_zero_count >= cnt.v_free_count / 2)
+				zero_state = 1;
 		}
+		free_rover = (free_rover + PQ_PRIME3) & PQ_L2_MASK;
 		splx(s);
 		__asm __volatile("cli" : : : "memory");
 #ifdef SMP
