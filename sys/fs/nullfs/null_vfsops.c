@@ -150,7 +150,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	 */
 	if (lowerrootvp == VTONULL(mp->mnt_vnodecovered)->null_lowervp) {
 		NULLFSDEBUG("nullfs_mount: multi null mount?\n");
-		VOP_UNLOCK(lowerrootvp, 0, p);
+		vput(lowerrootvp);
 		return (EDEADLK);
 	}
 
