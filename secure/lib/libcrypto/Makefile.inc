@@ -7,8 +7,10 @@ CFLAGS+= -DNO_IDEA
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-CFLAGS+= -DL_ENDIAN
-# -DBN_ASM -DSHA1_ASM -DMD5_ASM -DRMD160_ASM - XXX notyet
+CFLAGS+= -DL_ENDIAN 
+.if !defined(NOPERL)
+CFLAGS+= -DSHA1_ASM -DBN_ASM -DMD5_ASM -DRMD160_ASM
+.endif
 .elif ${MACHINE_ARCH} == "alpha"
 # no ENDIAN stuff defined for alpha (64-bit)
 .endif
@@ -23,7 +25,8 @@ HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	pem/pem2.h pkcs12/pkcs12.h pkcs7/pkcs7.h rand/rand.h rc2/rc2.h \
 	rc4/rc4.h rc5/rc5.h ripemd/ripemd.h rsa/rsa.h stack/safestack.h \
 	sha/sha.h stack/stack.h tmdiff.h txt_db/txt_db.h x509/x509.h \
-	x509/x509_vfy.h x509v3/x509v3.h symhacks.h objects/obj_mac.h md4/md4.h dso/dso.h conf/conf_api.h
+	x509/x509_vfy.h x509v3/x509v3.h symhacks.h objects/obj_mac.h \
+	md4/md4.h dso/dso.h conf/conf_api.h
 
 .if defined(MAKE_IDEA) && ${MAKE_IDEA} == YES
 HDRS+= idea/idea.h
