@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.78 1998/12/17 18:18:06 bde Exp $
+ *	$Id: cy.c,v 1.79 1998/12/17 18:43:08 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -2387,15 +2387,16 @@ siostop(tp, rw)
 		com->state &= ~(CS_ODONE | CS_BUSY);
 	}
 	if (rw & FREAD) {
+		/* XXX no way to reset only input fifo. */
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
 	enable_intr();
 	if (wakeup_etc)
 		wakeup(&com->etc);
+	if (rw & FWRITE && com->etc == ETC_NONE)
+		cd1400_channel_cmd(com, CD1400_CCR_CMDRESET | CD1400_CCR_FTF);
 	comstart(tp);
-
-	/* XXX should clear h/w fifos too. */
 }
 
 static struct tty *
