@@ -36,7 +36,7 @@ The file
 is used during the release build process.
 A
 .Fx
-release includes two installation floppies.
+release includes three installation floppies.
 The first floppy image,
 .Pa kern.flp ,
 contains a statically linked kernel.
@@ -46,16 +46,30 @@ contains
 .Xr sysinstall 8 ,
 a collection of essential commands necessary for installation, and
 kernel modules to supplement the boot kernel.
-Once the system has booted,
-the modules present in the
+The third floppy image,
+.Pa drivers.flp ,
+contains optional device drivers that may not be necessary for
+installation.
+Users must initially boot the system with
+.Pa kern.flp .
+Once the system has booted, the user is prompted to insert the
+.Pa mfsroot.flp .
+The modules present in the
 .Pa /stand/modules
 directory of the mfsroot floppy will automatically be loaded by
 .Xr sysinstall 8 .
+If the user requires additional drivers, then the drivers present
+on
+.Pa drivers.flp
+may be loaded from sysinstall.
 .Pp
 The
 .Pa /usr/src/release/${arch}/drivers.conf
 file contains a list of drivers that should be omitted from the boot
-kernel and installed as kernel modules on the mfsroot floppy.
+kernel and installed as kernel modules on the mfsroot floppy or the
+driver floppy.
+This is necessary because a static kernel with all of the FreeBSD
+device drivers would be far too large for a single floppy disk.
 Each driver is described on a separate line; fields on each line are
 separated by tabs or spaces.
 .Pp
@@ -94,11 +108,22 @@ Otherwise, this module is assumed to represent a device driver.
 The fifth field,
 .Ar description ,
 provides a short description of the device driver.
+This description is displayed to the user by
+.Xr sysinstall 8
+when the module is loaded.
+The descriptions for all drivers on the optional
+.Pa driver.flp
+image are listed in the file
+.Pa DRIVERS.TXT
+which is created by
+.Pa driver-desc.awk
+and accompanies the floppy images on the FTP sites and release media.
 .Sh FILES
 .Bl -tag -compact
 .It Pa /usr/src/release/Makefile
 .It Pa /usr/src/release/${arch}/drivers.conf
 .It Pa /usr/src/release/scripts/driver-copy2.awk
+.It Pa /usr/src/release/scripts/driver-desc.awk
 .It Pa /usr/src/release/scripts/driver-remove.awk
 .El
 .Sh SEE ALSO
