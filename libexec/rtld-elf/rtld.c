@@ -1922,12 +1922,12 @@ symlook_default(const char *name, unsigned long hash,
 	}
     }
 
-    /* Search all dlopened DAGs containing the referencing object. */
-    STAILQ_FOREACH(elm, &refobj->dldags, link) {
-	if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
-	    break;
-	symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt,
-	  &donelist);
+    /* Search all DAGs whose roots are RTLD_GLOBAL objects. */
+    STAILQ_FOREACH(elm, &list_global, link) {
+       if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
+           break;
+       symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt,
+         &donelist);
 	if (symp != NULL &&
 	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
 	    def = symp;
@@ -1935,12 +1935,12 @@ symlook_default(const char *name, unsigned long hash,
 	}
     }
 
-    /* Search all DAGs whose roots are RTLD_GLOBAL objects. */
-    STAILQ_FOREACH(elm, &list_global, link) {
-       if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
-           break;
-       symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt,
-         &donelist);
+    /* Search all dlopened DAGs containing the referencing object. */
+    STAILQ_FOREACH(elm, &refobj->dldags, link) {
+	if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
+	    break;
+	symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt,
+	  &donelist);
 	if (symp != NULL &&
 	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
 	    def = symp;
