@@ -140,7 +140,6 @@ d_open_t vinumopen;
 d_close_t vinumclose;
 d_strategy_t vinumstrategy;
 d_ioctl_t vinumioctl;
-d_dump_t vinumdump;
 d_psize_t vinumsize;
 
 int vinumstart(struct buf *bp, int reviveok);

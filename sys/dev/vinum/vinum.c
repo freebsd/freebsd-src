@@ -57,7 +57,7 @@ struct cdevsw vinum_cdevsw =
 {
     vinumopen, vinumclose, physread, physwrite,
     vinumioctl, seltrue, nommap, vinumstrategy,
-    "vinum", VINUM_CDEV_MAJOR, vinumdump, vinumsize,
+    "vinum", VINUM_CDEV_MAJOR, nodump, vinumsize,
     D_DISK
 };
 
@@ -490,13 +490,6 @@ vinumsize(dev_t dev)
 	return 0;					    /* err on the size of conservatism */
 
     return size;
-}
-
-int
-vinumdump(dev_t dev)
-{
-    /* Not implemented. */
-    return ENXIO;
 }
 
 /* Local Variables: */
