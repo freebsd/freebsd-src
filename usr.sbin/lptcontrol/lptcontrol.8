@@ -10,7 +10,6 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\"
-.\"
 .\" $FreeBSD$
 .Dd September 3, 1994
 .Dt LPTCONTROL 8
@@ -40,8 +39,7 @@ the next time the device is opened.
 .Pp
 Extended mode is anything the parallel port interface can support. For an
 ECP/ISA parallel port, it may be FIFO+DMA or ECP.
-.Sh OPTIONS
-.TP
+.Pp
 The following command line options are supported:
 .Bl -tag -width indent 
 .It Fl i
@@ -54,11 +52,11 @@ Turn on extended mode.
 Turn on standard mode, i.e. turn off extended mode.
 .It Fl d Ar dev
 Set the mode of the printer device specified by
-.Em dev .
+.Ar dev .
 The default value for 
-.Em dev
+.Ar dev
 is
-.Em /dev/lpt0
+.Pa /dev/lpt0 .
 .El
 .Pp
 One of 
@@ -72,11 +70,11 @@ must be specified.
 .Sh FILES
 .Bl -tag -width /sys/i386/conf/GENERIC -compact
 .It Pa /dev/lpt?
-Printer devices.
+printer devices
 .It Pa /dev/lpctl?
-Printer control devices.
+printer control devices
 .It Pa /sys/i386/conf/GENERIC
-Kernel configuration file.
+kernel configuration file
 .El
 .Sh BUGS
 Sure to be some.
