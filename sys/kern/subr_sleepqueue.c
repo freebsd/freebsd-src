@@ -245,25 +245,7 @@ sleepq_add(struct sleepqueue *sq, void *wchan, struct mtx *lock,
 		TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_slpq);
 	} else {
 		MPASS(wchan == sq->sq_wchan);
-#ifdef INVARIANTS
-		if (flags & SLEEPQ_CONDVAR)
-			MPASS(lock == sq->sq_lock);
-		else if (lock != sq->sq_lock) {
-			/*
-			 * When msleep() abusers are fixed this should
-			 * change back to the simple MPASS() for all
-			 * sleep queues.
-			 */
-			printf("Mismatched locks to msleep(%p, %s):\n",
-			    wchan, wmesg);
-			printf("  old %p (%s), new %p (%s)\n", sq->sq_lock,
-			    sq->sq_lock == NULL ? "null" :
-			    sq->sq_lock->mtx_object.lo_name, lock,
-			    lock == NULL ? "null" :
-			    lock->mtx_object.lo_name);
-			backtrace();
-		}
-#endif
+		MPASS(lock == sq->sq_lock);
 		TAILQ_FOREACH(td1, &sq->sq_blocked, td_slpq)
 			if (td1->td_priority > td->td_priority)
 				break;
