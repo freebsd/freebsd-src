@@ -88,9 +88,9 @@
  **********************************************************************/
 
 #if !defined(I2O_EXECUTIVE_HDR)
-#define I2O_EXECUTIVE_HDR
+#define	I2O_EXECUTIVE_HDR
 
-#define I2OEXEC_REV 1_5_4  /* I2OExec header file revision string */
+#define	I2OEXEC_REV 1_5_4  /* I2OExec header file revision string */
 
 #if ((defined(KERNEL) || defined(_KERNEL)) && defined(__FreeBSD__))
 # if (!defined(KERN_VERSION))
@@ -930,13 +930,13 @@ typedef struct _I2O_EXEC_SYS_QUIESCE_MESSAGE {
 
 /* ExecSysTabSet (System Table) Function Message Frame structure. */
 
-#define I2O_EXEC_SYS_TAB_IOP_ID_LOCAL_IOP	    0x000
-#define I2O_EXEC_SYS_TAB_IOP_ID_LOCAL_HOST	    0x001
-#define I2O_EXEC_SYS_TAB_IOP_ID_UNKNOWN_IOP	    0xFFF
-#define I2O_EXEC_SYS_TAB_HOST_UNIT_ID_LOCAL_UNIT    0x0000
-#define I2O_EXEC_SYS_TAB_HOST_UNIT_ID_UNKNOWN_UNIT  0xffff
-#define I2O_EXEC_SYS_TAB_SEG_NUMBER_LOCAL_SEGMENT   0x000
-#define I2O_EXEC_SYS_TAB_SEG_NUMBER_UNKNOWN_SEGMENT 0xfff
+#define	I2O_EXEC_SYS_TAB_IOP_ID_LOCAL_IOP	    0x000
+#define	I2O_EXEC_SYS_TAB_IOP_ID_LOCAL_HOST	    0x001
+#define	I2O_EXEC_SYS_TAB_IOP_ID_UNKNOWN_IOP	    0xFFF
+#define	I2O_EXEC_SYS_TAB_HOST_UNIT_ID_LOCAL_UNIT    0x0000
+#define	I2O_EXEC_SYS_TAB_HOST_UNIT_ID_UNKNOWN_UNIT  0xffff
+#define	I2O_EXEC_SYS_TAB_SEG_NUMBER_LOCAL_SEGMENT   0x000
+#define	I2O_EXEC_SYS_TAB_SEG_NUMBER_UNKNOWN_SEGMENT 0xfff
 
 typedef struct _I2O_EXEC_SYS_TAB_SET_MESSAGE {
    I2O_MESSAGE_FRAME	       StdMessageFrame;

@@ -262,7 +262,7 @@
  * We will enclose all structure       *
  * portability modifications inside    *
  * #ifdefs.  When we are ready, we     *
- * will #define DPT_PORTABLE to begin  *
+ * will #define	DPT_PORTABLE to begin  *
  * using the modifications.	       *
  *-------------------------------------*/
 uLONG	netSwap4(uLONG val);
@@ -272,11 +272,11 @@ uLONG	netSwap4(uLONG val);
 /* for big-endian we need to swap */
 
 #ifndef NET_SWAP_2
-#define NET_SWAP_2(x) (((x) >> 8) | ((x) << 8))
+#define	NET_SWAP_2(x) (((x) >> 8) | ((x) << 8))
 #endif	/* NET_SWAP_2 */
 
 #ifndef NET_SWAP_4
-#define NET_SWAP_4(x) netSwap4((x))
+#define	NET_SWAP_4(x) netSwap4((x))
 #endif	/* NET_SWAP_4 */
 
 #else
@@ -284,11 +284,11 @@ uLONG	netSwap4(uLONG val);
 /* for little-endian we don't need to do anything */
 
 #ifndef NET_SWAP_2
-#define NET_SWAP_2(x) (x)
+#define	NET_SWAP_2(x) (x)
 #endif	/* NET_SWAP_2 */
 
 #ifndef NET_SWAP_4
-#define NET_SWAP_4(x) (x)
+#define	NET_SWAP_4(x) (x)
 #endif	/* NET_SWAP_4 */
 
 #endif	/* big endian */
@@ -352,9 +352,9 @@ void osdWakeThread(uLONG);
 /* osd sleep for x miliseconds */
 void osdSleep(uLONG);
 
-#define DPT_THREAD_PRIORITY_LOWEST 0x00
-#define DPT_THREAD_PRIORITY_NORMAL 0x01
-#define DPT_THREAD_PRIORITY_HIGHEST 0x02
+#define	DPT_THREAD_PRIORITY_LOWEST 0x00
+#define	DPT_THREAD_PRIORITY_NORMAL 0x01
+#define	DPT_THREAD_PRIORITY_HIGHEST 0x02
 
 uCHAR osdSetThreadPriority(uLONG tid, uCHAR priority);
 
