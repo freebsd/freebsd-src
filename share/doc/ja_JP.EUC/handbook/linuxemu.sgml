@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: linuxemu.sgml,v 1.1.1.1 1996/11/15 05:14:43 asami Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.13 -->
+<!-- Original revision: 1.14 -->
 
 <chapt><heading>Linux エミュレーション<label id="linuxemu"></heading>
 
