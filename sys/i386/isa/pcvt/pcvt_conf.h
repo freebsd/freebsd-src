@@ -460,12 +460,18 @@
  *	emphasize messages from the kernel on color and mono displays.
  *---------------------------------------------------------------------------*/
 
-					/* color displays		*/
+#if !defined COLOR_KERNEL_FG		/* color displays		*/
 #define COLOR_KERNEL_FG	FG_LIGHTGREY	/* kernel messages, foreground	*/
+#endif
+#if !defined COLOR_KERNEL_BG
 #define COLOR_KERNEL_BG	BG_RED		/* kernel messages, background	*/
+#endif
 
-					/* monochrome displays		*/
+#if !defined MONO_KERNEL_FG		/* monochrome displays		*/
 #define MONO_KERNEL_FG	FG_UNDERLINE	/* kernel messages, foreground	*/
+#endif
+#if !defined MONO_KERNEL_BG
 #define MONO_KERNEL_BG	BG_BLACK	/* kernel messages, background	*/
+#endif
 
 /*---------------------------------- E O F ----------------------------------*/
