@@ -78,6 +78,69 @@ nullfunc_profiled()
 }
 #endif /* GUPROF */
 
+/*
+ * Update the histograms to support extending the text region arbitrarily.
+ * This is done slightly naively (no sparse regions), so will waste slight
+ * amounts of memory, but will overall work nicely enough to allow profiling
+ * of KLDs.
+ */
+void
+kmupetext(uintfptr_t nhighpc)
+{
+	struct gmonparam np;	/* slightly large */
+	struct gmonparam *p = &_gmonparam;
+	char *cp;
+	critical_t savecrit;
+
+	GIANT_REQUIRED;
+	bcopy(p, &np, sizeof(*p));
+	np.highpc = ROUNDUP(nhighpc, HISTFRACTION * sizeof(HISTCOUNTER));
+	if (np.highpc <= p->highpc)
+		return;
+	np.textsize = np.highpc - p->lowpc;
+	np.kcountsize = np.textsize / HISTFRACTION;
+	np.hashfraction = HASHFRACTION;
+	np.fromssize = np.textsize / HASHFRACTION;
+	np.tolimit = np.textsize * ARCDENSITY / 100;
+	if (np.tolimit < MINARCS)
+		np.tolimit = MINARCS;
+	else if (np.tolimit > MAXARCS)
+		np.tolimit = MAXARCS;
+	np.tossize = np.tolimit * sizeof(struct tostruct);
+	cp = malloc(np.kcountsize + np.fromssize + np.tossize,
+	    M_GPROF, M_WAITOK);
+	/*
+	 * Check for something else extending highpc while we slept.
+	 */
+	if (np.highpc <= p->highpc) {
+		free(cp, M_GPROF);
+		return;
+	}
+	np.tos = (struct tostruct *)cp;
+	cp += np.tossize;
+	np.kcount = (HISTCOUNTER *)cp;
+	cp += np.kcountsize;
+	np.froms = (u_short *)cp;
+#ifdef GUPROF
+	/* Reinitialize pointers to overhead counters. */
+	np.cputime_count = &KCOUNT(&np, PC_TO_I(&np, cputime));
+	np.mcount_count = &KCOUNT(&np, PC_TO_I(&np, mcount));
+	np.mexitcount_count = &KCOUNT(&np, PC_TO_I(&np, mexitcount));
+#endif
+	savecrit = critical_enter();
+	bcopy(p->tos, np.tos, p->tossize);
+	bzero((char *)np.tos + p->tossize, np.tossize - p->tossize);
+	bcopy(p->kcount, np.kcount, p->kcountsize);
+	bzero((char *)np.kcount + p->kcountsize, np.kcountsize -
+	    p->kcountsize);
+	bcopy(p->froms, np.froms, p->fromssize);
+	bzero((char *)np.froms + p->fromssize, np.fromssize - p->fromssize);
+	cp = (char *)p->tos;
+	bcopy(&np, p, sizeof(*p));
+	critical_exit(savecrit);
+	free(cp, M_GPROF);
+}
+
 static void
 kmstartup(dummy)
 	void *dummy;
@@ -115,11 +178,7 @@ kmstartup(dummy)
 		p->tolimit = MAXARCS;
 	p->tossize = p->tolimit * sizeof(struct tostruct);
 	cp = (char *)malloc(p->kcountsize + p->fromssize + p->tossize,
-	    M_GPROF, M_NOWAIT | M_ZERO);
-	if (cp == 0) {
-		printf("No memory for profiling.\n");
-		return;
-	}
+	    M_GPROF, M_WAITOK | M_ZERO);
 	p->tos = (struct tostruct *)cp;
 	cp += p->tossize;
 	p->kcount = (HISTCOUNTER *)cp;
