@@ -1,4 +1,5 @@
 set remotebaud 38400
+set remotetimeout 1
 set complaints 1
 set print pretty
 define xi
@@ -226,13 +227,22 @@ Print the command name of the current process
 end
 define bpp
 set $bp = (struct buf *) $arg0
-    printf "  Buffer at 0x%x: dev 0x%x  data 0x%x  bcount 0x%x  blkno 0x%x resid 0x%x\n", \
-      $bp, \
-      $bp->b_dev, \
-      $bp->b_data, \
-      $bp->b_bcount, \
-      $bp->b_blkno, \
-      $bp->b_resid
+    if $bp->b_dev
+      printf "  Buffer at 0x%x: dev 0x%x  data 0x%x  bcount 0x%x  blkno 0x%x resid 0x%x\n", \
+        $bp, \
+        $bp->b_dev->si_udev, \
+        $bp->b_data, \
+        $bp->b_bcount, \
+        $bp->b_blkno, \
+        $bp->b_resid
+    else
+      printf "  Buffer at 0x%x: dev (none) data 0x%x  bcount 0x%x  blkno 0x%x resid 0x%x\n", \
+        $bp, \
+        $bp->b_data, \
+        $bp->b_bcount, \
+        $bp->b_blkno, \
+        $bp->b_resid
+    end
     printf "   flags 0x%x: ", $bp->b_flags
       if $bp->b_flags & 0x10
         printf "busy "
@@ -599,7 +609,7 @@ set height 70
 set width 120
 define vdev
 if (vp->v_type == VBLK)
-  p *vp->v_un.vu_specinfo
+  p *vp->v_un.vu_spec.vu_specinfo
   printf "numoutput: %d\n", vp->v_numoutput
 else
   echo "Not a block device"
