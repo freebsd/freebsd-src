@@ -116,7 +116,8 @@ lib_sigtimedwait(const sigset_t *set, siginfo_t *info,
 				siginfo = curthread->siginfo[i - 1];
 				KSE_SCHED_UNLOCK(curthread->kse,
 					curthread->kseg);
-				_kse_critical_leave(crit);
+				KSE_LOCK_ACQUIRE(curthread->kse,
+					&_thread_signal_lock);
 				ret = i;
 				goto OUT;
 			}
