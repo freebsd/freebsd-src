@@ -24,14 +24,15 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id$";
-static char rcsid[] = "$Id$";
+static char sccsid[] = "@(#)$Id: gethostbynis.c,v 1.8 1997/02/22 15:00:08 peter Exp $";
+static char rcsid[] = "$Id: gethostbynis.c,v 1.8 1997/02/22 15:00:08 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <arpa/nameser.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,16 +63,18 @@ _gethostbynis(name, map, af)
 #ifdef YP
 	register char *cp, **q;
 	char *result;
-	int resultlen;
+	int resultlen,size;
 	static struct hostent h;
 	static char *domain = (char *)NULL;
 	static char ypbuf[YPMAXRECORD + 2];
 
 	switch(af) {
 	case AF_INET:
+		size = NS_INADDRSZ;
 		break;
 	default:
 	case AF_INET6:
+		size = NS_IN6ADDRSZ;
 		errno = EAFNOSUPPORT;
 		return NULL;
 	}
@@ -97,7 +100,7 @@ _gethostbynis(name, map, af)
 	h.h_addr_list = host_addrs;
 	h.h_addr = hostaddr;
 	*((u_long *)h.h_addr) = inet_addr(result);
-	h.h_length = sizeof(u_long);
+	h.h_length = size;
 	h.h_addrtype = AF_INET;
 	while (*cp == ' ' || *cp == '\t')
 		cp++;
