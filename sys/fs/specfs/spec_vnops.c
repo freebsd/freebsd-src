@@ -251,13 +251,6 @@ spec_open(ap)
 		if (!dev->si_bsize_phys)
 			dev->si_bsize_phys = DEV_BSIZE;
 	}
-	maxio = dev->si_iosize_max;
-	if (!maxio)
-		maxio = DFLTPHYS;
-	if (maxio > MAXPHYS)
-		maxio = MAXPHYS;
-	vp->v_maxio = maxio;
-
 	return (error);
 }
 
