@@ -120,8 +120,6 @@ struct pcic_softc {
 	/* XXX isa_chipset_tag_t, pci_chipset_tag_t, etc. */
 	void *intr_est;
 
-	pccard_chipset_tag_t pct;
-
 	/* this needs to be large enough to hold PCIC_MEM_PAGES bits */
 	int	subregionmask;
 #define PCIC_MAX_MEM_PAGES	(8 * sizeof(int))
@@ -151,7 +149,7 @@ int	pcic_vendor __P((struct pcic_handle *));
 char	*pcic_vendor_to_string __P((int));
 
 void	pcic_attach(device_t dev);
-void	pcic_attach_sockets __P((struct pcic_softc *));
+void	pcic_attach_sockets(device_t dev);
 int	pcic_intr __P((void *arg));
 
 int	pcic_chip_mem_alloc __P((pccard_chipset_handle_t, bus_size_t,
@@ -207,3 +205,11 @@ pcic_write(h, idx, data)
 	(*(h)->ph_write)((h), (idx), (data))
 
 #endif
+
+/*
+ * bus/device/etc routines
+ */
+int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r);
+int pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r);
