@@ -329,6 +329,37 @@ main(int argc, char *argv[])
 	exit(1);
 }
 
+static void
+reduce_path(char *fn)
+{
+	char *slash, *ptr;
+
+	/* Reduce all "/+./" to "/" (just in case we've got "/./../" later */
+	while ((slash = strstr(fn, "/./")) != NULL) {
+		for (ptr = slash; ptr > fn && ptr[-1] == '/'; ptr--)
+			;
+		slash += 2;
+		while (*slash)
+			*++ptr = *++slash;
+	}
+
+	/* Now reduce all "/something/+../" to "/" */
+	while ((slash = strstr(fn, "/../")) != NULL) {
+		if (slash == fn)
+			break;
+		for (ptr = slash; ptr > fn && ptr[-1] == '/'; ptr--)
+			;
+		for (ptr--; ptr >= fn; ptr--)
+			if (*ptr == '/')
+				break;
+		if (ptr < fn)
+			break;
+		slash += 3;
+		while (*slash)
+			*++ptr = *++slash;
+	}
+}
+
 struct formats;
 int	validate_access(char **, int);
 void	xmitfile(struct formats *);
@@ -374,7 +405,7 @@ tftp(struct tftphdr *tp, int size)
 	int i, first = 1, has_options = 0, ecode;
 	struct formats *pf;
 	char *filename, *mode, *option, *ccp;
-	char fnbuf[MAXPATHLEN];
+	char fnbuf[PATH_MAX], resolved_fnbuf[PATH_MAX];
 
 	cp = tp->th_stuff;
 again:
@@ -394,6 +425,7 @@ again:
 	}
 	memcpy(fnbuf, tp->th_stuff, i);
 	fnbuf[i] = '\0';
+	reduce_path(fnbuf);
 	filename = fnbuf;
 	if (first) {
 		mode = ++cp;
@@ -449,7 +481,7 @@ option_fail:
 	}
 
 	ecode = (*pf->f_validate)(&filename, tp->th_opcode);
-	if (has_options)
+	if (has_options && ecode == 0)
 		oack();
 	if (logging) {
 		char hbuf[NI_MAXHOST];
