@@ -2677,8 +2677,7 @@ Retry:
 	}
 
 	/* If we would blow our VMEM resource limit, no go */
-	if (map->size + grow_amount >
-	    curthread->td_proc->p_rlimit[RLIMIT_VMEM].rlim_cur) {
+	if (map->size + grow_amount > p->p_rlimit[RLIMIT_VMEM].rlim_cur) {
 		vm_map_unlock_read(map);
 		return (KERN_NO_SPACE);
 	}
