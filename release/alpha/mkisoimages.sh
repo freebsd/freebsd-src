@@ -35,11 +35,11 @@ fi
 
 type mkisofs 2>&1 | grep " is " >/dev/null
 if [ $? -ne 0 ]; then
-	echo The mkisofs port is not installed.  Trying to get it now.
-	if [ -f /usr/ports/sysutils/mkisofs/Makefile ]; then
-		cd /usr/ports/sysutils/mkisofs && make install && make clean
+	echo The cdrtools port is not installed.  Trying to get it now.
+	if [ -f /usr/ports/sysutils/cdrtools/Makefile ]; then
+		cd /usr/ports/sysutils/cdrtools && make install && make clean
 	else
-		if ! pkg_add -r mkisofs; then
+		if ! pkg_add -r cdrtools; then
 			echo "Could not get it via pkg_add - please go install this"
 			echo "from the ports collection and run this script again."
 			exit 2
