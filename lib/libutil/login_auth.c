@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 void
 auth_checknologin(login_cap_t *lc)
 {
-  char *file;
+  const char *file;
 
   /* Do we ignore a nologin file? */
   if (login_getcapbool(lc, "ignorenologin", 0))
