@@ -257,76 +257,76 @@ case $i in
 
 all)
 	sh $0 std					# standard
-	sh $0 fd0 fd1					# bdev, floppy disk
-	sh $0 da0 da1 da2 da3 				# bdev, SCSI disk
+	sh $0 fd0 fd1					# floppy disk
+	sh $0 da0 da1 da2 da3 				# SCSI disk
 	sh $0 ata					# ATA control
-	sh $0 ad0 ad1 ad2 ad3 				# bdev, ATA disk
-	sh $0 ar0 ar1					# bdev, ATA RAID disk
-	sh $0 acd0 acd0t afd0 ast0			# bdev, ATAPI devices
-	sh $0 wd0 wd1 wd2 wd3				# bdev, OLD disk
-	sh $0 wcd0 wfd0 wst0				# bdev, OLD ATAPI devs
-	sh $0 vn0					# bdev, virtual disk
-	sh $0 cd0 matcd0 mcd0 scd0			# bdev, cdrom
-	sh $0 sa0 wt0					# bdev, tape
-	sh $0 vty12					# cdev, virtual tty
-	sh $0 cuaa0 cuaa1 cuaa2 cuaa3			# cdev, serial tty
-	sh $0 pty0					# cdev, pseudo tty
-	sh $0 ttyd0 ttyd1 ttyd2 ttyd3			# cdev, serial tty
-	sh $0 kbd0 kbd1					# cdev, keyboard
-	sh $0 mse0 psm0 jogdial sysmouse		# cdev, mouse
-	sh $0 pcaudio speaker				# cdev, noise
-	sh $0 lpt0 lpt1 lpt2				# cdev, printer
-	sh $0 ppi0 ppi1 ppi2				# cdev, parallel port
-	sh $0 iic0 iic1					# cdev, I2C device
-	sh $0 smb0 smb1					# cdev, SMBus device
-	sh $0 usb usb0 uhid0 ums0 ulpt0 ugen0		# cdev, USB devices
-	sh $0 urio0 uscanner0 umodem0			# cdev, USB devices too
-	sh $0 bpf0 bpf1 bpf2 bpf3 			# cdev, network
-	sh $0 ipl tun0 tun1 tun2 tun3			# cdev, network
-	sh $0 tap0 tap1 tap2 tap3			# cdev, network
-	sh $0 ch0 perfmon tw0				# cdev, miscellaneous
-	sh $0 acpi					# cdev, ACPI
-	sh $0 apm apmctl card0 card1 card2 card3	# cdev, laptop
-	sh $0 pass4 xpt2				# cdev, CAM
-	sh $0 i4b i4bctl i4btrc0 i4btrc1		# cdev, ISDN
-	sh $0 i4btel0 i4btel1 i4bteld0 i4bteld1		# cdev, ISDN
-	sh $0 i4brbch0 i4brbch1				# cdev, ISDN
-	sh $0 agpgart					# cdev, AGP
+	sh $0 ad0 ad1 ad2 ad3 				# ATA disk
+	sh $0 ar0 ar1					# ATA RAID disk
+	sh $0 acd0 acd0t afd0 ast0			# ATAPI devices
+	sh $0 wd0 wd1 wd2 wd3				# OLD disk
+	sh $0 wcd0 wfd0 wst0				# OLD ATAPI devs
+	sh $0 vn0					# virtual disk
+	sh $0 cd0 matcd0 mcd0 scd0			# cdrom
+	sh $0 sa0 wt0					# tape
+	sh $0 vty12					# virtual tty
+	sh $0 cuaa0 cuaa1 cuaa2 cuaa3			# serial tty
+	sh $0 pty0					# pseudo tty
+	sh $0 ttyd0 ttyd1 ttyd2 ttyd3			# serial tty
+	sh $0 kbd0 kbd1					# keyboard
+	sh $0 mse0 psm0 jogdial sysmouse		# mouse
+	sh $0 pcaudio speaker				# noise
+	sh $0 lpt0 lpt1 lpt2				# printer
+	sh $0 ppi0 ppi1 ppi2				# parallel port
+	sh $0 iic0 iic1					# I2C device
+	sh $0 smb0 smb1					# SMBus device
+	sh $0 usb usb0 uhid0 ums0 ulpt0 ugen0		# USB devices
+	sh $0 urio0 uscanner0 umodem0			# USB devices too
+	sh $0 bpf0 bpf1 bpf2 bpf3 			# network
+	sh $0 ipl tun0 tun1 tun2 tun3			# network
+	sh $0 tap0 tap1 tap2 tap3			# network
+	sh $0 ch0 perfmon tw0				# miscellaneous
+	sh $0 acpi					# ACPI
+	sh $0 apm apmctl card0 card1 card2 card3	# laptop
+	sh $0 pass4 xpt2				# CAM
+	sh $0 i4b i4bctl i4btrc0 i4btrc1		# ISDN
+	sh $0 i4btel0 i4btel1 i4bteld0 i4bteld1		# ISDN
+	sh $0 i4brbch0 i4brbch1				# ISDN
+	sh $0 agpgart					# AGP
 	;;
 
 # a much restricted set of the above, to save precious i-nodes on the
 # fixit floppy
 fixit)
 	sh $0 std					# standard
-	sh $0 fd0					# bdev, floppy disk
-	sh $0 da0 					# bdev, SCSI disk
-	sh $0 ad0		 			# bdev, ATA disk
-	sh $0 acd0 afd0 ast0				# bdev, ATAPI devices
-	sh $0 wd0					# bdev, OLD disk
-	sh $0 wcd0 wfd0 wst0				# bdev, OLD ATAPI devs
-	sh $0 vn0					# bdev, virtual disk
-	sh $0 cd0					# bdev, cdrom
-	sh $0 sa0					# bdev, tape
-	sh $0 vty2					# cdev, virtual tty
-	sh $0 cuaa0					# cdev, serial tty
-	sh $0 pty0					# cdev, pseudo tty
-	sh $0 ttyd0					# cdev, serial tty
-	sh $0 kbd0					# cdev, keyboard
-	sh $0 mse0 psm0 jogdial sysmouse		# cdev, mouse
-	sh $0 lpt0					# cdev, printer
-	sh $0 ppi0					# cdev, parallel port
-	sh $0 iic0					# cdev, I2C device
-	sh $0 smb0					# cdev, SMBus device
-	sh $0 ums0					# cdev, USB devices
-	sh $0 tun0					# cdev, network
-	sh $0 tap0					# cdev, network
-	sh $0 ch0					# cdev, miscellaneous
-	sh $0 acpi					# cdev, ACPI
-	sh $0 apm apmctl card0				# cdev, laptop
-	sh $0 pass1 xpt1				# cdev, CAM
-	sh $0 i4b i4bctl i4btrc0 i4btrc1		# cdev, ISDN
-	sh $0 i4btel0 i4bteld0		 		# cdev, ISDN
-	sh $0 i4brbch0					# cdev, ISDN
+	sh $0 fd0					# floppy disk
+	sh $0 da0 					# SCSI disk
+	sh $0 ad0		 			# ATA disk
+	sh $0 acd0 afd0 ast0				# ATAPI devices
+	sh $0 wd0					# OLD disk
+	sh $0 wcd0 wfd0 wst0				# OLD ATAPI devs
+	sh $0 vn0					# virtual disk
+	sh $0 cd0					# cdrom
+	sh $0 sa0					# tape
+	sh $0 vty2					# virtual tty
+	sh $0 cuaa0					# serial tty
+	sh $0 pty0					# pseudo tty
+	sh $0 ttyd0					# serial tty
+	sh $0 kbd0					# keyboard
+	sh $0 mse0 psm0 jogdial sysmouse		# mouse
+	sh $0 lpt0					# printer
+	sh $0 ppi0					# parallel port
+	sh $0 iic0					# I2C device
+	sh $0 smb0					# SMBus device
+	sh $0 ums0					# USB devices
+	sh $0 tun0					# network
+	sh $0 tap0					# network
+	sh $0 ch0					# miscellaneous
+	sh $0 acpi					# ACPI
+	sh $0 apm apmctl card0				# laptop
+	sh $0 pass1 xpt1				# CAM
+	sh $0 i4b i4bctl i4btrc0 i4btrc1		# ISDN
+	sh $0 i4btel0 i4bteld0		 		# ISDN
+	sh $0 i4brbch0					# ISDN
 	rm -f fd/[1-9]?
 	;;
 
