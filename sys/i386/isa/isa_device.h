@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.57 1999/01/17 06:33:43 bde Exp $
+ *	$Id: isa_device.h,v 1.58 1999/04/16 21:22:23 peter Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -112,6 +112,7 @@ struct isa_driver {
 int	haveseen_isadev __P((struct isa_device *dvp, u_int checkbits));
 void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
 int	isa_compat_nextid __P((void));
+void	isa_wrap_old_drivers __P((void));
 
 #endif /* KERNEL */
 
