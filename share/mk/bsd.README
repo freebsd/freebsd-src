@@ -164,11 +164,6 @@ BINOWN		Binary owner.
 
 BINMODE		Binary mode.
 
-STRIP		The flag passed to the install program to cause the binary
-		to be stripped.  This is to be used when building your
-		own install script so that the entire system can be made
-		stripped/not-stripped using a single nob.
-
 MANDIR		Base path for manual installation.
 
 MANGRP		Manual group.
@@ -283,7 +278,9 @@ DPADD		Additional dependencies for the program.  Usually used for
 		numbers.
 
 STRIP		The flag passed to the install program to cause the binary
-		to be stripped.
+		to be stripped.  This is to be used when building your
+		own install script so that the entire system can be made
+		stripped/not-stripped using a single nob.
 
 SUBDIR		A list of subdirectories that should be built as well.
 		Each of the targets will execute the same target in the
