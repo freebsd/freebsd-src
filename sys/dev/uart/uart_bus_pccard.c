@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/timepps.h>
 
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
