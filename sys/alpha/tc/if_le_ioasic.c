@@ -40,7 +40,6 @@
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
 #include <sys/socket.h>
-#include <sys/device.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -123,10 +122,14 @@ le_ioasic_attach(device_t dev)
 	sc->sc_zerobuf = le_ioasic_zerobuf_gap16;
 
 	if (le_iomem == 0) {
-		printf("%s: DMA area not set up\n", sc->sc_dev.dv_xname);
+		printf("%s: DMA area not set up\n",
+			device_get_nameunit(sc->sc_dev));
 		return ENXIO;
 	}
+
+	sc->sc_dev = dev;
 	sc->unit = device_get_unit(dev);
+
 	dec_le_common_attach(sc, ioasic_lance_ether_address());
 
 	ioasic_intr_establish(device_get_parent(dev), d->iad_cookie, 0,  am7990_intr, sc);

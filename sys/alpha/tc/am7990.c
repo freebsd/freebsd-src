@@ -86,7 +86,6 @@
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
 #include <sys/socket.h>
-#include <sys/device.h>
 #include <sys/malloc.h>
 #include <sys/sockio.h>
 #include <net/if.h>
@@ -190,9 +189,8 @@ am7990_config(sc)
 
 	/* Make sure the chip is stopped. */
 	am7990_stop(sc);
+
 	/* Initialize ifnet structure. */
-	snprintf(sc->sc_dev.dv_xname,
-		sizeof(sc->sc_dev.dv_xname), "le%d", sc->unit); 
 	ifp->if_unit = sc->unit;
 	ifp->if_name = "le";
 	ifp->if_softc = sc;
@@ -220,7 +218,7 @@ am7990_config(sc)
 
 	/* Attach the interface. */
 	bcopy(sc->sc_enaddr,((struct arpcom *)ifp)->ac_enaddr, 6);
-	printf("%s: address %s\n", sc->sc_dev.dv_xname,
+	printf("%s: address %s\n", device_get_nameunit(sc->sc_dev),
 	       ether_sprintf(sc->sc_enaddr));
 
 	if_attach(ifp);
@@ -254,7 +252,7 @@ am7990_config(sc)
 	}
 
 	printf("%s: %d receive buffers, %d transmit buffers\n",
-	    sc->sc_dev.dv_xname, sc->sc_nrbuf, sc->sc_ntbuf);
+	    device_get_nameunit(sc->sc_dev), sc->sc_nrbuf, sc->sc_ntbuf);
 
 /*
 	sc->sc_sh = shutdownhook_establish(am7990_shutdown, sc);
@@ -283,7 +281,7 @@ am7990_config(sc)
 #endif
 
 #if NRND > 0
-	rnd_attach_source(&sc->rnd_source, sc->sc_dev.dv_xname,
+	rnd_attach_source(&sc->rnd_source, device_get_nameunit(sc->sc_dev),
 			  RND_TYPE_NET);
 #endif
 }
@@ -429,7 +427,8 @@ am7990_init(sc)
 		ifp->if_timer = 0;
 		am7990_start(ifp);
 	} else
-		printf("%s: card failed to initialize\n", sc->sc_dev.dv_xname);
+		printf("%s: card failed to initialize\n",
+			device_get_nameunit(sc->sc_dev));
 	if (sc->sc_hwinit)
 		(*sc->sc_hwinit)(sc);
 }
@@ -540,7 +539,7 @@ am7990_read(sc, boff, len)
 	    len > ETHERMTU + sizeof(struct ether_header)) {
 #ifdef LEDEBUG
 		printf("%s: invalid packet size %d; dropping\n",
-		    sc->sc_dev.dv_xname, len);
+		    device_get_nameunit(sc->sc_dev), len);
 #endif
 		ifp->if_ierrors++;
 		return;
@@ -623,26 +622,26 @@ am7990_rint(sc)
 #ifdef LEDEBUG
 				if ((rmd.rmd1_bits & LE_R1_OFLO) == 0) {
 					if (rmd.rmd1_bits & LE_R1_FRAM)
-						printf("%s: framing error\n",
-						    sc->sc_dev.dv_xname);
+					    printf("%s: framing error\n",
+					       device_get_nameunit(sc->sc_dev));
 					if (rmd.rmd1_bits & LE_R1_CRC)
-						printf("%s: crc mismatch\n",
-						    sc->sc_dev.dv_xname);
+					    printf("%s: crc mismatch\n",
+					       device_get_nameunit(sc->sc_dev));
 				}
 #endif
 			} else {
 				if (rmd.rmd1_bits & LE_R1_OFLO)
 					printf("%s: overflow\n",
-					    sc->sc_dev.dv_xname);
+					       device_get_nameunit(sc->sc_dev));
 			}
 			if (rmd.rmd1_bits & LE_R1_BUFF)
 				printf("%s: receive buffer error\n",
-				    sc->sc_dev.dv_xname);
+					device_get_nameunit(sc->sc_dev));
 			ifp->if_ierrors++;
 		} else if ((rmd.rmd1_bits & (LE_R1_STP | LE_R1_ENP)) !=
 		    (LE_R1_STP | LE_R1_ENP)) {
 			printf("%s: dropping chained buffer\n",
-			    sc->sc_dev.dv_xname);
+				device_get_nameunit(sc->sc_dev));
 			ifp->if_ierrors++;
 		} else {
 #ifdef LEDEBUG
@@ -708,9 +707,10 @@ am7990_tint(sc)
 		if (tmd.tmd1_bits & LE_T1_ERR) {
 			if (tmd.tmd3 & LE_T3_BUFF)
 				printf("%s: transmit buffer error\n",
-				    sc->sc_dev.dv_xname);
+					device_get_nameunit(sc->sc_dev));
 			else if (tmd.tmd3 & LE_T3_UFLO)
-				printf("%s: underflow\n", sc->sc_dev.dv_xname);
+				printf("%s: underflow\n",
+					device_get_nameunit(sc->sc_dev));
 			if (tmd.tmd3 & (LE_T3_BUFF | LE_T3_UFLO)) {
 				am7990_reset(sc);
 				return;
@@ -721,13 +721,13 @@ am7990_tint(sc)
 					(*sc->sc_nocarrier)(sc);
 				else
 					printf("%s: lost carrier\n",
-					    sc->sc_dev.dv_xname);
+					       device_get_nameunit(sc->sc_dev));
 			}
 			if (tmd.tmd3 & LE_T3_LCOL)
 				ifp->if_collisions++;
 			if (tmd.tmd3 & LE_T3_RTRY) {
 				printf("%s: excessive collisions, tdr %d\n",
-				    sc->sc_dev.dv_xname,
+				    device_get_nameunit(sc->sc_dev),
 				    tmd.tmd3 & LE_T3_TDR_MASK);
 				ifp->if_collisions += 16;
 			}
@@ -770,7 +770,7 @@ am7990_intr(arg)
 #ifdef LEDEBUG
 	if (sc->sc_debug)
 		printf("%s: am7990_intr entering with isr=%04x\n",
-		    sc->sc_dev.dv_xname, isr);
+		    device_get_nameunit(sc->sc_dev), isr);
 #endif
 	if ((isr & LE_C0_INTR) == 0)
 		return;
@@ -781,37 +781,42 @@ am7990_intr(arg)
 	if (isr & LE_C0_ERR) {
 		if (isr & LE_C0_BABL) {
 #ifdef LEDEBUG
-			printf("%s: babble\n", sc->sc_dev.dv_xname);
+			printf("%s: babble\n", device_get_nameunit(sc->sc_dev));
 #endif
 			ifp->if_oerrors++;
 		}
 #if 0
 		if (isr & LE_C0_CERR) {
-			printf("%s: collision error\n", sc->sc_dev.dv_xname);
+			printf("%s: collision error\n",
+				device_get_nameunit(sc->sc_dev));
 			ifp->if_collisions++;
 		}
 #endif
 		if (isr & LE_C0_MISS) {
 #ifdef LEDEBUG
-			printf("%s: missed packet\n", sc->sc_dev.dv_xname);
+			printf("%s: missed packet\n",
+				device_get_nameunit(sc->sc_dev));
 #endif
 			ifp->if_ierrors++;
 		}
 		if (isr & LE_C0_MERR) {
-			printf("%s: memory error\n", sc->sc_dev.dv_xname);
+			printf("%s: memory error\n",
+				device_get_nameunit(sc->sc_dev));
 			am7990_reset(sc);
 			return;
 		}
 	}
 
 	if ((isr & LE_C0_RXON) == 0) {
-		printf("%s: receiver disabled\n", sc->sc_dev.dv_xname);
+		printf("%s: receiver disabled\n",
+			device_get_nameunit(sc->sc_dev));
 		ifp->if_ierrors++;
 		am7990_reset(sc);
 		return;
 	}
 	if ((isr & LE_C0_TXON) == 0) {
-		printf("%s: transmitter disabled\n", sc->sc_dev.dv_xname);
+		printf("%s: transmitter disabled\n",
+			device_get_nameunit(sc->sc_dev));
 		ifp->if_oerrors++;
 		am7990_reset(sc);
 		return;
@@ -843,7 +848,7 @@ am7990_watchdog(ifp)
 {
 	struct am7990_softc *sc = ifp->if_softc;
 
-	log(LOG_ERR, "%s: device timeout\n", sc->sc_dev.dv_xname);
+	log(LOG_ERR, "%s: device timeout\n", device_get_nameunit(sc->sc_dev));
 	++ifp->if_oerrors;
 
 	am7990_reset(sc);
@@ -1100,16 +1105,16 @@ am7990_recv_print(sc, no)
 
 	(*sc->sc_copyfromdesc)(sc, &rmd, LE_RMDADDR(sc, no), sizeof(rmd));
 	len = rmd.rmd3;
-	printf("%s: receive buffer %d, len = %d\n", sc->sc_dev.dv_xname, no,
-	    len);
-	printf("%s: status %04x\n", sc->sc_dev.dv_xname,
+	printf("%s: receive buffer %d, len = %d\n",
+		device_get_nameunit(sc->sc_dev), no, len);
+	printf("%s: status %04x\n", device_get_nameunit(sc->sc_dev),
 	    (*sc->sc_rdcsr)(sc, LE_CSR0));
 	printf("%s: ladr %04x, hadr %02x, flags %02x, bcnt %04x, mcnt %04x\n",
-	    sc->sc_dev.dv_xname,
+	    device_get_nameunit(sc->sc_dev),
 	    rmd.rmd0, rmd.rmd1_hadr, rmd.rmd1_bits, rmd.rmd2, rmd.rmd3);
 	if (len >= sizeof(eh)) {
 		(*sc->sc_copyfrombuf)(sc, &eh, LE_RBUFADDR(sc, no), sizeof(eh));
-		printf("%s: dst %s", sc->sc_dev.dv_xname,
+		printf("%s: dst %s", device_get_nameunit(sc->sc_dev),
 			ether_sprintf(eh.ether_dhost));
 		printf(" src %s type %04x\n", ether_sprintf(eh.ether_shost),
 			ntohs(eh.ether_type));
@@ -1127,16 +1132,17 @@ am7990_xmit_print(sc, no)
 
 	(*sc->sc_copyfromdesc)(sc, &tmd, LE_TMDADDR(sc, no), sizeof(tmd));
 	len = -tmd.tmd2;
-	printf("%s: transmit buffer %d, len = %d\n", sc->sc_dev.dv_xname, no,
+	printf("%s: transmit buffer %d, len = %d\n",
+		device_get_nameunit(sc->sc_dev), no,
 	    len);
-	printf("%s: status %04x\n", sc->sc_dev.dv_xname,
+	printf("%s: status %04x\n", device_get_nameunit(sc->sc_dev),
 	    (*sc->sc_rdcsr)(sc, LE_CSR0));
 	printf("%s: ladr %04x, hadr %02x, flags %02x, bcnt %04x, mcnt %04x\n",
-	    sc->sc_dev.dv_xname,
+	    device_get_nameunit(sc->sc_dev),
 	    tmd.tmd0, tmd.tmd1_hadr, tmd.tmd1_bits, tmd.tmd2, tmd.tmd3);
 	if (len >= sizeof(eh)) {
 		(*sc->sc_copyfrombuf)(sc, &eh, LE_TBUFADDR(sc, no), sizeof(eh));
-		printf("%s: dst %s", sc->sc_dev.dv_xname,
+		printf("%s: dst %s", device_get_nameunit(sc->sc_dev),
 			ether_sprintf(eh.ether_dhost));
 		printf(" src %s type %04x\n", ether_sprintf(eh.ether_shost),
 		    ntohs(eh.ether_type));
