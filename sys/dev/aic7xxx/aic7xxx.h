@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.9 1999/05/17 21:53:51 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.10 1999/05/22 22:04:10 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -126,8 +126,9 @@ typedef enum {
 	AHC_AIC7890_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA2|AHC_QUEUE_REGS
 			  |AHC_SG_PRELOAD|AHC_MULTI_TID|AHC_HS_MAILBOX,
 	AHC_AIC7895_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA,
+	AHC_AIC7895C_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA|AHC_MULTI_TID,
 	AHC_AIC7896_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA2|AHC_QUEUE_REGS
-			  |AHC_SG_PRELOAD|AHC_MULTI_TID|AHC_HS_MAILBOX,
+			  |AHC_SG_PRELOAD|AHC_MULTI_TID|AHC_HS_MAILBOX
 } ahc_feature;
 
 typedef enum {
@@ -260,12 +261,28 @@ struct target_cmd {
 };
 
 /*
+ * Number of events we can buffer up if we run out
+ * of immediate notify ccbs.
+ */
+#define AHC_TMODE_EVENT_BUFFER_SIZE 8
+struct ahc_tmode_event {
+	u_int8_t initiator_id;
+	u_int8_t event_type;	/* MSG type or EVENT_TYPE_BUS_RESET */
+#define	EVENT_TYPE_BUS_RESET 0xFF
+	u_int8_t event_arg;
+};
+
+/*
  * Per lun target mode state including accept TIO CCB
  * and immediate notify CCB pools.
  */
 struct tmode_lstate {
+	struct cam_path *path;
 	struct ccb_hdr_slist accept_tios;
 	struct ccb_hdr_slist immed_notifies;
+	struct ahc_tmode_event event_buffer[AHC_TMODE_EVENT_BUFFER_SIZE];
+	u_int8_t event_r_idx;
+	u_int8_t event_w_idx;
 };
 
 #define AHC_TRANS_CUR		0x01	/* Modify current neogtiation status */
@@ -542,6 +559,9 @@ struct ahc_softc {
 
 	/* Initialization level of this data structure */
 	u_int			 init_level;
+
+	u_int16_t	 	 user_discenable;/* Disconnection allowed  */
+	u_int16_t		 user_tagenable;/* Tagged Queuing allowed */
 };
 
 struct full_ahc_softc {
