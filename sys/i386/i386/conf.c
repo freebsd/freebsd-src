@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.50 1995/01/08 13:40:31 dufault Exp $
+ *	$Id: conf.c,v 1.51 1995/01/09 09:36:48 phk Exp $
  */
 
 #include <sys/param.h>
@@ -333,20 +333,20 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #include "sc.h"
 #include "vt.h"
 #if NSC > 0 || NVT > 0
-d_open_t pcopen;
-d_close_t pcclose;
-d_rdwr_t pcread, pcwrite;
-d_ioctl_t pcioctl;
-d_mmap_t pcmmap;
-extern	struct tty pccons[];
+d_open_t scopen;
+d_close_t scclose;
+d_rdwr_t scread, scwrite;
+d_ioctl_t scioctl;
+d_mmap_t scmmap;
+extern	struct tty sccons[];
 #else
-#define pcopen		(d_open_t *)enxio
-#define pcclose		(d_close_t *)enxio
-#define pcread		(d_rdwr_t *)enxio
-#define pcwrite		(d_rdwr_t *)enxio
-#define pcioctl		(d_ioctl_t *)enxio
-#define pcmmap		(d_mmap_t *)enxio
-#define pccons		NULL
+#define scopen		(d_open_t *)enxio
+#define scclose		(d_close_t *)enxio
+#define scread		(d_rdwr_t *)enxio
+#define scwrite		(d_rdwr_t *)enxio
+#define scioctl		(d_ioctl_t *)enxio
+#define scmmap		(d_mmap_t *)enxio
+#define sccons		NULL
 #endif
 
 /* controlling TTY */
@@ -777,9 +777,9 @@ struct cdevsw	cdevsw[] =
 	{ noopen,	noclose,	noread,		nowrite,	/*11*/
 	  noioc,	nostop,		nullreset,	NULL,
 	  seltrue,	nommap,		nostrat },
-	{ pcopen,	pcclose,	pcread,		pcwrite,	/*12*/
-	  pcioctl,	nullstop,	nullreset,	pccons, /* pc */
-	  ttselect,	pcmmap,		NULL },
+	{ scopen,	scclose,	scread,		scwrite,	/*12*/
+	  scioctl,	nullstop,	nullreset,	sccons, /* sc */
+	  ttselect,	scmmap,		NULL },
 	{ sdopen,	sdclose,	rawread,	rawwrite,	/*13*/
 	  sdioctl,	nostop,		nullreset,	NULL,	/* sd */
 	  seltrue,	nommap,		sdstrategy },
