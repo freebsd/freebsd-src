@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.15 1998/06/12 17:45:03 brian Exp $
+ *	$Id: bundle.c,v 1.16 1998/06/15 19:05:10 brian Exp $
  */
 
 #include <sys/param.h>
@@ -51,11 +51,11 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "defs.h"
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "id.h"
-#include "defs.h"
 #include "timer.h"
 #include "fsm.h"
 #include "iplist.h"

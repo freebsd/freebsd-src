@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.13.2.11 1998/05/01 19:25:19 brian Exp $
+ * $Id: mbuf.c,v 1.14 1998/05/21 21:46:46 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -28,6 +28,7 @@
 #include <sysexits.h>
 #include <termios.h>
 
+#include "defs.h"
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.28 1998/05/23 22:24:40 brian Exp $
+ *	$Id: log.c,v 1.29 1998/05/28 23:17:42 brian Exp $
  */
 
 #include <sys/types.h>
@@ -34,12 +34,12 @@
 #include <syslog.h>
 #include <termios.h>
 
+#include "defs.h"
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "descriptor.h"
 #include "prompt.h"
-#include "defs.h"
 
 static const char *LogNames[] = {
   "Async",
