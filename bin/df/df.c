@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: df.c,v 1.13 1997/02/22 14:02:57 peter Exp $
  */
 
 #ifndef lint
@@ -200,7 +200,7 @@ main(argc, argv)
 					ufs_df(*argv, maxwidth);
 					(void)rmdir(mntpt);
 					continue;
-				} else if (statfs(mntpt, &statfsbuf)) {
+				} else if (statfs(mntpt, &statfsbuf) == 0) {
 					statfsbuf.f_mntonname[0] = '\0';
 					prtstat(&statfsbuf, maxwidth);
 				} else
