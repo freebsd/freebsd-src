@@ -166,12 +166,6 @@ device		agp
 #####################################################################
 # HARDWARE DEVICE CONFIGURATION
 
-# To include support for VGA VESA video modes
-options 	VESA
-
-# Turn on extra debugging checks and output for VESA support.
-options 	VESA_DEBUG
-
 #
 # Optional devices:
 #
@@ -502,7 +496,7 @@ options 	KSTACK_PAGES=3
 
 options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
 
-options 	ENABLE_ALART
+options 	ENABLE_ALART		# Control alarm on Intel intpm driver
 options 	KBDIO_DEBUG=2
 options 	KBD_MAXRETRY=4
 options 	KBD_MAXWAIT=6
