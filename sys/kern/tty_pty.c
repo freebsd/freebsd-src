@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.6 1994/10/29 23:59:48 ache Exp $
+ * $Id: tty_pty.c,v 1.7 1995/02/25 20:09:30 pst Exp $
  */
 
 /*
@@ -561,16 +561,6 @@ ptydevtotty(dev)
 
 	return &pt_tty[minor(dev)];
 }
-
-int
-ptsselect(dev, rw, p)
-	dev_t		dev;
-	int		rw;
-	struct proc *   p;
-{
-	return ttyselect(ptydevtotty(dev), rw, p);
-}
-
 
 /*ARGSUSED*/
 int

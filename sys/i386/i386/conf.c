@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.68 1995/02/25 20:09:03 pst Exp $
+ *	$Id: conf.c,v 1.69 1995/02/27 19:46:27 ugen Exp $
  */
 
 #include <sys/param.h>
@@ -354,7 +354,6 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 d_open_t	scopen;
 d_close_t	scclose;
 d_rdwr_t	scread, scwrite;
-d_select_t	scselect;
 d_ioctl_t	scioctl;
 d_mmap_t	scmmap;
 d_ttycv_t	scdevtotty;
@@ -363,7 +362,6 @@ d_ttycv_t	scdevtotty;
 #define scclose		nxclose
 #define scread		nxread
 #define scwrite		nxwrite
-#define	scselect	nxselect
 #define scioctl		nxioctl
 #define scmmap		nxmmap
 #define	scdevtotty	nxdevtotty
@@ -391,7 +389,6 @@ d_close_t	ptsclose;
 d_rdwr_t	ptsread;
 d_rdwr_t	ptswrite;
 d_stop_t	ptsstop;
-d_select_t	ptsselect;
 d_open_t	ptcopen;
 d_close_t	ptcclose;
 d_rdwr_t	ptcread;
@@ -404,7 +401,6 @@ d_ioctl_t	ptyioctl;
 #define ptsclose	nxclose
 #define ptsread		nxread
 #define ptswrite	nxwrite
-#define	ptsselect	nxselect
 #define ptcopen		nxopen
 #define ptcclose	nxclose
 #define ptcread		nxread
@@ -599,7 +595,6 @@ d_open_t	sioopen;
 d_close_t	sioclose;
 d_rdwr_t	sioread, siowrite;
 d_ioctl_t	sioioctl;
-d_select_t	sioselect;
 d_stop_t	siostop;
 d_ttycv_t	siodevtotty;
 #define sioreset	nxreset
@@ -611,7 +606,6 @@ d_ttycv_t	siodevtotty;
 #define sioioctl	nxioctl
 #define siostop		nxstop
 #define sioreset	nxreset
-#define sioselect	nxselect
 #define	siodevtotty	nxdevtotty
 #endif
 
@@ -714,6 +708,7 @@ d_rdwr_t	cxread, cxwrite;
 d_ioctl_t	cxioctl;
 d_select_t	cxselect;
 d_stop_t	cxstop;
+d_ttycv_t	cxdevtotty;
 #else
 #define cxopen		nxopen
 #define cxclose		nxclose
@@ -722,6 +717,7 @@ d_stop_t	cxstop;
 #define cxioctl		nxioctl
 #define cxstop		nxstop
 #define cxselect	nxselect
+#define	cxdevtotty	nxdevtotty
 #endif
 
 #include "gp.h"
@@ -806,7 +802,6 @@ d_read_t        cyread;
 d_write_t       cywrite;
 d_ioctl_t	cyioctl;
 d_stop_t        cystop;
-d_select_t      cyselect;
 d_ttycv_t	cydevtotty;
 #define cyreset	nxreset
 #define	cymmap	nxmmap
@@ -819,7 +814,6 @@ d_ttycv_t	cydevtotty;
 #define cyioctl		nxioctl
 #define cystop		nxstop
 #define cyreset		nxreset
-#define cyselect	nxselect
 #define cymmap		nxmmap
 #define cystrategy	nxstrategy
 #define	cydevtotty	nxdevtotty
@@ -832,7 +826,6 @@ d_close_t	ityclose;
 d_read_t	ityread;
 d_write_t	itywrite;
 d_ioctl_t	ityioctl;
-d_select_t	ityselect;
 d_ttycv_t	itydevtotty;
 #define ityreset	nxreset
 #else
@@ -842,7 +835,6 @@ d_ttycv_t	itydevtotty;
 #define itywrite	nxwrite
 #define ityioctl	nxioctl
 #define ityreset	nxreset
-#define ityselect	nxselect
 #define	itydevtotty	nxdevtotty
 #endif
 
@@ -932,7 +924,7 @@ struct cdevsw	cdevsw[] =
 	  noselect,	nommap,		swstrategy },
 	{ ptsopen,	ptsclose,	ptsread,	ptswrite,	/*5*/
 	  ptyioctl,	ptsstop,	nullreset,	ptydevtotty,/* ttyp */
-	  ptsselect,	nommap,		NULL },
+	  ttselect,	nommap,		NULL },
 	{ ptcopen,	ptcclose,	ptcread,	ptcwrite,	/*6*/
 	  ptyioctl,	nullstop,	nullreset,	ptydevtotty,/* ptyp */
 	  ptcselect,	nommap,		NULL },
@@ -953,7 +945,7 @@ struct cdevsw	cdevsw[] =
 	  spigot_select, spigot_mmap,	NULL },
 	{ scopen,	scclose,	scread,		scwrite,	/*12*/
 	  scioctl,	nullstop,	nullreset,	scdevtotty,/* sc */
-	  scselect,	scmmap,		NULL },
+	  ttselect,	scmmap,		NULL },
 	{ sdopen,	sdclose,	rawread,	rawwrite,	/*13*/
 	  sdioctl,	nostop,		nullreset,	nodevtotty,/* sd */
 	  seltrue,	nommap,		sdstrategy },
@@ -1010,7 +1002,7 @@ struct cdevsw	cdevsw[] =
 	  mseselect,	nommap,		NULL },
 	{ sioopen,	sioclose,	sioread,	siowrite,	/*28*/
 	  sioioctl,	siostop,	sioreset,	siodevtotty,/* sio */
-	  sioselect,	nommap,		NULL },
+	  ttselect,	nommap,		NULL },
 	{ mcdopen,	mcdclose,	rawread,	nowrite,	/*29*/
 	  mcdioctl,	nostop,		nullreset,	nodevtotty,/* mitsumi cd */
 	  seltrue,	nommap,		mcdstrategy },
@@ -1051,7 +1043,7 @@ struct cdevsw	cdevsw[] =
 	  sockioctl,	nostop,		nullreset,	nodevtotty,/* socksys */
 	  seltrue,	nommap,		NULL },
 	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
-	  cxioctl,	cxstop,		nullreset,	nodevtotty,/* cronyx */
+	  cxioctl,	cxstop,		nullreset,	cxdevtotty,/* cronyx */
 	  cxselect,	nommap,		NULL },
 	{ vnopen,	vnclose,	rawread,	rawwrite,	/*43*/
 	  vnioctl,	nostop,		nullreset,	nodevtotty,/* vn */
@@ -1070,7 +1062,7 @@ struct cdevsw	cdevsw[] =
 	  seltrue,      nommap,         NULL },
 	{ cyopen,	cyclose,	cyread,		cywrite,	/*48*/
 	  cyioctl,	cystop,		cyreset,	cydevtotty,/*cyclades*/
-	  cyselect,	cymmap,		cystrategy },
+	  ttselect,	cymmap,		cystrategy },
 	{ sscopen,	sscclose,	sscread,	sscwrite,	/*49*/
 	  sscioctl,	nostop,		nullreset,	nodevtotty,/* scsi super */
 	  sscselect,	sscmmap,	sscstrategy },
@@ -1094,7 +1086,7 @@ struct cdevsw	cdevsw[] =
 	  seltrue,	nommap,		NULL },
 	{ ityopen,	ityclose,	ityread,	itywrite,	/*56*/
 	  ityioctl,	nostop,		ityreset,	itydevtotty,/* ity */
-	  ityselect,	nommap,		NULL },
+	  ttselect,	nommap,		NULL },
 	{ itelopen,	itelclose,	itelread,	itelwrite,	/*57*/
 	  itelioctl,	nostop,		nullreset,	nodevtotty,/* itel */
 	  seltrue,	nommap,		NULL },
