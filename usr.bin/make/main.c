@@ -1130,8 +1130,8 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: make [-Beiknqrstv] [-D variable] [-d flags] [-E variable] [-f makefile]",
-"            [-I directory] [-j max_jobs] [-m directory] [-V variable]",
-"            [variable=value] [target ...]");
+"usage: make [-BPSXeiknqrstv] [-C directory] [-D variable] [-d flags]",
+"            [-E variable] [-f makefile] [-I directory] [-j max_jobs]",
+"            [-m directory] [-V variable] [variable=value] [target ...]");
 	exit(2);
 }
