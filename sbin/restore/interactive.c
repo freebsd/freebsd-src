@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)interactive.c	8.5 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: interactive.c,v 1.5 1998/07/28 06:20:08 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -366,9 +366,7 @@ getnext:
 		 * For relative pathnames, prepend the current directory to
 		 * it then canonicalize and return it.
 		 */
-		(void) strcpy(output, curdir);
-		(void) strcat(output, "/");
-		(void) strcat(output, rawname);
+		snprintf(output, sizeof(output), "%s/%s", curdir, rawname);
 		canon(output, name, size);
 	}
 	if (glob(name, GLOB_ALTDIRFUNC, NULL, &ap->glob) < 0)
