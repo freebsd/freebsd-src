@@ -50,7 +50,6 @@
 
 #include <sys/endian.h>
 #include <sys/errno.h>
-#include <sys/disklabel.h>
 #include <sys/sbuf.h>
 #include <sys/uuid.h>
 #include <sys/gpt.h>
