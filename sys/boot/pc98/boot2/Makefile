@@ -7,8 +7,8 @@ SRCS=	start.S table.c boot2.S boot.c asm.S bios.S serial.S
 SRCS+=	probe_keyboard.c io.c disk.c sys.c
 
 BINMODE=	444
-CFLAGS=		-elf -Os -mrtd \
-		-ffreestanding -fno-builtin -fno-guess-branch-probability \
+CFLAGS=		-Os -mrtd \
+		-fno-guess-branch-probability \
 		-D_KERNEL -DPC98 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	${CWARNFLAGS}
