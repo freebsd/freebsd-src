@@ -8,7 +8,4 @@ SRCS+=  sap_input.c sap_tables.c sap_output.c
 
 WARNS?= 2
 
-DPADD=	${LIBCOMPAT} ${LIBIPX}
-LDADD=	-lcompat -lipx
-
 .include <bsd.prog.mk>
