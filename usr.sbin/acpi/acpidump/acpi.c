@@ -45,6 +45,7 @@
 
 static void	acpi_print_string(char *s, size_t length);
 static void	acpi_print_gas(struct ACPIgas *gas);
+static int	acpi_get_fadt_revision(struct FADTbody *fadt);
 static void	acpi_handle_fadt(struct FADTbody *fadt);
 static void	acpi_print_cpu(u_char cpu_id);
 static void	acpi_print_local_apic(u_char cpu_id, u_char apic_id,
@@ -66,9 +67,6 @@ static void	acpi_handle_rsdt(struct ACPIsdt *rsdp);
 
 /* Size of an address. 32-bit for ACPI 1.0, 64-bit for ACPI 2.0 and up. */
 static int addr_size;
-
-/* The FADT revision indicates whether we use the DSDT or X_DSDT addresses. */
-static int fadt_revision;
 
 static void
 acpi_print_string(char *s, size_t length)
@@ -118,11 +116,11 @@ acpi_print_gas(struct ACPIgas *gas)
 	}
 }
 
-static void
-acpi_handle_fadt(struct FADTbody *fadt)
+/* The FADT revision indicates whether we use the DSDT or X_DSDT addresses. */
+static int
+acpi_get_fadt_revision(struct FADTbody *fadt)
 {
-	struct ACPIsdt	*dsdp;
-	struct FACSbody	*facs;
+	int fadt_revision;
 
 	/* Set the FADT revision separately from the RSDP version. */
 	if (addr_size == 8) {
@@ -138,11 +136,21 @@ acpi_handle_fadt(struct FADTbody *fadt)
 		if (fadt->facs_ptr != 0 &&
 		    (fadt->x_facs_ptr & 0xffffffff) != fadt->facs_ptr)
 			fadt_revision = 1;
-	} else {
+	} else
 		fadt_revision = 1;
-	}
+	return (fadt_revision);
+}
+
+static void
+acpi_handle_fadt(struct FADTbody *fadt)
+{
+	struct ACPIsdt	*dsdp;
+	struct FACSbody	*facs;
+	int		fadt_revision;
+
 	acpi_print_fadt(fadt);
 
+	fadt_revision = acpi_get_fadt_revision(fadt);
 	if (fadt_revision == 1)
 		facs = (struct FACSbody *)acpi_map_sdt(fadt->facs_ptr);
 	else
@@ -520,7 +528,7 @@ acpi_print_fadt(struct FADTbody *fadt)
 		acpi_print_gas(&fadt->reset_reg);
 		printf(", RESET_VALUE=%#x\n", fadt->reset_value);
 	}
-	if (fadt_revision > 1) {
+	if (acpi_get_fadt_revision(fadt) > 1) {
 		printf("\tX_FACS=0x%08lx, ", (u_long)fadt->x_facs_ptr);
 		printf("X_DSDT=0x%08lx\n", (u_long)fadt->x_dsdt_ptr);
 		printf("\tX_PM1a_EVT_BLK=");
@@ -804,10 +812,10 @@ sdt_from_rsdt(struct ACPIsdt *rsdt, const char *sig)
 struct ACPIsdt *
 dsdt_from_fadt(struct FADTbody *fadt)
 {
-	struct	ACPIsdt *sdt;
+	struct	ACPIsdt	*sdt;
 
 	/* Use the DSDT address if it is version 1, otherwise use X_DSDT. */
-	if (fadt_revision == 1)
+	if (acpi_get_fadt_revision(fadt) == 1)
 		sdt = (struct ACPIsdt *)acpi_map_sdt(fadt->dsdt_ptr);
 	else
 		sdt = (struct ACPIsdt *)acpi_map_sdt(fadt->x_dsdt_ptr);
