@@ -292,7 +292,7 @@ command_configuration(int argc, char *argv[])
 {
 	int i;
 
-	printf("NumberOfTableEntries=%d\n", ST->NumberOfTableEntries);
+	printf("NumberOfTableEntries=%ld\n", ST->NumberOfTableEntries);
 	for (i = 0; i < ST->NumberOfTableEntries; i++) {
 		static EFI_GUID mps = MPS_TABLE_GUID;
 		static EFI_GUID acpi = ACPI_TABLE_GUID;
@@ -450,7 +450,7 @@ print_trs(int type)
 		if (!(res.pal_result[0] & 8))
 			buf.pte.pte_ma = 0;
 		sprintf(lbuf,
-			"%d %06x %013x %013x %4s %d  %d  %d  %d %d %-3s %d %06x\n",
+			"%d %06x %013lx %013lx %4s %d  %d  %d  %d %d %-3s %d %06x\n",
 			buf.ifa.ifa_ig & 1,
 			buf.rr.rr_rid,
 			buf.ifa.ifa_vpn,
