@@ -62,16 +62,16 @@ Its input is a list of specifications
 describing dependency relationships between the generation of
 files and programs.
 The first of
-.Ql Pa BSDmakefile ,
-.Ql Pa makefile
+.Pa BSDmakefile ,
+.Pa makefile
 and
-.Ql Pa Makefile
+.Pa Makefile
 that can be found in either the current directory or a special object directory
 (see
-.Ql Va .OBJDIR )
+.Va .OBJDIR )
 will be read for this list of specifications.
 If the file
-.Ql Pa .depend
+.Pa .depend
 can be found, it is also read (see
 .Xr mkdep 1 ) .
 .Pp
@@ -145,13 +145,13 @@ Specify that environment values override macro assignments within
 makefiles for all variables.
 .It Fl f Ar makefile
 Specify a makefile to read instead of the default
-.Ql Pa makefile
+.Pa makefile
 and
-.Ql Pa Makefile .
+.Pa Makefile .
 If
 .Ar makefile
 is
-.Ql \- ,
+.Sq Fl ,
 standard input is read.
 Multiple makefiles may be specified, and are read in the order specified.
 .It Fl I Ar directory
@@ -162,7 +162,7 @@ option) is automatically included as part of this list.
 .It Fl i
 Ignore non-zero exit of shell commands in the makefile.
 Equivalent to specifying
-.Ql \-
+.Sq Ic \-
 before each command line in the makefile.
 .It Fl j Ar max_jobs
 Specify the maximum number of jobs that
@@ -208,7 +208,7 @@ option during recursive builds.
 .It Fl s
 Do not echo any commands as they are executed.
 Equivalent to specifying
-.Ql Ic @
+.Sq Ic @
 before each command line in the makefile.
 .It Fl t
 Rather than re-building a target as specified in the makefile, create it
@@ -311,19 +311,19 @@ Each of the commands in this script
 be preceded by a tab.
 While any target may appear on a dependency line, only one of these
 dependencies may be followed by a creation script, unless the
-.Ql Ic ::
+.Sq Ic ::
 operator is used.
 .Pp
 If the first or first two characters of the command line are
-.Ql Ic @
+.Sq Ic @
 and/or
-.Ql Ic \- ,
+.Sq Ic \- ,
 the command is treated specially.
 A
-.Ql Ic @
+.Sq Ic @
 causes the command not to be echoed before it is executed.
 A
-.Ql Ic \-
+.Sq Ic \-
 causes any non-zero exit status of the command line to be ignored.
 .Sh VARIABLE ASSIGNMENTS
 Variables in
@@ -390,51 +390,51 @@ The seven local variables are as follows:
 .Bl -tag -width ".ARCHIVE"
 .It Va .ALLSRC
 The list of all sources for this target; also known as
-.Ql Va \&> .
+.Sq Va \&> .
 .It Va .ARCHIVE
 The name of the archive file; also known as
-.Ql Va \&! .
+.Sq Va \&! .
 .It Va .IMPSRC
 The name/path of the source from which the target is to be transformed
 (the
 .Dq implied
 source); also known as
-.Ql Va \&< .
+.Sq Va \&< .
 .It Va .MEMBER
 The name of the archive member; also known as
-.Ql Va \&% .
+.Sq Va \&% .
 .It Va .OODATE
 The list of sources for this target that were deemed out-of-date; also
 known as
-.Ql Va \&? .
+.Sq Va \&? .
 .It Va .PREFIX
 The file prefix of the file, containing only the file portion, no suffix
 or preceding directory components; also known as
-.Ql Va * .
+.Sq Va * .
 .It Va .TARGET
 The name of the target; also known as
-.Ql Va @ .
+.Sq Va @ .
 .El
 .Pp
 The shorter forms
-.Ql Va @ ,
-.Ql Va \&! ,
-.Ql Va \&< ,
-.Ql Va \&% ,
-.Ql Va \&? ,
-.Ql Va \&> ,
+.Sq Va @ ,
+.Sq Va \&! ,
+.Sq Va \&< ,
+.Sq Va \&% ,
+.Sq Va \&? ,
+.Sq Va \&> ,
 and
-.Ql Va *
+.Sq Va *
 are permitted for backward
 compatibility and are not recommended.
 The six variables
-.Ql Va "@F" ,
-.Ql Va "@D" ,
-.Ql Va "<F" ,
-.Ql Va "<D" ,
-.Ql Va "*F" ,
+.Sq Va @F ,
+.Sq Va @D ,
+.Sq Va <F ,
+.Sq Va <D ,
+.Sq Va *F ,
 and
-.Ql Va "*D"
+.Sq Va *D
 are
 permitted for compatibility with
 .At V
@@ -443,11 +443,11 @@ makefiles and are not recommended.
 Four of the local variables may be used in sources on dependency lines
 because they expand to the proper value for each target on the line.
 These variables are
-.Ql Va .TARGET ,
-.Ql Va .PREFIX ,
-.Ql Va .ARCHIVE ,
+.Va .TARGET ,
+.Va .PREFIX ,
+.Va .ARCHIVE ,
 and
-.Ql Va .MEMBER .
+.Va .MEMBER .
 .El
 .Pp
 In addition,
@@ -636,7 +636,7 @@ The standard shell wildcard characters
 .Pf ( Ql * ,
 .Ql \&? ,
 and
-.Ql Op )
+.Ql [] )
 may
 be used.
 The wildcard characters may be escaped with a backslash
@@ -802,45 +802,45 @@ Reverse the sense of the last conditional.
 .Op Ar operator expression ...
 .Xc
 A combination of
-.Ql Ic .else
+.Ic .else
 followed by
-.Ql Ic .if .
+.Ic .if .
 .It Xo
 .Ic .elifdef
 .Oo \&! Oc Ns Ar variable
 .Op Ar operator variable ...
 .Xc
 A combination of
-.Ql Ic .else
+.Ic .else
 followed by
-.Ql Ic .ifdef .
+.Ic .ifdef .
 .It Xo
 .Ic .elifndef
 .Oo \&! Oc Ns Ar variable
 .Op Ar operator variable ...
 .Xc
 A combination of
-.Ql Ic .else
+.Ic .else
 followed by
-.Ql Ic .ifndef .
+.Ic .ifndef .
 .It Xo
 .Ic .elifmake
 .Oo \&! Oc Ns Ar target
 .Op Ar operator target ...
 .Xc
 A combination of
-.Ql Ic .else
+.Ic .else
 followed by
-.Ql Ic .ifmake .
+.Ic .ifmake .
 .It Xo
 .Ic .elifnmake
 .Oo \&! Oc Ns Ar target
 .Op Ar operator target ...
 .Xc
 A combination of
-.Ql Ic .else
+.Ic .else
 followed by
-.Ql Ic .ifnmake .
+.Ic .ifnmake .
 .It Ic .endif
 End the body of the conditional.
 .El
@@ -852,11 +852,11 @@ may be any one of the following:
 .It Cm \&|\&|
 logical
 .Tn OR
-.It Cm \&&&
+.It Cm &&
 Logical
 .Tn AND ;
 of higher precedence than
-.Ql Ic || .
+.Sq Ic || .
 .El
 .Pp
 As in C,
@@ -865,11 +865,11 @@ will only evaluate a conditional as far as is necessary to determine
 its value.
 Parentheses may be used to change the order of evaluation.
 The boolean operator
-.Ql Ic !\&
+.Sq Ic !\&
 may be used to logically negate an entire
 conditional.
 It is of higher precedence than
-.Ql Ic \&&& .
+.Sq Ic && .
 .Pp
 The value of
 .Ar expression
@@ -910,9 +910,9 @@ preceded by 0x, otherwise it is decimal; octal numbers are not supported.
 The standard C relational operators are all supported.
 If after
 variable expansion, either the left or right hand side of a
-.Ql Ic ==
+.Sq Ic ==
 or
-.Ql Ic "!="
+.Sq Ic !=
 operator is not an integral value, then
 string comparison is performed between the expanded
 variables.
@@ -928,17 +928,17 @@ or
 .Dq defined
 expression is applied to it, depending on the form of the conditional.
 If the form is
-.Ql Ic .if ,
-.Ql Ic .ifdef
+.Ic .if ,
+.Ic .ifdef
 or
-.Ql Ic .ifndef ,
+.Ic .ifndef ,
 the
 .Dq defined
 expression is applied.
 Similarly, if the form is
-.Ql Ic .ifmake
+.Ic .ifmake
 or
-.Ql Ic .ifnmake ,
+.Ic .ifnmake ,
 the
 .Dq make
 expression is applied.
@@ -947,9 +947,9 @@ If the conditional evaluates to true the parsing of the makefile continues
 as before.
 If it evaluates to false, the following lines are skipped.
 In both cases this continues until a
-.Ql Ic .else
+.Ic .else
 or
-.Ql Ic .endif
+.Ic .endif
 is found.
 .Pp
 For loops are typically used to apply a set of rules to a list of files.
