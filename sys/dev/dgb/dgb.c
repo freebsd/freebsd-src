@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.24 1997/03/23 03:33:56 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.25 1997/03/24 11:23:26 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -44,17 +44,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/reboot.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
-#include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
-#include <sys/syslog.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -62,7 +58,6 @@
 #include <machine/clock.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
