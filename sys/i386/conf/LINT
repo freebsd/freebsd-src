@@ -1955,7 +1955,7 @@ device	isic0 at isa? port 0x340 net irq 5 flags 10
 # -------------
 #
 # Stollmann Tina-dd control device
-device tina0 at isa? port 0x260 net irq 10
+#device tina0 at isa? port 0x260 net irq 10
 #
 # ISDN Protocol Stack
 # -------------------
