@@ -210,81 +210,11 @@ setup(char *dev)
 			sbdirty();
 		}
 	}
-	if (sblock.fs_interleave < 1 ||
-	    sblock.fs_interleave > sblock.fs_nsect) {
-		pfatal("IMPOSSIBLE INTERLEAVE=%d IN SUPERBLOCK",
-			sblock.fs_interleave);
-		sblock.fs_interleave = 1;
-		if (preen)
-			printf(" (FIXED)\n");
-		if (preen || reply("SET TO DEFAULT") == 1) {
-			sbdirty();
-			dirty(&asblk);
-		}
-	}
-	if (sblock.fs_npsect < sblock.fs_nsect ||
-	    sblock.fs_npsect > sblock.fs_nsect*2) {
-		pfatal("IMPOSSIBLE NPSECT=%d IN SUPERBLOCK",
-			sblock.fs_npsect);
-		sblock.fs_npsect = sblock.fs_nsect;
-		if (preen)
-			printf(" (FIXED)\n");
-		if (preen || reply("SET TO DEFAULT") == 1) {
-			sbdirty();
-			dirty(&asblk);
-		}
-	}
-	if (sblock.fs_inodefmt >= FS_44INODEFMT) {
-		newinofmt = 1;
-	} else {
-		sblock.fs_qbmask = ~sblock.fs_bmask;
-		sblock.fs_qfmask = ~sblock.fs_fmask;
-		/* This should match the kernel limit in ffs_oldfscompat(). */
-		sblock.fs_maxfilesize = (u_int64_t)1 << 39;
-		newinofmt = 0;
-	}
-	/*
-	 * Convert to new inode format.
-	 */
-	if (cvtlevel >= 2 && sblock.fs_inodefmt < FS_44INODEFMT) {
-		if (preen)
-			pwarn("CONVERTING TO NEW INODE FORMAT\n");
-		else if (!reply("CONVERT TO NEW INODE FORMAT"))
-			return(0);
-		doinglevel2++;
-		sblock.fs_inodefmt = FS_44INODEFMT;
-		sizepb = sblock.fs_bsize;
-		sblock.fs_maxfilesize = sblock.fs_bsize * NDADDR - 1;
-		for (i = 0; i < NIADDR; i++) {
-			sizepb *= NINDIR(&sblock);
-			sblock.fs_maxfilesize += sizepb;
-		}
-		sblock.fs_maxsymlinklen = MAXSYMLINKLEN;
-		sblock.fs_qbmask = ~sblock.fs_bmask;
-		sblock.fs_qfmask = ~sblock.fs_fmask;
-		sbdirty();
-		dirty(&asblk);
-	}
-	/*
-	 * Convert to new cylinder group format.
-	 */
-	if (cvtlevel >= 1 && sblock.fs_postblformat == FS_42POSTBLFMT) {
-		if (preen)
-			pwarn("CONVERTING TO NEW CYLINDER GROUP FORMAT\n");
-		else if (!reply("CONVERT TO NEW CYLINDER GROUP FORMAT"))
-			return(0);
-		doinglevel1++;
-		sblock.fs_postblformat = FS_DYNAMICPOSTBLFMT;
-		sblock.fs_nrpos = 8;
-		sblock.fs_postbloff =
-		    (char *)(&sblock.fs_opostbl[0][0]) -
-		    (char *)(&sblock.fs_firstfield);
-		sblock.fs_rotbloff = &sblock.fs_space[0] -
-		    (u_char *)(&sblock.fs_firstfield);
-		sblock.fs_cgsize =
-			fragroundup(&sblock, CGSIZE(&sblock));
-		sbdirty();
-		dirty(&asblk);
+	if (sblock.fs_inodefmt < FS_44INODEFMT) {
+		pwarn("Format of filesystem is too old.\n");
+		pwarn("Must update to modern format using a version of fsck\n");
+		pfatal("from before 2002 with the command ``fsck -c 2''\n");
+		exit(EEXIT);
 	}
 	if (asblk.b_dirty && !bflag) {
 		memmove(&altsblock, &sblock, (size_t)sblock.fs_sbsize);

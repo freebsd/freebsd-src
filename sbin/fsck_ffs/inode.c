@@ -633,8 +633,7 @@ allocino(ino_t request, int type)
 	dp->di_blocks = btodb(sblock.fs_fsize);
 	n_files++;
 	inodirty();
-	if (newinofmt)
-		inoinfo(ino)->ino_type = IFTODT(type);
+	inoinfo(ino)->ino_type = IFTODT(type);
 	return (ino);
 }
 

@@ -118,10 +118,8 @@ pass2(void)
 		    inoinfo(ROOTINO)->ino_state);
 	}
 	inoinfo(ROOTINO)->ino_state = DFOUND;
-	if (newinofmt) {
-		inoinfo(WINO)->ino_state = FSTATE;
-		inoinfo(WINO)->ino_type = DT_WHT;
-	}
+	inoinfo(WINO)->ino_state = FSTATE;
+	inoinfo(WINO)->ino_type = DT_WHT;
 	/*
 	 * Sort the directory list into disk block order.
 	 */
@@ -232,13 +230,6 @@ pass2check(struct inodesc *idesc)
 	char pathbuf[MAXPATHLEN + 1];
 
 	/*
-	 * If converting, set directory entry type.
-	 */
-	if (doinglevel2 && dirp->d_ino > 0 && dirp->d_ino < maxino) {
-		dirp->d_type = inoinfo(dirp->d_ino)->ino_type;
-		ret |= ALTERED;
-	}
-	/*
 	 * check for "."
 	 */
 	if (idesc->id_entryno != 0)
@@ -250,7 +241,7 @@ pass2check(struct inodesc *idesc)
 			if (reply("FIX") == 1)
 				ret |= ALTERED;
 		}
-		if (newinofmt && dirp->d_type != DT_DIR) {
+		if (dirp->d_type != DT_DIR) {
 			direrror(idesc->id_number, "BAD TYPE VALUE FOR '.'");
 			dirp->d_type = DT_DIR;
 			if (reply("FIX") == 1)
@@ -260,21 +251,9 @@ pass2check(struct inodesc *idesc)
 	}
 	direrror(idesc->id_number, "MISSING '.'");
 	proto.d_ino = idesc->id_number;
-	if (newinofmt)
-		proto.d_type = DT_DIR;
-	else
-		proto.d_type = 0;
+	proto.d_type = DT_DIR;
 	proto.d_namlen = 1;
 	(void)strcpy(proto.d_name, ".");
-#	if BYTE_ORDER == LITTLE_ENDIAN
-		if (!newinofmt) {
-			u_char tmp;
-
-			tmp = proto.d_type;
-			proto.d_type = proto.d_namlen;
-			proto.d_namlen = tmp;
-		}
-#	endif
 	entrysize = DIRSIZ(0, &proto);
 	if (dirp->d_ino != 0 && strcmp(dirp->d_name, "..") != 0) {
 		pfatal("CANNOT FIX, FIRST ENTRY IN DIRECTORY CONTAINS %s\n",
@@ -303,21 +282,9 @@ chk1:
 		goto chk2;
 	inp = getinoinfo(idesc->id_number);
 	proto.d_ino = inp->i_parent;
-	if (newinofmt)
-		proto.d_type = DT_DIR;
-	else
-		proto.d_type = 0;
+	proto.d_type = DT_DIR;
 	proto.d_namlen = 2;
 	(void)strcpy(proto.d_name, "..");
-#	if BYTE_ORDER == LITTLE_ENDIAN
-		if (!newinofmt) {
-			u_char tmp;
-
-			tmp = proto.d_type;
-			proto.d_type = proto.d_namlen;
-			proto.d_namlen = tmp;
-		}
-#	endif
 	entrysize = DIRSIZ(0, &proto);
 	if (idesc->id_entryno == 0) {
 		n = DIRSIZ(0, dirp);
@@ -333,7 +300,7 @@ chk1:
 	}
 	if (dirp->d_ino != 0 && strcmp(dirp->d_name, "..") == 0) {
 		inp->i_dotdot = dirp->d_ino;
-		if (newinofmt && dirp->d_type != DT_DIR) {
+		if (dirp->d_type != DT_DIR) {
 			direrror(idesc->id_number, "BAD TYPE VALUE FOR '..'");
 			dirp->d_type = DT_DIR;
 			if (reply("FIX") == 1)
@@ -391,8 +358,7 @@ chk2:
 	if (dirp->d_ino > maxino) {
 		fileerror(idesc->id_number, dirp->d_ino, "I OUT OF RANGE");
 		n = reply("REMOVE");
-	} else if (newinofmt &&
-		   ((dirp->d_ino == WINO && dirp->d_type != DT_WHT) ||
+	} else if (((dirp->d_ino == WINO && dirp->d_type != DT_WHT) ||
 		    (dirp->d_ino != WINO && dirp->d_type == DT_WHT))) {
 		fileerror(idesc->id_number, dirp->d_ino, "BAD WHITEOUT ENTRY");
 		dirp->d_ino = WINO;
@@ -461,8 +427,7 @@ again:
 			/* fall through */
 
 		case FSTATE:
-			if (newinofmt &&
-			    dirp->d_type != inoinfo(dirp->d_ino)->ino_type) {
+			if (dirp->d_type != inoinfo(dirp->d_ino)->ino_type) {
 				fileerror(idesc->id_number, dirp->d_ino,
 				    "BAD TYPE VALUE");
 				dirp->d_type = inoinfo(dirp->d_ino)->ino_type;
