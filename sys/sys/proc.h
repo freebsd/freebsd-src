@@ -158,7 +158,11 @@ struct pargs {
  * for write access.
  */
 struct ithd;
+struct ke_sched;
+struct kg_sched;
 struct nlminfo;
+struct p_sched;
+struct td_sched;
 struct trapframe;
 
 /*
@@ -321,6 +325,7 @@ struct thread {
 	vm_offset_t	td_altkstack;	/* Kernel VA of alternate kstack. */
 	int		td_altkstack_pages; /* Size of the alternate kstack */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
+	struct td_sched	*td_sched;	/* Scheduler specific data */
 };
 /* flags kept in td_flags */ 
 #define	TDF_UNBOUND	0x000001 /* May give away the kse, uses the kg runq. */
@@ -442,6 +447,7 @@ struct kse {
 	struct thread	*ke_tdspare;	/* spare thread for upcalls */
 #define	ke_endzero ke_dummy
 	u_char		ke_dummy;
+	struct ke_sched	*ke_sched;	/* Scheduler specific data */
 };
 
 /* flags kept in ke_flags */
@@ -498,6 +504,7 @@ struct ksegrp {
 	int		kg_numthreads;	/* Num threads in total */
 	int		kg_idle_kses;	/* num KSEs idle */
 	int		kg_kses;	/* Num KSEs in group. */
+	struct kg_sched	*kg_sched;	/* Scheduler specific data */
 };
 
 /*
@@ -594,6 +601,7 @@ struct proc {
 	struct proc	*p_leader;	/* (b) */
 	void		*p_emuldata;	/* (c) Emulator state data. */
 	struct label	p_label;	/* process (not subject) MAC label */
+	struct p_sched	*p_sched;	/* Scheduler specific data */
 };
 
 #define	p_rlimit	p_limit->pl_rlimit
