@@ -1,0 +1,48 @@
+<html>
+<head><title>smfi_main</title></head>
+<body>
+<h1>smfi_main</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_main(
+);
+</pre>
+Hand control to libmilter event loop.
+</td></tr>
+
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=4>
+<tr align="left" valign=top>
+<th width="80">Called When</th>
+<td>smfi_main is called after a filter's initialization is complete.</td>
+</tr>
+<tr align="left" valign=top>
+<th width="80">Effects</th>
+<td>smfi_main hands control to the Milter event loop.</td>
+</tr>
+</table>
+
+<!----------- Return values ---------->
+<tr>
+<th valign="top" align=left>RETURN VALUES</th> 
+
+<td>smfi_main will return MI_FAILURE if it fails to establish a connection.  This may occur for any of a variety of reasons (e.g. invalid address passed to <a href="smfi_setconn.html">smfi_setconn</a>).  The reason for the failure will be logged.  Otherwise, smfi_main will return MI_SUCCESS.</td>
+</tr>
+
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000, 2003 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</font>
+</body>
+</html>

@@ -1,0 +1,15 @@
+[1msysctl[m	get or set kernel state
+
+	Usage:
+
+	sysctl [-bnX] variable ...
+	sysctl [-bnX] -w variable=value ...
+	sysctl [-bnX] -a
+	sysctl [-bnX] -A
+
+	To see the whole MIB table use:
+		sysctl -a
+
+	To set specific variable to new value use:
+
+		sysctl -w variable=value

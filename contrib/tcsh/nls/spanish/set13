@@ -1,0 +1,13 @@
+$ $Id: set13,v 1.1 1998/04/08 17:59:54 christos Exp $
+$ sh.exec.c
+$set 13 
+1 hash=%-4d dir=%-2d prog=%s\n
+2 %d grupos de hash de %d bits cada uno\n
+3 máscara de depurado = 0x%08x\n
+4 %d aciertos, %d fallos, %d%%\n
+5 %S: comando integrado en la shell.\n
+6 %S: Comando inexistente.\n
+7 donde: / en el comando carece de sentido\n
+8 %S es un alias para 
+9 %S es un comando integrado en la shell\n
+10 fallo de hash: 

@@ -1,0 +1,15 @@
+[1mfsck[m	filesystem consistency check and interactive repair
+
+	Usage:
+
+	fsck -p [-f] [-m mode]
+	fsck [-b block#] [-c level] [-l maxparallel] [-y] [-n] [-m mode]
+		[filesystem] ...
+
+	but in its simplest and most common version:
+
+	fsck -y <filesystem>
+
+	where <filesystem> is a name of the raw device, on which the filesystem
+	lies, e.g. /dev/rfd0 for floppy A:, or /dev/rwd0s1 for partition #1 on
+	first IDE drive.

@@ -1,0 +1,17 @@
+RAWboot readme.
+
+This is a dumber version of the code in biosboot.
+
+The intended usage is:
+
+	cat /usr/mdec/rawboot /sys/compile/FOO/kernel | fdwrite
+
+This makes it a lot easier to make a bootable floppy, and saves space
+on the floppy to boot.
+
+Of course the name you enter for the kernel isn't used...  Then again
+if you know how to make two kernels fit a floppy and have a use for
+it, you don't need this bootblock.
+
+Poul-Henning Kamp
+phk@FreeBSD.org

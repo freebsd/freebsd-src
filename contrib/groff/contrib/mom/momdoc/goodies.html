@@ -1,0 +1,927 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<title>Mom -- Goodies</title>
+</head>
+<body bgcolor="#dfdfdf">
+
+<!====================================================================>
+
+<a href="inlines.html#TOP">Next</a>&nbsp;&nbsp;
+<a href="typesetting.html#TOP">Prev</a>&nbsp;&nbsp;
+<a href="toc.html">Back to Table of Contents</a>
+
+<a name="TOP"></a>
+<a name="GOODIES">
+	<h2><u>Goodies</u></h2>
+</a>
+
+<a name="INTRO_GOODIES"></a>
+The macros in this section are a collection of useful (and sometimes
+nearly indispensible) routines to simplify typesetting.
+
+<a name="INDEX_GOODIES">
+	<h3><u>Goodies list</u></h3>
+</a>
+
+<ul>
+	<li><a href="#ALIAS">ALIAS</a> (rename macros)
+	<li><a href="#SILENT">SILENT</a> (&quot;hide&quot; input lines from output)
+	<li><a href="#TRAP">TRAP</a> (suspend/re-invoke traps)
+	<li><a href="#SMARTQUOTES">SMARTQUOTES</a>
+	<li><a href="#CAPS">CAPS</a> (convert to upper case)
+	<br>
+	<li><strong>Underscore/underline</strong>
+	<ul>
+		<li><a href="#UNDERSCORE">UNDERSCORE</a> (single underscore)
+		<li><a href="#UNDERSCORE2">UNDERSCORE2</a> (double underscore)
+		<li><a href="#UNDERLINE">UNDERLINE</a> (underline -- Courier only!)
+		<li><a href="#UL">\*[UL]</a> (inline escape to underline -- Courier only!)
+	</ul>
+	<li><strong>Padding</strong>
+	<ul>
+		<li><a href="#PAD">PAD</a> (insert equalized space into lines)
+		<li><a href="#PAD_MARKER">PAD_MARKER</a> (change/set the marker used with <strong>PAD</strong>)
+	</ul>
+	<li><strong>Leaders</strong>
+	<ul>
+		<li><a href="#LEADER">\*[LEADER]</a> (inline escape to add leaders to a line)
+		<li><a href="#LEADER_CHARACTER">LEADER_CHARACTER</a> (change/set the leader character)
+	</ul>
+	<li><strong>Drop caps</strong>
+	<ul>
+		<li><a href="#DROPCAP">DROPCAP</a> (set a drop cap)
+		<li><strong>Support macros for DROPCAP</strong>
+		<ul>
+			<li><a href="#DROPCAP_FAMILY">DROPCAP_FAMILY</a> (change drop cap family)
+			<li><a href="#DROPCAP_FONT">DROPCAP_FONT</a> (change drop cap font)
+			<li><a href="#DROPCAP_ADJUST">DROPCAP_ADJUST</a> (alter size of drop cap)
+			<li><a href="#DROPCAP_GUTTER">DROPCAP_GUTTER</a> (change space between drop cap and running text) 
+		</ul>
+	</ul>
+	<li><strong>Superscript</strong>
+	<ul>
+		<li><a href="#SUP">\*[SUP]</a> (set superscript)
+		<li><a href="#CONDSUP">\*[CONDSUP]</a> (set condensed superscript)
+		<li><a href="#EXTSUP">\*[EXTSUP}</a> (set extended superscript)
+	</ul>
+</ul>
+
+<!---ALIAS--->
+
+<hr width="66%" align="left">
+<a name="ALIAS"><h3><u>Rename macros</u></h3></a>
+<br>
+Macro: <strong>ALIAS</strong> <var>&lt;new name&gt; &lt;old name&gt;</var>
+
+<p>
+The <strong>ALIAS</strong> macro may well be your best friend.  With it,
+you can change the name of a macro to anything you like
+(provided the new name is not already being used by
+<strong>mom</strong>; see the
+<a href="reserved.html#RESERVED">list of reserved words</a>).
+<p>
+Groff has always been a bit intimidating for new users because
+its standard macro packages use very terse macro names.
+<strong>Mom</strong> doesn't like people to feel intimidated; she wants
+them to feel welcome.  Consequently, she tries for easy-to-grasp,
+self-explanatory macro names.  However, <strong>mom</strong> knows
+that people have their own ways of thinking, their own preferences,
+their own habits.  Some of her macro names may not suit you; they
+might be too long, or aren't what you automatically think of
+when you want to do a particular thing, or might conflict with habits
+you've developed over the years.
+<p>
+If you don't like one of <strong>mom</strong>'s macro names,
+say, PAGEWIDTH, change it, like this:
+<p>
+<pre>
+	.ALIAS PW PAGEWIDTH
+	       |      |
+	  new__|      |__official
+	 name            name
+</pre>
+
+The first argument to <strong>ALIAS</strong> is the new name you want
+for a macro.  The second is the &quot;official&quot; name by
+which the macro is normally invoked.  After <strong>ALIAS</strong>,
+either can be used.
+<p>
+Note that in <strong>ALIAS</strong>, you do NOT include the period
+(dot) that precedes the macro when it's a
+<a href="definitions.html#TERMS_CONTROLLINES">control line</a>.
+<p>
+<strong>NOTE:</strong> If you use <strong>ALIAS</strong> a lot,
+and always for the same things, consider creating an aliases
+file of the form
+<p>
+<pre>
+	.ALIAS &lt;new name&gt; &lt;old name&gt;
+	.ALIAS &lt;new name&gt; &lt;old name&gt;
+	.ALIAS &lt;new name&gt; &lt;old name&gt;
+	...etc
+</pre>
+
+Put the file someplace convenient and source it at the
+beginning of your documents using the groff
+<a href="definitions.html#TERMS_PRIMITIVES">primitive</a>
+<strong>.so</strong>.  Assuming that you've created an aliases file
+called mom_aliases in your home directory under a directory
+called <code>Mom</code>, you'd source it by placing
+<p>
+<pre>
+	.so /home/&lt;username&gt;/Mom/mom_aliases
+</pre>
+
+at the top of your documents.
+<p>
+If you share documents that make use of an alias file, remember that
+other people don't have the file!  Paste the whole thing at the top
+of your documents, please.
+<p>
+<strong>EXPERTS:</strong> <strong>ALIAS</strong> is an alias of
+<code>.als</code>.  You can use either, or mix 'n' match with
+impunity.
+<br>
+
+<!---SILENT--->
+
+<hr width="66%" align="left">
+<a name="SILENT"><h3><u>Hide input lines from output</u></h3></a>
+<br>
+Macro: <strong>SILENT</strong> <var>toggle</var>
+<br>
+Alias: <strong>COMMENT</strong>
+
+<p>
+Sometimes, you want to &quot;hide&quot;
+<a href="definitions.html#TERMS_INPUTLINE">input lines</a>
+from final output.  This is most likely to be the case when setting
+up string tabs (see the
+<a href="STRING_TABS_TUT">quickie tutorial on string tabs</a>
+for an example), but there are other places where you might want input
+lines to be invisible as well.  Any place you don't want input lines
+to appear in the output, use the <strong>SILENT</strong> macro.
+<p>
+<strong>SILENT</strong> is a toggle.  Invoking it without an argument
+turns it on; any argument turns it off.  E.g.,
+<p>
+<pre>
+	.SILENT
+	A line of text
+	.SILENT OFF
+</pre>
+
+The line &quot;A line of text&quot; will not appear in the
+output copy.
+<p>
+<strong>SILENT</strong> is aliased as <strong>COMMENT</strong>.
+If you want to insert non-printing comments into your documents,
+you may prefer this.
+<p>
+<strong>NOTE: SILENT</strong> does not automatically break an
+<a href="definitions.html#TERMS_INPUTLINE">input line</a>
+(see
+<a href="typesetting.html#BR">BR</a>)
+when you're in one of the
+<a href="definitions.html#TERMS_FILLED">fill modes</a>
+(<a href="typesetting.html#JUSTIFY">JUSTIFY</a>
+or
+<a href="typesetting.html#QUAD">QUAD L | R | C | J</a>).
+The same applies to tabs
+(<a href="typesetting.html#TAB_SET">typesetting</a>
+or
+<a href="typesetting.html#ST">string</a>)
+to which you've passed the <strong>J</strong> or <strong>QUAD</strong>
+argument.  You must insert <code>.BR</code> yourself, or risk a
+portion of your text disappearing into a black hole.
+<br>
+
+<!---TRAP--->
+
+<hr width="66%" align="left">
+<a name="TRAP"><h3><u>Suspend/re-invoke traps</u></h3></a>
+<br>
+Macro: <strong>TRAP</strong> <var>toggle</var>
+
+<p>
+Traps are vertical positions on the output page at which you or
+<strong>mom</strong> have instructed groff to start doing
+something automatically.  Commonly, this is near the bottom of
+the page, where automatic behind-the-scenes processing is needed
+in order for one page to finish and another to start.
+<p>
+Sometimes, traps get sprung when you don't want them, notably
+when using the
+<a href="#EL">EL</a>
+and
+<a href="#TN">TN</a>
+macros.  If this happens, surround just the offending macros and
+input lines with
+<p>
+<pre>
+	.TRAP OFF
+	...
+	.TRAP
+</pre>
+
+<strong>TRAP</strong> is a toggle, therefore any argument 
+turns it off (i.e. suspends the trap), and no argument turns it
+(back) on.
+<p>
+Have a look at the <strong>IMPORTANT</strong> sections
+of <strong>EL</strong> and <strong>TN</strong> to see
+<strong>TRAP</strong> in action.
+<br>
+
+<!---SMARTQUOTES--->
+
+<hr width="66%" align="left">
+<a name="SMARTQUOTES"><h3><u>Smartquotes</u></h3></a>
+<br>
+Macro: <strong>SMARTQUOTES</strong> <var>toggle</var>
+
+<p>
+<strong>SMARTQUOTES</strong> converts all instances of the
+inch-mark, (<kbd>"</kbd> -- also called a &quot;doublequote&quot;),
+into the appropriate instances of true open- and close-doublequotes.
+<p>
+Typographically, there is a difference between the inch-mark and
+doublequotes -- a BIG difference.  Sadly, typewriters and computer
+keyboards supply only one: the inch-mark.  While using inches for
+doublequotes is, and always has been, acceptable in typewriter-style
+copy, it has never been, and, God willing, never will be acceptable in
+typeset copy.  Failure to turn inches into quotes is the first thing
+a professional typesetter notices in documents prepared by amateurs.
+And you don't want to look like an amateur, do you?
+<p>
+When preparing documents for typesetting, by all means, use the
+inch-mark.  Just make sure to turn <strong>SMARTQUOTES</strong>
+on.  <strong>SMARTQUOTES</strong> is a toggle, so invoking it with
+no argument turns it on, and invoking it with any argument at all
+turns it off.
+<p>
+If you're using the
+<a href="docprocessing.html#DOCPROCESSING">document processing macros</a>
+with
+<a href="#PRINTSTYLE">PRINTSTYLE TYPESET</a>,
+<strong>SMARTQUOTES</strong> is on by default; with
+<a href="#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>,
+it's off by default (and should probably stay that way).
+<p>
+<strong>NOTE:</strong> <strong>SMARTQUOTES</strong> does not work on
+single quotes, which most people input with the apostrophe (found at
+the right-hand end of the &quot;home row&quot; on a QWERTY keyboard).
+Groff will interpret all instances of the apostrophe as an apostrophe,
+making the symbol useless as an open-single-quote.  For open single
+quotes, input the backtick character typically found under the tilde
+on most keyboards.  (Pour nous autres, &quot;backtick&quot; veut dire
+l'accent grave.)
+Here's an example of correct input copy with single quotes:
+<p>
+<pre>
+	"But she said, `I don't want to!'"	
+</pre>
+
+<strong>ADDITIONAL NOTE:</strong> Whether or not you have
+<strong>SMARTQUOTES</strong> turned on, get into the habit of entering
+the foot- and inch-marks, when you need them, with the
+<a href="definitions.html#TERMS_INLINES">inline escapes</a>
+<strong>\*[FOOT]</strong> and <strong>\*[INCH]</strong>, instead
+of <kbd>'</kbd> and <kbd>"</kbd>.
+<br>
+
+<!---CAPS--->
+
+<hr width="66%" align="left">
+<a name="CAPS"><h3><u>Convert to upper case</u></h3></a>
+<br>
+Macro: <strong>CAPS</strong> <var>toggle</var>
+
+<p>
+<strong>CAPS</strong> converts all lower case letters to upper
+case.  Primarily, it's a support macro used by the
+<a href="docprocessing.html#DOCPROCESSING">document processing macros</a>,
+but you may find it helpful on occasion.  <strong>CAPS</strong>
+is a toggle, therefore no argument turns it on, any argument
+turns it off.
+<p>
+<pre>
+	.CAPS
+	All work and no play makes Jack a dull boy.
+	.CAPS OFF
+</pre>
+
+produces, on output
+<p>
+<pre>
+	ALL WORK AND NO PLAY MAKES JACK A DULL BOY.
+</pre>
+
+<!---UNDERSCORE--->
+
+<hr width="66%" align="left">
+<a name="UNDERSCORE"><h3><u>Single underscore</u></h3></a>
+<br>
+Macro: <strong>UNDERSCORE</strong> <var>[ &lt;distance below baseline&gt; ] &quot;&lt;string&gt;&quot;</var>
+<br>
+<em>*Optional argument requires a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>
+
+<p>
+By default, <strong>UNDERSCORE</strong> places an underscore 2 points
+beneath the required
+<a href="definitions.html#TERMS_STRINGARGUMENT">string argument</a>.
+The string must be enclosed in double-quotes, like this:
+<p>
+<pre>
+	.UNDERSCORE "Unmonitored monopolies breed high prices and poor products."
+</pre>
+
+If you wish to change the distance of the rule from the
+baseline, use the optional argument <i>&lt;distance below
+baseline&gt;</i> (with a unit of measure).
+<p>
+<pre>
+	.UNDERSCORE 3p "Unmonitored monopolies breed high prices and poor products."
+</pre>
+
+The above places the underscore 3 points below the baseline.
+<p>
+<a name="NOTES_UNDERSCORE"></a>
+<strong>NOTES:</strong>
+<br>
+<strong>UNDERSCORE</strong> does not work across line breaks in output
+copy, which is to say that you can't underscore a multi-line passage
+simply by putting the text of the whole thing in the string you pass
+to <strong>UNDERSCORE</strong>.  Each
+<a href="definitions.html#TERMS_OUTPUTLINE">output line</a>
+or portion of an output line you want underscored must be plugged
+separately into <strong>UNDERSCORE</strong>.  Bear in mind, though,
+that underscoring should at best be an occasional effect in typeset
+copy.  If you want to emphasize an entire passage, it's much, much
+better to change fonts (e.g. to italic or bold).
+<p>
+You can easily and successfully underline entire passages in simulated
+typewriter-style copy (i.e. if your font is Courier, or you're using
+the document processing macro
+<a href="#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>),
+with the
+<a href="#UNDERLINE">UNDERLINE</a>
+macro.  <strong>UNDERLINE</strong> is designed specifically for this
+purpose, but works only with the Courier font.
+<p>
+<strong>Mom</strong> doesn't always get the position and length
+of the underscore precisely right in
+<a href="definitions.html#TERMS_JUST">justified</a>
+copy, although she's fine with all the other
+<a href="definitions.html#TERMS_FILLED">fill modes</a>,
+as well as with the no-fill modes.  As of this writing, I have
+no solution to the occasional problems with justified copy.
+<p>
+<strong>UNDERSCORE</strong> tends to confuse
+<strong>gxditview</strong>, even though the output, when
+printed, looks fine.  Generally, I recommend using <strong>gv</strong>
+to preview files anyway.  See the section on
+<a href="#PREVIEWING">previewing</a>.
+<br>
+
+<!---UNDERSCORE2--->
+
+<hr width="66%" align="left">
+<a name="UNDERSCORE2"><h3><u>Double underscore</u></h3></a>
+<br>
+Macro: <strong>UNDERSCORE2</strong> <var>[ &lt;distance below baseline&gt; [ &lt;distance between rules&gt; ] ] &quot;&lt;string&gt;&quot;</var>
+<br>
+<em>*Optional arguments require a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>
+
+<p>
+By default, <strong>UNDERSCORE2</strong> places a double underscore
+2 points beneath the required
+<a href="definitions.html#TERMS_STRINGARGUMENT">string argument</a>.
+The string must be enclosed in double-quotes, like this:
+<p>
+<pre>
+	.UNDERSCORE2 "Unmonitored monopolies breed high prices and poor products."
+</pre>
+
+The default distance between the two rules is 2 points.
+<p>
+If you wish to change the distance of the double underscore from
+the baseline, use the optional argument <i>&lt;distance below
+baseline&gt;</i> (with a unit of measure), e.g.,
+<p>
+<pre>
+	.UNDERSCORE2 3p "Unmonitored monopolies breed high prices and poor products."
+</pre>
+
+which places the double underscore 3 points below the baseline.
+<p>
+If you wish to change the distance between the two rules as
+well, use the second optional argument <i>&lt;distance between
+rules&gt;</i> (with a unit of measure).  Be aware that you must
+give a value for the first optional argument if you want to use
+the second.
+<p>
+<strong>NOTE:</strong> the same restrictions and caveats apply
+to <strong>UNDERSCORE2</strong> as to
+<strong>UNDERSCORE</strong>.  See the
+<a href="#NOTES_UNDERSCORE">NOTES</a>
+for <strong>UNDERSCORE</strong>.
+<br>
+
+<!---UNDERLINE--->
+
+<hr width="66%" align="left">
+<a name="UNDERLINE"><h3><u>Underline text -- Courier font only!</u></h3></a>
+<br>
+Macro: <strong>UNDERLINE</strong> <var>toggle</var>
+
+<p>
+If your font is Courier, or you're using the document processing macro
+<a href="#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>,
+<strong>UNDERLINE</strong> allows you to underline words and
+passages that, in typeset copy, would be italicised.  You invoke
+<strong>UNDERLINE</strong> as you do with all toggle macros --
+by itself (i.e. with no argument) to initiate underlining, and
+with any argument to turn underlining off.
+<p>
+When on, <strong>UNDERLINE</strong> underlines letters, words
+and numbers, but not punctuation or spaces.  This makes for more
+readable copy than a solid underline.
+<p>
+<strong>NOTE:</strong> Underlining may also be turned on and off
+<a href="definitions.html#TERMS_INLINES">inline</a>
+with the escapes
+<a href="#UL">\*[UL]...\*[ULX].</a>
+<br>
+
+<!---UL--->
+
+<hr width="66%" align="left">
+<a name="UL"><h3><u>Inline escape for underlining -- Courier font only!</u></h3></a>
+<br>
+Inline: <strong>\*[UL]...\*[ULX]</strong>
+
+<p>
+If your font is Courier, or you're using the document processing macro
+<a href="#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>,
+<strong>\*[UL]...\*[ULX]</strong> underlines words and
+passages that, in typeset copy, would be italicised.
+<p>
+<strong>\*[UL]</strong> underlines all letters, words and numbers
+following it, but not punctuation or spaces.  This makes for more
+readable copy than a solid underline.  When you no longer want
+underlining, <strong>\*[ULX]</strong> turns underlining off.
+<p>
+The macro
+<a href="#UNDERLINE">UNDERLINE</a>
+and the inline escape <strong>\*[UL]</strong> are functionally
+identical, hence
+<p>
+<pre>
+	.FAM     C
+	.FT      R
+	.PT_SIZE 12
+	.LS      24
+	.SS      0
+	.QUAD    LEFT
+	Which should I heed?
+	.UNDERLINE
+	Just do it
+	.UNDERLINE OFF
+	or
+	.UNDERLINE
+	just say no?
+	.UNDERLINE OFF
+</pre>
+
+produces the same result as
+<p>
+<pre>
+	.FAM     C
+	.FT      R
+	.PT_SIZE 12
+	.LS      24
+	.SS      0
+	.QUAD    LEFT
+	Which should I heed? \*[UL]Just do it\*[ULX] or \*[UL]just say no?\*[ULX]
+</pre>
+
+<!---PAD--->
+
+<hr width="66%" align="left">
+<a name="PAD"><h3><u>Insert space into lines</u></h3></a>
+<br>
+Macro: <strong>PAD</strong> <var>&quot;&lt;string with pad markers inserted&gt;&quot;</var>
+
+<p>
+With <strong>PAD</strong>, you can insert unspecified amounts of
+whitespace into a line.
+<p>
+<strong>PAD</strong> calculates the difference between the length of
+text on the line and the distance remaining to its end, then inserts
+the difference (as whitespace) at the place(s) you specify.
+<p>
+Take, for example, the following relatively common typesetting
+situation, found at the bottom of legal agreements:
+<p>
+<pre>
+	Date             Signature                               |
+</pre>
+
+The person signing the agreement is supposed to fill in the date
+as well as a signature.  Space needs to be left for both, but
+the exact amount is neither known, nor important.  All that
+matters is that there be a little space after Date, and rather
+more space after Signature.  (In the above, | represents
+the end of the line at the prevailing line length.)
+<p>
+The
+<a href="#PADMARKER">pad marker</a>
+(see below) is # (the pound or number sign on your keyboard) and
+can be used multiple times in a line.  With that in mind, here's how
+you'd input the Date/Signature line (assuming a length of 30 picas):
+<p>
+<pre>
+	.LL 30P
+	.PAD "Date#Signature###"
+</pre>
+
+When the line is output, the space remaining on the line, after
+&quot;Date&quot; and &quot;Signature&quot; have been taken into
+account, is split into four (because there are four # signs).
+One quarter of the space is inserted between Date and Signature,
+the remainder is inserted after Signature.
+<a name="PAD_EXAMPLE"></a>
+<p>
+One rarely wants merely to insert space in a line; one usually
+wants to fill it with something, hence <strong>PAD</strong> is
+particularly useful in conjunction with
+<a href="#STRING_TABS">string tabs</a>.
+The following uses the Date/Signature example above, but adds
+rules into the whitespace through the use of string tabs and
+groff's line drawing function,
+<a href="#INLINE_LINEDRAWING_GROFF">\l</a>.
+<p>
+<pre>
+	.LL 30P
+	.PAD "Date\*[ST1]#\*[ST1X]Signature\*[ST2]###\*[ST2X]"
+	.EL
+	.ST 1 J
+	.ST 2 J
+	.TAB 1
+	\l'\n(.lu'
+	.TN
+	\l'\n(.lu'
+	.TQ
+</pre>
+
+If you're not a typesetter, and if you're new to groff, the
+example probably looks like gibberish.  My apologies.  However,
+remember that typesetting is a craft, and without having studied
+the craft, it takes a while to grasp its concepts.  Also,
+although <strong>mom</strong> tries very hard to provide
+consistent-looking, comprehensible alternatives to groff's
+native
+<a href="definitions.html#TERMS_INLINES">inline escapes</a>,
+<strong>mom</strong> has not yet found a replacement for
+<strong>\l</strong>.
+<p>
+Basically, what the example does is:
+<br>
+<ol>
+	<li>Pads the Date/Signature line (using the pad marker #),
+		encloses the padded space with two string tabs markers,
+		and outputs the line
+	<br>
+	<li>Sets the two string tabs (notice the use of
+		<a href="#EL">EL</a>
+		beforehand; you don't want <strong>mom</strong>
+		to advance a line at this point)
+	<br>
+	<li>Calls the first string tab and draws a rule to its full
+		length (<kbd>\l'\n(.lu'</kbd>; for an easier way to draw a rule
+		that fills a tab, see
+		<a href="inlines.html#INLINE_RULE_MOM">Full measure
+		rules</a>).
+	<br>
+	<li>Calls the second tab with
+		<a href="#TN">TN</a>
+		(which moves to tab 2 and stays on the same baseline)
+		then draws a rule to the full length of string tab 2
+</ol>
+<br>
+Often, when setting up string tabs this way, you don't want the
+padded line to print immediately.  To accomplish this, use
+<a href="#SILENT">SILENT</a>.
+See the <a href="#STRING_TABS_TUT">quickie tutorial on string tabs</a>
+for an example.
+<p>
+<strong>NOTE:</strong> Because the pound sign (#) is used as the pad
+marker, you can't use it as a literal part of the pad string.  If you
+need the sign to appear in the text of a padded line, change the pad
+marker with <a href="#PAD_MARKER">PAD_MARKER</a>.  Also, be aware
+that # as a pad marker only applies within the <strong>PAD</strong>
+macro; at all other times it prints literally, just as you'd expect.
+<p>
+Another important consideration when using <strong>PAD</strong> is that
+because the string must be enclosed in double-quotes, you can't use the
+double-quote (&quot;) as part of the string.  The way to circumvent
+this is to use the groff
+<a href="definitions.html#TERMS_INLINES">inline escapes</a>
+<strong>\(lq</strong> and <strong>\(rq</strong> (leftquote and
+rightquote respectively) whenever double-quotes are required in the
+string passed to <strong>PAD</strong>.
+<br>
+
+<!---PAD_MARKER--->
+
+<hr width="66%" align="left">
+<a name="PAD_MARKER"><h3><u>Change/set the marker used with PAD</u></h3></a>
+<br>
+Macro: <strong>PAD_MARKER</strong> <var>&lt;character to use as the pad marker&gt;</var>
+
+<p>
+If you need to change <strong>mom</strong>'s default pad marker
+(#), either because you want a literal # in the padded line,
+or simply because you want to use another character instead, use
+<strong>PAD_MARKER</strong>, whose argument is the new pad marker
+character you want.
+<p>
+<pre>
+	.PAD_MARKER @
+</pre>
+
+changes the pad marker to @.
+<p>
+Once you've changed the pad marker, the new marker remains in
+effect for every instance of
+<a href="#PAD">PAD</a>
+until you change it again (say, back to the pound sign).
+<br>
+
+<!---\*[LEADER]--->
+
+<hr width="66%" align="left">
+<a name="LEADER"><h3><u>Inline escape to add leaders to a line</u></h3></a>
+<br>
+Inline: <strong>\*[LEADER]</strong>
+
+<p>
+Whenever you want to fill a line or tab with
+<a href="definitions.html#TERMS_LEADER">leaders</a>,
+use the
+<a href="definitions.html#TERMS_INLINES">inline escape</a>
+<strong>\*[LEADER]</strong>.  The remainder of the line or tab will be
+filled with the leader character.  <strong>Mom</strong>'s
+default leader character is a period (dot), but you can change
+it to any character you like with
+<a href="#LEADER_CHARACTER">LEADER_CHARACTER</a>.
+<p>
+<strong>NOTE:</strong> <strong>\*[LEADER]</strong> fills lines
+or tabs right to their end.  You cannot insert leaders into a
+line or tab and have text following the leader on the same line
+or in the same tab.  Should you wish to achieve such an effect
+typographically, create tabs for each element of the line and
+fill them appropriately with the text and leaders you need.
+<a href="#STRING_TABS">String tabs</a> are perfect for this.  An
+example follows.
+<p>
+<pre>
+	.LL 30P
+	.PAD "Date\*[ST1]#\*[ST1X]Signature\*[ST2]###\*[ST2X]"
+	.EL
+	.ST 1 J
+	.ST 2 J
+	.TAB 1
+	\*[LEADER]
+	.TN
+	\*[LEADER]
+	.TQ
+</pre>
+
+The <strong>PAD</strong> line sets the words Date and Signature,
+and marks string tabs around the pad space inserted in the line.
+The string tabs are then &quot;set&quot;, called, and filled
+with leaders.  The result looks like this:
+<p>
+<pre>
+	Date.............Signature.....................................
+</pre>
+
+<!---LEADER_CHARACTER--->
+
+<hr width="66%" align="left">
+<a name="LEADER_CHARACTER"><h3><u>Change/set the leader character</u></h3></a>
+<br>
+Macro: <strong>LEADER_CHARACTER</strong> <var>&lt;character&gt;</var>
+
+<p>
+<strong>LEADER_CHARACTER</strong> takes one argument: a single
+character you would like to be used for
+<a href="definitions.html#TERMS_LEADER">leaders</a>.
+(See
+<a href="#LEADER">\*[LEADER]</a> for an explanation of how to
+fill lines with leaders.)
+<p>
+For example, to change the leader character from <strong>mom</strong>'s
+default (a period) to the underscore character, enter
+<p>
+<pre>
+	.LEADER_CHARACTER _
+</pre>
+
+<!---DROPCAP--->
+
+<hr width="66%" align="left">
+<a name="DROPCAP"><h3><u>Drop caps</u></h3></a>
+<br>
+Macro: <strong>DROPCAP</strong> <var>&lt;dropcap letter&gt; &lt;number of lines to drop&gt; [ COND &lt;percentage&gt; | EXT &lt;percentage&gt; ]</var>
+
+<p>
+The first two arguments to <strong>DROPCAP</strong> are the letter you
+want to be the
+<a href="definitions.html#TERMS_DROPCAP">drop cap</a>
+and the number of lines you want it to drop.  By default,
+<strong>mom</strong> uses the current family and font for the drop cap.
+<p>
+The optional argument (COND or EXT) indicates that you want the
+drop cap condensed (narrower) or extended (wider).  If you use
+<strong>COND</strong> or <strong>EXT</strong>, you must follow the
+argument with the percentage of the letter's normal width you want
+it condensed or extended.  No percent sign (%) is required.
+<p>
+<strong>Mom</strong> will do her very best to get the drop cap to
+line up with the first line of text indented beside it, then set
+the correct number of indented lines, and restore your left margin
+when the number of drop cap lines has been reached.
+<p>
+Beginning a paragraph with a drop cap &quot;T&quot; looks
+like this:
+<p>
+<pre>
+	.DROPCAP T 3 COND 90
+	he thousand injuries of Fortunato I had borne as best I
+	could, but when he ventured upon insult, I vowed revenge.
+	You who so well know the nature of my soul will not suppose,
+	however, that I gave utterance to a threat...
+</pre>
+
+The drop cap, slightly condensed but in the current family and font,
+will be three lines tall, with whatever text fills those three
+lines indented to the right of the letter.  The remainder of the
+paragraph's text will revert to the left margin.
+<p>
+<strong>NOTE:</strong> When using the
+<a href="docprocessing.html#DOCPROCESSING">document processing macro</a>
+<a href="#PP">PP</a>,
+<strong>DROPCAP</strong> only works
+<br>
+<ul>
+	<li>with initial paragraphs (i.e. at the start of the document,
+		or after
+		<a href="#HEAD">HEAD</a>),
+	<li>when <strong>DROPCAP</strong> comes immediately after <strong>PP</strong>,
+	<li>and when the
+		<a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE</a>
+		is TYPESET.
+</ul>
+<br>
+If these conditions aren't met, <strong>DROPCAP</strong> is silently ignored.
+<p>
+<strong>WARNING:</strong> <strong>DROPCAP</strong> puts a bit of
+a strain on resource-challenged systems.  If you have such a
+system and use drop caps extensively in a document, be prepared
+for a wait while <strong>mom</strong> does her thing.
+
+<h3><a name="DROPCAP_SUPPORT"><u>Support macros for DROPCAP</u></a></h3>
+Drop caps are the bane of most typesetters' existence.  It's
+very difficult to get the size of the drop cap right for the
+number of drop lines, especially if the drop cap is in a
+different family from the prevailing family of running text.
+Not only that, but there's the gutter around the drop cap to
+take into account, plus the fact that the letter may be too wide
+or too narrow to look anything but odd or misplaced.
+<p>
+<strong>Mom</strong> solves the last of these problems with the
+<strong>COND</strong> and <strong>EXT</strong> arguments.  The
+rest she solves with macros that change the default behaviour of
+<strong>DROPCAP</strong>, namely
+<p>
+<a href="#DROPCAP_FAMILY">DROPCAP_FAMILY</a>,
+<br>
+<a href="#DROPCAP_FONT">DROPCAP_FONT</a>,
+<br>
+<a href="#DROPCAP_ADJUST">DROPCAP_ADJUST</a>
+<br>
+and
+<br>
+<a href="#DROPCAP_GUTTER">DROPCAP_GUTTER</a>.
+<p>
+These macros must, of course, come before you invoke
+<strong>DROPCAP</strong>.
+
+<h3><a name="DROPCAP_FAMILY"><u>DROPCAP_FAMILY</u></a></h3>
+
+Set the drop cap family by giving
+<strong>DROPCAP_FAMILY</strong> the name of the family you want,
+e.g.
+<p>
+<pre>
+	.DROPCAP_FAMILY H
+</pre>
+
+which will set the family to Helvetica for the drop cap only.
+
+<h3><a name="DROPCAP_FONT"><u>DROPCAP_FONT</u></a></h3>
+
+Set the drop cap font by giving
+<strong>DROPCAP_FONT</strong> the name of the font you want,
+e.g.
+<p>
+<pre>
+	.DROPCAP_FONT I
+</pre>
+
+which will set the font to italic for the drop cap only.
+
+<h3><a name="DROPCAP_ADJUST"><u>DROPCAP_ADJUST</u></a></h3>
+
+If the size <strong>mom</strong> calculates for the drop cap
+isn't precisely what you want, you can increase or decrease it
+with <strong>DROPCAP_ADJUST</strong>, like this:
+e.g.
+<p>
+<pre>
+	.DROPCAP_ADJUST +1
+	    or
+	.DROPCAP_ADJUST -.75
+</pre>
+
+<strong>DROPCAP_ADJUST</strong> only understands
+<a href="definitions.html#TERMS_PICASPOINTS">points</a>,
+therefore do not append any
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>
+to the argument.  And always be sure to preprend the plus or
+minus sign, depending on whether you want the drop cap larger or
+smaller.
+
+<h3><a name="DROPCAP_GUTTER"><u>DROPCAP_GUTTER</u></a></h3>
+
+By default, <strong>mom</strong> puts three points of space
+between the drop cap and the text indented beside it.  If you
+want another value, use <strong>DROPCAP_GUTTER</strong> (with a
+unit of measure), like this:
+<p>
+<pre>
+	.DROPCAP_GUTTER 6p
+</pre>
+
+<!---\*[SUP]--->
+
+<hr width="66%" align="left">
+<a name="SUP"><h3><u>Superscript</u></h3></a>
+<br>
+Inlines: <strong>\*[SUP]...\*[SUPX]</strong>
+
+<p>
+Superscripts are accomplished
+<a href="definitions.html#TERMS_INLINES">inline</a>.
+Whenever you need one, typically for numerals, all you need to
+do is surround the superscript with the inlines above.
+<strong>\*[SUP]</strong> begins superscripting;
+<strong>\*[SUPX]</strong> turns it off.
+<a name="CONDSUP"></a>
+<a name="EXTSUP"></a>
+<p>
+If your running type is
+<a href="#COND_INLINE">pseudo-condensed</a>
+or
+<a href="#EXT_INLINE">pseudo-extended</a>
+and you want your superscripts to be equivalently pseudo-condensed or
+-extended, use <strong>\*[CONDSUP]...\*[CONDSUPX]</strong> or
+<strong>\*[EXTSUP]...\*[EXTSUPX]</strong>.
+<p>
+The superscript inlines are primarily used by the
+<a href="docprocessing.html#DOCPROCESSING">document processing macros</a>
+for automatic generation of numbered footnotes.  However, you may
+find them useful for other purposes.
+<p>
+<strong>NOTE:</strong> <strong>Mom</strong> does a pretty fine job of
+making superscripts look good in any font and at any size.  If you're
+fussy, though (and I am), about precise vertical placement, kerning,
+weight, size, and so on, you may want to roll your own solution.
+And sorry, there's no <strong>mom</strong> equivalent for subscripts.
+I'm neither a mathematician nor a chemist, so I don't need them.
+Of course, anyone who wishes to contribute a subscript routine to
+<strong>mom</strong> will receive eternal blessings not only in this
+lifetime, but in all lifetimes to come.
+
+<p>
+<hr>
+<a href="inlines.html#TOP">Next</a>&nbsp;&nbsp;
+<a href="typesetting.html#TOP">Prev</a>&nbsp;&nbsp;
+<a href="#TOP">Top</a>&nbsp;&nbsp;
+<a href="toc.html">Back to Table of Contents</a>
+</body>
+</html>

@@ -1,0 +1,182 @@
+#
+# $FreeBSD$
+#
+# This file contains the system default Plug-and-Play data.  It is
+# derived from a number of sources, including:
+#
+# - The Microsoft "Windows Generic Device IDs" document
+#
+
+[pci]
+######################################################################
+# PCI devices.
+#
+# Required attributes:
+#
+# ident=	PCI identifier in the form 0xDDDDVVVV where
+#		'VVVV' is the 4-digit hex form of the vendor ID and
+#		'DDDD' is the 4-digit hex form of the device ID.
+# or
+#
+# vendor=	0xVVVV where 'VVVV' is above
+# name=		Vendor name
+
+vendor=0x8086 name=Intel
+
+
+[isa]
+######################################################################
+# ISA PnP devices
+#
+# Required attributes:
+#
+# ident=	ISA PnP identifier in the form AAAIIRR where
+#		'AAA' is the EISA vendor ID, 'II' is the device ID
+#		and 'RR' is the revision ID.
+# or
+# 
+# vendor=	AAA to register just a vendor name.
+# name=		Vendor name
+#
+# Optional attributes:
+#
+# module=	Support module identifier.
+#
+# args=		Arguments to pass to the support module.
+#
+
+vendor=CSC name=Crystal Semiconductor
+vendor=CTL name=Creative Labs
+vendor=PNP name=Generic
+
+# From "Windows Generic Device IDs"
+#
+# --Parallel Devices--
+ident=PNP0400 module=lpt            # Standard LPT printer port
+ident=PNP0401 module=lpt            # ECP printer port
+
+# --Serial Devices--
+ident=PNP0500 module=sio            # Standard PC COM port
+ident=PNP0501 module=sio            # 16550A-compatible COM port
+ident=PNP0502 module=sio            # Multiport serial device (non-intelligent 16550)
+
+# --Disk Controllers--
+ident=PNP0600 module=wd             # Generic ESDI/IDE/ATA compatible hard disk controller
+ident=PNP0603 module=wd             # Generic IDE supporting Microsoft Device Bay Specification
+ident=PNP0700 module=fd             # PC standard floppy disk controller
+ident=PNP0701 module=fd             # Standard floppy controller supporting MS Device Bay Spec
+
+# --Peripheral Buses--
+ident=PNP0A00 module=isa            # ISA Bus
+ident=PNP0A01 module=eisa           # EISA Bus
+ident=PNP0A03 module=pci            # PCI Bus
+ident=PNP0A04 module=isa            # VESA/VL Bus
+
+# -- Real Time Clock, BIOS, System board devices--
+ident=PNP0C04 module=npx            # Math Coprocessor
+ident=PNP0C05 module=apm            # APM BIOS (Version independent)
+
+# --PCMCIA Controller Chipsets--
+ident=PNP0E00 module=pcic           # Intel 82365-Compatible PCMCIA Controller
+ident=PNP0E01 module=pcic           # Cirrus Logic CL-PD6720 PCMCIA Controller
+ident=PNP0E02 module=pcic           # VLSI VL82C146 PCMCIA Controller
+ident=PNP0E03 module=pcic           # Intel 82365-compatible CardBus controller
+
+# --Network Adapters--
+ident=PNP8001 module=ed             # Novell/Anthem NE3200
+ident=PNP8004                       # Compaq NE3200
+ident=PNP80d3 module=ed             # Novell/Anthem NE1000
+ident=PNP80d4 module=ed             # Novell/Anthem NE2000
+ident=PNP80d5 module=ed             # NE1000 Compatible
+ident=PNP80d6 module=ed             # NE2000 Compatible
+ident=PNP80d8 module=lnc            # Novell/Anthem NE2100
+ident=PNP80e9 module=le             # DEC (DE200) EtherWorks Turbo
+ident=PNP80eb module=le             # DEC (DE201) EtherWorks Turbo/TP
+ident=PNP80ec module=le             # DEC (DE202) EtherWorks Turbo/TP_BNC
+ident=PNP80f1 module=eg             # 3Com EtherLink Plus
+ident=PNP80f3 module=ed             # 3Com EtherLink II or IITP (8 or 16-bit)
+ident=PNP80f6 module=ed             # 3Com EtherLink 16
+ident=PNP80f7 module=ep             # 3Com EtherLink III
+ident=PNP80f8 module=ep             # 3Com Generic Etherlink Plug and Play Device
+ident=PNP8123 module=ed             # SMC StarCard PLUS (WD/8003S)
+ident=PNP8124 module=ed             # SMC StarCard PLUS With On Board Hub (WD/8003SH)
+ident=PNP8125 module=ed             # SMC EtherCard PLUS (WD/8003E)
+ident=PNP8126 module=ed             # SMC EtherCard PLUS With Boot ROM Socket (WD/8003EBT)
+ident=PNP8127 module=ed             # SMC EtherCard PLUS With Boot ROM Socket (WD/8003EB)
+ident=PNP8128 module=ed             # SMC EtherCard PLUS TP (WD/8003WT)
+ident=PNP812a module=ed             # SMC EtherCard PLUS 16 With Boot ROM Socket (WD/8013EBT)
+ident=PNP812d module=ie             # Intel EtherExpress 16 or 16TP
+ident=PNP8137 module=ed             # Artisoft AE-1
+ident=PNP8138 module=ed             # Artisoft AE-2 or AE-3
+ident=PNP8158 module=ed             # HP PC LAN Adapter/16 TP Plus (HP27247B)
+ident=PNP8159 module=ed             # HP PC LAN Adapter/16 TL Plus (HP27252)
+ident=PNP81c3 module=ed             # SMC EtherCard PLUS Elite (WD/8003EP)
+ident=PNP81c4 module=ed             # SMC EtherCard PLUS 10T (WD/8003W)
+ident=PNP81c5 module=ed             # SMC EtherCard PLUS Elite 16 (WD/8013EP)
+ident=PNP81c6 module=ed             # SMC EtherCard PLUS Elite 16T (WD/8013W)
+ident=PNP81c7 module=ed             # SMC EtherCard PLUS Elite 16 Combo (WD/8013EW or 8013EWC)
+ident=PNP81c8 module=ed             # SMC EtherElite Ultra 16
+ident=PNP820a module=ed             # Zenith Data Systems NE2000-Compatible
+ident=PNP8231 module=lnc            # Advanced Micro Devices AM2100/AM1500T
+ident=PNP828C module=lnc            # AMD PCNet Family cards
+ident=PNP828D module=lnc            # AMD PCNet32 (VL version)
+ident=PNP8323 module=ed             # SMC EtherCard (All Types except 8013/A)
+ident=PNP8390 module=ed             # Generic network adapter
+
+# --SCSI, Proprietary CD Adapters--
+ident=PNPA02B module=scd            # Sony proprietary CD-ROM controller
+ident=PNPA030 module=mcd            # Mitsumi LU-005 Single Speed CD-ROM controller + drive
+ident=PNPA031 module=mcd            # Mitsumi FX-001 Single Speed CD-ROM controller + drive
+ident=PNPA032 module=mcd            # Mitsumi FX-001 Double Speed CD-ROM controller + drive
+
+# --Sound/Video-capture, multimedia--
+ident=PNPB000 module=pcm            # Sound Blaster 1.5 sound device
+ident=PNPB001 module=pcm            # Sound Blaster 2.0 sound device
+ident=PNPB002 module=pcm            # Sound Blaster Pro sound device
+ident=PNPB003 module=pcm            # Sound Blaster 16 sound device
+ident=PNPB007 module=pcm            # Microsoft Windows Sound System-compatible sound device
+ident=PNPB009 module=pcm            # Plug and Play Microsoft Windows Sound System Device
+ident=PNPB020 module=pcm            # Yamaha OPL3-compatible FM synthesizer device
+ident=PNPB02F module=joy            # Joystick/Game port
+
+# --Compatibility with early device ID list--
+ident=PNP0802 module=pcm            # Microsoft Sound System compatible device (obsolete, use PNPB0xx instead)
+
+# --Modems--
+ident=PNPC000 module=sio            # Compaq 14400 Modem (TBD)
+ident=PNPC001 module=sio            # Compaq 2400/9600 Modem (TBD)
+
+# Vendor supplied IDs.
+
+# --Parallel Devices--
+
+# --Serial Devices--
+
+# --Disk Controllers--
+
+# --Peripheral Buses--
+
+# --Real Time Clock, BIOS, System board devices--
+
+# --PCMCIA Controller Chipsets--
+
+# --Network Adapters--
+ident=CSC6040 module=cs             # Crystal Semiconductor CS8920
+
+# --SCSI, Proprietary CD Adapters--
+
+# --Sound/Video-capture, multimedia--
+
+# --Modems--
+
+
+
+[com]
+######################################################################
+# COM PnP devices
+#
+
+[lpt]
+######################################################################
+# LPT PnP devices
+#

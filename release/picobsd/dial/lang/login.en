@@ -1,0 +1,9 @@
+#!/bin/sh
+# $FreeBSD$
+
+if [ "$2" != "root" ]
+then
+	exit
+fi
+cat /etc/motd
+HOME=/root exec -sh

@@ -1,0 +1,55 @@
+.\" Copyright (c) 2001 Kungliga Tekniska Högskolan
+.\" $Id: krb5_get_krbhst.3,v 1.4 2002/08/28 15:30:53 joda Exp $
+.Dd June 17, 2001
+.Dt KRB5_GET_KRBHST 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_get_krbhst
+.Nm krb5_get_krb_admin_hst
+.Nm krb5_get_krb_changepw_hst
+.Nm krb5_get_krb524hst
+.Nm krb5_free_krbhst
+.Nd lookup Kerberos KDC hosts
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.Fd #include <krb5.h>
+.Ft krb5_error_code
+.Fn krb5_get_krbhst "krb5_context context" "const krb5_realm *realm" "char ***hostlist"
+.Ft krb5_error_code
+.Fn krb5_get_krb_admin_hst "krb5_context context" "const krb5_realm *realm" "char ***hostlist"
+.Ft krb5_error_code
+.Fn krb5_get_krb_changepw_hst "krb5_context context" "const krb5_realm *realm" "char ***hostlist"
+.Ft krb5_error_code
+.Fn krb5_get_krb524hst "krb5_context context" "const krb5_realm *realm" "char ***hostlist"
+.Ft krb5_error_code
+.Fn krb5_free_krbhst "krb5_context context" "char **hostlist"
+.Sh DESCRIPTION
+These functions implement the old API to get a list of Kerberos hosts,
+and are thus similar to the
+.Fn krb5_krbhst_init
+functions. However, since these functions returns
+.Em all
+hosts in one go, they potentially have to do more lookups than
+necessary. These functions remain for compatibility reasons.
+.Pp
+After a call to one of these functions,
+.Fa hostlist
+is a
+.Dv NULL
+terminated list of strings, pointing to the requested Kerberos hosts. These should be freed with
+.Fn krb5_free_krbhst
+when done with.
+.Sh EXAMPLE
+The following code will print the KDCs of the realm
+.Dq MY.REALM .
+.Bd -literal -offset indent
+char **hosts, **p;
+krb5_get_krbhst(context, "MY.REALM", &hosts);
+for(p = hosts; *p; p++)
+    printf("%s\\n", *p);
+krb5_free_krbhst(context, hosts);
+.Ed
+.\" .Sh BUGS
+.Sh SEE ALSO
+.Xr krb5_krbhst_init 3

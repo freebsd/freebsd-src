@@ -1,0 +1,11 @@
+[1mmount_ext2fs[m	mount a ext2fs (Linux) file system
+
+	Usage:
+
+	mount_ext2fs [-o options] special node
+
+	E.g. to mount first partition of first IDE drive on /mnt:
+
+		mount_ext2fs /dev/wd0s1 /mnt
+
+	To mount it read-only, add '-o ro' as options.

@@ -1,0 +1,363 @@
+@c Copyright 1997 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+
+@node V850-Dependent
+@chapter v850 Dependent Features
+
+@cindex V850 support
+@menu
+* V850 Options::              Options
+* V850 Syntax::               Syntax
+* V850 Floating Point::       Floating Point
+* V850 Directives::           V850 Machine Directives
+* V850 Opcodes::              Opcodes
+@end menu
+
+@node V850 Options
+@section Options
+@cindex V850 options (none)
+@cindex options for V850 (none)
+@code{@value{AS}} supports the following additional command-line options
+for the V850 processor family:
+
+@cindex command line options, V850
+@cindex V850 command line options
+@table @code
+
+@cindex @code{-wsigned_overflow} command line option, V850
+@item -wsigned_overflow
+Causes warnings to be produced when signed immediate values overflow the
+space available for then within their opcodes.  By default this option
+is disabled as it is possible to receive spurious warnings due to using
+exact bit patterns as immediate constants.
+
+@cindex @code{-wunsigned_overflow} command line option, V850
+@item -wunsigned_overflow
+Causes warnings to be produced when unsigned immediate values overflow
+the space available for then within their opcodes.  By default this
+option is disabled as it is possible to receive spurious warnings due to
+using exact bit patterns as immediate constants.
+
+@cindex @code{-mv850} command line option, V850
+@item -mv850
+Specifies that the assembled code should be marked as being targeted at
+the V850 processor.  This allows the linker to detect attempts to link
+such code with code assembled for other processors.
+
+@cindex @code{-mv850e} command line option, V850
+@item -mv850e
+Specifies that the assembled code should be marked as being targeted at
+the V850E processor.  This allows the linker to detect attempts to link
+such code with code assembled for other processors.
+
+@cindex @code{-mv850any} command line option, V850
+@item -mv850any
+Specifies that the assembled code should be marked as being targeted at
+the V850 processor but support instructions that are specific to the
+extended variants of the process.  This allows the production of
+binaries that contain target specific code, but which are also intended
+to be used in a generic fashion.  For example libgcc.a contains generic
+routines used by the code produced by GCC for all versions of the v850
+architecture, together with support routines only used by the V850E
+architecture.
+
+@end table
+
+
+@node V850 Syntax
+@section Syntax
+@menu
+* V850-Chars::                Special Characters
+* V850-Regs::                 Register Names
+@end menu
+
+@node V850-Chars
+@subsection Special Characters
+
+@cindex line comment character, V850
+@cindex V850 line comment character
+@samp{#} is the line comment character.
+@node V850-Regs
+@subsection Register Names
+
+@cindex V850 register names
+@cindex register names, V850
+@code{@value{AS}} supports the following names for registers:
+@table @code
+@cindex @code{zero} register, V850
+@item general register 0
+r0, zero
+@item general register 1
+r1
+@item general register 2
+r2, hp
+@cindex @code{sp} register, V850
+@item general register 3
+r3, sp
+@cindex @code{gp} register, V850
+@item general register 4
+r4, gp
+@cindex @code{tp} register, V850
+@item general register 5
+r5, tp
+@item general register 6
+r6
+@item general register 7
+r7
+@item general register 8
+r8
+@item general register 9
+r9
+@item general register 10
+r10
+@item general register 11
+r11
+@item general register 12
+r12
+@item general register 13
+r13
+@item general register 14
+r14
+@item general register 15
+r15
+@item general register 16
+r16
+@item general register 17
+r17
+@item general register 18
+r18
+@item general register 19
+r19
+@item general register 20
+r20
+@item general register 21
+r21
+@item general register 22
+r22
+@item general register 23
+r23
+@item general register 24
+r24
+@item general register 25
+r25
+@item general register 26
+r26
+@item general register 27
+r27
+@item general register 28
+r28
+@item general register 29
+r29
+@cindex @code{ep} register, V850
+@item general register 30
+r30, ep
+@cindex @code{lp} register, V850
+@item general register 31
+r31, lp
+@cindex @code{eipc} register, V850
+@item system register 0
+eipc
+@cindex @code{eipsw} register, V850
+@item system register 1
+eipsw
+@cindex @code{fepc} register, V850
+@item system register 2
+fepc
+@cindex @code{fepsw} register, V850
+@item system register 3
+fepsw
+@cindex @code{ecr} register, V850
+@item system register 4
+ecr
+@cindex @code{psw} register, V850
+@item system register 5
+psw
+@cindex @code{ctpc} register, V850
+@item system register 16
+ctpc
+@cindex @code{ctpsw} register, V850
+@item system register 17
+ctpsw
+@cindex @code{dbpc} register, V850
+@item system register 18
+dbpc
+@cindex @code{dbpsw} register, V850
+@item system register 19
+dbpsw
+@cindex @code{ctbp} register, V850
+@item system register 20
+ctbp
+@end table
+
+@node V850 Floating Point
+@section Floating Point
+
+@cindex floating point, V850 (@sc{ieee})
+@cindex V850 floating point (@sc{ieee})
+The V850 family uses @sc{ieee} floating-point numbers.
+
+@node V850 Directives
+@section V850 Machine Directives
+
+@cindex machine directives, V850
+@cindex V850 machine directives
+@table @code
+@cindex @code{offset} directive, V850
+@item .offset @var{<expression>}
+Moves the offset into the current section to the specified amount. 
+
+@cindex @code{section} directive, V850
+@item .section "name", <type>
+This is an extension to the standard .section directive.  It sets the
+current section to be <type> and creates an alias for this section
+called "name". 
+
+@cindex @code{.v850} directive, V850
+@item .v850
+Specifies that the assembled code should be marked as being targeted at
+the V850 processor.  This allows the linker to detect attempts to link
+such code with code assembled for other processors.
+
+@cindex @code{.v850e} directive, V850
+@item .v850e
+Specifies that the assembled code should be marked as being targeted at
+the V850E processor.  This allows the linker to detect attempts to link
+such code with code assembled for other processors.
+
+@end table
+
+@node V850 Opcodes
+@section Opcodes
+
+@cindex V850 opcodes
+@cindex opcodes for V850
+@code{@value{AS}} implements all the standard V850 opcodes.
+
+@code{@value{AS}} also implements the following pseudo ops:
+
+@table @code
+
+@cindex @code{hi0} pseudo-op, V850
+@item hi0()
+Computes the higher 16 bits of the given expression and stores it into
+the immediate operand field of the given instruction.  For example:
+
+    @samp{mulhi hi0(here - there), r5, r6}
+
+computes the difference between the address of labels 'here' and
+'there', takes the upper 16 bits of this difference, shifts it down 16
+bits and then mutliplies it by the lower 16 bits in register 5, putting
+the result into register 6. 
+
+@cindex @code{lo} pseudo-op, V850
+@item lo()
+Computes the lower 16 bits of the given expression and stores it into
+the immediate operand field of the given instruction.  For example:
+
+    @samp{addi lo(here - there), r5, r6}
+
+computes the difference between the address of labels 'here' and
+'there', takes the lower 16 bits of this difference and adds it to
+register 5, putting the result into register 6.
+
+@cindex @code{hi} pseudo-op, V850
+@item hi()
+Computes the higher 16 bits of the given expression and then adds the
+value of the most significant bit of the lower 16 bits of the expression
+and stores the result into the immediate operand field of the given
+instruction.  For example the following code can be used to compute the
+address of the label 'here' and store it into register 6:
+
+    @samp{movhi hi(here), r0, r6}
+    @samp{movea lo(here), r6, r6}
+
+The reason for this special behaviour is that movea performs a sign
+extention on its immediate operand.  So for example if the address of
+'here' was 0xFFFFFFFF then without the special behaviour of the hi()
+pseudo-op the movhi instruction would put 0xFFFF0000 into r6, then the
+movea instruction would takes its immediate operand, 0xFFFF, sign extend
+it to 32 bits, 0xFFFFFFFF, and then add it into r6 giving 0xFFFEFFFF
+which is wrong (the fifth nibble is E).  With the hi() pseudo op adding
+in the top bit of the lo() pseudo op, the movhi instruction actually
+stores 0 into r6 (0xFFFF + 1 = 0x0000), so that the movea instruction
+stores 0xFFFFFFFF into r6 - the right value.
+
+@cindex @code{hilo} pseudo-op, V850
+@item hilo()
+Computes the 32 bit value of the given expression and stores it into
+the immediate operand field of the given instruction (which must be a
+mov instruction).  For example:
+
+    @samp{mov hilo(here), r6}
+
+computes the absolute address of label 'here' and puts the result into
+register 6.  
+
+@cindex @code{sdaoff} pseudo-op, V850
+@item sdaoff()
+Computes the offset of the named variable from the start of the Small
+Data Area (whoes address is held in register 4, the GP register) and
+stores the result as a 16 bit signed value in the immediate operand
+field of the given instruction.  For example: 
+
+      @samp{ld.w sdaoff(_a_variable)[gp],r6}
+
+loads the contents of the location pointed to by the label '_a_variable'
+into register 6, provided that the label is located somewhere within +/-
+32K of the address held in the GP register.  [Note the linker assumes
+that the GP register contains a fixed address set to the address of the
+label called '__gp'.  This can either be set up automatically by the
+linker, or specifically set by using the @samp{--defsym __gp=<value>}
+command line option].
+
+@cindex @code{tdaoff} pseudo-op, V850
+@item tdaoff()
+Computes the offset of the named variable from the start of the Tiny
+Data Area (whoes address is held in register 30, the EP register) and
+stores the result as a 4,5, 7 or 8 bit unsigned value in the immediate
+operand field of the given instruction.  For example:
+
+      @samp{sld.w tdaoff(_a_variable)[ep],r6}
+
+loads the contents of the location pointed to by the label '_a_variable'
+into register 6, provided that the label is located somewhere within +256
+bytes of the address held in the EP register.  [Note the linker assumes
+that the EP register contains a fixed address set to the address of the
+label called '__ep'.  This can either be set up automatically by the
+linker, or specifically set by using the @samp{--defsym __ep=<value>}
+command line option].
+
+@cindex @code{zdaoff} pseudo-op, V850
+@item zdaoff()
+Computes the offset of the named variable from address 0 and stores the
+result as a 16 bit signed value in the immediate operand field of the
+given instruction.  For example:
+
+      @samp{movea zdaoff(_a_variable),zero,r6}
+
+puts the address of the label '_a_variable' into register 6, assuming
+that the label is somewhere within the first 32K of memory.  (Strictly
+speaking it also possible to access the last 32K of memory as well, as
+the offsets are signed).
+
+@cindex @code{ctoff} pseudo-op, V850
+@item ctoff()
+Computes the offset of the named variable from the start of the Call
+Table Area (whoes address is helg in system register 20, the CTBP
+register) and stores the result a 6 or 16 bit unsigned value in the
+immediate field of then given instruction or piece of data.  For
+example:
+
+     @samp{callt ctoff(table_func1)}
+
+will put the call the function whoes address is held in the call table
+at the location labeled 'table_func1'.
+
+@end table
+
+
+For information on the V850 instruction set, see @cite{V850
+Family 32-/16-Bit single-Chip Microcontroller Architecture Manual} from NEC.
+Ltd.
+

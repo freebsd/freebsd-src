@@ -1,0 +1,12 @@
+use Config;
+
+$libdir = $ENV{PERL_SRC} || "$Config{installarchlib}/CORE";
+
+if (!grep(/^-[cS]$/, @ARGV)) {
+    $linkargs = sprintf("%s $libdir/$Config{libperl} %s",
+			@Config{qw(ldflags libs)});
+}
+
+$cccmd = "$Config{cc} $Config{ccflags} -I$libdir @ARGV $linkargs";
+print "$cccmd\n";
+exec $cccmd;

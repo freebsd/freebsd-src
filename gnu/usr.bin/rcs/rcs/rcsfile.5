@@ -1,0 +1,425 @@
+.lf 1 ./rcsfile.5in
+.\" Set p to 1 if your formatter can handle pic output.
+.if t .nr p 1
+.de Id
+.ds Rv \\$3
+.ds Dt \\$4
+..
+.Id $FreeBSD$
+.ds r \s-1RCS\s0
+.if n .ds - \%--
+.if t .ds - \(em
+.TH RCSFILE 5 \*(Dt GNU
+.SH NAME
+rcsfile \- format of RCS file
+.SH DESCRIPTION
+An \*r file's
+contents are described by the grammar
+below.
+.PP
+The text is free format: space, backspace, tab, newline, vertical
+tab, form feed, and carriage return (collectively,
+.IR "white space")
+have no significance except in strings.
+However, white space cannot appear within an id, num, or sym,
+and an \*r file must end with a newline.
+.PP
+Strings are enclosed by
+.BR @ .
+If a string contains a
+.BR @ ,
+it must be doubled;
+otherwise, strings can contain arbitrary binary data.
+.PP
+The meta syntax uses the following conventions: `|' (bar) separates
+alternatives; `{' and `}' enclose optional phrases; `{' and `}*' enclose
+phrases that can be repeated zero or more times;
+`{' and '}+' enclose phrases that must appear at least once and can be
+repeated;
+Terminal symbols are in
+.BR boldface ;
+nonterminal symbols are in
+.IR italics .
+.LP
+.nr w \w'\f3deltatext\fP '
+.nr y \w'\f3newphrase\fP '
+.if \nw<\ny .nr w \ny
+.nr x \w'\f3branches\fP'
+.nr y \w'{ \f3comment\fP'
+.if \nx<\ny .nr x \ny
+.nr y \w'\f3{ branch\fP'
+.if \nx<\ny .nr x \ny
+.ta \nwu +\w'::=  'u +\nxu+\w'  'u
+.fc #
+.nf
+\f2rcstext\fP	::=	\f2admin\fP {\f2delta\fP}* \f2desc\fP {\f2deltatext\fP}*
+.LP
+\f2admin\fP	::=	\f3head\fP	{\f2num\fP}\f3;\fP
+		{ \f3branch\fP	{\f2num\fP}\f3;\fP }
+		\f3access\fP	{\f2id\fP}*\f3;\fP
+		\f3symbols\fP	{\f2sym\fP \f3:\fP \f2num\fP}*\f3;\fP
+		\f3locks\fP	{\f2id\fP \f3:\fP \f2num\fP}*\f3;\fP  {\f3strict  ;\fP}
+		{ \f3comment\fP	{\f2string\fP}\f3;\fP }
+		{ \f3expand\fP	{\f2string\fP}\f3;\fP }
+		{ \f2newphrase\fP }*
+.LP
+\f2delta\fP	::=	\f2num\fP
+		\f3date\fP	\f2num\fP\f3;\fP
+		\f3author\fP	\f2id\fP\f3;\fP
+		\f3state\fP	{\f2id\fP}\f3;\fP
+		\f3branches\fP	{\f2num\fP}*\f3;\fP
+		\f3next\fP	{\f2num\fP}\f3;\fP
+		{ \f2newphrase\fP }*
+.LP
+\f2desc\fP	::=	\f3desc\fP	\f2string\fP
+.LP
+\f2deltatext\fP	::=	\f2num\fP
+		\f3log\fP	\f2string\fP
+		{ \f2newphrase\fP }*
+		\f3text\fP	\f2string\fP
+.LP
+\f2num\fP	::=	{\f2digit\fP | \f3.\fP}+
+.LP
+\f2digit\fP	::=	\f30\fP | \f31\fP | \f32\fP | \f33\fP | \f34\fP | \f35\fP | \f36\fP | \f37\fP | \f38\fP | \f39\fP
+.LP
+\f2id\fP	::=	{\f2num\fP} \f2idchar\fP {\f2idchar\fP | \f2num\fP}*
+.LP
+\f2sym\fP	::=	{\f2digit\fP}* \f2idchar\fP {\f2idchar\fP | \f2digit\fP}*
+.LP
+\f2idchar\fP	::=	any visible graphic character except \f2special\fP
+.LP
+\f2special\fP	::=	\f3$\fP | \f3,\fP | \f3.\fP | \f3:\fP | \f3;\fP | \f3@\fP
+.LP
+\f2string\fP	::=	\f3@\fP{any character, with \f3@\fP doubled}*\f3@\fP
+.LP
+\f2newphrase\fP	::=	\f2id\fP \f2word\fP* \f3;\fP
+.LP
+\f2word\fP	::=	\f2id\fP | \f2num\fP | \f2string\fP | \f3:\fP
+.fi
+.PP
+Identifiers are case sensitive.  Keywords are in lower case only.
+The sets of keywords and identifiers can overlap.
+In most environments \*r uses the \s-1ISO\s0 8859/1 encoding:
+visible graphic characters are codes 041\-176 and 240\-377,
+and white space characters are codes 010\-015 and 040.
+.PP
+Dates, which appear after the
+.B date
+keyword, are of the form
+\f2Y\fP\f3.\fP\f2mm\fP\f3.\fP\f2dd\fP\f3.\fP\f2hh\fP\f3.\fP\f2mm\fP\f3.\fP\f2ss\fP,
+where
+.I Y
+is the year,
+.I mm
+the month (01\-12),
+.I dd
+the day (01\-31),
+.I hh
+the hour (00\-23),
+.I mm
+the minute (00\-59),
+and
+.I ss
+the second (00\-60).
+.I Y
+contains just the last two digits of the year
+for years from 1900 through 1999,
+and all the digits of years thereafter.
+Dates use the Gregorian calendar; times use UTC.
+.PP
+The
+.I newphrase
+productions in the grammar are reserved for future extensions
+to the format of \*r files.
+No
+.I newphrase
+will begin with any keyword already in use.
+.PP
+The
+.I delta
+nodes form a tree.  All nodes whose numbers
+consist of a single pair
+(e.g., 2.3, 2.1, 1.3, etc.)
+are on the trunk, and are linked through the
+.B next
+field in order of decreasing numbers.
+The
+.B head
+field in the
+.I admin
+node points to the head of that sequence (i.e., contains
+the highest pair).
+The
+.B branch
+node in the admin node indicates the default
+branch (or revision) for most \*r operations.
+If empty, the default
+branch is the highest branch on the trunk.
+.PP
+All
+.I delta
+nodes whose numbers consist of
+.RI 2 n
+fields
+.RI ( n \(>=2)
+(e.g., 3.1.1.1, 2.1.2.2, etc.)
+are linked as follows.
+All nodes whose first
+.RI 2 n \-1
+number fields are identical are linked through the
+.B next
+field in order of increasing numbers.
+For each such sequence,
+the
+.I delta
+node whose number is identical to the first
+.RI 2 n \-2
+number fields of the deltas on that sequence is called the branchpoint.
+The
+.B branches
+field of a node contains a list of the
+numbers of the first nodes of all sequences for which it is a branchpoint.
+This list is ordered in increasing numbers.
+.LP
+The following diagram shows an example of an \*r file's organization.
+.if !\np \{\
+.nf
+.vs 12
+.ne 36
+.cs 1 20
+.eo
+
+                           Head
+                             |
+                             |
+                             v                        / \
+                         ---------                   /   \
+   / \          / \      |       |      / \         /     \
+  /   \        /   \     |  2.1  |     /   \       /       \
+ /     \      /     \    |       |    /     \     /         \
+/1.2.1.3\    /1.3.1.1\   |       |   /1.2.2.2\   /1.2.2.1.1.1\
+---------    ---------   ---------   ---------   -------------
+    ^            ^           |           ^             ^
+    |            |           |           |             |
+    |            |           v           |             |
+   / \           |       ---------      / \            |
+  /   \          |       \  1.3  /     /   \           |
+ /     \         ---------\     /     /     \-----------
+/1.2.1.1\                  \   /     /1.2.2.1\
+---------                   \ /      ---------
+    ^                        |           ^
+    |                        |           |
+    |                        v           |
+    |                    ---------       |
+    |                    \  1.2  /       |
+    ----------------------\     /---------
+                           \   /
+                            \ /
+                             |
+                             |
+                             v
+                         ---------
+                         \  1.1  /
+                          \     /
+                           \   /
+                            \ /
+
+.ec
+.cs 1
+.vs
+.fi
+.\}
+.if \np \{\
+.lf 232
+.PS 4.250i 3.812i
+.\" -2.0625 -4.25 1.75 0
+.\" 0.000i 4.250i 3.812i 0.000i
+.nr 00 \n(.u
+.nf
+.nr 0x 1
+\h'3.812i'
+.sp -1
+.lf 242
+\h'2.062i-(\w'Head'u/2u)'\v'0.125i-(0v/2u)+0v+0.22m'Head
+.sp -1
+\h'2.062i'\v'0.250i'\D'l0.000i 0.500i'
+.sp -1
+\h'2.087i'\v'0.650i'\D'l-0.025i 0.100i'
+.sp -1
+\h'2.062i'\v'0.750i'\D'l-0.025i -0.100i'
+.sp -1
+\h'1.688i'\v'1.250i'\D'l0.750i 0.000i'
+.sp -1
+\h'2.438i'\v'1.250i'\D'l0.000i -0.500i'
+.sp -1
+\h'2.438i'\v'0.750i'\D'l-0.750i 0.000i'
+.sp -1
+\h'1.688i'\v'0.750i'\D'l0.000i 0.500i'
+.sp -1
+.lf 244
+\h'2.062i-(\w'2.1'u/2u)'\v'1.000i-(0v/2u)+0v+0.22m'2.1
+.sp -1
+\h'2.062i'\v'1.250i'\D'l0.000i 0.500i'
+.sp -1
+\h'2.087i'\v'1.650i'\D'l-0.025i 0.100i'
+.sp -1
+\h'2.062i'\v'1.750i'\D'l-0.025i -0.100i'
+.sp -1
+.lf 246
+\h'2.062i-(\w'1.3'u/2u)'\v'2.000i-(1v/2u)+0v+0.22m'1.3
+.sp -1
+\h'2.062i'\v'2.250i'\D'l-0.375i -0.500i'
+.sp -1
+\h'1.688i'\v'1.750i'\D'l0.750i 0.000i'
+.sp -1
+\h'2.438i'\v'1.750i'\D'l-0.375i 0.500i'
+.sp -1
+\h'1.875i'\v'2.000i'\D'~-0.500i 0.000i 0.000i -0.500i'
+.sp -1
+\h'1.350i'\v'1.600i'\D'l0.025i -0.100i'
+.sp -1
+\h'1.375i'\v'1.500i'\D'l0.025i 0.100i'
+.sp -1
+.lf 249
+\h'1.375i-(\w'1.3.1.1'u/2u)'\v'1.250i-(1v/2u)+1v+0.22m'1.3.1.1
+.sp -1
+\h'1.375i'\v'1.000i'\D'l-0.375i 0.500i'
+.sp -1
+\h'1.000i'\v'1.500i'\D'l0.750i 0.000i'
+.sp -1
+\h'1.750i'\v'1.500i'\D'l-0.375i -0.500i'
+.sp -1
+\h'2.062i'\v'2.250i'\D'l0.000i 0.500i'
+.sp -1
+\h'2.087i'\v'2.650i'\D'l-0.025i 0.100i'
+.sp -1
+\h'2.062i'\v'2.750i'\D'l-0.025i -0.100i'
+.sp -1
+.lf 252
+\h'2.062i-(\w'1.2'u/2u)'\v'3.000i-(1v/2u)+0v+0.22m'1.2
+.sp -1
+\h'2.062i'\v'3.250i'\D'l-0.375i -0.500i'
+.sp -1
+\h'1.688i'\v'2.750i'\D'l0.750i 0.000i'
+.sp -1
+\h'2.438i'\v'2.750i'\D'l-0.375i 0.500i'
+.sp -1
+\h'1.875i'\v'3.000i'\D'~-0.500i 0.000i -0.500i 0.000i -0.500i 0.000i 0.000i -0.500i'
+.sp -1
+\h'0.350i'\v'2.600i'\D'l0.025i -0.100i'
+.sp -1
+\h'0.375i'\v'2.500i'\D'l0.025i 0.100i'
+.sp -1
+.lf 255
+\h'0.375i-(\w'1.2.1.1'u/2u)'\v'2.250i-(1v/2u)+1v+0.22m'1.2.1.1
+.sp -1
+\h'0.375i'\v'2.000i'\D'l-0.375i 0.500i'
+.sp -1
+\h'0.000i'\v'2.500i'\D'l0.750i 0.000i'
+.sp -1
+\h'0.750i'\v'2.500i'\D'l-0.375i -0.500i'
+.sp -1
+\h'0.375i'\v'2.000i'\D'l0.000i -0.500i'
+.sp -1
+\h'0.350i'\v'1.600i'\D'l0.025i -0.100i'
+.sp -1
+\h'0.375i'\v'1.500i'\D'l0.025i 0.100i'
+.sp -1
+.lf 257
+\h'0.375i-(\w'1.2.1.3'u/2u)'\v'1.250i-(1v/2u)+1v+0.22m'1.2.1.3
+.sp -1
+\h'0.375i'\v'1.000i'\D'l-0.375i 0.500i'
+.sp -1
+\h'0.000i'\v'1.500i'\D'l0.750i 0.000i'
+.sp -1
+\h'0.750i'\v'1.500i'\D'l-0.375i -0.500i'
+.sp -1
+\h'2.250i'\v'3.000i'\D'~0.500i 0.000i 0.000i -0.500i'
+.sp -1
+\h'2.725i'\v'2.600i'\D'l0.025i -0.100i'
+.sp -1
+\h'2.750i'\v'2.500i'\D'l0.025i 0.100i'
+.sp -1
+.lf 261
+\h'2.750i-(\w'1.2.2.1'u/2u)'\v'2.250i-(1v/2u)+1v+0.22m'1.2.2.1
+.sp -1
+\h'2.750i'\v'2.000i'\D'l-0.375i 0.500i'
+.sp -1
+\h'2.375i'\v'2.500i'\D'l0.750i 0.000i'
+.sp -1
+\h'3.125i'\v'2.500i'\D'l-0.375i -0.500i'
+.sp -1
+\h'2.938i'\v'2.250i'\D'~0.500i 0.000i 0.000i -0.500i 0.000i -0.500i'
+.sp -1
+\h'3.413i'\v'1.350i'\D'l0.025i -0.100i'
+.sp -1
+\h'3.438i'\v'1.250i'\D'l0.025i 0.100i'
+.sp -1
+.lf 264
+\h'3.438i-(\w'\s-21.2.2.1.1.1\s0'u/2u)'\v'1.000i-(1v/2u)+1v+0.22m'\s-21.2.2.1.1.1\s0
+.sp -1
+\h'3.438i'\v'0.750i'\D'l-0.375i 0.500i'
+.sp -1
+\h'3.062i'\v'1.250i'\D'l0.750i 0.000i'
+.sp -1
+\h'3.812i'\v'1.250i'\D'l-0.375i -0.500i'
+.sp -1
+\h'2.750i'\v'2.000i'\D'l0.000i -0.500i'
+.sp -1
+\h'2.725i'\v'1.600i'\D'l0.025i -0.100i'
+.sp -1
+\h'2.750i'\v'1.500i'\D'l0.025i 0.100i'
+.sp -1
+.lf 267
+\h'2.750i-(\w'1.2.2.2'u/2u)'\v'1.250i-(1v/2u)+1v+0.22m'1.2.2.2
+.sp -1
+\h'2.750i'\v'1.000i'\D'l-0.375i 0.500i'
+.sp -1
+\h'2.375i'\v'1.500i'\D'l0.750i 0.000i'
+.sp -1
+\h'3.125i'\v'1.500i'\D'l-0.375i -0.500i'
+.sp -1
+\h'2.062i'\v'3.250i'\D'l0.000i 0.500i'
+.sp -1
+\h'2.087i'\v'3.650i'\D'l-0.025i 0.100i'
+.sp -1
+\h'2.062i'\v'3.750i'\D'l-0.025i -0.100i'
+.sp -1
+.lf 270
+\h'2.062i-(\w'1.1'u/2u)'\v'4.000i-(1v/2u)+0v+0.22m'1.1
+.sp -1
+\h'2.062i'\v'4.250i'\D'l-0.375i -0.500i'
+.sp -1
+\h'1.688i'\v'3.750i'\D'l0.750i 0.000i'
+.sp -1
+\h'2.438i'\v'3.750i'\D'l-0.375i 0.500i'
+.sp -1
+.sp 4.250i+1
+.if \n(00 .fi
+.br
+.nr 0x 0
+.lf 271
+.PE
+.lf 272
+.\}
+.SH IDENTIFICATION
+.de VL
+\\$2
+..
+Author: Walter F. Tichy,
+Purdue University, West Lafayette, IN, 47907.
+.br
+Manual Page Revision: \*(Rv; Release Date: \*(Dt.
+.br
+Copyright \(co 1982, 1988, 1989 Walter F. Tichy.
+.br
+Copyright \(co 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert.
+.SH SEE ALSO
+rcsintro(1), ci(1), co(1), ident(1), rcs(1), rcsclean(1), rcsdiff(1),
+rcsmerge(1), rlog(1)
+.br
+Walter F. Tichy,
+\*r\*-A System for Version Control,
+.I "Software\*-Practice & Experience"
+.BR 15 ,
+7 (July 1985), 637-654.

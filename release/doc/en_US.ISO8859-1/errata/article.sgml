@@ -1,0 +1,328 @@
+<!--
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+
+]>
+
+<article>
+  <articleinfo>
+    <title>&os;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
+
+    <corpauthor>
+    The &os; Project
+    </corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+    </copyright>
+  </articleinfo>
+
+  <abstract>
+    <para>This document lists errata items for &os; 
+<![ %release.type.snapshot [
+      &release.prev;,
+]]>
+<![ %release.type.release [
+      &release.current;,
+]]>
+      containing significant information discovered after the release
+      or too late in the release cycle to be otherwise included in the
+      release documentation.
+      This information includes security advisories, as well as news
+      relating to the software or documentation that could affect its
+      operation or usability.  An up-to-date version of this document
+      should always be consulted before installing this version of
+      &os;.</para>
+
+    <para>This errata document for &os; 
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+      will be maintained until the release of &os; &release.next;.</para>
+  </abstract>
+
+  <sect1>
+    <title>Introduction</title>
+
+    <para>This errata document contains <quote>late-breaking news</quote>
+      about &os;
+<![ %release.type.snapshot [
+      &release.prev;.
+]]>
+<![ %release.type.release [
+      &release.current;.
+]]>
+      Before installing this version, it is important to consult this
+      document to learn about any post-release discoveries or problems
+      that may already have been found and fixed.</para>
+
+    <para>Any version of this errata document actually distributed
+      with the release (for example, on a CDROM distribution) will be
+      out of date by definition, but other copies are kept updated on
+      the Internet and should be consulted as the <quote>current
+      errata</quote> for this release.  These other copies of the
+      errata are located at <ulink
+      url="http://www.FreeBSD.org/releases/"></ulink>, plus any sites
+      which keep up-to-date mirrors of this location.</para>
+
+    <para>Source and binary snapshots of &os; &release.branch; also
+      contain up-to-date copies of this document (as of the time of
+      the snapshot).</para>
+
+    <para>For a list of all &os; CERT security advisories, see <ulink
+      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+
+  </sect1>
+
+  <sect1>
+    <title>Security Advisories</title>
+
+<![ %release.type.release [
+    <para>No active security advisories.</para>
+]]>
+
+<![ %release.type.snapshot [
+
+    <para>A buffer overflow in header parsing exists in older versions of
+      <application>sendmail</application>.  It could allow a remote
+      attacker to create a specially-crafted message that may cause
+      &man.sendmail.8; to execute arbitrary code
+      with the privileges of the user running it, typically
+      <username>root</username>.  More information, including pointers
+      to patches, can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>.
+      This problem was corrected for &os; &release.prev;
+      with a vendor patch and was corrected for &os; &release.current;
+      with the import of a new version of
+      <application>sendmail</application>.  However, these changes
+      may not otherwise have been noted in the release documentation.</para>
+
+    <para>The implementation of the &man.realpath.3; function contains
+      a single-byte buffer overflow bug.  This may have various
+      impacts, depending on the application using &man.realpath.3; and
+      other factors.  This bug has been fixed on the &release.prev;
+      security fix branch and the &release.branch; development branch.  For
+      more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>.</para>
+
+    <para>The kernel contains a bug that could allow it to attempt
+      delivery of invalid signals, leading to a kernel panic.
+      This bug has been fixed on the &release.branch; development
+      branch and the &release.prev; security fix branch.  For more
+      information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:09.signal.asc">FreeBSD-SA-03:09</ulink>.</para>
+
+    <para>A bug in the iBCS2 emulation module could result in
+      disclosing the contents of kernel memory.  (Note that this
+      module is not enabled in &os; by default.)  This bug has been
+      fixed on the &release.branch; development branch and the
+      &release.prev; security fix branch.  More information can be
+      found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>.</para>
+
+    <para>A programming error in the
+      <application>sendmail</application> implementation of its
+      <quote>DNS maps</quote> feature could lead to a &man.sendmail.8;
+      child process crashing or behaving incorrectly.  This error has
+      been fixed with a patch on the &release.prev; security fix
+      branch and with the import of a new version of
+      <application>sendmail</application> on the &release.branch;
+      development branch.  (Note that the DNS maps feature is not used
+      by the default configuration files shipped with &os;.)  More
+      information can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:11.sendmail.asc">FreeBSD-SA-03:11</ulink>.</para>
+
+    <para><application>OpenSSH</application> contains a bug in its
+      buffer management code that could potentially cause it to crash.
+      This bug has been fixed via a vendor-supplied patch on the
+      &release.branch; development branch and the &release.prev;
+      security fix branch.  For more details, refer to security
+      advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>.</para>
+
+    <para><application>sendmail</application> contains a
+      remotely-exploitable buffer overflow.  This bug has been fixed
+      via a vendor-supplied patch on the &release.branch; development
+      branch and the &release.prev; security fix branch.  More details
+      can be found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>.</para>
+
+    <para>The &os; ARP code contains a bug that could allow the kernel
+      to cause resource starvation which eventually results in a system panic.
+      This bug has been fixed on the &release.branch; development branch and the
+      &release.prev; security fix branch.  More information can be
+      found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>.</para>
+
+    <para>Several bugs in the <application>OpenSSH</application> PAM
+      authentication code could have impacts ranging from incorrect
+      authentication to a stack corruption.  These have been corrected
+      via vendor-supplied patches; details can be found in security
+      advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>.</para>
+
+    <para>The implementation of the &man.readv.2; system call contains
+      a bug which could potentially cause a system crash or privilege escalation.
+      This bug has been fixed on the &release.branch; development branch and the
+      &release.prev; security fix branch.  More information can be
+      found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:16.filedesc.asc">FreeBSD-SA-03:16</ulink>.</para>
+
+    <para>The implementation of the &man.procfs.5; and the &man.linprocfs.5;
+      contain a bug that could result in disclosing the contents of kernel memory.
+      This bug has been fixed on the &release.branch; development branch and the
+      &release.prev; security fix branch.  More information can be
+      found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:17.procfs.asc">FreeBSD-SA-03:17</ulink>.</para>
+
+    <para><application>OpenSSL</application> contains several bugs
+      which could allow a remote attacker to crash an
+      <application>OpenSSL</application>-using application or
+      to execute arbitrary code with the privileges of the application.
+      These bugs have been fixed with the import of a new version of
+      <application>OpenSSL</application> on the &release.branch;
+      development branch and with a vendor-supplied patch
+      on the &release.prev; security fix branch.
+      Note that only applications that use <application>OpenSSL</application>'s
+      ASN.1 or X.509 handling code are affected (<application>OpenSSH</application>
+      is unaffected, for example).
+      More information can be found in security advisory 
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</ulink>.</para>
+]]>
+
+  </sect1>
+
+  <sect1>
+    <title>Late-Breaking News</title>
+
+<![ %release.type.release [
+    <para>No news.</para>
+]]>
+
+<![ %release.type.snapshot [
+
+    <para>Due to some problems discovered very late in the release
+      cycle, the ISO images and FTP install directories for &os;
+      &release.prev;/i386 needed to be re-generated and re-uploaded to
+      the FTP mirror sites.  For reference, the final ISO images have
+      checksums computed via &man.md5.1; as follows:</para>
+
+    <programlisting>MD5 (4.8-RELEASE-i386-disc1.iso) = c4e34b6a6be5cd1977ca206bf821c7fc
+MD5 (4.8-RELEASE-i386-disc2.iso) = 93b09f97c01deead302557d7d24f87cb
+MD5 (4.8-RELEASE-i386-mini.iso) = 5f0d2576dbb56d6ec85d49ac9fa4bbf9</programlisting>
+
+    <para>Some parts of the documentation may incorrectly give the
+      release date of &os; &release.prev; as March 2003, rather than
+      April 2003.</para>
+
+    <para>&os; &release.prev; restores the ability to install from the
+      installation media to a &man.mly.4; device.  (This capability
+      was broken in &os; 4.7-RELEASE.)</para>
+
+    <para>After installing <application>GNOME</application>, the
+      default terminal font might be garbled.  If this is the case,
+      install the <filename
+      role="port">x11-fonts/bitstream-vera</filename> port, then
+      restart <application>GNOME</application>.  The new fonts should
+      take effect automatically.  If they do not, edit the current
+      gnome-terminal profile and select the Bitstream Vera Sans Mono
+      font.</para>
+
+    <para>Due to space limitations, the &man.awi.4; driver has been
+      removed from the kernel used on the 1.44MB
+      <filename>kern.flp</filename> i386 boot floppy.  Because no
+      module is available for this driver in &os; &release.prev;, this
+      means that it is generally not possible to install &os;
+      &release.prev; over an &man.awi.4; network.</para>
+      
+    <para>Due to space limitations, support for ATAPI floppy disks and
+      the DEC AlphaServer 8200 and 8400 (<quote>TurboLaser</quote>)
+      machines has been removed from the kernel used on the 1.44MB
+      <filename>kern.flp</filename> alpha boot floppy.</para>
+
+    <para>A bug in the &os; &release.prev; kernel prevents it from
+      booting on an Intel 80386 processor.  This problem has been
+      corrected on both the &release.prev; security fix branch and the
+      &release.branch; development branch.</para>
+
+    <para>&os; supports a hashed form of the login capabilities
+      database, stored in <filename>/etc/login.conf.db</filename>.
+      This is generated from the <filename>/etc/login.conf</filename>
+      text file.  If the hashed database is present, &man.login.1;
+      will use it in preference to the contents of the text file.
+      &os; &release.prev; is the first release that actually includes
+      <filename>/etc/login.conf.db</filename> on the distribution
+      media; thus, users modifying
+      <filename>/etc/login.conf</filename> need to remember to
+      regenerate the database, using &man.cap.mkdb.1;.  Users
+      performing source upgrades are generally not affected by this
+      change, because &man.mergemaster.8; offers the option to
+      regenerate <filename>/etc/login.conf.db</filename> during
+      upgrades.  &man.login.conf.5; has more details on the format and
+      usage of the login capabilities database.</para>
+
+    <para>A file that is a part of
+      the <filename
+      role="port">multimedia/gstreamer-plugins</filename> port may
+      appear to have a corrupted filename when the ports collection is
+      installed using &man.sysinstall.8;.  This should not
+      affect building the port or installing the corresponding
+      package.  However, it is recommended to rename the file in
+      question, to prevent problems during any future updates to the
+      installed ports collection:</para>
+
+    <screen>&prompt.root; <userinput>cd /usr/ports/multimedia/gstreamer-plugins/files</userinput>
+&prompt.root; <userinput>mv patch-gst-libs_ext_ffmpeg_ffmpeg_libavcodec_alpha_simple_i \
+patch-gst-libs_ext_ffmpeg_ffmpeg_libavcodec_alpha_simple_idct_alpha.c
+</userinput></screen>
+
+
+    <para>Recently the mailing lists were changed from majordomo
+      to the currently used Mailman list server.  More information
+      about using the new mailing lists can be found by visiting the
+      <ulink url="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD
+      Mailman Info Page</ulink>.</para>
+
+    <para>The &man.dc.4; driver does not properly transmit data
+      through Davicom DC9102 cards.  This problem, which has been
+      present since &os; 4.5-RELEASE, has been corrected for &os;
+      &release.current;.</para>
+
+]]>
+  </sect1>
+</article>

@@ -1,0 +1,53 @@
+GNU permuted indexer NEWS - User visible changes.
+Copyright (C) 1990, 1991, 1993 Free Software Foundation, Inc.
+Francois Pinard <pinard@iro.umontreal.ca>, 1992.
+
+Version 0.3 - 1993-10-??, by Franc,ois Pinard
+
+* GNU ptx installs as a single program, -G option dynamically reverts
+to the System V compatible behaviour, yet being liberal with options.
+
+* It should install more easily on more systems, source code is
+unprotoized on the fly for older C compilers.
+
+* A default ignore file is installed along with GNU ptx, ptx uses it.
+
+* Options -F, -S and -W interpret most \-escapes themselves.
+
+* Option -M can be use to change "xx" to another macro name.
+
+* CHRCLASS environment variable is obeyed for systems supporting it.
+
+* Long option names have been cleaned up a little.
+
+* Some examples are given in the example/ directory structure.
+
+
+Version 0.2 - 1991-10-10, by Franc,ois Pinard
+
+* Reference format (with -A) has been modified slightly to better
+comply with GNU standards for line reporting.
+
+* Option -p removed, rather compile two separate programs, one with
+GNU extensions, the other being strict on System V compatibility.
+
+
+Version 0.1 - 1990-08-05, by Franc,ois Pinard
+
+* Add many options: -L for Latin1, -R for automatic referencing, -W
+for regular expressions describing words, -S for regular expressions
+describing end of lines or sentences.  Let -F specify the truncation
+strings.
+
+* Implementing Ignore files and Only files.
+
+* Option -p dynamically enforces strict System V compatibility.
+
+* Correct a few bugs and portability problems, have faster input,
+faster processing, and use less memory.
+
+
+Version 0.0 - 1990-04-14, by Franc,ois Pinard
+
+* Initial release.
+

@@ -1,0 +1,210 @@
+/*
+ * Mach Operating System
+ * Copyright (c) 1992, 1991 Carnegie Mellon University
+ * All Rights Reserved.
+ * 
+ * Permission to use, copy, modify and distribute this software and its
+ * documentation is hereby granted, provided that both the copyright
+ * notice and this permission notice appear in all copies of the
+ * software, derivative works or modified versions, and any portions
+ * thereof, and that both notices appear in supporting documentation.
+ * 
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
+ * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
+ * 
+ * Carnegie Mellon requests users of this software to return to
+ * 
+ *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
+ *  School of Computer Science
+ *  Carnegie Mellon University
+ *  Pittsburgh PA 15213-3890
+ * 
+ * any improvements or extensions that they make and grant Carnegie Mellon
+ * the rights to redistribute these changes.
+ *
+ *	from: Mach, Revision 2.2  92/04/04  11:33:55  rpd
+ * $FreeBSD$
+ */
+
+********NOTE: This is not all relevant to the 386BSD version**********
+
+		AT386 Protected Mode Bootstrap Loader
+		=====================================
+
+1. Overview of Startup
+   -------------------
+
+	After the system is rebooted, the BIOS bootstrap routine reads Sector
+	1, Track 0 into memory at location 0000:7C00H.  If location 0000:7DFEH
+	(last two bytes of that sector) contains the value AA55H, the BIOS
+	bootstrap routine will transfer control to 0000:7C00H.  Otherwise, the
+	boot code in that sector is bad and the boot routine stops.
+	
+	For DOS compatibility reason, one extra stage of boot is required if
+	the boot device is a hard disk.  The first sector of the hard disk will
+	contain the MOS-DOS boot code and a boot record partition table.
+	When this sector is loaded into 0000:7C00H, it will relocate itself
+	to somewhere else and then load the first sector of the active
+	partition into 0000:7C00H.  Both UNIX and DOS use the command "fdisk"
+[ 386bsd does not have an 'fdisk' (yet) ]
+	to install this first sector into the hard disk and to manipulate
+	the hard disk partitions.
+
+	
+
+2. The First Stage Bootstrap Loader
+   --------------------------------
+
+	After startup, the first stage boot is loaded at 0000:7C00H.  This
+	first stage boot will load itself and the second stage boot into
+	memory at location 0000:1000H.  For floppy disks, the first cylinder
+	is reserved as the boot cylinder, and the boot code (first and second)
+	will be loaded from there.  Currently, only double sided, high density
+	(15 sectors per track) floppies are supported.  For hard disks, the
+	first 29 sectors of the active partition is reserved for boot code
+	which will be loaded by the first stage boot.  All the disk types
+	recognized by BIOS are supported by this bootstrap loader. 
+[for 386bsd we load the second stage booter to 9000:0]
+
+
+
+3. The Second Stage Bootstrap Loader
+   --------------------------------
+
+	After the boot code is loaded, the control is passed to the second
+	stage bootstrap loader "boot2()".  In order to be able to load the
+	big kernel image (bigger than 512K or 640K, depends on the memory
+	configuration), the second stage boot loader will run on the protected
+	mode.  This bootstarp loader does not have any stand alone device
+	drivers, all the I/O's are through the BIOS calls.  Since the first
+	stage boot code will no longer be used at this moment, the memory
+	location of the first stage boot code (0000:1000H to 0000:1200H) will
+	be used as an internal buffer for BIOS calls.  Immediately after this 
+	internal buffer is the GDT table for the second stage boot loader. 
+	Since this boot loader needs to switch back and forth between protected
+	and real mode in order to use BIOS calls, the limit of the boot code
+	and boot data segments must not be greater than 64K.
+	
+	The boot loader loads the kernel image at memory location above 1 MB
+	to skip the memory hole between 521K/640K and 1MB.  After the kernel
+	is loaded, the boot loader stores the information in the stack and
+	then passes control to kernel.  Currently, the three information passed
+	fromm the boot loader to the kernel are type of the boot device, size
+	of the base memory and size of the extended memory.
+
+[ 386bsd receives: howto, bootdev]
+
+[ 386bsd is loaded where-ever the "MByte" bits of the load address specify,
+so if you link it for FE100000 it will load to 1MB, but if you link
+it for FE000000 it will load ad 0MB]
+
+[for machines with only 512KB normal ram the kernel will need to  be linked
+for 1MB and the bootblocks modified to run below 512KB. (8000:0)]
+
+
+4. The UNIX Startup
+   ----------------
+
+	Since the boot loader loads the kernel image at memory location above
+	1MB, the kernel has to start as protected mode.  In addition, the
+	link editor description file (vuifile) has to indicate that
+	the text and data segments start above 1MB.  Also, the boot loader
+	passes the infomation to the kernel through the stack.
+
+[MOST of what is mentionned below is NOT relevant to 386bsd]
+
+5. Disk Layout and Bad Block Handling
+   ---------------------------------
+	
+    The System V/386 Release 3.2 (AT) disk layout will be used as the disk
+    layout for the MACH System on the AT platform.
+
+    This disk layout is as follows:
+
+	* Reserve the first sector of cylinder 0 for the DOS boot record which
+	  contains the master boot code (446 bytes) and the partition table.
+	  (Refer to DOS Technical Reference Manual page 9-6 to 9-10).
+
+	* Reserve the first 29 sectors of the UNIX partition for the first
+	  and the second stage bootstrap.
+
+	* Reserve the 30th sector of the UNIX partition for the pdinfo and
+	  the vtoc tables.
+
+	* Reserve the 31st to the 34th sectors of the UNIX partition for the
+	  bad track and the bad block mapping tables.
+
+	* Reserve up to 253 consecutive tracks when required, beginning with
+	  the 35th sector of the UNIX partition, for alternate tracks.
+
+	* Reserve up to 253 consecutive blocks, beginning with the first
+	  sector after the alternate tracks area, for alternate blocks.
+
+	 SEC
+	  1
+	----------------------------------------------------
+	| X |                                              | CYL 0, TRK 0
+	----------------  ..........    --------------------
+	|                 ..........                       |
+	----------------  ..........    --------------------
+	|                 ..........                       |
+   ===============================================================
+    ^   |               BOOTSTRAP                          | CYL N, TRK M
+    |   ----------------------------------------------------
+    |   |                              |30 |31 |32 |33 |34 |
+	----------------------------------------------------  ---
+    U   |                 ..........                       |   ^
+    N   ----------------  ..........   ---------------------   |
+    I   |                 ..........                       | Alternate Tracks
+    X   ----------------  ..........   ---------------------   |
+        |                 ..........                       |   V
+    P   ----------------------------------------------------  --- 
+    A   |                 ..........                       |   ^
+    R   ----------------  ..........   ---------------------   |
+    T   |                 ..........                       | Alternate Blocks
+    I   ----------------  ..........   --------------------    |
+    T   |                 ..........                       |   V
+    I   ----------------------------------------------------  ---
+    O   |  Unix root partition starts from here            |
+    N   ----------------                   -----------------
+  	|                                                  |
+        ----------------------------------------------------
+        |                                                  |
+	----------------------------------------------------
+	|                                                  |
+    |   ---------------------------------------------------
+    |   |                                                  |
+    |   ----------------------------------------------------
+    V   |                                                  |
+   ===============================================================
+  	|                   ........                       |
+	---------------     ........          --------------
+	|                   ........                       |
+	----------------------------------------------------
+
+
+	The bad block handling mechanism is as follows:
+
+	* Use the alternate track in the alternate tracks area if the
+	  track containing the target sector is bad.
+
+	* Use the alternate block in the alternate blocks area if the
+	  target sector is bad.
+
+
+
+
+6. How to make:
+   -----------
+
+	Since the kernel image is loaded above 1 MB, the kernel must start
+	as protected mode.  This means that this bootstrap loader will work
+	only when the corresponding changes on the kernel startup code are done.
+
+	The make command to generate this bootstrap loader is:
+
+	make -f boot.mk fdboot      (floppy boot loader)
+	make -f boot.mk hdboot      (wini boot loader)
+[to make 386bsd bootblocks  "make da wd" (warning: they will be installed
+in /dev/mdec.. take backups)]

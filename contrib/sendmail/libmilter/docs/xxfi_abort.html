@@ -1,0 +1,80 @@
+<html>
+<head><title>xxfi_abort</title></head>
+<body>
+<h1>xxfi_abort</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+sfsistat (*xxfi_abort)(
+	SMFICTX * ctx
+);
+</pre>
+Handle the current message's being aborted.
+</td></tr>
+
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=4>
+<tr align="left" valign=top>
+<th width="80">Called When</th>
+<td>xxfi_abort may be called at any time during message processing (i.e. between some message-oriented routine and <a href="xxfi_eom.html">xxfi_eom</a>).</td>
+</tr>
+<tr align="left" valign=top>
+<th>Default Behavior</th>
+<td>Do nothing; return SMFIS_CONTINUE.</td>
+</tr>
+</table>
+
+<!----------- Arguments ---------->
+<tr><th valign="top" align=left>ARGUMENTS</th><td>
+    <table border="1" cellspacing=0>
+    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
+    <tr valign="top"><td>ctx</td>
+	<td>Opaque context structure.
+	</td></tr>
+    </table>
+</td></tr>
+
+<!----------- Notes ---------->
+<tr>
+<th valign="top" align=left>NOTES</th> 
+<td>
+<ul>
+<li>xxfi_abort must reclaim any resources allocated on a per-message
+basis, and must be tolerant of being called between any two
+message-oriented callbacks.
+
+<li>Calls to xxfi_abort and <a href="xxfi_eom.html">xxfi_eom</a> are
+mutually exclusive.
+
+<li>xxfi_abort is not responsible for reclaiming connection-specific
+data, since <a href="xxfi_close.html">xxfi_close</a> is always called
+when a connection is closed.
+
+<li>Since the current message is already being aborted, the return
+value is currently ignored.
+
+<li>xxfi_abort is only called if the message is aborted outside the
+filter's control <b>and</b> the filter has not completed its
+message-oriented processing.  For example, if a filter has already
+returned SMFIS_ACCEPT, SMFIS_REJECT, or SMFIS_DISCARD from a
+message-oriented routine, xxfi_abort will not be called even if the
+message is later aborted outside its control.
+</ul>
+</td>
+</tr>
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000, 2003 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</font>
+</body>
+</html>

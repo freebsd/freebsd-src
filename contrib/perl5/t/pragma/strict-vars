@@ -1,0 +1,223 @@
+Check strict vars functionality
+
+__END__
+
+# no strict, should build & run ok.
+Fred ;
+my $fred ;
+$b = "fred" ;
+$a = $$b ;
+EXPECT
+
+########
+
+use strict qw(subs refs) ;
+$fred ;
+EXPECT
+
+########
+
+use strict ;
+no strict 'vars' ;
+$fred ;
+EXPECT
+
+########
+
+# strict vars - no error
+use strict 'vars' ;
+use vars qw( $freddy) ;
+local $abc::joe ;
+my $fred ;
+my $b = \$fred ;
+$Fred::ABC = 1 ;
+$freddy = 2 ;
+EXPECT
+
+########
+
+# strict vars - error
+use strict ;
+$fred ;
+EXPECT
+Global symbol "$fred" requires explicit package name at - line 4.
+Execution of - aborted due to compilation errors.
+########
+
+# strict vars - error
+use strict 'vars' ;
+$fred ;
+EXPECT
+Global symbol "$fred" requires explicit package name at - line 4.
+Execution of - aborted due to compilation errors.
+########
+
+# strict vars - error
+use strict 'vars' ;
+local $fred ;
+EXPECT
+Global symbol "$fred" requires explicit package name at - line 4.
+Execution of - aborted due to compilation errors.
+########
+
+# Check compile time scope of strict vars pragma
+use strict 'vars' ;
+{
+    no strict ;
+    $joe = 1 ;
+}
+$joe = 1 ;
+EXPECT
+Variable "$joe" is not imported at - line 8.
+Global symbol "$joe" requires explicit package name at - line 8.
+Execution of - aborted due to compilation errors.
+########
+
+# Check compile time scope of strict vars pragma
+no strict;
+{
+    use strict 'vars' ;
+    $joe = 1 ;
+}
+$joe = 1 ;
+EXPECT
+Global symbol "$joe" requires explicit package name at - line 6.
+Execution of - aborted due to compilation errors.
+########
+
+--FILE-- abc
+$joe = 1 ;
+1;
+--FILE-- 
+use strict 'vars' ;
+require "./abc";
+EXPECT
+
+########
+
+--FILE-- abc
+use strict 'vars' ;
+1;
+--FILE-- 
+require "./abc";
+$joe = 1 ;
+EXPECT
+
+########
+
+--FILE-- abc
+use strict 'vars' ;
+$joe = 1 ;
+1;
+--FILE-- 
+$joe = 1 ;
+require "./abc";
+EXPECT
+Variable "$joe" is not imported at ./abc line 2.
+Global symbol "$joe" requires explicit package name at ./abc line 2.
+Compilation failed in require at - line 2.
+########
+
+--FILE-- abc.pm
+use strict 'vars' ;
+$joe = 1 ;
+1;
+--FILE-- 
+$joe = 1 ;
+use abc;
+EXPECT
+Variable "$joe" is not imported at abc.pm line 2.
+Global symbol "$joe" requires explicit package name at abc.pm line 2.
+Compilation failed in require at - line 2.
+BEGIN failed--compilation aborted at - line 2.
+########
+
+# Check scope of pragma with eval
+no strict ;
+eval {
+    $joe = 1 ;
+};
+print STDERR $@;
+$joe = 1 ;
+EXPECT
+
+########
+
+# Check scope of pragma with eval
+no strict ;
+eval {
+    use strict 'vars' ;
+    $joe = 1 ;
+};
+print STDERR $@;
+$joe = 1 ;
+EXPECT
+Global symbol "$joe" requires explicit package name at - line 6.
+Execution of - aborted due to compilation errors.
+########
+
+# Check scope of pragma with eval
+use strict 'vars' ;
+eval {
+    $joe = 1 ;
+};
+print STDERR $@;
+$joe = 1 ;
+EXPECT
+Global symbol "$joe" requires explicit package name at - line 5.
+Execution of - aborted due to compilation errors.
+########
+
+# Check scope of pragma with eval
+use strict 'vars' ;
+eval {
+    no strict ;
+    $joe = 1 ;
+};
+print STDERR $@;
+$joe = 1 ;
+EXPECT
+Variable "$joe" is not imported at - line 9.
+Global symbol "$joe" requires explicit package name at - line 9.
+Execution of - aborted due to compilation errors.
+########
+
+# Check scope of pragma with eval
+no strict ;
+eval '
+    $joe = 1 ;
+'; print STDERR $@ ;
+$joe = 1 ;
+EXPECT
+
+########
+
+# Check scope of pragma with eval
+no strict ;
+eval q[ 
+    use strict 'vars' ;
+    $joe = 1 ;
+]; print STDERR $@;
+EXPECT
+Global symbol "$joe" requires explicit package name at (eval 1) line 3.
+########
+
+# Check scope of pragma with eval
+use strict 'vars' ;
+eval '
+    $joe = 1 ;
+'; print STDERR $@ ;
+EXPECT
+Global symbol "$joe" requires explicit package name at (eval 1) line 2.
+########
+
+# Check scope of pragma with eval
+use strict 'vars' ;
+eval '
+    no strict ;
+    $joe = 1 ;
+'; print STDERR $@;
+$joe = 1 ;
+EXPECT
+Global symbol "$joe" requires explicit package name at - line 8.
+Execution of - aborted due to compilation errors.

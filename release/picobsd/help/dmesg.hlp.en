@@ -1,0 +1,5 @@
+[1mdmesg[m	display kernel message buffer contents
+
+	Usage:
+
+	dmesg | more

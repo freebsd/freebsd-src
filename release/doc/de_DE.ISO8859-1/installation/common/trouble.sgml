@@ -1,0 +1,610 @@
+<!--
+  $FreeBSD$
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/trouble.sgml,v 1.2.2.5 2002/10/16 11:46:25 ue Exp $
+  basiert auf: 1.1.2.4
+
+	This file contains the comments of the old TROUBLE.TXT file.
+-->
+<sect1 id="trouble">
+  <title>Erste Hilfe</title>
+
+  <sect2 id="repairing">
+    <title>Reparatur einer &os; Installation</title>
+
+    <para>Bei &os; gibt es im Hauptmen&uuml; des
+      Installationsprogramms den Punkt <quote>Fixit</quote>.  Wenn Sie
+      diese Option benutzen wollen, brauchen Sie entweder eine
+      Diskette, die Sie aus dem Image <filename>fixit.flp</filename>
+      erzeugt haben; oder die CD mit dem <quote>live
+      filesystem</quote>, das ist normalerweise die zweite CD der &os;
+      Distribution.</para>
+
+    <para>Um fixit zu benutzen, m&uuml;ssen Sie zuerst von der
+      <filename>kern.flp</filename> Diskette booten, dann die Option
+      <quote>Fixit</quote> ausw&auml;hlen und dann die Fixit Diskette
+      oder CD einlegen, wenn Sie dazu aufgefordert werden.  Danach
+      wird eine Shell gestartet, in der viele Programme zur
+      &Uuml;berpr&uuml;fung, Reparatur und Analyse von Dateisystem und
+      ihren Inhalten zur Verf&uuml;gung stehen.  Sie finden diese
+      Programme in den Verzeichnissen <filename>/stand</filename> und
+      <filename>/mnt2/stand</filename>.  Allerdings
+      <emphasis>brauchen</emphasis> Sie Erfahrung mit der
+      Administration von Unix-Systemen, um diese Option sinnvoll
+      einsetzen zu k&ouml;nnen.</para>
+  </sect2>
+
+  <sect2>
+    <title>Typische Probleme bei der Installation</title>
+
+    <qandaset>
+      <qandaentry>
+        <question>
+          <para>Wenn ich das System nach der &os;-Installation zum
+            ersten von der Festplatte starte, wird der Kernel geladen
+            und sucht nach Hardware, aber danach kommt eine Meldung
+            wie:</para>
+
+          <screen>changing root device to wd1s1a panic: cannot mount root</screen>
+          <para>Was l&auml;uft falsch? Was kann ich tun?</para>
+
+          <para>Was bedeutet diese
+            <literal>bios_drive:interface(unit,partition)kernel_name</literal>
+            Meldung, die mir beim Booten als Hilfe angezeigt
+            wird?</para>
+        </question>
+
+        <answer>
+          <para>Es kann zu Problemen kommen, wenn die Festplatte, von
+            der Sie booten, nicht die erste Festplatte des Systems
+            ist.  Leider sind sich das BIOS und &os; nicht immer
+            einig, wie die Festplatte numeriert werden sollen.  Die
+            richtige Zuordnung zu finden, ist nicht einfach; daher
+            kommt es hier immer wieder zu Problemen.</para>
+
+          <para>Wenn die Festplatte, von der Sie booten, nicht die
+            erste Platte des Systems ist, braucht &os; in manchen
+            F&auml;llen etwas Hilfe.  Es gibt zwei typische Ursachen
+            f&uuml;r dieses Problem und in beiden F&auml;llen
+            m&uuml;ssen Sie &os; sagen, wo das root filesystem liegt.
+            Dazu m&uuml;ssen Sie die vom BIOS verwendete Nummer der
+            Festplatte, den Typ der Festplatte, und die von FreeBSD
+            verwendete Nummer der Festplatte dieses Typs
+            angeben.</para>
+
+          <para>Eine typische Ursache ist ein System mit zwei IDE
+            Platten, die beide als Master Ihres IDE Kanals
+            konfiguriert sind und auf dem Sie &os; von der zweiten
+            Platte booten wollen.  Das BIOS verwendet f&uuml;r die
+            beiden Platten die Nummern 0 und 1, w&auml;hrend &os;
+            <devicename>wd0</devicename> und
+            <devicename>wd2</devicename> verwendet.</para>
+
+          <para>&os; liegt auf BIOS Platte 1, der Typ der Platte ist
+            <literal>wd</literal>, und &os; vergibt die Nummer 2.  In
+            diesem Fall m&uuml;ssen Sie folgendes eingeben:</para>
+
+          <screen><userinput>1:wd(2,a)kernel</userinput></screen>
+
+          <para>Bitte beachten Sie, da&szlig; Sie dies nicht eingeben
+            m&uuml;ssen, wenn sich auf dem prim&auml;ren IDE Kanal ein
+            weiteres Ger&auml;t befindet (um genau zu, w&auml;re es
+            sogar falsch).</para>
+
+          <para>Die andere typische Ursache ist ein System mit IDE und
+            SCSI Platten, bei dem Sie von der SCSI Platte booten
+            wollen.  In diesem Fall vergibt &os; eine niedrigere
+            Nummer als das BIOS.  Wenn Sie neben der SCSI-Festplatte
+            noch zwei IDE-Platten haben, vergibt das BIOS f&uuml;r die
+            SCSI Festplatte die Nummer 2, w&auml;hrend &os; die Nummer
+            0 vergibt.  Da die Platte von Typ <literal>da</literal>
+            ist, lautet die L&ouml;sung:</para>
+
+          <screen><userinput>2:da(0,a)kernel</userinput></screen>
+
+          <para>Damit teilen Sie &os; mit, da&szlig; von der BIOS
+            Festplatte Nummer 2 booten wollen, die die erste
+            SCSI-Festplatte des System ist.  Wenn Sie nur eine
+            IDE-Festplatten h&auml;tten, w&uuml;rden Sie 1:
+            verwenden.</para>
+
+          <para>Wenn Sie den korrekten Wert herausgefunden haben,
+            k&ouml;nnen Sie ihn mit einem normalen Editor in die Datei
+            <filename>/boot.config</filename> eintragen.  &os; nutzt
+            den Inhalt dieser Datei, um den Standardwert f&uuml;r die
+            Antwort auf die Anforderung <literal>boot:</literal> zu
+            bestimmen.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Wenn ich nach der &os;-Installation zum ersten Mal von
+            der Festplatte booten will, komme ich nur bis zum
+            <literal>F?</literal> Prompt des Bootmanagers.</para>
+        </question>
+
+        <answer>
+          <para>Sie haben bei der FreeBSD-Installation eine falsche
+            Geometrie f&uuml;r Ihre Festplatte angeben.  Sie
+            m&uuml;ssen im Partitionseditor die richtige Geometrie
+            eingeben und &os; mit der richtigen Geometrie komplett neu
+            installieren.</para>
+
+          <para>Wenn Sie die korrekte Geometrie Ihrer Festplatte nicht
+            ermitteln k&ouml;nnen, k&ouml;nnen Sie den folgenden Trick
+            verwenden:  Legen Sie eine am Anfang der Festplatte eine
+            kleine DOS-Partition an und installieren Sie danach &os;.
+            Das Installationsprogramm wird die DOS-Partition finden
+            und daraus die korrekte Geometrie berechnen, was
+            normalerweise funktioniert.</para>
+
+          <para>Es gibt eine weitere M&ouml;glichkeit, die nicht mehr
+            empfohlen wird und der Vollst&auml;ndigkeit halber
+            erw&auml;hnt wird:</para>
+
+          <blockquote>
+            <para>Wenn Sie einen Server oder eine Workstation
+              installieren, auf der ausschlie&szlig;lich &os; laufen soll
+              und Ihnen die (zuk&uuml;nftige) Kompatibilit&auml;t mit
+              DOS, Linux oder anderen Betriebssystemen egal ist,
+              k&ouml;nnen Sie auch die gesamte Platte verwenden (Taste
+              `A' im Partitions-Editor).  Dadurch verwendet &os; die
+              gesamte Festplatte vom ersten bis zum letzten Sektor,
+              wodurch alle Probleme mit der Geometrie hinf&auml;llig
+              werden.  Allerdings k&ouml;nnen Sie auf dieser
+              Festplatte nur &os; benutzen, was Sie evtl.
+              einschr&auml;nkt.</para>
+          </blockquote>
+        </answer>
+      </qandaentry>
+    </qandaset>
+  </sect2>
+
+  <sect2>
+    <title>Typische Hardware-Probleme</title>
+
+    <note>
+      <para>Erg&auml;nzungen zu diesem Abschnitt schicken Sie bitte an
+	&a.jkh;.</para>
+    </note>
+
+    <qandaset>
+      <qandaentry>
+        <question>
+          <para>Der &man.mcd.4; Treiber glaubt, der habe ein
+            Ger&auml;t gefunden, dadurch funktioniert meine Intel
+            EtherExpress Netzwerkkarte nicht.</para>
+        </question>
+
+        <answer>
+          <para>Benutzen Sie UserConfig (wie, steht in
+            <filename>HARDWARE.TXT</filename>) und schalten die
+            Erkennung der Ger&auml;te <devicename>mcd0</devicename>
+            und <devicename>mcd1</devicename> ab.  Es ist immer
+            besser, wenn Sie nur die Treiber aktiv lassen, f&uuml;r
+            die Sie auch passende Ger&auml;te haben, alle anderen
+            Treiber sollten Sie aus dem Kernel entfernen oder
+            deaktivieren.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>&os; unterst&uuml;tzt angeblich 3Com PCMCIA Karten,
+            aber meine Karte wird nicht erkannt, wenn Sie in meinem
+            Laptop steckt.</para>
+        </question>
+
+        <answer>
+          <para>Es gibt mehrere m&ouml;gliche Ursachen.  Ersten werden
+            Kombikarten nicht von &os; unterst&uuml;tzt.  Wenn Sie
+            eine Karte mit Ethernet und Modem haben (wie die 3C562),
+            haben Sie ein Problem.  Zweitens braucht der Treiber
+            f&uuml;r die 3C589 wie alle anderen Treiber f&uuml;r &os;
+            auch die Informationen aus dem NVRAM der Karte.  Sie
+            m&uuml;ssen die Werte f&uuml;r IRQ, Port und IOMEM richtig
+            einstellen, damit Sie mit den Werten &uuml;bereinstimmen,
+            die im NVRAM stehen.</para>
+
+          <para>Leider ist das von 3COM mitgelieferte DOS-Programm das
+            einzige Programm, das diese Werte auslesen kann.  Das
+            Programm mu&szlig; auf einem nackten System (es darf kein
+            anderer Treiber installiert sein) ausgef&uuml;hrt werden,
+            wird sich &uuml;ber die fehlenden CARD Services
+            beschweren, aber es macht weiter.  Nur so k&ouml;nnen die
+            Werte aus dem NVRAM ausgelesen werden.  Sie brauchen die
+            Werte IRQ, Port und IOMEM (letztere werden von 3COM CIS
+            tuple genannt).  Die ersten beiden Werte k&ouml;nnen mit
+            dem Programm ge&auml;ndert werden, der dritte kann nicht
+            ge&auml;ndert, sondern nur gelesen werden.  Sobald Sie die
+            Werte haben, benutzen Sie sie in UserConfig und Ihre Karte
+            wird erkannt werden.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>&os; erkennt meine PCMCIA Netzwerkkarte, aber obwohl
+            sie funktionieren soll, werden keine Pakete
+            verwendet.</para>
+        </question>
+
+        <answer>
+          <para>Viele PCMCIA Karten k&ouml;nnen entweder den 10-Base2
+            (BNC) oder den 10-BaseT Anschlu&szlig; f&uuml;r die
+            Verbindung zum Netzwerk benutzen.  Der Treiber kann den
+            richtigen Anschlu&szlig; nicht automatisch ausw&auml;hlen,
+            daher m&uuml;ssen Sie ihm mitteilen, welchen
+            Anschlu&szlig; er benutzen soll.  F&uuml;r diese Auswahl
+            m&uuml;ssen die Link-Flags setzen.  Je nach Karte wird
+            <option>-link0 link1</option> oder <option>-link0
+            -link1</option> den richtigen Anschlu&szlig; aktivieren.
+            In &man.sysinstall.8; k&ouml;nnen Sie diese Werte im Feld
+            <literal>Extra options to ifconfig:</literal> im Dialog
+            <literal>network setup</literal> angeben.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Das System erkennt meine &man.ed.4; Netzwerkkarte,
+            aber ich erhalte st&auml;ndig die Meldung device
+            timeout.</para>
+        </question>
+
+        <answer>
+          <para>Ihre Karte nutzt wahrscheinlich einen anderen IRQ als
+            den, der in der Kernel-Konfiguration angegeben ist.  Der
+            ed Treiber benutzt die `soft' Konfiguration (die sie in
+            DOS mit EZSETUP eingestellt haben) normalerweise nicht.
+            Wenn er das tun soll, m&uuml;ssen Sie bei der
+            Kernelkonfiguration f&uuml;r den IRQ den Wert
+            <literal>?</literal> angeben.</para>
+
+          <para>Sie sollten entweder eine der festverdrahteten
+            Einstellungen benutzen (und ggfs. die Einstellungen des
+            Kernels anpassen), oder in UserConfig f&uuml;r den IRQ den
+            Wert <literal>-1</literal> eingeben.  Damit teilen Sie dem
+            Kernel mit, da&szlig; er die `soft' Konfiguration benutzen
+            soll.</para>
+
+          <para>Eine andere m&ouml;gliche Ursache ist, da&szlig; Ihre
+            Karte IRQ9 verwendet.  IRQ 9 wird immer mit IRQ 2 geteilt,
+            was immer wieder Probleme macht (besonders, wenn Sie eine
+            VGA-Karte haben, die IRQ 2 benutzt!) Wenn m&ouml;glich,
+            sollten Sie IRQ 9 und IRQ 2 nicht benutzen.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Ich habe meinen IBM ThinkPad (tm) Laptop von der
+            Installationsdiskette gebootet, und die Tastaturbelegung
+            ist v&ouml;llig konfus.</para>
+        </question>
+
+        <answer>
+          <para>&Auml;ltere IBM Laptops verwenden nicht den normalen
+            Tastaturcontroller, daher m&uuml;ssen Sie dem
+            Tastaturtreiber (atkbd0) in einen speziellen
+            ThinkPad-Modus schalten.  &Auml;ndern Sie in UserConfig
+            die 'Flags' f&uuml;r atkbd0 auf 0x4 und das Problem sollte
+            gel&ouml;st sein.  Die Einstellung finden Sie im Men&uuml;
+            Input.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Wenn ich von der Installationsdiskette boote, erhalte
+            ich nur die folgende Meldung, danach passiert nichts mehr.
+            Ich kann auch keine Tastatureingaben machen.</para>
+
+          <screen>Keyboard: no</screen>
+        </question>
+
+        <answer>
+          <para>Aus Platzgr&uuml;nden mu&szlig;te der Support f&uuml;r
+            XT/AT Tastaturen (mit 84 Tasten) aus den Bootblocks
+            entfernt werden.  Diese Art der Tastatur wird auch von
+            einigen Laptops verwendet.  Wenn Sie noch eine solche
+            Tastatur verwenden, erhalten Sie die oben aufgef&uuml;hrte
+            Meldung, wenn Sie von der CD oder der
+            Installationsdiskette booten.</para>
+
+          <para>Wenn Sie diese Meldung erhalten, m&uuml;ssen Sie die
+            Leertaste dr&uuml;cken, danach erhalten Sie die folgende
+            Meldung:</para>
+
+          <screen>>> FreeBSD/i386 BOOT
+Default: x:xx(x,x)/boot/loader 
+boot:</screen>
+
+          <para>Wenn Sie jetzt <userinput>-Dh</userinput> eingeben,
+            sollte die Installation normal weiterlaufen.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Ich habe ein Matsushita/Panasonic CR-522, ein
+            Matsushita/Panasonic CR-523 oder ein TEAC CD55a CDROM,
+            aber es wird nicht korrekt erkannt, selbst wenn ich den
+            richtigen I/O-Port angebe.</para>
+        </question>
+
+        <answer>
+          <para>Diese CDROM Laufwerke werden nicht von &os;
+            unterst&uuml;tzt, da die Befehle zur Ansteuerung dieser
+            Laufwerke sind nicht mit denen f&uuml;r die Double-Speed
+            Laufwerke CR-562 und CR-563 identisch sind.</para>
+
+          <para>Die single-speed Laufwerke CR-522 und CR-523 brauchen
+            einen CD-Caddy.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Ich versuche, von Band zu installieren, aber ich
+            erhalte nur die folgende Meldung:</para>
+
+          <screen>sa0(aha0:1:0) NOT READY csi 40,0,0,0</screen>
+        </question>
+
+        <answer>
+          <para>Wenn Sie in der aktuellen Version von
+            &man.sysinstall.8; ein Bandlaufwerk nutzen wollen, dann
+            <emphasis>mu&szlig;</emphasis> das Band bereits im
+            Laufwerk liegen, wenn &man.sysinstall.8; gestartet wird;
+            andernfalls wird es nicht erkannt.  Starten Sie
+            &man.sysinstall.8; neu, nachdem Sie das Band eingelegt
+            haben.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Ich habe &os; auf meinem Rechner installiert, aber
+            beim Neustart bleibt das System stehen.  Die letzte
+            Meldung ist:</para>
+
+          <screen>Changing root to /dev/da0a</screen>
+        </question>
+
+        <answer>
+          <para>Dieses Problem tritt gelegentlich auf, wenn Sie eine
+            3com 3c509 Netzwerkkarte verwenden.  Der Treiber
+            &man.ep.4; mag es scheinbar &uuml;berhaupt nicht, wenn
+            andere Treiber testweise auf die Adresse 0x300 zugreifen.
+            Um das Problem zu beheben, m&uuml;ssen Sie Ihrer Rechner
+            aus- und wieder einschalten.  Sobald Sie die Meldung
+            <literal>Boot:</literal> erhalten, m&uuml;ssen Sie
+            <option>-c</option> eingeben.  Damit starten Sie
+            UserConfig (siehe <xref linkend="repairing"> weiter oben).
+            Benutzen Sie den Befehl <literal>disable</literal>, um
+            alle anderen Treiber abzuschalten, die auch auf die
+            Adresse 0x300 zugreifen.  Danach sollte &os; problemlos
+            starten.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Meine Intel EtherExpress 16 wird nicht erkannt.</para>
+        </question>
+
+        <answer>
+          <para>Sie m&uuml;ssen die Intel EtherExpress 16 so
+            konfigurieren, da&szlig; 32K Speicher an der Adresse
+            0xD0000 eingeblendet werden.  Benutzen Sie dazu das von
+            Intel mitgelieferte Programm
+            <filename>softset.exe</filename>.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Wenn ich &os; auf meinem EISA HP Netserver
+            installiere, wird der eingebaute AIC-7xxx SCSI Controller
+            nicht erkannt.</para>
+        </question>
+
+        <answer>
+          <para>Dieses Problem ist bekannt, und wird hoffentlich bald
+            gel&ouml;st werden.  Damit Sie &os; installieren
+            k&ouml;nnen, m&uuml;ssen Sie mit der Option
+            <option>-c</option> booten, um UserConfig zu starten.  Sie
+            brauchen den CLI-Modus, <emphasis>nicht</emphasis> den
+            Visual Modus (auch wenn er sch&ouml;ner aussieht).  Geben
+            Sie den folgenden Befehl ein:</para>
+
+          <screen><userinput>eisa 12</userinput>
+<userinput>quit</userinput></screen>
+
+          <para>Statt `quit' k&ouml;nnen Sie auch `visual' eingeben,
+            um die restliche Konfigurationsarbeit in diesem Modus
+            erledigen.  Die Erzeugung eines angepa&szlig;ten Kernels
+            wird zwar immer noch empfohlen, allerdings hat dset
+            gelernt, diesen Wert zu speichern.</para>
+
+          <para>Eine Erkl&auml;rung der Ursachen dieses Problems und
+            weitere Informationen finden Sie im FAQ.  Wenn Sie die
+            Distribution `doc' installiert haben, finden Sie den FAQ
+            im Verzeichnis /usr/share/doc/FAQ auf Ihrer
+            Festplatte.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Mein Panasonic AL-N1 oder Rios Chandler Pentium
+            Rechner h&auml;ngt sich auf, obwohl das
+            Installationsprogramm noch gar nicht gestartet
+            ist.</para>
+        </question>
+
+        <answer>
+          <para>Aus unerfindlichen Gr&uuml;nden vertragen diese
+            Rechner die neuen Anweisungen
+            <literal>i586_copyout</literal> und
+            <literal>i586_copyin</literal> nicht.  Damit diese
+            Anweisungen nicht verwendet werden, m&uuml;ssen Sie von
+            der Bootdiskette booten.  Im ersten Men&uuml; (die
+            Frage, ob Sie UserConfig starten wollen oder nicht)
+            w&auml;hlen Sie den Punkt command-line
+            interface (<quote>expert mode</quote>).  Geben Sie den
+            folgenden Befehl ein:</para>
+
+          <screen><userinput>flags npx0 1</userinput></screen>
+
+          <para>Danach k&ouml;nnen Sie den Systemstart normal
+            fortsetzen.  Die Einstellung wird in Ihrem Kernel
+            gespeichert, Sie m&uuml;ssen Sie also nur einmal
+            machen.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Ich habe diesen CMD640 IDE Controller, der angeblich
+	    <quote>broken</quote> ist.</para>
+        </question>
+
+        <answer>
+          <para>Das stimmt.  &os; unterst&uuml;tzt diesen Controller
+            nicht mehr, au&szlig;er im nicht mehr gepflegten wdc
+            Treiber.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Auf meinem Compaq Aero Notebook erhalte ich die
+            Meldung <quote>No floppy devices found!  Please check
+            ...</quote>, wenn ich von Diskette installieren
+            will.</para>
+        </question>
+
+        <answer>
+          <para>Compaq ist immer etwas anders als andere und sah daher
+            keinen Grund, das Diskettenlaufwerk im CMOS RAM der Aero
+            Notebooks einzutragen.  Da sich der Treiber auf diese
+            Angaben verl&auml;&szlig;t, nimmt er an, da&szlig; kein
+            Diskettenlaufwerk vorhanden ist.  Starten Sie UserConfig
+            und stellen Sie bei fdc0 unter flags den Wert 0x1 ein.
+            Damit teilen Sie dem Treiber mit, da&szlig; ein 1.44 MByte
+            Diskettenlaufwerk vorhanden ist, und da&szlig; er die Werte
+            im CMOS ignorieren soll.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Wenn ich das erste Mal von meinem neuen Board mit
+            Intel AL440LX Chipsatz (<quote>Atlanta</quote>) boote,
+            bricht der Startvorgang mit der Meldung <literal>Read
+            Error</literal> ab.</para>
+        </question>
+
+        <answer>
+          <para>Das BIOS einiger dieser Mainboards scheint einen
+            Fehler zu enthalten, der das &os; Startprogramm annehmen
+            l&auml;&szlig;t, da&szlig; es von Diskette bootet.  Das
+            Problem tritt nur auf, wenn Sie BootEasy nicht verwenden.
+            Wenn Sie den Fehler umgehen wollen, sollten Sie Ihre
+            Festplatte im DD Modus partitionieren oder eine neuere
+            BIOS-Version einspielen (Details dazu finden Sie auf den
+            Webseiten von Intel).</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Wenn ich &os; auf einem Dell Poweredge XE installiere,
+            wird der Dell-eigene RAID Controller DSA (Dell SCSI Array)
+            nicht erkannt.</para>
+        </question>
+
+        <answer>
+          <para>Benutzen Sie das EISA Konfigurationsprogramm, um den
+            DSA auf AHA-1540 Emulation umzustellen.  Danach wird er
+            von &os; als Adaptec AHA-1540 SCSI Controller auf IRQ 11
+            und Port 340 erkannt.  In diesem Modus k&ouml;nnen Sie das
+            RAID des DSA nutzen, lediglich die DSA-spezifischen
+            Funktionen wie die RAID-&Uuml;berwachung stehen nicht zur
+            Verf&uuml;gung.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Meine Netzwerkkarte wird als AMD PCnet-FAST (oder
+            &auml;hnliche) erkannt, funktioniert aber nicht (betrifft
+            u.a. die eingebauten Netzwerkkarten in den IBM Netfinity
+            5xxx oder 7xxx Systemen)</para>
+        </question>
+
+        <answer>
+          <para>Der Treiber &man.lnc.4; ist zur Zeit fehlerhaft und
+            arbeitet oft nicht korrekt mit den PCnet-FAST und
+            PCnet-FAST+ Karten zusammen.  Sie m&uuml;ssen eine andere
+            Netzwerkkarte verwenden.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Ich verwende eine Netzwerkkarte vom Typ IBM EtherJet
+            PCI, die zwar vom Treiber &man.fxp.4; korrekt erkannt
+            wird, aber trotzdem leuchten die Kontroll-LEDs nicht auf
+            und ich habe auch keine Verbindung zum Netzwerk.</para>
+        </question>
+
+        <answer>
+          <para>Wir wissen nicht, was die Ursache dieses Problems ist.
+            IBM hat das gleiche Problem (wir haben sie gefragt).
+            Diese Netzwerkkarte ist eine ganz normale Intel
+            EtherExpress Pro/100 mit einem IBM-Aufkleber, und diese
+            Netzwerkkarten machen normalerweise gar keine Probleme.
+            Das Problem tritt auch nur in einigen IBM Netfinity
+            Servern auf.  Die einzige L&ouml;sung ist, eine andere
+            Netzwerkkarte zu verwenden.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Wenn ich w&auml;hrend einer Installation auf einer IBM
+            Netfinity 3500 das Netzwerk konfiguriere, h&auml;ngt sich
+            das System auf.</para>
+        </question>
+
+        <answer>
+          <para>Es gibt Probleme mit der eingebauten Netzwerkkarte der
+            IBM Netfinity 3500, die wir noch nicht genau einkreisen
+            konnten.  Die Ursache des Problems k&ouml;nnte eine falsche
+            Konfiguration der SMP Unterst&uuml;tzung auf diesen
+            Systemen sein.  Sie m&uuml;ssen eine andere Netzwerkkarte
+            verwenden und Sie d&uuml;rfen die eingebaute Netzwerkkarte
+            werden benutzen noch konfigurieren.</para>
+        </answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+          <para>Wenn ich &os; auf einer Festplatte konfiguriere, die
+            an einem Mylex PCI RAID Controller abgeschlossen ist, kann
+            ich das System nicht neu starten (Abbruch mit der Meldung
+            <literal>read error</literal>).</para>
+        </question>
+
+        <answer>
+          <para>Ein Fehler im Mylex Treiber sorgt daf&uuml;r, da&szlig;
+            er die BIOS-Einstellung <quote>8GB</quote> Geometrie
+            ignoriert.  Verwenden Sie den 2 GB Modus.</para>
+        </answer>
+      </qandaentry>
+    </qandaset>
+  </sect2>
+</sect1>

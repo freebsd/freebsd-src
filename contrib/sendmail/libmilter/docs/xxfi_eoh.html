@@ -1,0 +1,53 @@
+<html>
+<head><title>xxfi_eoh</title></head>
+<body>
+<h1>xxfi_eoh</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+sfsistat (*xxfi_eoh)(
+	SMFICTX * ctx
+);
+</pre>
+Handle the end of message headers.
+</td></tr>
+
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=4>
+<tr align="left" valign=top>
+<th width="80">Called When</th>
+<td>xxfi_eoh is called once after all headers have been sent and processed.
+</td>
+</tr>
+<tr align="left" valign=top>
+<th>Default Behavior</th>
+<td>Do nothing; return SMFIS_CONTINUE.</td>
+</tr>
+</table>
+
+<!----------- Arguments ---------->
+<tr><th valign="top" align=left>ARGUMENTS</th><td>
+    <table border="1" cellspacing=0>
+    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
+    <tr valign="top"><td>ctx</td>
+	<td>Opaque context structure.
+	</td></tr>
+    </table>
+</td></tr>
+
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000, 2003 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</font>
+</body>
+</html>

@@ -1,0 +1,105 @@
+Message-Id: <200005230246.WAA03750@hrothgar.gw.com>
+To: ...
+Subject: Notes on RFC-2317
+Date: Mon, 22 May 2000 22:46:55 -0400
+From: Kimmo Suominen <kim@tac.nyc.ny.us>
+
+Hi!
+
+I wrote down some notes on RFC-2317.  I've had discussions with all of
+you regarding classless IN-ADDR.ARPA delegations, and I would very much
+appreciate any comments you may have.  Please feel free to forward this
+to other parties as you see necessary or appropriate.
+
+The goal of these notes is to try and clarify the reasoning behind the
+recommendations I've been making on implementing RFC-2317 delegations.
+In particular the following issues keep coming up with again and again
+with each vendor:
+
+    - why use "-" instead of "/"
+    - why use particular NS records
+    - why delegate within IN-ADDR.ARPA
+
+I am hoping that the these notes could eventually be used to convince
+ISPs to provide an efficient and smooth implementation of RFC-2317 with
+the least amount of headache for the end-user.
+
+Regards,
++ Kim
+
+
+
+NOTES ON IMPLEMENTING CLASSLESS IN-ADDR.ARPA DELEGATION PER RFC-2317
+
+1.  Selecting the CNAME target zone
+
+    RFC-2317 shows an example case where the target zone is a delegated
+    sub-zone of the IN-ADDR.ARPA zone for the natural class C network.
+    This will allow for the NS records for the zone can be independently
+    selected (see benefits described below).  An example of such a zone
+    would be 0-28.150.80.204.IN-ADDR.ARPA.
+
+    Now pay careful attention to the last paragraph of RFC-2317.  There
+    are broken resolver implementations that apply the "valid host name"
+    restrictions on the CNAME target (it should only be applied to the
+    PTR target name).  To avoid problems with such implementations it
+    is best to use a character that is allowed in a hostname.  I prefer
+    using a hyphen, as I did in the example above.
+
+    Some ISPs may at first refuse to delegate these zones (without any
+    explanation).  Approach such ISPs with the reasoning in here first,
+    but if that fails consider using your "forward" zone as a fallback.
+
+    There is nothing magic about the IN-ADDR.ARPA zone for RFC-2317
+    delegations.  You will have to sacrifice the optimization provided
+    by a correct IN-ADDR.ARPA delegation, but you will still retain
+    the ease of local administration for all name changes.
+
+    I recommend using a dedicated subdomain for the PTR records, e.g. if
+    your "forward" domain is "HOME.GW.COM" use "REV.HOME.GW.COM" for the
+    PTR records.
+
+2.  Selecting the NS records
+
+    The NS records for the delegated zone should include all the NS
+    records of the parent zone, in addition to any NS records pointing
+    to the public name servers the delegate may want to use.  Having the
+    name servers of the parent zone secondary the delegated zone allows
+    them to have the necessary authoritative data to return the CNAME
+    target in the additional records of a response to a PTR record query
+    (minimizing the number of queries needed to resolve an address).
+
+    This can be achieved using any zone (i.e. even a subdomain of your
+    "forward" domain), of course.  However, having the ISP delegate an
+    IN-ADDR.ARPA zone for your PTR records rather than you delegating a
+    zone to your ISP maintains the logical "owner" and "delegate" roles.
+
+    If the primary server for the delegated zone is not permanently on
+    the Internet (e.g. a dial-on-demand connection) then you would not
+    want to advertise it in the NS records.  It would just be a stealth
+    server which the advertised secondaries poll for updates.
+
+3.  Example delegation
+
+    To delegate our example zone 0-28.150.80.204.IN-ADDR.ARPA first look
+    at the NS records of the parent zone 150.80.204.IN-ADDR.ARPA.  Let's
+    say they are the following:
+
+        $ORIGIN 150.80.204.IN-ADDR.ARPA.
+        @    IN NS GRENDEL.GW.COM.
+             IN NS PYRY.GW.COM.
+
+    To delegate 204.80.150.0/28 to SRV.HOME.GW.COM you would then insert
+    these records in the parent zone data:
+
+        $ORIGIN 150.80.204.IN-ADDR.ARPA.
+        0-28 IN NS SRV.HOME.GW.COM.
+             IN NS GRENDEL.GW.COM.
+             IN NS PYRY.GW.COM.
+        $GENERATE 0-15 $ IN CNAME $.0-28.150.80.204.IN-ADDR.ARPA.
+
+    The necessary modifications to /etc/named.conf will be left as an
+    exercise to the reader.
+
+Kimmo Suominen
+Global Wire Oy

@@ -1,0 +1,5 @@
+#
+# $FreeBSD$
+#
+
+TARGET=		i386-unknown-freebsd

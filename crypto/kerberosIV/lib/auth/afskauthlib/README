@@ -1,0 +1,25 @@
+
+IRIX
+----
+
+The IRIX support is a module that is compatible with Transarc's
+`afskauthlib.so'.  It should work with all programs that use this
+library, this should include `login' and `xdm'.
+
+The interface is not very documented but it seems that you have to copy
+`libkafs.so', `libkrb.so', and `libdes.so' to `/usr/lib', or build your
+`afskauthlib.so' statically.
+
+The `afskauthlib.so' itself is able to reside in `/usr/vice/etc',
+`/usr/afsws/lib', or the current directory (wherever that is).
+
+IRIX 6.4 and newer seems to have all programs (including `xdm' and
+`login') in the N32 object format, whereas in older versions they were
+O32. For it to work, the `afskauthlib.so' library has to be in the same
+object format as the program that tries to load it. This might require
+that you have to configure and build for O32 in addition to the default
+N32.
+
+Appart from this it should "just work", there are no configuration
+files.
+

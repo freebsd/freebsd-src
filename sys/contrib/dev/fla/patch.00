@@ -1,0 +1,23 @@
+Index: files.i386
+===================================================================
+RCS file: /home/ncvs/src/sys/i386/conf/files.i386,v
+retrieving revision 1.220.2.8
+diff -u -r1.220.2.8 files.i386
+--- files.i386	1999/05/27 03:06:33	1.220.2.8
++++ files.i386	1999/08/01 12:44:00
+@@ -34,6 +34,13 @@
+ 	no-obj no-implicit-rule before-depend				\
+ 	clean		"ukbdmap.h"
+ #
++contrib/dev/fla/fla.c		optional	fla
++msysosak.o			optional	fla			\
++	dependency	"$S/contrib/dev/fla/i386/msysosak.o.uu"		\
++	compile-with	"uudecode < $S/contrib/dev/fla/i386/msysosak.o.uu" \
++	no-implicit-rule
++
++#
+ dev/fb/fb.c			optional	fb	device-driver
+ dev/fb/fb.c			optional	vga	device-driver
+ dev/fb/splash.c			optional	splash
+
+

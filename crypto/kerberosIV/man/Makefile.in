@@ -1,0 +1,153 @@
+# Makefile.in,v 1.2 1994/05/13 05:02:46 assar Exp
+
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+
+SHELL		= /bin/sh
+
+INSTALL		= @INSTALL@
+INSTALL_DATA	= @INSTALL_DATA@
+MKINSTALLDIRS	= @top_srcdir@/mkinstalldirs
+
+prefix		= @prefix@
+mandir		= @mandir@
+transform	= @program_transform_name@
+
+disable_cat_manpages = @disable_cat_manpages@
+
+# You need a BSD44 system or groff to create the manpages
+NROFF_MAN = groff -mandoc -Tascii
+#NROFF_MAN = nroff -man
+.SUFFIXES: .1 .cat1 .3 .cat3 .5 .cat5 .8 .cat8
+.1.cat1: ; $(NROFF_MAN) $< > $@
+.3.cat3: ; $(NROFF_MAN) $< > $@
+.5.cat5: ; $(NROFF_MAN) $< > $@
+.8.cat8: ; $(NROFF_MAN) $< > $@
+
+
+MANRX = \(.*\)\.\([0-9]\)
+CATRX = \(.*\)\.cat\([0-9]\)
+CATSUFFIX=@CATSUFFIX@
+
+MAN1 = afslog.1 des.1 ftp.1 kauth.1 kdestroy.1 \
+       kerberos.1 kinit.1 klist.1 kpasswd.1 ksrvtgt.1 \
+       kx.1 login.1 movemail.1 otp.1 otpprint.1 pagsh.1 \
+       rcp.1 rlogin.1 rsh.1 rxtelnet.1 rxterm.1 su.1 \
+       telnet.1 tenletxr.1
+
+CAT1 = afslog.cat1 des.cat1 ftp.cat1 kauth.cat1 kdestroy.cat1 \
+       kerberos.cat1 kinit.cat1 klist.cat1 kpasswd.cat1 ksrvtgt.cat1 \
+       kx.cat1 login.cat1 movemail.cat1 otp.cat1 otpprint.cat1 pagsh.cat1 \
+       rcp.cat1 rlogin.cat1 rsh.cat1 rxtelnet.cat1 rxterm.cat1 su.cat1 \
+       telnet.cat1 tenletxr.cat1
+
+MAN3 = acl_check.3 des_crypt.3 kafs.3 \
+       kerberos.3 krb_realmofhost.3 krb_sendauth.3 \
+       krb_set_tkt_string.3 kuserok.3 tf_util.3 \
+       ../lib/editline/editline.3
+
+# getusershell.3 
+
+CAT3 = acl_check.cat3 des_crypt.cat3 kafs.cat3 \
+       kerberos.cat3 krb_realmofhost.cat3 krb_sendauth.cat3 \
+       krb_set_tkt_string.cat3 kuserok.cat3 tf_util.cat3 \
+       ../lib/editline/editline.cat3
+
+# getusershell.cat3 
+
+MAN5 = ftpusers.5 krb.conf.5 krb.equiv.5 krb.extra.5 \
+       krb.realms.5 login.access.5
+
+CAT5 = ftpusers.cat5 krb.conf.cat5 krb.equiv.cat5 \
+       krb.realms.cat5 login.access.cat5
+
+MAN8 = ext_srvtab.8 ftpd.8 kadmin.8 kadmind.8 kauthd.8 \
+       kdb_destroy.8 kdb_edit.8 kdb_init.8 kdb_util.8 \
+       kerberos.8 kprop.8 kpropd.8 ksrvutil.8 kstash.8 \
+       kxd.8 popper.8 rlogind.8 rshd.8 telnetd.8 \
+       ../appl/push/push.8
+
+CAT8 = ext_srvtab.cat8 ftpd.cat8 kadmin.cat8 kadmind.cat8 kauthd.cat8 \
+       kdb_destroy.cat8 kdb_edit.cat8 kdb_init.cat8 kdb_util.cat8 \
+       kerberos.cat8 kprop.cat8 kpropd.cat8 ksrvutil.cat8 kstash.cat8 \
+       kxd.cat8 popper.cat8 rlogind.cat8 rshd.cat8 telnetd.cat8 \
+       ../appl/push/push.cat8
+
+all: 
+
+cat: $(CAT1) $(CAT3) $(CAT5) $(CAT8)
+
+Wall:
+
+install: all
+		for x in man1 man3 man5 man8; do \
+			$(MKINSTALLDIRS) $(DESTDIR)$(mandir)/$$x; done
+		if test "$(disable_cat_manpages)" != "yes"; then \
+		for x in cat1 cat3 cat5 cat8; do \
+			$(MKINSTALLDIRS) $(DESTDIR)$(mandir)/$$x; done \
+		fi
+		@(cd $(srcdir); \
+			for x in $(MAN1) $(MAN8); do \
+				f=`basename $$x`; \
+				b=`echo $$f | sed 's!$(MANRX)!\1!'`; \
+				s=`echo $$x | sed 's!$(MANRX)!\2!'` ; \
+				m=`echo $$b | sed '$(transform)'`.$$s; \
+				echo "$(INSTALL_DATA) $$x $(DESTDIR)$(mandir)/man$$s/$$m";\
+				$(INSTALL_DATA) $$x $(DESTDIR)$(mandir)/man$$s/$$m; done ;\
+			for x in $(MAN3) $(MAN5); do \
+				f=`basename $$x`; \
+				s=`echo $$f | sed 's!$(MANRX)!\2!'` ; \
+				echo "$(INSTALL_DATA) $$x $(DESTDIR)$(mandir)/man$$s/$$f";\
+				$(INSTALL_DATA) $$x $(DESTDIR)$(mandir)/man$$s/$$f; done ;\
+			if test "$(disable_cat_manpages)" != "yes"; then \
+			for x in $(CAT1) $(CAT8); do \
+				if test -f $$x; then \
+				f=`basename $$x`; \
+				b=`echo $$f | sed 's!$(CATRX)!\1!'`; \
+				s=`echo $$x | sed 's!$(CATRX)!\2!'`; \
+				m=`echo $$b | sed '$(transform)'`; \
+				echo "$(INSTALL_DATA) $$x $(DESTDIR)$(mandir)/cat$$s/$$m.$(CATSUFFIX)";\
+			$(INSTALL_DATA) $$x $(DESTDIR)$(mandir)/cat$$s/$$m.$(CATSUFFIX);\
+			 fi; done ;\
+			for x in $(CAT3) $(CAT5); do \
+				if test -f $$x; then \
+				f=`basename $$x`; \
+				s=`echo $$f |  sed 's!$(CATRX)!\2!'`; \
+				b=`echo $$f |  sed 's!$(CATRX)!\1!'`; \
+			echo "$(INSTALL_DATA) $$x $(DESTDIR)$(mandir)/cat$$s/$$b.$(CATSUFFIX)";\
+			$(INSTALL_DATA) $$x $(DESTDIR)$(mandir)/cat$$s/$$b.$(CATSUFFIX);\
+			 fi; done; fi )
+
+uninstall:
+		for x in $(MAN1) $(MAN8); do \
+			f=`basename $$x`; \
+			b=`echo $$f | sed 's!$(MANRX)!\1!'`; \
+			s=`echo $$x | sed 's!$(MANRX)!\2!'` ; \
+			m=`echo $$b | sed '$(transform)'`.$$s; \
+			rm -f $(DESTDIR)$(mandir)/man$$s/$$m; done
+		for x in $(MAN3) $(MAN5); do \
+			f=`basename $$x`; \
+			s=`echo $$f | sed 's!$(MANRX)!\2!'` ; \
+			rm -f $(DESTDIR)$(mandir)/man$$s/$$f; done
+		for x in $(CAT1) $(CAT8); do \
+			f=`basename $$x`; \
+			b=`echo $$f | sed 's!$(CATRX)!\1!'`; \
+			s=`echo $$x | sed 's!$(CATRX)!\2!'`; \
+			m=`echo $$b | sed '$(transform)'`; \
+			rm -f $(DESTDIR)$(mandir)/cat$$s/$$m.$(CATSUFFIX); done
+		for x in $(CAT3) $(CAT5); do \
+			f=`basename $$x`; \
+			s=`echo $$f | sed 's!$(CATRX)!\2!'`; \
+			b=`echo $$x | sed 's!$(CATRX)!\1!'`; \
+			rm -f $(DESTDIR)$(mandir)/cat$$s/$$b.$(CATSUFFIX); done
+
+clean:
+
+mostlyclean:	clean
+
+distclean:
+	rm -f Makefile *~
+
+realclean:	distclean
+
+.PHONY: all cat Wall install uninstall clean mostlyclean distclean realclean

@@ -1,0 +1,38 @@
+.\" $Id: krb.realms.5,v 1.2 1996/06/12 21:29:22 bg Exp $
+.\" Copyright 1989 by the Massachusetts Institute of Technology.
+.\"
+.\" For copying and distribution information,
+.\" please see the file <mit-copyright.h>.
+.\"
+.TH KRB.REALMS 5 "Kerberos Version 4.0" "MIT Project Athena"
+.SH NAME
+/etc/krb.realms \- host to Kerberos realm translation file
+.SH DESCRIPTION
+.I krb.realms
+provides a translation from a hostname to the Kerberos realm name for
+the services provided by that host.
+.PP
+Each line of the translation file is in one of the following forms
+(domain_name should be of the form .XXX.YYY, e.g. .LCS.MIT.EDU):
+.nf
+.in +5n
+host_name kerberos_realm
+domain_name kerberos_realm
+.in -5n
+.fi
+If a hostname exactly matches the 
+.I host_name
+field in a line of the first
+form, the corresponding realm is the realm of the host.
+If a hostname does not match any 
+.I host_name
+in the file, but its
+domain exactly matches the 
+.I domain_name
+field in a line of the second
+form, the corresponding realm is the realm of the host.
+.PP
+If no translation entry applies, the host's realm is considered to be
+the hostname's domain portion converted to upper case.
+.SH SEE ALSO
+krb_realmofhost(3)

@@ -1,0 +1,367 @@
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.22.2.313
+-->
+
+<articleinfo>
+  <title>&os;/&arch; &release.current; notes de version</title>
+
+  <pubdate>$FreeBSD$</pubdate>
+
+  <corpauthor>Projet FreeBSD</corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <holder role="mailto:doc@FreeBSD.org">Projet de Documentation de FreeBSD</holder>
+  </copyright>
+
+  <abstract>
+  <para>Les notes de version pour &os; &release.current;
+  contiennent un r&eacute;sum&eacute; des changements r&eacute;alis&eacute;s 
+  dans le syst&egrave;me &os; de base depuis &release.prev;. Les
+  changements concernant le noyau et les programmes
+  utilisateurs sont mentionn&eacute;s ainsi que les avis de
+  s&eacute;curit&eacute; applicables au syst&egrave;me de base qui ont 
+  &eacute;t&eacute; d&eacute;couverts depuis la derni&egrave;re version. 
+  Ces notes contiennent &eacute;galement quelques br&egrave;ves remarques sur 
+  la mise &agrave; jour.</para>
+  </abstract>
+</articleinfo>
+
+<sect1>
+  <title>Introduction</title>
+        <para>Ce document contient les notes de version pour &os;
+        &release.current; sur plate-forme &arch.print;. Il d&eacute;crit les 
+	nouvelles fonctions de &os; qui ont &eacute;t&eacute; ajout&eacute;es 
+	(ou modifi&eacute;es)
+        depuis &release.prev;. Il contient &eacute;galement quelques notes
+        sur la mise &agrave; jour depuis la version pr&eacute;c&eacute;dente de
+        &os;.</para>
+<![ %release.type.snapshot [
+
+        <para>La distribution snapshot &agrave; laquelle s'applique ces notes
+        de version repr&eacute;sente une &eacute;tape sur la branche de
+        d&eacute;veloppement &release.branch; entre &release.prev; et la future
+        &release.next;. Quelques distributions binaires 
+	pr&eacute;-compil&eacute;es de la version snapshot pour cette branche 
+	sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
+
+]]>
+
+
+<![ %release.type.release [
+
+
+
+  <para>This distribution of &os; &release.current; is a &release.type;
+  distribution.  It can be found at <ulink
+  url="&release.url;"></ulink> or any of its mirrors.  More
+  information on obtaining this (or other) &release.type; distributions of
+  &os; can be found in the <ulink
+  url="http://www.FreeBSD.org/doc/en_US_ISO8859-1/books/handbook/mirrors.html"><quote>Obtaining
+  FreeBSD</quote></ulink> appendix in the <ulink
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD Handbook</ulink>.</para>
+
+]]>
+</sect1>
+
+<!--
+	The "What's New" section of the release notes. 
+
+	Guidelines for new entries:
+
+	1.  If there is some obvious "keyword" associated with an
+	entry (such as a manpage entry or an application name), try to
+	put it at the start of the sentence.
+
+	2.  Within each subsection (i.e. kernel, security, userland),
+	list items in alphabetical order by these keywords.
+
+	Some entries will have no obvious keywords to help with
+	ordering.  In sections containing these entries, put those
+	containing (e.g.) manpage references first, then some
+	suitable SGML comment line as a demarc, then the remaining
+	entries.
+
+-->
+
+<sect1>
+  <title>Les nouveaut&eacute;s</title>
+
+        <para>Cette section d&eacute;crit les fonctions nouvelles ou les
+        modifications les plus visibles pour l'utilisateur sous
+        &os; depuis la version &release.prev;. Il s'agit
+        typiquement de nouveaux gestionnaires de p&eacute;riph&eacute;riques ou
+        du support de mat&eacute;riels, de nouvelles commandes ou options,
+        de corrections de bugs majeurs, ou de mise &agrave; jour de
+        logiciels. Les avis de s&eacute;curit&eacute; pour le syst&egrave;me 
+	de base d&eacute;couverts apr&egrave;s la &release.prev; sont 
+	&eacute;galements mentionn&eacute;s.</para>
+
+  <sect2 id="kernel">
+   <title>Changements dans le noyau</title>
+
+    <para>Un nouveau système cryptographique dans le noyau (voyez
+    &man.crypto.4; et &man.crypto.9;) a été importé depuis OpenBSD. Il
+    fournit une interface consistente pour des implémentations
+    logicielles et matérielles des algorithmes de chiffrement
+    autorisant le noyau à y accéder ainsi que aux matériels de
+    chiffrement pour les applications en mode utilisateur. Les
+    gestionnaires de périphériques matériels pour les cartes basées
+    sur les cartes hifn (&man.hifn.4;) et Broadcom (&man.ubsec.4;)
+    sont fournies.</para>
+
+    <para arch="i386,pc98">Le support initial pour les périphériques
+    Firewire a été ajouté (voyez &man.firewire.4;).</para>
+
+    <para>Le gestionnaire de périphérique &man.uftdi.4; permettant de
+    supporter les périphériques séries FTDI USB a été ajouté.</para>
+
+    <sect3>
+      <title>Support des cartes m&egrave;res et des processeurs</title>
+
+      <para></para>
+
+    </sect3>
+
+    <sect3>
+      <title>Gestionnaire de d&eacute;marrage</title>
+
+      <para></para>
+
+<!-- Above this line, order boot loader changes by manpage/variable name-->
+
+    </sect3>
+
+    <sect3>
+      <title>Support des interfaces r&eacute;seau</title>
+
+      <para>Le gestionnaire de périphériques &man.nge.4; supporte
+      maintenant le mode réseau &man.polling.4;.</para>
+
+
+<!-- Above this line, order network driver changes by manpage/variable name-->
+    </sect3>
+
+    <sect3>
+      <title>Protocoles r&eacute;seau</title>
+
+      <para>Un gestionnaire de périphérique &man.gre.4;, qui encapsule
+      les paquets IP en utilisant GRE (RFC 1701) ou l'encapsulation IP
+      minimale pour le Mobile IP  (RFC 2004), a été ajouté.</para>
+ 
+
+    </sect3>
+
+    <sect3>
+      <title>Disques et Stockage</title>
+
+      <para>Le gestionnaire de périphérique &man.ata.4; supporte
+      maintenant l'accès aux périphériques ATA et SCSI via les
+      périphériques CAM (&man.cd.4;, &man.da.4;, &man.st.4;, et
+      &man.pass.4;). Cette fonctionnalitée nécessaite <literal>device
+      atapicam</literal> dans le fichier de configuration du
+      noyau. Plus d'informations sont disponibles dans
+      &man.atapicam.4;.</para>
+
+      <para arch="i386,pc98">Le gestionnaire de p&eacute;riph&eacute;rique
+      &man.matcd.4; a &eacute;t&eacute; retir&eacute; du &agrave; des
+      probl&egrave;mes de license. (Ceci est intervenu dans
+      &release.prev;, mais n'a pas &eacute;t&eacute; mentionn&eacute;
+      dans les notes de version.)</para>
+
+      <para>Les gestionnaire de périphériques trm driver a été ajouté
+      pour supporter les adaptateurs SCSI basés sur les puces Tekram
+      TRM-S1040.</para>
+
+    </sect3>
+
+    <sect3>
+      <title>Syst&egrave;mes de fichier</title>
+
+      <para></para>
+
+    </sect3>
+
+    <sect3>
+      <title>Support PCCARD</title>
+
+      <para></para>
+    
+    </sect3>
+
+    <sect3>
+      <title>Support Multim&eacute;dia</title>
+
+      <para></para>
+
+    </sect3>
+
+    <sect3>
+      <title>Logiciel externes</title>
+
+      <para></para>
+
+    </sect3>
+  </sect2>
+
+  <sect2 id="security">
+    <title>Changements li&eacute;s a la s&eacute;curit&eacute;</title>
+
+    <para>Les dépassements de tampons dans  &man.kadmind.8; et
+    k5admin ont été corrigés. Plus de détails sont fournis dans l'avis
+    de sécurité 
+    <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:40.kadmind.asc">
+    FreeBSD-SA-02:40</ulink>.</para>
+
+    <para>Les multiples vulnérabilités dans <application>BIND</application>
+      ont été corrigées comme décrit dans <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.</para>
+ 
+   </sect2>
+
+  <sect2 id="userland">
+    <title>Changements dans les programmes utilisateurs</title>
+
+<!-- Above this line, order userland changes by manpage/variable name-->
+
+     <para>&man.burncd.8; accepte maintenant la valeur  <literal>max</literal>
+      pour l'option <option>-s</option> pour activer la vitesse
+      maximum du lecteur.</para>
+
+    <para>&man.cdcontrol.1; supporte maintenant la commande 
+      <literal>speed</literal> pour activer la vitesse maximale
+      supportée par le lecteur (la valeur maximale possible de la
+      vitesse peut être séléctionnée via la valeur
+      <literal>max</literal>).</para>
+
+    <para>L'utilitaire &man.getconf.1; a été ajouté. Il permet
+    d'afficher la valeur de configuration des variables systèmes POSIX
+    ou X/Open.</para>
+
+    <para>L'utilitaire &man.pathchk.1;, qui permet de vérifier la
+    validité ou la portabilité des noms des répertoires entre les
+    systèmes POSIX, a été ajouté.</para>
+
+    <para>La capacité base64 de &man.uuencode.1; et de 
+      &man.uudecode.1; peut être automatiquement activée via les
+      utilitaires  &man.b64encode.1; et &man.b64decode.1;.</para>
+
+    <!-- Above this line, order userland changes by manpage/variable name-->
+
+    <para>La définition des flux systèmes standards
+      (<varname>stdin</varname>, <varname>stdout</varname>, et
+      <varname>stderr</varname>) a changé, ils ne sont donc plus des
+      constantes lors de la compilation. Certains anciens binaires
+      nécessitent une mise à jour des librairies de compatibilité 3.X
+      (par exemple, en affectant la valeur
+      <literal>COMPAT3X=yes</literal> lors de la compilation de
+      buildworld/installworld).</para>
+
+    <sect3>
+      <title>Logiciels externes</title>
+
+      <para><application>cvs</application> a &eacute;t&eacute; mis
+      &agrave; jour en version 1.11.2.</para>
+
+      <para><application>Heimdal Kerberos</application> a été mis à
+      jour en version 0.5.1.</para>
+
+      <para>La base de données des zones de temps a été mise à jour en
+      version <filename>tzdata2002d</filename>.</para>
+
+    </sect3>
+
+    <sect3>
+      <title>Collection des Ports/Packages</title>
+
+      <para></para>
+	
+    </sect3>
+  </sect2>
+
+  <sect2>
+    <title>Confection de version et int&eacute;gration</title>
+
+    <para></para>
+
+  </sect2>
+
+</sect1>
+
+<sect1>
+  <title>Mise &agrave; jour depuis une version pr&eacute;cedente de  &os;</title>
+
+       <para>Si vous effectuez une mise &agrave; jour depuis une version
+        ant&eacute;rieure de &os;, vous avez g&eacute;n&eacute;ralement 
+	3 options :</para>
+
+    <itemizedlist>
+      <listitem>
+      <para>Utiliser l'option de mise &agrave; jour binaire de
+      &man.sysinstall.8;.Cette option est sans doute la plus rapide
+      mais elle suppose que votre installation de &os; n'utilise
+      aucune option sp&eacute;ciale de compilation.</para>
+          </listitem>
+          <listitem>
+            <para>Faire une r&eacute;installation compl&egrave;te de &os;.
+            Techniquement, ce n'est pas une m&eacute;thode de mis &agrave; jour
+            et, dans tous les cas, elle est moins pratique qu'une
+            mise &agrave; jour binaire dans le sens ou elle n&eacute;cessite de
+            sauvegarder et de restaurer manuellement le contenu du
+            r&eacute;pertoire <filename>/etc</filename>. Cependant,
+            cela peut &ecirc;tre utile si vous d&eacute;sirez (ou si
+            vous devez) modifier le partitionnement de vos
+            disques.</para>
+          </listitem>
+          <listitem>
+            <para>A partir du code source du r&eacute;pertoire 
+	    <filename>/usr/src</filename>.
+	    Cette option est plus souple mais demande plus d'espace disque, 
+	    plus de temps et plus de comp&eacute;tences techniques. Plus
+	    d'informations se trouvent dans la section <ulink
+	    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html">
+	    <quote>Using <command>make world</command></quote></ulink> du 
+	    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">manuel FreeBSD</ulink>. Faire 
+	    une mise &agrave; jour depuis une tr&egrave;s ancienne version de 
+	    &os; peut &ecirc;tre probl&eacute;matique; dans de tels
+            cas, il est g&eacute;n&eacute;ralement plus efficace de
+            r&eacute;aliser une mise &agrave; jour binaire ou une
+            r&eacute;installation compl&egrave;te.</para>
+          </listitem>
+    </itemizedlist>
+
+        <para>Veuillez lire le fichier <filename>INSTALL.TXT</filename>
+	 pour plus d'informations, de
+        pr&eacute;f&eacute;rence <emphasis>avant</emphasis> de commencer une 
+	mise &agrave; jour.
+        Si vous effectuez une mise &agrave; jour depuis les sources,
+        veuillez &eacute;galement consulter le fichier
+	 <filename>/usr/src/UPDATING</filename>.</para>
+
+        <para>Enfin, si vous d&eacute;sirez utiliser un des moyens de suivre
+        les branches -STABLE ou -CURRENT de &os;, veuillez
+        consulter la section 
+       <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html">
+       <quote>-CURRENT vs. -STABLE</quote></ulink>  
+       <ulink
+       url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">du manuel de r&eacute;f&eacute;rence de FreeBSD</ulink>.
+       </para>
+
+        <important>
+            <para><emphasis>Important:</emphasis> La mise &agrave; jour 
+	    de &os; devrait,
+            bien &eacute;videmment, &ecirc;tre r&eacute;alis&eacute;e
+            uniquement apr&egrave;s avoir effectu&eacute; une
+            sauvegarde de <emphasis>toutes</emphasis> les
+            donn&eacute;es et des fichiers de configuration.</para>
+        </important>
+
+</sect1>
+

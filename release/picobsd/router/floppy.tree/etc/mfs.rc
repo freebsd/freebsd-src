@@ -1,0 +1,25 @@
+# $FreeBSD$
+# This file is interpreted by oinit(8)
+#
+ncons 2
+motd /etc/motd
+set HOME=/
+set PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
+
+sysctl -w vm.defer_swapspace_pageouts=1 vm.disable_swapspace_pageouts=1
+
+### Special setup for one floppy PICOBSD ###
+echo
+echo "-------------------------------------------"
+echo "  Please wait. The system is coming up..."
+echo "-------------------------------------------"
+echo
+echo "Reading /etc from startup floppy..."
+mount -o rdonly /dev/fd0a /start_floppy
+cd /start_floppy/etc
+cp -Rp . /etc
+cd /etc
+umount /dev/fd0a
+echo "Ok. (Now you may remove floppy if you like)"
+echo
+. rc

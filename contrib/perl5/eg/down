@@ -1,0 +1,30 @@
+#!/usr/bin/perl
+
+$| = 1;
+if ($#ARGV >= 0) {
+    $cmd = join(' ',@ARGV);
+}
+else {
+    print "Command: ";
+    $cmd = <stdin>;
+    chop($cmd);
+    while ($cmd =~ s/\\$//) {
+	print "+ ";
+	$cmd .= <stdin>;
+	chop($cmd);
+    }
+}
+$cwd = `pwd`; chop($cwd);
+
+open(FIND,'find . -type d -print|') || die "Can't run find";
+
+while (<FIND>) {
+    chop;
+    unless (chdir $_) {
+	print stderr "Can't cd to $_\n";
+	next;
+    }
+    print "\t--> ",$_,"\n";
+    system $cmd;
+    chdir $cwd;
+}

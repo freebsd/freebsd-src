@@ -1,0 +1,56 @@
+The files in this directory show mom in action.  I haven't included
+PostScript output from the files because I want to keep the mom
+archive as lean as possible.  In order to see the PostScript output of
+these files, process them with groff, sending the output either to a
+separate file for previewing with gv (ghostview) or to your printer.
+I don't recommend previewing with gxditview because it doesn't render
+some of mom's effects properly.
+
+All the files are set up for 8.5ix11i paper.
+
+macros.mom
+----------
+
+This file demonstrates the use of typesetting tabs, string tabs,
+line padding, multi-columns and various indent styles, as well as
+some of the refinements and fine-tuning available via macros and
+inline escapes.
+
+Because the file also demonstrates a "cutaround" using a small picture
+(of Tux), the PostScript file has been included in the directory.
+
+typeset.mom
+-----------
+
+This file contains samples of three of the document styles available
+with the document processing macros, as well as demonstrating the
+use of COLLATE.  The relatively rare BREAK_QUOTE macro is also used.
+The PRINTSTYLE of this file is TYPESET, letting you get a look at mom's
+default behaviour when she typesets a document.  The last sample,
+set in 2 columns, shows a few of the ways in which you can modify
+mom's behaviour.
+
+typewrite.mom
+-------------
+
+Using the first two samples from typeset.mom, this file shows what
+"typewritten, double-spaced" documents (PRINTSTYLE TYPEWRITE) look
+like.
+
+letter.mom
+----------
+
+This is just the tutorial example from the momdocs, ready for
+previewing.
+
+elvis_syntax
+------------
+
+For those who use the vi clone, elvis, you can paste this file into
+your elvis.syn file.  Provided your mom documents have the extension
+.mom, they'll come out with colorized syntax highlighting.  The rules
+in elvis_syntax aren't exhaustive, but they go a LONG way to making mom
+files more readable.
+
+I'll be very happy if someone sends me syntax highlighting rules for vim
+and emacs. :)

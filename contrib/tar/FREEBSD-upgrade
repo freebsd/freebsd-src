@@ -1,0 +1,18 @@
+$FreeBSD$
+
+GNU Tar
+	originals can be found at: 	ftp://alpha.gnu.org/gnu/tar/
+
+Imported by:
+
+	 cvs import -m "Virgin import (trimmed) of GNU Tar version 1.13.25." \
+		src/contrib/tar FSF TAR_v1_13_25
+
+Notes:
+	1. The following log shows details of trimming:
+
+	$ tar --exclude-from FREEBSD-Xlist -xvzf tar-1.13.25.tar.gz
+
+
+sobomax@FreeBSD.org
+4 June 2002

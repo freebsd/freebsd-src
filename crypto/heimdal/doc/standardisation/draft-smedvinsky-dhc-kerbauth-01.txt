@@ -1,0 +1,929 @@
+
+
+DHC Working Group                                          S. Medvinsky
+Internet Draft                                                 Motorola
+Document: <draft-smedvinsky-dhc-kerbauth-01.txt>
+Category: Standards Track                                    P.Lalwaney
+Expires: January 2001                                             Nokia
+
+                                                              July 2000
+
+
+        Kerberos V Authentication Mode for Uninitialized Clients
+
+
+Status of this Memo
+
+   This document is an Internet-Draft and is in full conformance with
+   all provisions of Section 10 of RFC2026.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF), its areas, and its working groups. Note that
+   other groups may also distribute working documents as Internet-
+   Drafts. Internet-Drafts are draft documents valid for a maximum of
+   six months and may be updated, replaced, or obsoleted by other
+   documents at any time. It is inappropriate to use Internet- Drafts
+   as reference material or to cite them other than as "work in
+   progress."
+
+   The list of current Internet-Drafts can be accessed at
+   http://www.ietf.org/ietf/1id-abstracts.txt
+
+   The list of Internet-Draft Shadow Directories can be accessed at
+   http://www.ietf.org/shadow.html.
+
+   The distribution of this memo is unlimited.  It is filed as <draft-
+   smedvinsky-dhc-kerbauth-01.txt>, and expires January 2001. Please
+   send comments to the authors.
+
+
+
+1. Abstract
+
+   The Dynamic Host Configuration Protocol (DHCP) [1] includes an
+   option that allows authentication of all DHCP messages, as specified
+   in [2].  This document specifies a DHCP authentication mode based on
+   Kerberos V tickets. This provides mutual authentication between a
+   DHCP client and server, as well as authentication of all DHCP
+   messages.
+
+   This document specifies Kerberos message exchanges between an
+   uninitialized client and the KDC (Key Distribution Center) using an
+   IAKERB proxy [7] so that the Kerberos key management phase is
+   decoupled from, and precedes the address allocation and network
+   configuration phase that uses the DHCP authentication option.  In
+   order to make use of the IAKERB proxy, this document specifies a
+   transport mechanism that works with an uninitialized client (i.e. a
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+   client without an assigned IP address). In addition, the document
+   specifies the format of the Kerberos authenticator to be used with
+   the DHCP authentication option.
+
+2. Conventions used in this document
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in
+   this document are to be interpreted as described in RFC-2119.
+
+3. Introduction
+
+   3.1 Terminology
+
+   o "DHCP client"
+
+   A DHCP client is an Internet host using DHCP to obtain configuration
+   parameters such as a network address.
+
+   o "DHCP server"
+
+   A DHCP server is an Internet host that returns configuration
+   parameters to DHCP clients.
+
+   O "Ticket"
+
+   A Kerberos term for a record that helps a client authenticate itself
+   to a server; it contains the client's identity, a session key, a
+   timestamp, and other information, all sealed using the server's
+   secret key. It only serves to authenticate a client when presented
+   along with a fresh Authenticator.
+
+   o "Key Distribution Center"
+
+   Key Distribution Center, a network service that supplies tickets and
+   temporary session keys; or an instance of that service or the host
+   on which it runs. The KDC services both initial ticket and Ticket-
+   Granting Ticket (TGT) requests. The initial ticket portion is
+   sometimes referred to as the Authentication Server (or service. The
+   Ticket-Granting Ticket portion is sometimes referred to as the
+   Ticket-Granting Server (or service).
+
+   o "Realm"
+
+   A Kerberos administrative domain that represents a group of
+   principals registered at a KDC.  A single KDC may be responsible for
+   one or more realms.  A fully qualified principal name includes a
+   realm name along with a principal name unique within that realm.
+
+3.2 Protocol Overview
+
+
+
+S. Medvinsky, P. Lalwaney                                          -2-        
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+   DHCP as defined in [1] defines the protocol exchanges for a client
+   to obtain its IP address and network configuration information from
+   a DHCP Server. Kerberos V5 as described in [6] defines the protocol
+   and message exchanges to mutually authenticate two parties. It is
+   our goal to provide authentication support for DHCP using Kerberos.
+   This implies that the Kerberos key management exchange has to take
+   place before a client gets its IP address from the DHCP Server.
+   Kerberos assumes that the client has a network address and can
+   contact the Key Distribution Center to obtain its credentials for
+   authenticated communication with an application server.
+
+   In this specification we utilize the key exchange using an IAKERB
+   proxy described in [7]. This does not require any changes to either
+   the IAKERB or the Kerberos V5 specification.  This document also
+   specifies a particular transport that allows an uninitialized client
+   to contact an IAKERB proxy.
+
+   The Kerberos ticket returned from the key management exchange
+   discussed in Section 5 of this document is passed to the DHCP Server
+   inside the DHCP authentication option with the new Kerberos
+   authenticator type. This is described in Section 6 of this draft.
+
+
+3.3 Related Work
+
+   A prior Internet Draft [3] outlined the use of Kerberos-based
+   authentication for DHCP. The proposal tightly coupled the Kerberos
+   client state machines and the DHCP client state machines. As a
+   result, the Kerberos key management messages were carried in DHCP
+   messages, along with the Kerberos authenticators. In addition, the
+   first DHCP message exchange (request, offer) is not authenticated.
+
+   We propose a protocol exchange where Kerberos key management is
+   decoupled from and precedes authenticated DHCP exchanges. This
+   implies that the Kerberos ticket returned in the initial key
+   management exchange could be used to authenticate servers assigning
+   addresses by non-DHCP address assignment mechanisms like RSIP [4]
+   and for service specific parameter provisioning mechanisms using SLP
+   [5].
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+S. Medvinsky, P. Lalwaney                                          -3-        
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+
+4. System Architecture
+
+
+     Client
+    --------                            --------
+   |        |   5.Authenticated DHCP   |        |
+   |  DHCP  |<------------------------>| DHCP   |
+   | client |                          | server |
+   |        |                          |        |
+   |        |                          |        |
+   |Kerberos|                          |        |
+   | Client |                          |        |
+    --------                            --------
+       ^
+       |
+       |
+       |
+       |                                -------
+        ------------------------------>|       |
+         Kerberos Key Mgmt             | Proxy |
+         messages:                     |       |
+          1. AS Request  / 2.AS Reply   -------
+          3. TGS Request / 4.TGS Reply     ^
+                                           | Kerberos
+                                           | Key Mgmt messages
+                                           v (1, 2, 3, 4)
+                                        --------
+                                       |        |
+                                       |  KDC   |
+                                       |        |
+                                        --------
+
+     Figure 1: System blocks and message interactions between them
+
+
+   In this architecture, the DHCP client obtains a Kerberos ticket from
+   the Key Distribution Center (KDC) using standard Kerberos messages,
+   as specified in [6].  The client, however, contacts the KDC via a
+   proxy server, according to the IAKERB mechanism, described in [7].
+   The are several reasons why a client has to go through this proxy in
+   order to contact the KDC:
+
+  a)The client may not know the host address of the KDC and may be
+     sending its first request message as a broadcast on a local
+     network.  The KDC may not be located on the local network, and
+     even if it were - it will be unable to communicate with a client
+     without an IP address.  This document describes a specific
+     mechanism that may be used by a client to communicate with the
+     Kerberos proxy.
+
+
+
+S. Medvinsky, P. Lalwaney                                          -4-        
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+  b)The client may not know its Kerberos realm name.  The proxy is
+     able to fill in the missing client realm name in an AS Request
+     message, as specified in IAKERB.  Note that in the case that
+     PKINIT pre-authenticator is used [8], the realm name in the AS
+     Request may be the KDC realm name and not the clientÆs realm name.
+
+  c) The client does not know the realm name of the DHCP server.
+
+     According to IAKERB, when the client sends a TGS Request with a
+     missing server realm name, the proxy will return to the client an
+     error message containing the missing realm name.
+
+     Note that in this case the proxy could return the client a wrong
+     realm name and the client could be fooled into obtaining a ticket
+     for the wrong DHCP server (on the same local network).  However,
+     the wrong DHCP server must still be a registered principal in a
+     KDC database.  In some circumstances this may be an acceptable
+     compromise.  Also, see the security considerations section.
+
+     IAKERB describes the proxy as part of an application server - the
+     DHCP server in this case.  However, in this document we are not
+     requiring the proxy to be integrated with the DHCP server.  The
+     same IAKERB mechanisms apply in the more general case, where the
+     proxy is an independent application.  This proxy, however, MUST be
+     reachable by a client via a local network broadcast.
+
+     After a client has obtained a Kerberos ticket for the DHCP server,
+     it will use it as part of an authentication option in the DHCP
+     messages.  The only extension to the DHCP protocol is the addition
+     of a new authenticator type based on Kerberos tickets.
+
+4.1 Cross-Realm Authentication
+
+   Figure 1 shows a client communicating with a single KDC via a proxy.
+   However, the DHCP clientÆs realm may be different from the DHCP
+   serverÆs realm.  In that case, the client may need to first contact
+   the KDC in its local realm to obtain a cross-realm TGT.  Then, the
+   client would use the cross-realm TGT to contact the KDC in the DHCP
+   serverÆs realm, as specified in [6].
+
+   In the following example a client doesnÆt know its realm or the DHCP
+   serverÆs realm, which happens to be different from the clientÆs
+   realm.  Here are the steps in obtaining the ticket for the DHCP
+   server (based on [6] and [7]):
+
+        1) The client sends AS Request with NULL realm to the proxy.
+        2) The proxy fills in the realm and forwards the AS Request to
+           the KDC in the clientÆs realm.
+        3) The KDC issues a TGT and sends back an AS Reply to the
+           proxy.
+        4) The proxy forwards AS Reply to the client.
+
+
+S. Medvinsky, P. Lalwaney                                          -5-        
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+        5) The client sends TGS Request for a principal name "dhcpsrvr"
+           with NULL realm to the proxy.
+        6) The proxy returns KRB_AP_ERR_REALM_REQUIRED error with the
+           DHCP serverÆs realm to the client.
+        7) The client sends another TGS Request for a cross-realm TGT
+           to the proxy.
+        8) The proxy forwards the TGS Request to the KDC in the
+           clientÆs realm.
+        9) The KDC issues a cross-realm TGT and sends back a TGS Reply
+           to the proxy.
+       10) The proxy forwards TGS Reply to the client.
+       11) The client sends a TGS Request to the proxy for a principal
+       "dhcpsrvr" with the realm name filled in, using a cross-realm
+       TGT.
+       12) The proxy forwards TGS Request to the KDC in the DHCP      
+       server's realm.
+       13) The KDC issues a ticket for the DHCP server and sends TGS
+       Reply back to the proxy.
+       14) The proxy forwards TGS Reply to the client.
+
+   In a most general case, the client may need to contact any number of
+   KDCs in different realms before it can get a ticket for the DHCP
+   server.  In each case, the client would contact a KDC via the proxy
+   server, as specified in Section 5 of this document.
+
+4.2 Public Key Authentication
+
+   This specification also allows clients to perform public key
+   authentication to the KDC, based on the PKINIT specification [8].
+   In this case, the size of an AS Request and AS Reply messages is
+   likely to exceed the size of typical link MTU's.
+
+   Here is an example, where PKINIT is used by a DHCP client that is
+   not a registered principal in the KDC principal database:
+
+        1) The client sends AS Request with a PKINIT Request pre-
+           authenticator to the proxy.  This includes the clientÆs
+           signature and X.509 certificate.  The KDC realm field is
+           left as NULL.
+        2) The proxy fills in the realm and forwards the AS Request to
+           the KDC in the filled in realm.  This is the realm of the
+           DHCP server.  Here, the clientÆs realm is the name of a
+           Certification Authority - not the same as the KDC realm.
+        3) The KDC issues a TGT and sends back an AS Reply with a
+           PKINIT Reply pre-authenticator to the proxy.
+        4) The proxy forwards the AS Reply to the client.
+        5) The client sends TGS Request for a principal name "dhcpsrvr"
+           with the realm found in the TGT to the proxy.
+        6) The proxy forwards TGS Request to the KDC in the DHCP
+           serverÆs realm.
+        7) The KDC issues a ticket for the DHCP server and sends TGS
+           Reply back to the proxy.
+
+S. Medvinsky, P. Lalwaney                                          -6-        
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+        8) The proxy forwards TGS Reply to the client.
+
+
+   5. Key Management Exchange that Precedes Network Address Allocation
+
+   An uninitialized host (e.g. on power-on and reset) does not have a
+   network address. It does have a link layer address or hardware
+   address. At this time, the client may not have any information on
+   its realm or the realm of the address allocation server (DHCP
+   Server).
+
+   In the Kerberos key management exchange, a client gets its ticket
+   granting ticket (TGT) by contacting the Authentication Server in the
+   KDC using the AS_Request / Reply messages (shown as messages 1 and 2
+   in Figure 1). The client then contacts the Ticket Granting Server in
+   the KDC to get the DHCP server ticket (to be used for mutual
+   authentication with the DHCP server) using the TGS_REQ / TGS_REP
+   messages (shown as messages 3 and 4 in the above figure).  It is
+   also possible for the client to obtain a DHCP server ticket directly
+   with the AS Request / Reply exchange, without the use of the TGT.
+
+   In the use of Kerberos for DHCP authentication, the client (a) does
+   not have an IP/network address (b) does not know he KDCÆs IP address
+   (c) the KDC may not be on the local network and (d) the client may
+   not know the DHCP ServerÆs IP address and realm.  We therefore
+   require a Kerberos proxy on the local network to accept broadcast
+   Kerberos request messages (AS_REQ and TGS_REQ) from uninitialized
+   clients and relay them to the appropriate KDC.
+
+   The uninitialized client formulates a broadcast AS_REQ or TGS_REQ as
+   follows:
+
+   The request payload contains the client hardware address in
+   addresses field with a negative value for the address type. Kerberos
+   v5 [6] allows for the usage of negative address types for "local"
+   use. Note that IAKERB [7] discourages the use of the addresses field
+   as network addresses may not be known or may change in situation
+   where proxies are used. In this draft we incorporate the negative
+   values permitted in the Kerberos transport in the address type field
+   of both the AS_REQ and TGS_REQ messages. The negative value SHOULD
+   be the negative number of the hardware address type "htype" value
+   (from assigned numbers RFC) used in RFC 2131. The address field of
+   the message contains the clients hardware address.
+
+   The request payload is UDP encapsulated and addressed to port 88 on
+   the server/proxy. The UDP source port is selected by the client. The
+   source and destination network addresses are the all-zeroÆs address
+   and the broadcast address, respectively. For IPv4, the source IP
+   address is set to 0.0.0.0 and the destination IP address is set to
+   255.255.255.255. The data link layer header source address
+   corresponds to the link layer/hardware address of the client. The
+
+
+S. Medvinsky, P. Lalwaney                                          -7-        
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+   destination link layer address is the broadcast address at the link
+   layer (e.g. for Ethernet the address is ffffffff).
+
+   In the case where AS_REQ message contains a PKINIT pre-authenticator
+   for public key-based client authentication (based on [8]), the
+   message will probably not fit into a single UDP packet given typical
+   link MTU's.
+
+   It is assumed that the proxy server on a network is configured with
+   a list of KDCÆs, their realms and their IP addresses. The proxy
+   server will act as a client to the KDC and forward standard Kerberos
+   messages to/from the KDC using unicast UDP or TCP transport
+   mechanisms, according to [6].
+
+   Upon receiving a broadcast request from a client, the proxy MUST
+   record the clientÆs hardware address that appears as the source
+   address on the frame as well as in the addresses field of the
+   request message. Based on the realm of the KDC specified in the
+   request, the proxy determines the KDC to which this message is
+   relayed as a unicast message from the proxy to the KDC.  In the case
+   that the client left the KDC realm name as NULL, it is up to the
+   proxy to first determine the correct realm name and fill it in the
+   request (according to [7]).
+
+   On receiving a request, the KDC formulates a response (AS_REP or
+   TGS_REP). It includes the clientÆs addresses field in the encrypted
+   part of the ticket (according to [6]). This response is unicast to
+   the proxy.
+
+   Upon receiving the reply, the proxy MUST first determine the
+   previously saved hardware address of the client.  The proxy
+   broadcasts the reply on its local network. This is a network layer
+   broadcast. At the link level, it uses the hardware address obtained
+   from the addresses field of the request.
+
+   The client on receiving the response (link layer destination address
+   as its hardware address, network layer address is the broadcast
+   address) must verify that the hardware address in the ticket
+   corresponds to its link layer address.
+
+   Upon receiving a TGS_REP (or an AS_REP with the application server
+   ticket) from the proxy, the client will have enough information to
+   securely communicate with the application server (the DHCP Server in
+   this case), as specified in the following section.
+
+
+
+
+
+
+
+
+
+S. Medvinsky, P. Lalwaney                                          -8-        
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+    6. Authenticated Message Exchange Between the DHCP Client and the
+   DHCP Server
+
+   The ticket returned in the TGS response is used by the DHCP client
+   in the construction of the Kerberos authenticator.  The Kerberos
+   ticket serves two purposes: to establish a shared session key with
+   the DHCP server, and is also included as part of a Kerberos
+   authenticator in the DHCP request.
+
+   If the size of the authenticator is greater than 255 bytes, the DHCP
+   authentication option is repeated multiple times.  When the values
+   of all the authentication options are concatenated together, they
+   will make up the complete authenticator.
+
+   Once the session key is established, the Kerberos structure
+   containing the ticket (AP REQ) can be omitted from the authenticator
+   for subsequent messages sent by both the DHCP client and the DHCP
+   server.
+
+   The Kerberos authenticator for a DHCP request message is specified
+   below:
+
+   0                   1                   2                   3
+   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |     Code      |    Length     |    Protocol   |   Algorithm   |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +              Replay Detection (64 bits)                       +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +              Authentication token (n octets)           ...    +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   The format of this authenticator is in accordance with [2]. The code
+   for the authentication option is TBD, and the length field contains
+   the length of the remainder of the option, starting with the
+   protocol field.
+
+   The value of the protocol field for this authenticator MUST be set
+   to 2.
+
+   The algorithm field MUST take one of the following values:
+        1 - HMAC-MD5
+        2 - HMAC-SHA-1
+
+   Replay protection field is a monotonically increasing counter field.
+   When the Kerberos AP REQ structure is present in the authenticator
+   the counter may be set to any value.  The AP REQ contains its own
+   replay protection mechanism in the form of a timestamp.
+
+S. Medvinsky, P. Lalwaney                                          -9-        
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+
+   Once the session key has been established and the AP REQ is not
+   included in the authenticator, this field MUST be monotonically
+   increasing in the messages sent by the client.
+
+   Kerberos authenticator token consists of type-length-value
+   attributes:
+
+   0                   1                   2                   3
+   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |     Type      |  Reserved     |       Payload Length          |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                           attribute value...
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   The following attributes are included in the Kerberos authenticator
+   token:
+
+   Type         Attribute Name          Value
+   --------------------------------------------------------------------
+   0            Message Integrity Code  Depends on the value of the
+                                        algorithm field.  Its length is
+                                        16 bytes for HMAC-MD5 [9, 10]
+                                        and 20 bytes for HMAC-SHA-1
+                                        [11, 10].  The HMAC key must be
+                                        derived from Kerberos session
+                                        key found in the Kerberos
+                                        ticket according to the key
+                                        derivation rules in [6]:
+
+                                          HMAC Key = DK(sess key,
+                                                      key usage | 0x99)
+
+                                        Here, DK is defined in [12] and
+                                        the key usage value for DHCP is
+                                        TBD.
+
+                                        The HMAC is calculated over the
+                                        entire DHCP message. The
+                                        Message Integrity Code
+                                        attribute MUST be set to all 0s
+                                        for the computation of the
+                                        HMAC.  Because a DHCP relay
+                                        agent may alter the values of
+                                        the 'giaddr' and 'hops' fields
+                                        in the DHCP message, the
+                                        contents of those two fields
+                                        MUST also be set to zero for
+                                        the computation of the HMAC.
+                                        Rules specified in Section 3 of
+                                        [2] for the exclusion and
+
+S. Medvinsky, P. Lalwaney                                         -10-        
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+                                        processing of the relay agent
+                                        information are applicable here
+                                        too.
+
+                                        This field MUST always be
+                                        present in the Kerberos
+                                        authenticator.
+
+   1            AP_REQ                  ASN.1 encoding of a Kerberos
+                                        AP_REQ message, as specified
+                                        in [6]. This MUST be included
+                                        by the client when establishing
+                                        a new session key.  In all
+                                        other cases, this attribute
+                                        MUST be omitted.
+
+   AP_REQ contains the Kerberos ticket for the DHCP server and also
+   contains information needed by the DHCP server to authenticate the
+   client.  After verifying the AP_REQ and decrypting the Kerberos
+   ticket, the DHCP server is able to extract a session key which it
+   now shares with the DHCP client.
+
+   The Kerberos authenticator token contains its own replay protection
+   mechanism inside the AP_REQ structure.  The AP_REQ contains a
+   timestamp that must be within an agreed upon time window at the DHCP
+   server.  However, this does not require the DHCP clients to maintain
+   an accurate clock between reboots.  Kerberos allows clients to
+   synchronize their clock with the KDC with the help of Kerberos
+   KRB_AP_ERR_SKEW error message, as specified in [6].
+
+   The DHCP server MUST save both the session key and its associated
+   expiration time found in the Kerberos ticket.  Up until the
+   expiration time, the server must accept client requests with the
+   Kerberos authenticator that does not include the AP REQ, using the
+   saved session key in calculating HMAC values.
+
+   The Kerberos authenticator inside all DHCP server responses MUST NOT
+   contain the AP REQ and MUST use the saved Kerberos session key in
+   calculating HMAC values.
+
+   When the session key expires, it is the client's responsibility to
+   obtain a new ticket from the KDC and to include an AP REQ inside the
+   Kerberos authenticator for the next DHCP request message.
+
+
+
+
+
+
+
+
+
+
+S. Medvinsky, P. Lalwaney                                         -11-        
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+7. Detailed message flows for Kerberos and DHCP message Exchanges
+
+   The following flow depicts the Kerberos exchange in which a AS REQ
+   message is used to directly request the DHCP Server ticket. There
+   are no changes to transport mechanisms below when the additional
+   phase of using TGS requests/responses with TGTÆs is used.
+
+   Client                         IAKERB Proxy                 KDC
+
+   KB-client-------- AS_REQ ------>
+
+   AS REQ Address type = - (htype)
+   AS REQ Address= hw address
+
+   src UDP port = senders port
+   destination UDP port = 88
+
+   src IP = 0.0.0.0
+   destination IP = 255.255.255.255
+
+   src link layer address =
+   clientÆs HW/link address [e.g Ethernet address]
+
+   destination link layer address =
+   link broadcast address [e.g. ffffffff for Ethernet]
+
+
+                                         --------------------------->
+                                            (unicast to UDP port 88)
+
+
+
+                                          <--------------------------
+                                             (unicast AS REP)
+                                         Encrypted portion of ticket
+                                         Includes clients HW address
+
+
+      <---------------AS_REP -----------
+
+
+     Ticket includes clientÆs hardware address
+
+     src UDP port = 88
+     destination UDP port = copied from src port in AS_REQ
+
+     src IP = ProxyÆs IP address
+     destination IP = 255.255.255.255
+
+     src link layer address = ProxyÆs HW/link address
+     destination link layer address =
+         ClientÆs link layer address from AS_REQ
+
+
+S. Medvinsky, P. Lalwaney                                         -12-        
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+
+
+
+    The client uses the ticket received from the KDC in the DHCP
+Authentication option as described in Section 6.
+
+
+     Client
+     DHCP-client                                   DHCP Server
+
+             ------DHCPDISCOVER ---->
+             (Auth Protocol = 2, includes Kerberos
+              authenticator with AP REQ )
+                                   -----------------------------------
+                                   |  HMAC  |     AP   REQ           |
+                                    ----------------------------------
+                                            | Ticket| Client Authent |
+                                            --------------------------
+
+                                         1. Server decrypts ticket
+                                         (inside AP REQ) with service
+                                         key
+                                         2. Server decrypts client
+                                         authenticator (inside AP REQ)
+                                         and checks content and
+                                         checksum to validate the
+                                         client.
+                                         3. Recompute HMAC with session
+                                         key and compare.
+
+
+          <-------DHCPOFFER----------
+          (Auth Protocol = 2, no AP REQ )
+
+
+
+         ---------DHCPREQUEST------->
+         (Auth Protocol = 2, no AP REQ)
+
+
+          <--------DHCPACK-------------
+           (Auth Protocol = 2, no AP REQ )
+
+
+
+
+8. Security Considerations
+
+   DHCP clients that do not know the DHCP serverÆs realm name will get
+   it from the proxy, as specified in IAKERB [7].  Since the proxy is
+   not authenticated, a DHCP client can be fooled into obtaining a
+   ticket for the wrong DHCP server in the wrong realm.
+
+S. Medvinsky, P. Lalwaney                                         -13-        
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+
+   This could happen when the client leaves out the server realm name
+   in a TGS Request message to the proxy.  It is also possible,
+   however, for a client to directly request a DHCP server ticket with
+   an AS Request message.  In those cases, the same situation occurs
+   when the client leaves out the realm name in an AS Request.
+
+   This wrong DHCP server is still registered as a valid principal in a
+   database of a KDC that can be trusted by the client.  In some
+   circumstances a client may assume that a DHCP server that is a
+   Kerberos principal registered with a trusted KDC will not attempt to
+   deliberately misconfigure a client.
+
+   This specification provides a tradeoff between:
+
+        1) The DHCP clients knowing DHCP serverÆs realm ahead of time,
+           which provides for full 2-way authentication at the cost of
+           an additional configuration parameter.
+        2) The DHCP clients not requiring any additional configuration
+           information, besides a password or a key (and a public key
+           certificate if PKINIT is used).  This is at the cost of not
+           being able to fully authenticate the identity of the DHCP
+           server.
+
+
+
+9. References
+
+
+   [1]Droms, R., Arbaugh, W., "Dynamic Host Configuration Protocol",
+      RFC 2131, Bucknell University, March 1997.
+
+   [2]Droms, R., Arbaugh, W., "Authentication for DHCP Messages",
+      draft-ietf-dhc-authentication-13.txt, June 2000.
+
+   [3]Hornstein, K., Lemon, T., "DHCP Authentication Via Kerberos V",
+      draft-hornstein-dhc-kerbauth-02.txt, February 2000.
+
+   [4]Borella, M., Grabelsky, D., Lo, J., Tuniguchi, K., "Realm
+      Specific IP: Protocol Specification ", draft-ietf-nat-rsip-
+      protocol-06.txt, March 2000.
+
+   [5]Guttman, E., Perkins, C., Veizades, J., Day, M., "Service
+      Location Protocol, Version 2", RFC 2608, June 1999.
+
+   [6]Neuman, C., Kohl, J., Ts'o, T., "The Kerberos Network
+      Authentication Service (V5)", draft-ietf-cat-kerberos-revisions-
+      05.txt, March 2000.
+
+
+
+
+
+S. Medvinsky, P. Lalwaney                                         -14-        
+
+Kerberos V Authentication Mode for Uninitialized Clients     July 2000
+
+
+
+   [7]Swift, M., Trostle, J., "Initial Authentication and Pass Through
+      Authentication Using Kerberos V5 and the GSS-API (IAKERB)",
+      draft-ietf-cat-iakerb-03.txt, September 1999.
+
+   [8]Tung, B., C. Neuman, M. Hur, A. Medvinsky, S. Medvinsky, J. Wray,
+      J. Trostle, "Public Key Cryptography for Initial Authentication
+      in Kerberos", draft-ietf-cat-pk-init-11.txt, March 2000.
+
+   [9]Rivest, R., "The MD5 Message-Digest Algorithm", RFC 1321, April
+      1992.
+
+   [10]Krawczyk H., M. Bellare and R. Canetti, "HMAC: Keyed-Hashing for
+      Message Authentication," RFC 2104, February 1997.
+
+   [11]NIST, FIPS PUB 180-1, "Secure Hash Standard", April 1995.
+
+   [12]Horowitz, M., "Key Derivation for Authentication, Integrity, and
+      Privacy", draft-horowitz-key-derivation-02.txt, August 1998.
+
+   [13]Bradner, S. "The Internet Standards Process -- Revision 3", RFC
+   2026.
+
+
+
+ 10. Author's Addresses
+
+   Sasha Medvinsky
+   Motorola
+   6450 Sequence Drive
+   San Diego, CA 92121
+   Email: smedvinsky@gi.com
+
+   Poornima Lalwaney
+   Nokia
+   12278 Scripps Summit Drive
+   San Diego, CA  92131
+   Email: poornima.lalwaney@nokia.com
+
+
+11. Expiration
+
+   This memo is filed as <draft-smedvinsky-dhc-kerbauth-01.txt>, and
+   expires January 1, 2001.
+
+
+
+12. Intellectual Property Notices
+
+
+
+
+
+
+S. Medvinsky, P. Lalwaney                                         -15-        
+
+Kerberos V Authentication Mode for Uninitialized Clients    March 2000
+
+
+      This section contains two notices as required by [13] for
+   standards track documents.  Per [13], section 10.4(A):
+
+     The IETF takes no position regarding the validity or scope of any
+   intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this document or the extent to which any license under such rights
+   might or might not be available; neither does it represent that it
+   has made any effort to identify any such rights. Information on the
+   IETF's procedures with respect to rights in standards-track and
+   standards-related documentation can be found in BCP-11. Copies of
+   claims of rights made available for publication and any assurances
+   of licenses to be made available, or the result of an attempt made
+   to obtain a general license or permission for the use of such
+   proprietary rights by implementers or users of this specification
+   can be obtained from the IETF Secretariat.
+
+      Per [13] section 10.4(D):
+
+      The IETF has been notified of intellectual property rights
+   claimed in regard to some or all of the specification contained in
+   this document.  For more information consult the online list of
+   claimed rights.
+
+   13. Full Copyright Statement
+
+   Copyright (C) The Internet Society (1999).  All Rights Reserved.
+
+   This document and translations of it may be copied and furnished to
+   others, and derivative works that comment on or otherwise explain it
+   or assist in its implementation may be prepared, copied, published
+   and distributed, in whole or in part, without restriction of any
+   kind, provided that the above copyright notice and this paragraph
+   are included on all such copies and derivative works.  However, this
+   document itself may not be modified in any way, such as by removing
+   the copyright notice or references to the Internet Society or other
+   Internet organizations, except as needed for the purpose of
+   developing Internet standards in which case the procedures for
+   copyrights defined in the Internet Standards process must be
+   followed, or as required to translate it into languages other than
+   English.  The limited permissions granted above are perpetual and
+   will not be revoked by the Internet Society or its successors or
+   assigns. This document and the information contained herein is
+   provided on an "AS IS" basis and THE INTERNET SOCIETY AND THE
+   INTERNET ENGINEERING TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF
+   THE INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+   WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+
+
+
+
+S. Medvinsky, P. Lalwaney                                         -16-
+

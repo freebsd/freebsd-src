@@ -1,0 +1,429 @@
+Sun Mar  1 17:02:06 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* README: updated to 1.92.3, included mail announcement.
+
+Sat Feb 29 00:53:16 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* tc-sparc.c (md_apply_fix): relocation overflow checks.
+
+	* atof-generic.c (atof_generic): recognize 99e999 as infinity for
+	  older, broken, compilers.
+
+	* version.c: bump to 1.92.3, drop "Cygnus".
+
+	* input-scrub.c (as_where): use myname (which comes from argv[0])
+	  as part of all error messages.
+
+	* mess-dose renaming:
+	  flonum-copy.c -> flo-copy.c 
+	  flonum-const.c -> flo-const.c
+	  config/a.out.gnu.h -> config/aout.h
+	  config/coff.gnu.h -> config/coff.h
+
+	* Makefile.in, obj-aout.h, obj-coff.h: reflect file renaming.
+
+	* output-file.c (output_file_create): add "b" to the fopen to
+	  humor mess-dos.
+
+	* configure.in: tahoe needs atof-tahoe.
+
+	* config/tc-tahoe.[hc], config/atof-tahoe.c, opcode/tahoe.h: new
+	  files.  This is kinda blind cause I don't have anything to run
+	  through it or compare against.
+
+	* read.c (read_a_source_file), expr.c (operand): fix a very old
+	  bug in label reading exposed by m88k.  Also, m88k can't have a
+	  pseudo "set".
+
+	* config/m88k.[hc]: freshen copyrights, version 2 gpl, update to
+	  current gas.
+
+	* config/m88k-opcode.h moved to opcode/m88k.h
+
+	* read.c: NO_DOT_PSEUDOS from hacks unfinished work.
+
+	* opcode/m68k.h: Sun's JFcc aliases appear to be variable length.
+	  Make them so.
+
+	* opcode/a29k.h: remove rcsid.
+
+	* config/te-sun3.h: remove semicolon typo.
+
+	* config/obj-vms.c: another patch from eric youngdale.
+
+	* write.c: white space only.
+
+	* config/tc-i960.c: change from intel for header flags.
+
+	* config/te-sequent.h, config/obj-aout.h: first cut at building
+	  sequent headers.
+
+	* config/tc-ns32k.c: patches from Jyrki Kuoppala <jkp@cs.hut.fi>.
+
+	* struct-symbol.h: removed redundant decl of N_TYPE_seg.
+
+	* config/tc-sparc.c (sparc_ip), opcode/sparc.h: changes from chris
+	  torek to correct a problem with "neg".  some white space.
+
+	* confic/tc-m68k.c: a fix pulled from hack's unfinished work and
+	  my mail archives.  Try again to get pcrel working.  Fix stupid
+	  botch on cpu_type comparison.
+
+	* config/tc-sparc.c: .empty pseudo-op from
+	  gordoni@cs.adelaide.edu.au.
+
+	* opcode/sparc.h: some new aliases from chris torek.
+
+	* opcode/i386.h: some new aliases and opcodes.  also patches from
+	  Steve Bleazard <steve@robobar.co.uk>.
+
+	* config/te-hpux.h: new file.
+
+	* configure.in: when targetting hpux, use te-hpux.h.
+
+	* config/obj-aout.c (obj-pre-write-hook), config/obj-bout.[ch]
+	  (obj-pre-write-hook), config/obj-coff.[ch] (obj-pre-write-hook),
+	  config/obj-generic.h, config/obj-vms.h, write.c
+	  (write_object_file): move magic number fiddling out of write.c
+	  and into obj-pre-write-hook.
+
+	* config/tc-i860.c: gcc -Wall cleanup.
+
+Fri Feb 28 00:30:36 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* configure.in: if target is sun3, use te-sun3.h.
+
+	* config/tc-m68k.h, config/te-sun3.h: moved #define of
+	  default_magic_number_for_object_file from former to latter.
+
+	* config/te-sun3.h: removed sun_asm_syntax and te_sun3, they
+	  aren't used.
+
+	* all: white space changes.
+	  " -> " becomes "->"
+	  "foo [" becomes "foo["
+	  "a . b" becomes "a.b"
+	  "\(if\|for\|while\|switch\)(" become "\\1("
+	  "\\([^\n]\\)[ \t]*\\([=!+-*/<>]\\)=[ \t]*" become "\\1 \\2= "
+
+	* read.c, write.c, config/tc-i386.c: white space and comments
+	  only.
+
+	* config/obj-vms.c: convert PUT_LONG and PUT_SHORT to squirt byte
+	  swapped numbers.
+
+	* as.c, flonum-const.c, hex-value.c, input-file.c, version.c,
+	  config/obj-aout.h, config/obj-vms.c: VMS -> HO_VMS.
+
+	* config/ho-vms.h: added HO_VMS.
+
+Thu Feb 27 18:25:11 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* config/ChangeLog: removed.  entries merged into this file.
+
+	* config/ho-vms.h: new file.  Move the VMS stuff out of ho-vax.h
+	  into ho-vms.h.
+
+	* configure.in: use ho-i386v4 for i386-sysvr4.
+
+	* config/ho-i386v4: new file.
+
+Tue Feb 25 19:54:04 1992    (Eric Youngdale at youngdale@v6550c.nrl.navy.mil)
+
+	* config/obj-vms.c (VMS_write_object_file): Add work-around
+	  for g++ compiler bug involving external vtables.
+
+Mon Feb 24 22:19:10 1992    (Eric Youngdale at youngdale@v6550c.nrl.navy.mil)
+
+	* README-vms: Describe how to get a VMS obj file to a vms machine 
+	via NFS.
+
+	* configure.in: For i386-sysv*, use gas_host=i386.
+
+	* Makefile.in: Remove continuation line markers when the next line 
+	is blank.
+
+	* read.c (line_comment_chars): Make external.
+
+	* input-file.c: Remove redundant include of <assert.h>.
+
+	* config/ho-vax.h [VMS]: Include <ctype.h> and <perror.h>.
+
+	* config/obj-vms.h: Remove said includes.  Add RELOC_32 to
+	reloc_type to prevent compilation error.
+
+	* config/obj-vms.c: Change bcopy to memcpy throughout.
+	  (VMS_local_stab_Parse): Fix typo.
+	  (VMS_local_stab_Parse, VMS_RSYM_Parse, Define_Local_Symbols, 
+	   Define_Routine, VMS_write_object_file): Allow 'f' for functions
+	   as well as 'F'.
+
+Mon Feb 24 03:48:04 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* README: updated to reflect current testing status.
+
+	* README.rich, NOTES, NOTES.config: updated slightly, marked as
+	  "under construction".
+
+	* CONTRIBUTORS: new file.
+
+	* README-vms: options to configure are now -options=, not
+	  +options=.
+
+	* version.c: bumped version to 1.92.2.
+
+Mon Feb 24 03:27:00 1992  Eric Youngdale (youngdale at v6550c.nrl.navy.mil)
+
+	* config.sub: Added vms as a target system. (So people do not
+	  have to try to figure out that "vax-dec-vms" would work).
+
+	* configure.in: Added vms as a target os, and object file format.
+	  (Useless on a vms system, but this is for people who want to
+	  cross assemble).
+
+	* config-gas.com: New file.  Script for VMS systems to set up the
+	  configuration to build gas for VMS, and create config.status.
+
+	* make-gas.com: Redone to work with the bfd-gas scheme.
+
+	* as.c: Add const modifier to version_string.
+
+	* atof-vax.c: Remove redundant include of flonum.h.  (This is also
+	  included via as.h).
+
+	* expr.c: Add "const" modifier to hex_value.
+
+	* read.c: Add "const" modifier to line_comment_chars, and 
+	  line_separator_chars.  Make use of the -1 switch for backward
+	  compatibility with gcc 1.nn.
+	  (s_ignore): remove redundant declaration of is_end_of_line.
+
+	* symbols.c: Finish conversion to S_* macros in the VMS only
+	  parts of the program.  Add "const" modifier to
+	  md_[long,short]_jump_size. Remove declaration of const_flag
+	  (which will be declared in obj-vms.h).
+
+	* write.c: Add "const" modifier to md_[long,short]_jump_size.
+	  Fix arguments to VMS_write_object_file.
+
+	* obj-vms.h: New file (sort of). Mostly canibalized from other
+	  files, using:
+
+	  - objrecdef.h: Removed structure definition that we do not use,
+	    and removed dollar signs from identifiers, since Unix System 5
+	    does not like them.
+
+	  - obj-aout.h:  Took S_*, some H_* macros, and a number of
+	    symbol definitions.
+
+	  - a.out.hp.h:  Took nlist structure.  We do not really use this
+	    per se, but it is easiest to let gas think that we do.  When we
+	    write the object file, we just pick out the parts that we need.
+
+	  - stab.h: Just included it, since on non VMS and non a.out systems
+	    we have no guarantee of having it. (Define N_* symbols).
+
+	*obj-vms.c: Renamed from vms.c.  Did the following:
+
+	  - Reworked to use the S_* macros.
+
+	  - Add "const" modifier to version_string.
+
+	  - Added global[ref,def,value] support
+
+	  - (VMS_Store_PIC_Symbol_Reference):fix a bug with static constants.
+
+	  - Remove a few redunant includes - all are now included through as.h.
+
+	  - (obj_crawl_symbol_chain): Clean up (a lot), and remove non-VMS
+	    code.  Add definition for obj_read_begin_hook.
+
+	  - Borrow the stab[s,d,n] routines from obj-aout.c.  
+
+	  - Borrow the seg_N_TYPE and N_TYPE_seg arrays from aout.c
+
+	  - Use <fab.h>,<rab.h> and <xab.h> instead of <vms/fabdef.h>
+	    <vms/rabdef.h> and <vms/xabdef.h>, for more consistent results.
+	    (Some peoples <vms/*.h> files are different than others).
+
+	  - Merged vms-dbg.c into obj-vms.c.  Modified to use 
+	    the S_* macros.  Added code to remove the psect hack from
+	    variable names before writing them to the debugger records.
+
+
+
+	  The following patches make cross assembly possible.
+
+	* as.c, read.c, symbols.c, write.c: Change "ifdef VMS" to
+	  "ifdef OBJ_VMS".
+
+	* vms.c:
+
+	  - Wrap the #include of some VMS system dependent headers
+	    with "ifdef VMS".
+
+	  - (get_VMS_time_on_unix): Add new routine.  Generates current
+	    time in VMS format to be written into object file.
+
+	  - (Write_VMS_MHD_Records): Use get_VMS_time_on_unix if we are not
+	    running on a VMS system.
+
+	  - (Flush_VMS_Object_Record_Buffer): Add code to write correct
+	    record format when running on a non-VMS system.
+
+	  - (Create_VMS_Object_File): Use different mode if running under
+	    unix.
+
+	  - (VMS_TBT_Source_File): If we are not running on a VMS system,
+	    write a source file record for the debugger that looks reasonable.
+
+Mon Feb 24 02:06:00 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in: remove $(srcdir)/../include from INCLUDES.  It
+	  isn't needed.
+
+	* README: updated with current state.
+
+	* read.c (stringer): read arbitrary expressions between the commas
+	  and treat them as ".byte" values.  At least some i860 assembler
+	  does this so now we do too.  Also white space throughout.
+
+	* expr.c, expr.h, frags.c, symbols.c, write.c: white space only.
+
+Mon Feb 24 01:45:40 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* config/te-sequent.h, config/tc-ns32k.h, config/tc-ns32k.c:
+	  SEQUENT_COMPATIBILITY -> TE_SEQUENT.
+
+	* config/obj-aout.c: if OLD_GAS and i386, then screw up the magic
+	  number.
+
+	* config/obj-bout.c: do not include aout/stab_gnu.h if NO_LISTING.
+
+	* config/obj-bout.h: added enum reloc_type.
+
+	* config/tc-i386.c: on OLD_GAS, .align is power of two, rather
+	  than bytes.
+
+	* config/tc-i386.h: on OLD_GAS, the filler byte should be zero
+	  rather than NOOP.
+
+	* config/tc-i860.c: relocs are 12bytes on this target.  Also white
+	  space.
+
+	* config/tc-m68kmote.c: removed.  Not ready yet.
+
+	* config/a.out.gnu.h, config/tc-a29k.c, config/tc-m68k.c,
+	  config/tc-ns32k.c: white space only.
+
+	* config/tc-a29k.h, config/tc-i860.h, config/tc-i960.h,
+	  config/tc-m68k.h, config/tc-ns32k.h, config/tc-sparc.h,
+	  config/tc-vax.h: NO_LISTING
+
+	* config/tc-m68k.h, config/tc-i860.h, config/tc-vax.h:
+	  REVERSE_SORT_RELOCS if OLD_GAS.
+
+	* config/mt-m68k: removed.  not needed.
+
+Fri Feb 21 06:22:15 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* config/obj-aout.c: do not include stab.gnu.h if NO_LISTING.
+
+	* config/tc-i860.c, config/a.out.gnu.h: move i860 relocs to a proper place.
+
+	* config/a.out.h: removed.
+
+Fri Feb 21 06:21:07 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* Makefile.in: put header files before C source for TAGS; remove
+	  references to non-existent syscalls.h.
+
+	* read.c, write.c subsegs.c: back out the .bss changes.
+
+Fri Feb 21 02:17:22 1992  Minh Tran-Le (TRANLE@INTELLICORP.COM)
+
+	* config/tc-i386.c: config/tc-i386.c: added handling of the
+	  following opcodes: i/o opcodes - inb, inw, outb and outw.
+	  string manipulation with att syntax - scmp, slod, smov, ssca,
+	  ssto.
+
+Fri Feb 21 01:53:50 1992  Minh Tran-Le (TRANLE@INTELLICORP.COM)
+
+	* config/obj-coff.c: (for aix386) Moved the symbols .text, .data
+	  and .bss to just after .file .
+
+	  In obj_crawl_symbol_chain() where it tries to put the external
+	  symbols apart, with the condition:
+	    (!S_IS_DEFINED(symbolP) &&
+	     !S_IS_DEBUG(symbolP) &&
+	     !SF_GET_STATICS(symbolP))
+	  it was moving too many symbols out. So I switch it back to the
+	  condition:
+	    (S_GET_STORAGE_CLASS(symbolP) == C_EXT && !SF_GET_FUNCTION(symbolP))
+
+	  In obj_emit_relocations() added the conditional on KEEP_RELOC_INFO
+	  so that we don't use the F_RELFLG which make the linker complain
+	  that somebody has stripped the relocation info.
+
+	  Also, the AIX ld program require that the relocation table
+	  is sorted by r_vaddr like the standard ATT assembler does.
+
+	  [he also changed the sizeof(struct ...)'s into the coff
+	  style FOOSZ macros.  I'm not sure this is right, but I can't
+	  remember why.  xoxorich.]
+
+Fri Feb 21 01:08:48 1992  Minh Tran-Le (TRANLE@INTELLICORP.COM)
+
+	* symbols.c (local_label_name): symbols now start with ^A.
+
+	* read.c, subsegs.c, write.c obj-coff.c: added handling of
+	  `.bss` pseudo op for unitialized data. The new gcc (1.37.9x)
+	  generate these sections.  .align: will use NOP_OPCODE or 0
+	  for padding. This is just for being nice to the
+	  disassembler.
+
+	* expr.c (operand): changed to generate local label "\001L0"
+	  starting with a ^A so that it is recognized as a local label.
+
+	* as.c (perform_an_assembly_pass): zero bss_fix_root, too.
+
+Fri Feb 21 01:08:48 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in, configure.in, doc: use the doc.  Build it, install
+	  it, clean it, etc.
+
+Tue Feb 18 02:21:25 1992  K. Richard Pixley  (rich at cygnus.com)
+
+	* read.c: white space and comments only.
+
+	* configure.in: use the new atof-ns32.c for ns32k.
+
+	* write.c: comment change only.
+
+Tue Feb 18 02:11:10 1992  K. Richard Pixley  (rich at cygnus.com)
+
+	* config/tc-m88k.[hc]: pulled in from hack's unfinished work.  These
+	  aren't yet integrated.
+
+	* config/tc-i860.[hc]: blew off the dust.  Something must still be
+	  done about conflicting relocation types.
+
+	* config/tc-ns32k.c: Replaced previous tc_aout_fix_to_chars stub
+	  with the real thing.
+
+	* config/tc-i960.c, tc-sparc.c: white space and comments only.
+
+	* config/tc-a29k.h: delete duplicate macro definition.
+
+	* new file config/atof-ns32k.c copied from hack's last unreleased
+	  gas.
+
+Mon Feb 17 07:51:06 1992  K. Richard Pixley  (rich at cygnus.com)
+
+	* config/tc-ns32k.c: actually make tc_aout_fix_to_chars work
+	  rather than abort.
+				       
+	* nearly everything.  flush ChangeLog, package as gas-1.92.1.
+	  ChangeLog's prior to this are sketchy at best.  I have logs.
+	  They just aren't ChangeLogs.
+

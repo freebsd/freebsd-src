@@ -1,0 +1,29 @@
+#!/bin/sh
+
+killproc() {	# kill named processes
+	pid=`/usr/bin/ps -e |
+		/usr/bin/grep $1 |
+		/usr/bin/sed -e 's/^  *//' -e 's/ .*//'`
+	[ "$pid" != "" ] && kill $pid
+}
+
+case "$1" in
+'start')
+	ps -e | grep xntpd > /dev/null 2>&1
+	if [ $? -eq 0 ]
+	then
+		echo "ntp daemon already running. ntp start aborted"
+		exit 0
+	fi
+	if [ -f /etc/inet/ntp.conf -a -x /usr/sbin/xntpd ]
+	then
+		/usr/sbin/xntpd -c /etc/inet/ntp.conf
+	fi
+	;;
+'stop')
+	killproc xntpd
+	;;
+*)
+	echo "Usage: /etc/init.d/xntp { start | stop }"
+	;;
+esac

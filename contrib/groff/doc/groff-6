@@ -1,0 +1,1462 @@
+This is groff, produced by makeinfo version 4.3d from ./groff.texinfo.
+
+This manual documents GNU `troff' version 1.19.
+
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.1 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, with the Front-Cover texts
+     being `A GNU Manual," and with the Back-Cover Texts as in (a)
+     below.  A copy of the license is included in the section entitled
+     `GNU Free Documentation License."
+
+     (a) The FSF's Back-Cover Text is: `You have freedom to copy and
+     modify this GNU Manual, like GNU software.  Copies published by
+     the Free Software Foundation raise funds for GNU development."
+   
+INFO-DIR-SECTION Typesetting
+START-INFO-DIR-ENTRY
+* Groff: (groff).               The GNU troff document formatting system.
+END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: Changing Type Sizes,  Next: Fractional Type Sizes,  Prev: Sizes,  Up: Sizes
+
+Changing Type Sizes
+-------------------
+
+ - Request: .ps [size]
+ - Request: .ps +size
+ - Request: .ps -size
+ - Escape: \ssize
+ - Register: \n[.s]
+     Use the `ps' request or the `\s' escape to change (increase,
+     decrease) the type size (in points).  Specify SIZE as either an
+     absolute point size, or as a relative change from the current size.
+     The size 0, or no argument, goes back to the previous size.
+
+     Default scaling indicator of `size' is `z'.  If `size' is zero or
+     negative, it is set to 1u.
+
+     The read-only number register `.s' returns the point size in
+     points as a decimal fraction.  This is a string.  To get the point
+     size in scaled points, use the `.ps' register instead.
+
+     `.s' is associated with the current environment (*note
+     Environments::).
+
+
+          snap, snap,
+          .ps +2
+          grin, grin,
+          .ps +2
+          wink, wink, \s+2nudge, nudge,\s+8 say no more!
+          .ps 10
+
+     The `\s' escape may be called in a variety of ways.  Much like
+     other escapes there must be a way to determine where the argument
+     ends and the text begins.  Any of the following forms are valid:
+
+    `\sN'
+          Set the point size to N points.  N must be either 0 or in the
+          range 4 to 39.
+
+    `\s+N'
+    `\s-N'
+          Increase or decrease the point size by N points.  N must be
+          exactly one digit.
+
+    `\s(NN'
+          Set the point size to NN points.  NN must be exactly two
+          digits.
+
+    `\s+(NN'
+    `\s-(NN'
+    `\s(+NN'
+    `\s(-NN'
+          Increase or decrease the point size by NN points.  NN must be
+          exactly two digits.
+
+     Note that `\s' doesn't produce an input token in `gtroff'.  As a
+     consequence, it can be used in requests like `mc' (which expects a
+     single character as an argument) to change the font on the fly:
+
+
+          .mc \s[20]x\s[0]
+
+     *Note Fractional Type Sizes::, for yet another syntactical form of
+     using the `\s' escape.
+
+ - Request: .sizes s1 s2 ... sn [0]
+     Some devices may only have certain permissible sizes, in which case
+     `gtroff' rounds to the nearest permissible size.  The `DESC' file
+     specifies which sizes are permissible for the device.
+
+     Use the `sizes' request to change the permissible sizes for the
+     current output device.  Arguments are in scaled points; the
+     `sizescale' line in the `DESC' file for the output device provides
+     the scaling factor.  For example, if the scaling factor is 1000,
+     then the value 12000 is 12 points.
+
+     Each argument can be a single point size (such as `12000'), or a
+     range of sizes (such as `4000-72000').  You can optionally end the
+     list with a zero.
+
+ - Request: .vs [space]
+ - Request: .vs +space
+ - Request: .vs -space
+ - Register: \n[.v]
+     Change (increase, decrease) the vertical spacing by SPACE.  The
+     default scaling indicator is `p'.
+
+     If `vs' is called without an argument, the vertical spacing is
+     reset to the previous value before the last call to `vs'.
+
+     `gtroff' creates a warning of type `range' if SPACE is negative;
+     the vertical spacing is then set to the vertical resolution (as
+     given in the `.V' register).
+
+     The read-only number register `.v' contains the current vertical
+     spacing; it is associated with the current environment (*note
+     Environments::).
+
+   The effective vertical line spacing consists of four components.
+
+   * The vertical line spacing as set with the `vs' request.
+
+   * The "post-vertical line spacing" as set with the `pvs' request.
+     This is vertical space which will be added after a line has been
+     output.
+
+   * The "extra pre-vertical line space" as set with the `\x' request,
+     using a negative value.  This is vertical space which will be
+     added once before the current line has been output.
+
+   * The "extra post-vertical line space" as set with the `\x' request,
+     using a positive value.  This is vertical space which will be
+     added once after the current line has been output.
+
+   It is usually better to use `vs' or `pvs' instead of `ls' to produce
+double-spaced documents: `vs' and `pvs' have a finer granularity for
+the inserted vertical space compared to `ls'; furthermore, certain
+preprocessors assume single-spacing.
+
+   *Note Manipulating Spacing::, for more details on the `\x' escape
+and the `ls' request.
+
+ - Request: .pvs [space]
+ - Request: .pvs +space
+ - Request: .pvs -space
+ - Register: \n[.pvs]
+     Change (increase, decrease) the post-vertical spacing by SPACE.
+     The default scaling indicator is `p'.
+
+     If `pvs' is called without an argument, the post-vertical spacing
+     is reset to the previous value before the last call to `pvs'.
+
+     `gtroff' creates a warning of type `range' if SPACE is zero or
+     negative; the vertical spacing is then set to zero.
+
+     The read-only number register `.pvs' contains the current
+     post-vertical spacing; it is associated with the current
+     environment (*note Environments::).
+
+
+File: groff,  Node: Fractional Type Sizes,  Prev: Changing Type Sizes,  Up: Sizes
+
+Fractional Type Sizes
+---------------------
+
+   A "scaled point" is equal to 1/SIZESCALE points, where SIZESCALE is
+specified in the `DESC' file (1 by default).  There is a new scale
+indicator `z' which has the effect of multiplying by SIZESCALE.
+Requests and escape sequences in `gtroff' interpret arguments that
+represent a point size as being in units of scaled points, but they
+evaluate each such argument using a default scale indicator of `z'.
+Arguments treated in this way are the argument to the `ps' request, the
+third argument to the `cs' request, the second and fourth arguments to
+the `tkf' request, the argument to the `\H' escape sequence, and those
+variants of the `\s' escape sequence that take a numeric expression as
+their argument (see below).
+
+   For example, suppose SIZESCALE is 1000; then a scaled point is
+equivalent to a millipoint; the request `.ps 10.25' is equivalent to
+`.ps 10.25z' and thus sets the point size to 10250 scaled points, which
+is equal to 10.25 points.
+
+   `gtroff' disallows the use of the `z' scale indicator in instances
+where it would make no sense, such as a numeric expression whose
+default scale indicator was neither `u' nor `z'.  Similarly it would
+make no sense to use a scaling indicator other than `z' or `u' in a
+numeric expression whose default scale indicator was `z', and so
+`gtroff' disallows this as well.
+
+   There is also new scale indicator `s' which multiplies by the number
+of units in a scaled point.  So, for example, `\n[.ps]s' is equal to
+`1m'.  Be sure not to confuse the `s' and `z' scale indicators.
+
+ - Register: \n[.ps]
+     A read-only number register returning the point size in scaled
+     points.
+
+     `.ps' is associated with the current environment (*note
+     Environments::).
+
+ - Register: \n[.psr]
+ - Register: \n[.sr]
+     The last-requested point size in scaled points is contained in the
+     `.psr' read-only number register.  The last requested point size
+     in points as a decimal fraction can be found in `.sr'.  This is a
+     string-valued read-only number register.
+
+     Note that the requested point sizes are device-independent, whereas
+     the values returned by the `.ps' and `.s' registers are not.  For
+     example, if a point size of 11pt is requested, and a `sizes'
+     request (or a `sizescale' line in a `DESC' file) specifies 10.95pt
+     instead, this value is actually used.
+
+     Both registers are associated with the current environment (*note
+     Environments::).
+
+   The `\s' escape has the following syntax for working with fractional
+type sizes:
+
+`\s[N]'
+`\s'N''
+     Set the point size to N scaled points; N is a numeric expression
+     with a default scale indicator of `z'.
+
+`\s[+N]'
+`\s[-N]'
+`\s+[N]'
+`\s-[N]'
+`\s'+N''
+`\s'-N''
+`\s+'N''
+`\s-'N''
+     Increase or or decrease the point size by N scaled points; N is a
+     numeric expression with a default scale indicator of `z'.
+
+   *Note Font Files::.
+
+
+File: groff,  Node: Strings,  Next: Conditionals and Loops,  Prev: Sizes,  Up: gtroff Reference
+
+Strings
+=======
+
+   `gtroff' has string variables, which are entirely for user
+convenience (i.e. there are no built-in strings exept `.T', but even
+this is a read-write string variable).
+
+ - Request: .ds name [string]
+ - Request: .ds1 name [string]
+ - Escape: \*n
+ - Escape: \*(nm
+ - Escape: \*[name arg1 arg2 ...]
+     Define and access a string variable NAME (one-character name N,
+     two-character name NM).  If NAME already exists, `ds' overwrites
+     the previous definition.  Only the syntax form using brackets can
+     take arguments which are handled identically to macro arguments;
+     the single exception is that a closing bracket as an argument must
+     be enclosed in double quotes.  *Note Request and Macro
+     Arguments::, and *Note Parameters::.
+
+     Example:
+
+
+          .ds foo a \\$1 test
+          .
+          This is \*[foo nice].
+              => This is a nice test.
+
+     The `\*' escape "interpolates" (expands in-place) a
+     previously-defined string variable.  To be more precise, the stored
+     string is pushed onto the input stack which is then parsed by
+     `gtroff'.  Similar to number registers, it is possible to nest
+     strings, i.e. string variables can be called within string
+     variables.
+
+     If the string named by the `\*' escape does not exist, it is
+     defined as empty, and a warning of type `mac' is emitted (see
+     *Note Debugging::, for more details).
+
+     *Caution:* Unlike other requests, the second argument to the `ds'
+     request takes up the entire line including trailing spaces.  This
+     means that comments on a line with such a request can introduce
+     unwanted space into a string.
+
+
+          .ds UX \s-1UNIX\s0\u\s-3tm\s0\d \" UNIX trademark
+
+     Instead the comment should be put on another line or have the
+     comment escape adjacent with the end of the string.
+
+
+          .ds UX \s-1UNIX\s0\u\s-3tm\s0\d\"  UNIX trademark
+
+     To produce leading space the string can be started with a double
+     quote.  No trailing quote is needed; in fact, any trailing quote is
+     included in your string.
+
+
+          .ds sign "           Yours in a white wine sauce,
+
+     Strings are not limited to a single line of text.  A string can
+     span several lines by escaping the newlines with a backslash.  The
+     resulting string is stored _without_ the newlines.
+
+
+          .ds foo lots and lots \
+          of text are on these \
+          next several lines
+
+     It is not possible to have real newlines in a string.  To put a
+     single double quote character into a string, use two consecutive
+     double quote characters.
+
+     The `ds1' request turns off compatibility mode while interpreting
+     a string.  To be more precise, a "compatibility save" input token
+     is inserted at the beginning of  the string, and a "compatibility
+     restore" input token at the end.
+
+
+          .nr xxx 12345
+          .ds aa The value of xxx is \\n[xxx].
+          .ds1 bb The value of xxx ix \\n[xxx].
+          .
+          .cp 1
+          .
+          \*(aa
+              => warning: number register `[' not defined
+              => The value of xxx is 0xxx].
+          \*(bb
+              => The value of xxx ix 12345.
+
+     Strings, macros, and diversions (and boxes) share the same name
+     space.  Internally, even the same mechanism is used to store them.
+     This has some interesting consequences.  For example, it is
+     possible to call a macro with string syntax and vice versa.
+
+
+          .de xxx
+          a funny test.
+          ..
+          This is \*[xxx]
+              => This is a funny test.
+          
+          .ds yyy a funny test
+          This is
+          .yyy
+              => This is a funny test.
+
+     Diversions and boxes can be also called with string syntax.
+
+     Another consequence is that you can copy one-line diversions or
+     boxes to a string.
+
+
+          .di xxx
+          a \fItest\fR
+          .br
+          .di
+          .ds yyy This is \*[xxx]\c
+          \*[yyy].
+              => This is a test.
+
+     As the previous example shows, it is possible to store formatted
+     output in strings.  The `\c' escape prevents the insertion of an
+     additional blank line in the output.
+
+     Copying diversions longer than a single output line produces
+     unexpected results.
+
+
+          .di xxx
+          a funny
+          .br
+          test
+          .br
+          .di
+          .ds yyy This is \*[xxx]\c
+          \*[yyy].
+              => test This is a funny.
+
+     Usually, it is not predictable whether a diversion contains one or
+     more output lines, so this mechanism should be avoided.  With UNIX
+     `troff', this was the only solution to strip off a final newline
+     from a diversion.  Another disadvantage is that the spaces in the
+     copied string are already formatted, making them unstretchable.
+     This can cause ugly results.
+
+     A clean solution to this problem is available in GNU `troff',
+     using the requests `chop' to remove the final newline of a
+     diversion, and `unformat' to make the horizontal spaces
+     stretchable again.
+
+
+          .box xxx
+          a funny
+          .br
+          test
+          .br
+          .box
+          .chop xxx
+          .unformat xxx
+          This is \*[xxx].
+              => This is a funny test.
+
+     *Note Gtroff Internals::, for more information.
+
+ - Request: .as name [string]
+ - Request: .as1 name [string]
+     The `as' request is similar to `ds' but appends STRING to the
+     string stored as NAME instead of redefining it.  If NAME doesn't
+     exist yet, it is created.
+
+
+          .as sign " with shallots, onions and garlic,
+
+     The `as1' request is similar to `as', but compatibility mode is
+     switched off while the appended string is interpreted.  To be more
+     precise, a "compatibility save" input token is inserted at the
+     beginning of the appended string, and a "compatibility restore"
+     input token at the end.
+
+   Rudimentary string manipulation routines are given with the next two
+requests.
+
+ - Request: .substring str n1 [n2]
+     Replace the string named STR with the substring defined by the
+     indices N1 and N2.  The first character in the string has index 0.
+     If N2 is omitted, it is taken to be equal to the string's length.
+     If the index value N1 or N2 is negative, it is counted from the
+     end of the string, going backwards: The last character has
+     index -1, the character before the last character has index -2,
+     etc.
+
+
+          .ds xxx abcdefgh
+          .substring xxx 1 -4
+          \*[xxx]
+              => bcde
+
+
+ - Request: .length reg str
+     Compute the number of characters of STR and return it in the
+     number register REG.  If REG doesn't exist, it is created.  `str'
+     is read in copy mode.
+
+
+          .ds xxx abcd\h'3i'efgh
+          .length yyy \*[xxx]
+          \n[yyy]
+              => 14
+
+
+ - Request: .rn xx yy
+     Rename the request, macro, diversion, or string XX to YY.
+
+ - Request: .rm xx
+     Remove the request, macro, diversion, or string XX.  `gtroff'
+     treats subsequent invocations as if the object had never been
+     defined.
+
+ - Request: .als new old
+     Create an alias named NEW for the request, string, macro, or
+     diversion object named OLD.  The new name and the old name are
+     exactly equivalent (it is similar to a hard rather than a soft
+     link). If OLD is undefined, `gtroff' generates a warning of type
+     `mac' and ignores the request.
+
+ - Request: .chop xx
+     Remove (chop) the last character from the macro, string, or
+     diversion named XX.  This is useful for removing the newline from
+     the end of diversions that are to be interpolated as strings.
+     This command can be used repeatedly; see *Note Gtroff Internals::,
+     for details on nodes inserted additionally by `gtroff'.
+
+   *Note Identifiers::, and *Note Comments::.
+
+
+File: groff,  Node: Conditionals and Loops,  Next: Writing Macros,  Prev: Strings,  Up: gtroff Reference
+
+Conditionals and Loops
+======================
+
+* Menu:
+
+* Operators in Conditionals::
+* if-else::
+* while::
+
+
+File: groff,  Node: Operators in Conditionals,  Next: if-else,  Prev: Conditionals and Loops,  Up: Conditionals and Loops
+
+Operators in Conditionals
+-------------------------
+
+   In `if' and `while' requests, there are several more operators
+available:
+
+`e'
+`o'
+     True if the current page is even or odd numbered (respectively).
+
+`n'
+     True if the document is being processed in nroff mode (i.e., the
+     `.nroff' command has been issued).
+
+`t'
+     True if the document is being processed in troff mode (i.e., the
+     `.troff' command has been issued).
+
+`v'
+     Always false.  This condition is for compatibility with other
+     `troff' versions only.
+
+`'XXX'YYY''
+     True if the string XXX is equal to the string YYY.  Other
+     characters can be used in place of the single quotes; the same set
+     of delimiters as for the `\D' escape is used (*note Escapes::).
+     `gtroff' formats the strings before being compared:
+
+
+          .ie "|"\fR|\fP" \
+          true
+          .el \
+          false
+              => true
+
+     The resulting motions, glyph sizes, and fonts have to match,(1)
+     (*note Operators in Conditionals-Footnote-1::) and not the
+     individual motion, size, and font requests.  In the previous
+     example, `|' and `\fR|\fP' both result in a roman `|' glyph with
+     the same point size and at the same location on the page, so the
+     strings are equal.  If `.ft I' had been added before the `.ie',
+     the result would be "false" because (the first) `|' produces an
+     italic `|' rather than a roman one.
+
+`r XXX'
+     True if there is a number register named XXX.
+
+`d XXX'
+     True if there is a string, macro, diversion, or request named XXX.
+
+`m XXX'
+     True if there is a color named XXX.
+
+`c G'
+     True if there is a glyph G available(2) (*note Operators in
+     Conditionals-Footnote-2::); G is either an ASCII character or a
+     special character (`\(GG' or `\[GGG]'); the condition is also true
+     if G has been defined by the `char' request.
+
+   Note that these operators can't be combined with other operators like
+`:' or `&'; only a leading `!' (without whitespace between the
+exclamation mark and the operator) can be used to negate the result.
+
+
+     .nr xxx 1
+     .ie !r xxx \
+     true
+     .el \
+     false
+         => false
+
+   A whitespace after `!' always evaluates to zero (this bizarre
+behaviour is due to compatibility with UNIX `troff').
+
+
+     .nr xxx 1
+     .ie ! r xxx \
+     true
+     .el \
+     false
+         => r xxx true
+
+   It is possible to omit the whitespace before the argument to the
+`r', `d', and `c' operators.
+
+   *Note Expressions::.
+
+
+File: groff,  Node: Operators in Conditionals-Footnotes,  Up: Operators in Conditionals
+
+   (1) The created output nodes must be identical.  *Note Gtroff
+Internals::.
+
+   (2) The name of this conditional operator is a misnomer since it
+tests names of output glyphs.
+
+
+File: groff,  Node: if-else,  Next: while,  Prev: Operators in Conditionals,  Up: Conditionals and Loops
+
+if-else
+-------
+
+   `gtroff' has if-then-else constructs like other languages, although
+the formatting can be painful.
+
+ - Request: .if expr anything
+     Evaluate the expression EXPR, and executes ANYTHING (the remainder
+     of the line) if EXPR evaluates to non-zero (true).  ANYTHING is
+     interpreted as though it was on a line by itself (except that
+     leading spaces are swallowed).  *Note Expressions::, for more info.
+
+
+          .nr xxx 1
+          .nr yyy 2
+          .if ((\n[xxx] == 1) & (\n[yyy] == 2)) true
+              => true
+
+
+ - Request: .nop anything
+     Executes ANYTHING.  This is similar to `.if 1'.
+
+ - Request: .ie expr anything
+ - Request: .el anything
+     Use the `ie' and `el' requests to write an if-then-else.  The
+     first request is the `if' part and the latter is the `else' part.
+
+
+          .ie n .ls 2 \" double-spacing in nroff
+          .el   .ls 1 \" single-spacing in troff
+
+
+ - Escape: \{
+ - Escape: \}
+     In many cases, an if (or if-else) construct needs to execute more
+     than one request.  This can be done using the `\{' and `\}'
+     escapes.  The following example shows the possible ways to use
+     these escapes (note the position of the opening and closing
+     braces).
+
+
+          .ie t \{\
+          .    ds lq ``
+          .    ds rq ''
+          .\}
+          .el \
+          .\{\
+          .    ds lq "
+          .    ds rq "\}
+
+
+   *Note Expressions::.
+
+
+File: groff,  Node: while,  Prev: if-else,  Up: Conditionals and Loops
+
+while
+-----
+
+   `gtroff' provides a looping construct using the `while' request,
+which is used much like the `if' (and related) requests.
+
+ - Request: .while expr anything
+     Evaluate the expression EXPR, and repeatedly execute ANYTHING (the
+     remainder of the line) until EXPR evaluates to 0.
+
+
+          .nr a 0 1
+          .while (\na < 9) \{\
+          \n+a,
+          .\}
+          \n+a
+              => 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+
+     Some remarks.
+
+        * The body of a `while' request is treated like the body of a
+          `de' request: `gtroff' temporarily stores it in a macro which
+          is deleted after the loop has been exited.  It can
+          considerably slow down a macro if the body of the `while'
+          request (within the macro) is large.  Each time the macro is
+          executed, the `while' body is parsed and stored again as a
+          temporary macro.
+
+
+               .de xxx
+               .  nr num 10
+               .  while (\\n[num] > 0) \{\
+               .    \" many lines of code
+               .    nr num -1
+               .  \}
+               ..
+
+          The traditional and ofter better solution (UNIX `troff'
+          doesn't have the `while' request) is to use a recursive macro
+          instead which is parsed only once during its definition.
+
+
+               .de yyy
+               .  if (\\n[num] > 0) \{\
+               .    \" many lines of code
+               .    nr num -1
+               .    yyy
+               .  \}
+               ..
+               .
+               .de xxx
+               .  nr num 10
+               .  yyy
+               ..
+
+          Note that the number of available recursion levels is set
+          to 1000 (this is a compile-time constant value of `gtroff').
+
+        * The closing brace of a `while' body must end a line.
+
+
+               .if 1 \{\
+               .  nr a 0 1
+               .  while (\n[a] < 10) \{\
+               .    nop \n+[a]
+               .\}\}
+                   => unbalanced \{ \}
+
+
+ - Request: .break
+     Break out of a `while' loop.  Be sure not to confuse this with the
+     `br' request (causing a line break).
+
+ - Request: .continue
+     Finish the current iteration of a `while' loop, immediately
+     restarting the next iteration.
+
+   *Note Expressions::.
+
+
+File: groff,  Node: Writing Macros,  Next: Page Motions,  Prev: Conditionals and Loops,  Up: gtroff Reference
+
+Writing Macros
+==============
+
+   A "macro" is a collection of text and embedded commands which can be
+invoked multiple times.  Use macros to define common operations.
+
+ - Request: .de name [end]
+ - Request: .de1 name [end]
+ - Request: .dei name [end]
+     Define a new macro named NAME.  `gtroff' copies subsequent lines
+     (starting with the next one) into an internal buffer until it
+     encounters the line `..' (two dots).  The optional second argument
+     to `de' changes this to a macro to `.END'.
+
+     There can be whitespace after the first dot in the line containing
+     the ending token (either `.' or macro `END').
+
+     Here a small example macro called `P' which causes a break and
+     inserts some vertical space.  It could be used to separate
+     paragraphs.
+
+
+          .de P
+          .  br
+          .  sp .8v
+          ..
+
+     The following example defines a macro within another.  Remember
+     that expansion must be protected twice; once for reading the macro
+     and once for executing.
+
+
+          \# a dummy macro to avoid a warning
+          .de end
+          ..
+          .
+          .de foo
+          .  de bar end
+          .    nop \f[B]Hallo \\\\$1!\f[]
+          .  end
+          ..
+          .
+          .foo
+          .bar Joe
+              => Hallo Joe!
+
+     Since `\f' has no expansion, it isn't necessary to protect its
+     backslash.  Had we defined another macro within `bar' which takes
+     a parameter, eight backslashes would be necessary before `$1'.
+
+     The `de1' request turns off compatibility mode while executing the
+     macro.  On entry, the current compatibility mode is saved and
+     restored at exit.
+
+
+          .nr xxx 12345
+          .
+          .de aa
+          The value of xxx is \\n[xxx].
+          ..
+          .de1 bb
+          The value of xxx ix \\n[xxx].
+          ..
+          .
+          .cp 1
+          .
+          .aa
+              => warning: number register ' not defined
+              => The value of xxx is 0xxx].
+          .bb
+              => The value of xxx ix 12345.
+
+     The `dei' request defines a macro indirectly.  That is, it expands
+     strings whose names are NAME or END before performing the append.
+
+     This:
+
+
+          .ds xx aa
+          .ds yy bb
+          .dei xx yy
+
+     is equivalent to:
+
+
+          .de aa bb
+
+     Using `trace.tmac', you can trace calls to `de' and `de1'.
+
+     Note that macro identifiers are shared with identifiers for
+     strings and diversions.
+
+ - Request: .am name [end]
+ - Request: .am1 name [end]
+ - Request: .ami name [end]
+     Works similarly to `de' except it appends onto the macro named
+     NAME.  So, to make the previously defined `P' macro actually do
+     indented instead of block paragraphs, add the necessary code to the
+     existing macro like this:
+
+
+          .am P
+          .ti +5n
+          ..
+
+     The `am1' request turns off compatibility mode while executing the
+     appended macro piece.  To be more precise, a "compatibility save"
+     input token is inserted at the beginning of the appended code, and
+     a "compatibility restore" input token at the end.
+
+     The `ami' request appends indirectly, meaning that `gtroff'
+     expands strings whose names are NAME or END before performing the
+     append.
+
+     Using `trace.tmac', you can trace calls to `am' and `am1'.
+
+   *Note Strings::, for the `als' request to rename a macro.
+
+   The `de', `am', `di', `da', `ds', and `as' requests (together with
+its variants) only create a new object if the name of the macro,
+diversion or string diversion is currently undefined or if it is
+defined to be a request; normally they modify the value of an existing
+object.
+
+ - Request: .return
+     Exit a macro, immediately returning to the caller.
+
+* Menu:
+
+* Copy-in Mode::
+* Parameters::
+
+
+File: groff,  Node: Copy-in Mode,  Next: Parameters,  Prev: Writing Macros,  Up: Writing Macros
+
+Copy-in Mode
+------------
+
+   When `gtroff' reads in the text for a macro, string, or diversion,
+it copies the text (including request lines, but excluding escapes) into
+an internal buffer.  Escapes are converted into an internal form,
+except for `\n', `\$', `\*', `\\' and `\<RET>' which are evaluated and
+inserted into the text where the escape was located.  This is known as
+"copy-in" mode or "copy" mode.
+
+   What this means is that you can specify when these escapes are to be
+evaluated (either at copy-in time or at the time of use) by insulating
+the escapes with an extra backslash.  Compare this to the `\def' and
+`\edef' commands in TeX.
+
+   The following example prints the numbers 20 and 10:
+
+
+     .nr x 20
+     .de y
+     .nr x 10
+     \&\nx
+     \&\\nx
+     ..
+     .y
+
+
+File: groff,  Node: Parameters,  Prev: Copy-in Mode,  Up: Writing Macros
+
+Parameters
+----------
+
+   The arguments to a macro or string can be examined using a variety of
+escapes.
+
+ - Register: \n[.$]
+     The number of arguments passed to a macro or string.  This is a
+     read-only number register.
+
+   Any individual argument can be retrieved with one of the following
+escapes:
+
+ - Escape: \$n
+ - Escape: \$(nn
+ - Escape: \$[nnn]
+     Retrieve the Nth, NNth or NNNth argument.  As usual, the first
+     form only accepts a single number (larger than zero), the second a
+     two-digit number (larger or equal to 10), and the third any
+     positive integer value (larger than zero).  Macros and strings can
+     have an unlimited number of arguments.  Note that due to copy-in
+     mode, use two backslashes on these in actual use to prevent
+     interpolation until the macro is actually invoked.
+
+ - Request: .shift [n]
+     Shift the arguments 1 position, or as many positions as specified
+     by its argument.  After executing this request, argument I becomes
+     argument I-N; arguments 1 to N are no longer available.  Shifting
+     by negative amounts is currently undefined.
+
+ - Escape: \$*
+ - Escape: \$@
+     In some cases it is convenient to use all of the arguments at once
+     (for example, to pass the arguments along to another macro).  The
+     `\$*' escape concatenates all the arguments separated by spaces.  A
+     similar escape is `\$@', which concatenates all the arguments with
+     each surrounded by double quotes, and separated by spaces.  If not
+     in compatibility mode, the input level of double quotes is
+     preserved (see *Note Request and Macro Arguments::).
+
+ - Escape: \$0
+     The name used to invoke the current macro.  The `als' request can
+     make a macro have more than one name.
+
+
+          .de generic-macro
+          .  ...
+          .  if \\n[error] \{\
+          .    tm \\$0: Houston, we have a problem.
+          .    return
+          .  \}
+          ..
+          .
+          .als foo generic-macro
+          .als bar generic-macro
+
+
+   *Note Request and Macro Arguments::.
+
+
+File: groff,  Node: Page Motions,  Next: Drawing Requests,  Prev: Writing Macros,  Up: gtroff Reference
+
+Page Motions
+============
+
+   *Note Manipulating Spacing::, for a discussion of the main request
+for vertical motion, `sp'.
+
+ - Request: .mk [reg]
+ - Request: .rt [dist]
+     The request `mk' can be used to mark a location on a page, for
+     movement to later.  This request takes a register name as an
+     argument in which to store the current page location.  With no
+     argument it stores the location in an internal register.  The
+     results of this can be used later by the `rt' or the `sp' request
+     (or the `\v' escape).
+
+     The `rt' request returns _upwards_ to the location marked with the
+     last `mk' request.  If used with an argument, return to a position
+     which distance from the top of the page is DIST (no previous call
+     to `mk' is necessary in this case).  Default scaling indicator is
+     `v'.
+
+     Here a primitive solution for a two-column macro.
+
+
+          .nr column-length 1.5i
+          .nr column-gap 4m
+          .nr bottom-margin 1m
+          .
+
+
+          .de 2c
+          .  br
+          .  mk
+          .  ll \\n[column-length]u
+          .  wh -\\n[bottom-margin]u 2c-trap
+          .  nr right-side 0
+          ..
+          .
+
+
+          .de 2c-trap
+          .  ie \\n[right-side] \{\
+          .    nr right-side 0
+          .    po -(\\n[column-length]u + \\n[column-gap]u)
+          .    \" remove trap
+          .    wh -\\n[bottom-margin]u
+          .  \}
+          .  el \{\
+          .    \" switch to right side
+          .    nr right-side 1
+          .    po +(\\n[column-length]u + \\n[column-gap]u)
+          .    rt
+          .  \}
+          ..
+          .
+
+
+          .pl 1.5i
+          .ll 4i
+          This is a small test which shows how the
+          rt request works in combination with mk.
+          
+          .2c
+          Starting here, text is typeset in two columns.
+          Note that this implementation isn't robust
+          and thus not suited for a real two-column
+          macro.
+
+     Result:
+
+
+          This is a small test which shows how the
+          rt request works in combination with mk.
+          
+          Starting  here,    isn't    robust
+          text is typeset    and   thus  not
+          in two columns.    suited  for   a
+          Note that  this    real two-column
+          implementation     macro.
+
+
+   The following escapes give fine control of movements about the page.
+
+ - Escape: \v'e'
+     Move vertically, usually from the current location on the page (if
+     no absolute position operator `|' is used).  The argument E
+     specifies the distance to move; positive is downwards and negative
+     upwards.  The default scaling indicator for this escape is `v'.
+     Beware, however, that `gtroff' continues text processing at the
+     point where the motion ends, so you should always balance motions
+     to avoid interference with text processing.
+
+     `\v' doesn't trigger a trap.  This can be quite useful; for
+     example, consider a page bottom trap macro which prints a marker
+     in the margin to indicate continuation of a footnote or something
+     similar.
+
+   There are some special-case escapes for vertical motion.
+
+ - Escape: \r
+     Move upwards 1v.
+
+ - Escape: \u
+     Move upwards .5v.
+
+ - Escape: \d
+     Move down .5v.
+
+ - Escape: \h'e'
+     Move horizontally, usually from the current location (if no
+     absolute position operator `|' is used).  The expression E
+     indicates how far to move: positive is rightwards and negative
+     leftwards.  The default scaling indicator for this escape is `m'.
+
+     This horizontal space is not discarded at the end of a line.  To
+     insert discardable space of a certain length use the `ss' request.
+
+   There are a number of special-case escapes for horizontal motion.
+
+ - Escape: \<SP>
+     An unbreakable and unpaddable (i.e. not expanded during filling)
+     space.  (Note: This is a backslash followed by a space.)
+
+ - Escape: \~
+     An unbreakable space that stretches like a normal inter-word space
+     when a line is adjusted.
+
+ - Escape: \|
+     A 1/6th em space.  Ignored for TTY output devices (rounded to
+     zero).
+
+ - Escape: \^
+     A 1/12th em space.  Ignored for TTY output devices (rounded to
+     zero).
+
+ - Escape: \0
+     A space the size of a digit.
+
+   The following string sets the TeX logo:
+
+
+     .ds TeX T\h'-.1667m'\v'.224m'E\v'-.224m'\h'-.125m'X
+
+ - Escape: \w'text'
+ - Register: \n[st]
+ - Register: \n[sb]
+ - Register: \n[rst]
+ - Register: \n[rsb]
+ - Register: \n[ct]
+ - Register: \n[ssc]
+ - Register: \n[skw]
+     Return the width of the specified TEXT in basic units.  This
+     allows horizontal movement based on the width of some arbitrary
+     text (e.g. given as an argument to a macro).
+
+
+          The length of the string `abc' is \w'abc'u.
+              => The length of the string `abc' is 72u.
+
+     Font changes may occur in TEXT which don't affect current settings.
+
+     After use, `\w' sets several registers:
+
+    `st'
+    `sb'
+          The highest and lowest point of the baseline, respectively,
+          in TEXT.
+
+    `rst'
+    `rsb'
+          Like the `st' and `sb' registers, but takes account of the
+          heights and depths of glyphs.  With other words, this gives
+          the highest and lowest point of TEXT.  Values below the
+          baseline are negative.
+
+    `ct'
+          Defines the kinds of glyphs occurring in TEXT:
+
+         0
+               only short glyphs, no descenders or tall glyphs.
+
+         1
+               at least one descender.
+
+         2
+               at least one tall glyph.
+
+         3
+               at least one each of a descender and a tall glyph.
+
+    `ssc'
+          The amount of horizontal space (possibly negative) that
+          should be added to the last glyph before a subscript.
+
+    `skw'
+          How far to right of the center of the last glyph in the `\w'
+          argument, the center of an accent from a roman font should be
+          placed over that glyph.
+
+ - Escape: \kp
+ - Escape: \k(ps
+ - Escape: \k[position]
+     Store the current horizontal position in the _input_ line in
+     number register with name POSITION (one-character name P,
+     two-character name PS).  Use this, for example, to return to the
+     beginning of a string for highlighting or other decoration.
+
+ - Register: \n[hp]
+     The current horizontal position at the input line.
+
+ - Register: \n[.k]
+     A read-only number register containing the current horizontal
+     output position.
+
+ - Escape: \o'abc'
+     Overstrike glyphs A, B, C, ...; the glyphs are centered, and the
+     resulting spacing is the largest width of the affected glyphs.
+
+ - Escape: \zg
+     Print glyph G with zero width, i.e., without spacing.  Use this to
+     overstrike glyphs left-aligned.
+
+ - Escape: \Z'anything'
+     Print ANYTHING, then restore the horizontal and vertical position.
+     The argument may not contain tabs or leaders.
+
+     The following is an example of a strike-through macro:
+
+
+          .de ST
+          .nr ww \w'\\$1'
+          \Z@\v'-.25m'\l'\\n[ww]u'@\\$1
+          ..
+          .
+          This is
+          .ST "a test"
+          an actual emergency!
+
+
+
+File: groff,  Node: Drawing Requests,  Next: Traps,  Prev: Page Motions,  Up: gtroff Reference
+
+Drawing Requests
+================
+
+   `gtroff' provides a number of ways to draw lines and other figures
+on the page.  Used in combination with the page motion commands (see
+*Note Page Motions::, for more info), a wide variety of figures can be
+drawn.  However, for complex drawings these operations can be quite
+cumbersome, and it may be wise to use graphic preprocessors like `gpic'
+or `ggrn'.  *Note gpic::, and *Note ggrn::, for more information.
+
+   All drawing is done via escapes.
+
+ - Escape: \l'l'
+ - Escape: \l'lg'
+     Draw a line horizontally.  L is the length of the line to be
+     drawn.  If it is positive, start the line at the current location
+     and draw to the right; its end point is the new current location.
+     Negative values are handled differently: The line starts at the
+     current location and draws to the left, but the current location
+     doesn't move.
+
+     L can also be specified absolutely (i.e. with a leading `|') which
+     draws back to the beginning of the input line.  Default scaling
+     indicator is `m'.
+
+     The optional second parameter G is a glyph to draw the line with.
+     If this second argument is not specified, `gtroff' uses the
+     underscore glyph, `\[ru]'.
+
+     To separate the two arguments (to prevent `gtroff' from
+     interpreting a drawing glyph as a scaling indicator if the glyph is
+     represented by a single character) use `\&'.
+
+     Here a small useful example:
+
+
+          .de box
+          \[br]\\$*\[br]\l'|0\[rn]'\l'|0\[ul]'
+          ..
+
+     Note that this works by outputting a box rule (a vertical line),
+     then the text given as an argument and then another box rule.
+     Finally, the line drawing escapes both draw from the current
+     location to the beginning of the _input_ line - this works because
+     the line length is negative, not moving the current point.
+
+ - Escape: \L'l'
+ - Escape: \L'lg'
+     Draw vertical lines.  Its parameters are similar to the `\l'
+     escape, except that the default scaling indicator is `v'.  The
+     movement is downwards for positive values, and upwards for
+     negative values.  The default glyph is the box rule glyph,
+     `\[br]'.  As with the vertical motion escapes, text processing
+     blindly continues where the line ends.
+
+
+          This is a \L'3v'test.
+
+     Here the result, produced with `grotty'.
+
+
+          This is a
+                    |
+                    |
+                    |test.
+
+
+ - Escape: \D'command arg ...'
+     The `\D' escape provides a variety of drawing functions.  Note
+     that on character devices, only vertical and horizontal lines are
+     supported within `grotty'; other devices may only support a subset
+     of the available drawing functions.
+
+     The default scaling indicator for all subcommands of `\D' is `m'
+     for horizontal distances and `v' for vertical ones.  Exceptions
+     are `\D'f ...'' and `\D't ...'' which use `u' as the default, and
+     `\D'FX ...'' which arguments are treated similar to the `defcolor'
+     request.
+
+    `\D'l DX DY''
+          Draw a line from the current location to the relative point
+          specified by (DX,DY).
+
+          The following example is a macro for creating a box around a
+          text string; for simplicity, the box margin is taken as a
+          fixed value, 0.2m.
+
+
+               .de BOX
+               .  nr @wd \w'\\$1'
+               \h'.2m'\
+               \h'-.2m'\v'(.2m - \\n[rsb]u)'\
+               \D'l 0 -(\\n[rst]u - \\n[rsb]u + .4m)'\
+               \D'l (\\n[@wd]u + .4m) 0'\
+               \D'l 0 (\\n[rst]u - \\n[rsb]u + .4m)'\
+               \D'l -(\\n[@wd]u + .4m) 0'\
+               \h'.2m'\v'-(.2m - \\n[rsb]u)'\
+               \\$1\
+               \h'.2m'
+               ..
+
+          First, the width of the string is stored in register `@wd'.
+          Then, four lines are drawn to form a box, properly offset by
+          the box margin.  The registers `rst' and `rsb' are set by the
+          `\w' escape, containing the largest height and depth of the
+          whole string.
+
+    `\D'c D''
+          Draw a circle with a diameter of D with the leftmost point at
+          the current position.  After drawing, the current location is
+          positioned at the rightmost point of the circle.
+
+    `\D'C D''
+          Draw a solid circle with the same parameters and behaviour as
+          an outlined circle.  No outline is drawn.
+
+    `\D'e X Y''
+          Draw an ellipse with a horizontal diameter of X and a vertical
+          diameter of Y with the leftmost point at the current position.
+          After drawing, the current location is positioned at the
+          rightmost point of the ellipse.
+
+    `\D'E X Y''
+          Draw a solid ellipse with the same parameters and behaviour
+          as an outlined ellipse.  No outline is drawn.
+
+    `\D'a DX1 DY1 DX2 DY2''
+          Draw an arc clockwise from the current location through the
+          two specified relative locations (DX1,DY1) and (DX2,DY2).
+          The coordinates of the first point are relative to the
+          current position, and the coordinates of the second point are
+          relative to the first point.  After drawing, the current
+          position is moved to the final point of the arc.
+
+    `\D'~ DX1 DY1 DX2 DY2 ...''
+          Draw a spline from the current location to the relative point
+          (DX1,DY1) and then to (DX2,DY2), and so on.  The current
+          position is moved to the terminal point of the drawn curve.
+
+    `\D'f N''
+          Set the shade of gray to be used for filling solid objects
+          to N; N must be an integer between 0 and 1000, where 0
+          corresponds solid white and 1000 to solid black, and values
+          in between correspond to intermediate shades of gray.  This
+          applies only to solid circles, solid ellipses, and solid
+          polygons.  By default, a level of 1000 is used.
+
+          Despite of being silly, the current point is moved
+          horizontally to the right by N.
+
+          Don't use this command!  It has the serious drawback that it
+          will be always rounded to the next integer multiple of the
+          horizontal resolution (the value of the `hor' keyword in the
+          `DESC' file).  Use `\M' (*note Colors::) or `\D'Fg ...''
+          instead.
+
+    `\D'p DX1 DY1 DX2 DY2 ...''
+          Draw a polygon from the current location to the relative
+          position (DX1,DY1) and then to (DX2,DY2) and so on.  When the
+          specified data points are exhausted, a line is drawn back to
+          the starting point.  The current position is changed by
+          adding the sum of all arguments with odd index to the actual
+          horizontal position and the even ones to the vertical
+          position.
+
+    `\D'P DX1 DY1 DX2 DY2 ...''
+          Draw a solid polygon with the same parameters and behaviour
+          as an outlined polygon.  No outline is drawn.
+
+          Here a better variant of the box macro to fill the box with
+          some color.  Note that the box must be drawn before the text
+          since colors in `gtroff' are not transparent; the filled
+          polygon would hide the text completely.
+
+
+               .de BOX
+               .  nr @wd \w'\\$1'
+               \h'.2m'\
+               \h'-.2m'\v'(.2m - \\n[rsb]u)'\
+               \M[lightcyan]\
+               \D'P 0 -(\\n[rst]u - \\n[rsb]u + .4m) \
+                    (\\n[@wd]u + .4m) 0 \
+                    0 (\\n[rst]u - \\n[rsb]u + .4m) \
+                    -(\\n[@wd]u + .4m) 0'\
+               \h'.2m'\v'-(.2m - \\n[rsb]u)'\
+               \M[]\
+               \\$1\
+               \h'.2m'
+               ..
+
+    `\D't N''
+          Set the current line thickness to N machine units.  A value of
+          zero selects the smallest available line thickness.  A
+          negative value makes the line thickness proportional to the
+          current point size (this is the default behaviour of AT&T
+          `troff').
+
+          Despite of being silly, the current point is moved
+          horizontally to the right by N.
+
+    `\D'FSCHEME COLOR_COMPONENTS''
+          Change current fill color.  SCHEME is a single letter
+          denoting the color scheme: `r' (rgb), `c' (cmy), `k' (cmyk),
+          `g' (gray), or `d' (default color).  The color components use
+          exactly the same syntax as in the `defcolor' request (*note
+          Colors::); the command `\D'Fd'' doesn't take an argument.
+
+          _No_ position changing!
+
+          Examples:
+
+
+          \D'Fg .3'      \" same gray as \D'f 700' \D'Fr #0000ff' \"
+          blue
+
+   *Note Graphics Commands::.
+
+ - Escape: \b'string'
+     "Pile" a sequence of glyphs vertically, and center it vertically
+     on the current line.  Use it to build large brackets and braces.
+
+     Here an example how to create a large opening brace:
+
+
+          \b'\[lt]\[bv]\[lk]\[bv]\[lb]'
+
+     The first glyph is on the top, the last glyph in STRING is at the
+     bottom.  Note that `gtroff' separates the glyphs vertically by 1m,
+     and the whole object is centered 0.5m above the current baseline;
+     the largest glyph width is used as the width for the whole object.
+     This rather unflexible positioning algorithm doesn't work with
+     `-Tdvi' since the bracket pieces vary in height for this device.
+     Instead, use the `eqn' preprocessor.
+
+     *Note Manipulating Spacing::, how to adjust the vertical spacing
+     with the `\x' escape.
+
+
+File: groff,  Node: Traps,  Next: Diversions,  Prev: Drawing Requests,  Up: gtroff Reference
+
+Traps
+=====
+
+   "Traps" are locations, which, when reached, call a specified macro.
+These traps can occur at a given location on the page, at a given
+location in the current diversion, at a blank line, after a certain
+number of input lines, or at the end of input.
+
+   Setting a trap is also called "planting".  It is also said that a
+trap is "sprung" if the associated macro is executed.
+
+* Menu:
+
+* Page Location Traps::
+* Diversion Traps::
+* Input Line Traps::
+* Blank Line Traps::
+* End-of-input Traps::
+

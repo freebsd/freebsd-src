@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Kernel Model for Precision Timekeeping</title>
+</head>
+<body>
+<h3>Kernel Model for Precision Timekeeping</h3>
+
+<hr>
+<img align="left" src="pic/alice61.gif" alt="gif"> <a href=
+"http://www.eecis.udel.edu/~mills/pictures.htm">from <i>Pogo</i>,
+Walt Kelly</a> 
+
+<p>Exploding kernel<br clear="left">
+</p>
+
+<hr>
+<p>The technical report [2], which is a major revision and update
+of an earlier report [3], describes an engineering model for a
+precision time-of-day function for a generic operating system. The
+model is based on the principles of disciplined oscillators using
+phase-lock loops (PLL) and frequency-lock loops (FLL) often found
+in the engineering literature. The model uses a hybrid PLL/FLL
+discipline algorithm implemented in the kernel. The hybrid loop
+provides automatic time and frequency steering with update
+intervals from a few seconds to over one day.</p>
+
+<p>The hybrid PLL/FLL has been implemented in the Unix kernels for
+several operating systems, including FreeBSD and Linux and those
+made by Sun Microsystems, Digital/Compaq and Hewlett Packard. The
+modifications are currently included in the licensed kernels for
+Digital Unix 4.0 (aka Tru64) and Sun Solaris 2.8. Since the
+modifications involve proprietary kernel interface code, they
+cannot be provided for other licensed kernels directly. Inquiries
+should be directed to the manufacturer's representatives. The
+software and documentation, including a simulator with code
+segments almost identical to the implementations, but not involving
+licensed code, is called <tt>nanokernel.tar.gz</tt> and available
+via the web at <a href="http://www.ntp.org">www.ntp.org</a> or by
+anonymous FTP from ftp.udel.edu in the <tt>pub/ntp/software</tt>
+directory.</p>
+
+<p>Recently [1], the model has been re-implemented to support a
+nanosecond system clock. The <tt>/usr/include/sys/timex.h</tt>
+header file defines the applications programming interface (API)
+routines and data structures. Implementations are available for
+Linux, FreeBSD, SunOS and Tru64; however, only the Linux and
+FreeBSD implementations, which are included in recent system
+versions, are directly available. The software and documentation,
+including a simulator with code segments almost identical to the
+implementations, but not involving licensed code, is called <tt>
+nanokernel.tar.gz</tt> and available via the web at <a href=
+"http://www.ntp.org">www.ntp.org</a> or by anonymous FTP from
+ftp.udel.edu in the <tt>pub/ntp/software</tt> directory.</p>
+
+<p>The model changes the way the system clock is adjusted in time
+and frequency, as well as provides mechanisms to discipline its
+time and frequency to an external precision timing source, such as
+described in the <a href="pps.htm">Pulse-per-second (PPS) Signal
+Interfacing</a> page. The model incorporates a generic system call
+interface for use with the NTP or similar time synchronization
+protocol. The NTP software daemons for Version 3 <tt>xntpd</tt> and
+Version 4 <tt>ntpd</tt> use this API to provide synchronization
+limited in principle only by the accuracy and stability of the
+external timing source. There are two new system calls defined in
+<tt>timex.h</tt>, <tt>ntp_gettime()</tt>, which returns a structure
+including the current time, estimated error and maximum error, and
+<tt>ntp_adjtime()</tt>, which provides a means to adjust kernel
+variables, including the current time and frequency offsets.</p>
+
+<p>These kernel modifications are normally used in conjunction with
+a kernel hardware interface such as described in the <a href=
+"kernpps.htm">Kernel Programming Interface for Precision Time
+Signals</a> page.</p>
+
+<h4>References</h4>
+
+<ol>
+
+<li><p>Mills, D.L., and P.-H. Kamp. The nanokernel. <i>Proc. Precision
+Time and Time Interval (PTTI) Applications and Planning Meeting</i>
+(Reston VA, November 2000). Paper: <a href=
+"database/papers/nano/nano2.ps">PostScript</a> | <a href=
+"http://www.eecis.udel.edu/~mills/database/papers/nano/nano2.pdf">
+PDF</a>, Slides: <a href=
+"http://www.eecis.udel.edu/~mills/database/brief/nano/nano.htm">
+HTML</a> | <a href=
+"http://www.eecis.udel.edu/~mills/database/brief/nano/nano.ps">
+PostScript</a> | <a href=
+"http://www.eecis.udel.edu/~mills/database/brief/nano/nano.pdf">
+PDF</a> | <a href=
+"http://www.eecis.udel.edu/~mills/database/brief/nano/nano.ppt">
+PowerPoint</a></p></li>
+
+<li><p>Mills, D.L. Unix kernel modifications for precision time
+synchronization. Electrical Engineering Department Report 94-10-1,
+University of Delaware, October 1994, 24 pp. Abstract: <a href=
+"http://www.eecis.udel.edu/~mills/database/reports/kern/kerna.ps">
+PostScript</a> | <a href="database/reports/kern/kerna.pdf">PDF</a>,
+Body: <a href=
+"http://www.eecis.udel.edu/~mills/database/reports/kern/kernb.ps">
+PostScript</a> | <a href=
+"http://www.eecis.udel.edu/~mills/database/reports/kern/kernb.pdf">
+PDF</a></p></li>
+
+<li><p>Mills, D.L. A kernel model for precision timekeeping. Network
+Working Group Report RFC-1589, University of Delaware, March 1994.
+31 pp. <a href=
+"http://www.eecis.udel.edu/~mills/database/rfc/rfc1589.txt">
+ASCII</a></p></li>
+</ol>
+
+<hr>
+<a href="index.htm"><img align="left" src="pic/home.gif" alt=
+"gif"></a> 
+
+<address><a href="mailto:mills@udel.edu">David L. Mills
+&lt;mills@udel.edu&gt;</a></address>
+</body>
+</html>
+

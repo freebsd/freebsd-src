@@ -1,0 +1,1567 @@
+This is groff, produced by makeinfo version 4.3d from ./groff.texinfo.
+
+This manual documents GNU `troff' version 1.19.
+
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.1 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, with the Front-Cover texts
+     being `A GNU Manual," and with the Back-Cover Texts as in (a)
+     below.  A copy of the license is included in the section entitled
+     `GNU Free Documentation License."
+
+     (a) The FSF's Back-Cover Text is: `You have freedom to copy and
+     modify this GNU Manual, like GNU software.  Copies published by
+     the Free Software Foundation raise funds for GNU development."
+   
+INFO-DIR-SECTION Typesetting
+START-INFO-DIR-ENTRY
+* Groff: (groff).               The GNU troff document formatting system.
+END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: Man options,  Next: Man usage,  Prev: man,  Up: man
+
+Options
+-------
+
+   The command line format for using the `man' macros with `groff' is:
+
+
+     groff -m man [ -rLL=LENGTH ] [ -rLT=LENGTH ] [ -rFT=DIST ]
+           [ -rcR=1 ] [ -rC1 ] [ -rD1 ] [-rHY=FLAGS ]
+           [ -rPNNN ] [ -rSXX ] [ -rXNNN ]
+           [ -rIN=LENGTH ] [ -rSN=LENGTH ] [ FILES... ]
+
+It is possible to use `-man' instead of `-m man'.
+
+`-rcR=1'
+     This option (the default if a TTY output device is used) creates a
+     single, very long page instead of multiple pages.  Use `-rcR=0' to
+     disable it.
+
+`-rC1'
+     If more than one manual page is given on the command line, number
+     the pages continuously, rather than starting each at 1.
+
+`-rD1'
+     Double-sided printing.  Footers for even and odd pages are
+     formatted differently.
+
+`-rFT=DIST'
+     Set the position of the footer text to DIST.  If positive, the
+     distance is measured relative to the top of the page, otherwise it
+     is relative to the bottom.  The default is -0.5i.
+
+`-rHY=FLAGS'
+     Set hyphenation flags.  Possible values are 1 to hyphenate without
+     restrictions, 2  to not hyphenate the last word on a page, 4 to
+     not hyphenate the last two characters of a word, and 8 to not
+     hyphenate the first two characters of a word.  These values are
+     additive; the default is 14.
+
+`-rIN=LENGTH'
+     Set the body text indent to LENGTH.  If not specified, the indent
+     defaults to 7n (7 characters) in nroff mode and 7.2n otherwise.
+     For nroff, this value should always be an integer multiple of unit
+     `n' to get consistent indentation.
+
+`-rLL=LENGTH'
+     Set line length to LENGTH.  If not specified, the line length
+     defaults to 78 en in nroff mode (this is 78 characters per line)
+     and 6.5 inch otherwise.
+
+`-rLT=LENGTH'
+     Set title length to LENGTH.  If not specified, the title length
+     defaults to the line length.
+
+`-rPNNN'
+     Page numbering starts with NNN rather than with 1.
+
+`-rSXX'
+     Use XX (which can be 10, 11, or 12pt) as the base document font
+     size instead of the default value of 10pt.
+
+`-rSN=LENGTH'
+     Set the indent for sub-subheadings to LENGTH.  If not specified,
+     the indent defaults to 3n.
+
+`-rXNNN'
+     After page NNN, number pages as NNNa, NNNb, NNNc, etc.  For
+     example, the option `-rX2' produces the following page numbers: 1,
+     2, 2a, 2b, 2c, etc.
+
+
+File: groff,  Node: Man usage,  Next: Man font macros,  Prev: Man options,  Up: man
+
+Usage
+-----
+
+   This section describes the available macros for manual pages.  For
+further customization, put additional macros and requests into the file
+`man.local' which is loaded immediately after the `man' package.
+
+ - Macro: .TH title section [extra1 [extra2 [extra3]]]
+     Set the title of the man page to TITLE and the section to SECTION,
+     which must have a value between 1 and 8.  The value of SECTION may
+     also have a string appended, e.g. `.pm', to indicate a specific
+     subsection of the man pages.
+
+     Both TITLE and SECTION are positioned at the left and right in the
+     header line (with SECTION in parentheses immediately appended to
+     TITLE.  EXTRA1 is positioned in the middle of the footer line.
+     EXTRA2 is positioned at the left in the footer line (or at the
+     left on even pages and at the right on odd pages if double-sided
+     printing is active).  EXTRA3 is centered in the header line.
+
+     For HTML output, headers and footers are completely suppressed.
+
+     Additionally, this macro starts a new page; the new line number
+     is 1 again (except if the `-rC1' option is given on the command
+     line) - this feature is intended only for formatting multiple man
+     pages; a single man page should contain exactly one `TH' macro at
+     the beginning of the file.
+
+ - Macro: .SH [heading]
+     Set up an unnumbered section heading sticking out to the left.
+     Prints out all the text following `SH' up to the end of the line
+     (or the text in the next line if there is no argument to `SH') in
+     bold face (or the font specified by the string `HF'), one size
+     larger than the base document size.  Additionally, the left margin
+     and the indentation for the following text is reset to its default
+     value.
+
+ - Macro: .SS [heading]
+     Set up an unnumbered (sub)section heading.  Prints out all the text
+     following `SS' up to the end of the line (or the text in the next
+     line if there is no argument to `SS') in bold face (or the font
+     specified by the string `HF'), at the same size as the base
+     document size.  Additionally, the left margin and the indentation
+     for the following text is reset to its default value.
+
+ - Macro: .TP [nnn]
+     Set up an indented paragraph with label.  The indentation is set to
+     NNN if that argument is supplied (the default unit is `n' if
+     omitted), otherwise it is set to the previous indentation value
+     specified with `TP', `IP', or `HP' (or to the default value if
+     none of them have been used yet).
+
+     The first line of text following this macro is interpreted as a
+     string to be printed flush-left, as it is appropriate for a label.
+     It is not interpreted as part of a paragraph, so there is no
+     attempt to fill the first line with text from the following input
+     lines.  Nevertheless, if the label is not as wide as the
+     indentation the paragraph starts at the same line (but indented),
+     continuing on the following lines.  If the label is wider than the
+     indentation the descriptive part of the paragraph begins on the
+     line following the label, entirely indented.  Note that neither
+     font shape nor font size of the label is set to a default value;
+     on the other hand, the rest of the text has default font settings.
+
+ - Macro: .LP
+ - Macro: .PP
+ - Macro: .P
+     These macros are mutual aliases.  Any of them causes a line break
+     at the current position, followed by a vertical space downwards by
+     the amount specified by the `PD' macro.  The font size and shape
+     are reset to the default value (10pt roman if no `-rS' option is
+     given on the command line).  Finally, the current left margin and
+     the indentation is restored.
+
+ - Macro: .IP [designator [nnn]]
+     Set up an indented paragraph, using DESIGNATOR as a tag to mark
+     its beginning.  The indentation is set to NNN if that argument is
+     supplied (default unit is `n'), otherwise it is set to the
+     previous indentation value specified with `TP', `IP', or `HP' (or
+     the default value if none of them have been used yet).  Font size
+     and face of the paragraph (but not the designator) are reset to
+     their default values.
+
+     To start an indented paragraph with a particular indentation but
+     without a designator, use `""' (two double quotes) as the first
+     argument of `IP'.
+
+     For example, to start a paragraph with bullets as the designator
+     and 4 en indentation, write
+
+
+          .IP \(bu 4
+
+
+ - Macro: .HP [nnn]
+     Set up a paragraph with hanging left indentation.  The indentation
+     is set to NNN if that argument is supplied (default unit is `n'),
+     otherwise it is set to the previous indentation value specified
+     with `TP', `IP', or `HP' (or the default value if non of them have
+     been used yet).  Font size and face are reset to their default
+     values.
+
+ - Macro: .RS [nnn]
+     Move the left margin to the right by the value NNN if specified
+     (default unit is `n'); otherwise it is set to the previous
+     indentation value specified with `TP', `IP', or `HP' (or to the
+     default value if none of them have been used yet).  The
+     indentation value is then set to the default.
+
+     Calls to the `RS' macro can be nested.
+
+ - Macro: .RE [nnn]
+     Move the left margin back to level NNN, restoring the previous left
+     margin.  If no argument is given, it moves one level back.  The
+     first level (i.e., no call to `RS' yet) has number 1, and each call
+     to `RS' increases the level by 1.
+
+   To summarize, the following macros cause a line break with the
+insertion of vertical space (which amount can be changed with the `PD'
+macro): `SH', `SS', `TP', `LP' (`PP', `P'), `IP', and `HP'.
+
+   The macros `RS' and `RE' also cause a break but do not insert
+vertical space.
+
+   Finally, the macros `SH', `SS', `LP' (`PP', `P'), and `RS' reset the
+indentation to its default value.
+
+
+File: groff,  Node: Man font macros,  Next: Miscellaneous man macros,  Prev: Man usage,  Up: man
+
+Macros to set fonts
+-------------------
+
+   The standard font is roman; the default text size is 10 point.  If
+command line option `-rS=N' is given, use Npt as the default text size.
+
+ - Macro: .SM [text]
+     Set the text on the same line or the text on the next line in a
+     font that is one point size smaller than the default font.
+
+ - Macro: .SB [text]
+     Set the text on the same line or the text on the next line in bold
+     face font, one point size smaller than the default font.
+
+ - Macro: .BI text
+     Set its arguments alternately in bold face and italic, without a
+     space between the arguments.  Thus,
+
+
+          .BI this "word and" that
+
+     produces "thisword andthat" with "this" and "that" in bold face,
+     and "word and" in italics.
+
+ - Macro: .IB text
+     Set its arguments alternately in italic and bold face, without a
+     space between the arguments.
+
+ - Macro: .RI text
+     Set its arguments alternately in roman and italic, without a space
+     between the arguments.
+
+ - Macro: .IR text
+     Set its arguments alternately in italic and roman, without a space
+     between the arguments.
+
+ - Macro: .BR text
+     Set its arguments alternately in bold face and roman, without a
+     space between the arguments.
+
+ - Macro: .RB text
+     Set its arguments alternately in roman and bold face, without a
+     space between the arguments.
+
+ - Macro: .B [text]
+     Set TEXT in bold face.  If no text is present on the line where
+     the macro is called, then the text of the next line appears in bold
+     face.
+
+ - Macro: .I [text]
+     Set TEXT in italic.  If no text is present on the line where the
+     macro is called, then the text of the next line appears in italic.
+
+
+File: groff,  Node: Miscellaneous man macros,  Next: Predefined man strings,  Prev: Man font macros,  Up: man
+
+Miscellaneous macros
+--------------------
+
+   The default indentation is 7.2n in troff mode and 7n in nroff mode
+except for `grohtml' which ignores indentation.
+
+ - Macro: .DT
+     Set tabs every 0.5 inches.  Since this macro is always executed
+     during a call to the `TH' macro, it makes sense to call it only if
+     the tab positions have been changed.
+
+ - Macro: .PD [nnn]
+     Adjust the empty space before a new paragraph (or section).  The
+     optional argument gives the amount of space (default unit is `v');
+     without parameter, the value is reset to its default value (1 line
+     in nroff mode, 0.4v otherwise).
+
+     This affects the macros `SH', `SS', `TP', `LP' (as well as `PP'
+     and `P'), `IP', and `HP'.
+
+   The following two macros are included for BSD compatibility.
+
+ - Macro: .AT [system [release]]
+     Alter the footer for use with AT&T manpages.  This command exists
+     only for compatibility; don't use it.  The first argument SYSTEM
+     can be:
+
+    `3'
+          7th Edition (the default)
+
+    `4'
+          System III
+
+    `5'
+          System V
+
+     An optional second argument RELEASE to `AT' specifies the release
+     number (such as "System V Release 3").
+
+ - Macro: .UC [version]
+     Alters the footer for use with BSD manpages.  This command exists
+     only for compatibility; don't use it.  The argument can be:
+
+    `3'
+          3rd Berkeley Distribution (the default)
+
+    `4'
+          4th Berkeley Distribution
+
+    `5'
+          4.2 Berkeley Distribution
+
+    `6'
+          4.3 Berkeley Distribution
+
+    `7'
+          4.4 Berkeley Distribution
+
+
+File: groff,  Node: Predefined man strings,  Next: Preprocessors in man pages,  Prev: Miscellaneous man macros,  Up: man
+
+Predefined strings
+------------------
+
+   The following strings are defined:
+
+ - String: \*[S]
+     Switch back to the default font size.
+
+ - String: \*[HF]
+     The typeface used for headings.  The default is `B'.
+
+ - String: \*[R]
+     The `registered' sign.
+
+ - String: \*[Tm]
+     The `trademark' sign.
+
+ - String: \*[lq]
+ - String: \*[rq]
+     Left and right quote.  This is equal to `\(lq' and `\(rq',
+     respectively.
+
+
+File: groff,  Node: Preprocessors in man pages,  Next: Optional man extensions,  Prev: Predefined man strings,  Up: man
+
+Preprocessors in `man' pages
+----------------------------
+
+   If a preprocessor like `gtbl' or `geqn' is needed, it has become
+common usage to make the first line of the man page look like this:
+
+
+     '\" WORD
+
+Note the single space character after the double quote.  WORD consists
+of letters for the needed preprocessors: `e' for `geqn', `r' for
+`grefer', `t' for `gtbl'.  Modern implementations of the `man' program
+read this first line and automatically call the right preprocessor(s).
+
+
+File: groff,  Node: Optional man extensions,  Prev: Preprocessors in man pages,  Up: man
+
+Optional `man' extensions
+-------------------------
+
+   Use the file `man.local' for local extensions to the `man' macros or
+for style changes.
+
+Custom headers and footers
+..........................
+
+   In groff versions 1.18.2 and later, you can specify custom headers
+and footers by redefining the following macros in `man.local'.
+
+ - Macro: .PT
+     Control the content of the headers.  Normally, the header prints
+     the command name and section number on either side, and the
+     optional fifth argument to `TH' in the center.
+
+ - Macro: .BT
+     Control the content of the footers.  Normally, the footer prints
+     the page number and the third and fourth arguments to `TH'.
+
+     Use the `FT' number register to specify the footer position.  The
+     default is -0.5i.
+
+Ultrix-specific man macros
+..........................
+
+   The `groff' source distribution includes a file named `man.ultrix',
+containing macros compatible with the Ultrix variant of `man'.  Copy
+this file into `man.local' (or use the `mso' request to load it) to
+enable the following macros.
+
+ - Macro: .CT key
+     Print `<CTRL/KEY>'.
+
+ - Macro: .CW
+     Print subsequent text using the constant width (Courier) typeface.
+
+ - Macro: .Ds
+     Begin a non-filled display.
+
+ - Macro: .De
+     End a non-filled display started with `Ds'.
+
+ - Macro: .EX [indent]
+     Begins a non-filled display using the constant width (Courier)
+     typeface.  Use the optional INDENT argument to indent the display.
+
+ - Macro: .EE
+     End a non-filled display started with `EX'.
+
+ - Macro: .G [text]
+     Sets TEXT in Helvetica.  If no text is present on the line where
+     the macro is called, then the text of the next line appears in
+     Helvetica.
+
+ - Macro: .GL [text]
+     Sets TEXT in Helvetica Oblique.  If no text is present on the line
+     where the macro is called, then the text of the next line appears
+     in Helvetica Oblique.
+
+ - Macro: .HB [text]
+     Sets TEXT in Helvetica Bold.  If no text is present on the line
+     where the macro is called, then all text up to the next `HB'
+     appears in Helvetica Bold.
+
+ - Macro: .TB [text]
+     Identical to `HB'.
+
+ - Macro: .MS title sect [punct]
+     Set a manpage reference in Ultrix format.  The TITLE is in Courier
+     instead of italic.  Optional punctuation follows the section
+     number without an intervening space.
+
+ - Macro: .NT [`C'] [title]
+     Begin a note.  Print the optional title, or the word "Note",
+     centered on the page.  Text following the macro makes up the body
+     of the note, and is indented on both sides.  If the first argument
+     is `C', the body of the note is printed centered (the second
+     argument replaces the word "Note" if specified).
+
+ - Macro: .NE
+     End a note begun with `NT'.
+
+ - Macro: .PN path [punct]
+     Set the path name in constant width (Courier), followed by
+     optional punctuation.
+
+ - Macro: .Pn [punct] path [punct]
+     When called with two arguments, identical to `PN'.  When called
+     with three arguments, set the second argument in constant width
+     (Courier), bracketed by the first and third arguments in the
+     current font.
+
+ - Macro: .R
+     Switch to roman font and turn off any underlining in effect.
+
+ - Macro: .RN
+     Print the string `<RETURN>'.
+
+ - Macro: .VS [`4']
+     Start printing a change bar in the margin if the number `4' is
+     specified.  Otherwise, this macro does nothing.
+
+ - Macro: .VE
+     End printing the change bar begun by `VS'.
+
+Simple example
+..............
+
+   The following example `man.local' file alters the `SH' macro to add
+some extra vertical space before printing the heading.  Headings are
+printed in Helvetica Bold.
+
+
+     .\" Make the heading fonts Helvetica
+     .ds HF HB
+     .
+     .\" Put more whitespace in front of headings.
+     .rn SH SH-orig
+     .de SH
+     .  if t .sp (u;\\n[PD]*2)
+     .  SH-orig \\$*
+     ..
+
+
+File: groff,  Node: mdoc,  Next: ms,  Prev: man,  Up: Macro Packages
+
+`mdoc'
+======
+
+   See the `groff_mdoc(7)' man page (type `man groff_mdoc' at the
+command line).
+
+
+File: groff,  Node: ms,  Next: me,  Prev: mdoc,  Up: Macro Packages
+
+`ms'
+====
+
+   The `-ms' macros are suitable for reports, letters, books, user
+manuals, and so forth.  The package provides macros for cover pages,
+section headings, paragraphs, lists, footnotes, pagination, and a table
+of contents.
+
+* Menu:
+
+* ms Intro::
+* General ms Structure::
+* ms Document Control Registers::
+* ms Cover Page Macros::
+* ms Body Text::
+* ms Page Layout::
+* Differences from AT&T ms::
+
+
+File: groff,  Node: ms Intro,  Next: General ms Structure,  Prev: ms,  Up: ms
+
+Introduction to `ms'
+--------------------
+
+   The original `-ms' macros were included with AT&T `troff' as well as
+the `man' macros.  While the `man' package is intended for brief
+documents that can be read on-line as well as printed, the `ms' macros
+are suitable for longer documents that are meant to be printed rather
+than read on-line.
+
+   The `ms' macro package included with `groff' is a complete,
+bottom-up re-implementation.  Several macros (specific to AT&T or
+Berkeley) are not included, while several new commands are.  *Note
+Differences from AT&T ms::, for more information.
+
+
+File: groff,  Node: General ms Structure,  Next: ms Document Control Registers,  Prev: ms Intro,  Up: ms
+
+General structure of an `ms' document
+-------------------------------------
+
+   The `ms' macro package expects a certain amount of structure, but
+not as much as packages such as `man' or `mdoc'.
+
+   The simplest documents can begin with a paragraph macro (such as
+`LP' or `PP'), and consist of text separated by paragraph macros or
+even blank lines.  Longer documents have a structure as follows:
+
+*Document type*
+     If you invoke the `RP' (report) macro on the first line of the
+     document, `groff' prints the cover page information on its own
+     page; otherwise it prints the information on the first page with
+     your document text immediately following.  Other document formats
+     found in AT&T `troff' are specific to AT&T or Berkeley, and are
+     not supported in `groff'.
+
+*Format and layout*
+     By setting number registers, you can change your document's type
+     (font and size), margins, spacing, headers and footers, and
+     footnotes.  *Note ms Document Control Registers::, for more
+     details.
+
+*Cover page*
+     A cover page consists of a title, the author's name and
+     institution, an abstract, and the date.  (1) (*note General ms
+     Structure-Footnote-1::) *Note ms Cover Page Macros::, for more
+     details.
+
+*Body*
+     Following the cover page is your document.  You can use the `ms'
+     macros to write reports, letters, books, and so forth.  The
+     package is designed for structured documents, consisting of
+     paragraphs interspersed with headings and augmented by lists,
+     footnotes, tables, and other common constructs.  *Note ms Body
+     Text::, for more details.
+
+*Table of contents*
+     Longer documents usually include a table of contents, which you
+     can invoke by placing the `TC' macro at the end of your document.
+     The `ms' macros have minimal indexing facilities, consisting of the
+     `IX' macro, which prints an entry on standard error.  Printing the
+     table of contents at the end is necessary since `groff' is a
+     single-pass text formatter, thus it cannot determine the page
+     number of each section until that section has actually been set
+     and printed.  Since `ms' output is intended for hardcopy, you can
+     manually relocate the pages containing the table of contents
+     between the cover page and the body text after printing.
+
+
+File: groff,  Node: General ms Structure-Footnotes,  Up: General ms Structure
+
+   (1) Actually, only the title is required.
+
+
+File: groff,  Node: ms Document Control Registers,  Next: ms Cover Page Macros,  Prev: General ms Structure,  Up: ms
+
+Document control registers
+--------------------------
+
+   The following is a list of document control number registers.  For
+the sake of consistency, set registers related to margins at the
+beginning of your document, or just after the `RP' macro.  You can set
+other registers later in your document, but you should keep them
+together at the beginning to make them easy to find and edit as
+necessary.
+
+Margin Settings
+...............
+
+ - Register: \n[PO]
+     Defines the page offset (i.e. the left margin).  There is no
+     explicit right margin setting; the combination of the `PO' and
+     `LL' registers implicitly define the right margin width.
+
+     Effective: next page.
+
+     Default value: 1i.
+
+ - Register: \n[LL]
+     Defines the line length (i.e. the width of the body text).
+
+     Effective: next paragraph.
+
+     Default: 6i.
+
+ - Register: \n[LT]
+     Defines the title length (i.e. the header and footer width).  This
+     is usually the same as `LL', but not necessarily.
+
+     Effective: next paragraph.
+
+     Default: 6i.
+
+ - Register: \n[HM]
+     Defines the header margin height at the top of the page.
+
+     Effective: next page.
+
+     Default: 1i.
+
+ - Register: \n[FM]
+     Defines the footer margin height at the bottom of the page.
+
+     Effective: next page.
+
+     Default: 1i.
+
+Text Settings
+.............
+
+ - Register: \n[PS]
+     Defines the point size of the body text.
+
+     Effective: next paragraph.
+
+     Default: 10p.
+
+ - Register: \n[VS]
+     Defines the space between lines (line height plus leading).
+
+     Effective: next paragraph.
+
+     Default: 12p.
+
+Paragraph Settings
+..................
+
+ - Register: \n[PI]
+     Defines the initial indent of a `.PP' paragraph.
+
+     Effective: next paragraph.
+
+     Default: 5n.
+
+ - Register: \n[PD]
+     Defines the space between paragraphs.
+
+     Effective: next paragraph.
+
+     Default: 0.3v.
+
+ - Register: \n[QI]
+     Defines the indent on both sides of a quoted (`.QP') paragraph.
+
+     Effective: next paragraph.
+
+     Default: 5n.
+
+Footnote Settings
+.................
+
+ - Register: \n[FL]
+     Defines the length of a footnote.
+
+     Effective: next footnote.
+
+     Default: `\n[LL]' * 5 / 6.
+
+ - Register: \n[FI]
+     Defines the footnote indent.
+
+     Effective: next footnote.
+
+     Default: 2n.
+
+ - Register: \n[FF]
+     The footnote format:
+    `0'
+          Prints the footnote number as a superscript; indents the
+          footnote (default).
+
+    `1'
+          Prints the number followed by a period (like 1.)  and indents
+          the footnote.
+
+    `2'
+          Like 1, without an indent.
+
+    `3'
+          Like 1, but prints the footnote number as a hanging paragraph.
+
+     Effective: next footnote.
+
+     Default: 0.
+
+Miscellaneous Number Registers
+..............................
+
+ - Register: \n[MINGW]
+     Defines the minimum width between columns in a multi-column
+     document.
+
+     Effective: next page.
+
+     Default: 2n.
+
+
+File: groff,  Node: ms Cover Page Macros,  Next: ms Body Text,  Prev: ms Document Control Registers,  Up: ms
+
+Cover page macros
+-----------------
+
+   Use the following macros to create a cover page for your document in
+the order shown.
+
+ - Macro: .RP [`no']
+     Specifies the report format for your document.  The report format
+     creates a separate cover page.  The default action (no `.RP'
+     macro) is to print a subset of the cover page on page 1 of your
+     document.
+
+     If you use the word `no' as an optional argument, `groff' prints a
+     title page but does not repeat any of the title page information
+     (title, author, abstract, etc.)  on page 1 of the document.
+
+ - Macro: .DA [...]
+     (optional) Print the current date, or the arguments to the macro
+     if any, on the title page (if specified) and in the footers.  This
+     is the default for `nroff'.
+
+ - Macro: .ND [...]
+     (optional) Print the current date, or the arguments to the macro
+     if any, on the title page (if specified) but not in the footers.
+     This is the default for `troff'.
+
+ - Macro: .TL
+     Specifies the document title.  `groff' collects text following the
+     `.TL' macro into the title, until reaching the author name or
+     abstract.
+
+ - Macro: .AU
+     Specifies the author's name, which appears on the line (or lines)
+     immediately following.  You can specify multiple authors as
+     follows:
+
+
+          .AU
+          John Doe
+          .AI
+          University of West Bumblefuzz
+          .AU
+          Martha Buck
+          .AI
+          Monolithic Corporation
+          
+          ...
+
+
+ - Macro: .AI
+     Specifies the author's institution.  You can specify multiple
+     institutions in the same way that you specify multiple authors.
+
+ - Macro: .AB [`no']
+     Begins the abstract.  The default is to print the word ABSTRACT,
+     centered and in italics, above the text of the abstract.  The word
+     `no' as an optional argument suppresses this heading.
+
+ - Macro: .AE
+     End the abstract.
+
+   The following is example mark-up for a title page.
+
+
+     .RP
+     .TL
+     The Inevitability of Code Bloat
+     in Commercial and Free Software
+     .AU
+     J. Random Luser
+     .AI
+     University of West Bumblefuzz
+     .AB
+     This report examines the long-term growth
+     of the code bases in two large, popular software
+     packages; the free Emacs and the commercial
+     Microsoft Word.
+     While differences appear in the type or order
+     of features added, due to the different
+     methodologies used, the results are the same
+     in the end.
+     .PP
+     The free software approach is shown to be
+     superior in that while free software can
+     become as bloated as commercial offerings,
+     free software tends to have fewer serious
+     bugs and the added features are in line with
+     user demand.
+     .AE
+     
+     ... the rest of the paper follows ...
+
+
+File: groff,  Node: ms Body Text,  Next: ms Page Layout,  Prev: ms Cover Page Macros,  Up: ms
+
+Body text
+---------
+
+   This section describes macros used to mark up the body of your
+document.  Examples include paragraphs, sections, and other groups.
+
+* Menu:
+
+* Paragraphs in ms::
+* Headings in ms::
+* Highlighting in ms::
+* Lists in ms::
+* Indents in ms::
+* Tabstops in ms::
+* ms Displays and Keeps::
+* ms Insertions::
+* Example multi-page table::
+* ms Footnotes::
+
+
+File: groff,  Node: Paragraphs in ms,  Next: Headings in ms,  Prev: ms Body Text,  Up: ms Body Text
+
+Paragraphs
+..........
+
+   The following paragraph types are available.
+
+ - Macro: .PP
+     Sets a paragraph with an initial indent.
+
+ - Macro: .LP
+     Sets a paragraph with no initial indent.
+
+ - Macro: .QP
+     Sets a paragraph that is indented at both left and right margins.
+     The effect is identical to the HTML `<BLOCKQUOTE>' element.  The
+     next paragraph or heading returns margins to normal.
+
+ - Macro: .XP
+     Sets a paragraph whose lines are indented, except for the first
+     line.  This is a Berkeley extension.
+
+   The following markup uses all four paragraph macros.
+
+
+     .NH 2
+     Cases used in the study
+     .LP
+     The following software and versions were
+     considered for this report.
+     .PP
+     For commercial software, we chose
+     .B "Microsoft Word for Windows" ,
+     starting with version 1.0 through the
+     current version (Word 2000).
+     .PP
+     For free software, we chose
+     .B Emacs ,
+     from its first appearance as a standalone
+     editor through the current version (v20).
+     See [Bloggs 2002] for details.
+     .QP
+     Franklin's Law applied to software:
+     software expands to outgrow both
+     RAM and disk space over time.
+     .LP
+     Bibliography:
+     .XP
+     Bloggs, Joseph R.,
+     .I "Everyone's a Critic" ,
+     Underground Press, March 2002.
+     A definitive work that answers all questions
+     and criticisms about the quality and usability of
+     free software.
+
+
+File: groff,  Node: Headings in ms,  Next: Highlighting in ms,  Prev: Paragraphs in ms,  Up: ms Body Text
+
+Headings
+........
+
+   Use headings to create a hierarchical structure for your document.
+The `ms' macros print headings in *bold*, using the same font family
+and point size as the body text.
+
+   The following describes the heading macros:
+
+ - Macro: .NH curr-level
+ - Macro: .NH S level0 ...
+     Numbered heading.  The argument is either a numeric argument to
+     indicate the level of the heading, or the letter `S' followed by
+     numeric arguments to set the heading level explicitly.
+
+     If you specify heading levels out of sequence, such as invoking
+     `.NH 3' after `.NH 1', `groff' prints a warning on standard error.
+
+ - Macro: .SH
+     Unnumbered subheading.
+
+
+File: groff,  Node: Highlighting in ms,  Next: Lists in ms,  Prev: Headings in ms,  Up: ms Body Text
+
+Highlighting
+............
+
+   The `ms' macros provide a variety of methods to highlight or
+emphasize text:
+
+ - Macro: .B [txt [post [pre]]]
+     Sets its first argument in *bold type*.  If you specify a second
+     argument, `groff' prints it in the previous font after the bold
+     text, with no intervening space (this allows you to set
+     punctuation after the highlighted text without highlighting the
+     punctuation).  Similarly, it prints the third argument (if any) in
+     the previous font *before* the first argument.  For example,
+
+
+          .B foo ) (
+
+     prints (*foo*).
+
+     If you give this macro no arguments, `groff' prints all text
+     following in bold until the next highlighting, paragraph, or
+     heading macro.
+
+ - Macro: .R [txt [post [pre]]]
+     Sets its first argument in roman (or regular) type.  It operates
+     similarly to the `B' macro otherwise.
+
+ - Macro: .I [txt [post [pre]]]
+     Sets its first argument in _italic type_.  It operates similarly
+     to the `B' macro otherwise.
+
+ - Macro: .CW [txt [post [pre]]]
+     Sets its first argument in a `constant width face'.  It operates
+     similarly to the `B' macro otherwise.
+
+ - Macro: .BI [txt [post [pre]]]
+     Sets its first argument in bold italic type.  It operates
+     similarly to the `B' macro otherwise.
+
+ - Macro: .BX [txt]
+     Prints its argument and draws a box around it.  If you want to box
+     a string that contains spaces, use a digit-width space (`\0').
+
+ - Macro: .UL [txt [post]]
+     Prints its first argument with an underline.  If you specify a
+     second argument, `groff' prints it in the previous font after the
+     underlined text, with no intervening space.
+
+ - Macro: .LG
+     Prints all text following in larger type (two points larger than
+     the current point size) until the next font size, highlighting,
+     paragraph, or heading macro.  You can specify this macro multiple
+     times to enlarge the point size as needed.
+
+ - Macro: .SM
+     Prints all text following in smaller type (two points smaller than
+     the current point size) until the next type size, highlighting,
+     paragraph, or heading macro.  You can specify this macro multiple
+     times to reduce the point size as needed.
+
+ - Macro: .NL
+     Prints all text following in the normal point size (that is, the
+     value of the `PS' register).
+
+
+File: groff,  Node: Lists in ms,  Next: Indents in ms,  Prev: Highlighting in ms,  Up: ms Body Text
+
+Lists
+.....
+
+   The `.IP' macro handles duties for all lists.
+
+ - Macro: .IP [marker [width]]
+     The MARKER is usually a bullet glyph (`\[bu]') for unordered
+     lists, a number (or auto-incrementing number register) for
+     numbered lists, or a word or phrase for indented (glossary-style)
+     lists.
+
+     The WIDTH specifies the indent for the body of each list item; its
+     default unit is `n'.  Once specified, the indent remains the same
+     for all list items in the document until specified again.
+
+   The following is an example of a bulleted list.
+
+
+     A bulleted list:
+     .IP \[bu] 2
+     lawyers
+     .IP \[bu]
+     guns
+     .IP \[bu]
+     money
+
+   Produces:
+
+
+     A bulleted list:
+     
+     o lawyers
+     
+     o guns
+     
+     o money
+
+
+   The following is an example of a numbered list.
+
+
+     .nr step 1 1
+     A numbered list:
+     .IP \n[step] 3
+     lawyers
+     .IP \n+[step]
+     guns
+     .IP \n+[step]
+     money
+
+   Produces:
+
+
+     A numbered list:
+     
+     1. lawyers
+     
+     2. guns
+     
+     3. money
+
+   Note the use of the auto-incrementing number register in this
+example.
+
+
+   The following is an example of a glossary-style list.
+
+
+     A glossary-style list:
+     .IP lawyers 0.4i
+     Two or more attorneys.
+     .IP guns
+     Firearms, preferably
+     large-caliber.
+     .IP money
+     Gotta pay for those
+     lawyers and guns!
+
+   Produces:
+
+
+     A glossary-style list:
+     
+     lawyers
+           Two or more attorneys.
+     
+     guns  Firearms, preferably large-caliber.
+     
+     money
+           Gotta pay for those lawyers and guns!
+
+   In the last example, the `IP' macro places the definition on the
+same line as the term if it has enough space; otherwise, it breaks to
+the next line and starts the definition below the term.  This may or
+may not be the effect you want, especially if some of the definitions
+break and some do not.  The following examples show two possible ways
+to force a break.
+
+   The first workaround uses the `br' request to force a break after
+printing the term or label.
+
+
+     A glossary-style list:
+     .IP lawyers 0.4i
+     Two or more attorneys.
+     .IP guns
+     .br
+     Firearms, preferably large-caliber.
+     .IP money
+     Gotta pay for those lawyers and guns!
+
+
+   The second workaround uses the `\p' escape to force the break.  Note
+the space following the escape; this is important.  If you omit the
+space, `groff' prints the first word on the same line as the term or
+label (if it fits) *then* breaks the line.
+
+
+     A glossary-style list:
+     .IP lawyers 0.4i
+     Two or more attorneys.
+     .IP guns
+     \p Firearms, preferably large-caliber.
+     .IP money
+     Gotta pay for those lawyers and guns!
+
+
+   To set nested lists, use the `RS' and `RE' macros.  *Note Indents in
+ms::, for more information.
+
+   For example:
+
+
+     .IP \[bu] 2
+     Lawyers:
+     .RS
+     .IP \[bu]
+     Dewey,
+     .IP \[bu]
+     Cheatham,
+     .IP \[bu]
+     and Howe.
+     .RE
+     .IP \[bu]
+     Guns
+
+   Produces:
+
+
+     o Lawyers:
+     
+       o  Dewey,
+     
+       o  Cheatham,
+     
+       o  and Howe.
+     
+     o Guns
+
+
+File: groff,  Node: Indents in ms,  Next: Tabstops in ms,  Prev: Lists in ms,  Up: ms Body Text
+
+Indents
+.......
+
+   In many situations, you may need to indent a section of text while
+still wrapping and filling.  *Note Lists in ms::, for an example of
+nested lists.
+
+ - Macro: .RS
+ - Macro: .RE
+     These macros begin and end an indented section.  The `PI' register
+     controls the amount of indent, allowing the indented text to line
+     up under hanging and indented paragraphs.
+
+   *Note ms Displays and Keeps::, for macros to indent and turn off
+filling.
+
+
+File: groff,  Node: Tabstops in ms,  Next: ms Displays and Keeps,  Prev: Indents in ms,  Up: ms Body Text
+
+Tab Stops
+.........
+
+   Use the `ta' request to define tab stops as needed.  *Note Tabs and
+Fields::.
+
+ - Macro: .TA
+     Use this macro to reset the tab stops to the default for `ms'
+     (every 5n).  You can redefine the `TA' macro to create a different
+     set of default tab stops.
+
+
+File: groff,  Node: ms Displays and Keeps,  Next: ms Insertions,  Prev: Tabstops in ms,  Up: ms Body Text
+
+Displays and keeps
+..................
+
+   Use displays to show text-based examples or figures (such as code
+listings).
+
+   Displays turn off filling, so lines of code are displayed as-is
+without inserting `br' requests in between each line.  Displays can be
+"kept" on a single page, or allowed to break across pages.
+
+ - Macro: .DS L
+ - Macro: .LD
+ - Macro: .DE
+     Left-justified display.  The `.DS L' call generates a page break,
+     if necessary, to keep the entire display on one page.  The `LD'
+     macro allows the display to break across pages.  The `DE' macro
+     ends the display.
+
+ - Macro: .DS I
+ - Macro: .ID
+ - Macro: .DE
+     Indents the display as defined by the `DI' register.  The `.DS I'
+     call generates a page break, if necessary, to keep the entire
+     display on one page.  The `ID' macro allows the display to break
+     across pages.  The `DE' macro ends the display.
+
+ - Macro: .DS B
+ - Macro: .BD
+ - Macro: .DE
+     Sets a block-centered display: the entire display is
+     left-justified, but indented so that the longest line in the
+     display is centered on the page.  The `.DS B' call generates a
+     page break, if necessary, to keep the entire display on one page.
+     The `BD' macro allows the display to break across pages.  The `DE'
+     macro ends the display.
+
+ - Macro: .DS C
+ - Macro: .CD
+ - Macro: .DE
+     Sets a centered display: each line in the display is centered.
+     The `.DS C' call generates a page break, if necessary, to keep the
+     entire display on one page.  The `CD' macro allows the display to
+     break across pages.  The `DE' macro ends the display.
+
+ - Macro: .DS R
+ - Macro: .RD
+ - Macro: .DE
+     Right-justifies each line in the display.  The `.DS R' call
+     generates a page break, if necessary, to keep the entire display
+     on one page.  The `RD' macro allows the display to break across
+     pages.  The `DE' macro ends the display.
+
+
+   On occasion, you may want to "keep" other text together on a page.
+For example, you may want to keep two paragraphs together, or a
+paragraph that refers to a table (or list, or other item) immediately
+following.  The `ms' macros provide the `KS' and `KE' macros for this
+purpose.
+
+ - Macro: .KS
+ - Macro: .KE
+     The `KS' macro begins a block of text to be kept on a single page,
+     and the `KE' macro ends the block.
+
+ - Macro: .KF
+ - Macro: .KE
+     Specifies a "floating keep"; if the keep cannot fit on the current
+     page, `groff' holds the contents of the keep and allows text
+     following the keep (in the source file) to fill in the remainder of
+     the current page.  When the page breaks, whether by an explicit
+     `bp' request or by reaching the end of the page, `groff' prints
+     the floating keep at the top of the new page.  This is useful for
+     printing large graphics or tables that do not need to appear
+     exactly where specified.
+
+   You can also use the `ne' request to force a page break if there is
+not enough vertical space remaining on the page.
+
+
+   Use the following macros to draw a box around a section of text
+(such as a display).
+
+ - Macro: .B1
+ - Macro: .B2
+     Marks the beginning and ending of text that is to have a box drawn
+     around it.  The `B1' macro begins the box; the `B2' macro ends it.
+     Text in the box is automatically placed in a diversion (keep).
+
+
+File: groff,  Node: ms Insertions,  Next: Example multi-page table,  Prev: ms Displays and Keeps,  Up: ms Body Text
+
+Tables, figures, equations, and references
+..........................................
+
+   The `ms' macros support the standard `groff' preprocessors: `tbl',
+`pic', `eqn', and `refer'.  You mark text meant for preprocessors by
+enclosing it in pairs of tags as follows.
+
+ - Macro: .TS [`H']
+ - Macro: .TE
+     Denotes a table, to be processed by the `tbl' preprocessor.  The
+     optional argument `H' to `TS' instructs `groff' to create a
+     running header with the information up to the `TH' macro.  `groff'
+     prints the header at the beginning of the table; if the table runs
+     onto another page, `groff' prints the header on the next page as
+     well.
+
+ - Macro: .PS
+ - Macro: .PE
+     Denotes a graphic, to be processed by the `pic' preprocessor.  You
+     can create a `pic' file by hand, using the AT&T `pic' manual
+     available on the Web as a reference, or by using a graphics
+     program such as `xfig'.
+
+ - Macro: .EQ [align]
+ - Macro: .EN
+     Denotes an equation, to be processed by the `eqn' preprocessor.
+     The optional ALIGN argument can be `C', `L', or `I' to center (the
+     default), left-justify, or indent the equation.
+
+ - Macro: .[
+ - Macro: .]
+     Denotes a reference, to be processed by the `refer' preprocessor.
+     The GNU `refer(1)' man page provides a comprehensive reference to
+     the preprocessor and the format of the bibliographic database.
+
+* Menu:
+
+* Example multi-page table::
+
+
+File: groff,  Node: Example multi-page table,  Next: ms Footnotes,  Prev: ms Insertions,  Up: ms Body Text
+
+An example multi-page table
+...........................
+
+   The following is an example of how to set up a table that may print
+across two or more pages.
+
+
+     .TS H
+     allbox expand;
+     cb | cb .
+     Text      ...of heading...
+     _
+     .TH
+     .T&
+     l | l .
+     ... the rest of the table follows...
+     .CW
+     .TE
+
+
+File: groff,  Node: ms Footnotes,  Prev: Example multi-page table,  Up: ms Body Text
+
+Footnotes
+.........
+
+   The `ms' macro package has a flexible footnote system.  You can
+specify either numbered footnotes or symbolic footnotes (that is, using
+a marker such as a dagger symbol).
+
+ - String: \*[*]
+     Specifies the location of a numbered footnote marker in the text.
+
+ - Macro: .FS
+ - Macro: .FE
+     Specifies the text of the footnote.  The default action is to
+     create a numbered footnote; you can create a symbolic footnote by
+     specifying a "mark" glyph (such as `\[dg]' for the dagger glyph)
+     in the body text and as an argument to the `FS' macro, followed by
+     the text of the footnote and the `FE' macro.
+
+   You can control how `groff' prints footnote numbers by changing the
+value of the `FF' register.  *Note ms Document Control Registers::.
+
+
+File: groff,  Node: ms Page Layout,  Next: Differences from AT&T ms,  Prev: ms Body Text,  Up: ms
+
+Page layout
+-----------
+
+   The default output from the `ms' macros provides a minimalist page
+layout: it prints a single column, with the page number centered at the
+top of each page.  It prints no footers.
+
+   You can change the layout by setting the proper number registers and
+strings.
+
+* Menu:
+
+* ms Headers and Footers::
+* ms Margins::
+* ms Multiple Columns::
+* ms TOC::
+* ms Strings and Special Characters::
+
+
+File: groff,  Node: ms Headers and Footers,  Next: ms Margins,  Prev: ms Page Layout,  Up: ms Page Layout
+
+Headers and footers
+...................
+
+   For documents that do not distinguish between odd and even pages,
+set the following strings:
+
+ - String: \*[LH]
+ - String: \*[CH]
+ - String: \*[RH]
+     Sets the left, center, and right headers.
+
+ - String: \*[LF]
+ - String: \*[CF]
+ - String: \*[RF]
+     Sets the left, center, and right footers.
+
+
+   For documents that need different information printed in the even
+and odd pages, use the following macros:
+
+ - Macro: .OH 'left'center'right'
+ - Macro: .EH 'left'center'right'
+ - Macro: .OF 'left'center'right'
+ - Macro: .EF 'left'center'right'
+     The `OH' and `EH' macros define headers for the odd and even pages;
+     the `OF' and `EF' macros define footers for the odd and even pages.
+     This is more flexible than defining the individual strings.
+
+     You can replace the quote (`'') marks with any character not
+     appearing in the header or footer text.
+
+
+File: groff,  Node: ms Margins,  Next: ms Multiple Columns,  Prev: ms Headers and Footers,  Up: ms Page Layout
+
+Margins
+.......
+
+   You control margins using a set of number registers.  *Note ms
+Document Control Registers::, for details.
+
+
+File: groff,  Node: ms Multiple Columns,  Next: ms TOC,  Prev: ms Margins,  Up: ms Page Layout
+
+Multiple columns
+................
+
+   The `ms' macros can set text in as many columns as will reasonably
+fit on the page.  The following macros are available; all of them force
+a page break if a multi-column mode is already set.  However, if the
+current mode is single-column, starting a multi-column mode does *not*
+force a page break.
+
+ - Macro: .1C
+     Single-column mode.
+
+ - Macro: .2C
+     Two-column mode.
+
+ - Macro: .MC [width [gutter]]
+     Multi-column mode.  If you specify no arguments, it is equivalent
+     to the `2C' macro.  Otherwise, WIDTH is the width of each column
+     and GUTTER is the space between columns.  The `MINGW' number
+     register controls the default gutter width.
+
+
+File: groff,  Node: ms TOC,  Next: ms Strings and Special Characters,  Prev: ms Multiple Columns,  Up: ms Page Layout
+
+Creating a table of contents
+............................
+
+   The facilities in the `ms' macro package for creating a table of
+contents are semi-automated at best.  Assuming that you want the table
+of contents to consist of the document's headings, you need to repeat
+those headings wrapped in `XS' and `XE' macros.
+
+ - Macro: .XS [page]
+ - Macro: .XA [page]
+ - Macro: .XE
+     These macros define a table of contents or an individual entry in
+     the table of contents, depending on their use.  The macros are
+     very simple; they cannot indent a heading based on its level.  The
+     easiest way to work around this is to add tabs to the table of
+     contents string.  The following is an example:
+
+
+          .NH 1
+          Introduction
+          .XS
+          Introduction
+          .XE
+          .LP
+          ...
+          .CW
+          .NH 2
+          Methodology
+          .XS
+          Methodology
+          .XE
+          .LP
+          ...
+
+     You can manually create a table of contents by beginning with the
+     `XS' macro for the first entry, specifying the page number for
+     that entry as the argument to `XS'.  Add subsequent entries using
+     the `XA' macro, specifying the page number for that entry as the
+     argument to `XA'.  The following is an example:
+
+
+          .XS 1
+          Introduction
+          .XA 2
+          A Brief History of the Universe
+          .XA 729
+          Details of Galactic Formation
+          ...
+          .XE
+
+
+ - Macro: .TC [`no']
+     Prints the table of contents on a new page, setting the page
+     number to *i* (Roman numeral one).  You should usually place this
+     macro at the end of the file, since `groff' is a single-pass
+     formatter and can only print what has been collected up to the
+     point that the `TC' macro appears.
+
+     The optional argument `no' suppresses printing the title specified
+     by the string register `TOC'.
+
+ - Macro: .PX [`no']
+     Prints the table of contents on a new page, using the current page
+     numbering sequence.  Use this macro to print a manually-generated
+     table of contents at the beginning of your document.
+
+     The optional argument `no' suppresses printing the title specified
+     by the string register `TOC'.
+
+   The `Groff and Friends HOWTO' includes a `sed' script that
+automatically inserts `XS' and `XE' macro entries after each heading in
+a document.
+
+   Altering the `NH' macro to automatically build the table of contents
+is perhaps initially more difficult, but would save a great deal of
+time in the long run if you use `ms' regularly.
+

@@ -1,0 +1,14 @@
+#!/bin/sh
+DIALOG=${DIALOG=/usr/bin/dialog}
+
+$DIALOG --title "MESSAGE BOX" --clear \
+	--msgbox "Hi, this is a simple message box. You can use this to\n\
+display any message you like. The box will remain until\n\
+you press the ENTER key." -1 -1
+
+case $? in
+  0)
+    echo "OK";;
+  255)
+    echo "ESC pressed.";;
+esac

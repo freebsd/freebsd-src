@@ -1,0 +1,189 @@
+.\"	$NetBSD: ftpusers.5,v 1.13 2001/12/01 16:24:24 wiz Exp $
+.\"
+.\" Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"        This product includes software developed by the NetBSD
+.\"        Foundation, Inc. and its contributors.
+.\" 4. Neither the name of The NetBSD Foundation nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"
+.\"
+.Dd July 17, 2000
+.Dt FTPUSERS 5
+.Os
+.Sh NAME
+.Nm ftpusers ,
+.Nm ftpchroot
+.Nd
+.Xr ftpd 8
+access control file
+.Sh DESCRIPTION
+The
+.Nm
+file provides user access control for
+.Xr ftpd 8
+by defining which users may login.
+.Pp
+If the
+.Nm
+file does not exist, all users are denied access.
+.Pp
+A
+.Dq \e
+is the escape character; it can be used to escape the meaning of the
+comment character, or if it is the last character on a line, extends
+a configuration directive across multiple lines.
+A
+.Dq #
+is the comment character, and all characters from it to the end of
+line are ignored (unless it is escaped with the escape character).
+.Pp
+The syntax of each line is:
+.Dl userglob[:groupglob][@host] [directive [class]]
+.Pp
+These elements are:
+.Bl -tag -width "groupglob" -offset indent
+.It Sy userglob
+matched against the user name, using
+.Xr fnmatch 3
+glob matching
+(e.g,
+.Sq f* ) .
+.It Sy groupglob
+matched against all the groups that the user is a member of, using
+.Xr fnmatch 3
+glob matching
+(e.g,
+.Sq *src ) .
+.It Sy host
+either a CIDR address (refer to
+.Xr inet_net_pton 3 )
+to match against the remote address
+(e.g,
+.Sq 1.2.3.4/24 ) ,
+or an
+.Xr fnmatch 3
+glob to match against the remote hostname
+(e.g,
+.Sq *.netbsd.org ) .
+.It Sy directive
+If
+.Dq allow
+or
+.Dq yes
+the user is allowed access.
+If
+.Dq deny
+or
+.Dq no ,
+or
+.Sy directive
+is not given, the user is denied access.
+.It Sy class
+defines the class to use in
+.Xr ftpd.conf 5 .
+.El
+.Pp
+If
+.Sy class
+is not given, it defaults to one of the following:
+.Bl -tag -width "chroot" -offset indent
+.It Sy chroot
+If there is a match in
+.Sx /etc/ftpchroot
+for the user.
+.It Sy guest
+If the user name is
+.Dq anonymous
+or
+.Sq ftp .
+.It Sy real
+If neither of the above is true.
+.El
+.Pp
+No further comparisons are attempted after the first successful match.
+If no match is found, the user is granted access.
+This syntax is backward-compatible with the old syntax.
+.Pp
+If a user requests a guest login, the
+.Xr ftpd 8
+server checks to see that
+both
+.Dq anonymous
+and
+.Dq ftp
+have access, so if you deny all users by default, you will need to add both
+.Dq "anonymous allow"
+and
+.Dq "ftp allow"
+to
+.Pa /etc/ftpusers
+in order to allow guest logins.
+.Ss /etc/ftpchroot
+The file
+.Pa /etc/ftpchroot
+is used to determine which users will have their session's root directory
+changed (using
+.Xr chroot 2 ) ,
+either to the directory specified in the
+.Xr ftpd.conf 5
+.Sy chroot
+directive (if set),
+or to the home directory of the user.
+If the file does not exist, the root directory change is not performed.
+.Pp
+The syntax is similar to
+.Nm ,
+except that the
+.Sy class
+argument is ignored.
+If there's a positive match, the session's root directory is changed.
+No further comparisons are attempted after the first successful match.
+This syntax is backward-compatible with the old syntax.
+.Sh FILES
+.Bl -tag -width /usr/share/examples/ftpd/ftpusers -compact
+.It Pa /etc/ftpchroot
+List of normal users who should have their ftp session's root directory
+changed by using
+.Xr chroot 2 .
+.It Pa /etc/ftpusers
+This file.
+.It Pa /usr/share/examples/ftpd/ftpusers
+A sample
+.Nm
+file.
+.El
+.Sh SEE ALSO
+.Xr fnmatch 3 ,
+.Xr inet_net_pton 3 ,
+.Xr ftpd.conf 5 ,
+.Xr ftpd 8

@@ -1,0 +1,88 @@
+#
+# $FreeBSD$
+#Line starting with #PicoBSD contains PicoBSD build parameters
+#marker                def_sz  init    MFS_inodes      floppy_inodes
+#PicoBSD       2200    init    4096            32768
+options MD_ROOT_SIZE=2200      # same as def_sz
+
+#
+machine		i386
+cpu		I386_CPU
+cpu		I486_CPU
+cpu		I586_CPU
+cpu		I686_CPU
+ident		PICOBSD
+maxusers	3
+
+options		MATH_EMULATE		#Support for x87 emulation
+options		INET			#InterNETworking
+options		FFS			#Berkeley Fast Filesystem
+options		FFS_ROOT		#FFS usable as root device [keep this!]
+options		MFS			#Memory Filesystem
+options		MD_ROOT			#Use MFS for root
+options		MSDOSFS			#MSDOS Filesystem
+options		CD9660			#ISO 9660 Filesystem
+options		EXT2FS
+options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
+options		USERCONFIG		#boot -c editor
+options		VISUAL_USERCONFIG	#visual boot -c editor
+options		INTRO_USERCONFIG		#imply -c and parse info area
+#options		DEVFS
+options		PCI_QUIET
+options		NO_SWAPPING
+
+device	isa0
+device	pci0
+
+device		fdc0	at isa? port IO_FD1 irq 6 drq 2
+device		fd0	at fdc0 drive 0
+device		fd1	at fdc0 drive 1
+
+device	ata0	at isa? port IO_WD1 irq 14
+device	ata1	at isa? port IO_WD2 irq 15
+device		atadisk
+device		atapicd
+options		ATA_STATIC_ID		#Static device numbering
+
+# atkbdc0 controlls both the keyboard and the PS/2 mouse
+device	atkbdc0	at isa? port IO_KBD
+device		atkbd0	at atkbdc? irq 1
+#device		psm0	at atkbdc? irq 12
+
+device		vga0	at isa? port ?
+
+# syscons is the default console driver, resembling an SCO console
+device		sc0	at isa?
+
+device		npx0	at nexus? port IO_NPX irq 13
+
+device		sio0	at isa? port IO_COM1 flags 0x10 irq 4
+device		sio1	at isa? port IO_COM2 irq 3
+device		sio2	at isa? disable port IO_COM3 irq 5
+device		sio3	at isa? disable port IO_COM4 irq 9
+
+
+#
+# The following Ethernet NICs are all PCI devices.
+#
+device miibus
+device dc0		# DEC/Intel DC21x4x (``Tulip'')
+device fxp0		# Intel EtherExpress PRO/100B (82557, 82558
+
+# Order is important here due to intrusive probes, do *not* alphabetize
+# this list of network interfaces until the probes have been fixed.
+# Right now it appears that the ie0 must be probed before ep0. See
+# revision 1.20 of this file.
+
+device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
+device ep0 at isa? port 0x300 irq 10
+device ie0 at isa? port 0x300 irq 5 iomem 0xd0000
+device le0 at isa? port 0x300 irq 5 iomem 0xd0000
+device lnc0 at isa? port 0x300 irq 10
+
+pseudo-device	loop
+pseudo-device	ether
+pseudo-device	tun	1
+pseudo-device	pty	16
+pseudo-device	md
+#pseudo-device	gzip		# Exec gzipped a.out's

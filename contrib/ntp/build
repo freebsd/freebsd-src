@@ -1,0 +1,85 @@
+#! /bin/sh
+
+LOGF=make.log
+IAM=`hostname || uname -n`
+
+case "$1" in
+ 0.*)
+    SIG=$1
+    shift
+    CONFIG_ARGS="$@"
+    KEY=`sed -e q < .buildkey`
+    case "$SIG" in
+     $KEY) ;;
+     *)
+	echo "Wrong directory for build on host $IAM"
+        exit 1
+        ;;
+    esac
+    ;;
+ *)
+    CONFIG_ARGS="$@"
+    ;;
+esac
+
+#set -e
+#set -x
+
+CVO=`./config.guess`
+case "$CVO" in
+ *-*-*) ;;
+ *) echo "config.guess returned <$CVO>, which makes no sense to me."
+    exit 1
+    ;;
+esac
+
+MYNAME=`IFS=. ; set $IAM ; echo $1`
+
+case "$IAM" in
+ *.udel.edu)
+    BDIR=A.$MYNAME
+    ;;
+ *)
+    BDIR=A.$CVO
+    ;;
+esac
+
+KEYSUF=""
+
+case "$CONFIG_ARGS" in
+ *--with-crypto=autokey*)
+    KEYSUF="-autokey"
+    ;;
+ *--without-crypto*)
+    [ -d rsaref2 ] && KEYSUF="-norsaref"
+    ;;
+esac
+
+CCSUF=""
+
+case "$CC" in
+ '') ;;
+ *) CCSUF="-$CC"
+    ;;
+esac
+
+BDIR="$BDIR$KEYSUF$CCSUF"
+
+[ -d "$BDIR" ] || mkdir $BDIR
+[ -f "$BDIR/.buildcvo" ] || echo $CVO > $BDIR/.buildcvo
+[ -f "$BDIR/.buildhost" ] || echo $IAM > $BDIR/.buildhost
+
+cd $BDIR
+
+(
+[ -f config.status ] || ../configure $CONFIG_ARGS
+
+./config.status
+
+case "$MAKE" in
+ '') make && make check
+     ;;
+ *)  $MAKE && $MAKE check
+     ;;
+esac
+) > $LOGF 2>&1

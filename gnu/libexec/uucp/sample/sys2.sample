@@ -1,0 +1,51 @@
+# This is an example of a sys file, the file(s) which describe remote
+# systems for Taylor UUCP.  To use it, you must compile the package
+# with HAVE_TAYLOR_CONFIG set to 1 in policy.h (that is the default),
+# copy this file to newconfigdir as set in Makefile.in (the default is
+# /usr/local/conf/uucp), and edit it as appropriate for your system.
+
+# If you do not use the ``unknown'' command in the config file, then
+# each system that you communicate with must be listed in a sys file.
+
+# Everything after a '#' character is a comment.  To uncomment any of
+# the sample lines below, just delete the '#'.
+
+# This is a sample sys file that might be used by a system that
+# contacts a couple of other systems, both of which are treated the
+# same.  sys1 provides another example.
+
+# Commands that appear before the first ``system'' commands are
+# defaults for all systems listed in the file.
+
+# Get the login name and password to use from the call-out file.  By
+# default this is the file "call" in newconfigdir.
+call-login *
+call-password *
+
+# The systems must use a particular login
+called-login Ulocal
+
+# Permit local users to send any world readable file
+local-send /
+
+# Permit local uses to request into any world writable directory
+local-receive /
+
+# Call at any time
+time any
+
+# Use port1, then port2
+port port1
+
+alternate
+
+port port2
+
+# Now define the systems themselves.  Because of all the defaults we
+# used, there is very little to specify for the systems themselves.
+
+system comton
+phone 5551212
+
+system bugs
+phone 5552424

@@ -1,0 +1,15 @@
+/*
+ * Русский календарь
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _ru_RU_KOI8_R_all
+#define _ru_RU_KOI8_R_all
+
+#include <ru_RU.KOI8-R/calendar.common>
+#include <ru_RU.KOI8-R/calendar.msk>
+#include <ru_RU.KOI8-R/calendar.pagan>
+#include <ru_RU.KOI8-R/calendar.orthodox>
+
+#endif /* !_ru_RU_KOI8_R_all */

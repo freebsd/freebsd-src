@@ -1,0 +1,12 @@
+PROG=grops$(EXEEXT)
+MAN1=grops.n
+XLIBS=$(LIBDRIVER) $(LIBGROFF)
+MLIB=$(LIBM)
+OBJS=\
+  ps.$(OBJEXT) \
+  psrm.$(OBJEXT)
+CCSRCS=\
+  $(srcdir)/ps.cpp \
+  $(srcdir)/psrm.cpp
+HDRS=\
+  $(srcdir)/ps.h

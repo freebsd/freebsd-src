@@ -1,0 +1,78 @@
+set x $*
+. ./.param
+
+for dir in $DIRLST
+do
+	> $TMPDIR/cref$dir
+	cd $MANDIR/man$dir
+	for file in $FILLST
+	do
+		so=`line < $file | sed "s/ .*$//"`
+		if test "$so" = ".so"
+		then
+			continue
+		fi
+		grep ".*([1-8][cmsgxjvCMSGXJV]*)" $file >> $TMPDIR/cref$dir
+	done
+
+	cd $TMPDIR
+	echo "	 ," >> cref$dir
+	date > lower.suf$dir
+	echo >> lower.suf$dir
+	date > badcref$dir
+	echo >> badcref$dir
+	ed - cref$dir >> lower.suf$dir <<!
+		g/ *\(([1-8][CMSGXJVcmsgxjv]*)\)/s//\1/
+		1,\$s/ /\\
+/g
+		1,\$s/	/\\
+/g
+		1,\$s/,/\\
+/g
+		v/(/d
+		g/\\\\\^/s///
+		g/\\\\\|/s///
+		g/([1-8][cgmsxjv])/p
+		g//d
+		g/^(/d
+		g/(/s//./
+		g/^\./d
+		g/C).*/s//c/
+		g/G).*/s//g/
+		g/M).*/s//m/
+		g/S).*/s//s/
+		g/X).*/s//x/
+		g/J).*/s//j/
+		g/V).*/s//v/
+		g/).*/s///
+		w
+		q
+!
+	sort -i cref$dir | uniq > tmp.$$
+	while read cref
+	do
+		sect=`echo $cref | sed "s/.*\.\(.\).*/\1/"`
+		try=`ls $MANDIR/man$sect/$cref 2>&1`
+		if test "$try" = "$MANDIR/man$sect/$cref"
+		then
+			continue
+		else
+			echo $try | sed -e "s;$MANDIR/man..;;" -e "s; not found;;" >> badcref$dir
+		fi
+	done < tmp.$$
+	ed - badcref$dir <<!
+		g/\.\([1-8]\)/s//(\1/
+		g/c$/s//C)/
+		g/m$/s//M)/
+		g/s$/s//S)/
+		g/g$/s//G)/
+		g/x$/s//X)/
+		g/j$/s//J)/
+		g/v$/s//V)/
+		g/[^)]$/s/$/)/
+		1s/.$//
+		w
+		q
+!
+	rm -f tmp.$$ cref$dir
+done

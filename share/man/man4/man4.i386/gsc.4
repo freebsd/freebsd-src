@@ -1,0 +1,342 @@
+.\" gsc.4 - manual page for the scanner device driver `gsc'
+.\"
+.\"
+.\" Copyright (c) 1995 Gunther Schadow.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Gunther Schadow.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 9, 1995
+.Os
+.Dt GSC 4 i386
+.Sh NAME
+.Nm gsc
+.Nd a device driver for a handy scanner
+.Sh SYNOPSIS
+.In machine/gsc.h
+.Pp
+.Cd Minor number bits: Ar uu d g p ...
+.Bl -tag -width "uu " -compact -offset indent
+.It Ar uu
+unit gsc0 .. gsc3
+.It Ar d
+selects logging of
+.Em debug
+messages
+.It Ar g
+selects
+.Em bitmap
+vs.
+.Em graymap
+output
+.It Ar p
+selects
+.Em raw
+vs. portable
+.Em pnm
+output
+.El
+.Sh DESCRIPTION
+The
+.Nm
+character device driver currently handles only the
+Genius GS-4500 handy scanner.
+It operates in pure DMA modes, although
+the hardware could be set up to work with irq.
+I had neither enough
+documentation nor experience in writing interrupt driven device
+drivers.
+.Pp
+The device can operate at four different
+.Em resolutions :
+100, 200,
+300 and 400dpi.
+It produces a simple bitmap with the most significant
+bit at the left side.
+The driver can optionally output the famous and
+likely simple portable bitmap file format
+.Xr pbm 5
+by Jef Poskanzer.
+Thus the scans can easily processed by any graphic package around
+(
+.Xr xpaint 1 ,
+.Xr xv 1 ,
+.Xr xli 1
+only to name some of them ...).  In
+.Em raw
+mode a
+bit which is set means a black pixel because the scanner detects black
+points on white paper.
+On the other hand, because pnm format describes
+intensities of electron beams in video screens a set bit in
+.Em pbm
+mode means a white pixel.
+.Pp
+The
+.Em width
+of the output bitmap is fixed as given by the
+resolution value.
+However, the
+.Em height
+of the bitmap must be
+supplied in
+.Em pnm
+mode since the driver must know at what time the
+.Sq end-of-file
+shall be reached.
+With this feature you are able to
+directly copy the scanner output into a pbm file with
+.Xr cat .
+Of course you can obtain a similar effect by using
+.Xr dd 1
+with the driver in
+.Em raw
+mode.
+.Pp
+The
+.Em graymap
+output mode is not yet implemented into the driver.
+It is even questionable if external programs would not do this job
+better thereby not counting to the size of the kernel.
+Even though, I
+do not know of tools which produce a graymap from a halftone bitmap.
+.Pp
+The ioctl requests that are served by
+.Nm
+are listed below.
+There is a utility, called
+.Xr sgsc 1 ,
+that provides access to these
+requests from within shell.
+.Bl -tag -width Ds
+.It GSC_SRES int
+Set the
+.Em resolution
+value.
+If this call is made after the first
+read access to the device there will be no effect unless the device is
+closed and opened again.
+.It GSC_GRES int
+Get current resolution in dots per inch (dpi).
+.It GSC_SRESSSW void
+Set resolution value from selector switch.
+The driver must be in an
+open though untouched state otherwise the request will fail and
+.Xr errno 2
+is set to
+.Er EBUSY .
+.It GSC_SWIDTH int
+Set the
+.Em width
+of the bitmap.
+Actually, this is an alternative
+way of setting the resolution, since any allowed resolution matches
+exactly one width.
+Allowed are listed in the table below.
+.Bl -tag -width resolution -compact -offset indent
+.It resolution
+width
+.It 100 dpi
+424 pixels
+.It 200 dpi
+840 pixels
+.It 300 dpi
+1264 pixels
+.It 400 dpi
+1648 pixels
+.It ?
+1696 pixels
+.It ?
+2544 pixels
+.It ?
+3648 pixels
+.El
+.Pp
+Values which are not reported in the above table will cause the ioctl
+call to fail with
+.Xr errno 2
+set to
+.Er EINVAL .
+.Pp
+As you can see, there are width values > 1696.
+This does, however, not
+mean that you can obtain scanned lines longer than the width of your
+scanner or by higher resolutions.
+Actually, the resolution is selected
+by only by the hardware switch.
+Any line that is longer than what is
+defined for the actual resolution will be undefined (usually white) on
+the right part that is exceeding the standard line.
+.It GSC_GWIDTH int
+Get current width of the bitmap in pixels.
+.It GSC_SHEIGHT int
+Set the
+.Em height
+of the bitmap in
+.Em pnm
+mode.
+This is actually
+a limit on the amount of lines scannable after the first read
+operation.
+When the limit is reached read will return 0. However, the
+device is turned off only when a close is performed (either
+explicitly or implicitly on exit of the calling process).
+.It GSC_GHEIGHT int
+Get the current height of the bitmap.
+.It GSC_SBLEN int
+Set the length of the buffer used internally to do the DMA transfer.
+The buffer length is supplied in lines of the bitmap.
+Since the buffer
+size limit is (currently) 0x3000 bytes the maximum number of lines
+allowed will vary with the width of each line.
+This upper limit is
+checked before it overwrites the current value and pases an
+.Er ENOMEM
+in the
+.Xr errno 2
+variable.
+However, since the bitmap width can change
+after a buffer length was selected a read request may fail with
+.Er ENOMEM
+if the buffer length turns out too high.
+It is generally wise to
+choose long buffers rather than go save in order to obtain better
+output.
+.It GSC_GBLEN int
+Get the current buffer length in lines.
+.It GSC_SBTIME int
+Set the timeout for the completion of reading one buffer.
+Since a
+handy scanner is a human/computer interface timeout values are usually
+higher than those of a flat scanner.
+Default is 15 seconds.
+After
+timeout is reached the read operation will fail with
+.Er EBUSY .
+Note that
+the timeout timer starts anew for each buffer to be read and thus does
+not cause you to scan faster for longer images.
+BLEN/BTIME is similar
+as MIN/TIME in
+.Xr termios 4 .
+.It GSC_GBTIME int
+Get the current buffer timeout.
+.El
+.Pp
+All ioctl requests that modify a parameter except GSC_SBTIME do not
+have an effect on an ongoing scan process, i.e. after the first read
+request that follows open.
+You must close the device and open it again
+for the new selections to take effect.
+Consequently, the selections
+are not reset when you close or open the device.
+.Pp
+Similarly, requests that read a value do not report the value that is
+used for the ongoing scan process.
+The values needed during the scan
+process are saved when it starts and thus are not accessed by ioctl
+requests.
+.Pp
+The BTIME value does, however, have an immediate effect on the ongoing
+scan.
+Thus the timeout can for example be set to long until the user
+starts scanning.  It can then be set to a short amount to react
+(nearly) immediately when the user stops.
+Note that the user should be
+left time to at least fill one buffer without having to haste.
+.Pp
+Note that the
+.Em pbm
+versus
+.Em raw
+mode selection is done by the
+minor number not by ioctl requests.
+In
+.Em raw
+mode the selected
+height of the bitmap will have no effect.
+.Sh FILES
+.Bl -tag -width /dev/gsc0pd
+.It Pa /dev/gsc0
+device node for
+.Em raw
+output, has minor number 0.
+.It Pa /dev/gsc0d
+device node for
+.Em raw
+output emitting
+.Em debug
+messages if the
+GSCDEBUG option was given at compile time, has minor number 32.
+.It Pa /dev/gsc0p
+device node for output in
+.Em pbm
+file format, has minor number 8.
+.It Pa /dev/gsc0pd
+device node for
+.Em pbm
+and
+.Em debug
+mode, has minor number 40.
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+dd if=/dev/gsc0 of=rawfile bs=(width/8) count=(height)
+
+cat /dev/gsc0p > pbmfile
+.Ed
+.Sh DIAGNOSTICS
+.Bl -tag -width Cd
+.It GSCDEBUG
+When you define this name as an `option' in the kernel configuration
+you can get debug output if you access the driver with a minor number
+whose debug bit (i.e. bit 5 out of 7) is set.
+.El
+.Sh SEE ALSO
+.Xr cat 1 ,
+.Xr dd 1 ,
+.Xr pbmtopgm 1 ,
+.Xr pnm 1 ,
+.Xr sgsc 1 ,
+.Xr close 2 ,
+.Xr intro 2 ,
+.Xr ioctl 2 ,
+.Xr open 2 ,
+.Xr read 2 ,
+.Xr termios 4 ,
+.Xr pbm 5
+.Sh AUTHORS
+.An Gunther Schadow Aq gusw@fub46.zedat.fu-berlin.de
+.Sh BUGS
+Even though the scanner device has a little switch by which you should
+be able to select one of the four resolution modes, I could not yet
+determine how to read its status.
+Unless this is not fixed the driver
+depends on the value passed by means of
+.Xr ioctl 2
+which need not match
+what is selected by the hardware.

@@ -1,0 +1,303 @@
+.\" Copyright (c) 2001-2002 Packet Design, LLC.
+.\" All rights reserved.
+.\" 
+.\" Subject to the following obligations and disclaimer of warranty,
+.\" use and redistribution of this software, in source or object code
+.\" forms, with or without modifications are expressly permitted by
+.\" Packet Design; provided, however, that:
+.\" 
+.\"    (i)  Any and all reproductions of the source or object code
+.\"         must include the copyright notice above and the following
+.\"         disclaimer of warranties; and
+.\"    (ii) No rights are granted, in any manner or form, to use
+.\"         Packet Design trademarks, including the mark "PACKET DESIGN"
+.\"         on advertising, endorsements, or otherwise except as such
+.\"         appears in the above copyright notice or in the software.
+.\" 
+.\" THIS SOFTWARE IS BEING PROVIDED BY PACKET DESIGN "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, PACKET DESIGN MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING
+.\" THIS SOFTWARE, INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+.\" OR NON-INFRINGEMENT.  PACKET DESIGN DOES NOT WARRANT, GUARANTEE,
+.\" OR MAKE ANY REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS
+.\" OF THE USE OF THIS SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY,
+.\" RELIABILITY OR OTHERWISE.  IN NO EVENT SHALL PACKET DESIGN BE
+.\" LIABLE FOR ANY DAMAGES RESULTING FROM OR ARISING OUT OF ANY USE
+.\" OF THIS SOFTWARE, INCLUDING WITHOUT LIMITATION, ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, PUNITIVE, OR CONSEQUENTIAL
+.\" DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, LOSS OF
+.\" USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+.\" THE USE OF THIS SOFTWARE, EVEN IF PACKET DESIGN IS ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@freebsd.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 22, 2002
+.Dt NG_L2TP 4
+.Os
+.Sh NAME
+.Nm ng_l2tp
+.Nd L2TP protocol netgraph node type
+.Sh SYNOPSIS
+.In netgraph/ng_l2tp.h
+.Sh DESCRIPTION
+The
+.Nm ng_l2tp
+node type implements the encapsulation layer of the L2TP protocol
+as described in RFC 2661.
+This includes adding the L2TP packet header for outgoing packets
+and verifying and removing it for incoming packets.
+The node maintains the L2TP sequence number state and handles
+control session packet acknowledgment and retransmission.
+.Sh HOOKS
+The
+.Nm ng_l2tp
+node type supports the following hooks:
+.Pp
+.Bl -tag -compact -offset 3n -width session_hhhh
+.It Dv lower
+L2TP frames
+.It Dv ctrl
+Control packets
+.It Dv session_hhhh
+Session 0xhhhh data packets
+.El
+.Pp
+L2TP control and data packets are transmitted to, and received from,
+the L2TP peer via the
+.Dv lower
+hook.
+Typically this hook would be connected to the
+.Dv "inet/dgram/udp"
+hook of an
+.Xr ng_ksocket 4
+node for L2TP over UDP.
+.Pp
+The
+.Dv ctrl
+hook connects to the local L2TP management entity.
+L2TP control messages (without any L2TP headers) are transmitted
+and received on this hook.
+Messages written to this hook are guaranteed to be delivered to the
+peer reliably, in order, and without duplicates.
+.Pp
+Packets written to the
+.Dv ctrl
+hook must contain a two byte session ID prepended to the frame
+(in network order).
+This session ID is copied to the outgoing L2TP header.
+Similarly, packets read from the
+.Dv ctrl
+hook will have the received session ID prepended.
+.Pp
+Once an L2TP session has been created, the corresponding session
+hook may be used to transmit and receive the session's data frames:
+for the session with session ID
+.Dv 0xabcd ,
+the hook is named
+.Dv session_abcd .
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width xx
+.It Dv NGM_L2TP_SET_CONFIG
+This command updates the configuration of the node.
+It takes a
+.Li "struct ng_l2tp_config"
+as an argument:
+.Bd -literal -offset 0n
+/* Configuration for a node */
+struct ng_l2tp_config {
+    u_char      enabled;        /* enables traffic flow */
+    u_char      match_id;       /* tunnel id must match 'tunnel_id' */
+    u_int16_t   tunnel_id;      /* local tunnel id */
+    u_int16_t   peer_id;        /* peer's tunnel id */
+    u_int16_t   peer_win;       /* peer's max recv window size */
+    u_int16_t   rexmit_max;     /* max retransmits before failure */
+    u_int16_t   rexmit_max_to;  /* max delay between retransmits */
+};
+.Ed
+.Pp
+The
+.Va enabled
+field enables packet processing.
+Each time this field is changed back to zero the sequence
+number state is reset. In this way, reuse of a node is possible.
+.Pp
+The
+.Va tunnel_id
+field configures the local tunnel ID for the control connection.
+The
+.Va match_id
+field determines how incoming L2TP packets with a tunnel ID
+field different from
+.Va tunnel_id
+are handled.
+If
+.Va match_id
+is non-zero, they will be dropped; otherwise, they will be dropped
+only if the tunnel ID is non-zero.
+Typically
+.Va tunnel_id
+is set to the local tunnel ID as soon as it is known and
+.Va match_id
+is set to non-zero after receipt of the SCCRP or SCCCN control message.
+.Pp
+The peer's tunnel ID should be set in
+.Va peer_id
+as soon as it is learned, typically after receipt of a SCCRQ or SCCRP
+control message.
+This value is copied into the L2TP header for outgoing packets.
+.Pp
+The
+.Va peer_win
+field should be set from the
+.Dq Receive Window Size
+AVP received from the peer.
+The default value for this field is one; zero is an invalid value.
+As long as
+.Va enabled
+is non-zero, this value may not be decreased.
+.Pp
+The
+.Va rexmit_max
+and
+.Va rexmit_max_to
+fields configure packet retransmission.
+.Va rexmit_max_to
+is the maximum retransmission delay between packets, in seconds.
+The retransmit delay will start at a small value and increase
+exponentially up to this limit.
+The
+.Va rexmit_max
+sets the maximum number of times a packet will be retransmitted
+without being acknowledged before a failure condition is declared.
+Once a failure condition is declared, each additional retransmission
+will cause the
+.Nm ng_l2tp
+node to send a
+.Dv NGM_L2TP_ACK_FAILURE
+control message back to the node that sent the last
+.Dv NGM_L2TP_SET_CONFIG .
+Appropriate action should then be taken to shutdown the control connection.
+.It Dv NGM_L2TP_GET_CONFIG
+Returns the current configuration as a
+.Dv "struct ng_l2tp_config" .
+.It Dv NGM_L2TP_SET_SESS_CONFIG
+This control message configures a single data session.
+The corresponding hook must already be connected before sending this command.
+The argument is a
+.Li "struct ng_l2tp_sess_config" :
+.Bd -literal -offset 0n
+/* Configuration for a session hook */
+struct ng_l2tp_sess_config {
+    u_int16_t   session_id;     /* local session id */
+    u_int16_t   peer_id;        /* peer's session id */
+    u_char      control_dseq;   /* we control data sequencing? */
+    u_char      enable_dseq;    /* enable data sequencing? */
+    u_char      include_length; /* include length field? */
+};
+.Ed
+.Pp
+The
+.Va session_id
+and
+.Va peer_id
+fields configure the local and remote session ID's, respectively.
+.Pp
+The
+.Va control_dseq
+and
+.Va enable_dseq
+fields determine whether sequence numbers are used with L2TP data packets.
+If
+.Va enable_dseq
+is zero, then no sequence numbers are sent and incoming sequence numbers
+are ignored.
+Otherwise, sequence numbers are included on outgoing packets and checked
+on incoming packets.
+.Pp
+If
+.Va control_dseq
+is non-zero, then the setting of
+.Va enable_dseq
+will never change except by another
+.Dv NGM_L2TP_SET_SESS_CONFIG
+control message.
+If
+.Va control_dseq
+is zero, then the peer controls whether sequence numbers are used:
+if an incoming L2TP data packet contains sequence numbers,
+.Va enable_dseq
+is set to one, and conversely if an incoming L2TP data packet does not
+contain sequence numbers,
+.Va enable_dseq
+is set to zero.
+The current value of
+.Va enable_dseq
+is always accessible via the
+.Dv NGM_L2TP_GET_SESS_CONFIG
+control message (see below).
+Typically an LNS would set
+.Va control_dseq
+to one while a LAC would set
+.Va control_dseq
+to zero (if the Sequencing Required AVP were not sent), thus giving
+control of data packet sequencing to the LNS.
+.Pp
+The
+.Va include_length
+field determines whether the L2TP header length field is included
+in outgoing L2TP data packets.
+For incoming packets, the L2TP length field is always checked when present.
+.It Dv NGM_L2TP_GET_SESS_CONFIG
+This command takes a two byte session ID as an argument and returns
+the current configuration for the corresponding data session as a
+.Dv "struct ng_l2tp_sess_config" .
+The corresponding session hook must be connected.
+.It Dv NGM_L2TP_GET_STATS
+This command takes a two byte session ID as an argument and returns a
+.Dv "struct ng_l2tp_stats"
+containing statistics for the corresponding data session.
+The corresponding session hook must be connected.
+.It Dv NGM_L2TP_CLR_STATS
+This command takes a two byte session ID as an argument and
+clears the statistics for that data session.
+The corresponding session hook must be connected.
+.It Dv NGM_L2TP_GETCLR_STATS
+Same as
+.Dv NGM_L2TP_GET_STATS ,
+but also atomically clears the statistics as well.
+.El
+.Pp
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_ksocket 4 ,
+.Xr ng_ppp 4 ,
+.Xr ng_pptp 4 ,
+.Xr ngctl 8
+.Rs
+.%A W. Townsley
+.%A A. Valencia
+.%A A. Rubens
+.%A G. Pall
+.%A G. Zorn
+.%A B. Palter
+.%T "Layer Two Tunneling Protocol L2TP"
+.%O RFC 2661
+.Re
+.Sh HISTORY
+The
+.Nm
+node type was developed at Packet Design, LLC.
+.Dv "http://www.packetdesign.com/"
+.Sh AUTHORS
+.An Archie Cobbs Aq archie@packetdesign.com

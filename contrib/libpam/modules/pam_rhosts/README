@@ -1,0 +1,58 @@
+$FreeBSD$
+arguments recognized:
+
+"no_hosts_equiv"
+"no_rhosts"
+"debug"
+"nowarn"
+"suppress"
+"promiscuous"
+
+.rhosts/hosts.equiv format:
+
+There are positive entries, when one is matched authentication
+succeeds and terminates.  There are negative entries, when one is
+matched authentication fails and terminates.  Thus order is
+significant.
+
+Entry          hosts.equiv                     .rhosts
+<host>         All users on <host> are ok      Same username from <host> is ok
+<host> <user>  <user> from <host> is ok        ditto
+-<host>                No users from <host> are ok     ditto
+<host> -<user> <user> from <host> is not ok    ditto
+
+<host> can be ip (IPv4) numbers.
+
+Netgroups may be used in either host or user fields, and then applies
+to all hosts, or users, in the netgroup.  The syntax is
+
+  +@<ng>
+
+The entries
+
+  <host> +@<ng>
+  +@<ng> +@<ng>
+  +@<ng> <user>
+
+means exactly what you think it does.  Negative entries are of the
+form
+
+  -@<ng>
+
+When the "promiscuous" option is given the special character + may be
+used as a wildcard in any field.
+
+  +                    Allow anyone from any host to connect. DANGEROUS.
+  + +                  Ditto.
+  + <user>             Allow the user to connect from anywhere. DANGEROUS.
+  <host> +             Allow any user from the host. Dangerous.
+  
+These, perhaps more usefull, forms of the + form is also disallowed
+unless "promiscuous" is specified:
+
+  + -<user>            Disallow the user from any host
+  + -@<ng>             Disallow all members of the netgroup from any host
+
+When "promiscuous" is not specified a '+' is handled as a negative
+match.
+

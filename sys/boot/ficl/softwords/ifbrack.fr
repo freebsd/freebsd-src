@@ -1,0 +1,56 @@
+\ ** ficl/softwords/ifbrack.fr
+\ ** ANS conditional compile directives [if] [else] [then]
+\ ** Requires ficl 2.0 or greater...
+
+\ $FreeBSD$
+
+hidden dup >search ficl-set-current
+
+: ?[if]   ( c-addr u -- c-addr u flag )
+    2dup 2dup
+    s" [if]" compare 0= >r
+    s" [IF]" compare 0= r> 
+    or
+;
+
+: ?[else]   ( c-addr u -- c-addr u flag )
+    2dup 2dup
+    s" [else]" compare 0= >r
+    s" [ELSE]" compare 0= r> 
+    or
+;
+
+: ?[then]   ( c-addr u -- c-addr u flag )
+    2dup 2dup
+    s" [then]" compare 0= >r
+    s" [THEN]" compare 0= r> 
+    or
+;
+
+set-current
+
+: [else]  ( -- )
+    1                                     \ ( level )
+    begin
+      begin
+        parse-word dup  while             \ ( level addr len )
+        ?[if] if                          \ ( level addr len )
+            2drop 1+                      \ ( level )
+        else                              \ ( level addr len )
+            ?[else] if                    \ ( level addr len )
+                 2drop 1- dup if 1+ endif
+            else
+                ?[then] if 2drop 1- else 2drop endif 
+            endif
+        endif ?dup 0=  if exit endif      \ level
+      repeat  2drop                       \ level
+    refill 0= until                       \ level
+    drop
+;  immediate
+
+: [if]  ( flag -- )
+0= if postpone [else] then ;  immediate
+
+: [then]  ( -- )  ;  immediate
+
+previous

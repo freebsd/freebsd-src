@@ -1,0 +1,61 @@
+# $Id: Makefile.in,v 1.5 2001/03/29 05:29:07 lukem Exp $
+#
+
+srcdir	= @srcdir@
+VPATH	= @srcdir@
+SHELL	= /bin/sh
+
+prefix	= @prefix@
+exec_prefix = @exec_prefix@
+bindir	= @bindir@
+mandir	= @mandir@
+sbindir	= @sbindir@
+
+mandircat5 = ${mandir}/cat5
+mandircat8 = ${mandir}/cat8
+
+CC	= @CC@
+CFLAGS	= -I${srcdir} -I${srcdir}/.. -I. -I.. @INCLUDES@ @CFLAGS@
+LIBS	= @LIBS@
+LDFLAGS	= @LDFLAGS@
+
+INSTALL	= @INSTALL@
+
+PROG	= ftpd
+OBJS	= cmds.o conf.o ftpd.o ftpcmd.o popen.o @LSOBJS@
+# removed: logutmp.o logwtmp.o
+
+all:	${PROG}
+
+cmp.o: ${srcdir}/../ls/cmp.c
+	${CC} ${CFLAGS} -c  -o cmp.o ${srcdir}/../ls/cmp.c
+
+ls.o: ${srcdir}/../ls/ls.c
+	${CC} ${CFLAGS} -c  -o ls.o ${srcdir}/../ls/ls.c
+
+print.o: ${srcdir}/../ls/print.c
+	${CC} ${CFLAGS} -c  -o print.o ${srcdir}/../ls/print.c
+
+stat_flags.o: ${srcdir}/../ls/stat_flags.c
+	${CC} ${CFLAGS} -c  -o stat_flags.o ${srcdir}/../ls/stat_flags.c
+
+util.o: ${srcdir}/../ls/util.c
+	${CC} ${CFLAGS} -c  -o util.o ${srcdir}/../ls/util.c
+
+install: all
+	-mkdir -p ${sbindir}
+	${INSTALL} -m 555 ${PROG} ${sbindir}
+	-mkdir -p ${mandircat5}
+	${INSTALL} -m 444 ${srcdir}/ftpd.conf.cat5 ${mandircat5}/ftpd.conf.5
+	${INSTALL} -m 444 ${srcdir}/ftpusers.cat5 ${mandircat5}/ftpusers.5
+	-mkdir -p ${mandircat8}
+	${INSTALL} -m 444 ${srcdir}/${PROG}.cat8 ${mandircat8}/${PROG}.8
+
+${PROG}: ${OBJS} @LIBDEPENDS@
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${PROG} ${OBJS} ${LIBS}
+
+clean:
+	rm -f core ${PROG} ${OBJS}
+
+distclean: clean
+	rm -f Makefile

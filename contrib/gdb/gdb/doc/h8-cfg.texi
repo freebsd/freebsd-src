@@ -1,0 +1,47 @@
+@c GDB version number is recorded in the variable GDBVN
+@include GDBvn.texi
+@c
+@set   AGGLOMERATION
+@clear AMD29K
+@set   BARETARGET
+@clear CONLY
+@set   DOSHOST
+@clear FORTRAN
+@clear FSFDOC
+@clear GDBSERVER
+@clear GENERIC
+@set   H8
+@set   H8EXCLUSIVE
+@clear HAVE-FLOAT
+@clear I960
+@clear MOD2
+@clear NOVEL
+@clear POSIX
+@set   PRECONFIGURED
+@clear REMOTESTUB
+@set   SIMS
+@clear SERIAL
+@clear SPARC
+@clear ST2000
+@clear VXWORKS
+@clear Z8K
+@c ----------------------------------------------------------------------
+@c STRINGS:
+@c
+@c Name of GDB program.  Used also for (gdb) prompt string.
+@set GDBP gdb
+@c 
+@c Name of GDB product.  Used in running text.
+@set GDBN GDB
+@c
+@c Name of GDB initialization file.
+@set GDBINIT .gdbinit
+@c 
+@c Name of target.
+@set TARGET Hitachi Microprocessors
+@c
+@c Name of GCC product
+@set NGCC GCC
+@c 
+@c Name of GCC program
+@set GCC gcc

@@ -1,0 +1,68 @@
+'\"	troff -g M.tabs | gcat -ftabs&
+.fp 2 CW
+.de h
+.ps 6
+.vs 6p
+.tl '___''___'
+.vs
+.ps
+..
+.wh 0 h
+.ss 18
+.nf
+.rs
+.ft 3
+.ps 24
+.vs 33p
+.sp 1i
+.ce 4
+U\s-6NIX\s+6
+User's Manual
+.sp 1i
+U\s-6NIX\s+6
+User's Manual
+.bp
+.rs
+.ft 2
+.ps 10
+.vs 11p
+.ta 3i
+.sp 1i
+I	I
+N	N
+T	T
+R	R
+O	O
+.sp 27p
+C	C
+O	O
+N	N
+T	T
+E	E
+N	N
+T	T
+S	S
+.sp 27p
+I	I
+N	N
+D	D
+E	E
+X	X
+.sp 27p
+.ps 12
+.vs 13p
+1	1
+.sp 27p
+2	2
+.sp 27p
+3	3
+.sp 27p
+4	4
+.sp 27p
+5	5
+.sp 27p
+6	6
+.sp 27p
+7	7
+.sp 27p
+8	8

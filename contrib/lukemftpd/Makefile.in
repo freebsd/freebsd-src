@@ -1,0 +1,29 @@
+# $Id: Makefile.in,v 1.1 2000/07/29 13:34:15 lukem Exp $
+#
+
+srcdir	= @srcdir@
+VPATH	= @srcdir@
+SHELL	= /bin/sh
+
+@SET_MAKE@
+
+SUBDIRS	= libukem src
+
+all:	ftpd
+
+ftpd:	@LIBUKEM@
+	( cd src; ${MAKE} )
+
+libukem.a:
+	( cd libukem; ${MAKE} )
+
+install clean:
+	@for i in ${SUBDIRS}; do \
+	    ( echo "$@ ===> $$i" ; cd $$i ; ${MAKE} $@ ); \
+	done
+
+distclean: clean
+	@for i in ${SUBDIRS}; do \
+	    ( echo "$@ ===> $$i" ; cd $$i ; ${MAKE} $@ ); \
+	done
+	rm -f Makefile config.cache config.log config.status config.h

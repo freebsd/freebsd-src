@@ -1,0 +1,524 @@
+Thu Sep 15 08:20:23 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+ 
+	* subr.c (run_setup, run_args): Check USE_PROTOTYPES if defined
+	instead of __STDC__, just like cvs.h does.
+
+Thu Sep 15 00:14:58 1994  david d `zoo' zuhn  <zoo@monad.armadillo.com>
+
+	* main.c: rename nocvsrc to use_cvsrc, don`t read ~/.cvsrc when -H
+	  has been seen
+
+Wed Sep 14 21:55:17 1994  david d `zoo' zuhn  <zoo@monad.armadillo.com>
+
+	* cvs.h, subr.c: use size_t for xmalloc, xrealloc, and xstrdup
+	  parameters
+
+	* cvsrc.c: optimize away two calls of getenv
+
+	* commit.c, subr.c: use mode_t for file mode values (Thanks to jtc@cygnus.com)
+
+	* main.c: update copyrights in -v message
+
+Tue Sep  6 10:29:13 1994  J.T. Conklin  (jtc@rtl.cygnus.com)
+
+	* hash.c (hashp): Replace hash function with one from p436 of the
+	  Dragon book (via libg++'s hash.cc) which has *much* better
+	  behavior.
+
+Wed Aug 17 09:37:44 1994  J.T. Conklin  (jtc@cygnus.com)
+
+	* find_names.c (find_dirs): Use 4.4BSD filesystem feature (it
+	  contains the file type in the dirent structure) to avoid
+	  stat'ing each file.
+
+Tue Aug 16 11:15:12 1994  J.T. Conklin  (jtc@cygnus.com)
+
+	* rcs.h (struct rcsnode): add symbols_data field.
+	* rcs.c (RCS_parsercsfile_i): store value of rcs symbols in
+	  symbols_data instead of parsing it.
+	  (RCS_symbols): New function used for lazy symbols parsing.
+	  Build a list out of symbols_data and store it in symbols if it
+	  hasn't been done already, and return the list of symbols.
+	  (RCS_gettag, RCS_magicrev, RCS_nodeisbranch, RCS_whatbranch):
+	  Use RCS_symbols.
+	* status.c: (status_fileproc): Use RCS_symbols.
+
+Thu Jul 14 13:02:51 1994  david d `zoo' zuhn  (zoo@monad.armadillo.com)
+
+	* src/diff.c (diff_fileproc): add support for "cvs diff -N" which
+	  allows for adding or removing files via patches. (from
+	  K. Richard Pixley <rich@cygnus.com>)
+
+Wed Jul 13 10:52:56 1994  J.T. Conklin  (jtc@phishhead.cygnus.com)
+
+	* cvs.h: Add macro CVSRFLPAT, a string containing a shell wildcard
+	  expression that matches read lock files.
+	* lock.c (readers_exist): Reorganized to use CVSRFLPAT and to not
+	  compute the full pathname unless the file matches.
+
+	* rcs.h: Add macro RCSPAT, a string containing a shell wildcard
+	  expression that matches RCS files.
+	* find_names.c (find_rcs, find_dirs): Use RCSPAT.
+
+Fri Jul  8 07:02:08 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* entries.c (Register): Pass two arguments to write_ent_proc, in
+	accordance with its declaration.
+
+Thu Jun 30 09:08:57 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* logmsg.c (do_editor): Fix typo ("c)continue" -> "c)ontinue").
+
+Thu Jun 23 18:28:12 1994  J.T. Conklin  (jtc@phishhead.cygnus.com)
+
+        * find_names.c (find_rcs, find_dirs): use fnmatch instead of
+        re_comp/re_exec for wildcard matching.
+        * lock.c (readers_exist): Likewise.
+
+Fri May 20 08:13:10 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* modules.c (do_module): If something is aliased to itself, print
+	an error message rather than recursing.
+
+Fri May  6 19:25:28 1994  david d zuhn  (zoo@monad.armadillo.com)
+
+	* cvsrc.c (read_cvsrc): use open_file for error checking
+
+Sat Feb 26 10:59:37 1994  david d zuhn  (zoo@monad.armadillo.com)
+
+        * import.c: use $TMPDIR if available, instead of relying on /tmp
+
+Mon Jan 24 19:10:03 1994  david d zuhn  (zoo@monad.armadillo.com)
+
+	* update.c (joining): compare join_rev1 with NULL instead of
+	  casting pointer to an int
+
+	* options.h: remove S_IWRITE, S_IWGRP, S_IWOTH macros
+
+	* logmsg.c: #if 0 around gethostbyname prototype
+
+	* hash.c (printnode), find_names.c (add_entries_proc),
+	  entries.c (write_ent_proc): correct declaration for function
+	  (added void *closure)
+
+	* cvs.h: header include order reorganization: First include the
+	  program config headers (config.h, options.h).  Then include any
+	  system headers (stdio.h, unistd.h).  Last, get the program
+	  headers and any cvs supplied library support
+
+	* commit.c: use xstrdup instead of strdup
+
+	* cvs.h: redefined USE(var) macro; comment after an #endif
+
+	* all .c files: remove the semicolon from after the USE(var)
+
+Sat Dec 18 00:17:27 1993  david d zuhn  (zoo@monad.armadillo.com)
+
+	* cvs.h: include errno.h if available, otherwise declare errno if
+	  it's not somehow else defined
+
+	* commit.c (checkaddfile): remove unused file argument from
+	  RCS_nodeisbranch call
+
+	* rcs.c (RCS_nodeisbranch): remove file from arguments (was unused)
+
+	* rcs.h (RCS_nodeisbranch): remove file from prototype
+
+	* main.c: don't use rcsid when printing version number (the CVS
+	  version number is independent of the repository that it comes
+	  from)
+
+	* hash.c (printlist, printnode): use %p to print pointers, not %x
+	  (avoids gcc format warnings)
+
+	* cvs.h: define USE if GCC 2, to avoid unused variable warning
+
+	* all .c files: use USE(rcsid)
+
+	* Makefile.in (VPATH): don't use $(srcdir), but @srcdir@ instead
+	  (COMMON_OBJECTS): define, and use in several places
+	  (OBJECTS): reorder alphabetically
+
+	* hash.c (nodetypestring): handle default return value better
+
+	* modules.c (do_module): remove extra argument to ign_dir_add
+
+	* main.c (main): initialize cvs_update_env to 0 (zero)
+
+	* modules.c (do_module): return error code when ignoring directory
+	  (instead of a bare return).  error code should be zero here
+
+	* cvs.h: add prototypes for ignore_directory, ign_dir_add
+
+	* ignore.c: add comments about ignore_directory
+
+	* root.c (Name_Root): remove unused variables has_cvsadm and path
+
+	* checkin.c (Checkin): only use -m<message> when message is non-NULL
+
+	* cvsrc.c (read_cvsrc): make sure homeinit is never used while
+	  uninitialized (could have happened if getenv("HOME") had failed)
+
+	* cvs.h: include unistd.h if available
+
+Fri Dec 17 23:54:58 1993  david d zuhn  (zoo@monad.armadillo.com)
+
+	* all files: now use strchr, strrchr, and memset instead of index,
+	  rindex, and bzero respectively
+
+Sat Dec 11 09:50:03 1993  david d zuhn  (zoo@monad.armadillo.com)
+
+	* version.c (version_string): bump to +104z
+
+	* Makefile.in: set standard directory variables, CC, and other
+	  variables needed to be able to do 'make all' in this directory
+
+	* import.c: implement -k<subst> options, for setting the RCS
+	  keyword expansion mode
+
+	* all files: use PROTO() macro for ANSI function prototypes
+	  instead of #ifdef __STDC__/#else/#endif around two sets of
+	  declarations
+
+Thu Nov 18 19:02:51 1993  K. Richard Pixley  (rich@sendai.cygnus.com)
+
+	* add.c (add), import.c (import), commit.c (commit): change
+	  xmalloc & strcpy to xstrdup.
+
+	* commit.c (remove_file): correct another static buffer problem.
+
+Wed Nov 10 15:01:34 1993  K. Richard Pixley  (rich@sendai.cygnus.com)
+
+	* recurse.c (start_recursion): directories in repository but not
+	  in working directory should be added to dirlist.  Fixes "update
+	  -d dir" case.
+
+	* version.c (version_string): bump to +103r.
+
+	* commit.c (checkaddfile): mkdir attic only if it does not already
+	  exist.  comment changes.  changed diagnostic about adding on a
+	  branch.  if a file is added on a branch, remove and replace the
+	  internal representation of that rcs file.
+
+Tue Nov  9 18:02:01 1993  K. Richard Pixley  (rich@sendai.cygnus.com)
+
+	* add.c (add): if a file is being added on a branch, then say so;
+	  add quotes around file names in error messages.
+
+Thu Nov  4 16:58:33 1993  K. Richard Pixley  (rich@sendai.cygnus.com)
+
+	* version.c (version_string): bump to +102r.
+
+	* recurse.c (unroll_files_proc, addfile): new files, forward
+	  decls, and prototypes.
+	  (recursion_frame): new struct.
+	  (start_recursion): rewrite to handle the case of "file1 file2
+	  dir1/file3".
+
+	* rcs.c (RCS_parsercsfile): trap and error out on the case where
+	  getrcskey tells us it hit an error while reading the file.
+
+	* commit.c (lock_filesdoneproc): add comment about untrapped error
+	  condition.
+
+	* hash.c (addnode): comment change.
+
+	* subr.c: add comment about caching.
+
+	* sanity.sh: updated copyright.
+
+Wed Nov  3 14:49:15 1993  K. Richard Pixley  (rich@sendai.cygnus.com)
+
+	* version.c (version_string): bump to +101r.
+
+	* hash.c (walklist): add a closure for called routines.  All
+	  callers, callees, and prototypes changed.
+
+	* hash.c (nodetypestring, printnode, printlist): new functions for
+	  dumping lists & nodes.
+
+	* tag.c (tag_fileproc): fatal out on failure to set tag.
+
+Tue Nov  2 14:26:38 1993  K. Richard Pixley  (rich@sendai.cygnus.com)
+
+	* version.c (version_string): bump version to +99.
+
+Mon Nov  1 15:54:51 1993  K. Richard Pixley  (rich@sendai.cygnus.com)
+
+	Change buffer allocation for check in messages from static to
+	dynamic.
+	* add.c (add): dynamically allocate message.
+	  (build_entry): check (message != NULL) now that message is a
+	  pointer.
+	* commit.c (got_message, commit, commit_fileproc,
+	  commit_filesdoneproc, commit_direntproc): removed.  Replaced by
+	  (message != NULL).  Dynamically allocate message.
+	* cvs.h: adjust do_editor prototype and forward decl.
+	  (MAXMESGLEN): removed.
+	* import.c (import): dynamically allocate message.
+	* logmsg.c (do_editor): change return type to char *.  Remove
+	  message parameter.  Slight optimization to algorythm for
+	  removing CVSEDITPREFIX lines.  Add comment about fgets lossage.
+
+	* subr.c (xmalloc): change error message to print number of bytes
+	  we were attempting to allocate.
+
+Fri Oct 29 14:22:02 1993  K. Richard Pixley  (rich@sendai.cygnus.com)
+
+	* add.c (add): prevent adding a directory if there exists a dead
+	  file of the same name.
+
+	* sanity.sh: update argument to diff from "+ignore-file" to
+	  "--exclude=".
+
+	* Makefile.in (TAGS): extend to work from an objdir.
+
+Mon Oct 18 18:45:45 1993  david d `zoo' zuhn  (zoo@rtl.cygnus.com)
+
+	*  tag.c, rtag.c: change the default actions to make writing over
+	existing tags harder (but not impossible)
+
+Thu Oct 14 18:00:53 1993  david d `zoo' zuhn  (zoo@rtl.cygnus.com)
+
+        CVS/Root changes from Mark Baushke (mdb@cisco.com)
+
+	* Makefile.in: added new file called root.c
+
+	* create_adm.c: will create CVS/Root at the same time that the
+        other CVS files are being created
+
+	* cvs.h: new CVSADM_ROOT define plus new function externs
+
+	* main.c: default to using CVS/Root contents for CVSROOT 
+	if neither the environment variable or the command line 
+	"-d" switch is given. If either are given, perform a
+	sanity check that this directory belongs to that repository.
+
+	* update.c: if CVS/Root does not exist, then create it
+	during an update -- this may be removed if CVS/Root becomes a
+	standard feature
+
+	* root.c: implement new functions to manipulate CVS/Root
+	[this may be integrated with other utility functions in
+	a future revision if CVS/Root becomes a standard feature.]
+
+Wed Sep 29 17:01:40 1993  david d `zoo' zuhn  (zoo@rtl.cygnus.com)
+
+	* patch.c (patch_fileproc): output an Index: line for each file
+
+Mon Sep  6 18:40:22 1993  david d `zoo' zuhn  (zoo@rtl.cygnus.com)
+
+	* cvs.h: wrap definition of PATH_MAX in #ifndef PATH_MAX/#endif
+
+Tue Aug  9 21:52:10 1994  Mark Eichin  (eichin@cygnus.com)
+
+	* commit.c (remove_file): actually allocate space for the
+	filename, not just the directory.
+
+Tue Jul  6 19:05:37 1993  david d `zoo' zuhn  (zoo@cygnus.com)
+
+	* diff.c: patches to print an Index: line 
+
+Mon Jun 14 12:19:35 1993  david d `zoo' zuhn  (zoo at rtl.cygnus.com)
+
+	* Makefile.in: update install target
+
+Tue Jun  1 17:03:05 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in: link cvs against libiberty
+
+Wed May 19 14:10:34 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* ignore.c: add code for keeping lists of directories to ignore.
+
+	* modules.c: new syntax for modules file, !dirname is added to
+	the list of directories to ignore
+	
+	* update.c: don't process directories on the ignore list
+
+Tue Apr  6 14:22:48 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* cvs.h: Removed gethostname prototype, since it is unnecessary
+	and does not match prototype in <unistd.h> on HP/UX.
+
+Mon Mar 22 23:25:16 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in: rename installtest to installcheck
+
+Mon Feb  1 12:53:34 1993  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* Makefile.in (check, installtest): set RCSBIN so that we
+	  explicitly test the appropriate version of rcs as well.
+
+Fri Jan 29 13:37:35 1993  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* version.c: bump version to +2.
+
+Thu Jan 28 18:11:34 1993  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* import.c (update_rcs_file): if a file was dead, be sure to check
+	  in the new version.
+
+	* update.c (checkout_file): if file_is_dead and we *did* have an
+	  entry, scratch it.
+
+Tue Jan 26 16:16:48 1993  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* sanity.sh: parcel into pieces for easier truncation when
+	  debugging.
+
+	* update.c (checkout_file): print the "no longer pertinent"
+	  message only if there was a user file.
+
+Wed Jan 20 17:08:09 1993  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* update.c (checkout_file): remove unused variable s.
+	  (join_file): remove unused variables rev & baserev.  Fix a typo.
+
+	* commit.c (commit_fileproc): remove unused variable magicbranch.
+
+	* sanity.sh: bring back test 45 even though it fails.  Update
+	  tests against imported files.
+
+	* add.c (add_directory): move declaration of unused variable.
+
+	* Makefile.in (xxx): when building in this directory, pass CC for
+	  the recursion.
+
+Mon Jan 18 13:48:33 1993  K. Richard Pixley  (rich@cygnus.com)
+
+	* commit.c (remove_file): fix for files removed in trunk
+	  immediately after import.
+
+	* commit.c (remove_file): initialize some variables.  Otherwise we
+	  end up free'ing some rather inconvenient things.
+
+Wed Jan 13 15:55:36 1993  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* Makefile.in (check, install, installtest): use the sanity test.
+
+	* sanity.el: make into real functions and bind to sun keys.
+
+	* sanity.sh: bring back to working order.  Add test for death
+	  after import.
+
+Tue Dec 22 17:45:19 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* commit.c (remove_file): when checking in a dead revision to a
+	  branch as we are creating the branch, do not lock the underlying
+	  revision.  Also free some malloc'd memory.
+
+Wed Dec  2 13:09:48 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* RCS-patches: new file.
+
+Fri Nov 27 20:12:48 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	Added support for adding previously removed files, as well as
+	adding and removing files in branches.
+
+	* add.c (build_entry): add new argument, tag, so as to store in
+	  Entries the per directory sticky tag under which a file is
+	  added.  Changed prototype and caller.
+	  (build_entry): Do not prevent file additions if the file exists
+	  in the Attic.
+	  (add): if the file being adding was previously dead, say so, and
+	  mark the Entries file with the addition.
+	* checkin.c (Checkin): adding with a tag no longer means to add,
+	  then tag.  Hence, remove the tagging operation.
+	* classify.c (Classify_File): if the base RCS version is dead,
+	  then the file is being added.  If a file being added already
+	  exists in the attic, and the base RCS version is NOT dead, then
+	  we have a conflict.
+	* commit.c (checkaddfile): add the list of srcfiles to calling
+	  convention.  Change prototype and callers.
+	  (remove_file): add message and list of srcfiles to calling
+	  convention.  Change prototype and callers.  When removing a file
+	  with a tag, remove the tag only when the tag does not represent
+	  a branch.  Remove files by committing dead revisions in the
+	  appropriate branch.  When removing files from the trunk, also
+	  move the RCS file into the Attic.
+	  (check_fileproc): when adding, and looking for previously
+	  existing RCS files, do not look in the Attic.
+	  (commit_fileproc): adding files with tags now implies adding the
+	  file on a branch with that tag.
+	  (checkaddfile): When adding a file on a branch, in addition to
+	  creating the rcs file in the Attic, also create a dead, initial
+	  revision on the trunk and stub in a magic branch tag.
+	* cvs.h (joining, gca): added prototypes.
+	* rcs.c (RCS_getbranch): now global rather than static.
+	  remove prototype and forward decl.
+	  (parse_rcs_proc): use RCS_addnode.
+	  (RCS_addnode): new function.
+	  (RCS_parsercsfile): recognize the new RCS revision
+	  newphrase, "dead".  Mark the node for the revision.
+	  (RCS_gettag): requesting the head of a file in the attic now
+	  returns the head of the file in the attic rather than NULL.
+	  (RCS_isbranch): use RCS_nodeisbranch.
+	  (RCS_nodeisbranch): new function.
+	  (RCS_isdead): new function.
+	* rcs.h (RCSDEAD): new macro for new rcs keyword.
+	  (struct rcsversnode): new field to flag dead revisions.
+	  (RCS_nodeisbranch, RCS_isdead, RCS_addnode): new functions,
+	  new prototypes, new externs.
+	  (RCS_getbranch): now global, so prototype and extern moved
+	  to here.
+	* subr.c (gca): new function.
+	* update.c (join_file): add entries list to calling
+	  convention.  Caller changed.
+	  (update): also search the Attic when joining. 
+	  (checkout_file): when joining, checkout dead revisions too.  If
+	  a file has died across an update then say so.
+	  (join_file): support joins of dead files against live ones, live
+	  files against dead ones, and added files.  Change the semantic
+	  of a join with only rev specified to mean join specified rev
+	  against checked out files via the greatest common ancestor of
+	  the specified rev and the base rev of the checked out files.
+	  (joining): new function.
+	* vers_ts.c (Version_TS): ALWAYS get the rcs version number.
+
+	* update.c (update): write the 'C' letter for conflicts.
+
+	* cvs.h (ParseTag): remove duplicate extern.
+
+	* add.c (add_directory): do not prompt for interactive
+	  verification before adding a directory.  Doing so prevents
+	  scripted testing.
+
+Wed Feb 26 18:04:40 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in, configure.in: removed traces of namesubdir,
+	  -subdirs, $(subdir), $(unsubdir), some rcs triggers.  Forced
+	  copyrights to '92, changed some from Cygnus to FSF.
+
+Tue Dec 10 01:24:40 1991  K. Richard Pixley  (rich at cygnus.com)
+
+	* diff.c: do not pass an empty -r option to rcsdiff.
+
+	* update.c: fix bug where return code from rcsmerge wasn't being
+	  handled properly.
+
+	* main.c: "rm" and "delete" now synonyms for "remove".
+
+	* commit.c: abort if editor session fails, but remember to clear
+	  locks.
+
+	* Makefile.in: remove conf.h and checkin.configured on clean.
+	  infodir belongs in datadir.
+
+Thu Dec  5 22:46:03 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* Makefile.in: idestdir and ddestdir go away.  Added copyrights
+	  and shift gpl to v2.  Added ChangeLog if it didn't exist. docdir
+	  and mandir now keyed off datadir by default.
+
+Wed Nov 27 02:47:13 1991  K. Richard Pixley  (rich at sendai)
+
+	* brought Makefile.in's up to standards.text.
+
+	* fresh changelog.
+
+
+For older changes, there might be some relevant stuff in the bottom of
+the NEWS file, but I'm afraid probably a lot of them are lost in the
+mists of time.

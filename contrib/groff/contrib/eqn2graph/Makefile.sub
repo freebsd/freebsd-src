@@ -1,0 +1,19 @@
+MAN1=eqn2graph.n
+CLEANADD=eqn2graph
+
+all: eqn2graph
+
+eqn2graph: eqn2graph.sh
+	rm -f $@; \
+	sed -e "s|@g@|$(g)|g" \
+	    -e "s|@VERSION@|$(version)$(revision)|" \
+	    -e $(SH_SCRIPT_SED_CMD) $(srcdir)/eqn2graph.sh >$@; \
+	chmod +x $@
+
+install_data: eqn2graph
+	-test -d $(bindir) || $(mkinstalldirs) $(bindir)
+	-rm -f $(bindir)/eqn2graph
+	$(INSTALL_SCRIPT) eqn2graph $(bindir)/eqn2graph
+
+uninstall_sub:
+	-rm -f $(bindir)/eqn2graph

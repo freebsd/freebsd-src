@@ -1,0 +1,85 @@
+-*- indented-text -*-
+
+$Id: TODO,v 1.66 2001/08/09 08:43:42 assar Exp $
+
+* configure
+
+handle readline hiding in readline/readline.h
+
+* appl
+
+** appl/popper
+
+Implement RFC1731 and 1734, pop over GSS-API
+
+* doc
+
+* kdc
+
+* kadmin
+
+make it happy with reading and parsing kdc.conf
+
+is in need of a major cleanup
+
+* kpasswdd
+
+figure out what's the deal with do_sequence and the MIT client
+
+* lib
+
+** lib/asn1
+
+prepend a prefix on all generated symbols
+
+** lib/auth
+
+** lib/auth/sia
+
+PAM
+
+** lib/com_err
+
+write a man-page
+
+** lib/des
+
+make everything work with openssl and make prototypes compatible
+
+** lib/gssapi
+
+process_context_token, add_cred, inquire_cred_by_mech,
+inquire_names_for_mech, and
+inquire_mechs_for_name not implemented.
+
+set minor_status in all functions
+
+anonymous credentials not implemented
+
+add rc4
+
+** lib/hdb
+
+** lib/kadm5
+
+add policies?
+
+fix to use rpc?
+
+** lib/krb5
+
+the replay cache is, in its current state, not very useful
+
+OTP?
+
+make checksum/encryption type configuration more realm-specific.  make
+some simple way of handling the w2k situtation
+
+crypto: allow scatter/gather creation of checksums
+
+verify_user: handle non-secure verification failing because of
+host->realm mapping
+
+config_file: do it in case-sensitive and/or insensitive
+
+** lib/roken

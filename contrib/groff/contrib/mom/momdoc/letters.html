@@ -1,0 +1,316 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<title>Mom -- Document Processing, Writing Letters</title>
+</head>
+<body bgcolor="#dfdfdf">
+
+<!====================================================================>
+
+<a href="typemacdoc.html#TOP">Next</a>&nbsp;&nbsp;
+<a href="cover.html#TOP">Prev</a>&nbsp;&nbsp;
+<a href="toc.html">Back to Table of Contents</a>
+
+<a name="TOP"></a>
+<a name="LETTERS">
+	<h1 align="center"><u>WRITING LETTERS WITH MOM</u></h1>
+</a>
+
+<a name="LETTERS_INTRO">
+	<h2><u>Introduction</u></h2>
+</a>
+
+<strong>Mom</strong>'s simple but effective letter-writing
+macros are a subset of the
+<a href="docprocessing.html#DOCPROCESSING">document processing macros</a>,
+designed to ease the creation of correspondence.
+<p>
+Because the letter macros are a subset of the document
+processing macros, you can use
+<a href="definitions.html#TERMS_CONTROLMACRO">control macros</a>
+to design correspondence to your own specifications.  However,
+<strong>mom</strong> makes no pretence of providing complete design
+flexibility in the matter of letters, which are, after all, simple
+communicative documents whose only real style requirements are that
+they be neat and professional-looking.
+
+<a name="TUTORIAL"><h2><u>Tutorial on writing letters</u></h2></a>
+
+<strong>Mom</strong> letters begin, like all <strong>mom</strong>
+processed documents, with a
+<a href="docprocessing.html#REFERENCE_MACROS">reference macro</a>
+(in this case,
+<a href="docprocessing.html#AUTHOR">AUTHOR</a>),
+a
+<a href="docprocessing.html#DOCTYPE">DOCTYPE</a>
+(<strong>LETTER</strong>, obviously), the essential
+<a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE</a>
+macro, and
+<a href="docprocessing.html#START">START</a>.
+<p>
+<pre>
+	.AUTHOR    "Yannick P. Guique"
+	.DOCTYPE    LETTER
+	.PRINTSTYLE TYPESET
+	.START
+</pre>
+
+<strong>PRINTSTYLE</strong>, above, could also be
+<strong>TYPEWRITE</strong>.  <strong>Mom</strong> has no objection
+to creating letters that look like they were typed on an Underwood
+by a shapely secretary with great gams back in the 1940s.
+<p>
+After the <strong>START</strong> macro, you enter data pertinent to
+your letter: the date, the addressee (in business correspondence,
+typically both name and address), the addressor (that's you; in
+business correspondence, typically both name and address), and a
+greeting (in full, e.g. &quot;Dear Mr. Smith,&quot;).
+<p>
+The macros for entering the data are simple (they're not even
+<a href="definitions.html#TERMS_TOGGLE">toggles</a>)
+and entered in an intuitive order.
+<br>
+<ol>
+	<li><code>.DATE</code>
+	<li><code>.TO</code>
+	<li><code>.FROM</code>
+	<li><code>.GREETING</code>
+</ol>
+<p>
+<strong>Mom</strong> ignores any you omit and spaces the letter's
+opening according to what you do include.
+<p>
+Once you've filled in what you need to get a letter started, simply
+type the letter, introducing each and every paragraph with the
+<a href="docelement.html#PP">PP</a>
+macro.
+<p>
+At the end of the letter, should you wish an indented closing
+(&quot;Yours truly,&quot; &quot;Sincerely,&quot; &quot;Hugs and
+kisses&quot;), invoke the macro <strong>CLOSING</strong> on a
+line by itself and follow it with the text of the closing.  
+<strong>N.B.</strong> Don't put your name here; <strong>mom</strong>
+supplies it automatically from <strong>AUTHOR</strong> with
+enough space to leave room for your signature.
+
+<p>
+Assuming our tutorial letter is for business correspondence,
+here's what the complete letter looks like.
+<p>
+<pre>
+	.AUTHOR    "Yannick P. Guique"
+	.DOCTYPE    LETTER
+	.PRINTSTYLE TYPESET
+	.START
+	.DATE
+	August 25, 2004
+	.TO
+	GUILLAUME BARRIÈRES
+	Minidoux Corporation
+	5000 Pannes Drive
+	Redmond, Virginia
+	.FROM
+	Y.P. GUIQUE
+	022 Umask Road
+	St-Sauveur-en-dehors-de-la-mappe, Québec
+	.GREETING
+	Dear Mr. Barrières,
+	.PP
+	It has come to my attention that you have been lobbying the
+	US government to prohibit the use of open source software by
+	endeavouring to outlaw so-called &quot;warranty free&quot;
+	applications.
+	.PP
+	I feel it is my duty to inform you that the success of your
+	operating system with its embedded web browser relies heavily
+	on open source programs and protocols, most notably TCP/IP.
+	.PP
+	Therefore, in the interests of your corporation's fiscal health,
+	I strongly advise that you withdraw support for any US
+	legislation that would cripple or render illegal open source
+	development.
+	.CLOSING
+	Sincerely,
+</pre>
+<hr>
+
+<a name="LETTERS_DEFAULTS">
+	<h2><u>Defaults for letters</u></h2>
+</a>
+
+In letters, <strong>mom</strong> sets:
+<p>
+<ol>
+	<li>the date flush right, page right, at the top of page one
+	<li>the addressee in a block flush left, page left
+	<li>the addressor in a block flush left, page left
+	<li>the greeting flush left
+	<li>the body of the letter justified
+	<li>in multi-page letters:
+	<ul>
+		<li>a footer indicating there's a next page (of the form <code>.../#</code>)
+		<li>the page number at the top of every page after page one
+	</ul>
+	<li>the closing/signature line flush left, indented halfway across the page
+</ol>
+<p>
+Other important style defaults are listed below, and may be changed
+via the
+<a href="typesetting.html#MACROS_TYPESETTING">typesetting macros</a>
+or the document processing
+<a href="definitions.html#TERMS_CONTROLMACRO">control macros</a>
+prior to
+<a href="docprocessing.html#START">START</a>.  Assume that any
+style parameter not listed below is the same as for
+<a href="docprocessing.html#TYPESET_DEFAULTS">PRINTSTYLE TYPESET</a>
+or
+<a href="docprocessing.html#TYPEWRITE_DEFAULTS">PRINTSTYLE TYPEWRITE</a>.
+<p>
+<pre>
+PARAMETER             PRINTSTYLE TYPESET   PRINTSTYLE TYPEWRITE
+---------             ------------------   --------------------
+
+Paper size            8.5 x 11 inches      8.5 x 11 inches
+Left/right margins    1.25 inches          1.25 inches
+Header margin         3.5 picas            3.5 picas
+ (for page numbers)
+Header gap            3 picas              3 picas
+ (for page numbers)
+Family                Times Roman          Courier
+Font                  roman                roman
+Point size            12                   12
+Line space            13.5                 12 (i.e. singlespaced)
+Paragraph indent      3 ems                3 picas
+Spaced paragraphs     yes                  no
+Footers*              yes                  yes
+Footer margin         3 picas              3 picas
+Footer gap            3 picas              3 picas
+Page numbers          top, centered        top, centered
+
+*Footers contain a &quot;next page&quot; number of the form .../#
+</pre>
+<hr>
+
+<a name="LETTERS_MACROS">
+	<h2><u>The letter macros</u></h2>
+</a>
+
+All letter macros must come after
+<a href="docprocessing.html#START">START</a>,
+except <strong>NO_SUITE</strong>.
+<p>
+<ul>
+	<li><a href="#DATE">DATE</a>
+	<li><a href="#TO">TO</a>
+	<li><a href="#FROM">FROM</a>
+	<li><a href="#GREETING">GREETING</a>
+	<li><a href="#CLOSING">CLOSING</a>
+	<li><a href="#NO_SUITE">NO_SUITE</a> -- &quot;next page&quot; number off
+</ul>
+
+<!---DATE--->
+
+<hr width="66%" align="left">
+<p>
+<a name="DATE"></a>
+Macro: <strong>DATE</strong>
+
+<p>
+Invoke <strong>DATE</strong> on a line by itself, with the date
+underneath, like this:
+<p>
+<pre>
+	.DATE
+	October 31, 2002
+</pre>
+
+<!---TO--->
+
+<hr width="66%" align="left">
+<p>
+<a name="TO"></a>
+Macro: <strong>TO</strong>
+
+<p>
+Invoke <strong>TO</strong> on a line by itself, with the name
+and address of the addressee underneath, like this:
+<p>
+<pre>
+	.TO
+	JOHN SMITH
+	10 Roberts Crescent
+	Bramladesh, Ont.
+</pre>
+
+<!---FROM--->
+
+<hr width="66%" align="left">
+<p>
+<a name="FROM"></a>
+Macro: <strong>FROM</strong>
+
+<p>
+Invoke <strong>FROM</strong> on a line by itself, with the name
+and address of the addressor underneath, like this:
+<p>
+<pre>
+	.FROM
+	JOE BLOW
+	15 Brunette Road
+	Ste-Vieille-Andouille, Québec
+</pre>
+
+<!---GREETING--->
+
+<hr width="66%" align="left">
+<p>
+<a name="GREETING"></a>
+Macro: <strong>GREETING</strong>
+
+<p>
+Invoke <strong>GREETING</strong> on a line by itself, with the
+full salutation you want for the letter, like this:
+<p>
+<pre>
+	.GREETING
+	Dear Mr. Smith,
+</pre>
+
+<!---CLOSING--->
+
+<hr width="66%" align="left">
+<p>
+<a name="CLOSING"></a>
+Macro: <strong>CLOSING</strong>
+
+<p>
+Invoke <strong>CLOSING</strong> on a line by itself after the
+body of the letter, with the closing you'd like (e.g. &quot;Yours
+truly,&quot;), like this:
+<p>
+<pre>
+	.CLOSING
+	Yours truly,
+</pre>
+
+<!---NO_SUITE--->
+
+<hr width="66%" align="left">
+<p>
+<a name="NO_SUITE"></a>
+Macro: <strong>NO_SUITE</strong>
+
+<p>
+If you don't want <strong>mom</strong> to print a &quot;next
+page&quot; number at the bottom of multi-page letters, invoke
+<code>.NO_SUITE</code>, on a line by itself, prior to
+<a href="docprocessing.html#START">START</a>.
+
+<p>
+<hr>
+<a href="typemacdoc.html#TOP">Next</a>&nbsp;&nbsp;
+<a href="cover.html#TOP">Prev</a>&nbsp;&nbsp;
+<a href="#TOP">Top</a>&nbsp;&nbsp;
+<a href="toc.html">Back to Table of Contents</a>
+</body>
+</html>

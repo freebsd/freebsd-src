@@ -1,0 +1,108 @@
+
+                     Contributed Modules in Perl Core
+                 A Social Contract about Artistic Control
+
+What follows is a statement about artistic control, defined as the ability
+of authors of packages to guide the future of their code and maintain
+control over their work.  It is a recognition that authors should have
+control over their work, and that it is a responsibility of the rest of
+the Perl community to ensure that they retain this control.  It is an
+attempt to document the standards to which we, as Perl developers, intend
+to hold ourselves.  It is an attempt to write down rough guidelines about
+the respect we owe each other as Perl developers.
+
+This statement is not a legal contract.  This statement is not a legal
+document in any way, shape, or form.  Perl is distributed under the GNU
+Public License and under the Artistic License; those are the precise legal
+terms.  This statement isn't about the law or licenses.  It's about
+community, mutual respect, trust, and good-faith cooperation.
+
+We recognize that the Perl core, defined as the software distributed with
+the heart of Perl itself, is a joint project on the part of all of us.
+>From time to time, a script, module, or set of modules (hereafter referred
+to simply as a "module") will prove so widely useful and/or so integral to
+the correct functioning of Perl itself that it should be distributed with
+Perl core.  This should never be done without the author's explicit
+consent, and a clear recognition on all parts that this means the module
+is being distributed under the same terms as Perl itself.  A module author
+should realize that inclusion of a module into the Perl core will
+necessarily mean some loss of control over it, since changes may
+occasionally have to be made on short notice or for consistency with the
+rest of Perl.
+
+Once a module has been included in the Perl core, however, everyone
+involved in maintaining Perl should be aware that the module is still the
+property of the original author unless the original author explicitly
+gives up their ownership of it.  In particular:
+
+ 1) The version of the module in the core should still be considered the
+    work of the original author.  All patches, bug reports, and so forth
+    should be fed back to them.  Their development directions should be
+    respected whenever possible.
+
+ 2) Patches may be applied by the pumpkin holder without the explicit
+    cooperation of the module author if and only if they are very minor,
+    time-critical in some fashion (such as urgent security fixes), or if
+    the module author cannot be reached.  Those patches must still be
+    given back to the author when possible, and if the author decides on
+    an alternate fix in their version, that fix should be strongly
+    preferred unless there is a serious problem with it.  Any changes not
+    endorsed by the author should be marked as such, and the contributor
+    of the change acknowledged.
+
+ 3) The version of the module distributed with Perl should, whenever
+    possible, be the latest version of the module as distributed by the
+    author (the latest non-beta version in the case of public Perl
+    releases), although the pumpkin holder may hold off on upgrading the
+    version of the module distributed with Perl to the latest version
+    until the latest version has had sufficient testing.
+
+In other words, the author of a module should be considered to have final
+say on modifications to their module whenever possible (bearing in mind
+that it's expected that everyone involved will work together and arrive at
+reasonable compromises when there are disagreements).
+
+As a last resort, however:
+
+ 4) If the author's vision of the future of their module is sufficiently
+    different from the vision of the pumpkin holder and perl5-porters as a
+    whole so as to cause serious problems for Perl, the pumpkin holder may
+    choose to formally fork the version of the module in the core from the
+    one maintained by the author.  This should not be done lightly and
+    should *always* if at all possible be done only after direct input
+    from Larry.  If this is done, it must then be made explicit in the
+    module as distributed with Perl core that it is a forked version and
+    that while it is based on the original author's work, it is no longer
+    maintained by them.  This must be noted in both the documentation and
+    in the comments in the source of the module.
+
+Again, this should be a last resort only.  Ideally, this should never
+happen, and every possible effort at cooperation and compromise should be
+made before doing this.  If it does prove necessary to fork a module for
+the overall health of Perl, proper credit must be given to the original
+author in perpetuity and the decision should be constantly re-evaluated to
+see if a remerging of the two branches is possible down the road.
+
+In all dealings with contributed modules, everyone maintaining Perl should
+keep in mind that the code belongs to the original author, that they may
+not be on perl5-porters at any given time, and that a patch is not
+official unless it has been integrated into the author's copy of the
+module.  To aid with this, and with points #1, #2, and #3 above, contact
+information for the authors of all contributed modules should be kept with
+the Perl distribution.
+
+Finally, the Perl community as a whole recognizes that respect for
+ownership of code, respect for artistic control, proper credit, and active
+effort to prevent unintentional code skew or communication gaps is vital
+to the health of the community and Perl itself.  Members of a community
+should not normally have to resort to rules and laws to deal with each
+other, and this document, although it contains rules so as to be clear, is
+about an attitude and general approach.  The first step in any dispute
+should be open communication, respect for opposing views, and an attempt
+at a compromise.  In nearly every circumstance nothing more will be
+necessary, and certainly no more drastic measure should be used until
+every avenue of communication and discussion has failed.
+
+-- 
+Version 1.2.  By Russ Allbery (rra@stanford.edu) and the perl5-porters.
+

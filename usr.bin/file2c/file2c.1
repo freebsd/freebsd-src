@@ -1,0 +1,46 @@
+.\"----------------------------------------------------------------------------
+.\" "THE BEER-WARE LICENSE" (Revision 42):
+.\" <phk@FreeBSD.org> wrote this file.  As long as you retain this notice, you
+.\" can do whatever you want with this file. If we meet some day, and you think
+.\" this stuff is worth it, you can buy me a beer in return.  Poul-Henning Kamp
+.\" ---------------------------------------------------------------------------
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 28, 1995
+.Dt FILE2C 1
+.Os
+.Sh NAME
+.Nm file2c
+.Nd convert file to c-source
+.Sh SYNOPSIS
+.Nm
+.Op "string"
+.Op "string"
+.Sh DESCRIPTION
+The
+.Nm
+utility reads a file from stdin and writes it to stdout, converting each
+byte to its decimal representation on the fly.
+.Pp
+If the first
+.Op string
+is present, it is printed before the data; if the second
+.Op string
+is present, it is printed after the data.
+.Pp
+This program is used to embed binary or other files into C source files,
+for instance as a char[].
+.Sh EXAMPLES
+The command:
+.Bd -literal -offset indent
+date | file2c 'const char date[] = {' ',0};'
+.Ed
+.Pp
+will produce:
+.Bd -literal -offset indent
+const char date[] = {
+83,97,116,32,74,97,110,32,50,56,32,49,54,58,50,56,58,48,53,
+32,80,83,84,32,49,57,57,53,10
+,0};
+.Ed

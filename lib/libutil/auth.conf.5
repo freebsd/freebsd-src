@@ -1,0 +1,34 @@
+.\" Copyright (c) 1998 Jordan Hubbard
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, is permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice immediately at the beginning of the file, without modification,
+.\"    this list of conditions, and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 7, 1998
+.Dt AUTH.CONF 5
+.Os
+.Sh NAME
+.Nm auth.conf
+.Nd authentication capability database
+.Sh SYNOPSIS
+.Pa /etc/auth.conf
+.Sh DESCRIPTION
+.Nm
+contains various attributes important to the authentication
+code, most notably
+.Xr kerberos 5
+for the time being.  This documentation will be updated as the
+.Pa /etc/auth.conf
+file, which is very new, evolves.
+.Sh SEE ALSO
+.Xr auth_getval 3 ,
+.Xr crypt 3

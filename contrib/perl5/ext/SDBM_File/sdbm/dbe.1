@@ -1,0 +1,46 @@
+.TH dbe 1 "ndbm(3) EDITOR"
+.SH NAME
+dbe \- Edit a ndbm(3) database
+.SH USAGE
+dbe <database> [-m r|w|rw] [-crtvx] -a|-d|-f|-F|-s [<key> [<content>]]
+.SH DESCRIPTION
+\fIdbme\fP operates on ndbm(3) databases.
+It can be used to create them, look at them or change them.
+When specifying the value of a key or the content of its associated entry,
+\\nnn, \\0, \\n, \\t, \\f and \\r are interpreted as usual.
+When displaying key/content pairs, non-printable characters are displayed
+using the \\nnn notation.
+.SH OPTIONS
+.IP -a
+List all entries in the database.
+.IP -c
+Create the database if it does not exist.
+.IP -d
+Delete the entry associated with the specified key.
+.IP -f
+Fetch and display the entry associated with the specified key.
+.IP -F
+Fetch and display all the entries whose key match the specified
+regular-expression
+.IP "-m r|w|rw"
+Open the database in read-only, write-only or read-write mode
+.IP -r
+Replace the entry associated with the specified key if it already exists.
+See option -s.
+.IP -s
+Store an entry under a specific key.
+An error occurs if the key already exists and the option -r was not specified.
+.IP -t
+Re-initialize the database before executing the command.
+.IP -v
+Verbose mode.
+Confirm stores and deletions.
+.IP -x
+If option -x is used with option -c, then if the database already exists,
+an error occurs.
+This can be used to implement a simple exclusive access locking mechanism.
+.SH SEE ALSO
+ndbm(3)
+.SH AUTHOR
+janick@bnr.ca
+

@@ -1,0 +1,1623 @@
+This is groff, produced by makeinfo version 4.3d from ./groff.texinfo.
+
+This manual documents GNU `troff' version 1.19.
+
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.1 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, with the Front-Cover texts
+     being `A GNU Manual," and with the Back-Cover Texts as in (a)
+     below.  A copy of the license is included in the section entitled
+     `GNU Free Documentation License."
+
+     (a) The FSF's Back-Cover Text is: `You have freedom to copy and
+     modify this GNU Manual, like GNU software.  Copies published by
+     the Free Software Foundation raise funds for GNU development."
+   
+INFO-DIR-SECTION Typesetting
+START-INFO-DIR-ENTRY
+* Groff: (groff).               The GNU troff document formatting system.
+END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: Concept Index,  Prev: Program and File Index,  Up: Top
+
+Concept Index
+*************
+
+* Menu:
+
+* ", at end of sentence <1>:             Using Symbols.
+* ", at end of sentence:                 Sentences.
+* ", in a macro argument:                Request and Macro Arguments.
+* %, as delimiter:                       Escapes.
+* &, as delimiter:                       Escapes.
+* ', as a comment:                       Comments.
+* ', at end of sentence <1>:             Using Symbols.
+* ', at end of sentence:                 Sentences.
+* ', delimiting arguments:               Escapes.
+* (, as delimiter:                       Escapes.
+* (, starting a two-character identifier <1>: Escapes.
+* (, starting a two-character identifier: Identifiers.
+* ), as delimiter:                       Escapes.
+* ), at end of sentence <1>:             Using Symbols.
+* ), at end of sentence:                 Sentences.
+* *, as delimiter:                       Escapes.
+* *, at end of sentence <1>:             Using Symbols.
+* *, at end of sentence:                 Sentences.
+* +, and page motion:                    Expressions.
+* +, as delimiter:                       Escapes.
+* -, and page motion:                    Expressions.
+* -, as delimiter:                       Escapes.
+* ., as delimiter:                       Escapes.
+* .h register, difference to nl:         Diversions.
+* .ps register, in comparison with .psr: Fractional Type Sizes.
+* .s register, in comparison with .sr:   Fractional Type Sizes.
+* .S register, Plan 9 alias for .tabs:   Tabs and Fields.
+* .t register, and diversions:           Diversion Traps.
+* .tabs register, Plan 9 alias (.S):     Tabs and Fields.
+* .V register, and vs:                   Changing Type Sizes.
+* /, as delimiter:                       Escapes.
+* 8-bit input:                           Font File Format.
+* <, as delimiter:                       Escapes.
+* <colon>, as delimiter:                 Escapes.
+* =, as delimiter:                       Escapes.
+* >, as delimiter:                       Escapes.
+* [, macro names starting with, and refer: Identifiers.
+* [, starting an identifier <1>:         Escapes.
+* [, starting an identifier:             Identifiers.
+* \!, and output:                        Diversions.
+* \!, and trnt:                          Character Translations.
+* \!, in top-level diversion:            Diversions.
+* \!, incompatibilities with AT&T troff: Implementation Differences.
+* \!, used as delimiter:                 Escapes.
+* \$, when reading text for a macro:     Copy-in Mode.
+* \%, and translations:                  Character Translations.
+* \%, following \X or \Y:                Manipulating Hyphenation.
+* \%, in \X:                             Postprocessor Access.
+* \%, incompatibilities with AT&T troff: Implementation Differences.
+* \%, used as delimiter:                 Escapes.
+* \&, and glyph definitions:             Using Symbols.
+* \&, and translations:                  Character Translations.
+* \&, at end of sentence:                Sentences.
+* \&, escaping control characters:       Requests.
+* \&, in \X:                             Postprocessor Access.
+* \&, incompatibilities with AT&T troff: Implementation Differences.
+* \&, used as delimiter:                 Escapes.
+* \', and translations:                  Character Translations.
+* \', incompatibilities with AT&T troff: Implementation Differences.
+* \', used as delimiter:                 Escapes.
+* \(, and translations:                  Character Translations.
+* \), in \X:                             Postprocessor Access.
+* \), used as delimiter:                 Escapes.
+* \*, and warnings:                      Warnings.
+* \*, incompatibilities with AT&T troff: Implementation Differences.
+* \*, when reading text for a macro:     Copy-in Mode.
+* \, disabling (eo):                     Character Translations.
+* \,, used as delimiter:                 Escapes.
+* \-, and translations:                  Character Translations.
+* \-, incompatibilities with AT&T troff: Implementation Differences.
+* \-, used as delimiter:                 Escapes.
+* \/, used as delimiter:                 Escapes.
+* \0, used as delimiter:                 Escapes.
+* \<colon>, in \X:                       Postprocessor Access.
+* \<colon>, used as delimiter:           Escapes.
+* \<RET>, when reading text for a macro: Copy-in Mode.
+* \<SP>, difference to \~:               Request and Macro Arguments.
+* \<SP>, incompatibilities with AT&T troff: Implementation Differences.
+* \<SP>, used as delimiter:              Escapes.
+* \?, in top-level diversion:            Diversions.
+* \?, incompatibilities with AT&T troff: Implementation Differences.
+* \?, used as delimiter:                 Escapes.
+* \@, used as delimiter:                 Escapes.
+* \[, and translations:                  Character Translations.
+* \\, when reading text for a macro:     Copy-in Mode.
+* \^, incompatibilities with AT&T troff: Implementation Differences.
+* \^, used as delimiter:                 Escapes.
+* \_, and translations:                  Character Translations.
+* \_, incompatibilities with AT&T troff: Implementation Differences.
+* \_, used as delimiter:                 Escapes.
+* \`, and translations:                  Character Translations.
+* \`, incompatibilities with AT&T troff: Implementation Differences.
+* \`, used as delimiter:                 Escapes.
+* \A, allowed delimiters:                Escapes.
+* \a, and translations:                  Character Translations.
+* \A, incompatibilities with AT&T troff: Implementation Differences.
+* \a, used as delimiter:                 Escapes.
+* \B, allowed delimiters:                Escapes.
+* \b, limitations:                       Drawing Requests.
+* \b, possible quote characters:         Escapes.
+* \C, allowed delimiters:                Escapes.
+* \c, and fill mode:                     Line Control.
+* \c, and no-fill mode:                  Line Control.
+* \C, and translations:                  Character Translations.
+* \c, incompatibilities with AT&T troff: Implementation Differences.
+* \c, used as delimiter:                 Escapes.
+* \D'f ...' and horizontal resolution:   Drawing Requests.
+* \D, allowed delimiters:                Escapes.
+* \d, used as delimiter:                 Escapes.
+* \e, and glyph definitions:             Using Symbols.
+* \e, and translations:                  Character Translations.
+* \e, incompatibilities with AT&T troff: Implementation Differences.
+* \e, used as delimiter:                 Escapes.
+* \E, used as delimiter:                 Escapes.
+* \e, used as delimiter:                 Escapes.
+* \F, and changing fonts:                Changing Fonts.
+* \F, and font positions:                Font Positions.
+* \f, and font translations:             Changing Fonts.
+* \f, incompatibilities with AT&T troff: Implementation Differences.
+* \H, allowed delimiters:                Escapes.
+* \h, allowed delimiters:                Escapes.
+* \H, incompatibilities with AT&T troff: Implementation Differences.
+* \H, using + and -:                     Expressions.
+* \H, with fractional type sizes:        Fractional Type Sizes.
+* \L, allowed delimiters:                Escapes.
+* \l, allowed delimiters:                Escapes.
+* \L, and glyph definitions:             Using Symbols.
+* \l, and glyph definitions:             Using Symbols.
+* \N, allowed delimiters:                Escapes.
+* \N, and translations:                  Character Translations.
+* \n, and warnings:                      Warnings.
+* \n, incompatibilities with AT&T troff: Implementation Differences.
+* \n, when reading text for a macro:     Copy-in Mode.
+* \o, possible quote characters:         Escapes.
+* \p, used as delimiter:                 Escapes.
+* \R, after \c:                          Line Control.
+* \R, allowed delimiters:                Escapes.
+* \R, and warnings:                      Warnings.
+* \R, difference to nr:                  Auto-increment.
+* \r, used as delimiter:                 Escapes.
+* \R, using + and -:                     Expressions.
+* \S, allowed delimiters:                Escapes.
+* \s, allowed delimiters:                Escapes.
+* \S, incompatibilities with AT&T troff: Implementation Differences.
+* \s, incompatibilities with AT&T troff: Implementation Differences.
+* \s, using + and -:                     Expressions.
+* \s, with fractional type sizes:        Fractional Type Sizes.
+* \t, and translations:                  Character Translations.
+* \t, and warnings:                      Warnings.
+* \t, used as delimiter:                 Escapes.
+* \u, used as delimiter:                 Escapes.
+* \v, allowed delimiters:                Escapes.
+* \v, internal representation:           Gtroff Internals.
+* \w, allowed delimiters:                Escapes.
+* \x, allowed delimiters:                Escapes.
+* \X, and special characters:            Postprocessor Access.
+* \X, followed by \%:                    Manipulating Hyphenation.
+* \X, possible quote characters:         Escapes.
+* \Y, followed by \%:                    Manipulating Hyphenation.
+* \Z, allowed delimiters:                Escapes.
+* \{, incompatibilities with AT&T troff: Implementation Differences.
+* \{, used as delimiter:                 Escapes.
+* \|, incompatibilities with AT&T troff: Implementation Differences.
+* \|, used as delimiter:                 Escapes.
+* \}, and warnings:                      Warnings.
+* \}, incompatibilities with AT&T troff: Implementation Differences.
+* \}, used as delimiter:                 Escapes.
+* \~, and translations:                  Character Translations.
+* \~, difference to \<SP>:               Request and Macro Arguments.
+* \~, used as delimiter:                 Escapes.
+* ], as part of an identifier:           Identifiers.
+* ], at end of sentence <1>:             Using Symbols.
+* ], at end of sentence:                 Sentences.
+* ], ending an identifier <1>:           Escapes.
+* ], ending an identifier:               Identifiers.
+* ], macro names starting with, and refer: Identifiers.
+* aborting (ab):                         Debugging.
+* absolute position operator (|):        Expressions.
+* accent marks [ms]:                     ms Strings and Special Characters.
+* access of postprocessor:               Postprocessor Access.
+* accessing unnamed glyphs with \N:      Font File Format.
+* activating kerning (kern):             Ligatures and Kerning.
+* activating ligatures (lg):             Ligatures and Kerning.
+* activating track kerning (tkf):        Ligatures and Kerning.
+* ad request, and hyphenation margin:    Manipulating Hyphenation.
+* ad request, and hyphenation space:     Manipulating Hyphenation.
+* adjusting:                             Filling and Adjusting.
+* adjusting and filling, manipulating:   Manipulating Filling and Adjusting.
+* adjustment mode register (.j):         Manipulating Filling and Adjusting.
+* adobe glyph list (AGL):                Using Symbols.
+* AGL (adobe glyph list):                Using Symbols.
+* alias, diversion, creating (als):      Strings.
+* alias, macro, creating (als):          Strings.
+* alias, number register, creating (aln): Setting Registers.
+* alias, string, creating (als):         Strings.
+* als request, and \$0:                  Parameters.
+* am, am1, ami requests, and warnings:   Warnings.
+* annotations:                           Footnotes and Annotations.
+* appending to a diversion (da):         Diversions.
+* appending to a file (opena):           I/O.
+* appending to a macro (am):             Writing Macros.
+* appending to a string (as):            Strings.
+* arc, drawing (\D'a ...'):              Drawing Requests.
+* argument delimiting characters:        Escapes.
+* arguments to requests and macros:      Request and Macro Arguments.
+* arguments, macro (\$):                 Parameters.
+* arguments, of strings:                 Strings.
+* arithmetic operators:                  Expressions.
+* artificial fonts:                      Artificial Fonts.
+* as, as1 requests, and comments:        Comments.
+* as, as1 requests, and warnings:        Warnings.
+* ASCII approximation output register (.A) <1>: Built-in Registers.
+* ASCII approximation output register (.A): Groff Options.
+* ASCII, output encoding:                Groff Options.
+* asciify request, and writem:           I/O.
+* assigning formats (af):                Assigning Formats.
+* assignments, indirect:                 Interpolating Registers.
+* assignments, nested:                   Interpolating Registers.
+* AT&T troff, ms macro package differences: Differences from AT&T ms.
+* auto-increment:                        Auto-increment.
+* available glyphs, list (`groff_char(7)' man page): Using Symbols.
+* backslash, printing (\\, \e, \E, \[rs]) <1>: Implementation Differences.
+* backslash, printing (\\, \e, \E, \[rs]): Escapes.
+* backspace character:                   Identifiers.
+* backspace character, and translations: Character Translations.
+* backtrace of input stack (backtrace):  Debugging.
+* baseline:                              Sizes.
+* basic unit (u):                        Measurements.
+* basics of macros:                      Basics.
+* bd request, and font styles:           Font Families.
+* bd request, and font translations:     Changing Fonts.
+* bd request, incompatibilities with AT&T troff: Implementation Differences.
+* begin of conditional block (\{):       if-else.
+* beginning diversion (di):              Diversions.
+* blank line <1>:                        Requests.
+* blank line:                            Implicit Line Breaks.
+* blank line (sp):                       Basics.
+* blank line macro (blm) <1>:            Blank Line Traps.
+* blank line macro (blm) <2>:            Requests.
+* blank line macro (blm):                Implicit Line Breaks.
+* blank line traps:                      Blank Line Traps.
+* blank lines, disabling:                Manipulating Spacing.
+* block, conditional, begin (\{):        if-else.
+* block, condititional, end (\}):        if-else.
+* bold face [man]:                       Man font macros.
+* bold face, imitating (bd):             Artificial Fonts.
+* bottom margin:                         Page Layout.
+* bounding box:                          Miscellaneous.
+* box rule glyph (\[br]):                Drawing Requests.
+* box, boxa requests, and warnings:      Warnings.
+* boxa request, and dn (dl):             Diversions.
+* bp request, and top-level diversion:   Page Control.
+* bp request, and traps (.pe):           Page Location Traps.
+* bp request, causing implicit linebreak: Manipulating Filling and Adjusting.
+* bp request, using + and -:             Expressions.
+* br glyph, and cflags:                  Using Symbols.
+* break <1>:                             Manipulating Filling and Adjusting.
+* break:                                 Basics.
+* break (br):                            Basics.
+* break request, in a while loop:        while.
+* break, implicit:                       Implicit Line Breaks.
+* built-in registers:                    Built-in Registers.
+* bulleted list, example markup [ms]:    Lists in ms.
+* c unit:                                Measurements.
+* calling convention of preprocessors:   Preprocessors in man pages.
+* capabilities of groff:                 groff Capabilities.
+* ce request, causing implicit linebreak: Manipulating Filling and Adjusting.
+* ce request, difference to .ad c:       Manipulating Filling and Adjusting.
+* centered text:                         Manipulating Filling and Adjusting.
+* centering lines (ce) <1>:              Manipulating Filling and Adjusting.
+* centering lines (ce):                  Basics.
+* centimeter unit (c):                   Measurements.
+* cf request, causing implicit linebreak: Manipulating Filling and Adjusting.
+* changing font family (fam, \F):        Font Families.
+* changing font position (\f):           Font Positions.
+* changing font style (sty):             Font Families.
+* changing fonts (ft, \f):               Changing Fonts.
+* changing format, and read-only registers: Assigning Formats.
+* changing the font height (\H):         Artificial Fonts.
+* changing the font slant (\S):          Artificial Fonts.
+* changing the page number character (pc): Page Layout.
+* changing trap location (ch):           Page Location Traps.
+* changing type sizes (ps, \s):          Changing Type Sizes.
+* changing vertical line spacing (vs):   Changing Type Sizes.
+* char request, and soft hyphen character: Manipulating Hyphenation.
+* char request, and translations:        Character Translations.
+* char request, used with \N:            Using Symbols.
+* character:                             Using Symbols.
+* character properties (cflags):         Using Symbols.
+* character translations:                Character Translations.
+* character, backspace:                  Identifiers.
+* character, backspace, and translations: Character Translations.
+* character, control (.):                Requests.
+* character, control, changing (cc):     Character Translations.
+* character, defining (char):            Using Symbols.
+* character, defining fallback (fchar, fschar, schar): Using Symbols.
+* character, escape, changing (ec):      Character Translations.
+* character, escape, while defining glyph: Using Symbols.
+* character, field delimiting (fc):      Fields.
+* character, field padding (fc):         Fields.
+* character, hyphenation (\%):           Manipulating Hyphenation.
+* character, leader repetition (lc):     Leaders.
+* character, leader, and translations:   Character Translations.
+* character, leader, non-interpreted (\a): Leaders.
+* character, named (\C):                 Using Symbols.
+* character, newline:                    Escapes.
+* character, newline, and translations:  Character Translations.
+* character, no-break control ('):       Requests.
+* character, no-break control, changing (c2): Character Translations.
+* character, soft hyphen, setting (shc): Manipulating Hyphenation.
+* character, space:                      Escapes.
+* character, special:                    Character Translations.
+* character, tab:                        Escapes.
+* character, tab repetition (tc):        Tabs and Fields.
+* character, tab, and translations:      Character Translations.
+* character, tab, non-interpreted (\t):  Tabs and Fields.
+* character, tabulator:                  Tab Stops.
+* character, transparent <1>:            Using Symbols.
+* character, transparent:                Sentences.
+* character, whitespace:                 Identifiers.
+* character, zero width space (\&) <1>:  Drawing Requests.
+* character, zero width space (\&) <2>:  Ligatures and Kerning.
+* character, zero width space (\&):      Requests.
+* characters, argument delimiting:       Escapes.
+* characters, end-of-sentence:           Using Symbols.
+* characters, hyphenation:               Using Symbols.
+* characters, input, and output glyphs, compatibility with AT&T troff: Implementation Differences.
+* characters, invalid for trf request:   I/O.
+* characters, invalid input:             Identifiers.
+* characters, overlapping:               Using Symbols.
+* characters, special:                   Special Characters.
+* characters, unnamed, accessing with \N: Font File Format.
+* circle, drawing (\D'c ...'):           Drawing Requests.
+* circle, solid, drawing (\D'C ...'):    Drawing Requests.
+* closing file (close):                  I/O.
+* code, hyphenation (hcode):             Manipulating Hyphenation.
+* color, default:                        Colors.
+* colors:                                Colors.
+* colors, fill, unnamed (\D'F...'):      Drawing Requests.
+* command prefix:                        Environment.
+* command-line options:                  Groff Options.
+* commands, embedded:                    Embedded Commands.
+* comments:                              Comments.
+* comments in font files:                Font File Format.
+* comments, lining up with tabs:         Comments.
+* comments, with ds:                     Strings.
+* common features:                       Common Features.
+* common name space of macros, diversions, and strings: Strings.
+* comparison operators:                  Expressions.
+* compatibility mode <1>:                Implementation Differences.
+* compatibility mode:                    Warnings.
+* composite glyph names:                 Using Symbols.
+* conditional block, begin (\{):         if-else.
+* conditional block, end (\}):           if-else.
+* conditional page break (ne):           Page Control.
+* conditionals and loops:                Conditionals and Loops.
+* consecutive hyphenated lines (hlm):    Manipulating Hyphenation.
+* constant glyph space mode (cs):        Artificial Fonts.
+* contents, table of <1>:                Leaders.
+* contents, table of:                    Table of Contents.
+* continuation, input line (\):          Line Control.
+* continuation, output line (\c):        Line Control.
+* continue request, in a while loop:     while.
+* continuous underlining (cu):           Artificial Fonts.
+* control character (.):                 Requests.
+* control character, changing (cc):      Character Translations.
+* control character, no-break ('):       Requests.
+* control character, no-break, changing (c2): Character Translations.
+* control, line:                         Line Control.
+* control, page:                         Page Control.
+* conventions for input:                 Input Conventions.
+* copy-in mode:                          Copy-in Mode.
+* copy-in mode, and macro arguments:     Parameters.
+* copy-in mode, and write requests:      I/O.
+* copying environment (evc):             Environments.
+* correction between italic and roman glyph (\/, \,): Ligatures and Kerning.
+* correction, italic (\/):               Ligatures and Kerning.
+* correction, left italic (\,):          Ligatures and Kerning.
+* cover page macros, [ms]:               ms Cover Page Macros.
+* cp request, and glyph definitions:     Using Symbols.
+* cp1047, input encoding:                Input Encodings.
+* cp1047, output encoding:               Groff Options.
+* creating alias, for diversion (als):   Strings.
+* creating alias, for macro (als):       Strings.
+* creating alias, for number register (aln): Setting Registers.
+* creating alias, for string (als):      Strings.
+* creating new characters (char):        Using Symbols.
+* credits:                               Credits.
+* cs request, and font styles:           Font Families.
+* cs request, and font translations:     Changing Fonts.
+* cs request, incompatibilities with AT&T troff: Implementation Differences.
+* cs request, with fractional type sizes: Fractional Type Sizes.
+* current directory:                     Macro Directories.
+* current input file name register (.F): Built-in Registers.
+* current time:                          I/O.
+* current time, hours (hours):           Built-in Registers.
+* current time, minutes (minutes):       Built-in Registers.
+* current time, seconds (seconds):       Built-in Registers.
+* da request, and dn (dl):               Diversions.
+* da request, and warnings:              Warnings.
+* date, day of the month register (dy):  Built-in Registers.
+* date, day of the week register (dw):   Built-in Registers.
+* date, month of the year register (mo): Built-in Registers.
+* date, year register (year, yr):        Built-in Registers.
+* day of the month register (dy):        Built-in Registers.
+* day of the week register (dw):         Built-in Registers.
+* de request, and while:                 while.
+* de, de1, dei requests, and warnings:   Warnings.
+* debugging:                             Debugging.
+* default color:                         Colors.
+* default indentation [man]:             Miscellaneous man macros.
+* default indentation, resetting [man]:  Man usage.
+* default units:                         Default Units.
+* defining character (char):             Using Symbols.
+* defining fallback character (fchar, fschar, schar): Using Symbols.
+* defining glyph (char):                 Using Symbols.
+* defining symbol (char):                Using Symbols.
+* delayed text:                          Footnotes and Annotations.
+* delimited arguments, incompatibilities with AT&T troff: Implementation Differences.
+* delimiting character, for fields (fc): Fields.
+* delimiting characters for arguments:   Escapes.
+* depth, of last glyph (.cdp):           Environments.
+* DESC file, format:                     DESC File Format.
+* device resolution:                     DESC File Format.
+* devices for output <1>:                Output Devices.
+* devices for output:                    Output device intro.
+* dg glyph, at end of sentence <1>:      Using Symbols.
+* dg glyph, at end of sentence:          Sentences.
+* di request, and warnings:              Warnings.
+* differences in implementation:         Implementation Differences.
+* digit width space (\0):                Page Motions.
+* digits, and delimiters:                Escapes.
+* dimensions, line:                      Line Layout.
+* directories for fonts:                 Font Directories.
+* directories for macros:                Macro Directories.
+* directory, current:                    Macro Directories.
+* directory, for tmac files:             Macro Directories.
+* directory, home:                       Macro Directories.
+* directory, platform-specific:          Macro Directories.
+* directory, site-specific <1>:          Font Directories.
+* directory, site-specific:              Macro Directories.
+* disabling \ (eo):                      Character Translations.
+* disabling hyphenation (\%):            Manipulating Hyphenation.
+* discardable horizontal space:          Manipulating Filling and Adjusting.
+* discarded space in traps:              Manipulating Spacing.
+* displays:                              Displays.
+* displays [ms]:                         ms Displays and Keeps.
+* distance to next trap register (.t):   Page Location Traps.
+* ditroff, the program:                  History.
+* diversion name register (.z):          Diversions.
+* diversion trap, setting (dt):          Diversion Traps.
+* diversion traps:                       Diversion Traps.
+* diversion, appending (da):             Diversions.
+* diversion, beginning (di):             Diversions.
+* diversion, creating alias (als):       Strings.
+* diversion, ending (di):                Diversions.
+* diversion, nested:                     Diversions.
+* diversion, removing (rm):              Strings.
+* diversion, renaming (rn):              Strings.
+* diversion, stripping final newline:    Strings.
+* diversion, top-level:                  Diversions.
+* diversion, top-level, and \!:          Diversions.
+* diversion, top-level, and \?:          Diversions.
+* diversion, top-level, and bp:          Page Control.
+* diversion, unformatting (asciify):     Diversions.
+* diversion, vertical position in, register (.d): Diversions.
+* diversions:                            Diversions.
+* diversions, and traps:                 Page Location Traps.
+* diversions, shared name space with macros and strings: Strings.
+* dl register, and da (boxa):            Diversions.
+* dn register, and da (boxa):            Diversions.
+* documents, multi-file:                 Debugging.
+* documents, structuring the source code: Requests.
+* double quote, in a macro argument:     Request and Macro Arguments.
+* double-spacing (ls) <1>:               Manipulating Spacing.
+* double-spacing (ls):                   Basics.
+* double-spacing (vs, pvs):              Changing Type Sizes.
+* drawing a circle (\D'c ...'):          Drawing Requests.
+* drawing a line (\D'l ...'):            Drawing Requests.
+* drawing a polygon (\D'p ...'):         Drawing Requests.
+* drawing a solid circle (\D'C ...'):    Drawing Requests.
+* drawing a solid ellipse (\D'E ...'):   Drawing Requests.
+* drawing a solid polygon (\D'P ...'):   Drawing Requests.
+* drawing a spline (\D'~ ...'):          Drawing Requests.
+* drawing an arc (\D'a ...'):            Drawing Requests.
+* drawing an ellipse (\D'e ...'):        Drawing Requests.
+* drawing horizontal lines (\l):         Drawing Requests.
+* drawing requests:                      Drawing Requests.
+* drawing vertical lines (\L):           Drawing Requests.
+* ds request, and comments:              Strings.
+* ds request, and double quotes:         Request and Macro Arguments.
+* ds request, and leading spaces:        Strings.
+* ds, ds1 requests, and comments:        Comments.
+* ds, ds1 requests, and warnings:        Warnings.
+* dumping number registers (pnr):        Debugging.
+* dumping symbol table (pm):             Debugging.
+* dumping traps (ptr):                   Debugging.
+* EBCDIC encoding:                       Tab Stops.
+* EBCDIC encoding of a tab:              Tabs and Fields.
+* EBCDIC encoding of backspace:          Identifiers.
+* EBCDIC, input encoding:                Input Encodings.
+* EBCDIC, output encoding:               Groff Options.
+* el request, and warnings:              Warnings.
+* ellipse, drawing (\D'e ...'):          Drawing Requests.
+* ellipse, solid, drawing (\D'E ...'):   Drawing Requests.
+* em glyph, and cflags:                  Using Symbols.
+* em unit (m):                           Measurements.
+* embedded commands:                     Embedded Commands.
+* embedding PostScript:                  Embedding PostScript.
+* embolding of special fonts:            Artificial Fonts.
+* empty line:                            Implicit Line Breaks.
+* empty line (sp):                       Basics.
+* empty space before a paragraph [man]:  Miscellaneous man macros.
+* en unit (n):                           Measurements.
+* enabling vertical position traps (vpt): Page Location Traps.
+* encoding, EBCDIC:                      Tab Stops.
+* encoding, input, cp1047:               Input Encodings.
+* encoding, input, EBCDIC:               Input Encodings.
+* encoding, input, latin-1 (ISO 8859-1): Input Encodings.
+* encoding, input, latin-2 (ISO 8859-2): Input Encodings.
+* encoding, input, latin-9 (latin-0, ISO 8859-15): Input Encodings.
+* encoding, output, ASCII:               Groff Options.
+* encoding, output, cp1047:              Groff Options.
+* encoding, output, EBCDIC:              Groff Options.
+* encoding, output, latin-1 (ISO 8859-1): Groff Options.
+* encoding, output, utf-8:               Groff Options.
+* end of conditional block (\}):         if-else.
+* end-of-input macro (em):               End-of-input Traps.
+* end-of-input trap, setting (em):       End-of-input Traps.
+* end-of-input traps:                    End-of-input Traps.
+* end-of-sentence characters:            Using Symbols.
+* ending diversion (di):                 Diversions.
+* environment number/name register (.ev): Environments.
+* environment variables:                 Environment.
+* environment, copying (evc):            Environments.
+* environment, dimensions of last glyph (.w, .cht, .cdp, .csk): Environments.
+* environment, previous line length (.n): Environments.
+* environment, switching (ev):           Environments.
+* environments:                          Environments.
+* eqn, the program:                      geqn.
+* equations [ms]:                        ms Insertions.
+* escape character, changing (ec):       Character Translations.
+* escape character, while defining glyph: Using Symbols.
+* escapes:                               Escapes.
+* escaping newline characters, in strings: Strings.
+* ex request, use in debugging:          Debugging.
+* ex request, used with nx and rd:       I/O.
+* example markup, bulleted list [ms]:    Lists in ms.
+* example markup, glossary-style list [ms]: Lists in ms.
+* example markup, multi-page table [ms]: Example multi-page table.
+* example markup, numbered list [ms]:    Lists in ms.
+* example markup, title page:            ms Cover Page Macros.
+* examples of invocation:                Invocation Examples.
+* exiting (ex):                          Debugging.
+* expansion of strings (\*):             Strings.
+* explicit hyphen (\%):                  Manipulating Hyphenation.
+* expression, order of evaluation:       Expressions.
+* expressions:                           Expressions.
+* expressions, and space characters:     Expressions.
+* extra post-vertical line space (\x):   Changing Type Sizes.
+* extra post-vertical line space register (.a): Manipulating Spacing.
+* extra pre-vertical line space (\x):    Changing Type Sizes.
+* extra spaces:                          Filling and Adjusting.
+* extremum operators (>?, <?):           Expressions.
+* f unit:                                Measurements.
+* f unit, and colors:                    Colors.
+* fallback character, defining (fchar, fschar, schar): Using Symbols.
+* fallback glyph, removing definition (rchar, rfschar): Using Symbols.
+* fam request, and changing fonts:       Changing Fonts.
+* fam request, and font positions:       Font Positions.
+* families, font:                        Font Families.
+* FDL, GNU Free Documentation License:   GNU Free Documentation License.
+* features, common:                      Common Features.
+* fi request, causing implicit linebreak: Manipulating Filling and Adjusting.
+* field delimiting character (fc):       Fields.
+* field padding character (fc):          Fields.
+* fields:                                Fields.
+* fields, and tabs:                      Tabs and Fields.
+* figures [ms]:                          ms Insertions.
+* file formats:                          File formats.
+* file, appending to (opena):            I/O.
+* file, closing (close):                 I/O.
+* file, inclusion (so):                  I/O.
+* file, opening (open):                  I/O.
+* file, processing next (nx):            I/O.
+* file, writing to (write):              I/O.
+* files, font:                           Font Files.
+* files, macro, searching:               Macro Directories.
+* fill colors, unnamed (\D'F...'):       Drawing Requests.
+* fill mode <1>:                         Warnings.
+* fill mode <2>:                         Manipulating Filling and Adjusting.
+* fill mode:                             Implicit Line Breaks.
+* fill mode (fi):                        Manipulating Filling and Adjusting.
+* fill mode, and \c:                     Line Control.
+* filling:                               Filling and Adjusting.
+* filling and adjusting, manipulating:   Manipulating Filling and Adjusting.
+* final newline, stripping in diversions: Strings.
+* fl request, causing implicit linebreak: Manipulating Filling and Adjusting.
+* floating keep:                         Displays.
+* flush output (fl):                     Debugging.
+* font description file, format <1>:     Font File Format.
+* font description file, format:         DESC File Format.
+* font directories:                      Font Directories.
+* font families:                         Font Families.
+* font family, changing (fam, \F):       Font Families.
+* font file, format:                     Font File Format.
+* font files:                            Font Files.
+* font files, comments:                  Font File Format.
+* font for underlining (uf):             Artificial Fonts.
+* font height, changing (\H):            Artificial Fonts.
+* font path:                             Font Directories.
+* font position register (.f):           Font Positions.
+* font position, changing (\f):          Font Positions.
+* font positions:                        Font Positions.
+* font selection [man]:                  Man font macros.
+* font slant, changing (\S):             Artificial Fonts.
+* font style, changing (sty):            Font Families.
+* font styles:                           Font Families.
+* font, mounting (fp):                   Font Positions.
+* font, previous (ft, \f[], \fP):        Changing Fonts.
+* fonts <1>:                             Changing Fonts.
+* fonts:                                 Fonts and Symbols.
+* fonts, artificial:                     Artificial Fonts.
+* fonts, changing (ft, \f):              Changing Fonts.
+* fonts, PostScript:                     Font Families.
+* fonts, searching:                      Font Directories.
+* fonts, special:                        Special Fonts.
+* footers <1>:                           Page Location Traps.
+* footers:                               Page Layout.
+* footers [ms]:                          ms Headers and Footers.
+* footnotes:                             Footnotes and Annotations.
+* footnotes [ms]:                        ms Footnotes.
+* form letters:                          I/O.
+* format of font description file:       DESC File Format.
+* format of font description files:      Font File Format.
+* format of font files:                  Font File Format.
+* format of register (\g):               Assigning Formats.
+* formats, assigning (af):               Assigning Formats.
+* formats, file:                         File formats.
+* fp request, and font translations:     Changing Fonts.
+* fp request, incompatibilities with AT&T troff: Implementation Differences.
+* fractional point sizes <1>:            Implementation Differences.
+* fractional point sizes:                Fractional Type Sizes.
+* fractional type sizes <1>:             Implementation Differences.
+* fractional type sizes:                 Fractional Type Sizes.
+* french-spacing:                        Sentences.
+* fspecial request, and font styles:     Font Families.
+* fspecial request, and font translations: Changing Fonts.
+* fspecial request, and glyph search order: Using Symbols.
+* fspecial request, and imitating bold:  Artificial Fonts.
+* ft request, and font translations:     Changing Fonts.
+* geqn, invoking:                        Invoking geqn.
+* geqn, the program:                     geqn.
+* GGL (groff glyph list):                Using Symbols.
+* ggrn, invoking:                        Invoking ggrn.
+* ggrn, the program:                     ggrn.
+* glossary-style list, example markup [ms]: Lists in ms.
+* glyph:                                 Using Symbols.
+* glyph for line drawing:                Drawing Requests.
+* glyph names, composite:                Using Symbols.
+* glyph pile (\b):                       Drawing Requests.
+* glyph properties (cflags):             Using Symbols.
+* glyph, box rule (\[br]):               Drawing Requests.
+* glyph, constant space:                 Artificial Fonts.
+* glyph, defining (char):                Using Symbols.
+* glyph, for line drawing:               Drawing Requests.
+* glyph, for margins (mc):               Miscellaneous.
+* glyph, italic correction (\/):         Ligatures and Kerning.
+* glyph, last, dimensions (.w, .cht, .cdp, .csk): Environments.
+* glyph, leader repetition (lc):         Leaders.
+* glyph, left italic correction (\,):    Ligatures and Kerning.
+* glyph, numbered (\N) <1>:              Using Symbols.
+* glyph, numbered (\N):                  Character Translations.
+* glyph, removing definition (rchar, rfschar): Using Symbols.
+* glyph, soft hyphen (hy):               Manipulating Hyphenation.
+* glyph, tab repetition (tc):            Tabs and Fields.
+* glyph, underscore (\[ru]):             Drawing Requests.
+* glyphs, available, list (`groff_char(7)' man page): Using Symbols.
+* glyphs, output, and input characters, compatibility with AT&T troff: Implementation Differences.
+* glyphs, overstriking (\o):             Page Motions.
+* glyphs, unnamed:                       Using Symbols.
+* glyphs, unnamed, accessing with \N:    Font File Format.
+* GNU-specific register (.g):            Built-in Registers.
+* gpic, invoking:                        Invoking gpic.
+* gpic, the program:                     gpic.
+* grap, the program:                     grap.
+* gray shading (\D'f ...'):              Drawing Requests.
+* grefer, invoking:                      Invoking grefer.
+* grefer, the program:                   grefer.
+* grn, the program:                      ggrn.
+* grodvi, invoking:                      Invoking grodvi.
+* grodvi, the program:                   grodvi.
+* groff - what is it?:                   What Is groff?.
+* groff capabilities:                    groff Capabilities.
+* groff glyph list (GGL):                Using Symbols.
+* groff invocation:                      Invoking groff.
+* groff, and pi request:                 I/O.
+* GROFF_BIN_PATH, environment variable:  Environment.
+* GROFF_COMMAND_PREFIX, environment variable: Environment.
+* GROFF_FONT_PATH, environment variable <1>: Font Directories.
+* GROFF_FONT_PATH, environment variable: Environment.
+* GROFF_TMAC_PATH, environment variable <1>: Macro Directories.
+* GROFF_TMAC_PATH, environment variable: Environment.
+* GROFF_TMPDIR, environment variable:    Environment.
+* GROFF_TYPESETTER, environment variable: Environment.
+* grohtml, invoking:                     Invoking grohtml.
+* grohtml, registers and strings:        grohtml specific registers and strings.
+* grohtml, the program <1>:              grohtml.
+* grohtml, the program:                  Groff Options.
+* grolbp, invoking:                      Invoking grolbp.
+* grolbp, the program:                   grolbp.
+* grolj4, invoking:                      Invoking grolj4.
+* grolj4, the program:                   grolj4.
+* grops, invoking:                       Invoking grops.
+* grops, the program:                    grops.
+* grotty, invoking:                      Invoking grotty.
+* grotty, the program:                   grotty.
+* gsoelim, invoking:                     Invoking gsoelim.
+* gsoelim, the program:                  gsoelim.
+* gtbl, invoking:                        Invoking gtbl.
+* gtbl, the program:                     gtbl.
+* gtroff, identification register (.g):  Built-in Registers.
+* gtroff, interactive use:               Debugging.
+* gtroff, output:                        gtroff Output.
+* gtroff, process ID register ($$):      Built-in Registers.
+* gtroff, reference:                     gtroff Reference.
+* gxditview, invoking:                   Invoking gxditview.
+* gxditview, the program:                gxditview.
+* hanging indentation [man]:             Man usage.
+* hcode request, and glyph definitions:  Using Symbols.
+* headers <1>:                           Page Location Traps.
+* headers:                               Page Layout.
+* headers [ms]:                          ms Headers and Footers.
+* height, font, changing (\H):           Artificial Fonts.
+* height, of last glyph (.cht):          Environments.
+* high-water mark register (.h):         Diversions.
+* history:                               History.
+* home directory:                        Macro Directories.
+* horizontal discardable space:          Manipulating Filling and Adjusting.
+* horizontal input line position register (hp): Page Motions.
+* horizontal input line position, saving (\k): Page Motions.
+* horizontal line, drawing (\l):         Drawing Requests.
+* horizontal motion (\h):                Page Motions.
+* horizontal output line position register (.k): Page Motions.
+* horizontal resolution:                 DESC File Format.
+* horizontal resolution register (.H):   Built-in Registers.
+* horizontal space (\h):                 Page Motions.
+* horizontal space, unformatting:        Strings.
+* hours, current time (hours):           Built-in Registers.
+* hpf request, and hyphenation language: Manipulating Hyphenation.
+* hw request, and hyphenation language:  Manipulating Hyphenation.
+* hy glyph, and cflags:                  Using Symbols.
+* hyphen, explicit (\%):                 Manipulating Hyphenation.
+* hyphenated lines, consecutive (hlm):   Manipulating Hyphenation.
+* hyphenating characters:                Using Symbols.
+* hyphenation:                           Hyphenation.
+* hyphenation character (\%):            Manipulating Hyphenation.
+* hyphenation code (hcode):              Manipulating Hyphenation.
+* hyphenation language register (.hla):  Manipulating Hyphenation.
+* hyphenation margin (hym):              Manipulating Hyphenation.
+* hyphenation margin register (.hym):    Manipulating Hyphenation.
+* hyphenation patterns (hpf):            Manipulating Hyphenation.
+* hyphenation restrictions register (.hy): Manipulating Hyphenation.
+* hyphenation space (hys):               Manipulating Hyphenation.
+* hyphenation space register (.hys):     Manipulating Hyphenation.
+* hyphenation, disabling (\%):           Manipulating Hyphenation.
+* hyphenation, manipulating:             Manipulating Hyphenation.
+* i unit:                                Measurements.
+* i/o:                                   I/O.
+* IBM cp1047 input encoding:             Input Encodings.
+* IBM cp1047 output encoding:            Groff Options.
+* identifiers:                           Identifiers.
+* identifiers, undefined:                Identifiers.
+* ie request, and warnings:              Warnings.
+* if request, and the ! operator:        Expressions.
+* if request, operators to use with:     Operators in Conditionals.
+* if-else:                               if-else.
+* imitating bold face (bd):              Artificial Fonts.
+* implementation differences:            Implementation Differences.
+* implicit breaks of lines:              Implicit Line Breaks.
+* implicit line breaks:                  Implicit Line Breaks.
+* in request, causing implicit linebreak: Manipulating Filling and Adjusting.
+* in request, using + and -:             Expressions.
+* inch unit (i):                         Measurements.
+* including a file (so):                 I/O.
+* incompatibilities with AT&T troff:     Implementation Differences.
+* increment value without changing the register: Auto-increment.
+* increment, automatic:                  Auto-increment.
+* indentaion, resetting to default [man]: Man usage.
+* indentation (in):                      Line Layout.
+* index, in macro package:               Indices.
+* indirect assignments:                  Interpolating Registers.
+* input and output requests:             I/O.
+* input characters and output glyphs, compatibility with AT&T troff: Implementation Differences.
+* input characters, invalid:             Identifiers.
+* input conventions:                     Input Conventions.
+* input encoding, cp1047:                Input Encodings.
+* input encoding, EBCDIC:                Input Encodings.
+* input encoding, latin-1 (ISO 8859-1):  Input Encodings.
+* input encoding, latin-2 (ISO 8859-2):  Input Encodings.
+* input encoding, latin-9 (latin-9, ISO 8859-15): Input Encodings.
+* input file name, current, register (.F): Built-in Registers.
+* input level in delimited arguments:    Implementation Differences.
+* input line continuation (\):           Line Control.
+* input line number register (.c, c.):   Built-in Registers.
+* input line number, setting (lf):       Debugging.
+* input line position, horizontal, saving (\k): Page Motions.
+* input line trap, setting (it):         Input Line Traps.
+* input line traps:                      Input Line Traps.
+* input line traps and interrupted lines (itc): Input Line Traps.
+* input line, horizontal position, register (hp): Page Motions.
+* input stack, backtrace (backtrace):    Debugging.
+* input stack, setting limit:            Debugging.
+* input token:                           Gtroff Internals.
+* input, 8-bit:                          Font File Format.
+* input, standard, reading from (rd):    I/O.
+* inserting horizontal space (\h):       Page Motions.
+* installation:                          Installation.
+* interactive use of gtroff:             Debugging.
+* intermediate output:                   gtroff Output.
+* interpolating registers (\n):          Interpolating Registers.
+* interpolation of strings (\*):         Strings.
+* interrupted line:                      Line Control.
+* interrupted line register (.int):      Line Control.
+* interrupted lines and input line traps (itc): Input Line Traps.
+* introduction:                          Introduction.
+* invalid characters for trf request:    I/O.
+* invalid input characters:              Identifiers.
+* invocation examples:                   Invocation Examples.
+* invoking geqn:                         Invoking geqn.
+* invoking ggrn:                         Invoking ggrn.
+* invoking gpic:                         Invoking gpic.
+* invoking grefer:                       Invoking grefer.
+* invoking grodvi:                       Invoking grodvi.
+* invoking groff:                        Invoking groff.
+* invoking grohtml:                      Invoking grohtml.
+* invoking grolbp:                       Invoking grolbp.
+* invoking grolj4:                       Invoking grolj4.
+* invoking grops:                        Invoking grops.
+* invoking grotty:                       Invoking grotty.
+* invoking gsoelim:                      Invoking gsoelim.
+* invoking gtbl:                         Invoking gtbl.
+* invoking gxditview:                    Invoking gxditview.
+* ISO 8859-1 (latin-1), input encoding:  Input Encodings.
+* ISO 8859-1 (latin-1), output encoding: Groff Options.
+* ISO 8859-15 (latin-9, latin-0), input encoding: Input Encodings.
+* ISO 8859-2 (latin-2), input encoding:  Input Encodings.
+* italic correction (\/):                Ligatures and Kerning.
+* italic fonts [man]:                    Man font macros.
+* italic glyph, correction after roman glyph (\,): Ligatures and Kerning.
+* italic glyph, correction before roman glyph (\/): Ligatures and Kerning.
+* justifying text:                       Manipulating Filling and Adjusting.
+* justifying text (rj):                  Manipulating Filling and Adjusting.
+* keep:                                  Displays.
+* keep, floating:                        Displays.
+* keeps [ms]:                            ms Displays and Keeps.
+* kerning and ligatures:                 Ligatures and Kerning.
+* kerning enabled register (.kern):      Ligatures and Kerning.
+* kerning, activating (kern):            Ligatures and Kerning.
+* kerning, track:                        Ligatures and Kerning.
+* landscape page orientation:            Paper Size.
+* last glyph, dimensions (.w, .cht, .cdp, .csk): Environments.
+* last-requested point size registers (.psr, .sr): Fractional Type Sizes.
+* latin-1 (ISO 8859-1), input encoding:  Input Encodings.
+* latin-1 (ISO 8859-1), output encoding: Groff Options.
+* latin-2 (ISO 8859-2), input encoding:  Input Encodings.
+* latin-9 (latin-0, ISO 8859-15), input encoding: Input Encodings.
+* layout, line:                          Line Layout.
+* layout, page:                          Page Layout.
+* lc request, and glyph definitions:     Using Symbols.
+* leader character:                      Leaders.
+* leader character, and translations:    Character Translations.
+* leader character, non-interpreted (\a): Leaders.
+* leader repetition character (lc):      Leaders.
+* leaders:                               Leaders.
+* leading:                               Sizes.
+* leading spaces:                        Filling and Adjusting.
+* leading spaces with ds:                Strings.
+* left italic correction (\,):           Ligatures and Kerning.
+* left margin (po):                      Line Layout.
+* left margin, how to move [man]:        Man usage.
+* length of a string (length):           Strings.
+* length of line (ll):                   Line Layout.
+* length of page (pl):                   Page Layout.
+* length of previous line (.n):          Environments.
+* length of title line (lt):             Page Layout.
+* letters, form:                         I/O.
+* level of warnings (warn):              Debugging.
+* ligature:                              Using Symbols.
+* ligatures and kerning:                 Ligatures and Kerning.
+* ligatures enabled register (.lg):      Ligatures and Kerning.
+* ligatures, activating (lg):            Ligatures and Kerning.
+* limitations of \b escape:              Drawing Requests.
+* line break <1>:                        Manipulating Filling and Adjusting.
+* line break <2>:                        Implicit Line Breaks.
+* line break:                            Basics.
+* line break (br):                       Basics.
+* line breaks, with vertical space [man]: Man usage.
+* line breaks, without vertical space [man]: Man usage.
+* line control:                          Line Control.
+* line dimensions:                       Line Layout.
+* line drawing glyph:                    Drawing Requests.
+* line indentation (in):                 Line Layout.
+* line layout:                           Line Layout.
+* line length (ll):                      Line Layout.
+* line length register (.l):             Line Layout.
+* line length, previous (.n):            Environments.
+* line number, input, register (.c, c.): Built-in Registers.
+* line number, output, register (ln):    Built-in Registers.
+* line numbers, printing (nm):           Miscellaneous.
+* line space, extra post-vertical (\x):  Changing Type Sizes.
+* line space, extra pre-vertical (\x):   Changing Type Sizes.
+* line spacing register (.L):            Manipulating Spacing.
+* line spacing, post-vertical (pvs):     Changing Type Sizes.
+* line thickness (\D't ...'):            Drawing Requests.
+* line, blank:                           Implicit Line Breaks.
+* line, drawing (\D'l ...'):             Drawing Requests.
+* line, empty (sp):                      Basics.
+* line, horizontal, drawing (\l):        Drawing Requests.
+* line, implicit breaks:                 Implicit Line Breaks.
+* line, input, continuation (\):         Line Control.
+* line, input, horizontal position, register (hp): Page Motions.
+* line, input, horizontal position, saving (\k): Page Motions.
+* line, interrupted:                     Line Control.
+* line, output, continuation (\c):       Line Control.
+* line, output, horizontal position, register (.k): Page Motions.
+* line, vertical, drawing (\L):          Drawing Requests.
+* line-tabs mode:                        Tabs and Fields.
+* lines, blank, disabling:               Manipulating Spacing.
+* lines, centering (ce) <1>:             Manipulating Filling and Adjusting.
+* lines, centering (ce):                 Basics.
+* lines, consecutive hyphenated (hlm):   Manipulating Hyphenation.
+* lines, interrupted, and input line traps (itc): Input Line Traps.
+* list:                                  Displays.
+* list of available glyphs (`groff_char(7)' man page): Using Symbols.
+* ll request, using + and -:             Expressions.
+* location, vertical, page, marking (mk): Page Motions.
+* location, vertical, page, returning to marked (rt): Page Motions.
+* logical operators:                     Expressions.
+* long names:                            Implementation Differences.
+* loops and conditionals:                Conditionals and Loops.
+* lq glyph, and lq string [man]:         Predefined man strings.
+* ls request, alternative to (pvs):      Changing Type Sizes.
+* lt request, using + and -:             Expressions.
+* M unit:                                Measurements.
+* m unit:                                Measurements.
+* machine unit (u):                      Measurements.
+* macro arguments:                       Request and Macro Arguments.
+* macro basics:                          Basics.
+* macro directories:                     Macro Directories.
+* macro files, searching:                Macro Directories.
+* macro name register (\$0):             Parameters.
+* macro names, starting with [ or ], and refer: Identifiers.
+* macro packages <1>:                    Macro Packages.
+* macro packages:                        Macro Package Intro.
+* macro packages, structuring the source code: Requests.
+* macro, appending (am):                 Writing Macros.
+* macro, arguments (\$):                 Parameters.
+* macro, creating alias (als):           Strings.
+* macro, end-of-input (em):              End-of-input Traps.
+* macro, removing (rm):                  Strings.
+* macro, renaming (rn):                  Strings.
+* macros:                                Macros.
+* macros for manual pages [man]:         Man usage.
+* macros, recursive:                     while.
+* macros, searching:                     Macro Directories.
+* macros, shared name space with strings and diversions: Strings.
+* macros, tutorial for users:            Tutorial for Macro Users.
+* macros, writing:                       Writing Macros.
+* major quotes:                          Displays.
+* major version number register (.x):    Built-in Registers.
+* man macros:                            Man usage.
+* man macros, bold face:                 Man font macros.
+* man macros, custom headers and footers: Optional man extensions.
+* man macros, default indentation:       Miscellaneous man macros.
+* man macros, empty space before a paragraph: Miscellaneous man macros.
+* man macros, hanging indentation:       Man usage.
+* man macros, how to set fonts:          Man font macros.
+* man macros, italic fonts:              Man font macros.
+* man macros, line breaks with vertical space: Man usage.
+* man macros, line breaks without vertical space: Man usage.
+* man macros, moving left margin:        Man usage.
+* man macros, resetting default indentation: Man usage.
+* man macros, tab stops:                 Miscellaneous man macros.
+* man macros, Ultrix-specific:           Optional man extensions.
+* man pages:                             man.
+* manipulating filling and adjusting:    Manipulating Filling and Adjusting.
+* manipulating hyphenation:              Manipulating Hyphenation.
+* manipulating spacing:                  Manipulating Spacing.
+* manmacros, BSD compatibility:          Miscellaneous man macros.
+* manual pages:                          man.
+* margin for hyphenation (hym):          Manipulating Hyphenation.
+* margin glyph (mc):                     Miscellaneous.
+* margin, bottom:                        Page Layout.
+* margin, left (po):                     Line Layout.
+* margin, top:                           Page Layout.
+* mark, high-water, register (.h):       Diversions.
+* marking vertical page location (mk):   Page Motions.
+* maximum values of Roman numerals:      Assigning Formats.
+* mdoc macros:                           mdoc.
+* me macro package:                      me.
+* measurement unit:                      Measurements.
+* measurements:                          Measurements.
+* measurements, specifying safely:       Default Units.
+* minimum values of Roman numerals:      Assigning Formats.
+* minor version number register (.y):    Built-in Registers.
+* minutes, current time (minutes):       Built-in Registers.
+* mm macro package:                      mm.
+* mode for constant glyph space (cs):    Artificial Fonts.
+* mode, compatibility:                   Implementation Differences.
+* mode, copy-in:                         Copy-in Mode.
+* mode, copy-in, and write requests:     I/O.
+* mode, fill <1>:                        Warnings.
+* mode, fill <2>:                        Manipulating Filling and Adjusting.
+* mode, fill:                            Implicit Line Breaks.
+* mode, fill (fi):                       Manipulating Filling and Adjusting.
+* mode, fill, and \c:                    Line Control.
+* mode, line-tabs:                       Tabs and Fields.
+* mode, no-fill (nf):                    Manipulating Filling and Adjusting.
+* mode, no-fill, and \c:                 Line Control.
+* mode, no-space (ns):                   Manipulating Spacing.
+* mode, nroff:                           Troff and Nroff Mode.
+* mode, safer <1>:                       I/O.
+* mode, safer <2>:                       Macro Directories.
+* mode, safer:                           Groff Options.
+* mode, troff:                           Troff and Nroff Mode.
+* mode, unsafe <1>:                      I/O.
+* mode, unsafe <2>:                      Macro Directories.
+* mode, unsafe:                          Groff Options.
+* month of the year register (mo):       Built-in Registers.
+* motion operators:                      Expressions.
+* motion, horizontal (\h):               Page Motions.
+* motion, vertical (\v):                 Page Motions.
+* motions, page:                         Page Motions.
+* mounting font (fp):                    Font Positions.
+* ms macros:                             ms.
+* ms macros, accent marks:               ms Strings and Special Characters.
+* ms macros, body text:                  ms Body Text.
+* ms macros, cover page:                 ms Cover Page Macros.
+* ms macros, creating table of contents: ms TOC.
+* ms macros, differences from AT&T:      Differences from AT&T ms.
+* ms macros, displays:                   ms Displays and Keeps.
+* ms macros, document control registers: ms Document Control Registers.
+* ms macros, equations:                  ms Insertions.
+* ms macros, figures:                    ms Insertions.
+* ms macros, footers:                    ms Headers and Footers.
+* ms macros, footnotes:                  ms Footnotes.
+* ms macros, general structure:          General ms Structure.
+* ms macros, headers:                    ms Headers and Footers.
+* ms macros, headings:                   Headings in ms.
+* ms macros, highlighting:               Highlighting in ms.
+* ms macros, keeps:                      ms Displays and Keeps.
+* ms macros, lists:                      Lists in ms.
+* ms macros, margins:                    ms Margins.
+* ms macros, multiple columns:           ms Multiple Columns.
+* ms macros, nested lists:               Lists in ms.
+* ms macros, page layout:                ms Page Layout.
+* ms macros, paragraph handling:         Paragraphs in ms.
+* ms macros, references:                 ms Insertions.
+* ms macros, special characters:         ms Strings and Special Characters.
+* ms macros, strings:                    ms Strings and Special Characters.
+* ms macros, tables:                     ms Insertions.
+* multi-file documents:                  Debugging.
+* multi-line strings:                    Strings.
+* multi-page table, example markup [ms]: Example multi-page table.
+* multiple columns [ms]:                 ms Multiple Columns.
+* n unit:                                Measurements.
+* name space, common, of macros, diversions, and strings: Strings.
+* named character (\C):                  Using Symbols.
+* names, long:                           Implementation Differences.
+* ne request, and the .trunc register:   Page Location Traps.
+* ne request, comparison with sv:        Page Control.
+* negating register values:              Setting Registers.
+* nested assignments:                    Interpolating Registers.
+* nested diversions:                     Diversions.
+* nested lists [ms]:                     Lists in ms.
+* new page (bp) <1>:                     Page Control.
+* new page (bp):                         Basics.
+* newline character <1>:                 Escapes.
+* newline character:                     Identifiers.
+* newline character, and translations:   Character Translations.
+* newline character, in strings, escaping: Strings.
+* newline, final, stripping in diversions: Strings.
+* next file, processing (nx):            I/O.
+* next free font position register (.fp): Font Positions.
+* nf request, causing implicit linebreak: Manipulating Filling and Adjusting.
+* nl register, and .d:                   Diversions.
+* nl register, difference to .h:         Diversions.
+* nm request, using + and -:             Expressions.
+* no-break control character ('):        Requests.
+* no-break control character, changing (c2): Character Translations.
+* no-fill mode (nf):                     Manipulating Filling and Adjusting.
+* no-fill mode, and \c:                  Line Control.
+* no-space mode (ns):                    Manipulating Spacing.
+* node, output:                          Gtroff Internals.
+* nr request, and warnings:              Warnings.
+* nr request, using + and -:             Expressions.
+* nroff mode:                            Troff and Nroff Mode.
+* nroff, the program:                    History.
+* number of arguments register (.$):     Parameters.
+* number register, creating alias (aln): Setting Registers.
+* number register, removing (rr):        Setting Registers.
+* number register, renaming (rnn):       Setting Registers.
+* number registers, dumping (pnr):       Debugging.
+* number, input line, setting (lf):      Debugging.
+* number, page (pn):                     Page Layout.
+* numbered glyph (\N) <1>:               Using Symbols.
+* numbered glyph (\N):                   Character Translations.
+* numbered list, example markup [ms]:    Lists in ms.
+* numbers, and delimiters:               Escapes.
+* numbers, line, printing (nm):          Miscellaneous.
+* numerals, Roman:                       Assigning Formats.
+* numeric expression, valid:             Expressions.
+* offset, page (po):                     Line Layout.
+* open request, and safer mode:          Groff Options.
+* opena request, and safer mode:         Groff Options.
+* opening file (open):                   I/O.
+* operator, scaling:                     Expressions.
+* operators, arithmetic:                 Expressions.
+* operators, as delimiters:              Escapes.
+* operators, comparison:                 Expressions.
+* operators, extremum (>?, <?):          Expressions.
+* operators, logical:                    Expressions.
+* operators, motion:                     Expressions.
+* operators, unary:                      Expressions.
+* options:                               Groff Options.
+* order of evaluation in expressions:    Expressions.
+* orientation, landscape:                Paper Size.
+* orphan lines, preventing with ne:      Page Control.
+* os request, and no-space mode:         Page Control.
+* output and input requests:             I/O.
+* output device name string register (.T) <1>: Built-in Registers.
+* output device name string register (.T): Groff Options.
+* output device usage number register (.T): Groff Options.
+* output devices <1>:                    Output Devices.
+* output devices:                        Output device intro.
+* output encoding, ASCII:                Groff Options.
+* output encoding, cp1047:               Groff Options.
+* output encoding, EBCDIC:               Groff Options.
+* output encoding, latin-1 (ISO 8859-1): Groff Options.
+* output encoding, utf-8:                Groff Options.
+* output glyphs, and input characters,compatibility with AT&T troff: Implementation Differences.
+* output line number register (ln):      Built-in Registers.
+* output line, continuation (\c):        Line Control.
+* output line, horizontal position, register (.k): Page Motions.
+* output node:                           Gtroff Internals.
+* output request, and \!:                Diversions.
+* output, flush (fl):                    Debugging.
+* output, gtroff:                        gtroff Output.
+* output, intermediate:                  gtroff Output.
+* output, suppressing (\O):              Suppressing output.
+* output, transparent (\!, \?):          Diversions.
+* output, transparent (cf, trf):         I/O.
+* output, transparent, incompatibilities with AT&T troff: Implementation Differences.
+* output, troff:                         gtroff Output.
+* overlapping characters:                Using Symbols.
+* overstriking glyphs (\o):              Page Motions.
+* P unit:                                Measurements.
+* p unit:                                Measurements.
+* packages, macros:                      Macro Packages.
+* padding character, for fields (fc):    Fields.
+* page break, conditional (ne):          Page Control.
+* page control:                          Page Control.
+* page ejecting register (.pe):          Page Location Traps.
+* page footers:                          Page Location Traps.
+* page headers:                          Page Location Traps.
+* page layout:                           Page Layout.
+* page layout [ms]:                      ms Page Layout.
+* page length (pl):                      Page Layout.
+* page length register (.p):             Page Layout.
+* page location traps:                   Page Location Traps.
+* page location, vertical, marking (mk): Page Motions.
+* page location, vertical, returning to marked (rt): Page Motions.
+* page motions:                          Page Motions.
+* page number (pn):                      Page Layout.
+* page number character (%):             Page Layout.
+* page number character, changing (pc):  Page Layout.
+* page number register (%):              Page Layout.
+* page offset (po):                      Line Layout.
+* page orientation, landscape:           Paper Size.
+* page, new (bp):                        Page Control.
+* paper formats:                         Paper Formats.
+* paper size:                            Paper Size.
+* paragraphs:                            Paragraphs.
+* parameters:                            Parameters.
+* parentheses:                           Expressions.
+* path, for font files:                  Font Directories.
+* path, for tmac files:                  Macro Directories.
+* patterns for hyphenation (hpf):        Manipulating Hyphenation.
+* pi request, and groff:                 I/O.
+* pi request, and safer mode:            Groff Options.
+* pic, the program:                      gpic.
+* pica unit (P):                         Measurements.
+* pile, glyph (\b):                      Drawing Requests.
+* pl request, using + and -:             Expressions.
+* planting a trap:                       Traps.
+* platform-specific directory:           Macro Directories.
+* pn request, using + and -:             Expressions.
+* po request, using + and -:             Expressions.
+* point size registers (.s, .ps):        Changing Type Sizes.
+* point size registers, last-requested (.psr, .sr): Fractional Type Sizes.
+* point sizes, changing (ps, \s):        Changing Type Sizes.
+* point sizes, fractional <1>:           Implementation Differences.
+* point sizes, fractional:               Fractional Type Sizes.
+* point unit (p):                        Measurements.
+* polygon, drawing (\D'p ...'):          Drawing Requests.
+* polygon, solid, drawing (\D'P ...'):   Drawing Requests.
+* position of lowest text line (.h):     Diversions.
+* position, absolute, operator (|):      Expressions.
+* position, horizontal input line, saving (\k): Page Motions.
+* position, horizontal, in input line, register (hp): Page Motions.
+* position, horizontal, in output line, register (.k): Page Motions.
+* position, vertical, in diversion, register (.d): Diversions.
+* positions, font:                       Font Positions.
+* post-vertical line spacing:            Changing Type Sizes.
+* post-vertical line spacing register (.pvs): Changing Type Sizes.
+* post-vertical line spacing, changing (pvs): Changing Type Sizes.
+* postprocessor access:                  Postprocessor Access.
+* postprocessors:                        Output device intro.
+* PostScript fonts:                      Font Families.
+* PostScript, bounding box:              Miscellaneous.
+* PostScript, embedding:                 Embedding PostScript.
+* prefix, for commands:                  Environment.
+* preprocessor, calling convention:      Preprocessors in man pages.
+* preprocessors <1>:                     Preprocessors.
+* preprocessors:                         Preprocessor Intro.
+* previous font (ft, \f[], \fP):         Changing Fonts.
+* previous line length (.n):             Environments.
+* print current page register (.P):      Groff Options.
+* printing backslash (\\, \e, \E, \[rs]) <1>: Implementation Differences.
+* printing backslash (\\, \e, \E, \[rs]): Escapes.
+* printing line numbers (nm):            Miscellaneous.
+* printing to stderr (tm, tm1, tmc):     Debugging.
+* printing, zero-width (\z, \Z):         Page Motions.
+* process ID of gtroff register ($$):    Built-in Registers.
+* processing next file (nx):             I/O.
+* properties of characters (cflags):     Using Symbols.
+* properties of glyphs (cflags):         Using Symbols.
+* ps request, and constant glyph space mode: Artificial Fonts.
+* ps request, incompatibilities with AT&T troff: Implementation Differences.
+* ps request, using + and -:             Expressions.
+* ps request, with fractional type sizes: Fractional Type Sizes.
+* pso request, and safer mode:           Groff Options.
+* pvs request, using + and -:            Expressions.
+* quotes, major:                         Displays.
+* quotes, trailing:                      Strings.
+* radicalex glyph, and cflags:           Using Symbols.
+* ragged-left:                           Manipulating Filling and Adjusting.
+* ragged-right:                          Manipulating Filling and Adjusting.
+* rc request, and glyph definitions:     Using Symbols.
+* read-only register, changing format:   Assigning Formats.
+* reading from standard input (rd):      I/O.
+* recursive macros:                      while.
+* refer, and macro names starting with [ or ]: Identifiers.
+* refer, the program:                    grefer.
+* reference, gtroff:                     gtroff Reference.
+* references [ms]:                       ms Insertions.
+* register, creating alias (aln):        Setting Registers.
+* register, format (\g):                 Assigning Formats.
+* register, removing (rr):               Setting Registers.
+* register, renaming (rnn):              Setting Registers.
+* registers:                             Registers.
+* registers specific to grohtml:         grohtml specific registers and strings.
+* registers, built-in:                   Built-in Registers.
+* registers, interpolating (\n):         Interpolating Registers.
+* registers, setting (nr, \R):           Setting Registers.
+* removing diversion (rm):               Strings.
+* removing glyph definition (rchar, rfschar): Using Symbols.
+* removing macro (rm):                   Strings.
+* removing number register (rr):         Setting Registers.
+* removing request (rm):                 Strings.
+* removing string (rm):                  Strings.
+* renaming diversion (rn):               Strings.
+* renaming macro (rn):                   Strings.
+* renaming number register (rnn):        Setting Registers.
+* renaming request (rn):                 Strings.
+* renaming string (rn):                  Strings.
+* request arguments:                     Request and Macro Arguments.
+* request, removing (rm):                Strings.
+* request, renaming (rn):                Strings.
+* request, undefined:                    Comments.
+* requests:                              Requests.
+* requests for drawing:                  Drawing Requests.
+* requests for input and output:         I/O.
+* resolution, device:                    DESC File Format.
+* resolution, horizontal:                DESC File Format.
+* resolution, horizontal, register (.H): Built-in Registers.
+* resolution, vertical:                  DESC File Format.
+* resolution, vertical, register (.V):   Built-in Registers.
+* returning to marked vertical page location (rt): Page Motions.
+* revision number register (.Y):         Built-in Registers.
+* rf, the program:                       History.
+* right-justifying (rj):                 Manipulating Filling and Adjusting.
+* rj request, causing implicit linebreak: Manipulating Filling and Adjusting.
+* rn glyph, and cflags:                  Using Symbols.
+* roff, the program:                     History.
+* roman glyph, correction after italic glyph (\/): Ligatures and Kerning.
+* roman glyph, correction before italic glyph (\,): Ligatures and Kerning.
+* Roman numerals:                        Assigning Formats.
+* Roman numerals, maximum and minimum:   Assigning Formats.
+* rq glyph, and rq string [man]:         Predefined man strings.
+* rq glyph, at end of sentence <1>:      Using Symbols.
+* rq glyph, at end of sentence:          Sentences.
+* rt request, using + and -:             Expressions.
+* ru glyph, and cflags:                  Using Symbols.
+* runoff, the program:                   History.
+* s unit <1>:                            Fractional Type Sizes.
+* s unit:                                Measurements.
+* safer mode <1>:                        I/O.
+* safer mode <2>:                        Macro Directories.
+* safer mode:                            Groff Options.
+* saving horizontal input line position (\k): Page Motions.
+* scaling operator:                      Expressions.
+* searching fonts:                       Font Directories.
+* searching macro files:                 Macro Directories.
+* searching macros:                      Macro Directories.
+* seconds, current time (seconds):       Built-in Registers.
+* sentence space:                        Sentences.
+* sentence space size register (.sss):   Manipulating Filling and Adjusting.
+* sentences:                             Sentences.
+* setting diversion trap (dt):           Diversion Traps.
+* setting end-of-input trap (em):        End-of-input Traps.
+* setting input line number (lf):        Debugging.
+* setting input line trap (it):          Input Line Traps.
+* setting registers (nr, \R):            Setting Registers.
+* shading filled objects (\D'f ...'):    Drawing Requests.
+* shc request, and translations:         Character Translations.
+* site-specific directory <1>:           Font Directories.
+* site-specific directory:               Macro Directories.
+* size of sentence space register (.sss): Manipulating Filling and Adjusting.
+* size of type:                          Sizes.
+* size of word space register (.ss):     Manipulating Filling and Adjusting.
+* size, paper:                           Paper Size.
+* sizes:                                 Sizes.
+* sizes, fractional <1>:                 Implementation Differences.
+* sizes, fractional:                     Fractional Type Sizes.
+* skew, of last glyph (.csk):            Environments.
+* slant, font, changing (\S):            Artificial Fonts.
+* soelim, the program:                   gsoelim.
+* soft hyphen character, setting (shc):  Manipulating Hyphenation.
+* soft hyphen glyph (hy):                Manipulating Hyphenation.
+* solid circle, drawing (\D'C ...'):     Drawing Requests.
+* solid ellipse, drawing (\D'E ...'):    Drawing Requests.
+* solid polygon, drawing (\D'P ...'):    Drawing Requests.
+* sp request, and no-space mode:         Manipulating Spacing.
+* sp request, and traps:                 Manipulating Spacing.
+* sp request, causing implicit linebreak: Manipulating Filling and Adjusting.
+* space between sentences:               Sentences.
+* space between sentences register (.sss): Manipulating Filling and Adjusting.
+* space between words register (.ss):    Manipulating Filling and Adjusting.
+* space character:                       Escapes.
+* space character, zero width (\&) <1>:  Drawing Requests.
+* space character, zero width (\&) <2>:  Ligatures and Kerning.
+* space character, zero width (\&):      Requests.
+* space characters, in expressions:      Expressions.
+* space, discardable, horizontal:        Manipulating Filling and Adjusting.
+* space, discarded, in traps:            Manipulating Spacing.
+* space, horizontal (\h):                Page Motions.
+* space, horizontal, unformatting:       Strings.
+* space, unbreakable:                    Page Motions.
+* space, vertical, unit (v):             Measurements.
+* space, width of a digit (\0):          Page Motions.
+* spaces with ds:                        Strings.
+* spaces, in a macro argument:           Request and Macro Arguments.
+* spaces, leading and trailing:          Filling and Adjusting.
+* spacing:                               Basics.
+* spacing, manipulating:                 Manipulating Spacing.
+* spacing, vertical:                     Sizes.
+* special characters <1>:                Special Characters.
+* special characters:                    Character Translations.
+* special characters [ms]:               ms Strings and Special Characters.
+* special fonts <1>:                     Font File Format.
+* special fonts <2>:                     Special Fonts.
+* special fonts:                         Using Symbols.
+* special fonts, emboldening:            Artificial Fonts.
+* special request, and font translations: Changing Fonts.
+* special request, and glyph search order: Using Symbols.
+* spline, drawing (\D'~ ...'):           Drawing Requests.
+* springing a trap:                      Traps.
+* sqrtex glyph, and cflags:              Using Symbols.
+* stacking glyphs (\b):                  Drawing Requests.
+* standard input, reading from (rd):     I/O.
+* stderr, printing to (tm, tm1, tmc):    Debugging.
+* stops, tabulator:                      Tab Stops.
+* string arguments:                      Strings.
+* string expansion (\*):                 Strings.
+* string interpolation (\*):             Strings.
+* string, appending (as):                Strings.
+* string, creating alias (als):          Strings.
+* string, length of (length):            Strings.
+* string, removing (rm):                 Strings.
+* string, renaming (rn):                 Strings.
+* strings:                               Strings.
+* strings [ms]:                          ms Strings and Special Characters.
+* strings specific to grohtml:           grohtml specific registers and strings.
+* strings, multi-line:                   Strings.
+* strings, shared name space with macros and diversions: Strings.
+* stripping final newline in diversions: Strings.
+* structuring source code of documents or macro packages: Requests.
+* sty request, and changing fonts:       Changing Fonts.
+* sty request, and font positions:       Font Positions.
+* sty request, and font translations:    Changing Fonts.
+* styles, font:                          Font Families.
+* substring (substring):                 Strings.
+* suppressing output (\O):               Suppressing output.
+* sv request, and no-space mode:         Page Control.
+* switching environments (ev):           Environments.
+* sy request, and safer mode:            Groff Options.
+* symbol:                                Using Symbols.
+* symbol table, dumping (pm):            Debugging.
+* symbol, defining (char):               Using Symbols.
+* symbols, using:                        Using Symbols.
+* system() return value register (systat): I/O.
+* tab character <1>:                     Escapes.
+* tab character:                         Tab Stops.
+* tab character, and translations:       Character Translations.
+* tab character, non-interpreted (\t):   Tabs and Fields.
+* tab repetition character (tc):         Tabs and Fields.
+* tab settings register (.tabs):         Tabs and Fields.
+* tab stops:                             Tab Stops.
+* tab stops [man]:                       Miscellaneous man macros.
+* tab stops, for TTY output devices:     Tabs and Fields.
+* tab, line-tabs mode:                   Tabs and Fields.
+* table of contents <1>:                 Leaders.
+* table of contents:                     Table of Contents.
+* table of contents, creating [ms]:      ms TOC.
+* tables [ms]:                           ms Insertions.
+* tabs, and fields:                      Tabs and Fields.
+* tabs, before comments:                 Comments.
+* tbl, the program:                      gtbl.
+* text line, position of lowest (.h):    Diversions.
+* text, gtroff processing:               Text.
+* text, justifying:                      Manipulating Filling and Adjusting.
+* text, justifying (rj):                 Manipulating Filling and Adjusting.
+* thickness of lines (\D't ...'):        Drawing Requests.
+* three-part title (tl):                 Page Layout.
+* ti request, causing implicit linebreak: Manipulating Filling and Adjusting.
+* ti request, using + and -:             Expressions.
+* time, current:                         I/O.
+* time, current, hours (hours):          Built-in Registers.
+* time, current, minutes (minutes):      Built-in Registers.
+* time, current, seconds (seconds):      Built-in Registers.
+* title line (tl):                       Page Layout.
+* title line length register (.lt):      Page Layout.
+* title line, length (lt):               Page Layout.
+* title page, example markup:            ms Cover Page Macros.
+* titles:                                Page Layout.
+* tkf request, and font styles:          Font Families.
+* tkf request, and font translations:    Changing Fonts.
+* tkf request, with fractional type sizes: Fractional Type Sizes.
+* tl request, and mc:                    Miscellaneous.
+* tmac, directory:                       Macro Directories.
+* tmac, path:                            Macro Directories.
+* TMPDIR, environment variable:          Environment.
+* token, input:                          Gtroff Internals.
+* top margin:                            Page Layout.
+* top-level diversion:                   Diversions.
+* top-level diversion, and \!:           Diversions.
+* top-level diversion, and \?:           Diversions.
+* top-level diversion, and bp:           Page Control.
+* tr request, and glyph definitions:     Using Symbols.
+* tr request, and soft hyphen character: Manipulating Hyphenation.
+* tr request, incompatibilities with AT&T troff: Implementation Differences.
+* track kerning:                         Ligatures and Kerning.
+* track kerning, activating (tkf):       Ligatures and Kerning.
+* trailing quotes:                       Strings.
+* trailing spaces:                       Filling and Adjusting.
+* translations of characters:            Character Translations.
+* transparent characters <1>:            Using Symbols.
+* transparent characters:                Sentences.
+* transparent output (\!, \?):           Diversions.
+* transparent output (cf, trf):          I/O.
+* transparent output, incompatibilities with AT&T troff: Implementation Differences.
+* trap, changing location (ch):          Page Location Traps.
+* trap, distance, register (.t):         Page Location Traps.
+* trap, diversion, setting (dt):         Diversion Traps.
+* trap, end-of-input, setting (em):      End-of-input Traps.
+* trap, input line, setting (it):        Input Line Traps.
+* trap, planting:                        Traps.
+* trap, springing:                       Traps.
+* traps:                                 Traps.
+* traps, and discarded space:            Manipulating Spacing.
+* traps, and diversions:                 Page Location Traps.
+* traps, blank line:                     Blank Line Traps.
+* traps, diversion:                      Diversion Traps.
+* traps, dumping (ptr):                  Debugging.
+* traps, end-of-input:                   End-of-input Traps.
+* traps, input line:                     Input Line Traps.
+* traps, input line, and interrupted lines (itc): Input Line Traps.
+* traps, page location:                  Page Location Traps.
+* traps, sprung by bp request (.pe):     Page Location Traps.
+* trf request, and invalid characters:   I/O.
+* trf request, causing implicit linebreak: Manipulating Filling and Adjusting.
+* trin request, and asciify:             Diversions.
+* troff mode:                            Troff and Nroff Mode.
+* troff output:                          gtroff Output.
+* truncated vertical space register (.trunc): Page Location Traps.
+* tutorial for macro users:              Tutorial for Macro Users.
+* type size:                             Sizes.
+* type size registers (.s, .ps):         Changing Type Sizes.
+* type sizes, changing (ps, \s):         Changing Type Sizes.
+* type sizes, fractional <1>:            Implementation Differences.
+* type sizes, fractional:                Fractional Type Sizes.
+* u unit:                                Measurements.
+* uf request, and font styles:           Font Families.
+* ul glyph, and cflags:                  Using Symbols.
+* ul request, and font translations:     Changing Fonts.
+* Ultrix-specific man macros:            Optional man extensions.
+* unary operators:                       Expressions.
+* unbreakable space:                     Page Motions.
+* undefined identifiers:                 Identifiers.
+* undefined request:                     Comments.
+* underline font (uf):                   Artificial Fonts.
+* underlining (ul):                      Artificial Fonts.
+* underlining, continuous (cu):          Artificial Fonts.
+* underscore glyph (\[ru]):              Drawing Requests.
+* unformatting diversions (asciify):     Diversions.
+* unformatting horizontal space:         Strings.
+* Unicode <1>:                           Using Symbols.
+* Unicode:                               Identifiers.
+* unit, c:                               Measurements.
+* unit, f:                               Measurements.
+* unit, f, and colors:                   Colors.
+* unit, i:                               Measurements.
+* unit, M:                               Measurements.
+* unit, m:                               Measurements.
+* unit, n:                               Measurements.
+* unit, P:                               Measurements.
+* unit, p:                               Measurements.
+* unit, s <1>:                           Fractional Type Sizes.
+* unit, s:                               Measurements.
+* unit, u:                               Measurements.
+* unit, v:                               Measurements.
+* unit, z <1>:                           Fractional Type Sizes.
+* unit, z:                               Measurements.
+* units of measurement:                  Measurements.
+* units, default:                        Default Units.
+* unnamed fill colors (\D'F...'):        Drawing Requests.
+* unnamed glyphs:                        Using Symbols.
+* unnamed glyphs, accessing with \N:     Font File Format.
+* unsafe mode <1>:                       I/O.
+* unsafe mode <2>:                       Macro Directories.
+* unsafe mode:                           Groff Options.
+* user's macro tutorial:                 Tutorial for Macro Users.
+* user's tutorial for macros:            Tutorial for Macro Users.
+* using symbols:                         Using Symbols.
+* utf-8, output encoding:                Groff Options.
+* v unit:                                Measurements.
+* valid numeric expression:              Expressions.
+* value, incrementing without changing the register: Auto-increment.
+* variables in environment:              Environment.
+* version number, major, register (.x):  Built-in Registers.
+* version number, minor, register (.y):  Built-in Registers.
+* vertical line drawing (\L):            Drawing Requests.
+* vertical line spacing register (.v):   Changing Type Sizes.
+* vertical line spacing, changing (vs):  Changing Type Sizes.
+* vertical line spacing, effective value: Changing Type Sizes.
+* vertical motion (\v):                  Page Motions.
+* vertical page location, marking (mk):  Page Motions.
+* vertical page location, returning to marked (rt): Page Motions.
+* vertical position in diversion register (.d): Diversions.
+* vertical position trap enable register (.vpt): Page Location Traps.
+* vertical position traps, enabling (vpt): Page Location Traps.
+* vertical resolution:                   DESC File Format.
+* vertical resolution register (.V):     Built-in Registers.
+* vertical space unit (v):               Measurements.
+* vertical spacing:                      Sizes.
+* warnings <1>:                          Warnings.
+* warnings:                              Debugging.
+* warnings, level (warn):                Debugging.
+* what is groff?:                        What Is groff?.
+* while:                                 while.
+* while request, and the ! operator:     Expressions.
+* while request, confusing with br:      while.
+* while request, operators to use with:  Operators in Conditionals.
+* whitespace characters:                 Identifiers.
+* width escape (\w):                     Page Motions.
+* width, of last glyph (.w):             Environments.
+* word space size register (.ss):        Manipulating Filling and Adjusting.
+* writing macros:                        Writing Macros.
+* writing to file (write):               I/O.
+* year, current, register (year, yr):    Built-in Registers.
+* z unit <1>:                            Fractional Type Sizes.
+* z unit:                                Measurements.
+* zero width space character (\&) <1>:   Drawing Requests.
+* zero width space character (\&) <2>:   Ligatures and Kerning.
+* zero width space character (\&):       Requests.
+* zero-width printing (\z, \Z):          Page Motions.
+* |, and page motion:                    Expressions.
+
+

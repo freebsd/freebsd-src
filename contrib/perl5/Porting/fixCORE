@@ -1,0 +1,68 @@
+#!/usr/local/bin/perl -w
+use Data::Dumper;
+
+my $targ = shift;
+my $inc  = join(' ',map("-I$_",@INC));
+
+my $work = 1;
+while ($work)
+ {
+  open(PIPE,"$^X -w $inc -M$targ -e '' 2>&1 |") || die "Cannot open pipe to child:$!";
+  my %fix;
+  while (<PIPE>)
+   {
+    if (/^Ambiguous call resolved as CORE::(\w+)\(\), qualify as such or use \& at (\S+) line (\d+)/
+         && -f $2 )
+     {
+      my ($var,$file,$line) = ($1,$2,$3);
+      $fix{$file} = [] unless exists $fix{$file}; 
+      push(@{$fix{$file}},[$line => $var]) unless ($var =~ /^PL_/ || $file =~ /\.h$/);
+     }
+    print;
+   }
+  close(PIPE);
+# warn "Make retured $?\n";
+# last unless $?;
+  my $changed = 0;
+  foreach my $file (keys %fix)
+   {          
+    my @ar = sort( { $a->[0] <=> $b->[0] } @{delete $fix{$file}});
+    my @miss;
+    my $fixed = 0;
+    @ARGV = ($file);
+    $. = 0;
+    local $^I = '.sav';
+    while (<>)
+     {
+      while (@ar && $. == $ar[0][0])
+       {
+        my ($line,$var) = @{shift(@ar)};
+        if (s/(?<!CORE::)\b$var\b(?=\s*\()/CORE::$var/)
+         {
+          warn "$file:$line: FIX $var\n"; 
+          $fixed++;
+          $changed++;
+         }
+        else
+         {
+          push(@miss,[$line,$var,$_]);
+         }
+       }
+      print;
+     }
+    unless ($fixed)
+     {
+      rename("$file$^I",$file);
+      if (@miss)
+       {
+        while (@miss)
+         {
+          my ($line,$var,$txt) = @{shift(@miss)};
+          warn "$file:$line:$var | $txt";
+         }
+       }
+     }    
+   }
+  last unless $changed;
+ }
+

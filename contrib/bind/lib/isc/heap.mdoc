@@ -1,0 +1,378 @@
+.\" $Id: heap.mdoc,v 8.7 2001/08/08 07:50:24 marka Exp $
+.\"
+.\"Copyright (c) 1997,1999 by Internet Software Consortium.
+.\"
+.\"Permission to use, copy, modify, and distribute this software for any
+.\"purpose with or without fee is hereby granted, provided that the above
+.\"copyright notice and this permission notice appear in all copies.
+.\"
+.\"THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+.\"ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\"OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+.\"CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\"DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\"PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\"ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\"SOFTWARE.
+.\"
+.Dd January 1, 1997
+.\"Os OPERATING_SYSTEM [version/release]
+.Os BSD 4
+.Dt HEAP @SYSCALL_EXT@
+.Sh NAME
+.Nm heap_new ,
+.Nm heap_free ,
+.Nm heap_insert ,
+.Nm heap_delete ,
+.Nm heap_increased ,
+.Nm heap_decreased ,
+.Nm heap_element ,
+.Nm heap_for_each 
+.Nd heap implementation of priority queues
+.Sh SYNOPSIS
+.Fd #include \&"heap.h\&"
+.Ft heap_context    
+.Fn heap_new "heap_higher_priority_func higher_priority" \
+"heap_index_func index" "int array_size_increment"
+.Ft int
+.Fn heap_free "heap_context ctx"
+.Ft int
+.Fn heap_insert "heap_context ctx" "void *elt"
+.Ft int
+.Fn heap_delete "heap_context ctx" "int i"
+.Ft int
+.Fn heap_increased "heap_context ctx" "int i"
+.Ft int
+.Fn heap_decreased "heap_context ctx" "int i"
+.Ft void *
+.Fn heap_element "heap_context ctx" "int i"
+.Ft int 
+.Fn heap_for_each "heap_context ctx" "heap_for_each_func action" "void *uap"
+.Sh DESCRIPTION
+These functions implement heap\-based priority queues.  The user defines a
+priority scheme, and provides a function for comparison of the priority
+of heap elements
+(see the description of the
+.Ft heap_higher_priority_func
+function pointer, below).
+.Pp
+Each of the functions depends upon the
+.Ft heap_context
+type, which is a pointer to a
+.Ft struct heap_context 
+.Pq see Pa heap.h No for more information .
+.Pp
+The
+.Pa heap.h
+header file also defines the following set of function
+function pointers:
+.Bd -literal -offset indent
+typedef int (*heap_higher_priority_func)(void *, void *);
+typedef void (*heap_index_func)(void *, int);
+typedef void (*heap_for_each_func)(void *, void *);
+.Ed
+.Pp
+These are pointers to user-defined functions.
+The 
+.Ft heap_higher_priority_func
+type is a pointer to a function which compares two
+different heap (queue) elements and returns an
+.Ft int
+which answers the question, "Does the first queue element 
+have a higher priority than the second?"  In other words, 
+a function pointer of this type 
+.Em must 
+return a number greater than zero
+if the element indicated by the first argument is of a higher priority than 
+that indicated by the second element, and zero otherwise.  
+.Pp
+The other two function pointers are documented in the descriptions
+of 
+.Fn heap_new
+.Pq Va heap_index_func
+and
+.Fn heap_for_each
+.Pq Va heap_for_each_func ,
+below.
+.Pp
+The function
+.Fn heap_new
+initializes a 
+.Ft struct heap_context
+and returns a pointer to it.  The
+.Fa higher_priority
+function pointer 
+.Em must 
+be 
+.No non\- Ns Dv NULL .
+As explained above, this refers to a 
+function supplied by the user which compares the priority of two different
+queue or heap elements; see above for more information. 
+The second argument, 
+.Fa index ,
+is a pointer to a user-defined function whose arguments are
+a heap element and its index in the heap.
+.Fa Index 
+is intended to provide the user a means of knowing the internal index
+of an element in the heap while maintaining the opacity of the implementation;
+since the user has to know the actual indexes of heap elements in order to use,
+e.g., 
+.Fn heap_delete
+or
+.Fn heap_element ,
+the user 
+.Fa index
+function could store the index in the heap element, itself.  If 
+.Fa index
+is 
+.No non\- Ns Dv NULL ,
+then it is called 
+.Em whenever 
+the index of an element changes, allowing the user to stay up\-to\-date
+with index changes.
+The last argument, 
+.Fa array_size_increment
+will be used, as its name suggests, by
+.Xr malloc 3
+or
+.Xr realloc 3
+to increment the array which implements the heap; if zero, a default value 
+will be used.
+.Pp
+The
+.Fn heap_free
+function frees the given
+.Ft heap_context
+argument 
+.Pq Fa ctx ,
+which also frees the entire
+.Nm heap ,
+if it is
+.No non\- Ns Dv NULL .
+The argument
+.Fa ctx
+should be
+.No non\- Ns Dv NULL .
+.Pp
+The 
+.Fn heap_insert
+function is used to insert the new heap element
+.Fa elt
+into the appropriate place (priority\-wise) in the
+.Ft heap
+indicated by 
+.Fa ctx
+(a pointer to a
+.Ft heap_context ) .
+If 
+.No non\- Ns Dv NULL ,
+the user-defined
+.Ft higher_priority
+function pointer associated with the indicated 
+.Nm heap
+is used to determine that
+.Dq appropriate place ;
+the highest\-priority elements are at the front of the queue (top of
+the heap).
+(See the description of 
+.Fn heap_new , 
+above, for more information.)
+.Pp
+The function
+.Fn heap_delete
+is used to delete the 
+.Fa i\- Ns th
+element of the queue (heap), and fixing up the queue (heap) from that
+element onward via the priority as determined by the user function
+pointed to by
+.Ft higher_priority 
+function pointer
+(see description of
+.Fn heap_new ,
+above).
+.Pp
+.Fn heap_increased
+.Pp
+.Fn heap_decreased
+.Pp
+The 
+.Fn heap_element
+function returns the
+.Fa i\- Ns th
+element of the queue/heap indicated by
+.Fa ctx ,
+if possible.
+.Pp
+The
+.Fn heap_for_each
+function provides a mechanism for the user to increment through the entire
+queue (heap) and perform some
+.Fa action 
+upon each of the queue elements.  This
+.Fa action 
+is pointer to a user\-defined function with two arguments, the first of
+which should be interpreted by the user's function as a heap element.  The 
+second value passed to the user function is just the
+.Fa uap
+argument to 
+.Fn heap_for_each ;
+this allows the user to specify additional arguments, if necessary, to
+the function pointed to by 
+.Fa action .
+.\" The following requests should be uncommented and
+.\" used where appropriate.  This next request is
+.\" for sections 2 and 3 function return values only.
+.Sh RETURN VALUES
+.Bl -tag -width "heap_decreased()"
+.It Fn heap_new
+.Dv NULL
+if unable to 
+.Xr malloc 3
+a 
+.Ft struct heap_context
+or if the
+.Fa higher_priority
+function pointer is 
+.Dv NULL ;
+otherwise, a valid
+.Ft heap_context 
+.Ns .
+.It Fn heap_free
+-1 if 
+.Fa ctx
+is 
+.Dv NULL 
+(with 
+.Va errno
+set to
+.Dv EINVAL ) ;
+otherwise, 0.
+.It Fn heap_insert
+-1 
+if either
+.Fa ctx
+or 
+.Fa elt
+is 
+.Dv NULL ,
+or if an attempt to 
+.Xr malloc 3
+or 
+.Xr realloc 3
+the heap array fails (with
+.Va errno
+set to 
+.Dv EINVAL
+or 
+.Dv ENOMEM ,
+respectively).
+Otherwise, 0.
+.It Fn heap_delete
+-1 if 
+.Fa ctx
+is 
+.Dv NULL
+or 
+.Fa i 
+is out\-of\-range (with
+.Va errno
+set to
+.Dv EINVAL ) ;
+0 otherwise.
+.It Fn heap_increased
+As for
+.Fn heap_delete .
+.It Fn heap_decreased
+As for
+.Fn heap_delete .
+.It Fn heap_element
+NULL if 
+.Fa ctx 
+is 
+.Dv NULL
+or
+.Fa i
+out\-of-bounds (with
+.Va errno
+set to
+.Dv EINVAL ) ;
+otherwise, a pointer to the
+.Fa i\- Ns th
+queue element.
+.It Fn heap_for_each
+-1 if either
+.Fa ctx
+or 
+.Fa action
+is 
+.Dv NULL
+(with 
+.Va errno
+set to
+.Dv EINVAL ) ;
+0 otherwise.
+.El
+.\" This next request is for sections 1, 6, 7 & 8 only
+.\" .Sh ENVIRONMENT
+.Sh FILES
+.Bl -tag -width "heap.h000"
+.It Pa heap.h
+ heap library header file
+.El
+.\" .Sh EXAMPLES
+.\" This next request is for sections 1, 6, 7 & 8 only
+.\"     (command return values (to shell) and
+.\"    fprintf/stderr type diagnostics)
+.Sh DIAGNOSTICS
+Please refer to
+.Sx RETURN VALUES .
+.\" The next request is for sections 2 and 3 error
+.\" and signal handling only.
+.Sh ERRORS
+The variable
+.Va errno
+is set by
+.Fn heap_free , 
+.Fn heap_insert , 
+.Fn heap_delete , 
+.Fn heap_increased , 
+and
+.Fn heap_decreased 
+under the conditions of invalid input
+.Pq Dv EINVAL
+or lack of memory
+.Pq Dv ENOMEM ;
+please refer to
+.Sx RETURN VALUES .
+.Sh SEE ALSO
+.Xr malloc 3 ,
+.Xr realloc 3 .
+.Rs
+.%A Cormen
+.%A Leiserson
+.%A Rivest
+.%B Introduction to Algorithms
+.%Q "MIT Press / McGraw Hill"
+.%D 1990
+.%O ISBN 0\-262\-03141\-8
+.%P chapter 7
+.Re
+.Rs
+.%A Sedgewick
+.%B Algorithms, 2nd ed'n
+.%Q Addison\-Wesley
+.%D 1988
+.%O ISBN 0\-201\-06673\-4
+.%P chapter 11
+.Re
+.\" .Sh STANDARDS
+.\" .Sh HISTORY
+.Sh AUTHORS
+The
+.Nm heap
+library was implemented by Bob Halley (halley@vix.com) of Vixie Enterprises, 
+Inc., for the Internet Software consortium, and was adapted from
+the two books listed in the 
+.Sx SEE ALSO
+section, above.
+.\" .Sh BUGS

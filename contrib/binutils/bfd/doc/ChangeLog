@@ -1,0 +1,510 @@
+2002-03-28  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2002-02-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* chew.c (WORD): Eliminate.
+
+2002-01-31  Ivan Guzvinec  <ivang@opencores.org>
+
+	* Makefile.in: Regenerate.
+
+2002-01-31  Alan Modra  <amodra@bigpond.net.au>
+
+	* chew.c (courierize): Don't modify @command params.
+
+2002-01-30  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* proto.str (ENUMDOC): Place two spaces between the end of
+	the text and the closing comment marker.
+
+2001-10-30  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* bfdint.texi (BFD target vector miscellaneous): Add
+	bfd_target_mmo_flavour.
+	* bfd.texinfo (BFD back ends): Add entry for mmo.
+	* Makefile.am (DOCFILES): Add mmo.texi.
+	(SRCDOC): Add mmo.c.
+	(s-mmo, mmo.texi): New rules.
+
+2001-10-29  Kazu Hirata  <kazu@hxi.com>
+
+	* bfdsumm.texi: Fix a typo.
+
+2001-10-26  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* bfd.texinfo: Change footer to refer to FSF.  Change subtitle
+	to refer to original creation date.
+
+2002-01-26  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* Makefile.am (install): Depend on install-info.
+	* Makefile.in: Regenerate.
+
+2001-10-03  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am (BFD_H_DEP): Add ../version.h.
+	* Makefile.in: Regenerate.
+
+2001-10-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2001-10-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* header.sed: New file, adds header to generated files.
+	* Makefile.am: Rewrite rules generating libbfd.h, libcoff.h and
+	bfd.h, using above.  Add missing elf.c dependecy for libbfd.h.
+	* Makefile.in: Regenerate.
+
+2001-09-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2001-09-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* bfdint.texi: Replace reference to bfd_read with bfd_bread.
+	Likewise for bfd_write.
+
+2001-07-24  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2001-06-21  Hans-Peter Nilsson  <hp@axis.com>
+
+	* bfdint.texi (BFD relocation functions) <different formats>:
+	Mention that the GNU linker is aware of input-output format
+	restrictions when generating relocatable output.  Make new
+	paragraph for final-link case.
+	(BFD target vector swap): Fix typo.
+
+2001-01-25  Kazu Hirata  <kazu@hxi.com>
+
+	* chew.c: Do not output trailing whitespaces in type and
+	functionname.  Update copyright.
+
+2001-01-24  Kazu Hirata  <kazu@hxi.com>
+
+	* chew.c: Do not output a trailing whitespace.
+
+2000-11-06  Nick Clifton  <nickc@redhat.com>
+
+	* bfd.texinfo: Add GNU Free Documentation License.
+
+2000-07-09  Alan Modra  <alan@linuxcare.com.au>
+
+	* Makefile.in: Regenerate.
+
+2000-07-08  Alan Modra  <alan@linuxcare.com.au>
+
+	* chew.c (outputdots): Don't add a space before `/*'.
+	(courierize): Likewise.
+
+Wed May 24 12:03:25 2000  Hans-Peter Nilsson  <hp@axis.com>
+
+	* bfdint.texi (BFD ELF processor required): Add paragraph about
+	target necessities for readelf.
+
+2000-04-30  Ben Elliston  <bje@redhat.com>
+
+	* bfdint.texi (BFD generated files): Fix another typo.
+
+2000-04-17  Ben Elliston  <bje@redhat.com>
+
+	* bfdint.texi (BFD_JUMP_TABLE macros): Fix typo.
+
+Fri Apr  7 17:54:38 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* Makefile.in: Rebuild with current autoconf/automake.
+
+Thu Feb  4 23:21:36 1999  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in: Rebuild with current autoconf/automake.
+
+Thu Jul 23 09:36:44 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* bfdint.texi (BFD ELF processor required): Add paragraph
+	describing the necessity to create "include/elf/CPU.h".
+
+Thu May  7 14:45:43 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (chew.o): Add -I options for intl srcdir and
+	objdir.
+	* Makefile.in: Rebuild.
+
+Mon Apr 27 20:19:24 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* bfdint.texi: New file.
+	* Makefile.am (noinst_TEXINFOS): New variable.
+	* Makefile.in: Rebuild.
+
+Mon Apr 13 16:48:56 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in: Rebuild.
+
+Mon Apr  6 14:06:55 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (STAGESTUFF): Remove variable.
+	(CLEANFILES): Don't remove $(STAGESTUFF).
+	(DISTCLEANFILES, MAINTAINERCLEANFILES): New variables.
+	* Makefile.in: Rebuild.
+
+Fri Mar 27 16:25:25 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* chew.c (skip_white_and_starts): Remove unused declaration.
+	(skip_white_and_stars): Add casts to avoid warnings.
+	(skip_trailing_newlines, paramstuff, courierize): Likewise.
+	(bulletize, do_fancy_stuff, iscommand): Likewise.
+	(kill_bogus_lines, nextword, main): Likewise.
+	(manglecomments): Comment out.
+	(outputdots, kill_bogus_lines): Remove unused local variables.
+	(perform, compile): Likewise.
+	(courierize): Fully parenthesize expression.
+	(copy_past_newline): Declare return value.
+	(print): Change printf format string.
+	(main): Call usage for an unrecognized option.
+
+Fri Feb 13 14:37:14 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (AUTOMAKE_OPTIONS): Define.
+	* Makefile.in: Rebuild.
+
+Mon Jan 26 15:38:36 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* doc.str (bodytext): Don't output @* at the end.
+	* chew.c (kill_bogus_lines): Make sure that a period at the
+	beginning is recognized.
+	(indent): Don't put indentation at the end.
+	(copy_past_newline): Expand tabs.
+	* Makefile.am (s-reloc, s-syms): Depend on doc.str.
+	* Makefile.in: Rebuild.
+
+Wed Oct  1 14:41:28 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (libbfd.h): Don't use cpu-h8300.c, cpu-i960.c, or
+	elfcode.h as input files; they don't contribute anything.
+	* Makefile.in: Rebuild.
+
+Fri Aug 15 04:55:15 1997  Doug Evans  <dje@canuck.cygnus.com>
+
+	* Makefile.am (libbfd.h, libcoff.h): Invoke $(MKDOC) as ./$(MKDOC).
+	* Makefile.in: Rebuild.
+
+Fri Aug  1 12:59:58 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (CC_FOR_BUILD): Don't set explicitly.
+	* Makefile.in: Rebuild.
+
+Thu Jul 31 20:00:12 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am: New file, based on old Makefile.in.
+	* Makefile.in: Now built with automake.
+
+Tue Jul 22 14:44:00 1997  Robert Hoehne <robert.hoehne@Mathematik.TU-Chemnitz.DE>
+
+	* Makefile.in: Change stamp-* files to s-* files.  Use bfdt.texi
+	rather than bfd.texi.
+	(DOCFILES): Change bfd.texi to bfdt.texi.
+	* bfd.texinfo: Include bfdt.texi, not bfd.texi.
+
+Mon Jun 16 15:33:15 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (CC, CFLAGS): Substitute from configure script.
+	From Jeff Makey <jeff@cts.com>.
+
+Tue Apr 15 12:37:41 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (install-info): Use mkinstalldirs to build
+	$(infodir).
+
+Tue Apr  8 12:49:46 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (install-info): Permit info files to be in srcdir.
+	(stamp-*): Add a stamp-X target for each X.texi target.
+	(*.texi): Just depend upon stamp-X.
+	(clean): Remove stamp-*.
+	(distclean): Depend upon mostlyclean.  Remove stamp-*.  Don't
+	remove $(DOCFILES).
+
+Mon Apr  7 15:23:26 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (distclean): Don't remove *.info files.
+
+Thu Feb 13 20:50:02 1997  Klaus Kaempf  (kkaempf@progis.de)
+
+	* makefile.vms: New file.
+
+Tue Jun 18 18:32:28 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* chew.c (kill_bogus_lines): Reset sl when not at the start of a
+	line.  From Uwe Ohse <uwe@tirka.gun.de>.
+
+Tue Jan 30 14:10:46 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	From Ronald F. Guilmette <rfg@monkeys.com>:
+	* Makefile.in (libbfd.h): Depend upon proto.str.
+	(libcoff.h, bfd.h): Likewise.
+
+Fri Nov  3 14:46:48 1995  Fred Fish  <fnf@cygnus.com>
+
+	* Makefile.in (SRCDOC, SRCPROT, core.texi, bfd.h):  Use corefile.c,
+	renamed from core.c.
+
+Wed Nov  1 14:28:23 1995  Manfred Hollstein KS/EF4A 60/1F/110 #40283  <manfred@lts.sel.alcatel.de>
+
+	* chew.c: Include <ctype.h>.
+
+Fri Oct  6 16:23:34 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	Mon Sep 25 22:49:32 1995  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* Makefile.in (Makefile): Only remake this Makefile.
+
+Wed Oct  4 15:51:05 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* chew.c: Include <stdio.h>.
+
+Tue Sep 12 18:14:50 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (maintainer-clean): New target.
+
+Thu Aug 31 12:18:43 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (bfd.h): Add additional #endif at end of bfd.h if
+	__cplusplus is defined.
+
+Tue Nov 29 16:13:34 1994  Doug Evans  <dje@canuck.cygnus.com>
+
+	* chew.c (write_buffer): New argument `f', all callers changed.
+	(stdout, stderr, print, drop, idrop): New forth words.
+	* proto.str (COMMENT): New command.
+	* doc.str (COMMENT): Likewise.
+
+Mon Sep 12 11:44:17 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* Makefile.in (DOCFILES): Remove ctor.texi.
+	(IPROTOS): Remove ctor.ip.
+	(SRCIPROT): Remove $(srcdir)/../ctor.c.
+	(ctor.texi): Remove target.
+	(libbfd.h): Remove dependency on $(srcdir)/../ctor.c.  Remove
+	$(MKDOC) run on $(srcdir)/../ctor.c.
+	* bfd.texinfo (Constructors): Remove section.
+
+Fri Sep  2 13:33:44 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* chew.c: Include assert.h.  Added prototypes for most functions.
+	Changed most uses of int to long.  Do bounds checking on the
+	stacks.  Added comment at the beginning documenting most of the
+	intrinsics.  Lots of whitespace changes.  Re-ordered some
+	functions.
+	(die, check_range, icheck_range): New functions.
+	(strip_trailing_newlines, print_stack_level): New functions.
+	(translatecomments): Don't insert tab before "/*".
+	(iscommand): Minimum command length is now 4.
+	(nextword): Handle some \-sequences.
+	(push_addr): Deleted.
+	(main): Add new intrinsics strip_trailing_newlines and
+	print_stack_level.  Complain at end if stack contains more than
+	one element, or less.
+	(remchar): Make sure the string is not empty before chopping off a
+	character.
+
+	* doc.str, proto.str: Handle new commands SENUM, ENUM, ENUMX,
+	ENUMEQ, ENUMEQX, ENUMDOC.
+
+Wed Jan 12 18:37:12 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* bfd.texinfo: Added Linker Functions node.
+	* Makefile.in (DOCFILES): Added linker.texi.
+	(SRCDOC): Added linker.c.
+	(linker.texi): New target.
+
+Tue Jan  4 10:52:56 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* chew.c: Don't rely on a correct declaration of exit.
+	(chew_exit): New function which just calls exit.
+	(main): Use it.
+
+Mon Jan  3 11:40:40 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* bfd.texinfo: Added Hash Tables node.
+	* Makefile.in (DOCFILES): Added hash.texi.
+	(SRCDOC): Added hash.c.
+	(hash.texi): New target.
+
+Thu Dec 30 16:57:04 1993  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* Makefile.in: Delete all references to seclet.c, since it's just
+	been deleted.  Don't mention hash.c, linker.c, or genlink.h yet,
+	since they don't contain documentation yet (hint, hint!).
+
+Fri Nov  5 10:58:53 1993  David J. Mackenzie  (djm@thepub.cygnus.com)
+
+	* bfd.texinfo: Small cleanups.
+
+Fri Nov 19 03:46:11 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
+
+	* Makefile.in (archures.texi): Depends on $(MKDOC).
+
+Tue Aug 10 14:22:39 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
+
+	* bfd.texinfo (BFD back end): Don't include elfcode.texi, since
+	it's empty now and that triggers a makeinfo bug.
+
+Mon Aug  9 16:27:30 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
+
+	* bfd.texinfo (BFD back end): New section on ELF, includes
+	elf.texi and elfcode.texi.
+	* Makefile.in (DOCFILES): Include elf.texi, elfcode.texi.
+	(SRCDOC): Include elfcode.h, elf.c.
+	(elf.texi, elfcode.texi): New intermediate targets.
+
+Thu Jun 24 13:48:13 1993  David J. Mackenzie  (djm@thepub.cygnus.com)
+
+	* Makefile.in (.c.o, chew.o): Put CFLAGS last.
+	* bfdsumm.texi: New file, broken out of bfd.texinfo, to share
+	with ld.texinfo.
+
+Mon Jun 14 12:07:07 1993  david d `zoo' zuhn  (zoo at rtl.cygnus.com)
+
+	* Makefile.in (install-info): remove parentdir cruft,
+
+Wed Jun  9 16:00:32 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* Makefile.in (mostlyclean): Remove chew.o.
+
+Tue May 25 14:46:58 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
+
+	* Makefile.in (libbfd.h): Use elfcode.h, not elf32.c.
+
+Mon May 24 15:50:07 1993  Ken Raeburn  (raeburn@cygnus.com)
+
+	* chew.c (compile): Add a couple of missing casts.
+
+Wed May 12 14:45:14 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* Makefile.in (CC_FOR_BUILD): New variable, define to be $(CC).
+	(chew.o, $(MKDOC)): Build using CC_FOR_BUILD rather than CC, since
+	it must run on the build machine.
+
+Tue Apr  6 22:38:10 1993  John Gilmore  (gnu@cygnus.com)
+
+	* Makefile.in (chew):  Don't compile from .c to executable in a
+	single step; it puts a temporary .o filename into the executable,
+	which makes multi-stage comparisons fail.  Compile chew.c to
+	chew.o, and link that, which makes identical executables every time.
+
+Wed Mar 24 17:26:29 1993  david d `zoo' zuhn  (zoo at poseidon.cygnus.com)
+
+	* Makefile.in: fix typo (bfd.texinfo not bfd.texino)
+
+Fri Mar 19 01:13:00 1993  Ken Raeburn  (raeburn@kr-pc.cygnus.com)
+
+	* bfd.texinfo: Since BFD version number has been bumped, do same
+	to "version number" on title page, and elsewhere.  Should be
+	fixed to extract real version number.
+
+Tue Mar 16 12:15:13 1993  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in:  Add *clean rules.
+
+Mon Jan 11 18:43:56 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* Makefile.in (libbfd.h): Removed duplicate init.c and libbfd.c.
+	Added seclet.c.
+	(bfd.h): Added dependency on bfd.c and seclet.c.  Added seclet.c
+	to build.
+
+Thu Dec 17 19:35:43 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in: added dvi target, define and use $(TEXI2DVI)
+
+Thu Dec  3 17:42:48 1992  Ken Raeburn  (raeburn@cambridge.cygnus.com)
+
+	* Makefile.in (TEXIDIR): New variable.
+	(bfd.dvi): Look for bfd.texinfo in $(srcdir).  Generate index.
+
+	* bfd.texinfo: Minor doc fixes.
+
+Thu Nov  5 03:13:55 1992  John Gilmore  (gnu@cygnus.com)
+
+	Cleanup:  Replace all uses of EXFUN in the BFD sources, with PARAMS.
+
+	* chew.c (exfunstuff):  Eliminate.
+	(paramstuff):  Replace exfunstuff with function to generate PARAMS.
+	* proto.str:  Use paramstuff rather than exfunstuff.
+
+Mon Aug 17 12:40:32 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* chew.c: various patches provided by Howard Chu.
+
+Fri Jun 19 18:59:54 1992  John Gilmore  (gnu at cygnus.com)
+
+	* Makefile.in (libbfd.h):  Add elf.c as a source of prototypes.
+
+Mon May 11 18:55:59 1992  John Gilmore  (gnu at cygnus.com)
+
+	* chew.c:  exit() should be declared by config files, not by
+	portable source code.  Its type could be int or void function.
+
+Mon May  4 13:45:57 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* Makefile.in: another CFLAGS correction.
+
+Tue Apr 28 10:21:32 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* Makefile.in: Do the CFLAGS thing.
+
+Fri Apr 10 22:34:52 1992  Fred Fish  (fnf@cygnus.com)
+
+	* Makefile.in (MINUS_G):  Add macro and default to -g.
+
+Fri Mar  6 18:53:18 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* chew.c: now has -w switch turn on warnings
+
+Wed Feb 26 18:04:40 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in, configure.in: removed traces of namesubdir,
+	  -subdirs, $(subdir), $(unsubdir), some rcs triggers.  Forced
+	  copyrights to '92, changed some from Cygnus to FSF.
+
+Tue Dec 10 22:11:05 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* Makefile.in: build chew into the current directory.  Complete
+	  the MKDOC macro transition.
+
+Tue Dec 10 08:26:28 1991  Steve Chamberlain  (sac at rtl.cygnus.com)
+
+	* chew.c: don't core dump when can't open file
+	* Makefile.in: get proto.str from the right place when built in
+	odd directories
+
+Tue Dec 10 04:07:25 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* Makefile.in: infodir belongs in datadir.
+
+Sat Dec  7 17:01:23 1991  Steve Chamberlain  (sac at rtl.cygnus.com)
+
+	* chew.c: Much modified
+	* proto.str, doc.str: New files for extracting to product
+	prototypes and documents respectively.
+
+
+Fri Dec  6 22:57:12 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* Makefile.in: added standards.text support, host/site/target
+	  inclusion hooks, install using INSTALL_DATA rather than cp,
+	  don't echo on install.
+
+Thu Dec  5 22:46:17 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* Makefile.in: idestdir and ddestdir go away.  Added copyrights
+	  and shift gpl to v2.  Added ChangeLog if it didn't exist. docdir
+	  and mandir now keyed off datadir by default.
+
+
+Local Variables:
+version-control: never
+End:

@@ -1,0 +1,1 @@
+ALL=fake-as

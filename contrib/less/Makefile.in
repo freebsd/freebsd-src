@@ -1,0 +1,110 @@
+# Makefile for less.
+
+#### Start of system configuration section. ####
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+CC = @CC@
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+
+CFLAGS = @CFLAGS@
+CFLAGS_COMPILE_ONLY = -c
+LDFLAGS = @LDFLAGS@
+O=o
+
+LIBS = @LIBS@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+# Where the installed binary goes.
+bindir = @bindir@
+binprefix = 
+
+mandir = @mandir@
+manext = 1
+manprefix = 
+
+#### End of system configuration section. ####
+
+SHELL = /bin/sh
+
+# This rule allows us to supply the necessary -D options
+# in addition to whatever the user asks for.
+.c.o:
+	${CC} -I. ${CFLAGS_COMPILE_ONLY} -DSYSDIR=\"${bindir}\" ${CPPFLAGS} ${CFLAGS} $<
+
+OBJ =	main.${O} screen.${O} brac.${O} ch.${O} charset.${O} cmdbuf.${O} \
+	command.${O} decode.${O} edit.${O} filename.${O} forwback.${O} \
+	help.${O} ifile.${O} input.${O} jump.${O} line.${O} linenum.${O} \
+	lsystem.${O} mark.${O} optfunc.${O} option.${O} opttbl.${O} os.${O} \
+	output.${O} position.${O} prompt.${O} search.${O} signal.${O} \
+	tags.${O} ttyin.${O} version.${O}  @REGEX_O@
+
+all: less lesskey lessecho
+
+less: ${OBJ}
+	${CC} ${LDFLAGS} -o $@ ${OBJ} ${LIBS}
+
+lesskey: lesskey.${O} version.${O}
+	${CC} ${LDFLAGS} -o $@ lesskey.${O} version.${O}
+
+lessecho: lessecho.${O} version.${O}
+	${CC} ${LDFLAGS} -o $@ lessecho.${O} version.${O}
+
+${OBJ}: ${srcdir}/less.h ${srcdir}/funcs.h defines.h 
+
+install: all ${srcdir}/less.nro ${srcdir}/lesskey.nro installdirs
+	${INSTALL_PROGRAM} less ${bindir}/${binprefix}less
+	${INSTALL_PROGRAM} lesskey ${bindir}/${binprefix}lesskey
+	${INSTALL_PROGRAM} lessecho ${bindir}/${binprefix}lessecho
+	${INSTALL_DATA} ${srcdir}/less.nro ${mandir}/man${manext}/${manprefix}less.${manext}
+	${INSTALL_DATA} ${srcdir}/lesskey.nro ${mandir}/man${manext}/${manprefix}lesskey.${manext}
+
+install-strip:
+	${MAKE} INSTALL_PROGRAM='${INSTALL_PROGRAM} -s' install
+
+installdirs: mkinstalldirs
+	${srcdir}/mkinstalldirs ${bindir} ${mandir}/man${manext}
+
+uninstall:
+	rm -f ${bindir}/${binprefix}less ${bindir}/${binprefix}lesskey ${bindir}/${binprefix}lessecho
+	rm -f ${mandir}/man${manext}/${manprefix}less.${manext} ${mandir}/man${manext}/${manprefix}lesskey.${manext}
+
+info:
+install-info:
+dvi:
+check:
+installcheck:
+
+TAGS:
+	cd ${srcdir} && etags *.c *.h
+
+# config.status might not change defines.h
+# Don't rerun config.status if we just configured (so there's no stamp-h).
+defines.h: stamp-h
+stamp-h: defines.h.in config.status
+	test ! -f stamp-h || CONFIG_FILES= CONFIG_HEADERS=defines.h ./config.status
+	touch stamp-h
+Makefile: ${srcdir}/Makefile.in config.status
+	CONFIG_FILES=Makefile CONFIG_HEADERS= ./config.status
+config.status: ${srcdir}/configure
+	./config.status --recheck
+
+${srcdir}/configure: ${srcdir}/configure.in
+	cd ${srcdir}; autoheader; autoconf
+
+clean:
+	rm -f *.${O} core less lesskey lessecho
+
+mostlyclean: clean
+
+distclean: clean
+	rm -f Makefile config.status config.log config.cache defines.h stamp-h
+
+realclean: distclean
+	rm -f TAGS
+

@@ -1,0 +1,298 @@
+.\"
+.\" Copyright (c) 1994 Andrew McRae.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 2, 1994
+.Dt PCCARD.CONF 5
+.Os
+.Sh NAME
+.Nm pccard.conf
+.Nd
+.Xr pccardd 8
+configuration file
+.Sh DESCRIPTION
+The
+.Nm
+file is the configuration file for the
+.Xr pccardd 8
+PC-CARD slot management daemon.
+It provides information to allow card
+identification, and the matching of drivers (along
+with driver resources) to the PC-CARD cards.
+.Pp
+There are four basic elements within the configuration file;
+An optional
+.Em "resource pool"
+preceding the other sections,
+and one or more
+.Em "card identifiers" ,
+and
+.Em "device instances" .
+The latter two may appear in any order, and may be
+interspersed as desired.
+.Pp
+The
+.Pa /etc/pccard.conf
+file is included from the file
+.Pa /etc/defaults/pccard.conf ,
+which contains the default resource pool settings and
+pccard identifiers database.
+The user specific configuration can be specified in
+.Pa /etc/pccard.conf
+when the user wishes to override these defaults and/or
+add additional entries.
+.Pp
+Each PC-CARD card contains configuration tuples that provide
+the manufacturer and card version; these are used
+to identify the card specification in the configuration
+file, and from this find a driver that can be used to
+interface to the particular card.
+There is a many-to-one mapping
+between cards to drivers i.e a single driver may interface to
+multiple types of cards.
+To aid this, card parameters may be
+specified separately from the driver to initialize the card or
+extract (in the case of a network card) an Ethernet address.
+.Pp
+Once a driver is allocated to a card, it stays
+allocated to that particular card.
+However, multiple instances of the same type of driver can be
+configured, so that if two cards are plugged in that map to a
+similar type of driver, other driver instances of the same name
+can be configured.
+.Pp
+The
+.Em insert
+and
+.Em remove
+commands allow a shell command line to be executed.
+The command to be executed is the rest of the line after
+the keyword.
+The line can be continued using a backslash.
+A simple
+macro substitution allows the current kernel device name
+.Em ( $device )
+and
+network card Ethernet address
+.Em ( $ether )
+to be inserted into the command line.
+.Xr pccardd 8
+uses the
+.Xr system 3
+subroutine to execute the command line.
+.Pp
+.Xr pccardd 8
+will use syslog to announce the insertion and removal of cards.
+It uses either the string set by the
+.Em logstr
+command, or the manufacturer and card version strings if none has
+been set.
+.Pp
+Numeric values may be expressed as octal, hex or decimal.
+If a decimal number has
+.Em k
+or
+.Em K
+appended to it, the value is multiplied by 1024. Names may be
+quoted using double quotes if spaces are required.
+A hash character comments out the rest of the line.
+.Ss "Resource pool"
+The (optional) section specifies a pool of system resources
+such as ISA bus memory address space, Input/Output ports and
+interrupt request numbers.
+This resource pool is used
+to allocate address space and interrupt numbers dynamically
+according to the requirements specified in each driver
+description.
+.Pp
+The syntax of the resources is as follows:
+.Pp
+.Dl io Ar start - end ...
+.Dl memory Ar address size ...
+.Dl irq Ar irq-number ...
+.Pp
+Each of the statements define I/O, memory or IRQ
+blocks that can be used to allocate to drivers when
+they are initialized.
+.Pp
+The syntax of the debuglevel parameter:
+.Pp
+.Dl debuglevel Ar level
+.Pp
+Multiple lines of any of the above statements may be
+present to allow separate blocks of each resource to be
+defined.
+.Ss "Card Identifiers"
+The syntax for card identifiers is:
+.Pp
+.Dl card Ar manufacturer version [ add_info1 [ add_info2 ]]
+.Dl config Ar index driver interrupt [ flags ]
+.Dl ether Ar offset
+.Dl reset Ar time
+.Dl iosize Ar size
+.Dl memsize Ar size
+.Dl insert Ar command
+.Dl remove Ar command
+.Dl logstr Ar string
+.Pp
+The first line is mandatory;
+the latter statements are optional and can appear in
+any order.
+There may be multiple
+.Em config
+lines.
+The
+.Em card
+parameters are the Manufacturer name, card version and
+additional information add_info1, add_info2 that
+is used to match the values from the card's CIS memory.
+These parameter can be described in extended regular expression
+.Xr regex 3
+if the string is enclosed by '/' like "/.*/".
+Each of the expressions is evaluated with a character '^' at top.
+.Pp
+The
+.Em config
+parameters select the particular card's configuration index
+from the range available in the card's CIS, the driver that
+is to be associated with this configuration, and the interrupt
+level (if any) to be assigned.
+An optional set of flags may
+be assigned.
+In
+.Ar index ,
+specify either ``auto'' or ``default'' or the range available in the card's CIS.
+``auto'' allows to allocate resources automatically with information
+from the CIS and status of using I/O resources.
+.Pp
+The optional
+.Em ether
+keyword is used when network cards have their physical Ethernet address
+located within the attribute memory of the card.
+The parameter of this
+statement indicates the offset within the attribute memory of the
+Ethernet address.
+This value can be used within insert/remove
+commands using the
+.Em $ether
+macro.
+.Pp
+The optional
+.Em reset
+keyword specifies reset duration at a card insertion in
+.Ar time
+milliseconds.
+Default is 100msec.
+.Pp
+.Em iosize
+and
+.Em memsize
+keywords are used with cards whose resources such as I/O ports and
+shared memory block are not specified in the CIS tuple.
+.Pp
+The
+.Em insert
+and
+.Em remove
+sections allow shell commands to be specified that are executed
+when the card is inserted or removed.
+Multiple
+.Em insert
+and
+.Em remove
+commands are allowed, and they are executed in the order they
+are listed.
+.Pp
+The
+.Em logstr
+command allows the user to set the string to be logged when this card is
+inserted or removed.
+If
+.Em logstr
+isn't specified, then the manufacturer and
+card version strings from the CIS are used to synthesize the string issued.
+.Ss "Wildcard entries"
+Following two wildcard entries of card identifiers are available
+for generic type of the cards:
+.Pp
+.Dl generic serial
+.Dl generic fixed_disk
+.Pp
+The keyword
+.Em serial
+matches ``Functional ID: Serial port/modem'' and
+.Em fixed_disk
+matches ``Fixed disk card''.
+The syntax is the same of
+.Em "card identifiers"
+but used ``generic'' instead of ``card'' in the first line.
+These are in the last of
+.Nm
+because unmatched cards with the other
+.Em card
+entries can match these entries secondly.
+The alias ``function'' can be used instead of ``generic'' because of
+the historical reason.
+.Sh EXAMPLES
+A typical configuration file may appear thus:
+.Bd -literal
+#
+# Sample configuration file.
+#
+# Pool parameters.
+#
+io 0x280 - 0x2F0 0x300 - 0x360
+irq 5 6 8 9 10 15
+memory 0xd4000 96k
+memory 0xc4000 32k
+#
+# Card database.
+#
+card "RPTI LTD." "EP400"  # NE2000 clone
+       ether 0x110
+       config 0x21 "ed0" 5
+       insert ifconfig $device physical $ether
+       insert ifconfig $device bean
+       remove ifconfig $device down
+
+card "XYZZY" "FAX/1.0"
+       config 0x30 "sio1" 11
+       insert echo start getty
+       remove echo stop getty
+
+.Ed
+.Sh FILES
+.Bl -tag -width /etc/defaults/pccard.conf -compact
+.It Pa /etc/defaults/pccard.conf
+The
+.Xr pccardd 8
+default configuration file.
+.It Pa /etc/pccard.conf
+The
+user configuration file.
+.El
+.Sh SEE ALSO
+.Xr pccardd 8

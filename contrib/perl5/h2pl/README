@@ -1,0 +1,71 @@
+[This file of Tom Christiansen's has been edited to change makelib to h2ph
+and .h to .ph where appropriate--law.]
+
+This directory contains files to help you convert the *.ph files generated my
+h2ph out of the perl source directory into *.pl files with all the
+indirection of the subroutine calls removed.  The .ph version will be more
+safely portable, because if something isn't defined on the new system, like
+&TIOCGETP, then you'll get a fatal run-time error on the system lacking that
+function.  Using the .pl version means that the subsequent scripts will give
+you a 0 $TIOCGETP and God only knows what may then happen.   Still, I like the
+.pl stuff because they're faster to load.
+
+FIrst, you need to run h2ph on things like sys/ioctl.h to get stuff
+into the perl library directory, often /usr/local/lib/perl.  For example,
+    # h2ph sys/ioctl.h
+takes /usr/include/sys/ioctl.h as input and writes (without i/o redirection)
+the file /usr/local/lib/perl/sys/ioctl.ph, which looks like this
+
+    eval 'sub TIOCM_RTS {0004;}';
+    eval 'sub TIOCM_ST {0010;}';
+    eval 'sub TIOCM_SR {0020;}';
+    eval 'sub TIOCM_CTS {0040;}';
+    eval 'sub TIOCM_CAR {0100;}';
+
+and much worse, rather than what Larry's ioctl.pl from the perl source dir has, 
+which is:
+
+    $TIOCM_RTS = 0004;
+    $TIOCM_ST = 0010;
+    $TIOCM_SR = 0020;
+    $TIOCM_CTS = 0040;
+    $TIOCM_CAR = 0100;
+
+[Workaround for fixed bug in makedir/h2ph deleted--law.]
+
+The more complicated ioctl subs look like this:
+
+    eval 'sub TIOCGSIZE {&TIOCGWINSZ;}';
+    eval 'sub TIOCGWINSZ {&_IOR("t", 104, \'struct winsize\');}';
+    eval 'sub TIOCSETD {&_IOW("t", 1, \'int\');}';
+    eval 'sub TIOCGETP {&_IOR("t", 8,\'struct sgttyb\');}';
+
+The _IO[RW] routines use a %sizeof array, which (presumably) 
+is keyed on the type name with the value being the size in bytes.  
+
+To build %sizeof, try running this in this directory:
+
+    % ./getioctlsizes 
+
+Which will tell you which things the %sizeof array needs
+to hold.  You can try to build a sizeof.ph file with:
+
+    % ./getioctlsizes | ./mksizes > sizeof.ph
+
+Note that mksizes hardcodes the #include files for all the types, so it will
+probably require customization.  Once you have sizeof.ph, install it in the
+perl library directory.  Run my tcbreak script to see whether you can do
+ioctls in perl now.  You'll get some kind of fatal run-time error if you
+can't.  That script should be included in this directory.
+
+If this works well, now you can try to convert the *.ph files into
+*.pl files.  Try this:
+
+    foreach file ( sysexits.ph sys/{errno.ph,ioctl.ph} )
+	./mkvars $file > t/$file:r.pl
+    end
+
+The last one will be the hardest.  If it works, should be able to 
+run tcbreak2 and have it work the same as tcbreak.
+
+Good luck.

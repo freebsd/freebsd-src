@@ -1,0 +1,24 @@
+.\" $Id: pfrom.1,v 1.4 2002/05/30 15:59:59 assar Exp $
+.\"
+.Dd March 4, 2000
+.Dt PFROM 1
+.Os HEIMDAL
+.Sh NAME
+.Nm pfrom
+.Nd "fetch a list of the current mail via POP"
+.Sh SYNOPSIS
+.Nm
+.Op Fl 4 | Fl -krb4
+.Op Fl 5 | Fl -krb5
+.Op Fl v | Fl -verbose
+.Op Fl c | -count
+.Op Fl -header
+.Oo Fl p Ar port-spec  \*(Ba Xo
+.Fl -port= Ns Ar port-spec
+.Xc
+.Oc
+.Sh DESCRIPTION
+.Nm
+is a script that does push --from.
+.Sh SEE ALSO
+.Xr push 8

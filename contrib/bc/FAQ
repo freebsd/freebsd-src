@@ -1,0 +1,17 @@
+Because of frequent questions ....... here is the BC FAQ
+
+
+1) Why does BC have its own arbitrary precision number routines 
+   (found in lib/number.c) rather than using GMP?
+
+GMP has "integers" (no digits after a decimal), "rational numbers"
+(stored as 2 integers) and "floats".  None of these will correctly
+represent a POSIX BC number.  Floats are the closest, but will not
+behave correctly for many computations.  For example, BC numbers have
+a "scale" that represent the number of digits to represent after the
+decimal point.  The multiplying two of these numbers requires one to
+calculate an exact number of digits after the decimal point regardless
+of the number of digits in the integer part.  GMP floats have a
+"fixed, but arbitrary" mantissa and so multiplying two floats will end
+up dropping digits BC must calculate.
+

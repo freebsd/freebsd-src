@@ -1,0 +1,12 @@
+rabbit:dragon
+dragon:snake
+snake:horse
+horse:sheep
+sheep:monkey
+monkey:rooster
+rooster:dog
+dog:boar
+boar:rat
+rat:ox
+ox:tiger
+tiger:rabbit

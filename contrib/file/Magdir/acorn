@@ -1,0 +1,32 @@
+#------------------------------------------------------------------------------
+# acorn:  file(1) magic for files found on Acorn systems
+#
+
+# RISC OS Chunk File Format
+# From RISC OS Programmer's Reference Manual, Appendix D
+# We guess the file type from the type of the first chunk.
+0	lelong		0xc3cbc6c5	RISC OS Chunk data
+>12	string		OBJ_		\b, AOF object
+>12	string		LIB_		\b, ALF library
+
+# RISC OS AIF, contains "SWI OS_Exit" at offset 16.
+16	lelong		0xef000011	RISC OS AIF executable
+
+# RISC OS Draw files
+# From RISC OS Programmer's Reference Manual, Appendix E
+0	string 		Draw		RISC OS Draw file data
+
+# RISC OS new format font files
+# From RISC OS Programmer's Reference Manual, Appendix E
+0	string		FONT\0		RISC OS outline font data,
+>5	byte		x		version %d
+0	string		FONT\1		RISC OS 1bpp font data,
+>5	byte		x		version %d
+0	string		FONT\4		RISC OS 4bpp font data
+>5	byte		x		version %d
+
+# RISC OS Music files
+# From RISC OS Programmer's Reference Manual, Appendix E
+0	string		Maestro\r	RISC OS music file
+>8	byte		x		version %d
+

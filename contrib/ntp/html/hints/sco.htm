@@ -1,0 +1,39 @@
+<HTML>
+<HEAD>
+  <TITLE>SCO Unix hints</TITLE>
+</HEAD>
+<BODY>
+  <H1>SCO Unix hints</H1>
+
+  <H2>Older SCO Unix versions</H2>
+  <P>
+    NTP 4.0.x does not run on SCO Unix prior to version 3.2.5.0.0. If you 
+    need NTP on an older SCO Unix system and don't mind to modify your
+    kernel, use 3.5.91 which has patches for SCO Unix 3.2.4.x. Apply the
+    kernel modifications as described in 
+    <A HREF="http://www.echelon.nl/en/ntp/sco3-recipe.html">XNTP on SCO
+    3.2.4.2</A>.
+
+  <H2>Compiling NTP</H2>
+  <P>
+    Delete the old SCO supplied NTP programs using the &quot;custom&quot;
+    utility. Run the NTP configure program with CFLAGS=&quot;-b elf -K
+    <I>processor-type</I>&quot; for best results. 
+
+  <H2>Running NTP</H2>
+  <P>
+    Run &quot;tickadj -As&quot; after every reboot to set the variables
+    &quot;clock_drift&quot; and &quot;track_rtc&quot; to the right values.
+  <P>
+    Run &quot;ntpd&quot; with a high negative nice-value, i.e.
+    &quot;nice --19 ntpd&quot; for best results.
+
+  <H2>More information</H2>
+  <P>
+    More information on the way SCO Unix and NTP interact can be found in
+    <A HREF="http://www.echelon.nl/en/ntp/ntp-on-sco.html">NTP on SCO Unix</A>,
+    which includes links to precompiled versions of NTP. 
+  <P>
+    <A HREF="mailto:kees@echelon.nl">Kees Hendrikse</A>, January 1999
+</BODY>
+</HTML>

@@ -1,0 +1,68 @@
+#! /usr/local/bin/perl
+# -*- PERL -*-
+# $Id: magic2mime,v 1.1 1998/02/15 23:18:53 christos Exp $
+# Copyright (c) 1996, 1997 vax@linkdead.paranoia.com (VaX#n8)
+#
+# Usage: echo 'your-file-output-here' | file_to_ctype.pl
+#        file -b files... | file_to_ctype.pl
+# It acts like a filter, reading from STDIN and any files on the command
+# line, printing to STDOUT.
+
+## refs
+# http://www.faqs.org/faqs/mail/mime-faq/part1/index.html
+#  comp.mail.mime FAQ
+# ftp://ftp.isi.edu/in-notes/iana/assignments/media-types/media-types
+#  assigned content-types
+# ftp://ftp.uu.net/inet/rfc/rfc-index
+#  RFC index; search for MIME
+
+@mapping =
+(
+	# defaults
+    'data', 'application/octet-stream',
+    'text', 'text/plain',
+	# more specific
+	'^Rich Text Format data', 'text/richtext',
+	'^HTML document text', 'text/html',
+	'^exported SGML document text', 'text/sgml',
+	'mail text', 'message/rfc822',
+	'news text', 'message/news',
+	'^PostScript document text', 'application/postscript',
+	'^BinHex binary text', 'application/mac-binhex40',
+	'^Zip archive data', 'application/zip',
+	'^Microsoft Word', 'application/msword',
+	'^PGP key', 'application/pgp-keys',
+	'^PGP encrypted', 'application/pgp-encrypted',
+	'^PGP armored data signature', 'application/pgp-signature',
+    '^JPEG image', 'image/jpeg',
+    '^GIF image', 'image/gif',
+	'^PNG image', 'image/png',
+    '^TIFF image', 'image/tiff',
+	'Computer Graphics Metafile', 'image/cgf',
+	'^Sun/NeXT audio data', 'audio/basic',
+    '^MPEG', 'video/mpeg',
+    '^Apple QuickTime movie', 'video/quicktime',
+	# made up by me
+    '^bitmap', 'image/x-bitmap',
+    '^PC bitmap data, Windows 3.x format', 'image/x-msw3bmp',
+    '^FLI', 'video/x-fli',
+    '^FLC', 'video/x-flc',
+    'AVI data', 'video/x-avi',
+    'WAVE', 'audio/x-wav',
+    'VOC', 'audio/x-voc',
+);
+
+local($mimetype,$index,$regexp);
+while (<>)
+  {
+    chop;
+    $index = $#mapping - 1;
+    while ($index > -1 && !defined($mimetype))
+      {
+         $mimetype = $mapping[$index + 1] if (/$mapping[$index]/);
+         $index -= 2;
+      }
+    print "$mimetype\n";
+	undef $mimetype; # hack
+  }
+0;

@@ -1,0 +1,15 @@
+# config variables for PicoBSD floppies.
+# This file is sourced by the main build script. It should
+# only contain assignment to shell variables.
+#
+# The type-specific "config" file is sourced after this one, so
+# you can override things there.
+
+# The two variables below contain the list of links and device entries
+# which are created on the mfs image.
+
+STAND_LINKS=${STAND_LINKS:-"bin sbin usr/bin usr/sbin usr/libexec \
+	usr/local/bin"}
+
+MY_DEVS=${MY_DEVS:-"std tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 ad0 pty0 \
+	ttyd0 cuaa0 bpf0 bpf1 sa0 sa1"}

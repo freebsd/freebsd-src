@@ -1,0 +1,193 @@
+.\"	$FreeBSD$
+.\"	$KAME: ndp.8,v 1.15 2001/02/08 07:17:03 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 17, 1998
+.Dt NDP 8
+.Os
+.\"
+.Sh NAME
+.Nm ndp
+.Nd control/diagnose IPv6 neighbor discovery protocol
+.\"
+.Sh SYNOPSIS
+.Nm
+.Fl a
+.Op Fl nt
+.Nm
+.Fl A Ar wait
+.Op Fl nt
+.Nm
+.Fl c
+.Op Fl nt
+.Nm
+.Fl d
+.Op Fl nt
+.Ar hostname
+.Nm
+.Fl f
+.Op Fl nt
+.Ar filename
+.Nm
+.Fl H
+.Nm
+.Fl I
+.Op Cm delete | Ar interface
+.Nm
+.Fl i
+.Ar interface
+.Op Ar flags...
+.Nm
+.Fl p
+.Nm
+.Fl P
+.Nm
+.Fl r
+.Nm
+.Fl R
+.Nm
+.Fl s
+.Op Fl nt
+.Ar nodename
+.Ar ether_addr
+.Op Li temp
+.Op Li proxy
+.\"
+.Sh DESCRIPTION
+The
+.Nm
+utility manipulates the address mapping table
+used by Neighbor Discovery Protocol (NDP).
+.Bl -tag -width Ds
+.It Fl a
+Dump the currently existing NDP entries.
+.It Fl A Ar wait
+Repeat
+.Fl a
+(dump NDP entries)
+every
+.Ar wait
+seconds.
+.It Fl c
+Erase all the NDP entries.
+.It Fl d
+Delete specified NDP entry.
+.It Fl f
+Parse the file specified by
+.Ar filename .
+.It Fl H
+Harmonize consistency between the routing table and the default router
+list; install the top entry of the list into the kernel routing table.
+.It Fl I Op Cm delete | Ar interface
+Shows or specifies the default interface used as the default route when
+there is no default router.
+If no argument is given to the option,
+the current default interface will be shown.
+If an
+.Ar interface
+is specified, the interface will be used as the default.
+If a special keyword
+.Ic delete
+is specified, the current default interface will be deleted from the kernel.
+.It Fl i Ar interface Op Ar flags...
+View ND information for the specified interface.
+If additional arguments
+.Ar flags
+are given,
+.Nm
+sets or clears the specified flags for the interface.
+Possible flags are as follows.
+All of the flags can begin with the
+special character
+.Ql - ,
+which means the flag should be cleared.
+.\"
+.Bl -tag -width Ds -compact
+.It Xo
+.Ic nud
+.Xc
+turn on or off NUD (Neighbor Unreachability Detection) on the
+interface.
+NUD is usually turned on by default.
+.It Xo
+.Ic accept_rtadv
+.Xc
+Specify whether or not to accept Router Advertisement messages
+received on the
+.Ar interface .
+Note that the kernel does not accept Router Advertisement messages
+unless the
+.Li net.inet6.ip6.accept_rtadv
+variable is non-0, even if the flag is on.
+This flag is set to 1 by default.
+.El
+.It Fl n
+Do not try to resolve numeric address to hostname.
+.It Fl p
+Show prefix list.
+.It Fl P
+Flush all the entries in the prefix list.
+.It Fl r
+Show default router list.
+.It Fl R
+Flush all the entries in the default router list.
+.It Fl s
+Register an NDP entry for a node.
+The entry will be permanent unless the word
+.Li temp
+is given in the command.
+If the word
+.Li proxy
+is given, this system will act as a proxy NDP server,
+responding to requests for
+.Ar hostname
+even though the host address is not its own.
+.It Fl t
+Print timestamp on each entries,
+to make it possible to merge output with
+.Xr tcpdump 1 .
+Most useful when used with
+.Fl A .
+.El
+.\"
+.Sh RETURN VALUES
+The
+.Nm
+utility will exit with 0 on success, and non-zero on errors.
+.\"
+.Sh SEE ALSO
+.Xr arp 8
+.\"
+.Sh HISTORY
+The
+.Nm
+utility first appeared in WIDE Hydrangea IPv6 protocol stack kit.
+.\"
+.\" .Sh BUGS
+.\" (to be written)

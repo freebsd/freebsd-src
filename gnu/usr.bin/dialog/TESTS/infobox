@@ -1,0 +1,15 @@
+#!/bin/sh
+DIALOG=${DIALOG=/usr/bin/dialog}
+
+$DIALOG --title "INFO BOX" \
+        --infobox "Hi, this is an information box. It is
+different from a message box in that it will
+not pause waiting for input after displaying
+the message. The pause here is only introduced
+by the sleep command, not by dialog.
+
+You have 10 seconds to read this..." -1 -1
+
+stty -echo
+sleep 10
+stty echo

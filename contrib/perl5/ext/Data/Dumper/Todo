@@ -1,0 +1,34 @@
+=head1 NAME
+
+TODO - seeds germane, yet not germinated
+
+=head1 DESCRIPTION
+
+The following functionality will be supported in the next few releases.
+
+=over 4
+
+=item $Data::Dumper::Maxdepth I<or> $I<OBJ>->Maxdepth(I<NEWVAL>)
+
+Depth beyond which we don't venture into a structure.  Has no effect when
+C<Data::Dumper::Purity> is set.  (useful in debugger when we often don't
+want to see more than enough).
+
+=item  $Data::Dumper::Expdepth I<or> $I<OBJ>->Expdepth(I<NEWVAL>)
+
+Dump contents explicitly up to a certain depth and then use names for
+cross-referencing identical references.  (useful in debugger, in situations
+where we don't care so much for cross-references).
+
+=item Make C<Dumpxs()> honor C<$Useqq>
+
+=item Fix formatting when Terse is set and Indent >= 2
+
+=item Output space after '\' (ref constructor) for high enough Indent
+
+=item Implement redesign that allows various backends (Perl, Lisp,
+some-binary-data-format, graph-description-languages, etc.)
+
+=item Dump traversal in breadth-first order
+
+=back

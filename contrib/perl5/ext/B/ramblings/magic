@@ -1,0 +1,93 @@
+sv_magic()
+----------
+av.c
+av_store()
+	Storing a non-undef element into an SMAGICAL array, av,
+	assigns the equivalent lowercase form of magic (of the first
+	MAGIC in the chain) to the value (with obj = av, name = 0 and
+	namlen = array index).
+
+gv.c
+gv_init()
+	Initialising gv assigns '*' magic to it with obj = gv, name =
+	GvNAME and namlen = GvNAMELEN.
+gv_fetchpv()
+	@ISA gets 'I' magic with obj = gv, zero name and namlen.
+	%OVERLOAD gets 'A' magic with obj = gv, zero name and namlen.
+	$1 to $9, $&, $`, $', $+ get '\0' magic with obj = gv,
+	name = GvNAME and namlen = len ( = 1 presumably).
+Gv_AMupdate()
+	Stashes for overload magic seem to get 'c' magic with obj = 0,
+	name = &amt and namlen = sizeof(amt).
+hv_magic(hv, gv, how)
+	Gives magic how to hv with obj = gv and zero name and namlen.
+
+mg.c
+mg_copy(sv, nsv, key, klen)
+	Traverses the magic chain of sv. Upper case forms of magic
+	(only) are copied across to nsv, preserving obj but using
+	name = key and namlen = klen.
+magic_setpos()
+	LvTARG of a PVLV gets 'g' magic with obj = name = 0 and namlen = pos.
+
+op.c
+mod()
+	PVLV operators give magic to their targs with
+	obj = name = namlen = 0. OP_POS gives '.', OP_VEC gives 'v'
+	and OP_SUBSTR gives 'x'.
+
+perl.c
+magicname(sym, name, namlen)
+	Fetches/creates a GV with name sym and gives it '\0' magic
+	with obj = gv, name and namlen as passed.
+init_postdump_symbols()
+	Elements of the environment get given SVs with 'e' magic.
+	obj = sv and name and namlen point to the actual string
+	within env.
+
+pp.c
+pp_av2arylen()
+	$#foo gives '#' magic to the new SV with obj = av and
+	name = namlen = 0.
+pp_study()
+	SV gets 'g' magic with obj = name = namlen = 0.
+pp_substr()
+	PVLV gets 'x' magic with obj = name = namlen = 0.
+pp_vec()
+	PVLV gets 'x' magic with obj = name = namlen = 0.
+
+pp_hot.c
+pp_match()
+	m//g gets 'g' magic with obj = name = namlen = 0.
+
+pp_sys.c
+pp_tie()
+	sv gets magic with obj = sv and name = namlen = 0.
+	If an HV or an AV, it gets 'P' magic, otherwise 'q' magic.
+pp_dbmopen()
+	'P' magic for the HV just as with pp_tie().
+pp_sysread()
+	If tainting, the buffer SV gets 't' magic with
+	obj = name = namlen = 0.
+
+sv.c
+sv_setsv()
+	Doing sv_setsv(dstr, gv) gives '*' magic to dstr with
+	obj = dstr, name = GvNAME, namlen = GvNAMELEN.
+
+util.c
+fbm_compile()
+	The PVBM gets 'B' magic with obj = name = namlen = 0 and SvVALID
+	is set to indicate that the Boyer-Moore table is valid.
+	magic_setbm() just clears the SvVALID flag.
+
+hv_magic()
+----------
+
+gv.c
+gv_fetchfile()
+	With perldb, the HV of a gvfile gv gets 'L' magic with obj = gv.
+gv_fetchpv()
+	%SIG gets 'S' magic with obj = siggv.
+init_postdump_symbols()
+	%ENV gets 'E' magic with obj = envgv.

@@ -1,0 +1,4 @@
+STAND_LINKS="bin sbin usr/bin usr/sbin usr/libexec"
+MY_DEVS="std sysmouse tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 pty0 \
+	psm0 \
+	ad0s1h ad0s2 ad0s3 ad0s4 ad1s1h ad1s2 ad1s3 ad1s4"

@@ -1,0 +1,13 @@
+[1mroute[m	manually manipulate the routing tables
+
+	Usage:
+
+	route [ -nqv ] command [[ modifiers ] args ]
+
+	Where 'command' is most commonly 'add' or 'delete', modifiers can be
+	'-net' or '-host', and args are destination and gateway.
+
+	E.g., to add default route to the gateway:
+
+		route add default <gateway name or IP>
+

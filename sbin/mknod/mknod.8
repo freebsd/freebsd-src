@@ -1,0 +1,134 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mknod.8	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd December 11, 1993
+.Dt MKNOD 8
+.Os
+.Sh NAME
+.Nm mknod
+.Nd build special file
+.Sh SYNOPSIS
+.Nm
+.Ar name
+.Op Cm c | Cm b
+.Ar major minor
+.Op Ar owner : Ns Ar group
+.Sh DESCRIPTION
+The
+.Nm
+utility creates device special files.
+Normally the shell script
+.Pa /dev/MAKEDEV
+is used to create special files for commonly known devices; it executes
+.Nm
+with the appropriate arguments and can make all the files required for the
+device.
+.Pp
+To make nodes manually, the four required arguments are:
+.Pp
+.Bl -tag -width indent
+.It Ar name
+Device name, for example
+.Dq sd
+for a SCSI disk on an HP300 or a
+.Dq pty
+for pseudo-terminals.
+.It Cm b | Cm c
+Type of device.
+If the
+device is a block type device such as a tape or disk drive which needs
+both cooked and raw special files,
+the type is
+.Cm b .
+All other devices are character type devices, such as terminal
+and pseudo devices, and are type
+.Cm c .
+.It Ar major
+The major device number is an integer number which tells the kernel
+which device driver entry point to use.  To learn what
+major device number to use for a particular device, check
+.Pa /dev/MAKEDEV
+or
+.Pa /usr/src/sys/conf/majors .
+.It Ar minor
+The minor device number tells the kernel which subunit
+the node corresponds to on the device; for example,
+a subunit may be a file system partition
+or a tty line.
+.It Ar owner : Ns Ar group
+The
+.Ar owner
+.Ar group
+operand pair is optional, however, if one is specified, they both must be
+specified.
+The
+.Ar owner
+may be either a numeric user ID or a user name.
+If a user name is also a numeric user ID, the operand is used as a
+user name.
+The
+.Ar group
+may be either a numeric group ID or a group name.
+Similar to the user name,
+if a group name is also a numeric group ID, the operand is used as a
+group name.
+.El
+.Pp
+Major and minor device numbers can be given in any format acceptable to
+.Xr strtoul 3 ,
+so that a leading
+.Ql 0x
+indicates a hexadecimal number, and a leading
+.Ql 0
+will cause the number to be interpreted as octal.
+.Sh COMPATIBILITY
+The
+.Xr chown 8 Ns - Ns
+like functionality is specific to
+.Fx
+and was added so that
+.Pa /dev/MAKEDEV
+would not depend on
+.Pa /usr
+being mounted.
+.Sh SEE ALSO
+.Xr mkfifo 1 ,
+.Xr mknod 2 ,
+.Xr chown 8 ,
+.Xr MAKEDEV 8
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v6 .

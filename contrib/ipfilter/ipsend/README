@@ -1,0 +1,8 @@
+
+This distribution contains *ONLY* the code required to build the 'ipsend'
+directory of programs (including man pages) found in the IP Filter package:
+http://coombs.anu.edu.au/~avalon/ip-filter.html
+
+Patches, bugs, etc, please send to:
+
+darrenr@pobox.com

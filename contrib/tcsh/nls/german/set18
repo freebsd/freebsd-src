@@ -1,0 +1,4 @@
+$ $Id: set18,v 1.2 1995/03/19 18:09:24 christos Exp $
+$ sh.set.c
+$set 18
+1 Warnung: lächerlich langer PATH abgeschnitten\n

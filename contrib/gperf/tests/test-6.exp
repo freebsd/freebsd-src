@@ -1,0 +1,119 @@
+GNU `gperf' generates perfect hash functions.
+
+Usage: ../src/gperf [OPTION]... [INPUT-FILE]
+
+If a long option shows an argument as mandatory, then it is mandatory
+for the equivalent short option also.
+
+Input file interpretation:
+  -e, --delimiters=DELIMITER-LIST
+                         Allow user to provide a string containing delimiters
+                         used to separate keywords from their attributes.
+                         Default is ",\n".
+  -t, --struct-type      Allows the user to include a structured type
+                         declaration for generated code. Any text before %%
+                         is considered part of the type declaration. Key
+                         words and additional fields may follow this, one
+                         group of fields per line.
+
+Language for the output code:
+  -L, --language=LANGUAGE-NAME
+                         Generates code in the specified language. Languages
+                         handled are currently C++, ANSI-C, C, and KR-C. The
+                         default is C.
+
+Details in the output code:
+  -K, --slot-name=NAME   Select name of the keyword component in the keyword
+                         structure.
+  -H, --hash-fn-name=NAME
+                         Specify name of generated hash function. Default is
+                         `hash'.
+  -N, --lookup-fn-name=NAME
+                         Specify name of generated lookup function. Default
+                         name is `in_word_set'.
+  -Z, --class-name=NAME  Specify name of generated C++ class. Default name is
+                         `Perfect_Hash'.
+  -7, --seven-bit        Assume 7-bit characters.
+  -c, --compare-strncmp  Generate comparison code using strncmp rather than
+                         strcmp.
+  -C, --readonly-tables  Make the contents of generated lookup tables
+                         constant, i.e., readonly.
+  -E, --enum             Define constant values using an enum local to the
+                         lookup function rather than with defines.
+  -I, --includes         Include the necessary system include file <string.h>
+                         at the beginning of the code.
+  -G, --global           Generate the static table of keywords as a static
+                         global variable, rather than hiding it inside of the
+                         lookup function (which is the default behavior).
+  -W, --word-array-name=NAME
+                         Specify name of word list array. Default name is
+                         `wordlist'.
+  -S, --switch=COUNT     Causes the generated C code to use a switch
+                         statement scheme, rather than an array lookup table.
+                         This can lead to a reduction in both time and space
+                         requirements for some keyfiles. The COUNT argument
+                         determines how many switch statements are generated.
+                         A value of 1 generates 1 switch containing all the
+                         elements, a value of 2 generates 2 tables with 1/2
+                         the elements in each table, etc. If COUNT is very
+                         large, say 1000000, the generated C code does a
+                         binary search.
+  -T, --omit-struct-type
+                         Prevents the transfer of the type declaration to the
+                         output file. Use this option if the type is already
+                         defined elsewhere.
+
+Algorithm employed by gperf:
+  -k, --key-positions=KEYS
+                         Select the key positions used in the hash function.
+                         The allowable choices range between 1-126, inclusive.
+                         The positions are separated by commas, ranges may be
+                         used, and key positions may occur in any order.
+                         Also, the meta-character '*' causes the generated
+                         hash function to consider ALL key positions, and $
+                         indicates the ``final character'' of a key, e.g.,
+                         $,1,2,4,6-10.
+  -l, --compare-strlen   Compare key lengths before trying a string
+                         comparison. This helps cut down on the number of
+                         string comparisons made during the lookup.
+  -D, --duplicates       Handle keywords that hash to duplicate values. This
+                         is useful for certain highly redundant keyword sets.
+  -f, --fast=ITERATIONS  Generate the gen-perf.hash function ``fast''. This
+                         decreases gperf's running time at the cost of
+                         minimizing generated table size. The numeric
+                         argument represents the number of times to iterate
+                         when resolving a collision. `0' means ``iterate by
+                         the number of keywords''.
+  -i, --initial-asso=N   Provide an initial value for the associate values
+                         array. Default is 0. Setting this value larger helps
+                         inflate the size of the final table.
+  -j, --jump=JUMP-VALUE  Affects the ``jump value'', i.e., how far to advance
+                         the associated character value upon collisions. Must
+                         be an odd number, default is 5.
+  -n, --no-strlen        Do not include the length of the keyword when
+                         computing the hash function.
+  -o, --occurrence-sort  Reorders input keys by frequency of occurrence of
+                         the key sets. This should decrease the search time
+                         dramatically.
+  -r, --random           Utilizes randomness to initialize the associated
+                         values table.
+  -s, --size-multiple=N  Affects the size of the generated hash table. The
+                         numeric argument N indicates ``how many times larger
+                         or smaller'' the associated value range should be,
+                         in relationship to the number of keys, e.g. a value
+                         of 3 means ``allow the maximum associated value to
+                         be about 3 times larger than the number of input
+                         keys.'' Conversely, a value of -3 means ``make the
+                         maximum associated value about 3 times smaller than
+                         the number of input keys. A larger table should
+                         decrease the time required for an unsuccessful
+                         search, at the expense of extra table space. Default
+                         value is 1.
+
+Informative output:
+  -h, --help             Print this message.
+  -v, --version          Print the gperf version number.
+  -d, --debug            Enables the debugging option (produces verbose
+                         output to the standard error).
+
+Report bugs to <bug-gnu-utils@gnu.org>.

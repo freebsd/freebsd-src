@@ -1,0 +1,21 @@
+Sat Feb 18 23:07:55 EST 1995
+
+Starting with 2.15.6, gawk will preserve the value of NF and $0 for
+the last record read into the END rule(s).  This is important to you
+if your program uses
+
+	print
+
+in an END rule to mean
+
+	print ""
+
+(i.e., print nothing).  Examine your awk programs carefully to make sure
+that they use `print ""' instead of `print', otherwise you will get
+strange results.
+
+If you send me email about this, without having read this
+file, I will yell at you.
+
+Arnold Robbins
+arnold@gnu.org

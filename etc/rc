@@ -1,0 +1,748 @@
+#!/bin/sh
+#
+# Copyright (c) 2000  The FreeBSD Project
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)rc	5.27 (Berkeley) 6/5/91
+# $FreeBSD$
+#
+
+# System startup script run by init on autoboot
+# or after single-user.
+# Output and error are redirected to console by init,
+# and the console is the controlling terminal.
+
+# Note that almost all of the user-configurable behavior is no longer in
+# this file, but rather in /etc/defaults/rc.conf.  Please check that file
+# first before contemplating any changes here.  If you do need to change
+# this file for some reason, we would like to know about it.
+
+stty status '^T'
+
+# Set shell to ignore SIGINT (2), but not children;
+# shell catches SIGQUIT (3) and returns to single user after fsck.
+#
+trap : 2
+trap : 3	# shouldn't be needed
+
+bootmode=$1
+
+HOME=/
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+export HOME PATH
+
+# BOOTP diskless boot.  We have to run the rc file early in order to
+# retarget various config files.
+# See /usr/share/examples/diskless/clone_root for details on how
+# to setup diskless on the client and the server.
+#
+if [ -r /etc/rc.diskless1 ]; then
+	dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
+	if [ ${dlv:=0} != 0 ]; then
+		. /etc/rc.diskless1
+	fi
+fi
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/rc.conf ]; then
+	. /etc/defaults/rc.conf
+	source_rc_confs
+elif [ -r /etc/rc.conf ]; then
+	. /etc/rc.conf
+fi
+
+chkdepend() {
+	svc=$1
+	svc_var=$2
+	dep=$3
+	dep_var=$4
+
+	eval svc_val=\${$svc_var}
+	eval dep_val=\${$dep_var}
+
+	case ${svc_val} in
+	[Yy][Ee][Ss])
+		case ${dep_val} in
+		[Yy][Ee][Ss])
+			;;
+		*)
+			eval ${dep_var}="YES"
+			echo "DEPENDENCY NOTE: ${dep} will be enabled" \
+				"to support ${svc}"
+			;;
+		esac
+		;;
+	esac
+}
+
+chkdepend amd amd_enable        portmap portmap_enable
+chkdepend amd amd_enable        NFS nfs_client_enable
+chkdepend NFS nfs_server_enable portmap portmap_enable
+chkdepend NIS nis_server_enable portmap portmap_enable
+chkdepend NIS nis_client_enable portmap portmap_enable
+
+# Enable dumpdev early so that a crash during the boot process can be caught.
+#
+case ${dumpdev} in
+[Nn][Oo] | '')
+	dumpdev='NO'
+	;;
+*)
+	/sbin/dumpon -v ${dumpdev}
+	;;
+esac
+
+# Configure ccd devices.
+#
+if [ -r /etc/ccd.conf ]; then
+	ccdconfig -C
+fi
+
+case ${start_vinum} in
+[Yy][Ee][Ss])
+	vinum start
+	;;
+esac
+
+swapon -a
+
+# Last chance to do things before potentially waiting for
+# operator to do fsck related tasks
+if [ -r /etc/rc.early ]; then
+	. /etc/rc.early
+fi
+
+case ${bootmode} in
+autoboot)
+	echo 'Automatic boot in progress...'
+	fsck -p
+	case $? in
+	0)
+		;;
+	2)
+		exit 1
+		;;
+	4)
+		reboot
+		echo 'Reboot failed... help!'
+		exit 1
+		;;
+	8)
+		case ${fsck_y_enable} in
+		[Yy][Ee][Ss])
+			echo 'File system preen failed, trying fsck -y . . .'
+			fsck -y
+			case $? in
+			0)
+				;;
+			*)
+			echo 'Automatic file system check failed . . . help!'
+				exit 1
+				;;
+			esac
+			;;
+		*)
+			echo 'Automatic file system check failed . . . help!'
+			exit 1
+			;;
+		esac
+		;;
+	12)
+		echo 'Reboot interrupted'
+		exit 1
+		;;
+	130)
+		# interrupt before catcher installed
+		exit 1
+		;;
+	*)
+		echo 'Unknown error in reboot'
+		exit 1
+		;;
+	esac
+	;;
+*)
+	echo 'Skipping disk checks ...'
+	;;
+esac
+
+set -T
+trap "echo 'Reboot interrupted'; exit 1" 3
+
+# root normally must be read/write, but if this is a BOOTP NFS
+# diskless boot it does not have to be.
+#
+case ${root_rw_mount} in
+[Nn][Oo] | '')
+	;;
+*)
+	if ! mount -u -o rw /; then
+		echo 'Mounting root filesystem rw failed, startup aborted'
+		exit 1
+	fi
+	;;
+esac
+
+umount -a >/dev/null 2>&1
+
+# If using diskless, run custom disk mounting function here
+#
+if [ -n "${diskless_mount}" -a -r "${diskless_mount}" ]; then
+	sh ${diskless_mount}
+else
+# otherwise mount everything except nfs filesystems.
+	mount -a -t nonfs
+fi
+
+case $? in
+0)
+	;;
+*)
+	echo 'Mounting /etc/fstab filesystems failed, startup aborted'
+	exit 1
+	;;
+esac
+
+adjkerntz -i
+
+purgedir() {
+	local dir file
+
+	if [ $# -eq 0 ]; then
+		purgedir .
+	else
+		for dir
+		do
+		(
+			cd "$dir" && for file in .* *
+			do
+				[ ."$file" = .. -o ."$file" = ... ] && continue
+				if [ -d "$file" -a ! -L "$file" ]; then
+					purgedir "$file"
+				else
+					rm -f -- "$file"
+				fi
+			done
+		)
+		done
+	fi
+}
+
+clean_var() {
+	if [ -d /var/run -a ! -f /var/run/clean_var ]; then
+		purgedir /var/run
+		# Keep a copy of the boot messages around
+		dmesg >/var/run/dmesg.boot
+		# And an initial utmp file
+		(cd /var/run && cp /dev/null utmp && chmod 644 utmp;)
+		>/var/run/clean_var
+	fi
+	if [ -d /var/spool/lock -a ! -f /var/spool/lock/clean_var ]; then
+		purgedir /var/spool/lock
+		>/var/spool/lock/clean_var
+	fi
+	rm -rf /var/spool/uucp/.Temp/*
+}
+
+# network_pass1() *may* end up writing stuff to /var - we don't want to
+# remove it immediately afterwards - *nor* do we want to fail to clean
+# an NFS-mounted /var.
+rm -f /var/run/clean_var /var/spool/lock/clean_var
+clean_var
+
+# Add additional swapfile, if configured.
+#
+case ${swapfile} in
+[Nn][Oo] | '')
+	;;
+*)
+	if [ -w "${swapfile}" -a -c /dev/vn0b ]; then
+		echo "Adding ${swapfile} as additional swap"
+		vnconfig -e /dev/vn0b ${swapfile} swap
+	fi
+	;;
+esac
+
+# Early pass to set the variables we can
+#
+if [ -r /etc/rc.sysctl ]; then
+	sh /etc/rc.sysctl first
+fi
+
+# Configure serial devices
+#
+if [ -r /etc/rc.serial ]; then
+	. /etc/rc.serial
+fi
+
+# Start up PC-card configuration
+#
+if [ -r /etc/rc.pccard ]; then
+	. /etc/rc.pccard
+fi
+
+# Start up the initial network configuration.
+#
+if [ -r /etc/rc.network ]; then
+	. /etc/rc.network	# We only need to do this once.
+	network_pass1
+fi
+
+case ${ipv6_enable} in
+[Yy][Ee][Ss])
+	if [ -r /etc/rc.network6 ]; then
+		. /etc/rc.network6	# We only need to do this once also.
+		network6_pass1
+	fi
+	;;
+esac
+
+# Mount NFS filesystems if present in /etc/fstab
+#
+case "`mount -d -a -t nfs 2> /dev/null`" in
+*mount_nfs*)
+	echo -n 'Mounting NFS file systems:'
+	mount -a -t nfs
+	echo '.'
+	;;
+esac
+
+# If we booted a special kernel remove the record so we will boot
+# the default kernel next time
+#
+rm -f /boot/nextboot.conf
+
+# Whack the pty perms back into shape.
+#
+if ls /dev/tty[pqrsPQRS]* > /dev/null 2>&1; then
+	chflags 0 /dev/tty[pqrsPQRS]*
+	chmod 666 /dev/tty[pqrsPQRS]*
+	chown root:wheel /dev/tty[pqrsPQRS]*
+fi
+
+# Clean up left-over files
+#
+clean_var			# If it hasn't already been done
+rm /var/run/clean_var /var/spool/lock/clean_var
+
+# Clearing /tmp at boot-time seems to have a long tradition.  It doesn't
+# help in any way for long-living systems, and it might accidentally
+# clobber files you would rather like to have preserved after a crash
+# (if not using mfs /tmp anyway).
+#
+# See also the example of another cleanup policy in /etc/periodic/daily.
+#
+case ${clear_tmp_enable} in
+[Yy][Ee][Ss])
+	echo -n 'Clearing /tmp:'
+	# prune quickly with one rm, then use find to clean up /tmp/[lq]*
+	# (not needed with mfs /tmp, but doesn't hurt there...)
+	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
+		find -d . ! -name . ! -name lost+found ! -name quota.user \
+		! -name quota.group -exec rm -rf -- {} \;)
+	echo '.'
+	;;
+esac
+
+# Remove X lock files, since they will prevent you from restarting X11
+# after a system crash.
+#
+rm -f /tmp/.X*-lock
+rm -fr /tmp/.X11-unix
+mkdir -m 1777 /tmp/.X11-unix
+
+# Snapshot any kernel -c changes back to disk here <someday>.
+# This has changed with ELF and /kernel.config.
+
+echo -n 'Additional daemons:'
+
+# Start system logging and name service.  Named needs to start before syslogd
+# if you don't have a /etc/resolv.conf.
+#
+case ${syslogd_enable} in
+[Yy][Ee][Ss])
+	# Transitional symlink (for the next couple of years :) until all
+	# binaries have had a chance to move towards /var/run/log.
+	if [ ! -L /dev/log ]; then
+		# might complain for r/o root f/s
+		ln -sf /var/run/log /dev/log
+	fi
+
+	rm -f /var/run/log
+	echo -n ' syslogd';
+	${syslogd_program:-/usr/sbin/syslogd} ${syslogd_flags}
+	;;
+esac
+
+echo '.'
+
+# Build devices database
+#
+dev_mkdb
+
+# $dumpdir should be a directory or a symbolic link
+# to the crash directory if core dumps are to be saved.
+#
+if [ "${dumpdev}" != 'NO' ]; then
+	case ${dumpdir} in
+	'')
+		dumpdir='/var/crash'
+		;;
+	[Nn][Oo])
+		dumpdir='NO'
+		;;
+	esac
+
+	if [ "${dumpdir}" != 'NO' ]; then
+		echo -n 'Checking for core dump: '
+		/sbin/savecore ${savecore_flags} "${dumpdir}"
+	fi
+fi
+
+if [ -n "${network_pass1_done}" ]; then
+	network_pass2
+fi
+
+# Enable/Check the quotas (must be after ypbind if using NIS)
+#
+case ${enable_quotas} in
+[Yy][Ee][Ss])
+	case ${check_quotas} in
+	[Yy][Ee][Ss])
+		echo -n 'Checking quotas:'
+		quotacheck -a
+		echo ' done.'
+		;;
+	esac
+
+	echo -n 'Enabling quotas:'
+	quotaon -a
+	echo ' done.'
+	;;
+esac
+
+if [ -n "${network_pass2_done}" ]; then
+	network_pass3
+fi
+
+# Check the password temp/lock file
+#
+if [ -e /etc/ptmp ]; then
+	logger -s -p auth.err \
+	"password file may be incorrect -- /etc/ptmp exists"
+fi
+
+case ${accounting_enable} in
+[Yy][Ee][Ss])
+	if [ -d /var/account ]; then
+		echo 'Turning on accounting:'
+		if [ ! -e /var/account/acct ]; then
+			touch /var/account/acct
+		fi
+		accton /var/account/acct
+	fi
+	;;
+esac
+
+# Make shared lib searching a little faster.  Leave /usr/lib first if you
+# add your own entries or you may come to grief.
+#
+ldconfig="/sbin/ldconfig"
+case ${ldconfig_insecure} in
+[Yy][Ee][Ss])
+	ldconfig="${ldconfig} -i"
+	;;
+esac
+if [ -x /sbin/ldconfig ]; then
+	case `/usr/bin/objformat` in
+	elf)
+		_LDC=/usr/lib
+		for i in ${ldconfig_paths}; do
+			if [ -d "${i}" ]; then
+				_LDC="${_LDC} ${i}"
+			fi
+		done
+		echo 'ELF ldconfig path:' ${_LDC}
+		${ldconfig} -elf ${_LDC}
+		;;
+	esac
+
+	# Legacy aout support for i386 only
+	case `sysctl -n hw.machine_arch` in
+	i386)
+		# Default the a.out ldconfig path.
+		: ${ldconfig_paths_aout=${ldconfig_paths}}
+		_LDC=/usr/lib/aout
+		for i in ${ldconfig_paths_aout}; do
+			if [ -d "${i}" ]; then
+				_LDC="${_LDC} ${i}"
+			fi
+		done
+		echo 'a.out ldconfig path:' ${_LDC}
+		${ldconfig} -aout ${_LDC}
+		;;
+	esac
+fi
+
+# Now start up miscellaneous daemons that don't belong anywhere else
+#
+echo -n 'Starting standard daemons:'
+case ${inetd_enable} in
+[Nn][Oo])
+	;;
+*)
+	echo -n ' inetd'; ${inetd_program:-/usr/sbin/inetd} ${inetd_flags}
+	;;
+esac
+
+case ${cron_enable} in
+[Nn][Oo])
+	;;
+*)
+	echo -n ' cron';	${cron_program:-/usr/sbin/cron} ${cron_flags}
+	;;
+esac
+
+case ${lpd_enable} in
+[Yy][Ee][Ss])
+	echo -n ' printer';	${lpd_program:-/usr/sbin/lpd} ${lpd_flags}
+	;;
+esac
+
+case ${sshd_enable} in
+[Yy][Ee][Ss])
+	if [ -x ${sshd_program:-/usr/sbin/sshd} ]; then
+		echo -n ' sshd';
+		${sshd_program:-/usr/sbin/sshd} ${sshd_flags}
+	fi
+	;;
+esac
+
+case ${usbd_enable} in
+[Yy][Ee][Ss])
+	echo -n ' usbd';	/usr/sbin/usbd ${usbd_flags}
+	;;
+esac
+
+case ${mta_start_script} in
+/*)
+	if [ -r ${mta_start_script} ]; then
+		sh ${mta_start_script}
+	fi
+	;;
+esac
+
+echo '.'
+
+# Recover vi editor files.
+find /var/tmp/vi.recover ! -type f -a ! -type d -delete
+vibackup=`echo /var/tmp/vi.recover/vi.*`
+if [ "${vibackup}" != '/var/tmp/vi.recover/vi.*' ]; then
+	echo -n 'Recovering vi editor sessions:'
+	for i in /var/tmp/vi.recover/vi.*; do
+		# Only test files that are readable.
+		if [ ! -r "${i}" ]; then
+			continue
+		fi
+
+		# Unmodified nvi editor backup files either have the
+		# execute bit set or are zero length.  Delete them.
+		if [ -x "${i}" -o ! -s "${i}" ]; then
+			rm -f "${i}"
+		fi
+	done
+
+	# It is possible to get incomplete recovery files, if the editor
+	# crashes at the right time.
+	virecovery=`echo /var/tmp/vi.recover/recover.*`
+	if [ "${virecovery}" != "/var/tmp/vi.recover/recover.*" ]; then
+		for i in /var/tmp/vi.recover/recover.*; do
+			# Only test files that are readable.
+			if [ ! -r "${i}" ]; then
+				continue
+			fi
+
+			# Delete any recovery files that are zero length,
+			# corrupted, or that have no corresponding backup file.
+			# Else send mail to the user.
+			recfile=`awk '/^X-vi-recover-path:/{print $2}' < "${i}"`
+			if [ -n "${recfile}" -a -s "${recfile}" ]; then
+				sendmail -t < "${i}"
+			else
+				rm -f "${i}"
+			fi
+		done
+	fi
+	echo '.'
+fi
+
+# Make a bounds file for msgs(1) if there isn't one already
+#
+if [ -d /var/msgs -a ! -f /var/msgs/bounds -a ! -L /var/msgs/bounds ]; then
+	echo 0 > /var/msgs/bounds
+fi
+
+case ${update_motd} in
+[Nn][Oo] | '')
+	;;
+*)
+	if T=`mktemp /tmp/_motd.XXXXXX`; then
+		uname -v | sed -e 's,^\([^#]*\) #\(.* [1-2][0-9][0-9][0-9]\).*/\([^\]*\) $,\1 (\3) #\2,' > ${T}
+		awk '{if (NR == 1) {if ($1 == "FreeBSD") {next} else {print "\n"$0}} else {print}}' < /etc/motd >> ${T}
+		cmp -s ${T} /etc/motd || {
+			cp ${T} /etc/motd
+			chmod 644 /etc/motd
+		}
+		rm -f ${T}
+	fi
+	;;
+esac
+
+# Configure implementation specific stuff
+#
+arch=`uname -p`
+if [ -r /etc/rc.${arch} ]; then
+	. /etc/rc.${arch}
+fi
+
+# Configure the system console
+#
+if [ -r /etc/rc.syscons ]; then
+	. /etc/rc.syscons
+fi
+
+echo -n 'Additional ABI support:'
+
+# Start the Linux binary compatibility if requested.
+#
+case ${linux_enable} in
+[Yy][Ee][Ss])
+	echo -n ' linux'
+	if ! kldstat -v | grep -E 'linux(aout|elf)' > /dev/null; then
+		kldload linux > /dev/null 2>&1
+	fi
+	if [ -x /compat/linux/sbin/ldconfig ]; then
+		/compat/linux/sbin/ldconfig
+	fi
+	;;
+esac
+
+# Start the SysVR4 binary emulation if requested.
+#
+case ${svr4_enable} in
+[Yy][Ee][Ss])
+	echo -n ' svr4';
+	kldload streams > /dev/null 2>&1
+	kldload svr4 > /dev/null 2>&1
+	;;
+esac
+
+echo '.'
+
+# Do traditional (but rather obsolete) rc.local file if it exists.  If you
+# use this file and want to make it programmatic, source /etc/defaults/rc.conf
+# in /etc/rc.local and add your custom variables to /etc/rc.conf, as
+# shown below.  Please do not put local extensions into /etc/rc itself.
+# Use /etc/rc.local
+#
+# ---- rc.local ----
+#	if [ -r /etc/defaults/rc.conf ]; then
+#		. /etc/defaults/rc.conf
+#		source_rc_confs
+#	elif [ -r /etc/rc.conf ]; then
+#		. /etc/rc.conf
+#	fi
+#
+#	... additional startup conditionals ...
+# ---- rc.local ----
+#
+if [ -r /etc/rc.local ]; then
+	echo -n 'Starting local daemons:'
+	sh /etc/rc.local
+	echo '.'
+fi
+
+# For each valid dir in $local_startup, search for init scripts matching *.sh
+#
+case ${local_startup} in
+[Nn][Oo] | '')
+	;;
+*)
+	echo -n 'Local package initialization:'
+	slist=""
+	if [ -z "${script_name_sep}" ]; then
+		script_name_sep=" "
+	fi
+	for dir in ${local_startup}; do
+		if [ -d "${dir}" ]; then
+			for script in ${dir}/*.sh; do
+				slist="${slist}${script_name_sep}${script}"
+			done
+		fi
+	done
+	script_save_sep="$IFS"
+	IFS="${script_name_sep}"
+	for script in ${slist}; do
+		if [ -x "${script}" ]; then
+			(set -T
+			trap 'exit 1' 2
+			${script} start)
+		elif [ -f "${script}" -o -L "${script}" ]; then
+			echo -n " (skipping ${script##*/}, not executable)"
+		fi
+	done
+	IFS="${script_save_sep}"
+	echo '.'
+	;;
+esac
+
+if [ -n "${network_pass3_done}" ]; then
+	network_pass4
+fi
+
+# Late pass to set variables we missed the first time
+#
+if [ -r /etc/rc.sysctl ]; then
+	sh /etc/rc.sysctl last
+fi
+
+# Raise kernel security level.  This should be done only after `fsck' has
+# repaired local file systems if you want the securelevel to be greater than 1.
+#
+case ${kern_securelevel_enable} in
+[Yy][Ee][Ss])
+	if [ "${kern_securelevel}" -ge 0 ]; then
+		echo 'Raising kernel security level: '
+		sysctl kern.securelevel=${kern_securelevel}
+	fi
+	;;
+esac
+
+echo ''
+
+date
+
+exit 0
+

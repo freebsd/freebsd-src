@@ -1,0 +1,13 @@
+# $FreeBSD$
+#
+# XXX: ja_JP.SJIS contains english messages only. Someone familiar with
+# this locale is wanted to complete it!
+#
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+#
+# yesexpr
+^[yY].*
+# noexpr
+^[nN].*
+# EOF

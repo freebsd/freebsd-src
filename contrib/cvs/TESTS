@@ -1,0 +1,229 @@
+To run the tests:
+
+	$ make check
+
+Note that if your /bin/sh doesn't support shell functions, you'll
+have to try something like this, where "/bin/sh5" is replaced by the
+pathname of a shell which handles normal shell functions:
+
+	$ make SHELL=/bin/sh5 check
+
+Also note that you must be logged in as a regular user, not root.
+
+WARNING:  This test can take quite a while to run, esp. if your
+disks are slow or over-loaded.
+
+The tests work in /tmp/cvs-sanity (which the tests create) by default.
+If for some reason you want them to work in a different directory, you
+can set the TESTDIR environment variable to the desired location
+before running them.
+
+The tests use a number of tools (awk, expr, id, tr, etc.) that are not
+required for running CVS itself.  In most cases, the standard vendor-
+supplied versions of these tools work just fine, but there are some
+exceptions -- expr in particular is heavily used and many vendor
+versions are deficient in one way or another.  Note that some vendors
+provide multiple versions of tools (typically an ancient, traditional
+version and a new, standards-conforming version), so you may already
+have a usable version even if the default version isn't.  If you don't
+have a suitable tool, you can probably get one from the GNU Project (see
+http://www.gnu.org).  At this writting, expr and id are both part of the
+GNU shellutils package, tr is part of the GNU textutils package, and awk
+is part of the GNU gawk package.  The test script tries to verify that
+the tools exist and are usable; if not, it tries to find the GNU
+versions and use them instead.  If it can't find the GNU versions
+either, it will print an error message and, depending on the severity of
+the deficiency, it may exit.  There are environment variables you can
+set to use a particular version of a tool -- see the test script
+(src/sanity.sh) for details.
+
+Some of the tests use fairly long command lines -- this usually isn't a
+problem, but if you have a very short command line length limit (or a
+lot of environment variables), you may run into trouble.  Also, some of
+the tests expect your local timezone to be an integral number of hours
+from UTC -- if you usually use a fractional timezone, use a different
+(integral) timezone when running the tests to avoid spurious failures.
+
+If running the tests produces the output "FAIL:" followed by the name
+of the test that failed, then the details on the failure are in the
+file check.log.  If it says "exit status is " followed by a number,
+then the exit status of the command under test was not what the test
+expected.  If it says "** expected:" followed by a regular expression
+followed by "** got:" followed by some text, then the regular
+expression is the output which the test expected, and the text is the
+output which the command under test actually produced.  In some cases
+you'll have to look closely to see how they differ.
+
+If output from "make remotecheck" is out of order compared to what is
+expected (for example,
+
+   a
+   b
+   cvs foo: this is a demo
+
+is expected and
+
+   a
+   cvs foo: this is a demo
+   b
+
+is output), this is probably a well-known bug in the CVS server
+(search for "out-of-order" in src/server.c for a comment explaining
+the cause).  It is a real pain in running the testsuite, but if you
+are lucky and/or your machine is fast and/or lightly loaded, you won't
+run into it.  Running the tests again might succeed if the first run
+failed in this manner.
+
+For more information on what goes in check.log, and how the tests are
+run in general, you'll have to read sanity.sh.  Depending on just what
+you are looking for, and how familiar you are with the Bourne shell
+and regular expressions, it will range from relatively straightforward
+to obscure.
+
+If you choose to submit a bug report based on tests failing, be
+aware that, as with all bug reports, you may or may not get a
+response, and your odds might be better if you include enough
+information to reproduce the bug, an analysis of what is going
+wrong (if you have the time to provide one), etc.  The check.log
+file is the first place to look.
+
+ABOUT STDOUT AND STDERR
+***********************
+
+The sanity.sh test framework combines stdout and stderr and for tests
+to pass requires that output appear in the given order.  Some people
+suggest that ordering between stdout and stderr should not be
+required, or to put it another way, that the out-of-order bug referred
+to above, and similar behaviors, should be considered features, or at
+least tolerable.  The reasoning behind the current behavior is that
+having the output appear in a certain order is the correct behavior
+for users using CVS interactively--that users get confused if the
+order is unpredictable.
+
+ABOUT TEST FRAMEWORKS
+*********************
+
+People periodically suggest using dejagnu or some other test
+framework.  A quick look at sanity.sh should make it clear that there
+are indeed reasons to be dissatisfied with the status quo.  Ideally a
+replacement framework would achieve the following:
+
+1.  Widely portable, including to a wide variety of unices, NT, Win95,
+OS/2, VMS, probably DOS and Win3, etc.
+
+2.  Nicely match extended regular expressions of unlimited length.
+
+3.  Be freely redistributable, and if possible already the kind of
+thing people might have already installed.  The harder it is to get
+and install the framework, the less people will run the tests.
+
+The various contenders are:
+
+* Bourne shell and GNU expr (the status quo).  Falls short on #1
+(we've only tried unix and NT, although MKS might help with other DOS
+mutants).  #3 is pretty good (the main dependency is GNU expr which is
+fairly widely available).
+
+* Bourne shell with a new regexp matcher we would distribute with
+CVS.  This means maintaining a regexp matcher and the makefiles which
+go with it.  Not clearly a win over Bourne shell and GNU expr.
+
+* Bourne shell, and use sed to remove variable portions of output, and
+thus produce a form that can be compared with cmp or diff (this
+sidesteps the need for a full regular expression matcher as mentioned
+in #2 above).  The C News tests are said to work this way.  This would
+appear to rely on variable portions of output having a certain syntax
+and might spuriously recognize them out of context (this issue needs
+more investigation; it isn't clear how big a problem it is in
+practice).  Same portability issues as the other choices based on the
+Bourne shell.
+
+* Dejagnu.  This is overkill; most of dejagnu is either unnecessary
+(e.g. libraries for communicating with target boards) or undesirable
+(e.g. the code which stats every file in sight to find the tests).  On
+the plus side, dejagnu is probably closer than any of the other
+choices to having everything which is needed already there.
+
+* Write our own small framework directly in tcl and distribute with
+CVS.  The tests would look much like dejagnu tests, but we'd avoid the
+unnecessary baggage.  The only dependency would be on tcl (that is,
+wish).
+
+* perl or python or <any other serious contenders here?>
+
+It is worth thinking about how to:
+
+a.  include spaces in arguments which we pass to the program under
+test (sanity.sh dotest cannot do this; see test rcs-9 for a
+workaround).
+
+b.  pass stdin to the program under test (sanity.sh, again, handles
+this by bypassing dotest).
+
+c.  have a send-expect type dialog with the program under test
+    (e.g. see server-7 or pserver-4 which want to talk the CVS
+    protocol, or the many tests which need to answer the prompt of "cvs
+    release", e.g. deep-5).
+
+ABOUT ADDING YOUR OWN TESTS
+***************************
+
+As stated in the HACKING file, patches are not accepted without documentation
+and tests.  Many people seem to be scared off by the large size of the
+sanity.sh script, but it is not really very complicated.
+
+You can probably ignore most of the begining of the script.  This section
+just sets some environment variables and finds the tools the script needs to
+run.
+
+There is one main loop you can find by grepping for "The big loop".  This loop
+repeatedly calls a case statement where the individual cases are of the form:
+
+    testname)
+            ...
+            ;;
+
+If you add a complete new test be sure to add it into the default list of tests
+(grep for 'tests=' near the begining of the script) as well as the case
+statement.  During debugging, be aware that the sanity.sh usage allows for a '-f
+testname' option to continue through the default list "from" a particular test
+as well as interpreting everything in argv past the required options as test
+names to run individual tests.
+
+Within each major test section, individual tests usually look like:
+
+    dotest testname-subtestname "shell command" "optionally multiline regexp"
+
+Tests should always start in $testdir and create a subdirectory to operate in
+and remove their cruft and end back in $testdir.  The dotest functions output
+failure messages and exit if the shell command exits with the wrong exit code or
+its stdin/stderr output doesn't match the regexp.  There are a few dotest
+variations, most notably dotest_fail for expected non-zero exit codes.
+
+Other than that the script is mostly vanilla Bourne shell.  There are a few
+constructs used for versatility and portability.  You can grep for the ones I
+miss, but here are a few important ones.  I'm leaving off long explanations
+after the first few since it probably gives you the idea and the data is in
+sanity.sh.
+
+
+   * $testdir  = the directory this test is taking place in
+     (CVSROOT=$testdir/cvsroot or CVSROOT=:fork:$testdir/cvsroot)
+   * $testcvs  = full path to the cvs executable we are testing
+   * $PLUS     = expr dependant uninterpreted '+' since this can vary
+   * $DOTSTAR  = expr dependant _interpreted_ .* since some exprs don't match
+     EOL
+   * $username = regexp to match a username
+   * $hostname = regexp to match a hostname
+   * $PROG     = regexp to match progname in CVS error messages
+   * $remote   = 'yes' or 'no', depending on whether the script is running with
+     a remote CVSROOT
+
+And, of course, some characters like '.' in regexps need to be '\' escaped when
+you mean them literally.  Some characters may be interpreted by the shell,
+e.g. backquotes and '$', are usually either escaped or replaced with '.'.
+dotest adds the final '$' anchor to the regexp itself and all the expr
+implementations I know of implicitly supply the start anchor ('^').
+
+If you only make a few mistakes, the work is, of course, still usable, though we
+may send the patch back to you for repair.  :)

@@ -1,0 +1,259 @@
+This is Info file gmp.info, produced by Makeinfo-1.64 from the input
+file gmp.texi.
+
+START-INFO-DIR-ENTRY
+* gmp: (gmp.info).               GNU Multiple Precision Arithmetic Library.
+END-INFO-DIR-ENTRY
+
+   This file documents GNU MP, a library for arbitrary-precision
+arithmetic.
+
+   Copyright (C) 1991, 1993, 1994, 1995, 1996 Free Software Foundation,
+Inc.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be stated in a
+translation approved by the Foundation.
+
+
+File: gmp.info,  Node: Function Index,  Up: Top
+
+Function and Type Index
+***********************
+
+* Menu:
+
+* mp_limb_t:                            MP Basics.
+* mpf_t:                                MP Basics.
+* mpq_t:                                MP Basics.
+* mpz_t:                                MP Basics.
+* __GNU_MP_VERSION:                     MP Basics.
+* __GNU_MP_VERSION_MINOR:               MP Basics.
+* _mpz_realloc:                         Initializing Integers.
+* allocate_function:                    Custom Allocation.
+* deallocate_function:                  Custom Allocation.
+* gcd:                                  BSD Compatible Functions.
+* itom:                                 BSD Compatible Functions.
+* madd:                                 BSD Compatible Functions.
+* mcmp:                                 BSD Compatible Functions.
+* mdiv:                                 BSD Compatible Functions.
+* mfree:                                BSD Compatible Functions.
+* min:                                  BSD Compatible Functions.
+* mout:                                 BSD Compatible Functions.
+* move:                                 BSD Compatible Functions.
+* mp_set_memory_functions:              Custom Allocation.
+* mpf_abs:                              Float Arithmetic.
+* mpf_add:                              Float Arithmetic.
+* mpf_add_ui:                           Float Arithmetic.
+* mpf_clear:                            Initializing Floats.
+* mpf_cmp:                              Float Comparison.
+* mpf_cmp_si:                           Float Comparison.
+* mpf_cmp_ui:                           Float Comparison.
+* mpf_div:                              Float Arithmetic.
+* mpf_div_2exp:                         Float Arithmetic.
+* mpf_div_ui:                           Float Arithmetic.
+* mpf_eq:                               Float Comparison.
+* mpf_get_d:                            Converting Floats.
+* mpf_get_prec:                         Initializing Floats.
+* mpf_get_str:                          Converting Floats.
+* mpf_init:                             Initializing Floats.
+* mpf_init2:                            Initializing Floats.
+* mpf_init_set:                         Simultaneous Float Init & Assign.
+* mpf_init_set_d:                       Simultaneous Float Init & Assign.
+* mpf_init_set_si:                      Simultaneous Float Init & Assign.
+* mpf_init_set_str:                     Simultaneous Float Init & Assign.
+* mpf_init_set_ui:                      Simultaneous Float Init & Assign.
+* mpf_inp_str:                          I/O of Floats.
+* mpf_mul:                              Float Arithmetic.
+* mpf_mul_2exp:                         Float Arithmetic.
+* mpf_mul_ui:                           Float Arithmetic.
+* mpf_neg:                              Float Arithmetic.
+* mpf_out_str:                          I/O of Floats.
+* mpf_random2:                          Miscellaneous Float Functions.
+* mpf_reldiff:                          Float Comparison.
+* mpf_set:                              Assigning Floats.
+* mpf_set_d:                            Assigning Floats.
+* mpf_set_default_prec:                 Initializing Floats.
+* mpf_set_prec:                         Initializing Floats.
+* mpf_set_prec_raw:                     Initializing Floats.
+* mpf_set_q:                            Assigning Floats.
+* mpf_set_si:                           Assigning Floats.
+* mpf_set_str:                          Assigning Floats.
+* mpf_set_ui:                           Assigning Floats.
+* mpf_set_z:                            Assigning Floats.
+* mpf_sgn:                              Float Comparison.
+* mpf_sqrt:                             Float Arithmetic.
+* mpf_sqrt_ui:                          Float Arithmetic.
+* mpf_sub:                              Float Arithmetic.
+* mpf_sub_ui:                           Float Arithmetic.
+* mpf_ui_div:                           Float Arithmetic.
+* mpf_ui_sub:                           Float Arithmetic.
+* mpn_add:                              Low-level Functions.
+* mpn_add_1:                            Low-level Functions.
+* mpn_add_n:                            Low-level Functions.
+* mpn_addmul_1:                         Low-level Functions.
+* mpn_bdivmod:                          Low-level Functions.
+* mpn_cmp:                              Low-level Functions.
+* mpn_divmod:                           Low-level Functions.
+* mpn_divmod_1:                         Low-level Functions.
+* mpn_divrem:                           Low-level Functions.
+* mpn_divrem_1:                         Low-level Functions.
+* mpn_gcd:                              Low-level Functions.
+* mpn_gcd_1:                            Low-level Functions.
+* mpn_gcdext:                           Low-level Functions.
+* mpn_get_str:                          Low-level Functions.
+* mpn_hamdist:                          Low-level Functions.
+* mpn_lshift:                           Low-level Functions.
+* mpn_mod_1:                            Low-level Functions.
+* mpn_mul:                              Low-level Functions.
+* mpn_mul_1:                            Low-level Functions.
+* mpn_mul_n:                            Low-level Functions.
+* mpn_perfect_square_p:                 Low-level Functions.
+* mpn_popcount:                         Low-level Functions.
+* mpn_preinv_mod_1:                     Low-level Functions.
+* mpn_random2:                          Low-level Functions.
+* mpn_rshift:                           Low-level Functions.
+* mpn_scan0:                            Low-level Functions.
+* mpn_scan1:                            Low-level Functions.
+* mpn_set_str:                          Low-level Functions.
+* mpn_sqrtrem:                          Low-level Functions.
+* mpn_sub:                              Low-level Functions.
+* mpn_sub_1:                            Low-level Functions.
+* mpn_sub_n:                            Low-level Functions.
+* mpn_submul_1:                         Low-level Functions.
+* mpq_add:                              Assigning Rationals.
+* mpq_canonicalize:                     Rational Number Functions.
+* mpq_clear:                            Initializing Rationals.
+* mpq_cmp:                              Comparing Rationals.
+* mpq_cmp_ui:                           Comparing Rationals.
+* mpq_denref:                           Applying Integer Functions.
+* mpq_div:                              Assigning Rationals.
+* mpq_equal:                            Comparing Rationals.
+* mpq_get_d:                            Miscellaneous Rational Functions.
+* mpq_get_den:                          Miscellaneous Rational Functions.
+* mpq_get_num:                          Miscellaneous Rational Functions.
+* mpq_init:                             Initializing Rationals.
+* mpq_inv:                              Assigning Rationals.
+* mpq_mul:                              Assigning Rationals.
+* mpq_neg:                              Assigning Rationals.
+* mpq_numref:                           Applying Integer Functions.
+* mpq_set:                              Initializing Rationals.
+* mpq_set_den:                          Miscellaneous Rational Functions.
+* mpq_set_num:                          Miscellaneous Rational Functions.
+* mpq_set_si:                           Initializing Rationals.
+* mpq_set_ui:                           Initializing Rationals.
+* mpq_set_z:                            Initializing Rationals.
+* mpq_sgn:                              Comparing Rationals.
+* mpq_sub:                              Assigning Rationals.
+* mpz_abs:                              Integer Arithmetic.
+* mpz_add:                              Integer Arithmetic.
+* mpz_add_ui:                           Integer Arithmetic.
+* mpz_and:                              Integer Logic and Bit Fiddling.
+* mpz_array_init:                       Initializing Integers.
+* mpz_cdiv_q:                           Integer Arithmetic.
+* mpz_cdiv_q_ui:                        Integer Arithmetic.
+* mpz_cdiv_qr:                          Integer Arithmetic.
+* mpz_cdiv_qr_ui:                       Integer Arithmetic.
+* mpz_cdiv_r:                           Integer Arithmetic.
+* mpz_cdiv_r_ui:                        Integer Arithmetic.
+* mpz_cdiv_ui:                          Integer Arithmetic.
+* mpz_clear:                            Initializing Integers.
+* mpz_clrbit:                           Integer Logic and Bit Fiddling.
+* mpz_cmp:                              Comparison Functions.
+* mpz_cmp_si:                           Comparison Functions.
+* mpz_cmp_ui:                           Comparison Functions.
+* mpz_com:                              Integer Logic and Bit Fiddling.
+* mpz_divexact:                         Integer Arithmetic.
+* mpz_fac_ui:                           Integer Arithmetic.
+* mpz_fdiv_q:                           Integer Arithmetic.
+* mpz_fdiv_q_2exp:                      Integer Arithmetic.
+* mpz_fdiv_q_ui:                        Integer Arithmetic.
+* mpz_fdiv_qr:                          Integer Arithmetic.
+* mpz_fdiv_qr_ui:                       Integer Arithmetic.
+* mpz_fdiv_r:                           Integer Arithmetic.
+* mpz_fdiv_r_2exp:                      Integer Arithmetic.
+* mpz_fdiv_r_ui:                        Integer Arithmetic.
+* mpz_fdiv_ui:                          Integer Arithmetic.
+* mpz_gcd:                              Integer Arithmetic.
+* mpz_gcd_ui:                           Integer Arithmetic.
+* mpz_gcdext:                           Integer Arithmetic.
+* mpz_get_d:                            Converting Integers.
+* mpz_get_si:                           Converting Integers.
+* mpz_get_str:                          Converting Integers.
+* mpz_get_ui:                           Converting Integers.
+* mpz_hamdist:                          Integer Logic and Bit Fiddling.
+* mpz_init:                             Initializing Integers.
+* mpz_init_set:                         Simultaneous Integer Init & Assign.
+* mpz_init_set_d:                       Simultaneous Integer Init & Assign.
+* mpz_init_set_si:                      Simultaneous Integer Init & Assign.
+* mpz_init_set_str:                     Simultaneous Integer Init & Assign.
+* mpz_init_set_ui:                      Simultaneous Integer Init & Assign.
+* mpz_inp_raw:                          I/O of Integers.
+* mpz_inp_str:                          I/O of Integers.
+* mpz_invert:                           Integer Arithmetic.
+* mpz_ior:                              Integer Logic and Bit Fiddling.
+* mpz_jacobi:                           Integer Arithmetic.
+* mpz_legendre:                         Integer Arithmetic.
+* mpz_mod:                              Integer Arithmetic.
+* mpz_mod_ui:                           Integer Arithmetic.
+* mpz_mul:                              Integer Arithmetic.
+* mpz_mul_2exp:                         Integer Arithmetic.
+* mpz_mul_ui:                           Integer Arithmetic.
+* mpz_neg:                              Integer Arithmetic.
+* mpz_out_raw:                          I/O of Integers.
+* mpz_out_str:                          I/O of Integers.
+* mpz_perfect_square_p:                 Integer Arithmetic.
+* mpz_popcount:                         Integer Logic and Bit Fiddling.
+* mpz_pow_ui:                           Integer Arithmetic.
+* mpz_powm:                             Integer Arithmetic.
+* mpz_powm_ui:                          Integer Arithmetic.
+* mpz_probab_prime_p:                   Integer Arithmetic.
+* mpz_random:                           Miscellaneous Integer Functions.
+* mpz_random2:                          Miscellaneous Integer Functions.
+* mpz_scan0:                            Integer Logic and Bit Fiddling.
+* mpz_scan1:                            Integer Logic and Bit Fiddling.
+* mpz_set:                              Assigning Integers.
+* mpz_set_d:                            Assigning Integers.
+* mpz_set_f:                            Assigning Integers.
+* mpz_set_q:                            Assigning Integers.
+* mpz_set_si:                           Assigning Integers.
+* mpz_set_str:                          Assigning Integers.
+* mpz_set_ui:                           Assigning Integers.
+* mpz_setbit:                           Integer Logic and Bit Fiddling.
+* mpz_sgn:                              Comparison Functions.
+* mpz_size:                             Miscellaneous Integer Functions.
+* mpz_sizeinbase:                       Miscellaneous Integer Functions.
+* mpz_sqrt:                             Integer Arithmetic.
+* mpz_sqrtrem:                          Integer Arithmetic.
+* mpz_sub:                              Integer Arithmetic.
+* mpz_sub_ui:                           Integer Arithmetic.
+* mpz_tdiv_q:                           Integer Arithmetic.
+* mpz_tdiv_q_2exp:                      Integer Arithmetic.
+* mpz_tdiv_q_ui:                        Integer Arithmetic.
+* mpz_tdiv_qr:                          Integer Arithmetic.
+* mpz_tdiv_qr_ui:                       Integer Arithmetic.
+* mpz_tdiv_r:                           Integer Arithmetic.
+* mpz_tdiv_r_2exp:                      Integer Arithmetic.
+* mpz_tdiv_r_ui:                        Integer Arithmetic.
+* mpz_ui_pow_ui:                        Integer Arithmetic.
+* msqrt:                                BSD Compatible Functions.
+* msub:                                 BSD Compatible Functions.
+* mtox:                                 BSD Compatible Functions.
+* mult:                                 BSD Compatible Functions.
+* pow:                                  BSD Compatible Functions.
+* reallocate_function:                  Custom Allocation.
+* rpow:                                 BSD Compatible Functions.
+* sdiv:                                 BSD Compatible Functions.
+* xtom:                                 BSD Compatible Functions.
+
+

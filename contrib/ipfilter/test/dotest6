@@ -1,0 +1,33 @@
+#!/bin/sh
+if [ -f /usr/ucb/touch ] ; then
+	TOUCH=/usr/ucb/touch
+else
+	if [ -f /usr/bin/touch ] ; then
+		TOUCH=/usr/bin/touch
+	else
+		if [ -f /bin/touch ] ; then
+			TOUCH=/bin/touch
+		fi
+	fi
+fi
+echo "$1...";
+/bin/cp /dev/null results/$1
+../ipftest -6 -r /dev/null -i /dev/null >/dev/null 2>&1
+if [ $? -ne 0 ] ; then
+	echo "skipping IPv6 tests"
+	$TOUCH $1
+	exit 0
+fi
+( while read rule; do
+	echo "$rule" | ../ipftest -6Hbr - -i input/$1 >> results/$1;
+	if [ $? -ne 0 ] ; then
+		exit 1;
+	fi
+	echo "--------" >> results/$1
+done ) < regress/$1
+cmp expected/$1 results/$1
+status=$?
+if [ $status = 0 ] ; then
+	$TOUCH $1
+fi
+exit $status

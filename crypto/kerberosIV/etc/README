@@ -1,0 +1,41 @@
+
+	How to update your files in the /etc directory!
+
+/etc/services (all machines)
+
+  The contents of services.append can probably just be appended to
+your local file. If you use NIS (YP) you need to do this on the NIS
+master. Delete and duplicate definitions to prevent inconsistencies.
+
+/etc/krb.conf (all machines)
+
+  Create a krb.conf file by substituting MY.REALM.NAME with your
+domain name. If you create a domain name alias (CNAME) kerberos.domain
+pointing to your master server, unconfigured clients will have a
+chance to find your realm.
+
+  It is no longer necessary to put each and every realm in
+krb.{conf,realms}. If the domain name matches your realm name and you
+have a CNAME kerberos.REALMNAME pointing at your kerberos server other
+sites will find your realm even if it is not listed in krb.conf.  
+*** Please add this CNAME to your local DNS ***
+
+/etc/krb.realms (all machines)
+
+  Substitue MY.REALM.NAME in krb.realms with your domain name.
+  Not strictly necessary when domain and realm names match.
+
+/etc/inetd.conf (all machines supporting incoming telnet, rsh etc.)
+
+  Comment out the lines starting with shell, login and telnet and
+append inetd.conf.changes. Be carefull to check that there are no
+additional old entries of kshell, ekshell, klogin and eklogin left.
+
+  The -v option to rshd and rlogin turns off that service and echo
+an informational message to the user.
+
+/etc/srvtab
+
+  With 'ksrvutil get' you can add entries to the Kerberos database and
+put the service keys into your srvtab file.
+

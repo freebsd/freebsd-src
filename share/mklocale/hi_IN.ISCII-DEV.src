@@ -1,0 +1,35 @@
+/*
+ * Hindi Language Locale with ISCII-DEV Encoding
+ *
+ * Arun Sharma <arun@sharma-home.net> 
+ * Last updated Mon Nov 19 23:07:46 PST 2001
+ *
+ * $FreeBSD$
+ */
+
+ENCODING     "NONE"
+
+ALPHA		'A' - 'Z' 'a' - 'z' '¡' - 'ê'
+CONTROL		0x00 - 0x1f 0x7f - 0x9f
+DIGIT		'0' - '9'
+GRAPH           0x21 - 0x7e 0xa1 - 0xfa
+LOWER		'a' - 'z'
+PUNCT		0x21 - 0x2f 0x3a - 0x40 0x5b - 0x60 0x7b - 0x7e
+SPACE		0x09 - 0x0d 0x20 0xa0
+UPPER		'A' - 'Z'
+XDIGIT          '0' - '9' 'a' - 'f' 'A' - 'F'
+BLANK		' ' '\t' 0xa0
+PRINT           0x20 - 0x7e 0xa0 - 0xfa
+
+/* ?DIGIT         'ñ' - 'ú' */
+
+MAPLOWER       	<'A' - 'Z' : 'a'>
+MAPLOWER       	<'a' - 'z' : 'a'>
+
+MAPUPPER       	<'A' - 'Z' : 'A'>
+MAPUPPER       	<'a' - 'z' : 'A'>
+
+TODIGIT       	<'0' - '9' : 0>
+TODIGIT       	<'ñ' - 'ú' : 0>
+TODIGIT       	<'A' - 'F' : 10>
+TODIGIT       	<'a' - 'f' : 10>

@@ -1,0 +1,40 @@
+##
+# defs for Debian
+# Ben Collins <bcollins@debian.org>
+##
+# this file indicates the compiler and the various hardware/OS dependent
+# flags for installation. It also defines the various destinations of
+# installed files on the system.
+##
+
+CFLAGS	:= -O2 -I${shell pwd}/include # -D__NO_STRING_INLINES
+ifneq (,$(findstring $(DEB_BUILD_OPTIONS),debug DEBUG Debug))
+  CFLAGS += -g
+endif
+
+OS		:= $(shell dpkg-architecture -qDEB_BUILD_GNU_SYSTEM)
+ARCH		:= $(shell dpkg-architecture -qDEB_BUILD_GNU_CPU)
+CC		:= gcc
+INSTALL	:= install
+MKDIR		:= mkdir -p
+ULIBS		:=
+LD		:= ld
+LD_D		:= gcc -shared -Xlinker -x
+LD_L		:= $(LD) -x -shared 
+AR		:= ar -cr
+RANLIB		:= ranlib
+PREFIX		:=
+LIBDIR		:= $(PREFIX)/lib
+USESONAME	:= yes
+SOSWITCH	:= -soname
+LINKLIBS	:= -lc -L${shell pwd}/libpam -L${shell pwd}/libpam_misc
+NEEDSONAME	:= no
+LDCONFIG	:= /sbin/ldconfig
+FAKEROOT	:=
+SUPLEMENTED	:= $(PREFIX)/sbin
+SECUREDIR	:= $(LIBDIR)/security
+INCLUDED	:= /usr/include/security
+CONFIGED	:= /etc
+SCONFIGED	:= /etc/security
+EXTRALS		:= -lnsl -lcrypt
+WARNINGS	:= -Wall

@@ -1,0 +1,62 @@
+ *---------------------------------------------------------------------------
+ *
+ *      Custom cable to trace an ISDN S0 bus with two passive (!) ISDN boards
+ *	---------------------------------------------------------------------
+ *
+ *	$Id: cable.txt,v 1.4 1999/12/13 21:25:26 hm Exp $ 
+ *
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:55:42 1999]
+ *
+ *	-hm	documentation of analyze mode
+ *
+ *---------------------------------------------------------------------------*/
+
+The cable consists of a RJ-45 plug with both tx and rx connected and
+two jacks; the tx cables from the plug are wired to one jack and the
+rx cables from the plug are wired to the other jack.
+
+The computer must be equipped with two (!) supported passive cards and
+the cable from one card is plugged into one of the jacks while the cable
+to from the other card is plugged into the other jack.
+
+Now one card monitors the tx part of the S0 bus and the other card 
+monitors the rx part.
+
+Which card functions as the rx side and which as the tx side can be
+specified as options to the isdntrace utility (-R and -T) which has
+to be run in analyzer mode (-a) to support this configuration.
+
+
+                                              1
+                                              2
+                                              3
+                               +--------------4     receiving-side board
+  S0-bus                    +--|--------------5     in computer (jack for
+  to analyze                |  |              6     cable to passive controller)
+               8            |  |              7
+               7            |  |              8
+    transmit - 6------------|--|--+
+    receive  - 5------------+  |  |
+    receive  + 4---------------+  |
+    transmit + 3------------+     |
+               2            |     |           1
+               1            |     |           2
+  plug into                 |     |           3
+   S0 bus                   +-----|-----------4    transmitting-side board
+                                  +-----------5    in computer (jack for
+                                              6    cable to passive controller)
+                                              7
+                                              8
+
+
+
+           RJ-45 plug                        RJ-45 jack
+        view from the front              view from the front
+    cable goes out to the rear
+
+          /--------- /                      ----------
+         | 87654321 |                      | 12345678 |
+         |__      __|/                     |/_      /_|
+            |____|/                           |/___|

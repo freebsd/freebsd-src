@@ -1,0 +1,15 @@
+$ $Id: set19,v 1.1 1998/09/03 22:03:21 christos Exp $
+$ tc.alloc.c
+$set 19 
+1 nbytes=%d: Memoria esaurita\n
+2 free(%lx) chiamata prima di qualsiasi allocazione.
+3 free(%lx) oltre il limite superiore della memoria.
+4 free(%lx) oltre il limite inferiore della memoria.
+5 free(%lx) blocco errato.
+6 free(%lx) intervallo di controllo sbagliato.
+7 free(%lx) indice di blocco sbagliato.
+8 %s attuale allocazione di memoria:\nlibera:\t
+9 \nutilizzata:\t
+10 \n\tTotale utilizzata: %d, totale libera: %d\n
+11 \tAllocata memoria da 0x%lx a 0x%lx.  Limite superiore effettivo a 0x%lx\n
+12 Allocata memoria da 0x%lx a 0x%lx (%ld).\n

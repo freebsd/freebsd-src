@@ -1,0 +1,46 @@
+#!/usr/bin/perl
+
+while (<>) {
+    next if /^\./;
+    next if /^From / .. /^$/;
+    next if /^Path: / .. /^$/;
+    s/^\W+//;
+    push(@ary,split(' '));
+    while ($#ary > 1) {
+	$a = $p;
+	$p = $n;
+	$w = shift(@ary);
+	$n = $num{$w};
+	if ($n eq '') {
+	    push(@word,$w);
+	    $n = pack('S',$#word);
+	    $num{$w} = $n;
+	}
+	$lookup{$a . $p} .= $n;
+    }
+}
+
+for (;;) {
+    $n = $lookup{$a . $p};
+    ($foo,$n) = each(lookup) if $n eq '';
+    $n = substr($n,int(rand(length($n))) & 0177776,2);
+    $a = $p;
+    $p = $n;
+    ($w) = unpack('S',$n);
+    $w = $word[$w];
+    $col += length($w) + 1;
+    if ($col >= 65) {
+	$col = 0;
+	print "\n";
+    }
+    else {
+	print ' ';
+    }
+    print $w;
+    if ($w =~ /\.$/) {
+	if (rand() < .1) {
+	    print "\n";
+	    $col = 80;
+	}
+    }
+}

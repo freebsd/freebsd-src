@@ -1,0 +1,180 @@
+.\" $Id: dnsquery.1,v 8.5 2002/06/18 02:04:54 marka Exp $
+.\"
+.\"Copyright (c) 1995,1996,1999 by Internet Software Consortium
+.\"
+.\"Permission to use, copy, modify, and distribute this software for any
+.\"purpose with or without fee is hereby granted, provided that the above
+.\"copyright notice and this permission notice appear in all copies.
+.\"
+.\"THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+.\"ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\"OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+.\"CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\"DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\"PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\"ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\"SOFTWARE.
+.\"
+.Dd March 10, 1990
+.Dt DNSQUERY @CMD_EXT_U@
+.Os BSD 4
+.Sh NAME
+.Nm dnsquery 
+.Nd query domain name servers using resolver
+.Sh SYNOPSIS
+.Nm dnsquery
+.Op Fl n Ar nameserver
+.Op Fl t Ar type
+.Op Fl c Ar class
+.Op Fl r Ar retry
+.Op Fl p Ar period
+.Op Fl d
+.Op Fl s
+.Op Fl v
+.Ar host
+.Sh DESCRIPTION
+The
+.Ic dnsquery
+program is a general interface to nameservers via
+BIND resolver library calls.  The program supports
+queries to the nameserver with an opcode of QUERY.
+This program is intended to be a replacement or
+supplement to programs like nstest, nsquery and
+nslookup.  All arguments except for
+.Ar host
+and
+.Ar nameserver
+are treated without case-sensitivity.
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl n Ar nameserver
+The nameserver to be used in the query.  Nameservers can appear as either 
+Internet addresses of the form
+.Ar ( w.x.y.z
+or
+.Ar xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx )
+or can appear as domain names.
+(Default: as specified in 
+.Pa /etc/resolv.conf . ) 
+.It Fl t Ar type
+The type of resource record of interest.  Types include:
+.Bl -tag -width "AFSDB  " -compact -offset indent
+.It Ar A
+address
+.It Ar NS
+nameserver
+.It Ar CNAME
+canonical name
+.It Ar PTR
+domain name pointer
+.It Ar SOA
+start of authority
+.It Ar WKS
+well-known service
+.It Ar HINFO
+host information
+.It Ar MINFO
+mailbox information
+.It Ar MX
+mail exchange
+.It Ar RP
+responsible person
+.It Ar MG
+mail group member
+.It Ar AFSDB
+DCE or AFS server
+.It Ar ANY
+wildcard
+.El
+.Pp
+Note that any case may be used.  (Default:  
+.Ar ANY . )
+.It Fl c Ar class
+The class of resource records of interest.
+Classes include:
+.Bl -tag -width "CHAOS  " -compact -offset indent
+.It Ar IN
+Internet
+.It Ar HS
+Hesiod
+.It Ar CHAOS
+Chaos
+.It Ar ANY
+wildcard
+.El
+.Pp
+Note that any case may be used.  (Default:  
+.Ar IN . )
+.It Fl r Ar retry
+The number of times to retry if the nameserver is
+not responding.  (Default:  4.)
+.It Fl p Ar period
+Period to wait before timing out.  (Default:  
+.Dv RES_TIMEOUT . )
+.It Fl d
+Turn on debugging.  This sets the 
+.Dv RES_DEBUG 
+bit of the resolver's
+.Ft options
+field.  (Default:  no debugging.)
+.It Fl s
+Use a
+.Em stream
+rather than a packet.  This uses a TCP stream connection with
+the nameserver rather than a UDP datagram.  This sets the
+.Dv RES_USEVC 
+bit of the resolver's
+.Ft options
+field.  (Default:  UDP datagram.)
+.It Fl v
+Synonym for the 
+.Dq Fl s 
+flag.
+.It Ar host
+The name of the host (or domain) of interest.
+.El
+.Sh FILES
+.Bl -tag -width "<arpa/nameser.h>  " -compact
+.It Pa /etc/resolv.conf 
+to get the default ns and search lists
+.It Pa <arpa/nameser.h>
+list of usable RR types and classes
+.It Pa <resolv.h>
+list of resolver flags
+.El
+.Sh DIAGNOSTICS
+If the resolver fails to answer the query and debugging has not been
+turned on,
+.Ic dnsquery
+will simply print a message like:
+.Dl Query failed (rc = 1) : Unknown host
+.Pp
+The value of the return code is supplied by 
+.Ft h_errno .
+.Sh SEE ALSO
+.Xr nslookup @SYS_OPS_EXT@ , 
+.Xr nstest @CMD_EXT@ , 
+.Xr nsquery @CMD_EXT@ , 
+.Xr named @SYS_OPS_EXT@ , 
+.Xr resolver @FORMAT_EXT@ .
+.Sh AUTHOR
+Bryan Beecher
+.Sh BUGS
+Queries of a class other than 
+.Ar IN 
+can have interesting results
+since ordinarily a nameserver only has a list of root nameservers
+for class 
+.Ar IN 
+resource records.
+.Pp
+.Ic Dnsquery 
+uses a call to 
+.Fn inet_addr 
+to determine if the argument
+for the 
+.Dq Fl n
+option is a valid Internet address.  Unfortunately,
+.Fn inet_addr 
+seems to cause a segmentation fault with some (bad)
+IP addresses (e.g., 1.2.3.4.5).

@@ -1,0 +1,2 @@
+#undef TRUE
+#undef FALSE

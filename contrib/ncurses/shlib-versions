@@ -1,0 +1,4 @@
+.*-.*-linux.*		libform=4
+.*-.*-linux.*		libmenu=4
+.*-.*-linux.*		libncurses=4
+.*-.*-linux.*		libpanel=4

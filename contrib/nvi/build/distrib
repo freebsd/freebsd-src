@@ -1,0 +1,84 @@
+#! /bin/sh
+# @(#)distrib	8.11 (Berkeley) 10/23/96
+
+# Clean
+#make -f Makefile.in clean
+#rm -f configure config.h.in
+
+# Build autoconf structure.
+echo "Running autoheader"
+autoheader 2>&1 | sed '/warning: AC_TRY_RUN called without default/d'
+chmod 444 config.h.in
+echo "Running autoconf"
+autoconf 2>&1 | sed '/warning: AC_TRY_RUN called without default/d'
+chmod 555 configure config.guess config.sub install-sh
+
+# Build include files.
+f=../include/cl_extern.h
+echo "Building $f"
+rm -f $f
+sed -n "s/^ \* PUBLIC: \(.*\)/\1/p" ../cl/*.c > $f
+chmod 444 $f
+
+f=../include/com_extern.h
+echo "Building $f"
+rm -f $f
+sed -n "s/^ \* PUBLIC: \(.*\)/\1/p" ../clib/*.c ../common/*.c > $f
+chmod 444 $f
+
+f=../include/ex_def.h
+echo "Building $f"
+rm -f $f
+awk -f ../ex/ex.awk ../ex/ex_cmd.c > $f
+chmod 444 $f
+
+f=../include/ex_extern.h
+echo "Building $f"
+rm -f $f
+sed -n "s/^ \* PUBLIC: \(.*\)/\1/p" ../ex/*.c > $f
+chmod 444 $f
+
+if [ -d ../ip ]; then
+	f=../include/ip_extern.h
+	echo "Building $f"
+	rm -f $f
+	sed -n "s/^ \* PUBLIC: \(.*\)/\1/p" ../ip/*.c > $f
+	chmod 444 $f
+fi
+
+f=../include/options_def.h
+echo "Building $f"
+rm -f $f
+awk -f ../common/options.awk ../common/options.c > $f
+chmod 444 $f
+
+f=../include/perl_extern.h
+echo "Building $f"
+rm -f $f
+sed -n "s/^ \* PUBLIC: \(.*\)/\1/p" ../perl_api/*.xs ../perl_api/*.c > $f
+chmod 444 $f
+
+f=../include/tcl_extern.h
+echo "Building $f"
+rm -f $f
+sed -n "s/^ \* PUBLIC: \(.*\)/\1/p" ../tcl_api/*.c > $f
+chmod 444 $f
+
+f=../include/tk_extern.h
+echo "Building $f"
+rm -f $f
+sed -n "s/^ \* PUBLIC: \(.*\)/\1/p" ../tk/*.c > $f
+chmod 444 $f
+
+f=../include/vi_extern.h
+echo "Building $f"
+rm -f $f
+sed -n "s/^ \* PUBLIC: \(.*\)/\1/p" ../vi/*.c > $f
+chmod 444 $f
+
+# Build tags files.
+echo "Building tags files"
+rm -f tags
+ctags -w -d ../cl/*.[ch] ../common/*.[ch] ../ex/*.[ch] ../perl_api/*.[ch] \
+    ../tcl_api/*.[ch] ../tk/*.[ch] ../vi/*.[ch]
+chmod 444 tags

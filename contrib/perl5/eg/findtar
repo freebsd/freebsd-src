@@ -1,0 +1,17 @@
+#!/usr/bin/perl
+
+# $RCSfile: findtar,v $$Revision: 4.1 $$Date: 92/08/07 17:20:13 $
+
+# findtar takes find-style arguments and spits out a tarfile on stdout.
+# It won't work unless your find supports -ls and your tar the I flag.
+
+$args = join(' ',@ARGV);
+open(find,"/usr/bin/find $args -ls |") || die "Can't run find for you.";
+
+open(tar,"| /bin/tar cIf - -") || die "Can't run tar for you: $!";
+
+while (<find>) {
+    @x = split(' ');
+    if ($x[2] =~ /^d/) { print tar '-d ';}
+    print tar $x[10],"\n";
+}

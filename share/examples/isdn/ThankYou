@@ -1,0 +1,279 @@
+$FreeBSD$
+
+Thanks a lot for postcards from:
+--------------------------------
+
+	Aachen
+	Arnhem
+	Arolsen
+	Bad Rothenfelde
+	Berlin
+	Birenbach
+	Bochum
+	Bohnsdorf
+	Bonn
+	Bornheim
+	Braunschweig
+	Darmstadt
+	Delft
+	Dresden
+	Flekkefjord
+	Habichtswald
+	Hamburg (2)
+	Ihlow
+	Jena
+	Kassel
+	Koengen
+	Kymgbuk, Korea
+	Landsberg
+	Leiden
+	Magdeburg
+	Mauerbach
+	Mersch
+	Middelburg
+	Mosi-Oa-Tunya
+	Muenchen (4)
+	Netherlands (Leo)
+	Netherlands (Peter)
+	Rio de Janeiro
+	Saint-Gilles-Croix-de-Vie
+	Scheessel
+	Siena, Italy
+	St. Jacob
+	Travemuende
+	Vedskoelle, Danmark
+	Windach
+	Wuerzburg
+
+
+I would like to thank the following people and organisations:
+-------------------------------------------------------------
+
+Gary Jennejohn		for his constant kind support while writing isdn4bsd 
+			during that year. Gary always runs the latest and 
+			greatest FreeBSD-current and makes isdn4bsd run 
+			there, if his root fs is intact, of course! :-).
+			In February 1999, Gary contributed the AVM Fritz!
+			Card PCI driver to isdn4bsd.
+
+Martin Husemann		is a major contributor to isdn4bsd. He wrote almost
+			all of the NetBSD support for isdn4bsd, the monitor
+			network code and the Diehl driver. He constantly 
+			tries put strange macros into i4b ... ;-)
+
+Serge Vakulenko		for writing the sppp driver and making it freely 
+			available.
+
+Joerg Wunsch		for adapting the synchronous PPP stuff to i4b.
+			Gary finished this and integrated the PPP stuff into 
+			current isdn4bsd.
+
+Wolfgang Helbig		for many patches, polishing isdn4bsd and layer 1 
+			debugging.
+
+Thomas Halenbeck and
+Stephan Forth		of FORTH EDV in Mainz donated two AVM A1 card and 
+			one AVM B1 card to support the development and 
+			maintenance of drivers for this cards. Thomas donated
+			three more AVM A1 cards in the meantime - Thank you!
+
+Arne Helme 		for the initial work on how to support IOM-2 based 
+			boards.
+
+Andrew Gordon 		for disassembling an old AVM A1 and documenting it. 
+			Andrew added VJ header compression to the ipr interface 
+			and is a constant source of various hints and 
+			suggestions :-)
+			Andrew sent in a Teles S0/16 PnP for FreeBSD newbus
+			conversion, thanks a lot!
+
+Juergen Krause		and someone who does not want to be mentioned anymore 
+			for the work on the first ISDN package for FreeBSD.
+
+Michael Elbel		for supporting the development with ftp/www/mail 
+			resources.
+
+Leo Weppelman		for the port to the NetBSD/Atari platform.
+
+Bas Oude Nijeweme 	for the port to OpenBSD/i386 2.2.
+
+German Tischler		for the driver for the Sedlbauer WinSpeed card,
+			for the PnP support for FreeBSD and for constant
+			testing and contributions. German did the initial
+			mostly complete conversion of the layer1 code
+			to the FreeBSD 4.0 new-bus driver architecture!
+
+Matthias Apitz		for the driver for the AVM PCMCIA Fritz!Card.
+
+Martijn Plak		for the Dynalink driver.
+
+Ignatios Souvatzis  	for the NetBSD/Amiga port and associated driver(s).
+
+Christoph Weber-Fahr	donated an AVM B1 card to support development of a
+			driver. Thanks a lot, Christoph!
+
+Eivind Eklund		for the PnP support for FreeBSD, for __FreeBSD_version
+			and more.
+
+Karsten Keil		author of the hisax isdn4linux driver for some details
+			about the one or the other piece of hardware.
+
+Bert Driehuis		for the support of the BSDI BSD/OS 4.0 operating system
+
+Barry Scott		for fixed charging units shorthold mode support (as
+			used in the UK by British Telecom).
+
+Poul-Henning Kamp	for the work on DTMF decoding and many hints, fixes
+			and suggestions.
+
+Stefan Bethke		for the work on the audio format conversion stuff in
+			the telephony paths.
+
+Udo Schweigert		for PCMCIA support and work on FreeBSD 2.2x 
+			compatibility. Udo contributed the AVM Fritz PnP
+			and the Siemens I-Surf V2.0 driver.
+
+Ernst Winter		donated a Fritz!Card PCI which was used to develop
+			and test the driver.
+
+Harald Frank            long-term loan of an ISDN Blaster board.
+
+Klaus Burkert           for a loan of an ISDN Master II.
+
+Ari Suutari		for a driver for the Asuscom ISDNlink ISA PnP card
+
+Brian Somers		for working on making userland ppp work with i4b
+
+Rune Knapstad		for good help with the port to OpenBSD/i386 2.5
+
+Uwe Laverenz		for the donation of an ELSA PCC-16 card
+
+Luke Roberts		for the long time loan a Dynalink ISDN intern PCI card
+
+Marc van Kempen		for the donation of a Dynalink ISDN intern PCI card
+
+Christoph Kukulies	for the donation of an ITK ix1 card
+
+Nikolay Sturm 		sent in patches to get OpenBSD 2.6 supported.
+
+Dave Boyce		wrote a driver for the Winbond W6692 PCI ISDN
+			chip which eventually lead to a layer 1 reorg.
+
+Hans Petter Selasky	for his contribution of a driver for the
+			Teles 16.3c card (and the complete ihfc driver).
+
+Sergio de Souza Prallon	for the contribution of the itjc driver which
+			supports the NETJet-S and the Teles PCI-TJ cards
+
+Steve Looman		for the driver for a Compaq Microcom 610 ISDN card
+
+
+               ------------------------------------------
+
+
+Liebscher & Partner	Martin Welk and Holm Tiffe sent in a motivating 
+			BSD daemon plushie :-)
+
+Abaid			Andreas Mutschlechner of Abaid, Alte Strasse 2, in
+			I-39017 Schenna (BZ) donated money to support i4b
+			development, which was used to upgrade my main test
+			machine for isdn4bsd from an 486 to a Pentium II.
+			Thank you very, very much, Andreas !
+
+3Com USRobotics		Christian Weissgerber of 3Com USRobotics in Munich 
+			donated a passive "Sportster ISDN TA intern" ISDN 
+			card and complete hardware documentation for the card.
+
+			Florian Uhl of 3Com in Munich donated two MC68SC302
+			"3Com U.S.Robotics ISDN Card PnP internal" cards and 
+			documentation to support writing a driver for this 
+			card.
+
+Dr. Neuhaus		Klaus Muehle of Dr. Neuhaus Telekommunikation in
+			Hamburg sent documentation for the NICCY GO@ and 
+			NICCY EASY@ ISDN cards to support development of
+			a driver for this cards.
+
+Stollmann		Many thanks to Christian Luehrs and Manfred Jung 
+			for giving out docs and sources to support the 
+			driver development for the tina-dd active card.
+
+ELSA			Axel Riemer of ELSA AG in Aachen donated several
+			ISA, PCI and PC-Card ISDN boards to three developers
+			and provided support and documentation to help with
+			adding support to i4b for this hardware. Werner Fehr
+			of ELSA answered our technical questions and gave
+			valuable hints. Thanks also to Andreas Klemm for
+			making the contact ;-)
+
+Cologne Chip Design	Harald Schaefer of Cologne Chip Design send in a
+			HFC-S-PCI developer card, complete docs and
+			layer 1 example code to support the development
+			of a driver for that chipset! Thanks a lot!
+
+ASUSCOM Network Inc.	Mr. Ben Chen of Asuscom sent a Winbond based PCI
+			card and a Cologne Chip Design based PCI card to
+			support the development of device drivers.
+
+Cubical Solutions Ltd.	Juha-Matti Liukkonen <jml@cubical.fi> of Cubical
+			contributed the CAPI layer and the AVM B1/T1 device
+			driver to isdn4bsd.
+
+AVM GmbH		Mr. A. Ziessnitz of AVM donated an AVM B1 PCI cards
+			to support development and maintenance of a driver
+			for this card.
+
+Intelligent Network Technology Ltd.
+			David Hedley provided an AVM Fritz!Card PCI Version 2
+			controller to support development of a driver.
+
+
+
+The following people contributed in one or the other way to isdn4bsd:
+---------------------------------------------------------------------
+
+	Alexander Langer
+	Andreas Haakh
+	Andreas Lohrum 
+	Arve Ronning 
+	Aurelien Bargy
+	Bart van Leeuwen
+	Caspar Schlegel
+	Christian Wolf 
+	Christoph Kukulies 
+	Daniel Rock 
+	David Wetzel 
+	Dirk Meyer
+	Doobee R. Tzeck
+	Dominik Brettnacher
+	Gabor Dolla 
+	H. Eckert
+	Hans Huebner 
+	Harald Hanche-Olsen 
+	Harold Gutch 
+	Heiko Schaefer 
+	Jan Sparud
+	Joachim Kuebart 
+	Joakim Hernberg
+	Juha-Matti Liukkonen
+	Julian H. Stacey 
+	Kazunori Fujiwara
+	Lars Koeller 
+	Malte Lance 
+	Marcel Moolenaar
+	Martin Recktenwald 
+	Meike Aulbach 
+	Michael Hohmuth 
+	Michael Ranner
+	Michael Reifenberg
+	Nils Ulltveit-Moe
+	Paul Herman
+	Paul Sijben 
+	Philippe Guezou
+	Rob Pickering 
+	Stefan Esser 
+	Stefan Herrmann
+	Steven Looman
+	Wolfgang Solfrank
+
+(In case i forgot someone, please tell me!)

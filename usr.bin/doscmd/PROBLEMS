@@ -1,0 +1,21 @@
+trailing \ missing in tempname (affects PKZIP)
+
+FCB find routines don't store the state correctly (affects DIR, NUSQ, GET)
+support for non-extended FCBs is broken (affects LAR)
+wrong device attributes reported after redirection (affects GZIP)
+REP IN/OUT not implemented
+find_next may not close fd
+tty modes wrong when running in terminal session
+devices not really implemented
+
+keyboard queue not fully implemented (affects VSAFE)
+several ioctl request not implemented (affects PKZOOM)
+no font file
+int 0x28 not implemented
+timer chip not implemented
+country info needs localization
+
+specific programs:
+charc	crashes with a segment overrun
+sqwez	gets a fault while exiting
+jrc	outputs its banner again on exit, and sometimes complains about aa.aaa

@@ -1,0 +1,63 @@
+.\" psatk.tmac
+.\"
+.\" Implementation of the ATK PB and PE macros for use with groff and grops.
+.\" Load this after atk.tmac.
+.nr zT 0
+.if '\*(.T'ps' .nr zT 1
+.nr psatk-unit 1p
+.de psatk-defs
+ps: mdef 5
+/PB {
+	/saved save def
+	currentpoint translate
+	\n[psatk-unit] u -\n[psatk-unit] u scale
+	userdict begin
+	/showpage {} def
+} bind def
+/PE {
+	end
+	saved restore
+} bind def
+/troffadjust {
+	pop 0
+} bind def
+..
+.de PB
+.ne \\$1p
+.nr zT \\n(zT>0
+\\*[PB\\n(zT]\\
+..
+.de PE
+\\*[PE\\n(zT]\\
+..
+.ds PB0
+.\" The last line before the "'PE" is "\}" rather than ".\}".  This
+.\" would cause a spurious space to be introduced before any picture
+.\" that was the first thing on a line.  So we have to catch that and
+.\" remove it.
+.de PB1
+.ev psatk
+.fi
+.di psatk-mac
+\!ps: exec PB
+..
+.de PE0
+\v'-.75m'\
+\D'l \\$1p 0'\D'l 0 \\$2p'\D'l -\\$1p 0'\D'l 0 -\\$2p'\
+\h'\\$1p'\v'.75m'\x'\\$2p-1m>?0'\c
+..
+.ds psatk-init \Y[psatk-defs]
+.de PE1
+\!PE
+.di
+.di null
+.br
+.di
+.rm null
+.ev
+\v'-.75m'\
+\\*[psatk-init]\Y[psatk-mac]\
+\h'\\$1p'\v'.75m'\x'\\$2p-1m>?0'\c
+.rm psatk-mac
+.if \\n(.P .ds psatk-init
+..

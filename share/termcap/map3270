@@ -1,0 +1,1025 @@
+# Copyright (c) 1989, 1993
+#	The Regents of the University of California.  All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software
+#    must display the following acknowledgement:
+#	This product includes software developed by the University of
+#	California, Berkeley and its contributors.
+# 4. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)map3270	8.2 (Berkeley) 4/1/94
+#
+
+# This file contains mappings between characters entered from the keyboard,
+# and 3270 keys, for use by programs (like tn3270) doing 3270 emulation
+# from unix.
+#
+# Inside the single quotes, a caret ("^") introduces a control character
+# sequence (rub out = ^?, by the way).  Also inside the single quotes,
+# a backslash ('\') introduces an escaped character.  Also, \n, \r, \t,
+# are all as in C, and \E is another way of representing escape.
+#
+#	NOTE that while we are defining lots of function, much of that
+# function (ie: local editing keys) may not yet be available from tn3270.
+#
+# Please e-mail changes to termcap@berkeley.edu or uunet!ucbvax!termcap.
+#
+
+3a | adm3a {
+    enter = '^m';
+    clear = '^z';
+
+    nl = '^n';
+    tab = '^i';
+    btab = '^b' | '\E^i';
+    left = '^h';
+    right = '^l';
+    up = '^k';
+    down = '^j';
+    home = '^@';
+
+    delete = '^d' | '^?';		# rubout
+    eeof = '^e';
+    einp = '^w';
+    insrt = '\E ';
+    dp = '^u';
+    fm = '^y';
+
+    # pf keys
+    pfk1 = '\E1'; pfk2 = '\E2'; pfk3 = '\E3'; pfk4 = '\E4';
+    pfk5 = '\E5'; pfk6 = '\E6'; pfk7 = '\E7'; pfk8 = '\E8';
+    pfk9 = '\E9'; pfk10 = '\E0'; pfk11 = '\E:'; pfk12 = '\E-';
+    pfk13 = '^f13'; pfk14 = '^f14'; pfk15 = '^f15'; pfk16 = '^f16';
+    pfk17 = '^f17'; pfk18 = '^f18'; pfk19 = '^f19'; pfk20 = '^f20';
+    pfk21 = '^f21'; pfk22 = '^f22'; pfk23 = '^f23'; pfk24 = '^f24';
+
+    # program attention keys
+    pa1 = '^p1';
+    pa2 = '^p2';
+    pa3 = '^p3';
+
+    # other keys
+    cursel = '\E.';
+    centsign = '^\';
+
+    # local control keys
+
+    reset = '^t';	# well, there is a little confusion here...
+    master_reset = '^g';
+    flinp = '^x';
+    reshow = '^v';	# redisplay screen
+    escape = '^c';	# escape to telnet command mode
+
+    # local editing keys
+    settab = '\E;';
+    deltab = '\E\'';
+    clrtab = '\E+';
+    setmrg = '\E(';
+    sethom = '\E!';
+    coltab = '\Ei';
+    colbak = '\Eb';
+    indent = '\El';
+    undent = '\Eh';
+
+} # end of adm3a
+
+920c | tvi920c | 920b {	# tvi920c definitions...
+
+    # command keys
+    enter = '^m';
+    clear = '^z';
+
+    # cursor movement keys
+    nl = '^^' | '^n';		# home
+    tab = '^i';
+    btab = '^b' | '\E^i';
+    left = '^h';
+    right = '^l';
+    up = '^k';
+    down = '^j';
+    home = '^@';
+
+    # edit control keys
+    delete = '^?' | '^d';	# delete
+    eeof = '^e';
+    einp = '^w';
+    insrt = '\E ';
+    dp = '^u';
+    fm = '^y';
+
+    # program function keys
+
+    # F1 to F11
+    pfk1 = '^a@^m'; pfk2 = '^aA^m'; pfk3 = '^aB^m'; pfk4 = '^aC^m';
+    pfk5 = '^aD^m'; pfk6 = '^aE^m'; pfk7 = '^aF^m'; pfk8 = '^aG^m';
+    pfk9 = '^aH^m'; pfk10 = '^aI^m'; pfk11 = '^aJ^m';
+
+    # SHIFT-F11
+    pfk12 = '^aj^m';
+
+    # ESC F1 to ESC F11
+    pfk11 = '\E^a@^m'; pfk12 = '\E^aA^m';
+    pfk13 = '\E^aB^m'; pfk14 = '\E^aC^m'; pfk15 = '\E^aD^m'; pfk16 = '\E^aE^m';
+    pfk17 = '\E^aF^m'; pfk18 = '\E^aG^m'; pfk19 = '\E^aH^m'; pfk20 = '\E^aI^m';
+    pfk21 = '\E^a`^m';
+
+    # ESC SHIFT-F1 to ESC SHIFT-F4
+    pfk21 = '\E^a`^m'; pfk22 = '\E^aa^m'; pfk23 = '\E^ab^m'; pfk24 = '\E^ac^m';
+
+    pfk1 = '\E1'; pfk2 = '\E2'; pfk3 = '\E3'; pfk4 = '\E4';
+    pfk5 = '\E5'; pfk6 = '\E6'; pfk7 = '\E7'; pfk8 = '\E8';
+    pfk9 = '\E9'; pfk10 = '\E0'; pfk11 = '\E-'; pfk12 = '\E=';
+    pfk13 = '^f13'; pfk14 = '^f14'; pfk15 = '^f15'; pfk16 = '^f16';
+    pfk17 = '^f17'; pfk18 = '^f18'; pfk19 = '^f19'; pfk20 = '^f20';
+    pfk21 = '^f21'; pfk22 = '^f22'; pfk23 = '^f23'; pfk24 = '^f24';
+
+    # program attention keys
+
+    pa1 = '^a`^m' | '^p1';
+    pa2 = '^aa^m' | '^p2';
+    pa3 = '^ab^m' | '^p3';
+
+    # miscellaneous 3270 keys
+
+    cursel = '\E.';
+    centsign = '^\';
+
+    # local control keys
+
+    reset = '^t';		# there is some confusion here...
+    master_reset = '^g';
+    flinp = '^x';
+    reshow = '^v';
+    escape = '^c';	# escape to telnet command mode
+
+    # local editing keys
+
+    settab = '\E;';
+    deltab = '\E\'';
+    clrtab = '\E:';
+    setmrg = '\E*';
+    sethom = '\E!';
+    coltab = '\Ei' | '\EI';
+    colbak = '\Eb' | '\EB';
+    indent = '\El' | '\EL';
+    undent = '\Eh' | '\EH';
+} # end of tvi920c table...
+
+925 | tvi925 | 925vb | tvi925vb | televideo 925 {
+
+    # command keys
+
+    enter = '^m';
+    clear = '^z';
+
+    # cursor movement keys
+
+    nl = '^j' | '^n';
+    tab = '^i';
+    btab = '\EI';
+    left = '^h';
+    right = '^l';
+    up = '^k';
+    down = '^v';
+    home = '^^';
+
+    # edit control keys
+
+    delete = '^?';	# that's rubout...
+    eeof = '^e';
+    einp = '^w';
+    insrt = '\E ' | '\EW';
+
+    # program function keys
+
+    pfk1 = '^a@^m';
+    pfk2 = '^aA^m';
+    pfk3 = '^aB^m';
+    pfk4 = '^aC^m';
+    pfk5 = '^aD^m';
+    pfk6 = '^aE^m';
+    pfk7 = '^aF^m';
+    pfk8 = '^aG^m';
+    pfk9 = '^aH^m';
+    pfk10 = '^aI^m';
+    pfk11 = '^aJ^m';
+    pfk12 = '\EQ';
+    pfk13 = '\E^a@^m';
+    pfk14 = '\E^aA^m';
+    pfk15 = '\E^aB^m';
+    pfk16 = '\E^aC^m';
+    pfk17 = '\E^aD^m';
+    pfk18 = '\E^aE^m';
+    pfk19 = '\E^aF^m';
+    pfk20 = '\E^aG^m';
+    pfk21 = '\E^aH^m';
+    pfk22 = '\E^aI^m';
+    pfk23 = '\E^aJ^m';
+    pfk24 = '\E\EQ';
+
+    pfk1 = '\E1'; pfk2 = '\E2'; pfk3 = '\E3'; pfk4 = '\E4';
+    pfk5 = '\E5'; pfk6 = '\E6'; pfk7 = '\E7'; pfk8 = '\E8';
+    pfk9 = '\E9'; pfk10 = '\E0'; pfk11 = '\E-'; pfk12 = '\E=';
+    pfk13 = '^f13'; pfk14 = '^f14'; pfk15 = '^f15'; pfk16 = '^f16';
+    pfk17 = '^f17'; pfk18 = '^f18'; pfk19 = '^f19'; pfk20 = '^f20';
+    pfk21 = '^f21'; pfk22 = '^f22'; pfk23 = '^f23'; pfk24 = '^f24';
+
+    # program attention keys
+
+    pa1 = '^a`^m';
+    pa2 = '^aa^m';
+    pa3 = '^ab^m';
+
+    # other keys
+    centsign = '^\';
+
+    # local control keys
+
+    reset = '^t';		# again, there is some confusion here...
+    master_reset = '^g';
+    flinp = '^x';
+    reshow = '^b';
+    escape = '^c';	# escape to telnet command mode
+
+# local editing keys
+
+    settab = '\EY';
+    deltab = '\Ey';
+    clrtab = '\E:';
+    setmrg = '\ET';
+    sethom = '\Et';
+    coltab = '^p';
+    colbak = '^o';
+    indent = '\ER';
+    undent = '\EE';
+}
+
+
+924 | tvi924 {
+
+    # command keys
+
+    enter = '^m';
+    clear = '^z';
+
+    # cursor movement keys
+
+    nl = '^j';
+    tab = '^i';
+    btab = '\EI';
+    left = '^h';
+    right = '^l';
+    up = '^k';
+    down = '^v';
+    home = '^^';
+
+    # edit control keys
+
+    delete = '^?';	# that's rubout...
+    eeof = '^e';
+    einp = '^w';
+    insrt = '\E ' | '\EW';
+    dp = '^u';
+    fm = '^y';
+
+    # program function keys
+
+    pfk1 = '^a@^m';
+    pfk2 = '^aA^m';
+    pfk3 = '^aB^m';
+    pfk4 = '^aC^m';
+    pfk5 = '^aD^m';
+    pfk6 = '^aE^m';
+    pfk7 = '^aF^m';
+    pfk8 = '^aG^m';
+    pfk9 = '^aH^m';
+    pfk10 = '^aI^m';
+    pfk11 = '^aJ^m';
+    pfk12 = '^aK^m';
+    pfk13 = '^aL^m';
+    pfk14 = '^aM^m';
+    pfk15 = '^aN^m';
+    pfk16 = '^aO^m';
+    pfk17 = '^af^m';
+    pfk18 = '^ag^m';
+    pfk19 = '^ah^m';
+    pfk20 = '^ai^m';
+    pfk21 = '^aj^m';
+    pfk22 = '^ak^m';
+    pfk23 = '^al^m';
+    pfk24 = '^am^m';
+
+    pfk1 = '\E1'; pfk2 = '\E2'; pfk3 = '\E3'; pfk4 = '\E4';
+    pfk5 = '\E5'; pfk6 = '\E6'; pfk7 = '\E7'; pfk8 = '\E8';
+    pfk9 = '\E9'; pfk10 = '\E0'; pfk11 = '\E-'; pfk12 = '\E=';
+    pfk13 = '^f13'; pfk14 = '^f14'; pfk15 = '^f15'; pfk16 = '^f16';
+    pfk17 = '^f17'; pfk18 = '^f18'; pfk19 = '^f19'; pfk20 = '^f20';
+    pfk21 = '^f21'; pfk22 = '^f22'; pfk23 = '^f23'; pfk24 = '^f24';
+
+    # program attention keys
+
+    pa1 = '^a`^m';
+    pa2 = '^aa^m';
+    pa3 = '^ab^m';
+
+    # other keys
+    centsign = '^\';
+
+    # local control keys
+
+    reset = '^t';		# again, there is some confusion here...
+    master_reset = '^g';
+    flinp = '^x';
+    reshow = '^b';
+    escape = '^c';	# escape to telnet command mode
+
+    # local editing keys
+
+    settab = '\EY';
+    deltab = '\Ey';
+    clrtab = '\E:';
+    setmrg = '\ET';
+    sethom = '\Et';
+    coltab = '^p';
+    colbak = '^o';
+    indent = '\ER';
+    undent = '\EE';
+}
+
+h19 | heath | h19b | heathkit | heath-19 | z19 | zenith {
+enter = '^m';
+clear = '^z';
+
+nl = '^n' | '^?';
+tab = '^i';
+btab = '^b';
+left = '^h';
+right = '^l';
+up = '^k';
+down = '^j';
+home = '^@';
+
+delete = '^d';
+eeof = '^e';
+einp = '^w';
+insrt = '\E ';
+
+# pf keys
+pfk1 = '\E?p\E?q'; pfk2 = '\E?p\E?r'; pfk3 = '\E?p\E?s'; pfk4 = '\E?p\E?t';
+pfk5 = '\E?p\E?u'; pfk6 = '\E?p\E?v'; pfk7 = '\E?p\E?w'; pfk8 = '\E?p\E?x';
+pfk9 = '\E?p\E?y'; pfk10 = '\E?q\E?p'; pfk11 = '\E?q\E?q'; pfk12 = '\E?q\E?r';
+pfk13 = '\E?q\E?s'; pfk14 = '\E?q\E?t'; pfk15 = '\E?q\E?u'; pfk16 = '\E?q\E?v';
+pfk17 = '\E?q\E?w'; pfk18 = '\E?q\E?x'; pfk19 = '\E?q\E?y'; pfk20 = '\E?r\E?p';
+pfk21 = '\E?r\E?q'; pfk22 = '\E?r\E?r'; pfk23 = '\E?r\E?s'; pfk24 = '\E?r\E?t';
+
+    pfk1 = '\E1'; pfk2 = '\E2'; pfk3 = '\E3'; pfk4 = '\E4';
+    pfk5 = '\E5'; pfk6 = '\E6'; pfk7 = '\E7'; pfk8 = '\E8';
+    pfk9 = '\E9'; pfk10 = '\E0'; pfk11 = '\E-'; pfk12 = '\E=';
+    pfk13 = '^f13'; pfk14 = '^f14'; pfk15 = '^f15'; pfk16 = '^f16';
+    pfk17 = '^f17'; pfk18 = '^f18'; pfk19 = '^f19'; pfk20 = '^f20';
+    pfk21 = '^f21'; pfk22 = '^f22'; pfk23 = '^f23'; pfk24 = '^f24';
+
+# program attention keys
+pa1 = '\EP';
+pa2 = '\EQ';
+pa3 = '\ER';
+
+# other keys
+
+    centsign = '^\';
+# cursel = '\E.'; # find out what this does
+master_reset = '^g';
+
+# local control keys
+
+reset = '^t';	# well, there is a little confusion here...
+flinp = '^x';
+reshow = '^v';	# redisplay screen
+escape = '^c';	# escape to telnet command mode
+
+# local editing keys
+settab = '\E;';
+clrtab = '\E:';
+setmrg = '\E\'';
+sethom = '\E!';
+coltab = '\Ei';
+colbak = '\Eb';
+indent = '\El';
+undent = '\Eh';
+
+} # end of h19
+
+
+co | c100 | concept | c100-4p | concept100 {
+enter = '^m';
+clear = '^z' | '^\2';
+
+nl = '^n';
+tab = '^i';
+btab = '^b';
+left = '^h' | '\E>';
+right = '^l' | '\E=';
+up = '^k' | '\E;';
+down = '^j' | '\E<';
+home = '\E?';
+
+delete = '^d' | '^?' | '^\1';
+eeof = '^e' | '^\3';
+einp = '^w';
+insrt = '^\0';
+
+# pf keys
+pfk1 = '\E\E1' | '^\5'; pfk2 = '\E\E2' | '^\6'; pfk3 = '\E\E3' | '^\7';
+pfk4 = '\E\E4' | '^\8'; pfk5 = '\E\E5' | '^\9'; pfk6 = '\E\E6' | '^\:';
+pfk7 = '\E\E7' | '^\;'; pfk8 = '\E\E8' | '^\<'; pfk9 = '\E\E9' | '^\=';
+pfk10 = '\E\E0' | '^\>'; pfk11 = '\E\E-' | '^\?'; pfk12 = '^\@';
+pfk13 = '^\A'; pfk14 = '^\B'; pfk15 = '^\)'; pfk16 = '^\*';
+pfk17 = '^\+'; pfk18 = '^\,'; pfk19 = '^\-'; pfk20 = '^\.';
+pfk21 = '^\/'; pfk22 = '^\C'; pfk23 = '^\D'; pfk24 = '^\E';
+
+    pfk1 = '\E1'; pfk2 = '\E2'; pfk3 = '\E3'; pfk4 = '\E4';
+    pfk5 = '\E5'; pfk6 = '\E6'; pfk7 = '\E7'; pfk8 = '\E8';
+    pfk9 = '\E9'; pfk10 = '\E0'; pfk11 = '\E-'; pfk12 = '^f12';
+    pfk13 = '^f13'; pfk14 = '^f14'; pfk15 = '^f15'; pfk16 = '^f16';
+    pfk17 = '^f17'; pfk18 = '^f18'; pfk19 = '^f19'; pfk20 = '^f20';
+    pfk21 = '^f21'; pfk22 = '^f22'; pfk23 = '^f23'; pfk24 = '^f24';
+
+# program attention keys
+pa1 = '^\%';
+pa2 = '^\&' | '\E+';
+pa3 = '^\\'';
+
+# other keys
+cursel = '\E.';
+aplon = '\E{';
+aplend = '\E}';
+aploff = '\E_';
+master_reset = '^g';
+centsign = '\E\\';
+
+# local control keys
+
+reset = '^t';	# well, there is a little confusion here...
+flinp = '^x';
+reshow = '^v';	# redisplay screen
+escape = '^c';	# escape to telnet command mode
+
+# local editing keys
+settab = '\E\E;';
+clrtab = '\E\E:';
+setmrg = '\E\E*';
+sethom = '\E\E!';
+coltab = '\E\Ei';
+colbak = '\E\Eb';
+indent = '\E\El';
+undent = '\E\Eh';
+
+} # end of concept
+avt | avt-8p-s | avt-4p-s | avt-rv {
+enter = '^m';
+clear = '^z' | '\EOM';
+
+nl = '^?';
+tab = '^i';
+btab = '^b';
+left = '^h' | '\E[D';
+right = '^l' | '\E[C';
+up = '^k' | '\E[A';
+down = '^j' | '\E[B';
+home = '\EOn';
+
+delete = '^d';
+eeof = '^e';
+einp = '^w';
+insrt = '^ ' | '\E ';
+
+# pf keys
+pfk1 = '\EOq' | '\E1'; pfk2 = '\EOr' | '\E2'; pfk3 = '\EOs' | '\E3';
+pfk4 = '\EOt' | '\E4'; pfk5 = '\EOu' | '\E5'; pfk6 = '\EOv' | '\E6';
+pfk7 = '\EOw' | '\E7'; pfk8 = '\EOx' | '\E8'; pfk9 = '\EOy' | '\E9';
+pfk10 = '\EOP\EOp' | '\E0'; pfk11 = '\EOP\EOq' | '\E-';
+pfk12 = '\EOP\EOr' | '\E='; pfk13 = '\EOP\EOs' | '^f13';
+pfk14 = '\EOP\EOt' | '^f14'; pfk15 = '\EOP\EOu' | '^f15';
+pfk16 = '\EOP\EOv' | '^f16'; pfk17 = '\EOP\EOw' | '^f17';
+pfk18 = '\EOP\EOx' | '^f18'; pfk19 = '\EOP\EOy' | '^f19';
+pfk20 = '\EOQ\EOp' | '^f20'; pfk21 = '\EOQ\EOq' | '^f21';
+
+    pfk22 = '^f22'; pfk23 = '^f23'; pfk24 = '^f24';
+
+# program attention keys
+pa1 = '\E\EOP' | '^p1';
+pa2 = '\E\EOQ' | '^p2';
+
+# local control keys
+
+escape = '^c';	# escape to telnet command mode
+master_reset = '^g';
+    centsign = '^\';
+
+# local editing keys
+settab = '\E;';
+deltab = '\E\'';
+clrtab = '\E:';
+setmrg = '\E,';
+sethom = '\E.';
+coltab = '\E\E[B';
+colbak = '\E\E[A';
+indent = '\E\E[C';
+undent = '\E\E[D';
+}    # end of avt, etc.
+
+tvipt | vp | televideopt {
+    enter = '^m';
+    clear = '^z';
+
+ nl = '^n';
+    tab = '^i';
+    btab = '^b';
+    left = '^h';
+    right = '^l';
+    up = '^k';
+    down = '^j';
+    home = '^^';
+
+    delete = '^?';
+    eeof = '^e';
+    einp = '^w';
+    insrt = '\E ';
+
+    # pf keys
+    pfk1 = '\E1' | '^A@^m';
+    pfk2 = '\E2' | '^AA^m';
+    pfk3 = '\E3' | '^AB^m';
+    pfk4 = '\E4' | '^AC^m';
+    pfk5 = '\E5' | '^AD^m';
+    pfk6 = '\E6' | '^AE^m';
+    pfk7 = '\E7' | '^AF^m';
+    pfk8 = '\E8';
+    pfk9 = '\E9';
+    pfk10 = '\E0';
+    pfk11 = '\E!' | '\E^A@^m';
+    pfk12 = '\E@' | '\E^AA^m';
+    pfk13 = '\E#' | '\E^AB^m';
+    pfk14 = '\E$' | '\E^AC^m';
+    pfk15 = '\E%' | '\E^AD^m';
+    pfk16 = '\E^AE^m' | '\E\^';
+    pfk17 = '\E&' | '\E^AF^m';
+    pfk18 = '\E*';
+    pfk19 = '\E(';
+    pfk20 = '\E)';
+
+    # program attention keys
+    pa1 = '^AG^m';
+    pa2 = '^AH^m';
+    pa3 = '^AI^m';
+
+    # other keys
+#    # cursel = '\E.';
+    centsign = '^\';
+
+    # local control keys
+
+    reset = '^t';	# well, there is a little confusion here...
+    master_reset = '^g';
+    flinp = '^x';
+    reshow = '^v';	# redisplay screen
+    escape = '^c';	# escape to telnet command mode
+
+    # local editing keys
+    settab = '\E;';
+    clrtab = '\E:';
+    setmrg = '\E[';
+    sethom = '\E+';
+    coltab = '\Ei' | '\EI';
+    colbak = '\Eb' | '\EB';
+    indent = '\El' | '\EL';
+    undent = '\Eh' | '\EH';
+} # end of tvipt
+vt100 | vt100nam | pt100 | vt125 | vt102 | direct831 | tek4125 | pcplot |        microvax | vt220 | vt320 | xterm{
+enter = '^m';
+clear = '^z' | '\EOM';
+
+nl = '^j';
+tab = '^i';
+btab = '^b';
+left = '^h' | '\E[D' | '\EOD';
+right = '^l' | '\E[C' | '\EOC';
+up = '^k' | '\E[A' | '\EOA';
+down = '\E[B' | '\EOB';
+home = '\EOn';
+
+delete = '^d' | '^?';
+eeof = '^e';
+einp = '^w';
+insrt = '^ ' | '\E ';
+
+# pf keys
+pfk1 = '\EOq' | '\E1'; pfk2 = '\EOr' | '\E2'; pfk3 = '\EOs' | '\E3';
+pfk4 = '\EOt' | '\E4'; pfk5 = '\EOu' | '\E5'; pfk6 = '\EOv' | '\E6';
+pfk7 = '\EOw' | '\E7'; pfk8 = '\EOx' | '\E8'; pfk9 = '\EOy' | '\E9';
+pfk10 = '\EOP\EOp' | '\E0'; pfk11 = '\EOP\EOq' | '\E-';
+pfk12 = '\EOP\EOr' | '\E='; pfk13 = '\EOP\EOs' | '^f13';
+pfk14 = '\EOP\EOt' | '^f14'; pfk15 = '\EOP\EOu' | '^f15';
+pfk16 = '\EOP\EOv' | '^f16'; pfk17 = '\EOP\EOw' | '^f17';
+pfk18 = '\EOP\EOx' | '^f18'; pfk19 = '\EOP\EOy' | '^f19';
+pfk20 = '\EOQ\EOp' | '^f20'; pfk21 = '\EOQ\EOq' | '^f21';
+
+# program attention keys
+pa1 = '\E\EOP' | '^p1';
+pa2 = '\E\EOQ' | '^p2';
+
+# local control keys
+
+escape = '^c';	# escape to telnet command mode
+master_reset = '^g';
+    centsign = '^\';
+
+# local editing keys
+settab = '\E;';
+deltab = '\E\'';
+clrtab = '\E:';
+setmrg = '\E,';
+sethom = '\E.';
+coltab = '\E\E[B';
+colbak = '\E\E[A';
+indent = '\E\E[C';
+undent = '\E\E[D';
+}    # end of vt100, etc.
+
+sun  {
+    enter = '^m';
+    clear = '^z' | '\E[222z';
+
+    nl = '^j';
+    tab = '^i';
+    btab = '^b' | '\E[195z' | '\E[216z';
+    left = '^h' | '\E[D' | '\EOD';
+    right = '^l' | '\E[C' | '\EOC';
+    up = '^k' | '\E[A' | '\EOA';
+    down = '\E[B' | '\EOB';
+    home = '\E[218z';
+
+    delete = '^d' | '^?';
+    eeof = '^e' | '\E[214z';
+    einp = '^w' | '\E[213z';
+    insrt = '\E ' | '\E[220z';
+    dp = '^u';
+    fm = '^y';
+
+    # pf keys
+    pfk1 = '\E[224z' | '\E1'; pfk2 = '\E[225z' | '\E2';
+    pfk3 = '\E[226z' | '\E3'; pfk4 = '\E[227z' | '\E4';
+    pfk5 = '\E[228z' | '\E5'; pfk6 = '\E[229z' | '\E6';
+    pfk7 = '\E[230z' | '\E7'; pfk8 = '\E[231z' | '\E8';
+    pfk9 = '\E[232z' | '\E9'; pfk10 = '\E[208z' | '\E0';
+    pfk11 = '\E[209z' | '\E-'; pfk12 = '\E[210z' | '\E=';
+    pfk13 = '^f13'; pfk14 = '^f14'; pfk15 = '^f15'; pfk16 = '^f16';
+    pfk17 = '^f17'; pfk18 = '^f18'; pfk19 = '^f19'; pfk20 = '^f20';
+    pfk21 = '^f21'; pfk22 = '^f22'; pfk23 = '^f23'; pfk24 = '^f24';
+
+    # program attention keys
+    pa1 = '^p1' | '\E[211z';
+    pa2 = '^p2' | '\E[212z';
+    pa3 = '^p3';
+
+    # other keys
+    cursel = '\E.';
+    centsign = '^\';
+
+    # local control keys
+
+    reset = '^t';	# well, there is a little confusion here...
+    master_reset = '^g';
+    flinp = '^x';
+    reshow = '^v';	# redisplay screen
+    escape = '^c';	# escape to telnet command mode
+
+    # local editing keys
+    settab = '\E;';
+    clrtab = '\E+';
+    setmrg = '\E(';
+    sethom = '\E!';
+    coltab = '\Ei';
+    colbak = '\Eb';
+    indent = '\El';
+    undent = '\Eh';
+} # end of sun
+#
+# Works with /usr/ucb/tn3270 except tn3270pc which requires /usr/new/tn3270.
+#
+msk22714 | mskermit22714 | msk227 | mskermit227 {
+#
+# 9-5-86 gts
+# MS-Kermit UCB 227.14 to Unix then tn3270 to CMS.
+# Includes underlying ADM3A keystrokes for full S/1 compatibiliy.
+# Attempts to work for both "do unix" and "do cms" keyboards.  Differences are
+# marked with (C) for CMS only or (U) for Unix only.  Incidental effects are
+# enclosed in square brackets [].
+# New functions WERASE Ctrl-\  and FERASE Ctrl-_.
+
+    enter = '^m';					# <--'
+    clear = '^z';					# keypad + (C)
+
+    nl    = '^n';					# keypad End (C)
+    tab   = '^i';					# --->|
+    btab  = '^b'  | '\E^I';				# |<--- (C|U)
+    left  = '^h';					# keypad Left
+    right = '^l';					# keypad Right
+    up    = '^k';					# keypad Up
+    down  = '^j'  | '\EB';				# keypad Down (U|C)
+							# [ keypad End (U) ]
+    home  = '^^'  | '^@';				# keypad Home (U|C)
+    dp    = '^u'  | '^a';				# [ keypad PgUp (U) ]
+    fm    = '^y';
+
+    delete = '^d' | '^?';				# keypad Del
+							# [ keypad PgDn (U) ]
+    eeof   = '^e';
+    einp   = '^w';					# keypad - (C)
+    insrt  = '\E ' | '\Ei';				# keypad Ins (C|U)
+
+    # pf keys IBM PC/XT/AT and ADM3A Esc d
+    pfk1 = '\E1'; pfk2 = '\E2'; pfk3 = '\E3'; pfk4 = '\E4'; pfk5 = '\E5';
+    pfk6 = '\E6'; pfk7 = '\E7'; pfk8 = '\E8'; pfk9 = '\E9'; pfk10= '\E0';
+    # pf keys IBM PC/XT/AT Shift and ADM3A Ctrl-F nn
+    pfk11='^f11'; pfk12='^f12'; pfk13='^f13'; pfk14='^f14'; pfk15='^f15';
+    pfk16='^f16'; pfk17='^f17'; pfk18='^f18'; pfk19='^f19'; pfk20='^f20';
+    # pf keys IBM PC/XT/AT Ctrl- and ADM3A Ctrl-F nn
+    pfk21='^f21'; pfk22='^f22'; pfk23='^f23'; pfk24='^f24'; pfk25='^f25';
+    pfk26='^f26'; pfk27='^f27'; pfk28='^f28'; pfk29='^f29'; pfk30='^f30';
+    # pf keys IBM PC/XT/AT Ctrl-Shift- and ADM3A Ctrl-F nn
+    pfk31='^f31'; pfk32='^f32'; pfk33='^f33'; pfk34='^f34'; pfk35='^f35';
+    pfk36='^f36';
+    # pf keys IBM PC/XT/AT Alt-1 to Alt-= (generated as, Esc d, ^F 11, ^F 12)
+    # pf keys ADM3A Esc d           (d = 1 to 0 interpreted as above)
+    pfk11 = '\E-'; pfk12 = '\E=';
+
+    # program attention keys (same as ADM3A)
+    pa1 = '^p1';					# Alt-F1
+    pa2 = '^p2';					# Alt-F2
+    pa3 = '^p3';					# Alt-F3
+   #pa4 = '^p4';					# Alt-F3
+   #testreq = '^pr' | '^pR';				# Alt-F5
+
+    # other keys
+    cursel = '\E.';
+    werase = '^\';
+    ferase = '^_';
+
+    # local control keys
+    master_reset = '^g';
+    reset  = '^r'  | '^t';
+    flinp  = '^x';
+    reshow = '^v';
+    escape = '^c';					# escape to telnet
+
+    # local editing keys
+    settab = '\E;';
+    deltab = '\E\'';
+    clrtab = '\E:' | '\E+';
+    setmrg = '\E(';
+    sethom = '\E!';
+    coltab = '\EI';
+   #coltab = '\Ei' | '\EI';				# cannot use Esc i
+    colbak = '\Eb';					# on S/1 \EB is down
+   #colbak = '\Eb' | '\EB';				# cannot use Esc B
+    indent = '\El' | '\EL';
+    undent = '\Eh' | '\EH';				# on S/1 \EH is Home
+
+} # end of msk22714
+#
+ansisys | ansisysk | nansisys | nansisysk {
+#
+# 9-5-86 gts
+# IBM PC/XT/AT using the ansi.sys | ansi.sysk | nansi.sys | nansi.sysk termcaps.
+#
+# PROBLEM: cannot use periods in termcap name until mset fixed (gts 9-5-86).
+#
+# PROBLEM: cannot use eval `mset ...` until Unix csh changed to allow more
+# than 1024 characters in an environment string or until mset changed to
+# return only the filename if the resulting string is longer than 1024.
+#
+# PROBLEM when NUL (^@) immediately follows a Return:  Unix telent apparently
+# ignores the NUL!  (Can tn3270 negotiate a different newline?)
+#
+# Nearly identical to the map3270 for the IBM PC TN3270, which itself is nearly
+# identical to the MS-Kermit UCB 227.14 keyboard which in turn was a  modest
+# improvement of the BIJOU Yterm keyboard.  See HELP TN3270PC on CMS.
+# Includes the underlying ADM3A keystrokes for full S/1 compatibility.
+# Adds some Ctrl-keypad keys to compensate for TN3270 ROMBIOS dependency
+# which prevents separate use of the keypad plus and minus keys.
+# Adds new functions WERASE and FERASE.
+#
+
+    enter = '^m';					# <--'
+    clear = '^z' | '^@w';				# Ctrl-Home
+
+    nl    = '^n'  | '^@O';				# keypad End
+    tab   = '^i';					# --->|
+    btab  = '^b'  | '^@^O';				# |<---
+    left  = '^h'  | '^@K';				# keypad Left
+    right = '^l'  | '^@M';				# keypad Right
+    up    = '^k'  | '^@H';				# keypad Up
+    down  = '^j'  | '^@P';				# keypad Down
+    home  = '^^'  | '^@G';				# keypad Home
+							# (cannot use Ctrl-@)
+    dp    = '^u';
+    fm    = '^y';
+
+    delete = '^d'  | '^?'  | '^@S';			# keypad Del
+    eeof   = '^e'  | '^@u';				# keypad Ctrl-End
+    einp   = '^w';
+    insrt  = '\E ' | '^@R' | '\E\Ei';			# keypad Ins
+
+    # pf keys IBM PC/XT/AT
+    pfk1 = '^@;'; pfk2 = '^@<'; pfk3 = '^@='; pfk4 = '^@>'; pfk5 = '^@?';
+    pfk6 = '^@@'; pfk7 = '^@A'; pfk8 = '^@B'; pfk9 = '^@C'; pfk10= '^@D';
+    # pf keys IBM PC/XT/AT Shift
+    pfk11 = '^@T'; pfk12 = '^@U'; pfk13 = '^@V'; pfk14 = '^@W';  pfk15 = '^@X';
+    pfk16 = '^@Y'; pfk17 = '^@Z'; pfk18 = '^@['; pfk19 = '^@\\'; pfk20 = '^@]';
+    # pf keys IBM PC/XT/AT Ctrl-
+    pfk21 = '^@\^';pfk22 = '^@_'; pfk23 = '^@`'; pfk24 = '^@a';  pfk25 = '^@b';
+    pfk26 = '^@c'; pfk27 = '^@d'; pfk28 = '^@e'; pfk29 = '^@\f'; pfk30 = '^@g';
+    # pf keys IBM PC/XT/AT Ctrl-Shift-   (cannot be done yet with  PC tn3270)
+    # pf keys IBM PC/XT/AT Alt-d
+    pfk1 = '^@x'; pfk2 = '^@y'; pfk3 = '^@z'; pfk4 = '^@{'; pfk5 = '^@|';
+    pfk6 = '^@}'; pfk7 = '^@~'; pfk8 = '^@^?';pfk9 = '^@^@';pfk10= '^@^A';
+    pfk11='^@^B'; pfk12= '^@^C';
+
+    # pf keys ADM3A Esc d
+    pfk1 = '\E1'; pfk2 = '\E2'; pfk3 = '\E3'; pfk4 = '\E4'; pfk5 = '\E5';
+    pfk6 = '\E6'; pfk7 = '\E7'; pfk8 = '\E8'; pfk9 = '\E9'; pfk10= '\E0';
+    pfk11 = '\E-'; pfk12 = '\E=';
+    # pf keys ADM3A Ctrl-F n n
+    pfk1 = '^f01'; pfk2 = '^f02'; pfk3 = '^f03'; pfk4 = '^f04'; pfk5= '^f05';
+    pfk6 = '^f06'; pfk7 = '^f07'; pfk8 = '^f08'; pfk9 = '^f09'; pfk10= '^f10';
+    pfk11= '^f11'; pfk12= '^f12'; pfk13= '^f13'; pfk14= '^f14'; pfk15= '^f15';
+    pfk16= '^f16'; pfk17= '^f17'; pfk18= '^f18'; pfk19= '^f19'; pfk20= '^f20';
+    pfk21= '^f21'; pfk22= '^f22'; pfk23= '^f23'; pfk24= '^f24'; pfk25= '^f25';
+    pfk26= '^f26'; pfk27= '^f27'; pfk28= '^f28'; pfk29= '^f29'; pfk30= '^f30';
+    pfk31= '^f31'; pfk32= '^f32'; pfk33= '^f33'; pfk34= '^f34'; pfk35= '^f35';
+    pfk36= '^f36';
+
+    # program attention keys
+    pa1 = '^p1' | '^@h';				# Alt-F1
+    pa2 = '^p2' | '^@i';				# Alt-F2
+    pa3 = '^p3' | '^@j';				# Alt-F3
+   #pa4 = '^p4' | '^@k';				# Alt-F4
+   #testreq = '^pr' | '^pR' | '^@l'			# Alt-F5
+
+    # other keys
+    cursel = '\E.';
+    werase = '^\';
+    ferase = '^_';
+    pfk7 = '^@I'    | '\E^U';				# keypad PgUp
+    pfk8 = '^@Q'    | '\E^D';				# keypad PgDn
+
+    # local control keys
+    reset  = '^r' | '^t';
+    master_reset = '^g';
+    flinp  = '^x';
+    reshow = '^v';
+    escape = '^c';		# escape to TN3270 command prompt
+
+    # local editing keys
+    settab = '\E;';
+    deltab = '\E\'';
+    clrtab = '\E:' | '\E+';
+    setmrg = '\E(';
+    sethom = '\E!';
+    coltab = '\Ei' | '\EI';
+    colbak = '\Eb' | '\EB';		# on S/1 \EB is down
+    indent = '\El' | '\EL';
+    undent = '\Eh' | '\EH';		# on S/1 \EH is Home
+
+} # end of ansi.sys
+#
+tn3270pc | ibm-3278-2 {
+#
+# 2-14-87 gts
+#
+# MAP3270 for the IBM PC logged into Unix with PC TN3270 with TERM=nansisys,
+# nansisysk, ansisys or ansisysk, hence requires KETBD=tn3270pc.
+#
+# MAP3270 for the IBM PC
+# Nearly identical to the MS-Kermit UCB 227.14 keyboard which in turn was
+# an modest improvement of the BIJOU Yterm keyboard.
+# Includes underlying ADM3A keystrokes for full S/1 compatibiliy.
+# Adds some Ctrl-keypad keys to compensate for TN3270 ROMBIOS dependency
+# which prevents separate use of the keypad plus and minus keys, and adds
+# new functions WERASE, FERASE, WORDTAB, WORDBACKTAB, WORDEND and FIELDEND.
+# Where possible these extensions are compatible with IBM PC keystroke usage
+# (see XT technical reference manual Keyboard Usage Guidelines).
+# Includes F11 and F12 keys from the new IBM PC/XT/AT keyboard.
+#
+
+    centsign = '\Ec' | '\EC';				# CentSign for input
+    enter = '^m';					# <--'
+    clear = '^z' | '^Aw';				# Ctrl-Home
+
+    nl    = '^n'  | '^AO';				# keypad End
+    tab   = '^i';					# --->|
+    btab  = '^b'  | '\E^I' | '^A^O';			# |<---
+    left  = '^h'  | '^AK';				# keypad Left
+    right = '^l'  | '^AM';				# keypad Right
+    up    = '^k'  | '^AH';				# keypad Up
+    down  = '^j'  | '^AP';				# keypad Down
+    home  = '^^'  | '^AG'  | '^@';			# keypad Home
+    dp    = '^u';
+    fm    = '^y';
+
+    delete = '^d' | '^AS';				# keypad Del
+    eeof = '^e'  | '^Au';				# keypad End
+    einp = '^w';
+    insrt = '\E ' | '^AR';				# keypad Ins
+
+    # pf keys IBM PC/XT/AT
+    pfk1 = '^A;'; pfk2 = '^A<'; pfk3 = '^A='; pfk4 = '^A>'; pfk5 = '^A?';
+    pfk6 = '^A@'; pfk7 = '^AA'; pfk8 = '^AB'; pfk9 = '^AC'; pfk10= '^AD';
+    # pf keys IBM PC/XT/AT Shift
+    pfk11 = '^AT'; pfk12 = '^AU'; pfk13 = '^AV'; pfk14 = '^AW';  pfk15 = '^AX';
+    pfk16 = '^AY'; pfk17 = '^AZ'; pfk18 = '^A['; pfk19 = '^A\\'; pfk20 = '^A]';
+    # pf keys IBM PC/XT/AT Ctrl-
+    pfk21 = '^A\^';pfk22 = '^A_'; pfk23 = '^A`'; pfk24 = '^Aa'; pfk25 = '^Ab';
+    pfk26 = '^Ac'; pfk27 = '^Ad'; pfk28 = '^Ae'; pfk29 = '^Af'; pfk30 = '^Ag';
+    # pf keys IBM PC/XT/AT Alt-d
+    pfk1 = '^Ax'; pfk2 = '^Ay'; pfk3 = '^Az'; pfk4 = '^A{'; pfk5 = '^A|';
+    pfk6 = '^A}'; pfk7 = '^A~'; pfk8 = '^A^?';pfk9 = '^A^A^@';pfk10= '^A^A^A';
+    pfk11='^A^A^b'; pfk12= '^A^A^c';
+    # pf keys NEW IBM PC/XT/AT Keyboard
+    pfk11='^A^A^e'; pfk12= '^A^A^f';
+
+    # pf keys ADM3A Esc d
+    pfk1 = '\E1'; pfk2 = '\E2'; pfk3 = '\E3'; pfk4 = '\E4'; pfk5 = '\E5';
+    pfk6 = '\E6'; pfk7 = '\E7'; pfk8 = '\E8'; pfk9 = '\E9'; pfk10= '\E0';
+    pfk11 = '\E-'; pfk12 = '\E=';
+    # pf keys ADM3A Ctrl-F n n
+    pfk1 = '^f01'; pfk2 = '^f02'; pfk3 = '^f03'; pfk4 = '^f04'; pfk5= '^f05';
+    pfk6 = '^f06'; pfk7 = '^f07'; pfk8 = '^f08'; pfk9 = '^f09'; pfk10= '^f10';
+    pfk11= '^f11'; pfk12= '^f12'; pfk13= '^f13'; pfk14= '^f14'; pfk15= '^f15';
+    pfk16= '^f16'; pfk17= '^f17'; pfk18= '^f18'; pfk19= '^f19'; pfk20= '^f20';
+    pfk21= '^f21'; pfk22= '^f22'; pfk23= '^f23'; pfk24= '^f24'; pfk25= '^f25';
+    pfk26= '^f26'; pfk27= '^f27'; pfk28= '^f28'; pfk29= '^f29'; pfk30= '^f30';
+    pfk31= '^f31'; pfk32= '^f32'; pfk33= '^f33'; pfk34= '^f34'; pfk35= '^f35';
+    pfk36= '^f36';
+
+    # program attention keys
+    pa1 = '^p1' | '^Ah';				# Alt-F1
+    pa2 = '^p2' | '^Ai';				# Alt-F2
+    pa3 = '^p3' | '^Aj';				# Alt-F3
+    treq = '^pr' | '^pR' | '^Al';			# Alt-F5
+
+    # other keys
+    cursel = '\E.';
+    werase = '^\';
+    ferase = '^_';
+    wordtab = '^At';					# Ctrl-Right
+    wordbacktab = '^As';				# Ctrl-Left
+    wordend = '^A^A^d';					# Ctrl-PgUp
+    fieldend = '^Av';					# Ctrl-PgDn
+    pfk7 = '^AI';					# keypad PgUp
+    pfk8 = '^AQ';					# keypad PgDn
+
+    # local control keys
+    reset  = '^r' | '^t';
+    master_reset = '^g';
+    flinp  = '^x';
+    reshow = '^v';
+    escape = '^c';					# to command prompt
+    disc   = '^pS1D';					# disconnect (suspend)?
+    sync   = '^pS1S';					# in sync with user?
+
+    # local editing keys
+    settab = '\E;';
+    deltab = '\E\'';
+    clrtab = '\E:' | '\E+';
+    setmrg = '\E(';
+    sethom = '\E!';
+    coltab = '\Ei' | '\EI';
+    colbak = '\Eb' | '\EB';				# on S/1 \EB is down
+    indent = '\El' | '\EL';
+    undent = '\Eh' | '\EH';				# on S/1 \EH is Home
+
+} # end of tn3270pc

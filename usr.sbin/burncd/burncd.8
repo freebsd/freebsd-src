@@ -1,0 +1,188 @@
+.\"
+.\" Copyright (c) 2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 4, 2001
+.Os
+.Dt BURNCD 8
+.Sh NAME
+.Nm burncd
+.Nd control the ATAPI CD-R/RW driver
+.Sh SYNOPSIS
+.Nm
+.Op Fl delmnpqtv
+.Op Fl f Ar device
+.Op Fl s Ar speed
+.Op Ar command
+.Op Ar command Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to burn CD-R/RW media using the ATAPI cd driver.
+.Pp
+Available options and operands:
+.Pp
+.Bl -tag -width XXXXXXXXXXXX
+.It Fl d
+burn the CD-R/RW in DAO (disk at once) mode.
+.It Fl e
+eject the media when done.
+.It Fl f Ar device
+set the device to use for the burning process.
+.It Fl l
+read a list of image files from filename.
+.It Fl m
+close disk in multisession mode (otherwise disk is closed as singlesession).
+.It Fl n
+do not write gaps between data tracks in DAO mode.
+.It Fl p
+use preemphasis on audio tracks.
+.It Fl q
+quiet, do not print progress messages.
+.It Fl s Ar speed
+set the speed of the burner device.
+Defaults to 1.
+Specify
+.Dq Li max
+to use the drive's fastest speed.
+.It Fl t
+test write, do not actually write on the media.
+.It Fl v
+verbose, print extra progress messages.
+.El
+.Pp
+.Ar command
+may be one of:
+.Pp
+.Bl -tag -width XXXXXXXXXXXX
+.It Cm msinfo
+Show the first LBA of the last track on the media
+and the next writeable address on the media for use with the
+.Xr mkisofs 8 Ns 's
+.Fl C
+switch when adding additional data to ISO file systems with extra sessions.
+.It Cm blank
+Blank a CD-RW medium.
+This uses the fast blanking method, so data are not physically overwritten,
+only those areas that make the media appear blank for further usage are erased.
+.It Cm erase
+Erase a CD-RW medium.
+This erases the entire media.
+Can take up to 1 hour to finish.
+.It Cm fixate
+Fixate the medium so that the TOC is generated and the media can be used
+in an ordinary CD drive.
+The driver defaults to creating singlesession media (see
+.Fl m
+option).
+Should be the last command to
+.Nm
+as the program exits when this has been done.
+Ignored in DAO mode (see
+.Fl d
+option).
+.It Cm raw | audio
+Set the write mode to produce audio (raw mode) tracks for the following
+images on the command line.
+.It Cm data | mode1
+Set the write mode to produce data (mode1) tracks for the following
+image files
+on the command line.
+.It Cm mode2
+Set the write mode to produce data (mode2) tracks for the following
+image files
+on the command line.
+.It Cm XAmode1
+Set the write mode to produce data (XAmode1) tracks for the following image
+files on the command line.
+.It Cm XAmode2
+Set the write mode to produce data (XAmode2) tracks for the following image
+files on the command line.
+.It Cm vcd
+Set the write mode to produce VCD/SVCD tracks for the following image files
+on the command line.
+This automatically sets DAO
+.Pq Fl d
+and
+.Dq "no gaps"
+.Pq Fl n
+modes.
+.It Ar file
+All other arguments are treated as filenames of images to write to the media,
+or in case the
+.Fl l
+option is used as files containing lists of images.
+.El
+.Pp
+Files whose length are not a multiple of the current media blocksize are
+quietly zero padded to fit the blocksize requirement.
+The conventional filename
+.Fl
+refers to stdin, and can only be used once.
+.Sh EXAMPLES
+The typical usage for burning a data CD-R:
+.Pp
+.Dl "burncd -f /dev/acd0c data file1 fixate"
+.Pp
+The typical usage for burning an audio CD-R:
+.Pp
+.Dl "burncd -f /dev/acd0c audio file1 file2 file3 fixate"
+.Pp
+The typical usage for burning an audio CD-R in DAO mode:
+.Pp
+.Dl "burncd -f /dev/acd0c -d audio file1 file2 file3"
+.Pp
+The typical usage for burning a mixed mode CD-R:
+.Pp
+.Dl "burncd -f /dev/acd0c data file1 audio file2 file3 fixate"
+.Pp
+The typical usage for burning from a compressed image file on stdin:
+.Pp
+.Dl "gunzip -c file.iso.gz | burncd -f /dev/acd0c data - fixate"
+.Pp
+In the examples above, the files burned to data CD-Rs are assumed to
+be ISO9660 file systems.
+.Xr mkisofs 8 ,
+available in the
+.Fx
+Ports Collection, is commonly used to create ISO9660 file system images
+from a given directory tree.
+.Sh BUGS
+Probably, please report when found.
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+The
+.Nm
+utility and this manpage was contributed by
+.An S\(/oren Schmidt ,
+Denmark
+.Aq sos@FreeBSD.org .

@@ -1,0 +1,28 @@
+Fri Jul  3 15:06:40 1998  Jarkko Hietaniemi  <jhi@iki.fi>
+
+	- Integrated IPC::SysV 1.03 to Perl 5.004_69.
+
+Change 142 on 1998/05/31 by <gbarr@pobox.com> (Graham Barr)
+
+	- Changed SHMLBA from a constSUB to an XS sub as on some systems it is not
+	  a constant
+	- Added a missing MODULE line to SysV.xs so ftok is defined in IPC::SysV
+
+Change 138 on 1998/05/23 by <gbarr@pobox.com> (Graham Barr)
+
+	Applied patch from Jarkko Hietaniemi to add constats for UNICOS
+	
+	Reduced size of XS object by changing constant sub definition
+	into a loop
+	
+	Updated POD to include ftok()
+
+Change 135 on 1998/05/18 by <gbarr@pobox.com> (Graham Barr)
+
+	applied changes from Jarkko Hietaniemi <jhi@iki.fi> to add
+	new constants and ftok
+	
+	fixed to compile with >5.004_50
+	
+	surrounded newCONSTSUB with #ifndef as perl now defines this itself
+

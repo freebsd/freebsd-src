@@ -1,0 +1,1140 @@
+
+
+
+
+
+
+INTERNET-DRAFT   Kerberized USM Keying    M. Thomas
+                                          Cisco Systems
+                                          K. McCloghrie
+                                          Cisco Systems
+                                          July 13, 2000
+
+
+
+
+
+
+                         Kerberized USM Keying
+
+                   draft-thomas-snmpv3-kerbusm-00.txt
+
+
+
+Status of this Memo
+
+   This document is an Internet-Draft and is in full conformance with
+   all provisions of Section 10 of RFC2026.  Internet-Drafts are working
+   documents of the Internet Engineering Task Force (IETF), its areas,
+   and its working groups.  Note that other groups may also distribute
+   working documents as Internet-Drafts.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   The list of current Internet-Drafts can be accessed at
+   http://www.ietf.org/ietf/1id-abstracts.txt
+
+   The list of Internet-Draft Shadow Directories can be accessed at
+   http://www.ietf.org/shadow.html.
+
+Abstract
+
+   The KerbUSM MIB provides a means of leveraging a trusted third party
+   authentication and authorization mechanism using Kerberos for SNMP V3
+   USM users and their associated VACM views. The MIB encodes the normal
+   Kerberos AP-REQ and AP-REP means of both authenticating and creating
+   a shared secret between the SNMP V3 Manager and Agent.
+
+The SNMP Management Framework
+
+   The SNMP Management Framework presently consists of five major
+   components:  An overall architecture, described in RFC 2571
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00             [Page 1]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+   [RFC2571].  Mechanisms for describing and naming objects and events
+   for the purpose of management.  The first version of this Structure
+   of Management Information (SMI) is called SMIv1 and described in STD
+   16, RFC 1155 [RFC1155], STD 16, RFC 1212 [RFC1212] and RFC 1215
+   [RFC1215].  The second version, called SMIv2, is described in STD 58,
+   RFC 2578 [RFC2578], STD 58, RFC 2579 [RFC2579] and STD 58, RFC 2580
+   [RFC2580].  Message protocols for transferring management
+   information.  The first version of the SNMP message protocol is
+   called SNMPv1 and described in STD 15, RFC 1157 [RFC1157].  A second
+   version of the SNMP message protocol, which is not an Internet
+   standards track protocol, is called SNMPv2c and described in RFC 1901
+   [RFC1901] and RFC 1906 [RFC1906].  The third version of the message
+   protocol is called SNMPv3 and described in RFC 1906 [RFC1906], RFC
+   2572 [RFC2572] and RFC 2574 [RFC2574].  Protocol operations for
+   accessing management information.  The first set of protocol
+   operations and associated PDU formats is described in STD 15, RFC
+   1157 [RFC1157].  A second set of protocol operations and associated
+   PDU formats is described in RFC 1905 [RFC1905].  A set of fundamental
+   applications described in RFC 2573 [RFC2573] and the view-based
+   access control mechanism described in RFC 2575 [RFC2575].
+
+   A more detailed introduction to the current SNMP Management Framework
+   can be found in RFC 2570 [RFC2570].
+
+   Managed objects are accessed via a virtual information store, termed
+   the Management Information Base or MIB.  Objects in the MIB are
+   defined using the mechanisms defined in the SMI.
+
+   This memo specifies a MIB module that is compliant to the SMIv2.  A
+   MIB conforming to the SMIv1 can be produced through the appropriate
+   translations.  The resulting translated MIB must be semantically
+   equivalent, except where objects or events are omitted because no
+   translation is possible (use of Counter64).  Some machine readable
+   information in SMIv2 will be converted into textual descriptions in
+   SMIv1 during the translation process.  However, this loss of machine
+   readable information is not considered to change the semantics of the
+   MIB.
+
+
+Introduction
+
+   The User based Security Model of SNMP V3 (USM) [2] provides a means
+   of associating different users with different access privileges of
+   the various MIB's that an agent supports. In conjunction with the
+   View based Access Control Model of SNMP V3 (VACM) [3], SNMP V3
+   provides a means of providing resistance from various threats both
+   from outside attacks such as spoofing, and inside attacks such as an
+   user having, say, SET access to MIB variable for which they are not
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00             [Page 2]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+   authorized.
+
+   SNMP V3, unfortunately, does not specify a means of doing key
+   distribution between the managers and the agents. For small numbers
+   of agents and managers, the O(n*m) manual keying is a cumbersome, but
+   possibly tractable problem. For a large number of agents with
+   distribution of managers, the key distribution quickly goes from
+   cumbersome to unmanageable. Also: there is always the lingering
+   concern of the security precautions taken for keys on either local
+   management stations, or even directories.
+
+   Kerberos [1] provides a means of centralizing key management into an
+   authentication and authorization server known as a Key Distribution
+   Center (KDC).  At a minimum, Kerberos changes the key distribution
+   problem from a O(n*m) problem to a O(n) problem since keys are shared
+   between the KDC and the Kerberos principals rather directly between
+   each host pair. Kerberos also provides a means to use public key
+   based authentication which can be used to further scale down the
+   number of pre-shared secrets required. Furthermore, a KDC is intended
+   and explicitly expected to be a standalone server which is managed
+   with a much higher level of security concern than a management
+   station or even a central directory which may host many services and
+   thus be exposed to many more possible vectors of attack.
+
+   The MIB defined in this memo describes a means of using the desirable
+   properties of Kerberos within the context of SNMP V3. Kerberos
+   defines a standardized means of communicating with the KDC as well as
+   a standard format of Kerberos tickets which Kerberos principals
+   exchange in order to authenticate to one another. The actual means of
+   exchanging tickets, however, is left as application specific. This
+   MIB defines the SNMP MIB designed to transport Kerberos tickets and
+   by doing so set up SNMP V3 USM keys for authentication and privacy.
+
+   It should be noted that using Kerberos does introduce reliance on a
+   key network element, the KDC. This flies in the face of one of SNMP's
+   dictums of working when the network is misbehaving. While this is a
+   valid concern, the risk of reliance on the KDC can be significantly
+   diminished with a few common sense actions. Since Kerberos tickets
+   can have long life times (days, weeks) a manager of key network
+   elements can and should maintain Kerberos tickets well ahead ticket
+   expiration so that likelihood of not being able to rekey a session
+   while the network is misbehaving is minimized. For non-critical, but
+   high fanout elements such as user CPE, etc, requiring a pre-fetched
+   ticket may not be practical, which puts the KDC into the critical
+   path. However, if all KDC's are unreachable, the non-critical network
+   elements are probably the least of the worries.
+
+
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00             [Page 3]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+Operation
+
+   The normal Kerberos application ticket exchange is accomplished by  a
+   client  first  fetching  a  service ticket from a KDC for the service
+   principal and then sending an AP-REQ  to  a  server  to  authenticate
+   itself  to  the  server. The server then sends a AP-REP to finish the
+   exchange. This MIB maps Kerberos' concept of client and  server  into
+   the  SNMP  V3  concept  of  Manager and Agent by designating that the
+   Kerberos Client is the SNMP V3 Agent. Although  it  could  be  argued
+   that an Agent is really a server, in practice there may be many, many
+   agents and relatively few managers. Also: Kerberos clients  may  make
+   use  of  public  key authentication as defined in [4], and it is very
+   advantageous to take advantage of that capability for  Agents  rather
+   than Managers.
+
+   The MIB is intended to be stateless and map USM users to Kerberos
+   principals. This mapping is explicitly done by putting a Kerberos
+   principal name into the usmUserSecurityName in the usmUser MIB and
+   instatiating the krbUsmMibEntry for the usmUserEntry. MIB variables
+   are accessed with INFORM's or TRAP PDU's and SET's to perform a
+   normal Kerberos AP-REQ/AP-REP exchange transaction which causes the
+   keys for a USM user to be derived and installed. The basic structure
+   of the MIB is a table which augements usmUserEntry's with a Kerberos
+   principal name as well as the transaction varbinds. In the normal
+   case, multiple varbinds should be sent in a single PDU which prevents
+   various race conditions, as well as increasing efficiency.
+
+   It should be noted that this MIB is silent on the subject of how the
+   Agent and Manager find the KDC. In practice, this may be either
+   statically provisioned or use either DNS SRV records (RFC 2782) or
+   Service Location (RFC 2608). This MIB is does not provide for a means
+   of doing cipher suite negotiation either. It is expected that the
+   choices for ciphers in the USM MIB will reflect site specific choices
+   for ciphers. This matches well with the general philosophy of
+   centralized keying.
+
+Keying Transactions
+
+   The following shows an error free transaction:
+
+   Note: optional steps or parameters are shown like [ ]
+
+
+
+
+
+
+
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00             [Page 4]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+
+    Agent                       Manager                            KDC
+ +--                                                               --+
+ | 1) <-------------------------------                               |
+ |     SET (krbUsmPrinTable[usmUserName].krbUsmMibNonce = xxxx;      |
+ |          [ krbUsmPrinTable[usmUserName].krbUsmMibTgt =            |
+ |                                  TGT[usmUserSecurityName] ]);     |
+ |                                                                   |
+ | 2) ------------------------------->                               |
+ |    Response                                                       |
+ +--                     (optional)                                --+
+
+   3) --------------------------------------------------------------->
+        TGS-REQ (krbUsmPrinTable[usmUserName].krbUsmMibMgrPrinName
+                 [, krbUsmPrinTable[usmUserName].krbUsmMibTgt]);
+
+   4) <--------------------------------------------------------------
+        Tick[usmUserSecurityName] = TGS-REP ();
+
+   5)  ------------------------------>
+        INFORM (krbUsmPrinTable[usmUserName].krbUsmMibApReq =
+                   AP_REQ[Tick[usmUserSecurityName]];
+                   [ krbUsmPrinTable[usmUserName].krbUsmMibNonce = xxxx]);
+
+   6)  <------------------------------
+        SET (krbUsmPrinTable[usmUserName].krbUsmMibApRep = AP_REP[]);
+
+
+   7)  ------------------------------>
+       Response
+
+
+   The above flow translates to:
+
+
+   1)  This step is used when the Manager does not currently have a ses-
+       sion with the Agent but wishes to start one. The Manager MAY
+       place a ticket granting ticket into the krbUsmMibMgrTgt varbind
+       in the same PDU as the krbUsmMibNonce if it does not share a
+       secret with the KDC (as would be the case if the Manager used
+       PKinit to do initial authentication with the KDC).
+
+
+   2)  This step acknowledges the SET. There are no MIB specific errors
+       which can happen here.
+
+
+   3)  If the Agent is not already in possession of a service ticket for
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00             [Page 5]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+       the Manager in its ticket cache, it MUST request a service ticket
+       from the Agent's KDC for the service principal given by
+       krbUsmMibMgrPrinName in the row that the krbUsmMibNonce was SET
+       in, optionally adding a krbUsmMibMgrTgt.  If the TGT is speci-
+       fied, the Manager's TGT must be placed in the additional-tickets
+       field with the ENC-TKT-IN-SKEY option set in the TGS-REQ to
+       obtain a service ticket (see section 3.3.3 of [1]).
+
+       Note:   a Kerberos TGS-REQ is but one way to obtain a service
+               ticket. An Agent may use any normal Kerberos means to
+               obtain the service ticket. This flow has also elided ini-
+               tial authentication (ie, AS-REQ) and any cross realm con-
+               siderations, though those may be necessary prerequisites
+               to obtaining the service ticket.
+
+   4)  If step 3 was performed, this step receives the ticket or an
+       error from the KDC.
+
+
+   5)  This step sends a krbUsmMibApReq to the Manager via an INFORM or
+       TRAP PDU.  If the message is the result of a request by the
+       Manager, krbUsmMibNonce received from the Manager MUST be sent in
+       the same PDU. If the Manager did not initiate the transaction,
+       the Agent MUST NOT send a krbUsmMibNonce varbind. The Agent also
+       MUST check krbUsmMibUnsolicitedNotify is not false, otherwise it
+       MUST abort the transaction.  All krbUsmMibApReq's MUST contain a
+       sequence nonce so that the resulting krbUsmMibApRep can provide a
+       proof of the freshness of the message to prevent replay attacks.
+
+       If the Agent encounters an error either generated by the KDC or
+       internally, the Agent MUST send an INFORM or TRAP PDU indicating
+       the error in the form of a KRB-ERROR placed in krbUsmMibApReq
+       with the same rules applied to krbUsmMibNonce and krbUsmMibUnsol-
+       icitedNotify above. If the Agent suspects that it is being
+       attacked by a purported Manager which is generating many failed
+       TGS-REQ's to the KDC, it SHOULD meter its TGS-REQ transactions
+       for that Manager to the KDC using an exponential backoff mechan-
+       ism truncated at 10 seconds.
+
+
+
+   6)  Upon recepit of an INFORM or TRAP PDU with a krbUsmMibApReq, a
+       Manager may accept the AP-REQ. If it is accompanied with a
+       krbUsmMibNonce it MUST correlate it with any outstanding transac-
+       tions using its stored nonce for the transaction. If it does not
+       correlate with a current nonce, the request MUST be rejected as
+       it may be a replay.
+
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00             [Page 6]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+       If the Manager chooses to reject an unsolicited keying request,
+       it SHOULD send a WrongValue Error to the Agent with the krbUsmMi-
+       bApReq as the subject of the WrongValue. If an Agent receives a
+       WrongValue Error from a Manager it MUST cease retransmission of
+       the INFORM or TRAP PDU's so as to mitigate event avalanches by
+       Agents. There is a possible denial of service attack here, but it
+       must be weighed against the larger problem of network congestion,
+       flapping, etc. Therefore, if the Agent finds that it cannot can-
+       cel an unsolicited Notify (ie, it must be reliable), it MUST use
+       a truncated exponential backoff mechanism with the maximum trun-
+       cation interval set to 10 minutes.
+
+       Otherwise, the Manager MUST send a SET PDU to the Agent which
+       contains a krbUsmMibApRep.
+
+
+   7)  If the Agent detects an error (including detecting replays) in
+       the final AP-REP, it MUST send a WrongValue error with a pointer
+       to the krbUsmMibApRep varbind to indicate its inability to estab-
+       lish the security association. Otherwise, receipt of the positive
+       acknowledgement from the final SET indicates to the Manager that
+       the proper keys have been installed on the Agent in the USM MIB.
+
+Unsolicited Agent Keying Requests
+
+   An Agent may find that it needs to set up a security association for
+   a USM user in order to notify a Manager of some event. When the Agent
+   engine receives a request for a notify, it SHOULD check to see if
+   keying material has been established for the user and that the keying
+   material is valid. If the keying material is not valid and the USM
+   user has been tagged as being a Kerberos principal in a realm, the
+   Agent SHOULD first try to instantiate a security association by
+   obtaining a service ticket for the USM User and follow steps 3-7 of
+   the flow above. This insures that the USM User will have proper key-
+   ing material and providing a mechanism to allow for casual security
+   associations to be built up and torn down. This is especially useful
+   for Agents which may not normally need to be under constant Manager
+   supervision, such as the case with high fan out user residential CPE
+   and other SNMP managed "appliances". In all cases, the Agent MUST NOT
+   send an unsolicited Notify if krbUsmUnsolicitedNotify is set to
+   false.
+
+   How the Agent obtains the Manager's address, how it determines
+   whether a Manager, realm, and whether it can be keyed using this MIB
+   is outside of the scope of this memo.
+
+   Note:   Although the MIB allows for a Manager to set up a session
+           using User-User mode of Kerberos by sending a TGT along with
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00             [Page 7]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+           the nonce, this, is limited to Manager initiated sessions
+           only since there is no easy way to store the Manager's ticket
+           in the MIB since it is publicly writable and as such would be
+           subject to denial of service attacks. Another method might be
+           to have the Agent send a krbUsmMibNonce to the Manager which
+           would tell it to instigate a session. Overall, it seems like
+           a marginal feature to allow a PKinit authenticated user be
+           the target of unsolicited informs and it would complicate the
+           transactions. For this reason, this scenario has been omitted
+           in favor of simplicity.
+
+Retransmissions
+
+   Since this MIB defines not only variables, but transactions, discus-
+   sion of the retransmission state machine is in order. There are two
+   similar but different state machines for the Manager Solicited and
+   Agent Unsolicited transactions.  There is one timer Timeout which
+   SHOULD take into consideration round trip considerations and MUST
+   implement a truncated exponential backoff mechanism. In addition, in
+   the case where an Agent makes an unsolicited Agent keying request,
+   the Agent SHOULD perform an initial random backoff if the keying
+   request to the Manager may result in a restart avalanche. A suitable
+   method is described in section 4.3.4 of [5].
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00             [Page 8]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+
+Manager Solicited Retransmission State Machine
+
+                Timeout
+                 +---+
+                 |   |
+                 |   V
+              +-----------+ Set-Ack (2) +----------+
+              |           |------------>|          |
+              | Set-Nonce |             |  Ap-Req  |
+              |   (1)     |<------------|   (5)    |
+              +-----------+   Timeout   +----------+
+                   ^                         |
+                   |                         | Set-Ap-Rep
+                   |      +----------+       |  (6)
+                   +------|          |<------+
+                  Timeout | Estab-wt |
+                          |   (7)    |
+                          +----------+
+                               |
+                               |  Set-Ap-Rep-Ack (7)
+                               V
+                          +----------+
+                          |          |
+                          |  Estab   |
+                          |          |
+
+                          +----------+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00             [Page 9]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+
+Agent Unsolicited Retransmission State Machine
+
+                             Timeout
+                              +---+
+                              |   |
+                              |   V
+                          +----------+
+                          |          |
+                   +----> |  Ap-Req  |-------+
+                   |      |   (5)    |       |
+                   |      +----------+       |
+                   |                         |
+                   |                         | Set-Ap-Rep
+                   |      +----------+       |  (6)
+                   +------|          |<------+
+                  Timeout | Estab-wt |
+                          |   (7)    |
+                          +----------+
+                               |
+                               |  Set-Ap-Rep-Ack (7)
+                               V
+                          +----------+
+                          |          |
+                          |  Estab   |
+                          |          |
+                          +----------+
+
+Session Duration and Failures
+
+   The KerbUsmMib uses the ticket lifetime to determine the life of the
+   USM session. The Agent MUST keep track of whether the ticket which
+   instigated the session is valid whenever it forms PDU's for that par-
+   ticular user. If a session expires, or if it wasn't valid to begin
+   with (from the Agent's perspective), the Agent MUST reject the PDU by
+   sending a XXX Error [mat: help me here Keith... what does USM say
+   about this?].
+
+   Kerberos also inherently implies adding state to the Agent and
+   Manager since they share not only a key, but a lifetime associated
+   with that key. This is in some sense soft state because failure of an
+   Agent will cause it to reject PDU's for Managers with whom it does
+   not share a secret. The Manager can use the Error PDU's as an indica-
+   tion that it needs to reauthenticate with the Agent, taking care not
+   to loop. The Manager is even easier: when it reboots, it can either
+   check its credential cache to reconstruct state or cause the Agent to
+   reauthenticate to the Manager with its service ticket by initiating a
+   authentication transaction with the manager.
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00            [Page 10]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+Manager Collisions
+
+   Managers may freely set up keys for different USM users using this
+   MIB without problem since they access different rows in the krbUsm-
+   PrinTable. However, multiple Managers trying to set up keys for the
+   same USM user is possible but discouraged. The requirement for the
+   Manager is that they MUST share the same service key with the KDC so
+   that they can all decrypt the same service ticket. There are two race
+   conditions, however, which are not well handled:
+
+
+
+1)  At the end of a ticket lifetime, one manager may request the agent
+    to refresh its service ticket causing a new session key to be
+    installed for the USM user leaving the other managers with stale
+    keys. The workaround here is that the Agent will reject the stale
+    manager's PDU's which should inform them to do their own rekeying
+    operations.
+
+
+2)  If multiple managers try to access the same row at the same time,
+    the Agent SHOULD try to keep the transactions separate based on the
+    nonce values. The Managers or the Agents SHOULD NOT break the
+    krbUsmMibNonce and any other additional varbinds into separate PDU's
+    as this may result in a meta stable state. Given normal MTU sizes,
+    this should not be an issue in practice, and this should  at worst
+    devolve into the case above.
+
+   In all cases, the krbUsmMibNonce MUST be the last value to be
+   transmitted, though its position within a PDU is unimportant.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00            [Page 11]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+
+   KrbUSM MIB
+
+   KRB-USM-MIB DEFINITIONS ::= BEGIN
+   IMPORTS
+       MODULE-IDENTITY,
+       OBJECT-TYPE, OBJECT-IDENTITY,
+       snmpModules, Counter32, Unsigned32 FROM SNMPv2-SMI
+       TruthValue, DisplayString          FROM SNMPv2-TC
+       usmUserEntry                       FROM SNMP-USER-BASED-SM-MIB
+
+
+
+   krbUsmMib MODULE-IDENTITY
+           LAST-UPDATED "00071300Z"
+           ORGANIZATION "IETF SNMP V3 Working Group"
+           CONTACT-INFO
+             "Michael Thomas
+              Cisco Systems
+              375 E Tasman Drive
+              San Jose, Ca 95134
+              Phone: +1 408-525-5386
+              Fax: +1 801-382-5284
+              email: mat@cisco.com"
+           DESCRIPTION
+              "This MIB contains the MIB variables to
+               exchange Kerberos credentials and a session
+               key to be used to authenticate and set up
+               USM keys"
+
+           ::= { snmpModules nnn }   -- not sure what needs to be here.
+   krbUsmMibObjects OBJECT INDENTIFIER ::= { krbUsmMib 1 }
+
+   krbUsmMibAuthInAttemps
+               SYNTAX      Counter32
+               MAX-ACCESS  read-only
+               STATUS      current
+               DESCRIPTION
+                   "Counter of the number of Kerberos
+                    authorization attempts as defined by
+                    receipt of a PDU from a Manager with a
+                     krbUsmMibNonce set in the principal table."
+               ::= { krbUsmMibObjects 1 }
+
+   krbUsmMibAuthOutAttemps
+               SYNTAX      Counter32
+               MAX-ACCESS  read-only
+               STATUS      current
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00            [Page 12]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+               DESCRIPTION
+                   "Counter of the number of unsolicited Kerberos
+                    authorization attempts as defined by
+                    an Agent sending an INFORM or TRAP PDU with a
+                    krbUsmMibApRep but without krbUsmApMibNonce
+                    varbind."
+               ::= { krbUsmMibObjects 2 }
+   krbUsmMibAuthInFail
+               SYNTAX      Counter32
+               MAX-ACCESS  read-only
+               STATUS      current
+               DESCRIPTION
+                   "Counter of the number of Kerberos
+                    authorization failures as defined by
+                    a Manager setting the krbUsmMibNonce
+                    in the principal table which results
+                    in some sort of failure to install keys
+                    in the requested USM user entry."
+               ::= { krbUsmMibObjects 3 }
+
+   krbUsmMibAuthOutFail
+               SYNTAX      Counter32
+               MAX-ACCESS  read-only
+               STATUS      current
+               DESCRIPTION
+                   "Counter of the number of unsolicited Kerberos
+                    authorization failures as defined by
+                    an Agent sending an INFORM or TRAP PDU with a
+                    krbUsmMibApRep but without a krbUsmMibNonce
+                    varbind which does not result in keys being
+                    installed for that USM user entry."
+               ::= { krbUsmMibObjects 4 }
+
+   krbUsmMibPrinTable OBJECT-TYPE
+               SYNTAX      SEQUENCE OF krbUsmMibEntry
+               MAX-ACCESS  not-accessible
+               STATUS      current
+               DESCRIPTION
+                   "Table which maps Kerberos principals with USM
+                    users as well as the per user variables to key
+                    up sessions"
+               ::= { krbUsmMibObjects 5 }
+
+   krbUsmMibPrinEntry OBJECT-TYPE
+               SYNTAX     KrbUsmMibPrinEntry
+               MAX-ACCESS  not-accessible
+               STATUS      current
+               DESCRIPTION
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00            [Page 13]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+                   "an entry into the krbMibPrinTable which is a
+                    parallel table to UsmUserEntry table"
+               AUGMENTS { usmUserEntry }
+               ::= { krbUsmMibPrinTable 1 }
+
+   KrbUsmMibPrinEntry SEQUENCE
+    {
+                   krbUsmMibApReq                  OCTET STRING,
+                   krbUsmMibApRep                  OCTET STRING,
+                   krbUsmMibNonce                  OCTET STRING,
+                   krbUsmMibMgrTGT                 OCTET STRING,
+                   krbUsmMibUnsolicitedNotify      TruthValue,
+    }
+
+
+   krbUsmMibApReq OBJECT-TYPE
+               SYNTAX      OCTET STRING
+               MAX-ACCESS  accessible-for-notify
+               STATUS      current
+               DESCRIPTION
+                   "This variable contains a DER encoded Kerberos
+                    AP-REQ or KRB-ERROR for the USM user which is
+                    to be keyed. This is sent from the Agent to
+                    the Manager in an INFORM or TRAP request.
+                    KRB-ERROR MUST only be sent to the Manager
+                    if it is in response to a keying request from
+                    the Manager.
+                   "
+               ::= { krbUsmMibPrinEntry 1 }
+
+   krbUsmMibApRep OBJECT-TYPE
+               SYNTAX      OCTET STRING
+               MAX-ACCESS  read-write
+               STATUS      current
+               DESCRIPTION
+                   "This variable contains the DER encoded response
+                    to an AP-REQ. This variable is SET by the
+                    Manager to acknowledge receipt of an AP-REQ. If
+                    krbUsmMibApRep contains a Kerberos AP-REP, the
+                    Agent must derive keys from the session key
+                    of the Kerberos ticket in the AP-REQ and place
+                    them in the USM database in a manner specified
+                    by [RFC2574]. If the Manager detects an error,
+                    it will instead place a KRB-ERROR in this
+                    variable to inform the Agent of the error.
+
+                    This variable is in effect a write-only variable.
+                    attempts to read this variable will result in a
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00            [Page 14]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+                    null octet string being returned"
+               ::= { krbUsmMibPrinEntry 2 }
+
+   krbUsmMibNonce OBJECT-TYPE
+               SYNTAX      OCTET STRING
+               MAX-ACCESS  read-write
+               STATUS      current
+               DESCRIPTION
+                   "SET'ing a krbUsmMibnonce allows a Manager to
+                    determine whether an INFORM or TRAP from an
+                    Agent is an outstanding keying request, or
+                    unsolicited from the Agent. The Manager
+                    initiates keying for a particular USM user
+                    by writing a nonce into the row for which
+                    desires to establish a security association.
+                    The nonce is an ASCII string of the form
+                    ``host:port?nonce'' where:
+
+                    host:  is either an FQDN, or valid ipv4 or ipv6
+                           numerical notation of the Manager which
+                           desires to initiate keying
+                    port:  is the destination port at which that the
+                           Manager may be contacted
+                    nonce: is a number generated by the Manager to
+                           correlate the transaction
+
+                    The same nonce MUST be sent to the Manager in a
+                    subsequent INFORM or TRAP with a krbUsmApReq.
+                    The Agent MUST use the host address and port
+                    supplied in the nonce as the destination of a
+                    subsequent INFORM or TRAP. Unsolicited keying
+                    requests MUST NOT contain a nonce, and should
+                    instead use the destination stored Notifies of
+                    this type.
+
+                    Nonces MUST be highly collision resistant either
+                    using a time based method or a suitable random
+                    number generator. Managers MUST never create
+                    nonces which are 0.
+
+                    This variable is in effect a write-only variable.
+                    Attempts to read this variable will result in a
+                    nonce of value 0 being returned"
+
+
+               ::= { krbUsmMibPrinEntry 3 }
+
+
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00            [Page 15]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+   krbUsmMibMgrTgt OBJECT-TYPE
+               SYNTAX      OCTET STRING
+               MAX-ACCESS  read-write
+               STATUS      current
+               DESCRIPTION
+                   "If the Manager does not possess a symmetric
+                    key with the KDC as would be the case with
+                    a Manager using PKinit for authentication,
+                    the Manager MUST SET its DER encoded ticket
+                    granting ticket into KrbUsmMgrTgt along
+                    with krbUsmMibNonce.
+
+                    The agent will then attach the Manager's TGT
+                    into the additional tickets field of the
+                    TGS-REQ message to the KDC to get a User-User
+                    service ticket.
+
+                    This variable is in effect a write-only variable.
+                    Attempts to read this variable will result in a
+                    null octet string being returned"
+               ::= { krbUsmMibPrinEntry 4 }
+
+
+   krbUsmMibUnsolicitedNotify OBJECT-TYPE
+               SYNTAX      TruthValue
+               MAX-ACCESS  read-write
+               STATUS      current
+               DESCRIPTION
+                   "If this variable is false, the Agent MUST NOT
+                    send unsolicited INFORM or TRAP PDU's to the
+                    Manager.
+
+                    Attempts to SET this variable by the no-auth
+                    no-priv user MUST be rejected."
+               ::= { krbUsmMibPrinEntry 5 }
+
+   --
+   -- Conformance section... nothing optional.
+
+   krbUsmMibCompliences MODULE-COMPLIANCE
+               STATUS       current
+               DESCRIPTION "The compliance statement for SNMP
+                            engines whichimplement the KRB-USM-MIB
+                   "
+               MODULE       -- this module
+                       MANDATORY-GROUPS { krbUsmMib }
+       ::= { krbUsmMibCompliances 1 }
+
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00            [Page 16]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+   END
+
+
+Key Derivation
+
+   The session key provides the basis for the keying material for the
+   USM user specified in the AP-REQ.  The actual keys for use for the
+   authentication and privacy are produced using the cryptographic hash-
+   ing function used to protect the ticket itself.  The keying material
+   is derived using this function, F(key, salt), using successive
+   interations of F over the salt string "SNMPV3RULZ%d", where %d is a
+   monotonic counter starting at zero. The bits are taken directly from
+   the successive interations to produce two keys of appropriate size
+   (as specified in the USM user row) for the authentication transform
+   first, and the privacy transform second. If the authentication
+   transform is null, the first bits of the derived key are used for the
+   privacy transform.
+
+Security Considerations
+
+   Various elements of this MIB must be readable and writable as the
+   no-auth, no-priv user. Unless specifically necessary for the key
+   negotiation, elements of this MIB SHOULD be protected by VACM views
+   which limit access. In particular, there is no reason anything in
+   this MIB should be visible to a no-auth, no-priv user with the excep-
+   tion of KrbUsmMibApReq, KrbUsmMibApRep, KrbUsmMibNonce, and
+   KrbUsmMibMgrTgt, and then only with the restrictions placed on them
+   in the MIB. As such, probing attacks are still possible, but should
+   not be profitable: all of the writable variables with interesting
+   information in them are defined in such a way as to be write only.
+
+   There are some interesting denial of service attacks which are possi-
+   ble by attackers spoofing managers and putting load on the KDC to
+   generate unnecessary tickets. For large numbers or agents this could
+   be problematic. This can probably be mitigated by the KDC prioritiz-
+   ing TGS-REQ's though.
+
+
+References
+
+[1]         The CAT Working Group,  J.  Kohl,  C.Neuman,  "The  Kerberos
+            Network  Authentication  Service  (V5)", RFC 1510, September
+            1993
+
+[2]         The SNMPV3 Working Group, U.  Blumenthal,  B.  Wijnen,  "The
+            User-based Security Model of SNMP V3", RFC 2574, April 1999
+
+[3]         The SNMPV3 Working Group, B. Wijnen, R. Presuhn,
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00            [Page 17]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+            K.McCloghrie, "The View-based Access Control Model of SNMP
+            V3", RFC 2575, April 1999
+
+[4]         The CAT Working Group, Tung, et al, "Public Key Cryptography
+            for Initial Authentication in Kerberos", draft-ietf-cat-pk-
+            init-11, November 1999
+
+[5]         Arango, et al, "Media Gateway Control Protocl (MGCP)", RFC
+            2705, October 1999
+
+
+[RFC2571]   Harrington, D., Presuhn, R., and B. Wijnen, An Architecture
+            for Describing SNMP Management Frameworks, RFC 2571, April
+            1999.
+
+[RFC1155]   Rose, M., and K. McCloghrie, Structure and Identification of
+            Management Information for TCP/IP-based Internets, STD 16,
+            RFC 1155, May 1990.
+
+[RFC1212]   Rose, M., and K. McCloghrie, Concise MIB Definitions, STD
+            16, RFC 1212, March 1991.
+
+[RFC1215]   M. Rose, A Convention for Defining Traps for use with the
+            SNMP, RFC 1215, March 1991.
+
+[RFC2578]   McCloghrie, K., Perkins, D., Schoenwaelder, J., Case, J.,
+            Rose, M., and S. Waldbusser, Structure of Management Infor-
+            mation Version 2 (SMIv2), STD 58, RFC 2578, April 1999.
+
+[RFC2579]   McCloghrie, K., Perkins, D., Schoenwaelder, J., Case, J.,
+            Rose, M., and S. Waldbusser, Textual Conventions for SMIv2,
+            STD 58, RFC 2579, April 1999.
+
+[RFC2580]   McCloghrie, K., Perkins, D., Schoenwaelder, J., Case, J.,
+            Rose, M., and S. Waldbusser, Conformance Statements for
+            SMIv2, STD 58, RFC 2580, April 1999.
+
+[RFC1157]   Case, J., Fedor, M., Schoffstall, M., and J. Davin, Simple
+            Network Management Protocol, STD 15, RFC 1157, May 1990.
+
+[RFC1901]   Case, J., McCloghrie, K., Rose, M., and S. Waldbusser,
+            Introduction to Community-based SNMPv2, RFC 1901, January
+            1996.
+
+[RFC1906]   Case, J., McCloghrie, K., Rose, M., and S. Waldbusser, Tran-
+            sport Mappings for Version 2 of the Simple Network Manage-
+            ment Protocol (SNMPv2), RFC 1906, January 1996.
+
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00            [Page 18]
+
+
+
+
+
+INTERNET-DRAFT           Kerberized USM Keying              13 July 2000
+
+
+[RFC2572]   Case, J., Harrington D., Presuhn R., and B. Wijnen, Message
+            Processing and Dispatching for the Simple Network Management
+            Protocol (SNMP), RFC 2572, April 1999.
+
+[RFC2574]   Blumenthal, U., and B. Wijnen, User-based Security Model
+            (USM) for version 3 of the Simple Network Management Proto-
+            col (SNMPv3), RFC 2574, April 1999.
+
+[RFC1905]   Case, J., McCloghrie, K., Rose, M., and S. Waldbusser, Pro-
+            tocol Operations for Version 2 of the Simple Network Manage-
+            ment Protocol (SNMPv2), RFC 1905, January 1996.
+
+[RFC2573]   Levi, D., Meyer, P., and B. Stewart, SNMPv3 Applications,
+            RFC 2573, April 1999.
+
+[RFC2575]   Wijnen, B., Presuhn, R., and K. McCloghrie, View-based
+            Access Control Model (VACM) for the Simple Network Manage-
+            ment Protocol (SNMP), RFC 2575, April 1999.
+
+[RFC2570]   Case, J., Mundy, R., Partain, D., and B. Stewart, Introduc-
+            tion to Version 3 of the Internet-standard Network Manage-
+            ment Framework, RFC 2570, April 1999.
+
+Author's Address
+
+          Michael Thomas
+          Cisco Systems
+          375 E Tasman Rd
+          San Jose, Ca, 95134, USA
+          Tel: +1 408-525-5386
+          email: mat@cisco.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Thomas               draft-thomas-snmpv3-kerbusm-00            [Page 19]
+
+

@@ -1,0 +1,9 @@
+[1mln[m	make links
+
+	Usage:
+
+	ln [-fs] file1 file2
+	ln [-fs] file ... directory
+
+	-f	Unlink any already existing file (force link)
+	-s	Create symbolic link

@@ -1,0 +1,7 @@
+# Host: Intel 386 running Solaris 2 (SVR4)
+
+XM_FILE= xm-i386v4.h
+XDEPFILES= 
+
+NAT_FILE= nm-i386sol2.h
+NATDEPFILES= core-regset.o procfs.o fork-child.o i386v4-nat.o corelow.o

@@ -1,0 +1,339 @@
+[Readline-specific changelog.  Descriptions of changes to the source are
+ found in the bash changelog.]
+
+				    6/9
+				    ---
+Makefile.in
+	- quote value of ${INSTALL_DATA} when passing it to makes in
+	  subdirectories
+
+				    7/1
+				    ---
+Makefile.in
+	- don't pass INSTALL_DATA to a make in the `doc' subdirectory; let
+	  autoconf set the value itself in the Makefile
+	- removed a stray `-' before $(RANLIB) in the `install' recipe
+
+doc/Makefile.in
+	- add a VPATH assignment so the documentation is not remade if it's
+	  already up-to-date in the distribution
+
+configure.in
+	- call AC_SUBST(LOCAL_LDFLAGS), since Makefile.in contains
+	  @LOCAL_LDFLAGS@
+
+				    7/9
+				    ---
+
+config.h.in
+	- add define lines for STRUCT_WINSIZE_IN_SYS_IOCTL and
+	  STRUCT_WINSIZE_IN_TERMIOS
+
+configure.in
+	- call BASH_STRUCT_WINSIZE to look for the definition of
+	  `struct winsize'
+
+				   7/17
+				   ----
+configure.in
+	- call AC_MINIX
+
+config.h.in
+	- add define line for AC_MINIX
+
+				   7/18
+				   ----
+Makefile.in
+	- add `install-shared' and `uninstall-shared' targets
+
+				    8/4
+				    ---
+Makefile.in
+	- install and uninstall libhistory.a in the `install' and
+	  `uninstall' targets
+
+				    9/4
+				    ---
+configure.in
+	- bumped LIBVERSION up to 2.1.1, indicating that this is patch
+	  level 1 to release 2.1
+
+
+				   9/16
+				   ----
+Makefile.in
+	- `make distclean' now descends into the `examples' subdir
+
+doc/Makefile.in
+	- the `distclean' and `maintainer-clean' targets should remove
+	  Makefile
+
+examples/Makefile.in
+	- added the various clean targets
+
+				    4/2
+				    ---
+configure.in
+	- bumped LIBVERSION up to 2.2
+
+				   4/18
+				   ----
+[readline-2.2 released]
+
+				   4/20
+				   ----
+Makefile.in
+	- make `libhistory.a' a dependency of `install'
+	- fixed a typo in the recipe for `install' that copied libreadline.a
+	  to libhistory.old right after installing it
+
+				   4/27
+				   ----
+doc/Makefile.in
+	- install {readline,history}.info out of the source directory if
+	  they are not found in the current (build) directory -- only an
+	  issue if the libraries are built in a different directory than
+	  the source directory
+
+				    5/1
+				    ---
+support/shobj-conf
+	- script from the bash distribution to do shared object and library
+	  configuration
+
+shlib/Makefile.in
+	- new directory and makefile to handle building shared versions of
+	  libreadline and libhistory, controlled by support/shobj-conf
+
+				    5/7
+				    ---
+doc/Makefile.in
+	- set SHELL to /bin/sh, rather than relying on make to be correct
+
+				   5/14
+				   ----
+savestring.c
+	- new file, moved from shell.c, for backwards compatibility
+
+Makefile.in, shlib/Makefile.in
+	- make sure savestring.c is compiled and added to libreadline and
+	  libhistory
+
+[THERE ARE NO MORE #ifdef SHELL LINES IN THE C SOURCE FILES.]
+
+				   5/15
+				   ----
+README
+	- updated description of shared library creation for the new scheme
+
+[THERE ARE NO MORE #ifdef SHELL LINES IN ANY OF THE SOURCE FILES.]
+
+Makefile.in
+	- bumped SHLIB_MAJOR up to 4 since we've augmented the library
+	  API
+	- rlconf.h is now one of the installed headers, so applications can
+	  find out whether things like vi-mode are available in the installed
+	  libreadline
+
+				   5/20
+				   ----
+configure.in
+	- changed RL_LIBRARY_VERSION to 4.0 to match the version of the
+	  installed shared libraries
+
+				    6/5
+				    ---
+rlstdc.h
+	- new file
+
+Makefile.in
+	- rlstdc.h is now one of the installed headers
+
+				    8/3
+				    ---
+shlib/Makefile.in
+	- made the suffix rule that creates xx.so from xx.c write the
+	  compiler output to `a.o', which is then mv'd to xx.so, because
+	  some compilers (Sun WSpro 4.2, for example) don't allow any
+	  suffixes other than `.o' for `cc -c' (not even `a.out')
+
+				   9/15
+				   ----
+
+Makefile.in
+	- AR and ARFLAGS are now substituted by configure, used in recipes
+	  that build the libraries
+
+configure.in
+	- use AC_CHECK_PROG to check for ar
+	- set ARFLAGS if it has not already been set in the environment
+
+				   10/5
+				   ----
+Makefile.in
+	- removed savestring.o from object file list
+
+				   10/28
+				   -----
+shlib/Makefile.in
+	- don't use a fixed filename in the .c.so suffix rule to avoid
+	  problems with parallel makes
+
+				   12/21
+				   -----
+support/shlib-install
+	- new script to install shared readline and history libraries
+
+shlib/Makefile.in
+	- changed to call shlib-install for install and uninstall targets
+
+[readline-4.0-beta1 frozen]
+
+				   12/22
+				   -----
+configure.in
+	- call AC_SUBST for SHOBJ_XLDFLAGS and SHLIB_LIBS
+
+shlib/Makefile.in
+	- SHOBJ_XLDFLAGS and SHLIB_LIBS are now substituted by configure
+	- add $(SHLIB_LIBS) at end of command line that builds the shared
+	  libraries (currently needed only by AIX 4.2)
+
+				   12/31
+				   -----
+MANIFEST, MANIFEST.doc
+	- the TOC html files are no longer generated and no longer part of
+	  the distribution
+
+				 2/18/1999
+				 ---------
+configure.in
+	- set MAKE_SHELL to /bin/sh and substitute into the Makefiles
+
+Makefile.in,{doc,examples,shlib}/Makefile.in
+	- set SHELL from @MAKE_SHELL@
+
+[readline-4.0 released]
+
+				   3/11
+				   ----
+doc/Makefile.in
+	- removed references to HTMLTOC, since separate HTML table-of-contents
+	  files are no longer created
+
+examples/Makefile.in
+	- remove `*.exe' in clean target for MS-DOS
+
+Makefile.in
+	- make `readline' target depend on ./libreadline.a
+	- configure now substitutes TERMCAP_LIB into Makefile.in
+	- use ${TERMCAP_LIB} instead of -ltermcap in recipe for `readline'
+	- clean target now removes readline and readline.exe in case they
+	  get built
+
+configure.in
+	- use `pwd.exe' to set BUILD_DIR on MS-DOS DJGPP
+
+				   3/15
+				   ----
+support/shlib-install
+	- Irix 5.x and Irix 6.x should install shared libraries like Solaris 2
+	- changes for installing on hp-ux 1[01].x
+
+				   3/23
+				   ----
+configure.in
+	- make sure that the $CC argument to shobj-conf is quoted
+
+				    4/8
+				    ---
+
+xmalloc.h, rlprivate.h, rlshell.h
+	- new files
+
+Makefile.in,shlib/Makefile.in
+	- add dependencies on xmalloc.h, rlshell.h
+	- add xmalloc.h, rlprivate.h, rlshell.h to list of header files
+
+MANIFEST
+	- add xmalloc.h, rlprivate.h, rlshell.h
+
+				    4/9
+				    ---
+Makefile.in,shlib/Makefile.in
+	- add dependencies on rlprivate.h
+
+				   4/13
+				   ----
+doc/Makefile.in
+	- add variable, PSDVI, which is the desired resolution of the
+	  generated postscript files.  Set to 300 because I don't have
+	  any 600-dpi printers
+	- set LANGUAGE= before calling makeinfo, so messages are in English
+	- add rluserman.{info,dvi,ps,html} to appropriate variables
+	- add rules to create rluserman.{info,dvi,ps,html}
+	- install and uninstall rluserman.info, but don't update the directory
+	  file in $(infodir) yet
+
+MANIFEST
+	- add doc/rluserman.{texinfo,info,dvi,ps,html}
+
+				   4/30
+				   ----
+configure.in
+	- updated library version to 4.1
+
+				    5/3
+				    ---
+configure.in
+	- SHLIB_MAJOR and SHLIB_MINOR shared library version numbers are
+	  constructed from $LIBRARY_VERSION and substituted into Makefiles
+
+				    5/5
+				    ---
+support/shlib-install
+	- OSF/1 installs shared libraries like Solaris
+
+Makefile.in
+	- broke the header file install and uninstall into two new targets:
+	  install-headers and uninstall-headers
+	- install and uninstall depend on install-headers and uninstall-headers
+	  respectively
+	- changed install-shared and uninstall-shared targets to depend on
+	  install-headers and uninstall-headers, respectively, so users may
+	  choose to install only the shared libraries.  I'm not sure about
+	  the uninstall one yet -- maybe it should check whether or not
+	  the static libraries are installed and not remove the header files
+	  if they are
+
+				    9/3
+				    ---
+configure.in, config.h.in
+	- added test for memmove (for later use)
+	- changed version to 4.1-beta1
+
+				   9/13
+				   ----
+examples/rlfe.c
+	- Per Bothner's `rlfe' readline front-end program
+
+examples/Makefile.in
+	- added rules to build rlfe
+
+				   9/21
+				   ----
+support/shlib-install
+	- changes to handle FreeBSD-3.x elf or a.out shared libraries, which
+	  have different semantics and need different naming conventions
+
+				 1/24/2000
+				 ---------
+doc/Makefile.in
+	- remove *.bt and *.bts on `make clean'
+
+				    2/4
+				    ---
+
+
+configure.in
+	- changed LIBVERSION to 4.1-beta5
