@@ -244,9 +244,8 @@ unpack:
 	if (*p == '#')
 		goto again;
 	cp = strpbrk(p, "#\n");
-	if (cp == NULL)
-		goto again;
-	*cp = '\0';
+	if (cp != NULL)
+		*cp = '\0';
 	serv.s_name = p;
 	p = strpbrk(p, " \t");
 	if (p == NULL)
