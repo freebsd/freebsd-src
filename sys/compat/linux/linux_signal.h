@@ -32,7 +32,7 @@
 #define _LINUX_SIGNAL_H_
 
 void linux_to_bsd_sigset __P((linux_sigset_t *, sigset_t *));
-
+void bsd_to_linux_sigset __P((sigset_t *, linux_sigset_t *));
 int linux_do_sigaction __P((struct proc *, int, linux_sigaction_t *,
     linux_sigaction_t *));
 
