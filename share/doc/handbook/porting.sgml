@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.15 1996/03/06 09:45:04 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.16 1996/03/21 14:15:01 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -156,7 +156,7 @@ The pattern is the year followed by the month.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.15 1996/03/06 09:45:04 asami Exp $
+ # $Id: porting.sgml,v 1.16 1996/03/21 14:15:01 asami Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -498,7 +498,7 @@ ftp://freefall.freebsd.org/pub/FreeBSD/LOCAL_PORTS/
 	  name of your port.  The default rules expect the
 	  distribution file list (<tt>&dollar;{DISTFILES}</tt>) to be
 	  named
-	  <tt>&dollar;{DISTFILE}&dollar;{EXTRACT_SUFX}</tt>
+	  <tt>&dollar;{DISTNAME}&dollar;{EXTRACT_SUFX}</tt>
 	  by default which, if it's a normal tarball, is going to be
 	  something like:
 <tscreen><verb>	
@@ -958,7 +958,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.15 1996/03/06 09:45:04 asami Exp $
+ # $Id: porting.sgml,v 1.16 1996/03/21 14:15:01 asami Exp $
  [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
   it is committed to our repository]
  #
