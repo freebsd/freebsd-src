@@ -1672,6 +1672,16 @@ by default.
 The terminal type of the output device when
 .Xr idsnd 8
 operates in fullscreen mode.
+.It Va isdn_screenflags
+.Pq Vt str
+Set to
+.Ar NO
+by default.
+The video mode for fullscreen mode (only for
+.Xr syscons 4
+console driver, see 
+.Xr vidcontrol 1
+for valid modes).
 .It Va isdn_fsdev
 .Pq Vt str
 Set to
@@ -1750,6 +1760,7 @@ Flags for
 .Xr swapon 8 ,
 .Xr tickadj 8 ,
 .Xr timed 8 ,
+.Xr vidcontrol 1 ,
 .Xr vinum 8 ,
 .Xr xntpd 8 ,
 .Xr xtend 8 ,

@@ -53,6 +53,18 @@ case ${isdn_enable} in
 			/usr/sbin/isdnd ${isdn_flags}
 			;;
 		*)
+			# Change vidmode of ${isdn_fsdev}
+			#
+			case ${isdn_screenflags} in
+			[Nn][Oo])
+				;;
+			*)
+				if [ -x /usr/sbin/vidcontrol ]; then
+					/usr/sbin/vidcontrol < ${isdn_fsdev} > ${isdn_fsdev} 2>&1 ${isdn_screenflags}
+				fi
+				;;
+			esac
+
 			/usr/sbin/isdnd ${isdn_flags} -f -r ${isdn_fsdev} -t ${isdn_ttype}
 			;;
 		esac
