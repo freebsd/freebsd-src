@@ -3,9 +3,9 @@
 # compress them twice.
 #
 # This can be useful for files with names truncated after a file transfer.
-# 12345678901234 is renamed to 12345678901.gz
+# foo is renamed to foo.gz
 #
-# $Id$
+# $Id: zforce,v 1.3 1999/05/28 13:23:20 kris Exp $
 
 x=`basename $0`
 if test $# = 0; then
@@ -25,13 +25,9 @@ for i do
   test `expr "$i" : '.*[.-]gz$'` -eq 0 || continue
   test `expr "$i" : '.*[.]t[ag]z$'` -eq 0 || continue
 
-  if gzip -l < "$i" 2>/dev/null | grep '^defl' > /dev/null; then
+  if gzip -lv < "$i" 2>/dev/null | grep '^defl' > /dev/null; then
 
-    if test `expr "$i" : '^............'` -eq 12; then
-      new=`expr "$i" : '\(.*\)...$`.gz
-    else
-      new="$i.gz"
-    fi
+    new="$i.gz"
     if mv "$i" "$new" 2>/dev/null; then
       echo $i -- replaced with $new
       continue
