@@ -565,36 +565,36 @@ display(FTSENT *p, FTSENT *list)
 		switch (ninitmax) {
 		case 0:
 			maxinode = 0;
-			/* fall through */
+			/* FALLTHROUGH */
 		case 1:
 			maxblock = 0;
-			/* fall through */
+			/* FALLTHROUGH */
 		case 2:
 			maxnlink = 0;
-			/* fall through */
+			/* FALLTHROUGH */
 		case 3:
 			maxuser = 0;
-			/* fall through */
+			/* FALLTHROUGH */
 		case 4:
 			maxgroup = 0;
-			/* fall through */
+			/* FALLTHROUGH */
 		case 5:
 			maxflags = 0;
-			/* fall through */
+			/* FALLTHROUGH */
 		case 6:
 			maxsize = 0;
-			/* fall through */
+			/* FALLTHROUGH */
 		case 7:
 			maxlen = 0;
-			/* fall through */
+			/* FALLTHROUGH */
 		case 8:
 			maxlattr = 0;
-			/* fall through */
+			/* FALLTHROUGH */
 #ifdef COLORLS
 			if (!f_color)
 #endif
 				f_notabs = 0;
-			/* fall through */
+			/* FALLTHROUGH */
 		default:
 			break;
 		}
