@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.20 1997/10/26 01:03:37 brian Exp $
+ * $Id: route.c,v 1.21 1997/11/08 00:28:11 brian Exp $
  *
  */
 
@@ -75,7 +75,7 @@ OsSetRoute(int cmd,
   memset(&rtmes, '\0', sizeof(rtmes));
   rtmes.m_rtm.rtm_version = RTM_VERSION;
   rtmes.m_rtm.rtm_type = cmd;
-  rtmes.m_rtm.rtm_addrs = RTA_DST | RTA_NETMASK | RTA_GATEWAY;
+  rtmes.m_rtm.rtm_addrs = RTA_DST | RTA_NETMASK;
   rtmes.m_rtm.rtm_seq = ++seqno;
   rtmes.m_rtm.rtm_pid = getpid();
   rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
@@ -93,6 +93,7 @@ OsSetRoute(int cmd,
     rtdata.sin_addr = gateway;
     memcpy(cp, &rtdata, 16);
     cp += 16;
+    rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
   }
   if (dst.s_addr == INADDR_ANY)
     mask.s_addr = INADDR_ANY;
