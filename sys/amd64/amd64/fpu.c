@@ -321,10 +321,12 @@ npxattach(dvp)
 	struct isa_device *dvp;
 {
 	if (!npx_ex16 && !npx_irq13) {
-		if (npx_exists)
+		if (npx_exists) {
 			printf("npx%d: Error reporting broken, using 387 emulator\n",dvp->id_unit);
-		else
+			npx_exists = 0;
+		} else {
 			printf("npx%d: 387 Emulator\n",dvp->id_unit);
+		}
 	}
 	npxinit(__INITIAL_NPXCW__);
 	return (1);		/* XXX unused */
