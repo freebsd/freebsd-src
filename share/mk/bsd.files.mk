@@ -66,3 +66,4 @@ _${group}INS: ${_${group}FILES}
 .endif !target(installfiles)
 
 realinstall: installfiles
+.ORDER: beforeinstall installfiles
