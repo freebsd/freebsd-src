@@ -35,6 +35,7 @@
  * PCIP_xxx: device programming interface
  * PCIV_xxx: PCI vendor ID (only required to fixup ancient devices)
  * PCID_xxx: device ID
+ * PCIY_xxx: capability identification number
  */
 
 /* some PCI bus constants */
@@ -80,8 +81,21 @@
 #define PCIR_CACHELNSZ	0x0c
 #define PCIR_LATTIMER	0x0d
 #define PCIR_HEADERTYPE	0x0e
+#define PCIM_HEADERTYPE_NORMAL	0x00
+#define PCIM_HEADERTYPE_BRIDGE	0x01
+#define PCIM_HEADERTYPE_CARDBUS	0x02
 #define PCIM_MFDEV		0x80
 #define PCIR_BIST	0x0f
+
+/* Capability Identification Numbers */
+
+#define PCIY_PMG	0x01
+#define PCIY_AGP	0x02
+#define PCIY_VPD	0x03
+#define PCIY_SLOTID	0x04
+#define PCIY_MSI	0x05
+#define PCIY_CHSWP	0x06
+#define PCIY_PCIX	0x07
 
 /* config registers for header type 0 devices */
 
