@@ -672,6 +672,9 @@ pmap_invalidate_all(pmap_t pmap)
 	u_int cpumask;
 	u_int other_cpus;
 
+#ifdef SWTCH_OPTIM_STATS
+	tlb_flush_count++;
+#endif
 	critical_enter();
 	/*
 	 * We need to disable interrupt preemption but MUST NOT have
@@ -3385,9 +3388,6 @@ pmap_activate(struct thread *td)
 #else
 	pmap->pm_active |= 1;
 #endif
-#if defined(SWTCH_OPTIM_STATS)
-	tlb_flush_count++;
-#endif
 	cr3 = vtophys(pmap->pm_pdir);
 	/* XXXKSE this is wrong.
 	 * pmap_activate is for the current thread on the current cpu
@@ -3402,6 +3402,9 @@ pmap_activate(struct thread *td)
 		td->td_pcb->pcb_cr3 = cr3;
 	}
 	load_cr3(cr3);
+#ifdef SWTCH_OPTIM_STATS
+	tlb_flush_count++;
+#endif
 }
 
 vm_offset_t
