@@ -35,7 +35,7 @@
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
 .\"	from: sio.4,v 1.16 1995/06/26 06:05:30 bde Exp $
-.\"	$Id: cy.4,v 1.1.4.2 1997/02/28 03:26:47 mpp Exp $
+.\"	$Id: cy.4,v 1.1.4.3 1997/03/03 18:40:13 bde Exp $
 .\"
 .Dd October 10, 1995
 .Dt CY 4 i386
@@ -223,7 +223,8 @@ changed for higher efficiency:
 .Pp
 RxFifoThreshold: default 6; on a 486DX-33, this works for 8 ports
 talking to each other at 115200 bps; 11 works for 8 ports talking
-to each other at 57600 bps.  The low threshold is not for FreeBSD,
+to each other at 57600 bps.  The low threshold is not for
+.Tn FreeBSD ,
 it's for the CD1400, which can't really keep up with 115200 bps.
 .Pp
 PollMode: required for Cyclom-16Y's; costs 10-20% relative efficiency

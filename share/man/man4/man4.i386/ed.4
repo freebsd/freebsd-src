@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ed.4,v 1.8 1997/02/22 13:25:18 peter Exp $
+.\"	$Id: ed.4,v 1.3.2.2 1997/02/28 03:26:49 mpp Exp $
 .\"
 .Dd October 28, 1995
 .Dt ED 4 i386
@@ -82,7 +82,9 @@ identify themselves as 8bit, even though they have a 16bit ISA interface.
 Disable transmitter multi-buffering. This flag disables the use of multiple
 transmit buffers and may be necessary in rare cases where packets are sent out
 faster than a machine on the other end can handle (as evidenced by severe packet
-lossage). Some (non-FreeBSD :-)) machines have terrible ethernet performance
+lossage). Some
+.Pf ( No non- Ns Tn FreeBSD
+:-)) machines have terrible ethernet performance
 and simply can't cope with 1100K+ data rates. Use of this flag also provides
 one more packet worth of receiver buffering, and on 8bit cards, this may help
 reduce receiver lossage.
@@ -164,7 +166,8 @@ have been received but not yet transfered from the card to main memory.
 .Sh HISTORY
 The
 .Nm ed
-device driver first appeared in FreeBSD 1.0.
+device driver first appeared in
+.Fx 1.0 .
 .Sh AUTHOR
 The
 .Nm

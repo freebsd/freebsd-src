@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
-.\"	$Id: tcp.4,v 1.6 1996/12/26 16:15:34 wosch Exp $
+.\"	$Id: tcp.4,v 1.5.2.1 1996/12/31 22:55:20 mpp Exp $
 .\"
 .Dd February 14, 1995
 .Dt TCP 4
@@ -39,6 +39,7 @@
 .Nm tcp
 .Nd Internet Transmission Control Protocol
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
 .Fd #include <netinet/in.h>
 .Ft int
