@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.40 1997/09/21 22:02:08 gibbs Exp $
+ *	$Id: if_fxp.c,v 1.41 1997/09/29 11:27:42 davidg Exp $
  */
 
 /*
@@ -247,7 +247,7 @@ static int tx_threshold = 64;
  * Number of receive frame area buffers. These are large so chose
  * wisely.
  */
-#define FXP_NRFABUFS	32
+#define FXP_NRFABUFS	64
 
 /*
  * Maximum number of seconds that the receiver can be idle before we
@@ -923,33 +923,6 @@ fxp_intr(arg)
 		CSR_WRITE_1(sc, FXP_CSR_SCB_STATACK, statack);
 
 		/*
-		 * Free any finished transmit mbuf chains.
-		 */
-		if (statack & FXP_SCB_STATACK_CNA) {
-			struct fxp_cb_tx *txp;
-
-			for (txp = sc->cbl_first; sc->tx_queued &&
-			    (txp->cb_status & FXP_CB_STATUS_C) != 0;
-			    txp = txp->next) {
-				if (txp->mb_head != NULL) {
-					m_freem(txp->mb_head);
-					txp->mb_head = NULL;
-				}
-				sc->tx_queued--;
-			}
-			sc->cbl_first = txp;
-			if (sc->tx_queued == 0) {
-				ifp->if_timer = 0;
-				if (sc->need_mcsetup)
-					fxp_mc_setup(sc);
-			}
-			/*
-			 * Try to start more packets transmitting.
-			 */
-			if (ifp->if_snd.ifq_head != NULL)
-				fxp_start(ifp);
-		}
-		/*
 		 * Process receiver interrupts. If a no-resource (RNR)
 		 * condition exists, get whatever packets we can and
 		 * re-start the receiver.
@@ -1024,6 +997,33 @@ rcvloop:
 				CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND,
 				    FXP_SCB_COMMAND_RU_START);
 			}
+		}
+		/*
+		 * Free any finished transmit mbuf chains.
+		 */
+		if (statack & FXP_SCB_STATACK_CNA) {
+			struct fxp_cb_tx *txp;
+
+			for (txp = sc->cbl_first; sc->tx_queued &&
+			    (txp->cb_status & FXP_CB_STATUS_C) != 0;
+			    txp = txp->next) {
+				if (txp->mb_head != NULL) {
+					m_freem(txp->mb_head);
+					txp->mb_head = NULL;
+				}
+				sc->tx_queued--;
+			}
+			sc->cbl_first = txp;
+			if (sc->tx_queued == 0) {
+				ifp->if_timer = 0;
+				if (sc->need_mcsetup)
+					fxp_mc_setup(sc);
+			}
+			/*
+			 * Try to start more packets transmitting.
+			 */
+			if (ifp->if_snd.ifq_head != NULL)
+				fxp_start(ifp);
 		}
 	}
 #if defined(__NetBSD__)
