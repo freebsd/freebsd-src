@@ -17,6 +17,11 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20041201:	p5	FreeBSD-SA-04:17.procfs
+	Fix a tainted pointer dereference in procfs(5) and linprocfs(5)
+	which could allow a local attacker to panic a system and/or read
+	from kernel memory.
+
 20041118:	p26	FreeBSD-SA-04:16.fetch
 	Correct a buffer overflow in fetch(1) which could allow a
 	mallicious server to execute arbitrary code on the client.
