@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.12 1995/05/21 03:27:13 phk Exp $
+ *	$Id: disk.c,v 1.13 1995/05/30 07:58:31 rgrimes Exp $
  */
 
 /*
@@ -86,7 +86,9 @@ devopen(void)
 	struct disklabel *dl;
 	int dosdev = inode.i_dev;
 	int i, sector = 0, di;
+#if 0   /* Save space, already have hard error for cyl > 1023 in Bread */
 	u_long bend;
+#endif
 
 	di = get_diskinfo(dosdev);
 	spc = (spt = SPT(di)) * HEADS(di);
@@ -134,12 +136,11 @@ devopen(void)
 
 		/* This is a good idea for all disks */
 		bsize = dl->d_partitions[part].p_size;
+#if 0   /* Save space, already have hard error for cyl > 1023 in Bread */
 		bend = boff + bsize - 1 ;
-		if (bend / spc > 1024) {
-			printf("partition is out of reach from the bios\n");
-			return 1;
-		}
-
+		if (bend / spc >= 1024) {
+			printf("boot partition end >= cyl 1024, BIOS can't load kernel stored beyond this limit\n");
+#endif
 #ifdef DO_BAD144
 		do_bad144 = 0;
 		if (dl->d_flags & D_BADSECT) {
@@ -212,6 +213,10 @@ Bread(int dosdev, int sector)
 		int cyl, head, sec, nsec;
 
 		cyl = sector/spc;
+		if (cyl > 1023) {
+			printf("Error: C:%d > 1023 (BIOS limit)\n", cyl);
+			for(;;);        /* loop forever */
+		}
 		head = (sector % spc) / spt;
 		sec = sector % spt;
 		nsec = spt - sec;
