@@ -69,9 +69,9 @@
 #include <dev/usb/usb_quirks.h>
 #include <dev/usb/hid.h>
 
-#ifdef USB_DEBUG
-#define DPRINTF(x)	if (ucomdebug) printf x
-#define DPRINTFN(n,x)	if (ucomdebug>(n)) printf x
+#ifdef UCOM_DEBUG
+#define DPRINTF(x)	if (ucomdebug) logprintf x
+#define DPRINTFN(n,x)	if (ucomdebug>(n)) logprintf x
 int	ucomdebug = 1;
 #else
 #define DPRINTF(x)
@@ -95,12 +95,14 @@ USB_MATCH(ucom)
 	
 	if (!uaa->iface)
 		return (UMATCH_NONE);
+
 	id = usbd_get_interface_descriptor(uaa->iface);
-	if ((id &&
-	    id->bInterfaceClass != UCLASS_CDC) ||
-	    id->bInterfaceSubClass != USUBCLASS_ABSTRACT_CONTROL_MODEL)
-		return (UMATCH_NONE);
-	return (UMATCH_IFACECLASS_IFACESUBCLASS);
+	if ((id
+	    && id->bInterfaceClass == UCLASS_CDC)
+	    && id->bInterfaceSubClass == USUBCLASS_ABSTRACT_CONTROL_MODEL)
+		return (UMATCH_IFACECLASS_IFACESUBCLASS);
+
+	return (UMATCH_NONE);
 }
 
 USB_ATTACH(ucom)

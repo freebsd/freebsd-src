@@ -75,11 +75,10 @@ MALLOC_DEFINE(M_USBDEV, "USBdev", "USB device");
 #include <dev/usb/usb_quirks.h>
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (usbdebug) printf x
-#define DPRINTFN(n,x)	if (usbdebug>(n)) printf x
+#define DPRINTF(x)	if (usbdebug) logprintf x
+#define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 int	usbdebug = 1;
-int	uhcidebug = 1;
-int	ohcidebug = 1;
+extern int uhcidebug, ohcidebug;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)

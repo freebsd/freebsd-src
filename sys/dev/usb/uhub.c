@@ -64,7 +64,6 @@
 #define DPRINTF(x)	if (usbdebug) logprintf x
 #define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 extern int	usbdebug;
-extern char 	*usbd_error_strs[];
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -147,8 +146,8 @@ USB_ATTACH(uhub)
 
 	r = usbd_set_config_index(dev, 0, 1);
 	if (r != USBD_NORMAL_COMPLETION) {
-		DPRINTF(("%s: configuration failed, error=%d(%s)\n",
-			 USBDEVNAME(sc->sc_dev), r, usbd_error_strs[r]));
+		DPRINTF(("%s: configuration failed, %s\n",
+			 USBDEVNAME(sc->sc_dev), usbd_errstr(r)));
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -172,8 +171,8 @@ USB_ATTACH(uhub)
 		r = usbd_do_request(dev, &req, &hubdesc);
 	}
 	if (r != USBD_NORMAL_COMPLETION) {
-		DPRINTF(("%s: getting hub descriptor failed, error=%d(%s)\n",
-			 USBDEVNAME(sc->sc_dev), r, usbd_error_strs[r]));
+		DPRINTF(("%s: getting hub descriptor failed, %s\n",
+			 USBDEVNAME(sc->sc_dev), usbd_errstr(r)));
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -344,8 +343,8 @@ uhub_explore(dev)
 		up = &dev->hub->ports[port-1];
 		r = usbd_get_port_status(dev, port, &up->status);
 		if (r != USBD_NORMAL_COMPLETION) {
-			DPRINTF(("uhub_explore: get port %d status failed error=%d(%s)\n",
-				 port, r, usbd_error_strs[r]));
+			DPRINTF(("uhub_explore: get port %d status failed, %s\n",
+				 port, usbd_errstr(r)));
 			continue;
 		}
 		status = UGETW(up->status.wPortStatus);
@@ -355,18 +354,16 @@ uhub_explore(dev)
 		if (change & UPS_C_PORT_ENABLED) {
 			usbd_clear_port_feature(dev, port, UHF_C_PORT_ENABLE);
 			if (status & UPS_PORT_ENABLED) {
-				printf("%s: illegal enable change, port %d\n",
+				printf("%s: port %d illegal enable change\n",
 				       USBDEVNAME(sc->sc_dev), port);
 			} else {
 				/* Port error condition. */
 				if (up->restartcnt++ < USBD_RESTART_MAX) {
-					printf("%s: port error, restarting "
-					       "port %d\n",
+					printf("%s: port %d error, restarting\n",
 					       USBDEVNAME(sc->sc_dev), port);
 					goto disco;
 				} else {
-					printf("%s: port error, giving up "
-					       "port %d\n",
+					printf("%s: port %d error, giving up\n",
 					       USBDEVNAME(sc->sc_dev), port);
 				}
 			}
@@ -418,8 +415,8 @@ uhub_explore(dev)
 				    port, up);
 		/* XXX retry a few times? */
 		if (r != USBD_NORMAL_COMPLETION) {
-			DPRINTFN(-1,("uhub_explore: usb_new_device failed, "
-				     "error=%d(%s)\n", r, usbd_error_strs[r]));
+			DPRINTFN(-1,("uhub_explore: usb_new_device failed, %s\n",
+				     usbd_errstr(r)));
 			/* Avoid addressing problems by disabling. */
 			/* usbd_reset_port(dev, port, &up->status); */
 /* XXX

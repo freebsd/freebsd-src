@@ -67,9 +67,9 @@
 #define	LPTPRI		(PZERO+8)
 #define	ULPT_BSIZE	1024
 
-#ifdef USB_DEBUG
-#define DPRINTF(x)	if (ulptdebug) printf x
-#define DPRINTFN(n,x)	if (ulptdebug>(n)) printf x
+#ifdef ULPT_DEBUG
+#define DPRINTF(x)	if (ulptdebug) logprintf x
+#define DPRINTFN(n,x)	if (ulptdebug>(n)) logprintf x
 int	ulptdebug = 1;
 #else
 #define DPRINTF(x)
@@ -300,7 +300,7 @@ ulptopen(dev, flag, mode, p)
 	sc->sc_flags = flags;
 	DPRINTF(("ulptopen: flags=0x%x\n", (unsigned)flags));
 
-#if defined(USB_DEBUG) && defined(__FreeBSD__)
+#if defined(ULPT_DEBUG) && defined(__FreeBSD__)
 	/* Ignoring these flags might not be a good idea */
 	if ((flags & ~ULPT_NOPRIME) != 0)
 		printf("ulptopen: flags ignored: %b\n", flags,

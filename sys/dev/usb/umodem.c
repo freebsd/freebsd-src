@@ -65,9 +65,9 @@
 #include <dev/usb/usbdevs.h>
 #include <dev/usb/usb_quirks.h>
 
-#ifdef USB_DEBUG
-#define DPRINTF(x)	if (umodemdebug) printf x
-#define DPRINTFN(n,x)	if (umodemdebug>(n)) printf x
+#ifdef UMODEM_DEBUG
+#define DPRINTF(x)	if (umodemdebug) logprintf x
+#define DPRINTFN(n,x)	if (umodemdebug>(n)) logprintf x
 int	umodemdebug = 1;
 #else
 #define DPRINTF(x)

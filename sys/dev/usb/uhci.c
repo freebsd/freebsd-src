@@ -80,6 +80,15 @@ cgiform.tpl
 #define delay(d)		DELAY(d)
 #endif
 
+#ifdef UHCI_DEBUG
+#define DPRINTF(x)	if (uhcidebug) logprintf x
+#define DPRINTFN(n,x)	if (uhcidebug>(n)) logprintf x
+int uhcidebug = 1;
+#else
+#define DPRINTF(x)
+#define DPRINTFN(n,x)
+#endif
+
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)
 
 struct uhci_pipe {
@@ -202,7 +211,7 @@ usbd_status	uhci_device_setintr __P((uhci_softc_t *sc,
 void		uhci_intr_done __P((uhci_intr_info_t *ii));
 void		uhci_isoc_done __P((uhci_intr_info_t *ii));
 
-#ifdef USB_DEBUG
+#ifdef UHCI_DEBUG
 static void	uhci_dumpregs __P((uhci_softc_t *));
 void		uhci_dump_tds __P((uhci_soft_td_t *));
 void		uhci_dump_qh __P((uhci_soft_qh_t *));
@@ -382,7 +391,7 @@ uhci_init(sc)
 	return (uhci_run(sc, 1));		/* and here we go... */
 }
 
-#ifdef USB_DEBUG
+#ifdef UHCI_DEBUG
 static void
 uhci_dumpregs(sc)
 	uhci_softc_t *sc;
@@ -582,7 +591,7 @@ uhci_remove_ctrl(sc, sqh)
 
 	DPRINTFN(10, ("uhci_remove_ctrl: sqh=%p\n", sqh));
 	for (pqh = sc->sc_ctl_start; pqh->qh->hlink != sqh; pqh=pqh->qh->hlink)
-#if defined(DIAGNOSTIC) || defined(USB_DEBUG)		
+#if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)		
 		if (pqh->qh->qh_hlink & UHCI_PTR_T) {
 			printf("uhci_remove_ctrl: QH not found\n");
 			return;
@@ -625,7 +634,7 @@ uhci_remove_bulk(sc, sqh)
 	for (pqh = sc->sc_bulk_start; 
 	     pqh->qh->hlink != sqh; 
 	     pqh = pqh->qh->hlink)
-#if defined(DIAGNOSTIC) || defined(USB_DEBUG)		
+#if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)		
 		if (pqh->qh->qh_hlink & UHCI_PTR_T) {
 			printf("uhci_remove_bulk: QH not found\n");
 			return;
@@ -648,7 +657,7 @@ uhci_intr(p)
 	uhci_intr_info_t *ii;
 
 	sc->sc_intrs++;
-#if defined(USB_DEBUG)
+#if defined(UHCI_DEBUG)
 	if (uhcidebug > 9) {
 		printf("uhci_intr %p\n", sc);
 		uhci_dumpregs(sc);
@@ -782,7 +791,7 @@ uhci_ii_done(ii, timo)
 	     std = std->td->link.std) {
 		tst = std->td->td_status;
 		status |= tst;
-#ifdef USB_DEBUG
+#ifdef UHCI_DEBUG
 		if ((tst & UHCI_TD_ERROR) && uhcidebug) {
 			printf("uhci_ii_done: intr error TD:\n");
 			uhci_dump_td(std);
@@ -1225,7 +1234,7 @@ uhci_device_bulk_start(reqh)
 	if (!isread && len != 0)
 		memcpy(KERNADDR(dmap), reqh->buffer, len);
 
-#ifdef USB_DEBUG
+#ifdef UHCI_DEBUG
 	if (uhcidebug > 10) {
 		printf("uhci_device_bulk_transfer: xfer(1)\n");
 		uhci_dump_tds(xfer);
@@ -1257,7 +1266,7 @@ uhci_device_bulk_start(reqh)
 	}
 	splx(s);
 
-#ifdef USB_DEBUG
+#ifdef UHCI_DEBUG
 	if (uhcidebug > 10) {
 		printf("uhci_device_bulk_transfer: xfer(2)\n");
 		uhci_dump_tds(xfer);
@@ -1385,7 +1394,7 @@ uhci_device_intr_start(reqh)
 		goto ret2;
 	xferend->td->td_status |= UHCI_TD_IOC;
 
-#ifdef USB_DEBUG
+#ifdef UHCI_DEBUG
 	if (uhcidebug > 10) {
 		printf("uhci_device_intr_transfer: xfer(1)\n");
 		uhci_dump_tds(xfer);
@@ -1411,7 +1420,7 @@ uhci_device_intr_start(reqh)
 	}
 	splx(s);
 
-#ifdef USB_DEBUG
+#ifdef UHCI_DEBUG
 	if (uhcidebug > 10) {
 		printf("uhci_device_intr_transfer: xfer(2)\n");
 		uhci_dump_tds(xfer);
@@ -1577,7 +1586,7 @@ uhci_device_request(reqh)
 		         UHCI_TD_IN (0, endpt, addr, 1);
 	stat->td->td_buffer = 0;
 
-#ifdef USB_DEBUG
+#ifdef UHCI_DEBUG
 	if (uhcidebug > 20) {
 		printf("uhci_device_request: setup\n");
 		uhci_dump_td(setup);
@@ -1604,7 +1613,7 @@ uhci_device_request(reqh)
 	s = splusb();
 	uhci_add_ctrl(sc, sqh);
 	LIST_INSERT_HEAD(&sc->sc_intrhead, ii, list);
-#ifdef USB_DEBUG
+#ifdef UHCI_DEBUG
 	if (uhcidebug > 12) {
 		uhci_soft_td_t *std;
 		uhci_soft_qh_t *xqh;
@@ -1650,7 +1659,7 @@ uhci_device_isoc_transfer(reqh)
 	usbd_request_handle reqh;
 {
 	struct uhci_pipe *upipe = (struct uhci_pipe *)reqh->pipe;
-#ifdef USB_DEBUG
+#ifdef UHCI_DEBUG
 	usbd_device_handle dev = upipe->pipe.device;
 	uhci_softc_t *sc = (uhci_softc_t *)dev->bus;
 #endif
@@ -1851,7 +1860,7 @@ uhci_intr_done(ii)
 				     dma, &xfer, &xferend);
 		xferend->td->td_status |= UHCI_TD_IOC;
 
-#ifdef USB_DEBUG
+#ifdef UHCI_DEBUG
 		if (uhcidebug > 10) {
 			printf("uhci_device_intr_done: xfer(1)\n");
 			uhci_dump_tds(xfer);
@@ -1967,7 +1976,7 @@ uhci_remove_intr(sc, n, sqh)
 	DPRINTFN(4, ("uhci_remove_intr: n=%d sqh=%p\n", n, sqh));
 
 	for (pqh = vf->hqh; pqh->qh->hlink != sqh; pqh = pqh->qh->hlink)
-#if defined(DIAGNOSTIC) || defined(USB_DEBUG)		
+#if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)		
 		if (pqh->qh->qh_hlink & UHCI_PTR_T) {
 			printf("uhci_remove_intr: QH not found\n");
 			return;

@@ -76,7 +76,7 @@
 
 #define delay(d)         DELAY(d)
 
-#ifdef USB_DEBUG
+#ifdef UKBD_DEBUG
 #define DPRINTF(x)	if (ukbddebug) logprintf x
 #define DPRINTFN(n,x)	if (ukbddebug>(n)) logprintf x
 int	ukbddebug = 1;
@@ -865,7 +865,7 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 	if (state->ks_inputs <= 0)
 		return 0;
 
-#if USB_DEBUG
+#if UKBD_DEBUG
 	for (i = state->ks_inputhead, j = 0; j < state->ks_inputs; ++j,
 		i = (i + 1)%INPUTBUFSIZE) {
 		c = state->ks_input[i];
@@ -879,7 +879,7 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 			printf("%d ", ud->keycode[i]);
 	}
 	printf("\n");
-#endif /* USB_DEBUG */
+#endif /* UKBD_DEBUG */
 
 	if (state->ks_polling)
 		return 0;
@@ -1425,15 +1425,17 @@ probe_keyboard(struct usb_attach_arg *uaa, int flags)
 {
 	usb_interface_descriptor_t *id;
 	
-	/* Check that this is a keyboard that speaks the boot protocol. */
 	if (!uaa->iface)
 		return EINVAL;
+
+	/* Check that this is a keyboard that speaks the boot protocol. */
 	id = usbd_get_interface_descriptor(uaa->iface);
-	if (id->bInterfaceClass != UCLASS_HID || 
-	    id->bInterfaceSubClass != USUBCLASS_BOOT ||
-	    id->bInterfaceProtocol != UPROTO_BOOT_KEYBOARD)
-		return EINVAL;
-	return 0;
+	if (id
+	    && id->bInterfaceClass == UCLASS_HID
+	    && id->bInterfaceSubClass == USUBCLASS_BOOT
+	    && id->bInterfaceProtocol == UPROTO_BOOT_KEYBOARD)
+		return 0;
+	return EINVAL;
 }
 
 static int

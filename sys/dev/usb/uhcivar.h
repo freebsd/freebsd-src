@@ -168,12 +168,3 @@ int		uhci_intr __P((void *));
 void		uhci_reset __P((void *));
 #endif
 
-#ifdef USB_DEBUG
-#define DPRINTF(x)	if (uhcidebug) printf x
-#define DPRINTFN(n,x)	if (uhcidebug>(n)) printf x
-extern int uhcidebug;
-#else
-#define DPRINTF(x)
-#define DPRINTFN(n,x)
-#endif
-

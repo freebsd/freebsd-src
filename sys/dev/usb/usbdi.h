@@ -96,6 +96,7 @@ typedef enum {
 	USBD_INTERRUPTED,
 
 	USBD_XXX,
+#define	USBD_ERROR_MAX		21	/* used for usbd_error_strs */
 } usbd_status;
 
 typedef int usbd_lock_token;
@@ -242,6 +243,9 @@ usb_interface_descriptor_t *usbd_find_idesc
 usb_endpoint_descriptor_t *usbd_find_edesc
 	__P((usb_config_descriptor_t *cd, int ifaceidx, int altidx, 
 	     int endptidx));
+
+char * usbd_errstr(usbd_status err);
+
 
 void usbd_dopoll __P((usbd_interface_handle));
 void usbd_set_polling __P((usbd_interface_handle iface, int on));
