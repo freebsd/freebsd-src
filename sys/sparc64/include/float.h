@@ -46,8 +46,10 @@ __END_DECLS
 
 #define FLT_RADIX	2		/* b */
 #define FLT_ROUNDS	__flt_rounds()
+#if __ISO_C_VISIBLE >= 1999
 #define	FLT_EVAL_METHOD	0		/* no promotion */
 #define	DECIMAL_DIG	35		/* max precision in decimal digits */
+#endif
 
 #define FLT_MANT_DIG	24		/* p */
 #define FLT_EPSILON	1.19209290E-7F	/* b**(1-p) */
