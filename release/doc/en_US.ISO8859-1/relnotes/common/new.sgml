@@ -2246,6 +2246,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       than a single <filename>/etc/pam.conf</filename> file.
       <filename>/etc/pam.d/README</filename> has more details.</para>
 
+    <para>A number of new <application>PAM</application>
+      modules have been added.</para>
+
+<!-- XXX List new PAM modules -->
+
     <para>&man.passwd.1; and &man.pw.8; now select the password hash
       algorithm at run time.  See the <literal>passwd_format</literal>
       attribute in
@@ -2749,18 +2754,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>lint</application> has been updated to
 	snapshot of NetBSD &man.lint.1; as of 3 March 2002.</para>
 
-      <para><application>Linux-PAM</application> has been updated to
-	0.75. &merged;</para>
-
-      <para>A number of new <application>Linux-PAM</application>
-	modules have been added, including:
-	<filename>pam_ftp</filename>,
-	<filename>pam_krb5</filename>,
-	<filename>pam_nologin</filename>,
-	<filename>pam_rootok</filename>,
-	<filename>pam_securetty</filename>,
-	<filename>pam_wheel</filename>.</para>
-
       <para><application>lukemftp</application> (the FTP client from
 	NetBSD) has replaced the &os; &man.ftp.1; program.  Among its
 	new features are more automation methods, better standards
@@ -2777,6 +2770,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>The <application>NTP</application> suite of programs has
 	been updated to 4.1.0. &merged;</para>
+
+      <para><application>OpenPAM</application>
+        (<quote>Celandine</quote> release) has been imported,
+        replacing
+        <application>Linux-PAM</application>.</para>
 
       <para>The <application>OPIE</application> one-time-password
 	suite has been updated to 2.32. &merged; It has completely
