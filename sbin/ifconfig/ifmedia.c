@@ -103,7 +103,7 @@ static struct ifmedia_description *get_subtype_desc(int,
     struct ifmedia_type_to_subtype *ttos);
 
 static void
-media_status(int s, const struct rt_addrinfo *info __unused)
+media_status(int s)
 {
 	struct ifmediareq ifmr;
 	int *media_list, i;
@@ -787,7 +787,7 @@ static struct cmd media_cmds[] = {
 static struct afswtch af_media = {
 	.af_name	= "af_media",
 	.af_af		= AF_UNSPEC,
-	.af_status	= media_status,
+	.af_other_status = media_status,
 };
 
 static __constructor void

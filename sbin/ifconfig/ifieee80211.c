@@ -1282,7 +1282,7 @@ printkey(const struct ieee80211req_key *ik)
 }
 
 static void
-ieee80211_status(int s, const struct rt_addrinfo *info __unused)
+ieee80211_status(int s)
 {
 	static const uint8_t zerobssid[IEEE80211_ADDR_LEN];
 	enum ieee80211_opmode opmode = get80211opmode(s);
@@ -1792,7 +1792,7 @@ static struct cmd ieee80211_cmds[] = {
 static struct afswtch af_ieee80211 = {
 	.af_name	= "af_ieee80211",
 	.af_af		= AF_UNSPEC,
-	.af_status	= ieee80211_status,
+	.af_other_status = ieee80211_status,
 };
 
 static __constructor void
