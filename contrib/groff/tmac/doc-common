@@ -156,10 +156,11 @@
 .if !"\\$2"" \{\
 .	ds cH \\$2
 .\" .	if "\\$3"" \{\
-.		if \\$2>=1 .if \\$2<=8 \{\
+.		if \\$2>=1 .if \\$2<=9 \{\
 .			ds vT FreeBSD Reference Manual
 .			if \\$2>1 .if \\$2<6 .ds vT FreeBSD Programmer's Manual
 .			if "\\$2"8" .ds vT FreeBSD System Manager's Manual
+.			if "\\$2"9" .ds vT FreeBSD Kernel Developer's Manual
 .			nr sN \\$2
 .		\}
 .		if "\\$2"unass"  .ds vT DRAFT
@@ -182,6 +183,7 @@
 .	if "\\$3"tahoe" .as vT \ (Tahoe Architecture)
 .	if "\\$3"vax" .as vT \ (VAX Architecture)
 .	if "\\$3"hp300" .as vT \ (HP300 Architecture)
+.	if "\\$3"i386" .as vT \ (i386 Architecture)
 .	if "\\*(vT"LOCAL" .ds vT \\$3
 .\}
 ..
