@@ -62,7 +62,7 @@
 .Pp
 .Cd options LIBMBPOOL
 .Sh DESCRIPTION
-Mbuf pools are intented to help drivers for interface cards that need huge
+Mbuf pools are intended to help drivers for interface cards that need huge
 amounts of receive buffers and additionally provides a mapping between these
 buffers and 32-bit handles.
 .Pp
@@ -127,7 +127,7 @@ is 2^14-1 (16383) and the maximum of
 .Fa page_size /
 .Fa chunk_size
 is 2^9 (512).
-If the call is sucessful a pointer to a newly allocated
+If the call is successful a pointer to a newly allocated
 .Vt "struct mbpool"
 is set into the variable pointed to by
 .Fa mpb .
@@ -177,7 +177,7 @@ The function
 as the free function. The user argument must be the pointer to
 the pool.
 .Pp
-Before useing the contents of a buffer returned by the card the driver
+Before using the contents of a buffer returned by the card the driver
 must call
 .Fn mbp_sync
 with the appropriate parameters. This results in a call to
