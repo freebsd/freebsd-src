@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.40.2.6 1998/03/01 10:12:00 asami Exp $
+**  $Id: pcisupport.c,v 1.40.2.7 1998/03/26 22:28:42 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -178,6 +178,18 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("IBM 82351 PCI-PCI bridge");
 	case 0x00011011:
 		return ("DEC 21050 PCI-PCI bridge");
+
+	/* NEC -- vendor 0x1033 */
+	case 0x00011033:
+		return ("NEC 0001 PCI to PC-98 C-bus bridge");
+	case 0x00021033:
+		return ("NEC 0002 PCI to PC-98 local bus bridge");
+	case 0x00161033:
+		return ("NEC 0016 PCI to PC-98 local bus bridge");
+	case 0x002c1033:
+		return ("NEC 002C PCI to PC-98 C-bus bridge");
+	case 0x003b1033:
+		return ("NEC 003B PCI to PC-98 C-bus bridge");
 	};
 
 	if (descr = generic_pci_bridge(tag))
