@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.17 1996/07/27 22:25:19 jkh Exp $ -->
+<!-- $Id: sup.sgml,v 1.18 1996/09/14 02:32:30 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -110,6 +110,7 @@ src-all:	/usr/src		the whole operating system (almost)
 <verb>
 ports-base:	  /usr/ports/...	misc files at the top of /usr/ports
 ports-archivers:  /usr/ports/archivers	archiving tools
+ports-astro:	  /usr/ports/astro	astronomical ports
 ports-audio:	  /usr/ports/audio	sound support
 ports-benchmarks: /usr/ports/benchmarks	benchmarks
 ports-cad:	  /usr/ports/cad	CAD tools
