@@ -1,5 +1,5 @@
 #!bin/sh
-#	$Id: cpio.magic,v 1.7 1994/06/08 10:52:10 csgr Exp $
+#	$Id: cpio.magic,v 1.9 1994/06/12 11:05:04 csgr Exp $
 #
 set_tmp_dir()
 {
@@ -261,7 +261,7 @@ extract()
 	for i in $*; do
 		/tmp/cat "$i"* | 
 		/tmp/gunzip |
-		(cd / ; /tmp/tar --extract --file - --preserve-permissions --exclude libc.so.1.1 ${tarverbose} )
+		(cd / ; /tmp/tar --extract --file - --preserve-permissions ${tarverbose} )
 	done
 	rm -f /tmp/cat /tmp/gunzip /tmp/tar
 	sync
