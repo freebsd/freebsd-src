@@ -3,6 +3,7 @@
 PROG=	getconf
 
 SRCS=	confstr.c getconf.c pathconf.c sysconf.c
+CFLAGS+= -I${.CURDIR}
 CLEANFILES+= confstr.c pathconf.c sysconf.c
 
 .SUFFIXES: .gperf
