@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1987, 1993, 1994
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,8 +11,7 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
+ *	This product includes software developed by Shigio Yamaguchi.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -29,11 +27,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	C.c					12-Sep-98
  */
-
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)C.c	8.4 (Berkeley) 4/2/94";
-#endif /* LIBC_SCCS and not lint */
 
 #include <ctype.h>
 #include <limits.h>
@@ -41,37 +37,42 @@ static char sccsid[] = "@(#)C.c	8.4 (Berkeley) 4/2/94";
 #include <stdlib.h>
 #include <string.h>
 
-#include "ctags.h"
-#include "lookup.h"
+#include "C.h"
+#include "gctags.h"
+#include "defined.h"
+#include "die.h"
+#include "locatestring.h"
+#include "strbuf.h"
+#include "token.h"
 
-static int	func_entry __P((void));
-static void	hash_entry __P((void));
-static void	skip_string __P((int));
-static int	str_entry __P((int));
-#ifdef GLOBAL
-static int	cmp __P((const void *, const void *));
-static int	isstatement __P((char *));
-static void	define_line __P((void));
-#endif
+static	int	function_definition __P((int));
+static	void	condition_macro __P((int));
+static	int	reserved __P((char *));
 
-#ifdef YACC
-extern int	yaccfile;		/* true when *.y file */
-#endif
 /*
- * c_entries --
- *	read .c and .h files and call appropriate routines
+ * #ifdef stack.
+ */
+static struct {
+	short start;		/* level when #if block started */
+	short end;		/* level when #if block end */
+	short if0only;		/* #if 0 or notdef only */
+} stack[MAXPIFSTACK], *cur;
+static int piflevel;		/* condition macro level */
+static int level;		/* brace level */
+
+/*
+ * C: read C (includes .h, .y) file and pickup tag entries.
  */
 void
-c_entries()
+C(yacc)
+	int	yacc;
 {
-	int	c;			/* current character */
-	int	level;			/* brace level */
-	int	token;			/* if reading a token */
-	int	t_def;			/* if reading a typedef */
-	int	t_level;		/* typedef's brace level */
-	char	*sp;			/* buffer pointer */
-	char	tok[MAXTOKEN];		/* token buffer */
-#ifdef YACC
+	int	c, cc;
+	int	savelevel;
+	int	target;
+	int	startmacro, startsharp;
+	const	char *interested = "{}=;";
+	STRBUF	*sb = stropen();
 	/*
 	 * yacc file format is like the following.
 	 *
@@ -82,805 +83,395 @@ c_entries()
 	 * programs
 	 *
 	 */
-#define DECLARATIONS	0
-#define RULES		1
-#define PROGRAMS	2
-	int	yaccstatus = (yaccfile) ? DECLARATIONS : PROGRAMS;
-	int	inyacc     = (yaccfile) ? YES : NO;	/* NO while C source */
-#endif
+	int	yaccstatus = (yacc) ? DECLARATIONS : PROGRAMS;
+	int	inC = (yacc) ? 0 : 1;		/* 1 while C source */
 
-	lineftell = ftell(inf);
-	sp = tok; token = t_def = NO; t_level = -1; level = 0; lineno = 1;
-	while (GETC(!=, EOF)) {
-		switch (c) {
-		/*
-		 * Here's where it DOESN'T handle: {
-		 *	foo(a)
-		 *	{
-		 *	#ifdef notdef
-		 *		}
-		 *	#endif
-		 *		if (a)
-		 *			puts("hello, world");
-		 *	}
-		 */
-		case '{':
-#ifdef YACC
-			if (yaccstatus == RULES && level == 0)
-				inyacc = NO;
-#endif
-			++level;
-			goto endtok;
-		case '}':
-			/*
-			 * if level goes below zero, try and fix
-			 * it, even though we've already messed up
-			 */
-			if (--level < 0)
-				level = 0;
-#ifdef GLOBAL
-			/*
-			 * -e flag force a function to end when a '}' appear
-			 * at column 0. If -e flag not specified, all functions
-			 * after funcA() would be lost.
-			 *
-			 * funcA() {
-			 * #ifdef A
-			 *	if (a) {
-			 *		...
-			 * #else
-			 *	if (nota) {
-			 *		...
-			 * #endif
-			 *	}
-			 * }
-			 */
-			if (eflag && ftell(inf) == lineftell+1) {
-				level = 0;
+	level = piflevel = 0;
+	savelevel = -1;
+	target = (sflag) ? SYM : (rflag) ? REF : DEF;
+	startmacro = startsharp = 0;
+	cmode = 1;			/* allow token like '#xxx' */
+	crflag = 1;			/* require '\n' as a token */
+	if (yacc)
+		ymode = 1;		/* allow token like '%xxx' */
+
+	while ((cc = nexttoken(interested, reserved)) != EOF) {
+		switch (cc) {
+		case SYMBOL:		/* symbol	*/
+			if (inC && peekc(0) == '('/* ) */) {
+				if (isnotfunction(token)) {
+					if (target == REF && defined(token))
+						PUT(token, lineno, sp);
+				} else if (level > 0 || startmacro) {
+					if (target == REF && defined(token))
+						PUT(token, lineno, sp);
+				} else if (level == 0 && !startmacro && !startsharp) {
+					char	savetok[MAXTOKEN], *saveline;
+					int	savelineno = lineno;
+
+					strcpy(savetok, token);
+					strstart(sb);
+					strnputs(sb, sp, strlen(sp) + 1);
+					saveline = strvalue(sb);
+					if (function_definition(target))
+						if (target == DEF)
+							PUT(savetok, savelineno, saveline);
+				}
+			} else {
+				if (target == SYM)
+					PUT(token, lineno, sp);
 			}
-#endif
-#if YACC
-			if (yaccstatus == RULES && level == 0)
-				inyacc = YES;
-#endif
-			goto endtok;
-
-		case '\n':
-			SETLINE;
-			/*
-			 * the above 3 cases are similar in that they
-			 * are special characters that also end tokens.
-			 */
-	endtok:		if (sp > tok) {
-				*sp = EOS;
-				token = YES;
-				sp = tok;
-			}
-			else
-				token = NO;
-			continue;
-
-		/*
-		 * We ignore quoted strings and character constants
-		 * completely.
-		 */
-		case '"':
-		case '\'':
-			(void)skip_string(c);
 			break;
-
-		/*
-		 * comments can be fun; note the state is unchanged after
-		 * return, in case we found:
-		 *	"foo() XX comment XX { int bar; }"
-		 */
-		case '/':
-			if (GETC(==, '*')) {
-				skip_comment();
-				continue;
+		case '{':  /* } */
+			DBG_PRINT(level, "{"); /* } */
+			if (yaccstatus == RULES && level == 0)
+				inC = 1;
+			++level;
+			if (bflag && atfirst) {
+				if (wflag && level != 1) /* { */
+					fprintf(stderr, "Warning: forced level 1 block start by '{' at column 0 [+%d %s].\n", lineno, curfile);
+				level = 1;
 			}
-			(void)ungetc(c, inf);
-			c = '/';
-			goto storec;
-
-		/* hash marks flag #define's. */
-		case '#':
-			if (sp == tok) {
-				hash_entry();
+			break;
+			/* { */
+		case '}':
+			if (--level < 0) {
+				if (wflag)
+					fprintf(stderr, "Warning: missing left '{' [+%d %s].\n", lineno, curfile); /* } */
+				level = 0;
+			}
+			if (eflag && atfirst) {
+				if (wflag && level != 0) /* { */
+					fprintf(stderr, "Warning: forced level 0 block end by '}' at column 0 [+%d %s].\n", lineno, curfile);
+				level = 0;
+			}
+			if (yaccstatus == RULES && level == 0)
+				inC = 0;
+			/* { */
+			DBG_PRINT(level, "}");
+			break;
+		case '\n':
+			if (startmacro && level != savelevel) {
+				if (wflag)
+					fprintf(stderr, "Warning: different level before and after #define macro. reseted. [+%d %s].\n", lineno, curfile);
+				level = savelevel;
+			}
+			startmacro = startsharp = 0;
+			break;
+		case YACC_SEP:		/* %% */
+			if (level != 0) {
+				if (wflag)
+					fprintf(stderr, "Warning: forced level 0 block end by '%%' [+%d %s].\n", lineno, curfile);
+				level = 0;
+			}
+			if (yaccstatus == DECLARATIONS) {
+				if (target == DEF)
+					PUT("yyparse", lineno, sp);
+				yaccstatus = RULES;
+			} else if (yaccstatus == RULES)
+				yaccstatus = PROGRAMS;
+			inC = (yaccstatus == PROGRAMS) ? 1 : 0;
+			break;
+		case YACC_BEGIN:	/* %{ */
+			if (level != 0) {
+				if (wflag)
+					fprintf(stderr, "Warning: forced level 0 block end by '%%{' [+%d %s].\n", lineno, curfile);
+				level = 0;
+			}
+			if (inC == 1 && wflag)
+				fprintf(stderr, "Warning: '%%{' appeared in C mode. [+%d %s].\n", lineno, curfile);
+			inC = 1;
+			break;
+		case YACC_END:		/* %} */
+			if (level != 0) {
+				if (wflag)
+					fprintf(stderr, "Warning: forced level 0 block end by '%%}' [+%d %s].\n", lineno, curfile);
+				level = 0;
+			}
+			if (inC == 0 && wflag)
+				fprintf(stderr, "Warning: '%%}' appeared in Yacc mode. [+%d %s].\n", lineno, curfile);
+			inC = 0;
+			break;
+		/*
+		 * #xxx
+		 */
+		case CP_DEFINE:
+			startmacro = 1;
+			savelevel = level;
+			if ((c = nexttoken(interested, reserved)) != SYMBOL) {
+				pushbacktoken();
 				break;
 			}
-			goto storec;
-
-		/*
-		 * if we have a current token, parenthesis on
-		 * level zero indicates a function.
-#ifdef GLOBAL
-		 * in the case of rflag == 1, if we have a current token,
-		 * parenthesis on level > zero indicates a function reference.
-#endif
-#ifdef YACC
-		 * inyacc == NO while C source.
-#endif
-		 */
-		case '(':
-#ifdef GLOBAL
-			if (sflag)
+			if (peekc(1) == '('/* ) */) {
+				if (target == DEF)
+					PUT(token, lineno, sp);
+				while ((c = nexttoken("()", reserved)) != EOF && c != '\n' && c != /* ( */ ')')
+					if (c == SYMBOL && target == SYM)
+						PUT(token, lineno, sp);
+				if (c == '\n')
+					pushbacktoken();
+			}
+			break;
+		case CP_INCLUDE:
+		case CP_ERROR:
+		case CP_LINE:
+		case CP_PRAGMA:
+			while ((c = nexttoken(interested, reserved)) != EOF && c != '\n')
+				;
+			break;
+		case CP_IFDEF:
+		case CP_IFNDEF:
+		case CP_IF:
+		case CP_ELIF:
+		case CP_ELSE:
+		case CP_ENDIF:
+		case CP_UNDEF:
+			condition_macro(cc);
+			while ((c = nexttoken(interested, reserved)) != EOF && c != '\n') {
+				if (!((cc == CP_IF || cc == CP_ELIF) && !strcmp(token, "defined")))
+					continue;
+				if (c == SYMBOL && target == SYM)
+					PUT(token, lineno, sp);
+			}
+			break;
+		case CP_SHARP:		/* ## */
+			(void)nexttoken(interested, reserved);
+			break;
+		case C_STRUCT:
+			c = nexttoken(interested, reserved);
+			if (c == '{' /* } */) {
+				pushbacktoken();
 				break;
-#endif
-#ifdef YACC
-			if (inyacc == NO)
-#endif
-#ifdef GLOBAL
-			if (!rflag && !level && token)
-#else
-			if (!level && token)
-#endif
-			{
-				int	curline;
-
-				if (sp != tok)
-					*sp = EOS;
-				/*
-				 * grab the line immediately, we may
-				 * already be wrong, for example,
-				 *	foo\n
-				 *	(arg1,
-				 */
-				getline();
-				curline = lineno;
-#ifdef GLOBAL
-				/* to make sure. */
-				if (!isstatement(tok))
-#endif
-				if (func_entry()) {
-					++level;
-					pfnote(tok, curline);
+			}
+			if (c == SYMBOL)
+				if (target == SYM)
+					PUT(token, lineno, sp);
+			break;
+		case C_EXTERN:
+			if (startmacro)
+				break;
+			while ((c = nexttoken(interested, reserved)) != EOF && c != ';') {
+				switch (c) {
+				case CP_IFDEF:
+				case CP_IFNDEF:
+				case CP_IF:
+				case CP_ELIF:
+				case CP_ELSE:
+				case CP_ENDIF:
+				case CP_UNDEF:
+					condition_macro(c);
+					continue;
 				}
-				break;
+				if (startmacro && c == '\n')
+					break;
+				if (c == '{')
+					level++;
+				else if (c == '}')
+					level--;
+				else if (c == SYMBOL)
+					if (target == SYM)
+						PUT(token, lineno, sp);
 			}
-#ifdef GLOBAL
-			else if (rflag && level && token) {
-				if (sp != tok)
-					*sp = EOS;
-				if (!isstatement(tok) && lookup(tok)) {
-					getline();
-					pfnote(tok, lineno);
-				}
-				break;
-			}
-#endif
-			goto storec;
-
-		/*
-		 * semi-colons indicate the end of a typedef; if we find a
-		 * typedef we search for the next semi-colon of the same
-		 * level as the typedef.  Ignoring "structs", they are
-		 * tricky, since you can find:
-		 *
-		 *	"typedef long time_t;"
-		 *	"typedef unsigned int u_int;"
-		 *	"typedef unsigned int u_int [10];"
-		 *
-		 * If looking at a typedef, we save a copy of the last token
-		 * found.  Then, when we find the ';' we take the current
-		 * token if it starts with a valid token name, else we take
-		 * the one we saved.  There's probably some reasonable
-		 * alternative to this...
-		 */
-		case ';':
-			if (t_def && level == t_level) {
-				t_def = NO;
-				getline();
-				if (sp != tok)
-					*sp = EOS;
-				pfnote(tok, lineno);
-				break;
-			}
-			goto storec;
-
-#if YACC
-		case '%':
-			if (yaccstatus == DECLARATIONS || yaccstatus == RULES) {
-				if (GETC(==, '%')) {
-					level = 0;
-					if (yaccstatus == DECLARATIONS) {
-						if (!rflag) {
-							getline();
-							pfnote("yyparse", lineno);
-						}
-						yaccstatus = RULES;
-					} else if (yaccstatus == RULES) {
-						yaccstatus = PROGRAMS;
-					}
-					inyacc = (yaccstatus == PROGRAMS) ? NO : YES;
-				} else if (c == '{') {
-					level = 0;
-					inyacc = NO;
-				} else if (c == '}') {
-					level = 0;
-					inyacc = YES;
-				} else {
-					(void)ungetc(c, inf);
-				}
-				break;
-			}
-			/* else fall throuth */
-#endif
-		/*
-		 * store characters until one that can't be part of a token
-		 * comes along; check the current token against certain
-		 * reserved words.
-		 */
+			break;
+		/* control statement check */
+		case C_BREAK:
+		case C_CASE:
+		case C_CONTINUE:
+		case C_DEFAULT:
+		case C_DO:
+		case C_ELSE:
+		case C_FOR:
+		case C_GOTO:
+		case C_IF:
+		case C_RETURN:
+		case C_SWITCH:
+		case C_WHILE:
+			if (wflag && !startmacro && level == 0)
+				fprintf(stderr, "Warning: Out of function. %8s [+%d %s]\n", token, lineno, curfile);
+			break;
 		default:
-			/* ignore whitespace */
-			if (c == ' ' || c == '\t') {
-				int save = c;
-				while (GETC(!=, EOF) && (c == ' ' || c == '\t'))
-					;
-				if (c == EOF)
-					return;
-				(void)ungetc(c, inf);
-				c = save;
-			}
-	storec:		if (!intoken(c)) {
-				if (sp == tok)
-					break;
-				*sp = EOS;
-#ifdef GLOBAL
-				/* ignore assembler in C source */
-				if (!memcmp(tok, "_asm",4)) {
-					while (GETC(!=, EOF) && (c == ' ' || c == '\t'))
-						;
-					if (c == EOF)
-						return;
-					if (c == '{') {
-						while (GETC(!=, EOF) && c != '}') {
-							if (c == '\n')
-								SETLINE;
-						}
-					} else {
-						while (GETC(!=, EOF) && c != '\n')
-							;
-						if (c == '\n')
-							SETLINE;
-					}
-					if (c == EOF)
-						return;
-					break;
-				}
-				if (sflag) {
-					if (!isstatement(tok)) {
-						getline();
-						pfnote(tok, lineno);
-					}
-					break;
-				}
-				if (!memcmp(tok, "extern",7)) {
-					while (GETC(!=, EOF) && c != ';') {
-						if (c == '\n')
-							SETLINE;
-					}
-					if (c == EOF)
-						return;
-					break;
-				}
-#endif
-				if (tflag) {
-					/* no typedefs inside typedefs */
-					if (!t_def &&
-						   !memcmp(tok, "typedef",8)) {
-						t_def = YES;
-						t_level = level;
-						break;
-					}
-					/* catch "typedef struct" */
-					if ((!t_def || t_level < level)
-					    && (!memcmp(tok, "struct", 7)
-					    || !memcmp(tok, "union", 6)
-					    || !memcmp(tok, "enum", 5))) {
-						/*
-						 * get line immediately;
-						 * may change before '{'
-						 */
-						getline();
-						if (str_entry(c))
-							++level;
-						break;
-						/* } */
-					}
-				}
-				sp = tok;
-			}
-			else if (sp != tok || begtoken(c)) {
-				*sp++ = c;
-				token = YES;
-			}
-#ifdef GLOBAL
-			/* skip hex number */
-			else if (sp == tok && c == '0') {
-				if (GETC(==, 'x') || c == 'X') {
-					while (GETC(!=, EOF) && isxdigit(c))
-						;
-					if (c == EOF)
-						return;
-				}
-				(void)ungetc(c, inf);
-			}
-#endif
-			continue;
-			/* end of default */
-		} /* end of switch */
-		/*
-		 * 'break' statement in switch block come here.
-		 */
-		sp = tok;
-		token = NO;
-	} /* end of while */
+		}
+	}
+	strclose(sb);
+	if (wflag) {
+		if (level != 0)
+			fprintf(stderr, "Warning: {} block unmatched. (last at level %d.)[+%d %s]\n", level, lineno, curfile);
+		if (piflevel != 0)
+			fprintf(stderr, "Warning: #if block unmatched. (last at level %d.)[+%d %s]\n", piflevel, lineno, curfile);
+	}
 }
-
 /*
- * func_entry --
- *	handle a function reference
+ * function_definition: return if function definition or not.
+ *
+ *	r)	target type
  */
 static int
-func_entry()
+function_definition(target)
+int	target;
 {
-	int	c;			/* current character */
-	int	level = 0;		/* for matching '()' */
+	int	c;
+	int     brace_level, isdefine;
 
-	/*
-	 * Find the end of the assumed function declaration.
-	 * Note that ANSI C functions can have type definitions so keep
-	 * track of the parentheses nesting level.
-	 */
-	while (GETC(!=, EOF)) {
+	brace_level = isdefine = 0;
+	while ((c = nexttoken("(,)", reserved)) != EOF) {
 		switch (c) {
-		case '\'':
-		case '"':
-			/* skip strings and character constants */
-			skip_string(c);
-			break;
-		case '/':
-			/* skip comments */
-			if (GETC(==, '*'))
-				skip_comment();
-			break;
-		case '(':
-			level++;
-			break;
-		case ')':
-			if (level == 0)
-				goto fnd;
-			level--;
-			break;
-		case '\n':
-			SETLINE;
+		case CP_IFDEF:
+		case CP_IFNDEF:
+		case CP_IF:
+		case CP_ELIF:
+		case CP_ELSE:
+		case CP_ENDIF:
+		case CP_UNDEF:
+			condition_macro(c);
+			continue;
+		}
+		if (c == '('/* ) */)
+			brace_level++;
+		else if (c == /* ( */')') {
+			if (--brace_level == 0)
+				break;
+		} else if (c == SYMBOL) {
+			if (target == SYM)
+				PUT(token, lineno, sp);
 		}
 	}
-	return (NO);
-fnd:
-	/*
-	 * we assume that the character after a function's right paren
-	 * is a token character if it's a function and a non-token
-	 * character if it's a declaration.  Comments don't count...
-	 */
-	for (;;) {
-		while (GETC(!=, EOF) && iswhite(c))
-			if (c == '\n')
-				SETLINE;
-		if (intoken(c) || c == '{')
-			break;
-		if (c == '/' && GETC(==, '*'))
-			skip_comment();
-		else {				/* don't ever "read" '/' */
-			(void)ungetc(c, inf);
-			return (NO);
+	if (c == EOF)
+		return 0;
+	while ((c = nexttoken(",;{}=", reserved)) != EOF) {
+		switch (c) {
+		case CP_IFDEF:
+		case CP_IFNDEF:
+		case CP_IF:
+		case CP_ELIF:
+		case CP_ELSE:
+		case CP_ENDIF:
+		case CP_UNDEF:
+			condition_macro(c);
+			continue;
 		}
+		if (c == SYMBOL || IS_RESERVED(c))
+			isdefine = 1;
+		else if (c == ';' || c == ',') {
+			if (!isdefine)
+				break;
+		} else if (c == '{' /* } */) {
+			pushbacktoken();
+			return 1;
+		} else if (c == /* { */'}') {
+			break;
+		} else if (c == '=')
+			break;
 	}
-	if (c != '{')
-		(void)skip_key('{');
-	return (YES);
+	return 0;
 }
 
 /*
- * hash_entry --
- *	handle a line starting with a '#'
+ * condition_macro: 
+ *
+ *	i)	cc	token
  */
 static void
-hash_entry()
+condition_macro(cc)
+	int	cc;
 {
-	int	c;			/* character read */
-	int	curline;		/* line started on */
-	char	*sp;			/* buffer pointer */
-	char	tok[MAXTOKEN];		/* storage buffer */
-
-	/* ignore leading whitespace */
-	while (GETC(!=, EOF) && (c == ' ' || c == '\t'))
-		;
-	(void)ungetc(c, inf);
-	curline = lineno;
-	for (sp = tok;;) {		/* get next token */
-		if (GETC(==, EOF))
-			return;
-		if (iswhite(c))
-			break;
-		*sp++ = c;
-	}
-	*sp = EOS;
-#ifdef GLOBAL
-	if (sflag && memcmp(tok, "include", 7)) {
-		(void)ungetc(c, inf);
-		define_line();
-		return;
-	}
-#endif
-	if (memcmp(tok, "define", 6))	/* only interested in #define's */
-		goto skip;
-	
-	for (;;) {			/* this doesn't handle "#define \n" */
-		if (GETC(==, EOF))
-			return;
-		if (!iswhite(c))
-			break;
-	}
-	for (sp = tok;;) {		/* get next token */
-		*sp++ = c;
-		if (GETC(==, EOF))
-			return;
-		/*
-		 * this is where it DOESN'T handle
-		 * "#define \n"
-		 */
-		if (!intoken(c))
-			break;
-	}
-	*sp = EOS;
-#ifdef GLOBAL
-	if (rflag) {
-		/*
-		 * #define XXX\n
-		 */
-		if (c == '\n') {
-			SETLINE;
-			return;
+	cur = &stack[piflevel];
+	if (cc == CP_IFDEF || cc == CP_IFNDEF || cc == CP_IF) {
+		DBG_PRINT(piflevel, "#if");
+		if (++piflevel >= MAXPIFSTACK)
+			die1("#if stack over flow. [%s]", curfile);
+		++cur;
+		cur->start = level;
+		cur->end = -1;
+		cur->if0only = 0;
+		if (peekc(0) == '0')
+			cur->if0only = 1;
+		else if ((cc = nexttoken(NULL, reserved)) == SYMBOL && !strcmp(token, "notdef"))
+			cur->if0only = 1;
+		else
+			pushbacktoken();
+	} else if (cc == CP_ELIF || cc == CP_ELSE) {
+		DBG_PRINT(piflevel - 1, "#else");
+		if (cur->end == -1)
+			cur->end = level;
+		else if (cur->end != level && wflag)
+			fprintf(stderr, "Warning: uneven level. [+%d %s]\n", lineno, curfile);
+		level = cur->start;
+		cur->if0only = 0;
+	} else if (cc == CP_ENDIF) {
+		if (cur->if0only)
+			level = cur->start;
+		else if (cur->end != -1) {
+			if (cur->end != level && wflag)
+				fprintf(stderr, "Warning: uneven level. [+%d %s]\n", lineno, curfile);
+			level = cur->end;
 		}
-		/*
-		 *            v
-		 * #define XXX(X)	XXXXXX
-		 */
-		if (c == '(')
-			(void)skip_key(')');
-		/*
-		 *               v
-		 * #define XXX(X)	XXXXXX
-		 */
-		while (GETC(!=, EOF)) {
-			if (c != ' ' && c != '\t') {
-				(void)ungetc(c, inf);
-				break;
-			}
-		}
-		/*
-		 *                      v
-		 * #define XXX(X)	XXXXXX
-		 */
-		define_line();
-		return;
+		--piflevel;
+		DBG_PRINT(piflevel, "#endif");
 	}
-#endif
-	if (dflag || c == '(') {	/* only want macros */
-		getline();
-		pfnote(tok, curline);
-	}
-skip:	if (c == '\n') {		/* get rid of rest of define */
-		SETLINE
-		if (*(sp - 1) != '\\')
-			return;
-	}
-	(void)skip_key('\n');
 }
-
-#ifdef GLOBAL
 		/* sorted by alphabet */
-static struct words {
-	char *name;
-} words[] = {
-	{"__P"},
-	{"auto"},
-	{"break"},
-	{"case"},
-	{"char"},
-	{"continue"},
-	{"default"},
-	{"do"},
-	{"double"},
-	{"else"},
-	{"extern"},
-	{"float"},
-	{"for"},
-	{"goto"},
-	{"if"},
-	{"int"},
-	{"long"},
-	{"register"},
-	{"return"},
-	{"short"},
-	{"sizeof"},
-	{"static"},
-	{"struct"},
-	{"switch"},
-	{"typedef"},
-	{"union"},
-	{"unsigned"},
-	{"void"},
-	{"while"},
+static struct words words[] = {
+	{"##",		CP_SHARP},
+	{"#define",	CP_DEFINE},
+	{"#elif",	CP_ELIF},
+	{"#else",	CP_ELSE},
+	{"#endif",	CP_ENDIF},
+	{"#error",	CP_ERROR},
+	{"#if",		CP_IF},
+	{"#ifdef",	CP_IFDEF},
+	{"#ifndef",	CP_IFNDEF},
+	{"#include",	CP_INCLUDE},
+	{"#line",	CP_LINE},
+	{"#pragma",	CP_PRAGMA},
+	{"#undef",	CP_UNDEF},
+	{"%%",		YACC_SEP},
+	{"%left",	YACC_LEFT},
+	{"%nonassoc",	YACC_NONASSOC},
+	{"%right",	YACC_RIGHT},
+	{"%start",	YACC_START},
+	{"%token",	YACC_TOKEN},
+	{"%type",	YACC_TYPE},
+	{"%{",		YACC_BEGIN},
+	{"%}",		YACC_END},
+	{"__P",		C___P},
+	{"auto",	C_AUTO},
+	{"break",	C_BREAK},
+	{"case",	C_CASE},
+	{"char",	C_CHAR},
+	{"continue",	C_CONTINUE},
+	{"default",	C_DEFAULT},
+	{"do",		C_DO},
+	{"double",	C_DOUBLE},
+	{"else",	C_ELSE},
+	{"extern",	C_EXTERN},
+	{"float",	C_FLOAT},
+	{"for",		C_FOR},
+	{"goto",	C_GOTO},
+	{"if",		C_IF},
+	{"int",		C_INT},
+	{"long",	C_LONG},
+	{"register",	C_REGISTER},
+	{"return",	C_RETURN},
+	{"short",	C_SHORT},
+	{"sizeof",	C_SIZEOF},
+	{"static",	C_STATIC},
+	{"struct",	C_STRUCT},
+	{"switch",	C_SWITCH},
+	{"typedef",	C_TYPEDEF},
+	{"union",	C_UNION},
+	{"unsigned",	C_UNSIGNED},
+	{"void",	C_VOID},
+	{"while",	C_WHILE},
 };
 
 static int
-cmp(s1, s2)
-	const void *s1, *s2;
-{
-	return strcmp(((struct words *)s1)->name, ((struct words *)s2)->name);
-}
-
-static int
-isstatement(token)
-        char *token;
+reserved(word)
+        char *word;
 {
 	struct words tmp;
+	struct words *result;
 
-	tmp.name = token;
-	if (bsearch(&tmp, words, sizeof(words)/sizeof(struct words), sizeof(struct words), cmp))
-		return YES;
-	return NO;
-}
-
-static void
-define_line()
-{
-	int	c;			/* character read */
-	int	level;			/* brace level */
-	int	token;			/* if reading a token */
-	char	*sp;			/* buffer pointer */
-	char	tok[MAXTOKEN];		/* storage buffer */
-
-	sp = tok; token = NO; level = 0;
-	while (GETC(!=, EOF)) {
-		switch (c) {
-		case '{':
-			++level;
-			goto endtok;
-		case '}':
-			if (--level < 0)
-				level = 0;
-			goto endtok;
-
-		case '\\':
-			if (GETC(==, '\n')) {
-				SETLINE;
-			}
-			continue;
-
-		case '\n':
-			if (sflag && token) {
-				if (sp != tok)
-					*sp = EOS;
-				if (!isstatement(tok)) {
-					getline();
-					pfnote(tok, lineno);
-				}
-			}
-			SETLINE;
-			return;
-	endtok:		if (sp > tok) {
-				*sp = EOS;
-				token = YES;
-				sp = tok;
-			}
-			else
-				token = NO;
-			continue;
-
-		case '"':
-		case '\'':
-			(void)skip_string(c);
-			break;
-
-		case '/':
-			if (GETC(==, '*')) {
-				skip_comment();
-				continue;
-			}
-			(void)ungetc(c, inf);
-			c = '/';
-			goto storec;
-
-		case '(':
-			if (sflag)
-				break;
-			if (token) {
-				if (sp != tok)
-					*sp = EOS;
-				getline();
-				if (!isstatement(tok) && lookup(tok))
-					pfnote(tok, lineno);
-				break;
-			}
-			goto storec;
-
-		case ';':
-			goto storec;
-
-		default:
-storec:			if (!intoken(c)) {
-				if (sp == tok)
-					break;
-				*sp = EOS;
-				sp = tok;
-				if (sflag) {
-					if (!isstatement(tok)) {
-						getline();
-						pfnote(tok, lineno);
-					}
-					break;
-				}
-			}
-			else if (sp != tok || begtoken(c)) {
-				*sp++ = c;
-				token = YES;
-			}
-			continue;
-		}
-
-		sp = tok;
-		token = NO;
-	}
-}
-#endif
-/*
- * str_entry --
- *	handle a struct, union or enum entry
- */
-static int
-str_entry(c)
-	int	c;			/* current character */
-{
-	int	curline;		/* line started on */
-	char	*sp;			/* buffer pointer */
-	char	tok[LINE_MAX];		/* storage buffer */
-
-	curline = lineno;
-	while (iswhite(c))
-		if (GETC(==, EOF))
-			return (NO);
-	if (c == '{')		/* it was "struct {" */
-		return (YES);
-	for (sp = tok;;) {		/* get next token */
-		*sp++ = c;
-		if (GETC(==, EOF))
-			return (NO);
-		if (!intoken(c))
-			break;
-	}
-	switch (c) {
-		case '{':		/* it was "struct foo{" */
-			--sp;
-			break;
-		case '\n':		/* it was "struct foo\n" */
-			SETLINE;
-			/*FALLTHROUGH*/
-		default:		/* probably "struct foo " */
-			while (GETC(!=, EOF))
-				if (!iswhite(c))
-					break;
-			if (c != '{') {
-				(void)ungetc(c, inf);
-				return (NO);
-			}
-	}
-	*sp = EOS;
-	pfnote(tok, curline);
-	return (YES);
-}
-
-/*
- * skip_comment --
- *	skip over comment
- */
-void
-skip_comment()
-{
-	int	c;			/* character read */
-	int	star;			/* '*' flag */
-
-	for (star = 0; GETC(!=, EOF);)
-		switch(c) {
-		/* comments don't nest, nor can they be escaped. */
-		case '*':
-			star = YES;
-			break;
-		case '/':
-			if (star)
-				return;
-			break;
-		case '\n':
-			SETLINE;
-			/*FALLTHROUGH*/
-		default:
-			star = NO;
-			break;
-		}
-}
-
-/*
- * skip_string --
- *	skip to the end of a string or character constant.
- */
-static void
-skip_string(key)
-	int	key;
-{
-	int	c,
-		skip;
-
-	for (skip = NO; GETC(!=, EOF); )
-		switch (c) {
-		case '\\':		/* a backslash escapes anything */
-			skip = !skip;	/* we toggle in case it's "\\" */
-			break;
-		case '\n':
-			SETLINE;
-			/*FALLTHROUGH*/
-		default:
-			if (c == key && !skip)
-				return;
-			skip = NO;
-		}
-}
-
-/*
- * skip_key --
- *	skip to next char "key"
- */
-int
-skip_key(key)
-	int	key;
-{
-	int	c,
-		skip,
-		retval;
-
-	for (skip = retval = NO; GETC(!=, EOF);)
-		switch(c) {
-		case '\\':		/* a backslash escapes anything */
-			skip = !skip;	/* we toggle in case it's "\\" */
-			break;
-		case ';':		/* special case for yacc; if one */
-		case '|':		/* of these chars occurs, we may */
-			retval = YES;	/* have moved out of the rule */
-			break;		/* not used by C */
-		case '\'':
-		case '"':
-			/* skip strings and character constants */
-			skip_string(c);
-			break;
-		case '/':
-			/* skip comments */
-			if (GETC(==, '*')) {
-				skip_comment();
-				break;
-			}
-			(void)ungetc(c, inf);
-			c = '/';
-			goto norm;
-		case '\n':
-			SETLINE;
-			/*FALLTHROUGH*/
-		default:
-		norm:
-			if (c == key && !skip)
-				return (retval);
-			skip = NO;
-		}
-	return (retval);
+	tmp.name = word;
+	result = (struct words *)bsearch(&tmp, words, sizeof(words)/sizeof(struct words), sizeof(struct words), cmp);
+	return (result != NULL) ? result->val : SYMBOL;
 }
