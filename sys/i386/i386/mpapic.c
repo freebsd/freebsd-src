@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.29 1998/04/01 21:07:34 tegge Exp $
+ *	$Id: mpapic.c,v 1.30 1998/04/19 23:19:20 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -179,7 +179,9 @@ io_apic_setup(int apic)
 			/* the "ISA" type INTerrupts */
 			if ((bustype == ISA) &&
 			    (pin < IOAPIC_ISA_INTS) && 
-			    (isa_apic_pin(pin) == pin)) {
+			    (isa_apic_pin(pin) == pin) &&
+			    (apic_polarity(apic, pin) == 0x1) &&
+			    (apic_trigger(apic, pin) == 0x3)) {
 				flags = DEFAULT_ISA_FLAGS;
 			}
 
