@@ -125,7 +125,7 @@ acl_set_qualifier(acl_entry_t entry_d, const void *tag_qualifier_p)
 	switch(entry_d->ae_tag) {
 	case ACL_USER:
 	case ACL_GROUP:
-		entry_d->ae_id = (uid_t)tag_qualifier_p;
+		entry_d->ae_id = *(uid_t *)tag_qualifier_p;
 		break;
 	default:
 		errno = EINVAL;
