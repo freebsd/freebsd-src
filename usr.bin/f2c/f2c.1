@@ -1,350 +1,283 @@
-. \" Definitions of F, L and LR for the benefit of systems
-. \" whose -man lacks them...
-.de F
-.nh
-.if n \%\&\\$1
-.if t \%\&\f(CW\\$1\fR
-.hy 14
-..
-.de L
-.nh
-.if n \%`\\$1'
-.if t \%\&\f(CW\\$1\fR
-.hy 14
-..
-.de LR
-.nh
-.if n \%`\\$1'\\$2
-.if t \%\&\f(CW\\$1\fR\\$2
-.hy 14
-..
-.TH F2C 1
-.CT 1 prog_other
-.SH NAME
-f2c \- Convert Fortran 77 to C or C++
-.SH SYNOPSIS
-.B f\^2c
-[
-.I option ...
-]
-.I file ...
-.SH DESCRIPTION
-.I F2c
+.\" mdoc translation of the f2c.1 manpage (deprecated -man format) supplied
+.\" with f2c.  The original manpage did not have a copyright statement, but
+.\" the file /usr/src/bin/f2c/Notice states:
+.\"
+.\"/****************************************************************
+.\"Copyright 1990, 1991, 1992, 1993 by AT&T Bell Laboratories and Bellcore.
+.\"
+.\"Permission to use, copy, modify, and distribute this software
+.\"and its documentation for any purpose and without fee is hereby
+.\"granted, provided that the above copyright notice appear in all
+.\"copies and that both that the copyright notice and this
+.\"permission notice and warranty disclaimer appear in supporting
+.\"documentation, and that the names of AT&T Bell Laboratories or
+.\"Bellcore or any of their entities not be used in advertising or
+.\"publicity pertaining to distribution of the software without
+.\"specific, written prior permission.
+.\"
+.\"AT&T and Bellcore disclaim all warranties with regard to this
+.\"software, including all implied warranties of merchantability
+.\"and fitness.  In no event shall AT&T or Bellcore be liable for
+.\"any special, indirect or consequential damages or any damages
+.\"whatsoever resulting from loss of use, data or profits, whether
+.\"in an action of contract, negligence or other tortious action,
+.\"arising out of or in connection with the use or performance of
+.\"this software.
+.\"****************************************************************/
+.\"
+.Dd April 19, 1996
+.Os "AT&T Bell Lab and Bellcore"
+.Dt F2C 1
+.Sh NAME
+.Nm f2c
+.Nd Convert Fortran 77 to C or C++
+.Sh SYNOPSIS
+.Nm f2c
+.Op Fl AaCcEfgpRrsUuw
+.Op Fl C++
+.Op Fl ec
+.Op Fl e1c
+.Op Fl ext
+.Op Fl h Ns Op Cm d
+.Op Fl \&I2
+.Op Fl \&i2
+.Op Fl kr Ns Op Cm d
+.Op Fl onetrip
+.Op Fl P Ns Op Cm s
+.Op Fl r8
+.Op Fl 72
+.Op Fl T Ar dir
+.Op Fl w8
+.Op Fl W Ns Ar n
+.Op Fl z
+.Op Fl !bs
+.Op Fl !c
+.Op Fl !I
+.Op Fl !i8
+.Op Fl !it
+.Op Fl !P
+.Ar file ...
+.Sh DESCRIPTION
+.Nm F2c
 converts Fortran 77 source code in
-.I files
+.Ar files
 with names ending in
-.L .f
+.So \&.f Sc
 or
-.L .F
-to C (or C++) source files in the
-current directory, with
-.L .c
-substituted
-for the final
-.L .f
+.So \&.F Sc
+to C (or C++) source files in the current directory, with
+.So \&.c Sc
+substituted for the final
+.So \&.f Sc
 or
-.LR .F .
+.So \&.F Sc .
 If no Fortran files are named,
-.I f\^2c
-reads Fortran from standard input and
-writes C on standard output.
-.I File
+.Nm f2c
+reads Fortran from standard input and writes C on standard output.
+.Ar File
 names that end with
-.L .p
+.So \&.p Sc
 or
-.L .P
-are taken to be prototype
-files, as produced by option
-.LR -P ,
+.So \&.P Sc
+are taken to be prototype files, as produced by option
+.Fl P ,
 and are read first.
-.PP
-The following options have the same meaning as in
-.IR f\^77 (1).
-.TP
-.B -C
+.Sh OPTIONS
+.Bl -tag -width flag
+.It Fl A
+Produce ANSI C.  Default is old-style C.
+.It Fl a
+Make local variables automatic rather than static unless they appear in a
+DATA , EQUIVALENCE , NAMELIST , or SAVE statement.
+.It Fl C
 Compile code to check that subscripts are within declared array bounds.
-.TP
-.B -I2
-Render INTEGER and LOGICAL as short,
-INTEGER\(**4 as long int.  Assume the default \fIlibF77\fR
-and \fIlibI77\fR:  allow only INTEGER\(**4 (and no LOGICAL)
-variables in INQUIREs.  Option
-.L -I4
-confirms the default rendering of INTEGER as long int.
-.TP
-.BI -I dir
-Look for a non-absolute include file first in the directory of the
-current input file, then in directories specified by \f(CW-I\fP
-options (one directory per option).  Options
-\f(CW-I2\fP and \f(CW-I4\fP
-have precedence, so, e.g., a directory named \f(CW2\fP
-should be specified by \f(CW-I./2\fP .
-.TP
-.B -onetrip
-Compile DO loops that are performed at least once if reached.
-(Fortran 77 DO loops are not performed at all if the upper limit is smaller than the lower limit.)
-.TP
-.B -U
-Honor the case of variable and external names.  Fortran keywords must be in
-.I
-lower
-case.
-.TP
-.B -u
-Make the default type of a variable `undefined' rather than using the default Fortran rules.
-.TP
-.B -w
-Suppress all warning messages, or, if the option is
-.LR -w66 ,
-just Fortran 66 compatibility warnings.
-.PP
-The following options are peculiar to
-.IR f\^2c .
-.TP
-.B -A
-Produce
-.SM ANSI
-C.
-Default is old-style C.
-.TP
-.B -a
-Make local variables automatic rather than static
-unless they appear in a
-.SM "DATA, EQUIVALENCE, NAMELIST,"
-or
-.SM SAVE
-statement.
-.TP
-.B -C++
+.It Fl C++
 Output C++ code.
-.TP
-.B -c
+.It Fl c
 Include original Fortran source as comments.
-.TP
-.BI -d dir
-Write
-.L .c
-files in directory
-.I dir
-instead of the current directory.
-.TP
-.B -E
-Declare uninitialized
-.SM COMMON
-to be
-.B Extern
-(overridably defined in
-.F f2c.h
+.It Fl E
+Declare uninitialized COMMON to be Extern (overridably defined in
+.Pa f2c.h
 as
-.B extern).
-.TP
-.B -ec
-Place uninitialized
-.SM COMMON
-blocks in separate files:
-.B COMMON /ABC/
-appears in file
-.BR abc_com.c .
+.Em extern
+).
+.It Fl ec
+Place uninitialized COMMON blocks in separate files:
+COMMON ABC appears in file abc_com.c .
 Option
-.LR -e1c
+.Fl e1c
 bundles the separate files
 into the output file, with comments that give an unbundling
-.IR sed (1)
+.Xr sed 1
 script.
-.TP
-.B -ext
-Complain about
-.IR f\^77 (1)
-extensions.
-.TP
-.B -f
+.It Fl e1c
+See
+.Fl ec .
+.It Fl ext
+Complain about Fortran 77 extensions.
+.It Fl f
 Assume free-format input: accept text after column 72 and do not
 pad fixed-format lines shorter than 72 characters with blanks.
-.TP
-.B -72
+.It Fl 72
 Treat text appearing after column 72 as an error.
-.TP
-.B -g
-Include original Fortran line numbers in \f(CW#line\fR lines.
-.TP
-.B -h
+.It Fl g
+Include original Fortran line numbers in
+.Sy #line
+lines.
+.It Fl h Ns Op Cm d
 Emulate Fortran 66's treatment of Hollerith: try to align character strings on
 word (or, if the option is
-.LR -hd ,
+.Fl hd ,
 on double-word) boundaries.
-.TP
-.B -i2
+.It Fl \&I2
+Render INTEGER and LOGICAL as short, INTEGER*4 as long int.  Assume the
+default
+.Em libF77
+and
+.Em libI77
+allow only INTEGER*4 (and no LOGICAL) variables in INQUIREs.  Option
+.Fl \&I4
+confirms the default rendering of INTEGER as long int.
+.It Fl \&i2
 Similar to
-.BR -I2 ,
+.Fl \&I2 ,
 but assume a modified
-.I libF77
+.Em libF77
 and
-.I libI77
+.Em libI77
 (compiled with
-.BR -Df\^2c_i2 ),
-so
-.SM INTEGER
-and
-.SM LOGICAL
-variables may be assigned by
-.SM INQUIRE
-and array lengths are stored in short ints.
-.TP
-.B -kr
+.Fl Df2c_i2 ),
+so INTEGER and LOGICAL variables may be assigned by INQUIRE and array lengths
+are stored in short ints
+.It Fl kr Ns Op Cm d
 Use temporary values to enforce Fortran expression evaluation
 where K&R (first edition) parenthesization rules allow rearrangement.
 If the option is
-.LR -krd ,
+.Fl krd ,
 use double precision temporaries even for single-precision operands.
-.TP
-.B -P
+.It Fl onetrip
+Compile DO loops that are performed at least once if reached.  (Fortran 77 DO
+loops are not performed at all if the upper limit is smaller than the lower
+limit.)
+.It Fl P Ns Op Cm s
 Write a
-.IB file .P
-of ANSI (or C++) prototypes
-for definitions in each input
-.IB file .f
+.Ar file Ns \&.P
+of ANSI (or C++) prototypes for definitions in each input
+.Ar file Ns \&.f
 or
-.IB file .F .
-When reading Fortran from standard input, write prototypes
-at the beginning of standard output.  Option
-.B -Ps
+.Ar file Ns \&.F .
+When reading Fortran from standard input, write prototypes at the beginning of
+standard output.  Option
+.Fl Ps
 implies
-.B -P
+.Fl P
 and gives exit status 4 if rerunning
-.I f\^2c
+.Nm f2c
 may change prototypes or declarations.
-.TP
-.B -p
-Supply preprocessor definitions to make common-block members
-look like local variables.
-.TP
-.B -R
-Do not promote
-.SM REAL
-functions and operations to
-.SM DOUBLE PRECISION.
-Option
-.L -!R
-confirms the default, which imitates
-.IR f\^77 .
-.TP
-.B -r
+.It Fl p
+Supply preprocessor definitions to make common-block members look like local
+variables.
+.It Fl R
+Do not promote REAL functions and operations to DOUBLE PRECISION.  Option
+.Fl !R
+confirms the default, which imitates Fortran 77.
+.It Fl r
 Cast values of REAL functions (including intrinsics) to REAL.
-.TP
-.B -r8
-Promote
-.SM REAL
-to
-.SM DOUBLE PRECISION, COMPLEX
-to
-.SM DOUBLE COMPLEX.
-.TP
-.B -s
-Preserve multidimensional subscripts.  Suppressed by option
-.L -C
-\&.
-.TP
-.BI -T dir
+.It Fl r8
+Promote REAL to DOUBLE PRECISION, COMPLEX to DOUBLE COMPLEX.
+.It Fl s
+Preserve multidimensional subscripts.
+.It Fl T Ar dir
 Put temporary files in directory
-.I dir.
-.TP
-.B -w8
-Suppress warnings when
-.SM COMMON
-or
-.SM EQUIVALENCE
-forces odd-word alignment of doubles.
-.TP
-.BI -W n
+.Ar dir .
+.It Fl U
+Honor the case of variable and external names.  Fortran keywords must be in
+.Em lower
+case.
+.It Fl u
+Make the default type of a variable
+.So undefined Sc
+rather than using the default Fortran rules.
+.It Fl w
+Suppress all warning messages.  If the option is
+.Fl w66 ,
+only Fortran 66 compatibility warnings are suppressed.
+.It Fl w8
+Suppress warnings when COMMON or EQUIVALENCE forces odd-word alignment of
+doubles.
+.It Fl W Ns Ar n
 Assume
-.I n
-characters/word (default 4)
-when initializing numeric variables with character data.
-.TP
-.B -z
-Do not implicitly recognize
-.SM DOUBLE COMPLEX.
-.TP
-.B -!bs
-Do not recognize \fIb\fRack\fIs\fRlash escapes
+.Ar n
+characters/word (default 4) when initializing numeric variables with character
+data.
+.It Fl z
+Do not implicitly recognize DOUBLE COMPLEX.
+.It Fl !bs
+Do not recognize
+.Em backslash
+escapes
 (\e", \e', \e0, \e\e, \eb, \ef, \en, \er, \et, \ev) in character strings.
-.TP
-.B -!c
+.It Fl !c
 Inhibit C output, but produce
-.B -P
+.Fl P
 output.
-.TP
-.B -!I
+.It Fl !I
 Reject
-.B include
+.Sy include
 statements.
-.TP
-.B -!i8
-Disallow
-.SM INTEGER*8.
-.TP
-.B -!it
-Don't infer types of untyped
-.SM EXTERNAL
-procedures from use as parameters to previously defined or prototyped
-procedures.
-.TP
-.B -!P
-Do not attempt to infer
-.SM ANSI
-or C++
-prototypes from usage.
-.PP
-The resulting C invokes the support routines of
-.IR f\^77 ;
-object code should be loaded by
-.I f\^77
-or with
-.IR ld (1)
+.It Fl !i8
+Disallow INTEGER*8.
+.It Fl !it
+Don't infer types of untyped EXTERNAL procedures from use as parameters to
+previously defined or prototyped procedures.
+.It Fl !P
+Do not attempt to infer ANSI or C++ prototypes from usage.
+.El
+.Pp
+Object code should be loaded by with
+.Xr ld 1
 or
-.IR cc (1)
-options
-.BR "-lF77 -lI77 -lm" .
-Calling conventions
-are those of
-.IR f\&77 :
-see the reference below.
-.br
-.SH FILES
-.TP
-.nr )I 1.75i
-.IB file .[fF]
+.Xr cc 1
+and the following libraries need to specified:
+.Fl lf2c lm .
+.Sh FILES
+.Ar file Ns \&.[fF]
 input file
-.TP
-.B *.c
+
+.Ar file Ns \&.c
 output file
-.TP
-.F /usr/include/f2c.h
+
+.Pa /usr/include/f2c.h
 header file
-.TP
-.F /usr/lib/libf2c.a
-intrinsic functions and Fortran I/O library
-.TP
-.F /usr/lib/libc.a
-C library, see section 3
-.SH "SEE ALSO"
-S. I. Feldman and
-P. J. Weinberger,
-`A Portable Fortran 77 Compiler',
-\fIUNIX Time Sharing System Programmer's Manual\fR,
-Tenth Edition, Volume 2, AT&T Bell Laboratories, 1990.
-.SH DIAGNOSTICS
+
+.Pa /usr/lib/libf2c.a
+intrinsic function library and Fortran 77 I/O library
+
+.Sh "SEE ALSO"
+.Rs
+.%A S. I. Feldman
+.%A P. J. Weinberger
+.%T A Portable Fortran 77 Compiler
+.%B UNIX Time Sharing System Programmer's Manual
+.%V Volume 2
+.%D 1990
+.%O AT&T Bell Laboratories
+.%N Tenth Edition
+.Re
+.Sh DIAGNOSTICS
 The diagnostics produced by
-.I f\^2c
+.Nm f2c
 are intended to be
 self-explanatory.
-.SH BUGS
+.Sh BUGS
 Floating-point constant expressions are simplified in
 the floating-point arithmetic of the machine running
-.IR f\^2c ,
+.Nm f2c
 so they are typically accurate to at most 16 or 17 decimal places.
-.br
-Untypable
-.SM EXTERNAL
-functions are declared
-.BR int .
+.Pp
+Untypable EXTERNAL functions are declared int.
+.Pp
+There are several undocumented valid options for
+.Nm f2c .
+These options are discussed at the top of 
+.Pa /usr/src/usr.bin/f2c/main.c .
