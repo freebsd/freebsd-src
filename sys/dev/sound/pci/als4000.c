@@ -684,7 +684,7 @@ als_pci_probe(device_t dev)
 {
 	if (pci_get_devid(dev) == ALS_PCI_ID0) {
 		device_set_desc(dev, "Avance Logic ALS4000");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	return ENXIO;
 }

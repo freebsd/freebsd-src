@@ -704,7 +704,7 @@ sv_probe(device_t dev)
 	switch(pci_get_devid(dev)) {
 	case SV_PCI_ID:
 		device_set_desc(dev, "S3 Sonicvibes");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	default:
 		return ENXIO;
 	}

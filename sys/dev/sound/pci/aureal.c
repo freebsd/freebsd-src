@@ -537,7 +537,7 @@ au_pci_probe(device_t dev)
 {
 	if (pci_get_devid(dev) == AU8820_PCI_ID) {
 		device_set_desc(dev, "Aureal Vortex 8820");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 
 	return ENXIO;

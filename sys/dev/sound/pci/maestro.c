@@ -1753,7 +1753,7 @@ agg_probe(device_t dev)
 
 	if (s != NULL && pci_get_class(dev) == PCIC_MULTIMEDIA) {
 		device_set_desc(dev, s);
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	return ENXIO;
 }

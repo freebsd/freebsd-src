@@ -45,6 +45,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define	EMUMAXPAGES	(WAVEOUT_MAXBUFSIZE * NUM_G / EMUPAGESIZE)
 #define	EMU10K1_PCI_ID	0x00021102	/* 1102 => Creative Labs Vendor ID */
 #define	EMU10K2_PCI_ID	0x00041102	
+#define	EMU10K3_PCI_ID	0x00081102	
 #define	EMU_DEFAULT_BUFSZ	4096
 #define EMU_MAX_CHANS	8
 #define	EMU_CHANS	4
@@ -1890,12 +1891,16 @@ emu_pci_probe(device_t dev)
 			s = "Creative Audigy (EMU10K2)";
 		break;
 
+	case EMU10K3_PCI_ID:
+		s = "Creative Audigy 2 (EMU10K3)";
+		break;
+
 	default:
 		return ENXIO;
 	}
 
 	device_set_desc(dev, s);
-	return 0;
+	return BUS_PROBE_DEFAULT;
 }
 
 static int
@@ -1916,7 +1921,7 @@ emu_pci_attach(device_t dev)
 	sc->dev = dev;
 	sc->type = pci_get_devid(dev);
 	sc->rev = pci_get_revid(dev);
-	sc->audigy = (sc->type == EMU10K2_PCI_ID);
+	sc->audigy = sc->type == EMU10K2_PCI_ID || sc->type == EMU10K3_PCI_ID;
 	sc->audigy2 = (sc->audigy && sc->rev == 0x04);
 	sc->nchans = sc->audigy ? 8 : 4;
 	sc->addrmask = sc->audigy ? A_PTR_ADDRESS_MASK : PTR_ADDRESS_MASK;
@@ -2033,6 +2038,7 @@ static driver_t emu_driver = {
 };
 
 DRIVER_MODULE(snd_emu10k1, pci, emu_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_emu10k1, cardbus, emu_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_emu10k1, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_emu10k1, 1);
 

@@ -184,7 +184,7 @@ safe_probe(device_t dev)
 {
 	if (pci_get_vendor(dev) == PCI_VENDOR_SAFENET &&
 	    pci_get_device(dev) == PCI_PRODUCT_SAFEXCEL)
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	return (ENXIO);
 }
 

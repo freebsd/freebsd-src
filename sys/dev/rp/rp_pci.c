@@ -134,7 +134,7 @@ rp_pciprobe(device_t dev)
 
 	if (s != NULL) {
 		device_set_desc(dev, s);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	return (ENXIO);

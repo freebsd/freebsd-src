@@ -86,7 +86,7 @@ sr_pci_probe(device_t device)
 	switch(type) {
 	case 0x556812aa:
 		device_set_desc(device, "RISCom/N2pci");
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 		break;
 	case 0x55684778:
 	case 0x55684877:
@@ -94,7 +94,7 @@ sr_pci_probe(device_t device)
 		 * XXX This can probably be removed sometime.
 		 */
 		device_set_desc(device, "RISCom/N2pci (old id)");
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 		break;
 	default:
 		break;

@@ -742,7 +742,7 @@ cs4281_pci_probe(device_t dev)
 
     if (s)
 	device_set_desc(dev, s);
-    return s ? 0 : ENXIO;
+    return s ? BUS_PROBE_DEFAULT : ENXIO;
 }
 
 static int
