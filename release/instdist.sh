@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.39 1994/12/02 15:36:45 jkh Exp $
+# $Id: instdist.sh,v 1.40 1994/12/02 21:15:19 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -75,9 +75,16 @@ media_cd_tmpdir()
 media_rm_tmpdir()
 {
 	cd /
-	if dialog --title "Delete contents?" --yesno \
-          "Do you wish to delete the contents of ${TMPDIR}?" -1 -1; then
-		rm -rf ${TMPDIR}/*
+	if [ -d ${TMPDIR}/${MEDIA_DISTRIBUTION} ]; then
+		if dialog --title "Delete contents?" --yesno \
+		  "Do you wish to delete ${TMPDIR}/${MEDIA_DISTRIBUTION}?" -1 -1; then
+			rm -rf ${TMPDIR}/${MEDIA_DISTRIBUTION}
+		fi
+	else
+		if dialog --title "Delete contents?" --yesno \
+		  "Do you wish to delete the contents of ${TMPDIR}?" -1 -1; then
+			rm -rf ${TMPDIR}/*
+		fi
 	fi
 }
 
@@ -186,13 +193,16 @@ media_install_set()
 	tape)
 		if ! media_set_tmpdir; then return; fi
 		if ! media_cd_tmpdir; then return; fi
-		confirm "Please mount tape for ${MEDIA_DEVICE}."
-		if [ "${MEDIA_DEVICE}" = "ftape" ]; then
-			progress "${FT_CMD} | ${TAR_CMD} ${TAR_FLAGS} -"
-			${FT_CMD} | ${TAR_CMD} ${TAR_FLAGS} - > /dev/ttyv1 2>&1
-		else
-			progress "${TAR_CMD} ${TAR_FLAGS} ${MEDIA_DEVICE}"
-			${TAR_CMD} ${TAR_FLAGS} ${MEDIA_DEVICE} > /dev/ttyv1 2>&1
+		if dialog --title "Please mount tape for ${MEDIA_DEVICE}." \
+		  --yesno "Please enter the next tape and select\n<Yes> to continue or <No> if finished" -1 -1; then
+			message "Loading distribution from ${MEDIA_DEVICE}.\nUse ALT-F2 to see output, ALT-F1 to return."
+			if [ "${MEDIA_DEVICE}" = "ftape" ]; then
+				progress "${FT_CMD} | ${TAR_CMD} ${TAR_FLAGS} -"
+				${FT_CMD} | ${TAR_CMD} ${TAR_FLAGS} - > /dev/ttyv1 2>&1
+			else
+				progress "${TAR_CMD} ${TAR_FLAGS} ${MEDIA_DEVICE}"
+				${TAR_CMD} ${TAR_FLAGS} ${MEDIA_DEVICE} > /dev/ttyv1 2>&1
+			fi
 		fi
 		if [ -d ${MEDIA_DISTRIBUTION} ]; then cd ${MEDIA_DISTRIBUTION}; fi
 		media_extract_dist
@@ -209,9 +219,10 @@ media_install_set()
 			if dialog --title "Insert distribution diskette" \
 			  --yesno "Please enter the next diskette and select\n<Yes> to continue or <No> if finished" -1 -1; then
 				umount ${MNT} > /dev/null 2>&1
-				if ! mount_msdos -r ${MEDIA_DEVICE} ${MNT}; then
+				if ! mount_msdos -o ro ${MEDIA_DEVICE} ${MNT}; then
 					error "Unable to mount floppy!  Please correct."
 				else
+					message "Loading distribution from ${MEDIA_DEVICE}.\nUse ALT-F2 to see output, ALT-F1 to return."
 					( ${TAR_CMD} -cf - -C ${MNT} . | ${TAR_CMD} -xvf - ) >/dev/ttyv1 2>&1
 					umount ${MNT}
 				fi
@@ -321,7 +332,7 @@ simply hit ESC twice to get a subshell and proceed manually on your own.\n\
 If you are already finished with the installation process, select cancel\n\
 to proceed." -1 -1 7 \
 	"?Kern" "Please show me the kernel boot messages again!" \
-	"Tape" "Load distribution from SCSI, QIC or floppy tape" \
+	"Tape" "Load distribution from SCSI, QIC-02 or floppy tape" \
 	"CDROM" "Load distribution from SCSI or Mitsumi CDROM" \
 	"DOS" "Load from DOS floppies or a DOS hard disk partition" \
 	"FTP" "Load distribution using FTP" \
@@ -347,8 +358,8 @@ to proceed." -1 -1 7 \
 "Which type of tape drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n" -1 -1 3 \
 		"SCSI" "SCSI tape drive attached to supported SCSI controller" \
-		"QIC" "QIC tape drive (Colorado Jumbo, etc)" \
-		"floppy" "Floppy tape drive" 2> ${TMP}/menu.tmp.$$
+		"QIC-02" "QIC-02 tape drive (Colorado Jumbo, etc)" \
+		"floppy" "Floppy tape drive (QIC-40/QIC-80)" 2> ${TMP}/menu.tmp.$$
 		RETVAL=$?
 		CHOICE=`cat ${TMP}/menu.tmp.$$`
 		rm -f ${TMP}/menu.tmp.$$
@@ -359,7 +370,7 @@ system?  FreeBSD supports the following types:\n" -1 -1 3 \
 				MEDIA_DEVICE=/dev/rst0
 			;;
 
-			QIC)
+			QIC-02)
 				MEDIA_DEVICE=/dev/rwt0
 			;;
 
