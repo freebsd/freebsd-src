@@ -73,7 +73,7 @@
 #undef PROG
 #define PROG	dgst_main
 
-void do_fp(BIO *out, unsigned char *buf, BIO *bp, int sep, char binout,
+void do_fp(BIO *out, unsigned char *buf, BIO *bp, int sep, int binout,
 		EVP_PKEY *key, unsigned char *sigin, int siglen);
 
 int MAIN(int, char **);
@@ -87,13 +87,13 @@ int MAIN(int argc, char **argv)
 	BIO *bmd=NULL;
 	BIO *out = NULL;
 	const char *name;
-#define PROG_NAME_SIZE  16
-	char pname[PROG_NAME_SIZE];
+#define PROG_NAME_SIZE  39
+	char pname[PROG_NAME_SIZE+1];
 	int separator=0;
 	int debug=0;
 	const char *outfile = NULL, *keyfile = NULL;
 	const char *sigfile = NULL, *randfile = NULL;
-	char out_bin = -1, want_pub = 0, do_verify = 0;
+	int out_bin = -1, want_pub = 0, do_verify = 0;
 	EVP_PKEY *sigkey = NULL;
 	unsigned char *sigbuf = NULL;
 	int siglen = 0;
@@ -338,7 +338,7 @@ end:
 	EXIT(err);
 	}
 
-void do_fp(BIO *out, unsigned char *buf, BIO *bp, int sep, char binout,
+void do_fp(BIO *out, unsigned char *buf, BIO *bp, int sep, int binout,
 			EVP_PKEY *key, unsigned char *sigin, int siglen)
 	{
 	int len;

@@ -290,6 +290,7 @@ int MAIN(int argc, char **argv)
 		BIO_printf (bio_err, "-text          include or delete text MIME headers\n");
 		BIO_printf (bio_err, "-CApath dir    trusted certificates directory\n");
 		BIO_printf (bio_err, "-CAfile file   trusted certificates file\n");
+		BIO_printf (bio_err, "-passin arg    input file pass phrase source\n");
 		BIO_printf(bio_err,  "-rand file%cfile%c...\n", LIST_SEPARATOR_CHAR, LIST_SEPARATOR_CHAR);
 		BIO_printf(bio_err,  "               load the file (or the files in the directory) into\n");
 		BIO_printf(bio_err,  "               the random number generator\n");
@@ -413,7 +414,10 @@ int MAIN(int argc, char **argv)
 		p7 = PKCS7_encrypt(encerts, in, cipher, flags);
 	} else if(operation == SMIME_SIGN) {
 		p7 = PKCS7_sign(signer, key, other, in, flags);
-		BIO_reset(in);
+		if (BIO_reset(in) != 0 && (flags & PKCS7_DETACHED)) {
+		  BIO_printf(bio_err, "Can't rewind input file\n");
+		  goto end;
+		}
 	} else {
 		if(informat == FORMAT_SMIME) 
 			p7 = SMIME_read_PKCS7(in, &indata);
@@ -453,9 +457,9 @@ int MAIN(int argc, char **argv)
 	} else if(operation == SMIME_VERIFY) {
 		STACK_OF(X509) *signers;
 		if(PKCS7_verify(p7, other, store, indata, out, flags)) {
-			BIO_printf(bio_err, "Verification Successful\n");
+			BIO_printf(bio_err, "Verification successful\n");
 		} else {
-			BIO_printf(bio_err, "Verification Failure\n");
+			BIO_printf(bio_err, "Verification failure\n");
 			goto end;
 		}
 		signers = PKCS7_get0_signers(p7, other, flags);

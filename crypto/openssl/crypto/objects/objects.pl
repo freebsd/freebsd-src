@@ -114,7 +114,13 @@ close NUMOUT;
 
 open (OUT,">$ARGV[2]") || die "Can't open output file $ARGV[2]";
 print OUT <<'EOF';
-/* lib/obj/obj_mac.h */
+/* crypto/objects/obj_mac.h */
+
+/* THIS FILE IS GENERATED FROM objects.txt by objects.pl via the
+ * following command:
+ * perl objects.pl objects.txt obj_mac.num obj_mac.h
+ */
+
 /* Copyright (C) 1995-1997 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -172,11 +178,6 @@ print OUT <<'EOF';
  * [including the GNU Public Licence.]
  */
 
-/* THIS FILE IS GENERATED FROM objects.txt by objects.pl via the
- * following command:
- * perl objects.pl objects.txt obj_mac.num obj_mac.h
- */
-
 #define SN_undef			"UNDEF"
 #define LN_undef			"undefined"
 #define NID_undef			0
@@ -207,6 +208,8 @@ sub process_oid
 	if (!($a[0] =~ /^[0-9]+$/))
 		{
 		$a[0] =~ s/-/_/g;
+		if (!defined($obj{$a[0]}))
+			{ die "$ARGV[0]:$o:Undefined identifier ",$a[0],"\n"; }
 		$pref_oid = "OBJ_" . $a[0];
 		$pref_sep = ",";
 		shift @a;

@@ -228,7 +228,7 @@ int OBJ_add_object(ASN1_OBJECT *obj)
 	if (added == NULL)
 		if (!init_added()) return(0);
 	if ((o=OBJ_dup(obj)) == NULL) goto err;
-	ao[ADDED_NID]=(ADDED_OBJ *)OPENSSL_malloc(sizeof(ADDED_OBJ));
+	if (!(ao[ADDED_NID]=(ADDED_OBJ *)OPENSSL_malloc(sizeof(ADDED_OBJ)))) goto err;
 	if ((o->length != 0) && (obj->data != NULL))
 		ao[ADDED_DATA]=(ADDED_OBJ *)OPENSSL_malloc(sizeof(ADDED_OBJ));
 	if (o->sn != NULL)
@@ -428,7 +428,7 @@ int OBJ_obj2txt(char *buf, int buf_len, ASN1_OBJECT *a, int no_name)
 	unsigned long l;
 	unsigned char *p;
 	const char *s;
-	char tbuf[32];
+	char tbuf[DECIMAL_SIZE(i)+DECIMAL_SIZE(l)+2];
 
 	if (buf_len <= 0) return(0);
 
@@ -437,8 +437,7 @@ int OBJ_obj2txt(char *buf, int buf_len, ASN1_OBJECT *a, int no_name)
 		return(0);
 	}
 
-	nid=OBJ_obj2nid(a);
-	if ((nid == NID_undef) || no_name) {
+	if (no_name || (nid=OBJ_obj2nid(a)) == NID_undef) {
 		len=a->length;
 		p=a->data;
 
@@ -645,6 +644,8 @@ int OBJ_create(char *oid, char *sn, char *ln)
 		return(0);
 		}
 	i=a2d_ASN1_OBJECT(buf,i,oid,-1);
+	if (i == 0)
+		goto err;
 	op=(ASN1_OBJECT *)ASN1_OBJECT_create(OBJ_new_nid(1),buf,i,sn,ln);
 	if (op == NULL) 
 		goto err;

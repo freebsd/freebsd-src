@@ -1,6 +1,6 @@
 /* ssl/ssl_err.c */
 /* ====================================================================
- * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2002 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -258,6 +258,7 @@ static ERR_STRING_DATA SSL_str_reasons[]=
 {SSL_R_DATA_BETWEEN_CCS_AND_FINISHED     ,"data between ccs and finished"},
 {SSL_R_DATA_LENGTH_TOO_LONG              ,"data length too long"},
 {SSL_R_DECRYPTION_FAILED                 ,"decryption failed"},
+{SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC,"decryption failed or bad record mac"},
 {SSL_R_DH_PUBLIC_VALUE_LENGTH_IS_WRONG   ,"dh public value length is wrong"},
 {SSL_R_DIGEST_CHECK_FAILED               ,"digest check failed"},
 {SSL_R_ENCRYPTED_LENGTH_TOO_LONG         ,"encrypted length too long"},
@@ -268,15 +269,18 @@ static ERR_STRING_DATA SSL_str_reasons[]=
 {SSL_R_GOT_A_FIN_BEFORE_A_CCS            ,"got a fin before a ccs"},
 {SSL_R_HTTPS_PROXY_REQUEST               ,"https proxy request"},
 {SSL_R_HTTP_REQUEST                      ,"http request"},
+{SSL_R_ILLEGAL_PADDING                   ,"illegal padding"},
 {SSL_R_INTERNAL_ERROR                    ,"internal error"},
 {SSL_R_INVALID_CHALLENGE_LENGTH          ,"invalid challenge length"},
 {SSL_R_INVALID_COMMAND                   ,"invalid command"},
 {SSL_R_INVALID_PURPOSE                   ,"invalid purpose"},
 {SSL_R_INVALID_TRUST                     ,"invalid trust"},
+{SSL_R_KEY_ARG_TOO_LONG                  ,"key arg too long"},
 {SSL_R_LENGTH_MISMATCH                   ,"length mismatch"},
 {SSL_R_LENGTH_TOO_SHORT                  ,"length too short"},
 {SSL_R_LIBRARY_BUG                       ,"library bug"},
 {SSL_R_LIBRARY_HAS_NO_CIPHERS            ,"library has no ciphers"},
+{SSL_R_MESSAGE_TOO_LONG                  ,"message too long"},
 {SSL_R_MISSING_DH_DSA_CERT               ,"missing dh dsa cert"},
 {SSL_R_MISSING_DH_KEY                    ,"missing dh key"},
 {SSL_R_MISSING_DH_RSA_CERT               ,"missing dh rsa cert"},
@@ -340,6 +344,7 @@ static ERR_STRING_DATA SSL_str_reasons[]=
 {SSL_R_SHORT_READ                        ,"short read"},
 {SSL_R_SIGNATURE_FOR_NON_SIGNING_CERTIFICATE,"signature for non signing certificate"},
 {SSL_R_SSL23_DOING_SESSION_ID_REUSE      ,"ssl23 doing session id reuse"},
+{SSL_R_SSL3_SESSION_ID_TOO_LONG          ,"ssl3 session id too long"},
 {SSL_R_SSL3_SESSION_ID_TOO_SHORT         ,"ssl3 session id too short"},
 {SSL_R_SSLV3_ALERT_BAD_CERTIFICATE       ,"sslv3 alert bad certificate"},
 {SSL_R_SSLV3_ALERT_BAD_RECORD_MAC        ,"sslv3 alert bad record mac"},
