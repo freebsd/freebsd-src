@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_snpac.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: iso_snpac.h,v 1.2 1994/08/02 07:50:47 davidg Exp $
  */
+
+#ifndef _NETISO_ISO_SNPAC_H_
+#define _NETISO_ISO_SNPAC_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -111,3 +114,5 @@ struct llinfo_llc {
 #ifdef	KERNEL
 struct llinfo_llc llinfo_llc;	/* head for linked lists */
 #endif	/* KERNEL */
+
+#endif

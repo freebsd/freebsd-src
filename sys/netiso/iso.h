@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: iso.h,v 1.2 1994/08/02 07:50:28 davidg Exp $
  */
+
+#ifndef _NETISO_ISO_H_
+#define _NETISO_ISO_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -60,11 +63,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso.h,v 1.1.1.1 1994/05/24 10:07:12 rgrimes Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/iso.h,v 1.2 1994/08/02 07:50:28 davidg Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/iso.h,v $ */
-
-#ifndef __ISO__
-#define __ISO__
 
 /*
  *	Return true if this is a multicast address
@@ -193,4 +193,5 @@ __END_DECLS
 #endif /* KERNEL */
 
 #define _offsetof(t, m) ((int)((caddr_t)&((t *)0)->m))
-#endif /* __ISO__ */
+
+#endif 

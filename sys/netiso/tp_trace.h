@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_trace.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_trace.h,v 1.2 1994/08/02 07:51:31 davidg Exp $
  */
+
+#ifndef _NETISO_TP_TRACE_H_
+#define _NETISO_TP_TRACE_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -63,16 +66,12 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_trace.h,v 1.1.1.1 1994/05/24 10:06:42 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_trace.h,v 1.2 1994/08/02 07:51:31 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_trace.h,v $
  *
  * 
  * Definitions needed for the protocol trace mechanism.
  */
-
-#ifndef __TP_TRACE__
-#define __TP_TRACE__
-
 
 #define TPPTsendack	1
 #define TPPTgotack	2
@@ -194,6 +193,4 @@ int tp_Tracen = 0;
 
 #endif /* TPPT */
 
-
-
-#endif /* __TP_TRACE__ */
+#endif 

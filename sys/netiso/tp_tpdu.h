@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_tpdu.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_tpdu.h,v 1.2 1994/08/02 07:51:29 davidg Exp $
  */
+
+#ifndef _NETISO_TP_TPDU_H_
+#define _NETISO_TP_TPDU_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -63,15 +66,12 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_tpdu.h,v 1.1.1.1 1994/05/24 10:06:43 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_tpdu.h,v 1.2 1994/08/02 07:51:29 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_tpdu.h,v $
  *
  * This ghastly set of macros makes it possible to
  * refer to tpdu structures without going mad.
  */
-
-#ifndef __TP_TPDU__
-#define __TP_TPDU__
 
 #ifndef BYTE_ORDER
 /*
@@ -294,4 +294,4 @@ struct tpdu {
 	union 	tpdu_fixed_rest _tpdufr;
 };
 
-#endif /* __TP_TPDU__ */
+#endif 

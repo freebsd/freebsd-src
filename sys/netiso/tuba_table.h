@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tuba_table.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tuba_table.h,v 1.2 1994/08/02 07:51:37 davidg Exp $
  */
+
+#ifndef _NETISO_TUBA_TABLE_H_
+#define _NETISO_TUBA_TABLE_H_
 
 struct tuba_cache {
 	struct	radix_node tc_nodes[2];		/* convenient lookup */
@@ -57,4 +60,6 @@ struct tuba_cache {
 extern	int	tuba_table_size;
 extern	struct	tuba_cache **tuba_table;
 extern	struct	radix_node_head *tuba_tree;
+#endif
+
 #endif

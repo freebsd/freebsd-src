@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)cons_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: cons_pcb.h,v 1.2 1994/08/02 07:50:03 davidg Exp $
  */
+
+#ifndef _NETISO_CONS_PCB_H_
+#define _NETISO_CONS_PCB_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -60,7 +63,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/cons_pcb.h,v 1.1.1.1 1994/05/24 10:07:17 rgrimes Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/cons_pcb.h,v 1.2 1994/08/02 07:50:03 davidg Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/cons_pcb.h,v $ */
 
 /*
@@ -192,3 +195,5 @@ struct e_clear_data 				{
 #ifdef KERNEL
 #define IncStat(XYZ) cons_stat.XYZ++
 #endif /* KERNEL */
+
+#endif

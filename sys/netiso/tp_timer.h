@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_timer.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_timer.h,v 1.2 1994/08/02 07:51:28 davidg Exp $
  */
+
+#ifndef _NETISO_TP_TIMER_H_
+#define _NETISO_TP_TIMER_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -63,15 +66,12 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_timer.h,v 1.1.1.1 1994/05/24 10:06:43 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_timer.h,v 1.2 1994/08/02 07:51:28 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_timer.h,v $
  *
  * ARGO TP
  * The callout structures used by the tp timers.
  */
-
-#ifndef __TP_TIMER__
-#define __TP_TIMER__
 
 #define SET_DELACK(t) {\
     (t)->tp_flags |= TPF_DELACK; \
@@ -91,4 +91,4 @@ SOFTWARE.
     { if((p)->tp_timer[w] > (t)) (p)->tp_timer[w] = (t);}
 #endif /* TP_DEBUG_TIMERS */
 
-#endif /* __TP_TIMER__ */
+#endif 

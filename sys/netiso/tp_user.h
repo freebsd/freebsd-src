@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_user.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_user.h,v 1.2 1994/08/02 07:51:32 davidg Exp $
  */
+
+#ifndef _NETISO_TP_USER_H_
+#define _NETISO_TP_USER_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -63,7 +66,7 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_user.h,v 1.1.1.1 1994/05/24 10:06:41 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_user.h,v 1.2 1994/08/02 07:51:32 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_user.h,v $
  *
  * These are the values a real-live user ;-) needs. 
@@ -72,9 +75,6 @@ SOFTWARE.
 #ifndef _TYPES_
 #include  <sys/types.h>
 #endif
-
-#ifndef __TP_USER__
-#define __TP_USER__
 
 struct tp_conn_param {
 	/* PER CONNECTION parameters */
@@ -160,4 +160,4 @@ struct tp_disc_reason {
  */
 
 
-#endif /* __TP_USER__ */
+#endif

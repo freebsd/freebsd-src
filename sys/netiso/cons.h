@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)cons.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: cons.h,v 1.2 1994/08/02 07:50:00 davidg Exp $
  */
+
+#ifndef _NETISO_CONS_H_
+#define _NETISO_CONS_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -61,7 +64,7 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /home/ncvs/src/sys/netiso/cons.h,v 1.1.1.1 1994/05/24 10:07:18 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/cons.h,v 1.2 1994/08/02 07:50:00 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/cons.h,v $
  *
  * interface between TP and CONS
@@ -91,3 +94,5 @@ struct dte_addr {
 #define PRC_CONS_SEND_DONE 2 /* something unused in protosw.h */
 
 #endif	/* KERNEL */
+
+#endif

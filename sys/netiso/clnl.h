@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnl.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: clnl.h,v 1.2 1994/08/02 07:49:33 davidg Exp $
  */
+
+#ifndef _NETISO_CLNL_H_
+#define _NETISO_CLNL_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -63,3 +66,5 @@ SOFTWARE.
 struct clnl_protosw {
 	int (*clnl_input)();	/* input routine */
 };
+
+#endif
