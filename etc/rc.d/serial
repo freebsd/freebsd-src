@@ -91,9 +91,9 @@ modem() {
 		comcontrol /dev/tty${ci}${i} dtrwait 100 drainwait 180
 		# Lock crtscts on.
 		# Speed reasonable for V42bis.
-		stty < /dev/ttyi${ci}${i} crtscts 57600
+		stty < /dev/ttyi${ci}${i} crtscts 115200
 		stty < /dev/ttyl${ci}${i} crtscts
-		stty < /dev/cuai${co}${i} crtscts 57600
+		stty < /dev/cuai${co}${i} crtscts 115200
 		stty < /dev/cual${co}${i} crtscts
 	done
 }
