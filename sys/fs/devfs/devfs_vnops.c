@@ -34,6 +34,13 @@
  * $FreeBSD$
  */
 
+/*
+ * TODO:
+ *	remove empty directories
+ *	mknod: hunt down DE_DELETED, compare name, reinstantiate. 
+ *	mkdir: want it ?
+ */
+
 #include <opt_devfs.h>
 #ifndef NODEVFS
 
@@ -56,6 +63,7 @@
 static int	devfs_access __P((struct vop_access_args *ap));
 static int	devfs_getattr __P((struct vop_getattr_args *ap));
 static int	devfs_lookupx __P((struct vop_lookup_args *ap));
+static int	devfs_mknod __P((struct vop_mknod_args *ap));
 static int	devfs_print __P((struct vop_print_args *ap));
 static int	devfs_read __P((struct vop_read_args *ap));
 static int	devfs_readdir __P((struct vop_readdir_args *ap));
@@ -65,6 +73,42 @@ static int	devfs_remove __P((struct vop_remove_args *ap));
 static int	devfs_revoke __P((struct vop_revoke_args *ap));
 static int	devfs_setattr __P((struct vop_setattr_args *ap));
 static int	devfs_symlink __P((struct vop_symlink_args *ap));
+
+/*
+ * Construct the fully qualified path name relative to the mountpoint
+ */ 
+static char *
+devfs_fqpn(char *buf, struct vnode *dvp, struct componentname *cnp)
+{
+	int i;
+	struct devfs_dirent *de, *dd;
+	struct devfs_mount *dmp;
+
+	dmp = VFSTODEVFS(dvp->v_mount);
+	dd = dvp->v_data;
+	i = SPECNAMELEN;
+	buf[i] = '\0';
+	i -= cnp->cn_namelen;
+	if (i < 0)
+		 return (NULL);
+	bcopy(cnp->cn_nameptr, buf + i, cnp->cn_namelen);
+	de = dd;
+	while (de != dmp->dm_basedir) {
+		i--;
+		if (i < 0)
+			 return (NULL);
+		buf[i] = '/';
+		i -= de->de_dirent->d_namlen;
+		if (i < 0)
+			 return (NULL);
+		bcopy(de->de_dirent->d_name, buf + i,
+		    de->de_dirent->d_namlen);
+		de = TAILQ_FIRST(&de->de_dlist);	/* "." */
+		de = TAILQ_NEXT(de, de_list);		/* ".." */
+		de = de->de_dir;
+	}
+	return (buf + i);
+}
 
 int
 devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct proc *p)
@@ -212,7 +256,7 @@ devfs_lookupx(ap)
 	struct devfs_dirent *de, *dd;
 	struct devfs_mount *dmp;
 	dev_t cdev, *cpdev;
-	int error, cloned, i, flags, nameiop;
+	int error, cloned, flags, nameiop;
 	char specname[SPECNAMELEN + 1], *pname;
 
 	cnp = ap->a_cnp;
@@ -276,41 +320,24 @@ devfs_lookupx(ap)
 		if (bcmp(cnp->cn_nameptr, de->de_dirent->d_name,
 		    de->de_dirent->d_namlen) != 0)
 			continue;
+		if (de->de_flags & DE_WHITEOUT)
+			goto notfound;
 		goto found;
 	}
+
+	if (nameiop == DELETE)
+		goto notfound;
 
 	/*
 	 * OK, we didn't have an entry for the name we were asked for
 	 * so we try to see if anybody can create it on demand.
-	 * We need to construct the full "devname" for this device
-	 * relative to "basedir" or the clone functions would not
-	 * be able to tell "/dev/foo" from "/dev/bar/foo"
 	 */
-	i = SPECNAMELEN;
-	specname[i] = '\0';
-	i -= cnp->cn_namelen;
-	if (i < 0)
-		 goto notfound;
-	bcopy(cnp->cn_nameptr, specname + i, cnp->cn_namelen);
-	de = dd;
-	while (de != dmp->dm_basedir) {
-		i--;
-		if (i < 0)
-			 goto notfound;
-		specname[i] = '/';
-		i -= de->de_dirent->d_namlen;
-		if (i < 0)
-			 goto notfound;
-		bcopy(de->de_dirent->d_name, specname + i,
-		    de->de_dirent->d_namlen);
-		de = TAILQ_FIRST(&de->de_dlist);	/* "." */
-		de = TAILQ_NEXT(de, de_list);		/* ".." */
-		de = de->de_dir;
-	}
+	pname = devfs_fqpn(specname, dvp, cnp);
+	if (pname == NULL)
+		goto notfound;
 
 	cdev = NODEV;
-	EVENTHANDLER_INVOKE(dev_clone, specname + i,
-	    strlen(specname + i), &cdev);
+	EVENTHANDLER_INVOKE(dev_clone, pname, strlen(pname), &cdev);
 	if (cdev == NODEV)
 		goto notfound;
 
@@ -375,6 +402,59 @@ devfs_lookup(struct vop_lookup_args *ap)
 	return (j);
 }
 
+static int
+devfs_mknod(struct vop_mknod_args *ap)
+/*
+struct vop_mknod_args {
+        struct vnodeop_desc *a_desc;
+        struct vnode *a_dvp;
+        struct vnode **a_vpp;
+        struct componentname *a_cnp;
+        struct vattr *a_vap;
+};
+*/
+{
+	struct componentname *cnp;
+	struct vnode *dvp, **vpp;
+	struct proc *p;
+	struct devfs_dirent *dd, *de;
+	struct devfs_mount *dmp;
+	int cloned, flags, nameiop;
+	int error;
+
+	dvp = ap->a_dvp;
+	dmp = VFSTODEVFS(dvp->v_mount);
+	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curproc);
+
+	cnp = ap->a_cnp;
+	vpp = ap->a_vpp;
+	p = cnp->cn_proc;
+	flags = cnp->cn_flags;
+	nameiop = cnp->cn_nameiop;
+	cloned = 0;
+	dd = dvp->v_data;
+	
+	error = ENOENT;
+	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
+		if (cnp->cn_namelen != de->de_dirent->d_namlen)
+			continue;
+		if (bcmp(cnp->cn_nameptr, de->de_dirent->d_name,
+		    de->de_dirent->d_namlen) != 0)
+			continue;
+		if (de->de_flags & DE_WHITEOUT)
+			break;
+		goto notfound;
+	}
+	if (de == NULL)
+		goto notfound;
+	de->de_flags &= ~DE_WHITEOUT;
+	error = devfs_allocv(de, dvp->v_mount, vpp, p);
+notfound:
+	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curproc);
+	return (error);
+}
+
+
 /* ARGSUSED */
 static int
 devfs_print(ap)
@@ -436,9 +516,10 @@ devfs_readdir(ap)
 	devfs_populate(dmp);
 	error = 0;
 	de = ap->a_vp->v_data;
-	dd = TAILQ_FIRST(&de->de_dlist);
 	off = 0;
-	while (dd != NULL) {
+	TAILQ_FOREACH(dd, &de->de_dlist, de_list) {
+		if (dd->de_flags & DE_WHITEOUT) 
+			continue;
 		if (dd->de_dirent->d_type == DT_DIR)
 			de = dd->de_dir;
 		else
@@ -453,7 +534,6 @@ devfs_readdir(ap)
 				break;
 		}
 		off += dp->d_reclen;
-		dd = TAILQ_NEXT(dd, de_list);
 	}
 	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curproc);
 	uio->uio_offset = off;
@@ -489,11 +569,6 @@ devfs_reclaim(ap)
 	de = vp->v_data;
 	if (de != NULL)
 		de->de_vnode = NULL;
-	if (de != NULL && de->de_flags & DE_ORPHAN) {
-		if (de->de_symlink)
-			FREE(de->de_symlink, M_DEVFS);
-		FREE(de, M_DEVFS);
-	}
 	vp->v_data = NULL;
 	if (vp->v_rdev != NODEV && vp->v_rdev != NULL) {
 		i = vcount(vp);
@@ -513,17 +588,13 @@ devfs_remove(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct devfs_dirent *dd;
-	struct devfs_dirent *de, **dep;
+	struct devfs_dirent *de;
 	struct devfs_mount *dmp = VFSTODEVFS(vp->v_mount);
 
 	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curproc);
 	dd = ap->a_dvp->v_data;
 	de = vp->v_data;
-	TAILQ_REMOVE(&dd->de_dlist, de, de_list);
-	dep = devfs_itode(dmp, de->de_inode);
-	if (dep != NULL)
-		*dep = DE_DELETED;
-	de->de_flags |= DE_ORPHAN;
+	de->de_flags |= DE_WHITEOUT;
 	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curproc);
 	return (0);
 }
@@ -668,6 +739,7 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) devfs_access },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
 	{ &vop_lookup_desc,		(vop_t *) devfs_lookup },
+	{ &vop_mknod_desc,		(vop_t *) devfs_mknod },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_print_desc,		(vop_t *) devfs_print },
 	{ &vop_read_desc,		(vop_t *) devfs_read },
