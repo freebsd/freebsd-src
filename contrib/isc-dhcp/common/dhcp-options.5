@@ -232,7 +232,12 @@ of preference.
 This option specifies the name of the client.  The name may or may
 not be qualified with the local domain name (it is preferable to use
 the domain-name option to specify the domain name).  See RFC 1035 for
-character set restrictions.
+character set restrictions.  This option is only honored by
+.B dhclient-script(8)
+if the hostname for the client machine is not set (i.e., set to the empty
+string in
+.B rc.conf(5)
+).
 .RE
 .PP
 .B option \fBboot-size\fR \fIuint16\fR\fB;\fR
