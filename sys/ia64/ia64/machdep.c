@@ -957,6 +957,8 @@ osigreturn(struct thread *td, struct osigreturn_args *uap)
  * context left by sendsig. Check carefully to
  * make sure that the user has not modified the
  * state to gain improper privileges.
+ *
+ * MPSAFE
  */
 int
 sigreturn(struct thread *td,
