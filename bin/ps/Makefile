@@ -16,4 +16,6 @@ LDADD=	-lm -lkvm
 #BINGRP=	kmem
 #BINMODE=2555
 
+WFORMAT?=	0
+
 .include <bsd.prog.mk>

@@ -11,5 +11,7 @@ CFLAGS+= -DCOLORLS
 DPADD+=	${LIBTERMCAP}
 LDADD+=	-ltermcap
 .endif
+WFORMAT=0
+NO_WERROR=1
 
 .include <bsd.prog.mk>
