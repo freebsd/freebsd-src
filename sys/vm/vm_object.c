@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.138.2.2 1999/01/22 06:44:16 dillon Exp $
+ * $Id: vm_object.c,v 1.138.2.3 1999/03/23 05:08:07 alc Exp $
  */
 
 /*
@@ -1309,7 +1309,8 @@ vm_object_page_remove(object, start, end, clean_only)
 	unsigned int size;
 	int all;
 
-	if (object == NULL)
+	if (object == NULL ||
+	    object->resident_page_count == 0)
 		return;
 
 	all = ((end == 0) && (start == 0));
@@ -1317,7 +1318,7 @@ vm_object_page_remove(object, start, end, clean_only)
 	vm_object_pip_add(object, 1);
 again:
 	size = end - start;
-	if (all || size > 4 || size >= object->size / 4) {
+	if (all || size > object->resident_page_count / 4) {
 		for (p = TAILQ_FIRST(&object->memq); p != NULL; p = next) {
 			next = TAILQ_NEXT(p, listq);
 			if (all || ((start <= p->pindex) && (p->pindex < end))) {
