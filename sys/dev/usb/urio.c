@@ -125,7 +125,7 @@ Static struct cdevsw urio_cdevsw = {
  	urioioctl,	nopoll,		nommap,		nostrategy,
  	"urio",		URIO_CDEV_MAJOR,nodump,		nopsize,
  	0,
-#if (__FreeBSD__ < 5)
+#if __FreeBSD_version < 500014
  	-1
 #endif
 };
