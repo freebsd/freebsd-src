@@ -1563,7 +1563,7 @@ filt_soread(struct knote *kn, long hint)
 		kn->kn_flags |= EV_EOF; 
 		return (1);
 	}
-	return (kn->kn_data > 0);
+	return (kn->kn_data >= so->so_rcv.sb_lowat);
 }
 
 static int
