@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id$
+ *	$Id: genassym.c,v 1.2 1993/10/08 20:45:07 rgrimes Exp $
  */
 
 #include "sys/param.h"
@@ -97,6 +97,7 @@ main()
 	printf("#define\tNBPG %d\n", NBPG);
 	printf("#define\tNPTEPG %d\n", NPTEPG);
 	printf("#define\tPGSHIFT %d\n", PGSHIFT);
+	printf("#define\tPDRSHIFT %d\n", PDRSHIFT);
 	printf("#define\tSYSPTSIZE %d\n", SYSPTSIZE);
 	printf("#define\tUSRPTSIZE %d\n", USRPTSIZE);
 	printf("#define\tUSRIOSIZE %d\n", USRIOSIZE);
@@ -105,6 +106,7 @@ main()
 #endif
 	printf("#define\tUSRSTACK %d\n", USRSTACK);
 	printf("#define\tKERNBASE %d\n", KERNBASE);
+	printf("#define\tKERNSIZE %d\n", KERNSIZE);
 	printf("#define\tMSGBUFPTECNT %d\n", btoc(sizeof (struct msgbuf)));
 	printf("#define\tNMBCLUSTERS %d\n", NMBCLUSTERS);
 	printf("#define\tMCLBYTES %d\n", MCLBYTES);
