@@ -474,6 +474,7 @@ ed_probe_WD80x3(dev)
 		return (ENXIO);
 	}
 	sc->isa16bit = isa16bit;
+	sc->mem_shared = 1;
 
 	error = ed_alloc_memory(dev, 0, memsize);
 	if (error) {
