@@ -72,9 +72,9 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register struct fs *sbp;
-	register struct dinode *ip;
-	register int fd;
+	struct fs *sbp;
+	struct dinode *ip;
+	int fd;
 	struct dinode ibuf[MAXBSIZE / sizeof (struct dinode)];
 	long generation, bsize;
 	off_t offset;

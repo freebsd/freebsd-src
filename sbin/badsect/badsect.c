@@ -103,7 +103,7 @@ main(int argc, char *argv[])
 	daddr_t diskbn;
 	daddr_t number;
 	struct stat stbuf, devstat;
-	register struct dirent *dp;
+	struct dirent *dp;
 	DIR *dirp;
 	char name[2 * MAXPATHLEN];
 	char *name_dir_end;
