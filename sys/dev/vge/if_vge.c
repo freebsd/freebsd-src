@@ -1547,7 +1547,6 @@ vge_txeof(sc)
 	 * This is done in case the transmitter has gone idle.
 	 */
 	if (sc->vge_ldata.vge_tx_free != VGE_TX_DESC_CNT) {
-		CSR_WRITE_2(sc, VGE_TXQCSRS, VGE_TXQCSR_WAK0);
 		CSR_WRITE_1(sc, VGE_CRS1, VGE_CR1_TIMER0_ENABLE);
 	}
 
