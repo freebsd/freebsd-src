@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.8 2000/03/08 08:53:36 dmlb Exp $
+ * $Id: if_ray.c,v 1.15 2000/03/21 14:39:36 dmlb Exp $
  *
  */
 
@@ -184,11 +184,16 @@
  * ioctls - done
  *	use raycontrol
  *	translation, BSS_ID, countrycode, changing mode
+ * ifp->if_hdr length - done
+ * rx level and antenna cache - done
+ *	antenna not used yet
+ * antenna tx side - done
+ *	not tested!
  *
  * shutdown
- * ifp->if_hdr length
  * _reset - check where needed
  * apm
+ * resume
  * faster TX routine
  * more translations
  * infrastructure mode - maybe need some of the old stuff for checking?
@@ -197,8 +202,6 @@
  * fix the XXX code in start_join_done
  * make RAY_DEBUG a knob somehow - either sysctl or IFF_DEBUG
  * ray_update_params_done needs work
- * do an rx level and antenna cache, the antenna can be used to set c_antenna
- *   for tx
  * callout handles need rationalising. can probably remove timerh and
  *   use ccs_timerh for download and sj_timerh
  */
@@ -258,7 +261,7 @@
 /* XXX This macro assumes that common memory is mapped into kernel space and
  * XXX does not indirect through SRAM macros - it should
  */
-#define RAY_DHEX8(p, l) do { if (RAY_DEBUG > 10) {		\
+#define RAY_DHEX8(p, l, lev) do { if (RAY_DEBUG > lev) {	\
     u_int8_t *i;						\
     for (i = p; i < (u_int8_t *)(p+l); i += 8)			\
     	printf("  0x%08lx %8D\n",				\
@@ -299,7 +302,7 @@
 } } while (0)
 
 #else
-#define RAY_DHEX8(p, l)
+#define RAY_DHEX8(p, l, lev)
 #define RAY_DPRINTFN(l,x)
 #define RAY_DNET_DUMP(sc, s)
 #endif /* RAY_DEBUG > 0 */
@@ -349,6 +352,7 @@
 #include <machine/md_var.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/limits.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -450,6 +454,7 @@ struct ray_softc {
     u_int64_t		sc_rxcksum;	/* Number of checksum errors	*/
     u_int64_t		sc_rxhcksum;	/* Number of header checksum errors */
     u_int8_t		sc_rxnoise;	/* Average receiver level	*/
+    struct ray_siglev	sc_siglevs[RAY_NSIGLEVRECS]; /* Antenna/levels	*/
 
     struct ray_param_req \
     			*sc_repreq;	/* used to return values	*/
@@ -527,10 +532,12 @@ static void	ray_report_params	__P((struct ray_softc *sc));
 static void	ray_reset		__P((struct ray_softc *sc));
 static void	ray_reset_timo		__P((void *xsc));
 static void	ray_rx			__P((struct ray_softc *sc, size_t rcs));
+static void	ray_rx_update_cache	__P((struct ray_softc *sc, u_int8_t *src, u_int8_t siglev, u_int8_t antenna));
 static void	ray_set_pending		__P((struct ray_softc *sc, u_int cmdf));
 static int	ray_simple_cmd		__P((struct ray_softc *sc, u_int cmd, u_int track));
 static void	ray_start		__P((struct ifnet *ifp));
 static void	ray_start_assoc		__P((struct ray_softc *sc));
+static u_int8_t ray_start_best_antenna	__P((struct ray_softc *sc, u_int8_t *dst));
 static void	ray_start_done		__P((struct ray_softc *sc, size_t ccs, u_int8_t status));
 static void	ray_start_sc		__P((struct ray_softc *sc));
 static void	ray_start_timo		__P((void *xsc));
@@ -647,11 +654,6 @@ static int ray_nsubcmdtab = sizeof(ray_subcmdtab) / sizeof(*ray_subcmdtab);
 #ifndef RAY_START_TIMEOUT
 #define RAY_START_TIMEOUT	(hz / 2)
 #endif
-#if RAY_SIMPLE_TX
-#define RAY_IFQ_MAXLEN		(2)
-#else if RAY_DECENT_TX
-#define RAY_IFQ_MAXLEN		(RAY_CCS_TX_LAST+1)
-#endif
 #define RAY_CCS_FREE(sc, ccs) \
     SRAM_WRITE_FIELD_1((sc), (ccs), ray_cmd, c_status, RAY_CCS_STATUS_FREE)
 #define RAY_ECF_READY(sc)	(!(ray_read_reg(sc, RAY_ECFIR) & RAY_ECFIR_IRQ))
@@ -681,7 +683,7 @@ static void	ray_attr_cm	__P((struct ray_softc *sc));
  * PCCard initialise.
  */
 static int
-ray_pccard_init (dev_p)
+ray_pccard_init(dev_p)
     struct pccard_devinfo   *dev_p;
 {
     struct ray_softc	*sc;
@@ -752,7 +754,7 @@ ray_pccard_init (dev_p)
  * PCCard unload.
  */
 static void
-ray_pccard_unload (dev_p)
+ray_pccard_unload(dev_p)
     struct pccard_devinfo	*dev_p;
 {
     struct ray_softc		*sc;
@@ -812,7 +814,7 @@ ray_pccard_unload (dev_p)
  * process an interrupt
  */
 static int
-ray_pccard_intr (dev_p)
+ray_pccard_intr(dev_p)
     struct pccard_devinfo	*dev_p;
 {
     return (ray_intr(dev_p));
@@ -822,7 +824,7 @@ ray_pccard_intr (dev_p)
  * ISA probe routine.
  */
 static int
-ray_probe (dev_p)
+ray_probe(dev_p)
     struct isa_device		*dev_p;
 {
 
@@ -835,7 +837,7 @@ ray_probe (dev_p)
  * ISA/PCCard attach.
  */
 static int
-ray_attach (dev_p)
+ray_attach(dev_p)
     struct isa_device		*dev_p;
 {
     struct ray_softc		*sc;
@@ -934,9 +936,8 @@ ray_attach (dev_p)
     ifp->if_unit = sc->unit;
     ifp->if_timer = 0;
     ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
-#if XXX
-    ifp->if_hdr = ...; make this big enough to hold the .11 and .3 headers
-#endif
+    ifp->if_hdrlen = sizeof(struct ieee80211_header) + 
+    	sizeof(struct ether_header);
     ifp->if_baudrate = 1000000; /* Is this baud or bps ;-) */
 
     ifp->if_output = ether_output;
@@ -944,7 +945,7 @@ ray_attach (dev_p)
     ifp->if_ioctl = ray_ioctl;
     ifp->if_watchdog = ray_watchdog;
     ifp->if_init = ray_init;
-    ifp->if_snd.ifq_maxlen = RAY_IFQ_MAXLEN;
+    ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
     /*
      * If this logical interface has already been attached,
@@ -1000,7 +1001,7 @@ ray_attach (dev_p)
  * safe to call ray_start which is done by the interrupt handler.
  */
 static void
-ray_init (xsc)
+ray_init(xsc)
     void			*xsc;
 {
     struct ray_softc		*sc = xsc;
@@ -1113,7 +1114,7 @@ ray_init (xsc)
  *
  */
 static void
-ray_stop (sc)
+ray_stop(sc)
     struct ray_softc	*sc;
 {
     struct ifnet	*ifp;
@@ -1177,7 +1178,7 @@ ray_stop (sc)
  * out. We wait a while and then re-init the card.
  */
 static void
-ray_reset (sc)
+ray_reset(sc)
     struct ray_softc	*sc;
 {
     struct ifnet	*ifp;
@@ -1202,7 +1203,7 @@ ray_reset (sc)
  * Finishing resetting and restarting the card
  */
 static void
-ray_reset_timo (xsc)
+ray_reset_timo(xsc)
     void		*xsc;
 {
     struct ray_softc	*sc = xsc;
@@ -1224,7 +1225,7 @@ ray_reset_timo (xsc)
 }
 
 static void
-ray_watchdog (ifp)
+ray_watchdog(ifp)
     register struct ifnet	*ifp;
 {
     struct ray_softc *sc;
@@ -1260,7 +1261,7 @@ ray_watchdog (ifp)
  * Network ioctl request.
  */
 static int
-ray_ioctl (ifp, command, data)
+ray_ioctl(ifp, command, data)
     register struct ifnet	*ifp;
     u_long			command;
     caddr_t			data;
@@ -1345,6 +1346,13 @@ ray_ioctl (ifp, command, data)
 	    error = error2 ? error2 : error;
 	    break;
 
+	case SIOCGRAYSIGLEV:
+	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GRAYSIGLEV\n",
+	        sc->unit));
+	    error = copyout(sc->sc_siglevs, ifr->ifr_data,
+	        sizeof(sc->sc_siglevs));
+	    break;
+
 	case SIOCGIFFLAGS:
 	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFFLAGS\n", sc->unit));
 	    error = EINVAL;
@@ -1397,16 +1405,15 @@ ray_ioctl (ifp, command, data)
  *     (i.e. that the output part of the interface is idle)
  */
 static void
-ray_start (ifp)
-    struct ifnet	*ifp;
+ray_start(struct ifnet *ifp)
 {
-    RAY_DPRINTFN(5, ("ray%d: ray_start\n", ifp->if_unit));
+	RAY_DPRINTFN(5, ("ray%d: ray_start\n", ifp->if_unit));
 
-    ray_start_sc(ifp->if_softc);
+	ray_start_sc(ifp->if_softc);
 }
 
 static void
-ray_start_sc (sc)
+ray_start_sc(sc)
     struct ray_softc		*sc;
 {
     struct ifnet		*ifp;
@@ -1506,7 +1513,6 @@ ray_start_sc (sc)
     SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_bufp, bufp);
     SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_tx_rate, sc->sc_c.np_def_txrate);
     SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_apm_mode, 0); /* XXX */
-    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_antenna, 0); /* XXX */
     bufp += sizeof(struct ray_tx_phy_header);
     
     /*
@@ -1518,6 +1524,7 @@ ray_start_sc (sc)
 	RAY_CCS_FREE(sc, ccs);
 	return;
     }
+    eh = mtod(m0, struct ether_header *);
 
     for (pktlen = 0, m = m0; m != NULL; m = m->m_next) {
 	pktlen += m->m_len;
@@ -1561,7 +1568,6 @@ ray_start_sc (sc)
 	ifp->if_oerrors++;
 	return;
     }
-    eh = mtod(m0, struct ether_header *);
     switch (sc->translation) {
 
     	case SC_TRANSLATE_WEBGEAR:
@@ -1605,8 +1611,6 @@ ray_start_sc (sc)
     }
     RAY_DMBUF_DUMP(sc, m0, "ray_start");
 
-    m_free(m0);
-
     /*
      * Fill in a few loose ends and kick the card to send the packet
      */
@@ -1625,10 +1629,13 @@ ray_start_sc (sc)
 	return;
     }
     SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_len, pktlen);
+    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_antenna,
+        ray_start_best_antenna(sc, eh->ether_dhost));
     SRAM_WRITE_1(sc, RAY_SCB_CCSI, ccs);
     ifp->if_opackets++;
     ifp->if_flags |= IFF_OACTIVE;
     RAY_ECF_START_CMD(sc);
+    m_free(m0);
 
     return;
 }
@@ -1684,6 +1691,9 @@ netbsd:
 
 		rework calling
 #endif XXX_NETBSDTX
+/******************************************************************************
+ * XXX NOT KNF FROM HERE UP
+ ******************************************************************************/
 
 /*
  * TX completion routine.
@@ -1691,31 +1701,26 @@ netbsd:
  * Clear ccs and network flags.
  */
 static void
-ray_start_done (sc, ccs, status)
-    struct ray_softc	*sc;
-    size_t		ccs;
-    u_int8_t		status;
+ray_start_done(struct ray_softc *sc, size_t ccs, u_int8_t status)
 {
-    struct ifnet	*ifp;
-    char		*status_string[] = RAY_CCS_STATUS_STRINGS;
+	struct ifnet *ifp;
+	char *status_string[] = RAY_CCS_STATUS_STRINGS;
 
-    RAY_DPRINTFN(5, ("ray%d: ray_start_done\n", sc->unit));
-    RAY_MAP_CM(sc);
+	RAY_DPRINTFN(5, ("ray%d: ray_start_done\n", sc->unit));
+	RAY_MAP_CM(sc);
 
-    ifp = &sc->arpcom.ac_if;
+	ifp = &sc->arpcom.ac_if;
 
-    if (status != RAY_CCS_STATUS_COMPLETE) {
-    	printf("ray%d: ray_start tx completed but status is %s.\n",
-		sc->unit, status_string[status]);
-    	ifp->if_oerrors++;
-    }
+	if (status != RAY_CCS_STATUS_COMPLETE) {
+		printf("ray%d: ray_start tx completed but status is %s.\n",
+		    sc->unit, status_string[status]);
+		ifp->if_oerrors++;
+	}
 
-    RAY_CCS_FREE(sc, ccs);
-    ifp->if_timer = 0;
-    if (ifp->if_flags & IFF_OACTIVE)
-	ifp->if_flags &= ~IFF_OACTIVE;
-
-    return;
+	RAY_CCS_FREE(sc, ccs);
+	ifp->if_timer = 0;
+	if (ifp->if_flags & IFF_OACTIVE)
+	    ifp->if_flags &= ~IFF_OACTIVE;
 }
 
 /*
@@ -1724,25 +1729,23 @@ ray_start_done (sc, ccs, status)
  * Used when card was busy but we needed to send a packet.
  */
 static void
-ray_start_timo (xsc)
-    void		*xsc;
+ray_start_timo(void *xsc)
 {
-    struct ray_softc	*sc = xsc;
-    struct ifnet	*ifp;
-    int			s;
+	struct ray_softc *sc = xsc;
+	struct ifnet *ifp;
+	int s;
 
-    RAY_DPRINTFN(5, ("ray%d: ray_start_timo\n", sc->unit));
-    RAY_MAP_CM(sc);
+	RAY_DPRINTFN(5, ("ray%d: ray_start_timo\n", sc->unit));
+	RAY_MAP_CM(sc);
 
-    ifp = &sc->arpcom.ac_if;
+	ifp = &sc->arpcom.ac_if;
 
-    if (!(ifp->if_flags & IFF_OACTIVE) && (ifp->if_snd.ifq_head != NULL)) {
-	s = splimp();
-	ray_start(ifp);
-	splx(s);
-    }
+	if (!(ifp->if_flags & IFF_OACTIVE) && (ifp->if_snd.ifq_head != NULL)) {
+		s = splimp();
+		ray_start(ifp);
+		splx(s);
+	}
 
-    return;
 }
 
 /*
@@ -1750,279 +1753,325 @@ ray_start_timo (xsc)
  * adjusted buffer pointer.
  */
 static size_t
-ray_start_wrhdr (sc, eh, bufp)
-    struct ray_softc		*sc;
-    struct ether_header		*eh;
-    size_t			bufp;
+ray_start_wrhdr(struct ray_softc *sc, struct ether_header *eh, size_t bufp)
 {
-    struct ieee80211_header	header;
+	struct ieee80211_header header;
 
-    RAY_DPRINTFN(5, ("ray%d: ray_start_wrhdr\n", sc->unit));
-    RAY_MAP_CM(sc);
+	RAY_DPRINTFN(5, ("ray%d: ray_start_wrhdr\n", sc->unit));
+	RAY_MAP_CM(sc);
 
-    bzero(&header, sizeof(struct ieee80211_header));
+	bzero(&header, sizeof(struct ieee80211_header));
 
-    header.i_fc[0] = (IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_DATA);
-    if (sc->sc_c.np_net_type == RAY_MIB_NET_TYPE_ADHOC) {
+	header.i_fc[0] = (IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_DATA);
+	if (sc->sc_c.np_net_type == RAY_MIB_NET_TYPE_ADHOC) {
 
-	header.i_fc[1] = IEEE80211_FC1_STA_TO_STA;
-	bcopy(eh->ether_dhost, header.i_addr1, ETHER_ADDR_LEN);
-	bcopy(eh->ether_shost, header.i_addr2, ETHER_ADDR_LEN);
-	bcopy(sc->sc_c.np_bss_id, header.i_addr3, ETHER_ADDR_LEN);
+		header.i_fc[1] = IEEE80211_FC1_STA_TO_STA;
+		bcopy(eh->ether_dhost, header.i_addr1, ETHER_ADDR_LEN);
+		bcopy(eh->ether_shost, header.i_addr2, ETHER_ADDR_LEN);
+		bcopy(sc->sc_c.np_bss_id, header.i_addr3, ETHER_ADDR_LEN);
 
-    } else {
-	if (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_TERMINAL) {
+	} else {
+		if (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_TERMINAL) {
 	    
-	    header.i_fc[1] = IEEE80211_FC1_STA_TO_AP;
-	    bcopy(sc->sc_c.np_bss_id, header.i_addr1, ETHER_ADDR_LEN);
-	    bcopy(eh->ether_shost, header.i_addr2, ETHER_ADDR_LEN);
-	    bcopy(eh->ether_dhost, header.i_addr3, ETHER_ADDR_LEN);
+			header.i_fc[1] = IEEE80211_FC1_STA_TO_AP;
+			bcopy(sc->sc_c.np_bss_id, header.i_addr1,
+			    ETHER_ADDR_LEN);
+			bcopy(eh->ether_shost, header.i_addr2, ETHER_ADDR_LEN);
+			bcopy(eh->ether_dhost, header.i_addr3, ETHER_ADDR_LEN);
 
-	} else
-	    printf("ray%d: ray_start can't be an AP yet\n", sc->unit);
-    }
+		} else
+			printf("ray%d: ray_start can't be an AP yet\n",
+			    sc->unit);
+	}
 
-    ray_write_region(sc, bufp, (u_int8_t *)&header,
+	ray_write_region(sc, bufp, (u_int8_t *)&header,
 	    sizeof(struct ieee80211_header));
 
-    return (bufp + sizeof(struct ieee80211_header));
+	return (bufp + sizeof(struct ieee80211_header));
+}
+
+/*
+ * Determine best antenna to use from rx level and antenna cache
+ */
+static u_int8_t
+ray_start_best_antenna(struct ray_softc *sc, u_int8_t *dst)
+{
+	struct ray_siglev *sl;
+	int i;
+	u_int8_t antenna;
+
+	RAY_DPRINTFN(5, ("ray%d: ray_start_best_antenna\n", sc->unit));
+	RAY_MAP_CM(sc);
+
+	if (sc->sc_version == RAY_ECFS_BUILD_4) 
+		return (0);
+
+	/* try to find host */
+	for (i = 0; i < RAY_NSIGLEVRECS; i++) {
+		sl = &sc->sc_siglevs[i];
+		if (bcmp(sl->rsl_host, dst, ETHER_ADDR_LEN) == 0)
+			goto found;
+	}
+	/* not found, return default setting */
+	return (0);
+
+found:
+    	/* This is a simple thresholding scheme which takes the mean
+	 * of the best antenna history. This is okay but as it is a
+	 * filter, it adds a bit of lag in situations where the
+	 * best antenna swaps from one side to the other slowly. Don't know
+	 * how likely this is given the horrible fading though.
+	 */
+	antenna = 0;
+	for (i = 0; i < RAY_NANTENNA; i++) {
+	    	antenna += sl->rsl_antennas[i];
+	}
+
+	return (antenna > (RAY_NANTENNA >> 1));
 }
 
 /*
  * receive a packet from the card
  */
 static void
-ray_rx (sc, rcs)
-    struct ray_softc		*sc;
-    size_t			rcs;
+ray_rx(struct ray_softc *sc, size_t rcs)
 {
-    struct ieee80211_header	*header;
-    struct ether_header		*eh;
-    struct ifnet		*ifp;
-    struct mbuf			*m0;
-    size_t			pktlen, fraglen, readlen, tmplen;
-    size_t			bufp, ebufp;
-    u_int8_t			*dst, *src;
-    u_int8_t			fc;
-    u_int			first, ni, i;
+	struct ieee80211_header *header;
+	struct ether_header *eh;
+	struct ifnet *ifp;
+	struct mbuf *m0;
+	size_t pktlen, fraglen, readlen, tmplen;
+	size_t bufp, ebufp;
+	u_int8_t *dst, *src;
+	u_int8_t fc;
+	u_int8_t siglev, antenna;
+	u_int first, ni, i;
 
-    RAY_DPRINTFN(5, ("ray%d: ray_rx\n", sc->unit));
-    RAY_MAP_CM(sc);
+	RAY_DPRINTFN(5, ("ray%d: ray_rx\n", sc->unit));
+	RAY_MAP_CM(sc);
 
-    RAY_DPRINTFN(20, ("ray%d: rcs chain - using rcs 0x%x\n", sc->unit, rcs));
+	RAY_DPRINTFN(20, ("ray%d: rcs chain - using rcs 0x%x\n",
+	    sc->unit, rcs));
 
-    ifp = &sc->arpcom.ac_if;
-    m0 = NULL;
-    readlen = 0;
+	ifp = &sc->arpcom.ac_if;
+	m0 = NULL;
+	readlen = 0;
 
-    /*
-     * Get first part of packet and the length. Do some sanity checks
-     * and get a mbuf.
-     */
-    first = RAY_CCS_INDEX(rcs);
-    pktlen = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_pktlen);
+	/*
+	 * Get first part of packet and the length. Do some sanity checks
+	 * and get a mbuf.
+	 */
+	first = RAY_CCS_INDEX(rcs);
+	pktlen = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_pktlen);
+	siglev = SRAM_READ_FIELD_1(sc, rcs, ray_cmd_rx, c_siglev);
+	antenna = SRAM_READ_FIELD_1(sc, rcs, ray_cmd_rx, c_antenna);
 
-    if ((pktlen > MCLBYTES) || (pktlen < sizeof(struct ieee80211_header))) {
-	RAY_DPRINTFN(1, ("ray%d: ray_rx packet is too big or too small\n",
-	    sc->unit));
-	ifp->if_ierrors++;
-	goto skip_read;
-    }
-
-    MGETHDR(m0, M_DONTWAIT, MT_DATA);
-    if (m0 == NULL) {
-	RAY_DPRINTFN(1, ("ray%d: ray_rx MGETHDR failed\n", sc->unit));
-	ifp->if_ierrors++;
-	goto skip_read;
-    }
-    if (pktlen > MHLEN) {
-	MCLGET(m0, M_DONTWAIT);
-	if ((m0->m_flags & M_EXT) == 0) {
-	    RAY_DPRINTFN(1, ("ray%d: ray_rx MCLGET failed\n", sc->unit));
-	    ifp->if_ierrors++;
-	    m_freem(m0);
-	    m0 = NULL;
-	    goto skip_read;
-	}
-    }
-    m0->m_pkthdr.rcvif = ifp;
-    m0->m_pkthdr.len = pktlen;
-    m0->m_len = pktlen;
-    dst = mtod(m0, u_int8_t *);
-
-    /*
-     * Walk the fragment chain to build the complete packet.
-     *
-     * The use of two index variables removes a race with the
-     * hardware. If one index were used the clearing of the CCS would
-     * happen before reading the next pointer and the hardware can get in.
-     * Not my idea but verbatim from the NetBSD driver.
-     */
-    i = ni = first;
-    while ((i = ni) && (i != RAY_CCS_LINK_NULL)) {
-	rcs = RAY_CCS_ADDRESS(i);
-	ni = SRAM_READ_FIELD_1(sc, rcs, ray_cmd_rx, c_nextfrag);
-	bufp = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_bufp);
-	fraglen = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_len);
-	RAY_DPRINTFN(50, ("ray%d: ray_rx frag index %d len %d bufp 0x%x ni %d\n",
-		sc->unit, i, fraglen, (int)bufp, ni));
-
-	if (fraglen + readlen > pktlen) {
-	    RAY_DPRINTFN(1, ("ray%d: ray_rx bad length current 0x%x pktlen 0x%x\n",
-		    sc->unit, fraglen + readlen, pktlen));
-	    ifp->if_ierrors++;
-	    m_freem(m0);
-	    m0 = NULL;
-	    goto skip_read;
-	}
-	if ((i < RAY_RCS_FIRST) || (i > RAY_RCS_LAST)) {
-	    printf("ray%d: ray_rx bad rcs index 0x%x\n", sc->unit, i);
-	    ifp->if_ierrors++;
-	    m_freem(m0);
-	    m0 = NULL;
-	    goto skip_read;
+	if ((pktlen > MCLBYTES) || (pktlen < sizeof(struct ieee80211_header))) {
+		RAY_DPRINTFN(1, ("ray%d: ray_rx packet is too big or too small\n",
+		sc->unit));
+		ifp->if_ierrors++;
+		goto skip_read;
 	}
 
-	ebufp = bufp + fraglen;
-	if (ebufp <= RAY_RX_END)
-	    ray_read_region(sc, bufp, dst, fraglen);
-	else {
-	    ray_read_region(sc, bufp, dst, (tmplen = RAY_RX_END - bufp));
-	    ray_read_region(sc, RAY_RX_BASE, dst + tmplen, ebufp - RAY_RX_END);
+	MGETHDR(m0, M_DONTWAIT, MT_DATA);
+	if (m0 == NULL) {
+		RAY_DPRINTFN(1, ("ray%d: ray_rx MGETHDR failed\n", sc->unit));
+		ifp->if_ierrors++;
+		goto skip_read;
 	}
-	dst += fraglen;
-	readlen += fraglen;
-    }
+	if (pktlen > MHLEN) {
+		MCLGET(m0, M_DONTWAIT);
+		if ((m0->m_flags & M_EXT) == 0) {
+			RAY_DPRINTFN(1, ("ray%d: ray_rx MCLGET failed\n",
+			    sc->unit));
+			ifp->if_ierrors++;
+			m_freem(m0);
+			m0 = NULL;
+			goto skip_read;
+		}
+	}
+	m0->m_pkthdr.rcvif = ifp;
+	m0->m_pkthdr.len = pktlen;
+	m0->m_len = pktlen;
+	dst = mtod(m0, u_int8_t *);
+
+	/*
+	 * Walk the fragment chain to build the complete packet.
+	 *
+	 * The use of two index variables removes a race with the
+	 * hardware. If one index were used the clearing of the CCS would
+	 * happen before reading the next pointer and the hardware can get in.
+	 * Not my idea but verbatim from the NetBSD driver.
+	 */
+	i = ni = first;
+	while ((i = ni) && (i != RAY_CCS_LINK_NULL)) {
+		rcs = RAY_CCS_ADDRESS(i);
+		ni = SRAM_READ_FIELD_1(sc, rcs, ray_cmd_rx, c_nextfrag);
+		bufp = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_bufp);
+		fraglen = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_len);
+		RAY_DPRINTFN(50, ("ray%d: ray_rx frag index %d len %d bufp 0x%x ni %d\n",
+		    sc->unit, i, fraglen, (int)bufp, ni));
+
+		if (fraglen + readlen > pktlen) {
+			RAY_DPRINTFN(1, ("ray%d: ray_rx bad length current 0x%x pktlen 0x%x\n",
+			    sc->unit, fraglen + readlen, pktlen));
+			ifp->if_ierrors++;
+			m_freem(m0);
+			m0 = NULL;
+			goto skip_read;
+		}
+		if ((i < RAY_RCS_FIRST) || (i > RAY_RCS_LAST)) {
+			printf("ray%d: ray_rx bad rcs index 0x%x\n",
+			    sc->unit, i);
+			ifp->if_ierrors++;
+			m_freem(m0);
+			m0 = NULL;
+			goto skip_read;
+		}
+
+		ebufp = bufp + fraglen;
+		if (ebufp <= RAY_RX_END)
+			ray_read_region(sc, bufp, dst, fraglen);
+		else {
+			ray_read_region(sc, bufp, dst,
+			    (tmplen = RAY_RX_END - bufp));
+			ray_read_region(sc, RAY_RX_BASE, dst + tmplen,
+			    ebufp - RAY_RX_END);
+		}
+		dst += fraglen;
+		readlen += fraglen;
+	}
 
 skip_read:
 
-    /*
-     * Walk the chain again to free the rcss.
-     */
-    i = ni = first;
-    while ((i = ni) && (i != RAY_CCS_LINK_NULL)) {
-	rcs = RAY_CCS_ADDRESS(i);
-	ni = SRAM_READ_FIELD_1(sc, rcs, ray_cmd_rx, c_nextfrag);
-	RAY_CCS_FREE(sc, rcs);
-    }
+	/*
+	 * Walk the chain again to free the rcss.
+	 */
+	i = ni = first;
+	while ((i = ni) && (i != RAY_CCS_LINK_NULL)) {
+		rcs = RAY_CCS_ADDRESS(i);
+		ni = SRAM_READ_FIELD_1(sc, rcs, ray_cmd_rx, c_nextfrag);
+		RAY_CCS_FREE(sc, rcs);
+	}
 
-    if (m0 == NULL)
-   	return;
+	if (m0 == NULL)
+		return;
 
-    RAY_DMBUF_DUMP(sc, m0, "ray_rx");
+	RAY_DMBUF_DUMP(sc, m0, "ray_rx");
 
-    /*
-     * Check the 802.11 packet type and obtain the .11 src addresses.
-     *
-     * XXX CTL and MGT packets will have separate functions, DATA with here
-     *
-     * XXX This needs some work for INFRA mode
-     */
-    header = mtod(m0, struct ieee80211_header *);
-    fc = header->i_fc[0];
-    if ((fc & IEEE80211_FC0_VERSION_MASK) != IEEE80211_FC0_VERSION_0) {
-	RAY_DPRINTFN(1, ("ray%d: header not version 0 fc 0x%x\n", sc->unit, fc));
-	ifp->if_ierrors++;
-	m_freem(m0);
-	return;
-    }
-    switch (fc & IEEE80211_FC0_TYPE_MASK) {
+	/*
+	 * Check the 802.11 packet type and obtain the .11 src addresses.
+	 *
+	 * XXX CTL and MGT packets will have separate functions, DATA with here
+	 *
+	 * XXX This needs some work for INFRA mode
+	 */
+	header = mtod(m0, struct ieee80211_header *);
+	fc = header->i_fc[0];
+	if ((fc & IEEE80211_FC0_VERSION_MASK) != IEEE80211_FC0_VERSION_0) {
+		RAY_DPRINTFN(1, ("ray%d: header not version 0 fc 0x%x\n",
+		    sc->unit, fc));
+		ifp->if_ierrors++;
+		m_freem(m0);
+		return;
+	}
+	switch (fc & IEEE80211_FC0_TYPE_MASK) {
 
 	case IEEE80211_FC0_TYPE_MGT:
-	    printf("ray%d: ray_rx got a MGT packet - why?\n", sc->unit);
-	    ifp->if_ierrors++;
-	    m_freem(m0);
-	    return;
+		printf("ray%d: ray_rx got a MGT packet - why?\n", sc->unit);
+		ifp->if_ierrors++;
+		m_freem(m0);
+		return;
 
 	case IEEE80211_FC0_TYPE_CTL:
-	    printf("ray%d: ray_rx got a CTL packet - why?\n", sc->unit);
-	    ifp->if_ierrors++;
-	    m_freem(m0);
-	    return;
+		printf("ray%d: ray_rx got a CTL packet - why?\n", sc->unit);
+		ifp->if_ierrors++;
+		m_freem(m0);
+		return;
 
 	case IEEE80211_FC0_TYPE_DATA:
-	    RAY_DPRINTFN(50, ("ray%d: ray_rx got a DATA packet\n", sc->unit));
-	    break;
+		RAY_DPRINTFN(50, ("ray%d: ray_rx got a DATA packet\n",
+		    sc->unit));
+		break;
 
 	default:
-	    printf("ray%d: ray_rx got a unknown packet fc0 0x%x - why?\n",
-	    		sc->unit, fc);
-	    ifp->if_ierrors++;
-	    m_freem(m0);
-	    return;
+		printf("ray%d: ray_rx got a unknown packet fc0 0x%x - why?\n",
+		    sc->unit, fc);
+		ifp->if_ierrors++;
+		m_freem(m0);
+		return;
 
-    }
-    fc = header->i_fc[1];
-    switch (fc & IEEE80211_FC1_DS_MASK) {
+	}
+	fc = header->i_fc[1];
+	src = header->i_addr2;
+	switch (fc & IEEE80211_FC1_DS_MASK) {
 
 	case IEEE80211_FC1_STA_TO_STA:
-	    src = header->i_addr2;
-	    RAY_DPRINTFN(50, ("ray%d: ray_rx packet from sta %6D\n",
+		RAY_DPRINTFN(50, ("ray%d: ray_rx packet from sta %6D\n",
 		    sc->unit, src, ":"));
-	    break;
+		break;
 
 	case IEEE80211_FC1_STA_TO_AP:
-	    RAY_DPRINTFN(1, ("ray%d: ray_rx packet from sta %6D to ap %6D\n",
-		    sc->unit,
-		    header->i_addr2, ":", header->i_addr3, ":"));
-	    ifp->if_ierrors++;
-	    m_freem(m0);
-	    break;
+		RAY_DPRINTFN(1, ("ray%d: ray_rx packet from sta to ap %6D %6D\n",
+		    sc->unit, src, ":", header->i_addr3, ":"));
+		ifp->if_ierrors++;
+		m_freem(m0);
+		break;
 
 	case IEEE80211_FC1_AP_TO_STA:
-	    RAY_DPRINTFN(1, ("ray%d: ray_rx packet from ap %6D\n",
-		    sc->unit,
-		    header->i_addr3, ":"));
-	    ifp->if_ierrors++;
-	    m_freem(m0);
-	    break;
+		RAY_DPRINTFN(1, ("ray%d: ray_rx packet from ap %6D\n",
+		    sc->unit, src, ":"));
+		ifp->if_ierrors++;
+		m_freem(m0);
+		break;
 
 	case IEEE80211_FC1_AP_TO_AP:
-	    RAY_DPRINTFN(1, ("ray%d: ray_rx saw packet between aps %6D %6D\n",
-		    sc->unit,
-		    header->i_addr1, ":", header->i_addr2, ":"));
-	    ifp->if_ierrors++;
-	    m_freem(m0);
-	    return;
+		RAY_DPRINTFN(1, ("ray%d: ray_rx packet between aps %6D %6D\n",
+		    sc->unit, src, ":", header->i_addr2, ":"));
+		ifp->if_ierrors++;
+		m_freem(m0);
+		return;
 
 	default:
-	    printf("ray%d: ray_rx packet type unknown fc1 0x%x - why?\n",
+	    	src = NULL;
+		printf("ray%d: ray_rx packet type unknown fc1 0x%x - why?\n",
 		    sc->unit, fc);
-	    ifp->if_ierrors++;
-	    m_freem(m0);
-	    return;
-    }
+		ifp->if_ierrors++;
+		m_freem(m0);
+		return;
+	}
 
-    /*
-     * Translation - capability as described earlier
-     *
-     * Each case must remove the 802.11 header and leave an 802.3
-     * header in the mbuf copy addresses as needed.
-     */
-    switch (sc->translation) {
+	/*
+	 * Translation - capability as described earlier
+	 *
+	 * Each case must remove the 802.11 header and leave an 802.3
+	 * header in the mbuf copy addresses as needed.
+	 */
+	switch (sc->translation) {
 
     	case SC_TRANSLATE_WEBGEAR:
-	    /* Nice and easy - just trim the 802.11 header */
-	    m_adj(m0, sizeof(struct ieee80211_header));
-	    break;
+		/* Nice and easy - just trim the 802.11 header */
+		m_adj(m0, sizeof(struct ieee80211_header));
+		break;
 
 	default:
-	    printf("ray%d: ray_rx unknown translation type 0x%x - why?\n",
-	    		sc->unit, sc->translation);
-	    ifp->if_ierrors++;
-	    m_freem(m0);
-	    return;
+		printf("ray%d: ray_rx unknown translation type 0x%x - why?\n",
+		    sc->unit, sc->translation);
+		ifp->if_ierrors++;
+		m_freem(m0);
+		return;
 
-    }
+	}
 
-    /*
-     * Finally, do a bit of house keeping before sending the packet
-     * up the stack.
-     */
-    ifp->if_ipackets++;
+	/*
+	 * Finally, do a bit of house keeping before sending the packet
+	 * up the stack.
+	 */
+	ifp->if_ipackets++;
+	ray_rx_update_cache(sc, src, siglev, antenna);
 #if NBPFILTER > 0
-    if (ifp->if_bpf)
-	bpf_mtap(ifp, m0);
+	if (ifp->if_bpf)
+		bpf_mtap(ifp, m0);
 #endif /* NBPFILTER */
 #if XXX_PROM
 if_wi.c - might be needed if we hear our own broadcasts in promiscuous mode
@@ -2031,20 +2080,62 @@ but will not be if we dont see them
 	    (bcmp(eh->ether_shost, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN) &&
 	    (eh->ether_dhost[0] & 1) == 0)
 	) {
-	    m_freem(m0);
-	    return;
+		m_freem(m0);
+		return;
 	}
 #endif /* XXX_PROM */
-    eh = mtod(m0, struct ether_header *);
-    m_adj(m0, sizeof(struct ether_header));
-    ether_input(ifp, eh, m0);
+	eh = mtod(m0, struct ether_header *);
+	m_adj(m0, sizeof(struct ether_header));
+	ether_input(ifp, eh, m0);
 
-    return;
+	return;
 }
 
-/******************************************************************************
- * XXX NOT KNF FROM HERE UP
- ******************************************************************************/
+/*
+ * Update rx level and antenna cache
+ */
+static void
+ray_rx_update_cache(struct ray_softc *sc, u_int8_t *src, u_int8_t siglev, u_int8_t antenna)
+{
+	int i, mini;
+	struct timeval mint;
+	struct ray_siglev *sl;
+
+	RAY_DPRINTFN(5, ("ray%d: ray_rx_update_cache\n", sc->unit));
+	RAY_MAP_CM(sc);
+
+	/* try to find host */
+	for (i = 0; i < RAY_NSIGLEVRECS; i++) {
+		sl = &sc->sc_siglevs[i];
+		if (bcmp(sl->rsl_host, src, ETHER_ADDR_LEN) == 0)
+			goto found;
+	}
+	/* not found, find oldest slot */
+	mini = 0;
+	mint.tv_sec = LONG_MAX;
+	mint.tv_usec = 0;
+	for (i = 0; i < RAY_NSIGLEVRECS; i++) {
+		sl = &sc->sc_siglevs[i];
+		if (timevalcmp(&sl->rsl_time, &mint, <)) {
+			mini = i;
+			mint = sl->rsl_time;
+		}
+	}
+	sl = &sc->sc_siglevs[mini];
+	bzero(sl->rsl_siglevs, RAY_NSIGLEV);
+	bzero(sl->rsl_antennas, RAY_NANTENNA);
+	bcopy(src, sl->rsl_host, ETHER_ADDR_LEN);
+
+found:
+	microtime(&sl->rsl_time);
+	bcopy(sl->rsl_siglevs, &sl->rsl_siglevs[1], RAY_NSIGLEV-1);
+	sl->rsl_siglevs[0] = siglev;
+	if (sc->sc_version != RAY_ECFS_BUILD_4) {
+		bcopy(sl->rsl_antennas, &sl->rsl_antennas[1], RAY_NANTENNA-1);
+		sl->rsl_antennas[0] = antenna;
+	}
+}
+
 /*
  * an update params command has completed lookup which command and
  * the status
@@ -2838,9 +2929,6 @@ ray_start_assoc(struct ray_softc *sc)
 	(void)ray_simple_cmd(sc, RAY_CMD_START_ASSOC, SCP_STARTASSOC);
 }
 
-/******************************************************************************
- * XXX NOT KNF FROM HERE DOWN						      *
- ******************************************************************************/
 /*
  * Subcommand functions that use the SCP_UPDATESUBCMD command
  * (and are serialized with respect to other update sub commands
@@ -2852,137 +2940,138 @@ ray_start_assoc(struct ray_softc *sc)
  * Part of ray_init, download, startjoin control flow.
  */
 static void
-ray_download_params (sc)
-    struct ray_softc	*sc;
+ray_download_params(struct ray_softc *sc)
 {
-    struct ray_mib_4	ray_mib_4_default;
-    struct ray_mib_5	ray_mib_5_default;
+	struct ray_mib_4 ray_mib_4_default;
+	struct ray_mib_5 ray_mib_5_default;
 
-    RAY_DPRINTFN(5, ("ray%d: Downloading startup parameters\n", sc->unit));
-    RAY_MAP_CM(sc);
+	RAY_DPRINTFN(5, ("ray%d: Downloading startup parameters\n", sc->unit));
+	RAY_MAP_CM(sc);
 
-    ray_cmd_cancel(sc, SCP_UPD_STARTUP);
+	ray_cmd_cancel(sc, SCP_UPD_STARTUP);
 
 #define MIB4(m)		ray_mib_4_default.##m
 #define MIB5(m)		ray_mib_5_default.##m
 #define	PUT2(p, v) 	\
     do { (p)[0] = ((v >> 8) & 0xff); (p)[1] = (v & 0xff); } while(0)
 
-     /*
-      * Firmware version 4 defaults - see if_raymib.h for details
-      */
-     MIB4(mib_net_type)			= sc->sc_d.np_net_type;
-     MIB4(mib_ap_status)		= sc->sc_d.np_ap_status;
-     bcopy(sc->sc_d.np_ssid, MIB4(mib_ssid), IEEE80211_NWID_LEN);
-     MIB4(mib_scan_mode)		= RAY_MIB_SCAN_MODE_DEFAULT;
-     MIB4(mib_apm_mode)			= RAY_MIB_APM_MODE_DEFAULT;
-     bcopy(sc->sc_station_addr, MIB4(mib_mac_addr), ETHER_ADDR_LEN);
-PUT2(MIB4(mib_frag_thresh), 		  RAY_MIB_FRAG_THRESH_DEFAULT);
-PUT2(MIB4(mib_dwell_time),		  RAY_MIB_DWELL_TIME_V4);
-PUT2(MIB4(mib_beacon_period),		  RAY_MIB_BEACON_PERIOD_V4);
-     MIB4(mib_dtim_interval)		= RAY_MIB_DTIM_INTERVAL_DEFAULT;
-     MIB4(mib_max_retry)		= RAY_MIB_MAX_RETRY_DEFAULT;
-     MIB4(mib_ack_timo)			= RAY_MIB_ACK_TIMO_DEFAULT;
-     MIB4(mib_sifs)			= RAY_MIB_SIFS_DEFAULT;
-     MIB4(mib_difs)			= RAY_MIB_DIFS_DEFAULT;
-     MIB4(mib_pifs)			= RAY_MIB_PIFS_V4;
-PUT2(MIB4(mib_rts_thresh),		  RAY_MIB_RTS_THRESH_DEFAULT);
-PUT2(MIB4(mib_scan_dwell),		  RAY_MIB_SCAN_DWELL_V4);
-PUT2(MIB4(mib_scan_max_dwell),		  RAY_MIB_SCAN_MAX_DWELL_V4);
-     MIB4(mib_assoc_timo)		= RAY_MIB_ASSOC_TIMO_DEFAULT;
-     MIB4(mib_adhoc_scan_cycle)		= RAY_MIB_ADHOC_SCAN_CYCLE_DEFAULT;
-     MIB4(mib_infra_scan_cycle)		= RAY_MIB_INFRA_SCAN_CYCLE_DEFAULT;
-     MIB4(mib_infra_super_scan_cycle)	= RAY_MIB_INFRA_SUPER_SCAN_CYCLE_DEFAULT;
-     MIB4(mib_promisc)			= RAY_MIB_PROMISC_DEFAULT;
-PUT2(MIB4(mib_uniq_word),		  RAY_MIB_UNIQ_WORD_DEFAULT);
-     MIB4(mib_slot_time)		= RAY_MIB_SLOT_TIME_V4;
-     MIB4(mib_roam_low_snr_thresh)	= RAY_MIB_ROAM_LOW_SNR_THRESH_DEFAULT;
-     MIB4(mib_low_snr_count)		= RAY_MIB_LOW_SNR_COUNT_DEFAULT;
-     MIB4(mib_infra_missed_beacon_count)= RAY_MIB_INFRA_MISSED_BEACON_COUNT_DEFAULT;
-     MIB4(mib_adhoc_missed_beacon_count)= RAY_MIB_ADHOC_MISSED_BEACON_COUNT_DEFAULT;
-     MIB4(mib_country_code)		= RAY_MIB_COUNTRY_CODE_DEFAULT;
-     MIB4(mib_hop_seq)			= RAY_MIB_HOP_SEQ_DEFAULT;
-     MIB4(mib_hop_seq_len)		= RAY_MIB_HOP_SEQ_LEN_V4;
-     MIB4(mib_cw_max)			= RAY_MIB_CW_MAX_V4;
-     MIB4(mib_cw_min)			= RAY_MIB_CW_MIN_V4;
-     MIB4(mib_noise_filter_gain)	= RAY_MIB_NOISE_FILTER_GAIN_DEFAULT;
-     MIB4(mib_noise_limit_offset)	= RAY_MIB_NOISE_LIMIT_OFFSET_DEFAULT;
-     MIB4(mib_rssi_thresh_offset)	= RAY_MIB_RSSI_THRESH_OFFSET_DEFAULT;
-     MIB4(mib_busy_thresh_offset)	= RAY_MIB_BUSY_THRESH_OFFSET_DEFAULT;
-     MIB4(mib_sync_thresh)		= RAY_MIB_SYNC_THRESH_DEFAULT;
-     MIB4(mib_test_mode)		= RAY_MIB_TEST_MODE_DEFAULT;
-     MIB4(mib_test_min_chan)		= RAY_MIB_TEST_MIN_CHAN_DEFAULT;
-     MIB4(mib_test_max_chan)		= RAY_MIB_TEST_MAX_CHAN_DEFAULT;
+	 /*
+	  * Firmware version 4 defaults - see if_raymib.h for details
+	  */
+	 MIB4(mib_net_type)			= sc->sc_d.np_net_type;
+	 MIB4(mib_ap_status)		= sc->sc_d.np_ap_status;
+	 bcopy(sc->sc_d.np_ssid, MIB4(mib_ssid), IEEE80211_NWID_LEN);
+	 MIB4(mib_scan_mode)		= RAY_MIB_SCAN_MODE_DEFAULT;
+	 MIB4(mib_apm_mode)			= RAY_MIB_APM_MODE_DEFAULT;
+	 bcopy(sc->sc_station_addr, MIB4(mib_mac_addr), ETHER_ADDR_LEN);
+    PUT2(MIB4(mib_frag_thresh), 		  RAY_MIB_FRAG_THRESH_DEFAULT);
+    PUT2(MIB4(mib_dwell_time),		  RAY_MIB_DWELL_TIME_V4);
+    PUT2(MIB4(mib_beacon_period),		  RAY_MIB_BEACON_PERIOD_V4);
+	 MIB4(mib_dtim_interval)		= RAY_MIB_DTIM_INTERVAL_DEFAULT;
+	 MIB4(mib_max_retry)		= RAY_MIB_MAX_RETRY_DEFAULT;
+	 MIB4(mib_ack_timo)			= RAY_MIB_ACK_TIMO_DEFAULT;
+	 MIB4(mib_sifs)			= RAY_MIB_SIFS_DEFAULT;
+	 MIB4(mib_difs)			= RAY_MIB_DIFS_DEFAULT;
+	 MIB4(mib_pifs)			= RAY_MIB_PIFS_V4;
+    PUT2(MIB4(mib_rts_thresh),		  RAY_MIB_RTS_THRESH_DEFAULT);
+    PUT2(MIB4(mib_scan_dwell),		  RAY_MIB_SCAN_DWELL_V4);
+    PUT2(MIB4(mib_scan_max_dwell),		  RAY_MIB_SCAN_MAX_DWELL_V4);
+	 MIB4(mib_assoc_timo)		= RAY_MIB_ASSOC_TIMO_DEFAULT;
+	 MIB4(mib_adhoc_scan_cycle)		= RAY_MIB_ADHOC_SCAN_CYCLE_DEFAULT;
+	 MIB4(mib_infra_scan_cycle)		= RAY_MIB_INFRA_SCAN_CYCLE_DEFAULT;
+	 MIB4(mib_infra_super_scan_cycle)	= RAY_MIB_INFRA_SUPER_SCAN_CYCLE_DEFAULT;
+	 MIB4(mib_promisc)			= RAY_MIB_PROMISC_DEFAULT;
+    PUT2(MIB4(mib_uniq_word),		  RAY_MIB_UNIQ_WORD_DEFAULT);
+	 MIB4(mib_slot_time)		= RAY_MIB_SLOT_TIME_V4;
+	 MIB4(mib_roam_low_snr_thresh)	= RAY_MIB_ROAM_LOW_SNR_THRESH_DEFAULT;
+	 MIB4(mib_low_snr_count)		= RAY_MIB_LOW_SNR_COUNT_DEFAULT;
+	 MIB4(mib_infra_missed_beacon_count)= RAY_MIB_INFRA_MISSED_BEACON_COUNT_DEFAULT;
+	 MIB4(mib_adhoc_missed_beacon_count)= RAY_MIB_ADHOC_MISSED_BEACON_COUNT_DEFAULT;
+	 MIB4(mib_country_code)		= RAY_MIB_COUNTRY_CODE_DEFAULT;
+	 MIB4(mib_hop_seq)			= RAY_MIB_HOP_SEQ_DEFAULT;
+	 MIB4(mib_hop_seq_len)		= RAY_MIB_HOP_SEQ_LEN_V4;
+	 MIB4(mib_cw_max)			= RAY_MIB_CW_MAX_V4;
+	 MIB4(mib_cw_min)			= RAY_MIB_CW_MIN_V4;
+	 MIB4(mib_noise_filter_gain)	= RAY_MIB_NOISE_FILTER_GAIN_DEFAULT;
+	 MIB4(mib_noise_limit_offset)	= RAY_MIB_NOISE_LIMIT_OFFSET_DEFAULT;
+	 MIB4(mib_rssi_thresh_offset)	= RAY_MIB_RSSI_THRESH_OFFSET_DEFAULT;
+	 MIB4(mib_busy_thresh_offset)	= RAY_MIB_BUSY_THRESH_OFFSET_DEFAULT;
+	 MIB4(mib_sync_thresh)		= RAY_MIB_SYNC_THRESH_DEFAULT;
+	 MIB4(mib_test_mode)		= RAY_MIB_TEST_MODE_DEFAULT;
+	 MIB4(mib_test_min_chan)		= RAY_MIB_TEST_MIN_CHAN_DEFAULT;
+	 MIB4(mib_test_max_chan)		= RAY_MIB_TEST_MAX_CHAN_DEFAULT;
 
-     /*
-      * Firmware version 5 defaults - see if_raymib.h for details
-      */
-     MIB5(mib_net_type)			= sc->sc_d.np_net_type;
-     MIB4(mib_ap_status)		= sc->sc_d.np_ap_status;
-     bcopy(sc->sc_d.np_ssid, MIB5(mib_ssid), IEEE80211_NWID_LEN);
-     MIB5(mib_scan_mode)		= RAY_MIB_SCAN_MODE_DEFAULT;
-     MIB5(mib_apm_mode)			= RAY_MIB_APM_MODE_DEFAULT;
-     bcopy(sc->sc_station_addr, MIB5(mib_mac_addr), ETHER_ADDR_LEN);
-PUT2(MIB5(mib_frag_thresh), 		  RAY_MIB_FRAG_THRESH_DEFAULT);
-PUT2(MIB5(mib_dwell_time),		  RAY_MIB_DWELL_TIME_V5);
-PUT2(MIB5(mib_beacon_period),		  RAY_MIB_BEACON_PERIOD_V5);
-     MIB5(mib_dtim_interval)		= RAY_MIB_DTIM_INTERVAL_DEFAULT;
-     MIB5(mib_max_retry)		= RAY_MIB_MAX_RETRY_DEFAULT;
-     MIB5(mib_ack_timo)			= RAY_MIB_ACK_TIMO_DEFAULT;
-     MIB5(mib_sifs)			= RAY_MIB_SIFS_DEFAULT;
-     MIB5(mib_difs)			= RAY_MIB_DIFS_DEFAULT;
-     MIB5(mib_pifs)			= RAY_MIB_PIFS_V5;
-PUT2(MIB5(mib_rts_thresh),		  RAY_MIB_RTS_THRESH_DEFAULT);
-PUT2(MIB5(mib_scan_dwell),		  RAY_MIB_SCAN_DWELL_V5);
-PUT2(MIB5(mib_scan_max_dwell),		  RAY_MIB_SCAN_MAX_DWELL_V5);
-     MIB5(mib_assoc_timo)		= RAY_MIB_ASSOC_TIMO_DEFAULT;
-     MIB5(mib_adhoc_scan_cycle)		= RAY_MIB_ADHOC_SCAN_CYCLE_DEFAULT;
-     MIB5(mib_infra_scan_cycle)		= RAY_MIB_INFRA_SCAN_CYCLE_DEFAULT;
-     MIB5(mib_infra_super_scan_cycle)	= RAY_MIB_INFRA_SUPER_SCAN_CYCLE_DEFAULT;
-     MIB5(mib_promisc)			= RAY_MIB_PROMISC_DEFAULT;
-PUT2(MIB5(mib_uniq_word),		  RAY_MIB_UNIQ_WORD_DEFAULT);
-     MIB5(mib_slot_time)		= RAY_MIB_SLOT_TIME_V5;
-     MIB5(mib_roam_low_snr_thresh)	= RAY_MIB_ROAM_LOW_SNR_THRESH_DEFAULT;
-     MIB5(mib_low_snr_count)		= RAY_MIB_LOW_SNR_COUNT_DEFAULT;
-     MIB5(mib_infra_missed_beacon_count)= RAY_MIB_INFRA_MISSED_BEACON_COUNT_DEFAULT;
-     MIB5(mib_adhoc_missed_beacon_count)= RAY_MIB_ADHOC_MISSED_BEACON_COUNT_DEFAULT;
-     MIB5(mib_country_code)		= RAY_MIB_COUNTRY_CODE_DEFAULT;
-     MIB5(mib_hop_seq)			= RAY_MIB_HOP_SEQ_DEFAULT;
-     MIB5(mib_hop_seq_len)		= RAY_MIB_HOP_SEQ_LEN_V5;
-PUT2(MIB5(mib_cw_max),			  RAY_MIB_CW_MAX_V5);
-PUT2(MIB5(mib_cw_min),			  RAY_MIB_CW_MIN_V5);
-     MIB5(mib_noise_filter_gain)	= RAY_MIB_NOISE_FILTER_GAIN_DEFAULT;
-     MIB5(mib_noise_limit_offset)	= RAY_MIB_NOISE_LIMIT_OFFSET_DEFAULT;
-     MIB5(mib_rssi_thresh_offset)	= RAY_MIB_RSSI_THRESH_OFFSET_DEFAULT;
-     MIB5(mib_busy_thresh_offset)	= RAY_MIB_BUSY_THRESH_OFFSET_DEFAULT;
-     MIB5(mib_sync_thresh)		= RAY_MIB_SYNC_THRESH_DEFAULT;
-     MIB5(mib_test_mode)		= RAY_MIB_TEST_MODE_DEFAULT;
-     MIB5(mib_test_min_chan)		= RAY_MIB_TEST_MIN_CHAN_DEFAULT;
-     MIB5(mib_test_max_chan)		= RAY_MIB_TEST_MAX_CHAN_DEFAULT;
-     MIB5(mib_allow_probe_resp)		= RAY_MIB_ALLOW_PROBE_RESP_DEFAULT;
-     MIB5(mib_privacy_must_start)	= sc->sc_d.np_priv_start;
-     MIB5(mib_privacy_can_join)		= sc->sc_d.np_priv_join;
-     MIB5(mib_basic_rate_set[0])	= sc->sc_d.np_def_txrate;
+	 /*
+	  * Firmware version 5 defaults - see if_raymib.h for details
+	  */
+	 MIB5(mib_net_type)			= sc->sc_d.np_net_type;
+	 MIB4(mib_ap_status)		= sc->sc_d.np_ap_status;
+	 bcopy(sc->sc_d.np_ssid, MIB5(mib_ssid), IEEE80211_NWID_LEN);
+	 MIB5(mib_scan_mode)		= RAY_MIB_SCAN_MODE_DEFAULT;
+	 MIB5(mib_apm_mode)			= RAY_MIB_APM_MODE_DEFAULT;
+	 bcopy(sc->sc_station_addr, MIB5(mib_mac_addr), ETHER_ADDR_LEN);
+    PUT2(MIB5(mib_frag_thresh), 		  RAY_MIB_FRAG_THRESH_DEFAULT);
+    PUT2(MIB5(mib_dwell_time),		  RAY_MIB_DWELL_TIME_V5);
+    PUT2(MIB5(mib_beacon_period),		  RAY_MIB_BEACON_PERIOD_V5);
+	 MIB5(mib_dtim_interval)		= RAY_MIB_DTIM_INTERVAL_DEFAULT;
+	 MIB5(mib_max_retry)		= RAY_MIB_MAX_RETRY_DEFAULT;
+	 MIB5(mib_ack_timo)			= RAY_MIB_ACK_TIMO_DEFAULT;
+	 MIB5(mib_sifs)			= RAY_MIB_SIFS_DEFAULT;
+	 MIB5(mib_difs)			= RAY_MIB_DIFS_DEFAULT;
+	 MIB5(mib_pifs)			= RAY_MIB_PIFS_V5;
+    PUT2(MIB5(mib_rts_thresh),		  RAY_MIB_RTS_THRESH_DEFAULT);
+    PUT2(MIB5(mib_scan_dwell),		  RAY_MIB_SCAN_DWELL_V5);
+    PUT2(MIB5(mib_scan_max_dwell),		  RAY_MIB_SCAN_MAX_DWELL_V5);
+	 MIB5(mib_assoc_timo)		= RAY_MIB_ASSOC_TIMO_DEFAULT;
+	 MIB5(mib_adhoc_scan_cycle)		= RAY_MIB_ADHOC_SCAN_CYCLE_DEFAULT;
+	 MIB5(mib_infra_scan_cycle)		= RAY_MIB_INFRA_SCAN_CYCLE_DEFAULT;
+	 MIB5(mib_infra_super_scan_cycle)	= RAY_MIB_INFRA_SUPER_SCAN_CYCLE_DEFAULT;
+	 MIB5(mib_promisc)			= RAY_MIB_PROMISC_DEFAULT;
+    PUT2(MIB5(mib_uniq_word),		  RAY_MIB_UNIQ_WORD_DEFAULT);
+	 MIB5(mib_slot_time)		= RAY_MIB_SLOT_TIME_V5;
+	 MIB5(mib_roam_low_snr_thresh)	= RAY_MIB_ROAM_LOW_SNR_THRESH_DEFAULT;
+	 MIB5(mib_low_snr_count)		= RAY_MIB_LOW_SNR_COUNT_DEFAULT;
+	 MIB5(mib_infra_missed_beacon_count)= RAY_MIB_INFRA_MISSED_BEACON_COUNT_DEFAULT;
+	 MIB5(mib_adhoc_missed_beacon_count)= RAY_MIB_ADHOC_MISSED_BEACON_COUNT_DEFAULT;
+	 MIB5(mib_country_code)		= RAY_MIB_COUNTRY_CODE_DEFAULT;
+	 MIB5(mib_hop_seq)			= RAY_MIB_HOP_SEQ_DEFAULT;
+	 MIB5(mib_hop_seq_len)		= RAY_MIB_HOP_SEQ_LEN_V5;
+    PUT2(MIB5(mib_cw_max),			  RAY_MIB_CW_MAX_V5);
+    PUT2(MIB5(mib_cw_min),			  RAY_MIB_CW_MIN_V5);
+	 MIB5(mib_noise_filter_gain)	= RAY_MIB_NOISE_FILTER_GAIN_DEFAULT;
+	 MIB5(mib_noise_limit_offset)	= RAY_MIB_NOISE_LIMIT_OFFSET_DEFAULT;
+	 MIB5(mib_rssi_thresh_offset)	= RAY_MIB_RSSI_THRESH_OFFSET_DEFAULT;
+	 MIB5(mib_busy_thresh_offset)	= RAY_MIB_BUSY_THRESH_OFFSET_DEFAULT;
+	 MIB5(mib_sync_thresh)		= RAY_MIB_SYNC_THRESH_DEFAULT;
+	 MIB5(mib_test_mode)		= RAY_MIB_TEST_MODE_DEFAULT;
+	 MIB5(mib_test_min_chan)		= RAY_MIB_TEST_MIN_CHAN_DEFAULT;
+	 MIB5(mib_test_max_chan)		= RAY_MIB_TEST_MAX_CHAN_DEFAULT;
+	 MIB5(mib_allow_probe_resp)		= RAY_MIB_ALLOW_PROBE_RESP_DEFAULT;
+	 MIB5(mib_privacy_must_start)	= sc->sc_d.np_priv_start;
+	 MIB5(mib_privacy_can_join)		= sc->sc_d.np_priv_join;
+	 MIB5(mib_basic_rate_set[0])	= sc->sc_d.np_def_txrate;
 
-    if (!RAY_ECF_READY(sc)) {
-    	printf("ray%d: ray_download_params something is already happening\n",
+	if (!RAY_ECF_READY(sc)) {
+	    printf("ray%d: ray_download_params device busy\n",
 		sc->unit);
-	ray_reset(sc);
-    }
+	    ray_reset(sc);
+	}
 
-    if (sc->sc_version == RAY_ECFS_BUILD_4)
-	ray_write_region(sc, RAY_HOST_TO_ECF_BASE,
-			 &ray_mib_4_default, sizeof(ray_mib_4_default));
-    else
-	ray_write_region(sc, RAY_HOST_TO_ECF_BASE,
-			 &ray_mib_5_default, sizeof(ray_mib_5_default));
+	if (sc->sc_version == RAY_ECFS_BUILD_4)
+		ray_write_region(sc, RAY_HOST_TO_ECF_BASE,
+		    &ray_mib_4_default, sizeof(ray_mib_4_default));
+	else
+		ray_write_region(sc, RAY_HOST_TO_ECF_BASE,
+		    &ray_mib_5_default, sizeof(ray_mib_5_default));
 
-    if (!ray_simple_cmd(sc, RAY_CMD_START_PARAMS, SCP_UPD_STARTUP))
-	printf("ray%d: ray_download_params can't issue command\n", sc->unit);
+	if (!ray_simple_cmd(sc, RAY_CMD_START_PARAMS, SCP_UPD_STARTUP))
+	    printf("ray%d: ray_download_params can't issue command\n",
+	        sc->unit);
 
-    RAY_DPRINTFN(15, ("ray%d: Download now awaiting completion\n", sc->unit));
+	RAY_DPRINTFN(15, ("ray%d: Download now awaiting completion\n",
+	    sc->unit));
 
-    return;
+	return;
 }
 
 /*
@@ -2994,24 +3083,23 @@ PUT2(MIB5(mib_cw_min),			  RAY_MIB_CW_MIN_V5);
  * ccs status and re-scheduled timeouts if needed.
  */
 static void
-ray_download_done (sc)
-    struct ray_softc	*sc;
+ray_download_done(struct ray_softc *sc)
 {
 
-    RAY_DPRINTFN(5, ("ray%d: ray_download_done\n", sc->unit));
-    RAY_MAP_CM(sc);
+	RAY_DPRINTFN(5, ("ray%d: ray_download_done\n", sc->unit));
+	RAY_MAP_CM(sc);
 
-    ray_cmd_done(sc, SCP_UPD_STARTUP);
+	ray_cmd_done(sc, SCP_UPD_STARTUP);
 
-    /* 
-     * Fake the current network parameter settings so start_join_net
-     * will not bother updating them to the card (we would need to
-     * zero these anyway, so we might as well copy).
-     */
-    sc->sc_c.np_net_type = sc->sc_d.np_net_type;
-    bcopy(sc->sc_d.np_ssid, sc->sc_c.np_ssid, IEEE80211_NWID_LEN);
-	
-    ray_start_join_net(sc);
+	/* 
+	 * Fake the current network parameter settings so start_join_net
+	 * will not bother updating them to the card (we would need to
+	 * zero these anyway, so we might as well copy).
+	 */
+	sc->sc_c.np_net_type = sc->sc_d.np_net_type;
+	bcopy(sc->sc_d.np_ssid, sc->sc_c.np_ssid, IEEE80211_NWID_LEN);
+	    
+	ray_start_join_net(sc);
 }
 
 /*
@@ -3092,27 +3180,29 @@ ray_start_join_net(struct ray_softc *sc)
  * to get interrupts back fine and I have version 4 firmware.
  */
 static void
-ray_start_join_timo (xsc)
-    void		*xsc;
+ray_start_join_timo(void *xsc)
 {
-    struct ray_softc	*sc = xsc;
+	struct ray_softc *sc = xsc;
 
-    RAY_DPRINTFN(5, ("ray%d: ray_start_join_timo\n", sc->unit));
-    RAY_MAP_CM(sc);
+	RAY_DPRINTFN(5, ("ray%d: ray_start_join_timo\n", sc->unit));
+	RAY_MAP_CM(sc);
 
-    panic("ray%d: ray-start_join_timo occured\n", sc->unit);
+	panic("ray%d: ray-start_join_timo occured\n", sc->unit);
 
-    return;
+	return;
 }
 #endif /* RAY_NEED_STARTJOIN_TIMO */
 
+/******************************************************************************
+ * XXX NOT KNF FROM HERE DOWN						      *
+ ******************************************************************************/
 /*
  * Complete start or join command.
  *
  * Part of ray_init, download, start_join control flow.
  */
 static void
-ray_start_join_done (sc, ccs, status)
+ray_start_join_done(sc, ccs, status)
     struct ray_softc	*sc;
     size_t		ccs;
     u_int8_t		status;
@@ -3390,7 +3480,7 @@ ray_user_update_params(struct ray_softc *sc, struct ray_param_req *pr)
 		return (0);
 
 	case RAY_MIB_SSID:
-		if (!bcmp(sc->sc_c.np_ssid, pr->r_data, IEEE80211_NWID_LEN))
+		if (bcmp(sc->sc_c.np_ssid, pr->r_data, IEEE80211_NWID_LEN) == 0)
 			return (0);
 		bcopy(pr->r_data, sc->sc_d.np_ssid, IEEE80211_NWID_LEN);
 		if (ifp->if_flags & IFF_RUNNING)
@@ -3579,7 +3669,7 @@ ray_user_report_stats(struct ray_softc *sc, struct ray_stats_req *sr)
 	sr->rxhcksum = sc->sc_rxhcksum;
 	sr->rxnoise = sc->sc_rxnoise;
 
-	return(0);
+	return (0);
 }
 /******************************************************************************
  * XXX NOT KNF FROM HERE DOWN
@@ -3608,7 +3698,7 @@ ray_user_report_stats(struct ray_softc *sc, struct ray_stats_req *sr)
  */
 #if (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP)
 static void
-ray_attr_getmap (struct ray_softc *sc)
+ray_attr_getmap(struct ray_softc *sc)
 {
     struct ucred	uc;
     struct pcred	pc;
@@ -3630,7 +3720,7 @@ ray_attr_getmap (struct ray_softc *sc)
 }
 
 static void
-ray_attr_cm (struct ray_softc *sc)
+ray_attr_cm(struct ray_softc *sc)
 {
     struct ucred uc;
     struct pcred pc;
@@ -3649,7 +3739,7 @@ ray_attr_cm (struct ray_softc *sc)
 #endif /* (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP) */
 
 static int
-ray_attr_write (struct ray_softc *sc, off_t offset, u_int8_t byte)
+ray_attr_write(struct ray_softc *sc, off_t offset, u_int8_t byte)
 {
   struct iovec iov;
   struct uio uios;
@@ -3676,7 +3766,7 @@ ray_attr_write (struct ray_softc *sc, off_t offset, u_int8_t byte)
 }
 
 static int
-ray_attr_read (struct ray_softc *sc, off_t offset, u_int8_t *buf, int size)
+ray_attr_read(struct ray_softc *sc, off_t offset, u_int8_t *buf, int size)
 {
   struct iovec iov;
   struct uio uios;
@@ -3703,7 +3793,7 @@ ray_attr_read (struct ray_softc *sc, off_t offset, u_int8_t *buf, int size)
 }
 
 static u_int8_t
-ray_read_reg (sc, reg)
+ray_read_reg(sc, reg)
     struct ray_softc	*sc;
     off_t		reg;
 {
@@ -3745,6 +3835,5 @@ ray_dump_mbuf(sc, m, s)
 	printf("%s\n", p);
 }
 #endif /* RAY_DEBUG > 50 */
-
 
 #endif /* NRAY */
