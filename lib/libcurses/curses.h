@@ -120,7 +120,7 @@ extern int	 My_term;		/* Use Def_term regardless. */
 extern char	*Def_term;		/* Default terminal type. */
 
 /* Termcap capabilities. */
-extern char     AM, BS, CA, DA, DB, EO, HC, IN, MI, MS, NC, NS, OS,
+extern char     AM, BS, CA, DA, EO, HC, IN, MI, MS, NC, NS, OS,
 		PC, UL, XB, XN, XT, XS, XX;
 extern char	*AL, *BC, *BT, *CD, *CE, *CL, *CM, *CR, *CS, *DC, *DL,
 		*DM, *DO, *ED, *EI, *K0, *K1, *K2, *K3, *K4, *K5, *K6,
