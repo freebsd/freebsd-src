@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.95 1999/07/06 20:40:22 phk Exp $
+ * $Id: devices.c,v 1.96 1999/07/09 04:30:06 wpaul Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -65,7 +65,9 @@ static struct _devname {
     { DEVICE_TYPE_CDROM,	"cd%dc",	"SCSI CDROM drive",	6, 2, 8, 4, 'b'				},
     { DEVICE_TYPE_CDROM,	"mcd%da",	"Mitsumi (old model) CDROM drive",	7, 0, 8, 4, 'b'		},
     { DEVICE_TYPE_CDROM,	"scd%da",	"Sony CDROM drive - CDU31/33A type",	16, 0, 8, 4, 'b'	},
+#ifdef notdef
     { DEVICE_TYPE_CDROM,	"matcd%da",	"Matsushita CDROM ('sound blaster' type)", 17, 0, 8, 4, 'b'	},
+#endif
     { DEVICE_TYPE_CDROM,	"acd%dc",	"ATAPI IDE CDROM",	19, 2, 8, 4, 'b'			},
     { DEVICE_TYPE_TAPE, 	"rsa%d",	"SCSI tape drive",	14, 0, 16, 4, 'c'			},
     { DEVICE_TYPE_TAPE, 	"rwt%d",	"Wangtek tape drive",	10, 0, 1, 4, 'c'			},
