@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.11 1998/09/22 02:09:56 jdp Exp $
+ *      $Id: rtld.c,v 1.12 1998/10/13 03:31:59 jdp Exp $
  */
 
 /*
@@ -1182,7 +1182,7 @@ dlopen(const char *name, int mode)
     if (name == NULL)
 	obj = obj_main;
     else {
-	char *path = find_library(name, NULL);
+	char *path = find_library(name, obj_main);
 	if (path != NULL)
 	    obj = load_object(path);
     }
