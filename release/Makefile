@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.480 1999/04/29 17:56:28 jdp Exp $
+#	$Id: Makefile,v 1.481 1999/05/02 17:43:45 max Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -52,7 +52,7 @@ DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
 #
-COMPAT_DISTS?=	compat1x compat20 compat21 compat3x
+COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x
 OTHER_DISTS?=	manpages catpages games proflibs dict info doc
 CRYPTO_DISTS?=	krb des
 BIN_DISTS?=	bin
