@@ -29,7 +29,7 @@
 #include "defs.h"
 #include "command.h"
 #include "log.h"
-#include "alias_cmd.h"
+#include "nat_cmd.h"
 #include "descriptor.h"
 #include "prompt.h"
 #include "timer.h"
