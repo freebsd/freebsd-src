@@ -137,7 +137,7 @@ Targ_Init(void)
  *-----------------------------------------------------------------------
  */
 GNode *
-Targ_NewGN(char *name)
+Targ_NewGN(const char *name)
 {
     GNode *gn;
 
@@ -183,7 +183,7 @@ Targ_NewGN(char *name)
  *-----------------------------------------------------------------------
  */
 GNode *
-Targ_FindNode(char *name, int flags)
+Targ_FindNode(const char *name, int flags)
 {
     GNode         *gn;	      /* node in that element */
     Hash_Entry	  *he;	      /* New or used hash entry for node */
