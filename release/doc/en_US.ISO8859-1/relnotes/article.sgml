@@ -986,7 +986,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       entries in &man.fstab.5; will work without changes.</para>
 
       <para>pseudofs, a pseudo-filesystem framework, has been added.
-      &man.linprocfs.5; has been modified to use pseudofs.</para>
+      &man.linprocfs.5; and &man.procfs.5; have been modified to use pseudofs.</para>
 
       <para>A simple hash-based lookup optimization for large directories
       called <literal>dirhash</literal> has been added.  Conditional on the
@@ -1783,6 +1783,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     filesystems containing <application>bzip2</application>-compressed
     files. &merged;</para>
 
+    <para><filename>libstand</filename> now has support for
+    overwriting the contents of a file on a UFS filesystem (it cannot
+    expand or truncate files because the filesystem may be dirty or
+    inconsistent).</para>
+
     <para>The default TCP port range used by
     <filename>libfetch</filename> for passive FTP retrievals has
     changed; this affects the behavior of &man.fetch.1;, which has
@@ -2151,6 +2156,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.sysinstall.8; now enables Soft Updates by default on
     all filesystems it creates, except for the root
     filesystem. &merged;</para>
+
+    <para>&man.sysinstall.8; has received updates for its
+    <quote>auto</quote> partitioning mode which provide more
+    reasonable defaults for the sizes of partitions that are created;
+    auto-sized partitions can now also recover the space that becomes
+    available when other partitions are deleted.</para>
 
     <para>&man.syslogd.8; can take a <option>-n</option> option to
     disable DNS queries for every request. &merged;</para>
