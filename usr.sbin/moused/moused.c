@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.11 1997/12/07 08:11:16 yokota Exp $";
+	"$Id: moused.c,v 1.12 1997/12/15 02:57:45 yokota Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -214,6 +214,8 @@ static symtab_t pnpprod[] = {
     { "KYEEZ00",	MOUSE_PROTO_MS,		MOUSE_MODEL_EASYSCROLL },  
     /* Genius NetMouse */
     { "KYE0003",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_NET },
+    /* Logitech MouseMan (new 4 button model) */
+    { "LGI800C",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_MOUSEMANPLUS },
     /* Logitech MouseMan+ */
     { "LGI8050",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_MOUSEMANPLUS },
     /* Logitech FirstMouse+ */
@@ -524,9 +526,17 @@ main(int argc, char *argv[])
 	    break;
 
 	case 't':
+	    if (strcmp(optarg, "auto") == 0) {
+		rodent.rtype = MOUSE_PROTO_UNKNOWN;
+		rodent.flags &= ~NoPnP;
+		rodent.level = -1;
+		break;
+	    }
 	    for (i = 0; rnames[i]; i++)
-		if (!strcmp(optarg,rnames[i])) {
+		if (strcmp(optarg, rnames[i]) == 0) {
 		    rodent.rtype = i;
+		    rodent.flags |= NoPnP;
+		    rodent.level = (i == MOUSE_PROTO_SYSMOUSE) ? 1 : 0;
 		    break;
 		}
 	    if (rnames[i])
