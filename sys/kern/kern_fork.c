@@ -258,8 +258,8 @@ fork1(td, flags, pages, procp)
 		 */
 		if (flags & RFCFDG) {
 			struct filedesc *fdtmp;
-			fdtmp = fdinit(td);	/* XXXKSE */
-			fdfree(td);		/* XXXKSE */
+			fdtmp = fdinit(td->td_proc->p_fd);
+			fdfree(td);
 			p1->p_fd = fdtmp;
 		}
 
@@ -445,13 +445,13 @@ again:
 	 * arguments or something.
 	 */
 	if (flags & RFCFDG)
-		fd = fdinit(td);
+		fd = fdinit(td->td_proc->p_fd);
 	else if (flags & RFFDG) {
 		FILEDESC_LOCK(p1->p_fd);
 		fd = fdcopy(td);
 		FILEDESC_UNLOCK(p1->p_fd);
 	} else
-		fd = fdshare(p1);
+		fd = fdshare(p1->p_fd);
 
 	/*
 	 * Make a proc table entry for the new process.
