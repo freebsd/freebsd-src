@@ -518,14 +518,12 @@ strptime(const char * __restrict buf, const char * __restrict fmt,
     struct tm * __restrict tm)
 {
 	char *ret;
-	time_t t;
 	int gmt;
 
 	gmt = 0;
-	memset((void*)tm, 0, sizeof(struct tm));
 	ret = _strptime(buf, fmt, tm, &gmt);
-	if (ret) {
-		t = gmt ? timegm(tm) : mktime(tm);
+	if (ret && gmt) {
+		time_t t = timegm(tm);
 		localtime_r(&t, tm);
 	}
 
