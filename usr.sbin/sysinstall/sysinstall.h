@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.85 1996/11/07 08:03:28 jkh Exp $
+ * $Id: sysinstall.h,v 1.86 1996/11/09 16:47:08 joerg Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -338,6 +338,7 @@ extern DMenu		MenuXF86;		/* XFree86 main menu				*/
 extern DMenu		MenuXF86Select;		/* XFree86 distribution selection menu		*/
 extern DMenu		MenuXF86SelectCore;	/* XFree86 core distribution menu		*/
 extern DMenu		MenuXF86SelectServer;	/* XFree86 server distribution menu		*/
+extern DMenu		MenuXF86SelectPC98Server; /* XFree86 server distribution menu		*/
 extern DMenu		MenuXF86SelectFonts;	/* XFree86 font selection menu			*/
 extern DMenu		MenuDiskDevices;	/* Disk devices menu				*/
 extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
@@ -381,8 +382,10 @@ extern int	configRouter(dialogMenuItem *self);
 extern int	configSamba(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
 extern int	configNFSServer(dialogMenuItem *self);
-extern int	configNovell(dialogMenuItem *self);
 extern int	configWriteSysconfig(dialogMenuItem *self);
+#ifdef NETCON_EXTENTIONS
+extern int	configNovell(dialogMenuItem *self);
+#endif
 
 /* crc.c */
 extern int	crc(int, unsigned long *, unsigned long *);
