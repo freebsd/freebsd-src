@@ -21,7 +21,6 @@ sed	\
 	-e '/UFS_ACL/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/WITNESS/d' \
-	-e '/	agp	/d' \
 	-e '/	atapist	/d' \
 	-e '/	faith	/d' \
 	-e '/	gif	/d' \
@@ -34,8 +33,6 @@ sed	\
 	-e '/	random	/d' \
 	-e '/	ses	/d' \
 	-e '/	splash	/d' \
-	-e '/	tun	/d' \
-	-e '/	txp	/d' \
 	-e '/	ugen	/d' \
 	-e '/	uhid	/d' \
 	-e '/	ulpt	/d' \
