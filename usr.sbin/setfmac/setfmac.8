@@ -15,9 +15,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. The names of the authors may not be used to endorse or promote
-.\"    products derived from this software without specific prior written
-.\"    permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -35,18 +32,86 @@
 .Dd June 27, 2002
 .Dt SETFMAC 8
 .Sh NAME
-.Nm setfmac
+.Nm setfmac ,
+.Nm setfsmac
 .Nd set MAC label for a file system object
 .Sh SYNOPSIS
-.Nm
+.Nm setfmac
+.Op Fl hR
 .Ar label
-.Ar
+.Op Ar file ...
+.Nm setfsmac
+.Op Fl ehvx
+.Op Fl f Ar specfile
+.Op Fl s Ar specfile
+.Ar path
+.Op Ar file ...
 .Sh DESCRIPTION
 The
-.Nm
-utility associates the specified MAC label to the specified files.
+.Nm setfmac
+utility assigns the specified MAC label to the specified files.
+The following options are available:
+.Bl -tag -width indent
+.It Fl R
+Set the labels on the file hierarchies rooted in the files instead of
+just the files themselves.
+.It Fl h
+If the file is a symbolic link, change the label of the link rather
+than the file that the link points to.
+.El
+.Pp
+The
+.Nm setfsmac
+utility accepts a list of specification files as input and sets the MAC
+labels on the specified file system hierarchies.
+Path names specified will be visited in order as given on the command line,
+and each tree will be traversed in pre-order.
+(Generally, it will not be very useful to use relative, instead of absolute,
+paths.)
+The labels that match a file will be combined and set in a single
+transaction.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl e
+Treat any filesystems encountered which do not support MAC labelling as
+errors, instead of warning and skipping past them.
+.It Fl f Ar specfile
+Add the specifications in
+.Ar specfile
+as a set of which at most one will be applied to each file traversed per
+.Fl f Ar specfile
+given.
+.It Fl h
+If the file is a symbolic link, change the label of the link rather
+than the file that the link points to.
+.It Fl s Ar specfile
+Add the specification in
+.Ar specfile ,
+but assume that the specification format is that used in the port
+of SELinux to FreeBSD as SEBSD.
+At most one of the specifications will be applied to each file traversed per
+.Fl f Ar specfile
+given.
+The prefix
+.Dq sebsd/
+will automatically be prepended to the labels in this file, and labels
+matching
+.Dq <<none>>
+will be explicitly not relabeled.
+This permits SEBSD to re-use existing SELinux policy specification files
+unmodified.
+.It Fl v
+Increase the degree of verbosity.
+When given, information detailing the labelling operation is printed while
+in progress.
+.It Fl x
+Do not cross recurse into new filesystems when traversing them.
+.El
 .Sh SEE ALSO
 .Xr mac 3 ,
 .Xr mac_set_file 3 ,
+.Xr mac_set_link 3 ,
+.Xr re_format 7 ,
 .Xr getfmac 8 ,
 .Xr mac 9
