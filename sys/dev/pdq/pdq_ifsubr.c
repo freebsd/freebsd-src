@@ -227,8 +227,8 @@ pdq_os_addr_fill(
     pdq_softc_t *sc = (pdq_softc_t *) pdq->pdq_os_ctx;
     struct ifmultiaddr *ifma;
 
-    for (ifma = sc->sc_if.if_multiaddrs.lh_first; ifma && num_addrs > 0;
-	 ifma = ifma->ifma_link.le_next) {
+    for (ifma = LIST_FIRST(&sc->sc_if.if_multiaddrs); ifma && num_addrs > 0;
+	 ifma = LIST_NEXT(ifma, ifma_link)) {
 	    char *mcaddr;
 	    if (ifma->ifma_addr->sa_family != AF_LINK)
 		    continue;

@@ -4200,9 +4200,9 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 #elif defined(__NetBSD__) || defined (__OpenBSD__)
-	for (ifa = ifp->if_addrlist.tqh_first;
+	for (ifa = TAILQ_FIRST(&ifp->if_addrlist);
 	     ifa;
-	     ifa = ifa->ifa_list.tqe_next)
+	     ifa = TAILQ_NEXT(ifa, ifa_list))
 #else
 	for (ifa = ifp->if_addrlist;
 	     ifa;
@@ -4249,9 +4249,9 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 #elif defined(__NetBSD__) || defined (__OpenBSD__)
-	for (ifa = ifp->if_addrlist.tqh_first;
+	for (ifa = TAILQ_FIRST(&ifp->if_addrlist);
 	     ifa;
-	     ifa = ifa->ifa_list.tqe_next)
+	     ifa = TAILQ_NEXT(ifa, ifa_list))
 #else
 	for (ifa = ifp->if_addrlist;
 	     ifa;

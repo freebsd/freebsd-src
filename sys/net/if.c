@@ -110,7 +110,7 @@ ifinit(dummy)
 	int s;
 
 	s = splimp();
-	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link)) {
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (ifp->if_snd.ifq_maxlen == 0) {
 			printf("%s%d XXX: driver didn't set ifq_maxlen\n",
 			    ifp->if_name, ifp->if_unit);
@@ -357,7 +357,7 @@ ifa_ifwithaddr(addr)
 
 #define	equal(a1, a2) \
   (bcmp((caddr_t)(a1), (caddr_t)(a2), ((struct sockaddr *)(a1))->sa_len) == 0)
-	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link))
+	TAILQ_FOREACH(ifp, &ifnet, if_link)
 	    for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
 		 ifa = TAILQ_NEXT(ifa, ifa_link)) {
 		if (ifa->ifa_addr->sa_family != addr->sa_family)
@@ -383,7 +383,7 @@ ifa_ifwithdstaddr(addr)
 	register struct ifnet *ifp;
 	register struct ifaddr *ifa;
 
-	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link))
+	TAILQ_FOREACH(ifp, &ifnet, if_link)
 	    if (ifp->if_flags & IFF_POINTOPOINT)
 		for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
 		     ifa = TAILQ_NEXT(ifa, ifa_link)) {
@@ -423,7 +423,7 @@ ifa_ifwithnet(addr)
 	 * Scan though each interface, looking for ones that have
 	 * addresses in this address family.
 	 */
-	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link)) {
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
 		     ifa = TAILQ_NEXT(ifa, ifa_link)) {
 			register char *cp, *cp2, *cp3;
@@ -671,7 +671,7 @@ if_slowtimo(arg)
 	register struct ifnet *ifp;
 	int s = splimp();
 
-	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link)) {
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (ifp->if_timer == 0 || --ifp->if_timer)
 			continue;
 		if (ifp->if_watchdog)
@@ -719,7 +719,7 @@ ifunit(char *name)
 	/*
 	 * Now search all the interfaces for this name/number
 	 */
-	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link)) {
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (strcmp(ifp->if_name, namebuf))
 			continue;
 		if (unit == ifp->if_unit)

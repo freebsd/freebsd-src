@@ -1200,7 +1200,7 @@ bmsafemap_lookup(bp)
 	if (lk.lkt_held == -1)
 		panic("bmsafemap_lookup: lock not held");
 #endif
-	for (wk = LIST_FIRST(&bp->b_dep); wk; wk = LIST_NEXT(wk, wk_list))
+	LIST_FOREACH(wk, &bp->b_dep, wk_list)
 		if (wk->wk_type == D_BMSAFEMAP)
 			return (WK_BMSAFEMAP(wk));
 	FREE_LOCK(&lk);
@@ -4665,7 +4665,7 @@ softdep_count_dependencies(bp, wantcount)
 
 	retval = 0;
 	ACQUIRE_LOCK(&lk);
-	for (wk = LIST_FIRST(&bp->b_dep); wk; wk = LIST_NEXT(wk, wk_list)) {
+	LIST_FOREACH(wk, &bp->b_dep, wk_list) {
 		switch (wk->wk_type) {
 
 		case D_INODEDEP:

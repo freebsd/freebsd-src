@@ -455,12 +455,12 @@ ffs_reload(mp, cred, p)
 
 loop:
 	mtx_enter(&mntvnode_mtx, MTX_DEF);
-	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
+	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nvp) {
 		if (vp->v_mount != mp) {
 			mtx_exit(&mntvnode_mtx, MTX_DEF);
 			goto loop;
 		}
-		nvp = vp->v_mntvnodes.le_next;
+		nvp = LIST_NEXT(vp, v_mntvnodes);
 		/*
 		 * Step 4: invalidate all inactive vnodes.
 		 */
@@ -939,7 +939,7 @@ ffs_sync(mp, waitfor, cred, p)
 	}
 	mtx_enter(&mntvnode_mtx, MTX_DEF);
 loop:
-	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
+	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nvp) {
 		/*
 		 * If the vnode that we are about to sync is no longer
 		 * associated with this mount point, start over.
@@ -947,7 +947,7 @@ loop:
 		if (vp->v_mount != mp)
 			goto loop;
 		mtx_enter(&vp->v_interlock, MTX_DEF);
-		nvp = vp->v_mntvnodes.le_next;
+		nvp = LIST_NEXT(vp, v_mntvnodes);
 		ip = VTOI(vp);
 		if (vp->v_type == VNON || ((ip->i_flag &
 		     (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&

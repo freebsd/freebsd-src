@@ -3286,8 +3286,8 @@ ds_getmcaf(sc, mcaf)
 	mcaf[0] = 0;
 	mcaf[1] = 0;
 
-	for (ifma = sc->arpcom.ac_if.if_multiaddrs.lh_first; ifma;
-	     ifma = ifma->ifma_link.le_next) {
+	for (ifma = LIST_FIRST(&sc->arpcom.ac_if.if_multiaddrs); ifma;
+	     ifma = LIST_NEXT(ifma, ifma_link)) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		index = ds_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr))

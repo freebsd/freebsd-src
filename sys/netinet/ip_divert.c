@@ -174,8 +174,7 @@ divert_packet(struct mbuf *m, int incoming, int port)
 		KASSERT((m->m_flags & M_PKTHDR), ("%s: !PKTHDR", __FUNCTION__));
 
 		/* Find IP address for receive interface */
-		for (ifa = m->m_pkthdr.rcvif->if_addrhead.tqh_first;
-		    ifa != NULL; ifa = ifa->ifa_link.tqe_next) {
+		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr == NULL)
 				continue;
 			if (ifa->ifa_addr->sa_family != AF_INET)
@@ -216,7 +215,7 @@ divert_packet(struct mbuf *m, int incoming, int port)
 	/* Put packet on socket queue, if any */
 	sa = NULL;
 	nport = htons((u_int16_t)port);
-	for (inp = divcb.lh_first; inp != NULL; inp = inp->inp_list.le_next) {
+	LIST_FOREACH(inp, &divcb, inp_list) {
 		if (inp->inp_lport == nport)
 			sa = inp->inp_socket;
 	}
@@ -491,8 +490,8 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 		return ENOMEM;
 	
 	s = splnet();
-	for (inp = divcbinfo.listhead->lh_first, i = 0; inp && i < n;
-	     inp = inp->inp_list.le_next) {
+	for (inp = LIST_FIRST(divcbinfo.listhead), i = 0; inp && i < n;
+	     inp = LIST_NEXT(inp, inp_list)) {
 		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(req->p, inp))
 			inp_list[i++] = inp;
 	}

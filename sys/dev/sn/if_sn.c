@@ -1461,8 +1461,8 @@ sn_getmcf(struct arpcom *ac, u_char *mcf)
 
 	bzero(mcf, MCFSZ);
 
-	for (ifma = ac->ac_if.if_multiaddrs.lh_first; ifma;
-	     ifma = ifma->ifma_link.le_next) {
+	for (ifma = LIST_FIRST(&ac->ac_if.if_multiaddrs); ifma;
+	     ifma = LIST_NEXT(ifma, ifma_link)) {
 	    if (ifma->ifma_addr->sa_family != AF_LINK)
 		return 0;
 	    index = smc_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr)) & 0x3f;

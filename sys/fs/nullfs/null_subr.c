@@ -121,7 +121,7 @@ null_node_find(mp, lowervp)
 	hd = NULL_NHASH(lowervp);
 loop:
 	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, p);
-	for (a = hd->lh_first; a != 0; a = a->null_hash.le_next) {
+	LIST_FOREACH(a, hd, null_hash) {
 		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
 			vp = NULLTOV(a);
 			lockmgr(&null_hashlock, LK_RELEASE, NULL, p);

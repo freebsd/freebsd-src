@@ -321,7 +321,7 @@ linker_load_file(const char* filename, linker_file_t* result)
 
     lf = NULL;
     foundfile = 0;
-    for (lc = TAILQ_FIRST(&classes); lc; lc = TAILQ_NEXT(lc, link)) {
+    TAILQ_FOREACH(lc, &classes, link) {
 	KLD_DPF(FILE, ("linker_load_file: trying to load %s as %s\n",
 		       filename, lc->desc));
 	error = LINKER_LOAD_FILE(lc, filename, &lf);
@@ -367,7 +367,7 @@ linker_find_file_by_name(const char* filename)
     sprintf(koname, "%s.ko", filename);
 
     lockmgr(&lock, LK_SHARED, 0, curproc);
-    for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
+    TAILQ_FOREACH(lf, &linker_files, link) {
 	if (!strcmp(lf->filename, koname))
 	    break;
 	if (!strcmp(lf->filename, filename))
@@ -387,7 +387,7 @@ linker_find_file_by_id(int fileid)
     linker_file_t lf = 0;
 
     lockmgr(&lock, LK_SHARED, 0, curproc);
-    for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link))
+    TAILQ_FOREACH(lf, &linker_files, link)
 	if (lf->id == fileid)
 	    break;
     lockmgr(&lock, LK_RELEASE, 0, curproc);
@@ -623,7 +623,7 @@ linker_ddb_lookup(const char *symstr, c_linker_sym_t *sym)
 {
     linker_file_t lf;
 
-    for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
+    TAILQ_FOREACH(lf, &linker_files, link) {
 	if (LINKER_LOOKUP_SYMBOL(lf, symstr, sym) == 0)
 	    return 0;
     }
@@ -641,7 +641,7 @@ linker_ddb_search_symbol(caddr_t value, c_linker_sym_t *sym, long *diffp)
 
     best = 0;
     bestdiff = off;
-    for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
+    TAILQ_FOREACH(lf, &linker_files, link) {
 	if (LINKER_SEARCH_SYMBOL(lf, value, &es, &diff) != 0)
 	    continue;
 	if (es != 0 && diff < bestdiff) {
@@ -667,7 +667,7 @@ linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
 {
     linker_file_t lf;
 
-    for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
+    TAILQ_FOREACH(lf, &linker_files, link) {
 	if (LINKER_SYMBOL_VALUES(lf, sym, symval) == 0)
 	    return 0;
     }
@@ -912,7 +912,7 @@ kldsym(struct proc *p, struct kldsym_args *uap)
 	} else
 	    error = ENOENT;
     } else {
-	for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
+	TAILQ_FOREACH(lf, &linker_files, link) {
 	    if (LINKER_LOOKUP_SYMBOL(lf, symstr, &sym) == 0 &&
 		LINKER_SYMBOL_VALUES(lf, sym, &symval) == 0) {
 		lookup.symvalue = (uintptr_t)symval.value;
@@ -939,7 +939,7 @@ modlist_lookup(const char *name)
 {
     modlist_t mod;
 
-    for (mod = TAILQ_FIRST(&found_modules); mod; mod = TAILQ_NEXT(mod, link)) {
+    TAILQ_FOREACH(mod, &found_modules, link) {
 	if (!strcmp(mod->name, name))
 	    return mod;
     }
@@ -992,7 +992,7 @@ linker_preload(void* arg)
 	}
 	printf("Preloaded %s \"%s\" at %p.\n", modtype, modname, modptr);
 	lf = NULL;
-	for (lc = TAILQ_FIRST(&classes); lc; lc = TAILQ_NEXT(lc, link)) {
+	TAILQ_FOREACH(lc, &classes, link) {
 	    error = LINKER_LINK_PRELOAD(lc, modname, &lf);
 	    if (error) {
 		lf = NULL;
@@ -1033,7 +1033,7 @@ linker_preload(void* arg)
      * resolve relocation dependency requirements
      */
 restart:
-    for (lf = TAILQ_FIRST(&loaded_files); lf; lf = TAILQ_NEXT(lf, loaded)) {
+    TAILQ_FOREACH(lf, &loaded_files, loaded) {
 	deps = (struct linker_set*)
 	    linker_file_lookup_symbol(lf, MDT_SETNAME, 0);
 	/*
@@ -1102,7 +1102,7 @@ restart:
     /*
      * At this point, we check to see what could not be resolved..
      */
-    for (lf = TAILQ_FIRST(&loaded_files); lf; lf = TAILQ_NEXT(lf, loaded)) {
+    TAILQ_FOREACH(lf, &loaded_files, loaded) {
 	printf("KLD file %s is missing dependencies\n", lf->filename);
 	linker_file_unload(lf);
 	TAILQ_REMOVE(&loaded_files, lf, loaded);
@@ -1111,7 +1111,7 @@ restart:
     /*
      * We made it. Finish off the linking in the order we determined.
      */
-    for (lf = TAILQ_FIRST(&depended_files); lf; lf = TAILQ_NEXT(lf, loaded)) {
+    TAILQ_FOREACH(lf, &depended_files, loaded) {
 	if (linker_kernel_file) {
 	    linker_kernel_file->refs++;
 	    error = linker_file_add_dependancy(lf, linker_kernel_file);

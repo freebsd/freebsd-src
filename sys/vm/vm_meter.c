@@ -79,7 +79,7 @@ loadav(struct loadavg *avg)
 	register struct proc *p;
 
 	ALLPROC_LOCK(AP_SHARED);
-	for (nrun = 0, p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+	for (nrun = 0, p = LIST_FIRST(&allproc); p != 0; p = LIST_NEXT(p, p_list)) {
 		switch (p->p_stat) {
 		case SSLEEP:
 			if (p->p_priority > PZERO || p->p_slptime != 0)

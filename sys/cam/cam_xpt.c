@@ -1213,9 +1213,9 @@ ptstartover:
 
 			base_periph_found = 1;
 			device = periph->path->device;
-			for (i = 0, periph = device->periphs.slh_first;
+			for (i = 0, periph = SLIST_FIRST(&device->periphs);
 			     periph != NULL;
-			     periph = periph->periph_links.sle_next, i++) {
+			     periph = SLIST_NEXT(periph, periph_links), i++) {
 				/*
 				 * Check to see whether we have a
 				 * passthrough device or not. 
@@ -1228,7 +1228,7 @@ ptstartover:
 					       periph->periph_name);
 					ccb->cgdl.unit_number =
 						periph->unit_number;
-					if (periph->periph_links.sle_next)
+					if (SLIST_NEXT(periph, periph_links))
 						ccb->cgdl.status =
 							CAM_GDEVLIST_MORE_DEVS;
 					else
@@ -3063,9 +3063,9 @@ xpt_action(union ccb *start_ccb)
 		 * Traverse the list of peripherals and attempt to find 
 		 * the requested peripheral.
 		 */
-		for (nperiph = periph_head->slh_first, i = 0;
+		for (nperiph = SLIST_FIRST(periph_head), i = 0;
 		     (nperiph != NULL) && (i <= cgdl->index);
-		     nperiph = nperiph->periph_links.sle_next, i++) {
+		     nperiph = SLIST_NEXT(nperiph, periph_links), i++) {
 			if (i == cgdl->index) {
 				strncpy(cgdl->periph_name,
 					nperiph->periph_name,
@@ -4611,7 +4611,7 @@ xpt_get_ccb(struct cam_ed *device)
 	int s;
 
 	s = splsoftcam();
-	if ((new_ccb = (union ccb *)ccb_freeq.slh_first) == NULL) {
+	if ((new_ccb = (union ccb *)SLIST_FIRST(&ccb_freeq)) == NULL) {
 		new_ccb = malloc(sizeof(*new_ccb), M_DEVBUF, M_NOWAIT);
                 if (new_ccb == NULL) {
 			splx(s);

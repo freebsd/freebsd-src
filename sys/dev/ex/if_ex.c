@@ -282,7 +282,7 @@ ex_init(void *xsc)
 
 	DODEBUG(Start_End, printf("ex_init%d: start\n", ifp->if_unit););
 
-	if (ifp->if_addrhead.tqh_first == NULL) {
+	if (TAILQ_FIRST(&ifp->if_addrhead) == NULL) {
 		return;
 	}
 	s = splimp();

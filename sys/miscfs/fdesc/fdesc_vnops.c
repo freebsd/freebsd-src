@@ -106,7 +106,7 @@ fdesc_allocvp(ftype, ix, mp, vpp, p)
 
 	fc = FD_NHASH(ix);
 loop:
-	for (fd = fc->lh_first; fd != 0; fd = fd->fd_hash.le_next) {
+	LIST_FOREACH(fd, fc, fd_hash) {
 		if (fd->fd_ix == ix && fd->fd_vnode->v_mount == mp) {
 			if (vget(fd->fd_vnode, 0, p))
 				goto loop;

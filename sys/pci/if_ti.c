@@ -1073,8 +1073,8 @@ static void ti_setmulti(sc)
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, 1);
 
 	/* First, zot all the existing filters. */
-	while (sc->ti_mc_listhead.slh_first != NULL) {
-		mc = sc->ti_mc_listhead.slh_first;
+	while (SLIST_FIRST(&sc->ti_mc_listhead) != NULL) {
+		mc = SLIST_FIRST(&sc->ti_mc_listhead);
 		ti_del_mcast(sc, &mc->mc_addr);
 		SLIST_REMOVE_HEAD(&sc->ti_mc_listhead, mc_entries);
 		free(mc, M_DEVBUF);

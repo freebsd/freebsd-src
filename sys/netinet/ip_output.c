@@ -314,8 +314,8 @@ ip_output(m0, opt, ro, flags, imo)
 		if (ip->ip_src.s_addr == INADDR_ANY) {
 			register struct in_ifaddr *ia1;
 
-			for (ia1 = in_ifaddrhead.tqh_first; ia1;
-			     ia1 = ia1->ia_link.tqe_next)
+			for (ia1 = TAILQ_FIRST(&in_ifaddrhead); ia1;
+			     ia1 = TAILQ_NEXT(ia1, ia_link))
 				if (ia1->ia_ifp == ifp) {
 					ip->ip_src = IA_SIN(ia1)->sin_addr;
 					break;
@@ -441,7 +441,7 @@ sendit:
 	 */
 	m1 = m;
 	pfh = pfil_hook_get(PFIL_OUT, &inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
-	for (; pfh; pfh = pfh->pfil_link.tqe_next)
+	for (; pfh; pfh = TAILQ_NEXT(pfh, pfil_link))
 		if (pfh->pfil_func) {
 			rv = pfh->pfil_func(ip, hlen, ifp, 1, &m1);
 			if (rv) {

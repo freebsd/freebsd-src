@@ -150,7 +150,7 @@ pfil_list_remove(list, func)
 {
 	struct packet_filter_hook *pfh;
 
-	for (pfh = list->tqh_first; pfh; pfh = TAILQ_NEXT(pfh, pfil_link))
+	TAILQ_FOREACH(pfh, list, pfil_link)
 		if (pfh->pfil_func == func) {
 			TAILQ_REMOVE(list, pfh, pfil_link);
 			free(pfh, M_IFADDR);

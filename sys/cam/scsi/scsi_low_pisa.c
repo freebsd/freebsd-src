@@ -146,7 +146,7 @@ scsi_low_activate(dh)
 	/* rescan the scsi bus */
 #ifdef	SCSIBUS_RESCAN
 	if (PISA_RES_EVENT(dh) == PISA_EVENT_INSERT &&
-	    sc->sl_start.tqh_first == NULL)
+	    TAILQ_FIRST(&sc->sl_start) == NULL)
 		scsi_probe_busses((int) sc->sl_link.scsipi_scsi.scsibus, -1, -1);
 #endif
 	return 0;
@@ -163,7 +163,7 @@ scsi_low_notify(dh, ev)
 	switch(ev)
 	{
 	case PISA_EVENT_QUERY_SUSPEND:
-		if (sc->sl_start.tqh_first != NULL)
+		if (TAILQ_FIRST(&sc->sl_start) != NULL)
 			return SD_EVENT_STATUS_BUSY;
 		break;
 
