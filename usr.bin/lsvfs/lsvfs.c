@@ -3,7 +3,7 @@
  * Garrett A. Wollman, September 1994
  * This file is in the public domain.
  *
- * $Id$
+ * $Id: lsvfs.c,v 1.3 1995/03/16 18:37:47 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -55,6 +55,39 @@ main(int argc, char **argv)
 static const char *
 fmt_flags(int flags)
 {
-  return (flags & VFCF_STATIC) ? "static" : "";
+  /*
+   * NB: if you add new flags, don't forget to add them here vvvvvv too.
+   */
+  static char buf[sizeof "static, network, read-only, synthetic, loopback"];
+  int comma = 0;
+
+  buf[0] = '\0';
+
+  if(flags & VFCF_STATIC) {
+    if(comma++) strcat(buf, ", ");
+    strcat(buf, "static");
+  }
+
+  if(flags & VFCF_NETWORK) {
+    if(comma++) strcat(buf, ", ");
+    strcat(buf, "network");
+  }
+
+  if(flags & VFCF_READONLY) {
+    if(comma++) strcat(buf, ", ");
+    strcat(buf, "read-only");
+  }
+
+  if(flags & VFCF_SYNTHETIC) {
+    if(comma++) strcat(buf, ", ");
+    strcat(buf, "synthetic");
+  }
+
+  if(flags & VFCF_LOOPBACK) {
+    if(comma++) strcat(buf, ", ");
+    strcat(buf, "loopback");
+  }
+
+  return buf;
 }
 
