@@ -148,6 +148,7 @@ struct vm_object {
 #define OBJ_MIGHTBEDIRTY 0x0100		/* object might be dirty */
 #define OBJ_CLEANING	0x0200
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
+#define	OBJ_DISCONNECTWNT 0x4000	/* disconnect from vnode wanted */
 
 #define IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
 #define OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
