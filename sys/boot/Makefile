@@ -5,6 +5,11 @@
 SUBDIR+=		ficl
 .endif
 
+# Build EFI library.
+.if ${MACHINE_ARCH} == "ia64"
+SUBDIR+=		efi
+.endif
+
 # Build Open Firmware library.
 .if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "sparc64"
 SUBDIR+=		ofw
@@ -18,10 +23,5 @@ SUBDIR+=		${MACHINE:S/amd64/i386/}
 #.if ${MACHINE_ARCH} == "alpha"
 #SUBDIR+=		arc
 #.endif
-
-# Build EFI executable on ia64.
-.if ${MACHINE_ARCH} == "ia64"
-SUBDIR+=		efi
-.endif
 
 .include <bsd.subdir.mk>
