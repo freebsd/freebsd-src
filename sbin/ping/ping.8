@@ -46,6 +46,7 @@ packets to network hosts
 .Op Fl c Ar count
 .Op Fl i Ar wait
 .Op Fl l Ar preload
+.Op Fl m Ar ttl
 .Op Fl p Ar pattern
 .Op Fl P Ar policy
 .Op Fl s Ar packetsize
@@ -136,6 +137,11 @@ is specified,
 sends that many packets as fast as possible before falling into its normal
 mode of behavior.
 Only the super-user may use this option.
+.It Fl m Ar ttl
+Set the IP Time To Live for outgoing packets.
+If not specified, the kernel uses the value of the
+.Va net.inet.ip.ttl
+MIB variable.
 .It Fl L
 Suppress loopback of multicast packets.
 This flag only applies if the ping destination is a multicast address.
