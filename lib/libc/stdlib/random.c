@@ -282,7 +282,7 @@ srandom(x)
  *
  * Many programs choose the seed value in a totally predictable manner.
  * This often causes problems.  We seed the generator using the much more
- * secure urandom(4) interface.  Note that this particular seeding
+ * secure random(4) interface.  Note that this particular seeding
  * procedure can generate states which are impossible to reproduce by
  * calling srandom() with any value, since the succeeding terms in the
  * state buffer are no longer derived from the LC algorithm applied to
