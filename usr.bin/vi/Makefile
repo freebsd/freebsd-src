@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3.2.2 1996/11/06 22:46:26 joerg Exp $
+# $Id: Makefile,v 1.3.2.3 1996/11/12 09:11:06 phk Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -174,6 +174,7 @@ afterinstall:
 	for l in ${SVLINKS}; do \
 		ln -fs swedish ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-1; \
 	done
+	ln -fs ru_SU.KOI8-R ${DESTDIR}/usr/share/vi/catalog/ru_RU.KOI8-R
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${SRCDIR}/tcl_scripts/*.tcl \
 		${DESTDIR}/usr/share/vi/tcl

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.9 1996/11/15 22:18:44 jkh Exp $
+#	$Id: Makefile,v 1.246.2.10 1996/11/16 22:45:51 joerg Exp $
 #
 # How to roll a release:
 #
@@ -10,11 +10,14 @@
 # I also need to "make ports" and install those, but I'm not going to do
 # that on a 14.4 line just yet...
 #
+# please note: the vn driver has to be compiled into your kernel,
+# otherwise the target 'release.8' and possibly others will fail.
+#
 # SET THIS !!!
 BUILDNAME=2.2-POST-ALPHA
 #CHROOTDIR=/junk/release
 # If this is a RELEASE, then set
-RELEASETAG=RELENG_2_1_2
+RELEASETAG=RELENG_2_2
 
 # Things which without too much trouble can be considered variables
 

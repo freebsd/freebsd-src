@@ -7,7 +7,7 @@
 /*
  * Written by Julian Elischer (julian@DIALIX.oz.au)
  *
- * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.9 1996/01/30 22:57:01 mpp Exp $
+ * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.11 1996/11/21 07:19:00 julian Exp $
  */
 
 /* first a couple of defines for compatibility with inodes */
@@ -66,6 +66,7 @@
 #define DEV_DDEV 4
 #define	DEV_ALIAS 5
 #define DEV_SLNK 6
+#define DEV_PIPE 7
 
 
 extern vop_t **devfs_vnodeop_p;		/* our own vector array for dirs */
@@ -90,7 +91,10 @@ struct	devnode	/* the equivalent of an INODE */
 	u_long	vn_id;		/* make sure we have the right vnode */
 	int (***ops)(void *);	/* yuk... pointer to pointer(s) to funcs */
 	int	len;		/* of any associated info (e.g. dir data) */
+	devnm_p	linklist;	/* circular list of hardlinks to this node */
 	devnm_p	last_lookup;	/* name I was last looked up from */
+	dn_p	nextsibling;	/* the list of equivelent nodes */
+	dn_p	*prevsiblingp;	/* backpointer for the above */
 	union  typeinfo {
 		struct {
 			struct	cdevsw	*cdevsw;
@@ -119,6 +123,9 @@ struct	devnode	/* the equivalent of an INODE */
 			devnm_p	realthing;
 			devnm_p	next;
 		}Alias;
+		struct {
+			struct socket *sock;
+		}Pipe;
 	}by;
 };
 typedef	struct devnode	devnode_t;
@@ -131,6 +138,8 @@ struct	dev_name
 	dn_p	parent;		/* backpointer to the directory itself */
 	devnm_p	next;		/* next object in this directory */
 	devnm_p	*prevp;		/* previous pointer in directory linked list */
+	devnm_p	nextlink;	/* next hardlink to this node */
+	devnm_p	*prevlinkp;	/* previous hardlink pointer for this node */
 	/*-----------------------aliases or backing nodes----------*/
 	union {
 		struct {
@@ -140,9 +149,6 @@ struct	dev_name
 			devnm_p	realthing;	/* ptr to the backing node */
 		} front;
 	} as;
-	/*-----------------------the front-back chain-------------*/
-	devnm_p	next_front;	/* the linked list of all our front nodes */
-	devnm_p	*prev_frontp;	/* the end of the front node chain */
 };
 
 typedef struct dev_name devnm_t;

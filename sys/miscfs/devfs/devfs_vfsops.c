@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.13 1996/06/15 20:37:22 gpalmer Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.15 1996/11/21 07:18:58 julian Exp $
  *
  *
  */
@@ -210,11 +210,65 @@ DBPRINT(("statfs "));
 	return 0;
 }
 
+/*
+ * Go through the disk queues to initiate sandbagged IO;
+ * go through the inodes to write those that have been modified;
+ * initiate the writing of the super block if it has been modified.
+ *
+ * Note: we are always called with the filesystem marked `MPBUSY'.
+ */
 static int
 devfs_sync(struct mount *mp, int waitfor,struct ucred *cred,struct proc *p)
 {
+	register struct vnode *vp, *nvp;
+	struct timeval tv;
+	int error, allerror = 0;
+
 DBPRINT(("sync "));
-	return 0;
+
+	/*
+	 * Write back modified superblock.
+	 * Consistency check that the superblock
+	 * is still in the buffer cache.
+	 */
+	/*
+	 * Write back each (modified) inode.
+	 */
+loop:
+	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
+		/*
+		 * If the vnode that we are about to sync is no longer
+		 * associated with this mount point, start over.
+		 */
+		if (vp->v_mount != mp)
+			goto loop;
+		nvp = vp->v_mntvnodes.le_next;
+		if (VOP_ISLOCKED(vp))
+			continue;
+		if ( vp->v_dirtyblkhd.lh_first == NULL)
+			continue;
+		if (vp->v_type == VBLK) {
+			if (vget(vp, 1))
+				goto loop;
+			error = VOP_FSYNC(vp, cred, waitfor, p);
+printf("syncing device\n");
+			if (error)
+				allerror = error;
+			vput(vp);
+		}
+#ifdef NOTYET
+		else {
+			tv = time;
+			/* VOP_UPDATE(vp, &tv, &tv, waitfor == MNT_WAIT); */
+			VOP_UPDATE(vp, &tv, &tv, 0);
+		}
+#endif
+	}
+	/*
+	 * Force stale file system control information to be flushed.
+	 *( except that htat makes no sense with devfs
+	 */
+	return (allerror);
 }
 
 static int
