@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ppcreg.h,v 1.7 1999/01/10 16:41:13 nsouch Exp $
  *
  */
 #ifndef __PPCREG_H
@@ -102,7 +102,6 @@ struct ppc_data {
 #define PPC_ECP_A_FIFO	0	/* ECP Address fifo register */
 #define PPC_SPP_STR	1	/* SPP status register */
 #define PPC_SPP_CTR	2	/* SPP control register */
-#define PPC_EPP_ADDR	3	/* EPP address register (8 bit) */
 #define PPC_EPP_DATA	4	/* EPP data register (8, 16 or 32 bit) */
 #ifdef PC98
 #define PPC_1284_ENABLE	0x09	/* IEEE STD 1284 Enable register */
@@ -134,8 +133,7 @@ struct ppc_data {
 #define r_dtr(ppc) (inb((ppc)->ppc_base + PPC_SPP_DTR))
 #define r_str(ppc) (inb((ppc)->ppc_base + PPC_SPP_STR))
 #define r_ctr(ppc) (inb((ppc)->ppc_base + PPC_SPP_CTR))
-#define r_epp_A(ppc) (inb((ppc)->ppc_base + PPC_EPP_ADDR))
-#define r_epp_D(ppc) (inb((ppc)->ppc_base + PPC_EPP_DATA))
+#define r_epp(ppc) (inb((ppc)->ppc_base + PPC_EPP_DATA))
 #define r_cnfgA(ppc) (inb((ppc)->ppc_base + PPC_ECP_CNFGA))
 #define r_cnfgB(ppc) (inb((ppc)->ppc_base + PPC_ECP_CNFGB))
 #define r_ecr(ppc) (inb((ppc)->ppc_base + PPC_ECP_ECR))
@@ -144,8 +142,7 @@ struct ppc_data {
 #define w_dtr(ppc,byte) outb((ppc)->ppc_base + PPC_SPP_DTR, byte)
 #define w_str(ppc,byte) outb((ppc)->ppc_base + PPC_SPP_STR, byte)
 #define w_ctr(ppc,byte) outb((ppc)->ppc_base + PPC_SPP_CTR, byte)
-#define w_epp_A(ppc,byte) outb((ppc)->ppc_base + PPC_EPP_ADDR, byte)
-#define w_epp_D(ppc,byte) outb((ppc)->ppc_base + PPC_EPP_DATA, byte)
+#define w_epp(ppc,byte) outb((ppc)->ppc_base + PPC_EPP_DATA, byte)
 #define w_ecr(ppc,byte) outb((ppc)->ppc_base + PPC_ECP_ECR, byte)
 #define w_fifo(ppc,byte) outb((ppc)->ppc_base + PPC_ECP_D_FIFO, byte)
 
