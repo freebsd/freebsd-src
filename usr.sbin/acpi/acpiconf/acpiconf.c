@@ -112,22 +112,6 @@ main(int argc, char *argv[])
 				    argv[0], sleep_type);
 				return -1;
 			}
-
-			/* convert sleep type value to ACPICA format */
-			switch (sleep_type) {
-			case 4:
-				if (optarg[1] == 'b') {
-					sleep_type = ACPI_STATE_S4BIOS;
-				}
-				break;
-
-			case 5:
-				sleep_type = ACPI_STATE_S5;
-				break;
-
-			default:
-				break;
-			}
 			break;
 		default:
 			argc -= optind;
