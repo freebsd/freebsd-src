@@ -1,6 +1,6 @@
-<!-- $Id: kernelconfig.sgml,v 1.2 1996/12/17 16:02:25 max Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.3 1996/12/23 14:01:37 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-
+    <!-- Original revision: 1.23 -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>FreeBSDカーネルのコンフィグレーション <label id="kernelconfig"></heading>
 
@@ -10,7 +10,6 @@
 	&a.tomo;,
 	 &a.yoshiaki;. <newline>
 	 2 November 1996. </em>
-    <!-- Original revision: 1.22 -->
 
 	この章はシステムに合わせたカーネルの再構築の基礎について
 	述べたものです.  この章は, システム管理の初心者から
@@ -147,10 +146,10 @@
 	だいたい GENERICに出てくる順番で説明します. しかし, 
 	お互いに関係のあるキーワードは, 実際には GENERICファイル上に
 	バラバラに現れていても, (ネットワーキングのように)1つにまとめ
-        てあります. おびただしい数のオプションの一覧が GENERICと同じディ
-	レクトリの LINTコンフィグレーションファイルにあります. 
-	もし, ある行の目的や必要性に疑問を持ったら最初に LINTをチェック
-	してください. 
+	 てあります. <label id="kernelconfig:options"> おびただしい数の
+	オプションの一覧が GENERICと同じディレクトリの LINTコンフィグ
+	レーションファイルにあります.  もし, ある行の目的や必要性に疑
+	問を持ったら最初に LINTをチェックしてください.
 
        <p>カーネルは現在, オプションを扱う方法をよりよい機構に移行しよ
        うとしています. 従来は, 各々のオプションは単純にカーネルの
