@@ -8,7 +8,7 @@ For the import of libio, files were pruned by:
 Then imported by:
 
 	cvs import -m  \
-		'Virgin import of GCC 2.95.2's libio -- the C++ iostream facility.'  \
+	   "Virgin import of GCC 2.95.2's libio -- the C++ iostream facility." \
 		src/contrib/libio FSF gcc_2_95_2
 
 
