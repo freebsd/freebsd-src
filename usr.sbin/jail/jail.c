@@ -34,20 +34,24 @@ main(int argc, char **argv)
 	struct jail j;
 	struct passwd *pwd;
 	struct in_addr in;
-	int ch, groups[NGROUPS], ngroups;
+	int ch, groups[NGROUPS], i, iflag, ngroups;
 	char *username;
 
+	iflag = 0;
 	username = NULL;
 
-	while ((ch = getopt(argc, argv, "u:")) != -1)
+	while ((ch = getopt(argc, argv, "iu:")) != -1) {
 		switch (ch) {
+		case 'i':
+			iflag = 1;
+			break;
 		case 'u':
 			username = optarg;
 			break;
 		default:
 			usage();
-			break;
 		}
+	}
 	argc -= optind;
 	argv += optind;
 	if (argc < 4)
@@ -73,8 +77,11 @@ main(int argc, char **argv)
 	if (inet_aton(argv[2], &in) == 0)
 		errx(1, "Could not make sense of ip-number: %s", argv[2]);
 	j.ip_number = ntohl(in.s_addr);
-	if (jail(&j) != 0)
+	i = jail(&j);
+	if (i == -1)
 		err(1, "jail");
+	if (iflag)
+		printf("%d\n", i);
 	if (username != NULL) {
 		if (setgroups(ngroups, groups) != 0)
 			err(1, "setgroups");
@@ -87,14 +94,14 @@ main(int argc, char **argv)
 	}
 	if (execv(argv[3], argv + 3) != 0)
 		err(1, "execv: %s", argv[3]);
-	exit (0);
+	exit(0);
 }
 
 static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "%s\n",
-	    "Usage: jail [-u username] path hostname ip-number command ...");
+	(void)fprintf(stderr,
+	"usage: jail [-i] [-u username] path hostname ip-number command ...\n");
 	exit(1);
 }
