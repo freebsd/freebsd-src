@@ -88,6 +88,7 @@ dev/ppbus/ppi.c		optional ppi
 dev/ppbus/pps.c		optional pps
 dev/ppbus/vpo.c		optional vpo
 dev/ppbus/vpoio.c	optional vpo
+dev/ppbus/immio.c	optional vpo
 dev/ppbus/if_plip.c	optional plip
 smbus_if.o		optional smbus					\
 	dependency	"smbus_if.c"					\
