@@ -2025,6 +2025,7 @@ hpt_attach(device_t dev)
 	 */
 	if((devq = cam_simq_alloc(8/*MAX_QUEUE_COMM*/)) == NULL) {
 		KdPrint(("ENXIO\n"));
+		free(ccb, M_DEVBUF);
 		return ENOMEM;
 	}
 
