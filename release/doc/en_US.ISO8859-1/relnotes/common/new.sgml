@@ -217,6 +217,9 @@
 	  supports &windows;/x86-64 binaries on amd64
 	  systems.</para>
 
+	<para>The &man.re.4; driver now supports the &man.altq.4;
+	  framework.</para>
+
 	<para>The &man.sf.4; driver now has support for device polling
 	  and &man.altq.4;.</para>
 
@@ -649,7 +652,17 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
   <sect2 id="doc">
     <title>Documentation</title>
 
-    <para></para>
+    <para>The following manual pages, which were derived from RFCs
+      and possibly violate the IETF's copyrights, have been replaced:
+      &man.gai.strerror.3;,
+      &man.getaddrinfo.3;,
+      &man.getnameinfo.3;,
+      &man.inet6.opt.init.3;,
+      &man.inet6.option.space.3;,
+      &man.inet6.rth.space.3;,
+      &man.inet6.rthdr.space.3;,
+      &man.icmp6.4;, and
+      &man.ip6.4;.</para>
 
   </sect2>
 </sect1>
@@ -658,11 +671,11 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
   <title>Upgrading from previous releases of &os;</title>
 
   <para>Users with existing &os; systems are
-    <emphasis>highly</emphasis> encouraged to read the <quote>Early
-    Adopter's Guide to &os; &release.current;</quote>.  This document generally has
-    the filename <filename>EARLY.TXT</filename> on the distribution
+    <emphasis>highly</emphasis> encouraged to read the <quote>&os;
+      &release.current; Migration Guide</quote>.  This document generally has
+    the filename <filename>MIGRATE5.TXT</filename> on the distribution
     media, or any other place that the release notes can be found.  It
-    offers some notes on upgrading, but more importantly, also
+    offers some notes on migrating from &os; 4.X, but more importantly, also
     discusses some of the relative merits of upgrading to &os;
     5.<replaceable>X</replaceable> versus running &os;
     4.<replaceable>X</replaceable>.</para>
