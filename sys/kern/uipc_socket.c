@@ -541,10 +541,19 @@ soconnect(so, nam, td)
 	 */
 	if (so->so_state & (SS_ISCONNECTED|SS_ISCONNECTING) &&
 	    ((so->so_proto->pr_flags & PR_CONNREQUIRED) ||
-	    (error = sodisconnect(so))))
+	    (error = sodisconnect(so)))) {
 		error = EISCONN;
-	else
+	} else {
+		SOCK_LOCK(so);
+		/*
+		 * Prevent accumulated error from previous connection
+		 * from biting us.
+		 */
+		so->so_error = 0;
+		SOCK_UNLOCK(so);
 		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam, td);
+	}
+
 	return (error);
 }
 
