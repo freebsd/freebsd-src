@@ -498,7 +498,9 @@ name_section_line(char *line, const char *section_start)
 /*
  * Copies characters while removing the most common nroff/troff
  * markup:
- *	\(em, \(mi, \fR, \f(XX, \*p, \&,
+ *	\(em, \(mi, \s[+-N], \&
+ *	\fF, \f(fo, \f[font]
+ *	\*s, \*(st, \*[stringvar]
  */
 static char *
 de_nroff_copy(char *from, char *to, int fromlen)
@@ -515,18 +517,22 @@ de_nroff_copy(char *from, char *to, int fromlen)
 					continue;
 				}
 				break;
-			case 'f':
-				if (*++from == '(')
-					from += 3;
-				else
+			case 's':
+				if (*++from == '-')
+					from++;
+				while (isdigit(*from))
 					from++;
 				continue;
+			case 'f':
 			case '*':
-				if (from[1] == 'p') {
-					from += 2;
-					continue;
-				}
-				break;
+				if (*++from == '(')
+					from += 3;
+				else if (*from == '[') {
+					while (*++from != ']' && from < from_end);
+					from++;
+				} else
+					from++;
+				continue;
 			case '&':
 				from++;
 				continue;
