@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prof_machdep.c,v 1.11 1998/12/14 18:21:34 bde Exp $
+ *	$Id: prof_machdep.c,v 1.12 1999/05/06 09:44:55 bde Exp $
  */
 
 #ifdef GUPROF
@@ -74,7 +74,7 @@ GM_STATE	=	0					\n\
 GMON_PROF_OFF	=	3					\n\
 								\n\
 	.text							\n\
-	.align	4,0x90						\n\
+	.p2align 4,0x90						\n\
 	.globl	__mcount					\n\
 	.type	__mcount,@function				\n\
 __mcount:							\n\
@@ -91,7 +91,7 @@ __mcount:							\n\
  	movl	4(%esp),%edx					\n\
  	jmp	.got_frompc					\n\
  								\n\
- 	.align	4,0x90						\n\
+ 	.p2align 4,0x90						\n\
  	.globl	" __XSTRING(HIDENAME(mcount)) "			\n\
 " __XSTRING(HIDENAME(mcount)) ":				\n\
 	cmpl	$GMON_PROF_OFF," __XSTRING(CNAME(_gmonparam)) "+GM_STATE \n\
@@ -136,7 +136,7 @@ __asm("								\n\
 #								\n\
 # Dummy label to be seen when gprof -u hides [.]mexitcount.	\n\
 #								\n\
-	.align	4,0x90						\n\
+	.p2align 4,0x90						\n\
 	.globl	__mexitcount					\n\
 	.type	__mexitcount,@function				\n\
 __mexitcount:							\n\
@@ -144,7 +144,7 @@ __mexitcount:							\n\
 								\n\
 GMON_PROF_HIRES	=	4					\n\
 								\n\
-	.align	4,0x90						\n\
+	.p2align 4,0x90						\n\
 	.globl	" __XSTRING(HIDENAME(mexitcount)) "		\n\
 " __XSTRING(HIDENAME(mexitcount)) ":				\n\
 	cmpl	$GMON_PROF_HIRES," __XSTRING(CNAME(_gmonparam)) "+GM_STATE \n\
@@ -344,7 +344,7 @@ stopguprof(gp)
 #ifdef __GNUC__
 __asm("								\n\
 	.text							\n\
-	.align	4,0x90						\n\
+	.p2align 4,0x90						\n\
 	.globl	" __XSTRING(HIDENAME(mexitcount)) "		\n\
 " __XSTRING(HIDENAME(mexitcount)) ":				\n\
 	ret							\n\
