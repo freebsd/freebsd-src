@@ -256,7 +256,6 @@ static char *nlistf = NULL, *memf = NULL;
 int	Aflag;		/* show addresses of protocol control block */
 int	aflag;		/* show all sockets (including servers) */
 int	bflag;		/* show i/f total bytes in/out */
-int	cflag;		/* show mbuf cache information */
 int	dflag;		/* show i/f dropped packets */
 int	gflag;		/* show group (multicast) routing or stats */
 int	iflag;		/* show interfaces */
@@ -296,9 +295,6 @@ main(int argc, char *argv[])
 			break;
 		case 'b':
 			bflag = 1;
-			break;
-		case 'c':
-			cflag = 1;
 			break;
 		case 'd':
 			dflag = 1;
@@ -425,10 +421,6 @@ main(int argc, char *argv[])
 	if (nlistf != NULL || memf != NULL)
 		setgid(getgid());
 
-	if (cflag && !mflag) {
-		(void)fprintf(stderr, "-c only valid with -m\n");
-		usage();
-	}
 	if (mflag) {
 		if (memf != NULL) {
 			if (kread(0, 0, 0) == 0)

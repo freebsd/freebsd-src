@@ -191,6 +191,7 @@ malloc(size, type, flags)
 	int indx;
 	caddr_t va;
 	uma_zone_t zone;
+	uma_keg_t keg;
 #ifdef DIAGNOSTIC
 	unsigned long osize = size;
 #endif
@@ -235,6 +236,7 @@ malloc(size, type, flags)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
 		indx = kmemsize[size >> KMEM_ZSHIFT];
 		zone = kmemzones[indx].kz_zone;
+		keg = zone->uz_keg;
 #ifdef MALLOC_PROFILE
 		krequests[size >> KMEM_ZSHIFT]++;
 #endif
@@ -244,10 +246,11 @@ malloc(size, type, flags)
 			goto out;
 
 		ksp->ks_size |= 1 << indx;
-		size = zone->uz_size;
+		size = keg->uk_size;
 	} else {
 		size = roundup(size, PAGE_SIZE);
 		zone = NULL;
+		keg = NULL;
 		va = uma_large_malloc(size, flags);
 		mtx_lock(&ksp->ks_mtx);
 		if (va == NULL)
@@ -309,7 +312,7 @@ free(addr, type)
 #ifdef INVARIANTS
 		struct malloc_type **mtp = addr;
 #endif
-		size = slab->us_zone->uz_size;
+		size = slab->us_keg->uk_size;
 #ifdef INVARIANTS
 		/*
 		 * Cache a pointer to the malloc_type that most recently freed
@@ -325,7 +328,7 @@ free(addr, type)
 		    sizeof(struct malloc_type *);
 		*mtp = type;
 #endif
-		uma_zfree_arg(slab->us_zone, addr, slab);
+		uma_zfree_arg(LIST_FIRST(&slab->us_keg->uk_zones), addr, slab);
 	} else {
 		size = slab->us_size;
 		uma_large_free(slab);
@@ -364,8 +367,8 @@ realloc(addr, size, type, flags)
 	    ("realloc: address %p out of range", (void *)addr));
 
 	/* Get the size of the original block */
-	if (slab->us_zone)
-		alloc = slab->us_zone->uz_size;
+	if (slab->us_keg)
+		alloc = slab->us_keg->uk_size;
 	else
 		alloc = slab->us_size;
 
@@ -410,7 +413,6 @@ kmeminit(dummy)
 	void *dummy;
 {
 	u_int8_t indx;
-	u_long npg;
 	u_long mem_size;
 	int i;
  
@@ -428,7 +430,7 @@ kmeminit(dummy)
 	 * Note that the kmem_map is also used by the zone allocator,
 	 * so make sure that there is enough space.
 	 */
-	vm_kmem_size = VM_KMEM_SIZE;
+	vm_kmem_size = VM_KMEM_SIZE + nmbclusters * PAGE_SIZE;
 	mem_size = cnt.v_page_count;
 
 #if defined(VM_KMEM_SIZE_SCALE)
@@ -462,17 +464,8 @@ kmeminit(dummy)
 	 */
 	init_param3(vm_kmem_size / PAGE_SIZE);
 
-	/*
-	 * In mbuf_init(), we set up submaps for mbufs and clusters, in which
-	 * case we rounddown() (nmbufs * MSIZE) and (nmbclusters * MCLBYTES),
-	 * respectively. Mathematically, this means that what we do here may
-	 * amount to slightly more address space than we need for the submaps,
-	 * but it never hurts to have an extra page in kmem_map.
-	 */
-	npg = (nmbufs*MSIZE + nmbclusters*MCLBYTES + vm_kmem_size) / PAGE_SIZE; 
-
 	kmem_map = kmem_suballoc(kernel_map, (vm_offset_t *)&kmembase,
-		(vm_offset_t *)&kmemlimit, (vm_size_t)(npg * PAGE_SIZE));
+		(vm_offset_t *)&kmemlimit, vm_kmem_size);
 	kmem_map->system_map = 1;
 
 	uma_startup2();

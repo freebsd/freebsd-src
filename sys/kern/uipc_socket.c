@@ -527,8 +527,8 @@ sosend(so, addr, uio, top, control, flags, td)
 {
 	struct mbuf **mp;
 	struct mbuf *m;
-	long space, len, resid;
-	int clen = 0, error, s, dontroute, mlen;
+	long space, len = 0, resid;
+	int clen = 0, error, s, dontroute;
 	int atomic = sosendallatonce(so) || top;
 #ifdef ZERO_COPY_SOCKETS
 	int cow_send;
@@ -624,25 +624,23 @@ restart:
 #ifdef ZERO_COPY_SOCKETS
 			cow_send = 0;
 #endif /* ZERO_COPY_SOCKETS */
-			if (top == 0) {
-				MGETHDR(m, M_TRYWAIT, MT_DATA);
-				if (m == NULL) {
-					error = ENOBUFS;
-					goto release;
-				}
-				mlen = MHLEN;
-				m->m_pkthdr.len = 0;
-				m->m_pkthdr.rcvif = (struct ifnet *)0;
-			} else {
-				MGET(m, M_TRYWAIT, MT_DATA);
-				if (m == NULL) {
-					error = ENOBUFS;
-					goto release;
-				}
-				mlen = MLEN;
-			}
 			if (resid >= MINCLSIZE) {
 #ifdef ZERO_COPY_SOCKETS
+				if (top == NULL) {
+					MGETHDR(m, M_TRYWAIT, MT_DATA);
+					if (m == NULL) {
+						error = ENOBUFS;
+						goto release;
+					}
+					m->m_pkthdr.len = 0;
+					m->m_pkthdr.rcvif = (struct ifnet *)0;
+				} else {
+					MGET(m, M_TRYWAIT, MT_DATA);
+					if (m == NULL) {
+						error = ENOBUFS;
+						goto release;
+					}
+				}
 				if (so_zero_copy_send &&
 				    resid>=PAGE_SIZE &&
 				    space>=PAGE_SIZE &&
@@ -654,29 +652,48 @@ restart:
 						cow_send = socow_setup(m, uio);
 					}
 				}
-				if (!cow_send){
-#endif /* ZERO_COPY_SOCKETS */
-				MCLGET(m, M_TRYWAIT);
-				if ((m->m_flags & M_EXT) == 0)
-					goto nopages;
-				mlen = MCLBYTES;
-				len = min(min(mlen, resid), space);
-			} else {
-#ifdef ZERO_COPY_SOCKETS
+				if (!cow_send) {
+					MCLGET(m, M_TRYWAIT);
+					if ((m->m_flags & M_EXT) == 0) {
+						m_free(m);
+						m = NULL;
+					} else {
+						len = min(min(MCLBYTES, resid), space);
+					}
+				} else
 					len = PAGE_SIZE;
-				}
-
-			} else {
+#else /* ZERO_COPY_SOCKETS */
+				if (top == NULL) {
+					m = m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
+					m->m_pkthdr.len = 0;
+					m->m_pkthdr.rcvif = (struct ifnet *)0;
+				} else
+					m = m_getcl(M_TRYWAIT, MT_DATA, 0);
+				len = min(min(MCLBYTES, resid), space);
 #endif /* ZERO_COPY_SOCKETS */
-nopages:
-				len = min(min(mlen, resid), space);
-				/*
-				 * For datagram protocols, leave room
-				 * for protocol headers in first mbuf.
-				 */
-				if (atomic && top == 0 && len < mlen)
-					MH_ALIGN(m, len);
+			} else {
+				if (top == NULL) {
+					m = m_gethdr(M_TRYWAIT, MT_DATA);
+					m->m_pkthdr.len = 0;
+					m->m_pkthdr.rcvif = (struct ifnet *)0;
+
+					len = min(min(MHLEN, resid), space);
+					/*
+					 * For datagram protocols, leave room
+					 * for protocol headers in first mbuf.
+					 */
+					if (atomic && m && len < MHLEN)
+						MH_ALIGN(m, len);
+				} else {
+					m = m_get(M_TRYWAIT, MT_DATA);
+					len = min(min(MLEN, resid), space);
+				}
 			}
+			if (m == NULL) {
+				error = ENOBUFS;
+				goto release;
+			}
+
 			space -= len;
 #ifdef ZERO_COPY_SOCKETS
 			if (cow_send)

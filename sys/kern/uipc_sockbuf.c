@@ -959,15 +959,12 @@ sbcreatecontrol(p, size, type, level)
 
 	if (CMSG_SPACE((u_int)size) > MCLBYTES)
 		return ((struct mbuf *) NULL);
-	if ((m = m_get(M_DONTWAIT, MT_CONTROL)) == NULL)
+	if (CMSG_SPACE((u_int)size > MLEN))
+		m = m_getcl(M_DONTWAIT, MT_CONTROL, 0);
+	else
+		m = m_get(M_DONTWAIT, MT_CONTROL);
+	if (m == NULL)
 		return ((struct mbuf *) NULL);
-	if (CMSG_SPACE((u_int)size) > MLEN) {
-		MCLGET(m, M_DONTWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			m_free(m);
-			return ((struct mbuf *) NULL);
-		}
-	}
 	cp = mtod(m, struct cmsghdr *);
 	m->m_len = 0;
 	KASSERT(CMSG_SPACE((u_int)size) <= M_TRAILINGSPACE(m),

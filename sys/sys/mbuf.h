@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,7 +33,12 @@
 #ifndef _SYS_MBUF_H_
 #define	_SYS_MBUF_H_
 
+/* XXX: These includes suck. Sorry! */
 #include <sys/queue.h>
+#ifdef _KERNEL
+#include <sys/systm.h>
+#include <vm/uma.h>
+#endif
 
 /*
  * Mbufs are of a single size, MSIZE (sys/param.h), which
@@ -57,6 +62,16 @@
  */
 #define	mtod(m, t)	((t)((m)->m_data))
 #define	dtom(x)		((struct mbuf *)((intptr_t)(x) & ~(MSIZE-1)))
+
+/*
+ * Argument structure passed to UMA routines during mbuf and packet
+ * allocations.
+ */
+struct mb_args {
+	int	flags;	/* Flags for mbuf being allocated */
+	int	how;	/* How to allocate: M_WAITOK or M_DONTWAIT */
+	short	type;	/* Type of mbuf being allocated */
+};
 #endif /* _KERNEL */
 
 /*
@@ -167,6 +182,7 @@ struct mbuf {
  */
 #define	EXT_CLUSTER	1	/* mbuf cluster */
 #define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
+#define	EXT_PACKET	3	/* came out of Packet zone */
 #define	EXT_NET_DRV	100	/* custom ext_buf provided by net driver(s) */
 #define	EXT_MOD_TYPE	200	/* custom module's ext_buf type */
 #define	EXT_DISPOSABLE	300	/* can throw this buffer away w/page flipping */
@@ -223,28 +239,12 @@ struct mbuf {
 #define	MT_NTYPES	16	/* number of mbuf types for mbtypes[] */
 
 /*
- * Mbuf and cluster allocation statistics PCPU structure.
- */
-struct mbpstat {
-	u_long	mb_mbfree;
-	u_long	mb_mbbucks;
-	u_long	mb_clfree;
-	u_long	mb_clbucks;
-	long	mb_mbtypes[MT_NTYPES];
-	short	mb_active;
-};
-
-/*
  * General mbuf allocator statistics structure.
- * XXX: Modifications of these are not protected by any mutex locks nor by
- * any atomic() manipulations.  As a result, we may occasionally lose
- * a count or two.  Luckily, not all of these fields are modified at all
- * and remain static, and those that are manipulated are only manipulated
- * in failure situations, which do not occur (hopefully) very often.
  */
 struct mbstat {
-	u_long	m_drops;	/* times failed to allocate */
-	u_long	m_wait;		/* times succesfully returned from wait */
+	u_long	m_mbufs;	/* XXX */
+	u_long	m_mclusts;	/* XXX */
+
 	u_long	m_drain;	/* times drained protocols for space */
 	u_long	m_mcfail;	/* XXX: times m_copym failed */
 	u_long	m_mpfail;	/* XXX: times m_pullup failed */
@@ -253,10 +253,10 @@ struct mbstat {
 	u_long	m_minclsize;	/* min length of data to allocate a cluster */
 	u_long	m_mlen;		/* length of data in an mbuf */
 	u_long	m_mhlen;	/* length of data in a header mbuf */
-	u_int	m_mbperbuck;	/* number of mbufs per "bucket" */
-	u_int	m_clperbuck;	/* number of clusters per "bucket" */
-	/* Number of mbtypes (gives # elems in mbpstat's mb_mbtypes[] array: */
+
+	/* Number of mbtypes (gives # elems in mbtypes[] array: */
 	short	m_numtypes;
+
 	/* XXX: Sendfile stats should eventually move to their own struct */
 	u_long	sf_iocnt;	/* times sendfile had to do disk I/O */
 	u_long	sf_allocfail;	/* times sfbuf allocation failed */
@@ -265,14 +265,23 @@ struct mbstat {
 
 /*
  * Flags specifying how an allocation should be made.
- * M_DONTWAIT means "don't block if nothing is available" whereas
- * M_TRYWAIT means "block for mbuf_wait ticks at most if nothing is
- * available."
+ *
+ * The flag to use is as follows:
+ * - M_DONTWAIT or M_NOWAIT from an interrupt handler to not block allocation.
+ * - M_WAIT or M_WAITOK or M_TRYWAIT from wherever it is safe to block.
+ *
+ * M_DONTWAIT/M_NOWAIT means that we will not block the thread explicitly
+ * and if we cannot allocate immediately we may return NULL,
+ * whereas M_WAIT/M_WAITOK/M_TRYWAIT means that if we cannot allocate
+ * resources we will block until they are available, and thus never
+ * return NULL.
+ *
+ * XXX Eventually just phase this out to use M_WAITOK/M_NOWAIT.
  */
-#define	M_DONTWAIT	0x4		/* don't conflict with M_NOWAIT */
-#define	M_TRYWAIT	0x8		/* or M_WAITOK */
-#define	M_WAIT		M_TRYWAIT	/* XXX: deprecated */
-#define	MBTOM(how)	((how) & M_TRYWAIT ? M_WAITOK : M_NOWAIT)
+#define	MBTOM(how)	(how)
+#define	M_DONTWAIT	M_NOWAIT
+#define	M_TRYWAIT	M_WAITOK
+#define	M_WAIT		M_WAITOK
 
 #ifdef _KERNEL
 /*-
@@ -296,34 +305,119 @@ struct mbstat {
 #define	MEXT_ADD_REF(m)	atomic_add_int((m)->m_ext.ref_cnt, 1)
 
 /*
+ * Network buffer allocation API
+ *
+ * The rest of it is defined in kern/subr_mbuf.c
+ */
+
+extern uma_zone_t	zone_mbuf;
+extern uma_zone_t	zone_clust;
+extern uma_zone_t	zone_pack;
+
+static __inline struct mbuf	*m_get(int how, short type);
+static __inline struct mbuf	*m_gethdr(int how, short type);
+static __inline struct mbuf	*m_getcl(int how, short type, int flags);
+static __inline struct mbuf	*m_getclr(int how, short type);	/* XXX */
+static __inline struct mbuf	*m_free(struct mbuf *m);
+static __inline void		 m_clget(struct mbuf *m, int how);
+static __inline void		 m_chtype(struct mbuf *m, short new_type);
+void				 mb_free_ext(struct mbuf *);
+
+static __inline
+struct mbuf *
+m_get(int how, short type)
+{
+	struct mb_args args;
+
+	args.flags = 0;
+	args.how = how;
+	args.type = type;
+	return (uma_zalloc_arg(zone_mbuf, &args, how));
+}
+
+/* XXX This should be depracated, very little use */
+static __inline
+struct mbuf *
+m_getclr(int how, short type)
+{
+	struct mbuf *m;
+	struct mb_args args;
+
+	args.flags = 0;
+	args.how = how;
+	args.type = type;
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	if (m != NULL)
+		bzero(m->m_data, MLEN);
+	return m;
+}
+
+static __inline
+struct mbuf *
+m_gethdr(int how, short type)
+{
+	struct mb_args args;
+
+	args.flags = M_PKTHDR;
+	args.how = how;
+	args.type = type;
+	return (uma_zalloc_arg(zone_mbuf, &args, how));
+}
+
+static __inline
+struct mbuf *
+m_getcl(int how, short type, int flags)
+{
+	struct mb_args args;
+
+	args.flags = flags;
+	args.how = how;
+	args.type = type;
+	return (uma_zalloc_arg(zone_pack, &args, how));
+}
+
+static __inline
+struct mbuf *
+m_free(struct mbuf *m)
+{
+	struct mbuf *n = m->m_next;
+
+#ifdef INVARIANTS
+	m->m_flags |= M_FREELIST;
+#endif
+	if (m->m_flags & M_EXT)
+		mb_free_ext(m);
+	else
+		uma_zfree(zone_mbuf, m);
+	return n;
+}
+
+static __inline
+void
+m_clget(struct mbuf *m, int how)
+{
+	m->m_ext.ext_buf = NULL;
+	uma_zalloc_arg(zone_clust, m, how);
+}
+
+static __inline
+void
+m_chtype(struct mbuf *m, short new_type)
+{
+	m->m_type = new_type;
+}
+
+/*
  * mbuf, cluster, and external object allocation macros
  * (for compatibility purposes).
  */
 /* NB: M_COPY_PKTHDR is deprecated.  Use M_MOVE_PKTHDR or m_dup_pktdr. */
 #define	M_MOVE_PKTHDR(to, from)	m_move_pkthdr((to), (from))
-#define	m_getclr(how, type)	m_get_clrd((how), (type))
 #define	MGET(m, how, type)	((m) = m_get((how), (type)))
 #define	MGETHDR(m, how, type)	((m) = m_gethdr((how), (type)))
 #define	MCLGET(m, how)		m_clget((m), (how))
 #define	MEXTADD(m, buf, size, free, args, flags, type) 			\
     m_extadd((m), (caddr_t)(buf), (size), (free), (args), (flags), (type))
-
-/*
- * MEXTFREE(m): disassociate (and possibly free) an external object from (m).
- *
- * If the atomic_cmpset_int() returns 0, then we effectively do nothing
- * in terms of "cleaning up" (freeing the ext buf and ref. counter) as
- * this means that either there are still references, or another thread
- * is taking care of the clean-up.
- */
-#define	MEXTFREE(m) do {						\
-	struct mbuf *_mb = (m);						\
-									\
-	MEXT_REM_REF(_mb);						\
-	if (atomic_cmpset_int(_mb->m_ext.ref_cnt, 0, 1))		\
-		_mext_free(_mb);					\
-	_mb->m_flags &= ~M_EXT;						\
-} while (0)
 
 /*
  * Evaluate TRUE if it's safe to write to the mbuf m's data region (this
@@ -425,18 +519,13 @@ extern	int max_linkhdr;		/* Largest link-level header */
 extern	int max_protohdr;		/* Largest protocol header */
 extern	struct mbstat mbstat;		/* General mbuf stats/infos */
 extern	int nmbclusters;		/* Maximum number of clusters */
-extern	int nmbcnt;			/* Scale kmem_map for counter space */
-extern	int nmbufs;			/* Maximum number of mbufs */
 
 struct uio;
 
-void		 _mext_free(struct mbuf *);
 void		 m_adj(struct mbuf *, int);
 int		 m_apply(struct mbuf *, int, int,
 		    int (*)(void *, void *, u_int), void *);
 void		 m_cat(struct mbuf *, struct mbuf *);
-void		 m_chtype(struct mbuf *, short);
-void		 m_clget(struct mbuf *, int);
 void		 m_extadd(struct mbuf *, caddr_t, u_int,
 		    void (*)(void *, void *), void *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
@@ -451,13 +540,7 @@ struct	mbuf	*m_dup(struct mbuf *, int);
 int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct	mbuf	*m_fragment(struct mbuf *, int, int);
-struct	mbuf	*m_free(struct mbuf *);
 void		 m_freem(struct mbuf *);
-struct	mbuf	*m_get(int, short);
-struct	mbuf	*m_get_clrd(int, short);
-struct	mbuf	*m_getcl(int, short, int);
-struct	mbuf	*m_gethdr(int, short);
-struct	mbuf	*m_gethdr_clrd(int, short);
 struct	mbuf	*m_getm(struct mbuf *, int, int, short);
 struct	mbuf	*m_getptr(struct mbuf *, int, int *);
 u_int		 m_length(struct mbuf *, struct mbuf **);
@@ -470,7 +553,7 @@ struct	mbuf	*m_split(struct mbuf *, int, int);
 struct	mbuf	*m_uiotombuf(struct uio *, int, int);
 
 /*-
- * Packets may have annotations attached by affixing a list
+ * Network packets may have annotations attached by affixing a list
  * of "packet tags" to the pkthdr structure.  Packet tags are
  * dynamically allocated semi-opaque data structures that have
  * a fixed header (struct m_tag) that specifies the size of the

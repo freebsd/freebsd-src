@@ -230,14 +230,10 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	 * now, we need to do the hard way.  don't m_copy as there's no room
 	 * on both end.
 	 */
-	MGET(o, M_DONTWAIT, m->m_type);
-	if (o && len > MLEN) {
-		MCLGET(o, M_DONTWAIT);
-		if ((o->m_flags & M_EXT) == 0) {
-			m_free(o);
-			o = NULL;
-		}
-	}
+	if (len > MLEN)
+		o = m_getcl(M_DONTWAIT, m->m_type, 0);
+	else
+		o = m_get(M_DONTWAIT, m->m_type);
 	if (!o) {
 		m_freem(m);
 		return NULL;	/* ENOBUFS */
@@ -274,29 +270,27 @@ static struct mbuf *
 m_dup1(struct mbuf *m, int off, int len, int wait)
 {
 	struct mbuf *n;
-	int l;
 	int copyhdr;
 
 	if (len > MCLBYTES)
 		return NULL;
-	if (off == 0 && (m->m_flags & M_PKTHDR) != 0) {
+	if (off == 0 && (m->m_flags & M_PKTHDR) != 0)
 		copyhdr = 1;
-		MGETHDR(n, wait, m->m_type);
-		l = MHLEN;
-	} else {
+	else
 		copyhdr = 0;
-		MGET(n, wait, m->m_type);
-		l = MLEN;
-	}
-	if (n && len > l) {
-		MCLGET(n, wait);
-		if ((n->m_flags & M_EXT) == 0) {
-			m_free(n);
-			n = NULL;
-		}
+	if (len >= MINCLSIZE) {
+		if (copyhdr == 1)
+			n = m_getcl(wait, m->m_type, M_PKTHDR);
+		else
+			n = m_getcl(wait, m->m_type, 0);
+	} else {
+		if (copyhdr == 1)
+			n = m_gethdr(wait, m->m_type);
+		else
+			n = m_get(wait, m->m_type);
 	}
 	if (!n)
-		return NULL;
+		return NULL; /* ENOBUFS */
 
 	if (copyhdr && !m_dup_pkthdr(n, m, wait)) {
 		m_free(n);
