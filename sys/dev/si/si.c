@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.4 1995/08/13 15:44:37 peter Exp $
+ *	$Id: si.c,v 1.5 1995/08/22 00:48:17 peter Exp $
  */
 
 #ifndef lint
@@ -1772,7 +1772,8 @@ siintr(int bdnum)
 			 * Do break processing
 			 */
 			if (ccbp->hi_state & ST_BREAK) {
-				if (tp->t_state & TS_CONNECTED) {
+				if (tp->t_state & TS_CONNECTED &&
+				    tp->t_state & TS_ISOPEN) {
 					(*linesw[tp->t_line].l_rint)(TTY_BI, tp);
 				}
 				ccbp->hi_state &= ~ST_BREAK;   /* A Bit iffy this */
@@ -1784,7 +1785,8 @@ siintr(int bdnum)
 			 * dump any characters.
 			 */
 
-			if ((tp->t_state & TS_CONNECTED) == 0) {
+			if ((tp->t_state & TS_CONNECTED) == 0 ||
+			    (tp->t_state & TS_ISOPEN) == 0) {
 				ccbp->hi_rxopos = ccbp->hi_rxipos;
 			} else {
 				while ((c = ccbp->hi_rxipos - ccbp->hi_rxopos) != 0) {
