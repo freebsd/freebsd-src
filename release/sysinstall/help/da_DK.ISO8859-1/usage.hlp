@@ -1,23 +1,23 @@
 BRUG AF DETTE SYSTEM
 ====================
 
-TAST		FUNKTION
-----		--------
-PIL OP		Flyt til foregående objekt (eller op, i et tekstfelt).
-PIL NED		Flyt til næste objekt (eller ned, i et tekstfelt).
-TAB		Flyt til næste objekt eller gruppe.
-HØJRE PIL	Flyt til næste objekt eller gruppe (det samme som TAB).
-SHIFT-TAB	Flyt til foregående objekt eller gruppe.
-VENSTRE PIL	Flyt til foregående objekt eller gruppe (det samme som
-		SHIFT-TAB).
-RETUR		Vælg objekt.
-ESC		Start en sub-shell til brug for diagnosticering. Exit
-		returnerer.
-PAGE UP		Gå en side op, i et tekstfelt.
-PAGE DOWN	Gå en side ned, i et tekstfelt.
-MELLEMRUM	I en "radio" eller flervalgs menu, skift status for det
-		nuværende objekt.
-F1		Hjælp (i skærme, der har denne funktionalitet).
+TAST            FUNKTION
+----            --------
+PIL OP          Flyt til foregående objekt (eller op, i et tekstfelt).
+PIL NED         Flyt til næste objekt (eller ned, i et tekstfelt).
+TAB             Flyt til næste objekt eller gruppe.
+HØJRE PIL    Flyt til næste objekt eller gruppe (det samme som TAB).
+SHIFT-TAB       Flyt til foregående objekt eller gruppe.
+VENSTRE PIL     Flyt til foregående objekt eller gruppe (det samme som
+                SHIFT-TAB).
+RETUR           Vælg objekt.
+ESC             Start en sub-shell til brug for diagnosticering. Exit
+                returnerer.
+PAGE UP         Gå en side op, i et tekstfelt.
+PAGE DOWN       Gå en side ned, i et tekstfelt.
+MELLEMRUM       I en "radio" eller flervalgs menu, skift status for det
+                nuværende objekt.
+F1              Hjælp (i skærme, der har denne funktionalitet).
 
 Hvis du også ser små "^(-)" eller "v(+)" symboler i kanten af en menu, betyder 
 det, at der er flere linjer ovenover eller nedenunder de nuværende, som ikke 
