@@ -38,6 +38,7 @@
 .Sh NAME
 .Nm opendir ,
 .Nm readdir ,
+.Nm readdir_r ,
 .Nm telldir ,
 .Nm seekdir ,
 .Nm rewinddir ,
@@ -51,6 +52,8 @@
 .Fn opendir "const char *filename"
 .Ft struct dirent *
 .Fn readdir "DIR *dirp"
+.Ft int
+.Fn readdir_r "DIR *dirp" "struct dirent *entry" "struct dirent **result"
 .Ft long
 .Fn telldir "const DIR *dirp"
 .Ft void
@@ -89,6 +92,22 @@ returns a pointer to the next directory entry.  It returns
 upon reaching the end of the directory or detecting an invalid
 .Fn seekdir
 operation.
+.Pp
+.Fn readdir_r
+provides the same functionality as
+.Fn readdir ,
+but the caller must provide a directory
+.Fa entry
+buffer to store the results in.  If the read succeeds, 
+.Fa result
+is pointed at the
+.Fa entry ;
+upon reaching the end of the directory
+.Fa result
+is set to
+.Dv NULL .
+.Fn readdir_r
+returns 0 on success or an error number to indicate failure.
 .Pp
 The
 .Fn telldir
