@@ -820,6 +820,14 @@ ptrace_single_step(struct thread *td)
 	return (ENOSYS);
 }
 
+int
+ptrace_clear_single_step(struct thread *td)
+{
+
+	/* XXX: coming soon... */
+	return (ENOSYS);
+}
+
 /*
  * Initialise a struct pcpu.
  */

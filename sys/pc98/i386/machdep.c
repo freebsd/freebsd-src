@@ -2309,6 +2309,13 @@ ptrace_single_step(struct thread *td)
 }
 
 int
+ptrace_clear_single_step(struct thread *td)
+{
+	td->td_frame->tf_eflags &= ~PSL_T;
+	return (0);
+}
+
+int
 fill_regs(struct thread *td, struct reg *regs)
 {
 	struct pcb *pcb;
