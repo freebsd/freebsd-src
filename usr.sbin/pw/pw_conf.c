@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_conf.c,v 1.1.1.2 1996/12/10 23:59:00 joerg Exp $
+ *	$Id: pw_conf.c,v 1.2 1996/12/21 15:35:42 davidn Exp $
  */
 
 #include <string.h>
@@ -40,6 +40,7 @@ enum {
 	_UC_DEFAULTPWD,
 	_UC_REUSEUID,
 	_UC_REUSEGID,
+	_UC_NISPASSWD,
 	_UC_DOTDIR,
 	_UC_NEWMAIL,
 	_UC_LOGFILE,
@@ -81,6 +82,7 @@ static struct userconf config =
 	0,			/* Default password for new users? (nologin) */
 	0,			/* Reuse uids? */
 	0,			/* Reuse gids? */
+	NULL,			/* NIS version of the passwd file */
 	"/usr/share/skel",	/* Where to obtain skeleton files */
 	NULL,			/* Mail to send to new accounts */
 	"/var/log/userlog",	/* Where to log changes */
@@ -103,6 +105,7 @@ static char const *comments[_UC_FIELDS] =
 	"\n# Password for new users? no=nologin yes=loginid none=blank random=random\n",
 	"\n# Reuse gaps in uid sequence? (yes or no)\n",
 	"\n# Reuse gaps in gid sequence? (yes or no)\n",
+	"\n# Path to the NIS passwd file (blank or 'no' for none)\n",
 	"\n# Obtain default dotfiles from this directory\n",
 	"\n# Mail this file to new user (/etc/newuser.msg or no)\n",
 	"\n# Log add/change/remove information in this file\n",
@@ -127,6 +130,7 @@ static char const *kwds[] =
 	"defaultpasswd",
 	"reuseuids",
 	"reusegids",
+	"nispasswd",
 	"skeleton",
 	"newmail",
 	"logfile",
@@ -266,6 +270,10 @@ read_userconfig(char const * file)
 				case _UC_REUSEGID:
 					config.reuse_gids = boolean_val(q, 0);
 					break;
+				case _UC_NISPASSWD:
+					config.nispasswd = (q == NULL || !boolean_val(q, 1))
+						? NULL : newstr(q);
+					break;
 				case _UC_DOTDIR:
 					config.dotdir = (q == NULL || !boolean_val(q, 1))
 						? NULL : newstr(q);
@@ -383,6 +391,10 @@ write_userconfig(char const * file)
 					break;
 				case _UC_REUSEGID:
 					val = boolean_str(config.reuse_gids);
+					break;
+				case _UC_NISPASSWD:
+					val = config.nispasswd ? config.nispasswd : "";
+					quote = 0;
 					break;
 				case _UC_DOTDIR:
 					val = config.dotdir ? config.dotdir : boolean_str(0);
