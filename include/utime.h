@@ -37,12 +37,18 @@
 #ifndef	_UTIME_H_
 #define	_UTIME_H_
 
+#include <sys/cdefs.h>
+#include <sys/_types.h>
+
+#ifndef _TIME_T_DECLARED
+typedef	__time_t	time_t;
+#define	_TIME_T_DECLARED
+#endif
+
 struct utimbuf {
 	time_t actime;		/* Access time */
 	time_t modtime;		/* Modification time */
 };
-
-#include <sys/cdefs.h>
 
 __BEGIN_DECLS
 int utime(const char *, const struct utimbuf *);
