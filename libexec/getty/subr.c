@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)subr.c	5.10 (Berkeley) 2/26/91";
 /*
  * Melbourne getty.
  */
+#include <sys/param.h>
 #define USE_OLD_TTY
 #include <sgtty.h>
 #include <unistd.h>
@@ -303,7 +304,7 @@ adelay(ms, dp)
 	return (dp->bits);
 }
 
-char	editedhost[32];
+char    editedhost[MAXHOSTNAMELEN];
 
 edithost(pat)
 	register char *pat;
