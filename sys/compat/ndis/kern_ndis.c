@@ -87,6 +87,8 @@ __stdcall static void ndis_getdone_func(ndis_handle, ndis_status);
 __stdcall static void ndis_resetdone_func(ndis_handle, ndis_status, uint8_t);
 __stdcall static void ndis_sendrsrcavail_func(ndis_handle);
 
+struct nd_head ndis_devhead;
+
 struct ndis_req {
 	void			(*nr_func)(void *);
 	void			*nr_arg;
@@ -113,7 +115,6 @@ static STAILQ_HEAD(ndisqhead, ndis_req) ndis_ttodo;
 struct ndisqhead ndis_itodo;
 struct ndisqhead ndis_free;
 static int ndis_jobs = 32;
-static int ndis_devs = 0;
 
 static struct ndisproc ndis_tproc;
 static struct ndisproc ndis_iproc;
@@ -145,11 +146,13 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 
 		ndis_create_kthreads();
 
+		TAILQ_INIT(&ndis_devhead);
+
 		break;
 	case MOD_SHUTDOWN:
 		/* stop kthreads */
 		ndis_destroy_kthreads();
-		if (ndis_devs == 0) {
+		if (TAILQ_FIRST(&ndis_devhead) != NULL) {
 			/* Shut down subsystems */
 			ndis_libfini();
 			ntoskrnl_libfini();
@@ -1189,7 +1192,6 @@ ndis_shutdown_nic(arg)
 	ndis_handle		adapter;
 	__stdcall ndis_shutdown_handler	shutdownfunc;
 
-
 	sc = arg;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
 	if (adapter == NULL)
@@ -1205,7 +1207,7 @@ ndis_shutdown_nic(arg)
 		shutdownfunc(sc->ndis_chars.nmc_rsvd0);
 
 	ndis_shrink_thrqueue(8);
-	ndis_devs--;
+	TAILQ_REMOVE(&ndis_devhead, &sc->ndis_block, link);
 
 	return(0);
 }
@@ -1400,7 +1402,7 @@ ndis_unload_driver(arg)
 	ndis_flush_sysctls(sc);
 
 	ndis_shrink_thrqueue(8);
-	ndis_devs--;
+	TAILQ_REMOVE(&ndis_devhead, &sc->ndis_block, link);
 
 	return(0);
 }
@@ -1510,7 +1512,7 @@ ndis_load_driver(img, arg)
 
 	ndis_enlarge_thrqueue(8);
 
-	ndis_devs++;
+	TAILQ_INSERT_TAIL(&ndis_devhead, block, link);
 
 	return(0);
 }

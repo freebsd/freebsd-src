@@ -104,6 +104,7 @@ __FBSDID("$FreeBSD$");
 static struct mtx *ndis_interlock;
 static char ndis_filepath[MAXPATHLEN];
 struct mtx_pool *ndis_mtxpool;
+extern struct nd_head ndis_devhead;
 
 SYSCTL_STRING(_hw, OID_AUTO, ndis_filepath, CTLFLAG_RW, ndis_filepath,
         MAXPATHLEN, "Path used by NdisOpenFile() to search for files");
@@ -146,6 +147,8 @@ __stdcall static void ndis_vtophys_load(ndis_handle, ndis_buffer *,
 	uint32_t, uint8_t, ndis_paddr_unit *, uint32_t *);
 __stdcall static void ndis_vtophys_unload(ndis_handle, ndis_buffer *, uint32_t);
 __stdcall static void ndis_create_timer(ndis_miniport_timer *, ndis_handle *,
+	ndis_timer_function, void *);
+__stdcall static void ndis_init_timer(ndis_timer *,
 	ndis_timer_function, void *);
 static void ndis_timercall(void *);
 __stdcall static void ndis_set_timer(ndis_miniport_timer *, uint32_t);
@@ -266,6 +269,10 @@ __stdcall static void ndis_pkt_to_pkt(ndis_packet *, uint32_t, uint32_t,
 	ndis_packet *, uint32_t, uint32_t *);
 __stdcall static void ndis_pkt_to_pkt_safe(ndis_packet *, uint32_t, uint32_t,
 	ndis_packet *, uint32_t, uint32_t *, uint32_t);
+__stdcall static ndis_status ndis_register_dev(ndis_handle *,
+	ndis_unicode_string *, ndis_unicode_string *, void *,
+	void *, ndis_handle **);
+__stdcall static ndis_status ndis_deregister_dev(ndis_handle *);
 __stdcall static void dummy(void);
 
 /*
@@ -891,6 +898,49 @@ ndis_vtophys_unload(adapter, buf, mapreg)
 	return;
 }
 
+/*
+ * This is an older pre-miniport timer init routine which doesn't
+ * accept a miniport context handle. The function context (ctx)
+ * is supposed to be a pointer to the adapter handle, which should
+ * have been handed to us via NdisSetAttributesEx(). We use this
+ * function context to track down the corresponding ndis_miniport_block
+ * structure. It's vital that we track down the miniport block structure,
+ * so if we can't do it, we panic. Note that we also play some games
+ * here by treating ndis_timer and ndis_miniport_timer as the same
+ * thing.
+ */
+
+__stdcall static void
+ndis_init_timer(timer, func, ctx)
+	ndis_timer		*timer;
+	ndis_timer_function	func;
+	void			*ctx;
+{
+	struct ndis_timer_entry	*ne = NULL;
+	ndis_miniport_block	*block = NULL;
+
+	TAILQ_FOREACH(block, &ndis_devhead, link) {
+		if (block->nmb_miniportadapterctx == ctx)
+			break;
+	}
+
+	if (block->nmb_miniportadapterctx != ctx)
+		panic("NDIS driver timer context didn't "
+		    "match any adapter contexts");
+
+	ne = malloc(sizeof(struct ndis_timer_entry), M_DEVBUF, M_NOWAIT);
+	callout_init(&ne->nte_ch, CALLOUT_MPSAFE);
+	TAILQ_INSERT_TAIL(&block->nmb_timerlist, ne, link);
+	ne->nte_timer = (ndis_miniport_timer *)timer;
+
+	timer->nt_timer.nk_header.dh_sigstate = TRUE;
+	timer->nt_dpc.nk_sysarg1 = &ne->nte_ch;
+	timer->nt_dpc.nk_deferedfunc = (ndis_kdpc_func)func;
+	timer->nt_dpc.nk_deferredctx = ctx;
+
+	return;
+}
+
 __stdcall static void
 ndis_create_timer(timer, handle, func, ctx)
 	ndis_miniport_timer	*timer;
@@ -908,9 +958,9 @@ ndis_create_timer(timer, handle, func, ctx)
 	ne->nte_timer = timer;
 
 	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
-	timer->nmt_dpc.nk_deferredctx = &ne->nte_ch;
-	timer->nmt_timerfunc = func;
-	timer->nmt_timerctx = ctx;
+	timer->nmt_dpc.nk_sysarg1 = &ne->nte_ch;
+	timer->nmt_dpc.nk_deferedfunc = (ndis_kdpc_func)func;
+	timer->nmt_dpc.nk_deferredctx = ctx;
 
 	return;
 }
@@ -930,8 +980,8 @@ ndis_timercall(arg)
 	timer = arg;
 
 	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
-	timerfunc = timer->nmt_timerfunc;
-	timerfunc(NULL, timer->nmt_timerctx, NULL, NULL);
+	timerfunc = (ndis_timer_function)timer->nmt_dpc.nk_deferedfunc;
+	timerfunc(NULL, timer->nmt_dpc.nk_deferredctx, NULL, NULL);
 
 	return;
 }
@@ -953,7 +1003,7 @@ ndis_set_timer(timer, msecs)
 	tv.tv_sec = 0;
 	tv.tv_usec = msecs * 1000;
 
-	ch = timer->nmt_dpc.nk_deferredctx;
+	ch = timer->nmt_dpc.nk_sysarg1;
 	timer->nmt_dpc.nk_sysarg2 = ndis_timercall;
 	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
 	callout_reset(ch, tvtohz(&tv), timer->nmt_dpc.nk_sysarg2, timer);
@@ -973,14 +1023,14 @@ ndis_tick(arg)
 	timer = arg;
 
 	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
-	timerfunc = timer->nmt_timerfunc;
-	timerfunc(NULL, timer->nmt_timerctx, NULL, NULL);
+	timerfunc = (ndis_timer_function)timer->nmt_dpc.nk_deferedfunc;
+	timerfunc(NULL, timer->nmt_dpc.nk_deferredctx, NULL, NULL);
 
 	/* Automatically reload timer. */
 
 	tv.tv_sec = 0;
 	tv.tv_usec = timer->nmt_ktimer.nk_period * 1000;
-	ch = timer->nmt_dpc.nk_deferredctx;
+	ch = timer->nmt_dpc.nk_sysarg1;
 	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
 	timer->nmt_dpc.nk_sysarg2 = ndis_tick;
 	callout_reset(ch, tvtohz(&tv), timer->nmt_dpc.nk_sysarg2, timer);
@@ -1000,7 +1050,7 @@ ndis_set_periodic_timer(timer, msecs)
 	tv.tv_usec = msecs * 1000;
 
 	timer->nmt_ktimer.nk_period = msecs;
-	ch = timer->nmt_dpc.nk_deferredctx;
+	ch = timer->nmt_dpc.nk_sysarg1;
 	timer->nmt_dpc.nk_sysarg2 = ndis_tick;
 	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
 	callout_reset(ch, tvtohz(&tv), timer->nmt_dpc.nk_sysarg2, timer);
@@ -1017,7 +1067,7 @@ ndis_cancel_timer(timer, cancelled)
 
 	if (timer == NULL)
 		return;
-	ch = timer->nmt_dpc.nk_deferredctx;
+	ch = timer->nmt_dpc.nk_sysarg1;
 	if (ch == NULL)
 		return;
 	callout_stop(ch);
@@ -2608,6 +2658,26 @@ ndis_pkt_to_pkt_safe(dpkt, doff, reqlen, spkt, soff, cpylen, prio)
 	return;
 }
 
+__stdcall static ndis_status
+ndis_register_dev(handle, devname, symname, majorfuncs, devobj, devhandle)
+	ndis_handle		*handle;
+	ndis_unicode_string	*devname;
+	ndis_unicode_string	*symname;
+	void			*majorfuncs;
+	void			*devobj;
+	ndis_handle		**devhandle;
+{
+	return(NDIS_STATUS_SUCCESS);
+}
+
+__stdcall static ndis_status
+ndis_deregister_dev(devhandle)
+	ndis_handle		*devhandle;
+{
+	return(NDIS_STATUS_SUCCESS);
+}
+
+
 __stdcall static void
 dummy()
 {
@@ -2667,8 +2737,10 @@ image_patch_table ndis_functbl[] = {
 	{ "NdisMStartBufferPhysicalMapping", (FUNC)ndis_vtophys_load },
 	{ "NdisMCompleteBufferPhysicalMapping", (FUNC)ndis_vtophys_unload },
 	{ "NdisMInitializeTimer",	(FUNC)ndis_create_timer },
+	{ "NdisInitializeTimer",	(FUNC)ndis_init_timer },
 	{ "NdisSetTimer",		(FUNC)ndis_set_timer },
 	{ "NdisMCancelTimer",		(FUNC)ndis_cancel_timer },
+	{ "NdisCancelTimer",		(FUNC)ndis_cancel_timer },
 	{ "NdisMSetPeriodicTimer",	(FUNC)ndis_set_periodic_timer },
 	{ "NdisMQueryAdapterResources",	(FUNC)ndis_query_resources },
 	{ "NdisMRegisterIoPortRange",	(FUNC)ndis_register_ioport },
@@ -2722,6 +2794,8 @@ image_patch_table ndis_functbl[] = {
 	{ "NdisMapFile",		(FUNC)ndis_map_file },
 	{ "NdisUnmapFile",		(FUNC)ndis_unmap_file },
 	{ "NdisCloseFile",		(FUNC)ndis_close_file },
+	{ "NdisMRegisterDevice",	(FUNC)ndis_register_dev },
+	{ "NdisMDeregisterDevice",	(FUNC)ndis_deregister_dev },
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
