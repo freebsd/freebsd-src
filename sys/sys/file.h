@@ -62,6 +62,7 @@ struct file {
 #define	DTYPE_PIPE	3	/* pipe */
 #define	DTYPE_FIFO	4	/* fifo (named pipe) */
 #define	DTYPE_KQUEUE	5	/* event queue */
+#define DTYPE_CRYPTO	6	/* crypto */
 	short	f_type;		/* descriptor type */
 	u_int	f_flag;		/* see fcntl.h */
 	struct	ucred *f_cred;	/* credentials associated with descriptor */
