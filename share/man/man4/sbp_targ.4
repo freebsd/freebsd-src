@@ -54,7 +54,7 @@ The
 driver provides support for SBP-2 target mode.
 This driver is supposed to work with cam(4), targ(4) and firewire(4).
 You also need to use scsi_target(8), which can be found in
-/usr/share/example/scsi_target, to provide actual devices.
+/usr/share/examples/scsi_target, to provide actual devices.
 .Sh EXAMPLE
 .Bd -literal -offset indent
 # mdconfig -a -t malloc -s 10m
@@ -78,4 +78,4 @@ driver was written by
 .An Hidetoshi Shimokawa .
 .Sh BUGS
 This driver is still under development.
-This doesn't work correctly in multi-initiator environment or after the bus topology has been changed.
+It doesn't work correctly in multi-initiator environments or after the bus topology has been changed.
