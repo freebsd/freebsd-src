@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.3 (Berkeley) 1/12/94
- * $Id: malloc.h,v 1.5 1994/10/04 06:51:36 phk Exp $
+ * $Id: malloc.h,v 1.6 1995/02/02 08:49:45 davidg Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -113,8 +113,10 @@
 #define M_MSDOSFSFAT	61	/* MSDOSFS file allocation table */
 #define	M_TEMP		74	/* misc temporary data buffers */
 #define M_TTYS		75	/* tty data structures */
-#define M_GZIP		76	/* tty data structures */
-#define	M_LAST		77	/* Must be last type + 1 */
+#define M_GZIP		76	/* Gzip trees */
+#define M_IPFW		77	/* IpFw/IpAcct chain's */
+#define M_DEVL		78	/* isa_device lists in userconfig() */
+#define	M_LAST		79	/* Must be last type + 1 */
 
 #define INITKMEMNAMES { \
 	"free",		/* 0 M_FREE */ \
@@ -185,6 +187,8 @@
 	"temp",		/* 74 M_TEMP */ \
 	"ttys",		/* 75 M_TTYS */ \
 	"Gzip trees",	/* 76 M_GZIP */ \
+	"IpFw/IpAcct",	/* 77 M_IPFW */ \
+	"isa_devlist",	/* 78 M_DEVL */ \
 }
 
 struct kmemstats {
