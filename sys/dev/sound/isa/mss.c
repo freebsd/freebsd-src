@@ -1104,7 +1104,7 @@ opti931_intr(void *arg)
 		if (reason & 1) {
 	    		DEB(printf("one more try...\n");)
 	    		if (--loops) goto again;
-	    		else DDB(printf("intr, but mc11 not set\n");)
+	    		else BVDDB(printf("intr, but mc11 not set\n");)
 		}
 		if (loops == 0) BVDDB(printf("intr, nothing in mcir11 0x%02x\n", mc11));
 		mss_unlock(mss);
