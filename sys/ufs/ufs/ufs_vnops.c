@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.7 1994/09/28 16:45:22 dfr Exp $
+ * $Id: ufs_vnops.c,v 1.8 1994/10/06 21:07:04 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -100,9 +100,10 @@ ufs_create(ap)
 {
 	int error;
 
-	if (error =
+	error =
 	    ufs_makeinode(MAKEIMODE(ap->a_vap->va_type, ap->a_vap->va_mode),
-	    ap->a_dvp, ap->a_vpp, ap->a_cnp))
+	    ap->a_dvp, ap->a_vpp, ap->a_cnp);
+	if (error)
 		return (error);
 	return (0);
 }
@@ -125,9 +126,9 @@ ufs_mknod(ap)
 	register struct inode *ip;
 	int error;
 
-	if (error =
-	    ufs_makeinode(MAKEIMODE(vap->va_type, vap->va_mode),
-	    ap->a_dvp, vpp, ap->a_cnp))
+	error = ufs_makeinode(MAKEIMODE(vap->va_type, vap->va_mode),
+	    ap->a_dvp, vpp, ap->a_cnp);
+	if (error)
 		return (error);
 	ip = VTOI(*vpp);
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
@@ -212,7 +213,7 @@ ufs_access(ap)
 	register struct ucred *cred = ap->a_cred;
 	mode_t mask, mode = ap->a_mode;
 	register gid_t *gp;
-	int i, error;
+	int i;
 
 #ifdef DIAGNOSTIC
 	if (!VOP_ISLOCKED(vp)) {
@@ -372,13 +373,16 @@ ufs_setattr(ap)
 	/*
 	 * Go through the fields and update iff not VNOVAL.
 	 */
-	if (vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (gid_t)VNOVAL)
-		if (error = ufs_chown(vp, vap->va_uid, vap->va_gid, cred, p))
+	if (vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (gid_t)VNOVAL) {
+		error = ufs_chown(vp, vap->va_uid, vap->va_gid, cred, p);
+		if (error)
 			return (error);
+	}
 	if (vap->va_size != VNOVAL) {
 		if (vp->v_type == VDIR)
 			return (EISDIR);
-		if (error = VOP_TRUNCATE(vp, vap->va_size, 0, cred, p))
+		error = VOP_TRUNCATE(vp, vap->va_size, 0, cred, p);
+		if (error)
 			return (error);
 	}
 	ip = VTOI(vp);
@@ -396,7 +400,8 @@ ufs_setattr(ap)
 		atimeval.tv_usec = vap->va_atime.ts_nsec / 1000;
 		mtimeval.tv_sec = vap->va_mtime.ts_sec;
 		mtimeval.tv_usec = vap->va_mtime.ts_nsec / 1000;
-		if (error = VOP_UPDATE(vp, &atimeval, &mtimeval, 1))
+		error = VOP_UPDATE(vp, &atimeval, &mtimeval, 1);
+		if (error)
 			return (error);
 	}
 	error = 0;
@@ -419,9 +424,11 @@ ufs_chmod(vp, mode, cred, p)
 	register struct inode *ip = VTOI(vp);
 	int error;
 
-	if (cred->cr_uid != ip->i_uid &&
-	    (error = suser(cred, &p->p_acflag)))
+	if (cred->cr_uid != ip->i_uid) {
+	    error = suser(cred, &p->p_acflag);
+	    if (error)
 		return (error);
+	}
 	if (cred->cr_uid) {
 		if (vp->v_type != VDIR && (mode & S_ISTXT))
 			return (EFTYPE);
@@ -808,7 +815,8 @@ abortit:
 		(void) relookup(tdvp, &tvp, tcnp);
 		return (VOP_REMOVE(tdvp, tvp, tcnp));
 	}
-	if (error = VOP_LOCK(fvp))
+	error = VOP_LOCK(fvp);
+	if (error)
 		goto abortit;
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
@@ -852,7 +860,8 @@ abortit:
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
 	tv = time;
-	if (error = VOP_UPDATE(fvp, &tv, &tv, 1)) {
+	error = VOP_UPDATE(fvp, &tv, &tv, 1);
+	if (error) {
 		VOP_UNLOCK(fvp);
 		goto bad;
 	}
@@ -876,11 +885,13 @@ abortit:
 			goto bad;
 		if (xp != NULL)
 			vput(tvp);
-		if (error = ufs_checkpath(ip, dp, tcnp->cn_cred))
+		error = ufs_checkpath(ip, dp, tcnp->cn_cred);
+		if (error)
 			goto out;
 		if ((tcnp->cn_flags & SAVESTART) == 0)
 			panic("ufs_rename: lost to startdir");
-		if (error = relookup(tdvp, &tvp, tcnp))
+		error = relookup(tdvp, &tvp, tcnp);
+		if (error)
 			goto out;
 		dp = VTOI(tdvp);
 		xp = NULL;
@@ -909,10 +920,12 @@ abortit:
 			}
 			dp->i_nlink++;
 			dp->i_flag |= IN_CHANGE;
-			if (error = VOP_UPDATE(tdvp, &tv, &tv, 1))
+			error = VOP_UPDATE(tdvp, &tv, &tv, 1);
+			if (error)
 				goto bad;
 		}
-		if (error = ufs_direnter(ip, tdvp, tcnp)) {
+		error = ufs_direnter(ip, tdvp, tcnp);
+		if (error) {
 			if (doingdirectory && newparent) {
 				dp->i_nlink--;
 				dp->i_flag |= IN_CHANGE;
@@ -961,7 +974,8 @@ abortit:
 			error = EISDIR;
 			goto bad;
 		}
-		if (error = ufs_dirrewrite(dp, ip, tcnp))
+		error = ufs_dirrewrite(dp, ip, tcnp);
+		if (error)
 			goto bad;
 		/*
 		 * If the target directory is in the same
@@ -1147,7 +1161,8 @@ ufs_mkdir(ap)
 	 * but not have it entered in the parent directory. The entry is
 	 * made later after writing "." and ".." entries.
 	 */
-	if (error = VOP_VALLOC(dvp, dmode, cnp->cn_cred, &tvp))
+	error = VOP_VALLOC(dvp, dmode, cnp->cn_cred, &tvp);
+	if (error)
 		goto out;
 	ip = VTOI(tvp);
 	ip->i_uid = cnp->cn_cred->cr_uid;
@@ -1177,7 +1192,8 @@ ufs_mkdir(ap)
 	 */
 	dp->i_nlink++;
 	dp->i_flag |= IN_CHANGE;
-	if (error = VOP_UPDATE(dvp, &tv, &tv, 1))
+	error = VOP_UPDATE(dvp, &tv, &tv, 1);
+	if (error)
 		goto bad;
 
 	/* Initialize directory with "." and ".." from static template. */
@@ -1204,7 +1220,8 @@ ufs_mkdir(ap)
 	}
 
 	/* Directory set up, now install it's entry in the parent directory. */
-	if (error = ufs_direnter(ip, dvp, cnp)) {
+	error = ufs_direnter(ip, dvp, cnp);
+	if (error) {
 		dp->i_nlink--;
 		dp->i_flag |= IN_CHANGE;
 	}
@@ -1274,7 +1291,8 @@ ufs_rmdir(ap)
 	 * inode.  If we crash in between, the directory
 	 * will be reattached to lost+found,
 	 */
-	if (error = ufs_dirremove(dvp, cnp))
+	error = ufs_dirremove(dvp, cnp);
+	if (error)
 		goto out;
 	dp->i_nlink--;
 	dp->i_flag |= IN_CHANGE;
@@ -1320,8 +1338,9 @@ ufs_symlink(ap)
 	register struct inode *ip;
 	int len, error;
 
-	if (error = ufs_makeinode(IFLNK | ap->a_vap->va_mode, ap->a_dvp,
-	    vpp, ap->a_cnp))
+	error = ufs_makeinode(IFLNK | ap->a_vap->va_mode, ap->a_dvp,
+	    vpp, ap->a_cnp);
+	if (error)
 		return (error);
 	vp = *vpp;
 	len = strlen(ap->a_target);
@@ -1503,7 +1522,6 @@ ufs_lock(ap)
 {
 	register struct vnode *vp = ap->a_vp;
 	register struct inode *ip;
-	struct proc *p = curproc;	/* XXX */
 
 start:
 	while (vp->v_flag & VXLOCK) {
@@ -1552,7 +1570,6 @@ ufs_unlock(ap)
 	} */ *ap;
 {
 	register struct inode *ip = VTOI(ap->a_vp);
-	struct proc *p = curproc;	/* XXX */
 
 #ifdef DIAGNOSTIC
 	if ((ip->i_flag & IN_LOCKED) == 0) {
@@ -1607,8 +1624,8 @@ ufs_strategy(ap)
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("ufs_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-		if (error =
-		    VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL)) {
+		error = VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL);
+		if (error) {
 			bp->b_error = error;
 			bp->b_flags |= B_ERROR;
 			biodone(bp);
@@ -1639,16 +1656,16 @@ ufs_print(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct inode *ip = VTOI(vp);
 
-	printf("tag VT_UFS, ino %d, on dev %d, %d", ip->i_number,
+	printf("tag VT_UFS, ino %ld, on dev %d, %d", ip->i_number,
 		major(ip->i_dev), minor(ip->i_dev));
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
 	printf("%s\n", (ip->i_flag & IN_LOCKED) ? " (LOCKED)" : "");
 	if (ip->i_lockholder == 0)
 		return (0);
-	printf("\towner pid %d", ip->i_lockholder);
+	printf("\towner pid %lu", (u_long)ip->i_lockholder);
 	if (ip->i_lockwaiter)
-		printf(" waiting pid %d", ip->i_lockwaiter);
+		printf(" waiting pid %lu", (u_long)ip->i_lockwaiter);
 	printf("\n");
 	return (0);
 }
@@ -1853,7 +1870,8 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 	case VCHR:
 	case VBLK:
 		vp->v_op = specops;
-		if (nvp = checkalias(vp, ip->i_rdev, mntp)) {
+		nvp = checkalias(vp, ip->i_rdev, mntp);
+		if (nvp) {
 			/*
 			 * Discard unneeded vnode, but save its inode.
 			 */
@@ -1911,7 +1929,8 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	if ((mode & IFMT) == 0)
 		mode |= IFREG;
 
-	if (error = VOP_VALLOC(dvp, mode, cnp->cn_cred, &tvp)) {
+	error = VOP_VALLOC(dvp, mode, cnp->cn_cred, &tvp); 
+	if (error) {
 		free(cnp->cn_pnbuf, M_NAMEI);
 		vput(dvp);
 		return (error);
@@ -1944,9 +1963,11 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	 * Make sure inode goes to disk before directory entry.
 	 */
 	tv = time;
-	if (error = VOP_UPDATE(tvp, &tv, &tv, 1))
+	error = VOP_UPDATE(tvp, &tv, &tv, 1);
+	if (error)
 		goto bad;
-	if (error = ufs_direnter(ip, dvp, cnp))
+	error = ufs_direnter(ip, dvp, cnp);
+	if (error)
 		goto bad;
 	if ((cnp->cn_flags & SAVESTART) == 0)
 		FREE(cnp->cn_pnbuf, M_NAMEI);
