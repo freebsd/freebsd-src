@@ -101,6 +101,14 @@ static vm_offset_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 
+/*
+ * Return true if a match is made.
+ * 
+ * To find a match walk the chain of bus_dma_tag_t's looking for 'paddr'.
+ * 
+ * If paddr is within the bounds of the dma tag then call the filter callback
+ * to check for a match, if there is no filter callback then assume a match.
+ */
 static __inline int
 run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 {
@@ -347,7 +355,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 
 /*
  * Free a piece of memory and it's allociated dmamap, that was allocated
- * via bus_dmamem_alloc.
+ * via bus_dmamem_alloc.  Make the same choice for free/contigfree.
  */
 void
 bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
@@ -358,8 +366,6 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	 */
 	if (map != NULL)
 		panic("bus_dmamem_free: Invalid map freed\n");
-	/* XXX There is no "contigfree" and "free" doesn't work */
-	/* There is too a contigfree, and we need to use it here. */
 	if ((dmat->maxsize <= PAGE_SIZE) && dmat->lowaddr >= ptoa(Maxmem))
 		free(vaddr, M_DEVBUF);
 	else
@@ -652,7 +658,7 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 }
 
 void
-busdma_swi()
+busdma_swi(void)
 {
 	int s;
 	struct bus_dmamap *map;
