@@ -29,31 +29,29 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * -
- * Portions Copyright (c) 1993 by Digital Equipment Corporation.
+ */
+
+/*
+ * Portions Copyright (c) 1996 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies, and that
- * the name of Digital Equipment Corporation not be used in advertising or
- * publicity pertaining to distribution of the document or software without
- * specific, written prior permission.
+ * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
- * CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
  * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
- * -
- * --Copyright--
- *
+ */
+
+/*
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
- *	From Id: resolv.h,v 8.18 1997/06/01 20:34:32 vixie Exp
- *	$Id: resolv.h,v 1.13 1997/06/27 08:32:38 peter Exp $
+ *	From Id: resolv.h,v 8.12 1998/04/28 19:36:46 halley Exp $
+ *	$Id: resolv.h,v 1.14 1997/09/01 01:19:10 brian Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -73,6 +71,15 @@
  */
 
 #define	__RES	19960801
+
+/*
+ * This used to be defined in res_query.c, now it's in herror.c.  It was
+ * never extern'd by any *.h file before it was placed here.  herror.c is
+ * part of libresolv.a even though it might make more sense in libnetdb.a
+ * or even libnet.a.
+ */
+
+extern int h_errno;
 
 /*
  * Resolver configuration file.
@@ -143,7 +150,7 @@ struct __res_state {
  * Resolver "pfcode" values.  Used by dig.
  */
 #define	RES_PRF_STATS	0x00000001
-/*			0x00000002	*/
+#define	RES_PRF_UPDATE	0x00000002
 #define	RES_PRF_CLASS   0x00000004
 #define	RES_PRF_CMD	0x00000008
 #define	RES_PRF_QUES	0x00000010
@@ -159,7 +166,6 @@ struct __res_state {
 #define	RES_PRF_INIT    0x00004000
 /*			0x00008000	*/
 
-/* hooks are still experimental as of 4.9.2 */
 typedef enum { res_goahead, res_nextns, res_modified, res_done, res_error }
 	res_sendhookact;
 
@@ -199,6 +205,8 @@ extern const struct res_sym __p_type_syms[];
 #define	b64_pton	__b64_pton
 #define	loc_ntoa	__loc_ntoa
 #define	loc_aton	__loc_aton
+#define	fp_resstat	__fp_resstat		/* XXX new divert */
+#define	p_query		__p_query		/* XXX new divert */
 #define	dn_skipname	__dn_skipname
 #define	fp_resstat	__fp_resstat
 #define	fp_query	__fp_query
@@ -211,36 +219,37 @@ extern const struct res_sym __p_type_syms[];
 #define	p_type		__p_type
 #define	p_query		__p_query
 #define	p_cdnname	__p_cdnname
+#define	p_section	__p_section		/* XXX new func in 8.1 */
 #define	p_cdname	__p_cdname
 #define	p_fqnname	__p_fqnname
 #define	p_fqname	__p_fqname
-#define	p_rr		__p_rr
+/* XXX p_rr gone */
 #define	p_option	__p_option
 #define	p_secstodate	__p_secstodate
 #define	dn_count_labels	__dn_count_labels
 #define	dn_comp		__dn_comp
+#define	dn_expand	__dn_expand		/* XXX unmasked */
+#define	res_init	__res_init		/* XXX unmasked */
 #define	res_randomid	__res_randomid
+#define	res_query	__res_query		/* XXX unmasked */
+#define	res_search	__res_search		/* XXX unmasked */
+#define	res_querydomain	__res_querydomain	/* XXX unmasked */
+#define	res_mkquery	__res_mkquery		/* XXX unmasked */
+#define	res_send	__res_send		/* XXX unmasked */
 #define	res_isourserver	__res_isourserver
 #define	res_nameinquery	__res_nameinquery
 #define	res_queriesmatch __res_queriesmatch
 #define	res_close	__res_close
-
-#ifdef BIND_RES_POSIX3
-#define	dn_expand	__dn_expand
-#define	res_init	__res_init
-#define	res_query	__res_query
-#define	res_search	__res_search
-#define	res_querydomain	__res_querydomain
-#define	res_mkquery	__res_mkquery
-#define	res_send	__res_send
-#endif
+#define res_mkupdate	__res_mkupdate		/* XXX new func in 8.1 */
+#define	res_mkupdrec	__res_mkupdrec		/* XXX new func in 8.1 */
+#define res_freeupdrec	__res_freeupdrec	/* XXX new func in 8.1 */
 
 __BEGIN_DECLS
 int		res_hnok __P((const char *));
 int		res_ownok __P((const char *));
 int		res_mailok __P((const char *));
 int		res_dnok __P((const char *));
-int		sym_ston __P((const struct res_sym *, char *, int *));
+int		sym_ston __P((const struct res_sym *, const char *, int *));
 const char *	sym_ntos __P((const struct res_sym *, int, int *));
 const char *	sym_ntop __P((const struct res_sym *, int, int *));
 int		b64_ntop __P((u_char const *, size_t, char *, size_t));
@@ -263,10 +272,9 @@ const u_char *	p_cdname __P((const u_char *, const u_char *, FILE *));
 const u_char *	p_fqnname __P((const u_char *, const u_char *,
 			       int, char *, int));
 const u_char *	p_fqname __P((const u_char *, const u_char *, FILE *));
-const u_char *	p_rr __P((const u_char *, const u_char *, FILE *));
 const char *	p_option __P((u_long));
 char *		p_secstodate __P((u_long));
-int		dn_count_labels __P((char *));
+int		dn_count_labels __P((const char *));
 int		dn_comp __P((const char *, u_char *, int,
 			     u_char **, u_char **));
 int		dn_expand __P((const u_char *, const u_char *, const u_char *,
@@ -286,6 +294,11 @@ int		res_nameinquery __P((const char *, int, int,
 int		res_queriesmatch __P((const u_char *, const u_char *,
 				      const u_char *, const u_char *));
 void		res_close __P((void));
+const char *	p_section __P((int, int));
+int		res_update __P((ns_updrec *));
+int		res_mkupdate __P((ns_updrec *, u_char *, int));
+ns_updrec *	res_mkupdrec __P((int, const char *, u_int, u_int, u_long));
+void		res_freeupdrec __P((ns_updrec *));
 __END_DECLS
 
 #endif /* !_RESOLV_H_ */
