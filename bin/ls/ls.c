@@ -220,8 +220,6 @@ main(argc, argv)
 			break;
 		case 'n':
 			f_numericonly = 1;
-			f_longform = 1;
-			f_column = f_singlecol = 0;
 			break;
 		case 'o':
 			f_flags = 1;
