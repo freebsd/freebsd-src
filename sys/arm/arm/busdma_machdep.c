@@ -709,7 +709,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
  * Release the mapping held by map.
  */
 void
-bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
+_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 	map->flags &= ~DMAMAP_TYPE_MASK;
 	return;
@@ -735,7 +735,7 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 }
 
 void
-bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
+_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 	struct mbuf *m;
 	struct uio *uio;
