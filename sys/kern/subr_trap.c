@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mac.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/kse.h>
 #include <sys/ktr.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
