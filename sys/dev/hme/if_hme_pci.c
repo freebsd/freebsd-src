@@ -157,22 +157,14 @@ hme_pci_attach(device_t dev)
 		PCI_PRODUCT_SUN_HMENETWORK >> 8
 	};
 #define	PROMDATA_PTR_VPD	0x08
-#define	PROMDATA_DATA2		0x0a
-	static const uint8_t promdat2[] = {
-		0x18, 0x00,		/* structure length */
-		0x00,			/* structure revision */
-		0x00,			/* interface revision */
-		PCIS_NETWORK_ETHERNET,	/* subclass code */
-		PCIC_NETWORK		/* class code */
-	};
-#define	PCI_VPDRES_ISLARGE(x)			((x) & 0x80)
-#define	PCI_VPDRES_LARGE_NAME(x)		((x) & 0x7f)
-#define	PCI_VPDRES_TYPE_VPD			0x10	/* large */
 	struct pci_vpd {
 		 uint8_t	vpd_key0;
 		 uint8_t	vpd_key1;
 		 uint8_t	vpd_len;
 	} *vpd;
+#define	PCI_VPDRES_ISLARGE(x)			((x) & 0x80)
+#define	PCI_VPDRES_LARGE_NAME(x)		((x) & 0x7f)
+#define	PCI_VPDRES_TYPE_VPD			0x10	/* large */
 #endif
 
 	pci_enable_busmaster(dev);
@@ -299,7 +291,6 @@ hme_pci_attach(device_t dev)
 	/* Read PCI expansion PROM data. */
 	bus_space_read_region_1(romt, romh, dataoff, buf, sizeof(buf));
 	if (memcmp(buf, promdat, sizeof(promdat)) != 0 ||
-	    memcmp(buf + PROMDATA_DATA2, promdat2, sizeof(promdat2)) != 0 ||
 	    (vpdoff = (buf[PROMDATA_PTR_VPD] |
 	    (buf[PROMDATA_PTR_VPD + 1] << 8))) < 0x1c) {
 		device_printf(dev, "unexpected PCI expansion PROM data\n");
@@ -309,15 +300,23 @@ hme_pci_attach(device_t dev)
 
 	/*
 	 * Read PCI VPD.
-	 * The VPD of HME is not in PCI 2.2 standard format. The length in
-	 * the resource header is in big endian, and resources are not
-	 * properly terminated (only one resource and no end tag).
+	 * SUNW,hme cards have a single large resource VPD-R tag
+	 * containing one NA. SUNW,qfe cards have four large resource
+	 * VPD-R tags containing one NA each (all four HME chips share
+	 * the same PROM).
+	 * The VPD used on both cards is not in PCI 2.2 standard format
+	 * however. The length in the resource header is in big endian
+	 * and the end tag is non-standard (0x79) and followed by an
+	 * all-zero "checksum" byte. Sun calls this a "Fresh Choice
+	 * Ethernet" VPD...
 	 */
-	bus_space_read_region_1(romt, romh, vpdoff, buf, sizeof(buf));
+	bus_space_read_region_1(romt, romh,
+	    vpdoff + slot * (3 + sizeof(struct pci_vpd) + ETHER_ADDR_LEN),
+	    buf, sizeof(buf));
 	vpd = (void *)(buf + 3);
 	if (PCI_VPDRES_ISLARGE(buf[0]) == 0 ||
 	    PCI_VPDRES_LARGE_NAME(buf[0]) != PCI_VPDRES_TYPE_VPD ||
-	    /* buf[1] != 0 || buf[2] != 9 || */ /*len*/
+	    (buf[1] << 8 | buf[2]) != sizeof(struct pci_vpd) + ETHER_ADDR_LEN ||
 	    vpd->vpd_key0 != 0x4e /* N */ ||
 	    vpd->vpd_key1 != 0x41 /* A */ ||
 	    vpd->vpd_len != ETHER_ADDR_LEN) {
@@ -325,12 +324,13 @@ hme_pci_attach(device_t dev)
 		error = ENXIO;
 		goto fail_rres;
 	}
-	if (buf + 6 == NULL) {
+	if (buf + 3 + sizeof(struct pci_vpd) == NULL) {
 		device_printf(dev, "could not read network address\n");
 		error = ENXIO;
 		goto fail_rres;
 	}
-	bcopy(buf + 6, sc->sc_arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	bcopy(buf + 3 + sizeof(struct pci_vpd), sc->sc_arpcom.ac_enaddr,
+	    ETHER_ADDR_LEN);
 
 fail_rres:
 	bus_release_resource(ebus_dev, SYS_RES_MEMORY, ebus_rrid, ebus_rres);
