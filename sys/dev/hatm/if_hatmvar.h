@@ -239,12 +239,12 @@ SLIST_HEAD(tpd_list, tpd);
 
 /* each allocated page has one of these structures at its very end. */
 struct mbuf_page_hdr {
-	uint8_t		card[32];	/* bitmap for on-card */
 	uint16_t	nchunks;	/* chunks on this page */
 	bus_dmamap_t	map;		/* the DMA MAP */
 	uint32_t	phys;		/* physical base address */
 	uint32_t	hdroff;		/* chunk header offset */
 	uint32_t	chunksize;	/* chunk size */
+	u_int		pool;		/* pool number */
 };
 struct mbuf_page {
 	char	storage[MBUF_ALLOC_SIZE - sizeof(struct mbuf_page_hdr)];
@@ -256,10 +256,6 @@ struct mbuf_page {
     MBUF0_CHUNK)
 #define MBUF1_PER_PAGE	((MBUF_ALLOC_SIZE - sizeof(struct mbuf_page_hdr)) / \
     MBUF1_CHUNK)
-
-#define MBUF_CLR_BIT(ARRAY, BIT) ((ARRAY)[(BIT) / 8] &= ~(1 << ((BIT) % 8)))
-#define MBUF_SET_BIT(ARRAY, BIT) ((ARRAY)[(BIT) / 8] |= (1 << ((BIT) % 8)))
-#define MBUF_TST_BIT(ARRAY, BIT) ((ARRAY)[(BIT) / 8] & (1 << ((BIT) % 8)))
 
 /*
  * Convert to/from handles
@@ -281,12 +277,15 @@ struct mbuf_page {
 
 #define MBUF_LARGE_FLAG	0x80000000
 
-/* chunks have the following structure at the end (4 byte) */
+/* chunks have the following structure at the end (8 byte) */
 struct mbuf_chunk_hdr {
-	uint16_t		pageno;
-	uint16_t		chunkno;
-	u_int			ref_cnt;
+	uint16_t	pageno;
+	uint8_t		chunkno;
+	uint8_t		flags;
+	u_int		ref_cnt;
 };
+#define	MBUF_CARD	0x01	/* buffer is on card */
+#define	MBUF_USED	0x02	/* buffer is somewhere in the system */
 
 #define MBUFX_STORAGE_SIZE(X) (MBUF##X##_CHUNK	\
     - sizeof(struct mbuf_chunk_hdr))
@@ -628,3 +627,5 @@ void hatm_rx_vcc_close(struct hatm_softc *sc, u_int cid);
 void hatm_tx_vcc_closed(struct hatm_softc *sc, u_int cid);
 void hatm_vcc_closed(struct hatm_softc *sc, u_int cid);
 void hatm_load_vc(struct hatm_softc *sc, u_int cid, int reopen);
+
+void hatm_ext_free(struct mbufx_free **, struct mbufx_free *);

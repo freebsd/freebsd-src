@@ -83,13 +83,16 @@ CTASSERT(sizeof(((struct mbuf0_chunk *)NULL)->storage) >= MBUF0_SIZE);
 CTASSERT(sizeof(((struct mbuf1_chunk *)NULL)->storage) >= MBUF1_SIZE);
 CTASSERT(sizeof(struct tpd) <= HE_TPD_SIZE);
 
+CTASSERT(MBUF0_PER_PAGE <= 256);
+CTASSERT(MBUF1_PER_PAGE <= 256);
+
 static void hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group);
 
 /*
  * Free an external mbuf to a list. We use atomic functions so that
  * we don't need a mutex for the list.
  */
-static __inline void
+__inline void
 hatm_ext_free(struct mbufx_free **list, struct mbufx_free *buf)
 {
 	for (;;) {
@@ -179,7 +182,6 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 		return;
 	if ((pg = malloc(MBUF_ALLOC_SIZE, M_DEVBUF, M_NOWAIT)) == NULL)
 		return;
-	bzero(pg->hdr.card, sizeof(pg->hdr.card));
 
 	err = bus_dmamap_create(sc->mbuf_tag, 0, &pg->hdr.map);
 	if (err != 0) {
@@ -203,6 +205,7 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 	if (group == 0) {
 		struct mbuf0_chunk *c;
 
+		pg->hdr.pool = 0;
 		pg->hdr.nchunks = MBUF0_PER_PAGE;
 		pg->hdr.chunksize = MBUF0_CHUNK;
 		pg->hdr.hdroff = sizeof(c->storage);
@@ -210,12 +213,14 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 		for (i = 0; i < MBUF0_PER_PAGE; i++, c++) {
 			c->hdr.pageno = sc->mbuf_npages;
 			c->hdr.chunkno = i;
+			c->hdr.flags = MBUF_USED;
 			hatm_ext_free(&sc->mbuf_list[0],
 			    (struct mbufx_free *)c);
 		}
 	} else {
 		struct mbuf1_chunk *c;
 
+		pg->hdr.pool = 1;
 		pg->hdr.nchunks = MBUF1_PER_PAGE;
 		pg->hdr.chunksize = MBUF1_CHUNK;
 		pg->hdr.hdroff = sizeof(c->storage);
@@ -223,6 +228,7 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 		for (i = 0; i < MBUF1_PER_PAGE; i++, c++) {
 			c->hdr.pageno = sc->mbuf_npages;
 			c->hdr.chunkno = i;
+			c->hdr.flags = MBUF_USED;
 			hatm_ext_free(&sc->mbuf_list[1],
 			    (struct mbufx_free *)c);
 		}
@@ -239,6 +245,9 @@ hatm_mbuf0_free(void *buf, void *args)
 	struct hatm_softc *sc = args;
 	struct mbuf0_chunk *c = buf;
 
+	KASSERT((c->hdr.flags & (MBUF_USED | MBUF_CARD)) == MBUF_USED,
+	    ("freeing unused mbuf %x", c->hdr.flags));
+	c->hdr.flags &= ~MBUF_USED;
 	hatm_ext_free(&sc->mbuf_list[0], (struct mbufx_free *)c);
 }
 static void
@@ -247,6 +256,9 @@ hatm_mbuf1_free(void *buf, void *args)
 	struct hatm_softc *sc = args;
 	struct mbuf1_chunk *c = buf;
 
+	KASSERT((c->hdr.flags & (MBUF_USED | MBUF_CARD)) == MBUF_USED,
+	    ("freeing unused mbuf %x", c->hdr.flags));
+	c->hdr.flags &= ~MBUF_USED;
 	hatm_ext_free(&sc->mbuf_list[1], (struct mbufx_free *)c);
 }
 
@@ -333,7 +345,7 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 				break;
 			buf0 = (struct mbuf0_chunk *)cf;
 			pg = sc->mbuf_pages[buf0->hdr.pageno];
-			MBUF_SET_BIT(pg->hdr.card, buf0->hdr.chunkno);
+			buf0->hdr.flags |= MBUF_CARD;
 			rbp->rbp[rbp->tail].phys = pg->hdr.phys +
 			    buf0->hdr.chunkno * MBUF0_CHUNK + MBUF0_OFFSET;
 			rbp->rbp[rbp->tail].handle =
@@ -351,7 +363,7 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 				break;
 			buf1 = (struct mbuf1_chunk *)cf;
 			pg = sc->mbuf_pages[buf1->hdr.pageno];
-			MBUF_SET_BIT(pg->hdr.card, buf1->hdr.chunkno);
+			buf1->hdr.flags |= MBUF_CARD;
 			rbp->rbp[rbp->tail].phys = pg->hdr.phys +
 			    buf1->hdr.chunkno * MBUF1_CHUNK + MBUF1_OFFSET;
 			rbp->rbp[rbp->tail].handle =
@@ -400,7 +412,6 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 	}
 
 	MBUF_PARSE_HANDLE(handle, pageno, chunkno);
-	MBUF_CLR_BIT(sc->mbuf_pages[pageno]->hdr.card, chunkno);
 
 	DBG(sc, RX, ("RX group=%u handle=%x page=%u chunk=%u", group, handle,
 	    pageno, chunkno));
@@ -415,6 +426,13 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 		    c0->hdr.pageno, pageno));
 		KASSERT(c0->hdr.chunkno == chunkno, ("chunkno = %u/%u",
 		    c0->hdr.chunkno, chunkno));
+		KASSERT(c0->hdr.flags & MBUF_CARD, ("mbuf not on card %u/%u",
+		    pageno, chunkno));
+		KASSERT(!(c0->hdr.flags & MBUF_USED), ("used mbuf %u/%u",
+		    pageno, chunkno));
+
+		c0->hdr.flags |= MBUF_USED;
+		c0->hdr.flags &= ~MBUF_CARD;
 
 		if (m != NULL) {
 			m->m_ext.ref_cnt = &c0->hdr.ref_cnt;
@@ -432,6 +450,13 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 		    c1->hdr.pageno, pageno));
 		KASSERT(c1->hdr.chunkno == chunkno, ("chunkno = %u/%u",
 		    c1->hdr.chunkno, chunkno));
+		KASSERT(c1->hdr.flags & MBUF_CARD, ("mbuf not on card %u/%u",
+		    pageno, chunkno));
+		KASSERT(!(c1->hdr.flags & MBUF_USED), ("used mbuf %u/%u",
+		    pageno, chunkno));
+
+		c1->hdr.flags |= MBUF_USED;
+		c1->hdr.flags &= ~MBUF_CARD;
 
 		if (m != NULL) {
 			m->m_ext.ref_cnt = &c1->hdr.ref_cnt;
