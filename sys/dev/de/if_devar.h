@@ -32,8 +32,6 @@
 #define _DEVAR_H
 
 #ifdef TULIP_IOMAPPED
-#define	TULIP_EISA_CSRSIZE	16
-#define	TULIP_EISA_CSROFFSET	0
 #define	TULIP_PCI_CSRSIZE	8
 #define	TULIP_PCI_CSROFFSET	0
 
@@ -172,13 +170,11 @@ typedef struct {
 typedef struct _tulip_softc_t tulip_softc_t;
 
 /*
- * The various controllers support.  Technically the DE425 is just
- * a 21040 on EISA.  But since it remarkably difference from normal
- * 21040s, we give it its own chip id.
+ * The various controllers support.
  */
 
 typedef enum {
-    TULIP_21040, TULIP_DE425,
+    TULIP_21040,
     TULIP_21041,
     TULIP_21140, TULIP_21140A, TULIP_21142,
     TULIP_21143,
@@ -452,7 +448,6 @@ typedef struct {
 /*
  * Now to important stuff.  This is softc structure (where does softc
  * come from??? No idea) for the tulip device.  
- *
  */
 struct _tulip_softc_t {
     struct ifmedia tulip_ifmedia;
@@ -648,11 +643,6 @@ struct _tulip_softc_t {
 #if defined(TULIP_HDR_DATA)
 static const char * const tulip_chipdescs[] = { 
     "21040 [10Mb/s]",
-#if defined(TULIP_EISA)
-    "DE425 [10Mb/s]",
-#else
-    NULL,
-#endif
     "21041 [10Mb/s]",
     "21140 [10-100Mb/s]",
     "21140A [10-100Mb/s]",
@@ -865,24 +855,15 @@ static void tulip_softintr(void);
 #define	SIOCGCHIPID		_IOWR('i', 241, struct ifreq)	/* get chipid */
 #endif
 
-typedef void ifnet_ret_t;
-typedef u_long ioctl_cmd_t;
 #if defined(TULIP_HDR_DATA)
 static tulip_softc_t *tulips[TULIP_MAX_DEVICES];
 #endif
-#if 0
-#define	TULIP_KVATOPHYS(sc, va)	kvtop(va)
-#endif
+
 #if defined(TULIP_USE_SOFTINTR)
 NETISR_SET(NETISR_DE, tulip_softintr);
 #endif
-#define	TULIP_UNIT_TO_SOFTC(unit)	(tulips[unit])
-#define	TULIP_BURSTSIZE(unit)		pci_max_burst_len
-#define	loudprintf			if (bootverbose) printf
 
-#ifndef TULIP_BURSTSIZE
-#define	TULIP_BURSTSIZE(unit)		3
-#endif
+#define	loudprintf			if (bootverbose) printf
 
 #ifndef	tulip_if
 #define	tulip_if	tulip_ac.ac_if
