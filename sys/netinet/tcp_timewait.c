@@ -1035,6 +1035,7 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 {
 	struct xucred xuc;
 	struct sockaddr_in6 addrs[2];
+	struct in6_addr a6[2];
 	struct inpcb *inp;
 	int error, s, mapped = 0;
 
@@ -1049,6 +1050,13 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 			mapped = 1;
 		else
 			return (EINVAL);
+	} else {
+		error = in6_embedscope(&a6[0], &addrs[0], NULL, NULL);
+		if (error)
+			return (EINVAL);
+		error = in6_embedscope(&a6[1], &addrs[1], NULL, NULL);
+		if (error)
+			return (EINVAL);
 	}
 	s = splnet();
 	INP_INFO_RLOCK(&tcbinfo);
@@ -1060,10 +1068,8 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 			addrs[0].sin6_port,
 			0, NULL);
 	else
-		inp = in6_pcblookup_hash(&tcbinfo, &addrs[1].sin6_addr,
-				 addrs[1].sin6_port,
-				 &addrs[0].sin6_addr, addrs[0].sin6_port,
-				 0, NULL);
+		inp = in6_pcblookup_hash(&tcbinfo, &a6[1], addrs[1].sin6_port,
+			&a6[0], addrs[0].sin6_port, 0, NULL);
 	if (inp == NULL) {
 		error = ENOENT;
 		goto outunlocked;
