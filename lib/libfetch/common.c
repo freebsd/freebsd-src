@@ -347,8 +347,6 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 	ssize_t rlen, total;
 	int r;
 
-	rlen = 0;
-
 	if (fetchTimeout) {
 		FD_ZERO(&readfds);
 		gettimeofday(&timeout, NULL);
@@ -452,12 +450,24 @@ _fetch_getln(conn_t *conn)
 ssize_t
 _fetch_write(conn_t *conn, const char *buf, size_t len)
 {
+	struct iovec iov;
+
+	iov.iov_base = __DECONST(char *, buf);
+	iov.iov_len = len;
+	return _fetch_writev(conn, &iov, 1);
+}
+
+/*
+ * Write a vector to a connection w/ timeout
+ * Note: can modify the iovec.
+ */
+ssize_t
+_fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
+{
 	struct timeval now, timeout, wait;
 	fd_set writefds;
 	ssize_t wlen, total;
 	int r;
-
-	total = 0;
 
 	if (fetchTimeout) {
 		FD_ZERO(&writefds);
@@ -465,7 +475,8 @@ _fetch_write(conn_t *conn, const char *buf, size_t len)
 		timeout.tv_sec += fetchTimeout;
 	}
 
-	while (len > 0) {
+	total = 0;
+	while (iovcnt > 0) {
 		while (fetchTimeout && !FD_ISSET(conn->sd, &writefds)) {
 			FD_SET(conn->sd, &writefds);
 			gettimeofday(&now, NULL);
@@ -490,21 +501,32 @@ _fetch_write(conn_t *conn, const char *buf, size_t len)
 		errno = 0;
 #ifdef WITH_SSL
 		if (conn->ssl != NULL)
-			wlen = SSL_write(conn->ssl, buf, len);
+			wlen = SSL_write(conn->ssl,
+			    iov->iov_base, iov->iov_len);
 		else
 #endif
-			wlen = write(conn->sd, buf, len);
-		if (wlen == 0)
+			wlen = writev(conn->sd, iov, iovcnt);
+		if (wlen == 0) {
 			/* we consider a short write a failure */
+			errno = EPIPE;
+			_fetch_syserr();
 			return (-1);
+		}
 		if (wlen < 0) {
 			if (errno == EINTR && fetchRestartCalls)
 				continue;
 			return (-1);
 		}
-		len -= wlen;
-		buf += wlen;
 		total += wlen;
+		while (iovcnt > 0 && wlen >= (ssize_t)iov->iov_len) {
+			wlen -= iov->iov_len;
+			iov++;
+			iovcnt--;
+		}
+		if (iovcnt > 0) {
+			iov->iov_len -= wlen;
+			iov->iov_base = __DECONST(char *, iov->iov_base) + wlen;
+		}
 	}
 	return (total);
 }
@@ -516,10 +538,14 @@ _fetch_write(conn_t *conn, const char *buf, size_t len)
 int
 _fetch_putln(conn_t *conn, const char *str, size_t len)
 {
+	struct iovec iov[2];
 
 	DEBUG(fprintf(stderr, ">>> %s\n", str));
-	if (_fetch_write(conn, str, len) == -1 ||
-	    _fetch_write(conn, ENDL, sizeof ENDL) == -1)
+	iov[0].iov_base = __DECONST(char *, str);
+	iov[0].iov_len = len;
+	iov[1].iov_base = __DECONST(char *, ENDL);
+	iov[1].iov_len = sizeof ENDL;
+	if (_fetch_writev(conn, iov, 2) == -1)
 		return (-1);
 	return (0);
 }
