@@ -170,14 +170,23 @@ except the caller provide the output buffer
 .Fa buf
 to store the result, which must be at least 26 bytes long.
 .Pp
-The function
+The functions
 .Fn mktime
-converts the broken-down time, expressed as local time, in the structure
+and
+.Fn timegm
+converts the broken-down time in the structure
 pointed to by tm into a time value with the same encoding as that of the
 values returned by the
 .Xr time 3
-function, that is, seconds from the Epoch,
-.Tn UTC .
+function (that is, seconds from the Epoch,
+.Tn UTC ) .
+.Fn mktime
+interprets the input structure according to the current timezone setting
+(see
+.Xr tzset 3 ) .
+.Fn timegm
+interprets the input structure as representing Universal Coordinated Time
+.Pq Tn UTC .
 .Pp
 The original values of the
 .Fa tm_wday
@@ -196,7 +205,13 @@ A negative value for
 causes the
 .Fn mktime
 function to attempt to divine whether summer time is in effect for the
-specified time.)
+specified time.
+The
+.Fa tm_isdst
+and
+.Fa tm_gmtoff
+members are forced to zero by
+.Fn timegm . )
 .Pp
 On successful completion, the values of the
 .Fa tm_wday
@@ -214,15 +229,6 @@ are determined.
 .Fn Mktime
 returns the specified calendar time; if the calendar time cannot be
 represented, it returns \-1;
-.Pp
-The function
-.Fn timegm
-is
-.Fn mktime
-analog, but assume that broke-down time expressed as UTC (not local) time.
-This function also set
-.Fa tm_isdst
-field to 0.
 .Pp
 The
 .Fn difftime
@@ -276,12 +282,19 @@ Arthur Olsen and which appeared in
 .Bx 4.3 .
 .Sh BUGS
 Except for 
-.Fn difftime
-and
+.Fn difftime ,
 .Fn mktime ,
+and the
+.Fn \&_r
+variants of the other functions,
 these functions leaves their result in an internal static object and return
 a pointer to that object. Subsequent calls to these
 function will modify the same object.
+.Pp
+The C Standard provides no mechanism for a program to modify its current
+local timezone setting, and the
+.Tn POSIX Ns No \&-standard
+method is not reentrant.
 .Pp
 The
 .Fa tm_zone
@@ -297,7 +310,3 @@ Use of the external variable
 is discouraged; the
 .Fa tm_zone
 entry in the tm structure is preferred.
-.Pp
-Avoid using out-of-range values with
-.Fn mktime
-when setting up lunch with promptness sticklers in Riyadh.
