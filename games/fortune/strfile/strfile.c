@@ -131,7 +131,7 @@ STR	*Firstch;			/* first chars of each string */
 
 void	add_offset(FILE *, long);
 int	cmp_str(const void *, const void *);
-static int	collate_range_cmp(int, int);
+static int      stable_collate_range_cmp(int, int);
 void	do_order(void);
 void	getargs(int, char **);
 void	randomize(void);
@@ -367,16 +367,12 @@ void do_order()
 	Tbl.str_flags |= STR_ORDERED;
 }
 
-static int collate_range_cmp (c1, c2)
+static int stable_collate_range_cmp(c1, c2)
 	int c1, c2;
 {
 	static char s1[2], s2[2];
 	int ret;
 
-	c1 &= UCHAR_MAX;
-	c2 &= UCHAR_MAX;
-	if (c1 == c2)
-		return (0);
 	s1[0] = c1;
 	s2[0] = c2;
 	if ((ret = strcoll(s1, s2)) != 0)
@@ -404,8 +400,8 @@ const void	*s1, *s2;
 	
 	c1 = (unsigned char) p1->first;
 	c2 = (unsigned char) p2->first;
-	if ((r = collate_range_cmp(c1, c2)) != 0)
-		return r;
+	if ((r = stable_collate_range_cmp(c1, c2)) != 0)
+		return (r);
 
 	(void) fseek(Sort_1, p1->pos, 0);
 	(void) fseek(Sort_2, p2->pos, 0);
@@ -424,8 +420,8 @@ const void	*s1, *s2;
 			if (isupper(c2))
 				c2 = tolower(c2);
 		}
-		if ((r = collate_range_cmp(c1, c2)) != 0)
-			return r;
+		if ((r = stable_collate_range_cmp(c1, c2)) != 0)
+			return (r);
 		SET_N(n1, c1);
 		SET_N(n2, c2);
 		c1 = getc(Sort_1);
@@ -435,7 +431,7 @@ const void	*s1, *s2;
 		c1 = 0;
 	if (IS_END(c2, n2))
 		c2 = 0;
-	return collate_range_cmp(c1, c2);
+	return (stable_collate_range_cmp(c1, c2));
 }
 
 /*
