@@ -39,7 +39,7 @@
 	uint32_t	pc_awake:1;		/* CPU is awake? */	\
 	uint64_t	pc_clock;		/* Clock counter. */	\
 	uint64_t	pc_clockadj;		/* Clock adjust. */	\
-	uint32_t	pc_acpi_id;		/* ACPI CPU id. */
+	uint32_t	pc_acpi_id		/* ACPI CPU id. */
 
 struct pcpu;
 
