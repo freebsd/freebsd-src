@@ -1,6 +1,7 @@
 %{
 #include <stdio.h>
-char *str_concat(), *ds(), *quote(), *malloc(), *realloc();
+char *str_concat(), *ds(), *quote();
+void *malloc(), *realloc();
 char *current_token = (char *)NULL;
 extern char *table_name;
 %}
@@ -73,10 +74,10 @@ description	:	QUOTED_STRING
 
 #ifndef	lint
 static char const rcsid_error_table_y[] =
-    "$Header: error_table.y,v 1.7 89/01/01 07:23:17 raeburn Locked $";
+    "$Header: /home/ncvs/src/usr.bin/compile_et/error_table.y,v 1.2 1995/01/14 22:29:33 wollman Exp $";
 #endif
 
-char *malloc(), *realloc();
+void *malloc(), *realloc();
 extern FILE *hfile, *cfile;
 
 static long gensym_n = 0;
