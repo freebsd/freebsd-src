@@ -1,4 +1,4 @@
-; $Id$
+; $Id: TODO,v 1.2 1994/08/21 06:12:11 jkh Exp $
 
 ** To skip this preamble, search forward for the pattern `**'.
 
@@ -154,3 +154,15 @@ EMAIL:	<phk>
 CATS:	kernel user
 GRADE:	INTERMEDIATE
 STATUS:	OPEN (*)
+
+TASKID: 940821001
+TASK:	Add XPG-style message catalogs.
+DETAIL:	{ NetBSD has apparently already done the necessary work, so this
+pretty much comes down to either evaluating their stuff and making any changes
+necessary, or simply starting from scratch.  Not having seen the code in
+question, I leave it up to the best judgement of the implementor as to how to
+best accomplish the task. }
+EMAIL:	<jkh>
+CATS:	user
+GRADE:	INTERMEDIATE
+STATUS:	OPEN
