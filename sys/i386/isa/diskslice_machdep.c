@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.14 1995/05/18 22:45:35 phk Exp $
+ *	$Id: diskslice_machdep.c,v 1.15 1995/08/23 10:41:57 jkh Exp $
  */
 
 #include <stddef.h>
@@ -298,13 +298,13 @@ reread_mbr:
 	if (secpercyl != 0) {
 		u_long	secperunit;
 
-		lp->d_ncylinders = max_ncyls;
 		lp->d_nsectors = max_nsectors;
 		lp->d_ntracks = max_ntracks;
 		lp->d_secpercyl = secpercyl;
 		secperunit = secpercyl * max_ncyls;
 		if (lp->d_secperunit < secperunit)
 			lp->d_secperunit = secperunit;
+		lp->d_ncylinders = lp->d_secperunit / secpercyl;
 	}
 
 	/*
