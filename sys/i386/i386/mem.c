@@ -195,6 +195,9 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 				return (EFAULT);
 			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
 			continue;
+
+		default:
+			return (ENODEV);
 		}
 
 		if (error)
