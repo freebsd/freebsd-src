@@ -1577,7 +1577,7 @@ ohci_hash_find_td(sc, a)
 	/* if these are present they should be masked out at an earlier
 	 * stage.
 	 */
-	KASSERT(a&LE(TAILMASK) == 0, ("%s: 0x%b has lower bits set\n",
+	KASSERT(a&LE(OHCI_TAILMASK) == 0, ("%s: 0x%b has lower bits set\n",
 				      USBDEVNAME(sc->sc_bus.bdev),
 				      (int) a, "\20\1HALT\2TOGGLE"));
 
