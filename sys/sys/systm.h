@@ -185,12 +185,16 @@ void	bzero(void *buf, size_t len) __nonnull(1);
 
 void	*memcpy(void *to, const void *from, size_t len) __nonnull(1) __nonnull(2);
 
-int	copystr(const void *kfaddr, void *kdaddr, size_t len,
-	    size_t *lencopied) __nonnull(1) __nonnull(2);
-int	copyinstr(const void *udaddr, void *kaddr, size_t len,
-	    size_t *lencopied) __nonnull(1) __nonnull(2);
-int	copyin(const void *udaddr, void *kaddr, size_t len) __nonnull(1) __nonnull(2);
-int	copyout(const void *kaddr, void *udaddr, size_t len) __nonnull(1) __nonnull(2);
+int	copystr(const void * __restrict kfaddr, void * __restrict kdaddr,
+	    size_t len, size_t * __restrict lencopied)
+	    __nonnull(1) __nonnull(2);
+int	copyinstr(const void * __restrict udaddr, void * __restrict kaddr,
+	    size_t len, size_t * __restrict lencopied)
+	    __nonnull(1) __nonnull(2);
+int	copyin(const void * __restrict udaddr, void * __restrict kaddr,
+	    size_t len) __nonnull(1) __nonnull(2);
+int	copyout(const void * __restrict kaddr, void * __restrict udaddr,
+	    size_t len) __nonnull(1) __nonnull(2);
 
 int	fubyte(const void *base);
 long	fuword(const void *base);
