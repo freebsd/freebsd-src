@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.h,v 1.1 1994/10/06 09:25:25 rgrimes Exp $
+ *	$Id: bootinfo.h,v 1.2 1994/11/18 05:02:43 phk Exp $
  */
 
 #ifndef	_MACHINE_BOOTINFO_H_
@@ -44,4 +44,7 @@ struct bootinfo_t {
 	unsigned long		bios_geom[N_BIOS_GEOM];
 };
 
+#ifdef KERNEL
+extern struct bootinfo_t	bootinfo;
+#endif
 #endif	/* _MACHINE_BOOTINFO_H_ */
