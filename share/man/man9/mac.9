@@ -18,9 +18,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. The names of the authors may not be used to endorse or promote
-.\"    products derived from this software without specific prior written
-.\"    permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -63,6 +60,12 @@ opportunity to modify security behavior at those MAC API entry points.
 Both consumers of the API (normal kernel services) and security modules
 must be aware of the semantics of the API calls, particularly with respect
 to synchronization primitives (such as locking).
+.Ss Note on appropriateness for production use
+The TrustedBSD MAC Framework included in
+.Fx 5.0
+is considered experimental, and should not be deployed in production
+environments without careful consideration of the risks associated with
+the use of experimental operating system features.
 .Ss Kernel objects supported by the framework
 The MAC framework manages labels on a variety of types of in-kernel
 objects, including process credentials, vnodes, devfs_dirents, mount
@@ -196,4 +199,17 @@ Additional contributors include:
 .An Thomas Moestl ,
 and
 .An Andrew Reiter .
-.An -split
+.Sh HISTORY
+The TrustedBSD MAC Framework first appeared in
+.Fx 5.0
+.Sh BUGS
+See the earlier section in this document concerning appropriateness
+for production use.
+The TrustedBSD MAC Framework is considered experimental in
+.Fx .
+.Pp
+While the MAC Framework design is intended to support the containment of
+the root user, not all attack channels are current protected by entry
+point checks.
+As such, MAC Framework policies should not be relied on, in isolation,
+to protect against a malicious privileged user.
