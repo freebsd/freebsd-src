@@ -31,33 +31,29 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
- *
- * $Id: wormcontrol.c,v 1.5 1997/03/31 05:11:40 imp Exp $
- *
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <err.h>
 #include <sysexits.h>
+#include <unistd.h>
 
 #include <sys/ioctl.h>
 #include <sys/wormio.h>
 
-
-void
-usage(void)
+static void
+usage()
 {
-	errx(EX_USAGE,
-	     "usage: wormcontrol [-f device] command [args]\n"
-	     "commands:\n"
-	     "       select vendor-id model-id\n"
-	     "       prepdisk [dummy] single|double\n"
-	     "       track audio|data [preemp]\n"
-	     "       fixate toc-type [onp]\n");
+	fprintf(stderr,"usage: wormcontrol [-f device] command [args]\n");
+	exit(EX_USAGE);
 }
 
 #define eq(a, b) (strcmp(a, b) == 0)
