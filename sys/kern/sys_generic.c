@@ -696,8 +696,12 @@ done:
 	return (error);
 }
 
-static int	nselcoll;	/* Select collisions since boot */
+/*
+ * sellock and selwait are initialized in selectinit() via SYSINIT.
+ */
+struct mtx	sellock;
 struct cv	selwait;
+int	nselcoll;	/* Select collisions since boot */
 SYSCTL_INT(_kern, OID_AUTO, nselcoll, CTLFLAG_RD, &nselcoll, 0, "");
 
 /*
@@ -775,7 +779,7 @@ select(td, uap)
 			sbp += ncpbytes / sizeof *sbp;			\
 			error = copyin(uap->name, ibits[x], ncpbytes);	\
 			if (error != 0)					\
-				goto done_noproclock;			\
+				goto done_nosellock;			\
 		}							\
 	} while (0)
 	getbits(in, 0);
@@ -789,10 +793,10 @@ select(td, uap)
 		error = copyin((caddr_t)uap->tv, (caddr_t)&atv,
 			sizeof (atv));
 		if (error)
-			goto done_noproclock;
+			goto done_nosellock;
 		if (itimerfix(&atv)) {
 			error = EINVAL;
-			goto done_noproclock;
+			goto done_nosellock;
 		}
 		getmicrouptime(&rtv);
 		timevaladd(&atv, &rtv);
@@ -801,61 +805,59 @@ select(td, uap)
 		atv.tv_usec = 0;
 	}
 	timo = 0;
-	PROC_LOCK(td->td_proc);
+	mtx_lock(&sellock);
 retry:
 	ncoll = nselcoll;
 	mtx_lock_spin(&sched_lock);
 	td->td_flags |= TDF_SELECT;
 	mtx_unlock_spin(&sched_lock);
-	PROC_UNLOCK(td->td_proc);
+	mtx_unlock(&sellock);
+
+	/* XXX Is there a better place for this? */
+	TAILQ_INIT(&td->td_selq);
 	error = selscan(td, ibits, obits, uap->nd);
-	PROC_LOCK(td->td_proc);
+	mtx_lock(&sellock);
 	if (error || td->td_retval[0])
 		goto done;
 	if (atv.tv_sec || atv.tv_usec) {
 		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=)) {
-			/*
-			 * An event of our interest may occur during locking a process.
-			 * In order to avoid missing the event that occured during locking
-			 * the process, test TDF_SELECT and rescan file descriptors if
-			 * necessary.
-			 */
-			mtx_lock_spin(&sched_lock);
-			if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
-				ncoll = nselcoll;
-				td->td_flags |= TDF_SELECT;
-				mtx_unlock_spin(&sched_lock);
-				PROC_UNLOCK(td->td_proc);
-				error = selscan(td, ibits, obits, uap->nd);
-				PROC_LOCK(td->td_proc);
-			} else
-				mtx_unlock_spin(&sched_lock);
+		if (timevalcmp(&rtv, &atv, >=))
 			goto done;
-		}
 		ttv = atv;
 		timevalsub(&ttv, &rtv);
 		timo = ttv.tv_sec > 24 * 60 * 60 ?
 		    24 * 60 * 60 * hz : tvtohz(&ttv);
 	}
+
+	/*
+	 * An event of interest may occur while we do not hold
+	 * sellock, so check TDF_SELECT and the number of
+	 * collisions and rescan the file descriptors if
+	 * necessary.
+	 */
 	mtx_lock_spin(&sched_lock);
-	td->td_flags &= ~TDF_SELECT;
+	if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
+		mtx_unlock_spin(&sched_lock);
+		goto retry;
+	}
 	mtx_unlock_spin(&sched_lock);
 
 	if (timo > 0)
-		error = cv_timedwait_sig(&selwait, &td->td_proc->p_mtx, timo);
+		error = cv_timedwait_sig(&selwait, &sellock, timo);
 	else
-		error = cv_wait_sig(&selwait, &td->td_proc->p_mtx);
+		error = cv_wait_sig(&selwait, &sellock);
 	
 	if (error == 0)
 		goto retry;
 
 done:
+	clear_selinfo_list(td);
 	mtx_lock_spin(&sched_lock);
 	td->td_flags &= ~TDF_SELECT;
 	mtx_unlock_spin(&sched_lock);
-	PROC_UNLOCK(td->td_proc);
-done_noproclock:
+	mtx_unlock(&sellock);
+
+done_nosellock:
 	/* select is not restarted after signals... */
 	if (error == ERESTART)
 		error = EINTR;
@@ -967,13 +969,13 @@ poll(td, uap)
 		bits = smallbits;
 	error = copyin(SCARG(uap, fds), bits, ni);
 	if (error)
-		goto done_noproclock;
+		goto done_nosellock;
 	if (SCARG(uap, timeout) != INFTIM) {
 		atv.tv_sec = SCARG(uap, timeout) / 1000;
 		atv.tv_usec = (SCARG(uap, timeout) % 1000) * 1000;
 		if (itimerfix(&atv)) {
 			error = EINVAL;
-			goto done_noproclock;
+			goto done_nosellock;
 		}
 		getmicrouptime(&rtv);
 		timevaladd(&atv, &rtv);
@@ -982,59 +984,57 @@ poll(td, uap)
 		atv.tv_usec = 0;
 	}
 	timo = 0;
-	PROC_LOCK(td->td_proc);
+	mtx_lock(&sellock);
 retry:
 	ncoll = nselcoll;
 	mtx_lock_spin(&sched_lock);
 	td->td_flags |= TDF_SELECT;
 	mtx_unlock_spin(&sched_lock);
-	PROC_UNLOCK(td->td_proc);
+	mtx_unlock(&sellock);
+
+	/* XXX Is there a better place for this? */
+	TAILQ_INIT(&td->td_selq);
 	error = pollscan(td, (struct pollfd *)bits, nfds);
-	PROC_LOCK(td->td_proc);
+	mtx_lock(&sellock);
 	if (error || td->td_retval[0])
 		goto done;
 	if (atv.tv_sec || atv.tv_usec) {
 		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=)) {
-			/*
-			 * An event of our interest may occur during locking a process.
-			 * In order to avoid missing the event that occured during locking
-			 * the process, test TDF_SELECT and rescan file descriptors if
-			 * necessary.
-			 */
-			mtx_lock_spin(&sched_lock);
-			if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
-				ncoll = nselcoll;
-				td->td_flags |= TDF_SELECT;
-				mtx_unlock_spin(&sched_lock);
-				PROC_UNLOCK(td->td_proc);
-				error = pollscan(td, (struct pollfd *)bits, nfds);
-				PROC_LOCK(td->td_proc);
-			} else
-				mtx_unlock_spin(&sched_lock);
+		if (timevalcmp(&rtv, &atv, >=))
 			goto done;
-		}
 		ttv = atv;
 		timevalsub(&ttv, &rtv);
 		timo = ttv.tv_sec > 24 * 60 * 60 ?
 		    24 * 60 * 60 * hz : tvtohz(&ttv);
 	}
+	/*
+	 * An event of interest may occur while we do not hold
+	 * sellock, so check TDF_SELECT and the number of collisions
+	 * and rescan the file descriptors if necessary.
+	 */
 	mtx_lock_spin(&sched_lock);
-	td->td_flags &= ~TDF_SELECT;
+	if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
+		mtx_unlock_spin(&sched_lock);
+		goto retry;
+	}
 	mtx_unlock_spin(&sched_lock);
+
 	if (timo > 0)
-		error = cv_timedwait_sig(&selwait, &td->td_proc->p_mtx, timo);
+		error = cv_timedwait_sig(&selwait, &sellock, timo);
 	else
-		error = cv_wait_sig(&selwait, &td->td_proc->p_mtx);
+		error = cv_wait_sig(&selwait, &sellock);
+
 	if (error == 0)
 		goto retry;
 
 done:
+	clear_selinfo_list(td);
 	mtx_lock_spin(&sched_lock);
 	td->td_flags &= ~TDF_SELECT;
 	mtx_unlock_spin(&sched_lock);
-	PROC_UNLOCK(td->td_proc);
-done_noproclock:
+	mtx_unlock(&sellock);
+
+done_nosellock:
 	/* poll is not restarted after signals... */
 	if (error == ERESTART)
 		error = EINTR;
@@ -1115,6 +1115,26 @@ openbsd_poll(td, uap)
 	return (poll(td, (struct poll_args *)uap));
 }
 
+/*
+ * Remove the references to the thread from all of the objects
+ * we were polling.
+ *
+ * This code assumes that the underlying owner of the selinfo
+ * structure will hold sellock before it changes it, and that
+ * it will unlink itself from our list if it goes away.
+ */
+void
+clear_selinfo_list(td)
+	struct thread *td;
+{
+	struct selinfo *si;
+
+	mtx_assert(&sellock, MA_OWNED);
+	TAILQ_FOREACH(si, &td->td_selq, si_thrlist)
+		si->si_thread = NULL;
+	TAILQ_INIT(&td->td_selq);
+}
+
 /*ARGSUSED*/
 int
 seltrue(dev, events, td)
@@ -1126,18 +1146,6 @@ seltrue(dev, events, td)
 	return (events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
 }
 
-static int
-find_thread_in_proc(struct proc *p, struct thread *td)
-{
-	struct thread *td2;
-	FOREACH_THREAD_IN_PROC(p, td2) {
-		if (td2 == td) {
-			return (1);
-		}
-	}
-	return (0);
-}
-
 /*
  * Record a select request.
  */
@@ -1146,29 +1154,22 @@ selrecord(selector, sip)
 	struct thread *selector;
 	struct selinfo *sip;
 {
-	struct proc *p;
-	pid_t mypid;
 
-	mypid = selector->td_proc->p_pid;
-	if ((sip->si_pid == mypid) &&
-	    (sip->si_thread == selector)) { /* XXXKSE should be an ID? */
-		return;
+	mtx_lock(&sellock);
+	/*
+	 * If the thread is NULL then take ownership of selinfo
+	 * however if the thread is not NULL and the thread points to
+	 * someone else, then we have a collision, otherwise leave it alone
+	 * as we've owned it in a previous selrecord on this selinfo.
+	 */
+	if (sip->si_thread == NULL) {
+		sip->si_thread = selector;
+		TAILQ_INSERT_TAIL(&selector->td_selq, sip, si_thrlist);
+	} else if (sip->si_thread != selector) {
+		sip->si_flags |= SI_COLL;
 	}
-	if (sip->si_pid &&
-	    (p = pfind(sip->si_pid)) &&
-	    (find_thread_in_proc(p, sip->si_thread))) {
-		mtx_lock_spin(&sched_lock);
-	    	if (sip->si_thread->td_wchan == (caddr_t)&selwait) {
-			mtx_unlock_spin(&sched_lock);
-			PROC_UNLOCK(p);
-			sip->si_flags |= SI_COLL;
-			return;
-		}
-		mtx_unlock_spin(&sched_lock);
-		PROC_UNLOCK(p);
-	}
-	sip->si_pid = mypid;
-	sip->si_thread = selector;
+
+	mtx_unlock(&sellock);
 }
 
 /*
@@ -1176,37 +1177,33 @@ selrecord(selector, sip)
  */
 void
 selwakeup(sip)
-	register struct selinfo *sip;
+	struct selinfo *sip;
 {
 	struct thread *td;
-	register struct proc *p;
 
-	if (sip->si_pid == 0)
-		return;
-	if (sip->si_flags & SI_COLL) {
+	mtx_lock(&sellock);
+	td = sip->si_thread;
+	if ((sip->si_flags & SI_COLL) != 0) {
 		nselcoll++;
 		sip->si_flags &= ~SI_COLL;
 		cv_broadcast(&selwait);
 	}
-	p = pfind(sip->si_pid);
-	sip->si_pid = 0;
-	td = sip->si_thread;
-	if (p != NULL) {
-		if (!find_thread_in_proc(p, td)) {
-			PROC_UNLOCK(p); /* lock is in pfind() */;
-			return;
-		}
-		mtx_lock_spin(&sched_lock);
-		if (td->td_wchan == (caddr_t)&selwait) {
-			if (td->td_proc->p_stat == SSLEEP)
-				setrunnable(td);
-			else
-				cv_waitq_remove(td);
-		} else
-			td->td_flags &= ~TDF_SELECT;
-		mtx_unlock_spin(&sched_lock);
-		PROC_UNLOCK(p); /* Lock is in pfind() */
+	if (td == NULL) {
+		mtx_unlock(&sellock);
+		return;
 	}
+	TAILQ_REMOVE(&td->td_selq, sip, si_thrlist);
+	sip->si_thread = NULL;
+	mtx_lock_spin(&sched_lock);
+	if (td->td_wchan == (caddr_t)&selwait) {
+		if (td->td_proc->p_stat == SSLEEP)
+			setrunnable(td);
+		else
+			cv_waitq_remove(td);
+	} else
+		td->td_flags &= ~TDF_SELECT;
+	mtx_unlock_spin(&sched_lock);
+	mtx_unlock(&sellock);
 }
 
 static void selectinit __P((void *));
@@ -1218,4 +1215,5 @@ selectinit(dummy)
 	void *dummy;
 {
 	cv_init(&selwait, "select");
+	mtx_init(&sellock, "sellck", MTX_DEF);
 }

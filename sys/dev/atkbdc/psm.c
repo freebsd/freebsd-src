@@ -1314,8 +1314,6 @@ psmopen(dev_t dev, int flag, int fmt, struct thread *td)
     device_busy(devclass_get_device(psm_devclass, unit));
 
     /* Initialize state */
-    sc->rsel.si_flags = 0;
-    sc->rsel.si_pid = 0;
     sc->mode.level = sc->dflt_mode.level;
     sc->mode.protocol = sc->dflt_mode.protocol;
     sc->watchdog = FALSE;

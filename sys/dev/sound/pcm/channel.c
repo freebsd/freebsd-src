@@ -116,7 +116,7 @@ chn_wakeup(struct pcm_channel *c)
     	struct snd_dbuf *bs = c->bufsoft;
 
 	CHN_LOCKASSERT(c);
-	if (sndbuf_getsel(bs)->si_pid && chn_polltrigger(c))
+	if (SEL_WAITING(sndbuf_getsel(bs)) && chn_polltrigger(c))
 		selwakeup(sndbuf_getsel(bs));
 	wakeup(bs);
 }
