@@ -267,6 +267,7 @@ readudp(d, pkt, len, tleft)
 		return -1;
 	}
 
-	n -= sizeof(*ip) + sizeof(*uh);
+	n = (n > (ntohs(uh->uh_ulen) - sizeof(*uh))) ? 
+	    ntohs(uh->uh_ulen) - sizeof(*uh) : n;
 	return (n);
 }
