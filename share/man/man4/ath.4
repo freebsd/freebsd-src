@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd June 23, 2003
+.Dd June 26, 2003
 .Dt ATH 4
 .Os
 .Sh NAME
@@ -70,7 +70,7 @@ The actual transmit speed used is dependent on signal quality and the
 ``rate control'' algorithm employed by the driver.
 All chips support WEP encryption.
 AR5211 and AR5212 support the AES, TKIP, and Michael cryptographic
-operations required for WPA but at this time the driver does support them.
+operations required for WPA but at this time the driver does not support them.
 To enable encryption, use
 .Xr ifconfig 8
 as shown below.
