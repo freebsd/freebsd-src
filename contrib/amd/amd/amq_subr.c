@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq_subr.c,v 1.5 1999/08/24 21:31:06 ezk Exp $
+ * $Id: amq_subr.c,v 1.6.2.2 2001/01/12 22:43:42 ro Exp $
  * $FreeBSD$
  *
  */
@@ -171,90 +171,6 @@ amqproc_getmntfs_1_svc(voidp argp, struct svc_req *rqstp)
 {
   return (amq_mount_info_list *) &mfhead;	/* XXX */
 }
-
-#ifdef ENABLE_AMQ_MOUNT
-/*
- * This is code that is vulnerable to IP spoofing attacks.  Unless you
- * absolutely need it, I suggest you do not enable it
- * (using configure --enable-amq-mount)
- */
-static int
-ok_security(struct svc_req *rqstp)
-{
-  struct sockaddr_in *sin = (struct sockaddr_in *) NULL;
-
-  if ((sin = amu_svc_getcaller(rqstp->rq_xprt)) == NULL) {
-    plog(XLOG_ERROR, "amu_svc_getcaller returned NULL");
-    return(0);			/* assume security is therefore not OK */
-  }
-
-  if (ntohs(sin->sin_port) >= IPPORT_RESERVED ||
-      !(sin->sin_addr.s_addr == htonl(0x7f000001) ||
-	sin->sin_addr.s_addr == myipaddr.s_addr)) {
-    char dq[20];
-    plog(XLOG_INFO, "AMQ request from %s.%d DENIED",
-	 inet_dquad(dq, sin->sin_addr.s_addr),
-	 ntohs(sin->sin_port));
-    return (0);
-  }
-
-  return (1);
-}
-
-
-int *
-amqproc_mount_1_svc(voidp argp, struct svc_req *rqstp)
-{
-  static int rc = EINVAL;
-  char s[AMQ_STRLEN];
-  char *cp;
-  char dq[20];
-  struct sockaddr_in *sin;
-
-  if ((sin = amu_svc_getcaller(rqstp->rq_xprt)) == NULL) {
-    plog(XLOG_ERROR, "amu_svc_getcaller returned NULL");
-    return &rc;
-  }
-
-  strncpy(s, *(amq_string *) argp, AMQ_STRLEN-1);
-  s[AMQ_STRLEN-1] = '\0';	/* null terminate, to be sure */
-  plog(XLOG_ERROR,
-       "amq requested mount of %s from %s.%d",
-       s, inet_dquad(dq, sin->sin_addr.s_addr),
-       ntohs(sin->sin_port));
-
-  /*
-   * Minimalist security check.
-   */
-  if (!ok_security(rqstp)) {
-    rc = EACCES;
-    return &rc;
-  }
-  /*
-   * Find end of key
-   */
-  for (cp = (char *) s; *cp && (!isascii(*cp) || !isspace(*cp)); cp++) ;
-
-  if (!*cp) {
-    plog(XLOG_INFO, "amqproc_mount: Invalid arguments");
-    rc = EINVAL;
-    return &rc;
-  }
-  *cp++ = '\0';
-
-  /*
-   * Find start of value
-   */
-  while (*cp && isascii(*cp) && isspace(*cp))
-    cp++;
-
-  root_newmap(s, cp, (char *) 0, NULL);
-  rc = mount_auto_node(s, (voidp) root_node);
-  if (rc < 0)
-    return 0;
-  return &rc;
-}
-#endif /* ENABLE_AMQ_MOUNT */
 
 
 amq_string *
