@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.21.2.5 1997/03/17 11:09:42 davidg Exp $
+ *	$Id: if_fxp.c,v 1.21.2.6 1997/03/21 08:01:50 davidg Exp $
  */
 
 /*
@@ -449,7 +449,7 @@ txloop:
 	/*
 	 * Grab a packet to transmit.
 	 */
-	IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, mb_head);
+	IF_DEQUEUE(&ifp->if_snd, mb_head);
 	if (mb_head == NULL) {
 		/*
 		 * No more packets to send.
@@ -478,7 +478,7 @@ tbdinit:
 			segment++;
 		}
 	}
-	if (m != NULL && segment == FXP_NTXSEG) {
+	if (m != NULL) {
 		struct mbuf *mn;
 
 		/*
@@ -549,7 +549,7 @@ tbdinit:
 	/*
 	 * Pass packet to bpf if there is a listener.
 	 */
-	if (ifp->if_bpf != NULL)
+	if (ifp->if_bpf)
 		bpf_mtap(ifp, mb_head);
 #endif
 	/*
@@ -602,7 +602,8 @@ fxp_intr(arg)
 			 * again in fxp_start().
 			 */
 			ifp->if_timer = 0;
-			fxp_start(ifp);
+			if (ifp->if_snd.ifq_head != NULL)
+				fxp_start(ifp);
 		}
 		/*
 		 * Process receiver interrupts. If a no-resource (RNR)
@@ -632,12 +633,16 @@ rcvloop:
 					u_short total_len;
 
 					total_len = rfa->actual_size & (MCLBYTES - 1);
+					if (total_len < sizeof(struct ether_header)) {
+						m_freem(m);
+						goto rcvloop;
+					}
 					m->m_pkthdr.rcvif = ifp;
 					m->m_pkthdr.len = m->m_len = total_len -
 					    sizeof(struct ether_header);
 					eh = mtod(m, struct ether_header *);
 #if NBPFILTER > 0
-					if (ifp->if_bpf != NULL) {
+					if (ifp->if_bpf) {
 						bpf_tap(ifp, mtod(m, caddr_t), total_len);
 						/*
 						 * Only pass this packet up if it is for us.
@@ -656,8 +661,6 @@ rcvloop:
 				goto rcvloop;
 			}
 			if (statack & FXP_SCB_STATACK_RNR) {
-				struct fxp_csr *csr = sc->csr;
-
 				fxp_scb_wait(csr);
 				csr->scb_general = vtophys(sc->rfa_headm->m_ext.ext_buf);
 				csr->scb_command = FXP_SCB_COMMAND_RU_START;
