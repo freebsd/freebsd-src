@@ -42,6 +42,7 @@ set_deftext ()
     }
 }
 
+static void
 usage()
 {
   fprintf (stderr, "%s: usage: %s [-p prompt] [-u unit] [-d default]\n",
@@ -54,7 +55,7 @@ main (argc, argv)
 {
   char *temp, *prompt;
   struct stat sb;
-  int done, opt, fd;
+  int opt, fd;
   FILE *ifp;
 
   progname = strrchr(argv[0], '/');

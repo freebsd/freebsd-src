@@ -83,6 +83,7 @@ extern int rl_complete_with_tilde_expansion;
 extern int rl_completion_query_items;
 extern int rl_inhibit_completion;
 extern char *_rl_comment_begin;
+extern unsigned char *_rl_isearch_terminators;
 
 extern int rl_explicit_arg;
 extern int rl_editing_mode;
@@ -207,13 +208,17 @@ rl_unbind_function_in_map (func, map)
      Function *func;
      Keymap map;
 {
-  register int i;
+  register int i, rval;
 
-  for (i = 0; i < KEYMAP_SIZE; i++)
+  for (i = rval = 0; i < KEYMAP_SIZE; i++)
     {
       if (map[i].type == ISFUNC && map[i].function == func)
-	map[i].function = (Function *)NULL;
+	{
+	  map[i].function = (Function *)NULL;
+	  rval = 1;
+	}
     }
+  return rval;
 }
 
 int
@@ -222,7 +227,6 @@ rl_unbind_command_in_map (command, map)
      Keymap map;
 {
   Function *func;
-  register int i;
 
   func = rl_named_function (command);
   if (func == 0)
@@ -663,7 +667,11 @@ _rl_read_file (filename, sizep)
   i = read (file, buffer, file_size);
   close (file);
 
+#if 0
   if (i < file_size)
+#else
+  if (i < 0)
+#endif
     {
       free (buffer);
       return ((char *)NULL);
@@ -727,6 +735,8 @@ _rl_read_init_file (filename, include_level)
 
   openname = tilde_expand (filename);
   buffer = _rl_read_file (openname, &file_size);
+  free (openname);
+
   if (buffer == 0)
     return (errno);
   
@@ -1338,7 +1348,34 @@ rl_variable_bind (name, value)
       else
         _rl_bell_preference = AUDIBLE_BELL;
     }
+  else if (_rl_stricmp (name, "isearch-terminators") == 0)
+    {
+      /* Isolate the value and translate it into a character string. */
+      int beg, end;
+      char *v;
 
+      v = savestring (value);
+      FREE (_rl_isearch_terminators);
+      if (v[0] == '"' || v[0] == '\'')
+	{
+	  int delim = v[0];
+	  for (beg = end = 1; v[end] && v[end] != delim; end++)
+	    ;
+	}
+      else
+	{
+	  for (beg = end = 0; whitespace (v[end]) == 0; end++)
+	    ;
+	}
+
+      v[end] = '\0';
+      /* The value starts at v + beg.  Translate it into a character string. */
+      _rl_isearch_terminators = (unsigned char *)xmalloc (2 * strlen (v) + 1);
+      rl_translate_keyseq (v + beg, _rl_isearch_terminators, &end);
+      _rl_isearch_terminators[end] = '\0';
+      free (v);
+    }
+      
   /* For the time being, unknown variable names are simply ignored. */
   return 0;
 }
@@ -1492,7 +1529,7 @@ _rl_get_keyname (key)
      int key;
 {
   char *keyname;
-  int i, c, v;
+  int i, c;
 
   keyname = (char *)xmalloc (8);
 
@@ -1897,6 +1934,21 @@ rl_variable_dumper (print_readably)
     fprintf (rl_outstream, "set keymap %s\n", kname ? kname : "none");
   else
     fprintf (rl_outstream, "keymap is set to `%s'\n", kname ? kname : "none");
+
+  /* isearch-terminators */
+  if (_rl_isearch_terminators)
+    {
+      char *disp;
+
+      disp = _rl_untranslate_macro_value (_rl_isearch_terminators);
+
+      if (print_readably)
+	fprintf (rl_outstream, "set isearch-terminators \"%s\"\n", disp);
+      else
+	fprintf (rl_outstream, "isearch-terminators is set to \"%s\"\n", disp);
+
+      free (disp);
+    }
 }
 
 /* Print all of the current variables and their values to
