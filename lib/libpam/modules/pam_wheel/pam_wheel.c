@@ -59,7 +59,8 @@ enum {
 	PAM_OPT_GROUP,
 	PAM_OPT_TRUST,
 	PAM_OPT_AUTH_AS_SELF,
-	PAM_OPT_NOROOT_OK
+	PAM_OPT_NOROOT_OK,
+	PAM_OPT_EXEMPT_IF_EMPTY
 };
 
 static struct opttab other_options[] = {
@@ -68,6 +69,7 @@ static struct opttab other_options[] = {
 	{ "trust",		PAM_OPT_TRUST },
 	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
 	{ "noroot_ok",		PAM_OPT_NOROOT_OK },
+	{ "exempt_if_empty",	PAM_OPT_EXEMPT_IF_EMPTY },
 	{ NULL, 0 }
 };
 
@@ -152,6 +154,12 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused,
 	}
 
 	PAM_LOG("Got group: %s", grp->gr_name);
+
+	/* If the group is empty, see if we exempt empty groups. */
+	if (*(grp->gr_mem) == NULL) {
+		if (pam_test_option(&options, PAM_OPT_EXEMPT_IF_EMPTY, NULL))
+			return (PAM_IGNORE);
+	}
 
 	if (pwd->pw_gid == grp->gr_gid || in_list(grp->gr_mem, pwd->pw_name)) {
 		if (pam_test_option(&options, PAM_OPT_DENY, NULL)) {

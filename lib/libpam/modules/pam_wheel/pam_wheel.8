@@ -55,7 +55,7 @@ which defaults to
 .Dq Li wheel .
 .Pp
 The following options may be passed to the authentication module:
-.Bl -tag -width ".Cm auth_as_self"
+.Bl -tag -width ".Cm exempt_if_empty"
 .It Cm debug
 .Xr syslog 3
 debugging information at
@@ -103,6 +103,14 @@ instead of
 if the user is authenticating
 to a user
 that is not the superuser.
+.It Cm exempt_if_empty
+return
+.Dv PAM_IGNORE
+if the specified group (default group of
+.Dq Li wheel )
+is empty, providing traditional BSD
+.Xr su 8
+semantics permitting any user to su if the wheel group is empty.
 .El
 .Sh SEE ALSO
 .Xr getlogin 2 ,
