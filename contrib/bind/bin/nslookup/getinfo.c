@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)getinfo.c	5.26 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: getinfo.c,v 8.23 2002/04/29 01:11:52 marka Exp $";
+static const char rcsid[] = "$Id: getinfo.c,v 8.27 2002/05/22 04:06:57 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -141,16 +141,9 @@ typedef union {
  */
 
 static int
-GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
-	  merge)
-    union res_sockaddr_union  *nsAddrPtr;
-    char		*msg;
-    int			queryType;
-    int			msglen;
-    Boolean		iquery;
-    register HostInfo	*hostPtr;
-    Boolean		isServer;
-    Boolean		merge;
+GetAnswer(union res_sockaddr_union *nsAddrPtr, int queryType,
+	  char *msg, int msglen, Boolean iquery, HostInfo *hostPtr,
+	  Boolean isServer, Boolean merge)
 {
     register HEADER	*headerPtr;
     register const u_char	*cp;
@@ -360,7 +353,8 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
 	}
     }
 
-    if ((queryType == T_A || queryType == T_PTR) && haveAnswer) {
+    if ((queryType == T_A || queryType == T_AAAA || queryType == T_PTR) &&
+	 haveAnswer) {
 
 	/*
 	 *  Go through the alias and address lists and return them
@@ -386,10 +380,8 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
 		for (l = 0; l < k; l++)
 		    if (!strcasecmp(hostPtr->aliases[l], host_aliases[i]))
 			break;
-		if (l < k) {
-		    free(host_aliases[i]);
+		if (l < k)
 		    continue;
-		}
 		hostPtr->aliases[k] = Calloc(1, host_aliases_len[i]);
 		memcpy(hostPtr->aliases[k], host_aliases[i],
 		       host_aliases_len[i]);
@@ -419,10 +411,8 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
 			!memcmp(hostPtr->addrList[l]->addr, addr_list[i],
 				addr_len[i]))
 			break;
-		if (l < k) {
-		    free(addr_list[i]);
+		if (l < k)
 		    continue;
-		}
 		hostPtr->addrList[k] = (AddrInfo*)Calloc(1, sizeof(AddrInfo));
 		hostPtr->addrList[k]->addr = Calloc(1, addr_len[i]);
 		hostPtr->addrList[k]->addrType = addr_type[i];
@@ -544,7 +534,7 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
      */
     cp = res_skip((u_char*)&answer, 3, eom);
 
-    if (queryType != T_A) {
+    if (queryType != T_A && queryType != T_AAAA) {
 	/*
 	 * If we don't need to save the record, just print it.
 	 */

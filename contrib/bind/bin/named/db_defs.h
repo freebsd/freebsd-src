@@ -1,6 +1,6 @@
 /*
  *	from db.h	4.16 (Berkeley) 6/1/90
- *	$Id: db_defs.h,v 8.46 2001/11/17 15:16:46 marka Exp $
+ *	$Id: db_defs.h,v 8.47 2002/05/18 01:02:53 marka Exp $
  */
 
 /*
@@ -147,7 +147,7 @@ struct databuf {
 	u_int16_t	d_nstime;	/* NS response time, milliseconds */
 	u_char		d_data[sizeof(void*)]; /* dynamic (padded) */
 };
-#define DATASIZE(n) (sizeof(struct databuf) - sizeof(void*) + n)
+#define BIND_DATASIZE(n) (sizeof(struct databuf) - sizeof(void*) + n)
 
 #ifdef HITCOUNTS
 extern u_int32_t	db_total_hits;
