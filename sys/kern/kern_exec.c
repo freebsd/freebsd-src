@@ -435,15 +435,17 @@ interpret:
 			mtx_unlock(&ktrace_mtx);
 		}
 #endif
-		/* Close any file descriptors 0..2 that reference procfs */
-		setugidsafety(td);
 		/*
-		 * Make sure file descriptors 0..2 are in use.
+		 * Close any file descriptors 0..2 that reference procfs,
+		 * then make sure file descriptors 0..2 are in use.
 		 *
+		 * setugidsafety() may call closef() and then pfind()
+		 * which may grab the process lock.
 		 * fdcheckstd() may call falloc() which may block to
 		 * allocate memory, so temporarily drop the process lock.
 		 */
 		PROC_UNLOCK(p);
+		setugidsafety(td);
 		error = fdcheckstd(td);
 		PROC_LOCK(p);
 		if (error != 0)
