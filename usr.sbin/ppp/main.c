@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.18 1996/04/13 15:47:34 bde Exp $
+ * $Id: main.c,v 1.19 1996/05/11 20:48:34 phk Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -170,6 +170,11 @@ static void
 Hangup(signo)
 int signo;
 {
+  if (signo == SIGSEGV) {
+	LogPrintf(LOG_PHASE_BIT, "Signal %d, core dump.\n", signo);
+	LogClose();
+	abort();
+  }
   LogPrintf(LOG_PHASE_BIT, "Signal %d, hangup.\n", signo);
   Cleanup(EX_HANGUP);
 }
