@@ -419,54 +419,70 @@ _http_next_header(int fd, char **p)
 /*
  * Parse a last-modified header
  */
-static time_t
-_http_parse_mtime(char *p)
+static int
+_http_parse_mtime(char *p, time_t *mtime)
 {
-    char locale[64];
+    char locale[64], *r;
     struct tm tm;
 
     strncpy(locale, setlocale(LC_TIME, NULL), sizeof locale);
     setlocale(LC_TIME, "C");
-    strptime(p, "%a, %d %b %Y %H:%M:%S GMT", &tm);
+    r = strptime(p, "%a, %d %b %Y %H:%M:%S GMT", &tm);
     /* XXX should add support for date-2 and date-3 */
     setlocale(LC_TIME, locale);
+    if (r == NULL)
+	return -1;
     DEBUG(fprintf(stderr, "last modified: [\033[1m%04d-%02d-%02d "
 		  "%02d:%02d:%02d\033[m]\n",
 		  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 		  tm.tm_hour, tm.tm_min, tm.tm_sec));
-    return timegm(&tm);
+    *mtime = timegm(&tm);
+    return 0;
 }
 
 /*
  * Parse a content-length header
  */
-static off_t
-_http_parse_length(char *p)
+static int
+_http_parse_length(char *p, size_t *length)
 {
-    off_t len;
+    size_t len;
     
     for (len = 0; *p && isdigit(*p); ++p)
 	len = len * 10 + (*p - '0');
-    DEBUG(fprintf(stderr, "content length: [\033[1m%lld\033[m]\n", len));
-    return len;
+    DEBUG(fprintf(stderr, "content length: [\033[1m%d\033[m]\n", len));
+    *length = len;
+    return 0;
 }
 
 /*
  * Parse a content-range header
  */
-static off_t
-_http_parse_range(char *p)
+static int
+_http_parse_range(char *p, off_t *offset, size_t *length, size_t *size)
 {
-    off_t off;
-    
+    int first, last, len;
+
     if (strncasecmp(p, "bytes ", 6) != 0)
 	return -1;
-    for (p += 6, off = 0; *p && isdigit(*p); ++p)
-	off = off * 10 + *p - '0';
+    for (first = 0, p += 6; *p && isdigit(*p); ++p)
+	first = first * 10 + *p - '0';
     if (*p != '-')
 	return -1;
-    DEBUG(fprintf(stderr, "content range: [\033[1m%lld-\033[m]\n", off));
-    return off;
+    for (last = 0, ++p; *p && isdigit(*p); ++p)
+	last = last * 10 + *p - '0';
+    if (first > last || *p != '/')
+	return -1;
+    for (len = 0, ++p; *p && isdigit(*p); ++p)
+	len = len * 10 + *p - '0';
+    if (len < last - first + 1)
+	return -1;
+    DEBUG(fprintf(stderr, "content range: [\033[1m%d-%d/%d\033[m]\n",
+		  first, last, len));
+    *offset = first;
+    *length = last - first + 1;
+    *size = len;
+    return 0;
 }
 
 
@@ -715,7 +731,7 @@ _http_connect(struct url *URL, int *proxy, char *flags)
 		URL->port = 80;
     }
     
-    if (!direct && (p = getenv("HTTP_PROXY")) != NULL) {
+    if (!direct && (p = getenv("HTTP_PROXY")) != NULL && *p != '\0') {
 	/* attempt to connect to proxy server */
 	if ((fd = _http_proxy_connect(p, af, verbose)) == -1)
 	    return -1;
@@ -751,6 +767,8 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
     int chunked, need_auth, noredirect, proxy, verbose;
     int code, fd, i, n;
     off_t offset;
+    size_t clength, length, size;
+    time_t mtime;
     char *p;
     FILE *f;
     hdr h;
@@ -762,23 +780,22 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
     noredirect = (flags && strchr(flags, 'A'));
     verbose = (flags && strchr(flags, 'v'));
 
-    n = noredirect ? 1 : MAX_REDIRECT;
+    /* try the provided URL first */
+    url = URL;
 
-    /* just to appease compiler warnings */
-    code = HTTP_PROTOCOL_ERROR;
-    chunked = 0;
-    offset = 0;
-    fd = -1;
-    
-    for (url = URL, i = 0; i < n; ++i) {
+    /* if the A flag is set, we only get one try */
+    n = noredirect ? 1 : MAX_REDIRECT;
+    i = 0;
+
+    do {
 	new = NULL;
-	if (us) {
-	    us->size = -1;
-	    us->atime = us->mtime = 0;
-	}
 	chunked = 0;
 	need_auth = 0;
 	offset = 0;
+	clength = -1;
+	length = -1;
+	size = -1;
+	mtime = 0;
     retry:
 	/* connect to server or proxy */
 	if ((fd = _http_connect(url, &proxy, flags)) == -1)
@@ -805,7 +822,7 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 	}
 
 	/* proxy authorization */
-	if (proxy && (p = getenv("HTTP_PROXY_AUTH")) != NULL)
+	if (proxy && (p = getenv("HTTP_PROXY_AUTH")) != NULL && *p != '\0')
 	    _http_authorize(fd, "Proxy-Authorization", p);
 	
 	/* server authorization */
@@ -814,7 +831,7 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 		_http_basic_auth(fd, "Authorization",
 				 url->user ? url->user : "",
 				 url->pwd ? url->pwd : "");
-	    else if ((p = getenv("HTTP_AUTH")) != NULL)
+	    else if ((p = getenv("HTTP_AUTH")) != NULL && *p != '\0')
 		_http_authorize(fd, "Authorization", p);
 	    else {
 		_http_seterr(HTTP_NEED_AUTH);
@@ -885,15 +902,13 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 		_http_seterr(HTTP_PROTOCOL_ERROR);
 		goto ouch;
 	    case hdr_content_length:
-		if (us)
-		    us->size = _http_parse_length(p);
+		_http_parse_length(p, &clength);
 		break;
 	    case hdr_content_range:
-		offset = _http_parse_range(p);
+		_http_parse_range(p, &offset, &length, &size);
 		break;
 	    case hdr_last_modified:
-		if (us)
-		    us->atime = us->mtime = _http_parse_mtime(p);
+		_http_parse_mtime(p, &mtime);
 		break;
 	    case hdr_location:
 		if (!HTTP_REDIRECT(code))
@@ -942,7 +957,7 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 	if (url != URL)
 	    fetchFreeURL(url);
 	url = new;
-    }
+    } while (++i < n);
 
     /* no success */
     if (fd == -1) {
@@ -950,14 +965,40 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 	goto ouch;
     }
 
+    DEBUG(fprintf(stderr, "offset: %lld, length: %d, size: %d, clength: %d\n",
+		  offset, length, size, clength));
+    
+    /* check for inconsistencies */
+    if (clength != -1 && length != -1 && clength != length) {
+	_http_seterr(HTTP_PROTOCOL_ERROR);
+	goto ouch;
+    }
+    if (clength == -1)
+	clength = length;
+    if (clength != -1)
+	length = offset + clength;
+    if (length != -1 && size != -1 && length != size) {
+	_http_seterr(HTTP_PROTOCOL_ERROR);
+	goto ouch;
+    }
+    if (size == -1)
+	size = length;
+
+    /* fill in stats */
+    if (us) {
+	us->size = size;
+	us->atime = us->mtime = mtime;
+    }
+    
     /* too far? */
-    if (offset > url->offset) {
+    if (offset > URL->offset) {
 	_http_seterr(HTTP_PROTOCOL_ERROR);
 	goto ouch;
     }
 
-    /* report back real offset */
+    /* report back real offset and size */
     URL->offset = offset;
+    URL->length = clength;
     
     /* wrap it up in a FILE */
     if ((f = chunked ? _http_funopen(fd) : fdopen(fd, "r")) == NULL) {
