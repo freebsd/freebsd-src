@@ -113,6 +113,9 @@ CLEANDIR=	cleandir
 
 SUP?=		cvsup
 SUPFLAGS?=	-g -L 2 -P -
+.if defined(SUPHOST)
+SUPFLAGS+=	-h ${SUPHOST}
+.endif
 
 MAKEOBJDIRPREFIX?=	/usr/obj
 TARGET_ARCH?=	${MACHINE_ARCH}
