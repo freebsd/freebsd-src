@@ -115,7 +115,7 @@ static struct cpu_nameclass i386_cpus[] = {
 };
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
-int has_f00f_bug = 0;
+int has_f00f_bug = 0;		/* Initialized so that it can be patched. */
 #endif
 
 void
