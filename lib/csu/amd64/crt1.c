@@ -77,6 +77,8 @@ _start(char **ap, void (*cleanup)(void))
 
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
+	else
+		_init_tls();
 
 #ifdef GCRT
 	atexit(_mcleanup);

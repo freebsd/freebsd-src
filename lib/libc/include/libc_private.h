@@ -113,6 +113,15 @@ extern pthread_func_entry_t __thr_jtable[];
 int _yp_check(char **);
 #endif
 
+/*
+ * Initialise TLS for static programs
+ */
+void _init_tls(void);
+
+/*
+ * Set the TLS thread pointer
+ */
+void _set_tp(void *tp);
 
 /*
  * This is a pointer in the C run-time startup code. It is used
