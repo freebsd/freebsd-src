@@ -92,7 +92,6 @@ lnc_pci_attach(device_t dev)
 {
 	lnc_softc_t *sc = device_get_softc(dev);
 	unsigned command;
-	int rid = 0;
 	int err = 0;
 	bus_size_t lnc_mem_size;
 
@@ -102,25 +101,31 @@ lnc_pci_attach(device_t dev)
 	command |= PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN;
 	pci_write_config(dev, PCIR_COMMAND, command, 4);
 
-	rid = PCIR_BAR(0);
-	sc->portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
+	sc->portrid = PCIR_BAR(0);
+	sc->portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->portrid, 0, ~0, 1,
 	                                 RF_ACTIVE);
 
-	if (! sc->portres)
+	if (! sc->portres) {
 		device_printf(dev, "Cannot allocate I/O ports\n");
-
-	rid = 0;
-	sc->irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+		lnc_release_resources(dev);
+		return (ENXIO);
+	}
+	
+	sc->irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqrid, 0, ~0, 1,
 	                                RF_ACTIVE|RF_SHAREABLE);
 
-	if (! sc->irqres)
+	if (! sc->irqres) {
 		device_printf(dev, "Cannot allocate irq\n");
-
+		lnc_release_resources(dev);
+		return (ENXIO);
+	}
 	err = bus_setup_intr(dev, sc->irqres, INTR_TYPE_NET, lncintr,
 	                     sc, &sc->intrhand);
-	if (err)
+	if (err) {
 		device_printf(dev, "Cannot setup irq handler\n");
-
+		lnc_release_resources(dev);
+		return (ENXIO);
+	}
 	sc->lnc_btag = rman_get_bustag(sc->portres);
 	sc->lnc_bhandle = rman_get_bushandle(sc->portres);
 
@@ -161,7 +166,7 @@ lnc_pci_attach(device_t dev)
 
 	if (err) {
 		device_printf(dev, "Can't create DMA tag\n");
-		/* XXX need to free currently allocated resources here */
+		lnc_release_resources(dev);
 		return (ENOMEM);
 	}
 
@@ -170,7 +175,7 @@ lnc_pci_attach(device_t dev)
 
 	if (err) {
 		device_printf(dev, "Couldn't allocate memory\n");
-		/* XXX need to free currently allocated resources here */
+		lnc_release_resources(dev);
 		return (ENOMEM);
 	}
 
@@ -180,6 +185,8 @@ lnc_pci_attach(device_t dev)
 	/* Call generic attach code */
 	if (! lnc_attach_common(dev)) {
 		device_printf(dev, "Generic attach code failed\n");
+		lnc_release_resources(dev);
+		return (ENXIO);
 	}
 	return (0);
 }
