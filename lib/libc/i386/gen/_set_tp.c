@@ -34,6 +34,7 @@
 void
 _set_tp(void *tp)
 {
+#ifndef COMPAT_32BIT
 	union descriptor ldt;
 	int sel;
 
@@ -49,4 +50,7 @@ _set_tp(void *tp)
 	ldt.sd.sd_hibase = (((uintptr_t)tp) >> 24) & 0xff;
 	sel = i386_set_ldt(LDT_AUTO_ALLOC, &ldt, 1);
 	__asm __volatile("movl %0,%%gs" : : "rm" ((sel << 3) | 7));
+#else
+	_amd64_set_gsbase(tp);
+#endif
 }
