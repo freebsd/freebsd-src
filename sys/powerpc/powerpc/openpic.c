@@ -31,17 +31,10 @@
 #include <sys/conf.h>
 #include <sys/kernel.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_pci.h>
-
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
-
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
-#include <machine/nexusvar.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
 
@@ -56,25 +49,6 @@
 #include "pic_if.h"
 
 /*
- * Device interface.
- */
-static int		openpic_probe(device_t);
-static int		openpic_attach(device_t);
-
-/*
- * PIC interface.
- */
-static struct resource	*openpic_allocate_intr(device_t, device_t, int *,
-			    u_long, u_int);
-static int		openpic_setup_intr(device_t, device_t,
-			    struct resource *, int, driver_intr_t, void *,
-			    void **);
-static int		openpic_teardown_intr(device_t, device_t,
-			    struct resource *, void *);
-static int		openpic_release_intr(device_t dev, device_t, int,
-			    struct resource *res);
-
-/*
  * Local routines
  */
 static u_int		openpic_read(struct openpic_softc *, int);
@@ -85,89 +59,56 @@ static void		openpic_enable_irq(struct openpic_softc *, int, int);
 static void		openpic_disable_irq(struct openpic_softc *, int);
 static void		openpic_set_priority(struct openpic_softc *, int, int);
 static void		openpic_intr(void);
-static void		irq_enable(uintptr_t);
-static void		irq_disable(uintptr_t);
+static void		openpic_ext_enable_irq(uintptr_t);
+static void		openpic_ext_disable_irq(uintptr_t);
+
+/* XXX This limits us to one openpic */
+static struct	openpic_softc *openpic_softc;
 
 /*
- * Driver methods.
+ * Called at nexus-probe time to allow interrupts to be enabled by
+ * devices that are probed before the OpenPIC h/w is probed.
  */
-static device_method_t	openpic_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		openpic_probe),
-	DEVMETHOD(device_attach,	openpic_attach),
-
-	/* PIC interface */
-	DEVMETHOD(pic_allocate_intr,	openpic_allocate_intr),
-	DEVMETHOD(pic_setup_intr,	openpic_setup_intr),
-	DEVMETHOD(pic_teardown_intr,	openpic_teardown_intr),
-	DEVMETHOD(pic_release_intr,	openpic_release_intr),
-
-	{ 0, 0 }
-};
-
-static driver_t	openpic_driver = {
-	"openpic",
-	openpic_methods,
-	sizeof(struct openpic_softc)
-};
-
-static devclass_t	openpic_devclass;
-
-DRIVER_MODULE(openpic, nexus, openpic_driver, openpic_devclass, 0, 0);
-
-static struct	openpic_softc *softc;	/* XXX This limits us to one openpic */
-
-/*
- * Device interface
- */
-
-static int
-openpic_probe(device_t dev)
+int
+openpic_early_attach(device_t dev)
 {
 	struct		openpic_softc *sc;
-	phandle_t	node, parent;
-	char		*type;
-	char            *compat;
-	u_int32_t	reg[5], val;
-	vm_offset_t	macio_base;
-	vm_offset_t     opic_base;
-	
+
 	sc = device_get_softc(dev);
-	node = nexus_get_node(dev);
-	type = nexus_get_device_type(dev);
-	compat = nexus_get_compatible(dev);
+	openpic_softc = sc;
 
-	if (type == NULL)
+	sc->sc_rman.rm_type = RMAN_ARRAY;
+	sc->sc_rman.rm_descr = device_get_nameunit(dev);
+
+	if (rman_init(&sc->sc_rman) != 0 ||
+	    rman_manage_region(&sc->sc_rman, 0, OPENPIC_IRQMAX-1) != 0) {
+		device_printf(dev, "could not set up resource management");
 		return (ENXIO);
+        }	
 
-	if (strcmp(type, "open-pic") != 0)
-		return (ENXIO);
+	intr_init(openpic_intr, OPENPIC_IRQMAX, openpic_ext_enable_irq, 
+	    openpic_ext_disable_irq);
 
-	if (strcmp(compat, "psim,open-pic") == 0) {
-		sc->sc_psim = 1;
+	sc->sc_early_done = 1;
 
-		if (OF_getprop(node, "reg", reg, sizeof(reg)) < 8)
-			return (ENXIO);
+	return (0);
+}
 
-		opic_base = reg[1];
-	} else {
-		parent = OF_parent(node);
-		if (OF_getprop(parent, "assigned-addresses", 
-			       reg, sizeof(reg)) < 20)
-			return (ENXIO);
-		
-		macio_base = (vm_offset_t)reg[2];
-		
-		if (OF_getprop(node, "reg", reg, sizeof(reg)) < 8)
-			return (ENXIO);
+int
+openpic_attach(device_t dev)
+{
+	struct openpic_softc *sc;
+	u_int     irq;
+	u_int32_t x;
 
-		opic_base = macio_base + reg[0];
-	}
+	sc = device_get_softc(dev);
+	sc->sc_hwprobed = 1;
 
-	sc->sc_base = (vm_offset_t)pmap_mapdev(opic_base, OPENPIC_SIZE);
+	if (!sc->sc_early_done)
+		openpic_early_attach(dev);
 
-	val = openpic_read(sc, OPENPIC_FEATURE);
-	switch (val & OPENPIC_FEATURE_VERSION_MASK) {
+	x = openpic_read(sc, OPENPIC_FEATURE);
+	switch (x & OPENPIC_FEATURE_VERSION_MASK) {
 	case 1:
 		sc->sc_version = "1.0";
 		break;
@@ -182,9 +123,9 @@ openpic_probe(device_t dev)
 		break;
 	}
 
-	sc->sc_ncpu = ((val & OPENPIC_FEATURE_LAST_CPU_MASK) >>
+	sc->sc_ncpu = ((x & OPENPIC_FEATURE_LAST_CPU_MASK) >>
 	    OPENPIC_FEATURE_LAST_CPU_SHIFT) + 1;
-	sc->sc_nirq = ((val & OPENPIC_FEATURE_LAST_IRQ_MASK) >>
+	sc->sc_nirq = ((x & OPENPIC_FEATURE_LAST_IRQ_MASK) >>
 	    OPENPIC_FEATURE_LAST_IRQ_SHIFT) + 1;
 
 	/*
@@ -193,31 +134,10 @@ openpic_probe(device_t dev)
 	if (sc->sc_psim)
 		sc->sc_nirq--;
 
-	device_set_desc(dev, "OpenPIC interrupt controller");
-	return (0);
-}
-
-static int
-openpic_attach(device_t dev)
-{
-	struct		openpic_softc *sc;
-	u_int32_t	irq, x;
-
-	sc = device_get_softc(dev);
-	softc = sc;
-
-	device_printf(dev,
-	    "Version %s, supports %d CPUs and %d irqs\n",
-	    sc->sc_version, sc->sc_ncpu, sc->sc_nirq);
-
-	sc->sc_rman.rm_type = RMAN_ARRAY;
-	sc->sc_rman.rm_descr = device_get_nameunit(dev);
-
-	if (rman_init(&sc->sc_rman) != 0 ||
-	    rman_manage_region(&sc->sc_rman, 0, sc->sc_nirq - 1) != 0) {
-		device_printf(dev, "could not set up resource management");
-		return (ENXIO);
-	}
+	if (bootverbose)
+		device_printf(dev,
+		    "Version %s, supports %d CPUs and %d irqs\n",
+		    sc->sc_version, sc->sc_ncpu, sc->sc_nirq);
 
 	/* disable all interrupts */
 	for (irq = 0; irq < sc->sc_nirq; irq++)
@@ -254,10 +174,12 @@ openpic_attach(device_t dev)
 		openpic_eoi(sc, 0);
 	}
 
+	/* enable pre-h/w reserved irqs, disable all others */
 	for (irq = 0; irq < sc->sc_nirq; irq++)
-		openpic_disable_irq(sc, irq);
-
-	intr_init(openpic_intr, sc->sc_nirq, irq_enable, irq_disable);
+		if (sc->sc_irqrsv[irq])
+			openpic_enable_irq(sc, irq, IST_LEVEL);
+		else
+			openpic_disable_irq(sc, irq);
 
 	return (0);
 }
@@ -266,7 +188,7 @@ openpic_attach(device_t dev)
  * PIC interface
  */
 
-static struct resource *
+struct resource *
 openpic_allocate_intr(device_t dev, device_t child, int *rid, u_long intr,
     u_int flags)
 {
@@ -277,6 +199,12 @@ openpic_allocate_intr(device_t dev, device_t child, int *rid, u_long intr,
 	sc = device_get_softc(dev);
 	needactivate = flags & RF_ACTIVE;
 	flags &= ~RF_ACTIVE;
+
+	if (sc->sc_hwprobed && (intr > sc->sc_nirq)) {
+		device_printf(dev, "interrupt reservation %ld out of range\n",
+		    intr);
+		return (NULL);
+	}
 
 	rv = rman_reserve_resource(&sc->sc_rman, intr, intr, 1, flags, child);
 	if (rv == NULL) {
@@ -298,7 +226,7 @@ openpic_allocate_intr(device_t dev, device_t child, int *rid, u_long intr,
 	return (rv);
 }
 
-static int
+int
 openpic_setup_intr(device_t dev, device_t child, struct resource *res,
     int flags, driver_intr_t *intr, void *arg, void **cookiep)
 {
@@ -325,12 +253,16 @@ openpic_setup_intr(device_t dev, device_t child, struct resource *res,
 
 	error = inthand_add(device_get_nameunit(child), res->r_start, intr,
 	    arg, flags, cookiep);
-	openpic_enable_irq(sc, res->r_start, IST_LEVEL);
+
+	if (sc->sc_hwprobed)
+		openpic_enable_irq(sc, res->r_start, IST_LEVEL);
+	else
+		sc->sc_irqrsv[res->r_start] = 1;
 
 	return (error);
 }
 
-static int
+int
 openpic_teardown_intr(device_t dev, device_t child, struct resource *res,
     void *ih)
 {
@@ -345,7 +277,7 @@ openpic_teardown_intr(device_t dev, device_t child, struct resource *res,
 	return (error);
 }
 
-static int
+int
 openpic_release_intr(device_t dev, device_t child, int rid,
     struct resource *res)
 {
@@ -367,29 +299,13 @@ openpic_release_intr(device_t dev, device_t child, int rid,
 static u_int
 openpic_read(struct openpic_softc *sc, int reg)
 {
-	volatile unsigned char *addr;
-
-	addr = (unsigned char *)sc->sc_base + reg;
-#if 0
-	printf("openpic: reading from %p (0x%08x + 0x%08x)\n", addr,
-	    sc->sc_base, reg);
-#endif
-
-	return in32rb(addr);
+	return (bus_space_read_4(sc->sc_bt, sc->sc_bh, reg));
 }
 
 static void
 openpic_write(struct openpic_softc *sc, int reg, u_int val)
 {
-	volatile unsigned char *addr;
-
-	addr = (unsigned char *)sc->sc_base + reg;
-#if 0
-	printf("openpic: writing to %p (0x%08x + 0x%08x)\n", addr, sc->sc_base,
-	    reg);
-#endif
-
-	out32rb(addr, val);
+	bus_space_write_4(sc->sc_bt, sc->sc_bh, reg, val);
 }
 
 static int
@@ -402,13 +318,6 @@ static void
 openpic_eoi(struct openpic_softc *sc, int cpu)
 {
 	openpic_write(sc, OPENPIC_EOI(cpu), 0);
-	if (!sc->sc_psim) {
-		/*
-		 * Probably not needed, since appropriate eieio/sync
-		 * is done in out32rb. See Darwin src.
-		 */
-		openpic_read(sc, OPENPIC_EOI(cpu));
-	}
 }
 
 static void
@@ -449,18 +358,20 @@ openpic_set_priority(struct openpic_softc *sc, int cpu, int pri)
 static void
 openpic_intr(void)
 {
+	struct openpic_softc *sc;
 	int		irq;
 	u_int32_t	msr;
 
+	sc = openpic_softc;
 	msr = mfmsr();
 
-	irq = openpic_read_irq(softc, 0);
+	irq = openpic_read_irq(sc, 0);
 	if (irq == 255) {
 		return;
 	}
 
 start:
-	openpic_disable_irq(softc, irq);
+	openpic_disable_irq(sc, irq);
 	/*mtmsr(msr | PSL_EE);*/
 
 	/* do the interrupt thang */
@@ -468,23 +379,27 @@ start:
 
 	mtmsr(msr);
 
-	openpic_eoi(softc, 0);
+	openpic_eoi(sc, 0);
 
-	irq = openpic_read_irq(softc, 0);
+	irq = openpic_read_irq(sc, 0);
 	if (irq != 255)
 		goto start;
 }
 
 static void
-irq_enable(uintptr_t irq)
+openpic_ext_enable_irq(uintptr_t irq)
 {
+	if (!openpic_softc->sc_hwprobed)
+		return;
 
-	openpic_enable_irq(softc, irq, IST_LEVEL);
+	openpic_enable_irq(openpic_softc, irq, IST_LEVEL);
 }
 
 static void
-irq_disable(uintptr_t irq)
+openpic_ext_disable_irq(uintptr_t irq)
 {
+	if (!openpic_softc->sc_hwprobed)
+		return;
 
-	openpic_disable_irq(softc, irq);
+	openpic_disable_irq(openpic_softc, irq);
 }
