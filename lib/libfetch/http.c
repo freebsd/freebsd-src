@@ -79,6 +79,9 @@ extern char *__progname;
 
 #define ENDL "\r\n"
 
+#define HTTP_OK		200
+#define HTTP_PARTIAL	206
+
 struct cookie
 {
     FILE *real_f;
@@ -299,6 +302,7 @@ fetchGetHTTP(struct url *URL, char *flags)
     char *ln, *p, *px, *q;
     FILE *f, *cf;
     size_t len;
+    off_t pos = 0;
 
     direct = (flags && strchr(flags, 'd'));
     verbose = (flags && strchr(flags, 'v'));
@@ -389,6 +393,8 @@ fetchGetHTTP(struct url *URL, char *flags)
     }
     _http_cmd(f, "Host: %s:%d" ENDL, URL->host, URL->port);
     _http_cmd(f, "User-Agent: %s " _LIBFETCH_VER ENDL, __progname);
+    if (URL->offset)
+	_http_cmd(f, "Range: bytes=%lld-" ENDL, URL->offset);
     _http_cmd(f, "Connection: close" ENDL ENDL);
 
     /* get response */
@@ -409,7 +415,7 @@ fetchGetHTTP(struct url *URL, char *flags)
     DEBUG(fprintf(stderr, "code:     [\033[1m%d\033[m]\n", e));
     
     /* add code to handle redirects later */
-    if (e != 200) {
+    if (e != (URL->offset ? HTTP_PARTIAL : HTTP_OK)) {
 	_http_seterr(e);
 	goto fouch;
     }
@@ -446,6 +452,23 @@ fetchGetHTTP(struct url *URL, char *flags)
 	    DEBUG(fprintf(stderr, "conttype: [\033[1m%s\033[m]\n",
 			  c->content_type));
 #undef CONTTYPE
+#define CONTRANGE "Content-Range:"
+#define BYTES "bytes "
+	} else if (strncasecmp(ln, CONTRANGE, sizeof CONTRANGE - 1) == 0) {
+	    p = ln + sizeof CONTRANGE - 1;
+	    while ((p < ln + len) && isspace(*p))
+		p++;
+	    if (strncasecmp(p, BYTES, sizeof BYTES - 1) != 0
+		|| (p += 6) >= ln + len)
+		goto fouch;
+	    while ((p < ln + len) && isdigit(*p))
+		pos = pos * 10 + (*p++ - '0');
+	    /* XXX wouldn't hurt to be slightly more paranoid here */
+	    DEBUG(fprintf(stderr, "contrange: [\033[1m%lld-\033[m]\n", pos));
+	    if (pos > URL->offset)
+		goto fouch;
+#undef BYTES
+#undef CONTRANGE
 	}
     }
 
@@ -459,6 +482,10 @@ fetchGetHTTP(struct url *URL, char *flags)
     if (cf == NULL)
 	goto fouch;
 
+    while (pos < URL->offset)
+	if (fgetc(cf) == EOF)
+	    goto cfouch;
+		
     return cf;
     
 ouch:
@@ -470,6 +497,10 @@ ouch:
 fouch:
     fclose(f);
     free(c);
+    _http_seterr(999); /* XXX do this properly RSN */
+    return NULL;
+cfouch:
+    fclose(cf);
     _http_seterr(999); /* XXX do this properly RSN */
     return NULL;
 }
