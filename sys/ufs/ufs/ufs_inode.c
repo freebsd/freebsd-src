@@ -53,8 +53,6 @@
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
-int	prtactive = 0;		/* 1 => print out reclaim of active vnodes */
-
 /*
  * Last reference to an inode.  If necessary, write or delete it.
  */
