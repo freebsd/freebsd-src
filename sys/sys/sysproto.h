@@ -721,7 +721,7 @@ struct	rfork_args {
 	int flags;
 };
 int	nosys __P((struct proc *, struct nosys_args *, int []));
-__dead void	exit __P((struct proc *, struct rexit_args *, int []));
+void	exit __P((struct proc *, struct rexit_args *, int [])) __dead2;
 int	fork __P((struct proc *, struct fork_args *, int []));
 int	read __P((struct proc *, struct read_args *, int []));
 int	write __P((struct proc *, struct write_args *, int []));
