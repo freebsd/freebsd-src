@@ -100,7 +100,6 @@ static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off,
 static void vfs_clean_pages(struct buf *bp);
 static void vfs_setdirty(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
-static void vfs_backgroundwritedone(struct buf *bp);
 static int vfs_bio_clcheck(struct vnode *vp, int size,
 		daddr_t lblkno, daddr_t blkno);
 static int flushbufqueues(int flushdeps);
@@ -182,9 +181,6 @@ SYSCTL_INT(_vfs, OID_AUTO, getnewbufcalls, CTLFLAG_RW, &getnewbufcalls, 0,
 static int getnewbufrestarts;
 SYSCTL_INT(_vfs, OID_AUTO, getnewbufrestarts, CTLFLAG_RW, &getnewbufrestarts, 0,
     "Number of times getnewbuf has had to restart a buffer aquisition");
-static int dobkgrdwrite = 1;
-SYSCTL_INT(_debug, OID_AUTO, dobkgrdwrite, CTLFLAG_RW, &dobkgrdwrite, 0,
-    "Do background writes (honoring the BV_BKGRDWRITE flag)?");
 
 /*
  * Wakeup point for bufdaemon, as well as indicator of whether it is already
@@ -803,7 +799,6 @@ int
 bufwrite(struct buf *bp)
 {
 	int oldflags, s;
-	struct buf *newbp;
 
 	CTR3(KTR_BUF, "bufwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	if (bp->b_flags & B_INVAL) {
@@ -816,81 +811,15 @@ bufwrite(struct buf *bp)
 	if (BUF_REFCNT(bp) == 0)
 		panic("bufwrite: buffer is not busy???");
 	s = splbio();
-	/*
-	 * If a background write is already in progress, delay
-	 * writing this block if it is asynchronous. Otherwise
-	 * wait for the background write to complete.
-	 */
-	BO_LOCK(bp->b_bufobj);
-	if (bp->b_vflags & BV_BKGRDINPROG) {
-		if (bp->b_flags & B_ASYNC) {
-			BO_UNLOCK(bp->b_bufobj);
-			splx(s);
-			bdwrite(bp);
-			return (0);
-		}
-		bp->b_vflags |= BV_BKGRDWAIT;
-		msleep(&bp->b_xflags, BO_MTX(bp->b_bufobj), PRIBIO, "bwrbg", 0);
-		if (bp->b_vflags & BV_BKGRDINPROG)
-			panic("bufwrite: still writing");
-	}
-	BO_UNLOCK(bp->b_bufobj);
+
+	KASSERT(!(bp->b_vflags & BV_BKGRDINPROG),
+	    ("FFS background buffer should not get here %p", bp));
 
 	/* Mark the buffer clean */
 	bundirty(bp);
 
-	/*
-	 * If this buffer is marked for background writing and we
-	 * do not have to wait for it, make a copy and write the
-	 * copy so as to leave this buffer ready for further use.
-	 *
-	 * This optimization eats a lot of memory.  If we have a page
-	 * or buffer shortfall we can't do it.
-	 */
-	if (dobkgrdwrite && (bp->b_xflags & BX_BKGRDWRITE) && 
-	    (bp->b_flags & B_ASYNC) &&
-	    !vm_page_count_severe() &&
-	    !buf_dirty_count_severe()) {
-		KASSERT(bp->b_iodone == NULL,
-		    ("bufwrite: needs chained iodone (%p)", bp->b_iodone));
-
-		/* get a new block */
-		newbp = geteblk(bp->b_bufsize);
-
-		/*
-		 * set it to be identical to the old block.  We have to
-		 * set b_lblkno and BKGRDMARKER before calling bgetvp()
-		 * to avoid confusing the splay tree and gbincore().
-		 */
-		memcpy(newbp->b_data, bp->b_data, bp->b_bufsize);
-		newbp->b_lblkno = bp->b_lblkno;
-		newbp->b_xflags |= BX_BKGRDMARKER;
-		BO_LOCK(bp->b_bufobj);
-		bp->b_vflags |= BV_BKGRDINPROG;
-		bgetvp(bp->b_vp, newbp);
-		BO_UNLOCK(bp->b_bufobj);
-		newbp->b_bufobj = &bp->b_vp->v_bufobj;
-		newbp->b_blkno = bp->b_blkno;
-		newbp->b_offset = bp->b_offset;
-		newbp->b_iodone = vfs_backgroundwritedone;
-		newbp->b_flags |= B_ASYNC;
-		newbp->b_flags &= ~B_INVAL;
-
-		/* move over the dependencies */
-		if (LIST_FIRST(&bp->b_dep) != NULL)
-			buf_movedeps(bp, newbp);
-
-		/*
-		 * Initiate write on the copy, release the original to
-		 * the B_LOCKED queue so that it cannot go away until
-		 * the background write completes. If not locked it could go
-		 * away and then be reconstituted while it was being written.
-		 * If the reconstituted buffer were written, we could end up
-		 * with two background copies being written at the same time.
-		 */
-		bqrelse(bp);
-		bp = newbp;
-	}
+	KASSERT(!(bp->b_xflags & BX_BKGRDWRITE),
+	    ("FFS background buffer should not get here %p", bp));
 
 	bp->b_flags &= ~B_DONE;
 	bp->b_ioflags &= ~BIO_ERROR;
@@ -933,56 +862,6 @@ bufwrite(struct buf *bp)
 	}
 
 	return (0);
-}
-
-/*
- * Complete a background write started from bwrite.
- */
-static void
-vfs_backgroundwritedone(struct buf *bp)
-{
-	struct buf *origbp;
-
-	/*
-	 * Find the original buffer that we are writing.
-	 */
-	BO_LOCK(bp->b_bufobj);
-	if ((origbp = gbincore(bp->b_bufobj, bp->b_lblkno)) == NULL)
-		panic("backgroundwritedone: lost buffer");
-	BO_UNLOCK(bp->b_bufobj);
-	/*
-	 * Process dependencies then return any unfinished ones.
-	 */
-	if (LIST_FIRST(&bp->b_dep) != NULL)
-		buf_complete(bp);
-	if (LIST_FIRST(&bp->b_dep) != NULL)
-		buf_movedeps(bp, origbp);
-
-	/*
-	 * This buffer is marked B_NOCACHE, so when it is released
-	 * by biodone, it will be tossed. We mark it with BIO_READ
-	 * to avoid biodone doing a second bufobj_wdrop.
-	 */
-	bp->b_flags |= B_NOCACHE;
-	bp->b_iocmd = BIO_READ;
-	bp->b_flags &= ~(B_CACHE | B_DONE);
-	bp->b_iodone = 0;
-	bufdone(bp);
-	BO_LOCK(origbp->b_bufobj);
-	/*
-	 * Clear the BV_BKGRDINPROG flag in the original buffer
-	 * and awaken it if it is waiting for the write to complete.
-	 * If BV_BKGRDINPROG is not set in the original buffer it must
-	 * have been released and re-instantiated - which is not legal.
-	 */
-	KASSERT((origbp->b_vflags & BV_BKGRDINPROG),
-	    ("backgroundwritedone: lost buffer2"));
-	origbp->b_vflags &= ~BV_BKGRDINPROG;
-	if (origbp->b_vflags & BV_BKGRDWAIT) {
-		origbp->b_vflags &= ~BV_BKGRDWAIT;
-		wakeup(&origbp->b_xflags);
-	}
-	BO_UNLOCK(origbp->b_bufobj);
 }
 
 /*
