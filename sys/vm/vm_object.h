@@ -72,7 +72,6 @@
 #define	_VM_OBJECT_
 
 #include <sys/queue.h>
-#include <machine/atomic.h>
 
 enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE, OBJT_PHYS,
 		OBJT_DEAD };
