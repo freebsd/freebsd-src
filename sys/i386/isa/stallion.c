@@ -54,12 +54,8 @@
 #include <i386/isa/ic/scd1400.h>
 #include <machine/comstats.h>
 
-#include "pci.h"
-#ifdef COMPILING_LINT
-#warning "The stallion pci device is broken and not compiled with LINT"
-#undef NPCI
+#warning "The stallion pci attachment is broken and not compiled"
 #define NPCI 0
-#endif
 #if NPCI > 0
 #ifndef COMPAT_OLDPCI
 #error "The stallion pci driver requires the old pci compatibility shims"
