@@ -392,6 +392,7 @@ product KYE FLIGHT2000		0x1004	Flight 2000 joystick
 product LEXMARK S2450		0x0009	Optra S 2450
 
 /* Linksys products */
+product LINKSYS USB10T		0x2202	USB10T Ethernet
 product LINKSYS USB100TX	0x2203	USB100TX Ethernet
 
 /* Logitech products */
