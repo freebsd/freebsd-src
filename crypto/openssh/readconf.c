@@ -116,7 +116,8 @@ typedef enum {
 	oKbdInteractiveAuthentication, oKbdInteractiveDevices, oHostKeyAlias,
 	oDynamicForward, oPreferredAuthentications, oHostbasedAuthentication,
 	oHostKeyAlgorithms, oBindAddress, oSmartcardDevice,
-	oClearAllForwardings, oNoHostAuthenticationForLocalhost
+	oClearAllForwardings, oNoHostAuthenticationForLocalhost,
+	oVersionAddendum
 } OpCodes;
 
 /* Textual representations of the tokens. */
@@ -188,6 +189,7 @@ static struct {
 	{ "smartcarddevice", oSmartcardDevice },
 	{ "clearallforwardings", oClearAllForwardings },
 	{ "nohostauthenticationforlocalhost", oNoHostAuthenticationForLocalhost },
+	{ "versionaddendum", oVersionAddendum },
 	{ NULL, oBadOption }
 };
 
@@ -675,6 +677,13 @@ parse_int:
 		}
 		if (*activep && *intptr == -1)
 			*intptr = value;
+		break;
+
+	case oVersionAddendum:
+		ssh_version_set_addendum(strtok(s, "\n"));
+		do {
+			arg = strdelim(&s);
+		} while (arg != NULL && *arg != '\0');
 		break;
 
 	default:
