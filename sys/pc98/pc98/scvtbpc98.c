@@ -39,54 +39,55 @@
 #include <dev/fb/fbreg.h>
 #include <dev/syscons/syscons.h>
 
-#define ATTR_OFFSET	0x2000
+#define ATTR_OFFSET_FB		0x2000
+#define attr_offset(vtb)	((vtb)->vtb_size*sizeof(u_int16_t))
+
+#define vtb_pointer(vtb, at)					\
+    ((vtb)->vtb_buffer + sizeof(u_int16_t)*(at))
 
 #define vtb_wrap(vtb, at, offset)				\
     (((at) + (offset) + (vtb)->vtb_size)%(vtb)->vtb_size)
 
-static u_int16_t	at2pc98(u_int16_t attr);
-static vm_offset_t	sc_vtb_attr_pointer(sc_vtb_t *vtb, int at);
+static u_int8_t	ibmpc_to_pc98[256] = {
+	0x01, 0x21, 0x81, 0xa1, 0x41, 0x61, 0xc1, 0xe1,
+	0x09, 0x29, 0x89, 0xa9, 0x49, 0x69, 0xc9, 0xe9,
+	0x25, 0x25, 0x25, 0x25, 0x25, 0x25, 0x25, 0x25,
+	0x25, 0x25, 0x25, 0x25, 0x25, 0x25, 0x25, 0x25,
+	0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85,
+	0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85,
+	0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+	0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+	0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45,
+	0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45,
+	0x65, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65,
+	0x65, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65,
+	0xc5, 0xc5, 0xc5, 0xc5, 0xc5, 0xc5, 0xc5, 0xc5,
+	0xc5, 0xc5, 0xc5, 0xc5, 0xc5, 0xc5, 0xc5, 0xc5,
+	0xe5, 0xe5, 0xe5, 0xe5, 0xe5, 0xe5, 0xe5, 0xe5,
+	0xe5, 0xe5, 0xe5, 0xe5, 0xe5, 0xe5, 0xe5, 0xe5,
 
-static u_int16_t
-at2pc98(u_int16_t attr)
-{
-	static u_char ibmpc_to_pc98[16] = {
-		0x01, 0x21, 0x81, 0xa1, 0x41, 0x61, 0xc1, 0xe1, 
-		0x09, 0x29, 0x89, 0xa9, 0x49, 0x69, 0xc9, 0xe9
-	};
-	static u_char ibmpc_to_pc98rev[16] = {
-		0x05, 0x25, 0x85, 0xa5, 0x45, 0x65, 0xc5, 0xe5, 
-		0x0d, 0x2d, 0x8d, 0xad, 0x4d, 0x6d, 0xcd, 0xed
-	};
-	u_char fg_at, bg_at;
-	u_int16_t at;
-
-	if (attr & 0x00FF)
-		return (attr);
-
-	fg_at = ((attr >> 8) & 0x0F);
-	bg_at = ((attr >> 12) & 0x0F);
-
-	if (bg_at) {
-		if (bg_at & 0x08) {
-			if (bg_at & 0x07) {
-				/* reverse & blink */
-				at = ibmpc_to_pc98rev[bg_at] | 0x02;
-			} else {
-				/* normal & blink */
-				at = ibmpc_to_pc98[fg_at] | 0x02;
-			}
-		} else {
-			/* reverse */
-			at = ibmpc_to_pc98rev[bg_at];
-		}
-	} else {
-		/* normal */
-		at = ibmpc_to_pc98[fg_at];
-	}
-	at |= attr;
-	return (at);
-}
+	0x03, 0x23, 0x83, 0xa3, 0x43, 0x63, 0xc3, 0xe3,
+	0x0b, 0x2b, 0x8b, 0xab, 0x4b, 0x6b, 0xcb, 0xeb,
+	0x2f, 0x2f, 0x2f, 0x2f, 0x2f, 0x2f, 0x2f, 0x2f,
+	0x2f, 0x2f, 0x2f, 0x2f, 0x2f, 0x2f, 0x2f, 0x2f,
+	0x8f, 0x8f, 0x8f, 0x8f, 0x8f, 0x8f, 0x8f, 0x8f,
+	0x8f, 0x8f, 0x8f, 0x8f, 0x8f, 0x8f, 0x8f, 0x8f,
+	0xaf, 0xaf, 0xaf, 0xaf, 0xaf, 0xaf, 0xaf, 0xaf,
+	0xaf, 0xaf, 0xaf, 0xaf, 0xaf, 0xaf, 0xaf, 0xaf,
+	0x4f, 0x4f, 0x4f, 0x4f, 0x4f, 0x4f, 0x4f, 0x4f,
+	0x4f, 0x4f, 0x4f, 0x4f, 0x4f, 0x4f, 0x4f, 0x4f,
+	0x6f, 0x6f, 0x6f, 0x6f, 0x6f, 0x6f, 0x6f, 0x6f,
+	0x6f, 0x6f, 0x6f, 0x6f, 0x6f, 0x6f, 0x6f, 0x6f,
+	0xcf, 0xcf, 0xcf, 0xcf, 0xcf, 0xcf, 0xcf, 0xcf,
+	0xcf, 0xcf, 0xcf, 0xcf, 0xcf, 0xcf, 0xcf, 0xcf,
+	0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef,
+	0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 
+};
+#if 0
+#define	at2pc98(attr)	((attr) | ibmpc_to_pc98[(unsigned)(attr) >> 8])
+#else
+#define	at2pc98(attr)	ibmpc_to_pc98[(unsigned)(attr) >> 8]
+#endif
 
 void
 sc_vtb_init(sc_vtb_t *vtb, int type, int cols, int rows, void *buf, int wait)
@@ -104,12 +105,10 @@ sc_vtb_init(sc_vtb_t *vtb, int type, int cols, int rows, void *buf, int wait)
 	case VTB_RINGBUFFER:
 		if ((buf == NULL) && (cols*rows != 0)) {
 			vtb->vtb_buffer =
-				(vm_offset_t)malloc(cols*rows*sizeof(u_int16_t)*2,
-						    M_DEVBUF, 
-						    (wait) ? M_WAITOK : M_NOWAIT);
+			    (vm_offset_t)malloc(cols*rows*sizeof(u_int16_t)*2,
+				M_DEVBUF, 
+				((wait) ? M_WAITOK : M_NOWAIT) | M_ZERO);
 			if (vtb->vtb_buffer != NULL) {
-				bzero((void *)sc_vtb_pointer(vtb, 0),
-				      cols*rows*sizeof(u_int16_t)*2);
 				vtb->vtb_flags |= VTB_ALLOCED;
 			}
 		} else {
@@ -160,58 +159,54 @@ sc_vtb_size(int cols, int rows)
 int
 sc_vtb_getc(sc_vtb_t *vtb, int at)
 {
+	vm_offset_t p = vtb_pointer(vtb, at);
+
 	if (vtb->vtb_type == VTB_FRAMEBUFFER)
-		return (readw(sc_vtb_pointer(vtb, at)) & 0x00ff);
+		return (readw(p) & 0x00ff);
 	else
-		return (*(u_int16_t *)sc_vtb_pointer(vtb, at) & 0x00ff);
+		return (*(u_int16_t *)p & 0x00ff);
 }
 
 int
 sc_vtb_geta(sc_vtb_t *vtb, int at)
 {
+	vm_offset_t p = vtb_pointer(vtb, at);
+
 	if (vtb->vtb_type == VTB_FRAMEBUFFER)
-		return (readw(sc_vtb_attr_pointer(vtb, at)) & 0x00ff);
+		return (readw(p + ATTR_OFFSET_FB) & 0x00ff);
 	else
-		return (*(u_int16_t *)sc_vtb_attr_pointer(vtb, at) & 0x00ff);
+		return (*(u_int16_t *)(p + attr_offset(vtb)) & 0x00ff);
+}
+
+__inline static void
+vtb_putc(sc_vtb_t *vtb, vm_offset_t p, int c, int a)
+{
+	if (vtb->vtb_type == VTB_FRAMEBUFFER) {
+		writew(p, c);
+		writew(p + ATTR_OFFSET_FB, at2pc98(a));
+	} else {
+		*(u_int16_t *)p = c;
+		*(u_int16_t *)(p + attr_offset(vtb)) = at2pc98(a);
+	}
 }
 
 void
 sc_vtb_putc(sc_vtb_t *vtb, int at, int c, int a)
 {
-	if (vtb->vtb_type == VTB_FRAMEBUFFER) {
-		writew(sc_vtb_pointer(vtb, at), c);
-		writew(sc_vtb_attr_pointer(vtb, at), at2pc98(a));
-	} else {
-		*(u_int16_t *)sc_vtb_pointer(vtb, at) = c;
-		*(u_int16_t *)sc_vtb_attr_pointer(vtb, at) = at2pc98(a);
-	}
+	vtb_putc(vtb, vtb_pointer(vtb, at), c, a);
 }
 
 vm_offset_t
 sc_vtb_putchar(sc_vtb_t *vtb, vm_offset_t p, int c, int a)
 {
-	if (vtb->vtb_type == VTB_FRAMEBUFFER) {
-		writew(p, c);
-		writew(p + ATTR_OFFSET, at2pc98(a));
-	} else {
-		*(u_int16_t *)p = c;
-		*(u_int16_t *)(p + vtb->vtb_size*sizeof(u_int16_t)) = at2pc98(a);
-	}
+	vtb_putc(vtb, p, c, a);
 	return (p + sizeof(u_int16_t));
 }
 
 vm_offset_t
 sc_vtb_pointer(sc_vtb_t *vtb, int at)
 {
-	return (vtb->vtb_buffer + sizeof(u_int16_t)*(at));
-}
-
-static vm_offset_t
-sc_vtb_attr_pointer(sc_vtb_t *vtb, int at)
-{
-	return (vtb->vtb_buffer + sizeof(u_int16_t)*(at)
-		+ ((vtb->vtb_type == VTB_FRAMEBUFFER) ? 
-			ATTR_OFFSET : vtb->vtb_size*sizeof(u_int16_t)));
+	return (vtb_pointer(vtb, at));
 }
 
 int
@@ -223,38 +218,39 @@ sc_vtb_pos(sc_vtb_t *vtb, int pos, int offset)
 void
 sc_vtb_clear(sc_vtb_t *vtb, int c, int attr)
 {
+	vm_offset_t p = vtb_pointer(vtb, 0);
+
 	if (vtb->vtb_type == VTB_FRAMEBUFFER) {
-		fillw_io(c, sc_vtb_pointer(vtb, 0), vtb->vtb_size);
-		fillw_io(at2pc98(attr), sc_vtb_attr_pointer(vtb, 0), vtb->vtb_size);
+		fillw_io(c, p, vtb->vtb_size);
+		fillw_io(at2pc98(attr), p + ATTR_OFFSET_FB, vtb->vtb_size);
 	} else {
-		fillw(c, (void *)sc_vtb_pointer(vtb, 0), vtb->vtb_size);
-		fillw(at2pc98(attr), (void *)sc_vtb_attr_pointer(vtb, 0), vtb->vtb_size);
+		fillw(c, (void *)p, vtb->vtb_size);
+		fillw(at2pc98(attr), (void *)(p + attr_offset(vtb)),
+		      vtb->vtb_size);
 	}
 }
 
 void
 sc_vtb_copy(sc_vtb_t *vtb1, int from, sc_vtb_t *vtb2, int to, int count)
 {
+	vm_offset_t p1, p2;
+
+	p1 = vtb_pointer(vtb1, from);
+	p2 = vtb_pointer(vtb2, to);
 	if (vtb2->vtb_type == VTB_FRAMEBUFFER) {
-		bcopy_toio(sc_vtb_pointer(vtb1, from),
-			   sc_vtb_pointer(vtb2, to),
-			   count*sizeof(u_int16_t));
-		bcopy_toio(sc_vtb_attr_pointer(vtb1, from),
-			   sc_vtb_attr_pointer(vtb2, to),
+		bcopy_toio(p1, p2, count*sizeof(u_int16_t));
+		bcopy_toio(p1 + attr_offset(vtb1),
+			   p2 + ATTR_OFFSET_FB,
 			   count*sizeof(u_int16_t));
 	} else if (vtb1->vtb_type == VTB_FRAMEBUFFER) {
-		bcopy_fromio(sc_vtb_pointer(vtb1, from),
-			     sc_vtb_pointer(vtb2, to),
-			     count*sizeof(u_int16_t));
-		bcopy_fromio(sc_vtb_attr_pointer(vtb1, from),
-			     sc_vtb_attr_pointer(vtb2, to),
+		bcopy_fromio(p1, p2, count*sizeof(u_int16_t));
+		bcopy_fromio(p1 + ATTR_OFFSET_FB,
+			     p2 + attr_offset(vtb2),
 			     count*sizeof(u_int16_t));
 	} else {
-		bcopy((void *)sc_vtb_pointer(vtb1, from),
-		      (void *)sc_vtb_pointer(vtb2, to),
-		      count*sizeof(u_int16_t));
-		bcopy((void *)sc_vtb_attr_pointer(vtb1, from),
-		      (void *)sc_vtb_attr_pointer(vtb2, to),
+		bcopy((void *)p1, (void *)p2, count*sizeof(u_int16_t));
+		bcopy((void *)(p1 + attr_offset(vtb1)),
+		      (void *)(p2 + attr_offset(vtb2)),
 		      count*sizeof(u_int16_t));
 	}
 }
@@ -263,25 +259,24 @@ void
 sc_vtb_append(sc_vtb_t *vtb1, int from, sc_vtb_t *vtb2, int count)
 {
 	int len;
+	vm_offset_t p1, p2;
 
 	if (vtb2->vtb_type != VTB_RINGBUFFER)
 		return;
 
 	while (count > 0) {
+		p1 = vtb_pointer(vtb1, from);
+		p2 = vtb_pointer(vtb2, vtb2->vtb_tail);
 		len = imin(count, vtb2->vtb_size - vtb2->vtb_tail);
 		if (vtb1->vtb_type == VTB_FRAMEBUFFER) {
-			bcopy_fromio(sc_vtb_pointer(vtb1, from),
-				     sc_vtb_pointer(vtb2, vtb2->vtb_tail),
-				     len*sizeof(u_int16_t));
-			bcopy_fromio(sc_vtb_attr_pointer(vtb1, from),
-				     sc_vtb_attr_pointer(vtb2, vtb2->vtb_tail),
+			bcopy_fromio(p1, p2, len*sizeof(u_int16_t));
+			bcopy_fromio(p1 + ATTR_OFFSET_FB,
+				     p2 + attr_offset(vtb2),
 				     len*sizeof(u_int16_t));
 		} else {
-			bcopy((void *)sc_vtb_pointer(vtb1, from),
-			      (void *)sc_vtb_pointer(vtb2, vtb2->vtb_tail),
-			      len*sizeof(u_int16_t));
-			bcopy((void *)sc_vtb_attr_pointer(vtb1, from),
-			      (void *)sc_vtb_attr_pointer(vtb2, vtb2->vtb_tail),
+			bcopy((void *)p1, (void *)p2, len*sizeof(u_int16_t));
+			bcopy((void *)(p1 + attr_offset(vtb1)),
+			      (void *)(p2 + attr_offset(vtb2)),
 			      len*sizeof(u_int16_t));
 		}
 		from += len;
@@ -299,36 +294,42 @@ sc_vtb_seek(sc_vtb_t *vtb, int pos)
 void
 sc_vtb_erase(sc_vtb_t *vtb, int at, int count, int c, int attr)
 {
+	vm_offset_t p;
+
 	if (at + count > vtb->vtb_size)
 		count = vtb->vtb_size - at;
+	p = vtb_pointer(vtb, at);
 	if (vtb->vtb_type == VTB_FRAMEBUFFER) {
-		fillw_io(c, sc_vtb_pointer(vtb, at), count);
-		fillw_io(at2pc98(attr), sc_vtb_attr_pointer(vtb, at), count);
+		fillw_io(c, p, count);
+		fillw_io(at2pc98(attr), p + ATTR_OFFSET_FB, count);
 	} else {
-		fillw(c, (void *)sc_vtb_pointer(vtb, at), count);
-		fillw(at2pc98(attr), (void *)sc_vtb_attr_pointer(vtb, at), count);
+		fillw(c, (void *)p, count);
+		fillw(at2pc98(attr), (void *)(p + attr_offset(vtb)), count);
 	}
 }
 
 void
 sc_vtb_move(sc_vtb_t *vtb, int from, int to, int count)
 {
+	vm_offset_t p1, p2;
+
 	if (from + count > vtb->vtb_size)
 		count = vtb->vtb_size - from;
 	if (to + count > vtb->vtb_size)
 		count = vtb->vtb_size - to;
 	if (count <= 0)
 		return;
+
+	p1 = vtb_pointer(vtb, from);
+	p2 = vtb_pointer(vtb, to);
 	if (vtb->vtb_type == VTB_FRAMEBUFFER) {
-		bcopy_io(sc_vtb_pointer(vtb, from),
-			 sc_vtb_pointer(vtb, to), count*sizeof(u_int16_t)); 
-		bcopy_io(sc_vtb_attr_pointer(vtb, from),
-			 sc_vtb_attr_pointer(vtb, to), count*sizeof(u_int16_t));
+		bcopy_io(p1, p2, count*sizeof(u_int16_t)); 
+		bcopy_io(p1 + ATTR_OFFSET_FB,
+			 p2 + ATTR_OFFSET_FB, count*sizeof(u_int16_t));
 	} else {
-		bcopy((void *)sc_vtb_pointer(vtb, from),
-		      (void *)sc_vtb_pointer(vtb, to), count*sizeof(u_int16_t));
-		bcopy((void *)sc_vtb_attr_pointer(vtb, from),
-		      (void *)sc_vtb_attr_pointer(vtb, to), count*sizeof(u_int16_t));
+		bcopy((void *)p1, (void *)p2, count*sizeof(u_int16_t));
+		bcopy((void *)(p1 + attr_offset(vtb)),
+		      (void *)(p2 + attr_offset(vtb)), count*sizeof(u_int16_t));
 	}
 }
 
@@ -336,38 +337,34 @@ void
 sc_vtb_delete(sc_vtb_t *vtb, int at, int count, int c, int attr)
 {
 	int len;
+	vm_offset_t p1, p2;
 
 	if (at + count > vtb->vtb_size)
 		count = vtb->vtb_size - at;
 	len = vtb->vtb_size - at - count;
 	if (len > 0) {
+		p1 = vtb_pointer(vtb, at + count);
+		p2 = vtb_pointer(vtb, at);
 		if (vtb->vtb_type == VTB_FRAMEBUFFER) {
-			bcopy_io(sc_vtb_pointer(vtb, at + count),
-				 sc_vtb_pointer(vtb, at),
-				 len*sizeof(u_int16_t)); 
-			bcopy_io(sc_vtb_attr_pointer(vtb, at + count),
-				 sc_vtb_attr_pointer(vtb, at),
+			bcopy_io(p1, p2, len*sizeof(u_int16_t)); 
+			bcopy_io(p1 + ATTR_OFFSET_FB,
+				 p2 + ATTR_OFFSET_FB,
 				 len*sizeof(u_int16_t)); 
 		} else {
-			bcopy((void *)sc_vtb_pointer(vtb, at + count),
-			      (void *)sc_vtb_pointer(vtb, at),
-			      len*sizeof(u_int16_t)); 
-			bcopy((void *)sc_vtb_attr_pointer(vtb, at + count),
-			      (void *)sc_vtb_attr_pointer(vtb, at),
+			bcopy((void *)p1, (void *)p2, len*sizeof(u_int16_t)); 
+			bcopy((void *)(p1 + attr_offset(vtb)),
+			      (void *)(p2 + attr_offset(vtb)),
 			      len*sizeof(u_int16_t)); 
 		}
 	}
+	p1 = vtb_pointer(vtb, at + len);
 	if (vtb->vtb_type == VTB_FRAMEBUFFER) {
-		fillw_io(c, sc_vtb_pointer(vtb, at + len),
-			 vtb->vtb_size - at - len);
-		fillw_io(at2pc98(attr),
-			 sc_vtb_attr_pointer(vtb, at + len),
+		fillw_io(c, p1, vtb->vtb_size - at - len);
+		fillw_io(at2pc98(attr), p1 + ATTR_OFFSET_FB,
 			 vtb->vtb_size - at - len);
 	} else {
-		fillw(c, (void *)sc_vtb_pointer(vtb, at + len),
-		      vtb->vtb_size - at - len);
-		fillw(at2pc98(attr),
-		      (void *)sc_vtb_attr_pointer(vtb, at + len),
+		fillw(c, (void *)p1, vtb->vtb_size - at - len);
+		fillw(at2pc98(attr), (void *)(p1 + attr_offset(vtb)),
 		      vtb->vtb_size - at - len);
 	}
 }
@@ -375,32 +372,32 @@ sc_vtb_delete(sc_vtb_t *vtb, int at, int count, int c, int attr)
 void
 sc_vtb_ins(sc_vtb_t *vtb, int at, int count, int c, int attr)
 {
+	vm_offset_t p1, p2;
+
+	p1 = vtb_pointer(vtb, at);
 	if (at + count > vtb->vtb_size) {
 		count = vtb->vtb_size - at;
 	} else {
+		p2 = vtb_pointer(vtb, at + count);
 		if (vtb->vtb_type == VTB_FRAMEBUFFER) {
-			bcopy_io(sc_vtb_pointer(vtb, at),
-				 sc_vtb_pointer(vtb, at + count),
+			bcopy_io(p1, p2, 
 				 (vtb->vtb_size - at - count)*sizeof(u_int16_t)); 
-			bcopy_io(sc_vtb_attr_pointer(vtb, at),
-				 sc_vtb_attr_pointer(vtb, at + count),
+			bcopy_io(p1 + ATTR_OFFSET_FB,
+				 p2 + ATTR_OFFSET_FB,
 				 (vtb->vtb_size - at - count)*sizeof(u_int16_t)); 
 		} else {
-			bcopy((void *)sc_vtb_pointer(vtb, at),
-			      (void *)sc_vtb_pointer(vtb, at + count),
+			bcopy((void *)p1, (void *)p2,
 			      (vtb->vtb_size - at - count)*sizeof(u_int16_t)); 
-			bcopy((void *)sc_vtb_attr_pointer(vtb, at),
-			      (void *)sc_vtb_attr_pointer(vtb, at + count),
+			bcopy((void *)(p1 + attr_offset(vtb)),
+			      (void *)(p2 + attr_offset(vtb)),
 			      (vtb->vtb_size - at - count)*sizeof(u_int16_t)); 
 		}
 	}
 	if (vtb->vtb_type == VTB_FRAMEBUFFER) {
-		fillw_io(c, sc_vtb_pointer(vtb, at), count);
-		fillw_io(at2pc98(attr),
-			 sc_vtb_attr_pointer(vtb, at), count);
+		fillw_io(c, p1, count);
+		fillw_io(at2pc98(attr), p1 + ATTR_OFFSET_FB, count);
 	} else {
-		fillw(c, (void *)sc_vtb_pointer(vtb, at), count);
-		fillw(at2pc98(attr),
-		      (void *)sc_vtb_attr_pointer(vtb, at), count);
+		fillw(c, (void *)p1, count);
+		fillw(at2pc98(attr), (void *)(p1 + attr_offset(vtb)), count);
 	}
 }
