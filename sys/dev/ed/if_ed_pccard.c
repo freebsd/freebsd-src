@@ -123,6 +123,7 @@ static const struct ed_product {
 #define	NE2000DVF_AX88190	0x0002		/* chip is ASIX AX88190 */
 } ed_pccard_products[] = {
 	{ PCMCIA_CARD(ACCTON, EN2212, 0), 0},
+	{ PCMCIA_CARD(ACCTON, EN2216, 0), 0},
 	{ PCMCIA_CARD(ALLIEDTELESIS, LA_PCM, 0), 0},
 	{ PCMCIA_CARD(AMBICOM, AMB8002T, 0), 0},
 	{ PCMCIA_CARD(BILLIONTON, LNT10TN, 0), 0},
