@@ -42,8 +42,8 @@ __FBSDID("$FreeBSD$");
 
 #define	DEFAULT_RCLK	29491200
 
-#define	IS_CHANNEL_A(bas)	(((bas)->bsh & 0x40) == 0x00)
-#define	IS_CHANNEL_B(bas)	(((bas)->bsh & 0x40) == 0x40)
+#define	IS_CHANNEL_A(bas)	((uart_cpu_busaddr(bas) & 0x40) == 0x00)
+#define	IS_CHANNEL_B(bas)	((uart_cpu_busaddr(bas) & 0x40) == 0x40)
 
 /*
  * NOTE: To allow us to read the baudrate divisor from the chip, we
