@@ -16,8 +16,6 @@ GCC_ARCH=	${TARGET_ARCH}
 
 # Machine description.
 MD_FILE=	${GCCDIR}/config/${GCC_ARCH}/${GCC_ARCH}.md
-OUT_FILE=	${GCC_ARCH}.c
-OUT_OBJ=	${GCC_ARCH}
 target=		${TARGET_ARCH}-unknown-freebsd
 
 # These architectures are Cygnus's default for enabling Haifa.
