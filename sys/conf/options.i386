@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.105 1999/03/03 10:40:24 kato Exp $
+#	$Id: options.i386,v 1.106 1999/03/07 16:11:12 hm Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -41,6 +41,7 @@ NINTR			opt_smp.h
 CLK_CALIBRATION_LOOP		opt_clock.h
 CLK_USE_I8254_CALIBRATION	opt_clock.h
 CLK_USE_TSC_CALIBRATION		opt_clock.h
+TIMER_FREQ			opt_clock.h
 
 NO_F00F_HACK			opt_cpu.h
 CPU_BLUELIGHTNING_FPU_OP_CACHE	opt_cpu.h
