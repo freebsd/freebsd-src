@@ -59,9 +59,9 @@ LIBCC_DRV=	${.CURDIR}/../cc_drv/libcc_drv.a
 .endif
 
 .if exists(${.OBJDIR}/../cc_fbsd)
-LIBCC_FBSD=	${.OBJDIR}/../cc_fbsd/libcc_drv.a
+LIBCC_FBSD=	${.OBJDIR}/../cc_fbsd/libcc_fbsd.a
 .else
-LIBCC_FBSD=	${.CURDIR}/../cc_fbsd/libcc_drv.a
+LIBCC_FBSD=	${.CURDIR}/../cc_fbsd/libcc_fbsd.a
 .endif
 
 .if exists(${.OBJDIR}/../cc_int)
