@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.198 1999/01/24 00:51:11 dillon Exp $
+ * $Id: vfs_bio.c,v 1.199 1999/01/27 21:49:58 dillon Exp $
  */
 
 /*
@@ -1551,7 +1551,7 @@ loop:
 		 * Normally the vnode is locked so this isn't a problem.
 		 * VBLK type I/O requests, however, don't lock the vnode.
 		 */
-		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE && gbincore(vp, blkno)) {
+		if (gbincore(vp, blkno)) {
 			bp->b_flags |= B_INVAL;
 			brelse(bp);
 			goto loop;
