@@ -118,7 +118,7 @@ linux_vfork(struct proc *p, struct linux_vfork_args *args)
 int
 linux_clone(struct proc *p, struct linux_clone_args *args)
 {
-	int error, ff = RFPROC;
+	int error, ff = RFPROC | RFSTOPPED;
 	struct proc *p2;
 	int exit_signal;
 	vm_offset_t start;
@@ -175,8 +175,15 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 		    (long)p2->p_pid, args->stack, exit_signal);
 #endif
 
+	/*
+	 * Make this runnable after we are finished with it.
+	 */
+	mtx_lock_spin(&sched_lock);
+	p2->p_stat = SRUN;
+	setrunqueue(p2);
+	mtx_unlock_spin(&sched_lock);
+
 	return (0);
-	
 }
 
 #define	STACK_SIZE  (2 * 1024 * 1024)
