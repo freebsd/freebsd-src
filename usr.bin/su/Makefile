@@ -3,7 +3,10 @@
 PROG=	su
 SRCS=	su.c
 
-CFLAGS+=-DSKEY
+COPTS+=	-DSKEY
+.if defined(WHEELSU)
+COPTS+=	-DWHEELSU
+.endif
 
 LDADD=	-lskey -lmd -lcrypt
 DPADD=	${LIBSKEY} ${LIBMD} ${LIBCRYPT}
