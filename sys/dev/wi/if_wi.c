@@ -1490,10 +1490,8 @@ wi_rx_intr(struct wi_softc *sc)
 	if (sc->sc_drvbpf) {
 		/* XXX replace divide by table */
 		sc->sc_rx_th.wr_rate = frmhdr.wi_rx_rate / 5;
-		sc->sc_rx_th.wr_antsignal =
-			WI_RSSI_TO_DBM(sc, frmhdr.wi_rx_signal);
-		sc->sc_rx_th.wr_antnoise =
-			WI_RSSI_TO_DBM(sc, frmhdr.wi_rx_silence);
+		sc->sc_rx_th.wr_antsignal = frmhdr.wi_rx_signal;
+		sc->sc_rx_th.wr_antnoise = frmhdr.wi_rx_silence;
 		sc->sc_rx_th.wr_flags = 0;
 		if (frmhdr.wi_status & WI_STAT_PCF)
 			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_CFP;
