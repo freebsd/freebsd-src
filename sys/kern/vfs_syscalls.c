@@ -3525,18 +3525,22 @@ revoke(td, uap)
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, SCARG(uap, path),
+	    td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (vp->v_type != VCHR) {
-		error = EINVAL;
-		goto out;
+		vput(vp);
+		return (EINVAL);
 	}
 	error = VOP_GETATTR(vp, &vattr, td->td_proc->p_ucred, td);
-	if (error)
-		goto out;
+	if (error) {
+		vput(vp);
+		return (error);
+	}
+	VOP_UNLOCK(vp, 0, td);
 	if (td->td_proc->p_ucred->cr_uid != vattr.va_uid) {
 		error = suser_xxx(0, td->td_proc, PRISON_ROOT);
 		if (error)
