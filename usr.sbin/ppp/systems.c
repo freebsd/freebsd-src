@@ -185,16 +185,17 @@ AllowUsers(struct cmdargs const *arg)
 {
   /* arg->bundle may be NULL (see system_IsValid()) ! */
   int f;
-  char *user;
+  struct passwd *pwd;
 
   userok = 0;
-  user = getlogin();
-  if (user && *user)
+  pwd = getpwuid(getuid());
+  if (pwd != NULL)
     for (f = arg->argn; f < arg->argc; f++)
-      if (!strcmp("*", arg->argv[f]) || !strcmp(user, arg->argv[f])) {
+      if (!strcmp("*", arg->argv[f]) || !strcmp(pwd->pw_name, arg->argv[f])) {
         userok = 1;
         break;
       }
+  endpwent();
 
   return 0;
 }
