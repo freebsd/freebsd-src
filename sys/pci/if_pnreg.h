@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pnreg.h,v 1.12 1999/05/26 23:01:49 gallatin Exp $
+ *	$Id: if_pnreg.h,v 1.13 1999/05/28 18:43:11 wpaul Exp $
  */
 
 /*
@@ -481,16 +481,16 @@ struct pn_softc {
 	u_int8_t		pn_tx_pend;	/* TX pending */
 	u_int8_t		pn_want_auto;
 	u_int8_t		pn_autoneg;
-	caddr_t			pn_ldata_ptr;
+	u_int8_t		pn_cachesize;
 #ifdef PN_RX_BUG_WAR
 #define PN_168_REV	16
 #define PN_169_REV	32
 #define PN_169B_REV	33
 	u_int8_t		pn_rx_war;
-	u_int8_t		pn_cachesize;
 	struct pn_chain_onefrag	*pn_rx_bug_save;
 	unsigned char           *pn_rx_buf;
 #endif
+	caddr_t			pn_ldata_ptr;
 	struct pn_list_data	*pn_ldata;
 	struct pn_chain_data	pn_cdata;
 };
