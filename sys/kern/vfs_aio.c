@@ -59,7 +59,6 @@
 static	long jobrefid;
 
 #define JOBST_NULL		0x0
-#define	JOBST_JOBQPROC		0x1
 #define JOBST_JOBQGLOBAL	0x2
 #define JOBST_JOBRUNNING	0x3
 #define JOBST_JOBFINISHED	0x4
@@ -184,7 +183,6 @@ struct aiothreadlist {
 	int aiothreadflags;			/* AIO proc flags */
 	TAILQ_ENTRY(aiothreadlist) list;	/* List of processes */
 	struct thread *aiothread;		/* The AIO thread */
-	TAILQ_HEAD(,aiocblist) jobtorun;	/* suggested job to run */
 };
 
 /*
@@ -382,7 +380,6 @@ static int
 aio_free_entry(struct aiocblist *aiocbe)
 {
 	struct kaioinfo *ki;
-	struct aiothreadlist *aiop;
 	struct aio_liojob *lj;
 	struct proc *p;
 	int error;
@@ -455,9 +452,6 @@ aio_free_entry(struct aiocblist *aiocbe)
 		s = splbio();
 		TAILQ_REMOVE(&ki->kaio_bufdone, aiocbe, plist);
 		splx(s);
-	} else if (aiocbe->jobstate == JOBST_JOBQPROC) {
-		aiop = aiocbe->jobaiothread;
-		TAILQ_REMOVE(&aiop->jobtorun, aiocbe, list);
 	} else if (aiocbe->jobstate == JOBST_JOBQGLOBAL) {
 		s = splnet();
 		TAILQ_REMOVE(&aio_jobs, aiocbe, list);
@@ -628,12 +622,6 @@ aio_selectjob(struct aiothreadlist *aiop)
 	struct kaioinfo *ki;
 	struct proc *userp;
 
-	aiocbe = TAILQ_FIRST(&aiop->jobtorun);
-	if (aiocbe) {
-		TAILQ_REMOVE(&aiop->jobtorun, aiocbe, list);
-		return aiocbe;
-	}
-
 	s = splnet();
 	for (aiocbe = TAILQ_FIRST(&aio_jobs); aiocbe; aiocbe =
 	    TAILQ_NEXT(aiocbe, list)) {
@@ -773,7 +761,6 @@ aio_daemon(void *uproc)
 	aiop = zalloc(aiop_zone);
 	aiop->aiothread = td;
 	aiop->aiothreadflags |= AIOP_FREE;
-	TAILQ_INIT(&aiop->jobtorun);
 
 	s = splnet();
 
@@ -1001,8 +988,7 @@ aio_daemon(void *uproc)
 		if ((aiop->aiothreadflags & AIOP_SCHED) == 0 &&
 		    tsleep(aiop->aiothread, PRIBIO, "aiordy", aiod_lifetime)) {
 			s = splnet();
-			if ((TAILQ_FIRST(&aio_jobs) == NULL) &&
-			    (TAILQ_FIRST(&aiop->jobtorun) == NULL)) {
+			if (TAILQ_EMPTY(&aio_jobs)) {
 				if ((aiop->aiothreadflags & AIOP_FREE) &&
 				    (num_aio_procs > target_aio_procs)) {
 					TAILQ_REMOVE(&aio_freeproc, aiop, list);
