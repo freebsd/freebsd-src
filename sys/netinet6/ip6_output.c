@@ -2097,10 +2097,10 @@ do { \
 				caddr_t oval = (caddr_t)sopt->sopt_val;
 
 				error = soopt_getm(sopt, &m); /* XXX */
-				if (error != NULL)
+				if (error != 0)
 					break;
 				error = soopt_mcopyin(sopt, m); /* XXX */
-				if (error != NULL)
+				if (error != 0)
 					break;
 				sopt->sopt_valsize = ovalsize;
 				sopt->sopt_val = oval;
