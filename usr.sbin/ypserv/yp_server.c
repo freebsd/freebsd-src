@@ -172,7 +172,7 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 	if (do_dns && result.stat != YP_TRUE && strstr(argp->map, "hosts")) {
 #endif
 		char			nbuf[YPMAXRECORD];
-	
+
 		/* NUL terminate! NUL terminate!! NUL TERMINATE!!! */
 		bcopy(argp->key.keydat_val, nbuf, argp->key.keydat_len);
 		nbuf[argp->key.keydat_len] = '\0';
@@ -360,7 +360,7 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 		YPXFR_RETURN(YPXFR_REFUSED)
 	}
 
-	switch(yp_fork()) {
+	switch (yp_fork()) {
 	case 0:
 	{
 		char g[11], t[11], p[11];
@@ -522,7 +522,7 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	 * async socket I/O?)
 	 */
 	if (!debug) {
-		switch(yp_fork()) {
+		switch (yp_fork()) {
 		case 0:
 			break;
 		case -1:
@@ -632,7 +632,7 @@ ypproc_order_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 		result.stat = YP_BADARGS;
 		return (&result);
 	}
-		
+
 	/*
 	 * We could just check the timestamp on the map file,
 	 * but that's a hack: we'll only know the last time the file
@@ -660,7 +660,7 @@ static void yp_maplist_free(yp_maplist)
 {
 	register struct ypmaplist *next;
 
-	while(yp_maplist) {
+	while (yp_maplist) {
 		next = yp_maplist->next;
 		free(yp_maplist->map);
 		free(yp_maplist);
@@ -736,7 +736,7 @@ ypproc_maplist_2_svc(domainname *argp, struct svc_req *rqstp)
 		result.stat = YP_BADARGS;
 		return (&result);
 	}
-		
+
 	if (yp_validdomain(*argp)) {
 		result.stat = YP_NODOM;
 		return (&result);

@@ -42,9 +42,9 @@
 
 extern int	forked;
 extern int	children;
-extern void     load_securenets __P(( void ));
-extern void     yp_error __P((const char *, ...));
-extern int      yp_access __P((const char *, const struct svc_req * ));
-extern int      yp_validdomain __P((const char * ));
+extern void     load_securenets(void);
+extern void     yp_error(const char *, ...);
+extern int      yp_access(const char *, const struct svc_req *);
+extern int      yp_validdomain(const char *);
 extern char	*yp_dir;
-extern void	ypxfrd_freebsd_prog_1 __P(( struct svc_req *, register SVCXPRT * ));
+extern void	ypxfrd_freebsd_prog_1(struct svc_req *, register SVCXPRT *);

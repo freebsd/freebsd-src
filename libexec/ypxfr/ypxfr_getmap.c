@@ -43,7 +43,7 @@ static const char rcsid[] =
 #include <rpcsvc/yp.h>
 #include "ypxfr_extern.h"
 
-extern bool_t xdr_ypresp_all_seq __P(( XDR *, unsigned long * ));
+extern bool_t xdr_ypresp_all_seq(XDR *, unsigned long *);
 
 int (*ypresp_allfn)();
 void *ypresp_data;
