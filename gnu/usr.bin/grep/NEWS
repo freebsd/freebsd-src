@@ -1,3 +1,67 @@
+Version 2.3:
+
+  - When searching a binary file FOO, grep now just reports
+    `Binary file FOO matches' instead of outputting binary data.
+    This is typically more useful than the old behavior,
+    and it is also more consistent with other utilities like `diff'.
+    A file is considered to be binary if it contains a NUL (i.e. zero) byte.
+
+    The new -a or --text option causes `grep' to assume that all
+    input is text.  (This option has the same meaning as with `diff'.)
+    Use it if you want binary data in your output.
+
+  - `grep' now searches directories just like ordinary files; it no longer
+    silently skips directories.  This is the traditional behavior of
+    Unix text utilities (in particular, of traditional `grep').
+    Hence `grep PATTERN DIRECTORY' should report
+    `grep: DIRECTORY: Is a directory' on hosts where the operating system
+    does not permit programs to read directories directly, and
+    `grep: DIRECTORY: Binary file matches' (or nothing) otherwise.
+
+    The new -d ACTION or --directories=ACTION option affects directory handling.
+    `-d skip' causes `grep' to silently skip directories, as in grep 2.2;
+    `-d read' (the default) causes `grep' to read directories if possible,
+    as in earlier versions of grep.
+
+  - The MS-DOS and Microsoft Windows ports now behave identically to the
+    GNU and Unix ports with respect to binary files and directories.
+
+Version 2.2:
+
+Bug fix release.
+
+  - Status error number fix.
+  - Skipping directories removed.
+  - Many typos fix.
+  - -f /dev/null fix(not to consider as an empty pattern).
+  - Checks for wctype/wchar.
+  - -E was using the wrong matcher fix.
+  - bug in regex char class fix
+  - Fixes for DJGPP
+
+Version 2.1:
+
+This is a bug fix release(see Changelog) i.e. no new features.
+
+  - More compliance to GNU standard.
+  - Long options.
+  - Internationalisation.
+  - Use automake/autoconf.
+  - Directory hierarchy change.
+  - Sigvec with -e on Linux corrected.
+  - Sigvec with -f on Linux corrected.
+  - Sigvec with the mmap() corrected.
+  - Bug in kwset corrected.
+  - -q, -L and -l stop on first match.
+  - New and improve regex.[ch] from Ulrich Drepper.
+  - New and improve dfa.[ch] from Arnold Robbins.
+  - Prototypes for over zealous C compiler.
+  - Not scanning a file, if it's a directory
+    (cause problems on Sun).
+  - Ported to MS-DOS/MS-Windows with DJGPP tools.
+
+See Changelog for the full story and proper credits.
+
 Version 2.0:
 
 The most important user visible change is that egrep and fgrep have
