@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.104.2.10 1998/08/28 20:38:57 luoqi Exp $
+ * $Id: vfs_bio.c,v 1.104.2.11 1998/08/29 17:39:39 luoqi Exp $
  */
 
 /*
@@ -43,7 +43,6 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
-#include <sys/lock.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
@@ -1175,7 +1174,7 @@ loop:
 		 * Normally the vnode is locked so this isn't a problem.
 		 * VBLK type I/O requests, however, don't lock the vnode.
 		 */
-		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE && gbincore(vp, blkno)) {
+		if (!VOP_ISLOCKED(vp) && gbincore(vp, blkno)) {
 			bp->b_flags |= B_INVAL;
 			brelse(bp);
 			goto loop;
