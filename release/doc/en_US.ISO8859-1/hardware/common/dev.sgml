@@ -427,31 +427,7 @@
     SmartRAID IV SCSI/RAID controllers (&man.dpt.4; driver)</para>
 
     <para arch="i386">DPT SmartRAID V and VI SCSI RAID controllers
-    (&man.asr.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>PM1554</para>
-	</listitem>
-        <listitem>
-	  <para>PM2554</para>
-	</listitem>
-        <listitem>
-	  <para>PM2654</para>
-	</listitem>
-        <listitem>
-	  <para>PM2865</para>
-	</listitem>
-        <listitem>
-	  <para>PM2754</para>
-	</listitem>
-        <listitem>
-	  <para>PM3755</para>
-	</listitem>
-        <listitem>
-	  <para>PM3757</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    (&man.asr.4; driver)</para>
 
     <para arch="i386,alpha">AMI MegaRAID Express and Enterprise family RAID controllers
     (&man.amr.4; driver)
