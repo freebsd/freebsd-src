@@ -32,26 +32,26 @@
 .\"	@(#)recno.3	8.5 (Berkeley) 8/18/94
 .\" $FreeBSD$
 .\"
-.TH RECNO 3 "August 18, 1994"
-.UC 7
-.SH NAME
-recno \- record number database access method
-.SH SYNOPSIS
-.nf
-.ft B
-#include <sys/types.h>
-#include <db.h>
-.ft R
-.fi
-.SH DESCRIPTION
+.Dd August 18, 1994
+.Dt RECNO 3
+.Os
+.Sh NAME
+.Nm recno
+.Nd "record number database access method"
+.Sh SYNOPSIS
+.Fd "#include <sys/types.h>"
+.Fd "#include <db.h>"
+.Sh DESCRIPTION
 The routine
-.IR dbopen
+.Fn dbopen
 is the library interface to database files.
 One of the supported file formats is record number files.
 The general description of the database access methods is in
-.IR dbopen (3),
-this manual page describes only the recno specific information.
-.PP
+.Xr dbopen 3 ,
+this manual page describes only the
+.Nm
+specific information.
+.Pp
 The record number data structure is either variable or fixed-length
 records stored in a flat-file format, accessed by the logical record
 number.
@@ -60,158 +60,173 @@ one through four, and the deletion of record number one causes
 record number five to be renumbered to record number four, as well
 as the cursor, if positioned after record number one, to shift down
 one record.
-.PP
-The recno access method specific data structure provided to
-.I dbopen
-is defined in the <db.h> include file as follows:
-.PP
+.Pp
+The
+.Nm
+access method specific data structure provided to
+.Fn dbopen
+is defined in the
+.Aq Pa db.h
+include file as follows:
+.Bd -literal
 typedef struct {
-.RS
-u_long flags;
-.br
-u_int cachesize;
-.br
-u_int psize;
-.br
-int lorder;
-.br
-size_t reclen;
-.br
-u_char bval;
-.br
-char *bfname;
-.RE
+	u_long flags;
+	u_int cachesize;
+	u_int psize;
+	int lorder;
+	size_t reclen;
+	u_char bval;
+	char *bfname;
 } RECNOINFO;
-.PP
+.Ed
+.Pp
 The elements of this structure are defined as follows:
-.TP
-flags
+.Bl -tag -width indent
+.It Va flags
 The flag value is specified by
-.IR or 'ing
+.Em or Ns 'ing
 any of the following values:
-.RS
-.TP
-R_FIXEDLEN
+.Bl -tag -width indent
+.It Dv R_FIXEDLEN
 The records are fixed-length, not byte delimited.
 The structure element
-.I reclen
+.Va reclen
 specifies the length of the record, and the structure element
-.I bval
+.Va bval
 is used as the pad character.
 Any records, inserted into the database, that are less than
-.I reclen
+.Va reclen
 bytes long are automatically padded.
-.TP
-R_NOKEY
+.It Dv R_NOKEY
 In the interface specified by
-.IR dbopen ,
+.Fn dbopen ,
 the sequential record retrieval fills in both the caller's key and
 data structures.
-If the R_NOKEY flag is specified, the
-.I cursor
+If the
+.Dv R_NOKEY
+flag is specified, the
+.Em cursor
 routines are not required to fill in the key structure.
 This permits applications to retrieve records at the end of files without
 reading all of the intervening records.
-.TP
-R_SNAPSHOT
+.It Dv R_SNAPSHOT
 This flag requires that a snapshot of the file be taken when
-.I dbopen
+.Fn dbopen
 is called, instead of permitting any unmodified records to be read from
 the original file.
-.RE
-.TP
-cachesize
+.El
+.It Va cachesize
 A suggested maximum size, in bytes, of the memory cache.
 This value is
-.B only
+.Em only
 advisory, and the access method will allocate more memory rather than fail.
 If
-.I cachesize
-is  0 (no size is specified) a default cache is used.
-.TP
-psize
-The recno access method stores the in-memory copies of its records
+.Va cachesize
+is 0 (no size is specified) a default cache is used.
+.It Va psize
+The
+.Nm
+access method stores the in-memory copies of its records
 in a btree.
 This value is the size (in bytes) of the pages used for nodes in that tree.
 If
-.I psize
+.Va psize
 is 0 (no page size is specified) a page size is chosen based on the
 underlying file system I/O block size.
 See
-.IR btree (3)
+.Xr btree 3
 for more information.
-.TP
-lorder
+.It Va lorder
 The byte order for integers in the stored database metadata.
 The number should represent the order as an integer; for example,
 big endian order would be the number 4,321.
 If
-.I lorder
+.Va lorder
 is 0 (no order is specified) the current host order is used.
-.TP
-reclen
+.It Va reclen
 The length of a fixed-length record.
-.TP
-bval
+.It Va bval
 The delimiting byte to be used to mark the end of a record for
 variable-length records, and the pad character for fixed-length
 records.
-If no value is specified, newlines (``\en'') are used to mark the end
+If no value is specified, newlines
+.Pq Dq \en
+are used to mark the end
 of variable-length records and fixed-length records are padded with
 spaces.
-.TP
-bfname
-The recno access method stores the in-memory copies of its records
+.It Va bfname
+The
+.Nm
+access method stores the in-memory copies of its records
 in a btree.
-If bfname is non-NULL, it specifies the name of the btree file,
-as if specified as the file name for a dbopen of a btree file.
-.PP
-The data part of the key/data pair used by the recno access method
+If
+.Va bfname
+is
+.No non\- Ns Dv NULL ,
+it specifies the name of the btree file,
+as if specified as the file name for a
+.Fn dbopen
+of a btree file.
+.El
+.Pp
+The data part of the key/data pair used by the
+.Nm
+access method
 is the same as other access methods.
 The key is different.
 The
-.I data
+.Va data
 field of the key should be a pointer to a memory location of type
-.IR recno_t ,
-as defined in the <db.h> include file.
+.Ft recno_t ,
+as defined in the
+.Aq Pa db.h
+include file.
 This type is normally the largest unsigned integral type available to
 the implementation.
 The
-.I size
+.Va size
 field of the key should be the size of that type.
-.PP
+.Pp
 Because there can be no meta-data associated with the underlying
-recno access method files, any changes made to the default values
+.Nm
+access method files, any changes made to the default values
 (e.g. fixed record length or byte separator value) must be explicitly
 specified each time the file is opened.
-.PP
+.Pp
 In the interface specified by
-.IR dbopen ,
+.Fn dbopen ,
 using the
-.I put
+.Va put
 interface to create a new record will cause the creation of multiple,
 empty records if the record number is more than one greater than the
 largest record currently in the database.
-.SH ERRORS
+.Sh ERRORS
 The
-.I recno
+.Nm
 access method routines may fail and set
-.I errno
+.Va errno
 for any of the errors specified for the library routine
-.IR dbopen (3)
+.Xr dbopen 3
 or the following:
-.TP
-[EINVAL]
+.Bl -tag -width Er
+.It Bq Er EINVAL
 An attempt was made to add a record to a fixed-length database that
 was too large to fit.
-.SH "SEE ALSO"
-.IR btree (3),
-.IR dbopen (3),
-.IR hash (3),
-.IR mpool (3)
-.sp
-.IR "Document Processing in a Relational Database System" ,
-Michael Stonebraker, Heidi Stettner, Joseph Kalash, Antonin Guttman,
-Nadene Lynn, Memorandum No. UCB/ERL M82/32, May 1982.
-.SH BUGS
+.El
+.Sh SEE ALSO
+.Xr btree 3 ,
+.Xr dbopen 3 ,
+.Xr hash 3 ,
+.Xr mpool 3
+.Rs
+.%T "Document Processing in a Relational Database System"
+.%A Michael Stonebraker
+.%A Heidi Stettner
+.%A Joseph Kalash
+.%A Antonin Guttman
+.%A Nadene Lynn
+.%R "Memorandum No. UCB/ERL M82/32"
+.%D May 1982
+.Re
+.Sh BUGS
 Only big and little endian byte order is supported.

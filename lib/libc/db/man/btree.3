@@ -32,85 +32,93 @@
 .\"	@(#)btree.3	8.4 (Berkeley) 8/18/94
 .\" $FreeBSD$
 .\"
-.TH BTREE 3 "August 18, 1994"
-.\".UC 7
-.SH NAME
-btree \- btree database access method
-.SH SYNOPSIS
-.nf
-.ft B
-#include <sys/types.h>
-#include <db.h>
-.ft R
-.fi
-.SH DESCRIPTION
+.Dd August 18, 1994
+.Dt BTREE 3
+.Os
+.Sh NAME
+.Nm btree
+.Nd "btree database access method"
+.Sh SYNOPSIS
+.Fd "#include <sys/types.h>"
+.Fd "#include <db.h>"
+.Sh DESCRIPTION
 The routine
-.IR dbopen
+.Fn dbopen
 is the library interface to database files.
-One of the supported file formats is btree files.
+One of the supported file formats is
+.Nm
+files.
 The general description of the database access methods is in
-.IR dbopen (3),
-this manual page describes only the btree specific information.
-.PP
-The btree data structure is a sorted, balanced tree structure storing
+.Xr dbopen 3 ,
+this manual page describes only the
+.Nm
+specific information.
+.Pp
+The
+.Nm
+data structure is a sorted, balanced tree structure storing
 associated key/data pairs.
-.PP
-The btree access method specific data structure provided to
-.I dbopen
-is defined in the <db.h> include file as follows:
-.PP
+.Pp
+The
+.Nm
+access method specific data structure provided to
+.Fn dbopen
+is defined in the
+.Aq Pa db.h
+include file as follows:
+.Bd -literal
 typedef struct {
-.RS
-u_long flags;
-.br
-u_int cachesize;
-.br
-int maxkeypage;
-.br
-int minkeypage;
-.br
-u_int psize;
-.br
-int (*compare)(const DBT *key1, const DBT *key2);
-.br
-size_t (*prefix)(const DBT *key1, const DBT *key2);
-.br
-int lorder;
-.RE
+	u_long flags;
+	u_int cachesize;
+	int maxkeypage;
+	int minkeypage;
+	u_int psize;
+	int (*compare)(const DBT *key1, const DBT *key2);
+	size_t (*prefix)(const DBT *key1, const DBT *key2);
+	int lorder;
 } BTREEINFO;
-.PP
+.Ed
+.Pp
 The elements of this structure are as follows:
-.TP
-flags
+.Bl -tag -width indent
+.It Va flags
 The flag value is specified by
-.IR or 'ing
+.Em or Ns 'ing
 any of the following values:
-.RS
-.TP
-R_DUP
+.Bl -tag -width indent
+.It Dv R_DUP
 Permit duplicate keys in the tree, i.e. permit insertion if the key to be
 inserted already exists in the tree.
 The default behavior, as described in
-.IR dbopen (3),
+.Xr dbopen 3 ,
 is to overwrite a matching key when inserting a new key or to fail if
-the R_NOOVERWRITE flag is specified.
-The R_DUP flag is overridden by the R_NOOVERWRITE flag, and if the
-R_NOOVERWRITE flag is specified, attempts to insert duplicate keys into
+the
+.Dv R_NOOVERWRITE
+flag is specified.
+The
+.Dv R_DUP
+flag is overridden by the
+.Dv R_NOOVERWRITE
+flag, and if the
+.Dv R_NOOVERWRITE
+flag is specified, attempts to insert duplicate keys into
 the tree will fail.
-.IP
+.Pp
 If the database contains duplicate keys, the order of retrieval of
 key/data pairs is undefined if the
-.I get
+.Va get
 routine is used, however,
-.I seq
-routine calls with the R_CURSOR flag set will always return the logical
-``first'' of any group of duplicate keys.
-.RE
-.TP
-cachesize
+.Va seq
+routine calls with the
+.Dv R_CURSOR
+flag set will always return the logical
+.Dq first
+of any group of duplicate keys.
+.El
+.It Va cachesize
 A suggested maximum size (in bytes) of the memory cache.
 This value is
-.B only
+.Em only
 advisory, and the access method will allocate more memory rather than fail.
 Since every search examines the root page of the tree, caching the most
 recently used pages substantially improves access time.
@@ -119,40 +127,38 @@ cache can reduce the number of I/O operations significantly.
 Obviously, using a cache increases (but only increases) the likelihood of
 corruption or lost data if the system crashes while a tree is being modified.
 If
-.I cachesize
+.Va cachesize
 is 0 (no size is specified) a default cache is used.
-.TP
-maxkeypage
+.It Va maxkeypage
 The maximum number of keys which will be stored on any single page.
 Not currently implemented.
 .\" The maximum number of keys which will be stored on any single page.
-.\" Because of the way the btree data structure works,
-.\" .I maxkeypage
+.\" Because of the way the
+.\" .Nm
+.\" data structure works,
+.\" .Va maxkeypage
 .\" must always be greater than or equal to 2.
 .\" If
-.\" .I maxkeypage
+.\" .Va maxkeypage
 .\" is 0 (no maximum number of keys is specified) the page fill factor is
 .\" made as large as possible (which is almost invariably what is wanted).
-.TP
-minkeypage
+.It Va minkeypage
 The minimum number of keys which will be stored on any single page.
 This value is used to determine which keys will be stored on overflow
 pages, i.e. if a key or data item is longer than the pagesize divided
 by the minkeypage value, it will be stored on overflow pages instead
 of in the page itself.
 If
-.I minkeypage
+.Va minkeypage
 is 0 (no minimum number of keys is specified) a value of 2 is used.
-.TP
-psize
+.It Va psize
 Page size is the size (in bytes) of the pages used for nodes in the tree.
 The minimum page size is 512 bytes and the maximum page size is 64K.
 If
-.I psize
+.Va psize
 is 0 (no page size is specified) a page size is chosen based on the
 underlying file system I/O block size.
-.TP
-compare
+.It Va compare
 Compare is the key comparison function.
 It must return an integer less than, equal to, or greater than zero if the
 first key argument is considered to be respectively less than, equal to,
@@ -160,12 +166,14 @@ or greater than the second key argument.
 The same comparison function must be used on a given tree every time it
 is opened.
 If
-.I compare
-is NULL (no comparison function is specified), the keys are compared
+.Va compare
+is
+.Dv NULL
+(no comparison function is specified), the keys are compared
 lexically, with shorter keys considered less than longer keys.
-.TP
-prefix
-Prefix is the prefix comparison function.
+.It Va prefix
+.Va Prefix
+is the prefix comparison function.
 If specified, this routine must return the number of bytes of the second key
 argument which are necessary to determine that it is greater than the first
 key argument.
@@ -173,62 +181,92 @@ If the keys are equal, the key length should be returned.
 Note, the usefulness of this routine is very data dependent, but, in some
 data sets can produce significantly reduced tree sizes and search times.
 If
-.I prefix
-is NULL (no prefix function is specified),
-.B and
+.Va prefix
+is
+.Dv NULL
+(no prefix function is specified),
+.Em and
 no comparison function is specified, a default lexical comparison routine
 is used.
 If
-.I prefix
-is NULL and a comparison routine is specified, no prefix comparison is
+.Va prefix
+is
+.Dv NULL
+and a comparison routine is specified, no prefix comparison is
 done.
-.TP
-lorder
+.It Va lorder
 The byte order for integers in the stored database metadata.
-The number should represent the order as an integer; for example, 
+The number should represent the order as an integer; for example,
 big endian order would be the number 4,321.
 If
-.I lorder
+.Va lorder
 is 0 (no order is specified) the current host order is used.
-.PP
-If the file already exists (and the O_TRUNC flag is not specified), the
-values specified for the parameters flags, lorder and psize are ignored
+.El
+.Pp
+If the file already exists (and the
+.Dv O_TRUNC
+flag is not specified), the
+values specified for the parameters
+.Va flags , lorder
+and
+.Va psize
+are ignored
 in favor of the values used when the tree was created.
-.PP
+.Pp
 Forward sequential scans of a tree are from the least key to the greatest.
-.PP
+.Pp
 Space freed up by deleting key/data pairs from the tree is never reclaimed,
 although it is normally made available for reuse.
-This means that the btree storage structure is grow-only.
+This means that the
+.Nm
+storage structure is grow-only.
 The only solutions are to avoid excessive deletions, or to create a fresh
 tree periodically from a scan of an existing one.
-.PP
-Searches, insertions, and deletions in a btree will all complete in
+.Pp
+Searches, insertions, and deletions in a
+.Nm
+will all complete in
 O lg base N where base is the average fill factor.
-Often, inserting ordered data into btrees results in a low fill factor.
+Often, inserting ordered data into
+.Nm Ns s
+results in a low fill factor.
 This implementation has been modified to make ordered insertion the best
 case, resulting in a much better than normal page fill factor.
-.SH ERRORS
+.Sh ERRORS
 The
-.I btree
+.Nm
 access method routines may fail and set
-.I errno
+.Va errno
 for any of the errors specified for the library routine
-.IR dbopen (3).
-.SH "SEE ALSO"
-.IR dbopen (3),
-.IR hash (3),
-.IR mpool (3),
-.IR recno (3)
-.sp
-.IR "The Ubiquitous B-tree" ,
-Douglas Comer, ACM Comput. Surv. 11, 2 (June 1979), 121-138.
-.sp
-.IR "Prefix B-trees" ,
-Bayer and Unterauer, ACM Transactions on Database Systems, Vol. 2, 1
-(March 1977), 11-26.
-.sp
-.IR "The Art of Computer Programming Vol. 3: Sorting and Searching" , 
-D.E. Knuth, 1968, pp 471-480.
-.SH BUGS
+.Xr dbopen 3 .
+.Sh SEE ALSO
+.Xr dbopen 3 ,
+.Xr hash 3 ,
+.Xr mpool 3 ,
+.Xr recno 3
+.Rs
+.%T "The Ubiquitous B-tree"
+.%A Douglas Comer
+.%J "ACM Comput. Surv. 11"
+.%N 2
+.%D June 1979
+.%P 121-138
+.Re
+.Rs
+.%A Bayer
+.%A Unterauer
+.%T "Prefix B-trees"
+.%J "ACM Transactions on Database Systems"
+.%N 1
+.%V Vol. 2
+.%D March 1977
+.%P 11-26
+.Re
+.Rs
+.%B "The Art of Computer Programming Vol. 3: Sorting and Searching"
+.%A D. E. Knuth
+.%D 1968
+.%P 471-480
+.Re
+.Sh BUGS
 Only big and little endian byte order is supported.
