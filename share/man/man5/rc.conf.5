@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2004
+.Dd March 12, 2005
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2625,16 +2625,6 @@ most secure).
 See
 .Xr init 8
 for the list of possible security levels and their effect
-on system operation.
-.It Va lomac_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to enable Low Watermark Mandatory Access Control (LOMAC) at boot time.
-This security model enforces integrity constraints for system processes;
-see
-.Xr mac_lomac 4
-for a complete description of the LOMAC model, as well as its impact
 on system operation.
 .It Va sshd_program
 .Pq Vt str
