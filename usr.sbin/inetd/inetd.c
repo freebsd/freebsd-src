@@ -1290,7 +1290,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 	if ((sep->se_family == AF_INET6) &&
 	    (strcmp(sep->se_proto, "udp") == 0) &&
 	    (sep->se_accept == 0) &&
-	    (setsockopt(sep->se_fd, IPPROTO_IPV6, IPV6_PKTINFO,
+	    (setsockopt(sep->se_fd, IPPROTO_IPV6, IPV6_RECVPKTINFO,
 			(char *)&on, sizeof (on)) < 0))
 		syslog(LOG_ERR, "setsockopt (IPV6_RECVPKTINFO): %m");
 	if (sep->se_family == AF_INET6) {
