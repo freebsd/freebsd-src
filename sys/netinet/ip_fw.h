@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.19 1996/06/02 00:14:50 gpalmer Exp $
+ *	$Id: ip_fw.h,v 1.20 1996/06/09 23:46:21 alex Exp $
  */
 
 /*
@@ -29,8 +29,8 @@ struct ip_fw {
     struct in_addr fw_src, fw_dst;	/* Source and destination IP addr */
     struct in_addr fw_smsk, fw_dmsk;	/* Mask for src and dest IP addr */
     union {
-	struct in_addr fu_via_ip;
-	struct {
+	struct in_addr fu_via_ip;	/* Specified by IP address */
+	struct {			/* Specified by interface name */
 #define FW_IFNLEN	6		/* To keep structure on 2^x boundary */
 		char  fu_via_name[FW_IFNLEN];
 		short fu_via_unit;
@@ -52,6 +52,7 @@ struct ip_fw {
 #define IP_FW_ICMPTYPES_DIM (256 / (sizeof(unsigned) * 8))
     unsigned fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
     long timestamp;         		/* timestamp (tv_sec) of last match */
+    u_short fw_divert_port;		/* Divert port (options IPDIVERT) */
 };
 
 struct ip_fw_chain {
@@ -72,11 +73,15 @@ struct ip_fw_chain {
 #define IP_FW_F_IN	0x0004	/* Inbound 			      */
 #define IP_FW_F_OUT	0x0008	/* Outbound			      */
 
+#define IP_FW_F_COMMAND 0x0030	/* Mask for type of chain entry:      */
 #define IP_FW_F_ACCEPT	0x0010	/* This is an accept rule	      */
-#define IP_FW_F_COUNT	0x0020	/* This is an accept rule	      */
+#define IP_FW_F_COUNT	0x0020	/* This is a count rule		      */
+#define IP_FW_F_DIVERT	0x0030	/* This is a divert rule	      */
+#define IP_FW_F_DENY	0x0000	/* This is a deny rule	              */
+
 #define IP_FW_F_PRN	0x0040	/* Print if this rule matches	      */
 #define IP_FW_F_ICMPRPL	0x0080	/* Send back icmp unreachable packet  */
-				 
+
 #define IP_FW_F_SRNG	0x0100	/* The first two src ports are a min  *
 				 * and max range (stored in host byte *
 				 * order).                            */

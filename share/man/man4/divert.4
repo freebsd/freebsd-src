@@ -1,0 +1,144 @@
+.Dd June 18, 1996
+.Dt DIVERT 4
+.Os FreeBSD
+.Sh NAME
+.Nm divert 
+.Nd kernel packet diversion mechanism
+.Sh SYNOPSIS
+.Fd #include <sys/socket.h>
+.Fd #include <netinet/in.h>
+.Ft int
+.Fn socket PF_INET SOCK_RAW IPPROTO_DIVERT
+.Sh DESCRIPTION
+.Pp
+Divert sockets are similar to raw IP sockets, except that they
+can be bound to a specific
+.Nm
+port via the
+.Xr bind 2
+system call. The IP address in the bind is ignored; only the port
+number is significant.
+A divert socket bound to a divert port will receive all packets diverted
+to that port by some (here unspecified) kernel mechanism(s).
+Packets may also be written to a divert port, in which case they
+re-enter kernel IP packet processing.
+.Pp
+Divert sockets are normally used in conjunction with 
+FreeBSD's packet filtering implementation and the
+.Xr ipfw 8
+program. By reading from and writing to a divert socket, matching packets
+can be passed through an arbitrary ``filter'' as they travel through
+the host machine, special routing tricks can be done, etc.
+.Sh READING PACKETS
+Packets are diverted either as they are ``incoming'' or ``outgoing.''
+Incoming packets are diverted after reception on an IP interface,
+whereas outgoing packets are diverted before next hop forwarding.
+.Pp
+Diverted packets may be read unaltered via
+.Xr read 2 ,
+.Xr recv 2 ,
+or
+.Xr recvfrom 2 .
+In the latter case, the address returned will have its port set to
+the divert port and the IP address set to the (first) address of
+the interface on which the packet was recieved (if the packet
+was incoming) or
+.Dv INADDR_ANY
+(if the packet was outgoing).
+.Sh WRITING PACKETS
+Writing to a divert socket is similar to writing to a raw IP socket;
+the packet is injected ``as is'' into the normal kernel IP packet
+processing and minimal error checking is done.
+Packets are written as either incoming or outgoing:
+if
+.Xr write 2
+or
+.Xr send 2
+is used to deliver the packet, or if
+.Xr sendto 2
+is used with a destination IP address of
+.Dv INADDR_ANY ,
+then the packet is treated as if it were outgoing, i.e., destined
+for a non-local address.  Otherwise, the packet is assumed to be
+incoming and full packet routing is done.
+.Pp
+In the latter case, the
+IP address specified must match the address of some local interface.
+This is to indicate on which interface the packet ``arrived.''
+.Pp
+Normally, packets read as incoming should be written as incoming;
+similarly for outgoing packets.  When reading and then writing back
+packets, passing the same socket address supplied by
+.Xr recvfrom 2
+unmodified to
+.Xr sendto 2
+simplifies things.
+.Sh LOOP AVOIDANCE
+To avoid having a packet sent from a divert socket rediverted back
+to the same socket, use the
+.Xr sendto 2
+system call supplying any non-zero destination port number.
+This indicates to
+.Xr ipfw 8
+and other diverting mechanisms to not divert the packet back
+to the same socket it was written from.
+.Pp
+Since
+.Xr ipfw
+checks incoming as well as outgoing packets,
+a packet written as incoming may get checked twice.
+Loop avoidance will be enabled for both checks.
+.Sh DETAILS
+To enable divert sockets, your kernel must be compiled with the option
+.Dv IPDIVERT .
+.Pp
+If a packet is diverted but no socket is bound to the
+port, or if
+.Dv IPDIVERT
+is not enabled in the kernel, the packet is dropped.
+.Pp
+Incoming packet fragments which get diverted are fully reassembled
+before delivery; the diversion of any one fragment causes the entire
+packet to get diverted.
+If different fragments divert to different ports,
+then which port ultimately gets chosen is unpredictable.
+.Pp
+Packets are recieved and sent unchanged, with two exceptions:
+read as incoming will have their IP header checksum zeroed,
+and packets written as outgoing have their IP header checksums overwritten
+with the correct value.
+Packets written as incoming and having incorrect checksums will be dropped.
+Otherwise, all header fields are unchanged (and therefore in network order).
+.Pp
+Binding to port numbers less than 1024 requires super-user access.
+.Sh ERRORS
+Writing to a divert socket can return these errors, along with
+the usual errors possible when writing raw packets:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The packet had an invalid header, or the IP options in the packet
+and the socket options set were incompatible.
+.It Bq Er EADDRNOTAVAIL
+The destination address contained an IP address not equal to
+.Dv INADDR_ANY
+that was not associated with any interface.
+.El
+.Sh SEE ALSO
+.Xr ipfw 8 ,
+.Xr socket 2 ,
+.Xr bind 2 ,
+.Xr sendto 2 .
+.Xr recvfrom 2 ,
+.Sh BUGS
+This is an attempt to provide a clean way for user mode processes
+to implement various IP tricks like address translation, but it
+could be cleaner, and it's too dependent on
+.Xr ipfw 8 .
+.Pp
+It's questionable whether incoming fragments should be reassembled
+before being diverted. For example, if only some fragments of a
+packet destined for another machine don't get routed through the
+local machine, the packet is lost. This should probably be
+a settable socket option in any case.
+.Sh AUTHOR
+Archie Cobbs <archie@whistle.com>, Whistle Communications Corp.

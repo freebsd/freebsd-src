@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.27 1996/06/23 20:47:51 alex Exp $
+ * $Id: ipfw.c,v 1.28 1996/06/29 01:28:19 alex Exp $
  *
  */
 
@@ -130,14 +130,27 @@ show_ipfw(chain)
 			printf("                         ");
 	}
 
-	if (chain->fw_flg & IP_FW_F_ACCEPT)
-		printf("allow");
-	else if (chain->fw_flg & IP_FW_F_ICMPRPL)
-		printf("reject");
-	else if (chain->fw_flg & IP_FW_F_COUNT)
-		printf("count");
-	else
-		printf("deny");
+	switch (chain->fw_flg & IP_FW_F_COMMAND)
+	{
+		case IP_FW_F_ACCEPT:
+			printf("allow");
+			break;
+		case IP_FW_F_DIVERT:
+			printf("divert %u", chain->fw_divert_port);
+			break;
+		case IP_FW_F_COUNT:
+			printf("count");
+			break;
+		case IP_FW_F_DENY:
+			if (chain->fw_flg & IP_FW_F_ICMPRPL)
+				printf("reject");
+			else
+				printf("deny");
+			break;
+		default:
+			errx(1, "impossible");
+	}
+   
 	if (chain->fw_flg & IP_FW_F_PRN)
 		printf(" log");
 
@@ -330,7 +343,6 @@ list(ac, av)
 	i = getsockopt(s, IPPROTO_IP, IP_FW_GET, rules, &l);
 	if (i < 0)
 		err(2,"getsockopt(IP_FW_GET)");
-	printf("FireWall chain entries: %d %d\n",l,i);
 	for (r=rules; l >= sizeof rules[0]; r++, l-=sizeof rules[0])
 		show_ipfw(r);
 }
@@ -350,7 +362,7 @@ show_usage(str)
 "\t\tlist [number]\n"
 "\t\tzero [number]\n"
 "\trule:\taction proto src dst extras...\n"
-"\t\taction: {allow|deny|reject|count} [log]\n"
+"\t\taction: {allow|deny|reject|count|divert port} [log]\n"
 "\t\tproto: {ip|tcp|udp|icmp}}\n"
 "\t\tsrc: from {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
 "\t\tdst: to {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
@@ -611,20 +623,26 @@ add(ac,av)
 	}
 
 	/* Action */
-	if (ac && !strncmp(*av,"accept",strlen(*av))) {
-		rule.fw_flg |= IP_FW_F_ACCEPT; av++; ac--;
-	} else if (ac && !strncmp(*av,"allow",strlen(*av))) {
-		rule.fw_flg |= IP_FW_F_ACCEPT; av++; ac--;
-	} else if (ac && !strncmp(*av,"pass",strlen(*av))) {
+	if (ac && (!strncmp(*av,"accept",strlen(*av))
+		    || !strncmp(*av,"pass",strlen(*av))
+		    || !strncmp(*av,"allow",strlen(*av))
+		    || !strncmp(*av,"permit",strlen(*av)))) {
 		rule.fw_flg |= IP_FW_F_ACCEPT; av++; ac--;
 	} else if (ac && !strncmp(*av,"count",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_COUNT; av++; ac--;
-	} else if (ac && !strncmp(*av,"deny",strlen(*av))) {
-		av++; ac--;
+	} else if (ac && !strncmp(*av,"divert",strlen(*av))) {
+		rule.fw_flg |= IP_FW_F_DIVERT; av++; ac--;
+		if (!ac)
+			show_usage("missing divert port");
+		rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
+		if (rule.fw_divert_port == 0)
+			show_usage("illegal divert port");
+	} else if (ac && (!strncmp(*av,"deny",strlen(*av)))) {
+		rule.fw_flg |= IP_FW_F_DENY; av++; ac--;
 	} else if (ac && !strncmp(*av,"reject",strlen(*av))) {
-		rule.fw_flg |= IP_FW_F_ICMPRPL; av++; ac--;
+		rule.fw_flg |= IP_FW_F_DENY|IP_FW_F_ICMPRPL; av++; ac--;
 	} else {
-		show_usage("missing action\n");
+		show_usage("missing/unrecognized action\n");
 	}
 
 	/* [log] */

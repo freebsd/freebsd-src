@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.30 1996/05/08 04:34:03 gpalmer Exp $
+ *	$Id: in_proto.c,v 1.31 1996/06/20 17:52:32 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -132,6 +132,13 @@ struct protosw inetsw[] = {
   rip_usrreq,
   0,		0,		0,		0,
 },
+#ifdef IPDIVERT
+{ SOCK_RAW,	&inetdomain,	IPPROTO_DIVERT,	PR_ATOMIC|PR_ADDR,
+  div_input,	0,	 	0,		ip_ctloutput,
+  div_usrreq,
+  div_init,	0,		0,		0,
+},
+#endif
 #ifdef TPIP
 { SOCK_SEQPACKET,&inetdomain,	IPPROTO_TP,	PR_CONNREQUIRED|PR_WANTRCVD,
   tpip_input,	0,		tpip_ctlinput,	tp_ctloutput,
@@ -187,4 +194,7 @@ SYSCTL_NODE(_net_inet, IPPROTO_ICMP,	icmp,	CTLFLAG_RW, 0,	"ICMP");
 SYSCTL_NODE(_net_inet, IPPROTO_UDP,	udp,	CTLFLAG_RW, 0,	"UDP");
 SYSCTL_NODE(_net_inet, IPPROTO_TCP,	tcp,	CTLFLAG_RW, 0,	"TCP");
 SYSCTL_NODE(_net_inet, IPPROTO_IGMP,	igmp,	CTLFLAG_RW, 0,	"IGMP");
+#ifdef IPDIVERT
+SYSCTL_NODE(_net_inet, IPPROTO_DIVERT,	div,	CTLFLAG_RW, 0,	"DIVERT");
+#endif
 

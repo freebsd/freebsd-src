@@ -137,6 +137,10 @@ struct nlist nl[] = {
 	{ "_ddpstat"},
 #define N_DDPCB		36
 	{ "_ddpcb"},
+#define N_DIVPCB	37
+	{ "_divcb"},
+#define N_DIVSTAT	38
+	{ "_divstat"},
 	{ "" },
 };
 
@@ -152,6 +156,8 @@ struct protox {
 	  tcp_stats,	"tcp" },
 	{ N_UDB,	N_UDPSTAT,	1,	protopr,
 	  udp_stats,	"udp" },
+	{ N_DIVPCB,	N_DIVSTAT,	1,	protopr,
+	  NULL,		"divert" }, 	/* no stat structure yet */
 	{ -1,		N_IPSTAT,	1,	0,
 	  ip_stats,	"ip" },
 	{ -1,		N_ICMPSTAT,	1,	0,

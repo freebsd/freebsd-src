@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.16 1996/03/14 16:59:18 fenner Exp $
+ * $Id: in.h,v 1.17 1996/04/03 13:52:11 phk Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -60,6 +60,7 @@
 #define	IPPROTO_EON		80		/* ISO cnlp */
 #define	IPPROTO_ENCAP		98		/* encapsulation header */
 
+#define	IPPROTO_DIVERT		254		/* divert pseudo-protocol */
 #define	IPPROTO_RAW		255		/* raw IP packet */
 #define	IPPROTO_MAX		256
 

@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.43 1996/06/29 03:33:20 alex Exp $
+ *	$Id: ip_fw.c,v 1.44 1996/07/09 20:49:38 nate Exp $
  */
 
 /*
@@ -32,11 +32,13 @@
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <net/if.h>
+#include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+#include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
 
@@ -88,7 +90,7 @@ static ip_fw_ctl_t *old_ctl_ptr;
 #endif
 
 static int	ip_fw_chk __P((struct ip **pip, int hlen, struct ifnet *rif,
-			       int dir, struct mbuf **m));
+			       int dirport, struct mbuf **m));
 static int	ip_fw_ctl __P((int stage, struct mbuf **mm));
 
 
@@ -257,11 +259,24 @@ ipfw_report(char *txt, int rule, struct ip *ip, int counter)
 }
 
 /*
- * Returns 1 if it should be accepted, 0 otherwise.
+ * We overload the "dirport" parameter:
+ *
+ *   If dirport is negative, packet is outgoing; otherwise incoming.
+ *   The low order 16 bits of dirport, if non-zero, indicate that
+ *   we should ignore all ``divert <port>'' rules, where <port> is
+ *   the low order 16 bits.
+ *
+ * Return value:
+ *
+ *   -1		The packet was denied/rejected and has been dropped 
+ *    0		The packet is to be accepted; route normally
+ *   <port>	Divert the packet to divert <port>, if any socket
+ *		is bound to it; otherwise just drop it.
  */
 
 static int 
-ip_fw_chk(struct ip **pip, int hlen, struct ifnet *rif, int dir, struct mbuf **m)
+ip_fw_chk(struct ip **pip, int hlen,
+	struct ifnet *rif, int dirport, struct mbuf **m)
 {
 	struct ip_fw_chain *chain;
 	register struct ip_fw *f = NULL;
@@ -284,7 +299,7 @@ ip_fw_chk(struct ip **pip, int hlen, struct ifnet *rif, int dir, struct mbuf **m
 		++frag_counter;
 		ipfw_report("Refuse", -1, ip, frag_counter);
 		m_freem(*m);
-		return 0;
+		return -1;
 	}
 
 	src = ip->ip_src;
@@ -331,11 +346,11 @@ ip_fw_chk(struct ip **pip, int hlen, struct ifnet *rif, int dir, struct mbuf **m
 		f = chain->rule;
 
 		/* Check direction inbound */
-		if (!dir && !(f->fw_flg & IP_FW_F_IN))
+		if (dirport >= 0 && !(f->fw_flg & IP_FW_F_IN))
 			continue;
 
 		/* Check direction outbound */
-		if (dir && !(f->fw_flg & IP_FW_F_OUT))
+		if (dirport < 0 && !(f->fw_flg & IP_FW_F_OUT))
 			continue;
 
 		/* Fragments */
@@ -437,41 +452,65 @@ got_match:
 		f->fw_bcnt+=ip->ip_len;
 		f->timestamp = time.tv_sec;
 		if (f->fw_flg & IP_FW_F_PRN) {
-			if (f->fw_flg & IP_FW_F_ACCEPT)
-				ipfw_report("Allow", f->fw_number, ip, f->fw_pcnt);
-			else if (f->fw_flg & IP_FW_F_COUNT)
-				ipfw_report("Count", f->fw_number, ip, f->fw_pcnt);
-			else
-				ipfw_report("Deny", f->fw_number, ip, f->fw_pcnt);
+			if ((f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_ACCEPT) {
+				ipfw_report("Accept",
+					f->fw_number, ip, f->fw_pcnt);
+			} else if ((f->fw_flg & IP_FW_F_COMMAND)
+			    == IP_FW_F_DIVERT) {
+				if (f->fw_divert_port != (dirport & 0xffff))
+					ipfw_report("Divert", f->fw_number,
+							ip, f->fw_pcnt);
+			} else if ((f->fw_flg & IP_FW_F_COMMAND)
+			    == IP_FW_F_COUNT) {
+				ipfw_report("Count",
+					f->fw_number, ip, f->fw_pcnt);
+			} else {
+				ipfw_report("Deny",
+					f->fw_number, ip, f->fw_pcnt);
+			}
 		}
-		if (f->fw_flg & IP_FW_F_ACCEPT)
-			return 1;
-		if (f->fw_flg & IP_FW_F_COUNT)
-			continue;
-		break;
 
+		/* Take appropriate action */
+		if ((f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_ACCEPT) {
+			return 0;
+		} else if ((f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_COUNT) {
+			continue;
+		} else if ((f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_DIVERT) {
+			if (f->fw_divert_port == (dirport & 0xffff))
+				continue;	/* ignore this rule */
+			return (f->fw_divert_port);
+		} else
+			break;		/* ie, deny/reject */
 	}
+
+#ifdef DIAGNOSTIC
+	if (!chain)			/* rule 65535 should always be there */
+		panic("ip_fw: chain");
+	if (!f)	
+		panic("ip_fw: entry");
+#endif
 
 	/*
-	 * Don't icmp outgoing packets at all
+	 * At this point, we're going to drop the packet.
+	 * Send an ICMP only if all of the following are true:
+	 *
+	 * - The packet is an incoming packet
+	 * - The packet matched a deny rule
+	 * - The packet is not an ICMP packet
+	 * - The rule has the special ICMP reply flag set
 	 */
-	if (f != NULL && !dir) {
-		/*
-		 * Do not ICMP reply to icmp packets....:) or to packets
-		 * rejected by entry without the special ICMP reply flag.
-		 */
-		if ((f_prt != IP_FW_F_ICMP) && (f->fw_flg & IP_FW_F_ICMPRPL)) {
-			if (f_prt == IP_FW_F_ALL)
-				icmp_error(*m, ICMP_UNREACH, 
-					ICMP_UNREACH_HOST, 0L, 0);
-			else
-				icmp_error(*m, ICMP_UNREACH, 
-					ICMP_UNREACH_PORT, 0L, 0);
-			return 0;
-		}
+	if (dirport >= 0
+	    && (f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_DENY
+	    && (f_prt != IP_FW_F_ICMP)
+	    && (f->fw_flg & IP_FW_F_ICMPRPL)) {
+		if (f_prt == IP_FW_F_ALL)
+			icmp_error(*m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0L, 0);
+		else
+			icmp_error(*m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0L, 0);
+		return -1;
 	}
 	m_freem(*m);
-	return 0;
+	return -1;
 }
 
 static int
@@ -659,6 +698,13 @@ check_ipfw_struct(struct mbuf *m)
 		dprintf(("ip_fw_ctl: rule never matches\n"));
 		return(NULL);
 	}
+
+	/* Diverting to port zero is illegal */
+	if ((frwl->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_DIVERT
+	     && frwl->fw_divert_port == 0) {
+		dprintf(("ip_fw_ctl: can't divert to port 0\n"));
+		return (NULL);
+	}
 	return frwl;
 }
 
@@ -742,15 +788,21 @@ ip_fw_init(void)
 	deny.fw_flg = IP_FW_F_ALL;
 	deny.fw_number = (u_short)-1;
 	add_entry(&ip_fw_chain, &deny);
-	
-	printf("IP firewall initialized, ");
+
+	printf("IP packet filtering initialized, "
+#ifdef IPDIVERT
+		"divert enabled, ");
+#else
+		"divert disabled, ");
+#endif
 #ifndef IPFIREWALL_VERBOSE
 	printf("logging disabled\n");
 #else
 	if (fw_verbose_limit == 0)
 		printf("unlimited logging\n");
 	else
-		printf("logging limited to %d packets/entry\n", fw_verbose_limit);
+		printf("logging limited to %d packets/entry\n",
+		    fw_verbose_limit);
 #endif
 }
 
