@@ -233,6 +233,16 @@ int	cap_set_proc(cap_t);
 ssize_t	cap_size(cap_t);
 char	*cap_to_text(cap_t, ssize_t *);
 
+/*
+ * Non-POSIX.1e functions
+ *
+ * Do the two cap_t's represent equal capability sets?
+ */
+int	cap_equal_np(cap_t, cap_t);
+
+/* Is the first cap set a subset of the second? */
+int	cap_subset_np(cap_t, cap_t);
+
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_CAPABILITY_H */
