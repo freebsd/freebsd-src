@@ -65,5 +65,10 @@ enum {
 	NGM_ETHER_SET_AUTOSRC,		/* enable/disable src addr override */
 };
 
+#ifdef _KERNEL
+/* Ethernet address parse type */
+extern	const struct ng_parse_type ng_ether_enaddr_type;
+#endif /* _KERNEL */
+
 #endif /* _NETGRAPH_NG_ETHER_H_ */
 
