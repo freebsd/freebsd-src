@@ -1,4 +1,4 @@
--- $Id: CATALOG,v 1.1 1996/09/08 02:58:27 jfieber Exp $ --
+-- $Id: CATALOG,v 1.2 1996/09/08 20:36:56 jfieber Exp $ --
 
 -- ISO general entities --
 
@@ -71,4 +71,24 @@ PUBLIC "-//FreeBSD//DTD linuxdoc//EN"
 
 PUBLIC "-//FreeBSD//DTD transpec//EN"
 "transpec/transpec.dtd"
+
+-- Docbook --
+
+DTDDECL "-//Davenport//DTD DocBook V2.4.1//EN"
+"docbook/docbook.dcl"
+
+PUBLIC "-//Davenport//DTD DocBook V2.4.1//EN"
+"docbook/docbook.dtd"
+
+PUBLIC "-//Davenport//ELEMENTS CALS-Based DocBook Table Model V2.4.1//EN"
+"docbook/calstbl.mod"
+
+PUBLIC "-//Davenport//ELEMENTS DocBook Information Pool V2.4.1//EN"
+"docbook/dbpool.mod"
+
+PUBLIC "-//Davenport//ELEMENTS DocBook Document Hierarchy V2.4.1//EN"
+"docbook/dbhier.mod"
+
+PUBLIC "-//Davenport//ELEMENTS DocBook Additional General Entities//EN"
+"docbook/dbgenent.mod"
 
