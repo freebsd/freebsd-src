@@ -49,7 +49,7 @@
  |	proprietary information which is protected by
  |	copyright.  All rights are reserved.
  |
- |	$Header: /home/ncvs/src/usr.bin/ee/ee.c,v 1.1.1.1 1995/08/30 07:28:05 jkh Exp $
+ |	$Header: /home/ncvs/src/usr.bin/ee/ee.c,v 1.2 1995/08/30 17:11:54 ache Exp $
  |
  */
 
@@ -62,7 +62,7 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.2.4  $Revision: 1.1.1.1 $";
+char *version = "@(#) ee, version 1.2.4  $Revision: 1.2 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
@@ -1768,6 +1768,7 @@ int advance;		/* if true, skip leading spaces and tabs	*/
 	clear_com_win = TRUE;
 	g_horz = g_position = scan(prompt, strlen(prompt), 0);
 	g_pos = 0;
+	keypad(com_win, FALSE);
 	do
 	{
 		esc_flag = FALSE;
@@ -1816,6 +1817,7 @@ int advance;		/* if true, skip leading spaces and tabs	*/
 		if (esc_flag)
 			in = (char) NULL;
 	} while ((in != '\n') && (in != '\r'));
+	keypad(com_win, TRUE);
 	*nam_str = (char) NULL;
 	nam_str = tmp_string;
 	if (((*nam_str == ' ') || (*nam_str == 9)) && (advance))
