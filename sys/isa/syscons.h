@@ -25,11 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.8 1995/04/23 10:15:38 bde Exp $
+ *	$Id: syscons.h,v 1.9 1995/05/30 08:03:15 rgrimes Exp $
  */
 
-#ifndef SYSCONS_H
-#define SYSCONS_H
+#ifndef _I386_ISA_SYSCONS_H_
+#define	_I386_ISA_SYSCONS_H_
 
 /* vm things */
 #define	ISMAPPED(pa, width) \
@@ -174,7 +174,6 @@ int scread(dev_t dev, struct uio *uio, int flag);
 int scwrite(dev_t dev, struct uio *uio, int flag);
 int scparam(struct tty *tp, struct termios *t);
 int scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p);
-void scxint(dev_t dev);
 void scstart(struct tty *tp);
 void scintr(int unit);
 int pcmmap(dev_t dev, int offset, int nprot);
@@ -182,10 +181,10 @@ static void scinit(void);
 static u_int scgetc(int noblock);
        struct tty *scdevtotty(dev_t dev);
 static scr_stat *get_scr_stat(dev_t dev);
-static scr_stat *alloc_scp();
+static scr_stat *alloc_scp(void);
 static void init_scp(scr_stat *scp);
-static int get_scr_num();
-static void scrn_timer();
+static int get_scr_num(void);
+static void scrn_timer(void);
 static void clear_screen(scr_stat *scp);
 static int switch_scr(scr_stat *scp, u_int next_scr);
 static void exchange_scr(void);
@@ -203,8 +202,8 @@ static void kbd_cmd(u_char command);
 static void set_mode(scr_stat *scp);
        void set_border(int color);
 static void set_vgaregs(char *modetable);
-static void set_font_mode();
-static void set_normal_mode();
+static void set_font_mode(void);
+static void set_normal_mode(void);
 static void copy_font(int operation, int font_type, char* font_image);
 static void set_destructive_cursor(scr_stat *scp, int force);
 static void draw_mouse_image(scr_stat *scp);
@@ -213,4 +212,4 @@ static void save_palette(void);
 static void do_bell(scr_stat *scp, int pitch, int duration);
 static void blink_screen(scr_stat *scp);
 
-#endif /* SYSCONS_H */
+#endif /* !_I386_ISA_SYSCONS_H_ */
