@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wtreg.h,v 1.4 1993/12/13 18:38:44 alm Exp $
+ * $Id: wtreg.h,v 1.5 1995/05/30 08:03:24 rgrimes Exp $
  *
  */
 
@@ -50,14 +50,9 @@
  * rights to redistribute these changes.
  */
 
-/* ioctl for direct QIC commands */
-#define WTQICMD         _IO('W', 0)
-
-/* QIC-02 commands allowed for WTQICMD */
+/* internal QIC-02 commands */
 #define QIC_ERASE       0x22    /* erase the tape */
 #define QIC_RETENS      0x24    /* retension the tape */
-
-/* internal QIC-02 commands */
 #define QIC_RDDATA      0x80    /* read data */
 #define QIC_READFM      0xa0    /* read file mark */
 #define QIC_WRTDATA     0x40    /* write data */
