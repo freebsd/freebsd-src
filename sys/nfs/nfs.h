@@ -114,18 +114,6 @@
 #endif
 
 /*
- * Expected allocation sizes for major data structures. If the actual size
- * of the structure exceeds these sizes, then malloc() will be allocating
- * almost twice the memory required. This is used in nfs_init() to warn
- * the sysadmin that the size of a structure should be reduced.
- * (These sizes are always a power of 2. If the kernel malloc() changes
- *  to one that does not allocate space in powers of 2 size, then this all
- *  becomes bunk!)
- */
-#define NFS_SVCALLOC	256
-#define NFS_UIDALLOC	128
-
-/*
  * Arguments to mount NFS
  */
 #define NFS_ARGSVERSION	3		/* change when nfs_args changes */
