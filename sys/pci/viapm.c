@@ -636,8 +636,7 @@ viasmb_quick(device_t dev, u_char slave, int how)
 		VIAPM_OUTB(SMBHADDR, slave | LSB);
 		break;
 	default:
-		panic("%s: unknown QUICK command (%x)!", __FUNCTION__,
-			how);
+		panic("%s: unknown QUICK command (%x)!", __func__, how);
 	}
 
 	VIAPM_OUTB(SMBHCTRL, SMBHCTRL_START | SMBHCTRL_QUICK);
