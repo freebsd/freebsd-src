@@ -111,242 +111,40 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-    <para>Remotely exploitable vulnerabilities in
-      <application>CVS</application> could allow an attacker to
-      execute arbitrary comands on a CVS server.  More details can be
-      found in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>.</para>
+<![ %release.type.release [
+    <para>No advisories.</para>
+]]>
 
-    <para>A timing-based attack on <application>OpenSSL</application>,
-      could allow a very powerful attacker access to plaintext
-      under certain circumstances.  This problem has been corrected in
-      &os; &release.current; with an upgrade
-      to <application>OpenSSL</application> 0.9.7.  On supported
-      security fix branches, this problem has been corrected with the
-      import of <application>OpenSSL</application> 0.9.6i.  See security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>
-      for more details.</para>
+<![ %release.type.snapshot [
+    <para></para>
+]]>
 
-    <para>It may be possible to recover the shared secret key used by
-      the implementation of the <quote>syncookies</quote> feature.
-      This reduces its effectiveness in dealing with TCP SYN flood
-      denial-of-service attacks.  Workaround information and fixes are
-      given in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>.</para>
+  </sect1>
 
-    <para>Due to buffer overflows in header parsing in <application>sendmail</application>, a remote
-      attacker can create a specially-crafted message that may cause
-      &man.sendmail.8; to execute arbitrary code
-      with the privileges of the user running it, typically
-      <username>root</username>.  More information, including pointers
-      to patches, can be found in security advisories <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
-      and <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>.</para>
+  <sect1 id="open-issues">
+    <title>Open Issues</title>
 
-    <para>The XDR encoder/decoder does incorrect bounds-checking,
-      which could allow a remote attacker to cause a
-      denial-of-service.  For bugfix information, see security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>.</para>
+<![ %release.type.release [
+    <para>No open issues.</para>
+]]>
 
-    <para><application>OpenSSL</application> has been found
-      vulnerable to two recently-disclosed attacks.  Information
-      on workarounds and patches for supported security branches is
-      contained in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>.</para>
+<![ %release.type.snapshot [
+    <para></para>
+]]>
 
   </sect1>
 
   <sect1 id="late-news">
     <title>Late-Breaking News</title>
 
-    <bridgehead renderas="sect3">GEOM</bridgehead>
+<![ %release.type.release [
+    <para>No news.</para>
+]]>
 
-    <para>The &man.geom.4;-based disk partitioning code in the kernel
-      will not allow an open partition to be overwritten.  This
-      usually prevents the use of <command>disklabel -B</command> to
-      update the boot blocks on a disk because the
-      <literal>a</literal> partition overlaps the space where the boot
-      blocks are stored.  A suggested workaround is to boot from an
-      alternate disk, a CDROM, or a fixit floppy.</para>
-
-    <bridgehead renderas="sect3">&man.dump.8;</bridgehead>
-
-    <para>When using disk media with sector sizes larger than 512
-      bytes (for instance, &man.gbde.4; encrypted disks), the
-      &man.dump.8; program fails to respect the larger sector size and
-      cannot dump the partition.  One possible workaround is to copy
-      the entire file system in raw format and dump the copy.  It is,
-      for instance, possible to dump a file system stored in a regular
-      file:</para>
-
-      <screen>&prompt.root; <userinput>dd if=/dev/ad0s1d.bde of=/junk/ad0.dd bs=1m</userinput>
-&prompt.root; <userinput>dump 0f - /junk/ad0.dd | ...</userinput></screen>
-
-    <para>A simpler workaround is to use &man.tar.1; or &man.cpio.1;
-      to make backup copies.</para>
-
-    <bridgehead renderas="sect3">&man.mly.4;</bridgehead>
-
-    <para>Hangs were reported during &os; 5.0 snapshot
-      installations when installing to &man.mly.4;-supported RAID
-      arrays, in hardware configurations that appear to work fine
-      under &os; 4.7-RELEASE.  These problems have been corrected
-      in &os; &release.current;.</para>
-
-    <bridgehead renderas="sect3">NETNCP/Netware File System
-      Support</bridgehead>
-
-    <para>NETNCP and nwfs appear to be as-yet unadapted for KSE, and
-      hence not working.  These have been fixed in &os;
-      &release.current;.</para>
-
-    <bridgehead renderas="sect3">&man.iir.4; controller</bridgehead>
-
-    <para>During installation, the &man.iir.4; controller appears to
-      probe correctly, but finds no disk devices.</para>
-
-    <bridgehead renderas="sect3">&man.truss.1; race condition</bridgehead>
-
-    <para>&man.truss.1; appears to contain a race condition during the
-      start-up of debugging, which can result in &man.truss.1; failing
-      to attach to the process before it exists.  The symptom is that
-      &man.truss.1; reports that it cannot open the &man.procfs.5;
-      node supporting the process being debugged.  A bug also appears
-      to exist wherein &man.truss.1; will hang if &man.execve.2;
-      returns <literal>ENOENT</literal> A further race appears to
-      exist in which &man.truss.1; will return <errorname>PIOCWAIT:
-      Input/output error</errorname> occasionally on startup.  The fix
-      for this sufficiently changes process execution handling that it
-      has been deferred until after 5.0.</para>
-
-    <bridgehead renderas="sect3">Disk Partitioning in Installer</bridgehead>
-
-    <para>Some bugs have been reported in &man.sysinstall.8; disk
-      partitioning.  One observed problem on the i386 is that
-      &man.sysinstall.8; cannot recalculate the free space left on a
-      disk after changing the type of an FDISK-type partition.</para>
-
-    <bridgehead renderas="sect3">Stale Documentation</bridgehead>
-
-    <para>In some case, documentation (such as the FAQ or Handbook)
-      has not been updated to take into account &os; &release.prev;
-      features.  Examples of areas where documentation is still
-      needed include &man.gbde.8; and the new <quote>fast
-      IPsec</quote> implementation.</para>
-
-    <bridgehead renderas="sect3">SMB File System</bridgehead>
-
-    <para>Attempting to unmount smbfs shares may fail with
-      <errorname>Device busy</errorname> errors even when the
-      mount-point is not really busy.  A workaround is to keep trying
-      to unmount the share until it eventually succeeds.  This bug has
-      been fixed in &release.current;.</para>
-
-    <para>Forcefully unmounting (<command>umount -f</command>) smbfs
-      shares may cause a kernel panic.  This bug has been fixed in
-      &release.current;.</para>
-
-    <bridgehead renderas="sect3">&man.fstat.2;</bridgehead>
-
-    <para>When called on a connected socket file descriptor,
-      &man.fstat.2; is supposed to return the number of bytes
-      available to read in the <varname>st_size</varname> member of
-      <varname>struct stat</varname>. However,
-      <varname>st_size</varname> is always erroneously reported as
-      <literal>0</literal> on TCP sockets.  This bug has been fixed in
-      &release.current;.</para>
-
-    <bridgehead renderas="sect3">Kernel Event Queues</bridgehead>
-
-    <para>The &man.kqueue.2; <literal>EVFILT_READ</literal> filter
-      erroneously indicates that <literal>0</literal> bytes are
-      available to be read on TCP sockets, regardless of the number of
-      bytes that are actually available. The
-      <literal>NOTE_LOWAT</literal> flag for
-      <literal>EVFILT_READ</literal> is also broken on TCP sockets.
-      This bug has been fixed in &release.current;.</para>
-
-    <bridgehead renderas="sect3">POSIX Named Semaphores</bridgehead>
-
-    <para>&os; &release.prev; introduced support for POSIX named semaphores
-      but the implementation contains a critical bug that causes
-      &man.sem.open.3; to incorrectly handle the opening of the same
-      semaphore multiple times by the same process, and that causes
-      &man.sem.close.3; to crash calling programs.  This bug has been
-      fixed in &release.current;.</para>
-
-    <bridgehead renderas="sect3"><filename>/dev/tty</filename>
-      Permissions</bridgehead>
-
-    <para>&os; &release.prev; has a minor bug in how the permissions of
-      <filename>/dev/tty</filename> are handled.  This can be
-      triggered by logging in as a non-<username>root</username>,
-      non-<groupname>tty</groupname> group user, and using &man.su.1;
-      to switch to a second non-<username>root</username>,
-      non-<groupname>tty</groupname> group user.  &man.ssh.1; will
-      fail because it cannot open <filename>/dev/tty</filename>.  This
-      bug has been fixed in &release.current;.</para>
-
-    <bridgehead renderas="sect3">&man.growfs.8;</bridgehead>
-
-    <para>&man.growfs.8; no longer works on &man.vinum.4; volumes (and
-      presumably, on &man.geom.4; entities) since these subsystems no
-      longer fake disklabels, but &man.growfs.8; insists on examining
-      a label.</para>
-
-    <bridgehead renderas="sect3">IPFW</bridgehead>
-
-    <para>&man.ipfw.4; <literal>skipto</literal> rules do not work
-      when coupled with the <literal>log</literal> keyword.
-      &man.ipfw.4; <literal>uid</literal> rules also do not work
-      properly.  These bugs
-      have been fixed in &release.current;.</para>
-
-    <bridgehead renderas="sect3">Passwords and &man.adduser.8;</bridgehead>
-
-    <para>&man.adduser.8; does not correctly handle setting user
-      passwords containing special shell characters.  This problem has
-      been corrected in &release.current;.</para>
-
-    <bridgehead renderas="sect3">&man.xl.4;</bridgehead>
-
-    <para>The &man.xl.4; driver has a timing bug that may cause a
-      kernel panic (or other problems) when attempting to configure an
-      interface.  This bug has been fixed in &release.current;.</para>
-
-    <bridgehead renderas="sect3">ISC DHCP</bridgehead>
-
-    <para><application>ISC DHCP</application> was updated to
-      3.0.1rc11.  This update was actually a part of &os;
-      &release.prev;, but was not documented in the release
-      notes.</para>
-
-    <bridgehead renderas="sect3">&man.amd.8;
-      Interoperability</bridgehead>
-
-    <para>&release.prev; contains some bugs in its non-blocking RPC
-      code.  The most noticeable side-effect of these bugs was that
-      &man.amd.8; users were not able to mount volumes from a
-      &release.prev; server.  This bug has been fixed in
-      &release.current;.</para>
-
-    <bridgehead renderas="sect3">nsswitch</bridgehead>
-
-    <para>The release note documenting the addition of
-      <application>nsswitch</application> support gave an incorrect
-      name for the old resolver configuration file.  It should have
-      been listed as <filename>/etc/host.conf</filename>.</para>
-
-    <bridgehead renderas="sect3">Mailman</bridgehead>
-
-    <para>Recently the mailing lists were changed from majordomo
-      to the currently used Mailman list server.  More information
-      about using the new mailing lists can be found by visiting the
-      <ulink url="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD
-      Mailman Info Page</ulink>.</para>
+<![ %release.type.snapshot [
+    <para></para>
+]]>
 
   </sect1>
+
 </article>
