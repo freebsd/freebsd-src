@@ -72,12 +72,32 @@ Yes To All:   Assume "Yes" answers to all non-critical dialogs
     of other problems.
 
 
-FTP userpass: Specify username and password instead of anonymous.
+FTP username: Specify username and password instead of anonymous.
 
     By default, the installation attempts to log in as the
     anonymous user.  If you wish to log in as someone else,
     specify the username and password with this option.
 
+Tape Blocksize: Specify block size in 512 byte blocks of tape.
+
+    This defaults to 10 blocks, which should work with most
+    tape drive + tar combinations.  It may not allow your particular
+    drive to win any records for speed, however, and the more
+    adventurous among you might try experimenting with larger sizes.
+
+Detail Level:  How to show filenames on debug screen as they're extracted.
+
+    While a distribution is being extracted, the default detail level
+    of "high" will show the full file names as they're extracted.
+    If you would prefer a more terse form for this, namely dots, select
+    the "medium" detail level.  If you want nothing to be printed
+    on the debugging screen during extraction, select "low".
+
+Release Name:  Which release to attempt to load from installation media.
+
+    You should only change this option if you're really sure you know
+    what you are doing!  This will change the release name used by
+    sysinstall when fetching components of any distributions.
 
 Clear:        Clear All Option Flags
 
