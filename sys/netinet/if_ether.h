@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.h	8.3 (Berkeley) 5/2/95
- *	$Id: if_ether.h,v 1.9 1995/05/30 08:09:20 rgrimes Exp $
+ *	$Id: if_ether.h,v 1.10 1995/09/21 17:39:51 wollman Exp $
  */
 
 #ifndef _NETINET_IF_ETHER_H_
@@ -122,15 +122,6 @@ struct	arpcom {
 	int	ac_multicnt;		/* length of ac_multiaddrs list */
 };
 
-struct llinfo_arp {
-	struct	llinfo_arp *la_next;
-	struct	llinfo_arp *la_prev;
-	struct	rtentry *la_rt;
-	struct	mbuf *la_hold;		/* last packet until resolved/timeout */
-	long	la_asked;		/* last time we QUERIED for this addr */
-#define la_timer la_rt->rt_rmx.rmx_expire /* deletion time in seconds */
-};
-
 struct sockaddr_inarp {
 	u_char	sin_len;
 	u_char	sin_family;
@@ -152,9 +143,6 @@ extern u_char	etherbroadcastaddr[6];
 extern u_char	ether_ipmulticast_min[6];
 extern u_char	ether_ipmulticast_max[6];
 extern struct	ifqueue arpintrq;
-
-struct	llinfo_arp *arptnew __P((struct in_addr *));
-extern struct	llinfo_arp llinfo_arp;		/* head of the llinfo queue */
 
 void	arpintr __P((void));
 int	arpresolve __P((struct arpcom *, struct rtentry *, struct mbuf *,
