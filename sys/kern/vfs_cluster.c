@@ -556,6 +556,7 @@ cluster_callback(bp)
 		}
 		bufdone(tbp);
 	}
+	pbrelvp(bp);
 	relpbuf(bp, &cluster_pbuf_freecnt);
 }
 
