@@ -668,6 +668,9 @@ priorityr(KINFO *k, VARENT *ve)
 	class = lpri->pri_class;
 	level = lpri->pri_level;
 	switch (class) {
+	case PRI_ITHD:
+		snprintf(str, sizeof(str), "intr:%u", level);
+		break;
 	case PRI_REALTIME:
 		snprintf(str, sizeof(str), "real:%u", level);
 		break;
