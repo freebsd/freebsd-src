@@ -92,8 +92,11 @@ MLINKS+=chmod.2 fchmod.2 chmod.2 lchmod.2
 MLINKS+=chown.2 fchown.2 chown.2 lchown.2
 MLINKS+=clock_gettime.2 clock_getres.2 clock_gettime.2 clock_settime.2
 MLINKS+=dup.2 dup2.2
-MLINKS+=extattr_get_file.2 extattr_set_file.2 extattr_get_file.2 \
-	extattr_delete_file.2
+MLINKS+=extattr_get_file.2 extattr_set_file.2 \
+	extattr_get_file.2 extattr_delete_file.2 \
+	extattr_get_file.2 extattr_get_fd.2 \
+	extattr_get_file.2 extattr_set_fd.2 \
+	extattr_get_file.2 extattr_delete_fd.2
 MLINKS+=fhopen.2 fhstat.2 fhopen.2 fhstatfs.2
 MLINKS+=getdirentries.2 getdents.2
 MLINKS+=getgid.2 getegid.2
