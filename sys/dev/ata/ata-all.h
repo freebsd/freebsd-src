@@ -190,6 +190,7 @@ struct ata_device {
 #define		ATA_D_USE_CHS		0x0001
 #define		ATA_D_DETACHING		0x0002
 #define		ATA_D_MEDIA_CHANGED	0x0004
+#define		ATA_D_ENC_PRESENT	0x0008
 
     int				mode;		/* transfermode */
     int				cmd;		/* last cmd executed */
@@ -251,11 +252,12 @@ struct ata_channel {
     void			*running;	/* currently running request */
 };
 
-/* disk bay/drawer related */
+/* disk bay/enclosure related */
 #define		ATA_LED_OFF		0x00
 #define		ATA_LED_RED		0x01
 #define		ATA_LED_GREEN		0x02
 #define		ATA_LED_ORANGE		0x03
+#define		ATA_LED_MASK		0x03
 
 /* externs */
 extern devclass_t ata_devclass;
@@ -271,7 +273,8 @@ void ata_reset(struct ata_channel *);
 int ata_reinit(struct ata_channel *);
 int ata_wait(struct ata_device *, u_int8_t);
 int ata_command(struct ata_device *, u_int8_t, u_int64_t, u_int16_t, u_int16_t, int);
-void ata_drawerleds(struct ata_device *, u_int8_t);
+void ata_enclosure_leds(struct ata_device *, u_int8_t);
+void ata_enclosure_print(struct ata_device *);
 int ata_printf(struct ata_channel *, int, const char *, ...) __printflike(3, 4);
 int ata_prtdev(struct ata_device *, const char *, ...) __printflike(2, 3);
 void ata_set_name(struct ata_device *, char *, int);

@@ -228,6 +228,8 @@ ar_attach_raid(struct ar_softc *rdp, int update)
 	    else
 		printf(" %d FREE  ", disk);
 	    ad_print(AD_SOFTC(rdp->disks[disk]));
+	    printf("         ");
+	    ata_enclosure_print(AD_SOFTC(rdp->disks[disk])->device);
 	}
 	else if (rdp->disks[disk].flags & AR_DF_ASSIGNED)
 	    printf(" %d DOWN\n", disk);
@@ -396,7 +398,7 @@ ata_raid_delete(int array)
     for (disk = 0; disk < rdp->total_disks; disk++) {
 	if ((rdp->disks[disk].flags&AR_DF_PRESENT) && rdp->disks[disk].device) {
 	    AD_SOFTC(rdp->disks[disk])->flags &= ~AD_F_RAID_SUBDISK;
-	    ata_drawerleds(rdp->disks[disk].device, ATA_LED_GREEN);
+	    ata_enclosure_leds(rdp->disks[disk].device, ATA_LED_GREEN);
 	    rdp->disks[disk].flags = 0;
 	}
     }
@@ -768,9 +770,9 @@ ar_config_changed(struct ar_softc *rdp, int writeback)
 	}
 	if ((rdp->disks[disk].flags&AR_DF_PRESENT) && rdp->disks[disk].device) {
 	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
-		ata_drawerleds(rdp->disks[disk].device, ATA_LED_GREEN);
+		ata_enclosure_leds(rdp->disks[disk].device, ATA_LED_GREEN);
 	    else
-		ata_drawerleds(rdp->disks[disk].device, ATA_LED_RED);
+		ata_enclosure_leds(rdp->disks[disk].device, ATA_LED_RED);
 	}
     }
     if (writeback) {
@@ -804,7 +806,7 @@ ar_rebuild(void *arg)
 #endif
 		continue;
 	    }
-	    ata_drawerleds(rdp->disks[disk].device, ATA_LED_ORANGE);
+	    ata_enclosure_leds(rdp->disks[disk].device, ATA_LED_ORANGE);
 	    count++;
 	}
     }
