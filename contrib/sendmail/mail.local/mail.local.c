@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.239.2.2 2002/09/24 02:09:09 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.239.2.4 2003/01/15 19:17:15 ca Exp $")
 
 #include <stdlib.h>
 #include <sm/errstring.h>
@@ -1051,7 +1051,12 @@ tryagain:
 			mbfd = -1;
 		}
 	}
-	else if (sb.st_nlink != 1 || !S_ISREG(sb.st_mode))
+	else if (sb.st_nlink != 1)
+	{
+		mailerr("550 5.2.0", "%s: too many links", path);
+		goto err0;
+	}
+	else if (!S_ISREG(sb.st_mode))
 	{
 		mailerr("550 5.2.0", "%s: irregular file", path);
 		goto err0;
