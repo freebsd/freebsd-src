@@ -80,6 +80,7 @@ static struct cdevsw nmdm_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
+	/* bmaj */	-1
 };
 
 #define BUFSIZ 100		/* Chunk size iomoved to/from user */
@@ -171,7 +172,7 @@ nmdmopen(dev, flag, devtype, p)
 	 * If we openned this device, ensure we have the
 	 * next one too, so people can open it.
 	 */
-	minr = dev2unit(dev);
+	minr = lminor(dev);
 	pair = minr >> 1;
 	is_b = minr & 1;
 	
@@ -205,7 +206,7 @@ nmdmopen(dev, flag, devtype, p)
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 	} else if (tp->t_state & TS_XCLUDE && suser(p)) {
 		return (EBUSY);
-	} else if (pti->pt_prison != p->p_ucred->cr_prison) {
+	} else if (pti->pt_prison != p->p_prison) {
 		return (EBUSY);
 	}
 

@@ -44,6 +44,7 @@ SUBDIR=	accf_data \
 	netgraph \
 	nfs \
 	nge \
+	nmdm \
 	ntfs \
 	nullfs \
 	nwfs \

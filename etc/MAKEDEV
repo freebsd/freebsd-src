@@ -1065,6 +1065,19 @@ vty*)
 	ln -fs ttyv0 vga	# XXX X still needs this pccons relic
 	;;
 
+nmdm*)
+	units=`expr $i : 'nmdm\(.*\)'`
+	chr=18
+	i=0
+	while [ $i -lt $units ]; do
+		minor=`unit2minor $i`
+		minor=$(($minor + $minor))
+		mknod nmdm${i}A c $chr $minor
+		mknod nmdm${i}B c $chr $(($minor + 1))
+		i=$(($i + 1))
+	done
+	;;
+
 bpf*)
 	nbpf=`expr $i : 'bpf\(.*\)$'`
 	unit=0
