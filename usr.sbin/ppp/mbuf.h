@@ -15,19 +15,19 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.h,v 1.12 1998/05/21 21:46:49 brian Exp $
+ * $Id: mbuf.h,v 1.13 1998/08/07 18:42:50 brian Exp $
  *
  *	TODO:
  */
 
 struct mbuf {
-  u_char *base;			/* pointer to top of buffer space */
-  short size;			/* size allocated from base */
-  short offset;			/* offset to start position */
+  short size;			/* size allocated (excluding header) */
+  short offset;			/* offset from header end to start position */
   short cnt;			/* available byte count in buffer */
-  short type;
+  short type;			/* MB_* below */
   struct mbuf *next;		/* link to next mbuf */
   struct mbuf *pnext;		/* link to next packet */
+  /* buffer space is malloc()d directly after the header */
 };
 
 struct mqueue {
@@ -36,7 +36,8 @@ struct mqueue {
   int qlen;
 };
 
-#define MBUF_CTOP(bp)   (bp->base + bp->offset)
+#define MBUF_CTOP(bp)		((u_char *)((bp)+1) + (bp)->offset)
+#define CONST_MBUF_CTOP(bp)	((const u_char *)((bp)+1) + (bp)->offset)
 
 #define MB_ASYNC	1
 #define MB_FSM		2
