@@ -64,9 +64,10 @@ update_lineno(const char *cp)
 \n			{ lineno++; return EOL; }
 \r			;
 ;.*$			;
+\/\/.*$			;
 =			{ return EQUALS; }
 ,			{ return COMMA; }
-\"(\\\"|[^"])*\"	{
+\"(\\\"|[^"]|\"\")*\"	{
 			int len = strlen(yytext) - 2;
 			int blen = len + 1;
 			char *walker;
@@ -77,6 +78,15 @@ update_lineno(const char *cp)
 				goto out;
 			walker = yylval.str;
 			for (i = 1; i <= len; i++) {
+				if (yytext[i] == '\"') {
+					switch (yytext[i + 1]) {
+					case '\"':
+						i++;
+						break;
+					default:
+						break;
+					}
+				}
 				if (yytext[i] == '\\') {
 					switch (yytext[i + 1]) {
 					case '\n':
