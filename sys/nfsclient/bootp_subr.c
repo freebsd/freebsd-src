@@ -126,10 +126,15 @@ struct bootpc_ifcontext {
 	enum {
 		IF_BOOTP_UNRESOLVED,
 		IF_BOOTP_RESOLVED,
+		IF_BOOTP_FAILED,
+		IF_DHCP_UNRESOLVED,
 		IF_DHCP_OFFERED,
 		IF_DHCP_RESOLVED,
-		IF_BOOTP_FAILED
+		IF_DHCP_FAILED,
 	} state;
+	int dhcpquerytype;		/* dhcp type sent */
+	struct in_addr dhcpserver;
+	int gotdhcpserver;
 };
 
 #define TAG_MAXLEN 1024
@@ -191,6 +196,17 @@ struct bootpc_globalcontext {
 #define TAG_ROOTOPTS	130
 #define TAG_SWAPOPTS	131
 
+#define TAG_DHCP_MSGTYPE 53
+#define TAG_DHCP_REQ_ADDR 50
+#define TAG_DHCP_SERVERID 54
+#define TAG_DHCP_LEASETIME 51
+
+#define DHCP_NOMSG    0
+#define DHCP_DISCOVER 1
+#define DHCP_OFFER    2
+#define DHCP_REQUEST  3
+#define DHCP_ACK      5
+
 extern int nfs_diskless_valid;
 extern struct nfsv3_diskless nfsv3_diskless;
 
@@ -248,6 +264,10 @@ static void bootpc_decode_reply(struct nfsv3_diskless *nd,
 
 static int bootpc_received(struct bootpc_globalcontext *gctx,
 			   struct bootpc_ifcontext *ifctx);
+
+static __inline int bootpc_ifctx_isresolved(struct bootpc_ifcontext *ifctx);
+static __inline int bootpc_ifctx_isunresolved(struct bootpc_ifcontext *ifctx);
+static __inline int bootpc_ifctx_isfailed(struct bootpc_ifcontext *ifctx);
 
 void bootpc_init(void);
 
@@ -418,8 +438,43 @@ allocifctx(struct bootpc_globalcontext *gctx)
 	
 	bzero(ifctx, sizeof(*ifctx));
 	ifctx->xid = gctx->xid;
+#ifdef BOOTP_NO_DHCP
+	ifctx->state = IF_BOOTP_UNRESOLVED;
+#else
+	ifctx->state = IF_DHCP_UNRESOLVED;
+#endif
 	gctx->xid += 0x100;
 	return ifctx;
+}
+
+
+static __inline int
+bootpc_ifctx_isresolved(struct bootpc_ifcontext *ifctx)
+{
+	if (ifctx->state == IF_BOOTP_RESOLVED ||
+	    ifctx->state == IF_DHCP_RESOLVED)
+		return 1;
+	return 0;
+}
+
+
+static __inline int
+bootpc_ifctx_isunresolved(struct bootpc_ifcontext *ifctx)
+{
+	if (ifctx->state == IF_BOOTP_UNRESOLVED ||
+	    ifctx->state == IF_DHCP_UNRESOLVED)
+		return 1;
+	return 0;
+}
+
+
+static __inline int
+bootpc_ifctx_isfailed(struct bootpc_ifcontext *ifctx)
+{
+	if (ifctx->state == IF_BOOTP_FAILED ||
+	    ifctx->state == IF_DHCP_FAILED)
+		return 1;
+	return 0;
 }
 
 
@@ -427,6 +482,8 @@ static int
 bootpc_received(struct bootpc_globalcontext *gctx,
 		struct bootpc_ifcontext *ifctx)
 {
+	unsigned char dhcpreplytype;
+	char *p;
 	/*
 	 * Need timeout for fallback to less
 	 * desirable alternative.
@@ -442,9 +499,35 @@ bootpc_received(struct bootpc_globalcontext *gctx,
 	if (gctx->tmptag.badopt != 0)
 		return 0;
 	
+	p = bootpc_tag(&gctx->tmptag, &gctx->reply,
+		       gctx->replylen, TAG_DHCP_MSGTYPE);
+	if (p != NULL)
+		dhcpreplytype = *p;
+	else
+		dhcpreplytype = DHCP_NOMSG;
+	
+	switch (ifctx->dhcpquerytype) {
+	case DHCP_DISCOVER:
+		if (dhcpreplytype != DHCP_OFFER 	/* Normal DHCP offer */
+#ifndef BOOTP_FORCE_DHCP
+		    && dhcpreplytype != DHCP_NOMSG	/* Fallback to BOOTP */
+#endif
+			)
+			return 0;
+		break;
+	case DHCP_REQUEST:
+		if (dhcpreplytype != DHCP_ACK)
+			return 0;
+	case DHCP_NOMSG:
+	}
+		
+	
 	/* Ignore packet unless it gives us a root tag we didn't have */
 	
-	if (ifctx->state == IF_BOOTP_RESOLVED &&
+	if ((ifctx->state == IF_BOOTP_RESOLVED ||
+	     (ifctx->dhcpquerytype == DHCP_DISCOVER &&
+	      (ifctx->state == IF_DHCP_OFFERED ||
+	       ifctx->state == IF_DHCP_RESOLVED))) &&
 	    (bootpc_tag(&gctx->tmptag, &ifctx->reply,
 			ifctx->replylen,
 			TAG_ROOT) != NULL ||
@@ -459,7 +542,31 @@ bootpc_received(struct bootpc_globalcontext *gctx,
 	ifctx->replylen = gctx->replylen;
 	
 	/* XXX: Only reset if 'perfect' response */
-	ifctx->state = IF_BOOTP_RESOLVED;
+	if (ifctx->state == IF_BOOTP_UNRESOLVED)
+		ifctx->state = IF_BOOTP_RESOLVED;
+	else if (ifctx->state == IF_DHCP_UNRESOLVED &&
+		 ifctx->dhcpquerytype == DHCP_DISCOVER) {
+		if (dhcpreplytype == DHCP_OFFER)
+			ifctx->state = IF_DHCP_OFFERED;
+		else
+			ifctx->state = IF_BOOTP_RESOLVED;	/* Fallback */
+	} else if (ifctx->state == IF_DHCP_OFFERED &&
+		   ifctx->dhcpquerytype == DHCP_REQUEST)
+		ifctx->state = IF_DHCP_RESOLVED;
+	
+	
+	if (ifctx->dhcpquerytype == DHCP_DISCOVER &&
+	    ifctx->state != IF_BOOTP_RESOLVED) {
+		p = bootpc_tag(&gctx->tmptag, &ifctx->reply,
+			       ifctx->replylen, TAG_DHCP_SERVERID);
+		if (p != NULL && gctx->tmptag.taglen == 4) {
+			memcpy(&ifctx->dhcpserver, p, 4);
+			ifctx->gotdhcpserver = 1;
+		} else
+			ifctx->gotdhcpserver = 0;
+		return 1;
+	}
+	
 	ifctx->gotrootpath = (bootpc_tag(&gctx->tmptag, &ifctx->reply,
 					 ifctx->replylen,
 					 TAG_ROOT) != NULL);
@@ -488,6 +595,8 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 	struct bootpc_ifcontext *ifctx;
 	int outstanding;
 	int gotrootpath;
+	int retry;
+	const char *s;
 	
 	/*
 	 * Create socket and set its recieve timeout.
@@ -568,7 +677,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 		for (ifctx = gctx->interfaces;
 		     ifctx != NULL;
 		     ifctx = ifctx->next) {
-			if (ifctx->state == IF_BOOTP_RESOLVED &&
+			if (bootpc_ifctx_isresolved(ifctx) != 0 &&
 			    bootpc_tag(&gctx->tmptag, &ifctx->reply,
 				       ifctx->replylen,
 				       TAG_ROOT) != NULL)
@@ -579,21 +688,45 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 		     ifctx != NULL;
 		     ifctx = ifctx->next) {
 			ifctx->outstanding = 0;
-			if (ifctx->state == IF_BOOTP_RESOLVED &&
+			if (bootpc_ifctx_isresolved(ifctx)  != 0 &&
 			    gotrootpath != 0) {
 				continue;
 			}
-			if (ifctx->state == IF_BOOTP_FAILED)
+			if (bootpc_ifctx_isfailed(ifctx) != 0)
 				continue;
 
 			outstanding++;
 			ifctx->outstanding = 1;
 
+			/* Proceed to next step in DHCP negotiation */
+			if ((ifctx->state == IF_DHCP_OFFERED &&
+			     ifctx->dhcpquerytype != DHCP_REQUEST) ||
+			    (ifctx->state == IF_DHCP_UNRESOLVED &&
+			     ifctx->dhcpquerytype != DHCP_DISCOVER) ||
+			    (ifctx->state == IF_BOOTP_UNRESOLVED &&
+			     ifctx->dhcpquerytype != DHCP_NOMSG)) {
+				ifctx->sentmsg = 0;
+				bootpc_compose_query(ifctx, gctx, procp);
+			}
+			
 			/* Send BOOTP request (or re-send). */
 		
 			if (ifctx->sentmsg == 0) {
-				printf("Sending BOOTP Query packet from "
+				switch(ifctx->dhcpquerytype) {
+				case DHCP_DISCOVER:
+					s = "DHCP Discover";
+					break;
+				case DHCP_REQUEST:
+					s = "DHCP Request";
+					break;
+				case DHCP_NOMSG:
+				default:
+					s = "BOOTP Query";
+					break;
+				}
+				printf("Sending %s packet from "
 				       "interface %s (%*D)\n",
+				       s,
 				       ifctx->ireq.ifr_name,
 				       ifctx->sdl->sdl_alen,
 				       (unsigned char *) LLADDR(ifctx->sdl),
@@ -657,7 +790,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 		if (timo < MAX_RESEND_DELAY)
 			timo++;
 		else {
-			printf("BOOTP timeout for server ");
+			printf("DHCP/BOOTP timeout for server ");
 			print_sin_addr(&dst);
 			printf("\n");
 		}
@@ -686,10 +819,10 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 			for (ifctx = gctx->interfaces;
 			     ifctx != NULL;
 			     ifctx = ifctx->next) {
-				if (ifctx->state == IF_BOOTP_RESOLVED)
+				if (bootpc_ifctx_isresolved(ifctx) != 0 ||
+				    bootpc_ifctx_isfailed(ifctx) != 0)
 					continue;
-				if (ifctx->state == IF_BOOTP_FAILED)
-					continue;
+				
 				ifctx->call.secs = htons(gctx->secs);
 			}
 			if (error == EWOULDBLOCK)
@@ -728,8 +861,28 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 			}
 
 			if (ifctx != NULL) {
-				printf("Received BOOTP Reply packet"
+				s =  bootpc_tag(&gctx->tmptag,
+						&gctx->reply,
+						gctx->replylen,
+						TAG_DHCP_MSGTYPE);
+				if (s != NULL) {
+					switch (*s) {
+					case DHCP_OFFER:
+						s = "DHCP Offer";
+						break;
+					case DHCP_ACK:
+						s = "DHCP Ack";
+						break;
+					default:
+						s = "DHCP (unexpected)";
+						break;
+					}
+				} else
+					s = "BOOTP Reply";
+
+				printf("Received %s packet"
 				       " on %s from ",
+				       s,
 				       ifctx->ireq.ifr_name);
 				print_in_addr(gctx->reply.siaddr);
 				if (gctx->reply.giaddr.s_addr !=
@@ -763,6 +916,21 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 		if (gctx->secs > BOOTP_TIMEOUT && BOOTP_TIMEOUT > 0)
 			break;
 #endif
+		/* Force a retry if halfway in DHCP negotiation */
+		retry = 0;
+		for (ifctx = gctx->interfaces; ifctx != NULL;
+		     ifctx = ifctx->next) {
+			if (ifctx->state == IF_DHCP_OFFERED) {
+				if (ifctx->dhcpquerytype == DHCP_DISCOVER)
+					retry = 1;
+				else
+					ifctx->state = IF_DHCP_UNRESOLVED;
+			}
+		}
+		
+		if (retry != 0)
+			continue;
+		
 		if (gotrootpath != 0) {
 			gctx->gotrootpath = gotrootpath;
 			if (rtimo != 0 && time_second >= rtimo)
@@ -776,8 +944,10 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 	 */
 
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next) {
-		if (ifctx->state != IF_BOOTP_RESOLVED) {
-			printf("BOOTP timeout for interface %s\n",
+		if (bootpc_ifctx_isresolved(ifctx) == 0) {
+			printf("%s timeout for interface %s\n",
+			       ifctx->dhcpquerytype != DHCP_NOMSG ?
+			       "DHCP" : "BOOTP",
 			       ifctx->ireq.ifr_name);
 		}
 	}
@@ -790,7 +960,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 	}
 #ifndef BOOTP_NFSROOT
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next) {
-		if (ifctx->state == IF_BOOTP_RESOLVED) {
+		if (bootpc_ifctx_isresolved(ifctx) != 0) {
 			error = 0;
 			goto out;
 		}
@@ -920,7 +1090,7 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 	netmask = &ifctx->netmask;
 	gw = &ifctx->gw;
 
-	if (ifctx->state != IF_BOOTP_RESOLVED) {
+	if (bootpc_ifctx_isresolved(ifctx) == 0) {
 
 		/* Shutdown interfaces where BOOTP failed */
 		
@@ -1161,12 +1331,11 @@ bootpc_compose_query(ifctx, gctx, procp)
 	struct bootpc_globalcontext *gctx;
 	struct proc *procp;
 {
-	
-	gctx->gotrootpath = 0;
-	gctx->gotswappath = 0;
-	gctx->gotgw = 0;
+	unsigned char *vendp;
+	uint32_t leasetime;
+
 	ifctx->gotrootpath = 0;
-	
+
 	bzero((caddr_t) &ifctx->call, sizeof(ifctx->call));
 	
 	/* bootpc part */
@@ -1174,19 +1343,53 @@ bootpc_compose_query(ifctx, gctx, procp)
 	ifctx->call.htype = 1;			/* 10mb ethernet */
 	ifctx->call.hlen = ifctx->sdl->sdl_alen;/* Hardware address length */
 	ifctx->call.hops = 0;
-	ifctx->xid++;
+	if (bootpc_ifctx_isunresolved(ifctx) != 0)
+		ifctx->xid++;
 	ifctx->call.xid = txdr_unsigned(ifctx->xid);
 	bcopy(LLADDR(ifctx->sdl), &ifctx->call.chaddr, ifctx->sdl->sdl_alen);
 	
-	ifctx->call.vend[0] = 99;		/* RFC1048 cookie */
-	ifctx->call.vend[1] = 130;
-	ifctx->call.vend[2] = 83;
-	ifctx->call.vend[3] = 99;
-	ifctx->call.vend[4] = TAG_MAXMSGSIZE;
-	ifctx->call.vend[5] = 2;
-	ifctx->call.vend[6] = (sizeof(struct bootp_packet) >> 8) & 255;
-	ifctx->call.vend[7] = sizeof(struct bootp_packet) & 255;
-	ifctx->call.vend[8] = TAG_END;
+	vendp = ifctx->call.vend;
+	*vendp++ = 99;		/* RFC1048 cookie */
+	*vendp++ = 130;
+	*vendp++ = 83;
+	*vendp++ = 99;
+	*vendp++ = TAG_MAXMSGSIZE;
+	*vendp++ = 2;
+	*vendp++ = (sizeof(struct bootp_packet) >> 8) & 255;
+	*vendp++ = sizeof(struct bootp_packet) & 255;
+	ifctx->dhcpquerytype = DHCP_NOMSG;
+	switch (ifctx->state) {
+	case IF_DHCP_UNRESOLVED:
+		*vendp++ = TAG_DHCP_MSGTYPE;
+		*vendp++ = 1;
+		*vendp++ = DHCP_DISCOVER;
+		ifctx->dhcpquerytype = DHCP_DISCOVER;
+		ifctx->gotdhcpserver = 0;
+		break;
+	case IF_DHCP_OFFERED:
+		*vendp++ = TAG_DHCP_MSGTYPE;
+		*vendp++ = 1;
+		*vendp++ = DHCP_REQUEST;
+		ifctx->dhcpquerytype = DHCP_REQUEST;
+		*vendp++ = TAG_DHCP_REQ_ADDR;
+		*vendp++ = 4;
+		memcpy(vendp, &ifctx->reply.yiaddr, 4);
+		vendp += 4;
+		if (ifctx->gotdhcpserver != 0) {
+			*vendp++ = TAG_DHCP_SERVERID;
+			*vendp++ = 4;
+			memcpy(vendp, &ifctx->dhcpserver, 4);
+			vendp += 4;
+		}
+		*vendp++ = TAG_DHCP_LEASETIME;
+		*vendp++ = 4;
+		leasetime = htonl(300);
+		memcpy(vendp, &leasetime, 4);
+		vendp += 4;
+	default:
+		;
+	}
+	*vendp = TAG_END;
 	
 	ifctx->call.secs = 0;
 	ifctx->call.flags = htons(0x8000); /* We need an broadcast answer */
@@ -1537,6 +1740,10 @@ bootpc_init(void)
 #endif
 	}
 		
+	gctx->gotrootpath = 0;
+	gctx->gotswappath = 0;
+	gctx->gotgw = 0;
+	
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
 		bootpc_fakeup_interface(ifctx, gctx, procp);
 	
@@ -1559,7 +1766,7 @@ bootpc_init(void)
 	mountopts(&nd->swap_args, NULL);
 
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
-		if (ifctx->state == IF_BOOTP_RESOLVED)
+		if (bootpc_ifctx_isresolved(ifctx) != 0)
 			bootpc_decode_reply(nd, ifctx, gctx);
 	
 	if (gctx->gotswappath == 0)
@@ -1582,7 +1789,7 @@ bootpc_init(void)
 		for (ifctx = gctx->interfaces;
 		     ifctx != NULL;
 		     ifctx = ifctx->next)
-			if (ifctx->state == IF_BOOTP_RESOLVED)
+			if (bootpc_ifctx_isresolved(ifctx) != 0)
 				break;
 	}
 	if (ifctx == NULL)
