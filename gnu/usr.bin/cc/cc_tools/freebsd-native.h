@@ -16,6 +16,8 @@
 #define GCC_INCLUDE_DIR			PREFIX"/include"
 #ifdef CROSS_COMPILE
 #define CROSS_INCLUDE_DIR		PREFIX"/include"
+#else
+#define STANDARD_INCLUDE_DIR		PREFIX"/include"
 #endif
 
 /* Under FreeBSD, the normal location of the compiler back ends is the
@@ -35,6 +37,9 @@
    /usr/lib directory.  */
 
 #define STANDARD_STARTFILE_PREFIX	PREFIX"/lib/"
+#ifdef CROSS_COMPILE
+#define CROSS_STARTFILE_PREFIX		PREFIX"/lib/"
+#endif
 #undef  MD_STARTFILE_PREFIX		/* We don't need one for now. */
 
 /* For the native system compiler, we actually build libgcc in a profiled
