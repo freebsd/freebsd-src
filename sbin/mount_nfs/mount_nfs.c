@@ -96,6 +96,7 @@ static const char rcsid[] =
 #define ALTF_ACREGMAX	0x10000
 #define ALTF_ACDIRMIN	0x20000
 #define ALTF_ACDIRMAX	0x40000
+#define ALTF_NOLOCKD	0x80000
 
 struct mntopt mopts[] = {
 	MOPT_STDOPTS,
@@ -118,6 +119,7 @@ struct mntopt mopts[] = {
 	{ "acregmax=", 0, ALTF_ACREGMAX, 1 },
 	{ "acdirmin=", 0, ALTF_ACDIRMIN, 1 },
 	{ "acdirmax=", 0, ALTF_ACDIRMAX, 1 },
+	{ "lockd", 1, ALTF_NOLOCKD, 1 },
 	{ NULL }
 };
 
@@ -228,6 +230,7 @@ set_flags(int* altflags, int* nfsflags, int dir)
 	F(RDIRPLUS);
 	F(RESVPORT);
 	F(SOFT);
+	F(NOLOCKD);
 
 #undef F
 #undef F2
@@ -252,7 +255,7 @@ main(argc, argv)
 	nfsargs = nfsdefargs;
 	nfsargsp = &nfsargs;
 	while ((c = getopt(argc, argv,
-	    "23a:bcdD:g:I:il:No:PpR:r:sTt:w:x:U")) != -1)
+	    "23a:bcdD:g:I:iLl:No:PpR:r:sTt:w:x:U")) != -1)
 		switch (c) {
 		case '2':
 			mountmode = V2;
@@ -302,6 +305,9 @@ main(argc, argv)
 			break;
 		case 'i':
 			nfsargsp->flags |= NFSMNT_INT;
+			break;
+		case 'L':
+			nfsargsp->flags |= NFSMNT_NOLOCKD;
 			break;
 		case 'l':
 			nfsargsp->flags |= NFSMNT_RDIRPLUS;

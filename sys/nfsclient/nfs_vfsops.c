@@ -763,12 +763,12 @@ nfs_mount(struct mount *mp, char *path, caddr_t data, struct nameidata *ndp,
 			return (EIO);
 		/*
 		 * When doing an update, we can't change from or to
-		 * v3, or change cookie translation
+		 * v3, switch lockd strategies or change cookie translation
 		 */
 		args.flags = (args.flags &
-		    ~(NFSMNT_NFSV3 /*|NFSMNT_XLATECOOKIE*/)) |
+		    ~(NFSMNT_NFSV3 | NFSMNT_NOLOCKD /*|NFSMNT_XLATECOOKIE*/)) |
 		    (nmp->nm_flag &
-			(NFSMNT_NFSV3 /*|NFSMNT_XLATECOOKIE*/));
+			(NFSMNT_NFSV3 | NFSMNT_NOLOCKD /*|NFSMNT_XLATECOOKIE*/));
 		nfs_decode_args(nmp, &args);
 		return (0);
 	}
