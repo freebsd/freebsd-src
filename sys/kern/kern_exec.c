@@ -469,9 +469,9 @@ interpret:
 		PROC_UNLOCK(p);
 		setugidsafety(td);
 		error = fdcheckstd(td);
-		PROC_LOCK(p);
 		if (error != 0)
 			goto done1;
+		PROC_LOCK(p);
 		/*
 		 * Set the new credentials.
 		 */
@@ -543,6 +543,14 @@ interpret:
 	oldargs = p->p_args;
 	p->p_args = NULL;
 
+	/* Cache arguments if they fit inside our allowance */
+	if (ps_arg_cache_limit >= i + sizeof(struct pargs)) {
+		bcopy(imgp->stringbase, newargs->ar_args, i);
+		p->p_args = newargs;
+		newargs = NULL;
+	}
+	PROC_UNLOCK(p);
+
 	/* Set values passed into the program in registers. */
 	if (p->p_sysent->sv_setregs)
 		(*p->p_sysent->sv_setregs)(td, imgp->entry_addr,
@@ -551,16 +559,7 @@ interpret:
 		exec_setregs(td, imgp->entry_addr,
 		    (u_long)(uintptr_t)stack_base, imgp->ps_strings);
 
-	/* Cache arguments if they fit inside our allowance */
-	if (ps_arg_cache_limit >= i + sizeof(struct pargs)) {
-		bcopy(imgp->stringbase, newargs->ar_args, i);
-		p->p_args = newargs;
-		newargs = NULL;
-	}
 done1:
-	PROC_UNLOCK(p);
-
-
 	/*
 	 * Free any resources malloc'd earlier that we didn't use.
 	 */
