@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id$
+**  $Id: pcireg.h,v 1.12 1997/02/22 09:44:12 peter Exp $
 **
 **  Names for PCI configuration space registers.
 **
@@ -126,6 +126,7 @@
 #define	PCI_SUBCLASS_BRIDGE_MC		0x00030000
 #define	PCI_SUBCLASS_BRIDGE_PCI		0x00040000
 #define	PCI_SUBCLASS_BRIDGE_PCMCIA	0x00050000
+#define	PCI_SUBCLASS_BRIDGE_CARDBUS	0x00070000
 #define	PCI_SUBCLASS_BRIDGE_MISC	0x00800000
 
 /*
@@ -180,6 +181,11 @@
 
 #define	PCI_PPB_MEMBASE_EXTRACT(x)	(((x) << 16) & 0xFFF00000)
 #define	PCI_PPB_MEMLIMIT_EXTRACT(x)	(((x) <<  0) & 0xFFF00000 | 0x000FFFFF)
+
+/*
+** PCI-Cardbus bridge mapping registers
+*/
+#define PCI_CARDBUS_SOCKET_REG		0x10
 
 /*
 ** Interrupt configuration register
