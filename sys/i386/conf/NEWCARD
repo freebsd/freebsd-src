@@ -148,8 +148,7 @@ device		npx0	at nexus? port IO_NPX irq 13
 device		apm0    at nexus? disable flags 0x31 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
-controller	pcic0	at isa?
-controller	pcic1	at isa?
+controller	pcic0	at isa? port 0x3e0 irq 10 iomem 0xd0000
 # controller	pccbb0
 
 # Serial (COM) ports
@@ -191,13 +190,13 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # ISA Ethernet NICs.
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ed0	at isa? port 0x280 irq 10 iomem 0xd8000
-device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
+# device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
 # NOTE: This removes the isa attachment so that the pccard unit numbers
 # come out right.
 device		ep0
 device		ex0	at isa? port? irq?
 device		fe0	at isa? port 0x300 irq ?
-device		le0	at isa? port 0x300 irq 5 iomem 0xd0000
+# device		le0	at isa? port 0x300 irq 5 iomem 0xd0000
 device		lnc0	at isa? port 0x280 irq 10 drq 0
 device		cs0	at isa? port 0x300 irq ?
 # requires PCCARD (PCMCIA) support to be activated
@@ -226,3 +225,5 @@ pseudo-device	bpf		#Berkeley packet filter
 #device		ulpt0		# Printer
 #controller	umass0		# Disks/Mass storage - Requires scbus and da0
 #device		ums0		# Mouse
+
+options DDB
