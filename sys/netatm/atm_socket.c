@@ -67,12 +67,7 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local variables
  */
-static struct sp_info		atm_pcb_pool = {
-	"atm pcb pool",			/* si_name */
-	sizeof(Atm_pcb),		/* si_blksiz */
-	10,				/* si_blkcnt */
-	100				/* si_maxallow */
-};
+static uma_zone_t atm_pcb_zone;
 
 static struct t_atm_cause	atm_sock_cause = {
 	T_ATM_ITU_CODING,
@@ -81,6 +76,16 @@ static struct t_atm_cause	atm_sock_cause = {
 	{0, 0, 0, 0}
 };
 
+void
+atm_sock_init(void)
+{
+
+	atm_pcb_zone = uma_zcreate("atm pcb", sizeof(Atm_pcb), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	if (atm_pcb_zone == NULL)
+		panic("atm_sock_init: unable to initialize atm_pcb_zone");
+	uma_zone_set_max(atm_pcb_zone, 100);
+}
 
 /*
  * Allocate resources for a new ATM socket
@@ -130,7 +135,7 @@ atm_sock_attach(so, send, recv)
 	/*
 	 * Allocate and initialize our control block
 	 */
-	atp = (Atm_pcb *)atm_allocate(&atm_pcb_pool);
+	atp = uma_zalloc(atm_pcb_zone, M_ZERO | M_NOWAIT);
 	if (atp == NULL)
 		return (ENOMEM);
 
@@ -178,7 +183,7 @@ atm_sock_detach(so)
 	so->so_pcb = NULL;
 	sotryfree(so);
 
-	atm_free((caddr_t)atp);
+	uma_zfree(atm_pcb_zone, atp);
 
 	return (0);
 }
