@@ -436,6 +436,9 @@
 .			as b1 (``\\*(tNXPG4.2\\*(aa'')
 .		\}
 .       \}
+.       if "\\*(A\\n(aP"-susv2" \{\
+.		ds b1 \&\\*(tNVersion 2 of the Single UNIX Specification\\*(aa
+.       \}
 .	ie \\n(aC>\\n(aP \{\
 .		nr aP \\n(aP+1
 .		nR
