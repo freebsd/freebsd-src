@@ -847,6 +847,7 @@ doSTDKERNEL:
 			make KERNEL=${KERNEL} DESTDIR=${RD}/kernels install && \
 			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
 			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
+			make KERNEL=${kernel} DESTDIR=${RD}/kernels kernel-reinstall.debug
 
 #
 # --==## Put a filesystem into a BOOTMFS kernel ##==--

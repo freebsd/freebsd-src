@@ -28,7 +28,7 @@ maxusers	32
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		#Default places to look for devices.
 
-#makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 options 	PC98			#PC98
 options 	MATH_EMULATE		#Support for x87 emulation
@@ -59,6 +59,12 @@ options 	SYSVSEM			#SYSV-style semaphores
 options 	P1003_1B		#Posix P1003_1B real-time extensions
 options 	_KPOSIX_PRIORITY_SCHEDULING
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+
+# Debugging for use in -current
+options 	DDB
+options 	INVARIANTS
+options 	INVARIANT_SUPPORT
+options 	WITNESS
 
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
