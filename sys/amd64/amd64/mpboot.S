@@ -31,7 +31,7 @@
  * mpboot.s:	FreeBSD machine support for the Intel MP Spec
  *		multiprocessor systems.
  *
- *	$Id: mpboot.s,v 1.3 1997/08/25 10:57:36 peter Exp $
+ *	$Id: mpboot.s,v 1.4 1997/08/26 18:10:32 peter Exp $
  */
 
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
@@ -91,6 +91,18 @@ mp_begin:	/* now running relocated at KERNBASE */
 	CHECKPOINT(0x37, 4)
 	call	_init_secondary			/* load i386 tables */
 	CHECKPOINT(0x38, 5)
+
+#ifdef VM86
+	/*
+	 * If the [BSP] CPU has support for VME, turn it on.
+	 */
+	testl	$CPUID_VME, _cpu_feature	/* XXX WRONG! BSP! */
+	jz	1f
+	movl	%cr4, %eax
+	orl	$CR4_VME, %eax
+	movl	%eax, %cr4
+1:
+#endif
 
 	/* disable the APIC, just to be SURE */
 	movl	lapic_svr, %eax			/* get spurious vector reg. */
