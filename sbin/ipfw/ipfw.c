@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.54 1998/02/12 00:57:06 alex Exp $
+ * $Id: ipfw.c,v 1.55 1998/03/13 02:31:21 alex Exp $
  *
  */
 
@@ -1179,6 +1179,7 @@ ipfw_main(ac,av)
 	/* Set the force flag for non-interactive processes */
 	do_force = !isatty(STDIN_FILENO);
 
+	optind = 1;
 	while ((ch = getopt(ac, av, "afqtN")) != -1)
 	switch(ch) {
 		case 'a':
@@ -1275,6 +1276,7 @@ main(ac, av)
 		if ((f = fopen(av[1], "r")) == NULL)
 			err(EX_UNAVAILABLE, "fopen: %s", av[1]);
 		while (fgets(buf, BUFSIZ, f)) {
+			char *p;
 
 			lineno++;
 			sprintf(linename, "Line %d", lineno);
@@ -1282,6 +1284,8 @@ main(ac, av)
 
 			if (*buf == '#')
 				continue;
+			if ((p = strchr(buf, '#')) != NULL)
+				*p = '\0';
 			for (i = 1, a = strtok(buf, WHITESP);
 			    a && i < MAX_ARGS; a = strtok(NULL, WHITESP), i++)
 				args[i] = a;
