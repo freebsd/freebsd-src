@@ -594,6 +594,9 @@ typedef int		pid_t;
 #  define SPT_TYPE	SPT_BUILTIN	/* setproctitle is in libc */
 #  define setreuid	__setreuid
 # endif
+# if defined(__FreeBSD__)
+#  define SPT_TYPE	SPT_PSSTRINGS	/* use PS_STRINGS->... */
+# endif
 #endif
 
 
