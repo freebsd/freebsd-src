@@ -184,8 +184,7 @@ struct archive {
 	/*
 	 * Various information needed by archive_extract.
 	 */
-	struct archive_string		 extract_mkdirpath;
-	struct archive_extract_fixup	*archive_extract_fixup;
+	struct extract		 *extract;
 	void			(*extract_progress)(void *);
 	void			 *extract_progress_user_data;
 	void			(*cleanup_archive_extract)(struct archive *);
