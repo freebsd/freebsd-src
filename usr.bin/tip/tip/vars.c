@@ -117,5 +117,6 @@ value_t vtable[] = {
 	  "le",		(char *)FALSE },
 	{ "parity",	STRING|INIT|IREMOTE,	(READ|WRITE)<<PUBLIC,
 	  "par",	(char *)&PA },
-	{ NOSTR, NULL, NULL, NOSTR, NOSTR }
+	{ NOSTR,	0,			0,
+	  NOSTR,	NOSTR }
 };
