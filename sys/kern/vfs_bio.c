@@ -63,6 +63,10 @@ struct	buf_ops buf_ops_bio = {
 	bwrite
 };
 
+/*
+ * XXX buf is global because kern_shutdown.c and ffs_checkoverlap has
+ * carnal knowledge of buffers.  This knowledge should be moved to vfs_bio.c.
+ */
 struct buf *buf;		/* buffer header pool */
 struct swqueue bswlist;
 struct mtx buftimelock;		/* Interlock on setting prio and timo */
@@ -78,10 +82,82 @@ static void vfs_setdirty(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
 static void vfs_backgroundwritedone(struct buf *bp);
 static int flushbufqueues(void);
+static void buf_daemon __P((void));
 
+int vmiodirenable = TRUE;
+SYSCTL_INT(_vfs, OID_AUTO, vmiodirenable, CTLFLAG_RW, &vmiodirenable, 0,
+    "Use the VM system for directory writes");
+int runningbufspace;
+SYSCTL_INT(_vfs, OID_AUTO, runningbufspace, CTLFLAG_RD, &runningbufspace, 0,
+    "Amount of presently outstanding async buffer io");
+static int bufspace;
+SYSCTL_INT(_vfs, OID_AUTO, bufspace, CTLFLAG_RD, &bufspace, 0,
+    "KVA memory used for bufs");
+static int maxbufspace;
+SYSCTL_INT(_vfs, OID_AUTO, maxbufspace, CTLFLAG_RD, &maxbufspace, 0,
+    "Maximum allowed value of bufspace (including buf_daemon)");
+static int bufmallocspace;
+SYSCTL_INT(_vfs, OID_AUTO, bufmallocspace, CTLFLAG_RD, &bufmallocspace, 0,
+    "Amount of malloced memory for buffers");
+static int maxbufmallocspace;
+SYSCTL_INT(_vfs, OID_AUTO, maxmallocbufspace, CTLFLAG_RW, &maxbufmallocspace, 0,
+    "Maximum amount of malloced memory for buffers");
+static int lobufspace;
+SYSCTL_INT(_vfs, OID_AUTO, lobufspace, CTLFLAG_RD, &lobufspace, 0,
+    "Minimum amount of buffers we want to have");
+static int hibufspace;
+SYSCTL_INT(_vfs, OID_AUTO, hibufspace, CTLFLAG_RD, &hibufspace, 0,
+    "Maximum allowed value of bufspace (excluding buf_daemon)");
+static int bufreusecnt;
+SYSCTL_INT(_vfs, OID_AUTO, bufreusecnt, CTLFLAG_RW, &bufreusecnt, 0,
+    "Number of times we have reused a buffer");
+static int buffreekvacnt;
+SYSCTL_INT(_vfs, OID_AUTO, buffreekvacnt, CTLFLAG_RW, &buffreekvacnt, 0,
+    "Number of times we have freed the KVA space from some buffer");
+static int bufdefragcnt;
+SYSCTL_INT(_vfs, OID_AUTO, bufdefragcnt, CTLFLAG_RW, &bufdefragcnt, 0,
+    "Number of times we have had to repeat buffer allocation to defragment");
+static int lorunningspace;
+SYSCTL_INT(_vfs, OID_AUTO, lorunningspace, CTLFLAG_RW, &lorunningspace, 0,
+    "Minimum preferred space used for in-progress I/O");
+static int hirunningspace;
+SYSCTL_INT(_vfs, OID_AUTO, hirunningspace, CTLFLAG_RW, &hirunningspace, 0,
+    "Maximum amount of space to use for in-progress I/O");
+static int numdirtybuffers;
+SYSCTL_INT(_vfs, OID_AUTO, numdirtybuffers, CTLFLAG_RD, &numdirtybuffers, 0,
+    "Number of buffers that are dirty (has unwritten changes) at the moment");
+static int lodirtybuffers;
+SYSCTL_INT(_vfs, OID_AUTO, lodirtybuffers, CTLFLAG_RW, &lodirtybuffers, 0,
+    "How many buffers we want to have free before bufdaemon can sleep");
+static int hidirtybuffers;
+SYSCTL_INT(_vfs, OID_AUTO, hidirtybuffers, CTLFLAG_RW, &hidirtybuffers, 0,
+    "When the number of dirty buffers is considered severe");
+static int numfreebuffers;
+SYSCTL_INT(_vfs, OID_AUTO, numfreebuffers, CTLFLAG_RD, &numfreebuffers, 0,
+    "Number of free buffers");
+static int lofreebuffers;
+SYSCTL_INT(_vfs, OID_AUTO, lofreebuffers, CTLFLAG_RW, &lofreebuffers, 0,
+   "XXX Unused");
+static int hifreebuffers;
+SYSCTL_INT(_vfs, OID_AUTO, hifreebuffers, CTLFLAG_RW, &hifreebuffers, 0,
+   "XXX Complicatedly unused");
+static int getnewbufcalls;
+SYSCTL_INT(_vfs, OID_AUTO, getnewbufcalls, CTLFLAG_RW, &getnewbufcalls, 0,
+   "Number of calls to getnewbuf");
+static int getnewbufrestarts;
+SYSCTL_INT(_vfs, OID_AUTO, getnewbufrestarts, CTLFLAG_RW, &getnewbufrestarts, 0,
+    "Number of times getnewbuf has had to restart a buffer aquisition");
+static int dobkgrdwrite = 1;
+SYSCTL_INT(_debug, OID_AUTO, dobkgrdwrite, CTLFLAG_RW, &dobkgrdwrite, 0,
+    "Do background writes (honoring the BX_BKGRDWRITE flag)?");
+
+/*
+ * Wakeup point for bufdaemon, as well as indicator of whether it is already
+ * active.  Set to 1 when the bufdaemon is already "on" the queue, 0 when it
+ * is idling.
+ */
 static int bd_request;
 
-static void buf_daemon __P((void));
 /*
  * bogus page -- for I/O to/from partially complete buffers
  * this is a temporary solution to the problem, but it is not
@@ -90,69 +166,54 @@ static void buf_daemon __P((void));
  * but the code is intricate enough already.
  */
 vm_page_t bogus_page;
-int vmiodirenable = TRUE;
-int runningbufspace;
+
+/*
+ * Offset for bogus_page.
+ * XXX bogus_offset should be local to bufinit
+ */
 static vm_offset_t bogus_offset;
 
-static int bufspace, maxbufspace,
-	bufmallocspace, maxbufmallocspace, lobufspace, hibufspace;
-static int bufreusecnt, bufdefragcnt, buffreekvacnt;
+/*
+ * Synchronization (sleep/wakeup) variable for active buffer space requests.
+ * Set when wait starts, cleared prior to wakeup().
+ * Used in runningbufwakeup() and waitrunningbufspace().
+ */
+static int runningbufreq;
+
+/* 
+ * Synchronization (sleep/wakeup) variable for buffer requests.
+ * Can contain the VFS_BIO_NEED flags defined below; setting/clearing is done
+ * by and/or.
+ * Used in numdirtywakeup(), bufspacewakeup(), bufcountwakeup(), bwillwrite(),
+ * getnewbuf(), and getblk().
+ */
 static int needsbuffer;
-static int lorunningspace, hirunningspace, runningbufreq;
-static int numdirtybuffers, lodirtybuffers, hidirtybuffers;
-static int numfreebuffers, lofreebuffers, hifreebuffers;
-static int getnewbufcalls;
-static int getnewbufrestarts;
 
-SYSCTL_INT(_vfs, OID_AUTO, numdirtybuffers, CTLFLAG_RD,
-	&numdirtybuffers, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, lodirtybuffers, CTLFLAG_RW,
-	&lodirtybuffers, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, hidirtybuffers, CTLFLAG_RW,
-	&hidirtybuffers, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, numfreebuffers, CTLFLAG_RD,
-	&numfreebuffers, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, lofreebuffers, CTLFLAG_RW,
-	&lofreebuffers, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, hifreebuffers, CTLFLAG_RW,
-	&hifreebuffers, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, runningbufspace, CTLFLAG_RD,
-	&runningbufspace, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, lorunningspace, CTLFLAG_RW,
-	&lorunningspace, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, hirunningspace, CTLFLAG_RW,
-	&hirunningspace, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, maxbufspace, CTLFLAG_RD,
-	&maxbufspace, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, hibufspace, CTLFLAG_RD,
-	&hibufspace, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, lobufspace, CTLFLAG_RD,
-	&lobufspace, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, bufspace, CTLFLAG_RD,
-	&bufspace, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, maxmallocbufspace, CTLFLAG_RW,
-	&maxbufmallocspace, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, bufmallocspace, CTLFLAG_RD,
-	&bufmallocspace, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, getnewbufcalls, CTLFLAG_RW,
-	&getnewbufcalls, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, getnewbufrestarts, CTLFLAG_RW,
-	&getnewbufrestarts, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, vmiodirenable, CTLFLAG_RW,
-	&vmiodirenable, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, bufdefragcnt, CTLFLAG_RW,
-	&bufdefragcnt, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, buffreekvacnt, CTLFLAG_RW,
-	&buffreekvacnt, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, bufreusecnt, CTLFLAG_RW,
-	&bufreusecnt, 0, "");
-
+/*
+ * Mask for index into the buffer hash table, which needs to be power of 2 in
+ * size.  Set in kern_vfs_bio_buffer_alloc.
+ */
 static int bufhashmask;
-static LIST_HEAD(bufhashhdr, buf) *bufhashtbl, invalhash;
-struct bqueues bufqueues[BUFFER_QUEUES] = { { 0 } };
-char *buf_wmesg = BUF_WMESG;
 
-extern int vm_swap_size;
+/*
+ * Hash table for all buffers, with a linked list hanging from each table
+ * entry.  Set in kern_vfs_bio_buffer_alloc, initialized in buf_init.
+ */
+static LIST_HEAD(bufhashhdr, buf) *bufhashtbl;
+
+/*
+ * Somewhere to store buffers when they are not in another list, to always
+ * have them in a list (and thus being able to use the same set of operations
+ * on them.)
+ */
+static struct bufhashhdr invalhash;
+/* Queues for free buffers with various properties */
+static struct bqueues bufqueues[BUFFER_QUEUES] = { { 0 } };
+/*
+ * Single global constant for BUF_WMESG, to avoid getting multiple references.
+ * buf_wmesg is referred from macros.
+ */
+char *buf_wmesg = BUF_WMESG;
 
 #define VFS_BIO_NEED_ANY	0x01	/* any freeable buffer */
 #define VFS_BIO_NEED_DIRTYFLUSH	0x02	/* waiting for dirty buffer flush */
@@ -301,6 +362,7 @@ vfs_buf_test_cache(struct buf *bp,
 	}
 }
 
+/* Wake up the buffer deamon if necessary */
 static __inline__
 void
 bd_wakeup(int dirtybuflevel)
@@ -400,6 +462,7 @@ kern_vfs_bio_buffer_alloc(caddr_t v, int physmem_est)
 	return(v);
 }
 
+/* Initialize the buffer subsystem.  Called before use of any buffers. */
 void
 bufinit(void)
 {
@@ -656,9 +719,6 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
  * here.
  */
 
-int dobkgrdwrite = 1;
-SYSCTL_INT(_debug, OID_AUTO, dobkgrdwrite, CTLFLAG_RW, &dobkgrdwrite, 0, "");
-
 int
 bwrite(struct buf * bp)
 {
@@ -811,7 +871,8 @@ vfs_backgroundwritedone(bp)
 	 * If BX_BKGRDINPROG is not set in the original buffer it must
 	 * have been released and re-instantiated - which is not legal.
 	 */
-	KASSERT((origbp->b_xflags & BX_BKGRDINPROG), ("backgroundwritedone: lost buffer2"));
+	KASSERT((origbp->b_xflags & BX_BKGRDINPROG),
+	    ("backgroundwritedone: lost buffer2"));
 	origbp->b_xflags &= ~BX_BKGRDINPROG;
 	if (origbp->b_xflags & BX_BKGRDWAIT) {
 		origbp->b_xflags &= ~BX_BKGRDWAIT;
@@ -931,7 +992,8 @@ void
 bdirty(bp)
 	struct buf *bp;
 {
-	KASSERT(bp->b_qindex == QUEUE_NONE, ("bdirty: buffer %p still on queue %d", bp, bp->b_qindex));
+	KASSERT(bp->b_qindex == QUEUE_NONE,
+	    ("bdirty: buffer %p still on queue %d", bp, bp->b_qindex));
 	bp->b_flags &= ~(B_RELBUF);
 	bp->b_iocmd = BIO_WRITE;
 
@@ -959,7 +1021,8 @@ void
 bundirty(bp)
 	struct buf *bp;
 {
-	KASSERT(bp->b_qindex == QUEUE_NONE, ("bundirty: buffer %p still on queue %d", bp, bp->b_qindex));
+	KASSERT(bp->b_qindex == QUEUE_NONE,
+	    ("bundirty: buffer %p still on queue %d", bp, bp->b_qindex));
 
 	if (bp->b_flags & B_DELWRI) {
 		bp->b_flags &= ~B_DELWRI;
@@ -1038,7 +1101,8 @@ brelse(struct buf * bp)
 
 	GIANT_REQUIRED;
 
-	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)), ("brelse: inappropriate B_PAGING or B_CLUSTER bp %p", bp));
+	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)),
+	    ("brelse: inappropriate B_PAGING or B_CLUSTER bp %p", bp));
 
 	s = splbio();
 
@@ -1228,7 +1292,8 @@ brelse(struct buf * bp)
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
 	/* buffers with junk contents */
-	} else if (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF) || (bp->b_ioflags & BIO_ERROR)) {
+	} else if (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF) ||
+	    (bp->b_ioflags & BIO_ERROR)) {
 		bp->b_flags |= B_INVAL;
 		bp->b_xflags &= ~BX_BKGRDWRITE;
 		if (bp->b_xflags & BX_BKGRDINPROG)
@@ -1360,6 +1425,7 @@ bqrelse(struct buf * bp)
 	splx(s);
 }
 
+/* Give pages used by the bp back to the VM system (where possible) */
 static void
 vfs_vmio_release(bp)
 	struct buf *bp;
@@ -1392,7 +1458,8 @@ vfs_vmio_release(bp)
 			 * no valid data.  We also free the page if the
 			 * buffer was used for direct I/O
 			 */
-			if ((bp->b_flags & B_ASYNC) == 0 && !m->valid && m->hold_count == 0) {
+			if ((bp->b_flags & B_ASYNC) == 0 && !m->valid &&
+			    m->hold_count == 0) {
 				vm_page_busy(m);
 				vm_page_protect(m, VM_PROT_NONE);
 				vm_page_free(m);
@@ -1884,7 +1951,7 @@ buf_daemon()
 
 		/*
 		 * Only clear bd_request if we have reached our low water
-		 * mark.  The buf_daemon normally waits 5 seconds and
+		 * mark.  The buf_daemon normally waits 1 second and
 		 * then incrementally flushes any dirty buffers that have
 		 * built up, within reason.
 		 *
@@ -2191,7 +2258,7 @@ loop:
 
 		/*
 		 * The buffer is locked.  B_CACHE is cleared if the buffer is 
-		 * invalid.  Ohterwise, for a non-VMIO buffer, B_CACHE is set
+		 * invalid.  Otherwise, for a non-VMIO buffer, B_CACHE is set
 		 * and for a VMIO buffer B_CACHE is adjusted according to the
 		 * backing VM cache.
 		 */
@@ -3251,6 +3318,7 @@ tryagain:
 	bp->b_npages = index;
 }
 
+/* Return pages associated with this buf to the vm system */
 void
 vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 {
@@ -3286,6 +3354,7 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 #ifdef DDB
 #include <ddb/ddb.h>
 
+/* DDB command to show buffer data */
 DB_SHOW_COMMAND(buffer, db_show_buffer)
 {
 	/* get args */

@@ -56,6 +56,11 @@ MALLOC_DEFINE(M_VNODE, "vnodes", "Dynamically allocated vnodes");
  * The highest defined VFS number.
  */
 int maxvfsconf = VFS_GENERIC + 1;
+
+/*
+ * Single-linked list of configured VFSes.
+ * New entries are added/deleted by vfs_register()/vfs_unregister()
+ */
 struct vfsconf *vfsconf;
 
 /*
@@ -81,10 +86,19 @@ static int vnodeopv_num;
 
 /* Table of known descs (list of vnode op handlers "vop_access_desc") */
 static struct vnodeop_desc **vfs_op_descs;
-static int *vfs_op_desc_refs;			/* reference counts */
+/* Reference counts for vfs_op_descs */
+static int *vfs_op_desc_refs;
+/* Number of descriptions */
 static int num_op_descs;
+/* Number of entries in each description */
 static int vfs_opv_numops;
 
+/*
+ * Recalculate the operations vector/description (those parts of it that can
+ * be recalculated, that is.)
+ * XXX It may be preferable to replace this function with an invariant check
+ * and a set of functions that should keep the table invariant.
+ */
 static void
 vfs_opv_recalc(void)
 {
@@ -143,6 +157,7 @@ vfs_opv_recalc(void)
 	}
 }
 
+/* Add a set of vnode operations (a description) to the table above. */
 void
 vfs_add_vnodeops(const void *data)
 {
@@ -210,6 +225,7 @@ vfs_add_vnodeops(const void *data)
 	vfs_opv_recalc();
 }
 
+/* Remove a vnode type from the vnode description table above. */
 void
 vfs_rm_vnodeops(const void *data)
 {
@@ -302,6 +318,7 @@ vfsinit(void *dummy)
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
 
+/* Register a new file system type in the global table */
 int
 vfs_register(struct vfsconf *vfc)
 {
@@ -347,6 +364,7 @@ vfs_register(struct vfsconf *vfc)
 }
 
 
+/* Remove registration of a file system type */
 int
 vfs_unregister(struct vfsconf *vfc)
 {
@@ -382,6 +400,10 @@ vfs_unregister(struct vfsconf *vfc)
 	return 0;
 }
 
+/*
+ * Standard kernel module handling code for file system modules.
+ * Referenced from VFS_SET().
+ */
 int
 vfs_modevent(module_t mod, int type, void *data)
 {

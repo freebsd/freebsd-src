@@ -266,14 +266,14 @@ vn_close(vp, flags, cred, td)
 	return (error);
 }
 
+/*
+ * Sequential heuristic - detect sequential operation
+ */
 static __inline
 int
 sequential_heuristic(struct uio *uio, struct file *fp)
 {
 
-	/*
-	 * Sequential heuristic - detect sequential operation
-	 */
 	if ((uio->uio_offset == 0 && fp->f_seqcount > 0) ||
 	    uio->uio_offset == fp->f_nextoff) {
 		/*
@@ -499,6 +499,9 @@ vn_statfile(fp, sb, td)
 	return (error);
 }
 
+/*
+ * Stat a vnode; implementation for the stat syscall
+ */
 int
 vn_stat(vp, sb, td)
 	struct vnode *vp;
@@ -891,6 +894,9 @@ vfs_write_resume(mp)
 	wakeup(&mp->mnt_flag);
 }
 
+/*
+ * Implement kqueues for files by translating it to vnode operation.
+ */
 static int
 vn_kqfilter(struct file *fp, struct knote *kn)
 {
