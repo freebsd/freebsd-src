@@ -97,9 +97,9 @@ int	prom_getenv(int, char *, int);
 #ifdef _KERNEL
 void	promcnattach(int);
 void	promcndetach(void);
-void	promcnputc(dev_t, int);
-int	promcngetc(dev_t);
-int	promcncheckc(dev_t);
+cn_putc_t	promcnputc;
+cn_getc_t	promcngetc;
+cn_checkc_t	promcncheckc;
 
 u_int64_t	prom_dispatch(u_int64_t, u_int64_t, u_int64_t, u_int64_t,
 		    u_int64_t);

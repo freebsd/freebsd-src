@@ -1469,7 +1469,7 @@ sccnattach(void)
 #endif /* __alpha__ */
 
 static void
-sccnputc(dev_t dev, int c)
+sccnputc(struct consdev *cd, int c)
 {
     u_char buf[1];
     scr_stat *scp = sc_console;
@@ -1511,19 +1511,19 @@ sccnputc(dev_t dev, int c)
 }
 
 static int
-sccngetc(dev_t dev)
+sccngetc(struct consdev *cd)
 {
     return sccngetch(0);
 }
 
 static int
-sccncheckc(dev_t dev)
+sccncheckc(struct consdev *cd)
 {
     return sccngetch(SCGETC_NONBLOCK);
 }
 
 static void
-sccndbctl(dev_t dev, int on)
+sccndbctl(struct consdev *cd, int on)
 {
     /* try to switch to the kernel console screen */
     if (on && debugger == 0) {

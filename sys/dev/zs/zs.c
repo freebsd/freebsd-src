@@ -890,7 +890,7 @@ zs_cnterm(struct consdev *cn)
 }
 
 static int
-zs_cngetc(dev_t dev)
+zs_cngetc(struct consdev *cn)
 {
 	struct zstty_softc *sc = zstty_cons;
 
@@ -900,7 +900,7 @@ zs_cngetc(dev_t dev)
 }
 
 static int
-zs_cncheckc(dev_t dev)
+zs_cncheckc(struct consdev *cn)
 {
 	struct zstty_softc *sc = zstty_cons;
 
@@ -910,7 +910,7 @@ zs_cncheckc(dev_t dev)
 }
 
 static void
-zs_cnputc(dev_t dev, int c)
+zs_cnputc(struct consdev *cn, int c)
 {
 	struct zstty_softc *sc = zstty_cons;
 
@@ -920,7 +920,7 @@ zs_cnputc(dev_t dev, int c)
 }
 
 static void
-zs_cndbctl(dev_t dev, int c)
+zs_cndbctl(struct consdev *cn, int c)
 {
 }
 
