@@ -6,12 +6,13 @@
 #include <sys/un.h>
 #include <netdb.h>
 
+#include <sys/time.h>
 #include <histedit.h>
-#include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #define LINELEN 2048
@@ -135,13 +136,14 @@ static void
 check_fd(int sig)
 {
   if (data != -1) {
-    struct pollfd p;
+    struct timeval t;
+    fd_set f;
     static char buf[LINELEN];
 
-    p.fd = data;
-    p.events = POLLIN|POLLPRI;
-    p.revents = p.events|POLLOUT;
-    if (poll(&p, 1, 0) > 0)
+    FD_ZERO(&f);
+    FD_SET(data, &f);
+    t.tv_sec = t.tv_usec = 0;
+    if (select(data+1, &f, NULL, NULL, &t) > 0)
       write(1, buf, read(data, buf, sizeof buf));
   }
 }
