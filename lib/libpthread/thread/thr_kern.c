@@ -90,6 +90,9 @@ _thread_kern_sched_frame(struct pthread_signal_frame *psf)
 	/* Restore the signal frame: */
 	_thread_sigframe_restore(_thread_run, psf);
 
+	/* The signal mask was restored; check for any pending signals: */
+	_thread_run->check_pending = 1;
+
 	/* Switch to the thread scheduler: */
 	___longjmp(_thread_kern_sched_jb, 1);
 }
