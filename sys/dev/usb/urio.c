@@ -104,11 +104,11 @@ SYSCTL_INT(_hw_usb_urio, OID_AUTO, debug, CTLFLAG_RW,
 #define RIO_NODIR  2
 
 #if defined(__NetBSD__)
-int urioopen(dev_t, int, int, struct proc *);
-int urioclose(dev_t, int, int, struct proc *p);
+int urioopen(dev_t, int, int, usb_proc_ptr);
+int urioclose(dev_t, int, int, usb_proc_ptr);
 int urioread(dev_t, struct uio *uio, int);
 int uriowrite(dev_t, struct uio *uio, int);
-int urioioctl(dev_t, u_long, caddr_t, int, struct proc *);
+int urioioctl(dev_t, u_long, caddr_t, int, usb_proc_ptr);
 
 cdev_decl(urio);
 #define RIO_UE_GET_DIR(p) ((UE_GET_DIR(p) == UE_DIR_IN) ? RIO_IN :\

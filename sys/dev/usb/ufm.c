@@ -76,17 +76,10 @@ SYSCTL_INT(_hw_usb_ufm, OID_AUTO, debug, CTLFLAG_RW,
 #define DPRINTFN(n,x)
 #endif
 
-#if defined(__FreeBSD__) && __FreeBSD_version__ >= 500023
-typedef struct thread usb_proc_t;
-#else
-typedef struct proc usb_proc_t;
-#endif
-
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-typedef struct proc usb_proc_t;
-int ufmopen(dev_t, int, int, struct proc *);
-int ufmclose(dev_t, int, int, struct proc *p);
-int ufmioctl(dev_t, u_long, caddr_t, int, struct proc *);
+int ufmopen(dev_t, int, int, usb_proc_ptr);
+int ufmclose(dev_t, int, int, usb_proc_ptr);
+int ufmioctl(dev_t, u_long, caddr_t, int, usb_proc_ptr);
 
 cdev_decl(ufm);
 #elif defined(__FreeBSD__)
@@ -230,7 +223,7 @@ USB_ATTACH(ufm)
 
 
 int
-ufmopen(dev_t dev, int flag, int mode, usb_proc_t *td)
+ufmopen(dev_t dev, int flag, int mode, usb_proc_ptr td)
 {
 	struct ufm_softc *sc;
 
@@ -251,7 +244,7 @@ ufmopen(dev_t dev, int flag, int mode, usb_proc_t *td)
 }
 
 int
-ufmclose(dev_t dev, int flag, int mode, usb_proc_t *td)
+ufmclose(dev_t dev, int flag, int mode, usb_proc_ptr td)
 {
 	struct ufm_softc *sc;
 
@@ -373,7 +366,7 @@ ufm_get_stat(struct ufm_softc *sc, caddr_t addr)
 }
 
 int
-ufmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_t *td)
+ufmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr td)
 {
 	struct ufm_softc *sc;
 

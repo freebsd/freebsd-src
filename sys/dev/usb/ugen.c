@@ -159,7 +159,7 @@ Static void ugen_isoc_rintr(usbd_xfer_handle xfer, usbd_private_handle addr,
 Static int ugen_do_read(struct ugen_softc *, int, struct uio *, int);
 Static int ugen_do_write(struct ugen_softc *, int, struct uio *, int);
 Static int ugen_do_ioctl(struct ugen_softc *, int, u_long, 
-			      caddr_t, int, struct proc *);
+			      caddr_t, int, usb_proc_ptr);
 Static int ugen_set_config(struct ugen_softc *sc, int configno);
 Static usb_config_descriptor_t *ugen_get_cdesc(struct ugen_softc *sc,
 						    int index, int *lenp);
@@ -312,7 +312,7 @@ ugen_set_config(struct ugen_softc *sc, int configno)
 }
 
 int
-ugenopen(dev_t dev, int flag, int mode, struct proc *p)
+ugenopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct ugen_softc *sc;
 	int unit = UGENUNIT(dev);
@@ -444,7 +444,7 @@ ugenopen(dev_t dev, int flag, int mode, struct proc *p)
 }
 
 int
-ugenclose(dev_t dev, int flag, int mode, struct proc *p)
+ugenclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 {
 	int endpt = UGENENDPOINT(dev);
 	struct ugen_softc *sc;
@@ -1023,7 +1023,7 @@ ugen_get_alt_index(struct ugen_softc *sc, int ifaceidx)
 
 Static int
 ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
-	      caddr_t addr, int flag, struct proc *p)
+	      caddr_t addr, int flag, usb_proc_ptr p)
 {
 	struct ugen_endpoint *sce;
 	usbd_status err;
@@ -1299,7 +1299,7 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 }
 
 int
-ugenioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+ugenioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 {
 	int endpt = UGENENDPOINT(dev);
 	struct ugen_softc *sc;
@@ -1315,7 +1315,7 @@ ugenioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 }
 
 int
-ugenpoll(dev_t dev, int events, struct proc *p)
+ugenpoll(dev_t dev, int events, usb_proc_ptr p)
 {
 	struct ugen_softc *sc;
 	struct ugen_endpoint *sce;

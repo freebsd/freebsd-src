@@ -166,7 +166,7 @@ Static void uhid_intr(usbd_xfer_handle, usbd_private_handle,
 Static int uhid_do_read(struct uhid_softc *, struct uio *uio, int);
 Static int uhid_do_write(struct uhid_softc *, struct uio *uio, int);
 Static int uhid_do_ioctl(struct uhid_softc *, u_long, caddr_t, int,
-			      struct proc *);
+			 usb_proc_ptr);
 
 USB_DECLARE_DRIVER(uhid);
 

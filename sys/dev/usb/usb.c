@@ -135,7 +135,7 @@ d_open_t  usbopen;
 d_close_t usbclose;
 d_read_t usbread;
 d_ioctl_t usbioctl;
-int usbpoll(dev_t, int, struct proc *);
+int usbpoll(dev_t, int, usb_proc_ptr);
 
 struct cdevsw usb_cdevsw = {
 	/* open */      usbopen,
