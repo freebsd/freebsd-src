@@ -20,6 +20,6 @@ void notify(const char *hostname, const int state);
 #define LOCK_CANCEL 0x08 /* cancel, not unlock request (unlock only) */
 
 /* callbacks from lock_proc.c */
-void	transmit_result __P((int, nlm_res *, struct sockaddr *));
-void	transmit4_result __P((int, nlm4_res *, struct sockaddr *));
-CLIENT  *get_client __P((struct sockaddr *, rpcvers_t));
+void	transmit_result(int, nlm_res *, struct sockaddr *);
+void	transmit4_result(int, nlm4_res *, struct sockaddr *);
+CLIENT  *get_client(struct sockaddr *, rpcvers_t);
