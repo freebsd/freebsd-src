@@ -80,7 +80,8 @@ retry:
 			 * Disconnect the thread from the joinee:
 			 */
 			if ((joined = pthread->join_status.thread) != NULL) {
-				if (THR_TRYLOCK(&joined->lock) == EBUSY) {
+				THR_TRYLOCK(&joined->lock, ret);
+				if (ret == EBUSY) {
 					_thread_critical_exit(pthread);
 					goto retry;
 				}
