@@ -1,5 +1,8 @@
-#	$Id: BSD.usr.dist,v 1.16 1994/09/07 21:09:32 pst Exp $
+#	$Id: BSD.usr.dist,v 1.17 1994/09/08 07:17:27 rgrimes Exp $
 #
+
+.	type=dir uname=root gname=wheel mode=0755
+..
 
 /set type=file uname=bin gname=bin mode=0755
 bin	type=dir uname=bin gname=bin mode=0755
