@@ -324,7 +324,7 @@ s_write(struct indir *ip, off_t offset, uintptr_t ptr)
 			cip->array[idx] =
 			    (uintptr_t)new_indir(cip->shift - nshift);
 			if (cip->array[idx] == 0)
-				return (ENOMEM);
+				return (ENOSPC);
 			cip->used++;
 			up = cip->array[idx];
 			cip = (struct indir *)up;
@@ -543,9 +543,11 @@ mdstrategy(struct bio *bp)
 	struct md_s *sc;
 
 	if (md_debug > 1)
-		printf("mdstrategy(%p) %s %x, %lld, %ld, %p)\n",
+		printf("mdstrategy(%p) %s %x, %jd, %jd %ld, %p)\n",
 		    (void *)bp, devtoname(bp->bio_dev), bp->bio_flags,
-		    (long long)bp->bio_blkno, bp->bio_bcount / DEV_BSIZE,
+		    (intmax_t)bp->bio_blkno,
+		    (intmax_t)bp->bio_pblkno,
+		    bp->bio_bcount / DEV_BSIZE,
 		    (void *)bp->bio_data);
 
 	sc = bp->bio_dev->si_drv1;
