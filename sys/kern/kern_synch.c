@@ -376,16 +376,11 @@ schedcpu(arg)
  * least six times the loadfactor will decay p_estcpu to zero.
  */
 void
-updatepri(td)
-	register struct thread *td;
+updatepri(struct ksegrp *kg)
 {
-	register struct ksegrp *kg;
 	register unsigned int newcpu;
 	register fixpt_t loadfac = loadfactor(averunnable.ldavg[0]);
 
-	if (td == NULL)
-		return;
-	kg = td->td_ksegrp;
 	newcpu = kg->kg_estcpu;
 	if (kg->kg_slptime > 5 * loadfac)
 		kg->kg_estcpu = 0;
@@ -395,7 +390,7 @@ updatepri(td)
 			newcpu = decay_cpu(loadfac, newcpu);
 		kg->kg_estcpu = newcpu;
 	}
-	resetpriority(td->td_ksegrp);
+	resetpriority(kg);
 }
 
 /*
@@ -705,6 +700,7 @@ wakeup(ident)
 	register struct slpquehead *qp;
 	register struct thread *td;
 	struct thread *ntd;
+	struct ksegrp *kg;
 	struct proc *p;
 
 	mtx_lock_spin(&sched_lock);
@@ -720,9 +716,10 @@ restart:
 				/* OPTIMIZED EXPANSION OF setrunnable(p); */
 				CTR3(KTR_PROC, "wakeup: thread %p (pid %d, %s)",
 				    td, p->p_pid, p->p_comm);
-				if (td->td_ksegrp->kg_slptime > 1)
-					updatepri(td);
-				td->td_ksegrp->kg_slptime = 0;
+				kg = td->td_ksegrp;
+				if (kg->kg_slptime > 1)
+					updatepri(kg);
+				kg->kg_slptime = 0;
 				if (p->p_sflag & PS_INMEM) {
 					setrunqueue(td);
 					maybe_resched(td);
@@ -754,6 +751,7 @@ wakeup_one(ident)
 	register struct thread *td;
 	register struct proc *p;
 	struct thread *ntd;
+	struct ksegrp *kg;
 
 	mtx_lock_spin(&sched_lock);
 	qp = &slpque[LOOKUP(ident)];
@@ -768,9 +766,10 @@ restart:
 				/* OPTIMIZED EXPANSION OF setrunnable(p); */
 				CTR3(KTR_PROC,"wakeup1: thread %p (pid %d, %s)",
 				    td, p->p_pid, p->p_comm);
-				if (td->td_ksegrp->kg_slptime > 1)
-					updatepri(td);
-				td->td_ksegrp->kg_slptime = 0;
+				kg = td->td_ksegrp;
+				if (kg->kg_slptime > 1)
+					updatepri(kg);
+				kg->kg_slptime = 0;
 				if (p->p_sflag & PS_INMEM) {
 					setrunqueue(td);
 					maybe_resched(td);
@@ -794,7 +793,7 @@ restart:
  * The machine independent parts of mi_switch().
  */
 void
-mi_switch()
+mi_switch(void)
 {
 	struct bintime new_switchtime;
 	struct thread *td = curthread;	/* XXX */
@@ -931,6 +930,7 @@ void
 setrunnable(struct thread *td)
 {
 	struct proc *p = td->td_proc;
+	struct ksegrp *kg;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	switch (p->p_state) {
@@ -960,9 +960,10 @@ setrunnable(struct thread *td)
 	case TDS_RUNQ:	/* not yet had time to suspend */
 		break;
 	}
-	if (td->td_ksegrp->kg_slptime > 1)
-		updatepri(td);
-	td->td_ksegrp->kg_slptime = 0;
+	kg = td->td_ksegrp;
+	if (kg->kg_slptime > 1)
+		updatepri(kg);
+	kg->kg_slptime = 0;
 	if ((p->p_sflag & PS_INMEM) == 0) {
 		td->td_state = TDS_SWAPPED;
 		if ((p->p_sflag & PS_SWAPPINGIN) == 0) {

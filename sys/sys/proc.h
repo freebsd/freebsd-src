@@ -829,7 +829,7 @@ void	cpu_idle(void);
 void	cpu_switch(void);
 void	cpu_throw(void) __dead2;
 void	unsleep(struct thread *);
-void	updatepri(struct thread *);
+void	updatepri(struct ksegrp *);
 void	userret(struct thread *, struct trapframe *, u_int);
 void	maybe_resched(struct thread *);
 
