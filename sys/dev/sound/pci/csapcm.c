@@ -2,6 +2,10 @@
  * Copyright (c) 1999 Seigo Tanimura
  * All rights reserved.
  *
+ * Portions of this source are based on cwcealdr.cpp and dhwiface.cpp in
+ * cwcealdr1.zip, the sample sources by Crystal Semiconductor.
+ * Copyright (c) 1996-1998 Crystal Semiconductor Corp.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
