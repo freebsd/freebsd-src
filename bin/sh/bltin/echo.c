@@ -80,7 +80,7 @@ main(int argc, char *argv[])
 				case 'a':  c = '\a';  break;
 				case 'b':  c = '\b';  break;
 				case 'c':  return 0;		/* exit */
-				case 'e':  c = '\e';  break;
+				case 'e':  c = '\033';  break;
 				case 'f':  c = '\f';  break;
 				case 'n':  c = '\n';  break;
 				case 'r':  c = '\r';  break;
