@@ -2,9 +2,7 @@
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 
-TARGET_ARCH?=	${MACHINE_ARCH}
-
-.if ${TARGET_ARCH} == "alpha"
+.if ${MACHINE_ARCH} == "alpha"
 .PATH: ${GCCDIR}/config/alpha
 SRCS=		crtbegin.s crtend.s
 UGLYHACK=	-x assembler
@@ -28,7 +26,7 @@ CRTS_CFLAGS=	-DCRTSTUFFS_O ${PICFLAG}
 
 all: ${OBJS} ${SOBJS}
 
-.if ${TARGET_ARCH} == "alpha"
+.if ${MACHINE_ARCH} == "alpha"
 crtbegin.o crtbegin.So:	crtbegin.s
 crtend.o crtend.So:	crtend.s
 .for PART in begin end
