@@ -11,10 +11,15 @@ LIBS=	\
 	libedit.so.3 \
 	libfetch.so.2 \
 	libgmp.so.3 \
+	libhistory.so.4 \
+	libm.so.2 \
 	libmp.so.3 \
+	libopie.so.2 \
 	libpam.so.1 \
+	libpcap.so.2 \
 	libperl.so.3 \
 	libposix1e.so.2 \
+	libreadline.so.4 \
 	libskey.so.2 \
 	libssl.so.1 \
 	libssl.so.2 \
