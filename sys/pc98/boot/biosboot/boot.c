@@ -62,8 +62,10 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #define	ouraddr	(BOOTSEG << 4)		/* XXX */
 
+#define	BOOT_CONFIG_SIZE	512
 #define NAMEBUF_LEN	(8*1024)
 
+static char boot_config[BOOT_CONFIG_SIZE];
 #ifdef NAMEBLOCK
 char *dflt_name;
 #endif
@@ -74,6 +76,7 @@ int loadflags;
 
 static void getbootdev(char *ptr, int *howto);
 static void loadprog(void);
+static void readfile(char *path, char *buf, size_t nbytes);
 
 /* NORETURN */
 void
@@ -172,8 +175,16 @@ boot(int drive)
 		name = dflt_name;
 	} else
 #endif	/*NAMEBLOCK*/
+	name = "kernel";
+	readfile("boot.config", boot_config, BOOT_CONFIG_SIZE);
+	getbootdev(boot_config, &loadflags);
+	if (namebuf[0] != '\0')
+		printf("boot.config: %s", boot_config);
+	/*
+	 * XXX parsing of `name' is in openrd(), so the defaults aren't
+	 * updated to match the config (if any) before printing the prompt.
+	 */
 loadstart:
-	name = "/kernel";
 	/* print this all each time.. (saves space to do so) */
 	/* If we have looped, use the previous entries as defaults */
 	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n"
@@ -188,7 +199,17 @@ loadstart:
 #endif
 
 	loadflags &= RB_SERIAL;	/* clear all, but leave serial console */
-	getbootdev(namebuf, &loadflags);
+
+	/*
+	 * Be paranoid and make doubly sure that the input buffer is empty.
+	 */
+	if (loadflags & RB_SERIAL)
+		init_serial();
+
+	if (!gets(namebuf))
+		putchar('\n');
+	else
+		getbootdev(namebuf, &loadflags);
 	ret = openrd();
 	if (ret != 0) {
 		if (ret > 0)
@@ -335,28 +356,39 @@ loadprog(void)
 		  (int)&bootinfo + ouraddr);
 }
 
-void
+static void
+readfile(char *path, char *buf, size_t nbytes)
+{
+	int openstatus;
+
+	buf[0] = '\0';
+	name = path;
+	openstatus = openrd();
+	if (openstatus != 0) {
+		if (openstatus > 0)
+			printf("Can't find file %s\n", name);
+	} else {
+		/* XXX no way to determine file size. */
+		read(buf, nbytes);
+	}
+	buf[nbytes - 1] = '\0';
+#if 0
+	pcpy(buf, (void *)0x800, nbytes);
+#endif
+}
+
+static void
 getbootdev(char *ptr, int *howto)
 {
 	char c;
 
-	/*
-	 * Be paranoid and make doubly sure that the input buffer is empty.
-	 */
-	if (*howto & RB_SERIAL)
-		init_serial();
-
-	if (!gets(ptr)) {
-		putchar('\n');
-		return;
-	}
 	while ((c = *ptr) != '\0') {
 nextarg:
-		while (c == ' ')
+		while (c == ' ' || c == '\n')
 			c = *++ptr;
 		if (c == '-')
 			while ((c = *++ptr) != '\0') {
-				if (c == ' ')
+				if (c == ' ' || c == '\n')
 					goto nextarg;
 				if (c == 'C')
 					*howto |= RB_CDROM;
@@ -387,7 +419,7 @@ nextarg:
 			return;
 		name = ptr;
 		while (*++ptr != '\0') {
-			if (*ptr == ' ') {
+			if (*ptr == ' ' || *ptr == '\n') {
 				*ptr++ = '\0';
 				break;
 			}
