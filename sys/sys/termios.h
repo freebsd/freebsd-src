@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)termios.h	8.3 (Berkeley) 3/28/94
- * $Id: termios.h,v 1.9 1997/02/22 09:46:07 peter Exp $
+ * $Id: termios.h,v 1.10 1998/03/12 14:09:53 bde Exp $
  */
 
 #ifndef _SYS_TERMIOS_H_
@@ -175,9 +175,9 @@
 #endif  /*_POSIX_SOURCE */
 #define	NOFLSH		0x80000000	/* don't flush after interrupt */
 
-typedef unsigned long	tcflag_t;
+typedef unsigned int	tcflag_t;
 typedef unsigned char	cc_t;
-typedef unsigned long	speed_t;
+typedef unsigned int	speed_t;
 
 struct termios {
 	tcflag_t	c_iflag;	/* input flags */
