@@ -33,6 +33,7 @@ TMPMNT=`mktemp -d -t nanobsd`
 
 make_fstab () {
   echo "/dev/$1 / ufs ro 1 1" > $2/etc/fstab
+  ln -f $2/etc/fstab $2/conf/base/etc/fstab
 }
 
 get_label () {
