@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_user.c#17 $
+ * $P4: //depot/projects/openpam/lib/pam_get_user.c#18 $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,7 @@
 
 #include "openpam_impl.h"
 
-const char user_prompt[] = "Login:";
+static const char user_prompt[] = "Login:";
 
 /*
  * XSSO 4.2.1
@@ -64,7 +64,7 @@ pam_get_user(pam_handle_t *pamh,
 	if (pamh == NULL || user == NULL)
 		RETURNC(PAM_SYSTEM_ERR);
 	r = pam_get_item(pamh, PAM_USER, (const void **)user);
-	if (r == PAM_SUCCESS)
+	if (r == PAM_SUCCESS && *user != NULL)
 		RETURNC(PAM_SUCCESS);
 	if (prompt == NULL) {
 		r = pam_get_item(pamh, PAM_USER_PROMPT, (const void **)&prompt);

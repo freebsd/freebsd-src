@@ -31,11 +31,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_impl.h#27 $
+ * $P4: //depot/projects/openpam/lib/openpam_impl.h#28 $
  */
 
 #ifndef _OPENPAM_IMPL_H_INCLUDED
 #define _OPENPAM_IMPL_H_INCLUDED
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <security/openpam.h>
 
