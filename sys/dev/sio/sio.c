@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.118 1995/11/20 12:13:27 phk Exp $
+ *	$Id: sio.c,v 1.119 1995/11/21 09:15:04 bde Exp $
  */
 
 #include "sio.h"
@@ -95,6 +95,12 @@
 #define	COM_VERBOSE(dev)	((dev)->id_flags & 0x80)
 
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
+
+#ifdef JREMOD
+#define CDEV_MAJOR 28
+static void 	sio_devsw_install();
+#endif /*JREMOD*/
+
 
 #include "crd.h"
 #if NCRD > 0
@@ -877,6 +883,10 @@ determined_type: ;
 	s = spltty();
 	com_addr(unit) = com;
 	splx(s);
+#ifdef JREMOD
+	sio_devsw_install();
+#endif /*JREMOD*/
+
 	return (1);
 }
 
@@ -2556,4 +2566,26 @@ error:
 }
 #endif /* DSI_SOFT_MODEM */
 
+#ifdef JREMOD
+struct cdevsw sio_cdevsw = 
+	{ sioopen,	sioclose,	sioread,	siowrite,	/*28*/
+	  sioioctl,	siostop,	nxreset,	siodevtotty,/* sio */
+	  ttselect,	nommap,		NULL };
+
+static sio_devsw_installed = 0;
+
+static void 	sio_devsw_install()
+{
+	dev_t descript;
+	if( ! sio_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&sio_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&sio_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		sio_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif /* NSIO > 0 */

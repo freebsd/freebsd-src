@@ -70,6 +70,12 @@ error "Can only have 1 spigot configured."
 #include	<i386/isa/isa.h>
 #include	<i386/isa/isa_device.h>
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 11
+static void 	spigot_devsw_install();
+#endif /*JREMOD*/
+
 struct spigot_softc {
 	u_long		flags;
 	u_long	 	maddr;
@@ -151,6 +157,10 @@ struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
 
 	ss->maddr = kvtop(devp->id_maddr);
 	ss->irq = devp->id_irq;
+
+#ifdef JREMOD
+	spigot_devsw_install();
+#endif /*JREMOD*/
 
 	return 1;
 }
@@ -272,5 +282,28 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[0];
 
 	return i386_btop(ss->maddr);
 }
+
+#ifdef JREMOD
+struct cdevsw spigot_cdevsw = 
+	{ spigot_open,	spigot_close,	spigot_read,	spigot_write,	/*11*/
+	  spigot_ioctl,	nostop,		nullreset,	nodevtotty,/* Spigot */
+	  spigot_select, spigot_mmap,	NULL };
+
+static spigot_devsw_installed = 0;
+
+static void 	spigot_devsw_install()
+{
+	dev_t descript;
+	if( ! spigot_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&spigot_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&spigot_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		spigot_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 
 #endif /* NSPIGOT */

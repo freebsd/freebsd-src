@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.8 1995/10/28 15:39:17 phk Exp $ */
+/* $Id: scd.c,v 1.9 1995/11/04 13:23:39 bde Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -71,6 +71,12 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/scdreg.h>
+
+#ifdef JREMOD
+#define CDEV_MAJOR 45
+#define BDEV_MAJOR 16
+static void 	scd_devsw_install();
+#endif /*JREMOD */
 
 #define scd_part(dev)	((minor(dev)) & 7)
 #define scd_unit(dev)	(((minor(dev)) & 0x38) >> 3)
@@ -217,6 +223,10 @@ int scd_attach(struct isa_device *dev)
 
 	cd->flags = SCDINIT;
 	cd->audio_status = CD_AS_AUDIO_INVALID;
+
+#ifdef JREMOD
+	scd_devsw_install();
+#endif /*JREMOD*/
 
 	return 1;
 }
@@ -1518,5 +1528,32 @@ scd_toc_entrys (int unit, struct ioc_read_toc_entry *te)
 
 	return 0;
 }
+
+#ifdef JREMOD
+struct bdevsw scd_bdevsw = 
+	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
+	  nxdump,	scdsize,	0 };
+
+struct cdevsw scd_cdevsw = 
+	{ scdopen,	scdclose,	rawread,	nowrite,	/*45*/
+	  scdioctl,	nostop,		nullreset,	nodevtotty,/* sony cd */
+	  seltrue,	nommap,		scdstrategy };
+
+static scd_devsw_installed = 0;
+
+static void 	scd_devsw_install()
+{
+	dev_t descript;
+	if( ! scd_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&scd_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&scd_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		scd_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 
 #endif /* NSCD > 0 */

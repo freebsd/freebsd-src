@@ -47,6 +47,12 @@
 #define SLEEP_MAX 1000
 #define SLEEP_MIN 4
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 44
+static void 	gp_devsw_install();
+#endif /*JREMOD*/
+
 int initgpib(void);
 void closegpib(void);
 int sendgpibfifo(unsigned char device,char *data,int count);
@@ -123,6 +129,10 @@ gpattach(isdp)
         if (sc->sc_type==1)
            printf ("gp%d: type AT-GPIB chip NAT4882A\n",sc->sc_unit);
         sc->sc_flags |=ATTACHED;
+#ifdef JREMOD
+        gp_devsw_install();
+#endif /*JREMOD*/
+
         return (1);
 }
 
@@ -1253,6 +1263,27 @@ outb(CDOR,95); /*untalk*/
 }
 
 
+#ifdef JREMOD
+struct cdevsw gp_cdevsw = 
+	{ gpopen,	gpclose,	noread,		gpwrite,	/*44*/
+	  gpioctl,	nostop,		nullreset,	nodevtotty,/* GPIB */
+          seltrue,	nommap,		NULL };
 
+static gp_devsw_installed = 0;
+
+static void 	gp_devsw_install()
+{
+	dev_t descript;
+	if( ! gp_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&gp_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&gp_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		gp_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 
 #endif /* NGPIB > 0 */

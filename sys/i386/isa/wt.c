@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.19 1995/09/08 11:08:03 bde Exp $
+ * $Id: wt.c,v 1.20 1995/10/28 15:39:31 phk Exp $
  *
  */
 
@@ -75,6 +75,13 @@
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wtreg.h>
+
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 10
+#define BDEV_MAJOR 3
+static void 	wt_devsw_install();
+#endif /*JREMOD */
 
 /*
  * Uncomment this to enable internal device tracing.
@@ -261,6 +268,10 @@ wtattach (struct isa_device *id)
 	t->flags = TPSTART;                     /* tape is rewound */
 	t->dens = -1;                           /* unknown density */
 	kdc_wt[id->id_unit].kdc_state = DC_IDLE;
+#ifdef JREMOD
+	wt_devsw_install();
+#endif /*JREMOD*/
+
 	return (1);
 }
 
@@ -963,4 +974,32 @@ static int wtstatus (wtinfo_t *t)
 	splx(x);
 	return (1);
 }
+
+#ifdef JREMOD
+struct bdevsw wt_bdevsw = 
+	{ wtopen,	wtclose,	wtstrategy,	wtioctl,	/*3*/
+	  wtdump,	wtsize,		B_TAPE };
+
+struct cdevsw wt_cdevsw = 
+	{ wtopen,	wtclose,	rawread,	rawwrite,	/*10*/
+	  wtioctl,	nostop,		nullreset,	nodevtotty,/* wt */
+	  seltrue,	nommap,		wtstrategy };
+
+static wt_devsw_installed = 0;
+
+static void 	wt_devsw_install()
+{
+	dev_t descript;
+	if( ! wt_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&wt_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&wt_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		wt_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
+
 #endif /* NWT */
