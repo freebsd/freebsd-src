@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.8 1995/11/09 08:14:59 bde Exp $
+ * $Id: dead_vnops.c,v 1.9 1995/11/11 03:36:07 bde Exp $
  */
 
 #include <sys/param.h>
@@ -48,20 +48,20 @@ static int	chkvnlock __P((struct vnode *));
 /*
  * Prototypes for dead operations on vnodes.
  */
-int	dead_badop __P((void));
-int	dead_ebadf __P((void));
-int	dead_lookup __P((struct vop_lookup_args *));
+static int	dead_badop __P((void));
+static int	dead_ebadf __P((void));
+static int	dead_lookup __P((struct vop_lookup_args *));
 #define dead_create ((int (*) __P((struct  vop_create_args *)))dead_badop)
 #define dead_mknod ((int (*) __P((struct  vop_mknod_args *)))dead_badop)
-int	dead_open __P((struct vop_open_args *));
+static int	dead_open __P((struct vop_open_args *));
 #define dead_close ((int (*) __P((struct  vop_close_args *)))nullop)
 #define dead_access ((int (*) __P((struct  vop_access_args *)))dead_ebadf)
 #define dead_getattr ((int (*) __P((struct  vop_getattr_args *)))dead_ebadf)
 #define dead_setattr ((int (*) __P((struct  vop_setattr_args *)))dead_ebadf)
-int	dead_read __P((struct vop_read_args *));
-int	dead_write __P((struct vop_write_args *));
-int	dead_ioctl __P((struct vop_ioctl_args *));
-int	dead_select __P((struct vop_select_args *));
+static int	dead_read __P((struct vop_read_args *));
+static int	dead_write __P((struct vop_write_args *));
+static int	dead_ioctl __P((struct vop_ioctl_args *));
+static int	dead_select __P((struct vop_select_args *));
 #define dead_mmap ((int (*) __P((struct  vop_mmap_args *)))dead_badop)
 #define dead_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
 #define dead_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
@@ -76,11 +76,11 @@ int	dead_select __P((struct vop_select_args *));
 #define dead_abortop ((int (*) __P((struct  vop_abortop_args *)))dead_badop)
 #define dead_inactive ((int (*) __P((struct  vop_inactive_args *)))nullop)
 #define dead_reclaim ((int (*) __P((struct  vop_reclaim_args *)))nullop)
-int	dead_lock __P((struct vop_lock_args *));
+static int	dead_lock __P((struct vop_lock_args *));
 #define dead_unlock ((int (*) __P((struct  vop_unlock_args *)))nullop)
-int	dead_bmap __P((struct vop_bmap_args *));
-int	dead_strategy __P((struct vop_strategy_args *));
-int	dead_print __P((struct vop_print_args *));
+static int	dead_bmap __P((struct vop_bmap_args *));
+static int	dead_strategy __P((struct vop_strategy_args *));
+static int	dead_print __P((struct vop_print_args *));
 #define dead_islocked ((int (*) __P((struct  vop_islocked_args *)))nullop)
 #define dead_pathconf ((int (*) __P((struct  vop_pathconf_args *)))dead_ebadf)
 #define dead_advlock ((int (*) __P((struct  vop_advlock_args *)))dead_ebadf)
@@ -92,7 +92,7 @@ int	dead_print __P((struct vop_print_args *));
 #define dead_bwrite ((int (*) __P((struct  vop_bwrite_args *)))nullop)
 
 vop_t **dead_vnodeop_p;
-struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)dead_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)dead_create },	/* create */
@@ -136,7 +136,7 @@ struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)dead_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc dead_vnodeop_opv_desc =
+static struct vnodeopv_desc dead_vnodeop_opv_desc =
 	{ &dead_vnodeop_p, dead_vnodeop_entries };
 
 VNODEOP_SET(dead_vnodeop_opv_desc);
@@ -145,7 +145,7 @@ VNODEOP_SET(dead_vnodeop_opv_desc);
  * Trivial lookup routine that always fails.
  */
 /* ARGSUSED */
-int
+static int
 dead_lookup(ap)
 	struct vop_lookup_args /* {
 		struct vnode * a_dvp;
@@ -162,7 +162,7 @@ dead_lookup(ap)
  * Open always fails as if device did not exist.
  */
 /* ARGSUSED */
-int
+static int
 dead_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -179,7 +179,7 @@ dead_open(ap)
  * Vnode op for read
  */
 /* ARGSUSED */
-int
+static int
 dead_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -203,7 +203,7 @@ dead_read(ap)
  * Vnode op for write
  */
 /* ARGSUSED */
-int
+static int
 dead_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -222,7 +222,7 @@ dead_write(ap)
  * Device ioctl operation.
  */
 /* ARGSUSED */
-int
+static int
 dead_ioctl(ap)
 	struct vop_ioctl_args /* {
 		struct vnode *a_vp;
@@ -240,7 +240,7 @@ dead_ioctl(ap)
 }
 
 /* ARGSUSED */
-int
+static int
 dead_select(ap)
 	struct vop_select_args /* {
 		struct vnode *a_vp;
@@ -260,7 +260,7 @@ dead_select(ap)
 /*
  * Just call the device strategy routine
  */
-int
+static int
 dead_strategy(ap)
 	struct vop_strategy_args /* {
 		struct buf *a_bp;
@@ -278,7 +278,7 @@ dead_strategy(ap)
 /*
  * Wait until the vnode has finished changing state.
  */
-int
+static int
 dead_lock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
@@ -293,7 +293,7 @@ dead_lock(ap)
 /*
  * Wait until the vnode has finished changing state.
  */
-int
+static int
 dead_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
@@ -314,7 +314,7 @@ dead_bmap(ap)
  * Print out the contents of a dead vnode.
  */
 /* ARGSUSED */
-int
+static int
 dead_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -328,7 +328,7 @@ dead_print(ap)
 /*
  * Empty vnode failed operation
  */
-int
+static int
 dead_ebadf()
 {
 
@@ -338,7 +338,7 @@ dead_ebadf()
 /*
  * Empty vnode bad operation
  */
-int
+static int
 dead_badop()
 {
 
