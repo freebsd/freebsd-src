@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.126 1996/10/03 08:54:37 jkh Exp $
+ * $Id: install.c,v 1.127 1996/10/04 13:33:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -596,6 +596,7 @@ installFixup(dialogMenuItem *self)
 	if (file_readable("/kernel.GENERIC")) {
 	    /* Snapshot any boot -c changes back to the GENERIC kernel */
 	    save_userconfig_to_kernel("/kernel.GENERIC");
+	    dialog_clear();
 
 	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
 		msgConfirm("Unable to link /kernel into place!");
@@ -930,27 +931,32 @@ save_userconfig_to_kernel(char *kern)
 	msgDebug("Can't read device information for kernel image %s\n", kern);
 	return;
     }
-    msgDebug("Kernel open, getting core ISA devices\n");
     c_isa = uc_getdev(core, "-isa");
     for (d = 0; d < c_isa->ac; d++) {
-	msgDebug("Outer loop, c_isa->av[%d] = %s\n", d, c_isa->av[d]);
+	if (isDebug())
+	    msgDebug("Outer loop, c_isa->av[%d] = %s\n", d, c_isa->av[d]);
 	if (strcmp(c_isa->av[d], "npx0")) { /* special case npx0, which
 					       mucks with its id_irq member */
 	    c_dev = uc_getdev(core, c_isa->av[d]);
 	    b_dev = uc_getdev(boot, c_isa->av[d]);
 	    for (i = 0; i < c_dev->ac; i++) {
-		msgDebug("Inner loop, c_dev->av[%d] = %s\n", i, c_dev->av[i]);
+		if (isDebug())
+		    msgDebug("Inner loop, c_dev->av[%d] = %s\n", i, c_dev->av[i]);
 		if (strcmp(c_dev->av[i], b_dev->av[i])) {
-		    msgDebug("%s %s changed: %s (boot) -> %s (core)\n",
-			     c_dev->av[0], isa_list[i], b_dev->av[i], c_dev->av[i]);
+		    if (isDebug())
+			msgDebug("%s %s changed: %s (boot) -> %s (core)\n",
+				 c_dev->av[0], isa_list[i], b_dev->av[i], c_dev->av[i]);
 		    isa_setdev(boot, c_dev);
 		}
 	    }
 	}
-	else
-	    msgDebug("skipping npx0\n");
+	else {
+	    if (isDebug())
+		msgDebug("skipping npx0\n");
+	}
     }
-    msgDebug("Closing kernels\n");
+    if (isDebug())
+	msgDebug("Closing kernels\n");
     uc_close(core, 0);
     uc_close(boot, 1);
 }
