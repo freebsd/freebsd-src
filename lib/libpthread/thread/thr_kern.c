@@ -57,6 +57,9 @@
 #define DBG_MSG(x...)
 #endif
 
+static int _kern_idle_running = 0;
+static struct timeval _kern_idle_timeout;
+
 /* Static function prototype definitions: */
 static void
 thread_kern_idle(void);
@@ -239,8 +242,8 @@ _thread_kern_scheduler(struct kse_mailbox *km)
 	while (!TAILQ_EMPTY(&_thread_list)) {
 
 		/* Get the current time of day. */
-		GET_CURRENT_TOD(tv);
-		TIMEVAL_TO_TIMESPEC(&tv, &ts);
+		gettimeofday((struct timeval *) &_sched_tod, NULL);
+		TIMEVAL_TO_TIMESPEC(&_sched_tod, &ts);
 		current_tick = _sched_ticks;
 
 		/*
@@ -256,6 +259,11 @@ _thread_kern_scheduler(struct kse_mailbox *km)
 		while ((tm = p) != NULL) {
 			p = tm->tm_next;
 			tm->tm_next = NULL;
+			if (tm->tm_udata == NULL) {
+				DBG_MSG("\tidle context\n");
+				_kern_idle_running = 0;
+				continue;
+			}
 			DBG_MSG("\tmailbox=%p pthread=%p\n", tm, tm->tm_udata);
 			PTHREAD_PRIOQ_INSERT_TAIL((pthread_t)tm->tm_udata);
 		}
@@ -263,6 +271,37 @@ _thread_kern_scheduler(struct kse_mailbox *km)
 		/* Deliver posted signals. */
 		/* XXX: Not yet. */
 		DBG_MSG("Picking up signals\n");
+
+		if (_spinblock_count != 0) {
+			/*
+			 * Enter a loop to look for threads waiting on
+			 * a spinlock that is now available.
+			 */
+			PTHREAD_WAITQ_SETACTIVE();
+			TAILQ_FOREACH(pthread, &_workq, qe) {
+				if (pthread->state == PS_SPINBLOCK) {
+					/*
+					 * If the lock is available, let the
+					 * thread run.
+					 */
+					if (pthread->data.spinlock->
+					    access_lock == 0) {
+						PTHREAD_WAITQ_CLEARACTIVE();
+						PTHREAD_WORKQ_REMOVE(pthread);
+						PTHREAD_NEW_STATE(pthread,
+						    PS_RUNNING);
+						PTHREAD_WAITQ_SETACTIVE();
+
+						/*
+						 * One less thread in a
+						 * spinblock state:
+						 */
+						_spinblock_count--;
+					}
+				}
+			}
+			PTHREAD_WAITQ_CLEARACTIVE();
+		}
 
 		/* Wake up threads that have timed out.  */
 		DBG_MSG("setactive\n");
@@ -350,24 +389,22 @@ _thread_kern_scheduler(struct kse_mailbox *km)
 			 * yield, or idle until something wakes up.
 			 */
 			DBG_MSG("No runnable threads, idling.\n");
-
-			/*
-			 * kse_release() only returns if we are the
-			 * only thread in this process. If so, then
-			 * we drop into an idle loop.
-			 */
-			/* XXX: kse_release(); */
-			thread_kern_idle();
-
-			/*
-			 * This thread's usage will likely be very small
-			 * while waiting in a poll.  Since the scheduling
-			 * clock is based on the profiling timer, it is
-			 * unlikely that the profiling timer will fire
-			 * and update the time of day.  To account for this,
-			 * get the time of day after polling with a timeout.
-			 */
-			gettimeofday((struct timeval *) &_sched_tod, NULL);
+			if (_kern_idle_running) {
+				DBG_MSG("kse_release");
+				kse_release();
+			}
+			_kern_idle_running = 1;
+			if ((pthread == NULL) ||
+			    (pthread->wakeup_time.tv_sec == -1))
+				/*
+				 * Nothing is waiting on a timeout, so
+				 * idling gains us nothing; spin.
+				 */
+				continue;
+			TIMESPEC_TO_TIMEVAL(&_kern_idle_timeout,
+			    &pthread->wakeup_time);
+			_thread_switch(&_idle_thr_mailbox,
+			    &_thread_kern_kse_mailbox.km_curthread);
 		}
 		DBG_MSG("looping\n");
 	}
@@ -422,97 +459,18 @@ _thread_kern_sched_state_unlock(enum pthread_state state,
 }
 
 /*
- * XXX - What we need to do here is schedule ourselves an idle thread,
- * which does the poll()/nanosleep()/whatever, and then will cause an
- * upcall when it expires. This thread never gets inserted into the
- * run_queue (in fact, there's no need for it to be a thread at all).
- * timeout period has arrived.
+ * Block until the next timeout.
  */
-static void
-thread_kern_idle()
+void
+_thread_kern_idle(void)
 {
-	int             i, found;
-	int		kern_pipe_added = 0;
-	int             nfds = 0;
-	int		timeout_ms = 0;
-	struct pthread	*pthread;
 	struct timespec ts;
-	struct timeval  tv;
+	struct timeval tod, timeout;
 
-	/* Get the current time of day: */
-	GET_CURRENT_TOD(tv);
-	TIMEVAL_TO_TIMESPEC(&tv, &ts);
-
-	pthread = TAILQ_FIRST(&_waitingq);
-
-	if ((pthread == NULL) || (pthread->wakeup_time.tv_sec == -1)) {
-		/*
-		 * Either there are no threads in the waiting queue,
-		 * or there are no threads that can timeout.
-		 *
-		 * XXX: kse_yield() here, maybe?
-		 */
-		PANIC("Would idle forever");
-	}
-	else if (pthread->wakeup_time.tv_sec - ts.tv_sec > 60000)
-		/* Limit maximum timeout to prevent rollover. */
-		timeout_ms = 60000;
-	else {
-		/*
-		 * Calculate the time left for the next thread to
-		 * timeout:
-		 */
-		timeout_ms = ((pthread->wakeup_time.tv_sec - ts.tv_sec) *
-		    1000) + ((pthread->wakeup_time.tv_nsec - ts.tv_nsec) /
-		    1000000);
-		/*
-		 * Only idle if we would be.
-		 */
-		if (timeout_ms <= 0)
-			return;
-	}
-
-	/*
-	 * Check for a thread that became runnable due to a signal:
-	 */
-	if (PTHREAD_PRIOQ_FIRST() != NULL) {
-		/*
-		 * Since there is at least one runnable thread,
-		 * disable the wait.
-		 */
-		timeout_ms = 0;
-	}
-
-	/*
-	 * Idle.
-	 */
-	__sys_poll(NULL, 0, timeout_ms);
-
-	if (_spinblock_count != 0) {
-		/*
-		 * Enter a loop to look for threads waiting on a spinlock
-		 * that is now available.
-		 */
-		PTHREAD_WAITQ_SETACTIVE();
-		TAILQ_FOREACH(pthread, &_workq, qe) {
-			if (pthread->state == PS_SPINBLOCK) {
-				/*
-				 * If the lock is available, let the thread run.
-				 */
-				if (pthread->data.spinlock->access_lock == 0) {
-					PTHREAD_WAITQ_CLEARACTIVE();
-					PTHREAD_WORKQ_REMOVE(pthread);
-					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-					PTHREAD_WAITQ_SETACTIVE();
-
-					/*
-					 * One less thread in a spinblock state:
-					 */
-					_spinblock_count--;
-				}
-			}
-		}
-		PTHREAD_WAITQ_CLEARACTIVE();
+	for (;;) {
+		timersub(&_kern_idle_timeout, &tod, &timeout);
+		TIMEVAL_TO_TIMESPEC(&timeout, &ts);
+		__sys_nanosleep(&ts, NULL);
 	}
 }
 
