@@ -158,6 +158,7 @@ GENSET(setsoftnet,	&ipending,	1 << SWI_NET)
 GENSET(setsoftcamnet,	&ipending,	1 << SWI_CAMNET)
 GENSET(setsoftcambio,	&ipending,	1 << SWI_CAMBIO)
 GENSET(setsoftvm,	&ipending,	1 << SWI_VM)
+GENSET(setsofttq,	&ipending,	1 << SWI_TQ)
 GENSET(setsoftclock,	&ipending,	1 << SWI_CLOCK)
 
 GENSET(schedsofttty,	&idelayed,	1 << SWI_TTY)
@@ -165,6 +166,7 @@ GENSET(schedsoftnet,	&idelayed,	1 << SWI_NET)
 GENSET(schedsoftcamnet,	&idelayed,	1 << SWI_CAMNET)
 GENSET(schedsoftcambio,	&idelayed,	1 << SWI_CAMBIO)
 GENSET(schedsoftvm,	&idelayed,	1 << SWI_VM)
+GENSET(schedsofttq,	&idelayed,	1 << SWI_TQ)
 GENSET(schedsoftclock,	&idelayed,	1 << SWI_CLOCK)
 
 #ifdef INVARIANT_SUPPORT
@@ -227,6 +229,7 @@ GENSPLASSERT(splsoftcamnet, SOFT)	/* XXX no corresponding spl for alpha */
 GENSPLASSERT(splsoftclock, SOFT)
 GENSPLASSERT(splsofttty, SOFT)		/* XXX no corresponding spl for alpha */
 GENSPLASSERT(splsoftvm, SOFT)
+GENSPLASSERT(splsofttq, SOFT)
 GENSPLASSERT(splstatclock, CLOCK)
 GENSPLASSERT(spltty, IO)
 GENSPLASSERT(splvm, IO)

@@ -41,6 +41,7 @@
 #define SWI_CAMBIO	3
 #define SWI_VM		4
 #define SWI_CLOCK	5
+#define SWI_TQ		6
 #define NSWI		32
 #define NHWI		0
 
@@ -75,6 +76,7 @@ static __inline int name(void)				\
 SPLUP(splsoftcam, SOFT)
 SPLUP(splsoftnet, SOFT)
 SPLUP(splsoftvm, SOFT)
+SPLUP(splsofttq, SOFT)
 SPLUP(splnet, IO)
 SPLUP(splbio, IO)
 SPLUP(splcam, IO)
@@ -103,13 +105,13 @@ splx(int s)
 	spl0();
 }
 
-
 extern void setdelayed(void);
 extern void setsofttty(void);
 extern void setsoftnet(void);
 extern void setsoftcamnet(void);
 extern void setsoftcambio(void);
 extern void setsoftvm(void);
+extern void setsofttq(void);
 extern void setsoftclock(void);
 
 extern void schedsofttty(void);
@@ -117,6 +119,7 @@ extern void schedsoftnet(void);
 extern void schedsoftcamnet(void);
 extern void schedsoftcambio(void);
 extern void schedsoftvm(void);
+extern void schedsofttq(void);
 extern void schedsoftclock(void);
 
 #if 0
