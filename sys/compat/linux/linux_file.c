@@ -880,3 +880,14 @@ linux_getcwd(struct proc *p, struct linux_getcwd_args *args)
 	}
 	return (error);
 }
+
+int
+linux_fdatasync(p, uap)
+	struct proc *p;
+	struct linux_fdatasync_args *uap;
+{
+	struct fsync_args bsd;
+
+	bsd.fd = uap->fd;
+	return fsync(p, &bsd);
+}
