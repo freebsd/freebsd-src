@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.95 1997/02/22 09:48:33 peter Exp $
+ * $Id: vm_pageout.c,v 1.96 1997/02/27 15:38:41 bde Exp $
  */
 
 /*
@@ -141,7 +141,9 @@ static int vm_daemon_needed;
 extern int nswiodone;
 extern int vm_swap_size;
 extern int vfs_update_wakeup;
-int vm_pageout_algorithm_lru=0;
+int vm_pageout_stats_max=0, vm_pageout_stats_interval = 0;
+int vm_pageout_full_stats_interval = 0;
+int vm_pageout_stats_free_max=0, vm_pageout_algorithm_lru=0;
 #if defined(NO_SWAPPING)
 int vm_swapping_enabled=0;
 #else
@@ -150,6 +152,18 @@ int vm_swapping_enabled=1;
 
 SYSCTL_INT(_vm, VM_PAGEOUT_ALGORITHM, pageout_algorithm,
 	CTLFLAG_RW, &vm_pageout_algorithm_lru, 0, "");
+
+SYSCTL_INT(_vm, OID_AUTO, pageout_stats_max,
+	CTLFLAG_RW, &vm_pageout_stats_max, 0, "");
+
+SYSCTL_INT(_vm, OID_AUTO, pageout_full_stats_interval,
+	CTLFLAG_RW, &vm_pageout_full_stats_interval, 0, "");
+
+SYSCTL_INT(_vm, OID_AUTO, pageout_stats_interval,
+	CTLFLAG_RW, &vm_pageout_stats_interval, 0, "");
+
+SYSCTL_INT(_vm, OID_AUTO, pageout_stats_free_max,
+	CTLFLAG_RW, &vm_pageout_stats_free_max, 0, "");
 
 #if defined(NO_SWAPPING)
 SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swapping_enabled,
@@ -172,6 +186,7 @@ static void vm_pageout_map_deactivate_pages __P((vm_map_t, vm_pindex_t));
 static freeer_fcn_t vm_pageout_object_deactivate_pages;
 static void vm_req_vmdaemon __P((void));
 #endif
+static void vm_pageout_page_stats(void);
 
 /*
  * vm_pageout_clean:
@@ -918,6 +933,84 @@ rescan0:
 	return force_wakeup;
 }
 
+/*
+ * This routine tries to maintain the pseudo LRU active queue,
+ * so that during long periods of time where there is no paging,
+ * that some statistic accumlation still occurs.  This code
+ * helps the situation where paging just starts to occur.
+ */
+static void
+vm_pageout_page_stats()
+{
+	int s;
+	vm_page_t m,next;
+	int pcount,tpcount;		/* Number of pages to check */
+	static int fullintervalcount = 0;
+
+	pcount = cnt.v_active_count;
+	fullintervalcount += vm_pageout_stats_interval;
+	if (fullintervalcount < vm_pageout_full_stats_interval) {
+		tpcount = (vm_pageout_stats_max * cnt.v_active_count) / cnt.v_page_count;
+		if (pcount > tpcount)
+			pcount = tpcount;
+	}
+
+	m = TAILQ_FIRST(&vm_page_queue_active);
+	while ((m != NULL) && (pcount-- > 0)) {
+		int refcount;
+
+		if (m->queue != PQ_ACTIVE) {
+			break;
+		}
+
+		next = TAILQ_NEXT(m, pageq);
+		/*
+		 * Don't deactivate pages that are busy.
+		 */
+		if ((m->busy != 0) ||
+		    (m->flags & PG_BUSY) ||
+		    (m->hold_count != 0)) {
+			s = splvm();
+			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			splx(s);
+			m = next;
+			continue;
+		}
+
+		refcount = 0;
+		if (m->flags & PG_REFERENCED) {
+			m->flags &= ~PG_REFERENCED;
+			refcount += 1;
+		}
+
+		refcount += pmap_ts_referenced(VM_PAGE_TO_PHYS(m));
+		if (refcount) {
+			m->act_count += ACT_ADVANCE + refcount;
+			if (m->act_count > ACT_MAX)
+				m->act_count = ACT_MAX;
+			s = splvm();
+			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			splx(s);
+		} else {
+			if (m->act_count == 0) {
+				vm_page_protect(m, VM_PROT_NONE);
+				vm_page_deactivate(m);
+			} else {
+				m->act_count -= min(m->act_count, ACT_DECLINE);
+				s = splvm();
+				TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+				splx(s);
+			}
+		}
+
+		m = next;
+	}
+}
+	
+
 static int
 vm_pageout_free_page_calc(count)
 vm_size_t count;
@@ -940,16 +1033,6 @@ vm_size_t count;
 	return 1;
 }
 
-
-#ifdef unused
-int
-vm_pageout_free_pages(object, add)
-vm_object_t object;
-int add;
-{
-	return vm_pageout_free_page_calc(object->size);
-}
-#endif
 
 /*
  *	vm_pageout is the high level pageout daemon.
@@ -986,6 +1069,24 @@ vm_pageout()
 	if (vm_page_max_wired == 0)
 		vm_page_max_wired = cnt.v_free_count / 3;
 
+	if (vm_pageout_stats_max == 0)
+		vm_pageout_stats_max = cnt.v_free_target;
+
+	/*
+	 * Set interval in seconds for stats scan.
+	 */
+	if (vm_pageout_stats_interval == 0)
+		vm_pageout_stats_interval = 4;
+	if (vm_pageout_full_stats_interval == 0)
+		vm_pageout_full_stats_interval = vm_pageout_stats_interval * 4;
+	
+
+	/*
+	 * Set maximum free per pass
+	 */
+	if (vm_pageout_stats_free_max == 0)
+		vm_pageout_stats_free_max = 25;
+
 
 	swap_pager_swap_init();
 	/*
@@ -993,12 +1094,19 @@ vm_pageout()
 	 */
 	while (TRUE) {
 		int inactive_target;
+		int error;
 		int s = splvm();
 		if (!vm_pages_needed ||
 			((cnt.v_free_count + cnt.v_cache_count) > cnt.v_free_min)) {
 			vm_pages_needed = 0;
-			tsleep(&vm_pages_needed, PVM, "psleep", 0);
-		} else if (!vm_pages_needed) {
+			error = tsleep(&vm_pages_needed,
+				PVM, "psleep", vm_pageout_stats_interval * hz);
+			if (error && !vm_pages_needed) {
+				splx(s);
+				vm_pageout_page_stats();
+				continue;
+			}
+		} else if (vm_pages_needed) {
 			tsleep(&vm_pages_needed, PVM, "psleep", hz/10);
 		}
 		inactive_target =
