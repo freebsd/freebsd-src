@@ -64,6 +64,7 @@ static int ar_promise_read_conf(struct ad_softc *, struct ar_softc **, int);
 static int ar_promise_write_conf(struct ar_softc *);
 static int ar_rw(struct ad_softc *, u_int32_t, int, caddr_t, int);
 static struct ata_device *ar_locate_disk(int);
+static void ar_print_conf(struct ar_softc *);
 
 /* internal vars */
 static struct ar_softc **ar_table = NULL;
@@ -155,6 +156,8 @@ ata_raid_attach()
     for (array = 0; array < MAX_ARRAYS; array++) {
 	if (!(rdp = ar_table[array]) || !rdp->flags)
 	    continue;
+	if (bootverbose)
+	    ar_print_conf(rdp);
 	ar_attach_raid(rdp, 0);
     }
 }
@@ -493,11 +496,17 @@ arstrategy(struct bio *bp)
 	case AR_F_RAID0 | AR_F_RAID1:
 	    tmplba = blkno / rdp->interleave;
 	    chunk = blkno % rdp->interleave;
-	    if (tmplba == rdp->total_sectors / rdp->interleave) {
-		lbs = (rdp->total_sectors-(tmplba*rdp->interleave))/rdp->width;
-		drv = chunk / lbs;
-		lba = ((tmplba/rdp->width)*rdp->interleave) + chunk%lbs;
-		chunk = min(count, lbs);
+	    if (blkno >= (rdp->total_sectors / (rdp->interleave * rdp->width)) *
+			 (rdp->interleave * rdp->width) ) {
+                lbs = (rdp->total_sectors - 
+		    ((rdp->total_sectors / (rdp->interleave * rdp->width)) *
+		     (rdp->interleave * rdp->width))) / rdp->width;
+                drv = (blkno - 
+		    ((rdp->total_sectors / (rdp->interleave * rdp->width)) *
+		     (rdp->interleave * rdp->width))) / lbs;
+                lba = ((tmplba / rdp->width) * rdp->interleave) +
+                      (blkno - ((tmplba / rdp->width) * rdp->interleave)) % lbs;
+                chunk = min(count, lbs);
 	    }
 	    else {
 		drv = tmplba % rdp->width;
@@ -1430,4 +1439,32 @@ ar_locate_disk(int diskno)
 		return &ch->device[SLAVE];
     }
     return NULL;
+}
+
+static void
+ar_print_conf(struct ar_softc *config)
+{
+    int i;
+
+    printf("lun		%d\n", config->lun);
+    printf("magic_0		0x%08x\n", config->magic_0);
+    printf("magic_1		0x%08x\n", config->magic_1);
+    printf("flags		0x%02x %b\n", config->flags, config->flags,
+	"\20\16HIGHPOINT\15PROMISE\13REBUILDING\12DEGRADED\11READY\3SPAN\2RAID1\1RAID0\n");
+    printf("total_disks	%d\n", config->total_disks);
+    printf("generation	%d\n", config->generation);
+    printf("width		%d\n", config->width);
+    printf("heads		%d\n", config->heads);
+    printf("sectors		%d\n", config->sectors);
+    printf("cylinders	%d\n", config->cylinders);
+    printf("total_sectors	%lld\n", config->total_sectors);
+    printf("interleave	%d\n", config->interleave);
+    printf("reserved	%d\n", config->reserved);
+    printf("offset		%d\n", config->offset);
+    for (i = 0; i < config->total_disks; i++) {
+	printf("disk %d:	flags = 0x%02x %b\n", i, config->disks[i].flags, config->disks[i].flags, "\20\4ONLINE\3SPARE\2ASSIGNED\1PRESENT\n");
+	if (config->disks[i].device)
+	    printf("	%s\n", config->disks[i].device->name);
+	printf("	sectors	%lld\n", config->disks[i].disk_sectors);
+    }
 }
