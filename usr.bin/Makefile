@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.111 1998/09/16 09:32:29 dfr Exp $
+#	$Id: Makefile,v 1.112 1998/09/24 01:15:56 luoqi Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -17,6 +17,7 @@ SUBDIR=	apply \
 	chat \
 	checknr \
 	chflags \
+	chkey \
 	chpass \
 	cksum \
 	cmp \
@@ -28,7 +29,6 @@ SUBDIR=	apply \
 	comm \
 	compile_et \
 	compress \
-	chkey \
 	cpp \
 	ctags \
 	cut \
@@ -74,8 +74,8 @@ SUBDIR=	apply \
 	lam \
 	last \
 	lastcomm \
-	leave \
 	ldd \
+	leave \
 	lex \
 	limits \
 	locate \
@@ -91,12 +91,13 @@ SUBDIR=	apply \
 	mail \
 	make \
 	mesg \
+	minigzip \
+	mk_cmds \
 	mkdep \
 	mkfifo \
 	mklocale \
 	mkstr \
 	mktemp \
-	mk_cmds \
 	more \
 	msgs \
 	ncal \
@@ -187,10 +188,10 @@ SUBDIR=	apply \
 	ypcat \
 	ypmatch \
 	ypwhich
-SUBDIR+=minigzip
 
-.if defined(RELEASEDIR) || !exists(${.CURDIR}/../kerberosIV) || defined(NOCRYPT) || !defined(MAKE_KERBEROS4)
-# releases do need both
+.if defined(RELEASEDIR) || !exists(${.CURDIR}/../kerberosIV) || \
+    defined(NOCRYPT) || !defined(MAKE_KERBEROS4)
+# Releases need both this non-crypt telnet and the crypt telnet.
 SUBDIR+=telnet
 .endif
 
@@ -200,6 +201,7 @@ SUBDIR+=ar \
 	brandelf \
 	dig \
 	dnsquery \
+	doscmd \
 	fstat \
 	gcore \
 	gprof \
@@ -215,8 +217,7 @@ SUBDIR+=ar \
 	strip \
 	systat \
 	truss \
-	vmstat \
-	doscmd
+	vmstat
 .endif
 
 .include <bsd.subdir.mk>
