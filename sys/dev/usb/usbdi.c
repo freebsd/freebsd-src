@@ -265,15 +265,16 @@ usbd_setup_request(reqh, pipe, priv, buffer, length, flags, timeout, callback)
 			      usbd_status));
 {
 	reqh->pipe = pipe;
-	reqh->isreq = 0;
 	reqh->priv = priv;
 	reqh->buffer = buffer;
 	reqh->length = length;
 	reqh->actlen = 0;
 	reqh->flags = flags;
-	reqh->callback = callback;
+	reqh->timeout = timeout;
 	reqh->status = USBD_NOT_STARTED;
+	reqh->callback = callback;
 	reqh->retries = 1;
+	reqh->isreq = 0;
 	return (USBD_NORMAL_COMPLETION);
 }
 
@@ -312,8 +313,8 @@ usbd_setup_default_request(reqh, dev, priv, timeout, req, buffer,
 	reqh->status = USBD_NOT_STARTED;
 	reqh->callback = callback;
 	reqh->request = *req;
-	reqh->isreq = 1;
 	reqh->retries = 1;
+	reqh->isreq = 1;
 	return (USBD_NORMAL_COMPLETION);
 }
 
