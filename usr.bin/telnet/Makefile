@@ -30,7 +30,7 @@ SRCS+=		genget.c getent.c misc.c
 CFLAGS+=	-DHAS_CGETENT
 .endif
 
-.if !defined(NO_CRYPTO)
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SRCS+=		authenc.c 
 CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DIPSEC
 DPADD+=		${LIBMP} ${LIBCRYPTO} ${LIBCRYPT} ${LIBIPSEC} ${LIBPAM}
