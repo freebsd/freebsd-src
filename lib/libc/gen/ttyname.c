@@ -117,7 +117,7 @@ __ttyname_basic(int fd)
 
 	pthread_mutex_lock(&ttyname_lock);
 	if (ttyname_init == 0) {
-		if (pthread_keycreate(&ttyname_key, free)) {
+		if (pthread_key_create(&ttyname_key, free)) {
 			pthread_mutex_unlock(&ttyname_lock);
 			return (NULL);
 		}
