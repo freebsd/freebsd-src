@@ -148,7 +148,7 @@ dumpitems(report_desc_t r)
 	}
 	hid_end_parse(d);
 	size = hid_report_size(r, 0, hid_input);
-	printf("Total   input size %s%d bytes\n", size);
+	printf("Total   input size %d bytes\n", size);
 
 	size = hid_report_size(r, 0, hid_output);
 	printf("Total  output size %d bytes\n", size);
