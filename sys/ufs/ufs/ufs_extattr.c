@@ -38,7 +38,7 @@
  */
 /*
  * Developed by the TrustedBSD Project.
- * Support for file system extended attribute: UFS-specific support functions.
+ * Support for filesystem extended attribute: UFS-specific support functions.
  */
 
 #include "opt_ufs.h"
@@ -318,7 +318,7 @@ ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
 #endif /* !UFS_EXTATTR_AUTOSTART */
 
 /*
- * Enable an EA using the passed file system, backing vnode, attribute name,
+ * Enable an EA using the passed filesystem, backing vnode, attribute name,
  * namespace, and proc.  Will perform a VOP_OPEN() on the vp, so expects vp
  * to be locked when passed in.  The vnode will be returned unlocked,
  * regardless of success/failure of the function.  As a result, the caller
@@ -469,7 +469,7 @@ ufs_extattr_autostart(struct mount *mp, struct thread *td)
 	int error;
 
 	/*
-	 * Does UFS_EXTATTR_FSROOTSUBDIR exist off the file system root?
+	 * Does UFS_EXTATTR_FSROOTSUBDIR exist off the filesystem root?
 	 * If so, automatically start EA's.
 	 */
 	error = VFS_ROOT(mp, &rvp);
@@ -581,7 +581,7 @@ unlock:
 }
 
 /*
- * Enable a named attribute on the specified file system; provide an
+ * Enable a named attribute on the specified filesystem; provide an
  * unlocked backing vnode to hold the attribute data.
  */
 static int

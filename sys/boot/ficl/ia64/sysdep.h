@@ -185,7 +185,7 @@ typedef struct
 /*
 ** FICL_WANT_FILE
 ** Includes the FILE and FILE-EXT wordset and associated code. Turn this off if you do not
-** have a file system!
+** have a filesystem!
 ** Contributed by Larry Hastings
 */
 #if !defined (FICL_WANT_FILE)

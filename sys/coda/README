@@ -1,12 +1,14 @@
+$FreeBSD$
+
                 Announcing the Availability of the
                         Coda Distributed
                            Filesystem
                               for
                          BSD Unix Systems
 
-        Coda is a distributed file system like NFS and AFS.  It is
+        Coda is a distributed filesystem like NFS and AFS.  It is
 freely available, like NFS.  But it functions much like AFS in being a
-"stateful" file system.  Coda and AFS cache files on your local
+"stateful" filesystem.  Coda and AFS cache files on your local
 machine to improve performance.  But Coda goes a step further than AFS
 by letting you access the cached files when there is no available
 network, viz. disconnected laptops and network outages.  In Coda, both
@@ -25,12 +27,12 @@ progress and does have bugs.  It is, though, very usable.  Our
 interest is in making Coda available to as many people as possible and
 to have Coda evolve and flourish.
 
-The bulk of the Coda file system code supports the Coda client
+The bulk of the Coda filesystem code supports the Coda client
 program, the Coda server program and the utilities needed by both.
 All these programs are unix programs and can run equally well on any
 Unix platform.  Our main development thrust is improving these
 programs.  There is a small part of Coda that deals with the kernel to
-file system interface.  This code is OS specific (but should not be
+filesystem interface.  This code is OS specific (but should not be
 platform specific).
 
 Coda is currently available for several OS's and platforms:

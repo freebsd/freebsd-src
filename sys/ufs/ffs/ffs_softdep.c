@@ -1103,7 +1103,7 @@ top:
 
 /*
  * Executed during filesystem system initialization before
- * mounting any file systems.
+ * mounting any filesystems.
  */
 void 
 softdep_initialize()
@@ -1179,7 +1179,7 @@ softdep_mount(devvp, mp, fs, cred)
 /*
  * Protecting the freemaps (or bitmaps).
  * 
- * To eliminate the need to execute fsck before mounting a file system
+ * To eliminate the need to execute fsck before mounting a filesystem
  * after a power failure, one must (conservatively) guarantee that the
  * on-disk copy of the bitmaps never indicate that a live inode or block is
  * free.  So, when a block or inode is allocated, the bitmap should be
@@ -1194,7 +1194,7 @@ softdep_mount(devvp, mp, fs, cred)
  * that any additional link additions can be made dependent on the inode
  * allocation.
  * 
- * The ufs file system maintains a number of free block counts (e.g., per
+ * The ufs filesystem maintains a number of free block counts (e.g., per
  * cylinder group, per cylinder and per <cylinder, rotational position> pair)
  * in addition to the bitmaps.  These counts are used to improve efficiency
  * during allocation and therefore must be consistent with the bitmaps.
@@ -2432,7 +2432,7 @@ free_allocindir(aip, inodedep)
  * simply of the inode number.
  * 
  * As directory entries are added and deleted, the free space within a
- * directory block can become fragmented.  The ufs file system will compact
+ * directory block can become fragmented.  The ufs filesystem will compact
  * a fragmented directory block to make space for a new entry. When this
  * occurs, the offsets of previously added entries change. Any "diradd"
  * dependency structures corresponding to these entries must be updated with
@@ -3455,7 +3455,7 @@ initiate_write_inodeblock(inodedep, bp)
 /*
  * This routine is called during the completion interrupt
  * service routine for a disk write (from the procedure called
- * by the device driver to inform the file system caches of
+ * by the device driver to inform the filesystem caches of
  * a request completion).  It should be called early in this
  * procedure, before the block is made available to other
  * processes or other routines are called.
@@ -4007,7 +4007,7 @@ handle_written_filepage(pagedep, bp)
 /*
  * Writing back in-core inode structures.
  * 
- * The file system only accesses an inode's contents when it occupies an
+ * The filesystem only accesses an inode's contents when it occupies an
  * "in-core" inode structure.  These "in-core" structures are separate from
  * the page frames used to cache inode blocks.  Only the latter are
  * transferred to/from the disk.  So, when the updated contents of the

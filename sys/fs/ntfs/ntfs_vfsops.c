@@ -114,7 +114,7 @@ ntfs_mount (
 	if( path == NULL) {
 		/*
 		 ***
-		 * Mounting root file system
+		 * Mounting root filesystem
 		 ***
 		 */
 	
@@ -141,7 +141,7 @@ ntfs_mount (
 
 	/*
 	 ***
-	 * Mounting non-root file system or updating a file system
+	 * Mounting non-root filesystem or updating a filesystem
 	 ***
 	 */
 

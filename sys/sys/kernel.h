@@ -134,7 +134,7 @@ enum sysinit_sub_id {
 	SI_SUB_INIT_IF		= 0x3000000,	/* prep for net interfaces */
 	SI_SUB_DRIVERS		= 0x3100000,	/* Let Drivers initialize */
 	SI_SUB_CONFIGURE	= 0x3800000,	/* Configure devices */
-	SI_SUB_VFS		= 0x4000000,	/* virtual file system*/
+	SI_SUB_VFS		= 0x4000000,	/* virtual filesystem*/
 	SI_SUB_CLOCKS		= 0x4800000,	/* real time and stat clocks*/
 	SI_SUB_CLIST		= 0x5800000,	/* clists*/
 	SI_SUB_SYSV_SHM		= 0x6400000,	/* System V shared memory*/

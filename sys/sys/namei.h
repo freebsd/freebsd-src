@@ -142,7 +142,7 @@ struct nameidata {
 #define	DOWHITEOUT	0x040000 /* do whiteouts */
 #define	WILLBEDIR	0x080000 /* new files will be dirs; allow trailing / */
 #define	ISUNICODE	0x100000 /* current component name is unicode*/
-#define	PDIRUNLOCK	0x200000 /* file system lookup() unlocked parent dir */
+#define	PDIRUNLOCK	0x200000 /* filesystem lookup() unlocked parent dir */
 #define	NOCROSSMOUNT	0x400000 /* do not cross mount points */
 #define	PARAMASK	0x3ffe00 /* mask of parameter descriptors */
 

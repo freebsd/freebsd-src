@@ -341,9 +341,9 @@ ufs_access(ap)
 #endif
 
 	/*
-	 * Disallow write attempts on read-only file systems;
+	 * Disallow write attempts on read-only filesystems;
 	 * unless the file is a socket, fifo, or a block or
-	 * character device resident on the file system.
+	 * character device resident on the filesystem.
 	 */
 	if (mode & VWRITE) {
 		switch (vp->v_type) {
@@ -523,9 +523,9 @@ ufs_setattr(ap)
 	}
 	if (vap->va_size != VNOVAL) {
 		/*
-		 * Disallow write attempts on read-only file systems;
+		 * Disallow write attempts on read-only filesystems;
 		 * unless the file is a socket, fifo, or a block or
-		 * character device resident on the file system.
+		 * character device resident on the filesystem.
 		 */
 		switch (vp->v_type) {
 		case VDIR:

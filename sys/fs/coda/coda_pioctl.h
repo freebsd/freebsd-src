@@ -41,7 +41,7 @@
  */
 
 /*
- * ITC Remote file system - vice ioctl interface module
+ * ITC Remote filesystem - vice ioctl interface module
  */
 
 /*

@@ -45,7 +45,7 @@
  * instance of a UNIX internal protocol.
  *
  * A socket may be associated with an vnode in the
- * file system.  If so, the unp_vnode pointer holds
+ * filesystem.  If so, the unp_vnode pointer holds
  * a reference count to this vnode, which should be irele'd
  * when the socket goes away.
  *

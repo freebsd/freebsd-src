@@ -344,7 +344,7 @@ lomacfs_cachedlookup(
 
 		/*
 		 * Check to see if the vnode has been mounted on;
-		 * if so find the root of the mounted file system.
+		 * if so find the root of the mounted filesystem.
 		 */
 		if (lvp->v_type == VDIR && (mp = lvp->v_mountedhere) &&
 		    (cnp->cn_flags & NOCROSSMOUNT) == 0) {

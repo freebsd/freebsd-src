@@ -43,7 +43,7 @@
 #define _UFS_UFS_DINODE_H_
 
 /*
- * The root inode is the root of the file system.  Inode 0 can't be used for
+ * The root inode is the root of the filesystem.  Inode 0 can't be used for
  * normal purposes and historically bad blocks were linked to inode 1, thus
  * the root inode is 2.  (Inode 1 is no longer used for this purpose, however
  * numerous dump tapes make this assumption, so we are stuck with it).

@@ -56,7 +56,7 @@
 /*
  * Convert a component of a pathname into a pointer to a locked inode.
  * This is a very central and rather complicated routine.
- * If the file system is not maintained in a strict tree hierarchy,
+ * If the filesystem is not maintained in a strict tree hierarchy,
  * this can result in a deadlock situation (see comments in code below).
  *
  * The flag argument is LOOKUP, CREATE, RENAME, or DELETE depending on
@@ -95,7 +95,7 @@ cd9660_lookup(ap)
 {
 	register struct vnode *vdp;	/* vnode for directory being searched */
 	register struct iso_node *dp;	/* inode for directory being searched */
-	register struct iso_mnt *imp;	/* file system that directory is in */
+	register struct iso_mnt *imp;	/* filesystem that directory is in */
 	struct buf *bp;			/* a buffer of directory entries */
 	struct iso_directory_record *ep = 0;/* the current directory entry */
 	int entryoffsetinblock;		/* offset of ep in bp's buffer */
@@ -342,7 +342,7 @@ found:
 	 * infrequently since we cannot avoid this race condition without
 	 * implementing a sophisticated deadlock detection algorithm.
 	 * Note also that this simple deadlock detection scheme will not
-	 * work if the file system has any hard links other than ".."
+	 * work if the filesystem has any hard links other than ".."
 	 * that point backwards in the directory structure.
 	 */
 	pdp = vdp;

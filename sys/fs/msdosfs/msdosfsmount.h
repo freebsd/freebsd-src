@@ -58,7 +58,7 @@ MALLOC_DECLARE(M_MSDOSFSMNT);
 #endif
 
 /*
- * Layout of the mount control block for a msdos file system.
+ * Layout of the mount control block for a msdos filesystem.
  */
 struct msdosfsmount {
 	struct mount *pm_mountp;/* vfs mount struct for this fs */

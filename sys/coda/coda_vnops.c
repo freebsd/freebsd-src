@@ -40,7 +40,7 @@
  */
 
 /*
- * This code was written for the Coda file system at Carnegie Mellon
+ * This code was written for the Coda filesystem at Carnegie Mellon
  * University.  Contributers include David Steere, James Kistler, and
  * M. Satyanarayanan.  
  */
@@ -950,7 +950,7 @@ coda_inactive(v)
 }
 
 /*
- * Remote file system operations having to do with directory manipulation.
+ * Remote filesystem operations having to do with directory manipulation.
  */
 
 /* 
@@ -1681,7 +1681,7 @@ printf("coda_readdir: Internally Opening %p\n", vp);
 }
 
 /*
- * Convert from file system blocks to device blocks
+ * Convert from filesystem blocks to device blocks
  */
 int
 coda_bmap(v)

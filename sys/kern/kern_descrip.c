@@ -1402,7 +1402,7 @@ fdfree(td)
  *
  * This is a gross hack to plug the hole.  A better solution would involve
  * a special vop or other form of generalized access control mechanism.  We
- * go ahead and just reject all procfs file systems accesses as dangerous.
+ * go ahead and just reject all procfs filesystems accesses as dangerous.
  *
  * Since setugidsafety calls this only for fd 0, 1 and 2, this check is
  * sufficient.  We also don't for check setugidness since we know we are.

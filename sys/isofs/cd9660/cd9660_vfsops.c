@@ -587,7 +587,7 @@ cd9660_root(mp, vpp)
 }
 
 /*
- * Get file system statistics.
+ * Get filesystem statistics.
  */
 int
 cd9660_statfs(mp, sbp, td)

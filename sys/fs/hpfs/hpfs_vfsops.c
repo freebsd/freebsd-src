@@ -104,7 +104,7 @@ hpfs_mount (
 	dprintf(("hpfs_mount():\n"));
 	/*
 	 ***
-	 * Mounting non-root file system or updating a file system
+	 * Mounting non-root filesystem or updating a filesystem
 	 ***
 	 */
 

@@ -81,7 +81,7 @@ SYSCTL_INT(_debug, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
 /*
  * Convert a component of a pathname into a pointer to a locked inode.
  * This is a very central and rather complicated routine.
- * If the file system is not maintained in a strict tree hierarchy,
+ * If the filesystem is not maintained in a strict tree hierarchy,
  * this can result in a deadlock situation (see comments in code below).
  *
  * The cnp->cn_nameiop argument is LOOKUP, CREATE, RENAME, or DELETE depending
@@ -574,7 +574,7 @@ found:
 	 * infrequently since we cannot avoid this race condition without
 	 * implementing a sophisticated deadlock detection algorithm.
 	 * Note also that this simple deadlock detection scheme will not
-	 * work if the file system has any hard links other than ".."
+	 * work if the filesystem has any hard links other than ".."
 	 * that point backwards in the directory structure.
 	 */
 	pdp = vdp;
