@@ -110,6 +110,7 @@ int		 fetchStat(struct url *, struct url_stat *, char *);
 struct url_ent	*fetchList(struct url *, char *);
 
 /* URL parsing */
+struct url	*fetchMakeURL(char *, char *, int, char *, char *, char *);
 struct url	*fetchParseURL(char *);
 void		 fetchFreeURL(struct url *);
 

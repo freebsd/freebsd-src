@@ -237,6 +237,48 @@ fetchListURL(char *URL, char *flags)
 }
 
 /*
+ * Make a URL
+ */
+struct url *
+fetchMakeURL(char *scheme, char *host, int port, char *doc,
+    char *user, char *pwd)
+{
+    struct url *u;
+
+    if (!scheme || (!host && !doc)) {
+	_url_seterr(URL_MALFORMED);
+	return NULL;
+    }
+	
+    if (port < 0 || port > 65535) {
+	_url_seterr(URL_BAD_PORT);
+	return NULL;
+    }
+    
+    /* allocate struct url */
+    if ((u = calloc(1, sizeof *u)) == NULL) {
+	_fetch_syserr();
+	return NULL;
+    }
+
+    if ((u->doc = strdup(doc ? doc : "/")) == NULL) {
+	_fetch_syserr();
+	free(u);
+	return NULL;
+    }
+    
+#define seturl(x) snprintf(u->x, sizeof u->x, "%s", x)
+    seturl(scheme);
+    seturl(host);
+    seturl(user);
+    seturl(pwd);
+#undef seturl
+    u->port = port;
+
+    return u;
+}
+
+/*
  * Split an URL into components. URL syntax is:
  * method:[//[user[:pwd]@]host[:port]]/[document]
  * This almost, but not quite, RFC1738 URL syntax.
@@ -250,7 +292,6 @@ fetchParseURL(char *URL)
 
     /* allocate struct url */
     if ((u = calloc(1, sizeof *u)) == NULL) {
-	errno = ENOMEM;
 	_fetch_syserr();
 	return NULL;
     }
@@ -320,7 +361,6 @@ nohost:
 	p = "/";
     
     if ((u->doc = strdup(p)) == NULL) {
-	errno = ENOMEM;
 	_fetch_syserr();
 	goto ouch;
     }
