@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.110 2004/02/10 02:01:14 dtucker Exp $ */
+/* $Id: defines.h,v 1.115 2004/04/14 07:24:30 dtucker Exp $ */
 
 
 /* Constants */
@@ -507,6 +507,10 @@ struct winsize {
 # undef HAVE_GAI_STRERROR
 #endif
 
+#if defined(BROKEN_UPDWTMPX) && defined(HAVE_UPDWTMPX)
+# undef HAVE_UPDWTMPX
+#endif
+
 #if !defined(HAVE_MEMMOVE) && defined(HAVE_BCOPY)
 # define memmove(s1, s2, n) bcopy((s2), (s1), (n))
 #endif /* !defined(HAVE_MEMMOVE) && defined(HAVE_BCOPY) */
@@ -532,6 +536,12 @@ struct winsize {
 
 #if defined(KRB5) && !defined(HEIMDAL)
 #  define krb5_get_err_text(context,code) error_message(code)
+#endif
+
+#if defined(SKEYCHALLENGE_4ARG)
+# define _compat_skeychallenge(a,b,c,d) skeychallenge(a,b,c,d)
+#else
+# define _compat_skeychallenge(a,b,c,d) skeychallenge(a,b,c)
 #endif
 
 /* Maximum number of file descriptors available */
@@ -611,9 +621,20 @@ struct winsize {
 
 #endif
 
+#ifndef UT_LINESIZE
+# define UT_LINESIZE 8
+#endif
+
 /* I hope that the presence of LASTLOG_FILE is enough to detect this */
 #if defined(LASTLOG_FILE) && !defined(DISABLE_LASTLOG)
 #  define USE_LASTLOG
+#endif
+
+#ifdef HAVE_OSF_SIA
+# ifdef USE_SHADOW
+#  undef USE_SHADOW
+# endif
+# define CUSTOM_SYS_AUTH_PASSWD 1
 #endif
 
 /** end of login recorder definitions */

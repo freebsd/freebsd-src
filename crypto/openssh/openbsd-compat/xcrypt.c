@@ -24,8 +24,6 @@
 
 #include "includes.h"
 
-#if !defined(HAVE_OSF_SIA)
-
 # ifdef HAVE_CRYPT_H
 #  include <crypt.h>
 # endif
@@ -108,5 +106,3 @@ shadow_pw(struct passwd *pw)
 
 	return pw_password;
 }
-
-#endif /* !defined(HAVE_OSF_SIA) */
