@@ -804,6 +804,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	break;
     case KBDIO_UNLOADING:
 	kbd = NULL;
+	keyboard = -1;
 	kbd_release(thiskbd, (void *)&keyboard);
 	return 0;
     default:
@@ -1922,6 +1923,7 @@ sccnputc(dev_t dev, int c)
     u_char buf[1];
     scr_stat *scp = console[0];
     term_stat save = scp->term;
+    struct tty *tp;
     u_short *p;
     int s;
     int i;
@@ -1945,7 +1947,9 @@ sccnputc(dev_t dev, int c)
 	    mark_all(cur_console);
 	}
 #if 1 /* XXX */
-	scstart(VIRTUAL_TTY(get_scr_num()));
+	tp = VIRTUAL_TTY(get_scr_num());
+	if (tp->t_state & TS_ISOPEN)
+	    scstart(tp);
 #endif
     }
 
@@ -3491,6 +3495,7 @@ history_down_line(scr_stat *scp)
 static u_int
 scgetc(keyboard_t *kbd, u_int flags)
 {
+    struct tty *tp;
     u_int c;
     int this_scr;
     int f;
@@ -3644,7 +3649,9 @@ next_code:
 			    cur_console->status |= CURSOR_ENABLED;
 			    mark_all(cur_console);
 			}
-			scstart(VIRTUAL_TTY(get_scr_num()));
+			tp = VIRTUAL_TTY(get_scr_num());
+			if (tp->t_state & TS_ISOPEN)
+			    scstart(tp);
 		    }
 		}
 		break;
