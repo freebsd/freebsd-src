@@ -7,6 +7,7 @@ BINOWN=	root
 BINGRP=	daemon
 BINMODE=6555
 BINDIR=	/usr/bin
+MAN1=	lpr.1
 .PATH:	${.CURDIR}/../common_source
 
 .include <bsd.prog.mk>

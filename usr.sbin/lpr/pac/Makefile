@@ -2,7 +2,7 @@
 
 PROG=	pac
 CFLAGS+=-I${.CURDIR}/../common_source
-MAN8=	pac.0
+MAN8=	pac.8
 SRCS=	pac.c common.c
 .PATH:	${.CURDIR}/../common_source
 
