@@ -71,11 +71,11 @@ int	pfil_remove_hook __P((int (*func) __P((void *, int,
 #include "opt_ipfilter.h"
 #endif
 
-#if NIPFILTER > 0
+#if IPFILTER > 0
 #ifdef PFIL_HOOKS
 #undef PFIL_HOOKS
 #endif
 #define PFIL_HOOKS
-#endif /* NIPFILTER */
+#endif /* IPFILTER */
 
 #endif /* _NET_PFIL_H_ */
