@@ -743,7 +743,7 @@ bsde_add_rule(int *rulenum, struct mac_bsdextended_rule *rule, size_t buflen,
 	}
 
 	if (rulenum != NULL)
-		rule_slots;
+		*rulenum = rule_slots;
 
 	return (0);
 }
