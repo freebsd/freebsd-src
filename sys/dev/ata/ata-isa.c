@@ -28,6 +28,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ata.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -105,8 +107,7 @@ DRIVER_MODULE(ata, isa, ata_isa_driver, ata_devclass, 0, 0);
  * the following is a bandaid to get ISA only setups to link,
  * since these are getting rare the ugliness is kept here
  */
-#include "pci.h"
-#if NPCI == 0
+#ifdef ATA_NOPCI
 int
 ata_dmaalloc(struct ata_device *atadev)
 {
@@ -134,9 +135,10 @@ ata_dmasetup(struct ata_device *atadev, caddr_t data, int32_t count)
     return -1;
 }
 
-void
+int
 ata_dmastart(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
 {
+    return -1;
 }
 
 int
