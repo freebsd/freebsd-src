@@ -41,15 +41,6 @@
 .Nm devstat_buildmatch ,
 .Nm devstat_compute_statistics ,
 .Nm devstat_compute_etime ,
-.Nm getnumdevs ,
-.Nm getgeneration ,
-.Nm getversion ,
-.Nm checkversion ,
-.Nm getdevs ,
-.Nm selectdevs ,
-.Nm buildmatch ,
-.Nm compute_stats ,
-.Nm compute_etime
 .Nd device statistics utility library
 .Sh LIBRARY
 .Lb libdevstat
@@ -108,60 +99,8 @@
 .Fc
 .Ft long double
 .Fo devstat_compute_etime
-.Fa "struct timeval cur_time"
-.Fa "struct timeval prev_time"
-.Fc
-.Ft int
-.Fn getnumdevs "void"
-.Ft long
-.Fn getgeneration "void"
-.Ft int
-.Fn getversion "void"
-.Ft int
-.Fn checkversion "void"
-.Ft int
-.Fn getdevs "struct statinfo *stats"
-.Ft int
-.Fo selectdevs
-.Fa "struct device_selection **dev_select"
-.Fa "int *num_selected"
-.Fa "int *num_selections"
-.Fa "long *select_generation"
-.Fa "long current_generation"
-.Fa "struct devstat *devices"
-.Fa "int numdevs"
-.Fa "struct devstat_match *matches"
-.Fa "int num_matches"
-.Fa "char **dev_selections"
-.Fa "int num_dev_selections"
-.Fa "devstat_select_mode select_mode"
-.Fa "int maxshowdevs"
-.Fa "int perf_select"
-.Fc
-.Ft int
-.Fo buildmatch
-.Fa "char *match_str"
-.Fa "struct devstat_match **matches"
-.Fa "int *num_matches"
-.Fc
-.Ft int
-.Fo compute_stats
-.Fa "struct devstat *current"
-.Fa "struct devstat *previous"
-.Fa "long double etime"
-.Fa "u_int64_t *total_bytes"
-.Fa "u_int64_t *total_transfers"
-.Fa "u_int64_t *total_blocks"
-.Fa "long double *kb_per_transfer"
-.Fa "long double *transfers_per_second"
-.Fa "long double *mb_per_second"
-.Fa "long double *blocks_per_second"
-.Fa "long double *ms_per_transaction"
-.Fc
-.Ft long double
-.Fo compute_etime
-.Fa "struct timeval cur_time"
-.Fa "struct timeval prev_time"
+.Fa "struct bintime cur_time"
+.Fa "struct bintime prev_time"
 .Fc
 .Sh DESCRIPTION
 The
@@ -194,33 +133,15 @@ returns the number of devices registered with the
 .Nm
 subsystem in the kernel.
 .Pp
-.Fn getnumdevs
-is a deprecated version of
-.Fn devstat_getnumdevs
-which always uses
-.Xr sysctl 3 .
-.Pp
 .Fn devstat_getgeneration
 returns the current generation of the
 .Nm
 list of devices in the kernel.
 .Pp
-.Fn getgeneration
-is a deprecated version of
-.Fn devstat_getgeneration
-which always uses
-.Xr sysctl 3 .
-.Pp
 .Fn devstat_getversion
 returns the current kernel
 .Nm
 version.
-.Pp
-.Fn getversion
-is a deprecated version of
-.Fn devstat_getversion
-which always uses
-.Xr sysctl 3 .
 .Pp
 .Fn devstat_checkversion
 checks the userland devstat version against the kernel devstat version.
@@ -228,12 +149,6 @@ If the two are identical, it returns zero.
 Otherwise, it prints an appropriate error in
 .Va devstat_errbuf
 and returns -1.
-.Pp
-.Fn checkversion
-is a deprecated version of
-.Fn devstat_checkversion
-which always uses
-.Xr sysctl 3 .
 .Pp
 .Fn devstat_getdevs
 fetches the current list of devices and statistics into the supplied
@@ -249,7 +164,7 @@ struct statinfo {
 	long            tk_nin;
 	long            tk_nout;
 	struct devinfo  *dinfo;
-	struct timeval  busy_time;
+	long double     snap_time;
 };
 .Ed
 .Pp
@@ -320,12 +235,6 @@ structure contains the current
 number of devices registered with the kernel
 .Nm
 subsystem.
-.Pp
-.Fn getdevs
-is a deprecated version of
-.Fn devstat_getdevs
-which always uses
-.Xr sysctl 3 .
 .Pp
 .Fn devstat_selectdevs
 selects devices to display based upon a number of criteria:
@@ -439,11 +348,6 @@ is not the same as
 will resize the selection list as necessary, and re-initialize the
 selection array.
 .Pp
-.Fn selectdevs
-is the old name of
-.Fn devstat_selectdevs ,
-and is deprecated.
-.Pp
 .Fn devstat_buildmatch
 take a comma separated match string and compile it into a
 \fBdevstat_match\fR structure that is understood by
@@ -506,11 +410,6 @@ Passthrough devices
 .El
 .El
 .Pp
-.Fn buildmatch
-is the old name of
-.Fn devstat_buildmatch ,
-and is deprecated.
-.Pp
 .Fn devstat_compute_statistics
 is an updated version of
 .Fn compute_stats
@@ -557,16 +456,12 @@ The total number of bytes transferred between the acquisition of
 and
 .Va current .
 .It DSM_TOTAL_BYTES_READ
-type: u_int64_t *
-.Pp
-The total number of bytes read between the acquisition of
-.Va previous
-and
-.Va current .
 .It DSM_TOTAL_BYTES_WRITE
+.It DSM_TOTAL_BYTES_FREE
 type: u_int64_t *
 .Pp
-The total number of bytes written between the acquisition of
+The total number of bytes in transactions of the specified type
+between the acquisition of
 .Va previous
 and
 .Va current .
@@ -577,25 +472,14 @@ The total number of transfers between the acquisition of
 .Va previous
 and
 .Va current .
-.It DSM_TOTAL_TRANSFERS_READ
-type: u_int64_t *
-.Pp
-The total number of reads between the acquisition of
-.Va previous
-and
-.Va current .
-.It DSM_TOTAL_TRANSFERS_WRITE
-type: u_int64_t *
-.Pp
-The total number of writes between the acquisition of
-.Va previous
-and
-.Va current .
 .It DSM_TOTAL_TRANSFERS_OTHER
+.It DSM_TOTAL_TRANSFERS_READ
+.It DSM_TOTAL_TRANSFERS_WRITE
+.It DSM_TOTAL_TRANSFERS_FREE
 type: u_int64_t *
 .Pp
-The total number of transactions that are not reads or writes that occurred
-between the acquisition of
+The total number of transactions of the specified type between
+the acquisition of
 .Va previous
 and
 .Va current .
@@ -610,19 +494,11 @@ This number is in terms of the blocksize reported by the device.
 If no blocksize has been reported (i.e. the block size is 0), a default
 blocksize of 512 bytes will be used in the calculation.
 .It DSM_TOTAL_BLOCKS_READ
-type: u_int64_t *
-.Pp
-The total number of blocks read between the acquisition of
-.Va previous
-and
-.Va current .
-This number is in terms of the blocksize reported by the device.
-If no blocksize has been reported (i.e. the block size is 0), a default
-blocksize of 512 bytes will be used in the calculation.
 .It DSM_TOTAL_BLOCKS_WRITE
+.It DSM_TOTAL_BLOCKS_FREE
 type: u_int64_t *
 .Pp
-The total number of blocks written between the acquisition of
+The total number of blocks of the specified type between the acquisition of
 .Va previous
 and
 .Va current .
@@ -637,16 +513,12 @@ The average number of kilobytes per transfer between the acquisition of
 and
 .Va current .
 .It DSM_KB_PER_TRANSFER_READ
-type: long double *
-.Pp
-The average number of kilobytes per read transaction between the acquisition of
-.Va previous
-and
-.Va current .
 .It DSM_KB_PER_TRANSFER_WRITE
+.It DSM_KB_PER_TRANSFER_FREE
 type: long double *
 .Pp
-The average number of kilobytes per write transaction between the acquisition of
+The average number of kilobytes in the specified type transaction between
+the acquisition of
 .Va previous
 and
 .Va current .
@@ -657,25 +529,14 @@ The average number of transfers per second between the acquisition of
 .Va previous
 and
 .Va current .
-.It DSM_TRANSFERS_PER_SECOND_READ
-type: long double *
-.Pp
-The average number of reads per second between the acquisition of
-.Va previous
-and
-.Va current .
-.It DSM_TRANSFERS_PER_SECOND_WRITE
-type: long double *
-.Pp
-The average number of writes per second between the acquisition of
-.Va previous
-and
-.Va current .
 .It DSM_TRANSFERS_PER_SECOND_OTHER
+.It DSM_TRANSFERS_PER_SECOND_READ
+.It DSM_TRANSFERS_PER_SECOND_WRITE
+.It DSM_TRANSFERS_PER_SECOND_FREE
 type: long double *
 .Pp
-The average number of non-read, non-write transactions per second between
-the acquisition of
+The average number of transactions of the specified type per second
+between the acquisition of
 .Va previous
 and
 .Va current .
@@ -688,16 +549,12 @@ acquisition of
 and
 .Va current .
 .It DSM_MB_PER_SECOND_READ
-type: long double *
-.Pp
-The average number of megabytes read per second between the acquisition of
-.Va previous
-and
-.Va current .
 .It DSM_MB_PER_SECOND_WRITE
+.It DSM_MB_PER_SECOND_FREE
 type: long double *
 .Pp
-The average number of megabytes written per second between the acquisition of
+The average number of megabytesper second in the specified type of
+transaction between the acquisition of
 .Va previous
 and
 .Va current .
@@ -712,19 +569,12 @@ This number is in terms of the blocksize reported by the device.
 If no blocksize has been reported (i.e. the block size is 0), a default
 blocksize of 512 bytes will be used in the calculation.
 .It DSM_BLOCKS_PER_SECOND_READ
-type: long double *
-.Pp
-The average number of blocks read per second between the acquisition of
-.Va previous
-and
-.Va current .
-This number is in terms of the blocksize reported by the device.
-If no blocksize has been reported (i.e. the block size is 0), a default
-blocksize of 512 bytes will be used in the calculation.
 .It DSM_BLOCKS_PER_SECOND_WRITE
+.It DSM_BLOCKS_PER_SECOND_FREE
 type: long double *
 .Pp
-The average number of blocks written per second between the acquisition of
+The average number of blocks per second in the specificed type of transaction
+between the acquisition of
 .Va previous
 and
 .Va current .
@@ -734,33 +584,35 @@ blocksize of 512 bytes will be used in the calculation.
 .It DSM_MS_PER_TRANSACTION
 type: long double *
 .Pp
-The average rate of transaction completion between the acquisition of
+The average duration of transactions between the acquisition of
 .Va previous
 and
 .Va current .
-Note that this isn't a true reflection of the average number of
-milliseconds per transaction, but rather is the average rate of transaction
-completion.
-The number is derived by dividing the time elapsed by the number of
-transactions completed.
+.It DSM_MS_PER_TRANSACTION_OTHER
 .It DSM_MS_PER_TRANSACTION_READ
-type: long double *
-.Pp
-The average rate of read completions between the acquisition of
-.Va previous
-and
-.Va current .
-As above, this is not the true number of milliseconds per transaction, but
-rather the average rate of read transaction completion.
 .It DSM_MS_PER_TRANSACTION_WRITE
+.It DSM_MS_PER_TRANSACTION_FREE
 type: long double *
 .Pp
-The average rate of write transaction completion between the acquisition of
+The average duration of transactions of the specified type between the
+acquisition of
 .Va previous
 and
 .Va current .
-As above, this is not the true number of milliseconds per transaction, but
-rather the average rate of write transaction completion.
+.It DSM_BUSY_PCT
+type long double *
+.Pp
+The percentage of time the device had one or more transactions outstanding
+between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_QUEUE_LENGTH
+type: u_int64_t *
+.Pp
+The number of not yet completed transactions at the time when
+.Va current
+was acquired.
 .It DSM_SKIP
 type: N/A
 .Pp
@@ -775,85 +627,9 @@ This can be useful in scenarios where the statistics to be calculated
 are determined at run time.
 .El
 .Pp
-.Fn compute_stats
-is deprecated; use 
-.Fn devstat_compute_statistics
-instead.
-.Fn compute_stats
-provides an easy way to obtain various device statistics.
-Only two arguments are mandatory:
-.Va current
-and
-.Va etime .
-Every other argument is optional.
-For most applications, the user will want to supply both
-.Va current
-and
-.Va previous
-devstat structures so that statistics may be calculated over a given period
-of time.
-In some instances, for instance when calculating statistics since system boot,
-the user may pass in a NULL pointer for the
-.Va previous
-argument.
-In that case,
-.Fn compute_stats
-will use the total stats in the
-.Va current
-structure to calculate statistics over
-.Va etime .
-The various statistics that may be calculated by
-.Fn compute_stats
-should be mostly explained by the function declaration itself, but for
-completeness here is a list of variable names and the statistics that will
-be put in them:
-.Bl -tag -width transfers_per_second
-.It total_bytes
-This is the total number of bytes transferred on the given device, both
-reads and writes, between the acquisition of
-.Va previous
-and the acquisition of
-.Va current .
-If
-.Va previous
-is NULL, the result will be the total reads and writes given in
-.Va current .
-.It total_transfers
-This is the total number of transfers completed between the
-acquisition of
-.Va previous
-and the acquisition of
-.Va current .
-If
-.Va previous
-is NULL, the result will be the total number of transactions listed in
-.Va current .
-.It total_blocks
-This is basically
-.Va total_bytes
-divided by the device blocksize.
-If the device blocksize is listed as
-.Sq 0 ,
-the device blocksize will default to 512 bytes.
-.It kb_per_transfer
-This is the average number of kilobytes per transfer during the measurement
-period.
-.It transfers_per_second
-This is the average number of transfers per second.
-.It mb_per_second
-This is average megabytes per second.
-.It blocks_per_second
-This is average blocks per second.
-If the device blocksize is
-.Sq 0 ,
-a default blocksize of 512 bytes will be used instead.
-.It ms_per_transaction
-The average number of milliseconds per transaction.
-.El
-.Pp
 .Fn devstat_compute_etime
 provides an easy way to find the difference in seconds between two
-.Va timeval
+.Va bintime
 structures.
 This is most commonly used in conjunction with the time recorded by the
 .Fn devstat_getdevs
@@ -862,11 +638,6 @@ function (in struct
 each time it fetches the current
 .Nm
 list.
-.Pp
-.Fn compute_etime
-is the old name of
-.Fn devstat_compute_etime ,
-and is deprecated.
 .Sh RETURN VALUES
 .Fn devstat_getnumdevs ,
 .Fn devstat_getgeneration ,
@@ -894,9 +665,6 @@ because the device list has changed.
 .Pp
 .Fn devstat_buildmatch
 returns -1 for error, and 0 if there is no error.
-.Pp
-.Fn compute_stats
-returns -1 for error, and 0 for success.
 .Pp
 .Fn devstat_compute_etime
 returns the computed elapsed time.
