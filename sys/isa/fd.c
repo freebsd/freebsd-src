@@ -1643,7 +1643,7 @@ static int fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 static int
 fdstate(fdc_p fdc)
 {
-	int read, format, head, i, sec = 0, sectrac, st0, cyl, st3;
+	int read, format, head, i, sec = 0, sectrac, st0, cyl, st3, idf;
 	unsigned blknum = 0, b_cylinder = 0;
 	fdu_t fdu = fdc->fdu;
 	fd_p fd;
@@ -1680,6 +1680,10 @@ fdstate(fdc_p fdc)
 	if (fdc->fd && (fd != fdc->fd))
 		device_printf(fd->dev, "confused fd pointers\n");
 	read = bp->b_iocmd == BIO_READ;
+	if (read)
+		idf = ISADMA_READ;
+	else
+		idf = ISADMA_WRITE;
 	format = bp->b_flags & B_FORMAT;
 	if (format) {
 		finfo = (struct fd_formb *)bp->b_data;
@@ -1826,7 +1830,7 @@ fdstate(fdc_p fdc)
 
 		fd->track = b_cylinder;
 		if (!(fdc->flags & FDC_NODMA))
-			isa_dmastart(bp->b_flags, bp->b_data+fd->skip,
+			isa_dmastart(idf, bp->b_data+fd->skip,
 				format ? bp->b_bcount : fdblk, fdc->dmachan);
 		sectrac = fd->ft->sectrac;
 		sec = blknum %  (sectrac * fd->ft->heads);
@@ -1841,7 +1845,7 @@ fdstate(fdc_p fdc)
 			{
 				/* stuck controller? */
 				if (!(fdc->flags & FDC_NODMA))
-					isa_dmadone(bp->b_flags,
+					isa_dmadone(idf,
 						    bp->b_data + fd->skip,
 						    format ? bp->b_bcount : fdblk,
 						    fdc->dmachan);
@@ -1898,7 +1902,7 @@ fdstate(fdc_p fdc)
 				  finfo->fd_formb_fillbyte, 0)) {
 				/* controller fell over */
 				if (!(fdc->flags & FDC_NODMA))
-					isa_dmadone(bp->b_flags,
+					isa_dmadone(idf,
 						    bp->b_data + fd->skip,
 						    format ? bp->b_bcount : fdblk,
 						    fdc->dmachan);
@@ -1935,7 +1939,7 @@ fdstate(fdc_p fdc)
 				   0)) {
 				/* the beast is sleeping again */
 				if (!(fdc->flags & FDC_NODMA))
-					isa_dmadone(bp->b_flags,
+					isa_dmadone(idf,
 						    bp->b_data + fd->skip,
 						    format ? bp->b_bcount : fdblk,
 						    fdc->dmachan);
@@ -1974,7 +1978,7 @@ fdstate(fdc_p fdc)
 
 		if (fd_read_status(fdc, fd->fdsu)) {
 			if (!(fdc->flags & FDC_NODMA))
-				isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
+				isa_dmadone(idf, bp->b_data + fd->skip,
 					    format ? bp->b_bcount : fdblk,
 					    fdc->dmachan);
 			if (fdc->retry < 6)
@@ -1988,7 +1992,7 @@ fdstate(fdc_p fdc)
 
 	case IOTIMEDOUT:
 		if (!(fdc->flags & FDC_NODMA))
-			isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
+			isa_dmadone(idf, bp->b_data + fd->skip,
 				format ? bp->b_bcount : fdblk, fdc->dmachan);
 		if (fdc->status[0] & NE7_ST0_IC) {
                         if ((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_AT
@@ -2228,6 +2232,7 @@ fdformat(dev, finfo, p)
 	BUF_LOCKINIT(bp);
 	BUF_LOCK(bp, LK_EXCLUSIVE);
 	bp->b_flags = B_PHYS | B_FORMAT;
+	bp->b_iocmd = BIO_WRITE;
 
 	/*
 	 * calculate a fake blkno, so fdstrategy() would initiate a
