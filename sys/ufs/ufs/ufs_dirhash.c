@@ -52,6 +52,7 @@
 #include <ufs/ufs/ufs_extern.h>
 
 #define WRAPINCR(val, limit)	(((val) + 1 == (limit)) ? 0 : ((val) + 1))
+#define WRAPDECR(val, limit)	(((val) == 0) ? ((limit) - 1) : ((val) - 1))
 #define OFSFMT(vp)		((vp)->v_mount->mnt_maxsymlinklen <= 0)
 #define BLKFREE2IDX(n)		((n) > DH_NFSTATS ? DH_NFSTATS : (n))
 
@@ -787,7 +788,17 @@ ufsdirhash_checkblock(struct inode *ip, char *buf, doff_t offset)
 static int
 ufsdirhash_hash(struct dirhash *dh, char *name, int namelen)
 {
-	return (fnv_32_buf(name, namelen, FNV1_32_INIT) % dh->dh_hlen);
+	u_int32_t hash;
+
+	/*
+	 * We hash the name and then some ofther bit of data which is
+	 * invarient over the dirhash's lifetime. Otherwise names
+	 * differing only in the last byte are placed close to one
+	 * another in the table, which is bad for linear probing.
+	 */
+	hash = fnv_32_buf(name, namelen, FNV1_32_INIT);
+	hash = fnv_32_buf(dh, sizeof(dh), hash);
+	return (hash % dh->dh_hlen);
 }
 
 /*
@@ -866,10 +877,11 @@ ufsdirhash_delslot(struct dirhash *dh, int slot)
 	for (i = slot; DH_ENTRY(dh, i) == DIRHASH_DEL; )
 		i = WRAPINCR(i, dh->dh_hlen);
 	if (DH_ENTRY(dh, i) == DIRHASH_EMPTY) {
-		for (i = slot; DH_ENTRY(dh, i) == DIRHASH_DEL; ) {
+		i = WRAPDECR(i, dh->dh_hlen);
+		while (DH_ENTRY(dh, i) == DIRHASH_DEL) {
 			DH_ENTRY(dh, i) = DIRHASH_EMPTY;
 			dh->dh_hused--;
-			i = WRAPINCR(i, dh->dh_hlen);
+			i = WRAPDECR(i, dh->dh_hlen);
 		}
 		KASSERT(dh->dh_hused >= 0, ("ufsdirhash_delslot neg hlen"));
 	}
