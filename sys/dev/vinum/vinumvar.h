@@ -178,6 +178,7 @@ enum constants {
     INITIAL_LOCKS = 64,					    /* number of locks to allocate to a plex */
     DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* size of block to transfer in one op */
     VINUMHOSTNAMELEN = 32,				    /* host name field in label */
+    VINUM_BSIZE_BEST = 4096,				    /* best sector size */
 };
 
 /* device numbers */
