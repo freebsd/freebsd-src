@@ -289,9 +289,7 @@ scanradix(
 			printf("%*.*s(0x%06x,%d) Submap ALL-FREE {\n", 
 			    TABME,
 			    blk, 
-			    radix,
-			    (int)meta.u.bmu_avail,
-			    meta.bm_bighint
+			    radix
 			);
 		}
 		/*
@@ -323,9 +321,7 @@ scanradix(
 			printf("%*.*s(0x%06x,%d) Submap ALL-ALLOCATED\n", 
 			    TABME,
 			    blk, 
-			    radix,
-			    (int)meta.u.bmu_avail,
-			    meta.bm_bighint
+			    radix
 			);
 		}
 	} else {
@@ -398,8 +394,8 @@ getswapinfo_radix(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max, int flags)
 			blcopy.bl_free,
 			blcopy.bl_blocks,
 			blcopy.bl_radix,
-			(blcopy.bl_rootblks * sizeof(blmeta_t) + 1023)/
-			    1024
+			(int)((blcopy.bl_rootblks * sizeof(blmeta_t) + 1023)/
+			    1024)
 		);
 	}
 	scanradix(
