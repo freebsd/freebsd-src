@@ -1293,6 +1293,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<filename role="package">sysutils/cdrtools</filename> in the
 	Ports Collection. &merged;</para>
 
+      <para>The &man.cd.4; driver now supports the same
+        <literal>CDRIOCREADSPEED</literal> and
+        <literal>CDRIOCWRITESPEED</literal> ioctls that the
+        &man.acd.4; driver uses for setting the speed of CDROM
+        access.</para>
+
       <para arch="i386" role="historic">The ciss driver, for devices utilizing the
 	Common Interface for SCSI-3 Support, has been added.  This
 	driver supports the Compaq SmartRAID 5* family of RAID
@@ -2251,9 +2257,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <literal>stdin</literal>. &merged;</para>
 
     <para>&man.burncd.8; now supports Disk At Once (DAO) mode,
-      selectable via the <option>-d</option> flag.</para>
+      selectable via the <option>-d</option> flag. &merged;</para>
 
-    <para>&man.burncd.8; now has the ability to write VCDs/SVCDs.</para>
+    <para>&man.burncd.8; now has the ability to write VCDs/SVCDs. &merged;</para>
+
+    <para>&man.burncd.8; now accepts a value of <literal>max</literal>
+      for its <option>-s</option> option to set the drive's maximum
+      write speed.</para>
 
     <para>&man.bzgrep.1;, &man.bzegrep.1;, and &man.bzfgrep.1;
       have been added to perform &man.grep.1;-type operations on
@@ -2292,9 +2302,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       specified number of tracks while playing an audio
       CD. &merged;</para>
 
-    <para>On ATAPI CDROM drives, &man.cdcontrol.1; now supports a
+    <para>&man.cdcontrol.1; now supports a
       <literal>speed</literal> command to set the maximum speed to be
-      used by the drive. &merged;</para>
+      used by the drive (the maximum possible speed can be selected
+      setting the speed to <literal>max</literal>).</para>
 
     <para>&man.chflags.1; has moved from <filename>/usr/bin</filename>
       to <filename>/bin</filename>.</para>
