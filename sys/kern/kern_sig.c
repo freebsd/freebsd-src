@@ -304,8 +304,7 @@ do_sigaction(p, sig, act, oact, old)
 				p->p_procsig->ps_flag |= PS_NOCLDSTOP;
 			else
 				p->p_procsig->ps_flag &= ~PS_NOCLDSTOP;
-			if ((act->sa_flags & SA_NOCLDWAIT) ||
-			    ps->ps_sigact[_SIG_IDX(SIGCHLD)] == SIG_IGN) {
+			if (act->sa_flags & SA_NOCLDWAIT) {
 				/*
 				 * Paranoia: since SA_NOCLDWAIT is implemented
 				 * by reparenting the dying child to PID 1 (and
@@ -318,6 +317,10 @@ do_sigaction(p, sig, act, oact, old)
 					p->p_procsig->ps_flag |= PS_NOCLDWAIT;
 			} else
 				p->p_procsig->ps_flag &= ~PS_NOCLDWAIT;
+			if (ps->ps_sigact[_SIG_IDX(SIGCHLD)] == SIG_IGN)
+				p->p_procsig->ps_flag |= PS_CLDSIGIGN;
+			else
+				p->p_procsig->ps_flag &= ~PS_CLDSIGIGN;
 		}
 		/*
 		 * Set bit in p_sigignore for signals that are set to SIG_IGN,
@@ -499,7 +502,7 @@ execsigs(p)
 	/*
 	 * Reset no zombies if child dies flag as Solaris does.
 	 */
-	p->p_procsig->ps_flag &= ~PS_NOCLDWAIT;
+	p->p_procsig->ps_flag &= ~(PS_NOCLDWAIT | PS_CLDSIGIGN);
 	if (ps->ps_sigact[_SIG_IDX(SIGCHLD)] == SIG_IGN)
 		ps->ps_sigact[_SIG_IDX(SIGCHLD)] = SIG_DFL;
 	PROC_UNLOCK(p);
