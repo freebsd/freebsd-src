@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: output.c,v 1.7 1997/02/22 19:58:00 peter Exp $
+ *	$Id: output.c,v 1.8 1997/04/28 03:36:12 steve Exp $
  */
 
 #ifndef lint
@@ -697,7 +697,8 @@ output_base()
 {
     register int i, j;
 
-    fprintf(output_file, "const short %ssindex[] = {%39d,", symbol_prefix, base[0]);
+    fprintf(output_file, "const short %ssindex[] = {%39d,", symbol_prefix,
+	    base[0]);
 
     j = 10;
     for (i = 1; i < nstates; i++)
@@ -945,9 +946,8 @@ output_debug()
     ++outline;
     fprintf(code_file, "#define YYFINAL %d\n", final_state);
     outline += 3;
-    fprintf(code_file, "#ifndef YYDEBUG\n#define YYDEBUG %d\n"
-	    "#elif YYDEBUG\n#include <stdio.h>\n#endif\n",
-	    tflag);
+    fprintf(code_file, "#ifndef YYDEBUG\n#define YYDEBUG %d\n", tflag);
+    fprintf(code_file, "#elif YYDEBUG\n#include <stdio.h>\n#endif\n");
     if (rflag)
 	fprintf(output_file, "#ifndef YYDEBUG\n#define YYDEBUG %d\n#endif\n",
 		tflag);
@@ -971,8 +971,8 @@ output_debug()
     symnam[0] = "end-of-file";
 
     if (!rflag) ++outline;
-	fprintf(output_file, "#if YYDEBUG\n"
-	    "const char * const %sname[] = {", symbol_prefix);
+    fprintf(output_file, "#if YYDEBUG\n");
+    fprintf(output_file, "const char * const %sname[] = {", symbol_prefix);
     j = 80;
     for (i = 0; i <= max; ++i)
     {
