@@ -127,7 +127,7 @@ print_mesg(tty, tf, request, remote_machine)
 	(void)snprintf(line_buf[i], N_CHARS,
 		"Message from Talk_Daemon@%s at %d:%02d on %d/%.2d/%.2d ...",
 		hostname, localclock->tm_hour , localclock->tm_min,
-		localclock->tm_year + 1900, localclock->tm_mon,
+		localclock->tm_year + 1900, localclock->tm_mon + 1,
 		localclock->tm_mday);
 	sizes[i] = strlen(line_buf[i]);
 	max_size = max(max_size, sizes[i]);
