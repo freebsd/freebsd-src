@@ -20,9 +20,10 @@
  * comfort, so I have not bothered typing it all into a "fooreg.h" file,
  * you will (badly!) need the documentation anyway if you want to mess with
  * this gadget.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Stuff to describe the MUNIC32X and FALC54 chips.
