@@ -176,6 +176,7 @@
 #define VAR_VAR_SIZE			"varSize"
 #define VAR_XF86_CONFIG			"_xf86config"
 #define VAR_TERM			"TERM"
+#define VAR_CONSTERM                    "_consterm"
 
 #define DEFAULT_TAPE_BLOCKSIZE	"20"
 
@@ -386,6 +387,7 @@ extern DMenu		MenuSysconsKeymap;	/* System console keymap configuration menu	*/
 extern DMenu		MenuSysconsKeyrate;	/* System console keyrate configuration menu	*/
 extern DMenu		MenuSysconsSaver;	/* System console saver configuration menu	*/
 extern DMenu		MenuSysconsScrnmap;	/* System console screenmap configuration menu	*/
+extern DMenu            MenuSysconsTtys;        /* System console terminal type menu            */
 extern DMenu		MenuNetworking;		/* Network configuration menu			*/
 extern DMenu		MenuInstallCustom;	/* Custom Installation menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
@@ -744,6 +746,9 @@ extern Device	*tcpDeviceSelect(void);
 
 /* termcap.c */
 extern int	set_termcap(void);
+
+/* ttys.c */
+extern void     configTtys(void);
 
 /* ufs.c */
 extern void	mediaShutdownUFS(Device *dev);

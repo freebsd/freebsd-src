@@ -264,6 +264,7 @@ DMenu MenuIndex = {
       { " Syscons, Keyrate",	"The console key rate configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
       { " Syscons, Saver",	"The console screen saver configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
       { " Syscons, Screenmap",	"The console screenmap configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsScrnmap },
+      { " Syscons, Ttys",       "The console terminal type menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsTtys },
       { " Time Zone",		"Set the system's time zone.",		NULL, dmenuSystemCommand, NULL, "tzsetup" },
       { " Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
       { " Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
@@ -1431,6 +1432,7 @@ DMenu MenuSyscons = {
       { "4 Repeat",	"Set the rate at which keys repeat",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
       { "5 Saver",	"Configure the screen saver",		NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
       { "6 Screenmap",	"Choose an alternate screenmap",	NULL, dmenuSubmenu, NULL, &MenuSysconsScrnmap },
+      { "7 Ttys",       "Choose console terminal type",         NULL, dmenuSubmenu, NULL, &MenuSysconsTtys },
       { NULL } },
 };
 
@@ -1585,6 +1587,25 @@ DMenu MenuSysconsScrnmap = {
       { "KOI8-R to IBM866",	"Russian KOI8-R to IBM 866 screenmap", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=koi8-r2cp866" },
       { "KOI8-U to IBM866u",	"Ukrainian KOI8-U to IBM 866u screenmap", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=koi8-u2cp866u" },
       { "ISO 8859-1 to IBM437",	"W-Europe ISO 8859-1 to IBM 437 screenmap", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=iso-8859-1_to_cp437" },
+      { NULL } },
+};
+
+DMenu MenuSysconsTtys = {
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    "System Console Terminal Type",
+    "For various console encodings corresponding terminal type\n"
+    "must be choosed in /etc/ttys.\n"
+    "WARNING: due to compatibility reasons, only entries started with\n"
+    "ttyv and with terminal type started with cons[0-9] can be changed\n"
+    "via this menu.\n",
+    "Choose a terminal type",
+    NULL,
+    { { "1 None",               "Don't touch anything",  dmenuVarCheck, dmenuSetVariable, NULL, VAR_CONSTERM "=NO" },
+      { "2 US-ASCII or IBM437", "cons25", dmenuVarCheck, dmenuSetVariable, NULL, VAR_CONSTERM "=cons25" },
+      { "3 ISO 8859-1",         "cons25l1", dmenuVarCheck, dmenuSetVariable, NULL, VAR_CONSTERM "=cons25l1" },
+      { "4 ISO 8859-2",         "cons25l2", dmenuVarCheck, dmenuSetVariable, NULL, VAR_CONSTERM "=cons25l2" },
+      { "5 KOI8-R",             "cons25r", dmenuVarCheck, dmenuSetVariable, NULL, VAR_CONSTERM "=cons25r" },
+      { "6 KOI8-U",             "cons25u", dmenuVarCheck, dmenuSetVariable, NULL, VAR_CONSTERM "=cons25u" },
       { NULL } },
 };
 
