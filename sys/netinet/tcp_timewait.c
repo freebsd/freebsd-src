@@ -182,9 +182,6 @@ tcp_init()
 {
 	int hashsize;
 	
-#ifdef TCP_COMPAT_42
-	tcp_iss = 1;		/* wrong */
-#endif /* TCP_COMPAT_42 */
 	tcp_ccgen = 1;
 	tcp_cleartaocache();
 
@@ -352,11 +349,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 		m = m_gethdr(M_DONTWAIT, MT_HEADER);
 		if (m == NULL)
 			return;
-#ifdef TCP_COMPAT_42
-		tlen = 1;
-#else
 		tlen = 0;
-#endif
 		m->m_data += max_linkhdr;
 #ifdef INET6
 		if (isipv6) {
