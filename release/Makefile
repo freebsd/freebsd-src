@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.31 1997/03/12 02:32:08 jkh Exp $
+#	$Id$
 #
 # How to roll a release:
 #
@@ -525,7 +525,7 @@ doTARBALL:
 	( cd ${SD} && \
 		tn=`echo ${TN} | tr '[A-Z]' '[a-z]' | cut -c1-8` && \
 		echo rolling ${TD}/$$tn tarball &&\
-		tar --exclude CVS --exclude obj -cf - ${ARG} | \
+		tar --exclude CVS --exclude obj --exclude BOOTMFS -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
 		sh ${.CURDIR}/info.sh ${RD}/dists/${TD}/$$tn > \
 		   ${RD}/dists/${TD}/$$tn.inf && \
