@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.13 1997/11/29 02:57:46 dyson Exp $
+ * $Id: vfs_aio.c,v 1.14 1997/11/30 04:36:31 dyson Exp $
  */
 
 /*
@@ -467,6 +467,11 @@ restart2:
 			goto restart2;
 	}
 
+/*
+ * Note the use of lots of splbio here, trying to avoid
+ * splbio for long chains of I/O.  Probably unnecessary.
+ */
+
 restart3:
 	s = splbio();
 	while (TAILQ_FIRST(&ki->kaio_bufqueue)) {
@@ -475,6 +480,7 @@ restart3:
 		splx(s);
 		goto restart3;
 	}
+	splx(s);
 
 restart4:
 	s = splbio();
