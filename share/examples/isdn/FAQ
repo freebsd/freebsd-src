@@ -634,7 +634,7 @@ is discarding the extensions.
 This can easily be checked by doing ``sysctl net.inet.tcp.rfc1323''. If the
 result is 1, then the RFC1323 support is turned on.
 
-Turn this off by doing ``sysctl -w net.inet.tcp.rfc1323=0'' (This is
+Turn this off by doing ``sysctl net.inet.tcp.rfc1323=0'' (This is
 called "net.inet.tcp.do_rfc1323" under BSD/OS).
 
 For FreeBSD make sure that tcp_extension="NO" is in your /etc/rc.conf
@@ -910,8 +910,8 @@ for ppp and i4b sample configurations to get things up and running.
 More information to ppp setup can be found at
 
 	http://www.Awfulhak.org/ppp.html
-	http://www.freebsd.org/handbook/ppp-and-slip.html
-	http://www.freebsd.org/FAQ/userppp.html
+	http://www.freebsd.org/doc/handbook/ppp-and-slip.html
+	http://www.freebsd.org/doc/faq/ppp.html
 
 and in the directory "user-ppp" of the isdn4bsd distribution.
 
