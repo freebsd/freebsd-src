@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.166 1999/05/27 10:32:50 jkh Exp $
+ * $Id: sysinstall.h,v 1.167 1999/07/02 22:36:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -122,6 +122,7 @@
 #define VAR_KGET			"kget"
 #define VAR_LABEL			"label"
 #define VAR_LABEL_COUNT			"labelCount"
+#define VAR_LINUX_ENABLE		"linux_enable"
 #define VAR_MEDIA_TYPE			"mediaType"
 #define VAR_MEDIA_TIMEOUT		"MEDIA_TIMEOUT"
 #define VAR_MOUSED			"moused_enable"
@@ -415,6 +416,7 @@ extern int	configResolv(dialogMenuItem *self);
 extern int	configPackages(dialogMenuItem *self);
 extern int	configSaver(dialogMenuItem *self);
 extern int	configSaverTimeout(dialogMenuItem *self);
+extern int	configLinux(dialogMenuItem *self);
 extern int	configNTP(dialogMenuItem *self);
 extern int	configUsers(dialogMenuItem *self);
 extern int	configXSetup(dialogMenuItem *self);
