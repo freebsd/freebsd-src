@@ -148,7 +148,7 @@ done:	argv += optind;
 			fts_options |= FTS_LOGICAL;
 		}
 	} else
-		fts_options = FTS_LOGICAL;
+		fts_options = hflag ? FTS_PHYSICAL : FTS_LOGICAL;
 
 	if (hflag)
 		change_mode = lchmod;
