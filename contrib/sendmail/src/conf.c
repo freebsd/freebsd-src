@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.972 2002/06/18 16:11:44 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.972.2.5 2002/08/16 14:56:01 ca Exp $")
 
 #include <sendmail/pathnames.h>
 
@@ -2372,12 +2372,15 @@ initsetproctitle(argc, argv, envp)
 	**  the top of memory.
 	*/
 
-	for (i = 0; envp[i] != NULL; i++)
-		continue;
-	environ = (char **) xalloc(sizeof (char *) * (i + 1));
-	for (i = 0; envp[i] != NULL; i++)
-		environ[i] = newstr(envp[i]);
-	environ[i] = NULL;
+	if (envp != NULL)
+	{
+		for (i = 0; envp[i] != NULL; i++)
+			continue;
+		environ = (char **) xalloc(sizeof (char *) * (i + 1));
+		for (i = 0; envp[i] != NULL; i++)
+			environ[i] = newstr(envp[i]);
+		environ[i] = NULL;
+	}
 
 	/*
 	**  Save start and extent of argv for setproctitle.
@@ -2403,7 +2406,7 @@ initsetproctitle(argc, argv, envp)
 		if (i == 0 || LastArgv + 1 == argv[i])
 			LastArgv = argv[i] + SPT_ALIGN(strlen(argv[i]), align);
 	}
-	for (i = 0; LastArgv != NULL && envp[i] != NULL; i++)
+	for (i = 0; LastArgv != NULL && envp != NULL && envp[i] != NULL; i++)
 	{
 		if (LastArgv + 1 == envp[i])
 			LastArgv = envp[i] + SPT_ALIGN(strlen(envp[i]), align);
@@ -2652,7 +2655,6 @@ SIGFUNC_DECL
 reapchild(sig)
 	int sig;
 {
-	int m = 0;
 	int save_errno = errno;
 	int st;
 	pid_t pid;
@@ -2690,7 +2692,6 @@ reapchild(sig)
 # endif /* HASWAITPID */
 		/* Drop PID and check if it was a control socket child */
 		proc_list_drop(pid, st, NULL);
-		CurRunners -= m; /* Update */
 	}
 	FIX_SYSV_SIGNAL(sig, reapchild);
 	errno = save_errno;
@@ -3065,11 +3066,21 @@ static char	*DefaultUserShells[] =
 # endif /* defined(__svr4__) || defined(__svr5__) */
 # ifdef sgi
 	"/sbin/sh",		/* SGI's shells really live in /sbin */
-	"/sbin/csh",
+	"/usr/bin/sh",
+	"/sbin/bsh",		/* classic borne shell */
+	"/bin/bsh",
+	"/usr/bin/bsh",
+	"/sbin/csh",		/* standard csh */
+	"/bin/csh",
+	"/usr/bin/csh",
+	"/sbin/jsh",		/* classic borne shell w/ job control*/
+	"/bin/jsh",
+	"/usr/bin/jsh",
 	"/bin/ksh",		/* Korn shell */
 	"/sbin/ksh",
 	"/usr/bin/ksh",
-	"/bin/tcsh",		/* Extended csh */
+	"/sbin/tcsh",		/* Extended csh */
+	"/bin/tcsh",
 	"/usr/bin/tcsh",
 # endif /* sgi */
 	NULL
@@ -3930,7 +3941,7 @@ validate_connection(sap, hostname, e)
 			hostname, anynet_ntoa(sap));
 
 	if (rscheck("check_relay", hostname, anynet_ntoa(sap),
-		    e, true, true, 3, NULL, NOQID) != EX_OK)
+		    e, RSF_RMCOMM|RSF_COUNT, 3, NULL, NOQID) != EX_OK)
 	{
 		static char reject[BUFSIZ*2];
 		extern char MsgBuf[];
@@ -5955,6 +5966,10 @@ char	*FFRCompileOptions[] =
 /* Steven Pitzl */
 	"_FFR_NODELAYDSN_ON_HOLD",
 #endif /* _FFR_NODELAYDSN_ON_HOLD */
+#if _FFR_NONSTOP_PERSISTENCE
+/* Suggested by Jan Krueger of digitalanswers communications consulting gmbh. */
+	"_FFR_NONSTOP_PERSISTENCE",
+#endif /* _FFR_NONSTOP_PERSISTENCE */
 #if _FFR_NO_PIPE
 	"_FFR_NO_PIPE",
 #endif /* _FFR_NO_PIPE */

@@ -350,7 +350,7 @@ USENET_MAILER_ARGS	[-m -h -n] The command line arguments for the
 			(such as those shipped with newer versions of INN)
 			use different flags.  Double check the defaults
 			against the inews man page.
-USENET_MAILER_MAX	[100000] The maximum size of messages that will
+USENET_MAILER_MAX	[undefined] The maximum size of messages that will
 			be accepted by the usenet mailer.
 USENET_MAILER_QGRP	[undefined] The queue group for the usenet mailer.
 SMTP_MAILER_FLAGS	[undefined] Flags added to SMTP mailer.  Default
@@ -4311,4 +4311,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.623 $, Last updated $Date: 2002/06/07 14:14:14 $
+$Revision: 8.623.2.1 $, Last updated $Date: 2002/08/07 23:14:56 $

@@ -1305,7 +1305,7 @@ Finally, the
 debug, flag will expose many of the inner workings so that
 it is possible to eliminate bugs.
 .SH ENVIRONMENT
-No enviroment variables are used.
+No environment variables are used.
 .SH FILES
 .PD 0
 .B /tmp/expn$$
