@@ -698,13 +698,8 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	sblkctl = ahc_inb(ahc, SBLKCTL);
 	ahc_outb(ahc, SBLKCTL, (sblkctl & ~(DIAGLEDEN|DIAGLEDON)));
 
-	/*
-	 * I don't know where this is set in the SEEPROM or by the
-	 * BIOS, so we default to 100% on Ultra or slower controllers
-	 * and 75% on ULTRA2 controllers.
-	 */
 	if ((ahc->features & AHC_ULTRA2) != 0) {
-		ahc_outb(ahc, DFF_THRSH, RD_DFTHRSH_75|WR_DFTHRSH_75);
+		ahc_outb(ahc, DFF_THRSH, RD_DFTHRSH_MAX|WR_DFTHRSH_MAX);
 	} else {
 		ahc_outb(ahc, DSPCISTATUS, DFTHRSH_100);
 	}
@@ -767,17 +762,19 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 static int
 ahc_ext_scbram_present(struct ahc_softc *ahc)
 {
+	u_int chip;
 	int ramps;
 	int single_user;
 	uint32_t devconfig;
 
+	chip = ahc->chip & AHC_CHIPID_MASK;
 	devconfig = ahc_pci_read_config(ahc->dev_softc,
 					DEVCONFIG, /*bytes*/4);
 	single_user = (devconfig & MPORTMODE) != 0;
 
 	if ((ahc->features & AHC_ULTRA2) != 0)
 		ramps = (ahc_inb(ahc, DSCOMMAND0) & RAMPS) != 0;
-	else if ((ahc->chip & AHC_CHIPID_MASK) >= AHC_AIC7870)
+	else if (chip >= AHC_AIC7870)
 		ramps = (devconfig & RAMPSM) != 0;
 	else
 		ramps = 0;
