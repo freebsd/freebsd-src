@@ -63,6 +63,8 @@
 /* The smallest filesystem we're willing to create */
 #define FS_MIN_SIZE			2048
 
+#define MSG_NOT_APPLICABLE		"That option is not applicable here"
+
 static struct {
     struct disk *d;
     struct chunk *c;
@@ -125,7 +127,9 @@ check_conflict(char *name)
 
     for (i = 0; fbsd_chunk_info[i].d; i++)
 	if (fbsd_chunk_info[i].type == PART_FILESYSTEM &&
-	    !strcmp(fbsd_chunk_info[i].c->name, name))
+	    fbsd_chunk_info[i].c->private &&
+	    !strcmp(((PartInfo *)fbsd_chunk_info[i].c->private)->mountpoint,
+		    name))
 	    return TRUE;
     return FALSE;
 }
@@ -275,9 +279,9 @@ getNewfsCmd(PartInfo *p)
 
 #define PART_PART_COL	0
 #define PART_MOUNT_COL	8
-#define PART_SIZE_COL	(PART_MOUNT_COL + MAX_MOUNT_NAME + 4)
-#define PART_NEWFS_COL	(PART_SIZE_COL + 8)
-#define PART_OFF	42
+#define PART_SIZE_COL	(PART_MOUNT_COL + MAX_MOUNT_NAME + 3)
+#define PART_NEWFS_COL	(PART_SIZE_COL + 7)
+#define PART_OFF	38
 
 /* How many mounted partitions to display in column before going to next */
 #define CHUNK_COLUMN_MAX	6
@@ -316,6 +320,7 @@ print_fbsd_chunks(void)
 				    
     srow = CHUNK_SLICE_START_ROW;
     prow = CHUNK_PART_START_ROW;
+    pcol = 0;
 
     for (i = 0; fbsd_chunk_info[i].d; i++) {
 	if (i == current_chunk)
@@ -339,8 +344,6 @@ print_fbsd_chunks(void)
 		pcol = PART_OFF;
 		prow = CHUNK_PART_START_ROW;
 	    }
-	    else
-		pcol = 0;
 	    memcpy(onestr + PART_PART_COL, fbsd_chunk_info[i].c->name,
 		   strlen(fbsd_chunk_info[i].c->name));
 	    if (fbsd_chunk_info[i].type == PART_FILESYSTEM) {
@@ -446,7 +449,7 @@ partition_disks(struct disk **disks)
 
 	case 'C':
 	    if (fbsd_chunk_info[current_chunk].type != PART_SLICE) {
-		msg = "Can't create a sub-partition here (that only works in master partitions)";
+		msg = "You can only do this in a master partition (see top of screen)";
 		break;
 	    }
 	    sz = space_free(fbsd_chunk_info[current_chunk].c);
@@ -483,7 +486,7 @@ partition_disks(struct disk **disks)
 				 sz - size,
 				 size,
 				 part,
-				 (type == PART_SWAP) ? FS_SWAP : freebsd,
+				 (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS,
 				 flags);
 		    tmp = find_chunk_by_loc(fbsd_chunk_info[current_chunk].d,
 					    fbsd_chunk_info[current_chunk].c->offset + sz - size, size);
@@ -500,7 +503,7 @@ partition_disks(struct disk **disks)
 
 	case 'D':	/* delete */
 	    if (fbsd_chunk_info[current_chunk].type == PART_SLICE) {
-		msg = "Use the Master Partition Editor to delete one of these";
+		msg = MSG_NOT_APPLICABLE;
 		break;
 	    }
 	    Delete_Chunk(fbsd_chunk_info[current_chunk].d,
@@ -511,7 +514,7 @@ partition_disks(struct disk **disks)
 	case 'M':	/* mount */
 	    switch(fbsd_chunk_info[current_chunk].type) {
 	    case PART_SLICE:
-		msg = "You can't mount one of these directly!";
+		msg = MSG_NOT_APPLICABLE;
 		break;
 
 	    case PART_SWAP:
@@ -537,14 +540,14 @@ partition_disks(struct disk **disks)
 		((PartInfo *)fbsd_chunk_info[current_chunk].c->private)->newfs)
 		getNewfsCmd(fbsd_chunk_info[current_chunk].c->private);
 	    else
-		msg = "newfs options not applicable for this partition";
+		msg = MSG_NOT_APPLICABLE;
 	    break;
 
 	case 'T':	/* Toggle newfs state */
 	    if (fbsd_chunk_info[current_chunk].c->private)
 		((PartInfo *)fbsd_chunk_info[current_chunk].c->private)->newfs = !((PartInfo *)fbsd_chunk_info[current_chunk].c->private)->newfs;
 	    else
-		msg = "Set a mount point first.";
+		msg = MSG_NOT_APPLICABLE;
 	    break;
 
 	case 27:	/* ESC */
@@ -567,14 +570,14 @@ write_disks(struct disk **disks)
     extern u_char mbr[], bteasy17[];
 
     dialog_clear();
-    if (!msgYesNo("Last Chance!  Are you sure you want to write out\nall your changes to disk?")) {
-	for (i = 0; disks[i]; i++) {
-	    if (contains_root_partition(disks[i]))
-		Set_Boot_Blocks(disks[i], boot1, boot2);
-	    if (i == 0 && !msgYesNo("Would you like to install a boot manager?\n\nThis will allow you to easily select between other operating systems\non the first disk, or boot from a disk other than the first."))
-		Set_Boot_Mgr(disks[i], bteasy17);
-	    else if (i == 0 && !msgYesNo("Would you like to remove an existing boot manager?"))
-		Set_Boot_Mgr(disks[i], mbr);
+    for (i = 0; disks[i]; i++) {
+	if (contains_root_partition(disks[i]))
+	    Set_Boot_Blocks(disks[i], boot1, boot2);
+	if (i == 0 && !msgYesNo("Would you like to install a boot manager?\n\nThis will allow you to easily select between other operating systems\non the first disk, or boot from a disk other than the first."))
+	    Set_Boot_Mgr(disks[i], bteasy17);
+	else if (i == 0 && !msgYesNo("Would you like to remove an existing boot manager?"))
+	    Set_Boot_Mgr(disks[i], mbr);
+	if (!msgYesNo("Last Chance!  Are you sure you want to write out\nall these changes to disk?")) {
 	    Write_Disk(disks[i]);
 	}
 	return 0;
