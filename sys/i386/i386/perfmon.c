@@ -33,6 +33,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/kernel.h>
 
 #ifndef SMP
 #include <machine/cputypes.h>
