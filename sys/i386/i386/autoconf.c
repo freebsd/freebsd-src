@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.104 1998/09/03 20:59:28 nsouch Exp $
+ *	$Id: autoconf.c,v 1.105 1998/09/14 19:56:38 sos Exp $
  */
 
 /*
@@ -98,9 +98,6 @@
 #endif
 
 #include "scbus.h"
-#if NSCBUS > 0
-#include <scsi/scsiconf.h>
-#endif
 
 #include <sys/bus.h>
 
@@ -174,20 +171,19 @@ find_cdrom_root()
 }
 #endif /* CD9660 */
 
+extern void xpt_init __P((void));
+
 static void
 configure_start()
 {
 #if NSCBUS > 0
-	scsi_configure_start();
+	xpt_init();
 #endif
 }
 
 static void
 configure_finish()
 {
-#if NSCBUS > 0
-	scsi_configure_finish();
-#endif
 }
 
 /*
