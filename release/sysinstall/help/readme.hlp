@@ -113,9 +113,8 @@ type:
         # cd /usr/ports/www/netscape3
         # make all install
 
-If you have the Ports collection installed (see the Configuration menu
-or enable the Ports collection when given the chance to do so during
-the Novice installation).
+If you have the Ports collection installed on your machine (usually on
+the 2nd CDROM of a CDROM release).
 
 
 Several other non-commercial browsers are also available in

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.24 1996/10/09 09:53:25 jkh Exp $
+ * $Id: cdrom.c,v 1.25 1996/10/10 09:22:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,14 +52,12 @@
 #undef CD9660
 
 /*
- * This isn't static, like the others, since it's often useful to know whether
- * or not we have a CDROM available in some of the other installation screens.
- * This also isn't a boolean like the others since we have 3 states for it:
+ * This isn't a boolean like the others since we have 3 states for it:
  * 0 = cdrom isn't mounted, 1 = cdrom is mounted and we mounted it, 2 = cdrom
  * was already mounted when we came in and we should leave it that way when
  * we leave.
  */
-int cdromMounted;
+static int cdromMounted;
 
 Boolean
 mediaInitCDROM(Device *dev)
