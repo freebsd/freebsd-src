@@ -742,6 +742,8 @@ char remote_host_name[MAXHOSTNAMELEN];
 
 extern void telnet P((int, int, char *));
 
+int level;
+char user_name[256];
 /*
  * Get a pty, scan input lines.
  */
@@ -751,9 +753,7 @@ doit(who)
 	char *host, *inet_ntoa();
 	int t;
 	struct hostent *hp;
-	int level;
 	int ptynum;
-	char user_name[256];
 
 	/*
 	 * Find an available pty to use.
@@ -1107,7 +1107,7 @@ telnet(f, p, host)
 	 * now.  We delay this until here to insure option negotiation
 	 * is complete.
 	 */
-	startslave(host);
+	startslave(host, level, user_name);
 
 	for (;;) {
 		fd_set ibits, obits, xbits;
