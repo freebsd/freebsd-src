@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.57.4.2 1995/08/30 14:23:40 davidg Exp $
+#	$Id: Makefile,v 1.57.4.3 1995/09/16 23:24:31 gibbs Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -290,7 +290,7 @@ libraries:
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 	cd ${.CURDIR}/eBones/des && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
- 	cd ${.CURDIR}/eBones/lib && \
+	cd ${.CURDIR}/eBones/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(usr.sbin/pcvt/keycap)
