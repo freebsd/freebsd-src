@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.12 1995/03/19 14:28:28 davidg Exp $
+ *	$Id: db_command.c,v 1.13 1995/05/30 07:56:52 rgrimes Exp $
  */
 
 /*
@@ -63,7 +63,7 @@ boolean_t	db_ed_style = TRUE;
 
 
 void		db_help_cmd __P((void));
-void		db_fncall __P((void));
+void		db_fncall __P((db_expr_t, boolean_t, db_expr_t, char *));
 
 /*
  * Utility routine - discard tokens through end-of-line.
@@ -185,7 +185,7 @@ db_command(last_cmdp, cmd_table)
 	    modif[0] = '\0';
 	}
 	else if (t == tEXCL) {
-	    db_fncall();
+	    db_fncall((db_expr_t)0, (boolean_t)0, (db_expr_t)0, (char *)0);
 	    return;
 	}
 	else if (t != tIDENT) {
@@ -388,7 +388,11 @@ db_help_cmd()
 #endif
 
 void
-db_panic()
+db_panic(dummy1, dummy2, dummy3, dummy4)
+	db_expr_t	dummy1;
+	boolean_t	dummy2;
+	db_expr_t	dummy3;
+	char *		dummy4;
 {
 	panic("from debugger");
 }
@@ -432,7 +436,11 @@ db_error(s)
  * !expr(arg,arg,arg)
  */
 void
-db_fncall()
+db_fncall(dummy1, dummy2, dummy3, dummy4)
+	db_expr_t	dummy1;
+	boolean_t	dummy2;
+	db_expr_t	dummy3;
+	char *		dummy4;
 {
 	db_expr_t	fn_addr;
 #define	MAXARGS		11
