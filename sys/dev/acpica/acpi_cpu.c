@@ -134,10 +134,8 @@ static struct acpi_cx_stats cpu_cx_stats[MAX_CX_STATES];
 static int		 cpu_idle_busy;	/* Count of CPUs in acpi_cpu_idle. */
 
 /* Values for sysctl. */
-static uint32_t		 cpu_current_state;
-static uint32_t		 cpu_performance_state;
-static uint32_t		 cpu_economy_state;
-static uint32_t		 cpu_max_state;
+static uint32_t		 cpu_throttle_state;
+static uint32_t		 cpu_throttle_max;
 static int		 cpu_cx_lowest;
 static char 		 cpu_cx_supported[64];
 
@@ -165,7 +163,6 @@ static void	acpi_cpu_c1(void);
 static void	acpi_pm_ticksub(uint32_t *end, const uint32_t *start);
 static void	acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static int	acpi_cpu_quirks(struct acpi_cpu_softc *sc);
-static void	acpi_cpu_power_profile(void *arg);
 static int	acpi_cpu_throttle_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_cpu_history_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_cpu_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS);
@@ -616,10 +613,6 @@ acpi_cpu_startup(void *arg)
     /* Get set of CPU devices */
     devclass_get_devices(acpi_cpu_devclass, &cpu_devices, &cpu_ndevices);
 
-    /* Register performance profile change handler */
-    EVENTHANDLER_REGISTER(power_profile_change, acpi_cpu_power_profile,
-			  NULL, 0);
-
     /*
      * Make sure all the processors' Cx counts match.  We should probably
      * also check the contents of each.  However, no known systems have
@@ -647,60 +640,34 @@ acpi_cpu_startup(void *arg)
 static void
 acpi_cpu_startup_throttling()
 {
-    int cpu_temp_speed;
     ACPI_LOCK_DECL;
 
     /* Initialise throttling states */
-    cpu_max_state = CPU_MAX_SPEED;
-    cpu_performance_state = cpu_max_state;
-    cpu_economy_state = cpu_performance_state / 2;
-
-    /* 0 is 'reserved' */
-    if (cpu_economy_state == 0)
-	cpu_economy_state++;
-    if (TUNABLE_INT_FETCH("hw.acpi.cpu.performance_speed", &cpu_temp_speed) &&
-	cpu_temp_speed > 0 && cpu_temp_speed <= cpu_max_state) {
-
-	cpu_performance_state = cpu_temp_speed;
-    }
-    if (TUNABLE_INT_FETCH("hw.acpi.cpu.economy_speed", &cpu_temp_speed) &&
-	cpu_temp_speed > 0 && cpu_temp_speed <= cpu_max_state) {
-
-	cpu_economy_state = cpu_temp_speed;
-    }
+    cpu_throttle_max = CPU_MAX_SPEED;
+    cpu_throttle_state = CPU_MAX_SPEED;
 
     SYSCTL_ADD_INT(&acpi_cpu_sysctl_ctx,
 		   SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
-		   OID_AUTO, "max_speed", CTLFLAG_RD,
-		   &cpu_max_state, 0, "maximum CPU speed");
-    SYSCTL_ADD_INT(&acpi_cpu_sysctl_ctx,
-		   SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
-		   OID_AUTO, "current_speed", CTLFLAG_RD,
-		   &cpu_current_state, 0, "current CPU speed");
+		   OID_AUTO, "throttle_max", CTLFLAG_RD,
+		   &cpu_throttle_max, 0, "maximum CPU speed");
     SYSCTL_ADD_PROC(&acpi_cpu_sysctl_ctx,
 		    SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
-		    OID_AUTO, "performance_speed",
-		    CTLTYPE_INT | CTLFLAG_RW, &cpu_performance_state,
-		    0, acpi_cpu_throttle_sysctl, "I", "");
-    SYSCTL_ADD_PROC(&acpi_cpu_sysctl_ctx,
-		    SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
-		    OID_AUTO, "economy_speed",
-		    CTLTYPE_INT | CTLFLAG_RW, &cpu_economy_state,
-		    0, acpi_cpu_throttle_sysctl, "I", "");
+		    OID_AUTO, "throttle_state",
+		    CTLTYPE_INT | CTLFLAG_RW, &cpu_throttle_state,
+		    0, acpi_cpu_throttle_sysctl, "I", "current CPU speed");
 
     /* If ACPI 2.0+, signal platform that we are taking over throttling. */
-    if (cpu_pstate_cnt != 0) {
-	ACPI_LOCK;
+    ACPI_LOCK;
+    if (cpu_pstate_cnt != 0)
 	AcpiOsWritePort(cpu_smi_cmd, cpu_pstate_cnt, 8);
-	ACPI_UNLOCK;
-    }
 
-    /* Set initial speed */
-    acpi_cpu_power_profile(NULL);
+    /* Set initial speed to maximum. */
+    acpi_cpu_throttle_set(cpu_throttle_max);
+    ACPI_UNLOCK;
 
     printf("acpi_cpu: throttling enabled, %d steps (100%% to %d.%d%%), "
 	   "currently %d.%d%%\n", CPU_MAX_SPEED, CPU_SPEED_PRINTABLE(1),
-	   CPU_SPEED_PRINTABLE(cpu_current_state));
+	   CPU_SPEED_PRINTABLE(cpu_throttle_state));
 }
 
 static void
@@ -787,7 +754,7 @@ acpi_cpu_throttle_set(uint32_t speed)
 	ACPI_VPRINT(sc->cpu_dev, acpi_device_get_parent_softc(sc->cpu_dev),
 		    "set speed to %d.%d%%\n", CPU_SPEED_PRINTABLE(speed));
     }
-    cpu_current_state = speed;
+    cpu_throttle_state = speed;
 }
 
 /*
@@ -1026,54 +993,14 @@ acpi_cpu_quirks(struct acpi_cpu_softc *sc)
     return (0);
 }
 
-/*
- * Power profile change hook.
- *
- * Uses the ACPI lock to avoid reentrancy.
- */
-static void
-acpi_cpu_power_profile(void *arg)
-{
-    int		state;
-    uint32_t	new;
-    ACPI_LOCK_DECL;
-
-    state = power_profile_get_state();
-    if (state != POWER_PROFILE_PERFORMANCE && state != POWER_PROFILE_ECONOMY)
-	return;
-
-    ACPI_LOCK;
-
-    switch (state) {
-    case POWER_PROFILE_PERFORMANCE:
-	new = cpu_performance_state;
-	break;
-    case POWER_PROFILE_ECONOMY:
-	new = cpu_economy_state;
-	break;
-    default:
-	new = cpu_current_state;
-	break;
-    }
-
-    if (cpu_current_state != new)
-	acpi_cpu_throttle_set(new);
-
-    ACPI_UNLOCK;
-}
-
-/*
- * Handle changes in the performance/ecomony CPU settings.
- *
- * Does not need the ACPI lock (although setting *argp should
- * probably be atomic).
- */
+/* Handle changes in the CPU throttling setting. */
 static int
 acpi_cpu_throttle_sysctl(SYSCTL_HANDLER_ARGS)
 {
     uint32_t	*argp;
     uint32_t	 arg;
     int		 error;
+    ACPI_LOCK_DECL;
 
     argp = (uint32_t *)oidp->oid_arg1;
     arg = *argp;
@@ -1082,12 +1009,16 @@ acpi_cpu_throttle_sysctl(SYSCTL_HANDLER_ARGS)
     /* Error or no new value */
     if (error != 0 || req->newptr == NULL)
 	return (error);
-    if (arg < 1 || arg > cpu_max_state)
+    if (arg < 1 || arg > cpu_throttle_max)
 	return (EINVAL);
 
-    /* Set new value and possibly switch */
-    *argp = arg;
-    acpi_cpu_power_profile(NULL);
+    /* If throttling changed, notify the BIOS of the new rate. */
+    ACPI_LOCK;
+    if (*argp != arg) {
+	*argp = arg;
+	acpi_cpu_throttle_set(arg);
+    }
+    ACPI_UNLOCK;
 
     return (0);
 }
