@@ -619,7 +619,7 @@ ata_generic_reset(struct ata_channel *ch)
     }
 
     /* reset host end of channel (if supported) */
-    ATA_RESET(device_get_parent(ch->dev), ch->dev);
+    ATA_RESET(ch->dev);
 
     /* do we have any signs of ATA/ATAPI HW being present ? */
     ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_MASTER);

@@ -130,7 +130,7 @@ acd_attach(device_t dev)
     }
     cdp->block_size = 2048;
     device_set_ivars(dev, cdp);
-    ATA_SETMODE(GRANDPARENT(dev), dev);
+    ATA_SETMODE(device_get_parent(dev), dev);
     acd_get_cap(dev);
     g_post_event(acd_geom_attach, dev, M_WAITOK, NULL);
 
@@ -168,7 +168,7 @@ acd_reinit(device_t dev)
 	free(cdp, M_ACD);
 	return 1;   
     }
-    ATA_SETMODE(GRANDPARENT(dev), dev);
+    ATA_SETMODE(device_get_parent(dev), dev);
     return 0;
 }
 
@@ -1935,7 +1935,7 @@ static device_method_t acd_methods[] = {
 static driver_t acd_driver = {
     "acd",
     acd_methods,
-    sizeof(struct acd_softc)
+    0,
 };
 
 static devclass_t acd_devclass;

@@ -337,7 +337,7 @@ ad_init(device_t dev)
 {
     struct ata_device *atadev = device_get_softc(dev);
 
-    ATA_SETMODE(GRANDPARENT(dev), dev);
+    ATA_SETMODE(device_get_parent(dev), dev);
 
     /* enable read caching */
     ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_ENAB_RCACHE, 0, 0);
@@ -434,7 +434,7 @@ static device_method_t ad_methods[] = {
 static driver_t ad_driver = {
     "ad",
     ad_methods,
-    sizeof(struct ad_softc)
+    0,
 };
 
 devclass_t ad_devclass;

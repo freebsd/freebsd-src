@@ -172,7 +172,7 @@ ata_start(device_t dev)
     if ((request = TAILQ_FIRST(&ch->ata_queue))) {
 
 	/* we need the locking function to get the lock for this channel */
-	if (ATA_LOCKING(device_get_parent(dev), dev, ATA_LF_LOCK) == ch->unit) {
+	if (ATA_LOCKING(dev, ATA_LF_LOCK) == ch->unit) {
 
 	    /* check for composite dependencies */
 	    if ((cptr = request->composite)) {
@@ -211,7 +211,7 @@ ata_start(device_t dev)
 		    ch->state = ATA_IDLE;
 		    mtx_unlock(&ch->state_mtx);
 		    mtx_unlock(&ch->queue_mtx);
-		    ATA_LOCKING(device_get_parent(dev), dev, ATA_LF_UNLOCK);
+		    ATA_LOCKING(dev, ATA_LF_UNLOCK);
 		    ata_finish(request);
 		    return;
 		}
@@ -492,7 +492,7 @@ ata_timeout(struct ata_request *request)
 	ch->hw.end_transaction(request);
 	ch->state |= ATA_TIMEOUT;
 	mtx_unlock(&ch->state_mtx);
-	ATA_LOCKING(device_get_parent(ch->dev), ch->dev, ATA_LF_UNLOCK);
+	ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	ata_finish(request);
     }
     else {
