@@ -76,7 +76,6 @@
 <filename>gnats</filename>,
 <filename>group</filename>,
 <filename>hosts</filename>,
-<filename>host.conf</filename>,
 <filename>hosts.allow</filename>,
 <filename>hosts.equiv</filename>,
 <filename>hosts.lpd</filename>,
