@@ -1310,13 +1310,6 @@ hme_mii_statchg(device_t dev)
 	HME_MAC_WRITE_4(sc, HME_MACI_TXCFG, v);
 	if (!hme_mac_bitflip(sc, HME_MACI_TXCFG, v, 0, HME_MAC_TXCFG_ENABLE))
 		return;
-
-	/* If an external transceiver is selected, enable its MII drivers */
-	v = HME_MAC_READ_4(sc, HME_MACI_XIF);
-	v &= ~HME_MAC_XIF_MIIENABLE;
-	if (phy == HME_PHYAD_EXTERNAL)
-		v |= HME_MAC_XIF_MIIENABLE;
-	HME_MAC_WRITE_4(sc, HME_MACI_XIF, v);
 }
 
 static int
