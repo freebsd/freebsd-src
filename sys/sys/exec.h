@@ -36,13 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id: exec.h,v 1.5 1994/08/19 14:24:16 davidg Exp $
+ * $Id: exec.h,v 1.6 1994/08/21 04:41:43 paul Exp $
  */
 
 #ifndef _SYS_EXEC_H_
 #define _SYS_EXEC_H_
-
-#include <machine/exec.h>
 
 /*
  * The following structure is found at the top of the user stack of each
@@ -85,5 +83,7 @@ extern const struct execsw **execsw;
 extern int exec_extract_strings(/* struct image_params * */);
 extern int exec_new_vmspace(/* struct image_params * */);
 #endif
+
+#include <machine/exec.h>
 
 #endif
