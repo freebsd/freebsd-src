@@ -52,12 +52,12 @@
  * and then transmits it on its medium.
  *
  * On input, each interface unwraps the data received by it, and either
- * places it on the input queue of a internetwork datagram routine
+ * places it on the input queue of an internetwork datagram routine
  * and posts the associated software interrupt, or passes the datagram to a raw
  * packet input routine.
  *
  * Routines exist for locating interfaces by their addresses
- * or for locating a interface on a certain network, as well as more general
+ * or for locating an interface on a certain network, as well as more general
  * routing and gateway routines maintaining information used to locate
  * interfaces.  These routines live in the files if.c and route.c
  */

@@ -562,7 +562,7 @@ ng_detach_common(struct ngpcb *pcbp, int which)
 
 #ifdef NOTYET
 /*
- * File descriptors can be passed into a AF_NETGRAPH socket.
+ * File descriptors can be passed into an AF_NETGRAPH socket.
  * Note, that file descriptors cannot be passed OUT.
  * Only character device descriptors are accepted.
  * Character devices are useful to connect a graph to a device,
@@ -597,7 +597,7 @@ ng_internalize(struct mbuf *control, struct thread *td)
 		return (error);
 
 	/* Depending on what kind of resource it is, act differently. For
-	 * devices, we treat it as a file. For a AF_NETGRAPH socket,
+	 * devices, we treat it as a file. For an AF_NETGRAPH socket,
 	 * shortcut straight to the node. */
 	switch (fp->f_type) {
 	case DTYPE_VNODE:

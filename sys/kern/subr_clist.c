@@ -149,7 +149,7 @@ cblock_alloc_cblocks(number)
 }
 
 /*
- * Set the cblock allocation policy for a a clist.
+ * Set the cblock allocation policy for a clist.
  * Must be called in process context at spltty().
  */
 void

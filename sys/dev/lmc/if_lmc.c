@@ -563,7 +563,7 @@ lmc_rx_intr(lmc_softc_t * const sc)
 			 * length so we can set that now. (we add to
 			 * last_offset instead of multiplying since we
 			 * normally won't go into the loop and thereby
-			 * saving a ourselves from doing a multiplication
+			 * saving ourselves from doing a multiplication
 			 * by 0 in the normal case).
 			 */
 			_IF_DEQUEUE(&sc->lmc_rxq, ms);

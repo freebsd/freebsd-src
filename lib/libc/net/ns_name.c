@@ -122,7 +122,7 @@ ns_name_ntop(const u_char *src, char *dst, size_t dstsiz) {
 
 /*
  * ns_name_pton(src, dst, dstsiz)
- *	Convert a ascii string into an encoded domain name as per RFC1035.
+ *	Convert an ascii string into an encoded domain name as per RFC1035.
  * return:
  *	-1 if it fails
  *	1 if string was fully qualified

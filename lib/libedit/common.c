@@ -175,7 +175,7 @@ ed_delete_next_char(EditLine *el, int c)
 				return (CC_ERROR);
 #else
 				term_overwrite(el, STReof, 4);
-					/* then do a EOF */
+					/* then do an EOF */
 				term__flush();
 				return (CC_EOF);
 #endif

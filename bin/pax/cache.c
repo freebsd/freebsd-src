@@ -170,7 +170,7 @@ grptb_start(void)
  *	caches the name (if any) for the uid. If frc set, we always return the
  *	the stored name (if valid or invalid match). We use a simple hash table.
  * Return
- *	Pointer to stored name (or a empty string)
+ *	Pointer to stored name (or an empty string).
  */
 
 char *
@@ -241,7 +241,7 @@ name_uid(uid_t uid, int frc)
  *	caches the name (if any) for the gid. If frc set, we always return the
  *	the stored name (if valid or invalid match). We use a simple hash table.
  * Return
- *	Pointer to stored name (or a empty string)
+ *	Pointer to stored name (or an empty string).
  */
 
 char *

@@ -1,4 +1,6 @@
 #!/usr/local/bin/tclsh7.4
+#
+# $FreeBSD$
 
 #############################################################################
 ### Do we already have this delta ?
@@ -168,7 +170,7 @@ while 1 {
     # If we did an absolute delta: stop.
     if {$CTMsuff != ""} break
 
-    # Make a absolute delta (!) every 100 deltas
+    # Make an absolute delta (!) every 100 deltas
     if {$CTMnbr == 0 || ($CTMnbr % 100)} break
 
     # Make an absolute delta too...

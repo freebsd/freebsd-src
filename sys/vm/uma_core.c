@@ -1036,7 +1036,7 @@ zone_ctor(void *mem, int size, void *udata)
 	/*
 	 * If we're putting the slab header in the actual page we need to
 	 * figure out where in each page it goes.  This calculates a right 
-	 * justified offset into the memory on a ALIGN_PTR boundary.
+	 * justified offset into the memory on an ALIGN_PTR boundary.
 	 */
 	if (!(zone->uz_flags & UMA_ZFLAG_OFFPAGE)) {
 		int totsize;

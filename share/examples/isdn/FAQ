@@ -485,16 +485,16 @@ kind of problem to look into his BIOS.
 i4b now works for me, I had a USB-device interfering on IRQ 9,
 which was supposed to be only for my Creatix Card.
 (NetBSD 1.3, Creatix)
-	
+
 Strange enough, my DOS s0-test worked, are they just polling the card?
-	
+
 Even when the testsoftware under DOS is working, don't be shure, that
 your hw-setup is correct for xxx(x)BSD. Triplecheck all your IRQ and
 enable and disable PNP to triple-verify. Even unconfigured devices can
 block your card. .....
-	
+
 And that took me more than 2 months to discover :-((((
-	
+
 			(from Andreas Lohrum, andreas.lohrum@consol.de)
 
 
@@ -1016,7 +1016,7 @@ But I could not use the card, because I forgot
 
 Q: Hi,
 
-   I am trying to set up a ELSA QuickStep 1000pro PCI ISDN adaptor in a FreeBSD
+   I am trying to set up an ELSA QuickStep 1000pro PCI ISDN adaptor in a FreeBSD
    3.3 box. I configured the kernel according to the i4b.ps documentation. At
    boottime, these messages are displayed:
 

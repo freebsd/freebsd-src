@@ -101,7 +101,7 @@
 /* The number of bytes in a char.  */
 #define SIZEOF_CHAR 1
 
-/* The number of bytes in a int.  */
+/* The number of bytes in an int.  */
 #define SIZEOF_INT 4
 
 /* The number of bytes in a long.  */

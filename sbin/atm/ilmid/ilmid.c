@@ -605,7 +605,7 @@ asn_set_int ( bufp, val )
 }
 
 /*
- * Utility to print a object identifier
+ * Utility to print an object identifier.
  *
  * Arguments:
  *	objid	- pointer to objid representation
@@ -1088,7 +1088,7 @@ oid_ncmp ( oid1, oid2, len )
 }
 
 /*
- * Find the index of a OBJID which matches this Variable instance 
+ * Find the index of an OBJID which matches this Variable instance.
  *
  * Arguments:
  *	var	- pointer to Variable instance
@@ -1216,7 +1216,7 @@ build_pdu ( hdr, type )
 	    asn_set_int ( &bp, hdr->reqid );
 	    /*
 	     * Check to see if all the vaiables were resolved - we do this
-	     * by looking for something which still has a ASN_NULL value.
+	     * by looking for something which still has an ASN_NULL value.
 	     */
 	    var = hdr->head;
 	    if ( type == PDU_TYPE_GETRESP ) {

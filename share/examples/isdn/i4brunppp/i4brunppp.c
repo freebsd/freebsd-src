@@ -35,8 +35,8 @@
  *
  * BEWARE: HIGHLY EXPERIMENTAL!
  * ---------------------------
- * 
- * This program is used in conjunction with a isdnd.rc entry similar to
+ *
+ * This program is used in conjunction with an isdnd.rc entry similar to
  *
  *  regexpr = "ULPPP.*call active"   # look for matches in log messages
  *  regprog = i4brunppp              # execute program when match is found
@@ -62,7 +62,7 @@
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_rbch_ioctl.h>
 
-#define I4BDEVICE	"/dev/i4b"	
+#define I4BDEVICE	"/dev/i4b"
 
 #define PPPPROG		"/usr/sbin/ppp"
 #define PPPNAME		"ppp"
@@ -85,21 +85,21 @@ main(int argc, char **argv)
 	char *p = "DeadPointer";
 	int found;
 	int i;
-	
+
 #ifdef PPPDEBUG
 	FILE *dfp;
 	time_t tim;
         register struct tm *tp;
 #endif
-	
+
 	/* open syslog */
-	
+
 	(void)openlog("i4brunppp", LOG_PID|LOG_CONS|LOG_NDELAY, LOG_USER);
 
 #ifdef PPPDEBUG
 
 	/* open debug log */
-	
+
 	if((dfp = fopen("/tmp/i4brunppp-debug.log", "a")) == NULL)
 	{
 		syslog(LOG_INFO, "cannot open logfile: %s", strerror(errno));
@@ -116,9 +116,9 @@ main(int argc, char **argv)
 #endif
 
 	/* check if this is the right message */
-	
+
 	found = 0;
-	
+
 	for(i=0; i < argc; i++)
 	{
 		if((strstr(argv[i], VERIFYSTRING)) != NULL)
@@ -135,11 +135,11 @@ main(int argc, char **argv)
 #endif
 		exit(0);
 	}
-		
+
 	found = 0;
 
 	/* check if we got a good device name */
-	
+
 	for(; i < argc; i++)
 	{
 		if((p = strstr(argv[i], DEVSTRING)) != NULL)
@@ -157,10 +157,10 @@ main(int argc, char **argv)
 		exit(0);
 	}
 
-	/* everything ok, now prepare for running ppp */	
+	/* everything ok, now prepare for running ppp */
 
 	/* close all file descriptors */
-	
+
 	i = getdtablesize();
 
 	for(;i >= 0; i--)
@@ -168,7 +168,7 @@ main(int argc, char **argv)
 		close(i);
 
 	/* fiddle a terminating zero after the rbch unit number */
-	
+
 	p += strlen(DEVSTRING);
 
 	if(isdigit(*p) && isdigit(*(p+1)))
@@ -177,16 +177,16 @@ main(int argc, char **argv)
 		*(p+1) = '\0';
 
 	/* construct /dev/i4brbchX device name */
-	
+
 	sprintf(buffer, "%s%s%s", I4BDEVICE, DEVSTRING, p);
 
 	/* open the rbch device as fd 0 = stdin */
-	
+
 	rbch_fd = open(buffer, O_RDWR);
 
 	if(rbch_fd != 0)
 	{
-		if(rbch_fd < 0)		
+		if(rbch_fd < 0)
 			syslog(LOG_INFO, "cannot open %s: %s", buffer, strerror(errno));
 		else
 			syslog(LOG_INFO, "cannot open %s as fd 0 (is %d): %s", buffer, rbch_fd, strerror(errno));
@@ -194,10 +194,10 @@ main(int argc, char **argv)
 	}
 
 	/* dup rbch device fd as fd 1 = stdout */
-	
+
 	if((i = dup(rbch_fd)) != 1)
 	{
-		if(i < 0)		
+		if(i < 0)
 			syslog(LOG_INFO, "cannot dup rbch_fd: %s", strerror(errno));
 		else
 			syslog(LOG_INFO, "cannot dup rbch as fd 1 (is %d): %s", i, strerror(errno));
@@ -205,13 +205,13 @@ main(int argc, char **argv)
 	}
 
 	/* construct the label for ppp's ppp.conf file */
-	
+
 	sprintf(buffer, "%s%s%s", PPPLABEL, DEVSTRING, p);
 
 	syslog(LOG_INFO, "executing: %s %s %s %s", PPPPROG, PPPNAME, PPPARG1, buffer);
 
 	/* execute ppp */
-	
+
 	if((execl(PPPPROG, PPPNAME, PPPARG1, buffer, NULL)) == -1)
 	{
 		syslog(LOG_INFO, "cannot exec: %s", strerror(errno));

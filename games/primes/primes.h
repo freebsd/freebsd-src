@@ -63,7 +63,7 @@ extern const ubig *const pr_limit;	/* largest prime in the prime array */
 
 /*
  * To avoid excessive sieves for small factors, we use the table below to
- * setup our sieve blocks.  Each element represents a odd number starting
+ * setup our sieve blocks.  Each element represents an odd number starting
  * with 1.  All non-zero elements are factors of 3, 5, 7, 11 and 13.
  */
 extern const char pattern[];

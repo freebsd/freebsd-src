@@ -1355,7 +1355,7 @@ ubt_isoc_in_start(ubt_softc_p sc)
 	usbd_status	status;
 	int		i;
 
-	/* Initialize a isoc-in USB transfer and then schedule it */
+	/* Initialize an isoc-in USB transfer and then schedule it. */
 
 	for (i = 0; i < sc->sc_isoc_nframes; i++)
 		sc->sc_isoc_in_frlen[i] = sc->sc_isoc_size;
@@ -1576,7 +1576,7 @@ ubt_isoc_out_start(ubt_softc_p sc, struct mbuf *m)
 
 	NG_FREE_M(m);
 
-	/* Initialize a isoc-out USB transfer and then schedule it */
+	/* Initialize an isoc-out USB transfer and then schedule it. */
 
 	usbd_setup_isoc_xfer(
 			sc->sc_isoc_out_xfer,

@@ -365,7 +365,7 @@ typedef volatile struct vci_table VCI_Table;
 /*
  * Access to Serial EEPROM [as opposed to expansion (E)PROM].
  *
- * This is a ATMEL AT24C01 serial EEPROM part.
+ * This is an ATMEL AT24C01 serial EEPROM part.
  * See http://www.atmel.com/atmel/products/prod162.htm for timimg diagrams
  * for START/STOP/ACK/READ cycles.
  */
@@ -387,7 +387,7 @@ typedef volatile struct vci_table VCI_Table;
  * Device VCC Entry
  *
  * Contains the common and ENI-specific information for each VCC
- * which is opened through a ENI device.
+ * which is opened through an ENI device.
  */
 struct eni_vcc {
 	struct cmn_vcc	ev_cmn;		/* Common VCC stuff */

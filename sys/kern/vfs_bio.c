@@ -2932,7 +2932,7 @@ bioq_remove(struct bio_queue_head *head, struct bio *bp)
  *	bufwait:
  *
  *	Wait for buffer I/O completion, returning error status.  The buffer
- *	is left locked and B_DONE on return.  B_EINTR is converted into a EINTR
+ *	is left locked and B_DONE on return.  B_EINTR is converted into an EINTR
  *	error and cleared.
  */
 int

@@ -52,7 +52,7 @@
 #define	EL_MAXMACRO	10
 
 /*
- * This is a issue of basic "vi" look-and-feel. Defining VI_MOVE works
+ * This is an issue of basic "vi" look-and-feel. Defining VI_MOVE works
  * like real vi: i.e. the transition from command<->insert modes moves
  * the cursor.
  *

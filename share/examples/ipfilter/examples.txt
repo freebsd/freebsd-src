@@ -350,7 +350,7 @@ in brackets following the "return-icmp" directive:
 block return-icmp (3) in proto udp from any to any port > 30000
 block return-icmp (port-unr) in proto udp from any to any port > 30000
 
-Those two examples are equivalent, and return a ICMP port unreachable error
+Those two examples are equivalent, and return an ICMP port unreachable error
 packet to in response to any UDP packet received destined for a port greater
 than 30,000.
   ------------------------------------------------------------------------

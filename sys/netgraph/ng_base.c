@@ -885,7 +885,7 @@ ng_name2noderef(node_p here, const char *name)
 }
 
 /*
- * Decode a ID name, eg. "[f03034de]". Returns 0 if the
+ * Decode an ID name, eg. "[f03034de]". Returns 0 if the
  * string is not valid, otherwise returns the value.
  */
 static ng_ID_t

@@ -432,7 +432,7 @@ enum smb_dialects {
 #define ERRwrite	29	/* Write fault */
 #define ERRread		30	/* Read fault */
 #define ERRgeneral	31	/* General failure */
-#define	ERRbadshare	32	/* A open conflicts with an existing open */
+#define	ERRbadshare	32	/* An open conflicts with an existing open */
 #define	ERRlock		33	/* lock/unlock conflict */
 #define ERRwrongdisk	34	/* The wrong disk was found in a drive */
 #define ERRFCBunavail	35	/* No FCBs available */

@@ -386,7 +386,7 @@ pback(char *pt, int cnt)
 
 /*
  * rd_skip()
- *	skip foward in the archive during a archive read. Used to get quickly
+ *	skip foward in the archive during an archive read. Used to get quickly
  *	past file data and padding for files the user did NOT select.
  * Return:
  *	0 if ok, -1 failure, and 1 when EOF on the archive volume was detected.

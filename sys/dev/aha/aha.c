@@ -306,7 +306,7 @@ aha_probe(struct aha_softc* aha)
 
 	/*
 	 * Get the board ID.  We use this to see if we're dealing with
-	 * a buslogic card or a aha card (or clone).
+	 * a buslogic card or an aha card (or clone).
 	 */
 	error = aha_cmd(aha, AOP_INQUIRE_BOARD_ID, NULL, /*parmlen*/0,
 		       (u_int8_t*)&board_id, sizeof(board_id),
@@ -806,7 +806,7 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 		struct	aha_hccb *hccb;
 
 		/*
-		 * get a accb to use.
+		 * Get an accb to use.
 		 */
 		if ((accb = ahagetccb(aha)) == NULL) {
 			int s;

@@ -82,8 +82,8 @@
 #if !defined(_POSIX_SOURCE) && !defined(_XOPEN_SOURCE)
 #define	SIZE_T_MAX	ULONG_MAX	/* max value for a size_t */
 
-#define	OFF_MAX		LONG_MAX	/* max value for a off_t */
-#define	OFF_MIN		LONG_MIN	/* min value for a off_t */
+#define	OFF_MAX		LONG_MAX	/* max value for an off_t */
+#define	OFF_MIN		LONG_MIN	/* min value for an off_t */
 
 /* Quads and longs are the same on the alpha.  Ensure they stay in sync. */
 #define	UQUAD_MAX	(ULONG_MAX)	/* max value for a uquad_t */

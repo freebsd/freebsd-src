@@ -54,7 +54,7 @@ __umoddi3:
   // floating-point registers used: f6, f7, f8, f9, f10, f11, f12
   // predicate registers used: p6
 
-  setf.sig f12=r32  // holds a in integer form
+  setf.sig f12=r32  // holds an in integer form
   setf.sig f7=r33
   nop.b 0;;
 } { .mfi

@@ -110,7 +110,7 @@ ENTRY(intr_vector)
 	lduw	[%g2 + IV_PRI], %g6
 
 	/*
-	 * Get a intr_request from the free list.  There should always be one
+	 * Get an intr_request from the free list.  There should always be one
 	 * unless we are getting an interrupt storm from stray interrupts, in
 	 * which case the we will deference a NULL pointer and panic.
 	 */

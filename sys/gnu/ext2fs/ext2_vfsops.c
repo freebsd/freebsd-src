@@ -686,7 +686,7 @@ ext2_mountfs(devvp, mp, td)
 	ump = bsd_malloc(sizeof *ump, M_EXT2MNT, M_WAITOK);
 	bzero((caddr_t)ump, sizeof *ump);
 	/* I don't know whether this is the right strategy. Note that
-	   we dynamically allocate both a ext2_sb_info and a ext2_super_block
+	   we dynamically allocate both an ext2_sb_info and an ext2_super_block
 	   while Linux keeps the super block in a locked buffer
 	 */
 	ump->um_e2fs = bsd_malloc(sizeof(struct ext2_sb_info), 
@@ -955,7 +955,7 @@ loop:
 }
 
 /*
- * Look up a EXT2FS dinode number to find its incore vnode, otherwise read it
+ * Look up an EXT2FS dinode number to find its incore vnode, otherwise read it
  * in from disk.  If it is in core, wait for the lock bit to clear, then
  * return the inode locked.  Detection and handling of mount points must be
  * done by the calling routine.

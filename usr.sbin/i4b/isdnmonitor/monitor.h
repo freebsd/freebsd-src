@@ -147,7 +147,7 @@
 #define	I4B_MON_DUMPRIGHTS_SIZE		I4B_MON_CMD_HDR		/* no parameters */
 
 /*
- * in response to a I4B_MON_DUMPRIGHTS_CODE command, the daemon sends
+ * In response to an I4B_MON_DUMPRIGHTS_CODE command, the daemon sends
  * this event:
  */
 #define	I4B_MON_DRINI_CODE		2	/* event code */
@@ -167,7 +167,7 @@
 #define	I4B_MON_DUMPMCONS_SIZE		I4B_MON_CMD_HDR		/* no parameters */
 
 /*
- * in response to a I4B_MON_DUMPMCONS_CODE command, the daemon sends
+ * In response to an I4B_MON_DUMPMCONS_CODE command, the daemon sends
  * this event:
  */
 #define	I4B_MON_DCINI_CODE		4	/* event code */

@@ -40,7 +40,7 @@
  * Copyright (C) 1984, Sun Microsystems, Inc.
  *
  * The data structures are completely opaque to the client.  The client
- * is required to pass a AUTH * to routines that create rpc
+ * is required to pass an AUTH * to routines that create rpc
  * "sessions".
  */
 

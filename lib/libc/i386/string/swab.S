@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
  *
  * On the i486, this code is negligibly faster than the code generated
  * by gcc at about half the size.  If my i386 databook is correct, it
- * should be considerably faster than the gcc code on a i386.
+ * should be considerably faster than the gcc code on an i386.
  *
  * Written by:
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.

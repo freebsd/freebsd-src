@@ -252,7 +252,7 @@ xdr_putint32(XDR *xdrs, int32_t *ip)
 /*
  * Support struct for discriminated unions.
  * You create an array of xdrdiscrim structures, terminated with
- * a entry with a null procedure pointer.  The xdr_union routine gets
+ * an entry with a null procedure pointer.  The xdr_union routine gets
  * the discriminant value and then searches the array of structures
  * for a matching value.  If a match is found the associated xdr routine
  * is called to handle that part of the union.  If there is

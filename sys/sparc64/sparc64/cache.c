@@ -328,7 +328,7 @@ icache_flush(vm_offset_t start, vm_offset_t end)
 }
 
 /*
- * Invalidate a I$ physical range using diagnostic accesses.
+ * Invalidate an I$ physical range using diagnostic accesses.
  * NOTE: there is a race between checking the tag and invalidating it. It
  * cannot be closed by disabling interrupts, since the fetch for the next
  * instruction may be in that line, so we don't even bother.
@@ -454,7 +454,7 @@ dcache_blast()
 		stxa_sync(dca, ASI_DCACHE_TAG, 0);
 }
 
-/* Flush a E$ physical range using block commit stores. */
+/* Flush an E$ physical range using block commit stores. */
 void
 ecache_flush(vm_offset_t start, vm_offset_t end)
 {
@@ -480,7 +480,7 @@ ecache_flush(vm_offset_t start, vm_offset_t end)
 
 #if 0
 /*
- * Invalidate a E$ range using diagnostic accesses.
+ * Invalidate an E$ range using diagnostic accesses.
  * This is disabled: it suffers from the same races as dcache_blast() and
  * icache_blast_phys(), but they may be fatal here because blasting an E$ line
  * can discard modified data.
