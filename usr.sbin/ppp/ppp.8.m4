@@ -5148,7 +5148,10 @@ The optimum value is just over twice the MTU value.
 If
 .Ar value
 is unspecified or zero, the default kernel controlled value is used.
-.It "set server|socket" Ar TcpPort|LocalName|none|open|closed Op password Op Ar mask
+.It "set server|socket" Ar TcpPort Ns No \&| Ns Xo
+.Ar LocalName Ns No |none|open|closed
+.Op password Op Ar mask
+.Xc
 This command tells
 .Nm
 to listen on the given socket or
@@ -5156,17 +5159,17 @@ to listen on the given socket or
 for incoming command connections.
 .Pp
 The word
-.Ar none
+.Dq none
 instructs
 .Nm
 to close any existing socket and clear the socket configuration.
 The word
-.Ar open
+.Dq open
 instructs
 .Nm
 to attempt to re-open the port.
 The word
-.Ar closed
+.Dq closed
 instructs
 .Nm
 to close the open port.
@@ -5175,7 +5178,7 @@ If you wish to specify a local domain socket,
 .Ar LocalName
 must be specified as an absolute file name, otherwise it is assumed
 to be the name or number of a TCP port.
-You must specify the octal umask to be used with a local domain socket.
+You may specify the octal umask to be used with a local domain socket.
 Refer to
 .Xr umask 2
 for umask details.
