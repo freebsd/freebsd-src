@@ -10,6 +10,7 @@ COPTS+= -fno-builtin	# GCC's builtin memcpy doesn't do unaligned copies
 .endif
 DPADD=	${LIBM}
 LDADD=	-lm
+CFLAGS+=-Wall
 
 .if !defined(RELEASE_CRUNCH)
 CFLAGS+=-DIPSEC
