@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.21 1999/04/27 11:15:21 phk Exp $
+ *      $Id: wfd.c,v 1.22 1999/04/28 10:53:04 dt Exp $
  */
 
 /*
@@ -53,8 +53,6 @@
 #include <i386/isa/atapi.h>
 
 static	d_open_t	wfdopen;
-static	d_read_t	wfdread;
-static	d_write_t	wfdwrite;
 static	d_close_t	wfdclose;
 static	d_ioctl_t	wfdioctl;
 static	d_strategy_t	wfdstrategy;
@@ -63,7 +61,7 @@ static	d_strategy_t	wfdstrategy;
 #define BDEV_MAJOR 1
 
 static struct cdevsw wfd_cdevsw = {
-	  wfdopen,	wfdclose,	wfdread,	wfdwrite,
+	  wfdopen,	wfdclose,	physread,	physwrite,
 	  wfdioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		wfdstrategy,	"wfd",
 	  NULL,		-1,		nodump,		nopsize,
@@ -406,18 +404,6 @@ int wfdclose (dev_t dev, int flags, int fmt, struct proc *p)
 		t->flags &= ~F_BOPEN;
 	}
 	return (0);
-}
-
-static int
-wfdread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(wfdstrategy, NULL, dev, 1, minphys, uio));
-}
-
-static int
-wfdwrite(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(wfdstrategy, NULL, dev, 0, minphys, uio));
 }
 
 static void

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.9 1999/03/05 23:25:10 gibbs Exp $
+ *      $Id: scsi_target.c,v 1.10 1999/05/04 19:24:21 gibbs Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -1012,7 +1012,7 @@ targread(dev_t dev, struct uio *uio, int ioflag)
 		targrunqueue(periph, softc);
 		return (0);
 	}
-	return(physio(targstrategy, NULL, dev, 1, minphys, uio));
+	return(physread(dev, uio, ioflag));
 }
 
 static int
@@ -1042,7 +1042,7 @@ targwrite(dev_t dev, struct uio *uio, int ioflag)
 		targrunqueue(periph, softc);
 		return (0);
 	}
-	return(physio(targstrategy, NULL, dev, 0, minphys, uio));
+	return(physwrite(dev, uio, ioflag));
 }
 
 /*

@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.42 1999/04/28 10:52:51 dt Exp $ */
+/* $Id: scd.c,v 1.43 1999/05/06 18:54:19 peter Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -186,7 +186,6 @@ struct	isa_driver	scddriver = { scd_probe, scd_attach, "scd" };
 static struct callout_handle tohandle = CALLOUT_HANDLE_INITIALIZER(&tohanle);
 
 static	d_open_t	scdopen;
-static	d_read_t	scdread;
 static	d_close_t	scdclose;
 static	d_ioctl_t	scdioctl;
 static	d_strategy_t	scdstrategy;
@@ -194,7 +193,7 @@ static	d_strategy_t	scdstrategy;
 #define CDEV_MAJOR 45
 #define BDEV_MAJOR 16
 static struct cdevsw scd_cdevsw = {
-	  scdopen,	scdclose,	scdread,	nowrite,
+	  scdopen,	scdclose,	physread,	nowrite,
 	  scdioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		scdstrategy,	"scd",
 	  NULL,		-1,		nodump,		nopsize,
@@ -318,12 +317,6 @@ scdclose(dev_t dev, int flags, int fmt, struct proc *p)
 	cd->openflag = 0;
 
 	return 0;
-}
-
-static int
-scdread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(scdstrategy, NULL, dev, 1, minphys, uio));
 }
 
 static	void

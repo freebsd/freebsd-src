@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pt.c,v 1.4 1998/11/22 23:44:47 ken Exp $
+ *      $Id: scsi_pt.c,v 1.5 1999/02/10 00:03:15 ken Exp $
  */
 
 #include <sys/param.h>
@@ -82,8 +82,6 @@ struct pt_softc {
 };
 
 static	d_open_t	ptopen;
-static	d_read_t	ptread;
-static	d_write_t	ptwrite;
 static	d_close_t	ptclose;
 static	d_strategy_t	ptstrategy;
 static	periph_init_t	ptinit;
@@ -118,8 +116,8 @@ static struct cdevsw pt_cdevsw =
 {
 	/*d_open*/	ptopen,
 	/*d_close*/	ptclose,
-	/*d_read*/	ptread,
-	/*d_write*/	ptwrite,
+	/*d_read*/	physread,
+	/*d_write*/	physwrite,
 	/*d_ioctl*/	noioctl,
 	/*d_stop*/	nostop,
 	/*d_reset*/	noreset,
@@ -205,18 +203,6 @@ ptclose(dev_t dev, int flag, int fmt, struct proc *p)
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
 	return (0);
-}
-
-static int
-ptread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return(physio(ptstrategy, NULL, dev, 1, minphys, uio));
-}
-
-static int
-ptwrite(dev_t dev, struct uio *uio, int ioflag)
-{
-	return(physio(ptstrategy, NULL, dev, 0, minphys, uio));
 }
 
 /*

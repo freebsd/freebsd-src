@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.20 1999/03/01 01:07:47 mjacob Exp $
+ *      $Id: scsi_sa.c,v 1.21 1999/04/18 01:05:03 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -250,8 +250,6 @@ static struct sa_quirk_entry sa_quirk_table[] =
 };
 
 static	d_open_t	saopen;
-static	d_read_t	saread;
-static	d_write_t	sawrite;
 static	d_close_t	saclose;
 static	d_strategy_t	sastrategy;
 static	d_ioctl_t	saioctl;
@@ -324,8 +322,8 @@ static struct cdevsw sa_cdevsw =
 {
 	/*d_open*/	saopen,
 	/*d_close*/	saclose,
-	/*d_read*/	saread,
-	/*d_write*/	sawrite,
+	/*d_read*/	physread,
+	/*d_write*/	physwrite,
 	/*d_ioctl*/	saioctl,
 	/*d_stop*/	nostop,
 	/*d_reset*/	noreset,
@@ -519,24 +517,6 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 	cam_periph_release(periph);
 
 	return (0);	
-}
-
-static int
-saread(dev_t dev, struct uio *uio, int ioflag)
-{
-	if (SA_IS_CTRL(dev)) {
-		return (EINVAL);
-	}
-	return(physio(sastrategy, NULL, dev, 1, minphys, uio));
-}
-
-static int
-sawrite(dev_t dev, struct uio *uio, int ioflag)
-{
-	if (SA_IS_CTRL(dev)) {
-		return (EINVAL);
-	}
-	return(physio(sastrategy, NULL, dev, 0, minphys, uio));
 }
 
 /*

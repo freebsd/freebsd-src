@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.78 1999/04/18 14:42:20 kato Exp $
+ *	$Id: wd.c,v 1.79 1999/04/28 10:54:00 dt Exp $
  */
 
 /* TODO:
@@ -276,8 +276,6 @@ struct isa_driver wdcdriver = {
 
 
 static	d_open_t	wdopen;
-static	d_read_t	wdread;
-static	d_write_t	wdwrite;
 static	d_close_t	wdclose;
 static	d_strategy_t	wdstrategy;
 static	d_ioctl_t	wdioctl;
@@ -289,7 +287,7 @@ static	d_psize_t	wdsize;
 
 
 static struct cdevsw wd_cdevsw = {
-	  wdopen,	wdclose,	wdread,		wdwrite,
+	  wdopen,	wdclose,	physread,	physwrite,
 	  wdioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		wdstrategy,	"wd",
 	  NULL,		-1,		wddump,		wdsize,
@@ -702,20 +700,6 @@ next: ;
 #endif
 
 	return (1);
-}
-
-
-
-static int
-wdread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(wdstrategy, NULL, dev, 1, minphys, uio));
-}
-
-static int
-wdwrite(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(wdstrategy, NULL, dev, 0, minphys, uio));
 }
 
 /* Read/write routine for a buffer.  Finds the proper unit, range checks

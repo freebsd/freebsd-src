@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.103 1999/05/06 18:44:00 peter Exp $
+ *	$Id: mcd.c,v 1.104 1999/05/06 18:54:17 peter Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -210,7 +210,6 @@ static	int	mcd_attach(struct isa_device *dev);
 struct	isa_driver	mcddriver = { mcd_probe, mcd_attach, "mcd" };
 
 static	d_open_t	mcdopen;
-static	d_read_t	mcdread;
 static	d_close_t	mcdclose;
 static	d_ioctl_t	mcdioctl;
 static	d_psize_t	mcdsize;
@@ -222,7 +221,7 @@ static	d_strategy_t	mcdstrategy;
 
 
 static struct cdevsw mcd_cdevsw = {
-	  mcdopen,	mcdclose,	mcdread,	nowrite,
+	  mcdopen,	mcdclose,	physread,	nowrite,
 	  mcdioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		mcdstrategy,	"mcd",
 	  NULL,		-1,		nodump, 	nopsize,
@@ -394,12 +393,6 @@ int mcdclose(dev_t dev, int flags, int fmt, struct proc *p)
 	cd->partflags[part] &= ~MCDREADRAW;
 
 	return 0;
-}
-
-static int
-mcdread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(mcdstrategy, NULL, dev, 1, minphys, uio));
 }
 
 void
