@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.49 1997/08/14 13:44:19 kato Exp $
+ *	$Id: vn.c,v 1.50 1997/09/27 13:38:12 kato Exp $
  */
 
 /*
@@ -228,6 +228,7 @@ vnstrategy(struct buf *bp)
 	register struct vn_softc *vn = vn_softc[unit];
 	register daddr_t bn;
 	int error;
+	int isvplocked = 0;
 	long sz;
 	struct uio auio;
 	struct iovec aiov;
@@ -276,12 +277,18 @@ vnstrategy(struct buf *bp)
 			auio.uio_rw = UIO_WRITE;
 		auio.uio_resid = bp->b_bcount;
 		auio.uio_procp = curproc;
-		vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
+		if (!VOP_ISLOCKED(vn->sc_vp)) {
+			isvplocked = 1;
+			vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
+		}
 		if( bp->b_flags & B_READ)
 			error = VOP_READ(vn->sc_vp, &auio, 0, vn->sc_cred);
 		else
 			error = VOP_WRITE(vn->sc_vp, &auio, 0, vn->sc_cred);
-		VOP_UNLOCK(vn->sc_vp, 0, curproc);
+		if (isvplocked) {
+			VOP_UNLOCK(vn->sc_vp, 0, curproc);
+			isvplocked = 0;
+		}
 		bp->b_resid = auio.uio_resid;
 
 		if( error )
@@ -305,10 +312,16 @@ vnstrategy(struct buf *bp)
 			int off, s, nra;
 
 			nra = 0;
-			vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
+			if (!VOP_ISLOCKED(vn->sc_vp)) {
+				isvplocked = 1;
+				vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
+			}
 			error = VOP_BMAP(vn->sc_vp, (daddr_t)(byten / bsize),
 					 &vp, &nbn, &nra, NULL);
-			VOP_UNLOCK(vn->sc_vp, 0, curproc);
+			if (isvplocked) {
+				VOP_UNLOCK(vn->sc_vp, 0, curproc);
+				isvplocked = 0;
+			}
 			if (error == 0 && nbn == -1)
 				error = EIO;
 
