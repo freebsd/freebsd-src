@@ -586,7 +586,8 @@ ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
 			return (EINVAL);
 
 		/* Create the socket */
-		error = socreate(family, &priv->so, type, protocol, td);
+		error = socreate(family, &priv->so, type, protocol,
+		   td->td_proc->p_ucred, td);
 		if (error != 0)
 			return (error);
 

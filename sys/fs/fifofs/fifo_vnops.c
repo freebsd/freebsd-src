@@ -174,14 +174,16 @@ fifo_open(ap)
 	if ((fip = vp->v_fifoinfo) == NULL) {
 		MALLOC(fip, struct fifoinfo *, sizeof(*fip), M_VNODE, M_WAITOK);
 		vp->v_fifoinfo = fip;
-		error = socreate(AF_LOCAL, &rso, SOCK_STREAM, 0, ap->a_td);
+		error = socreate(AF_LOCAL, &rso, SOCK_STREAM, 0,
+		    ap->a_td->td_proc->p_ucred, ap->a_td);
 		if (error) {
 			free(fip, M_VNODE);
 			vp->v_fifoinfo = NULL;
 			return (error);
 		}
 		fip->fi_readsock = rso;
-		error = socreate(AF_LOCAL, &wso, SOCK_STREAM, 0, ap->a_td);
+		error = socreate(AF_LOCAL, &wso, SOCK_STREAM, 0,
+		    ap->a_td->td_proc->p_ucred, ap->a_td);
 		if (error) {
 			(void)soclose(rso);
 			free(fip, M_VNODE);
