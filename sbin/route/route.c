@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.16.2.3 1997/04/02 16:56:23 phk Exp $";
+	"$Id: route.c,v 1.16.2.4 1997/04/02 17:06:20 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -761,7 +761,6 @@ getaddr(which, s, hpp)
 	switch (which) {
 	case RTA_DST:
 		su = &so_dst;
-		su->sa.sa_family = af;
 		break;
 	case RTA_GATEWAY:
 		su = &so_gate;
@@ -807,7 +806,6 @@ getaddr(which, s, hpp)
 				return(1);
 			}
 		}
-		su->sa.sa_family = af;
 		break;
 	case RTA_NETMASK:
 		su = &so_mask;
@@ -817,26 +815,29 @@ getaddr(which, s, hpp)
 		break;
 	case RTA_IFP:
 		su = &so_ifp;
-		su->sa.sa_family = af;
 		break;
 	case RTA_IFA:
 		su = &so_ifa;
-		su->sa.sa_family = af;
 		break;
 	default:
 		usage("Internal Error");
 		/*NOTREACHED*/
 	}
 	su->sa.sa_len = aflen;
+	su->sa.sa_family = af; /* cases that don't want it have left already */
 	if (strcmp(s, "default") == 0) {
+		/*
+		 * Default is net 0.0.0.0/0 
+		 */
 		switch (which) {
 		case RTA_DST:
 			forcenet++;
+			/* bzero(su, sizeof(*su)); *//* for readability */
 			(void) getaddr(RTA_NETMASK, s, 0);
 			break;
 		case RTA_NETMASK:
 		case RTA_GENMASK:
-			su->sa.sa_len = 0;
+			/* bzero(su, sizeof(*su)); *//* for readability */
 		}
 		return (0);
 	}
