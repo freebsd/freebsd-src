@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.413 1998/02/27 10:02:41 itojun Exp $
+#	$Id: LINT,v 1.414 1998/03/08 09:56:31 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1390,6 +1390,19 @@ options		GATEWAY
 # the user must still supply the actual driver.
 #
 options		HW_WDOG
+
+#
+# Set the number of PV entries per process.  Increasing this can
+# stop panics related to heavy use of shared memory. However, that can
+# (combined with large amounts of physical memory) cause panics at
+# boot time due the kernel running out of VM space.
+#
+# If you're tweaking this, you might also want to increase the sysctls
+# "vm.v_free_min", "vm.v_free_reserved", and "vm.v_free_target".
+#
+# The value below is the default.
+#
+options         "PMAP_SHPGPERPROC=200"
 
 # More undocumented options for linting.
 

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.187 1998/03/01 04:18:54 dyson Exp $
+ *	$Id: pmap.c,v 1.188 1998/03/07 21:34:44 dyson Exp $
  */
 
 /*
@@ -69,6 +69,7 @@
  */
 
 #include "opt_disable_pse.h"
+#include "opt_pmap.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
