@@ -28,23 +28,25 @@
  * $FreeBSD$
  */
 
-/* MODE SENSE parameter header */
-struct ast_header {
-    u_int8_t	data_length;        	/* total length of data */
-    u_int8_t	medium_type;       	/* medium type (if any) */
-    u_int8_t	dsp;           		/* device specific parameter */
-    u_int8_t	bdl;           		/* block Descriptor Length */
-};
-
 /* ATAPI tape drive Capabilities and Mechanical Status Page */
-#define ATAPI_TAPE_CAP_PAGE     0x2a
-
 struct ast_cappage {
-    u_int8_t	page_code	:6;	/* page code == 0x2a */
-    u_int8_t	reserved1_67	:2;
-    u_int8_t	page_length;        	/* page Length == 0x12 */
+    /* mode page data header */
+    u_int8_t	data_length;		/* total length of data */
+    u_int8_t	medium_type;		/* medium type (if any) */
+    u_int8_t	reserved	:4;
+    u_int8_t	mode		:3;	/* buffering mode */
+    u_int8_t	write_protect	:1;	/* media is writeprotected */
+    u_int8_t	blk_desc_len;		/* block Descriptor Length */
+
+    /* capabilities page */
+    u_int8_t	page_code	:6;
+#define ATAPI_TAPE_CAP_PAGE	0x2a
+
+    u_int8_t	reserved0_6	:1;
+    u_int8_t	ps		:1;	/* parameters saveable */
+    u_int8_t	page_length;		/* page Length == 0x12 */
     u_int8_t	reserved2;
-    u_int8_t    reserved3;
+    u_int8_t	reserved3;
     u_int8_t	readonly	:1;	/* read Only Mode */
     u_int8_t	reserved4_1234	:4;
     u_int8_t	reverse		:1;	/* supports reverse direction */
@@ -52,38 +54,109 @@ struct ast_cappage {
     u_int8_t	reserved5_012	:3;
     u_int8_t	eformat		:1;	/* supports ERASE formatting */
     u_int8_t	reserved5_4	:1;
-    u_int8_t	qfa     	:1;	/* supports QFA formats */
-    u_int8_t	reserved5_67   	:2;
-    u_int8_t	lock        	:1;	/* supports locking media */
-    u_int8_t	locked      	:1;	/* the media is locked */
-    u_int8_t	prevent     	:1;	/* defaults to prevent state */
-    u_int8_t	eject       	:1;	/* supports eject */
+    u_int8_t	qfa		:1;	/* supports QFA formats */
+    u_int8_t	reserved5_67	:2;
+    u_int8_t	lock		:1;	/* supports locking media */
+    u_int8_t	locked		:1;	/* the media is locked */
+    u_int8_t	prevent		:1;	/* defaults to prevent state */
+    u_int8_t	eject		:1;	/* supports eject */
     u_int8_t	disconnect	:1;	/* can break request > ctl */
-    u_int8_t	reserved6_5    	:1;
-    u_int8_t	ecc     	:1;	/* supports error correction */
-    u_int8_t	compress    	:1;	/* supports data compression */
-    u_int8_t	reserved7_0 	:1;
-    u_int8_t	blk512      	:1;	/* supports 512b block size */
-    u_int8_t	blk1024     	:1;	/* supports 1024b block size */
-    u_int8_t	reserved7_3456 	:4;
-    u_int8_t	slowb       	:1;	/* restricts byte count */
-    u_int16_t	max_speed;     		/* supported speed in KBps */
-    u_int16_t	max_defects;   		/* max stored defect entries */
-    u_int16_t	ctl;           		/* continuous transfer limit */
-    u_int16_t	speed;         		/* current Speed, in KBps */
-    u_int16_t	buffer_size;        	/* buffer Size, in 512 bytes */
+    u_int8_t	reserved6_5	:1;
+    u_int8_t	ecc		:1;	/* supports error correction */
+    u_int8_t	compress	:1;	/* supports data compression */
+    u_int8_t	reserved7_0	:1;
+    u_int8_t	blk512		:1;	/* supports 512b block size */
+    u_int8_t	blk1024		:1;	/* supports 1024b block size */
+    u_int8_t	reserved7_3456	:4;
+    u_int8_t	blk32k		:1;	/* supports 32kb block size */
+    u_int16_t	max_speed;		/* supported speed in KBps */
+    u_int16_t	max_defects;		/* max stored defect entries */
+    u_int16_t	ctl;			/* continuous transfer limit */
+    u_int16_t	speed;			/* current Speed, in KBps */
+    u_int16_t	buffer_size;		/* buffer Size, in 512 bytes */
+    u_int8_t	reserved18;
+    u_int8_t	reserved19;
+};
+
+/* ATAPI OnStream ADR data transfer mode page (ADR unique) */
+struct ast_transferpage {
+    /* mode page data header */
+    u_int8_t	data_length;		/* total length of data */
+    u_int8_t	medium_type;		/* medium type (if any) */
+    u_int8_t	dsp;			/* device specific parameter */
+    u_int8_t	blk_desc_len;		/* block Descriptor Length */
+
+    /* data transfer page */
+    u_int8_t	page_code	:6;
+#define ATAPI_TAPE_TRANSFER_PAGE     0x30
+
+    u_int8_t	reserved0_6	:1;
+    u_int8_t	ps		:1;	/* parameters saveable */
+    u_int8_t	page_length;		/* page Length == 0x02 */
+    u_int8_t	reserved2;
+    u_int8_t	read32k		:1;	/* 32k block size (data only) */
+    u_int8_t	read32k5	:1;	/* 32.5k block size (data & AUX) */
+    u_int8_t	reserved3_23	:2;
+    u_int8_t	write32k	:1;	/* 32k block size (data only) */
+    u_int8_t	write32k5	:1;	/* 32.5k block size (data & AUX) */
+    u_int8_t	reserved3_6	:1;
+    u_int8_t	streaming	:1;	/* streaming mode enable */
+};
+
+/* ATAPI OnStream ADR vendor identification mode page (ADR unique) */
+struct ast_identifypage {
+    /* mode page data header */
+    u_int8_t	data_length;		/* total length of data */
+    u_int8_t	medium_type;		/* medium type (if any) */
+    u_int8_t	dsp;			/* device specific parameter */
+    u_int8_t	blk_desc_len;		/* block Descriptor Length */
+
+    /* data transfer page */
+    u_int8_t	page_code	:6;
+#define ATAPI_TAPE_IDENTIFY_PAGE     0x36
+
+    u_int8_t	reserved0_6	:1;
+    u_int8_t	ps		:1;	/* parameters saveable */
+    u_int8_t	page_length;		/* page Length == 0x06 */
+    u_int8_t	ident[4];		/* host id string */
+    u_int8_t	reserved6;
+    u_int8_t	reserved7;
+};
+
+/* ATAPI read position structure */
+struct ast_readposition {
+    u_int8_t	reserved0_05	:6;
+    u_int8_t	eop		:1;	/* end of partition */
+    u_int8_t	bop		:1;	/* beginning of partition */
+    u_int8_t	reserved1;
+    u_int8_t	reserved2;
+    u_int8_t	reserved3;
+    u_int32_t	host;			/* frame address in buffer */
+    u_int32_t	tape;			/* frame address on tape */
+    u_int8_t	reserved12;
+    u_int8_t	reserved13;
+    u_int8_t	reserved14;
+    u_int8_t	blks_in_buf;		/* blocks in buffer */
+    u_int8_t	reserved16;
+    u_int8_t	reserved17;
     u_int8_t	reserved18;
     u_int8_t	reserved19;
 };
 
 struct ast_softc {
-    struct atapi_softc 		*atp;          	/* controller structure */
-    int32_t			lun;           	/* logical device unit */
-    int32_t			flags;         	/* device state flags */
+    struct atapi_softc		*atp;		/* controller structure */
+    int32_t			lun;		/* logical device unit */
+    int32_t			flags;		/* device state flags */
+#define 	F_OPEN			0x0001	/* the device is opened */
+#define		F_CTL_WARN		0x0002	/* warned about CTL wrong? */
+#define 	F_WRITEPROTECT		0x0004	/* media is writeprotected */
+#define 	F_DATA_WRITTEN		0x0010	/* data has been written */
+#define 	F_FM_WRITTEN		0x0020	/* filemark has been written */
+#define 	F_ONSTREAM		0x0100	/* OnStream ADR device */
+
     int32_t			blksize;	/* block size (512 | 1024) */
-    struct buf_queue_head	buf_queue;    	/* queue of i/o requests */
-    struct atapi_params		*param;     	/* drive parameters table */
-    struct ast_header		header;       	/* MODE SENSE param header */
-    struct ast_cappage 		cap;         	/* capabilities page info */
+    struct buf_queue_head	buf_queue;	/* queue of i/o requests */
+    struct atapi_params		*param;		/* drive parameters table */
+    struct ast_cappage		cap;		/* capabilities page info */
     struct devstat		stats;		/* devstat entry */
 };
