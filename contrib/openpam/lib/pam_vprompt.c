@@ -58,16 +58,21 @@ pam_vprompt(pam_handle_t *pamh,
 	struct pam_message msg;
 	const struct pam_message *msgp;
 	struct pam_response *rsp;
-	struct pam_conv conv;
+	struct pam_conv *conv;
 	int r;
 
-	if ((r = pam_get_item(pamh, PAM_CONV, (void *)&conv)) != PAM_SUCCESS)
+	r = pam_get_item(pamh, PAM_CONV, (const void **)&conv);
+	if (r != PAM_SUCCESS)
 		return (r);
+	if (conv == NULL) {
+		openpam_log(PAM_LOG_ERROR, "no conversation function");
+		return (PAM_SYSTEM_ERR);
+	}
 	vsnprintf(msgbuf, PAM_MAX_MSG_SIZE, fmt, ap);
 	msg.msg_style = style;
 	msg.msg = msgbuf;
 	msgp = &msg;
-	r = (conv.conv)(1, &msgp, &rsp, conv.appdata_ptr);
+	r = (conv->conv)(1, &msgp, &rsp, conv->appdata_ptr);
 	*resp = rsp == NULL ? NULL : rsp->resp;
 	free(rsp);
 	return (r);

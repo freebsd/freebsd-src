@@ -47,12 +47,12 @@ SET_DECLARE(_openpam_modules, pam_module_t);
 #endif
 
 const char *_pam_sm_func_name[PAM_NUM_PRIMITIVES] = {
-	"pam_sm_acct_mgmt",
 	"pam_sm_authenticate",
-	"pam_sm_chauthtok",
-	"pam_sm_close_session",
+	"pam_sm_setcred",
+	"pam_sm_acct_mgmt",
 	"pam_sm_open_session",
-	"pam_sm_setcred"
+	"pam_sm_close_session",
+	"pam_sm_chauthtok"
 };
 
 static pam_module_t *modules;

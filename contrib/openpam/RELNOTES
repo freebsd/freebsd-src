@@ -1,6 +1,6 @@
 
-		  Release notes for OpenPAM Calamite
-		  ==================================
+		 Release notes for OpenPAM Caliopsis
+		 ===================================
 
 This is a beta release.
 
@@ -12,5 +12,17 @@ This release is primarily intended for reviewers and developers
 interested in testing OpenPAM on FreeBSD.  It has not been tested on
 any other OS, though it should build and run with minimal tweaks on
 NetBSD and OpenBSD.
+
+Known issues:
+
+  - The pam_get_user() and pam_get_authtok() functions do not check
+    for commonly used options such as {use,try}_first_pass or
+    auth_as_self.  In fact, pam_get_authtok() behaves as if
+    try_first_pass was always specified.
+
+  - The provided conversation function, openpam_ttyconv(), should
+    block signals, and support some sort of timeout.
+
+  - The documentation is far from complete.
 
 $Id$
