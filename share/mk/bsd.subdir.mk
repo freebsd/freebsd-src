@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.5 1994/01/31 06:10:40 rgrimes Exp $
+#	$Id: bsd.subdir.mk,v 1.2 1994/08/04 21:09:26 wollman Exp $
 
 .MAIN: all
 
@@ -12,11 +12,11 @@ BINMODE?=	555
 _SUBDIRUSE: .USE
 	@for entry in ${SUBDIR}; do \
 		(if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
-			echo "===> ${DIRPRFX}$${entry}.${MACHINE}"; \
+			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE}"; \
 			edir=$${entry}.${MACHINE}; \
 			cd ${.CURDIR}/$${edir}; \
 		else \
-			echo "===> ${DIRPRFX}$$entry"; \
+			${ECHODIR} "===> ${DIRPRFX}$$entry"; \
 			edir=$${entry}; \
 			cd ${.CURDIR}/$${edir}; \
 		fi; \
