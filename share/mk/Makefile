@@ -1,10 +1,10 @@
-#	$Id: Makefile,v 1.7 1995/05/09 10:12:16 rgrimes Exp $
+#	$Id: Makefile,v 1.8 1995/07/25 00:34:32 bde Exp $
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
 
 FILES=	bsd.README
 FILES+=	bsd.dep.mk bsd.doc.mk bsd.info.mk bsd.kmod.mk
 FILES+=	bsd.lib.mk bsd.man.mk bsd.own.mk bsd.port.mk
-FILES+=	bsd.port.subdir.mk bsd.prog.mk bsd.subdir.mk
+FILES+=	bsd.port.subdir.mk bsd.prog.mk bsd.sgml.mk bsd.subdir.mk
 FILES+=	sys.mk
 NOOBJ=	noobj
 
