@@ -181,6 +181,5 @@ chrdev	name		comments
 162	digi		Digiboard
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
-253	mfs		Used by MFS
 254	internal	Used internally by the kernel
 255	bad choice	-1 is 255 which has magic meanings internally
