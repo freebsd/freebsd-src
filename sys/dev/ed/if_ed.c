@@ -169,6 +169,8 @@ ed_alloc_port(device_t dev, int rid, int size)
 		sc->port_rid = rid;
 		sc->port_res = res;
 		sc->port_used = size;
+		sc->port_bst = rman_get_bustag(res);
+		sc->port_bsh = rman_get_bushandle(res);
 		return (0);
 	}
 	return (ENOENT);
@@ -189,6 +191,8 @@ ed_alloc_memory(device_t dev, int rid, int size)
 		sc->mem_rid = rid;
 		sc->mem_res = res;
 		sc->mem_used = size;
+		sc->mem_bst = rman_get_bustag(res);
+		sc->mem_bsh = rman_get_bushandle(res);
 		return (0);
 	}
 	return (ENOENT);
