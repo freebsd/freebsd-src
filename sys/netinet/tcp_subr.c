@@ -602,11 +602,6 @@ tcp_newtcpcb(inp)
 		tcp_mssdflt;
 
 	/* Set up our timeouts. */
-	/*
-	 * XXXRW: Are these actually MPSAFE?  I think so, but need to
-	 * review the timed wait code, as it has some list variables,
-	 * etc, that are global.
-	 */
 	callout_flag = debug_mpsafenet ? CALLOUT_MPSAFE : 0;
 	callout_init(tp->tt_rexmt = &tm->tcpcb_mem_rexmt, callout_flag);
 	callout_init(tp->tt_persist = &tm->tcpcb_mem_persist, callout_flag);
@@ -1735,7 +1730,7 @@ tcp_twstart(tp)
  * that it is safe to recycle this tw socket by returning 1.
  *
  * XXXRW: This function should assert the inpcb lock as it does multiple
- * non-atomic reads from the tcptw, but is currently * called without it from
+ * non-atomic reads from the tcptw, but is currently called without it from
  * in_pcb.c:in_pcblookup_local().
  */
 int
