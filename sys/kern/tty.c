@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.60 1995/07/30 13:52:56 bde Exp $
+ * $Id: tty.c,v 1.61 1995/07/31 18:29:28 bde Exp $
  */
 
 /*-
@@ -92,11 +92,14 @@
 
 #include <vm/vm.h>
 
-
 static int	proc_compare __P((struct proc *p1, struct proc *p2));
-static int	ttnread __P((struct tty *));
-static void	ttyecho __P((int, struct tty *tp));
-static void	ttyrubo __P((struct tty *, int));
+static int	ttnread __P((struct tty *tp));
+static void	ttyecho __P((int c, struct tty *tp));
+static int	ttyoutput __P((int c, register struct tty *tp));
+static void	ttypend __P((struct tty *tp));
+static void	ttyretype __P((struct tty *tp));
+static void	ttyrub __P((int c, struct tty *tp));
+static void	ttyrubo __P((struct tty *tp, int cnt));
 static void	ttyunblock __P((struct tty *tp));
 
 /*
@@ -271,8 +274,8 @@ ttyinput(c, tp)
 	register int c;
 	register struct tty *tp;
 {
-	register int iflag, lflag;
-	register u_char *cc;
+	register tcflag_t iflag, lflag;
+	register cc_t *cc;
 	int i, err;
 
 	/*
@@ -478,7 +481,6 @@ parmrk:
 		 * word erase (^W)
 		 */
 		if (CCEQ(cc[VWERASE], c)) {
-			int alt = ISSET(lflag, ALTWERASE);
 			int ctype;
 
 			/*
@@ -510,7 +512,7 @@ parmrk:
 				if (c == -1)
 					goto endcase;
 			} while (c != ' ' && c != '\t' &&
-			    (alt == 0 || ISALPHA(c) == ctype));
+			    (!ISSET(lflag, ALTWERASE) || ISALPHA(c) == ctype));
 			(void)putc(c, &tp->t_rawq);
 			goto endcase;
 		}
@@ -577,7 +579,7 @@ input_overflow:
 			/*
 			 * Place the cursor over the '^' of the ^D.
 			 */
-			i = min(2, tp->t_column - i);
+			i = imin(2, tp->t_column - i);
 			while (i > 0) {
 				(void)ttyoutput('\b', tp);
 				i--;
@@ -604,12 +606,12 @@ startoutput:
  * Returns < 0 if succeeds, otherwise returns char to resend.
  * Must be recursive.
  */
-int
+static int
 ttyoutput(c, tp)
 	register int c;
 	register struct tty *tp;
 {
-	register long oflag;
+	register tcflag_t oflag;
 	register int col, s;
 
 	oflag = tp->t_oflag;
@@ -1008,7 +1010,7 @@ ttyselect(tp, rw, p)
 	int rw;
 	struct proc *p;
 {
-	int nread, s;
+	int s;
 
 	if (tp == NULL)
 		return (ENXIO);
@@ -1016,8 +1018,7 @@ ttyselect(tp, rw, p)
 	s = spltty();
 	switch (rw) {
 	case FREAD:
-		nread = ttnread(tp);
-		if (nread > 0 || (!ISSET(tp->t_cflag, CLOCAL) &&
+		if (ttnread(tp) > 0 || (!ISSET(tp->t_cflag, CLOCAL) &&
 		    !ISSET(tp->t_state, TS_CARR_ON)))
 			goto win;
 		selrecord(p, &tp->t_rsel);
@@ -1088,11 +1089,13 @@ ttywait(tp)
 			error = ttysleep(tp, TSA_OCOMPLETE(tp),
 					 TTOPRI | PCATCH, "ttywai",
 					 tp->t_timeout);
-			if (error == EWOULDBLOCK)
-				error = EIO;
-			if (error)
+			if (error) {
+				if (error == EWOULDBLOCK)
+					error = EIO;
 				break;
-		}
+			}
+		} else
+			break;
 	}
 	if (!error && (tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)))
 		error = EIO;
@@ -1323,12 +1326,12 @@ ttymodem(tp, flag)
  * Reinput pending characters after state switch
  * call at spltty().
  */
-void
+static void
 ttypend(tp)
 	register struct tty *tp;
 {
 	struct clist tq;
-	register c;
+	register int c;
 
 	CLR(tp->t_lflag, PENDIN);
 	SET(tp->t_state, TS_TYPEN);
@@ -1541,7 +1544,7 @@ read:
 		char ibuf[IBUFSIZ];
 		int icc;
 
-		icc = min(uio->uio_resid, IBUFSIZ);
+		icc = imin(uio->uio_resid, IBUFSIZ);
 		icc = q_to_b(qp, ibuf, icc);
 		if (icc <= 0) {
 			if (first)
@@ -1675,7 +1678,7 @@ ttwrite(tp, uio, flag)
 	register struct uio *uio;
 	int flag;
 {
-	register char *cp = 0;
+	register char *cp = NULL;
 	register int cc, ce;
 	register struct proc *p;
 	int i, hiwat, cnt, error, s;
@@ -1738,7 +1741,7 @@ loop:
 		 * leftover from last time.
 		 */
 		if (cc == 0) {
-			cc = min(uio->uio_resid, OBUFSIZ);
+			cc = imin(uio->uio_resid, OBUFSIZ);
 			cp = obuf;
 			error = uiomove(cp, cc, uio);
 			if (error) {
@@ -1866,7 +1869,7 @@ ovhiwat:
  * Rubout one character from the rawq of tp
  * as cleanly as possible.
  */
-void
+static void
 ttyrub(c, tp)
 	register int c;
 	register struct tty *tp;
@@ -1969,7 +1972,7 @@ ttyrubo(tp, cnt)
  *	Reprint the rawq line.  Note, it is assumed that c_cc has already
  *	been checked.
  */
-void
+static void
 ttyretype(tp)
 	register struct tty *tp;
 {
