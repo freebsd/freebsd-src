@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.199 1996/04/01 11:12:58 asami Exp $
+# $Id: bsd.port.mk,v 1.200 1996/04/07 08:34:21 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -83,10 +83,13 @@
 # NO_BUILD		- Use a dummy (do-nothing) build target.
 # NO_PACKAGE	- Use a dummy (do-nothing) package target.
 # NO_INSTALL	- Use a dummy (do-nothing) install target.
+# NO_CDROM		- Use dummy (do-nothing) targets if FOR_CDROM is set.
 # NO_WRKSUBDIR	- Assume port unpacks directly into ${WRKDIR}.
 # NO_WRKDIR		- There's no work directory at all; port does this someplace
 #				  else.
 # NO_DEPENDS	- Don't verify build of dependencies.
+# BROKEN		- Port is broken.
+# RESTRICTED	- Port is restricted.  Set this string to the reason why.
 # USE_GMAKE		- Says that the port uses gmake.
 # USE_IMAKE		- Says that the port uses imake.
 # USE_X11		- Says that the port uses X11.
@@ -141,6 +144,14 @@
 # NCFTP			- Full path to ncftp command if not in $PATH (default: ncftp).
 # NCFTPFLAGS    - Arguments to ${NCFTP} (default: -N).
 #
+# Motif support:
+#
+# REQUIRES_MOTIF - Set this in your port if it requires Motif.  It will  be
+#				  built only if HAVE_MOTIF is set.
+# HAVE_MOTIF	- If set, means system has Motif.  Typically set in
+#				  /etc/make.conf.
+# MOTIF_STATIC	- If set, link libXm statically; otherwise, link it
+#				  dynamically.
 #
 # Variables to change if you want a special behavior:
 #
@@ -249,8 +260,10 @@ GMAKE?=			gmake
 XMKMF?=			xmkmf -a
 MD5?=			/sbin/md5
 MD5_FILE?=		${FILESDIR}/md5
+
 MAKE_FLAGS?=	-f
 MAKEFILE?=		Makefile
+MAKE_ENV?=		PREFIX=${PREFIX} LOCALBASE=${LOCALBASE} X11BASE=${X11BASE} MOTIFLIB="${MOTIFLIB}"
 
 NCFTP?=			/usr/bin/ncftp
 NCFTPFLAGS?=	-N
@@ -323,6 +336,15 @@ PKG_SUFX?=		.tgz
 # where pkg_add records its dirty deeds.
 PKG_DBDIR?=		/var/db/pkg
 
+# shared/dynamic motif libs
+.if defined(HAVE_MOTIF)
+.if defined(MOTIF_STATIC)
+MOTIFLIB?=	${X11BASE}/lib/libXm.a
+.else
+MOTIFLIB?=	-L${X11BASE}/lib -lXm
+.endif
+.endif
+
 ECHO?=		/bin/echo
 CAT+=		/bin/cat
 CP?=		/bin/cp
@@ -389,6 +411,8 @@ HAS_CONFIGURE=		yes
 .MAIN: all
 
 ################################################################
+# Many ways to disable a port.
+#
 # If we're in BATCH mode and the port is interactive, or we're
 # in interactive mode and the port is non-interactive, skip all
 # the important targets.  The reason we have two modes is that
@@ -396,10 +420,27 @@ HAS_CONFIGURE=		yes
 # overnight, then come back in the morning and do _only_ the
 # interactive ones that required your intervention.
 #
-# This allows you to do both.
+# Don't attempt to build ports that require Motif if you don't
+# have Motif.
+#
+# Ignore ports that can't be reselled if building for a CDROM.
+#
+# Don't build a port if it's restricted and we don't want to get
+# into that.
+#
+# Don't build a port if it's broken.
 ################################################################
 
-.if (defined(IS_INTERACTIVE) && defined(BATCH)) || (!defined(IS_INTERACTIVE) && defined(INTERACTIVE))
+.if (defined(IS_INTERACTIVE) && defined(BATCH)) || \
+	(!defined(IS_INTERACTIVE) && defined(INTERACTIVE)) || \
+	(defined(REQUIRES_MOTIF) && !defined(HAVE_MOTIF)) || \
+	(defined(NO_CDROM) && defined(FOR_CDROM)) || \
+	(defined(RESTRICTED) && defined(NO_RESTRICTED)) || \
+	defined(BROKEN)
+IGNORE=	yes
+.endif
+
+.if defined(IGNORE)
 all:
 	@${DO_NADA}
 build:
@@ -648,9 +689,9 @@ do-configure:
 .if !target(do-build)
 do-build:
 .if defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${GMAKE} PREFIX=${PREFIX} X11BASE=${X11BASE} ${MAKE_FLAGS} ${MAKEFILE} ${ALL_TARGET})
+	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${ALL_TARGET})
 .else defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${MAKE} PREFIX=${PREFIX} X11BASE=${X11BASE} ${MAKE_FLAGS} ${MAKEFILE} ${ALL_TARGET})
+	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} ${ALL_TARGET})
 .endif
 .endif
 
@@ -659,14 +700,14 @@ do-build:
 .if !target(do-install)
 do-install:
 .if defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${GMAKE} PREFIX=${PREFIX} X11BASE=${X11BASE} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
+	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
 .if defined(USE_IMAKE) && !defined(NO_INSTALL_MANPAGES)
-	@(cd ${WRKSRC}; ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
+	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
 .endif
 .else defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${MAKE} PREFIX=${PREFIX} X11BASE=${X11BASE} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
+	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
 .if defined(USE_IMAKE) && !defined(NO_INSTALL_MANPAGES)
-	@(cd ${WRKSRC}; ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
+	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
 .endif
 .endif
 .endif
