@@ -364,18 +364,6 @@ void busspace_generic_barrier(struct alpha_busspace *space,
 #define bus_space_barrier(t, h, o, l, f) \
 	(t)->ab_ops->abo_barrier(t, (h)+(o), l, f)
 
-#define barrier_read \
-	bus_space_barrier(busspace_isa_mem, 0, BUS_SPACE_UNRESTRICTED,	\
-	    BUS_SPACE_BARRIER_READ)
-
-#define barrier_write \
-	bus_space_barrier(busspace_isa_mem, 0, BUS_SPACE_UNRESTRICTED,	\
-	    BUS_SPACE_BARRIER_WRITE)
-
-#define barrier_rw \
-	bus_space_barrier(busspace_isa_mem, 0, BUS_SPACE_UNRESTRICTED,	\
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE)
-
 /*
  * Flags used in various bus DMA methods.
  */
