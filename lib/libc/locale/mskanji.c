@@ -39,7 +39,6 @@ static char sccsid[] = "@(#)mskanji.c	1.0 (Phase One) 5/5/95";
 
 #include <sys/types.h>
 
-#include <errno.h>
 #include <rune.h>
 #include <stddef.h>
 #include <stdio.h>
