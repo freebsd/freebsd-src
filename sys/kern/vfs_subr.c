@@ -614,8 +614,8 @@ vtryrecycle(struct vnode *vp)
 	 * Don't recycle if its filesystem is being suspended.
 	 */
 	if (vn_start_write(vp, &vnmp, V_NOWAIT) != 0) {
-		error = EBUSY;
-		goto done;
+		VOP_UNLOCK(vp, 0, td);
+		return (EBUSY);
 	}
 
 	/*
@@ -687,6 +687,7 @@ vtryrecycle(struct vnode *vp)
 	return (0);
 done:
 	VOP_UNLOCK(vp, 0, td);
+	vn_finished_write(vnmp);
 	return (error);
 }
 
