@@ -122,7 +122,7 @@ devclass_t hme_devclass;
 static int hme_nerr;
 
 DRIVER_MODULE(miibus, hme, miibus_driver, miibus_devclass, 0, 0);
-MODULE_DEPEND(hem, miibus, 1, 1, 1);
+MODULE_DEPEND(hme, miibus, 1, 1, 1);
 
 #define	HME_SPC_READ_4(spc, sc, offs) \
 	bus_space_read_4((sc)->sc_ ## spc ## t, (sc)->sc_ ## spc ## h, \
