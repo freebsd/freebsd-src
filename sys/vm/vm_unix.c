@@ -107,6 +107,11 @@ obreak(td, uap)
 		goto done;
 	}
 	if (new > old) {
+		if (vm->vm_map.size + (new - old) >
+		    td->td_proc->p_rlimit[RLIMIT_VMEM].rlim_cur) {
+			error = ENOMEM;
+			goto done;
+		}
 		rv = vm_map_insert(&vm->vm_map, NULL, 0, old, new,
 		    VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
