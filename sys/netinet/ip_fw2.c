@@ -1026,7 +1026,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 			if (parent->count >= cmd->conn_limit) {
 				if (fw_verbose && last_log != time_second) {
 					last_log = time_second;
-					log(LOG_SECURITY | LOG_INFO,
+					log(LOG_SECURITY | LOG_DEBUG,
 					    "drop session, too many entries\n");
 				}
 				return 1;
