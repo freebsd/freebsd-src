@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.26 1998/08/30 20:33:27 jb Exp $
+#	$Id: bsd.obj.mk,v 1.27 1999/03/14 20:41:13 markm Exp $
 #
 # The include file <bsd.obj.mk> handles creating the 'obj' directory
 # and cleaning up object files, etc.
@@ -76,6 +76,16 @@ obj:	_SUBDIR
 		${ECHO} "${CANONICALOBJDIR} created for ${.CURDIR}"; \
 	fi
 .endif
+.endif
+
+.if !target(objlink)
+objlink: _SUBDIR
+	@if test -d ${CANONICALOBJDIR}/; then \
+		rm -f ${.CURDIR}/obj; \
+		ln -s ${CANONICALOBJDIR} ${.CURDIR}/obj; \
+	else \
+		echo "No ${CANONICALOBJDIR} to link to - do a make obj."; \
+	fi
 .endif
 
 #
