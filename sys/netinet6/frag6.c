@@ -391,18 +391,24 @@ frag6_input(mp, offp, proto)
 		i = af6->ip6af_up->ip6af_off + af6->ip6af_up->ip6af_frglen
 			- ip6af->ip6af_off;
 		if (i > 0) {
+#if 0				/* suppress the noisy log */
 			log(LOG_ERR, "%d bytes of a fragment from %s "
 			    "overlaps the previous fragment\n",
 			    i, ip6_sprintf(&q6->ip6q_src));
+#endif
+			free(ip6af, M_FTABLE);
 			goto dropfrag;
 		}
 	}
 	if (af6 != (struct ip6asfrag *)q6) {
 		i = (ip6af->ip6af_off + ip6af->ip6af_frglen) - af6->ip6af_off;
 		if (i > 0) {
+#if 0				/* suppress the noisy log */
 			log(LOG_ERR, "%d bytes of a fragment from %s "
 			    "overlaps the succeeding fragment",
 			    i, ip6_sprintf(&q6->ip6q_src));
+#endif
+			free(ip6af, M_FTABLE);
 			goto dropfrag;
 		}
 	}
