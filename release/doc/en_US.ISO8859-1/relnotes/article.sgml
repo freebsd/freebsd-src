@@ -333,6 +333,9 @@
       use an AT keyboard if you are not using a serial
       console. &merged;</para>
 
+    <para>The uaudio driver, for USB audio devices, has been
+      added.</para>
+
     <para arch="i386,pc98" role="historic">The &man.umodem.4; driver for USB modems
       has been added. Support is provided for the 3Com 5605 and
       Metricom Ricochet GS wireless USB modems. &merged;</para>
@@ -360,6 +363,9 @@
 
     <para>The <literal>USER_LDT</literal> kernel option is now
       activated by default.</para>
+
+    <para>The uvisor driver for connecting Handspring Visors via USB
+      has been added.</para>
 
     <para>A VESA S3 linear framebuffer driver has been added.</para>
 
@@ -2309,6 +2315,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       With this change, properly-compiled KLD modules are now able to
       be profiled.</para>
 
+    <para arch="ia64">The gpt tool for manipulating EFI GPT
+      partitions has been added.</para>
+
     <para role="historic">&man.growfs.8;, a utility for growing FFS filesystems, has
       been added.  &man.ffsinfo.8;, a utility for dump all the
       meta-information of an existing filesystem, has also been
@@ -2622,6 +2631,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       permissions to the directory holding catpages (e.g. a user's own
       manpages) or if the running user is
       <username>root</username>.</para>
+
+    <para arch="ia64">The mca utility, for decoding machine check
+      records, has been added.</para>
 
     <para>The &man.mdmfs.8; command has been added; it is a wrapper
       around &man.mdconfig.8;, &man.disklabel.8;, &man.newfs.8;, and
