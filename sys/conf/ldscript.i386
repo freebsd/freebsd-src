@@ -5,7 +5,7 @@ SEARCH_DIR(/usr/lib); SEARCH_DIR(/usr/obj/elf/home/src/tmp/usr/i386-unknown-free
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  . = 0xf0100000 + SIZEOF_HEADERS;
+  . = 0xc0100000 + SIZEOF_HEADERS;
   .interp     : { *(.interp) 	}
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}
