@@ -1626,7 +1626,7 @@ mlx_startio(struct mlx_softc *sc)
 	/* build a suitable I/O command (assumes 512-byte rounded transfers) */
 	mlxd = (struct mlxd_softc *)bp->b_dev->si_drv1;
 	driveno = mlxd->mlxd_drive - &sc->mlx_sysdrive[0];
-	blkcount = bp->b_bcount / MLX_BLKSIZE;
+	blkcount = (bp->b_bcount + MLX_BLKSIZE - 1) / MLX_BLKSIZE;
 
 	if ((bp->b_pblkno + blkcount) > sc->mlx_sysdrive[driveno].ms_size)
 	    device_printf(sc->mlx_dev, "I/O beyond end of unit (%u,%d > %u)\n", 
