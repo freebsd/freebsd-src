@@ -1,3 +1,6 @@
+.\"	$FreeBSD$
+.\"	$KAME: ndp.8,v 1.12 2000/06/20 21:50:17 itojun Exp $
+.\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
 .\"
@@ -24,9 +27,6 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\"
-.\"     $Id: ndp.8,v 1.2 1999/10/07 05:26:13 itojun Exp $
-.\"     $FreeBSD$
 .\"
 .Dd May 17, 1998
 .Dt NDP 8
@@ -57,8 +57,12 @@
 .Nm ndp
 .Fl H
 .Nm ndp
+.Fl I
+.Op delete \(ba Ar interface
+.Nm ndp
 .Fl i
 .Ar interface
+.Op Ar flags...
 .Nm ndp
 .Fl p
 .Nm ndp
@@ -72,7 +76,8 @@
 .Op Fl nt
 .Ar nodename
 .Ar ether_addr
-.Op temp
+.Op Li temp
+.Op Li proxy
 .\"
 .Sh DESCRIPTION
 The
@@ -99,8 +104,35 @@ Parse the file specified by
 .It Fl H
 Harmonize consistency between the routing table and the default router
 list; install the top entry of the list into the kernel routing table.
-.It Fl i
-view ND information for specified interface.
+.It Fl I Op delete \(ba Ar interface
+Shows or specifies the default interface used as the default route when
+there is no default router. If no argument is given to the option,
+the current default interface will be shown.
+If an
+.Ar interface
+is specified, the interface will be used as the default.
+If a special keyword
+.Ic delete
+is specified, the current default interface will be deleted from the kernel.
+.It Fl i Ar interface Op Ar flags...
+View ND information for the specified interface.
+If additional arguments
+.Ar flags
+are given,
+.Nm
+sets or clears the specified flags for the interface.
+Possible flags are as follows. All of the flags can begin with the
+special character
+.Ql - ,
+which means the flag should be cleared.
+.\"
+.Bl -tag -width Ds -compact
+.It Xo
+.Ic nud
+.Xc
+turn on or off NUD (Neighbor Unreachability Detection) on the
+interface. NUD is usually turned on by default.
+.El
 .It Fl l
 Do not truncate numeric IPv6 address.
 .It Fl n
@@ -115,6 +147,15 @@ Show default router list.
 Flush all the entries in the default router list.
 .It Fl s
 Register a NDP entry for a node.
+The entry will be permanent unless the word
+.Li temp
+is given in the command.
+If the word
+.Li proxy
+is given, this system will act as an proxy NDP server,
+responding to requests for
+.Ar hostname
+even though the host address is not its own.
 .It Fl t
 Print timestamp on each entries,
 to make it possible to merge output with

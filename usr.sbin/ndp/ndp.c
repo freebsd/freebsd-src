@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: ndp.c,v 1.41 2000/07/04 12:54:11 jinmei Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  * Copyright (c) 1984, 1993
@@ -111,47 +112,55 @@
 #include <unistd.h>
 #include "gmt2local.h"
 
+#ifndef NI_WITHSCOPEID
+#define NI_WITHSCOPEID	0
+#endif
+
 /* packing rule for routing socket */
-#define	ROUNDUP(a) \
+#define ROUNDUP(a) \
 	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
-#define	ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
+#define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
-extern int	 errno;
-static int	pid;
-static int	fflag;
-static int	nflag;
-static int	tflag;
-static int32_t	thiszone;	/* time difference with gmt */
-static int	s = -1;
-static int	repeat = 0;
-static int	lflag = 0;
+static int pid;
+static int fflag;
+static int nflag;
+static int tflag;
+static int32_t thiszone;	/* time difference with gmt */
+static int s = -1;
+static int repeat = 0;
+static int lflag = 0;
 
-char	ntop_buf[INET6_ADDRSTRLEN];	/* inet_ntop() */
-char	host_buf[NI_MAXHOST];		/* getnameinfo() */
-char	ifix_buf[IFNAMSIZ];		/* if_indextoname() */
+char ntop_buf[INET6_ADDRSTRLEN];	/* inet_ntop() */
+char host_buf[NI_MAXHOST];		/* getnameinfo() */
+char ifix_buf[IFNAMSIZ];		/* if_indextoname() */
 
-int	main __P((int, char **));
-int	file __P((char *));
-void	getsocket __P((void));
-int	set __P((int, char **));
-void	get __P((char *));
-int	delete __P((char *));
-void	dump __P((struct in6_addr *));
-static struct	in6_nbrinfo *getnbrinfo __P((struct in6_addr *addr, int ifindex));
-static char	*ether_str __P((struct sockaddr_dl *));
-int	ndp_ether_aton __P((char *, u_char *));
-void	usage __P((void));
-int	rtmsg __P((int));
-void	ifinfo __P((char *));
-void	list __P((void));
-void	plist __P((void));
-void	pfx_flush __P((void));
-void	rtrlist __P((void));
-void	rtr_flush __P((void));
-void	harmonize_rtr __P((void));
-static char	*sec2str __P((time_t t));
-static char	*ether_str __P((struct sockaddr_dl *sdl));
-static void	ts_print __P((const struct timeval *));
+int main __P((int, char **));
+int file __P((char *));
+void getsocket __P((void));
+int set __P((int, char **));
+void get __P((char *));
+int delete __P((char *));
+void dump __P((struct in6_addr *));
+static struct in6_nbrinfo *getnbrinfo __P((struct in6_addr *addr,
+					   int ifindex, int));
+static char *ether_str __P((struct sockaddr_dl *));
+int ndp_ether_aton __P((char *, u_char *));
+void usage __P((void));
+int rtmsg __P((int));
+void ifinfo __P((int, char **));
+void rtrlist __P((void));
+void plist __P((void));
+void pfx_flush __P((void));
+void rtrlist __P((void));
+void rtr_flush __P((void));
+void harmonize_rtr __P((void));
+#ifdef SIOCSDEFIFACE_IN6	/* XXX: check SIOCGDEFIFACE_IN6 as well? */
+static void getdefif __P((void));
+static void setdefif __P((char *));
+#endif
+static char *sec2str __P((time_t t));
+static char *ether_str __P((struct sockaddr_dl *sdl));
+static void ts_print __P((const struct timeval *));
 
 int
 main(argc, argv)
@@ -161,12 +170,10 @@ main(argc, argv)
 	int ch;
 	int aflag = 0, cflag = 0, dflag = 0, sflag = 0, Hflag = 0,
 		pflag = 0, rflag = 0, Pflag = 0, Rflag = 0;
-	extern char *optarg;
-	extern int optind;
 
 	pid = getpid();
 	thiszone = gmt2local(0);
-	while ((ch = getopt(argc, argv, "acndfilprstA:HPR")) != EOF)
+	while ((ch = getopt(argc, argv, "acndfIilprstA:HPR")) != EOF)
 		switch ((char)ch) {
 		case 'a':
 			aflag = 1;
@@ -178,10 +185,22 @@ main(argc, argv)
 		case 'd':
 			dflag = 1;
 			break;
+		case 'I':
+#ifdef SIOCSDEFIFACE_IN6	/* XXX: check SIOCGDEFIFACE_IN6 as well? */
+			if (argc > 2)
+				setdefif(argv[2]);
+			getdefif(); /* always call it to print the result */
+			exit(0);
+#else
+			errx(1, "not supported yet");
+			/*NOTREACHED*/
+#endif
 		case 'i' :
-			if (argc != 3)
+			argc -= optind;
+			argv += optind;
+			if (argc < 1)
 				usage();
-			ifinfo(argv[2]);
+			ifinfo(argc, argv);
 			exit(0);
 		case 'n':
 			nflag = 1;
@@ -236,6 +255,7 @@ main(argc, argv)
 		if (argc != 1)
 			usage();
 		delete(argv[0]);
+		exit(0);
 	}
 	if (pflag) {
 		plist();
@@ -317,7 +337,7 @@ getsocket()
 	}
 }
 
-struct	sockaddr_in so_mask = {8, 0, 0, { 0xffffffff}};
+struct	sockaddr_in6 so_mask = {sizeof(so_mask), AF_INET6 };
 struct	sockaddr_in6 blank_sin = {sizeof(blank_sin), AF_INET6 }, sin_m;
 struct	sockaddr_dl blank_sdl = {sizeof(blank_sdl), AF_LINK }, sdl_m;
 int	expire_time, flags, found_entry;
@@ -357,6 +377,12 @@ set(argc, argv)
 		return 1;
 	}
 	sin->sin6_addr = ((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
+#ifdef __KAME__
+	if (IN6_IS_ADDR_LINKLOCAL(&sin->sin6_addr)) {
+		*(u_int16_t *)&sin->sin6_addr.s6_addr[2] =
+			htons(((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id);
+	}
+#endif
 	ea = (u_char *)LLADDR(&sdl_m);
 	if (ndp_ether_aton(eaddr, ea) == 0)
 		sdl_m.sdl_alen = 6;
@@ -366,10 +392,10 @@ set(argc, argv)
 			struct timeval time;
 			gettimeofday(&time, 0);
 			expire_time = time.tv_sec + 20 * 60;
-		}
+		} else if (strncmp(argv[0], "proxy", 5) == 0)
+			flags |= RTF_ANNOUNCE;
 		argv++;
 	}
-tryagain:
 	if (rtmsg(RTM_GET) < 0) {
 		perror(host);
 		return (1);
@@ -384,8 +410,13 @@ tryagain:
 		case IFT_ISO88024: case IFT_ISO88025:
 			goto overwrite;
 		}
-		goto tryagain;
+		/*
+		 * IPv4 arp command retries with sin_other = SIN_PROXY here.
+		 */
+		fprintf(stderr, "set: cannot configure a new entry\n");
+		return 1;
 	}
+
 overwrite:
 	if (sdl->sdl_family != AF_LINK) {
 		printf("cannot intuit interface index and type for %s\n", host);
@@ -417,6 +448,12 @@ get(host)
 		return;
 	}
 	sin->sin6_addr = ((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
+#ifdef __KAME__
+	if (IN6_IS_ADDR_LINKLOCAL(&sin->sin6_addr)) {
+		*(u_int16_t *)&sin->sin6_addr.s6_addr[2] =
+			htons(((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id);
+	}
+#endif
 	dump(&sin->sin6_addr);
 	if (found_entry == 0) {
 		getnameinfo((struct sockaddr *)sin, sin->sin6_len, host_buf,
@@ -452,7 +489,12 @@ delete(host)
 		return 1;
 	}
 	sin->sin6_addr = ((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
-/*tryagain:*/
+#ifdef __KAME__
+	if (IN6_IS_ADDR_LINKLOCAL(&sin->sin6_addr)) {
+		*(u_int16_t *)&sin->sin6_addr.s6_addr[2] =
+			htons(((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id);
+	}
+#endif
 	if (rtmsg(RTM_GET) < 0) {
 		perror(host);
 		return (1);
@@ -462,23 +504,38 @@ delete(host)
 	if (IN6_ARE_ADDR_EQUAL(&sin->sin6_addr, &sin_m.sin6_addr)) {
 		if (sdl->sdl_family == AF_LINK &&
 		    (rtm->rtm_flags & RTF_LLINFO) &&
-		    !(rtm->rtm_flags & RTF_GATEWAY)) switch (sdl->sdl_type) {
-		case IFT_ETHER: case IFT_FDDI: case IFT_ISO88023:
-		case IFT_ISO88024: case IFT_ISO88025:
-			goto delete;
+		    !(rtm->rtm_flags & RTF_GATEWAY)) {
+			switch (sdl->sdl_type) {
+			case IFT_ETHER: case IFT_FDDI: case IFT_ISO88023:
+			case IFT_ISO88024: case IFT_ISO88025:
+				goto delete;
+			}
 		}
+		/*
+		 * IPv4 arp command retries with sin_other = SIN_PROXY here.
+		 */
+		fprintf(stderr, "delete: cannot delete non-NDP entry\n");
+		return 1;
 	}
-	return 0;
+
 delete:
 	if (sdl->sdl_family != AF_LINK) {
 		printf("cannot locate %s\n", host);
 		return (1);
 	}
 	if (rtmsg(RTM_DELETE) == 0) {
-	       getnameinfo((struct sockaddr *)sin,
-			   sin->sin6_len, host_buf,
-			   sizeof(host_buf), NULL, 0,
-			   NI_WITHSCOPEID | (nflag ? NI_NUMERICHOST : 0));
+		struct sockaddr_in6 s6 = *sin; /* XXX: for safety */
+
+#ifdef __KAME__
+		if (IN6_IS_ADDR_LINKLOCAL(&s6.sin6_addr)) {
+			s6.sin6_scope_id = ntohs(*(u_int16_t *)&s6.sin6_addr.s6_addr[2]);
+			*(u_int16_t *)&s6.sin6_addr.s6_addr[2] = 0;
+		}
+#endif
+		getnameinfo((struct sockaddr *)&s6,
+			    s6.sin6_len, host_buf,
+			    sizeof(host_buf), NULL, 0,
+			    NI_WITHSCOPEID | (nflag ? NI_NUMERICHOST : 0));
 		printf("%s (%s) deleted\n", host, host_buf);
 	}
 
@@ -494,19 +551,19 @@ dump(addr)
 {
 	int mib[6];
 	size_t needed;
-	char *host, *lim, *buf, *next;
+	char *lim, *buf, *next;
 	struct rt_msghdr *rtm;
 	struct sockaddr_in6 *sin;
 	struct sockaddr_dl *sdl;
 	extern int h_errno;
-	struct hostent *hp;
 	struct in6_nbrinfo *nbi;
 	struct timeval time;
 	int addrwidth;
+	char flgbuf[8];
 
 	/* Print header */
 	if (!tflag)
-		printf("%-29.29s %-18.18s %6.6s %-9.9s %2s %4s %4s\n",
+		printf("%-31.31s %-17.17s %6.6s %-9.9s %2s %4s %4s\n",
 		       "Neighbor", "Linklayer Address", "Netif", "Expire",
 		       "St", "Flgs", "Prbs");
 
@@ -564,18 +621,17 @@ again:;
 
 		if (lflag) {
 			addrwidth = strlen(host_buf);
-			if (addrwidth < 29)
-				addrwidth = 29;
+			if (addrwidth < 31)
+				addrwidth = 31;
 		} else
-			addrwidth = 29;
+			addrwidth = 31;
 
-		printf("%-*.*s %-18.18s %6.6s", addrwidth, addrwidth, host_buf,
+		printf("%-*.*s %-17.17s %6.6s", addrwidth, addrwidth, host_buf,
 		       ether_str(sdl),
 		       if_indextoname(sdl->sdl_index, ifix_buf));
 
 		/* Print neighbor discovery specific informations */
-		putchar(' ');
-		nbi = getnbrinfo(&sin->sin6_addr, sdl->sdl_index);
+		nbi = getnbrinfo(&sin->sin6_addr, sdl->sdl_index, 1);
 		if (nbi) {
 			if (nbi->expire > time.tv_sec) {
 				printf(" %-9.9s",
@@ -620,31 +676,30 @@ again:;
 			warnx("failed to get neighbor information");
 			printf("  ");
 		}
-
-		/* other flags */
 		putchar(' ');
-		{
-			u_char flgbuf[8], *p = flgbuf;
 
-			flgbuf[0] = '\0';
-			if (isrouter)
-				p += sprintf((char *)p, "R");
-#ifndef RADISH
-			if (rtm->rtm_addrs & RTA_NETMASK) {
-				sin = (struct sockaddr_in6 *)
-					(sdl->sdl_len + (char *)sdl);
-				if (!IN6_IS_ADDR_UNSPECIFIED(&sin->sin6_addr))
-					p += sprintf((char *)p, "P");
-				if (sin->sin6_len != sizeof(struct sockaddr_in6))
-					p += sprintf((char *)p, "W");
-			}
-#endif /*RADISH*/
-			printf("%4s", flgbuf);
+		/*
+		 * other flags. R: router, P: proxy, W: ??
+		 */
+		if ((rtm->rtm_addrs & RTA_NETMASK) == 0) {
+			snprintf(flgbuf, sizeof(flgbuf), "%s%s",
+				isrouter ? "R" : "",
+				(rtm->rtm_flags & RTF_ANNOUNCE) ? "p" : "");
+		} else {
+			sin = (struct sockaddr_in6 *)
+				(sdl->sdl_len + (char *)sdl);
+			snprintf(flgbuf, sizeof(flgbuf), "%s%s%s%s",
+				isrouter ? "R" : "",
+				!IN6_IS_ADDR_UNSPECIFIED(&sin->sin6_addr)
+					? "P" : "",
+				(sin->sin6_len != sizeof(struct sockaddr_in6))
+					? "W" : "",
+				(rtm->rtm_flags & RTF_ANNOUNCE) ? "p" : "");
 		}
+		printf(" %-4.4s", flgbuf);
 
-		putchar(' ');
 		if (prbs)
-			printf("% 4d", prbs);
+			printf(" %4d", prbs);
 
 		printf("\n");
 	}
@@ -657,9 +712,10 @@ again:;
 }
 
 static struct in6_nbrinfo *
-getnbrinfo(addr, ifindex)
+getnbrinfo(addr, ifindex, warning)
 	struct in6_addr *addr;
 	int ifindex;
+	int warning;
 {
 	static struct in6_nbrinfo nbi;
 	int s;
@@ -671,7 +727,8 @@ getnbrinfo(addr, ifindex)
 	if_indextoname(ifindex, nbi.ifname);
 	nbi.addr = *addr;
 	if (ioctl(s, SIOCGNBRINFO_IN6, (caddr_t)&nbi) < 0) {
-		warn("ioctl");
+		if (warning)
+			warn("ioctl(SIOCGNBRINFO_IN6)");
 		close(s);
 		return(NULL);
 	}
@@ -726,10 +783,13 @@ usage()
 	printf("       ndp -c[nt]\n");
 	printf("       ndp -d[nt] hostname\n");
 	printf("       ndp -f[nt] filename\n");
-	printf("       ndp -i interface\n");
+	printf("       ndp -i interface [flags...]\n");
+#ifdef SIOCSDEFIFACE_IN6
+	printf("       ndp -I [interface|delete]\n");
+#endif
 	printf("       ndp -p\n");
 	printf("       ndp -r\n");
-	printf("       ndp -s hostname ether_addr [temp]\n");
+	printf("       ndp -s hostname ether_addr [temp] [proxy]\n");
 	printf("       ndp -H\n");
 	printf("       ndp -P\n");
 	printf("       ndp -R\n");
@@ -762,16 +822,21 @@ rtmsg(cmd)
 		rtm->rtm_rmx.rmx_expire = expire_time;
 		rtm->rtm_inits = RTV_EXPIRE;
 		rtm->rtm_flags |= (RTF_HOST | RTF_STATIC);
+		if (rtm->rtm_flags & RTF_ANNOUNCE) {
+			rtm->rtm_flags &= ~RTF_HOST;
+			rtm->rtm_flags |= RTA_NETMASK;
+		}
 		/* FALLTHROUGH */
 	case RTM_GET:
 		rtm->rtm_addrs |= RTA_DST;
 	}
-#define	NEXTADDR(w, s) \
+#define NEXTADDR(w, s) \
 	if (rtm->rtm_addrs & (w)) { \
 		bcopy((char *)&s, cp, sizeof(s)); cp += sizeof(s);}
 
 	NEXTADDR(RTA_DST, sin_m);
 	NEXTADDR(RTA_GATEWAY, sdl_m);
+	memset(&so_mask.sin6_addr, 0xff, sizeof(so_mask.sin6_addr));
 	NEXTADDR(RTA_NETMASK, so_mask);
 
 	rtm->rtm_msglen = cp - (char *)&m_rtmsg;
@@ -795,11 +860,14 @@ doit:
 }
 
 void
-ifinfo(ifname)
-	char *ifname;
+ifinfo(argc, argv)
+	int argc;
+	char **argv;
 {
 	struct in6_ndireq nd;
-	int s;
+	int i, s;
+	char *ifname = argv[0];
+	u_int32_t newflags;
 
 	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		perror("ndp: socket");
@@ -811,14 +879,50 @@ ifinfo(ifname)
  		perror("ioctl (SIOCGIFINFO_IN6)");
  		exit(1);
  	}
-#define	ND nd.ndi
+#define ND nd.ndi
+	newflags = ND.flags;
+	for (i = 1; i < argc; i++) {
+		int clear = 0;
+		char *cp = argv[i];
+
+		if (*cp == '-') {
+			clear = 1;
+			cp++;
+		}
+
+#define SETFLAG(s, f) \
+	do {\
+		if (strcmp(cp, (s)) == 0) {\
+			if (clear)\
+				newflags &= ~(f);\
+			else\
+				newflags |= (f);\
+		}\
+	} while (0)
+		SETFLAG("nud", ND6_IFF_PERFORMNUD);
+
+		ND.flags = newflags;
+		if (ioctl(s, SIOCSIFINFO_FLAGS, (caddr_t)&nd) < 0) {
+			perror("ioctl(SIOCSIFINFO_FLAGS)");
+			exit(1);
+		}
+#undef SETFLAG
+	}
+
 	printf("linkmtu=%d", ND.linkmtu);
 	printf(", curhlim=%d", ND.chlim);
 	printf(", basereachable=%ds%dms",
 	       ND.basereachable / 1000, ND.basereachable % 1000);
 	printf(", reachable=%ds", ND.reachable);
-	printf(", retrans=%ds%dms\n", ND.retrans / 1000, ND.retrans % 1000);
+	printf(", retrans=%ds%dms", ND.retrans / 1000, ND.retrans % 1000);
+	if (ND.flags) {
+		printf("\nFlags: ");
+		if ((ND.flags & ND6_IFF_PERFORMNUD) != 0)
+			printf("PERFORMNUD ");
+	}
+	putc('\n', stdout);
 #undef ND
+	
 	close(s);
 }
 
@@ -839,7 +943,7 @@ rtrlist()
  		perror("ioctl (SIOCGDRLST_IN6)");
  		exit(1);
  	}
-#define	DR dr.defrouter[i]
+#define DR dr.defrouter[i]
 	for (i = 0 ; DR.if_index && i < PRLSTSIZ ; i++) {
 		struct sockaddr_in6 sin6;
 
@@ -850,7 +954,7 @@ rtrlist()
 		getnameinfo((struct sockaddr *)&sin6, sin6.sin6_len, host_buf,
 			    sizeof(host_buf), NULL, 0,
 			    NI_WITHSCOPEID | (nflag ? NI_NUMERICHOST : 0));
-
+		
 		printf("%s if=%s", host_buf,
 		       if_indextoname(DR.if_index, ifix_buf));
 		printf(", flags=%s%s",
@@ -886,14 +990,19 @@ plist()
  		perror("ioctl (SIOCGPRLST_IN6)");
  		exit(1);
  	}
-#define	PR pr.prefix[i]
+#define PR pr.prefix[i]
 	for (i = 0; PR.if_index && i < PRLSTSIZ ; i++) {
 		printf("%s/%d if=%s\n",
 		       inet_ntop(AF_INET6, &PR.prefix, ntop_buf,
 				 sizeof(ntop_buf)), PR.prefixlen,
 		       if_indextoname(PR.if_index, ifix_buf));
 		gettimeofday(&time, 0);
-		printf("  flags=%s%s",
+		/*
+		 * meaning of fields, especially flags, is very different
+		 * by origin.  notify the difference to the users.
+		 */
+		printf("  %s", PR.origin == PR_ORIG_RA ? "" : "advertise: ");
+		printf("flags=%s%s",
 		       PR.raflags.onlink ? "L" : "",
 		       PR.raflags.autonomous ? "A" : "");
 		if (PR.vltime == ND6_INFINITE_LIFETIME)
@@ -905,34 +1014,75 @@ plist()
 		else
 			printf(", pltime=%ld", (long)PR.pltime);
 		if (PR.expire == 0)
-			printf(", expire=Never\n");
+			printf(", expire=Never");
 		else if (PR.expire >= time.tv_sec)
-			printf(", expire=%s\n",
+			printf(", expire=%s",
 				sec2str(PR.expire - time.tv_sec));
 		else
-			printf(", expired\n");
-		if (PR.advrtrs) {
+			printf(", expired");
+		switch (PR.origin) {
+		case PR_ORIG_RA:
+			printf(", origin=RA");
+			break;
+		case PR_ORIG_RR:
+			printf(", origin=RR");
+			break;
+		case PR_ORIG_STATIC:
+			printf(", origin=static");
+			break;
+		case PR_ORIG_KERNEL:
+			printf(", origin=kernel");
+			break;
+		default:
+			printf(", origin=?");
+			break;
+		}
+		printf("\n");
+		/*
+		 * "advertising router" list is meaningful only if the prefix
+		 * information is from RA.
+		 */
+		if (PR.origin != PR_ORIG_RA)
+			;
+		else if (PR.advrtrs) {
 			int j;
 			printf("  advertised by\n");
 			for (j = 0; j < PR.advrtrs; j++) {
 				struct sockaddr_in6 sin6;
+				struct in6_nbrinfo *nbi;
 
 				bzero(&sin6, sizeof(sin6));
 				sin6.sin6_family = AF_INET6;
 				sin6.sin6_len = sizeof(sin6);
 				sin6.sin6_addr = PR.advrtr[j];
+				sin6.sin6_scope_id = PR.if_index; /* XXX */
 				getnameinfo((struct sockaddr *)&sin6,
 					    sin6.sin6_len, host_buf,
 					    sizeof(host_buf), NULL, 0,
 					    NI_WITHSCOPEID | (nflag ? NI_NUMERICHOST : 0));
+				printf("    %s", host_buf);
 
-				printf("    %s\n", host_buf);
+				nbi = getnbrinfo(&sin6.sin6_addr, PR.if_index,
+						 0);
+				if (nbi) {
+					switch(nbi->state) {
+					 case ND6_LLINFO_REACHABLE:
+					 case ND6_LLINFO_STALE:
+					 case ND6_LLINFO_DELAY:
+					 case ND6_LLINFO_PROBE:
+						 printf(" (reachable)\n");
+						 break;
+					 default:
+						 printf(" (unreachable)\n");
+					}
+				}
+				else
+					printf(" (no neighbor state)\n");
 			}
 			if (PR.advrtrs > DRLSTSIZ)
 				printf("    and %d routers\n",
 				       PR.advrtrs - DRLSTSIZ);
-		}
-		else
+		} else
 			printf("  No advertising router\n");
 	}
 #undef PR
@@ -963,6 +1113,8 @@ rtr_flush()
 	strcpy(dummyif, "lo0"); /* dummy */
 	if (ioctl(s, SIOCSRTRFLUSH_IN6, (caddr_t)&dummyif) < 0)
  		err(1, "ioctl(SIOCSRTRFLUSH_IN6)");
+
+	close(s);
 }
 
 void
@@ -971,16 +1123,69 @@ harmonize_rtr()
 	char dummyif[IFNAMSIZ+8];
 	int s;
 
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-		perror("ndp: socket");
-		exit(1);
-	}
+	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+		err(1, "socket");
 	strcpy(dummyif, "lo0"); /* dummy */
-	if (ioctl(s, SIOCSNDFLUSH_IN6, (caddr_t)&dummyif) < 0) {
- 		perror("ioctl (SIOCSNDFLUSH_IN6)");
- 		exit(1);
- 	}
+	if (ioctl(s, SIOCSNDFLUSH_IN6, (caddr_t)&dummyif) < 0)
+ 		err(1, "ioctl (SIOCSNDFLUSH_IN6)");
+
+	close(s);
 }
+
+#ifdef SIOCSDEFIFACE_IN6	/* XXX: check SIOCGDEFIFACE_IN6 as well? */
+static void
+setdefif(ifname)
+	char *ifname;
+{
+	struct in6_ndifreq ndifreq;
+	unsigned int ifindex;
+
+	if (strcasecmp(ifname, "delete") == 0)
+		ifindex = 0;
+	else {
+		if ((ifindex = if_nametoindex(ifname)) == 0)
+			err(1, "failed to resolve i/f index for %s", ifname);
+	}
+
+	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+		err(1, "socket");
+
+	strcpy(ndifreq.ifname, "lo0"); /* dummy */
+	ndifreq.ifindex = ifindex;
+
+	if (ioctl(s, SIOCSDEFIFACE_IN6, (caddr_t)&ndifreq) < 0)
+ 		err(1, "ioctl (SIOCSDEFIFACE_IN6)");
+
+	close(s);
+}
+
+static void
+getdefif()
+{
+	struct in6_ndifreq ndifreq;
+	char ifname[IFNAMSIZ+8];
+
+	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+		err(1, "socket");
+
+	memset(&ndifreq, 0, sizeof(ndifreq));
+	strcpy(ndifreq.ifname, "lo0"); /* dummy */
+
+	if (ioctl(s, SIOCGDEFIFACE_IN6, (caddr_t)&ndifreq) < 0)
+ 		err(1, "ioctl (SIOCGDEFIFACE_IN6)");
+
+	if (ndifreq.ifindex == 0)
+		printf("No default interface.\n");
+	else {
+		if ((if_indextoname(ndifreq.ifindex, ifname)) == NULL)
+			err(1, "failed to resolve ifname for index %lu",
+			    ndifreq.ifindex);
+		printf("ND default interface = %s\n", ifname);
+	}
+
+	close(s);
+}
+#endif
 
 static char *
 sec2str(total)
