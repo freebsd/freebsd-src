@@ -1098,10 +1098,6 @@ vm_page_free_toq(vm_page_t m)
 	 */
 	if (m->flags & PG_UNMANAGED) {
 		m->flags &= ~PG_UNMANAGED;
-	} else {
-#ifdef __alpha__
-		pmap_page_is_free(m);
-#endif
 	}
 
 	if (m->hold_count != 0) {

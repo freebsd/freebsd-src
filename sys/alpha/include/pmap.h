@@ -161,7 +161,6 @@ struct	pv_entry;
 
 struct md_page {
 	int pv_list_count;
-	int			pv_flags;
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
 
