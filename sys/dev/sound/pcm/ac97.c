@@ -33,6 +33,17 @@
 
 MALLOC_DEFINE(M_AC97, "ac97", "ac97 codec");
 
+struct ac97mixtable_entry {
+	int		reg:8;
+	unsigned	bits:4;
+	unsigned	ofs:4;
+	unsigned	stereo:1;
+	unsigned	mute:1;
+	unsigned	recidx:4;
+	unsigned        mask:1;
+	unsigned	enable:1;
+};
+
 #define AC97_NAMELEN	16
 struct ac97_info {
 	kobj_t methods;
@@ -41,6 +52,7 @@ struct ac97_info {
 	char *id;
 	char rev;
 	unsigned count, caps, se, extcaps, extid, extstat, noext:1;
+	u_int32_t flags;
 	struct ac97mixtable_entry mix[32];
 	char name[AC97_NAMELEN];
 	void *lock;
@@ -350,10 +362,10 @@ ac97_initmixer(struct ac97_info *codec)
 		return ENODEV;
 	}
 
-	wrcd(codec, AC97_REG_POWER, 0x8000);
+	wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
 	wrcd(codec, AC97_REG_RESET, 0);
 	DELAY(100000);
-	wrcd(codec, AC97_REG_POWER, 0x8000);
+	wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
 
 	i = rdcd(codec, AC97_REG_RESET);
 	codec->caps = i & 0x03ff;
@@ -445,9 +457,10 @@ ac97_reinitmixer(struct ac97_info *codec)
 		return ENODEV;
 	}
 
-	wrcd(codec, AC97_REG_POWER, 0);
+	wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
 	wrcd(codec, AC97_REG_RESET, 0);
 	DELAY(100000);
+	wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
 	i = rdcd(codec, AC97_REG_RESET);
 
 	if (!codec->noext) {
@@ -484,6 +497,7 @@ ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 
 	codec->dev = dev;
 	codec->devinfo = devinfo;
+	codec->flags = 0;
 	return codec;
 }
 
@@ -495,6 +509,18 @@ ac97_destroy(struct ac97_info *codec)
 		kobj_delete(codec->methods, M_AC97);
 	snd_mtxfree(codec->lock);
 	free(codec, M_AC97);
+}
+
+void
+ac97_setflags(struct ac97_info *codec, u_int32_t val)
+{
+	codec->flags = val;
+}
+
+u_int32_t
+ac97_getflags(struct ac97_info *codec)
+{
+	return codec->flags;
 }
 
 /* -------------------------------------------------------------------- */
