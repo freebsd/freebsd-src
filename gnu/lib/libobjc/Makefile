@@ -18,6 +18,7 @@ INCS=	encoding.h hash.h objc-api.h objc-list.h objc.h runtime.h \
 	sarray.h thr.h typedstream.h NXConstStr.h Object.h Protocol.h
 INCSDIR=${INCLUDEDIR}/objc
 
+# PR ia64/49081
 .if ${MACHINE_ARCH} == "ia64"
 CFLAGS+= -fpic
 .endif
