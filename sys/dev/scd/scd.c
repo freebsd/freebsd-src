@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.29 1997/04/20 17:26:55 bde Exp $ */
+/* $Id: scd.c,v 1.30 1997/05/04 15:24:20 joerg Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -197,7 +197,7 @@ static	d_strategy_t	scdstrategy;
 static struct cdevsw scd_cdevsw;
 static struct bdevsw scd_bdevsw = 
 	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
-	  nodump,	nopsize,	0, "scd",	&scd_cdevsw,	-1 };
+	  nodump,	nopsize,	D_DISK, "scd",	&scd_cdevsw,	-1 };
 
 int scd_attach(struct isa_device *dev)
 {
