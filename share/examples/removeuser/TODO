@@ -1,0 +1,31 @@
+# $Id: $
+
+Deleting a user is a complex task:
+
+DONE:
+- delete password entry
+- delete user from group database (/etc/group), may be delete groups
+- remove home dir
+- remove mailbox
+- delete crontab entries (/etc/crontab, /var/cron/allow,
+/var/cron/deny, /var/cron/tabs/user)
+- delete at(8) entries
+
+TODO:
+- delete ppp password (/etc/ppp/*)
+- delete slip entries (/etc/sliphome*)
+- delete user from /etc/ftpusers 
+- check for other users with same uid (may be also for groups)
+- remove WWW files (/~user), which are not in HOME located
+- check other FS, $ find / -user user -print, delete suid/sgid bit,
+  remove files in /var/tmp
+- delete user from /etc/inetd.conf, remove files which owned by user
+- delete user from /etc/rc.local if the user start programs
+
+- delete mail aliases (/etc/aliases, may be /etc/sendmail.cf)
+- delete user phone numbers in /etc/phones
+- remove quota
+
+KNOWN BUGS:
+- removeuser does not remove the HOME directory if the HOME
+  directory is a symbolic link.
