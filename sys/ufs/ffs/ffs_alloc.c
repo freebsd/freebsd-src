@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.35 1997/09/02 20:06:44 bde Exp $
+ * $Id: ffs_alloc.c,v 1.36 1997/09/18 18:07:45 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -117,7 +117,8 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 #endif /* DIAGNOSTIC */
 	if (size == fs->fs_bsize && fs->fs_cstotal.cs_nbfree == 0)
 		goto nospace;
-	if (cred->cr_uid != 0 && freespace(fs, fs->fs_minfree) - size < 0)
+	if (cred->cr_uid != 0 &&
+	    freespace(fs, fs->fs_minfree) - numfrags(fs, size) < 0)
 		goto nospace;
 #ifdef QUOTA
 	error = chkdq(ip, (long)btodb(size), cred, 0);
@@ -187,7 +188,8 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	if (cred == NOCRED)
 		panic("ffs_realloccg: missing credential");
 #endif /* DIAGNOSTIC */
-	if (cred->cr_uid != 0 && freespace(fs, fs->fs_minfree) <= 0)
+	if (cred->cr_uid != 0 &&
+	    freespace(fs, fs->fs_minfree) -  numfrags(fs, nsize - osize) < 0)
 		goto nospace;
 	if ((bprev = ip->i_db[lbprev]) == 0) {
 		printf("dev = 0x%lx, bsize = %ld, bprev = %ld, fs = %s\n",
