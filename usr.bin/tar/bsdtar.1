@@ -1,0 +1,577 @@
+.\" Copyright (c) 2003 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 5, 2004
+.Dt BSDTAR 1
+.Os
+.Sh NAME
+.Nm bsdtar
+.Nd manipulate tape archives
+.Sh SYNOPSIS
+.Nm
+.Op Ar bundled-flags Ao args Ac
+.Op Ao Ar file Ac | Ao Ar pattern Ac ...
+.Nm
+.Brq Fl c | Fl t | Fl x
+.Op Ar options
+.Op Ar files | patterns | directories
+.Sh DESCRIPTION
+.Nm
+creates and manipulates streaming archive files.
+.Pp
+The first synopsis form shows a
+.Dq bundled
+option word.
+This usage is provided for compatibility with historical implementations.
+See COMPATIBILITY below for details.
+.Pp
+The preferred usage is illustrated in the second synopsis.
+The first option to
+.Nm
+must be a mode indicator from the following list:
+.Bl -tag -compact -width indent
+.It Fl c
+Create a new archive containing the specified items.
+.It Fl r
+Like 
+.Fl c ,
+but new entries are appended to the archive specified with the
+.Fl f
+option, which is required.
+If a new entry has the same name as an existing entry, it will normally
+overwrite (replace) that entry on extraction.
+Note that this only works on uncompressed archives stored in regular files.
+.It Fl t
+List archive contents to stdout.
+.It Fl u
+Like
+.Fl r ,
+but new entries are written only if they have a modification date
+newer than the corresponding entry in the archive.
+Note that this only works on uncompressed archives stored in regular files.
+.It Fl x
+Extract to disk from the archive.
+.El
+.Pp
+In
+.Fl c ,
+.Fl r ,
+or
+.Fl u
+mode, each specified file or directory is added to the
+archive in the order specified on the command line.
+By default, the contents of each directory are also archived.
+.Pp
+In extract or list mode, the entire command line
+is read and parsed before the archive is opened.
+The pathnames or patterns on the command line indicate
+which items in the archive should be processed.
+Patterns are shell-style globbing patterns as
+documented in XXXX.
+.Sh OPTIONS
+Unless specifically stated otherwise, options are applicable in
+all operating modes.
+.Bl -tag -width indent
+.It Cm @ Ns Pa archive
+(c and r mode only)
+The specified archive is opened and the entries
+in it will be appended to the current archive.
+As a simple example,
+.Dl Nm Fl c Fl f Pa - Pa newfile Cm @ Ns Pa original.tar
+writes a new archive to standard output containing a file
+.Pa newfile
+and all of the entries from
+.Pa original.tar .
+In contrast,
+.Dl Nm Fl c Fl f Pa - Pa newfile Pa original.tar
+creates a new archive with only two entries.
+Similarly,
+.Dl Nm Fl czf Pa - Fl F Cm pax Cm @ Ns Pa -
+reads an archive from standard input (whose format will be determined
+automatically) and converts it into a gzip-compressed
+pax-format archive on stdout.
+In this way,
+.Nm
+can be used to convert archives from one format to another.
+.It Fl b Ar blocksize
+Specify the block size, in 512-byte records, for tape drive I/O.
+As a rule, this argument is only needed when reading from or writing
+to tape drives, and usually not even then as the default block size of
+20 records (10240 bytes) is very common.
+.It Fl C Ar directory
+Change directories.
+The directory is changed after the archive
+is opened, but before any entries are extracted or written.
+(In particular, it does not affect the interpretation of the
+.Fl f
+option.)
+In create mode, note that
+.Fl C
+options are all processed before any files are read.
+To change directories between files, use
+.Cm C=
+instead.
+.It Cm C= Ns Pa dir
+(c and r mode only)
+Change to the specified directory before adding the following files.
+(Note that this is not an option in the sense of
+.Xr getopt 3 ,
+and is therefore processed as the files are processed.)
+.It Fl -exclude Ar pattern
+Do not process files or directories that match the
+specified pattern.
+Note that exclusions take precedence over patterns or filenames
+specified on the command line.
+.It Fl F Ar format
+(c mode only)
+Use the specified format for the created archive.
+Supported formats include
+.Dq cpio ,
+.Dq pax ,
+.Dq shar ,
+.Dq shardump ,
+and
+.Dq ustar .
+.It Fl f Ar file
+Read the archive from or write the archive to the specified file.
+The filename can be
+.Pa -
+for standard input or standard output.
+.It Fl -fast-read
+(x and t mode only)
+Extract or list only the first archive entry that matches each pattern
+or filename operand.
+Exit as soon as each specified pattern or filename has been matched.
+By default, the archive is always read to the very end, since
+there can be multiple entries with the same name and, by convention,
+later entries overwrite earlier entries.
+This option is provided as a performance optimization.
+.It Fl H
+(c and r mode only)
+Symbolic links named on the command line will be followed; the
+target of the link will be archived, not the link itself.
+.It Fl j
+(c mode only)
+Compress the resulting archive with
+.Xr bzip2 1 .
+Note that, unlike other
+.Nm tar
+implementations, this implementation recognizes bzip2 compression
+automatically when reading archives.
+This option is ignored in extract or list modes.
+.It Fl k
+(x mode only)
+Do not overwrite existing files.
+.It Fl L
+(c and r mode only)
+All symbolic links will be followed.
+Normally, symbolic links are archived as such.
+With this option, the target of the link will be archived instead.
+.It Fl l
+(c mode only)
+Issue a warning message unless all links to each file are archived.
+.It Fl m
+(x mode only)
+Do not extract modification time.
+By default, the modification time is set to the time stored in the archive.
+.It Fl n
+(c, r, u modes only)
+Do not recursively archive the contents of directories.
+.It Fl -nodump
+(c and r modes only)
+Honor the nodump file flag by skipping this file.
+.It Fl O
+(x mode only)
+Extracted files are written to standard out rather than
+being extracted to disk.
+.It Fl o
+(x mode only)
+Use the user and group of the user running the program rather
+than those specified in the archive.
+Note that this has no significance unless
+.Fl p
+is specified, and the program is being run by the root user.
+In this case, the file modes and flags from
+the archive will be restored, but ACLs or owner information in
+the archive will be discarded.
+(not yet implemented)
+.It Fl P
+Preserve leading slashes.
+By default, absolute pathnames (those that begin with a / character)
+have the leading slash removed.
+This option suppresses that behavior.
+.It Fl p
+(x mode only)
+Preserve file permissions.
+Attempt to restore the full permissions, including owner, file modes, file
+flags and ACLs, if available, for each item extracted from the archive.
+By default, newly-created regular files have the file mode restored and
+all other types of entries receive default permissions.
+.It Fl U
+(x mode only)
+Unlink files before creating them.
+(Not yet implemented.)
+.It Fl v
+Produce verbose output.
+In create and extract modes,
+.Nm
+will list each file name as it is read from or written to
+the archive.
+In list mode,
+.Nm
+will produce output similar to that of
+.Xr ls 1 .
+Additional
+.Fl v
+options will provide additional detail.
+.It Fl w
+Ask for confirmation for every action.
+.It Fl X
+(c, r, u modes)
+When visiting subdirectories, ignore any that are on different devices.
+.It Fl y
+(c mode only)
+Compress the resulting archive with
+.Xr bzip2 1 .
+.It Fl z
+(c mode only)
+Compress the resulting archive with
+.Xr gzip 1 .
+Note that, unlike other
+.Nm tar
+implementations, this implementation recognizes gzip
+and bzip2 compression automatically when reading archives.
+The
+.Fl j , y , No and Fl z
+options are ignored for extract or list mode.
+.El
+.Sh EXAMPLES
+The following creates a new archive
+called
+.Ar file.tar
+that contains two files
+.Ar source.c
+and
+.Ar source.h :
+.Dl Nm Fl czf Pa file.tar Pa source.c Pa source.h
+.Pp
+To view a detailed table of contents for this
+archive:
+.Dl Nm Fl tvf Pa file.tar
+.Pp
+To extract all entries from the archive on
+the default tape drive:
+.Dl Nm Fl x
+.Pp
+In create mode, the list of files and directories to be archived
+can also include directory change instructions of the form
+.Cm C= Ns Pa foo/baz
+and archive inclusions of the form
+.Cm @ Ns Pa archive-file .
+For example, the command line
+.Dl Nm Fl c Fl f Pa new.tar Pa foo1 Cm @ Ns Pa old.tgz Cm C= Ns Pa /tmp Pa foo2
+will create a new archive
+.Pa new.tar .
+.Nm
+will read the file
+.Pa foo1
+from the current directory and add it to the output archive.
+It will then read each entry from
+.Pa old.tgz
+and add those entries to the output archive.
+Finally, it will switch to the
+.Pa /tmp
+directory and add
+.Pa foo2
+to the output archive.
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev BLOCKSIZE"
+.It Ev LANG
+The locale to use.
+See
+.Xr environ 7
+for more information.
+.It Ev TZ
+The timezone to use when displaying dates.
+See
+.Xr environ 7
+for more information.
+.El
+.Sh COMPATIBILITY
+The bundled-arguments format is supported for compatibility
+with historic implementations.
+It consists of an initial word (with no leading - character) in which
+each character indicates an option.
+Arguments follow as separate words.
+The order of the arguments must match the order
+of the corresponding characters in the bundled command word.
+For example,
+.Dl Nm Cm tbf 32 Pa file.tar
+specifies three flags
+.Cm t ,
+.Cm b ,
+and
+.Cm f .
+The
+.Cm b
+and
+.Cm f
+flags both require arguments,
+so there must be two additional items
+on the command line.  The
+.Ar 32
+is the argument to the
+.Cm b
+flag, and
+.Ar file.tar
+is the argument to the
+.Cm f
+flag.
+.Pp
+The mode options c, r, t, u, and x and the options
+b, f, l, m, o, v, and w are implemented to be compatible
+with SUSv2.
+.Pp
+On systems that support getopt_long(), additional long options
+are available to improve compatibility with other tar implementations.
+.Pp
+The
+.Nm
+program reads and writes a variety of streaming archive formats, including:
+.Bl -tag -width indent
+.It Cm cpio
+The octet-oriented cpio format standardized by POSIX.
+.It Cm gnutar
+.Nm
+has limited read support for GNU-format tar archives.
+.It Cm pax interchange
+The pax interchange format is a POSIX-standard tar format that removes
+essentially all of the historic limitations in a standard-conforming fashion.
+This format is supported by standard implementations of
+.Xr pax 1
+as well as by some
+.Nm tar
+programs, including
+.Nm star .
+.It Cm shar
+A
+.Dq shar
+format archive is a shell script that, when executed on a POSIX-compliant
+system, will recreate the specified files.
+Note that shar-format archives will be plain text files only if all of the
+files being archived are themselves plain text files.
+.It Cm shardump
+This format is similar to shar but encodes binary files so that the result
+will be a plain text file regardless of the file contents.
+It also includes additional shell commands that attempt to reproduce as
+many file attributes as possible, including owner, mode, and flags.
+.It Cm tar
+.Nm
+can read most older tar archives, including many that violate
+the POSIX standard.
+.It Cm ustar
+The format first standardized by POSIX.
+It has the following limitations:
+.Bl -bullet -compact
+.It
+Device major and minor numbers are limited to 21 bits.
+Nodes with larger numbers will not be added to the archive.
+.It
+Path names in the archive are limited to 255 bytes.
+(Shorter if there is no / character in exactly the right place.)
+.It
+Symbolic links and hard links are stored in the archive with
+the name of the referenced file.
+This name is limited to 100 bytes.
+.It
+Extended attributes, file flags, and other extended
+security information cannot be stored.
+.It
+Archive entries are limited to 2 gigabytes in size.
+.El
+Note that the pax interchange has none of these restrictions.
+.Nm
+also supports a variety of extensions to this format
+used by particular archivers.
+In particular, it supports base-256 values in certain numeric fields.
+This essentially removes the limitations on file size, modification time,
+and device numbers.
+.El
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr bzip2 1 ,
+.Xr gzip 1 ,
+.Xr mt 1 ,
+.Xr pax 1 ,
+.Xr shar 1 ,
+.Xr libarchive 3 ,
+.Xr tar 5 .
+.Sh STANDARDS
+There is no current POSIX standard for the tar command; it appeared
+in SUSv2 but was dropped from SUSv3.
+The options used by this implementation were developed by surveying a
+number of existing tar implementations as well as the old SUSv2 specification
+for tar and the current SUSv3 specification for pax.
+.Pp
+The ustar and pax interchange file formats are defined by
+.St -p1003.1-2001
+for the pax command.
+.Sh BUGS
+The
+.Fl l
+and
+.Fl o
+options follow POSIX.
+GNU tar's
+.Fl l
+and
+.Fl o
+options do not.
+(This is, of course, a bug in GNU tar and not bsdtar.)
+.Pp
+The distinction between the
+.Fl C Pa dir
+option and the
+.Cm C= Ns Pa dir
+operation is prompted by the use of
+.Xr getopt_long 3
+for parsing the command line.
+Recall that
+.Xr getopt_long 3
+processes all options before all non-options.
+In particular,
+.Cm C= Ns Pa dir
+is not an option, and is therefore processed in the order it appears
+on the command line.
+In contrast,
+.Fl C Pa dir
+is an option, and therefore, in accordance with POSIX
+conventions, is handled in a manner that does not
+depend on the order of command-line options.
+This behavior differs from that of implementations that do
+not follow standard getopt argument parsing conventions.
+.Pp
+Since many options depend on the particular operating mode,
+the mode option itself must be specified first on the command line.
+This allows for more accurate detection and reporting of
+incorrect option usage.
+.Pp
+All archive output is written in correctly-sized blocks, even
+if the output is being compressed.
+Whether or not the last output block is padded to a full
+block size varies depending on the format and the
+output device.
+For tar and cpio formats, the last block of output is padded
+to a full block size if the output is being
+written to standard output or to a character or block device such as
+a tape drive.
+If the output is being written to a regular file, the last block
+will not be padded.
+Many compressors, including
+.Xr gzip 1
+and
+.Xr bzip2 1 ,
+complain about the null padding when decompressing an archive created by
+.Nm ,
+although they still extract it correctly.
+.Pp
+The compression and decompression is implemented internally, so
+there may be insignificant differences between the compressed output
+generated by
+.Dl Nm Fl czf Pa - file
+and that generated by
+.Dl Nm Fl cf Pa - file | Nm gzip
+.Pp
+The default should be to read and write archives to the standard I/O paths,
+but tradition dictates otherwise.
+.Pp
+The
+.Cm r
+and
+.Cm u
+modes require that the archive be uncompressed
+and located in a regular file on disk.
+Other archives can be modified using
+.Cm c
+mode with the
+.Pa @archive-file
+extension.
+.Pp
+To archive a file called
+.Pa C=foo ,
+you must specify it as
+.Pa ./C=foo
+on the command line.
+Similarly, to archive a file called
+.Pa @foo
+or
+.Pa -foo
+you must specify it as
+.Pa ./@foo
+or
+.Pa ./-foo ,
+respectively.
+.Pp
+In create mode, a leading
+.Pa ./
+is always removed.
+A leading
+.Pa /
+is stripped unless the
+.Fl P
+option is specified.
+.Pp
+There needs to be better support for file selection on both create
+and extract.
+.Pp
+There is not yet any support for multi-volume archives or sparse files.
+.Pp
+All features should be available using only short options in order
+to enhance portability to platforms that lack
+.Fn getopt_long .
+.Pp
+There are alternative long options for many of the short options that
+are deliberately not documented.
+.Sh HISTORY
+A
+.Nm tar
+command appeared in Sixth Edition Unix.
+There have been numerous other implementations,
+many of which extended the file format.
+John Gilmore's
+.Nm pdtar
+public-domain implementation (circa November, 1987)
+was quite influential, and formed the basis of GNU tar.
+GNU tar was included as the standard system tar
+in FreeBSD beginning with FreeBSD 1.0.
+.Pp
+This is a complete re-implementation based on the
+.Xr libarchive 3
+library.
