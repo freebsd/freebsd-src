@@ -829,7 +829,7 @@ as \f(CW16m\fR, \f(CW16384k\fR or \f(CW32768b\fR.
 .Pp
 The configuration file can contain the following entries:
 .Pp
-.Bl -hang
+.Bl -hang -width 4n
 .It Nm volume
 .Ar name 
 .Op options
@@ -839,14 +839,8 @@ Define a volume with name
 .Pp
 Options are:
 .Pp
-.TS H
-tab(#) ;
-l lw50 .
-Option#Meaning
-T{
-.Nm plex
-.Ar plexname
-T}#T{
+.Bl -hang -width 18n
+.It Nm plex Ar plexname
 Add the specified plex to the volume.  If
 .Ar plexname
 is specified as 
@@ -854,12 +848,7 @@ is specified as
 .Nm
 will look for the definition of the plex as the next possible entry in the
 configuration file after the definition of the volume.
-T}
-.sp
-T{
-.Nm readpol
-.Ar policy
-T}#T{
+.It Nm readpol Ar policy
 Define a
 .Ar read policy
 for the volume.
@@ -875,11 +864,7 @@ read policy specifies that each read should be performed from a different plex
 in \fIround-robin\fR\| fashion.  A
 .Ar prefer
 read policy reads from the specified plex every time.
-T}
-.sp
-T{
-.Nm setupstate
-T}#T{
+.It Nm setupstate
 When creating a multi-plex volume, assume that the contents of all the plexes
 are consistent.  This is normally not the case, and correctly you should use the
 .Nm init
@@ -895,32 +880,21 @@ Note that you \fImust\fP\| use the
 .Nm init
 command with RAID-5 plexes: otherwise extreme data corruption will result if one
 subdisk fails.
-T}
 .fi
-.TE
-.It Nm plex
-.Op options
+.El
+.It Nm plex Op options
 .Pp
-Define a plex.  Unlike a volume, a plex does not need a name.
+Define a plex.  Unlike a volume, a plex does not need a name.  The options may
+be:
 .Pp
-.TS H
-tab(#) ;
-l lw50 .
-Option#Meaning
-T{
-.Nm name
-.Ar plexname
-T}#T{
+.Bl -hang -width 18n
+.It Nm name Ar plexname
 Specify the name of the plex.  Note that you must use the keyword
 .Ar name
 when naming a plex or subdisk.
-T}
 .sp
-T{
-.Nm org
-.Ar organization
-.Op stripesize
-T}#T{
+.It Nm org Ar organization Op stripesize
+.Pp
 Specify the organization of the plex.
 .Ar organization
 can be one of 
@@ -950,128 +924,75 @@ smaller will result in a significant increase in I/O activity due to mapping of
 individual requests over multiple disks.  The increase in concurrency due to
 this mapping will not make up for the increase in latency.  A good guideline for
 stripe size is between 256 kB and 512 kB.
-T}
 .Pp
-#T{
 A striped plex must have at least two subdisks (otherwise it is a concatenated
 plex), and each must be the same size.  A RAID-5 plex must have at least three
 subdisks, and each must be the same size.  In practice, a RAID-5 plex should
 have at least 5 subdisks.
-T}
 .Pp
-T{
-.Nm volume
-.Ar volname
-T}#T{
+.It Nm volume Ar volname
 Add the plex to the specified volume.  If no
 .Nm volume
 keyword is specified, the plex will be added to the last volume mentioned in the
 configuration file.
-T}
 .sp
-T{
-.Nm sd
-.Ar sdname
-.Ar offset
-T}#T{
+.It Nm sd Ar sdname Ar offset
 Add the specified subdisk to the  plex at offset
 .Ar offset .
-T}
 .br
 .fi
-.TE
-.It Nm subdisk
-.Op options
+.El
+.It Nm subdisk Op options
 .Pp
-Define a subdisk. 
+Define a subdisk.  Options may be:
 .Pp
-.TS H
-tab(#) ;
-l lw50 .
-Option#Meaning
+.Bl -hang -width 18n
 .nf
 .sp
-T{
-.Nm name
-.Ar name
-T}#T{
+.It Nm name Ar name
 Specify the name of a subdisk.  It is not necessary to specify a name for a
 subdisk\(emsee OBJECT NAMING above.  Note that you must specify the keyword
 .Ar name
 if you wish to name a subdisk.
-T}
 .sp
-T{
-.Nm plexoffset
-.Ar offset
-T}#T{
+.It Nm plexoffset Ar offset
 Specify the starting offset of the subdisk in the plex.  If not specified,
 .Nm
 allocates the space immediately after the previous subdisk, if any, or otherwise
 at the beginning of the plex.
-T}
 .sp
-T{
-.Nm driveoffset
-.Ar offset
-T}#T{
+.It Nm driveoffset Ar offset
 Specify the starting offset of the subdisk in the drive.  If not specified,
 .Nm
 allocates the first contiguous
 .Ar length
 bytes of free space on the drive.
-T}
 .sp
-T{
-.Nm length
-.Ar length
-T}#T{
+.It Nm length Ar length
 Specify the length of the subdisk.  This keyword must be specified.  There is no
 default.
 .Nm length
 may be shortened to 
 .Nm len .
-T}
 .sp
-T{
-.Nm plex
-.Ar plex
-T}#T{
+.It Nm plex Ar plex
 Specify the plex to which the subdisk belongs.  By default, the subdisk belongs
 to the last plex specified.
-T}
 .sp
-T{
-.Nm drive
-.Ar drive
-T}#T{
+.It Nm drive Ar drive
 Specify the drive on which the subdisk resides.  By default, the subdisk resides
 on the last drive specified.
-T}
 .br
 .fi
-.TE
 .El
-.Bl -hang
-.It Nm drive
-.Ar name
-.Op options
+.It Nm drive Ar name Op options
 .Pp
-Define a drive.
+Define a drive.  The option must be:
 .Pp
-.TS H
-tab(#) ;
-l lw50 .
-Option#Meaning
-.nf
-.sp
-T{
-.Nm device
-.Ar devicename
-T}#T{
+.Bl -hang -width 18n
+.It Nm device Ar devicename
 Specify the device on which the drive resides.
-T}
-.TE
+.El
 .El
 .Sh EXAMPLE CONFIGURATION FILE
 .Bd -literal
@@ -1187,7 +1108,7 @@ not known, but they are certainly not consistent.  As a result, by default
 .Nm
 sets the state of all newly-created plexes except the first to
 .Ar stale .
-.Pp
+.sp
 In practice, people aren't too interested in what was in the plex when it was
 created, and other volume managers cheat by setting them 
 .Ar up
@@ -1251,41 +1172,7 @@ vinumioctl: invalid ioctl from process 247 (vinum): c0e44642
 .Pp
 This error may also occur if you use old versions of kld or userland program.
 .El
-.Sh BUGS
-.Bl -enum
-.It
-.Nm
-is currently in beta test.  Many bugs can be expected.  The configuration
-mechanism is not yet fully functional.  If you have difficulties, please look at
-http://www.lemis.com/vinum_beta.html and
-http://www.lemis.com/vinum_debugging.html before reporting problems.
-.It
-It is possible to unload
-.Nm
-with the
-.Nm kldunload
-command.  This is buggy, and the only reason it is present at all is to make it
-easier for people testing the system: the alternative is a reboot.  It works
-about 80% of the time: expect about one panic every five unloads.
-.It
-It is possible to configure
-.Nm
-statically, but it has never been tested in this form.  Don't even bother to
-report the problem if you have trouble with a static
-.Nm
-pseudo-device.
-.It
-This man page tickles a bug in the
-.Ar doc
-man page macros: depending on your screen size, you may get the error message
-.Bd -literal -offset indent
-warning: page 6: table text block will not fit on one page
-.Ed
-.Pp
-This will be fixed in a later rewrite of the page, when the
-.Nm tbl
-macros will be removed.
-.El
+.\"XXX.Sh BUGS
 .Sh FILES
 .Ar /dev/vinum
 - directory with device nodes for
