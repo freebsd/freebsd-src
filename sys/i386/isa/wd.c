@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.36 1994/03/06 03:10:58 jkh Exp $
+ *	$Id: wd.c,v 1.37 1994/04/10 11:17:13 csgr Exp $
  */
 
 /* TODO:
@@ -83,11 +83,11 @@ static int wdtest = 0;
 #include "syslog.h"
 #include "vm/vm.h"
 
-#define	TIMEOUT		10000	/* XXX? WDCC_DIAGNOSE can take > 1.1 sec */
-
+#define TIMEOUT		10000
 #define	RETRIES		5	/* number of retries before giving up */
 #define RECOVERYTIME	500000	/* usec for controller to recover after err */
 #define	MAXTRANSFER	256	/* max size of transfer in sectors */
+#define BAD144_NO_CYL	0xffff	/* XXX should be in dkbad.h; bad144.c uses -1 */
 
 #ifdef notyet
 #define wdnoreloc(dev)	(minor(dev) & 0x80)	/* ignore partition table */
@@ -149,6 +149,7 @@ struct disk {
 	struct dos_partition
 		dk_dospartitions[NDOSPART];	/* DOS view of disk */
 	struct dkbad dk_bad;	/* bad sector table */
+	long    dk_badsect[127];        /* 126 plus trailing -1 marker */
 };
 
 static struct disk *wddrives[NWD];	/* table of units */
@@ -159,6 +160,8 @@ static struct buf rwdbuf[NWD];	/* buffers for raw IO */
 #endif
 static long wdxfer[NWD];	/* count of transfers */
 
+
+static void bad144intern(struct disk *);
 static int wdprobe(struct isa_device *dvp);
 static int wdattach(struct isa_device *dvp);
 static void wdustart(struct disk *du);
@@ -370,10 +373,32 @@ wdstrategy(register struct buf *bp)
 				    du->dk_wlabel) <= 0)
 		goto done;
 
+	/*
+	 * Check for *any* block on this transfer being on the bad block list
+	 * if it is, then flag the block as a transfer that requires
+	 * bad block handling.  Also, used as a hint for low level disksort
+	 * clustering code to keep from coalescing a bad transfer into
+	 * a normal transfer.  Single block transfers for a large number of
+	 * blocks associated with a cluster I/O are undersirable.
+	 */
+	if( du->dk_flags & DKFL_BADSECT) {
+		int i;
+		int nsecs = howmany(bp->b_bcount, DEV_BSIZE);
+		int blkend = bp->b_pblkno + nsecs;
+		for(i=0;du->dk_badsect[i] != -1 && du->dk_badsect[i] < blkend;i++) {
+			if( du->dk_badsect[i] >= bp->b_pblkno) {
+				bp->b_flags |= B_BAD;
+				break;
+			}
+		}
+	}
+
 	/* queue transfer on drive, activate drive and controller if idle */
 	dp = &wdutab[lunit];
 	s = splbio();
-	disksort(dp, bp);
+
+	cldisksort(dp, bp, 254*DEV_BSIZE);
+
 	if (dp->b_active == 0)
 		wdustart(du);	/* start drive */
 
@@ -389,8 +414,10 @@ wdstrategy(register struct buf *bp)
 	return;
 
 done:
+	s = splbio();
 	/* toss transfer, we're done early */
 	biodone(bp);
+	splx(s);
 }
 
 /*
@@ -477,7 +504,7 @@ loop:
 	}
 
 	/* calculate transfer details */
-	blknum = bp->b_blkno + du->dk_skip;
+	blknum = bp->b_pblkno + du->dk_skip;
 #ifdef WDDEBUG
 	if (du->dk_skip == 0)
 		printf("wd%d: wdstart: %s %d@%d; map ", lunit,
@@ -486,67 +513,49 @@ loop:
 	else
 		printf(" %d)%x", du->dk_skip, inb(du->dk_port + wd_altsts));
 #endif
-	if (du->dk_skip == 0)
-		du->dk_bc = bp->b_bcount;
 
 	lp = &du->dk_dd;
 	secpertrk = lp->d_nsectors;
 	secpercyl = lp->d_secpercyl;
-	if (wddospart(bp->b_dev))
-		blknum += du->dk_dd2.d_partitions[wdpart(bp->b_dev)].p_offset;
-	else
-		blknum += lp->d_partitions[wdpart(bp->b_dev)].p_offset;
-	cylin = blknum / secpercyl;
-	head = (blknum % secpercyl) / secpertrk;
-	sector = blknum % secpertrk;
 
-	/* 
-	 * See if the current block is in the bad block list.
-	 * (If we have one, and not formatting.)
-	 */
-	if ((du->dk_flags & (DKFL_SINGLE | DKFL_BADSECT))
-	    == (DKFL_SINGLE | DKFL_BADSECT))
-#define BAD144_NO_CYL	0xffff	/* XXX should be in dkbad.h; bad144.c uses -1 */
-	    for (bt_ptr = du->dk_bad.bt_bad; bt_ptr->bt_cyl != BAD144_NO_CYL;
-		 bt_ptr++) {
-		if (bt_ptr->bt_cyl > cylin)
-			/* Sorted list, and we passed our cylinder. quit. */
-			break;
-		if (bt_ptr->bt_cyl == cylin &&
-		    bt_ptr->bt_trksec == (head << 8) + sector) {
-			/*
-			 * Found bad block.  Calculate new block number.
-			 * This starts at the end of the disk (skip the
-			 * last track which is used for the bad block list),
-			 * and works backwards to the front of the disk.
-			 */
-#ifdef WDDEBUG
-			printf("--- badblock code -> Old = %ld; ", blknum);
-#endif
+	if (du->dk_skip == 0) {
+		du->dk_bc = bp->b_bcount;
+		if (bp->b_flags & B_BAD) {
+			du->dk_flags |= DKFL_SINGLE;
+		}
+	}
 
+	if ((du->dk_flags & (DKFL_SINGLE|DKFL_BADSECT))		/* 19 Aug 92*/
+		== (DKFL_SINGLE|DKFL_BADSECT)) {
+		int i;
+
+		for(i=0;
+			du->dk_badsect[i] != -1 && du->dk_badsect[i] <= blknum;
+			i++) {
+
+			if( du->dk_badsect[i] == blknum) {
 			/*
 			 * XXX the offset of the bad sector table ought
 			 * to be stored in the in-core copy of the table.
 			 */
 #define BAD144_PART	2	/* XXX scattered magic numbers */
 #define BSD_PART	0	/* XXX should be 2 but bad144.c uses 0 */
-			if (lp->d_partitions[BSD_PART].p_offset != 0)
-				blknum = lp->d_partitions[BAD144_PART].p_offset
-					 + lp->d_partitions[BAD144_PART].p_size;
-			else
-				blknum = lp->d_secperunit;
-			blknum -= lp->d_nsectors + (bt_ptr - du->dk_bad.bt_bad)
-				  + 1;
-
-			cylin = blknum / secpercyl;
-			head = (blknum % secpercyl) / secpertrk;
-			sector = blknum % secpertrk;
-#ifdef WDDEBUG
-			printf("new = %ld\n", blknum);
-#endif
-			break;
+				if (lp->d_partitions[BSD_PART].p_offset != 0)
+					blknum = lp->d_partitions[BAD144_PART].p_offset
+						 + lp->d_partitions[BAD144_PART].p_size;
+				else
+					blknum = lp->d_secperunit;
+				blknum -= lp->d_nsectors + i + 1;
+				
+				break;
+			}
 		}
 	}
+				
+	
+	cylin = blknum / secpercyl;
+	head = (blknum % secpercyl) / secpertrk;
+	sector = blknum % secpertrk;
 
 	wdtab[ctrlr].b_active = 1;	/* mark controller active */
 
@@ -680,7 +689,7 @@ wdintr(int unit)
 			return;
 		case 1:
 			wdstart(unit);
-		return;
+			return;
 		case 2:
 			goto done;
 		}
@@ -727,6 +736,9 @@ oops:
 		chk = min(DEV_BSIZE / sizeof(short), du->dk_bc / sizeof(short));
 
 		/* ready to receive data? */
+		if ((du->dk_status & (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ))
+		    != (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ))
+			wderror(bp, du, "wdintr: read intr arrived early");
 		if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ, TIMEOUT) != 0) {
 			wderror(bp, du, "wdintr: read error detected late");
 			goto oops;
@@ -877,8 +889,10 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 			du->dk_flags |= DKFL_BSDLABEL;
 			du->dk_flags &= ~DKFL_WRITEPROT;
-			if (du->dk_dd.d_flags & D_BADSECT)
+			if (du->dk_dd.d_flags & D_BADSECT) {
 				du->dk_flags |= DKFL_BADSECT;
+				bad144intern(du);
+			}
 
 			/*
 			 * Force WDRAW partition to be the whole disk.
@@ -1045,6 +1059,7 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 static int
 wdsetctlr(struct disk *du)
 {
+	int error = 0;
 #ifdef WDDEBUG
 	printf("wd(%d,%d): wdsetctlr: C %lu H %lu S %lu\n",
 	       du->dk_ctrlr, du->dk_unit,
@@ -1065,8 +1080,18 @@ wdsetctlr(struct disk *du)
 		}
 		else {
 			printf("(truncating to 16)\n");
-		du->dk_dd.d_ntracks = 16;
+			du->dk_dd.d_ntracks = 16;
+		}
 	}
+
+	if (du->dk_dd.d_nsectors == 0 || du->dk_dd.d_nsectors > 255) {
+		printf("wd%d: cannot handle %lu sectors (max 255)\n",
+		       du->dk_lunit, du->dk_dd.d_nsectors);
+		error = 1;
+	}
+	if (error) {
+		wdtab[du->dk_ctrlr].b_errcnt += RETRIES;
+		return (1);
 	}
 	if (wdcommand(du, du->dk_dd.d_ncylinders, du->dk_dd.d_ntracks - 1, 0,
 		      du->dk_dd.d_nsectors, WDCC_IDC) != 0
@@ -1770,6 +1795,29 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 			DELAY(1000);
 	} while (--timeout != 0);
 	return (-1);
+}
+
+/*
+ * Internalize the bad sector table.
+ */
+void bad144intern(struct disk *du) {
+	int i;
+	if (du->dk_flags & DKFL_BADSECT) {
+		for (i = 0; i < 127; i++) {
+			du->dk_badsect[i] = -1;
+		}
+		for (i = 0; i < 126; i++) {
+			if (du->dk_bad.bt_bad[i].bt_cyl == 0xffff) {  
+				break;
+			} else {
+				du->dk_badsect[i] =
+					du->dk_bad.bt_bad[i].bt_cyl * du->dk_dd.d_secpercyl +
+					(du->dk_bad.bt_bad[i].bt_trksec >> 8) * du->dk_dd.d_nsectors
++
+					(du->dk_bad.bt_bad[i].bt_trksec & 0x00ff);
+			}
+		}
+	}
 }
 
 #endif /* NWDC > 0 */

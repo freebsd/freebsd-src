@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.23 1994/03/02 18:34:41 ache Exp $
+ *	$Id: fd.c,v 1.24 1994/03/08 16:25:29 nate Exp $
  *
  */
 
@@ -413,6 +413,7 @@ void fdstrategy(struct buf *bp)
 		goto bad;
 	}
  	bp->b_cylin = blknum / (fd->ft->sectrac * fd->ft->heads);
+	bp->b_pblkno = bp->b_blkno;
 	dp = &(fdc->head);
 	s = splbio();
 	disksort(dp, bp);
