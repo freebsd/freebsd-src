@@ -153,10 +153,10 @@ intpr(interval, ifnetaddr)
 				 */
 				in = inet_makeaddr(ifaddr.in.ia_subnet,
 					INADDR_ANY);
-				printf("%-11.11s ", netname(in.s_addr,
+				printf("%-13.13s ", netname(in.s_addr,
 				    ifaddr.in.ia_subnetmask));
 #else
-				printf("%-11.11s ",
+				printf("%-13.13s ",
 				    netname(htonl(ifaddr.in.ia_subnet),
 				    ifaddr.in.ia_subnetmask));
 #endif
