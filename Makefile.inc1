@@ -638,9 +638,16 @@ legacy:
 _strfile=	games/fortune/strfile
 .endif
 
+.if defined(BOOTSTRAPPING)
+.if ( ${BOOTSTRAPPING} < 450005 || \
+    ( ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500034 ))
+_uudecode=	usr.bin/uudecode
+.endif
+.endif
+
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef \
-    usr.bin/makewhatis usr.bin/rpcgen usr.bin/uudecode \
+    usr.bin/makewhatis usr.bin/rpcgen ${_uudecode} \
     usr.bin/xargs usr.bin/xinstall \
     usr.sbin/config usr.sbin/kbdcontrol \
     gnu/usr.bin/gperf gnu/usr.bin/groff gnu/usr.bin/texinfo
