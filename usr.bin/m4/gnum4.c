@@ -28,7 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* 
+/*
  * functions needed to support gnu-m4 extensions, including a fake freezing
  */
 
@@ -83,8 +83,8 @@ new_path_entry(const char *dirname)
 	n->next = 0;
 	return n;
 }
-	
-void 
+
+void
 addtoincludepath(const char *dirname)
 {
 	struct path_entry *n;
@@ -111,13 +111,13 @@ ensure_m4path(void)
 		return;
 	envpathdone = TRUE;
 	envpath = getenv("M4PATH");
-	if (!envpath) 
+	if (!envpath)
 		return;
 	/* for portability: getenv result is read-only */
 	envpath = strdup(envpath);
 	if (!envpath)
 		errx(1, "out of memory");
-	for (sweep = envpath; 
+	for (sweep = envpath;
 	    (path = strsep(&sweep, ":")) != NULL;)
 	    addtoincludepath(path);
 	free(envpath);
@@ -159,7 +159,7 @@ fopen_trypath(struct input_file *i, const char *filename)
 	return dopath(i, filename);
 }
 
-void 
+void
 doindir(const char *argv[], int argc)
 {
 	ndptr p;
@@ -171,7 +171,7 @@ doindir(const char *argv[], int argc)
 	eval(argv+1, argc-1, p->type);
 }
 
-void 
+void
 dobuiltin(const char *argv[], int argc)
 {
 	int n;
@@ -181,7 +181,7 @@ dobuiltin(const char *argv[], int argc)
 		eval(argv+1, argc-1, n);
 	else
 		errx(1, "unknown builtin %s", argv[2]);
-} 
+}
 
 
 /* We need some temporary buffer space, as pb pushes BACK and substitution
@@ -202,7 +202,7 @@ static void add_sub(size_t, const char *, regex_t *, regmatch_t *);
 static void add_replace(const char *, regex_t *, const char *, regmatch_t *);
 #define addconstantstring(s) addchars((s), sizeof(s)-1)
 
-static void 
+static void
 addchars(const char *c, size_t n)
 {
 	if (n == 0)
@@ -220,7 +220,7 @@ addchars(const char *c, size_t n)
 	current += n;
 }
 
-static void 
+static void
 addchar(int c)
 {
 	if (current +1 > bufsize) {
@@ -244,7 +244,7 @@ getstring(void)
 }
 
 
-static void 
+static void
 exit_regerror(int er, regex_t *re)
 {
 	size_t 	errlen;
@@ -273,7 +273,7 @@ add_sub(size_t n, const char *string, regex_t *re, regmatch_t *pm)
 /* Add replacement string to the output buffer, recognizing special
  * constructs and replacing them with substrings of the original string.
  */
-static void 
+static void
 add_replace(const char *string, regex_t *re, const char *replace, regmatch_t *pm)
 {
 	const char *p;
@@ -306,7 +306,7 @@ add_replace(const char *string, regex_t *re, const char *replace, regmatch_t *pm
 	}
 }
 
-static void 
+static void
 do_subst(const char *string, regex_t *re, const char *replace, regmatch_t *pm)
 {
 	int error;
@@ -321,11 +321,11 @@ do_subst(const char *string, regex_t *re, const char *replace, regmatch_t *pm)
 				flags = REG_NOTBOL;
 		}
 
-		/* NULL length matches are special... We use the `vi-mode' 
+		/* NULL length matches are special... We use the `vi-mode'
 		 * rule: don't allow a NULL-match at the last match
-		 * position. 
+		 * position.
 		 */
-		if (pm[0].rm_so == pm[0].rm_eo && 
+		if (pm[0].rm_so == pm[0].rm_eo &&
 		    string + pm[0].rm_so == last_match) {
 			if (*string == '\0')
 				return;
@@ -346,13 +346,13 @@ do_subst(const char *string, regex_t *re, const char *replace, regmatch_t *pm)
 	pbstr(string);
 }
 
-static void 
+static void
 do_regexp(const char *string, regex_t *re, const char *replace, regmatch_t *pm)
 {
 	int error;
 
 	switch(error = regexec(re, string, re->re_nsub+1, pm, 0)) {
-	case 0: 
+	case 0:
 		add_replace(string, re, replace, pm);
 		pbstr(getstring());
 		break;
@@ -363,7 +363,7 @@ do_regexp(const char *string, regex_t *re, const char *replace, regmatch_t *pm)
 	}
 }
 
-static void 
+static void
 do_regexpindex(const char *string, regex_t *re, regmatch_t *pm)
 {
 	int error;
@@ -439,13 +439,13 @@ dopatsubst(const char *argv[], int argc)
 		warnx("Too few arguments to patsubst");
 		return;
 	}
-	error = regcomp(&re, mimic_gnu ? twiddle(argv[3]) : argv[3], 
+	error = regcomp(&re, mimic_gnu ? twiddle(argv[3]) : argv[3],
 	    REG_NEWLINE | REG_EXTENDED);
 	if (error != 0)
 		exit_regerror(error, &re);
-	
+
 	pmatch = xalloc(sizeof(regmatch_t) * (re.re_nsub+1));
-	do_subst(argv[2], &re, 
+	do_subst(argv[2], &re,
 	    argc != 4 && argv[4] != NULL ? argv[4] : "", pmatch);
 	pbstr(getstring());
 	free(pmatch);
@@ -463,11 +463,11 @@ doregexp(const char *argv[], int argc)
 		warnx("Too few arguments to regexp");
 		return;
 	}
-	error = regcomp(&re, mimic_gnu ? twiddle(argv[3]) : argv[3], 
+	error = regcomp(&re, mimic_gnu ? twiddle(argv[3]) : argv[3],
 	    REG_EXTENDED);
 	if (error != 0)
 		exit_regerror(error, &re);
-	
+
 	pmatch = xalloc(sizeof(regmatch_t) * (re.re_nsub+1));
 	if (argv[4] == NULL || argc == 4)
 		do_regexpindex(argv[2], &re, pmatch);
