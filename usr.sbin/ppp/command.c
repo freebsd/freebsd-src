@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.162 1998/08/26 18:07:56 brian Exp $
+ * $Id: command.c,v 1.163 1998/08/29 18:37:02 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -33,6 +33,7 @@
 #ifndef NOALIAS
 #include <alias.h>
 #endif
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -126,7 +127,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/08/26 18:07:56 $";
+const char VersionDate[] = "$Date: 1998/08/29 18:37:02 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -315,13 +316,79 @@ DialCommand(struct cmdargs const *arg)
   return 0;
 }
 
+#define isinword(ch) (isalnum(ch) || (ch) == '_')
+
+static char *
+strstrword(char *big, const char *little)
+{
+  /* Get the first occurance of the word ``little'' in ``big'' */
+  char *pos;
+  int len;
+
+  pos = big;
+  len = strlen(little);
+
+  while ((pos = strstr(pos, little)) != NULL)
+    if ((pos == big || !isinword(pos[-1])) && !isinword(pos[len]))
+      break;
+    else
+      pos++;
+
+  return pos;
+}
+
+static char *
+subst(char *tgt, const char *oldstr, const char *newstr)
+{
+  /* tgt is a malloc()d area... realloc() as necessary */
+  char *word, *ntgt;
+  int ltgt, loldstr, lnewstr, pos;
+
+  if ((word = strstrword(tgt, oldstr)) == NULL)
+    return tgt;
+
+  ltgt = strlen(tgt) + 1;
+  loldstr = strlen(oldstr);
+  lnewstr = strlen(newstr);
+  do {
+    pos = word - tgt;
+    if (loldstr > lnewstr)
+      bcopy(word + loldstr, word + lnewstr, ltgt - pos - loldstr);
+    if (loldstr != lnewstr) {
+      ntgt = realloc(tgt, ltgt += lnewstr - loldstr);
+      if (ntgt == NULL)
+        break;			/* Oh wonderful ! */
+      word = ntgt + pos;
+      tgt = ntgt;
+    }
+    if (lnewstr > loldstr)
+      bcopy(word + loldstr, word + lnewstr, ltgt - pos - loldstr);
+    bcopy(newstr, word, lnewstr);
+  } while ((word = strstrword(word, oldstr)));
+
+  return tgt;
+}
+
+static void
+expand(char **nargv, int argc, char const *const *oargv, struct bundle *bundle)
+{
+  int arg;
+
+  nargv[0] = strdup(oargv[0]);
+  for (arg = 1; arg < argc; arg++) {
+    nargv[arg] = subst(strdup(oargv[arg]), "HISADDR",
+                       inet_ntoa(bundle->ncp.ipcp.peer_ip));
+    nargv[arg] = subst(nargv[arg], "INTERFACE", bundle->ifp.Name);
+    nargv[arg] = subst(nargv[arg], "MYADDR", inet_ntoa(bundle->ncp.ipcp.my_ip));
+  }
+  nargv[arg] = NULL;
+}
+
 static int
 ShellCommand(struct cmdargs const *arg, int bg)
 {
   const char *shell;
   pid_t shpid;
-  int argc;
-  char *argv[MAXARGS];
 
 #ifdef SHELL_ONLY_INTERACTIVELY
   /* we're only allowed to shell when we run ppp interactively */
@@ -370,18 +437,14 @@ ShellCommand(struct cmdargs const *arg, int bg)
     setuid(geteuid());
     if (arg->argc > arg->argn) {
       /* substitute pseudo args */
-      argv[0] = strdup(arg->argv[arg->argn]);
-      for (argc = 1; argc < arg->argc - arg->argn; argc++) {
-	if (strcasecmp(arg->argv[argc + arg->argn], "HISADDR") == 0)
-	  argv[argc] = strdup(inet_ntoa(arg->bundle->ncp.ipcp.peer_ip));
-	else if (strcasecmp(arg->argv[argc + arg->argn], "INTERFACE") == 0)
-	  argv[argc] = strdup(arg->bundle->ifp.Name);
-	else if (strcasecmp(arg->argv[argc + arg->argn], "MYADDR") == 0)
-	  argv[argc] = strdup(inet_ntoa(arg->bundle->ncp.ipcp.my_ip));
-        else
-          argv[argc] = strdup(arg->argv[argc + arg->argn]);
+      char *argv[MAXARGS];
+      int argc = arg->argc - arg->argn;
+
+      if (argc >= sizeof argv / sizeof argv[0]) {
+        argc = sizeof argv / sizeof argv[0] - 1;
+        log_Printf(LogWARN, "Truncating shell command to %d args\n", argc);
       }
-      argv[argc] = NULL;
+      expand(argv, argc, arg->argv + arg->argn, arg->bundle);
       if (bg) {
 	pid_t p;
 
