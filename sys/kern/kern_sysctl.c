@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.11 1994/09/16 00:53:58 ache Exp $
+ * $Id: kern_sysctl.c,v 1.12 1994/09/18 20:39:48 wollman Exp $
  */
 
 /*
@@ -108,7 +108,7 @@ __sysctl(p, uap, retval)
 	switch (name[0]) {
 	case CTL_KERN:
 		fn = kern_sysctl;
-		if (name[2] != KERN_VNODE)	/* XXX */
+		if (name[1] != KERN_VNODE)      /* XXX */
 			dolock = 0;
 		break;
 	case CTL_HW:
