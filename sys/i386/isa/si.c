@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.2 1995/08/10 08:48:34 peter Exp $
+ *	$Id: si.c,v 1.3 1995/08/13 15:18:05 peter Exp $
  */
 
 #ifndef lint
@@ -78,6 +78,7 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
  */
 
 #define	POLL		/* turn on poller to generate buffer empty interrupt */
+#define SI_DEF_HWFLOW	/* turn on default CRTSCTS flow control */
 #define SI_I_HIGH_WATER	(TTYHOG - SLXOS_BUFFERSIZE)
 
 enum si_mctl { GET, SET, BIS, BIC };
@@ -167,7 +168,16 @@ static struct speedtab chartimes[] = {
 	-1,	-1
 };
 static volatile int in_intr = 0;	/* Inside interrupt handler? */
-static int sidefaultrate = TTYDEF_SPEED;
+
+static int si_default_rate =	TTYDEF_SPEED;
+static int si_default_iflag =	0;
+static int si_default_oflag =	0;
+static int si_default_lflag =	0;
+#ifdef SI_DEF_HWFLOW
+static int si_default_cflag =	TTYDEF_CFLAG | CRTSCTS;
+#else
+static int si_default_cflag =	TTYDEF_CFLAG;
+#endif
 
 #ifdef POLL
 #define	POLL_INTERVAL	(hz/2)
@@ -590,13 +600,13 @@ mem_fail:
 				pp->sp_flags = 0;
 				pp->sp_state = 0;	/* internal flag */
 				pp->sp_dtr_wait = 3 * hz;
-				pp->sp_iin.c_iflag = 0;
-				pp->sp_iin.c_oflag = 0;
-				pp->sp_iin.c_cflag = TTYDEF_CFLAG;
-				pp->sp_iin.c_lflag = 0;
+				pp->sp_iin.c_iflag = si_default_iflag;
+				pp->sp_iin.c_oflag = si_default_oflag;
+				pp->sp_iin.c_cflag = si_default_cflag;
+				pp->sp_iin.c_lflag = si_default_lflag;
 				termioschars(&pp->sp_iin);
 				pp->sp_iin.c_ispeed = pp->sp_iin.c_ospeed =
-					sidefaultrate;
+					si_default_rate;
 				pp->sp_iout = pp->sp_iin;
 			}
 			break;
