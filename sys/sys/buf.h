@@ -65,6 +65,8 @@ extern struct bio_ops {
 	void	(*io_deallocate) __P((struct buf *));
 	int	(*io_fsync) __P((struct vnode *));
 	int	(*io_sync) __P((struct mount *));
+	void	(*io_movedeps) __P((struct buf *, struct buf *));
+	int	(*io_countdeps) __P((struct buf *, int));
 } bioops;
 
 struct iodone_chain {
@@ -194,7 +196,7 @@ struct buf {
 #define	B_NEEDCOMMIT	0x00000002	/* Append-write in progress. */
 #define	B_ASYNC		0x00000004	/* Start I/O, do not wait. */
 #define	B_UNUSED0	0x00000008	/* Old B_BAD */
-#define	B_UNUSED1	0x00000010	/* Old B_BUSY */
+#define	B_DEFERRED	0x00000010	/* Skipped over for cleaning */
 #define	B_CACHE		0x00000020	/* Bread found us in the cache. */
 #define	B_CALL		0x00000040	/* Call b_iodone from biodone. */
 #define	B_DELWRI	0x00000080	/* Delay I/O until buffer reused. */
@@ -235,6 +237,9 @@ struct buf {
  */
 #define	BX_VNDIRTY	0x00000001	/* On vnode dirty list */
 #define	BX_VNCLEAN	0x00000002	/* On vnode clean list */
+#define	BX_BKGRDWRITE	0x00000004	/* Do writes in background */
+#define	BX_BKGRDINPROG	0x00000008	/* Background write in progress */
+#define	BX_BKGRDWAIT	0x00000010	/* Background write waiting */
 
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 
