@@ -641,17 +641,20 @@ findpcb:
       }
 
 #if defined(IPSEC) || defined(FAST_IPSEC)
+#ifdef INET6
 	if (isipv6) {
 		if (inp != NULL && ipsec6_in_reject(m, inp)) {
 #ifdef IPSEC
 			ipsec6stat.in_polvio++;
-#endif /*IPSEC*/
+#endif
 			goto drop;
 		}
-	} else  if (inp != NULL && ipsec4_in_reject(m, inp)) {
+	} else
+#endif /* INET6 */
+	if (inp != NULL && ipsec4_in_reject(m, inp)) {
 #ifdef IPSEC
 		ipsecstat.in_polvio++;
-#endif /*IPSEC*/
+#endif
 		goto drop;
 	}
 #endif /*IPSEC || FAST_IPSEC*/
