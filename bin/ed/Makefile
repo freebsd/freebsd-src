@@ -8,8 +8,8 @@ MLINKS=	ed.1 red.1
 .if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT)
 DISTRIBUTION=crypto
 CFLAGS+=-DDES
-DPADD=	${LIBCIPHER}
-LDADD=	-lcipher
+DPADD=	${LIBCRYPTO}
+LDADD=	-lcrypto
 .endif
 
 .include <bsd.prog.mk>
