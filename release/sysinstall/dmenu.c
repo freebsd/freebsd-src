@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.11.2.8 1995/06/05 10:43:03 jkh Exp $
+ * $Id: dmenu.c,v 1.11.2.9 1995/06/07 07:21:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -74,7 +74,7 @@ dmenuVarCheck(DMenuItem *item)
     if ((cp = index(tmp, '=')) != NULL) {
 	*(cp++) = '\0';
 	cp2 = getenv(tmp);
-	if (tmp)
+	if (cp2)
 	    return !strcmp(cp, cp2) ? "ON" : "OFF";
 	else
 	    return "OFF";

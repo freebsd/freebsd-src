@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.30 1995/06/07 07:51:04 jkh Exp $
+ * $Id: menus.c,v 1.41.2.31 1995/06/07 07:54:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -841,7 +841,7 @@ When you are done setting configuration options, select Cancel.",
 };
 
 DMenu MenuSysconsKeymap = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keymap",
     "The default system console driver for FreeBSD (syscons) defaults\n\
 to a standard \"American\" keyboard map.  Users in other countries\n\
