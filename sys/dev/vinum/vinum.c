@@ -273,7 +273,7 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
     return 0;
 }
 
-moduledata_t vinum_mod =
+static moduledata_t vinum_mod =
 {
     "vinum",
     (modeventhand_t) vinum_modevent,
