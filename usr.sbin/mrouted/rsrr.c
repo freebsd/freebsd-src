@@ -202,7 +202,7 @@ rsrr_accept_iq()
      */
     if (numvifs > RSRR_MAX_VIFS) {
 	log(LOG_WARNING, 0,
-	    "Can't send RSRR Route Reply because %d is too many vifs %d",
+	    "Can't send RSRR Route Reply because %d is too many vifs",
 	    numvifs);
 	return;
     }
