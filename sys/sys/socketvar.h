@@ -447,6 +447,7 @@ struct uio;
 /*
  * From uipc_socket and friends
  */
+int	do_setopt_accept_filter(struct socket *so, struct sockopt *sopt);
 int	so_setsockopt(struct socket *so, int level, int optname,
 	    void *optval, size_t optlen);
 int	sockargs(struct mbuf **mp, caddr_t buf, int buflen, int type);
