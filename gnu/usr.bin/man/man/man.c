@@ -315,6 +315,8 @@ man_getopt (argc, argv)
 	  break;
 	case 'P':
 	  pager = strdup (optarg);
+	  if (setenv("PAGER", pager, 1) != 0)
+		  (void)fprintf(stderr, "setenv PAGER=%s\n", pager);
 	  break;
 	case 'S':
 	  colon_sep_section_list = strdup (optarg);
