@@ -861,6 +861,8 @@ kqueue_close(struct file *fp, struct thread *td)
 	struct knote **knp, *kn, *kn0;
 	int i;
 
+	GIANT_REQUIRED;
+
 	FILEDESC_LOCK(fdp);
 	for (i = 0; i < fdp->fd_knlistsize; i++) {
 		knp = &SLIST_FIRST(&fdp->fd_knlist[i]);
