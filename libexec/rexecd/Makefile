@@ -2,8 +2,9 @@
 
 PROG=	rexecd
 MAN8=	rexecd.8
-LDADD=	-lcrypt
-DPADD=	${LIBCRYPT}
+CFLAGS+= -DSKEY
 
+DPADD=	${LIBCRYPT} ${LIBSKEY}
+LDADD=	-lcrypt -lskey
 
 .include <bsd.prog.mk>

@@ -100,7 +100,13 @@ doit(f, fromp)
 	struct sockaddr_in *fromp;
 {
 	char cmdbuf[NCARGS+1], *cp, *namep;
+#ifdef SKEY
+	char *skey_crypt();
+	int permit_passwd = authfile(inet_ntoa(fromp->sin_addr));
+	char user[16], pass[100];
+#else /* SKEY */
 	char user[16], pass[16];
+#endif /* SKEY */
 	struct passwd *pwd;
 	int s;
 	u_short port;
@@ -156,7 +162,11 @@ doit(f, fromp)
 	}
 	endpwent();
 	if (*pwd->pw_passwd != '\0') {
+#ifdef SKEY
+		namep = skey_crypt(pass, pwd->pw_passwd, pwd, permit_passwd);
+#else /* SKEY */
 		namep = crypt(pass, pwd->pw_passwd);
+#endif /* SKEY */
 		if (strcmp(namep, pwd->pw_passwd)) {
 			error("Password incorrect.\n");
 			exit(1);
