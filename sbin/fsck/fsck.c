@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "pathnames.h"
 #include "fsutil.h"
 
 static enum { IN_LIST, NOT_IN_LIST } which = NOT_IN_LIST;
@@ -281,16 +280,10 @@ static int
 checkfs(const char *pvfstype, const char *spec, const char *mntpt,
     char *auxopt, pid_t *pidp)
 {
-	/* List of directories containing fsck_xxx subcommands. */
-	static const char *edirs[] = {
-		_PATH_SBIN,
-		_PATH_USRSBIN,
-		NULL
-	};
-	const char **argv, **edir;
+	const char **argv;
 	pid_t pid;
 	int argc, i, status, maxargc;
-	char *optbuf, execname[MAXPATHLEN + 1], execbase[MAXPATHLEN];
+	char *optbuf, execbase[MAXPATHLEN];
 	char *vfstype = NULL;
 	const char *extra = NULL;
 
@@ -361,25 +354,11 @@ checkfs(const char *pvfstype, const char *spec, const char *mntpt,
 			_exit(0);
 
 		/* Go find an executable. */
-		edir = edirs;
-		do {
-			(void)snprintf(execname,
-			    sizeof(execname), "%s/%s", *edir, execbase);
-			execv(execname, (char * const *)argv);
-			if (errno != ENOENT) {
-				if (spec)
-					warn("exec %s for %s", execname, spec);
-				else
-					warn("exec %s", execname);
-			}
-		} while (*++edir != NULL);
-
-		if (errno == ENOENT) {
-			if (spec)
-				warn("exec %s for %s", execname, spec);
-			else
-				warn("exec %s", execname);
-		}
+		execvP(execbase, _PATH_SYSPATH, (char * const *)argv);
+		if (spec)
+			warn("exec %s for %s in %s", execbase, spec, _PATH_SYSPATH);
+		else
+			warn("exec %s in %s", execbase, _PATH_SYSPATH);
 		_exit(1);
 		/* NOTREACHED */
 
