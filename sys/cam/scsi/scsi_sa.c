@@ -1355,14 +1355,13 @@ saregister(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
-	softc = (struct sa_softc *)malloc(sizeof (*softc), M_DEVBUF, M_NOWAIT);
+	softc = (struct sa_softc *)
+	    malloc(sizeof (*softc), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (softc == NULL) {
 		printf("saregister: Unable to probe new device. "
 		       "Unable to allocate softc\n");				
 		return (CAM_REQ_CMP_ERR);
 	}
-
-	bzero(softc, sizeof(*softc));
 	softc->scsi_rev = SID_ANSI_REV(&cgd->inq_data);
 	softc->state = SA_STATE_NORMAL;
 	softc->fileno = (daddr_t) -1;
@@ -2392,8 +2391,7 @@ retry:
 			mode_buffer_len += sizeof (sa_comp_t);
 	}
 
-	mode_buffer = malloc(mode_buffer_len, M_TEMP, M_WAITOK);
-	bzero(mode_buffer, mode_buffer_len);
+	mode_buffer = malloc(mode_buffer_len, M_TEMP, M_WAITOK | M_ZERO);
 	mode_hdr = (struct scsi_mode_header_6 *)mode_buffer;
 	mode_blk = (struct scsi_mode_blk_desc *)&mode_hdr[1];
 
@@ -2595,8 +2593,7 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 	if (params_to_set & SA_PARAM_COMPRESSION)
 		mode_buffer_len += sizeof (sa_comp_t);
 
-	mode_buffer = malloc(mode_buffer_len, M_TEMP, M_WAITOK);
-	bzero(mode_buffer, mode_buffer_len);
+	mode_buffer = malloc(mode_buffer_len, M_TEMP, M_WAITOK | M_ZERO);
 
 	mode_hdr = (struct scsi_mode_header_6 *)mode_buffer;
 	mode_blk = (struct scsi_mode_blk_desc *)&mode_hdr[1];
