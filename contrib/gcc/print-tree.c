@@ -23,6 +23,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "config.h"
 #include "system.h"
 #include "tree.h"
+#include "real.h"
 #include "ggc.h"
 #include "langhooks.h"
 
@@ -47,8 +48,7 @@ void
 debug_tree (node)
      tree node;
 {
-  table = (struct bucket **) permalloc (HASH_SIZE * sizeof (struct bucket *));
-  memset ((char *) table, 0, HASH_SIZE * sizeof (struct bucket *));
+  table = (struct bucket **) xcalloc (HASH_SIZE, sizeof (struct bucket *));
   print_node (stderr, "", node, 0);
   table = 0;
   fprintf (stderr, "\n");
@@ -124,7 +124,6 @@ print_node_brief (file, prefix, node, indent)
       if (TREE_OVERFLOW (node))
 	fprintf (file, " overflow");
 
-#if !defined(REAL_IS_NOT_DOUBLE) || defined(REAL_ARITHMETIC)
       d = TREE_REAL_CST (node);
       if (REAL_VALUE_ISINF (d))
 	fprintf (file, " Inf");
@@ -132,21 +131,10 @@ print_node_brief (file, prefix, node, indent)
 	fprintf (file, " Nan");
       else
 	{
-	  char string[100];
-
-	  REAL_VALUE_TO_DECIMAL (d, "%e", string);
+	  char string[60];
+	  real_to_decimal (string, &d, sizeof (string), 0, 1);
 	  fprintf (file, " %s", string);
 	}
-#else
-      {
-	int i;
-	unsigned char *p = (unsigned char *) &TREE_REAL_CST (node);
-	fprintf (file, " 0x");
-	for (i = 0; i < sizeof TREE_REAL_CST (node); i++)
-	  fprintf (file, "%02x", *p++);
-	fprintf (file, "");
-      }
-#endif
     }
 
   fprintf (file, ">");
@@ -223,7 +211,7 @@ print_node (file, prefix, node, indent)
       }
 
   /* Add this node to the table.  */
-  b = (struct bucket *) permalloc (sizeof (struct bucket));
+  b = (struct bucket *) xmalloc (sizeof (struct bucket));
   b->node = node;
   b->next = table[hash];
   table[hash] = b;
@@ -340,7 +328,9 @@ print_node (file, prefix, node, indent)
       if (TREE_CODE (node) == TYPE_DECL && TYPE_DECL_SUPPRESS_DEBUG (node))
 	fputs (" suppress-debug", file);
 
-      if (TREE_CODE (node) == FUNCTION_DECL && DECL_INLINE (node))
+      if (TREE_CODE (node) == FUNCTION_DECL && DID_INLINE_FUNC (node))
+	fputs (" autoinline", file);
+      else if (TREE_CODE (node) == FUNCTION_DECL && DECL_INLINE (node))
 	fputs (" inline", file);
       if (TREE_CODE (node) == FUNCTION_DECL && DECL_BUILT_IN (node))
 	fputs (" built-in", file);
@@ -363,6 +353,8 @@ print_node (file, prefix, node, indent)
 
       if (TREE_CODE (node) == VAR_DECL && DECL_IN_TEXT_SECTION (node))
 	fputs (" in-text-section", file);
+      if (TREE_CODE (node) == VAR_DECL && DECL_THREAD_LOCAL (node))
+	fputs (" thread-local", file);
 
       if (TREE_CODE (node) == PARM_DECL && DECL_TRANSPARENT_UNION (node))
 	fputs (" transparent-union", file);
@@ -395,7 +387,7 @@ print_node (file, prefix, node, indent)
 
       print_node (file, "size", DECL_SIZE (node), indent + 4);
       print_node (file, "unit size", DECL_SIZE_UNIT (node), indent + 4);
-      
+
       if (TREE_CODE (node) != FUNCTION_DECL
 	  || DECL_INLINE (node) || DECL_BUILT_IN (node))
 	indent_to (file, indent + 3);
@@ -426,7 +418,7 @@ print_node (file, prefix, node, indent)
       if (DECL_POINTER_ALIAS_SET_KNOWN_P (node))
 	{
 	  fprintf (file, " alias set ");
-	  fprintf (file, HOST_WIDE_INT_PRINT_DEC, 
+	  fprintf (file, HOST_WIDE_INT_PRINT_DEC,
 		   DECL_POINTER_ALIAS_SET (node));
 	}
 
@@ -516,6 +508,9 @@ print_node (file, prefix, node, indent)
 
       if (TYPE_PACKED (node))
 	fputs (" packed", file);
+
+      if (TYPE_RESTRICT (node))
+	fputs (" restrict", file);
 
       if (TYPE_LANG_FLAG_0 (node))
 	fputs (" type_0", file);
@@ -644,7 +639,7 @@ print_node (file, prefix, node, indent)
       if (TREE_CODE (node) == EXPR_WITH_FILE_LOCATION)
 	{
 	  indent_to (file, indent+4);
-          fprintf (file, "%s:%d:%d", 
+	  fprintf (file, "%s:%d:%d",
 		   (EXPR_WFL_FILENAME_NODE (node ) ?
 		    EXPR_WFL_FILENAME (node) : "(no file info)"),
 		   EXPR_WFL_LINENO (node), EXPR_WFL_COLNO (node));
@@ -683,7 +678,6 @@ print_node (file, prefix, node, indent)
 	    if (TREE_OVERFLOW (node))
 	      fprintf (file, " overflow");
 
-#if !defined(REAL_IS_NOT_DOUBLE) || defined(REAL_ARITHMETIC)
 	    d = TREE_REAL_CST (node);
 	    if (REAL_VALUE_ISINF (d))
 	      fprintf (file, " Inf");
@@ -691,21 +685,10 @@ print_node (file, prefix, node, indent)
 	      fprintf (file, " Nan");
 	    else
 	      {
-		char string[100];
-
-		REAL_VALUE_TO_DECIMAL (d, "%e", string);
+		char string[64];
+		real_to_decimal (string, &d, sizeof (string), 0, 1);
 		fprintf (file, " %s", string);
 	      }
-#else
-	    {
-	      int i;
-	      unsigned char *p = (unsigned char *) &TREE_REAL_CST (node);
-	      fprintf (file, " 0x");
-	      for (i = 0; i < sizeof TREE_REAL_CST (node); i++)
-		fprintf (file, "%02x", *p++);
-	      fprintf (file, "");
-	    }
-#endif
 	  }
 	  break;
 
@@ -731,7 +714,20 @@ print_node (file, prefix, node, indent)
 	  break;
 
 	case STRING_CST:
-	  fprintf (file, " \"%s\"", TREE_STRING_POINTER (node));
+	  {
+	    const char *p = TREE_STRING_POINTER (node);
+	    int i = TREE_STRING_LENGTH (node);
+	    fputs (" \"", file);
+	    while (--i >= 0)
+	      {
+		char ch = *p++;
+		if (ch >= ' ' && ch < 127)
+		  putc (ch, file);
+		else
+		  fprintf(file, "\\%03o", ch & 0xFF);
+	      }
+	    fputc ('\"', file);
+	  }
 	  /* Print the chain at second level.  */
 	  if (indent == 4)
 	    print_node (file, "chain", TREE_CHAIN (node), indent + 4);
