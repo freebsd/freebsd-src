@@ -263,14 +263,6 @@ typedef	__timer_t	timer_t;
 
 #include <sys/select.h>
 
-/* XXX should be moved to <sys/param.h>. */
-#define	NBBY	8		/* number of bits in a byte */
-
-/* XXX should be removed, since <sys/param.h> has this. */
-#ifndef howmany
-#define	howmany(x, y)	(((x) + ((y) - 1U)) / (y))
-#endif
-
 /*
  * These declarations belong elsewhere, but are repeated here and in
  * <stdio.h> to give broken programs a better chance of working with
