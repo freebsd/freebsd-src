@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU Tar; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+/* $FreeBSD$ */
+
 /* AIX requires this to be the first thing in the file. */
 #ifdef __GNUC__
 #define alloca __builtin_alloca
@@ -119,6 +121,9 @@ typedef long off_t;
 char *malloc (), *realloc ();
 char *getenv ();
 #endif
+PTR ck_malloc ();
+PTR ck_realloc ();
+char *xmalloc ();
 
 #ifndef _POSIX_VERSION
 #ifdef __MSDOS__
