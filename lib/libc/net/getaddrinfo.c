@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: getaddrinfo.c,v 1.10 2000/07/05 02:59:28 itojun Exp $	*/
+/*	$KAME: getaddrinfo.c,v 1.15 2000/07/09 04:37:24 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -359,13 +359,16 @@ static int
 str_isnumber(p)
 	const char *p;
 {
-	const char *q = (const char *)p;
-	while (*q) {
-		if (!isdigit(*q))
-			return NO;
-		q++;
-	}
-	return YES;
+	char *ep;
+
+	if (*p == '\0')
+		return NO;
+	ep = NULL;
+	(void)strtoul(p, &ep, 10);
+	if (ep && *ep == '\0')
+		return YES;
+	else
+		return NO;
 }
 
 int
@@ -1170,6 +1173,10 @@ ip6_str2scopeid(scope, sin6)
 	int scopeid;
 	struct in6_addr *a6 = &sin6->sin6_addr;
 	char *ep;
+
+	/* empty scopeid portion is invalid */
+	if (*scope == '\0')
+		return -1;
 
 	if (IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6)) {
 		/*
