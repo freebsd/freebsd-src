@@ -7,7 +7,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS abi accounting addswap adjkerntz amd \
 	apm apmd atm1 atm2.sh atm3.sh archdep bgfsck bootparams ccd cleanvar \
 	cleartmp cron devd devdb devfs diskless dmesg dumpon fsck inetd \
 	initdiskless initrandom ip6fw ipfilter ipfw ipmon ipnat ipsec \
-	ipxrouted isdnd kadmind kerberos keyserv kldxref ldconfig local \
+	ipxrouted isdnd jail kadmind kerberos keyserv kldxref ldconfig local \
 	localdaemons lomac lpd motd mountcritlocal mountcritremote \
 	mountd moused mroute6d mrouted msgs named network1 network2 \
 	network3 network_ipv6 nfsclient nfsd nfslocking nfsserver ntpd \
