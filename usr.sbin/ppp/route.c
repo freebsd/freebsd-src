@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.21 1998/05/01 19:25:46 brian Exp $
+ * $Id: route.c,v 1.42.2.22 1998/05/05 23:30:12 brian Exp $
  *
  */
 
@@ -485,7 +485,8 @@ route_Add(struct sticky_route **rp, int type, struct in_addr dst,
 
     r = NULL;
     while (*rp) {
-      if (dsttype && dsttype == ((*rp)->type & ROUTE_DSTANY)) {
+      if ((dsttype && dsttype == ((*rp)->type & ROUTE_DSTANY)) ||
+          (!dsttype && (*rp)->dst.s_addr == dst.s_addr)) {
         r = *rp;
         *rp = r->next;
       } else
