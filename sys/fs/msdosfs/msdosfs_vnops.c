@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.32 1996/09/03 14:23:33 bde Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.33 1996/09/19 18:20:47 nate Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -731,6 +731,14 @@ msdosfs_write(ap)
 			break;
 		}
 
+		croffset = uio->uio_offset & pmp->pm_crbomask;
+		n = min(uio->uio_resid, pmp->pm_bpcluster - croffset);
+		if (uio->uio_offset + n > dep->de_FileSize) {
+			dep->de_FileSize = uio->uio_offset + n;
+			/* The object size needs to be set before buffer is allocated */
+			vnode_pager_setsize(vp, dep->de_FileSize);
+		}
+
 		if ((uio->uio_offset & pmp->pm_crbomask) == 0
 		    && (de_blk(pmp, uio->uio_offset + uio->uio_resid) > de_blk(pmp, uio->uio_offset)
 			|| uio->uio_offset + uio->uio_resid >= dep->de_FileSize)) {
@@ -768,12 +776,6 @@ msdosfs_write(ap)
 				break;
 		}
 
-		croffset = uio->uio_offset & pmp->pm_crbomask;
-		n = min(uio->uio_resid, pmp->pm_bpcluster - croffset);
-		if (uio->uio_offset + n > dep->de_FileSize) {
-			dep->de_FileSize = uio->uio_offset + n;
-			vnode_pager_setsize(vp, dep->de_FileSize);	/* why? */
-		}
 		/*
 		 * Should these vnode_pager_* functions be done on dir
 		 * files?
