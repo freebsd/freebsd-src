@@ -565,6 +565,7 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 
 	if (!fts) {
 		bsdtar_warnc(bsdtar, errno, "%s: Cannot open", path);
+		bsdtar->return_value = 1;
 		return;
 	}
 
@@ -573,15 +574,18 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		case FTS_NS:
 			bsdtar_warnc(bsdtar, ftsent->fts_errno,
 			    "%s: Could not stat", ftsent->fts_path);
+			bsdtar->return_value = 1;
 			break;
 		case FTS_ERR:
 			bsdtar_warnc(bsdtar, ftsent->fts_errno, "%s",
 			    ftsent->fts_path);
+			bsdtar->return_value = 1;
 			break;
 		case FTS_DNR:
 			bsdtar_warnc(bsdtar, ftsent->fts_errno,
 			    "%s: Cannot read directory contents",
 			    ftsent->fts_path);
+			bsdtar->return_value = 1;
 			break;
 		case FTS_W:  /* Skip Whiteout entries */
 			break;
