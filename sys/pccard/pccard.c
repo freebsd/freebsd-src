@@ -29,27 +29,18 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "crd.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/errno.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/proc.h>
-#include <sys/ioctl.h>
-#include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
+#include <sys/uio.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
-#endif /* PC98 */
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 
