@@ -239,6 +239,53 @@ bd_print(int verbose)
 		} else {
 		    for (j = 0; j < NDOSPART; j++) {
 			switch(dptr[j].dp_typ) {
+	,{0x01, "Primary DOS with 12 bit FAT"}
+	,{0x02, "XENIX / filesystem"}
+	,{0x03, "XENIX /usr filesystem"}
+	,{0x04, "Primary DOS with 16 bit FAT (<= 32MB)"}
+	,{0x05, "Extended DOS"}
+	,{0x06, "Primary 'big' DOS (> 32MB)"}
+	,{0x07, "OS/2 HPFS, NTFS, QNX or Advanced UNIX"}
+	,{0x08, "AIX filesystem"}
+	,{0x09, "AIX boot partition or Coherent"}
+	,{0x0A, "OS/2 Boot Manager or OPUS"}
+	,{0x0B, "DOS or Windows 95 with 32 bit FAT"}
+	,{0x0C, "DOS or Windows 95 with 32 bit FAT, LBA"}
+	,{0x0E, "Primary 'big' DOS (> 32MB, LBA)"}
+	,{0x0F, "Extended DOS, LBA"}
+	,{0x10, "OPUS"}
+	,{0x40, "VENIX 286"}
+	,{0x50, "DM"}
+	,{0x51, "DM"}
+	,{0x52, "CP/M or Microport SysV/AT"}
+	,{0x56, "GB"}
+	,{0x61, "Speed"}
+	,{0x63, "ISC UNIX, other System V/386, GNU HURD or Mach"}
+	,{0x64, "Novell Netware 2.xx"}
+	,{0x65, "Novell Netware 3.xx"}
+	,{0x75, "PCIX"}
+	,{0x80, "Minix 1.1 ... 1.4a"}
+	,{0x81, "Minix 1.4b ... 1.5.10"}
+	,{0x82, "Linux swap or Solaris x86"}
+	,{0x83, "Linux filesystem"}
+	,{0x93, "Amoeba filesystem"}
+	,{0x94, "Amoeba bad block table"}
+	,{0x9F, "BSD/OS"}
+	,{0xA5, "FreeBSD/NetBSD/386BSD"}
+	,{0xA6, "OpenBSD"}
+	,{0xA7, "NEXTSTEP"}
+	,{0xA9, "NetBSD"}
+	,{0xB7, "BSDI BSD/386 filesystem"}
+	,{0xB8, "BSDI BSD/386 swap"}
+	,{0xDB, "Concurrent CPM or C.DOS or CTOS"}
+	,{0xE1, "Speed"}
+	,{0xE3, "Speed"}
+	,{0xE4, "Speed"}
+	,{0xF1, "Speed"}
+	,{0xF2, "DOS 3.3+ Secondary"}
+	,{0xF4, "Speed"}
+	,{0xFF, "BBT (Bad Blocks Table)"}
+};
 			case DOSPTYP_386BSD:
 			    sprintf(line, "      disk%ds%d", i, j + 1);
 			    bd_printslice(od, dptr[j].dp_start, line);
@@ -570,10 +617,11 @@ static int
 bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t *rsize)
 {
     struct bcache_devdata	bcd;
-    
+    struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
+
     bcd.dv_strategy = bd_realstrategy;
     bcd.dv_devdata = devdata;
-    return(bcache_strategy(&bcd, rw, dblk, size, buf, rsize));
+    return(bcache_strategy(&bcd, od->od_unit, rw, dblk+od->od_boff, size, buf, rsize));
 }
 
 static int 
@@ -598,18 +646,18 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, siz
 
 
     blks = size / BIOSDISK_SECSIZE;
-    DEBUG("read %d from %d+%d to %p", blks, od->od_boff, dblk, buf);
+    DEBUG("read %d from %d to %p", blks, dblk, buf);
 
     if (rsize)
 	*rsize = 0;
-    if (blks && bd_read(od, dblk + od->od_boff, blks, buf)) {
+    if (blks && bd_read(od, dblk, blks, buf)) {
 	DEBUG("read error");
 	return (EIO);
     }
 #ifdef BD_SUPPORT_FRAGS
-    DEBUG("bd_strategy: frag read %d from %d+%d+d to %p", 
-	     fragsize, od->od_boff, dblk, blks, buf + (blks * BIOSDISK_SECSIZE));
-    if (fragsize && bd_read(od, dblk + od->od_boff + blks, 1, fragsize)) {
+    DEBUG("bd_strategy: frag read %d from %d+%d to %p", 
+	     fragsize, dblk, blks, buf + (blks * BIOSDISK_SECSIZE));
+    if (fragsize && bd_read(od, dblk + blks, 1, fragsize)) {
 	DEBUG("frag read error");
 	return(EIO);
     }
