@@ -138,6 +138,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	mdoc/example.1 \
 	mdoc/example.3 \
 	mdoc/example.4 \
+	mdoc/example.9 \
 	netgraph/bluetooth/rc.bluetooth \
 	netgraph/ether.bridge \
 	netgraph/frame_relay \
