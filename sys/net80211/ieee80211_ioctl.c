@@ -140,7 +140,8 @@ ieee80211_cfgget(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case WI_RID_COMMS_QUALITY:
 		wreq.wi_val[0] = 0;				/* quality */
-		wreq.wi_val[1] = htole16(ic->ic_bss->ni_rssi);	/* signal */
+		wreq.wi_val[1] =
+			htole16((*ic->ic_node_getrssi)(ic, ic->ic_bss));
 		wreq.wi_val[2] = 0;				/* noise */
 		wreq.wi_len = 3;
 		break;
@@ -278,7 +279,7 @@ ieee80211_cfgget(struct ifnet *ifp, u_long cmd, caddr_t data)
 					    ni->ni_esslen);
 			}
 			ap->channel = ieee80211_chan2ieee(ic, ni->ni_chan);
-			ap->signal = ni->ni_rssi;
+			ap->signal = (*ic->ic_node_getrssi)(ic, ni);
 			ap->capinfo = ni->ni_capinfo;
 			ap->interval = ni->ni_intval;
 			rs = &ni->ni_rates;
@@ -313,7 +314,7 @@ ieee80211_cfgget(struct ifnet *ifp, u_long cmd, caddr_t data)
 				break;
 			res->wi_chan = ieee80211_chan2ieee(ic, ni->ni_chan);
 			res->wi_noise = 0;
-			res->wi_signal = ni->ni_rssi;
+			res->wi_signal = (*ic->ic_node_getrssi)(ic, ni);
 			IEEE80211_ADDR_COPY(res->wi_bssid, ni->ni_bssid);
 			res->wi_interval = ni->ni_intval;
 			res->wi_capinfo = ni->ni_capinfo;
@@ -339,7 +340,7 @@ ieee80211_cfgget(struct ifnet *ifp, u_long cmd, caddr_t data)
 				break;
 			IEEE80211_ADDR_COPY(wsc.macsrc, ni->ni_macaddr);
 			memset(&wsc.ipsrc, 0, sizeof(wsc.ipsrc));
-			wsc.signal = ni->ni_rssi;
+			wsc.signal = (*ic->ic_node_getrssi)(ic, ni);
 			wsc.noise = 0;
 			wsc.quality = 0;
 			memcpy((caddr_t)wreq.wi_val + sizeof(wsc) * i,
