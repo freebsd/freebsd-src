@@ -1,0 +1,20 @@
+- The files "chardemo.vt" and "colors.vt" are taken from the MSDOS Kermit 
+  distribution and are redistributed with permission from Frank da Cruz.
+
+- cat chardemo.vt - displays all available character sets
+
+- cat colors.vt   - displays all available back/foreground color combinations
+
+- cat sgr.vt      - displays all possible graphic renditions
+
+- all other files are some VT100 animations collected over the time from
+  unkown sources, play them with playvt.
+
+- Playvt is a program to play an animation file on pcvt: because pcvt is
+  _much_ faster than an original VT100/VT220, it adds a programmable delay
+  for each character so one can enjoy smooth-running animations! :-)
+  There is no manpage available for playvt, just try to run playvt -? which
+  should give sufficient information. You have to empirically find out which
+  delay value fit's your needs!
+
+have fun!
