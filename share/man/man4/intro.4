@@ -75,13 +75,6 @@ in the file system hierarchy
 (see also
 .Xr hier 7 ) .
 .Pp
-Until
-.Xr devfs 5
-is fully functional, each device node must be created statically and
-independently of the existence of the associated device driver,
-usually by running
-.Xr MAKEDEV 8 .
-.Pp
 Note that this could lead to an inconsistent state, where either there
 are device nodes that do not have a configured driver associated with
 them, or there may be drivers that have successfully probed for their
@@ -163,8 +156,7 @@ architecture).
 .Xr write 2 ,
 .Xr devfs 5 ,
 .Xr hier 7 ,
-.Xr config 8 ,
-.Xr MAKEDEV 8
+.Xr config 8
 .Sh AUTHORS
 .An -nosplit
 This man page has been written by
