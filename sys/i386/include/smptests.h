@@ -33,14 +33,6 @@
  * Various 'tests in progress' and configuration parameters.
  */
 
-
-/*
- * Put FAST_INTR() ISRs at an APIC priority above the regular INTs.
- * Allow the mp_lock() routines to handle FAST interrupts while spinning.
- */
-#define FAST_HI
-
-
 /*
  * These defines enable critical region locking of areas that were
  * protected via cli/sti in the UP kernel.
@@ -59,38 +51,11 @@
  */
 #define CPUSTOP_ON_DDBBREAK
 
-
-#ifdef APIC_IO
-/*
- * Don't assume that slow interrupt handler X is called from vector
- * X + ICU_OFFSET.
- */
-#define APIC_INTR_REORDER
-
-#endif /* APIC_IO */
-
 /*
  * Misc. counters.
  *
 #define COUNT_XINVLTLB_HITS
  */
-
-
-/**
- * Hack to "fake-out" kernel into thinking it is running on a 'default config'.
- *
- * value == default type
-#define TEST_DEFAULT_CONFIG	6
- */
-
-
-/*
- * Simple test code for IPI interaction, save for future...
- *
-#define TEST_TEST1
-#define IPI_TARGET_TEST1	1
- */
-
 
 /*
  * Address of POST hardware port.

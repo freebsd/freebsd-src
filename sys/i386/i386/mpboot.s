@@ -37,7 +37,7 @@
 #include "opt_pmap.h"
 
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
-#include <machine/apic.h>
+#include <machine/apicreg.h>
 #include <machine/specialreg.h>
 
 #include "assym.s"
@@ -77,6 +77,32 @@
 
 NON_GPROF_ENTRY(MPentry)
 	CHECKPOINT(0x36, 3)
+	/*
+	 * Enable features on this processor.  We don't support SMP on
+	 * CPUs older than a Pentium, so we know that we can use the cpuid
+	 * instruction.
+	 */
+	movl	$1,%eax
+	cpuid					/* Retrieve features */
+	movl	%cr4,%eax
+#ifndef DISABLE_PSE
+	testl	$CPUID_PSE,%edx
+	jz 1f
+	orl	$CR4_PSE,%eax			/* Enable PSE  */
+1:
+#endif
+#ifndef DISABLE_PG_G
+	testl	$CPUID_PGE,%edx
+	jz 1f
+	orl	$CR4_PGE,%eax			/* Enable PGE  */
+1:	
+#endif
+	testl	$CPUID_VME,%edx
+	jz 1f
+	orl	$CR4_VME,%eax			/* Enable VME  */
+1:
+	movl	%eax,%cr4
+
 	/* Now enable paging mode */
 #ifdef PAE
 	movl	R(IdlePDPT), %eax
@@ -87,22 +113,6 @@ NON_GPROF_ENTRY(MPentry)
 #else
 	movl	R(IdlePTD), %eax
 	movl	%eax,%cr3	
-#endif
-#ifndef DISABLE_PSE
-	cmpl	$0, R(pseflag)
-	je	1f
-	movl	%cr4, %eax
-	orl	$CR4_PSE, %eax
-	movl	%eax, %cr4
-1:
-#endif
-#ifndef DISABLE_PG_G
-	cmpl	$0, R(pgeflag)
-	je	2f
-	movl	%cr4, %eax
-	orl	$CR4_PGE, %eax
-	movl	%eax, %cr4
-2:
 #endif
 	movl	%cr0,%eax
 	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
@@ -118,32 +128,6 @@ NON_GPROF_ENTRY(MPentry)
 mp_begin:	/* now running relocated at KERNBASE */
 	CHECKPOINT(0x37, 4)
 	call	init_secondary			/* load i386 tables */
-	CHECKPOINT(0x38, 5)
-
-	/*
-	 * If the [BSP] CPU has support for VME, turn it on.
-	 */
-	testl	$CPUID_VME, cpu_feature		/* XXX WRONG! BSP! */
-	jz	1f
-	movl	%cr4, %eax
-	orl	$CR4_VME, %eax
-	movl	%eax, %cr4
-1:
-
-	/* disable the APIC, just to be SURE */
-	movl	lapic+LA_SVR, %eax		/* get spurious vector reg. */
-	andl	$~APIC_SVR_SWEN, %eax		/* clear software enable bit */
-	movl	%eax, lapic+LA_SVR
-
-	/* signal our startup to the BSP */
-	movl	lapic+LA_VER, %eax		/* our version reg contents */
-	movl	%eax, cpu_apic_versions		/* into [ 0 ] */
-	incl	mp_ncpus			/* signal BSP */
-
-	CHECKPOINT(0x39, 6)
-
-	/* Now, let's prepare for some REAL WORK :-)  This doesn't return. */
-	call	ap_init
 
 /*
  * This is the embedded trampoline or bootstrap that is
