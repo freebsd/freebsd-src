@@ -1068,8 +1068,9 @@ doMFSKERN:
 .if ${TARGET_ARCH} != "ia64"
 	@echo "set hint.acpi.0.disabled=1" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .endif
-	@[ -r ${RD}/floppies/drivers.flp ] && \
-	    echo "set driver_floppy=YES" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@if [ -r ${RD}/floppies/drivers.flp ]; then \
+	    echo "set driver_floppy=YES" >> ${RD}/image.${FSIMAGE}/boot/loader.rc; \
+	fi
 	@echo "set module_path=\"/modules;/dist\"" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "autoboot 10" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
