@@ -1255,7 +1255,7 @@ int hpt_default_ioctl(_VBUS_ARG
 			while(pAdapter != 0)
 			{
 				pVBus = &pAdapter->VBus;
-				for(i = 0; i < MAX_ARRAY_PER_VBUS; i++)
+				for(i = 0; i < MAX_VDEVICE_PER_VBUS; i++)
 				{
 					if(!(pTop = pVBus->pVDevice[i])) continue;
 #if MAX_VBUS>1
