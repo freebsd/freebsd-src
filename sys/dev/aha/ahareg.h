@@ -1,8 +1,8 @@
 /*
- * Generic register and struct definitions for the Adaptech 154x/164x
- * SCSI host adapters. Product specific probe and attach routines can
- * be found in:
- *      <fill in list here>
+ * Generic register and struct definitions for the Adaptech 1540, 1542,
+ * 1640, 1642 SCSI host adapters. Product specific probe and attach
+ * routines can be found in:
+ *	aha_isa.c, aha_mca.c
  *
  * Derived from bt.c written by:
  *
