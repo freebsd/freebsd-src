@@ -172,7 +172,7 @@ char *getenv();
 char *strcpy();
 char *strcat();
 #endif
-char *mktemp();
+char *mktemp(char *);
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #else

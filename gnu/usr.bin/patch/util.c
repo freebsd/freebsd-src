@@ -8,7 +8,7 @@
 #include "util.h"
 #include "backupfile.h"
 
-void my_exit();
+void	my_exit(int _status);		/* in patch.c */
 
 #ifndef HAVE_STRERROR
 static char *
@@ -28,8 +28,7 @@ private_strerror (errnum)
 /* Rename a file, copying it if necessary. */
 
 int
-move_file(from,to)
-char *from, *to;
+move_file(char *from, char *to)
 {
     char bakname[512];
     Reg1 char *s;
@@ -131,8 +130,7 @@ char *from, *to;
 /* Copy a file. */
 
 void
-copy_file(from,to)
-char *from, *to;
+copy_file(char *from, char *to)
 {
     Reg3 int tofd;
     Reg2 int fromfd;
@@ -154,8 +152,7 @@ char *from, *to;
 /* Allocate a unique area for a string. */
 
 char *
-savestr(s)
-Reg1 char *s;
+savestr(char *s)
 {
     Reg3 char *rv;
     Reg2 char *t;
@@ -285,8 +282,7 @@ long arg1,arg2,arg3;
 /* How to handle certain events when not in a critical region. */
 
 void
-set_signals(reset)
-int reset;
+set_signals(int reset)
 {
 #ifndef lint
     static RETSIGTYPE (*hupval)(),(*intval)();
@@ -307,7 +303,7 @@ int reset;
 /* How to handle certain events when in a critical region. */
 
 void
-ignore_signals()
+ignore_signals(void)
 {
 #ifndef lint
     Signal(SIGHUP, SIG_IGN);
@@ -367,10 +363,7 @@ bool striplast;
 /* Make filenames more reasonable. */
 
 char *
-fetchname(at,strip_leading,assume_exists)
-char *at;
-int strip_leading;
-int assume_exists;
+fetchname(char *at, int strip_leading, int assume_exists)
 {
     char *fullname;
     char *name;
@@ -434,8 +427,7 @@ int assume_exists;
 }
 
 char *
-xmalloc (size)
-     unsigned size;
+xmalloc(unsigned int size)
 {
   register char *p = (char *) malloc (size);
   if (!p)
