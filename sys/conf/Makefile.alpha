@@ -90,6 +90,9 @@ __reml.S: $S/$M/$M/divrem.m4
 	@(echo "define(NAME,\`__reml')define(OP,\`rem')define(S,\`true')"; \
 	 echo "define(WORDSIZE,32)"; cat ${.ALLSRC}) | m4 > ${.TARGET}
 
+locore.o: $S/$M/$M/locore.s assym.s
+	${NORMAL_S}
+
 %RULES
 
 .include "$S/conf/kern.post.mk"
