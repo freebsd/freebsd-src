@@ -66,6 +66,9 @@ struct command {
 
 	struct hid_item item;
 	int value;
+	int lastseen;
+	int lastused;
+	int debounce;
 	char anyvalue;
 	char *name;
 	char *action;
@@ -91,7 +94,7 @@ main(int argc, char **argv)
 	const char *conf = NULL;
 	const char *dev = NULL;
 	int fd, fp, ch, sz, n, val, i;
-	int demon, ignore;
+	int demon, ignore, dieearly;
 	report_desc_t repd;
 	char buf[100];
 	char devnamebuf[PATH_MAX];
@@ -100,13 +103,17 @@ main(int argc, char **argv)
 
 	demon = 1;
 	ignore = 0;
-	while ((ch = getopt(argc, argv, "c:df:ip:v")) != -1) {
+	dieearly = 0;
+	while ((ch = getopt(argc, argv, "c:def:ip:v")) != -1) {
 		switch(ch) {
 		case 'c':
 			conf = optarg;
 			break;
 		case 'd':
 			demon ^= 1;
+			break;
+		case 'e':
+			dieearly = 1;
 			break;
 		case 'i':
 			ignore++;
@@ -161,8 +168,6 @@ main(int argc, char **argv)
 	(void)signal(SIGHUP, sighup);
 
 	if (demon) {
-		if (daemon(0, 0) < 0)
-			err(1, "daemon()");
 		fp = open(pidfile, O_WRONLY|O_CREAT, S_IRUSR|S_IRGRP|S_IROTH);
 		if (fp >= 0) {
 			sz=snprintf(buf,100, "%d\n", getpid());
@@ -170,6 +175,8 @@ main(int argc, char **argv)
 			close(fp);
 		} else
 			err(1, "%s", pidfile);
+		if (daemon(0, 0) < 0)
+			err(1, "daemon()");
 		isdemon = 1;
 	}
 
@@ -194,9 +201,28 @@ main(int argc, char **argv)
 #endif
 		for (cmd = commands; cmd; cmd = cmd->next) {
 			val = hid_get_data(buf, &cmd->item);
-			if (cmd->value == val || cmd->anyvalue)
+			if (cmd->value != val && cmd->anyvalue == 0)
+				goto next;
+			if ((cmd->debounce == 0) ||
+			    (cmd->debounce && ((cmd->lastseen == -1) ||
+					       (cmd->lastseen != val)))) {
 				docmd(cmd, val, dev, argc, argv);
+				goto next;
+			}
+			if ((cmd->debounce > 1) &&
+			    ((cmd->lastused == -1) ||
+			     (abs(cmd->lastused - val) >= cmd->debounce))) {
+				docmd(cmd, val, dev, argc, argv);
+				cmd->lastused = val;
+				goto next;
+			}
+next:
+			cmd->lastseen = val;
 		}
+
+		if (dieearly)
+			exit(0);
+
 		if (reparse) {
 			struct command *cmds =
 			    parse_conf(conf, repd, reportid, ignore);
@@ -215,8 +241,8 @@ void
 usage(void)
 {
 
-	fprintf(stderr, "Usage: %s -c config_file [-d] -f hid_dev "
-		"[-i] [-p pidfile] [-v]\n", getprogname());
+	fprintf(stderr, "Usage: %s [-deiv] -c config_file -f hid_dev "
+		"[-p pidfile]\n", getprogname());
 	exit(1);
 }
 
@@ -237,7 +263,7 @@ parse_conf(const char *conf, report_desc_t repd, int reportid, int ignore)
 	FILE *f;
 	char *p;
 	int line;
-	char buf[SIZE], name[SIZE], value[SIZE], action[SIZE];
+	char buf[SIZE], name[SIZE], value[SIZE], debounce[SIZE], action[SIZE];
 	char usage[SIZE], coll[SIZE];
 	struct command *cmd, *cmds;
 	struct hid_data *d;
@@ -263,7 +289,8 @@ parse_conf(const char *conf, report_desc_t repd, int reportid, int ignore)
 		}
 		if (p)
 			*p = 0;
-		if (sscanf(buf, "%s %s %[^\n]", name, value, action) != 3) {
+		if (sscanf(buf, "%s %s %s %[^\n]",
+			   name, value, debounce, action) != 4) {
 			if (isdemon) {
 				syslog(LOG_WARNING, "config file `%s', line %d"
 				       ", syntax error: %s", conf, line, buf);
@@ -290,15 +317,30 @@ parse_conf(const char *conf, report_desc_t repd, int reportid, int ignore)
 				if (isdemon) {
 					syslog(LOG_WARNING,
 					       "config file `%s', line %d, "
-					       "bad value: %s\n",
+					       "bad value: %s (should be * or a number)\n",
 					       conf, line, value);
 					freecommands(cmds);
 					return (NULL);
 				} else {
 					errx(1, "config file `%s', line %d, "
-					     "bad value: %s\n",
+					     "bad value: %s (should be * or a number)\n",
 					     conf, line, value);
 				}
+			}
+		}
+
+		if (sscanf(debounce, "%d", &cmd->debounce) != 1) {
+			if (isdemon) {
+				syslog(LOG_WARNING,
+				       "config file `%s', line %d, "
+				       "bad value: %s (should be a number >= 0)\n",
+				       conf, line, debounce);
+				freecommands(cmds);
+				return (NULL);
+			} else {
+				errx(1, "config file `%s', line %d, "
+				     "bad value: %s (should be a number >= 0)\n",
+				     conf, line, debounce);
 			}
 		}
 
