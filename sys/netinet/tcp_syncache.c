@@ -369,28 +369,27 @@ syncache_timer(xslot)
 	int s;
 
 	s = splnet();
+	INP_INFO_WLOCK(&tcbinfo);
         if (callout_pending(&tcp_syncache.tt_timerq[slot]) ||
             !callout_active(&tcp_syncache.tt_timerq[slot])) {
+		INP_INFO_WUNLOCK(&tcbinfo);
                 splx(s);
                 return;
         }
         callout_deactivate(&tcp_syncache.tt_timerq[slot]);
 
         nsc = TAILQ_FIRST(&tcp_syncache.timerq[slot]);
-	INP_INFO_RLOCK(&tcbinfo);
 	while (nsc != NULL) {
 		if (ticks < nsc->sc_rxttime)
 			break;
 		sc = nsc;
 		inp = sc->sc_tp->t_inpcb;
-		INP_LOCK(inp);
 		if (slot == SYNCACHE_MAXREXMTS ||
 		    slot >= tcp_syncache.rexmt_limit ||
 		    inp->inp_gencnt != sc->sc_inp_gencnt) {
 			nsc = TAILQ_NEXT(sc, sc_timerq);
 			syncache_drop(sc, NULL);
 			tcpstat.tcps_sc_stale++;
-			INP_UNLOCK(inp);
 			continue;
 		}
 		/*
@@ -399,16 +398,15 @@ syncache_timer(xslot)
 		 * entry on the timer chain until it has completed.
 		 */
 		(void) syncache_respond(sc, NULL);
-		INP_UNLOCK(inp);
 		nsc = TAILQ_NEXT(sc, sc_timerq);
 		tcpstat.tcps_sc_retransmitted++;
 		TAILQ_REMOVE(&tcp_syncache.timerq[slot], sc, sc_timerq);
 		SYNCACHE_TIMEOUT(sc, slot + 1);
 	}
-	INP_INFO_RUNLOCK(&tcbinfo);
 	if (nsc != NULL)
 		callout_reset(&tcp_syncache.tt_timerq[slot],
 		    nsc->sc_rxttime - ticks, syncache_timer, (void *)(slot));
+	INP_INFO_WUNLOCK(&tcbinfo);
 	splx(s);
 }
 
