@@ -1331,7 +1331,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	pmap_t oldpmap;
 	vm_offset_t va;
-	pv_entry_t pv;
+	pv_entry_t npv, pv;
 	struct ia64_lpte *pte;
 
 	if (pmap == NULL)
@@ -1354,7 +1354,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	}
 
 	if (pmap->pm_stats.resident_count < ((eva - sva) >> PAGE_SHIFT)) {
-		TAILQ_FOREACH(pv, &pmap->pm_pvlist, pv_plist) {
+		TAILQ_FOREACH_SAFE(pv, &pmap->pm_pvlist, pv_plist, npv) {
 			va = pv->pv_va;
 			if (va >= sva && va < eva) {
 				pte = pmap_find_vhpt(va);
