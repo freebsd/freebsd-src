@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id$
+# $Id: pccard.conf.sample,v 1.1 1996/03/12 15:39:21 nate Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -26,14 +26,13 @@ card "IBM Corp." "Ethernet"
 	remove	echo IBM PCMCIA Ethernet removed
 	remove	/sbin/ifconfig ed0 delete
 
-# MACNICA UE2212
-# Very slow!  (PIO mode)
+# Melco LPC-T (PIO mode)
 card "PCMCIA" "UE2212"
 	config	0x1 "ed0" 11 0x10
 	ether	0xff0
-	insert	echo MACNICA UE2212 inserted
+	insert	echo UE2212 inserted
 	insert	/etc/pccard_ether ed0
-	remove	echo MACNICA UE2212 card removed
+	remove	echo UE2212 card removed
 	remove	/sbin/ifconfig ed0 delete
 
 # Accton EN2212
@@ -66,20 +65,28 @@ card "Farallon" "ENet"
 
 # Fujitsu MBH10302
 card "PCMCIA MBH10302" "01"
-	config 0x14 "fe0" 10
-	insert echo Fujitsu MBH10302 inserted
+	config  0x14 "fe0" 10
+	insert  echo Fujitsu MBH10302 inserted
 	insert	/etc/pccard_ether fe0
-	remove echo Fujitsu MBH10302 removed
+	remove  echo Fujitsu MBH10302 removed
 	remove	/sbin/ifconfig fe0 delete
 
 # NextCom J Link NC5310
 card "NextComK.K." "NC5310 Ver1.0      "
-	config 0x14 "fe0" 10
-	insert echo NextCom J Link NC5310 inserted
+	config  0x14 "fe0" 10
+	insert  echo NextCom J Link NC5310 inserted
 	insert	/etc/pccard_ether fe0
-	remove echo NextCom J Link NC5310 removed
+	remove  echo NextCom J Link NC5310 removed
 	remove	/sbin/ifconfig fe0 delete
 
+# HITACHI HT-4840-11
+card "HITACHI" "HT-4840-11"
+	config	0x1a "fe0" 15
+	insert	echo HT-4840-11 inserted
+	insert	/etc/pccard_ether fe0
+	remove	echo HT-4840-11 removed
+	remove	/sbin/ifconfig fe0 delete
+ 
 # AIWA PV-JF288
 card "AIWA CO.,LTD." "PV-JF288  "
 	config  0x23 "sio2" 10
@@ -176,13 +183,13 @@ card "NovaLink Tech." "NovaModem 144   "
 # US Robotics Sportster PCMCIA V.34
 # US Robotics COURIER PCMCIA V.34
 card "USRobotics" "PCMCIA 28800 Data/F"
-	config 0x3 "sio2" 3
+	config  0x3 "sio2" 3
 	insert  echo USRobotics PCMCIA Modem inserted
 	remove  echo USRobotics PCMCIA Modem removed
 
 # Xircom CreditCard Ethernet+Modem (Modem only !!!)
 card "Xircom" "CreditCard Ethernet"
-	config 0x23 "sio2" 3
+	config  0x23 "sio2" 3
 	insert  echo Xircom CreditCard Modem inserted
 	remove  echo Xircom CreditCard Modem removed
 
@@ -201,19 +208,19 @@ card "IBM" "Push/Pop Modem(14.4"
 
 # BUG Linkboy D64K (ISDN)
 card "BUG Inc." "Linkboy D64K"
-	config 0x23 "sio2" 3
+	config  0x23 "sio2" 3
 	insert  echo BUG Linkboy D64K inserted
 	remove  echo BUG Linkboy D64K removed
 
 # NTT DoCoMo DATA/FAX Adapter
 card "NTT DoCoMo" "PCMCIA DATA/FAX ADA"
-	config 0x22 "sio3" 10 0x82
+	config  0x22 "sio3" 10 0x82
 	insert  echo NTT DoCoMo DATA/FAX Adapter inserted
 	remove  echo NTT DoCoMo DATA/FAX Adapter removed
 
 # Panasonic FM-RADIO card
 card "Panasonic" "CF-JVR101"
-	config 0x22 "sio3" 16
+	config  0x22 "sio3" 16
 	insert  echo Panasonic FM radio card inserted
 	remove  echo Panasonic FM radio card removed
 
@@ -225,19 +232,19 @@ card "SunDisk" "SDP5"
 	remove	echo Sundisk Flash ATA removed
 
 card "SunDisk" "SDP"
-	config 0x3 "wdc1" 7
-	insert echo SunDisk Flash ATA Inserted
-	remove echo SunDisk Flash ATA Removed
+	config  0x3 "wdc1" 7
+	insert  echo SunDisk Flash ATA Inserted
+	remove  echo SunDisk Flash ATA Removed
 
 # Midori Elec Fast Flash
 card "Midori Elec." "FAST FLASH"
-	config 0x3  "wdc1" 9
+	config  0x3  "wdc1" 9
 	insert  echo Midori Elec Fast FLASH inserted
 	remove  echo Midori Elec Fast FLASH removed
 
 # Maxtor 131MB Type III HDD
 card "Maxtor" "MXL131"
-        config 0x03 "wdc1" 10
+        config  0x03 "wdc1" 10
 	insert	echo Maxtor 131MB HDD inserted
 	remove	echo Maxtor 131MB HDD removed
 
