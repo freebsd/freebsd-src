@@ -427,14 +427,15 @@ static int
 archive_names_from_file_helper(struct bsdtar *bsdtar, const char *line)
 {
 	if (bsdtar->next_line_is_dir) {
-		if (chdir(line) != 0)
-			bsdtar_errc(bsdtar, 1, errno,
-			    "chdir(%s) failed", line);
+		set_chdir(bsdtar, line);
 		bsdtar->next_line_is_dir = 0;
 	} else if (!bsdtar->option_null && strcmp(line, "-C") == 0)
 		bsdtar->next_line_is_dir = 1;
-	else
+	else {
+		if (*line != '/')
+			do_chdir(bsdtar); /* Handle a deferred -C */
 		write_heirarchy(bsdtar, bsdtar->archive, line);
+	}
 	return (0);
 }
 
