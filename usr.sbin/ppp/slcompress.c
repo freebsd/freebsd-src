@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.15.2.11 1998/05/01 19:25:59 brian Exp $
+ * $Id: slcompress.c,v 1.16 1998/05/21 21:48:27 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -402,8 +402,8 @@ uncompressed:
 
 
 int
-sl_uncompress_tcp(u_char ** bufp, int len, u_int type,
-		  struct slcompress *comp, struct slstat *slstat)
+sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
+                  struct slstat *slstat, int max_state)
 {
   register u_char *cp;
   register u_int hlen, changes;
@@ -415,7 +415,7 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type,
 
   case TYPE_UNCOMPRESSED_TCP:
     ip = (struct ip *) * bufp;
-    if (ip->ip_p >= MAX_VJ_STATES)
+    if (ip->ip_p > max_state)
       goto bad;
     cs = &comp->rstate[comp->last_recv = ip->ip_p];
     comp->flags &= ~SLF_TOSS;
@@ -455,8 +455,9 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type,
      * Make sure the state index is in range, then grab the state. If we have
      * a good state index, clear the 'discard' flag.
      */
-    if (*cp >= MAX_VJ_STATES || comp->last_recv == 255)
+    if (*cp > max_state || comp->last_recv == 255) {
       goto bad;
+    }
 
     comp->flags &= ~SLF_TOSS;
     comp->last_recv = *cp++;
@@ -474,6 +475,8 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type,
   }
   cs = &comp->rstate[comp->last_recv];
   hlen = cs->cs_ip.ip_hl << 2;
+  if (hlen == 0)
+    goto bad;    /* We've been pointed at a not-yet-used slot ! */
   th = (struct tcphdr *) & ((u_char *) & cs->cs_ip)[hlen];
   th->th_sum = htons((*cp << 8) | cp[1]);
   cp += 2;
