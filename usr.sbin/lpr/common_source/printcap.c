@@ -40,7 +40,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: printcap.c,v 1.3 1997/12/02 20:45:25 wollman Exp $";
+	"$Id: printcap.c,v 1.4 1997/12/27 20:49:39 wollman Exp $";
 #endif /* not lint */
 
 #include <errno.h>
@@ -215,6 +215,8 @@ getprintcap_int(bp, pp)
 	struct printer *pp;
 {
 	enum lpd_filters filt;
+	char *rp_name;
+	int error;
 
 	if ((pp->printer = capdb_canonical_name(bp)) == 0)
 		return PCAPERR_OSERR;
@@ -262,6 +264,20 @@ getprintcap_int(bp, pp)
 	pp->rw = capdb_getaltlog(bp, "rw", "tty.rw");
 	pp->tof = !capdb_getaltlog(bp, "fo", "job.topofform");
 	
+	/*
+	 * Decide if the remote printer name matches the local printer name.
+	 * If no name is given then we assume they mean them to match.
+	 * If a name is given see if the rp_name is one of the names for
+	 * this printer.
+	 */
+	pp->rp_matches_local = 1;
+	CHK((error = capdb_getaltstr(bp, "rp", "remote.queue", 0, &rp_name)));
+	if (error != PCAPERR_NOTFOUND && rp_name != NULL) {
+		if (cgetmatch(bp,rp_name) != 0)
+			pp->rp_matches_local = 0;
+		free(rp_name);
+	}
+
 	/*
 	 * Filters:
 	 */
