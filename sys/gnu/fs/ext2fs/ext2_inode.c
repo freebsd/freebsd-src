@@ -331,9 +331,11 @@ done:
 	for (i = 0; i < NDADDR; i++)
 		if (newblks[i] != oip->i_db[i])
 			panic("itrunc2");
+	VI_LOCK(ovp);
 	if (length == 0 && (!TAILQ_EMPTY(&ovp->v_dirtyblkhd) ||
 			    !TAILQ_EMPTY(&ovp->v_cleanblkhd)))
 		panic("itrunc3");
+	VI_UNLOCK(ovp);
 #endif /* DIAGNOSTIC */
 	/*
 	 * Put back the real size.
@@ -475,7 +477,7 @@ ext2_inactive(ap)
 	int mode, error = 0;
 
 	ext2_discard_prealloc(ip);
-	if (prtactive && vp->v_usecount != 0)
+	if (prtactive && vrefcnt(vp) != 0)
 		vprint("ext2_inactive: pushing active", vp);
 
 	/*
@@ -525,7 +527,7 @@ ext2_reclaim(ap)
 	struct inode *ip;
 	struct vnode *vp = ap->a_vp;
 
-	if (prtactive && vp->v_usecount != 0)
+	if (prtactive && vrefcnt(vp) != 0)
 		vprint("ufs_reclaim: pushing active", vp);
 	ip = VTOI(vp);
 	if (ip->i_flag & IN_LAZYMOD) {
