@@ -58,6 +58,11 @@
 #include <sys/cons.h>
 #include <paths.h>
 
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
+
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
 
 #define ROOTNAME	"root_device"
@@ -311,12 +316,11 @@ gets(char *cp)
 }
 
 /*
- * Set rootdev to match (name), given that we expect it to
- * refer to a disk-like device.
+ * Convert a given name to the dev_t of the disk-like device
+ * it refers to.
  */
-static int
-setrootbyname(char *name)
-{
+dev_t
+getdiskbyname(char *name) {
 	char *cp;
 	int cd, unit, slice, part;
 	dev_t dev;
@@ -332,11 +336,11 @@ setrootbyname(char *name)
 		cp++;
 	if (cp == name) {
 		printf("missing device name\n");
-		return(1);
+		return (NODEV);
 	}
 	if (*cp == '\0') {
 		printf("missing unit number\n");
-		return(1);
+		return (NODEV);
 	}
 	unit = *cp - '0';
 	*cp++ = '\0';
@@ -347,7 +351,7 @@ setrootbyname(char *name)
 			goto gotit;
 	}
 	printf("no such device '%s'\n", name);
-	return (2);
+	return (NODEV);
 gotit:
 	while (*cp >= '0' && *cp <= '9')
 		unit = 10 * unit + *cp++ - '0';
@@ -361,9 +365,42 @@ gotit:
 	}
 	if (*cp != '\0') {
 		printf("junk after name\n");
-		return (1);
+		return (NODEV);
 	}
-	rootdev = makedev(cd, dkmakeminor(unit, slice, part));
-	return 0;
+	return (makedev(cd, dkmakeminor(unit, slice, part)));
 }
 
+/*
+ * Set rootdev to match (name), given that we expect it to
+ * refer to a disk-like device.
+ */
+static int
+setrootbyname(char *name)
+{
+	dev_t diskdev;
+
+	diskdev = getdiskbyname(name);
+	if (diskdev != NODEV) {
+		rootdev = diskdev;
+		return (0);
+	}
+
+	return (1);
+}
+
+#ifdef DDB
+DB_SHOW_COMMAND(disk, db_getdiskbyname)
+{
+	dev_t dev;
+
+	if (modif[0] == '\0') {
+		db_error("usage: show disk/devicename");
+		return;
+	}
+	dev = getdiskbyname(modif);
+	if (dev != NODEV)
+		db_printf("dev_t = %p\n", dev);
+	else
+		db_printf("No disk device matched.\n");
+}
+#endif

@@ -286,6 +286,7 @@ dev_t	makebdev __P((int maj, int min));
 dev_t	make_dev __P((struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const char *fmt, ...)) __printflike(6, 7);
 int	lminor __P((dev_t dev));
 void	setconf __P((void));
+dev_t	getdiskbyname(char *name);
 
 /*
  * XXX: This included for when DEVFS resurfaces 
