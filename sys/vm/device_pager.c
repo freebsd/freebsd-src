@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: device_pager.c,v 1.25 1997/02/22 09:48:01 peter Exp $
  */
 
 #include <sys/param.h>
@@ -95,11 +95,7 @@ dev_pager_init()
 }
 
 static vm_object_t
-dev_pager_alloc(handle, size, prot, foff)
-	void *handle;
-	vm_size_t size;
-	vm_prot_t prot;
-	vm_ooffset_t foff;
+dev_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot, vm_ooffset_t foff)
 {
 	dev_t dev;
 	d_mmap_t *mapfunc;

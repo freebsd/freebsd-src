@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.86 1997/08/18 02:06:22 dyson Exp $
+ * $Id: vm_map.c,v 1.87 1997/08/18 03:29:21 fsmp Exp $
  */
 
 /*
@@ -500,14 +500,9 @@ vm_map_lookup_entry(map, address, entry)
  *	Requires that the map be locked, and leaves it so.
  */
 int
-vm_map_insert(map, object, offset, start, end, prot, max, cow)
-	vm_map_t map;
-	vm_object_t object;
-	vm_ooffset_t offset;
-	vm_offset_t start;
-	vm_offset_t end;
-	vm_prot_t prot, max;
-	int cow;
+vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+	      vm_offset_t start, vm_offset_t end, vm_prot_t prot, vm_prot_t max,
+	      int cow)
 {
 	register vm_map_entry_t new_entry;
 	register vm_map_entry_t prev_entry;
@@ -704,15 +699,10 @@ vm_map_findspace(map, start, length, addr)
  *
  */
 int
-vm_map_find(map, object, offset, addr, length, find_space, prot, max, cow)
-	vm_map_t map;
-	vm_object_t object;
-	vm_ooffset_t offset;
-	vm_offset_t *addr;	/* IN/OUT */
-	vm_size_t length;
-	boolean_t find_space;
-	vm_prot_t prot, max;
-	int cow;
+vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+	    vm_offset_t *addr,	/* IN/OUT */
+	    vm_size_t length, boolean_t find_space, vm_prot_t prot,
+	    vm_prot_t max, int cow)
 {
 	register vm_offset_t start;
 	int result, s = 0;
@@ -1011,12 +1001,8 @@ vm_map_submap(map, start, end, submap)
  *	otherwise, only the current protection is affected.
  */
 int
-vm_map_protect(map, start, end, new_prot, set_max)
-	register vm_map_t map;
-	register vm_offset_t start;
-	register vm_offset_t end;
-	register vm_prot_t new_prot;
-	register boolean_t set_max;
+vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
+	       vm_prot_t new_prot, boolean_t set_max)
 {
 	register vm_map_entry_t current;
 	vm_map_entry_t entry;
@@ -1236,11 +1222,8 @@ vm_map_madvise(map, pmap, start, end, advise)
  *	child maps at the time of vm_map_fork.
  */
 int
-vm_map_inherit(map, start, end, new_inheritance)
-	register vm_map_t map;
-	register vm_offset_t start;
-	register vm_offset_t end;
-	register vm_inherit_t new_inheritance;
+vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
+	       vm_inherit_t new_inheritance)
 {
 	register vm_map_entry_t entry;
 	vm_map_entry_t temp_entry;
@@ -1932,11 +1915,8 @@ vm_map_remove(map, start, end)
  *	The entire region must be allocated.
  */
 boolean_t
-vm_map_check_protection(map, start, end, protection)
-	register vm_map_t map;
-	register vm_offset_t start;
-	register vm_offset_t end;
-	register vm_prot_t protection;
+vm_map_check_protection(vm_map_t map, vm_offset_t start, vm_offset_t end,
+			vm_prot_t protection)
 {
 	register vm_map_entry_t entry;
 	vm_map_entry_t tmp_entry;
@@ -2231,18 +2211,15 @@ vmspace_unshare(struct proc *p) {
  *	remain the same.
  */
 int
-vm_map_lookup(var_map, vaddr, fault_type, out_entry,
-    object, pindex, out_prot, wired, single_use)
-	vm_map_t *var_map;	/* IN/OUT */
-	register vm_offset_t vaddr;
-	register vm_prot_t fault_type;
-
-	vm_map_entry_t *out_entry;	/* OUT */
-	vm_object_t *object;	/* OUT */
-	vm_pindex_t *pindex;	/* OUT */
-	vm_prot_t *out_prot;	/* OUT */
-	boolean_t *wired;	/* OUT */
-	boolean_t *single_use;	/* OUT */
+vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
+	      vm_offset_t vaddr,
+	      vm_prot_t fault_type,
+	      vm_map_entry_t *out_entry,	/* OUT */
+	      vm_object_t *object,		/* OUT */
+	      vm_pindex_t *pindex,		/* OUT */
+	      vm_prot_t *out_prot,		/* OUT */
+	      boolean_t *wired,			/* OUT */
+	      boolean_t *single_use)		/* OUT */
 {
 	vm_map_t share_map;
 	vm_offset_t share_offset;

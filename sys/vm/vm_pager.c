@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_pager.c,v 1.27 1997/02/22 09:48:35 peter Exp $
  */
 
 /*
@@ -155,12 +155,8 @@ vm_pager_bufferinit()
  * need to perform page-level validation (e.g. the device pager).
  */
 vm_object_t
-vm_pager_allocate(type, handle, size, prot, off)
-	objtype_t type;
-	void *handle;
-	vm_size_t size;
-	vm_prot_t prot;
-	vm_ooffset_t off;
+vm_pager_allocate(objtype_t type, void *handle, vm_size_t size, vm_prot_t prot,
+		  vm_ooffset_t off)
 {
 	struct pagerops *ops;
 
