@@ -28,7 +28,11 @@
 #		If HTML is defined, htags is also run after gtags.
 
 
+.if ${CC} != "cc"
 MKDEPCMD?=	CC=${CC} mkdep
+.else
+MKDEPCMD?=	mkdep
+.endif
 DEPENDFILE?=	.depend
 
 .if defined(SRCS)
