@@ -232,6 +232,12 @@
       be found in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink>.</para>
 
+    <para>A remotely exploitable vulnerability in
+      <application>CVS</application> has been corrected with the
+      import of version 1.11.5.  More details can be found in security
+      advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>.</para>
+
   </sect2>
 
   <sect2 id="userland">
