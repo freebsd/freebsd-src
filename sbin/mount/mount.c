@@ -131,7 +131,7 @@ main(argc, argv)
 	struct statfs *mntbuf;
 	FILE *mountdfp;
 	pid_t pid;
-	int all, ch, i, init_flags, mntsize, rval;
+	int all, ch, i, init_flags, mntsize, rval, have_fstab;
 	char *options;
 
 	all = init_flags = 0;
@@ -228,12 +228,32 @@ main(argc, argv)
 			usage();
 
 		if (init_flags & MNT_UPDATE) {
+			mntfromname = NULL;
+			have_fstab = 0;
 			if ((mntbuf = getmntpt(*argv)) == NULL)
-				errx(1,
-				    "unknown special file or file system %s",
-				    *argv);
+				errx(1, "not currently mounted %s", *argv);
+			/*
+			 * Only get the mntflags from fstab if both mntpoint
+			 * and mntspec are identical. Also handle the special
+			 * case where just '/' is mounted and 'spec' is not
+			 * identical with the one from fstab ('/dev' is missing
+			 * in the spec-string at boot-time).
+			 */
 			if ((fs = getfsfile(mntbuf->f_mntonname)) != NULL) {
-				mntfromname = fs->fs_spec;
+				if (strcmp(fs->fs_spec,
+				    mntbuf->f_mntfromname) == 0 &&
+				    strcmp(fs->fs_file,
+				    mntbuf->f_mntonname) == 0) {
+					have_fstab = 1;
+					mntfromname = mntbuf->f_mntfromname;
+				} else if (argv[0][0] == '/' &&
+				    argv[0][1] == '\0') {
+					fs = getfsfile("/");
+					have_fstab = 1;
+					mntfromname = fs->fs_spec;
+				}
+			}
+			if (have_fstab) {
 				options = update_options(options, fs->fs_mntops,
 				    mntbuf->f_flags);
 			} else {
@@ -257,10 +277,10 @@ main(argc, argv)
 		break;
 	case 2:
 		/*
-		 * If -t flag has not been specified, and spec contains either
-		 * a ':' or a '@', and the spec is not a file with those
-		 * characters, then assume that an NFS filesystem is being
-		 * specified ala Sun.
+		 * If -t flag has not been specified, the path cannot be
+		 * found, spec contains either a ':' or a '@', and the
+		 * spec is not a file with those characters, then assume
+		 * that an NFS filesystem is being specified ala Sun.
 		 */
 		if (vfslist == NULL && strpbrk(argv[0], ":@") != NULL &&
 		    access(argv[0], 0) == -1)
@@ -515,10 +535,11 @@ getmntpt(name)
 	int i, mntsize;
 
 	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
-	for (i = 0; i < mntsize; i++)
+	for (i = mntsize - 1; i >= 0; i--) {
 		if (strcmp(mntbuf[i].f_mntfromname, name) == 0 ||
 		    strcmp(mntbuf[i].f_mntonname, name) == 0)
 			return (&mntbuf[i]);
+	}
 	return (NULL);
 }
 
@@ -588,9 +609,6 @@ update_options(opts, fstab, curflags)
 	if (opts == NULL)
 		return strdup("");
 
-	if (fstab == NULL)
-		fstab = strdup("");
-
 	/* remove meta options from list */
 	remopt(fstab, MOUNT_META_OPTION_FSTAB);
 	remopt(fstab, MOUNT_META_OPTION_CURRENT);
@@ -608,8 +626,6 @@ update_options(opts, fstab, curflags)
 		else
 			expopt = catopt(expopt, o);
 	}
-	if (fstab == "")
-		free(fstab);
 	free(cur);
 	free(opts);
 
