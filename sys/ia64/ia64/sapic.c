@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -74,7 +76,7 @@ sapic_write(struct sapic *sa, int which, u_int32_t value)
 	ia64_mf_a();
 }
 
-#if 0
+#ifdef DDB
 
 static void
 sapic_read_rte(struct sapic *sa, int which,
@@ -147,5 +149,32 @@ sapic_eoi(struct sapic *sa, int vector)
 	vm_offset_t reg = sa->sa_registers;
 
 	*(volatile u_int32_t *) (reg + SAPIC_APIC_EOI) = vector;
+	ia64_mf();
 }
 
+#ifdef DDB
+
+#include <ddb/ddb.h>
+
+void
+sapic_print(struct sapic *sa, int input)
+{
+	struct sapic_rte rte;
+
+	sapic_read_rte(sa, input, &rte);
+	if (rte.rte_mask == 0) {
+		db_printf("%3d %d %d %s %s %s %s %s ID=%x EID=%x\n",
+			  rte.rte_vector,
+			  rte.rte_delivery_mode,
+			  rte.rte_destination_mode,
+			  rte.rte_delivery_status ? "DS" : "  ",
+			  rte.rte_polarity ? "low-active " : "high-active",
+			  rte.rte_rirr ? "RIRR" : "    ",
+			  rte.rte_trigger_mode ? "level" : "edge ",
+			  rte.rte_flushen ? "F" : " ",
+			  rte.rte_destination_id,
+			  rte.rte_destination_eid);
+	}
+}
+
+#endif
