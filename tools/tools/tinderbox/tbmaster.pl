@@ -45,6 +45,8 @@ my $etcdir;			# Configuration directory
 
 my %INITIAL_CONFIG = (
     'BRANCHES'	=> [ 'CURRENT' ],
+    'CFLAGS'	=> '',
+    'COPTFLAGS'	=> '',
     'COMMENT'	=> '',
     'CVSUP'	=> '',
     'DATE'	=> '',
@@ -248,6 +250,10 @@ sub tinderbox($$$) {
 	if ($CONFIG{'PATCH'});
     push(@args, @{$CONFIG{'TARGETS'}});
     push(@args, @{$CONFIG{'ENV'}});
+    push(@args, "CFLAGS=" . expand('CFLAGS'))
+	if ($CONFIG{'CFLAGS'});
+    push(@args, "COPTFLAGS=" . expand('COPTFLAGS'))
+	if ($CONFIG{'COPTFLAGS'});
     my $pid = fork();
     if (!defined($pid)) {
 	warn("fork(): $!\n");

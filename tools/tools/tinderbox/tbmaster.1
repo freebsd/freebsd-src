@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2004
+.Dd March 15, 2004
 .Dt TBMASTER 1
 .Os
 .Sh NAME
@@ -92,11 +92,11 @@ Blank lines are ignoed, as is anything following a hash sign
 The following configuration variables are defined:
 .Bl -tag -width 12n
 .It ARCH
-.Pq Vt simple
+.Pq Vt single
 The architecture currently being built for.
 Read-only.
 .It BRANCH
-.Pq Vt simple
+.Pq Vt single
 The branch currently being built.
 Read-only.
 .It BRANCHES
@@ -104,6 +104,28 @@ Read-only.
 A list of source branches to build.
 The default value is
 .Dq CURRENT .
+.It CFLAGS
+.Pq Vt single
+The desired value for the
+.Va CFLAGS
+.Xr make 1
+variable.
+This is equivalent to specifying
+.Va CFLAGS
+in
+.Va ENV .
+No default value.
+.It COPTFLAGS
+.Pq Vt single
+The desired value for the
+.Va COPTFLAGS
+.Xr make 1
+variable.
+This is equivalent to specifying
+.Va COPTFLAGS
+in
+.Va ENV .
+No default value.
 .It COMMENT
 .Pq Vt single
 A terse comment describing the setup.
@@ -152,7 +174,7 @@ The location of the log directory.
 The default value is
 .Pa %%SANDBOX%%/logs .
 .It MACHINE
-.Pq Vt simple
+.Pq Vt single
 The machine currently being built for.
 Read-only.
 .It OPTIONS
