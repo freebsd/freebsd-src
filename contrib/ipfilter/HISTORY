@@ -22,6 +22,87 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.4.35 21/6/2004 - Released
+
+some cases of ICMP checksum alteration were wrong
+
+block packets that fail to create state table entries
+
+correctly handle all return values from ip_natout() when fastrouting
+
+ipmon was not correctly calculating the length of the IPv6 packet (excluded
+ipv6 header length)
+
+3.4.34 20/4/2004 - Released
+
+correct the ICMP packet checksum fixing up when processing ICMP errors for NAT
+
+various changes to ipsend for sending packets with ipv4 options
+
+look for ipmon's pidfile in /var/run and /etc/opt/ipf in Solaris' init script
+
+only allow non-fragmented packets to influence whether or not a logged
+packet is the same as the one logged before.
+
+make "ipfstat -f" output more informative
+
+compatibility for openbsd byte order changes to ip_off/ip_len
+
+disallow "freebsd" as a make target (encourages people to do the wrong thing)
+
+3.4.33	15/12/2003 - Released
+
+pass on messages moving through ipfilter when it is unloading itself on Solaris
+
+add disabling of auto-detach when the module attaches on Solaris
+
+compatibility patches for 'struct ifnet' changes on FreeBSD
+
+implement a maximum for the number of entries in the NAT table (NAT_TABLE_MAX
+and ipf_nattable_max)
+
+fix ipfstat -A
+
+frsynclist() wasn't paying attention to all the places where interface
+names are, like it should.
+
+fix where packet header pointers are pointing to after doing an ipf_pullup
+
+fix comparing ICMP packets with established TCP state where only 8 bytes
+of header are returned in the ICMP error.
+
+3.4.32	18/6/2003 - Released
+
+fix up the behaviour of ipfs
+
+make parsing errors in ipf/ipnat return an error rather than return
+indicating success.
+
+window scaling patch
+
+make ipfstat work as a set{g,u}id thing - gave up privs before opening
+/dev/ipl
+
+checksum adjustment corrections for ICMP & NAT
+
+attempt to always get an mbuf full of data through pullup if possible
+
+Fix bug with NAT and fragments causing system to crash
+
+Add patches for OpenBSD 3.3
+
+stop LKM locking up the machine on modern NetBSD(?)
+
+allow timeouts in NAT rules to over-ride fr_defnatage if LARGE_NAT is defined
+
+Locking patches for IRIX 6.5 from SGI.
+ 
+fix bug in synchronising state sessions where all interfaces were invalidated
+
+fix bug in openbsd 3.2 bridge diffs
+
+fix bug parsing port comparisons in proxy rules
+
 3.4.31	7/12/2002 - Released
 
 Solaris 10 compatibility

@@ -263,7 +263,19 @@ int     linenum;
 		return 0;
 	if (!strcasecmp(**seg, "port") && *(*seg + 1) && *(*seg + 2)) {
 		(*seg)++;
-		if (isalnum(***seg) && *(*seg + 2)) {
+		if (!strcmp(**seg, "=") || !strcasecmp(**seg, "eq"))
+			comp = FR_EQUAL;
+		else if (!strcmp(**seg, "!=") || !strcasecmp(**seg, "ne"))
+			comp = FR_NEQUAL;
+		else if (!strcmp(**seg, "<") || !strcasecmp(**seg, "lt"))
+			comp = FR_LESST;
+		else if (!strcmp(**seg, ">") || !strcasecmp(**seg, "gt"))
+			comp = FR_GREATERT;
+		else if (!strcmp(**seg, "<=") || !strcasecmp(**seg, "le"))
+			comp = FR_LESSTE;
+		else if (!strcmp(**seg, ">=") || !strcasecmp(**seg, "ge"))
+			comp = FR_GREATERTE;
+		else if (isalnum(***seg) && *(*seg + 2)) {
 			if (portnum(**seg, pp, linenum) == 0)
 				return -1;
 			(*seg)++;
@@ -285,19 +297,7 @@ int     linenum;
 			}
 			if (portnum(**seg, tp, linenum) == 0)
 				return -1;
-		} else if (!strcmp(**seg, "=") || !strcasecmp(**seg, "eq"))
-			comp = FR_EQUAL;
-		else if (!strcmp(**seg, "!=") || !strcasecmp(**seg, "ne"))
-			comp = FR_NEQUAL;
-		else if (!strcmp(**seg, "<") || !strcasecmp(**seg, "lt"))
-			comp = FR_LESST;
-		else if (!strcmp(**seg, ">") || !strcasecmp(**seg, "gt"))
-			comp = FR_GREATERT;
-		else if (!strcmp(**seg, "<=") || !strcasecmp(**seg, "le"))
-			comp = FR_LESSTE;
-		else if (!strcmp(**seg, ">=") || !strcasecmp(**seg, "ge"))
-			comp = FR_GREATERTE;
-		else {
+		} else {
 			fprintf(stderr, "%d: unknown comparator (%s)\n",
 					linenum, **seg);
 			return -1;

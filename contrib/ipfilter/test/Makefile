@@ -51,7 +51,7 @@ i1 i2 i3 i4 i5 i6 i7 i8 i9 i10 i11 i12:
 n1 n2 n3 n4 n5 n6 n7:
 	@/bin/sh ./nattest $@
 
-ni1 ni2 ni3 ni4 ni5:
+ni1 ni2 ni3 ni4 ni5 ni7 ni8 ni10 ni11:
 	@/bin/sh ./natipftest $@
 
 in1 in2 in3 in4:

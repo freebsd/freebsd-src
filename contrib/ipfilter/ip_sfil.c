@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.24 2002/12/06 11:42:22 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.27 2003/06/12 16:03:14 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -623,8 +623,8 @@ caddr_t data;
 			while ((f = *ftail))
 				ftail = &f->fr_next;
 		else {
+			ftail = fprev;
 			if (fp->fr_hits) {
-				ftail = fprev;
 				while (--fp->fr_hits && (f = *ftail))
 					ftail = &f->fr_next;
 			}
@@ -785,15 +785,14 @@ fr_info_t *fin;
 	tcp2->th_sport = tcp->th_dport;
 	if (tcp->th_flags & TH_ACK) {
 		tcp2->th_seq = tcp->th_ack;
-		tcp2->th_flags = TH_RST|TH_ACK;
+		tcp2->th_flags = TH_RST;
 	} else {
 		tcp2->th_ack = ntohl(tcp->th_seq);
 		tcp2->th_ack += tlen;
 		tcp2->th_ack = htonl(tcp2->th_ack);
-		tcp2->th_flags = TH_RST;
+		tcp2->th_flags = TH_RST|TH_ACK;
 	}
 	tcp2->th_off = sizeof(struct tcphdr) >> 2;
-	tcp2->th_flags = TH_RST|TH_ACK;
 
 	/*
 	 * This is to get around a bug in the Solaris 2.4/2.5 TCP checksum
