@@ -1836,6 +1836,11 @@ static int dc_attach(dev)
 		sc->dc_flags |= DC_TX_COALESCE|DC_TX_INTR_ALWAYS;
 		sc->dc_flags |= DC_REDUCED_MII_POLL|DC_TX_STORENFWD;
 		sc->dc_pmode = DC_PMODE_MII;
+		/* Increase the latency timer value. */
+		command = pci_read_config(dev, DC_PCI_CFLT, 4);
+		command &= 0xFFFF00FF;
+		command |= 0x00008000;
+		pci_write_config(dev, DC_PCI_CFLT, command, 4);
 		break;
 	case DC_DEVICEID_AL981:
 		sc->dc_type = DC_TYPE_AL981;
