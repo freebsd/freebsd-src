@@ -1004,6 +1004,7 @@ COMMON ITEMS:
 	# Note: sometimes if you are running current you gotta do more than
 	# is listed here if you are upgrading from a really old current.
 
+	<make sure you have good level 0 dumps>
 	<maybe fix /etc/fstab>				[7]
 	make buildworld
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
@@ -1022,7 +1023,12 @@ COMMON ITEMS:
 	# modules has changed.  If you are installing 5.0 onto a 4.x
 	# system, you'll need about 30MB of free disk space on your /
 	# partition.  If you have less than this, you may encounter difficult
-	# to back out of problems with this proceedure.
+	# to back out of problems with this proceedure.  If /tmp is on
+	# the / partition, you may want to completely remove all its content
+	# before upgrading, as this can be a common source of shortage of
+	# space on /.
+	
+	<make sure you have good level 0 dumps>
 	<maybe fix /etc/fstab>				[7]
 	make buildworld
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
