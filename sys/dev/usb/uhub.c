@@ -60,7 +60,7 @@
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdivar.h>
 
-#ifdef USB_DEBUG
+#ifdef UHUB_DEBUG
 #define DPRINTF(x)	if (usbdebug) logprintf x
 #define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 extern int	usbdebug;
@@ -81,15 +81,10 @@ usbd_status uhub_init_port __P((struct usbd_port *));
 void uhub_disconnect_port __P((struct usbd_port *up));
 usbd_status uhub_explore __P((usbd_device_handle hub));
 void uhub_intr __P((usbd_request_handle, usbd_private_handle, usbd_status));
-#ifdef __FreeBSD__
-#include "usb_if.h"
-static void uhub_disconnected __P((device_t));
-#endif
 
 /* void uhub_disco __P((void *)); */
 
-USB_DECLARE_DRIVER_INIT(uhub,
-			DEVMETHOD(usb_disconnected, uhub_disconnected));
+USB_DECLARE_DRIVER(uhub);
 
 #if defined(__FreeBSD__)
 devclass_t uhubroot_devclass;
@@ -256,27 +251,6 @@ USB_ATTACH(uhub)
 }
 
 #if defined(__FreeBSD__)
-static void
-uhub_disconnected(device_t self)
-{
-	struct uhub_softc *sc = device_get_softc(self);
-	struct usbd_port *up;
-	usbd_device_handle dev = sc->sc_hub;
-	int nports;
-	int p;
-
-	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
-	nports = dev->hub->hubdesc.bNbrPorts;
-	for (p = 0; p < nports; p++) {
-		up = &sc->sc_hub->hub->ports[p];
-		if (up->device) {
-			uhub_disconnect_port(up);
-		}
-	}
-
-	return;
-}
-
 static int
 uhub_detach(device_t self)
 {
@@ -515,7 +489,6 @@ uhub_disconnect_port(up)
 		}
 	}
 #if defined(__FreeBSD__)
-	USB_DISCONNECTED(sc->sc_dev);
 	device_delete_child(scp->sc_dev, sc->sc_dev);
 #endif
 
