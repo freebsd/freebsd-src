@@ -135,11 +135,14 @@
 #endif
 
 #if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
+#define	ARCHIVE_STAT_CTIME_NANOS(st)	(st)->st_ctimespec.tv_nsec
 #define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtimespec.tv_nsec
 #else
 #if HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
+#define	ARCHIVE_STAT_CTIME_NANOS(st)	(st)->st_ctim.tv_nsec
 #define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtim.tv_nsec
 #else
+#define	ARCHIVE_STAT_CTIME_NANOS(st)	(0)
 #define	ARCHIVE_STAT_MTIME_NANOS(st)	(0)
 #endif
 #endif

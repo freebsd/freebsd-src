@@ -116,7 +116,7 @@ static const char *	 lookup_uname(struct bsdtar *bsdtar, uid_t uid);
 static int		 lookup_uname_helper(struct bsdtar *bsdtar,
 			     const char **name, id_t uid);
 static int		 new_enough(struct bsdtar *, const char *path,
-			     time_t mtime_sec, int mtime_nsec);
+			     const struct stat *);
 static void		 setup_acls(struct bsdtar *, struct archive_entry *,
 			     const char *path);
 static void		 test_for_append(struct bsdtar *);
@@ -466,8 +466,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, const char *filename)
 	}
 	while (0 == archive_read_next_header(ina, &in_entry)) {
 		if (!new_enough(bsdtar, archive_entry_pathname(in_entry),
-			archive_entry_mtime(in_entry),
-			archive_entry_mtime_nsec(in_entry)))
+			archive_entry_stat(in_entry)))
 			continue;
 		if (excluded(bsdtar, archive_entry_pathname(in_entry)))
 			continue;
@@ -609,10 +608,10 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			/*
 			 * In -u mode, we need to check whether this
 			 * is newer than what's already in the archive.
+			 * In all modes, we need to obey --newerXXX flags.
 			 */
 			if (!new_enough(bsdtar, ftsent->fts_path,
-				ftsent->fts_statp->st_mtime,
-				ARCHIVE_STAT_MTIME_NANOS(ftsent->fts_statp)))
+				ftsent->fts_statp))
 				break;
 			/*
 			 * If this dir is excluded by a filename
@@ -686,8 +685,7 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			 * is newer than what's already in the archive.
 			 */
 			if (!new_enough(bsdtar, ftsent->fts_path,
-				ftsent->fts_statp->st_mtime,
-				ARCHIVE_STAT_MTIME_NANOS(ftsent->fts_statp)))
+				ftsent->fts_statp))
 				break;
 
 			if (bsdtar->option_interactive &&
@@ -1273,24 +1271,50 @@ lookup_gname_helper(struct bsdtar *bsdtar, const char **name, id_t id)
  * in the archive.
  */
 int
-new_enough(struct bsdtar *bsdtar, const char *path,
-    time_t mtime_sec, int mtime_nsec)
+new_enough(struct bsdtar *bsdtar, const char *path, const struct stat *st)
 {
 	struct archive_dir_entry *p;
 
-	if (path[0] == '.' && path[1] == '/' && path[2] != '\0')
-		path += 2;
-
-	if (bsdtar->archive_dir == NULL ||
-	    bsdtar->archive_dir->head == NULL)
-		return (1);
-
-	for (p = bsdtar->archive_dir->head; p != NULL; p = p->next) {
-		if (strcmp(path, p->name)==0)
-			return (p->mtime_sec < mtime_sec ||
-				(p->mtime_sec == mtime_sec &&
-				 p->mtime_nsec < mtime_nsec));
+	/*
+	 * If this file/dir is excluded by a time comparison, skip it.
+	 */
+	if (bsdtar->newer_ctime_sec > 0) {
+		if (st->st_ctime < bsdtar->newer_ctime_sec)
+			return (0); /* Too old, skip it. */
+		if (st->st_ctime == bsdtar->newer_ctime_sec
+		    && ARCHIVE_STAT_CTIME_NANOS(st)
+		    <= bsdtar->newer_ctime_nsec)
+			return (0); /* Too old, skip it. */
 	}
+	if (bsdtar->newer_mtime_sec > 0) {
+		if (st->st_mtime < bsdtar->newer_mtime_sec)
+			return (0); /* Too old, skip it. */
+		if (st->st_mtime == bsdtar->newer_mtime_sec
+		    && ARCHIVE_STAT_MTIME_NANOS(st)
+		    <= bsdtar->newer_mtime_nsec)
+			return (0); /* Too old, skip it. */
+	}
+
+	/*
+	 * In -u mode, we only write an entry if it's newer than
+	 * what was already in the archive.
+	 */
+	if (bsdtar->archive_dir != NULL &&
+	    bsdtar->archive_dir->head != NULL) {
+		/* Ignore leading './' when comparing names. */
+		if (path[0] == '.' && path[1] == '/' && path[2] != '\0')
+			path += 2;
+
+		for (p = bsdtar->archive_dir->head; p != NULL; p = p->next) {
+			if (strcmp(path, p->name)==0)
+				return (p->mtime_sec < st->st_mtime ||
+				    (p->mtime_sec == st->st_mtime &&
+					p->mtime_nsec
+					< ARCHIVE_STAT_MTIME_NANOS(st)));
+		}
+	}
+
+	/* If the file wasn't rejected, include it. */
 	return (1);
 }
 
