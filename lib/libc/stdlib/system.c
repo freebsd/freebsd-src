@@ -42,35 +42,50 @@ static char sccsid[] = "@(#)system.c	8.1 (Berkeley) 6/4/93";
 #include <stddef.h>
 #include <unistd.h>
 #include <paths.h>
+#include <errno.h>
 
-system(command)
+int system(command)
 	const char *command;
 {
-	union wait pstat;
 	pid_t pid;
-	int omask;
-	sig_t intsave, quitsave;
+	int pstat;
+	struct sigaction ign, intact, quitact;
+	sigset_t newsigblock, oldsigblock;
 
 	if (!command)		/* just checking... */
 		return(1);
 
-	omask = sigblock(sigmask(SIGCHLD));
-	switch(pid = vfork()) {
+	/*
+	 * Ignore SIGINT and SIGQUIT, block SIGCHLD. Remember to save
+	 * existing signal dispositions.
+	 */
+	ign.sa_handler = SIG_IGN;
+	(void)sigemptyset(&ign.sa_mask);
+	ign.sa_flags = 0;
+	(void)sigaction(SIGINT, &ign, &intact);
+	(void)sigaction(SIGQUIT, &ign, &quitact);
+	(void)sigemptyset(&newsigblock);
+	sigprocmask(SIG_BLOCK, &newsigblock, &oldsigblock);
+	switch(pid = fork()) {
 	case -1:			/* error */
-		(void)sigsetmask(omask);
-		pstat.w_status = 0;
-		pstat.w_retcode = 127;
-		return(pstat.w_status);
+		break;
 	case 0:				/* child */
-		(void)sigsetmask(omask);
+		/*
+		 * Restore original signal dispositions and exec the command.
+		 */
+		(void)sigaction(SIGINT, &intact, NULL);
+		(void)sigaction(SIGQUIT,  &quitact, NULL);
+		(void)sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
 		execl(_PATH_BSHELL, "sh", "-c", command, (char *)NULL);
 		_exit(127);
+	default:			/* parent */
+		do {
+			pid = waitpid(pid, &pstat, 0);
+		} while (pid == -1 && errno == EINTR);
+		break;
 	}
-	intsave = signal(SIGINT, SIG_IGN);
-	quitsave = signal(SIGQUIT, SIG_IGN);
-	pid = waitpid(pid, (int *)&pstat, 0);
-	(void)sigsetmask(omask);
-	(void)signal(SIGINT, intsave);
-	(void)signal(SIGQUIT, quitsave);
-	return(pid == -1 ? -1 : pstat.w_status);
+	(void)sigaction(SIGINT, &intact, NULL);
+	(void)sigaction(SIGQUIT,  &quitact, NULL);
+	(void)sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
+	return(pid == -1 ? -1 : pstat);
 }
