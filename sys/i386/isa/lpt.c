@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.21 1994/10/23 21:27:28 wollman Exp $
+ *	$Id: lpt.c,v 1.22 1994/10/27 05:08:28 phk Exp $
  */
 
 /*
@@ -823,7 +823,7 @@ lpattach(struct	lpt_softc *sc,int unit)
 	ifp->if_addrlen = 0;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(ifp);
-	printf("lp%d: TCP/IP interface\n",unit);
+	printf("lp%d: TCP/IP capable interface\n",unit);
 }
 /*
  * We don't want to calculate these nasties in our tight loop, so we 
