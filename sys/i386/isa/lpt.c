@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.52 1996/03/29 11:54:56 bde Exp $
+ *	$Id: lpt.c,v 1.53 1996/04/04 12:28:36 joerg Exp $
  */
 
 /*
@@ -195,7 +195,7 @@
 #define lprintf (void)
 #else
 #define lprintf		if (lptflag) printf
-int lptflag = 1;
+static int volatile lptflag = 1;
 #endif
 
 #define	LPTUNIT(s)	((s)&0x03)
