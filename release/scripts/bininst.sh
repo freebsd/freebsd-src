@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst.sh,v 1.4 1995/01/28 01:20:18 jkh Exp $
+# $Id: bininst.sh,v 1.5 1995/02/02 04:08:12 jkh Exp $
 
 if [ "${_BININST_LOADED_}" = "yes" ]; then
 	error "Error, $0 loaded more than once!"
@@ -46,11 +46,6 @@ set_defaults()
 # Print welcome banner.
 welcome()
 {
-	dialog --title "Welcome to FreeBSD!" --msgbox \
-"Installation may now proceed from tape, CDROM, DOS (floppy or existing
-hard disk partition), or a network connection (SLIP, ethernet or parallel
-port for FTP or NFS).  Please remove the cpio floppy from the
-drive and press return to continue." -1 -1
 }
 
 do_last_config()
