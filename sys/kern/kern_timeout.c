@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.45 1997/11/24 15:15:27 bde Exp $
+ * $Id: kern_clock.c,v 1.46 1997/12/08 22:56:10 fsmp Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -1358,3 +1358,70 @@ hardpps(tvp, usec)
 		pps_intcnt++;
 }
 #endif /* PPS_SYNC */
+
+#ifdef APM_FIXUP_CALLTODO
+/* 
+ * Adjust the kernel calltodo timeout list.  This routine is used after 
+ * an APM resume to recalculate the calltodo timer list values with the 
+ * number of hz's we have been sleeping.  The next hardclock() will detect 
+ * that there are fired timers and run softclock() to execute them.
+ *
+ * Please note, I have not done an exhaustive analysis of what code this
+ * might break.  I am motivated to have my select()'s and alarm()'s that
+ * have expired during suspend firing upon resume so that the applications
+ * which set the timer can do the maintanence the timer was for as close
+ * as possible to the originally intended time.  Testing this code for a 
+ * week showed that resuming from a suspend resulted in 22 to 25 timers 
+ * firing, which seemed independant on whether the suspend was 2 hours or
+ * 2 days.  Your milage may vary.   - Ken Key <key@cs.utk.edu>
+ */
+void
+adjust_timeout_calltodo(time_change)
+    struct timeval *time_change;
+{
+	register struct callout *p;
+	unsigned long delta_ticks;
+	int s;
+
+	/* 
+	 * How many ticks were we asleep?
+	 * (stolen from hzto()).
+	 */
+
+	/* Don't do anything */
+	if (time_change->tv_sec < 0)
+		return;
+	else if (time_change->tv_sec <= LONG_MAX / 1000000)
+		delta_ticks = (time_change->tv_sec * 1000000 +
+			       time_change->tv_usec + (tick - 1)) / tick + 1;
+	else if (time_change->tv_sec <= LONG_MAX / hz)
+		delta_ticks = time_change->tv_sec * hz +
+			      (time_change->tv_usec + (tick - 1)) / tick + 1;
+	else
+		delta_ticks = LONG_MAX;
+
+	if (delta_ticks > INT_MAX)
+		delta_ticks = INT_MAX;
+
+	/* 
+	 * Now rip through the timer calltodo list looking for timers
+	 * to expire.
+	 */
+
+	/* don't collide with softclock() */
+	s = splhigh(); 
+	for (p = calltodo.c_next; p != NULL; p = p->c_next) {
+		p->c_time -= delta_ticks;
+
+		/* Break if the timer had more time on it than delta_ticks */
+		if (p->c_time > 0)
+			break;
+
+		/* take back the ticks the timer didn't use (p->c_time <= 0) */
+		delta_ticks = -p->c_time;
+	}
+	splx(s);
+
+	return;
+}
+#endif /* APM_FIXUP_CALLTODO */
