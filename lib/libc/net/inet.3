@@ -49,10 +49,10 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/socket.h>
-.Fd #include <netinet/in.h>
-.Fd #include <arpa/inet.h>
+.In sys/types.h
+.In sys/socket.h
+.In netinet/in.h
+.In arpa/inet.h
 .Ft int
 .Fn inet_aton "const char *cp" "struct in_addr *pin"
 .Ft in_addr_t
@@ -245,7 +245,7 @@ functions conform to
 Note that
 .Fn inet_pton
 does not accept 1-, 2-, or 3-part dotted addresses; all four parts
-must be specified.
+must be specified and are interpreted only as decimal values.
 This is a narrower input set than that accepted by
 .Fn inet_aton .
 .Sh HISTORY
