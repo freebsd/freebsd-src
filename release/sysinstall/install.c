@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.23 1995/06/04 22:24:45 jkh Exp $
+ * $Id: install.c,v 1.70.2.24 1995/06/04 22:46:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -335,6 +335,12 @@ make_filesystems(void)
 	return FALSE;
     }
 
+    /* Copy the dev files */
+    if (vsystem("find -x /dev | cpio -pdmv /mnt")) {
+	msgConfirm("Couldn't clone the /dev files!");
+	return FALSE;
+    }
+
     /* Now buzz through the rest of the partitions and mount them too */
     for (i = 0; devs[i]; i++) {
 	if (!devs[i]->enabled)
@@ -378,8 +384,12 @@ make_filesystems(void)
 		    }
 		}
 	    }
-	    else if (c1->type == fat && c1->private && !RootReadOnly)
-		Mkdir(((PartInfo *)c1->private)->mountpoint, NULL);
+	    else if (c1->type == fat && c1->private && !RootReadOnly) {
+		char name[FILENAME_MAX];
+
+		sprintf(name, "/mnt%s", ((PartInfo *)c1->private)->mountpoint);
+		Mkdir(name, NULL);
+	    }
 	}
     }
     command_sort();
@@ -404,12 +414,6 @@ copy_self(void)
     if (vsystem("cd /mnt/stand; find etc | cpio -pdmv /mnt")) {
 	msgConfirm("Couldn't copy up the /etc files!");
 	return TRUE;
-    }
-
-    /* Copy the dev files */
-    if (vsystem("find -x /dev | cpio -pdmv /mnt")) {
-	msgConfirm("Couldn't clone the /dev files!");
-	return FALSE;
     }
     return TRUE;
 }
