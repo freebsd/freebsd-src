@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.16 1999/03/23 05:07:56 jb Exp $
+ * $Id: uthread_kern.c,v 1.17 1999/05/07 07:59:44 jasone Exp $
  *
  */
 #include <errno.h>
@@ -212,15 +212,6 @@ __asm__("fnsave %0": :"m"(*fdata));
 						FD_ZERO(&pthread->data.select_data->writefds);
 						FD_ZERO(&pthread->data.select_data->exceptfds);
 						pthread->data.select_data->nfds = 0;
-					} else if (pthread->state == PS_COND_WAIT) {
-						/*
-						 * The pthread_cond_timedwait()
-						 * has timed out, so remove the
-						 * thread from the condition's
-						 * queue.
-						 */
-						_thread_queue_remove(pthread->queue,
-								     pthread);
                                         }
 					/*
 					 * Return an error as an interrupted
