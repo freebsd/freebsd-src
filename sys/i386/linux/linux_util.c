@@ -27,7 +27,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: svr4_util.c,v 1.5 1995/01/22 23:44:50 christos Exp
- *	$Id: linux_util.c,v 1.1 1996/03/02 19:38:02 peter Exp $
+ *	$Id: linux_util.c,v 1.2 1996/08/05 20:52:30 nate Exp $
  */
 
 #include <sys/param.h>
@@ -134,9 +134,8 @@ linux_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		 * root directory and never finding it, because "/" resolves
 		 * to the emulation root directory. This is expensive :-(
 		 */
-		/* XXX: prototype should have const here for NDINIT */
-		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, 
-		       (char *) linux_emul_path, p);
+		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path,
+		       p);
 
 		if ((error = namei(&ndroot)) != 0) {
 			/* Cannot happen! */
