@@ -1,7 +1,7 @@
 SRC = ..
 GLOBINCS = 
 LOCINCS = 
-LIBS = -lcurses -ltermlib `. $(SRC)/config.sh; echo $$libs`
+LIBS = -lcurses -ltermcap `. $(SRC)/config.sh; echo $$libs`
 
 curseperl: $(SRC)/uperl.o usersub.o curses.o
 	cc $(SRC)/uperl.o usersub.o curses.o $(LIBS) -o curseperl
