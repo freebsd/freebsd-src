@@ -2,7 +2,7 @@ PROG=	truss
 SRCS=	main.c setup.c syscalls.c syscalls.h ioctl.c
 .if (${MACHINE} == "alpha")
 SRCS+=	alpha-fbsd.c
-.elif (${MACHINE} == "i386")
+.elif (${MACHINE_ARCH} == "i386")
 SRCS+=	i386-fbsd.c i386-linux.c linux_syscalls.h
 .endif
 
