@@ -38,23 +38,28 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef lint
 #ifndef __GNUC__
 #error "GCC is needed to compile this file"
 #endif
+#endif /* lint */
 
 #include <stdlib.h>
+
 #include "libc_private.h"
 #include "crtbrand.c"
 
 struct Struct_Obj_Entry;
 struct ps_strings;
 
-#pragma weak _DYNAMIC
 extern int _DYNAMIC;
+#pragma weak _DYNAMIC
 
-extern void _init(void);
 extern void _fini(void);
+extern void _init(void);
 extern int main(int, char **, char **);
+extern void _start(int, char **, char **, const struct Struct_Obj_Entry *,
+    void (*)(void), struct ps_strings *);
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -67,23 +72,20 @@ char **environ;
 const char *__progname = "";
 struct ps_strings *__ps_strings;
 
-/* The entry function.
- *
+/* The entry function. */
+/*
  * First 5 arguments are specified by the PowerPC SVR4 ABI.
  * The last argument, ps_strings, is a BSD extension.
  */
+/* ARGSUSED */
 void
-_start(argc, argv, envp, obj, cleanup, ps_strings)
-	int argc;
-	char **argv, **envp;
-	const struct Struct_Obj_Entry *obj;	/* from shared loader */
-	void (*cleanup)(void);			/* from shared loader */
-	struct ps_strings *ps_strings;		/* BSD extension */
+_start(int argc, char **argv, char **env,
+    const struct Struct_Obj_Entry *obj __unused, void (*cleanup)(void),
+    struct ps_strings *ps_strings)
 {
-	char *namep;
 	const char *s;
 
-	environ = envp;
+	environ = env;
 
 	if (argc > 0 && argv[0] != NULL) {
 		__progname = argv[0];
@@ -106,7 +108,7 @@ _start(argc, argv, envp, obj, cleanup, ps_strings)
 	monstartup(&eprol, &etext);
 #endif
 	_init();
-	exit( main(argc, argv, envp) );
+	exit( main(argc, argv, env) );
 }
 
 #ifdef GCRT
