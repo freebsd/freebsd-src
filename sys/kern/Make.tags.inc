@@ -1,7 +1,7 @@
 # $FreeBSD$
 #	@(#)Make.tags.inc	8.1 (Berkeley) 6/11/93
 
-SYS?=	/sys
+SYS?=	${.CURDIR}/..
 
 # Common files for "make tags", included by the Makefile for each
 # architecture.
