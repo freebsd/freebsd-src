@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 RELN_ROOT?= ${.CURDIR}/../..
+DESTDIR?= ${DOCDIR}/en_US.ISO8859-1/readme
 
 DOC?= article
 FORMATS?= html
