@@ -157,6 +157,6 @@ usage()
 {
 
 	(void)fprintf(stderr,
-	    "usage: cmp [-l | s] file1 file2 [skip1 [skip2]]\n");
+	    "usage: cmp [-l | -s] file1 file2 [skip1 [skip2]]\n");
 	exit(ERR_EXIT);
 }

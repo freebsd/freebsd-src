@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)cmp.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: cmp.1,v 1.2 1996/08/29 18:05:43 wosch Exp $
 .\"
 .Dd June 6, 1993
 .Dt CMP 1
@@ -47,10 +47,12 @@
 .Ar file1 file2
 .Op Ar skip1 Op Ar skip2
 .Sh DESCRIPTION
-The cmp utility compares two files of any type and writes the results
+The
+.Nm cmp
+utility compares two files of any type and writes the results
 to the standard output.
 By default,
-.Nm
+.Nm cmp
 is silent if the files are the same; if they differ, the byte
 and line number at which the first difference occurred is reported.
 .Pp
@@ -108,6 +110,6 @@ utility is expected to be
 compatible.
 .Sh HISTORY
 A
-.Nm
+.Nm cmp
 command appeared in
 .At v1 .
