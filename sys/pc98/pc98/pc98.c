@@ -68,6 +68,7 @@
 #include <i386/isa/isa_device.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
+#include <pc98/pc98/pc98_machdep.h>
 #include <pc98/pc98/epsonio.h>
 #else
 #include <i386/isa/isa.h>

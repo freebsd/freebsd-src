@@ -71,6 +71,7 @@
 #include <i386/isa/icu.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
+#include <pc98/pc98/pc98_machdep.h>
 #include <i386/isa/isa_device.h>
 #else
 #include <i386/isa/isa.h>
