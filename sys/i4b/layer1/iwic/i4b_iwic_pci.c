@@ -27,11 +27,9 @@
  *      i4b_iwic - isdn4bsd Winbond W6692 driver
  *      ----------------------------------------
  *
- *      $Id: i4b_iwic_pci.c,v 1.14 2000/09/04 09:08:45 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Sep  4 09:49:03 2000]
+ *      last edit-date: [Wed Jan 10 14:33:08 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -125,7 +123,8 @@ static struct winids {
 	int sd;	
 	const char *desc;
 } win_ids[] = {
- { 0x66921050, -1, -1, 		"Generic Winbond W6692 ISDN PCI (0x66921050)"      },
+ { 0x66921050, -1, -1,		"Generic Winbond W6692 ISDN PCI (0x66921050)"      },
+ { 0x66921050, 0x144F, 0x1707,	"Planet PCI ISDN Adapter (Model IA128P-STDV)"      },
  { 0x17020675, -1, -1,		"ASUSCOM P-IN100-ST-D (Winbond W6692, 0x17020675)" },
  { 0x17030675, -1, -1,		"ASUSCOM P-IN100-ST-D (Winbond W6692, 0x17030675)" },
  { 0x17070675, -1, -1,		"ASUSCOM P-IN100-ST-D (Winbond W6692, 0x17070675)" },
