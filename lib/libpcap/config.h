@@ -10,11 +10,16 @@
 /* Define as __inline if that's what the C compiler calls it.  */
 /* #undef inline */
 
+/* Long story short: aclocal.m4 depends on autoconf 2.13
+ * implementation details wrt "const"; newer versions
+ * have different implementation details so for now we
+ * put "const" here.  This may cause duplicate definitions
+ * in config.h but that should be OK since they're the same.
+ */
+/* #undef const */
+
 /* Define if you have the ether_hostton function.  */
 #define HAVE_ETHER_HOSTTON 1
-
-/* Define if you have the freeifaddrs function.  */
-#define HAVE_FREEIFADDRS 1
 
 /* Define if you have the strerror function.  */
 #define HAVE_STRERROR 1
@@ -25,11 +30,11 @@
 /* Define if you have the <ifaddrs.h> header file.  */
 #define HAVE_IFADDRS_H 1
 
+/* Define if you have the <limits.h> header file.  */
+#define HAVE_LIMITS_H 1
+
 /* Define if you have the <netinet/if_ether.h> header file.  */
 #define HAVE_NETINET_IF_ETHER_H 1
-
-/* Define if you have the <netpacket/packet.h> header file.  */
-/* #undef HAVE_NETPACKET_PACKET_H */
 
 /* Define if you have the <sys/bufmod.h> header file.  */
 /* #undef HAVE_SYS_BUFMOD_H */
@@ -65,11 +70,23 @@
 /* XXX Handled by Makefile, to handle NOINET6 */
 /* #define INET6 1 */
 
+/* Enable optimizer debugging */
+/* #undef BDEBUG */
+
+/* Enable parser debugging */
+/* #undef YYDEBUG */
+
 /* define if you have a /dev/dlpi */
 /* #undef HAVE_DEV_DLPI */
 
 /* /dev/dlpi directory */
 /* #undef PCAP_DEV_PREFIX */
+
+/* if if_packet.h has tpacket_stats defined */
+/* #undef HAVE_TPACKET_STATS */
+
+/* define if you have a /proc/net/dev */
+/* #undef HAVE_PROC_NET_DEV */
 
 /* define on AIX to get certain functions */
 /* #undef _SUN */
