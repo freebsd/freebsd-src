@@ -1,12 +1,12 @@
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)zdump.c	7.24";
+static char	elsieid[] = "@(#)zdump.c	7.28";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: zdump.c,v 1.5 1999/01/21 17:12:49 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -118,15 +118,24 @@ static const char rcsid[] =
 #define TZ_DOMAIN "tz"
 #endif /* !defined TZ_DOMAIN */
 
+#ifndef P
+#ifdef __STDC__
+#define P(x)	x
+#endif /* defined __STDC__ */
+#ifndef __STDC__
+#define P(x)	()
+#endif /* !defined __STDC__ */
+#endif /* !defined P */
+
 extern char **	environ;
 extern char *	tzname[2];
 
-static char *	abbr();
-static long	delta();
-static time_t	hunt();
-static int	longest;
-static void	show();
-static void usage __P((void));
+static char *	abbr P((struct tm * tmp));
+static long	delta P((struct tm * newp, struct tm * oldp));
+static time_t	hunt P((char * name, time_t lot, time_t	hit));
+static size_t	longest;
+static char *	progname;
+static void	show P((char * zone, time_t t, int v));
 
 int
 main(argc, argv)
@@ -161,7 +170,7 @@ char *	argv[];
 		if (c == 'v')
 			vflag = 1;
 		else	cutoff = optarg;
-	if (c != EOF ||
+	if ((c != EOF && c != -1) ||
 		(optind == argc - 1 && strcmp(argv[optind], "=") == 0)) {
 			usage();
 	}
@@ -327,8 +336,6 @@ struct tm *	oldp;
 	return result;
 }
 
-extern struct tm *	localtime();
-
 static void
 show(zone, t, v)
 char *	zone;
@@ -337,9 +344,9 @@ int	v;
 {
 	struct tm *	tmp;
 
-	(void) printf("%-*s  ", longest, zone);
+	(void) printf("%-*s  ", (int) longest, zone);
 	if (v)
-		(void) printf("%.24s GMT = ", asctime(gmtime(&t)));
+		(void) printf("%.24s UTC = ", asctime(gmtime(&t)));
 	tmp = localtime(&t);
 	(void) printf("%.24s", asctime(tmp));
 	if (*abbr(tmp) != '\0')

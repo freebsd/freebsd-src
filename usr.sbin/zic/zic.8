@@ -1,3 +1,4 @@
+.\"	$Id: zic.8,v 1.8 1999/01/21 17:12:49 wollman Exp $
 .Dd
 .Dt ZIC 8
 .Os
@@ -6,12 +7,14 @@
 .Nd timezone compiler
 .Sh SYNOPSIS
 .Nm zic
-.Op Fl v
+.Op Fl Dsv
 .Op Fl d Ar directory
-.Op Fl l Ar localtime
-.Op Fl p Ar posixrules
+.Op Fl g Ar group
 .Op Fl L Ar leapsecondfilename
-.Op Fl s
+.Op Fl l Ar localtime
+.Op Fl m Ar mode
+.Op Fl p Ar posixrules
+.Op Fl u Ar user
 .Op Fl y Ar command
 .Op Ar filename ...
 .Sh DESCRIPTION
@@ -26,18 +29,47 @@ the standard input is read.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl D
+Do not automatically create directories.  If the input file(s) specify
+an output file in a directory which does not already exist, the
+default behavior is to attempt to create the directory.  If
+.Fl D
+is specified,
+.Nm zic
+will instead error out immediately.
 .It Fl d Ar directory
 Create time conversion information files in the named directory rather than
 in the standard directory named below.
-.It Fl l  Ar timezone
+.It Fl g Ar group
+After creating each output file, change its group ownership to the
+specified
+.Ar group
+(which can be either a name or a numeric group ID).
+.It Fl L Ar leapsecondfilename
+Read leap second information from the file with the given name.
+If this option is not used,
+no leap second information appears in output files.
+.It Fl l Ar timezone
 Use the given
 .Ar time zone
 as local time.
 .Nm Zic
 will act as if the input contained a link line of the form
-.sp
-.ti +.5i
-Link	\fItimezone\fP		localtime
+.Bd -literal -offset indent
+Link	timezone		localtime
+.Ed
+(Note that this action has no effect on
+.Fx ,
+since the local time zone is specified in
+.Pa /etc/localtime
+and not
+.Pa /usr/share/zoneinfo/localtime . )
+.It Fl m Ar mode
+After creating each output file, change its access mode to
+.Ar mode .
+Both numeric and alphabetic modes are accepted
+(see
+.Xr chmod 1 ) .
 .It Fl p Ar timezone
 Use the given
 .Ar "time zone" Ns 's
@@ -45,13 +77,13 @@ rules when handling POSIX-format
 time zone environment variables.
 .Nm Zic
 will act as if the input contained a link line of the form
-.sp
-.ti +.5i
-Link	\fItimezone\fP		posixrules
-.It Fl L Ar leapsecondfilename
-Read leap second information from the file with the given name.
-If this option is not used,
-no leap second information appears in output files.
+.Bd -literal -offset indent
+Link	timezone		posixrules
+.Ed
+.It Fl u Ar user
+After creating each output file, change its owner to
+.Ar user
+(which can be either a name or a numeric user ID).
 .It Fl v
 Complain if a year that appears in a data file is outside the range
 of years representable by
@@ -80,21 +112,13 @@ Any line that is blank (after comment stripping) is ignored.
 Non-blank lines are expected to be of one of three types:
 rule lines, zone lines, and link lines.
 .Pp
-A rule line has the form
-.nf
-.ti +.5i
-.ta \w'Rule\0\0'u +\w'NAME\0\0'u +\w'FROM\0\0'u +\w'1973\0\0'u +\w'TYPE\0\0'u +\w'Apr\0\0'u +\w'lastSun\0\0'u +\w'2:00\0\0'u +\w'SAVE\0\0'u
-.sp
-Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-.sp
+A rule line has the form:
+.Dl Rule	NAME	FROM	TO	TYPE	IN	ON		AT	SAVE	LETTER/S
 For example:
-.ti +.5i
-.sp
-Rule	US	1967	1973	\-	Apr	lastSun	2:00	1:00	D
-.sp
-.fi
+.Dl Rule	US	1967	1973	\-	Apr	lastSun	2:00	1:00	D
+.Pp
 The fields that make up a rule line are:
-.Bl -tag -width indent
+.Bl -tag -width "LETTER/S" -offset indent
 .It NAME
 Give the (arbitrary) name of the set of rules this rule is part of.
 .It FROM
@@ -138,9 +162,7 @@ If
 is something else, then
 .Nm
 executes the command
-.ti +.5i
-\fByearistype\fP \fIyear\fP \fItype\fP
-.br
+.Li yearistype Ar year Ar type
 to check the type of a year:
 an exit status of zero is taken to mean that the year is of the given type;
 an exit status of one is taken to mean that the year is not of the given type.
@@ -150,18 +172,20 @@ Month names may be abbreviated.
 .It ON
 Give the day on which the rule takes effect.
 Recognized forms include:
-.nf
-.in +.5i
-.sp
-.ta \w'Sun<=25\0\0'u
-5	the fifth of the month
-lastSun	the last Sunday in the month
-lastMon	the last Monday in the month
-Sun>=8	first Sunday on or after the eighth
-Sun<=25	last Sunday on or before the 25th
-.fi
-.in -.5i
-.sp
+.Pp
+.Bl -tag -width lastSun -compact -offset indent
+.It \&5
+the fifth of the month
+.It lastSun
+the last Sunday in the month
+.It lastMon
+the last Monday in the month
+.It Sun>=8
+first Sunday on or after the eighth
+.It Sun<=25
+last Sunday on or before the 25th
+.El
+.Pp
 Names of days of the week may be abbreviated or spelled out in full.
 Note that there must be no spaces within the
 .Em ON
@@ -169,31 +193,34 @@ field.
 .It AT
 Give the time of day at which the rule takes effect.
 Recognized forms include:
-.nf
-.in +.5i
-.sp
-.ta \w'1:28:13\0\0'u
-2	time in hours
-2:00	time in hours and minutes
-15:00	24-hour format time (for times after noon)
-1:28:14	time in hours, minutes, and seconds
-.fi
-.in -.5i
-.sp
+.Pp
+.Bl -tag -width "1:28:14" -offset indent -compact
+.It 2
+time in hours
+.It 2:00
+time in hours and minutes
+.It 15:00
+24-hour format time (for times after noon)
+.It 1:28:14
+time in hours, minutes, and seconds
+.El
+.Pp
+where hour 0 is midnight at the start of the day,
+and hour 24 is midnight at the end of the day.
 Any of these forms may be followed by the letter
-.Em w
+.Sq Li w
 if the given time is local
 .Dq "wall clock"
 time,
-.Em s
+.Sq Li s
 if the given time is local
 .Dq standard
 time, or
-.Em u
+.Sq Li u
 (or
-.Em g
+.Sq Li g
 or
-.Em z )
+.Sq Li z )
 if the given time is universal time;
 in the absence of an indicator,
 wall clock time is assumed.
@@ -204,9 +231,9 @@ This field has the same format as the
 .Em AT
 field
 (although, of course, the
-.Em w
+.Sq Li w
 and
-.Em s
+.Sq Li s
 suffixes are not used).
 .It LETTER/S
 Give the
@@ -225,19 +252,10 @@ If this field is
 the variable part is null.
 .El
 .Pp
-A zone line has the form
-.sp
-.nf
-.ti +.5i
-.ta \w'Zone\0\0'u +\w'Australia/Adelaide\0\0'u +\w'GMTOFF\0\0'u +\w'RULES/SAVE\0\0'u +\w'FORMAT\0\0'u
-Zone	NAME	GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
-.sp
+A zone line has the form:
+.Dl Zone	NAME	GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
 For example:
-.sp
-.ti +.5i
-Zone	Australia/Adelaide	9:30	Aus	CST	1971 Oct 31 2:00
-.sp
-.fi
+.Dl Zone	Australia/Adelaide	9:30	Aus	CST	1971 Oct 31 2:00
 The fields that make up a zone line are:
 .Bl -tag -width indent
 .It NAME
@@ -245,13 +263,13 @@ The name of the time zone.
 This is the name used in creating the time conversion information file for the
 zone.
 .It GMTOFF
-The amount of time to add to GMT to get standard time in this zone.
+The amount of time to add to UTC to get standard time in this zone.
 This field has the same format as the
 .Em AT
 and
 .Em SAVE
 fields of rule lines;
-begin the field with a minus sign if time must be subtracted from GMT.
+begin the field with a minus sign if time must be subtracted from UTC.
 .It RULES/SAVE
 The name of the rule(s) that apply in the time zone or,
 alternately, an amount of time to add to local standard time.
@@ -269,11 +287,14 @@ Alternately,
 a slash (/)
 separates standard and daylight abbreviations.
 .It UNTIL
-The time at which the GMT offset or the rule(s) change for a location.
+The time at which the UTC offset or the rule(s) change for a location.
 It is specified as a year, a month, a day, and a time of day.
 If this is specified,
-the time zone information is generated from the given GMT offset
+the time zone information is generated from the given UTC offset
 and rule change until the time specified.
+The month, day, and time of day have the same format as the IN, ON, and AT
+columns of a rule; trailing columns can be omitted, and default to the
+earliest possible value for the missing columns.
 .Pp
 The next line must be a
 .Dq continuation
@@ -291,18 +312,9 @@ continuation.
 .El
 .Pp
 A link line has the form
-.sp
-.nf
-.ti +.5i
-.ta \w'Link\0\0'u +\w'Europe/Istanbul\0\0'u
-Link	LINK-FROM	LINK-TO
-.sp
+.Dl Link	LINK-FROM	LINK-TO
 For example:
-.sp
-.ti +.5i
-Link	Europe/Istanbul	Asia/Istanbul
-.sp
-.fi
+.Dl Link	Europe/Istanbul	Asia/Istanbul
 The
 .Em LINK-FROM
 field should appear as the
@@ -316,18 +328,9 @@ Except for continuation lines,
 lines may appear in any order in the input.
 .Pp
 Lines in the file that describes leap seconds have the following form:
-.nf
-.ti +.5i
-.ta \w'Leap\0\0'u +\w'YEAR\0\0'u +\w'MONTH\0\0'u +\w'DAY\0\0'u +\w'HH:MM:SS\0\0'u +\w'CORR\0\0'u
-.sp
-Leap	YEAR	MONTH	DAY	HH:MM:SS	CORR	R/S
-.sp
+.Dl Leap	YEAR	MONTH	DAY	HH:MM:SS	CORR	R/S
 For example:
-.ti +.5i
-.sp
-Leap	1974	Dec	31	23:59:60	+	S
-.sp
-.fi
+.Dl Leap	1974	Dec	31	23:59:60	+	S
 The
 .Em YEAR ,
 .Em MONTH ,
@@ -360,7 +363,7 @@ The
 field
 should be (an abbreviation of)
 .Dq Stationary
-if the leap second time given by the other fields should be interpreted as GMT
+if the leap second time given by the other fields should be interpreted as UTC
 or
 (an abbreviation of)
 .Dq Rolling
@@ -374,10 +377,11 @@ field of the earliest transition time's rule to ensure that
 the earliest transition time recorded in the compiled file is correct.
 .Sh FILE
 .Bl -tag -width /usr/share/zoneinfo -compact
-/usr/share/zoneinfo	standard directory used for created files
+.It /usr/share/zoneinfo
+standard directory used for created files
 .El
 .Sh "SEE ALSO"
 .Xr ctime 3 ,
 .Xr tzfile 5 ,
 .Xr zdump 8
-.\" @(#)zic.8	7.12
+.\" @(#)zic.8	7.18
