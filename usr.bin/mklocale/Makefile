@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	mklocale
+WARNS?=	2
 SRCS=	yacc.y lex.l y.tab.h
 CFLAGS+= -I. -I${.CURDIR}
 
