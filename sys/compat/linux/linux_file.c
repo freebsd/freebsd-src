@@ -1036,6 +1036,7 @@ linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
 
 	switch (args->cmd) {
 	case LINUX_F_GETLK:
+	case LINUX_F_GETLK64:
 		error = copyin((caddr_t)args->arg, &linux_flock,
 		    sizeof(linux_flock));
 		if (error)
@@ -1052,6 +1053,7 @@ linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
 		    sizeof(linux_flock)));
 
 	case LINUX_F_SETLK:
+	case LINUX_F_SETLK64:
 		error = copyin((caddr_t)args->arg, &linux_flock,
 		    sizeof(linux_flock));
 		if (error)
@@ -1063,6 +1065,7 @@ linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
 		return (fcntl(td, &fcntl_args));
 
 	case LINUX_F_SETLKW:
+	case LINUX_F_SETLKW64:
 		error = copyin((caddr_t)args->arg, &linux_flock,
 		    sizeof(linux_flock));
 		if (error)
