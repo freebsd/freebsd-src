@@ -323,7 +323,7 @@ everything:
 installworld:
 	mkdir -p ${INSTALLTMP}
 	for prog in [ awk cat chflags chmod chown date echo egrep find grep \
-	    ln make makewhatis mtree mv perl rm sed sh sysctl \
+	    ln make makewhatis mkdir mtree mv perl rm sed sh sysctl \
 	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
 	done
