@@ -651,7 +651,7 @@ essmix_init(snd_mixer *m)
 
 	mix_setdevs(m, SOUND_MASK_SYNTH | SOUND_MASK_PCM | SOUND_MASK_LINE |
 		       SOUND_MASK_MIC | SOUND_MASK_CD | SOUND_MASK_VOLUME |
-		       SOUND_MASK_LINE1);
+		       SOUND_MASK_LINE1 | SOUND_MASK_SPEAKER);
 
 	ess_setmixer(sc, 0, 0); /* reset */
 
@@ -697,7 +697,11 @@ essmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 		rreg = 0x6a;
 		break;
 
-	case SOUND_MIXER_VOLUME:
+	case SOUND_MIXER_SPEAKER:
+		preg = 0x3c;
+		break;
+
+ 	case SOUND_MIXER_VOLUME:
 		l = left? (left * 63) / 100 : 64;
 		r = right? (right * 63) / 100 : 64;
 		ess_setmixer(sc, 0x60, l);
