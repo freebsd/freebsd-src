@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.65 1996/02/01 19:15:41 ache Exp $
+ *	$Id: mcd.c,v 1.66 1996/02/02 20:50:03 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -334,7 +334,7 @@ int mcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if (!(cd->flags & MCDVALID) && cd->openflags)
 		return ENXIO;
 
-	if (mcd_close_tray(unit) == EIO)  /* detect disk change too */
+	if (mcd_getstat(unit,1) == -1)
 		return EIO;
 
 	if (    (cd->status & (MCDDSKCHNG|MCDDOOROPEN))
