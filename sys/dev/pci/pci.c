@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.66 1997/02/22 09:44:11 peter Exp $
+**  $Id: pci.c,v 1.67 1997/03/25 19:01:46 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -814,12 +814,12 @@ pci_bus_config (void)
 #ifndef PCI_QUIET
 	if (bootverbose) {
 	    if (pcicb->pcicb_mamount)
-		printf ("%s%d: uses %d bytes of memory from %x upto %x.\n",
+		printf ("%s%d: uses %ud bytes of memory from %x upto %x.\n",
 			pcibus->pb_name, bus_no,
 			pcicb->pcicb_mamount,
 			pcicb->pcicb_mfrom, pcicb->pcicb_mupto);
 	    if (pcicb->pcicb_pamount)
-		printf ("%s%d: uses %d bytes of I/O space from %x upto %x.\n",
+		printf ("%s%d: uses %ud bytes of I/O space from %x upto %x.\n",
 			pcibus->pb_name, bus_no,
 			pcicb->pcicb_pamount,
 			pcicb->pcicb_pfrom, pcicb->pcicb_pupto);
