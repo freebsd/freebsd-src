@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *      $Id: ip_output.c,v 1.44.2.9 1998/07/01 01:38:37 julian Exp $
+ *      $Id: ip_output.c,v 1.44.2.10 1998/09/17 18:02:26 luigi Exp $
  */
 
 #define _IP_VHL
@@ -119,7 +119,7 @@ ip_output(m0, opt, ro, flags, imo)
 	u_short ip_divert_cookie = 0 ;
 #endif
 #ifdef COMPAT_IPFW
-	struct ip_fw_chain *rule;
+	struct ip_fw_chain *rule = NULL;
 #endif
 
 #if defined(IPFIREWALL) && defined (DUMMYNET)
@@ -146,8 +146,7 @@ ip_output(m0, opt, ro, flags, imo)
 	    opt = NULL ;
 	    flags = 0 ; /* XXX is this correct ? */
 	    goto sendit;
-	} else
-	    rule = NULL ;
+	}
 #endif
 #ifdef	DIAGNOSTIC
 	if ((m->m_flags & M_PKTHDR) == 0)
