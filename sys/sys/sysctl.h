@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.27 1995/11/03 18:29:44 wollman Exp $
+ * $Id: sysctl.h,v 1.28 1995/11/06 16:18:29 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -93,8 +93,6 @@ int sysctl_handle_int SYSCTL_HANDLER_ARGS;
 int sysctl_handle_string SYSCTL_HANDLER_ARGS;
 int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 
-extern int sysctl_dummy;	/* make sure all NODEs are there */
-
 /* This is the "raw" function for a mib-oid */
 #define SYSCTL_OID(parent, number, name, kind, arg1, arg2, handler, descr) \
 	static const struct sysctl_oid sysctl__##parent##_##name = { \
@@ -106,7 +104,7 @@ extern int sysctl_dummy;	/* make sure all NODEs are there */
 	extern struct linker_set sysctl_##parent##_##name; \
 	SYSCTL_OID(parent, number, name, CTLTYPE_NODE|access, \
 		(void*)&sysctl_##parent##_##name, 0, handler, descr); \
-	TEXT_SET(sysctl_##parent##_##name, sysctl_dummy);
+	TEXT_SET(sysctl_##parent##_##name, sysctl__##parent##_##name);
 
 /* This is a string len can be 0 to indicate '\0' termination */
 #define SYSCTL_STRING(parent, number, name, access, arg, len, descr) \
