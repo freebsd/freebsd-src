@@ -632,7 +632,7 @@ print_ccd_info(cs, kd)
 		    cip[i].ci_pathlen) != cip[i].ci_pathlen) {
 			printf("\n");
 			warnx("can't read component pathname");
-			warnx("%s', kvm_geterr(kd));
+			warnx("%s", kvm_geterr(kd));
 			goto done;
 		}
 		printf((i + 1 < cs->sc_nccdisks) ? "%s " : "%s\n", path);
