@@ -226,18 +226,21 @@ get_geom_values(int disk)
 	int key = 0;
 	int cur_field = 0;
 	int next = 0;
+	int done=0;
 
 	struct field field[] = {
-		{2, 28, 06, 10, 01, 02, 01, -1, 01, "Unset"},
-		{4, 28, 06, 10, 02, 00, 02, -1, 02, "Unset"},
-		{6, 28, 06, 10, 00, 01, 00, -1, 00, "Unset"},
-		{0, 07, 24, 24, -1, -1, -1, -1, -1, "BIOS geometry parameters"},
-		{2, 02, 20, 20, -1, -1, -1, -1, -1, "Number of cylinders:"},
-		{4, 02, 25, 25, -1, -1, -1, -1, -1, "Number of tracks (heads):"},
-		{6, 02, 18, 18, -1, -1, -1, -1, -1, "Number of sectors:"}
+{2, 28, 06, 10, 01, 04, 01,  4, 01, "Unset", F_EDIT, 0, 0},
+{4, 28, 06, 10, 02, 00, 02,  0, 02, "Unset", F_EDIT, 0, 0},
+{6, 28, 06, 10, 03, 01, 03,  1, 03, "Unset", F_EDIT, 0, 0},
+{10,  7,  2,  2, 4,  2,  4,  2,  4, "OK", F_BUTTON, 0, 0},
+{10, 20,  6,  6,  0,  3,  0,  3,  0, "Cancel", F_BUTTON, 0, 0},
+{0, 07, 24, 24, -1, -1, -1, -1, -1, "BIOS geometry parameters", F_TITLE, 0, 0},
+{2, 02, 20, 20, -1, -1, -1, -1, -1, "Number of cylinders:", F_TITLE, 0, 0},
+{4, 02, 25, 25, -1, -1, -1, -1, -1, "Number of tracks (heads):", F_TITLE, 0, 0},
+{6, 02, 18, 18, -1, -1, -1, -1, -1, "Number of sectors:", F_TITLE, 0, 0}
 	};
 
-	if (!(window = newwin(10, 40, 5, 20))) {
+	if (!(window = newwin(14, 40, 5, 20))) {
 		sprintf(errmsg, "Failed to open window for geometry editor");
 		return (-1);
 	};
@@ -245,17 +248,38 @@ get_geom_values(int disk)
 	keypad(window, TRUE);
 
 	dialog_clear_norefresh();
-	draw_box(window, 0, 0, 9, 40, dialog_attr, border_attr);
+	draw_box(window, 0, 0, 14, 40, dialog_attr, border_attr);
 
-	while (key != ESC) {
+	done = 0;
+	while (!done && (key != ESC)) {
 		sprintf(field[0].field, "%ld", lbl->d_ncylinders);
 		sprintf(field[1].field, "%ld", lbl->d_ntracks);
 		sprintf(field[2].field, "%ld", lbl->d_nsectors);
 
 		disp_fields(window, field, sizeof(field)/sizeof(struct field));
-		key = edit_line(window, field[cur_field].y, field[cur_field].x,
-					 field[cur_field].field, field[cur_field].width,
-					 field[cur_field].maxlen);
+		switch (field[cur_field].type) {
+			case F_EDIT:
+				key = line_edit(window, field[cur_field].y, field[cur_field].x,
+							 field[cur_field].width, field[cur_field].maxlen,
+							 item_selected_attr, 1, field[cur_field].field);
+				break;
+			case F_BUTTON:
+				key = button_press(window, field[cur_field]);
+				if (!key && !strcmp(field[cur_field].field, "OK")) {
+					done = 1;
+					continue;
+				}
+				if (!key && !strcmp(field[cur_field].field, "Cancel")) {
+					sprintf(errmsg, "\nUser aborted.\n");
+					dialog_clear_norefresh();
+					return (-1);
+				}
+			case F_TOGGLE:
+			case F_TITLE:
+			default:
+				break;
+		}
+
 		next = change_field(field[cur_field], key);
 		if (next == -1)
 			beep();
@@ -320,7 +344,7 @@ edit_mbr(int disk)
 			return(-1);
 		}
 
-	if (!(window = newwin(24, 79, 0, 0))) {
+	if (!(window = newwin(LINES, COLS, 0, 0))) {
 		sprintf(errmsg, "Failed to open window for MBR editor\n");
 		return (-1); 
 	};
@@ -331,7 +355,8 @@ edit_mbr(int disk)
 	draw_box(window, 0, 0, 24, 79, dialog_attr, border_attr);
 
 	cur_field = 1;
-	while (key != ESC) {
+	ok = 0;
+	while (!ok && (key != ESC)) {
 		for (i=0; i < NDOSPART; i++) {
 			sprintf(mbr_field[(i*12)+1].field, "%s", part_type(mbr->dospart[i].dp_typ)); 
 			sprintf(mbr_field[(i*12)+2].field, "%ld", mbr->dospart[i].dp_start);
@@ -350,10 +375,12 @@ edit_mbr(int disk)
 		disp_fields(window, mbr_field, sizeof(mbr_field)/sizeof(struct field));
 		switch (mbr_field[cur_field].type) {
 			case F_EDIT:
-				key = edit_line(window, mbr_field[cur_field].y,
-							 mbr_field[cur_field].x,
-		                mbr_field[cur_field].field, mbr_field[cur_field].width,
-		                mbr_field[cur_field].maxlen);
+				key = line_edit(window, mbr_field[cur_field].y,
+												mbr_field[cur_field].x,
+												mbr_field[cur_field].width,
+												mbr_field[cur_field].maxlen,
+												item_selected_attr, 1,
+												mbr_field[cur_field].field);
 				/* Propagate changes to MBR */
 				for (i=0; i < NDOSPART; i++) {
 					mbr->dospart[i].dp_start = atoi(mbr_field[(i*12)+2].field);
@@ -365,16 +392,29 @@ edit_mbr(int disk)
 					mbr->dospart[i].dp_esect = atoi(mbr_field[(i*12)+9].field);
 					mbr->dospart[i].dp_size = atoi(mbr_field[(i*12)+10].field);
 				}
-				next = change_field(mbr_field[cur_field], key); 
-				if (next == -1) 
-					beep();
-				else
-					cur_field = next;
-				break;	
+				break;
+			case F_BUTTON:
+				key = button_press(window, mbr_field[cur_field]);
+				if (!key && !strcmp(mbr_field[cur_field].field, "OK")) {
+					ok = 1;
+					continue;
+				}
+				if (!key && !strcmp(mbr_field[cur_field].field, "Cancel")) {
+					sprintf(errmsg, "\nUser aborted.\n");
+					dialog_clear_norefresh();
+					return (-1);
+				}
+				break;
+			case F_TOGGLE:
 			case F_TITLE:
 			default:
 				break;
 		}
+		next = change_field(mbr_field[cur_field], key); 
+		if (next == -1) 
+			beep();
+		else
+			cur_field = next;
 	} 
 
 	sprintf(scratch, "\nWriting a new master boot record can erase the current disk contents.\n\n                Are you sure you want to write the new MBR?\n");
