@@ -76,10 +76,6 @@ int	realhostname_sa __P((char *host, size_t hsize, struct sockaddr *addr,
 #ifdef _STDIO_H_	/* avoid adding new includes */
 char   *fparseln __P((FILE *, size_t *, size_t *, const char[3], int));
 #endif
-void *emalloc (size_t);
-void *ecalloc (size_t, size_t);
-void *erealloc (void *, size_t);
-char *estrdup (const char *);
 __END_DECLS
 
 #define UU_LOCK_INUSE (1)
