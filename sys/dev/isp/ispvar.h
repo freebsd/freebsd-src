@@ -390,6 +390,7 @@ typedef struct ispsoftc {
  */
 #define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
 #define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
+#define	ISP_CFG_NOINIT		0x20	/* just set defaults- don't init */
 #define	ISP_CFG_FULL_DUPLEX	0x01	/* Full Duplex (Fibre Channel only) */
 #define	ISP_CFG_OWNWWN		0x02	/* override NVRAM wwn */
 #define	ISP_CFG_PORT_PREF	0x0C	/* Mask for Port Prefs (2200 only) */
@@ -534,7 +535,13 @@ int isp_async __P((struct ispsoftc *, ispasync_t, void *));
 /*
  * Platform Dependent Error and Debug Printout
  */
+#ifdef	__GNUC__
+void isp_prt __P((struct ispsoftc *, int level, const char *, ...))
+	__attribute__((__format__(__printf__,3,4)));
+#else
 void isp_prt __P((struct ispsoftc *, int level, const char *, ...));
+#endif
+
 #define	ISP_LOGALL	0x0	/* log always */
 #define	ISP_LOGCONFIG	0x1	/* log configuration messages */
 #define	ISP_LOGINFO	0x2	/* log informational messages */
