@@ -118,6 +118,9 @@ Spec:
 		|
 	Config_spec SEMICOLON
 		|
+	INCLUDE ID SEMICOLON
+	      = { include($2, 0); };
+		|
 	SEMICOLON
 		|
 	error SEMICOLON
@@ -164,9 +167,7 @@ Config_spec:
 	      = {
 		      hints = $2;
 		      hintmode = 1;
-	        } |
-	INCLUDE ID
-	      = { include($2, 0); };
+	        }
 
 System_spec:
 	CONFIG System_id System_parameter_list
