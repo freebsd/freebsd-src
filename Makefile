@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.21 1994/09/23 09:00:35 rgrimes Exp $
+#	$Id: Makefile,v 1.22 1994/09/29 13:06:46 csgr Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -183,6 +183,7 @@ includes:
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libskey &&		${MAKE} beforeinstall
 
 libraries:
 	@echo "--------------------------------------------------------------"
