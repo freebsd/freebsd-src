@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.35 1997/04/10 14:35:18 bde Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.36 1997/05/03 21:19:53 joerg Exp $
  */
 
 #include "opt_devfs.h"
@@ -32,7 +32,7 @@ int devfs_up_and_going;
  * set up yet, so be careful about what we reference..
  * Notice that the ops are by indirection.. as they haven't
  * been set up yet!
- * DEVFS has a hiddne mountpoint that is used as the anchor point
+ * DEVFS has a hidden mountpoint that is used as the anchor point
  * for the internal 'blueprint' version of the dev filesystem tree.
  */
 /*proto*/
@@ -289,7 +289,7 @@ dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp,
 		 * If we are unlinking from an old dir, decrement it's links
 		 * as we point our '..' elsewhere
 		 * Note: it's up to the calling code to remove the 
-		 * us from teh original directory's list
+		 * us from the original directory's list
 		 */
 		if(dnp->by.Dir.parent) {
 			dnp->by.Dir.parent->links--;
