@@ -261,7 +261,7 @@ void ftstrategy(struct buf *);
 int ftioctl(dev_t, int, caddr_t, int, struct proc *);
 int ftdump(dev_t);
 int ftsize(dev_t);
-static void ft_timeout(caddr_t arg1, int arg2);
+static void ft_timeout(caddr_t arg1);
 void async_cmd(ftu_t);
 void async_req(ftu_t, int);
 void async_read(ftu_t, int);
@@ -1150,7 +1150,7 @@ huh_what:
 /*
  *  Interrupt timeout routine.
  */
-static void ft_timeout(caddr_t arg1, int arg2)
+static void ft_timeout(caddr_t arg1)
 {
   int s;
   ftu_t ftu = (ftu_t)arg1;

@@ -73,7 +73,7 @@
 #include <sys/vnode.h>
 #include <machine/psl.h>
 #include <machine/reg.h>
-/*#include <machine/frame.h>*/
+#include <machine/frame.h>
 #include <miscfs/procfs/procfs.h>
 
 int
@@ -81,15 +81,13 @@ procfs_read_regs(p, regs)
 	struct proc *p;
 	struct reg *regs;
 {
-	struct frame *f;
+	struct trapframe *f;
 
 	if ((p->p_flag & P_INMEM) == 0)
 		return (EIO);
 
-	f = (struct frame *) p->p_md.md_regs;
-	bcopy((void *) f->f_regs, (void *) regs->r_regs, sizeof(regs->r_regs));
-	regs->r_pc = f->f_pc;
-	regs->r_sr = f->f_sr;
+	f = (struct trapframe *) p->p_md.md_regs;
+	bcopy((void *) f, (void *) regs, sizeof(*regs));
 
 	return (0);
 }
@@ -105,15 +103,13 @@ procfs_write_regs(p, regs)
 	struct proc *p;
 	struct reg *regs;
 {
-	struct frame *f;
+	struct trapframe *f;
 
 	if ((p->p_flag & P_INMEM) == 0)
 		return (EIO);
 
-	f = (struct frame *) p->p_md.md_regs;
-	bcopy((void *) regs->r_regs, (void *) f->f_regs, sizeof(f->f_regs));
-	f->f_pc = regs->r_pc;
-	f->f_sr = regs->r_sr;
+	f = (struct trapframe *) p->p_md.md_regs;
+	bcopy((void *) regs, (void *) f, sizeof(*regs));
 
 	return (0);
 }
@@ -146,7 +142,7 @@ procfs_sstep(p)
 
 	error = procfs_read_regs(p, &r);
 	if (error == 0) {
-		r.r_sr |= PSL_T;
+		r.r_eflags |= PSL_T;
 		error = procfs_write_regs(p, &r);
 	}
 

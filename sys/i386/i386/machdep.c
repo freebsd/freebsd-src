@@ -41,23 +41,24 @@
 #include "npx.h"
 #include "isa.h"
 
-#include <stddef.h>
-#include "param.h"
-#include "systm.h"
-#include "signalvar.h"
-#include "kernel.h"
-#include "map.h"
-#include "proc.h"
-#include "user.h"
-#include "exec.h"            /* for PS_STRINGS */
-#include "buf.h"
-#include "reboot.h"
-#include "conf.h"
-#include "file.h"
-#include "callout.h"
-#include "malloc.h"
-#include "mbuf.h"
-#include "msgbuf.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/signalvar.h>
+#include <sys/kernel.h>
+#include <sys/map.h>
+#include <sys/proc.h>
+#include <sys/user.h>
+#include <sys/buf.h>
+#include <sys/reboot.h>
+#include <sys/conf.h>
+#include <sys/file.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/msgbuf.h>
+#include <sys/ioctl.h>
+#include <sys/tty.h>
+#include <sys/sysctl.h>
 
 #ifdef SYSVSHM
 #include "sys/shm.h"
@@ -94,7 +95,7 @@ static void identifycpu(void);
 static void initcpu(void);
 static int test_page(int *, int);
 
-extern int grow(struct proc *,int);
+extern int grow(struct proc *,u_int);
 const char machine[] = "PC-Class";
 const char *cpu_model;
 
@@ -121,6 +122,7 @@ int	bouncepages = BOUNCEPAGES;
 #else
 int	bouncepages = 0;
 #endif
+int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 extern int freebufspace;
 extern char *bouncememory;
 
@@ -141,6 +143,12 @@ extern cyloffset;
 int cpu_class;
 
 void dumpsys __P((void));
+vm_offset_t buffer_sva, buffer_eva;
+vm_offset_t clean_sva, clean_eva;
+vm_offset_t pager_sva, pager_eva;
+int maxbkva, pager_map_size;
+
+#define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
 void
 cpu_startup()
@@ -275,18 +283,19 @@ again:
 	if ((vm_size_t)(v - firstaddr) != size)
 		panic("startup: table size inconsistency");
 
-	/*
-	 * Allocate a submap for buffer space allocations.
-	 * XXX we are NOT using buffer_map, but due to
-	 * the references to it we will just allocate 1 page of
-	 * vm (not real memory) to make things happy...
-	 */
-	buffer_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-				/* bufpages * */NBPG, TRUE);
+	clean_map = kmem_suballoc(kernel_map, &clean_sva, &clean_eva,
+			(nbuf*MAXBSIZE) + VM_PHYS_SIZE + maxbkva + pager_map_size, TRUE);
+
+	io_map = kmem_suballoc(clean_map, &minaddr, &maxaddr, maxbkva, FALSE);
+	pager_map = kmem_suballoc(clean_map, &pager_sva, &pager_eva,
+				  pager_map_size, TRUE);
+
+	buffer_map = kmem_suballoc(clean_map, &buffer_sva, &buffer_eva,
+				(nbuf * MAXBSIZE), TRUE);
 	/*
 	 * Allocate a submap for physio
 	 */
-	phys_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
+	phys_map = kmem_suballoc(clean_map, &minaddr, &maxaddr,
 				 VM_PHYS_SIZE, TRUE);
 
 	/*
@@ -296,7 +305,7 @@ again:
 	mclrefcnt = (char *)malloc(NMBCLUSTERS+CLBYTES/MCLBYTES,
 				   M_MBUF, M_NOWAIT);
 	bzero(mclrefcnt, NMBCLUSTERS+CLBYTES/MCLBYTES);
-	mb_map = kmem_suballoc(kmem_map, (vm_offset_t)&mbutl, &maxaddr,
+	mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl, &maxaddr,
 			       VM_MBUF_SIZE, FALSE);
 	/*
 	 * Initialize callouts
@@ -305,7 +314,7 @@ again:
 	for (i = 1; i < ncallout; i++)
 		callout[i-1].c_next = &callout[i];
 
-	printf("avail memory = %d (%d pages)\n", ptoa(vm_page_free_count), vm_page_free_count);
+	printf("avail memory = %d (%d pages)\n", ptoa(cnt.v_free_count), cnt.v_free_count);
 	printf("using %d buffers containing %d bytes of memory\n",
 		nbuf, bufpages * CLBYTES);
 
@@ -437,11 +446,11 @@ sendsig(catcher, sig, mask, code)
 	register struct proc *p = curproc;
 	register int *regs;
 	register struct sigframe *fp;
-	struct sigacts *ps = p->p_sigacts;
+	struct sigacts *psp = p->p_sigacts;
 	int oonstack, frmtrap;
 
-	regs = p->p_regs;
-        oonstack = ps->ps_onstack;
+	regs = p->p_md.md_regs;
+        oonstack = psp->ps_sigstk.ss_flags & SA_ONSTACK;
 	/*
 	 * Allocate and validate space for the signal handler
 	 * context. Note that if the stack is in P0 space, the
@@ -449,10 +458,12 @@ sendsig(catcher, sig, mask, code)
 	 * will fail if the process has not already allocated
 	 * the space with a `brk'.
 	 */
-        if (!ps->ps_onstack && (ps->ps_sigonstack & sigmask(sig))) {
-		fp = (struct sigframe *)(ps->ps_sigsp
-				- sizeof(struct sigframe));
-                ps->ps_onstack = 1;
+        if ((psp->ps_flags & SAS_ALTSTACK) &&
+	    (psp->ps_sigstk.ss_flags & SA_ONSTACK) == 0 &&
+	    (psp->ps_sigonstack & sigmask(sig))) {
+		fp = (struct sigframe *)(psp->ps_sigstk.ss_base +
+		    psp->ps_sigstk.ss_size - sizeof(struct sigframe));
+		psp->ps_sigstk.ss_flags |= SA_ONSTACK;
 	} else {
 		fp = (struct sigframe *)(regs[tESP]
 			- sizeof(struct sigframe));
@@ -540,7 +551,7 @@ sigreturn(p, uap, retval)
 {
 	register struct sigcontext *scp;
 	register struct sigframe *fp;
-	register int *regs = p->p_regs;
+	register int *regs = p->p_md.md_regs;
 	int eflags;
 
 	/*
@@ -614,7 +625,10 @@ sigreturn(p, uap, retval)
 	if (useracc((caddr_t)scp, sizeof (*scp), 0) == 0)
 		return(EINVAL);
 
-	p->p_sigacts->ps_onstack = scp->sc_onstack & 01;
+	if (scp->sc_onstack & 01)
+		p->p_sigacts->ps_sigstk.ss_flags |= SA_ONSTACK;
+	else
+		p->p_sigacts->ps_sigstk.ss_flags &= ~SA_ONSTACK;
 	p->p_sigmask = scp->sc_mask &~
 	    (sigmask(SIGKILL)|sigmask(SIGCONT)|sigmask(SIGSTOP));
 	regs[tEBP] = scp->sc_fp;
@@ -651,7 +665,7 @@ boot(arghowto)
 		for(;;);
 	}
 	howto = arghowto;
-	if ((howto&RB_NOSYNC) == 0 && waittime < 0 && bfreelist[0].b_forw) {
+	if ((howto&RB_NOSYNC) == 0 && waittime < 0) {
 		register struct buf *bp;
 		int iter, nbusy;
 
@@ -818,19 +832,47 @@ setregs(p, entry, stack)
 	u_long entry;
 	u_long stack;
 {
-	p->p_regs[tEBP] = 0;	/* bottom of the fp chain */
-	p->p_regs[tEIP] = entry;
-	p->p_regs[tESP] = stack;
-	p->p_regs[tSS] = _udatasel;
-	p->p_regs[tDS] = _udatasel;
-	p->p_regs[tES] = _udatasel;
-	p->p_regs[tCS] = _ucodesel;
+	p->p_md.md_regs[tEBP] = 0;	/* bottom of the fp chain */
+	p->p_md.md_regs[tEIP] = entry;
+	p->p_md.md_regs[tESP] = stack;
+	p->p_md.md_regs[tSS] = _udatasel;
+	p->p_md.md_regs[tDS] = _udatasel;
+	p->p_md.md_regs[tES] = _udatasel;
+	p->p_md.md_regs[tCS] = _ucodesel;
 
 	p->p_addr->u_pcb.pcb_flags = 0;	/* no fp at all */
 	load_cr0(rcr0() | CR0_TS);	/* start emulating */
 #if	NNPX > 0
 	npxinit(__INITIAL_NPXCW__);
 #endif	/* NNPX > 0 */
+}
+
+/*
+ * machine dependent system variables.
+ */
+int
+cpu_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
+	int *name;
+	u_int namelen;
+	void *oldp;
+	size_t *oldlenp;
+	void *newp;
+	size_t newlen;
+	struct proc *p;
+{
+
+	/* all sysctl names at this level are terminal */
+	if (namelen != 1)
+		return (ENOTDIR);               /* overloaded */
+
+	switch (name[0]) {
+	case CPU_CONSDEV:
+		return (sysctl_rdstruct(oldp, oldlenp, newp, &cn_tty->t_dev,
+		   sizeof cn_tty->t_dev));
+	default:
+		return (EOPNOTSUPP);
+	}
+	/* NOTREACHED */
 }
 
 /*
@@ -1105,9 +1147,11 @@ init386(first)
 	r_gdt.rd_limit = sizeof(gdt) - 1;
 	r_gdt.rd_base =  (int) gdt;
 	lgdt(&r_gdt);
+
 	r_idt.rd_limit = sizeof(idt) - 1;
 	r_idt.rd_base = (int) idt;
 	lidt(&r_idt);
+
 	_default_ldt = GSEL(GLDT_SEL, SEL_KPL);
 	lldt(_default_ldt);
 	currentldt = _default_ldt;
@@ -1339,7 +1383,7 @@ _remque(element)
  * The registers are in the frame; the frame is in the user area of
  * the process in question; when the process is active, the registers
  * are in "the kernel stack"; when it's not, they're still there, but
- * things get flipped around.  So, since p->p_regs is the whole address
+ * things get flipped around.  So, since p->p_md.md_regs is the whole address
  * of the register set, take its offset from the kernel stack, and
  * index into the user block.  Don't you just *love* virtual memory?
  * (I'm starting to think seymour is right...)
@@ -1348,7 +1392,7 @@ _remque(element)
 int
 ptrace_set_pc (struct proc *p, unsigned int addr) {
 	void *regs = (char*)p->p_addr +
-		((char*) p->p_regs - (char*) kstack);
+		((char*) p->p_md.md_regs - (char*) kstack);
 
 	((struct trapframe *)regs)->tf_eip = addr;
 	return 0;
@@ -1357,7 +1401,7 @@ ptrace_set_pc (struct proc *p, unsigned int addr) {
 int
 ptrace_single_step (struct proc *p) {
 	void *regs = (char*)p->p_addr +
-		((char*) p->p_regs - (char*) kstack);
+		((char*) p->p_md.md_regs - (char*) kstack);
 
 	((struct trapframe *)regs)->tf_eflags |= PSL_T;
 	return 0;
@@ -1370,7 +1414,7 @@ ptrace_single_step (struct proc *p) {
 int
 ptrace_getregs (struct proc *p, unsigned int *addr) {
 	int error;
-	struct regs regs = {0};
+	struct reg regs = {0};
 
 	if (error = fill_regs (p, &regs))
 		return error;
@@ -1381,7 +1425,7 @@ ptrace_getregs (struct proc *p, unsigned int *addr) {
 int
 ptrace_setregs (struct proc *p, unsigned int *addr) {
 	int error;
-	struct regs regs = {0};
+	struct reg regs = {0};
 
 	if (error = copyin (addr, &regs, sizeof(regs)))
 		return error;
@@ -1390,11 +1434,11 @@ ptrace_setregs (struct proc *p, unsigned int *addr) {
 }
 
 int
-fill_regs(struct proc *p, struct regs *regs) {
+fill_regs(struct proc *p, struct reg *regs) {
 	int error;
 	struct trapframe *tp;
 	void *ptr = (char*)p->p_addr +
-		((char*) p->p_regs - (char*) kstack);
+		((char*) p->p_md.md_regs - (char*) kstack);
 
 	tp = ptr;
 	regs->r_es = tp->tf_es;
@@ -1415,11 +1459,11 @@ fill_regs(struct proc *p, struct regs *regs) {
 }
 
 int
-set_regs (struct proc *p, struct regs *regs) {
+set_regs (struct proc *p, struct reg *regs) {
 	int error;
 	struct trapframe *tp;
 	void *ptr = (char*)p->p_addr +
-		((char*) p->p_regs - (char*) kstack);
+		((char*) p->p_md.md_regs - (char*) kstack);
 
 	tp = ptr;
 	tp->tf_es = regs->r_es;
@@ -1444,6 +1488,69 @@ set_regs (struct proc *p, struct regs *regs) {
 void
 Debugger(const char *msg)
 {
-	printf("Debugger(\"%s\") called.", msg);
+	printf("Debugger(\"%s\") called.\n", msg);
 }
 #endif /* no DDB */
+
+#include <sys/disklabel.h>
+#define b_cylin	b_resid
+#define dkpart(dev)              (minor(dev) & 7)
+/*
+ * Determine the size of the transfer, and make sure it is
+ * within the boundaries of the partition. Adjust transfer
+ * if needed, and signal errors or early completion.
+ */
+int
+bounds_check_with_label(struct buf *bp, struct disklabel *lp, int wlabel)
+{
+        struct partition *p = lp->d_partitions + dkpart(bp->b_dev);
+        int labelsect = lp->d_partitions[0].p_offset;
+        int maxsz = p->p_size,
+                sz = (bp->b_bcount + DEV_BSIZE - 1) >> DEV_BSHIFT;
+
+        /* overwriting disk label ? */
+        /* XXX should also protect bootstrap in first 8K */
+        if (bp->b_blkno + p->p_offset <= LABELSECTOR + labelsect &&
+#if LABELSECTOR != 0
+            bp->b_blkno + p->p_offset + sz > LABELSECTOR + labelsect &&
+#endif
+            (bp->b_flags & B_READ) == 0 && wlabel == 0) {
+                bp->b_error = EROFS;
+                goto bad;
+        }
+
+#if     defined(DOSBBSECTOR) && defined(notyet)
+        /* overwriting master boot record? */
+        if (bp->b_blkno + p->p_offset <= DOSBBSECTOR &&
+            (bp->b_flags & B_READ) == 0 && wlabel == 0) {
+                bp->b_error = EROFS;
+                goto bad;
+        }
+#endif
+
+        /* beyond partition? */
+        if (bp->b_blkno < 0 || bp->b_blkno + sz > maxsz) {
+                /* if exactly at end of disk, return an EOF */
+                if (bp->b_blkno == maxsz) {
+                        bp->b_resid = bp->b_bcount;
+                        return(0);
+                }
+                /* or truncate if part of it fits */
+                sz = maxsz - bp->b_blkno;
+                if (sz <= 0) {
+                        bp->b_error = EINVAL;
+                        goto bad;
+                }
+                bp->b_bcount = sz << DEV_BSHIFT;
+        }
+
+        /* calculate cylinder for disksort to order transfers with */
+        bp->b_pblkno = bp->b_blkno + p->p_offset;
+        bp->b_cylin = bp->b_pblkno / lp->d_secpercyl;
+        return(1);
+
+bad:
+        bp->b_flags |= B_ERROR;
+        return(-1);
+}
+

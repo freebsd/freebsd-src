@@ -44,6 +44,8 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 
+void ktrwrite	__P((struct vnode *, struct ktr_header *));
+
 struct ktr_header *
 ktrgetheader(type)
 	int type;
@@ -60,6 +62,7 @@ ktrgetheader(type)
 	return (kth);
 }
 
+void
 ktrsyscall(vp, code, narg, args)
 	struct vnode *vp;
 	int code, narg, args[];
@@ -86,6 +89,7 @@ ktrsyscall(vp, code, narg, args)
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
 
+void
 ktrsysret(vp, code, error, retval)
 	struct vnode *vp;
 	int code, error, retval;
@@ -108,6 +112,7 @@ ktrsysret(vp, code, error, retval)
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
 
+void
 ktrnamei(vp, path)
 	struct vnode *vp;
 	char *path;
@@ -125,6 +130,7 @@ ktrnamei(vp, path)
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
 
+void
 ktrgenio(vp, fd, rw, iov, len, error)
 	struct vnode *vp;
 	int fd;
@@ -166,6 +172,7 @@ done:
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
 
+void
 ktrpsig(vp, sig, action, mask, code)
 	struct vnode *vp;
 	int sig;
@@ -190,6 +197,7 @@ ktrpsig(vp, sig, action, mask, code)
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
 
+void
 ktrcsw(vp, out, user)
 	struct vnode *vp;
 	int out, user;
@@ -222,6 +230,7 @@ struct ktrace_args {
 	int	pid;
 };
 /* ARGSUSED */
+int
 ktrace(curp, uap, retval)
 	struct proc *curp;
 	register struct ktrace_args *uap;
@@ -357,6 +366,7 @@ ktrops(curp, p, ops, facs, vp)
 	return (1);
 }
 
+int
 ktrsetchildren(curp, top, ops, facs, vp)
 	struct proc *curp, *top;
 	int ops, facs;
@@ -392,6 +402,7 @@ ktrsetchildren(curp, top, ops, facs, vp)
 	/*NOTREACHED*/
 }
 
+void
 ktrwrite(vp, kth)
 	struct vnode *vp;
 	register struct ktr_header *kth;
@@ -446,6 +457,7 @@ ktrwrite(vp, kth)
  *
  * TODO: check groups.  use caller effective gid.
  */
+int
 ktrcanset(callp, targetp)
 	struct proc *callp, *targetp;
 {

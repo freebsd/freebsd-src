@@ -176,13 +176,15 @@ static void wderror(struct buf *bp, struct disk *du, char *mesg);
 static void wdflushirq(struct disk *du, int old_ipl);
 static int wdreset(struct disk *du);
 static void wdsleep(int ctrlr, char *wmesg);
-static void wdtimeout(caddr_t cdu, int ticks);
+static void wdtimeout(caddr_t cdu);
 static int wdunwedge(struct disk *du);
 static int wdwait(struct disk *du, u_char bits_wanted, int timeout);
 
 struct isa_driver wdcdriver = {
 	wdprobe, wdattach, "wdc",
 };
+
+extern char *readdisklabel();
 
 /*
  * Probe for controller.
@@ -321,7 +323,7 @@ wdattach(struct isa_device *dvp)
 			 * Start timeout routine for this drive.
 			 * XXX timeout should be per controller.
 			 */
-			wdtimeout((caddr_t)du, 0);
+			wdtimeout((caddr_t)du);
 		} else {
 			free(du, M_TEMP);
 			wddrives[lunit] = NULL;
@@ -397,7 +399,8 @@ wdstrategy(register struct buf *bp)
 	dp = &wdutab[lunit];
 	s = splbio();
 
-	cldisksort(dp, bp, 254*DEV_BSIZE);
+	/* cldisksort(dp, bp, 254*DEV_BSIZE); */
+	disksort(dp, bp);
 
 	if (dp->b_active == 0)
 		wdustart(du);	/* start drive */
@@ -440,13 +443,15 @@ wdustart(register struct disk *du)
 	if (bp == NULL)
 		return;
 
+	dp->b_actf = bp->b_actf;
+	bp->b_actf = NULL;
 	/* link onto controller queue */
-	dp->b_forw = NULL;
-	if (wdtab[ctrlr].b_actf == NULL)
-		wdtab[ctrlr].b_actf = dp;
-	else
-		wdtab[ctrlr].b_actl->b_forw = dp;
-	wdtab[ctrlr].b_actl = dp;
+	if (wdtab[ctrlr].b_actf == NULL) {
+		wdtab[ctrlr].b_actf = bp;
+	} else {
+		*wdtab[ctrlr].b_actb = bp;
+	}
+	wdtab[ctrlr].b_actb = &bp->b_actf;
 
 	/* mark the drive unit as busy */
 	dp->b_active = 1;
@@ -474,19 +479,9 @@ wdstart(int ctrlr)
 
 loop:
 	/* is there a drive for the controller to do a transfer with? */
-	dp = wdtab[ctrlr].b_actf;
-	if (dp == NULL)
+	bp = wdtab[ctrlr].b_actf;
+	if (bp == NULL)
 		return;
-
-	/*
-	 * Is there a transfer to this drive?  If so, link it on the
-	 * controller's queue.
-	 */
-	bp = dp->b_actf;
-	if (bp == NULL) {
-		wdtab[ctrlr].b_actf = dp->b_forw;
-		goto loop;
-	}
 
 	/* obtain controller and drive information */
 	lunit = wdunit(bp->b_dev);
@@ -671,9 +666,10 @@ wdintr(int unit)
 		return;
 	}
 
-	dp = wdtab[unit].b_actf;
-	bp = dp->b_actf;
+	bp = wdtab[unit].b_actf;
 	du = wddrives[wdunit(bp->b_dev)];
+	dp = &wdutab[du->dk_lunit];
+
 	du->dk_timeout = 0;
 
 	if (wdwait(du, 0, TIMEOUT) < 0) {
@@ -783,13 +779,12 @@ outt:
 done: ;
 		/* done with this transfer, with or without error */
 		du->dk_flags &= ~DKFL_SINGLE;
-		wdtab[unit].b_actf = dp->b_forw;
+		wdtab[unit].b_actf = bp->b_actf;
 		wdtab[unit].b_errcnt = 0;
 		bp->b_resid = bp->b_bcount - du->dk_skip * DEV_BSIZE;
-		du->dk_skip = 0;
 		dp->b_active = 0;
-		dp->b_actf = bp->av_forw;
 		dp->b_errcnt = 0;
+		du->dk_skip = 0;
 		biodone(bp);
 	}
 
@@ -797,8 +792,7 @@ done: ;
 	wdtab[unit].b_active = 0;
 
 	/* anything more on drive queue? */
-	if (dp->b_actf)
-		wdustart(du);
+	wdustart(du);
 	/* anything more for controller to do? */
 	if (wdtab[unit].b_actf)
 		wdstart(unit);
@@ -871,11 +865,16 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		 * to the driver by resetting the state machine.
 		 */
 		save_label = du->dk_dd;
+		du->dk_dd.d_partitions[WDRAW].p_offset = 0;
+		du->dk_dd.d_partitions[WDRAW].p_size = 0x7fffffff;/* XXX */
 #define WDSTRATEGY	((int (*)(struct buf *)) wdstrategy)	/* XXX */
 		msg = readdisklabel(makewddev(major(dev), lunit, WDRAW),
-				    (d_strategy_t *) WDSTRATEGY, &du->dk_dd,
-				    du->dk_dospartitions, &du->dk_bad,
-				    (struct buf **)NULL);
+				    WDSTRATEGY, &du->dk_dd,
+				    du->dk_dospartitions, &du->dk_bad);
+/*
+		msg = readdisklabel(makewddev(major(dev), lunit, WDRAW),
+				WDSTRATEGY, &du->dk_dd);
+*/
 		du->dk_flags &= ~DKFL_LABELLING;
 		if (msg != NULL) {
 			du->dk_dd = save_label;
@@ -1347,7 +1346,7 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 			du->dk_openpart |= (1 << 0);	/* XXX */
 			wlab = du->dk_wlabel;
 			du->dk_wlabel = 1;
-			error = writedisklabel(dev, (d_strategy_t *) WDSTRATEGY,
+			error = writedisklabel(dev, WDSTRATEGY,
 					&du->dk_dd, du->dk_dospartitions);
 			du->dk_openpart = du->dk_copenpart | du->dk_bopenpart;
 			du->dk_wlabel = wlab;
@@ -1406,19 +1405,24 @@ wdsize(dev_t dev)
 {
 	int	lunit = wdunit(dev), part = wdpart(dev), val;
 	struct disk *du;
+	int size;
 
-	if (lunit >= NWD || wddospart(dev) || (du = wddrives[lunit]) == NULL)
+	if (lunit >= NWD || wddospart(dev) || (du = wddrives[lunit]) == NULL) {
 		return (-1);
+	}
 	val = 0;
-	if (du->dk_state == CLOSED)
+	if (du->dk_state == CLOSED) {
 		val = wdopen(makewddev(major(dev), lunit, WDRAW),
 			     FREAD, S_IFBLK, 0);
-	if (val != 0 || du->dk_flags & DKFL_WRITEPROT)
+	}
+	if (val != 0 || du->dk_flags & DKFL_WRITEPROT) {
 		return (-1);
-	return ((int)du->dk_dd.d_partitions[part].p_size);
+	}
+	size = ((int)du->dk_dd.d_partitions[part].p_size);
+	return size;
 }
 
-extern char *vmmap;		/* poor name! */
+extern char *ptvmmap;		/* poor name! */
 
 /*
  * Dump core after a system crash.
@@ -1580,7 +1584,7 @@ out:
 			return (EIO);
 		}
 		while (blkcnt != 0) {
-			pmap_enter(kernel_pmap, CADDR1, trunc_page(addr),
+			pmap_enter(kernel_pmap, (vm_offset_t)CADDR1, trunc_page(addr),
 				   VM_PROT_READ, TRUE);
 
 			/* Ready to send data? */
@@ -1685,7 +1689,7 @@ wdsleep(int ctrlr, char *wmesg)
 }
 
 static void
-wdtimeout(caddr_t cdu, int ticks)
+wdtimeout(caddr_t cdu)
 {
 	struct disk *du;
 	int	x;
@@ -1700,7 +1704,7 @@ wdtimeout(caddr_t cdu, int ticks)
 		du->dk_flags |= DKFL_SINGLE;
 		wdstart(du->dk_ctrlr);
 	}
-	timeout(wdtimeout, cdu, hz);
+	timeout((timeout_func_t)wdtimeout, cdu, hz);
 	splx(x);
 }
 

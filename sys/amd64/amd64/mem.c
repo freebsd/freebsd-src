@@ -45,24 +45,23 @@
  * Memory special file
  */
 
-#include "param.h"
-#include "conf.h"
-#include "buf.h"
-#include "systm.h"
-#include "uio.h"
-#include "malloc.h"
-#include "proc.h"
+#include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/buf.h>
+#include <sys/systm.h>
+#include <sys/uio.h>
+#include <sys/malloc.h>
+#include <sys/proc.h>
 
-#include "machine/cpu.h"
-#include "machine/psl.h"
+#include <machine/cpu.h>
+#include <machine/psl.h>
 
-#include "vm/vm_param.h"
-#include "vm/lock.h"
-#include "vm/vm_statistics.h"
-#include "vm/vm_prot.h"
-#include "vm/pmap.h"
+#include <vm/vm_param.h>
+#include <vm/lock.h>
+#include <vm/vm_prot.h>
+#include <vm/pmap.h>
 
-extern        char *vmmap;            /* poor name! */
+extern        char *ptvmmap;            /* poor name! */
 /*ARGSUSED*/
 int
 mmclose(dev, uio, flags)
@@ -74,7 +73,7 @@ mmclose(dev, uio, flags)
 
 	switch (minor(dev)) {
 	case 14:
-		fp = (struct trapframe *)curproc->p_regs;
+		fp = (struct trapframe *)curproc->p_md.md_regs;
 		fp->tf_eflags &= ~PSL_IOPL;
 		break;
 	default:
@@ -93,7 +92,7 @@ mmopen(dev, uio, flags)
 
 	switch (minor(dev)) {
 	case 14:
-		fp = (struct trapframe *)curproc->p_regs;
+		fp = (struct trapframe *)curproc->p_md.md_regs;
 		fp->tf_eflags |= PSL_IOPL;
 		break;
 	default:
@@ -128,25 +127,25 @@ mmrw(dev, uio, flags)
 /* minor device 0 is physical memory */
 		case 0:
 			v = uio->uio_offset;
-			pmap_enter(pmap_kernel(), (vm_offset_t)vmmap, v,
+			pmap_enter(kernel_pmap, (vm_offset_t)ptvmmap, v,
 				uio->uio_rw == UIO_READ ? VM_PROT_READ : VM_PROT_WRITE,
 				TRUE);
 			o = (int)uio->uio_offset & PGOFSET;
 			c = (u_int)(NBPG - ((int)iov->iov_base & PGOFSET));
-			c = MIN(c, (u_int)(NBPG - o));
-			c = MIN(c, (u_int)iov->iov_len);
-			error = uiomove((caddr_t)&vmmap[o], (int)c, uio);
-			pmap_remove(pmap_kernel(), (vm_offset_t)vmmap,
-				    (vm_offset_t)&vmmap[NBPG]);
+			c = min(c, (u_int)(NBPG - o));
+			c = min(c, (u_int)iov->iov_len);
+			error = uiomove((caddr_t)&ptvmmap[o], (int)c, uio);
+			pmap_remove(kernel_pmap, (vm_offset_t)ptvmmap,
+				    (vm_offset_t)&ptvmmap[NBPG]);
 			continue;
 
 /* minor device 1 is kernel memory */
 		case 1:
 			c = iov->iov_len;
-			if (!kernacc((caddr_t)uio->uio_offset, c,
+			if (!kernacc((caddr_t)(int)uio->uio_offset, c,
 			    uio->uio_rw == UIO_READ ? B_READ : B_WRITE))
 				return(EFAULT);
-			error = uiomove((caddr_t)uio->uio_offset, (int)c, uio);
+			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
 			continue;
 
 /* minor device 2 is EOF/RATHOLE */
@@ -167,7 +166,7 @@ mmrw(dev, uio, flags)
 				    malloc(CLBYTES, M_TEMP, M_WAITOK);
 				bzero(zbuf, CLBYTES);
 			}
-			c = MIN(iov->iov_len, CLBYTES);
+			c = min(iov->iov_len, CLBYTES);
 			error = uiomove(zbuf, (int)c, uio);
 			continue;
 

@@ -111,6 +111,7 @@ struct vnodeopv_desc fifo_vnodeop_opv_desc =
  * Trivial lookup routine that always fails.
  */
 /* ARGSUSED */
+int
 fifo_lookup(ap)
 	struct vop_lookup_args /* {
 		struct vnode * a_dvp;
@@ -128,6 +129,7 @@ fifo_lookup(ap)
  * to find an active instance of a fifo.
  */
 /* ARGSUSED */
+int
 fifo_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -218,6 +220,7 @@ fifo_open(ap)
  * Vnode op for read
  */
 /* ARGSUSED */
+int
 fifo_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -257,6 +260,7 @@ fifo_read(ap)
  * Vnode op for write
  */
 /* ARGSUSED */
+int
 fifo_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -286,6 +290,7 @@ fifo_write(ap)
  * Device ioctl operation.
  */
 /* ARGSUSED */
+int
 fifo_ioctl(ap)
 	struct vop_ioctl_args /* {
 		struct vnode *a_vp;
@@ -308,6 +313,7 @@ fifo_ioctl(ap)
 }
 
 /* ARGSUSED */
+int
 fifo_select(ap)
 	struct vop_select_args /* {
 		struct vnode *a_vp;
@@ -329,6 +335,7 @@ fifo_select(ap)
 /*
  * This is a noop, simply returning what one has been given.
  */
+int
 fifo_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
@@ -349,6 +356,7 @@ fifo_bmap(ap)
  * At the moment we do not do any locking.
  */
 /* ARGSUSED */
+int
 fifo_lock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
@@ -359,6 +367,7 @@ fifo_lock(ap)
 }
 
 /* ARGSUSED */
+int
 fifo_unlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
@@ -372,6 +381,7 @@ fifo_unlock(ap)
  * Device close routine
  */
 /* ARGSUSED */
+int
 fifo_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -407,6 +417,7 @@ fifo_close(ap)
 /*
  * Print out the contents of a fifo vnode.
  */
+int
 fifo_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -416,11 +427,13 @@ fifo_print(ap)
 	printf("tag VT_NON");
 	fifo_printinfo(ap->a_vp);
 	printf("\n");
+	return (0);
 }
 
 /*
  * Print out internal contents of a fifo vnode.
  */
+int
 fifo_printinfo(vp)
 	struct vnode *vp;
 {
@@ -428,11 +441,13 @@ fifo_printinfo(vp)
 
 	printf(", fifo with %d readers and %d writers",
 		fip->fi_readers, fip->fi_writers);
+	return (0);
 }
 
 /*
  * Return POSIX pathconf information applicable to fifo's.
  */
+int
 fifo_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -460,6 +475,7 @@ fifo_pathconf(ap)
 /*
  * Fifo failed operation
  */
+int
 fifo_ebadf()
 {
 
@@ -470,6 +486,7 @@ fifo_ebadf()
  * Fifo advisory byte-level locks.
  */
 /* ARGSUSED */
+int
 fifo_advlock(ap)
 	struct vop_advlock_args /* {
 		struct vnode *a_vp;
@@ -486,6 +503,7 @@ fifo_advlock(ap)
 /*
  * Fifo bad operation
  */
+int
 fifo_badop()
 {
 

@@ -69,12 +69,12 @@ extern	struct tty *cn_tty;
 struct proc; struct uio;
 
 /* cdevsw[] entries */
-extern int cnopen(int /*dev_t*/, int, int, struct proc *);
-extern int cnclose(int /*dev_t*/, int, int, struct proc *);
-extern int cnread(int /*dev_t*/, struct uio *, int);
-extern int cnwrite(int /*dev_t*/, struct uio *, int);
-extern int cnioctl(int /*dev_t*/, int, caddr_t, int, struct proc *);
-extern int cnselect(int /*dev_t*/, int, struct proc *);
+extern int cnopen(dev_t, int, int, struct proc *);
+extern int cnclose(dev_t, int, int, struct proc *);
+extern int cnread(dev_t, struct uio *, int);
+extern int cnwrite(dev_t, struct uio *, int);
+extern int cnioctl(dev_t, int, caddr_t, int, struct proc *);
+extern int cnselect(dev_t, int, struct proc *);
 
 /* other kernel entry points */
 extern void cninit(void);

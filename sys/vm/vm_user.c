@@ -168,6 +168,7 @@ svm_protect(p, uap, retval)
 	return((int)rv);
 }
 
+#endif
 /*
  *	vm_inherit sets the inheritence of the specified range in the
  *	specified map.
@@ -203,7 +204,6 @@ vm_protect(map, start, size, set_maximum, new_protection)
 
 	return(vm_map_protect(map, trunc_page(start), round_page(start+size), new_protection, set_maximum));
 }
-#endif
 
 /*
  *	vm_allocate allocates "zero fill" memory in the specfied
@@ -255,6 +255,7 @@ vm_deallocate(map, start, size)
 	return(vm_map_remove(map, trunc_page(start), round_page(start+size)));
 }
 
+#if 1
 /*
  * Similar to vm_allocate but assigns an explicit pager.
  */
@@ -310,3 +311,4 @@ vm_allocate_with_pager(map, addr, size, anywhere, pager, poffset, internal)
 		vm_object_setpager(object, pager, (vm_offset_t) 0, TRUE);
 	return(result);
 }
+#endif

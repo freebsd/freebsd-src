@@ -86,6 +86,7 @@ struct vfsops mfs_vfsops = {
  */
 #define ROOTNAME	"mfs_root"
 
+int
 mfs_mountroot()
 {
 	extern struct vnode *rootvp;
@@ -149,6 +150,7 @@ mfs_mountroot()
  * This is called early in boot to set the base address and size
  * of the mini-root.
  */
+int
 mfs_initminiroot(base)
 	caddr_t base;
 {
@@ -294,6 +296,7 @@ mfs_start(mp, flags, p)
 /*
  * Get file system statistics.
  */
+int
 mfs_statfs(mp, sbp, p)
 	struct mount *mp;
 	struct statfs *sbp;

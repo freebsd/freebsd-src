@@ -73,6 +73,7 @@
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
+#include <vm/vm_kern.h>
 
 /*
  *	Virtual memory maps provide for the mapping, protection,
@@ -136,6 +137,11 @@ vm_offset_t	kentry_data;
 vm_size_t	kentry_data_size;
 vm_map_entry_t	kentry_free;
 vm_map_t	kmap_free;
+
+int		kentry_count;
+vm_map_t	kmap_free;
+static vm_offset_t mapvm=0;
+static int	mapvmpgcnt=0;
 
 static void	_vm_map_clip_end __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 static void	_vm_map_clip_start __P((vm_map_t, vm_map_entry_t, vm_offset_t));
@@ -273,27 +279,71 @@ vm_map_init(map, min, max, pageable)
  *	Allocates a VM map entry for insertion.
  *	No entry fields are filled in.  This routine is
  */
-vm_map_entry_t vm_map_entry_create(map)
+static struct vm_map_entry *mappool;
+static int mappoolcnt;
+void vm_map_entry_dispose(vm_map_t map, vm_map_entry_t entry);
+
+vm_map_entry_t
+vm_map_entry_create(map)
 	vm_map_t	map;
 {
 	vm_map_entry_t	entry;
-#ifdef DEBUG
-	extern vm_map_t		kernel_map, kmem_map, mb_map, pager_map;
-	boolean_t		isspecial;
+	int s;
+	int i;
+#define KENTRY_LOW_WATER 64
+#define MAPENTRY_LOW_WATER 64
 
-	isspecial = (map == kernel_map || map == kmem_map ||
-		     map == mb_map || map == pager_map);
-	if (isspecial && map->entries_pageable ||
-	    !isspecial && !map->entries_pageable)
-		panic("vm_map_entry_create: bogus map");
-#endif
-	if (map->entries_pageable) {
+	/*
+	 * This is a *very* nasty (and sort of incomplete) hack!!!!
+	 */
+	if (kentry_count < KENTRY_LOW_WATER) {
+		if (mapvmpgcnt && mapvm) {
+			vm_page_t m;
+			if (m = vm_page_alloc(kmem_object, mapvm-vm_map_min(kmem_map))) {
+				int newentries;
+				newentries = (NBPG/sizeof (struct vm_map_entry));
+				vm_page_wire(m);
+				m->flags &= ~PG_BUSY;
+				pmap_enter(vm_map_pmap(kmem_map), mapvm,
+					VM_PAGE_TO_PHYS(m), VM_PROT_DEFAULT, 1);
+
+				entry = (vm_map_entry_t) mapvm;
+				mapvm += NBPG;
+				--mapvmpgcnt;
+
+				for (i = 0; i < newentries; i++) {
+					vm_map_entry_dispose(kernel_map, entry);
+					entry++;
+				}
+			}
+		}
+	}
+
+	if (map == kernel_map || map == kmem_map || map == pager_map) {
+
+		if (entry = kentry_free) {
+			kentry_free = entry->next;
+			--kentry_count;
+			return entry;
+		}
+
+		if (entry = mappool) {
+			mappool = entry->next;
+			--mappoolcnt;
+			return entry;
+		}
+
+	} else {
+		if (entry = mappool) {
+			mappool = entry->next;
+			--mappoolcnt;
+			return entry;
+		}
+			
 		MALLOC(entry, vm_map_entry_t, sizeof(struct vm_map_entry),
 		       M_VMMAPENT, M_WAITOK);
-	} else {
-		if (entry = kentry_free)
-			kentry_free = kentry_free->next;
 	}
+dopanic:
 	if (entry == NULL)
 		panic("vm_map_entry_create: out of map entries");
 
@@ -305,25 +355,28 @@ vm_map_entry_t vm_map_entry_create(map)
  *
  *	Inverse of vm_map_entry_create.
  */
-void vm_map_entry_dispose(map, entry)
+void
+vm_map_entry_dispose(map, entry)
 	vm_map_t	map;
 	vm_map_entry_t	entry;
 {
-#ifdef DEBUG
-	extern vm_map_t		kernel_map, kmem_map, mb_map, pager_map;
-	boolean_t		isspecial;
+	extern vm_map_t		kernel_map, kmem_map, pager_map;
+	int s;
 
-	isspecial = (map == kernel_map || map == kmem_map ||
-		     map == mb_map || map == pager_map);
-	if (isspecial && map->entries_pageable ||
-	    !isspecial && !map->entries_pageable)
-		panic("vm_map_entry_dispose: bogus map");
-#endif
-	if (map->entries_pageable) {
-		FREE(entry, M_VMMAPENT);
-	} else {
+	if (map == kernel_map || map == kmem_map || map == pager_map ||
+		kentry_count < KENTRY_LOW_WATER) {
 		entry->next = kentry_free;
 		kentry_free = entry;
+		++kentry_count;
+	} else {
+		if (mappoolcnt < MAPENTRY_LOW_WATER) {
+			entry->next = mappool;
+			mappool = entry;
+			++mappoolcnt;
+			return;
+		}
+			
+		FREE(entry, M_VMMAPENT);
 	}
 }
 
@@ -799,7 +852,7 @@ static void _vm_map_clip_start(map, entry, start)
 	 *	See if we can simplify this entry first
 	 */
 		 
-	vm_map_simplify_entry(map, entry);
+	/* vm_map_simplify_entry(map, entry); */
 
 	/*
 	 *	Split off the front portion --
@@ -1130,7 +1183,7 @@ vm_map_pageable(map, start, end, new_pageable)
 {
 	register vm_map_entry_t	entry;
 	vm_map_entry_t		start_entry;
-	register vm_offset_t	failed;
+	register vm_offset_t	failed = 0;
 	int			rv;
 
 	vm_map_lock(map);
@@ -2546,11 +2599,13 @@ void vm_map_simplify(map, start)
 		if (map->first_free == this_entry)
 			map->first_free = prev_entry;
 
-		SAVE_HINT(map, prev_entry);
-		vm_map_entry_unlink(map, this_entry);
-		prev_entry->end = this_entry->end;
-	 	vm_object_deallocate(this_entry->object.vm_object);
-		vm_map_entry_dispose(map, this_entry);
+		if (!this_entry->object.vm_object->paging_in_progress) {
+			SAVE_HINT(map, prev_entry);
+			vm_map_entry_unlink(map, this_entry);
+			prev_entry->end = this_entry->end;
+		 	vm_object_deallocate(this_entry->object.vm_object);
+			vm_map_entry_dispose(map, this_entry);
+		}
 	}
 	vm_map_unlock(map);
 }

@@ -44,6 +44,7 @@
 #endif
 
 #include "param.h"
+#include <sys/systm.h>
 #include "conf.h"
 #include "ioctl.h"
 #include "proc.h"
@@ -51,7 +52,6 @@
 #include "tty.h"
 #include "uio.h"
 #include "callout.h"
-#include "systm.h"
 #include "kernel.h"
 #include "syslog.h"
 #include "errno.h"
@@ -277,14 +277,20 @@ int	ttrstrt();
 #endif
 
 #if defined(__FreeBSD__)
+#if 0
 #define VIRTUAL_TTY(x)	(pccons[x] = ttymalloc(pccons[x]))
 #define	CONSOLE_TTY	(pccons[NCONS] = ttymalloc(pccons[NCONS]))
+struct	tty 		*pccons[NCONS+1];
+#else
+#define VIRTUAL_TTY(x)	&pccons[x]
+#define	CONSOLE_TTY	&pccons[NCONS]
+struct	tty 		pccons[NCONS+1];
+#endif
+#define	timeout_t	timeout_func_t
 #define	frametype	struct trapframe 
 #define eflags		tf_eflags
-#define	timeout_t	timeout_func_t
 #define	MONO_BUF	(KERNBASE+0xB0000)
 #define	CGA_BUF		(KERNBASE+0xB8000)
-struct	tty 		*pccons[NCONS+1];
 #endif
 
 #if defined(__386BSD__) && !defined(__FreeBSD__)
@@ -456,11 +462,7 @@ int pcopen(dev_t dev, int flag, int mode, struct proc *p)
 		return(EBUSY);
 	tp->t_state |= TS_CARR_ON;
 	tp->t_cflag |= CLOCAL;
-#if defined(__FreeBSD__)
-	return((*linesw[tp->t_line].l_open)(dev, tp, 0));
-#else
 	return((*linesw[tp->t_line].l_open)(dev, tp));
-#endif
 }
 
 
@@ -744,12 +746,12 @@ int pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return 0;
 
 	case KDENABIO:		/* allow io operations */
-	 	fp = (frametype *)p->p_regs;
+	 	fp = (frametype *)p->p_md.md_regs;
 	 	fp->eflags |= PSL_IOPL;
 		return 0; 
 
 	case KDDISABIO:		/* disallow io operations (default) */
-	 	fp = (frametype *)p->p_regs;
+	 	fp = (frametype *)p->p_md.md_regs;
 	 	fp->eflags &= ~PSL_IOPL;
 	 	return 0;
 
@@ -960,7 +962,7 @@ int pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		if (saved_console < 0) {
 			saved_console = get_scr_num();
 			switch_scr(minor(dev));
-	 		fp = (frametype *)p->p_regs;
+	 		fp = (frametype *)p->p_md.md_regs;
 	 		fp->eflags |= PSL_IOPL;
 			scp->status |= UNKNOWN_MODE;
 			scp->status |= KBD_RAW_MODE;
@@ -969,7 +971,7 @@ int pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return EAGAIN;
 
 	case CONSOLE_X_MODE_OFF:/* just to be compatible */
-	 	fp = (frametype *)p->p_regs;
+	 	fp = (frametype *)p->p_md.md_regs;
 	 	fp->eflags &= ~PSL_IOPL;
 		if (crtc_vga) {
 			load_font(0, 16, font_8x16);
@@ -1002,7 +1004,7 @@ int pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		break;
 	}	
 	
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
 	if (error >= 0)
 		return(error);
 	error = ttioctl(tp, cmd, data, flag);
@@ -1028,7 +1030,7 @@ void pcxint(dev_t dev)
 
 void pcstart(struct tty *tp)
 {
-#if defined(NetBSD)
+#if defined(NetBSD) || defined(__FreeBSD__)
 	struct clist *rbp;
 	int i, s, len;
 	u_char buf[PCBURST];
@@ -1046,10 +1048,6 @@ void pcstart(struct tty *tp)
 			if (buf[i]) ansi_put(scp, buf[i]);
 		s = spltty();
 		tp->t_state &= ~TS_BUSY;
-		if (rbp->c_cc) {
-			tp->t_state |= TS_TIMEOUT;
-			timeout((timeout_t)ttrstrt, (caddr_t)tp, 1);
-		}
 		if (rbp->c_cc <= tp->t_lowat) {
 			if (tp->t_state & TS_ASLEEP) {
 				tp->t_state &= ~TS_ASLEEP;
@@ -1060,7 +1058,7 @@ void pcstart(struct tty *tp)
 	}
 	splx(s);
 
-#else /* __FreeBSD__ & __386BSD__ */
+#else /* __386BSD__ */
 
 	int c, s, len, i;
 	scr_stat *scp = get_scr_stat(tp->t_dev);
@@ -1076,12 +1074,7 @@ void pcstart(struct tty *tp)
 					tp->t_state &= ~TS_ASLEEP;
 					wakeup((caddr_t)tp->t_out);
 				}
-				if (tp->t_wsel) {
-					selwakeup(tp->t_wsel, 
-						  tp->t_state & TS_WCOLL);
-					tp->t_wsel = 0;
-					tp->t_state &= ~TS_WCOLL;
-				}
+				selwakeup(&tp->t_wsel);
 			}
 			if (RB_LEN(tp->t_out) == 0)
 				break;

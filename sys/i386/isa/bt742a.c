@@ -342,7 +342,7 @@ int     btprobe();
 int     btattach();
 int     btintr();
 int32   bt_scsi_cmd();
-void	bt_timeout(caddr_t, int);
+void	bt_timeout(caddr_t);
 void	bt_inquire_setup_information();
 void    bt_done();
 void    btminphys();
@@ -1440,7 +1440,7 @@ bt_poll(unit, xs, ccb)
 }
 
 void
-bt_timeout(caddr_t arg1, int arg2)
+bt_timeout(caddr_t arg1)
 {
 	struct bt_ccb * ccb = (struct bt_ccb *)arg1;
 	int     unit;

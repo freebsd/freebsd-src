@@ -42,9 +42,7 @@
  */
 struct mdproc {
 	int	md_flags;		/* machine-dependent flags */
-#ifdef notyet
-	int	*p_regs;		/* registers on current frame */
-#endif
+	int	*md_regs;		/* registers on current frame */
 };
 
 /* md_flags */

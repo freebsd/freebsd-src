@@ -43,6 +43,10 @@
 #define NAHA 1
 #endif /*KERNEL */
 
+#ifndef NetBSD
+typedef timeout_func_t timeout_t;
+#endif
+
 /************************** board definitions *******************************/
 
 /*
@@ -310,7 +314,7 @@ void	aha_done();
 int     ahaattach();
 int     ahaintr();
 int32   aha_scsi_cmd();
-void	aha_timeout(caddr_t, int);
+void	aha_timeout(caddr_t);
 void    ahaminphys();
 u_int32 aha_adapter_info();
 
@@ -684,7 +688,7 @@ ahaintr(unit)
 #endif /*AHADEBUG */
 			}
 			if (ccb) {
-				untimeout(aha_timeout, (caddr_t)ccb);
+				untimeout((timeout_t)aha_timeout, (caddr_t)ccb);
 				aha_done(unit, ccb);
 			}
 			aha->aha_mbx.mbi[i].stat = AHA_MBI_FREE;
@@ -1213,7 +1217,7 @@ aha_scsi_cmd(xs)
 		bcopy(xs->cmd, &ccb->scsi_cmd, ccb->scsi_cmd_length);
 	if (!(flags & SCSI_NOMASK)) {
 		s = splbio();	/* stop instant timeouts */
-		timeout(aha_timeout, (caddr_t)ccb, (xs->timeout * hz) / 1000);
+		timeout((timeout_t)aha_timeout, (caddr_t)ccb, (xs->timeout * hz) / 1000);
 		aha_startmbx(ccb->mbx);
 		/*
 		 * Usually return SUCCESSFULLY QUEUED
@@ -1268,13 +1272,13 @@ aha_poll(unit, xs, ccb)
 		 * clock is not running yet by taking out the 
 		 * clock queue entry it makes
 		 */
-		aha_timeout((caddr_t)ccb, 0);
+		aha_timeout((caddr_t)ccb);
 
 		/*
 		 * because we are polling,
 		 * take out the timeout entry aha_timeout made
 		 */
-		untimeout(aha_timeout, (caddr_t)ccb);
+		untimeout((timeout_t)aha_timeout, (caddr_t)ccb);
 		count = 2000;
 		while (count) {
 			/*
@@ -1296,7 +1300,7 @@ aha_poll(unit, xs, ccb)
 			 * Notice that this time there is no
 			 * clock queue entry to remove
 			 */
-			aha_timeout((caddr_t)ccb, 0);
+			aha_timeout((caddr_t)ccb);
 		}
 	}
 	if (xs->error)
@@ -1432,7 +1436,7 @@ aha_bus_speed_check(unit, speed)
 #endif	/*TUNE_1542*/
 
 void
-aha_timeout(caddr_t arg1, int arg2)
+aha_timeout(caddr_t arg1)
 {
 	struct aha_ccb * ccb = (struct aha_ccb *)arg1;
 	int     unit;
@@ -1468,7 +1472,7 @@ aha_timeout(caddr_t arg1, int arg2)
 		printf("\n");
 		aha_abortmbx(ccb->mbx);
 		/* 4 secs for the abort */
-		timeout(aha_timeout, (caddr_t)ccb, 4 * hz);
+		timeout((timeout_t)aha_timeout, (caddr_t)ccb, 4 * hz);
 		ccb->flags = CCB_ABORTED;
 	} splx(s);
 }

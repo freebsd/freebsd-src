@@ -174,7 +174,7 @@ bpf_filter(pc, p, wirelen, buflen)
 	u_int wirelen;
 	register u_int buflen;
 {
-	register u_long A, X;
+	register u_long A = 0, X = 0;
 	register int k;
 	long mem[BPF_MEMWORDS];
 
@@ -183,10 +183,7 @@ bpf_filter(pc, p, wirelen, buflen)
 		 * No filter means accept all.
 		 */
 		return (u_int)-1;
-#ifdef lint
-	A = 0;
-	X = 0;
-#endif
+
 	--pc;
 	while (1) {
 		++pc;

@@ -157,7 +157,7 @@ int
 isofncmp(unsigned char *fn,int fnlen,unsigned char *isofn,int isolen)
 {
 	int i, j;
-	char c;
+	unsigned char c;
 	
 	while (--fnlen >= 0) {
 		if (--isolen < 0)

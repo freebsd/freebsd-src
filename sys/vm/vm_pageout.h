@@ -72,7 +72,11 @@
 
 extern int	vm_pages_needed;	/* should be some "event" structure */
 simple_lock_data_t	vm_pages_needed_lock;
+extern int vm_pageout_pages_needed;
 
+#define VM_PAGEOUT_ASYNC 0
+#define VM_PAGEOUT_SYNC 1
+#define VM_PAGEOUT_FORCE 2
 
 /*
  *	Exported routines.
@@ -82,15 +86,27 @@ simple_lock_data_t	vm_pages_needed_lock;
  *	Signal pageout-daemon and wait for it.
  */
 
-#define	VM_WAIT		{ \
-			simple_lock(&vm_pages_needed_lock); \
-			thread_wakeup((int)&vm_pages_needed); \
-			thread_sleep((int)&cnt.v_free_count, \
-				&vm_pages_needed_lock, FALSE); \
-			}
+#define VM_WAIT vm_wait()
+
+inline static void vm_wait() {
+	extern struct proc *curproc, *pageproc;
+	int s;
+	s = splhigh();
+	if (curproc == pageproc) {
+		vm_pageout_pages_needed = 1;
+		tsleep((caddr_t) &vm_pageout_pages_needed, PSWP, "vmwait", 0);
+		vm_pageout_pages_needed = 0;
+	} else {
+		wakeup((caddr_t) &vm_pages_needed);
+		tsleep((caddr_t) &cnt.v_free_count, PVM, "vmwait", 0);
+	}
+	splx(s);
+}
+
+
 #ifdef KERNEL
 void		 vm_pageout __P((void));
-void		 vm_pageout_scan __P((void));
+int		 vm_pageout_scan __P((void));
 void		 vm_pageout_page __P((vm_page_t, vm_object_t));
 void		 vm_pageout_cluster __P((vm_page_t, vm_object_t));
 #endif

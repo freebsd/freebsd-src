@@ -62,6 +62,7 @@
  * mount system call
  */
 /* ARGSUSED */
+int
 procfs_mount(mp, path, data, ndp, p)
 	struct mount *mp;
 	char *path;
@@ -96,6 +97,7 @@ procfs_mount(mp, path, data, ndp, p)
 /*
  * unmount system call
  */
+int
 procfs_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -118,6 +120,7 @@ procfs_unmount(mp, mntflags, p)
 	return (0);
 }
 
+int
 procfs_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
@@ -141,6 +144,7 @@ procfs_root(mp, vpp)
 /*
  */
 /* ARGSUSED */
+int
 procfs_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -153,6 +157,7 @@ procfs_start(mp, flags, p)
 /*
  * Get file system statistics.
  */
+int
 procfs_statfs(mp, sbp, p)
 	struct mount *mp;
 	struct statfs *sbp;
@@ -177,6 +182,7 @@ procfs_statfs(mp, sbp, p)
 }
 
 
+int
 procfs_quotactl(mp, cmds, uid, arg, p)
 	struct mount *mp;
 	int cmds;
@@ -188,6 +194,7 @@ procfs_quotactl(mp, cmds, uid, arg, p)
 	return (EOPNOTSUPP);
 }
 
+int
 procfs_sync(mp, waitfor)
 	struct mount *mp;
 	int waitfor;
@@ -196,6 +203,7 @@ procfs_sync(mp, waitfor)
 	return (0);
 }
 
+int
 procfs_vget(mp, ino, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -205,6 +213,7 @@ procfs_vget(mp, ino, vpp)
 	return (EOPNOTSUPP);
 }
 
+int
 procfs_fhtovp(mp, fhp, vpp)
 	struct mount *mp;
 	struct fid *fhp;
@@ -214,6 +223,7 @@ procfs_fhtovp(mp, fhp, vpp)
 	return (EINVAL);
 }
 
+int
 procfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
@@ -222,6 +232,7 @@ procfs_vptofh(vp, fhp)
 	return EINVAL;
 }
 
+int
 procfs_init()
 {
 

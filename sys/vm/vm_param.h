@@ -84,14 +84,25 @@ typedef int	boolean_t;
  */
 #define DEFAULT_PAGE_SIZE	4096
 
+#if 0
+
 /*
  *	All references to the size of a page should be done with PAGE_SIZE
  *	or PAGE_SHIFT.  The fact they are variables is hidden here so that
  *	we can easily make them constant if we so desire.
  */
+#ifndef PAGE_SIZE
 #define	PAGE_SIZE	cnt.v_page_size		/* size of page */
+#endif
+#ifndef PAGE_MASK
 #define PAGE_MASK	page_mask		/* size of page - 1 */
+#endif
+#ifndef PAGE_SHIFT
 #define PAGE_SHIFT	page_shift		/* bits to shift for pages */
+#endif
+
+#endif
+
 #ifdef KERNEL
 extern vm_size_t	page_mask;
 extern int		page_shift;
@@ -129,17 +140,34 @@ extern int		page_shift;
  *	No rounding is used.
  */
 #ifdef KERNEL
+
+#if 0
+
+#ifndef atop
 #define	atop(x)		(((unsigned)(x)) >> PAGE_SHIFT)
+#endif
+#ifndef ptoa
 #define	ptoa(x)		((vm_offset_t)((x) << PAGE_SHIFT))
+#endif
 
 /*
  * Round off or truncate to the nearest page.  These will work
  * for either addresses or counts (i.e., 1 byte rounds to 1 page).
  */
+#ifndef round_page
 #define round_page(x) \
 	((vm_offset_t)((((vm_offset_t)(x)) + PAGE_MASK) & ~PAGE_MASK))
+#endif
+#ifndef trunc_page
 #define trunc_page(x) \
 	((vm_offset_t)(((vm_offset_t)(x)) & ~PAGE_MASK))
+#endif
+#ifndef num_pages
+#define num_pages(x) \
+	((vm_offset_t)((((vm_offset_t)(x)) + PAGE_MASK) >> PAGE_SHIFT))
+#endif
+
+#endif
 #define num_pages(x) \
 	((vm_offset_t)((((vm_offset_t)(x)) + PAGE_MASK) >> PAGE_SHIFT))
 
@@ -148,11 +176,13 @@ extern vm_offset_t	first_addr;	/* first physical page */
 extern vm_offset_t	last_addr;	/* last physical page */
 
 #else
+#if 0
 /* out-of-kernel versions of round_page and trunc_page */
 #define	round_page(x) \
        ((((vm_offset_t)(x) + (vm_page_size - 1)) / vm_page_size) * vm_page_size)
 #define	trunc_page(x) \
 	((((vm_offset_t)(x)) / vm_page_size) * vm_page_size)
+#endif
 
 #endif /* KERNEL */
 #endif /* ASSEMBLER */

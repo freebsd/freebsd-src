@@ -99,7 +99,7 @@ static int epioctl __P((struct ifnet * ifp, int, caddr_t));
 
 void epinit __P((int));
 void epintr __P((int));
-void epmbuffill __P((caddr_t, int));
+void epmbuffill __P((caddr_t));
 void epmbufempty __P((struct ep_softc *));
 void epread __P((struct ep_softc *));
 void epreset __P((int));
@@ -953,9 +953,8 @@ is_eeprom_busy(is)
 }
 
 void
-epmbuffill(sp, dummy_arg)
+epmbuffill(sp)
 	caddr_t sp;
-	int dummy_arg;
 {
 	struct ep_softc *sc = (struct ep_softc *)sp;
 	int     s, i;

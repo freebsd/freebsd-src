@@ -131,8 +131,9 @@
 #define CLOCAL		0x00008000	/* ignore modem status lines */
 #ifndef _POSIX_SOURCE
 #define CCTS_OFLOW	0x00010000	/* CTS flow control of output */
-#define CRTSCTS		CCTS_OFLOW	/* ??? */
+#define CRTSCTS		(CCTS_OFLOW | CRTS_IFLOW)
 #define CRTS_IFLOW	0x00020000	/* RTS flow control of input */
+#define CDSR_OFLOW	0x00080000	/* DSR flow control of output */
 #define	MDMBUF		0x00100000	/* flow control output via Carrier */
 #endif
 

@@ -45,6 +45,16 @@ struct vnode;
 void		 chgkprot __P((caddr_t, int, int));
 #endif
 
+/*
+ * Try to get semi-meaningful wait messages into thread_sleep...
+ */
+extern void thread_sleep_(int, simple_lock_t, char *);
+#if __GNUC__ >= 2
+#define thread_sleep(a,b,c) thread_sleep_((a), (b), __FUNCTION__)
+#else
+#define thread_sleep(a,b,c) thread_sleep_((a), (b), "vmslp")
+#endif
+
 #ifdef KERNEL
 #ifdef TYPEDEF_FOR_UAP
 int		 getpagesize __P((struct proc *p, void *, int *));
@@ -88,7 +98,7 @@ void		 swapout __P((struct proc *));
 void		 swapout_threads __P((void));
 int		 swfree __P((struct proc *, int));
 void		 swstrategy __P((struct buf *));
-void		 thread_block __P((void));
+void		 thread_block __P((char *));
 void		 thread_sleep __P((int, simple_lock_t, boolean_t));
 void		 thread_wakeup __P((int));
 int		 useracc __P((caddr_t, int, int));

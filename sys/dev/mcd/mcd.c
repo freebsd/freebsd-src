@@ -387,7 +387,7 @@ static void mcd_start(int unit)
 	if ((bp = qp->b_actf) != 0) {
 		/* block found to process, dequeue */
 		/*MCD_TRACE("mcd_start: found block bp=0x%x\n",bp,0,0,0);*/
-		qp->b_actf = bp->av_forw;
+		qp->b_actf = bp->b_actf;
 		splx(s);
 	} else {
 		/* nothing to do */

@@ -8,24 +8,19 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.7 1994/04/20 07:06:54 davidg Exp $
+ *      $Id: scsi_base.c,v 1.8 1994/05/19 22:21:05 jkh Exp $
  */
 
 #define SPLSD splbio
 #define ESUCCESS 0
 #include <sys/types.h>
 #include <sys/param.h>
-#include <machine/param.h>
-#include <vm/vm_statistics.h>
-#include <vm/vm_param.h>
-#include <vm/lock.h>
-#include <machine/pmap.h>
-#include <machine/vmparam.h>
-#include "systm.h"
+#include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
+#include <vm/vm.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>

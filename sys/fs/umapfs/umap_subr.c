@@ -73,6 +73,7 @@ static struct umap_node_cache umap_node_cache[NUMAPNODECACHE];
 /*
  * Initialise cache headers
  */
+int
 umapfs_init()
 {
 	struct umap_node_cache *ac;
@@ -82,6 +83,7 @@ umapfs_init()
 
 	for (ac = umap_node_cache; ac < umap_node_cache + NUMAPNODECACHE; ac++)
 		ac->ac_forw = ac->ac_back = (struct umap_node *) ac;
+	return (0);
 }
 
 /*

@@ -1580,7 +1580,8 @@ ufs_readlink(ap)
 	int isize;
 
 	isize = ip->i_size;
-	if (isize < vp->v_mount->mnt_maxsymlinklen) {
+	if ((isize < vp->v_mount->mnt_maxsymlinklen) ||
+	    (ip->i_din.di_blocks == 0)) {	/* XXX - for old fastlink support */
 		uiomove((char *)ip->i_shortlink, isize, ap->a_uio);
 		return (0);
 	}
@@ -1876,6 +1877,7 @@ ufsfifo_write(ap)
  *
  * Update the times on the inode then do device close.
  */
+int
 ufsfifo_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -1896,6 +1898,7 @@ ufsfifo_close(ap)
 /*
  * Return POSIX pathconf information applicable to ufs filesystems.
  */
+int
 ufs_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;

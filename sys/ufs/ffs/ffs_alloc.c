@@ -63,6 +63,8 @@ static u_long	ffs_hashalloc
 static ino_t	ffs_nodealloccg __P((struct inode *, int, daddr_t, int));
 static daddr_t	ffs_mapsearch __P((struct fs *, struct cg *, daddr_t, int));
 
+void		ffs_clusteracct	__P((struct fs *, struct cg *, daddr_t, int));
+
 /*
  * Allocate a block in the file system.
  * 
@@ -82,6 +84,7 @@ static daddr_t	ffs_mapsearch __P((struct fs *, struct cg *, daddr_t, int));
  *   2) quadradically rehash into other cylinder groups, until an
  *      available block is located.
  */
+int
 ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 	register struct inode *ip;
 	daddr_t lbn, bpref;
@@ -146,6 +149,7 @@ nospace:
  * the original block. Failing that, the regular block allocator is
  * invoked to get an appropriate block.
  */
+int
 ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	register struct inode *ip;
 	daddr_t lbprev;
@@ -304,7 +308,9 @@ nospace:
  */
 #include <sys/sysctl.h>
 int doasyncfree = 1;
+#ifdef DEBUG
 struct ctldebug debug14 = { "doasyncfree", &doasyncfree };
+#endif
 int
 ffs_reallocblks(ap)
 	struct vop_reallocblks_args /* {
@@ -316,7 +322,7 @@ ffs_reallocblks(ap)
 	struct inode *ip;
 	struct vnode *vp;
 	struct buf *sbp, *ebp;
-	daddr_t *bap, *sbap, *ebap;
+	daddr_t *bap, *sbap, *ebap = 0;
 	struct cluster_save *buflist;
 	daddr_t start_lbn, end_lbn, soff, eoff, newblk, blkno;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
@@ -466,6 +472,7 @@ fail:
  *   2) quadradically rehash into other cylinder groups, until an
  *      available inode is located.
  */
+int
 ffs_valloc(ap)
 	struct vop_valloc_args /* {
 		struct vnode *a_pvp;
@@ -1150,6 +1157,7 @@ gotit:
  * free map. If a fragment is deallocated, a possible 
  * block reassembly is checked.
  */
+void
 ffs_blkfree(ip, bno, size)
 	register struct inode *ip;
 	daddr_t bno;
@@ -1380,6 +1388,7 @@ ffs_mapsearch(fs, cgp, bpref, allocsiz)
  *
  * Cnt == 1 means free; cnt == -1 means allocating.
  */
+void
 ffs_clusteracct(fs, cgp, blkno, cnt)
 	struct fs *fs;
 	struct cg *cgp;

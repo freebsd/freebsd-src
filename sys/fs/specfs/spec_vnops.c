@@ -126,6 +126,7 @@ spec_lookup(ap)
  * Open a special file.
  */
 /* ARGSUSED */
+int
 spec_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -203,6 +204,7 @@ spec_open(ap)
  * Vnode op for read
  */
 /* ARGSUSED */
+int
 spec_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -285,6 +287,7 @@ spec_read(ap)
  * Vnode op for write
  */
 /* ARGSUSED */
+int
 spec_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -365,6 +368,7 @@ spec_write(ap)
  * Device ioctl operation.
  */
 /* ARGSUSED */
+int
 spec_ioctl(ap)
 	struct vop_ioctl_args /* {
 		struct vnode *a_vp;
@@ -399,6 +403,7 @@ spec_ioctl(ap)
 }
 
 /* ARGSUSED */
+int
 spec_select(ap)
 	struct vop_select_args /* {
 		struct vnode *a_vp;
@@ -476,6 +481,7 @@ loop:
 /*
  * Just call the device strategy routine
  */
+int
 spec_strategy(ap)
 	struct vop_strategy_args /* {
 		struct buf *a_bp;
@@ -489,6 +495,7 @@ spec_strategy(ap)
 /*
  * This is a noop, simply returning what one has been given.
  */
+int
 spec_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
@@ -509,6 +516,7 @@ spec_bmap(ap)
  * At the moment we do not do any locking.
  */
 /* ARGSUSED */
+int
 spec_lock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
@@ -519,6 +527,7 @@ spec_lock(ap)
 }
 
 /* ARGSUSED */
+int
 spec_unlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
@@ -532,6 +541,7 @@ spec_unlock(ap)
  * Device close routine
  */
 /* ARGSUSED */
+int
 spec_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -606,6 +616,7 @@ spec_close(ap)
 /*
  * Print out the contents of a special device vnode.
  */
+int
 spec_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -614,11 +625,13 @@ spec_print(ap)
 
 	printf("tag VT_NON, dev %d, %d\n", major(ap->a_vp->v_rdev),
 		minor(ap->a_vp->v_rdev));
+	return (0);
 }
 
 /*
  * Return POSIX pathconf information applicable to special devices.
  */
+int
 spec_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -656,6 +669,7 @@ spec_pathconf(ap)
  * Special device advisory byte-level locks.
  */
 /* ARGSUSED */
+int
 spec_advlock(ap)
 	struct vop_advlock_args /* {
 		struct vnode *a_vp;
@@ -672,6 +686,7 @@ spec_advlock(ap)
 /*
  * Special device failed operation
  */
+int
 spec_ebadf()
 {
 
@@ -681,6 +696,7 @@ spec_ebadf()
 /*
  * Special device bad operation
  */
+int
 spec_badop()
 {
 

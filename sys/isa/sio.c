@@ -36,6 +36,7 @@
 
 #include "sio.h"
 #if NSIO > 0
+#define DONT_MALLOC_TTYS
 /*
  * Serial driver, based on 386BSD-0.1 com driver.
  * Mostly rewritten to use pseudo-DMA.
@@ -61,9 +62,11 @@
 
 #define	FAKE_DCD(unit)	((unit) == comconsole)
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
+#define RBSZ 1024
 #define	RB_I_HIGH_WATER	(RBSZ - 2 * RS_IBUFSIZE)
 #define	RB_I_LOW_WATER	((RBSZ - 2 * RS_IBUFSIZE) * 7 / 8)
 #define	RS_IBUFSIZE	256
+#define RS_OBUFSIZE	256
 #define	TTY_BI		TTY_FE		/* XXX */
 #define	TTY_OE		TTY_PE		/* XXX */
 
@@ -221,39 +224,39 @@ struct com_s {
 #define	CE_INPUT_OFFSET		RS_IBUFSIZE
 	u_char	ibuf1[2 * RS_IBUFSIZE];
 	u_char	ibuf2[2 * RS_IBUFSIZE];
+	u_char	obuf[RS_OBUFSIZE];
 };
 
 /*
  * The public functions in the com module ought to be declared in a com-driver
  * system header.
  */
-#define	Dev_t	int		/* promoted dev_t */
 
 /* Interrupt handling entry points. */
 void	siointr		__P((int unit));
 void	siopoll		__P((void));
 
 /* Device switch entry points. */
-int	sioopen		__P((Dev_t dev, int oflags, int devtype,
+int	sioopen		__P((dev_t dev, int oflags, int devtype,
 			     struct proc *p));
-int	sioclose	__P((Dev_t dev, int fflag, int devtype,
+int	sioclose	__P((dev_t dev, int fflag, int devtype,
 			     struct proc *p));
-int	sioread		__P((Dev_t dev, struct uio *uio, int ioflag));
-int	siowrite	__P((Dev_t dev, struct uio *uio, int ioflag));
-int	sioioctl	__P((Dev_t dev, int cmd, caddr_t data,
+int	sioread		__P((dev_t dev, struct uio *uio, int ioflag));
+int	siowrite	__P((dev_t dev, struct uio *uio, int ioflag));
+int	sioioctl	__P((dev_t dev, int cmd, caddr_t data,
 			     int fflag, struct proc *p));
 void	siostop		__P((struct tty *tp, int rw));
 #define	sioreset	noreset
-int	sioselect	__P((Dev_t dev, int rw, struct proc *p));
+int	sioselect	__P((dev_t dev, int rw, struct proc *p));
 #define	siommap		nommap
 #define	siostrategy	nostrategy
 
 /* Console device entry points. */
-int	siocngetc	__P((Dev_t dev));
+int	siocngetc	__P((dev_t dev));
 struct consdev;
 void	siocninit	__P((struct consdev *cp));
 void	siocnprobe	__P((struct consdev *cp));
-void	siocnputc	__P((Dev_t dev, int c));
+void	siocnputc	__P((dev_t dev, int c));
 
 static	int	sioattach	__P((struct isa_device *dev));
 static	void	comflush	__P((struct com_s *com));
@@ -288,15 +291,9 @@ static	int	comconsole = -1;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	int	commajor;
-#ifdef DONT_MALLOC_TTYS
-#define TB_OUT(tp)	(&(tp)->t_out)
-#define TB_RAW(tp)	(&(tp)->t_raw)
+#define TB_OUT(tp)	(&(tp)->t_outq)
+#define TB_RAW(tp)	(&(tp)->t_rawq)
 struct tty	sio_tty[NSIO];
-#else
-#define TB_OUT(tp)	((tp)->t_out)
-#define TB_RAW(tp)	((tp)->t_raw)
-struct tty	*sio_tty[NSIO];
-#endif
 extern	struct tty	*constty;
 extern	int	tk_nin;		/* XXX */
 extern	int	tk_rawcc;	/* XXX */
@@ -787,7 +784,7 @@ bidir_open_top:
 	}
 out:
 	if (error == 0)
-		error = (*linesw[tp->t_line].l_open)(dev, tp, 0);
+		error = (*linesw[tp->t_line].l_open)(dev, tp);
 	splx(s);
 
 #ifdef COM_BIDIR
@@ -1129,7 +1126,7 @@ sioioctl(dev, cmd, data, flag, p)
 
 	com = com_addr(UNIT(dev));
 	tp = com->tp;
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
 	if (error >= 0)
 		return (error);
 	error = ttioctl(tp, cmd, data, flag);
@@ -1222,6 +1219,7 @@ sioioctl(dev, cmd, data, flag, p)
 		*(int *)data = com->bidir;
 		break;
 #endif /* COM_BIDIR */
+#if 0
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
 		error = suser(p->p_ucred, &p->p_acflag);
@@ -1240,6 +1238,7 @@ sioioctl(dev, cmd, data, flag, p)
 	case TIOCMGDTRWAIT:
 		*(int *)data = com->dtr_wait;
 		break;
+#endif
 #ifdef TIOCTIMESTAMP
 	case TIOCTIMESTAMP:
 		com->do_timestamp = TRUE;
@@ -1259,16 +1258,14 @@ static void
 comflush(com)
 	struct com_s	*com;
 {
-	struct ringb	*rbp;
+	struct clist *rbp;
 
 	disable_intr();
 	if (com->state & CS_ODONE)
 		com_events -= LOTS_OF_EVENTS;
 	com->state &= ~(CS_ODONE | CS_BUSY);
 	enable_intr();
-	rbp = TB_OUT(com->tp);
-	rbp->rb_hd += com->ocount;
-	rbp->rb_hd = RB_ROLLOVER(rbp, rbp->rb_hd);
+	while( getc( TB_OUT(com->tp)) != -1);
 	com->ocount = 0;
 	com->tp->t_state &= ~TS_BUSY;
 }
@@ -1343,8 +1340,8 @@ repeat:
 			 * CS_RTS_IFLOW is on.
 			 */
 			if ((com->state & CS_RTS_IFLOW)
-			    && !(com->mcr_image & MCR_RTS)
-			    && !(tp->t_state & TS_RTS_IFLOW))
+			    && !(com->mcr_image & MCR_RTS) /*
+			    && !(tp->t_state & TS_RTS_IFLOW) */)
 				outb(com->modem_ctl_port,
 				     com->mcr_image |= MCR_RTS);
 			enable_intr();
@@ -1404,16 +1401,17 @@ repeat:
 		if (incc <= 0 || !(tp->t_state & TS_ISOPEN))
 			continue;
 		if (com->state & CS_RTS_IFLOW
-		    && RB_LEN(TB_RAW(tp)) + incc >= RB_I_HIGH_WATER
-		    && !(tp->t_state & TS_RTS_IFLOW)
+		    && TB_RAW(tp)->c_cc + incc >= RB_I_HIGH_WATER /*
+		    && !(tp->t_state & TS_RTS_IFLOW) */
 		    /*
 		     * XXX - need RTS flow control for all line disciplines.
 		     * Only have it in standard one now.
 		     */
 		    && linesw[tp->t_line].l_rint == ttyinput) {
-			tp->t_state |= TS_RTS_IFLOW;
+/*			tp->t_state |= TS_RTS_IFLOW; */
 			ttstart(tp);
 		}
+#if 0
 		/*
 		 * Avoid the grotesquely inefficient lineswitch routine
 		 * (ttyinput) in "raw" mode.  It usually takes about 450
@@ -1442,6 +1440,7 @@ repeat:
 				ttstart(tp);
 			}
 		} else {
+#endif
 			do {
 				u_char	line_status;
 				int	recv_data;
@@ -1461,7 +1460,9 @@ repeat:
 				}
 				(*linesw[tp->t_line].l_rint)(recv_data, tp);
 			} while (--incc > 0);
+#if 0
 		}
+#endif
 		if (com_events == 0)
 			break;
 	}
@@ -1624,10 +1625,12 @@ comstart(tp)
 		com->state &= ~CS_TTGO;
 	else
 		com->state |= CS_TTGO;
+#if 0
 	if (tp->t_state & TS_RTS_IFLOW) {
 		if (com->mcr_image & MCR_RTS && com->state & CS_RTS_IFLOW)
 			outb(com->modem_ctl_port, com->mcr_image &= ~MCR_RTS);
 	} else {
+#endif
 		/*
 		 * XXX don't raise MCR_RTS if CTS_RTS_IFLOW is off.  Set it
 		 * appropriately in comparam() if RTS-flow is being changed.
@@ -1635,31 +1638,29 @@ comstart(tp)
 		 */
 		if (!(com->mcr_image & MCR_RTS) && com->iptr < com->ihighwater)
 			outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
+#if 0
 	}
+#endif
 	enable_intr();
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP))
 		goto out;
-	if (RB_LEN(TB_OUT(tp)) <= tp->t_lowat) {
+	if (TB_OUT(tp)->c_cc <= tp->t_lowat) {
 		if (tp->t_state & TS_ASLEEP) {
 			tp->t_state &= ~TS_ASLEEP;
 			wakeup((caddr_t)TB_OUT(tp));
 		}
-		if (tp->t_wsel) {
-			selwakeup(tp->t_wsel, tp->t_state & TS_WCOLL);
-			tp->t_wsel = 0;
-			tp->t_state &= ~TS_WCOLL;
-		}
+		selwakeup(&tp->t_wsel);
 	}
 	if (com->ocount != 0) {
 		disable_intr();
 		siointr1(com);
 		enable_intr();
-	} else if (RB_LEN(TB_OUT(tp)) != 0) {
+	} else if (TB_OUT(tp)->c_cc != 0) {
 		tp->t_state |= TS_BUSY;
-		com->ocount = RB_CONTIGGET(TB_OUT(tp));
 		disable_intr();
-		com->obufend = (com->optr = (u_char *)TB_OUT(tp)->rb_hd)
-			      + com->ocount;
+		com->ocount = q_to_b(TB_OUT(tp), com->obuf, sizeof com->obuf);
+		com->optr = com->obuf;
+		com->obufend = com->obuf + com->ocount;
 		com->state |= CS_BUSY;
 		siointr1(com);	/* fake interrupt to start output */
 		enable_intr();
@@ -1728,11 +1729,11 @@ comwakeup(chan, ticks)
 {
 	int	unit;
 
-	timeout(comwakeup, (caddr_t) NULL, hz / 100);
+	timeout((timeout_func_t)comwakeup, (caddr_t) NULL, hz / 100);
 
 	if (com_events != 0) {
 #ifndef OLD_INTERRUPT_HANDLING
-		int	s = splsofttty();
+		int	s = spltty();
 #endif
 		siopoll();
 #ifndef OLD_INTERRUPT_HANDLING

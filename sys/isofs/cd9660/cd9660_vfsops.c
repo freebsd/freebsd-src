@@ -82,6 +82,7 @@ struct vfsops cd9660_vfsops = {
 
 static iso_mountfs();
 
+int
 cd9660_mountroot()
 {
 	register struct mount *mp;
@@ -139,6 +140,7 @@ int iso_doforce = 1;
  *
  * mount system call
  */
+int
 cd9660_mount(mp, path, data, ndp, p)
 	register struct mount *mp;
 	char *path;
@@ -150,7 +152,7 @@ cd9660_mount(mp, path, data, ndp, p)
 	struct iso_args args;
 	u_int size;
 	int error;
-	struct iso_mnt *imp;
+	struct iso_mnt *imp = 0;
 	
 	if (error = copyin(data, (caddr_t)&args, sizeof (struct iso_args)))
 		return (error);
@@ -211,7 +213,8 @@ cd9660_mount(mp, path, data, ndp, p)
 /*
  * Common code for mount and mountroot
  */
-static iso_mountfs(devvp, mp, p, argp)
+static int
+iso_mountfs(devvp, mp, p, argp)
 	register struct vnode *devvp;
 	struct mount *mp;
 	struct proc *p;
@@ -381,6 +384,7 @@ out:
  * Nothing to do at the moment.
  */
 /* ARGSUSED */
+int
 cd9660_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -433,6 +437,7 @@ cd9660_unmount(mp, mntflags, p)
 /*
  * Return root of a filesystem
  */
+int
 cd9660_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
@@ -485,6 +490,7 @@ cd9660_quotactl(mp, cmd, uid, arg, p)
 /*
  * Get file system statistics.
  */
+int
 cd9660_statfs(mp, sbp, p)
 	struct mount *mp;
 	register struct statfs *sbp;
@@ -659,6 +665,7 @@ cd9660_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
  * Vnode pointer to File handle
  */
 /* ARGSUSED */
+int
 cd9660_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;

@@ -62,6 +62,7 @@ struct read_args {
 	u_int	nbyte;
 };
 /* ARGSUSED */
+int
 read(p, uap, retval)
 	struct proc *p;
 	register struct read_args *uap;
@@ -117,6 +118,7 @@ struct readv_args {
 	struct	iovec *iovp;
 	u_int	iovcnt;
 };
+int
 readv(p, uap, retval)
 	struct proc *p;
 	register struct readv_args *uap;
@@ -158,10 +160,6 @@ readv(p, uap, retval)
 		goto done;
 	auio.uio_resid = 0;
 	for (i = 0; i < uap->iovcnt; i++) {
-		if (iov->iov_len < 0) {
-			error = EINVAL;
-			goto done;
-		}
 		auio.uio_resid += iov->iov_len;
 		if (auio.uio_resid < 0) {
 			error = EINVAL;
@@ -207,6 +205,7 @@ struct write_args {
 	char	*buf;
 	u_int	nbyte;
 };
+int
 write(p, uap, retval)
 	struct proc *p;
 	register struct write_args *uap;
@@ -217,6 +216,7 @@ write(p, uap, retval)
 	struct uio auio;
 	struct iovec aiov;
 	long cnt, error = 0;
+	int i;
 #ifdef KTRACE
 	struct iovec ktriov;
 #endif
@@ -266,6 +266,7 @@ struct writev_args {
 	struct	iovec *iovp;
 	u_int	iovcnt;
 };
+int
 writev(p, uap, retval)
 	struct proc *p;
 	register struct writev_args *uap;
@@ -307,10 +308,6 @@ writev(p, uap, retval)
 		goto done;
 	auio.uio_resid = 0;
 	for (i = 0; i < uap->iovcnt; i++) {
-		if (iov->iov_len < 0) {
-			error = EINVAL;
-			goto done;
-		}
 		auio.uio_resid += iov->iov_len;
 		if (auio.uio_resid < 0) {
 			error = EINVAL;
@@ -360,6 +357,7 @@ struct ioctl_args {
 	caddr_t	data;
 };
 /* ARGSUSED */
+int
 ioctl(p, uap, retval)
 	struct proc *p;
 	register struct ioctl_args *uap;
@@ -497,6 +495,7 @@ struct select_args {
 	fd_set	*in, *ou, *ex;
 	struct	timeval *tv;
 };
+int
 select(p, uap, retval)
 	register struct proc *p;
 	register struct select_args *uap;
@@ -588,6 +587,7 @@ done:
 	return (error);
 }
 
+int
 selscan(p, ibits, obits, nfd, retval)
 	struct proc *p;
 	fd_set *ibits, *obits;
@@ -620,6 +620,7 @@ selscan(p, ibits, obits, nfd, retval)
 }
 
 /*ARGSUSED*/
+int
 seltrue(dev, flag, p)
 	dev_t dev;
 	int flag;

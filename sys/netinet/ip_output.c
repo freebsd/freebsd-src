@@ -34,6 +34,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
@@ -483,7 +484,7 @@ ip_ctloutput(op, so, level, optname, mp)
 {
 	register struct inpcb *inp = sotoinpcb(so);
 	register struct mbuf *m = *mp;
-	register int optval;
+	register int optval = 0;
 	int error = 0;
 
 	if (level != IPPROTO_IP) {

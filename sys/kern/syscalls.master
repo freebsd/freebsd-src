@@ -100,7 +100,7 @@
 68	OBSOL	0 vwrite
 69	STD	1 sbrk
 70	STD	1 sstk
-71	COMPAT	7 mmap
+71	COMPAT	6 mmap
 72	STD	1 ovadvise vadvise
 73	STD	2 munmap
 74	STD	3 mprotect
@@ -212,10 +212,10 @@
 #else
 161	UNIMPL	0 nosys
 #endif
-162	UNIMPL	0 nosys
-163	UNIMPL	0 nosys
-164	UNIMPL	0 nosys
-165	UNIMPL	0 nosys
+162	STD	2 getdomainname
+163	STD	2 setdomainname
+164	STD	1 uname
+165	STD	2 sysarch
 166	UNIMPL	0 nosys
 167	UNIMPL	0 nosys
 168	UNIMPL	0 nosys

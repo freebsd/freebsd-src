@@ -84,6 +84,7 @@ cdevvp(dev, vpp)
 	return (0);
 }
 
+int
 kernfs_init()
 {
 	int cmaj;
@@ -107,11 +108,13 @@ kernfs_init()
 		printf("kernfs: no raw boot device\n");
 		rrootvp = 0;
 	}
+	return (0);
 }
 
 /*
  * Mount the Kernel params filesystem
  */
+int
 kernfs_mount(mp, path, data, ndp, p)
 	struct mount *mp;
 	char *path;
@@ -160,6 +163,7 @@ kernfs_mount(mp, path, data, ndp, p)
 	return (0);
 }
 
+int
 kernfs_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -168,6 +172,7 @@ kernfs_start(mp, flags, p)
 	return (0);
 }
 
+int
 kernfs_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -221,6 +226,7 @@ kernfs_unmount(mp, mntflags, p)
 	return 0;
 }
 
+int
 kernfs_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
@@ -241,6 +247,7 @@ kernfs_root(mp, vpp)
 	return (0);
 }
 
+int
 kernfs_quotactl(mp, cmd, uid, arg, p)
 	struct mount *mp;
 	int cmd;
@@ -251,6 +258,7 @@ kernfs_quotactl(mp, cmd, uid, arg, p)
 	return (EOPNOTSUPP);
 }
 
+int
 kernfs_statfs(mp, sbp, p)
 	struct mount *mp;
 	struct statfs *sbp;
@@ -277,6 +285,7 @@ kernfs_statfs(mp, sbp, p)
 	return (0);
 }
 
+int
 kernfs_sync(mp, waitfor)
 	struct mount *mp;
 	int waitfor;
@@ -288,6 +297,7 @@ kernfs_sync(mp, waitfor)
  * Kernfs flat namespace lookup.
  * Currently unsupported.
  */
+int
 kernfs_vget(mp, ino, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -298,6 +308,7 @@ kernfs_vget(mp, ino, vpp)
 }
 
 
+int
 kernfs_fhtovp(mp, fhp, setgen, vpp)
 	struct mount *mp;
 	struct fid *fhp;
@@ -307,6 +318,7 @@ kernfs_fhtovp(mp, fhp, setgen, vpp)
 	return (EOPNOTSUPP);
 }
 
+int
 kernfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;

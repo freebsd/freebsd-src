@@ -157,6 +157,7 @@ extern struct nfsreq nfsreqh;
  *     is when a new lease is being allocated, since it is not in the timer
  *     queue yet. (Ditto for the splsoftclock() and splx(s) calls)
  */
+int
 nqsrv_getlease(vp, duration, flags, nd, nam, cachablep, frev, cred)
 	struct vnode *vp;
 	u_long *duration;
@@ -167,8 +168,8 @@ nqsrv_getlease(vp, duration, flags, nd, nam, cachablep, frev, cred)
 	u_quad_t *frev;
 	struct ucred *cred;
 {
-	register struct nqlease *lp, *lq, **lpp;
-	register struct nqhost *lph;
+	register struct nqlease *lp, *lq, **lpp = 0;
+	register struct nqhost *lph = 0;
 	struct nqlease *tlp;
 	struct nqm **lphp;
 	struct vattr vattr;
@@ -398,6 +399,7 @@ nqsrv_instimeq(lp, duration)
  * This is somewhat messy due to the union in the nqhost structure.
  * The local host is indicated by the special value of NQLOCALSLP for slp.
  */
+int
 nqsrv_cmpnam(slp, nam, lph)
 	register struct nfssvc_sock *slp;
 	struct mbuf *nam;
@@ -679,6 +681,7 @@ nqnfs_serverd()
  * Do the from/to xdr translation and call nqsrv_getlease() to
  * do the real work.
  */
+int
 nqnfsrv_getlease(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -731,6 +734,7 @@ nqnfsrv_getlease(nfsd, mrep, md, dpos, cred, nam, mrq)
  * Called from nfssvc_nfsd() when a "vacated" message is received from a
  * client. Find the entry and expire it.
  */
+int
 nqnfsrv_vacated(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -802,6 +806,7 @@ nfsmout:
 /*
  * Client get lease rpc function.
  */
+int
 nqnfs_getlease(vp, rwflag, cred, p)
 	register struct vnode *vp;
 	int rwflag;
@@ -846,6 +851,7 @@ nqnfs_getlease(vp, rwflag, cred, p)
 /*
  * Client vacated message function.
  */
+int
 nqnfs_vacated(vp, cred)
 	register struct vnode *vp;
 	struct ucred *cred;
@@ -891,6 +897,7 @@ nqnfs_vacated(vp, cred)
 /*
  * Called for client side callbacks
  */
+int
 nqnfs_callback(nmp, mrep, md, dpos)
 	struct nfsmount *nmp;
 	struct mbuf *mrep, *md;
@@ -952,6 +959,7 @@ nqnfs_callback(nmp, mrep, md, dpos)
  * "sleep" since nfs_reclaim() called from vclean() can pull a node off
  * the list asynchronously.
  */
+int
 nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 	register struct nfsmount *nmp;
 	struct ucred *cred;
@@ -963,7 +971,7 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 	register struct nfsnode *np;
 	struct vnode *vp;
 	struct nfsreq myrep;
-	int error, vpid;
+	int error = 0, vpid;
 
 	/*
 	 * First initialize some variables

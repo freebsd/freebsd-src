@@ -49,6 +49,7 @@
 struct acct_args {
 	char	*fname;
 };
+int
 acct(a1, a2, a3)
 	struct proc *a1;
 	struct acct_args *a2;
@@ -60,6 +61,7 @@ acct(a1, a2, a3)
 	return (ENOSYS);
 }
 
+void
 acct_process(a1)
 	struct proc *a1;
 {

@@ -89,7 +89,7 @@ __sysctl(p, uap, retval)
 	int *retval;
 {
 	int error, dolock = 1;
-	u_int savelen, oldlen = 0;
+	u_int savelen = 0, oldlen = 0;
 	sysctlfn *fn;
 	int name[CTL_MAXNAME];
 
@@ -181,6 +181,7 @@ int securelevel;
 /*
  * kernel related system variables.
  */
+int
 kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	int *name;
 	u_int namelen;
@@ -271,6 +272,7 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 /*
  * hardware related system variables.
  */
+int
 hw_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	int *name;
 	u_int namelen;
@@ -356,6 +358,7 @@ debug_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
  * Validate parameters and get old / set new parameters
  * for an integer-valued sysctl function.
  */
+int
 sysctl_int(oldp, oldlenp, newp, newlen, valp)
 	void *oldp;
 	size_t *oldlenp;
@@ -380,6 +383,7 @@ sysctl_int(oldp, oldlenp, newp, newlen, valp)
 /*
  * As above, but read-only.
  */
+int
 sysctl_rdint(oldp, oldlenp, newp, val)
 	void *oldp;
 	size_t *oldlenp;
@@ -402,6 +406,7 @@ sysctl_rdint(oldp, oldlenp, newp, val)
  * Validate parameters and get old / set new parameters
  * for a string-valued sysctl function.
  */
+int
 sysctl_string(oldp, oldlenp, newp, newlen, str, maxlen)
 	void *oldp;
 	size_t *oldlenp;
@@ -431,6 +436,7 @@ sysctl_string(oldp, oldlenp, newp, newlen, str, maxlen)
 /*
  * As above, but read-only.
  */
+int
 sysctl_rdstring(oldp, oldlenp, newp, str)
 	void *oldp;
 	size_t *oldlenp;
@@ -454,6 +460,7 @@ sysctl_rdstring(oldp, oldlenp, newp, str)
  * Validate parameters and get old / set new parameters
  * for a structure oriented sysctl function.
  */
+int
 sysctl_struct(oldp, oldlenp, newp, newlen, sp, len)
 	void *oldp;
 	size_t *oldlenp;
@@ -481,6 +488,7 @@ sysctl_struct(oldp, oldlenp, newp, newlen, sp, len)
  * Validate parameters and get old parameters
  * for a structure oriented sysctl function.
  */
+int
 sysctl_rdstruct(oldp, oldlenp, newp, sp, len)
 	void *oldp;
 	size_t *oldlenp;
@@ -502,6 +510,7 @@ sysctl_rdstruct(oldp, oldlenp, newp, sp, len)
 /*
  * Get file structures.
  */
+int
 sysctl_file(where, sizep)
 	char *where;
 	size_t *sizep;
@@ -553,6 +562,7 @@ sysctl_file(where, sizep)
  */
 #define KERN_PROCSLOP	(5 * sizeof (struct kinfo_proc))
 
+int
 sysctl_doproc(name, namelen, where, sizep)
 	int *name;
 	u_int namelen;
@@ -718,6 +728,7 @@ struct getkerninfo_args {
 	int	arg;
 };
 
+int
 ogetkerninfo(p, uap, retval)
 	struct proc *p;
 	register struct getkerninfo_args *uap;

@@ -89,6 +89,7 @@ struct	nchstats iso_nchstats;
  *
  * NOTE: (LOOKUP | LOCKPARENT) currently returns the parent inode unlocked.
  */
+int
 cd9660_lookup(ap)
 	struct vop_lookup_args /* {
 		struct vnode *a_dvp;
@@ -100,9 +101,9 @@ cd9660_lookup(ap)
 	register struct iso_node *dp;	/* inode for directory being searched */
 	register struct iso_mnt *imp;	/* file system that directory is in */
 	struct buf *bp;			/* a buffer of directory entries */
-	struct iso_directory_record *ep;/* the current directory entry */
+	struct iso_directory_record *ep = 0;/* the current directory entry */
 	int entryoffsetinblock;		/* offset of ep in bp's buffer */
-	int saveoffset;			/* offset of last directory entry in dir */
+	int saveoffset = 0;		/* offset of last directory entry in dir */
 	int numdirpasses;		/* strategy for directory search */
 	doff_t endsearch;		/* offset to end directory search */
 	struct iso_node *pdp;		/* saved dp during symlink work */
@@ -443,6 +444,7 @@ found:
  * is non-zero, fill it in with a pointer to the
  * remaining space in the directory.
  */
+int
 iso_blkatoff(ip, offset, bpp)
 	struct iso_node *ip;
 	doff_t offset;

@@ -65,8 +65,10 @@
 /* Kernel memory management definitions. */
 
 vm_map_t	buffer_map;
-vm_map_t	exec_map;
 vm_map_t	kernel_map;
 vm_map_t	kmem_map;
 vm_map_t	mb_map;
+vm_map_t	io_map;
+vm_map_t	clean_map;
+vm_map_t	pager_map;
 vm_map_t	phys_map;

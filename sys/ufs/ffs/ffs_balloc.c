@@ -54,6 +54,7 @@
  * by allocating the physical blocks on a device given
  * the inode and the logical block number in a file.
  */
+int
 ffs_balloc(ip, bn, size, cred, bpp, flags)
 	register struct inode *ip;
 	register daddr_t bn;

@@ -69,6 +69,8 @@
 #include <nfs/nqnfs.h>
 #include <nfs/nfsrtt.h>
 
+void	nfsrv_zapsock	__P((struct nfssvc_sock *));
+
 /* Global defs. */
 extern u_long nfs_prog, nfs_vers;
 extern int (*nfsrv_procs[NFS_NPROCS])();
@@ -106,6 +108,7 @@ struct getfh_args {
 	char	*fname;
 	fhandle_t *fhp;
 };
+int
 getfh(p, uap, retval)
 	struct proc *p;
 	register struct getfh_args *uap;
@@ -148,6 +151,7 @@ struct nfssvc_args {
 	int flag;
 	caddr_t argp;
 };
+int
 nfssvc(p, uap, retval)
 	struct proc *p;
 	register struct nfssvc_args *uap;
@@ -278,6 +282,7 @@ nfssvc(p, uap, retval)
 /*
  * Adds a socket to the list for servicing by nfsds.
  */
+int
 nfssvc_addsock(fp, mynam)
 	struct file *fp;
 	struct mbuf *mynam;
@@ -369,6 +374,7 @@ nfssvc_addsock(fp, mynam)
  * Called by nfssvc() for nfsds. Just loops around servicing rpc requests
  * until it is killed by a signal.
  */
+int
 nfssvc_nfsd(nsd, argp, p)
 	struct nfsd_srvargs *nsd;
 	caddr_t argp;
@@ -383,7 +389,7 @@ nfssvc_nfsd(nsd, argp, p)
 	struct mbuf *mreq, *nam;
 	struct timeval starttime;
 	struct nfsuid *uidp;
-	int error, cacherep, s;
+	int error = 0, cacherep, s;
 	int sotype;
 
 	s = splnet();
@@ -631,6 +637,7 @@ done:
  * They do read-ahead and write-behind operations on the block I/O cache.
  * Never returns unless it fails or gets killed.
  */
+int
 nfssvc_iod(p)
 	struct proc *p;
 {
@@ -683,6 +690,7 @@ nfssvc_iod(p)
  * will stop using it and clear ns_flag at the end so that it will not be
  * reassigned during cleanup.
  */
+void
 nfsrv_zapsock(slp)
 	register struct nfssvc_sock *slp;
 {
@@ -719,6 +727,7 @@ nfsrv_zapsock(slp)
  * Get an authorization string for the uid by having the mount_nfs sitting
  * on this mount point porpous out of the kernel and do it.
  */
+int
 nfs_getauth(nmp, rep, cred, auth_type, auth_str, auth_len)
 	register struct nfsmount *nmp;
 	struct nfsreq *rep;

@@ -39,7 +39,6 @@ CWARNFLAGS=-W -Wreturn-type -Wcomment
 # of material assistance.
 #
 COPTFLAGS=-O
-COPTFLAGS+=-D__FreeBSD__
 INCLUDES= -I. -I$S -I$S/sys
 COPTS=	${INCLUDES} ${IDENT} -DKERNEL -Di386 -DNPX
 ASFLAGS=
@@ -52,10 +51,10 @@ NORMAL_S= ${CPP} -I. -DLOCORE ${COPTS} $< | ${AS} ${ASFLAGS} -o $*.o
 DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
 DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
 SYSTEM_OBJS=locore.o exception.o swtch.o support.o ${OBJS} param.o \
-	ioconf.o conf.o machdep.o
-SYSTEM_DEP=Makefile symbols.sort ${SYSTEM_OBJS}
+	ioconf.o conf.o machdep.o vnode_if.o
+SYSTEM_DEP=Makefile symbols.sort ${SYSTEM_OBJS} libkern.a
 SYSTEM_LD_HEAD= 	@echo loading $@; rm -f $@
-SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o
+SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o libkern.a
 SYSTEM_LD_TAIL= @echo rearranging symbols; symorder symbols.sort $@; \
 	${DBSYM} -fT ${LOAD_ADDRESS} $@; ${STRIP} -x $@; size $@; chmod 755 $@
 
@@ -73,6 +72,13 @@ PROFILE_C=	${CC} -S -c ${CFLAGS} $< ; \
 %CFILES
 
 %LOAD
+
+libkern.a:
+	-@if [ X${PROF} = X ]; \
+	then ln -s $S/libkern/obj/libkern.a libkern.a; \
+	else ln -s $S/libkern/obj/libkern_p.a libkern.a; \
+	fi; \
+	echo ln -s $S/libkern/obj/libkern.a libkern.a
 
 clean:
 	rm -f eddep *386bsd tags *.o locore.i [a-uw-z]*.s \
@@ -140,7 +146,7 @@ genassym:	Makefile
 	${CC} ${INCLUDES} -DKERNEL ${IDENT} ${PARAM} \
 		 ${I386}/i386/genassym.c -static -o genassym
 
-depend: assym.s param.c
+depend: assym.s param.c vnode_if.h
 	sh /usr/bin/mkdep -DLOAD_ADDRESS=0x${LOAD_ADDRESS} ${COPTS} ${CFILES} ioconf.c param.c ${I386}/i386/conf.c
 	sh /usr/bin/mkdep -a -p ${INCLUDES} ${IDENT} ${PARAM} ${I386}/i386/genassym.c
 
@@ -172,6 +178,11 @@ param.o: param.c Makefile
 vers.o: ${SYSTEM_DEP} ${SYSTEM_SWAP_DEP}
 	sh $S/conf/newvers.sh ${KERN_IDENT} ${IDENT}
 	${CC} ${CFLAGS} -c vers.c
+
+vnode_if.c: $S/kern/vnode_if.sh $S/kern/vnode_if.src
+	sh $S/kern/vnode_if.sh $S/kern/vnode_if.src
+vnode_if.h: $S/kern/vnode_if.sh $S/kern/vnode_if.src
+	sh $S/kern/vnode_if.sh $S/kern/vnode_if.src
 
 %RULES
 

@@ -40,12 +40,6 @@
 #include "namei.h"
 #include "vnode.h"
 
-struct execve_args {
-	char    *fname;		/* file name */
-	char    **argv;		/* pointer to table of argument pointers */
-	char    **envv;		/* pointer to table of environment pointers */
-};
-
 struct image_params {
 	struct proc *proc;	/* our process struct */
 	struct execve_args *uap; /* syscall arguments */

@@ -42,6 +42,10 @@
 
 #include <machine/cpu.h>
 
+void timevaladd		__P((struct timeval *, struct timeval *));
+void timevalsub		__P((struct timeval *, struct timeval *));
+void timevalfix		__P((struct timeval *));
+
 /* 
  * Time of day and interval timer support.
  *
@@ -57,6 +61,7 @@ struct gettimeofday_args {
 	struct	timezone *tzp;
 };
 /* ARGSUSED */
+int
 gettimeofday(p, uap, retval)
 	struct proc *p;
 	register struct gettimeofday_args *uap;
@@ -82,6 +87,7 @@ struct settimeofday_args {
 	struct	timezone *tzp;
 };
 /* ARGSUSED */
+int
 settimeofday(p, uap, retval)
 	struct proc *p;
 	struct settimeofday_args *uap;
@@ -131,6 +137,7 @@ struct adjtime_args {
 	struct timeval *olddelta;
 };
 /* ARGSUSED */
+int
 adjtime(p, uap, retval)
 	struct proc *p;
 	register struct adjtime_args *uap;
@@ -209,6 +216,7 @@ struct getitimer_args {
 	struct	itimerval *itv;
 };
 /* ARGSUSED */
+int
 getitimer(p, uap, retval)
 	struct proc *p;
 	register struct getitimer_args *uap;
@@ -246,6 +254,7 @@ struct setitimer_args {
 	struct	itimerval *itv, *oitv;
 };
 /* ARGSUSED */
+int
 setitimer(p, uap, retval)
 	struct proc *p;
 	register struct setitimer_args *uap;
@@ -322,6 +331,7 @@ realitexpire(arg)
  * fix it to have at least minimal value (i.e. if it is less
  * than the resolution of the clock, round it up.)
  */
+int
 itimerfix(tv)
 	struct timeval *tv;
 {
@@ -344,6 +354,7 @@ itimerfix(tv)
  * that it is called in a context where the timers
  * on which it is operating cannot change in value.
  */
+int
 itimerdecr(itp, usec)
 	register struct itimerval *itp;
 	int usec;
@@ -383,6 +394,7 @@ expire:
  * it just gets very confused in this case.
  * Caveat emptor.
  */
+void
 timevaladd(t1, t2)
 	struct timeval *t1, *t2;
 {
@@ -392,6 +404,7 @@ timevaladd(t1, t2)
 	timevalfix(t1);
 }
 
+void
 timevalsub(t1, t2)
 	struct timeval *t1, *t2;
 {
@@ -401,6 +414,7 @@ timevalsub(t1, t2)
 	timevalfix(t1);
 }
 
+void
 timevalfix(t1)
 	struct timeval *t1;
 {

@@ -157,6 +157,7 @@ cd9660_close(ap)
  * super user is granted all permissions.
  */
 /* ARGSUSED */
+int
 cd9660_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
@@ -168,6 +169,7 @@ cd9660_access(ap)
 	return (0);
 }
 
+int
 cd9660_getattr(ap)
 	struct vop_getattr_args /* {
 		struct vnode *a_vp;
@@ -217,6 +219,7 @@ extern int doclusterread;
 /*
  * Vnode op for reading.
  */
+int
 cd9660_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;

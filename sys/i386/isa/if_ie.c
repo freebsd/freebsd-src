@@ -1320,9 +1320,8 @@ iereset(unit, dummy)
  * This is called if we time out.
  */
 static void
-chan_attn_timeout(rock, arg2)
+chan_attn_timeout(rock)
 	caddr_t rock;
-	int arg2;
 {
   *(int *)rock = 1;
 }

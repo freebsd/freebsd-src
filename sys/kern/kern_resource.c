@@ -39,6 +39,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/file.h>
 #include <sys/resourcevar.h>
@@ -55,6 +56,7 @@ struct getpriority_args {
 	int	which;
 	int	who;
 };
+int
 getpriority(curp, uap, retval)
 	struct proc *curp;
 	register struct getpriority_args *uap;
@@ -114,6 +116,7 @@ struct setpriority_args {
 	int	prio;
 };
 /* ARGSUSED */
+int
 setpriority(curp, uap, retval)
 	struct proc *curp;
 	register struct setpriority_args *uap;
@@ -167,6 +170,7 @@ setpriority(curp, uap, retval)
 	return (error);
 }
 
+int
 donice(curp, chgp, n)
 	register struct proc *curp, *chgp;
 	register int n;
@@ -194,6 +198,7 @@ struct setrlimit_args {
 	struct	orlimit *lim;
 };
 /* ARGSUSED */
+int
 osetrlimit(p, uap, retval)
 	struct proc *p;
 	register struct setrlimit_args *uap;
@@ -216,6 +221,7 @@ struct getrlimit_args {
 	struct	orlimit *rlp;
 };
 /* ARGSUSED */
+int
 ogetrlimit(p, uap, retval)
 	struct proc *p;
 	register struct getrlimit_args *uap;
@@ -240,6 +246,7 @@ struct __setrlimit_args {
 	struct	rlimit *lim;
 };
 /* ARGSUSED */
+int
 setrlimit(p, uap, retval)
 	struct proc *p;
 	register struct __setrlimit_args *uap;
@@ -254,13 +261,13 @@ setrlimit(p, uap, retval)
 	return (dosetrlimit(p, uap->which, &alim));
 }
 
+int
 dosetrlimit(p, which, limp)
 	struct proc *p;
 	u_int which;
 	struct rlimit *limp;
 {
 	register struct rlimit *alimp;
-	extern unsigned maxdmap;
 	int error;
 
 	if (which >= RLIM_NLIMITS)
@@ -282,17 +289,17 @@ dosetrlimit(p, which, limp)
 	switch (which) {
 
 	case RLIMIT_DATA:
-		if (limp->rlim_cur > maxdmap)
-			limp->rlim_cur = maxdmap;
-		if (limp->rlim_max > maxdmap)
-			limp->rlim_max = maxdmap;
+		if (limp->rlim_cur > MAXDSIZ)
+			limp->rlim_cur = MAXDSIZ;
+		if (limp->rlim_max > MAXDSIZ)
+			limp->rlim_max = MAXDSIZ;
 		break;
 
 	case RLIMIT_STACK:
-		if (limp->rlim_cur > maxdmap)
-			limp->rlim_cur = maxdmap;
-		if (limp->rlim_max > maxdmap)
-			limp->rlim_max = maxdmap;
+		if (limp->rlim_cur > MAXSSIZ)
+			limp->rlim_cur = MAXSSIZ;
+		if (limp->rlim_max > MAXSSIZ)
+			limp->rlim_max = MAXSSIZ;
 		/*
 		 * Stack is allocated to the max at exec time with only
 		 * "rlim_cur" bytes accessible.  If stack limit is going
@@ -342,6 +349,7 @@ struct __getrlimit_args {
 	struct	rlimit *rlp;
 };
 /* ARGSUSED */
+int
 getrlimit(p, uap, retval)
 	struct proc *p;
 	register struct __getrlimit_args *uap;
@@ -358,6 +366,7 @@ getrlimit(p, uap, retval)
  * Transform the running time and tick information in proc p into user,
  * system, and interrupt time usage.
  */
+void
 calcru(p, up, sp, ip)
 	register struct proc *p;
 	register struct timeval *up;
@@ -415,6 +424,7 @@ struct getrusage_args {
 	struct	rusage *rusage;
 };
 /* ARGSUSED */
+int
 getrusage(p, uap, retval)
 	register struct proc *p;
 	register struct getrusage_args *uap;
@@ -440,6 +450,7 @@ getrusage(p, uap, retval)
 	    sizeof (struct rusage)));
 }
 
+void
 ruadd(ru, ru2)
 	register struct rusage *ru, *ru2;
 {

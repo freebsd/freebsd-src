@@ -61,27 +61,8 @@
 
 #define	schednetisr(anisr)	{ netisr |= 1<<(anisr); setsoftnet(); }
 
-#ifdef i386
-/* XXX Temporary -- soon to vanish - wfj */
-#define	NETISR_SCLK	11		/* softclock */
-#define	NETISR_AST	12		/* ast -- resched */
-
-#undef	schednetisr
-#define	schednetisr(anisr)	{\
-	if(netisr == 0) { \
-		softem++; \
-	} \
-	netisr |= 1<<(anisr); \
-}
 #ifndef LOCORE
 #ifdef KERNEL
-int	softem;	
-#endif
-#endif
-#endif /* i386 */
-
-#ifndef LOCORE
-#ifdef KERNEL
-int	netisr;				/* scheduling bits for network */
+volatile unsigned int	netisr;				/* scheduling bits for network */
 #endif
 #endif

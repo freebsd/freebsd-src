@@ -1,7 +1,7 @@
 #ifndef _MACHINE_IPL_H_
 #define _MACHINE_IPL_H_
 
-#include "machine/../isa/ipl.h"	/* XXX "machine" means cpu for i386 */
+#include <machine/ipl.h>	/* XXX "machine" means cpu for i386 */
 
 /*
  * Software interrupt bit numbers in priority order.  The priority only
@@ -75,11 +75,14 @@ static __inline int name(void)			\
 GENSPL(splbio, cpl |= bio_imask)
 GENSPL(splclock, cpl = HWI_MASK | SWI_MASK)
 GENSPL(splhigh, cpl = HWI_MASK | SWI_MASK)
+GENSPL(splstatclock, cpl = HWI_MASK | SWI_MASK)
 GENSPL(splimp, cpl |= net_imask)
 GENSPL(splnet, cpl |= SWI_NET_MASK)
 GENSPL(splsoftclock, cpl = SWI_CLOCK_MASK)
 GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
 GENSPL(spltty, cpl |= tty_imask)
+
+#define splnone() spl0()
 
 static __inline void
 spl0(void)

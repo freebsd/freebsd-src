@@ -134,7 +134,7 @@
 #define	clrnd(i)	(((i) + (CLSIZE-1)) &~ (CLSIZE-1))
 #endif
 
-#define	CBLOCK	64		/* Clist block size, must be a power of 2. */
+#define	CBLOCK	128		/* Clist block size, must be a power of 2. */
 #define CBQSIZE	(CBLOCK/NBBY)	/* Quote bytes/cblock - can do better. */
 				/* Data chars/clist. */
 #define	CBSIZE	(CBLOCK - sizeof(struct cblock *) - CBQSIZE)

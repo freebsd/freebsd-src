@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.22 1994/04/05 03:23:32 davidg Exp $
+ *      $Id: sd.c,v 1.23 1994/04/20 07:06:57 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -33,6 +33,7 @@
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/dkstat.h>
 #include <sys/disklabel.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
@@ -72,6 +73,7 @@ int     Debugger();
 
 #define WHOLE_DISK(unit) ( (unit << UNITSHIFT) + RAW_PART )
 
+extern char *readdisklabel();
 errval	sdgetdisklabel __P((unsigned char unit));
 errval	sd_get_parms __P((int unit, int flags));
 void	sdstrategy __P((struct buf *));
@@ -425,15 +427,24 @@ sdstrategy(bp)
 	/*      
 	 * Use a bounce buffer if necessary
 	 */      
+/*
 #ifndef NOBOUNCE
 	if (sd->sc_link->flags & SDEV_BOUNCE)
 		vm_bounce_alloc(bp);
 #endif
+*/
 
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
+/*
 	cldisksort(dp, bp, 64*1024);
+*/
+if ((bp->b_blkno < 0) || (bp->b_bcount > 3000000) /* || (bp->b_flags & B_WRITE) */) {
+	printf("blkno=%d bcount=%d flags=0x%x\n", bp->b_blkno, bp->b_bcount, bp->b_flags);
+	Debugger("");
+}
+	disksort(dp, bp);
 
 	/*
 	 * Tell the device to get going on the transfer if it's
@@ -504,7 +515,7 @@ sdstart(unit)
 		if ((bp = dp->b_actf) == NULL) {	/* yes, an assign */
 			return;
 		}
-		dp->b_actf = bp->av_forw;
+		dp->b_actf = bp->b_actf;
 
 		/*
 		 *  If the device has become invalid, abort all the
@@ -610,11 +621,13 @@ sdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		else
 			error = setdisklabel(&sd->disklabel,
 			    (struct disklabel *)addr,
-			/*(sd->flags & DKFL_BSDLABEL) ? sd->openparts : */ 0,
+			/*(sd->flags & DKFL_BSDLABEL) ? sd->openparts : */ 0
 #ifdef NetBSD
-			    &sd->cpudisklabel
+			    ,&sd->cpudisklabel
 #else
-			    sd->dosparts
+#if 0
+			    ,sd->dosparts
+#endif
 #endif
 			    );
 		if (error == 0) {
@@ -637,11 +650,13 @@ sdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		else {
 			error = setdisklabel(&sd->disklabel,
 			    (struct disklabel *)addr,
-			    /*(sd->flags & SDHAVELABEL) ? sd->openparts : */ 0,
+			    /*(sd->flags & SDHAVELABEL) ? sd->openparts : */ 0
 #ifdef NetBSD
-			    &sd->cpudisklabel
+			    ,&sd->cpudisklabel
 #else
-			    sd->dosparts
+#if 0
+			    ,sd->dosparts
+#endif
 #endif
 			    );
 			if (!error) {
@@ -655,11 +670,13 @@ sdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 				wlab = sd->wlabel;
 				sd->wlabel = 1;
 				error = writedisklabel(dev, sdstrategy,
-				    &sd->disklabel,
+				    &sd->disklabel
 #ifdef NetBSD
-				    &sd->cpudisklabel
+				    ,&sd->cpudisklabel
 #else
-				    sd->dosparts
+#if 0
+				    ,sd->dosparts
+#endif
 #endif
 				    );
 				sd->wlabel = wlab;
@@ -685,7 +702,9 @@ sdgetdisklabel(unsigned char unit)
 {
 	char   *errstring;
 	struct sd_data *sd = sd_data[unit];
+	dev_t dev;
 
+	dev = makedev(0, (unit << UNITSHIFT) + 3);
 	/*
 	 * If the inflo is already loaded, use it
 	 */
@@ -714,15 +733,13 @@ sdgetdisklabel(unsigned char unit)
 	/*
 	 * Call the generic disklabel extraction routine
 	 */
-	if (errstring = readdisklabel(makedev(0, (unit << UNITSHIFT) + 3),
+	if (errstring = readdisklabel(makedev(0, (unit << UNITSHIFT) + 3), 
 	    sdstrategy,
-	    &sd->disklabel,
+	    &sd->disklabel
 #ifdef NetBSD
-	    &sd->cpudisklabel
+	    ,&sd->cpu_disklabel,
 #else
-	    sd->dosparts,
-	    0,
-	    0
+	    ,sd->dosparts, 0
 #endif
 	    )) {
 		printf("sd%d: %s\n", unit, errstring);
