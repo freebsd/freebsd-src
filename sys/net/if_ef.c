@@ -61,6 +61,15 @@
 #include <netipx/ipx_if.h>
 #endif
 
+/* If none of the supported layers is enabled explicitly enable them all */
+#if !defined(ETHER_II) && !defined(ETHER_8023) && !defined(ETHER_8022) && \
+    !defined(ETHER_SNAP)
+#define	ETHER_II	1
+#define	ETHER_8023	1
+#define	ETHER_8022	1
+#define	ETHER_SNAP	1
+#endif
+
 /* internal frame types */
 #define ETHER_FT_EII		0	/* Ethernet_II - default */
 #define	ETHER_FT_8023		1	/* 802.3 (Novell) */
