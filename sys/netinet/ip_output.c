@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.72 1998/06/12 03:48:19 julian Exp $
+ *	$Id: ip_output.c,v 1.73 1998/06/14 20:58:17 julian Exp $
  */
 
 #define _IP_VHL
@@ -1324,7 +1324,7 @@ ip_mloopback(ifp, m, dst, hlen)
 		 */
 #if 1 /* XXX */
 		if (dst->sin_family != AF_INET) {
-			printf("ip_mloopback: bad address family %d\n");
+			printf("ip_mloopback: bad address family %d\n",
 						dst->sin_family);
 			dst->sin_family = AF_INET;
 		}
