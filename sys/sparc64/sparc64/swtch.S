@@ -76,6 +76,9 @@ ENTRY(cpu_switch)
 	wr	%g0, 0, %fprs
 	andn	%l3, FPRS_FEF, %l3
 	stx	%l3, [%l2 + TF_FPRS]
+	ldx	[%l1 + PCB_FLAGS], %l3
+	or	%l3, PCB_FEF, %l3
+	stx	%l3, [%l1 + PCB_FLAGS]
 
 	/*
 	 * Flush the windows out to the stack and save the current frame

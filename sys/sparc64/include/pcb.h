@@ -33,11 +33,14 @@
 
 #define	MAXWIN	8
 
+#define	PCB_FEF	(1 << 0)
+
 /* NOTE: pcb_ufp must be aligned on a 64 byte boundary. */
 struct pcb {
 	uint32_t pcb_ufp[64];
 	u_long	pcb_sp;
 	u_long	pcb_pc;
+	u_long	pcb_flags;
 	u_long	pcb_nsaved;
 	u_long	pcb_rwsp[MAXWIN];
 	struct	rwindow pcb_rw[MAXWIN];
