@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: profile.h,v 1.2 1994/08/02 07:38:56 davidg Exp $
  */
+
+#ifndef _I386_MACHINE_PROFILE_H_
+#define _I386_MACHINE_PROFILE_H_
 
 #define	_MCOUNT_DECL static inline void _mcount
 
@@ -55,3 +58,5 @@ extern void mcount() asm("mcount"); void mcount() { \
 	frompcindex = ((int *)frompcindex)[1]; \
 	_mcount(frompcindex, selfpc); \
 }
+
+#endif
