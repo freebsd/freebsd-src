@@ -107,8 +107,8 @@ static void     sound_mem_init(void);
  */
 
 struct isa_driver opldriver = {sndprobe, sndattach, "opl"};
-static struct isa_driver trixdriver = {sndprobe, sndattach, "trix"};
-static struct isa_driver trixsbdriver = {sndprobe, sndattach, "trixsb"};
+struct isa_driver trixdriver = {sndprobe, sndattach, "trix"};
+struct isa_driver trixsbdriver = {sndprobe, sndattach, "trixsb"};
 struct isa_driver sbdriver = {sndprobe, sndattach, "sb"};
 struct isa_driver sbxvidriver = {sndprobe, sndattach, "sbxvi"};
 struct isa_driver sbmididriver = {sndprobe, sndattach, "sbmidi"};
@@ -116,8 +116,8 @@ struct isa_driver awedriver    = {sndprobe, sndattach, "awe"};
 struct isa_driver pasdriver = {sndprobe, sndattach, "pas"};
 struct isa_driver mpudriver = {sndprobe, sndattach, "mpu"};
 struct isa_driver gusdriver = {sndprobe, sndattach, "gus"};
-static struct isa_driver gusxvidriver = {sndprobe, sndattach, "gusxvi"};
-static struct isa_driver gusmaxdriver = {sndprobe, sndattach, "gusmax"};
+struct isa_driver gusxvidriver = {sndprobe, sndattach, "gusxvi"};
+struct isa_driver gusmaxdriver = {sndprobe, sndattach, "gusmax"};
 struct isa_driver uartdriver = {sndprobe, sndattach, "uart"};
 struct isa_driver mssdriver = {sndprobe, sndattach, "mss"};
 struct isa_driver cssdriver = {sndprobe, sndattach, "css"};
