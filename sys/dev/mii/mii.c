@@ -363,3 +363,15 @@ mii_pollstat(mii)
 	LIST_FOREACH(child, &mii->mii_phys, mii_list)
 		(void) (*child->mii_service)(child, mii, MII_POLLSTAT);
 }
+
+/*
+ * Inform the PHYs that the interface is down.
+ */
+void
+mii_down(struct mii_data *mii)
+{
+	struct mii_softc *child;
+
+	LIST_FOREACH(child, &mii->mii_phys, mii_list)
+		mii_phy_down(child);
+}

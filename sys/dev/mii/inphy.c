@@ -53,13 +53,12 @@
 
 static int 	inphy_probe(device_t dev);
 static int 	inphy_attach(device_t dev);
-static int 	inphy_detach(device_t dev);
 
 static device_method_t inphy_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		inphy_probe),
 	DEVMETHOD(device_attach,	inphy_attach),
-	DEVMETHOD(device_detach,	inphy_detach),
+	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	{ 0, 0 }
 };
@@ -148,21 +147,6 @@ inphy_attach(device_t dev)
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-
-	return (0);
-}
-
-static int
-inphy_detach(device_t dev)
-{
-	struct mii_softc *sc;
-	struct mii_data *mii;
-
-	sc = device_get_softc(dev);
-	mii = device_get_softc(device_get_softc(dev));
-	mii_phy_auto_stop(sc);
-	sc->mii_dev = NULL;
-	LIST_REMOVE(sc, mii_list);
 
 	return (0);
 }
