@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.18 1995/12/14 09:53:45 phk Exp $
+ *	$Id: ip_var.h,v 1.19 1996/01/30 22:58:27 mpp Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -177,18 +177,17 @@ struct mbuf *
 void	 ip_stripoptions __P((struct mbuf *, struct mbuf *));
 int	 rip_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
 void	 rip_init __P((void));
-void	 rip_input __P((struct mbuf *));
+void	 rip_input __P((struct mbuf *, int));
 int	 rip_output __P((struct mbuf *, struct socket *, u_long));
 int	 rip_usrreq __P((struct socket *,
 	    int, struct mbuf *, struct mbuf *, struct mbuf *));
+void	ipip_input __P((struct mbuf *, int));
+void	rsvp_input __P((struct mbuf *, int));
 int	ip_rsvp_init __P((struct socket *));
 int	ip_rsvp_done __P((void));
 int	ip_rsvp_vif_init __P((struct socket *, struct mbuf *));
 int	ip_rsvp_vif_done __P((struct socket *, struct mbuf *));
 void	ip_rsvp_force_done __P((struct socket *));
-
-void  rip_ip_input __P((struct mbuf *mm,
-          register struct socket *ip_mrouter, struct sockaddr *src));
 
 #endif
 

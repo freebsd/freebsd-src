@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.29 1996/03/11 15:13:17 davidg Exp $
+ * $Id: ip_mroute.c,v 1.30 1996/03/11 17:11:23 fenner Exp $
  */
 
 #include "opt_mrouting.h"
@@ -39,8 +39,6 @@
 #include <netinet/ip_mroute.h>
 #include <netinet/udp.h>
 
-extern void	rsvp_input __P((struct mbuf *m, int iphlen));
-
 #ifndef NTOHL
 #if BYTE_ORDER != BIG_ENDIAN
 #define NTOHL(d) ((d) = ntohl((d)))
@@ -56,7 +54,6 @@ extern void	rsvp_input __P((struct mbuf *m, int iphlen));
 #endif
 
 #ifndef MROUTING
-extern void	ipip_input __P((struct mbuf *m));
 extern u_long	_ip_mcast_src __P((int vifi));
 extern int	_ip_mforward __P((struct ip *ip, struct ifnet *ifp,
 				  struct mbuf *m, struct ip_moptions *imo));
@@ -145,15 +142,15 @@ rsvp_input(m, iphlen)		/* XXX must fixup manually */
     if (ip_rsvpd != NULL) {
 	if (rsvpdebug)
 	    printf("rsvp_input: Sending packet up old-style socket\n");
-	rip_input(m);
+	rip_input(m, iphlen);
 	return;
     }
     /* Drop the packet */
     m_freem(m);
 }
 
-void ipip_input(struct mbuf *m) { /* XXX must fixup manually */
-	rip_input(m);
+void ipip_input(struct mbuf *m, int iphlen) { /* XXX must fixup manually */
+	rip_input(m, iphlen);
 }
 
 int (*legal_vif_num)(int) = 0;
@@ -205,14 +202,12 @@ ip_rsvp_force_done(so)
  * except for netstat or debugging purposes.
  */
 #ifndef MROUTE_LKM
-extern void	ipip_input __P((struct mbuf *m, int iphlen));
 struct socket  *ip_mrouter  = NULL;
 struct mrtstat	mrtstat;
 
 int		ip_mrtproto = IGMP_DVMRP;    /* for netstat only */
 #else /* MROUTE_LKM */
-#error /* the function definition will have a syntax error */
-extern void	X_ipip_input __P((struct mbuf *m));
+extern void	X_ipip_input __P((struct mbuf *m, int iphlen));
 extern struct mrtstat mrtstat;
 static int ip_mrtproto;
 #endif
@@ -1637,7 +1632,7 @@ encap_send(ip, vifp, m)
  */
 void
 #ifdef MROUTE_LKM
-X_ipip_input(m)
+X_ipip_input(m, iphlen)
 #else
 ipip_input(m, iphlen)
 #endif
@@ -1652,7 +1647,7 @@ ipip_input(m, iphlen)
     register struct vif *vifp;
 
     if (!have_encap_tunnel) {
-	    rip_input(m);
+	    rip_input(m, iphlen);
 	    return;
     }
     /*
@@ -2171,7 +2166,7 @@ rsvp_input(m, iphlen)
     if (ip_rsvpd != NULL) {
 	if (rsvpdebug)
 	    printf("rsvp_input: Sending packet up old-style socket\n");
-	rip_input(m);
+	rip_input(m, iphlen);
 	return;
     }
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.25 1996/02/08 15:43:35 wollman Exp $
+ *	$Id: in_proto.c,v 1.26 1996/03/11 15:13:15 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -88,9 +88,6 @@ int	tp_ctloutput(), tp_usrreq();
 #ifdef EON
 void	eoninput(), eonctlinput(), eonprotoinit();
 #endif /* EON */
-
-void rsvp_input(struct mbuf *, int);
-void ipip_input(struct mbuf *, int);
 
 extern	struct domain inetdomain;
 
