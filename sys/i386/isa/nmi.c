@@ -57,6 +57,7 @@
 #include <sys/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
+#include <machine/intrcnt.h>
 #include <sys/bus.h> 
 
 #if defined(APIC_IO)

@@ -75,5 +75,7 @@
 #ifdef _KERNEL
 #ifndef _LOCORE
 extern volatile long intrcnt[];
+extern char intrnames[];
+extern char eintrnames[];
 #endif
 #endif
