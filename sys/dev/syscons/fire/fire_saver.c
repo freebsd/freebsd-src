@@ -40,7 +40,6 @@
 #include <sys/syslog.h>
 #include <sys/consio.h>
 #include <sys/fbio.h>
-#include <sys/random.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/splashreg.h>
