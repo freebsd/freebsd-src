@@ -1,3 +1,5 @@
+#ifndef _SETLOCALE_H
+#define _SETLOCALE_H
 /*
  * Copyright (C) 1997 by Andrey A. Chernov, Moscow, Russia.
  * All rights reserved.
@@ -26,5 +28,6 @@
 
 #define ENCODING_LEN 31
 
-char *_PathLocale;
+extern char *_PathLocale;
 
+#endif /* SETLOCALE_H */
