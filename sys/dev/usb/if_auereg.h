@@ -50,6 +50,7 @@
 #define AUE_UR_WRITEREG		0xF1
 
 #define AUE_CONFIG_NO		1
+#define AUE_IFACE_IDX		0
 
 /*
  * Note that while the ADMtek technically has four
