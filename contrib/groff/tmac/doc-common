@@ -90,6 +90,7 @@
 .nr Er 17n
 .nr Es 12n
 .nr Ev 15n
+.nr Ex 1
 .nr Fa 12n
 .nr Fc 3
 .nr Fd 12n\" ?
