@@ -1,10 +1,11 @@
-#	$Id: Makefile,v 1.1 1999/07/23 05:48:01 wpaul Exp $
+#	$Id: Makefile,v 1.1 1999/08/21 17:40:39 wpaul Exp $
 
 S	= ${.CURDIR}/../..
 .PATH:	$S/dev/mii
 KMOD	= mii
 SRCS	= mii.c mii_physubr.c ukphy.c ukphy_subr.c bus_if.h
 SRCS	+= miibus_if.h device_if.h miibus_if.c exphy.c nsphy.c
+SRCS	+= mlphy.c tlphy.c
 CLEANFILES	+= device_if.h bus_if.h miibus_if.h miibus_if.c
 CFLAGS	+= ${DEBUG_FLAGS}
 
