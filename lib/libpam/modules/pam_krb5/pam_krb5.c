@@ -33,8 +33,6 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
- * $FreeBSD$
  * ---------------------------------------------------------------------------
  * 
  * This software may contain code from Naomaru Itoi:
@@ -191,6 +189,9 @@
  *    performed by MIT and the Kerberos community.
  * 
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
