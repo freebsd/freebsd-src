@@ -725,8 +725,13 @@ VarGetPattern(VarParser *vp, int delim, int *flags, VarPattern *patt)
 					vp->ptr++;
 				}
 			} else {
+				VarParser	subvp = {
+					vp->ptr,
+					vp->ptr,
+					vp->ctxt,
+					vp->err
+				};
 				char   *rval;
-				size_t  rlen;
 				Boolean rfree;
 
 				/*
@@ -735,12 +740,11 @@ VarGetPattern(VarParser *vp, int delim, int *flags, VarPattern *patt)
 				 * a variable substitution and
 				 * recurse.
 				 */
-				rlen = 0;
-				rval = Var_Parse(vp->ptr, vp->ctxt, vp->err, &rlen, &rfree);
+				rval = VarParse(&subvp, &rfree);
 				Buf_Append(buf, rval);
 				if (rfree)
 					free(rval);
-				vp->ptr += rlen;
+				vp->ptr = subvp.ptr;
 			}
 		} else if (vp->ptr[0] == '&' && patt != NULL) {
 			Buf_AppendBuf(buf, patt->lhs);
@@ -1511,20 +1515,23 @@ VarParseLong(VarParser *vp, Boolean *freeResult)
 			return (value);
 
 		} else if (*vp->ptr == '$') {
-			size_t	rlen;
-			Boolean	rfree;
+			VarParser	subvp = {
+				vp->ptr,
+				vp->ptr,
+				vp->ctxt,
+				vp->err
+			};
 			char	*rval;
+			Boolean	rfree;
 
-			rlen = 0;
-			rval = Var_Parse(vp->ptr, vp->ctxt, vp->err, &rlen, &rfree);
+			rval = VarParse(&subvp, &rfree);
 			if (rval == var_Error) {
 				Fatal("Error expanding embedded variable.");
 			}
 			Buf_Append(buf, rval);
 			if (rfree)
 				free(rval);
-			vp->ptr += rlen;
-
+			vp->ptr = subvp.ptr;
 		} else {
 			Buf_AddByte(buf, (Byte)*vp->ptr);
 			vp->ptr++;
@@ -1697,10 +1704,6 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean err)
 			str += 2;
 
 		} else if (str[0] == '$') {
-			char	*rval;
-			size_t	rlen;
-			Boolean	rfree;
-
 			/*
 			 * Variable invocation.
 			 */
@@ -1770,8 +1773,17 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean err)
 				if (!expand)
 					continue;
 			}
-			rlen = 0;
-			rval = Var_Parse(str, ctxt, err, &rlen, &rfree);
+		    {
+			VarParser	subvp = {
+				str,
+				str,
+				ctxt,
+				err
+			};
+			char	*rval;
+			Boolean	rfree;
+
+			rval = VarParse(&subvp, &rfree);
 
 			/*
 			 * When we come down here, val should either point to
@@ -1789,7 +1801,7 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean err)
 				 * we continue with the string...
 				 */
 				if (oldVars) {
-					str += rlen;
+					str = subvp.ptr;
 				} else if (err) {
 					/*
 					 * If variable is undefined, complain
@@ -1799,9 +1811,9 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean err)
 					 */
 					if (!errorReported) {
 						Parse_Error(PARSE_FATAL,
-							    "Undefined variable \"%.*s\"", rlen, str);
+							    "Undefined variable \"%.*s\"", subvp.ptr - subvp.input, str);
 					}
-					str += rlen;
+					str = subvp.ptr;
 					errorReported = TRUE;
 				} else {
 					Buf_AddByte(buf, (Byte)*str);
@@ -1813,7 +1825,7 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean err)
 				 * store in. But first, advance the string
 				 * pointer.
 				 */
-				str += rlen;
+				str = subvp.ptr;
 
 				/*
 				 * Copy all the characters from the variable
@@ -1824,6 +1836,7 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean err)
 					free(rval);
 				}
 			}
+		    }
 		} else {
 			/*
 			 * Skip as many characters as possible -- either to
