@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/*	$Id: if_de.c,v 1.98 1999/01/29 11:31:45 bde Exp $ */
+/*	$Id: if_de.c,v 1.99 1999/03/01 16:54:28 luigi Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -116,6 +116,7 @@
 #include <vm/vm.h>
 
 #if defined(__FreeBSD__)
+#include <net/if_var.h>
 #include <vm/pmap.h>
 #include <pci.h>
 #if NPCI > 0
@@ -5084,6 +5085,9 @@ tulip_attach(
     TULIP_ETHER_IFATTACH(sc);
 #else
     if_attach(ifp);
+#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
+    ifp->if_snd.ifq_maxlen = ifqmaxlen;
+#endif
 #if defined(__NetBSD__) || (defined(__FreeBSD__) && BSD >= 199506)
     TULIP_ETHER_IFATTACH(sc);
 #endif
