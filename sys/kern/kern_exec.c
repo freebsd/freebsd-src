@@ -273,7 +273,6 @@ interpret:
 	 * Copy out strings (args and env) and initialize stack base
 	 */
 	stack_base = exec_copyout_strings(imgp);
-	p->p_vmspace->vm_minsaddr = (char *)stack_base;
 
 	/*
 	 * If custom stack fixup routine present for this process
