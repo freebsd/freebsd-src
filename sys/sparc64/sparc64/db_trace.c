@@ -47,23 +47,6 @@
 #include <ddb/db_variables.h>
 #include <ddb/db_watch.h>
 
-static db_varfcn_t db_show_in0;
-static db_varfcn_t db_show_in1;
-static db_varfcn_t db_show_in2;
-static db_varfcn_t db_show_in3;
-static db_varfcn_t db_show_in4;
-static db_varfcn_t db_show_in5;
-static db_varfcn_t db_show_in6;
-static db_varfcn_t db_show_in7;
-static db_varfcn_t db_show_local0;
-static db_varfcn_t db_show_local1;
-static db_varfcn_t db_show_local2;
-static db_varfcn_t db_show_local3;
-static db_varfcn_t db_show_local4;
-static db_varfcn_t db_show_local5;
-static db_varfcn_t db_show_local6;
-static db_varfcn_t db_show_local7;
-
 static int db_print_trap(struct proc *p, struct trapframe *);
 
 #define	INKERNEL(va) \
@@ -78,25 +61,17 @@ struct	db_variable db_regs[] = {
 	{ "g5",	&ddb_regs.tf_global[5], FCN_NULL },
 	{ "g6",	&ddb_regs.tf_global[6], FCN_NULL },
 	{ "g7",	&ddb_regs.tf_global[7], FCN_NULL },
-	{ "i0", NULL, db_show_in0 },
-	{ "i1", NULL, db_show_in1 },
-	{ "i2", NULL, db_show_in2 },
-	{ "i3", NULL, db_show_in3 },
-	{ "i4", NULL, db_show_in4 },
-	{ "i5", NULL, db_show_in5 },
-	{ "i6", NULL, db_show_in6 },
-	{ "i7", NULL, db_show_in7 },
-	{ "l0", NULL, db_show_local0 },
-	{ "l1", NULL, db_show_local1 },
-	{ "l2", NULL, db_show_local2 },
-	{ "l3", NULL, db_show_local3 },
-	{ "l4", NULL, db_show_local4 },
-	{ "l5", NULL, db_show_local5 },
-	{ "l6", NULL, db_show_local6 },
-	{ "l7", NULL, db_show_local7 },
-	{ "tstate", &ddb_regs.tf_tstate, FCN_NULL },
+	{ "i0", &ddb_regs.tf_out[0], FCN_NULL },
+	{ "i1", &ddb_regs.tf_out[1], FCN_NULL },
+	{ "i2", &ddb_regs.tf_out[2], FCN_NULL },
+	{ "i3", &ddb_regs.tf_out[3], FCN_NULL },
+	{ "i4", &ddb_regs.tf_out[4], FCN_NULL },
+	{ "i5", &ddb_regs.tf_out[5], FCN_NULL },
+	{ "i6", &ddb_regs.tf_out[6], FCN_NULL },
+	{ "i7", &ddb_regs.tf_out[7], FCN_NULL },
+	{ "tnpc", &ddb_regs.tf_tnpc, FCN_NULL },
 	{ "tpc", &ddb_regs.tf_tpc, FCN_NULL },
-	{ "tnpc", &ddb_regs.tf_tnpc, FCN_NULL }
+	{ "tstate", &ddb_regs.tf_tstate, FCN_NULL },
 };
 struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
 
@@ -124,11 +99,22 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 	npc = 0;
 	if (count == -1)
 		count = 1024;
-	if (!have_addr) {
-		td = curthread;
-		p = td->td_proc;
+	td = curthread;
+	p = td->td_proc;
+	/*
+	 * Provide an /a modifier to pass the stack address instead of a PID
+	 * as argument.
+	 * Note that, if this address is not on the stack of curthread, the
+	 * printed data may be wrong (at the moment, this applies only to the
+	 * sysent list).
+	 */
+	if (!have_addr)
 		addr = DDB_REGS->tf_out[6];
-	} else if (!INKERNEL(addr)) {
+	else if (strcmp(modif, "a") != 0) {
+		/*
+		 * addr was parsed as hex, convert so it is interpreted as
+		 * decimal (ugh).
+		 */
 		pid = (addr % 16) + ((addr >> 4) % 16) * 10 +
 		    ((addr >> 8) % 16) * 100 + ((addr >> 12) % 16) * 1000 +
 		    ((addr >> 16) % 16) * 10000;
@@ -139,17 +125,31 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 		if (pid == curthread->td_proc->p_pid) {
 			td = curthread;
 			p = td->td_proc;
+			addr = DDB_REGS->tf_out[6];
 		} else {
-			/* search for pid */
+			/* sx_slock(&allproc_lock); */
+			LIST_FOREACH(p, &allproc, p_list) {
+				if (p->p_pid == pid)
+					break;
+			}
+			/* sx_sunlock(&allproc_lock); */
+			if (p == NULL) {
+				db_printf("pid %d not found\n", pid);
+				return;
+			}
+			if ((p->p_sflag & PS_INMEM) == 0) {
+				db_printf("pid %d swapped out\n", pid);
+				return;
+			}
+			td = &p->p_thread;	/* XXXKSE */
+			addr = td->td_pcb->pcb_fp;
 		}
-		db_printf("trace pid not implemented\n");
-		return;
 	}
 	fp = (struct frame *)(addr + SPOFF);
 
 	while (count-- && !user) {
 		pc = (db_addr_t)db_get_value((db_addr_t)&fp->f_pc,
-		    sizeof(db_addr_t), FALSE);
+		    sizeof(fp->f_pc), FALSE);
 		if (trap) {
 			pc = npc;
 			trap = 0;
@@ -167,11 +167,11 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 		if (bcmp(name, "tl0_", 4) == 0 ||
 		    bcmp(name, "tl1_", 4) == 0) {
 			nfp = db_get_value((db_addr_t)&fp->f_fp,
-			    sizeof(u_long), FALSE) + SPOFF;
+			    sizeof(fp->f_fp), FALSE) + SPOFF;
 			tf = (struct trapframe *)(nfp + sizeof(*fp));
 			npc = db_get_value((db_addr_t)&tf->tf_tpc,
-			    sizeof(u_long), FALSE);
-			user = db_print_trap(curthread->td_proc, tf);
+			    sizeof(tf->tf_tpc), FALSE);
+			user = db_print_trap(p, tf);
 			trap = 1;
 		} else {
 			db_printf("%s() at ", name);
@@ -179,7 +179,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 			db_printf("\n");
 		}
 		fp = (struct frame *)(db_get_value((db_addr_t)&fp->f_fp,
-		   sizeof(u_long), FALSE) + SPOFF);
+		    sizeof(fp->f_fp), FALSE) + SPOFF);
 	}
 }
 
@@ -187,28 +187,46 @@ static int
 db_print_trap(struct proc *p, struct trapframe *tf)
 {
 	const char *symname;
-	struct mmuframe *mf;
 	c_db_sym_t sym;
 	db_expr_t diff;
 	db_addr_t func;
 	db_addr_t tpc;
 	u_long type;
-	u_long va;
+	u_long sfar;
+	u_long sfsr;
+	u_long tar;
+	u_long level;
+	u_long pil;
 	u_long code;
+	int user;
 
-	type = db_get_value((db_addr_t)&tf->tf_type, sizeof(db_addr_t), FALSE);
+	type = db_get_value((db_addr_t)&tf->tf_type,
+	    sizeof(tf->tf_type), FALSE);
 	db_printf("-- %s", trap_msg[type & ~T_KERNEL]);
 	switch (type & ~T_KERNEL) {
-	case T_ALIGN:
-		mf = (struct mmuframe *)db_get_value((db_addr_t)&tf->tf_arg,
-		    sizeof(void *), FALSE);
-		va = (u_long)db_get_value((db_addr_t)&mf->mf_sfar,
-		    sizeof(u_long), FALSE);
-		db_printf(" va=%#lx", va);
+	case T_DATA_PROTECTION:
+		tar = (u_long)db_get_value((db_addr_t)&tf->tf_tar,
+		    sizeof(tf->tf_tar), FALSE);
+		db_printf(" tar=%#lx", tar);
+		/* fall through */
+	case T_DATA_EXCEPTION:
+	case T_INSTRUCTION_EXCEPTION:
+	case T_MEM_ADDRESS_NOT_ALIGNED:
+		sfar = (u_long)db_get_value((db_addr_t)&tf->tf_sfar,
+		    sizeof(tf->tf_sfar), FALSE);
+		sfsr = (u_long)db_get_value((db_addr_t)&tf->tf_sfsr,
+		    sizeof(tf->tf_sfsr), FALSE);
+		db_printf(" sfar=%#lx sfsr=%#lx", sfar, sfsr);
+		break;
+	case T_DATA_MISS:
+	case T_INSTRUCTION_MISS:
+		tar = (u_long)db_get_value((db_addr_t)&tf->tf_tar,
+		    sizeof(tf->tf_tar), FALSE);
+		db_printf(" tar=%#lx", tar);
 		break;
 	case T_SYSCALL:
 		code = db_get_value((db_addr_t)&tf->tf_global[1],
-		    sizeof(u_long), FALSE);
+		    sizeof(tf->tf_global[1]), FALSE);
 		db_printf(" (%ld", code);
 		if (code >= 0 && code < p->p_sysent->sv_size) {
 			func = (db_addr_t)p->p_sysent->sv_table[code].sy_call;
@@ -221,87 +239,24 @@ db_print_trap(struct proc *p, struct trapframe *tf)
 			db_printf(")");
 		}
 		break;
+	case T_INTERRUPT:
+		level = (u_long)db_get_value((db_addr_t)&tf->tf_level,
+		    sizeof(tf->tf_level), FALSE);
+		pil = (u_long)db_get_value((db_addr_t)&tf->tf_pil,
+		    sizeof(tf->tf_pil), FALSE);
+		db_printf(" level=%#lx pil=%#lx", level, pil);
+		break;
 	default:
 		break;
 	}
-	tpc = db_get_value((db_addr_t)&tf->tf_tpc, sizeof(db_addr_t), FALSE);
-	db_printf(" -- at ");
-	db_printsym(tpc, DB_STGY_PROC);
-	db_printf("\n");
-	return ((type & T_KERNEL) == 0);
-}
-
-#if 0
-DB_COMMAND(down, db_frame_down)
-{
-	struct kdbframe *kfp;
-	struct frame *fp;
-	u_long cfp;
-	u_long ofp;
-
-	kfp = (struct kdbframe *)DDB_REGS->tf_arg;
-	fp = (struct frame *)(kfp->kf_fp + SPOFF);
-	cfp = kfp->kf_cfp;
-	for (;;) {
-		if (!INKERNEL((u_long)fp)) {
-			db_printf("already at bottom\n");
-			break;
-		}
-		ofp = db_get_value((db_addr_t)&fp->f_fp, sizeof(u_long),
-		    FALSE);
-		if (ofp == cfp) {
-			kfp->kf_cfp = (u_long)fp - SPOFF;
-			break;
-		}
-		fp = (struct frame *)(ofp + SPOFF);
+	db_printf(" --\n");
+	user = (type & T_KERNEL) == 0;
+	if (user) {
+		tpc = db_get_value((db_addr_t)&tf->tf_tpc,
+		    sizeof(tf->tf_tpc), FALSE);
+		db_printf("userland() at ");
+		db_printsym(tpc, DB_STGY_PROC);
+		db_printf("\n");
 	}
+	return (user);
 }
-
-DB_COMMAND(up, db_frame_up)
-{
-	struct kdbframe *kfp;
-	struct frame *cfp;
-
-	kfp = (struct kdbframe *)DDB_REGS->tf_arg;
-	cfp = (struct frame *)(kfp->kf_cfp + SPOFF);
-	if (!INKERNEL((u_long)cfp)) {
-		db_printf("already at top\n");
-		return;
-	}
-	kfp->kf_cfp = db_get_value((db_addr_t)&cfp->f_fp, sizeof(u_long),
-	    FALSE);
-}
-#endif
-
-#define	DB_SHOW_REG(name, num)						\
-static int								\
-db_show_ ## name ## num(struct db_variable *dp, db_expr_t *vp, int op)	\
-{									\
-	struct frame *fp;						\
-									\
-	fp = (struct frame *)(DDB_REGS->tf_out[6] + SPOFF);		\
-	if (op == DB_VAR_GET)						\
-		*vp = db_get_value((db_addr_t)&fp->f_ ## name ## [num],	\
-		    sizeof(u_long), FALSE);				\
-	else								\
-		db_put_value((db_addr_t)&fp->f_ ## name ## [num],	\
-		    sizeof(u_long), *vp);				\
-	return (0);							\
-}
-
-DB_SHOW_REG(in, 0)
-DB_SHOW_REG(in, 1)
-DB_SHOW_REG(in, 2)
-DB_SHOW_REG(in, 3)
-DB_SHOW_REG(in, 4)
-DB_SHOW_REG(in, 5)
-DB_SHOW_REG(in, 6)
-DB_SHOW_REG(in, 7)
-DB_SHOW_REG(local, 0)
-DB_SHOW_REG(local, 1)
-DB_SHOW_REG(local, 2)
-DB_SHOW_REG(local, 3)
-DB_SHOW_REG(local, 4)
-DB_SHOW_REG(local, 5)
-DB_SHOW_REG(local, 6)
-DB_SHOW_REG(local, 7)
