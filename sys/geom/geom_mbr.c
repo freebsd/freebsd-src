@@ -58,9 +58,7 @@
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 
-#ifdef _KERNEL
-#include "opt_geom.h"
-#endif
+#define GEOM_GPT
 
 #define MBR_CLASS_NAME "MBR"
 #define MBREXT_CLASS_NAME "MBREXT"
