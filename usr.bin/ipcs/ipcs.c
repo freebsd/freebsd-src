@@ -482,6 +482,6 @@ usage()
 {
 
 	fprintf(stderr,
-	    "usage: ipcs [-abcmopqst] [-C corefile] [-N namelist]\n");
+	    "usage: ipcs [-abcmopqstMQST] [-C corefile] [-N namelist]\n");
 	exit(1);
 }
