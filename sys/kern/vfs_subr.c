@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.51 1996/01/04 21:12:26 wollman Exp $
+ * $Id: vfs_subr.c,v 1.52 1996/01/19 03:58:15 dyson Exp $
  */
 
 /*
@@ -367,14 +367,14 @@ retry:
 			goto retry;
 		}
 		freevnodes--;
+		if (vp->v_usecount)
+			panic("free vnode isn't");
 
 		/* see comment on why 0xdeadb is set at end of vgone (below) */
 		vp->v_freelist.tqe_prev = (struct vnode **) 0xdeadb;
 		vp->v_lease = NULL;
 		if (vp->v_type != VBAD)
 			vgone(vp);
-		if (vp->v_usecount)
-			panic("free vnode isn't");
 
 #ifdef DIAGNOSTIC
 		{
