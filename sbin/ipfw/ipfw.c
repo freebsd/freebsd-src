@@ -23,11 +23,12 @@
 #include <netdb.h>
 #include <kvm.h>
 #include <sys/socket.h>
+#include <net/if.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <arpa/inet.h>
 #define IPFIREWALL
 #define IPACCT
 #include <netinet/ip_fw.h>
@@ -335,12 +336,22 @@ else
 		    comma = ",";
 	    }
 
-if (chain->fw_via.s_addr) {
+if (chain->fw_flg&IP_FW_F_IFNAME && chain->fw_via_name[0]) {
+	char ifnb[FW_IFNLEN+1];
 	if (do_short)
 		printf("][");
 	else
 		printf(" via ");
-	printf(inet_ntoa(chain->fw_via));
+	strncpy(ifnb,chain->fw_via_name,FW_IFNLEN);
+	ifnb[FW_IFNLEN]='\0';
+	printf("%s%d",ifnb,chain->fw_via_unit);
+} else
+if (chain->fw_via_ip.s_addr) {
+	if (do_short)
+		printf("][");
+	else
+		printf(" via ");
+	printf(inet_ntoa(chain->fw_via_ip));
 }
 if (do_short)
 	printf("]\n");
@@ -593,6 +604,35 @@ struct	hostent *hptr;
 }
 
 
+int set_entry_ifname(str,frwl) 
+char 	*str;
+struct ip_fw * frwl;
+{
+char name[IFNAMSIZ],buf[IFNAMSIZ],*sptr;
+short unit;
+int i;
+	
+	i=0; sptr=str;
+	while(isalpha(*sptr++))
+		i++;
+
+	if (i==0)
+		return 1;
+
+	strncpy(name,str,i);
+	unit=(short)atoi(sptr);
+
+	sprintf(buf,"%s%d",name,unit);
+	if (strcmp(str,buf))
+		return 1;
+
+	strncpy(frwl->fw_via_name,name,FW_IFNLEN);
+	frwl->fw_via_unit=unit;
+
+	return 0;
+}
+
+
 void set_entry(av,frwl) 
 char 	**av;
 struct ip_fw * frwl;
@@ -601,7 +641,7 @@ int p_num=0,ir=0;
 
 	frwl->fw_nsp=0;
 	frwl->fw_ndp=0;
-	frwl->fw_via.s_addr=0L;
+	frwl->fw_via_ip.s_addr=0L;
 
 	if (strncmp(*av,S_SEP1,strlen(S_SEP1))) {
 		show_usage();
@@ -677,7 +717,15 @@ no_dst_ports:
 			exit(1);
 	}
 
-	set_entry_ip(*av,&(frwl->fw_via),NULL);
+	/*
+	 * Try first to set interface name 
+	 * from arguments.set_entry_ip() will exit on
+	 * wrong argument.
+	 */
+	if (set_entry_ifname(*av,frwl))
+		set_entry_ip(*av,&(frwl->fw_via_ip),NULL);
+	else
+		flags |= IP_FW_F_IFNAME;
 no_tail:
 
 }
