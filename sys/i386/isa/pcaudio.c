@@ -330,10 +330,7 @@ pcaprobe(device_t dev)
 	int error;
 
 	/* Check isapnp ids */
-	error = ISA_PNP_PROBE(device_get_parent(dev), dev, pca_ids);
-	if (error == ENXIO)
-		return ENXIO;
-	return 0;
+	return(ISA_PNP_PROBE(device_get_parent(dev), dev, pca_ids));
 }
 
 
