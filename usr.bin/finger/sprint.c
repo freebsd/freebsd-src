@@ -37,23 +37,18 @@
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)sprint.c	8.3 (Berkeley) 4/28/95";
-#else
+#endif
 static const char rcsid[] =
   "$FreeBSD$";
-#endif
 #endif /* not lint */
 
-#include <sys/types.h>
-#include <sys/time.h>
-#include <time.h>
 #include <db.h>
 #include <err.h>
 #include <pwd.h>
-#include <errno.h>
-#include <utmp.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <utmp.h>
 #include "finger.h"
 
 static void	  stimeprint __P((WHERE *));

@@ -37,27 +37,22 @@
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)lprint.c	8.3 (Berkeley) 4/28/95";
-#else
+#endif
 static const char rcsid[] =
   "$FreeBSD$";
-#endif
 #endif /* not lint */
 
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/time.h>
-#include <fcntl.h>
-#include <time.h>
+#include <ctype.h>
 #include <db.h>
 #include <err.h>
-#include <pwd.h>
-#include <utmp.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
+#include <fcntl.h>
 #include <paths.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <utmp.h>
 #include "finger.h"
 #include "pathnames.h"
 #include "extern.h"
