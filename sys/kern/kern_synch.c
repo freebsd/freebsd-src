@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.60 1998/07/11 13:06:41 bde Exp $
+ * $Id: kern_synch.c,v 1.61 1998/07/15 02:32:10 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -107,14 +107,21 @@ static void maybe_resched(struct proc *chk)
 {
 	struct proc *p = curproc; /* XXX */
 
-	/* If the current scheduler is the idle scheduler or
-	 * the priority of the new one is higher then reschedule.
+	/*
+	 * Compare priorities if the new process is on the same scheduler,
+	 * otherwise the one on the more realtimeish scheduler wins.
+	 *
+	 * XXX idle scheduler still broken because proccess stays on idle
+	 * scheduler during waits (such as when getting FS locks).  If a
+	 * standard process becomes runaway cpu-bound, the system can lockup
+	 * due to idle-scheduler processes in wakeup never getting any cpu.
 	 */
 	if (p == 0 ||
-	RTP_PRIO_BASE(p->p_rtprio.type) == RTP_PRIO_IDLE ||
-	(chk->p_priority < curpriority &&
-	RTP_PRIO_BASE(p->p_rtprio.type) == RTP_PRIO_BASE(chk->p_rtprio.type)) )
+		(chk->p_priority < curpriority && RTP_PRIO_BASE(p->p_rtprio.type) == RTP_PRIO_BASE(chk->p_rtprio.type)) ||
+		RTP_PRIO_BASE(chk->p_rtprio.type) < RTP_PRIO_BASE(p->p_rtprio.type)
+	) {
 		need_resched();
+	}
 }
 
 #define ROUNDROBIN_INTERVAL (hz / quantum)
