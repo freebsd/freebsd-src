@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.123 1995/03/24 02:45:24 phk Exp $
+#	$Id: Makefile,v 1.124 1995/03/24 04:20:35 phk Exp $
 #
 # How to roll a release:
 #
@@ -327,8 +327,8 @@ cdrom.1:
 	rm -rf ${CD}
 	mkdir ${CD}
 	mkdir ${CD}/filesys
-	cd ${RD} && find floppies dists bootfd -print | cpio -dumpl ${FD}
-	cd ${FD} && mv bootfd bootcd
+	cd ${RD} && find floppies dists bootfd -print | cpio -dumpl ${CD}
+	cd ${CD} && mv bootfd bootcd
 	for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
