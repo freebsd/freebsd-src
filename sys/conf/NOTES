@@ -116,15 +116,15 @@ options 	PQ_CACHESIZE=512	# color for 512k/16k cache
 #
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
-options 	GEOM_AES
-options 	GEOM_APPLE
-options 	GEOM_BDE
-options 	GEOM_BSD
-options 	GEOM_GPT
-options 	GEOM_MBR
-options 	GEOM_PC98
-options 	GEOM_SUNLABEL
-options 	GEOM_VOL
+options 	GEOM_AES		# Don't use, use GEOM_BDE
+options 	GEOM_APPLE		# Apple partitioning
+options 	GEOM_BDE		# Disk encryption.
+options 	GEOM_BSD		# BSD disklabels
+options 	GEOM_GPT		# GPT partitioning
+options 	GEOM_MBR		# DOS/MBR partitioning
+options 	GEOM_PC98		# NEC PC9800 partitioning
+options 	GEOM_SUNLABEL		# Sun/Solaris partitioning
+options 	GEOM_VOL		# Volume names from UFS superblock
 
 #
 # The root device and filesystem type can be compiled in;
