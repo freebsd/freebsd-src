@@ -822,14 +822,14 @@ shmexit_myhook(struct vmspace *vm)
 	struct shmmap_state *base, *shm;
 	int i;
 
-	GIANT_REQUIRED;
-
 	if ((base = vm->vm_shm) != NULL) {
 		vm->vm_shm = NULL;
+		mtx_lock(&Giant);
 		for (i = 0, shm = base; i < shminfo.shmseg; i++, shm++) {
 			if (shm->shmid != -1)
 				shm_delete_mapping(vm, shm);
 		}
+		mtx_unlock(&Giant);
 		free(base, M_SHM);
 	}
 }

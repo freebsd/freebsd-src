@@ -638,7 +638,7 @@ vm_forkproc(td, p2, td2, flags)
 
 	if (flags & RFMEM) {
 		p2->p_vmspace = p1->p_vmspace;
-		p1->p_vmspace->vm_refcnt++;
+		atomic_add_int(&p1->p_vmspace->vm_refcnt, 1);
 	}
 
 	while (vm_page_count_severe()) {
@@ -952,7 +952,7 @@ retry:
 		vm = p->p_vmspace;
 		KASSERT(vm != NULL,
 			("swapout_procs: a process has no address space"));
-		++vm->vm_refcnt;
+		atomic_add_int(&vm->vm_refcnt, 1);
 		PROC_UNLOCK(p);
 		if (!vm_map_trylock(&vm->vm_map))
 			goto nextproc1;
