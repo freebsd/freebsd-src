@@ -600,7 +600,7 @@ kvm_uread(kd, p, uva, buf, len)
 			_kvm_err(kd, kd->program, "invalid address (%x) in %s", uva, procfile);
 			break;
 		}
-		amount = read(fd, buf, len);
+		amount = read(fd, cp, len);
 		if (amount < 0) {
 			_kvm_err(kd, kd->program, "error reading %s", procfile);
 			break;
