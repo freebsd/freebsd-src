@@ -14,9 +14,10 @@
  * The author grants any other persons or organizations permission to use
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* Please read the README file for usage information */
 

@@ -7,14 +7,12 @@
  *	no circumstances is the author responsible for the proper functioning
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
- *
- *
- *
  *	Device Driver for CORTEX-I Frame Grabber
  *	Made by ImageNation Corporation
  *	1200 N.E. Keyues Road
@@ -105,7 +103,6 @@
  *	    Obviously, this sort of ugliness needs to be hidden away from
  *	    the casual user, with an appropriate set of higher level
  *	    functions.
- *
  */
 
 #include <sys/param.h>
