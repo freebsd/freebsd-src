@@ -1140,8 +1140,10 @@ fdc_thread(void *arg)
 	fdc = arg;
 	int i;
 
+	mtx_lock(&fdc->fdc_mtx);
 	fdc->flags |= FDC_KTHREAD_ALIVE;
 	while ((fdc->flags & FDC_KTHREAD_EXIT) == 0) {
+		mtx_unlock(&fdc->fdc_mtx);
 		i = fdc_worker(fdc);
 		if (i && debugflags & 0x20) {
 			if (fdc->bp != NULL) {
@@ -1151,9 +1153,12 @@ fdc_thread(void *arg)
 			printf("Retry line %d\n", retry_line);
 		}
 		fdc->retry += i;
+		mtx_lock(&fdc->fdc_mtx);
 	}
 	fdc->flags &= ~(FDC_KTHREAD_EXIT | FDC_KTHREAD_ALIVE);
-	wakeup(&fdc->fdc_thread);
+	mtx_unlock(&fdc->fdc_mtx);
+
+	kthread_exit(0);
 }
 
 /*
