@@ -2363,6 +2363,60 @@
     <sect3>
       <title>Ports/Packages Collection</title>
 
+      <para><application>BSDPAN</application>, a collection of modules
+      that provides tighter integration of
+      <application>Perl</application> into the &os; Ports
+      Collection, has been added.</para>
+
+      <para>&man.pkg.create.1; and &man.pkg.add.1; can now work with
+      packages that have been compressed using
+      &man.bzip2.1;. &man.pkg.add.1; will use the PACKAGEROOT
+      environment variable to determine a mirror site for new
+      packages. &merged;</para>
+
+      <para>&man.pkg.create.1; now records dependencies in dependency
+      order rather than in the order specified on the command line.
+      This improves the functioning of <command>pkg_add
+      -r</command>. &merged;</para>
+
+      <para>When requested to delete multiple packages,
+      &man.pkg.delete.1; will now attempt to remove them in dependency
+      order rather than the order specified on the command
+      line. &merged;</para>
+
+      <para>&man.pkg.delete.1; now can perform glob/regexp matching of
+      package names.  In addition, it supports a <option>-a</option>
+      option for removing all packages and a <option>-i</option> option
+      for &man.rm.1;-style interactive confirmation. &merged;</para>
+
+      <para>&man.pkg.info.1; now supports globbing against names of
+      installed packages.  The <option>-G</option> option disables this
+      behavior, and the <option>-x</option> option causes regular
+      expression matching instead of shell globbing. &merged;</para>
+
+      <para>&man.pkg.info.1; can now accept a <option>-g</option> flag for
+      verifying an installed package against its recorded checksums (to
+      see if it's been modified post-installation).  Naturally, this
+      mechanism is only as secure as the contents of
+      <filename>/var/db/pkg</filename> if it's to be used for auditing
+      purposes. &merged;</para>
+
+      <para>&man.pkg.sign.1; and &man.pkg.check.1; have been added to
+      digitally sign and verify the signatures on binary package
+      files. &merged;</para>
+
+      <para>&man.pkg.update.1;, a utility to update installed packages
+      and update their dependencies, has been added. &merged;</para>
+
+      <para>&man.pkg.version.1; now has a version number comparison
+      routine that corresponds to the Porters Handbook.  It also has a
+      <option>-t</option> option for testing address comparisons. 
+      &merged;</para>
+
+      <para>&man.pkg.version.1; now takes a <option>-s</option> flag
+      to limit its operation to ports/packages matching a given
+      string. &merged;</para>
+
       <para>Version numbers of installed packages have a new
       (backward-compatible) syntax, which supports the
       <varname>PORTREVISION</varname> and <varname>PORTEPOCH</varname>
@@ -2381,60 +2435,6 @@
       directive, which makes it easier for programs such as
       &man.pkg.version.1; to determine the directory from which a
       package was built. &merged;</para>
-
-      <para>&man.pkg.update.1;, a utility to update installed packages
-      and update their dependencies, has been added. &merged;</para>
-
-      <para>&man.pkg.info.1; now supports globbing against names of
-      installed packages.  The <option>-G</option> option disables this
-      behavior, and the <option>-x</option> option causes regular
-      expression matching instead of shell globbing. &merged;</para>
-
-      <para>&man.pkg.info.1; can now accept a <option>-g</option> flag for
-      verifying an installed package against its recorded checksums (to
-      see if it's been modified post-installation).  Naturally, this
-      mechanism is only as secure as the contents of
-      <filename>/var/db/pkg</filename> if it's to be used for auditing
-      purposes. &merged;</para>
-
-      <para>&man.pkg.create.1; and &man.pkg.add.1; can now work with
-      packages that have been compressed using
-      &man.bzip2.1;. &man.pkg.add.1; will use the PACKAGEROOT
-      environment variable to determine a mirror site for new
-      packages. &merged;</para>
-
-      <para>&man.pkg.create.1; now records dependencies in dependency
-      order rather than in the order specified on the command line.
-      This improves the functioning of <command>pkg_add
-      -r</command>. &merged;</para>
-
-      <para>&man.pkg.version.1; now has a version number comparison
-      routine that corresponds to the Porters Handbook.  It also has a
-      <option>-t</option> option for testing address comparisons. 
-      &merged;</para>
-
-      <para>&man.pkg.version.1; now takes a <option>-s</option> flag
-      to limit its operation to ports/packages matching a given
-      string. &merged;</para>
-
-      <para>When requested to delete multiple packages,
-      &man.pkg.delete.1; will now attempt to remove them in dependency
-      order rather than the order specified on the command
-      line. &merged;</para>
-
-      <para>&man.pkg.delete.1; now can perform glob/regexp matching of
-      package names.  In addition, it supports a <option>-a</option>
-      option for removing all packages and a <option>-i</option> option
-      for &man.rm.1;-style interactive confirmation. &merged;</para>
-
-      <para>&man.pkg.sign.1; and &man.pkg.check.1; have been added to
-      digitally sign and verify the signatures on binary package
-      files. &merged;</para>
-
-      <para><application>BSDPAN</application>, a collection of modules
-      that provides tighter integration of
-      <application>Perl</application> into the &os; Ports
-      Collection, has been added.</para>
     </sect3>
   </sect2>
 </sect1>
