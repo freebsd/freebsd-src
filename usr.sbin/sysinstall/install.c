@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.3 1995/04/29 19:33:01 jkh Exp $
+ * $Id: install.c,v 1.4 1995/05/01 21:56:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -46,60 +46,47 @@
 static int
 installHook(char *str)
 {
-    int rcode = 0;
+    int i;
+    struct disk *disks[100];	/* some ridiculously large number */
 
+    i = 0;
     /* Clip garbage off the ends */
     string_prune(str);
     str = string_skipwhite(str);
     while (str) {
 	char *cp;
 
-	cp = index(str, ' ');
+	cp = index(str, '\n');
 	if (cp)
 	   *cp++ = 0; 
-	rcode = !device_slice_disk(str);
+	if (!*str) {
+	    beep();
+	    return 0;
+	}
+	disks[i++] = device_slice_disk(str);
 	str = cp;
     }
-    return rcode;
-}
-
-/* Create a menu listing all the devices in the system. */
-static DMenu *
-getAllDisks(DMenu *menu, Device **rdevs)
-{
-    Device *devices;
-    int numdevs;
-
-    devices = device_get_all(DEVICE_TYPE_DISK, &numdevs);
-    *rdevs = devices;
-    if (!devices) {
-	msgConfirm("No devices suitable for installation found!\n\nPlease verify that your disk controller (and attached drives) were detected properly.  This can be done by selecting the ``Bootmsg'' option on the main menu and reviewing the boot messages carefully.");
-	return NULL;
-    }
+    disks[i] = NULL;
+    if (!i)
+	return 0;
     else {
-	Device *start;
-	DMenu *tmp;
-	int i;
-
-	tmp = (DMenu *)safe_malloc(sizeof(DMenu) +
-				   (sizeof(DMenuItem) * (numdevs + 1)));
-	bcopy(menu, tmp, sizeof(DMenu));
-	for (start = devices, i = 0; start->name[0]; start++, i++) {
-	    tmp->items[i].title = start->name;
-	    if (!strncmp(start->name, "sd", 2))
-		tmp->items[i].prompt = "SCSI disk";
-	    else if (!strncmp(start->name, "wd", 2))
-		tmp->items[i].prompt = "IDE/ESDI/MFM/ST506 disk";
-	    else
-		msgFatal("Unknown disk type: %s!", start->name);
-	    tmp->items[i].type = DMENU_CALL;
-	    tmp->items[i].ptr = installHook;
-	    tmp->items[i].disabled = FALSE;
+#ifdef notdoneyet
+	partition_disks(disks);
+	if (!confirm_write(disks)) {
+	    for (i = 0; disks[i]; i++)
+		Free_Disk(disks[i]);
+	    return 0;
 	}
-	tmp->items[i].type = DMENU_NOP;
-	tmp->items[i].title = NULL;
-	return tmp;
+	else {
+	    make_filesystems(disks);
+	    cpio_extract(disks);
+	    extract_dists(disks);
+	    do_final_setup(disks);
+	    systemShutdown();
+	}
+#endif
     }
+    return 1;
 }
 
 int
@@ -110,9 +97,8 @@ installCustom(char *str)
     DMenu *menu;
     Device *devs;
 
-    msgInfo("Installating the system custom");
     variable_set2("install_type", "custom");
-    menu = getAllDisks(&MenuDiskDevices, &devs);
+    menu = device_create_disk_menu(&MenuDiskDevices, &devs, installHook);
     if (!menu)
 	return 0;
     choice = scroll = curr = max = 0;
@@ -130,9 +116,8 @@ installExpress(char *str)
     DMenu *menu;
     Device *devs;
 
-    msgInfo("Installating the system express");
     variable_set2("install_type", "express");
-    menu = getAllDisks(&MenuDiskDevices, &devs);
+    menu = device_create_disk_menu(&MenuDiskDevices, &devs, installHook);
     if (!menu)
 	return 0;
     choice = scroll = curr = max = 0;
