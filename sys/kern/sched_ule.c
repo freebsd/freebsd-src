@@ -1239,11 +1239,13 @@ sched_runnable(void)
 
 	load = 1;
 
-	mtx_lock_spin(&sched_lock);
 	kseq = KSEQ_SELF();
 #ifdef SMP
-	if (kseq->ksq_assigned)
+	if (kseq->ksq_assigned) {
+		mtx_lock_spin(&sched_lock);
 		kseq_assign(kseq);
+		mtx_unlock_spin(&sched_lock);
+	}
 #endif
 	if ((curthread->td_flags & TDF_IDLETD) != 0) {
 		if (kseq->ksq_load > 0)
@@ -1253,7 +1255,6 @@ sched_runnable(void)
 			goto out;
 	load = 0;
 out:
-	mtx_unlock_spin(&sched_lock);
 	return (load);
 }
 
