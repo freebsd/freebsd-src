@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.44 1995/04/14 15:13:46 dufault Exp $
+ *      $Id: aha1542.c,v 1.45 1995/05/30 08:01:05 rgrimes Exp $
  */
 
 /*
@@ -623,6 +623,7 @@ ahaattach(dev)
 {
 	int     unit = dev->id_unit;
 	struct aha_data *aha = ahadata[unit];
+	struct scsibus_data *scbus;
 
 	/*
 	 * fill in the prototype scsi_link.
@@ -634,10 +635,19 @@ ahaattach(dev)
 	aha->sc_link.flags = aha->flags;;
 
 	/*
+	 * Prepare the scsibus_data area for the upperlevel
+	 * scsi code.
+	 */
+	scbus = scsi_alloc_bus();
+	if(!scbus)
+		return 0;
+	scbus->adapter_link = &aha->sc_link;
+
+	/*
 	 * ask the adapter what subunits are present
 	 */
 	kdc_aha[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
-	scsi_attachdevs(&(aha->sc_link));
+	scsi_attachdevs(scbus);
 
 	return 1;
 }

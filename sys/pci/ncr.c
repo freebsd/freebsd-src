@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.37.4.1 1995/07/20 17:40:43 davidg Exp $
+**  $Id: ncr.c,v 1.37.4.2 1995/08/31 06:23:20 davidg Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1223,7 +1223,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.37.4.1 1995/07/20 17:40:43 davidg Exp $\n";
+	"\n$Id: ncr.c,v 1.37.4.2 1995/08/31 06:23:20 davidg Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3204,6 +3204,10 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	extern unsigned bio_imask;
 #endif
 
+#if (__FreeBSD__ >= 2)
+	struct scsibus_data *scbus;
+#endif
+
 	/*
 	**	allocate structure
 	*/
@@ -3380,7 +3384,17 @@ static	void ncr_attach (pcici_t config_id, int unit)
 #ifdef __NetBSD__
 	config_found(self, &np->sc_link, ncr_print);
 #else /* !__NetBSD__ */
+#if (__FreeBSD__ >= 2)
+	scbus = scsi_alloc_bus();
+	if(!scbus)
+		return;
+	/* XXX scbus->maxtarg should be adjusted based on bus width */
+	scbus->adapter_link = &np->sc_link;
+	scsi_attachdevs (scbus);
+	scbus = NULL;   /* Upper-level SCSI code owns this now */
+#else
 	scsi_attachdevs (&np->sc_link);
+#endif /* !__FreeBSD__ >= 2 */
 #endif /* !__NetBSD__ */
 
 	/*
