@@ -48,17 +48,17 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 
-#define CY_PCI_BASE_ADDR0		0x10
-#define CY_PCI_BASE_ADDR1		0x14
-#define CY_PCI_BASE_ADDR2		0x18
+#define	CY_PCI_BASE_ADDR0		0x10
+#define	CY_PCI_BASE_ADDR1		0x14
+#define	CY_PCI_BASE_ADDR2		0x18
 
-#define CY_PLX_9050_ICS			0x4c
-#define CY_PLX_9060_ICS			0x68
-#define CY_PLX_9050_ICS_IENABLE		0x040
-#define CY_PLX_9050_ICS_LOCAL_IENABLE	0x001
-#define CY_PLX_9050_ICS_LOCAL_IPOLARITY	0x002
-#define CY_PLX_9060_ICS_IENABLE		0x100
-#define CY_PLX_9060_ICS_LOCAL_IENABLE	0x800
+#define	CY_PLX_9050_ICS			0x4c
+#define	CY_PLX_9060_ICS			0x68
+#define	CY_PLX_9050_ICS_IENABLE		0x040
+#define	CY_PLX_9050_ICS_LOCAL_IENABLE	0x001
+#define	CY_PLX_9050_ICS_LOCAL_IPOLARITY	0x002
+#define	CY_PLX_9060_ICS_IENABLE		0x100
+#define	CY_PLX_9060_ICS_LOCAL_IENABLE	0x800
 
 /* Cyclom-Y Custom Register for PLX ID. */
 #define	PLX_VER				0x3400
@@ -130,7 +130,7 @@ cy_pci_attach(dev)
 
 	mem_rid = CY_PCI_BASE_ADDR2;
 	mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &mem_rid,
-	     0ul, ~0ul, 0ul, RF_ACTIVE);
+	    0ul, ~0ul, 0ul, RF_ACTIVE);
 	if (mem_res == NULL) {
 		device_printf(dev, "memory resource allocation failed\n");
 		goto fail;
