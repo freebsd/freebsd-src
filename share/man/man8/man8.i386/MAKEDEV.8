@@ -44,8 +44,9 @@ name ...
 .Sh DESCRIPTION
 The shell script
 .Nm
-found in the ``/dev'' directory, is used to create the common special
-files.
+found in the
+.Dq Pa /dev
+directory, is used to create the common special files.
 See
 .Xr intro 4
 for a more complete discussion of special files.
@@ -53,13 +54,19 @@ for a more complete discussion of special files.
 .Nm
 takes any number of device names as arguments, where the names are
 the common abbreviation for the device.
-There are two special devices, ``std'' and ``local''.
+There are two special devices,
+Dq std
+and
+Dq local .
 The former creates the standard devices for the architecture.
 The latter is for devices specific to the local site, and
-executes the shell file ``MAKEDEV.local''.
+executes the shell file
+Dq Pa MAKEDEV.local .
 .Pp
 The i386 supports the following devices.
-Where a device name is followed by a hash sign (``#''), the hash sign
+Where a device name is followed by a hash sign (
+.Dq #
+), the hash sign
 must be replaced by a unit number.
 .Bl -tag -width indent
 .It std
@@ -70,7 +77,8 @@ configuration specific devices
 .It tty#
 standard PC COM ports
 .It fd#
-``floppy'' disk drives (3 1/2, 5 1/4)
+.Dq floppy
+disk drives (3 1/2, 5 1/4)
 .It pty#
 set of 32 master and slave pseudo terminals
 .It da#
@@ -80,7 +88,8 @@ SCSI tape drives
 .It vty#
 set of 12 virtual console devices for syscons/pcvt/codrv
 .It wd#
-``winchester'' disk drives (ST506, IDE, ESDI, RLL etc.)
+.Dq winchester
+disk drives (ST506, IDE, ESDI, RLL etc.)
 .It wt#
 QIC-interfaced (e.g. not SCSI) 3M cartridge tape
 .El
