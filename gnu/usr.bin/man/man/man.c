@@ -87,11 +87,6 @@ static int whatis;
 static int findall;
 static int print_where;
 
-#ifdef ALT_SYSTEMS
-static int alt_system;
-static char *alt_system_name;
-#endif
-
 #ifdef __FreeBSD__
 static char *locale, *locale_opts, *locale_nroff, *locale_codeset;
 static char locale_terr[3], locale_lang[3];
@@ -113,7 +108,6 @@ static int troff = 0;
 int debug;
 
 #ifdef HAS_TROFF
-#ifdef ALT_SYSTEMS
 #ifdef __FreeBSD__
 static char args[] = "M:P:S:adfhkm:op:tw?";
 #else
@@ -121,24 +115,9 @@ static char args[] = "M:P:S:adfhkm:p:tw?";
 #endif
 #else
 #ifdef __FreeBSD__
-static char args[] = "M:P:S:adfhkop:tw?";
-#else
-static char args[] = "M:P:S:adfhkp:tw?";
-#endif
-#endif
-#else
-#ifdef ALT_SYSTEMS
-#ifdef __FreeBSD__
 static char args[] = "M:P:S:adfhkm:op:w?";
 #else
 static char args[] = "M:P:S:adfhkm:p:w?";
-#endif
-#else
-#ifdef __FreeBSD__
-static char args[] = "M:P:S:adfhkop:w?";
-#else
-static char args[] = "M:P:S:adfhkp:w?";
-#endif
 #endif
 #endif
 
@@ -236,48 +215,24 @@ usage ()
   static char usage_string[1024] = "%s, version %s\n\n";
 
 #ifdef HAS_TROFF
-#ifdef ALT_SYSTEMS
 #ifdef __FreeBSD__
   static char s1[] =
-    "usage: %s [-adfhkotw] [section] [-M path] [-P pager] [-S list]\n\
-           [-m system] [-p string] name ...\n\n";
+    "usage: %s [-adfhkmotw] [section] [-M path] [-P pager] [-S list]\n\
+           [-m machine] [-p string] name ...\n\n";
 #else
   static char s1[] =
-    "usage: %s [-adfhktw] [section] [-M path] [-P pager] [-S list]\n\
-           [-m system] [-p string] name ...\n\n";
-#endif
-#else
-#ifdef __FreeBSD__
-  static char s1[] =
-    "usage: %s [-adfhkotw] [section] [-M path] [-P pager] [-S list]\n\
-           [-p string] name ...\n\n";
-#else
-  static char s1[] =
-    "usage: %s [-adfhktw] [section] [-M path] [-P pager] [-S list]\n\
-           [-p string] name ...\n\n";
-#endif
-#endif
-#else
-#ifdef ALT_SYSTEMS
-#ifdef __FreeBSD__
-  static char s1[] =
-    "usage: %s [-adfhkow] [section] [-M path] [-P pager] [-S list]\n\
-           [-m system] [-p string] name ...\n\n";
-#else
-  static char s1[] =
-    "usage: %s [-adfhkw] [section] [-M path] [-P pager] [-S list]\n\
-           [-m system] [-p string] name ...\n\n";
+    "usage: %s [-adfhkmtw] [section] [-M path] [-P pager] [-S list]\n\
+           [-m machine] [-p string] name ...\n\n";
 #endif
 #else
 #ifdef __FreeBSD__
   static char s1[] =
-    "usage: %s [-adfhkow] [section] [-M path] [-P pager] [-S list]\n\
-           [-p string] name ...\n\n";
+    "usage: %s [-adfhkmow] [section] [-M path] [-P pager] [-S list]\n\
+           [-m machine] [-p string] name ...\n\n";
 #else
   static char s1[] =
-    "usage: %s [-adfhkw] [section] [-M path] [-P pager] [-S list]\n\
-           [-p string] name ...\n\n";
-#endif
+    "usage: %s [-adfhkmw] [section] [-M path] [-P pager] [-S list]\n\
+           [-m machine] [-p string] name ...\n\n";
 #endif
 #endif
 
@@ -288,21 +243,18 @@ static char s2[] = "  a : find all matching entries\n\
   k : same as apropos(1)\n";
 
 #ifdef __FreeBSD__
-  static char s21[] = "  o : use original, non-localized manpages\n";
+  static char s3[] = "  o : use original, non-localized manpages\n";
 #endif
 
 #ifdef HAS_TROFF
-  static char s3[] = "  t : use troff to format pages for printing\n";
+  static char s4[] = "  t : use troff to format pages for printing\n";
 #endif
 
-  static char s4[] = "  w : print location of man page(s) that would be displayed\n\n\
-  M path   : set search path for manual pages to `path'\n\
-  P pager  : use program `pager' to display pages\n\
-  S list   : colon separated section list\n";
-
-#ifdef ALT_SYSTEMS
-  static char s5[] = "  m system : search for alternate system's man pages\n";
-#endif
+  static char s5[] = "  w : print location of man page(s) that would be displayed\n\n\
+  M path    : set search path for manual pages to `path'\n\
+  P pager   : use program `pager' to display pages\n\
+  S list    : colon separated section list\n\
+  m machine : search for alternate architecture man pages\n";
 
   static char s6[] = "  p string : string tells which preprocessors to run\n\
                e - [n]eqn(1)   p - pic(1)    t - tbl(1)\n\
@@ -311,18 +263,14 @@ static char s2[] = "  a : find all matching entries\n\
   strcat (usage_string, s1);
   strcat (usage_string, s2);
 #ifdef __FreeBSD__
-  strcat (usage_string, s21);
-#endif
-
-#ifdef HAS_TROFF
   strcat (usage_string, s3);
 #endif
 
+#ifdef HAS_TROFF
   strcat (usage_string, s4);
-
-#ifdef ALT_SYSTEMS
-  strcat (usage_string, s5);
 #endif
+
+  strcat (usage_string, s5);
 
   strcat (usage_string, s6);
 
@@ -411,12 +359,9 @@ man_getopt (argc, argv)
 	    gripe_incompatible ("-k and -w");
 	  apropos++;
 	  break;
-#ifdef ALT_SYSTEMS
 	case 'm':
-	  alt_system++;
-	  alt_system_name = strdup (optarg);
+	  machine = optarg;
 	  break;
-#endif
 	case 'o':
 	  use_original++;
 	  break;
@@ -518,7 +463,7 @@ man_getopt (argc, argv)
   if (debug)
     fprintf (stderr, "\nusing %s as pager\n", pager);
 
-  if ((machine = getenv ("MACHINE")) == NULL)
+  if (machine == NULL && (machine = getenv ("MACHINE")) == NULL)
     machine = MACHINE;
 
   if (debug)
@@ -535,15 +480,6 @@ man_getopt (argc, argv)
 		 manp);
     }
 
-#ifdef ALT_SYSTEMS
-  if (alt_system_name == NULL || *alt_system_name == '\0')
-    if ((alt_system_name = getenv ("SYSTEM")) != NULL)
-      alt_system_name = strdup (alt_system_name);
-
-  if (alt_system_name != NULL && *alt_system_name != '\0')
-    downcase (alt_system_name);
-#endif
-
   /*
    * Expand the manpath into a list for easier handling.
    */
@@ -557,26 +493,7 @@ man_getopt (argc, argv)
       if ((end = strchr (p, ':')) != NULL)
 	*end = '\0';
 
-#ifdef ALT_SYSTEMS
-      if (alt_system)
-	{
-	  char buf[FILENAME_MAX];
-
-	  if (debug)
-	    fprintf (stderr, "Alternate system `%s' specified\n",
-		     alt_system_name);
-
-	  snprintf(buf, sizeof(buf), "%s/%s", p, alt_system_name);
-
-	  mp = add_dir_to_mpath_list (mp, buf);
-	}
-      else
-	{
-	  mp = add_dir_to_mpath_list (mp, p);
-	}
-#else
       mp = add_dir_to_mpath_list (mp, p);
-#endif
       if (end == NULL)
 	break;
 
