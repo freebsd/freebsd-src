@@ -152,16 +152,12 @@ struct com_data_struct {
 #define	DIV_LATCH_HIGH_WRITTEN	0x02
 #define	DIV_LATCH_BOTH_WRITTEN	0x03
 
-/* variable declarations */
-
-extern int errno;
-
 /* routine declarations */
 
-extern void	int14(regcontext_t *REGS);
-extern void	com_set_line(struct com_data_struct *, unsigned char, unsigned char);
-extern void	init_com(int, char *, int, unsigned char);
-extern u_char	com_port_in(int);
-extern void	com_port_out(int, unsigned char);
+void	int14(regcontext_t *REGS);
+void	com_set_line(struct com_data_struct *, unsigned char, unsigned char);
+void	init_com(int, char *, int, unsigned char);
+u_char	com_port_in(int);
+void	com_port_out(int, unsigned char);
 
 /* end of file com.h */

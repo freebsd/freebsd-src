@@ -61,7 +61,7 @@
 static	fd_set	fdset;		/* File Descriptors to select on */
 
 typedef	struct {
-	void	(*func)(void *, REGISTERS);
+	void	(*func)(void *, regcontext_t *);
 					/* Function to call on data arrival */
 	void	(*failure)(void *);	/* Function to call on failure */
 	void	*arg;			/* Argument to above functions */
@@ -70,18 +70,18 @@ typedef	struct {
 	int	flag;			/* The flag from F_GETFL (we own it) */
 } Async;
 
-static	Async	handlers[OPEN_MAX];
+static Async	handlers[OPEN_MAX];
+static int	in_handler = 0;
 
-static	void	HandleIO (struct sigframe *sf);
-
-static 	int	in_handler = 0;
+static void	CleanIO(void);
+static void	HandleIO(struct sigframe *sf);
 
 void
 _RegisterIO(fd, func, arg, failure)
 int fd;
-void (*func)();
+void (*func)(void *, regcontext_t *);
 void *arg;
-void (*failure)();
+void (*failure)(void *);
 {
 	static int firsttime = 1;
 	Async *as;
@@ -150,7 +150,7 @@ CleanIO()
 		errno = 0;
 		if (select(FD_SETSIZE, &set, 0, 0, &tv) < 0 &&
 		    errno == EBADF) {
-			void (*f)();
+			void (*f)(void *);
 			void *a;
 printf("Closed file descriptor %d\n", x);
 
@@ -273,7 +273,7 @@ if (0)
 				 * STEP 3: Call the handler
 				 */
 				(*handlers[fd].func)(handlers[fd].arg, 
-				    (regcontext_t*)&sf->sf_uc);
+				    (regcontext_t *)&sf->sf_uc);
 
 				/*
 				 * STEP 4: Just turn SIGIO off.  No check.

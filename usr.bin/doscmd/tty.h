@@ -56,8 +56,6 @@ void	tty_index(void);
 void	tty_move(int, int);
 int	tty_read(regcontext_t *, int);
 void	tty_report(int *, int *);
-void	tty_flush();
-void	tty_index();
 void	tty_pause(void);
 int	tty_peek(REGISTERS, int);
 void	tty_rwrite(int, int, int);

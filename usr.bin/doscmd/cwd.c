@@ -76,8 +76,6 @@ typedef struct Name_t {
 static Path_t paths[MAX_DRIVE];
 static Name_t *names;
 
-extern int diskdrive;
-
 /*
  * Initialize the drive to be based at 'base' in the BSD filesystem
  */
