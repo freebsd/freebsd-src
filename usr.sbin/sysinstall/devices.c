@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.5 1995/05/05 23:47:38 jkh Exp $
+ * $Id: devices.c,v 1.6 1995/05/06 09:34:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -102,11 +102,10 @@ print_chunks(struct disk *d)
 {
     int row;
     int i;
-    int b_attr = ColorDisplay ? A_BOLD : A_UNDERLINE;
 
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
-    attrset(b_attr); addstr(d->name); attrset(A_NORMAL);
+    attrset(A_REVERSE); addstr(d->name); attrset(A_NORMAL);
     attrset(A_REVERSE); mvaddstr(0, 55, "Master Partition Editor"); attrset(A_NORMAL);
     mvprintw(1, 0,
 	     "BIOS Geometry:\t%lu cyls/%lu heads/%lu sectors",
@@ -116,7 +115,7 @@ print_chunks(struct disk *d)
 	     "Subtype", "Flags");
     for (i = 0, row = CHUNK_START_ROW; chunk_info[i]; i++, row++) {
 	if (i == current_chunk)
-	    attrset(b_attr);
+	    attrset(A_REVERSE);
 	mvprintw(row, 2, "%10lu %10lu %10lu %8s %8d %8s %8d %6lx",
 		 chunk_info[i]->offset, chunk_info[i]->size,
 		 chunk_info[i]->end, chunk_info[i]->name,
@@ -130,14 +129,12 @@ print_chunks(struct disk *d)
 static void
 print_command_summary()
 {
-    int b_attr = ColorDisplay ? A_BOLD : A_UNDERLINE;
-
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
     mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan     C = Create Partition");
     mvprintw(17, 0, "D = Delete Partition   G = Set BIOS Geometry  S = Set Bootable");
     mvprintw(18, 0, "U = Undo All Changes   W = `Wizard' Mode      ESC = Proceed to next screen");
     mvprintw(20, 0, "The currently selected partition is displayed in ");
-    attrset(b_attr); addstr(ColorDisplay ? "bold" : "underline"); attrset(A_NORMAL);
+    attrset(A_REVERSE); addstr("reverse video"); attrset(A_NORMAL);
     move(0, 0);
 }
 
