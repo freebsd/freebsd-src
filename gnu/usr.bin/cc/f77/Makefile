@@ -7,8 +7,8 @@
 PROG=	f77
 SRCS=	gcc.c g77spec.c version.c
 
-DPADD+=	${LIBCC_DRV} ${LIBCC_FBSD}
-LDADD+=	${LIBCC_DRV} ${LIBCC_FBSD}
+DPADD+=	${LIBCC_INT} ${LIBCC_FBSD}
+LDADD+=	${LIBCC_INT} ${LIBCC_FBSD}
 
 f77.1: g77.1
 	ln -sf ${.ALLSRC} ${.TARGET}

@@ -5,9 +5,8 @@
 .PATH: ../cc_tools ${GCCDIR}
  
 PROG=	cc1
-SRCS=	c-parse.c c-parse.h \
-	c-aux-info.c c-common.c c-convert.c c-decl.c c-iterate.c c-lang.c \
-	c-lex.c c-pragma.c c-typeck.c
+SRCS=	c-parse.c c-parse.h c-lang.c
+SRCS+=	c-lex.c
 BINDIR=	/usr/libexec
 NOMAN=	1
 NOSHARED=yes

@@ -11,7 +11,7 @@ SRCS=	gcc.c gccspec.c
 LINKS=	${BINDIR}/cc ${BINDIR}/gcc
 MLINKS=	gcc.1 cc.1 gcc.1 c++.1 gcc.1 g++.1 gcc.1 CC.1
 
-DPADD+=	${LIBCC_DRV} ${LIBCC_FBSD}
-LDADD+=	${LIBCC_DRV} ${LIBCC_FBSD}
+DPADD+=	${LIBCC_INT} ${LIBCC_FBSD}
+LDADD+=	${LIBCC_INT} ${LIBCC_FBSD}
 
 .include <bsd.prog.mk>
