@@ -170,7 +170,6 @@
 173	*devctl		Devd control device <imp>
 174	pciwd		Berkshire Watchdog PCI <marcel@progressix.com>
 175	ips		IBM/Adaptec ServeRAID (control device)
-177	*openfirm	OpenFirmware control device <tmm>
 178	raidctl		RAIDframe (control device)
 179	raid		RAIDframe (disk device)
 180	nvidia		NVIDIA (nvidiaN/nvidiactl) <mdodd>
