@@ -300,7 +300,7 @@ static int tl_miibus_writereg	(device_t, int, int, int);
 static void tl_miibus_statchg	(device_t);
 
 static void tl_setmode		(struct tl_softc *, int);
-static int tl_calchash		(caddr_t);
+static u_int32_t tl_mchash	(caddr_t);
 static void tl_setmulti		(struct tl_softc *);
 static void tl_setfilt		(struct tl_softc *, caddr_t, int);
 static void tl_softreset	(struct tl_softc *, int);
@@ -889,11 +889,11 @@ tl_setmode(sc, media)
  * Bytes 0-2 and 3-5 are symmetrical, so are folded together.  Then
  * the folded 24-bit value is split into 6-bit portions and XOR'd.
  */
-static int
-tl_calchash(addr)
-	caddr_t			addr;
+static u_int32_t
+tl_mchash(addr)
+	caddr_t		addr;
 {
-	int			t;
+	int		t;
 
 	t = (addr[0] ^ addr[3]) << 16 | (addr[1] ^ addr[4]) << 8 |
 		(addr[2] ^ addr[5]);
@@ -978,7 +978,7 @@ tl_setmulti(sc)
 				continue;
 			}
 
-			h = tl_calchash(
+			h = tl_mchash(
 				LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 			if (h < 32)
 				hashes[0] |= (1 << h);

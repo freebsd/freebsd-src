@@ -103,7 +103,7 @@ static u_short	ed_pio_write_mbufs(struct ed_softc *, struct mbuf *, int);
 
 static void	ed_setrcr	(struct ed_softc *);
 
-static u_int32_t ds_crc		(u_char *ep);
+static u_int32_t ds_mchash	(caddr_t addr);
 
 /*
  * Interrupt conversion table for WD/SMC ASIC/83C584
@@ -3531,22 +3531,20 @@ ed_setrcr(sc)
  * Compute crc for ethernet address
  */
 static u_int32_t
-ds_crc(ep)
-	u_char *ep;
+ds_mchash(addr)
+	caddr_t addr;
 {
-#define POLYNOMIAL 0x04c11db6
+#define ED_POLYNOMIAL 0x04c11db6
 	register u_int32_t crc = 0xffffffff;
-	register int carry, i, j;
-	register u_char b;
+	register int carry, idx, bit;
+	register u_char data;
 
-	for (i = 6; --i >= 0;) {
-		b = *ep++;
-		for (j = 8; --j >= 0;) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (b & 0x01);
+	for (idx = 6; --idx >= 0;) {
+		for (data = *addr++, bit = 8; --bit >= 0; data >>=1 ) {
+			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
 			crc <<= 1;
-			b >>= 1;
 			if (carry)
-				crc = (crc ^ POLYNOMIAL) | carry;
+				crc = (crc ^ ED_POLYNOMIAL) | carry;
 		}
 	}
 	return crc;
@@ -3572,7 +3570,7 @@ ds_getmcaf(sc, mcaf)
 	TAILQ_FOREACH(ifma, &sc->arpcom.ac_if.if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		index = ds_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr))
+		index = ds_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr))
 			>> 26;
 		af[index >> 3] |= 1 << (index & 7);
 	}

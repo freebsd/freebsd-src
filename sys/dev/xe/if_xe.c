@@ -22,13 +22,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: if_xe.c,v 1.20 1999/06/13 19:17:40 scott Exp $
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Portions of this software were derived from Werner Koch's xirc2ps driver
  * for Linux under the terms of the following license (from v1.30 of the
@@ -61,6 +55,9 @@ __FBSDID("$FreeBSD$");
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*		
  * FreeBSD device driver for Xircom CreditCard PCMCIA Ethernet adapters.  The
@@ -166,7 +163,7 @@ static void      xe_enable_intr		(struct xe_softc *scp);
 static void      xe_disable_intr	(struct xe_softc *scp);
 static void      xe_set_multicast	(struct xe_softc *scp);
 static void      xe_set_addr		(struct xe_softc *scp, u_int8_t* addr, unsigned idx);
-static void      xe_set_hash		(struct xe_softc *scp, u_int8_t* addr);
+static void      xe_mchash		(struct xe_softc *scp, caddr_t addr);
 static int       xe_pio_write_packet	(struct xe_softc *scp, struct mbuf *mbp);
 
 /*
@@ -1302,7 +1299,7 @@ xe_set_multicast(struct xe_softc *scp) {
     else
       if (scp->mohawk)
 	/* Use hash filter on Mohawk and Dingo */
-	xe_set_hash(scp, LLADDR((struct sockaddr_dl *)maddr->ifma_addr));
+	xe_mchash(scp, LLADDR((struct sockaddr_dl *)maddr->ifma_addr));
       else
 	/* Nowhere else to put them on CE2 */
 	break;
@@ -1415,46 +1412,50 @@ xe_set_addr(struct xe_softc *scp, u_int8_t* addr, unsigned idx) {
  * address.
  */
 static void
-xe_set_hash(struct xe_softc* scp, u_int8_t* addr) {
+xe_mchash(struct xe_softc* scp, caddr_t addr) {
   u_int32_t crc = 0xffffffff;
-  u_int8_t bit, byte, crc31, idx;
-  unsigned i, j;
+  int idx, bit;
+  u_int8_t carry, byte, data, crc31, hash;
 
   /* Compute CRC of the address -- standard Ethernet CRC function */
-  for (i = 0; i < 6; i++) {
-    byte = addr[i];
-    for (j = 1; j <= 8; j++) {
+  for (data = *addr++, idx = 0; idx < 6; idx++, data >>= 1) {
+    for (bit = 1; bit <= 8; bit++) {
       if (crc & 0x80000000)
 	crc31 = 0x01;
       else
 	crc31 = 0;
-      bit = crc31 ^ (byte & 0x01);
+      carry = crc31 ^ (data & 0x01);
       crc <<= 1;
-      byte >>= 1;
-      if (bit)
-	crc = (crc ^ XE_CRC_POLY)|1;
+      data >>= 1;
+	crc = (crc ^ XE_CRC_POLY) | (carry|0x1);
     }
   }
 
   DEVPRINTF(3, (scp->dev, "set_hash: CRC = 0x%08x\n", crc));
 
-  /* Hash table index = 6 msbs of CRC, reversed */
-  for (i = 0, idx = 0; i < 6; i++) {
-    idx >>= 1;
+  /*
+   * Convert a CRC into an index into the multicast hash table.  What we do is
+   * take the most-significant 6 bits of the CRC, reverse them, and use that as
+   * the bit number in the hash table.  Bits 5:3 of the result give the byte
+   * within the table (0-7); bits 2:0 give the bit number within that byte (also
+   * 0-7), ie. the number of shifts needed to get it into the lsb position.
+   */
+  for (idx = 0, hash = 0; idx < 6; idx++) {
+    hash >>= 1;
     if (crc & 0x80000000) {
-      idx |= 0x20;
+      hash |= 0x20;
     }
     crc <<= 1;
   }
 
-  /* Top 3 bits of idx give register - 8, bottom 3 give bit within register */
-  byte = idx >> 3 | 0x08;
-  bit = 0x01 << (idx & 0x07);
+  /* Top 3 bits of hash give register - 8, bottom 3 give bit within register */
+  byte = hash >> 3 | 0x08;
+  carry = 0x01 << (hash & 0x07);
 
-  DEVPRINTF(3, (scp->dev, "set_hash: idx = 0x%02x, byte = 0x%02x, bit = 0x%02x\n", idx, byte, bit));
+  DEVPRINTF(3, (scp->dev, "set_hash: hash = 0x%02x, byte = 0x%02x, carry = 0x%02x\n", hash, byte, carry));
 
   XE_SELECT_PAGE(0x58);
-  XE_OUTB(byte, XE_INB(byte) | bit);
+  XE_OUTB(byte, XE_INB(byte) | carry);
 }
 
 

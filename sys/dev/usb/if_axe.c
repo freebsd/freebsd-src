@@ -28,7 +28,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 #include <sys/cdefs.h>
@@ -102,11 +101,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/if_axereg.h>
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 /*
  * Various supported device vendors/products.
  */
@@ -146,7 +140,7 @@ Static int axe_ifmedia_upd(struct ifnet *);
 Static void axe_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 Static void axe_setmulti(struct axe_softc *);
-Static u_int32_t axe_crc(caddr_t);
+Static u_int32_t axe_mchash(caddr_t);
 
 Static device_method_t axe_methods[] = {
 	/* Device interface */
@@ -320,21 +314,19 @@ axe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 Static u_int32_t
-axe_crc(caddr_t addr)
+axe_mchash(caddr_t addr)
 {
-	u_int32_t		crc, carry;
-	int			i, j;
-	u_int8_t		c;
+	u_int32_t	crc, carry;
+	int		idx, bit;
+	u_int8_t	data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
 
-	for (i = 0; i < 6; i++) {
-		c = *(addr + i);
-		for (j = 0; j < 8; j++) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (c & 0x01);
+	for (idx = 0; idx < 6; idx++) {
+		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
+			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
 			crc <<= 1;
-			c >>= 1;
 			if (carry)
 				crc = (crc ^ 0x04c11db6) | carry;
 		}
@@ -369,7 +361,7 @@ axe_setmulti(struct axe_softc *sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = axe_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = axe_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		hashtbl[h / 8] |= 1 << (h % 8);
 	}
 
