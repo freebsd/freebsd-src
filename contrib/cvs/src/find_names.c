@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Find Names
  * 
@@ -200,6 +200,15 @@ Find_Directories (repository, which, entries)
                information is not recorded in the Entries file.  Find
                the subdirectories the hard way, and, if possible, add
                it to the Entries file for next time.  */
+
+	    /* FIXME-maybe: find_dirs is bogus for this usage because
+	       it skips CVSATTIC and CVSLCK directories--those names
+	       should be special only in the repository.  However, in
+	       the interests of not perturbing this code, we probably
+	       should leave well enough alone unless we want to write
+	       a sanity.sh test case (which would operate by manually
+	       hacking on the CVS/Entries file).  */
+
 	    if (find_dirs (".", dirlist, 1, tmpentries) != 0)
 		error (1, errno, "cannot open current directory");
 	    if (tmpentries != NULL)
@@ -292,6 +301,16 @@ find_dirs (dir, list, checkadm, entries)
     size_t tmp_size = 0;
     struct dirent *dp;
     DIR *dirp;
+    int skip_emptydir = 0;
+
+    /* First figure out whether we need to skip directories named
+       Emptydir.  Except in the CVSNULLREPOS case, Emptydir is just
+       a normal directory name.  */
+    if (isabsolute (dir)
+	&& strncmp (dir, CVSroot_directory, strlen (CVSroot_directory)) == 0
+	&& ISDIRSEP (dir[strlen (CVSroot_directory)])
+	&& strcmp (dir + strlen (CVSroot_directory) + 1, CVSROOTADM) == 0)
+	skip_emptydir = 1;
 
     /* set up to read the dir */
     if ((dirp = CVS_OPENDIR (dir)) == NULL)
@@ -311,6 +330,10 @@ find_dirs (dir, list, checkadm, entries)
 	   because it involves no system calls.  That is why we bother
 	   with the entries argument, and why we check this first.  */
 	if (entries != NULL && findnode (entries, dp->d_name) != NULL)
+	    continue;
+
+	if (skip_emptydir
+	    && strcmp (dp->d_name, CVSNULLREPOS) == 0)
 	    continue;
 
 #ifdef DT_DIR

@@ -1,4 +1,703 @@
+Sun Jan 18 18:23:02 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Requests): Add Kopt request.
+
+Thu Jan  1 17:36:42 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (BUGS, Credits): Change @unnumbered to @appendix now
+	that these are moved from the start to the end.
+
+Sat Dec 27 10:06:56 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Error messages): Add "Too many arguments!".
+
+Fri Dec 26 18:30:26 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (What is CVS?): Just point to the two canonical web
+	sites (Pascal Molli and Cyclic) concerning CVS downloads.  The GNU
+	URL was out of date and GNU only has source distributions anyway.
+
+	* cvs.texinfo: Change bug-cvs address to gnu.org per email from
+	Martin Hamilton.
+
+Tue Dec 23 18:04:09 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Sticky tags): Further cleanups.  Fix thinko
+	(s/subsequent cvs update/& commands/).  Remove "vi driver.c" and
+	commit from example (totally vestigial).  Reword start of
+	paragraph on non-branch sticky tags, so that it better alludes
+ 	to branch sticky tags.  When introducing sticky tags, make it
+	clear that even people who aren't trying to use sticky tags
+	may need to know how to avoid them.  Restore comment about
+	CVS/Tag files.
+	(Accessing branches): Don't xref to merging here; that is a much
+	more advanced topic and the "but see" wording didn't tell us what
+	to see the xref about.
+
+Tue Dec 23 14:39:08 1997  Karl Fogel  <kfogel@floss.red-bean.com>
+			  and Jim Kingdon
+
+	* cvs.texinfo (Creating a branch): Rewritten.  Introduce with
+	`tag', then discuss `rtag' and `-r'.
+
+Tue Dec 23 10:03:37 1997  Karl Fogel  <kfogel@floss.red-bean.com>
+			  and Jim Kingdon
+
+	* cvs.texinfo: Changes to dehairify the "Sticky tags" situation:
+	(Revisions): "Sticky tags" moved here, description in menu changed
+	to be a little more informative.
+	(Sticky tags): Moved from "Branching and merging" to "Revisions".
+	(Accessing branches): New node in "Branching and merging",
+	explains how to use checkout vs update to retrieve a branch.
+	Text and example inherited from "Sticky tags", but text mostly
+	rewritten.
+	(Sticky tags): Moved under "Revisions", rewritten somewhat (more
+ 	rewrites to follow).
+	Don't use "-v" in "cvs status" example.
+
+Mon Dec 22 11:46:05 1997  Karl Fogel  <kfogel@floss.red-bean.com>
+			  and Jim Kingdon
+
+	Cleanups related to recent separation of revisions from
+	branching/merging:
+	* cvs.texinfo (Revisions): Take paragraph introducing branches,
+	rewrite it and move it to "Branching and merging".
+	(Branching and merging): Also rewrite merging intro.
+	(Revision numbers): Don't go into detail about branch revision
+	numbers here, just mention that they happen and refer to new
+	node "Branches and revisions".
+	(Branches and revisions): New node under "Branching and merging",
+	inherits text from "Revision numbers".
+	(Creating a branch): Refer to "Branches and revisions" now, not
+	"Revision numbers".
+	(Binary why): Rewrite sentence which refers to merging, so that
+	it isn't specific to branch merging.
+	(Branches motivation): Fix typo (select -> elect).  Add comment
+	about what this node is accomplishing, in general.
+
+Sun Dec 21 20:57:24 1997  Karl Fogel  <kfogel@floss.red-bean.com>
+			  and Jim Kingdon
+
+	This is just moving text; related cleanups to follow.
+	* cvs.texinfo: Changes to put branching and merging together, and
+	keep it all separate from revisions:
+ 	(Revisions): Renamed from "Revisions and branches".
+	(Branching and merging): Renamed from "Merging".
+	(Branches motivation, Creating a branch, Sticky tags, Magic branch
+	numbers): these subnodes moved to "Branching and merging" from
+	"Revisions".
+	everywhere: Adjusted cross-references to cope with above.
+
+Sun Dec 21 20:36:39 1997  Karl Fogel  <kfogel@floss.red-bean.com>
+			  and Jim Kingdon
+
+	Note that this is just moving text, not changing it:
+	* cvs.texinfo: divide top-level menu into sections.
+	(Multiple developers, Builds, Tracking sources, Keyword
+	substitution): moved to be in "CVS and the Real World" section.
+	(Compatibility): moved to be in "References" section.
+
+Mon Dec 22 08:54:31 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Example): In comment, in citing the BNF style
+	used in many RFCs, cite RFC2234 not RFC822 (now that the former is
+	out).
+
+Sun Dec 21 17:42:22 1997  Karl Fogel  <kfogel@floss.red-bean.com>
+
+	* cvs.texinfo (Overview): New node.
+	(What is CVS?, A sample session): Put under Overview.
+	(What is CVS not?): New node under Overview.
+	  [text previously was part of "What is CVS?" -kingdon]
+	(Preface): Removed this node and its contents.
+	(Checklist): Removed this node and its contents.
+	(Credits): Now toward end of top-level menu (was under Preface).
+	(BUGS): Now toward end of top-level menu (was under Preface).
+
+Sun Dec 14 10:14:25 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Responses): Add MT response.
+	(Text tags): New node.
+
+	* cvs.texinfo (loginfo): Add comment about which commands run
+	loginfo.
+
+Sat Dec 13 08:41:13 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Connection and Authentication): State that
+	GSSAPI is preferred to kserver.  Try to be clearer about what
+	the term "pserver" means.  Introduce GSSAPI and cite the relevant
+	RFCs.  Discuss the limitations of the existing features in
+	preventing hijacking.
+
+	* cvs.texinfo (GSSAPI authenticated, Kerberos authenticated):
+	Briefly introduce what GSSAPI and Kerberos are.  Be slightly more
+	emphatic about protecting against downgrade attacks.
+
+Fri Dec 12 17:36:46 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* cvs.texinfo (GSSAPI authenticated): New node.
+	(Global options): Document -a.  Mention GSSAPI in -x
+	documentation.
+	* cvsclient.texi (Connection and Authentication): Document GSSAPI
+	authentication.
+	(Requests): Add Gssapi-encrypt and Gssapi-authenticate.
+
+Fri Dec 12 09:27:38 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (cvsignore): Add note about comments and the
+	space-separated nature of the syntax.
+
+Sun Dec  7 09:33:11 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (checkout): Clarify issues regarding updating
+	existing working directories.
+
+Sun Nov 30 20:38:17 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Wrappers): Add comment: we don't document %s.
+
+Mon Nov 24 23:00:09 1997  Karl Fogel  <kfogel@floss.red-bean.com> 
+	and Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi: Move Protocol Notes node to the end.
+
+	* cvsclient.texi (Request intro): new node/section.
+	(Protocol): added some introductory material.  
+	Rearranged menu into General Conventions, Protocol specification,
+	and Example etc sections.
+	(File Modes): replaces Modes, for consistency.
+
+Sat Nov 22 12:29:58 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Entries Lines): Clarify options in entries line.
+
+Tue Nov 18 09:23:15 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Requests): Be more explicit about "export" and
+	entries lines.
+
+	* Makefile.in (DISTFILES): Remove DIFFUTILS-2.7-BUG.
+
+Mon Nov 17 18:20:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (tag options): Expand comment with reference to FAQ.
+
+Fri Nov 14 11:02:37 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Error messages): Update discussion of "dying gasps".
+
+	* cvs.texinfo (tag options): Add FIXME comment about renaming tags.
+
+Thu Nov 13 10:20:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Common options): Remove also has a -f option with a
+	different meaning than most.
+
+Wed Nov 12 21:57:40 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (File permissions, Connecting via rsh, Environment
+	variables): When putting an environment variable in the index, say
+	it is an environment variable.  Don't index the same name twice.
+
+	* cvs.texinfo: Many edits to reflect the fact that CVS no longer
+	invokes external RCS programs.
+
+Tue Nov 11 15:15:49 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Locks, CVS in repository): New nodes, document the
+	locking scheme and briefly outline CVS and CVS/fileattr.
+
+Sun Nov  9 17:39:41 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* DIFFUTILS-2.7-BUG: Removed; the bug is fixed and the testcases
+	are incorporated into sanity.sh.
+
+Sat Nov  8 09:49:38 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Binary why): Try to be a little clearer about how
+	merges fit into CVS.  Say it may be error prone to have developers
+	doing merges manually.
+
+Tue Nov  4 13:02:22 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (admin options): Add discussion of what happens if
+	there are tags.
+
+Fri Oct 31 00:04:09 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (admin options): Rewrite discussion of -o to
+	hopefully be clearer and to also document the new :: syntax.
+	(admin examples): Removed; incorporated into admin options.
+	(Invoking CVS): Wording fix for admin -o.
+
+	* cvs.texinfo (Binary why): New node, talks about diff and merge.
+	(Binary howto): Renamed from Binary files.
+	(Binary files): Now just contains an introduction.
+
+	* cvs.texinfo (Error messages): Add "could not merge" message.  In
+	discussion of "Binary files . . . differ" message, mention that
+	this is only an issue with old verisons of CVS.
+
+Thu Oct 30 15:55:21 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Error messages): Add "authorization failed" message.
+
+Wed Oct 29 11:52:05 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo: Remove fake RCSid; we decided to remove rcsid's a
+	while ago.  Cleanups suggested by Stephen Gildea (CVSROOT/passwd
+	has 2 or 3 fields; /user -> /usr; noone -> no one; in used -> in
+	use).  Add comment about making compilers happy about rcsids.
+
+Sat Oct 25 00:58:24 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* RCSFILES: rcsfile.5 is correct about {num} after next being
+	optional.
+
+Wed Oct 22 10:08:27 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Error messages): Add message about unrecognized
+	response from cvs server.
+
+1997-10-11  Noel Cragg  <noel@swish.red-bean.com>
+
+	* cvs.texinfo (checkout options): describe how the `-d' and `-N'
+	flags really work.  Give examples.
+	(export options): refer the reader to the descriptions for `-d'
+	and `-N' in checkout options, since the behavior is the same.
+
+Thu Oct  9 12:01:35 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (log options): Add comment about "cvs log -r".
+
+Wed Oct  8 10:24:19 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (rtag options): Add comment about how this is
+	confusing.
+
+Tue Sep 30 12:31:25 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Working directory storage): Add comment about
+	Entries.Static.
+
+Thu Sep 25 23:52:57 1997  Noel Cragg  <noel@swish.red-bean.com>
+
+	* cvsclient.texi (Responses): description of Module-expansion was
+ 	missing a carriage return after the @item clause.
+
+Wed Sep 24 12:04:42 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Remote repositories): Add comment about pserver
+	vs. having users create their own repositories.
+
+Sat Sep 20 00:59:53 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Keyword list): Change title from "RCS Keywords" to
+	"Keyword list" as it is CVS that expands them.
+	(Avoiding substitution): Change "rcs" to "cvs", in the context of
+	the program which expands keywords.
+
+Fri Sep 19 22:57:24 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* RCSFILES: Grammar fix in first paragraph.  Re-word section on
+	dead newphrase.  Add item about what it means if "expand" is omitted.
+
+	* cvs.texinfo (Magic branch numbers): Change example branch number
+	from 1.2.3 to 1.2.4; CVS assigns even branch numbers and I don't
+	think vendor branches are very relevant to this example.
+
+Wed Sep 17 17:21:33 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (admin options): Add comment about "cvs admin -b"
+	(with no argument to the -b).
+
+	* RCSFILES: "next" is optional, not required.
+
+Tue Sep 16 15:13:22 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Binary files): Add comment about another possible
+	way to auto-detect binary files.
+
+Sun Sep 14 12:38:56 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Conflicts example): Adjust text and comments
+	regarding conflict markers to reflect change in CVS.
+
+Wed Sep 10 12:44:04 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Server requirements): Add comment about server
+	disk usage in /tmp.
+
+	* cvs.texinfo (Common options): More comments about date formats:
+	"now", "yesterday", and the "3 weeks ago" family.
+
+Tue Sep  9 13:09:58 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* DIFFUTILS-2.7-BUG: Eggert patch is preferred to Rittle one.
+
+Sun Sep  7 18:38:23 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (history options): Revise -e to say that it includes
+	future record types (and remove out of date list of what record
+	types it implies).
+
+	* cvs.texinfo (Environment variables): Expand/correct discussion
+	of HOME, HOMEDRIVE, and HOMEPATH.
+	(Error messages): Add "could not find out home directory".
+
+	* cvs.texinfo (update options): Reword -r doc to hopefully be
+	clearer that it takes either numeric or symbolic revision.
+
+	* cvs.texinfo (syntax): Add comment about how regexp syntax may
+	be, er, creatively altered, by configure.in.
+
+Sat Sep  6 11:29:15 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Working directory storage): Document Baserev and
+	Baserev.tmp.
+	(Working directory storage): Adjust comment regarding CVS/* being
+	text files.
+
+Fri Sep  5 14:42:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (BUGS): Remove mention of unsupported resources page
+	on http://www.cyclic.com, as it might go away in a future 
+	reorganization.
+
+	* DIFFUTILS-2.7-BUG: Further info from Eggert.
+
+1997-09-05  Paul Eggert  <eggert@twinsun.com>
+
+	* DIFFUTILS-2.7-BUG: Explain how this bug will probably be
+	fixed in the next diffutils release.
+
+Thu Sep  4 17:09:57 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Binary files): Reword the section on what you need
+	to do with cvs admin -kb to hopefully be a bit clearer.  Still not
+	ideal (see comment).
+
+	* cvs.texinfo (modules): Break node into separate nodes for alias
+	modules, regular modules, ampersand modules, and options.  Expand
+	text with more examples and explanations.  Add index entries.
+
+Wed Sep  3 14:49:43 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Multiple developers): Add idea about cvs editors
+	and reserved checkouts.
+
+Sun Aug 31 19:36:21 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Requests): Rewrite paragraph on cvs add on a
+	filename containing '/'.
+
+Thu Aug 28 14:13:50 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (diff options): Add comment about "cvs diff"
+	vs. "cvs diff -r HEAD".
+
+	* cvs.texinfo (Global options): Add comment about -w not
+	overriding cvs watch on.
+
+Wed Aug 27 08:09:31 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Password authentication server): Grammar fix ("under
+	as the username" -> "as the username").
+
+	* cvs.texinfo: Fix doubled 'the the' typos.  Reported by
+	karlb@atg.com.
+
+Tue Aug 26 12:25:42 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Checklist): Reword xref to point to Binary files
+	rather than Keyword expansion.  Credit goes to jeff@alum.mit.edu
+	(Jeff Breidenbach) for reporting the problem.
+
+Mon Aug 18 17:23:18 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (modules): Suggest taginfo instead of -t.  Add
+	comment with some of the reasons.  Add comment about -u and -i
+	problems.
+
+Sat Aug 16 10:19:06 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Error messages): Add note about how "could not
+	check out foo.c" seems to also have been observed on Irix.
+
+Fri Aug 15 17:28:01 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Error messages): Add "could not check out foo.c".
+
+Thu Aug 14 23:57:53 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Wrappers): Document new -m 'COPY' behavior.
+
+Tue Aug 12 20:56:40 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Sticky tags): Add comment about how we should be
+	documenting sticky tags.
+
+Fri Aug  8 10:01:03 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (File status): Add comment about "working revision"
+	in cvs status for a locally removed file.
+
+Thu Aug  7 22:53:45 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (From other version control systems): Mention
+	pvcs_to_rcs alongside sccs2rcs.
+
+Tue Aug  5 17:22:50 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Compatibility): Add comment about how CVS probably
+	could be detecting the case of dead files killed by CVS 1.3.
+
+	* cvs.texinfo (From other version control systems): Add paragraph
+	about converting from systems which don't export RCS files.
+
+Sun Aug  3 21:03:14 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Responses): Cite RFC1321 for MD5.
+
+	* cvs.texinfo (A sample session): Nuke index entry for "A sample
+	session".  The fact that this isn't "sample session" is totally
+	bogus, but in general the table of contents is probably better for
+	this entry.
+
+	* cvs.texinfo (Error messages): Add comment about wording of error
+	concerning unknown -x option.
+
+	* cvs.texinfo (Wrappers): Add comment about absolute filter pathname.
+
+Thu Jul 31 14:40:15 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo: Use @ref not @xref when reference is not at the
+	start of a sentence.  Avoids capitalizing "See" when we shouldn't.
+	Fixes to other similar xref problems.
+
+Wed Jul 30 19:30:31 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Connection and Authentication): Don't use @samp
+	on BEGIN AUTH REQUEST and friends.  Avoids overfull hbox.
+
+Fri Jul 25 10:40:22 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Requests): Remove obsolete sentence regarding
+	using Directory instead of Repository enabling alternate response
+	syntax.
+
+	* cvsclient.texi (Response intro): Add discussing of file updating
+	responses and file update modifying responses.
+	(Responses): Refer to this description rather than trying to
+	describe it in each place.  The descriptions in each place were
+	somewhat incomplete and didn't get updated when new file updating
+	responses were added.
+
+	* cvsclient.texi: Split node Responses into Response intro,
+	Response pathnames, and Responses.
+
+Thu Jul 24 23:13:24 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (config): Document SystemAuth.
+	(Password authentication server): Mention SystemAuth.
+
+Mon Jul 21 08:57:04 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (DISTFILES): Add DIFFUTILS-2.7-BUG.
+
+Sun Jul 20 17:55:52 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (admin options): For options with optional
+	arguments, specify that there can be no space between the option
+	and its argument.  For -N, add xref to Magic branch numbers.  For
+	-t, talk about reading from stdin.  Comment changes.
+
+Sat Jul 19 22:28:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Preface): Make section titles more verbose.
+	Likewise for the menu.
+
+Fri Jul 18 08:41:11 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Error messages): No need for an external patch if
+	server and client are current.  Add comment with more thoughts
+	about messages specific to old versions of CVS.
+
+	* cvs.texinfo (Error messages): Add "cannot start server via rcmd".
+
+	* cvs.texinfo (Error messages): Add "cannot open CVS/Root" for cvs
+	init.
+
+	* cvs.texinfo (Error messages): Add "missing author".
+
+Tue Jul 15 16:47:08 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Keyword list): Fix documentation of $Log to reflect
+	the fact that we no longer use the comment leader.
+	(admin options): Fix documentation of $Log.
+	(admin examples): Remove example concerning comment leader, since
+	the example no longer does what it claims to.
+	(admin, admin options): Fix various parts of the documentation to
+	not refer to this being implemented via RCS.  Say nastier things
+	about -I and -x.  Add comments about options to "rcs" which we
+	don't document.
+
+Mon Jul 14 00:04:32 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Error messages): The "cannot change permissions on
+	temporary directory" error has been happening in various test cases.
+
+Sat Jul 12 11:12:18 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Repository files): Further comments about leading
+	"-" in filenames.
+
+Fri Jul 11 21:30:11 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Repository files): Add comment about legal
+	filenames.
+
+Wed Jul  9 18:05:26 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Responses): Add Mbinary response.
+
+Mon Jul  7 12:04:01 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Goals): Add previously unwritten goal about only
+	one way to do each operation.
+
+	* cvs.texinfo (File permissions): Rewrite paragraph on setuid to
+	be more verbose and less unix-specific.
+
+Sat Jul  5 03:16:38 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Connection and Authentication): When we said to
+	"ignore" an unrecogized code we mean to treat it as nonspecific,
+	not to ignore the response.
+
+	* cvsclient.texi (Example): Refer to RFC2119 when referring to
+	terminology of MUST, SHALL, &c.
+
+	* cvs.texinfo (Windows permissions): New node.
+
+Fri Jul  4 15:27:43 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* cvs.texinfo (Common options): Fix typo (avaliable for
+	available).
+
+Tue Jul  1 09:19:02 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Server requirements): Discuss memory used by diff.
+
+	* cvs.texinfo (Substitution modes): Add comment about -A resetting
+	both sticky tags/dates and sticky options.
+
+	* cvs.texinfo (File permissions): Add paragraph concerning
+	ownership of the RCS files.
+
+	* cvs.texinfo (Working directory storage): Relative repositories
+	in CVS/Repository are legal.
+
+Mon Jun 30 10:48:21 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Top): Add menu item for Password scrambling.
+
+	* cvs.texinfo (Committing your changes): Add comment concerning
+	documentation of message prompting.
+
+Fri Jun 27 11:20:34 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Password scrambling): New node.
+	(Connection and Authentication): Adjust accordingly.
+	(Protocol Notes): Add long discussion of character sets and
+	password scrambling.
+
+	* cvs.texinfo (Repository files): Also mention doc/RCSFILES in
+	documenting RCS file format.
+	(CVSROOT, storage of files): New node.
+
+Thu Jun 26 09:18:15 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (File permissions): xref to the pserver thing about
+	permissions in CVSROOT.
+	(Kerberos authenticated): Explicitly mention kerberos rsh.
+	Add various index entries for "security, <foo>".
+
+Wed Jun 25 13:39:16 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Common options): Rewrite comments concerning HEAD
+	and testcases and solution.  Changing HEAD might be too big a
+	change; might be better to phase it out.
+	(Common options, Tags): Add index entries for HEAD and BASE.
+
+Tue Jun 24 09:37:26 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Error messages): Add assertion failed.
+
+	* cvsclient.texi (Connection and Authentication): Add "E" and
+	"error" as responses in authentication protocol.  The server
+	already was in the (formerly bad) habit of sending them, and we
+	might as well implement this in the client and document it.
+
+	* cvs.texinfo (Password authentication security): Note about
+	permissions on $CVSROOT also applies to its parent and so on up to
+	/.
+
+Mon Jun 23 18:28:18 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Creating a repository): xref to Server requirements
+	for more details on memory, CPU.
+	(Server requirements): Add xref to Creating a repository regarding
+	disk space.
+
+	* cvs.texinfo (Read-only access, Password authentication
+	security): The known holes which let a read-only user execute
+	arbitrary programs on the server are gone.
+
+	* cvsclient.texi (Protocol Notes): Remove multisite item; it is
+	replaced by item 186 in TODO.  Add a general reference to TODO.
+	Rewrite accordingly the sentence about multisite in the item
+	concerning sending modified files in "cvs update".
+
+Fri Jun 20 17:00:20 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Error messages): Add "binary files differ" when
+	trying to check in a binary file.
+
+Fri Jun 20 14:01:23 1997  David J MacKenzie  <djm@va.pubnix.com>
+			  and Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo: Fix various formatting, spelling, stylistic, and
+	factual errors.
+
+Thu Jun 19 07:11:33 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (config): New node.
+	(Password authentication server): Talk about RCSBIN in config as
+	an alternative to -b global option.
+	* cvsclient.texi (Requests): Specify when Root can/must be used.
+
+	* cvs.texinfo (Error messages): Add
+	"*PANIC* administration files missing".
+
+	* cvs.texinfo (Password authentication server): Mention
+	permissions on $CVSROOT and $CVSROOT/CVSROOT as part of the
+	installation process.
+	(Password authentication security): Clarify that permissions issue
+	applies to $CVSROOT as well as $CVSROOT/CVSROOT.
+
 Wed Jun 18 00:03:25 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Password authentication security): Add paragraph
+	on write permissions of $CVSROOT/CVSROOT.
+
+	* cvs.texinfo (Adding and removing): New node.  Move Adding files,
+	Removing files, Removing directories, Moving files, and Moving
+	directories under it.
+
+	* cvs.texinfo (Removing directories): Add sentence about how
+	one doesn't remove the directory itself.
 
 	* cvs.texinfo (Password authentication server): Document
 	--allow-root.
