@@ -125,11 +125,8 @@ atm_rtrequest(req, rt, info)
 			break;
 		}
 
-#ifdef	INVARIANTS 
-		if (rt->rt_ifp->if_ioctl == NULL)
-			panic("atm_rtrequest: atm null ioctl");
-#endif
-
+		KASSERT(rt->rt_ifp->if_ioctl != NULL,
+		    ("atm_rtrequest: null ioctl"));
 #ifdef NATM
 		/*
 		 * let native ATM know we are using this VCI/VPI

@@ -309,10 +309,9 @@ ip_input(struct mbuf *m)
         } else
             rule = NULL ;
 
-#ifdef	INVARIANTS	
-	if (m == NULL || (m->m_flags & M_PKTHDR) == 0)
-		panic("ip_input no HDR");
-#endif
+	KASSERT(m != NULL && (m->m_flags & M_PKTHDR) != 0,
+	    ("ip_input: no HDR"));
+
 	ipstat.ips_total++;
 
 	if (m->m_pkthdr.len < sizeof(struct ip))
