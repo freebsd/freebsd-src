@@ -32,7 +32,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id: worm.4,v 1.14 1998/03/12 07:30:19 charnier Exp $
+.\" $Id: worm.4,v 1.15 1998/03/31 01:55:11 jmz Exp $
 .\" "
 .Dd January 27, 1996
 .Dt WORM 4
@@ -401,12 +401,12 @@ have a lot of patience and CD-R's.
 The driver should include all the functionality of the
 .Xr cd 4
 driver.  No strategy for implementing this kind of interaction has
-been designed yet, altough it's now finally possible to at least
+been designed yet, although it's now finally possible to at least
 read CD-ROM media through it.
 .Pp
 The first
 .Em Unit Attention
-conditition after a media change is often not yet caught, although
+condition after a media change is often not yet caught, although
 the driver was designed to catch it.  This can royally screw a user
 of the driver, thus make sure to manually catch it before actually
 starting a burn.  This can be done for example with a dummy
