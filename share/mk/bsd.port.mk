@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.69 1994/11/17 00:25:16 jkh Exp $
+# $Id: bsd.port.mk,v 1.70 1994/11/17 10:06:03 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -113,7 +113,7 @@ PATCHDIR?=		${.CURDIR}/patches
 SCRIPTDIR?=		${.CURDIR}/scripts
 FILESDIR?=		${.CURDIR}/files
 PKGDIR?=		${.CURDIR}/pkg
-.if defined(USE_XMKMF)
+.if defined(USE_IMAKE)
 PREFIX?=		${X11BASE}
 .else
 PREFIX?=		/usr/local
