@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.24 1994/09/16 13:33:30 davidg Exp $
+ *	$Id: cpufunc.h,v 1.25 1994/09/25 19:33:22 phk Exp $
  */
 
 /*
@@ -188,12 +188,12 @@ extern void DELAY(int);
 
 void	setidt	__P((int, void (*)(), int, int));
 extern u_long kvtop(void *);
-extern void * outsb(int /*u_short*/, void *, size_t);
-extern void * outsw(int /*u_short*/, void *, size_t);
-extern void * outsl(int /*u_short*/, void *, size_t);
-extern void * insb(int /*u_short*/, void *, size_t);
-extern void * insw(int /*u_short*/, void *, size_t);
-extern void * insl(int /*u_short*/, void *, size_t);
+extern void outsb(int /*u_short*/, void *, size_t);
+extern void outsw(int /*u_short*/, void *, size_t);
+extern void outsl(int /*u_short*/, void *, size_t);
+extern void insb(int /*u_short*/, void *, size_t);
+extern void insw(int /*u_short*/, void *, size_t);
+extern void insl(int /*u_short*/, void *, size_t);
 extern void fillw(int /*u_short*/, void *, size_t);
 extern void filli(int, void *, size_t);
 
