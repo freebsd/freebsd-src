@@ -642,9 +642,9 @@ elf_hash(const char *name)
  * loaded shared object, whose library search path will be searched.
  *
  * The search order is:
+ *   rpath in the referencing file
  *   LD_LIBRARY_PATH
  *   ldconfig hints
- *   rpath in the referencing file
  *   /usr/lib
  */
 static char *
