@@ -82,8 +82,8 @@ void	ext2_discard_prealloc __P((struct inode *));
 int	ext2_inactive __P((struct vop_inactive_args *));
 int 	ll_w_block __P((struct buf *, int ));
 int	ext2_new_block __P ((struct mount * mp, unsigned long goal,
-			    long * prealloc_count,
-			    long * prealloc_block));
+			    int * prealloc_count,
+			    int * prealloc_block));
 ino_t	ext2_new_inode __P ((const struct inode * dir, int mode));
 unsigned long ext2_count_free __P((struct buf *map, unsigned int numchars));
 void	ext2_free_blocks (struct mount * mp, unsigned long block,
