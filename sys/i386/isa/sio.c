@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.147.2.1 1996/11/06 10:08:29 phk Exp $
+ *	$Id: sio.c,v 1.147.2.2 1996/11/12 09:08:45 phk Exp $
  */
 
 #include "opt_comconsole.h"
@@ -1619,6 +1619,10 @@ sioioctl(dev, cmd, data, flag, p)
 	case TIOCCDTR:
 		(void)commctl(com, TIOCM_DTR, DMBIC);
 		break;
+	/*
+	 * XXX should disallow changing MCR_RTS if CS_RTS_IFLOW is set.  The
+	 * changes get undone on the next call to comparam().
+	 */
 	case TIOCMSET:
 		(void)commctl(com, *(int *)data, DMSET);
 		break;
@@ -1723,13 +1727,6 @@ repeat:
 			 * There is now room for another low-level buffer full
 			 * of input, so enable RTS if it is now disabled and
 			 * there is room in the high-level buffer.
-			 */
-			/*
-			 * XXX this used not to look at CS_RTS_IFLOW.  The
-			 * change is to allow full control of MCR_RTS via
-			 * ioctls after turning CS_RTS_IFLOW off.  Check
-			 * for races.  We shouldn't allow the ioctls while
-			 * CS_RTS_IFLOW is on.
 			 */
 			if ((com->state & CS_RTS_IFLOW)
 			    && !(com->mcr_image & MCR_RTS)
@@ -1957,10 +1954,22 @@ retry:
 	outb(iobase + com_cfcr, com->cfcr_image = cfcr);
 	if (!(tp->t_state & TS_TTSTOP))
 		com->state |= CS_TTGO;
-	if (cflag & CRTS_IFLOW)
-		com->state |= CS_RTS_IFLOW;	/* XXX - secondary changes? */
-	else
+	if (cflag & CRTS_IFLOW) {
+		com->state |= CS_RTS_IFLOW;
+		/*
+		 * If CS_RTS_IFLOW just changed from off to on, the change
+		 * needs to be propagated to MCR_RTS.  This isn't urgent,
+		 * so do it later by calling comstart() instead of repeating
+		 * a lot of code from comstart() here.
+		 */
+	} else if (com->state & CS_RTS_IFLOW) {
 		com->state &= ~CS_RTS_IFLOW;
+		/*
+		 * CS_RTS_IFLOW just changed from on to off.  Force MCR_RTS
+		 * on here, since comstart() won't do it later.
+		 */
+		outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
+	}
 
 	/*
 	 * Set up state to handle output flow control.
@@ -1986,6 +1995,7 @@ retry:
 
 	enable_intr();
 	splx(s);
+	comstart(tp);
 	return (0);
 }
 
@@ -2009,12 +2019,8 @@ comstart(tp)
 		if (com->mcr_image & MCR_RTS && com->state & CS_RTS_IFLOW)
 			outb(com->modem_ctl_port, com->mcr_image &= ~MCR_RTS);
 	} else {
-		/*
-		 * XXX don't raise MCR_RTS if CTS_RTS_IFLOW is off.  Set it
-		 * appropriately in comparam() if RTS-flow is being changed.
-		 * Check for races.
-		 */
-		if (!(com->mcr_image & MCR_RTS) && com->iptr < com->ihighwater)
+		if (!(com->mcr_image & MCR_RTS) && com->iptr < com->ihighwater
+		    && com->state & CS_RTS_IFLOW)
 			outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
 	}
 	enable_intr();

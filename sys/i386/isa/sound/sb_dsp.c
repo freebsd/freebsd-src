@@ -37,7 +37,7 @@
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SB)
 
-#include <i386/isa/sound/sb.h>
+#include <i386/isa/sound/sb_defs.h>
 #include <i386/isa/sound/sb_mixer.h>
 #undef SB_TEST_IRQ
 

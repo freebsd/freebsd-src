@@ -280,6 +280,9 @@ struct sound_timer_operations {
 #ifndef EXCLUDE_AUDIO
 		{SNDCARD_SB16,	"SoundBlaster16",	sb16_dsp_init, sb16_dsp_detect},
 #endif
+#ifndef EXCLUDE_AWE32
+		{SNDCARD_AWE32,	"AWE32 Synth",	attach_awe_obsolete, probe_awe_obsolete},
+#endif
 #ifndef EXCLUDE_MIDI
 		{SNDCARD_SB16MIDI,"SB16 MIDI",	attach_sb16midi, probe_sb16midi},
 #endif
@@ -376,6 +379,9 @@ struct sound_timer_operations {
 #endif
 #ifndef EXCLUDE_MIDI
 		{SNDCARD_SB16MIDI,{SB16MIDI_BASE, SBC_IRQ, 0}, SND_DEFAULT_ENABLE},
+#endif
+#ifndef EXCLUDE_AWE32
+		{SNDCARD_AWE32,{AWE32_BASE, 0, 0}, SND_DEFAULT_ENABLE},
 #endif
 #endif
 

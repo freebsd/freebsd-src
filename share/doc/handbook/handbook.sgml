@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.57 1996/09/09 01:56:57 jkh Exp $ -->
+<!-- $Id: handbook.sgml,v 1.58 1996/10/04 22:54:02 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -20,7 +20,7 @@
 %sections;
 
 <!-- The currently released version of FreeBSD -->
-<!ENTITY rel.current CDATA "2.1.5">
+<!ENTITY rel.current CDATA "2.1.6">
 
 ]>
 
@@ -31,7 +31,7 @@
       <author>
 	<name>The FreeBSD Documentation Project</name>
       </author>
-      <date>July 1996</date>
+      <date>November 1996</date>
 
 <abstract>Welcome to FreeBSD!  This handbook covers the
 installation and day to day use of <bf>FreeBSD Release

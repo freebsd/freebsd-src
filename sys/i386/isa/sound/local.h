@@ -77,6 +77,11 @@
 #define EXCLUDE_SB16MIDI
 #endif
 
+#include "awe.h"
+#if NAWE == 0 && !defined(EXCLUDE_AWE32)
+#define EXCLUDE_AWE32
+#endif
+
 #include "pas.h"
 #if NPAS == 0 && !defined(EXCLUDE_PAS)
 #define EXCLUDE_PAS
