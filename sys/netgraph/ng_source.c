@@ -42,17 +42,17 @@ __FBSDID("$FreeBSD$");
 
 /*
  * This node is used for high speed packet geneneration.  It queues
- * all data recieved on it's 'input' hook and when told to start via
- * a control message it sends the packets out it's 'output' hook.  In
- * this way this node can be preloaded with a packet stream which is
- * continuously sent.
+ * all data recieved on its 'input' hook and when told to start via
+ * a control message it sends the packets out its 'output' hook.  In
+ * this way this node can be preloaded with a packet stream which it
+ * can then send continuously as fast as possible.
  *
  * Currently it just copies the mbufs as required.  It could do various
  * tricks to try and avoid this.  Probably the best performance would
  * be achieved by modifying the appropriate drivers to be told to
  * self-re-enqueue packets (e.g. the if_bge driver could reuse the same
  * transmit descriptors) under control of this node; perhaps via some
- * flag in the mbuf or some such.  The node would peak at an appropriate
+ * flag in the mbuf or some such.  The node could peek at an appropriate
  * ifnet flag to see if such support is available for the connected
  * interface.
  */
@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 
 #define NG_SOURCE_INTR_TICKS		1
 #define NG_SOURCE_DRIVER_IFQ_MAXLEN	(4*1024)
-
 
 /* Per hook info */
 struct source_hookinfo {
@@ -115,7 +114,6 @@ static void		ng_source_stop (sc_p);
 static int		ng_source_send (sc_p, int, int *);
 static int		ng_source_store_output_ifp(sc_p sc,
 			    struct ng_mesg *msg);
-
 
 /* Parse type for timeval */
 static const struct ng_parse_struct_field ng_source_timeval_type_fields[] = {
