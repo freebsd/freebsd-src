@@ -73,7 +73,6 @@ static struct _devname {
     { DEVICE_TYPE_DISK, 	"da%d",		"SCSI disk device",	13, 65538, 8, 16			},
     { DEVICE_TYPE_DISK, 	"ad%d",		"ATA/IDE disk device",	116, 65538, 8, 16			},
     { DEVICE_TYPE_DISK, 	"ar%d",		"ATA/IDE RAID device",	157, 65538, 8, 16			},
-    { DEVICE_TYPE_DISK, 	"fla%d",	"M-Systems DiskOnChip Flash devicee",	102, 65538, 8, 16	},
     { DEVICE_TYPE_DISK, 	"afd%d",	"ATAPI/IDE floppy device",	118, 65538, 8, 4		},
     { DEVICE_TYPE_DISK, 	"mlxd%d",	"Mylex RAID disk",	131, 65538, 8, 4			},
     { DEVICE_TYPE_DISK, 	"amrd%d",	"AMI MegaRAID drive",	133, 65538, 8, 4			},
