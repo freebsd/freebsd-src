@@ -97,7 +97,7 @@ choose_media() {
 --menu "Before we begin the installation, we need to chose and possibly \n\
 configure your method of installation.  Please pick from one of \n\
 the following options.  If your option isn't listed here, your \n\
-best bet may be to simply select CANCEL to get a shell and proceed \n\
+best bet may be to simply hit ESC twice to get a shell and proceed \n\
 manually on your own. \n\n\
 	Please choose one of the following:" 20 72 5 \
 	"Tape" "Load installation from SCSI or QIC tape" \
