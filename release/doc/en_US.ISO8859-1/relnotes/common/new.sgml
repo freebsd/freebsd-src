@@ -111,6 +111,19 @@
     <para arch="i386,alpha,ia64" role="historic">The &man.agp.4; driver for AGP devices has been
       added. &merged;</para>
 
+    <para arch="i386">Preliminary support for Bluetooth devices has
+      been added, in the form of a series of Netgraph modules (see
+      &man.ng.bluetooth.4;).  Two modules provide device driver
+      support for Bluetooth adapters: The &man.ng.bt3c.4; driver
+      supports the 3Com/HP Bluetooth PCCARD adapters, while the
+      &man.ng.ubt.4; driver supports several USB Bluetooth adapters.
+
+      <note>
+        <para>Bluetooth support in &os; is a work in progress.</para>
+      </note>
+
+      </para>
+
     <para>A new in-kernel cryptographic framework (see &man.crypto.4;
       and &man.crypto.9;) has been imported from OpenBSD.  It provides
       a consistent interface to hardware and software implementations
