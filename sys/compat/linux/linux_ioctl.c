@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.10 1996/06/12 05:06:27 gpalmer Exp $
+ *  $Id: linux_ioctl.c,v 1.11 1996/06/23 17:08:11 bde Exp $
  */
 
 #include <sys/param.h>
@@ -689,6 +689,78 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 
     case LINUX_SNDCTL_DSP_NONBLOCK:
 	args->cmd = SNDCTL_DSP_NONBLOCK;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_VOLUME:
+	args->cmd = SOUND_MIXER_WRITE_VOLUME;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_BASS:
+	args->cmd = SOUND_MIXER_WRITE_BASS;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_TREBLE:
+	args->cmd = SOUND_MIXER_WRITE_TREBLE;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_SYNTH:
+	args->cmd = SOUND_MIXER_WRITE_SYNTH;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_PCM:
+	args->cmd = SOUND_MIXER_WRITE_PCM;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_SPEAKER:
+	args->cmd = SOUND_MIXER_WRITE_SPEAKER;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_LINE:
+	args->cmd = SOUND_MIXER_WRITE_LINE;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_MIC:
+	args->cmd = SOUND_MIXER_WRITE_MIC;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_CD:
+	args->cmd = SOUND_MIXER_WRITE_CD;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_IMIX:
+	args->cmd = SOUND_MIXER_WRITE_IMIX;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_ALTPCM:
+	args->cmd = SOUND_MIXER_WRITE_ALTPCM;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_RECLEV:
+	args->cmd = SOUND_MIXER_WRITE_RECLEV;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_IGAIN:
+	args->cmd = SOUND_MIXER_WRITE_IGAIN;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_OGAIN:
+	args->cmd = SOUND_MIXER_WRITE_OGAIN;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_LINE1:
+	args->cmd = SOUND_MIXER_WRITE_LINE1;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_LINE2:
+	args->cmd = SOUND_MIXER_WRITE_LINE2;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_WRITE_LINE3:
+	args->cmd = SOUND_MIXER_WRITE_LINE3;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_MIXER_READ_DEVMASK:
+	args->cmd = SOUND_MIXER_READ_DEVMASK;
 	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_TIOCGSERIAL:
