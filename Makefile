@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.46 1995/03/18 07:00:25 rgrimes Exp $
+#	$Id: Makefile,v 1.47 1995/03/19 08:23:47 rgrimes Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -217,7 +217,7 @@ includes:
 .if defined(WANT_MSUN)
 	cd ${.CURDIR}/lib/msun &&		${MAKE} beforeinstall
 .endif
-	cd ${.CURDIR}/lib/lib/pcap &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libpcap &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libskey &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libtermcap &&		${MAKE}	beforeinstall
