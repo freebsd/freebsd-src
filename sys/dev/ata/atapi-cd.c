@@ -709,7 +709,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	{
 	    struct ioc_read_subchannel *args =
 		(struct ioc_read_subchannel *)addr;
-	    struct cd_sub_channel_info *data;
+	    u_int8_t format;
 	    int8_t ccb[16] = { ATAPI_READ_SUBCHANNEL, 0, 0x40, 1, 0, 0, 0,
 			       sizeof(cdp->subchan)>>8, sizeof(cdp->subchan),
 			       0, 0, 0, 0, 0, 0, 0 };
@@ -720,34 +720,38 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		break;
 	    }
 
-	    if ((error = atapi_queue_cmd(cdp->device,ccb,(caddr_t)&cdp->subchan,
-					 sizeof(cdp->subchan), ATPR_F_READ, 10,
-					 NULL, NULL))) {
+	    format=args->data_format;
+	    if ((format != CD_CURRENT_POSITION) &&
+		(format != CD_MEDIA_CATALOG) && (format != CD_TRACK_INFO)) {
+		error = EINVAL;
 		break;
 	    }
-	    data = malloc(sizeof(struct cd_sub_channel_info),
-			  M_ACD, M_NOWAIT | M_ZERO);
 
-	    if (args->address_format == CD_MSF_FORMAT) {
-		lba2msf(ntohl(cdp->subchan.abslba),
-		    &data->what.position.absaddr.msf.minute,
-		    &data->what.position.absaddr.msf.second,
-		    &data->what.position.absaddr.msf.frame);
-		lba2msf(ntohl(cdp->subchan.rellba),
-		    &data->what.position.reladdr.msf.minute,
-		    &data->what.position.reladdr.msf.second,
-		    &data->what.position.reladdr.msf.frame);
-	    } else {
-		data->what.position.absaddr.lba = cdp->subchan.abslba;
-		data->what.position.reladdr.lba = cdp->subchan.rellba;
+	    ccb[1] = args->address_format & CD_MSF_FORMAT;
+
+	    if ((error = atapi_queue_cmd(cdp->device,ccb,(caddr_t)&cdp->subchan,
+					 sizeof(cdp->subchan), ATPR_F_READ, 10,
+					 NULL, NULL)))
+		break;
+
+	    if ((format == CD_MEDIA_CATALOG) || (format == CD_TRACK_INFO)) {
+		if (cdp->subchan.header.audio_status == 0x11) {
+		    error = EINVAL;
+		    break;
+		}
+
+		ccb[3] = format;
+		if (format == CD_TRACK_INFO)
+		    ccb[6] = args->track;
+
+		if ((error = atapi_queue_cmd(cdp->device, ccb,
+					     (caddr_t)&cdp->subchan, 
+					     sizeof(cdp->subchan), ATPR_F_READ,
+					     10, NULL, NULL))) {
+		    break;
+		}
 	    }
-	    data->header.audio_status = cdp->subchan.audio_status;
-	    data->what.position.control = cdp->subchan.control & 0xf;
-	    data->what.position.addr_type = cdp->subchan.control >> 4;
-	    data->what.position.track_number = cdp->subchan.track;
-	    data->what.position.index_number = cdp->subchan.indx;
-	    error = copyout(data, args->data, args->data_len);
-	    free(data, M_ACD);
+	    error = copyout(&cdp->subchan, args->data, args->data_len);
 	    break;
 	}
 
