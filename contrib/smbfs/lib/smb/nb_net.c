@@ -30,6 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: nb_net.c,v 1.4 2001/02/16 02:46:12 bp Exp $
+ * $FreeBSD$
  */
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -107,6 +108,7 @@ nb_enum_if(struct nb_ifdesc **iflist, int maxif)
 	struct in_addr iaddr, imask;
 	char *ifrdata, *iname;
 	int s, rdlen, ifcnt, error, iflags, i;
+	size_t ifrlen;
 
 	*iflist = NULL;
 	s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -124,28 +126,33 @@ nb_enum_if(struct nb_ifdesc **iflist, int maxif)
 	if (ioctl(s, SIOCGIFCONF, &ifc) != 0) {
 		error = errno;
 		goto bad;
-	} 
+	}
 	ifrqp = ifc.ifc_req;
 	ifcnt = ifc.ifc_len / sizeof(struct ifreq);
 	error = 0;
-	for (i = 0; i < ifcnt; i++, ifrqp++) {
-		if (ioctl(s, SIOCGIFFLAGS, ifrqp) != 0)
-			continue;
-		iflags = ifrqp->ifr_flags;
-		if ((iflags & IFF_UP) == 0 || (iflags & IFF_BROADCAST) == 0)
-			continue;
+	for (i = 0; i < ifcnt; i++) {
+		ifrlen = sizeof(struct ifreq);
+		if (ifrqp->ifr_addr.sa_len > sizeof(struct sockaddr))
+			ifrlen += ifrqp->ifr_addr.sa_len
+				- sizeof(struct sockaddr);
 
-		if (ioctl(s, SIOCGIFADDR, ifrqp) != 0 ||
-		    ifrqp->ifr_addr.sa_family != AF_INET)
-			continue;
+		if (ifrqp->ifr_addr.sa_family != AF_INET)
+			goto next;
 		iname = ifrqp->ifr_name;
 		if (strlen(iname) >= sizeof(ifd->id_name))
-			continue;
+			goto next;
+
 		iaddr = (*(struct sockaddr_in *)&ifrqp->ifr_addr).sin_addr;
 
 		if (ioctl(s, SIOCGIFNETMASK, ifrqp) != 0)
-			continue;
+			goto next;
 		imask = ((struct sockaddr_in *)&ifrqp->ifr_addr)->sin_addr;
+
+		if (ioctl(s, SIOCGIFFLAGS, ifrqp) != 0)
+			goto next;
+		iflags = ifrqp->ifr_flags;
+		if ((iflags & IFF_UP) == 0 || (iflags & IFF_BROADCAST) == 0)
+			goto next;
 
 		ifd = malloc(sizeof(struct nb_ifdesc));
 		if (ifd == NULL)
@@ -157,6 +164,9 @@ nb_enum_if(struct nb_ifdesc **iflist, int maxif)
 		ifd->id_mask = imask;
 		ifd->id_next = *iflist;
 		*iflist = ifd;
+
+next:
+		ifrqp = (struct ifreq *)((caddr_t)ifrqp + ifrlen);
 	}
 bad:
 	free(ifrdata);
