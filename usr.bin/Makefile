@@ -57,6 +57,7 @@ SUBDIR=	alias \
 	fsync \
 	ftp \
 	gencat \
+	getconf \
 	getopt \
 	gprof \
 	head \
@@ -248,7 +249,6 @@ SUBDIR+=uac
 .if ${MACHINE_ARCH} != "sparc64" && ${MACHINE_ARCH} != "ia64"
 SUBDIR+=xlint
 .endif
-SUBDIR+=getconf
 
 .if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=chkey newkey
