@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)pi.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pi.c,v 1.3 1997/11/03 07:44:15 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -208,7 +208,7 @@ extern	char	**wordv;
 
 Errorclass pi()
 {
-	char	**nwordv;
+	char	**nwordv = NULL;
 
 	if (wordc < 2)
 		return (C_UNKNOWN);

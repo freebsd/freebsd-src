@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: parse.y,v 1.9 1997/06/26 11:25:17 charnier Exp $
+ * $Id: parse.y,v 1.10 1997/06/30 11:24:18 charnier Exp $
  */
 
 #include <err.h>
@@ -40,6 +40,8 @@
 extern int line_no;
 extern FILE *yyin;
 void yyerror(char *fmt, ...);
+int yyparse(void);
+int yylex(void);
 static void usage __P((void));
 
 char map_name[FILENAME_MAX] = ".";
@@ -208,6 +210,7 @@ sec_sub_item : CHAR {
 }
 ;
 %%
+int
 main(ac, av)
 	char **av;
 {
@@ -268,6 +271,7 @@ void yyerror(char *fmt, ...)
 }
 
 #ifdef COLLATE_DEBUG
+void
 collate_print_tables()
 {
 	int i;

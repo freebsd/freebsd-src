@@ -388,7 +388,7 @@ output(zs, ocode)
 		 * Since ocode is always >= 8 bits, only need to mask the first
 		 * hunk on the left.
 		 */
-		*bp = (*bp & rmask[r_off]) | (ocode << r_off) & lmask[r_off];
+		*bp = (*bp & rmask[r_off]) | ((ocode << r_off) & lmask[r_off]);
 		bp++;
 		bits -= (8 - r_off);
 		ocode >>= 8 - r_off;
@@ -698,7 +698,7 @@ zopen(fname, mode, bits)
 {
 	struct s_zstate *zs;
 
-	if (mode[0] != 'r' && mode[0] != 'w' || mode[1] != '\0' ||
+	if ((mode[0] != 'r' && mode[0] != 'w') || mode[1] != '\0' ||
 	    bits < 0 || bits > BITS) {
 		errno = EINVAL;
 		return (NULL);
@@ -738,4 +738,5 @@ zopen(fname, mode, bits)
 		return (funopen(zs, NULL, zwrite, NULL, zclose));
 	}
 	/* NOTREACHED */
+	return (NULL);
 }

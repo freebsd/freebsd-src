@@ -35,13 +35,13 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)cut.c	8.3 (Berkeley) 5/4/95";
+static const char sccsid[] = "@(#)cut.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -70,7 +70,7 @@ main(argc, argv)
 	char *argv[];
 {
 	FILE *fp;
-	void (*fcn) __P((FILE *, char *));
+	void (*fcn) __P((FILE *, char *)) = NULL;
 	int ch;
 
 	dchar = '\t';			/* default delimiter is \t */
@@ -139,7 +139,7 @@ get_list(list)
 	 * overlapping lists.  We also handle "-3-5" although there's no
 	 * real reason too.
 	 */
-	for (; p = strtok(list, ", \t"); list = NULL) {
+	for (; (p = strtok(list, ", \t")); list = NULL) {
 		setautostart = start = stop = 0;
 		if (*p == '-') {
 			++p;
@@ -186,7 +186,7 @@ c_cut(fp, fname)
 	FILE *fp;
 	char *fname;
 {
-	register int ch, col;
+	register int ch = 0, col;
 	register char *pos;
 
 	for (;;) {
