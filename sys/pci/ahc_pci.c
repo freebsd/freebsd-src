@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.5 1998/12/15 08:23:10 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.6 1999/02/11 07:12:16 gibbs Exp $
  */
 
 #include <pci.h>
@@ -73,6 +73,7 @@
 #define PCI_DEVICE_ID_ADAPTEC_2940U	0x81789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2940AU	0x61789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2940U2	0x00109005ul
+#define PCI_DEVICE_ID_ADAPTEC_2930U2	0x00119005ul
 #define PCI_DEVICE_ID_ADAPTEC_398X	0x73789004ul
 #define PCI_DEVICE_ID_ADAPTEC_3940	0x72789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2944	0x74789004ul
@@ -112,11 +113,11 @@
 #define		CACHESIZE	0x0000003ful	/* only 5 bits */
 #define		LATTIME		0x0000ff00ul
 
-static void check_extport(struct ahc_softc *ahc, u_int8_t *sxfrctl1);
+static void check_extport(struct ahc_softc *ahc, u_int *sxfrctl1);
 static void configure_termination(struct ahc_softc *ahc,
 				  struct seeprom_config *sc,
 				  struct seeprom_descriptor *sd,
-	 			  u_int8_t *sxfrctl1);
+	 			  u_int *sxfrctl1);
 
 static void ahc_ultra2_term_detect(struct ahc_softc *ahc,
 				   int *enableSEC_low,
@@ -170,6 +171,9 @@ ahc_pci_probe (pcici_t tag, pcidi_t type)
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_3940:
 		return ("Adaptec 3940 SCSI adapter");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_2930U2:
+		return ("Adaptec 2930 Ultra2 SCSI adapter");
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_2944U:
 		return ("Adaptec 2944 Ultra SCSI adapter");
@@ -311,6 +315,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7890:
 	case PCI_DEVICE_ID_ADAPTEC_2940U2:
+	case PCI_DEVICE_ID_ADAPTEC_2930U2:
 	{
 		ahc_t = AHC_AIC7890;
 		ahc_fe = AHC_AIC7890_FE;
@@ -637,7 +642,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
  * and termination/cable detection contrls.
  */
 static void
-check_extport(struct ahc_softc *ahc, u_int8_t *sxfrctl1)
+check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 {
 	struct	  seeprom_descriptor sd;
 	struct	  seeprom_config sc;
@@ -724,7 +729,11 @@ check_extport(struct ahc_softc *ahc, u_int8_t *sxfrctl1)
 		 */
 		int i;
 		int max_targ = sc.max_targets & CFMAXTARG;
+		u_int16_t discenable;
+		u_int16_t ultraenb;
 
+		discenable = 0;
+		ultraenb = 0;
 		if ((sc.adapter_control & CFULTRAEN) != 0) {
 			/*
 			 * Determine if this adapter has a "newstyle"
@@ -744,18 +753,18 @@ check_extport(struct ahc_softc *ahc, u_int8_t *sxfrctl1)
 
 			target_mask = 0x01 << i;
 			if (sc.device_flags[i] & CFDISC)
-				ahc->discenable |= target_mask;
+				discenable |= target_mask;
 			if ((ahc->flags & AHC_NEWEEPROM_FMT) != 0) {
 				if ((sc.device_flags[i] & CFSYNCHISULTRA) != 0)
-					ahc->ultraenb |= target_mask;
+					ultraenb |= target_mask;
 			} else if ((sc.adapter_control & CFULTRAEN) != 0) {
-				ahc->ultraenb |= target_mask;
+				ultraenb |= target_mask;
 			}
 			if ((sc.device_flags[i] & CFXFER) == 0x04
-			 && (ahc->ultraenb & target_mask) != 0) {
+			 && (ultraenb & target_mask) != 0) {
 				/* Treat 10MHz as a non-ultra speed */
 				sc.device_flags[i] &= ~CFXFER;
-			 	ahc->ultraenb &= ~target_mask;
+			 	ultraenb &= ~target_mask;
 			}
 			if ((ahc->features & AHC_ULTRA2) != 0) {
 				u_int offset;
@@ -767,7 +776,7 @@ check_extport(struct ahc_softc *ahc, u_int8_t *sxfrctl1)
 				ahc_outb(ahc, TARG_OFFSET + i, offset);
 
 				scsirate = (sc.device_flags[i] & CFXFER)
-					 | ((ahc->ultraenb & target_mask)
+					 | ((ultraenb & target_mask)
 					    ? 0x18 : 0x10);
 				if (sc.device_flags[i] & CFWIDEB)
 					scsirate |= WIDEXFER;
@@ -795,14 +804,14 @@ check_extport(struct ahc_softc *ahc, u_int8_t *sxfrctl1)
 			/* Should we enable Ultra mode? */
 			if (!(sc.adapter_control & CFULTRAEN))
 				/* Treat us as a non-ultra card */
-				ahc->ultraenb = 0;
+				ultraenb = 0;
 		}
 		/* Set SCSICONF info */
 		ahc_outb(ahc, SCSICONF, scsi_conf);
-		ahc_outb(ahc, DISC_DSB, ~(ahc->discenable & 0xff));
-		ahc_outb(ahc, DISC_DSB + 1, ~((ahc->discenable >> 8) & 0xff));
-		ahc_outb(ahc, ULTRA_ENB, ahc->ultraenb & 0xff);
-		ahc_outb(ahc, ULTRA_ENB + 1, (ahc->ultraenb >> 8) & 0xff);
+		ahc_outb(ahc, DISC_DSB, ~(discenable & 0xff));
+		ahc_outb(ahc, DISC_DSB + 1, ~((discenable >> 8) & 0xff));
+		ahc_outb(ahc, ULTRA_ENB, ultraenb & 0xff);
+		ahc_outb(ahc, ULTRA_ENB + 1, (ultraenb >> 8) & 0xff);
 	}
 
 	if ((ahc->features & AHC_SPIOCAP) != 0) {
@@ -820,7 +829,7 @@ static void
 configure_termination(struct ahc_softc *ahc,
 		      struct seeprom_config *sc,
 		      struct seeprom_descriptor *sd,
-		      u_int8_t *sxfrctl1)
+		      u_int *sxfrctl1)
 {
 	int max_targ = sc->max_targets & CFMAXTARG;
 	u_int8_t brddat;
