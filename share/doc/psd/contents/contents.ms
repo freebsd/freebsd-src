@@ -229,3 +229,11 @@ The Internet RFC specifying NFS, as provided by Sun Microsystems.
 Note that the NFS-compatible filesystem itself, while
 compliant with this specification, was not provided by Sun.
 
+.IP
+.tl 'CVS II: Parallelizing Software Development''PSD:28'
+.QP
+CVS  (Concurrent Versions System) is a front end to the
+RCS revision control system  which  extends  the  notion  of
+revision  control  from  a  collection  of files in a single
+directory to a hierarchical collection of  directories  each
+containing revision controlled files.
