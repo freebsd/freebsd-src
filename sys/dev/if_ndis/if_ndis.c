@@ -1250,8 +1250,10 @@ ndis_ticktask(xsc)
 	if (sc->ndis_link == 0 && linkstate == nmc_connected) {
 		device_printf(sc->ndis_dev, "link up\n");
 		sc->ndis_link = 1;
+		NDIS_UNLOCK(sc);
 		if (sc->ndis_80211)
 			ndis_getstate_80211(sc);
+		NDIS_LOCK(sc);
 	}
 
 	if (sc->ndis_link == 1 && linkstate == nmc_disconnected) {
