@@ -1,6 +1,6 @@
 /***********************************************************************
  *								       *
- * Copyright (c) David L. Mills 1993-2000			       *
+ * Copyright (c) David L. Mills 1993-2001			       *
  *								       *
  * Permission to use, copy, modify, and distribute this software and   *
  * its documentation for any purpose and without fee is hereby	       *
@@ -158,7 +158,7 @@ static l_fp time_adj;			/* tick adjust (ns/s) */
  * controlled by the PPS signal.
  */
 #define PPS_FAVG	2		/* min freq avg interval (s) (shift) */
-#define PPS_FAVGDEF	7		/* default freq avg int (s) (shift) */
+#define PPS_FAVGDEF	8		/* default freq avg int (s) (shift) */
 #define PPS_FAVGMAX	15		/* max freq avg interval (s) (shift) */
 #define PPS_PAVG	4		/* phase avg interval (s) (shift) */
 #define PPS_VALID	120		/* PPS signal watchdog max (s) */
@@ -288,7 +288,9 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	 * change anything. Note that there is no error checking here on
 	 * the assumption the superuser should know what it is doing.
 	 * Note that either the time constant or TAI offset are loaded
-	 * from the ntv.constant member, depending on the mode bits.
+	 * from the ntv.constant member, depending on the mode bits. If
+	 * the STA_PLL bit in the status word is cleared, the state and
+	 * status words are reset to the initial values at boot.
 	 */
 	modes = ntv.modes;
 	if (modes)
@@ -296,23 +298,18 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	if (error)
 		return (error);
 	s = splclock();
-	if (modes & MOD_FREQUENCY) {
-		freq = (ntv.freq * 1000LL) >> 16;
-		if (freq > MAXFREQ)
-			L_LINT(time_freq, MAXFREQ);
-		else if (freq < -MAXFREQ)
-			L_LINT(time_freq, -MAXFREQ);
-		else
-			L_LINT(time_freq, freq);
-#ifdef PPS_SYNC
-		pps_freq = time_freq;
-#endif /* PPS_SYNC */
-	}
 	if (modes & MOD_MAXERROR)
 		time_maxerror = ntv.maxerror;
 	if (modes & MOD_ESTERROR)
 		time_esterror = ntv.esterror;
 	if (modes & MOD_STATUS) {
+		if (time_status & STA_PLL && !(ntv.status & STA_PLL)) {
+			time_state = TIME_OK;
+			time_status = STA_UNSYNC;
+#ifdef PPS_SYNC
+			pps_shift = PPS_FAVG;
+#endif /* PPS_SYNC */
+		}
 		time_status &= STA_RONLY;
 		time_status |= ntv.status & ~STA_RONLY;
 	}
@@ -351,6 +348,18 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 			hardupdate(ntv.offset);
 		else
 			hardupdate(ntv.offset * 1000);
+	}
+	if (modes & MOD_FREQUENCY) {
+		freq = (ntv.freq * 1000LL) >> 16;
+		if (freq > MAXFREQ)
+			L_LINT(time_freq, MAXFREQ);
+		else if (freq < -MAXFREQ)
+			L_LINT(time_freq, -MAXFREQ);
+		else
+			L_LINT(time_freq, freq);
+#ifdef PPS_SYNC
+		pps_freq = time_freq;
+#endif /* PPS_SYNC */
 	}
 
 	/*
@@ -519,8 +528,7 @@ ntp_update_second(struct timecounter *tcp)
 	if (pps_valid > 0)
 		pps_valid--;
 	else
-		time_status &= ~(STA_PPSSIGNAL | STA_PPSJITTER |
-		    STA_PPSWANDER | STA_PPSERROR);
+		time_status &= ~STA_PPSSIGNAL;
 #endif /* PPS_SYNC */
 }
 
@@ -691,10 +699,9 @@ hardpps(tsp, nsec)
 		u_sec++;
 	}
 	v_nsec = u_nsec - pps_tf[0].tv_nsec;
-	/* XXX: This test seems incomplete ? */
-	if (u_sec == pps_tf[0].tv_sec && v_nsec < -MAXFREQ) {
+	if (u_sec == pps_tf[0].tv_sec && v_nsec < NANOSECOND -
+	    MAXFREQ)
 		return;
-	}
 	pps_tf[2] = pps_tf[1];
 	pps_tf[1] = pps_tf[0];
 	pps_tf[0].tv_sec = u_sec;
@@ -714,9 +721,8 @@ hardpps(tsp, nsec)
 	else if (u_nsec < -(NANOSECOND >> 1))
 		u_nsec += NANOSECOND;
 	pps_fcount += u_nsec;
-	if (v_nsec > MAXFREQ || v_nsec < -MAXFREQ) {
+	if (v_nsec > MAXFREQ || v_nsec < -MAXFREQ)
 		return;
-	}
 	time_status &= ~STA_PPSJITTER;
 
 	/*
