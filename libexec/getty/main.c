@@ -444,7 +444,18 @@ opentty(const char *ttyn, int flags)
 		return 0;
 	}
 	else {
-		login_tty(i);
+		if (login_tty(i) < 0) { 
+			if (daemon(0,0) < 0) {
+				syslog(LOG_ERR,"daemon: %m");
+				close(i);
+				return 0;
+			}
+			if (login_tty(i) < 0) {
+				syslog(LOG_ERR, "login_tty %s: %m", ttyn);
+				close(i);
+				return 0;
+			}
+		}
 		return 1;
 	}
 }
