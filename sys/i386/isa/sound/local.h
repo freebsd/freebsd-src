@@ -3,7 +3,12 @@
  * $Id: local.h,v 1.11 1994/11/01 17:26:50 ache Exp
  */
 
+#ifdef PC98
+/* If a soundcard uses DMA AUTO mode, DPS_BUFFSIZE must be < 64KB. */
+#define DSP_BUFFSIZE 61440
+#else
 #define DSP_BUFFSIZE 65536
+#endif
 #define SELECTED_SOUND_OPTIONS  0xffffffff
 #define SOUND_CONFIG_DATE "Sun Feb 5 14:38:12 EST 1995"
 #define SOUND_CONFIG_BY "freebsd-hackers"

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: auth.c,v 1.6 1996/03/01 19:29:35 phk Exp $";
+static char rcsid[] = "$Id: auth.c,v 1.7 1996/10/01 03:41:28 pst Exp $";
 #endif
 
 #include <stdio.h>
@@ -49,6 +49,8 @@ static char rcsid[] = "$Id: auth.c,v 1.6 1996/03/01 19:29:35 phk Exp $";
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
+#include <utmp.h>
 
 #ifdef HAS_SHADOW
 #include <shadow.h>
@@ -101,8 +103,8 @@ static struct wordlist *addresses[NUM_PPP];
 void check_access __P((FILE *, char *));
 
 static void network_phase __P((int));
-static int  login __P((char *, char *, char **, int *));
-static void logout __P((void));
+static int  ppplogin __P((char *, char *, char **, int *));
+static void ppplogout __P((void));
 static int  null_login __P((int));
 static int  get_upap_passwd __P((void));
 static int  have_upap_secret __P((void));
@@ -132,7 +134,7 @@ link_terminated(unit)
     if (phase == PHASE_DEAD)
 	return;
     if (logged_in)
-	logout();
+	ppplogout();
     phase = PHASE_DEAD;
     syslog(LOG_NOTICE, "Connection terminated.");
 }
@@ -410,7 +412,7 @@ check_passwd(unit, auser, userlen, apasswd, passwdlen, msg, msglen)
     }
 
     if (uselogin && ret == UPAP_AUTHACK) {
-	ret = login(user, passwd, msg, msglen);
+	ret = ppplogin(user, passwd, msg, msglen);
 	if (ret == UPAP_AUTHNAK) {
 	    syslog(LOG_WARNING, "upap login failure for %s", user);
 	}
@@ -448,7 +450,7 @@ check_passwd(unit, auser, userlen, apasswd, passwdlen, msg, msglen)
 
 
 /*
- * login - Check the user name and password against the system
+ * ppplogin - Check the user name and password against the system
  * password database, and login the user if OK.
  *
  * returns:
@@ -457,13 +459,15 @@ check_passwd(unit, auser, userlen, apasswd, passwdlen, msg, msglen)
  * In either case, msg points to an appropriate message.
  */
 static int
-login(user, passwd, msg, msglen)
+ppplogin(user, passwd, msg, msglen)
     char *user;
     char *passwd;
     char **msg;
     int *msglen;
 {
+    struct utmp utmp;
     struct passwd *pw;
+    struct timeval tp;
     char *epasswd;
     char *tty;
 
@@ -504,6 +508,13 @@ login(user, passwd, msg, msglen)
     }
 #endif
 
+    if (pw->pw_expire) {
+	(void)gettimeofday(&tp, (struct timezone *)NULL);
+	if (tp.tv_sec >= pw->pw_expire) {
+	    syslog(LOG_INFO, "user %s account expired", user);
+	    return (UPAP_AUTHNAK);
+	}
+    }
     syslog(LOG_INFO, "user %s logged in", user);
 
     /*
@@ -512,17 +523,26 @@ login(user, passwd, msg, msglen)
     tty = devnam;
     if (strncmp(tty, "/dev/", 5) == 0)
 	tty += 5;
-    logwtmp(tty, user, "");		/* Add wtmp login entry */
+
+    logwtmp(tty, user, ":PPP");		/* Add wtmp login entry */
     logged_in = TRUE;
+
+    /* Log in utmp too */
+    memset((void *)&utmp, 0, sizeof(utmp));
+    (void)time(&utmp.ut_time);
+    (void)strncpy(utmp.ut_name, user, sizeof(utmp.ut_name));
+    (void)strncpy(utmp.ut_host, ":PPP", sizeof(utmp.ut_host));
+    (void)strncpy(utmp.ut_line, tty, sizeof(utmp.ut_line));
+    login(&utmp);
 
     return (UPAP_AUTHACK);
 }
 
 /*
- * logout - Logout the user.
+ * ppplogout - Logout the user.
  */
 static void
-logout()
+ppplogout()
 {
     char *tty;
 
@@ -531,6 +551,8 @@ logout()
 	tty += 5;
     logwtmp(tty, "", "");		/* Wipe out wtmp logout entry */
     logged_in = FALSE;
+
+    logout(tty);			/* Wipe out utmp */
 }
 
 
