@@ -1438,11 +1438,15 @@ file_lock(sp, name, fdp, fd, iswrite)
 	 * they are the former.  There's no portable way to do this.
 	 */
 	errno = 0;
-	return (flock(fd, LOCK_EX | LOCK_NB) ? errno == EAGAIN
+	if (!flock(fd, LOCK_EX | LOCK_NB)) {
+		fcntl(fd, F_SETFD, 1);
+		return (LOCK_SUCCESS);
+	}
+	return (errno == EAGAIN
 #ifdef EWOULDBLOCK
 	    || errno == EWOULDBLOCK
 #endif
-	    ? LOCK_UNAVAIL : LOCK_FAILED : LOCK_SUCCESS);
+	    ? LOCK_UNAVAIL : LOCK_FAILED);
 #endif
 #ifdef HAVE_LOCK_FCNTL			/* Gag me.  We've got fcntl(2). */
 {
@@ -1470,8 +1474,11 @@ file_lock(sp, name, fdp, fd, iswrite)
 	}
 
 	errno = 0;
-	if (!fcntl(fd, F_SETLK, &arg))
+	if (!fcntl(fd, F_SETLK, &arg)) {
+		fcntl(fd, F_SETFD, 1);
 		return (LOCK_SUCCESS);
+	}
+
 	if (didopen) {
 		sverrno = errno;
 		(void)close(fd);
