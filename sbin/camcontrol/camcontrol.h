@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: camcontrol.h,v 1.1 1998/09/15 06:43:02 gibbs Exp $
  */
 
 #ifndef _CAMCONTROL_H
@@ -50,5 +50,5 @@ void mode_edit(struct cam_device *device, int page, int page_control, int dbd,
 char *cget(void *hook, char *name);
 int iget(void *hook, char *name);
 void arg_put(void *hook, int letter, void *arg, int count, char *name);
-void usage(void);
+void usage(int verbose);
 #endif /* _CAMCONTROL_H */
