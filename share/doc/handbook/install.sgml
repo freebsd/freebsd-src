@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.16 1995/11/20 01:10:23 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.17 1995/11/24 07:55:27 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -14,7 +14,7 @@
       anonymous ftp or NFS.  
 
       Regardless of the installation media you choose, you can
-      get started by downleading the <bf>installation disk</bf>
+      get started by downloading the <bf>installation disk</bf>
       as described below.  Booting your computer with disk will
       provide important information about compatibility between
       FreeBSD and your hardware which could dictate which
