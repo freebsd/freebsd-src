@@ -7,7 +7,7 @@
 PROG=		as
 .if	${MACHINE_ARCH} != "mipsel" && ${MACHINE_ARCH} != "mipseb"
 NOMAN=		1
-BINDIR=		/usr/libexec/cross/mips-freebsdelf
+BINDIR=		/usr/libexec/cross/mips-freebsd
 .endif
 .if ${MACHINE_ARCH} == "mipsel"
 CFLAGS+=	-DTARGET_BYTES_BIG_ENDIAN=0
