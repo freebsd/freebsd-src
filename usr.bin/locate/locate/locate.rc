@@ -1,7 +1,7 @@
 #
 # /etc/locate.rc -  command script for updatedb(8)
 #
-# $Id$
+# $Id: locate.rc,v 1.4 1997/02/22 19:55:48 peter Exp $
 
 #
 # All commented values are the defaults
@@ -22,5 +22,5 @@
 # and if the SEARCHPATHS starts in such a filesystem locate will build
 # an empty database.
 #
-# be carefully if you add 'nfs'
+# be careful if you add 'nfs'
 #FILESYSTEMS="ufs" 
