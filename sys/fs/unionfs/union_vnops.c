@@ -1659,11 +1659,6 @@ union_inactive(ap)
 	 * so that until then our union_node is in the
 	 * cache and reusable.
 	 *
-	 * NEEDSWORK: Someday, consider inactive'ing
-	 * the lowervp and then trying to reactivate it
-	 * with capabilities (v_id)
-	 * like they do in the name lookup cache code.
-	 * That's too much work for now.
 	 */
 
 	if (un->un_dircache != 0) {
