@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pwd_mkdb.c	8.5 (Berkeley) 4/20/94";
 #endif
 static const char rcsid[] =
-	"$Id: pwd_mkdb.c,v 1.28 1998/12/12 16:08:41 foxfair Exp $";
+	"$Id: pwd_mkdb.c,v 1.29 1998/12/13 01:53:50 dillon Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -115,7 +115,7 @@ main(argc, argv)
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
-	while ((ch = getopt(argc, argv, "Cd:ps:u:v")) != -1)
+	while ((ch = getopt(argc, argv, "Cd:ps:u:vN")) != -1)
 		switch(ch) {
 		case 'C':                       /* verify only */
 			Cflag = 1;
@@ -614,6 +614,6 @@ usage()
 {
 
 	(void)fprintf(stderr,
-"usage: pwd_mkdb [-C] [-p] [-d <dest dir>] [-s <cachesize>] [-u <local username>] file\n");
+"usage: pwd_mkdb [-C] [-N] [-p] [-d <dest dir>] [-s <cachesize>] [-u <local username>] file\n");
 	exit(1);
 }
