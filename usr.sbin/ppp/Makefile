@@ -83,7 +83,7 @@ DPADD+= ${LIBRADIUS}
 .endif
 .endif
 
-.if defined(NOI4B) || ${MACHINE_ARCH} == "alpha"
+.if defined(NOI4B) || ${MACHINE_ARCH} != "i386"
 CFLAGS+=-DNOI4B
 .else
 SRCS+=	i4b.c
