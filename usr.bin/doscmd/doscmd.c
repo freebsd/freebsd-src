@@ -119,6 +119,7 @@ main(int argc, char **argv)
     int fd;
     int i;    
 
+    debugf = stderr;
     /* XXX should only be for tty mode */
     fd = open (_PATH_DEVNULL, O_RDWR);
     if (fd != 3)
