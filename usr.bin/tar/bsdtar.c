@@ -285,6 +285,7 @@ main(int argc, char **argv)
 			break;
 		case 'U': /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_UNLINK;
+			bsdtar->option_unlink_first = 1;
 			break;
 		case 'u': /* SUSv2 */
 			if (mode != '\0')
