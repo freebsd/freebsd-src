@@ -259,6 +259,7 @@ _ftp_stat(int cd, char *file, struct url_stat *us)
 	us->size = us->size * 10 + *ln - '0';
     if (*ln && !isspace(*ln)) {
 	_ftp_seterr(FTP_PROTOCOL_ERROR);
+	us->size = -1;
 	return -1;
     }
     if (us->size == 0)
