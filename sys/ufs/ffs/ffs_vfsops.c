@@ -987,15 +987,15 @@ loop:
 			goto loop;
 		}
 	}
-	if (waitfor == MNT_NOWAIT) {
+#ifdef QUOTA
+	qsync(mp);
+#endif
+	if (waitfor != MNT_LAZY) {
 		vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, p);
 		if ((error = VOP_FSYNC(ump->um_devvp, cred, waitfor, p)) != 0)
 			allerror = error;
 		VOP_UNLOCK(ump->um_devvp, 0, p);
 	}
-#ifdef QUOTA
-	qsync(mp);
-#endif
 	/*
 	 * Write back modified superblock.
 	 */

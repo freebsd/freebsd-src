@@ -50,6 +50,8 @@
 struct tty;
 struct disk;
 struct vnode;
+struct buf;
+TAILQ_HEAD(snaphead, inode);
 
 struct specinfo {
 	u_int		si_flags;
@@ -64,6 +66,8 @@ struct specinfo {
 	LIST_ENTRY(specinfo)	si_hash;
 	SLIST_HEAD(, vnode)	si_hlist;
 	LIST_HEAD(, specinfo)	si_names;
+	struct snaphead	si_snapshots;
+	int		(*si_copyonwrite)(struct vnode *, struct buf *);
 	u_int		si_inode;
 	char		si_name[SPECNAMELEN + 1];
 	void		*si_drv1, *si_drv2;
