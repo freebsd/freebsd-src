@@ -541,7 +541,7 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		return error;
 	}
-	error = in_pcballoc(so, &ripcbinfo, td);
+	error = in_pcballoc(so, &ripcbinfo, td, "rawinp");
 	if (error) {
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		return error;

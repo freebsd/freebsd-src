@@ -242,8 +242,8 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
  *     this code is shared by both IPv4 and IPv6 and IPv6 is
  *     not properly locked.
  */
-#define INP_LOCK_INIT(inp, d) \
-	mtx_init(&(inp)->inp_mtx, (d), NULL, MTX_DEF | MTX_RECURSE | MTX_DUPOK)
+#define INP_LOCK_INIT(inp, d, t) \
+	mtx_init(&(inp)->inp_mtx, (d), (t), MTX_DEF | MTX_RECURSE | MTX_DUPOK)
 #define INP_LOCK_DESTROY(inp)	mtx_destroy(&(inp)->inp_mtx)
 #define INP_LOCK(inp)		mtx_lock(&(inp)->inp_mtx)
 #define INP_UNLOCK(inp)		mtx_unlock(&(inp)->inp_mtx)
@@ -337,7 +337,8 @@ extern int	ipport_hifirstauto;
 extern int	ipport_hilastauto;
 
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
-int	in_pcballoc(struct socket *, struct inpcbinfo *, struct thread *);
+int	in_pcballoc(struct socket *, struct inpcbinfo *, struct thread *,
+	    const char *);
 int	in_pcbbind(struct inpcb *, struct sockaddr *, struct thread *);
 int	in_pcbbind_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
 	    u_short *, struct thread *);
