@@ -130,6 +130,7 @@ agp_intel_attach(device_t dev)
 	struct agp_intel_softc *sc = device_get_softc(dev);
 	struct agp_gatt *gatt;
 	u_int32_t type = pci_get_devid(dev);
+	u_int32_t value;
 	int error;
 
 	error = agp_generic_attach(dev);
