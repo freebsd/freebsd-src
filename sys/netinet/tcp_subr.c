@@ -314,8 +314,11 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	ipov = ipgen;
 
 	if (tp) {
-		if (!(flags & TH_RST))
+		if (!(flags & TH_RST)) {
 			win = sbspace(&tp->t_inpcb->inp_socket->so_rcv);
+			if (win > (long)TCP_MAXWIN << tp->rcv_scale)
+				win = (long)TCP_MAXWIN << tp->rcv_scale;
+		}
 #ifdef INET6
 		if (isipv6)
 			ro6 = &tp->t_inpcb->in6p_route;
