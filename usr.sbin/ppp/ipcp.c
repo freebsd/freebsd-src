@@ -503,8 +503,9 @@ ipcp_Show(struct cmdargs const *arg)
         prompt_Printf(arg->prompt, ", ");
       prompt_Printf(arg->prompt, "%u", ipcp->cfg.urgent.udp.port[p]);
     }
+  prompt_Printf(arg->prompt, "\n          TOS:    %s\n\n",
+                ipcp->cfg.urgent.tos ? "yes" : "no");
 
-  prompt_Printf(arg->prompt, "\n\n");
   throughput_disp(&ipcp->throughput, arg->prompt);
 
   return 0;
@@ -571,6 +572,7 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
   ipcp->cfg.urgent.tcp.port = (u_short *)malloc(NDEFTCPPORTS * sizeof(u_short));
   memcpy(ipcp->cfg.urgent.tcp.port, default_urgent_tcp_ports,
          NDEFTCPPORTS * sizeof(u_short));
+  ipcp->cfg.urgent.tos = 1;
 
   ipcp->cfg.urgent.udp.nports = ipcp->cfg.urgent.udp.maxports = NDEFUDPPORTS;
   ipcp->cfg.urgent.udp.port = (u_short *)malloc(NDEFUDPPORTS * sizeof(u_short));

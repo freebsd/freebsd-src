@@ -131,6 +131,7 @@
 #define VAR_CRTSCTS	32
 #define VAR_URGENTPORTS	33
 #define	VAR_LOGOUT	34
+#define	VAR_IFQUEUE	35
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -1646,6 +1647,11 @@ SetVariable(struct cmdargs const *arg)
     cx->cfg.script.hangup[sizeof cx->cfg.script.hangup - 1] = '\0';
     break;
 
+  case VAR_IFQUEUE:
+    long_val = atol(argp);
+    arg->bundle->cfg.ifqueue = long_val < 0 ? 0 : long_val;
+    break;
+
   case VAR_LOGOUT:
     strncpy(cx->cfg.script.logout, argp, sizeof cx->cfg.script.logout - 1);
     cx->cfg.script.logout[sizeof cx->cfg.script.logout - 1] = '\0';
@@ -1855,9 +1861,11 @@ SetVariable(struct cmdargs const *arg)
 
   case VAR_URGENTPORTS:
     if (arg->argn == arg->argc) {
+      ipcp_SetUrgentTOS(&arg->bundle->ncp.ipcp);
       ipcp_ClearUrgentTcpPorts(&arg->bundle->ncp.ipcp);
       ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
     } else if (!strcasecmp(arg->argv[arg->argn], "udp")) {
+      ipcp_SetUrgentTOS(&arg->bundle->ncp.ipcp);
       if (arg->argn == arg->argc - 1)
         ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
       else for (f = arg->argn + 1; f < arg->argc; f++)
@@ -1871,7 +1879,13 @@ SetVariable(struct cmdargs const *arg)
             ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
           ipcp_AddUrgentUdpPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f]));
         }
+    } else if (arg->argn == arg->argc - 1 &&
+               !strcasecmp(arg->argv[arg->argn], "none")) {
+      ipcp_ClearUrgentTcpPorts(&arg->bundle->ncp.ipcp);
+      ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
+      ipcp_ClearUrgentTOS(&arg->bundle->ncp.ipcp);
     } else {
+      ipcp_SetUrgentTOS(&arg->bundle->ncp.ipcp);
       first = arg->argn;
       if (!strcasecmp(arg->argv[first], "tcp") && ++first == arg->argc)
         ipcp_ClearUrgentTcpPorts(&arg->bundle->ncp.ipcp);
@@ -1946,6 +1960,8 @@ static struct cmdtab const SetCommands[] = {
   "hangup script", "set hangup chat-script", (const void *) VAR_HANGUP},
   {"ifaddr", NULL, SetInterfaceAddr, LOCAL_AUTH, "destination address",
   "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
+  {"ifqueue", NULL, SetVariable, LOCAL_AUTH, "interface queue",
+  "set ifqueue packets", (const void *)VAR_IFQUEUE},
   {"ipcpretry", "ipcpretries", SetVariable, LOCAL_AUTH, "IPCP retries",
    "set ipcpretry value [attempts]", (const void *)VAR_IPCPRETRY},
   {"lcpretry", "lcpretries", SetVariable, LOCAL_AUTH | LOCAL_CX, "LCP retries",
