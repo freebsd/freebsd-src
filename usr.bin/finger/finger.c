@@ -51,7 +51,12 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)finger.c	8.5 (Berkeley) 5/4/95";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 /*
@@ -92,6 +97,7 @@ int entries, lflag, mflag, pplan, sflag, oflag, Tflag;
 char tbuf[1024];
 
 static void loginlist __P((void));
+static void usage __P((void));
 static void userlist __P((int, char **));
 
 int
@@ -128,19 +134,25 @@ option(argc, argv)
 			break;
 		case '?':
 		default:
-			(void)fprintf(stderr,
-			    "usage: finger [-lmpshoT] [login ...]\n");
-			exit(1);
+			usage();
 		}
 
 	return optind;
 }
 
+static void
+usage()
+{
+	(void)fprintf(stderr, "usage: finger [-lmpshoT] [login ...]\n");
+	exit(1);
+}
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	int ch, envargc, argcnt;
+	int envargc, argcnt;
 	char *envargv[3];
 
 	(void) setlocale(LC_ALL, "");
@@ -205,7 +217,7 @@ loginlist()
 
 	if (!freopen(_PATH_UTMP, "r", stdin))
 		err(1, "%s", _PATH_UTMP);
-	name[UT_NAMESIZE] = NULL;
+	name[UT_NAMESIZE] = '\0';
 	while (fread((char *)&user, sizeof(user), 1, stdin) == 1) {
 		if (!user.ut_name[0])
 			continue;
@@ -271,8 +283,7 @@ userlist(argc, argv)
 			if (((pw = getpwnam(*p)) != NULL) && !hide(pw))
 				enter_person(pw);
 			else
-				(void)fprintf(stderr,
-				    "finger: %s: no such user\n", *p);
+				warnx("%s: no such user", *p);
 	else {
 		while ((pw = getpwent()) != NULL) {
 			for (p = argv, ip = used; *p; ++p, ++ip)
@@ -283,8 +294,7 @@ userlist(argc, argv)
 		}
 		for (p = argv, ip = used; *p; ++p, ++ip)
 			if (!*ip)
-				(void)fprintf(stderr,
-				    "finger: %s: no such user\n", *p);
+				warnx("%s: no such user", *p);
 	}
 
 	/* Handle network requests. */

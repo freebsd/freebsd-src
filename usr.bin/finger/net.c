@@ -35,7 +35,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)net.c	8.4 (Berkeley) 4/28/95";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -44,6 +49,7 @@ static char sccsid[] = "@(#)net.c	8.4 (Berkeley) 4/28/95";
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <db.h>
+#include <err.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <utmp.h>
@@ -72,7 +78,7 @@ netfinger(name)
 
 	if (!(host = rindex(name, '@')))
 		return;
-	*host++ = NULL;
+	*host++ = '\0';
 	if (isdigit(*host) && (defaddr.s_addr = inet_addr(host)) != -1) {
 		def.h_name = host;
 		def.h_addr_list = alist;
@@ -82,12 +88,11 @@ netfinger(name)
 		def.h_aliases = 0;
 		hp = &def;
 	} else if (!(hp = gethostbyname(host))) {
-		(void)fprintf(stderr,
-		    "finger: unknown host: %s\n", host);
+		warnx("unknown host: %s", host);
 		return;
 	}
 	if (!(sp = getservbyname("finger", "tcp"))) {
-		(void)fprintf(stderr, "finger: tcp/finger: unknown service\n");
+		warnx("tcp/finger: unknown service");
 		return;
 	}
 	sin.sin_family = hp->h_addrtype;
