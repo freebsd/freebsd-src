@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.5 1997/08/21 07:05:48 fsmp Exp $
+ * $Id: pci_compat.c,v 1.6 1997/08/21 08:42:59 fsmp Exp $
  *
  */
 
@@ -164,13 +164,57 @@ int pci_map_mem(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 int
 pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsigned *maskptr)
 {
+	int error;
+#ifdef APIC_IO
+	int nextpin, muxcnt;
+#endif
 	if (cfg->intpin != 0) {
 		int irq = cfg->intline;
 		void *dev_instance = (void *)-1; /* XXX use cfg->devdata  */
 		void *idesc;
 
 		idesc = intr_create(dev_instance, irq, func, arg, maskptr, 0);
-		return (intr_connect(idesc) == 0);
+		error = intr_connect(idesc);
+		if (error != 0)
+			return 0;
+#ifdef APIC_IO
+		nextpin = next_apic_pin(irq);
+		
+		if (nextpin < 0)
+			return 1;
+
+		/* 
+		 * Attempt handling of some broken mp tables.
+		 *
+		 * It's OK to yell (since the mp tables are broken).
+		 * 
+		 * Hanging in the boot is not OK
+		 */
+
+		muxcnt = 2;
+		nextpin = next_apic_pin(nextpin);
+		while (muxcnt < 5 && nextpin >= 0) {
+			muxcnt++;
+			nextpin = next_apic_pin(nextpin);
+		}
+		if (muxcnt >= 5) {
+			printf("bogus MP table, more than 4 IO APIC pins connected to the same PCI device or ISA/EISA interrupt\n");
+			return 0;
+		}
+		
+		printf("bogus MP table, %d IO APIC pins connected to the same PCI device or ISA/EISA interrupt\n", muxcnt);
+
+		nextpin = next_apic_pin(irq);
+		while (nextpin >= 0) {
+			idesc = intr_create(dev_instance, nextpin, func, arg,
+					    maskptr, 0);
+			error = intr_connect(idesc);
+			if (error != 0)
+				return 0;
+			printf("Registered extra interrupt handler for int %d (in addition to int %d)\n", nextpin, irq);
+			nextpin = next_apic_pin(nextpin);
+		}
+#endif
 	}
 	return (1);
 }

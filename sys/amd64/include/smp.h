@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.40 1998/03/07 21:34:59 dyson Exp $
+ * $Id: smp.h,v 1.41 1998/04/01 20:38:28 tegge Exp $
  *
  */
 
@@ -112,6 +112,7 @@ void	mp_announce		__P((void));
 u_int	isa_apic_mask		__P((u_int));
 int	isa_apic_pin		__P((int));
 int	pci_apic_pin		__P((int, int, int));
+int	next_apic_pin		__P((int));
 int	undirect_isa_irq	__P((int));
 int	undirect_pci_irq	__P((int));
 int	apic_bus_type		__P((int));
