@@ -110,8 +110,8 @@
     <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
     port.</para>
 
-    <para>A <varname>MAXMEM</varname> kernel option,
-    along with the <varname>hw.physmem</varname> environment variable, can be
+    <para arch="alpha">A <varname>MAXMEM</varname> kernel option,
+    along with the <varname>hw.physmem</varname> loader tunable, can be
     used to artificially reduce the memory size of a machine for
     testing (or other purposes).</para>
 
