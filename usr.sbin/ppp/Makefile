@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.53 1999/05/08 11:05:54 brian Exp $
+#	$Id: Makefile,v 1.54 1999/05/12 09:48:38 brian Exp $
 
 MAINTAINER=brian@FreeBSD.org
 
@@ -53,7 +53,7 @@ DPADD+= ${LIBRADIUS}
 # We must create these objects because crunchgen will link them,
 # and we don't want any unused symbols to spoil the final link.
 CFLAGS+=-DNOALIAS -DNORADIUS
-SRCS+=	alias_cmd.c chap_ms.c radius.c
+OBJS+=	alias_cmd.o chap_ms.o radius.o
 chap_ms.o alias_cmd.o radius.o:
 	>null_${.PREFIX}.c
 	cc -c -o ${.TARGET} null_${.PREFIX}.c
