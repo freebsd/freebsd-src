@@ -29,7 +29,7 @@
 #include <netatalk/at_extern.h>
 
 static void aarptfree(struct aarptab *aat);
-static void at_aarpinput(struct arpcom *ac, struct mbuf *m);
+static void at_aarpinput(struct ifnet *ifp, struct mbuf *m);
 
 #define AARPTAB_BSIZ	9
 #define AARPTAB_NB	19
@@ -130,7 +130,7 @@ at_ifawithnet(struct sockaddr_at  *sat)
 }
 
 static void
-aarpwhohas(struct arpcom *ac, struct sockaddr_at *sat)
+aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
 {
     struct mbuf		*m;
     struct ether_header	*eh;
@@ -144,7 +144,7 @@ aarpwhohas(struct arpcom *ac, struct sockaddr_at *sat)
 	return;
     }
 #ifdef MAC
-    mac_create_mbuf_linklayer(&ac->ac_if, m);
+    mac_create_mbuf_linklayer(ifp, m);
 #endif
     m->m_len = sizeof(*ea);
     m->m_pkthdr.len = sizeof(*ea);
@@ -158,7 +158,7 @@ aarpwhohas(struct arpcom *ac, struct sockaddr_at *sat)
     ea->aarp_hln = sizeof(ea->aarp_sha);
     ea->aarp_pln = sizeof(ea->aarp_spu);
     ea->aarp_op = htons(AARPOP_REQUEST);
-    bcopy((caddr_t)ac->ac_enaddr, (caddr_t)ea->aarp_sha,
+    bcopy(IFP2AC(ifp)->ac_enaddr, (caddr_t)ea->aarp_sha,
 	    sizeof(ea->aarp_sha));
 
     /*
@@ -195,7 +195,7 @@ aarpwhohas(struct arpcom *ac, struct sockaddr_at *sat)
 	ea->aarp_spnode = AA_SAT(aa)->sat_addr.s_node;
 	ea->aarp_tpnode = sat->sat_addr.s_node;
     } else {
-	bcopy(ac->ac_if.if_broadcastaddr, (caddr_t)eh->ether_dhost,
+	bcopy(ifp->if_broadcastaddr, (caddr_t)eh->ether_dhost,
 		sizeof(eh->ether_dhost));
 	eh->ether_type = htons(ETHERTYPE_AARP);
 
@@ -211,13 +211,12 @@ aarpwhohas(struct arpcom *ac, struct sockaddr_at *sat)
 
     sa.sa_len = sizeof(struct sockaddr);
     sa.sa_family = AF_UNSPEC;
-    (*ac->ac_if.if_output)(&ac->ac_if,
-	m, &sa, NULL); 	/* XXX NULL should be routing information */
+    ifp->if_output(ifp, m, &sa, NULL /* route */);
 }
 
 int
-aarpresolve(ac, m, destsat, desten)
-    struct arpcom	*ac;
+aarpresolve(ifp, m, destsat, desten)
+    struct ifnet	*ifp;
     struct mbuf		*m;
     struct sockaddr_at	*destsat;
     u_char		*desten;
@@ -234,8 +233,8 @@ aarpresolve(ac, m, destsat, desten)
 	if (aa->aa_flags & AFA_PHASE2) {
 	    bcopy(atmulticastaddr, (caddr_t)desten, sizeof(atmulticastaddr));
 	} else {
-	    bcopy(ac->ac_if.if_broadcastaddr, (caddr_t)desten,
-		    sizeof(ac->ac_if.if_addrlen));
+	    bcopy(ifp->if_broadcastaddr, (caddr_t)desten,
+		    sizeof(ifp->if_addrlen));
 	}
 	return (1);
     }
@@ -244,13 +243,10 @@ aarpresolve(ac, m, destsat, desten)
     AARPTAB_LOOK(aat, destsat->sat_addr);
     if (aat == NULL) {			/* No entry */
 	aat = aarptnew(&destsat->sat_addr);
-	if (aat == NULL) {
+	if (aat == NULL) { /* we should fail more gracefully! */
 	    panic("aarpresolve: no free entry");
 	}
-	aat->aat_hold = m;
-	AARPTAB_UNLOCK();
-	aarpwhohas(ac, destsat);
-	return (0);
+	goto done;
     }
     /* found an entry */
     aat->aat_timer = 0;
@@ -264,9 +260,10 @@ aarpresolve(ac, m, destsat, desten)
     if (aat->aat_hold) {
 	m_freem(aat->aat_hold);
     }
+done:
     aat->aat_hold = m;
     AARPTAB_UNLOCK();
-    aarpwhohas(ac, destsat);
+    aarpwhohas(ifp, destsat);
     return (0);
 }
 
@@ -275,10 +272,10 @@ aarpintr(m)
     struct mbuf		*m;
 {
     struct arphdr	*ar;
-    struct arpcom	*ac;
+    struct ifnet	*ifp;
 
-    ac = (struct arpcom *)m->m_pkthdr.rcvif;
-    if (ac->ac_if.if_flags & IFF_NOARP)
+    ifp = m->m_pkthdr.rcvif;
+    if (ifp->if_flags & IFF_NOARP)
 	goto out;
 
     if (m->m_len < sizeof(struct arphdr)) {
@@ -297,7 +294,7 @@ aarpintr(m)
     
     switch(ntohs(ar->ar_pro)) {
     case ETHERTYPE_AT :
-	at_aarpinput(ac, m);
+	at_aarpinput(ifp, m);
 	return;
 
     default:
@@ -309,7 +306,7 @@ out:
 }
 
 static void
-at_aarpinput(struct arpcom *ac, struct mbuf *m)
+at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 {
     struct ether_aarp	*ea;
     struct at_ifaddr	*aa;
@@ -327,8 +324,8 @@ at_aarpinput(struct arpcom *ac, struct mbuf *m)
     ea = mtod(m, struct ether_aarp *);
 
     /* Check to see if from my hardware address */
-    if (!bcmp((caddr_t)ea->aarp_sha, (caddr_t)ac->ac_enaddr,
-	    sizeof(ac->ac_enaddr))) {
+    if (!bcmp((caddr_t)ea->aarp_sha, IFP2AC(ifp)->ac_enaddr,
+	    sizeof(IFP2AC(ifp)->ac_enaddr))) {
 	m_freem(m);
 	return;
     }
@@ -351,7 +348,7 @@ at_aarpinput(struct arpcom *ac, struct mbuf *m)
 	 * Since we don't know the net, we just look for the first
 	 * phase 1 address on the interface.
 	 */
-	for (aa = (struct at_ifaddr *)TAILQ_FIRST(&ac->ac_if.if_addrhead); aa;
+	for (aa = (struct at_ifaddr *)TAILQ_FIRST(&ifp->if_addrhead); aa;
 		aa = (struct at_ifaddr *)aa->aa_ifa.ifa_link.tqe_next) {
 	    if (AA_SAT(aa)->sat_family == AF_APPLETALK &&
 		    (aa->aa_flags & AFA_PHASE2) == 0) {
@@ -380,7 +377,7 @@ at_aarpinput(struct arpcom *ac, struct mbuf *m)
 	     * probed for the same address we'd like to use. Change the
 	     * address we're probing for.
 	     */
-	    untimeout(aarpprobe, ac, aa->aa_ch);
+	    untimeout(aarpprobe, ifp, aa->aa_ch);
 	    wakeup(aa);
 	    m_freem(m);
 	    return;
@@ -424,7 +421,7 @@ at_aarpinput(struct arpcom *ac, struct mbuf *m)
 	    sat.sat_len = sizeof(struct sockaddr_at);
 	    sat.sat_family = AF_APPLETALK;
 	    sat.sat_addr = spa;
-	    (*ac->ac_if.if_output)(&ac->ac_if, mhold,
+	    (*ifp->if_output)(ifp, mhold,
 		    (struct sockaddr *)&sat, NULL); /* XXX */
 	} else
 	    AARPTAB_UNLOCK();
@@ -451,7 +448,7 @@ at_aarpinput(struct arpcom *ac, struct mbuf *m)
 
     bcopy((caddr_t)ea->aarp_sha, (caddr_t)ea->aarp_tha,
 	    sizeof(ea->aarp_sha));
-    bcopy((caddr_t)ac->ac_enaddr, (caddr_t)ea->aarp_sha,
+    bcopy(IFP2AC(ifp)->ac_enaddr, (caddr_t)ea->aarp_sha,
 	    sizeof(ea->aarp_sha));
 
     /* XXX */
@@ -484,7 +481,7 @@ at_aarpinput(struct arpcom *ac, struct mbuf *m)
 
     sa.sa_len = sizeof(struct sockaddr);
     sa.sa_family = AF_UNSPEC;
-    (*ac->ac_if.if_output)(&ac->ac_if, m, &sa, NULL); /* XXX */
+    (*ifp->if_output)(ifp, m, &sa, NULL); /* XXX */
     return;
 }
 
@@ -540,7 +537,7 @@ out:
 void
 aarpprobe(void *arg)
 {
-    struct arpcom	*ac = arg;
+    struct ifnet	*ifp = arg;
     struct mbuf		*m;
     struct ether_header	*eh;
     struct ether_aarp	*ea;
@@ -555,7 +552,7 @@ aarpprobe(void *arg)
      * interface with the same address as we're looking for. If the
      * net is phase 2, generate an 802.2 and SNAP header.
      */
-    for (aa = (struct at_ifaddr *)TAILQ_FIRST(&ac->ac_if.if_addrhead); aa;
+    for (aa = (struct at_ifaddr *)TAILQ_FIRST(&ifp->if_addrhead); aa;
 	    aa = (struct at_ifaddr *)aa->aa_ifa.ifa_link.tqe_next) {
 	if (AA_SAT(aa)->sat_family == AF_APPLETALK &&
 		(aa->aa_flags & AFA_PROBING)) {
@@ -572,14 +569,14 @@ aarpprobe(void *arg)
 	wakeup(aa);
 	return;
     } else {
-	aa->aa_ch = timeout(aarpprobe, (caddr_t)ac, hz / 5);
+	aa->aa_ch = timeout(aarpprobe, (caddr_t)ifp, hz / 5);
     }
 
     if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL) {
 	return;
     }
 #ifdef MAC
-    mac_create_mbuf_linklayer(&ac->ac_if, m);
+    mac_create_mbuf_linklayer(ifp, m);
 #endif
     m->m_len = sizeof(*ea);
     m->m_pkthdr.len = sizeof(*ea);
@@ -593,7 +590,7 @@ aarpprobe(void *arg)
     ea->aarp_hln = sizeof(ea->aarp_sha);
     ea->aarp_pln = sizeof(ea->aarp_spu);
     ea->aarp_op = htons(AARPOP_PROBE);
-    bcopy((caddr_t)ac->ac_enaddr, (caddr_t)ea->aarp_sha,
+    bcopy(IFP2AC(ifp)->ac_enaddr, (caddr_t)ea->aarp_sha,
 	    sizeof(ea->aarp_sha));
 
     eh = (struct ether_header *)sa.sa_data;
@@ -618,7 +615,7 @@ aarpprobe(void *arg)
 		sizeof(ea->aarp_tpnet));
 	ea->aarp_spnode = ea->aarp_tpnode = AA_SAT(aa)->sat_addr.s_node;
     } else {
-	bcopy(ac->ac_if.if_broadcastaddr, (caddr_t)eh->ether_dhost,
+	bcopy(ifp->if_broadcastaddr, (caddr_t)eh->ether_dhost,
 		sizeof(eh->ether_dhost));
 	eh->ether_type = htons(ETHERTYPE_AARP);
 	ea->aarp_spa = ea->aarp_tpa = AA_SAT(aa)->sat_addr.s_node;
@@ -632,7 +629,7 @@ aarpprobe(void *arg)
 
     sa.sa_len = sizeof(struct sockaddr);
     sa.sa_family = AF_UNSPEC;
-    (*ac->ac_if.if_output)(&ac->ac_if, m, &sa, NULL); /* XXX */
+    (*ifp->if_output)(ifp, m, &sa, NULL); /* XXX */
     aa->aa_probcnt--;
 }
 

@@ -259,11 +259,12 @@ iso88025_output(ifp, m, dst, rt0)
 		senderr(ENETDOWN);
 	getmicrotime(&ifp->if_lastchange);
 
+	/* Calculate routing info length based on arp table entry */
+	/* XXX any better way to do this ? */
 	error = rt_check(&rt, &rt0, dst);
 	if (error)
 		goto bad;
 
-	/* Calculate routing info length based on arp table entry */
 	if (rt && (sdl = (struct sockaddr_dl *)rt->rt_gateway))
 		if (SDL_ISO88025(sdl)->trld_rcf != 0)
 			rif_len = TR_RCF_RIFLEN(SDL_ISO88025(sdl)->trld_rcf);
@@ -286,8 +287,9 @@ iso88025_output(ifp, m, dst, rt0)
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		if (!arpresolve(ifp, rt, m, dst, edst))
-			return (0);	/* if not yet resolved */
+		error = arpresolve(ifp, rt0, m, dst, edst);
+		if (error)
+			return (error == EWOULDBLOCK ? 0 : error);
 		snap_type = ETHERTYPE_IP;
 		break;
 	case AF_ARP:
@@ -320,10 +322,9 @@ iso88025_output(ifp, m, dst, rt0)
 #endif	/* INET */
 #ifdef INET6
 	case AF_INET6:
-		if (!nd6_storelladdr(ifp, rt, m, dst, (u_char *)edst)) {
-			/* Something bad happened */
-			return(0);
-		}
+		error = nd6_storelladdr(ifp, rt0, m, dst, (u_char *)edst);
+		if (error)
+			return (error);
 		snap_type = ETHERTYPE_IPV6;
 		break;
 #endif	/* INET6 */

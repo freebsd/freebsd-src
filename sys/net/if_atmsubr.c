@@ -126,7 +126,6 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 	int error = 0, sz;
 	struct atm_pseudohdr atmdst, *ad;
 	struct mbuf *m = m0;
-	struct rtentry *rt;
 	struct atmllc *atmllc;
 	struct atmllc *llc_hdr = NULL;
 	u_int32_t atm_flags;
@@ -141,13 +140,6 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 		senderr(ENETDOWN);
 
 	/*
-	 * check route
-	 */
-	error = rt_check(&rt, &rt0, dst);
-	if (error)
-		goto bad;
-
-	/*
 	 * check for non-native ATM traffic   (dst != NULL)
 	 */
 	if (dst) {
@@ -156,6 +148,15 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 #if defined(INET) || defined(INET6)
 		case AF_INET:
 		case AF_INET6:
+		{
+			struct rtentry *rt;
+			/*  
+			 * check route
+			 */
+			error = rt_check(&rt, &rt0, dst);
+			if (error)
+				goto bad;
+
 			if (dst->sa_family == AF_INET6)
 			        etype = ETHERTYPE_IPV6;
 			else
@@ -167,6 +168,7 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 				/* XXX: put ATMARP stuff here */
 				/* XXX: watch who frees m on failure */
 			}
+		}
 			break;
 #endif /* INET || INET6 */
 
