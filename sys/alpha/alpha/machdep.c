@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.10 1998/07/30 08:10:26 dfr Exp $
+ *	$Id: machdep.c,v 1.11 1998/08/10 07:53:58 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1800,20 +1800,4 @@ bad:
 #endif
         return(-1);
 
-}
-
-void atomic_add(u_int32_t* p, u_int32_t v)
-{
-    u_int32_t temp;
-    __asm__ __volatile__ (
-	"1:\tldl_l %0,%2\n\t"	/* load counter value, asserting lock */
-	"addl %3,%0,%0\n\t"	/* add our bits */
-	"stl_c %0,%1\n\t"	/* attempt to store */
-	"beq %0,2f\n\t"		/* if the store failed, spin */
-	"br 3f\n"		/* it worked, exit */
-	"2:\tbr 1b\n"		/* *p not updated, loop */
-	"3:\tmb\n"		/* it worked */
-	: "=&r"(temp), "=m" (*p)
-	: "m"(*p), "r"(v)
-	: "memory");
 }
