@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.12 1995/10/27 03:59:38 jkh Exp $
+ * $Id: installUpgrade.c,v 1.13 1995/11/03 12:02:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -221,9 +221,6 @@ installUpgrade(char *str)
 	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
 	    return RET_FAIL;
     }
-
-    /* Note that we're now upgrading */
-    variable_set2(SYSTEM_STATE, "upgrade");
 
     dialog_clear();
     msgConfirm("OK.  First, we're going to go to the disk label editor.  In this editor\n"
