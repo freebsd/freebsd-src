@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.11 1999/05/12 09:48:56 brian Exp $
+ *  $Id: physical.c,v 1.12 1999/05/13 19:29:40 brian Exp $
  *
  */
 
@@ -256,41 +256,39 @@ physical_Offline(struct physical *p)
   log_Printf(LogPHASE, "%s: Disconnected!\n", p->link.name);
 }
 
-static void
-physical_ReallyClose(struct physical *p)
+static int
+physical_Lock(struct physical *p)
 {
-  int newsid;
+  int res;
 
-  log_Printf(LogDEBUG, "%s: Really close %d\n", p->link.name, p->fd);
-  if (p->fd >= 0) {
-    physical_StopDeviceTimer(p);
-    if (p->Utmp) {
-      ID0logout(p->name.base);
-      p->Utmp = 0;
-    }
-    newsid = tcgetpgrp(p->fd) == getpgrp();
-    close(p->fd);
-    p->fd = -1;
-    log_SetTtyCommandMode(p->dl);
-    throughput_stop(&p->link.throughput);
-    throughput_log(&p->link.throughput, LogPHASE, p->link.name);
-    if (p->session_owner != (pid_t)-1) {
-      ID0kill(p->session_owner, SIGHUP);
-      p->session_owner = (pid_t)-1;
-    }
-    if (newsid)
-      bundle_setsid(p->dl->bundle, 0);
-    if (p->handler && p->handler->destroy)
-      (*p->handler->destroy)(p);
-    p->handler = NULL;
+  if (*p->name.full == '/' && p->type != PHYS_DIRECT &&
+      (res = ID0uu_lock(p->name.base)) != UU_LOCK_OK) {
+    if (res == UU_LOCK_INUSE)
+      log_Printf(LogPHASE, "%s: %s is in use\n", p->link.name, p->name.full);
+    else
+      log_Printf(LogPHASE, "%s: %s is in use: uu_lock: %s\n",
+                 p->link.name, p->name.full, uu_lockerr(res));
+    return 0;
   }
-  *p->name.full = '\0';
-  p->name.base = p->name.full;
+
+  return 1;
+}
+
+static void
+physical_Unlock(struct physical *p)
+{
+  char fn[MAXPATHLEN];
+  if (*p->name.full == '/' && p->type != PHYS_DIRECT &&
+      ID0uu_unlock(p->name.base) == -1)
+    log_Printf(LogALERT, "%s: Can't uu_unlock %s\n", p->link.name, fn);
 }
 
 void
 physical_Close(struct physical *p)
 {
+  int newsid;
+  char fn[MAXPATHLEN];
+
   if (p->fd < 0)
     return;
 
@@ -299,7 +297,43 @@ physical_Close(struct physical *p)
   if (p->handler && p->handler->cooked)
     (*p->handler->cooked)(p);
 
-  physical_ReallyClose(p);
+  physical_StopDeviceTimer(p);
+  if (p->Utmp) {
+    ID0logout(p->name.base);
+    p->Utmp = 0;
+  }
+  newsid = tcgetpgrp(p->fd) == getpgrp();
+  close(p->fd);
+  p->fd = -1;
+  log_SetTtyCommandMode(p->dl);
+
+  throughput_stop(&p->link.throughput);
+  throughput_log(&p->link.throughput, LogPHASE, p->link.name);
+
+  if (p->session_owner != (pid_t)-1) {
+    ID0kill(p->session_owner, SIGHUP);
+    p->session_owner = (pid_t)-1;
+  }
+
+  if (newsid)
+    bundle_setsid(p->dl->bundle, 0);
+
+  if (*p->name.full == '/') {
+    snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, p->name.base);
+#ifndef RELEASE_CRUNCH
+    if (ID0unlink(fn) == -1)
+      log_Printf(LogALERT, "%s: Can't remove %s: %s\n",
+                 p->link.name, fn, strerror(errno));
+#else
+    ID0unlink(fn);
+#endif
+  }
+  physical_Unlock(p);
+  if (p->handler && p->handler->destroy)
+    (*p->handler->destroy)(p);
+  p->handler = NULL;
+  p->name.base = p->name.full;
+  *p->name.full = '\0';
 }
 
 void
@@ -780,6 +814,23 @@ physical_SetDevice(struct physical *p, const char *name)
 static void
 physical_Found(struct physical *p)
 {
+  FILE *lockfile;
+  char fn[MAXPATHLEN];
+
+  if (*p->name.full == '/') {
+    snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, p->name.base);
+    lockfile = ID0fopen(fn, "w");
+    if (lockfile != NULL) {
+      fprintf(lockfile, "%s%d\n", TUN_NAME, p->dl->bundle->unit);
+      fclose(lockfile);
+    }
+#ifndef RELEASE_CRUNCH
+    else
+      log_Printf(LogALERT, "%s: Can't create %s: %s\n",
+                 p->link.name, fn, strerror(errno));
+#endif
+  }
+
   throughput_start(&p->link.throughput, "physical throughput",
                    Enabled(p->dl->bundle, OPT_THROUGHPUT));
   p->connect_count++;
@@ -791,7 +842,7 @@ physical_Found(struct physical *p)
 int
 physical_Open(struct physical *p, struct bundle *bundle)
 {
-  int devno, h;
+  int devno, h, wasopen;
   char *dev;
 
   if (p->fd >= 0)
@@ -814,19 +865,25 @@ physical_Open(struct physical *p, struct bundle *bundle)
     devno = 0;
     while (devno < p->cfg.ndev && p->fd < 0) {
       physical_SetDevice(p, dev);
+      if (physical_Lock(p)) {
+        if (*p->name.full == '/')
+          p->fd = ID0open(p->name.full, O_RDWR | O_NONBLOCK);
 
-      if (*p->name.full == '/')
-        p->fd = ID0open(p->name.full, O_RDWR | O_NONBLOCK);
+        wasopen = p->fd >= 0;
+        for (h = 0; h < NDEVICES && p->handler == NULL; h++)
+          if ((p->handler = (*devices[h].create)(p)) == NULL &&
+              wasopen && p->fd == -1)
+            break;
 
-      for (h = 0; h < NDEVICES && p->handler == NULL; h++)
-        p->handler = (*devices[h].create)(p);
-
-      if (p->fd < 0)
-	log_Printf(LogWARN, "%s: Device (%s) must begin with a '/',"
-                   " a '!' or be a host:port pair\n", p->link.name,
-                   p->name.full);
-      else
-        physical_Found(p);
+        if (p->fd < 0) {
+          if (h == NDEVICES)
+	    log_Printf(LogWARN, "%s: Device (%s) must begin with a '/',"
+                       " a '!' or be a host:port pair\n", p->link.name,
+                       p->name.full);
+          physical_Unlock(p);
+        } else
+          physical_Found(p);
+      }
       dev += strlen(dev) + 1;
       devno++;
     }

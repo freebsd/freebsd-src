@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tty.c,v 1.4 1999/05/13 19:29:40 brian Exp $
+ *	$Id: tty.c,v 1.5 1999/05/16 11:58:48 brian Exp $
  */
 
 #include <sys/param.h>
@@ -97,62 +97,6 @@ struct ttydevice {
 };
 
 #define device2tty(d) ((d)->type == TTY_DEVICE ? (struct ttydevice *)d : NULL)
-
-static int
-tty_Lock(struct physical *p, int tunno)
-{
-  int res;
-  FILE *lockfile;
-  char fn[MAXPATHLEN];
-
-  if (*p->name.full != '/')
-    return 0;
-
-  if (p->type != PHYS_DIRECT &&
-      (res = ID0uu_lock(p->name.base)) != UU_LOCK_OK) {
-    if (res == UU_LOCK_INUSE)
-      log_Printf(LogPHASE, "%s: %s is in use\n", p->link.name, p->name.full);
-    else
-      log_Printf(LogPHASE, "%s: %s is in use: uu_lock: %s\n",
-                 p->link.name, p->name.full, uu_lockerr(res));
-    return (-1);
-  }
-
-  snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, p->name.base);
-  lockfile = ID0fopen(fn, "w");
-  if (lockfile != NULL) {
-    fprintf(lockfile, "%s%d\n", TUN_NAME, tunno);
-    fclose(lockfile);
-  }
-#ifndef RELEASE_CRUNCH
-  else
-    log_Printf(LogALERT, "%s: Can't create %s: %s\n",
-               p->link.name, fn, strerror(errno));
-#endif
-
-  return 0;
-}
-
-static void
-tty_Unlock(struct physical *p)
-{
-  char fn[MAXPATHLEN];
-
-  if (*p->name.full != '/')
-    return;
-
-  snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, p->name.base);
-#ifndef RELEASE_CRUNCH
-  if (ID0unlink(fn) == -1)
-    log_Printf(LogALERT, "%s: Can't remove %s: %s\n",
-               p->link.name, fn, strerror(errno));
-#else
-  ID0unlink(fn);
-#endif
-
-  if (p->type != PHYS_DIRECT && ID0uu_unlock(p->name.base) == -1)
-    log_Printf(LogALERT, "%s: Can't uu_unlock %s\n", p->link.name, fn);
-}
 
 /*
  * tty_Timeout() watches the DCD signal and mentions it if it's status
@@ -316,7 +260,6 @@ tty_Free(struct physical *p)
 {
   struct ttydevice *dev = device2tty(p->handler);
 
-  tty_Unlock(p);
   free(dev);
 }
 
@@ -376,22 +319,63 @@ static struct device basettydevice = {
   tty_OpenInfo
 };
 
-static struct device *
-tty_SetupDevice(struct physical *p)
+struct device *
+tty_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
+               int maxiov)
+{
+  if (type == TTY_DEVICE) {
+    struct ttydevice *dev;
+
+    /* It's one of ours !  Let's create the device */
+
+    dev = (struct ttydevice *)iov[(*niov)++].iov_base;
+    /* Refresh function pointers etc */
+    memcpy(&dev->dev, &basettydevice, sizeof dev->dev);
+
+    physical_SetupStack(p, PHYSICAL_NOFORCE);
+    if (dev->Timer.state != TIMER_STOPPED) {
+      dev->Timer.state = TIMER_STOPPED;
+      tty_StartTimer(p);
+    }
+    return &dev->dev;
+  }
+
+  return NULL;
+}
+
+struct device *
+tty_Create(struct physical *p)
 {
   struct ttydevice *dev;
   struct termios ios;
   int oldflag;
 
-  if ((dev = malloc(sizeof *dev)) == NULL)
+  if (p->fd < 0 || !isatty(p->fd))
+    /* Don't want this */
     return NULL;
+
+  if (*p->name.full == '\0') {
+    physical_SetDevice(p, ttyname(p->fd));
+    log_Printf(LogDEBUG, "%s: Input is a tty (%s)\n",
+               p->link.name, p->name.full);
+  } else
+    log_Printf(LogDEBUG, "%s: Opened %s\n", p->link.name, p->name.full);
+
+  /* We're gonna return a ttydevice (unless something goes horribly wrong) */
+
+  if ((dev = malloc(sizeof *dev)) == NULL) {
+    /* Complete failure - parent doesn't continue trying to ``create'' */
+    close(p->fd);
+    p->fd = -1;
+    return NULL;
+  }
 
   memcpy(&dev->dev, &basettydevice, sizeof dev->dev);
   memset(&dev->Timer, '\0', sizeof dev->Timer);
   tcgetattr(p->fd, &ios);
   dev->ios = ios;
 
-  log_Printf(LogDEBUG, "%s: tty_SetupDevice: physical (get): fd = %d,"
+  log_Printf(LogDEBUG, "%s: tty_Create: physical (get): fd = %d,"
              " iflag = %lx, oflag = %lx, cflag = %lx\n", p->link.name, p->fd,
              (u_long)ios.c_iflag, (u_long)ios.c_oflag, (u_long)ios.c_cflag);
 
@@ -421,9 +405,13 @@ tty_SetupDevice(struct physical *p)
 
   if (ioctl(p->fd, TIOCMGET, &dev->mbits) == -1) {
     if (p->type != PHYS_DIRECT) {
+      /* Complete failure - parent doesn't continue trying to ``create'' */
+
       log_Printf(LogWARN, "%s: Open: Cannot get physical status: %s\n",
                  p->link.name, strerror(errno));
-      physical_Close(p);
+      tty_Cooked(p);
+      close(p->fd);
+      p->fd = -1;
       return NULL;
     } else
       dev->mbits = TIOCM_CD;
@@ -433,9 +421,13 @@ tty_SetupDevice(struct physical *p)
 
   oldflag = fcntl(p->fd, F_GETFL, 0);
   if (oldflag < 0) {
+    /* Complete failure - parent doesn't continue trying to ``create'' */
+
     log_Printf(LogWARN, "%s: Open: Cannot get physical flags: %s\n",
                p->link.name, strerror(errno));
-    physical_Close(p);
+    tty_Cooked(p);
+    close(p->fd);
+    p->fd = -1;
     return NULL;
   } else
     fcntl(p->fd, F_SETFL, oldflag & ~O_NONBLOCK);
@@ -443,49 +435,4 @@ tty_SetupDevice(struct physical *p)
   physical_SetupStack(p, PHYSICAL_NOFORCE);
 
   return &dev->dev;
-}
-
-struct device *
-tty_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
-               int maxiov)
-{
-  if (type == TTY_DEVICE) {
-    struct ttydevice *dev;
-
-    /* It's one of ours !  Let's create the device */
-
-    dev = (struct ttydevice *)iov[(*niov)++].iov_base;
-    /* Refresh function pointers etc */
-    memcpy(&dev->dev, &basettydevice, sizeof dev->dev);
-
-    physical_SetupStack(p, PHYSICAL_NOFORCE);
-    if (dev->Timer.state != TIMER_STOPPED) {
-      dev->Timer.state = TIMER_STOPPED;
-      tty_StartTimer(p);
-    }
-    return &dev->dev;
-  }
-
-  return NULL;
-}
-
-struct device *
-tty_Create(struct physical *p)
-{
-  if (p->fd >= 0 && isatty(p->fd)) {
-    if (*p->name.full == '\0') {
-      log_Printf(LogDEBUG, "%s: Input is a tty\n", p->link.name);
-      physical_SetDevice(p, ttyname(p->fd));
-      if (tty_Lock(p, p->dl->bundle->unit) == -1) {
-        close(p->fd);
-        p->fd = -1;
-      } else
-        return tty_SetupDevice(p);
-    } else if (tty_Lock(p, p->dl->bundle->unit) != -1) {
-      log_Printf(LogDEBUG, "%s: Opened %s\n", p->link.name, p->name.full);
-      return tty_SetupDevice(p);
-    }
-  }
-
-  return NULL;
 }
