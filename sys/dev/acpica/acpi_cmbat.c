@@ -132,7 +132,25 @@ static int		acpi_cmbat_is_bif_valid(struct acpi_bif*);
 static int		acpi_cmbat_get_total_battinfo(struct acpi_battinfo *);
 static void		acpi_cmbat_init_battery(void *);
 
-static __inline int
+static device_method_t acpi_cmbat_methods[] = {
+    /* Device interface */
+    DEVMETHOD(device_probe,	acpi_cmbat_probe),
+    DEVMETHOD(device_attach,	acpi_cmbat_attach),
+    DEVMETHOD(device_resume,	acpi_cmbat_resume),
+
+    {0, 0}
+};
+
+static driver_t acpi_cmbat_driver = {
+    "acpi_cmbat",
+    acpi_cmbat_methods,
+    sizeof(struct acpi_cmbat_softc),
+};
+
+static devclass_t acpi_cmbat_devclass;
+DRIVER_MODULE(acpi_cmbat, acpi, acpi_cmbat_driver, acpi_cmbat_devclass, 0, 0);
+
+static int
 acpi_cmbat_info_expired(struct timespec *lastupdated)
 {
     struct timespec	curtime;
@@ -149,7 +167,7 @@ acpi_cmbat_info_expired(struct timespec *lastupdated)
 }
 
 
-static __inline void
+static void
 acpi_cmbat_info_updated(struct timespec *lastupdated)
 {
     if (lastupdated != NULL)
@@ -352,24 +370,6 @@ acpi_cmbat_resume(device_t dev)
     return (0);
 }
 
-static device_method_t acpi_cmbat_methods[] = {
-    /* Device interface */
-    DEVMETHOD(device_probe,	acpi_cmbat_probe),
-    DEVMETHOD(device_attach,	acpi_cmbat_attach),
-    DEVMETHOD(device_resume,	acpi_cmbat_resume),
-
-    {0, 0}
-};
-
-static driver_t acpi_cmbat_driver = {
-    "acpi_cmbat",
-    acpi_cmbat_methods,
-    sizeof(struct acpi_cmbat_softc),
-};
-
-static devclass_t acpi_cmbat_devclass;
-DRIVER_MODULE(acpi_cmbat, acpi, acpi_cmbat_driver, acpi_cmbat_devclass, 0, 0);
-
 static int
 acpi_cmbat_ioctl(u_long cmd, caddr_t addr, void *arg)
 {
@@ -428,7 +428,7 @@ acpi_cmbat_ioctl(u_long cmd, caddr_t addr, void *arg)
     return (0);
 }
 
-static __inline int
+static int
 acpi_cmbat_is_bst_valid(struct acpi_bst *bst)
 {
     if (bst->state >= ACPI_BATT_STAT_MAX || bst->cap == 0xffffffff ||
@@ -439,7 +439,7 @@ acpi_cmbat_is_bst_valid(struct acpi_bst *bst)
 	return (1);
 }
 
-static __inline int
+static int
 acpi_cmbat_is_bif_valid(struct acpi_bif *bif)
 {
     if (bif->lfcap == 0)
@@ -617,6 +617,7 @@ acpi_cmbat_init_battery(void *arg)
 	break;
     }
 
+    sc->initializing = 0;
     if (retry == ACPI_CMBAT_RETRY_MAX) {
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		    "battery initialization failed, giving up\n");
@@ -624,7 +625,6 @@ acpi_cmbat_init_battery(void *arg)
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		    "battery initialization done, tried %d times\n", retry + 1);
     }
-    sc->initializing = 0;
 }
 
 /*
