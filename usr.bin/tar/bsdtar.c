@@ -225,7 +225,9 @@ main(int argc, char **argv)
 			mode = opt;
 			break;
 		case OPTION_EXCLUDE: /* GNU tar */
-			exclude(bsdtar, optarg);
+			if (exclude(bsdtar, optarg))
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Couldn't exclude %s\n", optarg);
 			break;
 		case 'F':
 			bsdtar->create_format = optarg;
@@ -251,7 +253,10 @@ main(int argc, char **argv)
 			exit(0);
 			break;
 		case OPTION_INCLUDE:
-			include(bsdtar, optarg);
+			if (include(bsdtar, optarg))
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Failed to add %s to inclusion list",
+				    optarg);
 			break;
 		case 'j': /* GNU tar */
 			if (bsdtar->create_compression != '\0')
@@ -354,7 +359,10 @@ main(int argc, char **argv)
 			bsdtar->option_interactive = 1;
 			break;
 		case 'X': /* GNU tar */
-			exclude_from_file(bsdtar, optarg);
+			if (exclude_from_file(bsdtar, optarg))
+				bsdtar_errc(bsdtar, 1, 0,
+				    "failed to process exclusions from file %s",
+				    optarg);
 			break;
 		case 'x': /* SUSv2 */
 			if (mode != '\0')
@@ -392,7 +400,7 @@ main(int argc, char **argv)
 	/*
 	 * Sanity-check options.
 	 */
-	if (mode == '\0' && possible_help_request) {
+	if ((mode == '\0') && possible_help_request) {
 		long_help(bsdtar);
 		exit(0);
 	}
@@ -658,7 +666,7 @@ bsdtar_getopt(struct bsdtar *bsdtar, const char *optstring,
 		p = optarg;
 		q = strchr(optarg, '=');
 		if (q != NULL) {
-			option_length = q - p;
+			option_length = (size_t)(q - p);
 			optarg = q + 1;
 		} else {
 			option_length = strlen(p);

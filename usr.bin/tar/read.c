@@ -233,15 +233,14 @@ list_item_verbose(struct bsdtar *bsdtar, struct archive_entry *entry)
 
 	/* Use uname if it's present, else uid. */
 	p = archive_entry_uname(entry);
-	if (p && *p) {
-		sprintf(tmp, "%s ", p);
-	} else {
+	if ((p == NULL) || (*p == '\0')) {
 		sprintf(tmp, "%d ", st->st_uid);
+		p = tmp;
 	}
-	w = strlen(tmp);
+	w = strlen(p);
 	if (w > bsdtar->u_width)
 		bsdtar->u_width = w;
-	fprintf(out, "%-*s", (int)bsdtar->u_width, tmp);
+	fprintf(out, "%-*s", (int)bsdtar->u_width, p);
 
 	/* Use gname if it's present, else gid. */
 	p = archive_entry_gname(entry);
@@ -260,7 +259,9 @@ list_item_verbose(struct bsdtar *bsdtar, struct archive_entry *entry)
 	 * If gs_width is too small, grow it.
 	 */
 	if (S_ISCHR(st->st_mode) || S_ISBLK(st->st_mode)) {
-		sprintf(tmp, "%u,%u", major(st->st_rdev), minor(st->st_rdev));
+		sprintf(tmp, "%d,%u",
+		    major(st->st_rdev),
+		    (unsigned)minor(st->st_rdev)); /* ls(1) also casts here. */
 	} else {
 		/*
 		 * Note the use of platform-dependent macros to format
@@ -365,6 +366,8 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 		while (strlen(name) >= bsdtar->security->path_size)
 			bsdtar->security->path_size *= 2;
 		bsdtar->security->path = malloc(bsdtar->security->path_size);
+		if (bsdtar->security->path == NULL)
+			bsdtar_errc(bsdtar, 1, errno, "No Memory");
 	}
 	p = bsdtar->security->path;
 	while (pn != NULL && pn[0] != '\0') {
