@@ -700,7 +700,7 @@ ata_generic_command(struct ata_device *atadev, u_int8_t command,
     ATA_IDX_OUTB(atadev->channel, ATA_ALTSTAT, ATA_A_4BIT);
 
     /* only use 48bit addressing if needed (avoid bugs and overhead) */
-    if ((lba > 268435455 || count > 256) && atadev->param && 
+    if ((lba >= ATA_MAX_28BIT_LBA || count > 256) && atadev->param && 
 	atadev->param->support.command2 & ATA_SUPPORT_ADDRESS48) {
 
 	/* translate command into 48bit version */

@@ -118,7 +118,7 @@ ad_attach(struct ata_device *atadev)
 
     /* use the 48bit LBA size if valid */
     if ((atadev->param->support.command2 & ATA_SUPPORT_ADDRESS48) &&
-	lbasize48 > 268435455)
+	lbasize48 > ATA_MAX_28BIT_LBA)
 	adp->total_secs = lbasize48;
 
     /* setup the function ptrs */

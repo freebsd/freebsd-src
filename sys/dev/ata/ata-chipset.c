@@ -1651,7 +1651,7 @@ ata_promise_apkt(u_int8_t *bytep, struct ata_device *atadev, u_int8_t command,
     bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_CTL;
     bytep[i++] = ATA_A_4BIT;
 
-    if ((lba > 268435455 || count > 256) && atadev->param &&
+    if ((lba >= ATA_MAX_28BIT_LBA || count > 256) && atadev->param &&
 	(atadev->param->support.command2 & ATA_SUPPORT_ADDRESS48)) {
 	atadev->channel->flags |= ATA_48BIT_ACTIVE;
 	if (command == ATA_READ_DMA)
