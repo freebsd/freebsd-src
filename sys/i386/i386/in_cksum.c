@@ -32,7 +32,7 @@
  *
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
- *	$Id: in_cksum.c,v 1.13 1998/04/15 17:26:15 bde Exp $
+ *	$Id: in_cksum.c,v 1.14 1999/01/28 01:59:50 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -278,7 +278,7 @@ in_cksum_partial(psum, w, len)
 		if ((1 & (int) w) && (len > 0)) {
 			sum <<= 8;
 			su.c[0] = *(const char *)w;
-			w = (u_short *)((const char *)w + 1);
+			w = (const u_short *)((const char *)w + 1);
 			len--;
 			byte_swapped = 1;
 		}

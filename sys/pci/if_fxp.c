@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.60 1999/01/27 23:45:42 dillon Exp $
+ *	$Id: if_fxp.c,v 1.61 1999/01/28 00:57:53 dillon Exp $
  */
 
 /*
@@ -1290,7 +1290,7 @@ fxp_init(xsc)
 	 * zero and must be one bits in this structure and this is the easiest
 	 * way to initialize them all to proper values.
 	 */
-	bcopy(fxp_cb_config_template, (void *)&cbp->cb_status,
+	bcopy(fxp_cb_config_template, (volatile void *)&cbp->cb_status,
 		sizeof(fxp_cb_config_template));
 
 	cbp->cb_status =	0;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_environment.c,v 1.4 1999/01/15 17:24:56 msmith Exp $
+ *	$Id: kern_environment.c,v 1.5 1999/01/27 21:24:50 dillon Exp $
  */
 
 /*
@@ -71,7 +71,7 @@ getenv(char *name)
 int
 getenv_int(char *name, int *data)
 {
-    char	*value, *vtp;
+    const char	*value, *vtp;
     quad_t	iv;
     
     if ((value = getenv(name)) == NULL)
