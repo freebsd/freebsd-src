@@ -400,7 +400,8 @@ USB_ATTACH(udav)
 #elif defined(__FreeBSD__)
 	if_initname(ifp, "udav",  device_get_unit(self));
 #endif
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_NEEDSGIANT;
 	ifp->if_start = udav_start;
 	ifp->if_ioctl = udav_ioctl;
 	ifp->if_watchdog = udav_watchdog;

@@ -507,7 +507,8 @@ USB_ATTACH(cue)
 	ifp->if_softc = sc;
 	if_initname(ifp, "cue", sc->cue_unit);
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_NEEDSGIANT;
 	ifp->if_ioctl = cue_ioctl;
 	ifp->if_start = cue_start;
 	ifp->if_watchdog = cue_watchdog;
