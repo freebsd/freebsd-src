@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000,2001 by Solar Designer. See LICENSE.
+ * Copyright (c) 2000-2002 by Solar Designer. See LICENSE.
  */
 
 #include <stdlib.h>
@@ -60,7 +60,7 @@ static int expected_different(int charset, int length)
  * contain enough different characters for its class, or doesn't contain
  * enough words for a passphrase.
  */
-static int is_simple(passwdqc_params_t *params, char *newpass)
+static int is_simple(passwdqc_params_t *params, const char *newpass)
 {
 	int length, classes, words, chars;
 	int digits, lowers, uppers, others, unknowns;
@@ -140,10 +140,10 @@ static int is_simple(passwdqc_params_t *params, char *newpass)
 	return 1;
 }
 
-static char *unify(char *src)
+static char *unify(const char *src)
 {
-	char *dst;
-	char *sptr, *dptr;
+	const char *sptr;
+	char *dst, *dptr;
 	int c;
 
 	if (!(dst = malloc(strlen(src) + 1)))
@@ -162,10 +162,10 @@ static char *unify(char *src)
 	return dst;
 }
 
-static char *reverse(char *src)
+static char *reverse(const char *src)
 {
-	char *dst;
-	char *sptr, *dptr;
+	const char *sptr;
+	char *dst, *dptr;
 
 	if (!(dst = malloc(strlen(src) + 1)))
 		return NULL;
@@ -193,12 +193,12 @@ static void clean(char *dst)
  * substring removed.
  */
 static int is_based(passwdqc_params_t *params,
-    char *haystack, char *needle, char *original)
+    const char *haystack, const char *needle, const char *original)
 {
 	char *scratch;
 	int length;
 	int i, j;
-	char *p;
+	const char *p;
 	int match;
 
 	if (!params->match_length)	/* disabled */
@@ -252,16 +252,16 @@ static int is_based(passwdqc_params_t *params,
  * should still be added, even though this is now of little importance.
  */
 static int is_word_based(passwdqc_params_t *params,
-    char *needle, char *original)
+    const char *needle, const char *original)
 {
 	char word[7];
 	char *unified;
-	int index;
+	int i;
 
 	word[6] = '\0';
-	for (index = 0; index < 0x1000; index++) {
-		memcpy(word, _passwdqc_wordset_4k[index], 6);
-		if (strlen(word) < params->match_length) continue;
+	for (i = 0; i < 0x1000; i++) {
+		memcpy(word, _passwdqc_wordset_4k[i], 6);
+		if ((int)strlen(word) < params->match_length) continue;
 		unified = unify(word);
 		if (is_based(params, unified, needle, original)) {
 			clean(unified);
@@ -273,14 +273,14 @@ static int is_word_based(passwdqc_params_t *params,
 	return 0;
 }
 
-char *_passwdqc_check(passwdqc_params_t *params,
-    char *newpass, char *oldpass, struct passwd *pw)
+const char *_passwdqc_check(passwdqc_params_t *params,
+    const char *newpass, const char *oldpass, struct passwd *pw)
 {
 	char truncated[9], *reversed;
 	char *u_newpass, *u_reversed;
 	char *u_oldpass;
 	char *u_name, *u_gecos;
-	char *reason;
+	const char *reason;
 	int length;
 
 	reversed = NULL;
@@ -346,7 +346,7 @@ char *_passwdqc_check(passwdqc_params_t *params,
 	    is_based(params, u_gecos, u_reversed, reversed)))
 		reason = REASON_PERSONAL;
 
-	if (!reason && strlen(newpass) < params->min[2] &&
+	if (!reason && (int)strlen(newpass) < params->min[2] &&
 	    (is_word_based(params, u_newpass, newpass) ||
 	    is_word_based(params, u_reversed, reversed)))
 		reason = REASON_WORD;
