@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technologies, Inc.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/pam_appl.h#8 $
+ * $P4: //depot/projects/openpam/include/security/pam_appl.h#9 $
  */
 
 #ifndef _PAM_APPL_H_INCLUDED
