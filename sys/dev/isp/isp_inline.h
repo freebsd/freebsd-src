@@ -43,8 +43,8 @@ static INLINE int isp_save_xs(struct ispsoftc *, XS_T *, u_int16_t *);
 static INLINE XS_T *isp_find_xs(struct ispsoftc *, u_int16_t);
 static INLINE u_int16_t isp_find_handle(struct ispsoftc *, XS_T *);
 static INLINE int isp_handle_index(u_int16_t);
+static INLINE u_int16_t isp_index_handle(int);
 static INLINE void isp_destroy_handle(struct ispsoftc *, u_int16_t);
-static INLINE void isp_remove_handle(struct ispsoftc *, XS_T *);
 
 static INLINE int
 isp_save_xs(struct ispsoftc *isp, XS_T *xs, u_int16_t *handlep)
@@ -100,19 +100,76 @@ isp_handle_index(u_int16_t handle)
 	return (handle-1);
 }
 
+static INLINE u_int16_t
+isp_index_handle(int index)
+{
+	return (index+1);
+}
+
 static INLINE void
 isp_destroy_handle(struct ispsoftc *isp, u_int16_t handle)
 {
 	if (handle > 0 && handle <= (u_int16_t) isp->isp_maxcmds) {
-		isp->isp_xflist[isp_handle_index(handle)] = NULL;
+		isp->isp_xflist[handle - 1] = NULL;
 	}
 }
 
-static INLINE void
-isp_remove_handle(struct ispsoftc *isp, XS_T *xs)
+#ifdef	ISP_TARGET_MODE
+static INLINE int isp_save_xs_tgt(struct ispsoftc *, void *, u_int16_t *);
+static INLINE void *isp_find_xs_tgt(struct ispsoftc *, u_int16_t);
+static INLINE void isp_destroy_tgt_handle(struct ispsoftc *, u_int16_t);
+
+static INLINE int
+isp_save_xs_tgt(struct ispsoftc *isp, void *xs, u_int16_t *handlep)
 {
-	isp_destroy_handle(isp, isp_find_handle(isp, xs));
+	int i;
+
+	for (i = 0; i < (int) isp->isp_maxcmds; i++) {
+		if (isp->isp_tgtlist[i] == NULL) {
+			break;
+		}
+	}
+	if (i == isp->isp_maxcmds) {
+		return (-1);
+	}
+	isp->isp_tgtlist[i] = xs;
+	*handlep = i+1;
+	return (0);
 }
+
+static INLINE void *
+isp_find_xs_tgt(struct ispsoftc *isp, u_int16_t handle)
+{
+	if (handle < 1 || handle > (u_int16_t) isp->isp_maxcmds) {
+		return (NULL);
+	} else {
+		return (isp->isp_tgtlist[handle - 1]);
+	}
+}
+
+static INLINE u_int16_t
+isp_find_tgt_handle(struct ispsoftc *isp, void *xs)
+{
+	int i;
+	if (xs != NULL) {
+		for (i = 0; i < isp->isp_maxcmds; i++) {
+			if (isp->isp_tgtlist[i] == xs) {
+				return ((u_int16_t) i+1);
+			}
+		}
+	}
+	return (0);
+}
+
+static INLINE void
+isp_destroy_tgt_handle(struct ispsoftc *isp, u_int16_t handle)
+{
+	if (handle > 0 && handle <= (u_int16_t) isp->isp_maxcmds) {
+		isp->isp_tgtlist[handle - 1] = NULL;
+	}
+}
+#endif
+
 
 static INLINE int
 isp_getrqentry(struct ispsoftc *, u_int16_t *, u_int16_t *, void **);

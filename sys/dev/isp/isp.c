@@ -5843,7 +5843,7 @@ void
 isp_reinit(struct ispsoftc *isp)
 {
 	XS_T *xs;
-	u_int16_t handle;
+	int i;
 
 	if (IS_FC(isp)) {
 		isp_mark_getpdb_all(isp);
@@ -5863,11 +5863,13 @@ isp_reinit(struct ispsoftc *isp)
 	}
 	isp->isp_nactive = 0;
 
-	for (handle = 1; (int) handle <= isp->isp_maxcmds; handle++) {
-		xs = isp_find_xs(isp, handle);
+	for (i = 0; i < isp->isp_maxcmds; i++) {
+		u_int16_t handle;
+		xs = isp->isp_xflist[i];
 		if (xs == NULL) {
 			continue;
 		}
+		handle = isp_index_handle(i);
 		isp_destroy_handle(isp, handle);
 		if (XS_XFRLEN(xs)) {
 			ISP_DMAFREE(isp, xs, handle);

@@ -882,7 +882,7 @@ isp_handle_ctio(struct ispsoftc *isp, ct_entry_t *ct)
 	char *fmsg = NULL;
 
 	if (ct->ct_syshandle) {
-		xs = isp_find_xs(isp, ct->ct_syshandle);
+		xs = isp_find_xs_tgt(isp, ct->ct_syshandle);
 		if (xs == NULL)
 			pl = ISP_LOGALL;
 	} else {
@@ -1042,7 +1042,7 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 	char *fmsg = NULL;
 
 	if (ct->ct_syshandle) {
-		xs = isp_find_xs(isp, ct->ct_syshandle);
+		xs = isp_find_xs_tgt(isp, ct->ct_syshandle);
 		if (xs == NULL)
 			pl = ISP_LOGALL;
 	} else {
