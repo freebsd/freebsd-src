@@ -30,6 +30,8 @@
 
 use strict;
 
+my %logalign = (4 => 2, 8 => 3);
+my %datadecl = (4 => ".long", 8 => ".quad");
 my %sets = ();
 my $pointersize = 0;
 my $objdump = $ENV{'OBJDUMP'} || 'objdump';
@@ -79,9 +81,9 @@ print SETDEF0_C <<END;
 __asm__(".section .set." #set ",\\"aw\\"");	\\
 __asm__(".globl " #set);			\\
 __asm__(".type " #set ",\@object");		\\
-__asm__(".p2align 3");				\\
+__asm__(".p2align $logalign{$pointersize}");	\\
 __asm__(#set ":");				\\
-__asm__(".quad " #count);			\\
+__asm__("$datadecl{$pointersize} " #count);	\\
 __asm__(".previous")
 
 #include "setdefs.h"
@@ -95,7 +97,7 @@ print SETDEF1_C <<END;
 
 #define DEFINE_SET(set, count)			\\
 __asm__(".section .set." #set ",\\"aw\\"");	\\
-__asm__(".quad 0");				\\
+__asm__("$datadecl{$pointersize} 0");		\\
 __asm__(".previous")
 
 #include "setdefs.h"
