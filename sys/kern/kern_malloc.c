@@ -90,14 +90,9 @@ static char *kmemlimit;
 #define KMEM_ZBASE	16
 #define KMEM_ZMASK	(KMEM_ZBASE - 1)
 
-#define KMEM_ZMAX	65536
+#define KMEM_ZMAX	8192
 #define KMEM_ZSIZE	(KMEM_ZMAX >> KMEM_ZSHIFT)
 static u_int8_t kmemsize[KMEM_ZSIZE + 1];
-
-#ifdef MALLOC_PROFILE
-uint64_t krequests[KMEM_ZSIZE + 1];
-#endif
-
 
 /* These won't be powers of two for long */
 struct {
@@ -115,17 +110,19 @@ struct {
 	{2048, "2048", NULL},
 	{4096, "4096", NULL},
 	{8192, "8192", NULL},
-	{16384, "16384", NULL},
-	{32768, "32768", NULL},
-	{65536, "65536", NULL},
 	{0, NULL},
 };
 
 u_int vm_kmem_size;
 static struct mtx malloc_mtx;
 
-static int sysctl_kern_malloc(SYSCTL_HANDLER_ARGS);
+#ifdef MALLOC_PROFILE
+uint64_t krequests[KMEM_ZSIZE + 1];
 
+static int sysctl_kern_mprof(SYSCTL_HANDLER_ARGS);
+#endif
+
+static int sysctl_kern_malloc(SYSCTL_HANDLER_ARGS);
 
 /*
  *	malloc:
@@ -481,7 +478,7 @@ sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
 		p += len;
 
 		first = 1;
-		for (i = 0; i < 14/* 8 * sizeof(type->ks_size)*/; i++) 
+		for (i = 0; i < 8 * sizeof(type->ks_size); i++) 
 			if (type->ks_size & (1 << i)) {
 				if (first)
 					len = snprintf(p, curline, "  ");
@@ -511,3 +508,63 @@ sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_OID(_kern, OID_AUTO, malloc, CTLTYPE_STRING|CTLFLAG_RD,
     NULL, 0, sysctl_kern_malloc, "A", "Malloc Stats");
+
+#ifdef MALLOC_PROFILE
+
+static int
+sysctl_kern_mprof(SYSCTL_HANDLER_ARGS)
+{
+	int linesize = 64;
+	uint64_t count;
+	uint64_t waste;
+	uint64_t mem;
+	int bufsize;
+	int error;
+	char *buf;
+	int rsize;
+	int size;
+	char *p;
+	int len;
+	int i;
+
+	bufsize = linesize * (KMEM_ZSIZE + 1);
+	bufsize += 128; 	/* For the stats line */
+	bufsize += 128; 	/* For the banner line */
+	waste = 0;
+	mem = 0;
+
+	p = buf = (char *)malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
+	len = snprintf(p, bufsize,
+	    "\n  Size                    Requests  Real Size\n");
+	bufsize -= len;
+	p += len;
+
+	for (i = 0; i < KMEM_ZSIZE; i++) {
+		size = i << KMEM_ZSHIFT;
+		rsize = kmemzones[kmemsize[i]].kz_size;
+		count = (long long unsigned)krequests[i];
+
+		len = snprintf(p, bufsize, "%6d%28llu%11d\n",
+		    size, (unsigned long long)count, rsize);
+		bufsize -= len;
+		p += len;
+
+		if ((rsize * count) > (size * count))
+			waste += (rsize * count) - (size * count);
+		mem += (rsize * count);
+	}
+
+	len = snprintf(p, bufsize,
+	    "\nTotal memory used:\t%30llu\nTotal Memory wasted:\t%30llu\n",
+	    (unsigned long long)mem, (unsigned long long)waste);
+	p += len;
+
+	error = SYSCTL_OUT(req, buf, p - buf);
+
+	free(buf, M_TEMP);
+	return (error);
+}
+
+SYSCTL_OID(_kern, OID_AUTO, mprof, CTLTYPE_STRING|CTLFLAG_RD,
+    NULL, 0, sysctl_kern_mprof, "A", "Malloc Profiling");
+#endif /* MALLOC_PROFILE */
