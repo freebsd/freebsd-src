@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #define PCI_OHCI_VENDORID_CMDTECH	0x1095
 #define PCI_OHCI_VENDORID_NEC		0x1033
 #define PCI_OHCI_VENDORID_NVIDIA	0x12D2
+#define PCI_OHCI_VENDORID_NVIDIA2	0x10DE
 #define PCI_OHCI_VENDORID_OPTI		0x1045
 #define PCI_OHCI_VENDORID_SIS		0x1039
 
@@ -226,6 +227,7 @@ ohci_pci_attach(device_t self)
 		sprintf(sc->sc_vendor, "NEC");
 		break;
 	case PCI_OHCI_VENDORID_NVIDIA:
+	case PCI_OHCI_VENDORID_NVIDIA2:
 		sprintf(sc->sc_vendor, "nVidia");
 		break;
 	case PCI_OHCI_VENDORID_OPTI:
