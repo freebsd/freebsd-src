@@ -683,6 +683,9 @@ _http_connect(struct url *URL, struct url *purl, const char *flags)
 	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 &&
 	    _fetch_ssl(conn, verbose) == -1) {
 		_fetch_close(conn);
+		/* grrr */
+		errno = EAUTH;
+		_fetch_syserr();
 		return (NULL);
 	}
 	return (conn);
