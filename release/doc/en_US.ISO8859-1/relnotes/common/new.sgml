@@ -345,7 +345,7 @@
 
       <para>A new sysctl
       <literal>net.link.ether.inet.log_arp_wrong_iface</literal> has
-      been added to control the supression of logging when ARP replies
+      been added to control the suppression of logging when ARP replies
       arrive on the wrong interface. &merged;</para>
 
       <para>&man.ipfw.8; now filters correctly in the presence of ECN bits in TCP
@@ -356,7 +356,7 @@
 
       <para>&man.ipfw.8; has a new feature (<literal>me</literal>) that
       allows for packet matching on interfaces with dynamically-changing
-      IP addressess. &merged;</para>
+      IP addresses. &merged;</para>
 
       <para>&man.ip6fw.8; now has the ability to use a preprocessor
       and use the <option>-q</option> (quiet) flag when reading from a
@@ -399,7 +399,7 @@
 
       <para>The &man.ahc.4; driver has received numerous updates,
       bugfixes, and enhancements.  Among various improvements are
-      improved compatability with chips in <quote>RAID Port</quote> mode
+      improved compatibility with chips in <quote>RAID Port</quote> mode
       and systems with AAA and/or ARO cards installed, as well as
       performance improvements. Some bugs were also fixed, including a
       rare hang on Ultra2/U160 controllers. &merged;</para>
@@ -530,7 +530,7 @@
 
       <para>The &man.bktr.4; driver has been updated to 2.18.  This
       update provides a number of new features:  New tuner
-      types have been added, and improvememts to the KLD module and to
+      types have been added, and improvements to the KLD module and to
       memory allocation have been made.  Bugs in &man.devfs.5; when
       unloading and reloading have been fixed.
       Support for new Hauppauge Model 44xxx WinTV Cards (the ones with
@@ -950,7 +950,7 @@
     completed going multiuser, with the <option>-B</option> flag to do
     checking on all the filesystems that can do background checking.
     Unlike the foreground checking, the background checking is started
-    asynchonously so that other system activity can proceed even on
+    asynchronously so that other system activity can proceed even on
     the filesystems that are being checked.</para>
 
     <para>Catching up with most other network utilities in the base
@@ -1033,7 +1033,7 @@
     warnings that should
     have been errors into actual fatal errors with an exit code.  This
     ensures that <literal>make buildkernel</literal> 
-    doesn't quitely ignore them and
+    doesn't quietly ignore them and
     build a bogus kernel without a human to read the errors. &merged;</para>
 
     <para><filename>libc</filename> is now thread-safe by default;
@@ -1246,7 +1246,7 @@
       <para>The &man.more.1; command has been replaced by &man.less.1;,
       although it can still be run as
       <command>more</command>.  <application>less</application> has
-      been imported at 3.5.8.&merged;</para>
+      been imported at 3.5.8. &merged;</para>
 
       <para><application>libpcap</application> has been updated to
       0.6.2.</para>
@@ -1491,7 +1491,3 @@
     </sect3>
   </sect2>
 </sect1>
-
-
-
-
