@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.70 1996/06/12 05:10:51 gpalmer Exp $
+ *      $Id: cd.c,v 1.71 1996/07/14 10:46:46 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -73,16 +73,10 @@ static	d_strategy_t	cdstrategy;
 
 #define CDEV_MAJOR 15
 #define BDEV_MAJOR 6
-extern	struct	cdevsw	cd_cdevsw;
+static struct cdevsw cd_cdevsw;
 static struct bdevsw cd_bdevsw = 
 	{ cdopen,	cdclose,	cdstrategy,	cdioctl,	/*6*/
 	  nodump,	nopsize,	0,	"cd",	&cd_cdevsw,	-1 };
-
-static struct cdevsw cd_cdevsw = 
-	{ cdopen,	cdclose,	rawread,	nowrite,	/*15*/
-	  cdioctl,	nostop,		nullreset,	nodevtotty,/* cd */
-	  seltrue,	nommap,		cdstrategy,	"cd",
-	  &cd_bdevsw,	-1 };
 
 
 static int32_t cdstrats, cdqueues;
@@ -1417,13 +1411,9 @@ static cd_devsw_installed = 0;
 
 static void 	cd_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! cd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&cd_cdevsw, NULL);
-		dev = makedev(BDEV_MAJOR, 0);
-		bdevsw_add(&dev,&cd_bdevsw, NULL);
+		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &cd_bdevsw);
 		cd_devsw_installed = 1;
     	}
 }

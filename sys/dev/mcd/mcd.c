@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.80 1996/06/12 05:03:47 gpalmer Exp $
+ *	$Id: mcd.c,v 1.81 1996/06/18 01:22:27 bde Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -220,16 +220,10 @@ static	d_strategy_t	mcdstrategy;
 
 #define CDEV_MAJOR 29
 #define BDEV_MAJOR 7
-extern	struct cdevsw mcd_cdevsw;
+static struct cdevsw mcd_cdevsw;
 static struct bdevsw mcd_bdevsw = 
 	{ mcdopen,	mcdclose,	mcdstrategy,	mcdioctl,	/*7*/
 	  nodump,	mcdsize,	0,	"mcd",	&mcd_cdevsw,	-1 };
-
-static struct cdevsw mcd_cdevsw = 
-	{ mcdopen,	mcdclose,	rawread,	nowrite,	/*29*/
-	  mcdioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		mcdstrategy,	"mcd",
-	  &mcd_bdevsw,	-1 };
 
 #define mcd_put(port,byte)	outb(port,byte)
 
@@ -1816,13 +1810,9 @@ static mcd_devsw_installed = 0;
 
 static void 	mcd_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! mcd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&mcd_cdevsw,NULL);
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&mcd_bdevsw,NULL);
+		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &mcd_bdevsw);
 		mcd_devsw_installed = 1;
     	}
 }

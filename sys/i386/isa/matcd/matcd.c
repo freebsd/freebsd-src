@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.17 1996/05/03 16:49:14 phk Exp $ */
+/* $Id: matcd.c,v 1.18 1996/06/08 09:17:51 bde Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -534,19 +534,11 @@ static d_strategy_t	matcdstrategy;
 #define CDEV_MAJOR 46
 #define BDEV_MAJOR 17
 
-extern	struct cdevsw matcd_cdevsw;
+static struct cdevsw matcd_cdevsw;
 static struct bdevsw matcd_bdevsw = 
 	{ matcdopen,	matcdclose,	matcdstrategy,	matcdioctl,	/*17*/
 	  nodump,	matcdsize,	0,		"matcd",
 	  &matcd_cdevsw,	-1 };
-
-static struct cdevsw matcd_cdevsw = 
-	{ matcdopen,	matcdclose,	rawread,	nowrite,	/*46*/
-	  matcdioctl,	nostop,		nullreset,	nodevtotty,/* SB cd */
-	  seltrue,	nommap,		matcdstrategy,	"matcd",
-	  &matcd_bdevsw,	-1};
-
-
 
 /*---------------------------------------------------------------------------
 	Internal function declarations
@@ -2689,13 +2681,9 @@ static matcd_devsw_installed = 0;
 static void
 matcd_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! matcd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&matcd_cdevsw,NULL);
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&matcd_bdevsw,NULL);
+		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &matcd_bdevsw);
 		matcd_devsw_installed = 1;
     	}
 }
