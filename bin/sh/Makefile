@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.4 (Berkeley) 5/5/95
-#	$Id: Makefile,v 1.22 1997/08/25 19:50:01 bde Exp $
+#	$Id: Makefile,v 1.23 1997/10/05 09:38:43 jkh Exp $
 
 PROG=	sh
 SHSRCS=	alias.c cd.c echo.c error.c eval.c exec.c expand.c \
@@ -58,23 +58,5 @@ token.h: mktokens
 	sh ${.CURDIR}/mktokens
 
 y.tab.h: arith.c
-
-# Rules for object files that rely on generated headers.
-arith_lex.o: y.tab.h
-cd.o: nodes.h
-eval.o: builtins.h nodes.h syntax.h
-exec.o: builtins.h nodes.h syntax.h
-expand.o: nodes.h syntax.h
-input.o: syntax.h
-jobs.o: nodes.h syntax.h
-main.o: nodes.h
-mystring.o: syntax.h
-options.o: nodes.h
-output.o: syntax.h
-parser.o: nodes.h syntax.h token.h
-redir.o: nodes.h
-show.o: nodes.h
-trap.o: nodes.h syntax.h
-var.o: nodes.h syntax.h
 
 .include <bsd.prog.mk>
