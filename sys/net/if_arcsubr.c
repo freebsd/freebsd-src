@@ -153,12 +153,12 @@ arc_output(ifp, m, dst, rt0)
 		switch(ntohs(ah->ar_op)) {
 		case ARPOP_REVREQUEST:
 		case ARPOP_REVREPLY:
-			type = htons(ARCTYPE_REVARP);
+			atype = ARCTYPE_REVARP;
 			break;
 		case ARPOP_REQUEST:
 		case ARPOP_REPLY:
 		default:
-			type = htons(ARCTYPE_ARP);
+			atype = ARCTYPE_ARP;
 			break;
 		}
 
