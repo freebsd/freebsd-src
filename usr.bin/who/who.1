@@ -119,18 +119,16 @@ an output line without any user name.  For more information on the
 special characters, see
 .Xr utmp 5 .
 .Sh ENVIRONMENT
-The following environment variables affect the execution of
-.Nm :
-.Bl -tag -width ".Ev COLUMNS"
-.It Ev COLUMNS
-If set, specifies the user's preferred output width in column positions.
-This is used when the
-.Fl q
-option is specified to calculate how many user names to display per line.
-By default,
+The
+.Ev COLUMNS ,
+.Ev LANG ,
+.Ev LC_ALL
+and
+.Ev LC_TIME
+environment variables affect the execution of
 .Nm
-attempts to automatically determine the terminal width.
-.El
+as described in
+.Xr environ 7 .
 .Sh FILES
 .Bl -tag -width /var/log/wtmp.[0-6] -compact
 .It Pa /var/run/utmp
