@@ -258,7 +258,7 @@ pcigfb_detach(device_t dev)
 #ifdef FB_INSTALL_CDEV
 
 int
-pcigfb_open(dev_t dev, int flag, int mode, struct proc *p)
+pcigfb_open(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct gfb_softc *sc;
 	int error;
@@ -270,17 +270,17 @@ pcigfb_open(dev_t dev, int flag, int mode, struct proc *p)
 	else if(mode & (O_CREAT | O_APPEND | O_TRUNC))
 		error = ENODEV;
 	else
-		error = genfbopen(&sc->gensc, sc->adp, flag, mode, p);
+		error = genfbopen(&sc->gensc, sc->adp, flag, mode, td);
 	return(error);
 }
 
 int
-pcigfb_close(dev_t dev, int flag, int mode, struct proc *p)
+pcigfb_close(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct gfb_softc *sc;
 
 	sc = (struct gfb_softc *)devclass_get_softc(gfb_devclass, minor(dev));
-	return genfbclose(&sc->gensc, sc->adp, flag, mode, p);
+	return genfbclose(&sc->gensc, sc->adp, flag, mode, td);
 }
 
 int
@@ -302,12 +302,12 @@ pcigfb_write(dev_t dev, struct uio *uio, int flag)
 }
 
 int
-pcigfb_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
+pcigfb_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	struct gfb_softc *sc;
 
 	sc = (struct gfb_softc *)devclass_get_softc(gfb_devclass, minor(dev));
-	return genfbioctl(&sc->gensc, sc->adp, cmd, arg, flag, p);
+	return genfbioctl(&sc->gensc, sc->adp, cmd, arg, flag, td);
 }
 
 int
