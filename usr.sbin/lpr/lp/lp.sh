@@ -36,15 +36,8 @@
 #
 # Posix 1003.2 compliant print spooler interface.
 #
-# $Id: lp.sh,v 1.1 1995/01/23 19:22:43 joerg Exp $
+# $Id: lp.sh,v 1.1.4.1 1995/08/26 11:38:27 davidg Exp $
 #
-#
-# XXX Bugs:
-# . Our lpr command is not smart enough about dashes as input file names,
-#   they should indicate the use of standard input.
-# . Our lpr command should allow the Posix-compliant way of specifying
-#   options that take an argument; it currently requires the argument
-#   to follow the option immediately.
 
 ncopies=""
 symlink="-s"
