@@ -9,6 +9,7 @@ SUBDIR=	atrun \
 	ftpd \
 	getNAME \
 	getty \
+	lukemftpd \
 	makekey \
 	mknetid \
 	pppoed \
