@@ -898,35 +898,24 @@ static char *
 modifier_M(const char mod[], const char value[], char endc, size_t *consumed)
 {
 	const char	*cur;
-	const char	*end;
 	char		*patt;
 	char		*ptr;
 	char		*newValue;
 
-	for (cur = mod + 1; *cur != '\0'; cur++) {
-		if (cur[0] == endc) {
-			break;
-		} else if (cur[0] == ':') {
-			break;
-		} else if ((cur[0] == '\\') &&
-			   (cur[1] == ':' || cur[1] == endc)) {
-			cur++;
-		}
-	}
-	end = cur;
-
 	/*
 	 * Compress the \:'s out of the pattern, so allocate enough
 	 * room to hold the uncompressed pattern and compress the
-	 * pattern into the space. (note that cur started at mod+1
-	 * so cur-mod takes the null byte into account)
+	 * pattern into that space.
 	 */
-	patt = emalloc(cur - mod);
+	patt = estrdup(mod);
 	ptr = patt;
-	for (cur = mod + 1; cur != end; cur++) {
+	for (cur = mod + 1; cur != '\0'; cur++) {
+		if ((cur[0] == endc) || (cur[0] == ':')) {
+			break;
+		}
 		if ((cur[0] == '\\') &&
-		    (cur[1] == ':' || cur[1] == endc)) {
-			cur++;
+		    ((cur[1] == endc) || (cur[1] == ':'))) {
+			cur++;	/* skip over backslash */
 		}
 		*ptr = *cur;
 		ptr++;
@@ -940,9 +929,9 @@ modifier_M(const char mod[], const char value[], char endc, size_t *consumed)
 	}
 	free(patt);
 
-	*consumed += (end - mod);
+	*consumed += (cur - mod);
 
-	if (*end == ':') {
+	if (*cur == ':') {
 		*consumed += 1;	/* include colon as part of modifier */
 	}
 

@@ -164,8 +164,16 @@ void		Lst_ForEach(Lst *, DoProc *, void *);
 #define	Lst_ForEach(LST, FN, D)	(Lst_ForEachFrom((LST), Lst_First(LST), \
 				    (FN), (D)))
 
+/*
 #define	LST_FOREACH(PTR, LST)						\
 	for ((PTR) = (LST)->firstPtr; (PTR) != NULL; (PTR) = (PTR)->nextPtr)
+
+*/
+#define	LST_FOREACH(PTR, LST) \
+	for (LstNode *_tmp1 = (LST)->firstPtr, *_tmp2 = Lst_Succ(_tmp1);\
+	    ((PTR) = _tmp1) != NULL;					\
+	    (Lst_Succ(_tmp1) != _tmp2 ? abort() : (void)0),		\
+	    (_tmp1 = _tmp2), _tmp2 = Lst_Succ(_tmp1))
 
 /*
  * Apply a function to all elements of a lst starting from a certain point.
