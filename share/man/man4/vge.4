@@ -47,8 +47,8 @@ based on the VIA Networking Technologies VT6122 Gigabit Ethernet
 controller chips.
 .Pp
 The VT6122 is a 33/66Mhz 64-bit PCI device which combines a tri-speed MAC with
-an integrated 10/100/1000 copper PHY. (Some older cards use an external
-PHY.)
+an integrated 10/100/1000 copper PHY.
+(Some older cards use an external PHY.)
 The MAC supports TCP/IP hardware
 checksums (IPv4 only), TCP large send, VLAN tag insertion and stripping,
 as well as VLAN filtering, a 64-entry CAM filter and a 64-entry VLAN filter,
@@ -76,7 +76,7 @@ utility.
 The
 .Nm
 driver supports the following media types:
-.Bl -tag -width 10baseTXUTP
+.Bl -tag -width ".Cm 10baseT/UTP"
 .It Cm autoselect
 Enable autoselection of the media type and options.
 The user can manually override
@@ -86,7 +86,7 @@ the autoselected mode by adding media options to
 Set 10Mbps operation.
 The
 .Xr ifconfig 8
-.Ic mediaopt
+.Cm mediaopt
 option can also be used to select either
 .Cm full-duplex
 or
@@ -96,7 +96,7 @@ modes.
 Set 100Mbps (Fast Ethernet) operation.
 The
 .Xr ifconfig 8
-.Ic mediaopt
+.Cm mediaopt
 option can also be used to select either
 .Cm full-duplex
 or
@@ -104,16 +104,20 @@ or
 modes.
 .It Cm 1000baseTX
 Set 1000baseTX operation over twisted pair.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
 .Cm full-duplex
-and
+or
 .Cm half-duplex
-modes are supported.
+modes.
 .El
 .Pp
 The
 .Nm
 driver supports the following media options:
-.Bl -tag -width full-duplex
+.Bl -tag -width ".Cm full-duplex"
 .It Cm full-duplex
 Force full duplex operation.
 .It Cm half-duplex
@@ -123,7 +127,7 @@ Force half duplex operation.
 The
 .Nm
 driver also supports one special link option for 1000baseTX cards:
-.Bl -tag -width link0
+.Bl -tag -width ".Cm link0"
 .It Cm link0
 With 1000baseTX cards, establishing a link between two ports requires
 that one port be configured as a master and the other a slave.
