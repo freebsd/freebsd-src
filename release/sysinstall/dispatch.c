@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.3 1996/06/26 09:09:27 jkh Exp $
+ * $Id: dispatch.c,v 1.4 1996/07/02 10:57:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,7 +79,7 @@ static struct _word {
     { "mediaSetFTPPassive",	mediaSetFTPPassive	},
     { "mediaSetUFS",		mediaSetUFS		},
     { "mediaSetNFS",		mediaSetNFS		},
-    { "mediaSetFtpUserPass",	mediaSetFtpUserPass	},
+    { "mediaSetFTPUserPass",	mediaSetFTPUserPass	},
     { "mediaSetCPIOVerbosity",	mediaSetCPIOVerbosity	},
     { "mediaGetType",		mediaGetType		},
     { "optionsEditor",		optionsEditor		},

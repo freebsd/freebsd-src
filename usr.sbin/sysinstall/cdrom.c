@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.21 1996/07/16 17:11:38 jkh Exp $
+ * $Id: cdrom.c,v 1.22 1996/08/23 07:55:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,10 +83,12 @@ mediaInitCDROM(Device *dev)
     if (!file_readable("/cdrom/cdrom.inf")) {
 	Mkdir("/cdrom");
 	if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1) {
-	    msgConfirm("Error mounting %s on /cdrom: %s (%u)", dev->devname, strerror(errno), errno);
-	    return FALSE;
+	    if (errno != EBUSY) {
+	    	msgConfirm("Error mounting %s on /cdrom: %s (%u)", dev->devname, strerror(errno), errno);
+		return FALSE;
+	    }
 	}
-	else if (!file_readable("/cdrom/cdrom.inf")) {
+	if (!file_readable("/cdrom/cdrom.inf")) {
 	    if (msgYesNo("Warning: The CD currently in the drive is either not a FreeBSD\n"
 			 "CD or it is an older (pre 2.1.5) FreeBSD CD which does not\n"
 			 "have a version number on it.  Do you wish to use this CD anyway?")) {
