@@ -122,13 +122,8 @@ main(argc, argv)
 		err(1, "time");
 		/* NOTREACHED */
 	case 0:				/* child */
-		errno = 0;
 		execvp(*argv, argv);
-		warn("%s", *argv);
-		if (errno == ENOENT)
-			_exit(127); /* POSIX: utility could not be found */
-		else
-			_exit(126); /* POSIX: utility could not be invoked */
+		err(errno == ENOENT ? 127 : 126, "%s", *argv);
 		/* NOTREACHED */
 	}
 	/* parent */
