@@ -1,5 +1,5 @@
 <!-- $FreeBSD$ -->
-<!-- Original revision: 1.1.2.5 -->
+<!-- Original revision: 1.1.2.7 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
 <!ENTITY release.dsl PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Language Neutral Stylesheet//EN" CDATA DSSSL>
@@ -77,7 +77,7 @@
               (("xfree86") (string-append u "&" "manpath=XFree86+4.2.0"))
               (("netbsd")  (string-append u "&" "manpath=NetBSD+1.5"))
               (("ports")   (string-append u "&" "manpath=FreeBSD+Ports"))
-              (else        (string-append u "&" "manpath=FreeBSD+4.6-stable")))))
+              (else        (string-append u "&" "manpath=FreeBSD+4.7-stable")))))
       ]]>
     </style-specification-body>
   </style-specification>

@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.331
+    Original revision: 1.22.2.343
 -->
 
 <articleinfo>
@@ -129,7 +129,13 @@
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
-      <para></para>
+      <para arch="i386">部分的に、HyperThreading (HTT) に対応しました。
+	カーネルオプション <literal>HTT</literal> を付けて構築した
+	SMP カーネルは HTT 機能を持つマシンの論理プロセッサを検出して
+	利用できるようにします。
+	この論理プロセッサは、プロセススケジューラによって
+	あたかも増設された物理プロセッサのように扱われます。</para>
+
     </sect3>
 
     <sect3>
@@ -173,13 +179,19 @@
             </para>
 	</note></para>
 
-      <para>NewReno を有効にしていると高速リカバリが途中で終了してしまうという、
-        TCP NewReno のバグが修正されました。</para>
-
       <para>&man.gre.4; ドライバが追加されました。
         これは IP パケットを GRE (RFC 1701) や
         minimal IP encapsulation for Mobile IP (RFC 2004)
         を利用してカプセル化を行います。</para>
+
+      <para>NewReno を有効にしていると高速リカバリが途中で終了してしまうという、
+        TCP NewReno のバグが修正されました。</para>
+
+      <para>IP フラグメントの再構成を行なうコードを改善し、
+	大量のパケット断片を受けとったときの挙動をより強固なものにしました。
+	これにより、フラグメントベースのサービス妨害攻撃への
+	耐性がさらに向上しました。</para>
+
     </sect3>
 
     <sect3>
@@ -196,7 +208,9 @@
 	詳細は &man.atapicam.4; をご覧ください。</para>
 
       <para arch="i386,pc98">&man.matcd.4;
-        ドライバはライセンス上の問題により削除されました
+	ドライバはライセンス上の問題のために、削除されました。
+	現在この問題に取り組んでおり、&os; の将来のリリースで
+	再度このドライバが登場するかも知れません。
         (実際には &release.prev; の公開時点ですでに削除されていたのですが、
         リリースノートには記載されていませんでした)。</para>
 
@@ -233,8 +247,8 @@
     <sect3>
       <title>寄贈ソフトウェア</title>
 
-      <para><application>BIND</application> がバージョン
-        8.3.4 に更新されました。</para>
+      <para><application>IPFilter</application> がバージョン
+	3.4.31 に更新されました。</para>
     </sect3>
 
   </sect2>
@@ -263,6 +277,38 @@
       問題の詳細は、セキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>
       をご覧ください。</para>
+
+    <para><application>OpenSSL</application> には、特定の条件下で、
+      クライアントとサーバ間で交換されるネットワークメッセージを
+      横取り・置き換えできるような強い影響力を持つ攻撃者が
+      タイミングベースの攻撃を行ない平文データを得ることができる
+      ぜい弱性があり、この弱点は <application>OpenSSL</application> を
+      バージョン 0.9.7 に更新して修正されました。
+      詳細は、セキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>
+      をご覧ください。</para>
+
+    <para><quote>syncookies</quote> 実装のセキュリティと性能が、
+      攻撃者に TCP 接続を詐称する機会を減らすことでさらに向上しました。
+      詳細は、セキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>
+      をご覧ください。</para>
+
+    <para><application>sendmail</application> の
+      リモートから悪用可能なぜい弱性は、
+      <application>sendmail</application> を
+      バージョン 8.12.8 に更新して修正されました。
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
+      をご覧ください。</para>
+
+    <para>XDR の実装において、境界チェックに存在していたバグを悪用して
+      リモートの攻撃者がサービス妨害攻撃を起こすことのできる
+      ぜい弱性が修正されました。
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>
+      をご覧ください。</para>
+
   </sect2>
 
   <sect2 id="userland">
@@ -371,6 +417,9 @@
     <sect3>
       <title>寄贈ソフトウェア</title>
 
+      <para><application>BIND</application> がバージョン
+        8.3.4 に更新されました。</para>
+
       <para>ベースシステムに <application>bzip2</application>
         スイート全体、特に <command>bzip2recover</command>
         がインストールされるようになりました。</para>
@@ -378,11 +427,17 @@
       <para><application>CVS</application> がバージョン
 	 1.11.5 に更新されました。</para>
 
+      <para><application>FILE</application> がバージョン
+	 3.41 に更新されました。</para>
+
       <para><application>groff</application> と関連ユーティリティが
 	FSF バージョン 1.18.1 に更新されました。</para>
 
       <para><application>Heimdal Kerberos</application> がバージョン
 	0.5.1 に更新されました。</para>
+
+      <para><application>ISC DHCP</application> クライアントがバージョン
+	3.0.1RC11 に更新されました。</para>
 
       <para><application>libz</application> がバージョン
         1.1.4 に更新されました。</para>
@@ -396,7 +451,10 @@
         デバイス対応が含まれています。</para>
 
       <para><application>sendmail</application> がバージョン
-        8.12.7 に更新されました。</para>
+        8.12.8 に更新されました。</para>
+
+      <para><application>tcpdump</application> がバージョン
+	3.7.2 に更新されました。</para>
 
       <para>タイムゾーンデータベースが
 	<filename>tzdata2002d</filename> release に更新されました。</para>
@@ -405,7 +463,11 @@
     <sect3>
       <title>Ports/Packages Collection</title>
 
-      <para></para>
+      <para>オンラインファイル <filename>pkg-comment</filename> が
+	各 Port のスケルトンから取り除かれ、
+	その内容は <filename>Makefile</filename> の中に移動されました。
+	この変更により、Ports ツリーが使用するディスクスペースと
+	i ノード数が減少しました。</para>
 
     </sect3>
   </sect2>
@@ -413,7 +475,14 @@
   <sect2>
     <title>リリースエンジニアリングと統合</title>
 
-    <para></para>
+    <para><application>GNOME</application> 対応リリースが
+      2.2 に更新されました。</para>
+
+    <para><application>KDE</application> 対応リリースが
+      3.1 に更新されました。</para>
+
+    <para><application>XFree86</application> 対応リリースが
+      4.3.0 に更新されました。</para>
 
   </sect2>
 </sect1>
