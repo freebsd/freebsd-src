@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.9 1995/02/15 03:03:03 davidg Exp $
+ * $Id: nfs_serv.c,v 1.10 1995/02/15 03:38:12 davidg Exp $
  */
 
 /*
@@ -1742,7 +1742,7 @@ again:
 			fl.fl_nfh.fh_generic.fh_fsid =
 				nvp->v_mount->mnt_stat.f_fsid;
 			if (VFS_VPTOFH(nvp, &fl.fl_nfh.fh_generic.fh_fid)) {
-				nfsrv_vput(nvp);
+				vput(nvp);
 				goto invalid;
 			}
 			if (duration2) {
@@ -1754,10 +1754,10 @@ again:
 			} else
 				fl.fl_duration = 0;
 			if (VOP_GETATTR(nvp, vap, cred, nfsd->nd_procp)) {
-				nfsrv_vput(nvp);
+				vput(nvp);
 				goto invalid;
 			}
-			nfsrv_vput(nvp);
+			vput(nvp);
 			fp = (struct nfsv2_fattr *)&fl.fl_fattr;
 			nfsm_srvfillattr;
 			len += (4*NFSX_UNSIGNED + nlen + rem + NFSX_FH
