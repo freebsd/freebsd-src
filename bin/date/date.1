@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.27 1999/03/09 09:38:53 brian Exp $
+.\"	$Id: date.1,v 1.28 1999/05/08 10:19:59 kris Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -43,7 +43,7 @@
 .Nd display or set date and time
 .Sh SYNOPSIS
 .Nm date
-.Op Fl nu
+.Op Fl jnu
 .Op Fl d Ar dst
 .Op Fl r Ar seconds
 .Op Fl t Ar minutes_west
@@ -77,6 +77,12 @@ the default
 .Ar [[[[yy]mm]dd]HH]MM[.ss]
 format.  Parsing is done using
 .Xr strptime 3 .
+.It Fl j
+Do not try to set the date.  This allows you to use the
+.Fl f
+flag in addition to the
+.Cm +
+option to convert one date format to another.
 .It Fl n
 The utility
 .Xr timed 8
