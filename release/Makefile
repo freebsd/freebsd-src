@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.80 1998/03/06 06:48:02 jkh Exp $
+#	$Id: Makefile,v 1.246.2.81 1998/03/06 23:06:20 jkh Exp $
 #
 # How to roll a release:
 #
@@ -625,8 +625,7 @@ doMFSKERN:
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
 	@cd ${.CURDIR}/../sys/i386/conf && \
-	  sed	-e '/SYSV/d' \
-		-e '/pty/d' \
+	  sed	-e '/pty/d' \
 		-e '/PROCFS/d' \
 		-e '/KTRACE/d' \
 		-e 's/GENERIC/BOOTMFS/g' \
