@@ -1057,13 +1057,16 @@ pmap_extract(pmap_t pm, vm_offset_t va)
 vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
-	vm_paddr_t pa;
+	struct	pvo_entry *pvo;
 	vm_page_t m;
         
 	m = NULL;
 	mtx_lock(&Giant);
-	if ((pa = pmap_extract(pmap, va)) != 0) {
-		m = PHYS_TO_VM_PAGE(pa);
+	pvo = pmap_pvo_find_va(pmap, va & ~ADDR_POFF, NULL);
+	if (pvo != NULL && (pvo->pvo_pte.pte_hi & PTE_VALID) &&
+	    ((pvo->pvo_pte.pte_lo & PTE_PP) == PTE_RW ||
+	     (prot & VM_PROT_WRITE) == 0)) {
+		m = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte_lo & PTE_RPGN);
 		vm_page_lock_queues();
 		vm_page_hold(m);
 		vm_page_unlock_queues();
