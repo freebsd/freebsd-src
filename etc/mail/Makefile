@@ -1,31 +1,155 @@
-# $FreeBSD$
+#
+ # $FreeBSD$
+#
+# This Makefile provides an easy way to generate the configuration
+# file and database maps for the sendmail(8) daemon.
+#
+# The user-driven targets are:
+#
+# all     - Build cf, maps and aliases
+# cf      - Build the .cf file from .mc file
+# maps    - Build the feature maps
+# aliases - Build the sendmail aliases
+# install - Install the .cf file as /etc/mail/sendmail.cf
+# start   - Start the sendmail daemon with the flags defined in
+#           /etc/defaults/rc.conf or /etc/rc.conf
+# stop    - Stop the sendmail daemon
+# restart - Restart the sendmail daemon
+#
+# Calling `make' will generate the updated versions when either the
+# aliases or one of the map files were changed.
+#
+# A `make install` is only necessary after modifying the .mc file. In
+# this case one would normally also call `make restart' to allow the
+# running sendmail to pick up the changes as well.
+#
+# ------------------------------------------------------------------------
+#
+# This makefile uses `freebsd.mc' as the default .mc file.  This can
+# be changed by defining SENDMAIL_MC in /etc/make.conf, e.g.:
+#
+#		   SENDMAIL_MC=/etc/mail/myconfig.mc
+#
+# ------------------------------------------------------------------------
+#
+# The Makefile knows about the following maps:
+# access, bitdomain, domaintable, genericstable, mailertable, userdb,
+# uucpdomain, virtusertable
+#
 
-all: access.db mailertable.db virtusertable.db	\
-# /etc/mail/aliases.db
+SENDMAIL_MC?=		freebsd.mc
+SENDMAIL_MC_CF=		${SENDMAIL_MC:R}.cf
 
-access.db: access
-	/usr/sbin/makemap hash access < access
+SENDMAIL_ALIASES?=	/etc/mail/aliases
 
-virtusertable.db: virtusertable
-	/usr/sbin/makemap hash virtusertable < virtusertable
+#
+# This is the directory where the sendmail configuration files are
+# located.
+#
+.if exists(/usr/share/sendmail/cf)
+SENDMAIL_CF_DIR?=	/usr/share/sendmail/cf
+.elif exists(/usr/src/contrib/sendmail/cf)
+SENDMAIL_CF_DIR?=	/usr/src/contrib/sendmail/cf
+.endif
 
-mailertable.db: mailertable
-	/usr/sbin/makemap hash mailertable < mailertable
+#
+# The pid is used to stop and restart the running daemon.
+#
+SENDMAIL_PIDFILE?=	/var/run/sendmail.pid
 
-#/etc/mail/aliases.db: /etc/mail/aliases
-#	newaliases
+#
+# Some useful programs we need.
+#
+SENDMAIL?=		/usr/sbin/sendmail
+MAKEMAP?=		/usr/sbin/makemap
+M4?=			/usr/bin/m4
+KILL?=			/bin/kill
 
-mailertable:
-	@echo Generating empty mailertable
-	sed -e 's/^/#/' < mailertable.sample > mailertable
+# Set a reasonable default
+.MAIN:	all
 
-access:
-	@echo Generating empty access
-	sed -e 's/^/#/' < access.sample > access
+#
+# ------------------------------------------------------------------------
+#
+# The Makefile picks up the list of files from SENDMAIL_MAP_SRC and
+# stores the matching .db filenames in SENDMAIL_MAP_OBJ if the file
+# exists in the current directory.
+#
+SENDMAIL_MAP_SRC+=	mailertable domaintable bitdomain uucpdomain \
+			genericstable virtusertable access userdb
+SENDMAIL_MAP_OBJ=
 
-virtusertable:
-	@echo Generating empty virtusertable
-	sed -e 's/^/#/' < virtusertable.sample > virtusertable
+.for _f in ${SENDMAIL_MAP_SRC}
+.if exists(${_f})
+SENDMAIL_MAP_OBJ+=	${_f}.db
+.endif
+.endfor
+
+#
+# The makemap command is used to generate a hashed map from the textfile.
+#
+.for _f in ${SENDMAIL_MAP_SRC}
+.if (exists(${_f}.sample) && !exists(${_f}))
+${_f}:		${_f}.sample
+	sed -e 's/^/#/' < ${.OODATE} > ${.TARGET}
+.endif
+
+${_f}.db:	${_f}
+	${MAKEMAP} hash ${.TARGET} < ${.OODATE}
+.endfor
+
+#
+# The .cf file needs to be recreated if the templates were modified.
+#
+M4FILES!=	find ${SENDMAIL_CF_DIR} -type f -name '*.m4' -print
+
+#
+# M4(1) is used to generate the .cf file from the .mc file.
+#
+.SUFFIXES:	.cf .mc
+
+.mc.cf:		${M4FILES}
+	${M4} -D_CF_DIR_=${SENDMAIL_CF_DIR}/ ${SENDMAIL_CF_DIR}/m4/cf.m4 \
+		${@:R}.mc > ${.TARGET}
+
+${SENDMAIL_MC_CF}:	${M4FILES}
+
+#
+# Aliases are handled separately since they normally reside in /etc
+# and can be rebuild without the help of makemap.
+#
+${SENDMAIL_ALIASES}.db:	${SENDMAIL_ALIASES}
+	${SENDMAIL} -bi
+
+#
+# ------------------------------------------------------------------------
+#
+
+all:		cf maps aliases
 
 clean:
-	rm -f access.db virtusertable.db mailertable.db
+
+depend:
+
+cf:		${SENDMAIL_MC_CF}
+
+maps:		${SENDMAIL_MAP_OBJ}
+
+aliases:	${SENDMAIL_ALIASES}.db
+
+install:	${SENDMAIL_MC_CF}
+	${INSTALL} -c -m ${SHAREMODE} ${SENDMAIL_MC_CF} /etc/mail/sendmail.cf
+
+start:
+	(. /etc/defaults/rc.conf; \
+	   if [ "$${sendmail_enable}" = "YES" -a -r /etc/mail/sendmail.cf ];\
+	   then \
+	     ${SENDMAIL} $${sendmail_flags}; \
+	   fi \
+	)
+
+stop:
+	${KILL} -TERM `head -1 ${SENDMAIL_PIDFILE}`
+
+restart:
+	${KILL} -HUP `head -1 ${SENDMAIL_PIDFILE}`
