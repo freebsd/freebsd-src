@@ -105,19 +105,10 @@ static driver_t amrd_driver = {
 
 DRIVER_MODULE(amrd, amr, amrd_driver, amrd_devclass, 0, 0);
 
-static __inline struct amrd_softc *
-amrd_getsoftc(dev_t dev)
-{
-    int unit;
-
-    unit = dkunit(dev);
-    return ((struct amrd_softc *)devclass_get_softc(amrd_devclass, unit));
-}
-
 static int
 amrd_open(dev_t dev, int flags, int fmt, struct proc *p)
 {
-    struct amrd_softc	*sc = amrd_getsoftc(dev);
+    struct amrd_softc	*sc = (struct amrd_softc *)dev->si_drv1;
     struct disklabel	*label;
 
     debug("called");
@@ -146,7 +137,7 @@ amrd_open(dev_t dev, int flags, int fmt, struct proc *p)
 static int
 amrd_close(dev_t dev, int flags, int fmt, struct proc *p)
 {
-    struct amrd_softc *sc = amrd_getsoftc(dev);
+    struct amrd_softc	*sc = (struct amrd_softc *)dev->si_drv1;
 
     debug("called");
 	
@@ -159,7 +150,7 @@ amrd_close(dev_t dev, int flags, int fmt, struct proc *p)
 static int
 amrd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 {
-    struct amrd_softc *sc = amrd_getsoftc(dev);
+    struct amrd_softc	*sc = (struct amrd_softc *)dev->si_drv1;
     int error;
 
     debug("called");
@@ -183,9 +174,10 @@ amrd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 static void
 amrd_strategy(struct buf *bp)
 {
-    struct amrd_softc	*sc = amrd_getsoftc(bp->b_dev);
+    struct amrd_softc	*sc = (struct amrd_softc *)bp->b_dev->si_drv1;
 
-    debug("called");
+    debug("called to %s %d bytes at b_blkno 0x%x  b_pblkno 0x%x", 
+	  (bp->b_flags & B_READ) ? "read" : "write", bp->b_bcount, bp->b_blkno, bp->b_pblkno);
 
     /* bogus disk? */
     if (sc == NULL) {
@@ -205,8 +197,6 @@ amrd_strategy(struct buf *bp)
     if (bp->b_bcount == 0)
 	goto done;
 
-    /* pass reference to us */
-    bp->b_driver1 = sc;
     devstat_start_transaction(&sc->amrd_stats);
     amr_submit_buf(sc->amrd_controller, bp);
     return;
@@ -227,14 +217,21 @@ void
 amrd_intr(void *data)
 {
     struct buf *bp = (struct buf *)data;
-    struct amrd_softc *sc = (struct amrd_softc *)bp->b_driver1;
+    struct amrd_softc *sc = (struct amrd_softc *)bp->b_dev->si_drv1;
 
     debug("called");
-	
-    if (bp->b_flags & B_ERROR)
+
+    if (bp->b_flags & B_ERROR) {
 	bp->b_error = EIO;
-    else
+	debug("i/o error\n");
+    } else {
+#if 0
+	int i;
+	for (i = 0; i < 512; i += 16)
+	    debug(" %04x  %16D", i, bp->b_data + i, " ");
+#endif
 	bp->b_resid = 0;
+    }
 
     devstat_end_transaction_buf(&sc->amrd_stats, bp);
     biodone(bp);
@@ -291,8 +288,12 @@ amrd_attach(device_t dev)
 		      DEVSTAT_TYPE_STORARRAY | DEVSTAT_TYPE_IF_OTHER, 
 		      DEVSTAT_PRIORITY_ARRAY);
 
-    disk_create(sc->amrd_unit, &sc->amrd_disk, 0, &amrd_cdevsw, &amrddisk_cdevsw);
+    sc->amrd_dev_t = disk_create(sc->amrd_unit, &sc->amrd_disk, 0, &amrd_cdevsw, &amrddisk_cdevsw);
+    sc->amrd_dev_t->si_drv1 = sc;
     disks_registered++;
+
+    /* set maximum I/O size */
+    /* dsk->si_iosize_max = ??? */;
 
     return (0);
 }
@@ -305,11 +306,7 @@ amrd_detach(device_t dev)
     debug("called");
 
     devstat_remove_entry(&sc->amrd_stats);
-
-    /* hack to handle lack of destroy_disk() */
-    if (--disks_registered == 0)
-	cdevsw_remove(&amrddisk_cdevsw);
-
+    disk_destroy(sc->amrd_dev_t);
     return(0);
 }
 
