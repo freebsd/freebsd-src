@@ -564,6 +564,14 @@ f_fstype(plan, entry)
 }
 
 #if !defined(__NetBSD__)
+int
+f_always_false(plan, entry)
+	PLAN *plan;
+	FTSENT *entry;
+{
+	return (0);
+}
+
 PLAN *
 c_fstype(arg)
 	char *arg;
@@ -600,8 +608,14 @@ c_fstype(arg)
 		}
 		break;
 	}
-	errx(1, "%s: unknown file type", arg);
-	/* NOTREACHED */
+	/*
+	 * We need to make filesystem checks for filesystems
+	 * that exists but aren't in the kernel work.
+	 */
+	fprintf(stderr, "Warning: Unknown filesystem type %s\n", arg);
+	free(new);
+
+	return (palloc(N_FSTYPE, f_always_false));
 }
 #endif
 
