@@ -397,6 +397,9 @@ implementation appeared in
 and is used since
 .Nx 1.6 .
 .Sh BUGS
+The locale's collating order is applied on a per-character basis, so
+double character letters like "ss" are not collated correctly.
+.Pp
 To sort files larger than 60Mb, use
 .Nm
 .Fl H ;
