@@ -1,6 +1,7 @@
-/*	$NetBSD: read.c,v 1.2 1995/07/03 21:24:59 cgd Exp $	*/
+/* $NetBSD: read.c,v 1.12 2002/01/21 19:49:52 tv Exp $ */
 
 /*
+ * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
  * Copyright (c) 1994, 1995 Jochen Pohl
  * All Rights Reserved.
  *
@@ -31,17 +32,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
+#include <sys/cdefs.h>
+#if defined(__RCSID) && !defined(lint)
+__RCSID("$NetBSD: read.c,v 1.12 2002/01/21 19:49:52 tv Exp $");
 #endif
+__FBSDID("$FreeBSD$");
 
+#include <ctype.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <limits.h>
-#include <err.h>
 
 #include "lint2.h"
 
@@ -79,33 +80,34 @@ static	thtab_t	**thtab;		/* hash table */
 type_t	**tlst;				/* array for indexed access */
 static	size_t	tlstlen;		/* length of tlst */
 
+static	hte_t **renametab;
+
 /* index of current C source file (as spezified at the command line) */
 static	int	csrcfile;
 
 
-static	void	inperr __P((void));
-static	void	setsrc __P((const char *));
-static	void	setfnid __P((int, const char *));
-static	void	funccall __P((pos_t *, const char *));
-static	void	decldef __P((pos_t *, const char *));
-static	void	usedsym __P((pos_t *, const char *));
-static	u_short	inptype __P((const char *, const char **));
-static	int	gettlen __P((const char *, const char **));
-static	u_short	findtype __P((const char *, size_t, int));
-static	u_short	storetyp __P((type_t *, const char *, size_t, int));
-static	int	thash __P((const char *, size_t));
-static	char	*inpqstrg __P((const char *, const char **));
-static	const	char *inpname __P((const char *, const char **));
-static	int	getfnidx __P((const char *));
+static	void	inperr(void);
+static	void	setsrc(const char *);
+static	void	setfnid(int, const char *);
+static	void	funccall(pos_t *, const char *);
+static	void	decldef(pos_t *, const char *);
+static	void	usedsym(pos_t *, const char *);
+static	u_short	inptype(const char *, const char **);
+static	int	gettlen(const char *, const char **);
+static	u_short	findtype(const char *, size_t, int);
+static	u_short	storetyp(type_t *, const char *, size_t, int);
+static	int	thash(const char *, size_t);
+static	char	*inpqstrg(const char *, const char **);
+static	const	char *inpname(const char *, const char **);
+static	int	getfnidx(const char *);
 
 void
-readfile(name)
-	const	char *name;
+readfile(const char *name)
 {
 	FILE	*inp;
 	size_t	len;
 	const	char *cp;
-	char	*line, *eptr, rt;
+	char	*line, *eptr, rt = '\0';
 	int	cline, isrc, iline;
 	pos_t	pos;
 
@@ -121,6 +123,8 @@ readfile(name)
 	if (thtab == NULL)
 		if ((thtab = calloc(THSHSIZ2, sizeof (thtab_t))) == NULL)
 			nomem();
+
+	_inithash(&renametab);
 
 	srcfile = getfnidx(name);
 
@@ -198,6 +202,8 @@ readfile(name)
 
 	}
 
+	_destroyhash(renametab);
+
 	if (ferror(inp))
 		err(1, "read error on %s", name);
 
@@ -206,8 +212,9 @@ readfile(name)
 
 
 static void
-inperr()
+inperr(void)
 {
+
 	errx(1, "input file error: %s", fnames[srcfile]);
 }
 
@@ -216,23 +223,22 @@ inperr()
  * currently read.
  */
 static void
-setsrc(cp)
-	const	char *cp;
+setsrc(const char *cp)
 {
+
 	csrcfile = getfnidx(cp);
 }
 
 /*
  * setfnid() gets as input an index as used in an input file and the
- * associated file name. If neccessary, it creates a new lint2 file
+ * associated file name. If necessary, it creates a new lint2 file
  * name index for this file name and creates the mapping of the index
  * as used in the input file to the index used in lint2.
  */
 static void
-setfnid(fid, cp)
-	int	fid;
-	const	char *cp;
+setfnid(int fid, const char *cp)
 {
+
 	if (fid == -1)
 		inperr();
 
@@ -256,15 +262,14 @@ setfnid(fid, cp)
  * Process a function call record (c-record).
  */
 static void
-funccall(posp, cp)
-	pos_t	*posp;
-	const	char *cp;
+funccall(pos_t *posp, const char *cp)
 {
 	arginf_t *ai, **lai;
 	char	c, *eptr;
 	int	rused, rdisc;
 	hte_t	*hte;
 	fcall_t	*fcall;
+	const char *name;
 
 	fcall = xalloc(sizeof (fcall_t));
 	STRUCT_ASSIGN(fcall->f_pos, *posp);
@@ -318,7 +323,14 @@ funccall(posp, cp)
 	fcall->f_rdisc = rdisc;
 
 	/* read name of function */
-	hte = hsearch(inpname(cp, &cp), 1);
+	name = inpname(cp, &cp);
+
+	/* first look it up in the renaming table, then in the normal table */
+	hte = _hsearch(renametab, name, 0);
+	if (hte != NULL)
+		hte = hte->h_hte;
+	else
+		hte = hsearch(name, 1);
 	hte->h_used = 1;
 
 	fcall->f_type = inptype(cp, &cp);
@@ -334,14 +346,13 @@ funccall(posp, cp)
  * Process a declaration or definition (d-record).
  */
 static void
-decldef(posp, cp)
-	pos_t	*posp;
-	const	char *cp;
+decldef(pos_t *posp, const char *cp)
 {
 	sym_t	*symp, sym;
-	char	c, *ep;
-	int	used;
-	hte_t	*hte;
+	char	c, *ep, *pos1;
+	int	used, renamed;
+	hte_t	*hte, *renamehte = NULL;
+	const char *name, *rename;
 
 	(void)memset(&sym, 0, sizeof (sym));
 	STRUCT_ASSIGN(sym.s_pos, *posp);
@@ -419,8 +430,35 @@ decldef(posp, cp)
 		}
 	}
 
-	/* read symbol name */
-	hte = hsearch(inpname(cp, &cp), 1);
+	/* read symbol name, doing renaming if necessary */
+	name = inpname(cp, &cp);
+	renamed = 0;
+	if (*cp == 'r') {
+		cp++;
+		name = xstrdup(name);
+		rename = inpname(cp, &cp);
+
+		/* enter it and see if it's already been renamed */
+		renamehte = _hsearch(renametab, name, 1);
+		if (renamehte->h_hte == NULL) {
+			hte = hsearch(rename, 1);
+			renamehte->h_hte = hte;
+			renamed = 1;
+		} else if (strcmp((hte = renamehte->h_hte)->h_name, rename)) {
+			pos1 = xstrdup(mkpos(&renamehte->h_syms->s_pos));
+			/* %s renamed multiple times\t%s  ::  %s */
+			msg(18, name, pos1, mkpos(&sym.s_pos));
+			free(pos1);
+		}
+		free((char *)name);
+	} else {
+		/* it might be a previously-done rename */
+		hte = _hsearch(renametab, name, 0);
+		if (hte != NULL)
+			hte = hte->h_hte;
+		else
+			hte = hsearch(name, 1);
+	}
 	hte->h_used |= used;
 	if (sym.s_def == DEF || sym.s_def == TDEF)
 		hte->h_def = 1;
@@ -456,6 +494,10 @@ decldef(posp, cp)
 		}
 		*hte->h_lsym = symp;
 		hte->h_lsym = &symp->s_nxt;
+
+		/* XXX hack so we can remember where a symbol was renamed */
+		if (renamed)
+			renamehte->h_syms = symp;
 	}
 
 	if (*cp != '\0')
@@ -466,12 +508,11 @@ decldef(posp, cp)
  * Read an u-record (emited by lint1 if a symbol was used).
  */
 static void
-usedsym(posp, cp)
-	pos_t	*posp;
-	const	char *cp;
+usedsym(pos_t *posp, const char *cp)
 {
 	usym_t	*usym;
 	hte_t	*hte;
+	const char *name;
 
 	usym = xalloc(sizeof (usym_t));
 	STRUCT_ASSIGN(usym->u_pos, *posp);
@@ -480,7 +521,12 @@ usedsym(posp, cp)
 	if (*cp++ != 'x')
 		inperr();
 
-	hte = hsearch(inpname(cp, &cp), 1);
+	name = inpname(cp, &cp);
+	hte = _hsearch(renametab, name, 0);
+	if (hte != NULL)
+		hte = hte->h_hte;
+	else
+		hte = hsearch(name, 1);
 	hte->h_used = 1;
 
 	*hte->h_lusym = usym;
@@ -491,13 +537,12 @@ usedsym(posp, cp)
  * Read a type and return the index of this type.
  */
 static u_short
-inptype(cp, epp)
-	const	char *cp, **epp;
+inptype(const char *cp, const char **epp)
 {
 	char	c, s, *eptr;
 	const	char *ep;
 	type_t	*tp;
-	int	narg, i, osdef;
+	int	narg, i, osdef = 0;
 	size_t	tlen;
 	u_short	tidx;
 	int	h;
@@ -608,8 +653,6 @@ inptype(cp, epp)
 	case STRUCT:
 	case UNION:
 		switch (*cp++) {
-		case '0':
-			break;
 		case '1':
 			tp->t_istag = 1;
 			tp->t_tag = hsearch(inpname(cp, &cp), 1);
@@ -618,10 +661,42 @@ inptype(cp, epp)
 			tp->t_istynam = 1;
 			tp->t_tynam = hsearch(inpname(cp, &cp), 1);
 			break;
+		case '3':
+			tp->t_isuniqpos = 1;
+			tp->t_uniqpos.p_line = strtol(cp, &eptr, 10);
+			cp = eptr;
+			cp++;
+			/* xlate to 'global' file name. */
+			tp->t_uniqpos.p_file =
+			    addoutfile(inpfns[strtol(cp, &eptr, 10)]);
+			cp = eptr;
+			cp++;
+			tp->t_uniqpos.p_uniq = strtol(cp, &eptr, 10);
+			cp = eptr;
+			break;
 		}
 		break;
-		/* LINTED (enumeration value(s) not handled in switch) */
-	default:
+	case LONG:
+	case VOID:
+	case LDOUBLE:
+	case DOUBLE:
+	case FLOAT:
+	case UQUAD:
+	case QUAD:
+	case ULONG:
+	case UINT:
+	case INT:
+	case USHORT:
+	case SHORT:
+	case UCHAR:
+	case SCHAR:
+	case CHAR:
+	case UNSIGN:
+	case SIGNED:
+	case NOTSPEC:
+		break;
+	case NTSPEC:
+		abort();
 	}
 
 	*epp = cp;
@@ -632,8 +707,7 @@ inptype(cp, epp)
  * Get the length of a type string.
  */
 static int
-gettlen(cp, epp)
-	const	char *cp, **epp;
+gettlen(const char *cp, const char **epp)
 {
 	const	char *cp1;
 	char	c, s, *eptr;
@@ -778,20 +852,56 @@ gettlen(cp, epp)
 	case STRUCT:
 	case UNION:
 		switch (*cp++) {
-		case '0':
-			break;
 		case '1':
 			(void)inpname(cp, &cp);
 			break;
 		case '2':
 			(void)inpname(cp, &cp);
 			break;
+		case '3':
+			/* unique position: line.file.uniquifier */
+			(void)strtol(cp, &eptr, 10);
+			if (cp == eptr)
+				inperr();
+			cp = eptr;
+			if (*cp++ != '.')
+				inperr();
+			(void)strtol(cp, &eptr, 10);
+			if (cp == eptr)
+				inperr();
+			cp = eptr;
+			if (*cp++ != '.')
+				inperr();
+			(void)strtol(cp, &eptr, 10);
+			if (cp == eptr)
+				inperr();
+			cp = eptr;
+			break;
 		default:
 			inperr();
 		}
 		break;
-		/* LINTED (enumeration value(s) not handled in switch) */
-	default:
+	case FLOAT:
+	case USHORT:
+	case SHORT:
+	case UCHAR:
+	case SCHAR:
+	case CHAR:
+	case UNSIGN:
+	case SIGNED:
+	case NOTSPEC:
+	case INT:
+	case UINT:
+	case DOUBLE:
+	case LDOUBLE:
+	case VOID:
+	case ULONG:
+	case QUAD:
+	case UQUAD:
+	case LONG:
+		break;
+	case NTSPEC:
+		abort();
 	}
 
 	*epp = cp;
@@ -802,10 +912,7 @@ gettlen(cp, epp)
  * Search a type by it's type string.
  */
 static u_short
-findtype(cp, len, h)
-	const	char *cp;
-	size_t	len;
-	int	h;
+findtype(const char *cp, size_t len, int h)
 {
 	thtab_t	*thte;
 
@@ -824,14 +931,9 @@ findtype(cp, len, h)
  * if we read the same type string from the input file.
  */
 static u_short
-storetyp(tp, cp, len, h)
-	type_t	*tp;
-	const	char *cp;
-	size_t	len;
-	int	h;
+storetyp(type_t *tp, const char *cp, size_t len, int h)
 {
-	/* 0 ist reserved */
-	static	u_int	tidx = 1;
+	static	u_int	tidx = 1;	/* 0 is reserved */
 	thtab_t	*thte;
 	char	*name;
 
@@ -866,9 +968,7 @@ storetyp(tp, cp, len, h)
  * Hash function for types
  */
 static int
-thash(s, len)
-	const	char *s;
-	size_t	len;
+thash(const char *s, size_t len)
 {
 	u_int	v;
 
@@ -884,8 +984,7 @@ thash(s, len)
  * Read a string enclosed by "". This string may contain quoted chars.
  */
 static char *
-inpqstrg(src, epp)
-	const	char *src, **epp;
+inpqstrg(const char *src, const char **epp)
 {
 	char	*strg, *dst;
 	size_t	slen;
@@ -912,11 +1011,7 @@ inpqstrg(src, epp)
 				c = '\t';
 				break;
 			case 'v':
-#ifdef __STDC__
 				c = '\v';
-#else
-				c = '\013';
-#endif
 				break;
 			case 'b':
 				c = '\b';
@@ -928,11 +1023,7 @@ inpqstrg(src, epp)
 				c = '\f';
 				break;
 			case 'a':
-#ifdef __STDC__
 				c = '\a';
-#else
-				c = '\007';
-#endif
 				break;
 			case '\\':
 				c = '\\';
@@ -978,8 +1069,7 @@ inpqstrg(src, epp)
  * Read the name of a symbol in static memory.
  */
 static const char *
-inpname(cp, epp)
-	const	char *cp, **epp;
+inpname(const char *cp, const char **epp)
 {
 	static	char	*buf;
 	static	size_t	blen = 0;
@@ -995,7 +1085,7 @@ inpname(cp, epp)
 			nomem();
 	for (i = 0; i < len; i++) {
 		c = *cp++;
-		if (!isalnum(c) && c != '_')
+		if (!isalnum((unsigned char)c) && c != '_')
 			inperr();
 		buf[i] = c;
 	}
@@ -1010,8 +1100,7 @@ inpname(cp, epp)
  * a new entry and return the index of the newly created entry.
  */
 static int
-getfnidx(fn)
-	const	char *fn;
+getfnidx(const char *fn)
 {
 	int	i;
 
@@ -1040,8 +1129,7 @@ getfnidx(fn)
  * Separate symbols with static and external linkage.
  */
 void
-mkstatic(hte)
-	hte_t	*hte;
+mkstatic(hte_t *hte)
 {
 	sym_t	*sym1, **symp, *sym;
 	fcall_t	**callp, *call;
@@ -1085,16 +1173,22 @@ mkstatic(hte)
 	 * XXX this entry should be put at the beginning of the list to
 	 * avoid to process the same symbol twice.
 	 */
-	for (nhte = hte; nhte->h_link != NULL; nhte = nhte->h_link) ;
-	nhte->h_link = xalloc(sizeof (hte_t));
+	for (nhte = hte; nhte->h_link != NULL; nhte = nhte->h_link)
+		continue;
+	nhte->h_link = xmalloc(sizeof (hte_t));
 	nhte = nhte->h_link;
 	nhte->h_name = hte->h_name;
-	nhte->h_static = 1;
 	nhte->h_used = 1;
 	nhte->h_def = 1;	/* error in lint1 */
+	nhte->h_static = 1;
+	nhte->h_syms = NULL;
 	nhte->h_lsym = &nhte->h_syms;
+	nhte->h_calls = NULL;
 	nhte->h_lcall = &nhte->h_calls;
+	nhte->h_usyms = NULL;
 	nhte->h_lusym = &nhte->h_usyms;
+	nhte->h_link = NULL;
+	nhte->h_hte = NULL;
 
 	/*
 	 * move all symbols used in this translation unit into the new

@@ -1,7 +1,8 @@
 %{
-/*	$NetBSD: cgram.y,v 1.8 1995/10/02 17:31:35 jpo Exp $	*/
+/* $NetBSD: cgram.y,v 1.23 2002/01/31 19:36:53 tv Exp $ */
 
 /*
+ * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
  * Copyright (c) 1994, 1995 Jochen Pohl
  * All Rights Reserved.
  *
@@ -32,11 +33,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
+#include <sys/cdefs.h>
+#if defined(__RCSID) && !defined(lint)
+__RCSID("$NetBSD: cgram.y,v 1.23 2002/01/31 19:36:53 tv Exp $");
 #endif
+__FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
+#include <string.h>
 #include <limits.h>
 
 #include "lint1.h"
@@ -55,10 +59,52 @@ int	blklev;
  */
 int	mblklev;
 
-static	int	toicon __P((tnode_t *));
-static	void	idecl __P((sym_t *, int));
-static	void	ignuptorp __P((void));
+/*
+ * Save the no-warns state and restore it to avoid the problem where
+ * if (expr) { stmt } / * NOLINT * / stmt;
+ */
+static int onowarn = -1;
 
+static	int	toicon(tnode_t *);
+static	void	idecl(sym_t *, int, sbuf_t *);
+static	void	ignuptorp(void);
+
+#ifdef DEBUG
+static __inline void CLRWFLGS(void);
+static __inline void CLRWFLGS(void)
+{
+	printf("%s, %d: clear flags %s %d\n", curr_pos.p_file,
+	    curr_pos.p_line, __FILE__, __LINE__);
+	clrwflgs();
+	onowarn = -1;
+}
+
+static __inline void SAVE(void);
+static __inline void SAVE(void)
+{
+	if (onowarn != -1)
+		abort();
+	printf("%s, %d: save flags %s %d = %d\n", curr_pos.p_file,
+	    curr_pos.p_line, __FILE__, __LINE__, nowarn);
+	onowarn = nowarn;
+}
+
+static __inline void RESTORE(void);
+static __inline void RESTORE(void)
+{
+	if (onowarn != -1) {
+		nowarn = onowarn;
+		printf("%s, %d: restore flags %s %d = %d\n", curr_pos.p_file,
+		    curr_pos.p_line, __FILE__, __LINE__, nowarn);
+		onowarn = -1;
+	} else
+		CLRWFLGS();
+}
+#else
+#define CLRWFLGS() clrwflgs(), onowarn = -1
+#define SAVE()	onowarn = nowarn
+#define RESTORE() (void)(onowarn == -1 ? (clrwflgs(), 0) : (nowarn = onowarn))
+#endif
 %}
 
 %union {
@@ -129,6 +175,7 @@ static	void	ignuptorp __P((void));
 %token			T_BREAK
 %token			T_RETURN
 %token			T_ASM
+%token			T_SYMBOLRENAME
 
 %left	T_COMMA
 %right	T_ASSIGN T_OPASS
@@ -205,6 +252,7 @@ static	void	ignuptorp __P((void));
 %type	<y_tnode>	opt_expr
 %type	<y_strg>	string
 %type	<y_strg>	string2
+%type	<y_sb>		opt_asm_or_symbolrename
 
 
 %%
@@ -228,13 +276,14 @@ translation_unit:
 	;
 
 ext_decl:
-	  func_def {
+	  asm_stmnt
+	| func_def {
 		glclup(0);
-		clrwflgs();
+		CLRWFLGS();
 	  }
 	| data_def {
 		glclup(0);
-		clrwflgs();
+		CLRWFLGS();
 	  }
 	;
 
@@ -278,7 +327,7 @@ data_def:
 	  }
 	| declspecs deftyp type_init_decls T_SEMI
 	| error T_SEMI {
-		globclup();		
+		globclup();
 	  }
 	| error T_RBRACE {
 		globclup();
@@ -712,7 +761,7 @@ enums_with_opt_comma:
 			error(54);
 		} else {
 			/* trailing "," prohibited in enum declaration */
-			warning(54);
+			(void)gnuism(54);
 		}
 		$$ = $1;
 	  }
@@ -757,24 +806,24 @@ type_init_decls:
 	;
 
 notype_init_decl:
-	  notype_decl opt_asm_spec {
-		idecl($1, 0);
+	  notype_decl opt_asm_or_symbolrename {
+		idecl($1, 0, $2);
 		chksz($1);
 	  }
-	| notype_decl opt_asm_spec {
-		idecl($1, 1);
+	| notype_decl opt_asm_or_symbolrename {
+		idecl($1, 1, $2);
 	  } T_ASSIGN initializer {
 		chksz($1);
 	  }
 	;
 
 type_init_decl:
-	  type_decl opt_asm_spec {
-		idecl($1, 0);
+	  type_decl opt_asm_or_symbolrename {
+		idecl($1, 0, $2);
 		chksz($1);
 	  }
-	| type_decl opt_asm_spec {
-		idecl($1, 1);
+	| type_decl opt_asm_or_symbolrename {
+		idecl($1, 1, $2);
 	  } T_ASSIGN initializer {
 		chksz($1);
 	  }
@@ -920,8 +969,7 @@ pointer:
 
 asterisk:
 	  T_MULT {
-		if (($$ = calloc(1, sizeof (pqinf_t))) == NULL)
-			nomem();
+		$$ = xcalloc(1, sizeof (pqinf_t));
 		$$->p_pcnt = 1;
 	  }
 	;
@@ -937,8 +985,7 @@ type_qualifier_list:
 
 type_qualifier:
 	  T_QUAL {
-		if (($$ = calloc(1, sizeof (pqinf_t))) == NULL)
-			nomem();
+		$$ = xcalloc(1, sizeof (pqinf_t));
 		if ($1 == CONST) {
 			$$->p_const = 1;
 		} else {
@@ -1017,10 +1064,10 @@ vararg_parameter_type_list:
 	;
 
 parameter_type_list:
-	  parameter_declaration opt_asm_spec {
+	  parameter_declaration {
 		$$ = $1;
 	  }
-	| parameter_type_list T_COMMA parameter_declaration opt_asm_spec {
+	| parameter_type_list T_COMMA parameter_declaration {
 		$$ = lnklst($1, $3);
 	  }
 	;
@@ -1053,10 +1100,16 @@ parameter_declaration:
 	  }
 	;
 
-opt_asm_spec:
-	  /* empty */
+opt_asm_or_symbolrename:		/* expect only one */
+	  /* empty */ {
+		$$ = NULL;
+	  }
 	| T_ASM T_LPARN T_STRING T_RPARN {
 		freeyyv(&$3, T_STRING);
+		$$ = NULL;
+	  }
+	| T_SYMBOLRENAME T_LPARN T_NAME T_RPARN {
+		$$ = $3;
 	  }
 	;
 
@@ -1214,15 +1267,11 @@ opt_stmnt_list:
 	;
 
 stmnt_list:
-	  stmnt {
-		clrwflgs();
-	  }
+	  stmnt
 	| stmnt_list stmnt {
-		clrwflgs();
+		RESTORE();
 	  }
-	| stmnt_list error T_SEMI {
-		clrwflgs();
-	  }
+	| stmnt_list error T_SEMI
 	;
 
 expr_stmnt:
@@ -1237,21 +1286,27 @@ expr_stmnt:
 
 selection_stmnt:
 	  if_without_else {
+		SAVE();
 		if2();
 		if3(0);
 	  }
 	| if_without_else T_ELSE {
+		SAVE();
 		if2();
 	  } stmnt {
+		CLRWFLGS();
 		if3(1);
 	  }
 	| if_without_else T_ELSE error {
+		CLRWFLGS();
 		if3(0);
 	  }
 	| switch_expr stmnt {
+		CLRWFLGS();
 		switch2();
 	  }
 	| switch_expr error {
+		CLRWFLGS();
 		switch2();
 	  }
 	;
@@ -1264,35 +1319,46 @@ if_without_else:
 if_expr:
 	  T_IF T_LPARN expr T_RPARN {
 		if1($3);
-		clrwflgs();
+		CLRWFLGS();
 	  }
 	;
 
 switch_expr:
 	  T_SWITCH T_LPARN expr T_RPARN {
 		switch1($3);
-		clrwflgs();
+		CLRWFLGS();
+	  }
+	;
+
+do_stmnt:
+	  do stmnt {
+		CLRWFLGS();
 	  }
 	;
 
 iteration_stmnt:
 	  while_expr stmnt {
+		CLRWFLGS();
 		while2();
 	  }
 	| while_expr error {
+		CLRWFLGS();
 		while2();
 	  }
-	| do stmnt do_while_expr {
-		do2($3);
+	| do_stmnt do_while_expr {
+		do2($2);
 		ftflg = 0;
 	  }
 	| do error {
+		CLRWFLGS();
 		do2(NULL);
 	  }
 	| for_exprs stmnt {
+		CLRWFLGS();
 		for2();
 	  }
 	| for_exprs error {
+		CLRWFLGS();
 		for2();
 	  }
 	;
@@ -1300,7 +1366,7 @@ iteration_stmnt:
 while_expr:
 	  T_WHILE T_LPARN expr T_RPARN {
 		while1($3);
-		clrwflgs();
+		CLRWFLGS();
 	  }
 	;
 
@@ -1319,7 +1385,7 @@ do_while_expr:
 for_exprs:
 	  T_FOR T_LPARN opt_expr T_SEMI opt_expr T_SEMI opt_expr T_RPARN {
 		for1($3, $5, $7);
-		clrwflgs();
+		CLRWFLGS();
 	  }
 	;
 
@@ -1377,10 +1443,10 @@ read_until_rparn:
 
 declaration_list:
 	  declaration {
-		clrwflgs();
+		CLRWFLGS();
 	  }
 	| declaration_list declaration {
-		clrwflgs();
+		CLRWFLGS();
 	  }
 	;
 
@@ -1443,7 +1509,7 @@ expr:
 
 term:
 	  T_NAME {
-		/* XXX realy neccessary? */
+		/* XXX really necessary? */
 		if (yychar < 0)
 			yychar = yylex();
 		$$ = getnnode(getsym($1), yychar);
@@ -1567,14 +1633,33 @@ identifier:
 
 /* ARGSUSED */
 int
-yyerror(msg)
-	char	*msg;
+yyerror(char *msg)
 {
+
 	error(249);
 	if (++sytxerr >= 5)
 		norecover();
 	return (0);
 }
+
+static inline int uq_gt(uint64_t, uint64_t);
+static inline int q_gt(int64_t, int64_t);
+
+static inline int
+uq_gt(uint64_t a, uint64_t b)
+{
+
+	return (a > b);
+}
+
+static inline int
+q_gt(int64_t a, int64_t b)
+{
+
+	return (a > b);
+}
+
+#define	q_lt(a, b)	q_gt(b, a)
 
 /*
  * Gets a node for a constant and returns the value of this constant
@@ -1586,8 +1671,7 @@ yyerror(msg)
  * expressions, it frees the memory used for the expression.
  */
 static int
-toicon(tn)
-	tnode_t	*tn;
+toicon(tnode_t *tn)
 {
 	int	i;
 	tspec_t	t;
@@ -1609,26 +1693,17 @@ toicon(tn)
 	} else {
 		i = (int)v->v_quad;
 		if (isutyp(t)) {
-			if ((u_quad_t)v->v_quad > INT_MAX) {
+			if (uq_gt((uint64_t)v->v_quad,
+				  (uint64_t)INT_MAX)) {
 				/* integral constant too large */
 				warning(56);
 			}
 		} else {
-#ifdef XXX_BROKEN_GCC
-			if (v->v_quad > INT_MAX) {
+			if (q_gt(v->v_quad, (int64_t)INT_MAX) ||
+			    q_lt(v->v_quad, (int64_t)INT_MIN)) {
 				/* integral constant too large */
 				warning(56);
 			}
-			else if (v->v_quad < INT_MIN) {
-				/* integral constant too large */
-				warning(56);
-			}
-#else
-			if (v->v_quad > INT_MAX || v->v_quad < INT_MIN) {
-				/* integral constant too large */
-				warning(56);
-			}
-#endif
 		}
 	}
 	free(v);
@@ -1636,25 +1711,46 @@ toicon(tn)
 }
 
 static void
-idecl(decl, initflg)
-	sym_t	*decl;
-	int	initflg;
+idecl(sym_t *decl, int initflg, sbuf_t *rename)
 {
+	char *s;
+
 	initerr = 0;
 	initsym = decl;
 
 	switch (dcs->d_ctx) {
 	case EXTERN:
+		if (rename != NULL) {
+			if (decl->s_rename != NULL)
+				lerror("idecl() 1");
+
+			s = getlblk(1, rename->sb_len + 1);
+	                (void)memcpy(s, rename->sb_name, rename->sb_len + 1);
+			decl->s_rename = s;
+			freeyyv(&rename, T_NAME);
+		}
 		decl1ext(decl, initflg);
 		break;
 	case ARG:
+		if (rename != NULL) {
+			/* symbol renaming can't be used on function arguments */
+			error(310);
+			freeyyv(&rename, T_NAME);
+			break;
+		}
 		(void)decl1arg(decl, initflg);
 		break;
 	case AUTO:
+		if (rename != NULL) {
+			/* symbol renaming can't be used on automatic variables */
+			error(311);
+			freeyyv(&rename, T_NAME);
+			break;
+		}
 		decl1loc(decl, initflg);
 		break;
 	default:
-		lerror("idecl()");
+		lerror("idecl() 2");
 	}
 
 	if (initflg && !initerr)
@@ -1665,8 +1761,8 @@ idecl(decl, initflg)
  * Discard all input tokens up to and including the next
  * unmatched right paren
  */
-void
-ignuptorp()
+static void
+ignuptorp(void)
 {
 	int	level;
 
