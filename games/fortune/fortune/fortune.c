@@ -49,8 +49,7 @@ static const char sccsid[] = "@(#)fortune.c   8.1 (Berkeley) 5/31/93";
 __FBSDID("$FreeBSD$");
 
 # include	<sys/stat.h>
-
-# include	<arpa/inet.h>
+# include	<sys/endian.h>
 
 # include	<dirent.h>
 # include	<fcntl.h>
@@ -74,7 +73,7 @@ __FBSDID("$FreeBSD$");
 # define	CPERS	20		/* # of chars for each sec */
 # define	SLEN	160		/* # of chars in short fortune */
 
-# define        POS_UNKNOWN     ((long) -1)     /* pos for file unknown */
+# define        POS_UNKNOWN     ((uint32_t) -1)	/* pos for file unknown */
 # define	NO_PROB		(-1)		/* no prob specified for file */
 
 # ifdef DEBUG
@@ -88,7 +87,7 @@ __FBSDID("$FreeBSD$");
 typedef struct fd {
 	int		percent;
 	int		fd, datfd;
-	long            pos;
+	uint32_t	pos;
 	FILE		*inf;
 	char		*name;
 	char		*path;
@@ -119,7 +118,7 @@ char	*Fortbuf = NULL;			/* fortune buffer for -m */
 
 int	Fort_len = 0;
 
-long    Seekpts[2];                     /* seek pointers to fortunes */
+off_t	Seekpts[2];                     /* seek pointers to fortunes */
 
 FILEDESC	*File_list = NULL,	/* Head of file list */
 		*File_tail = NULL;	/* Tail of file list */
@@ -230,7 +229,7 @@ FILEDESC	*fp;
 	char	line[BUFSIZ];
 
 	open_fp(fp);
-	(void) fseek(fp->inf, Seekpts[0], 0);
+	(void) fseeko(fp->inf, Seekpts[0], 0);
 	for (Fort_len = 0; fgets(line, sizeof line, fp->inf) != NULL &&
 	    !STR_ENDSTRING(line, fp->tbl); Fort_len++) {
 		if (fp->tbl.str_flags & STR_ROTATED)
@@ -265,7 +264,7 @@ fortlen()
 		nchar = (int)(Seekpts[1] - Seekpts[0]);
 	else {
 		open_fp(Fortfile);
-		(void) fseek(Fortfile->inf, Seekpts[0], 0);
+		(void) fseeko(Fortfile->inf, Seekpts[0], 0);
 		nchar = 0;
 		while (fgets(line, sizeof line, Fortfile->inf) != NULL &&
 		       !STR_ENDSTRING(line, Fortfile->tbl))
@@ -955,17 +954,17 @@ get_fort()
 		if (fp->next != NULL) {
 			sum_noprobs(fp);
 			choice = random() % Noprob_tbl.str_numstr;
-			DPRINTF(1, (stderr, "choice = %d (of %ld) \n", choice,
+			DPRINTF(1, (stderr, "choice = %d (of %u) \n", choice,
 				    Noprob_tbl.str_numstr));
 			while (choice >= fp->tbl.str_numstr) {
 				choice -= fp->tbl.str_numstr;
 				fp = fp->next;
 				DPRINTF(1, (stderr,
-					    "    skip \"%s\", %ld (choice = %d)\n",
+					    "    skip \"%s\", %u (choice = %d)\n",
 					    fp->name, fp->tbl.str_numstr,
 					    choice));
 			}
-			DPRINTF(1, (stderr, "using \"%s\", %ld\n", fp->name,
+			DPRINTF(1, (stderr, "using \"%s\", %u\n", fp->name,
 				    fp->tbl.str_numstr));
 		}
 		get_tbl(fp);
@@ -980,8 +979,8 @@ get_fort()
 	(void) lseek(fp->datfd,
 		     (off_t) (sizeof fp->tbl + fp->pos * sizeof Seekpts[0]), 0);
 	read(fp->datfd, Seekpts, sizeof Seekpts);
-	Seekpts[0] = ntohl(Seekpts[0]);
-	Seekpts[1] = ntohl(Seekpts[1]);
+	Seekpts[0] = be64toh(Seekpts[0]);
+	Seekpts[1] = be64toh(Seekpts[1]);
 }
 
 /*
@@ -1007,15 +1006,15 @@ FILEDESC	*parent;
 	else {
 		get_tbl(parent);
 		choice = random() % parent->tbl.str_numstr;
-		DPRINTF(1, (stderr, "    choice = %d (of %ld)\n",
+		DPRINTF(1, (stderr, "    choice = %d (of %u)\n",
 			    choice, parent->tbl.str_numstr));
 		for (fp = parent->child; choice >= fp->tbl.str_numstr;
 		     fp = fp->next) {
 			choice -= fp->tbl.str_numstr;
-			DPRINTF(1, (stderr, "\tskip %s, %ld (choice = %d)\n",
+			DPRINTF(1, (stderr, "\tskip %s, %u (choice = %d)\n",
 				    fp->name, fp->tbl.str_numstr, choice));
 		}
-		DPRINTF(1, (stderr, "    using %s, %ld\n", fp->name,
+		DPRINTF(1, (stderr, "    using %s, %u\n", fp->name,
 			    fp->tbl.str_numstr));
 		return fp;
 	}
@@ -1106,7 +1105,7 @@ FILEDESC	*fp;
 	}
 	if (++(fp->pos) >= fp->tbl.str_numstr)
 		fp->pos -= fp->tbl.str_numstr;
-	DPRINTF(1, (stderr, "pos for %s is %ld\n", fp->name, fp->pos));
+	DPRINTF(1, (stderr, "pos for %s is %ld\n", fp->name, (long)fp->pos));
 }
 
 /*
@@ -1132,11 +1131,11 @@ FILEDESC	*fp;
 			    "fortune: %s corrupted\n", fp->path);
 			exit(1);
 		}
-		/* fp->tbl.str_version = ntohl(fp->tbl.str_version); */
-		fp->tbl.str_numstr = ntohl(fp->tbl.str_numstr);
-		fp->tbl.str_longlen = ntohl(fp->tbl.str_longlen);
-		fp->tbl.str_shortlen = ntohl(fp->tbl.str_shortlen);
-		fp->tbl.str_flags = ntohl(fp->tbl.str_flags);
+		/* fp->tbl.str_version = be32toh(fp->tbl.str_version); */
+		fp->tbl.str_numstr = be32toh(fp->tbl.str_numstr);
+		fp->tbl.str_longlen = be32toh(fp->tbl.str_longlen);
+		fp->tbl.str_shortlen = be32toh(fp->tbl.str_shortlen);
+		fp->tbl.str_flags = be32toh(fp->tbl.str_flags);
 		(void) close(fd);
 	}
 	else {
@@ -1159,7 +1158,7 @@ STRFILE	*tp;
 {
 	tp->str_numstr = 0;
 	tp->str_longlen = 0;
-	tp->str_shortlen = ~((unsigned long)0);
+	tp->str_shortlen = ~0;
 }
 
 /*

@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
  */
 
 # include	<sys/param.h>
-# include	<arpa/inet.h>
+# include	<sys/endian.h>
 # include	<stdio.h>
 # include	<ctype.h>
 # include	<stdlib.h>
@@ -75,12 +75,10 @@ char	*Infile,			/* name of input file */
 
 FILE	*Inf, *Dataf;
 
-void getargs(), order_unstr();
+void getargs(char *[]), order_unstr(STRFILE *);
 
 /* ARGSUSED */
-int main(ac, av)
-int	ac;
-char	**av;
+int main(int ac, char **av)
 {
 	static STRFILE	tbl;		/* description table */
 
@@ -94,11 +92,11 @@ char	**av;
 		exit(1);
 	}
 	(void) fread((char *) &tbl, sizeof tbl, 1, Dataf);
-	tbl.str_version = ntohl(tbl.str_version);
-	tbl.str_numstr = ntohl(tbl.str_numstr);
-	tbl.str_longlen = ntohl(tbl.str_longlen);
-	tbl.str_shortlen = ntohl(tbl.str_shortlen);
-	tbl.str_flags = ntohl(tbl.str_flags);
+	tbl.str_version = be32toh(tbl.str_version);
+	tbl.str_numstr = be32toh(tbl.str_numstr);
+	tbl.str_longlen = be32toh(tbl.str_longlen);
+	tbl.str_shortlen = be32toh(tbl.str_shortlen);
+	tbl.str_flags = be32toh(tbl.str_flags);
 	if (!(tbl.str_flags & (STR_ORDERED | STR_RANDOM))) {
 		fprintf(stderr, "nothing to do -- table in file order\n");
 		exit(1);
@@ -125,14 +123,14 @@ char	*av[];
 void order_unstr(tbl)
 STRFILE	*tbl;
 {
-	int	i;
+	uint32_t i;
 	char	*sp;
-	long            pos;
-	char		buf[BUFSIZ];
+	off_t	pos;
+	char	buf[BUFSIZ];
 
 	for (i = 0; i < tbl->str_numstr; i++) {
-		(void) fread((char *) &pos, 1, sizeof pos, Dataf);
-		(void) fseek(Inf, ntohl(pos), 0);
+		(void) fread(&pos, 1, sizeof pos, Dataf);
+		(void) fseeko(Inf, be64toh(pos), 0);
 		if (i != 0)
 			(void) printf("%c\n", Delimch);
 		for (;;) {
