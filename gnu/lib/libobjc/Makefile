@@ -37,6 +37,6 @@ runtime-info.h:
 	    < /dev/null > ${.TARGET}
 
 tconfig.h: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
-	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} ${.TARGET}
+	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
 
 .include <bsd.lib.mk>
