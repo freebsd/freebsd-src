@@ -1158,6 +1158,53 @@ return (NULL);
 }
 
 /*
+ * setup done on the thread when it enters the kernel.
+ * XXXKSE Presently only for syscalls but eventually all kernel entries.
+ */
+void
+thread_user_enter(struct proc *p, struct thread *td)
+{
+	struct kse *ke;
+
+	/*
+	 * First check that we shouldn't just abort.
+	 * But check if we are the single thread first!
+	 * XXX p_singlethread not locked, but should be safe.
+	 */
+	if ((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) {
+		PROC_LOCK(p);
+		mtx_lock_spin(&sched_lock);
+		thread_exit();
+		/* NOTREACHED */
+	}
+
+	/*
+	 * If we are doing a syscall in a KSE environment,
+	 * note where our mailbox is. There is always the
+	 * possibility that we could do this lazily (in sleep()),
+	 * but for now do it every time.
+	 */
+	if ((ke = td->td_kse->ke_mailbox)) {
+#if 0
+		td->td_mailbox = (void *)fuword((caddr_t)ke->ke_mailbox
+		    + offsetof(struct kse_mailbox, km_curthread));
+#else /* if user pointer arithmetic is ok in the kernel */
+		td->td_mailbox =
+		    (void *)fuword( (void *)&ke->ke_mailbox->km_curthread);
+#endif
+		if ((td->td_mailbox == NULL) ||
+		    (td->td_mailbox == (void *)-1)) {
+			td->td_mailbox = NULL;	/* single thread it.. */
+			td->td_flags &= ~TDF_UNBOUND;
+		} else {
+			if (td->td_standin == NULL)
+				td->td_standin = thread_alloc();
+			td->td_flags |= TDF_UNBOUND;
+		}
+	}
+}
+
+/*
  * The extra work we go through if we are a threaded process when we
  * return to userland.
  *

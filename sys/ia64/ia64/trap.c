@@ -808,24 +808,8 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 		framep->tf_cr_iip += 16;
 	}
 			   
-	if (p->p_flag & P_KSES) {
-		/*
-		 * If we are doing a syscall in a KSE environment,
-		 * note where our mailbox is. There is always the
-		 * possibility that we could do this lazily (in sleep()),
-		 * but for now do it every time.
-		 */
-		td->td_mailbox = (void *)fuword((caddr_t)td->td_kse->ke_mailbox
-		   + offsetof(struct kse_mailbox, km_curthread));
-		if ((td->td_mailbox == NULL) ||
-		   (td->td_mailbox == (void *)-1)) {
-			td->td_mailbox = NULL;  /* single thread it.. */
-			td->td_flags &= ~TDF_UNBOUND;
-		} else {
-			td->td_flags |= TDF_UNBOUND;
-		}
-	}
-
+	if (p->p_flag & P_KSES)
+		thread_user_enter(p, td);
 #ifdef DIAGNOSTIC
 	ia64_fpstate_check(td);
 #endif
