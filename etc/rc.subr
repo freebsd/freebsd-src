@@ -194,7 +194,7 @@ check_pidfile()
 		err 3 'USAGE: check_pidfile pidfile procname [interpreter]'
 	fi
 	if [ ! -f $_pidfile ]; then
-		debug "pid file {$_pidfile): not readable."
+		debug "pid file ($_pidfile): not readable."
 		return
 	fi
 	read _pid _junk < $_pidfile
