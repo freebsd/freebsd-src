@@ -958,7 +958,6 @@ dorescan_or_reset(int argc, char **argv, int rescan)
 		"you must specify a bus, or a bus:target:lun to %s";
 	int rv, error = 0;
 	int bus = -1, target = -1, lun = -1;
-	char *tstr, *tmpstr = NULL;
 
 	if (argc < 3) {
 		warnx(must, rescan? "rescan" : "reset");
@@ -2031,7 +2030,6 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 
 		if (cts->sync_offset != 0) {
 			u_int freq;
-			u_int speed;
 
 			freq = scsi_calc_syncsrate(cts->sync_period);
 			fprintf(stdout, "%sfrequencey: %d.%03dMHz\n", pathstr,
@@ -2153,6 +2151,9 @@ cpi_print(struct ccb_pathinq *cpi)
 		case PI_SOFT_RST:
 			str = "soft reset alternative";
 			break;
+		default:
+			str = "unknown PI bit set";
+			break;
 		}
 		fprintf(stdout, "%s\n", str);
 	}
@@ -2178,6 +2179,9 @@ cpi_print(struct ccb_pathinq *cpi)
 		case PIM_NOBUSRESET:
 			str = "user has disabled initial BUS RESET or"
 			      " controller is in target/mixed mode";
+			break;
+		default:
+			str = "unknown PIM bit set";
 			break;
 		}
 		fprintf(stdout, "%s\n", str);
@@ -2208,6 +2212,9 @@ cpi_print(struct ccb_pathinq *cpi)
 			break;
 		case PIT_GRP_7:
 			str = "group 7 commands in target mode";
+			break;
+		default:
+			str = "unknown PIT bit set";
 			break;
 		}
 
@@ -2459,11 +2466,8 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 			ccb->cts.valid &= ~CCB_TRANS_SYNC_OFFSET_VALID;
 
 		if (syncrate != -1) {
-			int num_syncrates;
 			int prelim_sync_period;
-			int period_factor_set = 0;
 			u_int freq;
-			int i;
 
 			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
 				warnx("HBA at %s%d is not cable of changing "
