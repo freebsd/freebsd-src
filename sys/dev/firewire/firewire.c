@@ -338,15 +338,27 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 	splx(s);
 }
 
+#define WATCHDOC_HZ 10
 static void
 firewire_watchdog(void *arg)
 {
 	struct firewire_comm *fc;
+	static int watchdoc_clock = 0;
 
 	fc = (struct firewire_comm *)arg;
-	firewire_xfer_timeout(fc);
-	fc->timeout(fc);
-	callout_reset(&fc->timeout_callout, hz / 10,
+
+	/*
+	 * At boot stage, the device interrupt is disabled and
+	 * We encounter a timeout easily. To avoid this,
+	 * ignore clock interrupt for a while.
+	 */
+	if (watchdoc_clock > WATCHDOC_HZ * 15) {
+		firewire_xfer_timeout(fc);
+		fc->timeout(fc);
+	} else
+		watchdoc_clock ++;
+
+	callout_reset(&fc->timeout_callout, hz / WATCHDOC_HZ,
 			(void *)firewire_watchdog, (void *)fc);
 }
 
