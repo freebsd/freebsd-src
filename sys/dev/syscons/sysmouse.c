@@ -92,12 +92,12 @@ smopen(dev_t dev, int flag, int mode, struct thread *td)
 		tp->t_lflag = TTYDEF_LFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 		smparam(tp, &tp->t_termios);
-		(*linesw[tp->t_line].l_modem)(tp, 1);
+		ttyld_modem(tp, 1);
 	} else if (tp->t_state & TS_XCLUDE && suser(td)) {
 		return EBUSY;
 	}
 
-	return (*linesw[tp->t_line].l_open)(dev, tp);
+	return ttyld_open(tp, dev);
 }
 
 static int
@@ -109,7 +109,7 @@ smclose(dev_t dev, int flag, int mode, struct thread *td)
 	tp = dev->si_tty;
 	s = spltty();
 	mouse_level = 0;
-	(*linesw[tp->t_line].l_close)(tp, flag);
+	ttyld_close(tp, flag);
 	ttyclose(tp);
 	splx(s);
 
@@ -306,7 +306,7 @@ sysmouse_event(mouse_info_t *info)
 	buf[2] = y >> 1;
 	buf[4] = y - buf[2];
 	for (i = 0; i < MOUSE_MSC_PACKETSIZE; ++i)
-		(*linesw[sysmouse_tty->t_line].l_rint)(buf[i], sysmouse_tty);
+		ttyld_rint(sysmouse_tty, buf[i]);
 	if (mouse_level >= 1) {
 		/* extended part */
         	z = imax(imin(z, 127), -128);

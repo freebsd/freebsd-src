@@ -124,7 +124,7 @@ promopen(dev, flag, mode, td)
 
 	splx(s);
 
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 
 	if (error == 0 && setuptimeout) {
 		polltime = hz / PROM_POLL_HZ;
@@ -148,7 +148,7 @@ promclose(dev, flag, mode, td)
 		return ENXIO;
 
 	untimeout(promtimeout, tp, promtimeouthandle);
-	(*linesw[tp->t_line].l_close)(tp, flag);
+	ttyld_close(tp, flag);
 	ttyclose(tp);
 	return 0;
 }
@@ -211,7 +211,7 @@ promtimeout(v)
 
 	while ((c = promcncheckc(NULL)) != -1) {
 		if (tp->t_state & TS_ISOPEN)
-			(*linesw[tp->t_line].l_rint)(c, tp);
+			ttyld_rint(tp, c);
 	}
 	promtimeouthandle = timeout(promtimeout, tp, polltime);
 }

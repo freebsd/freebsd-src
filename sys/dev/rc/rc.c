@@ -738,7 +738,7 @@ rc_pollcard(void *arg)
 				rc->rc_flags &= ~RC_MODCHG;
 				sc->sc_scheduled_event -= LOTS_OF_EVENTS;
 				critical_exit();
-				(*linesw[tp->t_line].l_modem)(tp, !!(rc->rc_msvr & MSVR_CD));
+				ttyld_modem(tp, !!(rc->rc_msvr & MSVR_CD));
 			}
 			if (rc->rc_flags & RC_DORXFER) {
 				critical_enter();
@@ -810,7 +810,7 @@ done1: ;
 				rc->rc_flags &= ~RC_DOXXFER;
 				rc->rc_tp.t_state &= ~TS_BUSY;
 				critical_exit();
-				(*linesw[tp->t_line].l_start)(tp);
+				ttyld_start(tp);
 			}
 			if (sc->sc_scheduled_event == 0)
 				break;
@@ -920,7 +920,7 @@ again:
 		(void) rc_modctl(rc, TIOCM_RTS|TIOCM_DTR, DMSET);
 
 		if ((rc->rc_msvr & MSVR_CD) || CALLOUT(dev))
-			(*linesw[tp->t_line].l_modem)(tp, 1);
+			ttyld_modem(tp, 1);
 	}
 	if (!(tp->t_state & TS_CARR_ON) && !CALLOUT(dev)
 	    && !(tp->t_cflag & CLOCAL) && !(flag & O_NONBLOCK)) {
@@ -931,7 +931,7 @@ again:
 			goto out;
 		goto again;
 	}
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 	disc_optim(tp, &tp->t_termios, rc);
 	if ((tp->t_state & TS_ISOPEN) && CALLOUT(dev))
 		rc->rc_flags |= RC_ACTOUT;
@@ -960,7 +960,7 @@ rcclose(dev_t dev, int flag, int mode, d_thread_t *td)
 	    rc->rc_chan, dev);
 #endif
 	s = spltty();
-	(*linesw[tp->t_line].l_close)(tp, flag);
+	ttyld_close(tp, flag);
 	disc_optim(tp, &tp->t_termios, rc);
 	rc_hardclose(rc);
 	ttyclose(tp);

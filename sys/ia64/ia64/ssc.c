@@ -164,7 +164,7 @@ sscopen(dev_t dev, int flag, int mode, struct thread *td)
 
 	splx(s);
 
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 
 	if (error == 0 && setuptimeout) {
 		polltime = hz / SSC_POLL_HZ;
@@ -185,7 +185,7 @@ sscclose(dev_t dev, int flag, int mode, struct thread *td)
 		return ENXIO;
 
 	untimeout(ssctimeout, tp, ssctimeouthandle);
-	(*linesw[tp->t_line].l_close)(tp, flag);
+	ttyld_close(tp, flag);
 	ttyclose(tp);
 	return 0;
 }
@@ -242,7 +242,7 @@ ssctimeout(void *v)
 
 	while ((c = ssccncheckc(NULL)) != -1) {
 		if (tp->t_state & TS_ISOPEN)
-			(*linesw[tp->t_line].l_rint)(c, tp);
+			ttyld_rint(tp, c);
 	}
 	ssctimeouthandle = timeout(ssctimeout, tp, polltime);
 }

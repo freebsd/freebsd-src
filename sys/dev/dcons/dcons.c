@@ -192,7 +192,7 @@ dcons_open(dev_t dev, int flag, int mode, struct THREAD *td)
 	}
 	splx(s);
 
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 
 	return (error);
 }
@@ -209,7 +209,7 @@ dcons_close(dev_t dev, int flag, int mode, struct THREAD *td)
 
 	tp = dev->si_tty;
 	if (tp->t_state & TS_ISOPEN) {
-		(*linesw[tp->t_line].l_close)(tp, flag);
+		ttyld_close(tp, flag);
 		ttyclose(tp);
 	}
 
@@ -259,7 +259,7 @@ dcons_timeout(void *v)
 		tp = dc->dev->si_tty;
 		while ((c = dcons_checkc(dc)) != -1)
 			if (tp->t_state & TS_ISOPEN)
-				(*linesw[tp->t_line].l_rint)(c, tp);
+				ttyld_rint(tp, c);
 	}
 	polltime = hz / poll_hz;
 	if (polltime < 1)
@@ -560,7 +560,7 @@ dcons_detach(int port)
 
 	if (tp->t_state & TS_ISOPEN) {
 		printf("dcons: still opened\n");
-		(*linesw[tp->t_line].l_close)(tp, 0);
+		ttyld_close(tp, 0);
 		ttyclose(tp);
 	}
 	/* XXX

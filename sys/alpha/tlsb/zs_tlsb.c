@@ -291,7 +291,7 @@ zsopen(dev_t dev, int flag, int mode, struct thread *td)
 
 	splx(s);
 
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 
 	if (error == 0 && setuptimeout) {
 		zspolltime = hz / 50;
@@ -318,7 +318,7 @@ zsclose(dev_t dev, int flag, int mode, struct thread *td)
 
 	s = spltty();
 	untimeout(zs_poll_intr, sc, sc->zst);
-	(*linesw[tp->t_line].l_close)(tp, flag);
+	ttyld_close(tp, flag);
 	ttyclose(tp);
 	splx(s);
 
@@ -502,7 +502,7 @@ zsc_tlsb_intr(void *arg)
 				Debugger("manual escape to debugger");
 #endif
 			if (tp && (tp->t_state & TS_ISOPEN))
-				(*linesw[tp->t_line].l_rint)(c, tp);
+				ttyld_rint(tp, c);
 			DELAY(5);
 		}
 	}
@@ -517,7 +517,7 @@ zsc_tlsb_intr(void *arg)
 				Debugger("manual escape to debugger");
 #endif
 			if (tp && (tp->t_state & TS_ISOPEN))
-				(*linesw[tp->t_line].l_rint)(c, tp);
+				ttyld_rint(tp, c);
 			DELAY(5);
 		}
 	}

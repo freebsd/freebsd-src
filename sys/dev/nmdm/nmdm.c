@@ -154,12 +154,12 @@ nmdm_task_tty(void *arg, int pending __unused)
 	if (sp->other->dcd) {
 		if (!(tp->t_state & TS_ISOPEN)) {
 			sp->other->dcd = 0;
-			(void)(*linesw[otp->t_line].l_modem)(otp, 0);
+			(void)ttyld_modem(otp, 0);
 		}
 	} else {
 		if (tp->t_state & TS_ISOPEN) {
 			sp->other->dcd = 1;
-			(void)(*linesw[otp->t_line].l_modem)(otp, 1);
+			(void)ttyld_modem(otp, 1);
 		}
 	}
 	if (tp->t_state & TS_TTSTOP)
@@ -169,7 +169,7 @@ nmdm_task_tty(void *arg, int pending __unused)
 			return;
 		c = getc(&tp->t_outq);
 		if (otp->t_state & TS_ISOPEN)
-			(*linesw[otp->t_line].l_rint)(c, otp);
+			ttyld_rint(otp, c);
 	}
 	if (tp->t_outq.c_cc == 0)
 		ttwwakeup(tp);
@@ -255,7 +255,7 @@ nmdmopen(dev_t dev, int flag, int devtype, struct thread *td)
 		return (EBUSY);
 	}
 
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 	return (error);
 }
 
