@@ -80,8 +80,7 @@ depend: beforedepend ${DEPENDFILE} afterdepend _SUBDIR
 
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
-${DEPENDFILE}: _MKDEP
-_MKDEP: ${SRCS}
+${DEPENDFILE}: ${SRCS}
 	rm -f ${DEPENDFILE}
 .if ${SRCS:M*.[sS]} != ""
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
@@ -107,8 +106,8 @@ _MKDEP: ${SRCS}
 	    ${.ALLSRC:M*.m}
 .endif
 .if target(_EXTRADEPEND)
+_EXTRADEPEND: .USE
 ${DEPENDFILE}: _EXTRADEPEND
-.ORDER: _MKDEP _EXTRADEPEND
 .endif
 
 .ORDER: ${DEPENDFILE} afterdepend
