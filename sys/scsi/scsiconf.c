@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.30 1995/05/30 08:13:45 rgrimes Exp $
+ *      $Id: scsiconf.c,v 1.31 1995/06/14 12:28:32 amurai Exp $
  */
 
 #include <sys/types.h>
@@ -475,9 +475,9 @@ scsi_init(void)
 		 * specified in config:
 		 */
 		for (i = 0; scsi_cinit[i].driver; i++)
-			if (IS_SPECIFIED(scsi_cinit[i].unit) &&
-			  free_bus <= scsi_cinit[i].unit)
-				free_bus = scsi_cinit[i].unit + 1;
+			if (IS_SPECIFIED(scsi_cinit[i].scbus) &&
+			  free_bus <= scsi_cinit[i].scbus)
+				free_bus = scsi_cinit[i].scbus + 1;
 
 		/* Lowest free unit for each type for auto-configure is one
 		 * more than the first one not specified in the config file:
@@ -516,22 +516,42 @@ scsi_bus_conf(sc_link_proto)
 
 	bus = SCCONF_UNSPEC;
 	for (i = 0; scsi_cinit[i].driver; i++) {
-		if (IS_SPECIFIED(scsi_cinit[i].unit))
+		if (IS_SPECIFIED(scsi_cinit[i].scbus))
 		{
-			if (!strcmp(sc_link_proto->adapter->name, scsi_cinit[i].driver) &&
-			(sc_link_proto->adapter_unit == scsi_cinit[i].unit) )
+			if (!strcmp(sc_link_proto->adapter->name, scsi_cinit[i].driver)
+			  &&(sc_link_proto->adapter_unit == scsi_cinit[i].unit))
 			{
-				bus = scsi_cinit[i].bus;
-				if (bootverbose)
-					printf("Choosing drivers for scbus configured at %d\n",
-					bus);
-				break;
+			  if (IS_SPECIFIED(scsi_cinit[i].bus)) {
+			     if (sc_link_proto->adapter_bus==scsi_cinit[i].bus){
+				bus = scsi_cinit[i].scbus;
+			   	break;
+			     }
+			  }
+			  else if (sc_link_proto->adapter_bus == 0) {
+			     /* Backwards compatibility for single bus cards */
+			     bus = scsi_cinit[i].scbus;
+			     break;
+			  }
+			  else {
+			     printf("Ambiguous scbus configuration for %s%d "
+				    "bus %d, cannot wire down.  The kernel "
+				    "config entry for scbus%d should specify "
+				    "a controller bus.\n"
+				    "Scbus will be assigned dynamically.\n",
+				    sc_link_proto->adapter->name,
+				    sc_link_proto->adapter_unit,
+				    sc_link_proto->adapter_bus);
+			     break;
+			  }
 			}
 		}
 	}
 
+			
 	if (bus == SCCONF_UNSPEC)
 		bus = free_bus++;
+	else if (bootverbose)
+		printf("Choosing drivers for scbus configured at %d\n", bus);
 
 	return bus;
 }

@@ -54,6 +54,7 @@ struct kt {
 	{ "at",		AT },
 #if MACHINE_I386
 	{ "bio",	BIO },
+	{ "bus",	BUS },
 	{ "conflicts",	CONFLICTS },
 #endif MACHINE_I386
 	{ "config",	CONFIG },
