@@ -108,7 +108,7 @@ g_confdot(void)
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
 	sbuf_printf(sb, "digraph geom {\n");
-	LIST_FOREACH(mp, &g_classs, class)
+	LIST_FOREACH(mp, &g_classes, class)
 		g_confdot_class(sb, mp);
 	sbuf_printf(sb, "};\n");
 	sbuf_finish(sb);
@@ -208,7 +208,7 @@ g_conf_specific(struct g_class *mp, struct g_geom *gp, struct g_provider *pp, st
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
 	sbuf_printf(sb, "<mesh>\n");
-	LIST_FOREACH(mp2, &g_classs, class) {
+	LIST_FOREACH(mp2, &g_classes, class) {
 		if (mp != NULL && mp != mp2)
 			continue;
 		g_conf_class(sb, mp2, gp, pp, cp);

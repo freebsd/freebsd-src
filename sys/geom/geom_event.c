@@ -155,7 +155,7 @@ g_do_event(struct g_event *ep)
 		mp2 = ep->class;
 		if (mp2->taste == NULL)
 			break;
-		LIST_FOREACH(mp, &g_classs, class) {
+		LIST_FOREACH(mp, &g_classes, class) {
 			if (mp2 == mp)
 				continue;
 			LIST_FOREACH(gp, &mp->geom, geom) {
@@ -169,7 +169,7 @@ g_do_event(struct g_event *ep)
 	case EV_NEW_PROVIDER:
 		g_trace(G_T_TOPOLOGY, "EV_NEW_PROVIDER(%s)",
 		    ep->provider->name);
-		LIST_FOREACH(mp, &g_classs, class) {
+		LIST_FOREACH(mp, &g_classes, class) {
 			if (mp->taste == NULL)
 				continue;
 			i = 1;
