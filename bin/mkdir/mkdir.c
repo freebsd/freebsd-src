@@ -123,7 +123,7 @@ build(path)
 	char *p;
 
 	p = path;
-        oumask = (mode_t)NULL;
+	oumask = 0;
 	if (p[0] == '/')		/* Skip leading '/'. */
 		++p;
 	for (first = 1;; ++p) {
