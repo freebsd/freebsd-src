@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.31 2003/04/25 08:01:37 grog Exp $
+ * $Id: vinumext.h,v 1.33 2003/05/23 00:57:48 grog Exp $
  * $FreeBSD$
  */
 
@@ -42,6 +42,7 @@
 /* *sigh* We still need this at the moment. */
 #ifdef _KERNEL
 extern struct _vinum_conf vinum_conf;			    /* configuration information */
+extern struct mtx plexmutex[];				    /* mutexes for plexes to use */
 #else
 extern struct __vinum_conf vinum_conf;			    /* configuration information */
 #endif
@@ -102,7 +103,7 @@ void config_drive(int);
 void updateconfig(int);
 void update_sd_config(int sdno, int kernelstate);
 void update_plex_config(int plexno, int kernelstate);
-void update_volume_config(int volno, int kernelstate);
+void update_volume_config(int volno);
 void update_config(void);
 void drive_io_done(struct buf *);
 void save_config(void);
@@ -159,7 +160,11 @@ void LongJmp(jmp_buf, int);
 char *basename(char *);
 #endif
 
+#ifdef VINUMDEBUG
+void expand_table(void **, int, int, char *, int);
+#else
 void expand_table(void **, int, int);
+#endif
 
 struct disklabel;
 struct request;
