@@ -677,7 +677,10 @@ __sccl(tab, fmt)
 		c = *fmt++;	/* get new first char */
 	} else
 		v = 0;		/* default => reject */
+
+	/* XXX: Will not work if sizeof(tab*) > sizeof(char) */
 	(void) memset(tab, v, 256);
+
 	if (c == 0)
 		return (fmt - 1);/* format ended before closing ] */
 
