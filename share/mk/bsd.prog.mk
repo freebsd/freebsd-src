@@ -77,7 +77,6 @@ all: objwarn ${PROG} ${SCRIPTS} ${FILES}
 .if !defined(NOMAN)
 all: all-man 
 .endif
-all: _SUBDIR
 
 CLEANFILES+= ${PROG} ${OBJS}
 
@@ -105,6 +104,8 @@ _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
 realinstall: beforeinstall
+realinstall: _proginstall
+_proginstall:
 .if defined(PROG)
 .if defined(PROGNAME)
 	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
@@ -118,6 +119,8 @@ realinstall: beforeinstall
 	(cd ${DESTDIR}${ORIGBINDIR}; ln -fs dm ${PROG}; \
 	    chown -h ${BINOWN}:${ORIGBINGRP} ${PROG})
 .endif
+
+realinstall:
 .if defined(LINKS) && !empty(LINKS)
 	@set ${LINKS}; \
 	while test $$# -ge 2; do \
@@ -195,24 +198,23 @@ _FILESINS_${file:T}: ${file}
 .endfor
 .endif
 
-install: afterinstall _SUBDIR
-.if !defined(NOMAN)
-afterinstall: realinstall maninstall
-.else
+install: afterinstall
 afterinstall: realinstall
+.if !defined(NOMAN)
+afterinstall: maninstall
 .endif
 .endif
 
 DISTRIBUTION?=	bin
 .if !target(distribute)
-distribute: _SUBDIR
+distribute:
 .for dist in ${DISTRIBUTION}
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
 .endfor
 .endif
 
 .if !target(lint)
-lint: ${SRCS} _SUBDIR
+lint: ${SRCS}
 .if defined(PROG)
 	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC} | more 2>&1
 .endif
@@ -223,7 +225,7 @@ tags:
 .endif
 
 .if !target(tags)
-tags: ${SRCS} _SUBDIR
+tags: ${SRCS}
 .if defined(PROG)
 	@cd ${.CURDIR} && gtags ${GTAGSFLAGS} ${.OBJDIR}
 .if defined(HTML)
@@ -234,17 +236,6 @@ tags: ${SRCS} _SUBDIR
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
-.else
-.if !target(all-man)
-all-man:
-.endif
-.if !target(maninstall)
-maninstall:
-.endif
-.endif
-
-.if !target(regress)
-regress:
 .endif
 
 .if ${OBJFORMAT} != aout || make(checkdpadd) || defined(NEED_LIBNAMES)

@@ -3,11 +3,6 @@
 # The include file <bsd.obj.mk> handles creating the 'obj' directory
 # and cleaning up object files, etc.
 #
-# Under construction: it also contains the _SUBDIR target (which is used
-# by most `mk' files to recurse into subdirectories) and defaults for the
-# cleandepend, depend and tags targets.  It may eventually be merged with
-# with bsd.subdir.mk.
-#
 # +++ variables +++
 #
 # CLEANDIRS	Additional directories to remove for the clean target.
@@ -81,11 +76,8 @@ objwarn:
 .endif
 .endif
 
-.if !target(obj)
-.if defined(NOOBJ)
+.if !target(obj) && !defined(NOOBJ)
 obj:
-.else
-obj:	_SUBDIR
 	@if ! test -d ${CANONICALOBJDIR}/; then \
 		mkdir -p ${CANONICALOBJDIR}; \
 		if ! test -d ${CANONICALOBJDIR}/; then \
@@ -95,10 +87,9 @@ obj:	_SUBDIR
 		${ECHO} "${CANONICALOBJDIR} created for ${.CURDIR}"; \
 	fi
 .endif
-.endif
 
 .if !target(objlink)
-objlink: _SUBDIR
+objlink:
 	@if test -d ${CANONICALOBJDIR}/; then \
 		rm -f ${.CURDIR}/obj; \
 		ln -s ${CANONICALOBJDIR} ${.CURDIR}/obj; \
@@ -124,7 +115,7 @@ cleanobj:
 	@if [ -h ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
 
 .if !target(clean)
-clean: _SUBDIR
+clean:
 .if defined(CLEANFILES) && !empty(CLEANFILES)
 	rm -f ${CLEANFILES} 
 .endif
@@ -134,7 +125,7 @@ clean: _SUBDIR
 .endif
 
 .if !target(checkdpadd)
-checkdpadd: _SUBDIR
+checkdpadd:
 .if (defined(DPADD) || defined(LDADD))
 checkdpadd:
 .if ${OBJFORMAT} != aout
@@ -158,29 +149,8 @@ checkdpadd:
 .endif
 .endif
 
-cleandir: cleanobj _SUBDIR
+cleandir: cleanobj
 
-.for __target in cleandepend depend tags
-.if !target(${__target})
-${__target}: _SUBDIR
-.endif
-.endfor
-
-_SUBDIR: .USE
-.if defined(SUBDIR) && !empty(SUBDIR)
-	@for entry in ${SUBDIR}; do \
-		if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
-			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH}"; \
-			edir=$${entry}.${MACHINE_ARCH}; \
-			cd ${.CURDIR}/$${edir}; \
-		else \
-			${ECHODIR} "===> ${DIRPRFX}$$entry"; \
-			edir=$${entry}; \
-			cd ${.CURDIR}/$${edir}; \
-		fi; \
-		${MAKE} ${.TARGET:realinstall=install} \
-		    DIRPRFX=${DIRPRFX}$$edir/; \
-	done
-.endif
+.include <bsd.subdir.mk>
 
 .endif !target(__<bsd.obj.mk>__)

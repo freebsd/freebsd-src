@@ -79,7 +79,7 @@ ${_YC}: ${_YSRC}
 
 .if !target(depend)
 .if defined(SRCS)
-depend: beforedepend ${DEPENDFILE} afterdepend _SUBDIR
+depend: beforedepend ${DEPENDFILE} afterdepend
 
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
@@ -115,7 +115,7 @@ ${DEPENDFILE}: _EXTRADEPEND
 
 .ORDER: ${DEPENDFILE} afterdepend
 .else
-depend: beforedepend afterdepend _SUBDIR
+depend: beforedepend afterdepend
 .endif
 .if !target(beforedepend)
 beforedepend:
@@ -133,7 +133,7 @@ tags:
 .endif
 
 .if !target(tags)
-tags: ${SRCS} _SUBDIR
+tags: ${SRCS}
 	@cd ${.CURDIR} && gtags ${GTAGSFLAGS} ${.OBJDIR}
 .if defined(HTML)
 	@cd ${.CURDIR} && htags ${HTAGSFLAGS} -d ${.OBJDIR} ${.OBJDIR}
@@ -141,7 +141,7 @@ tags: ${SRCS} _SUBDIR
 .endif
 
 .if !target(cleandepend)
-cleandepend: _SUBDIR
+cleandepend:
 .if defined(SRCS)
 	rm -f ${DEPENDFILE} ${.OBJDIR}/GPATH ${.OBJDIR}/GRTAGS \
 		${.OBJDIR}/GSYMS ${.OBJDIR}/GTAGS
