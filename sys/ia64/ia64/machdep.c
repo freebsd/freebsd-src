@@ -777,6 +777,13 @@ ia64_init(void)
 	/* NOTREACHED */
 }
 
+uint64_t
+ia64_get_hcdp(void)
+{
+
+	return (bootinfo.bi_hcdp);
+}
+
 void
 bzero(void *buf, size_t len)
 {

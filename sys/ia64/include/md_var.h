@@ -78,6 +78,7 @@ int	do_ast(struct trapframe *);
 void	ia32_trap(int, struct trapframe *);
 int	ia64_count_cpus(void);
 void	ia64_flush_dirty(struct thread *, struct _special *);
+uint64_t ia64_get_hcdp(void);
 int	ia64_highfp_drop(struct thread *);
 int	ia64_highfp_save(struct thread *);
 void	ia64_init(void);
