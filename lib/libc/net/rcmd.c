@@ -61,8 +61,8 @@ extern int innetgr __P(( const char *, const char *, const char *, const char * 
 
 #define max(a, b)	((a > b) ? a : b)
 
-int	__ivaliduser __P((FILE *, u_long, const char *, const char *));
-static int __icheckhost __P((u_long, char *));
+int	__ivaliduser __P((FILE *, u_int32_t, const char *, const char *));
+static int __icheckhost __P((u_int32_t, char *));
 
 int
 rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
@@ -271,7 +271,7 @@ ruserok(rhost, superuser, ruser, luser)
 	int superuser;
 {
 	struct hostent *hp;
-	u_long addr;
+	u_int32_t addr;
 	char **ap;
 
 	if ((hp = gethostbyname(rhost)) == NULL)
@@ -295,7 +295,7 @@ ruserok(rhost, superuser, ruser, luser)
  */
 int
 iruserok(raddr, superuser, ruser, luser)
-	u_long raddr;
+	unsigned long raddr;
 	int superuser;
 	const char *ruser, *luser;
 {
@@ -311,7 +311,7 @@ iruserok(raddr, superuser, ruser, luser)
 	hostf = superuser ? NULL : fopen(_PATH_HEQUIV, "r");
 again:
 	if (hostf) {
-		if (__ivaliduser(hostf, raddr, luser, ruser) == 0) {
+		if (__ivaliduser(hostf, (u_int32_t)raddr, luser, ruser) == 0) {
 			(void)fclose(hostf);
 			return (0);
 		}
@@ -371,7 +371,7 @@ again:
 int
 __ivaliduser(hostf, raddr, luser, ruser)
 	FILE *hostf;
-	u_long raddr;
+	u_int32_t raddr;
 	const char *luser, *ruser;
 {
 	register char *user, *p;
@@ -390,7 +390,7 @@ __ivaliduser(hostf, raddr, luser, ruser)
 #define	ypdomain NULL
 #endif
 	/* We need to get the damn hostname back for netgroup matching. */
-	if ((hp = gethostbyaddr((char *)&raddr, sizeof(u_long),
+	if ((hp = gethostbyaddr((char *)&raddr, sizeof(u_int32_t),
 							AF_INET)) == NULL)
 		return (-1);
 	strncpy(hname, hp->h_name, sizeof(hname));
@@ -493,15 +493,15 @@ __ivaliduser(hostf, raddr, luser, ruser)
  */
 static int
 __icheckhost(raddr, lhost)
-	u_long raddr;
+	u_int32_t raddr;
 	register char *lhost;
 {
 	register struct hostent *hp;
-	register u_long laddr;
+	register u_int32_t laddr;
 	register char **pp;
 
 	/* Try for raw ip address first. */
-	if (isdigit(*lhost) && (long)(laddr = inet_addr(lhost)) != -1)
+	if (isdigit(*lhost) && (u_int32_t)(laddr = inet_addr(lhost)) != -1)
 		return (raddr == laddr);
 
 	/* Better be a hostname. */
@@ -510,7 +510,7 @@ __icheckhost(raddr, lhost)
 
 	/* Spin through ip addresses. */
 	for (pp = hp->h_addr_list; *pp; ++pp)
-		if (!bcmp(&raddr, *pp, sizeof(u_long)))
+		if (!bcmp(&raddr, *pp, sizeof(u_int32_t)))
 			return (1);
 
 	/* No match. */
