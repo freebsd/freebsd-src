@@ -32,7 +32,7 @@
 #
 # NOTE for iso-* (latin1) fonts: use TERM=cons25-iso8859-1
 #
-# $Id$
+# $Id: spkrtest.pl,v 1.5 1997/02/22 16:13:37 peter Exp $
 
 $title = qq{
 reveille   -- Reveille
@@ -93,7 +93,8 @@ foreach (sort keys %title) {
     push(@checklist, ($_, $title{$_}, 'OFF'));
 }
 
-$tmp = ($ENV{'TMP'} || "/tmp") . "/_spkrtest$$";
+srand; 
+$tmp = ($ENV{'TMP'} || "/tmp") . "/_spkrtest" . rand(9999);
 
 if (!open(SPEAKER, "> $speaker")) {
     warn "You have no write access to $speaker or the speaker device is not " .
