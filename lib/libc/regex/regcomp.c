@@ -1891,6 +1891,10 @@ int mccs;
 							OP(s) != OOR2)
 					return -1;
 			} while (OP(s) != O_QUEST && OP(s) != O_CH);
+			/* We must skip to the next position, or we'll
+			 * leave altoffset() too early.
+			 */
+			scan++;
 			break;
 		case OANYOF:
 			if (mccs)
