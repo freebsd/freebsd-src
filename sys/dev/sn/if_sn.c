@@ -78,7 +78,6 @@
  * Multicast support by Kei TANAKA <kei@pal.xerox.com>
  * Special thanks to itojun@itojun.org
  */
-#define	SN_DEBUG
 
 #include <sys/param.h>
 #include <sys/systm.h>
