@@ -63,12 +63,12 @@ procfs_doprocdbregs(PFS_FILL_ARGS)
 	struct dbreg r;
 
 	PROC_LOCK(p);
+	KASSERT(p->p_lock > 0, ("proc not held"));
 	if (p_candebug(td, p) != 0) {
 		PROC_UNLOCK(p);
 		return (EPERM);
 	}
 
-	_PHOLD(p);
 	/* XXXKSE: */
 	error = proc_read_dbregs(FIRST_THREAD_IN_PROC(p), &r);
 	if (error == 0) {
@@ -83,7 +83,6 @@ procfs_doprocdbregs(PFS_FILL_ARGS)
 			/* XXXKSE: */
 			error = proc_write_dbregs(FIRST_THREAD_IN_PROC(p), &r);
 	}
-	_PRELE(p);
 	PROC_UNLOCK(p);
 
 	uio->uio_offset = 0;
