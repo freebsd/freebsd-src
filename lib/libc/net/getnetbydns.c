@@ -107,7 +107,7 @@ typedef union {
  * Out must contain space for at least strlen(in) characters.
  * The result does not include any leading 0s of in.
  */
-static int
+static void
 ipreverse(char *in, char *out)
 {
 	char *pos[4];
@@ -169,7 +169,7 @@ getnetanswer(answer, anslen, net_i)
 	u_char *cp;
 	int n;
 	u_char *eom;
-	int type, class, ancount, qdcount, haveanswer, i, nchar;
+	int type, class, ancount, qdcount, haveanswer;
 	char aux[MAXHOSTNAMELEN];
 	char *in, *bp, *ep, **ap;
 static	struct netent net_entry;
