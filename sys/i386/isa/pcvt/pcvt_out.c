@@ -178,10 +178,10 @@ sput (u_char *s, U_char kernel, int len, int page)
 	if(svsp->sevenbit)
 		ch &= 0x7f;
 
-	if((ch <= 0x1f) && (svsp->transparent == 0))
+	if(((ch <= 0x1f) || (ch == 0x7f)) && (svsp->transparent == 0))
 	{
 
-	/* always process control-chars in the range 0x00..0x1f !!! */
+	/* always process control-chars in the range 0x00..0x1f, 0x7f !!! */
 
 		if(svsp->dis_fnc)
 		{
@@ -323,6 +323,7 @@ sput (u_char *s, U_char kernel, int len, int page)
 				case 0x1d:	/* GS */
 				case 0x1e:	/* RS */
 				case 0x1f:	/* US */
+				case 0x7f:	/* DEL */
 				break;
 			}
 		}
@@ -330,7 +331,8 @@ sput (u_char *s, U_char kernel, int len, int page)
 	else
 	{
 
-	/* char range 0x20...0xff processing depends on current state */
+	/* char range 0x20...0x73, 0x80...0xff processing */
+	/* depends on current state */
 
 		switch(svsp->state)
 		{
@@ -1884,7 +1886,7 @@ clr_parms(struct video_state *svsp)
  *	partial HP 2392 ANSI mode Emulator
  *	==================================
  *
- *	this part tooks over the emulation of some escape sequences
+ *	this part takes over the emulation of some escape sequences
  *	needed to handle the function key labels
  *
  *	They are modeled after the corresponding escape sequences
