@@ -144,6 +144,7 @@ static const struct ed_product {
 	{ PCMCIA_CARD(EDIMAX, EP4000A, 0), 0},
 	{ PCMCIA_CARD(EPSON, EEN10B, 0), 0},
 	{ PCMCIA_CARD(EXP, THINLANCOMBO, 0), 0},
+	{ PCMCIA_CARD(IBM, HOME_AND_AWAY, 0), 0},
 	{ PCMCIA_CARD(IBM, INFOMOVER, 0), 0},
 	{ PCMCIA_CARD(IODATA3, PCLAT, 0), 0},
 	{ PCMCIA_CARD(KINGSTON, KNE2, 0), 0},
@@ -200,7 +201,6 @@ ed_pccard_match(device_t dev)
 	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
 	    (const struct pccard_product *) ed_pccard_products,
 	    sizeof(ed_pccard_products[0]), NULL)) != NULL) {
-	      pp - ed_pccard_products, pp->flags);
 		if (pp->prod.pp_name != NULL)
 			device_set_desc(dev, pp->prod.pp_name);
 		return (0);
