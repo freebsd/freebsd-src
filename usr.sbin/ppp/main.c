@@ -367,8 +367,7 @@ main(int argc, char **argv)
   if (!sw.quiet)
     prompt_Printf(prompt, "Working in %s mode\n", mode2Nam(sw.mode));
 
-  if ((bundle = bundle_Create(TUN_PREFIX, sw.mode, sw.unit,
-                              (const char **)argv)) == NULL)
+  if ((bundle = bundle_Create(TUN_PREFIX, sw.mode, sw.unit)) == NULL)
     return EX_START;
 
   /* NOTE:  We may now have changed argv[1] via a ``set proctitle'' */
@@ -398,12 +397,11 @@ main(int argc, char **argv)
 
   sig_signal(SIGUSR2, BringDownServer);
 
-  lastlabel = argc == 2 ? bundle->argv1 : argv[argc - 1];
+  lastlabel = argv[argc - 1];
   for (arg = label; arg < argc; arg++) {
     /* In case we use LABEL or ``set enddisc label'' */
     bundle_SetLabel(bundle, lastlabel);
-    system_Select(bundle, arg == 1 ? bundle->argv1 : argv[arg],
-                  CONFFILE, prompt, NULL);
+    system_Select(bundle, argv[arg], CONFFILE, prompt, NULL);
   }
 
   if (label < argc)

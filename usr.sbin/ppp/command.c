@@ -33,6 +33,11 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifdef __OpenBSD__
+#include <util.h>
+#else
+#include <libutil.h>
+#endif
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -87,6 +92,7 @@
 #include "cbcp.h"
 #include "datalink.h"
 #include "iface.h"
+#include "id.h"
 
 /* ``set'' values */
 #define	VAR_AUTHKEY	0
@@ -2609,8 +2615,7 @@ SetProcTitle(struct cmdargs const *arg)
   int len, remaining, f, argc = arg->argc - arg->argn;
 
   if (arg->argc == arg->argn) {
-    arg->bundle->argv[0] = arg->bundle->argv0;
-    arg->bundle->argv[1] = arg->bundle->argv1;
+    ID0setproctitle(NULL);
     return 0;
   }
 
@@ -2636,8 +2641,7 @@ SetProcTitle(struct cmdargs const *arg)
   }
   *ptr = '\0';
 
-  arg->bundle->argv[0] = title;
-  arg->bundle->argv[1] = NULL;
+  ID0setproctitle(title);
 
   return 0;
 }
