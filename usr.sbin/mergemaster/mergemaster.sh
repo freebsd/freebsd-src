@@ -124,6 +124,7 @@ diff_loop () {
         echo ''
         if mm_install "${COMPFILE}"; then
           echo "   *** ${COMPFILE} installed successfully"
+          echo ''
           # Make the list print one file per line
           AUTO_INSTALLED_FILES="${AUTO_INSTALLED_FILES}      ${DESTDIR}${COMPFILE#.}
 "
@@ -428,7 +429,12 @@ case "${RERUN}" in
   esac
 
   { cd ${SOURCEDIR} &&
-    make DESTDIR=${DESTDIR} distrib-dirs &&
+    case "${DESTDIR}" in
+    '') ;;
+    *)
+      make DESTDIR=${DESTDIR} distrib-dirs
+      ;;
+    esac
     make DESTDIR=${TEMPROOT} distrib-dirs &&
     make DESTDIR=${TEMPROOT} -DNO_MAKEDEV distribution;} ||
   { echo '';
