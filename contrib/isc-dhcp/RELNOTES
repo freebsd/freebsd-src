@@ -1,7 +1,7 @@
 	    Internet Software Consortium DHCP Distribution
 			     Version 3.0.1
-			  Release Candidate 6
-			   January 17, 2002
+			  Release Candidate 8
+			   February 21, 2002
 
 			    Release Notes
 
@@ -45,6 +45,80 @@ Measurement Systems, Igor Sharfmesser at Kazakh Telecom, and Brian
 Murrell at BC Tel Advanced Communications.  I'd like to express my
 thanks to all of these good people here, both for working on the code
 and for prodding me into improving it.
+
+			Changes since 3.0.1rc7
+
+- Fix two compiler warnings that are generated when compiling on Solaris
+  with gcc.   These stop the build, even though they weren't actually
+  errors, because we prefer that our builds generate no warnings.
+
+			Changes since 3.0.1rc6
+
+- Don't allow a lease that's in the EXPIRED, RELEASED or RESET state
+  to be renewed.
+
+- Implement lease stealing for cases where the primary has fewer leases
+  than the secondary, as called for by the standard.
+
+- Add a fudge factor to the lease expiry acceptance code, (suggested
+  by Kevin Miller of CMU).
+
+- Fix a bug in permit_list_match that made it much too willing to say
+  that two permit lists matched.
+
+- Unless DEBUG_DNS_UPDATES is defined, print more user-friendly (and
+  also more compact) messages about DNS updates.
+
+- Fix a bug in generating wire-format domain names for the FQDN option.
+
+- Fix a bug where the FQDN option would not be returned if the client
+  requested it, contrary to the standard.
+
+- On Darwin, use the freebsd DHCP client script.
+
+- On NetBSD/sparc, don't check for casting warnings.
+
+- Add a flag in the DHCP client to disable updating the client's A
+  record when sending an FQDN option indicating that the client is
+  going to update its A record.
+
+- In the client, don't attempt a DNS update until one second after
+  configuring the new IP address, and if the update times out, keep
+  trying until a response, positive or negative, is received from the
+  DNS server.
+
+- Fix an uninitialized memory bug in the DHCP client.
+
+- Apply some FreeBSD-specific bug fixes suggested by Murray Stokely.
+
+- Fix a bug in ns_parserr(), where it was returning the wrong sort
+  of result code in some cases (suggested by Ben Harris of the
+  NetBSD project).
+
+- Fix a bug in is_identifier(), where it was checking against EOF
+  instead of the END_OF_FILE token (also suggested by Ben Harris).
+
+- Fix a bug where if an option universe contained no options, the
+  DHCP server could dump core (Walter Steiner).
+
+- Fix a bug in the handling of encapsulated options.
+
+- Fix a bug that prevented NWIP suboptions from being processed.
+
+- Delete the FTS_BOOTP and FTS_RESERVED states and implement them
+  as modifier flags to the FTS_ACTIVE state, as called for in the
+  failover protocol standard.
+
+- Fix bugs in the pool merging code that resulted in references and
+  dereferences of null pointers.   This bug had no impact unless the
+  POINTER_DEBUG flag was defined.
+
+- In the server, added a do-forward-updates flag that can be used to
+  disable forward updates in all cases, so that sites that want the
+  clients to take sole responsibility for updating their A record can
+  do so.
+
+- Make it possible to disable optimization of PTR record updates.
 
 			Changes since 3.0.1rc5
 
