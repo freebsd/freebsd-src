@@ -280,8 +280,8 @@ Static usbd_status	uhci_device_setintr(uhci_softc_t *sc,
 Static void		uhci_device_clear_toggle(usbd_pipe_handle pipe);
 Static void		uhci_noop(usbd_pipe_handle pipe);
 
-Static __inline__ uhci_soft_qh_t *uhci_find_prev_qh(uhci_soft_qh_t *,
-						    uhci_soft_qh_t *);
+Static __inline uhci_soft_qh_t *uhci_find_prev_qh(uhci_soft_qh_t *,
+						  uhci_soft_qh_t *);
 
 #ifdef USB_DEBUG
 Static void		uhci_dump_all(uhci_softc_t *);
@@ -391,7 +391,7 @@ struct usbd_pipe_methods uhci_device_isoc_methods = {
 	} while (0)
 #define uhci_active_intr_info(ii) ((ii)->list.le_prev != NULL)
 
-Static __inline__ uhci_soft_qh_t *
+Static __inline uhci_soft_qh_t *
 uhci_find_prev_qh(uhci_soft_qh_t *pqh, uhci_soft_qh_t *sqh)
 {
 	DPRINTFN(15,("uhci_find_prev_qh: pqh=%p sqh=%p\n", pqh, sqh));
