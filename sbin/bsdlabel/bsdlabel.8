@@ -473,11 +473,11 @@ they can be defined later using
 .It
 Finally use
 .Xr newfs 8
-to create a filesystem on the new partition.
+to create a file system on the new partition.
 A typical partitioning scheme would be to have an
 .Dq a
 partition
-of approximately 128MB to hold the root filesystem, a
+of approximately 128MB to hold the root file system, a
 .Dq b
 partition for
 swap, a
@@ -633,7 +633,7 @@ will be interpreted as an offset of 0.
 .It fstype
 describes the purpose of the partition.  The example shows all currently used
 partition types.
-For UFS filesystems and ccd partitions, use type
+For UFS file systems and ccd partitions, use type
 .Cm 4.2BSD .
 For Vinum drives, use type
 .Cm vinum .
@@ -661,17 +661,17 @@ for more details.
 .It fsize
 For
 .Cm 4.2BSD
-and LFS filesystems only, the fragment size.  Defaults to 1024 for
+and LFS file systems only, the fragment size.  Defaults to 1024 for
 partitions smaller than 1 GB, 4096 for partitions 1GB or larger.
 .It bsize
 For
 .Cm 4.2BSD
-and LFS filesystems only, the block size.  Defaults to 8192 for
+and LFS file systems only, the block size.  Defaults to 8192 for
 partitions smaller than 1 GB, 16384 for partitions 1GB or larger.
 .It bps/cpg
 For
 .Cm 4.2BSD
-filesystems, the number of cylinders in a cylinder group.  For LFS file
+file systems, the number of cylinders in a cylinder group.  For LFS file
 systems, the segment shift value.  Defaults to 16 for
 partitions smaller than 1 GB, 64 for partitions 1GB or larger.
 .El
@@ -734,7 +734,7 @@ NOT install the new label either in-core or on-disk.
 Try to auto-detect the required information from
 .Pa da0s1 ,
 and write a new label to the disk.  Use another disklabel -e command to edit the
-partitioning and filesystem information.
+partitioning and file system information.
 .Pp
 .Dl disklabel -R da0s1 savedlabel
 .Pp
@@ -851,8 +851,8 @@ the
 partition.
 .Pp
 On some machines the bootstrap code may not fit entirely in the area
-allocated for it by some filesystems.
-As a result, it may not be possible to have filesystems on some partitions
+allocated for it by some file systems.
+As a result, it may not be possible to have file systems on some partitions
 of a
 .Dq bootable
 disk.
@@ -863,7 +863,7 @@ If the installed boot code would overlap a partition of type FS_UNUSED
 it is marked as type FS_BOOT.
 The
 .Xr newfs 8
-utility will disallow creation of filesystems on FS_BOOT partitions.
+utility will disallow creation of file systems on FS_BOOT partitions.
 Conversely, if a partition has a type other than FS_UNUSED or FS_BOOT,
 .Nm
 will not install bootstrap code that overlaps it.

@@ -215,7 +215,7 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	if (argc < 1) {
-		(void)fprintf(stderr, "Must specify disk or filesystem\n");
+		(void)fprintf(stderr, "Must specify disk or file system\n");
 		exit(X_STARTUP);
 	}
 	disk = *argv++;
@@ -294,7 +294,7 @@ main(int argc, char *argv[])
 	 *	disk can be either the full special file name,
 	 *	the suffix of the special file name,
 	 *	the special name missing the leading '/',
-	 *	the filesystem name with or without the leading '/'.
+	 *	the file system name with or without the leading '/'.
 	 */
 	dt = fstabsearch(disk);
 	if (dt != NULL) {
@@ -303,7 +303,7 @@ main(int argc, char *argv[])
 		(void)strncpy(spcl.c_filesys, dt->fs_file, NAMELEN);
 	} else {
 		(void)strncpy(spcl.c_dev, disk, NAMELEN);
-		(void)strncpy(spcl.c_filesys, "an unlisted filesystem",
+		(void)strncpy(spcl.c_filesys, "an unlisted file system",
 		    NAMELEN);
 	}
 	spcl.c_dev[NAMELEN-1]='\0';
@@ -342,7 +342,7 @@ main(int argc, char *argv[])
 	if (fstat(diskfd, &sb) != 0)
 		err(X_STARTUP, "%s: stat", disk);
 	if (S_ISDIR(sb.st_mode))
-		errx(X_STARTUP, "%s: unknown filesystem", disk);
+		errx(X_STARTUP, "%s: unknown file system", disk);
 	sync();
 	sblock = (struct fs *)sblock_buf;
 	for (i = 0; sblock_try[i] != -1; i++) {
@@ -356,7 +356,7 @@ main(int argc, char *argv[])
 			break;
 	}
 	if (sblock_try[i] == -1)
-		quit("Cannot find filesystem superblock\n");
+		quit("Cannot find file system superblock\n");
 	dev_bsize = sblock->fs_fsize / fsbtodb(sblock, 1);
 	dev_bshift = ffs(dev_bsize) - 1;
 	if (dev_bsize != (1 << dev_bshift))
@@ -525,7 +525,7 @@ usage(void)
 #endif
 		"nSu] [-B records] [-b blocksize] [-D dumpdates]\n"
 		"            [-d density] [-f file ] [-h level] [-s feet] "
-		"[-T date] filesystem\n"
+		"[-T date] file system\n"
 		"       dump [-W | -w]\n");
 	exit(X_STARTUP);
 }

@@ -44,13 +44,13 @@ time.
 The
 .Nm
 utility also informs the kernel about machine timezone shifts to
-maintain proper timestamps for local time filesystems such as the MS-DOS
-filesystem.
+maintain proper timestamps for local time file systems such as the MS-DOS
+file system.
 The main purpose of this thing is not general fixing of
 initially broken MS-DOS file timestamp idea but keeping
 the same timestamps between
 .Fx
-MS-DOS filesystem
+MS-DOS file system
 and MS-DOS operating system installed on the same
 machine.
 If the file
@@ -90,7 +90,7 @@ utility also stores the local time zone offset into the
 .Pa machdep.adjkerntz
 kernel variable, for use by subsequent invocations of
 .Em "'adjkerntz -a'"
-and by local time filesystems.
+and by local time file systems.
 .Pp
 For a local time CMOS clock
 .Em "'adjkerntz -i'"

@@ -37,11 +37,11 @@
 .Os
 .Sh NAME
 .Nm newfs ,
-.Nd construct a new filesystem
+.Nd construct a new file system
 .Sh SYNOPSIS
 .Nm
 .Op Fl NU
-.Op Fl O Ar filesystem-type
+.Op Fl O Ar file system-type
 .Op Fl S Ar sector-size
 .Op Fl T Ar disktype
 .Op Fl a Ar maxcontig
@@ -60,14 +60,14 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is used to initialize and clear filesystems before first use.
+utility is used to initialize and clear file systems before first use.
 Before running
 .Nm
 the disk must be labeled using
 .Xr disklabel 8 .
 The
 .Nm
-utility builds a filesystem on the specified special file.
+utility builds a file system on the specified special file.
 (We often refer to the
 .Dq special file
 as the
@@ -83,14 +83,14 @@ The following options define the general layout policies:
 .It Fl T Ar disktype
 For backward compatibility.
 .It Fl N
-Cause the filesystem parameters to be printed out
-without really creating the filesystem.
-.It Fl O Ar filesystem-type
-Use 1 to specify that a UFS1 format filesystem be built;
-use 2 to specify that a UFS2 format filesystem be built.
+Cause the file system parameters to be printed out
+without really creating the file system.
+.It Fl O Ar file system-type
+Use 1 to specify that a UFS1 format file system be built;
+use 2 to specify that a UFS2 format file system be built.
 The default is UFS1 format, but will eventually be changed to UFS2.
 .It Fl U
-Enables soft updates on the new filesystem.
+Enables soft updates on the new file system.
 .It Fl a Ar maxcontig
 Specify the maximum number of contiguous blocks that will be
 laid out before forcing a rotational delay.
@@ -99,7 +99,7 @@ See
 .Xr tunefs 8
 for more details on how to set this option.
 .It Fl b Ar block-size
-The block size of the filesystem, in bytes.
+The block size of the file system, in bytes.
 It must be a power of 2.
 The
 default size is 16384 bytes, and the smallest allowable size is 4096 bytes.
@@ -107,16 +107,16 @@ The optimal block:fragment ratio is 8:1.
 Other ratios are possible, but are not recommended,
 and may produce poor results.
 .It Fl c Ar blocks-per-cylinder-group
-The number of blocks per cylinder group in a filesystem.
+The number of blocks per cylinder group in a file system.
 The default is to compute the maximum allowed by the other parameters.
 This value is
 dependent on a number of other parameters, in particular the block size
 and the number of bytes per inode.
 .It Fl d Ar max-extent-size
-The filesystem may choose to store large files using extents.
+The file system may choose to store large files using extents.
 This parameter specifies the largest extent size that may be used.
 It is presently limited to its default value which is 16 times
-the filesystem blocksize.
+the file system blocksize.
 .It Fl e Ar maxbpg
 Indicate the maximum number of blocks any single file can
 allocate out of a cylinder group before it is forced to begin
@@ -126,7 +126,7 @@ See
 .Xr tunefs 8
 for more details on how to set this option.
 .It Fl f Ar frag-size
-The fragment size of the filesystem in bytes.
+The fragment size of the file system in bytes.
 It must be a power of two
 ranging in value between
 .Ar blocksize Ns /8
@@ -134,18 +134,18 @@ and
 .Ar blocksize .
 The default is 2048 bytes.
 .It Fl g Ar avgfilesize
-The expected average file size for the filesystem.
+The expected average file size for the file system.
 .It Fl h Ar avgfpdir
-The expected average number of files per directory on the filesystem.
+The expected average number of files per directory on the file system.
 .It Fl i Ar bytes
-Specify the density of inodes in the filesystem.
+Specify the density of inodes in the file system.
 The default is to create an inode for every
 .Pq 4 * Ar frag-size
 bytes of data space.
 If fewer inodes are desired, a larger number should be used;
 to create more inodes a smaller number should be given.
 One inode is required for each distinct file, so this value effectively
-specifies the average file size on the filesystem.
+specifies the average file size on the file system.
 .It Fl m Ar free-space
 The percentage of space reserved from normal users; the minimum free
 space threshold.
@@ -162,7 +162,7 @@ for more details on how to set this option.
 .Cm ( space
 or
 .Cm time ) .
-The filesystem can either be instructed to try to minimize the time spent
+The file system can either be instructed to try to minimize the time spent
 allocating blocks, or to try to minimize the space fragmentation on the disk.
 If the value of minfree (see above) is less than 8%,
 the default is to optimize for
@@ -174,20 +174,20 @@ See
 .Xr tunefs 8
 for more details on how to set this option.
 .It Fl s Ar size
-The size of the filesystem in sectors.
+The size of the file system in sectors.
 This value defaults to the size of the
 raw partition specified in
 .Ar special
 (in other words,
 .Nm
-will use the entire partition for the filesystem).
+will use the entire partition for the file system).
 .El
 .Pp
 The following options override the standard sizes for the disk geometry.
 Their default values are taken from the disk label.
 Changing these defaults is useful only when using
 .Nm
-to build a filesystem whose raw image will eventually be used on a
+to build a file system whose raw image will eventually be used on a
 different type of disk than the one on which it is initially created
 (for example on a write-once disk).
 Note that changing any of these values from their defaults will make
@@ -201,7 +201,7 @@ The size of a sector in bytes (almost never anything but 512).
 .Sh EXAMPLES
 .Dl newfs /dev/ad3s1a
 .Pp
-Creates a new ufs filesystem on
+Creates a new ufs file system on
 .Pa ad3s1a .
 The
 .Nm
@@ -211,7 +211,7 @@ These values tend to produce better performance for most applications
 than the historical defaults
 (8192 byte block size and 1024 byte fragment size).
 This large fragment size may lead to much wasted space
-on filesystems that contain many small files.
+on file systems that contain many small files.
 .Sh SEE ALSO
 .Xr fdformat 1 ,
 .Xr disktab 5 ,

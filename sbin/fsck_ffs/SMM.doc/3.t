@@ -32,11 +32,11 @@
 .\"	$FreeBSD$
 .\"	@(#)3.t	8.1 (Berkeley) 6/5/93
 .\"
-.ds RH Fixing corrupted filesystems
+.ds RH Fixing corrupted file systems
 .NH
-Fixing corrupted filesystems
+Fixing corrupted file systems
 .PP
-A filesystem
+A file system
 can become corrupted in several ways.
 The most common of these ways are
 improper shutdown procedures
@@ -46,17 +46,17 @@ File systems may become corrupted during an
 .I "unclean halt" .
 This happens when proper shutdown
 procedures are not observed,
-physically write-protecting a mounted filesystem,
-or a mounted filesystem is taken off-line.
+physically write-protecting a mounted file system,
+or a mounted file system is taken off-line.
 The most common operator procedural failure is forgetting to
 .I sync
 the system before halting the CPU.
 .PP
 File systems may become further corrupted if proper startup
 procedures are not observed, e.g.,
-not checking a filesystem for inconsistencies,
+not checking a file system for inconsistencies,
 and not repairing inconsistencies.
-Allowing a corrupted filesystem to be used (and, thus, to be modified
+Allowing a corrupted file system to be used (and, thus, to be modified
 further) can be disastrous.
 .PP
 Any piece of hardware can fail at any time.
@@ -87,13 +87,13 @@ A quiescent\(dd
 .FS
 \(dd I.e., unmounted and not being written on.
 .FE
-filesystem may be checked for structural integrity
+file system may be checked for structural integrity
 by performing consistency checks on the
-redundant data intrinsic to a filesystem.
+redundant data intrinsic to a file system.
 The redundant data is either read from
-the filesystem,
+the file system,
 or computed from other known values.
-The filesystem
+The file system
 .B must
 be in a quiescent state when
 .I fsck_ffs
@@ -110,7 +110,7 @@ the data blocks containing directory entries.
 .NH 2
 Super-block checking
 .PP
-The most commonly corrupted item in a filesystem
+The most commonly corrupted item in a file system
 is the summary information
 associated with the super-block.
 The summary information is prone to corruption
@@ -133,7 +133,7 @@ since they are statically determined by
 .I newfs ,
 .I fsck_ffs
 can check that these sizes are within reasonable bounds.
-All other filesystem checks require that these sizes be correct.
+All other file system checks require that these sizes be correct.
 If
 .I fsck_ffs 
 detects corruption in the static parameters of the default super-block,
@@ -151,7 +151,7 @@ When all the blocks have been initially accounted for,
 checks that
 the number of free blocks
 plus the number of blocks claimed by the inodes
-equals the total number of blocks in the filesystem.
+equals the total number of blocks in the file system.
 .PP
 If anything is wrong with the block allocation maps,
 .I fsck_ffs
@@ -159,20 +159,20 @@ will rebuild them,
 based on the list it has computed of allocated blocks.
 .PP
 The summary information associated with the super-block
-counts the total number of free blocks within the filesystem.
+counts the total number of free blocks within the file system.
 .I Fsck_ffs
 compares this count to the
-number of free blocks it found within the filesystem.
+number of free blocks it found within the file system.
 If the two counts do not agree, then
 .I fsck_ffs
 replaces the incorrect count in the summary information
 by the actual free-block count.
 .PP
 The summary information
-counts the total number of free inodes within the filesystem.
+counts the total number of free inodes within the file system.
 .I Fsck_ffs
 compares this count to the number
-of free inodes it found within the filesystem.
+of free inodes it found within the file system.
 If the two counts do not agree, then
 .I fsck_ffs
 replaces the incorrect count in the
@@ -185,11 +185,11 @@ the allocation information.
 However, because of the great number of active inodes,
 a few of the inodes are usually corrupted.
 .PP
-The list of inodes in the filesystem
+The list of inodes in the file system
 is checked sequentially starting with inode 2
 (inode 0 marks unused inodes;
 inode 1 is saved for future generations)
-and progressing through the last inode in the filesystem.
+and progressing through the last inode in the file system.
 The state of each inode is checked for
 inconsistencies involving format and type,
 link count,
@@ -218,7 +218,7 @@ total number of directory entries
 linked to the inode.
 .I Fsck_ffs
 verifies the link count of each inode
-by starting at the root of the filesystem,
+by starting at the root of the file system,
 and descending through the directory structure.
 The actual link count for each inode
 is calculated during the descent.
@@ -279,12 +279,12 @@ and which one should be cleared.
 .I Fsck_ffs
 checks the range of each block number claimed by an inode.
 If the block number is
-lower than the first data block in the filesystem,
+lower than the first data block in the file system,
 or greater than the last data block,
 then the block number is a
 .I "bad block number" .
 Many bad blocks in an inode are usually caused by
-an indirect block that was not written to the filesystem,
+an indirect block that was not written to the file system,
 a condition which can only occur if there has been a hardware failure.
 If an inode contains bad block numbers,
 .I fsck_ffs
@@ -334,9 +334,9 @@ several types of inconsistencies.
 These inconsistencies include
 directory inode numbers pointing to unallocated inodes,
 directory inode numbers that are greater than
-the number of inodes in the filesystem,
+the number of inodes in the file system,
 incorrect directory inode numbers for ``\fB.\fP'' and ``\fB..\fP'',
-and directories that are not attached to the filesystem.
+and directories that are not attached to the file system.
 If the inode number in a directory data block
 references an unallocated inode,
 then
@@ -390,10 +390,10 @@ to which ``\fB..\fP'' should point;
 File system connectivity
 .PP
 .I Fsck_ffs
-checks the general connectivity of the filesystem.
-If directories are not linked into the filesystem, then
+checks the general connectivity of the file system.
+If directories are not linked into the file system, then
 .I fsck_ffs
-links the directory back into the filesystem in the
+links the directory back into the file system in the
 .I lost+found
 directory.
 This condition only occurs when there has been a hardware failure.
@@ -402,7 +402,7 @@ This condition only occurs when there has been a hardware failure.
 \s+2Acknowledgements\s0
 .PP
 I thank Bill Joy, Sam Leffler, Robert Elz and Dennis Ritchie 
-for their suggestions and help in implementing the new filesystem.
+for their suggestions and help in implementing the new file system.
 Thanks also to Robert Henry for his editorial input to
 get this document together.
 Finally we thank our sponsors,

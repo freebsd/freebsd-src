@@ -285,7 +285,7 @@ adjust(struct inodesc *idesc, int lcnt)
 	if (DIP(dp, di_nlink) == lcnt) {
 		/*
 		 * If we have not hit any unresolved problems, are running
-		 * in preen mode, and are on a filesystem using soft updates,
+		 * in preen mode, and are on a file system using soft updates,
 		 * then just toss any partially allocated files.
 		 */
 		if (resolved && (preen || bkgrdflag) && usedsoftdep) {
@@ -293,7 +293,7 @@ adjust(struct inodesc *idesc, int lcnt)
 			return;
 		} else {
 			/*
-			 * The filesystem can be marked clean even if
+			 * The file system can be marked clean even if
 			 * a file is not linked up, but is cleared.
 			 * Hence, resolved should not be cleared when
 			 * linkup is answered no, but clri is answered yes.

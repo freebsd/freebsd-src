@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm mdmfs
-.Nd configure and mount an in-memory filesystem using the
+.Nd configure and mount an in-memory file system using the
 .Xr md 4
 driver
 .Sh SYNOPSIS
@@ -86,7 +86,7 @@ disk using
 .Xr mdconfig 8 ,
 labels it using
 .Xr disklabel 8 ,
-puts a UFS filesystem on it using
+puts a UFS file system on it using
 .Xr newfs 8 ,
 and mounts it using
 .Xr mount 8 .
@@ -128,7 +128,7 @@ out before forcing a rotational delay
 .Fl d
 option).
 .It Fl b Ar block-size
-The block size of the filesystem, in bytes.
+The block size of the file system, in bytes.
 .It Fl C
 Enable full compatibility mode with
 .Xr mount_mfs 8 .
@@ -136,7 +136,7 @@ See the
 .Sx COMPATIBILITY
 section for more information.
 .It Fl c Ar cylinders
-The number of cylinders per cylinder group in the filesystem.
+The number of cylinders per cylinder group in the file system.
 .It Fl D
 If not using auto-unit,
 do not run
@@ -158,7 +158,7 @@ Create a vnode-backed
 memory disk backed by
 .Ar file .
 .It Fl f Ar frag-size
-The fragment size of the filesystem in bytes.
+The fragment size of the file system in bytes.
 .It Fl i Ar bytes
 Number of bytes per inode.
 .It Fl L
@@ -190,7 +190,7 @@ which will optimize for minimum space fragmentation and
 minimum time spent allocating blocks,
 respectively.
 .It Fl o Ar mount-options
-Specify the mount options with which to mount the filesystem.
+Specify the mount options with which to mount the file system.
 See
 .Xr mount 8
 for more information.
@@ -200,7 +200,7 @@ Set the file (directory) permissions of the mount point
 to
 .Ar permissions .
 .It Fl S
-Do not enable soft-updates on the filesystem.
+Do not enable soft-updates on the file system.
 .It Fl s Ar size
 Specify the size of the disk to create.
 This only makes sense if
@@ -218,7 +218,7 @@ and the optional
 backed disks
 .Pq Dv MD_MALLOC .
 .It Fl U
-Enable soft-updates on the filesystem.
+Enable soft-updates on the file system.
 This is the default, even in compatibility mode, and is accepted only
 for compatibility.
 It is only really useful to negate the
@@ -274,12 +274,12 @@ with the same letter.
 See the programs that the options are passed to for more information
 on their semantics.
 .Sh EXAMPLES
-Create and mount a 32 megabyte swap-backed filesystem on
+Create and mount a 32 megabyte swap-backed file system on
 .Pa /tmp :
 .Pp
 .Dl "mdmfs -s 32m md /tmp"
 .Pp
-Create and mount a 16 megabyte malloc-backed filesystem on
+Create and mount a 16 megabyte malloc-backed file system on
 .Pa /tmp
 using the
 .Pa /dev/md1

@@ -97,7 +97,7 @@ dbg_close(void)
 
 /* ****************************************************** dbg_dump_hex ***** */
 /*
- * Dump out a full filesystem block in hex.
+ * Dump out a full file system block in hex.
  */
 void
 dbg_dump_hex(struct fs *sb, const char *comment, unsigned char *mem)

@@ -137,7 +137,7 @@ main(int argc, char *argv[], char *envp[])
 	    exit(1);
 	}
     } else if ((errno != ENOENT)			    /* not "not there",  */
-    &&(errno != EROFS)) {				    /* and not read-only filesystem */
+    &&(errno != EROFS)) {				    /* and not read-only file system */
 	fprintf(stderr,
 	    "Can't open %s: %s (%d)\n",
 	    historyfile,

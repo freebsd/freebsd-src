@@ -35,7 +35,7 @@
 .Os
 .Sh NAME
 .Nm mount_hpfs
-.Nd mount an HPFS filesystem
+.Nd mount an HPFS file system
 .Sh SYNOPSIS
 .Nm
 .Op Fl o Ar options
@@ -47,33 +47,33 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility attaches the HPFS filesystem residing on the device
+utility attaches the HPFS file system residing on the device
 .Pa special
-to the global filesystem namespace at the location
+to the global file system namespace at the location
 indicated by
 .Pa node .
 This command is normally executed by
 .Xr mount 8
 at boot time, but can be used by any user to mount an
-HPFS filesystem on any directory that they own (provided,
+HPFS file system on any directory that they own (provided,
 of course, that they have appropriate access to the device that
-contains the filesystem).
+contains the file system).
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl u Ar uid
-Set the owner of the files in the filesystem to
+Set the owner of the files in the file system to
 .Ar uid .
 The default owner is the owner of the directory
-on which the filesystem is being mounted.
+on which the file system is being mounted.
 .It Fl g Ar gid
-Set the group of the files in the filesystem to
+Set the group of the files in the file system to
 .Ar gid .
 The default group is the group of the directory
-on which the filesystem is being mounted.
+on which the file system is being mounted.
 .It Fl m Ar mask
 Specify the maximum file permissions for files
-in the filesystem.
+in the file system.
 .El
 .Sh EXAMPLES
 To mount an hpfs volume located in /dev/wd1s1:

@@ -530,13 +530,13 @@ catch(int sig __unused)
 
 /*
  * When preening, allow a single quit to signal
- * a special exit after filesystem checks complete
+ * a special exit after file system checks complete
  * so that reboot sequence may be interrupted.
  */
 void
 catchquit(int sig __unused)
 {
-	printf("returning to single-user after filesystem check\n");
+	printf("returning to single-user after file system check\n");
 	returntosingle = 1;
 	(void)signal(SIGQUIT, SIG_DFL);
 }
@@ -585,7 +585,7 @@ dofix(struct inodesc *idesc, const char *msg)
 
 /*
  * An unexpected inconsistency occured.
- * Die if preening or filesystem is running with soft dependency protocol,
+ * Die if preening or file system is running with soft dependency protocol,
  * otherwise just print message and continue.
  */
 void

@@ -37,7 +37,7 @@
 .Os
 .Sh NAME
 .Nm umount
-.Nd unmount filesystems
+.Nd unmount file systems
 .Sh SYNOPSIS
 .Nm
 .Op Fl fv
@@ -54,7 +54,7 @@ utility calls the
 .Xr unmount 2
 system call to remove a
 .Ar "special device"
-or the remote node (rhost:path) from the filesystem tree at the point
+or the remote node (rhost:path) from the file system tree at the point
 .Ar node .
 If either
 .Ar special
@@ -67,19 +67,19 @@ file.
 The options are as follows:
 .Bl -tag -width indent
 .It Fl a
-All the filesystems described in
+All the file systems described in
 .Xr fstab 5
 are unmounted.
 .It Fl A
-All the currently mounted filesystems except
+All the currently mounted file systems except
 the root are unmounted.
 .It Fl f
-The filesystem is forcibly unmounted.
+The file system is forcibly unmounted.
 Active special devices continue to work,
 but all other files return errors if further accesses are attempted.
-The root filesystem cannot be forcibly unmounted.
+The root file system cannot be forcibly unmounted.
 .It Fl h Ar host
-Only filesystems mounted from the specified host will be
+Only file systems mounted from the specified host will be
 unmounted.
 This option implies the
 .Fl A
@@ -87,14 +87,14 @@ option and, unless otherwise specified with the
 .Fl t
 option, will only unmount
 .Tn NFS
-filesystems.
+file systems.
 .It Fl t Ar type
 Is used to indicate the actions should only be taken on
-filesystems of the specified type.
+file systems of the specified type.
 More than one type may be specified in a comma separated list.
-The list of filesystem types can be prefixed with
+The list of file system types can be prefixed with
 .Dq no
-to specify the filesystem types for which action should
+to specify the file system types for which action should
 .Em not
 be taken.
 For example, the
@@ -104,7 +104,7 @@ command:
 umount -a -t nfs,nullfs
 .Ed
 .Pp
-unmounts all filesystems of the type
+unmounts all file systems of the type
 .Tn NFS
 and
 .Tn NULLFS
@@ -112,13 +112,13 @@ that are listed in the
 .Xr fstab 5
 file.
 .It Fl v
-Verbose, additional information is printed out as each filesystem
+Verbose, additional information is printed out as each file system
 is unmounted.
 .El
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab
-filesystem table
+file system table
 .El
 .Sh SEE ALSO
 .Xr unmount 2 ,

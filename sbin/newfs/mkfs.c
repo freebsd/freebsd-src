@@ -74,7 +74,7 @@ static const char rcsid[] =
 #include "newfs.h"
 
 /*
- * make filesystem for cylinder-group style filesystems
+ * make file system for cylinder-group style file systems
  */
 #define UMASK		0755
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
@@ -152,9 +152,9 @@ mkfs(struct partition *pp, char *fsys)
 	if (Uflag)
 		sblock.fs_flags |= FS_DOSOFTDEP;
 	/*
-	 * Validate the given filesystem size.
+	 * Validate the given file system size.
 	 * Verify that its last block can actually be accessed.
-	 * Convert to filesystem fragment sized units.
+	 * Convert to file system fragment sized units.
 	 */
 	if (fssize <= 0) {
 		printf("preposterous size %jd\n", (intmax_t)fssize);
@@ -163,7 +163,7 @@ mkfs(struct partition *pp, char *fsys)
 	wtfs(fssize - (realsectorsize / DEV_BSIZE), realsectorsize,
 	    (char *)&sblock);
 	/*
-	 * collect and verify the filesystem density info
+	 * collect and verify the file system density info
 	 */
 	sblock.fs_avgfilesize = avgfilesize;
 	sblock.fs_avgfpdir = avgfilesperdir;
@@ -418,7 +418,7 @@ mkfs(struct partition *pp, char *fsys)
 	}
 
 	/*
-	 * Dump out summary information about filesystem.
+	 * Dump out summary information about file system.
 	 */
 #	define B2MBFACTOR (1 / (1024.0 * 1024.0))
 	printf("%s: %.1fMB (%jd sectors) block size %d, fragment size %d\n",
@@ -462,7 +462,7 @@ mkfs(struct partition *pp, char *fsys)
 	if (Nflag)
 		exit(0);
 	/*
-	 * Now construct the initial filesystem,
+	 * Now construct the initial file system,
 	 * then write out the super-block.
 	 */
 	fsinit(utime);
@@ -650,7 +650,7 @@ initcg(int cylno, time_t utime)
 	}
 	wtfs(fsbtodb(&sblock, cgsblock(&sblock, cylno)), iobufsize, iobuf);
 	/*
-	 * For the old filesystem, we have to initialize all the inodes.
+	 * For the old file system, we have to initialize all the inodes.
 	 */
 	if (Oflag == 1) {
 		for (i = 2 * sblock.fs_frag;
@@ -668,7 +668,7 @@ initcg(int cylno, time_t utime)
 }
 
 /*
- * initialize the filesystem
+ * initialize the file system
  */
 #define PREDEFDIR 2
 
@@ -835,7 +835,7 @@ iput(union dinode *ip, ino_t ino)
 }
 
 /*
- * read a block from the filesystem
+ * read a block from the file system
  */
 void
 rdfs(ufs2_daddr_t bno, int size, char *bf)
@@ -881,7 +881,7 @@ wtfsflush()
 }
 
 /*
- * write a block to the filesystem
+ * write a block to the file system
  */
 static void
 wtfs(ufs2_daddr_t bno, int size, char *bf)

@@ -32,22 +32,22 @@
 .\"	$FreeBSD$
 .\"	@(#)2.t	8.1 (Berkeley) 6/5/93
 .\"
-.ds RH Overview of the filesystem
+.ds RH Overview of the file system
 .NH
-Overview of the filesystem
+Overview of the file system
 .PP
-The filesystem is discussed in detail in [Mckusick84];
+The file system is discussed in detail in [Mckusick84];
 this section gives a brief overview.
 .NH 2
 Superblock
 .PP
-A filesystem is described by its
+A file system is described by its
 .I "super-block" .
-The super-block is built when the filesystem is created (\c
+The super-block is built when the file system is created (\c
 .I newfs (8))
 and never changes.
 The super-block
-contains the basic parameters of the filesystem,
+contains the basic parameters of the file system,
 such as the number of data blocks it contains
 and a count of the maximum number of files.
 Because the super-block contains critical data,
@@ -56,7 +56,7 @@ replicates it to protect against catastrophic loss.
 The
 .I "default super block"
 always resides at a fixed offset from the beginning
-of the filesystem's disk partition.
+of the file system's disk partition.
 The
 .I "redundant super blocks"
 are not referenced unless a head crash
@@ -64,7 +64,7 @@ or other hard disk error causes the default super-block
 to be unusable.
 The redundant blocks are sprinkled throughout the disk partition.
 .PP
-Within the filesystem are files.
+Within the file system are files.
 Certain files are distinguished as directories and contain collections
 of pointers to files that may themselves be directories.
 Every file has a descriptor associated with it called an
@@ -82,7 +82,7 @@ the range 5-13.
 .FE
 The inode structure may also contain references to indirect blocks
 containing further data block indices.
-In a filesystem with a 4096 byte block size, a singly indirect
+In a file system with a 4096 byte block size, a singly indirect
 block contains 1024 further block addresses,
 a doubly indirect block contains 1024 addresses of further single indirect
 blocks,
@@ -92,30 +92,30 @@ blocks (the triple indirect block is never needed in practice).
 In order to create files with up to
 2\(ua32 bytes,
 using only two levels of indirection,
-the minimum size of a filesystem block is 4096 bytes.
-The size of filesystem blocks can be any power of two
+the minimum size of a file system block is 4096 bytes.
+The size of file system blocks can be any power of two
 greater than or equal to 4096.
-The block size of the filesystem is maintained in the super-block,
-so it is possible for filesystems of different block sizes
+The block size of the file system is maintained in the super-block,
+so it is possible for file systems of different block sizes
 to be accessible simultaneously on the same system.
 The block size must be decided when
 .I newfs
-creates the filesystem;
+creates the file system;
 the block size cannot be subsequently
-changed without rebuilding the filesystem.
+changed without rebuilding the file system.
 .NH 2
 Summary information
 .PP
 Associated with the super block is non replicated
 .I "summary information" .
 The summary information changes
-as the filesystem is modified.
+as the file system is modified.
 The summary information contains
-the number of blocks, fragments, inodes and directories in the filesystem.
+the number of blocks, fragments, inodes and directories in the file system.
 .NH 2
 Cylinder groups
 .PP
-The filesystem partitions the disk into one or more areas called
+The file system partitions the disk into one or more areas called
 .I "cylinder groups".
 A cylinder group is comprised of one or more consecutive
 cylinders on a disk.
@@ -125,7 +125,7 @@ describing available blocks in the cylinder group,
 and summary information describing the usage of data blocks
 within the cylinder group.
 A fixed number of inodes is allocated for each cylinder group
-when the filesystem is created.
+when the file system is created.
 The current policy is to allocate one inode for each 2048
 bytes of disk space;
 this is expected to be far more inodes than will ever be needed.
@@ -158,12 +158,12 @@ and the beginning of the cylinder group information stores data.
 Fragments
 .PP
 To avoid waste in storing small files,
-the filesystem space allocator divides a single
-filesystem block into one or more
+the file system space allocator divides a single
+file system block into one or more
 .I "fragments".
-The fragmentation of the filesystem is specified
-when the filesystem is created;
-each filesystem block can be optionally broken into
+The fragmentation of the file system is specified
+when the file system is created;
+each file system block can be optionally broken into
 2, 4, or 8 addressable fragments.
 The lower bound on the size of these fragments is constrained
 by the disk sector size;
@@ -173,17 +173,17 @@ records the space availability at the fragment level.
 Aligned fragments are examined
 to determine block availability.
 .PP
-On a filesystem with a block size of 4096 bytes
+On a file system with a block size of 4096 bytes
 and a fragment size of 1024 bytes,
 a file is represented by zero or more 4096 byte blocks of data,
 and possibly a single fragmented block.
-If a filesystem block must be fragmented to obtain
+If a file system block must be fragmented to obtain
 space for a small amount of data,
 the remainder of the block is made available for allocation
 to other files.
 For example,
 consider an 11000 byte file stored on
-a 4096/1024 byte filesystem.
+a 4096/1024 byte file system.
 This file uses two full size blocks and a 3072 byte fragment.
 If no fragments with at least 3072 bytes
 are available when the file is created,
@@ -191,26 +191,26 @@ a full size block is split yielding the necessary 3072 byte
 fragment and an unused 1024 byte fragment.
 This remaining fragment can be allocated to another file, as needed.
 .NH 2
-Updates to the filesystem
+Updates to the file system
 .PP
 Every working day hundreds of files
 are created, modified, and removed.
 Every time a file is modified,
 the operating system performs a
-series of filesystem updates.
-These updates, when written on disk, yield a consistent filesystem.
-The filesystem stages
+series of file system updates.
+These updates, when written on disk, yield a consistent file system.
+The file system stages
 all modifications of critical information;
 modification can
 either be completed or cleanly backed out after a crash.
-Knowing the information that is first written to the filesystem,
+Knowing the information that is first written to the file system,
 deterministic procedures can be developed to
-repair a corrupted filesystem.
+repair a corrupted file system.
 To understand this process,
 the order that the update
 requests were being honored must first be understood.
 .PP
-When a user program does an operation to change the filesystem,
+When a user program does an operation to change the file system,
 such as a 
 .I write ,
 the data to be written is copied into an internal
@@ -225,9 +225,9 @@ is eventually written out to disk.
 The real disk write may not happen until long after the
 .I write
 system call has returned.
-Thus at any given time, the filesystem,
+Thus at any given time, the file system,
 as it resides on the disk,
-lags the state of the filesystem represented by the in-core information.
+lags the state of the file system represented by the in-core information.
 .PP
 The disk information is updated to reflect the in-core information
 when the buffer is required for another use,
@@ -239,7 +239,7 @@ or by manual operator intervention with the
 .I sync (8)
 command.
 If the system is halted without writing out the in-core information,
-the filesystem on the disk will be in an inconsistent state.
+the file system on the disk will be in an inconsistent state.
 .PP
 If all updates are done asynchronously, several serious
 inconsistencies can arise.
@@ -263,4 +263,4 @@ really written to disk)
 when they are being deallocated.
 Similarly inodes are kept consistent by synchronously
 deleting, adding, or changing directory entries.
-.ds RH Fixing corrupted filesystems
+.ds RH Fixing corrupted file systems

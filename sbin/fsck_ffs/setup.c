@@ -67,7 +67,7 @@ static struct disklabel *getdisklabel(char *s, int fd);
 
 /*
  * Read in a superblock finding an alternate if necessary.
- * Return 1 if successful, 0 if unsuccessful, -1 if filesystem
+ * Return 1 if successful, 0 if unsuccessful, -1 if file system
  * is already clean (preen mode only).
  */
 int
@@ -212,7 +212,7 @@ setup(char *dev)
 	}
 	if (sblock.fs_magic == FS_UFS1_MAGIC &&
 	    sblock.fs_old_inodefmt < FS_44INODEFMT) {
-		pwarn("Format of filesystem is too old.\n");
+		pwarn("Format of file system is too old.\n");
 		pwarn("Must update to modern format using a version of fsck\n");
 		pfatal("from before 2002 with the command ``fsck -c 2''\n");
 		exit(EEXIT);
@@ -320,12 +320,12 @@ readsb(int listerr)
 				break;
 		}
 		if (sblock_try[i] == -1) {
-			fprintf(stderr, "Cannot find filesystem superblock\n");
+			fprintf(stderr, "Cannot find file system superblock\n");
 			return (0);
 		}
 	}
 	/*
-	 * Compute block size that the filesystem is based on,
+	 * Compute block size that the file system is based on,
 	 * according to fsbtodb, and adjust superblock block number
 	 * so we can tell if this is an alternate later.
 	 */

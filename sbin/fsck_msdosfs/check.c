@@ -171,7 +171,7 @@ checkfilesys(fname)
 				mod |= writefat(dosfs, &boot, fat, 1);
 			} else {
 				pwarn("\n***** FILE SYSTEM IS LEFT MARKED AS DIRTY *****\n");
-				mod |= FSERROR; /* filesystem not clean */
+				mod |= FSERROR; /* file system not clean */
 			}
 		}
 	}

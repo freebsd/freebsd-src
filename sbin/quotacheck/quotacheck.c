@@ -109,7 +109,7 @@ struct fileusage {
 #define FUHASH 1024	/* must be power of two */
 struct fileusage *fuhead[MAXQUOTAS][FUHASH];
 
-int	aflag;			/* all filesystems */
+int	aflag;			/* all file systems */
 int	gflag;			/* check group quotas */
 int	uflag;			/* check user quotas */
 int	vflag;			/* verbose */
@@ -254,7 +254,7 @@ needchk(fs)
 static int sblock_try[] = SBLOCKSEARCH;
 
 /*
- * Scan the specified filesystem to check quota(s) present on it.
+ * Scan the specified file system to check quota(s) present on it.
  */
 int
 chkquota(fsname, mntpt, qnp)
@@ -292,7 +292,7 @@ chkquota(fsname, mntpt, qnp)
 			break;
 	}
 	if (sblock_try[i] == -1) {
-		warn("Cannot find filesystem superblock");
+		warn("Cannot find file system superblock");
 		return (1);
 	}
 	dev_bsize = sblock.fs_fsize / fsbtodb(&sblock, 1);

@@ -482,7 +482,7 @@ do_mtptsetup(const char *mtpoint, struct mtpt_info *mip)
 }
 
 /*
- * Put a filesystem on the memory disk.
+ * Put a file system on the memory disk.
  */
 static void
 do_newfs(const char *args)

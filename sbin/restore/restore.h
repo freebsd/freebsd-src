@@ -55,7 +55,7 @@ extern int	yflag;		/* always try to recover from tape errors */
  */
 extern char	*dumpmap; 	/* map of inodes on this dump tape */
 extern char	*usedinomap; 	/* map of inodes that are in use on this fs */
-extern ino_t	maxino;		/* highest numbered inode in this filesystem */
+extern ino_t	maxino;		/* highest numbered inode in this file system */
 extern long	dumpnum;	/* location of the dump on this tape */
 extern long	volno;		/* current volume being read */
 extern long	ntrec;		/* number of TP_BSIZE records per tape block */
@@ -66,7 +66,7 @@ extern FILE	*terminal;	/* file descriptor for the terminal input */
 extern int	Bcvt;		/* need byte swapping on inodes and dirs */
 
 /*
- * Each file in the filesystem is described by one of these entries
+ * Each file in the file system is described by one of these entries
  */
 struct entry {
 	char	*e_name;		/* the current name of this entry */
