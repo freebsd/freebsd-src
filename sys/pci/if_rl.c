@@ -802,7 +802,7 @@ static int rl_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct rl_softc));
 
-	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_DEF);
+	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
 	RL_LOCK(sc);
 
 	/*

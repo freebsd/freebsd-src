@@ -1762,7 +1762,7 @@ static int dc_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct dc_softc));
 
-	mtx_init(&sc->dc_mtx, device_get_nameunit(dev), MTX_DEF);
+	mtx_init(&sc->dc_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
 	DC_LOCK(sc);
 
 	/*

@@ -67,7 +67,8 @@
 #define MTX_SPIN	0x1		/* Spin only lock */
 
 /* Options */
-#define	MTX_RLIKELY	0x4		/* (opt) Recursion likely */
+#define MTX_RECURSE	0x2		/* Recursive lock (for mtx_init) */
+#define	MTX_RLIKELY	0x4		/* Recursion likely */
 #define	MTX_NORECURSE	0x8		/* No recursion possible */
 #define	MTX_NOSPIN	0x10		/* Don't spin before sleeping */
 #define	MTX_NOSWITCH	0x20		/* Do not switch on release */
@@ -80,9 +81,9 @@
 #define	MTX_HARDOPTS	(MTX_SPIN | MTX_FIRST | MTX_TOPHALF | MTX_NOSWITCH)
 
 /* Flags/value used in mtx_lock */
-#define	MTX_RECURSE	0x01		/* (non-spin) lock held recursively */
+#define	MTX_RECURSED	0x01		/* (non-spin) lock held recursively */
 #define	MTX_CONTESTED	0x02		/* (non-spin) lock contested */
-#define	MTX_FLAGMASK	~(MTX_RECURSE | MTX_CONTESTED)
+#define	MTX_FLAGMASK	~(MTX_RECURSED | MTX_CONTESTED)
 #define MTX_UNOWNED	0x8		/* Cookie for free mutex */
 
 #endif	/* _KERNEL */
@@ -360,7 +361,7 @@ void	witness_restore(struct mtx *, const char *, int);
 		if (((mp)->mtx_lock & MTX_FLAGMASK) != ((uintptr_t)(tid)))\
 			mtx_enter_hard(mp, (type) & MTX_HARDOPTS, 0);	\
 		else {							\
-			atomic_set_ptr(&(mp)->mtx_lock, MTX_RECURSE);	\
+			atomic_set_ptr(&(mp)->mtx_lock, MTX_RECURSED);	\
 			(mp)->mtx_recurse++;				\
 		}							\
 	}								\
@@ -408,10 +409,10 @@ void	witness_restore(struct mtx *, const char *, int);
  */
 #define	_exitlock(mp, tid, type) do {					\
 	if (!_release_lock(mp, tid)) {					\
-		if ((mp)->mtx_lock & MTX_RECURSE) {			\
+		if ((mp)->mtx_lock & MTX_RECURSED) {			\
 			if (--((mp)->mtx_recurse) == 0)			\
 				atomic_clear_ptr(&(mp)->mtx_lock,	\
-				    MTX_RECURSE);			\
+				    MTX_RECURSED);			\
 		} else {						\
 			mtx_exit_hard((mp), (type) & MTX_HARDOPTS);	\
 		}							\
@@ -422,7 +423,7 @@ void	witness_restore(struct mtx *, const char *, int);
 #ifndef _exitlock_spin
 /* Release a spin lock (with possible recursion). */
 #define	_exitlock_spin(mp) do {						\
-	if ((mp)->mtx_recurse == 0) {					\
+	if (!mtx_recursed((mp))) {					\
 		int _mtx_intr = (mp)->mtx_saveintr;			\
 									\
 		_release_lock_quick(mp);				\

@@ -319,7 +319,7 @@ again:
 		TAILQ_INIT(&callwheel[i]);
 	}
 
-	mtx_init(&callout_lock, "callout", MTX_SPIN);
+	mtx_init(&callout_lock, "callout", MTX_SPIN | MTX_RECURSE);
 
 #if defined(USERCONFIG)
 #if defined(USERCONFIG_BOOT)
@@ -590,8 +590,8 @@ ia64_init()
 	/*
 	 * Initialise mutexes.
 	 */
-	mtx_init(&Giant, "Giant", MTX_DEF | MTX_COLD);
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_COLD);
+	mtx_init(&Giant, "Giant", MTX_DEF | MTX_COLD | MTX_RECURSE);
+	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_COLD | MTX_RECURSE);
 
 #if 0
 	/*
