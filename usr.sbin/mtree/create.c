@@ -172,26 +172,22 @@ statf(int indent, FTSENT *p)
 		output(indent, &offset, "type=%s", inotype(p->fts_statp->st_mode));
 	if (p->fts_statp->st_uid != uid) {
 		if (keys & F_UNAME) {
-			if ((pw = getpwuid(p->fts_statp->st_uid)) != NULL) {
-				output(indent, &offset, "uname=%s", pw->pw_name);
-			} else {
+			if ((pw = getpwuid(p->fts_statp->st_uid)) == NULL)
 				errx(1,
-				"line %d: could not get uname for uid=%u",
-				lineno, p->fts_statp->st_uid);
-			}
+				    "line %d: could not get uname for uid=%u",
+				    lineno, p->fts_statp->st_uid);
+			output(indent, &offset, "uname=%s", pw->pw_name);
 		}
 		if (keys & F_UID)
 			output(indent, &offset, "uid=%u", p->fts_statp->st_uid);
 	}
 	if (p->fts_statp->st_gid != gid) {
 		if (keys & F_GNAME) {
-			if ((gr = getgrgid(p->fts_statp->st_gid)) != NULL) {
-				output(indent, &offset, "gname=%s", gr->gr_name);
-			} else {
+			if ((gr = getgrgid(p->fts_statp->st_gid)) == NULL)
 				errx(1,
-				"line %d: could not get gname for gid=%u",
-				lineno, p->fts_statp->st_gid);
-			}
+				    "line %d: could not get gname for gid=%u",
+				    lineno, p->fts_statp->st_gid);
+			output(indent, &offset, "gname=%s", gr->gr_name);
 		}
 		if (keys & F_GID)
 			output(indent, &offset, "gid=%u", p->fts_statp->st_gid);
@@ -219,11 +215,9 @@ statf(int indent, FTSENT *p)
 		char *digest, buf[33];
 
 		digest = MD5File(p->fts_accpath, buf);
-		if (!digest) {
+		if (!digest)
 			err(1, "line %d: %s", lineno, p->fts_accpath);
-		} else {
-			output(indent, &offset, "md5digest=%s", digest);
-		}
+		output(indent, &offset, "md5digest=%s", digest);
 	}
 #endif /* MD5 */
 #ifdef SHA1
@@ -231,11 +225,9 @@ statf(int indent, FTSENT *p)
 		char *digest, buf[41];
 
 		digest = SHA1_File(p->fts_accpath, buf);
-		if (!digest) {
+		if (!digest)
 			err(1, "line %d: %s", lineno, p->fts_accpath);
-		} else {
-			output(indent, &offset, "sha1digest=%s", digest);
-		}
+		output(indent, &offset, "sha1digest=%s", digest);
 	}
 #endif /* SHA1 */
 #ifdef RMD160
@@ -243,11 +235,9 @@ statf(int indent, FTSENT *p)
 		char *digest, buf[41];
 
 		digest = RIPEMD160_File(p->fts_accpath, buf);
-		if (!digest) {
+		if (!digest)
 			err(1, "line %d: %s", lineno, p->fts_accpath);
-		} else {
-			output(indent, &offset, "ripemd160digest=%s", digest);
-		}
+		output(indent, &offset, "ripemd160digest=%s", digest);
 	}
 #endif /* RMD160 */
 	if (keys & F_SLINK &&
