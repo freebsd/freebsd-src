@@ -70,12 +70,19 @@ struct g_event {
 	g_call_me_t		*func;
 };
 
+/*
+ * We actually have a number of drivers sharing the same major number
+ * so we coordinate the major/minor usage here
+ */
+#define GEOM_MAJOR		4
+#define GEOM_MINOR_STATS	0
+#define GEOM_MINOR_PROVIDERS	10
+
 /* geom_dump.c */
 void g_confxml(void *);
 void g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
 void g_confdot(void *);
 void g_conftxt(void *);
-
 
 /* geom_event.c */
 void g_event_init(void);
