@@ -2,12 +2,13 @@
 # Copyright (c) 1986, 1993 Regents of the University of California.
 # All rights reserved.
 #
-#	@(#)Makefile	8.2 (Berkeley) 1/29/94
+#	From: @(#)Makefile	8.2 (Berkeley) 1/29/94
+#	$Id$
 #
 SRCS=	man1 man2 man3 man4 man5 man6 man7 man8
 
 MACROS=	-ms
-PRINTER=Pps
+PRINTER=ps
 TBL=	tbl
 TROFF=	groff
 
@@ -65,5 +66,5 @@ man8pages: man8
 	for i in `cat man8`; do groff -man $$i >>man8pages; done;
 
 clean:
-	rm -f title.urm.[PT]* title.prm.[PT]* toc? tocx? ptxx \
+	rm -f title.urm.${PRINTER} title.prm.${PRINTER} toc? tocx? ptxx \
 		*.spell errs Errs make.out

@@ -55,7 +55,7 @@ fi
 
 cat tocx* cshcmd > /tmp/cattoc
 
-ptx -r -t -b break -f -w 108 -i ignore /tmp/cattoc ptxx
+ptx -G -r -t -b break -f -w 108 -i ignore /tmp/cattoc ptxx
 
 for x in 1 2 3 4 5 6 7 8; do
 	grep '^intro' <tocx$x >$tmp
