@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Nov 30 20:36:29 2000]
+ *      last edit-date: [Tue Jan 16 14:07:12 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -442,6 +442,20 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 			log(LL_CHD, "%05d %s incoming call, controller %d DOWN!",
                         	mp->header.cdid, cep->name, mp->controller);
 			return(NULL);
+		}
+
+		/* 
+		 * check controller he wants, check for any 
+		 * controller or specific controller 
+		 */
+
+		if( (mp->controller != -1) && 
+		    (mp->controller != cep->isdncontroller) )
+		{
+			log(LL_CHD, "%05d %s incoming call, controller %d != incoming %d",
+				mp->header.cdid, cep->name, 
+				cep->isdncontroller, mp->controller);
+			continue;
 		}
 
 		/* check channel he wants */
