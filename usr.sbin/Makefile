@@ -226,6 +226,7 @@ SUBDIR+=acpi \
 	lptcontrol \
 	mount_nwfs \
 	mount_smbfs \
+	mptable \
 	sicontrol \
 	spkrtest \
 	zzz
