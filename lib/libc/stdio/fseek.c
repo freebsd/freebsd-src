@@ -232,8 +232,6 @@ _fseeko(fp, offset, whence, ltest)
 	 * file offset for the first byte in the current input buffer.
 	 */
 	if (HASUB(fp)) {
-		if (curoff > 0 && fp->_r > OFF_MAX - curoff)
-			goto abspos;
 		curoff += fp->_r;	/* kill off ungetc */
 		n = fp->_extra->_up - fp->_bf._base;
 		curoff -= n;
@@ -249,9 +247,7 @@ _fseeko(fp, offset, whence, ltest)
 	 * simply adjust the pointers, clear EOF, undo ungetc(),
 	 * and return.
 	 */
-	if (target >= curoff &&
-	    (curoff <= 0 || n <= OFF_MAX - curoff) &&
-	    target < curoff + n) {
+	if (target >= curoff && target < curoff + n) {
 		size_t o = target - curoff;
 
 		fp->_p = fp->_bf._base + o;
