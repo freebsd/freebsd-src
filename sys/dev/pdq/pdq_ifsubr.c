@@ -379,13 +379,6 @@ pdq_ifioctl(
     PDQ_LOCK(sc);
 
     switch (cmd) {
-	case SIOCSIFMTU:
-	case SIOCGIFADDR:
-	case SIOCSIFADDR: {
-	    error = fddi_ioctl(ifp, cmd, data);
-	    break;
-	}
-
 	case SIOCSIFFLAGS: {
 	    pdq_ifinit(sc);
 	    break;
@@ -410,7 +403,7 @@ pdq_ifioctl(
 #endif
 
 	default: {
-	    error = EINVAL;
+	    error = fddi_ioctl(ifp, cmd, data);
 	    break;
 	}
     }
