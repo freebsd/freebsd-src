@@ -184,11 +184,21 @@ iread(fd, buf, len)
 	flush();
 	reading = 1;
 	n = read(fd, buf, len);
-	/* There's really no terribly impressive reason why we should just
-	 * sighup after a single EOF read, nor is there any particular
-	 * reason why we SIGHUP ourselves rather than calling exit().  However,
-	 * none of it hurts, either. */
-	if (n == 0) neofs++;
+	/*
+	 * XXX This is a hack.  We do want to exit if we read a couple EOFs
+	 *     from the terminal (to avoid spinning on input if the user
+	 *     leaves us hanging), but we should be comparing against the
+	 *     tty variable from ttyin.c.
+	 *
+	 *     We wait for two successive EOFs just to give any potential
+	 *     oddities the benefit of the doubt.
+	 */
+	if (fd == 2) {
+		if (n == 0)
+			neofs++;
+		else
+			neofs = 0;
+	}
 	if (neofs > 2) kill(getpid(), SIGHUP);
 
 	reading = 0;
