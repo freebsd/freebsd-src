@@ -43,29 +43,21 @@ struct ad1816_chinfo {
 };
 
 struct ad1816_info {
-    struct resource *io_base;	/* primary I/O address for the board */
-    int		     io_rid;
-    struct resource *irq;
-    int		     irq_rid;
-    struct resource *drq1; /* play */
-    int		     drq1_rid;
-    struct resource *drq2; /* rec */
-    int		     drq2_rid;
-    void 	    *ih;
-    bus_dma_tag_t    parent_dmat;
-    void 	    *lock;
+	struct resource *io_base;	/* primary I/O address for the board */
+	int io_rid;
+	struct resource *irq;
+	int irq_rid;
+	struct resource *drq1;		/* play */
+	int drq1_rid;
+	struct resource *drq2;		/* rec */
+	int drq2_rid;
+	void *ih;
+	bus_dma_tag_t parent_dmat;
+	void *lock;
 
-    struct ad1816_chinfo pch, rch;
+	unsigned int bufsize;
+	struct ad1816_chinfo pch, rch;
 };
-
-static driver_intr_t 	ad1816_intr;
-static int 		ad1816_probe(device_t dev);
-static int 		ad1816_attach(device_t dev);
-
-/* IO primitives */
-static int      	ad1816_wait_init(struct ad1816_info *ad1816, int x);
-static u_short		ad1816_read(struct ad1816_info *ad1816, u_int reg);
-static void     	ad1816_write(struct ad1816_info *ad1816, u_int reg, u_short data);
 
 static u_int32_t ad1816_fmt[] = {
 	AFMT_U8,
@@ -320,7 +312,7 @@ ad1816chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channe
 	ch->parent = ad1816;
 	ch->channel = c;
 	ch->buffer = b;
-	if (sndbuf_alloc(ch->buffer, ad1816->parent_dmat, DSP_BUFFSIZE) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, ad1816->parent_dmat, ad1816->bufsize) == -1) return NULL;
 	return ch;
 }
 
@@ -487,30 +479,30 @@ ad1816_release_resources(struct ad1816_info *ad1816, device_t dev)
     	if (ad1816->irq) {
    		if (ad1816->ih)
 			bus_teardown_intr(dev, ad1816->irq, ad1816->ih);
-		bus_release_resource(dev, SYS_RES_IRQ, ad1816->irq_rid,
-				     ad1816->irq);
+		bus_release_resource(dev, SYS_RES_IRQ, ad1816->irq_rid, ad1816->irq);
 		ad1816->irq = 0;
     	}
     	if (ad1816->drq1) {
-		bus_release_resource(dev, SYS_RES_DRQ, ad1816->drq1_rid,
-				     ad1816->drq1);
+		isa_dma_release(rman_get_start(ad1816->drq1));
+		bus_release_resource(dev, SYS_RES_DRQ, ad1816->drq1_rid, ad1816->drq1);
 		ad1816->drq1 = 0;
     	}
     	if (ad1816->drq2) {
-		bus_release_resource(dev, SYS_RES_DRQ, ad1816->drq2_rid,
-				     ad1816->drq2);
+		isa_dma_release(rman_get_start(ad1816->drq2));
+		bus_release_resource(dev, SYS_RES_DRQ, ad1816->drq2_rid, ad1816->drq2);
 		ad1816->drq2 = 0;
     	}
     	if (ad1816->io_base) {
-		bus_release_resource(dev, SYS_RES_IOPORT, ad1816->io_rid,
-				     ad1816->io_base);
+		bus_release_resource(dev, SYS_RES_IOPORT, ad1816->io_rid, ad1816->io_base);
 		ad1816->io_base = 0;
     	}
     	if (ad1816->parent_dmat) {
 		bus_dma_tag_destroy(ad1816->parent_dmat);
 		ad1816->parent_dmat = 0;
     	}
-	if (ad1816->lock) snd_mtxfree(ad1816->lock);
+	if (ad1816->lock)
+		snd_mtxfree(ad1816->lock);
+
      	free(ad1816, M_DEVBUF);
 }
 
@@ -518,6 +510,7 @@ static int
 ad1816_alloc_resources(struct ad1816_info *ad1816, device_t dev)
 {
     	int ok = 1, pdma, rdma;
+
 	if (!ad1816->io_base)
     		ad1816->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &ad1816->io_rid,
 						  0, ~0, 1, RF_ACTIVE);
@@ -536,15 +529,17 @@ ad1816_alloc_resources(struct ad1816_info *ad1816, device_t dev)
 	if (ok) {
 		pdma = rman_get_start(ad1816->drq1);
 		isa_dma_acquire(pdma);
-		isa_dmainit(pdma, DSP_BUFFSIZE);
+		isa_dmainit(pdma, ad1816->bufsize);
 		if (ad1816->drq2) {
 			rdma = rman_get_start(ad1816->drq2);
 			isa_dma_acquire(rdma);
-			isa_dmainit(rdma, DSP_BUFFSIZE);
-		} else rdma = pdma;
+			isa_dmainit(rdma, ad1816->bufsize);
+		} else
+			rdma = pdma;
     		if (pdma == rdma)
 			pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
 	}
+
     	return ok;
 }
 
@@ -587,7 +582,7 @@ static int
 ad1816_attach(device_t dev)
 {
 	struct ad1816_info *ad1816;
-    	char status[SND_STATUSLEN];
+    	char status[SND_STATUSLEN], status2[SND_STATUSLEN];
 
 	ad1816 = (struct ad1816_info *)malloc(sizeof *ad1816, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!ad1816) return ENXIO;
@@ -597,6 +592,7 @@ ad1816_attach(device_t dev)
 	ad1816->irq_rid = 0;
 	ad1816->drq1_rid = 0;
 	ad1816->drq2_rid = 1;
+	ad1816->bufsize = pcm_getbuffersize(dev, 4096, DSP_BUFFSIZE, 65536);
 
     	if (!ad1816_alloc_resources(ad1816, dev)) goto no;
     	ad1816_init(ad1816, dev);
@@ -607,19 +603,23 @@ ad1816_attach(device_t dev)
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
 			/*filter*/NULL, /*filterarg*/NULL,
-			/*maxsize*/DSP_BUFFSIZE, /*nsegments*/1,
+			/*maxsize*/ad1816->bufsize, /*nsegments*/1,
 			/*maxsegz*/0x3ffff,
 			/*flags*/0, &ad1816->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto no;
     	}
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld",
+    	if (ad1816->drq2)
+		snprintf(status2, SND_STATUSLEN, ":%ld", rman_get_start(ad1816->drq2));
+	else
+		status2[0] = '\0';
+
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %u",
     	     	rman_get_start(ad1816->io_base),
 		rman_get_start(ad1816->irq),
-		rman_get_start(ad1816->drq1));
-    	if (ad1816->drq2) snprintf(status + strlen(status),
-        	SND_STATUSLEN - strlen(status), ":%ld",
-		rman_get_start(ad1816->drq2));
+		rman_get_start(ad1816->drq1),
+		status2,
+		ad1816->bufsize);
 
     	if (pcm_register(dev, ad1816, 1, 1)) goto no;
     	pcm_addchan(dev, PCMDIR_REC, &ad1816chan_class, ad1816);

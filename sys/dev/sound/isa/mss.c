@@ -1658,7 +1658,7 @@ static int
 mss_doattach(device_t dev, struct mss_info *mss)
 {
     	int pdma, rdma, flags = device_get_flags(dev);
-    	char status[SND_STATUSLEN];
+    	char status[SND_STATUSLEN], status2[SND_STATUSLEN];
 
 	mss->lock = snd_mtxcreate(device_get_nameunit(dev));
 	mss->bufsize = pcm_getbuffersize(dev, 4096, MSS_DEFAULT_BUFSZ, 65536);
@@ -1718,10 +1718,14 @@ mss_doattach(device_t dev, struct mss_info *mss)
 		device_printf(dev, "unable to create dma tag\n");
 		goto no;
     	}
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %d",
-    	     	rman_get_start(mss->io_base), rman_get_start(mss->irq), pdma);
-    	if (pdma != rdma) snprintf(status + strlen(status),
-        	SND_STATUSLEN - strlen(status), ":%d", rdma);
+
+    	if (pdma != rdma)
+		snprintf(status2, SND_STATUSLEN, ":%d", rdma);
+	else
+		status2[0] = '\0';
+
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %d%s bufsz %u",
+    	     	rman_get_start(mss->io_base), rman_get_start(mss->irq), pdma, status2, mss->bufsize);
 
     	if (pcm_register(dev, mss, 1, 1)) goto no;
     	pcm_addchan(dev, PCMDIR_REC, &msschan_class, mss);
