@@ -61,7 +61,7 @@ ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
 	return ret0;
 }
 
-extern u_int64_t ski_fake_pal[];	// *not* a function decl
+extern u_int64_t ski_fake_pal[];	/* *not* a function decl */
 extern void ia64_ski_init(void);
 extern u_int64_t ia64_pal_entry;
 
