@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.24 1997/05/08 09:18:11 kato Exp $
+#	$Id: options.pc98,v 1.25 1997/05/23 10:11:04 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -17,7 +17,7 @@ BREAK_TO_DEBUGGER	opt_comconsole.h
 COMCONSOLE		opt_defunct.h
 CONADDR			opt_defunct.h
 CONUNIT			opt_defunct.h
-CONSPEED		opt_comconsole.h
+CONSPEED		opt_defunct.h
 COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
 DSI_SOFT_MODEM		opt_sio.h
