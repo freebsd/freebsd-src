@@ -95,7 +95,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 					goto doerror;
 				}
 
-			DEV_STRATEGY(bp);
+			dev_strategy(bp);
 			if (uio->uio_rw == UIO_READ)
 				bwait(bp, PRIBIO, "physrd");
 			else

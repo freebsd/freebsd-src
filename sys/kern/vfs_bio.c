@@ -3105,14 +3105,23 @@ dev_strategy(struct buf *bp)
 	bp->b_io.bio_done = bufdonebio;
 	bp->b_io.bio_caller2 = bp;
 	dev = bp->b_io.bio_dev;
-	csw = devsw(dev);
 	KASSERT(dev->si_refcount > 0,
 	    ("dev_strategy on un-referenced struct cdev *(%s)",
 	    devtoname(dev)));
 	dev_lock();
-	dev->si_threadcount++;
+	csw = devsw(dev);
+	if (csw != NULL)
+		dev->si_threadcount++;
 	dev_unlock();
-	(*devsw(bp->b_io.bio_dev)->d_strategy)(&bp->b_io);
+	if (csw == NULL) {
+		bp->b_error = ENXIO;
+		bp->b_ioflags = BIO_ERROR;
+		mtx_lock(&Giant);	/* XXX: too defensive ? */
+		bufdone(bp);
+		mtx_unlock(&Giant);	/* XXX: too defensive ? */
+		return;
+	}
+	(*csw->d_strategy)(&bp->b_io);
 	dev_lock();
 	dev->si_threadcount--;
 	dev_unlock();

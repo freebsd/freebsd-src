@@ -476,7 +476,6 @@ static int
 spec_xstrategy(struct vnode *vp, struct buf *bp)
 {
 	struct mount *mp;
-	struct cdevsw *dsw;
 	struct thread *td = curthread;
 	
 	KASSERT(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE,
@@ -508,23 +507,8 @@ spec_xstrategy(struct vnode *vp, struct buf *bp)
 				mp->mnt_stat.f_syncreads++;
 		}
 	}
-	dsw = devsw(bp->b_dev);
-	if (dsw == NULL) {
-		bp->b_error = ENXIO;
-		bp->b_ioflags |= BIO_ERROR;
-		bufdone(bp);
-		return (0);
-	}
-	KASSERT(dsw->d_strategy != NULL,
-	   ("No strategy on dev %s responsible for buffer %p\n",
-	   devtoname(bp->b_dev), bp));
-	
-	if (!(dsw->d_flags & D_NEEDGIANT)) {
-		/* XXX: notyet DROP_GIANT(); */
-		DEV_STRATEGY(bp);
-		/* XXX: notyet PICKUP_GIANT(); */
-	} else
-		DEV_STRATEGY(bp);
+
+	dev_strategy(bp);	
 		
 	return (0);
 }
