@@ -167,6 +167,72 @@ sbuf_setpos(struct sbuf *s, int pos)
 }
 
 /*
+ * Append a byte string to an sbuf.
+ */
+int
+sbuf_bcat(struct sbuf *s, const char *str, size_t len)
+{
+	assert_sbuf_integrity(s);
+	assert_sbuf_state(s, 0);
+	
+	if (SBUF_HASOVERFLOWED(s))
+		return (-1);
+	
+	while (len-- && SBUF_HASROOM(s))
+		s->s_buf[s->s_len++] = *str++;
+	if (len) {
+		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
+		return (-1);
+	}
+	return (0);
+}
+
+#ifdef _KERNEL
+/*
+ * Copy a byte string from userland into an sbuf.
+ */
+int
+sbuf_bcopyin(struct sbuf *s, const void *uaddr, size_t len)
+{
+	assert_sbuf_integrity(s);
+	assert_sbuf_state(s, 0);
+
+	if (SBUF_HASOVERFLOWED(s))
+		return (-1);
+
+	if (len == 0)
+		return (0);
+	if (len > (s->s_size - s->s_len - 1))
+		len = s->s_size - s->s_len - 1;
+	switch (copyin(uaddr, s->s_buf + s->s_len, len)) {
+	case ENAMETOOLONG:
+		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
+		/* fall through */
+	case 0:
+		s->s_len += len;
+		break;
+	default:
+		return (-1);	/* XXX */
+	}
+	
+	return (0);
+}
+#endif
+
+/*
+ * Copy a byte string into an sbuf.
+ */
+int
+sbuf_bcpy(struct sbuf *s, const char *str, size_t len)
+{
+	assert_sbuf_integrity(s);
+	assert_sbuf_state(s, 0);
+	
+	sbuf_clear(s);
+	return (sbuf_bcat(s, str, len));
+}
+
+/*
  * Append a string to an sbuf.
  */
 int
@@ -186,6 +252,38 @@ sbuf_cat(struct sbuf *s, const char *str)
 	}
 	return (0);
 }
+
+#ifdef _KERNEL
+/*
+ * Copy a string from userland into an sbuf.
+ */
+int
+sbuf_copyin(struct sbuf *s, const void *uaddr, size_t len)
+{
+	size_t done;
+	
+	assert_sbuf_integrity(s);
+	assert_sbuf_state(s, 0);
+
+	if (SBUF_HASOVERFLOWED(s))
+		return (-1);
+
+	if (len == 0 || len > (s->s_size - s->s_len - 1))
+		len = s->s_size - s->s_len - 1;
+	switch (copyinstr(uaddr, s->s_buf + s->s_len, len + 1, &done)) {
+	case ENAMETOOLONG:
+		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
+		/* fall through */
+	case 0:
+		s->s_len += done - 1;
+		break;
+	default:
+		return (-1);	/* XXX */
+	}
+	
+	return (0);
+}
+#endif
 
 /*
  * Copy a string into an sbuf.
