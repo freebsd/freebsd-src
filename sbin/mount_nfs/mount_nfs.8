@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\"
-.\" $Id: mount_nfs.8,v 1.12 1998/05/19 07:18:27 peter Exp $
+.\" $Id: mount_nfs.8,v 1.13 1998/06/29 06:58:46 jkoshy Exp $
 .\""
 .Dd March 29, 1995
 .Dt MOUNT_NFS 8
@@ -57,7 +57,7 @@
 .Ar rhost:path node
 .Sh DESCRIPTION
 The
-.Nm mount_nfs
+.Nm
 command
 calls the
 .Xr mount 2
@@ -191,7 +191,7 @@ The default is to query the portmapper for the NFS port.
 .It acregmax=<seconds>
 .It acdirmin=<seconds>
 .It acdirmax=<seconds>
-When attributes of files are cached, a timeout caclulated to determine
+When attributes of files are cached, a timeout calculated to determine
 whether a given cache entry has expired.  These four values determine the
 upper and lower bounds of the timeouts for ``directory'' attributes and
 ``regular'' (ie: everything else).  The default values are 3 -> 60 seconds
@@ -205,7 +205,7 @@ the longer the cache is considered valid, subject to the limits above.
 .Pp
 Use of these options is deprecated, they are only mentioned here for
 compatibility with historic versions of
-.Nm mount_nfs .
+.Nm Ns .
 .It bg
 Same as
 .Fl b .

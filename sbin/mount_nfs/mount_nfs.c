@@ -35,23 +35,21 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-/*
+#if 0
 static char sccsid[] = "@(#)mount_nfs.c	8.11 (Berkeley) 5/4/95";
-*/
+#endif
 static const char rcsid[] =
-	"$Id: mount_nfs.c,v 1.27 1998/02/01 21:53:19 bde Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/mount.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/stat.h>
 #include <sys/syslog.h>
 
@@ -78,9 +76,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <netdb.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -213,7 +209,7 @@ int	xdr_fh __P((XDR *, struct nfhret *));
 
 /*
  * Used to set mount flags with getmntopts.  Call with dir=TRUE to
- * initialise altflags from the current mount flags.  Call with
+ * initialize altflags from the current mount flags.  Call with
  * dir=FALSE to update mount flags with the new value of altflags after
  * the call to getmntopts.
  */
@@ -493,7 +489,7 @@ main(argc, argv)
 #endif
 	if (nfsargsp->flags & (NFSMNT_NQNFS | NFSMNT_KERB)) {
 		if ((opflags & ISBGRND) == 0) {
-			if (i = fork()) {
+			if ((i = fork())) {
 				if (i == -1)
 					err(1, "nqnfs 1");
 				exit(0);
@@ -522,7 +518,7 @@ main(argc, argv)
 			 * as last time, so that the right ticket file
 			 * is found.
 			 * Get the Kerberos credential structure so that
-			 * we have the seesion key and get a ticket for
+			 * we have the session key and get a ticket for
 			 * this uid.
 			 * For more info see the IETF Draft "Authentication
 			 * in ONC RPC".
@@ -548,7 +544,7 @@ main(argc, argv)
 				realm, 0);
 
 			/*
-			 * Fill in the AKN_FULLNAME authenticator and verfier.
+			 * Fill in the AKN_FULLNAME authenticator and verifier.
 			 * Along with the Kerberos ticket, we need to build
 			 * the timestamp verifier and encrypt it in CBC mode.
 			 */
@@ -771,7 +767,7 @@ tryagain:
 					mountmode = V2;
 					goto tryagain;
 				} else {
-					errx(1, "Can't contact NFS server");
+					errx(1, "can't contact NFS server");
 				}
 			}
 			saddr.sin_port = 0;
@@ -820,7 +816,7 @@ tryagain:
 		if (--retrycnt > 0) {
 			if (opflags & BGRND) {
 				opflags &= ~BGRND;
-				if (i = fork()) {
+				if ((i = fork())) {
 					if (i == -1)
 						err(1, "nqnfs 2");
 					exit(0);
@@ -914,10 +910,10 @@ xdr_fh(xdrsp, np)
 void
 usage()
 {
-	(void)fprintf(stderr, "\
-usage: mount_nfs [-23KPTUbcdilqs] [-D deadthresh] [-I readdirsize]\n\
-       [-L leaseterm] [-R retrycnt] [-a maxreadahead] [-g maxgroups]\n\
-       [-m realm] [-o options] [-r readsize] [-t timeout] [-w writesize]\n\
-       [-x retrans] rhost:path node\n");
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
+"usage: mount_nfs [-23KNPTUbcdilqs] [-D deadthresh] [-I readdirsize]",
+"                 [-L leaseterm] [-R retrycnt] [-a maxreadahead]",
+"                 [-g maxgroups] [-m realm] [-o options] [-r readsize]",
+"                 [-t timeout] [-w writesize] [-x retrans] rhost:path node");
 	exit(1);
 }
