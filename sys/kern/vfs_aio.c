@@ -215,6 +215,7 @@ static void	aio_physwakeup(struct buf *bp);
 static int	aio_fphysio(struct proc *p, struct aiocblist *aiocbe);
 static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
 static void	aio_daemon(void *uproc);
+static void	process_signal(void *aioj);
 
 SYSINIT(aio, SI_SUB_VFS, SI_ORDER_ANY, aio_onceonly, NULL);
 
@@ -298,11 +299,11 @@ aio_free_entry(struct aiocblist *aiocbe)
 	if (ki == NULL)
 		panic("aio_free_entry: missing p->p_aioinfo");
 
-	if (aiocbe->jobstate == JOBST_JOBRUNNING) {
+	while (aiocbe->jobstate == JOBST_JOBRUNNING) {
 		if (aiocbe->jobflags & AIOCBLIST_ASYNCFREE)
 			return 0;
 		aiocbe->jobflags |= AIOCBLIST_RUNDOWN;
-		tsleep(aiocbe, PRIBIO|PCATCH, "jobwai", 0);
+		tsleep(aiocbe, PRIBIO, "jobwai", 0);
 	}
 	aiocbe->jobflags &= ~AIOCBLIST_ASYNCFREE;
 
@@ -353,9 +354,10 @@ aio_free_entry(struct aiocblist *aiocbe)
 	} else if (aiocbe->jobstate == JOBST_JOBQPROC) {
 		aiop = aiocbe->jobaioproc;
 		TAILQ_REMOVE(&aiop->jobtorun, aiocbe, list);
-	} else if (aiocbe->jobstate == JOBST_JOBQGLOBAL)
+	} else if (aiocbe->jobstate == JOBST_JOBQGLOBAL) {
 		TAILQ_REMOVE(&aio_jobs, aiocbe, list);
-	else if (aiocbe->jobstate == JOBST_JOBFINISHED)
+		TAILQ_REMOVE(&ki->kaio_jobqueue, aiocbe, plist);
+	} else if (aiocbe->jobstate == JOBST_JOBFINISHED)
 		TAILQ_REMOVE(&ki->kaio_jobdone, aiocbe, plist);
 	else if (aiocbe->jobstate == JOBST_JOBBFINISHED) {
 		s = splbio();
@@ -372,6 +374,7 @@ aio_free_entry(struct aiocblist *aiocbe)
 		zfree(aiolio_zone, lj);
 	}
 	aiocbe->jobstate = JOBST_NULL;
+	untimeout(process_signal, aiocbe, aiocbe->timeouthandle);
 	zfree(aiocb_zone, aiocbe);
 	return 0;
 }
@@ -480,6 +483,16 @@ restart4:
 		}
 	}
 	splx(s);
+
+        /*
+         * If we've slept, jobs might have moved from one queue to another.
+         * Retry rundown if we didn't manage to empty the queues.
+         */
+        if (TAILQ_FIRST(&ki->kaio_jobdone) != NULL ||
+	    TAILQ_FIRST(&ki->kaio_jobqueue) != NULL ||
+	    TAILQ_FIRST(&ki->kaio_bufqueue) != NULL ||
+	    TAILQ_FIRST(&ki->kaio_bufdone) != NULL)
+		goto restart1;
 
 	for (lj = TAILQ_FIRST(&ki->kaio_liojoblist); lj; lj = ljn) {
 		ljn = TAILQ_NEXT(lj, lioj_list);
@@ -990,7 +1003,8 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
  	if (cb->aio_nbytes % vp->v_rdev->si_bsize_phys)
 		return (-1);
 
-	if (cb->aio_nbytes > MAXPHYS)
+	if (cb->aio_nbytes >
+	    MAXPHYS - (((vm_offset_t) cb->aio_buf) & PAGE_MASK))
 		return (-1);
 
 	ki = p->p_aioinfo;
@@ -1005,6 +1019,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 
 	/* Create and build a buffer header for a transfer. */
 	bp = (struct buf *)getpbuf(NULL);
+	BUF_KERNPROC(bp);
 
 	/*
 	 * Get a copy of the kva from the physical buffer.
@@ -1209,6 +1224,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	aiocbe = zalloc(aiocb_zone);
 	aiocbe->inputcharge = 0;
 	aiocbe->outputcharge = 0;
+	callout_handle_init(&aiocbe->timeouthandle);
 	SLIST_INIT(&aiocbe->klist);
 
 	suword(&job->_aiocb_private.status, -1);
@@ -2116,7 +2132,9 @@ aio_physwakeup(struct buf *bp)
 				    (LIOJ_SIGNAL|LIOJ_SIGNAL_POSTED)) ==
 				    LIOJ_SIGNAL) {
 					lj->lioj_flags |= LIOJ_SIGNAL_POSTED;
-					timeout(process_signal, aiocbe, 0);
+					aiocbe->timeouthandle =
+						timeout(process_signal,
+							aiocbe, 0);
 				}
 			}
 		}
@@ -2137,7 +2155,8 @@ aio_physwakeup(struct buf *bp)
 		}
 
 		if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_SIGNAL)
-			timeout(process_signal, aiocbe, 0);
+			aiocbe->timeouthandle =
+				timeout(process_signal, aiocbe, 0);
 	}
 }
 #endif /* VFS_AIO */
