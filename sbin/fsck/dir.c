@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)dir.c	8.8 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: dir.c,v 1.10 1998/06/15 07:07:10 charnier Exp $";
+	"$Id: dir.c,v 1.11 1998/06/28 19:23:02 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -417,8 +417,6 @@ linkup(orphan, parentdir)
 	else
 		if (reply("RECONNECT") == 0)
 			return (0);
-	if (parentdir != 0)
-		lncntp[parentdir]++;
 	if (lfdir == 0) {
 		dp = ginode(ROOTINO);
 		idesc.id_name = lfname;
