@@ -39,8 +39,6 @@
 # uucpdomain, virtusertable
 #
 
-SENDMAIL_M4_FLAGS+=	-D_FFR_TLS_O_T
-
 .ifndef SENDMAIL_MC
 SENDMAIL_MC!=           hostname
 SENDMAIL_MC:=           ${SENDMAIL_MC}.mc
