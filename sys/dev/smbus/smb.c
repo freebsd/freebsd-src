@@ -35,10 +35,9 @@
 #include <sys/uio.h>
 #include <sys/fcntl.h>
 
-
 #include <dev/smbus/smbconf.h>
 #include <dev/smbus/smbus.h>
-#include <machine/smb.h>
+#include <dev/smbus/smb.h>
 
 #include "smbus_if.h"
 
