@@ -22,12 +22,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.30 1997/08/24 20:19:47 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.44 1997/08/24 20:33:32 fsmp Exp $
  */
 
 #include "opt_smp.h"
 
-#include <sys/param.h>		/* for KERNBASE */
+#include <sys/param.h>
 #include <sys/systm.h>
 
 #include <vm/vm.h>		/* for KERNBASE */
