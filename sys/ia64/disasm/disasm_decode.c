@@ -1461,10 +1461,10 @@ asm_decodeM(uint64_t ip, struct asm_bundle *b, int slot)
 				op = ASM_OP_MOV_PSR_L, fmt = ASM_FMT_M35;
 				break;
 			case 0x2E:
-				op = ASM_OP_ITC_D, fmt = ASM_FMT_M42;
+				op = ASM_OP_ITC_D, fmt = ASM_FMT_M41;
 				break;
 			case 0x2F:
-				op = ASM_OP_ITC_I, fmt = ASM_FMT_M42;
+				op = ASM_OP_ITC_I, fmt = ASM_FMT_M41;
 				break;
 			case 0x30:
 				if (FIELD(bits, 36, 1) == 0) /* x */
