@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.69 1995/11/05 20:45:49 dyson Exp $
+ * $Id: vfs_bio.c,v 1.70 1995/11/18 23:33:48 dyson Exp $
  */
 
 /*
@@ -102,11 +102,6 @@ vm_offset_t bogus_offset;
 
 int bufspace, maxbufspace;
 
-/*
- * advisory minimum for size of LRU queue or VMIO queue
- */
-int minbuf;
-
 struct bufhashhdr bufhashtbl[BUFHSZ], invalhash;
 struct bqueues bufqueues[BUFFER_QUEUES];
 
@@ -151,7 +146,6 @@ bufinit()
  * cache is still the same as it would be for 8K filesystems.  This
  * keeps the size of the buffer cache "in check" for big block filesystems.
  */
-	minbuf = nbuf / 3;
 	maxbufspace = 2 * (nbuf + 8) * PAGE_SIZE;
 
 	bogus_offset = kmem_alloc_pageable(kernel_map, PAGE_SIZE);
@@ -404,7 +398,6 @@ brelse(struct buf * bp)
 		bp->b_flags &= ~(B_WANTED | B_AGE);
 		wakeup(bp);
 	} else if (bp->b_flags & B_VMIO) {
-		bp->b_flags &= ~B_WANTED;
 		wakeup(bp);
 	}
 	if (bp->b_flags & B_LOCKED)
@@ -616,19 +609,18 @@ vfs_bio_awrite(struct buf * bp)
 		 * this is a possible cluster write
 		 */
 		if (ncl != 1) {
-			bremfree(bp);
-			cluster_wbuild(vp, bp, size, lblkno, ncl, -1);
+			cluster_wbuild(vp, size, lblkno, ncl);
 			splx(s);
 			return;
 		}
 	}
+	bremfree(bp);
+	splx(s);
 	/*
 	 * default (old) behavior, writing out only one block
 	 */
-	bremfree(bp);
 	bp->b_flags |= B_BUSY | B_ASYNC;
 	(void) VOP_BWRITE(bp);
-	splx(s);
 }
 
 
@@ -888,6 +880,7 @@ loop:
 		 * We are conservative on metadata and don't just extend the buffer
 		 * but write and re-constitute it.
 		 */
+
 		if (bp->b_bcount != size) {
 			if (bp->b_flags & B_VMIO) {
 				allocbuf(bp, size);
@@ -897,6 +890,7 @@ loop:
 				goto loop;
 			}
 		}
+
 		/*
 		 * make sure that all pages in the buffer are valid, if they
 		 * aren't, clear the cache flag.
@@ -1492,9 +1486,7 @@ vfs_bio_clrbuf(struct buf *bp) {
 		if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE)) {
 			int j;
 			if( bp->b_pages[0]->valid != VM_PAGE_BITS_ALL) {
-				for(j=0; j < bp->b_bufsize / DEV_BSIZE;j++) {
-					bzero(bp->b_data + j * DEV_BSIZE, DEV_BSIZE);
-				}
+				bzero(bp->b_data, bp->b_bufsize);
 			}
 			bp->b_resid = 0;
 			return;
@@ -1503,7 +1495,8 @@ vfs_bio_clrbuf(struct buf *bp) {
 			if( bp->b_pages[i]->valid == VM_PAGE_BITS_ALL)
 				continue;
 			if( bp->b_pages[i]->valid == 0) {
-				bzero(bp->b_data + i * PAGE_SIZE, PAGE_SIZE);
+				if ((bp->b_pages[i]->flags & PG_ZERO) == 0)
+					bzero(bp->b_data + i * PAGE_SIZE, PAGE_SIZE);
 			} else {
 				int j;
 				for(j=0;j<PAGE_SIZE/DEV_BSIZE;j++) {
