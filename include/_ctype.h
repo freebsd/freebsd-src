@@ -111,9 +111,9 @@ __END_DECLS
 #define	ishexnumber(c)	__istype((c), _X)
 #define	isideogram(c)	__istype((c), _I)
 #define	isnumber(c)	__istype((c), _D)
-#define	isphonogram(c)	__istype((c), _T)
+#define isphonogram(c)  __istype((c), _Q)
 #define	isrune(c)	__istype((c), 0xFFFFFF00L)
-#define	isspecial(c)	__istype((c), _Q)
+#define isspecial(c)    __istype((c), _T)
 #endif
 
 /* See comments in <machine/ansi.h> about _BSD_RUNE_T_. */
@@ -141,37 +141,32 @@ __END_DECLS
 static __inline int
 __istype(_BSD_RUNE_T_ _c, unsigned long _f)
 {
-	if (_c < 0)
-		_c = (unsigned char) _c;
-	return((((_c & _CRMASK) ? ___runetype(_c) :
-	    _CurrentRuneLocale->runetype[_c]) & _f) ? 1 : 0);
+	return (_c < 0 || _c & _CRMASK) ? !!(___runetype(_c) & _f) :
+	       (_c >= _CACHED_RUNES) ? 0 :
+	       !!(_CurrentRuneLocale->runetype[_c] & _f);
 }
 
 static __inline int
 __isctype(_BSD_RUNE_T_ _c, unsigned long _f)
 {
-	if (_c < 0)
-		_c = (unsigned char) _c;
-	return((((_c & _CRMASK) ? 0 :
-	    _DefaultRuneLocale.runetype[_c]) & _f) ? 1 : 0);
+	return (_c < 0 || _c >= _CACHED_RUNES) ? 0 :
+	       !!(_DefaultRuneLocale.runetype[_c] & _f);
 }
 
 static __inline _BSD_RUNE_T_
 __toupper(_BSD_RUNE_T_ _c)
 {
-	if (_c < 0)
-		_c = (unsigned char) _c;
-	return((_c & _CRMASK) ?
-	    ___toupper(_c) : _CurrentRuneLocale->mapupper[_c]);
+	return (_c < 0 || _c & _CRMASK) ? ___toupper(_c) :
+	       (_c >= _CACHED_RUNES) ? _c :
+	       _CurrentRuneLocale->mapupper[_c];
 }
 
 static __inline _BSD_RUNE_T_
 __tolower(_BSD_RUNE_T_ _c)
 {
-	if (_c < 0)
-		_c = (unsigned char) _c;
-	return((_c & _CRMASK) ?
-	    ___tolower(_c) : _CurrentRuneLocale->maplower[_c]);
+	return (_c < 0 || _c & _CRMASK) ? ___tolower(_c) :
+	       (_c >= _CACHED_RUNES) ? _c :
+	       _CurrentRuneLocale->maplower[_c];
 }
 
 #else /* not using inlines */
