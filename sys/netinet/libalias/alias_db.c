@@ -50,92 +50,92 @@ __FBSDID("$FreeBSD$");
     Initial version: August, 1996  (cjm)
 
     Version 1.4: September 16, 1996 (cjm)
-        Facility for handling incoming links added.
+	Facility for handling incoming links added.
 
     Version 1.6: September 18, 1996 (cjm)
-        ICMP data handling simplified.
+	ICMP data handling simplified.
 
     Version 1.7: January 9, 1997 (cjm)
-        Fragment handling simplified.
-        Saves pointers for unresolved fragments.
-        Permits links for unspecified remote ports
-          or unspecified remote addresses.
-        Fixed bug which did not properly zero port
-          table entries after a link was deleted.
-        Cleaned up some obsolete comments.
+	Fragment handling simplified.
+	Saves pointers for unresolved fragments.
+	Permits links for unspecified remote ports
+	  or unspecified remote addresses.
+	Fixed bug which did not properly zero port
+	  table entries after a link was deleted.
+	Cleaned up some obsolete comments.
 
     Version 1.8: January 14, 1997 (cjm)
-        Fixed data type error in StartPoint().
-        (This error did not exist prior to v1.7
-        and was discovered and fixed by Ari Suutari)
+	Fixed data type error in StartPoint().
+	(This error did not exist prior to v1.7
+	and was discovered and fixed by Ari Suutari)
 
     Version 1.9: February 1, 1997
-        Optionally, connections initiated from packet aliasing host
-        machine will will not have their port number aliased unless it
-        conflicts with an aliasing port already being used. (cjm)
+	Optionally, connections initiated from packet aliasing host
+	machine will will not have their port number aliased unless it
+	conflicts with an aliasing port already being used. (cjm)
 
-        All options earlier being #ifdef'ed are now available through
-        a new interface, SetPacketAliasMode().  This allows run time
-        control (which is now available in PPP+pktAlias through the
-        'alias' keyword). (ee)
+	All options earlier being #ifdef'ed are now available through
+	a new interface, SetPacketAliasMode().  This allows run time
+	control (which is now available in PPP+pktAlias through the
+	'alias' keyword). (ee)
 
-        Added ability to create an alias port without
-        either destination address or port specified.
-        port type = ALIAS_PORT_UNKNOWN_DEST_ALL (ee)
+	Added ability to create an alias port without
+	either destination address or port specified.
+	port type = ALIAS_PORT_UNKNOWN_DEST_ALL (ee)
 
-        Removed K&R style function headers
-        and general cleanup. (ee)
+	Removed K&R style function headers
+	and general cleanup. (ee)
 
-        Added packetAliasMode to replace compiler #defines's (ee)
+	Added packetAliasMode to replace compiler #defines's (ee)
 
-        Allocates sockets for partially specified
-        ports if ALIAS_USE_SOCKETS defined. (cjm)
+	Allocates sockets for partially specified
+	ports if ALIAS_USE_SOCKETS defined. (cjm)
 
     Version 2.0: March, 1997
-        SetAliasAddress() will now clean up alias links
-        if the aliasing address is changed. (cjm)
+	SetAliasAddress() will now clean up alias links
+	if the aliasing address is changed. (cjm)
 
-        PacketAliasPermanentLink() function added to support permanent
-        links.  (J. Fortes suggested the need for this.)
-        Examples:
+	PacketAliasPermanentLink() function added to support permanent
+	links.  (J. Fortes suggested the need for this.)
+	Examples:
 
-        (192.168.0.1, port 23)  <-> alias port 6002, unknown dest addr/port
+	(192.168.0.1, port 23)  <-> alias port 6002, unknown dest addr/port
 
-        (192.168.0.2, port 21)  <-> alias port 3604, known dest addr
-                                                     unknown dest port
+	(192.168.0.2, port 21)  <-> alias port 3604, known dest addr
+						     unknown dest port
 
-        These permanent links allow for incoming connections to
-        machines on the local network.  They can be given with a
-        user-chosen amount of specificity, with increasing specificity
-        meaning more security. (cjm)
+	These permanent links allow for incoming connections to
+	machines on the local network.  They can be given with a
+	user-chosen amount of specificity, with increasing specificity
+	meaning more security. (cjm)
 
-        Quite a bit of rework to the basic engine.  The portTable[]
-        array, which kept track of which ports were in use was replaced
-        by a table/linked list structure. (cjm)
+	Quite a bit of rework to the basic engine.  The portTable[]
+	array, which kept track of which ports were in use was replaced
+	by a table/linked list structure. (cjm)
 
-        SetExpire() function added. (cjm)
+	SetExpire() function added. (cjm)
 
-        DeleteLink() no longer frees memory association with a pointer
-        to a fragment (this bug was first recognized by E. Eklund in
-        v1.9).
+	DeleteLink() no longer frees memory association with a pointer
+	to a fragment (this bug was first recognized by E. Eklund in
+	v1.9).
 
     Version 2.1: May, 1997 (cjm)
-        Packet aliasing engine reworked so that it can handle
-        multiple external addresses rather than just a single
-        host address.
+	Packet aliasing engine reworked so that it can handle
+	multiple external addresses rather than just a single
+	host address.
 
-        PacketAliasRedirectPort() and PacketAliasRedirectAddr()
-        added to the API.  The first function is a more generalized
-        version of PacketAliasPermanentLink().  The second function
-        implements static network address translation.
+	PacketAliasRedirectPort() and PacketAliasRedirectAddr()
+	added to the API.  The first function is a more generalized
+	version of PacketAliasPermanentLink().  The second function
+	implements static network address translation.
 
     Version 3.2: July, 2000 (salander and satoh)
-        Added FindNewPortGroup to get contiguous range of port values.
+	Added FindNewPortGroup to get contiguous range of port values.
 
-        Added QueryUdpTcpIn and QueryUdpTcpOut to look for an aliasing
+	Added QueryUdpTcpIn and QueryUdpTcpOut to look for an aliasing
 	link but not actually add one.
 
-        Added FindRtspOut, which is closely derived from FindUdpTcpOut,
+	Added FindRtspOut, which is closely derived from FindUdpTcpOut,
 	except that the alias port (from FindNewPortGroup) is provided
 	as input.
 
@@ -170,7 +170,7 @@ static		LIST_HEAD(, libalias) instancehead = LIST_HEAD_INITIALIZER(instancehead)
 
 /*
    Constants (note: constants are also defined
-              near relevant functions or structs)
+	      near relevant functions or structs)
 */
 
 /* Parameters used for cleanup of expired links */
@@ -331,9 +331,9 @@ struct alias_link {		/* Main data structure */
 
 Lookup table starting points:
     StartPointIn()           -- link table initial search point for
-                                incoming packets
+				incoming packets
     StartPointOut()          -- link table initial search point for
-                                outgoing packets
+				outgoing packets
 
 Miscellaneous:
     SeqDiff()                -- difference between two TCP sequences
@@ -2640,7 +2640,7 @@ PunchFWHole(struct alias_link *link)
 
 	/*
 	 * generate two rules of the form
-	 * 
+	 *
 	 * add fwhole accept tcp from OAddr OPort to DAddr DPort add fwhole
 	 * accept tcp from DAddr DPort to OAddr OPort
 	 */
