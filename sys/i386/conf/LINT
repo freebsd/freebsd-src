@@ -2370,11 +2370,15 @@ device		ums0
 # eval board.
 device		aue0
 #
+# CATC USB-EL1201A USB ethernet. Supports the CATC Netmate
+# and Netmate II, and the Belkin F5U111.
+device		cue0
+#
 # Kawasaki LSI ethernet. Supports the LinkSys USB10T,
 # Entrega USB-NET-E45, Peracom Ethernet Adapter, the
 # 3Com 3c19250, the ADS Technologies USB-10BT, the ATen UC10T,
-# the Netgear EA101, the D-Link DSB-650, and the SMC 2102USB
-# and 2104USB.
+# the Netgear EA101, the D-Link DSB-650, the SMC 2102USB
+# and 2104USB, and the Corega USB-T.
 device		kue0
 
 # debugging options for the USB subsystem
