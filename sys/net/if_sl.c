@@ -601,7 +601,6 @@ slstart(tp)
 	register u_char *cp;
 	register struct ip *ip;
 	int s;
-	struct mbuf *m2;
 	register int len = 0;
 
 	for (;;) {
@@ -761,8 +760,7 @@ slstart(tp)
 					sc->sc_if.if_obytes += 2;
 				}
 			}
-			MFREE(m, m2);
-			m = m2;
+			m = m_free(m);
 		}
 
 		if (putc(FRAME_END, &tp->t_outq)) {

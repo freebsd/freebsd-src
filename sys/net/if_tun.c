@@ -636,7 +636,7 @@ tunread(dev_t dev, struct uio *uio, int flag)
 {
 	struct tun_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = &tp->tun_if;
-	struct mbuf	*m, *m0;
+	struct mbuf	*m;
 	int		error=0, len, s;
 
 	TUNDEBUG ("%s%d: read\n", ifp->if_name, ifp->if_unit);
@@ -650,8 +650,8 @@ tunread(dev_t dev, struct uio *uio, int flag)
 
 	s = splimp();
 	do {
-		IF_DEQUEUE(&ifp->if_snd, m0);
-		if (m0 == 0) {
+		IF_DEQUEUE(&ifp->if_snd, m);
+		if (m == NULL) {
 			if (flag & IO_NDELAY) {
 				splx(s);
 				return EWOULDBLOCK;
@@ -663,20 +663,19 @@ tunread(dev_t dev, struct uio *uio, int flag)
 				return error;
 			}
 		}
-	} while (m0 == 0);
+	} while (m == NULL);
 	splx(s);
 
-	while (m0 && uio->uio_resid > 0 && error == 0) {
-		len = min(uio->uio_resid, m0->m_len);
+	while (m && uio->uio_resid > 0 && error == 0) {
+		len = min(uio->uio_resid, m->m_len);
 		if (len != 0)
-			error = uiomove(mtod(m0, caddr_t), len, uio);
-		MFREE(m0, m);
-		m0 = m;
+			error = uiomove(mtod(m, caddr_t), len, uio);
+		m = m_free(m);
 	}
 
-	if (m0) {
+	if (m) {
 		TUNDEBUG("%s%d: Dropping mbuf\n", ifp->if_name, ifp->if_unit);
-		m_freem(m0);
+		m_freem(m);
 	}
 	return error;
 }

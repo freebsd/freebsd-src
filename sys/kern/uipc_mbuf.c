@@ -131,14 +131,9 @@ failed:
 void
 m_freem(struct mbuf *m)
 {
-	struct mbuf *n;
-
-	if (m == NULL)
-		return;
-	do {
-		MFREE(m, n);
-		m = n;
-	} while (m);
+	while (m) {
+		m = m_free(m);
+	}
 }
 
 /*

@@ -390,7 +390,7 @@ vxstart(ifp)
     struct ifnet *ifp;
 {
     register struct vx_softc *sc = ifp->if_softc;
-    register struct mbuf *m, *m0;
+    register struct mbuf *m;
     int sh, len, pad;
 
     /* Don't transmit if interface is busy or not running */
@@ -399,14 +399,14 @@ vxstart(ifp)
 
 startagain:
     /* Sneak a peek at the next packet */
-    m0 = ifp->if_snd.ifq_head;
-    if (m0 == 0) {
+    m = ifp->if_snd.ifq_head;
+    if (m == NULL) {
 	return;
     }
     /* We need to use m->m_pkthdr.len, so require the header */
-     if ((m0->m_flags & M_PKTHDR) == 0)
+     if ((m->m_flags & M_PKTHDR) == 0)
 	panic("vxstart: no header mbuf");
-     len = m0->m_pkthdr.len;
+     len = m->m_pkthdr.len;
 
      pad = (4 - len) & 3;
 
@@ -418,8 +418,8 @@ startagain:
     if (len + pad > ETHER_MAX_LEN) {
 	/* packet is obviously too large: toss it */
 	++ifp->if_oerrors;
-	IF_DEQUEUE(&ifp->if_snd, m0);
-	m_freem(m0);
+	IF_DEQUEUE(&ifp->if_snd, m);
+	m_freem(m);
 	goto readcheck;
     }
     VX_BUSY_WAIT;
@@ -433,17 +433,16 @@ startagain:
 	}
     }
     CSR_WRITE_2(sc,  VX_COMMAND, SET_TX_AVAIL_THRESH | (8188 >> 2));
-    IF_DEQUEUE(&ifp->if_snd, m0);
-    if (m0 == 0) {		/* not really needed */
+    IF_DEQUEUE(&ifp->if_snd, m);
+    if (m == NULL) 		/* not really needed */
 	return;
-    }
 
     VX_BUSY_WAIT;
     CSR_WRITE_2(sc,  VX_COMMAND, SET_TX_START_THRESH |
 	((len / 4 + sc->tx_start_thresh) >> 2));
 
     if (sc->arpcom.ac_if.if_bpf) {
-	bpf_mtap(&sc->arpcom.ac_if, m0);
+	bpf_mtap(&sc->arpcom.ac_if, m);
     }
 
     /*
@@ -454,7 +453,7 @@ startagain:
 
     CSR_WRITE_4(sc,  VX_W1_TX_PIO_WR_1, len | TX_INDICATE);
 
-    for (m = m0; m != 0;) {
+    while (m) {
         if (m->m_len > 3)
 	    bus_space_write_multi_4(sc->vx_btag, sc->vx_bhandle,
 		VX_W1_TX_PIO_WR_1, (u_int32_t *)mtod(m, caddr_t), m->m_len / 4);
@@ -462,8 +461,7 @@ startagain:
 	    bus_space_write_multi_1(sc->vx_btag, sc->vx_bhandle,
 		VX_W1_TX_PIO_WR_1,
 		mtod(m, caddr_t) + (m->m_len & ~3) , m->m_len & 3);
-        MFREE(m, m0);
-        m = m0;
+	m = m_free(m);
     }
     while (pad--)
 	CSR_WRITE_1(sc,  VX_W1_TX_PIO_WR_1, 0);	/* Padding */

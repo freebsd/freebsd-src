@@ -284,10 +284,6 @@ struct mbstat {
 #define	MCLGET(m, how)		m_clget((m), (how))
 #define	MEXTADD(m, buf, size, free, args, flags, type) 			\
     m_extadd((m), (caddr_t)(buf), (size), (free), (args), (flags), (type))
-#define	MFREE(m, n) do {						\
-	(n) = m_free((m));						\
-	(m) = NULL;							\
-} while (0)
 
 /*
  * MEXTFREE(m): disassociate (and possibly free) an external object from (m).
