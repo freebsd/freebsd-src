@@ -312,7 +312,8 @@ main(argc, argv)
 		}
 		(void)printf("%-*.*s %-2.2s %-*.*s ",
 		    UT_NAMESIZE, UT_NAMESIZE, ep->utmp.ut_name,
-		    strncmp(ep->utmp.ut_line, "tty", 3) ?
+		    strncmp(ep->utmp.ut_line, "tty", 3) &&
+		    strncmp(ep->utmp.ut_line, "cua", 3) ?
 		    ep->utmp.ut_line : ep->utmp.ut_line + 3,
 		    UT_HOSTSIZE, UT_HOSTSIZE, *p ? p : "-");
 		pr_attime(&ep->utmp.ut_time, &now);

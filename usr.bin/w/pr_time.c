@@ -98,6 +98,9 @@ pr_idle(idle)
 		(void)printf(" %2d:%02d ",
 		    idle / SECSPERHOUR, (idle % SECSPERHOUR) / SECSPERMIN);
 
+	else if (idle / SECSPERMIN == 0)
+		(void)printf("     - ");
+
 	/* Else print the minutes idle. */
 	else
 		(void)printf("    %2d ", idle / SECSPERMIN);
