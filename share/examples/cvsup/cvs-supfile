@@ -106,6 +106,7 @@ ports-all
 #
 #ports-base
 #
+#ports-accessibility
 #ports-arabic
 #ports-archivers
 #ports-astro
