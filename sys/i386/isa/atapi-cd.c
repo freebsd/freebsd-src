@@ -25,15 +25,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.12 1999/03/16 13:34:03 sos Exp $
+ *	$Id: atapi-cd.c,v 1.13 1999/03/31 12:30:58 sos Exp $
  */
 
 #include "wdc.h"
 #include "wcd.h"
-#include "opt_atapi.h"
 #include "opt_devfs.h"
 
-#if NWCD > 0 && NWDC > 0 && defined(ATAPI)
+#if NWCD > 0 && NWDC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -85,9 +84,6 @@ static struct cdevsw acd_cdevsw = {
 static struct acd *acdtab[NUNIT];
 static int acdnlun = 0;     	/* Number of configured drives */
 
-#ifndef ATAPI_STATIC
-static
-#endif
 int acdattach(struct atapi *, int, struct atapi_params *, int);
 static struct acd *acd_init_lun(struct atapi *, int, struct atapi_params *, int,
 struct devstat *);
@@ -158,9 +154,6 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
     return ptr;
 }
 
-#ifndef ATAPI_STATIC
-static
-#endif
 int
 acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 {
@@ -1524,80 +1517,6 @@ atapi_dump(int ctrlr, int lun, char *label, void *data, int len)
 	printf ("\n");
 }
 
-#ifdef WCD_MODULE
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
-
-MOD_DEV(acd, LM_DT_BLOCK, BDEV_MAJOR, &acd_bdevsw);
-MOD_DEV(racd, LM_DT_CHAR, CDEV_MAJOR, &acd_cdevsw);
-
-int 
-acd_load(struct lkm_table *lkmtp, int cmd)
-{
-    struct atapi *ata;
-    int n, u;
-
-    if (!atapi_start)
-        return EPROTONOSUPPORT;
-    n = 0;
-    for (ata = atapi_tab; ata < atapi_tab + 2; ++ata)
-        if (ata->port)
-            for (u = 0; u < 2; ++u)
-                if (ata->params[u] && !ata->attached[u] &&
-                    acdattach(ata, u, ata->params[u],
-                    ata->debug) >= 0) {
-                    ata->attached[u] = 1;
-                    ++n;
-                }
-    if (!n)
-        return ENXIO;
-    return 0;
-}
-
-int 
-acd_unload(struct lkm_table *lkmtp, int cmd)
-{
-    struct acd **cdpp;
-
-    for (cdpp = acdtab; cdpp < acdtab + acdnlun; ++cdpp)
-        if (((*cdpp)->flags & F_BOPEN) || (*cdpp)->refcnt)
-            return EBUSY;
-    for (cdpp = acdtab; cdpp < acdtab + acdnlun; ++t) {
-        (*cdpp)->ata->attached[(*cdpp)->unit] = 0;
-        free(*cdpp, M_TEMP);
-    }
-    acdnlun = 0;
-    bzero(acdtab, sizeof(acdtab));
-    return 0;
-}
-
-int 
-acd_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-    int err = 0;
-
-    if (ver != LKM_VERSION)
-        return EINVAL;
-
-    if (cmd == LKM_E_LOAD)
-        err = acd_load(lkmtp, cmd);
-    else if (cmd == LKM_E_UNLOAD)
-        err = acd_unload(lkmtp, cmd);
-    if (err)
-        return err;
-
-    lkmtp->private.lkm_dev = &MOD_PRIVATE(racd);
-    err = lkmdispatch(lkmtp, cmd);
-    if (err)
-        return err;
-
-    lkmtp->private.lkm_dev = &MOD_PRIVATE(acd);
-    return lkmdispatch(lkmtp, cmd);
-}
-
-#endif /* WCD_MODULE */
-
 static acd_devsw_installed = 0;
 
 static void 
@@ -1610,4 +1529,4 @@ acd_drvinit(void *unused)
 }
 
 SYSINIT(acddev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR, acd_drvinit, NULL)
-#endif /* NWCD && NWDC && ATAPI */
+#endif /* NWCD && NWDC */

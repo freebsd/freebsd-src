@@ -25,16 +25,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.14 1999/01/12 00:36:36 eivind Exp $
+ *	$Id: wst.c,v 1.15 1999/01/12 01:28:00 eivind Exp $
  */
 
 #include "wdc.h"
 #include "wst.h"
-#include "opt_atapi.h"
 #include "opt_ddb.h"
 #include "opt_devfs.h"
 
-#if NWST > 0 && NWDC > 0 && defined(ATAPI)
+#if NWST > 0 && NWDC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -194,9 +193,6 @@ struct wst {
 static struct wst *wsttab[NUNIT];       /* Drive info by unit number */
 static int wstnlun = 0;                 /* Number of config'd drives */
 
-#ifndef ATAPI_STATIC
-static
-#endif
 int wstattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug);
 static int wst_sense(struct wst *t);
 static void wst_describe(struct wst *t);
@@ -227,9 +223,6 @@ wst_dump(int lun, char *label, void *data, int len)
 }
 #endif
 
-#ifndef ATAPI_STATIC
-static
-#endif
 int 
 wstattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 {
@@ -791,81 +784,6 @@ wst_reset(struct wst *t)
     DELAY(30);
 }
 
-#ifdef WST_MODULE
-
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
-
-MOD_DEV(rwst, LM_DT_CHAR, CDEV_MAJOR, &wst_cdevsw);
-
-int 
-wst_load(struct lkm_table *lkmtp, int cmd)
-{
-    struct atapi *ata;
-    int n, u;
-
-    if (!atapi_start)
-        /* No ATAPI driver available. */
-        return EPROTONOSUPPORT;
-    n = 0;
-    for (ata=atapi_tab; ata<atapi_tab+2; ++ata)
-        if (ata->port)
-            for (u=0; u<2; ++u)
-                /* Probing controller ata->ctrlr, unit u. */
-                if (ata->params[u] && !ata->attached[u] &&
-                    wstattach(ata, u, ata->params[u],
-                    ata->debug) >= 0) {
-                    ata->attached[u] = 1;
-                    ++n;
-                }
-    if (!n)
-        return ENXIO;
-    return 0;
-}
-
-int 
-wst_unload(struct lkm_table *lkmtp, int cmd)
-{
-    struct wst **t;
-
-    for (t=wsttab; t<wsttab+wstnlun; ++t)
-        if (((*t)->flags & WST_OPEN))
-            return EBUSY;
-    for (t=wsttab; t<wsttab+wstnlun; ++t) {
-        (*t)->ata->attached[(*t)->unit] = 0;
-        free(*t, M_TEMP);
-    }
-    wstnlun = 0;
-    bzero(wsttab, sizeof(wsttab));
-    return 0;
-}
-
-int 
-wst_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-    int err = 0;
-
-    if (ver != LKM_VERSION)
-        return EINVAL;
-
-    if (cmd == LKM_E_LOAD)
-        err = wst_load(lkmtp, cmd);
-    else if (cmd == LKM_E_UNLOAD)
-        err = wst_unload(lkmtp, cmd);
-    if (err)
-        return err;
-
-    lkmtp->private.lkm_dev = & MOD_PRIVATE(rwst);
-    err = lkmdispatch(lkmtp, cmd);
-    if (err)
-        return err;
-
-    lkmtp->private.lkm_dev = & MOD_PRIVATE(wst);
-    return lkmdispatch(lkmtp, cmd);
-}
-#endif /* WST_MODULE */
-
 static wst_devsw_installed = 0;
 
 static void 
@@ -882,4 +800,4 @@ wst_drvinit(void *unused)
 
 SYSINIT(wstdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wst_drvinit,NULL)
 
-#endif /* NWST && NWDC && ATAPI */
+#endif /* NWST && NWDC */
