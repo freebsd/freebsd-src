@@ -548,7 +548,7 @@ thread_apply_all_command (cmd, from_tty)
     error ("Please specify a command following the thread ID list");
 
   old_chain = make_cleanup ((make_cleanup_func) restore_current_thread, 
-			    (void *) inferior_pid);
+			    (void *)(long) inferior_pid);
 
   for (tp = thread_list; tp; tp = tp->next)
     if (thread_alive (tp))
@@ -584,7 +584,7 @@ thread_apply_command (tidlist, from_tty)
     error ("Please specify a command following the thread ID list");
 
   old_chain = make_cleanup ((make_cleanup_func) restore_current_thread, 
-			    (void *) inferior_pid);
+			    (void *)(long) inferior_pid);
 
   while (tidlist < cmd)
     {

@@ -1047,7 +1047,7 @@ coff_symtab_read (symtab_offset, nsyms, section_offsets, objfile)
 		  struct minimal_symbol *msym;
 
 		  msym = prim_record_minimal_symbol_and_info
-		  (cs->c_name, tmpaddr, ms_type, (char *)cs->c_sclass, sec,
+		  (cs->c_name, tmpaddr, ms_type, (char *)(long)cs->c_sclass, sec,
 		   NULL, objfile);
 #ifdef COFF_MAKE_MSYMBOL_SPECIAL
 		  if(msym)
