@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: yp_dblookup.c,v 1.1 1997/11/09 20:54:38 wpaul Exp wpaul $";
+	"$Id: yp_dblookup.c,v 1.15 1998/02/11 19:15:32 wpaul Exp $";
 #endif /* not lint */
 
 #include <db.h>
@@ -615,8 +615,9 @@ int yp_next_record(dbp,key,data,all,allow)
 		if (qhead.cqh_first->dbptr->key == NULL) {
 #endif
 			(dbp->seq)(dbp,&lkey,&ldata,R_FIRST);
-			while(strncmp((char *)key->data,lkey.data,
-				(int)key->size) || key->size != lkey.size)
+			while (key->size != lkey.size ||
+			    strncmp((char *)key->data, lkey.data,
+			    (int)key->size))
 				if ((dbp->seq)(dbp,&lkey,&ldata,R_NEXT)) {
 #ifdef DB_CACHE
 					qhead.cqh_first->dbptr->size = 0;
