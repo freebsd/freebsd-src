@@ -18,7 +18,7 @@
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  *
- *	$Id: ultra14f.c,v 1.8 1993/08/28 03:07:44 rgrimes Exp $
+ *	$Id: ultra14f.c,v 1.9 1993/10/12 07:15:38 rgrimes Exp $
  */
  
 #include <sys/types.h>
@@ -711,9 +711,12 @@ int	unit;
 
 	model = inb(port + UHA_ID0);
 	submodel = inb(port + UHA_ID1);
-		 if ((model != 0x56) & (submodel != 0x40))
-		      { printf("uha%d: uha_init, board not responding\n",unit);
-			return(ENXIO); }
+		 if ((model != 0x56) & (submodel != 0x40)) {
+#ifdef	UHADEBUG
+			printf("uha%d: uha_init, board not responding\n",unit);
+#endif	/*UHADEBUG*/
+			return(ENXIO);
+		}
 
 	printf("uha%d: reading board settings, ",unit);
 
