@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_softdep.c	9.23 (McKusick) 2/20/98
- *	$Id: ffs_softdep.c,v 1.6 1998/05/19 23:07:22 julian Exp $
+ *	$Id: ffs_softdep.c,v 1.7 1998/05/27 03:32:23 julian Exp $
  */
 
 /*
@@ -66,7 +66,6 @@
 #ifndef DEBUG
 #define DEBUG
 #endif
-#define NEWINODE 0x4000
 
 #include <sys/param.h>
 #include <sys/buf.h>
@@ -1043,7 +1042,6 @@ softdep_setup_inomapdep(bp, ip, newinum)
 		panic("softdep_setup_inomapdep: found inode");
 	inodedep->id_buf = bp;
 	inodedep->id_state &= ~DEPCOMPLETE;
-inodedep->id_state |= NEWINODE;
 	bmsafemap = bmsafemap_lookup(bp);
 	LIST_INSERT_HEAD(&bmsafemap->sm_inodedephd, inodedep, id_deps);
 	FREE_LOCK(&lk);
@@ -1729,8 +1727,6 @@ deallocate_dependencies(bp, inodedep)
 				panic("deallocate_dependencies: not indir");
 			bcopy(bp->b_data, indirdep->ir_savebp->b_data,
 			    bp->b_bcount);
-if ((indirdep->ir_savebp->b_flags & B_BUSY) == 0 || (bp->b_flags & B_BUSY) == 0)
-panic("deallocate_dependencies: buffer unlocked");
 			WORKLIST_REMOVE(wk);
 			WORKLIST_INSERT(&indirdep->ir_savebp->b_dep, wk);
 			continue;
@@ -1995,7 +1991,6 @@ indir_trunc(ip, dbn, level, lbn, countp)
 	struct indirdep *indirdep;
 	int i, lbnadd, nblocks;
 	int error, allerror = 0;
-int debug;
 
 	fs = ip->i_fs;
 	lbnadd = 1;
@@ -2016,7 +2011,6 @@ int debug;
 	ACQUIRE_LOCK(&lk);
 	if ((bp = incore(ip->i_devvp, dbn)) != NULL &&
 	    (wk = LIST_FIRST(&bp->b_dep)) != NULL) {
-debug = 1;
 		if (wk->wk_type != D_INDIRDEP ||
 		    (indirdep = WK_INDIRDEP(wk))->ir_savebp != bp ||
 		    (indirdep->ir_state & GOINGAWAY) == 0)
@@ -2027,14 +2021,11 @@ debug = 1;
 			panic("indir_trunc: dangling dep");
 		FREE_LOCK(&lk);
 	} else {
-debug = 2;
 		FREE_LOCK(&lk);
 		error = bread(ip->i_devvp, dbn, (int)fs->fs_bsize, NOCRED, &bp);
 		if (error)
 			return (error);
 	}
-if ((bp->b_flags & B_BUSY) == 0)
-panic("indir_trunc: unlocked buf");
 	/*
 	 * Recursively free indirect blocks.
 	 */
@@ -2051,8 +2042,6 @@ panic("indir_trunc: unlocked buf");
 		ffs_blkfree(ip, nb, fs->fs_bsize);
 		*countp += nblocks;
 	}
-if (debug == i)
-printf("debug %d\n", debug);
 	bp->b_flags |= B_INVAL;
 	bp->b_flags &= ~B_XXX;
 	brelse(bp);
@@ -2675,33 +2664,6 @@ softdep_disk_io_initiation(bp)
 	}
 }
 
-void
-scan_page(bp)
-	struct buf *bp;
-{
-	struct inodedep *inodedep;
-	struct direct *dp;
-	struct fs *fs;
-	caddr_t cp;
-
-	fs = VTOI(bp->b_vp)->i_fs;
-	for (cp = bp->b_data; cp < &bp->b_data[bp->b_bcount];
-	     cp += dp->d_reclen) {
-		dp = (struct direct *)cp;
-		if (dp->d_reclen <= 0)
-			break;
-		if (dp->d_ino == 0)
-			continue;
-		if (dp->d_name[0] == '.' && (dp->d_namlen == 1 ||
-		    (dp->d_namlen == 2 && dp->d_name[1] == '.')))
-			continue;
-		if (inodedep_lookup(fs, dp->d_ino, 0, &inodedep) == 0)
-			continue;
-		if (inodedep->id_state & NEWINODE)
-			panic("scan_page: unallocated inode");
-	}
-}
-
 /*
  * Called from within the procedure above to deal with unsatisfied
  * allocation dependencies in a directory. The buffer must be locked,
@@ -2745,7 +2707,6 @@ initiate_write_filepage(pagedep, bp)
 			dap->da_state |= UNDONE;
 		}
 	}
-/*scan_page(bp);*/
 	FREE_LOCK(&lk);
 }
 
@@ -3140,7 +3101,6 @@ handle_written_inodeblock(inodedep, bp)
 		bdirty(bp);
 		return (1);
 	}
-inodedep->id_state &= ~NEWINODE;
 	/*
 	 * Roll forward anything that had to be rolled back before 
 	 * the inode could be updated.
@@ -3261,8 +3221,6 @@ diradd_inode_written(dap, inodedep)
 {
 	struct pagedep *pagedep;
 
-if (inodedep->id_state & NEWINODE)
-panic("diradd_inode_written: unallocated inode");
 	dap->da_state |= COMPLETE;
 	if ((dap->da_state & ALLCOMPLETE) == ALLCOMPLETE) {
 		if (dap->da_state & DIRCHG)
