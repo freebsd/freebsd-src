@@ -33,7 +33,7 @@
 .\"
 .Dd May 8, 1995
 .Dt MTRACE 8
-.UC 6
+.Os
 .Sh NAME
 .Nm mtrace
 .Nd print multicast path from a source to a receiver
@@ -358,8 +358,7 @@ received, both derived from the local system clock, and the total
 ttl required for a packet to travel along this path.  A sample use and
 output might be:
 .Pp
-.nf
-.ft C
+.Bd -literal
 oak.isi.edu 80# mtrace -l caraway.lcs.mit.edu 224.2.0.3
 Mtrace from 18.26.0.170 to 128.9.160.100 via group 224.2.0.3
 Querying full reverse path... 
@@ -371,7 +370,7 @@ Querying full reverse path...
  -5  mit.dart.net (140.173.48.2)  DVMRP  thresh^ 1  71 ms  
  -6  caraway.lcs.mit.edu (18.26.0.170)
 Round trip time 124 ms; total ttl of 6 required.
-.fi
+.Ed
 .Pp
 If a hop reports that it is using the default route to forward packets,
 the word
@@ -423,17 +422,8 @@ seconds in the example below.  The second section of the output is
 omitted if the
 .Fl s
 option is set or if no multicast group is specified.
-.ie t \{\
-.ft C
-.  ie \w'i'<>\w'm' \{\" looks like this is not proper Courier font
-(If this example is not properly columned with a fixed-width font, get
-.B groff
-and try again.)
-.  \}
-.\}
 .Pp
-.ft C
-.nf
+.Bd -literal
 Waiting to accumulate statistics... Results after 101 seconds:
 
   Source       Response Dest    Overall   Packet Statistics For Traffic From
@@ -462,7 +452,7 @@ Waiting to accumulate statistics... Results after 101 seconds:
      v         \\ hop   -8 ms     79 pps      ?/18        0 pps
 128.9.160.100  128.9.160.100
   Receiver     Query Source
-.fi
+.Ed
 .Pp
 Because the packet counts may be changing as the trace query is
 propagating, there may be small errors (off by 1 or 2) in these
@@ -501,8 +491,7 @@ that did not implement the multicast traceroute function, so
 switched to hop-by-hop mode.  The \*(lqOutput pruned\*(rq error code
 indicates that traffic for group 224.2.143.24 would not be forwarded.
 .Pp
-.nf
-.ft C
+.Bd -literal
 oak.isi.edu 108# mtrace -g 140.173.48.2 204.62.246.73 \\
                            butter.lcs.mit.edu 224.2.143.24
 Mtrace from 204.62.246.73 to 18.26.0.151 via group 224.2.143.24
@@ -514,7 +503,7 @@ Querying full reverse path... * switching to hop-by-hop:
  -4  darpa.dart.net (140.173.240.2)  DVMRP  thresh^ 16  47 ms
  -5  * * * noc.hpc.org (192.187.8.2) [mrouted 2.2] didn't respond
 Round trip time 95 ms
-.fi
+.Ed
 .Sh AUTHORS
 Implemented by
 .An Steve Casner

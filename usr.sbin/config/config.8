@@ -163,8 +163,7 @@ strings kernel | grep ___
 .Sh DEBUG KERNELS
 Traditional BSD kernels compiled without symbols due to the heavy load on the
 system when compiling a
-.if n "debug"
-.if t ``debug''
+.Dq debug
 kernel.  A debug kernel contains complete symbols for all the source files, and
 enables an experienced kernel programmer to analyse the cause of a problem.  The
 debuggers available prior to 4.4BSD-Lite were able to find some information

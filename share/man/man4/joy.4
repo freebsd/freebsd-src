@@ -35,9 +35,10 @@ The structure is defined in the header file as follows:
 .Pp
 Positions are typically in the range 0-2000.
 .Ss One line perl example:
+.Bd -literal -compact
 perl -e 'open(JOY,"/dev/joy0")||die;while(1)
-.br
 {sysread(JOY,$x,16);@j=unpack("iiii",$x);print "@j\\n";sleep(1);}'
+.Ed
 .Ss ioctl calls
 Several ioctl() calls are also available.
 They take an argument of

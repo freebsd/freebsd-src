@@ -25,7 +25,7 @@
 .Nm Fdwrite
 formats and writes one and more floppy disks.
 Any floppy disk device capable of formatting can be used.
-
+.Pp
 .Nm Fdwrite
 will ask the user
 .Pq on /dev/tty
@@ -37,7 +37,7 @@ read back and compared.
 When the floppy disk is filled, the process is repeated, with the next disk.
 This continues until the program is interrupted or EOF is encountered on the
 .Ar inputfile .
-
+.Pp
 The options are as follows:
 .Bl -tag -width 10n -offset indent
 .It Fl v
@@ -60,35 +60,32 @@ Input file to read.  If none is given, stdin is assumed.
 The name of the floppy device to write to.  Default is
 .Pa /dev/fd0 .
 .El
-
+.Pp
 .Nm Fdwrite
 actually closes the
 .Ar device
 while it waits for the user to press return,
 it is thus quite possible to use the drive for other purposes at this
 time and later resume writing with the next floppy.
-
+.Pp
 The parameters returned from
 .Ar device
 are used for formatting.
 If custom formatting is needed, please use
 .Xr fdformat 1
 instead.
-
 .Sh EXAMPLE
 .Nm Fdwrite
 was planned as a tool to make life easier when writing a set of floppies,
 one such use could be to write a tar-archive:
-
-.ce 1
-tar cf - . | gzip -9 | fdwrite -d /dev/fd0.1720 -v
-
+.Pp
+.Dl "tar cf - . | gzip -9 | fdwrite -d /dev/fd0.1720 -v
+.Pp
 The main difference from using
 .Xr tar 1 's
 multivolume facility is of course the formatting of the floppies, which
 here is done on the fly,
 thus reducing the amount of work for the floppy-jockey.
-
 .Sh SEE ALSO
 .Xr fdformat 1
 .Sh HISTORY
@@ -101,18 +98,18 @@ The program has been contributed by
 .An Poul-Henning Kamp Aq phk@login.dknet.dk .
 .Sh BUGS
 Diagnostics are less than complete at present.
-
+.Pp
 If a floppy is sick, and the
 .Ar inputfile
 is seekable, it should ask the user to frisbee the disk, insert
 another, and rewind to the right spot and continue.
-
+.Pp
 This concept could be extended to cover non-seekable input also
 by employing a temporary file.
-
+.Pp
 An option (defaulting to zero) should allow the user to ask for
 retries in case of failure.
-
+.Pp
 At present a suitable tool for reading back a multivolume set
 of floppies is missing.
 Programs like

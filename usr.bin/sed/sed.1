@@ -109,9 +109,9 @@ option suppresses this behavior.
 The form of a
 .Nm
 command is as follows:
-.sp
+.Pp
 .Dl [address[,address]]function[arguments]
-.sp
+.Pp
 Whitespace may be inserted before the first address and the function
 portions of the command.
 .Pp
@@ -178,7 +178,7 @@ flag is given.
 In addition,
 .Nm
 has the following two additions to regular expressions:
-.sp
+.Pp
 .Bl -enum -compact
 .It
 In a context address, any character other than a backslash
@@ -195,7 +195,7 @@ and the second
 .Dq x
 stands for itself, so that the regular expression is
 .Dq abcxdef .
-.sp
+.Pp
 .It
 The escape sequence \en matches a newline character embedded in the
 pattern space.
@@ -273,71 +273,68 @@ The function can be preceded by white space.
 The terminating
 .Dq }
 must be preceded by a newline or optional white space.
-.sp
+.Pp
 .Bl -tag -width "XXXXXX" -compact
 .It [2addr] function-list
 Execute function-list only when the pattern space is selected.
-.sp
+.Pp
 .It [1addr]a\e
 .It text
-.br
 Write
 .Em text
 to standard output immediately before each attempt to read a line of input,
 whether by executing the
 .Dq N
 function or by beginning a new cycle.
-.sp
+.Pp
 .It [2addr]b[label]
 Branch to the
 .Dq \&:
 function with the specified label.
 If the label is not specified, branch to the end of the script.
-.sp
+.Pp
 .It [2addr]c\e
 .It text
-.br
 Delete the pattern space.
 With 0 or 1 address or at the end of a 2-address range,
 .Em text
 is written to the standard output.
-.sp
+.Pp
 .It [2addr]d
 Delete the pattern space and start the next cycle.
-.sp
+.Pp
 .It [2addr]D
 Delete the initial segment of the pattern space through the first
 newline character and start the next cycle.
-.sp
+.Pp
 .It [2addr]g
 Replace the contents of the pattern space with the contents of the
 hold space.
-.sp
+.Pp
 .It [2addr]G
 Append a newline character followed by the contents of the hold space
 to the pattern space.
-.sp
+.Pp
 .It [2addr]h
 Replace the contents of the hold space with the contents of the
 pattern space.
-.sp
+.Pp
 .It [2addr]H
 Append a newline character followed by the contents of the pattern space
 to the hold space.
-.sp
+.Pp
 .It [1addr]i\e
 .It text
-.br
 Write
 .Em text
 to the standard output.
-.sp
+.Pp
 .It [2addr]l
 (The letter ell.)
 Write the pattern space to the standard output in a visually unambiguous
 form.
 This form is as follows:
-.sp
+.Pp
 .Bl -tag -width "carriage-returnXX" -offset indent -compact
 .It backslash
 \e\e
@@ -362,28 +359,28 @@ Long lines are folded, with the point of folding indicated by displaying
 a backslash followed by a newline.
 The end of each line is marked with a
 .Dq $ .
-.sp
+.Pp
 .It [2addr]n
 Write the pattern space to the standard output if the default output has
 not been suppressed, and replace the pattern space with the next line of
 input.
-.sp
+.Pp
 .It [2addr]N
 Append the next line of input to the pattern space, using an embedded
 newline character to separate the appended material from the original
 contents.
 Note that the current line number changes.
-.sp
+.Pp
 .It [2addr]p
 Write the pattern space to standard output.
-.sp
+.Pp
 .It [2addr]P
 Write the pattern space, up to the first newline character to the
 standard output.
-.sp
+.Pp
 .It [1addr]q
 Branch to the end of the script and quit without starting a new cycle.
-.sp
+.Pp
 .It [1addr]r file
 Copy the contents of
 .Em file
@@ -393,7 +390,7 @@ If
 .Em file
 cannot be read for any reason, it is silently ignored and no error
 condition is set.
-.sp
+.Pp
 .It [2addr]s/regular expression/replacement/flags
 Substitute the replacement string for the first instance of the regular
 expression in the pattern space.
@@ -443,7 +440,7 @@ if a replacement was made.
 If the replacement string is identical to that which it replaces, it
 is still considered to have been a replacement.
 .El
-.sp
+.Pp
 .It [2addr]t [label]
 Branch to the
 .Dq \&:
@@ -452,14 +449,14 @@ most recent reading of an input line or execution of a
 .Dq t
 function.
 If no label is specified, branch to the end of the script.
-.sp
+.Pp
 .It [2addr]w Em file
 Append the pattern space to the
 .Em file .
-.sp
+.Pp
 .It [2addr]x
 Swap the contents of the pattern and hold spaces.
-.sp
+.Pp
 .It [2addr]y/string1/string2/
 Replace all occurrences of characters in
 .Em string1
@@ -474,27 +471,27 @@ and
 a backslash followed by any character other than a newline is that literal
 character, and a backslash followed by an ``n'' is replaced by a newline
 character.
-.sp
+.Pp
 .It [2addr]!function
 .It [2addr]!function-list
 Apply the function or function-list only to the lines that are
 .Em not
 selected by the address(es).
-.sp
+.Pp
 .It [0addr]:label
 This function does nothing; it bears a label to which the
 .Dq b
 and
 .Dq t
 commands may branch.
-.sp
+.Pp
 .It [1addr]=
 Write the line number to the standard output followed by a newline
 character.
-.sp
+.Pp
 .It [0addr]
 Empty lines are ignored.
-.sp
+.Pp
 .It [0addr]#
 The
 .Dq #

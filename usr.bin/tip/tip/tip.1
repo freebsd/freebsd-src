@@ -125,15 +125,13 @@ system is processed by the shell.
 Fork a child process on the local system to perform special protocols
 such as \s-1XMODEM\s+1.  The child program will be run with the following
 somewhat unusual arrangement of file descriptors:
-.nf
-.in +1i
+.Bd -literal -offset indent -compact
 0 <-> local tty in
 1 <-> local tty out
 2 <-> local tty out
 3 <-> remote tty in
 4 <-> remote tty out
-.in -1i
-.fi
+.Ed
 .It Ic \&~#
 Send a
 .Dv BREAK

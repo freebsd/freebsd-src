@@ -4,7 +4,7 @@
 .\"
 .Dd May 8, 1995
 .Dt MROUTED 8
-.UC 5
+.Os
 .Sh NAME
 .Nm mrouted
 .Nd IP multicast routing daemon
@@ -386,8 +386,8 @@ direct tunnels (i.e. eliminate the middle man).
 .Sh "EXAMPLE CONFIGURATION"
 This is an example configuration for a mythical multicast router at a big
 school.
-.sp
-.nf
+.Pp
+.Bd -literal
 #
 # mrouted.conf example
 #
@@ -420,7 +420,7 @@ tunnel 192.168.5.4 192.168.55.101 metric 1 threshold 1
 # Careful with those boundaries, Eugene.
 tunnel 192.168.5.4 10.11.12.13 metric 1 threshold 32
 	boundary LOCAL boundary EE
-.fi
+.Ed
 .Sh SIGNALS
 .Nm Mrouted 
 responds to the following signals:
@@ -453,9 +453,8 @@ writes its pid to
 upon startup.
 .Sh EXAMPLE
 The routing tables look like this:
-.nf
-.ft C
-
+.Pp
+.Bd -literal
 Virtual Interface Table
  Vif  Local-Address                    Metric  Thresh  Flags
   0   36.2.0.8      subnet: 36.2/16       1       1    querier
@@ -488,8 +487,7 @@ Multicast Routing Table (1136 entries)
  .
  .
  .
-
-.fi
+.Ed
 .Pp
 In this example, there are four vifs connecting to two subnets and two
 tunnels.  The vif 3 tunnel is not in use (no peer address). The vif 0 and
@@ -520,9 +518,8 @@ are created and deleted by
 .Nm mrouted .
 .Pp
 The cache tables look like this:
-.nf
-.ft C
-
+.Pp
+.Bd -literal
 Multicast Routing Cache Table (147 entries)
  Origin             Mcast-group     CTmr  Age Ptmr IVif Forwvifs
  13.2.116/22        224.2.127.255     3m   2m    -  0    1 
@@ -534,8 +531,7 @@ Multicast Routing Cache Table (147 entries)
 >128.9.160.45
  198.106.194/24     224.2.135.190     9m  28s   9m  0P  
 >198.106.194.22
-
-.fi 
+.Ed 
 .Pp
 Each entry is characterized by the origin subnet number and mask and the
 destination multicast group.

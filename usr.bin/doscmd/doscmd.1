@@ -373,7 +373,7 @@ is specified the floppy will be read only.
 The
 .Ar density
 may be one of:
-.sp
+.Pp
 .Bl -tag -compact -width 1440x
 .It 180
 9 head 40 track single sided floppy
@@ -478,21 +478,20 @@ for
 .Cm C:
 will be set to the actual current directory.
 Note that this means that invocations such as:
-.sp
-	doscmd ../foo
-.sp
+.Pp
+.Dl "doscmd ../foo
+.Pp
 will not work as the
 .Cm C:
 directory will start with the current path.
 Also, the following environment variables will be defined if not
 already defined:
-
-.nf
+.Bd -literal
 .Cm "COMSPEC=C:\eCOMMAND.COM
 .Cm "PATH=C:\e
 .Cm "PROMPT=DOS> 
-.fi
-
+.Ed
+.Pp
 The
 .Cm PATH
 variable is also used to find
@@ -731,9 +730,9 @@ If
 .Nm doscmd
 encounters an interrupt which is unimplemented, it will print a message
 such as:
-.sp
-	Unknown interrupt 21 function 99
-.sp
+.Pp
+.Dl Unknown interrupt 21 function 99
+.Pp
 and exit.
 .Pp
 If

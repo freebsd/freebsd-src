@@ -103,7 +103,6 @@ may be a multi-component name or may begin with slash to indicate that
 the root inode should be used to start the lookup.  If some component
 along the pathname is not found, the last valid directory encountered is
 left as the active inode.
-.br
 This command is valid only if the starting inode is a directory.
 .Pp
 .It Cm active
@@ -216,9 +215,9 @@ Exit the program.
 .Sh BUGS
 Manipulation of ``short'' symlinks doesn't work (in particular, don't
 try changing a symlink's type).
-.br
+.Pp
 You must specify modes as numbers rather than symbolic names.
-.br
+.Pp
 There are a bunch of other things that you might want to do which
 .Nm
 doesn't implement.
@@ -232,7 +231,7 @@ first appeared in
 .Nx ,
 written by
 .An John T. Kohl .
-.br
+.Pp
 .An Peter Wemm
 ported it to
 .Fx .

@@ -366,38 +366,37 @@ An example
 .Pa /etc/bootptab
 file follows:
 .Pp
-.nf
-	# Sample bootptab file (domain=andrew.cmu.edu)
+.Bd -literal -offset indent
+# Sample bootptab file (domain=andrew.cmu.edu)
 
-	.default:\\
-		:hd=/usr/boot:bf=null:\\
-		:ds=netserver, lancaster:\\
-		:ns=pcs2, pcs1:\\
-		:ts=pcs2, pcs1:\\
-		:sm=255.255.255.0:\\
-		:gw=gw.cs.cmu.edu:\\
-		:hn:to=-18000:
+\&.default:\\
+	:hd=/usr/boot:bf=null:\\
+	:ds=netserver, lancaster:\\
+	:ns=pcs2, pcs1:\\
+	:ts=pcs2, pcs1:\\
+	:sm=255.255.255.0:\\
+	:gw=gw.cs.cmu.edu:\\
+	:hn:to=-18000:
 
-	carnegie:ht=6:ha=7FF8100000AF:tc=.default:
-	baldwin:ht=1:ha=0800200159C3:tc=.default:
-	wylie:ht=1:ha=00DD00CADF00:tc=.default:
-	arnold:ht=1:ha=0800200102AD:tc=.default:
-	bairdford:ht=1:ha=08002B02A2F9:tc=.default:
-	bakerstown:ht=1:ha=08002B0287C8:tc=.default:
+carnegie:ht=6:ha=7FF8100000AF:tc=.default:
+baldwin:ht=1:ha=0800200159C3:tc=.default:
+wylie:ht=1:ha=00DD00CADF00:tc=.default:
+arnold:ht=1:ha=0800200102AD:tc=.default:
+bairdford:ht=1:ha=08002B02A2F9:tc=.default:
+bakerstown:ht=1:ha=08002B0287C8:tc=.default:
 
-	# Special domain name server and option tags for next host
-	butlerjct:ha=08002001560D:ds=128.2.13.42:\\
-		:T37=0x12345927AD3BCF:\\
-		:T99="Special ASCII string":\\
-		:tc=.default:
+# Special domain name server and option tags for next host
+butlerjct:ha=08002001560D:ds=128.2.13.42:\\
+	:T37=0x12345927AD3BCF:\\
+	:T99="Special ASCII string":\\
+	:tc=.default:
 
-	gastonville:ht=6:ha=7FFF81000A47:tc=.default:
-	hahntown:ht=6:ha=7FFF81000434:tc=.default:
-	hickman:ht=6:ha=7FFF810001BA:tc=.default:
-	lowber:ht=1:ha=00DD00CAF000:tc=.default:
-	mtoliver:ht=1:ha=00DD00FE1600:tc=.default:
-
-.fi
+gastonville:ht=6:ha=7FFF81000A47:tc=.default:
+hahntown:ht=6:ha=7FFF81000434:tc=.default:
+hickman:ht=6:ha=7FFF810001BA:tc=.default:
+lowber:ht=1:ha=00DD00CAF000:tc=.default:
+mtoliver:ht=1:ha=00DD00FE1600:tc=.default:
+.Ed
 .Sh FILES
 .Bl -tag -width /etc/bootptab -compact
 .It /etc/bootptab

@@ -316,12 +316,11 @@ This line must occur before any lines that specify partition
 information.
 .Pp
 It is an error if the following is not true:
-.Pp
-.nf
-        1 <= number of cylinders
-        1 <= number of heads <= 256
-        1 <= number of sectors/track < 64
-.fi
+.Bd -literal -offset indent
+1 <= number of cylinders
+1 <= number of heads <= 256
+1 <= number of sectors/track < 64
+.Ed
 .Pp
 The number of cylinders should be less than or equal to 1024, but this
 is not enforced, although a warning will be output.  Note that bootable
@@ -332,12 +331,11 @@ Non-bootable partitions do not have this restriction.
 .Pp
 Example (all of these are equivalent), for a disk with 1019 cylinders,
 39 heads, and 63 sectors:
-.Pp
-.nf
-        g       c1019   h39     s63
-        g       h39     c1019   s63
-        g       s63     h39     c1019
-.fi
+.Bd -literal -offset indent
+g       c1019   h39     s63
+g       h39     c1019   s63
+g       s63     h39     c1019
+.Ed
 .It Xo
 .Ic p
 .No Ar partition
@@ -383,10 +381,9 @@ necessary, and the end offset will be rounded downwards to a cylinder
 boundary if necessary.
 .Pp
 Example: to clear partition 4 and mark it as unused:
-.Pp
-.nf
-        p       4       0       0       0
-.fi
+.Bd -literal -offset indent
+p       4       0       0       0
+.Ed
 .Pp
 Example: to set partition 1 to a
 .Bx Free
@@ -394,9 +391,10 @@ partition, starting at sector 1
 for 2503871 sectors (note: these numbers will be rounded upwards and
 downwards to correspond to head and cylinder boundaries):
 .Pp
-.nf
-        p       1       165     1       2503871
-.fi
+.Bd -literal -offset indent
+p       1       165     1       2503871
+.Ed
+.Pp
 .It Xo
 .Ic a
 .No Ar partition
@@ -407,13 +405,10 @@ the active partition.  Can occur anywhere in the config file, but only
 one must be present.
 .Pp
 Example: to make partition 1 the active partition:
-.Pp
-.nf
-        a       1
-.fi
-
+.Bd -literal -offset indent
+a       1
+.Ed
 .El
-.Pp
 .Sh FILES
 .Bl -tag -width /boot/mbr -compact
 .It Pa /boot/mbr
