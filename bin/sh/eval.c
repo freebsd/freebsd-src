@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: eval.c,v 1.11 1997/02/22 13:58:23 peter Exp $
  */
 
 #ifndef lint
@@ -422,7 +422,7 @@ STATIC void
 expredir(n)
 	union node *n;
 {
-	register union node *redir;
+	union node *redir;
 
 	for (redir = n ; redir ; redir = redir->nfile.next) {
 		struct arglist fn;

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: memalloc.c,v 1.7 1997/02/22 13:58:34 peter Exp $
  */
 
 #ifndef lint
@@ -57,7 +57,7 @@ pointer
 ckmalloc(nbytes)
 	int nbytes;
 {
-	register pointer p;
+	pointer p;
 
 	if ((p = malloc(nbytes)) == NULL)
 		error("Out of space");
@@ -71,7 +71,7 @@ ckmalloc(nbytes)
 
 pointer
 ckrealloc(p, nbytes)
-	register pointer p;
+	pointer p;
 	int nbytes;
 {
 
@@ -89,7 +89,7 @@ char *
 savestr(s)
 	char *s;
 	{
-	register char *p;
+	char *p;
 
 	p = ckmalloc(strlen(s) + 1);
 	scopy(s, p);
@@ -127,7 +127,7 @@ pointer
 stalloc(nbytes)
 	int nbytes;
 {
-	register char *p;
+	char *p;
 
 	nbytes = ALIGN(nbytes);
 	if (nbytes > stacknleft) {

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: miscbltin.c,v 1.11 1997/02/22 13:58:35 peter Exp $
  */
 
 #ifndef lint
@@ -292,7 +292,7 @@ ulimitcmd(argc, argv)
 	int argc;
 	char **argv;
 {
-	register int	c;
+	int	c;
 	quad_t val = 0;
 	enum { SOFT = 0x1, HARD = 0x2 }
 			how = SOFT | HARD;

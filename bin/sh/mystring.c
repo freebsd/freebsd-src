@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mystring.c,v 1.7 1997/02/22 13:58:38 peter Exp $
  */
 
 #ifndef lint
@@ -76,9 +76,9 @@ char nullstr[1];		/* zero length string */
 
 void
 scopyn(from, to, size)
-	register char const *from;
-	register char *to;
-	register int size;
+	char const *from;
+	char *to;
+	int size;
 	{
 
 	while (--size > 0) {
@@ -95,8 +95,8 @@ scopyn(from, to, size)
 
 int
 prefix(pfx, string)
-	register char const *pfx;
-	register char const *string;
+	char const *pfx;
+	char const *string;
 	{
 	while (*pfx) {
 		if (*pfx++ != *string++)
@@ -129,7 +129,7 @@ number(s)
 
 int
 is_number(p)
-	register const char *p;
+	const char *p;
 	{
 	do {
 		if (! is_digit(*p))
