@@ -129,7 +129,7 @@ static char *orb_fun_name[] = {
 #define ORB_RES_ILLE 2
 #define ORB_RES_VEND 3
 
-static int debug = 1;
+static int debug = 0;
 static int auto_login = 1;
 static int max_speed = 2;
 
@@ -555,8 +555,10 @@ END_DEBUG
 				}
 				break;
 			}
+SBP_DEBUG(0)
 			sbp_show_sdev_info(sdev, 
 					(sdev->status == SBP_DEV_TOATTACH));
+END_DEBUG
 		} else {
 			switch (sdev->status) {
 			case SBP_DEV_ATTACHED:
@@ -1063,8 +1065,10 @@ sbp_mgm_orb(struct sbp_dev *sdev, int func)
 		sdev->target->target_id,
 		sdev->lun_id));
 
+SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
 	printf("%s\n", orb_fun_name[(func>>16)&0xf]);
+END_DEBUG
 	switch (func) {
 	case ORB_FUN_LGI:
 		ocb->orb[2] = htonl(nid << 16);
