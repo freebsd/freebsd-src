@@ -336,10 +336,6 @@
       <maketarget>buildworld</maketarget> を行なう必要があります).
       &merged;</para>
 
-    <!-- ??? -->
-    <para><literal>OLDCARD</literal> および &man.pccardd.8;
-      が PCI カードに対応しました.</para>
-
     <para>デッドロックを避けるため,
       スワップ領域不足時のプロセス終了処理は古いプロセスから行なわれるようになりました.
       さらにその終了処理では,
