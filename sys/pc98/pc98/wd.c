@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.79 1999/04/28 10:54:00 dt Exp $
+ *	$Id: wd.c,v 1.80 1999/05/07 07:03:44 phk Exp $
  */
 
 /* TODO:
@@ -140,12 +140,6 @@ epson_errorf(int wdc)
 	return ((u_char)wdc_error);
 }
 #endif
-
-/*
- * This biotab field doubles as a field for the physical unit number on
- * the controller.
- */
-#define	id_physid id_scsiid
 
 /*
  * Drive states.  Used to initialize drive.
