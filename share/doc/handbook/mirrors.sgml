@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.10 1995/12/14 19:42:35 jfieber Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.11 1995/12/18 18:11:52 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -217,6 +217,18 @@ and on CD-ROM from Walnut Creek CDROM:
 	name="ftp://ftp.nl.net/pub/os/FreeBSD"><newline>
 	Contact: <htmlurl url="mailto:archive@nl.net"
 	name="archive@nl.net">.
+
+</itemize>
+
+<tag>Portugal</tag>
+
+<itemize>
+
+<item>
+<htmlurl url="ftp://ftp.ua.pt/pub/misc/FreeBSD"
+	name="ftp://ftp.ua.pt/pub/misc/FreeBSD"><newline>
+	Contact: <htmlurl url="mailto:archie@ua.pt"
+	name="archie@ua.pt">.
 
 </itemize>
 
