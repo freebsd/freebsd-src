@@ -148,6 +148,7 @@ execve(td, uap)
 #endif
 	struct vnode *textvp = NULL;
 	int credential_changing;
+	int textset;
 
 	imgp = &image_params;
 
@@ -227,15 +228,23 @@ interpret:
 	 * Check file permissions (also 'opens' file)
 	 */
 	error = exec_check_permissions(imgp);
-	if (error) {
-		VOP_UNLOCK(imgp->vp, 0, td);
+	if (error)
 		goto exec_fail_dealloc;
-	}
-	VOP_GETVOBJECT(imgp->vp, &imgp->object);
-	vm_object_reference(imgp->object);
+
+	if (VOP_GETVOBJECT(imgp->vp, &imgp->object) == 0)
+		vm_object_reference(imgp->object);
+
+	/*
+	 * Set VV_TEXT now so no one can write to the executable while we're
+	 * activating it.
+	 *
+	 * Remember if this was set before and unset it in case this is not
+	 * actually an executable image.
+	 */
+	textset = imgp->vp->v_vflag & VV_TEXT;
+	imgp->vp->v_vflag |= VV_TEXT;
 
 	error = exec_map_first_page(imgp);
-	VOP_UNLOCK(imgp->vp, 0, td);
 	if (error)
 		goto exec_fail_dealloc;
 
@@ -262,8 +271,11 @@ interpret:
 	}
 
 	if (error) {
-		if (error == -1)
+		if (error == -1) {
+			if (textset == 0)
+				imgp->vp->v_vflag &= ~VV_TEXT;
 			error = ENOEXEC;
+		}
 		goto exec_fail_dealloc;
 	}
 
@@ -273,9 +285,16 @@ interpret:
 	 */
 	if (imgp->interpreted) {
 		exec_unmap_first_page(imgp);
+		/*
+		 * VV_TEXT needs to be unset for scripts.  There is a short
+		 * period before we determine that something is a script where
+		 * VV_TEXT will be set. The vnode lock is held over this
+		 * entire period so nothing should illegitimately be blocked.
+		 */
+		imgp->vp->v_vflag &= ~VV_TEXT;
 		/* free name buffer and old vnode */
 		NDFREE(ndp, NDF_ONLY_PNBUF);
-		vrele(ndp->ni_vp);
+		vput(ndp->ni_vp);
 		vm_object_deallocate(imgp->object);
 		imgp->object = NULL;
 		/* set new name to that of the interpreter */
@@ -328,6 +347,9 @@ interpret:
 
 	/* close files on exec */
 	fdcloseexec(td);
+
+	/* Get a reference to the vnode prior to locking the proc */
+	VREF(ndp->ni_vp);
 
 	/*
 	 * For security and other reasons, signal handlers cannot
@@ -453,10 +475,10 @@ interpret:
 	}
 
 	/*
-	 * Store the vp for use in procfs
+	 * Store the vp for use in procfs.  This vnode was referenced prior
+	 * to locking the proc lock.
 	 */
 	textvp = p->p_textvp;
-	VREF(ndp->ni_vp);
 	p->p_textvp = ndp->ni_vp;
 
 	/*
@@ -499,6 +521,7 @@ interpret:
 done1:
 	PROC_UNLOCK(p);
 
+
 	/*
 	 * Free any resources malloc'd earlier that we didn't use.
 	 */
@@ -512,6 +535,8 @@ done1:
 	 */
 	if (textvp != NULL)
 		vrele(textvp);
+	if (ndp->ni_vp && error != 0)
+		vrele(ndp->ni_vp);
 #ifdef KTRACE
 	if (tracevp != NULL)
 		vrele(tracevp);
@@ -535,7 +560,7 @@ exec_fail_dealloc:
 
 	if (imgp->vp) {
 		NDFREE(ndp, NDF_ONLY_PNBUF);
-		vrele(imgp->vp);
+		vput(imgp->vp);
 	}
 
 	if (imgp->object)

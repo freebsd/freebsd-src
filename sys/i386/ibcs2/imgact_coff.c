@@ -301,6 +301,7 @@ exec_coff_imgact(imgp)
 	unsigned long data_offset = 0, data_address = 0, data_size = 0;
 	unsigned long bss_size = 0;
 	caddr_t hole;
+	struct thread *td = curthread;
 
 	if (fhdr->f_magic != I386_COFF ||
 	    !(fhdr->f_flags & F_EXEC)) {
@@ -328,9 +329,11 @@ exec_coff_imgact(imgp)
 	       ((const char*)(imgp->image_header) + sizeof(struct filehdr) +
 		sizeof(struct aouthdr));
 
+	VOP_UNLOCK(imgp->vp, 0, td);
+
 	if ((error = exec_extract_strings(imgp)) != 0) {
 		DPRINTF(("%s(%d):  return %d\n", __FILE__, __LINE__, error));
-		return error;
+		goto fail;
 	}
 
 	exec_new_vmspace(imgp, VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS, USRSTACK);
@@ -375,7 +378,8 @@ exec_coff_imgact(imgp)
 				    0,
 				    (caddr_t) imgp->vp,
 				    foff)) != 0) {
-	      		return ENOEXEC;
+	      		error = ENOEXEC;
+			goto fail;
 	    	}
 		if(scns[i].s_size) {
 			char *libbuf;
@@ -410,7 +414,7 @@ exec_coff_imgact(imgp)
 				  (vm_offset_t) buf + len))
 	      		panic("exec_coff_imgact vm_map_remove failed");
 	    	if (error)
-	      		return error;
+	      		goto fail;
 	  	}
 	}
 	/*
@@ -427,7 +431,7 @@ exec_coff_imgact(imgp)
 				      text_size, text_size,
 				      VM_PROT_READ | VM_PROT_EXECUTE)) != 0) {
 		DPRINTF(("%s(%d): error = %d\n", __FILE__, __LINE__, error));
-		return error;
+		goto fail;
        	}
 	/*
 	 * Map in .data and .bss now
@@ -445,7 +449,7 @@ exec_coff_imgact(imgp)
 				      VM_PROT_ALL)) != 0) {
 
 		DPRINTF(("%s(%d): error = %d\n", __FILE__, __LINE__, error));
-		return error;
+		goto fail;
 	}
 
 	imgp->interpreted = 0;
@@ -472,10 +476,10 @@ exec_coff_imgact(imgp)
 		ctob(vmspace->vm_dsize) + vmspace->vm_daddr ));
 	DPRINTF(("%s(%d):  returning successfully!\n", __FILE__, __LINE__));
 
-	/* Indicate that this file should not be modified */
-	mp_fixme("Unlocked v_flag access");
-	imgp->vp->v_vflag |= VV_TEXT;
-	return 0;
+fail:
+	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
+
+	return error;
 }
 
 /*
