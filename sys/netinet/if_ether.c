@@ -347,13 +347,8 @@ arprequest(ifp, sip, tip, enaddr)
  * taken over here, either now or for later transmission.
  */
 int
-arpresolve(ifp, rt, m, dst, desten, rt0)
-	struct ifnet *ifp;
-	struct rtentry *rt;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	u_char *desten;
-	struct rtentry *rt0;
+arpresolve(struct ifnet *ifp, struct rtentry *rt, struct mbuf *m,
+	struct sockaddr *dst, u_char *desten)
 {
 	struct llinfo_arp *la = 0;
 	struct sockaddr_dl *sdl;

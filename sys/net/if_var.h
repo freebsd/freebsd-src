@@ -158,30 +158,23 @@ struct ifnet {
 		(struct ifnet *, struct mbuf *);
 	void	(*if_start)		/* initiate output routine */
 		(struct ifnet *);
-	int	(*if_done)		/* output complete routine */
-		(struct ifnet *);	/* (XXX not used; fake prototype) */
 	int	(*if_ioctl)		/* ioctl routine */
 		(struct ifnet *, u_long, caddr_t);
 	void	(*if_watchdog)		/* timer routine */
 		(struct ifnet *);
-	int	(*if_poll_recv)		/* polled receive routine */
-		(struct ifnet *, int *);
-	int	(*if_poll_xmit)		/* polled transmit routine */
-		(struct ifnet *, int *);
-	void	(*if_poll_intren)	/* polled interrupt reenable routine */
-		(struct ifnet *);
-	void	(*if_poll_slowinput)	/* input routine for slow devices */
-		(struct ifnet *, struct mbuf *);
 	void	(*if_init)		/* Init routine */
 		(void *);
 	int	(*if_resolvemulti)	/* validate/resolve multicast */
 		(struct ifnet *, struct sockaddr **, struct sockaddr *);
 	struct	ifqueue if_snd;		/* output queue */
-	struct	ifqueue *if_poll_slowq;	/* input queue for slow devices */
-	struct	ifprefixhead if_prefixhead; /* list of prefixes per if */
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
+
+	struct	lltable *lltables;	/* list of L3-L2 resolution tables */
+
 	struct	label *if_label;	/* interface MAC label */
 
+	/* these are only used by IPv6 */
+	struct	ifprefixhead if_prefixhead; /* list of prefixes per if */
 	void	*if_afdata[AF_MAX];
 	int	if_afdata_initialized;
 	struct	mtx if_afdata_mtx;
@@ -477,13 +470,6 @@ void	if_up(struct ifnet *);
 int	ifioctl(struct socket *, u_long, caddr_t, struct thread *);
 int	ifpromisc(struct ifnet *, int);
 struct	ifnet *ifunit(const char *);
-
-int	if_poll_recv_slow(struct ifnet *ifp, int *quotap);
-void	if_poll_xmit_slow(struct ifnet *ifp, int *quotap);
-void	if_poll_throttle(void);
-void	if_poll_unthrottle(void *);
-void	if_poll_init(void);
-void	if_poll(void);
 
 struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *);
