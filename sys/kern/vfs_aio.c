@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.31 1998/07/05 20:33:18 julian Exp $
+ * $Id: vfs_aio.c,v 1.32 1998/07/15 06:51:14 bde Exp $
  */
 
 /*
@@ -30,8 +30,7 @@
 #include <sys/lock.h>
 #include <sys/unistd.h>
 #include <sys/proc.h>
-#include <sys/uio.h>
-#include <sys/malloc.h>
+#include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
@@ -46,7 +45,6 @@
 #include <vm/vm_zone.h>
 #include <sys/aio.h>
 #include <sys/shm.h>
-#include <sys/user.h>
 
 #include <machine/cpu.h>
 #include <machine/limits.h>
@@ -541,7 +539,6 @@ aio_process(struct aiocblist *aiocbe)
 	struct iovec aiov;
 	unsigned int fd;
 	int cnt;
-	static nperline=0;
 	int error;
 	off_t offset;
 	int oublock_st, oublock_end;
@@ -1277,9 +1274,10 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	}
 
 	aiocbe->uaiocb._aiocb_private.kernelinfo = (void *)(intptr_t)jobrefid;
-	jobrefid++;
-	if (jobrefid > INT_MAX)
+	if (jobrefid == LONG_MAX)
 		jobrefid = 1;
+	else
+		jobrefid++;
 	
 	if (opcode == LIO_NOP) {
 		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
