@@ -1,5 +1,4 @@
-#
-# $Id$
+# $Id: Makefile,v 1.5 1997/02/22 16:03:10 peter Exp $
 #
 # Copyright (c) 1990 Jan-Simon Pendry
 # Copyright (c) 1990 Imperial College of Science, Technology & Medicine
@@ -41,16 +40,7 @@
 #
 
 INFO = amdref
-SRCS = amdref.texinfo
 INFOSECTION= "System Utilities"
 INFOENTRY_amdref= "* amdref: (amdref).		AMD Reference Manual."
-
-# Use the following instead if you have TeX installed on your system.
-#${PROG}: amdref.dvi amdref.info
-
-CLEANFILES+=	*.info* *.aux *.cp *.dvi *.fn *.ky *.log *.pg *.toc *.tp *.vr
-
-amdref.dvi: ${SRCS}
-	-tex amdref; tex amdref
 
 .include <bsd.info.mk>
