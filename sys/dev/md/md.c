@@ -559,7 +559,9 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
 			if (rv == VM_PAGER_ERROR) {
 				sf_buf_free(sf);
+				vm_page_lock_queues();
 				vm_page_wakeup(m);
+				vm_page_unlock_queues();
 				break;
 			}
 			bcopy((void *)(sf_buf_kva(sf) + offs), p, len);
@@ -568,7 +570,9 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
 			if (rv == VM_PAGER_ERROR) {
 				sf_buf_free(sf);
+				vm_page_lock_queues();
 				vm_page_wakeup(m);
+				vm_page_unlock_queues();
 				break;
 			}
 			bcopy(p, (void *)(sf_buf_kva(sf) + offs), len);
@@ -579,7 +583,9 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
 			if (rv == VM_PAGER_ERROR) {
 				sf_buf_free(sf);
+				vm_page_lock_queues();
 				vm_page_wakeup(m);
+				vm_page_unlock_queues();
 				break;
 			}
 			bzero((void *)(sf_buf_kva(sf) + offs), len);
