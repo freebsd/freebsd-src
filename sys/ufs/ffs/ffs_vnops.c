@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.47 1998/03/28 10:33:26 bde Exp $
+ * $Id: ffs_vnops.c,v 1.48 1998/03/30 09:56:05 phk Exp $
  */
 
 #include <sys/param.h>
@@ -252,6 +252,7 @@ loop2:
 				vprint("ffs_fsync: dirty", vp);
 #endif
 		}
+		splx(s);
 	}
 	getmicrotime(&tv);
 	error = UFS_UPDATE(ap->a_vp, &tv, &tv, (ap->a_waitfor == MNT_WAIT));
