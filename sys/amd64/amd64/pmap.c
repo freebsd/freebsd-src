@@ -527,8 +527,7 @@ pmap_bootstrap(firstaddr)
  *	way, discontiguous physical memory.
  */
 void
-pmap_init(phys_start, phys_end)
-	vm_paddr_t phys_start, phys_end;
+pmap_init(void)
 {
 	int i;
 
