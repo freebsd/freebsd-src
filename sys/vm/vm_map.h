@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.30 1998/01/06 05:26:00 dyson Exp $
+ * $Id: vm_map.h,v 1.31 1998/01/17 09:16:52 dyson Exp $
  */
 
 /*
@@ -132,12 +132,9 @@ struct vm_map {
 	vm_size_t size;			/* virtual size */
 	unsigned char	is_main_map;		/* Am I a main map? */
 	unsigned char	system_map;			/* Am I a system map? */
-	int ref_count;			/* Reference count */
-	struct simplelock ref_lock;	/* Lock for ref_count field */
 	vm_map_entry_t hint;		/* hint for quick lookups */
 	unsigned int timestamp;		/* Version number */
 	vm_map_entry_t first_free;	/* First free space hint */
-	boolean_t entries_pageable;	/* map entries pageable?? */
 	struct pmap *pmap;		/* Physical map */
 #define	min_offset		header.start
 #define max_offset		header.end
@@ -312,16 +309,16 @@ extern vm_size_t kentry_data_size;
 boolean_t vm_map_check_protection __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t));
 int vm_map_copy __P((vm_map_t, vm_map_t, vm_offset_t, vm_size_t, vm_offset_t, boolean_t, boolean_t));
 struct pmap;
-vm_map_t vm_map_create __P((struct pmap *, vm_offset_t, vm_offset_t, boolean_t));
+vm_map_t vm_map_create __P((struct pmap *, vm_offset_t, vm_offset_t));
 void vm_map_deallocate __P((vm_map_t));
 int vm_map_delete __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_map_find __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t, boolean_t, vm_prot_t, vm_prot_t, int));
 int vm_map_findspace __P((vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *));
 int vm_map_inherit __P((vm_map_t, vm_offset_t, vm_offset_t, vm_inherit_t));
-void vm_map_init __P((struct vm_map *, vm_offset_t, vm_offset_t, boolean_t));
+void vm_map_init __P((struct vm_map *, vm_offset_t, vm_offset_t));
 int vm_map_insert __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_offset_t, vm_prot_t, vm_prot_t, int));
 int vm_map_lookup __P((vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_object_t *,
-    vm_pindex_t *, vm_prot_t *, boolean_t *, boolean_t *));
+    vm_pindex_t *, vm_prot_t *, boolean_t *));
 void vm_map_lookup_done __P((vm_map_t, vm_map_entry_t));
 boolean_t vm_map_lookup_entry __P((vm_map_t, vm_offset_t, vm_map_entry_t *));
 int vm_map_pageable __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t));

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.106 1998/01/12 01:44:38 dyson Exp $
+ * $Id: vm_object.c,v 1.107 1998/01/17 09:16:55 dyson Exp $
  */
 
 /*
@@ -169,6 +169,7 @@ _vm_object_allocate(type, size, object)
 	object->page_hint = NULL;
 
 	object->last_read = 0;
+	object->generation++;
 
 	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
 	vm_object_count++;
@@ -268,6 +269,7 @@ vm_object_vndeallocate(object)
 	object->ref_count--;
 	if (object->ref_count == 0) {
 		vp->v_flag &= ~VTEXT;
+		object->flags &= ~OBJ_OPT;
 	}
 	vrele(vp);
 }
@@ -372,7 +374,7 @@ doterm:
 		if (temp) {
 			TAILQ_REMOVE(&temp->shadow_head, object, shadow_list);
 			temp->shadow_count--;
-			if (temp->shadow_count == 0)
+			if (temp->ref_count == 0)
 				temp->flags &= ~OBJ_OPT;
 		}
 		vm_object_terminate(object);
@@ -455,6 +457,19 @@ vm_object_terminate(object)
 	vm_pager_deallocate(object);
 
 	if (object->ref_count == 0) {
+		vm_object_dispose(object);
+	}
+}
+
+/*
+ * vm_object_dispose
+ *
+ * Dispose the object.
+ */
+void
+vm_object_dispose(object)
+	vm_object_t object;
+{
 		simple_lock(&vm_object_list_lock);
 		TAILQ_REMOVE(&vm_object_list, object, object_list);
 		vm_object_count--;
@@ -464,7 +479,6 @@ vm_object_terminate(object)
    		*/
 		zfree(obj_zone, object);
 		wakeup(object);
-	}
 }
 
 /*
@@ -498,6 +512,7 @@ vm_object_page_clean(object, start, end, syncio)
 	vm_page_t maf[vm_pageout_page_count];
 	vm_page_t mab[vm_pageout_page_count];
 	vm_page_t ma[vm_pageout_page_count];
+	int curgeneration;
 	struct proc *pproc = curproc;	/* XXX */
 
 	if (object->type != OBJT_VNODE ||
@@ -521,6 +536,8 @@ vm_object_page_clean(object, start, end, syncio)
 		p->flags |= PG_CLEANCHK;
 
 rescan:
+	curgeneration = object->generation;
+
 	for(p = TAILQ_FIRST(&object->memq); p; p = np) {
 		np = TAILQ_NEXT(p, listq);
 
@@ -540,11 +557,13 @@ rescan:
 		}
 
 		s = splvm();
-		if ((p->flags & PG_BUSY) || p->busy) {
+		while ((p->flags & PG_BUSY) || p->busy) {
 			p->flags |= PG_WANTED|PG_REFERENCED;
 			tsleep(p, PVM, "vpcwai", 0);
-			splx(s);
-			goto rescan;
+			if (object->generation != curgeneration) {
+				splx(s);
+				goto rescan;
+			}
 		}
 		splx(s);
 			
@@ -617,7 +636,8 @@ rescan:
 		runlen = maxb + maxf + 1;
 		splx(s);
 		vm_pageout_flush(ma, runlen, 0);
-		goto rescan;
+		if (object->generation != curgeneration)
+			goto rescan;
 	}
 
 	VOP_FSYNC(vp, NULL, syncio, curproc);

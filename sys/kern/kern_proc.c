@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.29 1997/10/11 18:31:23 phk Exp $
+ * $Id: kern_proc.c,v 1.30 1997/10/12 20:23:52 phk Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/user.h>
+#include <vm/vm_zone.h>
 
 static MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");
@@ -82,6 +83,7 @@ struct pgrphashhead *pgrphashtbl;
 u_long pgrphash;
 struct proclist allproc;
 struct proclist zombproc;
+vm_zone_t proc_zone;
 
 /*
  * Initialize global process hashing structures.
@@ -95,6 +97,7 @@ procinit()
 	pidhashtbl = hashinit(maxproc / 4, M_PROC, &pidhash);
 	pgrphashtbl = hashinit(maxproc / 4, M_PROC, &pgrphash);
 	uihashtbl = hashinit(maxproc / 16, M_PROC, &uihash);
+	proc_zone = zinit("PROC", sizeof (struct proc), 0, 0, 5);
 }
 
 /*

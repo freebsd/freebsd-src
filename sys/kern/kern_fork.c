@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.49 1997/11/20 16:36:17 bde Exp $
+ * $Id: kern_fork.c,v 1.50 1997/12/12 04:00:58 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -60,6 +60,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_zone.h>
 
 #ifdef SMP
 static int	fast_vfork = 0;	/* Doesn't work on SMP yet. */
@@ -226,7 +227,7 @@ fork1(p1, flags)
 	}
 
 	/* Allocate new proc. */
-	MALLOC(newproc, struct proc *, sizeof(struct proc), M_PROC, M_WAITOK);
+	newproc = zalloc(proc_zone);
 
 /*
  * Setup linkage for kernel based threading

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.123 1998/01/12 03:15:01 dyson Exp $
+ * $Id: vfs_subr.c,v 1.124 1998/01/17 09:16:28 dyson Exp $
  */
 
 /*
@@ -68,6 +68,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
+#include <vm/vm_zone.h>
 #include <sys/sysctl.h>
 
 #include <miscfs/specfs/specdev.h>
@@ -120,6 +121,7 @@ struct simplelock mntvnode_slock;
 struct simplelock vnode_free_list_slock;
 static struct simplelock spechash_slock;
 struct nfs_public nfs_pub;	/* publicly exported FS */
+static vm_zone_t vnode_zone;
 
 int desiredvnodes;
 SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW, &desiredvnodes, 0, "");
@@ -144,6 +146,7 @@ vntblinit()
 	TAILQ_INIT(&vnode_tobefree_list);
 	simple_lock_init(&vnode_free_list_slock);
 	CIRCLEQ_INIT(&mountlist);
+	vnode_zone = zinit("VNODE", sizeof (struct vnode), 0, 0, 5);
 }
 
 /*
@@ -457,8 +460,7 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_writecount = 0;	/* XXX */
 	} else {
 		simple_unlock(&vnode_free_list_slock);
-		vp = (struct vnode *) malloc((u_long) sizeof *vp,
-		    M_VNODE, M_WAITOK);
+		vp = (struct vnode *) zalloc(vnode_zone);
 		bzero((char *) vp, sizeof *vp);
 		simple_lock_init(&vp->v_interlock);
 		vp->v_dd = vp;
@@ -917,6 +919,7 @@ vget(vp, flags, p)
 		   ((vp->v_object == NULL) ||
 			(vp->v_object->flags & OBJ_DEAD))) {
 		vfs_object_create(vp, curproc, curproc->p_ucred, 0);
+		simple_lock(&vp->v_interlock);
 	}
 	if (flags & LK_TYPE_MASK) {
 		if (error = vn_lock(vp, flags | LK_INTERLOCK, p))
@@ -1390,6 +1393,7 @@ vgonel(vp, p)
 	 * Clean out the filesystem specific data.
 	 */
 	vclean(vp, DOCLOSE, p);
+	simple_lock(&vp->v_interlock);
 
 	/*
 	 * Delete from old mount point vnode list, if on one.

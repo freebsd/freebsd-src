@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.41 1998/01/06 05:26:07 dyson Exp $
+ * $Id: vm_object.h,v 1.42 1998/01/17 09:16:56 dyson Exp $
  */
 
 /*
@@ -87,6 +87,7 @@ struct vm_object {
 	TAILQ_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
 	TAILQ_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
 	TAILQ_HEAD(, vm_page) memq;	/* list of resident pages */
+	int generation;			/* generation ID */
 	objtype_t type;			/* type of pager */
 	vm_size_t size;			/* Object size */
 	int ref_count;			/* How many refs?? */
@@ -168,6 +169,7 @@ void vm_object_collapse __P((vm_object_t));
 void vm_object_copy __P((vm_object_t, vm_pindex_t, vm_object_t *, vm_pindex_t *, boolean_t *));
 void vm_object_deallocate __P((vm_object_t));
 void vm_object_terminate __P((vm_object_t));
+void vm_object_dispose __P((vm_object_t));
 void vm_object_vndeallocate __P((vm_object_t));
 void vm_object_init __P((void));
 void vm_object_page_clean __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t));
