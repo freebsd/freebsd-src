@@ -1,4 +1,4 @@
-This is the Main Slice (or ``FDISK'' Partition) Editor.
+This is the Main Slice (``FDISK'' or PC-style Partition) Editor.
 
 Possible commands are printed at the bottom and the Master Boot Record
 contents are shown at the top.  You can move up and down with the
@@ -7,10 +7,10 @@ selection bar is over a slice whose type is marked as "unused."
 
 You are expected to leave this screen with at least one slice
 marked "FreeBSD."  Note that unlike Linux, you don't need to create
-multiple FreeBSD fdisk slice entries for different things like
+multiple FreeBSD FDISK partition entries for different things like
 swap, file systems, etc.  The usual convention is to create ONE
-FreeBSD slice per drive and then subsection this slice into
-swap and file systems with the Label editor.
+FreeBSD slice (FDISK partition) per drive and then subsection this slice
+into swap and file systems with the Label editor.
 
 No actual changes will be made to the disk until you (C)ommit from the
 Install menu or use the (W)rite option here!  You're working with what
