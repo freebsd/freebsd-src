@@ -1,19 +1,19 @@
 # ex:ts=8
 $FreeBSD$
 
-AMD (am-utils) 6.0.7
+AMD (am-utils) 6.0.9
     originals can be found at: ftp://shekel.mcl.cs.columbia.edu/pub/am-utils/
     (http://www.cs.columbia.edu/~ezk/am-utils/index.html)
 
 
 For the import of AMD many files were pruned by:
 
-	tar -X FREEBSD-Xlist -xzf am-utils-6.0.7.tar.gz
+	tar -X FREEBSD-Xlist -xzf am-utils-6.0.9.tar.gz
 
 Then imported by:
 
-	cvs import -m 'Virgin import of AMD (am-utils) v6.0.7' \
-		src/contrib/amd COLUMBIA amd_6_0_7
+	cvs import -m 'Virgin import of AMD (am-utils) v6.0.9' \
+		src/contrib/amd COLUMBIA amd_6_0_9
 
 After the import, a separate extraction of am-utils was GNU configured in
 the "normal" way.  The resulting config.h file should be compared with
@@ -26,5 +26,6 @@ branch (aka HEAD).  Never make local changes on the vendor (COLUMBIA) branch.
 All local changes should be submitted to "amd-dev@majordomo.cs.columbia.edu"
 for inclusion in the next vendor release.
 
+mbr@FreeBSD.org
 obrien@NUXI.com
 05-November-1999
