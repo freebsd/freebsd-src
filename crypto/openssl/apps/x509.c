@@ -358,12 +358,6 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			if (!set_name_ex(&nmflag, *(++argv))) goto bad;
 			}
-		else if (strcmp(*argv,"-setalias") == 0)
-			{
-			if (--argc < 1) goto bad;
-			alias= *(++argv);
-			trustout = 1;
-			}
 #ifndef OPENSSL_NO_ENGINE
 		else if (strcmp(*argv,"-engine") == 0)
 			{
@@ -1151,7 +1145,7 @@ static int x509_certify(X509_STORE *ctx, char *CAfile, const EVP_MD *digest,
 	else if (!(bs = load_serial(CAfile, serialfile, create)))
 		goto end;
 
-	if (!X509_STORE_add_cert(ctx,x)) goto end;
+/*	if (!X509_STORE_add_cert(ctx,x)) goto end;*/
 
 	/* NOTE: this certificate can/should be self signed, unless it was
 	 * a certificate request in which case it is not. */

@@ -431,10 +431,11 @@ int ssl3_accept(SSL *s)
 			if (ret == 2)
 				s->state = SSL3_ST_SR_CLNT_HELLO_C;
 			else {
-				/* could be sent for a DH cert, even if we
-				 * have not asked for it :-) */
-				ret=ssl3_get_client_certificate(s);
-				if (ret <= 0) goto end;
+				if (s->s3->tmp.cert_request)
+					{
+					ret=ssl3_get_client_certificate(s);
+					if (ret <= 0) goto end;
+					}
 				s->init_num=0;
 				s->state=SSL3_ST_SR_KEY_EXCH_A;
 			}
@@ -844,6 +845,9 @@ static int ssl3_get_client_hello(SSL *s)
 		}
 
 	/* TLS does not mind if there is extra stuff */
+#if 0   /* SSL 3.0 does not mind either, so we should disable this test
+         * (was enabled in 0.9.6d through 0.9.6j and 0.9.7 through 0.9.7b,
+         * in earlier SSLeay/OpenSSL releases this test existed but was buggy) */
 	if (s->version == SSL3_VERSION)
 		{
 		if (p < (d+n))
@@ -855,6 +859,7 @@ static int ssl3_get_client_hello(SSL *s)
 			goto f_err;
 			}
 		}
+#endif
 
 	/* Given s->session->ciphers and SSL_get_ciphers, we must
 	 * pick a cipher */
@@ -1352,6 +1357,7 @@ static int ssl3_send_certificate_request(SSL *s)
 		s->init_num += 4;
 #endif
 
+		s->state = SSL3_ST_SW_CERT_REQ_B;
 		}
 
 	/* SSL3_ST_SW_CERT_REQ_B */
@@ -1472,7 +1478,6 @@ static int ssl3_get_client_key_exchange(SSL *s)
 				 * made up by the adversary is properly formatted except
 				 * that the version number is wrong.  To avoid such attacks,
 				 * we should treat this just like any other decryption error. */
-				p[0] = (char)(int) "CAN-2003-0131 patch 2003-03-19";
 				}
 			}
 

@@ -224,7 +224,7 @@ void bn_mul_part_recursive(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int tn,
 	     int n, BN_ULONG *t)
 	{
 	int i,j,n2=n*2;
-	unsigned int c1,c2,neg,zero;
+	int c1,c2,neg,zero;
 	BN_ULONG ln,lo,*p;
 
 # ifdef BN_COUNT
@@ -376,7 +376,7 @@ void bn_mul_part_recursive(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int tn,
 
 		/* The overflow will stop before we over write
 		 * words we should not overwrite */
-		if (ln < c1)
+		if (ln < (BN_ULONG)c1)
 			{
 			do	{
 				p++;
