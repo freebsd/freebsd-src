@@ -2794,7 +2794,7 @@ cpu	EV5</programlisting>
             <para>ALI M1543C Ultra DMA66 IDE interface</para>
           </listitem>
           <listitem>
-            <para>expansion: 2 64 bit PCI buses
+            <para>expansion: 2 64 bit PCI buses</para>
           </listitem>
         </itemizedlist>
 

@@ -48,7 +48,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
       <listitem>
         <para><filename>docbook.css</filename> is a Cascading Style
         Sheet (CSS) file used by some Web browsers for formatting the
-        HTML documentation.
+        HTML documentation.</para>
       </listitem>
       <listitem>
 	<para>The <filename>base</filename>,

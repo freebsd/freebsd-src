@@ -1169,7 +1169,7 @@
       <filename>gtar</filename>.</para>
 
     <para><application>Heimdal Kerberos</application> has been
-       updated from 0.6 to 0.6.1.
+       updated from 0.6 to 0.6.1.</para>
 
     <para>The <application>ISC DHCP</application> client has been
        updated from 3.0.1 RC10 to 3.0.1 RC14.</para>
@@ -1202,7 +1202,7 @@
       OpenBSD 3.5, has been imported into &os; source tree and is now installed
       by default.  A new user <username>proxy</username>, and two new
       groups <username>authpf</username> and <username>proxy</username>,
-      which <application>pf</application> needs, are added as well.
+      which <application>pf</application> needs, are added as well.</para>
 
       <note>
 	<para>On upgrading from the source, these user accounts must be
