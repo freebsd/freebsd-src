@@ -28,114 +28,298 @@
 
 #include "isa.h"
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/bus.h>
-#include <sys/malloc.h>
-#include <sys/module.h>
-#include <machine/resource.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <sys/soundcard.h>
 #include <dev/sound/chip.h>
-
-#if NISA > 0
-#include <isa/isavar.h>
-#include <isa/isa_common.h>
-#ifdef __alpha__		/* XXX workaround a stupid warning */
-#include <alpha/isa/isavar.h>
-#endif
-#endif /* NISA > 0 */
+#include <dev/sound/pcm/sound.h>
+#define __SB_MIXER_C__	/* XXX warning... */
+#define SB_NOMIXER
+#include  <dev/sound/isa/sb.h>
 
 /* Here is the parameter structure per a device. */
 struct sbc_softc {
 	device_t dev; /* device */
+
 	int io_rid[3]; /* io port rids */
 	struct resource *io[3]; /* io port resources */
 	int io_alloced[3]; /* io port alloc flag */
+
 	int irq_rid; /* irq rids */
 	struct resource *irq; /* irq resources */
 	int irq_alloced; /* irq alloc flag */
+
 	int drq_rid[2]; /* drq rids */
 	struct resource *drq[2]; /* drq resources */
 	int drq_alloced[2]; /* drq alloc flag */
+
+	u_int32_t bd_ver;
 };
 
-typedef struct sbc_softc *sc_p;
-
-#if NISA > 0
 static int sbc_probe(device_t dev);
 static int sbc_attach(device_t dev);
-#endif /* NISA > 0 */
 static struct resource *sbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-					      u_long start, u_long end, u_long count, u_int flags);
+					   u_long start, u_long end, u_long count, u_int flags);
 static int sbc_release_resource(device_t bus, device_t child, int type, int rid,
-				   struct resource *r);
+				struct resource *r);
 
-static int alloc_resource(sc_p scp);
-static int release_resource(sc_p scp);
+static int alloc_resource(struct sbc_softc *scp);
+static int release_resource(struct sbc_softc *scp);
 
 static devclass_t sbc_devclass;
 
-#if NISA > 0
+static int io_range[3] = {0x10, 0x2, 0x4};
+
+static int sb_rd(struct resource *io, int reg);
+static void sb_wr(struct resource *io, int reg, u_int8_t val);
+static int sb_dspready(struct resource *io);
+static int sb_cmd(struct resource *io, u_char val);
+static u_int sb_get_byte(struct resource *io);
+static void sb_setmixer(struct resource *io, u_int port, u_int value);
+
+static int
+sb_rd(struct resource *io, int reg)
+{
+	return bus_space_read_1(rman_get_bustag(io),
+				rman_get_bushandle(io),
+				reg);
+}
+
+static void
+sb_wr(struct resource *io, int reg, u_int8_t val)
+{
+	return bus_space_write_1(rman_get_bustag(io),
+				 rman_get_bushandle(io),
+				 reg, val);
+}
+
+static int
+sb_dspready(struct resource *io)
+{
+	return ((sb_rd(io, SBDSP_STATUS) & 0x80) == 0);
+}
+
+static int
+sb_dspwr(struct resource *io, u_char val)
+{
+    	int  i;
+
+    	for (i = 0; i < 1000; i++) {
+		if (sb_dspready(io)) {
+	    		sb_wr(io, SBDSP_CMD, val);
+	    		return 1;
+		}
+		if (i > 10) DELAY((i > 100)? 1000 : 10);
+    	}
+    	printf("sb_dspwr(0x%02x) timed out.\n", val);
+    	return 0;
+}
+
+static int
+sb_cmd(struct resource *io, u_char val)
+{
+    	return sb_dspwr(io, val);
+}
+
+static void
+sb_setmixer(struct resource *io, u_int port, u_int value)
+{
+    	u_long   flags;
+
+    	flags = spltty();
+    	sb_wr(io, SB_MIX_ADDR, (u_char) (port & 0xff)); /* Select register */
+    	DELAY(10);
+    	sb_wr(io, SB_MIX_DATA, (u_char) (value & 0xff));
+    	DELAY(10);
+    	splx(flags);
+}
+
+static u_int
+sb_get_byte(struct resource *io)
+{
+    	int i;
+
+    	for (i = 1000; i > 0; i--) {
+		if (sb_rd(io, DSP_DATA_AVAIL) & 0x80)
+			return sb_rd(io, DSP_READ);
+		else
+			DELAY(20);
+    	}
+    	return 0xffff;
+}
+
+static int
+sb_reset_dsp(struct resource *io)
+{
+    	sb_wr(io, SBDSP_RST, 3);
+    	DELAY(100);
+    	sb_wr(io, SBDSP_RST, 0);
+    	return (sb_get_byte(io) == 0xAA)? 0 : ENXIO;
+}
+
+static int
+sb_identify_board(struct resource *io)
+{
+	int ver, essver, rev;
+
+    	sb_cmd(io, DSP_CMD_GETVER);	/* Get version */
+    	ver = (sb_get_byte(io) << 8) | sb_get_byte(io);
+	if (ver < 0x100 || ver > 0x4ff) return 0;
+    	if (ver == 0x0301) {
+	    	/* Try to detect ESS chips. */
+	    	sb_cmd(io, DSP_CMD_GETID); /* Return ident. bytes. */
+	    	essver = (sb_get_byte(io) << 8) | sb_get_byte(io);
+	    	rev = essver & 0x000f;
+	    	essver &= 0xfff0;
+	    	if (essver == 0x4880) ver |= 0x1000;
+	    	else if (essver == 0x6880) ver = 0x0500 | rev;
+	}
+	return ver;
+}
+
 static struct isa_pnp_id sbc_ids[] = {
-#if notdef
-	{0x0000630e, "CS423x"},
-#endif
-	{0x01008c0e, "Creative ViBRA16C PnP"},
-	{0x41008c0e, "Creative ViBRA16CL PnP"},
-	{0x43008c0e, "Creative ViBRA16X PnP"},
-	{0x31008c0e, "Creative SB16 PnP/SB32"},
+	{0x01008c0e, "Creative ViBRA16C"},
+	{0x31008c0e, "Creative SB16/SB32"},
+	{0x41008c0e, "Creative SB16/SB32"},
 	{0x42008c0e, "Creative SB AWE64"}, /* CTL00c1 */
+	{0x43008c0e, "Creative ViBRA16X"},
+	{0x44008c0e, "Creative SB AWE64 Gold"},
 	{0x45008c0e, "Creative SB AWE64"}, /* CTL0045 */
-#if notdef
-	{0x01200001, "Avance Logic ALS120"},
+
+	{0x01000000, "Avance Asound 100"},
 	{0x01100001, "Avance Asound 110"},
-	{0x68187316, "ESS ES1868 Plug and Play AudioDrive"}, /* ESS1868 */
-	{0x79187316, "ESS ES1879 Plug and Play AudioDrive"}, /* ESS1879 */
-	{0x2100a865, "Yamaha OPL3-SA2/SAX Sound Board"},
-	{0x80719304, "Terratec Soundsystem Base 1"},
-#endif
+	{0x01200001, "Avance Logic ALS120"},
+
+	{0x68187316, "ESS ES1868"}, /* ESS1868 */
+	{0x69187316, "ESS ES1869"}, /* ESS1869 */
+	{0xacb0110e, "ESS ES1869 (Compaq OEM)"},
+	{0x79187316, "ESS ES1879"}, /* ESS1879 */
+	{0x88187316, "ESS ES1888"}, /* ESS1888 */
+
 	{0}
 };
 
 static int
 sbc_probe(device_t dev)
 {
-	int error;
+	char *s = NULL;
+	u_int32_t logical_id = isa_get_logicalid(dev);
+	if (logical_id) {
+		/* Check pnp ids */
+		return ISA_PNP_PROBE(device_get_parent(dev), dev, sbc_ids);
+	} else {
+		int rid = 0, ver;
+	    	struct resource *io;
 
-	/* Check pnp ids */
-	error = ISA_PNP_PROBE(device_get_parent(dev), dev, sbc_ids);
-	if (error)
-		return error;
-	else
-		return -100;
+		io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+		  		    	0, ~0, 16, RF_ACTIVE);
+		if (!io) goto bad;
+    		if (sb_reset_dsp(io)) goto bad2;
+		ver = sb_identify_board(io);
+		if (ver == 0) goto bad2;
+		switch ((ver & 0x00000f00) >> 8) {
+		case 1:
+		case 2:
+			s = "Soundblaster";
+			break;
+
+		case 3:
+			s = (ver & 0x0000f000)? "ESS 488" : "Soundblaster Pro";
+			break;
+
+		case 4:
+			s = "Soundblaster 16";
+			break;
+
+		case 5:
+			s = (ver & 0x00000008)? "ESS 688" : "ESS 1688";
+			break;
+	     	}
+		if (s) device_set_desc(dev, s);
+bad2:		bus_release_resource(dev, SYS_RES_IOPORT, rid, io);
+bad:		return s? 0 : ENXIO;
+	}
 }
 
 static int
 sbc_attach(device_t dev)
 {
-	sc_p scp;
-	device_t child;
-	int unit;
+	struct sbc_softc *scp;
 	struct sndcard_func *func;
+	device_t child;
+	u_int32_t logical_id = isa_get_logicalid(dev);
+    	int flags = device_get_flags(dev);
+	int f = 0, dh = -1, dl = -1;
+
+    	if (!logical_id && (flags & DV_F_DUAL_DMA)) {
+        	bus_set_resource(dev, SYS_RES_DRQ, 1,
+				 flags & DV_F_DRQ_MASK, 1);
+    	}
 
 	scp = device_get_softc(dev);
-	unit = device_get_unit(dev);
-
 	bzero(scp, sizeof(*scp));
-
 	scp->dev = dev;
-	if (alloc_resource(scp)) {
-		release_resource(scp);
-		return (ENXIO);
+	if (alloc_resource(scp)) goto bad;
+
+	if (sb_reset_dsp(scp->io[0])) goto bad;
+	scp->bd_ver = sb_identify_board(scp->io[0]) & 0x00000fff;
+	if (scp->bd_ver == 0) goto bad;
+	switch ((scp->bd_ver & 0x0f00) >> 8) {
+    	case 1: /* old sound blaster has nothing... */
+		break;
+
+    	case 2:
+		f |= BD_F_DUP_MIDI;
+		if (scp->bd_ver > 0x200) f |= BD_F_MIX_CT1335;
+		break;
+
+	case 5:
+		f |= BD_F_ESS;
+		scp->bd_ver = 0x0301;
+    	case 3:
+		f |= BD_F_DUP_MIDI | BD_F_MIX_CT1345;
+		break;
+
+    	case 4:
+    		f |= BD_F_SB16 | BD_F_MIX_CT1745;
+		if (scp->drq[0]) dl = rman_get_start(scp->drq[0]);
+		if (scp->drq[1]) dh = rman_get_start(scp->drq[1]); else dh = dl;
+		if (dh != dl) f |= BD_F_DUPLEX;
+		if (dh < dl) {
+			struct resource *r;
+			r = scp->drq[0];
+			scp->drq[0] = scp->drq[1];
+			scp->drq[1] = r;
+			dl = rman_get_start(scp->drq[0]);
+			dh = rman_get_start(scp->drq[1]);
+		}
+		if (!logical_id) {
+			/* soft irq/dma configuration */
+			int x = -1, irq = rman_get_start(scp->irq);
+			if      (irq == 5) x = 2;
+			else if (irq == 7) x = 4;
+			else if (irq == 9) x = 1;
+			else if (irq == 10) x = 8;
+			if (x == -1) device_printf(dev,
+					   	"bad irq %d (5/7/9/10 valid)\n",
+					   	irq);
+			else sb_setmixer(scp->io[0], IRQ_NR, x);
+			sb_setmixer(scp->io[0], DMA_NR, (1 << dh) | (1 << dl));
+			device_printf(dev, "setting non-pnp card to irq %d, drq %d", irq, dl);
+			if (dl != dh) printf(", %d", dh);
+			printf("\n");
+		}
+		break;
+    	}
+
+	switch (logical_id) {
+    	case 0x01008c0e: /* CTL0001 */
+    	case 0x43008c0e: /* CTL0043 */
+		f |= BD_F_SB16X;
+		break;
 	}
+	scp->bd_ver |= f << 16;
 
 	/* PCM Audio */
 	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
-	if (func == NULL)
-		return (ENOMEM);
+	if (func == NULL) goto bad;
 	bzero(func, sizeof(*func));
 	func->func = SCF_PCM;
 	child = device_add_child(dev, "pcm", -1);
@@ -144,8 +328,7 @@ sbc_attach(device_t dev)
 #if notyet
 	/* Midi Interface */
 	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
-	if (func == NULL)
-		return (ENOMEM);
+	if (func == NULL) goto bad;
 	bzero(func, sizeof(*func));
 	func->func = SCF_MIDI;
 	child = device_add_child(dev, "midi", -1);
@@ -153,25 +336,27 @@ sbc_attach(device_t dev)
 
 	/* OPL FM Synthesizer */
 	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
-	if (func == NULL)
-		return (ENOMEM);
+	if (func == NULL) goto bad;
 	bzero(func, sizeof(*func));
 	func->func = SCF_SYNTH;
 	child = device_add_child(dev, "midi", -1);
 	device_set_ivars(child, func);
 #endif /* notyet */
 
+	/* probe/attach kids */
 	bus_generic_attach(dev);
 
 	return (0);
+
+bad:	release_resource(scp);
+	return (ENXIO);
 }
-#endif /* NISA > 0 */
 
 static struct resource *
 sbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		      u_long start, u_long end, u_long count, u_int flags)
 {
-	sc_p scp;
+	struct sbc_softc *scp;
 	int *alloced, rid_max, alloced_max;
 	struct resource **res;
 
@@ -183,17 +368,17 @@ sbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rid_max = 2;
 		alloced_max = 1;
 		break;
-	case SYS_RES_IRQ:
-		alloced = &scp->irq_alloced;
-		res = &scp->irq;
-		rid_max = 0;
-		alloced_max = 2; /* pcm and mpu may share the irq. */
-		break;
 	case SYS_RES_DRQ:
 		alloced = scp->drq_alloced;
 		res = scp->drq;
 		rid_max = 1;
 		alloced_max = 1;
+		break;
+	case SYS_RES_IRQ:
+		alloced = &scp->irq_alloced;
+		res = &scp->irq;
+		rid_max = 0;
+		alloced_max = 2; /* pcm and mpu may share the irq. */
 		break;
 	default:
 		return (NULL);
@@ -203,14 +388,14 @@ sbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		return (NULL);
 
 	alloced[*rid]++;
-	return (res[*rid]);
+	 return (res[*rid]);
 }
 
 static int
 sbc_release_resource(device_t bus, device_t child, int type, int rid,
 			struct resource *r)
 {
-	sc_p scp;
+	struct sbc_softc *scp;
 	int *alloced, rid_max;
 
 	scp = device_get_softc(bus);
@@ -219,13 +404,13 @@ sbc_release_resource(device_t bus, device_t child, int type, int rid,
 		alloced = scp->io_alloced;
 		rid_max = 2;
 		break;
-	case SYS_RES_IRQ:
-		alloced = &scp->irq_alloced;
-		rid_max = 0;
-		break;
 	case SYS_RES_DRQ:
 		alloced = scp->drq_alloced;
 		rid_max = 1;
+		break;
+	case SYS_RES_IRQ:
+		alloced = &scp->irq_alloced;
+		rid_max = 0;
 		break;
 	default:
 		return (1);
@@ -238,9 +423,44 @@ sbc_release_resource(device_t bus, device_t child, int type, int rid,
 	return (0);
 }
 
-static int io_range[3] = {0x10, 0x4, 0x4};
 static int
-alloc_resource(sc_p scp)
+sbc_read_ivar(device_t bus, device_t dev, int index, uintptr_t * result)
+{
+	struct sbc_softc *scp = device_get_softc(bus);
+	struct sndcard_func *func = device_get_ivars(dev);
+
+	switch (index) {
+	case 0:
+		*result = func->func;
+		break;
+
+	case 1:
+		*result = scp->bd_ver;
+	      	break;
+
+	default:
+		return ENOENT;
+	}
+
+	return 0;
+}
+
+static int
+sbc_write_ivar(device_t bus, device_t dev,
+	       int index, uintptr_t value)
+{
+	switch (index) {
+	case 0:
+	case 1:
+  		return EINVAL;
+
+	default:
+		return (ENOENT);
+	}
+}
+
+static int
+alloc_resource(struct sbc_softc *scp)
 {
 	int i;
 
@@ -249,34 +469,34 @@ alloc_resource(sc_p scp)
 			scp->io_rid[i] = i;
 			scp->io[i] = bus_alloc_resource(scp->dev, SYS_RES_IOPORT, &scp->io_rid[i],
 							0, ~0, io_range[i], RF_ACTIVE);
-			if (scp->io[i] == NULL)
+			if (i == 0 && scp->io[i] == NULL)
 				return (1);
 			scp->io_alloced[i] = 0;
 		}
-	}
-	if (scp->irq == NULL) {
-		scp->irq_rid = 0;
-		scp->irq = bus_alloc_resource(scp->dev, SYS_RES_IRQ, &scp->irq_rid,
-					      0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-		if (scp->irq == NULL)
-			return (1);
-		scp->irq_alloced = 0;
 	}
 	for (i = 0 ; i < sizeof(scp->drq) / sizeof(*scp->drq) ; i++) {
 		if (scp->drq[i] == NULL) {
 			scp->drq_rid[i] = i;
 			scp->drq[i] = bus_alloc_resource(scp->dev, SYS_RES_DRQ, &scp->drq_rid[i],
 							 0, ~0, 1, RF_ACTIVE);
-			if (scp->drq[i] == NULL)
+			if (i == 0 && scp->drq[i] == NULL)
 				return (1);
 			scp->drq_alloced[i] = 0;
 		}
+	}
+	if (scp->irq == NULL) {
+		scp->irq_rid = 0;
+		scp->irq = bus_alloc_resource(scp->dev, SYS_RES_IRQ, &scp->irq_rid,
+					      0, ~0, 1, RF_ACTIVE);
+		if (scp->irq == NULL)
+			return (1);
+		scp->irq_alloced = 0;
 	}
 	return (0);
 }
 
 static int
-release_resource(sc_p scp)
+release_resource(struct sbc_softc *scp)
 {
 	int i;
 
@@ -299,7 +519,6 @@ release_resource(sc_p scp)
 	return (0);
 }
 
-#if NISA > 0
 static device_method_t sbc_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sbc_probe),
@@ -310,6 +529,8 @@ static device_method_t sbc_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
+	DEVMETHOD(bus_read_ivar,	sbc_read_ivar),
+	DEVMETHOD(bus_write_ivar,	sbc_write_ivar),
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	sbc_alloc_resource),
 	DEVMETHOD(bus_release_resource,	sbc_release_resource),
@@ -327,8 +548,6 @@ static driver_t sbc_driver = {
 	sizeof(struct sbc_softc),
 };
 
-/*
- * sbc can be attached to an isa bus.
- */
+/* sbc can be attached to an isa bus. */
 DRIVER_MODULE(sbc, isa, sbc_driver, sbc_devclass, 0, 0);
-#endif /* NISA > 0 */
+
