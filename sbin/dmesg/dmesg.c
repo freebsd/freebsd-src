@@ -166,10 +166,12 @@ main(int argc, char *argv[])
 			p++;
 	} else if (!all) {
 		/* Skip the first line, since it is probably incomplete. */
-		p = memchr(p, '\n', ep - p) + 1;
+		p = memchr(p, '\n', ep - p);
+		p++;
 	}
 	for (; p < ep; p = nextp) {
-		nextp = memchr(p, '\n', ep - p) + 1;
+		nextp = memchr(p, '\n', ep - p);
+		nextp++;
 
 		/* Skip ^<[0-9]+> syslog sequences. */
 		if (*p == '<') {
