@@ -526,7 +526,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 
 	if ((dmat->lowaddr < ptoa((vm_paddr_t)Maxmem)
 	 || dmat->boundary > 0 || dmat->alignment > 1)
-	 && map->pagesneeded == 0) {
+	 && map != &nobounce_dmamap && map->pagesneeded == 0) {
 		vm_offset_t	vendaddr;
 
 		/*
