@@ -56,7 +56,6 @@ struct globaldata {
 	u_int32_t	gd_current_asngen;	/* ASN rollover check */
 	u_int32_t	gd_intr_nesting_level;  /* interrupt recursion */
 
-	u_int		gd_astpending;
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	struct lock_list_entry *gd_spinlocks;
 #ifdef KTR_PERCPU
