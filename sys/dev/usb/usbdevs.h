@@ -73,6 +73,7 @@
 #define	USB_VENDOR_PERACOM	0x0565		/* Peracom */
 #define	USB_VENDOR_EIZO	0x056d		/* EIZO */
 #define	USB_VENDOR_AGILER	0x056e		/* Agiler */
+#define	USB_VENDOR_IOMEGA	0x059b		/* Iomega */
 #define	USB_VENDOR_BELKIN	0x05ab		/* Belkin */
 #define	USB_VENDOR_LOGITECH	0x05ac		/* Logitech */
 #define	USB_VENDOR_EIZONANAO	0x05e7		/* EIZO Nanao */
@@ -159,6 +160,9 @@
 
 /* Agiler products */
 #define	USB_PRODUCT_AGILER_MOUSE29UO	0x0002		/* mouse 29UO */
+
+/* Iomega products */
+#define	USB_PRODUCT_IOMEGA_ZIP100	0x0001		/* Zip 100 */
 
 /* Belkin products */
 #define	USB_PRODUCT_BELKIN_F5U002	0x0002		/* Parallel printer adapter */
