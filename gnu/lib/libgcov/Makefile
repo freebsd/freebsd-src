@@ -6,7 +6,7 @@ GCCDIR=	${.CURDIR}/../../../contrib/gcc
 .PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}
 
 LIB=		gcov
-NOPROFILE=
+NO_PROFILE=
 
 CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED
 CFLAGS+=	-D_PTHREADS -DGTHREAD_USE_WEAK
@@ -32,12 +32,12 @@ ${OBJS} beforedepend: ${COMMONHDRS}
 ${OBJS_T}: libgcov.c
 	${CC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 
-.if !defined(NOPIC)
+.if !defined(NO_PIC)
 ${OBJS_S}: libgcov.c
 	${CC} -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 .endif
 
-.if !defined(NOPROFILE)
+.if !defined(NO_PROFILE)
 ${OBJS_P}: libgcc2.c
 	${CC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 .endif

@@ -9,10 +9,10 @@
 #	-DNOCLEAN do not clean at all
 #	-DNOCRYPT will prevent building of crypt versions
 #	-DNO_MAN do not build the manual pages
-#	-DNOPROFILE do not build profiled libraries
+#	-DNO_PROFILE do not build profiled libraries
 #	-DNOGAMES do not go into games subdir
 #	-DNOSHARE do not go into share subdir
-#	-DNOINFO do not make or install info files
+#	-DNO_INFO do not make or install info files
 #	-DNO_LIBC_R do not build libc_r.
 #	-DNO_FORTRAN do not build g77 and related libraries.
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
@@ -182,14 +182,14 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
-		-DNOHTML -DNOINFO -DNOLINT -DNO_MAN -DNOPIC -DNOPROFILE \
+		-DNOHTML -DNO_INFO -DNO_LINT -DNO_MAN -DNO_PIC -DNO_PROFILE \
 		-DNOSHARED -DNO_CPU_CFLAGS -DNO_WARNS
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		DESTDIR= \
-		BOOTSTRAPPING=${OSRELDATE} -DNOLINT -DNO_CPU_CFLAGS -DNO_WARNS
+		BOOTSTRAPPING=${OSRELDATE} -DNO_LINT -DNO_CPU_CFLAGS -DNO_WARNS
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} -DNO_FORTRAN -DNO_GDB
@@ -231,7 +231,7 @@ LIB32MAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		SHLIBDIR=/usr/lib32
 
 LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
-		-DNO_BIND -DNO_MAN -DNODOC -DNOINFO -DNOHTML \
+		-DNO_BIND -DNO_MAN -DNO_INFO -DNOHTML \
 		CC="cc ${LIB32CC}" \
 		CXX="c++ ${LIB32CXX}" \
 		OBJC="cc ${LIB32OBJC}" \
@@ -364,7 +364,7 @@ _libraries:
 	@echo ">>> stage 4.2: building libraries"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
-	    ${WMAKE} -DNOFSCHG -DNOHTML -DNOINFO -DNOLINT -DNO_MAN -DNOPROFILE \
+	    ${WMAKE} -DNOFSCHG -DNOHTML -DNO_INFO -DNO_LINT -DNO_MAN -DNO_PROFILE \
 	    libraries
 _depend:
 	@echo

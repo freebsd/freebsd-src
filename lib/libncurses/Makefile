@@ -234,7 +234,7 @@ SYMLINKS+=libncurses.a ${LIBDIR}/libtermlib.a
 SYMLINKS+=libncurses.a ${LIBDIR}/libmytinfo.a
 SYMLINKS+=libncurses.a ${LIBDIR}/libtinfo.a
 .endif
-.if !defined(NOPIC)
+.if !defined(NO_PIC)
 # no need for major at all, it's an ld-time redirection only
 SYMLINKS+=libncurses.so ${LIBDIR}/libcurses.so
 SYMLINKS+=libncurses.so ${LIBDIR}/libtermcap.so
@@ -242,7 +242,7 @@ SYMLINKS+=libncurses.so ${LIBDIR}/libtermlib.so
 SYMLINKS+=libncurses.so ${LIBDIR}/libmytinfo.so
 SYMLINKS+=libncurses.so ${LIBDIR}/libtinfo.so
 .endif
-.if !defined(NOPROFILE)
+.if !defined(NO_PROFILE)
 SYMLINKS+=libncurses_p.a ${LIBDIR}/libcurses_p.a
 SYMLINKS+=libncurses_p.a ${LIBDIR}/libtermcap_p.a
 SYMLINKS+=libncurses_p.a ${LIBDIR}/libtermlib_p.a
@@ -556,6 +556,6 @@ MLINKS+=curs_window.3 delwin.3 curs_window.3 derwin.3 curs_window.3 dupwin.3 \
 MLINKS+=default_colors.3 assume_default_colors.3 \
 	default_colors.3 use_default_colors.3
 
-NOLINT=
+NO_LINT=
 
 .include <bsd.lib.mk>
