@@ -85,7 +85,7 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_expm1.c s_expm1f.c s_fabsf.c s_fdim.c s_finite.c s_finitef.c \
 	s_floor.c s_floorf.c s_fmax.c s_fmaxf.c s_fmaxl.c s_fmin.c \
 	s_fminf.c s_fminl.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
-	s_isfinite.c s_isnan.c s_isnormal.c s_ldexpf.c \
+	s_ilogbl.c s_isfinite.c s_isnan.c s_isnormal.c s_ldexpf.c \
 	s_lib_version.c s_log1p.c \
 	s_log1pf.c s_logb.c s_logbf.c s_matherr.c s_modff.c \
 	s_nearbyint.c s_nextafter.c s_nextafterf.c \
@@ -167,7 +167,8 @@ MLINKS+=fmod.3 fmodf.3
 MLINKS+=hypot.3 cabs.3 hypot.3 cabsf.3 hypot.3 hypotf.3
 MLINKS+=ieee.3 copysign.3 ieee.3 copysignf.3 ieee.3 copysignl.3 \
 	ieee.3 finite.3 ieee.3 finitef.3 \
-	ieee.3 ilogb.3 ieee.3 ilogbf.3 ieee.3 nextafter.3 ieee.3 nextafterf.3 \
+	ieee.3 ilogb.3 ieee.3 ilogbf.3 ieee.3 ilogbl.3 \
+	ieee.3 nextafter.3 ieee.3 nextafterf.3 \
 	ieee.3 remainder.3 ieee.3 remainderf.3 \
 	ieee.3 scalbln.3 ieee.3 scalblnf.3 ieee.3 scalbn.3 ieee.3 scalbnf.3
 MLINKS+=ieee_test.3 logb.3 ieee_test.3 logbf.3
