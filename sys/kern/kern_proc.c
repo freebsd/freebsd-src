@@ -919,12 +919,24 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		error = sysctl_out_proc(p, req, KERN_PROC_NOTHREADS);
 		return (error);
 	}
-	if (oidp->oid_number == KERN_PROC_ALL && !namelen)
-		;
-	else if (oidp->oid_number != KERN_PROC_ALL && namelen == 1)
-		;
-	else
-		return (EINVAL);
+
+	switch (oidp->oid_number) {
+	case KERN_PROC_ALL:
+	case KERN_PROC_PROC:
+		/*
+		 * XXX Temporarily disabled for compat with old userland
+		 * that passes an extra unused argument to KERN_PROC_PROC.
+		 */
+#if 0
+		if (namelen != 0)
+			return (EINVAL);
+#endif
+		break;
+	default:
+		if (namelen != 1)
+			return (EINVAL);
+		break;
+	}
 	
 	if (!req->oldptr) {
 		/* overestimate by 5 procs */
