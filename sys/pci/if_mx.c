@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.20 1999/07/02 04:17:13 peter Exp $
+ *	$Id: if_mx.c,v 1.21 1999/07/06 19:23:26 des Exp $
  */
 
 /*
@@ -82,6 +82,9 @@
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -94,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.20 1999/07/02 04:17:13 peter Exp $";
+	"$Id: if_mx.c,v 1.21 1999/07/06 19:23:26 des Exp $";
 #endif
 
 /*
@@ -134,12 +137,13 @@ static struct mx_type mx_phys[] = {
 	{ 0, 0, "<MII-compliant physical interface>" }
 };
 
-static unsigned long mx_count = 0;
-static const char *mx_probe	__P((pcici_t, pcidi_t));
-static void mx_attach		__P((pcici_t, int));
-static struct mx_type *mx_devtype	__P((pcici_t, pcidi_t));
+static int mx_probe		__P((device_t));
+static int mx_attach		__P((device_t));
+static int mx_detach		__P((device_t));
+static struct mx_type *mx_devtype	__P((device_t));
 static int mx_newbuf		__P((struct mx_softc *,
-						struct mx_chain_onefrag *));
+					struct mx_chain_onefrag *,
+					struct mbuf *));
 static int mx_encap		__P((struct mx_softc *, struct mx_chain *,
 						struct mbuf *));
 
@@ -153,7 +157,7 @@ static int mx_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void mx_init		__P((void *));
 static void mx_stop		__P((struct mx_softc *));
 static void mx_watchdog		__P((struct ifnet *));
-static void mx_shutdown		__P((int, void *));
+static void mx_shutdown		__P((device_t));
 static int mx_ifmedia_upd	__P((struct ifnet *));
 static void mx_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
@@ -185,6 +189,33 @@ static void mx_setfilt		__P((struct mx_softc *));
 static void mx_reset		__P((struct mx_softc *));
 static int mx_list_rx_init	__P((struct mx_softc *));
 static int mx_list_tx_init	__P((struct mx_softc *));
+
+#ifdef MX_USEIOSPACE
+#define MX_RES			SYS_RES_IOPORT
+#define MX_RID			MX_PCI_LOIO
+#else
+#define MX_RES			SYS_RES_MEMORY
+#define MX_RID			MX_PCI_LOMEM
+#endif
+
+static device_method_t mx_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		mx_probe),
+	DEVMETHOD(device_attach,	mx_attach),
+	DEVMETHOD(device_detach,	mx_detach),
+	DEVMETHOD(device_shutdown,	mx_shutdown),
+	{ 0, 0 }
+};
+
+static driver_t mx_driver = {
+	"mx",
+	mx_methods,
+	sizeof(struct mx_softc)
+};
+
+static devclass_t mx_devclass;
+
+DRIVER_MODULE(mx, pci, mx_driver, mx_devclass, 0, 0);
 
 #define MX_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
@@ -1242,9 +1273,8 @@ static void mx_reset(sc)
         return;
 }
 
-static struct mx_type *mx_devtype(config_id, device_id)
-	pcici_t			config_id;
-	pcidi_t			device_id;
+static struct mx_type *mx_devtype(dev)
+	device_t		dev;
 {
 	struct mx_type		*t;
 	u_int32_t		rev;
@@ -1252,18 +1282,18 @@ static struct mx_type *mx_devtype(config_id, device_id)
 	t = mx_devs;
 
 	while(t->mx_name != NULL) {
-		if ((device_id & 0xFFFF) == t->mx_vid &&
-		    ((device_id >> 16) & 0xFFFF) == t->mx_did) {
+		if ((pci_get_vendor(dev) == t->mx_vid) &&
+		    (pci_get_device(dev) == t->mx_did)) {
 			/* Check the PCI revision */
-			rev = pci_conf_read(config_id, MX_PCI_REVID) & 0xFF;
+			rev = pci_read_config(dev, MX_PCI_REVID, 4) & 0xFF;
 			if (t->mx_did == MX_DEVICEID_98713 &&
-						rev >= MX_REVISION_98713A)
+			    rev >= MX_REVISION_98713A)
 				t++;
 			if (t->mx_did == CP_DEVICEID_98713 &&
-						rev >= MX_REVISION_98713A)
+			    rev >= MX_REVISION_98713A)
 				t++;
 			if (t->mx_did == MX_DEVICEID_987x5 &&
-						rev >= MX_REVISION_98725)
+			    rev >= MX_REVISION_98725)
 				t++;
 			return(t);
 		}
@@ -1283,34 +1313,29 @@ static struct mx_type *mx_devtype(config_id, device_id)
  * lets us tell the user exactly what type of device they have
  * in the probe output.
  */
-static const char *
-mx_probe(config_id, device_id)
-	pcici_t			config_id;
-	pcidi_t			device_id;
+int mx_probe(dev)
+	device_t		dev;
 {
 	struct mx_type		*t;
 
-	t = mx_devtype(config_id, device_id);
+	t = mx_devtype(dev);
 
-	if (t != NULL)
-		return(t->mx_name);
+	if (t != NULL) {
+		device_set_desc(dev, t->mx_name);
+		return(0);
+	}
 
-	return(NULL);
+	return(ENXIO);
 }
 
 /*
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static void
-mx_attach(config_id, unit)
-	pcici_t			config_id;
-	int			unit;
+int mx_attach(dev)
+	device_t		dev;
 {
 	int			s, i;
-#ifndef MX_USEIOSPACE
-	vm_offset_t		pbase, vbase;
-#endif
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct mx_softc		*sc;
@@ -1321,99 +1346,103 @@ mx_attach(config_id, unit)
 	struct mx_type		*p;
 	u_int16_t		phy_vid, phy_did, phy_sts, mac_offset = 0;
 	u_int32_t		revision, pci_id;
+	int			unit, error = 0, rid;
 
 	s = splimp();
 
-	sc = malloc(sizeof(struct mx_softc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL) {
-		printf("mx%d: no memory for softc struct!\n", unit);
-		goto fail;
-	}
+	sc = device_get_softc(dev);
+	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct mx_softc));
 
 	/*
 	 * Handle power management nonsense.
 	 */
 
-	command = pci_conf_read(config_id, MX_PCI_CAPID) & 0x000000FF;
+	command = pci_read_config(dev, MX_PCI_CAPID, 4) & 0x000000FF;
 	if (command == 0x01) {
 
-		command = pci_conf_read(config_id, MX_PCI_PWRMGMTCTRL);
+		command = pci_read_config(dev, MX_PCI_PWRMGMTCTRL, 4);
 		if (command & MX_PSTATE_MASK) {
 			u_int32_t		iobase, membase, irq;
 
 			/* Save important PCI config data. */
-			iobase = pci_conf_read(config_id, MX_PCI_LOIO);
-			membase = pci_conf_read(config_id, MX_PCI_LOMEM);
-			irq = pci_conf_read(config_id, MX_PCI_INTLINE);
+			iobase = pci_read_config(dev, MX_PCI_LOIO, 4);
+			membase = pci_read_config(dev, MX_PCI_LOMEM, 4);
+			irq = pci_read_config(dev, MX_PCI_INTLINE, 4);
 
 			/* Reset the power state. */
 			printf("mx%d: chip is in D%d power mode "
 			"-- setting to D0\n", unit, command & MX_PSTATE_MASK);
 			command &= 0xFFFFFFFC;
-			pci_conf_write(config_id, MX_PCI_PWRMGMTCTRL, command);
+			pci_write_config(dev, MX_PCI_PWRMGMTCTRL, command, 4);
 
 			/* Restore PCI config data. */
-			pci_conf_write(config_id, MX_PCI_LOIO, iobase);
-			pci_conf_write(config_id, MX_PCI_LOMEM, membase);
-			pci_conf_write(config_id, MX_PCI_INTLINE, irq);
+			pci_write_config(dev, MX_PCI_LOIO, iobase, 4);
+			pci_write_config(dev, MX_PCI_LOMEM, membase, 4);
+			pci_write_config(dev, MX_PCI_INTLINE, irq, 4);
 		}
 	}
 
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 
 #ifdef MX_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("mx%d: failed to enable I/O ports!\n", unit);
-		free(sc, M_DEVBUF);
+		error = ENXIO;
 		goto fail;
 	}
-
-	if (!pci_map_port(config_id, MX_PCI_LOIO,
-					(pci_port_t *)&(sc->mx_bhandle))) {
-		printf ("mx%d: couldn't map ports\n", unit);
-		goto fail;
-        }
-#ifdef __i386__
-	sc->mx_btag = I386_BUS_SPACE_IO;
-#endif
-#ifdef __alpha__
-	sc->mx_btag = ALPHA_BUS_SPACE_IO;
-#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("mx%d: failed to enable memory mapping!\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+#endif
+
+	rid = MX_RID;
+	sc->mx_res = bus_alloc_resource(dev, MX_RES, &rid,
+	    0, ~0, 1, RF_ACTIVE);
+
+	if (sc->mx_res == NULL) {
+		printf("mx%d: couldn't map ports/memory\n", unit);
+		error = ENXIO;
 		goto fail;
 	}
 
-	if (!pci_map_mem(config_id, MX_PCI_LOMEM, &vbase, &pbase)) {
-		printf ("mx%d: couldn't map memory\n", unit);
-		goto fail;
-	}
-#ifdef __i386__
-	sc->mx_btag = I386_BUS_SPACE_MEM;
-#endif
-#ifdef __alpha__
-	sc->mx_btag = ALPHA_BUS_SPACE_MEM;
-#endif
-	sc->mx_bhandle = vbase;
-#endif
+	sc->mx_btag = rman_get_bustag(sc->mx_res);
+	sc->mx_bhandle = rman_get_bushandle(sc->mx_res);
 
 	/* Allocate interrupt */
-	if (!pci_map_int(config_id, mx_intr, sc, &net_imask)) {
+	rid = 0;
+	sc->mx_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	    RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->mx_irq == NULL) {
 		printf("mx%d: couldn't map interrupt\n", unit);
+		bus_release_resource(dev, MX_RES, MX_RID, sc->mx_res);
+		error = ENXIO;
 		goto fail;
 	}
 
+	error = bus_setup_intr(dev, sc->mx_irq, INTR_TYPE_NET,
+	    mx_intr, sc, &sc->mx_intrhand);
+
+	if (error) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->mx_irq);
+		bus_release_resource(dev, MX_RES, MX_RID, sc->mx_res);
+		printf("mx%d: couldn't set up irq\n", unit);
+		goto fail;
+	}
+	
 	/* Need this info to decide on a chip type. */
-	revision = pci_conf_read(config_id, MX_PCI_REVID) & 0x000000FF;
-	pci_id = (pci_conf_read(config_id,MX_PCI_VENDOR_ID) >> 16) & 0x0000FFFF;
+	revision = pci_read_config(dev, MX_PCI_REVID, 4) & 0x000000FF;
+	pci_id = (pci_read_config(dev,MX_PCI_VENDOR_ID, 4) >> 16) & 0x0000FFFF;
 
 	if (pci_id == MX_DEVICEID_98713 && revision < MX_REVISION_98713A)
 		sc->mx_type = MX_TYPE_98713;
@@ -1425,11 +1454,11 @@ mx_attach(config_id, unit)
 		sc->mx_type = MX_TYPE_987x5;
 
 	/* Save the cache line size. */
-	sc->mx_cachesize = pci_conf_read(config_id, MX_PCI_CACHELEN) & 0xFF;
+	sc->mx_cachesize = pci_read_config(dev, MX_PCI_CACHELEN, 4) & 0xFF;
 
 	/* Save the device info; the PNIC II requires special handling. */
-	pci_id = pci_conf_read(config_id,MX_PCI_VENDOR_ID);
-	sc->mx_info = mx_devtype(config_id, pci_id);
+	pci_id = pci_read_config(dev,MX_PCI_VENDOR_ID, 4);
+	sc->mx_info = mx_devtype(dev);
 
 	/* Reset the adapter. */
 	mx_reset(sc);
@@ -1452,8 +1481,11 @@ mx_attach(config_id, unit)
 	sc->mx_ldata_ptr = malloc(sizeof(struct mx_list_data) + 8,
 				M_DEVBUF, M_NOWAIT);
 	if (sc->mx_ldata_ptr == NULL) {
-		free(sc, M_DEVBUF);
 		printf("mx%d: no memory for list buffers!\n", unit);
+		bus_teardown_intr(dev, sc->mx_irq, sc->mx_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->mx_irq);
+		bus_release_resource(dev, MX_RES, MX_RID, sc->mx_res);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1536,7 +1568,13 @@ mx_attach(config_id, unit)
 
 	if (sc->mx_type == MX_TYPE_98713 && sc->mx_pinfo != NULL) {
 		mx_getmode_mii(sc);
-		mx_autoneg_mii(sc, MX_FLAG_FORCEDELAY, 1);
+		if (cold) {
+			mx_autoneg_mii(sc, MX_FLAG_FORCEDELAY, 1);
+			mx_stop(sc);
+		} else {
+			mx_init(sc);
+			mx_autoneg_mii(sc, MX_FLAG_SCHEDDELAY, 1);
+		}
 	} else {
 		ifmedia_add(&sc->ifmedia,
 			IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
@@ -1549,12 +1587,16 @@ mx_attach(config_id, unit)
 			IFM_ETHER|IFM_100_TX|IFM_FDX, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_TX, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
-		mx_autoneg(sc, MX_FLAG_FORCEDELAY, 1);
+		if (cold) {
+			mx_autoneg(sc, MX_FLAG_FORCEDELAY, 1);
+			mx_stop(sc);
+		} else {
+			mx_init(sc);
+			mx_autoneg(sc, MX_FLAG_SCHEDDELAY, 1);
+		}
 	}
 
 	media = sc->ifmedia.ifm_media;
-	mx_stop(sc);
-
 	ifmedia_set(&sc->ifmedia, media);
 
 	/*
@@ -1566,11 +1608,38 @@ mx_attach(config_id, unit)
 #if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
-	at_shutdown(mx_shutdown, sc, SHUTDOWN_POST_SYNC);
 
 fail:
 	splx(s);
-	return;
+
+	return(error);
+}
+
+static int mx_detach(dev)
+	device_t		dev;
+{
+	struct mx_softc		*sc;
+	struct ifnet		*ifp;
+	int			s;
+
+	s = splimp();
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	mx_stop(sc);
+	if_detach(ifp);
+
+	bus_teardown_intr(dev, sc->mx_irq, sc->mx_intrhand);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->mx_irq);
+	bus_release_resource(dev, MX_RES, MX_RID, sc->mx_res);
+
+	free(sc->mx_ldata_ptr, M_DEVBUF);
+	ifmedia_removeall(&sc->ifmedia);
+
+	splx(s);
+
+	return(0);
 }
 
 /*
@@ -1620,16 +1689,18 @@ static int mx_list_rx_init(sc)
 	for (i = 0; i < MX_RX_LIST_CNT; i++) {
 		cd->mx_rx_chain[i].mx_ptr =
 			(struct mx_desc *)&ld->mx_rx_list[i];
-		if (mx_newbuf(sc, &cd->mx_rx_chain[i]) == ENOBUFS)
+		if (mx_newbuf(sc, &cd->mx_rx_chain[i], NULL) == ENOBUFS)
 			return(ENOBUFS);
 		if (i == (MX_RX_LIST_CNT - 1)) {
-			cd->mx_rx_chain[i].mx_nextdesc = &cd->mx_rx_chain[0];
+			cd->mx_rx_chain[i].mx_nextdesc =
+			    &cd->mx_rx_chain[0];
 			ld->mx_rx_list[i].mx_next =
-					vtophys(&ld->mx_rx_list[0]);
+			    vtophys(&ld->mx_rx_list[0]);
 		} else {
-			cd->mx_rx_chain[i].mx_nextdesc = &cd->mx_rx_chain[i + 1];
+			cd->mx_rx_chain[i].mx_nextdesc =
+			    &cd->mx_rx_chain[i + 1];
 			ld->mx_rx_list[i].mx_next =
-					vtophys(&ld->mx_rx_list[i + 1]);
+			    vtophys(&ld->mx_rx_list[i + 1]);
 		}
 	}
 
@@ -1645,26 +1716,36 @@ static int mx_list_rx_init(sc)
  * MCLBYTES is 2048, so we have to subtract one otherwise we'll
  * overflow the field and make a mess.
  */
-static int mx_newbuf(sc, c)
+static int mx_newbuf(sc, c, m)
 	struct mx_softc		*sc;
 	struct mx_chain_onefrag	*c;
+	struct mbuf		*m;
 {
 	struct mbuf		*m_new = NULL;
 
-	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-	if (m_new == NULL) {
-		printf("mx%d: no memory for rx list -- packet dropped!\n",
-								sc->mx_unit);
-		return(ENOBUFS);
+	if (m == NULL) {
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		if (m_new == NULL) {
+			printf("mx%d: no memory for rx list "
+			    "-- packet dropped!\n", sc->mx_unit);
+			return(ENOBUFS);
+		}
+
+		MCLGET(m_new, M_DONTWAIT);
+		if (!(m_new->m_flags & M_EXT)) {
+			printf("mx%d: no memory for rx list "
+			    "-- packet dropped!\n", sc->mx_unit);
+			m_freem(m_new);
+			return(ENOBUFS);
+		}
+		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+	} else {
+		m_new = m;
+		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+		m_new->m_data = m_new->m_ext.ext_buf;
 	}
 
-	MCLGET(m_new, M_DONTWAIT);
-	if (!(m_new->m_flags & M_EXT)) {
-		printf("mx%d: no memory for rx list -- packet dropped!\n",
-								sc->mx_unit);
-		m_freem(m_new);
-		return(ENOBUFS);
-	}
+	m_adj(m_new, sizeof(u_int64_t));
 
 	c->mx_mbuf = m_new;
 	c->mx_ptr->mx_status = MX_RXSTAT;
@@ -1692,11 +1773,11 @@ static void mx_rxeof(sc)
 
 	while(!((rxstat = sc->mx_cdata.mx_rx_head->mx_ptr->mx_status) &
 							MX_RXSTAT_OWN)) {
-#ifdef __alpha__
 		struct mbuf		*m0 = NULL;
-#endif
+
 		cur_rx = sc->mx_cdata.mx_rx_head;
 		sc->mx_cdata.mx_rx_head = cur_rx->mx_nextdesc;
+		m = cur_rx->mx_mbuf;
 
 		/*
 		 * If an error occurs, update stats, clear the
@@ -1708,14 +1789,11 @@ static void mx_rxeof(sc)
 			ifp->if_ierrors++;
 			if (rxstat & MX_RXSTAT_COLLSEEN)
 				ifp->if_collisions++;
-			cur_rx->mx_ptr->mx_status = MX_RXSTAT;
-			cur_rx->mx_ptr->mx_ctl =
-				MX_RXCTL_RLINK | (MCLBYTES - 1);
+			mx_newbuf(sc, cur_rx, m);
 			continue;
 		}
 
 		/* No errors; receive the packet. */	
-		m = cur_rx->mx_mbuf;
 		total_len = MX_RXBYTES(cur_rx->mx_ptr->mx_status);
 
 		/*
@@ -1727,55 +1805,18 @@ static void mx_rxeof(sc)
 		 */
 		total_len -= ETHER_CRC_LEN;
 
-		/*
-		 * Try to conjure up a new mbuf cluster. If that
-		 * fails, it means we have an out of memory condition and
-		 * should leave the buffer in place and continue. This will
-		 * result in a lost packet, but there's little else we
-		 * can do in this situation.
-		 */
-		if (mx_newbuf(sc, cur_rx) == ENOBUFS) {
-			ifp->if_ierrors++;
-			cur_rx->mx_ptr->mx_status = MX_RXSTAT;
-			cur_rx->mx_ptr->mx_ctl =
-					MX_RXCTL_RLINK | (MCLBYTES - 1);
-			continue;
-		}
-
-#ifdef __alpha__
-		/*
-		 * Deal with alignment on alpha.
-		 */
-		MGETHDR(m0, M_DONTWAIT, MT_DATA);
+		m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
+		    total_len + ETHER_ALIGN, 0, ifp, NULL);
+		mx_newbuf(sc, cur_rx, m);
 		if (m0 == NULL) {
 			ifp->if_ierrors++;
-			cur_rx->mx_ptr->mx_status = MX_RXSTAT;
-			cur_rx->mx_ptr->mx_ctl =
-					MX_RXCTL_RLINK | (MCLBYTES - 1);
-			bzero((char *)mtod(cur_rx->mx_mbuf, char *), MCLBYTES);
 			continue;
 		}
+		m_adj(m0, ETHER_ALIGN);
+		m = m0;
 
-		m0->m_data += 2;
-		if (total_len <= (MHLEN - 2)) {
-			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), total_len);				m_freem(m);
-			m = m0;
-			m->m_pkthdr.len = m->m_len = total_len;
-		} else {
-			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), (MHLEN - 2));
-			m->m_len = total_len - (MHLEN - 2);
-			m->m_data += (MHLEN - 2);
-			m0->m_next = m;
-			m0->m_len = (MHLEN - 2);
-			m = m0;
-			m->m_pkthdr.len = total_len;
-		}
-#else
-		m->m_pkthdr.len = m->m_len = total_len;
-#endif
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
-		m->m_pkthdr.rcvif = ifp;
 
 #if NBPF > 0
 		/*
@@ -2421,6 +2462,8 @@ static void mx_watchdog(ifp)
 			mx_autoneg_mii(sc, MX_FLAG_DELAYTIMEO, 1);
 		else
 			mx_autoneg(sc, MX_FLAG_DELAYTIMEO, 1);
+		if (!(ifp->if_flags & IFF_UP))
+			mx_stop(sc);
 		return;
 	}
 
@@ -2500,22 +2543,14 @@ static void mx_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void mx_shutdown(howto, arg)
-	int			howto;
-	void			*arg;
+static void mx_shutdown(dev)
+	device_t		dev;
 {
-	struct mx_softc		*sc = (struct mx_softc *)arg;
+	struct mx_softc		*sc;
+
+	sc = device_get_softc(dev);
 
 	mx_stop(sc);
 
 	return;
 }
-
-static struct pci_device mx_device = {
-	"mx",
-	mx_probe,
-	mx_attach,
-	&mx_count,
-	NULL
-};
-COMPAT_PCI_DRIVER(mx, mx_device);
