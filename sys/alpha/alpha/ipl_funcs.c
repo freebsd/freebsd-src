@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.4 1998/07/12 16:32:02 dfr Exp $
+ *	$Id: ipl_funcs.c,v 1.5 1998/07/22 08:20:15 dfr Exp $
  */
 
 #include <sys/types.h>
@@ -35,6 +35,7 @@
 #include "sio.h"
 
 unsigned int bio_imask;		/* XXX */
+unsigned int cam_imask;		/* XXX */
 unsigned int net_imask;		/* XXX */
 
 void	(*netisrs[32]) __P((void));
@@ -46,6 +47,8 @@ u_int32_t idelayed;
 
 static void swi_tty(void);
 static void swi_net(void);
+extern void swi_camnet(void);
+extern void swi_cambio(void);
 
 static void atomic_setbit(u_int32_t* p, u_int32_t bit)
 {
@@ -113,6 +116,10 @@ do_sir()
 	    swi_tty();
 	if (pend & (1 << SWI_NET))
 	    swi_net();
+	if (pend & (1 << SWI_CAMNET))
+	    swi_camnet();
+	if (pend & (1 << SWI_CAMBIO))
+	    swi_cambio();
 	if (pend & (1 << SWI_CLOCK))
 	    softclock();
     }
@@ -152,6 +159,7 @@ int name(void)					\
 
 SPLDOWN(splsoftclock, SOFT)
 SPLDOWN(splsoftnet, SOFT)
+SPLDOWN(splsoftcam, SOFT)
 SPLDOWN(splsoft, SOFT)
 
 #define SPLUP(name, pri)				\
@@ -168,6 +176,7 @@ int name(void)						\
 
 SPLUP(splnet, IO)
 SPLUP(splbio, IO)
+SPLUP(splcam, IO)
 SPLUP(splimp, IO)
 SPLUP(spltty, IO)
 SPLUP(splvm, IO)
