@@ -700,8 +700,10 @@ distExtract(char *parent, Distribution *me)
 		fclose(fp);
 		goto done;
 	    }
-	    else
-		numchunks = 0;
+	    else {
+		status = FALSE;
+		goto done;
+	    }
 	}
 
 	/* Fall through from "we got the attribute file, now get the pieces" step */
