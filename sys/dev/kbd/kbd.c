@@ -56,7 +56,7 @@ typedef struct genkbd_softc {
 } genkbd_softc_t;
 
 static	SLIST_HEAD(, keyboard_driver) keyboard_drivers =
- 	SLIST_HEAD_INITIALIZER(keyboard_drivers);
+	SLIST_HEAD_INITIALIZER(keyboard_drivers);
 
 SET_DECLARE(kbddriver_set, const keyboard_driver_t);
 
@@ -453,11 +453,11 @@ kbd_attach(keyboard_t *kbd)
 	if (keyboard[kbd->kb_index] != kbd)
 		return EINVAL;
 
-	kbd->kb_dev = make_dev(&kbd_cdevsw, kbd->kb_index, UID_ROOT, GID_WHEEL, 0600,
-		       "%s%r", kbd->kb_name, kbd->kb_unit);
+	kbd->kb_dev = make_dev(&kbd_cdevsw, kbd->kb_index, UID_ROOT, GID_WHEEL,
+	    0600, "%s%r", kbd->kb_name, kbd->kb_unit);
 	make_dev_alias(kbd->kb_dev, "kbd%r", kbd->kb_index);
 	kbd->kb_dev->si_drv1 = malloc(sizeof(genkbd_softc_t), M_DEVBUF,
-			      M_WAITOK | M_ZERO);
+	    M_WAITOK | M_ZERO);
 	printf("kbd%d at %s%d\n", kbd->kb_index, kbd->kb_name, kbd->kb_unit);
 	return 0;
 }
@@ -504,7 +504,7 @@ genkbdopen(dev_t dev, int mode, int flag, struct thread *td)
 		return ENXIO;
 	}
 	i = kbd_allocate(kbd->kb_name, kbd->kb_unit, sc,
-			 genkbd_event, (void *)sc);
+	    genkbd_event, (void *)sc);
 	if (i < 0) {
 		splx(s);
 		return EBUSY;
@@ -733,7 +733,7 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
 			break;
 		case FKEY | SPCLKEY:	/* a function key, return string */
 			cp = (*kbdsw[kbd->kb_index]->get_fkeystr)(kbd,
-							KEYCHAR(c), &len);
+			    KEYCHAR(c), &len);
 			if (cp != NULL) {
 				while (len-- >  0)
 					putc(*cp++, &sc->gkb_q);
@@ -786,7 +786,7 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	case KDGKBINFO:		/* get keyboard information */
 		((keyboard_info_t *)arg)->kb_index = kbd->kb_index;
 		i = imin(strlen(kbd->kb_name) + 1,
-			 sizeof(((keyboard_info_t *)arg)->kb_name));
+		    sizeof(((keyboard_info_t *)arg)->kb_name));
 		bcopy(kbd->kb_name, ((keyboard_info_t *)arg)->kb_name, i);
 		((keyboard_info_t *)arg)->kb_unit = kbd->kb_unit;
 		((keyboard_info_t *)arg)->kb_type = kbd->kb_type;
@@ -800,7 +800,7 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 	case KDGETREPEAT:	/* get keyboard repeat rate */
 		((int *)arg)[0] = kbd->kb_delay1;
-		((int *)arg)[1] = kbd->kb_delay2; 
+		((int *)arg)[1] = kbd->kb_delay2;
 		break;
 
 	case GIO_KEYMAP:	/* get keyboard translation table */
@@ -824,19 +824,19 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 	case GIO_KEYMAPENT:	/* get keyboard translation table entry */
 		keyp = (keyarg_t *)arg;
-		if (keyp->keynum >= sizeof(kbd->kb_keymap->key)
-					/sizeof(kbd->kb_keymap->key[0])) {
+		if (keyp->keynum >= sizeof(kbd->kb_keymap->key) /
+		    sizeof(kbd->kb_keymap->key[0])) {
 			splx(s);
 			return EINVAL;
 		}
 		bcopy(&kbd->kb_keymap->key[keyp->keynum], &keyp->key,
-		      sizeof(keyp->key));
+		    sizeof(keyp->key));
 		break;
 	case PIO_KEYMAPENT:	/* set keyboard translation table entry */
 #ifndef KBD_DISABLE_KEYMAP_LOAD
 		keyp = (keyarg_t *)arg;
-		if (keyp->keynum >= sizeof(kbd->kb_keymap->key)
-					/sizeof(kbd->kb_keymap->key[0])) {
+		if (keyp->keynum >= sizeof(kbd->kb_keymap->key) /
+		    sizeof(kbd->kb_keymap->key[0])) {
 			splx(s);
 			return EINVAL;
 		}
@@ -847,7 +847,7 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			return error;
 		}
 		bcopy(&keyp->key, &kbd->kb_keymap->key[keyp->keynum],
-		      sizeof(keyp->key));
+		    sizeof(keyp->key));
 		break;
 #else
 		splx(s);
@@ -879,7 +879,7 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			return EINVAL;
 		}
 		bcopy(kbd->kb_fkeytab[fkeyp->keynum].str, fkeyp->keydef,
-		      kbd->kb_fkeytab[fkeyp->keynum].len);
+		    kbd->kb_fkeytab[fkeyp->keynum].len);
 		fkeyp->flen = kbd->kb_fkeytab[fkeyp->keynum].len;
 		break;
 	case SETFKEY:		/* set functionkey string */
@@ -897,7 +897,7 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		}
 		kbd->kb_fkeytab[fkeyp->keynum].len = imin(fkeyp->flen, MAXFK);
 		bcopy(fkeyp->keydef, kbd->kb_fkeytab[fkeyp->keynum].str,
-		      kbd->kb_fkeytab[fkeyp->keynum].len);
+		    kbd->kb_fkeytab[fkeyp->keynum].len);
 		break;
 #else
 		splx(s);
@@ -1054,13 +1054,13 @@ void
 genkbd_diag(keyboard_t *kbd, int level)
 {
 	if (level > 0) {
-		printf("kbd%d: %s%d, %s (%d), config:0x%x, flags:0x%x", 
-		       kbd->kb_index, kbd->kb_name, kbd->kb_unit,
-		       get_kbd_type_name(kbd->kb_type), kbd->kb_type,
-		       kbd->kb_config, kbd->kb_flags);
+		printf("kbd%d: %s%d, %s (%d), config:0x%x, flags:0x%x",
+		    kbd->kb_index, kbd->kb_name, kbd->kb_unit,
+		    get_kbd_type_name(kbd->kb_type), kbd->kb_type,
+		    kbd->kb_config, kbd->kb_flags);
 		if (kbd->kb_io_base > 0)
-			printf(", port:0x%x-0x%x", kbd->kb_io_base, 
-			       kbd->kb_io_base + kbd->kb_io_size - 1);
+			printf(", port:0x%x-0x%x", kbd->kb_io_base,
+			    kbd->kb_io_base + kbd->kb_io_size - 1);
 		printf("\n");
 	}
 }
@@ -1088,9 +1088,9 @@ save_accent_key(keyboard_t *kbd, u_int key, int *accents)
 		return ERRKEY;
 	}
 
-	/* 
-	 * If the same accent key has been hit twice, produce the accent char
-	 * itself.
+	/*
+	 * If the same accent key has been hit twice, produce the accent
+	 * char itself.
 	 */
 	if (i == *accents) {
 		key = kbd->kb_accentmap->acc[i - 1].accchar;
@@ -1099,7 +1099,7 @@ save_accent_key(keyboard_t *kbd, u_int key, int *accents)
 	}
 
 	/* remember the index and wait for the next key  */
-	*accents = i; 
+	*accents = i;
 	return NOKEY;
 }
 
@@ -1112,7 +1112,7 @@ make_accent_char(keyboard_t *kbd, u_int ch, int *accents)
 	acc = &kbd->kb_accentmap->acc[*accents - 1];
 	*accents = 0;
 
-	/* 
+	/*
 	 * If the accent key is followed by the space key,
 	 * produce the accent char itself.
 	 */
