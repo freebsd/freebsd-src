@@ -417,6 +417,10 @@
         (especially with C++ programs) as the compiler may wind up
         using a mixture of obsolete and current header files.</para>
 
+       <para><filename>MAKEDEV</filename> is no longer available.
+         FreeBSD 5.X uses a device filesystem.  For more information,
+         please see &man.devfs.5;.</para>
+
     </sect2>
 
   </sect1>
