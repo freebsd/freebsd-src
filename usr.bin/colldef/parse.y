@@ -56,9 +56,9 @@ u_char charmap_table[UCHAR_MAX + 1][CHARMAP_SYMBOL_LEN];
 u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
 #undef __collate_char_pri_table
 struct __collate_st_char_pri __collate_char_pri_table[UCHAR_MAX + 1];
-#undef __collate_chain_pri_table
-struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
+struct __collate_st_chain_pri *__collate_chain_pri_table;
 
+int nchains = TABLE_SIZE;
 int chain_index;
 int prim_pri = 1, sec_pri = 1;
 #ifdef COLLATE_DEBUG
@@ -115,20 +115,33 @@ order : ORDER order_list {
 			yyerror("Char 0x%02x can't be ordered since substituted", ch);
 	}
 
-	fp = fopen(out_file, "w");
-	if(!fp)
+	if ((fp = fopen(out_file, "w")) == NULL)
 		err(EX_UNAVAILABLE, "can't open destination file %s",
 		    out_file);
 
 	strcpy(__collate_version, COLLATE_VERSION);
-	fwrite(__collate_version, sizeof(__collate_version), 1, fp);
-	fwrite(__collate_substitute_table, sizeof(__collate_substitute_table), 1, fp);
-	fwrite(__collate_char_pri_table, sizeof(__collate_char_pri_table), 1, fp);
-	fwrite(__collate_chain_pri_table, sizeof(__collate_chain_pri_table), 1, fp);
-	if (fflush(fp))
-		err(EX_UNAVAILABLE, "IO error writting to destination file %s",
+	if (fwrite(__collate_version, sizeof(__collate_version), 1, fp) != 1)
+		err(EX_IOERR,
+		"IO error writting collate version to destination file %s",
 		    out_file);
-	fclose(fp);
+	if (fwrite(__collate_substitute_table,
+		   sizeof(__collate_substitute_table), 1, fp) != 1)
+		err(EX_IOERR,
+		"IO error writting substitute table to destination file %s",
+		    out_file);
+	if (fwrite(__collate_char_pri_table,
+		   sizeof(__collate_char_pri_table), 1, fp) != 1)
+		err(EX_IOERR,
+		"IO error writting char table to destination file %s",
+		    out_file);
+	if (fwrite(__collate_chain_pri_table,
+		  sizeof(*__collate_chain_pri_table), nchains, fp) != nchains)
+		err(EX_IOERR,
+		"IO error writting chain table to destination file %s",
+		    out_file);
+	if (fclose(fp) != 0)
+		err(EX_IOERR, "IO error closing destination file %s",
+		    out_file);
 #ifdef COLLATE_DEBUG
 	if (debug)
 		collate_print_tables();
@@ -279,11 +292,14 @@ main(int ac, char **av)
 	}
 	ac -= optind;
 	av += optind;
-	if(ac > 0) {
-		if((yyin = fopen(*av, "r")) == 0)
+	if (ac > 0) {
+		if ((yyin = fopen(*av, "r")) == NULL)
 			err(EX_UNAVAILABLE, "can't open source file %s", *av);
 	}
-	for(ch = 0; ch <= UCHAR_MAX; ch++)
+	if ((__collate_chain_pri_table =
+	     calloc(nchains, sizeof(*__collate_chain_pri_table))) == NULL)
+		err(EX_OSERR, "can't allocate chain table");
+	for (ch = 0; ch <= UCHAR_MAX; ch++)
 		__collate_substitute_table[ch][0] = ch;
 	yyparse();
 	return 0;
@@ -322,7 +338,7 @@ collate_print_tables(void)
 		       __collate_substitute_table[i]);
 	printf("Chain priority table:\n");
 	for (p2 = __collate_chain_pri_table; p2->str[0]; p2++)
-		printf("\t\"%s\" : %d %d\n\n", p2->str, p2->prim, p2->sec);
+		printf("\t\"%s\" : %d %d\n", p2->str, p2->prim, p2->sec);
 	printf("Char priority table:\n");
 	for (i = 0; i < UCHAR_MAX + 1; i++)
 		printf("\t'%c' : %d %d\n", i, __collate_char_pri_table[i].prim,
