@@ -65,10 +65,12 @@
 static int
 usage(const char *prog)
 {
-  fprintf(stderr, "Usage: %s [-Fd] [-a name] [-e exec] [-p provider]"
-          " interface\n", prog);
+  fprintf(stderr, "Usage: %s [-Fd] [-P pidfile] [-a name] [-e exec]"
+          " [-p provider] interface\n", prog);
   return EX_USAGE;
 }
+
+const char *pidfile;
 
 static void
 Fairwell(int sig)
@@ -80,6 +82,9 @@ Fairwell(int sig)
   buf[17] = '0' + (sig % 10);
 
   syslog(LOG_INFO, buf);
+
+  if (pidfile)
+    remove(pidfile);
 
   signal(sig, SIG_DFL);
   raise(sig);
@@ -422,15 +427,20 @@ main(int argc, char **argv)
 
   prog = strrchr(argv[0], '/');
   prog = prog ? prog + 1 : argv[0];
+  pidfile = NULL;
   exec = NULL;
   acname = NULL;
   provider = "";
   optF = optd = 0;
 
-  while ((ch = getopt(argc, argv, "a:Fde:p:")) != -1) {
+  while ((ch = getopt(argc, argv, "FP:a:de:p:")) != -1) {
     switch (ch) {
       case 'F':
         optF = 1;
+        break;
+
+      case 'P':
+        pidfile = optarg;
         break;
 
       case 'a':
@@ -512,7 +522,24 @@ main(int argc, char **argv)
 
   if (!optF && daemon(1, 0) == -1) {
     perror("daemon()");
+    close(cs);
+    close(ds);
     return EX_OSERR;
+  }
+
+
+  if (pidfile != NULL) {
+    FILE *fp;
+
+    if ((fp = fopen(pidfile, "w")) == NULL) {
+      perror(pidfile);
+      close(cs);
+      close(ds);
+      return EX_CANTCREAT;
+    } else {
+      fprintf(fp, "%d\n", (int)getpid());
+      fclose(fp);
+    }
   }
 
   openlog(prog, LOG_PID | (optF ? LOG_PERROR : 0), LOG_DAEMON);
