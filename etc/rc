@@ -113,10 +113,17 @@ esac
 
 umount -a >/dev/null 2>&1
 
-# Where/how would this get set?
+# Early NFS mounts and clean up of /var/db/mounttab.
 #
 case ${early_nfs_mounts} in
 [Yy][Ee][Ss])
+	case $1 in
+	autoboot)
+		if [ -f /var/db/mounttab ]; then
+			rpc.umntall -k
+		fi
+		;;
+	esac
 	mount -a
 	;;
 *)
@@ -199,10 +206,24 @@ if [ -r /etc/rc.network ]; then
 	network_pass1
 fi
 
-# Retest for early_nfs here?
+# Only mount NFS file systems if $early_nfs_mounts is false.
+# If there is a /var/db/mounttab, clean it up with rpc.umntall.
 #
 echo -n "Mounting NFS file systems"
-mount -a -t nfs
+case ${early_nfs_mounts} in
+[Yy][Ee][Ss])
+	;;
+*)
+	case $1 in
+	autoboot)
+		if [ -f /var/db/mounttab ]; then
+			rpc.umntall -k
+		fi
+		;;
+	esac
+	mount -a -t nfs
+	;;
+esac
 echo .
 
 # Whack the pty perms back into shape.

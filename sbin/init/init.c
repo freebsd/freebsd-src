@@ -646,7 +646,8 @@ single_user()
 		 */
 		typ = getttynam("console");
 		pp = getpwnam("root");
-		if (typ && (typ->ty_status & TTY_SECURE) == 0 && pp && *pp->pw_passwd) {
+		if (typ && (typ->ty_status & TTY_SECURE) == 0 &&
+		    pp && *pp->pw_passwd) {
 			write(2, banner, sizeof banner - 1);
 			for (;;) {
 				clear = getpass("Password:");
@@ -1488,7 +1489,7 @@ runshutdown()
 	int status;
 	int shutdowntimeout;
 	size_t len;
-	char *argv[3];
+	char *argv[4];
 	struct sigaction sa;
 	struct stat sb;
 
@@ -1527,7 +1528,11 @@ runshutdown()
 		 */
 		argv[0] = "sh";
 		argv[1] = _PATH_RUNDOWN;
-		argv[2] = 0;
+		if (Reboot)
+			argv[2] = "reboot";
+		else
+			argv[2] = "single";
+		argv[3] = 0;
 
 		sigprocmask(SIG_SETMASK, &sa.sa_mask, (sigset_t *) 0);
 
