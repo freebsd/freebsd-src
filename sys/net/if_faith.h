@@ -34,8 +34,10 @@
 #define _NET_IF_FAITH_H_
 
 #ifdef _KERNEL
+#ifdef INET6
 struct in6_addr;
 int faithprefix __P((struct in6_addr *));
+#endif
 #endif
 
 #endif /* _NET_IF_FAITH_H_ */
