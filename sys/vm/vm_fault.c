@@ -181,22 +181,9 @@ _unlock_things(struct faultstate *fs, int dealloc)
  *	The map in question must be referenced, and remains so.
  *	Caller may hold no locks.
  */
-static int vm_fault1(vm_map_t, vm_offset_t, vm_prot_t, int);
-
 int
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	 int fault_flags)
-{
-	int ret;
-
-	ret = vm_fault1(map, vaddr, fault_type, fault_flags);
-	mtx_unlock(&Giant);
-	return (ret);
-}
-
-static int
-vm_fault1(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
-	  int fault_flags)
 {
 	vm_prot_t prot;
 	int result;
@@ -228,11 +215,14 @@ RetryFault:;
 			if (growstack && result == KERN_INVALID_ADDRESS &&
 			    map != kernel_map && curproc != NULL) {
 				result = vm_map_growstack(curproc, vaddr);
-				if (result != KERN_SUCCESS)
+				if (result != KERN_SUCCESS) {
+					mtx_unlock(&Giant);
 					return (KERN_FAILURE);
+				}
 				growstack = FALSE;
 				goto RetryFault;
 			}
+			mtx_unlock(&Giant);
 			return (result);
 		}
 
@@ -247,7 +237,8 @@ RetryFault:;
 			VM_PROT_READ|VM_PROT_WRITE|VM_PROT_OVERRIDE_WRITE,
 			&fs.entry, &fs.first_object, &fs.first_pindex, &prot, &wired);
 		if (result != KERN_SUCCESS) {
-			return result;
+			mtx_unlock(&Giant);
+			return (result);
 		}
 
 		/*
@@ -309,6 +300,7 @@ RetryFault:;
 		 */
 		if (fs.object->flags & OBJ_DEAD) {
 			unlock_and_deallocate(&fs);
+			mtx_unlock(&Giant);
 			return (KERN_PROTECTION_FAILURE);
 		}
 
@@ -376,6 +368,7 @@ RetryFault:;
 		if (TRYPAGER || fs.object == fs.first_object) {
 			if (fs.pindex >= fs.object->size) {
 				unlock_and_deallocate(&fs);
+				mtx_unlock(&Giant);
 				return (KERN_PROTECTION_FAILURE);
 			}
 
@@ -557,6 +550,7 @@ readrest:
 				vm_page_free(fs.m);
 				fs.m = NULL;
 				unlock_and_deallocate(&fs);
+				mtx_unlock(&Giant);
 				return ((rv == VM_PAGER_ERROR) ? KERN_FAILURE : KERN_PROTECTION_FAILURE);
 			}
 			if (fs.object != fs.first_object) {
@@ -775,6 +769,7 @@ readrest:
 		if (result != KERN_SUCCESS) {
 			release_page(&fs);
 			unlock_and_deallocate(&fs);
+			mtx_unlock(&Giant);
 			return (result);
 		}
 		fs.lookup_still_valid = TRUE;
@@ -887,8 +882,8 @@ readrest:
 	 */
 	vm_page_wakeup(fs.m);
 	vm_object_deallocate(fs.first_object);
+	mtx_unlock(&Giant);
 	return (KERN_SUCCESS);
-
 }
 
 /*
