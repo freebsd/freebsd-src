@@ -30,7 +30,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)getrpcent.c 1.14 91/03/11 Copyr 1984 Sun Micro";*/
-static char *rcsid = "$Id: getrpcent.c,v 1.3 1995/10/22 14:51:24 phk Exp $";
+static char *rcsid = "$Id: getrpcent.c,v 1.4 1996/06/10 20:13:04 jraynard Exp $";
 #endif
 
 /*
@@ -203,10 +203,10 @@ endrpcent()
 struct rpcent *
 getrpcent()
 {
-	struct rpcent *hp;
-	int reason;
 	register struct rpcdata *d = _rpcdata();
 #ifdef	YP
+	struct rpcent *hp;
+	int reason;
 	char *val = NULL;
 	int vallen;
 #endif
