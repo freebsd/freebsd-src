@@ -241,7 +241,7 @@ nexus_print_resources(struct resource_list *rl, const char *name, int type,
 	printed = 0;
 	retval = 0;
 	/* Yes, this is kinda cheating */
-	SLIST_FOREACH(rle, rl, link) {
+	STAILQ_FOREACH(rle, rl, link) {
 		if (rle->type == type) {
 			if (printed == 0)
 				retval += printf(" %s ", name);
@@ -266,7 +266,7 @@ nexus_print_all_resources(device_t dev)
 	struct resource_list *rl = &ndev->nx_resources;
 	int retval = 0;
 
-	if (SLIST_FIRST(rl) || ndev->nx_pcibus != -1)
+	if (STAILQ_FIRST(rl) || ndev->nx_pcibus != -1)
 		retval += printf(" at");
 	
 	retval += nexus_print_resources(rl, "port", SYS_RES_IOPORT, "%#lx");
