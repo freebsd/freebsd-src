@@ -61,7 +61,9 @@ makedevs.c:	Makefile rtermcap keymap.h
 		>> makedevs.tmp
 .if ${MACHINE} == "i386"
 	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.tmp
+	echo "size_t boot0_size = sizeof(boot0);" >> makedevs.tmp
 	file2c 'u_char mbr[] = {' '};' < /boot/mbr >> makedevs.tmp
+	echo "size_t mbr_size = sizeof(mbr);" >> makedevs.tmp
 .endif
 	mv makedevs.tmp makedevs.c
 
