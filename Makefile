@@ -144,14 +144,17 @@ ${TGTS}:
 # Set a reasonable default
 .MAIN:	all
 
+.if defined(DESTDIR)
 .if make(world)
 STARTTIME!= LC_ALL=C date
 .endif
 #
 # world
 #
-# Attempt to rebuild and reinstall *everything*, with reasonable chance of
-# success, regardless of how old your existing system is.
+# Attempt to rebuild and reinstall everything. This target is not to be
+# used for upgrading an existing FreeBSD system, because the kernel is
+# not included. One can argue that this target doesn't build everything
+# then.
 #
 world: upgrade_checks
 	@echo "--------------------------------------------------------------"
@@ -178,6 +181,17 @@ world: upgrade_checks
 	@echo ">>> make world completed on `LC_ALL=C date`"
 	@echo "                   (started ${STARTTIME})"
 	@echo "--------------------------------------------------------------"
+.else
+world:
+	@echo "WARNING: make world will overwrite your existing FreeBSD"
+	@echo "installation without also building and installing a new"
+	@echo "kernel.  This can be dangerous.  Please read the handbook,"
+	@echo "'Using make world', for how to upgrade your system."
+	@echo "Define DESTDIR to the where you want to install FreeBSD,
+	@echo "including /, to override this warning and proceed as usual."
+	@echo "Bailing out now..."
+	@false
+.endif
 
 #
 # kernel
