@@ -271,7 +271,7 @@
       kernel-visible threads in each process.</para>
 
     <para>A bug that &man.rarpd.8; does not recognize removable Ethernet NICs
-      is fixed.</para>
+      has been fixed.</para>
 
     <para>A number of utilities available in <filename>/bin</filename>
       and <filename>/sbin</filename> are now available as a
@@ -321,7 +321,8 @@
     <title>Ports/Packages Collection Infrastructure</title>
 
     <para>If <makevar>GNU_CONFIGURE</makevar> is defined,
-      all instances of config.guess and config.sub found
+      all instances of <filename>config.guess</filename> and
+      <filename>config.sub</filename> found
       under <filename><makevar>WRKDIR</makevar></filename>
       are replaced with the master versions from
       <filename><makevar>PORTSDIR</makevar>/Template</filename>.
