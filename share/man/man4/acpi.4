@@ -199,6 +199,18 @@ Output from the
 code follows the same format, but
 the module name is uppercased.
 .Pp
+To disable the
+.Nm
+driver completely, set the kernel environment variable
+.Va hint.acpi.0.disabled
+to 
+.Dq 1 .
+Some i386 machines totally fail to operate with some or all of ACPI disabled.
+Other i386 machines fail with ACPI enabled.
+Non-i386 platforms do not support operating systems which do not use ACPI.
+Disabling all or part of ACPI on non-i386 platforms may result in a
+non-functional system.
+.Pp
 The
 .Nm
 driver comprises a set of drivers, which may be selectively disabled
