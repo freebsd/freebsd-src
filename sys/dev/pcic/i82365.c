@@ -50,6 +50,8 @@
 #include <sys/kthread.h>
 #include <vm/vm.h>
 
+/* We shouldn't need to include the following, but sadly we do for now */
+/* XXX */
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
 
@@ -738,7 +740,7 @@ pcic_deactivate_card(struct pcic_handle *h)
 }
 
 static int 
-pcic_chip_mem_alloc(struct pcic_handle *h, bus_size_t size, 
+pcic_chip_mem_alloc(struct pcic_handle *h, bus_size_t size,
     struct pccard_mem_handle *pcmhp)
 {
 	bus_space_handle_t memh;
