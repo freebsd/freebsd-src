@@ -1076,13 +1076,12 @@ bundle_Open(struct bundle *bundle, const char *name, int mask, int force)
       if ((mask & dl->physical->type) &&
           (dl->state == DATALINK_CLOSED ||
            (force && dl->state == DATALINK_OPENING &&
-            dl->dial.timer.state == TIMER_RUNNING))) {
-        if (force)	/* Ignore redial timeout ? */
-          timer_Stop(&dl->dial.timer);
+            dl->dial.timer.state == TIMER_RUNNING) ||
+           dl->state == DATALINK_READY)) {
+        timer_Stop(&dl->dial.timer);	/* We're finished with this */
         datalink_Up(dl, 1, 1);
         if (mask & PHYS_AUTO)
-          /* Only one AUTO link at a time */
-          break;
+          break;			/* Only one AUTO link at a time */
       }
       if (name != NULL)
         break;
