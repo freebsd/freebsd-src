@@ -35,6 +35,7 @@ MAN=	acct.5 \
 	motd.5 \
 	msdosfs.5 \
 	networks.5 \
+	newsyslog.conf.5 \
 	nsmb.conf.5 \
 	nsswitch.conf.5 \
 	passwd.5 \
