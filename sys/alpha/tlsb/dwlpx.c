@@ -379,7 +379,7 @@ dwlpx_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
        driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct dwlpx_softc *sc = DWLPX_SOFTC(dev);
-	int slot, ionode, hose, error, vector, intpin, pri;
+	int slot, ionode, hose, error, vector, intpin;
 	
 	error = rman_activate_resource(irq);
 	if (error)
@@ -391,9 +391,8 @@ dwlpx_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 	hose = sc->bushose & 0x3;
 
 	vector = DWLPX_MVEC(ionode, hose, slot);
-	pri = ithread_priority(flags);
 	error = alpha_setup_intr(device_get_nameunit(child ? child : dev),
-	    vector, intr, arg, pri, flags, cookiep,
+	    vector, intr, arg, flags, cookiep,
 	    &intrcnt[INTRCNT_KN8AE_IRQ], NULL, NULL);
 	if (error)
 		return error;
