@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.14 1997/05/07 20:05:45 peter Exp $
+ *  $Id: linux_sysvec.c,v 1.15 1997/07/20 16:06:06 bde Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -317,7 +317,6 @@ linux_sigreturn(p, args, retval)
 	 * hardware check for invalid selectors, excess privilege in
 	 * other selectors, invalid %eip's and invalid %esp's.
 	 */
-#define	CS_SECURE(cs)	(ISPL(cs) == SEL_UPL)
 	if (!CS_SECURE(context.sc_cs)) {
 		trapsignal(p, SIGBUS, T_PROTFLT);
 		return(EINVAL);
