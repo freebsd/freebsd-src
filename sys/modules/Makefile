@@ -203,6 +203,7 @@ SUBDIR=	${_3dfx} \
 	ti \
 	tl \
 	trm \
+	${_twa} \
 	twe \
 	tx \
 	txp \
@@ -350,6 +351,7 @@ _iir=		iir
 _ips=		ips
 _mly=		mly
 _s3=		s3
+_twa=		twa
 _vesa=		vesa
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
