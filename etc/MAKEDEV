@@ -1157,6 +1157,18 @@ crypto)
 	chmod 666 crypto
 	;;
 
+fwmem*)
+	unit=`expr $i : 'fwmem\(.*\)'`
+	mknod fwmem$unit c 127 $((1<<24 | $unit)) root:operator
+	chmod 660 fwmem$unit
+	;;
+
+fw*)
+	unit=`expr $i : 'fw\(.*\)'`
+	mknod fw$unit c 127 $unit root:operator
+	chmod 660 fw$unit
+	;;
+
 tty?|tty0?|ttyd?|ttyd??)
 	unit_low=`expr $i : 'tty.*\(.\)$'`
 	case $i in

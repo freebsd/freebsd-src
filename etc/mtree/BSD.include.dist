@@ -16,6 +16,8 @@
     dev
         an
         ..
+        firewire
+        ..
         ppbus
         ..
         usb
