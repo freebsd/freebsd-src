@@ -1284,7 +1284,7 @@ ata_reset(struct ata_softc *scp, int32_t *mask)
 	if (ata_delayed_attach)
 	    DELAY(100);
 	else
-	    tsleep(ata_delayed_attach, PRIBIO, "atarst", 1);
+	    tsleep(&ata_delayed_attach, PRIBIO, "atarst", 1);
     }	
     DELAY(1);
     outb(scp->altioaddr, ATA_A_4BIT);
