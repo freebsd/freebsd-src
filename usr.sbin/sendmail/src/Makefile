@@ -21,7 +21,11 @@ DBMDEF=	-DNEWDB
 # FreeBSD supports NIS
 NIS=	-DNIS
 
-CFLAGS+=-I${.CURDIR} ${DBMDEF} ${NIS} #-DNETISO
+# If you want tcp wrapper support, uncomment the following two lines
+#TCPWRAPPERSBASEDIR=	/usr/local
+#TCPWRAPPERS=		-DTCPWRAPPERS -I${TCPWRAPPERSBASEDIR}/include
+
+CFLAGS+=-I${.CURDIR} ${DBMDEF} ${NIS} ${TCPWRAPPERS} #-DNETISO
 
 SRCS=	alias.c arpadate.c clock.c collect.c conf.c convtime.c daemon.c \
 	deliver.c domain.c envelope.c err.c headers.c macro.c main.c map.c \
@@ -30,6 +34,9 @@ SRCS=	alias.c arpadate.c clock.c collect.c conf.c convtime.c daemon.c \
 	usersmtp.c util.c version.c
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
+.if defined(TCPWRAPPERS)
+LDADD+=	-L${TCPWRAPPERSBASEDIR}/lib -lwrap
+.endif
 MAN1=	mailq.1 newaliases.1
 MAN5=	aliases.5
 MAN8=	sendmail.8 
