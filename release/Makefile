@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.25 1997/03/02 15:28:58 jkh Exp $
+#	$Id: Makefile,v 1.246.2.26 1997/03/06 00:10:39 pst Exp $
 #
 # How to roll a release:
 #
@@ -126,6 +126,8 @@ rerelease release:
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
 	echo "export CFLAGS"			>> ${CHROOTDIR}/mk
+	# Don't remove this, or the build will fall over!
+	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
 	echo "make world"			>> ${CHROOTDIR}/mk
