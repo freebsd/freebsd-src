@@ -2,6 +2,12 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.6f and 0.9.6g  [9 Aug 2002]
+
+  *) [In 0.9.6g-engine release:]
+     Fix crypto/engine/vendor_defns/cswift.h for WIN32 (use '_stdcall').
+     [Lynn Gazis <lgazis@rainbow.com>]
+
  Changes between 0.9.6e and 0.9.6f  [8 Aug 2002]
 
   *) Fix ASN1 checks. Check for overflow by comparing with LONG_MAX
