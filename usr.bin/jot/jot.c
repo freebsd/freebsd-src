@@ -275,7 +275,7 @@ main(int argc, char **argv)
 	if (randomize) {
 		*x = (ender - begin) * (ender > begin ? 1 : -1);
 		for (*i = 1; *i <= reps || infinity; (*i)++) {
-			*y = arc4random() / (double)UINT32_MAX;
+			*y = arc4random() / ((double)UINT32_MAX + 1);
 			if (putdata(*y * *x + begin, reps - *i))
 				errx(1, "range error in conversion");
 		}
