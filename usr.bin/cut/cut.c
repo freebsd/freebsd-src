@@ -58,12 +58,12 @@ int	dflag;
 int	fflag;
 int	sflag;
 
-void	c_cut (FILE *, const char *);
-void	f_cut (FILE *, const char *);
-void	get_list (char *);
-int	main (int, char **);
+void	c_cut(FILE *, const char *);
+void	f_cut(FILE *, const char *);
+void	get_list(char *);
+int	main(int, char **);
 void	needpos(size_t);
-static 	void usage (void);
+static 	void usage(void);
 
 int
 main(argc, argv)
@@ -71,12 +71,12 @@ main(argc, argv)
 	char *argv[];
 {
 	FILE *fp;
-	void (*fcn) (FILE *, const char *) = NULL;
+	void (*fcn)(FILE *, const char *);
 	int ch, rval;
 
-	fcn = NULL;
-	setlocale (LC_ALL, "");
+	setlocale(LC_ALL, "");
 
+	fcn = NULL;
 	dchar = '\t';			/* default delimiter is \t */
 
 	/* Since we don't support multi-byte characters, the -c and -b 
@@ -217,15 +217,13 @@ needpos(size_t n)
 	}
 }
 
-/* ARGSUSED */
 void
 c_cut(fp, fname)
 	FILE *fp;
-	const char *fname;
+	const char *fname __unused;
 {
 	int ch, col;
 	char *pos;
-	fname = NULL;
 
 	ch = 0;
 	for (;;) {
@@ -257,9 +255,10 @@ f_cut(fp, fname)
 	int ch, field, isdelim;
 	char *pos, *p, sep;
 	int output;
-	char *lbuf, *mlbuf = NULL;
+	char *lbuf, *mlbuf;
 	size_t lbuflen;
 
+	mlbuf = NULL;
 	for (sep = dchar; (lbuf = fgetln(fp, &lbuflen)) != NULL;) {
 		/* Assert EOL has a newline. */
 		if (*(lbuf + lbuflen - 1) != '\n') {
