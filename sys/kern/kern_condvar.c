@@ -274,16 +274,16 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 
-	/* proc_lock(p); */
 	if (sig == 0)
 		sig = CURSIG(p);
 	if (sig != 0) {
+		PROC_LOCK(p);
 		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 			rval = EINTR;
 		else
 			rval = ERESTART;
+		PROC_UNLOCK(p);
 	}
-	/* proc_unlock(p); */
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_CSW))
@@ -408,16 +408,16 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 
-	/* proc_lock(p); */
 	if (sig == 0)
 		sig = CURSIG(p);
 	if (sig != 0) {
+		PROC_LOCK(p);
 		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 			rval = EINTR;
 		else
 			rval = ERESTART;
+		PROC_UNLOCK(p);
 	}
-	/* proc_unlock(p); */
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_CSW))
