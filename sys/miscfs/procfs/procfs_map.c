@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_map.c,v 1.2 1996/06/18 05:15:59 dyson Exp $
+ *	$Id: procfs_map.c,v 1.4 1996/07/27 19:47:04 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,7 @@
 #include <sys/queue.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
+#include <sys/malloc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -69,8 +70,18 @@
 #include <vm/default_pager.h>
 
 
-#define MAXKBUFFER 16384
+#define MEBUFFERSIZE 256
 
+/*
+ * The map entries can *almost* be read with programs like cat.  However,
+ * large maps need special programs to read.  It is not easy to implement
+ * a program that can sense the required size of the buffer, and then
+ * subsequently do a read with the appropriate size.  This operation cannot
+ * be atomic.  The best that we can do is to allow the program to do a read
+ * with an arbitrarily large buffer, and return as much as we can.  We can
+ * return an error code if the buffer is too small (EFBIG), then the program
+ * can try a bigger buffer.
+ */
 int
 procfs_domap(curp, p, pfs, uio)
 	struct proc *curp;
@@ -80,17 +91,10 @@ procfs_domap(curp, p, pfs, uio)
 {
 	int len;
 	int error;
-	/*
-	 * dynamically allocated buffer for entire snapshot
-	 */
-	char *kbuffer, *kbufferp;
-	/*
-	 * buffer for each map entry
-	 */
-	char mebuffer[256];
 	vm_map_t map = &p->p_vmspace->vm_map;
 	pmap_t pmap = &p->p_vmspace->vm_pmap;
 	vm_map_entry_t entry;
+	char mebuffer[MEBUFFERSIZE];
 
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
@@ -98,10 +102,10 @@ procfs_domap(curp, p, pfs, uio)
 	if (uio->uio_offset != 0)
 		return (0);
 	
-	kbuffer = (char *)kmem_alloc_pageable(kernel_map, MAXKBUFFER);
-	kbufferp = kbuffer;
+	error = 0;
 	vm_map_lock(map);
-	for (entry = map->header.next; entry != &map->header;
+	for (entry = map->header.next;
+		((uio->uio_resid > 0) && (entry != &map->header));
 		entry = entry->next) {
 		vm_object_t obj, tobj, lobj;
 		vm_offset_t addr;
@@ -162,14 +166,15 @@ case OBJT_DEVICE:
 			type);
 
 		len = strlen(mebuffer);
-		if (len + (kbufferp - kbuffer) < MAXKBUFFER) {
-			memcpy(kbufferp, mebuffer, len);
-			kbufferp += len;
+		if (len > uio->uio_resid) {
+			error = EFBIG;
+			break;
 		}
+		error = uiomove(mebuffer, len, uio);
+		if (error)
+			break;
 	}
 	vm_map_unlock(map);
-	error = uiomove(kbuffer, (kbufferp - kbuffer), uio);
-	kmem_free(kernel_map, (vm_offset_t)kbuffer, MAXKBUFFER);
 	return error;
 }
 
