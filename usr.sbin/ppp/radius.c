@@ -419,8 +419,16 @@ radius_Process(struct radius *r, int got)
                 if (len == 0)
                   r->errstr = NULL;
                 else {
-                  if ((r->errstr = rad_cvt_string((const char *)data + 1,
-                                                  len - 1)) == NULL) {
+                  if (len < 3 || ((const char *)data)[1] != '=') {
+                    /*
+                     * Only point at the String field if we don't think the
+                     * peer has misformatted the response.
+                     */
+                    ((const char *)data)++;
+                    len--;
+                  }
+                  if ((r->errstr = rad_cvt_string((const char *)data,
+                                                  len)) == NULL) {
                     log_Printf(LogERROR, "rad_cvt_string: %s\n",
                                rad_strerror(r->cx.rad));
                     auth_Failure(r->cx.auth);
@@ -436,8 +444,16 @@ radius_Process(struct radius *r, int got)
                 if (len == 0)
                   r->msrepstr = NULL;
                 else {
-                  if ((r->msrepstr = rad_cvt_string((const char *)data + 1,
-                                                    len - 1)) == NULL) {
+                  if (len < 3 || ((const char *)data)[1] != '=') {
+                    /*
+                     * Only point at the String field if we don't think the
+                     * peer has misformatted the response.
+                     */
+                    ((const char *)data)++;
+                    len--;
+                  }
+                  if ((r->msrepstr = rad_cvt_string((const char *)data,
+                                                    len)) == NULL) {
                     log_Printf(LogERROR, "rad_cvt_string: %s\n",
                                rad_strerror(r->cx.rad));
                     auth_Failure(r->cx.auth);
