@@ -49,10 +49,10 @@ static const char rcsid[] =
 #include "fsck.h"
 
 static  struct dups *duphead;
-static int pass1bcheck __P((struct inodesc *));
+static int pass1bcheck(struct inodesc *);
 
 void
-pass1b()
+pass1b(void)
 {
 	int c, i;
 	struct dinode *dp;
@@ -80,8 +80,7 @@ pass1b()
 }
 
 static int
-pass1bcheck(idesc)
-	struct inodesc *idesc;
+pass1bcheck(struct inodesc *idesc)
 {
 	struct dups *dlp;
 	int nfrags, res = KEEPON;

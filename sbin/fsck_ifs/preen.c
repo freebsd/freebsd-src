@@ -68,17 +68,13 @@ struct disk {
 
 int	nrun, ndisks;
 
-static void addpart __P((char *name, char *fsname, long auxdata));
-static struct disk *finddisk __P((char *name));
-static int startdisk __P((struct disk *dk,
-		int (*checkit)(char *, char *, long, int)));
+static void addpart(char *name, char *fsname, long auxdata);
+static struct disk *finddisk(char *name);
+static int startdisk(struct disk *dk, int (*checkit)(char *, char *, long, int));
 
 int
-checkfstab(preen, maxrun, docheck, chkit)
-	int preen;
-	int maxrun;
-	int (*docheck)(struct fstab *);
-	int (*chkit)(char *, char *, long, int);
+checkfstab(int preen, int maxrun, int (*docheck)(struct fstab *),
+    int (*chkit)(char *, char *, long, int))
 {
 	struct fstab *fsp;
 	struct disk *dk, *nextdisk;
@@ -201,8 +197,7 @@ checkfstab(preen, maxrun, docheck, chkit)
 }
 
 static struct disk *
-finddisk(name)
-	char *name;
+finddisk(char *name)
 {
 	struct disk *dk, **dkp;
 	char *p;
@@ -239,9 +234,7 @@ finddisk(name)
 }
 
 static void
-addpart(name, fsname, auxdata)
-	char *name, *fsname;
-	long auxdata;
+addpart(char *name, char *fsname, long auxdata)
 {
 	struct disk *dk = finddisk(name);
 	struct part *pt, **ppt = &dk->part;
@@ -271,9 +264,7 @@ addpart(name, fsname, auxdata)
 }
 
 static int
-startdisk(dk, checkit)
-	struct disk *dk;
-	int (*checkit)(char *, char *, long, int);
+startdisk(struct disk *dk, int (*checkit)(char *, char *, long, int))
 {
 	struct part *pt = dk->part;
 

@@ -60,11 +60,10 @@ static const char rcsid[] =
 
 long	diskreads, totalreads;	/* Disk cache statistics */
 
-static void rwerror __P((char *mesg, ufs_daddr_t blk));
+static void rwerror(char *mesg, ufs_daddr_t blk);
 
 int
-ftypeok(dp)
-	struct dinode *dp;
+ftypeok(struct dinode *dp)
 {
 	switch (dp->di_mode & IFMT) {
 
@@ -85,8 +84,7 @@ ftypeok(dp)
 }
 
 int
-reply(question)
-	char *question;
+reply(char *question)
 {
 	int persevere;
 	char c;
@@ -126,8 +124,7 @@ reply(question)
  * Look up state information for an inode.
  */
 struct inostat *
-inoinfo(inum)
-	ino_t inum;
+inoinfo(ino_t inum)
 {
 	static struct inostat unallocated = { USTATE, 0, 0 };
 	struct inostatlist *ilp;
@@ -146,7 +143,7 @@ inoinfo(inum)
  * Malloc buffers and set up cache.
  */
 void
-bufinit()
+bufinit(void)
 {
 	struct bufarea *bp;
 	long bufcnt, i;
@@ -184,9 +181,7 @@ bufinit()
  * Manage a cache of directory blocks.
  */
 struct bufarea *
-getdatablk(blkno, size)
-	ufs_daddr_t blkno;
-	long size;
+getdatablk(ufs_daddr_t blkno, long size)
 {
 	struct bufarea *bp;
 
@@ -213,10 +208,7 @@ foundit:
 }
 
 void
-getblk(bp, blk, size)
-	struct bufarea *bp;
-	ufs_daddr_t blk;
-	long size;
+getblk(struct bufarea *bp, ufs_daddr_t blk, long size)
 {
 	ufs_daddr_t dblk;
 
@@ -231,9 +223,7 @@ getblk(bp, blk, size)
 }
 
 void
-flush(fd, bp)
-	int fd;
-	struct bufarea *bp;
+flush(int fd, struct bufarea *bp)
 {
 	int i, j;
 
@@ -257,9 +247,7 @@ flush(fd, bp)
 }
 
 static void
-rwerror(mesg, blk)
-	char *mesg;
-	ufs_daddr_t blk;
+rwerror(char *mesg, ufs_daddr_t blk)
 {
 
 	if (preen == 0)
@@ -270,8 +258,7 @@ rwerror(mesg, blk)
 }
 
 void
-ckfini(markclean)
-	int markclean;
+ckfini(int markclean)
 {
 	struct bufarea *bp, *nbp;
 	int ofsmodified, cnt = 0;
@@ -323,11 +310,7 @@ ckfini(markclean)
 }
 
 int
-bread(fd, buf, blk, size)
-	int fd;
-	char *buf;
-	ufs_daddr_t blk;
-	long size;
+bread(int fd, char *buf, ufs_daddr_t blk, long size)
 {
 	char *cp;
 	int i, errs;
@@ -364,11 +347,7 @@ bread(fd, buf, blk, size)
 }
 
 void
-bwrite(fd, buf, blk, size)
-	int fd;
-	char *buf;
-	ufs_daddr_t blk;
-	long size;
+bwrite(int fd, char *buf, ufs_daddr_t blk, long size)
 {
 	int i;
 	char *cp;
@@ -402,8 +381,7 @@ bwrite(fd, buf, blk, size)
  * allocate a data block with the specified number of fragments
  */
 ufs_daddr_t
-allocblk(frags)
-	long frags;
+allocblk(long frags)
 {
 	int i, j, k, cg, baseblk;
 	struct cg *cgp = &cgrp;
@@ -446,9 +424,7 @@ allocblk(frags)
  * Free a previously allocated block
  */
 void
-freeblk(blkno, frags)
-	ufs_daddr_t blkno;
-	long frags;
+freeblk(ufs_daddr_t blkno, long frags)
 {
 	struct inodesc idesc;
 
@@ -461,9 +437,7 @@ freeblk(blkno, frags)
  * Find a pathname
  */
 void
-getpathname(namebuf, curdir, ino)
-	char *namebuf;
-	ino_t curdir, ino;
+getpathname(char *namebuf, ino_t curdir, ino_t ino)
 {
 	int len;
 	char *cp;
@@ -518,8 +492,7 @@ getpathname(namebuf, curdir, ino)
 }
 
 void
-catch(sig)
-	int sig;
+catch(int sig)
 {
 	if (!doinglevel2)
 		ckfini(0);
@@ -532,8 +505,7 @@ catch(sig)
  * so that reboot sequence may be interrupted.
  */
 void
-catchquit(sig)
-	int sig;
+catchquit(int sig)
 {
 	printf("returning to single-user after filesystem check\n");
 	returntosingle = 1;
@@ -545,8 +517,7 @@ catchquit(sig)
  * Used by child processes in preen.
  */
 void
-voidquit(sig)
-	int sig;
+voidquit(int sig)
 {
 
 	sleep(1);
@@ -558,9 +529,7 @@ voidquit(sig)
  * determine whether an inode should be fixed.
  */
 int
-dofix(idesc, msg)
-	struct inodesc *idesc;
-	char *msg;
+dofix(struct inodesc *idesc, char *msg)
 {
 
 	switch (idesc->id_fix) {
@@ -596,11 +565,7 @@ dofix(idesc, msg)
 	return (0);
 }
 
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 /*
  * An unexpected inconsistency occured.
@@ -608,20 +573,10 @@ dofix(idesc, msg)
  * otherwise just print message and continue.
  */
 void
-#if __STDC__
 pfatal(const char *fmt, ...)
-#else
-pfatal(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	if (!preen) {
 		(void)vfprintf(stderr, fmt, ap);
 		va_end(ap);
@@ -646,20 +601,10 @@ pfatal(fmt, va_alist)
  * protocol, or a warning (preceded by filename) when preening.
  */
 void
-#if __STDC__
 pwarn(const char *fmt, ...)
-#else
-pwarn(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	if (preen)
 		(void)fprintf(stderr, "%s: ", cdevname);
 	(void)vfprintf(stderr, fmt, ap);
@@ -670,20 +615,10 @@ pwarn(fmt, va_alist)
  * Stub for routines from kernel.
  */
 void
-#if __STDC__
 panic(const char *fmt, ...)
-#else
-panic(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	pfatal("INTERNAL INCONSISTENCY:");
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);

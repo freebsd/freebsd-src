@@ -55,10 +55,10 @@ static ufs_daddr_t badblk;
 static ufs_daddr_t dupblk;
 static ino_t lastino;		/* last inode in use */
 
-static void checkinode __P((ino_t inumber, struct inodesc *));
+static void checkinode(ino_t inumber, struct inodesc *);
 
 void
-pass1()
+pass1(void)
 {
 	u_int8_t *cp;
 	ino_t inumber;
@@ -167,9 +167,7 @@ pass1()
 }
 
 static void
-checkinode(inumber, idesc)
-	ino_t inumber;
-	struct inodesc *idesc;
+checkinode(ino_t inumber, struct inodesc *idesc)
 {
 	struct dinode *dp;
 	struct zlncnt *zlnp;
@@ -342,8 +340,7 @@ unknown:
 }
 
 int
-pass1check(idesc)
-	struct inodesc *idesc;
+pass1check(struct inodesc *idesc)
 {
 	int res = KEEPON;
 	int anyout, nfrags;

@@ -50,11 +50,10 @@ static const char rcsid[] =
 
 #include "fsck.h"
 
-static void check_maps __P((u_char *, u_char *, int, int, char *, int *,
-				int, int));
+static void check_maps(u_char *, u_char *, int, int, char *, int *, int, int);
 
 void
-pass5()
+pass5(void)
 {
 	int c, blk, frags, basesize, sumsize, mapsize, savednrpos = 0;
 	int inomapsize, blkmapsize;
@@ -363,21 +362,21 @@ pass5()
 }
 
 static void
-check_maps(map1, map2, mapsize, startvalue, name, opcode, skip, limit)
-	u_char *map1;	/* map of claimed allocations */
-	u_char *map2;	/* map of determined allocations */
-	int mapsize;	/* size of above two maps */
-	int startvalue;	/* resource value for first element in map */
-	char *name;	/* name of resource found in maps */
-	int *opcode;	/* sysctl opcode to free resource */
-	int skip;	/* number of entries to skip before starting to free */
-	int limit;	/* limit on number of entries to free */
+check_maps(
+	u_char *map1,	/* map of claimed allocations */
+	u_char *map2,	/* map of determined allocations */
+	int mapsize,	/* size of above two maps */
+	int startvalue,	/* resource value for first element in map */
+	char *name,	/* name of resource found in maps */
+	int *opcode,	/* sysctl opcode to free resource */
+	int skip,	/* number of entries to skip before starting to free */
+	int limit)	/* limit on number of entries to free */
 {
 #	define BUFSIZE 16
 	char buf[BUFSIZE];
 	long i, j, k, l, m, n, size;
 	int astart, aend, ustart, uend;
-	void (*msg) __P((const char *fmt, ...));
+	void (*msg)(const char *fmt, ...);
 
 	if (bkgrdflag)
 		msg = pfatal;

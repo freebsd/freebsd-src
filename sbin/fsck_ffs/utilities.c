@@ -61,8 +61,7 @@ static const char rcsid[] =
 
 
 char *
-blockcheck(origname)
-	char *origname;
+blockcheck(char *origname)
 {
 	struct stat stblock;
 	char *newname, *cp;
@@ -114,8 +113,7 @@ retry:
 }
 
 void
-infohandler(sig)
-	int sig;
+infohandler(int sig)
 {
 	got_siginfo = 1;
 }
