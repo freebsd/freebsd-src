@@ -45,7 +45,9 @@
     <sect3>
       <title>Processor/Motherboard Support</title>
 
-      <para></para>
+      <para arch="i386">Detection for new processors, such as the
+      Transmeta Crusoe, and Transmeta Crusoe with LongRun, has been
+      added.</para>
 
     </sect3>
 
@@ -106,6 +108,11 @@
 
       <para>The IPv6 code is now based on a snapshot based on the KAME
       Project's IPv6 stack as of 28 May, 2001.</para>
+
+      <para>The TCP implementation no longer requires the
+      allocation of a TCP template structure for each connection; this
+      should reduce the buffer usage on large systems handling many
+      connections.</para>
 
     </sect3>
 
@@ -238,6 +245,10 @@
     <para>The <option>-T</option> to &man.dump.8; no longer swallows
     an extra argument.</para>
 
+    <para>&man.dump.8; has a new <option>-D</option> option, allowing
+    the path to the <filename>/etc/dumpdates</filename> file to be
+    changed.</para>
+
     <para><filename>libfetch</filename> now has support for a
     <varname>HTTP_USER_AGENT</varname> environment variable.</para>
 
@@ -257,6 +268,20 @@
     <para>&man.ifconfig.8; no longer displays the list of supported
     media by default.  Instead it displays it when the
     <option>-m</option> is given.</para>
+
+    <para>&man.lpd.8; now takes two new options:  <option>-c</option>
+    will log all connection errors to &man.syslogd.8;, while
+    <option>-w</option> will allow connections from non-reserved
+    ports.</para>
+
+    <para>&man.lpc.8; has been improved; <command>lpc clean</command>
+    is now somewhat safer, and a new <command>lpc tclean</command>
+    command has been added to check to see what files would be removed
+    by <command>lpc clean</command>.</para>
+
+    <para>&man.du.1; now takes a <option>-I</option> command-line flag
+    to ignore/skip files and subdirectories matching a specified
+    shell-glob mask.</para>
 
     <sect3>
       <title>Contributed Software</title>
