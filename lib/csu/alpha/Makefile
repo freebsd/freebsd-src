@@ -1,24 +1,15 @@
 #
-#	$Id: Makefile,v 1.4 1998/04/01 03:24:19 jb Exp $
+#	$Id: Makefile,v 1.5 1998/05/04 02:06:09 jb Exp $
 #
 
 SRCS=		crt1.c crtbegin.c crtend.c
 OBJS=		crt1.o crtbegin.o crtend.o
 SOBJS=		crtbegin.so crtend.so
-CFLAGS+=	-Wall -Wno-unused
+CFLAGS+=	-Wall -Wno-unused -I${.CURDIR}/../../../libexec/rtld-elf
 NOMAN=		true
 NOPIC=		true
 NOPROFILE=	true
 INTERNALLIB=	true
-CFLAGS=
-
-# Force bootstrap mode until rtld is ported. The headers are broken
-# on alpha as the result of i386 changes.
-BOOTSTRAP=	true
-
-.ifndef	BOOTSTRAP
-CFLAGS+=	-DHAVE_RTLD -I${.CURDIR}/../../../libexec/rtld-elf
-.endif
 
 all: ${OBJS} ${SOBJS}
 
