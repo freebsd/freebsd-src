@@ -55,14 +55,14 @@ The
 .Fn getnameinfo
 function is defined for protocol-independent address-to-nodename translation.
 Its functionality is a reverse conversion of
-.Xr getaddrinfo 3 ,
-and implements similar functionality with
-.Xr gethostbyaddr 3 and
-.Xr getservbyport 3
-in more sophisticated manner.
+.Xr getaddrinfo 3
+and is similar to that of
+.Xr gethostbyaddr 3
+and
+.Xr getservbyport 3 .
 .Pp
 This function looks up an IP address and port number provided by the
-caller in the DNS and system-specific database, and returns text
+caller in the DNS and system-specific database and then returns text
 strings for both in buffers provided by the caller.
 The function indicates successful completion by a zero return value;
 a non-zero return value indicates failure.
