@@ -90,7 +90,6 @@ static struct vfsops ufs_vfsops = {
 	.vfs_omount =		ffs_omount,
 	.vfs_quotactl =		ufs_quotactl,
 	.vfs_root =		ufs_root,
-	.vfs_start =		ufs_start,
 	.vfs_statfs =		ffs_statfs,
 	.vfs_sync =		ffs_sync,
 	.vfs_uninit =		ffs_uninit,

@@ -73,7 +73,6 @@ MODULE_DEPEND(nwfs, libmchain, 1, 1, 1);
 static vfs_omount_t	nwfs_omount;
 static vfs_quotactl_t	nwfs_quotactl;
 static vfs_root_t	nwfs_root;
-static vfs_start_t	nwfs_start;
 static vfs_statfs_t	nwfs_statfs;
 static vfs_unmount_t	nwfs_unmount;
 static vfs_init_t	nwfs_init;
@@ -84,7 +83,6 @@ static struct vfsops nwfs_vfsops = {
 	.vfs_omount =		nwfs_omount,
 	.vfs_quotactl =		nwfs_quotactl,
 	.vfs_root =		nwfs_root,
-	.vfs_start =		nwfs_start,
 	.vfs_statfs =		nwfs_statfs,
 	.vfs_sync =		vfs_stdsync,
 	.vfs_uninit =		nwfs_uninit,
@@ -347,20 +345,6 @@ nwfs_root(struct mount *mp, struct vnode **vpp, struct thread *td) {
 		return error;
 	}*/
 	*vpp = vp;
-	return (0);
-}
-
-/*
- * Vfs start routine, a no-op.
- */
-/* ARGSUSED */
-static int
-nwfs_start(mp, flags, td)
-	struct mount *mp;
-	int flags;
-	struct thread *td;
-{
-	NCPVODEBUG("flags=%04x\n",flags);
 	return (0);
 }
 

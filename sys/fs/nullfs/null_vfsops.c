@@ -60,7 +60,6 @@ static vfs_checkexp_t	nullfs_checkexp;
 static vfs_mount_t	nullfs_mount;
 static vfs_quotactl_t	nullfs_quotactl;
 static vfs_root_t	nullfs_root;
-static vfs_start_t	nullfs_start;
 static vfs_sync_t	nullfs_sync;
 static vfs_statfs_t	nullfs_statfs;
 static vfs_unmount_t	nullfs_unmount;
@@ -192,21 +191,6 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	NULLFSDEBUG("nullfs_mount: lower %s, alias at %s\n",
 		mp->mnt_stat.f_mntfromname, mp->mnt_stat.f_mntonname);
 	return (0);
-}
-
-/*
- * VFS start.  Nothing needed here - the start routine
- * on the underlying filesystem will have been called
- * when that filesystem was mounted.
- */
-static int
-nullfs_start(mp, flags, td)
-	struct mount *mp;
-	int flags;
-	struct thread *td;
-{
-	return (0);
-	/* return VFS_START(MOUNTTONULLMOUNT(mp)->nullm_vfs, flags, td); */
 }
 
 /*
@@ -406,7 +390,6 @@ static struct vfsops null_vfsops = {
 	.vfs_mount =		nullfs_mount,
 	.vfs_quotactl =		nullfs_quotactl,
 	.vfs_root =		nullfs_root,
-	.vfs_start =		nullfs_start,
 	.vfs_statfs =		nullfs_statfs,
 	.vfs_sync =		nullfs_sync,
 	.vfs_uninit =		nullfs_uninit,
