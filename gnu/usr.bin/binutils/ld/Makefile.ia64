@@ -13,7 +13,7 @@ _ia64_path=	\"/usr/cross/ia64-freebsd/usr/lib\"
 
 EMS+=		ld_elf64_ia64_emulation
 LDSCRIPTS+=	elf64_ia64.x elf64_ia64.xbn elf64_ia64.xn elf64_ia64.xr \
-		elf64_ia64.xs elf64_ia64.xu
+		elf64_ia64.xs elf64_ia64.xu elf64_ia64.xc elf64_ia64.xsc
 SRCS+=	eelf64_ia64.c
 CLEANFILES+=	eelf64_ia64.c
 
