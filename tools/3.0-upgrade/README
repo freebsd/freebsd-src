@@ -7,13 +7,13 @@ existing track record.
 The tool cannot handle gzip'ed wtmp backups, so unzip them first if
 you need.  Then simply call it as:
 
-	./cvt-tmp /var/log/wtmp*
+	./cvt-wtmp /var/log/wtmp*
 
 The old wtmp files are being renamed to <file>.bak, so nothing will be
 lost even in case of a failure.  If you are only about to test whether
 the tool will grok your files correctly, you can run it as:
 
-	./cvs-tmp -n /var/log/wtmp*
+	./cvs-wtmp -n /var/log/wtmp*
 
 The tool tries an ``educated guess'', based on the reasonability of
 the timestamp values in the wtmp file.  If it fails to recognize the
