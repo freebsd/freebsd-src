@@ -1,5 +1,4 @@
 /*
- *
  * Copyright (c) 1983, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -39,11 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-/*
+#if 0
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
-*/
+#endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.27 1997/12/24 00:59:49 imp Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -51,7 +50,6 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
-#include <sys/time.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -67,12 +65,10 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
-#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
-#include <time.h>
 #include <unistd.h>
 
 struct keytab {
@@ -120,7 +116,7 @@ usage(cp)
 	if (cp)
 		warnx("bad keyword: %s", cp);
 	(void) fprintf(stderr,
-	    "usage: route [ -nqv ] command [[ modifiers ] args ]\n");
+	    "usage: route [-dnqtv] command [[modifiers] args]\n");
 	exit(EX_USAGE);
 	/* NOTREACHED */
 }
@@ -134,13 +130,12 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind;
 	int ch;
 
 	if (argc < 2)
 		usage((char *)NULL);
 
-	while ((ch = getopt(argc, argv, "nqdtv")) != EOF)
+	while ((ch = getopt(argc, argv, "nqdtv")) != -1)
 		switch(ch) {
 		case 'n':
 			nflag = 1;
@@ -249,7 +244,7 @@ bad:			usage(*argv);
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
 		err(EX_OSERR, "route-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
-		err(EX_OSERR, "malloc");
+		errx(EX_OSERR, "malloc failed");
 	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
 		err(EX_OSERR, "route-sysctl-get");
 	lim = buf + needed;
@@ -823,7 +818,7 @@ getaddr(which, s, hpp)
 		su = &so_ifa;
 		break;
 	default:
-		usage("Internal Error");
+		usage("internal error");
 		/*NOTREACHED*/
 	}
 	su->sa.sa_len = aflen;
@@ -995,7 +990,7 @@ interfaces()
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
 		err(EX_OSERR, "route-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
-		err(EX_OSERR, "malloc");
+		errx(EX_OSERR, "malloc failed");
 	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
 		err(EX_OSERR, "actual retrieval of interface table");
 	lim = buf + needed;
@@ -1081,7 +1076,7 @@ rtmsg(cmd, flags)
 	if (debugonly)
 		return (0);
 	if ((rlen = write(s, (char *)&m_rtmsg, l)) < 0) {
-		perror("writing to routing socket");
+		warn("writing to routing socket");
 		return (-1);
 	}
 	if (cmd == RTM_GET) {
@@ -1230,7 +1225,7 @@ print_getmsg(rtm, msglen)
 		return;
 	}
 	if (rtm->rtm_msglen > msglen) {
-		warnx("message length mismatch, in packet %d, returned %d\n",
+		warnx("message length mismatch, in packet %d, returned %d",
 		      rtm->rtm_msglen, msglen);
 	}
 	if (rtm->rtm_errno)  {

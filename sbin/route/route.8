@@ -30,17 +30,17 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
-.|'	$Id: route.8,v 1.10 1997/02/22 14:33:09 peter Exp $
+.\"	$Id: route.8,v 1.11 1997/06/18 06:30:34 charnier Exp $
 .\"
 .Dd March 19, 1994
 .Dt ROUTE 8
 .Os BSD 4.4
 .Sh NAME
 .Nm route
-.Nd manually manipulate the routing tables.
+.Nd manually manipulate the routing tables
 .Sh SYNOPSIS
 .Nm route
-.Op Fl nqv
+.Op Fl dnqtv
 .Ar command
 .Oo
 .Op Ar modifiers
@@ -55,20 +55,21 @@ system routing table management daemon such as
 should tend to this task.
 .Pp
 The
-.Nm route :
+.Nm
 utility supports a limited number of general options,
 but a rich command language, enabling the user to specify
 any arbitrary request that could be delivered via the
 programmatic interface discussed in 
 .Xr route 4 .
 .Pp
-.Bl -tag -width Ds
+The following options are available:
+.Bl -tag -width indent
 .It Fl n
-Bypasses attempts to print host and network names symbolically
+Bypass attempts to print host and network names symbolically
 when reporting actions.  (The process of translating between symbolic
 names and numerical equivalents can be quite time consuming, and
 may require correct operation of the network; thus it may be expedient
-to forgo this, especially when attempting to repair networking operations),
+to forgot this, especially when attempting to repair networking operations).
 .It Fl v
 (verbose) Print additional details.
 .It Fl q
@@ -76,7 +77,7 @@ Suppress all output.
 .El
 .Pp
 The
-.Nm route :
+.Nm
 utility provides six commands:
 .Pp
 .Bl -tag -width Fl -compact
@@ -95,14 +96,14 @@ Continuously report any changes to the routing information base,
 routing lookup misses, or suspected network partitionings.
 .El
 .Pp
-The monitor command has the syntax
+The monitor command has the syntax:
 .Pp
 .Bd -filled -offset indent -compact
 .Nm route Op Fl n
 .Cm monitor
 .Ed
 .Pp
-The flush command has the syntax
+The flush command has the syntax:
 .Pp
 .Bd -filled -offset indent -compact
 .Nm route Op Fl n
@@ -113,7 +114,7 @@ The flush command has the syntax
 If the 
 .Cm flush
 command is specified, 
-.Nm route
+.Nm
 will ``flush'' the routing tables of all gateway entries.
 When the address family may is specified by any of the
 .Fl osi ,
@@ -140,7 +141,7 @@ is the destination host or network,
 is the next-hop intermediary via which packets should be routed.
 Routes to a particular host may be distinguished from those to
 a network by interpreting the Internet address specified as the
-.Ar destination argument.
+.Ar destination argument .
 The optional modifiers
 .Fl net
 and
@@ -329,5 +330,5 @@ command appeared in
 .Bx 4.2 .
 .Sh BUGS
 The first paragraph may have slightly exaggerated
-.Xr routed Ns 's
+.Xr routed 8 Ns 's
 abilities.
