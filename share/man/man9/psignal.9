@@ -38,7 +38,7 @@
 .Dt PSIGNAL 9
 .Os
 .Sh NAME
-.Fd #include <sys/param.h>
+.Fd #include <sys/types.h>
 .Fd #include <sys/signalvar.h>
 .Nm psignal ,
 .Nm pgsignal ,
@@ -46,11 +46,11 @@
 .Nd post signal to a process or process group
 .Sh SYNOPSIS
 .Ft void
-.Fn "psignal" "struct proc *p" "int signum"
+.Fn psignal "struct proc *p" "int signum"
 .Ft void
-.Fn "pgsignal" "struct pgrp *pgrp" "int signum" "int checkctty"
+.Fn pgsignal "struct pgrp *pgrp" "int signum" "int checkctty"
 .Ft void
-.Fn "gsignal" "int pgid" "int signum"
+.Fn gsignal "int pgid" "int signum"
 .Sh DESCRIPTION
 These functions post a signal to one or more processes. The argument
 .Fa signum
