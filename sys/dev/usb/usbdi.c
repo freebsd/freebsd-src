@@ -949,10 +949,6 @@ usbd_do_request_flags_pipe(usbd_device_handle dev, usbd_pipe_handle pipe,
 	usbd_status err;
 
 #ifdef DIAGNOSTIC
-#if defined(__i386__) && defined(__FreeBSD__)
-	KASSERT(curthread->td_intr_nesting_level == 0,
-	       	("usbd_do_request: in interrupt context"));
-#endif
 	if (dev->bus->intr_context) {
 		printf("usbd_do_request: not in process context\n");
 		return (USBD_INVAL);
