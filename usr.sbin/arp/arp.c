@@ -485,7 +485,7 @@ search(u_long addr, action_fn *action)
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
 		sin2 = (struct sockaddr_inarp *)(rtm + 1);
-		(char *)sdl = (char *)sin2 + SA_SIZE(sin2);
+		sdl = (struct sockaddr_dl *)((char *)sin2 + SA_SIZE(sin2));
 		if (rifname && if_indextoname(sdl->sdl_index, ifname) &&
 		    strcmp(ifname, rifname))
 			continue;
