@@ -97,6 +97,13 @@
 #define FD_FAILED -1
 #define FD_NOT_VALID -2
 #define FDC_ERRMAX	100	/* do not log more */
+/*
+ * Stop retrying after this many DMA overruns.  Since each retry takes
+ * one revolution, with 300 rpm., 25 retries take approximately 10
+ * seconds which the read attempt will block in case the DMA overrun
+ * is persistent.
+ */
+#define FDC_DMAOV_MAX	25
 
 #define NUMTYPES 17
 #define NUMDENS  (NUMTYPES - 7)
@@ -1451,6 +1458,18 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 	}
 	fd->ft = fd_types + type - 1;
 	fd->flags |= FD_OPEN;
+	/*
+	 * Clearing the DMA overrun counter at open time is a bit messy.
+	 * Since we're only managing one counter per controller, opening
+	 * the second drive could mess it up.  Anyway, if the DMA overrun
+	 * condition is really persistent, it will eventually time out
+	 * still.  OTOH, clearing it here will ensure we'll at least start
+	 * trying again after a previous (maybe even long ago) failure.
+	 * Also, this is merely a stop-gap measure only that should not
+	 * happen during normal operation, so we can tolerate it to be a
+	 * bit sloppy about this.
+	 */
+	fdc->dma_overruns = 0;
 
 	return 0;
 }
@@ -2033,16 +2052,23 @@ fdstate(fdc_p fdc)
                         if ((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_AT
 			    && fdc->status[1] & NE7_ST1_OR) {
                                 /*
-				 * DMA overrun. Someone hogged the bus
-				 * and didn't release it in time for the
-				 * next FDC transfer.
-				 * Just restart it, don't increment retry
-				 * count. (vak)
-                                 */
-                                fdc->state = SEEKCOMPLETE;
-                                return (1);
+				 * DMA overrun. Someone hogged the bus and
+				 * didn't release it in time for the next
+				 * FDC transfer.
+				 *
+				 * We normally restart this without bumping
+				 * the retry counter.  However, in case
+				 * something is seriously messed up (like
+				 * broken hardware), we rather limit the
+				 * number of retries so the IO operation
+				 * doesn't block indefinately.
+				 */
+				if (fdc->dma_overruns++ < FDC_DMAOV_MAX) {
+					fdc->state = SEEKCOMPLETE;
+					return (1);
+				} /* else fall through */
                         }
-			else if((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_IV
+			if((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_IV
 				&& fdc->retry < 6)
 				fdc->retry = 6;	/* force a reset */
 			else if((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_AT
@@ -2060,6 +2086,8 @@ fdstate(fdc_p fdc)
 			idp->sec = fdc->status[5];
 			idp->secshift = fdc->status[6];
 		}
+		/* Operation successful, retry DMA overruns again next time. */
+		fdc->dma_overruns = 0;
 		fd->skip += fdblk;
 		if (!rdsectid && !format && fd->skip < bp->bio_bcount) {
 			/* set up next transfer */
