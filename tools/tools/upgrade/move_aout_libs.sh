@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id$
+#	$Id: move_aout_libs.sh,v 1.1 1998/09/09 05:28:18 jb Exp $
 # 
 # Search for a.out libraries and move them to an aout subdirectory of
 # the elf library directory.
@@ -106,29 +106,29 @@ move_if_aout ( )
 # Only search the directories specified.
 for dir in $libdirs
 do
-	# Check that the directory actually exists. There is no point
-	# searching missing directories.
-	if test -d $dir; then
-		echo "Searching library directory $dir for a.out libraries..."
-
-		# Get a list of archive libraries.
-		files=`ls $dir/*.a 2> /dev/null`
-
-		# a.out archive libraries look like this:
-		aoutmagic="current ar archive random library"
-
-		# Move each a.out archive library:
-		move_if_aout
-
-		# Get a list of shared libraries
-		files=`ls $dir/*.so.*.* 2> /dev/null`
-
-		# a.out shared libraries look like this:
-		aoutmagic="FreeBSD/i386 compact demand paged shared library not stripped"
-
-		# Move each a.out shared library:
-		move_if_aout
+	# Make sure the directory exists, or ldconfig will choke later.
+	if test ! -d $dir; then
+		mkdir -p $dir $dir/aout
 	fi
+	echo "Searching library directory $dir for a.out libraries..."
+
+	# Get a list of archive libraries.
+	files=`ls $dir/*.a 2> /dev/null`
+
+	# a.out archive libraries look like this:
+	aoutmagic="current ar archive random library"
+
+	# Move each a.out archive library:
+	move_if_aout
+
+	# Get a list of shared libraries
+	files=`ls $dir/*.so.*.* 2> /dev/null`
+
+	# a.out shared libraries look like this:
+	aoutmagic="FreeBSD/i386 compact demand paged shared library not stripped"
+
+	# Move each a.out shared library:
+	move_if_aout
 done
 
 # If we created the time stamp program, delete it:
