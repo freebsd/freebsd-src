@@ -1,5 +1,5 @@
 /*
- * $Id: phase.c,v 1.3 1997/11/22 03:37:43 brian Exp $
+ * $Id: phase.c,v 1.4 1997/12/07 23:55:29 brian Exp $
  */
 
 #include <sys/param.h>
@@ -16,9 +16,9 @@
 #include "auth.h"
 #include "pap.h"
 #include "chap.h"
+#include "defs.h"
 #include "ipcp.h"
 #include "ccp.h"
-#include "defs.h"
 #include "main.h"
 #include "loadalias.h"
 #include "vars.h"

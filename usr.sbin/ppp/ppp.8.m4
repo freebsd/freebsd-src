@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.82 1997/12/03 23:27:59 brian Exp $
+.\" $Id: ppp.8,v 1.83 1997/12/07 04:09:12 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2117,24 +2117,52 @@ of the address we will insist on.  If the /n bit is omitted, it
 defaults to /32 unless the IP address is 0.0.0.0 in which case
 the mask defaults to /0.
 
+.Pp
+.Ar Hisaddr
+may also be specified as a range of IP numbers in the format
+
+.Dl a.b.c.d[-d.e.f.g][,h.i.j.k[-l,m,n,o]]...
+
+for example:
+
+.Dl set ifaddr 10.0.0.1 10.0.1.2-10.0.1.10,10.0.1.20
+
+will only negotiate
+.Ar 10.0.0.1
+as the local IP number, but will assign any of the given 10 IP
+numbers to the peer.  If the peer requests one of these numbers,
+and that number is not already in use,
+.Nm
+will grant the peers request.  This is useful if the peer wants
+to re-establish a link using the same IP number as was previously
+allocated.  If the peer requests an IP number that's either outside
+of this range or is already in use,
+.Nm
+will start by suggesting a random unused IP number from the range.
+If the peer doesn't subsequently agree,
+.Nm
+will suggest each of the other numbers in succession until a number
+is chosen or until too many IPCP Configure Requests have been sent.
+
+.Pp
 If
-.Dq triggeraddr
+.Ar triggeraddr
 is specified, it is used in place of
-.Dq myaddr
+.Ar myaddr
 in the initial IPCP negotiation.  However, only an address in the
-.Dq myaddr
+.Ar myaddr
 range will be accepted.
 
 .It set loopback on|off
 When set to
-.Dq on
+.Ar on
 (the default),
 .Nm
 will automatically loop back packets being sent
 out with a destination address equal to that of the
 .Em PPP
 interface.  If set to
-.Dq off ,
+.Ar off ,
 .Nm
 will send the packet, probably resulting in an ICMP redirect from
 the other end.
@@ -2144,9 +2172,11 @@ This command allows the adjustment of the current log level.  Refer
 to the Logging Facility section for further details.
 
 .It set login chat-script
-This chat-script compliments the dial-script.  If both are specified,
-the login script will be executed after the dial script.  Escape
-sequences available in the dial script are also available here.
+This
+.Ar chat-script
+compliments the dial-script.  If both are specified, the login
+script will be executed after the dial script.  Escape sequences
+available in the dial script are also available here.
 
 .It set mru value
 The default MRU is 1500.  If it is increased, the other side *may*
@@ -2163,14 +2193,19 @@ Increasing it is not valid as the peer is not necessarily able to
 receive the increased packet size.
 
 .It set openmode active|passive
-By default, openmode is always active.  That is,
+By default,
+.Ar openmode
+is always
+.Ar active .
+That is,
 .Nm
-will always initiate LCP/IPCP/CCP negotiation.  If you want to wait for the
-peer to initiate negotiations, you may use the value
-.Dq passive .
+will always initiate LCP/IPCP/CCP negotiation.  If you want to wait
+for the peer to initiate negotiations, you may use the value
+.Ar passive .
 
 .It set parity odd|even|none|mark
-This allows the line parity to be set.  The default value is none.
+This allows the line parity to be set.  The default value is
+.Ar none .
 
 .It set phone telno[|telno]...[:telno[|telno]...]...
 This allows the specification of the phone number to be used in
@@ -2191,29 +2226,29 @@ mode, each number is attempted at most once.
 .It set reconnect timeout ntries
 Should the line drop unexpectedly (due to loss of CD or LQR
 failure), a connection will be re-established after the given
-.Dq timeout .
+.Ar timeout .
 The line will be re-connected at most
-.Dq ntries
+.Ar ntries
 times.
-.Dq Ntries
+.Ar Ntries
 defaults to zero.  A value of
-.Dq random
+.Ar random
 for
-.Dq timeout
+.Ar timeout
 will result in a variable pause, somewhere between 0 and 30 seconds.
 
 .It set redial seconds[.nseconds] [attempts]
 .Nm Ppp
 can be instructed to attempt to redial
-.Dq attempts
+.Ar attempts
 times.  If more than one number is specified (see
 .Dq set phone
 above), a pause of
-.Dq nseconds
+.Ar nseconds
 is taken before dialing each number.  A pause of
-.Dq seconds
+.Ar seconds
 is taken before starting at the first number again.  A value of
-.Dq random
+.Ar random
 may be used here too.
 
 .It set stopped [LCPseconds [IPCPseconds [CCPseconds]]]
@@ -2224,7 +2259,10 @@ the stopped state for the given number of
 .Dq seconds .
 This option may be useful if you see
 .Nm
-failing to respond in the stopped state.  Use
+failing to respond in the stopped state, or if you wish to
+.Dq set openmode passive
+and time out if the peer doesn't send a Configure Request within the
+given time.  Use
 .Dq set log +lcp +ipcp +ccp
 to make
 .Nm

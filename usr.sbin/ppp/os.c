@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.35 1997/11/22 03:37:42 brian Exp $
+ * $Id: os.c,v 1.36 1997/12/03 10:23:51 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -66,15 +66,16 @@ static struct ifreq ifrq;
 static struct in_addr oldmine, oldhis;
 static int linkup;
 
+enum set_method { SET_UP, SET_DOWN, SET_TRY };
+
 static int
 SetIpDevice(struct in_addr myaddr,
 	    struct in_addr hisaddr,
 	    struct in_addr netmask,
-	    int updown)
+	    enum set_method how)
 {
   struct sockaddr_in *sock_in;
   int s;
-  int changeaddr = 0;
   u_long mask, addr;
 
   s = ID0socket(AF_INET, SOCK_DGRAM, 0);
@@ -82,7 +83,7 @@ SetIpDevice(struct in_addr myaddr,
     LogPrintf(LogERROR, "SetIpDevice: socket(): %s\n", strerror(errno));
     return (-1);
   }
-  if (updown == 0) {
+  if (how == SET_DOWN) {
     if (Enabled(ConfProxy))
       cifproxyarp(s, oldhis.s_addr);
     if (oldmine.s_addr == 0 && oldhis.s_addr == 0) {
@@ -100,10 +101,7 @@ SetIpDevice(struct in_addr myaddr,
     }
     oldmine.s_addr = oldhis.s_addr = 0;
   } else {
-
-    /*
-     * If given addresses are alreay set, then ignore this request.
-     */
+    /* If given addresses are alreay set, then ignore this request */
     if (oldmine.s_addr == myaddr.s_addr && oldhis.s_addr == hisaddr.s_addr) {
       close(s);
       return (0);
@@ -113,27 +111,29 @@ SetIpDevice(struct in_addr myaddr,
      * If different address has been set, then delete it first.
      */
     if (oldmine.s_addr || oldhis.s_addr) {
-      changeaddr = 1;
+      memset(&ifra.ifra_addr, '\0', sizeof(ifra.ifra_addr));
+      memset(&ifra.ifra_broadaddr, '\0', sizeof(ifra.ifra_addr));
+      memset(&ifra.ifra_mask, '\0', sizeof(ifra.ifra_addr));
+      if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
+        LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCDIFADDR): %s\n",
+		  strerror(errno));
+        close(s);
+        return (-1);
+      }
     }
 
-    /*
-     * Set interface address
-     */
+    /* Set interface address */
     sock_in = (struct sockaddr_in *) & (ifra.ifra_addr);
     sock_in->sin_family = AF_INET;
-    sock_in->sin_addr = oldmine = myaddr;
+    sock_in->sin_addr = myaddr;
     sock_in->sin_len = sizeof(*sock_in);
 
-    /*
-     * Set destination address
-     */
+    /* Set destination address */
     sock_in = (struct sockaddr_in *) & (ifra.ifra_broadaddr);
     sock_in->sin_family = AF_INET;
-    sock_in->sin_addr = oldhis = hisaddr;
+    sock_in->sin_addr = hisaddr;
     sock_in->sin_len = sizeof(*sock_in);
 
-    /*
-     * */
     addr = ntohl(myaddr.s_addr);
     if (IN_CLASSA(addr))
       mask = IN_CLASSA_NET;
@@ -153,31 +153,16 @@ SetIpDevice(struct in_addr myaddr,
     sock_in->sin_addr.s_addr = htonl(mask);
     sock_in->sin_len = sizeof(*sock_in);
 
-    if (changeaddr) {
-
-      /*
-       * Interface already exists. Just change the address.
-       */
-      memcpy(&ifrq.ifr_addr, &ifra.ifra_addr, sizeof(struct sockaddr));
-      if (ID0ioctl(s, SIOCSIFADDR, &ifra) < 0)
-	LogPrintf(LogERROR, "SetIpDevice: ioctl(SIFADDR): %s\n",
+    if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0) {
+      if (how != SET_TRY)
+        LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCAIFADDR): %s\n",
 		  strerror(errno));
-      memcpy(&ifrq.ifr_dstaddr, &ifra.ifra_broadaddr, sizeof(struct sockaddr));
-      if (ID0ioctl(s, SIOCSIFDSTADDR, &ifrq) < 0)
-	LogPrintf(LogERROR, "SetIpDevice: ioctl(SIFDSTADDR): %s\n",
-		  strerror(errno));
-#ifdef notdef
-      memcpy(&ifrq.ifr_broadaddr, &ifra.ifra_mask, sizeof(struct sockaddr));
-      if (ID0ioctl(s, SIOCSIFBRDADDR, &ifrq) < 0)
-	LogPrintf(LogERROR, "SetIpDevice: ioctl(SIFBRDADDR): %s\n",
-		  strerror(errno));
-#endif
-    } else if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0) {
-      LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCAIFADDR): %s\n",
-		strerror(errno));
       close(s);
       return (-1);
     }
+
+    oldhis.s_addr = hisaddr.s_addr;
+    oldmine.s_addr = myaddr.s_addr;
     if (Enabled(ConfProxy))
       sifproxyarp(s, hisaddr.s_addr);
   }
@@ -186,11 +171,15 @@ SetIpDevice(struct in_addr myaddr,
 }
 
 int
-OsSetIpaddress(struct in_addr myaddr,
-	       struct in_addr hisaddr,
-	       struct in_addr netmask)
+OsTrySetIpaddress(struct in_addr myaddr, struct in_addr hisaddr)
 {
-  return (SetIpDevice(myaddr, hisaddr, netmask, 1));
+  return (SetIpDevice(myaddr, hisaddr, ifnetmask, SET_TRY));
+}
+
+int
+OsSetIpaddress(struct in_addr myaddr, struct in_addr hisaddr)
+{
+  return (SetIpDevice(myaddr, hisaddr, ifnetmask, SET_UP));
 }
 
 static struct in_addr peer_addr;
@@ -284,7 +273,7 @@ OsInterfaceDown(int final)
     return (-1);
   }
   zeroaddr.s_addr = 0;
-  SetIpDevice(zeroaddr, zeroaddr, zeroaddr, 0);
+  SetIpDevice(zeroaddr, zeroaddr, zeroaddr, SET_DOWN);
 
   close(s);
   return (0);

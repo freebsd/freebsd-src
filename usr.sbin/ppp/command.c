@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.107 1997/12/07 04:09:10 brian Exp $
+ * $Id: command.c,v 1.108 1997/12/08 20:09:10 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -53,6 +53,7 @@
 #include "fsm.h"
 #include "phase.h"
 #include "lcp.h"
+#include "iplist.h"
 #include "ipcp.h"
 #include "modem.h"
 #include "filter.h"
@@ -1187,18 +1188,17 @@ SetInterfaceAddr(struct cmdargs const *arg)
 
   HaveTriggerAddress = 0;
   ifnetmask.s_addr = 0;
+  iplist_reset(&DefHisChoice);
 
   if (arg->argc > 0) {
-    if (ParseAddr(arg->argc, arg->argv,
-		  &DefMyAddress.ipaddr,
-		  &DefMyAddress.mask,
-		  &DefMyAddress.width) == 0)
+    if (!ParseAddr(arg->argc, arg->argv, &DefMyAddress.ipaddr,
+		   &DefMyAddress.mask, &DefMyAddress.width))
       return 1;
     if (arg->argc > 1) {
-      if (ParseAddr(arg->argc, arg->argv+1,
-		    &DefHisAddress.ipaddr,
-		    &DefHisAddress.mask,
-		    &DefHisAddress.width) == 0)
+      if (strpbrk(arg->argv[1], ",-"))
+        iplist_setsrc(&DefHisChoice, arg->argv[1]);
+      else if (!ParseAddr(arg->argc, arg->argv+1, &DefHisAddress.ipaddr,
+		            &DefHisAddress.mask, &DefHisAddress.width))
 	return 2;
       if (arg->argc > 2) {
 	ifnetmask = GetIpAddr(arg->argv[2]);
@@ -1222,11 +1222,23 @@ SetInterfaceAddr(struct cmdargs const *arg)
     DefHisAddress.width = 0;
   }
   IpcpInfo.want_ipaddr.s_addr = DefMyAddress.ipaddr.s_addr;
-  IpcpInfo.his_ipaddr.s_addr = DefHisAddress.ipaddr.s_addr;
+  if (iplist_isvalid(&DefHisChoice)) {
+    iplist_setrandpos(&DefHisChoice);
+    IpcpInfo.his_ipaddr = ChooseHisAddr(IpcpInfo.want_ipaddr);
+    if (IpcpInfo.his_ipaddr.s_addr == INADDR_ANY) {
+      LogPrintf(LogWARN, "%s: None available !\n", DefHisChoice.src);
+      return 3;
+    }
+    DefHisAddress.ipaddr.s_addr = IpcpInfo.his_ipaddr.s_addr;
+    DefHisAddress.mask.s_addr = 0xffffffff;
+    DefHisAddress.width = 32;
+  } else {
+    IpcpInfo.his_ipaddr.s_addr = DefHisAddress.ipaddr.s_addr;
 
-  if ((mode & MODE_AUTO) &&
-      OsSetIpaddress(DefMyAddress.ipaddr, DefHisAddress.ipaddr, ifnetmask) < 0)
-    return 4;
+    if ((mode & MODE_AUTO) &&
+        OsSetIpaddress(DefMyAddress.ipaddr, DefHisAddress.ipaddr) < 0)
+      return 4;
+  }
 
   return 0;
 }
