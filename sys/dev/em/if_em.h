@@ -71,7 +71,6 @@ SUCH DAMAGE.
 #include <machine/clock.h>
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
-#include <stddef.h>
 
 #include "opt_bdg.h"
 
