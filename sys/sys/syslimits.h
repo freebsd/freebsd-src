@@ -37,6 +37,14 @@
 #ifndef _SYS_SYSLIMITS_H_
 #define _SYS_SYSLIMITS_H_
 
+#if !defined(_KERNEL) && !defined(_LIMITS_H_) && !defined(_SYS_PARAM_H_)
+#error "No user-serviceable parts inside."
+#endif
+
+/*
+ * Do not add any new variables here.  (See the comment at the end of
+ * the file for why.)
+ */
 #define	ARG_MAX			65536	/* max bytes for an exec function */
 #ifndef CHILD_MAX
 #define	CHILD_MAX		   40	/* max simultaneous processes */
@@ -53,20 +61,14 @@
 #define	PIPE_BUF		  512	/* max bytes for atomic pipe writes */
 #define	IOV_MAX			 1024	/* max elements in i/o vector */
 
-/* XXX - these don't belong here */
-#define	BC_BASE_MAX		   99	/* max ibase/obase values in bc(1) */
-#define	BC_DIM_MAX		 2048	/* max array elements in bc(1) */
-#define	BC_SCALE_MAX		   99	/* max scale value in bc(1) */
-#define	BC_STRING_MAX		 1000	/* max const string length in bc(1) */
-#define	COLL_WEIGHTS_MAX	    0	/* max weights for order keyword */
-#define	EXPR_NEST_MAX		   32	/* max expressions nested in expr(1) */
-#define	LINE_MAX		 2048	/* max bytes in an input line */
-#define	RE_DUP_MAX		  255	/* max RE's in interval notation */
-
 /*
  * We leave the following values undefined to force applications to either
  * assume conservative values or call sysconf() to get the current value.
  *
  * HOST_NAME_MAX
+ * LOGIN_NAME_MAX
+ *
+ * (We should do this for most of the values currently defined here,
+ * but many programs are not prepared to deal with this yet.)
  */
 #endif
