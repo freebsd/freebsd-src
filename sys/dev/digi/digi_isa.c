@@ -112,12 +112,12 @@ digi_isa_check(struct digi_softc *sc)
 
 	/* Invasive probe - reset the card */
 	outb(sc->port, FEPRST);
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < 10; i++) {
 		if ((inb(sc->port) & FEPMASK) == FEPRST)
 			break;
-		digi_delay(sc, "digirst");
+		digi_delay(sc, "digirst", 1);
 	}
-	if (i == 100)
+	if (i == 10)
 		return (NULL);
 	DLOG(DIGIDB_INIT, (sc->dev, "got reset after %d delays\n", i));
 
@@ -375,12 +375,12 @@ digi_isa_attach(device_t dev)
 		reset |= FEPMEM;
 
 	outb(sc->port, reset);
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < 10; i++) {
 		if ((inb(sc->port) & FEPMASK) == reset)
 			break;
-		digi_delay(sc, "digirst1");
+		digi_delay(sc, "digirst1", 1);
 	}
-	if (i == 100) {
+	if (i == 10) {
 		device_printf(dev, "1st reset failed\n");
 		sc->hidewin(sc);
 		goto failed;
@@ -397,12 +397,12 @@ digi_isa_attach(device_t dev)
 
 	if (sc->model == PCXI || sc->model == PCXE) {
 		outb(sc->port, FEPRST | FEPMEM);
-		for (i = 0; i < 100; i++) {
+		for (i = 0; i < 10; i++) {
 			if ((inb(sc->port) & FEPMASK) != FEPRST)
 				break;
-			digi_delay(sc, "digirst2");
+			digi_delay(sc, "digirst2", 1);
 		}
-		if (i == 100) {
+		if (i == 10) {
 			device_printf(dev, "2nd reset failed (0x%02x)\n",
 				inb(sc->port));
 			sc->hidewin(sc);

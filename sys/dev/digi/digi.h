@@ -215,4 +215,5 @@ const char	*digi_errortxt(int _id);
 int		 digi_attach(struct digi_softc *);
 int		 digi_detach(device_t _dev);
 int		 digi_shutdown(device_t _dev);
-void		 digi_delay(struct digi_softc *_sc, const char *_txt);
+void		 digi_delay(struct digi_softc *_sc, const char *_txt,
+		     u_long _timo);
