@@ -20,7 +20,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdarg.h>
-#include <ncurses.h>
 
 #include <sys/types.h>
 #include <sys/errno.h>
@@ -76,7 +75,7 @@ abort_installation(char *prompt)
 	strcat(scratch,"\n\n Do you wish to abort the installation ?");
 	if (!dialog_yesno("Abort installation ?",scratch,10,75))
 		exit_prompt();
-	clear();
+	dialog_clear();
 }
 
 void
@@ -85,7 +84,7 @@ exit_prompt()
 	sprintf(scratch,"Are you sure you want to exit sysinstall?");
 	if (!dialog_yesno("Exit sysinstall",scratch,10,75))
 		exit_sysinstall();
-	clear();
+	dialog_clear();
 }
 
 int
@@ -257,7 +256,7 @@ select_disk()
 			abort_installation(scratch);
 			valid = 0;
 		}
-		clear();
+		dialog_clear();
 	} while (!valid);
 	return(atoi(selection) - 1);
 }
@@ -288,12 +287,12 @@ select_partition(int disk)
 			abort_installation(scratch);
 			valid = 0;
 		}
-		clear();
+		dialog_clear();
 		choice = atoi(selection);
 		if (!choice)
 			if (dialog_yesno(title, "Installing to the whole disk will erase all its present data.\n\nAre you sure you want to do this?", 10, 75))
 				valid = 0;
-		clear();
+		dialog_clear();
 	} while (!valid);
 	
 	return(atoi(selection) - 1);
@@ -528,7 +527,7 @@ stage1()
 				abort_installation(scratch);
 				if (!dialog_yesno(title, "Are you sure you wish to proceed?",
 									  10, 75)) {
-					clear();
+					dialog_clear();
 					clear_mbr(mbr);
 					ok = 1;
 				}
@@ -538,7 +537,7 @@ stage1()
 		if (custom_install) 
 			if (!dialog_yesno(title, "Do you wish to edit the DOS partition table?",
 								  10, 75)) {
-				clear();
+				dialog_clear();
 				edit_mbr(mbr, &avail_disklabels[inst_disk]);
 			}
 
@@ -552,7 +551,7 @@ stage1()
 				sprintf(scratch, "The DOS partition table is inconsistent.\n\n%s\n\nDo you wish to edit it by hand?", errmsg);
 				if (!dialog_yesno(title, scratch, 10, 75)) {
 					edit_mbr(mbr, &avail_disklabels[inst_disk]);
-					clear();
+					dialog_clear();
 				} else {
 					abort_installation("");
 					ok = 1;
@@ -571,7 +570,7 @@ stage1()
 				abort_installation("");
 				ready = 0;
 			}
-			clear();
+			dialog_clear();
 		}
 	}
 

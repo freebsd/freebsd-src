@@ -6,14 +6,13 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: stage3.c,v 1.2 1994/10/20 04:59:58 phk Exp $
  *
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <dialog.h>
-#include <ncurses.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -136,9 +135,9 @@ stage3()
 	unlink("/sbin/oinit");
 	TellEm("link /stand/sysinstall /sbin/init");
 	link("/stand/sysinstall", "/sbin/init");
-	clear();
-	refresh();
-	endwin();
+	dialog_clear();
+	dialog_update();
+	end_dialog();
 	close(0);
 	close(1);
 	close(2);
