@@ -30,17 +30,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sleep.c,v 1.2 1994/09/24 02:58:51 davidg Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1988, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)sleep.c	8.3 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)sleep.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -56,7 +56,7 @@ main(argc, argv)
 {
 	int ch, secs;
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
 		default:
