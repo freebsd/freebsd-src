@@ -281,6 +281,9 @@ if [ -n "$IN_FILE" ]; then
       cat $IN_FILE > $TEMP
     fi
   fi
+  # If the user has requested that we attach files (with the -a option),
+  # then add them too.
+  [ -n "$ATTACHED_FILES" ] && echo "$ATTACHED_FILES" >> $TEMP
 else
 
   if [ -n "$PR_FORM" -a -z "$PRINT_INTERN" ]; then
