@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.91 1997/09/04 09:01:07 jkh Exp $
+ **      $Id: userconfig.c,v 1.92 1997/09/09 12:48:59 jmg Exp $
  **/
 
 /**
@@ -2365,7 +2365,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.91 1997/09/04 09:01:07 jkh Exp $
+ *      $Id: userconfig.c,v 1.92 1997/09/09 12:48:59 jmg Exp $
  */
 
 #include "scbus.h"
@@ -2742,7 +2742,7 @@ set_pnp_parms(CmdParm *parms)
     ldn=strtoul(q,&q, 0);
     for (p=q; *p && (*p==' ' || *p=='\t'); p++) ;
     if (csn < 1 || csn > MAX_PNP_CARDS || ldn >= MAX_PNP_LDN) {
-	printf("bad csn/ldn %d:%d\n", csn, ldn);
+	printf("bad csn/ldn %ld:%ld\n", csn, ldn);
 	return 0;
     }
     for (i=0; i < MAX_PNP_LDN; i++) {
@@ -3026,7 +3026,7 @@ lspnp ()
     for (i=0; i< MAX_PNP_LDN; i++) {
 	c = &pnp_ldn_overrides[i];
 	if (c->csn >0 && c->csn != 255) {
-	    int j, pmax, mmax;
+	    int pmax, mmax;
 	    static char pfmt[] =
 		"port 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x ";
 	    static char mfmt[] =
@@ -3050,7 +3050,7 @@ lspnp ()
 		c->enable ? "Y":"N",
 		c->irq[0], c->irq[1], c->drq[0], c->drq[1]);
 	    if (c->flags)
-		printf("flags 0x%08x ",c->flags);
+		printf("flags 0x%08lx ",c->flags);
 	    for (pmax = 7; pmax >=0 ; pmax--)
 		if (c->port[pmax]!=0) break;
 	    for (mmax = 3; mmax >=0 ; mmax--)
@@ -3108,7 +3108,7 @@ lsdevtab(struct isa_device *dt)
 	sprintf(line + 9, "0x%x", dt->id_iobase);
 	sprintf(line + 20, "%d", ffs(dt->id_irq) - 1);
 	sprintf(line + 26, "%d", dt->id_drq);
-	sprintf(line + 32, "0x%x", dt->id_maddr);
+	sprintf(line + 32, "%p", dt->id_maddr);
 	sprintf(line + 40, "%d", dt->id_msize);
 	/* Missing: id_msize (0 at start, useful if we can get here later). */
 	/* Missing: id_intr (useful if we could show it by name). */
