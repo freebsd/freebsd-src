@@ -10,6 +10,7 @@ INSTALLFLAGS=	-b
 LOADER_AOUT_SUPPORT=	yes
 .endif
 
+CFLAGS+=	-ffreestanding
 CFLAGS+=	-DPC98
 
 # architecture-specific loader code

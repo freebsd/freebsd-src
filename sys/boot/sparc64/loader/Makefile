@@ -45,7 +45,7 @@ CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
 CLEANFILES+=	${PROG}.help
 
-CFLAGS+=	-W -Wall -ffreestanding
+CFLAGS+=	-ffreestanding
 LDFLAGS=	-nostdlib -static
 LDADD=		${LIBSTAND} ${LIBOFW}
 

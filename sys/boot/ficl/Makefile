@@ -6,6 +6,7 @@ BASE_SRCS=	dict.c ficl.c fileaccess.c float.c loader.c math64.c \
 
 SRCS=		${BASE_SRCS} sysdep.c softcore.c
 CLEANFILES=	softcore.c testmain testmain.o
+CFLAGS+=	-ffreestanding
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-mno-fp-regs
 .endif
