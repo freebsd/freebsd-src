@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.51.4.2 1996/02/22 11:10:09 davidg Exp $
+ * $Id: vm_pageout.c,v 1.51.4.3 1996/04/12 00:43:08 davidg Exp $
  */
 
 /*
@@ -526,6 +526,7 @@ vm_pageout_scan()
 	 * them.
 	 */
 
+rescan0:
 	maxlaunder = (cnt.v_inactive_target > MAXLAUNDER) ?
 	    MAXLAUNDER : cnt.v_inactive_target;
 
@@ -604,6 +605,8 @@ rescan1:
 					vm_object_unlock(object);
 					if (object->flags & OBJ_WRITEABLE)
 						++vnodes_skipped;
+					if (!(next->flags & PG_INACTIVE))
+						goto rescan0;
 					m = next;
 					continue;
 				}
