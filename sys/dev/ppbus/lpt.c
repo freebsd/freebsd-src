@@ -353,13 +353,7 @@ lpt_identify(driver_t *driver, device_t parent)
 static int
 lpt_probe(device_t dev)
 {
-	struct lpt_data *sc;
-	
-	sc = DEVTOSOFTC(dev);
 
-	/*
-	 * Now, try to detect the printer.
-	 */
 	if (!lpt_detect(dev))
 		return (ENXIO);
 
