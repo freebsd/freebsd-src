@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.15 1999/03/13 16:22:18 phk Exp $
+ * $Id: pps.c,v 1.16 1999/04/25 08:58:10 phk Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -48,7 +48,6 @@ static int npps;
 static struct ppb_device	*ppsprobe(struct ppb_data *ppb);
 static int			ppsattach(struct ppb_device *dev);
 static void			ppsintr(int unit);
-static void			pps_drvinit(void *unused);
 
 static struct ppb_driver ppsdriver = {
     ppsprobe, ppsattach, PPS_NAME
