@@ -251,10 +251,8 @@ hatm_load_txbuf(void *uarg, bus_dma_segment_t *segs, int nseg,
 		if (arg->vcc->ntpds + tpds_needed > arg->sc->max_tpd) {
 			arg->sc->istats.flow_closed++;
 			arg->vcc->vflags |= HE_VCC_FLOW_CTRL;
-#ifdef notyet
-			atm_message(&arg->sc->ifatm.ifnet, ATM_MSG_FLOW_CONTROL,
-			   (1 << 24) | (arg->vpi << 16) | arg->vci);
-#endif
+			ATMEV_SEND_FLOW_CONTROL(&arg->sc->ifatm,
+			    arg->vpi, arg->vci, 1);
 			arg->error = 1;
 			return;
 		}
@@ -486,10 +484,8 @@ hatm_tx_complete(struct hatm_softc *sc, struct tpd *tpd, uint32_t flags)
 	if ((vcc->vflags & HE_VCC_FLOW_CTRL) &&
 	    vcc->ntpds <= HE_CONFIG_TPD_FLOW_ENB) {
 		vcc->vflags &= ~HE_VCC_FLOW_CTRL;
-#ifdef notyet
-		atm_message(&sc->ifatm.ifnet, ATM_MSG_FLOW_CONTROL,
-		   (0 << 24) | (HE_VPI(tpd->cid) << 16) | HE_VCI(tpd->cid));
-#endif
+		ATMEV_SEND_FLOW_CONTROL(&sc->ifatm,
+		    HE_VPI(tpd->cid), HE_VCI(tpd->cid), 0);
 	}
 }
 

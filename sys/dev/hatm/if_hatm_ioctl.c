@@ -217,13 +217,11 @@ hatm_open_vcc(struct hatm_softc *sc, struct atmio_openvcc *arg)
 	if (!(vcc->param.flags & ATMIO_FLAG_NORX))
 		hatm_rx_vcc_open(sc, cid);
 
-#ifdef notyet
 	/* inform management about non-NG and NG-PVCs */
 	if (!(vcc->param.flags & ATMIO_FLAG_NG) ||
 	     (vcc->param.flags & ATMIO_FLAG_PVC))
-		atm_message(&sc->ifatm.ifnet, ATM_MSG_VCC_CHANGED,
-		   (1 << 24) | (arg->param.vpi << 16) | arg->param.vci);
-#endif
+		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, arg->param.vpi,
+		    arg->param.vci, 1);
 
 	/* don't free below */
 	vcc = NULL;
@@ -280,13 +278,10 @@ hatm_vcc_closed(struct hatm_softc *sc, u_int cid)
 {
 	struct hevcc *vcc = sc->vccs[cid];
 
-#ifdef notyet
 	/* inform management about non-NG and NG-PVCs */
 	if (!(vcc->param.flags & ATMIO_FLAG_NG) ||
 	    (vcc->param.flags & ATMIO_FLAG_PVC))
-		atm_message(&sc->ifatm.ifnet, ATM_MSG_VCC_CHANGED,
-		   (0 << 24) | (HE_VPI(cid) << 16) | HE_VCI(cid));
-#endif
+		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, HE_VPI(cid), HE_VCI(cid), 0);
 
 	sc->open_vccs--;
 	uma_zfree(sc->vcc_zone, vcc);
