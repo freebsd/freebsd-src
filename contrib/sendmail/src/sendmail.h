@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -20,7 +20,7 @@
 #ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailId[] =	"@(#)$Id: sendmail.h,v 8.517.4.45 2000/12/28 23:46:44 gshapiro Exp $";
+static char SmailId[] =	"@(#)$Id: sendmail.h,v 8.517.4.50 2001/02/22 18:56:24 gshapiro Exp $";
 # endif /* ! lint */
 #else /* _DEFINE */
 # define EXTERN extern
@@ -152,6 +152,9 @@ static char SmailId[] =	"@(#)$Id: sendmail.h,v 8.517.4.45 2000/12/28 23:46:44 gs
 #ifndef INT32SZ
 # define INT32SZ	4		/* size of a 32 bit integer in bytes */
 #endif /* ! INT32SZ */
+#ifndef INADDR_LOOPBACK
+# define INADDR_LOOPBACK	0x7f000001	/* loopback address */
+#endif /* ! INADDR_LOOPBACK */
 
 /*
 **  Error return from inet_addr(3), in case not defined in /usr/include.
@@ -1377,6 +1380,7 @@ struct milter
 # define SMFS_OPEN		'O'	/* connected to remote milter filter */
 # define SMFS_INMSG		'M'	/* currently servicing a message */
 # define SMFS_DONE		'D'	/* done with current message */
+# define SMFS_CLOSABLE		'Q'	/* done with current connection */
 # define SMFS_ERROR		'E'	/* error state */
 # define SMFS_READY		'R'	/* ready for action */
 
@@ -1692,6 +1696,9 @@ EXTERN bool	SingleThreadDelivery;	/* single thread hosts on delivery */
 EXTERN bool	SuperSafe;	/* be extra careful, even if expensive */
 EXTERN bool	SuprErrs;	/* set if we are suppressing errors */
 EXTERN bool	TryNullMXList;	/* if we are the best MX, try host directly */
+#if _FFR_WORKAROUND_BROKEN_NAMESERVERS
+EXTERN bool	WorkAroundBrokenAAAA;	/* some nameservers return SERVFAIL on AAAA queries */
+#endif /* _FFR_WORKAROUND_BROKEN_NAMESERVERS */
 EXTERN bool	UseErrorsTo;	/* use Errors-To: header (back compat) */
 EXTERN bool	UseHesiod;	/* using Hesiod -- interpret Hesiod errors */
 EXTERN bool	UseNameServer;	/* using DNS -- interpret h_errno & MX RRs */
@@ -2063,7 +2070,7 @@ extern void	setuserenv __P((const char *, const char *));
 extern void	settime __P((ENVELOPE *));
 extern char	*sfgets __P((char *, int, FILE *, time_t, char *));
 extern char	*shortenstring __P((const char *, int));
-extern void	shorten_hostname __P((char []));
+extern char	*shorten_hostname __P((char []));
 extern bool	shorten_rfc822_string __P((char *, size_t));
 extern SIGFUNC_DECL	sigusr1 __P((int));
 extern SIGFUNC_DECL	sighup __P((int));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-1999, 2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -15,9 +15,9 @@
 
 #ifndef lint
 # if USERDB
-static char id[] = "@(#)$Id: udb.c,v 8.111 1999/11/16 02:04:04 gshapiro Exp $ (with USERDB)";
+static char id[] = "@(#)$Id: udb.c,v 8.111.16.1 2001/01/04 18:18:37 gshapiro Exp $ (with USERDB)";
 # else /* USERDB */
-static char id[] = "@(#)$Id: udb.c,v 8.111 1999/11/16 02:04:04 gshapiro Exp $ (without USERDB)";
+static char id[] = "@(#)$Id: udb.c,v 8.111.16.1 2001/01/04 18:18:37 gshapiro Exp $ (without USERDB)";
 # endif /* USERDB */
 #endif /* ! lint */
 
@@ -1011,6 +1011,10 @@ _udbx_init(e)
 								0644);
 					if (ret != 0)
 					{
+#ifdef DB_OLD_VERSION
+						if (ret == DB_OLD_VERSION)
+							ret = EINVAL;
+#endif /* DB_OLD_VERSION */
 						(void) up->udb_dbp->close(up->udb_dbp, 0);
 						up->udb_dbp = NULL;
 					}

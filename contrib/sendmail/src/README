@@ -1,4 +1,4 @@
-# Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988
@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.263.2.1.2.27 2000/12/16 16:46:02 gshapiro Exp $
+#	$Id: README,v 8.263.2.1.2.32 2001/01/29 23:45:22 gshapiro Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -631,9 +631,10 @@ YOU HEADACHES!
 When attempting to canonify a hostname, some broken name servers will
 return SERVFAIL (a temporary failure) on T_AAAA (IPv6) lookups.  If you
 want to excuse this behavior, compile sendmail with
--D_FFR_WORKAROUND_BROKEN_NAMESERVERS.  However, instead, we recommend catching
-the problem and reporting it to the name server administrator so we can rid
-the world of broken name servers.
+-D_FFR_WORKAROUND_BROKEN_NAMESERVERS and add WorkAroundBrokenAAAA to your
+ResolverOptions setting.  However, instead, we recommend catching the
+problem and reporting it to the name server administrator so we can rid the
+world of broken name servers.
 
 +----------------------------------------+
 | STARTTLS COMPILATION AND CONFIGURATION |
@@ -1038,6 +1039,12 @@ IRIX 6.x
 	If you are using XFS filesystem, avoid using the -32 ABI switch to
 	the cc compiler if possible.
 
+	Broken inet_aton and inet_ntoa on IRIX using gcc: There's
+	a problem with gcc on IRIX, i.e., gcc can't pass structs
+	less than 16 bits long unless they are 8 bits; IRIX 6.2 has
+	some other sized structs.  See
+	http://www.bitmechanic.com/mail-archives/mysql/current/0418.html
+
 IRIX 6.4
 	The IRIX 6.5.4 version of /bin/m4 does not work properly with
 	sendmail.  Either install fw_m4.sw.m4 off the Freeware_May99 CD and
@@ -1096,8 +1103,10 @@ BSDI (BSD/386) 1.0, NetBSD 0.9, FreeBSD 1.0
 	determined to continue to use your old, buggy version (or as
 	a shortcut to get sendmail working -- I'm sure you have the
 	best intentions to port a modern version of BIND), you can
-	copy ../contrib/oldbind.compat.c into sendmail and add
-	oldbind.compat.o to OBJADD in the Makefile.
+	copy ../contrib/oldbind.compat.c into sendmail and add the
+	following to devtools/Site/site.config.m4:
+
+	APPENDDEF(`confOBJADD', `oldbind.compat.o')
 
 A/UX
 	Date: Tue, 12 Oct 1993 18:28:28 -0400 (EDT)
@@ -1236,6 +1245,17 @@ Linux
 	"#include <syslog.h>" to the SFIO version of stdio.h as the very
 	first line.
 
+glibc
+	glibc 2.2.1 (and possibly other versions) changed the value of
+	__RES in resolv.h but failed to actually provide the IPv6 API
+	changes that the change implied.  Therefore, compiling with
+	-DNETINET6 fails.
+
+	Workarounds:
+	1) Compile without -DNETINET6
+	2) Build against a real BIND 8.2.2 include/lib tree
+	3) Wait for glibc to fix it
+
 AIX 4.X
 	The AIX 4.X linker uses library paths specified during compilation
 	using -L for run-time shared library searches.  Therefore, it is
@@ -1268,7 +1288,7 @@ AIX 4.3.3
 
 	Workarounds:
 	1) Compile without -DNETINET6
-	2) Build against a real Bind 8.2.2 include/lib tree
+	2) Build against a real BIND 8.2.2 include/lib tree
 	3) Wait for IBM to fix it
 
 AIX 4.X
@@ -1668,4 +1688,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.263.2.1.2.27 $, last update $Date: 2000/12/16 16:46:02 $ )
+(Version $Revision: 8.263.2.1.2.32 $, last update $Date: 2001/01/29 23:45:22 $ )

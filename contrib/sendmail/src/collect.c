@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: collect.c,v 8.136.4.8 2000/10/09 00:50:04 gshapiro Exp $";
+static char id[] = "@(#)$Id: collect.c,v 8.136.4.15 2001/02/21 01:05:59 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -84,7 +84,6 @@ collect(fp, smtpmode, hdrp, e)
 	volatile int hdrslen = 0;
 	volatile int numhdrs = 0;
 	volatile int dfd;
-	volatile int afd;
 	volatile int rstat = EX_OK;
 	u_char *volatile pbp;
 	u_char peekbuf[8];
@@ -102,6 +101,8 @@ collect(fp, smtpmode, hdrp, e)
 	if (!headeronly)
 	{
 		struct stat stbuf;
+		long sff = SFF_OPENASROOT;
+
 
 		(void) strlcpy(dfname, queuename(e, 'd'), sizeof dfname);
 #if _FFR_QUEUE_FILE_MODE
@@ -110,18 +111,21 @@ collect(fp, smtpmode, hdrp, e)
 
 			if (bitset(S_IWGRP, QueueFileMode))
 				oldumask = umask(002);
-			df = bfopen(dfname, QueueFileMode, DataFileBufferSize,
-				    SFF_OPENASROOT);
+			df = bfopen(dfname, QueueFileMode,
+				    DataFileBufferSize, sff);
 			if (bitset(S_IWGRP, QueueFileMode))
 				(void) umask(oldumask);
 		}
 #else /* _FFR_QUEUE_FILE_MODE */
-		df = bfopen(dfname, FileMode, DataFileBufferSize,
-			    SFF_OPENASROOT);
+		df = bfopen(dfname, FileMode, DataFileBufferSize, sff);
 #endif /* _FFR_QUEUE_FILE_MODE */
 		if (df == NULL)
 		{
-			syserr("Cannot create %s", dfname);
+			HoldErrs = FALSE;
+			if (smtpmode)
+				syserr("421 4.3.5 Unable to create data file");
+			else
+				syserr("Cannot create %s", dfname);
 			e->e_flags |= EF_NO_BODY_RETN;
 			finis(TRUE, ExitStat);
 			/* NOTREACHED */
@@ -346,8 +350,9 @@ bufferchar:
 			else if (c != '\0')
 			{
 				*bp++ = c;
+				hdrslen++;
 				if (MaxHeadersLength > 0 &&
-				    ++hdrslen > MaxHeadersLength)
+				    hdrslen > MaxHeadersLength)
 				{
 					sm_syslog(LOG_NOTICE, e->e_id,
 						  "headers too large (%d max) from %s during message collect",
@@ -496,13 +501,6 @@ readerr:
 		/* skip next few clauses */
 		/* EMPTY */
 	}
-	else if ((afd = fileno(df)) >= 0 && fsync(afd) < 0)
-	{
-		dferror(df, "fsync", e);
-		flush_errors(TRUE);
-		finis(TRUE, ExitStat);
-		/* NOTREACHED */
-	}
 	else if (bfcommit(df) < 0)
 	{
 		int save_errno = errno;
@@ -526,6 +524,13 @@ readerr:
 		dferror(df, "bfcommit", e);
 		flush_errors(TRUE);
 		finis(save_errno != EEXIST, ExitStat);
+	}
+	else if (bffsync(df) < 0)
+	{
+		dferror(df, "bffsync", e);
+		flush_errors(TRUE);
+		finis(TRUE, ExitStat);
+		/* NOTREACHED */
 	}
 	else if (bfclose(df) < 0)
 	{

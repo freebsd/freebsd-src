@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: bf_portable.c,v 8.25.4.3 2000/06/29 21:21:58 gshapiro Exp $";
+static char id[] = "@(#)$Id: bf_portable.c,v 8.25.4.5 2001/02/14 04:07:27 gshapiro Exp $";
 #endif /* ! lint */
 
 #if SFIO
@@ -280,6 +280,47 @@ bftruncate(fp)
 	ret = ftruncate(fileno(fp), 0);
 #endif /* NOFTRUNCATE */
 	return ret;
+}
+
+/*
+**  BFFSYNC -- fsync the fd associated with the FILE *
+**
+**	Parameters:
+**		fp -- FILE * to fsync
+**
+**	Returns:
+**		0 on success, -1 on error
+**
+**	Sets errno:
+**		EINVAL if FILE * not bfcommitted yet.
+**		any value of errno specified by fsync()
+*/
+
+int
+bffsync(fp)
+	FILE *fp;
+{
+	int fd;
+	struct bf *bfp;
+
+	/* Get associated bf structure */
+	bfp = bflookup(fp);
+
+	/* If called on a normal FILE *, noop */
+	if (bfp != NULL && !bfp->bf_committed)
+		fd = -1;
+	else
+		fd = fileno(fp);
+
+	if (tTd(58, 10))
+		dprintf("bffsync: fd = %d\n", fd);
+
+	if (fd < 0)
+	{
+		errno = EINVAL;
+		return -1;
+	}
+	return fsync(fd);
 }
 
 /*
