@@ -7,9 +7,9 @@
  * 508 433 5266
  * dufault@hda.com
  *
- * Copyright (C) 1996, interface business GmbH
- *   Tolkewitzer Str. 49
- *   D-01277 Dresden
+ * Copyright (C) 1996-97 interface business GmbH
+ *   Naumannstr. 1
+ *   D-01309 Dresden
  *   F.R. Germany
  * <joerg_wunsch@interface-business.de>
  *
@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.48 1997/12/02 21:07:07 phk Exp $
+ *      $Id: worm.c,v 1.49 1997/12/20 23:03:49 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -86,7 +86,6 @@ struct scsi_data
 {
 	struct buf_queue_head buf_queue;
 	int dkunit;		/* disk stats unit number */
-	u_int32_t n_blks;		/* Number of blocks (0 for bogus) */
 	u_int32_t blk_size;	/* Size of each blocks */
 #ifdef	DEVFS
 	void	*b_devfs_token;
@@ -95,15 +94,17 @@ struct scsi_data
 #endif
 
 	struct worm_quirks *quirks; /* model-specific functions */
+	struct wormio_prepare_track preptrack; /* scratch region */
 
 	u_int8_t dummy;		/* use dummy writes */
 	u_int8_t speed;		/* select drive speed */
 
 	u_int32_t worm_flags;	/* driver-internal flags */
 #define WORMFL_DISK_PREPED	0x01 /* disk parameters have been spec'ed */
-#define WORMFL_TRACK_PREPED	0x02 /* track parameters have been spec'ed */
+#define WORMFL_TRACK_PREPED	0x02 /* track parameters have been sent */
 #define WORMFL_WRITTEN		0x04 /* track has been written */
 #define WORMFL_IOCTL_ONLY	0x08 /* O_NDELAY, only ioctls allowed */
+#define WORMFL_TRACK_PREP  	0x10 /* track parameters have been spec'ed */
 
         int error;              /* last error */
 };
@@ -228,26 +229,23 @@ worm_size(struct scsi_link *sc_link, int flags)
 	errval ret;
 	struct scsi_data *worm = sc_link->sd;
 	int blk_size;
+	u_int32_t n_blks;
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("worm_size"));
 
-	worm->n_blks = scsi_read_capacity(sc_link, &blk_size,
-					  flags);
+	n_blks = scsi_read_capacity(sc_link, &blk_size, flags);
 
 	/*
 	 * CD-R devices can assume various sizes, depending on the
 	 * intended purpose of the track.  Hence, READ CAPACITY
-	 * doesn't give us any good results.  Make a more educated
-	 * guess instead.
+	 * doesn't give us any good results.  We make a more educated
+	 * guess when it comes to prepare a track.
 	 */
 
-	if (worm->n_blks)
-	{
+	if (n_blks > 0) {
 		sc_link->flags |= SDEV_MEDIA_LOADED;
 		ret = 0;
-	}
-	else
-	{
+	} else {
 		sc_link->flags &= ~SDEV_MEDIA_LOADED;
 		ret = ENXIO;
 	}
@@ -342,19 +340,29 @@ wormstart(unit, flags)
 		}
 
 		bp = bufq_first(&worm->buf_queue);
-		if (bp == NULL) {	/* yes, an assign */
+		if (bp == NULL)
 			return;
-		}
+
 		bufq_remove(&worm->buf_queue, bp);
 
-		if (((bp->b_flags & B_READ) == B_WRITE) 
-		    && ((worm->worm_flags & WORMFL_TRACK_PREPED) == 0)) {
-		    SC_DEBUG(sc_link, SDEV_DB3, ("sequence error\n"));
-		    bp->b_error = EIO;
-		    bp->b_flags |= B_ERROR;
-		    worm->error = WORM_SEQUENCE_ERROR;
-		    biodone(bp);
-		    goto badnews;
+		if ((bp->b_flags & B_READ) == B_WRITE) {
+		    if ((worm->worm_flags & WORMFL_TRACK_PREPED) == 0) {
+			if ((worm->worm_flags & WORMFL_TRACK_PREP) == 0) {
+			    SC_DEBUG(sc_link, SDEV_DB3, ("sequence error\n"));
+			    bp->b_error = EIO;
+			    bp->b_flags |= B_ERROR;
+			    worm->error = WORM_SEQUENCE_ERROR;
+			    biodone(bp);
+			    goto badnews;
+			} else {
+			    if (worm->quirks->prepare_track(sc_link, &worm->preptrack)
+				!= 0) {
+				biodone(bp);
+				goto badnews;
+			    }
+			    worm->worm_flags |= WORMFL_TRACK_PREPED;
+			}
+		    }
 		}
 		/*
 		 *  Fill out the scsi command
@@ -428,25 +436,6 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 		SC_DEBUG(sc_link, SDEV_DB3,
 			 ("attempted IO on ioctl-only descriptor\n"));
 		bp->b_error = EBADF;
-		bp->b_flags |= B_ERROR;
-		biodone(bp);
-		return;
-	}
-
-	/*
-	 * The ugly modulo operation is necessary since audio tracks
-	 * have a block size of 2352 bytes.
-	 */
-	if (!(sc_link->flags & SDEV_MEDIA_LOADED) ||
-	    bp->b_blkno * DEV_BSIZE > worm->n_blks * worm->blk_size||
-	    (bp->b_bcount % worm->blk_size) != 0) {
-		SC_DEBUG(sc_link, SDEV_DB3,
-			 ("worm block size / capacity error, "
-			  "b_blkno = %d, n_blks = %d, blk_size = %d, "
-			  "b_bcount = %d\n",
-			  bp->b_blkno, worm->n_blks, worm->blk_size,
-			  bp->b_bcount) );
-		bp->b_error = EIO;
 		bp->b_flags |= B_ERROR;
 		biodone(bp);
 		return;
@@ -534,10 +523,8 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 
 	if (scsi_test_unit_ready(sc_link, SCSI_SILENT) != 0) {
 		SC_DEBUG(sc_link, SDEV_DB3, ("not ready\n"));
-		if ((flags & FWRITE) != 0)
-			worm->worm_flags &= ~WORMFL_TRACK_PREPED;
-		sc_link->flags &= ~SDEV_OPEN;
-		return ENXIO;
+		error = ENXIO;
+		goto out;
 	}
 
 	if ((flags & O_NONBLOCK) == 0) {
@@ -549,18 +536,16 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 			    (error = worm_size(sc_link, 0)) != 0) {
 				SC_DEBUG(sc_link, SDEV_DB3,
 					 ("rezero, or get size failed\n"));
-				scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
-				worm->worm_flags &= ~WORMFL_TRACK_PREPED;
-				sc_link->flags &= ~SDEV_OPEN;
+				error = EIO;
+				goto out;
 			}
 		} else {
 			/* read/only */
 			if ((error = worm_size(sc_link, 0)) != 0) {
 				SC_DEBUG(sc_link, SDEV_DB3,
 					 ("get size failed\n"));
-				scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
-				worm->worm_flags &= ~WORMFL_TRACK_PREPED;
-				sc_link->flags &= ~SDEV_OPEN;
+				error = EIO;
+				goto out;
 			}
 			worm->blk_size = 2048;
 		}
@@ -575,9 +560,17 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 	    worm->quirks = &worm_quirks_philips;
 	    break;
 	default:
-	    error = EINVAL; 
+	    error = ENXIO; 
 	}
 	worm->error = 0;
+
+  out:
+	if (error) {
+	    scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
+	    worm->worm_flags &= ~(WORMFL_TRACK_PREPED| WORMFL_TRACK_PREP);
+	    sc_link->flags &= ~SDEV_OPEN;
+	}
+
 	return error;
 }
 
@@ -593,14 +586,17 @@ worm_close(dev_t dev, int flags, int fmt, struct proc *p,
 	if ((worm->worm_flags & WORMFL_IOCTL_ONLY) == 0) {
 		if ((flags & FWRITE) != 0) {
 		    worm->error = 0;
-		    if ((worm->worm_flags & WORMFL_TRACK_PREPED) != 0) 
+		    if ((worm->worm_flags & WORMFL_TRACK_PREPED) != 0) {
 			error = (worm->quirks->finalize_track)(sc_link);
-		    worm->worm_flags &= ~WORMFL_TRACK_PREPED;
+		    	worm->worm_flags &=
+			    ~(WORMFL_TRACK_PREPED | WORMFL_TRACK_PREP);
+		    }
 		}
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
-	}
+	} else
+	    worm->worm_flags &= ~WORMFL_IOCTL_ONLY;
+
 	sc_link->flags &= ~SDEV_OPEN;
-	worm->worm_flags &= ~WORMFL_IOCTL_ONLY;
 
 	return error;
 }
@@ -655,17 +651,20 @@ worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 		error = EINVAL;
 		worm->error = WORM_SEQUENCE_ERROR;
 	    } else {
-		if ((error = (worm->quirks->prepare_track)
-		     (sc_link, w)) == 0)
-		    worm->worm_flags |=
-			WORMFL_TRACK_PREPED;
+		/*
+		 * This sets a flag only.  Actual preparation of a
+		 * track will be deferred up to the first write.
+		 */
+		worm->worm_flags |= WORMFL_TRACK_PREP;
+		worm->preptrack = *w;
 	    }
 	}
 	break;
 
 	case WORMIOCFINISHTRACK:
-	    error = (worm->quirks->finalize_track)(sc_link);
-	    worm->worm_flags &= ~WORMFL_TRACK_PREPED;
+	    if ((worm->worm_flags & WORMFL_TRACK_PREPED) != 0)
+		error = (worm->quirks->finalize_track)(sc_link);
+	    worm->worm_flags &= ~(WORMFL_TRACK_PREPED | WORMFL_TRACK_PREP);
 	    break;
 
 	case WORMIOCFIXATION:
@@ -708,8 +707,8 @@ worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	    if (worm->quirks->write_session) {
 		error = (worm->quirks->write_session)
 		    (sc_link, (struct wormio_write_session *) addr);
-		if (!error) 
-		    worm->worm_flags |=	WORMFL_TRACK_PREPED;
+		if (!error)
+		    worm->worm_flags |=	WORMFL_TRACK_PREPED | WORMFL_TRACK_PREP;
 	    } else
 		error = ENXIO;
 	    break;
