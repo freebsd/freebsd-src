@@ -192,6 +192,13 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 		kp->ki_textvp = proc.p_textvp;
 		kp->ki_fd = proc.p_fd;
 		kp->ki_vmspace = proc.p_vmspace;
+		/*
+		 * The pending signal list is private to the kernel, as the
+		 * queue cannot be exported, and the interfaces used are
+		 * not exposed to userland.  For compatability, just install
+		 * an empty signal set.
+		 */
+		SIGEMPTYSET(proc.p_siglist);
 		if (proc.p_procsig != NULL) {
 			if (KREAD(kd, (u_long)proc.p_procsig, &procsig)) {
 				_kvm_err(kd, kd->program,
@@ -327,7 +334,6 @@ nopgrp:
 		bintime2timeval(&proc.p_runtime, &tv);
 		kp->ki_runtime = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 		kp->ki_pid = proc.p_pid;
-		kp->ki_siglist = proc.p_siglist;
 		kp->ki_sigmask = proc.p_sigmask;
 		kp->ki_xstat = proc.p_xstat;
 		kp->ki_acflag = proc.p_acflag;
