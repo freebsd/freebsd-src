@@ -105,6 +105,7 @@ m_getm(struct mbuf *m, int len, int how, short type)
 	int i;
 
 	KASSERT(len >= 0, ("m_getm(): len is < 0"));
+	MBUF_CHECKSLEEP(how);
 
 	/* If m != NULL, we will append to the end of that chain. */
 	if (m != NULL)
@@ -307,6 +308,7 @@ m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
 	/* Note: with MAC, this may not be a good assertion. */
 	KASSERT(SLIST_EMPTY(&to->m_pkthdr.tags), ("m_dup_pkthdr: to has tags"));
 #endif
+	MBUF_CHECKSLEEP(how);
 #ifdef MAC
 	if (to->m_flags & M_PKTHDR)
 		m_tag_delete_chain(to, NULL);
@@ -329,6 +331,7 @@ m_prepend(struct mbuf *m, int len, int how)
 {
 	struct mbuf *mn;
 
+	MBUF_CHECKSLEEP(how);
 	if (m->m_flags & M_PKTHDR)
 		MGETHDR(mn, how, m->m_type);
 	else
@@ -364,6 +367,7 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 
 	KASSERT(off >= 0, ("m_copym, negative off %d", off));
 	KASSERT(len >= 0, ("m_copym, negative len %d", len));
+	MBUF_CHECKSLEEP(wait);
 	if (off == 0 && m->m_flags & M_PKTHDR)
 		copyhdr = 1;
 	while (off > 0) {
@@ -436,6 +440,7 @@ m_copypacket(struct mbuf *m, int how)
 {
 	struct mbuf *top, *n, *o;
 
+	MBUF_CHECKSLEEP(how);
 	MGET(n, how, m->m_type);
 	top = n;
 	if (n == NULL)
@@ -522,6 +527,7 @@ m_dup(struct mbuf *m, int how)
 	struct mbuf **p, *top = NULL;
 	int remain, moff, nsize;
 
+	MBUF_CHECKSLEEP(how);
 	/* Sanity check */
 	if (m == NULL)
 		return (NULL);
@@ -760,6 +766,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 	struct mbuf *m, *n;
 	u_int len = len0, remain;
 
+	MBUF_CHECKSLEEP(wait);
 	for (m = m0; m && len > m->m_len; m = m->m_next)
 		len -= m->m_len;
 	if (m == NULL)
@@ -1049,6 +1056,7 @@ m_defrag(struct mbuf *m0, int how)
 	struct mbuf *m_new = NULL, *m_final = NULL;
 	int progress = 0, length;
 
+	MBUF_CHECKSLEEP(how);
 	if (!(m0->m_flags & M_PKTHDR))
 		return (m0);
 
