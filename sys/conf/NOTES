@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.353 1997/07/25 11:53:19 phk Exp $
+#	$Id: LINT,v 1.354 1997/07/26 01:46:00 fsmp Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -856,6 +856,8 @@ options		DSI_SOFT_MODEM		#code for DSI Softmodems
 # lnc: Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL)
 # sr: RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # wl: Lucent Wavelan (ISA card only).
+#	"options WLDEBUG" enables verbose debugging output,
+#	"options WLCACHE" enables the signal-strength cache.
 # ze: IBM/National Semiconductor PCMCIA ethernet controller.
 # zp: 3Com PCMCIA Etherlink III (It does not require shared memory for
 #     send/receive operation, but it needs 'iomem' to read/write the
@@ -1244,4 +1246,3 @@ options		SHMSEG=9
 options		SI_DEBUG
 options		SIMPLELOCK_DEBUG
 options		SPX_HACK
-options		WLDEBUG
