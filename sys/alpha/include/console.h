@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.32 1997/10/01 20:46:25 sos Exp $
+ *	$Id: console.h,v 1.33 1997/12/07 08:08:49 yokota Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -58,6 +58,8 @@
 #define PIO_SCRNMAP	_IOW('k', 3, scrmap_t)
 #define GIO_KEYMAP 	_IOR('k', 6, keymap_t)
 #define PIO_KEYMAP 	_IOW('k', 7, keymap_t)
+#define GIO_DEADKEYMAP 	_IOR('k', 8, accentmap_t)
+#define PIO_DEADKEYMAP 	_IOW('k', 9, accentmap_t)
 
 #define GIO_ATTR	_IOR('a', 0, int)
 #define GIO_COLOR	_IOR('c', 0, int)
@@ -192,6 +194,19 @@ struct keymap {
 	struct key_t key[NUM_KEYS];
 };
 
+#define NUM_DEADKEYS	15		/* number of accent keys */
+#define NUM_ACCENTCHARS	52		/* max number of accent chars */
+
+struct acc_t {
+	u_char accchar;
+	u_char map[NUM_ACCENTCHARS][2];
+};
+
+struct accentmap {
+	u_short n_accs;
+	struct acc_t acc[NUM_DEADKEYS];
+};
+
 #define MAXFK		16
 #define NUM_FKEYS	96
 
@@ -232,6 +247,7 @@ struct ssaver	{
 };
 
 typedef struct keymap keymap_t;
+typedef struct accentmap accentmap_t;
 typedef struct fkeytab fkeytab_t;
 typedef struct fkeyarg fkeyarg_t;
 typedef struct vid_info vid_info_t;
@@ -269,8 +285,28 @@ typedef struct ssaver ssaver_t;
 #define SUSP		0x87		/* suspend power (APM)		*/
 #define SPSC		0x88		/* toggle splash/text screen	*/
 
+#define F_ACC		DGRA		/* first accent key		*/
+#define DGRA		0x89		/* grave			*/
+#define DACU		0x8a		/* acute			*/
+#define DCIR		0x8b		/* circumflex			*/
+#define DTIL		0x8c		/* tilde			*/
+#define DMAC		0x8d		/* macron			*/
+#define DBRE		0x8e		/* breve			*/
+#define DDOT		0x8f		/* dot				*/
+#define DUML		0x90		/* umlaut/diaresis		*/
+#define DDIA		0x90		/* diaresis			*/
+#define DSLA		0x91		/* slash			*/
+#define DRIN		0x92		/* ring				*/
+#define DCED		0x93		/* cedilla			*/
+#define DAPO		0x94		/* apostrophe			*/
+#define DDAC		0x95		/* double acute			*/
+#define DOGO		0x96		/* ogonek			*/
+#define DCAR		0x97		/* caron			*/
+#define L_ACC		DCAR		/* last accent key		*/
+
 #define F(x)		((x)+F_FN-1)
 #define	S(x)		((x)+F_SCR-1)
+#define ACC(x)		((x)+F_ACC)
 #define NOKEY		0x100		/* no key pressed marker 	*/
 #define FKEY		0x200		/* function key marker 		*/
 #define MKEY		0x400		/* meta key marker (prepend ESC)*/
