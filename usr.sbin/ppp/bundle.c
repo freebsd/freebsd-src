@@ -96,6 +96,7 @@
 #include "datalink.h"
 #include "ip.h"
 #include "iface.h"
+#include "server.h"
 
 #define SCATTER_SEGMENTS 7  /* version, datalink, name, physical,
                                throughput, throughput, device       */
@@ -1177,18 +1178,29 @@ bundle_ShowStatus(struct cmdargs const *arg)
                 arg->bundle->cfg.ifqueue);
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
-  prompt_Printf(arg->prompt, " Label:         %s\n", arg->bundle->cfg.label);
-  prompt_Printf(arg->prompt, " Auth name:     %s\n",
+  prompt_Printf(arg->prompt, " Label:             %s\n",
+                arg->bundle->cfg.label);
+  prompt_Printf(arg->prompt, " Auth name:         %s\n",
                 arg->bundle->cfg.auth.name);
+  prompt_Printf(arg->prompt, " Diagnostic socket: ");
+  if (*server.cfg.sockname != '\0')
+    prompt_Printf(arg->prompt, "%s, mask 0%03o%s\n",
+                  server.cfg.sockname, (int)server.cfg.mask,
+                  server.fd == -1 ? " (not open)" : "");
+  else if (server.cfg.port != 0)
+    prompt_Printf(arg->prompt, "TCP port %d%s\n", server.cfg.port,
+                  server.fd == -1 ? " (not open)" : "");
+  else
+    prompt_Printf(arg->prompt, "none\n");
 
-  prompt_Printf(arg->prompt, " Choked Timer:  %ds\n",
+  prompt_Printf(arg->prompt, " Choked Timer:      %ds\n",
                 arg->bundle->cfg.choked.timeout);
 
 #ifndef NORADIUS
   radius_Show(&arg->bundle->radius, arg->prompt);
 #endif
 
-  prompt_Printf(arg->prompt, " Idle Timer:    ");
+  prompt_Printf(arg->prompt, " Idle Timer:        ");
   if (arg->bundle->cfg.idle.timeout) {
     prompt_Printf(arg->prompt, "%ds", arg->bundle->cfg.idle.timeout);
     if (arg->bundle->cfg.idle.min_timeout)
@@ -1200,13 +1212,13 @@ bundle_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "\n");
   } else
     prompt_Printf(arg->prompt, "disabled\n");
-  prompt_Printf(arg->prompt, " MTU:           ");
+  prompt_Printf(arg->prompt, " MTU:               ");
   if (arg->bundle->cfg.mtu)
     prompt_Printf(arg->prompt, "%d\n", arg->bundle->cfg.mtu);
   else
     prompt_Printf(arg->prompt, "unspecified\n");
 
-  prompt_Printf(arg->prompt, " sendpipe:      ");
+  prompt_Printf(arg->prompt, " sendpipe:          ");
   if (arg->bundle->ncp.ipcp.cfg.sendpipe > 0)
     prompt_Printf(arg->prompt, "%-20ld", arg->bundle->ncp.ipcp.cfg.sendpipe);
   else
@@ -1217,29 +1229,29 @@ bundle_ShowStatus(struct cmdargs const *arg)
   else
     prompt_Printf(arg->prompt, "unspecified\n");
 
-  prompt_Printf(arg->prompt, " Sticky Routes: %-20.20s",
+  prompt_Printf(arg->prompt, " Sticky Routes:     %-20.20s",
                 optval(arg->bundle, OPT_SROUTES));
-  prompt_Printf(arg->prompt, " Filter Decap:  %s\n",
+  prompt_Printf(arg->prompt, " Filter Decap:      %s\n",
                 optval(arg->bundle, OPT_FILTERDECAP));
-  prompt_Printf(arg->prompt, " ID check:      %-20.20s",
+  prompt_Printf(arg->prompt, " ID check:          %-20.20s",
                 optval(arg->bundle, OPT_IDCHECK));
-  prompt_Printf(arg->prompt, " Keep-Session:  %s\n",
+  prompt_Printf(arg->prompt, " Keep-Session:      %s\n",
                 optval(arg->bundle, OPT_KEEPSESSION));
-  prompt_Printf(arg->prompt, " Loopback:      %-20.20s",
+  prompt_Printf(arg->prompt, " Loopback:          %-20.20s",
                 optval(arg->bundle, OPT_LOOPBACK));
-  prompt_Printf(arg->prompt, " PasswdAuth:    %s\n",
+  prompt_Printf(arg->prompt, " PasswdAuth:        %s\n",
                 optval(arg->bundle, OPT_PASSWDAUTH));
-  prompt_Printf(arg->prompt, " Proxy:         %-20.20s",
+  prompt_Printf(arg->prompt, " Proxy:             %-20.20s",
                 optval(arg->bundle, OPT_PROXY));
-  prompt_Printf(arg->prompt, " Proxyall:      %s\n",
+  prompt_Printf(arg->prompt, " Proxyall:          %s\n",
                 optval(arg->bundle, OPT_PROXYALL));
-  prompt_Printf(arg->prompt, " TCPMSS Fixup:  %-20.20s",
+  prompt_Printf(arg->prompt, " TCPMSS Fixup:      %-20.20s",
                 optval(arg->bundle, OPT_TCPMSSFIXUP));
-  prompt_Printf(arg->prompt, " Throughput:    %s\n",
+  prompt_Printf(arg->prompt, " Throughput:        %s\n",
                 optval(arg->bundle, OPT_THROUGHPUT));
-  prompt_Printf(arg->prompt, " Utmp Logging:  %-20.20s",
+  prompt_Printf(arg->prompt, " Utmp Logging:      %-20.20s",
                 optval(arg->bundle, OPT_UTMP));
-  prompt_Printf(arg->prompt, " Iface-Alias:   %s\n",
+  prompt_Printf(arg->prompt, " Iface-Alias:       %s\n",
                 optval(arg->bundle, OPT_IFACEALIAS));
 
   return 0;

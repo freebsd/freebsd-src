@@ -1287,14 +1287,35 @@ SetServer(struct cmdargs const *arg)
         return -1;
       }
     } else if (strcasecmp(port, "none") == 0) {
+      if (server_Clear(arg->bundle))
+        log_Printf(LogPHASE, "Disabled server socket\n");
+      return 0;
+    } else if (strcasecmp(port, "open") == 0) {
+      switch (server_Reopen(arg->bundle)) {
+        case SERVER_OK:
+          return 0;
+        case SERVER_FAILED:
+          log_Printf(LogPHASE, "Failed to reopen server port\n");
+          return 1;
+        case SERVER_UNSET:
+          log_Printf(LogPHASE, "Cannot reopen unset server socket\n");
+          return 1;
+        default:
+          break;
+      }
+      return -1;
+    } else if (strcasecmp(port, "closed") == 0) {
       if (server_Close(arg->bundle))
-        log_Printf(LogPHASE, "Disabled server port.\n");
+        log_Printf(LogPHASE, "Closed server socket\n");
+      else
+        log_Printf(LogWARN, "Server socket not open\n");
+
       return 0;
     } else
       return -1;
 
-    strncpy(server.passwd, passwd, sizeof server.passwd - 1);
-    server.passwd[sizeof server.passwd - 1] = '\0';
+    strncpy(server.cfg.passwd, passwd, sizeof server.cfg.passwd - 1);
+    server.cfg.passwd[sizeof server.cfg.passwd - 1] = '\0';
 
     if (*port == '/') {
       mode_t imask;
@@ -2060,8 +2081,8 @@ static struct cmdtab const SetCommands[] = {
   "Redial timeout", "set redial secs[+inc[-incmax]][.next] [attempts]"},
   {"sendpipe", NULL, SetVariable, LOCAL_AUTH,
   "SENDPIPE value", "set sendpipe value", (const void *)VAR_SENDPIPE},
-  {"server", "socket", SetServer, LOCAL_AUTH,
-  "server port", "set server|socket TcpPort|LocalName|none password [mask]"},
+  {"server", "socket", SetServer, LOCAL_AUTH, "diagnostic port",
+  "set server|socket TcpPort|LocalName|none|open|closed [password [mask]]"},
   {"speed", NULL, SetModemSpeed, LOCAL_AUTH | LOCAL_CX,
   "physical speed", "set speed value|sync"},
   {"stopped", NULL, SetStoppedTimeout, LOCAL_AUTH | LOCAL_CX,
