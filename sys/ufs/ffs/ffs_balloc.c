@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.8 (Berkeley) 6/16/95
- * $Id: ffs_balloc.c,v 1.21 1998/09/12 14:46:15 bde Exp $
+ * $Id: ffs_balloc.c,v 1.22 1999/01/28 00:57:54 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -216,7 +216,9 @@ ffs_balloc(ap)
 			 * Write synchronously so that indirect blocks
 			 * never point at garbage.
 			 */
-			if ((error = bwrite(bp)) != 0)
+			if (DOINGASYNC(vp))
+				bdwrite(bp);
+			else if ((error = bwrite(bp)) != 0)
 				goto fail;
 		}
 		allocib = &ip->i_ib[indirs[0].in_off];
