@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.6 1999/01/12 16:40:57 eivind Exp $
+ *	$Id: ip_dummynet.c,v 1.7 1999/01/12 16:43:52 eivind Exp $
  */
 
 /*
@@ -53,6 +53,7 @@
 #include <netinet/ip_dummynet.h>
 #include <netinet/ip_var.h>
 
+#include "opt_bdg.h"
 #ifdef BRIDGE
 #include <netinet/if_ether.h> /* for struct arpcom */
 #include <net/bridge.h>
