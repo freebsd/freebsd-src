@@ -281,7 +281,7 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: populating ${WORLDTMP}/usr/include"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} SHARED=copies includes
+	cd ${.CURDIR}; ${WMAKE} SHARED=symlinks includes
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: building libraries"
