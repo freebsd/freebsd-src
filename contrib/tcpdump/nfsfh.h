@@ -1,5 +1,5 @@
 /*
- * $Header: /tcpdump/master/tcpdump/nfsfh.h,v 1.8 1999/12/15 06:49:05 fenner Exp $
+ * $Header: /tcpdump/master/tcpdump/nfsfh.h,v 1.9 2000/06/01 01:16:36 assar Exp $
  *
  * nfsfh.h - NFS file handle definitions (for portable use)
  *
@@ -26,6 +26,7 @@ typedef struct {
  */
 typedef	struct {
 	my_devt	Fsid_dev;		/* XXX avoid name conflict with AIX */
+	char Opaque_Handle[2 * 32 + 1];
 	u_int32_t fsid_code;
 } my_fsid;
 

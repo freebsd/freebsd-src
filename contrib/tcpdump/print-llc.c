@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-llc.c,v 1.27 1999/12/22 06:27:21 itojun Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-llc.c,v 1.32 2000/12/18 07:55:36 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -66,10 +66,11 @@ static struct tok cmd2str[] = {
  */
 int
 llc_print(const u_char *p, u_int length, u_int caplen,
-	  const u_char *esrc, const u_char *edst)
+	  const u_char *esrc, const u_char *edst, u_short *extracted_ethertype)
 {
 	struct llc llc;
 	register u_short et;
+	u_int16_t control;
 	register int ret;
 
 	if (caplen < 3) {
@@ -85,13 +86,61 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		ipx_print(p, length);
 		return (1);
 	}
-	if (llc.ssap == 0xf0 && llc.dsap == 0xf0) {
+
+	/* Cisco Discovery Protocol  - SNAP & ether type 0x2000 */
+	if(llc.ssap == LLCSAP_SNAP && llc.dsap == LLCSAP_SNAP &&
+		llc.llcui == LLC_UI && 
+		llc.ethertype[0] == 0x20 && llc.ethertype[1] == 0x00 ) {
+		    cdp_print( p, length, caplen, esrc, edst);
+		    return (1);
+	}
+
+	if (llc.ssap == LLCSAP_8021D && llc.dsap == LLCSAP_8021D) {
+		stp_print(p, length);
+		return (1);
+	}
+	if (llc.ssap == 0xf0 && llc.dsap == 0xf0
+	    && (!(llc.llcu & LLC_S_FMT) || llc.llcu == LLC_U_FMT)) {
 		/*
 		 * we don't actually have a full netbeui parser yet, but the
 		 * smb parser can handle many smb-in-netbeui packets, which
 		 * is very useful, so we call that
+		 *
+		 * We don't call it for S frames, however, just I frames
+		 * (which are frames that don't have the low-order bit,
+		 * LLC_S_FMT, set in the first byte of the control field)
+		 * and UI frames (whose control field is just 3, LLC_U_FMT).
 		 */
-		netbeui_print(p + 2, p + min(caplen, length));
+
+		/*
+		 * Skip the DSAP and LSAP.
+		 */
+		p += 2;
+		length -= 2;
+		caplen -= 2;
+
+		/*
+		 * OK, what type of LLC frame is this?  The length
+		 * of the control field depends on that - I frames
+		 * have a two-byte control field, and U frames have
+		 * a one-byte control field.
+		 */
+		if (llc.llcu == LLC_U_FMT) {
+			control = llc.llcu;
+			p += 1;
+			length -= 1;
+			caplen -= 1;
+		} else {
+			/*
+			 * The control field in I and S frames is
+			 * little-endian.
+			 */
+			control = EXTRACT_LE_16BITS(&llc.llcu);
+			p += 2;
+			length -= 2;
+			caplen -= 2;
+		}
+		netbeui_print(control, p, p + min(caplen, length));
 		return (1);
 	}
 	if (llc.ssap == LLCSAP_ISONS && llc.dsap == LLCSAP_ISONS
@@ -116,7 +165,8 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 
 		/* This is an encapsulated Ethernet packet */
 		et = EXTRACT_16BITS(&llc.ethertype[0]);
-		ret = ether_encap_print(et, p, length, caplen);
+		ret = ether_encap_print(et, p, length, caplen,
+		    extracted_ethertype);
 		if (ret)
 			return (ret);
 	}
@@ -143,9 +193,12 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 	}
 
 	if ((llc.llcu & LLC_U_FMT) == LLC_U_FMT) {
+		u_int16_t cmd;
 		const char *m;
 		char f;
-		m = tok2str(cmd2str, "%02x", LLC_U_CMD(llc.llcu));
+
+		cmd = LLC_U_CMD(llc.llcu);
+		m = tok2str(cmd2str, "%02x", cmd);
 		switch ((llc.ssap & LLC_GSAP) | (llc.llcu & LLC_U_POLL)) {
 			case 0:			f = 'C'; break;
 			case LLC_GSAP:		f = 'R'; break;
@@ -169,35 +222,38 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 			}
 		}
 
-		if (!strcmp(m,"ui") && f=='C') {
+		if (cmd == LLC_UI && f == 'C') {
 			/*
 			 * we don't have a proper ipx decoder yet, but there
 			 * is a partial one in the smb code
 			 */
 			ipx_netbios_print(p,p+min(caplen,length));
 		}
-
 	} else {
 		char f;
-		llc.llcis = ntohs(llc.llcis);
-		switch ((llc.ssap & LLC_GSAP) | (llc.llcu & LLC_U_POLL)) {
+
+		/*
+		 * The control field in I and S frames is little-endian.
+		 */
+		control = EXTRACT_LE_16BITS(&llc.llcu);
+		switch ((llc.ssap & LLC_GSAP) | (control & LLC_IS_POLL)) {
 			case 0:			f = 'C'; break;
 			case LLC_GSAP:		f = 'R'; break;
-			case LLC_U_POLL:	f = 'P'; break;
-			case LLC_GSAP|LLC_U_POLL: f = 'F'; break;
+			case LLC_IS_POLL:	f = 'P'; break;
+			case LLC_GSAP|LLC_IS_POLL: f = 'F'; break;
 			default:		f = '?'; break;
 		}
 
-		if ((llc.llcu & LLC_S_FMT) == LLC_S_FMT) {
+		if ((control & LLC_S_FMT) == LLC_S_FMT) {
 			static char *llc_s[] = { "rr", "rej", "rnr", "03" };
 			(void)printf("%s (r=%d,%c)",
-				llc_s[LLC_S_CMD(llc.llcis)],
-				LLC_IS_NR(llc.llcis),
+				llc_s[LLC_S_CMD(control)],
+				LLC_IS_NR(control),
 				f);
 		} else {
 			(void)printf("I (s=%d,r=%d,%c)",
-				LLC_I_NS(llc.llcis),
-				LLC_IS_NR(llc.llcis),
+				LLC_I_NS(control),
+				LLC_IS_NR(control),
 				f);
 		}
 		p += 4;

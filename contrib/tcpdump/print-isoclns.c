@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-isoclns.c,v 1.16 1999/11/21 09:36:55 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-isoclns.c,v 1.22 2000/10/11 04:04:33 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -36,20 +36,14 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/socket.h>
 
-#if __STDC__
-struct mbuf;
-struct rtentry;
-#endif
-#include <net/if.h>
-
 #include <netinet/in.h>
-#include <net/ethernet.h>
 
 #include <stdio.h>
 
 #include "interface.h"
 #include "addrtoname.h"
 #include "ethertype.h"
+#include "ether.h"
 #include "extract.h"
 
 #define	NLPID_CLNS	129	/* 0x81 */
@@ -62,7 +56,7 @@ struct rtentry;
  * IS-IS is defined in ISO 10589.  Look there for protocol definitions.
  */
 
-#define SYSTEM_ID_LEN	sizeof(struct ether_addr)
+#define SYSTEM_ID_LEN	ETHER_ADDR_LEN
 #define ISIS_VERSION	1
 #define PDU_TYPE_MASK	0x1F
 #define PRIORITY_MASK	0x7F
@@ -117,9 +111,9 @@ struct isis_ptp_adjancey_values {
 };
 
 static struct isis_ptp_adjancey_values isis_ptp_adjancey_values[] = {
-	ISIS_PTP_ADJ_UP,    "UP",
-	ISIS_PTP_ADJ_INIT,  "INIT",
-        ISIS_PTP_ADJ_DOWN,  "DOWN"
+	{ ISIS_PTP_ADJ_UP,    "UP" },
+	{ ISIS_PTP_ADJ_INIT,  "INIT" },
+	{ ISIS_PTP_ADJ_DOWN,  "DOWN" }
 };
 
 struct isis_common_header {
@@ -266,7 +260,6 @@ esis_print(const u_char *p, u_int length)
 	const u_char *ep;
 	int li = p[1];
 	const struct esis_hdr *eh = (const struct esis_hdr *) &p[2];
-	u_char cksum[2];
 	u_char off[2];
 
 	if (length == 2) {
@@ -418,7 +411,7 @@ esis_print(const u_char *p, u_int length)
  * Print out an NSAP. 
  */
 
-void
+static void
 print_nsap (register const u_char *cp, register int length)
 {
     int i;
@@ -444,11 +437,13 @@ isis_print (const u_char *p, u_int length)
 {
     struct isis_header *header;
     struct isis_ptp_header *header_ptp;
-    u_char pdu_type, max_area, priority, *pptr, type, len, *tptr, tmp, alen;
+    u_char pdu_type, max_area, priority, type, len, tmp, alen;
+    const u_char *pptr, *tptr;
     u_short packet_len, holding_time;
     int i;
 
-    header_ptp = (struct isis_ptp_header *)header = (struct isis_header *)p;
+    header = (struct isis_header *)p;
+    header_ptp = (struct isis_ptp_header *)header;
     printf("\n\t\t\t");
 
     /*
@@ -474,7 +469,7 @@ isis_print (const u_char *p, u_int length)
 	(header->fixed_len != ISIS_PTP_HEADER_SIZE) &&
 	(header->fixed_len != L1_LS_PDU_HEADER_SIZE) &&
 	(header-> fixed_len != L1_COMPLETE_SEQ_PDU_HEADER_SIZE) ) {
-	    printf(" bogus fixed header length",
+	    printf(" bogus fixed header length %u",
 		   header->fixed_len);
 	    return(0);
     }
@@ -485,12 +480,12 @@ isis_print (const u_char *p, u_int length)
 	(pdu_type != L1_COMPLETE_SEQ_PDU) &&
 	(pdu_type != L2_COMPLETE_SEQ_PDU) ) {
 	printf(" PDU type (%d) not supported", pdu_type);
-	return;
+	return(0);
     }
     
     if (header->pkt_version != ISIS_VERSION) {
 	printf(" version %d packet not supported", header->pkt_version);
-	return;
+	return(0);
     }
 
     max_area = header->enc_max_area;
@@ -581,10 +576,10 @@ isis_print (const u_char *p, u_int length)
      */
     if(pdu_type==PTP_IIH) {
 	    packet_len -= ISIS_PTP_HEADER_SIZE;
-	    pptr = (char *)p + ISIS_PTP_HEADER_SIZE;
+	    pptr = p + ISIS_PTP_HEADER_SIZE;
     } else {
 	    packet_len -= ISIS_HEADER_SIZE;
-	    pptr = (char *)p + ISIS_HEADER_SIZE;
+	    pptr = p + ISIS_HEADER_SIZE;
     }
     while (packet_len >= 2) {
 	if (pptr >= snapend) {
@@ -617,10 +612,10 @@ isis_print (const u_char *p, u_int length)
 	    printf("\n\t\t\t neighbor addresses");
 	    tmp = len;
 	    tptr = pptr;
-	    while (tmp >= sizeof(struct ether_addr)) {
+	    while (tmp >= ETHER_ADDR_LEN) {
 		printf("\n\t\t\t %s", etheraddr_string(tptr));
-		tmp -= sizeof(struct ether_addr);
-		tptr += sizeof(struct ether_addr);
+		tmp -= ETHER_ADDR_LEN;
+		tptr += ETHER_ADDR_LEN;
 	    }
 	    break;
 	case TLV_PADDING:
