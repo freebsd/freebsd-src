@@ -1644,10 +1644,17 @@ check_body:
 				break;
 
 			case O_IP_SRC_MASK:
-				match = (hlen > 0 &&
-				    ((ipfw_insn_ip *)cmd)->addr.s_addr ==
-				     (src_ip.s_addr &
-				     ((ipfw_insn_ip *)cmd)->mask.s_addr));
+			case O_IP_DST_MASK:
+				if (hlen > 0) {
+				    uint32_t a =
+					(cmd->opcode == O_IP_DST_MASK) ?
+					    dst_ip.s_addr : src_ip.s_addr;
+				    uint32_t *p = ((ipfw_insn_u32 *)cmd)->d;
+				    int i = cmdlen-1;
+
+				    for (; !match && i>0; i-= 2, p+= 2)
+					match = (p[0] == (a & p[1]));
+				}
 				break;
 
 			case O_IP_SRC_ME:
@@ -1681,13 +1688,6 @@ check_body:
 				match = (hlen > 0 &&
 				    ((ipfw_insn_ip *)cmd)->addr.s_addr ==
 				    dst_ip.s_addr);
-				break;
-
-			case O_IP_DST_MASK:
-				match = (hlen > 0) &&
-				    (((ipfw_insn_ip *)cmd)->addr.s_addr ==
-				     (dst_ip.s_addr &
-				     ((ipfw_insn_ip *)cmd)->mask.s_addr));
 				break;
 
 			case O_IP_DST_ME:
@@ -2440,13 +2440,9 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 
 		case O_IP_SRC_MASK:
 		case O_IP_DST_MASK:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_ip))
+			/* only odd command lengths */
+			if ( !(cmdlen & 1) || cmdlen > 31)
 				goto bad_size;
-			if (((ipfw_insn_ip *)cmd)->mask.s_addr == 0) {
-				printf("ipfw: opcode %d, useless rule\n",
-					cmd->opcode);
-				return EINVAL;
-			}
 			break;
 
 		case O_IP_SRC_SET:
