@@ -421,7 +421,7 @@ in_control(so, cmd, data, ifp, p)
 		 * thing to do, but at least if we are running
 		 * a routing process they will come back.
 		 */
-		in_ifadown(&ia->ia_ifa);
+		in_ifadown(&ia->ia_ifa, 1);
 
 		/*
 		 * Protect from ipintr() traversing address list
