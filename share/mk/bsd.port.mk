@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.137 1995/04/10 08:09:21 jkh Exp $
+# $Id: bsd.port.mk,v 1.138 1995/04/15 23:56:29 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -316,7 +316,7 @@ package:
 .endif
 
 .if !target(all)
-all: extract configure build
+all: build
 .endif
 
 .if !target(is_depended)
