@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.27 1994/06/06 17:45:37 phk Exp $
+#	$Id: rc,v 1.28 1994/08/21 04:28:44 davidg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -203,6 +203,9 @@ echo -n ' printer';		lpd
 if [ X${nfs_server} = X"YES" -a -r /etc/exports ]; then
 	echo -n ' mountd';		mountd
 	echo -n ' nfsd';		nfsd -u -t 4
+fi
+
+if grep nfs /etc/fstab > /dev/null ; then
 	echo -n ' nfsiod';		nfsiod -n 4
 fi
 
