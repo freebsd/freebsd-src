@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.84 1996/03/31 23:00:32 davidg Exp $
+ *	$Id: pmap.c,v 1.85 1996/04/07 02:23:05 dyson Exp $
  */
 
 /*
@@ -543,6 +543,7 @@ pmap_getpdir() {
 		--nfreepdir;
 		pdir = pdirlist;
 		pdirlist = (caddr_t *) *pdir;
+		*pdir = 0;
 #if 0 /* Not needed anymore */
 		bzero( (caddr_t) pdir, PAGE_SIZE);
 #endif
