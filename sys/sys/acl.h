@@ -26,10 +26,8 @@
  * $FreeBSD$
  */
 /* 
- * Userland/kernel interface for Access Control Lists.
- *
- * The POSIX.1e implementation page may be reached at:
- * http://www.watson.org/fbsd-hardening/posix1e/
+ * Developed by the TrustedBSD Project.
+ * Support for POSIX.1e access control lists.
  */
 
 #ifndef _SYS_ACL_H
@@ -100,6 +98,13 @@ typedef struct acl	*acl_t;
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_ACL);
 #endif
+
+acl_perm_t	acl_posix1e_mode_to_perm __P((acl_tag_t tag, mode_t mode));
+struct acl_entry	acl_posix1e_mode_to_entry __P((acl_tag_t tag, uid_t uid,
+    gid_t gid, mode_t mode));
+mode_t	acl_posix1e_perms_to_mode __P((struct acl_entry *acl_user_obj_entry,
+    struct acl_entry *acl_group_obj_entry, struct acl_entry *acl_other_entry));
+int	acl_posix1e_check(struct acl *acl);
 
 #else /* !_KERNEL */
 
