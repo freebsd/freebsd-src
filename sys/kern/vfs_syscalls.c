@@ -1027,10 +1027,12 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 		if (nd.ni_vp != NULL) {
 			vrele(nd.ni_vp);
 			error = EEXIST;
-		} else {
+		} else if ((error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td))
+		    == 0) {
 			VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 			VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 			error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
+			VOP_UNLOCK(vp, 0, td);
 		}
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vput(nd.ni_dvp);
