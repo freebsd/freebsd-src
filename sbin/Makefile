@@ -7,7 +7,7 @@ SUBDIR= adjkerntz badsect clri disklabel dmesg dump dumpfs dumplfs \
 	mount_fdesc mount_kernfs mount_lfs mount_nfs mount_null mount_portal \
 	mount_procfs mount_umap mount_union mountd newfs newlfs nfsd nfsiod \
 	nologin ping quotacheck reboot restore route savecore shutdown \
-	slattach startslip swapon tunefs umount
+	slattach startslip swapon sysinstall tunefs umount
 
 .if	make(clean) || make(cleandir)
 SUBDIR+=comcontrol fdisk ft mount_msdos
