@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.24 1996/01/31 18:02:17 gibbs Exp $
+ *	$Id: aic7770.c,v 1.25 1996/02/26 01:01:40 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -287,12 +287,6 @@ aic7770_attach(e_dev)
 
 		printf("ahc%d: %s", unit, id_string);
 	}
-
-	/*
-	 * Only four SCBs on these cards.  If we ever do SCB paging,
-	 * we could support 255 on the Rev E cards.
-	 */
-	ahc->maxscbs = 0x4;     
 
 	/* Setup the FIFO threshold and the bus off time */
 	if(ahc->flags & AHC_USEDEFAULTS) {
