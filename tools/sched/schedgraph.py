@@ -487,6 +487,7 @@ class Yielding(StateEvent):
 	enabled = 1
 	def __init__(self, thread, cpu, timestamp, prio):
 		StateEvent.__init__(self, thread, cpu, timestamp)
+		self.skipnext = 1
 		self.prio = prio
 		self.textadd(("prio:", self.prio, 0))
 
@@ -853,8 +854,8 @@ class KTRFile:
 		ktrstr += " newprio (\d+) by " + tdname
 		sched_prio_re = re.compile(ktrhdr + ktrstr)
 
-		cpuload_re = re.compile(ktrhdr + "load: (\d)")
-		loadglobal_re = re.compile(ktrhdr + "global load: (\d)")
+		cpuload_re = re.compile(ktrhdr + "load: (\d+)")
+		loadglobal_re = re.compile(ktrhdr + "global load: (\d+)")
 
 		parsers = [[cpuload_re, self.cpuload],
 			   [loadglobal_re, self.loadglobal],
