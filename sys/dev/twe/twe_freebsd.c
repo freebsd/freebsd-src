@@ -31,6 +31,13 @@
  * FreeBSD-specific code.
  */
 
+#include <sys/param.h>
+#include <sys/cons.h>
+#include <machine/bus.h>
+#include <machine/clock.h>
+#include <machine/md_var.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 #include <dev/twe/twe_compat.h>
 #include <dev/twe/twereg.h>
 #include <dev/twe/tweio.h>
@@ -40,6 +47,16 @@
 #include <sys/devicestat.h>
 
 static devclass_t	twe_devclass;
+
+#ifdef TWE_DEBUG
+static u_int32_t	twed_bio_in;
+#define TWED_BIO_IN	twed_bio_in++
+static u_int32_t	twed_bio_out;
+#define TWED_BIO_OUT	twed_bio_out++
+#else
+#define TWED_BIO_IN
+#define TWED_BIO_OUT
+#endif
 
 /********************************************************************************
  ********************************************************************************
@@ -250,13 +267,13 @@ twe_attach(device_t dev)
     /*
      * Create DMA tag for mapping objects into controller-addressable space.
      */
-    if (bus_dma_tag_create(sc->twe_parent_dmat, 		/* parent */
-			   1, 0, 				/* alignment, boundary */
+    if (bus_dma_tag_create(sc->twe_parent_dmat, 	/* parent */
+			   1, 0, 			/* alignment, boundary */
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, TWE_MAX_SGL_LENGTH,	/* maxsize, nsegments */
-			   BUS_SPACE_MAXSIZE_32BIT,		/* maxsegsize */
+			   MAXBSIZE, TWE_MAX_SGL_LENGTH,/* maxsize, nsegments */
+			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
 			   &sc->twe_buffer_dmat)) {
 	twe_printf(sc, "can't allocate data buffer DMA tag\n");
@@ -551,6 +568,7 @@ DRIVER_MODULE(twed, twe, twed_driver, twed_devclass, 0, 0);
 static	d_open_t	twed_open;
 static	d_close_t	twed_close;
 static	d_strategy_t	twed_strategy;
+static	d_dump_t	twed_dump;
 
 #define TWED_CDEV_MAJOR	147
 
@@ -565,7 +583,7 @@ static struct cdevsw twed_cdevsw = {
     twed_strategy,
     "twed",
     TWED_CDEV_MAJOR,
-    nodump,
+    twed_dump,
     nopsize,
     D_DISK,
     -1
@@ -639,9 +657,14 @@ twed_strategy(twe_bio *bp)
 
     debug_called(4);
 
+    TWED_BIO_IN;
+
     /* bogus disk? */
     if (sc == NULL) {
 	TWE_BIO_SET_ERROR(bp, EINVAL);
+	printf("twe: bio for invalid disk!\n");
+	TWE_BIO_DONE(bp);
+	TWED_BIO_OUT;
 	return;
     }
 
@@ -649,15 +672,79 @@ twed_strategy(twe_bio *bp)
     if (TWE_BIO_LENGTH(bp) == 0) {
 	TWE_BIO_RESID(bp) = 0;
 	TWE_BIO_DONE(bp);
+	TWED_BIO_OUT;
 	return;
     }
 
     /* perform accounting */
     TWE_BIO_STATS_START(bp);
 
-    /* pass the bio to the controller - it can work out who we are */
-    twe_submit_bio(sc->twed_controller, bp);
+    /* queue the bio on the controller */
+    twe_enqueue_bio(sc->twed_controller, bp);
+
+    /* poke the controller to start I/O */
+    twe_startio(sc->twed_controller);
     return;
+}
+
+/********************************************************************************
+ * System crashdump support
+ */
+int
+twed_dump(dev_t dev)
+{
+    struct twed_softc	*twed_sc = (struct twed_softc *)dev->si_drv1;
+    struct twe_softc	*twe_sc  = (struct twe_softc *)twed_sc->twed_controller;
+    u_int		count, blkno, secsize;
+    vm_offset_t		addr = 0;
+    long		blkcnt;
+    int			dumppages = MAXDUMPPGS;
+    int			error;
+    int			i;
+
+    if ((error = disk_dumpcheck(dev, &count, &blkno, &secsize)))
+        return(error);
+
+    if (!twed_sc || !twe_sc)
+	return(ENXIO);
+
+    blkcnt = howmany(PAGE_SIZE, secsize);
+
+    while (count > 0) {
+	caddr_t va = NULL;
+
+	if ((count / blkcnt) < dumppages)
+	    dumppages = count / blkcnt;
+
+	for (i = 0; i < dumppages; ++i) {
+	    vm_offset_t a = addr + (i * PAGE_SIZE);
+	    if (is_physical_memory(a))
+		va = pmap_kenter_temporary(trunc_page(a), i);
+	    else
+		va = pmap_kenter_temporary(trunc_page(0), i);
+	}
+
+	if ((error = twe_dump_blocks(twe_sc, twed_sc->twed_drive->td_unit, blkno, va, 
+				     (PAGE_SIZE * dumppages) / TWE_BLOCK_SIZE)) != 0)
+	    return(error);
+
+
+	if (addr % (1024 * 1024) == 0) {
+#ifdef HW_WDOG
+	    if (wdog_tickler)
+		(*wdog_tickler)();
+#endif
+	    printf("%ld ", (long)(count * DEV_BSIZE) / (1024 * 1024));
+	}
+
+	blkno += blkcnt * dumppages;
+	count -= blkcnt * dumppages;
+	addr += PAGE_SIZE * dumppages;
+	
+	if (cncheckc() != -1)
+	    return(EINTR);
+    }
+    return(0);
 }
 
 /********************************************************************************
@@ -674,6 +761,7 @@ twed_intr(twe_bio *bp)
 
     TWE_BIO_STATS_END(bp);
     TWE_BIO_DONE(bp);
+    TWED_BIO_OUT;
 }
 
 /********************************************************************************
@@ -967,6 +1055,7 @@ twe_report(void)
     s = splbio();
     for (i = 0; (sc = devclass_get_softc(twe_devclass, i)) != NULL; i++)
 	twe_print_controller(sc);
+    printf("twed: total bio count in %u  out %u\n", twed_bio_in, twed_bio_out);
     splx(s);
 }
 #endif
