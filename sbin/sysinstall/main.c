@@ -10,9 +10,97 @@
  *
  */
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <unistd.h>
+#include <setjmp.h>
+#include <fcntl.h>
+
+#include <dialog.h>
+#include <ncurses.h>
+
+#include <sys/ioctl.h>
+
+#define EXTERN /* only in main.c */
+
+#include "sysinstall.h"
+
+jmp_buf	jmp_restart;
+
+/*
+ * This is the overall plan:  (phk's version)
+ *  
+ * If (pid == 1)
+ *	reopen stdin, stdout, stderr, and do various other magic.
+ *
+ * If (file exists /this_is_boot.flp)
+ *	stage0:
+ *		present /README
+ *      stage1:
+ *		Ask about diskallocation and do the fdisk/disklabel stunt.
+ *	stage2:
+ *		Do newfs, mount and copy over a minimal world.
+ *		make /mnt/etc/fstab.  Install ourself as /mnt/sbin/init
+ * Else
+ *	stage3:
+ *		Read cpio.flp and fiddle around with the bits a bit.
+ *	stage4:
+ *		Read bin-tarballs:
+ *			Using ftp
+ *			Using NFS (?)
+ *			Using floppy
+ *			Using tape
+ *			Using shell-prompt
+ *	stage5:
+ *		Extract bin-tarballs
+ *	stage6:
+ *		Ask various questions and collect answers into system-config
+ *		files.
+ *	stage7:
+ *		execl("/sbin/init");
+ */
+
 int
-Xmain(int argc, char **argv)
+main(int argc, char **argv)
 {
-	stage0();
+	int i;
+
+	/* Are we running as init? */
+	if (getpid() == 1) {
+		close(0); open("/dev/console",O_RDWR);
+		close(1); dup(0);
+		close(2); dup(0);
+		i = 1;
+		ioctl(0,TIOCSPGRP,&i);
+		setlogin("root");
+	}
+
+	if (set_termcap() == -1) {
+		Fatal("Can't find terminal entry\n");
+	}
+	/* XXX too early to use fatal ! */
+
+	/* XXX - libdialog has particularly bad return value checking */
+	init_dialog();
+	/* If we haven't crashed I guess dialog is running ! */
+	dialog_active = 1;
+
+	setjmp(jmp_restart);
+
+	if (getenv("PAUL") || !access("/this_is_boot_flp",R_OK)) {
+		stage0();
+		stage1();
+		/* XXX This is how stage one should output: */
+		devicename[0] = StrAlloc("wd0a");
+		mountpoint[0] = StrAlloc("/");
+		devicename[1] = StrAlloc("wd0e");
+		mountpoint[1] = StrAlloc("/usr");
+		
+		stage2();
+	} else {
+		stage3();
+	}
+
 	return 0;
 }

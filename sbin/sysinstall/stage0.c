@@ -23,12 +23,12 @@
 void
 stage0()
 {
-	if (!access(COPYRIGHT_FILE, R_OK)) {
-		clear();
-		dialog_textbox("COPYRIGHT", COPYRIGHT_FILE, 25, 80);
-	}
 	if (!access(README_FILE, R_OK)) {
 		clear();
 		dialog_textbox("READ ME FIRST", README_FILE, 25, 80);
+	}
+	if (!access(COPYRIGHT_FILE, R_OK)) {
+		clear();
+		dialog_textbox("COPYRIGHT", COPYRIGHT_FILE, 25, 80);
 	}
 }
