@@ -79,13 +79,7 @@ static OPTION const options[] = {
 	{ "-false",	c_simple,	f_not,		0 },
 	{ "-flags",	c_flags,	f_flags,	0 },
 	{ "-follow",	c_follow,	f_always_true,	0 },
-/*
- * NetBSD doesn't provide a getvfsbyname(), so this option
- * is not available if using a NetBSD kernel.
- */
-#if !defined(__NetBSD__)
 	{ "-fstype",	c_fstype,	f_fstype,	0 },
-#endif
 	{ "-group",	c_group,	f_group,	0 },
 	{ "-iname",	c_name,		f_name,		F_IGNCASE },
 	{ "-inum",	c_inum,		f_inum,		0 },
