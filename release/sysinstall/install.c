@@ -748,6 +748,16 @@ installFixupBin(dialogMenuItem *self)
 
     /* All of this is done only as init, just to be safe */
     if (RunningAsInit) {
+	/* Fix up kernel first */
+	if (!file_readable("/kernel")) {
+	    char *generic_kernel = "/kernel.GENERIC";
+	    if (file_readable(generic_kernel)) {
+		if (vsystem("cp -p %s /kernel", generic_kernel)) {
+		    msgConfirm("Unable to copy /kernel into place!");
+		    return DITEM_FAILURE;
+		}
+	    }
+	}
 #ifdef __i386__
         /* Snapshot any boot -c changes back to the new kernel */
 	cp = variable_get(VAR_KGET);
