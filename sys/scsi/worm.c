@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.29.2.4 1997/05/05 13:35:51 joerg Exp $
+ *      $Id: worm.c,v 1.29.2.5 1997/08/19 13:12:24 jmz Exp $
  */
 
 #include "opt_bounce.h"
@@ -130,6 +130,7 @@ static errval worm_read_toc(struct scsi_link *sc_link,
 			    u_int32_t mode, u_int32_t start,
 			    struct cd_toc_entry *data, u_int32_t len);
 static errval worm_rezero_unit(struct scsi_link *sc_link);
+static errval worm_set_blksize(struct scsi_link *sc_link, int size);
 
 /* XXX should be moved out to an LKM */
 static errval rf4100_prepare_disk(struct scsi_link *, int dummy, int speed);
@@ -906,6 +907,30 @@ worm_quirk_select(struct scsi_link *sc_link, u_int32_t unit,
 	return error;
 }
 
+static errval 
+worm_set_blksize(struct scsi_link *sc_link, int size)
+{
+    struct scsi_mode_select scsi_cmd;
+    struct {
+	struct scsi_mode_header header;
+	struct blk_desc desc;
+    } dat;
+    bzero(&scsi_cmd, sizeof(scsi_cmd));
+    bzero(&dat, sizeof(dat));
+    scsi_cmd.op_code = MODE_SELECT;
+    scsi_cmd.length = sizeof(dat);
+    dat.header.blk_desc_len = sizeof(struct blk_desc);
+    scsi_uto3b(size, dat.desc.blklen);
+    return scsi_scsi_cmd(sc_link,
+			  (struct scsi_generic *) &scsi_cmd,
+			  sizeof(scsi_cmd),
+			  (u_char *) &dat,
+			  sizeof(dat),
+			  /*WORM_RETRIES*/ 4,
+			  5000,
+			  NULL,
+			  SCSI_DATA_OUT);
+}
 
 static void
 worm_drvinit(void *unused)
@@ -1121,8 +1146,8 @@ rf4100_finalize_track(struct scsi_link *sc_link)
 			     60000, /* this may take a while */
 			     NULL,
 			     0);
-	if (!error)
-	    error = rf4100_prepare_track(sc_link, 0, 0);
+	if (!error) 
+	    error = worm_set_blksize(sc_link, 2048);
 
 	return error;
 }
@@ -1361,7 +1386,7 @@ hp4020i_finalize_track(struct scsi_link *sc_link)
 			     NULL,
 			     0);
 	if (!error) 
-	    error = rf4100_prepare_track(sc_link, 0, 0);
+	    error = worm_set_blksize(sc_link, 2048);
 
 	return error;
 }
