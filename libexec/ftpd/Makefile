@@ -16,7 +16,7 @@ DPADD=	${LIBSKEY} ${LIBMD} ${LIBCRYPT} ${LIBUTIL}
 LSDIR=	../../bin/ls
 .PATH:	${.CURDIR}/${LSDIR} ${.CURDIR}/../../lib/libc/gen
 SRCS+=	ls.c cmp.c print.c setflags.c util.c
-CFLAGS+=-DINTERNAL_LS -Dmain=ls_main -I${.CURDIR}/${LSDIR}
+CFLAGS+=-Dmain=ls_main -I${.CURDIR}/${LSDIR}
 
 .if defined(NOPAM)
 CFLAGS+=-DNOPAM
