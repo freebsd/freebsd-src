@@ -17,8 +17,8 @@ EXAMPLES= Makefile check1.c check2.c check3.c dselect.c fselect.c \
 
 CFLAGS+= -I${.CURDIR} -Wall -Wstrict-prototypes -DLOCALE
 
-LDADD+= -lncurses -lmytinfo
-DPADD+= ${LIBNCURSES} ${LIBMYTINFO}
+LDADD+= -lncurses
+DPADD+= ${LIBNCURSES}
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/dialog.h \
