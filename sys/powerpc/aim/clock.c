@@ -71,12 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
-
-#if 0 /* XXX */
-#include "adb.h"
-#else
-#define	NADB	0
-#endif
+#include <machine/md_var.h>
 
 /*
  * Initially we assume a processor with a bus frequency of 12.5 MHz.
@@ -89,11 +84,6 @@ static volatile u_long	lasttb;
 
 #define	SECDAY		86400
 #define	DIFF19041970	2082844800
-
-#if NADB > 0
-extern int adb_read_date_time(int *);
-extern int adb_set_date_time(int);
-#endif
 
 static int		clockinitted = 0;
 
@@ -138,9 +128,6 @@ inittodr(time_t base)
 		}
 	}
 
-#if NADB > 0
-	if (adb_read_date_time(&rtc_time) < 0)
-#endif
 	{
 		ts.tv_sec = base;
 		ts.tv_nsec = 0;
@@ -171,14 +158,7 @@ inittodr(time_t base)
 void
 resettodr()
 {
-#if NADB > 0
-	u_int	rtc_time;
 
-	if (clockinitted) {
-		rtc_time = time.tv_sec + DIFF19041970;
-		adb_set_date_time(rtc_time);
-	}
-#endif
 }
 
 void
@@ -187,7 +167,6 @@ decr_intr(struct clockframe *frame)
 	u_long		tb;
 	long		tick;
 	int		nticks;
-	register_t	msr;
 
 	/*
 	 * Check whether we are initialized.
@@ -218,7 +197,7 @@ decr_intr(struct clockframe *frame)
 #if 0
 	msr = mfmsr();
 	mtmsr(msr | PSL_EE | PSL_RI);
-#endif	
+#endif
 	/*
 	 * Do standard timer interrupt stuff.
 	 * Do softclock stuff only on the last iteration.
@@ -244,7 +223,7 @@ decr_init(void)
 	int qhandle, phandle;
 	char name[32];
 	unsigned int msr;
-	
+
 	phandle = 0;
 
 	/*
@@ -290,7 +269,7 @@ mftb(void)
 {
 	u_long		scratch;
 	u_quad_t	tb;
-	
+
 	__asm ("1: mftbu %0; mftb %0+1; mftbu %1; cmpw 0,%0,%1; bne 1b"
 	      : "=r"(tb), "=r"(scratch));
 	return tb;
@@ -309,7 +288,7 @@ void
 DELAY(int n)
 {
 	u_quad_t	tb, ttb;
-	
+
 	tb = mftb();
 	ttb = tb + (n * 1000 + ns_per_tick - 1) / ns_per_tick;
 	while (tb < ttb)
