@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.49 1995/01/07 22:55:12 jkh Exp $
+# $Id: instdist.sh,v 1.50 1995/01/09 14:41:13 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -28,7 +28,7 @@ media_set_defaults()
 	MEDIA_DEVICE=""
 	MEDIA_DISTRIBUTIONS=""
 	DISTRIB_SUBDIR=""
-	TMPDIR="/usr/tmp"
+	TMPDIR=""
 	FTP_PATH=""
 	NFS_PATH=""
 }
@@ -47,7 +47,12 @@ media_reset()
 # Set the location of our temporary unpacking directory.
 media_set_tmpdir()
 {
+	if [ "X${TMPDIR}" != "X" ]; then
+		return
+	fi
+
 	TITLE="Choose temporary directory"
+	TMPDIR="/usr/tmp"
 	DEFAULT_VALUE="${TMPDIR}"
 	if ! input \
 "Please specify the name of a directory containing enough free
@@ -75,15 +80,22 @@ media_cd_tmpdir()
 media_rm_tmpdir()
 {
 	cd /
+	if [ "X${NO_ASK_REMOVE}" != "X" ]; then
+		rm -rf ${_TARGET}
+		return
+	fi
 	if [ -d ${TMPDIR}/${MEDIA_DISTRIBUTION} ]; then
-		if dialog --title "Delete contents?" --yesno \
-		  "Do you wish to delete ${TMPDIR}/${MEDIA_DISTRIBUTION}?" -1 -1; then
-			rm -rf ${TMPDIR}/${MEDIA_DISTRIBUTION}
-		fi
+		_TARGET=${TMPDIR}/${MEDIA_DISTRIBUTION}
 	else
-		if dialog --title "Delete contents?" --yesno \
-		  "Do you wish to delete the contents of ${TMPDIR}?" -1 -1; then
-			rm -rf ${TMPDIR}/*
+		_TARGET=${TMPDIR}
+	fi
+	if dialog --title "Delete contents?" --yesno \
+	  "Do you wish to delete ${_TARGET}?" -1 -1; then
+		rm -rf ${_TARGET}
+		if dialog --title "Future Confirmation?" --yesno \
+		  "Do you wish to suppress this dialog in the future?" -1 -1;
+		   then
+			NO_ASK_REMOVE=yes
 		fi
 	fi
 }
@@ -100,6 +112,7 @@ If the first site selected doesn't respond, try one of the alternates.\n\
 Please use arrow keys to scroll through all items." \
 -1 -1 5 \
   "Primary" "ftp.freebsd.org" \
+  "Secondary" "freefall.cdrom.com" \
   "Australia" "ftp.physics.usyd.edu.au" \
   "Finland" "nic.funet.fi" \
   "France" "ftp.ibp.fr" \
@@ -132,6 +145,7 @@ Please use arrow keys to scroll through all items." \
 	if ! handle_rval ${RETVAL}; then return 1; fi
    case ${ANSWER} in
    Primary) FTP_PATH="ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" ;;
+   Secondary) FTP_PATH="ftp://freefall.cdrom.com/pub/FreeBSD/${DISTNAME}" ;;
    Australia) FTP_PATH="ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" ;;
    Finland) FTP_PATH="ftp://nic.funet.fi/pub/unix/FreeBSD/${DISTNAME}" ;;
    France) FTP_PATH="ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}" ;;
@@ -160,9 +174,9 @@ Please use arrow keys to scroll through all items." \
 	TITLE="FTP Installation Information"
 	DEFAULT_VALUE="${FTP_PATH}"
 	if ! input \
-"Please specify the machine and directory location of the
+"Please specify the machine and parent directory location of the
 distribution you wish to load.  This should be either a \"URL style\"
-specification (e.g. ftp://ftp.freeBSD.org/pub/FreeBSD/...) or simply
+specification (e.g. ftp://ftp.freeBSD.org/pub/FreeBSD/) or simply
 the name of a host to connect to.  If only a host name is specified,
 the installation assumes that you will properly connect and \"mget\"
 the files yourself."; then return 1; fi
@@ -272,6 +286,7 @@ media_install_set()
 		if ! media_cd_tmpdir; then return; fi
 		if ! echo ${MEDIA_DEVICE} | grep -q -v 'ftp://'; then
 			message "Fetching distribution using ncftp.\nUse ALT-F2 to see output, ALT-F1 to return."
+			mkdir -p ${MEDIA_DISTRIBUTION}
 			if ! ncftp ${MEDIA_DEVICE}/${MEDIA_DISTRIBUTION}/* < /dev/null > /dev/ttyv1 2>&1; then
 				error "Couldn't fetch ${MEDIA_DISTRIBUTION} distribution from\n${MEDIA_DEVICE}!"
 			else
