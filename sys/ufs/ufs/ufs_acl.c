@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2001 Robert N. M. Watson
+ * Copyright (c) 1999-2001, 2003 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -126,83 +126,16 @@ ufs_sync_acl_from_inode(struct inode *ip, struct acl *acl)
 }
 
 /*
- * Synchronize an inode and an ACL by copying over appropriate ACL fields to
- * the passed inode.  Assumes an ACL that would satisfy acl_posix1e_check(),
- * and may panic if not.  This code will preserve existing use of the
- * sticky, setugid, and non-permission bits in the mode field.  It may
- * be that the caller wishes to have previously authorized these changes,
- * and may also want to clear the setugid bits in some situations.
+ * Calculate what the inode mode should look like based on an authoritative
+ * ACL for the inode.  Replace only the fields in the inode that the ACL
+ * can represent.
  */
 void
-ufs_sync_inode_from_acl(struct acl *acl, struct inode *ip,
-    mode_t preserve_mask)
+ufs_sync_inode_from_acl(struct acl *acl, struct inode *ip)
 {
-	struct acl_entry	*acl_mask, *acl_user_obj, *acl_group_obj;
-	struct acl_entry	*acl_other;
-	mode_t	preserve_mode;
-	int	i;
 
-	/*
-	 * Preserve old mode so we can restore appropriate bits of it.
-	 */
-	preserve_mode = (ip->i_mode & preserve_mask);
-
-	/*
-	 * Identify the ACL_MASK and all other entries appearing in the
-	 * inode mode.
-	 */
-	acl_user_obj = NULL;
-	acl_group_obj = NULL;
-	acl_other = NULL;
-	acl_mask = NULL;
-	for (i = 0; i < acl->acl_cnt; i++) {
-		switch (acl->acl_entry[i].ae_tag) {
-		case ACL_USER_OBJ:
-			acl_user_obj = &acl->acl_entry[i];
-			break;
-
-		case ACL_GROUP_OBJ:
-			acl_group_obj = &acl->acl_entry[i];
-			break;
-
-		case ACL_OTHER:
-			acl_other = &acl->acl_entry[i];
-			break;
-
-		case ACL_MASK:
-			acl_mask = &acl->acl_entry[i];
-			break;
-
-		case ACL_USER:
-		case ACL_GROUP:
-			break;
-
-		default:
-			panic("ufs_sync_inode_from_acl(): bad ae_tag");
-		}
-	}
-
-	if (acl_user_obj == NULL || acl_group_obj == NULL || acl_other == NULL)
-		panic("ufs_sync_inode_from_acl(): missing ae_tags");
-
-	if (acl_mask == NULL) {
-		/*
-		 * There is no ACL_MASK, so use the ACL_GROUP_OBJ entry.
-		 */
-		ip->i_mode &= ~(S_IRWXU|S_IRWXG|S_IRWXO);
-		ip->i_mode |= acl_posix1e_perms_to_mode(acl_user_obj,
-		    acl_group_obj, acl_other);
-		DIP(ip, i_mode) = ip->i_mode;
-	} else {
-		/*
-		 * Use the ACL_MASK entry.
-		 */
-		ip->i_mode &= ~(S_IRWXU|S_IRWXG|S_IRWXO);
-		ip->i_mode |= acl_posix1e_perms_to_mode(acl_user_obj,
-		    acl_mask, acl_other);
-		DIP(ip, i_mode) = ip->i_mode;
-	}
-	ip->i_mode |= preserve_mode;
+	ip->i_mode &= ACL_PRESERVE_MASK;
+	ip->i_mode |= acl_posix1e_acl_to_mode(acl);
 	DIP(ip, i_mode) = ip->i_mode;
 }
 
@@ -366,7 +299,6 @@ ufs_setacl(ap)
 	} */ *ap;
 {
 	struct inode *ip = VTOI(ap->a_vp);
-	mode_t old_mode, preserve_mask;
 	int error;
 
 	if ((ap->a_vp->v_mount->mnt_flag & MNT_ACLS) == 0)
@@ -461,9 +393,7 @@ ufs_setacl(ap)
 		 * Now that the EA is successfully updated, update the
 		 * inode and mark it as changed.
 		 */
-		old_mode = ip->i_mode;
-		preserve_mask = ISVTX | ISGID | ISUID;
-		ufs_sync_inode_from_acl(ap->a_aclp, ip, preserve_mask);
+		ufs_sync_inode_from_acl(ap->a_aclp, ip);
 		ip->i_flag |= IN_CHANGE;
 	}
 

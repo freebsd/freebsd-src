@@ -1458,16 +1458,11 @@ ufs_mkdir(ap)
 		case 0:
 			/*
 			 * Retrieved a default ACL, so merge mode and ACL if
-			 * necessary.
+			 * necessary.  If the ACL is empty, fall through to
+			 * the "not defined or available" case.
 			 */
 			if (acl->acl_cnt != 0) {
-				/*
-				 * Two possible ways for default ACL to not
-				 * be present.  First, the EA can be
-				 * undefined, or second, the default ACL can
-				 * be blank.  If it's blank, fall through to
-				 * the it's not defined case.
-				 */
+				dmode = acl_posix1e_newfilemode(dmode, acl);
 				ip->i_mode = dmode;
 				DIP(ip, i_mode) = dmode;
 				*dacl = *acl;
@@ -2449,6 +2444,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 				 * be blank.  If it's blank, fall through to
 				 * the it's not defined case.
 				 */
+				mode = acl_posix1e_newfilemode(mode, acl);
 				ip->i_mode = mode;
 				DIP(ip, i_mode) = mode;
 				ufs_sync_acl_from_inode(ip, acl);
