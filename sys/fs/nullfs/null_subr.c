@@ -120,27 +120,20 @@ loop:
 	LIST_FOREACH(a, hd, null_hash) {
 		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
 			vp = NULLTOV(a);
-			mtx_lock(&vp->v_interlock);
+			VI_LOCK(vp);
 			/*
-			 * Don't block if nullfs vnode is being recycled.
-			 * We already hold a lock on the lower vnode, thus
-			 * waiting might deadlock against the thread
-			 * recycling the nullfs vnode or another thread
-			 * in vrele() waiting for the vnode lock.
+			 * If the nullfs node is being recycled we have
+			 * to wait until it finishes prior to scanning
+			 * again.
 			 */
-			if ((vp->v_iflag & VI_DOOMED) != 0) {
-				VI_UNLOCK(vp);
-				continue;
-			}
 			mtx_unlock(&null_hashmtx);
-			/*
-			 * We need vget for the VXLOCK
-			 * stuff, but we don't want to lock
-			 * the lower node.
-			 */
-			if (vget(vp, LK_EXCLUSIVE | LK_THISLAYER | LK_INTERLOCK, td))
+			if ((vp->v_iflag & VI_DOOMED) != 0) {
+				/* Wait for recycling to finish. */
+				VOP_LOCK(vp, LK_EXCLUSIVE|LK_INTERLOCK, td);
+				VOP_UNLOCK(vp, 0, td);
 				goto loop;
-
+			}
+			vget(vp, LK_INTERLOCK, td);
 			return (vp);
 		}
 	}
@@ -169,22 +162,19 @@ loop:
 		if (oxp->null_lowervp == xp->null_lowervp &&
 		    NULLTOV(oxp)->v_mount == mp) {
 			ovp = NULLTOV(oxp);
-			mtx_lock(&ovp->v_interlock);
+			VI_LOCK(ovp);
 			/*
-			 * Don't block if nullfs vnode is being recycled.
-			 * We already hold a lock on the lower vnode, thus
-			 * waiting might deadlock against the thread
-			 * recycling the nullfs vnode or another thread
-			 * in vrele() waiting for the vnode lock.
+			 * If the nullfs node is being recycled we have
+			 * to wait until it finishes prior to scanning
+			 * again.
 			 */
-			if ((ovp->v_iflag & VI_DOOMED) != 0) {
-				VI_UNLOCK(ovp);
-				continue;
-			}
 			mtx_unlock(&null_hashmtx);
-			if (vget(ovp, LK_EXCLUSIVE | LK_THISLAYER | LK_INTERLOCK, td))
+			if ((ovp->v_iflag & VI_DOOMED) != 0) {
+				VOP_LOCK(ovp, LK_EXCLUSIVE|LK_INTERLOCK, td);
+				VOP_UNLOCK(ovp, 0, td);
 				goto loop;
-
+			}
+			vget(ovp, LK_INTERLOCK, td);
 			return (ovp);
 		}
 	}
@@ -207,7 +197,6 @@ null_nodeget(mp, lowervp, vpp)
 	struct vnode *lowervp;
 	struct vnode **vpp;
 {
-	struct thread *td = curthread;	/* XXX */
 	struct null_node *xp;
 	struct vnode *vp;
 	int error;
@@ -243,26 +232,11 @@ null_nodeget(mp, lowervp, vpp)
 
 	xp->null_vnode = vp;
 	xp->null_lowervp = lowervp;
-	xp->null_pending_locks = 0;
-	xp->null_drain_wakeup = 0;
-
 	vp->v_type = lowervp->v_type;
 	vp->v_data = xp;
-
-	/*
-	 * From NetBSD:
-	 * Now lock the new node. We rely on the fact that we were passed
-	 * a locked vnode. If the lower node is exporting a struct lock
-	 * (v_vnlock != NULL) then we just set the upper v_vnlock to the
-	 * lower one, and both are now locked. If the lower node is exporting
-	 * NULL, then we copy that up and manually lock the new vnode.
-	 */
-
 	vp->v_vnlock = lowervp->v_vnlock;
-	error = VOP_LOCK(vp, LK_EXCLUSIVE | LK_THISLAYER, td);
-	if (error)
-		panic("null_nodeget: can't lock new vnode\n");
-
+	if (vp->v_vnlock == NULL)
+		panic("null_nodeget: Passed a NULL vnlock.\n");
 	/*
 	 * Atomically insert our new node into the hash or vget existing 
 	 * if someone else has beaten us to it.
@@ -270,21 +244,11 @@ null_nodeget(mp, lowervp, vpp)
 	*vpp = null_hashins(mp, xp);
 	if (*vpp != NULL) {
 		vrele(lowervp);
-		VOP_UNLOCK(vp, LK_THISLAYER, td);
-		vp->v_vnlock = NULL;
+		vp->v_vnlock = &vp->v_lock;
 		xp->null_lowervp = NULL;
 		vrele(vp);
 		return (0);
 	}
-
-	/*
-	 * XXX We take extra vref just to workaround UFS's XXX:
-	 * UFS can vrele() vnode in VOP_CLOSE() in some cases. Luckily, this
-	 * can only happen if v_usecount == 1. To workaround, we just don't
-	 * let v_usecount be 1, it will be 2 or more.
-	 */
-	VREF(lowervp);
-
 	*vpp = vp;
 
 	return (0);

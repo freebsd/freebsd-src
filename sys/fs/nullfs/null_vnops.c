@@ -296,7 +296,7 @@ null_bypass(struct vop_generic_args *ap)
 			*(vps_p[i]) = old_vps[i];
 #if 0
 			if (reles & VDESC_VP0_WILLUNLOCK)
-				VOP_UNLOCK(*(vps_p[i]), LK_THISLAYER, curthread);
+				VOP_UNLOCK(*(vps_p[i]), 0, curthread);
 #endif
 			if (reles & VDESC_VP0_WILLRELE)
 				vrele(*(vps_p[i]));
@@ -339,7 +339,6 @@ null_lookup(struct vop_lookup_args *ap)
 {
 	struct componentname *cnp = ap->a_cnp;
 	struct vnode *dvp = ap->a_dvp;
-	struct thread *td = cnp->cn_thread;
 	int flags = cnp->cn_flags;
 	struct vnode *vp, *ldvp, *lvp;
 	int error;
@@ -359,12 +358,6 @@ null_lookup(struct vop_lookup_args *ap)
 	    (cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME))
 		error = EROFS;
 
-	/*
-	 * Rely only on the PDIRUNLOCK flag which should be carefully
-	 * tracked by underlying filesystem.
-	 */
-	if ((cnp->cn_flags & PDIRUNLOCK) && dvp->v_vnlock != ldvp->v_vnlock)
-		VOP_UNLOCK(dvp, LK_THISLAYER, td);
 	if ((error == 0 || error == EJUSTRETURN) && lvp != NULL) {
 		if (ldvp == lvp) {
 			*ap->a_vpp = dvp;
@@ -521,113 +514,42 @@ null_lock(struct vop_lock_args *ap)
 	struct vnode *vp = ap->a_vp;
 	int flags = ap->a_flags;
 	struct thread *td = ap->a_td;
+	struct null_node *nn;
 	struct vnode *lvp;
 	int error;
-	struct null_node *nn;
 
-	if (flags & LK_THISLAYER) {
-		if (vp->v_vnlock != NULL) {
-			/* lock is shared across layers */
-			if (flags & LK_INTERLOCK)
-				mtx_unlock(&vp->v_interlock);
-			return 0;
-		}
-		error = lockmgr(&vp->v_lock, flags & ~LK_THISLAYER,
-		    &vp->v_interlock, td);
-		return (error);
-	}
 
 	if ((flags & LK_INTERLOCK) == 0) {
 		VI_LOCK(vp);
-		flags |= LK_INTERLOCK;
+		ap->a_flags = flags |= LK_INTERLOCK;
 	}
-	if (vp->v_vnlock != NULL) {
-		/*
-		 * The lower level has exported a struct lock to us. Use
-		 * it so that all vnodes in the stack lock and unlock
-		 * simultaneously. Note: we don't DRAIN the lock as DRAIN
-		 * decommissions the lock - just because our vnode is
-		 * going away doesn't mean the struct lock below us is.
-		 * LK_EXCLUSIVE is fine.
-		 */
-		nn = VTONULL(vp);
-		if ((flags & LK_TYPE_MASK) == LK_DRAIN) {
-			NULLFSDEBUG("null_lock: avoiding LK_DRAIN\n");
-			/*
-			 * Emulate lock draining by waiting for all other
-			 * pending locks to complete.  Afterwards the
-			 * lockmgr call might block, but no other threads
-			 * will attempt to use this nullfs vnode due to the
-			 * VI_DOOMED flag.
-			 */
-			while (nn->null_pending_locks > 0) {
-				nn->null_drain_wakeup = 1;
-				msleep(&nn->null_pending_locks,
-				       VI_MTX(vp),
-				       PVFS,
-				       "nuldr", 0);
-			}
-			error = lockmgr(vp->v_vnlock,
-					(flags & ~LK_TYPE_MASK) | LK_EXCLUSIVE,
-					VI_MTX(vp), td);
-			return error;
-		}
-		nn->null_pending_locks++;
-		error = lockmgr(vp->v_vnlock, flags, &vp->v_interlock, td);
-		VI_LOCK(vp);
-		/*
-		 * If we're called from vrele then v_usecount can have been 0
-		 * and another process might have initiated a recycle 
-		 * operation.  When that happens, just back out.
-		 */
-		if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0 &&
-		    td != vp->v_vxthread) {
-			lockmgr(vp->v_vnlock,
-				(flags & ~LK_TYPE_MASK) | LK_RELEASE,
-				VI_MTX(vp), td);
-			VI_LOCK(vp);
-			error = ENOENT;
-		}
-		nn->null_pending_locks--;
-		/*
-		 * Wakeup the process draining the vnode after all
-		 * pending lock attempts has been failed.
-		 */
-		if (nn->null_pending_locks == 0 &&
-		    nn->null_drain_wakeup != 0) {
-			nn->null_drain_wakeup = 0;
-			wakeup(&nn->null_pending_locks);
-		}
+	nn = VTONULL(vp);
+	/*
+	 * If we're still active we must ask the lower layer to
+	 * lock as ffs has special lock considerations in it's
+	 * vop lock.
+	 */
+	if (nn != NULL && (lvp = NULLVPTOLOWERVP(vp)) != NULL) {
+		VI_LOCK(lvp);
 		VI_UNLOCK(vp);
-		return error;
-	} else {
 		/*
-		 * To prevent race conditions involving doing a lookup
-		 * on "..", we have to lock the lower node, then lock our
-		 * node. Most of the time it won't matter that we lock our
-		 * node (as any locking would need the lower one locked
-		 * first). But we can LK_DRAIN the upper lock as a step
-		 * towards decomissioning it.
+		 * We have to hold the vnode here to solve a potential
+		 * reclaim race.  If we're forcibly vgone'd while we
+		 * still have refs, a thread could be sleeping inside
+		 * the lowervp's vop_lock routine.  When we vgone we will
+		 * drop our last ref to the lowervp, which would allow it
+		 * to be reclaimed.  The lowervp could then be recycled,
+		 * in which case it is not legal to be sleeping in it's VOP.
+		 * We prevent it from being recycled by holding the vnode
+		 * here.
 		 */
-		lvp = NULLVPTOLOWERVP(vp);
-		if (lvp == NULL)
-			return (lockmgr(&vp->v_lock, flags, &vp->v_interlock, td));
-		if (flags & LK_INTERLOCK) {
-			mtx_unlock(&vp->v_interlock);
-			flags &= ~LK_INTERLOCK;
-		}
-		if ((flags & LK_TYPE_MASK) == LK_DRAIN) {
-			error = VOP_LOCK(lvp,
-				(flags & ~LK_TYPE_MASK) | LK_EXCLUSIVE, td);
-		} else
-			error = VOP_LOCK(lvp, flags, td);
-		if (error)
-			return (error);	
-		error = lockmgr(&vp->v_lock, flags, &vp->v_interlock, td);
-		if (error)
-			VOP_UNLOCK(lvp, 0, td);
-		return (error);
-	}
+		vholdl(lvp);
+		error = VOP_LOCK(lvp, flags, td);
+		vdrop(lvp);
+	} else
+		error = vop_stdlock(ap);
+
+	return (error);
 }
 
 /*
@@ -641,27 +563,21 @@ null_unlock(struct vop_unlock_args *ap)
 	struct vnode *vp = ap->a_vp;
 	int flags = ap->a_flags;
 	struct thread *td = ap->a_td;
+	struct null_node *nn;
 	struct vnode *lvp;
+	int error;
 
-	if (vp->v_vnlock != NULL) {
-		if (flags & LK_THISLAYER)
-			return 0;	/* the lock is shared across layers */
-		flags &= ~LK_THISLAYER;
-		return (lockmgr(vp->v_vnlock, flags | LK_RELEASE,
-			&vp->v_interlock, td));
+	if ((flags & LK_INTERLOCK) != 0) {
+		VI_UNLOCK(vp);
+		ap->a_flags = flags &= ~LK_INTERLOCK;
 	}
-	lvp = NULLVPTOLOWERVP(vp);
-	if (lvp == NULL)
-		return (lockmgr(&vp->v_lock, flags | LK_RELEASE, &vp->v_interlock, td));
-	if ((flags & LK_THISLAYER) == 0) {
-		if (flags & LK_INTERLOCK) {
-			mtx_unlock(&vp->v_interlock);
-			flags &= ~LK_INTERLOCK;
-		}
-		VOP_UNLOCK(lvp, flags & ~LK_INTERLOCK, td);
-	} else
-		flags &= ~LK_THISLAYER;
-	return (lockmgr(&vp->v_lock, flags | LK_RELEASE, &vp->v_interlock, td));
+	nn = VTONULL(vp);
+	if (nn != NULL && (lvp = NULLVPTOLOWERVP(vp)) != NULL)
+		error = VOP_UNLOCK(lvp, flags, td);
+	else
+		error = vop_stdunlock(ap);
+
+	return (error);
 }
 
 static int
@@ -670,9 +586,7 @@ null_islocked(struct vop_islocked_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = ap->a_td;
 
-	if (vp->v_vnlock != NULL)
-		return (lockstatus(vp->v_vnlock, td));
-	return (lockstatus(&vp->v_lock, td));
+	return (lockstatus(vp->v_vnlock, td));
 }
 
 /*
@@ -715,17 +629,14 @@ null_reclaim(struct vop_reclaim_args *ap)
 
 	if (lowervp) {
 		null_hashrem(xp);
-
-		vrele(lowervp);
 		vrele(lowervp);
 	}
 
 	vp->v_data = NULL;
 	vp->v_object = NULL;
 	vnlock = vp->v_vnlock;
-	lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL, curthread);
 	vp->v_vnlock = &vp->v_lock;
-	transferlockers(vnlock, vp->v_vnlock);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, curthread);
 	lockmgr(vnlock, LK_RELEASE, NULL, curthread);
 	FREE(xp, M_NULLFSNODE);
 
