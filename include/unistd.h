@@ -134,7 +134,6 @@ int	 ftruncate __P((int, off_t));
 #endif
 int	 getdomainname __P((char *, int));
 int	 getdtablesize __P((void));
-char	*getflags __P((u_long, char *));
 int	 getgrouplist __P((const char *, int, int *, int *));
 long	 gethostid __P((void));
 int	 gethostname __P((char *, int));
@@ -182,7 +181,6 @@ int	 select __P((int, fd_set *, fd_set *, fd_set *, struct timeval *));
 int	 setdomainname __P((const char *, int));
 int	 setegid __P((gid_t));
 int	 seteuid __P((uid_t));
-int	 setflags __P((char **, u_long *, u_long *));
 int	 setgroups __P((int, const gid_t *));
 void	 sethostid __P((long));
 int	 sethostname __P((const char *, int));
