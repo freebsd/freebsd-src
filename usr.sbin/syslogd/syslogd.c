@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.12.2.13 1998/07/18 11:37:28 jkh Exp $";
+	"$Id: syslogd.c,v 1.12.2.14 1998/08/06 01:43:45 jkoshy Exp $";
 #endif /* not lint */
 
 /*
@@ -1365,12 +1365,12 @@ cfline(line, f, prog)
 	}
 
 	/* scan through the list of selectors */
-	for (p = line; *p && *p != '\t';) {
+	for (p = line; *p && *p != '\t' && *p != ' ';) {
 		int pri_done;
 		int pri_cmp;
 
 		/* find the end of this facility name list */
-		for (q = p; *q && *q != '\t' && *q++ != '.'; )
+		for (q = p; *q && *q != '\t' && *q != ' ' && *q++ != '.'; )
 			continue;
 
 		/* get the priority comparison */
@@ -1402,12 +1402,12 @@ cfline(line, f, prog)
 				  ;
 
 		/* collect priority name */
-		for (bp = buf; *q && !strchr("\t,;", *q); )
+		for (bp = buf; *q && !strchr("\t,; ", *q); )
 			*bp++ = *q++;
 		*bp = '\0';
 
 		/* skip cruft */
-		while (strchr(", ;", *q))
+		while (strchr(",;", *q))
 			q++;
 
 		/* decode priority name */
@@ -1424,8 +1424,8 @@ cfline(line, f, prog)
 		}
 
 		/* scan facilities */
-		while (*p && !strchr("\t.;", *p)) {
-			for (bp = buf; *p && !strchr("\t,;.", *p); )
+		while (*p && !strchr("\t.; ", *p)) {
+			for (bp = buf; *p && !strchr("\t,;. ", *p); )
 				*bp++ = *p++;
 			*bp = '\0';
 
@@ -1454,7 +1454,7 @@ cfline(line, f, prog)
 	}
 
 	/* skip to action part */
-	while (*p == '\t')
+	while (*p == '\t' || *p == ' ')
 		p++;
 
 	switch (*p)
