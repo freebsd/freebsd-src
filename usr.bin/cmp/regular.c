@@ -101,7 +101,7 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 		if ((ch = *p1) != *p2) {
 			if (xflag) {
 				dfound = 1;
-				(void)printf("%08x %02x %02x\n", byte - 1, ch, *p2);
+				(void)printf("%08qx %02x %02x\n", byte - 1, ch, *p2);
 			} else if (lflag) {
 				dfound = 1;
 				(void)printf("%6qd %3o %3o\n", byte, ch, *p2);
