@@ -235,10 +235,9 @@ environment variable
 Multiple entries can be listed, separated by a space.
 .Pp
 ACPI sub-devices and features that can be disabled:
-.Bl -tag -width children
+.Bl -tag -width sysresource
 .It Li all
-.Pq Vt feature
-Disable all ACPI devices.
+Disable all ACPI features and devices.
 .It Li bus
 .Pq Vt feature
 Probes and attaches subdevices.
@@ -276,7 +275,7 @@ system to sleep.
 .Pq Vt device
 Supports Host to PCI bridges.
 .It Li pci_link
-.Pq Vt device
+.Pq Vt feature
 Performs PCI interrupt routing.
 .It Li sysresource
 .Pq Vt device
