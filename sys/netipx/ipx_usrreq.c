@@ -139,18 +139,16 @@ ipx_input(m, ipxp)
 		}
 	}
 	ipxp->ipxp_rpt = ipx->ipx_pt;
-	if (!(ipxp->ipxp_flags & IPXP_RAWIN) ) {
+	if ((ipxp->ipxp_flags & IPXP_RAWIN) == 0) {
 		m->m_len -= sizeof(struct ipx);
 		m->m_pkthdr.len -= sizeof(struct ipx);
 		m->m_data += sizeof(struct ipx);
 	}
-	if (sbappendaddr(&ipxp->ipxp_socket->so_rcv, (struct sockaddr *)&ipx_ipx,
-	    m, (struct mbuf *)NULL) == 0)
-		goto bad;
-	sorwakeup(ipxp->ipxp_socket);
-	return;
-bad:
-	m_freem(m);
+	if (sbappendaddr(&ipxp->ipxp_socket->so_rcv,
+	    (struct sockaddr *)&ipx_ipx, m, NULL) == 0)
+		m_freem(m);
+	else
+		sorwakeup(ipxp->ipxp_socket);
 }
 
 /*
