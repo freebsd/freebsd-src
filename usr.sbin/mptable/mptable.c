@@ -32,10 +32,6 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#define VMAJOR			2
-#define VMINOR			0
-#define VDELTA			15
-
 /*
  * this will cause the raw mp table to be dumped to /tmp/mpdump
  *
@@ -318,7 +314,7 @@ main( int argc, char *argv[] )
     /* announce ourselves */
     puts( SEP_LINE2 );
 
-    printf( "MPTable, version %d.%d.%d\n", VMAJOR, VMINOR, VDELTA );
+    printf( "MPTable\n" );
 
     while ((ch = getopt(argc, argv, "d:g:h:v:")) != -1) {
 	switch(ch) {
