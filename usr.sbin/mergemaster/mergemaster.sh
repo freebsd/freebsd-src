@@ -554,11 +554,11 @@ case "${RERUN}" in
   ;; # End of the "RERUN" test
 esac
 
-# We really don't want to have to deal with these files, since
-# master.passwd is the real file that should be compared, then
-# the user should run pwd_mkdb if necessary.
+# We really don't want to have to deal with files like login.conf.db, pwd.db,
+# or spwd.db.  Instead, we want to compare the text versions, and run *_mkdb.
+# Prompt the user to do so below, as needed.
 #
-rm -f ${TEMPROOT}/etc/spwd.db ${TEMPROOT}/etc/passwd ${TEMPROOT}/etc/pwd.db
+rm -f ${TEMPROOT}/etc/*.db
 
 # We only need to compare things like freebsd.cf once
 find ${TEMPROOT}/usr/obj -type f -delete 2>/dev/null
