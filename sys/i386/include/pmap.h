@@ -261,14 +261,14 @@ extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
-void	pmap_bootstrap __P(( vm_offset_t, vm_offset_t));
-pmap_t	pmap_kernel __P((void));
-void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
-void	pmap_unmapdev __P((vm_offset_t, vm_size_t));
-pt_entry_t *pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
-vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
+void	pmap_bootstrap( vm_offset_t, vm_offset_t);
+pmap_t	pmap_kernel(void);
+void	*pmap_mapdev(vm_offset_t, vm_size_t);
+void	pmap_unmapdev(vm_offset_t, vm_size_t);
+pt_entry_t *pmap_pte(pmap_t, vm_offset_t) __pure2;
+vm_page_t pmap_use_pt(pmap_t, vm_offset_t);
 #ifdef SMP
-void	pmap_set_opt __P((void));
+void	pmap_set_opt(void);
 #endif
 
 #endif /* _KERNEL */

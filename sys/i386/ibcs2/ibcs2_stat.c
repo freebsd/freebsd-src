@@ -49,8 +49,8 @@
 #include <i386/ibcs2/ibcs2_utsname.h>
 
 
-static void bsd_stat2ibcs_stat __P((struct stat *, struct ibcs2_stat *));
-static int  cvt_statfs         __P((struct statfs *, caddr_t, int));
+static void bsd_stat2ibcs_stat(struct stat *, struct ibcs2_stat *);
+static int  cvt_statfs(struct statfs *, caddr_t, int);
 
 static void
 bsd_stat2ibcs_stat(st, st4)

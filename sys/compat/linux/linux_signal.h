@@ -31,9 +31,8 @@
 #ifndef _LINUX_SIGNAL_H_
 #define _LINUX_SIGNAL_H_
 
-void linux_to_bsd_sigset __P((l_sigset_t *, sigset_t *));
-void bsd_to_linux_sigset __P((sigset_t *, l_sigset_t *));
-int linux_do_sigaction __P((struct thread *, int, l_sigaction_t *,
-    l_sigaction_t *));
+void linux_to_bsd_sigset(l_sigset_t *, sigset_t *);
+void bsd_to_linux_sigset(sigset_t *, l_sigset_t *);
+int linux_do_sigaction(struct thread *, int, l_sigaction_t *, l_sigaction_t *);
 
 #endif /* _LINUX_SIGNAL_H_ */

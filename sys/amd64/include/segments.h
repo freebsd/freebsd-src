@@ -247,13 +247,13 @@ extern struct soft_segment_descriptor gdt_segs[];
 extern struct gate_descriptor *idt;
 extern union descriptor ldt[NLDT];
 
-void	lgdt		__P((struct region_descriptor *rdp));
-void	lidt		__P((struct region_descriptor *rdp));
-void	lldt		__P((u_short sel));
-void	sdtossd		__P((struct segment_descriptor *sdp,
-			     struct soft_segment_descriptor *ssdp));
-void	ssdtosd		__P((struct soft_segment_descriptor *ssdp,
-			     struct segment_descriptor *sdp));
+void	lgdt		(struct region_descriptor *rdp);
+void	lidt		(struct region_descriptor *rdp);
+void	lldt		(u_short sel);
+void	sdtossd		(struct segment_descriptor *sdp,
+			     struct soft_segment_descriptor *ssdp);
+void	ssdtosd		(struct soft_segment_descriptor *ssdp,
+			     struct segment_descriptor *sdp);
 #endif /* _KERNEL */
 
 #endif /* !_MACHINE_SEGMENTS_H_ */

@@ -38,8 +38,8 @@
 struct physio_proc {
 };
 
-static __inline struct physio_proc *physio_proc_enter __P((struct buf *));
-static __inline void physio_proc_leave __P((struct physio_proc *));
+static __inline struct physio_proc *physio_proc_enter(struct buf *);
+static __inline void physio_proc_leave(struct physio_proc *);
 
 static __inline struct physio_proc *
 physio_proc_enter(bp)

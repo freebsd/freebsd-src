@@ -95,20 +95,20 @@
 
 #define	BSD_DIRENT(cp)		((struct dirent *)(cp))
 
-static int svr4_mknod __P((struct thread *, register_t *, char *,
-    svr4_mode_t, svr4_dev_t));
+static int svr4_mknod(struct thread *, register_t *, char *,
+    svr4_mode_t, svr4_dev_t);
 
-static __inline clock_t timeval_to_clock_t __P((struct timeval *));
-static int svr4_setinfo	__P((struct proc *, int, svr4_siginfo_t *));
+static __inline clock_t timeval_to_clock_t(struct timeval *);
+static int svr4_setinfo	(struct proc *, int, svr4_siginfo_t *);
 
 struct svr4_hrtcntl_args;
-static int svr4_hrtcntl	__P((struct thread *, struct svr4_hrtcntl_args *,
-    register_t *));
-static void bsd_statfs_to_svr4_statvfs __P((const struct statfs *,
-    struct svr4_statvfs *));
-static void bsd_statfs_to_svr4_statvfs64 __P((const struct statfs *,
-    struct svr4_statvfs64 *));
-static struct proc *svr4_pfind __P((pid_t pid));
+static int svr4_hrtcntl	(struct thread *, struct svr4_hrtcntl_args *,
+    register_t *);
+static void bsd_statfs_to_svr4_statvfs(const struct statfs *,
+    struct svr4_statvfs *);
+static void bsd_statfs_to_svr4_statvfs64(const struct statfs *,
+    struct svr4_statvfs64 *);
+static struct proc *svr4_pfind(pid_t pid);
 
 /* BOGUS noop */
 #if defined(BOGUS)

@@ -75,67 +75,64 @@
 #include <compat/svr4/svr4_socket.h>
 
 /* Utils */
-static int clean_pipe __P((struct thread *, const char *));
-static void getparm __P((struct file *, struct svr4_si_sockparms *));
-static int svr4_do_putmsg __P((struct thread *, struct svr4_sys_putmsg_args *,
-			       struct file *));
-static int svr4_do_getmsg __P((struct thread *, struct svr4_sys_getmsg_args *,
-			       struct file *));
+static int clean_pipe(struct thread *, const char *);
+static void getparm(struct file *, struct svr4_si_sockparms *);
+static int svr4_do_putmsg(struct thread *, struct svr4_sys_putmsg_args *,
+			       struct file *);
+static int svr4_do_getmsg(struct thread *, struct svr4_sys_getmsg_args *,
+			       struct file *);
 
 /* Address Conversions */
-static void sockaddr_to_netaddr_in __P((struct svr4_strmcmd *,
-					const struct sockaddr_in *));
-static void sockaddr_to_netaddr_un __P((struct svr4_strmcmd *,
-					const struct sockaddr_un *));
-static void netaddr_to_sockaddr_in __P((struct sockaddr_in *,
-					const struct svr4_strmcmd *));
-static void netaddr_to_sockaddr_un __P((struct sockaddr_un *,
-					const struct svr4_strmcmd *));
+static void sockaddr_to_netaddr_in(struct svr4_strmcmd *,
+					const struct sockaddr_in *);
+static void sockaddr_to_netaddr_un(struct svr4_strmcmd *,
+					const struct sockaddr_un *);
+static void netaddr_to_sockaddr_in(struct sockaddr_in *,
+					const struct svr4_strmcmd *);
+static void netaddr_to_sockaddr_un(struct sockaddr_un *,
+					const struct svr4_strmcmd *);
 
 /* stream ioctls */
-static int i_nread __P((struct file *, struct thread *, register_t *, int,
-			u_long, caddr_t));
-static int i_fdinsert __P((struct file *, struct thread *, register_t *, int,
-			   u_long, caddr_t));
-static int i_str   __P((struct file *, struct thread *, register_t *, int,
-			u_long, caddr_t));
-static int i_setsig   __P((struct file *, struct thread *, register_t *, int,
-			u_long, caddr_t));
-static int i_getsig   __P((struct file *, struct thread *, register_t *, int,
-			u_long, caddr_t));
-static int _i_bind_rsvd __P((struct file *, struct thread *, register_t *, int,
-			     u_long, caddr_t));
-static int _i_rele_rsvd __P((struct file *, struct thread *, register_t *, int,
-			     u_long, caddr_t));
+static int i_nread(struct file *, struct thread *, register_t *, int,
+			u_long, caddr_t);
+static int i_fdinsert(struct file *, struct thread *, register_t *, int,
+			   u_long, caddr_t);
+static int i_str(struct file *, struct thread *, register_t *, int,
+			u_long, caddr_t);
+static int i_setsig(struct file *, struct thread *, register_t *, int,
+			u_long, caddr_t);
+static int i_getsig(struct file *, struct thread *, register_t *, int,
+			u_long, caddr_t);
+static int _i_bind_rsvd(struct file *, struct thread *, register_t *, int,
+			     u_long, caddr_t);
+static int _i_rele_rsvd(struct file *, struct thread *, register_t *, int,
+			     u_long, caddr_t);
 
 /* i_str sockmod calls */
-static int sockmod       __P((struct file *, int, struct svr4_strioctl *,
-			      struct thread *));
-static int si_listen     __P((struct file *, int, struct svr4_strioctl *,
-			      struct thread *));
-static int si_ogetudata  __P((struct file *, int, struct svr4_strioctl *,
-			      struct thread *));
-static int si_sockparams __P((struct file *, int, struct svr4_strioctl *,
-			      struct thread *));
-static int si_shutdown	 __P((struct file *, int, struct svr4_strioctl *,
-			      struct thread *));
-static int si_getudata   __P((struct file *, int, struct svr4_strioctl *,
-			      struct thread *));
+static int sockmod(struct file *, int, struct svr4_strioctl *,
+			      struct thread *);
+static int si_listen(struct file *, int, struct svr4_strioctl *,
+			      struct thread *);
+static int si_ogetudata(struct file *, int, struct svr4_strioctl *,
+			      struct thread *);
+static int si_sockparams(struct file *, int, struct svr4_strioctl *,
+			      struct thread *);
+static int si_shutdown	(struct file *, int, struct svr4_strioctl *,
+			      struct thread *);
+static int si_getudata(struct file *, int, struct svr4_strioctl *,
+			      struct thread *);
 
 /* i_str timod calls */
-static int timod         __P((struct file *, int, struct svr4_strioctl *,
-		              struct thread *));
-static int ti_getinfo    __P((struct file *, int, struct svr4_strioctl *,
-			      struct thread *));
-static int ti_bind       __P((struct file *, int, struct svr4_strioctl *,
-			      struct thread *));
+static int timod(struct file *, int, struct svr4_strioctl *, struct thread *);
+static int ti_getinfo(struct file *, int, struct svr4_strioctl *,
+			      struct thread *);
+static int ti_bind(struct file *, int, struct svr4_strioctl *, struct thread *);
 
 /* infrastructure */
-static int svr4_sendit __P((struct thread *td, int s, struct msghdr *mp,
-			    int flags));
+static int svr4_sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 
-static int svr4_recvit __P((struct thread *td, int s, struct msghdr *mp,
-			    caddr_t namelenp));
+static int svr4_recvit(struct thread *td, int s, struct msghdr *mp,
+			    caddr_t namelenp);
 
 /* <sigh>  Ok, so we shouldn't use sendit() in uipc_syscalls.c because
  * it isn't part of a "public" interface;  We're supposed to use
@@ -368,11 +365,11 @@ done1:
 }
 
 #ifdef DEBUG_SVR4
-static void bufprint __P((u_char *, size_t));
-static int show_ioc __P((const char *, struct svr4_strioctl *));
-static int show_strbuf __P((struct svr4_strbuf *));
-static void show_msg __P((const char *, int, struct svr4_strbuf *, 
-			  struct svr4_strbuf *, int));
+static void bufprint(u_char *, size_t);
+static int show_ioc(const char *, struct svr4_strioctl *);
+static int show_strbuf(struct svr4_strbuf *);
+static void show_msg(const char *, int, struct svr4_strbuf *, 
+			  struct svr4_strbuf *, int);
 
 static void
 bufprint(buf, len)

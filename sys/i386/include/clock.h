@@ -31,19 +31,18 @@ extern int	apic_8254_intr;
  */
 struct clockframe;
 
-int	acquire_timer0 __P((int rate,
-			    void (*function)(struct clockframe *frame)));
-int	acquire_timer2 __P((int mode));
-int	release_timer0 __P((void));
-int	release_timer2 __P((void));
+int	acquire_timer0(int rate, void (*function)(struct clockframe *frame));
+int	acquire_timer2(int mode);
+int	release_timer0(void);
+int	release_timer2(void);
 #ifndef PC98
-int	rtcin __P((int val));
+int	rtcin(int val);
 #else
-int	acquire_timer1 __P((int mode));
-int	release_timer1 __P((void));
+int	acquire_timer1(int mode);
+int	release_timer1(void);
 #endif
-int	sysbeep __P((int pitch, int period));
-void	timer_restore __P((void));
+int	sysbeep(int pitch, int period);
+void	timer_restore(void);
 
 #endif /* _KERNEL */
 

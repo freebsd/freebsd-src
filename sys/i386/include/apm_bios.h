@@ -144,7 +144,7 @@
 /* C definitions */
 struct apmhook {
 	struct apmhook	*ah_next;
-	int		(*ah_fun) __P((void *ah_arg));
+	int		(*ah_fun)(void *ah_arg);
 	void		*ah_arg;
 	const char	*ah_name;
 	int		ah_order;
