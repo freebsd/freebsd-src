@@ -1,126 +1,214 @@
 	    --- A new  FreeBSD audio driver ---
 	    by Luigi Rizzo (luigi@iet.unipi.it)
 
+This is a new, completely rewritten, audio driver for FreeBSD.
+Only "soundcard.h" has remained largely similar to the original
+OSS/Voxware header file, mostly for compatibility with existing
+applications.
 
-This is an experimental version of the audio driver for FreeBSD.
-I have almost completely rewritten the main parts of the code,
-starting from the Voxware 3.5-alpha release with patches from
-Amancio Hasty. The only file which is largely similar to the original
-ones is "soundcard.h" (for compatibility reasons, since it contains
-the definition of all the ioctls).
+This driver tries to cover those areas where the Voxware 3.0 driver
+is mostly lacking: full-duplex, audio applications, modern (mostly
+PnP) cards. For backward compatibility, the driver implements most
+of the Voxware ioctl() audio calls, so that many applications --
+even commercial ones -- will run unmodified with this driver.  On
+the other hand, at the moment this driver does not support /dev/midi
+and /dev/synth, or some ioctl() used in xquake. Do not expect
+/dev/synth to be supported before summer'98.
 
-Visit http://www.iet.unipi.it/~luigi/FreeBSD.html for the latest
-information on the drivers.  There you can obtain the latest source
-package that includes documentation on the design of the driver.
+I also have implemented a new software interface with an independent
+set of ioctl(), to support some functions which were not easy to
+express with the existing software interface (e.g. full duplex on
+the SB16). To make an effective use of the new functionalities you
+need to recompile applications by replacing the audio module(s).
 
+Updated versions of this code will available at the following URL:
 
-CARD SUPPORT INFORMATION:
+	http://www.iet.unipi.it/~luigi/FreeBSD.html
 
-For PnP cards, I also include the vendor_id and serial numbers of
-cards I have encountered.
+Please READ CAREFULLY this file (and possibly the LaTeX documentation)
+to build a working kernel. The configuration is DIFFERENT (and
+hopefully much simpler) from the original Voxware driver.  The
+relevant steps are indicated at "---INSTALLATION---".
 
-CS4236: PnP id 0x3642630e
-CS4237: PnP id 0x3742630e
+CARDS:
 
-    works like a charm. All modes, including full duplex, supported in
-    MSS mode.
+  The driver supports most clones of WSS, SB16 and SBPro cards.
+  This includes those based on the Crystal CS423x, OPTI931, GUSPnP,
+  Yamaha, SB16/32 (both plain ISA, PnP, and the various AWExx).
+  Many PnP cards are directly recognised, for others you might need
+  manual configuration. See the file "CARDS" for more details.
 
-CS4232: PnP id 0x3242630e
+APPLICATIONS:
 
-    this chip is reported as broken in the OSS documentation. As a
-    matter of fact, on my Intel Zappa motherboard, I have problems in
-    make it use the secondary DMA channel. I have it working in
-    half duplex (both capture and playback) in SB3.2 emulation,
-    and working in playback mode in MSS emulation.
+  In general, most applications which use /dev/audio or /dev/dsp
+  work unmodified or with a specially-supplied module.
 
-OPTi931: PnP id 0x3109143e
+  UNMODIFIED:
+  - raplayer (Real Audio Player), rvplayer (linux version)
+  - xboing
+  - xanim
+  - various mpeg players (mpg123, amp, ...);
 
-    The data sheets of this chip are very cryptic and do not match
-    what the cards I have seem to do. I have it working
-    in WSS emulation, in full duplex and all modes.
-    In SB emulation mode the driver does not work yet (maybe I do
-    not initialize it the right way). It is not a major concern
-    anyways.
-    I am strongly convinced of a couple of bugs in the chip. I have
-    sent email to OPTI but got no reply so far. The bugs are:
-    - you cannot set both playback and capture format to use
-      a companded mode (ULAW, ALAW). If you do, the card will screw
-      up on the capture section.
-      The driver has a partial fix in software: when using ULAW, it
-      programs ULAW on the playback section, U8 on the capture, and
-      does a conversion in software (much like the SBPro). Of course
-      you lose 4-5 bits of dynamic range in the process.
-    - in full duplex (and single DMA mode), the card occasionally
-      misses interrupts, or generates spurious ones. Spurious ints are
-      not problematic since they can be ignored, but missed ones are
-      as you can imagine... This is fixed by auto-dma mode.
+  NOT WORKING
+  - xquake (we do not support mmapped buffers yet);
 
-SB16 PnP: PnP id 0xXX008c0e
+                    ---INSTALLATION---
 
-    There are many such cards (plain SB16 PnP, AWE32, AWE64, Vibra16,
-    etc.) all differing in the PnP id. They have different synthesis
-    devices, which we do not support, so we are not affected by these
-    differences. Don't worry if the driver identifies the card as a
-    different SB16 than the one you have.
+  * add the following lines to your kernel configuration file:
 
-    Full duplex support of this card is tricky since one channel can
-    work in 16-bit and the other in 8-bit mode. You will need to use
-    the new set of ioctl to use separate data formats on the two
-    channels (the vat driver does this). Of course, quality in 8-bit
-    is much lower than in 16-bit.
+      controller pnp0  # this is required for PnP support
 
-    Full duplex operation is unsupported by Creative. It seems to
-    work, although on my Vibra16 the command to stop DMA transfer
-    seems to erroneously affect both channels instead of the one
-    they are issued for. The driver has a workaround, but I cannot
-    guarantee that it works for everybody. I have had several
-    positive reports.
+      device	 pcm0 at isa ? port? tty irq N drq D flags F vector pcmintr
 
-Yamaha SA2
+    where
 
-    this card emulates a WSS or SB. Have reports that it works, although
-    it has mixer problems (maybe the driver has the wrong set of
-    parameters).
+      N is the IRQ address used by the sound card,
+      D is the primary DMA channel used by the sound card,
+      F is used to specify a number of options, in particular:
+        bit  2..0   secondary DMA channel;
+        bit  4      set if the board uses two dma channels;
+        bit 15..8   board type, overrides autodetection; leave it
+		    zero if don't know what to put in (and you don't,
+		    since this is unsupported at the moment...).
 
-Ensoniq Soundscape VIVO
+    The code will probe for common port addresses (0x220, 0x240
+    for SB and clonse, 0x530 for WSS and clones), so you don't need
+    to specify them if your system uses one of them. In case you
+    do, note that for WSS cards the code assumes that the board
+    occupies 8 IO addresses, the first four used to configure
+    IRQ/DRQ, and the other four to access codec registers. Many
+    boards (including all the ones I have) do not have registers
+    to program IRQ and DRQ, so they really start at 0x534... yet
+    I decided to use the old convention for historical reasons.
 
-    this card emulates a WSS or SB. Have reports that it works.
+    You can use multiple sound cards, in which case you need more
+    lines like
 
-GusPnP: PnP id 0x0100561e
+      device	 pcm1 at isa ? port? tty irq N drq D flags F vector pcmintr
+      device	 pcm2 at isa ? port? tty irq N drq D flags F vector pcmintr
+      ...
 
-    I have code to recognize the board as MSS, but some initializations
-    of the IW chip is still missing, so the card is not supported yet.
-    I am working on this problem...
+    EXAMPLES: a typical "device" line for the SB16 (full duplex) is
 
-OPTI924: PnP
+      device pcm0 at isa ? port? tty irq 5 drq 1 flags 0x15 vector pcmintr
 
-    I have this card but it is still unsupported.
+    The driver will check at the default addresses (or the one you
+    specify) which type of SoundBlaster you have (1.5, 2.0, 3.X
+    aka SBPro, 4.X aka SB16) and use the correct commands. You
+    _do_not_ need to specify different drivers (sb,sbpro,sbxvi) as
+    it was the case (and a big source of confusion) in the previous
+    sound driver.
 
-OPTI925: PnP id 0x2509143e
+    For a WSS-compatible codec (non PnP) working in full duplex using
+    dma channels 1 and 3, you can specify:
 
-    there is code to recognize it as a SB clone. I have reports that
-    it probes ok, but not sure if it works.
+      device pcm0 at isa ? port 0x530 tty irq 7 drq 1 flags 0x13 vector pcmintr
 
-OPTI930:
+    (0x530 is a default if no port address is specified).  The
+    "flags 0x13" specifies that you have a dual dma board with
+    channel 3 as secondary DMA channel.
 
-    should work as an MSS clone, but support for it is not implemented
-    yet.
+  * build the kernel using the following steps
 
-ESS1868
+	config MYKERNEL
+	cd /sys/compile/MYKERNEL
+	make depend
+	make
 
-    this card is not supported yet. It might work in SB emulation but
-    am not sure.
+  * PnP support:
 
-ESS688
+    For PnP cards, only the line for "pcm0" is needed (the code
+    will allocate entries for more cards if found), but IT MUST
+    INCLUDE ALL FIELDS, including "vector pcmintr". You can use
+    the following line:
 
-    this card is used on many notebook. I don't have docs on this card
-    so I cannot support it. Pointers to the data sheets are welcome.
+      device pcm0 at isa ? port? tty irq 7 drq 1 vector pcmintr
 
-PCI cards:
+    NOTE that:
+      - the parameters for the PnP device(s) will be read from the
+        configuration of the card(s); they are usually assigned by
+	the bios, and there is no way (at the moment) to override
+	them, so if you have a broken (or no) PnP bios your only
+	chance is to patch the pnp attach code in the driver for your
+	card (ad1848.c, sb_dsp.c, clones.c) and write there the
+	parameters you want;
+      - The driver will assign unit numbers to the PnP cards starting
+	from the next free one (e.g. 1, 2, ...) same as it is done
+	with PCI devices which are clones of ISA devices.
 
-    some vendors have PCI cards. This code _cannot_ work on these
-    cards as it is now, since they cannot obviously use the ISA DMA
-    controller. As there are no data sheets available for these PCI
-    cards, none of them is supported at the moment, although support
-    should be easy as soon as I can put my hands on the data sheets
-    and cards.
+    The driver assumes a working PnP bios, which will assign correct
+    addresses and IO and DMA channels to the devices. If you do not
+    have a PnP-aware BIOS, you must boot with the -c option and assign
+    addresses manually the first time. The general commands are described in
+    the pnp README file. For the card-specific commands check in the
+    file CARDS.
+
+WHAT IF THIS DRIVER DOES NOT WORK:
+
+If the driver does not work with your hardware, I am willing to
+help but I need the following:
+
+  - relevant lines in your config file;
+  - dmesg output
+  - possibly, pnpinfo output
+
+Please send all the above in plain text, not as a mime attachment.
+
+Common mistakes:
+
+* you are trying to use /dev/audio0 instead of /dev/audio1
+  For technical reasons, a PnP device is attached as unit 1 instead
+  of unit 0 -- most applications are programmed to access the audio
+  hardware through /dev/audio, /dev/dsp, /dev/mixer which are in turn
+  symlinks to the correct device entries. Check them and possibly fix
+  these symlinks in /dev
+
+* you have used a wrong config line
+
+  The configuration of this driver is different from the Voxware one.
+  Please read the information in this file carefully.
+
+* your BIOS is leaving the card disabled.
+
+  Some BIOSes do not initialize the card, or leave it disabled. At the
+  moment, the fix is to use the pnp code booting with "-c" and set the
+  correct port, irq, drq etc for the card. See the PnP documentation.
+
+* your card is not recognized.
+
+  This driver supports a large, but still limited, number of cards,
+  mostly SB and WSS clones. Other cards may or may not work depending
+  on how closely they emulate these devices. In case, send me an email
+  with the info indicated above.
+
+* the mixer does not work well
+
+  Different cards have different connections to the mixer, so it might
+  well be that to control the volume of your CD you have to use the FM
+  port, etc. Also, on some cards the volume might be lower than you
+  expect. The mixer code still does not try to exploit the features of
+  each card, and it just provides basic functionalities.
+
+--- ACKNWOLEDGEMENTS ---
+
+Several people helped, directly or indirectly, in the development of
+this driver. In particular I would like to thank:
+
+    * Hannu Savolainen (the Voxware author) for making his code
+      available. It was a very good source of technical info;
+    * Amancio Hasty for continuous support and his work on guspnp code;
+    * Jim Lowe for his suggestion on the block-mode select;
+    * Allison Mankin and Brad Karp at ISI-East for supplying a GUS PnP
+      which allowed me to support this card;
+    * Eric J. Schwertfeger for donating sn ES1868 card for writing the
+      driver.
+    * and many people who had the patience to try the driver
+      on their cards and report success/fauilure and useful
+      information.
+
+It was certainly helpful to have the data sheets for some of the
+devices I support available on the net, especially in the (unfortunately
+rare) cases where the data sheets matched the actual behaviour of
+the product. Too bad that no one of the chip/card manufacturers I
+have contacted by email regarding missing or inconsistent documentation
+on their products did even care to reply to my messages.
