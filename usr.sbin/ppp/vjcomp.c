@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.16.2.7 1998/03/13 21:07:46 brian Exp $
+ * $Id: vjcomp.c,v 1.16.2.8 1998/03/16 22:52:54 brian Exp $
  *
  *  TODO:
  */
@@ -51,14 +51,6 @@
 
 #define MAX_VJHEADER 16		/* Maximum size of compressed header */
 
-static struct slcompress cslc;
-
-void
-VjInit(int max_state)
-{
-  sl_compress_init(&cslc, max_state);
-}
-
 void
 SendPppFrame(struct link *l, struct mbuf * bp, struct bundle *bundle)
 {
@@ -71,7 +63,9 @@ SendPppFrame(struct link *l, struct mbuf * bp, struct bundle *bundle)
             bundle->ncp.ipcp.peer_compproto);
   if (((struct ip *) MBUF_CTOP(bp))->ip_p == IPPROTO_TCP
       && cproto == PROTO_VJCOMP) {
-    type = sl_compress_tcp(bp, (struct ip *)MBUF_CTOP(bp), &cslc,
+    type = sl_compress_tcp(bp, (struct ip *)MBUF_CTOP(bp),
+                           &bundle->ncp.ipcp.vj.cslc,
+                           &bundle->ncp.ipcp.vj.slstat,
                            bundle->ncp.ipcp.peer_compproto & 0xff);
     LogPrintf(LogDEBUG, "SendPppFrame: type = %x\n", type);
     switch (type) {
@@ -97,7 +91,7 @@ SendPppFrame(struct link *l, struct mbuf * bp, struct bundle *bundle)
 }
 
 static struct mbuf *
-VjUncompressTcp(struct mbuf * bp, u_char type)
+VjUncompressTcp(struct ipcp *ipcp, struct mbuf * bp, u_char type)
 {
   u_char *bufp;
   int len, olen, rlen;
@@ -112,7 +106,7 @@ VjUncompressTcp(struct mbuf * bp, u_char type)
      * space for uncompression job.
      */
     bufp = MBUF_CTOP(bp);
-    len = sl_uncompress_tcp(&bufp, len, type, &cslc);
+    len = sl_uncompress_tcp(&bufp, len, type, &ipcp->vj.cslc, &ipcp->vj.slstat);
     if (len <= 0) {
       pfree(bp);
       bp = NULL;
@@ -130,7 +124,7 @@ VjUncompressTcp(struct mbuf * bp, u_char type)
   rlen = len;
   bufp = work + MAX_HDR;
   bp = mbread(bp, bufp, rlen);
-  len = sl_uncompress_tcp(&bufp, olen, type, &cslc);
+  len = sl_uncompress_tcp(&bufp, olen, type, &ipcp->vj.cslc, &ipcp->vj.slstat);
   if (len <= 0) {
     pfree(bp);
     return NULL;
@@ -144,7 +138,7 @@ VjUncompressTcp(struct mbuf * bp, u_char type)
 }
 
 struct mbuf *
-VjCompInput(struct mbuf * bp, int proto)
+VjCompInput(struct ipcp *ipcp, struct mbuf *bp, int proto)
 {
   u_char type;
 
@@ -162,7 +156,7 @@ VjCompInput(struct mbuf * bp, int proto)
     LogPrintf(LogERROR, "VjCompInput...???\n");
     return (bp);
   }
-  bp = VjUncompressTcp(bp, type);
+  bp = VjUncompressTcp(ipcp, bp, type);
   return (bp);
 }
 

@@ -1,7 +1,7 @@
 /*
  * Definitions for tcp compression routines.
  *
- * $Header: /home/ncvs/src/usr.sbin/ppp/slcompress.h,v 1.10.2.1 1998/01/29 23:11:44 brian Exp $
+ * $Header: /home/ncvs/src/usr.sbin/ppp/slcompress.h,v 1.10.2.2 1998/02/21 01:45:25 brian Exp $
  *
  * Copyright (c) 1989 Regents of the University of California.
  * All rights reserved.
@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.h,v 1.10.2.1 1998/01/29 23:11:44 brian Exp $
+ * $Id: slcompress.h,v 1.10.2.2 1998/02/21 01:45:25 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -126,11 +126,23 @@ struct slcompress {
   struct cstate rstate[MAX_VJ_STATES];	/* receive connection states */
 };
 
+struct slstat {
+  int sls_packets;		/* outbound packets */
+  int sls_compressed;		/* outbound compressed packets */
+  int sls_searches;		/* searches for connection state */
+  int sls_misses;		/* times couldn't find conn. state */
+  int sls_uncompressedin;	/* inbound uncompressed packets */
+  int sls_compressedin;		/* inbound compressed packets */
+  int sls_errorin;		/* inbound unknown type packets */
+  int sls_tossed;		/* inbound packets tossed because of error */
+};
+
 /* flag values */
 #define SLF_TOSS 1		/* tossing rcvd frames because of input err */
 
 extern void sl_compress_init(struct slcompress *, int);
-extern u_char sl_compress_tcp
-  (struct mbuf *, struct ip *, struct slcompress *, int);
-extern int sl_uncompress_tcp(u_char **, int, u_int, struct slcompress *);
+extern u_char sl_compress_tcp(struct mbuf *, struct ip *, struct slcompress *,
+                              struct slstat *, int);
+extern int sl_uncompress_tcp(u_char **, int, u_int, struct slcompress *,
+                             struct slstat *);
 extern int ReportCompress(struct cmdargs const *);

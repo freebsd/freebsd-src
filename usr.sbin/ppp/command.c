@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.38 1998/03/13 21:08:01 brian Exp $
+ * $Id: command.c,v 1.131.2.39 1998/03/16 22:51:58 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -54,6 +54,7 @@
 #include "lcp.h"
 #include "iplist.h"
 #include "throughput.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "modem.h"
 #ifndef NOALIAS
@@ -70,7 +71,6 @@
 #include "route.h"
 #include "ccp.h"
 #include "ip.h"
-#include "slcompress.h"
 #include "auth.h"
 #include "async.h"
 #include "link.h"

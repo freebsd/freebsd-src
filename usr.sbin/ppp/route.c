@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.10 1998/03/13 21:07:44 brian Exp $
+ * $Id: route.c,v 1.42.2.11 1998/03/16 22:52:50 brian Exp $
  *
  */
 
@@ -30,6 +30,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <net/if_dl.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <errno.h>
 #include <machine/endian.h>
@@ -55,6 +57,7 @@
 #include "hdlc.h"
 #include "link.h"
 #include "fsm.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "bundle.h"

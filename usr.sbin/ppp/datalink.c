@@ -23,11 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.22 1998/03/13 21:07:30 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.23 1998/03/16 22:52:01 brian Exp $
  */
 
 #include <sys/param.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <alias.h>
 #include <stdio.h>
@@ -52,6 +54,7 @@
 #include "link.h"
 #include "physical.h"
 #include "iplist.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "bundle.h"

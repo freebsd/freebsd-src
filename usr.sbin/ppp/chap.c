@@ -17,12 +17,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.16 1998/03/13 21:07:29 brian Exp $
+ * $Id: chap.c,v 1.28.2.17 1998/03/16 22:51:52 brian Exp $
  *
  *	TODO:
  */
 #include <sys/param.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <ctype.h>
 #ifdef HAVE_DES
@@ -62,6 +64,7 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "iplist.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "bundle.h"

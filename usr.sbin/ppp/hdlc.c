@@ -17,12 +17,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.19 1998/03/13 21:07:33 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.20 1998/03/16 22:52:15 brian Exp $
  *
  *	TODO:
  */
 #include <sys/param.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -39,6 +41,7 @@
 #include "lcpproto.h"
 #include "iplist.h"
 #include "throughput.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "ip.h"
 #include "vjcomp.h"
@@ -410,7 +413,7 @@ DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
     break;
   case PROTO_VJUNCOMP:
   case PROTO_VJCOMP:
-    bp = VjCompInput(bp, proto);
+    bp = VjCompInput(&bundle->ncp.ipcp, bp, proto);
     if (bp == NULL)
       break;
     /* fall down */

@@ -23,12 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.11 1998/03/13 21:07:38 brian Exp $
+ *  $Id: link.c,v 1.1.2.12 1998/03/16 22:52:24 brian Exp $
  *
  */
 
 #include <sys/param.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <stdio.h>
 #include <termios.h>
@@ -47,6 +49,7 @@
 #include "link.h"
 #include "fsm.h"
 #include "iplist.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "bundle.h"

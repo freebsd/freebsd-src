@@ -16,11 +16,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.16 1998/03/13 21:07:43 brian Exp $
+ *  $Id: physical.c,v 1.1.2.17 1998/03/16 22:52:38 brian Exp $
  *
  */
 
 #include <sys/param.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+
 #include <sys/tty.h>
 #include <sys/uio.h>
 
@@ -58,6 +62,7 @@
 
 #include "vars.h"
 #include "iplist.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "bundle.h"

@@ -17,13 +17,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.21 1998/03/13 21:07:57 brian Exp $
+ * $Id: ccp.c,v 1.30.2.22 1998/03/16 22:51:49 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
  */
 #include <sys/param.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -44,6 +46,7 @@
 #include "deflate.h"
 #include "throughput.h"
 #include "iplist.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "bundle.h"

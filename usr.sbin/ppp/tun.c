@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.6.4.6 1998/03/13 21:07:45 brian Exp $
+ *	$Id: tun.c,v 1.6.4.7 1998/03/16 22:52:52 brian Exp $
  */
 
 #include <sys/param.h>
@@ -33,6 +33,8 @@
 #include <net/if.h>
 #include <sys/select.h>
 #include <net/if_tun.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -51,6 +53,7 @@
 #include "fsm.h"
 #include "throughput.h"
 #include "iplist.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "bundle.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.26 1998/03/16 22:51:45 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.27 1998/03/16 22:53:04 brian Exp $
  */
 
 #include <sys/param.h>
@@ -34,6 +34,8 @@
 #include <arpa/inet.h>
 #include <net/route.h>
 #include <net/if_dl.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -54,6 +56,7 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "throughput.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "link.h"
 #include "filter.h"

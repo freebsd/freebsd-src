@@ -17,13 +17,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.13 1998/03/13 21:07:26 brian Exp $
+ * $Id: auth.c,v 1.27.2.14 1998/03/16 22:51:43 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
  */
 #include <sys/param.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <assert.h>
 #include <pwd.h>
@@ -39,6 +41,7 @@
 #include "fsm.h"
 #include "iplist.h"
 #include "throughput.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "loadalias.h"
 #include "vars.h"

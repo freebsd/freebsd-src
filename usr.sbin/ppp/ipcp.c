@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.22 1998/03/13 21:08:03 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.23 1998/03/16 22:52:20 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -50,8 +50,8 @@
 #include "lcp.h"
 #include "iplist.h"
 #include "throughput.h"
-#include "ipcp.h"
 #include "slcompress.h"
+#include "ipcp.h"
 #include "filter.h"
 #include "bundle.h"
 #include "loadalias.h"
@@ -234,6 +234,8 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
   ipcp->cfg.nbns_entries[0].s_addr = INADDR_ANY;
   ipcp->cfg.nbns_entries[1].s_addr = INADDR_ANY;
 
+  memset(&ipcp->vj, '\0', sizeof ipcp->vj);
+
   ipcp->my_ifip.s_addr = INADDR_ANY;
   ipcp->peer_ifip.s_addr = INADDR_ANY;
 
@@ -281,7 +283,7 @@ ipcp_Setup(struct ipcp *ipcp)
                          ipcp->cfg.VJInitComp;
   else
     ipcp->my_compproto = 0;
-  VjInit(ipcp->cfg.VJInitSlots - 1);
+  sl_compress_init(&ipcp->vj.cslc, ipcp->cfg.VJInitSlots - 1);
 
   ipcp->peer_reject = 0;
   ipcp->my_reject = 0;
@@ -542,7 +544,7 @@ IpcpLayerUp(struct fsm *fp)
 	    tbuff, inet_ntoa(ipcp->peer_ip));
 
   if (ipcp->peer_compproto >> 16 == PROTO_VJCOMP)
-    VjInit((ipcp->peer_compproto >> 8) & 255);
+    sl_compress_init(&ipcp->vj.cslc, (ipcp->peer_compproto >> 8) & 255);
 
   if (ipcp_SetIPaddress(fp->bundle, ipcp->my_ip,
                         ipcp->peer_ip, 0) < 0) {

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.20 1998/03/13 21:08:01 brian Exp $
+ * $Id: fsm.c,v 1.27.2.21 1998/03/16 22:52:10 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -25,6 +25,8 @@
  */
 #include <sys/param.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -50,6 +52,7 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "iplist.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "bundle.h"

@@ -23,11 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.13 1998/03/16 22:52:48 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.14 1998/03/16 22:53:15 brian Exp $
  */
 
 #include <sys/param.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -50,6 +52,7 @@
 #include "main.h"
 #include "iplist.h"
 #include "throughput.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "bundle.h"

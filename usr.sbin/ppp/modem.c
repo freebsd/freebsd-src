@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.35 1998/03/13 21:07:41 brian Exp $
+ * $Id: modem.c,v 1.77.2.36 1998/03/16 22:52:32 brian Exp $
  *
  *  TODO:
  */
@@ -26,6 +26,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -60,6 +62,7 @@
 #include "throughput.h"
 #include "async.h"
 #include "iplist.h"
+#include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "bundle.h"
