@@ -141,7 +141,6 @@ dev/buslogic/bt_isa.c	optional bt isa
 dev/buslogic/bt_mca.c	optional bt mca
 dev/buslogic/bt_eisa.c	optional bt eisa
 dev/buslogic/bt_pci.c	optional bt pci
-dev/cardbus/cardbus.c	optional cardbus
 dev/ccd/ccd.c		optional ccd
 dev/cs/if_cs.c		optional cs
 dev/cs/if_cs_isa.c	optional cs isa
@@ -942,7 +941,6 @@ dev/bktr/bktr_card.c	optional bktr pci
 dev/bktr/bktr_tuner.c	optional bktr pci
 dev/bktr/bktr_audio.c	optional bktr pci
 dev/bktr/bktr_os.c	optional bktr pci
-pci/pccbb.c		optional pccbb cardbus
 pci/cy_pci.c		optional cy pci
 pci/if_ar_p.c		optional ar pci
 pci/if_dc.c		optional dc
