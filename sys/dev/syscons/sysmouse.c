@@ -233,13 +233,7 @@ smioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		return ENODEV;
 	}
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
-	if (error != ENOIOCTL)
-		return error;
-	error = ttioctl(tp, cmd, data, flag);
-	if (error != ENOIOCTL)
-		return error;
-	return ENOTTY;
+	return(ttyioctl(dev, cmd, data, flag, td));
 }
 
 static void

@@ -49,13 +49,11 @@ __FBSDID("$FreeBSD$");
 
 static d_open_t		ofw_dev_open;
 static d_close_t	ofw_dev_close;
-static d_ioctl_t	ofw_dev_ioctl;
 
 static struct cdevsw ofw_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	ofw_dev_open,
 	.d_close =	ofw_dev_close,
-	.d_ioctl =	ofw_dev_ioctl,
 	.d_name =	"ofw",
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
@@ -173,32 +171,6 @@ ofw_dev_close(dev_t dev, int flag, int mode, struct thread *td)
 	return (0);
 }
 
-static int
-ofw_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-{
-	int	unit;
-	struct	tty *tp;
-	int	error;
-
-	unit = minor(dev);
-	tp = ofw_tp;
-
-	if (unit != 0) {
-		return (ENXIO);
-	}
-
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
-	if (error != ENOIOCTL) {
-		return (error);
-	}
-
-	error = ttioctl(tp, cmd, data, flag);
-	if (error != ENOIOCTL) {
-		return (error);
-	}
-
-	return (ENOTTY);
-}
 
 static int
 ofw_tty_param(struct tty *tp, struct termios *t)

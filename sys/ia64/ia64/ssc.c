@@ -55,13 +55,11 @@
 
 static	d_open_t	sscopen;
 static	d_close_t	sscclose;
-static	d_ioctl_t	sscioctl;
 
 static struct cdevsw ssc_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	sscopen,
 	.d_close =	sscclose,
-	.d_ioctl =	sscioctl,
 	.d_name =	"ssc",
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
@@ -192,26 +190,6 @@ sscclose(dev_t dev, int flag, int mode, struct thread *td)
 	return 0;
 }
  
-static int
-sscioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-{
-	int unit = minor(dev);
-	struct tty *tp = ssc_tp;
-	int error;
-
-	if (unit != 0)
-		return ENXIO;
-
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
-	if (error != ENOIOCTL)
-		return error;
-	error = ttioctl(tp, cmd, data, flag);
-	if (error != ENOIOCTL)
-		return error;
-
-	return ENOTTY;
-}
-
 static int
 sscparam(struct tty *tp, struct termios *t)
 {

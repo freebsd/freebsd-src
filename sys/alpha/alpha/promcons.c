@@ -61,13 +61,11 @@ __FBSDID("$FreeBSD$");
 
 static	d_open_t	promopen;
 static	d_close_t	promclose;
-static	d_ioctl_t	promioctl;
 
 static struct cdevsw prom_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	promopen,
 	.d_close =	promclose,
-	.d_ioctl =	promioctl,
 	.d_name =	"prom",
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
@@ -155,31 +153,6 @@ promclose(dev, flag, mode, td)
 	return 0;
 }
  
-int
-promioctl(dev, cmd, data, flag, td)
-	dev_t dev;
-	u_long cmd;
-	caddr_t data;
-	int flag;
-	struct thread *td;
-{
-	int unit = minor(dev);
-	struct tty *tp = prom_tp;
-	int error;
-
-	if (unit != 0)
-		return ENXIO;
-
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
-	if (error != ENOIOCTL)
-		return error;
-	error = ttioctl(tp, cmd, data, flag);
-	if (error != ENOIOCTL)
-		return error;
-
-	return ENOTTY;
-}
-
 int
 promparam(tp, t)
 	struct tty *tp;
