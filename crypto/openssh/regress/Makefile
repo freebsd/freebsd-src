@@ -1,8 +1,8 @@
-#	$OpenBSD: Makefile,v 1.13 2002/04/01 22:15:08 markus Exp $
+#	$OpenBSD: Makefile,v 1.20 2003/01/08 23:54:22 djm Exp $
 
-REGRESSTARGETS=	t1 t2 t3 t4 t5 t6 t7
+REGRESS_TARGETS=	t1 t2 t3 t4 t5 t6 t7
 
-CLEANFILES+=	t2.out t6.out1 t6.out2 t7.out t7.out.pub 
+CLEANFILES+=	t2.out t6.out1 t6.out2 t7.out t7.out.pub copy.1 copy.2
 
 LTESTS= 	connect \
 		proxy-connect \
@@ -17,8 +17,14 @@ LTESTS= 	connect \
 		try-ciphers \
 		yes-head \
 		agent \
+		agent-getpeereid \
+		agent-timeout \
+		agent-ptrace \
 		keyscan \
+		keygen-change \
 		sftp \
+		sftp-cmds \
+		sftp-batch \
 		forwarding
 
 USER!=		id -un
@@ -65,7 +71,7 @@ t7: t7.out
 	ssh-keygen -Bf t7.out > /dev/null
 
 .for t in ${LTESTS}
-REGRESSTARGETS+=t-${t}
+REGRESS_TARGETS+=t-${t}
 t-${t}:
 	sh ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/${t}.sh
 .endfor

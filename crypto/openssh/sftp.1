@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.36 2002/09/11 22:41:50 djm Exp $
+.\" $OpenBSD: sftp.1,v 1.41 2003/03/28 10:11:43 jmc Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -30,6 +30,7 @@
 .Nd Secure file transfer program
 .Sh SYNOPSIS
 .Nm sftp
+.Bk -words
 .Op Fl vC1
 .Op Fl b Ar batchfile
 .Op Fl o Ar ssh_option
@@ -40,10 +41,15 @@
 .Op Fl R Ar num_requests
 .Op Fl S Ar program
 .Ar host
+.Ek
 .Nm sftp
-.Op [\fIuser\fR@]\fIhost\fR[:\fIfile\fR [\fIfile\fR]]
+.Oo Oo Ar user Ns No @ Oc Ns
+.Ar host Ns Oo : Ns Ar file Oo
+.Ar file Oc Oc Oc
 .Nm sftp
-.Op [\fIuser\fR@]\fIhost\fR[:\fIdir\fR[\fI/\fR]]
+.Oo Oo Ar user Ns No @ Oc Ns
+.Ar host Ns Oo : Ns Ar dir Ns
+.Oo Ar / Oc Oc Oc
 .Sh DESCRIPTION
 .Nm
 is an interactive file transfer program, similar to
@@ -77,9 +83,16 @@ non-interactive authentication.
 will abort if any of the following
 commands fail:
 .Ic get , put , rename , ln ,
-.Ic rm , mkdir , chdir , lchdir
+.Ic rm , mkdir , chdir , ls ,
+.Ic lchdir , chmod , chown , chgrp , lpwd
 and
 .Ic lmkdir .
+Termination on error can be suppressed on a command by command basis by
+prefixing the command with a
+.Ic '-'
+character (For example,
+.Ic -rm /tmp/blah*
+).
 .It Fl o Ar ssh_option
 Can be used to pass options to
 .Nm ssh
@@ -88,19 +101,19 @@ in the format used in
 This is useful for specifying options
 for which there is no separate
 .Nm sftp
-command-line flag.  For example, to specify an alternate
+command-line flag. For example, to specify an alternate
 port use:
 .Ic sftp -oPort=24 .
 .It Fl s Ar subsystem | sftp_server
 Specifies the SSH2 subsystem or the path for an sftp server
-on the remote host.  A path is useful for using sftp over
+on the remote host. A path is useful for using sftp over
 protocol version 1, or when the remote
 .Nm sshd
 does not have an sftp subsystem configured.
 .It Fl v
 Raise logging level. This option is also passed to ssh.
 .It Fl B Ar buffer_size
-Specify  the size of the buffer that
+Specify the size of the buffer that
 .Nm
 uses when transferring files. Larger buffers require fewer round trips at
 the cost of higher memory consumption. The default is 32768 bytes.
@@ -221,10 +234,12 @@ Set local umask to
 .It Ic mkdir Ar path
 Create remote directory specified by
 .Ar path .
+.It Ic progress
+Toggle display of progress meter.
 .It Xo Ic put
 .Op Ar flags
 .Ar local-path
-.Op Ar local-path
+.Op Ar remote-path
 .Xc
 Upload
 .Ar local-path
@@ -253,6 +268,10 @@ Create a symbolic link from
 .Ar oldpath
 to
 .Ar newpath .
+.It Ic version
+Display the
+.Nm
+protocol version.
 .It Ic ! Ar command
 Execute
 .Ar command

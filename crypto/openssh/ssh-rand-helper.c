@@ -39,7 +39,7 @@
 #include "pathnames.h"
 #include "log.h"
 
-RCSID("$Id: ssh-rand-helper.c,v 1.8 2002/07/28 20:42:24 stevesk Exp $");
+RCSID("$Id: ssh-rand-helper.c,v 1.10 2003/03/17 05:13:53 djm Exp $");
 
 /* Number of bytes we write out */
 #define OUTPUT_SEED_SIZE	48
@@ -355,6 +355,7 @@ hash_command_output(entropy_cmd_t *src, unsigned char *hash)
 		case 0:
 			/* timer expired */
 			error_abort = 1;
+			kill(pid, SIGINT);
 			break;
 		case 1:
 			/* command input */
@@ -561,7 +562,8 @@ prng_write_seedfile(void)
 
 	debug("writing PRNG seed to file %.100s", filename);
 
-	RAND_bytes(seed, sizeof(seed));
+	if (RAND_bytes(seed, sizeof(seed)) <= 0)
+		fatal("PRNG seed extration failed");
 
 	/* Don't care if the seed doesn't exist */
 	prng_check_seedfile(filename);
@@ -848,7 +850,8 @@ main(int argc, char **argv)
 	if (!RAND_status())
 		fatal("Not enough entropy in RNG");
 
-	RAND_bytes(buf, bytes);
+	if (RAND_bytes(buf, bytes) <= 0)
+		fatal("Couldn't extract entropy from PRNG");
 
 	if (output_hex) {
 		for(ret = 0; ret < bytes; ret++)
