@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmpagent.h,v 1.9 2002/03/08 14:24:58 hbb Exp $
+ * $Begemot: bsnmp/lib/snmpagent.h,v 1.10 2003/12/03 09:55:58 hbb Exp $
  *
  * Header file for SNMP functions. This requires snmp.h to be included.
  */

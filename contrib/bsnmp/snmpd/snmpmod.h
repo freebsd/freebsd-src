@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/snmpmod.h,v 1.23 2003/01/28 13:44:35 hbb Exp $
+ * $Begemot: bsnmp/snmpd/snmpmod.h,v 1.25 2003/12/08 16:55:58 hbb Exp $
  *
  * SNMP daemon data and functions exported to modules.
  */
@@ -199,6 +199,8 @@ enum snmpd_input_err {
 	SNMPD_INPUT_VALRANGE,
 	/* value has bad encoding */
 	SNMPD_INPUT_VALBADENC,
+	/* need more data (truncated packet) */
+	SNMPD_INPUT_TRUNC,
 };
 
 /*
@@ -228,9 +230,9 @@ struct snmp_module {
 	void (*start)(void);
 
 	/* proxy a PDU */
-	enum snmpd_proxy_err (*proxy)(struct snmp_v1_pdu *,
+	enum snmpd_proxy_err (*proxy)(struct snmp_pdu *, void *,
 	    const struct asn_oid *, const struct sockaddr *, socklen_t,
-	    enum snmpd_input_err, int32_t);
+	    enum snmpd_input_err, int32_t, int);
 
 	/* the tree this module is going to server */
 	const struct snmp_node *tree;
@@ -320,15 +322,15 @@ size_t buf_size(int tx);
 
 /* decode PDU and find community */
 enum snmpd_input_err snmp_input_start(const u_char *, size_t, const char *,
-    struct snmp_v1_pdu *, int32_t *);
+    struct snmp_pdu *, int32_t *, size_t *);
 
 /* process the pdu. returns either _OK or _FAILED */
 enum snmpd_input_err snmp_input_finish(struct snmp_pdu *, const u_char *,
     size_t, u_char *, size_t *, const char *, enum snmpd_input_err, int32_t,
     void *);
 
-void snmp_output(struct snmp_v1_pdu *, u_char *, size_t *, const char *);
-void snmp_send_port(const struct asn_oid *, struct snmp_v1_pdu *,
+void snmp_output(struct snmp_pdu *, u_char *, size_t *, const char *);
+void snmp_send_port(void *, const struct asn_oid *, struct snmp_pdu *,
 	const struct sockaddr *, socklen_t);
 
 /* sending traps */

@@ -30,7 +30,7 @@
 .\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/lib/bsnmpclient.3,v 1.3 2002/12/11 15:54:07 hbb Exp $
+.\" $Begemot: bsnmp/lib/bsnmpclient.3,v 1.5 2003/12/08 17:11:58 hbb Exp $
 .\"
 .Dd August 15, 2002
 .Dt bsnmpclient 3
@@ -107,7 +107,7 @@ that use SNMP versions 1 or 2. Most of the routines use a
 .Bd -literal -offset indent
 struct snmp_client {
 	enum snmp_version version;
-	int	local;	/* use local socket */
+	int	trans;	/* transport type to use */
 
 	/* these two are read-only for the application */
 	char	*cport;	/* port number as string */
@@ -147,13 +147,19 @@ This is the version of SNMP to use. See
 .Xr bsnmplib 3
 for applicable values. The default version is
 .Li SNMP_V2c .
-.It Va local
-If this is set to true, the library opens a
-.Ux
-domain socket rather than
-an UDP socket. It uses the
+.It Va trans
+If this is
+.Dv SNMP_TRANS_LOC_DGRAM 
+a local datagram socket is used.
+If it is
+.Dv SNMP_TRANS_LOC_STREAM 
+a local stream socket is used.
+For 
+.Dv SNMP_TRANS_UDP
+a UDP socket is created.
+It uses the
 .Va chost
-field as the path to the server's socket.
+field as the path to the server's socket for local sockets.
 .It Va cport
 The SNMP agent's UDP port number. This may be a symbolic port number (from
 .Pa /etc/services

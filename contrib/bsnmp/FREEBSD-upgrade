@@ -8,8 +8,9 @@ environments besides FreeBSD.
 Import should be done by:
 
 	1. unpack distribution into clean directory
+		tar xvf bsnmp-X.Y.tar.gz --exclude-from=FREEBSD-Xlist
 
-	2. remove all unneeded files
+	2. remove all unneeded new files (and update FREEBSD-Xlist)
 
 	3. cvs import \
 		-m "Virgin import of bsnmpd X.Y" \
