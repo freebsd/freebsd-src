@@ -251,7 +251,7 @@ msdosfs_mount(mp, path, data, ndp, p)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			error = vflush(mp, NULLVP, flags);
+			error = vflush(mp, 0, flags);
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
 			/* not yet implemented */
@@ -749,7 +749,7 @@ msdosfs_unmount(mp, mntflags, p)
 	flags = 0;
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	error = vflush(mp, NULLVP, flags);
+	error = vflush(mp, 0, flags);
 	if (error)
 		return error;
 	pmp = VFSTOMSDOSFS(mp);
