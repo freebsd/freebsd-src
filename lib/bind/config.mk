@@ -13,10 +13,14 @@ CFLAGS+=	-DHAVE_CONFIG_H
 .if defined(SRCDIR) && exists(${SRCDIR}/api)
 .include	"${SRCDIR}/api"
 CFLAGS+=	-DLIBINTERFACE=${LIBINTERFACE}
-SHLIB_MAJOR=	${LIBINTERFACE}
 CFLAGS+=	-DLIBREVISION=${LIBREVISION}
-SHLIB_MINOR=	${LIBINTERFACE}
 CFLAGS+=	-DLIBAGE=${LIBAGE}
+.if defined(WANT_BIND_LIBS)
+SHLIB_MAJOR=	${LIBINTERFACE}
+SHLIB_MINOR=	${LIBINTERFACE}
+.else
+INTERNALLIB=	YES
+.endif
 .endif
 
 # GSSAPI support is incomplete in 9.3.0
@@ -57,9 +61,34 @@ CFLAGS+=	-I${LIB_BIND_DIR}
 .endif
 
 # Link against BIND libraries
+.if !defined(WANT_BIND_LIBS)
+LIBBIND9=	${LIB_BIND_REL}/bind9/libbind9.a
+CFLAGS+=	-I${BIND_DIR}/lib/bind9/include
+LIBDNS=		${LIB_BIND_REL}/dns/libdns.a
+CFLAGS+=	-I${BIND_DIR}/lib/dns/sec/dst/include \
+		-I${BIND_DIR}/lib/dns/include \
+		-I${LIB_BIND_DIR}/dns
+LIBISCCC=	${LIB_BIND_REL}/isccc/libisccc.a
+CFLAGS+=	-I${BIND_DIR}/lib/isccc/include
+LIBISCCFG=	${LIB_BIND_REL}/isccfg/libisccfg.a
+CFLAGS+=	-I${BIND_DIR}/lib/isccfg/include
+LIBISC=		${LIB_BIND_REL}/isc/libisc.a
+CFLAGS+=	-I${BIND_DIR}/lib/isc/unix/include \
+		-I${BIND_DIR}/lib/isc/pthreads/include \
+		-I${BIND_DIR}/lib/isc/include \
+		-I${LIB_BIND_DIR}/isc
+LIBLWRES=	${LIB_BIND_REL}/lwres/liblwres.a
+CFLAGS+=	-I${BIND_DIR}/lib/lwres/unix/include \
+		-I${BIND_DIR}/lib/lwres/include \
+		-I${LIB_BIND_DIR}/lwres
+.endif
 BIND_DPADD=	${LIBBIND9} ${LIBDNS} ${LIBISCCC} ${LIBISCCFG} \
 		${LIBISC} ${LIBLWRES}
+.if defined(WANT_BIND_LIBS)
 BIND_LDADD=	-lbind9 -ldns -lisccc -lisccfg -lisc -llwres
+.else
+BIND_LDADD=	${BIND_DPADD}
+.endif
 
 # Link against crypto library
 .if !defined(NOCRYPT)

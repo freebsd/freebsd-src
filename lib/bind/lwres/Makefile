@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 BIND_DIR=	${.CURDIR}/../../../contrib/bind9
-LIB_BIND_DIR=	${.CURDIR}/..
+LIB_BIND_REL=	..
+LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
 SRCDIR=		${BIND_DIR}/lib/lwres
 
 .include	"${LIB_BIND_DIR}/config.mk"
@@ -16,11 +17,12 @@ SRCS+=		context.c gai_strerror.c getaddrinfo.c gethost.c \
 		lwinetaton.c lwinetpton.c lwinetntop.c print.c
 
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include
-CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/..
+CFLAGS+=	-I${.CURDIR}
 
 DPADD=		${PTHREAD_DPADD}
 LDADD=		${PTHREAD_LDADD}
 
+.if defined(WANT_BIND_LIBS)
 INCS=		${SRCDIR}/include/lwres/context.h \
 		${SRCDIR}/include/lwres/int.h \
 		${SRCDIR}/include/lwres/ipv6.h \
@@ -36,5 +38,6 @@ INCS=		${SRCDIR}/include/lwres/context.h \
 		lwres/platform.h
 
 INCSDIR=	${INCLUDEDIR}/lwres
+.endif
 
 .include <bsd.lib.mk>

@@ -1,8 +1,13 @@
 # $FreeBSD$
 
 BIND_DIR=	${.CURDIR}/../../../contrib/bind9
-LIB_BIND_DIR=	${.CURDIR}/..
+LIB_BIND_REL=	..
+LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
 SRCDIR=		${BIND_DIR}/lib/bind
+
+# XXX These should come before -I's from config.mk.
+CFLAGS+=	-I${SRCDIR}/port/freebsd/include -I${SRCDIR}/include
+CFLAGS+=	-I${.CURDIR}
 
 .include	"${LIB_BIND_DIR}/config.mk"
 
@@ -57,12 +62,10 @@ SRCS+=		herror.c res_comp.c res_data.c \
 		res_mkquery.c res_mkupdate.c res_query.c \
 		res_send.c res_sendsigned.c res_update.c
 
-CFLAGS+=	-I${SRCDIR}/port/freebsd/include -I${SRCDIR}/include
-CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/..
-
 DPADD=		${PTHREAD_DPADD}
 LDADD=		${PTHREAD_LDADD}
 
+#.if defined(WANT_BIND_LIBS)
 #INCS=		${SRCDIR}/include/isc/assertions.h \
 #		${SRCDIR}/include/isc/ctl.h \
 #		${SRCDIR}/include/isc/dst.h \
@@ -76,5 +79,6 @@ LDADD=		${PTHREAD_LDADD}
 #		${SRCDIR}/include/isc/tree.h
 #
 #INCSDIR=	${INCLUDEDIR}/isc
+#.endif
 
 .include <bsd.lib.mk>
