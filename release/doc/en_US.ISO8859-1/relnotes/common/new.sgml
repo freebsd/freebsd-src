@@ -879,12 +879,12 @@
     <para><application>BIND</application> has been updated from 8.3.4
       to 8.3.7. &merged;</para>
 
-    <para>&new.521; Two security fixes for <application>CVS</application> (one
-      related to pserver operation and the other dealing with
-      malformed module requests) have been backported from later
-      versions.  One side effect of this update is that running
-      pserver as <username>root</username> (a configuration that was
-      already unsupported and insecure) no longer works.</para>
+    <para>&new.521; Security improvements from <application>CVS</application>
+      1.11.10 and 1.11.11 have been backported.  Specifically, certain
+      malformed module requests are now rejected, and when using
+      <command>cvs pserver</command> mode, attempts to authenticate as
+      <username>root</username> are rejected and recorded via
+      &man.syslog.3;.</para>
 
     <para><application>GCC</application> has been updated from 3.2.2 to
       a 3.3.3 pre-release snapshot from 6 November 2003.
