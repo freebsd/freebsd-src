@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: map.c,v 8.414.4.39 2001/02/22 18:56:22 gshapiro Exp $";
+static char id[] = "@(#)$Id: map.c,v 8.414.4.53 2001/05/04 01:29:00 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -370,7 +370,7 @@ map_rewrite(map, s, slen, av)
 		/* need to malloc additional space */
 		buflen = len;
 		if (buf != NULL)
-			free(buf);
+			sm_free(buf);
 		buf = xalloc(buflen);
 	}
 
@@ -492,8 +492,9 @@ map_init(s, unused)
 	/* if already open, close it (for nested open) */
 	if (bitset(MF_OPEN, map->map_mflags))
 	{
+		map->map_mflags |= MF_CLOSING;
 		map->map_class->map_close(map);
-		map->map_mflags &= ~(MF_OPEN|MF_WRITABLE);
+		map->map_mflags &= ~(MF_OPEN|MF_WRITABLE|MF_CLOSING);
 	}
 
 	(void) rebuildaliases(map, FALSE);
@@ -627,6 +628,7 @@ map_close(s, unused)
 
 	if (!bitset(MF_VALID, map->map_mflags) ||
 	    !bitset(MF_OPEN, map->map_mflags) ||
+	    bitset(MF_CLOSING, map->map_mflags) ||
 	    map->map_pid != getpid())
 		return;
 
@@ -635,8 +637,9 @@ map_close(s, unused)
 			map->map_mname == NULL ? "NULL" : map->map_mname,
 			map->map_file == NULL ? "NULL" : map->map_file);
 
+	map->map_mflags |= MF_CLOSING;
 	map->map_class->map_close(map);
-	map->map_mflags &= ~(MF_OPEN|MF_WRITABLE);
+	map->map_mflags &= ~(MF_OPEN|MF_WRITABLE|MF_CLOSING);
 }
 /*
 **  GETCANONNAME -- look up name using service switch
@@ -1079,7 +1082,7 @@ ndbm_map_open(map, mode)
 	**  map_mtime to be set
 	*/
 
-	if (fstat(dfd, &st) >= 0)
+	if (fstat(pfd, &st) >= 0)
 		map->map_mtime = st.st_mtime;
 
 	if (mode == O_RDONLY)
@@ -1130,7 +1133,7 @@ ndbm_map_lookup(map, name, av, statp)
 	int *statp;
 {
 	datum key, val;
-	int fd;
+	int dfd, pfd;
 	char keybuf[MAXNAME + 1];
 	struct stat stbuf;
 
@@ -1150,19 +1153,22 @@ ndbm_map_lookup(map, name, av, statp)
 		key.dptr = keybuf;
 	}
 lockdbm:
-	fd = dbm_dirfno((DBM *) map->map_db1);
-	if (fd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
-		(void) lockfile(fd, map->map_file, ".dir", LOCK_SH);
-	if (fd < 0 || fstat(fd, &stbuf) < 0 || stbuf.st_mtime > map->map_mtime)
+	dfd = dbm_dirfno((DBM *) map->map_db1);
+	if (dfd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
+		(void) lockfile(dfd, map->map_file, ".dir", LOCK_SH);
+	pfd = dbm_pagfno((DBM *) map->map_db1);
+	if (pfd < 0 || fstat(pfd, &stbuf) < 0 ||
+	    stbuf.st_mtime > map->map_mtime)
 	{
 		/* Reopen the database to sync the cache */
 		int omode = bitset(map->map_mflags, MF_WRITABLE) ? O_RDWR
 								 : O_RDONLY;
 
-		if (fd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
-			(void) lockfile(fd, map->map_file, ".dir", LOCK_UN);
+		if (dfd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
+			(void) lockfile(dfd, map->map_file, ".dir", LOCK_UN);
+		map->map_mflags |= MF_CLOSING;
 		map->map_class->map_close(map);
-		map->map_mflags &= ~(MF_OPEN|MF_WRITABLE);
+		map->map_mflags &= ~(MF_OPEN|MF_WRITABLE|MF_CLOSING);
 		if (map->map_class->map_open(map, omode))
 		{
 			map->map_mflags |= MF_OPEN;
@@ -1201,8 +1207,8 @@ lockdbm:
 		if (val.dptr != NULL)
 			map->map_mflags &= ~MF_TRY0NULL;
 	}
-	if (fd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
-		(void) lockfile(fd, map->map_file, ".dir", LOCK_UN);
+	if (dfd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
+		(void) lockfile(dfd, map->map_file, ".dir", LOCK_UN);
 	if (val.dptr == NULL)
 		return NULL;
 	if (bitset(MF_MATCHONLY, map->map_mflags))
@@ -1272,7 +1278,7 @@ ndbm_map_store(map, lhs, rhs)
 				if (data.dsize + old.dsize + 2 > bufsiz)
 				{
 					if (buf != NULL)
-						(void) free(buf);
+						sm_free(buf);
 					bufsiz = data.dsize + old.dsize + 2;
 					buf = xalloc(bufsiz);
 				}
@@ -1803,8 +1809,9 @@ db_map_lookup(map, name, av, statp)
 
 		if (fd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
 			(void) lockfile(fd, buf, ".db", LOCK_UN);
+		map->map_mflags |= MF_CLOSING;
 		map->map_class->map_close(map);
-		map->map_mflags &= ~(MF_OPEN|MF_WRITABLE);
+		map->map_mflags &= ~(MF_OPEN|MF_WRITABLE|MF_CLOSING);
 		if (map->map_class->map_open(map, omode))
 		{
 			map->map_mflags |= MF_OPEN;
@@ -1983,7 +1990,7 @@ db_map_store(map, lhs, rhs)
 				if (data.size + old.size + 2 > (size_t)bufsiz)
 				{
 					if (buf != NULL)
-						(void) free(buf);
+						sm_free(buf);
 					bufsiz = data.size + old.size + 2;
 					buf = xalloc(bufsiz);
 				}
@@ -2141,7 +2148,7 @@ nis_map_open(map, mode)
 		dprintf("nis_map_open: yp_match(@, %s, %s) => %s\n",
 			map->map_domain, map->map_file, yperr_string(yperr));
 	if (vp != NULL)
-		free(vp);
+		sm_free(vp);
 
 	if (yperr == 0 || yperr == YPERR_KEY || yperr == YPERR_BUSY)
 	{
@@ -2211,7 +2218,7 @@ nis_map_lookup(map, name, av, statp)
 	{
 		if (vp != NULL)
 		{
-			free(vp);
+			sm_free(vp);
 			vp = NULL;
 		}
 		buflen++;
@@ -2225,7 +2232,7 @@ nis_map_lookup(map, name, av, statp)
 		if (yperr != YPERR_KEY && yperr != YPERR_BUSY)
 			map->map_mflags &= ~(MF_VALID|MF_OPEN);
 		if (vp != NULL)
-			free(vp);
+			sm_free(vp);
 		return NULL;
 	}
 	if (bitset(MF_MATCHONLY, map->map_mflags))
@@ -2236,7 +2243,7 @@ nis_map_lookup(map, name, av, statp)
 
 		ret = map_rewrite(map, vp, vsize, av);
 		if (vp != NULL)
-			free(vp);
+			sm_free(vp);
 		return ret;
 	}
 }
@@ -2290,7 +2297,7 @@ nis_getcanonname(name, hbsize, statp)
 	{
 		if (vp != NULL)
 		{
-			free(vp);
+			sm_free(vp);
 			vp = NULL;
 		}
 		keylen++;
@@ -2308,11 +2315,11 @@ nis_getcanonname(name, hbsize, statp)
 		else
 			*statp = EX_UNAVAILABLE;
 		if (vp != NULL)
-			free(vp);
+			sm_free(vp);
 		return FALSE;
 	}
 	(void) strlcpy(host_record, vp, sizeof host_record);
-	free(vp);
+	sm_free(vp);
 	if (tTd(38, 44))
 		dprintf("got record `%s'\n", host_record);
 	if (!extract_canonname(nbuf, NULL, host_record, cbuf, sizeof cbuf))
@@ -2850,10 +2857,15 @@ ldapmap_open(map, mode)
 	lmap = (LDAPMAP_STRUCT *) map->map_db1;
 
 	s = ldapmap_findconn(lmap);
-	if (s->s_ldap != NULL)
+	if (s->s_lmap != NULL)
 	{
 		/* Already have a connection open to this LDAP server */
-		lmap->ldap_ld = s->s_ldap;
+		lmap->ldap_ld = ((LDAPMAP_STRUCT *)s->s_lmap->map_db1)->ldap_ld;
+
+		/* Add this map as head of linked list */
+		lmap->ldap_next = s->s_lmap;
+		s->s_lmap = map;
+
 		if (tTd(38, 2))
 			dprintf("using cached connection\n");
 		return TRUE;
@@ -2867,7 +2879,7 @@ ldapmap_open(map, mode)
 		return FALSE;
 
 	/* Save connection for reuse */
-	s->s_ldap = lmap->ldap_ld;
+	s->s_lmap = map;
 	return TRUE;
 }
 
@@ -3036,6 +3048,13 @@ static void
 ldaptimeout(sig_no)
 	int sig_no;
 {
+	/*
+	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+	**	DOING.
+	*/
+
+	errno = ETIMEDOUT;
 	longjmp(LDAPTimeout, 1);
 }
 
@@ -3059,20 +3078,25 @@ ldapmap_close(map)
 	if (lmap->ldap_ld == NULL)
 		return;
 
+	/* Close the LDAP connection */
+	ldap_unbind(lmap->ldap_ld);
+
+	/* Mark all the maps that share the connection as closed */
 	s = ldapmap_findconn(lmap);
 
-	/* Check if already closed */
-	if (s->s_ldap == NULL)
-		return;
-
-	/* If same as saved connection, stored connection is going away */
-	if (s->s_ldap == lmap->ldap_ld)
-		s->s_ldap = NULL;
-
-	if (lmap->ldap_ld != NULL)
+	while (s->s_lmap != NULL)
 	{
-		ldap_unbind(lmap->ldap_ld);
+		MAP *smap = s->s_lmap;
+
+		if (tTd(38, 2) && smap != map)
+			dprintf("ldapmap_close(%s): closed %s (shared LDAP connection)\n",
+				map->map_mname, smap->map_mname);
+
+		smap->map_mflags &= ~(MF_OPEN|MF_WRITABLE);
+		lmap = (LDAPMAP_STRUCT *) smap->map_db1;
 		lmap->ldap_ld = NULL;
+		s->s_lmap = lmap->ldap_next;
+		lmap->ldap_next = NULL;
 	}
 }
 
@@ -3214,7 +3238,10 @@ ldapmap_lookup(map, name, av, statp)
 			    lmap->ldap_attrsonly);
 	if (msgid == -1)
 	{
+		int save_errno;
+
 		errno = ldapmap_geterrno(lmap->ldap_ld) + E_LDAPBASE;
+		save_errno = errno;
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
 		{
 			if (bitset(MF_NODEFER, map->map_mflags))
@@ -3226,16 +3253,14 @@ ldapmap_lookup(map, name, av, statp)
 		}
 		*statp = EX_TEMPFAIL;
 #ifdef LDAP_SERVER_DOWN
-		if (errno == LDAP_SERVER_DOWN)
+		errno = save_errno;
+		if (errno == LDAP_SERVER_DOWN + E_LDAPBASE)
 		{
-			int save_errno = errno;
-
 			/* server disappeared, try reopen on next search */
-			map->map_class->map_close(map);
-			map->map_mflags &= ~(MF_OPEN|MF_WRITABLE);
-			errno = save_errno;
+			ldapmap_close(map);
 		}
 #endif /* LDAP_SERVER_DOWN */
+		errno = save_errno;
 		return NULL;
 	}
 
@@ -3265,7 +3290,7 @@ ldapmap_lookup(map, name, av, statp)
 				}
 				(void) ldap_abandon(lmap->ldap_ld, msgid);
 				if (vp != NULL)
-					free(vp);
+					sm_free(vp);
 				if (tTd(38, 25))
 					dprintf("ldap search found multiple on a single match query\n");
 				return NULL;
@@ -3348,7 +3373,7 @@ ldapmap_lookup(map, name, av, statp)
 						(void) ldap_abandon(lmap->ldap_ld,
 								    msgid);
 						if (vp != NULL)
-							free(vp);
+							sm_free(vp);
 						return NULL;
 					}
 				}
@@ -3419,7 +3444,7 @@ ldapmap_lookup(map, name, av, statp)
 						snprintf(tmp, vsize, "%s%c%s",
 							 vp, map->map_coldelim,
 							 attr);
-						free(vp);
+						sm_free(vp);
 						vp = tmp;
 					}
 # if USING_NETSCAPE_LDAP
@@ -3465,8 +3490,8 @@ ldapmap_lookup(map, name, av, statp)
 				snprintf(tmp, vsize, "%s%c%s",
 					 vp, map->map_coldelim, vp_tmp);
 
-				free(vp);
-				free(vp_tmp);
+				sm_free(vp);
+				sm_free(vp_tmp);
 				vp = tmp;
 			}
 			errno = ldapmap_geterrno(lmap->ldap_ld);
@@ -3502,7 +3527,7 @@ ldapmap_lookup(map, name, av, statp)
 				}
 				(void) ldap_abandon(lmap->ldap_ld, msgid);
 				if (vp != NULL)
-					free(vp);
+					sm_free(vp);
 				return NULL;
 			}
 
@@ -3532,7 +3557,7 @@ ldapmap_lookup(map, name, av, statp)
 			}
 			(void) ldap_abandon(lmap->ldap_ld, msgid);
 			if (vp != NULL)
-				free(vp);
+				sm_free(vp);
 			return NULL;
 		}
 		ldap_msgfree(lmap->ldap_res);
@@ -3557,7 +3582,7 @@ ldapmap_lookup(map, name, av, statp)
 				lmap->ldap_res = NULL;
 			}
 			if (vp != NULL)
-				free(vp);
+				sm_free(vp);
 			return NULL;
 		}
 		*statp = EX_OK;
@@ -3569,9 +3594,13 @@ ldapmap_lookup(map, name, av, statp)
 		errno = ldapmap_geterrno(lmap->ldap_ld);
 	if (errno != LDAP_SUCCESS)
 	{
+		int save_errno;
+
 		/* Must be an error */
 		if (ret != 0)
 			errno += E_LDAPBASE;
+		save_errno = errno;
+
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
 		{
 			if (bitset(MF_NODEFER, map->map_mflags))
@@ -3583,7 +3612,16 @@ ldapmap_lookup(map, name, av, statp)
 		}
 		*statp = EX_TEMPFAIL;
 		if (vp != NULL)
-			free(vp);
+			sm_free(vp);
+#ifdef LDAP_SERVER_DOWN
+		errno = save_errno;
+		if (errno == LDAP_SERVER_DOWN + E_LDAPBASE)
+		{
+			/* server disappeared, try reopen on next search */
+			ldapmap_close(map);
+		}
+#endif /* LDAP_SERVER_DOWN */
+		errno = save_errno;
 		return NULL;
 	}
 
@@ -3601,7 +3639,7 @@ ldapmap_lookup(map, name, av, statp)
 	if (bitset(MF_NOREWRITE, map->map_mflags))
 	{
 		if (vp != NULL)
-			free(vp);
+			sm_free(vp);
 		return "";
 	}
 
@@ -3619,7 +3657,7 @@ ldapmap_lookup(map, name, av, statp)
 			result = map_rewrite(map, vp, strlen(vp), av);
 		}
 		if (vp != NULL)
-			free(vp);
+			sm_free(vp);
 	}
 	return result;
 }
@@ -3664,9 +3702,9 @@ ldapmap_findconn(lmap)
 		 (lmap->ldap_binddn == NULL ? "" : lmap->ldap_binddn),
 		 CONDELSE,
 		 (lmap->ldap_secret == NULL ? "" : lmap->ldap_secret),
-		 getpid());
-	s = stab(nbuf, ST_LDAP, ST_ENTER);
-	free(nbuf);
+		 (int) getpid());
+	s = stab(nbuf, ST_LMAP, ST_ENTER);
+	sm_free(nbuf);
 	return s;
 }
 /*
@@ -4309,6 +4347,7 @@ ldapmap_clear(lmap)
 	lmap->ldap_filter = NULL;
 	lmap->ldap_attr[0] = NULL;
 	lmap->ldap_res = NULL;
+	lmap->ldap_next = NULL;
 }
 /*
 **  LDAPMAP_SET_DEFAULTS -- Read default map spec from LDAPDefaults in .cf
@@ -4357,12 +4396,12 @@ ldapmap_set_defaults(spec)
 		syserr("readcf: option LDAPDefaultSpec: Do not set non-LDAP specific flags");
 		if (map.map_app != NULL)
 		{
-			free(map.map_app);
+			sm_free(map.map_app);
 			map.map_app = NULL;
 		}
 		if (map.map_tapp != NULL)
 		{
-			free(map.map_tapp);
+			sm_free(map.map_tapp);
 			map.map_tapp = NULL;
 		}
 	}
@@ -4594,9 +4633,16 @@ static jmp_buf  PHTimeout;
 
 /* ARGSUSED */
 static void
-ph_timeout_func(sig_no)
-	int sig_no;
+ph_timeout(sig)
+	int sig;
 {
+	/*
+	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+	**	DOING.
+	*/
+
+	errno = ETIMEDOUT;
 	longjmp(PHTimeout, 1);
 }
 #else /* _FFR_PHMAP_TIMEOUT */
@@ -4695,7 +4741,7 @@ ph_map_open(map, mode)
 # endif /* ETIMEDOUT */
 				goto ph_map_open_abort;
 			}
-			ev = setevent(pmap->ph_timeout, ph_timeout_func, 0);
+			ev = setevent(pmap->ph_timeout, ph_timeout, 0);
 		}
 		if (!OpenQiSock(tmp, &(pmap->ph_sockfd)) &&
 		    !Sock2FILEs(pmap->ph_sockfd, &(pmap->ph_to_server),
@@ -4714,7 +4760,7 @@ ph_map_open(map, mode)
 		{
 			if (fprintf(pmap->ph_to_server,
 				    "id sendmail+phmap\n") < 0 ||
-			    fflush(pmap->ph_to_server) < 0 ||
+			    fflush(pmap->ph_to_server) != 0 ||
 			    (server_data = ReadQi(pmap->ph_from_server,
 						  &j)) == NULL ||
 			    server_data->code != 200)
@@ -4727,7 +4773,7 @@ ph_map_open(map, mode)
 			if (server_data != NULL)
 				FreeQIR(server_data);
 #endif /* _FFR_PHMAP_TIMEOUT */
-			free(hostlist);
+			sm_free(hostlist);
 			return TRUE;
 		}
 #if _FFR_PHMAP_TIMEOUT
@@ -4759,7 +4805,7 @@ ph_map_open(map, mode)
 		sm_syslog(LOG_NOTICE, CurEnv->e_id,
 			  "ph_map_open: %s: cannot connect to PH server",
 			  map->map_mname);
-	free(hostlist);
+	sm_free(hostlist);
 	return FALSE;
 }
 
@@ -4814,7 +4860,7 @@ ph_map_lookup(map, key, args, pstat)
 			*pstat = EX_TEMPFAIL;
 			goto ph_map_lookup_abort;
 		}
-		ev = setevent(pmap->ph_timeout, ph_timeout_func, 0);
+		ev = setevent(pmap->ph_timeout, ph_timeout, 0);
 	}
 
 #endif /* _FFR_PHMAP_TIMEOUT */
@@ -4883,7 +4929,7 @@ ph_map_lookup(map, key, args, pstat)
 		if (fprintf(pmap->ph_to_server, "query %s=%s return email\n",
 			    tmp2, fmtkey) < 0)
 			message = "qi query command failed";
-		else if (fflush(pmap->ph_to_server) < 0)
+		else if (fflush(pmap->ph_to_server) != 0)
 			message = "qi fflush failed";
 		else if ((server_data = ReadQi(pmap->ph_from_server,
 					       &j)) == NULL)
@@ -5271,6 +5317,7 @@ hes_map_lookup(map, name, av, statp)
 	{
 		char *np;
 		int nl;
+		int save_errno;
 		char nbuf[MAXNAME];
 
 		nl = strlen(name);
@@ -5285,8 +5332,10 @@ hes_map_lookup(map, name, av, statp)
 # else /* HESIOD_INIT */
 		hp = hes_resolve(np, map->map_file);
 # endif /* HESIOD_INIT */
+		save_errno = errno;
 		if (np != nbuf)
-			free(np);
+			sm_free(np);
+		errno = save_errno;
 	}
 	else
 	{
@@ -5297,11 +5346,8 @@ hes_map_lookup(map, name, av, statp)
 # endif /* HESIOD_INIT */
 	}
 # ifdef HESIOD_INIT
-	if (hp == NULL)
-		return NULL;
-	if (*hp == NULL)
+	if (hp == NULL || *hp == NULL)
 	{
-		hesiod_free_list(HesiodContext, hp);
 		switch (errno)
 		{
 		  case ENOENT:
@@ -5316,6 +5362,7 @@ hes_map_lookup(map, name, av, statp)
 			  *statp = EX_UNAVAILABLE;
 			  break;
 		}
+		hesiod_free_list(HesiodContext, hp);
 		return NULL;
 	}
 # else /* HESIOD_INIT */
@@ -5413,7 +5460,7 @@ ni_map_lookup(map, name, av, statp)
 		res = map_rewrite(map, name, strlen(name), NULL);
 	else
 		res = map_rewrite(map, propval, strlen(propval), av);
-	free(propval);
+	sm_free(propval);
 	return res;
 }
 
@@ -5461,12 +5508,12 @@ ni_getcanonname(name, hbsize, statp)
 	if (hbsize >= strlen(vptr))
 	{
 		(void) strlcpy(name, vptr, hbsize);
-		free(vptr);
+		sm_free(vptr);
 		*statp = EX_OK;
 		return TRUE;
 	}
 	*statp = EX_UNAVAILABLE;
-	free(vptr);
+	sm_free(vptr);
 	return FALSE;
 }
 
@@ -6352,7 +6399,7 @@ prog_map_lookup(map, name, av, statp)
 		if (bitset(MF_MATCHONLY, map->map_mflags))
 			rval = map_rewrite(map, name, strlen(name), NULL);
 		else
-			rval = map_rewrite(map, buf, strlen(buf), NULL);
+			rval = map_rewrite(map, buf, strlen(buf), av);
 
 		/* now flush any additional output */
 		while ((i = read(fd, buf, sizeof buf)) > 0)
@@ -6543,8 +6590,9 @@ seq_map_close(map)
 
 		if (mm == NULL || !bitset(MF_OPEN, mm->map_mflags))
 			continue;
+		mm->map_mflags |= MF_CLOSING;
 		mm->map_class->map_close(mm);
-		mm->map_mflags &= ~(MF_OPEN|MF_WRITABLE);
+		mm->map_mflags &= ~(MF_OPEN|MF_WRITABLE|MF_CLOSING);
 	}
 }
 
@@ -6892,8 +6940,8 @@ regex_map_init(map, ap)
 		(void) regerror(regerr, map_p->regex_pattern_buf,
 			 errbuf, ERRBUF_SIZE);
 		syserr("pattern-compile-error: %s\n", errbuf);
-		free(map_p->regex_pattern_buf);
-		free(map_p);
+		sm_free(map_p->regex_pattern_buf);
+		sm_free(map_p);
 		return FALSE;
 	}
 
@@ -6919,8 +6967,8 @@ regex_map_init(map, ap)
 		if (substrings >= MAX_MATCH)
 		{
 			syserr("too many substrings, %d max\n", MAX_MATCH);
-			free(map_p->regex_pattern_buf);
-			free(map_p);
+			sm_free(map_p->regex_pattern_buf);
+			sm_free(map_p);
 			return FALSE;
 		}
 		if (sub_param != NULL && sub_param[0] != '\0')
@@ -6965,7 +7013,7 @@ regex_map_rewrite(map, s, slen, av)
 	if (bitset(MF_MATCHONLY, map->map_mflags))
 		return map_rewrite(map, av[0], strlen(av[0]), NULL);
 	else
-		return map_rewrite(map, s, slen, NULL);
+		return map_rewrite(map, s, slen, av);
 }
 
 char *
@@ -7194,7 +7242,11 @@ nsd_map_lookup(map, name, av, statp)
 		*statp = EX_TEMPFAIL;
 		return NULL;
 	}
-	if (r == NS_BADREQ || r == NS_NOPERM)
+	if (r == NS_BADREQ
+# ifdef NS_NOPERM
+	    || r == NS_NOPERM
+# endif /* NS_NOPERM */
+	    )
 	{
 		*statp = EX_CONFIG;
 		return NULL;

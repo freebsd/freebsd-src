@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,7 +13,7 @@
 
 #ifndef lint
 static char copyright[] =
-"@(#) Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1983, 1987, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n\
@@ -21,8 +21,9 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: vacation.c,v 8.68.4.16 2001/02/14 05:02:21 gshapiro Exp $";
+static char id[] = "@(#)$Id: vacation.c,v 8.68.4.21 2001/05/07 22:06:41 gshapiro Exp $";
 #endif /* ! lint */
+
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -113,12 +114,16 @@ static void eatmsg __P((void));
 				eatmsg(); \
 				return excode; \
 			}
+
 int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
 	bool iflag, emptysender, exclude;
+#if _FFR_BLACKBOX
+	bool runasuser = FALSE;
+#endif /* _FFR_BLACKBOX */
 #if _FFR_LISTDB
 	bool lflag = FALSE;
 #endif /* _FFR_LISTDB */
@@ -129,8 +134,8 @@ main(argc, argv)
 	time_t interval;
 	struct passwd *pw;
 	ALIAS *cur;
-	char *dbfilename = VDB;
-	char *msgfilename = VMSG;
+	char *dbfilename = NULL;
+	char *msgfilename = NULL;
 	char *name;
 	SMDB_USER_INFO user_info;
 	static char rnamebuf[MAXNAME];
@@ -173,11 +178,11 @@ main(argc, argv)
 			 "Unknown UID %d", (int) RealUid);
 	RunAsUserName = RealUserName = rnamebuf;
 
-#ifdef LOG_MAIL
+# ifdef LOG_MAIL
 	openlog("vacation", LOG_PID, LOG_MAIL);
-#else /* LOG_MAIL */
+# else /* LOG_MAIL */
 	openlog("vacation", LOG_PID);
-#endif /* LOG_MAIL */
+# endif /* LOG_MAIL */
 
 	opterr = 0;
 	iflag = FALSE;
@@ -186,19 +191,7 @@ main(argc, argv)
 	interval = INTERVAL_UNDEF;
 	*From = '\0';
 
-#if _FFR_DEBUG && _FFR_LISTDB
-# define OPTIONS		"a:df:Iilm:r:s:t:xz"
-#else /* _FFR_DEBUG && _FFR_LISTDB */
-# if _FFR_DEBUG
-#  define OPTIONS		"a:df:Iim:r:s:t:xz"
-# else /* _FFR_DEBUG */
-#  if _FFR_LISTDB
-#   define OPTIONS		"a:f:Iilm:r:s:t:xz"
-#  else /* _FFR_LISTDB */
-#   define OPTIONS		"a:f:Iim:r:s:t:xz"
-#  endif /* _FFR_LISTDB */
-# endif /* _FFR_DEBUG */
-#endif /* _FFR_DEBUG && _FFR_LISTDB */
+#define OPTIONS		"a:df:Iilm:r:s:t:Uxz"
 
 	while (mfail == 0 && ufail == 0 &&
 	       (ch = getopt(argc, argv, OPTIONS)) != -1)
@@ -218,11 +211,10 @@ main(argc, argv)
 			break;
 
 #if _FFR_DEBUG
-		case 'd':			/* debug mode */
+		  case 'd':			/* debug mode */
 			msglog = &debuglog;
 			break;
 #endif /* _FFR_DEBUG */
-
 
 		  case 'f':		/* alternate database */
 			dbfilename = optarg;
@@ -260,6 +252,12 @@ main(argc, argv)
 
 		  case 't':		/* SunOS: -t1d (default expire) */
 			break;
+
+#if _FFR_BLACKBOX
+		  case 'U':		/* run as single user mode */
+			runasuser = TRUE;
+			break;
+#endif /* _FFR_BLACKBOX */
 
 		  case 'x':
 			exclude = TRUE;
@@ -301,34 +299,67 @@ main(argc, argv)
 			       "vacation: no such user uid %u.\n", getuid());
 			EXITM(EX_NOUSER);
 		}
+		name = pw->pw_name;
+		user_info.smdbu_id = pw->pw_uid;
+		user_info.smdbu_group_id = pw->pw_gid;
+		(void) strlcpy(user_info.smdbu_name, pw->pw_name,
+			       SMDB_MAX_USER_NAME_LEN);
+		if (chdir(pw->pw_dir) != 0)
+		{
+			msglog(LOG_NOTICE, "vacation: no such directory %s.\n",
+			       pw->pw_dir);
+			EXITM(EX_NOINPUT);
+		}
 	}
 #if _FFR_BLACKBOX
-	name = *argv;
-#else /* _FFR_BLACKBOX */
+	else if (runasuser)
+	{
+		name = *argv;
+		if (dbfilename == NULL || msgfilename == NULL)
+		{
+			msglog(LOG_NOTICE,
+			       "vacation: -U requires setting both -f and -m\n");
+			EXITM(EX_NOINPUT);
+		}
+		user_info.smdbu_id = pw->pw_uid;
+		user_info.smdbu_group_id = pw->pw_gid;
+		(void) strlcpy(user_info.smdbu_name, pw->pw_name,
+			       SMDB_MAX_USER_NAME_LEN);
+	}
+#endif /* _FFR_BLACKBOX */
 	else if ((pw = getpwnam(*argv)) == NULL)
 	{
 		msglog(LOG_ERR, "vacation: no such user %s.\n", *argv);
 		EXITM(EX_NOUSER);
 	}
-	name = pw->pw_name;
-	if (chdir(pw->pw_dir) != 0)
+	else
 	{
-		msglog(LOG_NOTICE,
-		       "vacation: no such directory %s.\n", pw->pw_dir);
-		EXITM(EX_NOINPUT);
+		name = pw->pw_name;
+		if (chdir(pw->pw_dir) != 0)
+		{
+			msglog(LOG_NOTICE, "vacation: no such directory %s.\n",
+			       pw->pw_dir);
+			EXITM(EX_NOINPUT);
+		}
+		user_info.smdbu_id = pw->pw_uid;
+		user_info.smdbu_group_id = pw->pw_gid;
+		(void) strlcpy(user_info.smdbu_name, pw->pw_name,
+			       SMDB_MAX_USER_NAME_LEN);
 	}
-#endif /* _FFR_BLACKBOX */
-	user_info.smdbu_id = pw->pw_uid;
-	user_info.smdbu_group_id = pw->pw_gid;
-	(void) strlcpy(user_info.smdbu_name, pw->pw_name,
-		       SMDB_MAX_USER_NAME_LEN);
+
+	if (dbfilename == NULL)
+		dbfilename = VDB;
+	if (msgfilename == NULL)
+		msgfilename = VMSG;
 
 	sff = SFF_CREAT;
 #if _FFR_BLACKBOX
 	if (getegid() != getgid())
+	{
+		/* Allow a set-group-id vacation binary */
 		RunAsGid = user_info.smdbu_group_id = getegid();
-
-	sff |= SFF_NOPATHCHECK|SFF_OPENASROOT;
+		sff |= SFF_NOPATHCHECK|SFF_OPENASROOT;
+	}
 #endif /* _FFR_BLACKBOX */
 
 	result = smdb_open_database(&Db, dbfilename,
@@ -407,6 +438,7 @@ main(argc, argv)
 **		nothing.
 **
 */
+
 static void
 eatmsg()
 {
@@ -562,6 +594,7 @@ findme:
 **		is name a substring of str?
 **
 */
+
 bool
 nsearch(name, str)
 	register char *name, *str;
@@ -737,7 +770,6 @@ junkmail(from)
 				cur->len) == 0)
 			return TRUE;
 	}
-
 	return FALSE;
 }
 
@@ -754,6 +786,7 @@ junkmail(from)
 **		TRUE iff user has gotten a vacation message recently.
 **
 */
+
 bool
 recent()
 {
@@ -815,6 +848,7 @@ recent()
 **	Side Effects:
 **		stores the reply interval in database.
 */
+
 void
 setinterval(interval)
 	time_t interval;
@@ -845,6 +879,7 @@ setinterval(interval)
 **	Side Effects:
 **		stores user/time in database.
 */
+
 void
 setreply(from, when)
 	char *from;
@@ -875,6 +910,7 @@ setreply(from, when)
 **	Side Effects:
 **		stores users in database.
 */
+
 void
 xclude(f)
 	FILE *f;
@@ -906,6 +942,7 @@ xclude(f)
 **	Side Effects:
 **		sends vacation reply.
 */
+
 void
 sendmessage(myname, msgfn, emptysender)
 	char *myname;
@@ -915,6 +952,7 @@ sendmessage(myname, msgfn, emptysender)
 	FILE *mfp, *sfp;
 	int i;
 	int pvect[2];
+	char *pv[8];
 	char buf[MAXLINE];
 
 	mfp = fopen(msgfn, "r");
@@ -932,6 +970,16 @@ sendmessage(myname, msgfn, emptysender)
 		msglog(LOG_ERR, "vacation: pipe: %s", errstring(errno));
 		exit(EX_OSERR);
 	}
+	pv[0] = "sendmail";
+	pv[1] = "-oi";
+	pv[2] = "-f";
+	if (emptysender)
+		pv[3] = "<>";
+	else
+		pv[3] = myname;
+	pv[4] = "--";
+	pv[5] = From;
+	pv[6] = NULL;
 	i = fork();
 	if (i < 0)
 	{
@@ -944,10 +992,7 @@ sendmessage(myname, msgfn, emptysender)
 		(void) close(pvect[0]);
 		(void) close(pvect[1]);
 		(void) fclose(mfp);
-		if (emptysender)
-			myname = "<>";
-		(void) execl(_PATH_SENDMAIL, "sendmail", "-oi",
-			     "-f", myname, "--", From, NULL);
+		(void) execv(_PATH_SENDMAIL, pv);
 		msglog(LOG_ERR, "vacation: can't exec %s: %s",
 			_PATH_SENDMAIL, errstring(errno));
 		exit(EX_UNAVAILABLE);
@@ -974,7 +1019,8 @@ sendmessage(myname, msgfn, emptysender)
 void
 usage()
 {
-	msglog(LOG_NOTICE, "uid %u: usage: vacation [-i] [-a alias]%s [-f db]%s [-m msg] [-r interval] [-s sender] [-t time] [-x] [-z] login\n",
+	msglog(LOG_NOTICE,
+	       "uid %u: usage: vacation [-a alias]%s [-f db] [-i]%s [-m msg] [-r interval] [-s sender] [-t time]%s [-x] [-z] login\n",
 	       getuid(),
 #if _FFR_DEBUG
 	       " [-d]",
@@ -982,10 +1028,15 @@ usage()
 	       "",
 #endif /* _FFR_DEBUG */
 #if _FFR_LISTDB
-	       " [-l]"
+	       " [-l]",
 #else /* _FFR_LISTDB */
-	       ""
+	       "",
 #endif /* _FFR_LISTDB */
+#if _FFR_BLACKBOX
+	       " [-U]"
+#else /* _FFR_BLACKBOX */
+	       ""
+#endif /* _FFR_BLACKBOX */
 	       );
 	exit(EX_USAGE);
 }

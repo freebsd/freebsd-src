@@ -15,9 +15,9 @@
 
 #ifndef lint
 # if SMTP
-static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.24 2001/02/21 00:59:09 gshapiro Exp $ (with SMTP)";
+static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.33 2001/05/23 18:53:09 ca Exp $ (with SMTP)";
 # else /* SMTP */
-static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.24 2001/02/21 00:59:09 gshapiro Exp $ (without SMTP)";
+static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.33 2001/05/23 18:53:09 ca Exp $ (without SMTP)";
 # endif /* SMTP */
 #endif /* ! lint */
 
@@ -199,7 +199,8 @@ tryhelo:
 	{
 		syserr("553 5.3.5 %s config error: mail loops back to me (MX problem?)",
 			CurHostName);
-		mci_setstat(mci, EX_CONFIG, "5.3.5", "system config error");
+		mci_setstat(mci, EX_CONFIG, "5.3.5",
+			    "553 5.3.5 system config error");
 		mci->mci_errno = 0;
 		smtpquit(m, mci, e);
 		return;
@@ -303,15 +304,9 @@ str_union(s1, s2)
 	l1 = strlen(s1);
 	l2 = strlen(s2);
 	rl = l1 + l2;
-	res = (char *)malloc(rl + 2);
-	if (res == NULL)
-	{
-		if (l1 > l2)
-			return s1;
-		return s2;
-	}
+	res = (char *)xalloc(rl + 2);
 	(void) strlcpy(res, s1, rl);
-	hr = res;
+	hr = res + l1;
 	h1 = s2;
 	h = s2;
 
@@ -374,7 +369,7 @@ helo_options(line, firstline, m, mci, e)
 	{
 # if SASL
 		if (mci->mci_saslcap != NULL)
-			free(mci->mci_saslcap);
+			sm_free(mci->mci_saslcap);
 		mci->mci_saslcap = NULL;
 # endif /* SASL */
 		return;
@@ -424,7 +419,7 @@ helo_options(line, firstline, m, mci, e)
 				h = mci->mci_saslcap;
 				mci->mci_saslcap = str_union(h, p);
 				if (h != mci->mci_saslcap)
-					free(h);
+					sm_free(h);
 				mci->mci_flags |= MCIF_AUTH;
 			}
 			else
@@ -432,14 +427,9 @@ helo_options(line, firstline, m, mci, e)
 				int l;
 
 				l = strlen(p) + 1;
-				mci->mci_saslcap = (char *)malloc(l);
-
-				/* XXX this may be leaked */
-				if (mci->mci_saslcap != NULL)
-				{
-					(void) strlcpy(mci->mci_saslcap, p, l);
-					mci->mci_flags |= MCIF_AUTH;
-				}
+				mci->mci_saslcap = (char *)xalloc(l);
+				(void) strlcpy(mci->mci_saslcap, p, l);
+				mci->mci_flags |= MCIF_AUTH;
 			}
 		}
 	}
@@ -501,7 +491,7 @@ getsasldata(line, firstline, m, mci, e)
 	{
 		if (mci->mci_sasl_string_len <= len)
 		{
-			free(mci->mci_sasl_string);
+			sm_free(mci->mci_sasl_string);
 			mci->mci_sasl_string = xalloc(len + 1);
 		}
 	}
@@ -511,7 +501,7 @@ getsasldata(line, firstline, m, mci, e)
 	memcpy(mci->mci_sasl_string, out, len);
 	mci->mci_sasl_string[len] = '\0';
 	mci->mci_sasl_string_len = len;
-	free(out);
+	sm_free(out);
 	return;
 }
 
@@ -728,7 +718,8 @@ getsimple(context, id, result, len)
 			**  workaround: don't free() it here
 			**  this can cause a memory leak!
 			*/
-			free(authid);
+
+			sm_free(authid);
 #  endif /* SASL > 10522 */
 			authid = NULL;
 			addedrealm = addrealm;
@@ -804,9 +795,7 @@ getsecret(conn, context, id, psecret)
 		authpass = newstr(h);
 	}
 	len = strlen(authpass);
-	*psecret = (sasl_secret_t *) malloc(sizeof(sasl_secret_t) + len + 1);
-	if (*psecret == NULL)
-		return SASL_FAIL;
+	*psecret = (sasl_secret_t *) xalloc(sizeof(sasl_secret_t) + len + 1);
 	(void) strlcpy((*psecret)->data, authpass, len + 1);
 	(*psecret)->len = len;
 	return SASL_OK;
@@ -1057,9 +1046,7 @@ intersect(s1, s2)
 	l1 = strlen(s1);
 	l2 = strlen(s2);
 	rl = min(l1, l2);
-	res = (char *)malloc(rl + 1);
-	if (res == NULL)
-		return NULL;
+	res = (char *)xalloc(rl + 1);
 	*res = '\0';
 	if (rl == 0)	/* at least one string empty? */
 		return res;
@@ -1751,6 +1738,7 @@ smtprcpt(to, m, mci, e)
 */
 
 static jmp_buf	CtxDataTimeout;
+static EVENT	*volatile DataTimeout = NULL;
 
 int
 smtpdata(m, mci, e)
@@ -1759,13 +1747,13 @@ smtpdata(m, mci, e)
 	register ENVELOPE *e;
 {
 	register int r;
-	register EVENT *ev;
 	int rstat;
 	int xstat;
 	time_t timeout;
 	char *enhsc;
 
 	enhsc = NULL;
+
 	/*
 	**  Send the data.
 	**	First send the command and check that it is ok.
@@ -1840,27 +1828,29 @@ smtpdata(m, mci, e)
 	else
 		timeout = DATA_PROGRESS_TIMEOUT;
 
-	ev = setevent(timeout, datatimeout, 0);
+	DataTimeout = setevent(timeout, datatimeout, 0);
 
-
-	if (tTd(18, 101))
-	{
-		/* simulate a DATA timeout */
-		(void) sleep(1);
-	}
 
 	/*
 	**  Output the actual message.
 	*/
 
 	(*e->e_puthdr)(mci, e->e_header, e, M87F_OUTER);
+
+	if (tTd(18, 101))
+	{
+		/* simulate a DATA timeout */
+		(void) sleep(2);
+	}
+
 	(*e->e_putbody)(mci, e, NULL);
 
 	/*
 	**  Cleanup after sending message.
 	*/
 
-	clrevent(ev);
+	if (DataTimeout != NULL)
+		clrevent(DataTimeout);
 
 # if _FFR_CATCH_BROKEN_MTAS
 	{
@@ -1938,7 +1928,7 @@ smtpdata(m, mci, e)
 	mci_setstat(mci, xstat, ENHSCN(enhsc, smtptodsn(r)),
 		    SmtpReplyBuffer);
 	if (e->e_statmsg != NULL)
-		free(e->e_statmsg);
+		sm_free(e->e_statmsg);
 	if (bitset(MCIF_ENHSTAT, mci->mci_flags) &&
 	    (r = isenhsc(SmtpReplyBuffer + 4, ' ')) > 0)
 		r += 5;
@@ -1963,10 +1953,17 @@ smtpdata(m, mci, e)
 static void
 datatimeout()
 {
+	int save_errno = errno;
+
+	/*
+	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+	**	DOING.
+	*/
+
 	if (DataProgress)
 	{
 		time_t timeout;
-		register EVENT *ev;
 
 		/* check back again later */
 		if (tTd(18, 101))
@@ -1977,14 +1974,24 @@ datatimeout()
 		else
 			timeout = DATA_PROGRESS_TIMEOUT;
 
+		/* reset the timeout */
+		DataTimeout = sigsafe_setevent(timeout, datatimeout, 0);
 		DataProgress = FALSE;
-		ev = setevent(timeout, datatimeout, 0);
 	}
 	else
 	{
-		/* no progress, give up */
+		/* event is done */
+		DataTimeout = NULL;
+	}
+
+	/* if no progress was made or problem resetting event, die now */
+	if (DataTimeout == NULL)
+	{
+		errno = ETIMEDOUT;
 		longjmp(CtxDataTimeout, 1);
 	}
+
+	errno = save_errno;
 }
 /*
 **  SMTPGETSTAT -- get status code from DATA in LMTP
@@ -2027,7 +2034,7 @@ smtpgetstat(m, mci, e)
 	else
 		status = EX_PROTOCOL;
 	if (e->e_statmsg != NULL)
-		free(e->e_statmsg);
+		sm_free(e->e_statmsg);
 	if (bitset(MCIF_ENHSTAT, mci->mci_flags) &&
 	    (r = isenhsc(SmtpReplyBuffer + 4, ' ')) > 0)
 		r += 5;
