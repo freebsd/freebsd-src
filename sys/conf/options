@@ -1,4 +1,4 @@
-#	$Id: options,v 1.135 1999/05/05 11:24:15 jb Exp $
+#	$Id: options,v 1.136 1999/05/09 13:10:41 peter Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -363,3 +363,5 @@ VINUMDEBUG		opt_vinum.h
 
 # Embedded system options
 INIT_PATH		opt_init_path.h
+
+ROOTDEVNAME		opt_rootdevname.h
