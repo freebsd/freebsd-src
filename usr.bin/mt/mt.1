@@ -95,16 +95,16 @@ setmarks.
 .It Cm rdhpos
 Read Hardware block position. Some drives do not support this. The block
 number reported is specific for that hardware only. The count argument is
-ignored
+ignored.
 .It Cm rdspos
 Read SCSI logical block position. Some drives do not support this. The
 count argument is ignored.
 .It Cm sethpos
 Set Hardware block position. Some drives do not support this. The count
-argument is interpreted as a hardware block to position to.
+argument is interpreted as a hardware block to which to position the tape.
 .It Cm setspos
 Set SCSI logical block position. Some drives do not support this. The count
-argument is interpreted as a hardware block to position to.
+argument is interpreted as a SCSI logical block to which to position the tape.
 .It Cm rewind
 Rewind the tape
 (Count is ignored).
@@ -125,7 +125,7 @@ it is doing with the device) is reported. If the driver knows the relative
 position from BOT (in terms of filemarks and records), it prints that. Note
 that this information is not definitive (only BOT, End of Recorded Media, and
 hardware or SCSI logical block position (if the drive supports such) are
-considered definitive tape positions.
+considered definitive tape positions).
 .It Cm errstat
 Print (and clear) error status information about this device. For every normal
 operation (e.g., a read or a write) and every control operation (e.g,, a
