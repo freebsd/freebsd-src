@@ -1079,6 +1079,8 @@ chipsets, including the following:
   Silicon Graphics Gigabit Ethernet
   DEC/Compaq EtherWORKS 1000
   NEC Gigabit Ethernet
+  Farallon PN9000SX
+  Asante GigaNIX1000T Gigabit Ethernet Adapter
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 AMD PCnet/FAST, PCnet/FAST+, PCnet/FAST III, PCnet/PRO,
