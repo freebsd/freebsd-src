@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.25.2.1 1999/05/07 23:43:07 julian Exp $
+ * $Id: pcivar.h,v 1.25.2.2 1999/05/10 13:27:37 peter Exp $
  *
  */
 
@@ -183,6 +183,10 @@ void pci_cfgwrite (pcicfgregs *cfg, int reg, int data, int bytes);
 vm_offset_t pci_cvt_to_dense (vm_offset_t);
 vm_offset_t pci_cvt_to_bwx (vm_offset_t);
 #endif /* __alpha__ */
+
+/* low level devlist operations for the 2.2 compatibility code in pci.c */
+pcicfgregs * pci_devlist_get_parent(pcicfgregs *cfg);
+
 /* for compatibility to FreeBSD-2.2 version of PCI code */
 
 #ifdef PCI_COMPAT
@@ -230,6 +234,10 @@ int pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 		      intrmask_t *maskptr, u_int flags);
 int pci_unmap_int (pcici_t tag);
 int pci_register_lkm (struct pci_device *dvp, int if_revision);
+
+pcici_t pci_get_parent_bridge(pcici_t tag);
+int     pci_get_bus(pcici_t tag);
+
 
 #ifndef COMPAT_PCI_DRIVER	/* 4.0 compat */
 #define COMPAT_PCI_DRIVER(name, data) DATA_SET(pcidevice_set, data)
