@@ -273,6 +273,7 @@ fstat_kvm(int what, int arg)
 #endif
 	if ((p = kvm_getprocs(kd, what, arg, &cnt)) == NULL)
 		errx(1, "%s", kvm_geterr(kd));
+	print_header();
 	for (plast = &p[cnt]; p < plast; ++p) {
 		if (p->ki_stat == SZOMB)
 			continue;
