@@ -50,7 +50,7 @@ int
 isalnum(c)
 	int c;
 {
-	return (__istype((c), (_A|_D)));
+	return (__istype((c), _A|_D));
 }
 
 #undef isalpha
@@ -178,5 +178,5 @@ int
 digittoint(c)
 	int c;
 {
-	return (__istype((c), 0xFF));
+	return (__maskrune((c), 0xFF));
 }
