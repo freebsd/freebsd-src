@@ -216,7 +216,9 @@ tty_Raw(struct physical *p)
     if (p->type != PHYS_DEDICATED)
       ios.c_cflag |= HUPCL;
 
-    tcsetattr(p->fd, TCSANOW, &ios);
+    if (tcsetattr(p->fd, TCSANOW, &ios) == -1)
+      log_Printf(LogWARN, "%s: tcsetattr: Failed configuring device\n",
+                 p->link.name);
   }
 
   oldflag = fcntl(p->fd, F_GETFL, 0);
@@ -239,11 +241,9 @@ tty_Offline(struct physical *p)
       struct termios tio;
 
       tcgetattr(p->fd, &tio);
-      if (cfsetspeed(&tio, B0) == -1)
+      if (cfsetspeed(&tio, B0) == -1 || tcsetattr(p->fd, TCSANOW, &tio) == -1)
         log_Printf(LogWARN, "%s: Unable to set physical to speed 0\n",
                    p->link.name);
-      else
-        tcsetattr(p->fd, TCSANOW, &tio);
     }
   }
 }
@@ -258,8 +258,9 @@ tty_Cooked(struct physical *p)
 
   tcflush(p->fd, TCIOFLUSH);
 
-  if (!physical_IsSync(p))
-    tcsetattr(p->fd, TCSAFLUSH, &dev->ios);
+  if (!physical_IsSync(p) && tcsetattr(p->fd, TCSAFLUSH, &dev->ios) == -1)
+    log_Printf(LogWARN, "%s: tcsetattr: Unable to restore device settings\n",
+               p->link.name);
 
   if ((oldflag = fcntl(p->fd, F_GETFL, 0)) != -1)
     fcntl(p->fd, F_SETFL, oldflag & ~O_NONBLOCK);
@@ -436,7 +437,15 @@ tty_Create(struct physical *p)
 	log_Printf(LogWARN, "%s: %s: Unable to set speed to %d\n",
 		  p->link.name, p->name.full, p->cfg.speed);
   }
-  tcsetattr(p->fd, TCSADRAIN, &ios);
+
+  if (tcsetattr(p->fd, TCSADRAIN, &ios) == -1) {
+    log_Printf(LogWARN, "%s: tcsetattr: Failed configuring device\n",
+               p->link.name);
+    if (p->type != PHYS_DIRECT && p->cfg.speed > 115200)
+      log_Printf(LogWARN, "%.*s             Perhaps the speed is unsupported\n",
+                 (int)strlen(p->link.name), "");
+  }
+
   log_Printf(LogDEBUG, "%s: physical (put): iflag = %lx, oflag = %lx, "
             "cflag = %lx\n", p->link.name, (u_long)ios.c_iflag,
             (u_long)ios.c_oflag, (u_long)ios.c_cflag);
