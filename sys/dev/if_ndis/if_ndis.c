@@ -256,7 +256,7 @@ static int
 ndis_probe(dev)
 	device_t		dev;
 {
-	struct ndis_type		*t;
+	struct ndis_type	*t;
 
 	t = ndis_devs;
 
@@ -962,9 +962,9 @@ ndis_intrtask(arg)
 	ifp = &sc->arpcom.ac_if;
 
 	ndis_intrhand(sc);
-	mtx_lock(sc->ndis_intrmtx);
+	mtx_pool_lock(ndis_mtxpool, sc->ndis_intrmtx);
 	ndis_enable_intr(sc);
-	mtx_unlock(sc->ndis_intrmtx);
+	mtx_pool_unlock(ndis_mtxpool, sc->ndis_intrmtx);
 
 	return;
 }
@@ -985,14 +985,14 @@ ndis_intr(arg)
 	    sc->ndis_block.nmb_miniportadapterctx == NULL)
 		return;
 
-	mtx_lock(sc->ndis_intrmtx);
+	mtx_pool_lock(ndis_mtxpool, sc->ndis_intrmtx);
 	if (sc->ndis_block.nmb_interrupt->ni_isrreq == TRUE)
 		ndis_isr(sc, &is_our_intr, &call_isr);
 	else {
 		ndis_disable_intr(sc);
 		call_isr = 1;
 	}
-	mtx_unlock(sc->ndis_intrmtx);
+	mtx_pool_unlock(ndis_mtxpool, sc->ndis_intrmtx);
 
 	if ((is_our_intr || call_isr) && (ifp->if_flags & IFF_UP))
 		ndis_sched(ndis_intrtask, ifp, NDIS_SWI);
