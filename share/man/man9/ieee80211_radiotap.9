@@ -29,7 +29,7 @@
 .\" $Id: ieee80211_radiotap.9,v 1.3 2004/03/04 11:38:52 bruce Exp $
 .\"
 .Dd March 2, 2004
-.Dt ieee80211_radiotap 9
+.Dt IEEE80211_RADIOTAP 9
 .Os
 .Sh NAME
 .Nm ieee80211_radiotap
@@ -53,7 +53,7 @@ Radiotap was designed to balance the desire for a capture format
 that conserved CPU and memory bandwidth on embedded systems,
 with the desire for a hardware-independent, extensible format
 that would support the diverse capabilities of virtually all
-.Vt 802.11
+802.11
 radios.
 .Pp
 These considerations led radiotap to settle on a format consisting of
@@ -72,7 +72,7 @@ This information may be used by a variety of user agents, including
 It is requested by using the
 .Xr bpf 4
 data-link type
-.Vt DLT_IEEE_80211_RADIO .
+.Dv DLT_IEEE_80211_RADIO .
 .Pp
 .\"
 Each frame using this attachment has the following header prepended to it:
@@ -89,21 +89,21 @@ struct ieee80211_radiotap_header {
 A device driver implementing
 .Vt radiotap
 typically defines a packed structure embedding an instance of
-.Vt struct ieee80211_radiotap_header
+.Vt "struct ieee80211_radiotap_header"
 at the beginning,
 with subsequent fields in the appropriate order,
 and a macro to set the bits of the
-.Vt it_present
+.Va it_present
 bitmap to indicate which fields exist and are filled in by the driver.
 .\"
 .Pp
 Radiotap headers are copied to the userland via a separate bpf attachment.
 It is necessary for the driver to create this attachment after calling
-.Fn ieee80211_ifattach
+.Xr ieee80211_ifattach 9
 by calling
 .Fn bpfattach2
 with the data-link type set to
-.Vt DLT_IEEE_80211_RADIO .
+.Dv DLT_IEEE_80211_RADIO .
 .Pp
 .\"
 When the the information is available,
@@ -116,7 +116,7 @@ function.
 The following extension fields are defined for
 .Vt radiotap ,
 in the order in which they should appear in the buffer copied to userland:
-.Bl -tag -width ".Dv IEEE80211_RADIOTAP_DB_TX_ATTENUATION"
+.Bl -tag -width indent
 .It Dv IEEE80211_RADIOTAP_TSFT
 This field contains the unsigned 64-bit value, in microseconds,
 of the MAC's 802.11 Time Synchronization Function timer,
@@ -152,7 +152,9 @@ This field contains a single unsigned 16-bit value, indicating the
 quality of the Barker Code lock.
 No unit is specified for this field.
 There does not appear to be a standard way of measuring this at this time;
-this quantity is often referred to as 'Signal Quality' in some datasheets.
+this quantity is often referred to as
+.Dq "Signal Quality"
+in some datasheets.
 .It Dv IEEE80211_RADIOTAP_TX_ATTENUATION
 This field contains a single unsigned 16-bit value, expressing transmit
 power as unitless distance from maximum power set at factory calibration.
@@ -186,7 +188,7 @@ This bit is reserved for any future extensions to the
 structure.
 It should not be used at this time.
 .El
-.Sh EXAMPLE
+.Sh EXAMPLES
 Radiotap header for the Cisco Aironet driver:
 .Bd -literal -offset indent
 struct an_rx_radiotap_header {
@@ -221,6 +223,7 @@ and were later ported to
 .Fx 4.6 .
 .\"
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 interface was designed and implemented by
