@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.15 1994/08/14 01:46:28 phk Exp $
+ *	$Id: lpt.c,v 1.16 1994/08/23 07:52:20 paul Exp $
  */
 
 /*
@@ -397,7 +397,7 @@ lptattach(struct isa_device *isdp)
 		sc->sc_irq = LP_HAS_IRQ | LP_USE_IRQ | LP_ENABLE_IRQ;
 		printf("lpt%d: Interrupt-driven port\n", isdp->id_unit);
 #ifdef INET
-	lpattach(sc,isdp->id_unit);
+		lpattach(sc,isdp->id_unit);
 #endif
 	} else {
 		sc->sc_irq = 0;
@@ -410,6 +410,8 @@ lptattach(struct isa_device *isdp)
 
 /*
  * lptopen -- reset the printer, then wait until it's selected and not busy.
+ *	If LP_BYPASS flag is selected, then we do not try to select the
+ *	printer -- this is just used for passing ioctls.
  */
 
 int
@@ -434,8 +436,15 @@ lptopen(dev_t dev, int flag)
 		return(EBUSY);
 	} else	sc->sc_state |= INIT;
 
-	s = spltty();
 	sc->sc_flags = LPTFLAGS(minor(dev));
+
+	/* Check for open with BYPASS flag set. */
+	if(sc->sc_flags & LP_BYPASS) {
+		sc->sc_state = OPEN;
+		return(0);
+	}
+
+	s = spltty();
 	lprintf("lp flags 0x%x\n", sc->sc_flags);
 	port = sc->sc_port;
 
@@ -540,6 +549,9 @@ lptclose(dev_t dev, int flag)
 	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
 	int port = sc->sc_port;
 
+	if(sc->sc_flags & LP_BYPASS) 
+		goto end_close;
+
 	sc->sc_state &= ~OPEN;
 
 	/* if the last write was interrupted, don't complete it */
@@ -551,10 +563,11 @@ lptclose(dev_t dev, int flag)
 				"lpclose", hz) != EWOULDBLOCK)
 				break;
 
-	sc->sc_state = 0;
-	sc->sc_xfercnt = 0;
 	outb(sc->sc_port+lpt_control, LPC_NINIT);
 	brelse(sc->sc_inbuf);
+end_close:
+	sc->sc_state = 0;
+	sc->sc_xfercnt = 0;
 	lprintf("closed.\n");
 	return(0);
 }
@@ -633,6 +646,11 @@ lptwrite(dev_t dev, struct uio * uio)
 	register unsigned n;
 	int pl, err;
 	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
+
+	if(sc->sc_flags & LP_BYPASS) {
+		/* we can't do writes in bypass mode */
+		return(EPERM);
+	}
 
 	sc->sc_state &= ~INTERRUPTED;
 	while (n = min(BUFSIZE, uio->uio_resid)) {
