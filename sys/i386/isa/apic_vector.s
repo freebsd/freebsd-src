@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.21 1997/08/10 20:47:53 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.15 1997/08/10 20:58:57 fsmp Exp $
  */
 
 
@@ -11,11 +11,40 @@
 #include "i386/isa/intr_machdep.h"
 
 
+#ifdef FAST_SIMPLELOCK
+
+#define GET_FAST_INTR_LOCK						\
+	pushl	$_fast_intr_lock ;		/* address of lock */	\
+	call	_s_lock ;			/* MP-safe */		\
+	addl	$4,%esp
+
+#define REL_FAST_INTR_LOCK						\
+	pushl	$_fast_intr_lock ;		/* address of lock */	\
+	call	_s_unlock ;			/* MP-safe */		\
+	addl	$4,%esp
+
+#else /* FAST_SIMPLELOCK */
+
+#define GET_FAST_INTR_LOCK						\
+	call	_get_isrlock
+#define REL_FAST_INTR_LOCK						\
+	pushl	$_mp_lock ;	/* GIANT_LOCK */			\
+	call	_MPrellock ;						\
+	add	$4, %esp
+
+#endif /* FAST_SIMPLELOCK */
+
+#define REL_ISR_LOCK							\
+	pushl	$_mp_lock ;	/* GIANT_LOCK */			\
+	call	_MPrellock ;						\
+	add	$4, %esp
+
 /* convert an absolute IRQ# into a bitmask */
 #define IRQ_BIT(irq_num)	(1 << (irq_num))
 
 /* make an index into the IO APIC from the IRQ# */
 #define REDTBL_IDX(irq_num)	(0x10 + ((irq_num) * 2))
+
 
 /*
  * 'lazy masking' code suggested by Bruce Evans <bde@zeta.org.au>
@@ -115,6 +144,8 @@
  * Macros for interrupt interrupt entry, call to handler, and exit.
  */
 
+#ifdef FAST_WITHOUTCPL
+
 #define	FAST_INTR(irq_num, vec_name)					\
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
@@ -128,11 +159,45 @@ IDTVEC(vec_name) ;							\
 	movl	%ax,%ds ;						\
 	MAYBE_MOVW_AX_ES ;						\
 	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ;			\
-	call	_get_isrlock ;						\
+	GET_FAST_INTR_LOCK ;						\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
+	addl	$4, %esp ;						\
 	movl	$0, lapic_eoi ;						\
+	lock ; 								\
+	incl	_cnt+V_INTR ;	/* book-keeping can wait */		\
+	movl	_intr_countp + (irq_num) * 4, %eax ;			\
+	lock ; 								\
+	incl	(%eax) ;						\
+	MEXITCOUNT ;							\
+	REL_FAST_INTR_LOCK ;						\
+	MAYBE_POPL_ES ;							\
+	popl	%ds ;							\
+	popl	%edx ;							\
+	popl	%ecx ;							\
+	popl	%eax ;							\
+	iret
+
+#else
+
+#define	FAST_INTR(irq_num, vec_name)					\
+	.text ;								\
+	SUPERALIGN_TEXT ;						\
+IDTVEC(vec_name) ;							\
+	pushl	%eax ;		/* save only call-used registers */	\
+	pushl	%ecx ;							\
+	pushl	%edx ;							\
+	pushl	%ds ;							\
+	MAYBE_PUSHL_ES ;						\
+	movl	$KDSEL,%eax ;						\
+	movl	%ax,%ds ;						\
+	MAYBE_MOVW_AX_ES ;						\
+	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ;			\
+	GET_FAST_INTR_LOCK ;						\
+	pushl	_intr_unit + (irq_num) * 4 ;				\
+	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	addl	$4,%esp ;						\
+	movl	$0, lapic_eoi ;						\
 	incl	_cnt+V_INTR ;	/* book-keeping can wait */		\
 	movl	_intr_countp + (irq_num) * 4,%eax ;			\
 	incl	(%eax) ;						\
@@ -142,9 +207,7 @@ IDTVEC(vec_name) ;							\
 	jne	2f ; 		/* yes, maybe handle them */		\
 1: ;									\
 	MEXITCOUNT ;							\
-	pushl	$_mp_lock ;	/* GIANT_LOCK */			\
-	call	_MPrellock ;						\
-	add	$4, %esp ;						\
+	REL_FAST_INTR_LOCK ;						\
 	MAYBE_POPL_ES ;							\
 	popl	%ds ;							\
 	popl	%edx ;							\
@@ -177,6 +240,9 @@ IDTVEC(vec_name) ;							\
 	subl	$4,%esp ;	/* junk for unit number */		\
 	MEXITCOUNT ;							\
 	jmp	_doreti
+
+#endif /** FAST_WITHOUTCPL */
+
 
 #define	INTR(irq_num, vec_name)						\
 	.text ;								\
@@ -217,9 +283,7 @@ __CONCAT(Xresume,irq_num): ;						\
 	/* XXX skip mcounting here to avoid double count */		\
 	lock ;					/* MP-safe */		\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
-	pushl	$_mp_lock ;			/* GIANT_LOCK */	\
-	call	_MPrellock ;						\
-	add	$4, %esp ;						\
+	REL_ISR_LOCK ;							\
 	popl	%es ;							\
 	popl	%ds ;							\
 	popal ;								\
