@@ -70,23 +70,27 @@ static int	(*ofwcall)(void *);
  * to provide space for two additional entry beyond the terminating one.
  */
 void
-mem_regions(struct mem_region **memp, struct mem_region **availp)
+mem_regions(struct mem_region **memp, int *memsz,
+		struct mem_region **availp, int *availsz)
 {
-	int phandle /*, i, j, cnt*/;
+	int phandle;
+	int asz, msz; 
 	
 	/*
 	 * Get memory.
 	 */
 	if ((phandle = OF_finddevice("/memory")) == -1
-	    || OF_getprop(phandle, "reg",
-			  OFmem, sizeof OFmem[0] * OFMEM_REGIONS)
+	    || (msz = OF_getprop(phandle, "reg",
+			  OFmem, sizeof OFmem[0] * OFMEM_REGIONS))
 	       <= 0
-	    || OF_getprop(phandle, "available",
-			  OFavail, sizeof OFavail[0] * OFMEM_REGIONS)
+	    || (asz = OF_getprop(phandle, "available",
+			  OFavail, sizeof OFavail[0] * OFMEM_REGIONS))
 	       <= 0)
 		panic("no memory?");
 	*memp = OFmem;
+	*memsz = msz / sizeof(struct mem_region);
 	*availp = OFavail;
+	*availsz = asz / sizeof(struct mem_region);
 }
 
 void
@@ -138,8 +142,6 @@ openfirmware(void *args)
 		__asm __volatile("mtsr 14,%0" :: "r"(ofw_pmap.pm_sr[14]));
 		__asm __volatile("mtsr 15,%0" :: "r"(ofw_pmap.pm_sr[15]));
 	}
-
-	ofmsr |= PSL_RI|PSL_EE;
 
 	__asm __volatile(	"\t"
 		"sync\n\t"

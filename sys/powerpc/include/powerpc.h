@@ -36,11 +36,11 @@
 #define	_MACHINE_POWERPC_H_
 
 struct mem_region {
-	vm_offset_t	start;
-	vm_size_t	size;
+	vm_offset_t	mr_start;
+	vm_size_t	mr_size;
 };
 
-void	mem_regions(struct mem_region **, struct mem_region **);
+void	mem_regions(struct mem_region **, int *, struct mem_region **, int *);
 
 /*
  * These two functions get used solely in boot() in machdep.c.
