@@ -17,7 +17,6 @@
 . /etc/network.subr
 
 name="dhclient"
-command="/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 case "${OSTYPE}" in
 FreeBSD)
@@ -27,6 +26,7 @@ FreeBSD)
 	;;
 NetBSD)
 	rcvar=$name
+	command="/sbin/${name}"
 	;;
 esac
 
@@ -41,7 +41,7 @@ dhclient_prestart()
 		ifscript_up ${ifn}
 	done
 
-	rc_flags="${rc_flags} ${dhcp_flags} ${dhcp_list}"
+	rc_flags="${rc_flags} ${dhcp_list}"
 	return 0
 }
 
