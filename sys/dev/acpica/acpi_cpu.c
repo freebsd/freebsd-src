@@ -251,13 +251,6 @@ acpi_cpu_attach(device_t dev)
 	return (ENXIO);
     cpu_softc[cpu_id] = sc;
 
-    /*
-     * XXX Temporarily call any _INI function under the processor.
-     * ACPI-CA will do this after Nov. 2003.  The spec doesn't
-     * suggest processors have _INI methods but my Thinkpad T23 does.
-     */
-    AcpiEvaluateObject(sc->cpu_handle, "_INI", NULL, NULL);
-
     /* Get various global values from the Processor object. */
     sc->cpu_p_blk = pobj.Processor.PblkAddress;
     sc->cpu_p_blk_len = pobj.Processor.PblkLength;
