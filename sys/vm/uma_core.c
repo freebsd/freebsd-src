@@ -706,15 +706,8 @@ slab_zalloc(uma_zone_t zone, int wait)
 		wait &= ~M_ZERO;
 
 	if (booted || (zone->uz_flags & UMA_ZFLAG_PRIVALLOC)) {
-		if ((wait & M_NOWAIT) == 0) {
-			mtx_lock(&Giant);
-			mem = zone->uz_allocf(zone, 
-			    zone->uz_ppera * UMA_SLAB_SIZE, &flags, wait);
-			mtx_unlock(&Giant);
-		} else {
-			mem = zone->uz_allocf(zone, 
-			    zone->uz_ppera * UMA_SLAB_SIZE, &flags, wait);
-		}
+		mem = zone->uz_allocf(zone, zone->uz_ppera * UMA_SLAB_SIZE,
+		    &flags, wait);
 		if (mem == NULL) {
 			ZONE_LOCK(zone);
 			return (NULL);
