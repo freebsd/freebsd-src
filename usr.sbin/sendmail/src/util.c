@@ -418,7 +418,7 @@ buildfname(gecos, login, buf, buflen)
 	{
 		if (*p == '&')
 		{
-			snprintf(bp, SPACELEFT(buf, bp), "%s", login);
+			snprintf(bp, buflen - (bp - buf), "%s", login);
 			*bp = toupper(*bp);
 			bp += strlen(bp);
 		}
