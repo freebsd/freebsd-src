@@ -25,22 +25,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_ubt.c,v 1.1 2002/11/09 19:09:02 max Exp $
+ * $Id: ng_ubt.c,v 1.14 2003/04/14 23:00:50 max Exp $
  * $FreeBSD$
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/endian.h>
-#include <sys/interrupt.h>
+#include <sys/filio.h>
+#include <sys/fcntl.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-
-#include <sys/socket.h>
-#include <net/if.h>
-#include <net/if_var.h>
+#include <sys/poll.h>
+#include <sys/vnode.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -62,33 +62,39 @@
 
 USB_DECLARE_DRIVER(ubt);
 
-Static int         ubt_modevent		 (module_t, int, void *);
+Static int         ubt_modevent		  (module_t, int, void *);
 
-Static usbd_status ubt_request_start     (ubt_softc_p, struct mbuf *);
-Static void        ubt_request_complete  (usbd_xfer_handle, 
-					  usbd_private_handle, usbd_status);
+Static usbd_status ubt_request_start      (ubt_softc_p);
+Static void        ubt_request_complete   (usbd_xfer_handle, 
+					   usbd_private_handle, usbd_status);
+Static void        ubt_request_complete2  (node_p, hook_p, void *, int);
 
-Static usbd_status ubt_intr_start	 (ubt_softc_p);
-Static void        ubt_intr_complete     (usbd_xfer_handle, 
-					  usbd_private_handle, usbd_status);
+Static usbd_status ubt_intr_start	  (ubt_softc_p);
+Static void        ubt_intr_complete      (usbd_xfer_handle, 
+					   usbd_private_handle, usbd_status);
+Static void        ubt_intr_complete2     (node_p, hook_p, void *, int); 
 
-Static usbd_status ubt_bulk_in_start	 (ubt_softc_p);
-Static void        ubt_bulk_in_complete  (usbd_xfer_handle, 
-					  usbd_private_handle, usbd_status);
+Static usbd_status ubt_bulk_in_start	  (ubt_softc_p);
+Static void        ubt_bulk_in_complete   (usbd_xfer_handle, 
+					   usbd_private_handle, usbd_status);
+Static void        ubt_bulk_in_complete2  (node_p, hook_p, void *, int);
 
-Static usbd_status ubt_bulk_out_start    (ubt_softc_p, struct mbuf *);
-Static void        ubt_bulk_out_complete (usbd_xfer_handle, 
-					  usbd_private_handle, usbd_status);
+Static usbd_status ubt_bulk_out_start     (ubt_softc_p);
+Static void        ubt_bulk_out_complete  (usbd_xfer_handle, 
+					   usbd_private_handle, usbd_status);
+Static void        ubt_bulk_out_complete2 (node_p, hook_p, void *, int); 
 
-Static usbd_status ubt_isoc_in_start     (ubt_softc_p);
-Static void        ubt_isoc_in_complete  (usbd_xfer_handle, 
-					  usbd_private_handle, usbd_status);
+Static usbd_status ubt_isoc_in_start      (ubt_softc_p);
+Static void        ubt_isoc_in_complete   (usbd_xfer_handle, 
+					   usbd_private_handle, usbd_status);
+Static void        ubt_isoc_in_complete2  (node_p, hook_p, void *, int);
 
-Static usbd_status ubt_isoc_out_start    (ubt_softc_p, struct mbuf *);
-Static void        ubt_isoc_out_complete (usbd_xfer_handle, 
-					  usbd_private_handle, usbd_status);
+Static usbd_status ubt_isoc_out_start     (ubt_softc_p);
+Static void        ubt_isoc_out_complete  (usbd_xfer_handle, 
+					   usbd_private_handle, usbd_status);
+Static void        ubt_isoc_out_complete2 (node_p, hook_p, void *, int);
 
-Static void        ubt_swi_intr          (void *);
+Static void        ubt_reset              (ubt_softc_p);
 
 /*
  * Netgraph methods
@@ -101,7 +107,6 @@ Static ng_connect_t	ng_ubt_connect;
 Static ng_disconnect_t	ng_ubt_disconnect;
 Static ng_rcvmsg_t	ng_ubt_rcvmsg;
 Static ng_rcvdata_t	ng_ubt_rcvdata;
-Static void		ng_ubt_reset	(ubt_softc_p);
 
 /* Queue length */
 Static const struct ng_parse_struct_field	ng_ubt_node_qlen_type_fields[] =
@@ -175,6 +180,13 @@ Static const struct ng_cmdlist	ng_ubt_cmdlist[] = {
         NULL,
 	NULL
 },
+{
+	NGM_UBT_COOKIE,
+	NGM_UBT_NODE_DEV_NODES,
+	"dev_nodes",
+        &ng_parse_uint16_type,
+	NULL
+},
 { 0, }
 };
 
@@ -191,7 +203,42 @@ Static struct ng_type	typestruct = {
 	ng_ubt_connect,		/* connect hook */
 	ng_ubt_rcvdata,		/* data */
 	ng_ubt_disconnect,	/* disconnect hook */
-	ng_ubt_cmdlist		/* node command list */
+	ng_ubt_cmdlist,		/* node command list */
+};
+
+/*
+ * Device methods
+ */
+
+#define UBT_UNIT(n)	((minor(n) >> 4) & 0xf)
+#define UBT_ENDPOINT(n)	(minor(n) & 0xf)
+#define UBT_MINOR(u, e)	(((u) << 4) | (e))
+#define UBT_BSIZE	1024
+
+Static d_open_t		ubt_open;
+Static d_close_t	ubt_close;
+Static d_read_t		ubt_read;
+Static d_write_t	ubt_write;
+Static d_ioctl_t	ubt_ioctl;
+Static d_poll_t		ubt_poll;
+Static void		ubt_create_device_nodes  (ubt_softc_p);
+Static void		ubt_destroy_device_nodes (ubt_softc_p);
+
+#if __FreeBSD_version < 500104
+#define CDEV_MAJOR	222
+#else
+#define CDEV_MAJOR	MAJOR_AUTO
+#endif
+
+Static struct cdevsw	ubt_cdevsw = {
+	.d_open =	ubt_open,
+	.d_close =	ubt_close,
+	.d_read =	ubt_read,
+	.d_write =	ubt_write,
+	.d_ioctl =	ubt_ioctl,
+	.d_poll =	ubt_poll,
+	.d_name =	"ubt",
+	.d_maj =	CDEV_MAJOR,
 };
 
 /*
@@ -221,8 +268,9 @@ ubt_modevent(module_t mod, int event, void *data)
 	case MOD_LOAD:
 		error = ng_newtype(&typestruct);
 		if (error != 0)
-			printf("%s: Could not register Netgraph node type, " \
-				"error=%d\n", NG_UBT_NODE_TYPE, error);
+			printf(
+"%s: Could not register Netgraph node type, error=%d\n",
+				NG_UBT_NODE_TYPE, error);
 		else
 			error = usbd_driver_load(mod, event, data);
 		break;
@@ -247,23 +295,48 @@ ubt_modevent(module_t mod, int event, void *data)
 
 USB_MATCH(ubt)
 {
-	Static struct usb_devno const	ubt_devices[] = {
-		{ USB_VENDOR_3COM,     USB_PRODUCT_3COM_3CREB96 },
-		{ USB_VENDOR_MITSUMI,  USB_PRODUCT_MITSUMI_BT_DONGLE },
-		{ USB_VENDOR_TDK,      USB_PRODUCT_TDK_BT_DONGLE },
-		{ USB_VENDOR_MSI,      USB_PRODUCT_MSI_BT_DONGLE },
-		{ USB_VENDOR_BROADCOM, USB_PRODUCT_DBW_120M_BT_DONGLE },
-		{ USB_VENDOR_EPOX,     USB_PRODUCT_BT_DG02_DONGLE },
-		{ 0, 0 }
+	/*
+	 * If for some reason device should not be attached then put
+	 * VendorID/ProductID pair into the list below. Currently I
+	 * do not know of any such devices. The format is as follows:
+	 *
+	 *	{ VENDOR_ID, PRODUCT_ID },
+	 *
+	 * where VENDOR_ID and PRODUCT_ID are hex numbers.
+	 */
+
+	Static struct usb_devno const	ubt_ignored_devices[] = {
+		{ 0, 0 } /* This should be the last item in the list */
+	};
+
+	/*
+	 * If device violates Bluetooth specification and has bDeviceClass,
+	 * bDeviceSubClass and bDeviceProtocol set to wrong values then you
+	 * could try to put VendorID/ProductID pair into the list below. 
+	 * Currently I do not know of any such devices.
+	 */
+
+	Static struct usb_devno const	ubt_broken_devices[] = {
+		{ 0, 0 } /* This should be the last item in the list */
 	};
 
 	USB_MATCH_START(ubt, uaa);
 
-	if (uaa->iface == NULL || 
-	    usb_lookup(ubt_devices, uaa->vendor, uaa->product) == NULL)
-		return (UMATCH_NONE);
+	usb_device_descriptor_t	*dd = usbd_get_device_descriptor(uaa->device);
 
-	return (UMATCH_VENDOR_PRODUCT);
+	if (uaa->iface == NULL ||
+	    usb_lookup(ubt_ignored_devices, uaa->vendor, uaa->product))
+		return (UMATCH_NONE);
+	
+	if (dd->bDeviceClass == UDCLASS_WIRELESS &&
+	    dd->bDeviceSubClass == UDSUBCLASS_RF &&
+	    dd->bDeviceProtocol == UDPROTO_BLUETOOTH)
+		return (UMATCH_DEVCLASS_DEVSUBCLASS);
+
+	if (usb_lookup(ubt_broken_devices, uaa->vendor, uaa->product))
+		return (UMATCH_VENDOR_PRODUCT);
+
+	return (UMATCH_NONE);
 } /* USB_MATCH(ubt) */
 
 /*
@@ -276,7 +349,7 @@ USB_ATTACH(ubt)
 	usb_config_descriptor_t		*cd = NULL;
 	usb_interface_descriptor_t	*id = NULL;
 	usb_endpoint_descriptor_t	*ed = NULL;
-	char				 devinfo[1024];
+	char				 devinfo[UBT_BSIZE];
 	usbd_status			 error;
 	int				 i, ai, alt_no, isoc_in, isoc_out,
 					 isoc_isize, isoc_osize;
@@ -299,11 +372,6 @@ USB_ATTACH(ubt)
 	/* Interfaces */
 	sc->sc_iface0 = sc->sc_iface1 = NULL;
 
-	/* Input queue */
-	bzero(&sc->sc_inq, sizeof(sc->sc_inq));
-	sc->sc_inq.ifq_maxlen = UBT_DEFAULT_QLEN;
-	mtx_init(&sc->sc_inq.ifq_mtx, "UBT inq", NULL, MTX_DEF);
-
 	/* Interrupt pipe */
 	sc->sc_intr_ep = -1;
 	sc->sc_intr_pipe = NULL;
@@ -313,9 +381,7 @@ USB_ATTACH(ubt)
 	/* Control pipe */
 	sc->sc_ctrl_xfer = NULL;
 	sc->sc_ctrl_buffer = NULL;
-	bzero(&sc->sc_cmdq, sizeof(sc->sc_cmdq));
-	sc->sc_cmdq.ifq_maxlen = UBT_DEFAULT_QLEN;
-	mtx_init(&sc->sc_cmdq.ifq_mtx, "UBT cmdq", NULL, MTX_DEF);
+	NG_BT_MBUFQ_INIT(&sc->sc_cmdq, UBT_DEFAULT_QLEN);
 
 	/* Bulk-in pipe */
 	sc->sc_bulk_in_ep = -1;
@@ -328,9 +394,7 @@ USB_ATTACH(ubt)
 	sc->sc_bulk_out_pipe = NULL;
 	sc->sc_bulk_out_xfer = NULL;
 	sc->sc_bulk_out_buffer = NULL;
-	bzero(&sc->sc_aclq, sizeof(sc->sc_aclq));
-	sc->sc_aclq.ifq_maxlen = UBT_DEFAULT_QLEN;
-	mtx_init(&sc->sc_aclq.ifq_mtx, "UBT aclq", NULL, MTX_DEF);
+	NG_BT_MBUFQ_INIT(&sc->sc_aclq, UBT_DEFAULT_QLEN);
 
 	/* Isoc-in pipe */
 	sc->sc_isoc_in_ep = -1;
@@ -342,21 +406,15 @@ USB_ATTACH(ubt)
 	sc->sc_isoc_out_pipe = NULL;
 	sc->sc_isoc_out_xfer = NULL;
 	sc->sc_isoc_size = -1;
-	bzero(&sc->sc_scoq, sizeof(sc->sc_scoq));
-	sc->sc_scoq.ifq_maxlen = UBT_DEFAULT_QLEN;
-	mtx_init(&sc->sc_scoq.ifq_mtx, "UBT scoq", NULL, MTX_DEF);
+	NG_BT_MBUFQ_INIT(&sc->sc_scoq, UBT_DEFAULT_QLEN);
 
 	/* Netgraph part */
 	sc->sc_node = NULL;
 	sc->sc_hook = NULL;
 
-	/* Attach SWI handler to TTY SWI thread */
-	sc->sc_ith = NULL;
-	if (swi_add(&tty_ithd, USBDEVNAME(sc->sc_dev),
-			ubt_swi_intr, sc, SWI_TTY, 0, &sc->sc_ith) < 0) {  
-		printf("%s: Could not setup SWI ISR\n", USBDEVNAME(sc->sc_dev));
-		goto bad;
-	}
+	/* Device part */
+	sc->sc_ctrl_dev = sc->sc_intr_dev = sc->sc_bulk_dev = NODEV;
+	sc->sc_refcnt = sc->sc_dying = 0;
 
 	/*
 	 * XXX set configuration?
@@ -394,16 +452,6 @@ USB_ATTACH(ubt)
 	if (id == NULL) {
 		printf("%s: Could not get interface 0 descriptor\n",
 			USBDEVNAME(sc->sc_dev));
-		goto bad;
-	}
-	if (id->bInterfaceClass != UICLASS_WIRELESS_CONTROLLER ||
-	    id->bInterfaceSubClass != UISUBCLASS_RF_CONTROLLER ||
-	    id->bInterfaceProtocol != UIPROTO_BLUETOOTH) {
-		printf("%s: Interface 0 is not supported, " \
-			"bInterfaceClass=%#x, bInterfaceSubClass=%#x, "\
-			"bInterfaceProtocol=%#x\n", USBDEVNAME(sc->sc_dev),
-			id->bInterfaceClass, id->bInterfaceSubClass, 
-			id->bInterfaceProtocol);
 		goto bad;
 	}
 
@@ -474,16 +522,6 @@ USB_ATTACH(ubt)
 	if (id == NULL) {
 		printf("%s: Could not get interface 1 descriptor\n",
 			USBDEVNAME(sc->sc_dev));
-		goto bad;
-	}
-	if (id->bInterfaceClass != UICLASS_WIRELESS_CONTROLLER ||
-	    id->bInterfaceSubClass != UISUBCLASS_RF_CONTROLLER ||
-	    id->bInterfaceProtocol != UIPROTO_BLUETOOTH) {
-		printf("%s: Interface 1 is not supported, " \
-			"bInterfaceClass=%#x, bInterfaceSubClass=%#x, "\
-			"bInterfaceProtocol=%#x\n", USBDEVNAME(sc->sc_dev),
-			id->bInterfaceClass, id->bInterfaceSubClass, 
-			id->bInterfaceProtocol);
 		goto bad;
 	}
 
@@ -596,24 +634,10 @@ USB_ATTACH(ubt)
 			USBDEVNAME(sc->sc_dev));
 		goto bad;
 	}
-	sc->sc_intr_buffer = usbd_alloc_buffer(sc->sc_intr_xfer, 
-						UBT_INTR_BUFFER_SIZE);
-	if (sc->sc_intr_buffer == NULL) {
-		printf("%s: Could not allocate interrupt buffer\n",
-			USBDEVNAME(sc->sc_dev));
-		goto bad;
-	}
 
 	sc->sc_bulk_in_xfer = usbd_alloc_xfer(sc->sc_udev);
 	if (sc->sc_bulk_in_xfer == NULL) {
 		printf("%s: Could not allocate bulk-in xfer handle\n",
-			USBDEVNAME(sc->sc_dev));
-		goto bad;
-	}
-	sc->sc_bulk_in_buffer = usbd_alloc_buffer(sc->sc_bulk_in_xfer,
-						UBT_BULK_BUFFER_SIZE);
-	if (sc->sc_bulk_in_buffer == NULL) {
-		printf("%s: Could not allocate bulk-in buffer\n",
 			USBDEVNAME(sc->sc_dev));
 		goto bad;
 	}
@@ -686,6 +710,62 @@ USB_ATTACH(ubt)
 		sc->sc_isoc_out_ep, sc->sc_isoc_size, sc->sc_isoc_nframes, 
 		(sc->sc_isoc_nframes * sc->sc_isoc_size));
 
+	/*
+	 * Open pipes
+	 */
+
+	/* Interrupt */	
+	error = usbd_open_pipe(sc->sc_iface0, sc->sc_intr_ep,
+			USBD_EXCLUSIVE_USE, &sc->sc_intr_pipe);
+	if (error != USBD_NORMAL_COMPLETION) {
+		printf("%s: %s - Could not open interrupt pipe. %s (%d)\n",
+			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(error),
+			error);
+		goto bad;
+	}
+
+	/* Bulk-in */
+	error = usbd_open_pipe(sc->sc_iface0, sc->sc_bulk_in_ep,
+			USBD_EXCLUSIVE_USE, &sc->sc_bulk_in_pipe);
+	if (error != USBD_NORMAL_COMPLETION) {
+		printf("%s: %s - Could not open bulk-in pipe. %s (%d)\n",
+			__func__,  USBDEVNAME(sc->sc_dev), usbd_errstr(error),
+			error);
+		goto bad;
+	}
+
+	/* Bulk-out */
+	error = usbd_open_pipe(sc->sc_iface0, sc->sc_bulk_out_ep,
+			USBD_EXCLUSIVE_USE, &sc->sc_bulk_out_pipe);
+	if (error != USBD_NORMAL_COMPLETION) {
+		printf("%s: %s - Could not open bulk-out pipe. %s (%d)\n",
+			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(error),
+			error);
+		goto bad;
+	}
+
+#if __broken__ /* XXX FIXME */
+	/* Isoc-in */
+	error = usbd_open_pipe(sc->sc_iface1, sc->sc_isoc_in_ep,
+			USBD_EXCLUSIVE_USE, &sc->sc_isoc_in_pipe);
+	if (error != USBD_NORMAL_COMPLETION) {
+		printf("%s: %s - Could not open isoc-in pipe. %s (%d)\n",
+			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(error),
+			error);
+		goto bad;
+	}
+
+	/* Isoc-out */
+	error = usbd_open_pipe(sc->sc_iface1, sc->sc_isoc_out_ep, 
+			USBD_EXCLUSIVE_USE, &sc->sc_isoc_out_pipe);
+	if (error != USBD_NORMAL_COMPLETION) {
+		printf("%s: %s - Could not open isoc-out pipe. %s (%d)\n",
+			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(error),
+			error);
+		goto bad;
+	}
+#endif /* __broken__ */
+
 	/* Create Netgraph node */
 	if (ng_make_node_common(&typestruct, &sc->sc_node) != 0) {
 		printf("%s: Could not create Netgraph node\n",
@@ -704,14 +784,14 @@ USB_ATTACH(ubt)
 	}
 
 	NG_NODE_SET_PRIVATE(sc->sc_node, sc);
+	NG_NODE_FORCE_WRITER(sc->sc_node);
 
-	/*
-	 * XXX Is that correct?
-	 * Claim all interfaces on the device
-	 */
-
+	/* Claim all interfaces on the device */
 	for (i = 0; i < uaa->nifaces; i++)
 		uaa->ifaces[i] = NULL;
+
+	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev,
+		USBDEV(sc->sc_dev));
 
 	USB_ATTACH_SUCCESS_RETURN;
 bad:
@@ -728,13 +808,39 @@ USB_DETACH(ubt)
 {
 	USB_DETACH_START(ubt, sc);
 
-	ng_ubt_reset(sc);
+	sc->sc_dying = 1;
+
+	ubt_destroy_device_nodes(sc); /* XXX FIXME locking? */
 
 	/* Destroy Netgraph node */
 	if (sc->sc_node != NULL) {
 		NG_NODE_SET_PRIVATE(sc->sc_node, NULL);
 		ng_rmnode_self(sc->sc_node);
 		sc->sc_node = NULL;
+	}
+
+	/* Close pipes */
+	if (sc->sc_intr_pipe != NULL) {
+		usbd_close_pipe(sc->sc_intr_pipe);
+		sc->sc_intr_pipe = NULL;
+	}
+
+	if (sc->sc_bulk_in_pipe != NULL) {
+		usbd_close_pipe(sc->sc_bulk_in_pipe);
+		sc->sc_bulk_in_pipe = NULL;
+	}
+	if (sc->sc_bulk_out_pipe != NULL) {
+		usbd_close_pipe(sc->sc_bulk_out_pipe);
+		sc->sc_bulk_out_pipe = NULL;
+	}
+
+	if (sc->sc_isoc_in_pipe != NULL) {
+		usbd_close_pipe(sc->sc_isoc_in_pipe);
+		sc->sc_isoc_in_pipe = NULL;
+	}
+	if (sc->sc_isoc_out_pipe != NULL) {
+		usbd_close_pipe(sc->sc_isoc_out_pipe);
+		sc->sc_isoc_out_pipe = NULL;
 	}
 
 	/* Destroy USB transfer handles */
@@ -776,70 +882,43 @@ USB_DETACH(ubt)
 		sc->sc_isoc_out_frlen = NULL;
 	}
 
-	if (sc->sc_ith != NULL) {
-		ithread_remove_handler(sc->sc_ith);
-		sc->sc_ith = NULL;
-	}
-
 	/* Destroy queues */
-	IF_DRAIN(&sc->sc_cmdq);
-	IF_DRAIN(&sc->sc_aclq);
-	IF_DRAIN(&sc->sc_scoq);
-	IF_DRAIN(&sc->sc_inq);
+	NG_BT_MBUFQ_DRAIN(&sc->sc_cmdq);
+	NG_BT_MBUFQ_DRAIN(&sc->sc_aclq);
+	NG_BT_MBUFQ_DRAIN(&sc->sc_scoq);
 
-	mtx_destroy(&sc->sc_cmdq.ifq_mtx);
-	mtx_destroy(&sc->sc_aclq.ifq_mtx);
-	mtx_destroy(&sc->sc_scoq.ifq_mtx);
-	mtx_destroy(&sc->sc_inq.ifq_mtx);
+	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_udev,
+			USBDEV(sc->sc_dev));
 
 	return (0);
 } /* USB_DETACH(ubt) */
 
 /*
- * Start USB control request (HCI command)
+ * Start USB control request (HCI command). Must be called with node locked
  */
 
 Static usbd_status
-ubt_request_start(ubt_softc_p sc, struct mbuf *m)
+ubt_request_start(ubt_softc_p sc)
 {
-	usb_device_request_t	req;
-	usbd_status		status = USBD_NORMAL_COMPLETION;
+	usb_device_request_t	 req;
+	struct mbuf		*m = NULL;
+	usbd_status		 status;
 
-	IF_LOCK(&sc->sc_cmdq);
-
-	if (m != NULL) {
-		if (_IF_QFULL(&sc->sc_cmdq)) {
-			NG_UBT_ERR(
-"%s: %s - Dropping HCI command frame, len=%d. Queue full\n",
-				__func__, USBDEVNAME(sc->sc_dev), 
-				m->m_pkthdr.len);
-
-			_IF_DROP(&sc->sc_cmdq);
-			NG_UBT_STAT_OERROR(sc->sc_stat);
-
-			NG_FREE_M(m);
-		} else
-			_IF_ENQUEUE(&sc->sc_cmdq, m);
-	} else
-		sc->sc_flags &= ~UBT_CMD_XMIT;
-
-	if (sc->sc_flags & UBT_CMD_XMIT) {
-		NG_UBT_INFO(
+	KASSERT(!(sc->sc_flags & UBT_CMD_XMIT), (
 "%s: %s - Another control request is pending\n",
-			__func__, USBDEVNAME(sc->sc_dev));
-		goto done;
-	}
+		__func__, USBDEVNAME(sc->sc_dev)));
 
-	_IF_DEQUEUE(&sc->sc_cmdq, m);
+	NG_BT_MBUFQ_DEQUEUE(&sc->sc_cmdq, m);
 	if (m == NULL) {
 		NG_UBT_INFO(
 "%s: %s - HCI command queue is empty\n", __func__, USBDEVNAME(sc->sc_dev));
-		goto done;
+
+		return (USBD_NORMAL_COMPLETION);
 	}
 
 	/*
-	 * Check HCI command frame size and copy it back
-	 *  to linear USB transfer buffer.
+	 * Check HCI command frame size and copy it back to 
+	 * linear USB transfer buffer.
 	 */ 
 
 	if (m->m_pkthdr.len > UBT_CTRL_BUFFER_SIZE)
@@ -851,7 +930,6 @@ ubt_request_start(ubt_softc_p sc, struct mbuf *m)
 	m_copydata(m, 0, m->m_pkthdr.len, sc->sc_ctrl_buffer);
 
 	/* Initialize a USB control request and then schedule it */
-
 	bzero(&req, sizeof(req));
 	req.bmRequestType = UBT_HCI_REQUEST;
 	USETW(req.wLength, m->m_pkthdr.len);
@@ -864,38 +942,39 @@ ubt_request_start(ubt_softc_p sc, struct mbuf *m)
 	usbd_setup_default_xfer(
 		sc->sc_ctrl_xfer,
 		sc->sc_udev,
-		(usbd_private_handle) sc,
-		USBD_DEFAULT_TIMEOUT,	/* XXX */
+		(usbd_private_handle) sc->sc_node,
+		USBD_DEFAULT_TIMEOUT, /* XXX */
 		&req,
 		sc->sc_ctrl_buffer,
 		m->m_pkthdr.len,
 		USBD_NO_COPY,
 		ubt_request_complete);
 
+	NG_NODE_REF(sc->sc_node);
+
 	status = usbd_transfer(sc->sc_ctrl_xfer);
-	if (status && status != USBD_IN_PROGRESS) {
+	if (status != USBD_NORMAL_COMPLETION && status != USBD_IN_PROGRESS) {
 		NG_UBT_ERR(
 "%s: %s - Could not start control request. %s (%d)\n",
 			__func__, USBDEVNAME(sc->sc_dev),
 			usbd_errstr(status), status);
 
-			_IF_DROP(&sc->sc_cmdq); /* XXX */
-			NG_UBT_STAT_OERROR(sc->sc_stat);
+		NG_NODE_UNREF(sc->sc_node);
 
-		/* XXX FIXME: should we try to resubmit another request? */
+		NG_BT_MBUFQ_DROP(&sc->sc_cmdq);
+		NG_UBT_STAT_OERROR(sc->sc_stat);
+
+		/* XXX FIXME should we try to resubmit another request? */
 	} else {
 		NG_UBT_INFO(
 "%s: %s - Control request has been started\n",
 			__func__, USBDEVNAME(sc->sc_dev));
 
 		sc->sc_flags |= UBT_CMD_XMIT;
-
 		status = USBD_NORMAL_COMPLETION;
 	}
 
 	NG_FREE_M(m);
-done:
-	IF_UNLOCK(&sc->sc_cmdq);
 
 	return (status);
 } /* ubt_request_start */
@@ -907,7 +986,24 @@ done:
 Static void
 ubt_request_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 {
-	ubt_softc_p	sc = (ubt_softc_p) p;
+	ng_send_fn((node_p) p, NULL, ubt_request_complete2, (void *) h, s);
+	NG_NODE_UNREF((node_p) p);
+} /* ubt_request_complete */
+
+Static void
+ubt_request_complete2(node_p node, hook_p hook, void *arg1, int arg2)
+{ 
+	ubt_softc_p		sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
+	usbd_xfer_handle	h = (usbd_xfer_handle) arg1;
+	usbd_status		s = (usbd_status) arg2;
+
+	if (sc == NULL)
+		return;
+
+	KASSERT((sc->sc_flags & UBT_CMD_XMIT), (
+"%s: %s - No control request is pending\n", __func__, USBDEVNAME(sc->sc_dev)));
+
+	sc->sc_flags &= ~UBT_CMD_XMIT;
 
 	if (s == USBD_CANCELLED) {
 		NG_UBT_INFO(
@@ -934,38 +1030,70 @@ ubt_request_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 		NG_UBT_STAT_PCKTS_SENT(sc->sc_stat);
 	}
 
-	ubt_request_start(sc, NULL /* completed request */);
-} /* ubt_request_complete */
+	if (NG_BT_MBUFQ_LEN(&sc->sc_cmdq) > 0)
+		ubt_request_start(sc);
+} /* ubt_request_complete2 */
 
 /*
- * Start interrupt transfer
+ * Start interrupt transfer. Must be called when node is locked
  */
 
 Static usbd_status
 ubt_intr_start(ubt_softc_p sc)
 {
-	usbd_status	status;
+	struct mbuf	*m = NULL;
+	usbd_status	 status;
 
+	KASSERT(!(sc->sc_flags & UBT_EVT_RECV), (
+"%s: %s - Another interrupt request is pending\n",
+		__func__, USBDEVNAME(sc->sc_dev)));
+
+	/* Allocate new mbuf cluster */
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	if (m == NULL)
+		return (USBD_NOMEM);
+
+	MCLGET(m, M_DONTWAIT);
+	if (!(m->m_flags & M_EXT)) {
+		NG_FREE_M(m);
+		return (USBD_NOMEM);
+	}
+
+	if (!(sc->sc_flags & UBT_HAVE_FRAME_TYPE)) {
+		*mtod(m, u_int8_t *) = NG_HCI_EVENT_PKT;
+		m->m_pkthdr.len = m->m_len = 1;
+	} else
+		m->m_pkthdr.len = m->m_len = 0;
+	
 	/* Initialize a USB transfer and then schedule it */
 	usbd_setup_xfer(
 			sc->sc_intr_xfer,
 			sc->sc_intr_pipe,
-			(usbd_private_handle) sc,
-			sc->sc_intr_buffer,
-			UBT_INTR_BUFFER_SIZE,
-			USBD_SHORT_XFER_OK | USBD_NO_COPY,
+			(usbd_private_handle) sc->sc_node,
+			(void *)(mtod(m, u_int8_t *) + m->m_len),
+			MCLBYTES - m->m_len,
+			USBD_SHORT_XFER_OK,
 			USBD_NO_TIMEOUT,
 			ubt_intr_complete);
 
+	NG_NODE_REF(sc->sc_node);
+
 	status = usbd_transfer(sc->sc_intr_xfer);
-	if (status && status != USBD_IN_PROGRESS) {
+	if (status != USBD_NORMAL_COMPLETION && status != USBD_IN_PROGRESS) {
 		NG_UBT_ERR(
 "%s: %s - Failed to start intrerrupt transfer. %s (%d)\n",
 			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(status),
 			status);
 
+		NG_NODE_UNREF(sc->sc_node);
+
+		NG_FREE_M(m);
+
 		return (status);
 	}
+
+	sc->sc_flags |= UBT_EVT_RECV;
+	sc->sc_intr_buffer = m;
 
 	return (USBD_NORMAL_COMPLETION);
 } /* ubt_intr_start */
@@ -977,65 +1105,77 @@ ubt_intr_start(ubt_softc_p sc)
 Static void
 ubt_intr_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 {
-	ubt_softc_p		 sc = (ubt_softc_p) p;
+	ng_send_fn((node_p) p, NULL, ubt_intr_complete2, (void *) h, s);
+	NG_NODE_UNREF((node_p) p);
+} /* ubt_intr_complete */
+
+Static void
+ubt_intr_complete2(node_p node, hook_p hook, void *arg1, int arg2)
+{
+	ubt_softc_p		 sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
+	usbd_xfer_handle	 h = (usbd_xfer_handle) arg1;
+	usbd_status		 s = (usbd_status) arg2;
 	struct mbuf		*m = NULL;
 	ng_hci_event_pkt_t	*hdr = NULL;
-	int			 off;
+	int			 error;
+
+	if (sc == NULL)
+		return;
+
+	KASSERT((sc->sc_flags & UBT_EVT_RECV), (
+"%s: %s - No interrupt request is pending\n",
+		__func__, USBDEVNAME(sc->sc_dev)));
+
+	sc->sc_flags &= ~UBT_EVT_RECV;
+
+	m = sc->sc_intr_buffer;
+	sc->sc_intr_buffer = NULL;
+
+	hdr = mtod(m, ng_hci_event_pkt_t *);
+
+	if (sc->sc_hook == NULL || NG_HOOK_NOT_VALID(sc->sc_hook)) {
+		NG_UBT_INFO(
+"%s: %s - No upstream hook\n", __func__, USBDEVNAME(sc->sc_dev));
+
+		NG_FREE_M(m);
+		return;
+	}
 
 	if (s == USBD_CANCELLED) {
 		NG_UBT_INFO(
 "%s: %s - Interrupt xfer cancelled\n", __func__, USBDEVNAME(sc->sc_dev));
 
+		NG_FREE_M(m);
 		return;
 	}
 		
 	if (s != USBD_NORMAL_COMPLETION) {    
 		NG_UBT_WARN(
-"%s: %s - Interrupt xfer failed. %s (%d)\n",
+"%s: %s - Interrupt xfer failed, %s (%d). No new xfer will be submitted!\n",
 			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(s), s);
 
 		if (s == USBD_STALLED)
 			usbd_clear_endpoint_stall_async(sc->sc_intr_pipe);
 
 		NG_UBT_STAT_IERROR(sc->sc_stat);
-		goto done;
+		NG_FREE_M(m);
+
+		return; /* XXX FIXME we should restart after some delay */
 	}
 
 	NG_UBT_STAT_BYTES_RECV(sc->sc_stat, h->actlen);
+	m->m_pkthdr.len += h->actlen;
+	m->m_len += h->actlen;
 
 	NG_UBT_INFO(
 "%s: %s - Got %d bytes from interrupt pipe\n",
 		__func__, USBDEVNAME(sc->sc_dev), h->actlen);
 
-	if (h->actlen < sizeof(*hdr))
-		goto done;
-
-	/* Copy HCI event frame to mbuf */
-
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == NULL) {
-		NG_UBT_ALERT(
-"%s: %s - Could not allocate mbuf\n", __func__, USBDEVNAME(sc->sc_dev));
-			NG_UBT_STAT_IERROR(sc->sc_stat);
+	if (m->m_pkthdr.len < sizeof(*hdr)) {
+		NG_FREE_M(m);
 		goto done;
 	}
 
-	/*
-	 * Copy data from USB buffer into mbuf and check if we got 
-	 * full HCI event frame. Fix HCI event frame if required.
-	 */
-
-	if (!(sc->sc_flags & UBT_HAVE_FRAME_TYPE)) {
-		off = 1;
-		*mtod(m, u_int8_t *) = NG_HCI_EVENT_PKT;
-	} else
-		off = 0;
-	
-	m->m_pkthdr.len = 0;
-	m->m_len = min(MHLEN, h->actlen + off); /* XXX m_copyback is stupid */
-	m_copyback(m, off, h->actlen, sc->sc_intr_buffer);
-
-	hdr = mtod(m, ng_hci_event_pkt_t *);
 	if (hdr->length == m->m_pkthdr.len - sizeof(*hdr)) {
 		NG_UBT_INFO(
 "%s: %s - Got complete HCI event frame, pktlen=%d, length=%d\n",
@@ -1044,23 +1184,9 @@ ubt_intr_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 
 		NG_UBT_STAT_PCKTS_RECV(sc->sc_stat);
 
-		IF_LOCK(&sc->sc_inq);
-		if (_IF_QFULL(&sc->sc_inq)) {
-			NG_UBT_ERR(
-"%s: %s -Incoming queue is full. Dropping mbuf, len=%d\n",
-				__func__,  USBDEVNAME(sc->sc_dev),
-				m->m_pkthdr.len);
-
-			_IF_DROP(&sc->sc_inq);
+		NG_SEND_DATA_ONLY(error, sc->sc_hook, m);
+		if (error != 0)
 			NG_UBT_STAT_IERROR(sc->sc_stat);
-
-			NG_FREE_M(m);
-		} else
-			_IF_ENQUEUE(&sc->sc_inq, m);
-		IF_UNLOCK(&sc->sc_inq);
-
-		/* Schedule SWI */
-	        swi_sched(sc->sc_ith, 0);
 	} else {
 		NG_UBT_ERR(
 "%s: %s - Invalid HCI event frame size, length=%d, pktlen=%d\n",
@@ -1072,37 +1198,68 @@ ubt_intr_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 	}
 done:
 	ubt_intr_start(sc);
-} /* ubt_intr_complete */
+} /* ubt_intr_complete2 */
 
 /*
- * Start bulk-in USB transfer (ACL data)
+ * Start bulk-in USB transfer (ACL data). Must be called when node is locked
  */
 
 Static usbd_status
 ubt_bulk_in_start(ubt_softc_p sc)
 {
-	usbd_status	status;
+	struct mbuf	*m = NULL;
+	usbd_status	 status;
 
+	KASSERT(!(sc->sc_flags & UBT_ACL_RECV), (
+"%s: %s - Another bulk-in request is pending\n",
+		__func__, USBDEVNAME(sc->sc_dev)));
+
+	/* Allocate new mbuf cluster */
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	if (m == NULL)
+		return (USBD_NOMEM);
+
+	MCLGET(m, M_DONTWAIT);
+	if (!(m->m_flags & M_EXT)) {
+		NG_FREE_M(m);
+		return (USBD_NOMEM);
+	}
+
+	if (!(sc->sc_flags & UBT_HAVE_FRAME_TYPE)) {
+		*mtod(m, u_int8_t *) = NG_HCI_ACL_DATA_PKT;
+		m->m_pkthdr.len = m->m_len = 1;
+	} else
+		m->m_pkthdr.len = m->m_len = 0;
+	
 	/* Initialize a bulk-in USB transfer and then schedule it */
 	usbd_setup_xfer(
 			sc->sc_bulk_in_xfer,
 			sc->sc_bulk_in_pipe,
-			(usbd_private_handle) sc,
-			sc->sc_bulk_in_buffer,
-			UBT_BULK_BUFFER_SIZE,
-			USBD_SHORT_XFER_OK | USBD_NO_COPY,
+			(usbd_private_handle) sc->sc_node,
+			(void *)(mtod(m, u_int8_t *) + m->m_len),
+			MCLBYTES - m->m_len,
+			USBD_SHORT_XFER_OK,
 			USBD_NO_TIMEOUT,
 			ubt_bulk_in_complete);
 
+	NG_NODE_REF(sc->sc_node);
+
 	status = usbd_transfer(sc->sc_bulk_in_xfer);
-	if (status && status != USBD_IN_PROGRESS) {
+	if (status != USBD_NORMAL_COMPLETION && status != USBD_IN_PROGRESS) {
 		NG_UBT_ERR(
 "%s: %s - Failed to start bulk-in transfer. %s (%d)\n",
 			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(status),
 			status);
 
+		NG_NODE_UNREF(sc->sc_node);
+
+		NG_FREE_M(m);
+
 		return (status);
 	}
+
+	sc->sc_flags |= UBT_ACL_RECV;
+	sc->sc_bulk_in_buffer = m;
 
 	return (USBD_NORMAL_COMPLETION);
 } /* ubt_bulk_in_start */
@@ -1114,92 +1271,88 @@ ubt_bulk_in_start(ubt_softc_p sc)
 Static void
 ubt_bulk_in_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 {
-	ubt_softc_p		 sc = (ubt_softc_p) p;
+	ng_send_fn((node_p) p, NULL, ubt_bulk_in_complete2, (void *) h, s);
+	NG_NODE_UNREF((node_p) p);
+} /* ubt_bulk_in_complete */
+
+Static void
+ubt_bulk_in_complete2(node_p node, hook_p hook, void *arg1, int arg2)
+{
+	ubt_softc_p		 sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
+	usbd_xfer_handle	 h = (usbd_xfer_handle) arg1;
+	usbd_status		 s = (usbd_status) arg2;
 	struct mbuf		*m = NULL;
 	ng_hci_acldata_pkt_t	*hdr = NULL;
 	int			 len;
+
+	if (sc == NULL)
+		return;
+
+	KASSERT((sc->sc_flags & UBT_ACL_RECV), (
+"%s: %s - No bulk-in request is pending\n", __func__, USBDEVNAME(sc->sc_dev)));
+
+	sc->sc_flags &= ~UBT_ACL_RECV;
+
+	m = sc->sc_bulk_in_buffer;
+	sc->sc_bulk_in_buffer = NULL;
+
+	hdr = mtod(m, ng_hci_acldata_pkt_t *);
+
+	if (sc->sc_hook == NULL || NG_HOOK_NOT_VALID(sc->sc_hook)) {
+		NG_UBT_INFO(
+"%s: %s - No upstream hook\n", __func__, USBDEVNAME(sc->sc_dev));
+
+		NG_FREE_M(m);
+		return;
+	}
 
 	if (s == USBD_CANCELLED) {
 		NG_UBT_INFO(
 "%s: %s - Bulk-in xfer cancelled, pipe=%p\n",
 			__func__, USBDEVNAME(sc->sc_dev), sc->sc_bulk_in_pipe);
 
+		NG_FREE_M(m);
 		return;
 	}
 
 	if (s != USBD_NORMAL_COMPLETION) {    
 		NG_UBT_WARN(
-"%s: %s - Bulk-in xfer failed. %s (%d)\n", 
+"%s: %s - Bulk-in xfer failed, %s (%d). No new xfer will be submitted!\n",
 			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(s), s);
 
 		if (s == USBD_STALLED)
 			usbd_clear_endpoint_stall_async(sc->sc_bulk_in_pipe);
 
 		NG_UBT_STAT_IERROR(sc->sc_stat);
-		goto done;
+		NG_FREE_M(m);
+
+		return; /* XXX FIXME we should restart after some delay */
 	}
 
 	NG_UBT_STAT_BYTES_RECV(sc->sc_stat, h->actlen);
+	m->m_pkthdr.len += h->actlen;
+	m->m_len += h->actlen;
 
 	NG_UBT_INFO(
 "%s: %s - Got %d bytes from bulk-in pipe\n",
 		__func__, USBDEVNAME(sc->sc_dev), h->actlen);
 
-	if (h->actlen < sizeof(*hdr))
-		goto done;
-
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == NULL) {
-		NG_UBT_ALERT(
-"%s: %s - Could not allocate mbuf\n", __func__, USBDEVNAME(sc->sc_dev));
-
-		NG_UBT_STAT_IERROR(sc->sc_stat);
+	if (m->m_pkthdr.len < sizeof(*hdr)) {
+		NG_FREE_M(m);
 		goto done;
 	}
 
-	/*
-	 * Copy data from linear USB buffer into mbuf and check if we got 
-	 * full ACL data frame. Fix ACL data frame header if required.
-	 */
-
-	if (!(sc->sc_flags & UBT_HAVE_FRAME_TYPE)) {
-		len = 1;
-		*mtod(m, u_int8_t *) = NG_HCI_ACL_DATA_PKT;
-	} else
-		len  = 0;
-
-	m->m_pkthdr.len = 0;
-	m->m_len = min(MHLEN, h->actlen + len); /* XXX m_copyback is stupid */
-	m_copyback(m, len, h->actlen, sc->sc_bulk_in_buffer);
-
-	hdr = mtod(m, ng_hci_acldata_pkt_t *);
 	len = le16toh(hdr->length);
-
 	if (len == m->m_pkthdr.len - sizeof(*hdr)) {
 		NG_UBT_INFO(
 "%s: %s - Got complete ACL data frame, pktlen=%d, length=%d\n",
-			__func__, USBDEVNAME(sc->sc_dev), m->m_pkthdr.len,
-			len);
+			__func__, USBDEVNAME(sc->sc_dev), m->m_pkthdr.len, len);
 
 		NG_UBT_STAT_PCKTS_RECV(sc->sc_stat);
 
-		IF_LOCK(&sc->sc_inq);
-		if (_IF_QFULL(&sc->sc_inq)) {
-			NG_UBT_ERR(
-"%s: %s -Incoming queue is full. Dropping mbuf, len=%d\n",
-				__func__,  USBDEVNAME(sc->sc_dev),
-				m->m_pkthdr.len);
-
-			_IF_DROP(&sc->sc_inq);
+		NG_SEND_DATA_ONLY(len, sc->sc_hook, m);
+		if (len != 0)
 			NG_UBT_STAT_IERROR(sc->sc_stat);
-
-			NG_FREE_M(m);
-		} else
-			_IF_ENQUEUE(&sc->sc_inq, m);
-		IF_UNLOCK(&sc->sc_inq);
-
-		/* Schedule SWI */
-	        swi_sched(sc->sc_ith, 0);
 	} else {
 		NG_UBT_ERR(
 "%s: %s - Invalid ACL frame size, length=%d, pktlen=%d\n",
@@ -1211,47 +1364,28 @@ ubt_bulk_in_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 	}
 done:
 	ubt_bulk_in_start(sc);
-} /* ubt_bulk_in_complete */
+} /* ubt_bulk_in_complete2 */
 
 /*
- * Start bulk-out USB transfer
+ * Start bulk-out USB transfer. Must be called with node locked
  */
 
 Static usbd_status
-ubt_bulk_out_start(ubt_softc_p sc, struct mbuf *m)
+ubt_bulk_out_start(ubt_softc_p sc)
 {
-	usbd_status	status = USBD_NORMAL_COMPLETION;
+	struct mbuf	*m = NULL;
+	usbd_status	status;
 
-	IF_LOCK(&sc->sc_aclq);
+	KASSERT(!(sc->sc_flags & UBT_ACL_XMIT), (
+"%s: %s - Another bulk-out request is pending\n",
+		__func__, USBDEVNAME(sc->sc_dev)));
 
-	if (m != NULL) {
-		if (_IF_QFULL(&sc->sc_aclq)) {
-			NG_UBT_ERR(
-"%s: %s - Dropping HCI ACL frame, len=%d. Queue full\n",
-				__func__, USBDEVNAME(sc->sc_dev),
-				m->m_pkthdr.len);
-
-			_IF_DROP(&sc->sc_aclq);
-			NG_UBT_STAT_OERROR(sc->sc_stat);
-
-			NG_FREE_M(m);
-		} else
-			_IF_ENQUEUE(&sc->sc_aclq, m);
-	} else
-		sc->sc_flags &= ~UBT_ACL_XMIT;
-
-	if (sc->sc_flags & UBT_ACL_XMIT) {
-		NG_UBT_INFO(
-"%s: %s - Another bulk-out transfer is pending\n",
-			__func__, USBDEVNAME(sc->sc_dev));
-		goto done;
-	}
-
-	_IF_DEQUEUE(&sc->sc_aclq, m);
+	NG_BT_MBUFQ_DEQUEUE(&sc->sc_aclq, m);
 	if (m == NULL) {
 		NG_UBT_INFO(
 "%s: %s - ACL data queue is empty\n", __func__, USBDEVNAME(sc->sc_dev));
-		goto done;
+
+ 		return (USBD_NORMAL_COMPLETION);
 	}
 
 	/*
@@ -1271,37 +1405,38 @@ ubt_bulk_out_start(ubt_softc_p sc, struct mbuf *m)
 	usbd_setup_xfer(
 			sc->sc_bulk_out_xfer,
 			sc->sc_bulk_out_pipe,
-			(usbd_private_handle) sc,
+			(usbd_private_handle) sc->sc_node,
 			sc->sc_bulk_out_buffer,
 			m->m_pkthdr.len,
 			USBD_NO_COPY,
 			USBD_DEFAULT_TIMEOUT, /* XXX */
 			ubt_bulk_out_complete);
 
+	NG_NODE_REF(sc->sc_node);
+
 	status = usbd_transfer(sc->sc_bulk_out_xfer);
-	if (status && status != USBD_IN_PROGRESS) {
+	if (status != USBD_NORMAL_COMPLETION && status != USBD_IN_PROGRESS) {
 		NG_UBT_ERR(
 "%s: %s - Could not start bulk-out transfer. %s (%d)\n",
 			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(status),
 			status);
 
-		_IF_DROP(&sc->sc_aclq); /* XXX */
+		NG_NODE_UNREF(sc->sc_node);
+
+		NG_BT_MBUFQ_DROP(&sc->sc_aclq);
 		NG_UBT_STAT_OERROR(sc->sc_stat);
 
-		/* XXX FIXME: should we try to start another transfer? */
+		/* XXX FIXME should we try to start another transfer? */
 	} else {
 		NG_UBT_INFO(
 "%s: %s - Bulk-out transfer has been started, len=%d\n",
 			__func__, USBDEVNAME(sc->sc_dev), m->m_pkthdr.len);
 
 		sc->sc_flags |= UBT_ACL_XMIT;
-
 		status = USBD_NORMAL_COMPLETION;
 	}
 
 	NG_FREE_M(m);
-done:
-	IF_UNLOCK(&sc->sc_aclq);
 
 	return (status);
 } /* ubt_bulk_out_start */
@@ -1313,13 +1448,29 @@ done:
 Static void
 ubt_bulk_out_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 {
-	ubt_softc_p	sc = (ubt_softc_p) p;
+	ng_send_fn((node_p) p,  NULL, ubt_bulk_out_complete2, (void *) h, s);
+	NG_NODE_UNREF((node_p) p);
+} /* ubt_bulk_out_complete */
+
+Static void
+ubt_bulk_out_complete2(node_p node, hook_p hook, void *arg1, int arg2)
+{
+	ubt_softc_p		sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
+	usbd_xfer_handle	h = (usbd_xfer_handle) arg1;
+	usbd_status		s = (usbd_status) arg2;
+
+	if (sc == NULL)
+		return;
+
+	KASSERT((sc->sc_flags & UBT_ACL_XMIT), (
+"%s: %s - No bulk-out request is pending\n", __func__, USBDEVNAME(sc->sc_dev)));
+
+	sc->sc_flags &= ~UBT_ACL_XMIT;
 
 	if (s == USBD_CANCELLED) {
 		NG_UBT_INFO(
 "%s: %s - Bulk-out xfer cancelled, pipe=%p\n",
-			__func__, USBDEVNAME(sc->sc_dev),
-			sc->sc_bulk_out_pipe);
+			__func__, USBDEVNAME(sc->sc_dev), sc->sc_bulk_out_pipe);
 
 		return;
 	}
@@ -1342,11 +1493,12 @@ ubt_bulk_out_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 		NG_UBT_STAT_PCKTS_SENT(sc->sc_stat); 
 	}
 
-	ubt_bulk_out_start(sc, NULL /* completed request */);
-} /* ubt_bulk_out_complete */
+	if (NG_BT_MBUFQ_LEN(&sc->sc_aclq) > 0)
+		ubt_bulk_out_start(sc);
+} /* ubt_bulk_out_complete2 */
 
 /*
- * Start Isochronous-in USB transfer
+ * Start Isochronous-in USB transfer. Must be called with node locked
  */
 
 Static usbd_status
@@ -1355,29 +1507,38 @@ ubt_isoc_in_start(ubt_softc_p sc)
 	usbd_status	status;
 	int		i;
 
-	/* Initialize an isoc-in USB transfer and then schedule it. */
+	KASSERT(!(sc->sc_flags & UBT_SCO_RECV), (
+"%s: %s - Another isoc-in request is pending\n",
+                __func__, USBDEVNAME(sc->sc_dev)));
 
+	/* Initialize a isoc-in USB transfer and then schedule it */
 	for (i = 0; i < sc->sc_isoc_nframes; i++)
 		sc->sc_isoc_in_frlen[i] = sc->sc_isoc_size;
 
 	usbd_setup_isoc_xfer(
 			sc->sc_isoc_in_xfer,
 			sc->sc_isoc_in_pipe,
-			(usbd_private_handle) sc,
+			(usbd_private_handle) sc->sc_node,
 			sc->sc_isoc_in_frlen,
 			sc->sc_isoc_nframes,
 			USBD_NO_COPY, /* XXX flags */
 			ubt_isoc_in_complete);
 
+	NG_NODE_REF(sc->sc_node);
+
 	status = usbd_transfer(sc->sc_isoc_in_xfer);
-	if (status && status != USBD_IN_PROGRESS) {
+	if (status != USBD_NORMAL_COMPLETION && status != USBD_IN_PROGRESS) {
 		NG_UBT_ERR(
 "%s: %s - Failed to start isoc-in transfer. %s (%d)\n",
 			__func__, USBDEVNAME(sc->sc_dev),
 			usbd_errstr(status), status);
 
+		NG_NODE_UNREF(sc->sc_node);
+
 		return (status);
 	}
+
+	sc->sc_flags |= UBT_SCO_RECV;
 
 	return (USBD_NORMAL_COMPLETION);
 } /* ubt_isoc_in_start */
@@ -1389,11 +1550,35 @@ ubt_isoc_in_start(ubt_softc_p sc)
 Static void
 ubt_isoc_in_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 {
-	ubt_softc_p		 sc = (ubt_softc_p) p;
+	ng_send_fn((node_p) p, NULL, ubt_isoc_in_complete2, (void *) h, s);
+	NG_NODE_UNREF((node_p) p);
+} /* ubt_isoc_in_complete */
+
+Static void
+ubt_isoc_in_complete2(node_p node, hook_p hook, void *arg1, int arg2)
+{
+	ubt_softc_p		 sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
+	usbd_xfer_handle	 h = (usbd_xfer_handle) arg1;
+	usbd_status		 s = (usbd_status) arg2;
 	struct mbuf		*m = NULL;
 	ng_hci_scodata_pkt_t	*hdr = NULL;
 	u_int8_t		*b = NULL;
 	int			 i;
+
+	if (sc == NULL)
+		return;
+
+	KASSERT((sc->sc_flags & UBT_SCO_RECV), (
+"%s: %s - No isoc-in request is pending\n", __func__, USBDEVNAME(sc->sc_dev)));
+
+	sc->sc_flags &= ~UBT_SCO_RECV;
+
+	if (sc->sc_hook == NULL || NG_HOOK_NOT_VALID(sc->sc_hook)) {
+		NG_UBT_INFO(
+"%s: %s - No upstream hook\n", __func__, USBDEVNAME(sc->sc_dev));
+
+		return;
+	}
 
 	if (s == USBD_CANCELLED) {
 		NG_UBT_INFO(
@@ -1405,14 +1590,15 @@ ubt_isoc_in_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 
 	if (s != USBD_NORMAL_COMPLETION) {    
 		NG_UBT_WARN(
-"%s: %s - Isoc-in xfer failed. %s (%d)\n",
+"%s: %s - Isoc-in xfer failed, %s (%d). No new xfer will be submitted!\n",
 			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(s), s);
 
 		if (s == USBD_STALLED)
 			usbd_clear_endpoint_stall_async(sc->sc_isoc_in_pipe);
 
 		NG_UBT_STAT_IERROR(sc->sc_stat);
-		goto done;
+
+		return; /* XXX FIXME we should restart after some delay */
 	}
 
 	NG_UBT_STAT_BYTES_RECV(sc->sc_stat, h->actlen);
@@ -1421,11 +1607,7 @@ ubt_isoc_in_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 "%s: %s - Got %d bytes from isoc-in pipe\n",
 		__func__, USBDEVNAME(sc->sc_dev), h->actlen);
 
-	if (h->actlen < sizeof(*hdr))
-		goto done;
-
 	/* Copy SCO data frame to mbuf */
-
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
 		NG_UBT_ALERT(
@@ -1437,18 +1619,18 @@ ubt_isoc_in_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 	}
 
 	/* Fix SCO data frame header if required */
-
-	if (sc->sc_flags & UBT_HAVE_FRAME_TYPE) {
-		m->m_pkthdr.len = m->m_len = 0;
-	} else {
+	if (!(sc->sc_flags & UBT_HAVE_FRAME_TYPE)) {
 		*mtod(m, u_int8_t *) = NG_HCI_SCO_DATA_PKT;
-		m->m_pkthdr.len = m->m_len = 1;
+		m->m_pkthdr.len = 1;
+		m->m_len = min(MHLEN, h->actlen + 1); /* XXX m_copyback */
+	} else {
+		m->m_pkthdr.len = 0;
+		m->m_len = min(MHLEN, h->actlen); /* XXX m_copyback */
 	}
 
 	/*
-	 * XXX FIXME: how do we know how many frames we have received?
-	 * XXX use frlen for now.
-	 * XXX is that correct?
+	 * XXX FIXME how do we know how many frames we have received?
+	 * XXX use frlen for now. is that correct?
 	 */
 
 	b = (u_int8_t *) sc->sc_isoc_in_buffer;
@@ -1461,11 +1643,8 @@ ubt_isoc_in_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 				sc->sc_isoc_in_frlen[i], b);
 	}
 
-	NG_UBT_M_PULLUP(m, sizeof(*hdr));
-	if (m == NULL) {
-		NG_UBT_STAT_IERROR(sc->sc_stat);
+	if (m->m_pkthdr.len < sizeof(*hdr))
 		goto done;
-	}
 
 	hdr = mtod(m, ng_hci_scodata_pkt_t *);
 
@@ -1477,23 +1656,9 @@ ubt_isoc_in_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 
 		NG_UBT_STAT_PCKTS_RECV(sc->sc_stat);
 
-		IF_LOCK(&sc->sc_inq);
-		if (_IF_QFULL(&sc->sc_inq)) {
-			NG_UBT_ERR(
-"%s: %s -Incoming queue is full. Dropping mbuf, len=%d\n",
-				__func__,  USBDEVNAME(sc->sc_dev),
-				m->m_pkthdr.len);
-
-			_IF_DROP(&sc->sc_inq);
+		NG_SEND_DATA_ONLY(i, sc->sc_hook, m);
+		if (i != 0)
 			NG_UBT_STAT_IERROR(sc->sc_stat);
-
-			NG_FREE_M(m);
-		} else
-			_IF_ENQUEUE(&sc->sc_inq, m);
-		IF_UNLOCK(&sc->sc_inq);
-
-		/* Schedule SWI */
-	        swi_sched(sc->sc_ith, 0);
 	} else {
 		NG_UBT_ERR(
 "%s: %s - Invalid SCO frame size, length=%d, pktlen=%d\n",
@@ -1505,53 +1670,33 @@ ubt_isoc_in_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 	}
 done:
 	ubt_isoc_in_start(sc);
-} /* ubt_bulk_in_complete */
+} /* ubt_isoc_in_complete2 */
 
 /*
- * Start isochronous-out USB transfer
+ * Start isochronous-out USB transfer. Must be called with node locked
  */
 
 Static usbd_status
-ubt_isoc_out_start(ubt_softc_p sc, struct mbuf *m)
+ubt_isoc_out_start(ubt_softc_p sc)
 {
+	struct mbuf	*m = NULL;
 	u_int8_t	*b = NULL;
 	int		 i, len, nframes;
-	usbd_status	 status = USBD_NORMAL_COMPLETION;
+	usbd_status	 status;
 
-	IF_LOCK(&sc->sc_scoq);
+	KASSERT(!(sc->sc_flags & UBT_SCO_XMIT), (
+"%s: %s - Another isoc-out request is pending\n",
+		__func__, USBDEVNAME(sc->sc_dev)));
 
-	if (m != NULL) {
-		if (_IF_QFULL(&sc->sc_scoq)) {
-			NG_UBT_ERR(
-"%s: %s - Dropping HCI SCO frame, len=%d. Queue full\n",
-				__func__, USBDEVNAME(sc->sc_dev), 
-				m->m_pkthdr.len);
-
-			_IF_DROP(&sc->sc_scoq);
-			NG_UBT_STAT_OERROR(sc->sc_stat);
-
-			NG_FREE_M(m);
-		} else
-			_IF_ENQUEUE(&sc->sc_scoq, m);
-	} else
-		sc->sc_flags &= ~UBT_SCO_XMIT;
-
-	if (sc->sc_flags & UBT_SCO_XMIT) {
-		NG_UBT_INFO(
-"%s: %s - Another isoc-out transfer is pending\n",
-			__func__, USBDEVNAME(sc->sc_dev));
-		goto done;
-	}
-
-	_IF_DEQUEUE(&sc->sc_scoq, m);
+	NG_BT_MBUFQ_DEQUEUE(&sc->sc_scoq, m);
 	if (m == NULL) {
 		NG_UBT_INFO(
 "%s: %s - SCO data queue is empty\n", __func__, USBDEVNAME(sc->sc_dev));
-		goto done;
+
+ 		return (USBD_NORMAL_COMPLETION);
 	}
 
 	/* Copy entire SCO frame into USB transfer buffer and start transfer */ 
-
 	b = (u_int8_t *) sc->sc_isoc_out_buffer;
 	nframes = 0;
 
@@ -1576,25 +1721,28 @@ ubt_isoc_out_start(ubt_softc_p sc, struct mbuf *m)
 
 	NG_FREE_M(m);
 
-	/* Initialize an isoc-out USB transfer and then schedule it. */
-
+	/* Initialize a isoc-out USB transfer and then schedule it */
 	usbd_setup_isoc_xfer(
 			sc->sc_isoc_out_xfer,
 			sc->sc_isoc_out_pipe,
-			(usbd_private_handle) sc,
+			(usbd_private_handle) sc->sc_node,
 			sc->sc_isoc_out_frlen,
 			nframes,
 			USBD_NO_COPY,
 			ubt_isoc_out_complete);
 
+	NG_NODE_REF(sc->sc_node);
+
 	status = usbd_transfer(sc->sc_isoc_out_xfer);
-	if (status && status != USBD_IN_PROGRESS) {
+	if (status != USBD_NORMAL_COMPLETION && status != USBD_IN_PROGRESS) {
 		NG_UBT_ERR(
 "%s: %s - Could not start isoc-out transfer. %s (%d)\n",
 			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(status),
 			status);
 
-		_IF_DROP(&sc->sc_scoq); /* XXX */
+		NG_NODE_UNREF(sc->sc_node);
+
+		NG_BT_MBUFQ_DROP(&sc->sc_scoq);
 		NG_UBT_STAT_OERROR(sc->sc_stat);
 	} else {
 		NG_UBT_INFO(
@@ -1603,11 +1751,8 @@ ubt_isoc_out_start(ubt_softc_p sc, struct mbuf *m)
 			sc->sc_isoc_size);
 
 		sc->sc_flags |= UBT_SCO_XMIT;
-
 		status = USBD_NORMAL_COMPLETION;
 	}
-done:
-	IF_UNLOCK(&sc->sc_scoq);
 
 	return (status);
 } /* ubt_isoc_out_start */
@@ -1619,7 +1764,24 @@ done:
 Static void
 ubt_isoc_out_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 {
-	ubt_softc_p	sc = (ubt_softc_p) p;
+	ng_send_fn((node_p) p, NULL, ubt_isoc_out_complete2, (void *) h, s);
+	NG_NODE_UNREF((node_p) p);
+} /* ubt_isoc_out_complete */
+
+Static void
+ubt_isoc_out_complete2(node_p node, hook_p hook, void *arg1, int arg2)
+{
+	ubt_softc_p		sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
+	usbd_xfer_handle	h = (usbd_xfer_handle) arg1;
+	usbd_status		s = (usbd_status) arg2;
+
+	if (sc == NULL)
+		return;
+
+	KASSERT((sc->sc_flags & UBT_SCO_XMIT), (
+"%s: %s - No isoc-out request is pending\n", __func__, USBDEVNAME(sc->sc_dev)));
+
+	sc->sc_flags &= ~UBT_SCO_XMIT;
 
 	if (s == USBD_CANCELLED) {
 		NG_UBT_INFO(
@@ -1648,43 +1810,38 @@ ubt_isoc_out_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 		NG_UBT_STAT_PCKTS_SENT(sc->sc_stat);
 	}
 
-	ubt_isoc_out_start(sc, NULL /* completed request */);
-} /* ubt_isoc_out_complete */
+	if (NG_BT_MBUFQ_LEN(&sc->sc_scoq) > 0)
+		ubt_isoc_out_start(sc);
+} /* ubt_isoc_out_complete2 */
 
 /*
- * SWI interrupt handler
+ * Abort transfers on all USB pipes
  */
 
 Static void
-ubt_swi_intr(void *context)
+ubt_reset(ubt_softc_p sc)
 {
-	ubt_softc_p	 sc = (ubt_softc_p) context;
-	struct mbuf	*m = NULL;
-	int		 error;
+	/* Interrupt */
+	if (sc->sc_intr_pipe != NULL)
+		usbd_abort_pipe(sc->sc_intr_pipe);
 
-	if (sc->sc_hook != NULL && NG_HOOK_IS_VALID(sc->sc_hook)) {
-		for (;;) {
-			IF_DEQUEUE(&sc->sc_inq, m);
-			if (m == NULL)
-				break;
+	/* Bulk-in/out */
+	if (sc->sc_bulk_in_pipe != NULL)
+		usbd_abort_pipe(sc->sc_bulk_in_pipe);
+	if (sc->sc_bulk_out_pipe != NULL)
+		usbd_abort_pipe(sc->sc_bulk_out_pipe);
 
-			NG_SEND_DATA_ONLY(error, sc->sc_hook, m);
-			if (error != 0)
-				NG_UBT_STAT_IERROR(sc->sc_stat);
-		}
-	} else {
-		IF_LOCK(&sc->sc_inq);
-		for (;;) {
-			_IF_DEQUEUE(&sc->sc_inq, m);
-			if (m == NULL)
-				break;
+	/* Isoc-in/out */
+	if (sc->sc_isoc_in_pipe != NULL)
+		usbd_abort_pipe(sc->sc_isoc_in_pipe);
+	if (sc->sc_isoc_out_pipe != NULL)
+		usbd_abort_pipe(sc->sc_isoc_out_pipe);
 
-			NG_UBT_STAT_IERROR(sc->sc_stat);
-			NG_FREE_M(m);
-		}
-		IF_UNLOCK(&sc->sc_inq);
-	}
-} /* ubt_swi_intr */
+	/* Cleanup queues */
+	NG_BT_MBUFQ_DRAIN(&sc->sc_cmdq);
+	NG_BT_MBUFQ_DRAIN(&sc->sc_aclq);
+	NG_BT_MBUFQ_DRAIN(&sc->sc_scoq);
+} /* ubt_reset */
 
 /****************************************************************************
  ****************************************************************************
@@ -1736,6 +1893,7 @@ ng_ubt_shutdown(node_p node)
 	}
 
 	NG_NODE_SET_PRIVATE(sc->sc_node, sc);
+	NG_NODE_FORCE_WRITER(sc->sc_node);
 done:
 	return (0);
 } /* ng_ubt_shutdown */
@@ -1748,7 +1906,11 @@ Static int
 ng_ubt_newhook(node_p node, hook_p hook, char const *name)
 {
 	ubt_softc_p	sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
-	usbd_status	status;
+
+	/* Refuse to create new hook if device interface is active */
+	if (sc->sc_ctrl_dev != NODEV || sc->sc_intr_dev != NODEV ||
+	    sc->sc_bulk_dev != NODEV)
+		return (EBUSY);
 
 	if (strcmp(name, NG_UBT_HOOK) != 0)
 		return (EINVAL);
@@ -1758,69 +1920,7 @@ ng_ubt_newhook(node_p node, hook_p hook, char const *name)
 
 	sc->sc_hook = hook;
 
-	/* Interrupt */	
-	status = usbd_open_pipe(sc->sc_iface0, sc->sc_intr_ep,
-			USBD_EXCLUSIVE_USE, &sc->sc_intr_pipe);
-	if (status) {
-		NG_UBT_ALERT(
-"%s: %s - Could not open interrupt pipe. %s (%d)\n",
-			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(status),
-			status);
-		goto fail;
-	}
-
-	/* Bulk-in */
-	status = usbd_open_pipe(sc->sc_iface0, sc->sc_bulk_in_ep,
-			USBD_EXCLUSIVE_USE, &sc->sc_bulk_in_pipe);
-	if (status) {
-		NG_UBT_ALERT(
-"%s: %s - Could not open bulk-in pipe. %s (%d)\n",
-			__func__,  USBDEVNAME(sc->sc_dev), usbd_errstr(status),
-			status);
-		goto fail;
-	}
-
-	/* Bulk-out */
-	status = usbd_open_pipe(sc->sc_iface0, sc->sc_bulk_out_ep,
-			USBD_EXCLUSIVE_USE, &sc->sc_bulk_out_pipe);
-	if (status) {
-		NG_UBT_ALERT(
-"%s: %s - Could not open bulk-out pipe. %s (%d)\n",
-			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(status),
-			status);
-		goto fail;
-	}
-
-#if __broken__ /* XXX FIXME */
-	/* Isoc-in */
-	status = usbd_open_pipe(sc->sc_iface1, sc->sc_isoc_in_ep,
-			USBD_EXCLUSIVE_USE, &sc->sc_isoc_in_pipe);
-	if (status) {
-		NG_UBT_ALERT(
-"%s: %s - Could not open isoc-in pipe. %s (%d)\n",
-			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(status),
-			status);
-		goto fail;
-	}
-
-	/* Isoc-out */
-	status = usbd_open_pipe(sc->sc_iface1, sc->sc_isoc_out_ep, 
-			USBD_EXCLUSIVE_USE, &sc->sc_isoc_out_pipe);
-	if (status) {
-		NG_UBT_ALERT(
-"%s: %s - Could not open isoc-out pipe. %s (%d)\n",
-			__func__, USBDEVNAME(sc->sc_dev), usbd_errstr(status),
-			status);
-		goto fail;
-	}
-#endif /* __broken__ */
-
 	return (0);
-fail:
-	ng_ubt_reset(sc);
-	sc->sc_hook = NULL;
-
-	return (ENXIO);
 } /* ng_ubt_newhook */
 
 /*
@@ -1832,6 +1932,13 @@ ng_ubt_connect(hook_p hook)
 {
 	ubt_softc_p	sc = (ubt_softc_p) NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	usbd_status	status;
+
+	/* Refuse to connect hook if device interface is active */
+	if (sc->sc_ctrl_dev != NODEV || sc->sc_intr_dev != NODEV ||
+	    sc->sc_bulk_dev != NODEV)
+		return (EBUSY);
+
+	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 
 	/* Start intr transfer */
 	status = ubt_intr_start(sc);
@@ -1865,11 +1972,9 @@ ng_ubt_connect(hook_p hook)
 	}
 #endif /* __broken__ */
 
-	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
-
 	return (0);
 fail:
-	ng_ubt_reset(sc);
+	ubt_reset(sc);
 	sc->sc_hook = NULL;
 
 	return (ENXIO);
@@ -1888,7 +1993,7 @@ ng_ubt_disconnect(hook_p hook)
 		if (hook != sc->sc_hook)
 			return (EINVAL);
 
-		ng_ubt_reset(sc);
+		ubt_reset(sc);
 		sc->sc_hook = NULL;
 	}
 
@@ -1902,10 +2007,10 @@ ng_ubt_disconnect(hook_p hook)
 Static int
 ng_ubt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	ubt_softc_p	 sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
-	struct ng_mesg	*msg = NULL, *rsp = NULL;
-	int		 error = 0, queue, qlen;
-	struct ifqueue	*q = NULL;
+	ubt_softc_p		 sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
+	struct ng_mesg		*msg = NULL, *rsp = NULL;
+	struct ng_bt_mbufq	*q = NULL;
+	int			 error = 0, queue, qlen;
 
 	if (sc == NULL) {
 		NG_FREE_ITEM(item);
@@ -1928,19 +2033,16 @@ ng_ubt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 					"Debug: %d\n"  \
 					"CMD queue: [have:%d,max:%d]\n" \
 					"ACL queue: [have:%d,max:%d]\n" \
-					"SCO queue: [have:%d,max:%d]\n" \
-					"Inp queue: [have:%d,max:%d]",
+					"SCO queue: [have:%d,max:%d]",
 					(sc->sc_hook != NULL)? NG_UBT_HOOK : "",
 					sc->sc_flags,
 					sc->sc_debug,
-					_IF_QLEN(&sc->sc_cmdq), /* XXX */
-					sc->sc_cmdq.ifq_maxlen, /* XXX */
-					_IF_QLEN(&sc->sc_aclq), /* XXX */
-					sc->sc_aclq.ifq_maxlen, /* XXX */
-					_IF_QLEN(&sc->sc_scoq), /* XXX */
-					sc->sc_scoq.ifq_maxlen, /* XXX */
-					_IF_QLEN(&sc->sc_inq),  /* XXX */
-					sc->sc_inq.ifq_maxlen   /* XXX */ );
+					NG_BT_MBUFQ_LEN(&sc->sc_cmdq),
+					sc->sc_cmdq.maxlen,
+					NG_BT_MBUFQ_LEN(&sc->sc_aclq),
+					sc->sc_aclq.maxlen,
+					NG_BT_MBUFQ_LEN(&sc->sc_scoq),
+					sc->sc_scoq.maxlen);
 			break;
 
 		default:
@@ -1984,10 +2086,6 @@ ng_ubt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				}
 
 				switch (queue) {
-				case NGM_UBT_NODE_QUEUE_IN:
-					q = &sc->sc_inq;
-					break;
-
 				case NGM_UBT_NODE_QUEUE_CMD:
 					q = &sc->sc_cmdq;
 					break;
@@ -2007,7 +2105,7 @@ ng_ubt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				}
 
 				if (q != NULL)
-					q->ifq_maxlen = qlen; /* XXX */
+					q->maxlen = qlen;
 			}
 			break;
 
@@ -2019,10 +2117,6 @@ ng_ubt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			queue = ((ng_ubt_node_qlen_ep *)(msg->data))->queue;
 			switch (queue) {
-			case NGM_UBT_NODE_QUEUE_IN:
-				q = &sc->sc_inq;
-				break;
-
 			case NGM_UBT_NODE_QUEUE_CMD:
 				q = &sc->sc_cmdq;
 				break;
@@ -2052,7 +2146,7 @@ ng_ubt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				((ng_ubt_node_qlen_ep *)(rsp->data))->queue =
 					queue;
 				((ng_ubt_node_qlen_ep *)(rsp->data))->qlen =
-					q->ifq_maxlen; /* XXX */
+					q->maxlen;
 			}
 			break;
 
@@ -2068,6 +2162,25 @@ ng_ubt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 		case NGM_UBT_NODE_RESET_STAT:
 			NG_UBT_STAT_RESET(sc->sc_stat);
+			break;
+
+		case NGM_UBT_NODE_DEV_NODES:
+			if (msg->header.arglen !=
+					sizeof(ng_ubt_node_dev_nodes_ep)) {
+				error = EMSGSIZE;
+				break;
+			}
+
+			if ((sc->sc_flags & UBT_ANY_DEV) || 
+			    sc->sc_hook != NULL) {
+				error = EBUSY;
+				break;
+			}
+
+			if (*((ng_ubt_node_dev_nodes_ep *)(msg->data)))
+				ubt_create_device_nodes(sc);
+			else
+				ubt_destroy_device_nodes(sc);
 			break;
 
 		default:
@@ -2094,10 +2207,11 @@ ng_ubt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 Static int
 ng_ubt_rcvdata(hook_p hook, item_p item)
 {
-	ubt_softc_p	 sc = (ubt_softc_p) NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
-	struct mbuf	*m = NULL;
-	usbd_status	(*f)(ubt_softc_p, struct mbuf *) = NULL;
-	int		 error = 0;
+	ubt_softc_p		 sc = (ubt_softc_p) NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	struct mbuf		*m = NULL;
+	usbd_status		(*f)(ubt_softc_p) = NULL;
+	struct ng_bt_mbufq	*q = NULL;
+	int			 b, error = 0;
 
 	if (sc == NULL) {
 		error = EHOSTDOWN;
@@ -2116,15 +2230,21 @@ ng_ubt_rcvdata(hook_p hook, item_p item)
 	switch (*mtod(m, u_int8_t *)) { /* XXX call m_pullup ? */
 	case NG_HCI_CMD_PKT:
 		f = ubt_request_start;
+		q = &sc->sc_cmdq;
+		b = UBT_CMD_XMIT;
 		break;
 
 	case NG_HCI_ACL_DATA_PKT:
 		f = ubt_bulk_out_start;
+		q = &sc->sc_aclq;
+		b = UBT_ACL_XMIT;
 		break;
 
 #if __broken__ /* XXX FIXME */
 	case NG_HCI_SCO_DATA_PKT:
 		f = ubt_isoc_out_start;
+		q = &sc->sc_scoq;
+		b = UBT_SCO_XMIT;
 		break;
 #endif /* __broken__ */
 
@@ -2145,58 +2265,485 @@ ng_ubt_rcvdata(hook_p hook, item_p item)
 	if (!(sc->sc_flags & UBT_NEED_FRAME_TYPE))
 		m_adj(m, sizeof(u_int8_t)); 
 
-	if ((*f)(sc, m) != USBD_NORMAL_COMPLETION)
-		error = EIO;
+	if (NG_BT_MBUFQ_FULL(q)) {
+		NG_UBT_ERR(
+"%s: %s - Dropping HCI frame %#x, len=%d. Queue full\n",
+			__func__, USBDEVNAME(sc->sc_dev),
+			*mtod(m, u_int8_t *), m->m_pkthdr.len);
+
+		NG_FREE_M(m);
+	} else
+		NG_BT_MBUFQ_ENQUEUE(q, m);
+
+	if (!(sc->sc_flags & b))
+		if ((*f)(sc) != USBD_NORMAL_COMPLETION)
+			error = EIO;
 done:
 	NG_FREE_ITEM(item);
 
 	return (error);
 } /* ng_ubt_rcvdata */
 
+/****************************************************************************
+ ****************************************************************************
+ **                              Device specific
+ ****************************************************************************
+ ****************************************************************************/
+
 /*
- * Abort transfers and close all USB pipes.
+ * Open endpoint device
+ * XXX FIXME softc locking
+ */
+
+Static int
+ubt_open(dev_t dev, int flag, int mode, usb_proc_ptr p)
+{
+	ubt_softc_p	sc = NULL;
+	int		ep = UBT_ENDPOINT(dev);
+
+	USB_GET_SC_OPEN(ubt, UBT_UNIT(dev), sc); /* check for sc != NULL */
+	if (sc->sc_dying)
+		return (ENXIO);
+
+	if (ep == USB_CONTROL_ENDPOINT) {
+		if (sc->sc_flags & UBT_CTRL_DEV)
+			return (EBUSY);
+
+		sc->sc_flags |= UBT_CTRL_DEV;
+	} else if (ep == UE_GET_ADDR(sc->sc_intr_ep)) {
+		if (sc->sc_flags & UBT_INTR_DEV)
+			return (EBUSY);
+		if (sc->sc_intr_pipe == NULL)
+			return (ENXIO);
+
+		sc->sc_flags |= UBT_INTR_DEV;
+	} else if (ep == UE_GET_ADDR(sc->sc_bulk_in_ep)) {
+		if (sc->sc_flags & UBT_BULK_DEV)
+			return (EBUSY);
+		if (sc->sc_bulk_in_pipe == NULL || sc->sc_bulk_out_pipe == NULL)
+			return (ENXIO);
+
+		sc->sc_flags |= UBT_BULK_DEV;
+	} else
+		return (EINVAL);
+
+	return (0);
+} /* ubt_open */
+
+/*
+ * Close endpoint device
+ * XXX FIXME softc locking
+ */
+
+Static int
+ubt_close(dev_t dev, int flag, int mode, usb_proc_ptr p)
+{
+	ubt_softc_p	sc = NULL;
+	int		ep = UBT_ENDPOINT(dev);
+
+	USB_GET_SC(ubt, UBT_UNIT(dev), sc);
+	if (sc == NULL)
+		return (ENXIO);
+
+	if (ep == USB_CONTROL_ENDPOINT)
+		sc->sc_flags &= ~UBT_CTRL_DEV;
+	else if (ep == UE_GET_ADDR(sc->sc_intr_ep)) {
+		if (sc->sc_intr_pipe != NULL)
+			usbd_abort_pipe(sc->sc_intr_pipe);
+
+		sc->sc_flags &= ~UBT_INTR_DEV;
+	} else if (ep == UE_GET_ADDR(sc->sc_bulk_in_ep)) {
+		/* Close both in and out bulk pipes */
+		if (sc->sc_bulk_in_pipe != NULL)
+			usbd_abort_pipe(sc->sc_bulk_in_pipe);
+
+		if (sc->sc_bulk_out_pipe != NULL)
+			usbd_abort_pipe(sc->sc_bulk_out_pipe);
+
+		sc->sc_flags &= ~UBT_BULK_DEV;
+	} else
+		return (EINVAL);
+
+	return (0);
+} /* ubt_close */
+
+/*
+ * Read from the endpoint device
+ * XXX FIXME softc locking
+ */
+
+Static int
+ubt_read(dev_t dev, struct uio *uio, int flag)
+{
+	ubt_softc_p		sc = NULL;
+	int			error = 0, n, tn, ep = UBT_ENDPOINT(dev);
+	usbd_status		status;
+	usbd_pipe_handle	pipe = NULL;
+	usbd_xfer_handle	xfer = NULL;
+	u_int8_t		buf[UBT_BSIZE];
+
+	USB_GET_SC(ubt, UBT_UNIT(dev), sc);
+	if (sc == NULL || sc->sc_dying)
+		return (ENXIO);
+
+	if (ep == USB_CONTROL_ENDPOINT)
+		return (EOPNOTSUPP);
+
+	if (ep == UE_GET_ADDR(sc->sc_intr_ep)) {
+		pipe = sc->sc_intr_pipe;
+		xfer = sc->sc_intr_xfer;
+	} else if (ep == UE_GET_ADDR(sc->sc_bulk_in_ep)) {
+		pipe = sc->sc_bulk_in_pipe;
+		xfer = sc->sc_bulk_in_xfer;
+	} else
+		return (EINVAL);
+
+	if (pipe == NULL || xfer == NULL)
+		return (ENXIO);
+
+	sc->sc_refcnt ++;
+
+	while ((n = min(sizeof(buf), uio->uio_resid)) != 0) {
+		tn = n;
+		status = usbd_bulk_transfer(xfer, pipe, USBD_SHORT_XFER_OK,
+				USBD_DEFAULT_TIMEOUT, buf, &tn, "ubtrd");
+		switch (status) {
+		case USBD_NORMAL_COMPLETION:
+			error = uiomove(buf, tn, uio);
+			break;
+
+		case USBD_INTERRUPTED:
+			error = EINTR;
+			break;
+
+		case USBD_TIMEOUT:
+			error = ETIMEDOUT;
+			break;
+
+		default:
+			error = EIO;
+			break;
+		}
+
+		if (error != 0 || tn < n)
+			break;
+	}
+
+	if (-- sc->sc_refcnt < 0)
+		usb_detach_wakeup(USBDEV(sc->sc_dev));
+
+	return (error);
+} /* ubt_read */
+
+/*
+ * Write into the endpoint device
+ * XXX FIXME softc locking
+ */
+
+Static int
+ubt_write(dev_t dev, struct uio *uio, int flag)
+{
+	ubt_softc_p	sc = NULL;
+	int		error = 0, n, ep = UBT_ENDPOINT(dev);
+	usbd_status	status;
+	u_int8_t	buf[UBT_BSIZE];
+
+	USB_GET_SC(ubt, UBT_UNIT(dev), sc);
+	if (sc == NULL || sc->sc_dying)
+		return (ENXIO);
+
+	if (ep == USB_CONTROL_ENDPOINT || ep == UE_GET_ADDR(sc->sc_intr_ep))
+		return (EOPNOTSUPP);
+	if (ep != UE_GET_ADDR(sc->sc_bulk_in_ep))
+		return (EINVAL);
+
+	sc->sc_refcnt ++;
+
+	while ((n = min(sizeof(buf), uio->uio_resid)) != 0) {
+		error = uiomove(buf, n, uio);
+		if (error != 0)
+			break;
+
+		status = usbd_bulk_transfer(sc->sc_bulk_out_xfer,
+				sc->sc_bulk_out_pipe, 0, USBD_DEFAULT_TIMEOUT,
+				buf, &n,"ubtwr");
+		switch (status) {
+		case USBD_NORMAL_COMPLETION:
+			break;
+
+		case USBD_INTERRUPTED:
+			error = EINTR;
+			break;
+
+		case USBD_TIMEOUT:
+			error = ETIMEDOUT;
+			break;
+
+		default:
+			error = EIO;
+			break;
+		}
+
+		if (error != 0)
+			break;
+	}
+
+	if (-- sc->sc_refcnt < 0)
+		usb_detach_wakeup(USBDEV(sc->sc_dev));
+
+	return (error);
+} /* ubt_write */
+
+/*
+ * Process ioctl on the endpoint device. Mostly stolen from ugen(4)
+ * XXX FIXME softc locking
+ */
+
+Static int
+ubt_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
+{
+	ubt_softc_p		 sc = NULL;
+	int			 len, error = 0, ep = UBT_ENDPOINT(dev);
+	usbd_status		 status;
+	struct usb_string_desc	*si = NULL;
+	struct usb_ctl_request	*ur = NULL;
+	void			*ptr = NULL;
+	struct iovec		 iov;
+	struct uio		 uio;
+
+	USB_GET_SC(ubt, UBT_UNIT(dev), sc);
+	if (sc == NULL || sc->sc_dying)
+		return (ENXIO);
+
+	if (ep != USB_CONTROL_ENDPOINT)
+		return (EOPNOTSUPP);
+
+	sc->sc_refcnt ++;
+
+	switch (cmd) {
+	case USB_GET_DEVICE_DESC:
+		*(usb_device_descriptor_t *) data =
+				*usbd_get_device_descriptor(sc->sc_udev);
+		break;
+
+	case USB_GET_STRING_DESC:
+		si = (struct usb_string_desc *) data;
+		status = usbd_get_string_desc(sc->sc_udev, si->usd_string_index,
+				si->usd_language_id, &si->usd_desc);
+		if (status != USBD_NORMAL_COMPLETION)
+			error = EINVAL;
+		break;
+
+	case USB_DO_REQUEST:
+		ur = (void *) data;
+		len = UGETW(ur->ucr_request.wLength);
+
+		if (!(flag & FWRITE)) {
+			error = EPERM;
+			break;
+		}
+
+		/* Avoid requests that would damage the bus integrity. */
+		if ((ur->ucr_request.bmRequestType == UT_WRITE_DEVICE &&
+		     ur->ucr_request.bRequest == UR_SET_ADDRESS) ||
+		    (ur->ucr_request.bmRequestType == UT_WRITE_DEVICE &&
+		     ur->ucr_request.bRequest == UR_SET_CONFIG) ||
+		    (ur->ucr_request.bmRequestType == UT_WRITE_INTERFACE &&
+		     ur->ucr_request.bRequest == UR_SET_INTERFACE) ||
+		    len < 0 || len > 32767) {
+			error = EINVAL;
+			break;
+		}
+
+		if (len != 0) {
+			iov.iov_base = (caddr_t) ur->ucr_data;
+			iov.iov_len = len;
+
+			uio.uio_iov = &iov;
+			uio.uio_iovcnt = 1;
+			uio.uio_resid = len;
+			uio.uio_offset = 0;
+			uio.uio_segflg = UIO_USERSPACE;
+			uio.uio_rw = ur->ucr_request.bmRequestType & UT_READ ?
+						UIO_READ : UIO_WRITE;
+			uio.uio_procp = p;
+
+			ptr = malloc(len, M_TEMP, M_WAITOK);
+			if (uio.uio_rw == UIO_WRITE) {
+				error = uiomove(ptr, len, &uio);
+				if (error != 0)
+					goto ret;
+			}
+		}
+
+		status = usbd_do_request_flags(sc->sc_udev, &ur->ucr_request,
+				ptr, ur->ucr_flags, &ur->ucr_actlen,
+				USBD_DEFAULT_TIMEOUT);
+		if (status != USBD_NORMAL_COMPLETION) {
+			error = EIO;
+			goto ret;
+		}
+
+		if (len != 0) {
+			if (uio.uio_rw == UIO_READ) {
+				error = uiomove(ptr, len, &uio);
+				if (error != 0)
+					goto ret;
+			}
+		}
+ret:
+		if (ptr != NULL)
+			free(ptr, M_TEMP);
+		break;
+
+	case USB_GET_DEVICEINFO:
+		usbd_fill_deviceinfo(sc->sc_udev,
+			(struct usb_device_info *) data, 1);
+		break;
+
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	if (-- sc->sc_refcnt < 0)
+		usb_detach_wakeup(USBDEV(sc->sc_dev));
+
+	return (error);
+} /* ubt_ioctl */
+
+/*
+ * Poll the endpoint device
+ * XXX FIXME softc locking
+ */
+
+Static int
+ubt_poll(dev_t dev, int events, usb_proc_ptr p)
+{
+	ubt_softc_p	sc = NULL;
+	int		revents = 0, ep = UBT_ENDPOINT(dev);
+
+	USB_GET_SC(ubt, UBT_UNIT(dev), sc);
+	if (sc == NULL || sc->sc_dying)
+		return (ENXIO);
+
+	if (ep == USB_CONTROL_ENDPOINT)
+		return (EOPNOTSUPP);
+
+	if (ep == UE_GET_ADDR(sc->sc_intr_ep)) {
+		if (sc->sc_intr_pipe != NULL)
+			revents |= events & (POLLIN | POLLRDNORM);
+		else
+			revents = EIO;
+	} else if (ep == UE_GET_ADDR(sc->sc_bulk_in_ep)) {
+		if (sc->sc_bulk_in_pipe != NULL) 
+			revents |= events & (POLLIN | POLLRDNORM);
+
+		if (sc->sc_bulk_out_pipe != NULL)
+			revents |= events & (POLLOUT | POLLWRNORM);
+
+		if (revents == 0)
+			revents = EIO; /* both pipes closed */
+	} else
+		revents = EINVAL;
+
+	return (revents);
+} /* ubt_poll */
+
+/*
+ * Create device nodes for all endpoints. Must be called with node locked.
  */
 
 Static void
-ng_ubt_reset(ubt_softc_p sc)
+ubt_create_device_nodes(ubt_softc_p sc)
 {
-	/* Abort transfers and close all USB pipes */
+	int	ep;
 
-	/* Interrupt */
-	if (sc->sc_intr_pipe != NULL) {
-		usbd_abort_pipe(sc->sc_intr_pipe);
-		usbd_close_pipe(sc->sc_intr_pipe);
-		sc->sc_intr_pipe = NULL;
-	}
+	KASSERT((sc->sc_hook == NULL), (
+"%s: %s - hook != NULL!\n", __func__, USBDEVNAME(sc->sc_dev)));
 
-	/* Bulk-in/out */
-	if (sc->sc_bulk_in_pipe != NULL) {
-		usbd_abort_pipe(sc->sc_bulk_in_pipe);
-		usbd_close_pipe(sc->sc_bulk_in_pipe);
-		sc->sc_bulk_in_pipe = NULL;
-	}
-	if (sc->sc_bulk_out_pipe != NULL) {
-		usbd_abort_pipe(sc->sc_bulk_out_pipe);
-		usbd_close_pipe(sc->sc_bulk_out_pipe);
-		sc->sc_bulk_out_pipe = NULL;
-	}
+	/* Control device */
+	if (sc->sc_ctrl_dev == NODEV)
+		sc->sc_ctrl_dev = make_dev(&ubt_cdevsw,
+					UBT_MINOR(USBDEVUNIT(sc->sc_dev), 0),
+					UID_ROOT, GID_OPERATOR, 0644,
+					"%s", USBDEVNAME(sc->sc_dev));
 
-	/* Isoc-in/out */
-	if (sc->sc_isoc_in_pipe != NULL) {
-		usbd_abort_pipe(sc->sc_isoc_in_pipe);
-		usbd_close_pipe(sc->sc_isoc_in_pipe);
-		sc->sc_isoc_in_pipe = NULL;
-	}
-	if (sc->sc_isoc_out_pipe != NULL) {
-		usbd_abort_pipe(sc->sc_isoc_out_pipe);
-		usbd_close_pipe(sc->sc_isoc_out_pipe);
-		sc->sc_isoc_out_pipe = NULL;
+	/* Interrupt device */
+	if (sc->sc_intr_dev == NODEV && sc->sc_intr_ep != -1) {
+		ep = UE_GET_ADDR(sc->sc_intr_ep);
+		sc->sc_intr_dev = make_dev(&ubt_cdevsw,
+					UBT_MINOR(USBDEVUNIT(sc->sc_dev), ep),
+					UID_ROOT, GID_OPERATOR, 0644,
+					"%s.%d", USBDEVNAME(sc->sc_dev), ep);
 	}
 
-	/* Cleanup queues */
-	IF_DRAIN(&sc->sc_cmdq);
-	IF_DRAIN(&sc->sc_aclq);
-	IF_DRAIN(&sc->sc_scoq);
-	IF_DRAIN(&sc->sc_inq);
-} /* ng_ubt_reset */
+	/* 
+	 * Bulk-in and bulk-out device
+	 * XXX will create one device for both in and out endpoints.
+	 * XXX note that address of the in and out endpoint should be the same
+	 */
+
+	if (sc->sc_bulk_dev == NODEV && 
+	    sc->sc_bulk_in_ep != -1 && sc->sc_bulk_out_ep != -1 &&
+	    UE_GET_ADDR(sc->sc_bulk_in_ep) == UE_GET_ADDR(sc->sc_bulk_out_ep)) {
+		ep = UE_GET_ADDR(sc->sc_bulk_in_ep);
+		sc->sc_bulk_dev = make_dev(&ubt_cdevsw,
+					UBT_MINOR(USBDEVUNIT(sc->sc_dev), ep),
+					UID_ROOT, GID_OPERATOR, 0644,
+					"%s.%d", USBDEVNAME(sc->sc_dev), ep);
+	}
+} /* ubt_create_device_nodes */
+
+/*
+ * Destroy device nodes for all endpoints
+ * XXX FIXME locking
+ */
+
+Static void
+ubt_destroy_device_nodes(ubt_softc_p sc)
+{
+	struct vnode	*vp = NULL;
+
+	/*
+	 * Wait for processes to go away. This should be safe as we will not
+	 * call ubt_destroy_device_nodes() from Netgraph unless all devices
+	 * were closed (and thus no active processes).
+	 */
+
+	if (-- sc->sc_refcnt >= 0) {
+		ubt_reset(sc);
+		usb_detach_wait(USBDEV(sc->sc_dev));
+	}
+
+	sc->sc_refcnt = 0;
+
+	/* Destroy device nodes */
+	if (sc->sc_bulk_dev != NODEV) {
+		vp = SLIST_FIRST(&sc->sc_bulk_dev->si_hlist);
+		if (vp != NULL) 
+			VOP_REVOKE(vp, REVOKEALL);
+
+		destroy_dev(sc->sc_bulk_dev);
+		sc->sc_bulk_dev = NODEV;
+	}
+
+	if (sc->sc_intr_dev != NODEV) {
+		vp = SLIST_FIRST(&sc->sc_intr_dev->si_hlist);
+		if (vp != NULL) 
+			VOP_REVOKE(vp, REVOKEALL);
+
+		destroy_dev(sc->sc_intr_dev);
+		sc->sc_intr_dev = NODEV;
+	}
+
+	if (sc->sc_ctrl_dev != NODEV) {
+		vp = SLIST_FIRST(&sc->sc_ctrl_dev->si_hlist);
+		if (vp != NULL) 
+			VOP_REVOKE(vp, REVOKEALL);
+
+		destroy_dev(sc->sc_ctrl_dev);
+		sc->sc_ctrl_dev = NODEV;
+	}
+} /* ubt_destroy_device_nodes */
 

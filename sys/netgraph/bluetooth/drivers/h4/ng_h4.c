@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_h4.c,v 1.25 2002/11/03 02:17:31 max Exp $
+ * $Id: ng_h4.c,v 1.4 2003/04/01 18:15:23 max Exp $
  * $FreeBSD$
  * 
  * Based on:
@@ -170,7 +170,7 @@ ng_h4_open(dev_t dev, struct tty *tp)
 	}
 
 	/* Initialize private struct */
-	MALLOC(sc, ng_h4_info_p, sizeof(*sc), M_NETGRAPH_H4, M_WAITOK | M_ZERO);
+	MALLOC(sc, ng_h4_info_p, sizeof(*sc), M_NETGRAPH_H4, M_ZERO);
 	if (sc == NULL) {
 		error = ENOMEM;
 		goto out;

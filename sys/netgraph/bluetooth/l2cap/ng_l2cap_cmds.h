@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_cmds.h,v 1.9 2002/04/16 00:43:56 max Exp $
+ * $Id: ng_l2cap_cmds.h,v 1.4 2003/04/01 18:15:26 max Exp $
  * $FreeBSD$
  */
 
@@ -152,9 +152,11 @@ do {									\
 	c->param.dcid = htole16((_dcid));				\
 	c->param.flags = htole16((_flags));				\
 	if ((_data) != NULL) {						\
+		int	l = (_data)->m_pkthdr.len;			\
+									\
 		m_cat((_m), (_data));					\
-		c->hdr.length += (_data)->m_pkthdr.len;			\
-		(_m)->m_pkthdr.len += (_data)->m_pkthdr.len;		\
+		c->hdr.length += l;					\
+		(_m)->m_pkthdr.len += l;				\
 	}								\
 									\
 	c->hdr.length = htole16(c->hdr.length);				\
@@ -185,9 +187,11 @@ do {									\
 	c->param.flags = htole16((_flags));				\
 	c->param.result = htole16((_result));				\
 	if ((_data) != NULL) {						\
+		int	l = (_data)->m_pkthdr.len;			\
+									\
 		m_cat((_m), (_data));					\
-		c->hdr.length += (_data)->m_pkthdr.len;			\
-		(_m)->m_pkthdr.len += (_data)->m_pkthdr.len;		\
+		c->hdr.length += l;					\
+		(_m)->m_pkthdr.len += l;				\
 	}								\
 									\
 	c->hdr.length = htole16(c->hdr.length);				\

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_hci_ulpi.c,v 1.14 2002/11/12 22:35:40 max Exp $
+ * $Id: ng_hci_ulpi.c,v 1.6 2003/04/26 22:35:21 max Exp $
  * $FreeBSD$
  */
 
@@ -132,30 +132,22 @@ ng_hci_lp_acl_con_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 	 * 2) We do have connection descriptor. We need to check connection
 	 *    state:
 	 * 
-	 * 2.1) NG_HCI_CON_CLOSED mean we are in the process of closing
-	 *      connection to the remote unit. We will reject connection
-	 *      request until connection is closed.
-	 *
-	 * 2.2) NG_HCI_CON_W4_LP_CON_RSP means that we are in the middle of
+	 * 2.1) NG_HCI_CON_W4_LP_CON_RSP means that we are in the middle of
 	 *      accepting connection from the remote unit. This is a race
 	 *      condition. We will ignore this message.
 	 *
-	 * 2.3) NG_HCI_CON_W4_CONN_COMPLETE means that upper layer already
+	 * 2.2) NG_HCI_CON_W4_CONN_COMPLETE means that upper layer already
 	 *      requested connection or we just accepted it. In any case
 	 *      all we need to do here is set appropriate notification bit
 	 *      and wait.
 	 *	
-	 * 2.4) NG_HCI_CON_OPEN means connection is open. Just reply back
+	 * 2.3) NG_HCI_CON_OPEN means connection is open. Just reply back
 	 *      and let upper layer know that we have connection already.
 	 */
 
 	con = ng_hci_con_by_bdaddr(unit, &ep->bdaddr, NG_HCI_LINK_ACL);
 	if (con != NULL) {
 		switch (con->state) {
-		case NG_HCI_CON_CLOSED:
-			error = EBUSY;
-			break;
-
 		case NG_HCI_CON_W4_LP_CON_RSP: /* XXX */
 			error = EALREADY;
 			break;
@@ -255,12 +247,14 @@ ng_hci_lp_acl_con_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 		req->cp.pkt_type |= (NG_HCI_PKT_DM5|NG_HCI_PKT_DH5);
 
 	req->cp.pkt_type &= unit->packet_mask;
-	if (req->cp.pkt_type == 0)
+	if ((req->cp.pkt_type & (NG_HCI_PKT_DM1|NG_HCI_PKT_DH1|
+				 NG_HCI_PKT_DM3|NG_HCI_PKT_DH3|
+				 NG_HCI_PKT_DM5|NG_HCI_PKT_DH5)) == 0)
 		req->cp.pkt_type = (NG_HCI_PKT_DM1|NG_HCI_PKT_DH1);
 
 	req->cp.pkt_type = htole16(req->cp.pkt_type);
 
-	if (unit->features[0] & NG_HCI_LMP_SWITCH)
+	if ((unit->features[0] & NG_HCI_LMP_SWITCH) && unit->role_switch)
 		req->cp.accept_role_switch = 1;
 	else
 		req->cp.accept_role_switch = 0;
@@ -376,8 +370,6 @@ ng_hci_lp_sco_con_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 	 *
 	 * 2.2) NG_HCI_CON_W4_CONN_COMPLETE means upper layer already requested
 	 *      connection or we just accepted it.
-	 *
-	 * XXX FIXME what to do with connection(s) in CLOSED state?
 	 */
 
 	LIST_FOREACH(sco_con, &unit->con_list, next)
@@ -450,7 +442,9 @@ ng_hci_lp_sco_con_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 		req->cp.pkt_type |= NG_HCI_PKT_HV3;
 
 	req->cp.pkt_type &= unit->packet_mask;
-	if (req->cp.pkt_type == 0)
+	if ((req->cp.pkt_type & (NG_HCI_PKT_HV1|
+				 NG_HCI_PKT_HV2|
+				 NG_HCI_PKT_HV3)) == 0)
 		req->cp.pkt_type = NG_HCI_PKT_HV1;
 
 	req->cp.pkt_type = htole16(req->cp.pkt_type);
@@ -479,12 +473,6 @@ out:
 
 /*
  * Process LP_DisconnectReq event from the upper layer protocol
- * 
- * XXX XXX XXX
- *
- * NOTE: This is NOT defined by Bluetooth specification (why?) But i think
- * this might be useful (at least for testing), so please do not depend on
- * this interface.
  */
 
 int
@@ -560,13 +548,6 @@ ng_hci_lp_discon_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 
 	req->cp.con_handle = htole16(ep->con_handle);
 	req->cp.reason = ep->reason;
-
-	/* 
-	 * Adjust connection state
-	 */
-
-	con->state = NG_HCI_CON_CLOSED;
-	ng_hci_con_timeout(con);
 
 	/* 
 	 * Queue and send HCI command 
@@ -813,16 +794,15 @@ ng_hci_lp_con_rsp(ng_hci_unit_p unit, item_p item, hook_p hook)
 				sizeof(req->cp.acc.bdaddr));
 
 			/*
-			 * XXX should be configurable?
-			 *
 			 * We are accepting connection, so if we support role 
-			 * switch then set role to NG_HCI_ROLE_MASTER and let 
-			 * LM peform role switch. Otherwise it is probably 
-			 * makes sense to remain slave. In this case LM WILL 
-			 * NOT perform role switch.
+			 * switch and role switch was enabled then set role to 
+			 * NG_HCI_ROLE_MASTER and let LM peform role switch.
+			 * Otherwise we remain slave. In this case LM WILL NOT
+			 * perform role switch.
 			 */
 
-			if (unit->features[0] & NG_HCI_LMP_SWITCH)
+			if ((unit->features[0] & NG_HCI_LMP_SWITCH) &&
+			    unit->role_switch)
 				req->cp.acc.role = NG_HCI_ROLE_MASTER;
 			else
 				req->cp.acc.role = NG_HCI_ROLE_SLAVE;
@@ -1183,24 +1163,16 @@ ng_hci_process_con_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	 * We expect to receive connection timeout in one of the following
 	 * states:
 	 *
-	 * 1) NG_HCI_CON_CLOSED means that upper layer has requested disconnect
-	 *    via LP_DISCON_REQ and we have not received Disconnect_Complete
-	 *    event. In this case we will send LP_DISCON_IND to upper layer.
-	 *
-	 * 2) NG_HCI_CON_W4_LP_CON_RSP means that upper layer has not responded
+	 * 1) NG_HCI_CON_W4_LP_CON_RSP means that upper layer has not responded
 	 *    to our LP_CON_IND. Do nothing and destroy connection. Remote peer
 	 *    most likely already gave up on us.
 	 * 
-	 * 3) NG_HCI_CON_W4_CONN_COMPLETE means upper layer requested connection
+	 * 2) NG_HCI_CON_W4_CONN_COMPLETE means upper layer requested connection
 	 *    (or we in the process of accepting it) and baseband has timedout
 	 *    on us. Inform upper layers and send LP_CON_CFM.
 	 */
 
 	switch (con->state) {
-	case NG_HCI_CON_CLOSED:
-		ng_hci_lp_discon_ind(con, 0x16);
-		break;
-
 	case NG_HCI_CON_W4_LP_CON_RSP:
 		break;
 
@@ -1217,64 +1189,4 @@ ng_hci_process_con_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 
 	ng_hci_free_con(con);
 } /* ng_hci_process_con_timeout */
-
-/*
- * Process connection watchdog timeout
- */
-
-void
-ng_hci_process_con_watchdog_timeout(node_p node, hook_p hook, 
-		void *arg1, int arg2)
-{
-	ng_hci_unit_con_p		 con = (ng_hci_unit_con_p) arg1;
-	struct discon_req {
-		ng_hci_cmd_pkt_t	 hdr;
-		ng_hci_discon_cp	 cp;
-	} __attribute__ ((packed))	*req = NULL;
-	struct mbuf			*m = NULL;
-
-	KASSERT((con->state == NG_HCI_CON_OPEN), 
-("%s: %s - invalid connection state=%d, handle=%d\n",
-		__func__, NG_NODE_NAME(node), con->state, con->con_handle));
-
-	KASSERT((con->flags & NG_HCI_CON_WATCHDOG_TIMEOUT_PENDING),
-("%s: %s - No connection watchdog timeout!\n",
-		__func__, NG_NODE_NAME(node)));
-
-	con->flags &= ~NG_HCI_CON_WATCHDOG_TIMEOUT_PENDING;
-
-	/* 
-	 * Create HCI command
-	 */
-
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == NULL)
-		return; /* XXX this is bad */
-
-	m->m_pkthdr.len = m->m_len = sizeof(*req);
-	req = mtod(m, struct discon_req *);
-	req->hdr.type = NG_HCI_CMD_PKT;
-	req->hdr.length = sizeof(req->cp);
-	req->hdr.opcode = htole16(NG_HCI_OPCODE(NG_HCI_OGF_LINK_CONTROL,
-							NG_HCI_OCF_DISCON));
-
-	req->cp.con_handle = htole16(con->con_handle);
-	req->cp.reason = 0x13; /* User ended connection */
-
-	/* 
-	 * Queue and send HCI command 
-	 */
-
-	NG_BT_MBUFQ_ENQUEUE(&con->unit->cmdq, m);
-	if (!(con->unit->state & NG_HCI_UNIT_COMMAND_PENDING))
-		ng_hci_send_command(con->unit);
-
-	/* 
-	 * Send LP_DISCON_IND to the upper layers
-	 * Connection terminated by local host
-	 */
-
-	ng_hci_lp_discon_ind(con, 0x16);
-	ng_hci_free_con(con);
-} /* ng_hci_process_con_watchdog_timeout */
 

@@ -25,28 +25,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_ubt.h,v 1.1 2002/11/09 19:09:02 max Exp $
+ * $Id: ng_ubt.h,v 1.6 2003/04/13 21:34:42 max Exp $
  * $FreeBSD$
  */
 
 #ifndef _NG_UBT_H_
 #define _NG_UBT_H_
-
-/* XXX FIXME Does not belong here. Move to usbdevs.h later */
-#define USB_VENDOR_MSI			0x0db0 /* MSI www.msi.com.tw */
-#define USB_VENDOR_EPOX			0x0a12 /* EPoX www.epox.com */
-
-#define USB_PRODUCT_3COM_3CREB96	0x00a0 /* 3Com Bluetooth USB dongle */
-#define USB_PRODUCT_MITSUMI_BT_DONGLE	0x641f /* Mitsumi Bluetooth USB dongle*/
-#define USB_PRODUCT_TDK_BT_DONGLE	0x0309 /* TDK Bluetooth USB dongle */
-#define USB_PRODUCT_MSI_BT_DONGLE	0x1967 /* MSI Bluetooth USB dongle */
-#define USB_PRODUCT_DBW_120M_BT_DONGLE	0x2033 /* D-Link DBW-120M */
-#define USB_PRODUCT_BT_DG02_DONGLE	0x0001 /* EPoX BT-DG02 USB dongle */
-
-/* XXX FIXME Does not belong here. Move to usb.h later */
-#define UICLASS_WIRELESS_CONTROLLER	0xe0	/* Wireless Controller */
-#define UISUBCLASS_RF_CONTROLLER	0x01	/* RF Controller */
-#define UIPROTO_BLUETOOTH		0x01	/* Bluetooth programming */
 
 /**************************************************************************
  **************************************************************************
@@ -79,10 +63,9 @@ typedef u_int16_t		ng_ubt_node_debug_ep;
 #define NGM_UBT_NODE_GET_QLEN	4		/* get queue length */ 
 typedef struct {
 	int32_t		queue;			/* queue index */
-#define	NGM_UBT_NODE_QUEUE_IN	1		/* incoming queue */
-#define	NGM_UBT_NODE_QUEUE_CMD	2		/* commands */
-#define	NGM_UBT_NODE_QUEUE_ACL	3		/* ACL data */
-#define	NGM_UBT_NODE_QUEUE_SCO	4		/* SCO data */
+#define	NGM_UBT_NODE_QUEUE_CMD	1		/* commands */
+#define	NGM_UBT_NODE_QUEUE_ACL	2		/* ACL data */
+#define	NGM_UBT_NODE_QUEUE_SCO	3		/* SCO data */
 
 	int32_t		qlen;			/* queue length */
 } ng_ubt_node_qlen_ep;
@@ -98,6 +81,9 @@ typedef struct {
 } ng_ubt_node_stat_ep;
 
 #define NGM_UBT_NODE_RESET_STAT	6		/* reset statistic */
+
+#define NGM_UBT_NODE_DEV_NODES	7		/* on/off device interface */
+typedef u_int16_t	ng_ubt_node_dev_nodes_ep;
 
 #endif /* ndef _NG_UBT_H_ */
 

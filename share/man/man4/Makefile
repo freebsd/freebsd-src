@@ -232,6 +232,7 @@ MAN=	aac.4 \
 	txp.4 \
 	ubsa.4 \
 	ubsec.4 \
+	ubtbcmfw.4 \
 	ucom.4 \
 	udbp.4 \
 	udp.4 \

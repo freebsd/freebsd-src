@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_hci_cmds.h,v 1.6 2002/09/04 21:36:51 max Exp $
+ * $Id: ng_hci_cmds.h,v 1.1 2002/11/24 19:46:58 max Exp $
  * $FreeBSD$
  */
 
