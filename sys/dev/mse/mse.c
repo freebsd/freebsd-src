@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.19 1995/12/06 23:42:53 bde Exp $
+ * $Id: mse.c,v 1.20 1995/12/08 11:14:40 julian Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -79,7 +79,7 @@ static	d_read_t	mseread;
 static	d_select_t	mseselect;
 
 #define CDEV_MAJOR 27
-struct cdevsw mse_cdevsw = 
+static struct cdevsw mse_cdevsw = 
 	{ mseopen,	mseclose,	mseread,	nowrite,	/*27*/
 	  noioc,	nostop,		nullreset,	nodevtotty,/* mse */
 	  mseselect,	nommap,		NULL,	"mse",	NULL,	-1 };

@@ -189,7 +189,7 @@ static	d_read_t	gscread;
 static	d_ioctl_t	gscioctl;
 
 #define CDEV_MAJOR 47
-struct cdevsw gsc_cdevsw = 
+static struct cdevsw gsc_cdevsw = 
 	{ gscopen,      gscclose,       gscread,        nowrite,	/*47*/
 	  gscioctl,     nostop,         nullreset,      nodevtotty,/* gsc */
 	  seltrue,      nommap,         NULL,	"gsc",	NULL,	-1 };

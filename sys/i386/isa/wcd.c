@@ -46,11 +46,11 @@ static	d_strategy_t	wcdstrategy;
 #define CDEV_MAJOR 69
 #define BDEV_MAJOR 19
 extern	struct cdevsw wcd_cdevsw;
-struct bdevsw wcd_bdevsw = 
+static struct bdevsw wcd_bdevsw = 
 	{ wcdbopen,	wcdbclose,	wcdstrategy,	wcdioctl,	/*19*/
 	  nxdump,	zerosize,	0,	"wcd",	&wcd_cdevsw,	-1 };
 
-struct cdevsw wcd_cdevsw = 
+static struct cdevsw wcd_cdevsw = 
 	{ wcdropen,	wcdrclose,	rawread,	nowrite,	/*69*/
 	  wcdioctl,	nostop,		nullreset,	nodevtotty,/* atapi */
 	  seltrue,	nommap,		wcdstrategy,	"wcd",

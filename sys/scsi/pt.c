@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.8 1995/11/29 14:40:59 julian Exp $
+ *      $Id: pt.c,v 1.9 1995/12/08 11:18:48 julian Exp $
  */
 
 /*
@@ -73,7 +73,7 @@ static	d_ioctl_t	ptioctl;
 static	d_strategy_t	ptstrategy;
 
 #define CDEV_MAJOR 61
-struct cdevsw pt_cdevsw = 
+static struct cdevsw pt_cdevsw = 
 	{ ptopen,	ptclose,	rawread,	rawwrite,	/*61*/
 	  ptioctl,	nostop,		nullreset,	nodevtotty,/* pt */
 	  seltrue,	nommap,		ptstrategy,	"pt",	NULL,	-1 };

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.124 1995/12/06 23:43:07 bde Exp $
+ *	$Id: sio.c,v 1.125 1995/12/08 11:15:12 julian Exp $
  */
 
 #include "sio.h"
@@ -311,7 +311,7 @@ static	d_stop_t	siostop;
 static	d_ttycv_t	siodevtotty;
 
 #define CDEV_MAJOR 28
-struct cdevsw sio_cdevsw = 
+static struct cdevsw sio_cdevsw = 
 	{ sioopen,	sioclose,	sioread,	siowrite,	/*28*/
 	  sioioctl,	siostop,	nxreset,	siodevtotty,/* sio */
 	  ttselect,	nommap,		NULL,	driver_name,	NULL,	-1 };

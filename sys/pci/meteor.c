@@ -181,7 +181,7 @@ static	d_ioctl_t	meteor_ioctl;
 static	d_mmap_t	meteor_mmap;
 
 #define CDEV_MAJOR 67
-struct cdevsw meteor_cdevsw = 
+static struct cdevsw meteor_cdevsw = 
         { meteor_open,  meteor_close,   meteor_read,    meteor_write,   /*67*/
           meteor_ioctl, nostop,         nullreset,      nodevtotty,/* Meteor */
           seltrue,	meteor_mmap, NULL,	"meteor",	NULL,	-1 };

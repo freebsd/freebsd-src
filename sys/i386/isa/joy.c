@@ -91,7 +91,7 @@ static	d_close_t	joyclose;
 static	d_read_t	joyread;
 static	d_ioctl_t	joyioctl;
 
-struct cdevsw joy_cdevsw = 
+static struct cdevsw joy_cdevsw = 
 	{ joyopen,	joyclose,	joyread,	nowrite,	/*51*/
 	  joyioctl,	nostop,		nullreset,	nodevtotty,/*joystick */
 	  seltrue,	nommap,		NULL,	"joy",	NULL,	-1 };
