@@ -1138,8 +1138,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		kmdp = preload_search_by_type("elf64 kernel");
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *) + KERNBASE;
+#ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, void *);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, void *);
+#endif
 
 	/* Init basic tunables, hz etc */
 	init_param1();
