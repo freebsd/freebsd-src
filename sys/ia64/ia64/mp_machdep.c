@@ -350,12 +350,11 @@ ipi_send(u_int64_t lid, int ipi)
 	volatile u_int64_t *pipi;
 	u_int64_t vector;
 
-	pipi = ia64_memory_address(ia64_lapic_address |
+	pipi = __MEMIO_ADDR(ia64_lapic_address |
 	    ((lid & LID_SAPIC_MASK) >> 12));
 	vector = (u_int64_t)(ipi_vector[ipi] & 0xff);
 	CTR3(KTR_SMP, "ipi_send(%p, %ld), cpuid=%d", pipi, vector,
 	    PCPU_GET(cpuid));
-	ia64_mf();
 	*pipi = vector;
 }
 
