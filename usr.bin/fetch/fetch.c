@@ -199,7 +199,7 @@ fetch(char *URL, char *path)
     count = 0;
 
     /* common flags */
-    if (v_level > 2)
+    if (v_level > 1)
 	strcat(flags, "v");
     switch (family) {
     case PF_INET:
@@ -678,12 +678,12 @@ main(int argc, char *argv[])
 		 && fetchLastErrCode != FETCH_UNKNOWN)) {
 		if (w_secs) {
 		    if (v_level)
-			fprintf(stderr, "Waiting %d seconds before retrying\n", w_secs);
+			fprintf(stderr, "Waiting %d seconds before retrying\n",
+				w_secs);
 		    sleep(w_secs);
 		}
 		if (a_flag)
 		    continue;
-		fprintf(stderr, "Skipping %s\n", *argv);
 	    }
 	}
 
