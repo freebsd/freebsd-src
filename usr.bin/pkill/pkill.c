@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <grp.h>
 #include <errno.h>
+#include <locale.h>
 
 #define	STATUS_MATCH	0
 #define	STATUS_NOMATCH	1
@@ -131,6 +132,8 @@ main(int argc, char **argv)
 	struct timeval best_tval;
 	regex_t reg;
 	regmatch_t regmatch;
+
+	setlocale(LC_ALL, "");
 
 	if (strcmp(getprogname(), "pgrep") == 0) {
 		action = grepact;
