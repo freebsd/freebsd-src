@@ -52,6 +52,7 @@ struct pcic_softc
 #define PCIC_KING_POWER    0x00000010	/* Uses IBM KING regs  */
 #define PCIC_RICOH_POWER   0x00000020	/* Uses the ricoh power regs */
 #define PCIC_CARDBUS_POWER 0x00000040	/* Cardbus power regs */
+#define PCIC_YENTA_HIGH_MEMORY 0x0080	/* Can do high memory mapping */
 
 	enum pcic_intr_way	csc_route; /* How to route csc interrupts */
 	enum pcic_intr_way	func_route; /* How to route function ints */

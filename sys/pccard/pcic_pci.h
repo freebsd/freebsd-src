@@ -43,6 +43,7 @@
 /* Texas Instruments PCI-1130/1131 CardBus Controller */
 #define TI113X_PCI_SYSTEM_CONTROL	0x80	/* System Control */
 #define TI12XX_PCI_MULTIMEDIA_CONTROL	0x84	/* Zoom Video */
+#define TI12XX_PCI_MFUNC		0x8c	/* multifunction pins */
 #define TI113X_PCI_RETRY_STATUS		0x90	/* Retry Status */
 #define TI113X_PCI_CARD_CONTROL		0x91	/* Card Control */
 #define TI113X_PCI_DEVICE_CONTROL	0x92	/* Device Control */
@@ -59,6 +60,17 @@
 #define	TI113X_SYSCNTL_PWRSAVINGS	0x00000040u
 #define TI113X_SYSCNTL_KEEP_CLK		0x00000002u
 #define TI113X_SYSCNTL_CLKRUN_ENA	0x00000001u
+
+/* MFUNC register (TI12XX_MFUNC == 0x8c) */
+#define TI12XX_MFUNC_PIN0		0x0000000fu
+#define   TI12XX_MFUNC_PIN0_INTA	0x2
+#define TI12XX_MFUNC_PIN1		0x000000f0u
+#define   TI12XX_MFUNC_PIN1_INTB	0x20
+#define TI12XX_MFUNC_PIN2		0x00000f00u
+#define TI12XX_MFUNC_PIN3		0x0000f000u
+#define TI12XX_MFUNC_PIN4		0x000f0000u
+#define TI12XX_MFUNC_PIN5		0x00f00000u
+#define TI12XX_MFUNC_PIN6		0x0f000000u
 
 /* Card control register (TI113X_CARD_CONTROL == 0x91) */
 #define TI113X_CARDCNTL_RING_ENA	0x80u
