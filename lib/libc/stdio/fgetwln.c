@@ -46,11 +46,10 @@ fgetwln(FILE * __restrict fp, size_t *lenp)
 	len = 0;
 	while ((wc = __fgetwc(fp)) != WEOF) {
 #define	GROW	512
-		len++;
 		if (len * sizeof(wchar_t) >= fp->_lb._size &&
 		    __slbexpand(fp, (len + GROW) * sizeof(wchar_t)))
 			goto error;
-		*((wchar_t *)fp->_lb._base + len) = wc;
+		*((wchar_t *)fp->_lb._base + len++) = wc;
 		if (wc == L'\n')
 			break;
 	}
