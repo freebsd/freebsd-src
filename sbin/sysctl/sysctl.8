@@ -97,9 +97,8 @@ compctl -K listsysctls sysctl
 To enable completion of variable names in
 .Xr tcsh 1 ,
 use:
-.Bd -literal -offset indent
-complete sysctl 'n/*/`sysctl -Na`/'
-.Ed
+.Pp
+.Dl "complete sysctl 'n/*/`sysctl -Na`/'"
 .It Fl n
 Show only variable values, not their names.
 This option is useful for setting shell variables.

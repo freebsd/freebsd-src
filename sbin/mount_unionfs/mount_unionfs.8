@@ -88,8 +88,8 @@ To enforce file system security, the user mounting the file system
 must be superuser or else have write permission on the mounted-on
 directory.
 In addition, the
-.Em vfs.usermount
-.Xr sysctl 3
+.Va vfs.usermount
+.Xr sysctl 8
 variable must be set to 1 to permit file system mounting by ordinary users.
 .Pp
 Filenames are looked up in the upper layer and then in the

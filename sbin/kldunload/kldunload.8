@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 1997
+.Dd July 13, 2004
 .Dt KLDUNLOAD 8
 .Os
 .Sh NAME
@@ -34,11 +34,11 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f
-.Op Fl v
+.Op Fl fv
 .Fl i Ar id
 .Nm
 .Op Fl f
-.Op Fl v
+.Op Fl fv
 .Op Fl n
 .Ar name
 .Sh DESCRIPTION
@@ -48,7 +48,7 @@ utility unloads a file which was previously loaded with
 .Xr kldload 8 .
 .Pp
 The following options are available:
-.Bl -tag -width indentXX
+.Bl -tag -width ".Fl n Ar name"
 .It Fl f
 Force the unload.
 This ignores error returns to
