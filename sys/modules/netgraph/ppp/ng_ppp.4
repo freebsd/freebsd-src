@@ -51,9 +51,23 @@ only packets that contain data, and forwards protocol negotiation
 and control packets to a separate controlling entity (e.g., a
 user-land daemon).  This approach combines the fast dispatch of
 kernel implementations with the configuration flexibility of a
-user-land implementations.  The PPP node type supports multi-link
-PPP, Van Jacobsen compression, PPP compression, and PPP encryption.
-A single PPP node corresponds to one PPP multi-link bundle.
+user-land implementations.  The PPP node type directly supports
+multi-link PPP, Van Jacobsen compression, PPP compression, PPP
+encryption, and the IP, IPX, and AppleTalk protocols.  A single
+PPP node corresponds to one PPP multi-link bundle.
+.Pp
+There is a separate hook for each PPP link in the bundle, plus
+several hooks corresponding to the directly supported protocols.
+For compression and encryption, separate attached nodes are required
+to do the actual work.  The node type used will of course depend
+on the algorithm negotiated.  There is also a
+.Dv bypass
+hook which is used to handle any protocol not directly supported
+by the node. This includes all of the control protocols: LCP, IPCP,
+CCP, etc.  Typically this node is connected to a user-land daemon
+via a
+.Xr ng_socket(8)
+type node.
 .Sh ENABLING FUNCTIONALITY
 In general, the PPP node enables a specific link or functionality when
 (a) a
@@ -62,6 +76,10 @@ message has been received which enables it, and
 (b) the corresponding hook(s) are connected.
 This allows the controlling entity to use either method (a) or (b)
 (or both) to control the node's behavior.
+When a link is connected but disabled, traffic can still flow on
+the link via the
+.Dv bypass
+hook (see below).
 .Sh LINK HOOKS
 During normal operation, the individual PPP links are connected to hooks
 .Dv link0 ,
@@ -85,6 +103,15 @@ have completed successfully) and the PPP node has been informed of
 the link parameters via the
 .Dv NGM_PPP_LINK_CONFIG
 message.
+.Pp
+When a link is connected but disabled, all received frames are forwarded
+directly out the
+.Dv bypass
+hook, and conversely, frames may be transmitted via the
+.Dv bypass
+hook as well.  This mode is appropriate for the link authentication phase.
+As soon as the link is enabled, the PPP node will
+begin processing frames received on the link.
 .Sh COMPRESSION AND ENCRYPTION
 .Pp
 Compression is supported via two hooks,
@@ -269,11 +296,11 @@ containing statistics for the corresponding link.  Here
 is a valid link number corresponding to the multi-link bundle.
 .It Dv NGM_PPP_CLR_LINK_STATS
 This command takes a two byte link number as an argument and
-clears the statistics for that link.  If
-.Dv NG_PPP_BUNDLE_LINKNUM
-is given,
-.Em all
-statistics are cleared.
+clears the statistics for that link.
+.It Dv NGM_PPP_GETCLR_LINK_STATS
+Same as
+.Dv NGM_PPP_GET_LINK_STATS ,
+but also atomically clears the statistics as well.
 .El
 .Pp
 This node type also accepts the control messages accepted by the
