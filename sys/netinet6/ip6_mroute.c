@@ -144,11 +144,6 @@ static mifi_t nummifs = 0;
 static mifi_t reg_mif_num = (mifi_t)-1;
 
 static struct pim6stat pim6stat;
-
-/*
- * one-back cache used by ipip_input to locate a tunnel's mif
- * given a datagram's src ip address.
- */
 static int pim6;
 
 /*
