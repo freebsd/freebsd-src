@@ -265,7 +265,6 @@ i386/isa/isa_dma.c		optional	isa
 i386/isa/istallion.c		optional	stli nowerror
 i386/isa/loran.c		optional	loran
 i386/isa/mca_machdep.c		optional	mca
-i386/isa/mcd.c			count		mcd
 i386/isa/mse.c			optional	mse
 i386/isa/npx.c			optional	npx
 i386/isa/pcaudio.c		optional	pca
