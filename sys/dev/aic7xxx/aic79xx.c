@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#200 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#201 $
  *
  * $FreeBSD$
  */
@@ -2332,7 +2332,7 @@ ahd_dump_sglist(struct scb *scb)
 				len = ahd_le32toh(sg_list[i].len);
 				printf("sg[%d] - Addr 0x%x%x : Length %d%s\n",
 				       i,
-				       (len >> 24) & SG_HIGH_ADDR_BITS,
+				       (len & AHD_SG_HIGH_ADDR_MASK) >> 24,
 				       ahd_le32toh(sg_list[i].addr),
 				       len & AHD_SG_LEN_MASK,
 				       len & AHD_DMA_LAST_SEG ? " Last" : "");
@@ -2920,7 +2920,7 @@ ahd_update_pending_scbs(struct ahd_softc *ahd)
 {
 	struct		scb *pending_scb;
 	int		pending_scb_count;
-	int		i;
+	u_int		scb_tag;
 	int		paused;
 	u_int		saved_scbptr;
 	ahd_mode_state	saved_modes;
@@ -2978,17 +2978,14 @@ ahd_update_pending_scbs(struct ahd_softc *ahd)
 	ahd_outb(ahd, SCSISEQ0, ahd_inb(ahd, SCSISEQ0) & ~ENSELO);
 	saved_scbptr = ahd_get_scbptr(ahd);
 	/* Ensure that the hscbs down on the card match the new information */
-	for (i = 0; i < ahd->scb_data.maxhscbs; i++) {
+	for (scb_tag = 0; scb_tag < ahd->scb_data.maxhscbs; scb_tag++) {
 		struct	hardware_scb *pending_hscb;
 		u_int	control;
-		u_int	scb_tag;
 
-		ahd_set_scbptr(ahd, i);
-		scb_tag = i;
 		pending_scb = ahd_lookup_scb(ahd, scb_tag);
 		if (pending_scb == NULL)
 			continue;
-
+		ahd_set_scbptr(ahd, scb_tag);
 		pending_hscb = pending_scb->hscb;
 		control = ahd_inb_scbram(ahd, SCB_CONTROL);
 		control &= ~MK_MESSAGE;
@@ -5416,6 +5413,7 @@ ahd_setup_iocell_workaround(struct ahd_softc *ahd)
 		printf("%s: Setting up iocell workaround\n", ahd_name(ahd));
 #endif
 	ahd_restore_modes(ahd, saved_modes);
+	ahd->flags &= ~AHD_HAD_FIRST_SEL;
 }
 
 static void
@@ -5424,6 +5422,8 @@ ahd_iocell_first_selection(struct ahd_softc *ahd)
 	ahd_mode_state	saved_modes;
 	u_int		sblkctl;
 
+	if ((ahd->flags & AHD_HAD_FIRST_SEL) != 0)
+		return;
 	saved_modes = ahd_save_modes(ahd);
 	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
 	sblkctl = ahd_inb(ahd, SBLKCTL);
@@ -5443,6 +5443,7 @@ ahd_iocell_first_selection(struct ahd_softc *ahd)
 	ahd_outb(ahd, SIMODE0, ahd_inb(ahd, SIMODE0) & ~(ENSELDO|ENSELDI));
 	ahd_outb(ahd, CLRINT, CLRSCSIINT);
 	ahd_restore_modes(ahd, saved_modes);
+	ahd->flags |= AHD_HAD_FIRST_SEL;
 }
 
 /*************************** SCB Management ***********************************/
@@ -8506,6 +8507,10 @@ ahd_dump_card_state(struct ahd_softc *ahd)
 				    ahd->saved_dst_mode));
 	if (paused)
 		printf("Card was paused\n");
+
+	if (ahd_check_cmdcmpltqueues(ahd))
+		printf("Completions are pending\n");
+
 	/*
 	 * Mode independent registers.
 	 */
