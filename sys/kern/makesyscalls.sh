@@ -316,7 +316,7 @@ s/\$//g
 		    (funcname != "nosys" || !nosys)) || \
 		    (funcname == "lkmnosys" && !lkmnosys) || \
 		    funcname == "lkmressys") {
-			printf("%s\t%s __P((struct thread *, struct %s *))",
+			printf("%s\t%s(struct thread *, struct %s *)",
 			    rettype, funcname, argalias) > sysdcl
 			printf(";\n") > sysdcl
 		}
@@ -364,7 +364,7 @@ s/\$//g
 		else if($2 != "CPT_NOA")
 			printf("struct %s {\n\tregister_t dummy;\n};\n",
 			    argalias) > sysarg
-		printf("%s\to%s __P((struct thread *, struct %s *));\n",
+		printf("%s\to%s(struct thread *, struct %s *);\n",
 		    rettype, funcname, argalias) > syscompatdcl
 		printf("\t{ compat(%s%s,%s) },",
 		    mpsafe, argssize, funcname) > sysent
