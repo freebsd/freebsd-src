@@ -11,7 +11,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *	This product includes software developed by the University of
  *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.h	8.2 (Berkeley) 10/31/94
+ *
  *	$Id$
  */
 
@@ -103,7 +104,7 @@ extern struct radix_mask {
 		m = rn_mkfreelist; \
 		rn_mkfreelist = (m)->rm_mklist; \
 	} else \
-		m = (struct radix_mask *)rtmalloc(sizeof (*(m)), "MKGet"); }\
+		m = (struct radix_mask *)rtmalloc(sizeof(*(m)), "MKGet"); }\
 
 #define MKFree(m) { (m)->rm_mklist = rn_mkfreelist; rn_mkfreelist = (m);}
 
@@ -135,17 +136,18 @@ struct radix_node_head {
 };
 
 
-#define Bcmp(a, b, n) bcmp(((char *)(a)), ((char *)(b)), (n))
-#define Bcopy(a, b, n) bcopy(((char *)(a)), ((char *)(b)), (unsigned)(n))
-#define Bzero(p, n) bzero((char *)(p), (int)(n));
-#define Free(p) free((char *)p);
+#define Bcmp(a, b, n) memcmp(((void *)(a)), ((void *)(b)), (n))
+#define Bcopy(a, b, n) memmove(((void *)(b)), ((void *)(a)), (size_t)(n))
+#define Bzero(p, n) memset((void *)(p), 0, (size_t)(n));
+#define Free(p) free((void *)p);
 
 void	 rn_init __P((void));
 int	 rn_inithead __P((void **, int));
 int	 rn_refines __P((void *, void *));
 int	 rn_walktree __P((struct radix_node_head *,
-		     int (*)__P((struct radix_node *, struct walkarg*)),
-		     struct walkarg*));
+		     int (*)__P((struct radix_node *, struct walkarg *)),
+		     struct walkarg *));
+
 struct radix_node
 	 *rn_addmask __P((void *, int, int)),
 	 *rn_addroute __P((void *, void *, struct radix_node_head *,
@@ -157,5 +159,7 @@ struct radix_node
 	 *rn_newpair __P((void *, int, struct radix_node[2])),
 	 *rn_search __P((void *, struct radix_node *)),
 	 *rn_search_m __P((void *, struct radix_node *, void *));
+
+struct radix_node *rn_lookup __P((void *, void *, struct radix_node_head *));
 
 #endif /* __RADIX_H_ */
