@@ -479,7 +479,7 @@ error_exit(int exitval, const char *fmt, ...)
 
 		signal(SIGCHLD, SIG_IGN);	/* remove handler */
 		
-		sprintf(sbuffer, "%s%s%s%s%s%s%s%s",
+		snprintf(sbuffer, sizeof(sbuffer), "%s%s%s%s%s%s%s%s",
 			"cat << ENDOFDATA | ",
 			mailer,
 			" -s \"i4b isdnd: fatal error, terminating\" ",
@@ -773,7 +773,7 @@ reopenfiles(int dummy)
 	        {
 	        	char filename[MAXPATHLEN];
 
-	        	sprintf(filename, "%s%s", acctfile, rotatesuffix);
+	        	snprintf(filename, sizeof(filename), "%s%s", acctfile, rotatesuffix);
 
 			if((rename(acctfile, filename)) != 0)
 			{
@@ -800,7 +800,7 @@ reopenfiles(int dummy)
 	        {
 	        	char filename[MAXPATHLEN];
 
-	        	sprintf(filename, "%s%s", logfile, rotatesuffix);
+	        	snprintf(filename, sizeof(filename), "%s%s", logfile, rotatesuffix);
 
 			if((rename(logfile, filename)) != 0)
 			{
