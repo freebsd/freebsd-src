@@ -62,6 +62,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -102,7 +103,6 @@
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
 #include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
-#include <machine/globaldata.h>
 #include <machine/globals.h>
 #include <machine/intrcnt.h>
 #ifdef PERFMON
@@ -437,9 +437,8 @@ again:
 	bufinit();
 	vm_pager_bufferinit();
 
-#ifdef SMP
 	globaldata_register(GLOBALDATA);
-#else
+#ifndef SMP
 	/* For SMP, we delay the cpu_setregs() until after SMP startup. */
 	cpu_setregs();
 #endif
