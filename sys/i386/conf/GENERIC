@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.148 1999/02/11 06:07:27 jkoshy Exp $
+#	$Id: GENERIC,v 1.149 1999/02/14 12:00:00 nsouch Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -194,9 +194,11 @@ pseudo-device	gzip		# Exec gzipped a.out's
 # the costs of each syscall.
 options		KTRACE		#kernel tracing
 
-# This provides support for System V shared memory.
+# This provides support for System V shared memory and message queues.
 #
-options		SYSVSHM
+options         SYSVSHM
+options         SYSVMSG
+
 
 #  The `bpfilter' pseudo-device enables the Berkeley Packet Filter.  Be
 #  aware of the legal and administrative consequences of enabling this
