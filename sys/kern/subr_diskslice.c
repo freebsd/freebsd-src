@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.28 1996/08/02 06:14:25 peter Exp $
+ *	$Id: subr_diskslice.c,v 1.29 1996/09/20 17:39:20 bde Exp $
  */
 
 #include <sys/param.h>
@@ -583,6 +583,8 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 	struct bdevsw *bdevsw;
 	struct cdevsw *cdevsw;
 {
+	struct dkbad *btp;
+	dev_t	dev1;
 	int	error;
 	struct disklabel *lp1;
 	char	*msg;
@@ -631,8 +633,8 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 				= lp->d_secperunit;
 
 		/* Point the compatibility slice at the BSD slice, if any. */
-		for (slice = BASE_SLICE, sp = &ssp->dss_slices[BASE_SLICE];
-		     slice < ssp->dss_nslices; slice++, sp++)
+		for (slice = BASE_SLICE; slice < ssp->dss_nslices; slice++) {
+			sp = &ssp->dss_slices[slice];
 			if (sp->ds_type == DOSPTYP_386BSD /* XXX */) {
 				ssp->dss_first_bsd_slice = slice;
 				ssp->dss_slices[COMPATIBILITY_SLICE].ds_offset
@@ -643,6 +645,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 					= sp->ds_type;
 				break;
 			}
+		}
 
 		lp1 = malloc(sizeof *lp1, M_DEVBUF, M_WAITOK);
 		*lp1 = *lp;
@@ -675,82 +678,88 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 		}
 	}
 
-	slice = dkslice(dev);
-	if (slice >= ssp->dss_nslices)
-		return (ENXIO);
-	sp = &ssp->dss_slices[slice];
-	part = dkpart(dev);
 	unit = dkunit(dev);
-#ifdef DEVFS
-	if (slice >= BASE_SLICE && sp->ds_bdev == NULL && sp->ds_size != 0) {
-		mynor = minor(dkmodpart(dev, RAW_PART));
+
+	/*
+	 * Initialize secondary info for all slices.  It is needed for more
+	 * than the current slice in the DEVFS case.
+	 */
+	for (slice = 0; slice < ssp->dss_nslices; slice++) {
+		sp = &ssp->dss_slices[slice];
+		if (sp->ds_label != NULL)
+			continue;
+		dev1 = dkmodslice(dkmodpart(dev, RAW_PART), slice);
 		sname = dsname(dname, unit, slice, RAW_PART, partname);
-		sp->ds_bdev = devfs_add_devswf(bdevsw, mynor, DV_BLK,
-					       UID_ROOT, GID_OPERATOR, 0640,
-					       "%s", sname);
-		sp->ds_cdev = devfs_add_devswf(cdevsw, mynor, DV_CHR,
-					       UID_ROOT, GID_OPERATOR, 0640,
-					       "r%s", sname);
-	}
+#ifdef DEVFS
+		if (slice != COMPATIBILITY_SLICE && sp->ds_bdev == NULL
+		    && sp->ds_size != 0) {
+			mynor = minor(dev1);
+			sp->ds_bdev =
+				devfs_add_devswf(bdevsw, mynor, DV_BLK,
+						 UID_ROOT, GID_OPERATOR, 0640,
+						 "%s", sname);
+			sp->ds_cdev =
+				devfs_add_devswf(cdevsw, mynor, DV_CHR,
+						 UID_ROOT, GID_OPERATOR, 0640,
+						 "r%s", sname);
+		}
 #endif
-	if (sp->ds_label == NULL) {
+		/*
+		 * XXX this should probably only be done for the need_init
+		 * case, but there may be a problem with DIOCSYNCSLICEINFO.
+		 */
 		set_ds_wlabel(ssp, slice, TRUE);	/* XXX invert */
 		lp1 = malloc(sizeof *lp1, M_DEVBUF, M_WAITOK);
 		*lp1 = *lp;
-		lp = lp1;
 		TRACE(("readdisklabel\n"));
-		msg = readdisklabel(dkmodpart(dev, RAW_PART), strat, lp);
+		msg = readdisklabel(dev1, strat, lp1);
 #if 0 /* XXX */
-		if (msg == NULL && setgeom != NULL && setgeom(lp) != 0)
+		if (msg == NULL && setgeom != NULL && setgeom(lp1) != 0)
 			msg = "setgeom failed";
 #endif
-		sname = dsname(dname, unit, slice, RAW_PART, partname);
 		if (msg == NULL)
-			msg = fixlabel(sname, sp, lp, FALSE);
+			msg = fixlabel(sname, sp, lp1, FALSE);
 		if (msg != NULL) {
-			free(lp, M_DEVBUF);
+			free(lp1, M_DEVBUF);
 			if (sp->ds_type == DOSPTYP_386BSD /* XXX */)
 				log(LOG_WARNING, "%s: cannot find label (%s)\n",
 				    sname, msg);
-			if (part == RAW_PART)
-				goto out;
-			return (EINVAL);	/* XXX needs translation */
+			continue;
 		}
-		if (lp->d_flags & D_BADSECT) {
-			struct dkbad *btp;
-
+		if (lp1->d_flags & D_BADSECT) {
 			btp = malloc(sizeof *btp, M_DEVBUF, M_WAITOK);
 			TRACE(("readbad144\n"));
-			msg = readbad144(dev, strat, lp, btp);
+			msg = readbad144(dev1, strat, lp1, btp);
 			if (msg != NULL) {
 				log(LOG_WARNING,
 				    "%s: cannot find bad sector table (%s)\n",
 				    sname, msg);
 				free(btp, M_DEVBUF);
-				free(lp, M_DEVBUF);
-				if (part == RAW_PART)
-					goto out;
-				return (EINVAL);  /* XXX needs translation */
+				free(lp1, M_DEVBUF);
+				continue;
 			}
-			set_ds_bad(ssp, slice, internbad144(btp, lp));
+			set_ds_bad(ssp, slice, internbad144(btp, lp1));
 			free(btp, M_DEVBUF);
 			if (sp->ds_bad == NULL) {
-				free(lp, M_DEVBUF);
-				if (part == RAW_PART)
-					goto out;
-				return (EINVAL);  /* XXX needs translation */
+				free(lp1, M_DEVBUF);
+				continue;
 			}
 		}
-		set_ds_label(ssp, slice, lp);
+		set_ds_label(ssp, slice, lp1);
 #ifdef DEVFS
-		set_ds_labeldevs(dname, dev, ssp);
+		set_ds_labeldevs(dname, dev1, ssp);
 #endif
 		set_ds_wlabel(ssp, slice, FALSE);
 	}
+
+	slice = dkslice(dev);
+	if (slice >= ssp->dss_nslices)
+		return (ENXIO);
+	sp = &ssp->dss_slices[slice];
+	part = dkpart(dev);
 	if (part != RAW_PART
 	    && (sp->ds_label == NULL || part >= sp->ds_label->d_npartitions))
 		return (EINVAL);	/* XXX needs translation */
-out:
 	mask = 1 << part;
 	switch (mode) {
 	case S_IFBLK:
@@ -990,6 +999,8 @@ set_ds_labeldevs(dname, dev, ssp)
 	int	slice;
 
 	set_ds_labeldevs_unaliased(dname, dev, ssp);
+	if (ssp->dss_first_bsd_slice == COMPATIBILITY_SLICE)
+		return;
 	slice = dkslice(dev);
 	if (slice == COMPATIBILITY_SLICE)
 		set_ds_labeldevs_unaliased(dname,
