@@ -633,11 +633,11 @@ pci/if_ax.c		optional ax
 pci/if_de.c		optional de
 pci/if_dm.c		optional dm
 pci/if_en_pci.c		optional en pci
+pci/if_fpa.c		optional fpa pci
 pci/if_fxp.c		optional fxp
 pci/if_lnc_p.c		optional lnc pci
 pci/if_mx.c		optional mx
 pci/if_pn.c		optional pn
-pci/if_fpa.c		optional fpa pci
 pci/if_rl.c		optional rl
 pci/if_sf.c		optional sf
 pci/if_sis.c		optional sis
