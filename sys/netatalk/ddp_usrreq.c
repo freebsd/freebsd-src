@@ -159,7 +159,7 @@ ddp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		return (EINVAL);
     	}
 
-	if (addr) {
+	if (addr != NULL) {
 		if (ddp->ddp_fsat.sat_port != ATADDR_ANYPORT) {
 			return (EISCONN);
 		}
@@ -178,7 +178,7 @@ ddp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 
 	s = splnet();
 	error = ddp_output(m, so);
-	if (addr) {
+	if (addr != NULL) {
 	    at_pcbdisconnect(ddp);
 	}
 	splx(s);
