@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.14 1995/08/04 05:49:17 davidg Exp $
+ * $Id: ffs_inode.c,v 1.15 1995/08/16 13:16:58 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -222,6 +222,8 @@ ffs_truncate(ap)
 		oip->i_size = length;
 		if (aflags & B_SYNC)
 			bwrite(bp);
+		else if (ovp->v_mount->mnt_flag & MNT_ASYNC)
+			bdwrite(bp);
 		else
 			bawrite(bp);
 		vnode_pager_setsize(ovp, (u_long)length);
@@ -252,6 +254,8 @@ ffs_truncate(ap)
 		allocbuf(bp, size);
 		if (aflags & B_SYNC)
 			bwrite(bp);
+		else if (ovp->v_mount->mnt_flag & MNT_ASYNC)
+			bdwrite(bp);
 		else
 			bawrite(bp);
 	}
