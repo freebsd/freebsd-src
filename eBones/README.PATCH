@@ -1,25 +1,24 @@
-READ THIS ENTIRE FILE BEFORE PROCEEDING!
+IMPORTANT!
 
-This distribution contains a "diff" file suitable for using with the
-"patch" program to update your Kerberos (version 4) source tree. The
-gist of the patch is to replace calls to des_random_key() with calls
-to des_new_random_key().
+This distribution includes a patch (already applied), that updates
+Kerberos' key generation. The gist of the patch is to replace calls
+to des_random_key() with calls to des_new_random_key().
 
 The primary difference is that des_random_key() uses a seeding
-technique which is predictable and therefore
-vulnerable. des_new_random_key() uses a feedback mechanism based on
-the Data Encryption Standard (DES) and is seeded with a secret (and
-therefore unknown to an attacker) value. This value is the database
-master key, which is a convenient secret value.
+technique which is predictable and therefore vulnerable.
+des_new_random_key() uses a feedback mechanism based on the Data
+Encryption Standard (DES) and is seeded with a secret (and therefore
+unknown to an attacker) value. This value is the database master
+key, which is a convenient secret value.
 
-This patch assumes that you have the new_rnd_key.c key module (which
-contains the definition and code for des_new_random_key()). It has
-been part of the standard Version 4 distribution since 1992 and is
-used in the admin server (our primary error at MIT was not upgrading
-all of Kerberos to use this newer generator. This patch finishes the
-job).
+This patch uses the new_rnd_key.c key module (which contains the
+definition and code for des_new_random_key()). It has been part of
+the standard Version 4 distribution since 1992 (and was recreated
+for FreeBSD in 1995). This is used in the MIT admin server (the
+primary error at MIT was not upgrading all of Kerberos to use this
+newer generator. This patch finishes the job).
 
-In addition to the patch file for the Kerberos distribution this
+In addition to the patch for the Kerberos distribution this
 distribution also contains a program for changing critical system keys
 (namely the "krbtgt" and "changepw.kerberos" keys). When you
 originally built your Kerberos database these keys were chosen at
@@ -30,31 +29,24 @@ to guess these values. If an attacker can determine the key for the
 kerberos principal. Similarly if an attacker can obtain the
 "changepw.kerberos" key, they can change anyone's password.
 
-The enclosed "fix_kdb_keys.c" (part of the patch file) program, which
-you run on the KDC server, will change these critical keys to new
-values using the newer random number generator. IMPORTANT: When you
-run fix_kdb_keys, all outstanding ticket granting tickets will
-immediately become invalid. This will be disruptive to your user
-community. We recommend that you either do this late at night or early
-in the morning before most users have logged in. Alternatively
-pre-announce a definitive time when you will run the program and
-inform your users that they will have to get new tickets at that time
-(using either "kinit" or simply by logging out and then in again).
+The new "fix_kdb_keys(8)" program, which you run on the KDC
+server, will change these critical keys to new values using the
+newer random number generator. IMPORTANT: When you run fix_kdb_keys,
+all outstanding ticket granting tickets will immediately become
+invalid. This will be disruptive to your user community. We recommend
+that you either do this late at night or early in the morning before
+most users have logged in. Alternatively pre-announce a definitive
+time when you will run the program and inform your users that they
+will have to get new tickets at that time (using either "kinit" or
+simply by logging out and then in again).
 
-NOTE: The only client program modified is "ksrvutil" which is used to
-generate new server keys. All other client/server programs are
-unaffected. End users do *not* need to obtain new versions of programs
-that use Kerberos. This is because most random number generation in
-the Kerberos system is done on the KDC system. By fixing kerberos.c
-you have repaired most of the damage.
+NOTE: The only client program modified is "ksrvutil" which is used
+to generate new server keys. All other client/server programs are
+unaffected. End users do *not* need to obtain new versions of
+programs that use Kerberos. This is because most random number
+generation in the Kerberos system is done on the KDC system.
 
-To install this patch copy patch_krb to the toplevel of your Kerberos
-source tree. Then type:
-
-patch -p0 <patch_krb
-
-This will install changes to various kerberos modules to upgrade them
-to use des_new_random_key(). It also will install a new program,
-"fix_kdb_keys.c." After the patch is complete type "make world" at the
-toplevel of your Kerberos source tree. This will, among other things,
-build the fix_kdb_keys program.
+After getting these sources, type "make world" at the toplevel of
+your source tree. This will, among other things, build the fix_kdb_keys
+program. This is not necessary if you have already got prebuilt
+binaries with this distribution.
