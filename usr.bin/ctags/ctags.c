@@ -44,11 +44,14 @@ static char sccsid[] = "@(#)ctags.c	8.4 (Berkeley) 2/7/95";
 #endif
 
 #include <sys/cdefs.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <limits.h>
 #include <locale.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -94,7 +97,6 @@ main(int argc, char **argv)
 	int	exit_val;			/* exit value */
 	int	step;				/* step through args */
 	int	ch;				/* getopts char */
-	char	*cmd;
 
 	setlocale(LC_ALL, "");
 
@@ -164,16 +166,38 @@ main(int argc, char **argv)
 			put_entries(head);
 		else {
 			if (uflag) {
+				FILE *oldf;
+				regex_t *regx;
+
+				if ((oldf = fopen(outfile, "r")) == NULL)
+					err(1, "opening %s", outfile);
+				if (unlink(outfile))
+					err(1, "unlinking %s", outfile);
+				if ((outf = fopen(outfile, "w")) == NULL)
+					err(1, "recreating %s", outfile);
+				if ((regx = calloc(argc, sizeof(regex_t))) == NULL)
+					err(1, "RE alloc");
 				for (step = 0; step < argc; step++) {
-					(void)asprintf(&cmd,
-					    "mv %s OTAGS; fgrep -v '\t%s\t' OTAGS >%s; rm OTAGS",
-					    outfile, argv[step], outfile);
-					if (cmd == NULL)
-						err(1, "out of space");
-					system(cmd);
-					free(cmd);
-					cmd = NULL;
+					(void)strcpy(lbuf, "\t");
+					(void)strlcat(lbuf, argv[step], LINE_MAX);
+					(void)strlcat(lbuf, "\t", LINE_MAX);
+					if (regcomp(regx + step, lbuf,
+					    REG_NOSPEC))
+						warn("RE compilation failed");
 				}
+nextline:
+				while (fgets(lbuf, LINE_MAX, oldf)) {
+					for (step = 0; step < argc; step++)
+						if (regexec(regx + step,
+						    lbuf, 0, NULL, 0) == 0)
+							goto nextline;
+					fputs(lbuf, outf);
+				}
+				for (step = 0; step < argc; step++)
+					regfree(regx + step);
+				free(regx);
+				fclose(oldf);
+				fclose(outf);
 				++aflag;
 			}
 			if (!(outf = fopen(outfile, aflag ? "a" : "w")))
@@ -181,13 +205,18 @@ main(int argc, char **argv)
 			put_entries(head);
 			(void)fclose(outf);
 			if (uflag) {
-				(void)asprintf(&cmd, "sort -o %s %s",
-				    outfile, outfile);
-				if (cmd == NULL)
-					err(1, "out of space");
-				system(cmd);
-				free(cmd);
-				cmd = NULL;
+				pid_t pid;
+
+				if ((pid = fork()) == -1)
+					err(1, "fork failed");
+				else if (pid == 0) {
+					execlp("sort", "sort", "-o", outfile,
+					    outfile, NULL);
+					err(1, "exec of sort failed");
+				}
+				/* Just assume the sort went OK. The old code
+				   did not do any checks either. */
+				(void)wait(NULL);
 			}
 		}
 	}
