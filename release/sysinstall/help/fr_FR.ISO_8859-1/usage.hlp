@@ -13,7 +13,7 @@ ENTRÉE          Sélectionne la rubrique.
 ESC             Lance un sous-shell (pour diagnostics). Exit sort du shell.
 PAGE PRÉC.      Remonte d'une page, dans les boîtes de texte.
 PAGE SUIV.      Descend d'une page, dans les boîtes de texte.
-ESPACE		Sélectionne/désélectionne l'élément (menus à choix multiples).
+ESPACE          Sélectionne/désélectionne l'élément (menus à choix multiples).
 F1              Aide (pour les écrans qui en proposent).
 
 De même, des symboles du genre "^(-)" ou "v(+)" sur les côtés d'un menu, 
