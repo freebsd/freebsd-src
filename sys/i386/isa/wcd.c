@@ -836,7 +836,8 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 			data.what.position.reladdr.lba = rellba;
 		}
 		data.header.audio_status = t->subchan.audio_status;
-		data.what.position.control = t->subchan.control & 0xf;
+		data.what.position.control = t->subchan.control >> 4;
+		data.what.position.addr_type = t->subchan.control & 0xf;
 		data.what.position.track_number = t->subchan.track;
 		data.what.position.index_number = t->subchan.indx;
 
@@ -1032,7 +1033,7 @@ err:            bzero (&t->toc, sizeof (t->toc));
 	if (t->info.volsize && t->toc.hdr.ending_track &&
 	    (t->flags & F_MEDIA_CHANGED) && (t->flags & F_DEBUG)) {
 		printf ("wcd%d: ", t->lun);
-		if (t->toc.tab[0].control & 4)
+		if (t->toc.tab[0].addr_type & 4)
 			printf ("%ldMB ", t->info.volsize / 512);
 		else
 			printf ("%ld:%ld audio ", t->info.volsize/75/60,
