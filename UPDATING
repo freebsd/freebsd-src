@@ -19,7 +19,7 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 
 20030711:
 	gcc was upgraded to 3.3.  You are advised to not build -DNOCLEAN
-	accross this point.  Further, it might be a good idea to remove
+	across this point.  Further, it might be a good idea to remove
 	/usr/obj.
 
 20030613: [retrospective]
