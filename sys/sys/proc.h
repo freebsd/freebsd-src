@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.5 1994/08/24 11:51:46 sos Exp $
+ * $Id: proc.h,v 1.6 1994/08/25 22:59:35 wollman Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -97,7 +97,7 @@ struct	proc {
 
 	int	p_flag;			/* P_* flags. */
 	char	p_stat;			/* S* process status. */
-	char	p_lock;			/* process lock count */
+	char	p_lock;			/* Process lock count. */
 	char	p_pad1[2];
 
 	pid_t	p_pid;			/* Process identifier. */
@@ -135,8 +135,7 @@ struct	proc {
 
 	struct	vnode *p_textvp;	/* Vnode of executable. */
 
-	long	p_spare[4];		/* pad to 256, avoid shifting eproc. */
-
+	long	p_spare[4];		/* Pad to 256, avoid shifting eproc. */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy
@@ -155,7 +154,7 @@ struct	proc {
 
 	struct 	pgrp *p_pgrp;	/* Pointer to process group. */
 
-	struct sysentvec *p_sysent; /* system call dispatch information */
+	struct 	sysentvec *p_sysent; /* System call dispatch information. */
 
 /* End area that is copied on creation. */
 #define	p_endcopy	p_thread
@@ -242,8 +241,8 @@ extern struct proc proc0;		/* Process slot for swapper. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int pidhashmask;			/* In param.c. */
 
-extern volatile struct proc *allproc; /* List of active procs. */
-extern struct proc *zombproc;	/* List of zombie procs. */
+extern volatile struct proc *allproc;	/* List of active procs. */
+extern struct proc *zombproc;		/* List of zombie procs. */
 extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 
 #define	NQS	32			/* 32 run queues. */
@@ -253,9 +252,9 @@ struct	prochd {
 	struct	proc *ph_rlink;
 } qs[NQS];
 
+int	chgproccnt __P((uid_t, int));
 struct proc *pfind __P((pid_t));	/* Find process by id. */
 struct pgrp *pgfind __P((pid_t));	/* Find process group by id. */
-
 void	mi_switch __P((void));
 void	resetpriority __P((struct proc *));
 void	setrunnable __P((struct proc *));
@@ -265,7 +264,6 @@ int	tsleep __P((void *chan, int pri, char *wmesg, int timo));
 void	unsleep __P((struct proc *));
 void	wakeup __P((void *chan));
 
-extern int chgproccnt(uid_t, int);
-
 #endif	/* KERNEL */
+
 #endif	/* !_SYS_PROC_H_ */
