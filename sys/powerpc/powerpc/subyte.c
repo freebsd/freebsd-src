@@ -28,7 +28,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $NetBSD: subyte.c,v 1.2 2000/06/09 14:05:47 kleink Exp $	*/
+ * $NetBSD: subyte.c,v 1.2 2000/06/09 14:05:47 kleink Exp $
  */
 
 #ifndef lint

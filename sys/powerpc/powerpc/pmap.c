@@ -28,7 +28,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $NetBSD: pmap.c,v 1.28 2000/03/26 20:42:36 kleink Exp $	*/
+ * $NetBSD: pmap.c,v 1.28 2000/03/26 20:42:36 kleink Exp $
  */
 /*
  * Copyright (C) 2001 Benno Rice.
@@ -1461,9 +1461,8 @@ pmap_activate(struct proc *p)
 
 	if (p == curproc) {
 		/* Disable interrupts while switching. */
-		__asm __volatile("mfmsr %0" : "=r"(psl) :);
-		psl &= ~PSL_EE;
-		__asm __volatile("mtmsr %0" :: "r"(psl));
+		psl = mfmsr();
+		mtmsr(psl & ~PSL_EE);
 
 #if 0 /* XXX */
 		/* Store pointer to new current pmap. */
@@ -1488,8 +1487,7 @@ pmap_activate(struct proc *p)
 		__asm __volatile("mtsr 14,%0" :: "r"(ksr));
 
 		/* Interrupts are OK again. */
-		psl |= PSL_EE;
-		__asm __volatile("mtmsr %0" :: "r"(psl));
+		mtmsr(psl);
 	}
 }
 
@@ -1663,14 +1661,6 @@ pmap_swapout_proc(struct proc *p)
 }
 
 void
-pmap_new_proc(struct proc *p)
-{
-
-	/* XXX: coming soon... */
-	return;
-}
-
-void
 pmap_pageable(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, boolean_t pageable)
 {
 
@@ -1744,4 +1734,78 @@ pmap_steal_memory(vm_size_t size)
 
 	bzero((caddr_t) pa, size);
 	return pa;
+}
+
+/*
+ * Create the UPAGES for a new process.
+ * This routine directly affects the fork perf for a process.
+ */
+void
+pmap_new_proc(struct proc *p)
+{
+	int		i;
+	vm_object_t	upobj;
+	vm_page_t	m;
+	struct user	*up;
+	pte_t		pte;
+	sr_t		sr;
+	int		idx;
+
+	/*
+	 * allocate object for the upages
+	 */
+	if ((upobj = p->p_upages_obj) == NULL) {
+		upobj = vm_object_allocate( OBJT_DEFAULT, UPAGES);
+		p->p_upages_obj = upobj;
+	}
+
+	/* get a kernel virtual address for the UPAGES for this proc */
+	if ((up = p->p_addr) == NULL) {
+		up = (struct user *) kmem_alloc_nofault(kernel_map,
+				UPAGES * PAGE_SIZE);
+		if (up == NULL)
+			panic("pmap_new_proc: u_map allocation failed");
+		p->p_addr = up;
+	}
+
+	for(i=0;i<UPAGES;i++) {
+		vm_offset_t	va;
+
+		/*
+		 * Get a kernel stack page
+		 */
+		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+
+		/*
+		 * Wire the page
+		 */
+		m->wire_count++;
+		cnt.v_wire_count++;
+
+		/*
+		 * Enter the page into the kernel address space.
+		 */
+		va = (vm_offset_t)(up + i * PAGE_SIZE);
+		idx = pteidx(sr = ptesr(kernel_pmap->pm_sr, va), va);
+
+		pte.pte_hi = ((sr & SR_VSID) << PTE_VSID_SHFT)
+		    | ((va & ADDR_PIDX) >> ADDR_API_SHFT);
+		pte.pte_lo = (VM_PAGE_TO_PHYS(m) & PTE_RPGN) | PTE_M | PTE_I |
+		    PTE_G | PTE_RW;
+
+		if (!pte_insert(idx, &pte)) {
+			struct pte_ovfl	*po;
+
+			po = poalloc();
+			po->po_pte = pte;
+			LIST_INSERT_HEAD(potable + idx, po, po_list);
+		}
+
+		tlbie(va);
+
+		vm_page_wakeup(m);
+		vm_page_flag_clear(m, PG_ZERO);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+		m->valid = VM_PAGE_BITS_ALL;
+	}
 }
