@@ -221,7 +221,10 @@ o EISA Shared interrupts are now supported, working with the framework
 
 o Support for the Comtrol Rocketport card.
 
-o IPFW's packet and byte counters have been expanded from 32 to 64 bits.
+o IPFW's packet and byte counters have been expanded from 32 to 64 bits,
+  a `FWD' operation has been added to ipfw to support transparent
+  proxying and the divert operation has changed slightly - see the man
+  pages for natd(8) and ipfw(8) for more information.
 
 o New Plug and Play (PnP) support that allows you to (re)configure PnP
   devices.  Also support modems being detected by the PnP part and
