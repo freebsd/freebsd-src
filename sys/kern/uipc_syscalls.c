@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.42 1998/11/05 14:28:24 dg Exp $
+ * $Id: uipc_syscalls.c,v 1.43 1998/11/06 19:16:30 dg Exp $
  */
 
 #include "opt_compat.h"
@@ -1555,13 +1555,13 @@ retry_lookup:
 			auio.uio_offset = trunc_page(off);
 			auio.uio_segflg = UIO_NOCOPY;
 			auio.uio_rw = UIO_READ;
-			auio.uio_procp = curproc;
+			auio.uio_procp = p;
 			vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, p);
 			error = VOP_READ(vp, &auio, IO_VMIO | ((MAXBSIZE / bsize) << 16),
 			        p->p_ucred);
 			VOP_UNLOCK(vp, 0, p);
-			vm_page_io_finish(pg);
 			vm_page_flag_clear(pg, PG_ZERO);
+			vm_page_io_finish(pg);
 			if (error) {
 				vm_page_unwire(pg, 0);
 				/*
