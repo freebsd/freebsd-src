@@ -134,8 +134,8 @@ dec_kn20aa_cons_init()
 		sccnattach();
 #else
 		panic("not configured to use display && keyboard console");
-		break;
 #endif
+		break;
 
 	default:
 		printf("ctb->ctb_term_type = 0x%lx\n", ctb->ctb_term_type);
