@@ -31,14 +31,12 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #if defined(LIBC_SCCS) && !defined(lint)
-#if 0
 static char sccsid[] = "@(#)initgroups.c	8.1 (Berkeley) 6/4/93";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
-#endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
 
@@ -51,7 +49,7 @@ static const char rcsid[] =
 int
 initgroups(uname, agroup)
 	const char *uname;
-	int agroup;
+	gid_t agroup;
 {
 	int groups[NGROUPS], ngroups;
 

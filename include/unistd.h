@@ -140,7 +140,7 @@ int	 ftruncate __P((int, off_t));
 #endif
 int	 getdomainname __P((char *, int));
 int	 getdtablesize __P((void));
-int	 getgrouplist __P((const char *, int, int *, int *));
+int	 getgrouplist __P((const char *, gid_t, gid_t *, int *));
 long	 gethostid __P((void));
 int	 gethostname __P((char *, int));
 int	 getlogin_r __P((char *, int));
@@ -154,7 +154,7 @@ int	 getresuid __P((uid_t *, uid_t *, uid_t *));
 int	 getsid __P((pid_t _pid));
 char	*getusershell __P((void));
 char	*getwd __P((char *));			/* obsoleted by getcwd() */
-int	 initgroups __P((const char *, int));
+int	 initgroups __P((const char *, gid_t));
 int	 iruserok __P((unsigned long, int, const char *, const char *));
 int	 iruserok_sa __P((const void *, int, int, const char *, const char *));
 int	 issetugid __P((void));

@@ -43,7 +43,7 @@
 .Sh SYNOPSIS
 .In unistd.h
 .Ft int
-.Fn getgrouplist "const char *name" "int basegid" "int *groups" "int *ngroups"
+.Fn getgrouplist "const char *name" "gid_t basegid" "gid_t *groups" "int *ngroups"
 .Sh DESCRIPTION
 The
 .Fn getgrouplist
@@ -56,7 +56,7 @@ is automatically included in the groups list.
 Typically this value is given as
 the group number from the password file.
 .Pp
-The resulting group list is returned in the integer array pointed to by
+The resulting group list is returned in the array pointed to by
 .Fa groups .
 The caller specifies the size of the
 .Fa groups
