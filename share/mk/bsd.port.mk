@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.96 1995/01/05 02:15:05 jkh Exp $
+# $Id: bsd.port.mk,v 1.97 1995/01/05 08:15:53 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -516,9 +516,8 @@ makesum: fetch
 checksum: fetch
 	@if [ ! -f ${MD5_FILE} ]; then \
 		echo ">> No MD5 checksum file."; \
-		exit 1; \
-	fi
-	@(cd ${DISTDIR}; \
+	else \
+		(cd ${DISTDIR}; \
 	for file in ${DISTFILES}; do \
 		CKSUM=`${MD5} $$file | awk '{print $$4}'`; \
 		CKSUM2=`grep "($$file)" ${MD5_FILE} | awk '{print $$4}'`; \
@@ -526,8 +525,9 @@ checksum: fetch
 			echo ">> Checksum mismatch for $$file"; \
 			exit 1; \
 		fi; \
-	done)
-	@echo "Checksums OK."
+		done); \
+		echo "Checksums OK."; \
+	fi
 .endif
 
 .if !target(pre-extract)
@@ -540,9 +540,10 @@ pre-extract:
 # because if the user interrupts the extract in the middle (and it's often
 # a long procedure), we get tricked into thinking that we've got a good dist
 # in ${WRKDIR}.
-extract: fetch pre-extract ${EXTRACT_COOKIE}
+extract: fetch ${EXTRACT_COOKIE}
 
 ${EXTRACT_COOKIE}:
+	@${MAKE} ${.MAKEFLAGS} checksum pre-extract
 	@echo "===>  Extracting for ${DISTNAME}"
 	@rm -rf ${WRKDIR}
 	@mkdir -p ${WRKDIR}
