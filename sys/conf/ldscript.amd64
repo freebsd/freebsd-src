@@ -65,10 +65,14 @@ SECTIONS
     CONSTRUCTORS
   }
   .data1   : { *(.data1) }
+  _start_ctors = .;
+  PROVIDE (start_ctors = .);
   .ctors         :
   {
     *(.ctors)
   }
+  _stop_ctors = .;
+  PROVIDE (stop_ctors = .);
   .dtors         :
   {
     *(.dtors)
