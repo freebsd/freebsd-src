@@ -28,7 +28,7 @@ LIB=		pam_unix
 SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_unix.c pw_copy.c pw_yp.c pw_util.c ypxfr_misc.c ${GENSRCS}
 CFLAGS+=	-DYP -Dyp_error=warnx \
-		-I${.OBJDIR} \
+		-I. \
 		-I${.CURDIR}/../../../../libexec/ypxfr \
 		-I${.CURDIR}/../../../../usr.sbin/vipw \
 		-I${.CURDIR}/../../../../usr.bin/chpass \
