@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)nec765.h	7.1 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: nec765.h,v 1.6 1997/02/22 09:38:04 peter Exp $
  */
 
 /*
@@ -126,6 +126,7 @@
  */
 #define NE7CMD_VERSION	0x10	/*  version (ok for all controllers) */
 
+#define I8207X_CONFIGURE 0x13   /*  configure enhanced features */
 
 /*
  * "specify" definitions
