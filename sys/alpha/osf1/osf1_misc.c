@@ -1070,15 +1070,20 @@ osf1_setuid(p, uap)
 	    uid != pc->p_ruid && uid != pc->p_svuid)
 		return (error);
 
-	pc->pc_ucred = crcopy(pc->pc_ucred);
-	pc->pc_ucred->cr_uid = uid;
 	if (error == 0) {
-		(void)chgproccnt(pc->p_ruid, -1, 0);
-		(void)chgproccnt(uid, 1, 0);
-		pc->p_ruid = uid;
-		pc->p_svuid = uid;
+		if (uid != pc->p_ruid) {
+			change_ruid(p, uid);
+			setsugid(p);
+		}
+		if (pc->p_svuid != uid) {
+			pc->p_svuid = uid;
+			setsugid(p);
+		}
 	}
-	p->p_flag |= P_SUGID;
+	if (pc->pc_ucred->cr_uid != uid) {
+		change_euid(p, uid);
+		setsugid(p);
+	}
 	return (0);
 }
 
@@ -1112,7 +1117,7 @@ osf1_setgid(p, uap)
 		pc->p_rgid = gid;
 		pc->p_svgid = gid;
 	}
-	p->p_flag |= P_SUGID;
+	setsugid(p);
 	return (0);
 }
 
