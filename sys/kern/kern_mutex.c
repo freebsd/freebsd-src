@@ -88,7 +88,7 @@
 #ifdef WITNESS
 static struct mtx_debug all_mtx_debug = { NULL, {NULL, NULL}, NULL, 0,
 	"All mutexes queue head" };
-static struct mtx all_mtx = { 0, MTX_UNOWNED, 0, 0, {&all_mtx_debug},
+static struct mtx all_mtx = { MTX_UNOWNED, 0, 0, 0, {&all_mtx_debug},
 	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
 	{ NULL, NULL }, &all_mtx, &all_mtx };
 /*
@@ -97,7 +97,7 @@ static struct mtx all_mtx = { 0, MTX_UNOWNED, 0, 0, {&all_mtx_debug},
  */
 static int witness_cold = 1;
 #else	/* WITNESS */
-static struct mtx all_mtx = { 0, MTX_UNOWNED, 0, 0, {"All mutexes queue head"},
+static struct mtx all_mtx = { MTX_UNOWNED, 0, 0, 0, {"All mutexes queue head"},
 	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
 	{ NULL, NULL }, &all_mtx, &all_mtx };
 #endif	/* WITNESS */
