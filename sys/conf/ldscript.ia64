@@ -59,9 +59,9 @@ SECTIONS
   .rodata    : { *(.rodata) *(.gnu.linkonce.r*) }
   .rodata1   : { *(.rodata1) }
   .reginfo : { *(.reginfo) }
-  .IA_64.unwind_info : { *(.IA_64.unwind_info) }
+  .IA_64.unwind_info : { *(.IA_64.unwind_info*) }
   _ia64_unwind_start = .;
-  .IA_64.unwind : { *(.IA_64.unwind) }
+  .IA_64.unwind : { *(.IA_64.unwind*) }
   _ia64_unwind_end = .;
   /* Adjust the address for the data segment.  We want to adjust up to
      the same address within the page on the next page up.  */
