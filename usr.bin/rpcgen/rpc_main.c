@@ -909,7 +909,7 @@ struct commandline *cmd;
 		mkfilename = alloc(strlen("makefile.") +
 			strlen(cmd->infile) + 1);
 		temp = (char *)rindex(cmd->infile, '.');
-		strcat(mkfilename, "makefile.");
+		strcpy(mkfilename, "makefile.");
 		(void) strncat(mkfilename, cmd->infile,
 			(temp - cmd->infile));
 	} else
