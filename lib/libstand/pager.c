@@ -94,7 +94,7 @@ pager_output(const char *cp)
 	if (*(cp++) == '\n') {		/* got a newline? */
 	    p_freelines--;
 	    if (p_freelines <= 0) {
-		printf(pager_prompt1);
+		printf("%s", pager_prompt1);
 		action = 0;
 		while (action == 0) {
 		    switch(getchar()) {
