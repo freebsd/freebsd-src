@@ -1794,7 +1794,7 @@ filt_soread(struct knote *kn, long hint)
 		return (1);
 	if (kn->kn_sfflags & NOTE_LOWAT)
 		return (kn->kn_data >= kn->kn_sdata);
-	return (kn->kn_data >= so->so_rcv.sb_lowat);
+	return (so->so_rcv.sb_cc >= so->so_rcv.sb_lowat);
 }
 
 static void
