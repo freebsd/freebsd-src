@@ -2,7 +2,7 @@
 
 MAINTAINER=	des@freebsd.org
 LIB=		fetch
-WARNS?=		4
+WARNS?=		2
 CFLAGS+=	-I.
 CFLAGS+=	-DINET6
 SRCS=		fetch.c common.c ftp.c http.c file.c \
@@ -16,8 +16,6 @@ CFLAGS+=	-DWITH_SSL
 DPADD=		${LIBSSL} ${LIBCRYPTO}
 LDADD=		-lssl -lcrypto
 .endif
-
-NO_WERROR=	yes
 
 SHLIB_MAJOR=    3
 
