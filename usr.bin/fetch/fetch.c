@@ -385,7 +385,8 @@ fetch(char *URL, char *path)
     stat_end(&xs);
 
     /* Set mtime of local file */
-    if (!n_flag && us.mtime && !o_stdout) {
+    if (!n_flag && us.mtime && !o_stdout
+	&& (stat(path, &sb) != -1) && sb.st_mode & S_IFREG) {
 	struct timeval tv[2];
 	
 	fflush(of);
@@ -427,7 +428,8 @@ fetch(char *URL, char *path)
     goto done;
  failure:
     if (of && of != stdout && !R_flag && !r_flag)
-	unlink(path);
+	if (stat(path, &sb) != -1 && (sb.st_mode & S_IFREG))
+	    unlink(path);
  failure_keep:
     r = -1;
     goto done;
