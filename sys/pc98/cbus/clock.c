@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.70 1999/06/01 12:32:54 kato Exp $
+ *	$Id: clock.c,v 1.71 1999/06/24 08:32:52 kato Exp $
  */
 
 /*
@@ -815,6 +815,8 @@ calibrate_clocks(void)
 
 	if (tsc_present) 
 		old_tsc = rdtsc();
+	else
+		old_tsc = 0;		/* shut up gcc */
 
 	/*
 	 * Wait for the mc146818A seconds counter to change.  Read the i8254
