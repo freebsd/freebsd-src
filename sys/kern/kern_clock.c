@@ -47,6 +47,7 @@
 #include <sys/callout.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/ktr.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
