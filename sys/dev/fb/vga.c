@@ -1174,7 +1174,7 @@ probe_adapters(void)
     }
 
     /* remove conflicting modes if we have more than one adapter */
-    if (biosadapters > 1) {
+    if (biosadapters > 0) {
 	for (i = 0; i < biosadapters; ++i) {
 	    if (!(biosadapter[i].va_flags & V_ADP_MODECHANGE))
 		continue;
