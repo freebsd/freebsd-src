@@ -357,6 +357,14 @@ gen_rtx_CONST_INT (mode, arg)
   return (rtx) *slot;
 }
 
+rtx
+gen_int_mode (c, mode)
+     HOST_WIDE_INT c;
+     enum machine_mode mode;
+{
+  return GEN_INT (trunc_int_for_mode (c, mode));
+}
+
 /* CONST_DOUBLEs needs special handling because their length is known
    only at run-time.  */
 
@@ -2168,6 +2176,7 @@ widen_memory_access (memref, mode, offset)
       /* Similarly for the decl.  */
       else if (DECL_P (expr)
 	       && DECL_SIZE_UNIT (expr)
+	       && TREE_CODE (DECL_SIZE_UNIT (expr)) == INTEGER_CST
 	       && compare_tree_int (DECL_SIZE_UNIT (expr), size) >= 0
 	       && (! memoffset || INTVAL (memoffset) >= 0))
 	break;
@@ -5030,7 +5039,7 @@ init_emit_once (line_numbers)
      tries to use these variables.  */
   for (i = - MAX_SAVED_CONST_INT; i <= MAX_SAVED_CONST_INT; i++)
     const_int_rtx[i + MAX_SAVED_CONST_INT] =
-      gen_rtx_raw_CONST_INT (VOIDmode, i);
+      gen_rtx_raw_CONST_INT (VOIDmode, (HOST_WIDE_INT) i);
   ggc_add_rtx_root (const_int_rtx, 2 * MAX_SAVED_CONST_INT + 1);
 
   if (STORE_FLAG_VALUE >= - MAX_SAVED_CONST_INT
