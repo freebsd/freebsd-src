@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.30 1994/01/31 04:18:32 davidg Exp $
+ *	$Id: machdep.c,v 1.31 1994/01/31 10:26:55 davidg Exp $
  */
 
 #include "npx.h"
@@ -93,6 +93,7 @@ extern vm_offset_t avail_start, avail_end;
 
 static void identifycpu(void);
 static void initcpu(void);
+static int test_page(int *, int);
 
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
@@ -119,9 +120,8 @@ int _udatasel, _ucodesel;
 /*
  * Machine-dependent startup code
  */
-int boothowto = 0, Maxmem = 0;
+int boothowto = 0, Maxmem = 0, maxmem = 0, badpages = 0, physmem = 0;
 long dumplo;
-int physmem, maxmem;
 extern int bootdev;
 #ifdef SMALL
 extern int forcemaxmem;
@@ -154,7 +154,7 @@ cpu_startup()
 	 * Initialize error message buffer (at end of core).
 	 */
 
-	/* avail_end was pre-decremented in pmap_bootstrap to compensate */
+	/* avail_end was pre-decremented in init_386() to compensate */
 	for (i = 0; i < btoc(sizeof (struct msgbuf)); i++)
 		pmap_enter(pmap_kernel(), (vm_offset_t)msgbufp,
 			   avail_end + i * NBPG,
@@ -166,7 +166,9 @@ cpu_startup()
 	 */
 	printf(version);
 	identifycpu();
-	printf("real mem  = %d\n", ctob(physmem));
+	printf("real memory  = %d (%d pages)\n", ptoa(physmem), physmem);
+	if (badpages)
+		printf("bad memory   = %d (%d pages)\n", ptoa(badpages), badpages);
 
 	/*
 	 * Allocate space for system data structures.
@@ -284,7 +286,7 @@ again:
 	for (i = 1; i < ncallout; i++)
 		callout[i-1].c_next = &callout[i];
 
-	printf("avail mem = %d\n", ptoa(vm_page_free_count));
+	printf("avail memory = %d (%d pages)\n", ptoa(vm_page_free_count), vm_page_free_count);
 	printf("using %d buffers containing %d bytes of memory\n",
 		nbuf, bufpages * CLBYTES);
 
@@ -673,7 +675,7 @@ dumpsys()
 		return;
 	if ((minor(dumpdev)&07) != 1)
 		return;
-	dumpsize = physmem;
+	dumpsize = Maxmem;
 	printf("\ndumping to dev %x, offset %d\n", dumpdev, dumplo);
 	printf("dump ");
 	switch ((*bdevsw[major(dumpdev)].d_dump)(dumpdev)) {
@@ -961,7 +963,7 @@ init386(first)
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
 	int	pagesinbase, pagesinext;
-
+	int	target_page;
 
 	proc0.p_addr = proc0paddr;
 
@@ -1106,28 +1108,84 @@ init386(first)
 	 * Maxmem isn't the "maximum memory", it's the highest page of
 	 * of the physical address space. It should be "Maxphyspage".
 	 */
-	Maxmem = pagesinext + 0x100000/NBPG;
+	Maxmem = pagesinext + 0x100000/PAGE_SIZE;
 
 #ifdef MAXMEM
 	if (MAXMEM/4 < Maxmem)
 		Maxmem = MAXMEM/4;
 #endif
-	maxmem = Maxmem - 1;	/* highest page of usable memory */
-	physmem = maxmem;	/* number of pages of physmem addr space */
-
-	if (Maxmem < 2048/4) {
-		panic("Too little memory (2MB required)");
-		/* NOT REACHED */
-	}
+	physmem = pagesinbase + pagesinext;
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap (first, 0);
 
 	/*
+	 * Do simple memory test over range of extended memory that BIOS
+	 *	indicates exists. Adjust Maxmem to the highest page of
+	 *	good memory.
+	 */
+	printf("Testing memory (%dMB)...", ptoa(Maxmem)/1024/1024);
+
+	for (target_page = Maxmem - 1; target_page >= atop(first); target_page--) {
+		extern struct pte *CMAP1;
+		extern caddr_t CADDR1;
+
+		/*
+		 * map page into kernel: valid, read/write, non-cacheable
+		 */
+		*(int *)CMAP1 = PG_V | PG_KW | PG_N | ptoa(target_page);
+		tlbflush();
+
+		/*
+		 * Test for alternating 1's and 0's
+		 */
+		filli(0xaaaaaaaa, CADDR1, PAGE_SIZE/sizeof(int));
+		if (test_page((int *)CADDR1, 0xaaaaaaaa)) {
+			Maxmem = target_page;
+			badpages++;
+			continue;
+		}
+		/*
+		 * Test for alternating 0's and 1's
+		 */
+		filli(0x55555555, CADDR1, PAGE_SIZE/sizeof(int));
+		if (test_page((int *)CADDR1, 0x55555555)) {
+			Maxmem = target_page;
+			badpages++;
+			continue;
+		}
+		/*
+		 * Test for all 1's
+		 */
+		filli(0xffffffff, CADDR1, PAGE_SIZE/sizeof(int));
+		if (test_page((int *)CADDR1, 0xffffffff)) {
+			Maxmem = target_page;
+			badpages++;
+			continue;
+		}
+		/*
+		 * Test zeroing of page
+		 */
+		bzero(CADDR1, PAGE_SIZE);
+		if (test_page((int *)CADDR1, 0)) {
+			/*
+			 * test of page failed
+			 */
+			Maxmem = target_page;
+			badpages++;
+			continue;
+		}
+	}
+	printf("done.\n");
+		
+	maxmem = Maxmem - 1;	/* highest page of usable memory */
+	avail_end = (maxmem << PAGE_SHIFT) - i386_round_page(sizeof(struct msgbuf));
+
+	/*
 	 * Initialize pointers to the two chunks of memory; for use
 	 *	later in vm_page_startup.
 	 */
-	/* avail_start and avail_end are initialized in pmap_bootstrap */
+	/* avail_start is initialized in pmap_bootstrap */
 	x = 0;
 	if (pagesinbase > 1) {
 		phys_avail[x++] = NBPG;		/* skip first page of memory */
@@ -1171,6 +1229,20 @@ init386(first)
 	bcopy(&sigcode, proc0.p_addr->u_pcb.pcb_sigc, szsigcode);
 	proc0.p_addr->u_pcb.pcb_flags = 0;
 	proc0.p_addr->u_pcb.pcb_ptd = IdlePTD;
+}
+
+int
+test_page(address, pattern)
+	int *address;
+	int pattern;
+{
+	int *x;
+
+	for (x = address; x < (int *)((char *)address + PAGE_SIZE); x++) {
+		if (*x != pattern)
+			return (1);
+	}
+	return(0);
 }
 
 /*aston() {
