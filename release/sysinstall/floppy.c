@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.7.2.13 1996/05/24 06:08:33 jkh Exp $
+ * $Id: floppy.c,v 1.7.2.14 1996/07/03 01:31:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -121,7 +121,7 @@ mediaInitFloppy(Device *dev)
     if (floppyMounted)
 	return TRUE;
 
-    if (Mkdir("/dist", NULL)) {
+    if (Mkdir("/dist")) {
 	msgConfirm("Unable to make directory mountpoint for %s!", dev->devname);
 	return FALSE;
     }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.35 1996/07/03 01:31:13 jkh Exp $
+ * $Id: media.c,v 1.25.2.36 1996/07/05 08:44:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -412,7 +412,7 @@ mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpid)
 
     if (!dir)
 	dir = "/";
-    Mkdir(dir, NULL);
+    Mkdir(dir);
     chdir(dir);
     pipe(pfd);
     pipe(qfd);
@@ -495,7 +495,7 @@ mediaExtractDist(char *dir, int fd)
     if (!dir)
 	dir = "/";
 
-    Mkdir(dir, NULL);
+    Mkdir(dir);
     chdir(dir);
     pipe(pfd);
     zpid = fork();

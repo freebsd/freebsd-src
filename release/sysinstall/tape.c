@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.11 1996/04/23 01:29:34 jkh Exp $
+ * $Id: tape.c,v 1.6.2.16 1996/05/24 06:09:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -58,7 +58,7 @@ mediaInitTape(Device *dev)
 	return TRUE;
 
     msgDebug("Tape init routine called for %s (private dir is %s)\n", dev->name, dev->private);
-    Mkdir(dev->private, NULL);
+    Mkdir(dev->private);
     if (chdir(dev->private))
 	return FALSE;
     /* We know the tape is already in the drive, so go for it */

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.22 1996/05/24 06:09:04 jkh Exp $
+ * $Id: system.c,v 1.44.2.23 1996/07/05 08:44:10 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -26,6 +26,7 @@
 
 
 /* Where we stick our temporary expanded doc file */
+#define	DOC_TMP_DIR	"/tmp"
 #define	DOC_TMP_FILE	"/tmp/doc.tmp"
 
 /*
@@ -44,6 +45,7 @@ handle_intr(int sig)
 static char *
 expand(char *fname)
 {
+    Mkdir(DOC_TMP_DIR);
     unlink(DOC_TMP_FILE);
     if (vsystem("gzip -c -d %s > %s", fname, DOC_TMP_FILE))
 	return NULL;
