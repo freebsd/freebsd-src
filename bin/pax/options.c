@@ -39,9 +39,10 @@
 #if 0
 static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 4/18/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -161,15 +162,20 @@ options(int argc, char **argv)
 	else
 		argv0 = argv[0];
 
-	if (strcmp(NM_TAR, argv0) == 0)
-		return(tar_options(argc, argv));
-	else if (strcmp(NM_CPIO, argv0) == 0)
-		return(cpio_options(argc, argv));
+	if (strcmp(NM_TAR, argv0) == 0) {
+		tar_options(argc, argv);
+		return;
+	}
+	else if (strcmp(NM_CPIO, argv0) == 0) {
+		cpio_options(argc, argv);
+		return;
+	}
 	/*
 	 * assume pax as the default
 	 */
 	argv0 = NM_PAX;
-	return(pax_options(argc, argv));
+	pax_options(argc, argv);
+	return;
 }
 
 /*
@@ -555,7 +561,7 @@ pax_options(int argc, char **argv)
 		}
 		--argc;
 		dirptr = argv[argc];
-		/* FALL THROUGH */
+		/* FALLTHROUGH */
 	case ARCHIVE:
 	case APPND:
 		for (; optind < argc; optind++)
@@ -1240,7 +1246,7 @@ cpio_options(int argc, char **argv)
 				cpio_usage();
 			--argc;
 			++argv;
-			/* FALL THROUGH */
+			/* FALLTHROUGH */
 		case ARCHIVE:
 		case APPND:
 			if (*argv != NULL)
