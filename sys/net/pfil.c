@@ -39,11 +39,11 @@
 #include <net/if.h>
 #include <net/pfil.h>
 
-static void pfil_init __P((struct pfil_head *));
+static void pfil_init(struct pfil_head *);
 static int pfil_list_add(pfil_list_t *,
-    int (*) __P((void *, int, struct ifnet *, int, struct mbuf **)), int);
+    int (*)(void *, int, struct ifnet *, int, struct mbuf **), int);
 static int pfil_list_remove(pfil_list_t *,
-    int (*) __P((void *, int, struct ifnet *, int, struct mbuf **)));
+    int (*)(void *, int, struct ifnet *, int, struct mbuf **));
 
 static void
 pfil_init(ph)
@@ -65,8 +65,7 @@ pfil_init(ph)
  */
 int
 pfil_add_hook(func, flags, ph)
-	int	(*func) __P((void *, int, struct ifnet *, int,
-			     struct mbuf **));
+	int	(*func)(void *, int, struct ifnet *, int, struct mbuf **);
 	int	flags;
 	struct	pfil_head	*ph;
 {
@@ -92,8 +91,7 @@ pfil_add_hook(func, flags, ph)
 static int
 pfil_list_add(list, func, flags)
 	pfil_list_t *list;
-	int	(*func) __P((void *, int, struct ifnet *, int,
-			     struct mbuf **));
+	int	(*func)(void *, int, struct ifnet *, int, struct mbuf **);
 	int flags;
 {
 	struct packet_filter_hook *pfh;
@@ -121,8 +119,7 @@ pfil_list_add(list, func, flags)
  */
 int
 pfil_remove_hook(func, flags, ph)
-	int	(*func) __P((void *, int, struct ifnet *, int,
-			     struct mbuf **));
+	int	(*func)(void *, int, struct ifnet *, int, struct mbuf **);
 	int	flags;
 	struct	pfil_head	*ph;
 {
@@ -145,8 +142,7 @@ pfil_remove_hook(func, flags, ph)
 static int
 pfil_list_remove(list, func)
 	pfil_list_t *list;
-	int	(*func) __P((void *, int, struct ifnet *, int,
-			     struct mbuf **));
+	int	(*func)(void *, int, struct ifnet *, int, struct mbuf **);
 {
 	struct packet_filter_hook *pfh;
 

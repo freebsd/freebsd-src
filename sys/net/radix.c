@@ -51,15 +51,15 @@
 #include <net/radix.h>
 #endif
 
-static int	rn_walktree_from __P((struct radix_node_head *h, void *a,
-				      void *m, walktree_f_t *f, void *w));
-static int rn_walktree __P((struct radix_node_head *, walktree_f_t *, void *));
+static int	rn_walktree_from(struct radix_node_head *h, void *a,
+				      void *m, walktree_f_t *f, void *w);
+static int rn_walktree(struct radix_node_head *, walktree_f_t *, void *);
 static struct radix_node
-	 *rn_insert __P((void *, struct radix_node_head *, int *,
-			struct radix_node [2])),
-	 *rn_newpair __P((void *, int, struct radix_node[2])),
-	 *rn_search __P((void *, struct radix_node *)),
-	 *rn_search_m __P((void *, struct radix_node *, void *));
+	 *rn_insert(void *, struct radix_node_head *, int *,
+			struct radix_node [2]),
+	 *rn_newpair(void *, int, struct radix_node[2]),
+	 *rn_search(void *, struct radix_node *),
+	 *rn_search_m(void *, struct radix_node *, void *);
 
 static int	max_keylen;
 static struct radix_mask *rn_mkfreelist;
@@ -73,12 +73,12 @@ static char *rn_zeros, *rn_ones;
 #define Bcmp(a, b, l) \
 	(l == 0 ? 0 : bcmp((caddr_t)(a), (caddr_t)(b), (u_long)l))
 
-static int	rn_lexobetter __P((void *m_arg, void *n_arg));
+static int	rn_lexobetter(void *m_arg, void *n_arg);
 static struct radix_mask *
-		rn_new_radix_mask __P((struct radix_node *tt,
-				       struct radix_mask *next));
-static int	rn_satsifies_leaf __P((char *trial, struct radix_node *leaf,
-				       int skip));
+		rn_new_radix_mask(struct radix_node *tt,
+				       struct radix_mask *next);
+static int	rn_satsifies_leaf(char *trial, struct radix_node *leaf,
+				       int skip);
 
 /*
  * The data structure for the keys is a radix tree with one way

@@ -89,21 +89,21 @@ struct faith_softc {
 	LIST_ENTRY(faith_softc) sc_list;
 };
 
-static int faithioctl __P((struct ifnet *, u_long, caddr_t));
-int faithoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *,
-	struct rtentry *));
-static void faithrtrequest __P((int, struct rtentry *, struct rt_addrinfo *));
+static int faithioctl(struct ifnet *, u_long, caddr_t);
+int faithoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
+	struct rtentry *);
+static void faithrtrequest(int, struct rtentry *, struct rt_addrinfo *);
 #ifdef INET6
-static int faithprefix __P((struct in6_addr *));
+static int faithprefix(struct in6_addr *);
 #endif
 
-static int faithmodevent __P((module_t, int, void *));
+static int faithmodevent(module_t, int, void *);
 
 static MALLOC_DEFINE(M_FAITH, FAITHNAME, "Firewall Assisted Tunnel Interface");
 static LIST_HEAD(, faith_softc) faith_softc_list;
 
-int	faith_clone_create __P((struct if_clone *, int));
-int	faith_clone_destroy __P((struct ifnet *));
+int	faith_clone_create(struct if_clone *, int);
+int	faith_clone_destroy(struct ifnet *);
 
 struct if_clone faith_cloner = IF_CLONE_INITIALIZER(FAITHNAME,
     faith_clone_create, faith_clone_destroy, IF_MAXUNIT);

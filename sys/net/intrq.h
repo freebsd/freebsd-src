@@ -39,7 +39,7 @@ extern int	ipxintrq_present;
 extern int	natmintrq_present;
 extern int	nsintrq_present;
 
-extern int	family_enqueue __P((sa_family_t, struct mbuf *));
+extern int	family_enqueue(sa_family_t, struct mbuf *);
 #endif
 
 #endif /* _NET_INTRQ_H_ */

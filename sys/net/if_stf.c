@@ -145,20 +145,20 @@ struct protosw in_stf_protosw =
   &rip_usrreqs
 };
 
-static int stfmodevent __P((module_t, int, void *));
-static int stf_encapcheck __P((const struct mbuf *, int, int, void *));
-static struct in6_ifaddr *stf_getsrcifa6 __P((struct ifnet *));
-static int stf_output __P((struct ifnet *, struct mbuf *, struct sockaddr *,
-	struct rtentry *));
-static int stf_checkaddr4 __P((struct stf_softc *, struct in_addr *,
-	struct ifnet *));
-static int stf_checkaddr6 __P((struct stf_softc *, struct in6_addr *,
-	struct ifnet *));
-static void stf_rtrequest __P((int, struct rtentry *, struct rt_addrinfo *));
-static int stf_ioctl __P((struct ifnet *, u_long, caddr_t));
+static int stfmodevent(module_t, int, void *);
+static int stf_encapcheck(const struct mbuf *, int, int, void *);
+static struct in6_ifaddr *stf_getsrcifa6(struct ifnet *);
+static int stf_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+	struct rtentry *);
+static int stf_checkaddr4(struct stf_softc *, struct in_addr *,
+	struct ifnet *);
+static int stf_checkaddr6(struct stf_softc *, struct in6_addr *,
+	struct ifnet *);
+static void stf_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
+static int stf_ioctl(struct ifnet *, u_long, caddr_t);
 
-int	stf_clone_create __P((struct if_clone *, int));
-int	stf_clone_destroy __P((struct ifnet *));
+int	stf_clone_create(struct if_clone *, int);
+int	stf_clone_destroy(struct ifnet *);
 
 /* only one clone is currently allowed */
 struct if_clone stf_cloner =

@@ -94,8 +94,8 @@ extern u_char	at_org_code[ 3 ];
 extern u_char	aarp_org_code[ 3 ];
 #endif /* NETATALK */
 
-static	int fddi_resolvemulti __P((struct ifnet *, struct sockaddr **,
-				   struct sockaddr *));
+static	int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
+				   struct sockaddr *);
 
 #define senderr(e) { error = (e); goto bad;}
 

@@ -77,10 +77,10 @@ struct	fddi_header {
 #define	fddi_delmulti		ether_delmulti
 #define	fddi_sprintf		ether_sprintf
 
-void    fddi_ifattach __P((struct ifnet *));
-void    fddi_input __P((struct ifnet *, struct fddi_header *, struct mbuf *));
-int     fddi_output __P((struct ifnet *,
-           struct mbuf *, struct sockaddr *, struct rtentry *)); 
+void    fddi_ifattach(struct ifnet *);
+void    fddi_input(struct ifnet *, struct fddi_header *, struct mbuf *);
+int     fddi_output(struct ifnet *,
+           struct mbuf *, struct sockaddr *, struct rtentry *);
 
 #endif
 

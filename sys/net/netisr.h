@@ -69,19 +69,19 @@
 #ifndef LOCORE
 #ifdef _KERNEL
 
-void legacy_setsoftnet __P((void));
+void legacy_setsoftnet(void);
 
 extern volatile unsigned int	netisr;	/* scheduling bits for network */
-extern	void	(*netisrs[32]) __P((void));
+extern	void	(*netisrs[32])(void);
 #define	schednetisr(anisr) do {						\
 	atomic_set_rel_int(&netisr, 1 << (anisr));			\
 	legacy_setsoftnet();						\
 } while (0)
 
-typedef void netisr_t __P((void));
+typedef void netisr_t(void);
 
-int register_netisr __P((int, netisr_t *));
-int unregister_netisr __P((int));
+int register_netisr(int, netisr_t *);
+int unregister_netisr(int);
 
 #endif
 #endif

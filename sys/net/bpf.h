@@ -308,14 +308,14 @@ struct bpf_insn {
 #define BPF_JUMP(code, k, jt, jf) { (u_short)(code), jt, jf, k }
 
 #ifdef _KERNEL
-int	 bpf_validate __P((const struct bpf_insn *, int));
-void	 bpf_tap __P((struct ifnet *, u_char *, u_int));
-void	 bpf_mtap __P((struct ifnet *, struct mbuf *));
-void	 bpfattach __P((struct ifnet *, u_int, u_int));
-void	 bpfdetach __P((struct ifnet *));
+int	 bpf_validate(const struct bpf_insn *, int);
+void	 bpf_tap(struct ifnet *, u_char *, u_int);
+void	 bpf_mtap(struct ifnet *, struct mbuf *);
+void	 bpfattach(struct ifnet *, u_int, u_int);
+void	 bpfdetach(struct ifnet *);
 
-void	 bpfilterattach __P((int));
-u_int	 bpf_filter __P((const struct bpf_insn *, u_char *, u_int, u_int));
+void	 bpfilterattach(int);
+u_int	 bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
 #endif
 
 /*

@@ -89,15 +89,15 @@ void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
 void	(*ng_gif_attach_p)(struct ifnet *ifp);
 void	(*ng_gif_detach_p)(struct ifnet *ifp);
 
-int	gif_clone_create __P((struct if_clone *, int));
-int	gif_clone_destroy __P((struct ifnet *));
+int	gif_clone_create(struct if_clone *, int);
+int	gif_clone_destroy(struct ifnet *);
 
 struct if_clone gif_cloner = IF_CLONE_INITIALIZER("gif",
     gif_clone_create, gif_clone_destroy, IF_MAXUNIT);
 
-static int gifmodevent __P((module_t, int, void *));
-void gif_delete_tunnel __P((struct gif_softc *));
-static int gif_encapcheck __P((const struct mbuf *, int, int, void *));
+static int gifmodevent(module_t, int, void *);
+void gif_delete_tunnel(struct gif_softc *);
+static int gif_encapcheck(const struct mbuf *, int, int, void *);
 
 #ifdef INET
 extern  struct domain inetdomain;
