@@ -802,7 +802,7 @@ sb16_attach(device_t dev)
 	sb->bd_flags = (ver & 0xffff0000) >> 16;
 	sb->bufsize = pcm_getbuffersize(dev, 4096, SB16_BUFFSIZE, 65536);
 
-    	if (sb16_alloc_resources(sb, dev))
+	if (sb16_alloc_resources(sb, dev))
 		goto no;
 	sb_lock(sb);
 	if (sb_reset_dsp(sb)) {
