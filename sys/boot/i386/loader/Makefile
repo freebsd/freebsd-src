@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.17 1998/11/04 02:36:18 jkh Exp $
+# $Id: Makefile,v 1.18 1998/11/04 03:42:36 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -15,13 +15,13 @@ HAVE_PNP=	yes
 HAVE_ISABUS=	yes
 
 # Enable BootForth
-#BOOT_FORTH=	yes
-#CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl
-#.if exists(${.OBJDIR}/../../ficl/libficl.a)
-#LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-#.else
-#LIBFICL=	${.CURDIR}/../../ficl/libficl.a
-#.endif
+BOOT_FORTH=	yes
+CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl
+.if exists(${.OBJDIR}/../../ficl/libficl.a)
+LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+.else
+LIBFICL=	${.CURDIR}/../../ficl/libficl.a
+.endif
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
