@@ -198,6 +198,7 @@ int fkchan_kill(struct pcm_channel *c);
 #define ON		1
 #define OFF		0
 
+extern int pcm_veto_load;
 extern int snd_unit;
 extern devclass_t pcm_devclass;
 

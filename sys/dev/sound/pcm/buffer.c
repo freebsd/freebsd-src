@@ -34,6 +34,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 #define SNDBUF_NAMELEN	48
 struct snd_dbuf {
+	device_t dev;
         u_int8_t *buf, *tmpbuf;
         unsigned int bufsize, maxsize;
         volatile int dl; /* transfer size */
@@ -53,12 +54,14 @@ struct snd_dbuf {
 };
 
 struct snd_dbuf *
-sndbuf_create(char *drv, char *desc)
+sndbuf_create(device_t dev, char *drv, char *desc)
 {
 	struct snd_dbuf *b;
 
 	b = malloc(sizeof(*b), M_DEVBUF, M_WAITOK | M_ZERO);
 	snprintf(b->name, SNDBUF_NAMELEN, "%s:%s", drv, desc);
+	b->dev = dev;
+
 	return b;
 }
 
@@ -74,7 +77,7 @@ sndbuf_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	struct snd_dbuf *b = (struct snd_dbuf *)arg;
 
 	if (bootverbose) {
-		printf("pcm: setmap %lx, %lx; ", (unsigned long)segs->ds_addr,
+		device_printf(b->dev, "sndbuf_setmap %lx, %lx; ", (unsigned long)segs->ds_addr,
 		       (unsigned long)segs->ds_len);
 		printf("%p -> %lx\n", b->buf, (unsigned long)vtophys(b->buf));
 	}
@@ -133,6 +136,8 @@ sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 		blksz = b->blksz;
 	if (blkcnt < 2 || blksz < 16 || (blkcnt * blksz > b->maxsize))
 		return EINVAL;
+	if (blkcnt == b->blkcnt && blksz == b->blksz)
+		return 0;
 	b->blkcnt = blkcnt;
 	b->blksz = blksz;
 	b->bufsize = blkcnt * blksz;
