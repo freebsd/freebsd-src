@@ -13,7 +13,7 @@ to the AALI specification.
 As part of the HARP ATM initialization procedure, the HARP 'fore_dnld' utility
 must be invoked in order to load the microcode file into each FORE adapter.
 However, the microcode file is NOT included in the FreeBSD distribution. It is 
-the user's responsibilty to obtain and install the FORE microcode file. Below 
+the user's responsibility to obtain and install the FORE microcode file. Below 
 are notes to assist users in finding and installing microcode known to work
 with HARP. 
 
@@ -90,3 +90,4 @@ file. The command syntax is:
 Move the resulting <out-file> in binary mode back to the HARP machine as
 /etc/pca200e.bin and try to initialize the ATM system again.
 
+	@(#) $FreeBSD$
