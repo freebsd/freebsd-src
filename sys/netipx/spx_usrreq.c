@@ -33,28 +33,23 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.12 1997/05/01 06:21:31 jhay Exp $
+ * $Id: spx_usrreq.c,v 1.13 1997/05/10 09:58:58 jhay Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
-#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/errno.h>
 
-#include <net/if.h>
 #include <net/route.h>
 #include <netinet/tcp_fsm.h>
 
 #include <netipx/ipx.h>
 #include <netipx/ipx_pcb.h>
 #include <netipx/ipx_var.h>
-#include <netipx/ipx_error.h>
 #include <netipx/spx.h>
 #include <netipx/spx_timer.h>
 #include <netipx/spx_var.h>
@@ -324,11 +319,7 @@ dropwithreset:
 	si->si_seq = ntohs(si->si_seq);
 	si->si_ack = ntohs(si->si_ack);
 	si->si_alo = ntohs(si->si_alo);
-#ifdef IPXERRORMSGS
-	ipx_error(dtom(si), IPX_ERR_NOSOCK, 0);
-#else
 	m_freem(dtom(si));
-#endif
 	if (cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG || traceallspxs)
 		spx_trace(SA_DROP, (u_char)ostate, cb, &spx_savesi, 0);
 	return;
@@ -506,26 +497,17 @@ update_window:
 			spxstat.spxs_rcvpackafterwin++;
 		if (si->si_cc & SPX_OB) {
 			if (SSEQ_GT(si->si_seq, cb->s_alo + 60)) {
-#ifdef IPXERRORMSGS
-				ipx_error(dtom(si), IPX_ERR_FULLUP, 0);
-#else
 				m_freem(dtom(si));
-#endif
 				return (0);
 			} /* else queue this packet; */
 		} else {
 			/*register struct socket *so = cb->s_ipxpcb->ipxp_socket;
 			if (so->so_state && SS_NOFDREF) {
-				ipx_error(dtom(si), IPX_ERR_NOSOCK, 0);
 				spx_close(cb);
 			} else
 				       would crash system*/
 			spx_istat.notyet++;
-#ifdef IPXERRORMSGS
-			ipx_error(dtom(si), IPX_ERR_FULLUP, 0);
-#else
 			m_freem(dtom(si));
-#endif
 			return (0);
 		}
 	}
@@ -655,18 +637,9 @@ spx_ctlinput(cmd, arg_as_sa, dummy)
 	caddr_t arg = (/* XXX */ caddr_t)arg_as_sa;
 	struct ipx_addr *na;
 	struct sockaddr_ipx *sipx;
-#ifdef IPXERRORMSGS
-	struct ipxpcb *ipxp;
-	struct ipx_errp *errp = (struct ipx_errp *)arg;
-	int type;
-#endif
 
 	if (cmd < 0 || cmd > PRC_NCMDS)
 		return;
-
-#ifdef IPXERRORMSGS
-	type = IPX_ERR_UNREACH_HOST;
-#endif
 
 	switch (cmd) {
 
@@ -683,39 +656,8 @@ spx_ctlinput(cmd, arg_as_sa, dummy)
 		break;
 
 	default:
-#ifdef IPXERRORMSGS
-		errp = (struct ipx_errp *)arg;
-		na = &errp->ipx_err_ipx.ipx_dna;
-		type = errp->ipx_err_num;
-		type = ntohs((u_short)type);
-#endif
 		break;
 	}
-#ifdef IPXERRORMSGS
-	switch (type) {
-
-	case IPX_ERR_UNREACH_HOST:
-		ipx_pcbnotify(na, (int)ipxctlerrmap[cmd], spx_abort, (long)0);
-		break;
-
-	case IPX_ERR_TOO_BIG:
-	case IPX_ERR_NOSOCK:
-		ipxp = ipx_pcblookup(na, errp->ipx_err_ipx.ipx_sna.x_port,
-			IPX_WILDCARD);
-		if (ipxp != NULL) {
-			if(ipxp->ipxp_pcb != NULL)
-				spx_drop((struct spxpcb *)ipxp->ipxp_pcb,
-						(int)ipxctlerrmap[cmd]);
-			else
-				ipx_drop(ipxp, (int)ipxctlerrmap[cmd]);
-		}
-		break;
-
-	case IPX_ERR_FULLUP:
-		ipx_pcbnotify(na, 0, spx_quench, (long)0);
-		break;
-	}
-#endif
 }
 /*
  * When a source quench is received, close congestion window

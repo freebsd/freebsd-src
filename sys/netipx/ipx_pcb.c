@@ -33,16 +33,13 @@
  *
  *	@(#)ipx_pcb.c
  *
- * $Id: ipx_pcb.c,v 1.8 1997/05/01 06:21:29 jhay Exp $
+ * $Id: ipx_pcb.c,v 1.9 1997/05/10 09:58:54 jhay Exp $
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
-#include <sys/protosw.h>
-#include <sys/errno.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 

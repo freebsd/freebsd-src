@@ -242,7 +242,6 @@ netinet/ip_proxy.c	optional ipfilter inet
 netinet/mln_ipl.c	optional ipfilter inet
 netipx/ipx.c		optional ipx
 netipx/ipx_cksum.c	optional ipx
-netipx/ipx_error.c	optional ipx
 netipx/ipx_input.c	optional ipx
 netipx/ipx_ip.c		optional ipx
 netipx/ipx_outputfl.c	optional ipx

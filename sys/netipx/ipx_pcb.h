@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.h
  *
- * $Id: ipx_pcb.h,v 1.9 1997/05/01 06:21:29 jhay Exp $
+ * $Id: ipx_pcb.h,v 1.10 1997/05/10 09:58:54 jhay Exp $
  */
 
 #ifndef _NETIPX_IPX_PCB_H_
@@ -97,4 +97,4 @@ void	ipx_setpeeraddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
 void	ipx_setsockaddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
 #endif /* KERNEL */
 
-#endif /* _NETIPX_IPX_PCB_H_ */
+#endif /* !_NETIPX_IPX_PCB_H_ */

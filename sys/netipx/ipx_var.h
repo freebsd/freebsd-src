@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_var.h
  *
- * $Id: ipx_var.h,v 1.5 1997/02/22 09:41:58 peter Exp $
+ * $Id: ipx_var.h,v 1.6 1997/05/10 09:58:55 jhay Exp $
  */
 
 #ifndef _NETIPX_IPX_VAR_H_
@@ -57,6 +57,7 @@ struct	ipxstat {
 };
 
 #ifdef KERNEL
+
 extern int ipxcksum;
 extern long ipx_pexseq;
 extern struct ipxstat ipxstat;
@@ -71,6 +72,13 @@ extern union ipx_host ipx_zerohost;
 extern union ipx_net ipx_broadnet;
 extern union ipx_host ipx_broadhost;
 
+struct ifnet;
+struct ipx_addr;
+struct mbuf;
+struct route;
+struct sockaddr;
+struct socket;
+
 void	ipx_abort __P((struct ipxpcb *ipxp));
 u_short	ipx_cksum __P((struct mbuf *m, int len));
 int	ipx_control __P((struct socket *so, int cmd, caddr_t data,
@@ -83,11 +91,12 @@ void	ipx_init __P((void));
 void	ipx_input __P((struct mbuf *m, struct ipxpcb *ipxp));
 void	ipxintr __P((void));
 int	ipx_outputfl __P((struct mbuf *m0, struct route *ro, int flags));
-int	ipx_output_type20(struct mbuf *);
+int	ipx_output_type20 __P((struct mbuf *));
 int	ipx_peeraddr __P((struct socket *so, struct mbuf *nam));
+void	ipx_printhost __P((struct ipx_addr *addr));
 int	ipx_sockaddr __P((struct socket *so, struct mbuf *nam));
 void	ipx_watch_output __P((struct mbuf *m, struct ifnet *ifp));
 
 #endif /* KERNEL */
 
-#endif /* _NETIPX_IPX_VAR_H_ */
+#endif /* !_NETIPX_IPX_VAR_H_ */
