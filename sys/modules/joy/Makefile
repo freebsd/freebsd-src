@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1998/10/16 04:30:47 peter Exp $
+#	$Id: Makefile,v 1.9 1998/11/05 04:22:52 peter Exp $
 
 .PATH:	${.CURDIR}/../../i386/isa
 KMOD	= joy
@@ -15,8 +15,8 @@ opt_devfs.h:
 	touch opt_devfs.h
 
 
-#afterinstall:
-#	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-#		${.CURDIR}/joy ${DESTDIR}/usr/bin
+afterinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${.CURDIR}/joy.sh ${DESTDIR}/usr/bin
 
 .include <bsd.kmod.mk>
