@@ -2074,6 +2074,9 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		if (td == curthread) {
 			alpha_pal_wrusp(mcp->mc_regs[FRAME_SP]);
 			alpha_pal_wrunique(mcp->mc_thrptr);
+		} else {
+			td->td_pcb->pcb_hw.apcb_usp = mcp->mc_regs[FRAME_SP];
+			td->td_pcb->pcb_hw.apcb_unique = mcp->mc_thrptr;
 		}
 
 		/*
