@@ -137,9 +137,9 @@ SYSINIT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp)
 #endif
 
 
-int vm_pages_needed=0;		/* Event on which pageout daemon sleeps */
-int vm_pageout_deficit=0;	/* Estimated number of pages deficit */
-int vm_pageout_pages_needed=0;	/* flag saying that the pageout daemon needs pages */
+int vm_pages_needed;		/* Event on which pageout daemon sleeps */
+int vm_pageout_deficit;		/* Estimated number of pages deficit */
+int vm_pageout_pages_needed;	/* flag saying that the pageout daemon needs pages */
 
 #if !defined(NO_SWAPPING)
 static int vm_pageout_req_swapout;	/* XXX */
@@ -1364,7 +1364,7 @@ vm_size_t count;
 static void
 vm_pageout()
 {
-	int pass;
+	int error, pass, s;
 
 	mtx_lock(&Giant);
 
@@ -1431,9 +1431,7 @@ vm_pageout()
 	 * The pageout daemon is never done, so loop forever.
 	 */
 	while (TRUE) {
-		int error;
-		int s = splvm();
-
+		s = splvm();
 		/*
 		 * If we have enough free memory, wakeup waiters.  Do
 		 * not clear vm_pages_needed until we reach our target,
@@ -1473,7 +1471,6 @@ vm_pageout()
 				continue;
 			}
 		}
-
 		if (vm_pages_needed)
 			cnt.v_pdwakeups++;
 		splx(s);
