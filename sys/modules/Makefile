@@ -147,8 +147,10 @@ SUBDIR=	accf_data \
 	wlan \
 	xl
 
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "alpha"
 .if defined(WANT_EXT2FS_MODULE) || defined(ALL_MODULES)
 SUBDIR+=ext2fs
+.endif
 .endif
 
 .if !defined(NO_IPFILTER) || defined(ALL_MODULES)
