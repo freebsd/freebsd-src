@@ -71,17 +71,14 @@ Boston, MA 02111-1307, USA.  */
 #define CPP_SPEC FBSD_CPP_SPEC
 
 /* Provide a LIB_SPEC appropriate for FreeBSD.  Just select the appropriate
-   libc, depending on whether we're doing profiling. 
+   libc, depending on whether we're doing profiling.  Add the appropriate
+   libc_r if supporting threads.
    (like the default, except no -lg, and no -p).  */
 #undef  LIB_SPEC
 #define LIB_SPEC "\
   %{!shared: \
-    %{!pg: \
-      %{!pthread:-lc} \
-      %{pthread:-lc_r}} \
-    %{pg: \
-      %{!pthread:-lc_p} \
-      %{pthread:-lc_r_p}} \
+    %{!pg: %{pthread:-lc_r} -lc} \
+    %{pg:  %{pthread:-lc_r_p} -lc_p} \
   }"
 
 
