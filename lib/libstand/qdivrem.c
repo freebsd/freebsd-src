@@ -303,3 +303,51 @@ __umoddi3(a, b)
 	(void)__qdivrem(a, b, &r);
 	return (r);
 }
+
+/*
+ * Divide two signed quads.
+ * ??? if -1/2 should produce -1 on this machine, this code is wrong
+ */
+quad_t
+__divdi3(a, b)
+        quad_t a, b;
+{
+	u_quad_t ua, ub, uq;
+	int neg;
+
+	if (a < 0)
+		ua = -(u_quad_t)a, neg = 1;
+	else
+		ua = a, neg = 0;
+	if (b < 0)
+		ub = -(u_quad_t)b, neg ^= 1;
+	else
+		ub = b;
+	uq = __qdivrem(ua, ub, (u_quad_t *)0);
+	return (neg ? -uq : uq);
+}
+
+/*
+ * Return remainder after dividing two signed quads.
+ *
+ * XXX
+ * If -1/2 should produce -1 on this machine, this code is wrong.
+ */
+quad_t
+__moddi3(a, b)
+        quad_t a, b;
+{
+	u_quad_t ua, ub, ur;
+	int neg;
+
+	if (a < 0)
+		ua = -(u_quad_t)a, neg = 1;
+	else
+		ua = a, neg = 0;
+	if (b < 0)
+		ub = -(u_quad_t)b;
+	else
+		ub = b;
+	(void)__qdivrem(ua, ub, &ur);
+	return (neg ? -ur : ur);
+}
