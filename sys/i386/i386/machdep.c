@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.78 1994/10/20 00:07:49 phk Exp $
+ *	$Id: machdep.c,v 1.79 1994/10/25 08:34:50 davidg Exp $
  */
 
 #include "npx.h"
@@ -1312,10 +1312,9 @@ init386(first)
 #endif
 	/*
 	 * Calculate number of physical pages, but account for Maxmem
-	 *	limitation above.
+	 *	adjustment above.
 	 */
-	physmem = pagesinbase +
-	    (min(pagesinext + 0x100000/PAGE_SIZE, Maxmem) - 0x100000/PAGE_SIZE);
+	physmem = pagesinbase + Maxmem - 0x100000/PAGE_SIZE;
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap (first, 0);
