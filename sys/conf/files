@@ -1264,8 +1264,8 @@ net/net_osdep.c		standard
 net/netisr.c		standard
 net/ppp_deflate.c	optional ppp_deflate
 net/ppp_tty.c		optional ppp
-net/pfil.c		optional pfil_hooks
-net/pfil.c		optional ipfilter
+net/pfil.c		optional ether
+net/pfil.c		optional inet
 net/radix.c		standard
 net/raw_cb.c		standard
 net/raw_usrreq.c	standard

@@ -544,7 +544,6 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 #  The `pflog' device provides the pflog0 interface which logs packets.
 #  The `pfsync' device provides the pfsync0 interface used for
 #   synchronization of firewall state tables (over the net).
-# Requires option PFIL_HOOKS
 #
 # The PPP_BSDCOMP option enables support for compress(1) style entire
 # packet compression, the PPP_DEFLATE is for zlib/gzip style compression.
@@ -599,7 +598,6 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # conjunction with the `ipfw' program.  IPFIREWALL_VERBOSE sends
 # logged packets to the system logger.  IPFIREWALL_VERBOSE_LIMIT
 # limits the number of times a matching entry can be logged.
-# IPFIREWALL requires the option PFIL_HOOKS.
 #
 # WARNING:  IPFIREWALL defaults to a policy of "deny ip from any to any"
 # and if you do not add other rules during startup to allow access,
@@ -622,10 +620,6 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # packets without touching the ttl).  This can be useful to hide firewalls
 # from traceroute and similar tools.
 #
-# PFIL_HOOKS enables an abstraction layer which is meant to be used in
-# network code where filtering is required.  See pfil(9).  This option is
-# required by the IPFILTER option and the PF device.
-#
 # TCPDEBUG enables code which keeps traces of the TCP state machine
 # for sockets with the SO_DEBUG option set, which can then be examined
 # using the trpt(8) utility.
@@ -645,7 +639,6 @@ options 	IPFILTER		#ipfilter support
 options 	IPFILTER_LOG		#ipfilter logging
 options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
 options 	IPSTEALTH		#support for stealth forwarding
-options 	PFIL_HOOKS		#required by IPFILTER
 options 	TCPDEBUG
 
 # The MBUF_STRESS_TEST option enables options which create

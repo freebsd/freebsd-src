@@ -35,7 +35,6 @@
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
 #include "opt_mac.h"
-#include "opt_pfil_hooks.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -156,9 +155,8 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
 #ifdef DIAGNOSTIC
 static int	ipprintfs = 0;
 #endif
-#ifdef PFIL_HOOKS
-struct pfil_head inet_pfil_hook;
-#endif
+
+struct pfil_head inet_pfil_hook;	/* Packet filter hooks */
 
 static struct	ifqueue ipintrq;
 static int	ipqmaxlen = IFQ_MAXLEN;
@@ -264,13 +262,12 @@ ip_init()
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW)
 			ip_protox[pr->pr_protocol] = pr - inetsw;
 
-#ifdef PFIL_HOOKS
+	/* Initialize packet filter hooks. */
 	inet_pfil_hook.ph_type = PFIL_TYPE_AF;
 	inet_pfil_hook.ph_af = AF_INET;
 	if ((i = pfil_head_register(&inet_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
-#endif /* PFIL_HOOKS */
 
 	IPQ_LOCK_INIT();
 	for (i = 0; i < IPREASS_NHASH; i++)
@@ -298,9 +295,7 @@ ip_input(struct mbuf *m)
 	int    checkif, hlen = 0;
 	u_short sum;
 	int dchg = 0;				/* dest changed after fw */
-#ifdef PFIL_HOOKS
 	struct in_addr odst;			/* original dst address */
-#endif
 #ifdef FAST_IPSEC
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
@@ -414,17 +409,16 @@ tooshort:
 	 * Bypass packet filtering for packets from a tunnel (gif).
 	 */
 	if (ipsec_getnhist(m))
-		goto pass;
+		goto passin;
 #endif
 #if defined(FAST_IPSEC) && !defined(IPSEC_FILTERGIF)
 	/*
 	 * Bypass packet filtering for packets from a tunnel (gif).
 	 */
 	if (m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
-		goto pass;
+		goto passin;
 #endif
 
-#ifdef PFIL_HOOKS
 	/*
 	 * Run through list of hooks for input packets.
 	 *
@@ -432,6 +426,11 @@ tooshort:
 	 *     by NAT rewriting).  When this happens, tell
 	 *     ip_forward to do the right thing.
 	 */
+
+	/* Jump over all PFIL processing if hooks are not active. */
+	if (inet_pfil_hook.ph_busy_count == -1)
+		goto passin;
+
 	odst = ip->ip_dst;
 	if (pfil_run_hooks(&inet_pfil_hook, &m, m->m_pkthdr.rcvif,
 	    PFIL_IN) != 0)
@@ -450,12 +449,7 @@ tooshort:
 	dchg = (m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL);
 #endif /* IPFIREWALL_FORWARD */
 
-#endif /* PFIL_HOOKS */
-
-#if (defined(FAST_IPSEC) || defined(IPSEC)) && !defined(IPSEC_FILTERGIF)
-pass:
-#endif
-
+passin:
 	/*
 	 * Process options and, if not destined for us,
 	 * ship it on.  ip_dooptions returns 1 when an

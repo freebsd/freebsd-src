@@ -33,7 +33,6 @@
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_mac.h"
-#include "opt_pfil_hooks.h"
 #include "opt_mbuf_stress_test.h"
 
 #include <sys/param.h>
@@ -49,6 +48,7 @@
 
 #include <net/if.h>
 #include <net/netisr.h>
+#include <net/pfil.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
@@ -58,9 +58,6 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 
-#ifdef PFIL_HOOKS
-#include <net/pfil.h>
-#endif
 
 #include <machine/in_cksum.h>
 
@@ -132,9 +129,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 	struct in_ifaddr *ia = NULL;
 	int isbroadcast, sw_csum;
 	struct route iproute;
-#ifdef PFIL_HOOKS
 	struct in_addr odst;
-#endif
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag = NULL;
 #endif
@@ -187,9 +182,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 	}
 
 	dst = (struct sockaddr_in *)&ro->ro_dst;
-#ifdef PFIL_HOOKS
 again:
-#endif
 	/*
 	 * If there is a cached route,
 	 * check that it is to the same destination
@@ -665,10 +658,11 @@ skip_ipsec:
 spd_done:
 #endif /* FAST_IPSEC */
 
-#ifdef PFIL_HOOKS
-	/*
-	 * Run through list of hooks for output packets.
-	 */
+	/* Jump over all PFIL processing if hooks are not active. */
+	if (inet_pfil_hook.ph_busy_count == -1)
+		goto passout;
+
+	/* Run through list of hooks for output packets. */
 	odst.s_addr = ip->ip_dst.s_addr;
 	error = pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT);
 	if (error != 0 || m == NULL)
@@ -729,11 +723,7 @@ spd_done:
 	}
 #endif
 
-#endif /* PFIL_HOOKS */
-
-#if 0
-pass:
-#endif
+passout:
 	/* 127/8 must not appear on wire - RFC1122. */
 	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
 	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) {

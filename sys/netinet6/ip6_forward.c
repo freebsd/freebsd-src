@@ -34,7 +34,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_pfil_hooks.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,9 +49,7 @@
 
 #include <net/if.h>
 #include <net/route.h>
-#ifdef PFIL_HOOKS
 #include <net/pfil.h>
-#endif
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -578,18 +575,19 @@ ip6_forward(m, srcrt)
 	in6_clearscope(&ip6->ip6_src);
 	in6_clearscope(&ip6->ip6_dst);
 
-#ifdef PFIL_HOOKS
-	/*
-	 * Run through list of hooks for output packets.
-	 */
+	/* Jump over all PFIL processing if hooks are not active. */
+	if (inet6_pfil_hook.ph_busy_count == -1)
+		goto pass;
+
+	/* Run through list of hooks for output packets. */
 	error = pfil_run_hooks(&inet6_pfil_hook, &m, rt->rt_ifp, PFIL_OUT);
 	if (error != 0)
 		goto senderr;
 	if (m == NULL)
 		goto freecopy;
 	ip6 = mtod(m, struct ip6_hdr *);
-#endif /* PFIL_HOOKS */
 
+pass:
 	error = nd6_output(rt->rt_ifp, origifp, m, dst, rt);
 	if (error) {
 		in6_ifstat_inc(rt->rt_ifp, ifs6_out_discard);
@@ -605,9 +603,7 @@ ip6_forward(m, srcrt)
 		}
 	}
 
-#ifdef PFIL_HOOKS
 senderr:
-#endif
 	if (mcopy == NULL)
 		return;
 	switch (error) {
