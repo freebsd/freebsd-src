@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: user.c,v 1.3.2.1 1997/12/18 07:37:46 charnier Exp $";
+	"$Id: user.c,v 1.3.2.2 1998/03/06 01:49:59 jkh Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -90,6 +90,7 @@ user_command()
       }
     } else if(!strcmp("dump\n", cmd)) {
       strcpy(dumppath, X10DIR);
+      strcat(dumppath, "/");
       strcat(dumppath, X10DUMPNAME);
       if((dumpf = fopen(dumppath, "w")) != NULL) {
 	for(h = 0; h < 16; h++) {
