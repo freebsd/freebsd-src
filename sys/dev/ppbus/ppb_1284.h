@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_1284.h,v 1.2 1998/08/03 19:14:31 msmith Exp $
+ *	$Id: ppb_1284.h,v 1.3 1998/09/13 18:26:26 nsouch Exp $
  *
  */
 #ifndef __1284_H
@@ -66,20 +66,59 @@
 #define Intr		nACK
 
 /* request mode values */
-#define NIBBLE_1284_NORMAL	0
-#define NIBBLE_1284_REQUEST_ID	4
+#define NIBBLE_1284_NORMAL	0x0
+#define NIBBLE_1284_REQUEST_ID	0x4
+#define BYTE_1284_NORMAL	0x1
+#define BYTE_1284_REQUEST_ID	0x5
+#define ECP_1284_NORMAL		0x10
+#define ECP_1284_REQUEST_ID	0x14
+#define ECP_1284_RLE		0x30
+#define ECP_1284_RLE_REQUEST_ID	0x34
+#define EPP_1284_NORMAL		0x40
+#define EXT_LINK_1284_NORMAL	0x80
 
-/* how to terminate */
-#define VALID_STATE	0
-#define IMMEDIATE	1
+/* ieee1284 mode options */
+#define PPB_REQUEST_ID		0x1
+#define PPB_USE_RLE		0x2
+#define PPB_EXTENSIBILITY_LINK	0x4
 
-extern int do_1284_wait(struct ppb_device *, char, char);
+/* ieee1284 errors */
+#define PPB_NO_ERROR		0
+#define PPB_MODE_UNSUPPORTED	1	/* mode not supported by peripheral */
+#define PPB_NOT_IEEE1284	2	/* not an IEEE1284 compliant periph. */
+#define PPB_TIMEOUT		3	/* timeout */
+#define PPB_INVALID_MODE	4	/* current mode is incorrect */
+
+/* ieee1284 host side states */
+#define PPB_ERROR			0
+#define PPB_FORWARD_IDLE		1
+#define PPB_NEGOCIATION			2
+#define PPB_SETUP			3
+#define PPB_ECP_FORWARD_IDLE		4
+#define PPB_FWD_TO_REVERSE		5
+#define PPB_REVERSE_IDLE		6
+#define PPB_REVERSE_TRANSFER		7
+#define PPB_REVERSE_TO_FWD		8
+#define PPB_EPP_IDLE			9
+#define PPB_TERMINATION			10
+
+/* peripheral side states */
+#define PPB_PERIPHERAL_NEGOCIATION	11
+#define PPB_PERIPHERAL_IDLE		12
+#define PPB_PERIPHERAL_TRANSFER		13
+#define PPB_PERIPHERAL_TERMINATION	14
 
 extern int nibble_1284_inbyte(struct ppb_device *, char *);
-extern void nibble_1284_sync(struct ppb_device *);
-extern int nibble_1284_mode(struct ppb_device *, int);
+extern int byte_1284_inbyte(struct ppb_device *, char *);
+extern int spp_1284_read(struct ppb_device *, int, char *, int, int *);
 
-extern int ppb_1284_negociate(struct ppb_device *, int);
-extern int ppb_1284_terminate(struct ppb_device *, int how);
+extern int ppb_1284_negociate(struct ppb_device *, int, int);
+extern int ppb_1284_terminate(struct ppb_device *);
+extern int ppb_1284_read_id(struct ppb_device *, int, char *, int, int *);
+extern int ppb_1284_read(struct ppb_device *, int, char *, int, int *);
+
+extern int ppb_peripheral_terminate(struct ppb_device *, int);
+extern int ppb_peripheral_negociate(struct ppb_device *, int, int);
+extern int byte_peripheral_write(struct ppb_device *, char *, int, int *);
 
 #endif

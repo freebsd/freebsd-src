@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lpbb.c,v 1.2 1998/11/09 22:22:01 nsouch Exp $
+ *	$Id: lpbb.c,v 1.3 1998/12/07 21:58:16 archie Exp $
  *
  */
 
@@ -235,14 +235,6 @@ lpbb_callback(device_t dev, int index, caddr_t *data)
 static int getSDA(struct lpbb_softc *sc)
 {
 if((ppb_rstr(&sc->lpbb_dev)&SDA_in)==SDA_in)
-        return 1;                   
-else                                
-        return 0;                   
-}
-
-static int getSCL(struct lpbb_softc *sc)
-{
-if((ppb_rstr(&sc->lpbb_dev)&SCL_in)==SCL_in)
         return 1;                   
 else                                
         return 0;                   

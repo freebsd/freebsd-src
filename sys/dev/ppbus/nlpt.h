@@ -27,7 +27,7 @@
  *	@(#)lptreg.h      1.1 (Berkeley) 12/19/90
  *	Id: lptreg.h,v 1.6 1997/02/22 09:36:52 peter Exp 
  *
- *	$Id: nlpt.h,v 1.1 1997/08/14 13:57:40 msmith Exp $
+ *	$Id: nlpt.h,v 1.2 1997/08/16 14:05:32 msmith Exp $
  */
 #ifndef __NLPT_H
 #define __NLPT_H
@@ -61,13 +61,15 @@ struct lpt_data {
 #define LP_AUTOLF	0x40	/* tell printer to do an automatic lf */
 #define LP_BYPASS	0x80	/* bypass  printer ready checks */
 	struct	buf *sc_inbuf;
+	struct	buf *sc_statbuf;
 	short	sc_xfercnt ;
 	char	sc_primed;
 	char	*sc_cp ;
-	u_char	sc_irq ;	/* IRQ status of port */
+	u_short	sc_irq ;	/* IRQ status of port */
 #define LP_HAS_IRQ	0x01	/* we have an irq available */
 #define LP_USE_IRQ	0x02	/* we are using our irq */
 #define LP_ENABLE_IRQ	0x04	/* enable IRQ on open */
+#define LP_ENABLE_EXT	0x10	/* we shall use advanced mode when possible */
 	u_char	sc_backoff ;	/* time to call lptout() again */
 
 #ifdef DEVFS

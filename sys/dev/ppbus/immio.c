@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: immio.c,v 1.3 1998/10/02 20:44:58 nsouch Exp $
+ *	$Id: immio.c,v 1.4 1998/10/31 11:35:21 nsouch Exp $
  *
  */
 
@@ -46,6 +46,8 @@
 #ifdef	KERNEL
 #include <sys/kernel.h>
 #endif /*KERNEL */
+
+#include "opt_vpo.h"
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>

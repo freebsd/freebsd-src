@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppcreg.h,v 1.4 1998/09/13 18:26:44 nsouch Exp $
+ *	$Id: ppcreg.h,v 1.5 1998/10/31 11:37:09 nsouch Exp $
  *
  */
 #ifndef __PPCREG_H
@@ -55,6 +55,34 @@ struct ppc_data {
 	int ppc_mode;		/* chipset current mode */
 	int ppc_avm;		/* chipset available modes */
 
+#define PPC_IRQ_NONE		0x0
+#define PPC_IRQ_nACK		0x1
+#define PPC_IRQ_DMA		0x2
+#define PPC_IRQ_FIFO		0x4
+#define PPC_IRQ_nFAULT		0x8
+	int ppc_irqstat;	/* remind irq settings */
+
+#define PPC_DMA_INIT		0x01
+#define PPC_DMA_STARTED		0x02
+#define PPC_DMA_COMPLETE	0x03
+#define PPC_DMA_INTERRUPTED	0x04
+#define PPC_DMA_ERROR		0x05
+	int ppc_dmastat;	/* dma state */
+	int ppc_dmachan;	/* dma channel */
+	int ppc_dmaflags;	/* dma transfer flags */
+	caddr_t ppc_dmaddr;	/* buffer address */
+	u_int ppc_dmacnt;	/* count of bytes sent with dma */
+
+#define PPC_PWORD_MASK	0x30
+#define PPC_PWORD_16	0x00
+#define PPC_PWORD_8	0x10
+#define PPC_PWORD_32	0x20
+	char ppc_pword;		/* PWord size */
+	short ppc_fifo;		/* FIFO threshold */
+
+	short ppc_wthr;		/* writeIntrThresold */
+	short ppc_rthr;		/* readIntrThresold */
+
 #define ppc_base ppc_link.base
 #define ppc_epp ppc_link.epp_protocol
 #define ppc_irq ppc_link.id_irq
@@ -71,25 +99,44 @@ struct ppc_data {
  * Parallel Port Chipset registers.
  */
 #define PPC_SPP_DTR	0	/* SPP data register */
+#define PPC_ECP_A_FIFO	0	/* ECP Address fifo register */
 #define PPC_SPP_STR	1	/* SPP status register */
 #define PPC_SPP_CTR	2	/* SPP control register */
 #define PPC_EPP_DATA	4	/* EPP data register (8, 16 or 32 bit) */
-#define PPC_ECP_FIFO	0x400	/* ECP fifo register */
+#define PPC_ECP_D_FIFO	0x400	/* ECP Data fifo register */
+#define PPC_ECP_CNFGA	0x400	/* Configuration register A */
+#define PPC_ECP_CNFGB	0x401	/* Configuration register B */
 #define PPC_ECP_ECR	0x402	/* ECP extended control register */
+
+#define PPC_FIFO_EMPTY	0x1	/* ecr register - bit 0 */
+#define PPC_FIFO_FULL	0x2	/* ecr register - bit 1 */
+#define PPC_SERVICE_INTR 0x4	/* ecr register - bit 2 */
+#define PPC_ENABLE_DMA	0x8	/* ecr register - bit 3 */
+#define PPC_nFAULT_INTR	0x10	/* ecr register - bit 4 */
+#define PPC_ECR_STD	0x0
+#define PPC_ECR_PS2	0x20
+#define PPC_ECR_FIFO	0x40
+#define PPC_ECR_ECP	0x60
+#define PPC_ECR_EPP	0x80
+
+#define PPC_DISABLE_INTR	(PPC_SERVICE_INTR | PPC_nFAULT_INTR)
+#define PPC_ECR_RESET		(PPC_ECR_PS2 | PPC_DISABLE_INTR)
 
 #define r_dtr(ppc) ((char)inb((ppc)->ppc_base + PPC_SPP_DTR))
 #define r_str(ppc) ((char)inb((ppc)->ppc_base + PPC_SPP_STR))
 #define r_ctr(ppc) ((char)inb((ppc)->ppc_base + PPC_SPP_CTR))
 #define r_epp(ppc) ((char)inb((ppc)->ppc_base + PPC_EPP_DATA))
+#define r_cnfgA(ppc) ((char)inb((ppc)->ppc_base + PPC_ECP_CNFGA))
+#define r_cnfgB(ppc) ((char)inb((ppc)->ppc_base + PPC_ECP_CNFGB))
 #define r_ecr(ppc) ((char)inb((ppc)->ppc_base + PPC_ECP_ECR))
-#define r_fifo(ppc) ((char)inb((ppc)->ppc_base + PPC_ECP_FIFO))
+#define r_fifo(ppc) ((char)inb((ppc)->ppc_base + PPC_ECP_D_FIFO))
 
 #define w_dtr(ppc,byte) outb((ppc)->ppc_base + PPC_SPP_DTR, byte)
 #define w_str(ppc,byte) outb((ppc)->ppc_base + PPC_SPP_STR, byte)
 #define w_ctr(ppc,byte) outb((ppc)->ppc_base + PPC_SPP_CTR, byte)
 #define w_epp(ppc,byte) outb((ppc)->ppc_base + PPC_EPP_DATA, byte)
 #define w_ecr(ppc,byte) outb((ppc)->ppc_base + PPC_ECP_ECR, byte)
-#define w_fifo(ppc,byte) outb((ppc)->ppc_base + PPC_ECP_FIFO, byte)
+#define w_fifo(ppc,byte) outb((ppc)->ppc_base + PPC_ECP_D_FIFO, byte)
 
 /*
  * Register defines for the PC873xx parts
