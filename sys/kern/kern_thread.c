@@ -390,7 +390,7 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 	struct thread *td2;
 
 	p = td->td_proc;
-	if (!(p->p_flag & P_KSES) || (uap->tmbx == NULL))
+	if (!(p->p_flag & P_THREADED) || (uap->tmbx == NULL))
 		return (EINVAL);
 	mtx_lock_spin(&sched_lock);
 	FOREACH_THREAD_IN_PROC(p, td2) {
@@ -444,7 +444,7 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	upcall_remove(td);
 	if (p->p_numthreads == 1) {
 		kse_purge(p, td);
-		p->p_flag &= ~P_KSES;
+		p->p_flag &= ~P_THREADED;
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	} else {
@@ -535,7 +535,7 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 	td2 = NULL;
 	ku = NULL;
 	/* KSE-enabled processes only, please. */
-	if (!(p->p_flag & P_KSES))
+	if (!(p->p_flag & P_THREADED))
 		return (EINVAL);
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
@@ -609,7 +609,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		ncpus = virtual_cpu;
 
 	/* Easier to just set it than to test and set */
-	p->p_flag |= P_KSES;
+	p->p_flag |= P_THREADED;
 	kg = td->td_ksegrp;
 	if (uap->newgroup) {
 		/* Have race condition but it is cheap */ 
@@ -1778,7 +1778,7 @@ thread_single(int force_exit)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT((td != NULL), ("curthread is NULL"));
 
-	if ((p->p_flag & P_KSES) == 0)
+	if ((p->p_flag & P_THREADED) == 0)
 		return (0);
 
 	/* Is someone already single threading? */

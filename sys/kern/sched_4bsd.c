@@ -544,7 +544,7 @@ sched_switchout(struct thread *td)
 	if (TD_IS_RUNNING(td)) {
 		/* Put us back on the run queue (kse and all). */
 		setrunqueue(td);
-	} else if (p->p_flag & P_KSES) {
+	} else if (p->p_flag & P_THREADED) {
 		/*
 		 * We will not be on the run queue. So we must be
 		 * sleeping or similar. As it's available,

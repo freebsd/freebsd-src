@@ -130,7 +130,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		sbuf_printf(sb, " -1,-1 -1,-1 -1,-1");
 	}
 
-	if (p->p_flag & P_KSES)
+	if (p->p_flag & P_THREADED)
 		sbuf_printf(sb, " %s", "-kse- ");
 	else {
 		tdfirst = FIRST_THREAD_IN_PROC(p);	/* XXX diff from td? */
