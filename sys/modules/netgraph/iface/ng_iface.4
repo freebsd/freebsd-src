@@ -68,7 +68,6 @@ In the KLD module, only support for IP is compiled in by default.
 .Pp
 .Nm Iface
 nodes support the Berkeley Packet Filter (BPF). 
-In the KLD module, this support is disabled by default.
 .Sh HOOKS
 This node type supports the following hooks:
 .Pp
@@ -119,6 +118,7 @@ control message disconnects all hooks but does not remove the node.
 .Xr netgraph 4 ,
 .Xr bpf 4 ,
 .Xr ng_cisco 8 ,
+.Xr ng_ppp 8 ,
 .Xr ng_rfc1490 8 ,
 .Xr ngctl 8 ,
 .Xr ifconfig 8 .
