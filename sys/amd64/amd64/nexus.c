@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.5 1999/04/24 04:16:22 kato Exp $
+ *	$Id: nexus.c,v 1.6 1999/05/08 20:24:44 peter Exp $
  */
 
 /*
@@ -137,6 +137,13 @@ nexus_probe(device_t dev)
 
 	device_quiet(dev);	/* suppress attach message for neatness */
 
+	/*
+	 * IRQ's are on the mainboard on old systems, but on the ISA part
+	 * of PCI->ISA bridges.  There would be multiple sets of IRQs on
+	 * multi-ISA-bus systems.  PCI interrupts are routed to the ISA
+	 * component, so in a way, PCI can be a partial child of an ISA bus(!).
+	 * APIC interrupts are global though.
+	 */
 	irq_rman.rm_start = 0;
 	irq_rman.rm_end = LASTIRQ;
 	irq_rman.rm_type = RMAN_ARRAY;
@@ -146,6 +153,11 @@ nexus_probe(device_t dev)
 	    || rman_manage_region(&irq_rman, 3, LASTIRQ))
 		panic("nexus_probe irq_rman");
 
+	/*
+	 * ISA DMA on PCI systems is implemented in the ISA part of each
+	 * PCI->ISA bridge and the channels can be duplicated if there are
+	 * multiple bridges.  (eg: laptops with docking stations)
+	 */
 	drq_rman.rm_start = 0;
 	drq_rman.rm_end = 7;
 	drq_rman.rm_type = RMAN_ARRAY;
@@ -155,6 +167,11 @@ nexus_probe(device_t dev)
 	    || rman_manage_region(&drq_rman, 0, 7))
 		panic("nexus_probe drq_rman");
 
+	/*
+	 * However, IO ports and Memory truely are global at this level,
+	 * as are APIC interrupts (however many IO APICS there turn out
+	 * to be on large systems..)
+	 */
 	port_rman.rm_start = 0;
 	port_rman.rm_end = 0xffff;
 	port_rman.rm_type = RMAN_ARRAY;
@@ -173,24 +190,24 @@ nexus_probe(device_t dev)
 
 	child = device_add_child(dev, "npx", 0, 0);
 	if (child == 0)
-		printf("nexus_probe npx\n");
+		panic("nexus_probe npx");
 
 	child = device_add_child(dev, "apm", 0, 0);
 	if (child == 0)
-		printf("nexus_probe apm\n");
+		panic("nexus_probe apm");
 
 #if NPCI > 0
 	/* pci_cfgopen() should come out of here so it could be loadable */
 	if (pci_cfgopen() != 0) {
 		child = device_add_child(dev, "pcib", 0, 0);
 		if (child == 0)
-			printf("nexus_probe pcib\n");
+			panic("nexus_probe pcib");
 	}
 #endif
 
 	child = device_add_child(dev, "eisa", 0, 0);
 	if (child == 0)
-		printf("nexus_probe eisa\n");
+		panic("nexus_probe eisa");
 
 	child = device_add_child(dev, "isa", 0, 0);
 	if (child == 0)
