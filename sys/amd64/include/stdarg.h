@@ -31,9 +31,13 @@
 #ifndef _MACHINE_STDARG_H_
 #define	_MACHINE_STDARG_H_
 
+#include <sys/cdefs.h>
 #include <sys/_types.h>
 
+#ifndef _VA_LIST_DECLARED
+#define	_VA_LIST_DECLARED
 typedef	__va_list	va_list;
+#endif
 
 #define	va_start(ap, last) \
 	__builtin_stdarg_start((ap), (last))
@@ -41,8 +45,10 @@ typedef	__va_list	va_list;
 #define	va_arg(ap, type) \
 	__builtin_va_arg((ap), type)
 
+#if __ISO_C_VISIBLE >= 1999
 #define	va_copy(dest, src) \
 	__builtin_va_copy((dest), (src))
+#endif
 
 #define	va_end(ap) \
 	__builtin_va_end(ap)
