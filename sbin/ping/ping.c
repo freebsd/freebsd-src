@@ -41,17 +41,17 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-/*
+#if 0
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
-*/
+#endif
 static const char rcsid[] =
-	"$Id: ping.c,v 1.37 1998/05/25 20:16:05 fenner Exp $";
+	"$Id$";
 #endif /* not lint */
 
 /*
  *			P I N G . C
  *
- * Using the InterNet Control Message Protocol (ICMP) "ECHO" facility,
+ * Using the Internet Control Message Protocol (ICMP) "ECHO" facility,
  * measure round-trip-delays and packet loss across network paths.
  *
  * Author -
@@ -82,7 +82,6 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include <sys/socket.h>
-#include <sys/file.h>
 #include <sys/time.h>
 #include <sys/uio.h>
 
@@ -176,7 +175,7 @@ static void pr_retip(struct ip *);
 static void status(int);
 static void stopit(int);
 static void tvsub(struct timeval *, struct timeval *);
-static void usage(const char *) __dead2;
+static void usage(void) __dead2;
 
 int
 main(argc, argv)
@@ -314,13 +313,12 @@ main(argc, argv)
 			options |= F_VERBOSE;
 			break;
 		default:
-
-			usage(argv[0]);
+			usage();
 		}
 	}
 
 	if (argc - optind != 1)
-		usage(argv[0]);
+		usage();
 	target = argv[optind];
 
 	bzero((char *)&whereto, sizeof(struct sockaddr));
@@ -502,7 +500,7 @@ main(argc, argv)
 			timeout.tv_usec += 1000000;
 			timeout.tv_sec--;
 		}
-		while (timeout.tv_usec > 1000000) {
+		while (timeout.tv_usec >= 1000000) {
 			timeout.tv_usec -= 1000000;
 			timeout.tv_sec++;
 		}
@@ -520,7 +518,7 @@ main(argc, argv)
 			if ((cc = recvmsg(s, &msg, 0)) < 0) {
 				if (errno == EINTR)
 					continue;
-				perror("ping: recvmsg");
+				warn("recvmsg");
 				continue;
 			}
 #ifdef SO_TIMESTAMP
@@ -1269,15 +1267,10 @@ fill(bp, patp)
 }
 
 static void
-usage(argv0)
-	const char *argv0;
+usage()
 {
-	if (strrchr(argv0,'/'))
-		argv0 = strrchr(argv0,'/') + 1;
-	fprintf(stderr,
-		"usage: %s [-QRadfnqrv] [-c count] [-i wait] [-l preload] "
-		"[-p pattern]\n       [-s packetsize] "
-		"[host | [-L] [-I iface] [-T ttl] mcast-group]\n",
-		argv0);
+	fprintf(stderr, "%s\n%s\n",
+"usage: ping [-QRadfnqrv] [-c count] [-i wait] [-l preload] [-p pattern]",
+"            [-s packetsize] [host | [-L] [-I iface] [-T ttl] mcast-group]");
 	exit(EX_USAGE);
 }
