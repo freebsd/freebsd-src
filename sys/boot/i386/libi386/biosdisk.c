@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.20 1999/01/10 18:22:23 steve Exp $
+ *	$Id: biosdisk.c,v 1.21 1999/01/24 00:12:04 msmith Exp $
  */
 
 /*
@@ -802,7 +802,7 @@ bd_getdev(struct i386_devdesc *dev)
 	if ((cp != nip) && (*cp == 0))
 	    unit = i;
     } else {
-	(biosdev & 0x7f) - unitofs;					/* allow for #wd compenstation in da case */
+	unit = (biosdev & 0x7f) - unitofs;					/* allow for #wd compenstation in da case */
     }
 
     rootdev = MAKEBOOTDEV(major,
