@@ -165,9 +165,9 @@ getpgid(td, uap)
 {
 	struct proc *p = td->td_proc;
 	struct proc *pt;
-	int error, s;
+	int error;
 
-	s = mtx_lock_giant(kern_giant_proc);
+	mtx_lock(&Giant);
 	error = 0;
 	if (uap->pid == 0) {
 		PROC_LOCK(p);
@@ -181,7 +181,7 @@ getpgid(td, uap)
 			td->td_retval[0] = pt->p_pgrp->pg_id;
 		PROC_UNLOCK(pt);
 	}
-	mtx_unlock_giant(s);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -204,9 +204,8 @@ getsid(td, uap)
 	struct proc *p = td->td_proc;
 	struct proc *pt;
 	int error;
-	int s;
 
-	s = mtx_lock_giant(kern_giant_proc);
+	mtx_lock(&Giant);
 	error = 0;
 	if (uap->pid == 0) {
 		PROC_LOCK(p);
@@ -220,7 +219,7 @@ getsid(td, uap)
 			td->td_retval[0] = pt->p_session->s_sid;
 		PROC_UNLOCK(pt);
 	}
-	mtx_unlock_giant(s);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
