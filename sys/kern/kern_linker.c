@@ -754,8 +754,7 @@ kldload(struct thread *td, struct kldload_args *uap)
 		goto out;
 
 	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	if ((error = copyinstr(uap->file, pathname, MAXPATHLEN,
-	    NULL)) != 0)
+	if ((error = copyinstr(uap->file, pathname, MAXPATHLEN, NULL)) != 0)
 		goto out;
 
 	/*
@@ -841,8 +840,7 @@ kldfind(struct thread *td, struct kldfind_args *uap)
 	td->td_retval[0] = -1;
 
 	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	if ((error = copyinstr(uap->file, pathname, MAXPATHLEN,
-	    NULL)) != 0)
+	if ((error = copyinstr(uap->file, pathname, MAXPATHLEN, NULL)) != 0)
 		goto out;
 
 	filename = linker_basename(pathname);
@@ -1026,8 +1024,7 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 		    LINKER_SYMBOL_VALUES(lf, sym, &symval) == 0) {
 			lookup.symvalue = (uintptr_t) symval.value;
 			lookup.symsize = symval.size;
-			error = copyout(&lookup, uap->data,
-			    sizeof(lookup));
+			error = copyout(&lookup, uap->data, sizeof(lookup));
 		} else
 			error = ENOENT;
 	} else {
