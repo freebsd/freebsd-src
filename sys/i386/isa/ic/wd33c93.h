@@ -1,127 +1,155 @@
 /*
- * PC9801 SCSI I/F (PC-9801-55)
- * modified for PC9801 by A.Kojima
- *			Kyoto University Microcomputer Club (KMC)
+ * [NetBSD for NEC PC98 series]
+ *  Copyright (c) 1996 NetBSD/pc98 porting staff.
+ *  Copyright (c) 1996 Naofumi Honda
+ *  All rights reserved.
+ * 
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *  1. Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *  2. Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *  3. The name of the author may not be used to endorse or promote products
+ *     derived from this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* I/O address */
+#ifndef	_WD33C93REG_H_
+#define	_WD33C93REG_H_
 
-/* WD33C93 */
-#define	SCSI_ADR_REG	0xcc0	/* write       Address Register */
-#define	SCSI_AUX_REG	0xcc0	/* read        Aux. Status Register */
-#define	SCSI_CTL_REG	0xcc2	/* read/write  Control Registers */
+/* wd33c93 register */
+#define	wd3s_oid		0x00
+#define	IDR_FS_15_20		0x80
+#define	IDR_FS_12_15		0x40
+#define	IDR_FS_8_10		0x00
+#define	IDR_EHP			0x10
+#define	IDR_EAF			0x08
+#define	IDR_IDM			0x07
 
-/* Port */
-#define SCSI_STAT_RD	0xcc4	/* read        Status Read */
-#define SCSI_CMD_WRT	0xcc4	/* write       Command Write */
+#define	wd3s_ctrl		0x01
+#define	CR_DMA			0x80
+#define	CR_DMAD			0x40
+#define	CR_HLT_HOST_PARITY	0x10
+#define	CR_DIS_INT		0x08
+#define	CR_IDIS_INT		0x04
+#define	CR_HLT_ATN		0x02
+#define	CR_HLT_BUS_PARITY	0x01
+#define	CR_DEFAULT		(CR_DIS_INT | CR_IDIS_INT)
+#define	CR_DEFAULT_HP		(CR_DEFAULT | CR_HLT_BUS_PARITY)
 
-#if 0 /* H98 extended mode */
-/* WD33C93 */
-#define	SCSI_ADR_REG	0xee0	/* write       Address Register */
-#define	SCSI_AUX_REG	0xee0	/* read        Control Register */
-#define	SCSI_CTL_REG	0xee2	/* read/write  Registers */
+#define	wd3s_tout		0x02
+#define	wd3s_cdb		0x03
+#define	wd3s_lun		0x0f
+#define	wd3s_cph		0x10
+#define	wd3s_synch		0x11
+#define	wd3s_cnt		0x12
+#define	wd3s_did		0x15
 
-/* Port */
-#define SCSI_STAT_RD	0xee4	/* read        Status Read */
-#define SCSI_CMD_WRT	0xee4	/* write       Command Write */
-#endif
+#define	wd3s_sid		0x16
+#define	SIDR_RESEL		0x80
+#define	SIDR_SEL		0x40
+#define	SIDR_VALID		0x08
+#define	SIDR_IDM		0x07
 
-/****************************************************************/
+#define	wd3s_stat		0x17
 
-/* WD33C93 Registers */
-#define	REG_OWN_ID		0x00	/* Own ID */
-#define	REG_CONTROL		0x01	/* Control */
-#define REG_TIMEOUT_PERIOD	0x02	/* Timeout Period */
-#define REG_TOTAL_SECTORS	0x03	/* Total Sectors */
-#define REG_TOTAL_HEADS		0x04	/* Total Heads */
-#define REG_TOTAL_CYL_H		0x05	/* Total Cylinders (MSB) */
-#define REG_TOTAL_CYL_L		0x06	/* Total Cylinders (LSB) */
-#define REG_LOG_SECTOR_HH	0x07	/* Logical Address (MSB) */
-#define REG_LOG_SECTOR_HL	0x08	/* Logical Address       */
-#define REG_LOG_SECTOR_LH	0x09	/* Logical Address       */
-#define REG_LOG_SECTOR_LL	0x0a	/* Logical Address (LSB) */
-#define REG_SECTOR_NUMBER	0x0b	/* Sector Number */
-#define REG_HEAD_NUMBER		0x0c	/* Head Number */
-#define REG_CYL_NUMBER_H	0x0d	/* Cylinder Number (MSB) */
-#define REG_CYL_NUMBER_L	0x0e	/* Cylinder Number (LSB) */
-#define REG_TARGET_LUN		0x0f	/* Target LUN */
-#define REG_CMD_PHASE		0x10	/* Command Phase */
-#define REG_SYNC_TFR		0x11	/* Synchronous Transfer */
-#define REG_TFR_COUNT_H		0x12	/* Transfer Count (MSB) */
-#define REG_TFR_COUNT_M		0x13	/* Transfer Count      */
-#define REG_TFR_COUNT_L		0x14	/* Transfer Count (LSB) */
-#define REG_DST_ID		0x15	/* Destination ID */
-#define REG_SRC_ID		0x16	/* Source ID */
-#define REG_SCSI_STATUS		0x17	/* SCSI Status (Read Only) */
-#define REG_COMMAND		0x18	/* Command */
-#define REG_DATA		0x19	/* Data */
+#define	BSR_CM			0xf0
+#define	BSR_CMDCPL		0x10
+#define	BSR_CMDABT		0x20
+#define	BSR_CMDERR		0x40
+#define	BSR_CMDREQ		0x80
 
-/* PC98 only */
-#define REG_MEM_BANK		0x30	/* Memory Bank */
-#define REG_MEM_WIN		0x31	/* Memery Window */
-#define REG_RESERVED1		0x32	/* NEC Reserved 1 */
-#define REG_RESET_INT		0x33	/* Reset/Int */
-#define REG_RESERVED2		0x34	/* NEC Reserved 2 */
+#define	BSR_SM			0x0f
+#define	BSR_PM			0x07
+#define	BSR_PHVALID		0x08
+#define	BSR_IOR			0x01
+#define	BSR_DATAOUT		0x00
+#define	BSR_DATAIN		0x01
+#define	BSR_CMDOUT		0x02
+#define	BSR_STATIN		0x03
+#define	BSR_UNSPINFO0		0x04
+#define	BSR_UNSPINFO1		0x05
+#define	BSR_MSGOUT		0x06
+#define	BSR_MSGIN		0x07
 
-/****************************************************************/
+#define	BSR_SELECTED		0x11
+#define	BSR_SATFIN		0x16
+#define	BSR_ACKREQ		0x20
+#define	BSR_SATSDP		0x21
+#define	BSR_RESEL		0x80
+#define	BSR_DISC		0x85
 
-/* WD33C93 Commands */
-#define	CMD_RESET		0x00	/* Reset */
-#define	CMD_ABORT		0x01	/* Abort */
-#define	CMD_ASSERT_ATN		0x02	/* Assert ATN */
-#define	CMD_NEGATE_ATN		0x03	/* Negate ATN */
-#define	CMD_DISCONNECT		0x04	/* Disconnect */
-#define	CMD_RESELECT		0x05	/* Reselect */
-#define	CMD_SELECT_ATN		0x06	/* Select with ATN */
-#define	CMD_SELECT_NO_ATN	0x07	/* Select without ATN */
-#define	CMD_SELECT_ATN_TFR	0x08	/* Select with ATN and Transfer */ 
-#define	CMD_SELECT_NO_ATN_TFR	0x09	/* Select without ATN and Transfer */ 
-#define	CMD_RESELECT_RCV_DATA	0x0a	/* Reselect and Recieve Data */
-#define	CMD_RESELECT_SEND_DATA	0x0b	/* Reselect and Send Data */
-#define	CMD_WAIT_SELECT_RCV	0x0c	/* Wait for Select and Recieve */
-#define	CMD_RCV_CMD		0x10	/* Recieve Command */
-#define	CMD_RCV_DATA		0x11	/* Recieve Data */
-#define	CMD_RCV_MSG_OUT		0x12	/* Recieve Message Info Out*/
-#define	CMD_RCV_UNSP_INFO_OUT	0x13	/* Recieve Unspecified Info Out */
-#define	CMD_SEND_STATUS		0x14	/* Send Status */
-#define	CMD_SEND_DATA		0x15	/* Send Data */
-#define	CMD_SEND_MSG_IN		0x16	/* Send Message In */
-#define	CMD_SEND_UNSP_INFO_IN	0x17	/* Send Unspecified Info In */
-#define	CMD_TRANSLATE_ADDRESS	0x18	/* Translate Address */
-#define	CMD_TFR_INFO		0x20	/* Transfer Info */
-#define	CMD_TFR_PAD		0x21	/* Transfer Pad */
-#define CMD_SBT_SFX		0x80	/* single byte suffix */
+#define	wd3s_cmd		0x18
+#define	wd3s_data		0x19
+#define	wd3s_qtag		0x1a
 
-/* WD33C93 bus status register (lower nibble) */
-#define STAT_DATAOUT	0x08		/* Data out phase */
-#define STAT_DATAIN	0x09		/* Data in phase */
-#define STAT_CMDOUT	0x0a		/* Command out phase */
-#define STAT_STATIN	0x0b		/* Status in phase */
-#define STAT_MSGOUT	0x0e		/* Message out phase */
-#define STAT_MSGIN	0x0f		/* Message in phase */
+#define	wd3s_mbank		0x30
+#define	MBR_RST			0x02
+#define	MBR_IEN			0x04
 
-/* SCSI Status byte */
-#define SS_GOOD		0x00		/* Good status */
-#define SS_CHKCOND	0x02
-#define SS_MET		0x04
-#define SS_BUSY		0x08
-#define SS_INTERGOOD	0x10
-#define SS_INTERMET	0x14
-#define SS_CONFLICT	0x18
+#define	wd3s_mwin		0x31
+#define	wd3s_auxc		0x33
+#define	AUXCR_HIDM		0x07
+#define	AUXCR_INTM		0x38
+#define	AUXCR_RRST		0x80
 
-/* SCSI message system */
-#define MSG_COMPLETE	0x00		/* Command complete message */
-#define MSG_EXTEND	0x01		/* Extend message */
-#define MSG_SAVEPTR	0x02		/* Save data pointer message */
-#define MSG_RESTORE	0x03		/* Restore data pointer message */
-#define MSG_DISCON	0x04		/* Disconnect message */
-#define MSG_INIERROR	0x05
-#define MSG_ABORT	0x06
-#define MSG_REJECT	0x07
-#define MSG_NOP		0x08
-#define MSG_PARERROR	0x09
-#define MSG_LCOMPLETE	0x0a
-#define MSG_LCOMPLETEF	0x0b
-#define MSG_DEVRESET	0x0c
-#define MSG_IDENTIFY	0x80		/* Identify message */
+/* status port */
+#define	STR_INT			0x80
+#define	STR_LCI			0x40
+#define	STR_BSY			0x20
+#define	STR_CIP			0x10
+#define	STR_PE			0x02
+#define	STR_DBR			0x01
+#define	STR_BUSY		0xf0
 
+/* cmd port */
+#define	CMDP_DMES		0x01
+#define	CMDP_DMER		0x02
+#define	CMDP_TCMS		0x04
+#define	CMDP_TCMR		0x08
+#define	CMDP_TCIR		0x10
+
+/* wd33c93 chip cmds */
+#define	WD3S_SBT		0x80
+#define	WD3S_RESET		0x00
+#define	WD3S_ABORT		0x01
+#define	WD3S_ASSERT_ATN		0x02
+#define	WD3S_NEGATE_ACK		0x03
+#define	WD3S_DISCONNECT		0x04
+#define	WD3S_RESELECT		0x05
+#define	WD3S_SELECT_ATN		0x06
+#define	WD3S_SELECT_NO_ATN	0x07
+#define	WD3S_SELECT_ATN_TFR	0x08
+#define	WD3S_SELECT_NO_ATN_TFR	0x09
+#define	WD3S_RESELECT_RCV_DATA	0x0a
+#define	WD3S_RESELECT_SEND_DATA	0x0b
+#define	WD3S_WAIT_SELECT_RCV	0x0c
+#define	WD3S_CMD_COMPSEQ	0x0d
+#define	WD3S_SEND_DISC_MSG	0x0e
+#define	WD3S_SET_IDI		0x0f
+#define	WD3S_RCV_CMD		0x10
+#define	WD3S_RCV_DATA		0x11
+#define	WD3S_RCV_MSG_OUT	0x12
+#define	WD3S_RCV_UNSP_INFO_OUT	0x13
+#define	WD3S_SEND_STATUS	0x14
+#define	WD3S_SEND_DATA		0x15
+#define	WD3S_SEND_MSG_IN	0x16
+#define	WD3S_SEND_UNSP_INFO_IN	0x17
+#define	WD3S_TRANSLATE_ADDRESS	0x18
+#define	WD3S_TFR_INFO		0x20
+
+#endif	/* !_WD33C93REG_H_ */

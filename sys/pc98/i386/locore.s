@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.5 1996/10/23 07:24:59 asami Exp $
+ *	$Id: locore.s,v 1.5.2.1 1996/11/09 21:13:07 phk Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -164,9 +164,10 @@ _bdb_exists:	.long	0
  *	prot = protection bits
  */
 #define	fillkpt(base, prot)		  \
-	shll	$2, %ebx		; \
-	addl	base, %ebx		; \
-	orl	$PG_V+prot, %eax	; \
+	shll	$2,%ebx			; \
+	addl	base,%ebx		; \
+	orl	$PG_V,%eax		; \
+	orl	prot,%eax		; \
 1:	movl	%eax,(%ebx)		; \
 	addl	$PAGE_SIZE,%eax		; /* increment physical address */ \
 	addl	$4,%ebx			; /* next pte */ \
@@ -376,6 +377,7 @@ begin:
 1:
 #endif
 #if defined(IBM_486SLC) && defined(I486_CPU)
+/* optimization */
 	cli
 	movl	%cr0,%eax
 	orl	$0x40000000,%eax  # disable cache
@@ -433,29 +435,27 @@ begin:
 	outb	%al,$0x23
 	movb	$0x0e8,%al		# CCR4
 	outb	%al,$0x22
+	movb	$0x18, %al		# DTE_EN, MEM_BYP
 #ifdef FASTER_5X86_FPU
-	movb	$0x38,%al		# DTE_EN,MEM_BYP,no clock delay
-					# UNDOCUMENTED OPTION (20H)
+	orb	$0x20, %al		# UNDOCUMENTED OPTION
+#endif
+#ifdef CX586_IO
+	orb	$CX586_IO, %al
 #else
-	movb	$0x18,%al		# DTE_EN,MEM_BYP,no clock delay
+	orb	$0x02, %al		# 4-clock I/O delay
 #endif
 	outb	%al,$0x23
 	movb	$0x020,%al		# PCR0
 	outb	%al,$0x22
+	movb	$0x02, %al		# BTB_EN
+#ifndef DISALBE_5X86_LSSER
+	orb	$0x80, %al		# LSSER
+#endif
 #ifdef RSTK_EN
-#define RSTK_EN_BIT 1
-#else
-#define RSTK_EN_BIT 0
+	orb	$0x01, %al
 #endif
 #ifdef LOOP_EN
-#define LOOP_EN_BIT 4
-#else
-#define LOOP_EN_BIT 0
-#endif
-#ifdef DISABLE_5X86_LSSER
-	movb	$(0x02 | RSTK_EN_BIT | LOOP_EN_BIT) ,%al	# BTB_EN
-#else
-	movb	$(0x82 | RSTK_EN_BIT | LOOP_EN_BIT),%al		# BTB_EN,LSSER
+	orb	$0x04, %al
 #endif
 	outb	%al,$0x23
 	movb	$0x0c3,%al		# CCR3
@@ -690,7 +690,11 @@ olddiskboot:
 	movl	%eax,R(_bootdev)
 
 #if defined(USERCONFIG_BOOT) && defined(USERCONFIG)
+#ifdef PC98
 	movl	$0x90200, %esi
+#else
+	movl	$0x10200, %esi
+#endif
 	movl	$R(_userconfig_from_boot),%edi
 	movl	$512,%ecx
 	cld
@@ -866,6 +870,13 @@ identify_cpu:
 
 create_pagetables:
 
+	testl	$CPUID_PGE, R(_cpu_feature)
+	jz	1f
+	movl	%cr4, %eax
+	orl	$CR4_PGE, %eax
+	movl	%eax, %cr4
+1:
+
 /* Find end of kernel image (rounded up to a page boundary). */
 	movl	$R(_end),%esi
 
@@ -911,70 +922,80 @@ over_symalloc:
 	cmpl	$0,R(_bdb_exists)
 	jne	map_read_write
 #endif
-	movl	$R(_etext),%ecx
+	xorl	%edx,%edx
+	testl	$CPUID_PGE, R(_cpu_feature)
+	jz	2f
+	orl	$PG_G,%edx
+	
+2:	movl	$R(_etext),%ecx
 	addl	$PAGE_MASK,%ecx
 	shrl	$PAGE_SHIFT,%ecx
-	fillkptphys(0)
+	fillkptphys(%edx)
 
 /* Map read-write, data, bss and symbols */
 	movl	$R(_etext),%eax
 	addl	$PAGE_MASK, %eax
 	andl	$~PAGE_MASK, %eax
 map_read_write:
-	movl	R(_KERNend),%ecx
+	movl	$PG_RW,%edx
+	testl	$CPUID_PGE, R(_cpu_feature)
+	jz	1f
+	orl	$PG_G,%edx
+	
+1:	movl	R(_KERNend),%ecx
 	subl	%eax,%ecx
 	shrl	$PAGE_SHIFT,%ecx
-	fillkptphys(PG_RW)
+	fillkptphys(%edx)
 
 /* Map page directory. */
 	movl	R(_IdlePTD), %eax
 	movl	$1, %ecx
-	fillkptphys(PG_RW)
+	fillkptphys($PG_RW)
 
 /* Map proc0's page table for the UPAGES. */
 	movl	R(p0upt), %eax
 	movl	$1, %ecx
-	fillkptphys(PG_RW)
+	fillkptphys($PG_RW)
 
 /* Map proc0's UPAGES in the physical way ... */
 	movl	R(p0upa), %eax
 	movl	$UPAGES, %ecx
-	fillkptphys(PG_RW)
+	fillkptphys($PG_RW)
 
 /* Map ISA hole */
 	movl	$ISA_HOLE_START, %eax
 	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
-	fillkptphys(PG_RW|PG_N)
+	fillkptphys($PG_RW|PG_N)
 
 /* Map proc0s UPAGES in the special page table for this purpose ... */
 	movl	R(p0upa), %eax
 	movl	$KSTKPTEOFF, %ebx
 	movl	$UPAGES, %ecx
-	fillkpt(R(p0upt), PG_RW)
+	fillkpt(R(p0upt), $PG_RW)
 
 /* ... and put the page table in the pde. */
 	movl	R(p0upt), %eax
 	movl	$KSTKPTDI, %ebx
 	movl	$1, %ecx
-	fillkpt(R(_IdlePTD), PG_RW)
+	fillkpt(R(_IdlePTD), $PG_RW)
 
 /* install a pde for temporary double map of bottom of VA */
 	movl	R(_KPTphys), %eax
 	xorl	%ebx, %ebx
 	movl	$1, %ecx
-	fillkpt(R(_IdlePTD), PG_RW)
+	fillkpt(R(_IdlePTD), $PG_RW)
 
 /* install pde's for pt's */
 	movl	R(_KPTphys), %eax
 	movl	$KPTDI, %ebx
 	movl	$NKPT, %ecx
-	fillkpt(R(_IdlePTD), PG_RW)
+	fillkpt(R(_IdlePTD), $PG_RW)
 
 /* install a pde recursively mapping page directory as a page table */
 	movl	R(_IdlePTD), %eax
 	movl	$PTDPTDI, %ebx
 	movl	$1,%ecx
-	fillkpt(R(_IdlePTD), PG_RW)
+	fillkpt(R(_IdlePTD), $PG_RW)
 
 	ret
 

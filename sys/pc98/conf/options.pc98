@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.8.2.1 1996/11/09 21:12:51 phk Exp $
+#	$Id: options.pc98,v 1.8.2.2 1996/11/13 20:16:37 phk Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -30,7 +30,7 @@ XSERVER			opt_pcvt.h
 
 AHC_TAGENABLE		opt_aic7xxx.h
 AHC_SCBPAGING_ENABLE	opt_aic7xxx.h
-AHC_FORCE_PIO		opt_aic7xxx.h
+AHC_ALLOW_MEMIO		opt_aic7xxx.h
 AHC_SHARE_SCBS		opt_aic7xxx.h
 
 CLK_CALIBRATION_LOOP	  opt_clock.h
@@ -42,13 +42,9 @@ I486_CPU		opt_cpu.h
 I586_CPU		opt_cpu.h
 I686_CPU		opt_cpu.h
 
-I586_OPTIMIZED_BCOPY	opt_temporary.h
-I586_OPTIMIZED_BZERO	opt_temporary.h
-
 SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
 SLOW_VGA		opt_syscons.h
-XT_KEYBOARD		opt_syscons.h
 
 ATAPI			opt_atapi.h
 ATAPI_STATIC		opt_atapi.h

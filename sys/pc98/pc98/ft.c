@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.5 1996/09/10 09:37:55 asami Exp $
+ *  $Id: ft.c,v 1.5.2.1 1996/11/09 21:13:51 phk Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -278,7 +278,7 @@ static struct ft_data {
 	int moving;		/* TRUE if tape is moving	  */
 	int rid[7];		/* read_id return values	  */
 
-} ft_data[NFT];
+} *ft_data[NFT];
 
 /***********************************************************************\
 * Throughout this file the following conventions will be used:		*
@@ -420,7 +420,8 @@ ftattach(isadev, fdup, unithasfd)
   char *manu;
 
   if (ftu >= NFT) return 0;
-  ft = &ft_data[ftu];
+  ft = ft_data[ftu] = malloc(sizeof *ft, M_DEVBUF, M_NOWAIT);
+  bzero(ft, sizeof *ft);
 
   /* Probe for tape */
   ft->attaching = 1;
@@ -540,7 +541,7 @@ out:
  */
 static void
 async_cmd(ftu_t ftu) {
-	ft_p	ft = &ft_data[ftu];
+	ft_p	ft = ft_data[ftu];
 	fdcu_t	fdcu = ft->fdc->fdcu;
 	int cmd, i, st0, st3, pcn;
 	static int bitn, retval, retpos, nbits, newcn;
@@ -975,7 +976,7 @@ complete:
 static void
 async_req(ftu_t ftu, int from)
 {
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
   SegReq *sp;
   static int over_async, lastreq;
   int cmd;
@@ -1104,7 +1105,7 @@ restate:
 static void
 async_read(ftu_t ftu, int from)
 {
-  ft_p ft = &ft_data[ftu];
+  ft_p ft = ft_data[ftu];
   fdcu_t fdcu = ft->fdc->fdcu;		/* fdc active unit */
   int i, rddta[7];
   int where;
@@ -1229,7 +1230,7 @@ restate:
 static void
 async_write(ftu_t ftu, int from)
 {
-  ft_p ft = &ft_data[ftu];
+  ft_p ft = ft_data[ftu];
   fdcu_t fdcu = ft->fdc->fdcu;		/* fdc active unit */
   int i, rddta[7];
   int where;
@@ -1358,7 +1359,7 @@ int
 ftintr(ftu_t ftu)
 {
   int st0, pcn, i;
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
   fdcu_t fdcu = ft->fdc->fdcu;		/* fdc active unit */
   int s = splbio();
 
@@ -1436,7 +1437,7 @@ ft_timeout(void *arg1)
 {
   int s;
   ftu_t ftu = (ftu_t)arg1;
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
 
   s = splbio();
   if (ft->active) {
@@ -1463,7 +1464,7 @@ static int
 ftintr_wait(ftu_t ftu, int cmd, int ticks)
 {
   int retries, st0, pcn;
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
   fdcu_t fdcu = ft->fdc->fdcu;		/* fdc active unit */
 
   ft->cmd_wait = cmd;
@@ -1525,7 +1526,7 @@ static int
 tape_recal(ftu_t ftu, int totape)
 {
   int s;
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
   fdcu_t fdcu = ft->fdc->fdcu;		/* fdc active unit */
 
   DPRT(("tape_recal start\n"));
@@ -1603,7 +1604,7 @@ tape_cmd(ftu_t ftu, int cmd)
   int newcn;
   int retries = 0;
   int s;
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
   fdcu_t fdcu = ft->fdc->fdcu;		/* fdc active unit */
 
   DPRT(("===> tape_cmd: %d\n",cmd));
@@ -1648,7 +1649,7 @@ static int
 tape_status(ftu_t ftu)
 {
   int r, err, tries;
-  ft_p ft = &ft_data[ftu];
+  ft_p ft = ft_data[ftu];
   int max = (ft->attaching) ? 2 : 3;
 
   for (r = -1, tries = 0; r < 0 && tries < max; tries++)
@@ -1693,7 +1694,7 @@ recheck:
 static void
 tape_start(ftu_t ftu, int motor)
 {
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
   fdc_p	fdc = ft->fdc;
   int s, mbits;
 #ifndef PC98
@@ -1743,7 +1744,7 @@ tape_start(ftu_t ftu, int motor)
 static void
 tape_end(ftu_t ftu)
 {
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
   fdc_p	fdc = ft->fdc;
   int s;
 
@@ -1787,7 +1788,7 @@ tape_end(ftu_t ftu)
 static void
 tape_inactive(ftu_t ftu)
 {
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
   int s = splbio();
 
   if (ft->segh != NULL) {
@@ -1820,7 +1821,7 @@ ftgetgeom(ftu_t ftu)
   int r, i, tries;
   int cfg, qic80, ext;
   int sts, fmt, len;
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
 
   r = tape_status(ftu);
 
@@ -1914,7 +1915,7 @@ static int
 set_fdcmode(dev_t dev, int newmode)
 {
   ftu_t ftu = FDUNIT(minor(dev));
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
   fdc_p	fdc = ft->fdc;
   static int havebufs = 0;
   int i;
@@ -2050,7 +2051,7 @@ static int
 qic_status(ftu_t ftu, int cmd, int nbits)
 {
   int st3, r, i;
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
   fdcu_t fdcu = ft->fdc->fdcu;		/* fdc active unit */
 
   if (tape_cmd(ftu, cmd)) {
@@ -2118,8 +2119,8 @@ ftopen(dev_t dev, int arg2) {
   /* check bounds */
   if (ftu >= NFT)
 	return(ENXIO);
-  fdc = ft_data[ftu].fdc;
-  if ((fdc == NULL) || (ft_data[ftu].type == NO_TYPE))
+  fdc = ft_data[ftu]->fdc;
+  if ((fdc == NULL) || (ft_data[ftu]->type == NO_TYPE))
 	  return(ENXIO);
   /* check for controller already busy with tape */
   if (fdc->flags & FDC_TAPE_BUSY)
@@ -2140,7 +2141,7 @@ int
 ftclose(dev_t dev, int flags)
 {
   ftu_t ftu = FDUNIT(minor(dev));
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
 
 
   /* Wait for any remaining I/O activity to complete. */
@@ -2164,7 +2165,7 @@ ftreq_rw(ftu_t ftu, int cmd, QIC_Segment *sr, struct proc *p)
   int s;
   long blk, bad, seg;
   unsigned char *cp, *cp2;
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
 
   if (!ft->active && ft->segh == NULL) {
 	r = tape_status(ftu);
@@ -2316,7 +2317,7 @@ rddone:
 static int
 ftreq_rewind(ftu_t ftu)
 {
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
 
   tape_inactive(ftu);
   tape_cmd(ftu, QC_STOP);
@@ -2339,7 +2340,7 @@ static int
 ftreq_trkpos(ftu_t ftu, int req)
 {
   int curtrk, r, cmd;
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
 
   tape_inactive(ftu);
   tape_cmd(ftu, QC_STOP);
@@ -2371,7 +2372,7 @@ static int
 ftreq_trkset(ftu_t ftu, int *trk)
 {
   int r;
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
 
   tape_inactive(ftu);
   tape_cmd(ftu, QC_STOP);
@@ -2397,7 +2398,7 @@ ftreq_trkset(ftu_t ftu, int *trk)
 static int
 ftreq_lfwd(ftu_t ftu)
 {
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
 
   tape_inactive(ftu);
   tape_cmd(ftu, QC_STOP);
@@ -2414,7 +2415,7 @@ ftreq_lfwd(ftu_t ftu)
 static int
 ftreq_stop(ftu_t ftu)
 {
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
 
   tape_inactive(ftu);
   tape_cmd(ftu, QC_STOP);
@@ -2431,7 +2432,7 @@ static int
 ftreq_setmode(ftu_t ftu, int cmd)
 {
   int r;
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
 
   tape_inactive(ftu);
   r = tape_status(ftu);
@@ -2462,7 +2463,7 @@ ftreq_setmode(ftu_t ftu, int cmd)
 static int
 ftreq_status(ftu_t ftu, int cmd, int *sts, struct proc *p)
 {
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
 
   if (ft->active)
 	*sts = ft->laststs & ~QS_READY;
@@ -2479,7 +2480,7 @@ static int
 ftreq_config(ftu_t ftu, int cmd, int *cfg, struct proc *p)
 {
   int r, tries;
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
 
   if (ft->active)
 	r = ft->lastcfg;
@@ -2542,7 +2543,7 @@ ftreq_hwinfo(ftu_t ftu, QIC_HWInfo *hwp)
 static int
 ftreq_hdr(ftu_t ftu, int cmd, QIC_Segment *sp)
 {
-  ft_p	ft = &ft_data[ftu];
+  ft_p	ft = ft_data[ftu];
   QIC_Header *h = (QIC_Header *)ft->hdr->buff;
 
   if (sp == NULL || sp->sg_data == NULL) return(EINVAL);
