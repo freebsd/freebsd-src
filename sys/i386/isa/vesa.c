@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.9 1998/12/07 21:58:24 archie Exp $
+ * $Id: vesa.c,v 1.10 1998/12/30 11:21:08 yokota Exp $
  */
 
 #include "sc.h"
@@ -311,7 +311,7 @@ vesa_translate_flags(u_int16_t vflags)
 	} ftable[] = {
 		{ V_MODECOLOR, V_INFO_COLOR, 0 },
 		{ V_MODEGRAPHICS, V_INFO_GRAPHICS, 0 },
-		{ V_MODELFB, V_INFO_LENEAR, 0 },
+		{ V_MODELFB, V_INFO_LINEAR, 0 },
 	};
 	int flags;
 	int i;
