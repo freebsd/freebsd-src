@@ -36,7 +36,7 @@
 .In sys/types.h
 .In sys/lockmgr.h
 .Ft int
-.Fn lockmgr "struct lock *lkp" "u_int flags" "struct mtx *interlkp" "struct proc *p"
+.Fn lockmgr "struct lock *lkp" "u_int flags" "struct mtx *interlkp" "struct thread *td"
 .Sh DESCRIPTION
 The
 .Fn lockmgr
@@ -47,7 +47,7 @@ Locks can also be upgraded and downgraded.
 Its arguments are:
 .Bl -tag -width ".Fa interlkp"
 .It Fa lkp
-A pointer to lock to manipulate.
+A pointer to the lock to manipulate.
 .It Fa flags
 Flags indicating what action is to be taken.
 .Bl -tag -width ".Dv LK_EXCLUPGRADE"
@@ -62,15 +62,13 @@ is not set we will panic.
 .It Dv LK_DOWNGRADE
 Downgrade our exclusive lock to a shared lock.
 Downgrading a shared lock is not valid.
-If the exclusive lock has been recursed, all references will
-be downgraded.
+If the exclusive lock has been recursed, all references will be downgraded.
 .It Dv LK_EXCLUPGRADE
 Upgrade our lock to an exclusive lock.
 Will fail with
 .Er EBUSY
 if there is someone ahead of use waiting for an upgrade.
-If this call fails we loose
-our shared lock.
+If this call fails we loose our shared lock.
 Upgrading an exclusive lock will cause a panic.
 .It Dv LK_UPGRADE
 Upgrades our lock to an exclusive lock.
@@ -79,12 +77,11 @@ our shared lock.
 Upgrading an exclusive lock will cause a panic.
 .It Dv LK_RELEASE
 Release the lock.
-Releasing a lock that you do not hold can cause
-a panic.
+Releasing a lock that you do not hold can cause a panic.
 .It Dv LK_DRAIN
 Waits for all activity on the lock to end, and then marks it decommissioned.
-This is used before freeing a lock that is part of a piece of memory that is about to
-be freed.
+This is used before freeing a lock that is part of a piece of memory that is
+about to be freed.
 (As documented in
 .Pa sys/lockmgr.h . )
 .It Dv LK_SLEEPFAIL
@@ -94,8 +91,7 @@ Do not allow the call to sleep.
 This can be used to test the lock.
 .It Dv LK_CANRECURSE
 It is ok to recurse on an exclusive lock.
-For every lock there
-must be a release.
+For every lock there must be a release.
 .It Dv LK_INTERLOCK
 Unlock the interlock, which is of course locked already.
 .El
@@ -110,8 +106,8 @@ assumes
 is currently owned and not recursed, and will return it unlocked.
 See
 .Xr mtx_assert 9 .
-.It Fa p
-The process responsible for this call.
+.It Fa td
+The thread responsible for this call.
 .Dv NULL
 becomes
 .Dv LK_KERNPROC .
@@ -138,8 +134,8 @@ Either
 .Dv LK_NOWAIT
 was specified and
 .Fn lockmgr
-would have slept, or another
-process was ahead of you in line for an exclusive upgrade.
+would have slept, or another thread was ahead of you in line for an exclusive
+upgrade.
 .It Bq Er ENOLCK
 .Dv LK_SLEEP_FAIL
 was set and we slept.
