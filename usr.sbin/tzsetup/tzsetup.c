@@ -25,14 +25,17 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: tzsetup.c,v 1.2.2.3 1997/03/10 20:35:46 jkh Exp $
  */
 
 /*
  * Second attempt at a `tzmenu' program, using the separate description
  * files provided in newer tzdata releases.
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id: tzsetup.c,v 1.8 1997/10/27 07:49:47 charnier Exp $";
+#endif /* not lint */
 
 #include <sys/types.h>
 #include <dialog.h>
@@ -618,6 +621,13 @@ set_zone_whole_country(dialogMenuItem *dmi)
 	return rv;
 }
 
+static void
+usage()
+{
+	fprintf(stderr, "usage: tzsetup [-n]\n");
+	exit(1);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -630,16 +640,12 @@ main(int argc, char **argv)
 			break;
 
 		default:
-			fprintf(stderr, "%s: usage:\n\t%s [-n]\n", argv[0],
-				argv[0]);
-			exit(1);
+			usage();
 		}
 	}
 
-	if (optind != argc) {
-		fprintf(stderr, "%s: usage:\n\t%s [-n]\n", argv[0], argv[0]);
-		exit(1);
-	}
+	if (optind != argc)
+		usage();
 
 	read_iso3166_table();
 	read_zones();
@@ -650,9 +656,11 @@ main(int argc, char **argv)
 	if (!dialog_yesno("Select local or UTC (Greenwich Mean Time) clock",
 			  "Is this machine's CMOS clock set to UTC?  If it is set to local time,\n"
 			  "please choose NO here!", 7, 72))
-		system("rm -f /etc/wall_cmos_clock");
+		if (reallydoit)
+			system("rm -f /etc/wall_cmos_clock");
 	else
-		system("touch /etc/wall_cmos_clock");
+		if (reallydoit)
+			system("touch /etc/wall_cmos_clock");
 	dialog_clear_norefresh();
 	dialog_menu("Time Zone Selector", "Select a region", -1, -1, 
 		    NCONTINENTS, -NCONTINENTS, continents, 0, NULL, NULL);
