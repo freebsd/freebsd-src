@@ -753,12 +753,15 @@ ndis_halt_nic(arg)
 	ndis_handle		adapter;
 	__stdcall ndis_halt_handler	haltfunc;
 	struct ifnet		*ifp;
+	struct ndis_timer_entry	*ne;
+	struct callout_handle	*ch;
 
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
 	if (adapter == NULL)
 		return(EIO);
+
 	haltfunc = sc->ndis_chars.nmc_halt_func;
 
 	if (haltfunc == NULL)
@@ -773,6 +776,17 @@ ndis_halt_nic(arg)
 	 */
 
 	sc->ndis_block.nmb_miniportadapterctx = NULL;
+
+	/* Clobber all the timers in case the driver left one running. */
+
+	while (!TAILQ_EMPTY(&sc->ndis_block.nmb_timerlist)) {
+		ne = TAILQ_FIRST(&sc->ndis_block.nmb_timerlist);
+		TAILQ_REMOVE(&sc->ndis_block.nmb_timerlist, ne, link);
+		ch = &ne->nte_ch;
+		if (ch->callout != NULL)
+			untimeout(ch->callout->c_func, ch->callout->c_arg, *ch);
+		free(ne, M_DEVBUF);
+	}
 
 	return(0);
 }
@@ -820,6 +834,8 @@ ndis_init_nic(arg)
 	sc = arg;
 	block = &sc->ndis_block;
 	initfunc = sc->ndis_chars.nmc_init_func;
+
+	TAILQ_INIT(&block->nmb_timerlist);
 
 	for (i = 0; i < NdisMediumMax; i++)
 		mediumarray[i] = i;

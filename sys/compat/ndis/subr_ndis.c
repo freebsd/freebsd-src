@@ -872,10 +872,17 @@ ndis_create_timer(timer, handle, func, ctx)
 	ndis_timer_function	func;
 	void			*ctx;
 {
-	struct callout_handle	*ch;
+	struct ndis_timer_entry	*ne = NULL;
+	ndis_miniport_block	*block;
+	block = (ndis_miniport_block *)handle;
 
-	ch = (struct callout_handle *)&timer->nmt_dpc;
-	callout_handle_init(ch);
+	ne = malloc(sizeof(struct ndis_timer_entry), M_DEVBUF, M_NOWAIT);
+	callout_handle_init(&ne->nte_ch);
+	TAILQ_INSERT_TAIL(&block->nmb_timerlist, ne, link);
+	ne->nte_timer = timer;
+
+	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
+	timer->nmt_dpc.nk_deferredctx = &ne->nte_ch;
 	timer->nmt_timerfunc = func;
 	timer->nmt_timerctx = ctx;
 
@@ -896,6 +903,7 @@ ndis_timercall(arg)
 
 	timer = arg;
 
+	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
 	timerfunc = timer->nmt_timerfunc;
 	timerfunc(NULL, timer->nmt_timerctx, NULL, NULL);
 
@@ -919,8 +927,9 @@ ndis_set_timer(timer, msecs)
 	tv.tv_sec = 0;
 	tv.tv_usec = msecs * 1000;
 
-	ch = (struct callout_handle *)&timer->nmt_dpc;
+	ch = timer->nmt_dpc.nk_deferredctx;
 	timer->nmt_dpc.nk_sysarg2 = ndis_timercall;
+	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
 	*ch = timeout((timeout_t *)timer->nmt_dpc.nk_sysarg2, (void *)timer,
 	    tvtohz(&tv));
 
@@ -938,6 +947,7 @@ ndis_tick(arg)
 
 	timer = arg;
 
+	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
 	timerfunc = timer->nmt_timerfunc;
 	timerfunc(NULL, timer->nmt_timerctx, NULL, NULL);
 
@@ -945,7 +955,8 @@ ndis_tick(arg)
 
 	tv.tv_sec = 0;
 	tv.tv_usec = timer->nmt_ktimer.nk_period * 1000;
-	ch = (struct callout_handle *)&timer->nmt_dpc;
+	ch = timer->nmt_dpc.nk_deferredctx;
+	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
 	timer->nmt_dpc.nk_sysarg2 = ndis_tick;
 	*ch = timeout((timeout_t *)timer->nmt_dpc.nk_sysarg2, timer,
 	    tvtohz(&tv));
@@ -965,8 +976,9 @@ ndis_set_periodic_timer(timer, msecs)
 	tv.tv_usec = msecs * 1000;
 
 	timer->nmt_ktimer.nk_period = msecs;
-	ch = (struct callout_handle *)&timer->nmt_dpc;
+	ch = timer->nmt_dpc.nk_deferredctx;
 	timer->nmt_dpc.nk_sysarg2 = ndis_tick;
+	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
 	*ch = timeout((timeout_t *)timer->nmt_dpc.nk_sysarg2, timer,
 	    tvtohz(&tv));
 
@@ -980,8 +992,9 @@ ndis_cancel_timer(timer, cancelled)
 {
 	struct callout_handle	*ch;
 
-	ch = (struct callout_handle *)&timer->nmt_dpc;
-	untimeout((timeout_t *)timer->nmt_dpc.nk_sysarg2, timer, *ch);
+	ch = timer->nmt_dpc.nk_deferredctx;
+	untimeout(ch->callout->c_func, ch->callout->c_arg, *ch);
+	*cancelled = timer->nmt_ktimer.nk_header.dh_sigstate;
 
 	return;
 }
