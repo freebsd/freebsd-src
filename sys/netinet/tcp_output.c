@@ -118,7 +118,7 @@ tcp_output(struct tcpcb *tp)
 	int off, flags, error;
 #ifdef TCP_SIGNATURE
 	int sigoff = 0;
-#endif /* TCP_SIGNATURE */
+#endif
 	struct mbuf *m;
 	struct ip *ip = NULL;
 	struct ipovly *ipov = NULL;
@@ -787,9 +787,9 @@ send:
 	if (!isipv6)
 #endif
 	if (tp->t_flags & TF_SIGNATURE)
-		tcpsignature_compute(m, sizeof(struct ip), len, optlen,
+		tcp_signature_compute(m, sizeof(struct ip), len, optlen,
 		    (u_char *)(th + 1) + sigoff, IPSEC_DIR_OUTBOUND);
-#endif /* TCP_SIGNATURE */
+#endif
 
 	/*
 	 * Put TCP length in extended header, and then

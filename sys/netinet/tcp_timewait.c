@@ -1922,6 +1922,18 @@ tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
 
 #ifdef TCP_SIGNATURE
 /*
+ * Callback function invoked by m_apply() to digest TCP segment data
+ * contained within an mbuf chain.
+ */
+static int
+tcp_signature_apply(void *fstate, void *data, u_int len)
+{
+
+	MD5Update((MD5_CTX *)fstate, (unsigned char *)data, (unsigned int)len);
+	return (0);
+}
+
+/*
  * Compute TCP-MD5 hash of a TCPv4 segment. (RFC2385)
  *
  * Parameters:
@@ -1948,7 +1960,7 @@ tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
  * specify per-application flows but it is unstable.
  */
 int
-tcpsignature_compute(struct mbuf *m, int off0, int len, int optlen,
+tcp_signature_compute(struct mbuf *m, int off0, int len, int optlen,
     u_char *buf, u_int direction)
 {
 	union sockaddr_union dst;
@@ -2015,7 +2027,7 @@ tcpsignature_compute(struct mbuf *m, int off0, int len, int optlen,
 	 *         Use m_apply() to avoid an early m_pullup().
 	 */
 	if (len > 0)
-		m_apply(m, doff, len, tcpsignature_apply, &ctx);
+		m_apply(m, doff, len, tcp_signature_apply, &ctx);
 
 	/*
 	 * Step 4: Update MD5 hash with shared secret.
@@ -2025,14 +2037,6 @@ tcpsignature_compute(struct mbuf *m, int off0, int len, int optlen,
 
 	key_sa_recordxfer(sav, m);
 	KEY_FREESAV(&sav);
-	return (0);
-}
-
-int
-tcpsignature_apply(void *fstate, void *data, u_int len)
-{
-
-	MD5Update((MD5_CTX *)fstate, (unsigned char *)data, (unsigned int)len);
 	return (0);
 }
 #endif /* TCP_SIGNATURE */

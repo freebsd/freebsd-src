@@ -1143,7 +1143,7 @@ tcp_ctloutput(so, sopt)
 		case TCP_SIGNATURE_ENABLE:
 			optval = (tp->t_flags & TF_SIGNATURE) ? 1 : 0;
 			break;
-#endif /* TCP_SIGNATURE */
+#endif
 		case TCP_NODELAY:
 			optval = tp->t_flags & TF_NODELAY;
 			break;
