@@ -270,7 +270,7 @@ DMenu MenuIndex = {
       { " User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
       { " XFree86, Fonts",	"XFree86 Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
       { " XFree86, Server",	"XFree86 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
-#ifdef __i386__
+#if defined(__i386__) && defined(PC98)
       { " XFree86, PC98 Server",	"XFree86 PC98 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectPC98Server },
 #endif
       { NULL } },
@@ -884,8 +884,10 @@ DMenu MenuXF86Config = {
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF86Setup" },
       { "3 xf86config",	"Shell-script based XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
+#ifdef PC98
       { "4 XF98Setup",	"Fully graphical XFree86 configuration tool (PC98).",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF98Setup" },
+#endif
 #endif
       { "D XDesktop",	"X already set up, just do desktop configuration.",
 	NULL, dmenuSubmenu, NULL, &MenuXDesktops },
@@ -966,7 +968,7 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PROG },
       { " set",		"XFree86 Setup Utility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
-#ifdef __i386__
+#if defined(__i386__) && defined(PC98)
       { " 9set",	"XFree86 Setup Utility for PC98 machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_9SET },
       { " lk98",	"Server link kit for PC98 machines",
@@ -1048,7 +1050,7 @@ DMenu MenuXF86SelectServer = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_S3V },
       { " W32",		"8-bit ET4000/W32, /W32i and /W32p cards",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_W32 },
-#ifdef __i386__
+#if defined(__i386__) && defined(PC98)
       { " PC98",	"Select an X server for a NEC PC98 [Submenu]",
 	NULL,		dmenuSubmenu,  NULL, &MenuXF86SelectPC98Server, '>', ' ', '>', 0 },
 #elif __alpha__
@@ -1058,7 +1060,7 @@ DMenu MenuXF86SelectServer = {
       { NULL } },
 };
 
-#ifdef __i386__
+#if defined(__i386__) && defined(PC98)
 DMenu MenuXF86SelectPC98Server = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "PC98 X Server selection.",
