@@ -772,6 +772,16 @@ pcic_pci_ti_init(device_t dev)
 static int
 pcic_pci_topic_func(struct pcic_slot *sp, enum pcic_intr_way way)
 {
+	device_t	dev = sp->sc->dev;
+	u_int32_t	scr;
+
+	scr = pci_read_config(dev, TOPIC_SOCKET_CTRL, 4);
+	if (way == pcic_iw_pci)
+		scr |= TOPIC_SOCKET_CTRL_SCR_IRQSEL;
+	else
+		scr &= ~TOPIC_SOCKET_CTRL_SCR_IRQSEL;
+	pci_write_config(dev, TOPIC_SLOT_CTRL, scr, 4);
+
 	return (pcic_pci_gen_func(sp, way));
 }
 
@@ -779,14 +789,19 @@ static int
 pcic_pci_topic_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 {
 	device_t	dev = sp->sc->dev;
-	u_int32_t	icr;
+	u_int32_t	scr;
+	u_int32_t device_id;
 
-	icr = pci_read_config(dev, TOPIC_INTERRUPT_CONTROL, 1);
-	if (way == pcic_iw_pci)
-		icr |= TOPIC_ICR_INTA;
-	else
-		icr &= ~TOPIC_ICR_INTA;
-	pci_write_config(dev, TOPIC_INTERRUPT_CONTROL, icr, 1);
+	device_id = pci_get_devid(dev);
+	if (device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC100 ||
+	    device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC97) {
+		scr = pci_read_config(dev, TOPIC_SLOT_CTRL, 4);
+		if (way == pcic_iw_pci)
+			scr |= TOPIC97_SLOT_CTRL_PCIINT;
+		else
+			scr &= ~TOPIC97_SLOT_CTRL_PCIINT;
+		pci_write_config(dev, TOPIC_SLOT_CTRL, scr, 4);
+	}
 
 	return (0);
 }
@@ -795,7 +810,8 @@ static void
 pcic_pci_topic_init(device_t dev)
 {
 	struct pcic_softc *sc = device_get_softc(dev);
-	u_int32_t device_id;
+	u_int32_t	reg;
+	u_int32_t	device_id;
 
 	device_id = pci_get_devid(dev);
 	if (device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC100 ||
@@ -810,6 +826,14 @@ pcic_pci_topic_init(device_t dev)
 		pcic_setb(&sc->slots[0], PCIC_TOPIC_FCR,
 		    PCIC_FCR_3V_EN | PCIC_FCR_VS_EN);
 	}
+	reg = pci_read_config(dev, TOPIC_SLOT_CTRL, 4);
+	reg |= (TOPIC_SLOT_CTRL_SLOTON | TOPIC_SLOT_CTRL_SLOTEN | 
+	    TOPIC_SLOT_CTRL_ID_LOCK | TOPIC_SLOT_CTRL_CARDBUS);
+	reg &= ~TOPIC_SLOT_CTRL_SWDETECT;
+	if (device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC100 ||
+	    device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC97)
+		reg &= ~(TOPIC97_SLOT_CTRL_STSIRQP | TOPIC97_SLOT_CTRL_IRQP);
+	pci_write_config(dev, TOPIC_SLOT_CTRL, reg, 4);
 	pcic_pci_cardbus_init(dev);
 }
 
@@ -1070,6 +1094,7 @@ pcic_pci_shutdown(device_t dev)
 	sp->putb(sp, PCIC_INT_GEN, 0);
 	sp->putb(sp, PCIC_STAT_INT, 0);
 	sp->putb(sp, PCIC_POWER, 0);
+	DELAY(4000);
 
 	/*
 	 * Writing to INT_GEN can cause an interrupt, so we blindly
