@@ -434,7 +434,7 @@ void		 m_clget(struct mbuf *, int);
 void		 m_extadd(struct mbuf *, caddr_t, u_int,
 		    void (*free)(caddr_t, void *), void *, short, int);
 void		 m_copyback(struct mbuf *, int, int, caddr_t);
-void		 m_copydata(struct mbuf *, int, int, caddr_t);
+void		 m_copydata(const struct mbuf *, int, int, caddr_t);
 struct	mbuf 	*m_copym(struct mbuf *, int, int, int);
 struct	mbuf 	*m_copypacket(struct mbuf *, int);
 struct	mbuf 	*m_devget(char *, int, int, struct ifnet *,
