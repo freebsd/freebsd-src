@@ -866,13 +866,14 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	    } else
 		cmdstr = "EPSV";
 	}
-	while (*q && *q != '(')		/* ) */
-	    q++;
-	if (!*q) {
-	    ftp_close(ftp);
-	    return FAILURE;
-	}
 	if (strcmp(cmdstr, "PASV") == 0 || strcmp(cmdstr, "LPSV") == 0) {
+	    while (*q && !isdigit(*q))
+		q++;
+	    if (!*q) {
+		ftp_close(ftp);
+		return FAILURE;
+	    }
+	    q--;
 	    l = (ftp->addrtype == AF_INET ? 6 : 21);
 	    for (i = 0; i < l; i++) {
 		q++;
@@ -892,6 +893,12 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	} else if (strcmp(cmdstr, "EPSV") == 0) {
 	    int port;
 	    int sinlen;
+	    while (*q && *q != '(')		/* ) */
+		q++;
+	    if (!*q) {
+		ftp_close(ftp);
+		return FAILURE;
+	    }
 	    q++;
 	    if (sscanf(q, "%c%c%c%d%c", &addr[0], &addr[1], &addr[2],
 		    &port, &addr[3]) != 5
