@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1 1996/05/04 08:02:10 peter Exp $
 
 FILES	= 	2681.sys cdk.sys
 
@@ -23,8 +23,10 @@ clean:
 .include <bsd.prog.mk>
 
 cdk.sys: ${.CURDIR}/cdk.sys.uu
+	@rm -f $@
 	uudecode ${.CURDIR}/$@.uu
 
 2681.sys: ${.CURDIR}/2681.sys.uu
+	@rm -f $@
 	uudecode ${.CURDIR}/$@.uu
 
