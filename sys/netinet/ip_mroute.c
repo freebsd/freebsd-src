@@ -21,6 +21,7 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/syslog.h>
+#include <sys/queue.h>
 #include <net/if.h>
 #include <net/route.h>
 #include <netinet/in.h>

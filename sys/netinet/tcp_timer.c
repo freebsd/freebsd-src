@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_timer.c,v 1.3 1995/02/09 23:13:26 wollman Exp $
+ * $Id: tcp_timer.c,v 1.4 1995/02/16 00:55:42 wollman Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -43,6 +43,7 @@
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 #include <sys/errno.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -71,11 +72,11 @@ tcp_fasttimo()
 {
 	register struct inpcb *inp;
 	register struct tcpcb *tp;
-	int s = splnet();
+	int s;
 
-	inp = tcb.inp_next;
-	if (inp)
-	for (; inp != &tcb; inp = inp->inp_next)
+	s = splnet();
+
+	for (inp = tcb.lh_first; inp != NULL; inp = inp->inp_list.le_next) {
 		if ((tp = (struct tcpcb *)inp->inp_ppcb) &&
 		    (tp->t_flags & TF_DELACK)) {
 			tp->t_flags &= ~TF_DELACK;
@@ -83,6 +84,7 @@ tcp_fasttimo()
 			tcpstat.tcps_delack++;
 			(void) tcp_output(tp);
 		}
+	}
 	splx(s);
 }
 
@@ -96,20 +98,23 @@ tcp_slowtimo()
 {
 	register struct inpcb *ip, *ipnxt;
 	register struct tcpcb *tp;
-	int s = splnet();
 	register int i;
+	int s;
+
+	s = splnet();
 
 	tcp_maxidle = TCPTV_KEEPCNT * tcp_keepintvl;
-	/*
-	 * Search through tcb's and update active timers.
-	 */
-	ip = tcb.inp_next;
-	if (ip == 0) {
+
+	ip = tcb.lh_first;
+	if (ip == NULL) {
 		splx(s);
 		return;
 	}
-	for (; ip != &tcb; ip = ipnxt) {
-		ipnxt = ip->inp_next;
+	/*
+	 * Search through tcb's and update active timers.
+	 */
+	for (; ip != NULL; ip = ipnxt) {
+		ipnxt = ip->inp_list.le_next;
 		tp = intotcpcb(ip);
 		if (tp == 0)
 			continue;
@@ -118,7 +123,7 @@ tcp_slowtimo()
 				(void) tcp_usrreq(tp->t_inpcb->inp_socket,
 				    PRU_SLOWTIMO, (struct mbuf *)0,
 				    (struct mbuf *)i, (struct mbuf *)0);
-				if (ipnxt->inp_prev != ip)
+				if (*ipnxt->inp_list.le_prev != ip)
 					goto tpgone;
 			}
 		}
