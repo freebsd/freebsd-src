@@ -135,9 +135,9 @@ typedef
 typedef
 	struct {
 		const char	*acu_name;
-		int		(*acu_dialer) __P((char *, char *));
-		void		(*acu_disconnect) __P((void));
-		void		(*acu_abort) __P((void));
+		int		(*acu_dialer)(char *, char *);
+		void		(*acu_disconnect)(void);
+		void		(*acu_abort)(void);
 	}
 	acu_t;
 
@@ -173,7 +173,7 @@ typedef
 		char	e_char;		/* char to match on */
 		char	e_flags;	/* experimental, priviledged */
 		const char *e_help;	/* help string */
-		int 	(*e_func) __P((char));	/* command */
+		int 	(*e_func)(char);	/* command */
 	}
 	esctable_t;
 
@@ -271,62 +271,62 @@ extern	int disc;		/* current tty discpline */
 
 extern	char *__progname;	/* program name */
 
-extern	char *ctrl __P((char));
-extern	char *vinterp __P((char *, char));
-extern	const char *connect __P((void));
+extern	char *ctrl(char);
+extern	char *vinterp(char *, char);
+extern	const char *connect(void);
 
-char	*sname __P((char *s));
-int	any __P((int cc, char *p));
-int	anyof __P((char *s1, char *s2));
-int	args __P((char *buf, char *a[], int num));
-int	escape __P((void));
-int	prompt __P((char *s, char *p, size_t sz));
-int	size __P((char *s));
-int	speed __P((int n));
-int	uu_lock __P((char *_ttyname));
-int	uu_unlock __P((char *_ttyname));
-int	vstring __P((char *s, char *v));
-long	hunt __P((char *name));
-void	cumain __P((int argc, char *argv[]));
-void	daemon_uid __P((void));
-void	disconnect __P((char *reason));
-void	execute __P((char *s));
-void	logent __P((char *group, const char *num, const char *acu, const char *message));
-void	loginit __P((void));
-void	prtime __P((char *s, time_t a));
-void	parwrite __P((int fd, char *buf, int n));
-void	raw __P((void));
-void	send __P((int c));
-void	setparity __P((char *defparity));
-void	setscript __P((void));
-void	shell_uid __P((void));
-void	tandem __P((char *option));
-void	tipabort __P((char *msg));
-void	tipin __P((void));
-void	tipout __P((void));
-void	transfer __P((char *buf, int fd, char *eofchars));
-void	transmit __P((FILE *fd, char *eofchars, char *command));
-void	ttysetup __P((int _speed));
-void	unraw __P((void));
-void	user_uid __P((void));
-void	vinit __P((void));
-void	vlex __P((char *s));
+char	*sname(char *s);
+int	any(int cc, char *p);
+int	anyof(char *s1, char *s2);
+int	args(char *buf, char *a[], int num);
+int	escape(void);
+int	prompt(char *s, char *p, size_t sz);
+int	size(char *s);
+int	speed(int n);
+int	uu_lock(char *_ttyname);
+int	uu_unlock(char *_ttyname);
+int	vstring(char *s, char *v);
+long	hunt(char *name);
+void	cumain(int argc, char *argv[]);
+void	daemon_uid(void);
+void	disconnect(char *reason);
+void	execute(char *s);
+void	logent(char *group, const char *num, const char *acu, const char *message);
+void	loginit(void);
+void	prtime(char *s, time_t a);
+void	parwrite(int fd, char *buf, int n);
+void	raw(void);
+void	send(int c);
+void	setparity(char *defparity);
+void	setscript(void);
+void	shell_uid(void);
+void	tandem(char *option);
+void	tipabort(char *msg);
+void	tipin(void);
+void	tipout(void);
+void	transfer(char *buf, int fd, char *eofchars);
+void	transmit(FILE *fd, char *eofchars, char *command);
+void	ttysetup(int _speed);
+void	unraw(void);
+void	user_uid(void);
+void	vinit(void);
+void	vlex(char *s);
 
-int	biz31f_dialer __P((char *, char *));
-void	biz31f_disconnect __P((void));
-void	biz31f_abort __P((void));
-int	ven_dialer __P((char *, char *));
-void	ven_disconnect __P((void));
-void	ven_abort __P((void));
-int	hay_dialer __P((char *, char *));
-void	hay_disconnect __P((void));
-void	hay_abort __P((void));
-int	cour_dialer __P((char *, char *));
-void	cour_disconnect __P((void));
-void	cour_abort __P((void));
-int	t3000_dialer __P((char *, char *));
-void	t3000_disconnect __P((void));
-void	t3000_abort __P((void));
-int	v831_dialer __P((char *, char *));
-void	v831_disconnect __P((void));
-void	v831_abort __P((void));
+int	biz31f_dialer(char *, char *);
+void	biz31f_disconnect(void);
+void	biz31f_abort(void);
+int	ven_dialer(char *, char *);
+void	ven_disconnect(void);
+void	ven_abort(void);
+int	hay_dialer(char *, char *);
+void	hay_disconnect(void);
+void	hay_abort(void);
+int	cour_dialer(char *, char *);
+void	cour_disconnect(void);
+void	cour_abort(void);
+int	t3000_dialer(char *, char *);
+void	t3000_disconnect(void);
+void	t3000_abort(void);
+int	v831_dialer(char *, char *);
+void	v831_disconnect(void);
+void	v831_abort(void);

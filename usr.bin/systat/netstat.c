@@ -78,13 +78,13 @@ static const char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 #include "systat.h"
 #include "extern.h"
 
-static struct netinfo *enter __P((struct inpcb *, int, const char *));
-static void enter_kvm __P((struct inpcb *, struct socket *, int, const char *));
-static void enter_sysctl __P((struct inpcb *, struct xsocket *, int, const char *));
-static void fetchnetstat_kvm __P((void));
-static void fetchnetstat_sysctl __P((void));
-static char *inetname __P((struct in_addr));
-static void inetprint __P((struct in_addr *, int, const char *));
+static struct netinfo *enter(struct inpcb *, int, const char *);
+static void enter_kvm(struct inpcb *, struct socket *, int, const char *);
+static void enter_sysctl(struct inpcb *, struct xsocket *, int, const char *);
+static void fetchnetstat_kvm(void);
+static void fetchnetstat_sysctl(void);
+static char *inetname(struct in_addr);
+static void inetprint(struct in_addr *, int, const char *);
 
 #define	streq(a,b)	(strcmp(a,b)==0)
 #define	YMAX(w)		((w)->_maxy-1)

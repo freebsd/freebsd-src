@@ -59,7 +59,7 @@ static const char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
 
 #include "extern.h"
 
-static void rlines __P((FILE *, off_t, struct stat *));
+static void rlines(FILE *, off_t, struct stat *);
 
 /* defines for inner loop actions */
 #define USE_SLEEP	0

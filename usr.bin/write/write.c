@@ -65,13 +65,13 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <utmp.h>
 
-void done __P((int));
-void do_write __P((char *, char *, uid_t));
-static void usage __P((void));
-int term_chk __P((char *, int *, time_t *, int));
-void wr_fputs __P((unsigned char *s));
-void search_utmp __P((char *, char *, char *, uid_t));
-int utmp_chk __P((char *, char *));
+void done(int);
+void do_write(char *, char *, uid_t);
+static void usage(void);
+int term_chk(char *, int *, time_t *, int);
+void wr_fputs(unsigned char *s);
+void search_utmp(char *, char *, char *, uid_t);
+int utmp_chk(char *, char *);
 
 int
 main(argc, argv)

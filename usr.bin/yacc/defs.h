@@ -37,7 +37,6 @@
  * $FreeBSD$
  */
 
-#include <sys/cdefs.h>	/* for __P macro */
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
@@ -312,53 +311,53 @@ extern short final_state;
 
 /* global functions */
 
-char *allocate __P((unsigned));
-void closure __P((short *, int));
-void create_symbol_table __P((void));
-void default_action_warning __P((void));
-void dollar_error __P((int, char *, char *));
-void dollar_warning __P((int, int));
-void done __P((int));
-void fatal __P((const char *msg));
-void finalize_closure __P((void));
-void free_parser __P((void));
-void free_symbols __P((void));
-void free_symbol_table __P((void));
-void illegal_character __P((char *));
-void illegal_tag __P((int, char *, char *));
-void lalr __P((void));
-bucket *lookup __P((char *));
-void lr0 __P((void));
-bucket *make_bucket __P((const char *));
-void make_parser __P((void));
-void no_grammar __P((void));
-void no_space __P((void));
-void open_error __P((const char *));
-void output __P((void));
-void over_unionized __P((char *));
-void prec_redeclared __P((void));
-void reader __P((void));
-void reflexive_transitive_closure __P((unsigned *, int));
-void reprec_warning __P((char *));
-void restarted_warning __P((void));
-void retyped_warning __P((char *));
-void revalued_warning __P((char *));
-void set_first_derives __P((void));
-void syntax_error __P((int, char *, char *));
-void terminal_lhs __P((int));
-void terminal_start __P((char *));
-void tokenized_start __P((char *));
-void undefined_goal __P((char *));
-void undefined_symbol_warning __P((char *));
-void unexpected_EOF __P((void));
-void unknown_rhs __P((int));
-void unterminated_action __P((int, char *, char *));
-void unterminated_comment __P((int, char *, char *));
-void unterminated_string __P((int, char *, char *));
-void unterminated_text __P((int, char *, char *));
-void unterminated_union __P((int, char *, char *));
-void untyped_lhs __P((void));
-void untyped_rhs __P((int, char *));
-void used_reserved __P((char *));
-void verbose __P((void));
-void write_section __P((const char **));
+char *allocate(unsigned);
+void closure(short *, int);
+void create_symbol_table(void);
+void default_action_warning(void);
+void dollar_error(int, char *, char *);
+void dollar_warning(int, int);
+void done(int);
+void fatal(const char *msg);
+void finalize_closure(void);
+void free_parser(void);
+void free_symbols(void);
+void free_symbol_table(void);
+void illegal_character(char *);
+void illegal_tag(int, char *, char *);
+void lalr(void);
+bucket *lookup(char *);
+void lr0(void);
+bucket *make_bucket(const char *);
+void make_parser(void);
+void no_grammar(void);
+void no_space(void);
+void open_error(const char *);
+void output(void);
+void over_unionized(char *);
+void prec_redeclared(void);
+void reader(void);
+void reflexive_transitive_closure(unsigned *, int);
+void reprec_warning(char *);
+void restarted_warning(void);
+void retyped_warning(char *);
+void revalued_warning(char *);
+void set_first_derives(void);
+void syntax_error(int, char *, char *);
+void terminal_lhs(int);
+void terminal_start(char *);
+void tokenized_start(char *);
+void undefined_goal(char *);
+void undefined_symbol_warning(char *);
+void unexpected_EOF(void);
+void unknown_rhs(int);
+void unterminated_action(int, char *, char *);
+void unterminated_comment(int, char *, char *);
+void unterminated_string(int, char *, char *);
+void unterminated_text(int, char *, char *);
+void unterminated_union(int, char *, char *);
+void untyped_lhs(void);
+void untyped_rhs(int, char *);
+void used_reserved(char *);
+void verbose(void);
+void write_section(const char **);

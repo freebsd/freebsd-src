@@ -63,9 +63,9 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-void encode __P((void));
-void base64_encode __P((void));
-static void usage __P((void));
+void encode(void);
+void base64_encode(void);
+static void usage(void);
 
 FILE *output;
 int mode;

@@ -78,12 +78,12 @@ int	strtabsize, symfound, symkept, small, missing, clean;
 char	*kfile, *newstrings, *strings, asym[BUFSIZ];
 size_t	nsym, nexclude;
 
-static void badfmt __P((const char *));
-static int excluded __P((struct nlist *));
-static int inlist __P((struct nlist *));
-static void reorder __P((struct nlist *, struct nlist *, int));
-static int savesymb __P((struct nlist *));
-static void usage __P((void));
+static void badfmt(const char *);
+static int excluded(struct nlist *);
+static int inlist(struct nlist *);
+static void reorder(struct nlist *, struct nlist *, int);
+static int savesymb(struct nlist *);
+static void usage(void);
 
 int
 main(argc, argv)

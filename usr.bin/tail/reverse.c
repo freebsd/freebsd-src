@@ -56,8 +56,8 @@ static const char sccsid[] = "@(#)reverse.c	8.1 (Berkeley) 6/6/93";
 
 #include "extern.h"
 
-static void r_buf __P((FILE *));
-static void r_reg __P((FILE *, enum STYLE, off_t, struct stat *));
+static void r_buf(FILE *);
+static void r_reg(FILE *, enum STYLE, off_t, struct stat *);
 
 /*
  * reverse -- display input in reverse order by line.

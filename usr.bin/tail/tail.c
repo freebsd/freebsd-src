@@ -63,8 +63,8 @@ static const char sccsid[] = "@(#)tail.c	8.1 (Berkeley) 6/6/93";
 int Fflag, fflag, rflag, rval;
 const char *fname;
 
-static void obsolete __P((char **));
-static void usage __P((void));
+static void obsolete(char **);
+static void usage(void);
 
 int
 main(argc, argv)

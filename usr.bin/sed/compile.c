@@ -66,22 +66,22 @@ static struct labhash {
 	int	lh_ref;
 } *labels[LHSZ];
 
-static char	 *compile_addr __P((char *, struct s_addr *));
-static char	 *compile_ccl __P((char **, char *));
-static char	 *compile_delimited __P((char *, char *));
-static char	 *compile_flags __P((char *, struct s_subst *));
-static char	 *compile_re __P((char *, regex_t **));
-static char	 *compile_subst __P((char *, struct s_subst *));
-static char	 *compile_text __P((void));
-static char	 *compile_tr __P((char *, char **));
+static char	 *compile_addr(char *, struct s_addr *);
+static char	 *compile_ccl(char **, char *);
+static char	 *compile_delimited(char *, char *);
+static char	 *compile_flags(char *, struct s_subst *);
+static char	 *compile_re(char *, regex_t **);
+static char	 *compile_subst(char *, struct s_subst *);
+static char	 *compile_text(void);
+static char	 *compile_tr(char *, char **);
 static struct s_command
-		**compile_stream __P((struct s_command **));
-static char	 *duptoeol __P((char *, const char *));
-static void	  enterlabel __P((struct s_command *));
+		**compile_stream(struct s_command **);
+static char	 *duptoeol(char *, const char *);
+static void	  enterlabel(struct s_command *);
 static struct s_command
-		 *findlabel __P((char *));
-static void	  fixuplabel __P((struct s_command *, struct s_command *));
-static void	  uselabel __P((void));
+		 *findlabel(char *);
+static void	  fixuplabel(struct s_command *, struct s_command *);
+static void	  uselabel(void);
 
 /*
  * Command specification.  This is used to drive the command parser.

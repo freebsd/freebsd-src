@@ -67,7 +67,7 @@ static const char rcsid[] =
  */
 #define	STDIN_NAME	"-"
 
-int process __P((const char *));
+int process(const char *);
 
 int
 main(argc, argv)

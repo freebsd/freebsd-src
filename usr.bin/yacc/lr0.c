@@ -57,22 +57,22 @@ core *first_state;
 shifts *first_shift;
 reductions *first_reduction;
 
-static void allocate_itemsets __P((void));
-static void allocate_storage __P((void));
-static void append_states __P((void));
-static void free_storage __P((void));
-static void generate_states __P((void));
-static int get_state __P((int));
-static void initialize_states __P((void));
-static void new_itemsets __P((void));
-static core *new_state __P((int));
+static void allocate_itemsets(void);
+static void allocate_storage(void);
+static void append_states(void);
+static void free_storage(void);
+static void generate_states(void);
+static int get_state(int);
+static void initialize_states(void);
+static void new_itemsets(void);
+static core *new_state(int);
 #ifdef DEBUG
-static void print_derives __P((void));
+static void print_derives(void);
 #endif
-static void save_reductions __P((void));
-static void save_shifts __P((void));
-static void set_derives __P((void));
-static void set_nullable __P((void));
+static void save_reductions(void);
+static void save_shifts(void);
+static void set_derives(void);
+static void set_nullable(void);
 
 static core **state_set;
 static core *this_state;

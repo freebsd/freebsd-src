@@ -58,9 +58,9 @@ static const char sccsid[] = "@(#)tset.c	8.1 (Berkeley) 6/9/93";
 
 #include "extern.h"
 
-void	obsolete __P((char *[]));
-void	report __P((const char *, int, u_int));
-void	usage __P((void));
+void	obsolete(char *[]);
+void	report(const char *, int, u_int);
+void	usage(void);
 
 struct termios mode, oldmode;
 

@@ -62,8 +62,8 @@ typedef struct _list {
 } LIST;
 LIST *head;
 
-void add __P((int, const char *));
-static void usage __P((void));
+void add(int, const char *);
+static void usage(void);
 
 int
 main(argc, argv)

@@ -53,8 +53,8 @@ static const char sccsid[] = "@(#)what.c	8.1 (Berkeley) 6/6/93";
 static int sflag;
 static int found;
 
-void search __P((void));
-static void usage __P((void));
+void search(void);
+static void usage(void);
 
 /*
  * what

@@ -73,13 +73,13 @@ static const char sccsid[] = "@(#)vfontedpr.c	8.1 (Berkeley) 6/6/93";
 #define PNAMELEN 40		/* length of a function/procedure name */
 #define PSMAX 20		/* size of procedure name stacking */
 
-static int       iskw __P((char *));
-static boolean   isproc __P((char *));
-static void      putKcp __P((char *, char *, boolean));
-static void      putScp __P((char *));
-static void      putcp __P((int));
-static int       tabs __P((char *, char *));
-static int       width __P((char *, char *));
+static int       iskw(char *);
+static boolean   isproc(char *);
+static void      putKcp(char *, char *, boolean);
+static void      putScp(char *);
+static void      putcp(int);
+static int       tabs(char *, char *);
+static int       width(char *, char *);
 
 /*
  *	The state variables

@@ -51,13 +51,13 @@ static const char sccsid[] = "@(#)str.c	8.2 (Berkeley) 4/28/95";
 
 #include "extern.h"
 
-static int	backslash __P((STR *));
-static int	bracket __P((STR *));
-static int	c_class __P((const void *, const void *));
-static void	genclass __P((STR *));
-static void	genequiv __P((STR *));
-static int	genrange __P((STR *));
-static void	genseq __P((STR *));
+static int	backslash(STR *);
+static int	bracket(STR *);
+static int	c_class(const void *, const void *);
+static void	genclass(STR *);
+static void	genequiv(STR *);
+static int	genrange(STR *);
+static void	genseq(STR *);
 
 int
 next(s)
@@ -152,7 +152,7 @@ bracket(s)
 
 typedef struct {
 	const char *name;
-	int (*func) __P((int));
+	int (*func)(int);
 	int *set;
 } CLASS;
 
@@ -187,7 +187,7 @@ static void
 genclass(s)
 	STR *s;
 {
-	int cnt, (*func) __P((int));
+	int cnt, (*func)(int);
 	CLASS *cp, tmp;
 	int *p;
 

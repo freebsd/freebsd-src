@@ -51,8 +51,8 @@ static const char sccsid[] = "@(#)term.c	8.1 (Berkeley) 6/9/93";
 
 char    tbuf[1024];      		/* Termcap entry. */
 
-const char *askuser __P((const char *));
-char	*ttys __P((char *));
+const char *askuser(const char *);
+char	*ttys(char *);
 
 /*
  * Figure out what kind of terminal we're dealing with, and then read in

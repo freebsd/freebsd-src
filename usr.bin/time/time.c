@@ -61,9 +61,9 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <signal.h>
 
-static int getstathz __P((void));
-static void humantime __P((FILE *, long, long));
-static void usage __P((void));
+static int getstathz(void);
+static void humantime(FILE *, long, long);
+static void usage(void);
 
 static char decimal_point;
 

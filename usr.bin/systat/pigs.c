@@ -58,7 +58,7 @@ static const char sccsid[] = "@(#)pigs.c	8.2 (Berkeley) 9/23/93";
 #include "extern.h"
 #include "systat.h"
 
-int compar __P((const void *, const void *));
+int compar(const void *, const void *);
 
 static int nproc;
 static struct p_times {

@@ -76,13 +76,13 @@ int	timeout;
 jmp_buf	toplevel;
 jmp_buf	timeoutbuf;
 
-static void nak __P((int));
-static int makerequest __P((int, const char *, struct tftphdr *, const char *));
-static void printstats __P((const char *, unsigned long));
-static void startclock __P((void));
-static void stopclock __P((void));
-static void timer __P((int));
-static void tpacket __P((const char *, struct tftphdr *, int));
+static void nak(int);
+static int makerequest(int, const char *, struct tftphdr *, const char *);
+static void printstats(const char *, unsigned long);
+static void startclock(void);
+static void stopclock(void);
+static void timer(int);
+static void tpacket(const char *, struct tftphdr *, int);
 
 /*
  * Send the requested file.

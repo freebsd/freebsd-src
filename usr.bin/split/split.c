@@ -69,10 +69,10 @@ regex_t	 rgx;
 int	 pflag;
 long	 sufflen = 2;			/* File name suffix length. */
 
-void newfile __P((void));
-void split1 __P((void));
-void split2 __P((void));
-static void usage __P((void));
+void newfile(void);
+void split1(void);
+void split2(void);
+static void usage(void);
 
 int
 main(argc, argv)
