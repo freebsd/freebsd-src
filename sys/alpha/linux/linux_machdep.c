@@ -180,7 +180,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 */
 	mtx_lock_spin(&sched_lock);
 	TD_SET_CAN_RUN(td2);
-	setrunqueue(td2);
+	setrunqueue(td2, SRQ_BORING);
 	mtx_unlock_spin(&sched_lock);
 
 	td->td_retval[0] = p2->p_pid;

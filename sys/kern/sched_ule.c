@@ -1183,7 +1183,7 @@ sched_switch(struct thread *td, struct thread *newtd)
 			 * Don't allow the kse to migrate from a preemption.
 			 */
 			ke->ke_flags |= KEF_HOLD;
-			setrunqueue(td);
+			setrunqueue(td, SRQ_OURSELF|SRQ_YIELDING);
 		} else {
 			if (ke->ke_runq) {
 				kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
@@ -1281,7 +1281,7 @@ sched_wakeup(struct thread *td)
 		    td->td_kse, hzticks);
 		td->td_slptime = 0;
 	}
-	setrunqueue(td);
+	setrunqueue(td, SRQ_BORING);
 }
 
 /*
@@ -1581,10 +1581,19 @@ restart:
 }
 
 void
-sched_add(struct thread *td)
+sched_add(struct thread *td, int flags)
 {
 
-	sched_add_internal(td, 1);
+	/* let jeff work out how to map the flags better */
+	/* I'm open to suggestions */
+	if (flags & SRQ_YIELDING)
+		/*
+		 * Preempting during switching can be bad JUJU
+		 * especially for KSE processes
+		 */
+		sched_add_internal(td, 0);
+	else
+		sched_add_internal(td, 1);
 }
 
 static void

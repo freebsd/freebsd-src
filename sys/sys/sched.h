@@ -73,7 +73,7 @@ void	sched_wakeup(struct thread *td);
 /*
  * Threads are moved on and off of run queues
  */
-void	sched_add(struct thread *td);
+void	sched_add(struct thread *td, int flags);
 struct kse *sched_choose(void);		/* XXX Should be thread * */
 void	sched_clock(struct thread *td);
 void	sched_rem(struct thread *td);

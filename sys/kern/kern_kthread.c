@@ -114,7 +114,7 @@ kthread_create(void (*func)(void *), void *arg,
 	/* Delay putting it on the run queue until now. */
 	if (!(flags & RFSTOPPED)) {
 		mtx_lock_spin(&sched_lock);
-		setrunqueue(td); 
+		setrunqueue(td, SRQ_BORING); 
 		mtx_unlock_spin(&sched_lock);
 	}
 
