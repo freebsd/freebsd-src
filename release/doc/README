@@ -1,0 +1,88 @@
+-*- text -*-
+RELNOTESng README
+Bruce A. Mah <bmah@freebsd.org>
+$FreeBSD$
+
+This is the top-level directory for RELNOTESng, a re-write of
+FreeBSD's *.TXT documentation files.  They have been converted to
+DocBook, and versions of the documents can be now be built for various
+supported architectures.  The output files can be rendered in any
+format supported by the FreeBSD Documentation Project (for example,
+ASCII text, PDF, PS, HTML).
+
+RELNOTESng requires that the FreeBSD doc/ sources are installed; it
+leverages off of much of the DocProj build infrastructure, including
+DocBook extensions and stylesheets.  If the doc/ sources are not
+installed in /usr/src, their location should be specified with the
+DOC_PREFIX Makefile variable.  RELNOTESng also requires the DocProj
+build tools, which can easily be installed with the textproc/docproj
+port in the Ports Collection.
+
+share/sgml/*.dsl
+	Architecture-dependent stylesheets.  These stylesheets support
+	the arch= attribute on (all?) DocBook elements.  Currently-
+	supported values are:  i386, alpha.
+share/sgml/release.ent
+	Release information.  Need to update the entry definitions in
+	this file when rolling new revisions; these should take effect
+	in all documents.
+
+*/relnotes/common/
+	Directory for multi-architecture release notes files.
+*/relnotes/*/
+	Directories for architecture-specific release notes files.
+
+*/hardware/common/
+	Directory for multi-architecture hardware notes files.
+*/hardware/*/
+	Directories for architecture-specific hardware notes files.
+
+*/installation/common/
+	Directory for multi-architecture installation notes files.
+	Note that the FreeBSD DocProj build infrastructure does
+	not handle documents (or subdirectories) named "install" 
+	well, so we call our document "installation" and do
+	a hack when it gets installed into a distribution to fix
+	this up.
+*/installation/*/
+	Directories for architecture-specific release notes files.
+
+*/errata/
+	Directory for errata document.
+
+*/readme/
+	Directory for (introductory) document.
+
+All definition of the "current" version of FreeBSD is contained in the
+share/sgml/release.ent file; release engineers should peruse the
+contents of this file carefully when doing version number bumps.
+
+When creating content for the architecture-dependent files, authors
+should use the arch= attribute to elements that are specific to a
+particular machine architecture.  The value of this attribute should
+be a single word that indicates for which architecture the current
+element will be included.  For example:
+
+	<para arch="alpha">Alpha-specific text</para>
+
+The currently-supported architectures are i386 and alpha.  As of this
+writing there is no mechanism for supporting multiple architectures
+(i.e. arch="alpha,ia64"), but with some work in the stylesheets this
+should be possible.
+
+When creating a translation, make a new directory under this
+directory with a language code (paralleling the DocProj directory
+structure).
+
+RELNOTESng is supported in the FreeBSD release-build process.  For
+now, the building of RELNOTESng is enabled by RELNOTESNG=YES when
+building a release.  Note that setting RELNOTESng requires that both
+NODOC and NOPORTS *not* be set, as RELNOTESng require parts of
+both.  Eventually, RELNOTESNG will be made the default.
+
+Release builders can set which language gets built with the 
+RELNOTESNG_LANG variable; note that this is different from the 
+DOC_LANG variable because (at least intially) most languages
+will have localized DocProj files but not localized release notes.
+The default language, if none is specified, is en_US.ISO_8859-1.
+

@@ -1,0 +1,15 @@
+<!-- $FreeBSD$ -->
+
+<articleinfo>
+  <title>&os; &release.current; &arch; Installation Instructions</title>
+
+  <corpauthor>
+  The &os; Project
+  </corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+  </copyright>
+</articleinfo>

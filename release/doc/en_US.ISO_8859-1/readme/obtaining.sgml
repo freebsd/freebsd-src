@@ -1,0 +1,102 @@
+<!--
+
+$FreeBSD$
+
+obtaining.sgml
+
+Information on getting a copy of FreeBSD.  This text used to
+be the "Obtaining FreeBSD" section of RELNOTES.TXT.
+-->
+
+<sect1>
+  <title>Obtaining &os;</title>
+
+  <para>You may obtain &os; in a variety of ways.  This section
+  focuses on those ways that are primarily of use for obtaining a
+  complete &os; distribution, rather than updating an existing
+  installation.  More information can be found in the <ulink
+  url="http://www.freebsd.org/handbook/mirrors.html"><quote>Obtaining
+  FreeBSD</quote></ulink> appendix to the <ulink
+  url="http://www.freebsd.org/handbook/">FreeBSD
+  Handbook</ulink>.</para>
+
+  <sect2>
+    <title>CDROM</title>
+    <para>&os; 4.x-RELEASE and 3.x-RELEASE may be ordered on
+    CDROM from:
+    <address>
+    BSDi
+    <street>4041 Pike Lane, Suite D</street>
+    <city>Concord</city> <state>CA</state> <postcode>94520</postcode>
+    <country>USA</country>
+    <phone>+1-800-786-9907</phone>
+    <phone>+1-925-674-0783</phone>
+    <fax>+1-925-674-0821 (FAX)</fax></address>
+    </para>
+
+    <para>Orders may also be placed via the Internet from
+    <email>orders@cdrom.com</email> or <ulink
+    url="http://www.cdrom.com/">http://www.cdrom.com/</ulink>.  A
+    current catalog can be obtained via ftp from <ulink
+    url="ftp://ftp.cdrom.com/cdrom/catalog">ftp://ftp.cdrom.com/cdrom/catalog</ulink>.</para>
+
+    <para>As of this writing, the cost per -RELEASE CDROM set is $39.95 
+    (US Dollars) or $24.95 with a &os;
+    subscription.  &os; SNAPshot CDROM sets, when available, are $39.95 or
+    $14.95 with a &os;-SNAP subscription (-RELEASE and -SNAP
+    subscriptions are entirely separate).  With a subscription, you
+    will automatically receive updates as they are released.  Your
+    credit card will be billed when each disk is shipped and you may
+    cancel your subscription at any time without further
+    obligation.</para>
+
+    <para>Shipping (per order not per disk) is $5.00 in the United
+    States, Canada or Mexico and $9.00 overseas.  BSDi accepts Visa,
+    Mastercard, Discover, American Express or checks in U.S. Dollars
+    and ships COD within the United States.  California residents
+    please add 8.25% sales tax.</para>
+
+    <para>Should you be dissatisfied for any reason, the CDROM comes with
+    an unconditional return policy.</para>
+  </sect2>
+
+  <sect2>
+    <title>FTP</title>
+
+    <para>You can use FTP to retrieve &os; and any or all of its
+    optional packages from <ulink
+    url="ftp://ftp.freebsd.org/">ftp://ftp.freebsd.org/</ulink>, which
+    is the
+    official &os; release site.</para>
+
+    <para>For other locations that mirror the &os; software see the
+    file <filename>MIRROR.SITES</filename>.  
+    Please FTP the distribution from the site
+    closest (in networking terms) to you.  Additional mirror sites are
+    always welcome!  
+    Contact <email>freebsd-admin@FreeBSD.org</email> for more
+    details if you'd like to become an official mirror site.</para>
+
+    <para>Mirrors generally contain the floppy disk images necessary
+    to begin an installation, as well as the distribution files needed
+    for the install process itself.  Some mirrors also contain some of
+    the ISO images necessary to create a CDROM of a &os; release.</para>
+
+  </sect2>
+
+  <sect2>
+    <title>Email</title>
+
+    <para>If you do not have access to the Internet and electronic
+    mail is your only recourse, then you may still fetch the files by
+    sending mail to <email>ftpmail@ftpmail.vix.com</email> - putting
+    the keyword <literal>help</literal> in your message to get more
+    information on how to fetch files from a &os; FTP archive using
+    this mechanism.  Please do note, however, that this will end up
+    sending many <emphasis>tens of megabytes</emphasis> through the
+    mail and should only be employed as an absolute
+    <emphasis>last</emphasis> resort!</para>
+  </sect2>
+</sect1>
+
+
