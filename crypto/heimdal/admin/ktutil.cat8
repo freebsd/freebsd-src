@@ -1,11 +1,11 @@
-KTUTIL(8)               FreeBSD System Manager's Manual              KTUTIL(8)
+KTUTIL(8)               NetBSD System Manager's Manual               KTUTIL(8)
 
 NNAAMMEE
      kkttuuttiill - manage Kerberos keytabs
 
 SSYYNNOOPPSSIISS
-     kkttuuttiill [--kk _k_e_y_t_a_b | ----kkeeyyttaabb==_k_e_y_t_a_b] [--vv | ----vveerrbboossee] [----vveerrssiioonn]
-            [--hh | ----hheellpp] _c_o_m_m_a_n_d [_a_r_g_s]
+     kkttuuttiill [--kk _k_e_y_t_a_b | ----kkeeyyttaabb==_k_e_y_t_a_b] [--vv | ----vveerrbboossee] [----vveerrssiioonn] [--hh |
+     ----hheellpp] _c_o_m_m_a_n_d [_a_r_g_s]
 
 DDEESSCCRRIIPPTTIIOONN
      kkttuuttiill is a program for managing keytabs.  _c_o_m_m_a_n_d can be one of the fol-
@@ -47,13 +47,13 @@ DDEESSCCRRIIPPTTIIOONN
 
      remove [--pp _p_r_i_n_c_i_p_a_l] [----pprriinncciippaall==_p_r_i_n_c_i_p_a_l] [--VV --kkvvnnoo] [----kkvvnnoo==_k_v_n_o]
                  [--ee --eennccttyyppee] [----eennccttyyppee==_e_n_c_t_y_p_e]
-                 Removes the specified key or keys. Not specifying a _k_v_n_o
-                 removes keys with any version number. Not specifying a
-                 _e_n_c_t_y_p_e removes keys of any type.
+                 Removes the specified key or keys. Not specifying a _k_v_n_o re-
+                 moves keys with any version number. Not specifying a _e_n_c_t_y_p_e
+                 removes keys of any type.
 
      rename _f_r_o_m_-_p_r_i_n_c_i_p_a_l _t_o_-_p_r_i_n_c_i_p_a_l
-                 Renames all entries in the keytab that match the
-                 _f_r_o_m_-_p_r_i_n_c_i_p_a_l to _t_o_-_p_r_i_n_c_i_p_a_l.
+                 Renames all entries in the keytab that match the _f_r_o_m_-
+                 _p_r_i_n_c_i_p_a_l to _t_o_-_p_r_i_n_c_i_p_a_l.
 
      purge [----aaggee==_a_g_e]
                  Removes all old entries (for which there is a newer version)
@@ -78,4 +78,4 @@ DDEESSCCRRIIPPTTIIOONN
 SSEEEE AALLSSOO
      kadmin(8)
 
-HEIMDAL                        December 16, 2000                       HEIMDAL
+ HEIMDAL                       December 16, 2000                             2

@@ -1,11 +1,11 @@
-HPROPD(8)               FreeBSD System Manager's Manual              HPROPD(8)
+HPROPD(8)               NetBSD System Manager's Manual               HPROPD(8)
 
 NNAAMMEE
      hhpprrooppdd - receive a propagated database
 
 SSYYNNOOPPSSIISS
-     hhpprrooppdd [--dd _f_i_l_e | ----ddaattaabbaassee==_f_i_l_e] [--nn | ----ssttddiinn] [----pprriinntt]
-            [--ii | ----nnoo--iinneettdd] [--kk _k_e_y_t_a_b | ----kkeeyyttaabb==_k_e_y_t_a_b] [--44 | ----vv44dduummpp]
+     hhpprrooppdd [--dd _f_i_l_e | ----ddaattaabbaassee==_f_i_l_e] [--nn | ----ssttddiinn] [----pprriinntt] [--ii |
+     ----nnoo--iinneettdd] [--kk _k_e_y_t_a_b | ----kkeeyyttaabb==_k_e_y_t_a_b] [--44 | ----vv44dduummpp]
 
 DDEESSCCRRIIPPTTIIOONN
      hhpprrooppdd receives databases sent by hhpprroopp.  and writes it as a local
@@ -39,4 +39,4 @@ DDEESSCCRRIIPPTTIIOONN
 SSEEEE AALLSSOO
      hprop(8)
 
-HEIMDAL                         August 27, 1997                        HEIMDAL
+ HEIMDAL                        August 27, 1997                              1

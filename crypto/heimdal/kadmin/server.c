@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <krb5-private.h>
 
-RCSID("$Id: server.c,v 1.36 2002/09/10 19:23:28 joda Exp $");
+RCSID("$Id: server.c,v 1.36.2.1 2002/10/21 14:53:39 joda Exp $");
 
 static kadm5_ret_t
 kadmind_dispatch(void *kadm_handle, krb5_boolean initial,
@@ -532,6 +532,8 @@ handle_v5(krb5_context context,
     v5_loop (context, ac, initial, kadm_handle, fd);
 }
 
+extern int do_kerberos4;
+
 krb5_error_code
 kadmind_loop(krb5_context context,
 	     krb5_auth_context ac,
@@ -551,7 +553,10 @@ kadmind_loop(krb5_context context,
     if(len > 0xffff && (len & 0xffff) == ('K' << 8) + 'A') {
 	len >>= 16;
 #ifdef KRB4
-	handle_v4(context, keytab, len, fd);
+	if(do_kerberos4)
+	    handle_v4(context, keytab, len, fd);
+	else
+	    krb5_errx(context, 1, "version 4 kadmin is disabled");
 #else
 	krb5_errx(context, 1, "packet appears to be version 4");
 #endif

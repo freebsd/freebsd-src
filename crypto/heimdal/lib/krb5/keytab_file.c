@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_file.c,v 1.11 2002/05/28 12:57:27 joda Exp $");
+RCSID("$Id: keytab_file.c,v 1.11.4.1 2002/10/21 14:35:47 joda Exp $");
 
 #define KRB5_KT_VNO_1 1
 #define KRB5_KT_VNO_2 2
@@ -303,7 +303,7 @@ fkt_start_seq_get_int(krb5_context context,
     c->fd = open (d->filename, flags);
     if (c->fd < 0) {
 	ret = errno;
-	krb5_set_error_string(context, "open(%s): %s", d->filename,
+	krb5_set_error_string(context, "%s: %s", d->filename,
 			      strerror(ret));
 	return ret;
     }
@@ -441,7 +441,7 @@ fkt_add_entry(krb5_context context,
     
     fd = open (d->filename, O_RDWR | O_BINARY);
     if (fd < 0) {
-	fd = open (d->filename, O_RDWR | O_CREAT | O_BINARY, 0600);
+	fd = open (d->filename, O_RDWR | O_CREAT | O_EXCL | O_BINARY, 0600);
 	if (fd < 0) {
 	    ret = errno;
 	    krb5_set_error_string(context, "open(%s): %s", d->filename,
@@ -572,8 +572,11 @@ fkt_remove_entry(krb5_context context,
     krb5_kt_cursor cursor;
     off_t pos_start, pos_end;
     int found = 0;
+    krb5_error_code ret;
     
-    fkt_start_seq_get_int(context, id, O_RDWR | O_BINARY, &cursor);
+    ret = fkt_start_seq_get_int(context, id, O_RDWR | O_BINARY, &cursor);
+    if(ret != 0) 
+	goto out; /* return other error here? */
     while(fkt_next_entry_int(context, id, &e, &cursor, 
 			     &pos_start, &pos_end) == 0) {
 	if(krb5_kt_compare(context, &e, entry->principal, 
@@ -592,6 +595,7 @@ fkt_remove_entry(krb5_context context,
 	}
     }
     krb5_kt_end_seq_get(context, id, &cursor);
+  out:
     if (!found) {
 	krb5_clear_error_string (context);
 	return KRB5_KT_NOTFOUND;

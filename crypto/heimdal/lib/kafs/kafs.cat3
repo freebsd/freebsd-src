@@ -1,4 +1,4 @@
-KAFS(3)                FreeBSD Library Functions Manual                KAFS(3)
+KAFS(3)                   NetBSD Programmer's Manual                   KAFS(3)
 
 NNAAMMEE
      kk__hhaassaaffss, kk__ppiiooccttll, kk__uunnlloogg, kk__sseettppaagg, kk__aaffss__cceellll__ooff__ffiillee, kkrrbb__aaffsslloogg,
@@ -56,10 +56,10 @@ DDEESSCCRRIIPPTTIIOONN
 
 RREETTUURRNN VVAALLUUEESS
      kk__hhaassaaffss() returns 1 if AFS is present in the kernel, 0 otherwise.
-     kkrrbb__aaffsslloogg() and kkrrbb__aaffsslloogg__uuiidd() returns 0 on success, or a kerberos
-     error number on failure.  kk__aaffss__cceellll__ooff__ffiillee(), kk__ppiiooccttll(), kk__sseettppaagg(),
-     and kk__uunnlloogg() all return the value of the underlaying system call, 0 on
-     success.
+     kkrrbb__aaffsslloogg() and kkrrbb__aaffsslloogg__uuiidd() returns 0 on success, or a kerberos er-
+     ror number on failure.  kk__aaffss__cceellll__ooff__ffiillee(), kk__ppiiooccttll(), kk__sseettppaagg(), and
+     kk__uunnlloogg() all return the value of the underlaying system call, 0 on suc-
+     cess.
 
 EENNVVIIRROONNMMEENNTT
      The following environment variable affect the mode of operation of kkaaffss:
@@ -94,4 +94,4 @@ SSEEEE AALLSSOO
 BBUUGGSS
      AFS_SYSCALL has no effect under AIX.
 
-KTH-KRB                           May 7, 1997                          KTH-KRB
+ KTH-KRB                          May 7, 1997                                2
