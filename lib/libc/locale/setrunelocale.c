@@ -47,6 +47,7 @@ extern int		_none_init __P((_RuneLocale *));
 #ifdef XPG4
 extern int		_UTF2_init __P((_RuneLocale *));
 extern int		_EUC_init __P((_RuneLocale *));
+extern int		_MSKanji_init __P((_RuneLocale *));
 extern int              _xpg4_setrunelocale __P((char *));
 #endif
 extern _RuneLocale      *_Read_RuneMagi __P((FILE *));
@@ -86,7 +87,11 @@ _xpg4_setrunelocale(encoding)
 	if (_PathLocale == NULL) {
 		char *p = getenv("PATH_LOCALE");
 
-		if (p != NULL && !issetugid()) {
+		if (p != NULL
+#ifndef __NETBSD_SYSCALLS
+			&& !issetugid()
+#endif
+			) {
 			if (strlen(p) + 1/*"/"*/ + ENCODING_LEN +
 			    1/*"/"*/ + CATEGORY_LEN >= PATH_MAX)
 				return(EFAULT);
@@ -112,19 +117,21 @@ _xpg4_setrunelocale(encoding)
 	fclose(fp);
 
 #ifdef XPG4
-	if (!rl->encoding[0] || !strcmp(rl->encoding, "UTF2")) {
+	if (!rl->encoding[0] || !strcmp(rl->encoding, "UTF2"))
 		return(_UTF2_init(rl));
 #else
-	if (!rl->encoding[0]) {
+	if (!rl->encoding[0])
 		return(EINVAL);
 #endif
-	} else if (!strcmp(rl->encoding, "NONE")) {
+	else if (!strcmp(rl->encoding, "NONE"))
 		return(_none_init(rl));
 #ifdef XPG4
-	} else if (!strcmp(rl->encoding, "EUC")) {
+	else if (!strcmp(rl->encoding, "EUC"))
 		return(_EUC_init(rl));
+	else if (!strcmp(rl->encoding, "MSKanji"))
+		return(_MSKanji_init(rl));
 #endif
-	} else
+	else
 		return(EINVAL);
 }
 
