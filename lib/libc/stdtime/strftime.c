@@ -17,7 +17,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: strftime.c,v 1.9 1996/07/12 18:55:32 jkh Exp $";
+	"$Id: strftime.c,v 1.11 1996/07/19 15:17:44 wollman Exp $";
 #endif
 
 #ifndef lint
@@ -41,10 +41,7 @@ static const char	sccsid[] = "@(#)strftime.c	5.4 (Berkeley) 3/14/89";
 #include "tzfile.h"
 #include <fcntl.h>
 #include <locale.h>
-#include <rune.h>		/* for _PATH_LOCALE */
 #include <sys/stat.h>
-
-#define LOCALE_HOME _PATH_LOCALE
 
 struct lc_time_T {
 	const char *	mon[12];
@@ -469,7 +466,6 @@ extern char *_PathLocale;
 int
 __time_load_locale(const char *name)
 {
-	static const char	lc_time[] = "LC_TIME";
 	static char *		locale_buf;
 	static char		locale_buf_C[] = "C";
 
@@ -478,7 +474,7 @@ __time_load_locale(const char *name)
 	char *			p;
 	const char **		ap;
 	const char *		plim;
-	char			filename[FILENAME_MAX];
+	char                    filename[PATH_MAX];
 	struct stat		st;
 	size_t			namesize;
 	size_t			bufsize;
@@ -490,7 +486,7 @@ __time_load_locale(const char *name)
 	if (name == NULL)
 		goto no_locale;
 
-	if (!*name || !strcmp(name, "C") || !strcmp(name, "POSIX"))
+	if (!strcmp(name, "C") || !strcmp(name, "POSIX"))
 		return 0;
 
 	/*
@@ -511,9 +507,12 @@ __time_load_locale(const char *name)
 	*/
 	namesize = strlen(name) + 1;
 
-	snprintf(filename, sizeof filename, 
-		 "%s/%s/%s",
-		 _PathLocale, name, lc_time);
+	if (!_PathLocale)
+		goto no_locale;
+	strcpy(filename, _PathLocale);
+	strcat(filename, "/");
+	strcat(filename, name);
+	strcat(filename, "/LC_TIME");
 	fd = open(filename, O_RDONLY);
 	if (fd < 0)
 		goto no_locale;
