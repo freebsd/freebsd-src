@@ -234,7 +234,7 @@ malloc(size, type, flags)
 	kbp->kb_next = ((struct freelist *)va)->next;
 #ifdef INVARIANTS
 	freep = (struct freelist *)va;
-	savedtype = (const char *) type->ks_shortdesc;
+	savedtype = (const char *) freep->type->ks_shortdesc;
 #if BYTE_ORDER == BIG_ENDIAN
 	freep->type = (struct malloc_type *)WEIRD_ADDR >> 16;
 #endif
