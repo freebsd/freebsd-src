@@ -1,5 +1,5 @@
 .TH FILE __CSECTION__ "Copyright but distributable"
-.\" $Id: file.man,v 1.37 2000/08/07 20:08:55 christos Exp $
+.\" $Id: file.man,v 1.38 2001/03/11 20:37:08 christos Exp $
 .SH NAME
 file
 \- determine file type
@@ -15,6 +15,12 @@ namefile ]
 .B \-m 
 magicfiles ]
 file ...
+.br
+.B file
+.B -C
+[
+.B \-m 
+magicfile ]
 .SH DESCRIPTION
 This manual page documents version __VERSION__ of the
 .B file
@@ -85,8 +91,12 @@ that the file is a binary executable, and which of several types thereof.
 The concept of `magic number' has been applied by extension to data files.
 Any file with some invariant identifier at a small fixed
 offset into the file can usually be described in this way.
-The information identifying these files is read from the magic file
-.I __MAGIC__.
+The information identifying these files is read from the compiled
+magic file
+.I __MAGIC__.mgc ,
+or 
+.I __MAGIC__
+if the compile file does not exist.
 .PP
 If a file does not match any of the entries in the magic file,
 it is examined to see if it seems to be a text file.
@@ -142,6 +152,9 @@ Do not prepend filenames to output lines (brief mode).
 .B \-c
 Cause a checking printout of the parsed form of the magic file.
 This is usually used in conjunction with 
+.B \-C
+Write a magic.mgc output file that contains a pre-parsed version of
+file.
 .B \-m
 to debug a new magic file before installing it.
 .TP 8
@@ -210,6 +223,9 @@ to disregard the file size as reported by
 .BR stat (2)
 since on some systems it reports a zero size for raw disk partitions.
 .SH FILES
+.I __MAGIC__.mgc
+\- defaults compiled list of magic numbers
+.PP
 .I __MAGIC__
 \- default list of magic numbers
 .PP
