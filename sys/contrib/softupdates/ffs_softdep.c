@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.28 (McKusick) 8/8/98
- *	$Id: ffs_softdep.c,v 1.17 1998/10/31 15:33:32 peter Exp $
+ *	$Id: ffs_softdep.c,v 1.18 1998/12/10 20:11:47 julian Exp $
  */
 
 /*
@@ -3463,7 +3463,7 @@ void
 softdep_update_inodeblock(ip, bp, waitfor)
 	struct inode *ip;	/* the "in_core" copy of the inode */
 	struct buf *bp;		/* the buffer containing the inode block */
-	int waitfor;		/* 1 => update must be allowed */
+	int waitfor;		/* nonzero => update must be allowed */
 {
 	struct inodedep *inodedep;
 	struct worklist *wk;
@@ -3655,7 +3655,7 @@ softdep_fsync(vp)
 #else
 			getmicrotime(&tv);
 #endif /* __FreeBSD__ */
-			if (error = UFS_UPDATE(pvp, &tv, &tv, MNT_WAIT)) {
+			if (error = UFS_UPDATE(pvp, &tv, &tv, 1)) {
 				vput(pvp);
 				return (error);
 			}
@@ -4028,7 +4028,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			getmicrotime(&tv);
 #endif /* __FreeBSD__ */
 			FREE_LOCK(&lk);
-			if (error = UFS_UPDATE(pvp, &tv, &tv, MNT_WAIT))
+			if (error = UFS_UPDATE(pvp, &tv, &tv, 1))
 				break;
 			ACQUIRE_LOCK(&lk);
 			/*
@@ -4115,7 +4115,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 #else
 		getmicrotime(&tv);
 #endif /* __FreeBSD__ */
-		error = UFS_UPDATE(vp, &tv, &tv, MNT_WAIT);
+		error = UFS_UPDATE(vp, &tv, &tv, 1);
 		vput(vp);
 		if (error)
 			break;
