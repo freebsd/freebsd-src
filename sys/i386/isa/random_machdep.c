@@ -45,12 +45,10 @@
 #include <sys/select.h>
 #include <sys/poll.h>
 #include <sys/md5.h>
-#include <sys/bus.h>
 
 #include <machine/random.h>
 
 #include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
 
 #define MAX_BLKDEV 4
 
