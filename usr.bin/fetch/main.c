@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.1.1.1.2.1 1996/06/23 01:44:07 jkh Exp $ */
+/* $Id: main.c,v 1.1.1.1.2.2 1996/06/24 02:29:29 jkh Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -469,7 +469,7 @@ httpget ()
 	restart = 0;
 
 	s = http_open ();
-	sprintf (str, "GET /%s\n", file_to_get);
+	sprintf (str, "GET /%s HTTP/1.0\n\n", file_to_get);
 	i = strlen (str);
 	if (i != write (s, str, i))
 	    err (1, 0);
@@ -525,7 +525,7 @@ match (char *pat, char *s)
 void
 filter (unsigned char *p, int len)
 {
-#define S 250
+#define S 512
 	static unsigned char s[S+2];
 	static int header_len = 0, size = -1, n;
 	int i = len;
@@ -537,10 +537,10 @@ filter (unsigned char *p, int len)
 		s[header_len] = 0;
 		if (len && (header_len < S))
 		    return;
-		if (match (".*200.*success", s) == 0) {
+		if (match ("^HTTP/[0-9]+\\.[0-9]+[ \t]+200[^0-9]", s) == 0) {
 			/* maybe not found, or document w/o header */
-			if (match (".*404.*not found", s)) {
-				fprintf (stderr, "%s not found\n%s\n", file_to_get, s);
+			if (match ("^HTTP/[0-9]+\\.[0-9]+[ \t]+[0-9]+", s)) {
+				fprintf (stderr, "%s fetching failed, header so far:\n%s\n", file_to_get, s);
 				rm ();
 				exit (1);
 			}
@@ -561,7 +561,7 @@ filter (unsigned char *p, int len)
 		} else {
 			unsigned char *t;
 			/* document begins with a success line. try to get size */
-			i = match ("content-length: *([0-9]+)", s);
+			i = match ("content-length:[ \t]*([0-9]+)", s);
 			if (i > 0)
 			    size = atoi (s+i);
 			/* assume that the file to get begins after an empty line */
