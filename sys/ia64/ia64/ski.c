@@ -36,18 +36,45 @@
 #include <machine/sal.h>
 #include <machine/md_var.h>
 
+struct ssc_time {
+	int	year;
+	int	month;
+	int	day;
+	int	hour;
+	int	minute;
+	int	second;
+	int	msec;
+	int	wday;
+};
+
+#define SSC_GET_RTC			65
+
+static u_int64_t
+ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
+{
+	register u_int64_t ret0 __asm("r8");
+
+	__asm __volatile("mov r15=%1\n\t"
+			 "break 0x80001"
+			 : "=r"(ret0)
+			 : "r"(which), "r"(in0), "r"(in1), "r"(in2), "r"(in3));
+	return ret0;
+}
+
 extern u_int64_t ski_fake_pal[];	// *not* a function decl
 extern void ia64_ski_init(void);
 extern u_int64_t ia64_pal_entry;
 
 static EFI_STATUS ski_fake_efi_proc(void);
+static EFI_STATUS ski_fake_efi_get_time(EFI_TIME *time,
+					EFI_TIME_CAPABILITIES *caps);
 
 static EFI_RUNTIME_SERVICES ski_fake_efi = {
 	{ EFI_RUNTIME_SERVICES_SIGNATURE,
 	  EFI_RUNTIME_SERVICES_REVISION,
 	  0, 0, 0 },
 
-	(EFI_GET_TIME)			ski_fake_efi_proc,
+	(EFI_GET_TIME)			ski_fake_efi_get_time,
 	(EFI_SET_TIME)			ski_fake_efi_proc,
 	(EFI_GET_WAKEUP_TIME)		ski_fake_efi_proc,
 	(EFI_SET_WAKEUP_TIME)		ski_fake_efi_proc,
@@ -62,6 +89,23 @@ static EFI_RUNTIME_SERVICES ski_fake_efi = {
 	(EFI_GET_NEXT_HIGH_MONO_COUNT)	ski_fake_efi_proc,
 	(EFI_RESET_SYSTEM)		ski_fake_efi_proc
 };
+
+static EFI_STATUS
+ski_fake_efi_get_time(EFI_TIME *time, EFI_TIME_CAPABILITIES *caps)
+{
+	struct ssc_time ssctime;
+
+	ssc(ia64_tpa((vm_offset_t) &ssctime), 0, 0, 0, SSC_GET_RTC);
+
+	time->Second = ssctime.second;
+	time->Minute = ssctime.minute;
+	time->Hour = ssctime.hour;
+	time->Day = ssctime.day;
+	time->Month = ssctime.month + 1;
+	time->Year = ssctime.year + 1900;
+
+	return EFI_SUCCESS;
+}
 
 static EFI_STATUS
 ski_fake_efi_proc(void)
