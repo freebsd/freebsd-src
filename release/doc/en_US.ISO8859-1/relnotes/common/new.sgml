@@ -539,6 +539,13 @@
     directive.  See the commented out examples in
     <filename>/etc/apmd.conf</filename> for the syntax.</para>
 
+    <para>&man.pppd.8; (the control program for kernel-level PPP) is
+    now installed mode <literal>4550</literal> and
+    <username>root</username><literal>:</literal><groupname>dialer</groupname>,
+    rather than mode <literal>4555</literal> (in other words, it is no
+    longer world-executable).  Users of &man.pppd.8; may need to
+    change their group settings.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
