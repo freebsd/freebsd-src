@@ -95,7 +95,7 @@ astattach(struct ata_device *atadev)
     stp = malloc(sizeof(struct ast_softc), M_AST, M_NOWAIT | M_ZERO);
     if (!stp) {
 	ata_prtdev(atadev, "out of memory\n");
-	return -1;
+	return 0;
     }
 
     stp->device = atadev;
@@ -105,7 +105,7 @@ astattach(struct ata_device *atadev)
 
     if (ast_sense(stp)) {
 	free(stp, M_AST);
-	return -1;
+	return 0;
     }
 
     if (!strcmp(atadev->param->model, "OnStream DI-30")) {
@@ -141,7 +141,7 @@ astattach(struct ata_device *atadev)
     stp->device->flags |= ATA_D_MEDIA_CHANGED;
     ast_describe(stp);
     atadev->driver = stp;
-    return 0;
+    return 1;
 }
 
 void	
