@@ -256,6 +256,8 @@ extern int errno;
 #define	CVSREAD_ENV	"CVSREAD"	/* make files read-only */
 #define	CVSREAD_DFLT	FALSE		/* writable files by default */
 
+#define	CVSREADONLYFS_ENV "CVSREADONLYFS" /* repository is read-only */
+
 #define	RCSBIN_ENV	"RCSBIN"	/* RCS binary directory */
 /* #define	RCSBIN_DFLT		   Set by options.h */
 
@@ -379,6 +381,7 @@ extern char *CVSroot_directory;	/* the directory name */
 
 extern int trace;		/* Show all commands */
 extern int noexec;		/* Don't modify disk anywhere */
+extern int readonlyfs;		/* fail on all write locks; succeed all read locks */
 extern int logoff;		/* Don't write history entry */
 
 #ifdef AUTH_SERVER_SUPPORT
