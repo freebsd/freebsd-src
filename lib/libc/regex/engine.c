@@ -186,8 +186,8 @@ int eflags;
 			pp = mustlast;
 			for (dp = start+g->mlen-1; dp < stop;) {
 				/* Fast skip non-matches */
-				while (dp < stop && charjump[*dp])
-					dp += charjump[*dp];
+				while (dp < stop && charjump[(int)*dp])
+					dp += charjump[(int)*dp];
 
 				if (dp >= stop)
 					break;
@@ -203,7 +203,7 @@ int eflags;
 
 				/* Jump to next possible match */
 				mj = matchjump[pp - mustfirst];
-				cj = charjump[*dp];
+				cj = charjump[(int)*dp];
 				dp += (cj < mj ? mj : cj);
 				pp = mustlast;
 			}

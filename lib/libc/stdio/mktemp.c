@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* #include "namespace.h" */
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
-/* #include "un-namespace.h" */
+#include "un-namespace.h"
 
 char *_mktemp(char *);
 

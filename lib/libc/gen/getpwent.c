@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <limits.h>
 #include <nsswitch.h>
+#include <netdb.h>
 #ifdef HESIOD
 #include <hesiod.h>
 #endif
@@ -63,10 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/ypclnt.h>
 #endif
 #include "un-namespace.h"
-
-extern void setnetgrent(char *);
-extern int getnetgrent(char **, char **, char **);
-extern int innetgr(const char *, const char *, const char *, const char *);
 
 #include "pw_scan.h"
 

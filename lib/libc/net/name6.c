@@ -177,16 +177,14 @@ static int	 _mapped_addr_enabled(void);
 static FILE	*_files_open(int *errp);
 static int	 _files_ghbyname(void *, void *, va_list);
 static int	 _files_ghbyaddr(void *, void *, va_list);
-static void	 _files_shent(int stayopen);
-static void	 _files_ehent(void);
 #ifdef YP
 static int	 _nis_ghbyname(void *, void *, va_list);
 static int	 _nis_ghbyaddr(void *, void *, va_list);
 #endif
 static int	 _dns_ghbyname(void *, void *, va_list);
 static int	 _dns_ghbyaddr(void *, void *, va_list);
-static void	 _dns_shent(int stayopen);
-static void	 _dns_ehent(void);
+static void	 _dns_shent(int stayopen) __unused;
+static void	 _dns_ehent(void) __unused;
 #ifdef ICMPNL
 static int	 _icmp_ghbyaddr(void *, void *, va_list);
 #endif /* ICMPNL */

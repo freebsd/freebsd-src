@@ -3,12 +3,12 @@
 ** June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
 */
 
+#include <sys/cdefs.h>
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)difftime.c	7.7";
+static char	elsieid[] __unused = "@(#)difftime.c	7.7";
 #endif /* !defined NOID */
 #endif /* !defined lint */
-#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 /*LINTLIBRARY*/

@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <stdlib.h>
 
+extern int __semctl(int semid, int semnum, int cmd, union semun *arg);
+
 int semctl(int semid, int semnum, int cmd, ...)
 {
 	va_list ap;
