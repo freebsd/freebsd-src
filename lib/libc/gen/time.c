@@ -45,10 +45,13 @@ time(t)
 	time_t *t;
 {
 	struct timeval tt;
+	time_t retval;
 
 	if (gettimeofday(&tt, (struct timezone *)0) < 0)
-		return (-1);
-	if (t)
-		*t = tt.tv_sec;
-	return (tt.tv_sec);
+		retval = -1;
+	else
+		retval = tt.tv_sec;
+	if (t != NULL)
+		*t = retval;
+	return (retval);
 }
