@@ -37,14 +37,13 @@ Boston, MA 02111-1307, USA.  */
 #define INVOKE__main
 
 /* We call the global destructors, constructors from __main */
-#undef	ASM_OUTPUT_CONSTRUCTOR
-#undef	ASM_OUTPUT_DESTRUCTOR
+#undef TARGET_ASM_CONSTRUCTOR
+#undef TARGET_ASM_DESTRUCTOR
 
 #undef ASM_FILE_END
 #define ASM_FILE_END(FILE)					\
   do {								\
-    extern char *language_string;				\
-      if (strcmp (language_string, "GNU C++") == 0)		\
+      if (strcmp (lang_hooks.name, "GNU C++") == 0)		\
       {								\
 	ASM_OUTPUT_ALIGN (FILE, 1);				\
       }								\

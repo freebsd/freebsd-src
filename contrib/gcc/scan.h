@@ -50,6 +50,8 @@ struct fn_decl
   struct partial_proto *partial;
 };
 
+struct cpp_token;
+
 extern int lineno;
 extern void sstring_append _PARAMS((sstring *, sstring *));
 extern void make_sstring_space _PARAMS((sstring *, int));
@@ -58,10 +60,15 @@ extern int scan_ident _PARAMS((FILE *, sstring *, int));
 extern int scan_string _PARAMS((FILE *, sstring *, int));
 extern int read_upto _PARAMS((FILE *, sstring *, int));
 extern unsigned long hash _PARAMS((const char *));
-extern void recognized_function _PARAMS((char *, int, int, char *, int, int, char *, int));
-extern void recognized_extern _PARAMS((char *, int, char *, int));
+extern void recognized_function _PARAMS((const struct cpp_token *,
+					 unsigned int, int, int));
+extern void recognized_extern _PARAMS((const struct cpp_token *));
+extern unsigned int hashstr _PARAMS((const char *, unsigned int));
 
-/* get_token is a simple C lexer. */
+struct cpp_reader;
+extern int scan_decls _PARAMS((struct cpp_reader *, int, char **));
+
+/* get_token is a simple C lexer.  */
 #define IDENTIFIER_TOKEN 300
 #define CHAR_TOKEN 301
 #define STRING_TOKEN 302

@@ -1,5 +1,5 @@
 /* std.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 2000 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -69,7 +69,6 @@ typedef enum
     FFESTD_
   } ffestdStatelet_;
 
-#if FFECOM_TWOPASS
 typedef enum
   {
     FFESTD_stmtidENDDOLOOP_,
@@ -134,14 +133,10 @@ typedef enum
     FFESTD_stmtid_,
   } ffestdStmtId_;
 
-#endif
-
 /* Internal typedefs. */
 
 typedef struct _ffestd_expr_item_ *ffestdExprItem_;
-#if FFECOM_TWOPASS
 typedef struct _ffestd_stmt_ *ffestdStmt_;
-#endif
 
 /* Private include files. */
 
@@ -155,16 +150,13 @@ struct _ffestd_expr_item_
     ffelexToken token;
   };
 
-#if FFECOM_TWOPASS
 struct _ffestd_stmt_
   {
     ffestdStmt_ next;
     ffestdStmt_ previous;
     ffestdStmtId_ id;
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
     char *filename;
     int filelinenum;
-#endif
     union
       {
 	struct
@@ -491,47 +483,36 @@ struct _ffestd_stmt_
     u;
   };
 
-#endif
-
 /* Static objects accessed by functions in this module. */
 
 static ffestdStatelet_ ffestd_statelet_ = FFESTD_stateletSIMPLE_;
 static int ffestd_block_level_ = 0;	/* Block level for reachableness. */
 static bool ffestd_is_reachable_;	/* Is the current stmt reachable?  */
 static ffelab ffestd_label_formatdef_ = NULL;
-#if FFECOM_TWOPASS
 static ffestdExprItem_ *ffestd_expr_list_;
 static struct
   {
     ffestdStmt_ first;
     ffestdStmt_ last;
   }
-
-ffestd_stmt_list_
-=
+ffestd_stmt_list_ =
 {
   NULL, NULL
 };
 
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-static int ffestd_2pass_entrypoints_ = 0;	/* # ENTRY statements
-						   pending. */
-#endif
+
+/* # ENTRY statements pending. */
+static int ffestd_2pass_entrypoints_ = 0;
 
 /* Static functions (internal). */
 
-#if FFECOM_TWOPASS
 static void ffestd_stmt_append_ (ffestdStmt_ stmt);
 static ffestdStmt_ ffestd_stmt_new_ (ffestdStmtId_ id);
 static void ffestd_stmt_pass_ (void);
-#endif
-#if FFESTD_COPY_EASY_ && FFECOM_TWOPASS
+#if FFESTD_COPY_EASY_
 static ffestpInquireStmt *ffestd_subr_copy_easy_ (ffestpInquireIx max);
 #endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 static void ffestd_subr_vxt_ (void);
-#endif
 #if FFESTR_F90
 static void ffestd_subr_f90_ (void);
 #endif
@@ -562,7 +543,6 @@ static void ffestd_R1001rtexpr_ (ffests s, ffesttFormatList f, ffebld expr);
 
 /* Internal macros. */
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 #define ffestd_subr_line_now_()					       \
   ffeste_set_line (ffelex_token_where_filename (ffesta_tokens[0]), \
 		   ffelex_token_where_filelinenum (ffesta_tokens[0]))
@@ -571,13 +551,6 @@ static void ffestd_R1001rtexpr_ (ffests s, ffesttFormatList f, ffebld expr);
 #define ffestd_subr_line_save_(s)					   \
   ((s)->filename = ffelex_token_where_filename (ffesta_tokens[0]),	   \
    (s)->filelinenum = ffelex_token_where_filelinenum (ffesta_tokens[0]))
-#else
-#define ffestd_subr_line_now_()
-#if FFECOM_TWOPASS
-#define ffestd_subr_line_restore_(s)
-#define ffestd_subr_line_save_(s)
-#endif	/* FFECOM_TWOPASS */
-#endif	/* FFECOM_targetCURRENT != FFECOM_targetGCC */
 #define ffestd_check_simple_() \
       assert(ffestd_statelet_ == FFESTD_stateletSIMPLE_)
 #define ffestd_check_start_() \
@@ -603,7 +576,7 @@ static void ffestd_R1001rtexpr_ (ffests s, ffesttFormatList f, ffebld expr);
 	    || ffestd_statelet_ == FFESTD_stateletITEM_); \
       ffestd_statelet_ = FFESTD_stateletSIMPLE_
 
-#if FFESTD_COPY_EASY_ && FFECOM_TWOPASS
+#if FFESTD_COPY_EASY_
 #define ffestd_subr_copy_accept_() (ffestpAcceptStmt *) \
       ffestd_subr_copy_easy_((ffestpInquireIx) FFESTP_acceptix)
 #define ffestd_subr_copy_beru_() (ffestpBeruStmt *) \
@@ -636,7 +609,6 @@ static void ffestd_R1001rtexpr_ (ffests s, ffesttFormatList f, ffebld expr);
 
    ffestd_stmt_append_(ffestd_stmt_new_(FFESTD_stmtidR737A_));	*/
 
-#if FFECOM_TWOPASS
 static void
 ffestd_stmt_append_ (ffestdStmt_ stmt)
 {
@@ -646,13 +618,11 @@ ffestd_stmt_append_ (ffestdStmt_ stmt)
   stmt->previous->next = stmt;
 }
 
-#endif
 /* ffestd_stmt_new_ -- Make new statement with given id
 
    ffestdStmt_ stmt;
    stmt = ffestd_stmt_new_(FFESTD_stmtidR737A_);  */
 
-#if FFECOM_TWOPASS
 static ffestdStmt_
 ffestd_stmt_new_ (ffestdStmtId_ id)
 {
@@ -663,12 +633,10 @@ ffestd_stmt_new_ (ffestdStmtId_ id)
   return stmt;
 }
 
-#endif
 /* ffestd_stmt_pass_ -- Pass all statements on list to ffeste
 
    ffestd_stmt_pass_();	 */
 
-#if FFECOM_TWOPASS
 static void
 ffestd_stmt_pass_ ()
 {
@@ -676,7 +644,6 @@ ffestd_stmt_pass_ ()
   ffestdExprItem_ expr;		/* For traversing lists. */
   bool okay = (TREE_CODE (current_function_decl) != ERROR_MARK);
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   if ((ffestd_2pass_entrypoints_ != 0) && okay)
     {
       tree which = ffecom_which_entrypoint_decl ();
@@ -687,7 +654,6 @@ ffestd_stmt_pass_ ()
       tree duplicate;
 
       expand_start_case (0, which, TREE_TYPE (which), "entrypoint dispatch");
-      push_momentary ();
 
       stmt = ffestd_stmt_list_.first;
       do
@@ -709,7 +675,6 @@ ffestd_stmt_pass_ ()
 	      label = ffecom_temp_label ();
 	      TREE_USED (label) = 1;
 	      expand_goto (label);
-	      clear_momentary ();
 
 	      ffesymbol_hook (stmt->u.R1226.entry).length_tree = label;
 	    }
@@ -717,11 +682,8 @@ ffestd_stmt_pass_ ()
 	}
       while (--ents != 0);
 
-      pop_momentary ();
       expand_end_case (which);
-      clear_momentary ();
     }
-#endif
 
   for (stmt = ffestd_stmt_list_.first;
        stmt != (ffestdStmt_) &ffestd_stmt_list_.first;
@@ -1179,7 +1141,6 @@ ffestd_stmt_pass_ ()
     }
 }
 
-#endif
 /* ffestd_subr_copy_easy_ -- Copy I/O statement data structure
 
    ffestd_subr_copy_easy_();
@@ -1191,7 +1152,7 @@ ffestd_stmt_pass_ ()
    and structure references assume (though not necessarily dangerous if
    FALSE) that INQUIRE has the most file elements.  */
 
-#if FFESTD_COPY_EASY_ && FFECOM_TWOPASS
+#if FFESTD_COPY_EASY_
 static ffestpInquireStmt *
 ffestd_subr_copy_easy_ (ffestpInquireIx max)
 {
@@ -1330,7 +1291,6 @@ ffestd_subr_f90_ ()
 
    ffestd_subr_vxt_();	*/
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 static void
 ffestd_subr_vxt_ ()
 {
@@ -1340,7 +1300,6 @@ ffestd_subr_vxt_ ()
   ffebad_finish ();
 }
 
-#endif
 /* ffestd_begin_uses -- Start a bunch of USE statements
 
    ffestd_begin_uses();
@@ -1354,12 +1313,6 @@ ffestd_subr_vxt_ ()
 void
 ffestd_begin_uses ()
 {
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("; begin_uses\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_do -- End of statement following DO-term-stmt etc
@@ -1375,19 +1328,12 @@ ffestd_begin_uses ()
 void
 ffestd_do (bool ok UNUSED)
 {
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_do (ffestw_stack_top ());
-#else
-  {
-    ffestdStmt_ stmt;
+  ffestdStmt_ stmt;
 
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidENDDOLOOP_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.enddoloop.block = ffestw_stack_top ();
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidENDDOLOOP_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.enddoloop.block = ffestw_stack_top ();
 
   --ffestd_block_level_;
   assert (ffestd_block_level_ >= 0);
@@ -1404,12 +1350,6 @@ ffestd_do (bool ok UNUSED)
 void
 ffestd_end_uses (bool ok)
 {
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("; end_uses\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_end_R740 -- End a WHERE(-THEN)
@@ -1436,18 +1376,11 @@ ffestd_end_R740 (bool ok)
 void
 ffestd_end_R807 (bool ok UNUSED)
 {
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_end_R807 ();
-#else
-  {
-    ffestdStmt_ stmt;
+  ffestdStmt_ stmt;
 
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidENDLOGIF_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidENDLOGIF_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
 
   --ffestd_block_level_;
   assert (ffestd_block_level_ >= 0);
@@ -1462,11 +1395,6 @@ ffestd_exec_begin ()
 {
   ffecom_exec_transition ();
 
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("{ begin_exec\n", dmpout);
-#endif
-
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   if (ffestd_2pass_entrypoints_ != 0)
     {				/* Process pending ENTRY statements now that
 				   info filled in. */
@@ -1488,7 +1416,6 @@ ffestd_exec_begin ()
 	}
       while (--ents != 0);
     }
-#endif
 }
 
 /* ffestd_exec_end -- Executable statements can no longer come in now
@@ -1498,23 +1425,13 @@ ffestd_exec_begin ()
 void
 ffestd_exec_end ()
 {
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   int old_lineno = lineno;
-  char *old_input_filename = input_filename;
-#endif
+  const char *old_input_filename = input_filename;
 
   ffecom_end_transition ();
 
-#if FFECOM_TWOPASS
   ffestd_stmt_pass_ ();
-#endif
 
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("} end_exec\n", dmpout);
-  fputs ("> end_unit\n", dmpout);
-#endif
-
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   ffecom_finish_progunit ();
 
   if (ffestd_2pass_entrypoints_ != 0)
@@ -1543,7 +1460,6 @@ ffestd_exec_end ()
 
   lineno = old_lineno;
   input_filename = old_input_filename;
-#endif
 }
 
 /* ffestd_init_3 -- Initialize for any program unit
@@ -1553,10 +1469,8 @@ ffestd_exec_end ()
 void
 ffestd_init_3 ()
 {
-#if FFECOM_TWOPASS
   ffestd_stmt_list_.first = (ffestdStmt_) &ffestd_stmt_list_.first;
   ffestd_stmt_list_.last = (ffestdStmt_) &ffestd_stmt_list_.first;
-#endif
 }
 
 /* Generate "code" for "any" label def.  */
@@ -1564,12 +1478,6 @@ ffestd_init_3 ()
 void
 ffestd_labeldef_any (ffelab label UNUSED)
 {
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "; any_label_def %lu\n", ffelab_value (label));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_labeldef_branch -- Generate "code" for branch label def
@@ -1579,17 +1487,11 @@ ffestd_labeldef_any (ffelab label UNUSED)
 void
 ffestd_labeldef_branch (ffelab label)
 {
-#if FFECOM_ONEPASS
-  ffeste_labeldef_branch (label);
-#else
-  {
-    ffestdStmt_ stmt;
+  ffestdStmt_ stmt;
 
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidEXECLABEL_);
-    ffestd_stmt_append_ (stmt);
-    stmt->u.execlabel.label = label;
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidEXECLABEL_);
+  ffestd_stmt_append_ (stmt);
+  stmt->u.execlabel.label = label;
 
   ffestd_is_reachable_ = TRUE;
 }
@@ -1601,31 +1503,13 @@ ffestd_labeldef_branch (ffelab label)
 void
 ffestd_labeldef_format (ffelab label)
 {
+  ffestdStmt_ stmt;
+
   ffestd_label_formatdef_ = label;
 
-#if FFECOM_ONEPASS
-  ffeste_labeldef_format (label);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidFORMATLABEL_);
-#if 0
-    /* Don't bother with this.  See FORMAT statement.  */
-    /* Prepend FORMAT label instead of appending it, so all the
-       FORMAT label/statement pairs end up at the top of the list.
-       This helps ensure all decls for a block (in the GBE) are
-       known before any executable statements are generated.  */
-    stmt->previous = (ffestdStmt_) &ffestd_stmt_list_.first;
-    stmt->next = ffestd_stmt_list_.first;
-    stmt->next->previous = stmt;
-    stmt->previous->next = stmt;
-#else
-    ffestd_stmt_append_ (stmt);
-#endif
-    stmt->u.formatlabel.label = label;
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidFORMATLABEL_);
+  ffestd_stmt_append_ (stmt);
+  stmt->u.formatlabel.label = label;
 }
 
 /* ffestd_labeldef_useless -- Generate "code" for useless label def
@@ -1635,12 +1519,6 @@ ffestd_labeldef_format (ffelab label)
 void
 ffestd_labeldef_useless (ffelab label UNUSED)
 {
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "; useless_label_def %lu\n", ffelab_value (label));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R423A -- PRIVATE statement (in R422 derived-type statement)
@@ -1652,13 +1530,6 @@ void
 ffestd_R423A ()
 {
   ffestd_check_simple_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* PRIVATE_derived_type\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R423B -- SEQUENCE statement (in R422 derived-type-stmt)
@@ -1669,13 +1540,6 @@ void
 ffestd_R423B ()
 {
   ffestd_check_simple_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* SEQUENCE_derived_type\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R424 -- derived-TYPE-def statement
@@ -1724,12 +1588,6 @@ ffestd_R424 (ffelexToken access, ffestrOther access_kw, ffelexToken name)
 void
 ffestd_R425 (bool ok)
 {
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "* END_TYPE %s\n", ffelex_token_text (ffestw_name (ffestw_stack_top ())));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R519_start -- INTENT statement list begin
@@ -2020,13 +1878,6 @@ void
 ffestd_R522 ()
 {
   ffestd_check_simple_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* SAVE_all\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R522start -- SAVE statement list begin
@@ -2039,13 +1890,6 @@ void
 ffestd_R522start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* SAVE ", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R522item_object -- SAVE statement for object-name
@@ -2058,13 +1902,6 @@ void
 ffestd_R522item_object (ffelexToken name UNUSED)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "%s,", ffelex_token_text (name));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R522item_cblock -- SAVE statement for common-block-name
@@ -2077,13 +1914,6 @@ void
 ffestd_R522item_cblock (ffelexToken name UNUSED)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "/%s/,", ffelex_token_text (name));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R522finish -- SAVE statement list complete
@@ -2096,13 +1926,6 @@ void
 ffestd_R522finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputc ('\n', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R524_start -- DIMENSION statement list begin
@@ -2115,16 +1938,6 @@ void
 ffestd_R524_start (bool virtual UNUSED)
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  if (virtual)
-    fputs ("* VIRTUAL ", dmpout);	/* V028. */
-  else
-    fputs ("* DIMENSION ", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R524_item -- DIMENSION statement for object-name
@@ -2137,16 +1950,6 @@ void
 ffestd_R524_item (ffelexToken name UNUSED, ffesttDimList dims UNUSED)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs (ffelex_token_text (name), dmpout);
-  fputc ('(', dmpout);
-  ffestt_dimlist_dump (dims);
-  fputs ("),", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R524_finish -- DIMENSION statement list complete
@@ -2159,13 +1962,6 @@ void
 ffestd_R524_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputc ('\n', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R525_start -- ALLOCATABLE statement list begin
@@ -2369,13 +2165,6 @@ void
 ffestd_R537_start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* PARAMETER (", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R537_item -- PARAMETER statement assignment
@@ -2389,16 +2178,6 @@ void
 ffestd_R537_item (ffebld dest UNUSED, ffebld source UNUSED)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  ffebld_dump (dest);
-  fputc ('=', dmpout);
-  ffebld_dump (source);
-  fputc (',', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R537_finish -- PARAMETER statement list complete
@@ -2411,13 +2190,6 @@ void
 ffestd_R537_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs (")\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R539 -- IMPLICIT NONE statement
@@ -2430,13 +2202,6 @@ void
 ffestd_R539 ()
 {
   ffestd_check_simple_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* IMPLICIT_NONE\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R539start -- IMPLICIT statement
@@ -2449,13 +2214,6 @@ void
 ffestd_R539start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* IMPLICIT ", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R539item -- IMPLICIT statement specification (R540)
@@ -2469,88 +2227,7 @@ ffestd_R539item (ffestpType type UNUSED, ffebld kind UNUSED,
 		 ffelexToken kindt UNUSED, ffebld len UNUSED,
 		 ffelexToken lent UNUSED, ffesttImpList letters UNUSED)
 {
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  char *a;
-#endif
-
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  switch (type)
-    {
-    case FFESTP_typeINTEGER:
-      a = "INTEGER";
-      break;
-
-    case FFESTP_typeBYTE:
-      a = "BYTE";
-      break;
-
-    case FFESTP_typeWORD:
-      a = "WORD";
-      break;
-
-    case FFESTP_typeREAL:
-      a = "REAL";
-      break;
-
-    case FFESTP_typeCOMPLEX:
-      a = "COMPLEX";
-      break;
-
-    case FFESTP_typeLOGICAL:
-      a = "LOGICAL";
-      break;
-
-    case FFESTP_typeCHARACTER:
-      a = "CHARACTER";
-      break;
-
-    case FFESTP_typeDBLPRCSN:
-      a = "DOUBLE PRECISION";
-      break;
-
-    case FFESTP_typeDBLCMPLX:
-      a = "DOUBLE COMPLEX";
-      break;
-
-#if FFESTR_F90
-    case FFESTP_typeTYPE:
-      a = "TYPE";
-      break;
-#endif
-
-    default:
-      assert (FALSE);
-      a = "?";
-      break;
-    }
-  fprintf (dmpout, "%s(", a);
-  if (kindt != NULL)
-    {
-      fputs ("kind=", dmpout);
-      if (kind == NULL)
-	fputs (ffelex_token_text (kindt), dmpout);
-      else
-	ffebld_dump (kind);
-      if (lent != NULL)
-	fputc (',', dmpout);
-    }
-  if (lent != NULL)
-    {
-      fputs ("len=", dmpout);
-      if (len == NULL)
-	fputs (ffelex_token_text (lent), dmpout);
-      else
-	ffebld_dump (len);
-    }
-  fputs (")(", dmpout);
-  ffestt_implist_dump (letters);
-  fputs ("),", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R539finish -- IMPLICIT statement
@@ -2563,13 +2240,6 @@ void
 ffestd_R539finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputc ('\n', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R542_start -- NAMELIST statement list begin
@@ -2582,13 +2252,6 @@ void
 ffestd_R542_start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* NAMELIST ", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R542_item_nlist -- NAMELIST statement for group-name
@@ -2601,13 +2264,6 @@ void
 ffestd_R542_item_nlist (ffelexToken name UNUSED)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "/%s/", ffelex_token_text (name));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R542_item_nitem -- NAMELIST statement for variable-name
@@ -2620,13 +2276,6 @@ void
 ffestd_R542_item_nitem (ffelexToken name UNUSED)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "%s,", ffelex_token_text (name));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R542_finish -- NAMELIST statement list complete
@@ -2639,13 +2288,6 @@ void
 ffestd_R542_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputc ('\n', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R544_start -- EQUIVALENCE statement list begin
@@ -2660,13 +2302,6 @@ void
 ffestd_R544_start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* EQUIVALENCE (", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 #endif
@@ -2681,14 +2316,6 @@ void
 ffestd_R544_item (ffesttExprList exprlist)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  ffestt_exprlist_dump (exprlist);
-  fputs ("),", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 #endif
@@ -2703,13 +2330,6 @@ void
 ffestd_R544_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs (")\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 #endif
@@ -2723,13 +2343,6 @@ void
 ffestd_R547_start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* COMMON ", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R547_item_object -- COMMON statement for object-name
@@ -2743,20 +2356,6 @@ ffestd_R547_item_object (ffelexToken name UNUSED,
 			 ffesttDimList dims UNUSED)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs (ffelex_token_text (name), dmpout);
-  if (dims != NULL)
-    {
-      fputc ('(', dmpout);
-      ffestt_dimlist_dump (dims);
-      fputc (')', dmpout);
-    }
-  fputc (',', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R547_item_cblock -- COMMON statement for common-block-name
@@ -2769,16 +2368,6 @@ void
 ffestd_R547_item_cblock (ffelexToken name UNUSED)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  if (name == NULL)
-    fputs ("//,", dmpout);
-  else
-    fprintf (dmpout, "/%s/,", ffelex_token_text (name));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R547_finish -- COMMON statement list complete
@@ -2791,13 +2380,6 @@ void
 ffestd_R547_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputc ('\n', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R620 -- ALLOCATE statement
@@ -2813,18 +2395,6 @@ ffestd_R620 (ffesttExprList exprlist, ffebld stat)
   ffestd_check_simple_ ();
 
   ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("+ ALLOCATE (", dmpout);
-  ffestt_exprlist_dump (exprlist);
-  if (stat != NULL)
-    {
-      fputs (",stat=", dmpout);
-      ffebld_dump (stat);
-    }
-  fputs (")\n", dmpout);
-#endif
 }
 
 /* ffestd_R624 -- NULLIFY statement
@@ -2861,18 +2431,6 @@ ffestd_R625 (ffesttExprList exprlist, ffebld stat)
   ffestd_check_simple_ ();
 
   ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("+ DEALLOCATE (", dmpout);
-  ffestt_exprlist_dump (exprlist);
-  if (stat != NULL)
-    {
-      fputs (",stat=", dmpout);
-      ffebld_dump (stat);
-    }
-  fputs (")\n", dmpout);
-#endif
 }
 
 #endif
@@ -2883,24 +2441,17 @@ ffestd_R625 (ffesttExprList exprlist, ffebld stat)
 void
 ffestd_R737A (ffebld dest, ffebld source)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R737A (dest, source);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR737A_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R737A.pool = ffesta_output_pool;
-    stmt->u.R737A.dest = dest;
-    stmt->u.R737A.source = source;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR737A_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R737A.pool = ffesta_output_pool;
+  stmt->u.R737A.dest = dest;
+  stmt->u.R737A.source = source;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R737B -- Assignment statement inside of WHERE
@@ -2912,16 +2463,6 @@ void
 ffestd_R737B (ffebld dest, ffebld source)
 {
   ffestd_check_simple_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputs ("+ let_inside_where ", dmpout);
-  ffebld_dump (dest);
-  fputs ("=", dmpout);
-  ffebld_dump (source);
-  fputc ('\n', dmpout);
-#endif
 }
 
 /* ffestd_R738 -- Pointer assignment statement
@@ -2936,15 +2477,6 @@ ffestd_R738 (ffebld dest, ffebld source)
   ffestd_check_simple_ ();
 
   ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("+ let_pointer ", dmpout);
-  ffebld_dump (dest);
-  fputs ("=>", dmpout);
-  ffebld_dump (source);
-  fputc ('\n', dmpout);
-#endif
 }
 
 /* ffestd_R740 -- WHERE statement
@@ -2959,16 +2491,6 @@ ffestd_R740 (ffebld expr)
   ffestd_check_simple_ ();
 
   ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("+ WHERE (", dmpout);
-  ffebld_dump (expr);
-  fputs (")\n", dmpout);
-
-  ++ffestd_block_level_;
-  assert (ffestd_block_level_ > 0);
-#endif
 }
 
 /* ffestd_R742 -- WHERE-construct statement
@@ -2983,16 +2505,6 @@ ffestd_R742 (ffebld expr)
   ffestd_check_simple_ ();
 
   ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("+ WHERE_construct (", dmpout);
-  ffebld_dump (expr);
-  fputs (")\n", dmpout);
-
-  ++ffestd_block_level_;
-  assert (ffestd_block_level_ > 0);
-#endif
 }
 
 /* ffestd_R744 -- ELSE WHERE statement
@@ -3036,24 +2548,17 @@ ffestd_R745 (bool ok)
 void
 ffestd_R803 (ffelexToken construct_name UNUSED, ffebld expr)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R803 (expr);		/* Don't bother with name. */
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR803_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R803.pool = ffesta_output_pool;
-    stmt->u.R803.block = ffestw_use (ffestw_stack_top ());
-    stmt->u.R803.expr = expr;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR803_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R803.pool = ffesta_output_pool;
+  stmt->u.R803.block = ffestw_use (ffestw_stack_top ());
+  stmt->u.R803.expr = expr;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 
   ++ffestd_block_level_;
   assert (ffestd_block_level_ > 0);
@@ -3064,24 +2569,17 @@ ffestd_R803 (ffelexToken construct_name UNUSED, ffebld expr)
 void
 ffestd_R804 (ffebld expr, ffelexToken name UNUSED)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R804 (expr);		/* Don't bother with name. */
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR804_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R804.pool = ffesta_output_pool;
-    stmt->u.R804.block = ffestw_use (ffestw_stack_top ());
-    stmt->u.R804.expr = expr;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR804_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R804.pool = ffesta_output_pool;
+  stmt->u.R804.block = ffestw_use (ffestw_stack_top ());
+  stmt->u.R804.expr = expr;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ELSE statement.  */
@@ -3089,21 +2587,14 @@ ffestd_R804 (ffebld expr, ffelexToken name UNUSED)
 void
 ffestd_R805 (ffelexToken name UNUSED)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R805 ();		/* Don't bother with name. */
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR805_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R805.block = ffestw_use (ffestw_stack_top ());
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR805_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R805.block = ffestw_use (ffestw_stack_top ());
 }
 
 /* END IF statement.  */
@@ -3111,19 +2602,12 @@ ffestd_R805 (ffelexToken name UNUSED)
 void
 ffestd_R806 (bool ok UNUSED)
 {
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R806 ();
-#else
-  {
-    ffestdStmt_ stmt;
+  ffestdStmt_ stmt;
 
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR806_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R806.block = ffestw_use (ffestw_stack_top ());
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR806_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R806.block = ffestw_use (ffestw_stack_top ());
 
   --ffestd_block_level_;
   assert (ffestd_block_level_ >= 0);
@@ -3138,23 +2622,16 @@ ffestd_R806 (bool ok UNUSED)
 void
 ffestd_R807 (ffebld expr)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R807 (expr);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR807_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R807.pool = ffesta_output_pool;
-    stmt->u.R807.expr = expr;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR807_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R807.pool = ffesta_output_pool;
+  stmt->u.R807.expr = expr;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 
   ++ffestd_block_level_;
   assert (ffestd_block_level_ > 0);
@@ -3169,25 +2646,18 @@ ffestd_R807 (ffebld expr)
 void
 ffestd_R809 (ffelexToken construct_name UNUSED, ffebld expr)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R809 (ffestw_stack_top (), expr);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR809_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R809.pool = ffesta_output_pool;
-    stmt->u.R809.block = ffestw_use (ffestw_stack_top ());
-    stmt->u.R809.expr = expr;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-    malloc_pool_use (ffestw_select (ffestw_stack_top ())->pool);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR809_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R809.pool = ffesta_output_pool;
+  stmt->u.R809.block = ffestw_use (ffestw_stack_top ());
+  stmt->u.R809.expr = expr;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
+  malloc_pool_use (ffestw_select (ffestw_stack_top ())->pool);
 
   ++ffestd_block_level_;
   assert (ffestd_block_level_ > 0);
@@ -3204,24 +2674,17 @@ ffestd_R809 (ffelexToken construct_name UNUSED, ffebld expr)
 void
 ffestd_R810 (unsigned long casenum)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R810 (ffestw_stack_top (), casenum);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR810_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R810.pool = ffesta_output_pool;
-    stmt->u.R810.block = ffestw_stack_top ();
-    stmt->u.R810.casenum = casenum;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR810_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R810.pool = ffesta_output_pool;
+  stmt->u.R810.block = ffestw_stack_top ();
+  stmt->u.R810.casenum = casenum;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R811 -- End a SELECT
@@ -3231,19 +2694,12 @@ ffestd_R810 (unsigned long casenum)
 void
 ffestd_R811 (bool ok UNUSED)
 {
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R811 (ffestw_stack_top ());
-#else
-  {
-    ffestdStmt_ stmt;
+  ffestdStmt_ stmt;
 
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR811_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R811.block = ffestw_stack_top ();
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR811_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R811.block = ffestw_stack_top ();
 
   --ffestd_block_level_;
   assert (ffestd_block_level_ >= 0);
@@ -3261,33 +2717,25 @@ ffestd_R819A (ffelexToken construct_name UNUSED, ffelab label,
 	      ffebld end, ffelexToken end_token,
 	      ffebld incr, ffelexToken incr_token)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R819A (ffestw_stack_top (), label, var, start, end, incr,
-		incr_token);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR819A_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R819A.pool = ffesta_output_pool;
-    stmt->u.R819A.block = ffestw_use (ffestw_stack_top ());
-    stmt->u.R819A.label = label;
-    stmt->u.R819A.var = var;
-    stmt->u.R819A.start = start;
-    stmt->u.R819A.start_token = ffelex_token_use (start_token);
-    stmt->u.R819A.end = end;
-    stmt->u.R819A.end_token = ffelex_token_use (end_token);
-    stmt->u.R819A.incr = incr;
-    stmt->u.R819A.incr_token = (incr_token == NULL) ? NULL
-      : ffelex_token_use (incr_token);
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR819A_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R819A.pool = ffesta_output_pool;
+  stmt->u.R819A.block = ffestw_use (ffestw_stack_top ());
+  stmt->u.R819A.label = label;
+  stmt->u.R819A.var = var;
+  stmt->u.R819A.start = start;
+  stmt->u.R819A.start_token = ffelex_token_use (start_token);
+  stmt->u.R819A.end = end;
+  stmt->u.R819A.end_token = ffelex_token_use (end_token);
+  stmt->u.R819A.incr = incr;
+  stmt->u.R819A.incr_token = (incr_token == NULL) ? NULL
+    : ffelex_token_use (incr_token);
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 
   ++ffestd_block_level_;
   assert (ffestd_block_level_ > 0);
@@ -3303,25 +2751,18 @@ void
 ffestd_R819B (ffelexToken construct_name UNUSED, ffelab label,
 	      ffebld expr)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R819B (ffestw_stack_top (), label, expr);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR819B_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R819B.pool = ffesta_output_pool;
-    stmt->u.R819B.block = ffestw_use (ffestw_stack_top ());
-    stmt->u.R819B.label = label;
-    stmt->u.R819B.expr = expr;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR819B_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R819B.pool = ffesta_output_pool;
+  stmt->u.R819B.block = ffestw_use (ffestw_stack_top ());
+  stmt->u.R819B.label = label;
+  stmt->u.R819B.expr = expr;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 
   ++ffestd_block_level_;
   assert (ffestd_block_level_ > 0);
@@ -3341,20 +2782,13 @@ ffestd_R819B (ffelexToken construct_name UNUSED, ffelab label,
 void
 ffestd_R825 (ffelexToken name UNUSED)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R825 ();
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR825_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR825_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
 }
 
 /* ffestd_R834 -- CYCLE statement
@@ -3366,21 +2800,14 @@ ffestd_R825 (ffelexToken name UNUSED)
 void
 ffestd_R834 (ffestw block)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R834 (block);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR834_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R834.block = block;
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR834_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R834.block = block;
 }
 
 /* ffestd_R835 -- EXIT statement
@@ -3392,21 +2819,14 @@ ffestd_R834 (ffestw block)
 void
 ffestd_R835 (ffestw block)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R835 (block);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR835_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R835.block = block;
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR835_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R835.block = block;
 }
 
 /* ffestd_R836 -- GOTO statement
@@ -3419,21 +2839,14 @@ ffestd_R835 (ffestw block)
 void
 ffestd_R836 (ffelab label)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R836 (label);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR836_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R836.label = label;
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR836_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R836.label = label;
 
   if (ffestd_block_level_ == 0)
     ffestd_is_reachable_ = FALSE;
@@ -3449,25 +2862,18 @@ ffestd_R836 (ffelab label)
 void
 ffestd_R837 (ffelab *labels, int count, ffebld expr)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R837 (labels, count, expr);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR837_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R837.pool = ffesta_output_pool;
-    stmt->u.R837.labels = labels;
-    stmt->u.R837.count = count;
-    stmt->u.R837.expr = expr;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR837_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R837.pool = ffesta_output_pool;
+  stmt->u.R837.labels = labels;
+  stmt->u.R837.count = count;
+  stmt->u.R837.expr = expr;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R838 -- ASSIGN statement
@@ -3482,24 +2888,17 @@ ffestd_R837 (ffelab *labels, int count, ffebld expr)
 void
 ffestd_R838 (ffelab label, ffebld target)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R838 (label, target);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR838_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R838.pool = ffesta_output_pool;
-    stmt->u.R838.label = label;
-    stmt->u.R838.target = target;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR838_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R838.pool = ffesta_output_pool;
+  stmt->u.R838.label = label;
+  stmt->u.R838.target = target;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R839 -- Assigned GOTO statement
@@ -3512,23 +2911,16 @@ ffestd_R838 (ffelab label, ffebld target)
 void
 ffestd_R839 (ffebld target, ffelab *labels UNUSED, int count UNUSED)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R839 (target);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR839_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R839.pool = ffesta_output_pool;
-    stmt->u.R839.target = target;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR839_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R839.pool = ffesta_output_pool;
+  stmt->u.R839.target = target;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 
   if (ffestd_block_level_ == 0)
     ffestd_is_reachable_ = FALSE;
@@ -3543,26 +2935,19 @@ ffestd_R839 (ffebld target, ffelab *labels UNUSED, int count UNUSED)
 void
 ffestd_R840 (ffebld expr, ffelab neg, ffelab zero, ffelab pos)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R840 (expr, neg, zero, pos);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR840_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R840.pool = ffesta_output_pool;
-    stmt->u.R840.expr = expr;
-    stmt->u.R840.neg = neg;
-    stmt->u.R840.zero = zero;
-    stmt->u.R840.pos = pos;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR840_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R840.pool = ffesta_output_pool;
+  stmt->u.R840.expr = expr;
+  stmt->u.R840.neg = neg;
+  stmt->u.R840.zero = zero;
+  stmt->u.R840.pos = pos;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 
   if (ffestd_block_level_ == 0)
     ffestd_is_reachable_ = FALSE;
@@ -3575,20 +2960,13 @@ ffestd_R840 (ffebld expr, ffelab neg, ffelab zero, ffelab pos)
 void
 ffestd_R841 (bool in_where UNUSED)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R841 ();
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR841_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR841_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
 }
 
 /* ffestd_R842 -- STOP statement
@@ -3598,36 +2976,29 @@ ffestd_R841 (bool in_where UNUSED)
 void
 ffestd_R842 (ffebld expr)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R842 (expr);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR842_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    if (ffesta_outpooldisp () == FFESTA_pooldispPRESERVE)
-      {
-	/* This is a "spurious" (automatically-generated) STOP
-	   that follows a previous STOP or other statement.
-	   Make sure we don't have an expression in the pool,
-	   and then mark that the pool has already been killed.  */
-	assert (expr == NULL);
-	stmt->u.R842.pool = NULL;
-	stmt->u.R842.expr = NULL;
-      }
-    else
-      {
-	stmt->u.R842.pool = ffesta_output_pool;
-	stmt->u.R842.expr = expr;
-	ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-      }
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR842_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  if (ffesta_outpooldisp () == FFESTA_pooldispPRESERVE)
+    {
+      /* This is a "spurious" (automatically-generated) STOP
+	 that follows a previous STOP or other statement.
+	 Make sure we don't have an expression in the pool,
+	 and then mark that the pool has already been killed.  */
+      assert (expr == NULL);
+      stmt->u.R842.pool = NULL;
+      stmt->u.R842.expr = NULL;
+    }
+  else
+    {
+      stmt->u.R842.pool = ffesta_output_pool;
+      stmt->u.R842.expr = expr;
+      ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
+    }
 
   if (ffestd_block_level_ == 0)
     ffestd_is_reachable_ = FALSE;
@@ -3643,23 +3014,16 @@ ffestd_R842 (ffebld expr)
 void
 ffestd_R843 (ffebld expr)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R843 (expr);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR843_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R843.pool = ffesta_output_pool;
-    stmt->u.R843.expr = expr;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR843_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R843.pool = ffesta_output_pool;
+  stmt->u.R843.expr = expr;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R904 -- OPEN statement
@@ -3671,9 +3035,10 @@ ffestd_R843 (ffebld expr)
 void
 ffestd_R904 ()
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 #define specified(something) \
       (ffestp_file.open.open_spec[something].kw_or_val_present)
 
@@ -3707,23 +3072,13 @@ ffestd_R904 ()
     }
 
 #undef specified
-#endif
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R904 (&ffestp_file.open);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR904_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R904.pool = ffesta_output_pool;
-    stmt->u.R904.params = ffestd_subr_copy_open_ ();
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR904_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R904.pool = ffesta_output_pool;
+  stmt->u.R904.params = ffestd_subr_copy_open_ ();
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R907 -- CLOSE statement
@@ -3735,23 +3090,16 @@ ffestd_R904 ()
 void
 ffestd_R907 ()
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R907 (&ffestp_file.close);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR907_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R907.pool = ffesta_output_pool;
-    stmt->u.R907.params = ffestd_subr_copy_close_ ();
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR907_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R907.pool = ffesta_output_pool;
+  stmt->u.R907.params = ffestd_subr_copy_close_ ();
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R909_start -- READ(...) statement list begin
@@ -3765,9 +3113,10 @@ void
 ffestd_R909_start (bool only_format, ffestvUnit unit,
 		   ffestvFormat format, bool rec, bool key)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_start_ ();
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 #define specified(something) \
       (ffestp_file.read.read_spec[something].kw_or_val_present)
 
@@ -3788,30 +3137,20 @@ ffestd_R909_start (bool only_format, ffestvUnit unit,
     }
 
 #undef specified
-#endif
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R909_start (&ffestp_file.read, only_format, unit, format, rec, key);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR909_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R909.pool = ffesta_output_pool;
-    stmt->u.R909.params = ffestd_subr_copy_read_ ();
-    stmt->u.R909.only_format = only_format;
-    stmt->u.R909.unit = unit;
-    stmt->u.R909.format = format;
-    stmt->u.R909.rec = rec;
-    stmt->u.R909.key = key;
-    stmt->u.R909.list = NULL;
-    ffestd_expr_list_ = &stmt->u.R909.list;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR909_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R909.pool = ffesta_output_pool;
+  stmt->u.R909.params = ffestd_subr_copy_read_ ();
+  stmt->u.R909.only_format = only_format;
+  stmt->u.R909.unit = unit;
+  stmt->u.R909.format = format;
+  stmt->u.R909.rec = rec;
+  stmt->u.R909.key = key;
+  stmt->u.R909.list = NULL;
+  ffestd_expr_list_ = &stmt->u.R909.list;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R909_item -- READ statement i/o item
@@ -3823,23 +3162,18 @@ ffestd_R909_start (bool only_format, ffestvUnit unit,
 void
 ffestd_R909_item (ffebld expr, ffelexToken expr_token)
 {
+  ffestdExprItem_ item;
+
   ffestd_check_item_ ();
 
-#if FFECOM_ONEPASS
-  ffeste_R909_item (expr);
-#else
-  {
-    ffestdExprItem_ item
-    = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool, "ffestdExprItem_",
-				       sizeof (*item));
+  item = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool,
+					  "ffestdExprItem_", sizeof (*item));
 
-    item->next = NULL;
-    item->expr = expr;
-    item->token = ffelex_token_use (expr_token);
-    *ffestd_expr_list_ = item;
-    ffestd_expr_list_ = &item->next;
-  }
-#endif
+  item->next = NULL;
+  item->expr = expr;
+  item->token = ffelex_token_use (expr_token);
+  *ffestd_expr_list_ = item;
+  ffestd_expr_list_ = &item->next;
 }
 
 /* ffestd_R909_finish -- READ statement list complete
@@ -3852,12 +3186,6 @@ void
 ffestd_R909_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_ONEPASS
-  ffeste_R909_finish ();
-#else
-  /* Nothing to do, it's implicit. */
-#endif
 }
 
 /* ffestd_R910_start -- WRITE(...) statement list begin
@@ -3870,9 +3198,10 @@ ffestd_R909_finish ()
 void
 ffestd_R910_start (ffestvUnit unit, ffestvFormat format, bool rec)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_start_ ();
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 #define specified(something) \
       (ffestp_file.write.write_spec[something].kw_or_val_present)
 
@@ -3887,28 +3216,18 @@ ffestd_R910_start (ffestvUnit unit, ffestvFormat format, bool rec)
     }
 
 #undef specified
-#endif
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R910_start (&ffestp_file.write, unit, format, rec);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR910_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R910.pool = ffesta_output_pool;
-    stmt->u.R910.params = ffestd_subr_copy_write_ ();
-    stmt->u.R910.unit = unit;
-    stmt->u.R910.format = format;
-    stmt->u.R910.rec = rec;
-    stmt->u.R910.list = NULL;
-    ffestd_expr_list_ = &stmt->u.R910.list;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR910_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R910.pool = ffesta_output_pool;
+  stmt->u.R910.params = ffestd_subr_copy_write_ ();
+  stmt->u.R910.unit = unit;
+  stmt->u.R910.format = format;
+  stmt->u.R910.rec = rec;
+  stmt->u.R910.list = NULL;
+  ffestd_expr_list_ = &stmt->u.R910.list;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R910_item -- WRITE statement i/o item
@@ -3920,23 +3239,18 @@ ffestd_R910_start (ffestvUnit unit, ffestvFormat format, bool rec)
 void
 ffestd_R910_item (ffebld expr, ffelexToken expr_token)
 {
+  ffestdExprItem_ item;
+
   ffestd_check_item_ ();
 
-#if FFECOM_ONEPASS
-  ffeste_R910_item (expr);
-#else
-  {
-    ffestdExprItem_ item
-    = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool, "ffestdExprItem_",
-				       sizeof (*item));
+  item = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool,
+					  "ffestdExprItem_", sizeof (*item));
 
-    item->next = NULL;
-    item->expr = expr;
-    item->token = ffelex_token_use (expr_token);
-    *ffestd_expr_list_ = item;
-    ffestd_expr_list_ = &item->next;
-  }
-#endif
+  item->next = NULL;
+  item->expr = expr;
+  item->token = ffelex_token_use (expr_token);
+  *ffestd_expr_list_ = item;
+  ffestd_expr_list_ = &item->next;
 }
 
 /* ffestd_R910_finish -- WRITE statement list complete
@@ -3949,12 +3263,6 @@ void
 ffestd_R910_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_ONEPASS
-  ffeste_R910_finish ();
-#else
-  /* Nothing to do, it's implicit. */
-#endif
 }
 
 /* ffestd_R911_start -- PRINT statement list begin
@@ -3967,26 +3275,19 @@ ffestd_R910_finish ()
 void
 ffestd_R911_start (ffestvFormat format)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_start_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R911_start (&ffestp_file.print, format);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR911_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R911.pool = ffesta_output_pool;
-    stmt->u.R911.params = ffestd_subr_copy_print_ ();
-    stmt->u.R911.format = format;
-    stmt->u.R911.list = NULL;
-    ffestd_expr_list_ = &stmt->u.R911.list;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR911_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R911.pool = ffesta_output_pool;
+  stmt->u.R911.params = ffestd_subr_copy_print_ ();
+  stmt->u.R911.format = format;
+  stmt->u.R911.list = NULL;
+  ffestd_expr_list_ = &stmt->u.R911.list;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R911_item -- PRINT statement i/o item
@@ -3998,23 +3299,18 @@ ffestd_R911_start (ffestvFormat format)
 void
 ffestd_R911_item (ffebld expr, ffelexToken expr_token)
 {
+  ffestdExprItem_ item;
+
   ffestd_check_item_ ();
 
-#if FFECOM_ONEPASS
-  ffeste_R911_item (expr);
-#else
-  {
-    ffestdExprItem_ item
-    = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool, "ffestdExprItem_",
-				       sizeof (*item));
+  item = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool,
+					  "ffestdExprItem_", sizeof (*item));
 
-    item->next = NULL;
-    item->expr = expr;
-    item->token = ffelex_token_use (expr_token);
-    *ffestd_expr_list_ = item;
-    ffestd_expr_list_ = &item->next;
-  }
-#endif
+  item->next = NULL;
+  item->expr = expr;
+  item->token = ffelex_token_use (expr_token);
+  *ffestd_expr_list_ = item;
+  ffestd_expr_list_ = &item->next;
 }
 
 /* ffestd_R911_finish -- PRINT statement list complete
@@ -4027,12 +3323,6 @@ void
 ffestd_R911_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_ONEPASS
-  ffeste_R911_finish ();
-#else
-  /* Nothing to do, it's implicit. */
-#endif
 }
 
 /* ffestd_R919 -- BACKSPACE statement
@@ -4044,23 +3334,16 @@ ffestd_R911_finish ()
 void
 ffestd_R919 ()
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R919 (&ffestp_file.beru);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR919_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R919.pool = ffesta_output_pool;
-    stmt->u.R919.params = ffestd_subr_copy_beru_ ();
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR919_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R919.pool = ffesta_output_pool;
+  stmt->u.R919.params = ffestd_subr_copy_beru_ ();
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R920 -- ENDFILE statement
@@ -4072,23 +3355,16 @@ ffestd_R919 ()
 void
 ffestd_R920 ()
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R920 (&ffestp_file.beru);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR920_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R920.pool = ffesta_output_pool;
-    stmt->u.R920.params = ffestd_subr_copy_beru_ ();
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR920_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R920.pool = ffesta_output_pool;
+  stmt->u.R920.params = ffestd_subr_copy_beru_ ();
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R921 -- REWIND statement
@@ -4100,23 +3376,16 @@ ffestd_R920 ()
 void
 ffestd_R921 ()
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R921 (&ffestp_file.beru);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR921_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R921.pool = ffesta_output_pool;
-    stmt->u.R921.params = ffestd_subr_copy_beru_ ();
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR921_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R921.pool = ffesta_output_pool;
+  stmt->u.R921.params = ffestd_subr_copy_beru_ ();
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R923A -- INQUIRE statement (non-IOLENGTH version)
@@ -4128,9 +3397,10 @@ ffestd_R921 ()
 void
 ffestd_R923A (bool by_file)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 #define specified(something) \
       (ffestp_file.inquire.inquire_spec[something].kw_or_val_present)
 
@@ -4155,24 +3425,14 @@ ffestd_R923A (bool by_file)
     }
 
 #undef specified
-#endif
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R923A (&ffestp_file.inquire, by_file);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR923A_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R923A.pool = ffesta_output_pool;
-    stmt->u.R923A.params = ffestd_subr_copy_inquire_ ();
-    stmt->u.R923A.by_file = by_file;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR923A_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R923A.pool = ffesta_output_pool;
+  stmt->u.R923A.params = ffestd_subr_copy_inquire_ ();
+  stmt->u.R923A.by_file = by_file;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R923B_start -- INQUIRE(IOLENGTH=expr) statement list begin
@@ -4185,25 +3445,18 @@ ffestd_R923A (bool by_file)
 void
 ffestd_R923B_start ()
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_start_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R923B_start (&ffestp_file.inquire);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR923B_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R923B.pool = ffesta_output_pool;
-    stmt->u.R923B.params = ffestd_subr_copy_inquire_ ();
-    stmt->u.R923B.list = NULL;
-    ffestd_expr_list_ = &stmt->u.R923B.list;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR923B_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R923B.pool = ffesta_output_pool;
+  stmt->u.R923B.params = ffestd_subr_copy_inquire_ ();
+  stmt->u.R923B.list = NULL;
+  ffestd_expr_list_ = &stmt->u.R923B.list;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R923B_item -- INQUIRE statement i/o item
@@ -4215,22 +3468,17 @@ ffestd_R923B_start ()
 void
 ffestd_R923B_item (ffebld expr)
 {
+  ffestdExprItem_ item;
+
   ffestd_check_item_ ();
 
-#if FFECOM_ONEPASS
-  ffeste_R923B_item (expr);
-#else
-  {
-    ffestdExprItem_ item
-    = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool, "ffestdExprItem_",
-				       sizeof (*item));
+  item = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool,
+					  "ffestdExprItem_", sizeof (*item));
 
-    item->next = NULL;
-    item->expr = expr;
-    *ffestd_expr_list_ = item;
-    ffestd_expr_list_ = &item->next;
-  }
-#endif
+  item->next = NULL;
+  item->expr = expr;
+  *ffestd_expr_list_ = item;
+  ffestd_expr_list_ = &item->next;
 }
 
 /* ffestd_R923B_finish -- INQUIRE statement list complete
@@ -4243,12 +3491,6 @@ void
 ffestd_R923B_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_ONEPASS
-  ffeste_R923B_finish ();
-#else
-  /* Nothing to do, it's implicit. */
-#endif
 }
 
 /* ffestd_R1001 -- FORMAT statement
@@ -4260,6 +3502,7 @@ ffestd_R1001 (ffesttFormatList f)
 {
   ffestsHolder str;
   ffests s = &str;
+  ffestdStmt_ stmt;
 
   ffestd_check_simple_ ();
 
@@ -4271,35 +3514,9 @@ ffestd_R1001 (ffesttFormatList f)
   ffestd_R1001dump_ (s, f);	/* Build the string in s. */
   ffests_putc (s, ')');
 
-#if FFECOM_ONEPASS
-  ffeste_R1001 (s);
-  ffests_kill (s);		/* Kill the string in s. */
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR1001_);
-#if 0
-    /* Don't bother with this.  After all, things like cilists also are
-       declared midway through code-generation.  Perhaps the only problems
-       the gcc back end has with midway declarations are with stack vars,
-       maybe only with vars that can be put in registers.  Unless/until the
-       need is established, handle FORMAT just like cilists and others; at
-       that point, they'd likely *all* have to be fixed, which would be
-       very painful anyway.  */
-    /* Insert FORMAT statement just after the first item on the
-       statement list, which must be a FORMAT label, which see.  */
-    assert (ffestd_stmt_list_.first->id == FFESTD_stmtidFORMATLABEL_);
-    stmt->previous = ffestd_stmt_list_.first;
-    stmt->next = ffestd_stmt_list_.first->next;
-    stmt->next->previous = stmt;
-    stmt->previous->next = stmt;
-#else
-    ffestd_stmt_append_ (stmt);
-#endif
-    stmt->u.R1001.str = str;
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR1001_);
+  ffestd_stmt_append_ (stmt);
+  stmt->u.R1001.str = str;
 
   ffestd_label_formatdef_ = NULL;
 }
@@ -4327,13 +3544,7 @@ ffestd_R1001dump_ (ffests s, ffesttFormatList list)
 	  break;
 
 	case FFESTP_formattypeB:
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-	  ffestd_R1001dump_1005_3_ (s, next, "B");
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
 	  ffestd_R1001error_ (next);
-#else
-#error
-#endif
 	  break;
 
 	case FFESTP_formattypeO:
@@ -4353,13 +3564,7 @@ ffestd_R1001dump_ (ffests s, ffesttFormatList list)
 	  break;
 
 	case FFESTP_formattypeEN:
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-	  ffestd_R1001dump_1005_5_ (s, next, "EN");
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
 	  ffestd_R1001error_ (next);
-#else
-#error
-#endif
 	  break;
 
 	case FFESTP_formattypeG:
@@ -4379,13 +3584,7 @@ ffestd_R1001dump_ (ffests s, ffesttFormatList list)
 	  break;
 
 	case FFESTP_formattypeQ:
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-	  ffestd_R1001dump_1010_1_ (s, next, "Q");
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
 	  ffestd_R1001error_ (next);
-#else
-#error
-#endif
 	  break;
 
 	case FFESTP_formattypeDOLLAR:
@@ -4465,9 +3664,7 @@ ffestd_R1001dump_ (ffests s, ffesttFormatList list)
 		char *p = ffelex_token_text (next->t);
 		ffeTokenLength i = ffelex_token_length (next->t);
 
-		ffests_printf_1U (s,
-				  "%" ffeTokenLength_f "uH",
-				  i);
+		ffests_printf (s, "%" ffeTokenLength_f "uH", i);
 		while (i-- != 0)
 		  {
 		    ffests_putc (s, *p);
@@ -4487,8 +3684,7 @@ ffestd_R1001dump_ (ffests s, ffesttFormatList list)
 	      if (next->u.R1003D.R1004.rtexpr)
 		ffestd_R1001rtexpr_ (s, next, next->u.R1003D.R1004.u.expr);
 	      else
-		ffests_printf_1U (s, "%lu",
-				  next->u.R1003D.R1004.u.unsigned_val);
+		ffests_printf (s, "%lu", next->u.R1003D.R1004.u.unsigned_val);
 	    }
 
 	  ffests_putc (s, '(');
@@ -4520,7 +3716,7 @@ ffestd_R1001dump_1005_1_ (ffests s, ffesttFormatList f, const char *string)
       if (f->u.R1005.R1004.rtexpr)
 	ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1004.u.expr);
       else
-	ffests_printf_1U (s, "%lu", f->u.R1005.R1004.u.unsigned_val);
+	ffests_printf (s, "%lu", f->u.R1005.R1004.u.unsigned_val);
     }
 
   ffests_puts (s, string);
@@ -4530,7 +3726,7 @@ ffestd_R1001dump_1005_1_ (ffests s, ffesttFormatList f, const char *string)
       if (f->u.R1005.R1006.rtexpr)
 	ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1006.u.expr);
       else
-	ffests_printf_1U (s, "%lu", f->u.R1005.R1006.u.unsigned_val);
+	ffests_printf (s, "%lu", f->u.R1005.R1006.u.unsigned_val);
     }
 }
 
@@ -4553,7 +3749,7 @@ ffestd_R1001dump_1005_2_ (ffests s, ffesttFormatList f, const char *string)
       if (f->u.R1005.R1004.rtexpr)
 	ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1004.u.expr);
       else
-	ffests_printf_1U (s, "%lu", f->u.R1005.R1004.u.unsigned_val);
+	ffests_printf (s, "%lu", f->u.R1005.R1004.u.unsigned_val);
     }
 
   ffests_puts (s, string);
@@ -4561,7 +3757,7 @@ ffestd_R1001dump_1005_2_ (ffests s, ffesttFormatList f, const char *string)
   if (f->u.R1005.R1006.rtexpr)
     ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1006.u.expr);
   else
-    ffests_printf_1U (s, "%lu", f->u.R1005.R1006.u.unsigned_val);
+    ffests_printf (s, "%lu", f->u.R1005.R1006.u.unsigned_val);
 }
 
 /* ffestd_R1001dump_1005_3_ -- Dump a particular format
@@ -4582,7 +3778,7 @@ ffestd_R1001dump_1005_3_ (ffests s, ffesttFormatList f, const char *string)
       if (f->u.R1005.R1004.rtexpr)
 	ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1004.u.expr);
       else
-	ffests_printf_1U (s, "%lu", f->u.R1005.R1004.u.unsigned_val);
+	ffests_printf (s, "%lu", f->u.R1005.R1004.u.unsigned_val);
     }
 
   ffests_puts (s, string);
@@ -4590,7 +3786,7 @@ ffestd_R1001dump_1005_3_ (ffests s, ffesttFormatList f, const char *string)
   if (f->u.R1005.R1006.rtexpr)
     ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1006.u.expr);
   else
-    ffests_printf_1U (s, "%lu", f->u.R1005.R1006.u.unsigned_val);
+    ffests_printf (s, "%lu", f->u.R1005.R1006.u.unsigned_val);
 
   if (f->u.R1005.R1007_or_R1008.present)
     {
@@ -4598,8 +3794,7 @@ ffestd_R1001dump_1005_3_ (ffests s, ffesttFormatList f, const char *string)
       if (f->u.R1005.R1007_or_R1008.rtexpr)
 	ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1007_or_R1008.u.expr);
       else
-	ffests_printf_1U (s, "%lu",
-			  f->u.R1005.R1007_or_R1008.u.unsigned_val);
+	ffests_printf (s, "%lu", f->u.R1005.R1007_or_R1008.u.unsigned_val);
     }
 }
 
@@ -4622,7 +3817,7 @@ ffestd_R1001dump_1005_4_ (ffests s, ffesttFormatList f, const char *string)
       if (f->u.R1005.R1004.rtexpr)
 	ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1004.u.expr);
       else
-	ffests_printf_1U (s, "%lu", f->u.R1005.R1004.u.unsigned_val);
+	ffests_printf (s, "%lu", f->u.R1005.R1004.u.unsigned_val);
     }
 
   ffests_puts (s, string);
@@ -4630,13 +3825,13 @@ ffestd_R1001dump_1005_4_ (ffests s, ffesttFormatList f, const char *string)
   if (f->u.R1005.R1006.rtexpr)
     ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1006.u.expr);
   else
-    ffests_printf_1U (s, "%lu", f->u.R1005.R1006.u.unsigned_val);
+    ffests_printf (s, "%lu", f->u.R1005.R1006.u.unsigned_val);
 
   ffests_putc (s, '.');
   if (f->u.R1005.R1007_or_R1008.rtexpr)
     ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1007_or_R1008.u.expr);
   else
-    ffests_printf_1U (s, "%lu", f->u.R1005.R1007_or_R1008.u.unsigned_val);
+    ffests_printf (s, "%lu", f->u.R1005.R1007_or_R1008.u.unsigned_val);
 }
 
 /* ffestd_R1001dump_1005_5_ -- Dump a particular format
@@ -4657,7 +3852,7 @@ ffestd_R1001dump_1005_5_ (ffests s, ffesttFormatList f, const char *string)
       if (f->u.R1005.R1004.rtexpr)
 	ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1004.u.expr);
       else
-	ffests_printf_1U (s, "%lu", f->u.R1005.R1004.u.unsigned_val);
+	ffests_printf (s, "%lu", f->u.R1005.R1004.u.unsigned_val);
     }
 
   ffests_puts (s, string);
@@ -4665,13 +3860,13 @@ ffestd_R1001dump_1005_5_ (ffests s, ffesttFormatList f, const char *string)
   if (f->u.R1005.R1006.rtexpr)
     ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1006.u.expr);
   else
-    ffests_printf_1U (s, "%lu", f->u.R1005.R1006.u.unsigned_val);
+    ffests_printf (s, "%lu", f->u.R1005.R1006.u.unsigned_val);
 
   ffests_putc (s, '.');
   if (f->u.R1005.R1007_or_R1008.rtexpr)
     ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1007_or_R1008.u.expr);
   else
-    ffests_printf_1U (s, "%lu", f->u.R1005.R1007_or_R1008.u.unsigned_val);
+    ffests_printf (s, "%lu", f->u.R1005.R1007_or_R1008.u.unsigned_val);
 
   if (f->u.R1005.R1009.present)
     {
@@ -4679,7 +3874,7 @@ ffestd_R1001dump_1005_5_ (ffests s, ffesttFormatList f, const char *string)
       if (f->u.R1005.R1009.rtexpr)
 	ffestd_R1001rtexpr_ (s, f, f->u.R1005.R1009.u.expr);
       else
-	ffests_printf_1U (s, "%lu", f->u.R1005.R1009.u.unsigned_val);
+	ffests_printf (s, "%lu", f->u.R1005.R1009.u.unsigned_val);
     }
 }
 
@@ -4713,7 +3908,7 @@ ffestd_R1001dump_1010_2_ (ffests s, ffesttFormatList f, const char *string)
       if (f->u.R1010.val.rtexpr)
 	ffestd_R1001rtexpr_ (s, f, f->u.R1010.val.u.expr);
       else
-	ffests_printf_1U (s, "%lu", f->u.R1010.val.u.unsigned_val);
+	ffests_printf (s, "%lu", f->u.R1010.val.u.unsigned_val);
     }
 
   ffests_puts (s, string);
@@ -4734,7 +3929,7 @@ ffestd_R1001dump_1010_3_ (ffests s, ffesttFormatList f, const char *string)
   if (f->u.R1010.val.rtexpr)
     ffestd_R1001rtexpr_ (s, f, f->u.R1010.val.u.expr);
   else
-    ffests_printf_1U (s, "%lu", f->u.R1010.val.u.unsigned_val);
+    ffests_printf (s, "%lu", f->u.R1010.val.u.unsigned_val);
 
   ffests_puts (s, string);
 }
@@ -4754,7 +3949,7 @@ ffestd_R1001dump_1010_4_ (ffests s, ffesttFormatList f, const char *string)
   if (f->u.R1010.val.rtexpr)
     ffestd_R1001rtexpr_ (s, f, f->u.R1010.val.u.expr);
   else
-    ffests_printf_1D (s, "%ld", f->u.R1010.val.u.signed_val);
+    ffests_printf (s, "%ld", f->u.R1010.val.u.signed_val);
 
   ffests_puts (s, string);
 }
@@ -4776,7 +3971,7 @@ ffestd_R1001dump_1010_5_ (ffests s, ffesttFormatList f, const char *string)
   if (f->u.R1010.val.rtexpr)
     ffestd_R1001rtexpr_ (s, f, f->u.R1010.val.u.expr);
   else
-    ffests_printf_1U (s, "%lu", f->u.R1010.val.u.unsigned_val);
+    ffests_printf (s, "%lu", f->u.R1010.val.u.unsigned_val);
 }
 
 /* ffestd_R1001error_ -- Complain about FORMAT specification not supported
@@ -4836,7 +4031,7 @@ ffestd_R1001rtexpr_ (ffests s, ffesttFormatList f, ffebld expr)
 	case FFEINFO_kindtypeANY:
 	  return;
 	}
-      ffests_printf_1D (s, "%ld", val);
+      ffests_printf (s, "%ld", (long) val);
     }
 }
 
@@ -4860,16 +4055,6 @@ ffestd_R1102 (ffesymbol s, ffelexToken name UNUSED)
   ffe_set_is_saveall (TRUE);	/* Main program always has implicit SAVE. */
 
   ffestw_set_sym (ffestw_stack_top (), s);
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  if (name == NULL)
-    fputs ("< PROGRAM_unnamed\n", dmpout);
-  else
-    fprintf (dmpout, "< PROGRAM %s\n", ffelex_token_text (name));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R1103 -- End a PROGRAM
@@ -4879,6 +4064,8 @@ ffestd_R1102 (ffesymbol s, ffelexToken name UNUSED)
 void
 ffestd_R1103 (bool ok UNUSED)
 {
+  ffestdStmt_ stmt;
+
   assert (ffestd_block_level_ == 0);
 
   if (FFESTD_IS_END_OPTIMIZED_ && ffestd_is_reachable_)
@@ -4887,16 +4074,8 @@ ffestd_R1103 (bool ok UNUSED)
   if (ffestw_state (ffestw_stack_top ()) != FFESTV_statePROGRAM5)
     ffestd_subr_labels_ (FALSE);/* Handle any undefined labels. */
 
-#if FFECOM_ONEPASS
-  ffeste_R1103 ();
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR1103_);
-    ffestd_stmt_append_ (stmt);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR1103_);
+  ffestd_stmt_append_ (stmt);
 }
 
 /* ffestd_R1105 -- MODULE statement
@@ -5025,16 +4204,6 @@ ffestd_R1111 (ffesymbol s, ffelexToken name UNUSED)
 
   ffecom_notify_primary_entry (s);
   ffestw_set_sym (ffestw_stack_top (), s);
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  if (name == NULL)
-    fputs ("< BLOCK_DATA_unnamed\n", dmpout);
-  else
-    fprintf (dmpout, "< BLOCK_DATA %s\n", ffelex_token_text (name));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R1112 -- End a BLOCK DATA
@@ -5044,6 +4213,8 @@ ffestd_R1111 (ffesymbol s, ffelexToken name UNUSED)
 void
 ffestd_R1112 (bool ok UNUSED)
 {
+  ffestdStmt_ stmt;
+
   assert (ffestd_block_level_ == 0);
 
   /* Generate any return-like code here (not likely for BLOCK DATA!). */
@@ -5051,16 +4222,8 @@ ffestd_R1112 (bool ok UNUSED)
   if (ffestw_state (ffestw_stack_top ()) != FFESTV_stateBLOCKDATA5)
     ffestd_subr_labels_ (TRUE);	/* Handle any undefined labels. */
 
-#if FFECOM_ONEPASS
-  ffeste_R1112 ();
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR1112_);
-    ffestd_stmt_append_ (stmt);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR1112_);
+  ffestd_stmt_append_ (stmt);
 }
 
 /* ffestd_R1202 -- INTERFACE statement
@@ -5257,13 +4420,6 @@ void
 ffestd_R1207_start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* EXTERNAL (", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R1207_item -- EXTERNAL statement for name
@@ -5277,13 +4433,6 @@ ffestd_R1207_item (ffelexToken name)
 {
   ffestd_check_item_ ();
   assert (name != NULL);
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "%s,", ffelex_token_text (name));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R1207_finish -- EXTERNAL statement list complete
@@ -5296,13 +4445,6 @@ void
 ffestd_R1207_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs (")\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R1208_start -- INTRINSIC statement list begin
@@ -5315,13 +4457,6 @@ void
 ffestd_R1208_start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* INTRINSIC (", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R1208_item -- INTRINSIC statement for name
@@ -5335,13 +4470,6 @@ ffestd_R1208_item (ffelexToken name)
 {
   ffestd_check_item_ ();
   assert (name != NULL);
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "%s,", ffelex_token_text (name));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R1208_finish -- INTRINSIC statement list complete
@@ -5354,13 +4482,6 @@ void
 ffestd_R1208_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs (")\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R1212 -- CALL statement
@@ -5372,23 +4493,16 @@ ffestd_R1208_finish ()
 void
 ffestd_R1212 (ffebld expr)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R1212 (expr);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR1212_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R1212.pool = ffesta_output_pool;
-    stmt->u.R1212.expr = expr;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR1212_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R1212.pool = ffesta_output_pool;
+  stmt->u.R1212.expr = expr;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
 /* ffestd_R1213 -- Defined assignment statement
@@ -5404,15 +4518,6 @@ ffestd_R1213 (ffebld dest, ffebld source)
   ffestd_check_simple_ ();
 
   ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("+ let_defined ", dmpout);
-  ffebld_dump (dest);
-  fputs ("=", dmpout);
-  ffebld_dump (source);
-  fputc ('\n', dmpout);
-#endif
 }
 
 #endif
@@ -5435,10 +4540,6 @@ ffestd_R1219 (ffesymbol s, ffelexToken funcname UNUSED,
 	      bool recursive UNUSED, ffelexToken result UNUSED,
 	      bool separate_result UNUSED)
 {
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  char *a;
-#endif
-
   assert (ffestd_block_level_ == 0);
   ffestd_is_reachable_ = TRUE;
 
@@ -5446,97 +4547,6 @@ ffestd_R1219 (ffesymbol s, ffelexToken funcname UNUSED,
 
   ffecom_notify_primary_entry (s);
   ffestw_set_sym (ffestw_stack_top (), s);
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  switch (type)
-    {
-    case FFESTP_typeINTEGER:
-      a = "INTEGER";
-      break;
-
-    case FFESTP_typeBYTE:
-      a = "BYTE";
-      break;
-
-    case FFESTP_typeWORD:
-      a = "WORD";
-      break;
-
-    case FFESTP_typeREAL:
-      a = "REAL";
-      break;
-
-    case FFESTP_typeCOMPLEX:
-      a = "COMPLEX";
-      break;
-
-    case FFESTP_typeLOGICAL:
-      a = "LOGICAL";
-      break;
-
-    case FFESTP_typeCHARACTER:
-      a = "CHARACTER";
-      break;
-
-    case FFESTP_typeDBLPRCSN:
-      a = "DOUBLE PRECISION";
-      break;
-
-    case FFESTP_typeDBLCMPLX:
-      a = "DOUBLE COMPLEX";
-      break;
-
-#if FFESTR_F90
-    case FFESTP_typeTYPE:
-      a = "TYPE";
-      break;
-#endif
-
-    case FFESTP_typeNone:
-      a = "";
-      break;
-
-    default:
-      assert (FALSE);
-      a = "?";
-      break;
-    }
-  fprintf (dmpout, "< FUNCTION %s ", ffelex_token_text (funcname));
-  if (recursive)
-    fputs ("RECURSIVE ", dmpout);
-  fprintf (dmpout, "%s(", a);
-  if (kindt != NULL)
-    {
-      fputs ("kind=", dmpout);
-      if (kind == NULL)
-	fputs (ffelex_token_text (kindt), dmpout);
-      else
-	ffebld_dump (kind);
-      if (lent != NULL)
-	fputc (',', dmpout);
-    }
-  if (lent != NULL)
-    {
-      fputs ("len=", dmpout);
-      if (len == NULL)
-	fputs (ffelex_token_text (lent), dmpout);
-      else
-	ffebld_dump (len);
-    }
-  fprintf (dmpout, ")");
-  if (args != NULL)
-    {
-      fputs (" (", dmpout);
-      ffestt_tokenlist_dump (args);
-      fputc (')', dmpout);
-    }
-  if (result != NULL)
-    fprintf (dmpout, " result(%s)", ffelex_token_text (result));
-  fputc ('\n', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R1221 -- End a FUNCTION
@@ -5546,6 +4556,8 @@ ffestd_R1219 (ffesymbol s, ffelexToken funcname UNUSED,
 void
 ffestd_R1221 (bool ok UNUSED)
 {
+  ffestdStmt_ stmt;
+
   assert (ffestd_block_level_ == 0);
 
   if (FFESTD_IS_END_OPTIMIZED_ && ffestd_is_reachable_)
@@ -5554,16 +4566,8 @@ ffestd_R1221 (bool ok UNUSED)
   if (ffestw_state (ffestw_stack_top ()) != FFESTV_stateFUNCTION5)
     ffestd_subr_labels_ (FALSE);/* Handle any undefined labels. */
 
-#if FFECOM_ONEPASS
-  ffeste_R1221 ();
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR1221_);
-    ffestd_stmt_append_ (stmt);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR1221_);
+  ffestd_stmt_append_ (stmt);
 }
 
 /* ffestd_R1223 -- SUBROUTINE statement
@@ -5588,22 +4592,6 @@ ffestd_R1223 (ffesymbol s, ffelexToken subrname UNUSED,
 
   ffecom_notify_primary_entry (s);
   ffestw_set_sym (ffestw_stack_top (), s);
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "< SUBROUTINE %s ", ffelex_token_text (subrname));
-  if (recursive)
-    fputs ("recursive ", dmpout);
-  if (args != NULL)
-    {
-      fputc ('(', dmpout);
-      ffestt_tokenlist_dump (args);
-      fputc (')', dmpout);
-    }
-  fputc ('\n', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R1225 -- End a SUBROUTINE
@@ -5613,6 +4601,8 @@ ffestd_R1223 (ffesymbol s, ffelexToken subrname UNUSED,
 void
 ffestd_R1225 (bool ok UNUSED)
 {
+  ffestdStmt_ stmt;
+
   assert (ffestd_block_level_ == 0);
 
   if (FFESTD_IS_END_OPTIMIZED_ && ffestd_is_reachable_)
@@ -5621,16 +4611,8 @@ ffestd_R1225 (bool ok UNUSED)
   if (ffestw_state (ffestw_stack_top ()) != FFESTV_stateSUBROUTINE5)
     ffestd_subr_labels_ (FALSE);/* Handle any undefined labels. */
 
-#if FFECOM_ONEPASS
-  ffeste_R1225 ();
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR1225_);
-    ffestd_stmt_append_ (stmt);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR1225_);
+  ffestd_stmt_append_ (stmt);
 }
 
 /* ffestd_R1226 -- ENTRY statement
@@ -5645,10 +4627,6 @@ ffestd_R1226 (ffesymbol entry)
 {
   ffestd_check_simple_ ();
 
-#if (FFECOM_targetCURRENT == FFECOM_targetFFE) || FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R1226 (entry);
-#else
   if (!ffesta_seen_first_exec || ffecom_2pass_advise_entrypoint (entry))
     {
       ffestdStmt_ stmt;
@@ -5659,7 +4637,6 @@ ffestd_R1226 (ffesymbol entry)
       stmt->u.R1226.entry = entry;
       stmt->u.R1226.entrynum = ++ffestd_2pass_entrypoints_;
     }
-#endif
 
   ffestd_is_reachable_ = TRUE;
 }
@@ -5674,24 +4651,17 @@ ffestd_R1226 (ffesymbol entry)
 void
 ffestd_R1227 (ffebld expr)
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R1227 (ffestw_stack_top (), expr);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR1227_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.R1227.pool = ffesta_output_pool;
-    stmt->u.R1227.block = ffestw_stack_top ();
-    stmt->u.R1227.expr = expr;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR1227_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
+  stmt->u.R1227.pool = ffesta_output_pool;
+  stmt->u.R1227.block = ffestw_stack_top ();
+  stmt->u.R1227.expr = expr;
+  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 
   if (ffestd_block_level_ == 0)
     ffestd_is_reachable_ = FALSE;
@@ -5740,12 +4710,6 @@ void
 ffestd_R1229_start (ffelexToken name UNUSED, ffesttTokenList args UNUSED)
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_R1229_finish -- STMTFUNCTION statement list complete
@@ -5769,9 +4733,6 @@ ffestd_R1229_start (ffelexToken name UNUSED, ffesttTokenList args UNUSED)
 void
 ffestd_R1229_finish (ffesymbol s)
 {
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  ffebld args = ffesymbol_dummyargs (s);
-#endif
   ffebld expr = ffesymbol_sfexpr (s);
 
   ffestd_check_finish_ ();
@@ -5779,37 +4740,9 @@ ffestd_R1229_finish (ffesymbol s)
   if (expr == NULL)
     return;			/* Nothing to do, definition didn't work. */
 
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "* stmtfunction %s(", ffesymbol_text (s));
-  for (; args != NULL; args = ffebld_trail (args))
-    fprintf (dmpout, "%s,", ffesymbol_text (ffebld_symter (ffebld_head (args))));
-  fputs (")=", dmpout);
-  ffebld_dump (expr);
-  fputc ('\n', dmpout);
-#if 0				/* Normally no need to preserve the
-				   expression. */
-  ffesymbol_set_sfexpr (s, NULL);	/* Except expr.c sees NULL
-					   as recursive reference!
-					   So until we can use something
-					   convenient, like a "permanent"
-					   expression, don't worry about
-					   wasting some memory in the
-					   stand-alone FFE. */
-#else
-  ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-#endif
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
   /* With gcc, cannot do anything here, because the backend hasn't even
      (necessarily) been notified that we're compiling a program unit! */
-
-#if 0				/* Must preserve the expression for gcc. */
-  ffesymbol_set_sfexpr (s, NULL);
-#else
   ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-#endif
-#else
-#error
-#endif
 }
 
 /* ffestd_S3P4 -- INCLUDE line
@@ -5860,17 +4793,7 @@ void
 ffestd_V003_start (ffelexToken structure_name)
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  if (structure_name == NULL)
-    fputs ("* STRUCTURE_unnamed ", dmpout);
-  else
-    fprintf (dmpout, "* STRUCTURE %s ", ffelex_token_text (structure_name));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
   ffestd_subr_vxt_ ();
-#else
-#error
-#endif
 }
 
 /* ffestd_V003_item -- STRUCTURE statement for object-name
@@ -5883,20 +4806,6 @@ void
 ffestd_V003_item (ffelexToken name, ffesttDimList dims)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs (ffelex_token_text (name), dmpout);
-  if (dims != NULL)
-    {
-      fputc ('(', dmpout);
-      ffestt_dimlist_dump (dims);
-      fputc (')', dmpout);
-    }
-  fputc (',', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_V003_finish -- STRUCTURE statement list complete
@@ -5909,13 +4818,6 @@ void
 ffestd_V003_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputc ('\n', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_V004 -- End a STRUCTURE
@@ -5925,12 +4827,6 @@ ffestd_V003_finish ()
 void
 ffestd_V004 (bool ok)
 {
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* END_STRUCTURE\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_V009 -- UNION statement
@@ -5941,13 +4837,6 @@ void
 ffestd_V009 ()
 {
   ffestd_check_simple_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* UNION\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_V010 -- End a UNION
@@ -5957,12 +4846,6 @@ ffestd_V009 ()
 void
 ffestd_V010 (bool ok)
 {
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* END_UNION\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_V012 -- MAP statement
@@ -5973,13 +4856,6 @@ void
 ffestd_V012 ()
 {
   ffestd_check_simple_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* MAP\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_V013 -- End a MAP
@@ -5989,12 +4865,6 @@ ffestd_V012 ()
 void
 ffestd_V013 (bool ok)
 {
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* END_MAP\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 #endif
@@ -6008,14 +4878,6 @@ void
 ffestd_V014_start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* VOLATILE (", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-  ffestd_subr_vxt_ ();
-#else
-#error
-#endif
 }
 
 /* ffestd_V014_item_object -- VOLATILE statement for object-name
@@ -6028,13 +4890,6 @@ void
 ffestd_V014_item_object (ffelexToken name UNUSED)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "%s,", ffelex_token_text (name));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_V014_item_cblock -- VOLATILE statement for common-block-name
@@ -6047,13 +4902,6 @@ void
 ffestd_V014_item_cblock (ffelexToken name UNUSED)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "/%s/,", ffelex_token_text (name));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_V014_finish -- VOLATILE statement list complete
@@ -6066,13 +4914,6 @@ void
 ffestd_V014_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs (")\n", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_V016_start -- RECORD statement list begin
@@ -6086,14 +4927,6 @@ void
 ffestd_V016_start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* RECORD ", dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-  ffestd_subr_vxt_ ();
-#else
-#error
-#endif
 }
 
 /* ffestd_V016_item_structure -- RECORD statement for common-block-name
@@ -6106,13 +4939,6 @@ void
 ffestd_V016_item_structure (ffelexToken name)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fprintf (dmpout, "/%s/,", ffelex_token_text (name));
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_V016_item_object -- RECORD statement for object-name
@@ -6125,20 +4951,6 @@ void
 ffestd_V016_item_object (ffelexToken name, ffesttDimList dims)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs (ffelex_token_text (name), dmpout);
-  if (dims != NULL)
-    {
-      fputc ('(', dmpout);
-      ffestt_dimlist_dump (dims);
-      fputc (')', dmpout);
-    }
-  fputc (',', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_V016_finish -- RECORD statement list complete
@@ -6151,13 +4963,6 @@ void
 ffestd_V016_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputc ('\n', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_V018_start -- REWRITE(...) statement list begin
@@ -6171,32 +4976,7 @@ void
 ffestd_V018_start (ffestvFormat format)
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_V018_start (&ffestp_file.rewrite, format);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidV018_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.V018.pool = ffesta_output_pool;
-    stmt->u.V018.params = ffestd_subr_copy_rewrite_ ();
-    stmt->u.V018.format = format;
-    stmt->u.V018.list = NULL;
-    ffestd_expr_list_ = &stmt->u.V018.list;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   ffestd_subr_vxt_ ();
-#endif
 }
 
 /* ffestd_V018_item -- REWRITE statement i/o item
@@ -6209,27 +4989,6 @@ void
 ffestd_V018_item (ffebld expr)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffeste_V018_item (expr);
-#else
-  {
-    ffestdExprItem_ item
-    = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool, "ffestdExprItem_",
-				       sizeof (*item));
-
-    item->next = NULL;
-    item->expr = expr;
-    *ffestd_expr_list_ = item;
-    ffestd_expr_list_ = &item->next;
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-#endif
 }
 
 /* ffestd_V018_finish -- REWRITE statement list complete
@@ -6242,18 +5001,6 @@ void
 ffestd_V018_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffeste_V018_finish ();
-#else
-  /* Nothing to do, it's implicit. */
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-#endif
 }
 
 /* ffestd_V019_start -- ACCEPT statement list begin
@@ -6267,32 +5014,7 @@ void
 ffestd_V019_start (ffestvFormat format)
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_V019_start (&ffestp_file.accept, format);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidV019_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.V019.pool = ffesta_output_pool;
-    stmt->u.V019.params = ffestd_subr_copy_accept_ ();
-    stmt->u.V019.format = format;
-    stmt->u.V019.list = NULL;
-    ffestd_expr_list_ = &stmt->u.V019.list;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   ffestd_subr_vxt_ ();
-#endif
 }
 
 /* ffestd_V019_item -- ACCEPT statement i/o item
@@ -6305,27 +5027,6 @@ void
 ffestd_V019_item (ffebld expr)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffeste_V019_item (expr);
-#else
-  {
-    ffestdExprItem_ item
-    = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool, "ffestdExprItem_",
-				       sizeof (*item));
-
-    item->next = NULL;
-    item->expr = expr;
-    *ffestd_expr_list_ = item;
-    ffestd_expr_list_ = &item->next;
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-#endif
 }
 
 /* ffestd_V019_finish -- ACCEPT statement list complete
@@ -6338,18 +5039,6 @@ void
 ffestd_V019_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffeste_V019_finish ();
-#else
-  /* Nothing to do, it's implicit. */
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-#endif
 }
 
 #endif
@@ -6364,32 +5053,7 @@ void
 ffestd_V020_start (ffestvFormat format UNUSED)
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_V020_start (&ffestp_file.type, format);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidV020_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.V020.pool = ffesta_output_pool;
-    stmt->u.V020.params = ffestd_subr_copy_type_ ();
-    stmt->u.V020.format = format;
-    stmt->u.V020.list = NULL;
-    ffestd_expr_list_ = &stmt->u.V020.list;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   ffestd_subr_vxt_ ();
-#endif
 }
 
 /* ffestd_V020_item -- TYPE statement i/o item
@@ -6402,27 +5066,6 @@ void
 ffestd_V020_item (ffebld expr UNUSED)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffeste_V020_item (expr);
-#else
-  {
-    ffestdExprItem_ item
-    = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool, "ffestdExprItem_",
-				       sizeof (*item));
-
-    item->next = NULL;
-    item->expr = expr;
-    *ffestd_expr_list_ = item;
-    ffestd_expr_list_ = &item->next;
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-#endif
 }
 
 /* ffestd_V020_finish -- TYPE statement list complete
@@ -6435,18 +5078,6 @@ void
 ffestd_V020_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffeste_V020_finish ();
-#else
-  /* Nothing to do, it's implicit. */
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-#endif
 }
 
 /* ffestd_V021 -- DELETE statement
@@ -6460,29 +5091,7 @@ void
 ffestd_V021 ()
 {
   ffestd_check_simple_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_V021 (&ffestp_file.delete);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidV021_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.V021.pool = ffesta_output_pool;
-    stmt->u.V021.params = ffestd_subr_copy_delete_ ();
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   ffestd_subr_vxt_ ();
-#endif
 }
 
 /* ffestd_V022 -- UNLOCK statement
@@ -6495,29 +5104,7 @@ void
 ffestd_V022 ()
 {
   ffestd_check_simple_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_V022 (&ffestp_file.beru);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidV022_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.V022.pool = ffesta_output_pool;
-    stmt->u.V022.params = ffestd_subr_copy_beru_ ();
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   ffestd_subr_vxt_ ();
-#endif
 }
 
 /* ffestd_V023_start -- ENCODE(...) statement list begin
@@ -6531,31 +5118,7 @@ void
 ffestd_V023_start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_V023_start (&ffestp_file.vxtcode);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidV023_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.V023.pool = ffesta_output_pool;
-    stmt->u.V023.params = ffestd_subr_copy_vxtcode_ ();
-    stmt->u.V023.list = NULL;
-    ffestd_expr_list_ = &stmt->u.V023.list;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   ffestd_subr_vxt_ ();
-#endif
 }
 
 /* ffestd_V023_item -- ENCODE statement i/o item
@@ -6568,27 +5131,6 @@ void
 ffestd_V023_item (ffebld expr)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffeste_V023_item (expr);
-#else
-  {
-    ffestdExprItem_ item
-    = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool, "ffestdExprItem_",
-				       sizeof (*item));
-
-    item->next = NULL;
-    item->expr = expr;
-    *ffestd_expr_list_ = item;
-    ffestd_expr_list_ = &item->next;
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-#endif
 }
 
 /* ffestd_V023_finish -- ENCODE statement list complete
@@ -6601,18 +5143,6 @@ void
 ffestd_V023_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffeste_V023_finish ();
-#else
-  /* Nothing to do, it's implicit. */
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-#endif
 }
 
 /* ffestd_V024_start -- DECODE(...) statement list begin
@@ -6626,31 +5156,7 @@ void
 ffestd_V024_start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_V024_start (&ffestp_file.vxtcode);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidV024_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.V024.pool = ffesta_output_pool;
-    stmt->u.V024.params = ffestd_subr_copy_vxtcode_ ();
-    stmt->u.V024.list = NULL;
-    ffestd_expr_list_ = &stmt->u.V024.list;
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   ffestd_subr_vxt_ ();
-#endif
 }
 
 /* ffestd_V024_item -- DECODE statement i/o item
@@ -6663,27 +5169,6 @@ void
 ffestd_V024_item (ffebld expr)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffeste_V024_item (expr);
-#else
-  {
-    ffestdExprItem_ item
-    = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool, "ffestdExprItem_",
-				       sizeof (*item));
-
-    item->next = NULL;
-    item->expr = expr;
-    *ffestd_expr_list_ = item;
-    ffestd_expr_list_ = &item->next;
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-#endif
 }
 
 /* ffestd_V024_finish -- DECODE statement list complete
@@ -6696,18 +5181,6 @@ void
 ffestd_V024_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffeste_V024_finish ();
-#else
-  /* Nothing to do, it's implicit. */
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-#endif
 }
 
 /* ffestd_V025_start -- DEFINEFILE statement list begin
@@ -6721,27 +5194,7 @@ void
 ffestd_V025_start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_V025_start ();
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidV025start_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   ffestd_subr_vxt_ ();
-#endif
 }
 
 /* ffestd_V025_item -- DEFINE FILE statement item
@@ -6755,27 +5208,6 @@ void
 ffestd_V025_item (ffebld u, ffebld m, ffebld n, ffebld asv)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffeste_V025_item (u, m, n, asv);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidV025item_);
-    ffestd_stmt_append_ (stmt);
-    stmt->u.V025item.u = u;
-    stmt->u.V025item.m = m;
-    stmt->u.V025item.n = n;
-    stmt->u.V025item.asv = asv;
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-#endif
 }
 
 /* ffestd_V025_finish -- DEFINE FILE statement list complete
@@ -6788,24 +5220,6 @@ void
 ffestd_V025_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffeste_V025_finish ();
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidV025finish_);
-    stmt->u.V025finish.pool = ffesta_output_pool;
-    ffestd_stmt_append_ (stmt);
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-#endif
 }
 
 /* ffestd_V026 -- FIND statement
@@ -6818,29 +5232,7 @@ void
 ffestd_V026 ()
 {
   ffestd_check_simple_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_V026 (&ffestp_file.find);
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidV026_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-    stmt->u.V026.pool = ffesta_output_pool;
-    stmt->u.V026.params = ffestd_subr_copy_find_ ();
-    ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
-  }
-#endif
-
-#endif
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   ffestd_subr_vxt_ ();
-#endif
 }
 
 #endif
@@ -6854,14 +5246,7 @@ void
 ffestd_V027_start ()
 {
   ffestd_check_start_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs ("* PARAMETER_vxt ", dmpout);
-#else
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
   ffestd_subr_vxt_ ();
-#endif
-#endif
 }
 
 /* ffestd_V027_item -- VXT PARAMETER statement assignment
@@ -6875,16 +5260,6 @@ void
 ffestd_V027_item (ffelexToken dest_token UNUSED, ffebld source UNUSED)
 {
   ffestd_check_item_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputs (ffelex_token_text (dest_token), dmpout);
-  fputc ('=', dmpout);
-  ffebld_dump (source);
-  fputc (',', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* ffestd_V027_finish -- VXT PARAMETER statement list complete
@@ -6897,13 +5272,6 @@ void
 ffestd_V027_finish ()
 {
   ffestd_check_finish_ ();
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-  fputc ('\n', dmpout);
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
-#else
-#error
-#endif
 }
 
 /* Any executable statement.  */
@@ -6911,18 +5279,11 @@ ffestd_V027_finish ()
 void
 ffestd_any ()
 {
+  ffestdStmt_ stmt;
+
   ffestd_check_simple_ ();
 
-#if FFECOM_ONEPASS
-  ffestd_subr_line_now_ ();
-  ffeste_R841 ();
-#else
-  {
-    ffestdStmt_ stmt;
-
-    stmt = ffestd_stmt_new_ (FFESTD_stmtidR841_);
-    ffestd_stmt_append_ (stmt);
-    ffestd_subr_line_save_ (stmt);
-  }
-#endif
+  stmt = ffestd_stmt_new_ (FFESTD_stmtidR841_);
+  ffestd_stmt_append_ (stmt);
+  ffestd_subr_line_save_ (stmt);
 }

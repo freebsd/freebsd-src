@@ -1,5 +1,6 @@
 /* Functions for generic NeXT as target machine for GNU C compiler.
-   Copyright (C) 1989, 90-93, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1989, 1990, 1991, 1992, 1993, 1996, 1997, 1998,
+   2000 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -19,9 +20,13 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
-#include <stdio.h>
+#include "system.h"
 #include "flags.h"
 #include "tree.h"
+#include "rtl.h"
+#include "toplev.h"
+#include "output.h"
+#include "tm_p.h"
 
 /* Make everything that used to go in the text section really go there.  */
 
@@ -37,8 +42,6 @@ static int pragma_initialized;
 
 static int initial_optimize_flag;
 
-extern char *get_directive_line ();
-
 /* Called from check_newline via the macro HANDLE_PRAGMA.
    FINPUT is the source file input stream.
    CH is the first character after `#pragma'.
@@ -46,9 +49,9 @@ extern char *get_directive_line ();
 
 int
 handle_pragma (p_getc, p_ungetc, pname)
-     int (*  p_getc) PROTO ((void));
-     void (* p_ungetc) PROTO ((int));
-     char * pname;
+     int (*  p_getc) PARAMS ((void)) ATTRIBUTE_UNUSED;
+     void (* p_ungetc) PARAMS ((int)) ATTRIBUTE_UNUSED;
+     const char *pname;
 {
   int retval = 0;
 
@@ -61,13 +64,13 @@ handle_pragma (p_getc, p_ungetc, pname)
 
   if (strcmp (pname, "CC_OPT_ON") == 0)
     {
-      optimize = 1, obey_regdecls = 0;
+      optimize = 1;
       warning ("optimization turned on");
       retval = 1;
     }
   else if (strcmp (pname, "CC_OPT_OFF") == 0)
     {
-      optimize = 0, obey_regdecls = 1;
+      optimize = 0;
       warning ("optimization turned off");
       retval = 1;
     }
@@ -76,13 +79,7 @@ handle_pragma (p_getc, p_ungetc, pname)
       extern int initial_optimize_flag;
 
       if (optimize != initial_optimize_flag)
-	{
-	  if (initial_optimize_flag)
-	    obey_regdecls = 0;
-	  else
-	    obey_regdecls = 1;
-	  optimize = initial_optimize_flag;
-	}
+	optimize = initial_optimize_flag;
       warning ("optimization level restored");
       retval = 1;
     }
@@ -95,3 +92,26 @@ handle_pragma (p_getc, p_ungetc, pname)
 
   return retval;
 }
+
+void
+nextstep_asm_out_constructor (symbol, priority)
+     rtx symbol;
+     int priority ATTRIBUTE_UNUSED;
+{
+  constructor_section ();
+  assemble_align (POINTER_SIZE);
+  assemble_integer (symbol, POINTER_SIZE / BITS_PER_UNIT, POINTER_SIZE, 1);
+  fprintf (asm_out_file, ".reference .constructors_used\n");
+}
+
+void
+nextstep_asm_out_destructor (symbol, priority)
+     rtx symbol;
+     int priority ATTRIBUTE_UNUSED;
+{
+  destructor_section ();
+  assemble_align (POINTER_SIZE);
+  assemble_integer (symbol, POINTER_SIZE / BITS_PER_UNIT, POINTER_SIZE, 1);
+  fprintf (asm_out_file, ".reference .destructors_used\n");
+}
+

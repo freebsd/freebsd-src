@@ -1,5 +1,5 @@
 /* Definitions for rtems targeting a SPARC using a.out.
-   Copyright (C) 1996, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 2000 Free Software Foundation, Inc.
    Contributed by Joel Sherrill (joel@OARcorp.com).
 
 This file is part of GNU CC.
@@ -19,17 +19,14 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#include "sparc/aout.h"
 
 /* Specify predefined symbols in preprocessor.  */
 
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES "-Dsparc -D__GCC_NEW_VARARGS__ -Drtems -D__rtems__ \
-  -Asystem(rtems) -Acpu(sparc) -Amachine(sparc)"
+  -Asystem=rtems"
 
 /* Generate calls to memcpy, memcmp and memset.  */
 #ifndef TARGET_MEM_FUNCTIONS
 #define TARGET_MEM_FUNCTIONS
 #endif
-
-/* end of sparc/rtems.h */

@@ -1,22 +1,22 @@
 /* OSF/rose half-pic support functions.
-   Copyright (C) 1992, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1997, 1998, 1999 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 /* The OSF/rose half-pic model assumes that the non-library code does
    not need to have full PIC (position independent code), but rather,
@@ -35,19 +35,18 @@ Boston, MA 02111-1307, USA.  */
 #include "system.h"
 #include "tree.h"
 #include "rtl.h"
+#include "expr.h"
+#include "output.h"
 #include "obstack.h"
+#include "halfpic.h"
 
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-extern rtx eliminate_constant_term ();
-extern void assemble_name ();
-extern void output_addr_const ();
-
 int flag_half_pic		= 0;	/* Global half-pic flag.  */
 int half_pic_number_ptrs	= 0;	/* # distinct pointers found */
 int half_pic_number_refs	= 0;	/* # half-pic references */
-int (*ptr_half_pic_address_p)() = half_pic_address_p;
+int (*ptr_half_pic_address_p) PARAMS ((rtx)) = half_pic_address_p;
 
 /* Obstack to hold generated pic names.  */
 static struct obstack half_pic_obstack;
@@ -59,15 +58,15 @@ struct all_refs {
   struct all_refs *next;	/* next name created */
   int		   external_p;	/* name is an external reference */
   int		   pointer_p;	/* pointer created.  */
-  char		  *ref_name;	/* reference name to ptr to real_name */
+  const char	  *ref_name;	/* reference name to ptr to real_name */
   int		   ref_len;	/* reference name length */
-  char		  *real_name;	/* real function/data name */
+  const char	  *real_name;	/* real function/data name */
   int		   real_len;	/* strlen (real_name) */
 };
 
 static struct all_refs *half_pic_names;
 
-static char *half_pic_prefix;
+static const char *half_pic_prefix;
 static int   half_pic_prefix_len;
 
 
@@ -83,16 +82,18 @@ static int   half_pic_prefix_len;
 
 #define HASHBITS 30
 
+static struct all_refs *half_pic_hash PARAMS ((const char *, int, int));
+
 static struct all_refs *
 half_pic_hash (name, len, create_p)
-     char *name;		/* name to hash */
+     const char *name;		/* name to hash */
      int len;			/* length of the name (or 0 to call strlen) */
      int create_p;		/* != 0 to create new hash bucket if new */
 {
   static struct all_refs *hash_table[MAX_HASH_TABLE];
   static struct all_refs  zero_all_refs;
 
-  unsigned char *uname;
+  const unsigned char *uname;
   int hash;
   int i;
   int ch;
@@ -103,7 +104,7 @@ half_pic_hash (name, len, create_p)
     len = strlen (name);
 
   /* Compute hash code */
-  uname = (unsigned char *)name;
+  uname = (const unsigned char *)name;
   ch = uname[0];
   hash = len * 613 + ch;
   for (i = 1; i < len; i += 2)
@@ -186,7 +187,8 @@ half_pic_finish (stream)
       if (p->pointer_p)
 	{
 	  ASM_OUTPUT_LABEL (stream, p->ref_name);
-	  ASM_OUTPUT_INT (stream, gen_rtx_SYMBOL_REF (Pmode, p->real_name));
+	  assemble_aligned_integer (POINTER_SIZE / BITS_PER_UNIT,
+				    gen_rtx_SYMBOL_REF (Pmode, p->real_name));
 	}
     }
 }
@@ -246,7 +248,7 @@ half_pic_encode (decl)
 
 void
 half_pic_declare (name)
-     char *name;
+     const char *name;
 {
   struct all_refs *ptr;
 
@@ -270,7 +272,7 @@ half_pic_declare (name)
 
 void
 half_pic_external (name)
-     char *name;
+     const char *name;
 {
   struct all_refs *ptr;
 
@@ -296,7 +298,7 @@ int
 half_pic_address_p (addr)
      rtx addr;
 {
-  char *name;
+  const char *name;
   int len;
   struct all_refs *ptr;
 
@@ -363,7 +365,7 @@ struct rtx_def *
 half_pic_ptr (operand)
      rtx operand;
 {
-  char *name;
+  const char *name;
   struct all_refs *p;
   int len;
 

@@ -19,7 +19,7 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 /* Note that i386/seq-gas.h is a GAS configuration that does not use this
-   file. */
+   file.  */
 
 #include "i386/i386.h"
 
@@ -131,12 +131,12 @@ Boston, MA 02111-1307, USA.  */
    count is in %cl.  Some assemblers require %cl as an argument;
    some don't.
 
-   GAS requires the %cl argument, so override i386/unix.h. */
+   GAS requires the %cl argument, so override i386/unix.h.  */
 
 #undef SHIFT_DOUBLE_OMITS_COUNT
 #define SHIFT_DOUBLE_OMITS_COUNT 0
 
-/* Print opcodes the way that GAS expects them. */
+/* Print opcodes the way that GAS expects them.  */
 #define GAS_MNEMONICS 1
 
 #ifdef NO_UNDERSCORES /* If user-symbols don't have underscores,
@@ -150,7 +150,7 @@ Boston, MA 02111-1307, USA.  */
 
 #undef ASM_GENERATE_INTERNAL_LABEL
 #define ASM_GENERATE_INTERNAL_LABEL(BUF,PREFIX,NUMBER)	\
-    sprintf ((BUF), ".%s%d", (PREFIX), (NUMBER))
+    sprintf ((BUF), ".%s%ld", (PREFIX), (long)(NUMBER))
 
 /* This is how to output an internal numbered label where
    PREFIX is the class of label and NUM is the number within the class.  */
@@ -160,3 +160,13 @@ Boston, MA 02111-1307, USA.  */
   fprintf (FILE, ".%s%d:\n", PREFIX, NUM)
 
 #endif /* NO_UNDERSCORES */
+
+/* Output at beginning of assembler file.  */
+/* The .file command should always begin the output.  */
+#undef ASM_FILE_START
+#define ASM_FILE_START(FILE)						\
+  do {									\
+	if (ix86_asm_dialect == ASM_INTEL)				\
+	  fputs ("\t.intel_syntax\n", FILE);				\
+        output_file_directive (FILE, main_input_filename);		\
+  } while (0)

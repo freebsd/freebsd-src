@@ -1,5 +1,5 @@
 /* Definitions for SPARC running LynxOS.
-   Copyright (C) 1993, 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 1996, 2000 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -18,15 +18,10 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#include <sparc/sparc.h>
-
 #undef ASM_OUTPUT_IDENT
-#undef SELECT_SECTION
 #undef SELECT_RTX_SECTION
 
-#define BSS_SECTION_ASM_OP	".section\t\".bss\""
-
-#include <lynx.h>
+#define BSS_SECTION_ASM_OP	"\t.section\t\".bss\""
 
 /* ??? Must redefine to get sparclite and v8 defines.  Can this be done
    differently?  */
@@ -40,12 +35,12 @@ Boston, MA 02111-1307, USA.  */
 /* Names to predefine in the preprocessor for this target machine.  */
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Dsparc -DSPARC -DLynx -DLYNX -DIBITS32 -Asystem(unix) -Asystem(lynx) -Acpu(sparc) -Amachine(sparc)"
+#define CPP_PREDEFINES "-Dunix -Dsparc -DSPARC -DLynx -DLYNX -DIBITS32 -Asystem=unix -Asystem=lynx -Acpu=sparc -Amachine=sparc"
 
 #undef LINK_SPEC
 
 /* Sparc version of libc.a has references to libm.a (printf calls pow for
-   instance), so we must always link both. */
+   instance), so we must always link both.  */
 
 #undef LIB_SPEC
 #define LIB_SPEC "%{mthreads:-L/lib/thread/}  \

@@ -6,11 +6,8 @@
 
 #include "i386/gstabs.h"
 
-/* Get perform_* macros to build libgcc.a.  */
-#include "i386/perform.h"
-
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Di386 -DMACH -Asystem(unix) -Asystem(mach) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Dunix -DMACH -Asystem=unix -Asystem=mach"
 
 /* Specify extra dir to search for include files.  */
 #define SYSTEM_INCLUDE_DIR "/usr/mach/include"

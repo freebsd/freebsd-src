@@ -30,13 +30,13 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#undef TARGET_WINDOWS_NT
-#define TARGET_WINDOWS_NT 1
+#undef TARGET_ABI_WINDOWS_NT
+#define TARGET_ABI_WINDOWS_NT 1
 
 /* WinNT (and thus Interix) use unsigned int */
 #define SIZE_TYPE "unsigned int"
 
-/* Pointer is 32 bits but the hardware has 64-bit addresses, sign extended. */
+/* Pointer is 32 bits but the hardware has 64-bit addresses, sign extended.  */
 #undef POINTER_SIZE
 #define POINTER_SIZE 32
 #define POINTERS_EXTEND_UNSIGNED 0
@@ -71,34 +71,15 @@ Boston, MA 02111-1307, USA.  */
 #undef TRAMPOLINE_SIZE
 #define TRAMPOLINE_SIZE    24
 
+/* The alignment of a trampoline, in bits.  */
+
+#undef TRAMPOLINE_ALIGNMENT
+#define TRAMPOLINE_ALIGNMENT  32
+
 /* Emit RTL insns to initialize the variable parts of a trampoline.
    FNADDR is an RTX for the address of the function's pure code.
-   CXT is an RTX for the static chain value for the function.   */
+   CXT is an RTX for the static chain value for the function.  */
 
 #undef INITIALIZE_TRAMPOLINE
 #define INITIALIZE_TRAMPOLINE(TRAMP, FNADDR, CXT) \
   alpha_initialize_trampoline (TRAMP, FNADDR, CXT, 20, 16, 12)
-
-/* Output code to add DELTA to the first argument, and then jump to FUNCTION.
-   Used for C++ multiple inheritance.  */
-
-#undef ASM_OUTPUT_MI_THUNK
-#define ASM_OUTPUT_MI_THUNK(FILE, THUNK_FNDECL, DELTA, FUNCTION)	\
-do {									\
-  char *op, *fn_name = XSTR (XEXP (DECL_RTL (FUNCTION), 0), 0);		\
-  int reg;								\
-									\
-  /* Mark end of prologue.  */						\
-  output_end_prologue (FILE);						\
-									\
-  /* Rely on the assembler to macro expand a large delta.  */		\
-  reg = aggregate_value_p (TREE_TYPE (TREE_TYPE (FUNCTION))) ? 17 : 16; \
-  fprintf (FILE, "\tlda $%d,%ld($%d)\n", reg, (long)(DELTA), reg);      \
-									\
-  op = "jsr";								\
-  if (current_file_function_operand (XEXP (DECL_RTL (FUNCTION), 0)))	\
-    op = "br";								\
-  fprintf (FILE, "\t%s $31,", op);					\
-  assemble_name (FILE, fn_name);					\
-  fputc ('\n', FILE);							\
-} while (0)

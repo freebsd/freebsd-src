@@ -1,5 +1,5 @@
 /* Target independent definitions for LynxOS.
-   Copyright (C) 1993, 1994, 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994, 1995, 1996, 1999, 2000 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -122,54 +122,23 @@ do {								\
     warning ("-msystem-v and -mthreads are incompatible");	\
 } while (0)
 
-/* Define this so that C++ destructors will use atexit, since LynxOS
-   calls exit after main returns.  */
-
-#define HAVE_ATEXIT
-
 /* Since init.o et al put all sorts of stuff into the init section,
    we can't use the standard init section support in crtbegin.o. */
 
 #undef INIT_SECTION_ASM_OP
 
 #undef EXTRA_SECTIONS
-#define EXTRA_SECTIONS in_const, in_ctors, in_dtors, in_fini
+#define EXTRA_SECTIONS in_const, in_fini
 
 #undef EXTRA_SECTION_FUNCTIONS
 #define EXTRA_SECTION_FUNCTIONS					\
   CONST_SECTION_FUNCTION					\
-  CTORS_SECTION_FUNCTION					\
-  DTORS_SECTION_FUNCTION					\
   FINI_SECTION_FUNCTION
 
 #undef CTORS_SECTION_ASM_OP
-#define CTORS_SECTION_ASM_OP	".section\t.ctors"
+#define CTORS_SECTION_ASM_OP	"\t.section\t.ctors"
 #undef DTORS_SECTION_ASM_OP
-#define DTORS_SECTION_ASM_OP	".section\t.dtors"
-
-#define INT_ASM_OP		".long"
-
-/* A C statement (sans semicolon) to output an element in the table of
-   global constructors.  */
-#undef ASM_OUTPUT_CONSTRUCTOR
-#define ASM_OUTPUT_CONSTRUCTOR(FILE,NAME)				\
-  do {									\
-    ctors_section ();							\
-    fprintf (FILE, "\t%s\t ", INT_ASM_OP);				\
-    assemble_name (FILE, NAME);						\
-    fprintf (FILE, "\n");						\
-  } while (0)
-
-/* A C statement (sans semicolon) to output an element in the table of
-   global destructors.  */
-#undef ASM_OUTPUT_DESTRUCTOR
-#define ASM_OUTPUT_DESTRUCTOR(FILE,NAME)       				\
-  do {									\
-    dtors_section ();                   				\
-    fprintf (FILE, "\t%s\t ", INT_ASM_OP);				\
-    assemble_name (FILE, NAME);              				\
-    fprintf (FILE, "\n");						\
-  } while (0)
+#define DTORS_SECTION_ASM_OP	"\t.section\t.dtors"
 
 #undef DO_GLOBAL_CTORS_BODY
 #undef DO_GLOBAL_DTORS_BODY

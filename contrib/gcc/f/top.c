@@ -1,5 +1,5 @@
 /* top.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995-1997 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997, 1999, 2001 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -53,10 +53,8 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "symbol.h"
 #include "target.h"
 #include "where.h"
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-#include "flags.j"
-#include "toplev.j"
-#endif
+#include "flags.h"
+#include "toplev.h"
 
 /* Externals defined here. */
 
@@ -80,10 +78,8 @@ bool ffe_is_globals_ = TRUE;
 bool ffe_is_init_local_zero_ = FFETARGET_defaultIS_INIT_LOCAL_ZERO;
 bool ffe_is_mainprog_;		/* TRUE if current prog unit known to be
 				   main. */
-bool ffe_is_null_version_ = FALSE;
 bool ffe_is_onetrip_ = FALSE;
 bool ffe_is_silent_ = TRUE;
-bool ffe_is_subscript_check_ = FALSE;
 bool ffe_is_typeless_boz_ = FALSE;
 bool ffe_is_pedantic_ = FFETARGET_defaultIS_PEDANTIC;
 bool ffe_is_saveall_;		/* TRUE if mainprog or SAVE (no args) seen. */
@@ -176,8 +172,6 @@ ffe_decode_option (argc, argv)
 	  ffe_set_is_version (TRUE);
 	  ffe_set_is_do_internal_checks (TRUE);
 	}
-      else if (strcmp (&opt[2], "null-version") == 0)
-	ffe_set_is_null_version (TRUE);
       else if (strcmp (&opt[2], "f66") == 0)
 	{
 	  ffe_set_is_onetrip (TRUE);
@@ -226,7 +220,10 @@ ffe_decode_option (argc, argv)
       else if (strcmp (&opt[2], "no-free-form") == 0)
 	ffe_set_is_free_form (FALSE);
       else if (strcmp (&opt[2], "fixed-form") == 0)
-	ffe_set_is_free_form (FALSE);
+	{
+	  ffe_set_is_free_form (FALSE);
+	  return -1;
+	}
       else if (strcmp (&opt[2], "no-fixed-form") == 0)
 	ffe_set_is_free_form (TRUE);
       else if (strcmp (&opt[2], "pedantic") == 0)
@@ -308,9 +305,9 @@ ffe_decode_option (argc, argv)
       else if (strcmp (&opt[2], "no-zeros") == 0)
 	ffe_set_is_zeros (FALSE);
       else if (strcmp (&opt[2], "debug-kludge") == 0)
-	ffe_set_is_debug_kludge (TRUE);
+	warning ("%s disabled, use normal debugging flags", opt);
       else if (strcmp (&opt[2], "no-debug-kludge") == 0)
-	ffe_set_is_debug_kludge (FALSE);
+	warning ("%s disabled, use normal debugging flags", opt);
       else if (strcmp (&opt[2], "onetrip") == 0)
 	ffe_set_is_onetrip (TRUE);
       else if (strcmp (&opt[2], "no-onetrip") == 0)
@@ -323,14 +320,10 @@ ffe_decode_option (argc, argv)
 	ffe_set_is_globals (TRUE);
       else if (strcmp (&opt[2], "no-globals") == 0)
 	ffe_set_is_globals (FALSE);
-      else if (strcmp (&opt[2], "bounds-check") == 0)
-	ffe_set_is_subscript_check (TRUE);
-      else if (strcmp (&opt[2], "no-bounds-check") == 0)
-	ffe_set_is_subscript_check (FALSE);
       else if (strcmp (&opt[2], "fortran-bounds-check") == 0)
-	ffe_set_is_subscript_check (TRUE);
+	flag_bounds_check = TRUE;
       else if (strcmp (&opt[2], "no-fortran-bounds-check") == 0)
-	ffe_set_is_subscript_check (FALSE);
+	flag_bounds_check = FALSE;
       else if (strcmp (&opt[2], "typeless-boz") == 0)
 	ffe_set_is_typeless_boz (TRUE);
       else if (strcmp (&opt[2], "no-typeless-boz") == 0)
@@ -469,9 +462,15 @@ ffe_decode_option (argc, argv)
 	  char *len = &opt[2] + strlen ("fixed-line-length-");
 
 	  if (strcmp (len, "none") == 0)
-	    ffe_set_fixed_line_length (0);
+	    {
+	      ffe_set_fixed_line_length (0);
+	      return -1;
+	    }
 	  else if (ffe_is_digit_string_ (len))
-	    ffe_set_fixed_line_length (atol (len));
+	    {
+	      ffe_set_fixed_line_length (atol (len));
+	      return -1;
+	    }
 	  else
 	    return 0;
 	}
@@ -515,7 +514,7 @@ ffe_decode_option (argc, argv)
 	     warning about not using it without also specifying -O.  */
 	  if (warn_uninitialized != 1)
 	    warn_uninitialized = 2;
-	  warn_unused = 1;
+	  set_Wunused (1);
 	}
       else
 	return 0;

@@ -1,181 +1,149 @@
 /* Protoize program - Original version by Ron Guilmette (rfg@segfault.us.com).
-   Copyright (C) 1989, 92-98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
-
-/* Any reasonable C++ compiler should have all of the same features
-   as __STDC__ plus more, so make sure that __STDC__ is defined if
-   __cplusplus is defined.  */
-
-#if defined(__cplusplus) && !defined(__STDC__)
-#define __STDC__ 1
-#endif /* defined(__cplusplus) && !defined(__STDC__) */
-
-#if defined(__GNUC__) || defined (__GNUG__)
-#define VOLATILE volatile
-#else
-#define VOLATILE
-#endif
-
-#ifndef __STDC__
-#define const
-#define volatile
-#endif
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 #include "config.h"
-
-#if 0
-/* Users are not supposed to use _POSIX_SOURCE to say the
-   system is a POSIX system.  That is not what _POSIX_SOURCE means! -- rms  */ 
-/* If the user asked for POSIX via _POSIX_SOURCE, turn on POSIX code.  */
-#if defined(_POSIX_SOURCE) && !defined(POSIX)
-#define POSIX
-#endif
-#endif /* 0 */
-
-#ifdef POSIX /* We should be able to define _POSIX_SOURCE unconditionally,
-		but some systems respond in buggy ways to it,
-		including SunOS 4.1.1.  Which we don't classify as POSIX.  */
-/* In case this is a POSIX system with an ANSI C compiler,
-   ask for definition of all POSIX facilities.  */
-#undef _POSIX_SOURCE
-#define _POSIX_SOURCE
-#endif
-
 #include "system.h"
 #include "intl.h"
-#undef abort
 
-#if ! defined (_WIN32) || defined (__CYGWIN__) || defined (_UWIN)
-#if defined(POSIX) || defined(CONCURRENT)
-#include <dirent.h>
-#else
-#include <sys/dir.h>
-#endif
-#endif
 #include <setjmp.h>
-
-/* Some systems like Linux don't declare rindex if _POSIX_SOURCE is declared,
-   but it normally does declare it.  This means that configure thinks we don't
-   need to declare it.  Favor using strrchr if it is available.  */
-
-#ifndef strrchr
-#ifndef HAVE_STRRCHR
-#ifdef  HAVE_RINDEX
-#define strrchr rindex
-#endif
-#endif
-#endif
-
-/* Include getopt.h for the sake of getopt_long.
-   We don't need the declaration of getopt, and it could conflict
-   with something from a system header file, so effectively nullify that.  */
-#define getopt getopt_loser
-#include "getopt.h"
-#undef getopt
-
-extern char *version_string;
-
-/* Systems which are compatible only with POSIX 1003.1-1988 (but *not*
-   with POSIX 1003.1-1990), e.g. Ultrix 4.2, might not have
-   const qualifiers in the prototypes in the system include files.
-   Unfortunately, this can lead to GCC issuing lots of warnings for
-   calls to the following functions.  To eliminate these warnings we
-   provide the following #defines.  */
-
-#define my_access(file,flag)	access((char *)file, flag)
-#define my_stat(file,pkt)	stat((char *)file, pkt)
-#ifdef __MINGW32__
-#define my_link(file1, file2)	-1
-#else
-#define my_link(file1, file2)	link((char *)file1, (char *)file2)
-#endif
-#define my_unlink(file)		unlink((char *)file)
-#define my_open(file, mode, flag)	open((char *)file, mode, flag)
-#define my_chmod(file, mode)	chmod((char *)file, mode)
-
-extern char *getpwd ();
-
-static void usage PROTO ((void)) ATTRIBUTE_NORETURN;
-static void aux_info_corrupted PROTO ((void)) ATTRIBUTE_NORETURN;
-static void declare_source_confusing PROTO ((const char *)) ATTRIBUTE_NORETURN;
-
-/* Aliases for pointers to void.
-   These were made to facilitate compilation with old brain-dead DEC C
-   compilers which didn't properly grok `void*' types.  */
-
-typedef PTR pointer_type;
-typedef const PTR const_pointer_type;
-
-#if defined(POSIX)
-
 #include <signal.h>
-
-#else /* !defined(POSIX) */
-
-/* Declaring stat or __flsbuf with a prototype
-   causes conflicts with system headers on some systems.  */
-
-#if 0 /* These conflict with stdio.h on some systems.  */
-extern int creat ();
-extern int fprintf (FILE *, const char *, ...);
-extern int printf (const char *, ...);
-extern int open (const char *, int, ...);
-extern int read ();
-extern int write ();
-#endif /* 0 */
-extern int close ();
-extern int fflush ();
-extern int atoi ();
-extern int puts ();
-#ifndef fputs	/* This may have been #defined by "system.h".  */
-extern int fputs ();
+#if ! defined( SIGCHLD ) && defined( SIGCLD )
+#  define SIGCHLD SIGCLD
 #endif
-#ifndef fputc   /* some systems define this as a macro. */
-extern int fputc ();
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
 #endif
-extern int unlink ();
-extern int access ();
+#undef abort
+#include "version.h"
 
-#if 0 /* size_t from sys/types.h may fail to match GCC.
-	 If so, we would get a warning from this.  */
-extern size_t   strlen ()
+/* Include getopt.h for the sake of getopt_long.  */
+#include "getopt.h"
+
+/* Macro to see if the path elements match.  */
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+#define IS_SAME_PATH_CHAR(a,b) (TOUPPER (a) == TOUPPER (b))
+#else
+#define IS_SAME_PATH_CHAR(a,b) ((a) == (b))
 #endif
 
-#endif /* !defined (POSIX) */
+/* Macro to see if the paths match.  */
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+#define IS_SAME_PATH(a,b) (strcasecmp (a, b) == 0)
+#else
+#define IS_SAME_PATH(a,b) (strcmp (a, b) == 0)
+#endif
+
+/* Suffix for aux-info files.  */
+#ifdef __MSDOS__
+#define AUX_INFO_SUFFIX "X"
+#else
+#define AUX_INFO_SUFFIX ".X"
+#endif
+
+/* Suffix for saved files.  */
+#ifdef __MSDOS__
+#define SAVE_SUFFIX "sav"
+#else
+#define SAVE_SUFFIX ".save"
+#endif
+
+/* Suffix for renamed C++ files.  */
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+#define CPLUS_FILE_SUFFIX "cc"
+#else
+#define CPLUS_FILE_SUFFIX "C"
+#endif
+
+static void usage PARAMS ((void)) ATTRIBUTE_NORETURN;
+static void aux_info_corrupted PARAMS ((void)) ATTRIBUTE_NORETURN;
+static void declare_source_confusing PARAMS ((const char *)) ATTRIBUTE_NORETURN;
+static const char *shortpath PARAMS ((const char *, const char *));
+extern void fancy_abort PARAMS ((void)) ATTRIBUTE_NORETURN;
+static void notice PARAMS ((const char *, ...)) ATTRIBUTE_PRINTF_1;
+static char *savestring PARAMS ((const char *, unsigned int));
+static char *dupnstr PARAMS ((const char *, size_t));
+static const char *substr PARAMS ((const char *, const char * const));
+static int safe_read PARAMS ((int, PTR, int));
+static void safe_write PARAMS ((int, PTR, int, const char *));
+static void save_pointers PARAMS ((void));
+static void restore_pointers PARAMS ((void));
+static int is_id_char PARAMS ((int));
+static int in_system_include_dir PARAMS ((const char *));
+static int directory_specified_p PARAMS ((const char *));
+static int file_excluded_p PARAMS ((const char *));
+static char *unexpand_if_needed PARAMS ((const char *));
+static char *abspath PARAMS ((const char *, const char *));
+static int is_abspath PARAMS ((const char *));
+static void check_aux_info PARAMS ((int));
+static const char *find_corresponding_lparen PARAMS ((const char *));
+static int referenced_file_is_newer PARAMS ((const char *, time_t));
+static void save_def_or_dec PARAMS ((const char *, int));
+static void munge_compile_params PARAMS ((const char *));
+static int gen_aux_info_file PARAMS ((const char *));
+static void process_aux_info_file PARAMS ((const char *, int, int));
+static int identify_lineno PARAMS ((const char *));
+static void check_source PARAMS ((int, const char *));
+static const char *seek_to_line PARAMS ((int));
+static const char *forward_to_next_token_char PARAMS ((const char *));
+static void output_bytes PARAMS ((const char *, size_t));
+static void output_string PARAMS ((const char *));
+static void output_up_to PARAMS ((const char *));
+static int other_variable_style_function PARAMS ((const char *));
+static const char *find_rightmost_formals_list PARAMS ((const char *));
+static void do_cleaning PARAMS ((char *, const char *));
+static const char *careful_find_l_paren PARAMS ((const char *));
+static void do_processing PARAMS ((void));
 
 /* Look for these where the `const' qualifier is intentionally cast aside.  */
-
 #define NONCONST
 
 /* Define a default place to find the SYSCALLS.X file.  */
 
-#ifndef STD_PROTO_DIR
-#define STD_PROTO_DIR "/usr/local/lib"
-#endif /* !defined (STD_PROTO_DIR) */
+#ifndef UNPROTOIZE
+
+#ifndef STANDARD_EXEC_PREFIX
+#define STANDARD_EXEC_PREFIX "/usr/local/lib/gcc-lib/"
+#endif /* !defined STANDARD_EXEC_PREFIX */
+
+static const char * const standard_exec_prefix = STANDARD_EXEC_PREFIX;
+static const char * const target_machine = DEFAULT_TARGET_MACHINE;
+static const char * const target_version = DEFAULT_TARGET_VERSION;
+
+#ifndef GET_ENV_PATH_LIST
+#define GET_ENV_PATH_LIST(VAR,NAME)	do { (VAR) = getenv (NAME); } while (0)
+#endif
+
+#endif /* !defined (UNPROTOIZE) */
 
 /* Suffix of aux_info files.  */
 
-static const char * const aux_info_suffix = ".X";
+static const char * const aux_info_suffix = AUX_INFO_SUFFIX;
 
 /* String to attach to filenames for saved versions of original files.  */
 
-static const char * const save_suffix = ".save";
+static const char * const save_suffix = SAVE_SUFFIX;
+
+/* String to attach to C filenames renamed to C++.  */
+
+static const char * const cplus_suffix = CPLUS_FILE_SUFFIX;
 
 #ifndef UNPROTOIZE
 
@@ -187,7 +155,7 @@ static const char syscalls_filename[] = "SYSCALLS.c";
 
 /* Default place to find the above file.  */
 
-static const char * const default_syscalls_dir = STD_PROTO_DIR;
+static const char * default_syscalls_dir;
 
 /* Variable to hold the complete absolutized filename of the SYSCALLS.c.X
    file.  */
@@ -199,8 +167,8 @@ static char * syscalls_absolute_filename;
 /* Type of the structure that holds information about macro unexpansions.  */
 
 struct unexpansion_struct {
-  const char *expanded;
-  const char *contracted;
+  const char *const expanded;
+  const char *const contracted;
 };
 typedef struct unexpansion_struct unexpansion;
 
@@ -227,7 +195,7 @@ static const unexpansion unexpansions[] = {
 static const int hash_mask = (HASH_TABLE_SIZE - 1);
 
 /* Make a table of default system include directories
-   just as it is done in cccp.c.  */
+   just as it is done in cpp.  */
 
 #ifndef STANDARD_INCLUDE_DIR
 #define STANDARD_INCLUDE_DIR "/usr/include"
@@ -237,9 +205,9 @@ static const int hash_mask = (HASH_TABLE_SIZE - 1);
 #define LOCAL_INCLUDE_DIR "/usr/local/include"
 #endif
 
-struct default_include { const char *fname; 
-			 const char *component;
-			 int x1, x2; } include_defaults[]
+static const struct default_include { const char *const fname; 
+			 const char *const component;
+			 const int x1, x2; } include_defaults[]
 #ifdef INCLUDE_DEFAULTS
   = INCLUDE_DEFAULTS;
 #else
@@ -278,9 +246,12 @@ struct default_include { const char *fname;
 /* Datatype for lists of directories or filenames.  */
 struct string_list
 {
-  char *name;
+  const char *name;
   struct string_list *next;
 };
+
+static struct string_list *string_list_cons PARAMS ((const char *,
+						     struct string_list *));
 
 /* List of directories in which files should be converted.  */
 
@@ -307,7 +278,7 @@ static const char * const other_var_style = "stdarg";
 static const char * const other_var_style = "varargs";
 /* Note that this is a string containing the expansion of va_alist.
    But in `main' we discard all but the first token.  */
-static const char *varargs_style_indicator = STRINGIFY (va_alist);
+static const char *varargs_style_indicator = STRINGX (va_alist);
 #endif /* !defined (UNPROTOIZE) */
 
 /* The following two types are used to create hash tables.  In this program,
@@ -325,6 +296,31 @@ typedef struct hash_table_entry_struct hash_table_entry;
 typedef struct def_dec_info_struct def_dec_info;
 typedef struct file_info_struct file_info;
 typedef struct f_list_chain_item_struct f_list_chain_item;
+
+#ifndef UNPROTOIZE
+static int is_syscalls_file PARAMS ((const file_info *));
+static void rename_c_file PARAMS ((const hash_table_entry *));
+static const def_dec_info *find_extern_def PARAMS ((const def_dec_info *,
+						    const def_dec_info *));
+static const def_dec_info *find_static_definition PARAMS ((const def_dec_info *));
+static void connect_defs_and_decs PARAMS ((const hash_table_entry *));
+static void add_local_decl PARAMS ((const def_dec_info *, const char *));
+static void add_global_decls PARAMS ((const file_info *, const char *));
+#endif /* ! UNPROTOIZE */
+static int needs_to_be_converted PARAMS ((const file_info *));
+static void visit_each_hash_node PARAMS ((const hash_table_entry *,
+					  void (*)(const hash_table_entry *)));
+static hash_table_entry *add_symbol PARAMS ((hash_table_entry *, const char *));
+static hash_table_entry *lookup PARAMS ((hash_table_entry *, const char *));
+static void free_def_dec PARAMS ((def_dec_info *));
+static file_info *find_file PARAMS ((const char *, int));
+static void reverse_def_dec_list PARAMS ((const hash_table_entry *));
+static void edit_fn_declaration PARAMS ((const def_dec_info *, const char *));
+static int edit_formals_lists PARAMS ((const char *, unsigned int,
+				       const def_dec_info *));
+static void edit_fn_definition PARAMS ((const def_dec_info *, const char *));
+static void scan_for_missed_items PARAMS ((const file_info *));
+static void edit_file PARAMS ((const hash_table_entry *));
 
 /* In the struct below, note that the "_info" field has two different uses
    depending on the type of hash table we are in (i.e. either the filenames
@@ -563,100 +559,19 @@ static const char * saved_clean_read_ptr;
    attempt at editing will succeed.  */
 
 static char * saved_repl_write_ptr;
-
-/* Forward declaration.  */
-
-static const char *shortpath ();
 
 /* Translate and output an error message.  */
-static void notice			PVPROTO ((const char *, ...))
-  ATTRIBUTE_PRINTF_1;
 static void
-notice VPROTO ((const char *msgid, ...))
+notice VPARAMS ((const char *msgid, ...))
 {
-#ifndef ANSI_PROTOTYPES
-  const char *msgid;
-#endif
-  va_list ap;
-
-  VA_START (ap, msgid);
-
-#ifndef ANSI_PROTOTYPES
-  msgid = va_arg (ap, const char *);
-#endif
+  VA_OPEN (ap, msgid);
+  VA_FIXEDARG (ap, const char *, msgid);
 
   vfprintf (stderr, _(msgid), ap);
-  va_end (ap);
+  VA_CLOSE (ap);
 }
 
 
-char *
-xstrerror(e)
-  int e;
-{
-
-#ifdef HAVE_STRERROR
-  return strerror(e);
-
-#else
-  if (!e)
-    return "";
-
-  if (e > 0 && e < sys_nerr)
-    return sys_errlist[e];
-
-  return "errno = ?";
-#endif
-}
-
-/* Allocate some space, but check that the allocation was successful.  */
-/* alloca.c uses this, so don't make it static.  */
-
-pointer_type
-xmalloc (byte_count)
-  size_t byte_count;
-{
-  register pointer_type rv = (pointer_type) malloc (byte_count);
-  if (rv == NULL)
-    {
-      notice ("\n%s: virtual memory exceeded\n", pname);
-      exit (FATAL_EXIT_CODE);
-    }
-  return rv;
-}
-
-/* Reallocate some space, but check that the reallocation was successful.  */
-
-pointer_type
-xrealloc (old_space, byte_count)
-     pointer_type old_space;
-     size_t byte_count;
-{
-  register pointer_type rv;
-  if (old_space)
-    rv = (pointer_type) realloc (old_space, byte_count);
-  else
-    rv = (pointer_type) malloc (byte_count);
-  if (rv == NULL)
-    {
-      notice ("\n%s: virtual memory exceeded\n", pname);
-      exit (FATAL_EXIT_CODE);
-    }
-  return rv;
-}
-
-/* Deallocate the area pointed to by an arbitrary pointer, but first, strip
-   the `const' qualifier from it and also make sure that the pointer value
-   is non-null.  */
-
-void
-xfree (p)
-     const_pointer_type p;
-{
-  if (p)
-    free ((NONCONST pointer_type) p);
-}
-
 /* Make a copy of a string INPUT with size SIZE.  */
 
 static char *
@@ -666,21 +581,6 @@ savestring (input, size)
 {
   char *output = (char *) xmalloc (size + 1);
   strcpy (output, input);
-  return output;
-}
-
-/* Make a copy of the concatenation of INPUT1 and INPUT2.  */
-
-static char *
-savestring2 (input1, size1, input2, size2)
-     const char *input1;
-     unsigned int size1;
-     const char *input2;
-     unsigned int size2;
-{
-  char *output = (char *) xmalloc (size1 + size2 + 1);
-  strcpy (output, input1);
-  strcpy (&output[size1], input2);
   return output;
 }
 
@@ -739,7 +639,7 @@ outer:
 static int
 safe_read (desc, ptr, len)
      int desc;
-     char *ptr;
+     PTR ptr;
      int len;
 {
   int left = len;
@@ -755,7 +655,8 @@ safe_read (desc, ptr, len)
       }
     if (nchars == 0)
       break;
-    ptr += nchars;
+    /* Arithmetic on void pointers is a gcc extension.  */
+    ptr = (char *) ptr + nchars;
     left -= nchars;
   }
   return len - left;
@@ -767,9 +668,9 @@ safe_read (desc, ptr, len)
 static void
 safe_write (desc, ptr, len, out_fname)
      int desc;
-     char *ptr;
+     PTR ptr;
      int len;
-     char *out_fname;
+     const char *out_fname;
 {
   while (len > 0) {
     int written = write (desc, ptr, len);
@@ -784,14 +685,15 @@ safe_write (desc, ptr, len, out_fname)
 		pname, shortpath (NULL, out_fname), xstrerror (errno_val));
 	return;
       }
-    ptr += written;
+    /* Arithmetic on void pointers is a gcc extension.  */
+    ptr = (char *) ptr + written;
     len -= written;
   }
 }
 
 /* Get setup to recover in case the edit we are about to do goes awry.  */
 
-void
+static void
 save_pointers ()
 {
   saved_clean_read_ptr = clean_read_ptr;
@@ -801,7 +703,7 @@ save_pointers ()
 /* Call this routine to recover our previous state whenever something looks
    too confusing in the source code we are trying to edit.  */
 
-void
+static void
 restore_pointers ()
 {
   clean_read_ptr = saved_clean_read_ptr;
@@ -812,9 +714,9 @@ restore_pointers ()
 
 static int
 is_id_char (ch)
-     unsigned char ch;
+     int ch;
 {
-  return (ISALNUM (ch) || (ch == '_') || (ch == '$'));
+  return (ISIDNUM (ch) || (ch == '$'));
 }
 
 /* Give a message indicating the proper way to invoke this program and then
@@ -841,14 +743,14 @@ static int
 in_system_include_dir (path)
      const char *path;
 {
-  struct default_include *p;
+  const struct default_include *p;
 
-  if (path[0] != '/')
+  if (! is_abspath (path))
     abort ();		/* Must be an absolutized filename.  */
 
   for (p = include_defaults; p->fname; p++)
     if (!strncmp (path, p->fname, strlen (p->fname))
-	&& path[strlen (p->fname)] == '/')
+	&& IS_DIR_SEPARATOR (path[strlen (p->fname)]))
       return 1;
   return 0;
 }
@@ -863,21 +765,31 @@ file_could_be_converted (const char *path)
 {
   char *const dir_name = (char *) alloca (strlen (path) + 1);
 
-  if (my_access (path, R_OK))
+  if (access (path, R_OK))
     return 0;
 
   {
     char *dir_last_slash;
 
     strcpy (dir_name, path);
-    dir_last_slash = strrchr (dir_name, '/');
+    dir_last_slash = strrchr (dir_name, DIR_SEPARATOR);
+#ifdef DIR_SEPARATOR_2
+    {
+      char *slash;
+
+      slash = strrchr (dir_last_slash ? dir_last_slash : dir_name, 
+                       DIR_SEPARATOR_2);
+      if (slash)
+	dir_last_slash = slash;
+    }
+#endif
     if (dir_last_slash)
       *dir_last_slash = '\0';
     else
       abort ();  /* Should have been an absolutized filename.  */
   }
 
-  if (my_access (path, W_OK))
+  if (access (path, W_OK))
     return 0;
 
   return 1;
@@ -904,14 +816,24 @@ file_normally_convertible (const char *path)
     char *dir_last_slash;
 
     strcpy (dir_name, path);
-    dir_last_slash = strrchr (dir_name, '/');
+    dir_last_slash = strrchr (dir_name, DIR_SEPARATOR);
+#ifdef DIR_SEPARATOR_2
+    {
+      char *slash;
+
+      slash = strrchr (dir_last_slash ? dir_last_slash : dir_name, 
+                       DIR_SEPARATOR_2);
+      if (slash)
+	dir_last_slash = slash;
+    }
+#endif
     if (dir_last_slash)
       *dir_last_slash = '\0';
     else
       abort ();  /* Should have been an absolutized filename.  */
   }
 
-  if (my_access (path, R_OK))
+  if (access (path, R_OK))
     {
       if (!quiet_flag)
         notice ("%s: warning: no read access for file `%s'\n",
@@ -919,7 +841,7 @@ file_normally_convertible (const char *path)
       return 0;
     }
 
-  if (my_access (path, W_OK))
+  if (access (path, W_OK))
     {
       if (!quiet_flag)
         notice ("%s: warning: no write access for file `%s'\n",
@@ -927,7 +849,7 @@ file_normally_convertible (const char *path)
       return 0;
     }
 
-  if (my_access (dir_name, W_OK))
+  if (access (dir_name, W_OK))
     {
       if (!quiet_flag)
         notice ("%s: warning: no write access for dir containing `%s'\n",
@@ -1011,14 +933,14 @@ directory_specified_p (name)
 
   for (p = directory_list; p; p = p->next)
     if (!strncmp (name, p->name, strlen (p->name))
-	&& name[strlen (p->name)] == '/')
+	&& IS_DIR_SEPARATOR (name[strlen (p->name)]))
       {
 	const char *q = name + strlen (p->name) + 1;
 
 	/* If there are more slashes, it's in a subdir, so
 	   this match doesn't count.  */
-	while (*q)
-	  if (*q++ == '/')
+	while (*q++)
+	  if (IS_DIR_SEPARATOR (*(q-1)))
 	    goto lose;
 	return 1;
 
@@ -1039,7 +961,7 @@ file_excluded_p (name)
 
   for (p = exclude_list; p; p = p->next)
     if (!strcmp (name + len - strlen (p->name), p->name)
-	&& name[len - strlen (p->name) - 1] == '/')
+	&& IS_DIR_SEPARATOR (name[len - strlen (p->name) - 1]))
       return 1;
 
   return 0;
@@ -1050,7 +972,7 @@ file_excluded_p (name)
 
 static struct string_list *
 string_list_cons (string, rest)
-     char *string;
+     const char *string;
      struct string_list *rest;
 {
   struct string_list *temp
@@ -1073,7 +995,7 @@ string_list_cons (string, rest)
 static void
 visit_each_hash_node (hash_tab_p, func)
      const hash_table_entry *hash_tab_p;
-     void (*func)();
+     void (*func) PARAMS ((const hash_table_entry *));
 {
   const hash_table_entry *primary;
 
@@ -1099,7 +1021,7 @@ add_symbol (p, s)
      const char *s;
 {
   p->hash_next = NULL;
-  p->symbol = savestring (s, strlen (s));
+  p->symbol = xstrdup (s);
   p->ddip = NULL;
   p->fip = NULL;
   return p;
@@ -1147,7 +1069,7 @@ static void
 free_def_dec (p)
      def_dec_info *p;
 {
-  xfree (p->ansi_decl);
+  free ((NONCONST PTR) p->ansi_decl);
 
 #ifndef UNPROTOIZE
   {
@@ -1157,12 +1079,12 @@ free_def_dec (p)
     for (curr = p->f_list_chain; curr; curr = next)
       {
         next = curr->chain_next;
-        xfree (curr);
+        free ((NONCONST PTR) curr);
       }
   }
 #endif /* !defined (UNPROTOIZE) */
 
-  xfree (p);
+  free (p);
 }
 
 /* Unexpand as many macro symbol as we can find.
@@ -1213,7 +1135,7 @@ unexpand_if_needed (aux_info_line)
               strcpy (copy_p, unexp_p->contracted);
               copy_p += size;
 
-              /* Assume the there will not be another replacement required
+              /* Assume that there will not be another replacement required
                  within the text just replaced.  */
 
               s += len;
@@ -1243,6 +1165,20 @@ continue_outer: ;
   return (got_unexpanded ? savestring (line_buf, copy_p - line_buf) : 0);
 }
 
+/* Return 1 if pathname is absolute.  */
+
+static int
+is_abspath (path)
+     const char *path;
+{
+  return (IS_DIR_SEPARATOR (path[0])
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+          /* Check for disk name on MS-DOS-based systems.  */
+          || (path[0] && path[1] == ':' && IS_DIR_SEPARATOR (path[2]))
+#endif
+          );
+}
+
 /* Return the absolutized filename for the given relative
    filename.  Note that if that filename is already absolute, it may
    still be returned in a modified form because this routine also
@@ -1259,7 +1195,7 @@ abspath (cwd, rel_filename)
      const char *rel_filename;
 {
   /* Setup the current working directory as needed.  */
-  const char *cwd2 = (cwd) ? cwd : cwd_buffer;
+  const char *const cwd2 = (cwd) ? cwd : cwd_buffer;
   char *const abs_buffer
     = (char *) alloca (strlen (cwd2) + strlen (rel_filename) + 2);
   char *endp = abs_buffer;
@@ -1271,13 +1207,24 @@ abspath (cwd, rel_filename)
   {
     const char *src_p;
 
-    if (rel_filename[0] != '/')
+    if (! is_abspath (rel_filename))
       {
         src_p = cwd2;
         while ((*endp++ = *src_p++))
           continue;
-        *(endp-1) = '/';        		/* overwrite null */
+        *(endp-1) = DIR_SEPARATOR;     		/* overwrite null */
       }
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+    else if (IS_DIR_SEPARATOR (rel_filename[0]))
+      {
+	/* A path starting with a directory separator is considered absolute 
+	   for dos based filesystems, but it's really not -- it's just the 
+	   convention used throughout GCC and it works. However, in this
+	   case, we still need to prepend the drive spec from cwd_buffer.  */
+	*endp++ = cwd2[0];
+	*endp++ = cwd2[1];
+      }
+#endif
     src_p = rel_filename;
     while ((*endp++ = *src_p++))
       continue;
@@ -1289,32 +1236,33 @@ abspath (cwd, rel_filename)
   outp = inp = abs_buffer;
   *outp++ = *inp++;        	/* copy first slash */
 #if defined (apollo) || defined (_WIN32) || defined (__INTERIX)
-  if (inp[0] == '/')
+  if (IS_DIR_SEPARATOR (inp[0]))
     *outp++ = *inp++;        	/* copy second slash */
 #endif
   for (;;)
     {
       if (!inp[0])
         break;
-      else if (inp[0] == '/' && outp[-1] == '/')
+      else if (IS_DIR_SEPARATOR (inp[0]) && IS_DIR_SEPARATOR (outp[-1]))
         {
           inp++;
           continue;
         }
-      else if (inp[0] == '.' && outp[-1] == '/')
+      else if (inp[0] == '.' && IS_DIR_SEPARATOR (outp[-1]))
         {
           if (!inp[1])
                   break;
-          else if (inp[1] == '/')
+          else if (IS_DIR_SEPARATOR (inp[1]))
             {
                     inp += 2;
                     continue;
             }
-          else if ((inp[1] == '.') && (inp[2] == 0 || inp[2] == '/'))
+          else if ((inp[1] == '.') && (inp[2] == 0 
+	                               || IS_DIR_SEPARATOR (inp[2])))
             {
-                    inp += (inp[2] == '/') ? 3 : 2;
+                    inp += (IS_DIR_SEPARATOR (inp[2])) ? 3 : 2;
                     outp -= 2;
-                    while (outp >= abs_buffer && *outp != '/')
+                    while (outp >= abs_buffer && ! IS_DIR_SEPARATOR (*outp))
               	outp--;
                     if (outp < abs_buffer)
 		      {
@@ -1337,7 +1285,7 @@ abspath (cwd, rel_filename)
      the last character of the returned string is *not* a slash.  */
 
   *outp = '\0';
-  if (outp[-1] == '/')
+  if (IS_DIR_SEPARATOR (outp[-1]))
     *--outp  = '\0';
 
   /* Make a copy (in the heap) of the stuff left in the absolutization
@@ -1375,13 +1323,14 @@ shortpath (cwd, filename)
   path_p = abspath (cwd, filename);
   rel_buf_p = rel_buffer = (char *) xmalloc (filename_len);
 
-  while (*cwd_p && (*cwd_p == *path_p))
+  while (*cwd_p && IS_SAME_PATH_CHAR (*cwd_p, *path_p))
     {
       cwd_p++;
       path_p++;
     }
-  if (!*cwd_p && (!*path_p || *path_p == '/'))	/* whole pwd matched */
+  if (!*cwd_p && (!*path_p || IS_DIR_SEPARATOR (*path_p)))
     {
+      /* whole pwd matched */
       if (!*path_p)        	/* input *is* the current path! */
         return ".";
       else
@@ -1393,7 +1342,7 @@ shortpath (cwd, filename)
         {
           --cwd_p;
           --path_p;
-          while (*cwd_p != '/')        	/* backup to last slash */
+          while (! IS_DIR_SEPARATOR (*cwd_p))     /* backup to last slash */
             {
               --cwd_p;
               --path_p;
@@ -1404,8 +1353,8 @@ shortpath (cwd, filename)
         }
 
       /* Find out how many directory levels in cwd were *not* matched.  */
-      while (*cwd_p)
-        if (*cwd_p++ == '/')
+      while (*cwd_p++)
+        if (IS_DIR_SEPARATOR (*(cwd_p-1)))
 	  unmatched_slash_count++;
 
       /* Now we know how long the "short name" will be.
@@ -1422,7 +1371,7 @@ shortpath (cwd, filename)
 	    return filename;
           *rel_buf_p++ = '.';
           *rel_buf_p++ = '.';
-          *rel_buf_p++ = '/';
+          *rel_buf_p++ = DIR_SEPARATOR;
         }
 
       /* Then tack on the unmatched part of the desired file's name.  */
@@ -1434,7 +1383,7 @@ shortpath (cwd, filename)
       while ((*rel_buf_p++ = *path_p++));
 
       --rel_buf_p;
-      if (*(rel_buf_p-1) == '/')
+      if (IS_DIR_SEPARATOR (*(rel_buf_p-1)))
         *--rel_buf_p = '\0';
       return rel_buffer;
     }
@@ -1450,7 +1399,7 @@ shortpath (cwd, filename)
 
 static file_info *
 find_file (filename, do_not_stat)
-     char *filename;
+     const char *filename;
      int do_not_stat;
 {
   hash_table_entry *hash_entry_p;
@@ -1470,7 +1419,7 @@ find_file (filename, do_not_stat)
         stat_buf.st_mtime = (time_t) 0;
       else
         {
-          if (my_stat (filename, &stat_buf) == -1)
+          if (stat (filename, &stat_buf) == -1)
             {
 	      int errno_val = errno;
               notice ("%s: %s: can't get status: %s\n",
@@ -1557,7 +1506,11 @@ referenced_file_is_newer (l, aux_info_mtime)
   {
     const char *filename_start = p = l + 3;
 
-    while (*p != ':')
+    while (*p != ':'
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+           || (*p == ':' && *p && *(p+1) && IS_DIR_SEPARATOR (*(p+1)))
+#endif
+           )
       p++;
     filename = (char *) alloca ((size_t) (p - filename_start) + 1);
     strncpy (filename, filename_start, (size_t) (p - filename_start));
@@ -1615,7 +1568,11 @@ save_def_or_dec (l, is_syscalls)
     const char *filename_start = p = l + 3;
     char *filename;
 
-    while (*p != ':')
+    while (*p != ':'
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+           || (*p == ':' && *p && *(p+1) && IS_DIR_SEPARATOR (*(p+1)))
+#endif
+           )
       p++;
     filename = (char *) alloca ((size_t) (p - filename_start) + 1);
     strncpy (filename, filename_start, (size_t) (p - filename_start));
@@ -1642,7 +1599,11 @@ save_def_or_dec (l, is_syscalls)
     const char *line_number_start = ++p;
     char line_number[10];
 
-    while (*p != ':')
+    while (*p != ':'
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+           || (*p == ':' && *p && *(p+1) && IS_DIR_SEPARATOR (*(p+1)))
+#endif
+           )
       p++;
     strncpy (line_number, line_number_start, (size_t) (p - line_number_start));
     line_number[p-line_number_start] = '\0';
@@ -1986,6 +1947,7 @@ munge_compile_params (params_list)
     = (const char **) alloca ((strlen (params_list) + 8) * sizeof (char *));
   int param_count = 0;
   const char *param;
+  struct stat st;
 
   temp_params[param_count++] = compiler_file_name;
   for (;;)
@@ -2032,7 +1994,16 @@ munge_compile_params (params_list)
 
   temp_params[param_count++] = "-S";
   temp_params[param_count++] = "-o";
-  temp_params[param_count++] = "/dev/null";
+  
+  if ((stat (HOST_BIT_BUCKET, &st) == 0)
+      && (!S_ISDIR (st.st_mode))
+      && (access (HOST_BIT_BUCKET, W_OK) == 0))
+    temp_params[param_count++] = HOST_BIT_BUCKET;
+  else
+    /* FIXME: This is hardly likely to be right, if HOST_BIT_BUCKET is not
+       writable.  But until this is rejigged to use make_temp_file(), this
+       is the best we can do.  */
+    temp_params[param_count++] = "/dev/null";
 
   /* Leave room for the input file name argument.  */
   input_file_name_index = param_count;
@@ -2062,12 +2033,9 @@ gen_aux_info_file (base_filename)
   /* Store the full source file name in the argument vector.  */
   compile_params[input_file_name_index] = shortpath (NULL, base_filename);
   /* Add .X to source file name to get aux-info file name.  */
-  compile_params[aux_info_file_name_index]
-    = savestring2 (compile_params[input_file_name_index],
-	           strlen (compile_params[input_file_name_index]),
-		   ".X",
-		   2);
-
+  compile_params[aux_info_file_name_index] =
+    concat (compile_params[input_file_name_index], aux_info_suffix, NULL);
+  
   if (!quiet_flag)
     notice ("%s: compiling `%s'\n",
 	    pname, compile_params[input_file_name_index]);
@@ -2075,10 +2043,9 @@ gen_aux_info_file (base_filename)
   {
     char *errmsg_fmt, *errmsg_arg;
     int wait_status, pid;
-    char *temp_base = choose_temp_base ();
 
     pid = pexecute (compile_params[0], (char * const *) compile_params,
-		    pname, temp_base, &errmsg_fmt, &errmsg_arg,
+		    pname, NULL, &errmsg_fmt, &errmsg_arg,
 		    PEXECUTE_FIRST | PEXECUTE_LAST | PEXECUTE_SEARCH);
 
     if (pid == -1)
@@ -2152,7 +2119,7 @@ process_aux_info_file (base_source_filename, keep_it, is_syscalls)
   /* Come here with must_create set to 1 if file is out of date.  */
 start_over: ;
 
-  if (my_access (aux_info_filename, R_OK) == -1)
+  if (access (aux_info_filename, R_OK) == -1)
     {
       if (errno == ENOENT)
 	{
@@ -2193,7 +2160,7 @@ start_over: ;
 	  errors++;
 	  return;
 	}
-      if (my_access (aux_info_filename, R_OK) == -1)
+      if (access (aux_info_filename, R_OK) == -1)
 	{
 	  int errno_val = errno;
 	  notice ("%s: can't read aux info file `%s': %s\n",
@@ -2209,7 +2176,7 @@ start_over: ;
 
     /* Get some status information about this aux_info file.  */
   
-    if (my_stat (aux_info_filename, &stat_buf) == -1)
+    if (stat (aux_info_filename, &stat_buf) == -1)
       {
 	int errno_val = errno;
         notice ("%s: can't get status of aux info file `%s': %s\n",
@@ -2237,7 +2204,7 @@ start_over: ;
 	   The code later on can fail to check the .c file
 	   if it did not directly define any functions.  */
 
-	if (my_stat (base_source_filename, &stat_buf) == -1)
+	if (stat (base_source_filename, &stat_buf) == -1)
 	  {
 	    int errno_val = errno;
 	    notice ("%s: can't get status of aux info file `%s': %s\n",
@@ -2256,10 +2223,16 @@ start_over: ;
 
   {
     int aux_info_file;
+    int fd_flags;
 
     /* Open the aux_info file.  */
   
-    if ((aux_info_file = my_open (aux_info_filename, O_RDONLY, 0444 )) == -1)
+    fd_flags = O_RDONLY;
+#ifdef O_BINARY
+    /* Use binary mode to avoid having to deal with different EOL characters.  */
+    fd_flags |= O_BINARY;
+#endif
+    if ((aux_info_file = open (aux_info_filename, fd_flags, 0444 )) == -1)
       {
 	int errno_val = errno;
         notice ("%s: can't open aux info file `%s' for reading: %s\n",
@@ -2306,7 +2279,7 @@ start_over: ;
      fails for some reason, don't even worry about it.  */
 
   if (must_create && !keep_it)
-    if (my_unlink (aux_info_filename) == -1)
+    if (unlink (aux_info_filename) == -1)
       {
 	int errno_val = errno;
 	notice ("%s: can't delete aux info file `%s': %s\n",
@@ -2324,7 +2297,11 @@ start_over: ;
   {
     char *p = aux_info_base;
 
-    while (*p != ':')
+    while (*p != ':'
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+           || (*p == ':' && *p && *(p+1) && IS_DIR_SEPARATOR (*(p+1)))
+#endif
+           )
       p++;
     p++;
     while (*p == ' ')
@@ -2332,20 +2309,30 @@ start_over: ;
     invocation_filename = p;	/* Save a pointer to first byte of path.  */
     while (*p != ' ')
       p++;
-    *p++ = '/';
+    *p++ = DIR_SEPARATOR;
     *p++ = '\0';
     while (*p++ != '\n')
       continue;
     aux_info_second_line = p;
     aux_info_relocated_name = 0;
-    if (invocation_filename[0] != '/')
+    if (! is_abspath (invocation_filename))
       {
 	/* INVOCATION_FILENAME is relative;
 	   append it to BASE_SOURCE_FILENAME's dir.  */
 	char *dir_end;
 	aux_info_relocated_name = xmalloc (base_len + (p-invocation_filename));
 	strcpy (aux_info_relocated_name, base_source_filename);
-	dir_end = strrchr (aux_info_relocated_name, '/');
+	dir_end = strrchr (aux_info_relocated_name, DIR_SEPARATOR);
+#ifdef DIR_SEPARATOR_2
+	{
+	  char *slash;
+
+	  slash = strrchr (dir_end ? dir_end : aux_info_relocated_name, 
+	                   DIR_SEPARATOR_2);
+	  if (slash)
+	    dir_end = slash;
+	}
+#endif
 	if (dir_end)
 	  dir_end++;
 	else
@@ -2373,8 +2360,8 @@ start_over: ;
             if (referenced_file_is_newer (aux_info_p, aux_info_mtime))
               {
                 free (aux_info_base);
-		xfree (aux_info_relocated_name);
-                if (keep_it && my_unlink (aux_info_filename) == -1)
+		free (aux_info_relocated_name);
+                if (keep_it && unlink (aux_info_filename) == -1)
                   {
 		    int errno_val = errno;
                     notice ("%s: can't delete file `%s': %s\n",
@@ -2422,7 +2409,7 @@ start_over: ;
   }
 
   free (aux_info_base);
-  xfree (aux_info_relocated_name);
+  free (aux_info_relocated_name);
 }
 
 #ifndef UNPROTOIZE
@@ -2437,35 +2424,28 @@ rename_c_file (hp)
 {
   const char *filename = hp->symbol;
   int last_char_index = strlen (filename) - 1;
-  char *const new_filename = (char *) alloca (strlen (filename) + 1);
+  char *const new_filename = (char *) alloca (strlen (filename) 
+                                              + strlen (cplus_suffix) + 1);
 
   /* Note that we don't care here if the given file was converted or not.  It
      is possible that the given file was *not* converted, simply because there
      was nothing in it which actually required conversion.  Even in this case,
      we want to do the renaming.  Note that we only rename files with the .c
-     suffix.  */
+     suffix (except for the syscalls file, which is left alone).  */
 
-  if (filename[last_char_index] != 'c' || filename[last_char_index-1] != '.')
+  if (filename[last_char_index] != 'c' || filename[last_char_index-1] != '.'
+      || IS_SAME_PATH (syscalls_absolute_filename, filename))
     return;
 
   strcpy (new_filename, filename);
-  new_filename[last_char_index] = 'C';
+  strcpy (&new_filename[last_char_index], cplus_suffix);
 
-  if (my_link (filename, new_filename) == -1)
+  if (rename (filename, new_filename) == -1)
     {
       int errno_val = errno;
-      notice ("%s: warning: can't link file `%s' to `%s': %s\n",
+      notice ("%s: warning: can't rename file `%s' to `%s': %s\n",
 	      pname, shortpath (NULL, filename),
 	      shortpath (NULL, new_filename), xstrerror (errno_val));
-      errors++;
-      return;
-    }
-
-  if (my_unlink (filename) == -1)
-    {
-      int errno_val = errno;
-      notice ("%s: warning: can't delete file `%s': %s\n",
-	      pname, shortpath (NULL, filename), xstrerror (errno_val));
       errors++;
       return;
     }
@@ -2487,20 +2467,20 @@ reverse_def_dec_list (hp)
 {
   file_info *file_p = hp->fip;
   def_dec_info *prev = NULL;
-  def_dec_info *current = (def_dec_info *)file_p->defs_decs;
+  def_dec_info *current = (def_dec_info *) file_p->defs_decs;
 
   if (!current)
     return;        		/* no list to reverse */
 
   prev = current;
-  if (! (current = (def_dec_info *)current->next_in_file))
+  if (! (current = (def_dec_info *) current->next_in_file))
     return;        		/* can't reverse a single list element */
 
   prev->next_in_file = NULL;
 
   while (current)
     {
-      def_dec_info *next = (def_dec_info *)current->next_in_file;
+      def_dec_info *next = (def_dec_info *) current->next_in_file;
 
       current->next_in_file = prev;
       prev = current;
@@ -2558,7 +2538,7 @@ find_extern_def (head, user)
      code being converted contains its own definition of a function which
      could have been supplied by libc.a.  In such cases, we should avoid
      issuing the normal warning, and defer to the definition given in the
-     user's own code.   */
+     user's own code.  */
 
   for (dd_p = head; dd_p; dd_p = dd_p->next_for_func)
     if (dd_p->is_func_def && !dd_p->is_static)
@@ -2845,7 +2825,7 @@ connect_defs_and_decs (hp)
       for (dd_p2 = dd_p->next_for_func; dd_p2; dd_p2 = dd_p2->next_for_func)
         if (!dd_p2->is_func_def && dd_p2->is_static
          && !dd_p2->definition && (dd_p2->file == dd_p->file))
-          ((NONCONST def_dec_info *)dd_p2)->definition = dd_p->definition;
+          ((NONCONST def_dec_info *) dd_p2)->definition = dd_p->definition;
       }
 
   /* Convert any dummy (-1) definitions we created in the step above back to
@@ -3480,7 +3460,7 @@ find_rightmost_formals_list (clean_text_p)
          by an alphabetic character, while others *cannot* validly be followed
          by such characters.  */
 
-      if ((ch == '{') || ISALPHA ((unsigned char)ch))
+      if ((ch == '{') || ISALPHA ((unsigned char) ch))
         break;
 
       /* At this point, we have found a right paren, but we know that it is
@@ -3665,7 +3645,7 @@ add_global_decls (file_p, clean_text_p)
   /* Now write out full prototypes for all of the things that had been
      implicitly declared in this file (but only those for which we were
      actually able to find unique matching definitions).  Avoid duplicates
-     by marking things that we write out as we go.   */
+     by marking things that we write out as we go.  */
 
   {
     int some_decls_added = 0;
@@ -3826,7 +3806,7 @@ edit_fn_definition (def_dec_p, clean_text_p)
             have_newlines |= (*scan_orig == '\n');
             /* Leave identical whitespace alone.  */
             if (!ISSPACE ((const unsigned char)*scan_orig))
-              *((NONCONST char *)scan_orig) = ' '; /* identical - so whiteout */
+              *((NONCONST char *) scan_orig) = ' '; /* identical - so whiteout */
           }
         else
           have_flotsam = 1;
@@ -3851,7 +3831,7 @@ edit_fn_definition (def_dec_p, clean_text_p)
 static void
 do_cleaning (new_clean_text_base, new_clean_text_limit)
      char *new_clean_text_base;
-     char *new_clean_text_limit;
+     const char *new_clean_text_limit;
 {
   char *scan_p;
   int non_whitespace_since_newline = 0;
@@ -3897,7 +3877,7 @@ do_cleaning (new_clean_text_base, new_clean_text_limit)
             while (scan_p[1] != '\'' || scan_p[0] == '\\')
               {
                 if (scan_p[0] == '\\'
-		    && !ISSPACE ((const unsigned char)scan_p[1]))
+		    && !ISSPACE ((const unsigned char) scan_p[1]))
                   scan_p[1] = ' ';
                 if (!ISSPACE ((const unsigned char)*scan_p))
                   *scan_p = ' ';
@@ -3912,7 +3892,7 @@ do_cleaning (new_clean_text_base, new_clean_text_limit)
             while (scan_p[1] != '"' || scan_p[0] == '\\')
               {
                 if (scan_p[0] == '\\'
-		    && !ISSPACE ((const unsigned char)scan_p[1]))
+		    && !ISSPACE ((const unsigned char) scan_p[1]))
                   scan_p[1] = ' ';
                 if (!ISSPACE ((const unsigned char)*scan_p))
                   *scan_p = ' ';
@@ -4164,7 +4144,7 @@ edit_file (hp)
   /* Find out the size (in bytes) of the original file.  */
 
   /* The cast avoids an erroneous warning on AIX.  */
-  if (my_stat ((char *)convert_filename, &stat_buf) == -1)
+  if (stat (convert_filename, &stat_buf) == -1)
     {
       int errno_val = errno;
       notice ("%s: can't get status for file `%s': %s\n",
@@ -4197,10 +4177,16 @@ edit_file (hp)
 
   {
     int input_file;
+    int fd_flags;
 
     /* Open the file to be converted in READ ONLY mode.  */
 
-    if ((input_file = my_open (convert_filename, O_RDONLY, 0444)) == -1)
+    fd_flags = O_RDONLY;
+#ifdef O_BINARY
+    /* Use binary mode to avoid having to deal with different EOL characters.  */
+    fd_flags |= O_BINARY;
+#endif
+    if ((input_file = open (convert_filename, fd_flags, 0444)) == -1)
       {
 	int errno_val = errno;
         notice ("%s: can't open file `%s' for reading: %s\n",
@@ -4346,37 +4332,45 @@ edit_file (hp)
 	= (char *) xmalloc (strlen (convert_filename) + strlen (save_suffix) + 2);
   
       strcpy (new_filename, convert_filename);
+#ifdef __MSDOS__
+      /* MSDOS filenames are restricted to 8.3 format, so we save `foo.c'
+         as `foo.<save_suffix>'.  */
+      new_filename[(strlen (convert_filename) - 1] = '\0';
+#endif
       strcat (new_filename, save_suffix);
-      if (my_link (convert_filename, new_filename) == -1)
+
+      /* Don't overwrite existing file.  */
+      if (access (new_filename, F_OK) == 0)
+	{
+	  if (!quiet_flag)
+	    notice ("%s: warning: file `%s' already saved in `%s'\n",
+		    pname,
+		    shortpath (NULL, convert_filename),
+		    shortpath (NULL, new_filename));
+	}
+      else if (rename (convert_filename, new_filename) == -1)
         {
 	  int errno_val = errno;
-	  if (errno_val == EEXIST)
-            {
-              if (!quiet_flag)
-                notice ("%s: warning: file `%s' already saved in `%s'\n",
-			pname,
-			shortpath (NULL, convert_filename),
-			shortpath (NULL, new_filename));
-            }
-          else
-            {
-              notice ("%s: can't link file `%s' to `%s': %s\n",
-		      pname,
-		      shortpath (NULL, convert_filename),
-		      shortpath (NULL, new_filename),
-		      xstrerror (errno_val));
-              return;
-            }
+	  notice ("%s: can't link file `%s' to `%s': %s\n",
+		  pname,
+		  shortpath (NULL, convert_filename),
+		  shortpath (NULL, new_filename),
+		  xstrerror (errno_val));
+	  return;
         }
     }
 
-  if (my_unlink (convert_filename) == -1)
+  if (unlink (convert_filename) == -1)
     {
       int errno_val = errno;
-      notice ("%s: can't delete file `%s': %s\n",
-	      pname, shortpath (NULL, convert_filename),
-	      xstrerror (errno_val));
-      return;
+      /* The file may have already been renamed.  */
+      if (errno_val != ENOENT)
+        {
+	  notice ("%s: can't delete file `%s': %s\n",
+		  pname, shortpath (NULL, convert_filename),
+		  xstrerror (errno_val));
+	  return;
+	}
     }
 
   {
@@ -4392,6 +4386,10 @@ edit_file (hp)
 		xstrerror (errno_val));
         return;
       }
+#ifdef O_BINARY
+    /* Use binary mode to avoid changing the existing EOL character.  */
+    setmode (output_file, O_BINARY);
+#endif
   
     /* Write the output file.  */
   
@@ -4413,7 +4411,7 @@ edit_file (hp)
   /* Change the mode of the output file to match the original file.  */
 
   /* The cast avoids an erroneous warning on AIX.  */
-  if (my_chmod ((char *)convert_filename, stat_buf.st_mode) == -1)
+  if (chmod (convert_filename, stat_buf.st_mode) == -1)
     {
       int errno_val = errno;
       notice ("%s: can't change mode of file `%s': %s\n",
@@ -4458,22 +4456,33 @@ do_processing ()
   if (nondefault_syscalls_dir)
     {
       syscalls_absolute_filename
-        = (char *) xmalloc (strlen (nondefault_syscalls_dir)
-                            + sizeof (syscalls_filename) + 1);
+        = (char *) xmalloc (strlen (nondefault_syscalls_dir) + 1
+                            + sizeof (syscalls_filename));
       strcpy (syscalls_absolute_filename, nondefault_syscalls_dir);
     }
   else
     {
+      GET_ENV_PATH_LIST (default_syscalls_dir, "GCC_EXEC_PREFIX");
+      if (!default_syscalls_dir)
+	{
+	  default_syscalls_dir = standard_exec_prefix;
+	}
       syscalls_absolute_filename
-        = (char *) xmalloc (strlen (default_syscalls_dir)
-                            + sizeof (syscalls_filename) + 1);
+        = (char *) xmalloc (strlen (default_syscalls_dir) + 0
+			    + strlen (target_machine) + 1
+			    + strlen (target_version) + 1
+                            + sizeof (syscalls_filename));
       strcpy (syscalls_absolute_filename, default_syscalls_dir);
+      strcat (syscalls_absolute_filename, target_machine);
+      strcat (syscalls_absolute_filename, "/");
+      strcat (syscalls_absolute_filename, target_version);
+      strcat (syscalls_absolute_filename, "/");
     }
 
   syscalls_len = strlen (syscalls_absolute_filename);
-  if (*(syscalls_absolute_filename + syscalls_len - 1) != '/')
+  if (! IS_DIR_SEPARATOR (*(syscalls_absolute_filename + syscalls_len - 1)))
     {
-      *(syscalls_absolute_filename + syscalls_len++) = '/';
+      *(syscalls_absolute_filename + syscalls_len++) = DIR_SEPARATOR;
       *(syscalls_absolute_filename + syscalls_len) = '\0';
     }
   strcat (syscalls_absolute_filename, syscalls_filename);
@@ -4522,7 +4531,7 @@ do_processing ()
 #endif /* !defined (UNPROTOIZE) */
 }
 
-static struct option longopts[] =
+static const struct option longopts[] =
 {
   {"version", 0, 0, 'V'},
   {"file_name", 0, 0, 'p'},
@@ -4546,6 +4555,8 @@ static struct option longopts[] =
   {0, 0, 0, 0}
 };
 
+extern int main PARAMS ((int, char **const));
+
 int
 main (argc, argv)
      int argc;
@@ -4555,21 +4566,32 @@ main (argc, argv)
   int c;
   const char *params = "";
 
-  pname = strrchr (argv[0], '/');
+  pname = strrchr (argv[0], DIR_SEPARATOR);
+#ifdef DIR_SEPARATOR_2
+  {
+    char *slash;
+
+    slash = strrchr (pname ? pname : argv[0], DIR_SEPARATOR_2);
+    if (slash)
+      pname = slash;
+  }
+#endif
   pname = pname ? pname+1 : argv[0];
 
-#ifdef HAVE_LC_MESSAGES
-  setlocale (LC_MESSAGES, "");
+#ifdef SIGCHLD
+  /* We *MUST* set SIGCHLD to SIG_DFL so that the wait4() call will
+     receive the signal.  A different setting is inheritable */
+  signal (SIGCHLD, SIG_DFL);
 #endif
-  (void) bindtextdomain (PACKAGE, localedir);
-  (void) textdomain (PACKAGE);
+
+  gcc_init_libintl ();
 
   cwd_buffer = getpwd ();
   if (!cwd_buffer)
     {
       notice ("%s: cannot get working directory: %s\n",
 	      pname, xstrerror(errno));
-      exit (FATAL_EXIT_CODE);
+      return (FATAL_EXIT_CODE);
     }
 
   /* By default, convert the files in the current directory.  */
@@ -4678,8 +4700,7 @@ main (argc, argv)
   {
     const char *cp;
 
-    for (cp = varargs_style_indicator;
-	 ISALNUM ((const unsigned char)*cp) || *cp == '_'; cp++)
+    for (cp = varargs_style_indicator; ISIDNUM (*cp); cp++)
       continue;
     if (*cp != 0)
       varargs_style_indicator = savestring (varargs_style_indicator,
@@ -4696,7 +4717,5 @@ main (argc, argv)
       do_processing ();
     }
 
-  exit (errors ? FATAL_EXIT_CODE : SUCCESS_EXIT_CODE);
-
-  return 1;
+  return (errors ? FATAL_EXIT_CODE : SUCCESS_EXIT_CODE);
 }

@@ -1,5 +1,5 @@
 /* Target definitions for GNU compiler for Intel 80386 running Interix
-   Parts Copyright (C) 1991, 1999 Free Software Foundation, Inc.
+   Parts Copyright (C) 1991, 1999, 2000 Free Software Foundation, Inc.
 
    Parts:
      by Douglas B. Rupp (drupp@cs.washington.edu).
@@ -26,9 +26,9 @@ Boston, MA 02111-1307, USA.  */
 
 #define YES_UNDERSCORES
 
-/* YES_UNDERSCORES must preceed gas.h */
+/* YES_UNDERSCORES must precede gas.h */
 #include <i386/gas.h>
-/* The rest must follow. */
+/* The rest must follow.  */
 
 #define DBX_DEBUGGING_INFO
 #define SDB_DEBUGGING_INFO
@@ -39,9 +39,9 @@ Boston, MA 02111-1307, USA.  */
 
 /* By default, target has a 80387, uses IEEE compatible arithmetic,
    and returns float values in the 387 and needs stack probes
-   We also align doubles to 64-bits for MSVC default compatability */
-#undef TARGET_DEFAULT
-#define TARGET_DEFAULT \
+   We also align doubles to 64-bits for MSVC default compatibility */
+#undef TARGET_SUBTARGET_DEFAULT
+#define TARGET_SUBTARGET_DEFAULT \
    (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS | MASK_STACK_PROBE | \
     MASK_ALIGN_DOUBLE)
 
@@ -57,9 +57,6 @@ Boston, MA 02111-1307, USA.  */
 
 #define ASM_LOAD_ADDR(loc, reg)   "     leal " #loc "," #reg "\n"
 
-/* For the sake of libgcc2.c, indicate target supports atexit.  */
-#define HAVE_ATEXIT
-
 /* cpp handles __STDC__ */
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES " \
@@ -68,7 +65,7 @@ Boston, MA 02111-1307, USA.  */
   -D_M_IX86=300 -D_X86_=1 \
   -D__stdcall=__attribute__((__stdcall__)) \
   -D__cdecl=__attribute__((__cdecl__)) \
-  -Asystem(unix) -Asystem(interix) -Asystem(interix) -Acpu(i386) -Amachine(i386)"
+  -Asystem=unix -Asystem=interix"
 
 #undef CPP_SPEC
 /* Write out the correct language type definition for the header files.  
@@ -86,14 +83,14 @@ Boston, MA 02111-1307, USA.  */
 -remap \
 %(cpp_cpu) \
 %{posix:-D_POSIX_SOURCE} \
--idirafter %$INTERIX_ROOT/usr/include"
+-isystem %$INTERIX_ROOT/usr/include"
 
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (i386 Interix)");
 
 /* The global __fltused is necessary to cause the printf/scanf routines
    for outputting/inputting floating point numbers to be loaded.  Since this
-   is kind of hard to detect, we just do it all the time. */
+   is kind of hard to detect, we just do it all the time.  */
 
 #ifdef ASM_FILE_START
 #undef ASM_FILE_START
@@ -143,7 +140,7 @@ Boston, MA 02111-1307, USA.  */
 
 #define STRING_LIMIT	((unsigned) 256)
 
-#define STRING_ASM_OP	".string"
+#define STRING_ASM_OP	"\t.string\t"
 
 /* The routine used to output NUL terminated strings.  We use a special
    version of this for most svr4 targets because doing so makes the
@@ -155,9 +152,10 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_OUTPUT_LIMITED_STRING(FILE, STR)				\
   do									\
     {									\
-      register unsigned char *_limited_str = (unsigned char *) (STR);	\
+      register const unsigned char *_limited_str =			\
+        (const unsigned char *) (STR);					\
       register unsigned ch;						\
-      fprintf ((FILE), "\t%s\t\"", STRING_ASM_OP);			\
+      fprintf ((FILE), "%s\"", STRING_ASM_OP);				\
       for (; (ch = *_limited_str); _limited_str++)			\
         {								\
 	  register int escape = ESCAPES[ch];				\
@@ -190,12 +188,13 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_OUTPUT_ASCII(FILE, STR, LENGTH)				\
   do									\
     {									\
-      register unsigned char *_ascii_bytes = (unsigned char *) (STR);	\
-      register unsigned char *limit = _ascii_bytes + (LENGTH);		\
+      register const unsigned char *_ascii_bytes =			\
+        (const unsigned char *) (STR);					\
+      register const unsigned char *limit = _ascii_bytes + (LENGTH);	\
       register unsigned bytes_in_chunk = 0;				\
       for (; _ascii_bytes < limit; _ascii_bytes++)			\
         {								\
-	  register unsigned char *p;					\
+	  register const unsigned char *p;				\
 	  if (bytes_in_chunk >= 64)					\
 	    {								\
 	      fputc ('\n', (FILE));					\
@@ -203,7 +202,7 @@ Boston, MA 02111-1307, USA.  */
 	    }								\
 	  for (p = _ascii_bytes; p < limit && *p != '\0'; p++)		\
 	    continue;							\
-	  if (p < limit && (p - _ascii_bytes) <= STRING_LIMIT)		\
+	  if (p < limit && (p - _ascii_bytes) <= (long) STRING_LIMIT)	\
 	    {								\
 	      if (bytes_in_chunk > 0)					\
 		{							\
@@ -228,23 +227,8 @@ Boston, MA 02111-1307, USA.  */
     }									\
   while (0)
 
-/* This is how to output an element of a case-vector that is relative.
-   This is only used for PIC code.  See comments by the `casesi' insn in
-   i386.md for an explanation of the expression this outputs.
-   PE format differs on what PC-relative offsets look like (see
-   coff_i386_rtype_to_howto), and we need to compensate (by one word) here. */
-
-#undef ASM_OUTPUT_ADDR_DIFF_ELT
-#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL) \
-  fprintf (FILE, "\t.long __GLOBAL_OFFSET_TABLE_+[.-%s%d+4]\n", LPREFIX, VALUE)
-
-/* Indicate that jump tables go in the text section.  This is
-   necessary when compiling PIC code.  */
-
-#define JUMP_TABLES_IN_TEXT_SECTION 1
-
 /* Emit code to check the stack when allocating more that 4000
-   bytes in one go. */
+   bytes in one go.  */
 
 #define CHECK_STACK_LIMIT 0x1000
 
@@ -254,10 +238,7 @@ Boston, MA 02111-1307, USA.  */
 #undef LD_FINI_SWITCH
 
 
-/* The following are needed for C++, but also needed for profiling */
-
-/* Support const sections and the ctors and dtors sections for g++.
-   Note that there appears to be two different ways to support const
+/* Note that there appears to be two different ways to support const
    sections at the moment.  You can either #define the symbol
    READONLY_DATA_SECTION (giving it some code which switches to the
    readonly data section) or else you can #define the symbols
@@ -266,25 +247,7 @@ Boston, MA 02111-1307, USA.  */
 
 #define USE_CONST_SECTION	1
 
-#define CONST_SECTION_ASM_OP	".section\t.rdata,\"r\""
-
-/* Define the pseudo-ops used to switch to the .ctors and .dtors sections.
-
-   Note that we want to give these sections the SHF_WRITE attribute
-   because these sections will actually contain data (i.e. tables of
-   addresses of functions in the current root executable or shared library
-   file) and, in the case of a shared library, the relocatable addresses
-   will have to be properly resolved/relocated (and then written into) by
-   the dynamic linker when it actually attaches the given shared library
-   to the executing process.  (Note that on SVR4, you may wish to use the
-   `-z text' option to the ELF linker, when building a shared library, as
-   an additional check that you are doing everything right.  But if you do
-   use the `-z text' option when building a shared library, you will get
-   errors unless the .ctors and .dtors sections are marked as writable
-   via the SHF_WRITE attribute.)  */
-
-#define CTORS_SECTION_ASM_OP	".section\t.ctors,\"x\""
-#define DTORS_SECTION_ASM_OP	".section\t.dtors,\"x\""
+#define CONST_SECTION_ASM_OP	"\t.section\t.rdata,\"r\""
 
 /* A default list of other sections which we might be "in" at any given
    time.  For targets that use additional sections (e.g. .tdesc) you
@@ -292,7 +255,7 @@ Boston, MA 02111-1307, USA.  */
    includes this file.  */
 
 #undef EXTRA_SECTIONS
-#define EXTRA_SECTIONS in_const, in_ctors, in_dtors
+#define EXTRA_SECTIONS in_const
 
 /* A default list of extra section function definitions.  For targets
    that use additional sections (e.g. .tdesc) you should override this
@@ -300,14 +263,10 @@ Boston, MA 02111-1307, USA.  */
 
 #undef EXTRA_SECTION_FUNCTIONS
 #define EXTRA_SECTION_FUNCTIONS						\
-  CONST_SECTION_FUNCTION						\
-  CTORS_SECTION_FUNCTION						\
-  DTORS_SECTION_FUNCTION
+  CONST_SECTION_FUNCTION
 
 #undef READONLY_DATA_SECTION
 #define READONLY_DATA_SECTION() const_section ()
-
-extern void text_section ();
 
 #define CONST_SECTION_FUNCTION						\
 void									\
@@ -322,85 +281,21 @@ const_section ()							\
     }									\
 }
 
-#define CTORS_SECTION_FUNCTION						\
-void									\
-ctors_section ()							\
-{									\
-  if (in_section != in_ctors)						\
-    {									\
-      fprintf (asm_out_file, "%s\n", CTORS_SECTION_ASM_OP);		\
-      in_section = in_ctors;						\
-    }									\
-}
-
-#define DTORS_SECTION_FUNCTION						\
-void									\
-dtors_section ()							\
-{									\
-  if (in_section != in_dtors)						\
-    {									\
-      fprintf (asm_out_file, "%s\n", DTORS_SECTION_ASM_OP);		\
-      in_section = in_dtors;						\
-    }									\
-}
-
-#if 0
-/* Currently gas chokes on this; that's not too hard to fix, but there's
-   not a lot of impeteus to do it, either.  If it is done, gas will have
-   to handle long section name escapes (which are defined in the COFF/PE
-   document as /nnn where nnn is a string table index).  The benefit:
-   section attributes and -ffunction-sections, neither of which seem to
-   be critical. */
-/* gas may have been fixed? bfd was. */
-
-/* Switch into a generic section.
-   This is currently only used to support section attributes.
-
-   We make the section read-only and executable for a function decl,
-   read-only for a const data decl, and writable for a non-const data decl.  */
-#define ASM_OUTPUT_SECTION_NAME(FILE, DECL, NAME) \
-  fprintf (FILE, ".section\t%s,\"%s\",@progbits\n", NAME, \
-	   (DECL) && TREE_CODE (DECL) == FUNCTION_DECL ? "ax" : \
-	   (DECL) && TREE_READONLY (DECL) ? "a" : "aw")
-#endif
-
-#define INT_ASM_OP		".long"
-
 /* The MS compilers take alignment as a number of bytes, so we do as well */
 #undef ASM_OUTPUT_ALIGN
 #define ASM_OUTPUT_ALIGN(FILE,LOG) \
   if ((LOG)!=0) fprintf ((FILE), "\t.balign %d\n", 1<<(LOG))
 
-/* A C statement (sans semicolon) to output an element in the table of
-   global constructors.  */
-#define ASM_OUTPUT_CONSTRUCTOR(FILE,NAME)				\
-  do {									\
-    ctors_section ();							\
-    fprintf (FILE, "\t%s\t ", INT_ASM_OP);				\
-    assemble_name (FILE, NAME);						\
-    fprintf (FILE, "\n");						\
-  } while (0)
-
-/* A C statement (sans semicolon) to output an element in the table of
-   global destructors.  */
-#define ASM_OUTPUT_DESTRUCTOR(FILE,NAME)       				\
-  do {									\
-    dtors_section ();                   				\
-    fprintf (FILE, "\t%s\t ", INT_ASM_OP);				\
-    assemble_name (FILE, NAME);              				\
-    fprintf (FILE, "\n");						\
-  } while (0)
-
 /* The linker will take care of this, and having them causes problems with
-   ld -r (specifically -rU). */
+   ld -r (specifically -rU).  */
 #define CTOR_LISTS_DEFINED_EXTERNALLY 1
 
-#define SET_ASM_OP	".set"
+#define SET_ASM_OP	"\t.set\t"
 /* Output a definition (implements alias) */
 #define ASM_OUTPUT_DEF(FILE,LABEL1,LABEL2)				\
 do									\
 {									\
-    fprintf ((FILE), "\t%s\t", SET_ASM_OP);				\
+    fprintf ((FILE), "%s", SET_ASM_OP);					\
     assemble_name (FILE, LABEL1);					\
     fprintf (FILE, ",");						\
     assemble_name (FILE, LABEL2);					\
@@ -417,7 +312,7 @@ while (0)
 
 /* The following two flags are usually "off" for i386, because some non-gnu
    tools (for the i386) don't handle them.  However, we don't have that
-   problem, so.... */
+   problem, so....  */
 
 /* Forward references to tags are allowed.  */
 #define SDB_ALLOW_FORWARD_REFERENCES
@@ -435,7 +330,8 @@ while (0)
 
 #undef DBX_REGISTER_NUMBER
 #define DBX_REGISTER_NUMBER(n) \
-((n) == 0 ? 0 \
+(TARGET_64BIT ? dbx64_register_map[n] \
+ : (n) == 0 ? 0 \
  : (n) == 1 ? 2 \
  : (n) == 2 ? 1 \
  : (n) == 3 ? 3 \
@@ -452,9 +348,10 @@ while (0)
 
    Apply stddef, handle (as yet unimplemented) pic.
 
-   stddef renaming does NOT apply to Alpha. */
+   stddef renaming does NOT apply to Alpha.  */
 
-char *gen_stdcall_suffix ();
+union tree_node;
+const char *gen_stdcall_suffix PARAMS ((union tree_node *));
 
 #undef ENCODE_SECTION_INFO
 #define ENCODE_SECTION_INFO(DECL) 					\
@@ -482,16 +379,17 @@ while (0)
 #undef  STRIP_NAME_ENCODING
 #define STRIP_NAME_ENCODING(VAR,SYMBOL_NAME)				\
 do {									\
-  char *_p;								\
-  char *_name = SYMBOL_NAME;						\
+  const char *_p;							\
+  const char *_name = SYMBOL_NAME;					\
   for (_p = _name; *_p && *_p != '@'; ++_p)				\
     ;									\
   if (*_p == '@')							\
     {									\
       int _len = _p - _name;						\
-      (VAR) = (char *) alloca (_len + 1);				\
-      strncpy ((VAR), _name, _len);					\
-      (VAR)[_len] = '\0';						\
+      char *_new_name = (char *) alloca (_len + 1);			\
+      strncpy (_new_name, _name, _len);					\
+      _new_name[_len] = '\0';						\
+      (VAR) = _new_name;						\
     }									\
   else									\
     (VAR) = _name;							\
@@ -500,7 +398,7 @@ do {									\
 #if 0	
 /* Turn this back on when the linker is updated to handle grouped
    .data$ sections correctly. See corresponding note in i386/interix.c. 
-   MK. */
+   MK.  */
 
 /* Define this macro if in some cases global symbols from one translation
    unit may not be bound to undefined symbols in another translation unit
@@ -508,68 +406,18 @@ do {									\
    symbols must be explicitly imported from shared libraries (DLLs).  */
 #define MULTIPLE_SYMBOL_SPACES
 
-#define UNIQUE_SECTION_P(DECL) DECL_ONE_ONLY (DECL)
 extern void i386_pe_unique_section ();
 #define UNIQUE_SECTION(DECL,RELOC) i386_pe_unique_section (DECL, RELOC)
 
 #define SUPPORTS_ONE_ONLY 1
 
-/* A C statement to output something to the assembler file to switch to section
-   NAME for object DECL which is either a FUNCTION_DECL, a VAR_DECL or
-   NULL_TREE.  Some target formats do not support arbitrary sections.  Do not
-   define this macro in such cases.  */
-#undef ASM_OUTPUT_SECTION_NAME
-#define ASM_OUTPUT_SECTION_NAME(STREAM, DECL, NAME, RELOC)		\
-do {									\
-  static struct section_info						\
-    {									\
-      struct section_info *next;					\
-      char *name;							\
-      enum sect_enum {SECT_RW, SECT_RO, SECT_EXEC} type;		\
-    } *sections;							\
-  struct section_info *s;						\
-  char *mode;								\
-  enum sect_enum type;							\
-									\
-  for (s = sections; s; s = s->next)					\
-    if (!strcmp (NAME, s->name))					\
-      break;								\
-									\
-  if (DECL && TREE_CODE (DECL) == FUNCTION_DECL)			\
-    type = SECT_EXEC, mode = "x";					\
-  else if (DECL && DECL_READONLY_SECTION (DECL, RELOC))			\
-    type = SECT_RO, mode = "r";						\
-  else									\
-    type = SECT_RW, mode = "w";						\
-									\
-  if (s == 0)								\
-    {									\
-      s = (struct section_info *) xmalloc (sizeof (struct section_info)); \
-      s->name = xmalloc ((strlen (NAME) + 1) * sizeof (*NAME));		\
-      strcpy (s->name, NAME);						\
-      s->type = type;							\
-      s->next = sections;						\
-      sections = s;							\
-      fprintf (STREAM, ".section\t%s,\"%s\"\n", NAME, mode);		\
-      /* Functions may have been compiled at various levels of		\
-         optimization so we can't use `same_size' here.  Instead,	\
-         have the linker pick one.  */					\
-      if ((DECL) && DECL_ONE_ONLY (DECL))				\
-        fprintf (STREAM, "\t.linkonce %s\n",				\
-	         TREE_CODE (DECL) == FUNCTION_DECL			\
-	         ? "discard" : "same_size");				\
-    }									\
-  else									\
-    {									\
-      fprintf (STREAM, ".section\t%s,\"%s\"\n", NAME, mode);		\
-    }									\
-} while (0)
-
+/* Switch into a generic section.  */
+#define TARGET_ASM_NAMED_SECTION  default_pe_asm_named_section
 #endif /* 0 */
 
-/* DWARF2 Unwinding doesn't work with exception handling yet. */
+/* DWARF2 Unwinding doesn't work with exception handling yet.  */
 #define DWARF2_UNWIND_INFO 0
 
-/* Don't assume anything about the header files. */
+/* Don't assume anything about the header files.  */
 #define NO_IMPLICIT_EXTERN_C
 

@@ -1,6 +1,7 @@
 /* Definitions of target machine for GNU compiler for Intel 80386
    running FreeBSD.
-   Copyright (C) 1988, 1992, 1994, 1996, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1992, 1994, 1996, 1997, 1999, 2000, 2002 Free Software
+   Foundation, Inc.
    Contributed by Poul-Henning Kamp <phk@login.dkuug.dk>
 
 This file is part of GNU CC.
@@ -23,21 +24,26 @@ Boston, MA 02111-1307, USA.  */
 /* This is tested by i386gas.h.  */
 #define YES_UNDERSCORES
 
-/* Don't assume anything about the header files. */
+/* Don't assume anything about the header files.  */
 #define NO_IMPLICIT_EXTERN_C
 
 #include "i386/gstabs.h"
 
-/* Get perform_* macros to build libgcc.a.  */
-#include "i386/perform.h"
-
 /* This goes away when the math-emulator is fixed */
-#undef TARGET_DEFAULT
-#define TARGET_DEFAULT \
+#undef TARGET_SUBTARGET_DEFAULT
+#define TARGET_SUBTARGET_DEFAULT \
   (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS | MASK_NO_FANCY_MATH_387)
 
+/* The macro defined in i386.h doesn't work with the old gas of
+   FreeBSD 2.x.  The definition in sco.h and sol2.h appears to work,
+   but it turns out that, even though the assembler doesn't complain,
+   we get incorrect results.  Fortunately, the definition in
+   defaults.h works.  */
+#undef ASM_PREFERRED_EH_DATA_FORMAT
+
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__ -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Dunix -D__FreeBSD__\
+ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
 
 /* Like the default, except no -lg.  */
 #define LIB_SPEC "%{!shared:%{!pg:-lc}%{pg:-lc_p}}"
@@ -56,8 +62,6 @@ Boston, MA 02111-1307, USA.  */
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
 
-#define HAVE_ATEXIT
-
 /* Override the default comment-starter of "/".  */
 
 #undef ASM_COMMENT_START
@@ -72,28 +76,12 @@ Boston, MA 02111-1307, USA.  */
 /* FreeBSD using a.out does not support DWARF2 unwinding mechanisms.  */
 #define DWARF2_UNWIND_INFO 0
 
-/* The following macros are stolen from i386v4.h */
-/* These have to be defined to get PIC code correct */
-
-/* This is how to output an element of a case-vector that is relative.
-   This is only used for PIC code.  See comments by the `casesi' insn in
-   i386.md for an explanation of the expression this outputs. */
-
-#undef ASM_OUTPUT_ADDR_DIFF_ELT
-#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL) \
-  fprintf (FILE, "\t.long _GLOBAL_OFFSET_TABLE_+[.-%s%d]\n", LPREFIX, VALUE)
-
-/* Indicate that jump tables go in the text section.  This is
-   necessary when compiling PIC code.  */
-
-#define JUMP_TABLES_IN_TEXT_SECTION 1
-
 /* Don't default to pcc-struct-return, because in FreeBSD we prefer the
    superior nature of the older gcc way.  */
 #define DEFAULT_PCC_STRUCT_RETURN 0
 
 /* Ensure we the configuration knows our system correctly so we can link with
-   libraries compiled with the native cc. */
+   libraries compiled with the native cc.  */
 #undef NO_DOLLAR_IN_LABEL
 
 /* i386 freebsd still uses old binutils that don't insert nops by default
@@ -133,8 +121,8 @@ Boston, MA 02111-1307, USA.  */
    different pseudo-op names for these, they may be overridden in the
    file which includes this one.  */
 
-#define TYPE_ASM_OP	".type"
-#define SIZE_ASM_OP	".size"
+#define TYPE_ASM_OP	"\t.type\t"
+#define SIZE_ASM_OP	"\t.size\t"
 
 /* The following macro defines the format used to output the second
    operand of the .type assembler directive.  Different svr4 assemblers
@@ -163,7 +151,7 @@ Boston, MA 02111-1307, USA.  */
 
 #define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)			\
   do {									\
-    fprintf (FILE, "\t%s\t ", TYPE_ASM_OP);				\
+    fprintf (FILE, "%s", TYPE_ASM_OP);					\
     assemble_name (FILE, NAME);						\
     putc (',', FILE);							\
     fprintf (FILE, TYPE_OPERAND_FMT, "function");			\
@@ -176,7 +164,7 @@ Boston, MA 02111-1307, USA.  */
 
 #define ASM_DECLARE_OBJECT_NAME(FILE, NAME, DECL)			\
   do {									\
-    fprintf (FILE, "\t%s\t ", TYPE_ASM_OP);				\
+    fprintf (FILE, "%s", TYPE_ASM_OP);					\
     assemble_name (FILE, NAME);						\
     putc (',', FILE);							\
     fprintf (FILE, TYPE_OPERAND_FMT, "object");				\
@@ -185,7 +173,7 @@ Boston, MA 02111-1307, USA.  */
     if (!flag_inhibit_size_directive && DECL_SIZE (DECL))		\
       {									\
         size_directive_output = 1;					\
-	fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);				\
+	fprintf (FILE, "%s", SIZE_ASM_OP);				\
 	assemble_name (FILE, NAME);					\
 	fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL)));	\
       }									\
@@ -200,13 +188,13 @@ Boston, MA 02111-1307, USA.  */
 
 #define ASM_FINISH_DECLARE_OBJECT(FILE, DECL, TOP_LEVEL, AT_END)        \
 do {                                                                    \
-     char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);                  \
+     const char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);            \
      if (!flag_inhibit_size_directive && DECL_SIZE (DECL)	        \
          && ! AT_END && TOP_LEVEL                                       \
          && DECL_INITIAL (DECL) == error_mark_node                      \
          && !size_directive_output)                                     \
        {                                                                \
-         fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);                        \
+         fprintf (FILE, "%s", SIZE_ASM_OP);                             \
 	 assemble_name (FILE, name);                                    \
 	 fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL)));\
 	}								\
@@ -224,7 +212,7 @@ do {                                                                    \
 	labelno++;							\
 	ASM_GENERATE_INTERNAL_LABEL (label, "Lfe", labelno);		\
 	ASM_OUTPUT_INTERNAL_LABEL (FILE, "Lfe", labelno);		\
-	fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);				\
+	fprintf (FILE, "%s", SIZE_ASM_OP);				\
 	assemble_name (FILE, (FNAME));					\
         fprintf (FILE, ",");						\
 	assemble_name (FILE, label);					\
@@ -245,3 +233,10 @@ do {                                                                    \
 #define STARTFILE_SPEC  \
   "%{shared:c++rt0.o%s} \
    %{!shared:%{pg:gcrt0.o%s}%{!pg:%{static:scrt0.o%s}%{!static:crt0.o%s}}}"
+
+/* Define this so we can compile MS code for use with WINE.  */
+#define HANDLE_PRAGMA_PACK_PUSH_POP
+
+/* FreeBSD 2.2.7's assembler does not support .quad properly.  Do not
+   use it.  */
+#undef ASM_QUAD

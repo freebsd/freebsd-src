@@ -1,5 +1,5 @@
 /* com.h -- Public #include File (module.h template V1.0)
-   Copyright (C) 1995-1997 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997, 2000 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -27,34 +27,16 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 /* Allow multiple inclusion to work. */
 
-#ifndef _H_f_com
-#define _H_f_com
+#ifndef GCC_F_COM_H
+#define GCC_F_COM_H
 
 /* Simple definitions and enumerations. */
 
 #define FFECOM_dimensionsMAX 7	/* Max # dimensions (quick hack). */
 
-#define FFECOM_targetFFE 1
-#define FFECOM_targetGCC 2
-
-#ifndef FFE_STANDALONE
-#define FFECOM_targetCURRENT FFECOM_targetGCC	/* Backend! */
-#define FFECOM_ONEPASS 0
-#else
-#define FFECOM_targetCURRENT FFECOM_targetFFE
-#define FFECOM_ONEPASS 0
-#endif
-
-#if FFECOM_ONEPASS
-#define FFECOM_TWOPASS 0
-#else
-#define FFECOM_TWOPASS 1
-#endif
-
 #define FFECOM_SIZE_UNIT "byte"	/* Singular form. */
 #define FFECOM_SIZE_UNITS "bytes"	/* Plural form. */
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 #define FFECOM_constantNULL NULL_TREE
 #define FFECOM_nonterNULL NULL_TREE
 #define FFECOM_globalNULL NULL_TREE
@@ -84,66 +66,29 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    to build the libf2c with which g77-generated code is linked, or there
    will probably be bugs, some of them difficult to detect or even trigger.  */
 
-/* Do we need int (for 32-bit or 64-bit systems) or long (16-bit or
-   normally 32-bit) for f2c-type integers? */
+/* The C front-end provides __g77_integer and __g77_uinteger types so that
+   the appropriately-sized signed and unsigned integer types are available
+   for libf2c.  If you change this, also the definitions of those types
+   in ../c-decl.c. */
+#define FFECOM_f2cINTEGER			\
+  (LONG_TYPE_SIZE == FLOAT_TYPE_SIZE		\
+   ? FFECOM_f2ccodeLONG				\
+   : (INT_TYPE_SIZE == FLOAT_TYPE_SIZE		\
+      ? FFECOM_f2ccodeINT			\
+      : (abort (), -1)))
 
-#ifndef BITS_PER_WORD
-#define BITS_PER_WORD 32
-#endif
+#define FFECOM_f2cLOGICAL FFECOM_f2cINTEGER
 
-#ifndef CHAR_TYPE_SIZE
-#define CHAR_TYPE_SIZE BITS_PER_UNIT
-#endif
-
-#ifndef SHORT_TYPE_SIZE
-#define SHORT_TYPE_SIZE (BITS_PER_UNIT * MIN ((UNITS_PER_WORD + 1) / 2, 2))
-#endif
-
-#ifndef INT_TYPE_SIZE
-#define INT_TYPE_SIZE BITS_PER_WORD
-#endif
-
-#ifndef LONG_TYPE_SIZE
-#define LONG_TYPE_SIZE BITS_PER_WORD
-#endif
-
-#ifndef LONG_LONG_TYPE_SIZE
-#define LONG_LONG_TYPE_SIZE (BITS_PER_WORD * 2)
-#endif
-
-#ifndef WCHAR_UNSIGNED
-#define WCHAR_UNSIGNED 0
-#endif
-
-#ifndef FLOAT_TYPE_SIZE
-#define FLOAT_TYPE_SIZE BITS_PER_WORD
-#endif
-
-#ifndef DOUBLE_TYPE_SIZE
-#define DOUBLE_TYPE_SIZE (BITS_PER_WORD * 2)
-#endif
-
-#ifndef LONG_DOUBLE_TYPE_SIZE
-#define LONG_DOUBLE_TYPE_SIZE (BITS_PER_WORD * 2)
-#endif
-
-#if LONG_TYPE_SIZE == FLOAT_TYPE_SIZE
-#  define FFECOM_f2cINTEGER FFECOM_f2ccodeLONG
-#  define FFECOM_f2cLOGICAL FFECOM_f2ccodeLONG
-#elif INT_TYPE_SIZE == FLOAT_TYPE_SIZE
-#  define FFECOM_f2cINTEGER FFECOM_f2ccodeINT
-#  define FFECOM_f2cLOGICAL FFECOM_f2ccodeINT
-#else
-#  error Cannot find a suitable type for FFECOM_f2cINTEGER
-#endif
-
-#if LONG_TYPE_SIZE == (FLOAT_TYPE_SIZE * 2)
-#  define FFECOM_f2cLONGINT FFECOM_f2ccodeLONG
-#elif LONG_LONG_TYPE_SIZE == (FLOAT_TYPE_SIZE * 2)
-#  define FFECOM_f2cLONGINT FFECOM_f2ccodeLONGLONG
-#else
-#  error Cannot find a suitable type for FFECOM_f2cLONGINT
-#endif
+/* The C front-end provides __g77_longint and __g77_ulongint types so that
+   the appropriately-sized signed and unsigned integer types are available
+   for libf2c.  If you change this, also the definitions of those types
+   in ../c-decl.c. */
+#define FFECOM_f2cLONGINT				\
+ (LONG_TYPE_SIZE == (FLOAT_TYPE_SIZE * 2)		\
+  ? FFECOM_f2ccodeLONG					\
+  : (LONG_LONG_TYPE_SIZE == (FLOAT_TYPE_SIZE * 2)	\
+     ? FFECOM_f2ccodeLONGLONG				\
+     : (abort (), -1)))
 
 #define FFECOM_f2cADDRESS FFECOM_f2ccodeCHARPTR
 #define FFECOM_f2cSHORTINT FFECOM_f2ccodeSHORT
@@ -170,36 +115,17 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 typedef enum
   {
-#define DEFGFRT(CODE,NAME,TYPE,ARGS,VOLATILE,COMPLEX) CODE,
+#define DEFGFRT(CODE,NAME,TYPE,ARGS,VOLATILE,COMPLEX,CONST) CODE,
 #include "com-rt.def"
 #undef DEFGFRT
     FFECOM_gfrt
   } ffecomGfrt;
 
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
-
 /* Typedefs. */
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 #ifndef TREE_CODE
-#include "tree.j"
+#include "tree.h"
 #endif
-
-#ifndef BUILT_FOR_270
-#ifdef DECL_STATIC_CONSTRUCTOR	/* In gcc/tree.h. */
-#define BUILT_FOR_270 1
-#else
-#define BUILT_FOR_270 0
-#endif
-#endif	/* !defined (BUILT_FOR_270) */
-
-#ifndef BUILT_FOR_280
-#ifdef DECL_ONE_ONLY	/* In gcc/tree.h. */
-#define BUILT_FOR_280 1
-#else
-#define BUILT_FOR_280 0
-#endif
-#endif	/* !defined (BUILT_FOR_280) */
 
 typedef tree ffecomConstant;
 #define FFECOM_constantHOOK
@@ -222,7 +148,6 @@ struct _ffecom_symbol_
     tree assign_tree;		/* For ASSIGN'ed vars. */
     bool addr;			/* Is address of item instead of item. */
   };
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
 
 /* Include files needed by this one. */
 
@@ -237,9 +162,6 @@ struct _ffecom_symbol_
 
 /* Global objects accessed by users of this module. */
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-extern tree long_integer_type_node;
-extern tree complex_double_type_node;
 extern tree string_type_node;
 extern tree ffecom_integer_type_node;
 extern tree ffecom_integer_zero_node;
@@ -266,11 +188,9 @@ extern tree ffecom_f2c_ftnlen_two_node;
 extern tree ffecom_f2c_ptr_to_ftnlen_type_node;
 extern tree ffecom_f2c_ftnint_type_node;
 extern tree ffecom_f2c_ptr_to_ftnint_type_node;
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
 
 /* Declare functions with prototypes. */
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 tree ffecom_1 (enum tree_code code, tree type, tree node);
 tree ffecom_1_fn (tree node);
 tree ffecom_2 (enum tree_code code, tree type, tree node1, tree node2);
@@ -290,16 +210,12 @@ tree ffecom_constantunion (ffebldConstantUnion *cu, ffeinfoBasictype bt,
 tree ffecom_const_expr (ffebld expr);
 tree ffecom_decl_field (tree context, tree prevfield, const char *name,
 			tree type);
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
 void ffecom_close_include (FILE *f);
 int ffecom_decode_include_option (char *spec);
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 tree ffecom_end_compstmt (void);
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
 void ffecom_end_transition (void);
 void ffecom_exec_transition (void);
 void ffecom_expand_let_stmt (ffebld dest, ffebld source);
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 tree ffecom_expr (ffebld expr);
 tree ffecom_expr_assign (ffebld expr);
 tree ffecom_expr_assign_w (ffebld expr);
@@ -308,8 +224,8 @@ tree ffecom_expr_w (tree type, ffebld expr);
 void ffecom_finish_compile (void);
 void ffecom_finish_decl (tree decl, tree init, bool is_top_level);
 void ffecom_finish_progunit (void);
-tree ffecom_get_invented_identifier (const char *pattern, const char *text,
-				     int number);
+tree ffecom_get_invented_identifier (const char *pattern, ...)
+  ATTRIBUTE_PRINTF_1;
 ffeinfoKindtype ffecom_gfrt_basictype (ffecomGfrt ix);
 ffeinfoKindtype ffecom_gfrt_kindtype (ffecomGfrt ix);
 void ffecom_init_0 (void);
@@ -320,13 +236,12 @@ tree ffecom_lookup_label (ffelab label);
 tree ffecom_make_tempvar (const char *commentary, tree type,
 			  ffetargetCharacterSize size, int elements);
 tree ffecom_modify (tree newtype, tree lhs, tree rhs);
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
-void ffecom_file (char *name);
+void ffecom_save_tree_forever (tree t);
+void ffecom_file (const char *name);
 void ffecom_notify_init_storage (ffestorag st);
 void ffecom_notify_init_symbol (ffesymbol s);
 void ffecom_notify_primary_entry (ffesymbol fn);
 FILE *ffecom_open_include (char *name, ffewhereLine l, ffewhereColumn c);
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 void ffecom_prepare_arg_ptr_to_expr (ffebld expr);
 bool ffecom_prepare_end (void);
 void ffecom_prepare_expr_ (ffebld expr, ffebld dest);
@@ -341,11 +256,9 @@ tree ffecom_save_tree (tree t);
 void ffecom_start_compstmt (void);
 tree ffecom_start_decl (tree decl, bool is_init);
 void ffecom_sym_commit (ffesymbol s);
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
 ffesymbol ffecom_sym_end_transition (ffesymbol s);
 ffesymbol ffecom_sym_exec_transition (ffesymbol s);
 ffesymbol ffecom_sym_learned (ffesymbol s);
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 void ffecom_sym_retract (ffesymbol s);
 tree ffecom_temp_label (void);
 tree ffecom_truth_value (tree expr);
@@ -353,31 +266,12 @@ tree ffecom_truth_value_invert (tree expr);
 tree ffecom_type_expr (ffebld expr);
 tree ffecom_which_entrypoint_decl (void);
 
-/* These need to be in the front end with exactly these interfaces,
-   as they're called by the back end.  */
-
-int mark_addressable (tree expr);
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
-
 /* Define macros. */
 
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-#define ffecom_expr(e) (e)
-#define ffecom_init_0()
-#define ffecom_init_2()
-#define ffecom_label_kind() FFEINFO_kindtypeINTEGERDEFAULT
-#define ffecom_pointer_kind() FFEINFO_kindtypeINTEGERDEFAULT
-#define ffecom_ptr_to_expr(e) (e)
-#define ffecom_sym_commit(s)
-#define ffecom_sym_retract(s)
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetFFE */
-
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 #define ffecom_f2c_typecode(bt,kt) ffecom_f2c_typecode_[(bt)][(kt)]
 #define ffecom_label_kind() ffecom_label_kind_
 #define ffecom_pointer_kind() ffecom_pointer_kind_
 #define ffecom_prepare_expr(e) ffecom_prepare_expr_ ((e), NULL)
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
 
 #define ffecom_init_1()
 #define ffecom_init_3()
@@ -390,4 +284,4 @@ int mark_addressable (tree expr);
 
 /* End of #include file. */
 
-#endif
+#endif /* ! GCC_F_COM_H */
