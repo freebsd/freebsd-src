@@ -2,7 +2,15 @@
 Troubleshooting
 ===============
 
-Repairing an existing FreeBSD installation
+ Table of Contents:
+
+   Repairing an Existing FreeBSD Installation
+
+   Common Installation Problems, Q&A
+
+   Common Hardware Problems, Q&A
+
+Repairing an Existing FreeBSD Installation
 ------------------------------------------
 
 FreeBSD releases 2.2.1 and later feature a "Fixit" option in the top
@@ -17,6 +25,90 @@ placed into a shell with a wide variety of commands available (in the
 /stand and /mnt2/stand directories) for checking, repairing and
 examining file systems and their contents.  Some UNIX administration
 experience *is* required to use the fixit option!
+
+Common Installation Problems, Q&A
+---------------------------------
+
+Q: I go to boot from the hard disk for the first time after installing
+   FreeBSD, the kernel loads and probes my hardware, but stops with
+   messages like:
+
+     changing root device to wd1s1a
+     panic: cannot mount root
+
+   What is wrong?  What can I do?
+
+Q: What is this 'bios_drive:interface(unit,partition)kernel_name' thing
+   that is displayed with the boot help?
+
+A: There is a longstanding problem in the case where the boot disk is
+   not the first disk in the system.  The BIOS uses a different numbering
+   scheme to FreeBSD, and working out which numbers correspond to which
+   is difficult to get right.
+
+   In the case where the boot disk is not the first disk in the system,
+   FreeBSD can need some help finding it.  There are two common situations
+   here, and in both of these cases, you need to tell FreeBSD where the 
+   root filesystem is.  You do this by specifying the BIOS disk number, 
+   the disk type and the FreeBSD disk number for that type.
+
+   The first situation is where you have two IDE disks, each configured as
+   the master on their respective IDE busses, and wish to boot FreeBSD from
+   the second disk.  The BIOS sees these as disk 0 and disk 1, while 
+   FreeBSD sees them as wd0 and wd2.
+
+   FreeBSD is on BIOS disk 1, of type 'wd' and the FreeBSD disk number
+   is 2, so you would say:
+
+     1:wd(2,a)kernel
+
+   Note that if you have a slave on the primary bus, the above is not
+   necessary (and is effectively wrong).
+
+   The second situation involves booting from a SCSI disk when you have
+   one or more IDE disks in the system.  In this case, the FreeBSD disk
+   number is lower than the BIOS disk number.  If you have two IDE disks
+   as well as the SCSI disk, the SCSI disk is BIOS disk 2, type 'da' and
+   FreeBSD disk number 0, so you would say:
+
+     2:da(0,a)kernel
+
+   To tell FreeBSD that you want to boot from BIOS disk 2, which is
+   the first SCSI disk in the system.  If you only had one IDE disk,
+   you would use '1:' instead.
+
+   Once you have determined the correct values to use, you can put the
+   command exactly as you would have typed it in the /boot.config file
+   using a standard text editor.
+   Unless instructed otherwise, FreeBSD will use the contents of this
+   file as the default response to the 'boot:' prompt.
+
+Q: I go to boot from the hard disk for the first time after installing
+   FreeBSD, but the Boot Manager prompt just prints `F?' at the boot menu
+   each time but the boot won't go any further.
+
+A: The hard disk geometry was set incorrectly in the Partition editor when
+   you installed FreeBSD.  Go back into the partition editor and specify
+   the actual geometry of your hard disk.  You must reinstall FreeBSD
+   again from the beginning with the correct geometry.
+
+   If you are failing entirely in figuring out the correct geometry for
+   your machine, here's a tip:  Install a small DOS partition at the
+   beginning of the disk and install FreeBSD after that.  The install
+   program will see the DOS partition and try to infer the correct
+   geometry from it, which usually works.
+
+   The following tip is no longer recommended, but is left here
+   for reference:
+
+     If you are setting up a truly dedicated FreeBSD server or work-
+     station where you don't care for (future) compatibility with DOS,
+     Linux or another operating system, you've also got the option to use
+     the entire disk (`A' in the partition editor), selecting the
+     non-standard option where FreeBSD occupies the entire disk from
+     the very first to the very last sector.  This will leave all geometry
+     considerations aside, but is somewhat limiting unless you're never
+     going to run anything other than FreeBSD on a disk.
 
 
 Known Hardware Problems, Q & A
@@ -82,31 +174,6 @@ A: Your card is probably on a different IRQ from what is specified in the
    by IRQ 2 and frequently a cause of problems (especially when you
    have a VGA card using IRQ 2! :).  You should not use IRQ 2 or 9 if at
    all possible.
-
-
-Q: I go to boot from the hard disk for the first time after installing
-   FreeBSD, but the Boot Manager prompt just prints `F?' at the boot menu
-   each time but the boot won't go any further.
-
-A: The hard disk geometry was set incorrectly in the Partition editor when
-   you installed FreeBSD.  Go back into the partition editor and specify
-   the actual geometry of your hard disk.  You must reinstall FreeBSD
-   again from the beginning with the correct geometry.
-
-   If you are failing entirely in figuring out the correct geometry for
-   your machine, here's a tip:  Install a small DOS partition at the
-   beginning of the disk and install FreeBSD after that.  The install
-   program will see the DOS partition and try to infer the correct
-   geometry from it, which usually works.
-
-   If you are setting up a truly dedicated FreeBSD server or work-
-   station where you don't care for (future) compatibility with DOS,
-   Linux or another operating system, you've also got the option to use
-   the entire disk (`A' in the partition editor), selecting the
-   non-standard option where FreeBSD occupies the entire disk from
-   the very first to the very last sector.  This will leave all geometry
-   considerations aside, but is somewhat limiting unless you're never
-   going to run anything other than FreeBSD on a disk.
 
 
 Q: I have a Matsushita/Panasonic drive but it isn't recognized by the
@@ -256,7 +323,8 @@ A: There appears to be a bug in the BIOS on at least some of these boards,
    from a floppy disk.
    This is only a problem if you are not using the BootEasy boot manager.
    Slice the disk in 'compatible' mode and install BootEasy during the
-   FreeBSD installation to avoid the bug.
+   FreeBSD installation to avoid the bug, or upgrade the BIOS (see Intel's
+   website for details).
 
 Q: When installing on an Dell Poweredge XE, Dell proprietary RAID controller
    DSA (Dell SCSI Array) isn't recognized.
