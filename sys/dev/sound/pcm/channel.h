@@ -39,7 +39,7 @@ int chn_reset(pcm_channel *c);
 int chn_setvolume(pcm_channel *c, int left, int right);
 int chn_setspeed(pcm_channel *c, int speed);
 int chn_setformat(pcm_channel *c, u_int32_t fmt);
-int chn_setblocksize(pcm_channel *c, int blksz);
+int chn_setblocksize(pcm_channel *c, int blkcnt, int blksz);
 int chn_trigger(pcm_channel *c, int go);
 int chn_getptr(pcm_channel *c);
 pcmchan_caps *chn_getcaps(pcm_channel *c);
@@ -92,4 +92,4 @@ extern pcm_feeder feeder_root;
 /* The total number of blocks per secondary buffer. */
 #define CHN_2NDBUFBLKNUM	(32)
 /* The size of a whole secondary buffer. */
-#define CHN_2NDBUFWHOLESIZE	(CHN_2NDBUFBLKSIZE * CHN_2NDBUFBLKNUM)
+#define CHN_2NDBUFMAXSIZE	(131072)
