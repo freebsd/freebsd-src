@@ -229,7 +229,7 @@ udp_CreateDevice(struct physical *p, char *host, char *port)
   log_Printf(LogPHASE, "%s: Connecting to %s:%s/udp\n", p->link.name,
              host, port);
 
-  p->fd = socket(AF_INET, SOCK_DGRAM, 0);
+  p->fd = socket(PF_INET, SOCK_DGRAM, 0);
   if (p->fd >= 0) {
     log_Printf(LogDEBUG, "%s: Opened udp socket %s\n", p->link.name,
                p->name.full);

@@ -616,7 +616,7 @@ ipcp_proxyarp(struct ipcp *ipcp,
     return 0;
   }
 
-  if ((s = ID0socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+  if ((s = ID0socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
     log_Printf(LogERROR, "ipcp_proxyarp: socket: %s\n",
                strerror(errno));
     return 0;

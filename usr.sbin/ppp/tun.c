@@ -88,7 +88,7 @@ tun_configure(struct bundle *bundle)
   struct ifreq ifr;
   int s;
   
-  s = socket(AF_INET, SOCK_DGRAM, 0);
+  s = socket(PF_INET, SOCK_DGRAM, 0);
   
   if (s < 0) {
     log_Printf(LogERROR, "tun_configure: socket(): %s\n", strerror(errno));
