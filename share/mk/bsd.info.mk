@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.53 1999/01/20 05:48:19 markm Exp $
+#	$Id: bsd.info.mk,v 1.54 1999/01/20 17:22:11 ache Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -160,25 +160,12 @@ ${x:S/$/${ICOMPRESS_EXT}/}:	${x}
 .for x in ${INFO}
 INSTALLINFODIRS+= ${x:S/$/-install/}
 ${x:S/$/-install/}: ${DESTDIR}${INFODIR}/${INFODIRFILE}
-	-__section=`${GREP} "^INFO-DIR-SECTION" ${x}.info`; \
-	__entry=`${GREP} "^START-INFO-DIR-ENTRY" ${x}.info`; \
-	if [ ! -z "$$__section" ]; then \
-		if [ ! -z "$$__entry" ]; then \
-			${INSTALLINFO}  ${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}; \
-		else \
-			${INSTALLINFO}  --entry=${INFOENTRY_${x}} \
-				${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}; \
-		fi \
-	else \
-		if [ ! -z "$$__entry" ]; then \
-			${INSTALLINFO}  --section=${INFOSECTION} \
-				${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}; \
-		else \
-			${INSTALLINFO}  --section=${INFOSECTION} \
-       				--entry=${INFOENTRY_${x}} \
-				${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}; \
-		fi \
-	fi
+	sflag=`${GREP} -q ^INFO-DIR-SECTION ${x}.info || echo 1`; \
+	eflag=`${GREP} -q ^START-INFO-DIR-ENTRY ${x}.info || echo 1`; \
+	${INSTALLINFO} \
+	    $${sflag:+--section=${INFOSECTION}} \
+	    $${eflag:+--entry=${INFOENTRY_${x}}} \
+	    ${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}
 .endfor
 
 .PHONY: ${INSTALLINFODIRS}
