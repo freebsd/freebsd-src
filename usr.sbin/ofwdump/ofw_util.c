@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #define	BYTESPERLINE	(CHARSPERLINE / 3)
 
 /* Maximum supported property size. */
-#define	PROPBUFLEN	1024
+#define	PROPBUFLEN	8192
 
 #define	OFW_IOCTL(fd, cmd, val)	do {					\
 	if (ioctl(fd, cmd, val) == -1)					\
