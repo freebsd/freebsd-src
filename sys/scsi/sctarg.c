@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.10 1995/12/08 23:22:24 phk Exp $
+ *      $Id: sctarg.c,v 1.11 1995/12/14 09:54:32 phk Exp $
  */
 
 /*
@@ -66,11 +66,6 @@ struct scsi_data {
 	int flags;					/* Already open */
 };
 
-static errval sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
-struct scsi_link *sc_link);
-static void sctargstart(u_int32 unit, u_int32 unused_flags);
-static void sctarg_strategy(struct buf *bp, struct scsi_link *sc_link);
-
 static	d_open_t	sctargopen;
 static	d_close_t	sctargclose;
 static	d_ioctl_t	sctargioctl;
@@ -83,6 +78,11 @@ static struct cdevsw sctarg_cdevsw =
 	  seltrue,	nommap,		sctargstrategy,	"sctarg", NULL,	-1 };
 
 SCSI_DEVICE_ENTRIES(sctarg)
+
+static errval sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
+			  struct scsi_link *sc_link);
+static void sctargstart(u_int32 unit, u_int32 unused_flags);
+static void sctarg_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 static struct scsi_device sctarg_switch =
 {
@@ -109,7 +109,7 @@ static struct scsi_device sctarg_switch =
 
 static errval
 sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
-struct scsi_link *sc_link)
+	    struct scsi_link *sc_link)
 {
 	int ret = 0;
 
