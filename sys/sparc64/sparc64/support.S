@@ -33,6 +33,10 @@
 
 #include "assym.s"
 
+	.register %g2, #ignore
+	.register %g3, #ignore
+	.register %g6, #ignore
+
 #define	E	/* empty */
 
 /*
@@ -149,7 +153,7 @@
  * aligned, transfer 8 bytes, otherwise finish with bytes.  The unaligned
  * case could be optimized, but it is expected that this is the uncommon
  * case and of questionable value.  The code to do so is also rather large
- * and ugly. It has yet to be determined how much unrolling is beneficial.
+ * and ugly.  It has yet to be determined how much unrolling is beneficial.
  *
  * XXX bcopy() must also check for overlap.  This is stupid.
  * XXX bcopy() should be implemented as
@@ -211,10 +215,10 @@
 	SET(label, %g2, %g1) ; \
 	ldx	[PCPU(CURTHREAD)], %g6 ; \
 	ldx	[%g6 + TD_PCB], %g6 ; \
-	stx	%g1, [%g6 + PCB_ONFAULT] ;
+	stx	%g1, [%g6 + PCB_ONFAULT]
 
 #define	CATCH_END() \
-	stx	%g0, [%g6 + PCB_ONFAULT] ;
+	stx	%g0, [%g6 + PCB_ONFAULT]
 
 #define	FU_ALIGNED(loader, label) \
 	CATCH_SETUP(label) ; \
@@ -264,6 +268,15 @@ END(bcmp)
  */
 ENTRY(bcopy)
 ENTRY(ovbcopy)
+#if KTR_COMPILE & KTR_CT3
+	CATR(KTR_CT3, "bcopy: src=%#lx dst=%#lx len=%ld pc=%#lx"
+	    , %o3, %o4, %o5, 7, 8, 9)
+	stx	%o0, [%o3 + KTR_PARM1]
+	stx	%o1, [%o3 + KTR_PARM2]
+	stx	%o2, [%o3 + KTR_PARM3]
+	stx	%o7, [%o3 + KTR_PARM4]
+9:
+#endif
 	/*
 	 * Check for overlap, and copy backwards if so.
 	 */
@@ -300,6 +313,13 @@ END(bcopy)
  * void bzero(void *b, size_t len)
  */
 ENTRY(bzero)
+#if KTR_COMPILE & KTR_CT3
+	CATR(KTR_CT3, "bzero: b=%#lx len=%ld pc=%#lx", %o2, %o3, %o4, 7, 8, 9)
+	stx	%o0, [%o2 + KTR_PARM1]
+	stx	%o1, [%o2 + KTR_PARM2]
+	stx	%o7, [%o2 + KTR_PARM3]
+9:
+#endif
 	_MEMSET(%o0, %g0, %o1, E, E)
 	retl
 	 nop
@@ -482,7 +502,7 @@ ENTRY(fuswintr)
 END(fuswintr)
 
 /*
- * int fuword(const void *base)
+ * long fuword(const void *base)
  */
 ENTRY(fuword)
 #if KTR_COMPILE & KTR_CT1
@@ -494,7 +514,7 @@ ENTRY(fuword)
 END(fuword)
 
 /*
- * int subyte(const void *base)
+ * int subyte(const void *base, int byte)
  */
 ENTRY(subyte)
 #if KTR_COMPILE & KTR_CT1
@@ -506,7 +526,7 @@ ENTRY(subyte)
 END(subyte)
 
 /*
- * int suibyte(const void *base)
+ * int suibyte(const void *base, int byte)
  */
 ENTRY(suibyte)
 #if KTR_COMPILE & KTR_CT1
@@ -518,7 +538,7 @@ ENTRY(suibyte)
 END(suibyte)
 
 /*
- * int susword(const void *base)
+ * int susword(const void *base, int word)
  */
 ENTRY(susword)
 #if KTR_COMPILE & KTR_CT1
@@ -530,7 +550,7 @@ ENTRY(susword)
 END(susword)
 
 /*
- * int suswintr(const void *base)
+ * int suswintr(const void *base, int word)
  */
 ENTRY(suswintr)
 #if KTR_COMPILE & KTR_CT1
@@ -542,7 +562,7 @@ ENTRY(suswintr)
 END(suswintr)
 
 /*
- * int suword(const void *base)
+ * int suword(const void *base, long word)
  */
 ENTRY(suword)
 #if KTR_COMPILE & KTR_CT1
@@ -586,25 +606,25 @@ ENTRY(longjmp)
 	set	1, %g3
 	movrz	%o1, %o1, %g3
 	mov	%o0, %g1
-	ldx	[%g1 + 0x10], %g2
+	ldx	[%g1 + _JB_FP], %g2
 1:	cmp	%fp, %g2
 	bl,a,pt	%xcc, 1b
 	 restore
 	bne,pn	%xcc, 2f
-	 ldx	[%g1 + 0x0], %o2
-	ldx	[%g1 + 0x8], %o3
+	 ldx	[%g1 + _JB_SP], %o2
 	cmp	%o2, %sp
 	blt,pn	%xcc, 2f
 	 movge	%xcc, %o2, %sp
-	jmp	%o3 + 8
+	ldx	[%g1 + _JB_PC], %o7
+	retl
 	 mov	%g3, %o0
 2:	PANIC("longjmp botch", %l1)
 END(longjmp)
 
 ENTRY(setjmp)
-	stx	%sp, [%o0 + 0x0]
-	stx	%o7, [%o0 + 0x8]
-	stx	%fp, [%o0 + 0x10]
+	stx	%sp, [%o0 + _JB_SP]
+	stx	%o7, [%o0 + _JB_PC]
+	stx	%fp, [%o0 + _JB_FP]
 	retl
 	 clr	%o0
 END(setjmp)
@@ -642,7 +662,7 @@ ENTRY(openfirmware_exit)
 	sub	%l0, SPOFF + CCFSZ, %sp
 	mov     AA_DMMU_PCXR, %l3		! set context 0
 	stxa    %g0, [%l3] ASI_DMMU
-	membar  #Sync
+	membar	#Sync
 	wrpr	%g0, 0, %tl			! force trap level 0
 	call	%l6
 	 mov	%i0, %o0
