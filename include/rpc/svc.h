@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc.h 1.20 88/02/08 SMI 
  *	from: @(#)svc.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: svc.h,v 1.1 1993/10/27 05:40:55 paul Exp $
+ *	$Id: svc.h,v 1.2 1994/08/07 18:41:00 wollman Exp $
  */
 
 /*
@@ -155,7 +155,7 @@ struct svc_req {
  *	u_long prog;
  *	u_long vers;
  *	void (*dispatch)();
- *	int protocol;  /* like TCP or UDP, zero means do not register 
+ *	int protocol;        // like TCP or UDP, zero means do not register 
  */
 __BEGIN_DECLS
 extern bool_t	svc_register __P((SVCXPRT *, u_long, u_long, void (*)(), int));
