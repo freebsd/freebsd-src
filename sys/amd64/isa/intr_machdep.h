@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: intr_machdep.h,v 1.6 1997/07/13 00:18:33 smp Exp smp $
+ *	$Id: intr_machdep.h,v 1.7 1997/07/18 19:47:13 smp Exp smp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -99,15 +99,13 @@
 /* TLB shootdowns */
 #define XINVLTLB_OFFSET		(ICU_OFFSET + 32)
 
-#if defined(TEST_CPUSTOP)
 /* IPI to signal CPUs to stop and wait for another CPU to restart them */
 #define XCPUSTOP_OFFSET		(ICU_OFFSET + 48)
-#endif  /** TEST_CPUSTOP */
 
-#if defined(TEST_TEST1)
+#ifdef TEST_TEST1
 /* put a 'fake' HWI in top of APIC prio 0x3x, 32 + 31 = 63 = 0x3f */
 #define XTEST1_OFFSET		(ICU_OFFSET + 31)
-#endif  /** TEST_TEST1 */
+#endif /** TEST_TEST1 */
 
 #ifndef	LOCORE
 
@@ -152,18 +150,14 @@ inthand_t
 	IDTVEC(intr20), IDTVEC(intr21), IDTVEC(intr22), IDTVEC(intr23);
 
 inthand_t
-	Xinvltlb,
-	Xspuriousint;
-
-#if defined(TEST_CPUSTOP)
-inthand_t
+	Xinvltlb,	/* TLB shootdowns */
+	Xspuriousint,	/* handle APIC "spurious INTs" */
 	Xcpustop;	/* stop & wait for another CPU to restart it */
-#endif  /** TEST_CPUSTOP */
 
-#if defined(TEST_CPUSTOP)
+#ifdef TEST_TEST1
 inthand_t
 	Xtest1;		/* 'fake' HWI in top of APIC prio 0x3x, 32+31 = 0x3f */
-#endif  /** TEST_TEST1 */
+#endif /** TEST_TEST1 */
 
 struct isa_device;
 

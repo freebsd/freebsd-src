@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.8 1997/07/15 00:09:53 smp Exp smp $
+ * $Id: mplock.s,v 1.9 1997/07/18 19:45:41 smp Exp smp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -26,36 +26,52 @@
 #include "assym.s"			/* system definitions */
 #include <machine/specialreg.h>		/* x86 special registers */
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
-#include <machine/smptests.h>		/** TEST_LOPRIO, TEST_CPUSTOP */
-#ifdef TEST_CPUSTOP
-#include <i386/isa/intr_machdep.h>
-#endif
+#include <machine/smptests.h>		/** TEST_LOPRIO */
 #include <machine/apic.h>
+
+#include <i386/isa/intr_machdep.h>
+
 
 /*
  * claim LOW PRIO, ie. accept ALL INTerrupts
  */
 #ifdef TEST_LOPRIO
 
-#ifdef TEST_CPUSTOP
+/* location of saved TPR on stack */
 #define TPR_TARGET		20(%esp)
-#else
-#define TPR_TARGET		lapic_tpr
-#endif /** TEST_CPUSTOP */
 
+/* we assumme that the 'reserved bits' can be written with zeros */
 #ifdef CHEAP_TPR
-#define ACCEPT_INTS \
-	movl	$0, TPR_TARGET			/* clear TPR */
-#else
-#define ACCEPT_INTS \
-	andl	$~APIC_TPR_PRIO, TPR_TARGET	/* clear TPR */
+
+/* after 1st acquire of lock we attempt to grab all hardware INTs */
+#define GRAB_HWI \
+	movl	$ALLHWI_LEVEL, TPR_TARGET	/* task prio to 'all HWI' */
+
+/* after last release of lock give up LOW PRIO (ie, arbitrate INTerrupts) */
+#define ARB_HWI \
+	movl	$LOPRIO_LEVEL, lapic_tpr	/* task prio to 'arbitrate' */
+
+#else /** CHEAP_TPR */
+
+#define GRAB_HWI \
+	andl	$~APIC_TPR_PRIO, TPR_TARGET	/* task prio to 'all HWI' */
+
+#define ARB_HWI								\
+	movl	lapic_tpr, %eax ;		/* TPR */		\
+	andl	$~APIC_TPR_PRIO, %eax ;		/* clear TPR field */	\
+	orl	$LOPRIO_LEVEL, %eax ;		/* prio to arbitrate */	\
+	movl	%eax, lapic_tpr ;		/* set it */		\
+  	movl	(%edx), %eax			/* reload %eax with lock */
+
 #endif /** CHEAP_TPR */
 
-#else
+#else /** TEST_LOPRIO */
 
-#define ACCEPT_INTS
+#define GRAB_HWI				/* nop */
+#define ARB_HWI					/* nop */
 
 #endif /** TEST_LOPRIO */
+
 
 	.text
 /***********************************************************************
@@ -82,7 +98,7 @@ NON_GPROF_ENTRY(MPgetlock)
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
 	jne	3f			/* ...do not collect $200 */
-	ACCEPT_INTS			/* 1st acquire, accept INTs */
+	GRAB_HWI			/* 1st acquire, grab hw INTs */
 	ret
 3:	cmpl	$FREE_LOCK, (%edx)	/* Wait for it to become free */
 	jne	3b
@@ -114,7 +130,7 @@ NON_GPROF_ENTRY(MPtrylock)
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
 	jne	3f			/* ...do not collect $200 */
-	ACCEPT_INTS			/* 1st acquire, accept INTs */
+	GRAB_HWI			/* 1st acquire, grab hw INTs */
 	movl	$1, %eax
 	ret
 3:	movl	$0, %eax
@@ -133,18 +149,7 @@ NON_GPROF_ENTRY(MPrellock)
 	decl	%ecx			/* - new count is one less */
 	testl	$COUNT_FIELD, %ecx	/* - Unless it's zero... */
 	jnz	2f
-#if defined(TEST_LOPRIO)
-	/* last release, give up LOW PRIO (ie, arbitrate INTerrupts) */
-#ifdef CHEAP_TPR
-	movl	$LOPRIO_LEVEL, lapic_tpr	/* task prio to 'arbitrate' */
-#else
-	movl	lapic_tpr, %eax		/* Task Priority Register */
-	andl	$~APIC_TPR_PRIO, %eax	/* clear task priority field */
-	orl	$LOPRIO_LEVEL, %eax	/* set task priority to 'arbitrate' */
-	movl	%eax, lapic_tpr		/* set it */
-  	movl	(%edx), %eax		/* - get the value AGAIN */
-#endif /* CHEAP_TPR */
-#endif /** TEST_LOPRIO */
+	ARB_HWI				/* last release, arbitrate hw INTs */
 	movl	$FREE_LOCK, %ecx	/* - In which case we release it */
 2:	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
@@ -169,13 +174,13 @@ NON_GPROF_ENTRY(MPrellock)
 NON_GPROF_ENTRY(get_mplock)
 	pushl	%eax
 
-#ifdef TEST_CPUSTOP
+	/* block all HW INTs via Task Priority Register */
 #ifdef CHEAP_TPR
 	pushl	lapic_tpr		/* save current TPR */
 	pushfl				/* save current EFLAGS */
 	btl	$9, (%esp)		/* test EI bit */
 	jc	1f			/* INTs currently enabled */
-	movl	$TPR_BLOCK_HWI, lapic_tpr	/* set it */
+	movl	$TPR_BLOCK_HWI, lapic_tpr
 #else
 	movl	lapic_tpr, %eax		/* get current TPR */
 	pushl	%eax			/* save current TPR */
@@ -183,12 +188,11 @@ NON_GPROF_ENTRY(get_mplock)
 	btl	$9, (%esp)		/* test EI bit */
 	jc	1f			/* INTs currently enabled */
 	andl	$~APIC_TPR_PRIO, %eax	/* clear task priority field */
-	orl	$TPR_BLOCK_HWI, %eax	/* only allow IPIs
-	movl	%eax, lapic_tpr		/* set it */
-#endif /* CHEAP_TPR */
-	sti				/* allow IPI (and only IPI) INTS */
+	orl	$TPR_BLOCK_HWI, %eax	/* only allow IPIs */
+	movl	%eax, lapic_tpr
+#endif /** CHEAP_TPR */
+	sti				/* allow (IPI and only IPI) INTs */
 1:
-#endif /* TEST_CPUSTOP */
 
 	pushl	%ecx
 	pushl	%edx
@@ -198,11 +202,8 @@ NON_GPROF_ENTRY(get_mplock)
 	popl	%edx
 	popl	%ecx
 
-#ifdef TEST_CPUSTOP
 	popfl				/* restore original EFLAGS */
 	popl	lapic_tpr		/* restore TPR */
-#endif /* TEST_CPUSTOP */
-
 	popl	%eax			/* restore scratch */
 	ret
 
@@ -245,5 +246,5 @@ NON_GPROF_ENTRY(rel_mplock)
 
 	.data
 	.globl _mp_lock
-	.align  2	/* mp_lock SHALL be aligned on i386 */
+	.align  4	/* mp_lock aligned on int boundary */
 _mp_lock:	.long	0		
