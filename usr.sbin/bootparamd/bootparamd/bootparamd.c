@@ -42,8 +42,9 @@ int getthefile __P((char *, char *, char *, int));
 int checkhost __P((char *, char *, int));
 
 bp_whoami_res *
-bootparamproc_whoami_1(whoami)
+bootparamproc_whoami_1_svc(whoami, req)
 bp_whoami_arg *whoami;
+struct svc_req *req;
 {
   long haddr;
   static bp_whoami_res res;
@@ -107,8 +108,9 @@ bp_whoami_arg *whoami;
 
 
 bp_getfile_res *
-  bootparamproc_getfile_1(getfile)
+  bootparamproc_getfile_1_svc(getfile, req)
 bp_getfile_arg *getfile;
+struct svc_req *req;
 {
   char *where, *index();
   static bp_getfile_res res;
