@@ -86,7 +86,10 @@
 	fdata = (char *) (ucp)->uc_mcontext.mc_fpstate;	\
 	__asm__("frstor %0": :"m"(*fdata));		\
 } while (0)
-#define SET_RETURN_ADDR_JB(jb, ra)	(jb)[0]._jb[0] = (int)(ra)
+#define	SET_RETURN_ADDR_JB(jb, ra)	do {		\
+	(jb)[0]._jb[0] = (int)(ra);			\
+	(jb)[0]._jb[3] = 0;				\
+} while (0)
 #elif	defined(__amd64__)
 #define	GET_STACK_JB(jb)	((unsigned long)((jb)[0]._jb[2]))
 #define	GET_STACK_SJB(sjb)	((unsigned long)((sjb)[0]._sjb[2]))
