@@ -622,7 +622,8 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # means that you won't get stuck if the kernel and /sbin/ipfw binary get
 # out of sync.
 #
-# IPDIVERT enables the divert IP sockets, used by ``ipfw divert''
+# IPDIVERT enables the divert IP sockets, used by ``ipfw divert''.  It
+# depends on IPFIREWALL if compiled into the kernel.
 #
 # IPFIREWALL_FORWARD enables changing of the packet destination either
 # to do some sort of policy routing or transparent proxying.  Used by

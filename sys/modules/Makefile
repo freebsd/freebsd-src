@@ -106,6 +106,7 @@ SUBDIR=	${_3dfx} \
 	${_iir} \
 	${_io} \
 	ip6fw \
+	ipdivert \
 	${_ipfilter} \
 	ipfw \
 	ip_mroute_mod \
