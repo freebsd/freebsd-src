@@ -138,6 +138,9 @@ CDROM_SET_1="${CDROM_SET_1} print/apsfilter"
 CDROM_SET_1="${CDROM_SET_1} print/ghostscript-gnu-nox11"
 CDROM_SET_1="${CDROM_SET_1} print/gv"
 CDROM_SET_1="${CDROM_SET_1} print/psutils-letter"
+if [ ! "X{PKG_ARCH}" = "Xia64" ]; then
+CDROM_SET_1="${CDROM_SET_1} security/freebsd-update"
+fi
 CDROM_SET_1="${CDROM_SET_1} security/sudo"
 CDROM_SET_1="${CDROM_SET_1} shells/bash2"
 CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
