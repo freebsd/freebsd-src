@@ -817,12 +817,12 @@ pipe_write(fp, uio, cred, flags, td)
 	rpipe = (struct pipe *) fp->f_data;
 	wpipe = rpipe->pipe_peer;
 
-	PIPE_LOCK(wpipe);
+	PIPE_LOCK(rpipe);
 	/*
 	 * detect loss of pipe read side, issue SIGPIPE if lost.
 	 */
 	if ((wpipe == NULL) || (wpipe->pipe_state & PIPE_EOF)) {
-		PIPE_UNLOCK(wpipe);
+		PIPE_UNLOCK(rpipe);
 		return (EPIPE);
 	}
 	++wpipe->pipe_busy;
@@ -838,10 +838,10 @@ pipe_write(fp, uio, cred, flags, td)
 		(wpipe->pipe_buffer.cnt == 0)) {
 
 		if ((error = pipelock(wpipe,1)) == 0) {
-			PIPE_GET_GIANT(wpipe);
+			PIPE_GET_GIANT(rpipe);
 			if (pipespace(wpipe, BIG_PIPE_SIZE) == 0)
 				nbigpipe++;
-			PIPE_DROP_GIANT(wpipe);
+			PIPE_DROP_GIANT(rpipe);
 			pipeunlock(wpipe);
 		}
 	}
@@ -857,7 +857,7 @@ pipe_write(fp, uio, cred, flags, td)
 			wpipe->pipe_state &= ~(PIPE_WANT | PIPE_WANTR);
 			wakeup(wpipe);
 		}
-		PIPE_UNLOCK(wpipe);
+		PIPE_UNLOCK(rpipe);
 		return(error);
 	}
 		
@@ -902,7 +902,7 @@ pipe_write(fp, uio, cred, flags, td)
 				wpipe->pipe_state &= ~PIPE_WANTR;
 				wakeup(wpipe);
 			}
-			error = msleep(wpipe, PIPE_MTX(wpipe), PRIBIO | PCATCH,
+			error = msleep(wpipe, PIPE_MTX(rpipe), PRIBIO | PCATCH,
 			    "pipbww", 0);
 			if (wpipe->pipe_state & PIPE_EOF)
 				break;
@@ -968,10 +968,10 @@ pipe_write(fp, uio, cred, flags, td)
 				
 				/* Transfer first segment */
 
-				PIPE_UNLOCK(wpipe);
+				PIPE_UNLOCK(rpipe);
 				error = uiomove(&wpipe->pipe_buffer.buffer[wpipe->pipe_buffer.in], 
 						segsize, uio);
-				PIPE_LOCK(wpipe);
+				PIPE_LOCK(rpipe);
 				
 				if (error == 0 && segsize < size) {
 					/* 
@@ -983,10 +983,10 @@ pipe_write(fp, uio, cred, flags, td)
 					    wpipe->pipe_buffer.size)
 						panic("Expected pipe buffer wraparound disappeared");
 						
-					PIPE_UNLOCK(wpipe);
+					PIPE_UNLOCK(rpipe);
 					error = uiomove(&wpipe->pipe_buffer.buffer[0],
 							size - segsize, uio);
-					PIPE_LOCK(wpipe);
+					PIPE_LOCK(rpipe);
 				}
 				if (error == 0) {
 					wpipe->pipe_buffer.in += size;
@@ -1031,7 +1031,7 @@ pipe_write(fp, uio, cred, flags, td)
 			pipeselwakeup(wpipe);
 
 			wpipe->pipe_state |= PIPE_WANTW;
-			error = msleep(wpipe, PIPE_MTX(wpipe),
+			error = msleep(wpipe, PIPE_MTX(rpipe),
 			    PRIBIO | PCATCH, "pipewr", 0);
 			if (error != 0)
 				break;
@@ -1081,7 +1081,7 @@ pipe_write(fp, uio, cred, flags, td)
 	if (wpipe->pipe_buffer.cnt)
 		pipeselwakeup(wpipe);
 
-	PIPE_UNLOCK(wpipe);
+	PIPE_UNLOCK(rpipe);
 	return (error);
 }
 
