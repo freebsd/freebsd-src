@@ -68,8 +68,6 @@
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
  */
 
-#include "opt_inet.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>

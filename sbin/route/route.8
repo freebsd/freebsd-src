@@ -69,7 +69,7 @@ Bypass attempts to print host and network names symbolically
 when reporting actions.  (The process of translating between symbolic
 names and numerical equivalents can be quite time consuming, and
 may require correct operation of the network; thus it may be expedient
-to forgo this, especially when attempting to repair networking operations).
+to forgot this, especially when attempting to repair networking operations).
 .It Fl v
 (verbose) Print additional details.
 .It Fl q
@@ -120,6 +120,7 @@ When the address family may is specified by any of the
 .Fl osi ,
 .Fl xns ,
 .Fl atalk ,
+.Fl inet6 ,
 or
 .Fl inet
 modifiers, only routes having destinations with addresses in the
@@ -224,6 +225,28 @@ One specifies an additional ensuing address parameter
 (to be interpreted as a network mask).
 The implicit network mask generated in the AF_INET case
 can be overridden by making sure this option follows the destination parameter.
+.Pp
+For
+.Dv AF_INET6 ,
+the
+.Fl prefixlen
+qualifier
+is available instead of the
+.Fl mask
+qualifier because non-continuous masks are not allowed in IPv6.
+For example,
+.Fl prefixlen Li 32
+specifies network mask of
+.Li ffff:ffff:0000:0000:0000:0000:0000:0000
+to be used.
+The default value of prefixlen is 64 to get along with
+the aggregatable address. 
+But 0 is assumed if 
+.Cm default
+is specified.
+Note that the qualifier works only for
+.Dv AF_INET6
+address family.
 .Pp
 Routes have associated flags which influence operation of the protocols
 when sending to destinations matched by the routes.

@@ -64,7 +64,6 @@
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
  */
 
-#include "opt_inet.h"
 #include "opt_key.h"
 
 #include <sys/param.h>
@@ -97,15 +96,10 @@
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
-#ifdef INET6
 #include <netinet6/ipsec6.h>
-#endif /* INET6 */
 #include <netkey/key.h>
 #ifdef KEY_DEBUG
 #include <netkey/key_debug.h>
-#ifdef INET6
-#include <netkey/key_debug6.h>
-#endif /* INET6 */
 #else
 #define DPRINTF(lev,arg)
 #define DDO(lev, stmt)
@@ -113,7 +107,7 @@
 #endif /* KEY_DEBUG */
 #endif /* IPSEC */
 
-/* #include "faith.h" */
+#include "faith.h"
 
 #include <net/net_osdep.h>
 
@@ -910,8 +904,7 @@ ni6_addrs(ni6, m, ifpp)
 	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list))
 	{
 		addrsofif = 0;
-		for (ifa = ifp->if_addrlist.tqh_first; ifa;
-		     ifa = ifa->ifa_list.tqe_next)
+		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 		{
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
@@ -976,8 +969,7 @@ ni6_store_addrs(ni6, nni6, ifp0, resid)
 
 	for (; ifp; ifp = TAILQ_NEXT(ifp, if_list))
 	{
-		for (ifa = ifp->if_addrlist.tqh_first; ifa;
-		     ifa = ifa->ifa_list.tqe_next)
+		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 		{
 			docopy = 0;
 

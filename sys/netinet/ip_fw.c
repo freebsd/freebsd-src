@@ -707,10 +707,12 @@ again:
 
 			    if (oif)
 				P = in_pcblookup_hash(&tcbinfo, ip->ip_dst,
-				   tcp->th_dport, ip->ip_src, tcp->th_sport, 0);
+				   tcp->th_dport, ip->ip_src, tcp->th_sport, 0,
+				   oif);
 			    else
 				P = in_pcblookup_hash(&tcbinfo, ip->ip_src,
-				   tcp->th_sport, ip->ip_dst, tcp->th_dport, 0);
+				   tcp->th_sport, ip->ip_dst, tcp->th_dport, 0,
+				   NULL);
 
 			    if (P && P->inp_socket) {
 				if (f->fw_flg & IP_FW_F_UID) {
@@ -738,10 +740,12 @@ again:
 
 			    if (oif)
 				P = in_pcblookup_hash(&udbinfo, ip->ip_dst,
-				   udp->uh_dport, ip->ip_src, udp->uh_sport, 1);
+				   udp->uh_dport, ip->ip_src, udp->uh_sport, 1,
+				   oif);
 			    else
 				P = in_pcblookup_hash(&udbinfo, ip->ip_src,
-				   udp->uh_sport, ip->ip_dst, udp->uh_dport, 1);
+				   udp->uh_sport, ip->ip_dst, udp->uh_dport, 1,
+				   NULL);
 
 			    if (P && P->inp_socket) {
 				if (f->fw_flg & IP_FW_F_UID) {

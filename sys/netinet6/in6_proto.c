@@ -64,8 +64,6 @@
  *	@(#)in_proto.c	8.1 (Berkeley) 6/10/93
  */
 
-#include "opt_inet.h"
-
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -104,9 +102,7 @@
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
-#ifdef INET6
 #include <netinet6/ipsec6.h>
-#endif /* INET6 */
 #include <netinet6/ah.h>
 #ifdef IPSEC_ESP
 #include <netinet6/esp.h>
@@ -116,7 +112,7 @@
 
 #include <netinet6/ip6protosw.h>
 
-/* #include "gif.h" */
+#include "gif.h"
 #if NGIF > 0
 #include <netinet6/in6_gif.h>
 #endif
@@ -138,6 +134,12 @@ struct ip6protosw inet6sw[] = {
   0,
   ip6_init,	0,		frag6_slowtimo,	frag6_drain,
   &nousrreqs,
+},
+{ SOCK_DGRAM,	&inet6domain,	IPPROTO_UDP,	PR_ATOMIC | PR_ADDR,
+  udp6_input,	0,		udp6_ctlinput,	ip6_ctloutput,
+  0,
+  0,		0,		0,		0,
+  &udp6_usrreqs,
 },
 { SOCK_RAW,	&inet6domain,	IPPROTO_RAW,	PR_ATOMIC | PR_ADDR,
   rip6_input,	rip6_output,	0,		rip6_ctloutput,
@@ -194,18 +196,16 @@ struct ip6protosw inet6sw[] = {
 #if NGIF > 0
 { SOCK_RAW,	&inet6domain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR,
   in6_gif_input,0,	 	0,		0,
-  0,
-  0,		0,		0,		0,
-  &nousrreqs
-},
-#ifdef INET6
-{ SOCK_RAW,	&inet6domain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR,
-  in6_gif_input,0,	 	0,		0,
   0,	
   0,		0,		0,		0,
   &nousrreqs
 },
-#endif /* INET6 */
+{ SOCK_RAW,	&inet6domain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR,
+  in6_gif_input,0,	 	0,		0,
+  0,
+  0,		0,		0,		0,
+  &nousrreqs
+},
 #endif /* GIF */
 /* raw wildcard */
 { SOCK_RAW,	&inet6domain,	0,		PR_ATOMIC | PR_ADDR,
@@ -334,8 +334,8 @@ sysctl_ip6_forwarding SYSCTL_HANDLER_ARGS
 		int s = splnet();
 		struct nd_prefix *pr, *next;
 
-		for (pr = nd_prefix.lh_first; pr; pr = next) {
-			next = pr->ndpr_next;
+		for (pr = LIST_FIRST(&nd_prefix); pr; pr = next) {
+			next = LIST_NEXT(pr, ndpr_entry);
 			if (!IN6_IS_ADDR_UNSPECIFIED(&pr->ndpr_addr))
 				in6_ifdel(pr->ndpr_ifp, &pr->ndpr_addr);
 			prelist_remove(pr);
@@ -379,6 +379,8 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_DEFMCASTHLIM,
 	defmcasthlim, CTLFLAG_RW,	&ip6_defmcasthlim,	0, "");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM,
 	gifhlim, CTLFLAG_RW,	&ip6_gif_hlim,			0, "");
+SYSCTL_STRING(_net_inet6_ip6, IPV6CTL_KAME_VERSION,
+	kame_version, CTLFLAG_RD,	__KAME_VERSION,		0, "");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_USE_DEPRECATED,
 	use_deprecated, CTLFLAG_RW,	&ip6_use_deprecated,	0, "");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RR_PRUNE,

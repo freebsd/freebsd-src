@@ -50,6 +50,9 @@ static const char rcsid[] =
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#ifdef INET6
+#include <netinet/ip6.h>
+#endif /* INET6 */
 #include <netinet/in_pcb.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp_var.h>
@@ -65,6 +68,9 @@ static const char rcsid[] =
 #include <netinet/tcp_debug.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+#ifdef IPSEC
+#include <netinet6/ipsec.h>
+#endif
 
 #include <arpa/inet.h>
 #include <err.h>
@@ -78,6 +84,10 @@ static const char rcsid[] =
 
 char	*inetname __P((struct in_addr *));
 void	inetprint __P((struct in_addr *, int, char *, int));
+#ifdef INET6
+extern void	inet6print __P((struct in6_addr *, int, char *, int));
+static int udp_done, tcp_done;
+#endif /* INET6 */
 
 /*
  * Print a summary of connections related to an Internet
@@ -86,9 +96,10 @@ void	inetprint __P((struct in_addr *, int, char *, int));
  * -a (all) flag is specified.
  */
 void
-protopr(proto, name)
+protopr(proto, name, af)
 	u_long proto;		/* for sysctl version we pass proto # */
 	char *name;
+	int af;
 {
 	int istcp;
 	static int first = 1;
@@ -103,10 +114,22 @@ protopr(proto, name)
 	istcp = 0;
 	switch (proto) {
 	case IPPROTO_TCP:
+#ifdef INET6
+		if (tcp_done != 0)
+			return;
+		else
+			tcp_done = 1;
+#endif
 		istcp = 1;
 		mibvar = "net.inet.tcp.pcblist";
 		break;
 	case IPPROTO_UDP:
+#ifdef INET6
+		if (udp_done != 0)
+			return;
+		else
+			udp_done = 1;
+#endif
 		mibvar = "net.inet.udp.pcblist";
 		break;
 	case IPPROTO_DIVERT:
@@ -153,7 +176,35 @@ protopr(proto, name)
 		if (inp->inp_gencnt > oxig->xig_gen)
 			continue;
 
-		if (!aflag && inet_lnaof(inp->inp_laddr) == INADDR_ANY)
+		if ((af == AF_INET && (inp->inp_vflag & INP_IPV4) == 0)
+#ifdef INET6
+		    || (af == AF_INET6 && (inp->inp_vflag & INP_IPV6) == 0)
+#endif /* INET6 */
+		    || (af == AF_UNSPEC && ((inp->inp_vflag & INP_IPV4) == 0
+#ifdef INET6
+					    && (inp->inp_vflag &
+						INP_IPV6) == 0
+#endif /* INET6 */
+			))
+		    )
+			continue;
+		if (!aflag &&
+		    (
+		     (af == AF_INET &&
+		      inet_lnaof(inp->inp_laddr) == INADDR_ANY)
+#ifdef INET6
+		     || (af == AF_INET6 &&
+			 IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
+#endif /* INET6 */
+		     || (af == AF_UNSPEC &&
+			 (((inp->inp_vflag & INP_IPV4) != 0 &&
+			   inet_lnaof(inp->inp_laddr) == INADDR_ANY)
+#ifdef INET6
+			  || ((inp->inp_vflag & INP_IPV6) != 0 &&
+			      IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
+#endif
+			  ))
+		     ))
 			continue;
 
 		if (first) {
@@ -163,7 +214,9 @@ protopr(proto, name)
 			putchar('\n');
 			if (Aflag)
 				printf("%-8.8s ", "Socket");
-			printf("%-5.5s %-6.6s %-6.6s %-21.21s %-21.21s %s\n",
+			printf(Aflag ?
+				"%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s %s\n" :
+				"%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s %s\n",
 				"Proto", "Recv-Q", "Send-Q",
 				"Local Address", "Foreign Address", "(state)");
 			first = 0;
@@ -174,23 +227,61 @@ protopr(proto, name)
 			else
 				printf("%8lx ", (u_long)so->so_pcb);
 		}
-		printf("%-5.5s %6ld %6ld ", name, so->so_rcv.sb_cc,
-			so->so_snd.sb_cc);
+		printf("%-3.3s%s%s %6ld %6ld ", name,
+		       (inp->inp_vflag & INP_IPV4) ? "4" : "",
+#ifdef INET6
+		       (inp->inp_vflag & INP_IPV6) ? "6" :
+#endif
+		       "",
+		       so->so_rcv.sb_cc,
+		       so->so_snd.sb_cc);
 		if (nflag) {
-			inetprint(&inp->inp_laddr, (int)inp->inp_lport,
-			    name, 1);
-			inetprint(&inp->inp_faddr, (int)inp->inp_fport,
-			    name, 1);
+			if (inp->inp_vflag & INP_IPV4) {
+				inetprint(&inp->inp_laddr, (int)inp->inp_lport,
+					  name, 1);
+				inetprint(&inp->inp_faddr, (int)inp->inp_fport,
+					  name, 1);
+			}
+#ifdef INET6
+			else if (inp->inp_vflag & INP_IPV6) {
+				inet6print(&inp->in6p_laddr,
+					   (int)inp->inp_lport, name, 1);
+				inet6print(&inp->in6p_faddr,
+					   (int)inp->inp_fport, name, 1);
+			} /* else nothing printed now */
+#endif /* INET6 */
 		} else if (inp->inp_flags & INP_ANONPORT) {
-			inetprint(&inp->inp_laddr, (int)inp->inp_lport,
-			    name, 1);
-			inetprint(&inp->inp_faddr, (int)inp->inp_fport,
-			    name, 0);
+			if (inp->inp_vflag & INP_IPV4) {
+				inetprint(&inp->inp_laddr, (int)inp->inp_lport,
+					  name, 1);
+				inetprint(&inp->inp_faddr, (int)inp->inp_fport,
+					  name, 0);
+			}
+#ifdef INET6
+			else if (inp->inp_vflag & INP_IPV6) {
+				inet6print(&inp->in6p_laddr,
+					   (int)inp->inp_lport, name, 1);
+				inet6print(&inp->in6p_faddr,
+					   (int)inp->inp_fport, name, 0);
+			} /* else nothing printed now */
+#endif /* INET6 */
 		} else {
-			inetprint(&inp->inp_laddr, (int)inp->inp_lport,
-			    name, 0);
-			inetprint(&inp->inp_faddr, (int)inp->inp_fport,
-			    name, inp->inp_lport != inp->inp_fport);
+			if (inp->inp_vflag & INP_IPV4) {
+				inetprint(&inp->inp_laddr, (int)inp->inp_lport,
+					  name, 0);
+				inetprint(&inp->inp_faddr, (int)inp->inp_fport,
+					  name,
+					  inp->inp_lport != inp->inp_fport);
+			}
+#ifdef INET6
+			else if (inp->inp_vflag & INP_IPV6) {
+				inet6print(&inp->in6p_laddr,
+					   (int)inp->inp_lport, name, 0);
+				inet6print(&inp->in6p_faddr,
+					   (int)inp->inp_fport, name,
+					   inp->inp_lport != inp->inp_fport);
+			} /* else nothing printed now */
+#endif /* INET6 */
 		}
 		if (istcp) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)
@@ -236,6 +327,13 @@ tcp_stats(off, name)
 		warn("sysctl: net.inet.tcp.stats");
 		return;
 	}
+
+#ifdef INET6
+	if (tcp_done != 0)
+		return;
+	else
+		tcp_done = 1;
+#endif
 
 	printf ("%s:\n", name);
 
@@ -331,6 +429,13 @@ udp_stats(off, name)
 		return;
 	}
 
+#ifdef INET6
+	if (udp_done != 0)
+		return;
+	else
+		udp_done = 1;
+#endif
+
 	printf("%s:\n", name);
 #define	p(f, m) if (udpstat.f || sflag <= 1) \
     printf(m, udpstat.f, plural(udpstat.f))
@@ -386,6 +491,7 @@ ip_stats(off, name)
 	p(ips_badsum, "\t%lu bad header checksum%s\n");
 	p1a(ips_toosmall, "\t%lu with size smaller than minimum\n");
 	p1a(ips_tooshort, "\t%lu with data size < data length\n");
+	p1a(ips_toolong, "\t%lu with ip length > max ip packet size\n");
 	p1a(ips_badhlen, "\t%lu with header length < data size\n");
 	p1a(ips_badlen, "\t%lu with data length < header length\n");
 	p1a(ips_badoptions, "\t%lu with bad options\n");
@@ -412,6 +518,7 @@ ip_stats(off, name)
 	p(ips_fragmented, "\t%lu output datagram%s fragmented\n");
 	p(ips_ofragments, "\t%lu fragment%s created\n");
 	p(ips_cantfrag, "\t%lu datagram%s that can't be fragmented\n");
+	p(ips_nogif, "\t%lu tunneling packet%s that can't find gif\n");
 #undef p
 #undef p1a
 }
@@ -541,6 +648,109 @@ igmp_stats(off, name)
 #undef py
 }
 
+#ifdef IPSEC
+static	char *ipsec_ahnames[] = {
+	"none",
+	"hmac MD5",
+	"hmac SHA1",
+	"keyed MD5",
+	"keyed SHA1",
+	"null",
+};
+
+static	char *ipsec_espnames[] = {
+	"none",
+	"DES CBC",
+	"3DES CBC",
+	"simple",
+	"blowfish CBC",
+	"CAST128 CBC",
+	"RC5 CBC",
+};
+
+/*
+ * Dump IPSEC statistics structure.
+ */
+void
+ipsec_stats(off, name)
+	u_long off;
+	char *name;
+{
+	struct ipsecstat ipsecstat;
+	int first, proto;
+
+	if (off == 0)
+		return;
+	printf ("%s:\n", name);
+	kread(off, (char *)&ipsecstat, sizeof (ipsecstat));
+
+#define	p(f, m) if (ipsecstat.f || sflag <= 1) \
+    printf(m, ipsecstat.f, plural(ipsecstat.f))
+
+	p(in_success, "\t%lu inbound packet%s processed successfully\n");
+	p(in_polvio, "\t%lu inbound packet%s violated process security "
+		"policy\n");
+	p(in_nosa, "\t%lu inbound packet%s with no SA available\n");
+	p(in_inval, "\t%lu inbound packet%s failed processing due to EINVAL\n");
+	p(in_badspi, "\t%lu inbound packet%s failed getting SPI\n");
+	p(in_ahreplay, "\t%lu inbound packet%s failed on AH replay check\n");
+	p(in_espreplay, "\t%lu inbound packet%s failed on ESP replay check\n");
+	p(in_ahauthsucc, "\t%lu inbound AH packet%s considered authentic\n");
+	p(in_ahauthfail, "\t%lu inbound AH packet%s failed on authentication\n");
+	p(in_espauthsucc, "\t%lu inbound ESP packet%s considered authentic\n");
+	p(in_espauthfail, "\t%lu inbound ESP packet%s failed on authentication\n");
+	for (first = 1, proto = 0; proto < SADB_AALG_MAX; proto++) {
+		if (ipsecstat.in_ahhist[proto] <= 0)
+			continue;
+		if (first) {
+			printf("\tAH input histogram:\n");
+			first = 0;
+		}
+		printf("\t\t%s: %lu\n", ipsec_ahnames[proto],
+			ipsecstat.in_ahhist[proto]);
+	}
+	for (first = 1, proto = 0; proto < SADB_EALG_MAX; proto++) {
+		if (ipsecstat.in_esphist[proto] <= 0)
+			continue;
+		if (first) {
+			printf("\tESP input histogram:\n");
+		first = 0;
+		}
+		printf("\t\t%s: %lu\n", ipsec_espnames[proto],
+			ipsecstat.in_esphist[proto]);
+	}
+
+	p(out_success, "\t%lu outbound packet%s processed successfully\n");
+	p(out_polvio, "\t%lu outbound packet%s violated process security "
+		"policy\n");
+	p(out_nosa, "\t%lu outbound packet%s with no SA available\n");
+	p(out_inval, "\t%lu outbound packet%s failed processing due to "
+		"EINVAL\n");
+	p(out_noroute, "\t%lu outbound packet%s with no route\n");
+	for (first = 1, proto = 0; proto < SADB_AALG_MAX; proto++) {
+		if (ipsecstat.out_ahhist[proto] <= 0)
+			continue;
+		if (first) {
+			printf("\tAH output histogram:\n");
+			first = 0;
+		}
+		printf("\t\t%s: %lu\n", ipsec_ahnames[proto],
+			ipsecstat.out_ahhist[proto]);
+	}
+	for (first = 1, proto = 0; proto < SADB_EALG_MAX; proto++) {
+		if (ipsecstat.out_esphist[proto] <= 0)
+			continue;
+		if (first) {
+			printf("\tESP output histogram:\n");
+			first = 0;
+		}
+		printf("\t\t%s: %lu\n", ipsec_espnames[proto],
+			ipsecstat.out_esphist[proto]);
+	}
+#undef p
+}
+#endif /*IPSEC*/
+
 /*
  * Pretty print an Internet address (net address + port).
  */
@@ -553,6 +763,7 @@ inetprint(in, port, proto,numeric)
 {
 	struct servent *sp = 0;
 	char line[80], *cp;
+	int width;
 
 	sprintf(line, "%.*s.", (Aflag && !numeric) ? 12 : 16, inetname(in));
 	cp = index(line, '\0');
@@ -562,7 +773,8 @@ inetprint(in, port, proto,numeric)
 		sprintf(cp, "%.15s", sp ? sp->s_name : "*");
 	else
 		sprintf(cp, "%d", ntohs((u_short)port));
-	printf("%-21.21s ", line);
+	width = Aflag ? 18 : 22;
+	printf(" %-*.*s", width, width, line);
 }
 
 /*

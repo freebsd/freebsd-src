@@ -374,7 +374,7 @@ defrouter_lookup(addr, ifp)
 {
 	struct nd_defrouter *dr;
 
-	for(dr = nd_defrouter.lh_first; dr; dr = dr->dr_next)
+	LIST_FOREACH(dr, &nd_defrouter, dr_entry)
 		if (dr->ifp == ifp && IN6_ARE_ADDR_EQUAL(addr, &dr->rtaddr))
 			return(dr);
 
@@ -405,8 +405,8 @@ defrouter_delreq(dr, dofree)
 	if (dofree)
 		free(dr, M_IP6NDP);
 
-	if (nd_defrouter.lh_first)
-		defrouter_addreq(nd_defrouter.lh_first);
+	if (!LIST_EMPTY(&nd_defrouter))
+		defrouter_addreq(LIST_FIRST(&nd_defrouter));
 
 	/*
 	 * xxx update the Destination Cache entries for all
@@ -430,7 +430,7 @@ defrtrlist_del(dr)
 		rt6_flush(&dr->rtaddr, dr->ifp);
 	}
 
-	if (dr == nd_defrouter.lh_first)
+	if (dr == LIST_FIRST(&nd_defrouter))
 		deldr = dr;	/* The router is primary. */
 
 	LIST_REMOVE(dr, dr_entry);
@@ -438,7 +438,7 @@ defrtrlist_del(dr)
 	/*
 	 * Also delete all the pointers to the router in each prefix lists.
 	 */
-	for (pr = nd_prefix.lh_first; pr; pr = pr->ndpr_next) {
+	LIST_FOREACH(pr, &nd_prefix, ndpr_entry) {
 		struct nd_pfxrouter *pfxrtr;
 		if ((pfxrtr = pfxrtr_lookup(pr, dr)) != NULL)
 			pfxrtr_del(pfxrtr);
@@ -489,11 +489,11 @@ defrtrlist_update(new)
 	}
 	bzero(n, sizeof(*n));
 	*n = *new;
-	if (nd_defrouter.lh_first == NULL) {
+	if (LIST_EMPTY(&nd_defrouter)) {
 		LIST_INSERT_HEAD(&nd_defrouter, n, dr_entry);
 		defrouter_addreq(n);
 	} else {
-		LIST_INSERT_AFTER(nd_defrouter.lh_first, n, dr_entry);
+		LIST_INSERT_AFTER(LIST_FIRST(&nd_defrouter), n, dr_entry);
 		defrouter_addreq(n);
 	}
 	splx(s);
@@ -507,8 +507,8 @@ pfxrtr_lookup(pr, dr)
 	struct nd_defrouter *dr;
 {
 	struct nd_pfxrouter *search;
-	
-	for (search = pr->ndpr_advrtrs.lh_first; search; search = search->pfr_next) {
+
+	LIST_FOREACH(search, &pr->ndpr_advrtrs, pfr_entry) {
 		if (search->router == dr)
 			break;
 	}
@@ -548,7 +548,7 @@ prefix_lookup(pr)
 {
 	struct nd_prefix *search;
 
-	for (search = nd_prefix.lh_first; search; search = search->ndpr_next) {
+	LIST_FOREACH(search, &nd_prefix, ndpr_entry) {
 		if (pr->ndpr_ifp == search->ndpr_ifp &&
 		    pr->ndpr_plen == search->ndpr_plen &&
 		    in6_are_prefix_equal(&pr->ndpr_prefix.sin6_addr,
@@ -611,8 +611,8 @@ prelist_remove(pr)
 	splx(s);
 
 	/* free list of routers that adversed the prefix */
-	for (pfr = pr->ndpr_advrtrs.lh_first; pfr; pfr = next) {
-		next = pfr->pfr_next;
+	for (pfr = LIST_FIRST(&pr->ndpr_advrtrs); pfr; pfr = next) {
+		next = LIST_NEXT(pfr, pfr_entry);
 
 		free(pfr, M_IP6NDP);
 	}
@@ -809,8 +809,8 @@ pfxlist_onlink_check()
 {
 	struct nd_prefix *pr;
 
-	for (pr = nd_prefix.lh_first; pr; pr = pr->ndpr_next)
-		if (pr->ndpr_advrtrs.lh_first) /* pr has an available router */
+	LIST_FOREACH(pr, &nd_prefix, ndpr_entry)
+		if (!LIST_EMPTY(&pr->ndpr_advrtrs)) /* pr has an available router */
 			break;
 
 	if (pr) {
@@ -821,21 +821,21 @@ pfxlist_onlink_check()
 		 * attached prefix and a detached prefix may have a same
 		 * interface route.
 		 */
-		for (pr = nd_prefix.lh_first; pr; pr = pr->ndpr_next) {
-			if (pr->ndpr_advrtrs.lh_first == NULL &&
+		LIST_FOREACH(pr, &nd_prefix, ndpr_entry) {
+			if (LIST_EMPTY(&pr->ndpr_advrtrs) &&
 			    pr->ndpr_statef_onlink) {
 				pr->ndpr_statef_onlink = 0;
 				nd6_detach_prefix(pr);
 			}
 		}
-		for (pr = nd_prefix.lh_first; pr; pr = pr->ndpr_next) {
-			if (pr->ndpr_advrtrs.lh_first &&
+		LIST_FOREACH(pr, &nd_prefix, ndpr_entry) {
+			if (!LIST_EMPTY(&pr->ndpr_advrtrs) &&
 				 pr->ndpr_statef_onlink == 0)
 				nd6_attach_prefix(pr);
 		}
 	} else {
 		/* there is no prefix that has a router */
-		for (pr = nd_prefix.lh_first; pr; pr = pr->ndpr_next)
+		LIST_FOREACH(pr, &nd_prefix, ndpr_entry)
 			if (pr->ndpr_statef_onlink == 0)
 				nd6_attach_prefix(pr);
 	}
@@ -993,7 +993,7 @@ in6_ifadd(ifp, in6, addr, prefixlen)
 		in6_ifaddr = ia;
 
 	/* link to if_addrlist */
-	if (ifp->if_addrlist.tqh_first != NULL) {
+	if (!TAILQ_EMPTY(&ifp->if_addrlist)) {
 		TAILQ_INSERT_TAIL(&ifp->if_addrlist, (struct ifaddr *)ia,
 			ifa_list);
 	}

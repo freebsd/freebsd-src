@@ -516,6 +516,9 @@ struct icmp6stat {
 #define RTF_PROBEMTU	RTF_PROTO1
 
 #ifdef _KERNEL
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_inet6_icmp6);
+#endif
 # ifdef __STDC__
 struct	rtentry;
 struct	rttimer;

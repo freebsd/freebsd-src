@@ -2,7 +2,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/12/93
 
 PROG=	netstat
-SRCS=	if.c inet.c main.c mbuf.c mroute.c ipx.c route.c \
+SRCS=	if.c inet.c inet6.c main.c mbuf.c mroute.c ipx.c route.c \
 	unix.c atalk.c netgraph.c # iso.c ns.c tp_astring.c
 CFLAGS+=-Wall
 
@@ -12,5 +12,6 @@ BINGRP=	kmem
 BINMODE=2555
 DPADD=	${LIBKVM} ${LIBIPX} ${LIBNETGRAPH}
 LDADD=	-lkvm -lipx -lnetgraph
+#CFLAGS+=	-DINET6
 
 .include <bsd.prog.mk>

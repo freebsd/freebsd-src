@@ -24,12 +24,14 @@
 
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_ipx.h"
 #endif
 
 #ifdef NetBSD1_3
 #  if NetBSD1_3 > 6
 #      include "opt_inet.h"
+#      include "opt_inet6.h"
 #      include "opt_iso.h"
 #  endif
 #endif
@@ -572,6 +574,12 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 			inq = &ipintrq;
 			break;
 #endif
+#ifdef INET6
+		case ETHERTYPE_IPV6:
+			schednetisr (NETISR_IPV6);
+			inq = &ip6intrq;
+			break;
+#endif
 #ifdef IPX
 		case ETHERTYPE_IPX:
 			schednetisr (NETISR_IPX);
@@ -741,6 +749,15 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		}
 		break;
 #endif
+#ifdef INET6
+	case AF_INET6:   /* Internet Protocol */
+		if (sp->pp_mode == IFF_CISCO)
+			h->protocol = htons (ETHERTYPE_IPV6);
+		else {
+			goto nosupport;
+		}
+		break;
+#endif
 #ifdef NS
 	case AF_NS:     /* Xerox NS Protocol */
 		h->protocol = htons (sp->pp_mode == IFF_CISCO ?
@@ -759,8 +776,8 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 			goto nosupport;
 		h->protocol = htons (PPP_ISO);
 		break;
-nosupport:
 #endif
+nosupport:
 	default:
 		m_freem (m);
 		++ifp->if_oerrors;

@@ -126,7 +126,6 @@ struct	in6_ndireq {
 
 struct	nd_defrouter {
 	LIST_ENTRY(nd_defrouter)	dr_entry;
-#define	dr_next dr_entry.le_next
 	struct	in6_addr rtaddr;
 	u_char	flags;
 	u_short	rtlifetime;
@@ -153,8 +152,6 @@ struct nd_prefix {
 		u_char	onlink : 1;
 	} ndpr_stateflags;
 };
-
-#define	ndpr_next		ndpr_entry.le_next
 
 #define	ndpr_raf		ndpr_flags
 #define	ndpr_raf_onlink		ndpr_flags.onlink
@@ -200,7 +197,6 @@ struct inet6_ndpr_msghdr {
 
 struct nd_pfxrouter {
 	LIST_ENTRY(nd_pfxrouter) pfr_entry;
-#define	pfr_next pfr_entry.le_next
 	struct	nd_defrouter *router;
 };
 

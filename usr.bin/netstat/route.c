@@ -61,6 +61,7 @@ static const char rcsid[] =
 
 #include <sys/sysctl.h>
 
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -127,6 +128,11 @@ static void p_rtentry __P((struct rtentry *));
 static u_long forgemask __P((u_long));
 static void domask __P((char *, u_long, u_long));
 
+#ifdef INET6
+char *routename6 __P((struct sockaddr_in6 *));
+char *netname6 __P((struct sockaddr_in6 *, struct in6_addr *));
+#endif /*INET6*/
+
 /*
  * Print routing tables.
  */
@@ -180,6 +186,11 @@ pr_family(af)
 	case AF_INET:
 		afname = "Internet";
 		break;
+#ifdef INET6
+	case AF_INET6:
+		afname = "Internet6";
+		break;
+#endif /*INET6*/
 	case AF_IPX:
 		afname = "IPX";
 		break;
@@ -211,8 +222,13 @@ pr_family(af)
 }
 
 /* column widths; each followed by one space */
-#define	WID_DST		18	/* width of destination column */
+#ifndef INET6
+#define	WID_DST 	18	/* width of destination column */
 #define	WID_GW		18	/* width of gateway column */
+#else
+#define	WID_DST	(lflag ? 39 : (nflag ? 33: 18)) /* width of dest column */
+#define	WID_GW	(lflag ? 31 : (nflag ? 29 : 18)) /* width of gateway column */
+#endif /*INET6*/
 
 /*
  * Print header for routing table columns.
@@ -222,10 +238,16 @@ pr_rthdr()
 {
 	if (Aflag)
 		printf("%-8.8s ","Address");
-	printf("%-*.*s %-*.*s %-6.6s  %6.6s%8.8s  %8.8s %6s\n",
-		WID_DST, WID_DST, "Destination",
-		WID_GW, WID_GW, "Gateway",
-		"Flags", "Refs", "Use", "Netif", "Expire");
+	if (lflag)
+		printf("%-*.*s %-*.*s %-6.6s  %6.6s%8.8s  %8.8s %6s\n",
+			WID_DST, WID_DST, "Destination",
+			WID_GW, WID_GW, "Gateway",
+			"Flags", "Refs", "Use", "Netif", "Expire");
+	else
+		printf("%-*.*s %-*.*s %-6.6s  %8.8s %6s\n",
+			WID_DST, WID_DST, "Destination",
+			WID_GW, WID_GW, "Gateway",
+			"Flags", "Netif", "Expire");
 }
 
 static struct sockaddr *
@@ -379,8 +401,6 @@ np_rtentry(rtm)
 		p_sockaddr(sa, NULL, 0, 36);
 	else {
 		p_sockaddr(sa, NULL, rtm->rtm_flags, 16);
-		if (sa->sa_len == 0)
-			sa->sa_len = sizeof(long);
 		sa = (struct sockaddr *)(sa->sa_len + (char *)sa);
 		p_sockaddr(sa, NULL, 0, 18);
 	}
@@ -413,6 +433,35 @@ p_sockaddr(sa, mask, flags, width)
 			cp = netname(sin->sin_addr.s_addr, 0L);
 		break;
 	    }
+
+#ifdef INET6
+	case AF_INET6:
+	    {
+		struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)sa;
+		struct in6_addr *in6 = &sa6->sin6_addr;
+
+		/*
+		 * XXX: This is a special workaround for KAME kernels.
+		 * sin6_scope_id field of SA should be set in the future.
+		 */
+		if (IN6_IS_ADDR_LINKLOCAL(in6) ||
+		    IN6_IS_ADDR_MC_LINKLOCAL(in6)) {
+		    /* XXX: override is ok? */
+		    sa6->sin6_scope_id = (u_int32_t)ntohs(*(u_short *)&in6->s6_addr[2]);
+		    *(u_short *)&in6->s6_addr[2] = 0;
+		}
+
+		if (flags & RTF_HOST)
+		    cp = routename6(sa6);
+		else if (mask)
+		    cp = netname6(sa6,
+				  &((struct sockaddr_in6 *)mask)->sin6_addr);
+		else {
+		    cp = netname6(sa6, NULL);
+		}
+		break;
+	    }
+#endif /*INET6*/
 
 	case AF_IPX:
 	    {
@@ -539,14 +588,15 @@ p_rtentry(rt)
 	p_sockaddr(&addr.u_sa, &mask.u_sa, rt->rt_flags, WID_DST);
 	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST, WID_GW);
 	p_flags(rt->rt_flags, "%-6.6s ");
-	printf("%6ld %8ld ", rt->rt_refcnt, rt->rt_use);
+	if (lflag)
+		printf("%6ld %8ld ", rt->rt_refcnt, rt->rt_use);
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
 			kget(rt->rt_ifp, ifnet);
 			kread((u_long)ifnet.if_name, name, 16);
 			lastif = rt->rt_ifp;
 			snprintf(prettyname, sizeof prettyname,
-				 "%.6s%d", name, ifnet.if_unit);
+				 "%s%d", name, ifnet.if_unit);
 		}
 		printf("%8.8s", prettyname);
 		if (rt->rt_rmx.rmx_expire) {
@@ -556,7 +606,10 @@ p_rtentry(rt)
 			    rt->rt_rmx.rmx_expire - time((time_t *)0)) > 0)
 				printf(" %6d%s", (int)expire_time,
 				    rt->rt_nodes[0].rn_dupedkey ? " =>" : "");
+			else
+			    goto ifandkey;
 		} else if (rt->rt_nodes[0].rn_dupedkey) {
+ifandkey:;
 			printf(" =>");
 		}
 
@@ -678,6 +731,118 @@ netname(in, mask)
 	domask(line+strlen(line), i, omask);
 	return (line);
 }
+
+#ifdef INET6
+char *
+netname6(sa6, mask)
+	struct sockaddr_in6 *sa6;
+	struct in6_addr *mask;
+{
+	static char line[MAXHOSTNAMELEN + 1];
+	u_char *p = (u_char *)mask;
+	u_char *lim;
+	int masklen, illegal = 0;
+#ifdef notyet
+	int flag = NI_WITHSCOPEID;
+#endif
+
+	if (mask) {
+		for (masklen = 0, lim = p + 16; p < lim; p++) {
+			switch (*p) {
+			 case 0xff:
+				 masklen += 8;
+				 break;
+			 case 0xfe:
+				 masklen += 7;
+				 break;
+			 case 0xfc:
+				 masklen += 6;
+				 break;
+			 case 0xf8:
+				 masklen += 5;
+				 break;
+			 case 0xf0:
+				 masklen += 4;
+				 break;
+			 case 0xe0:
+				 masklen += 3;
+				 break;
+			 case 0xc0:
+				 masklen += 2;
+				 break;
+			 case 0x80:
+				 masklen += 1;
+				 break;
+			 case 0x00:
+				 break;
+			 default:
+				 illegal ++;
+				 break;
+			}
+		}
+		if (illegal)
+			fprintf(stderr, "illegal prefixlen\n");
+	}
+	else
+		masklen = 128;
+
+	if (masklen == 0 && IN6_IS_ADDR_UNSPECIFIED(&sa6->sin6_addr))
+		return("default");
+
+#ifdef notyet
+	if (nflag)
+		flag |= NI_NUMERICHOST;
+	getnameinfo((struct sockaddr *)sa6, sa6->sin6_len, line, sizeof(line),
+		    NULL, 0, flag);
+#else
+	inet_ntop(AF_INET6, (void *)&sa6->sin6_addr, line, sizeof(line));
+#endif
+
+	if (nflag)
+		sprintf(&line[strlen(line)], "/%d", masklen);
+
+	return line;
+}
+
+char *
+routename6(sa6)
+	struct sockaddr_in6 *sa6;
+{
+#ifdef notyet
+	int flag = NI_WITHSCOPEID;
+
+	if (nflag)
+		flag |= NI_NUMERICHOST;
+#else
+	register char *cp;
+#endif
+	static char line[MAXHOSTNAMELEN + 1];
+	struct hostent *hp;
+
+#ifdef notyet
+	getnameinfo((struct sockaddr *)sa6, sa6->sin6_len, line, sizeof(line),
+		    NULL, 0, flag);
+#else
+	cp = 0;
+	if (!nflag) {
+		hp = gethostbyaddr((char *)&sa6->sin6_addr,
+				   sizeof(sa6->sin6_addr), AF_INET6);
+		if (hp) {
+			cp = hp->h_name;
+			trimdomain(cp);
+		}
+	}
+	if (cp) {
+		strncpy(line, cp, sizeof(line) - 1);
+		line[sizeof(line) - 1] = '\0';
+	} else
+		inet_ntop(AF_INET6, (void *)&sa6->sin6_addr, line,
+			  sizeof(line));
+#endif
+
+	return line;
+}
+#endif /*INET6*/
 
 /*
  * Print routing statistics
