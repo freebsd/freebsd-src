@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.28 1997/03/24 11:24:01 bde Exp $ */
+/* $Id: scd.c,v 1.29 1997/04/20 17:26:55 bde Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -180,6 +180,7 @@ static int read_subcode(int unit, struct sony_subchannel_position_data *sc);
 /* for xcdplayer */
 static int scd_toc_header(int unit, struct ioc_toc_header *th);
 static int scd_toc_entrys(int unit, struct ioc_read_toc_entry *te);
+static int scd_toc_entry(int unit, struct ioc_read_toc_single_entry *te);
 #define SCD_LASTPLUS1 170 /* don't ask, xcdplayer passes this in */
 
 static int	scd_probe(struct isa_device *dev);
@@ -456,6 +457,8 @@ scdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		return scd_toc_header (unit, (struct ioc_toc_header *) addr);
 	case CDIOREADTOCENTRYS:
 		return scd_toc_entrys (unit, (struct ioc_read_toc_entry*) addr);
+	case CDIOREADTOCENTRY:
+		return scd_toc_entry (unit, (struct ioc_read_toc_single_entry*) addr);
 	case CDIOCSETPATCH:
 	case CDIOCGETVOL:
 	case CDIOCSETVOL:
@@ -1512,6 +1515,45 @@ scd_toc_entrys (int unit, struct ioc_read_toc_entry *te)
 	/* copy the data back */
 	if (copyout(&toc_entry, te->data, sizeof(struct cd_toc_entry)) != 0)
 		return EFAULT;
+
+	return 0;
+}
+
+
+static int
+scd_toc_entry (int unit, struct ioc_read_toc_single_entry *te)
+{
+	struct scd_data *cd = scd_data + unit;
+	struct cd_toc_entry toc_entry;
+	int rc, i;
+
+	if (!(cd->flags & SCDTOC) && (rc = read_toc(unit)) != 0) {
+		print_error(unit, rc);
+		return EIO;
+	}
+
+	/* find the toc to copy*/
+	i = te->track;
+	if (i == SCD_LASTPLUS1)
+		i = cd->last_track + 1;
+
+	/* verify starting track */
+	if (i < cd->first_track || i > cd->last_track+1)
+		return EINVAL;
+
+	/* copy the toc data */
+	toc_entry.control = cd->toc[i].ctl;
+	toc_entry.addr_type = te->address_format;
+	toc_entry.track = i;
+	if (te->address_format == CD_MSF_FORMAT) {
+		toc_entry.addr.msf.unused = 0;
+		toc_entry.addr.msf.minute = bcd2bin(cd->toc[i].start_msf[0]);
+		toc_entry.addr.msf.second = bcd2bin(cd->toc[i].start_msf[1]);
+		toc_entry.addr.msf.frame = bcd2bin(cd->toc[i].start_msf[2]);
+	}
+
+	/* copy the data back */
+	bcopy(&toc_entry, &te->entry, sizeof(struct cd_toc_entry));
 
 	return 0;
 }

@@ -76,7 +76,7 @@
 Dedicated to:	My family, my Grandfather,
 		and Max, my Golden Retriever
 
-Thanks to:	Jordon Hubbard (jkh) for getting me ramped-up to 2.x system
+Thanks to:	Jordan Hubbard (jkh) for getting me ramped-up to 2.x system
 		quickly enough to make the 2.1 release.  He put up with
 		plenty of silly questions and might get the post of
 		ambassador some day.
@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.24 1997/03/24 11:24:22 bde Exp $ */
+/* $Id: matcd.c,v 1.25 1997/04/20 18:02:40 bde Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -572,6 +572,9 @@ static	int	matcd_toc_header(int ldrive, int cdrive, int controller,
 static	int	matcd_toc_entries(int ldrive, int cdrive,
 				  int controller,
 				  struct ioc_read_toc_entry *ioc_entry);
+static	int	matcd_toc_entry(int ldrive, int cdrive,
+				  int controller,
+				  struct ioc_read_toc_single_entry *ioc_entry);
 static	int	matcd_read_subq(int ldrive, int cdrive, int controller,
 			        struct ioc_read_subchannel * sqp);
 static	int	matcd_igot(struct ioc_capability * sqp);
@@ -1098,6 +1101,10 @@ int matcdioctl(dev_t dev, int command, caddr_t addr,
 	case	CDIOREADTOCENTRYS:
 		return(matcd_toc_entries(ldrive, cdrive, controller,
 		       (struct ioc_read_toc_entry *) addr));
+
+	case	CDIOREADTOCENTRY:
+		return(matcd_toc_entry(ldrive, cdrive, controller,
+		       (struct ioc_read_toc_single_entry *) addr));
 
 	case	CDIOCREADSUBCHANNEL:
 		return(matcd_read_subq(ldrive, cdrive, controller,
@@ -2497,6 +2504,73 @@ static int matcd_toc_entries(int ldrive, int cdrive, int controller,
 		len -= sizeof(struct cd_toc_entry);
 		from++;
 		to++;
+	}
+	return(0);
+
+}
+
+/*---------------------------------------------------------------------------
+	matcd_toc_entriy - Read a single TOC entry
+---------------------------------------------------------------------------*/
+
+static int matcd_toc_entry(int ldrive, int cdrive, int controller,
+			     struct ioc_read_toc_single_entry * ioc_entry)
+{
+	struct	matcd_data *cd;
+	struct	cd_toc_entry *from;
+	struct	cd_toc_entry *to;
+	int	trk,origtrk,i,z,port;
+	unsigned char cmd[MAXCMDSIZ];
+	unsigned char data[5];
+
+	cd=&matcd_data[ldrive];
+	port=cd->iobase;
+
+	if ((cd->flags & MATCDLABEL)==0)
+		return(EIO);		/*Refuse after chg error*/
+
+	zero_cmd(cmd);
+	cmd[0]=READTOC;
+
+	origtrk=trk=ioc_entry->track;
+	if (trk == 0xaa)
+		/* leadout */
+		trk=cd->volinfo.trk_high-1;
+	cmd[2]=trk+1;
+	lockbus(controller, ldrive);	/*Request bus*/
+	matcd_slowcmd(port,ldrive,cdrive,cmd);
+	i=waitforit(10*TICKRES,DTEN,port,"mats1");
+	matcd_pread(port, 8, data);	/*Read data returned*/
+	z=get_stat(port,ldrive);	/*Read status byte*/
+	if ((z & MATCD_ST_ERROR)) {	/*Something went wrong*/
+		i=get_error(port, ldrive, cdrive);
+		unlockbus(controller, ldrive);	/*Release bus*/
+		return(EIO);
+	}
+	unlockbus(controller, ldrive);	/*Release bus*/
+
+#ifdef DEBUGIOCTL
+	printf("Track %d addr/ctrl %x  m %x s %x f %x\n",data[2],
+	       data[1],data[4],data[5],data[6]);
+#endif /*DEBUGIOCTL*/
+
+	ioc_entry->entry.control=data[1];	/*Track type*/
+	ioc_entry->entry.addr_type=ioc_entry->address_format;/*Type*/
+	ioc_entry->entry.track=data[2];	/*Track #, can be Out of Order*/
+	if (ioc_entry->address_format == CD_MSF_FORMAT) {
+		ioc_entry->entry.addr.msf.unused=0;
+		ioc_entry->entry.addr.msf.minute=data[4];	/*Min*/
+		ioc_entry->entry.addr.msf.second=data[5];	/*Sec*/
+		ioc_entry->entry.addr.msf.frame=data[6];	/*Frame*/
+	}
+	if (origtrk == 0xaa) {
+		/* Handle leadout */
+		ioc_entry->entry.control=data[2];	/*Copy from last valid track*/
+		ioc_entry->entry.track=0xaa;		/*Lead-out*/
+		ioc_entry->entry.addr.msf.unused=0;	/*Fill*/
+		ioc_entry->entry.addr.msf.minute=cd->volinfo.vol_msf[0];
+		ioc_entry->entry.addr.msf.second=cd->volinfo.vol_msf[1];
+		ioc_entry->entry.addr.msf.frame=cd->volinfo.vol_msf[2];
 	}
 	return(0);
 

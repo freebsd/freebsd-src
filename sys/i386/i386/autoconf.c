@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.65 1997/04/26 11:45:02 peter Exp $
+ *	$Id: autoconf.c,v 1.66 1997/04/26 18:57:34 peter Exp $
  */
 
 /*
@@ -46,6 +46,7 @@
  * and the drivers are initialized.
  */
 #include "opt_smp.h"
+#include "opt_cd9660.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -101,9 +102,17 @@ static void	setroot __P((void));
 
 #ifdef CD9660
 
+#include <sys/fcntl.h>
+#include <sys/proc.h>
+#include <sys/stat.h>
+#include <machine/clock.h>
 #include <isofs/cd9660/iso.h>
 
-/* We need to try out all our potential CDROM drives, so we need a table. */
+/*
+ * XXX All this CD-ROM root stuff is fairly messy.  Ick.
+ *
+ * We need to try out all our potential CDROM drives, so we need a table.
+ */
 static struct {
 	char *name;
 	int major;
@@ -112,25 +121,44 @@ static struct {
 	{ "mcd", 7 },
 	{ "scd", 16 },
 	{ "matcd", 17 },
+	{ "wcd", 19 },
 	{ 0, 0}
 };
 
-static int	find_cdrom_root __P((void *));
+static int	find_cdrom_root __P((void));
 
 static int
-find_cdrom_root(dummy)
-	void *dummy;
+find_cdrom_root()
 {
-	int i,j,k;
+	int i, j, error;
+	struct bdevsw *bd;
+	dev_t orootdev;
 
-	for (j = 0 ; j < 2; j++)
-		for (k = 0 ; try_cdrom[k].name ; k++) {
-			rootdev = makedev(try_cdrom[k].major,j*8);
-			printf("trying rootdev=0x%lx (%s%d)\n",
-				rootdev, try_cdrom[k].name,j);
-			i = (*cd9660_mountroot)();
-			if (!i) return i;
+#if CD9660_ROOTDELAY > 0
+	DELAY(CD9660_ROOTDELAY * 1000000);
+#endif
+	orootdev = rootdev;
+	for (i = 0 ; i < 2; i++)
+		for (j = 0 ; try_cdrom[j].name ; j++) {
+			if (try_cdrom[j].major >= nblkdev)
+				continue;
+			rootdev = makedev(try_cdrom[j].major, i * 8);
+			bd = bdevsw[major(rootdev)];
+			if (bd == NULL || bd->d_open == NULL)
+				continue;
+			if (bootverbose)
+				printf("trying %s%d as rootdev (0x%x)\n",
+				       try_cdrom[j].name, i, rootdev);
+			error = (bd->d_open)(rootdev, FREAD, S_IFBLK, curproc);
+			if (error == 0) {
+				if (bd->d_close != NULL)
+					(bd->d_close)(rootdev, FREAD, S_IFBLK,
+						      curproc);
+				return 0;
+			}
 		}
+
+	rootdev = orootdev;
 	return EINVAL;
 }
 #endif /* CD9660 */
@@ -233,7 +261,11 @@ configure(dummy)
 	if ((boothowto & RB_CDROM)) {
 		if (bootverbose)
 			printf("Considering CD-ROM root f/s.\n");
-		mountrootfsname = "cd9660";
+		/* NB: find_cdrom_root() sets rootdev if successful. */
+		if (find_cdrom_root() == 0)
+			mountrootfsname = "cd9660";
+		else if (bootverbose)
+			printf("No CD-ROM available as root f/s.\n");
 	}
 #endif
 
