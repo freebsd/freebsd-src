@@ -3,9 +3,9 @@ AC_DEFUN(BFD_BINARY_FOPEN,
 [AC_REQUIRE([AC_CANONICAL_SYSTEM])
 case "${host}" in
 changequote(,)dnl
-i[345]86-*-msdos* | i[345]86-*-go32* | i[345]86-*-mingw32* | *-*-cygwin32* | *-*-windows)
+*-*-msdos* | *-*-go32* | *-*-mingw32* | *-*-cygwin* | *-*-windows*)
 changequote([,])dnl
-  AC_DEFINE(USE_BINARY_FOPEN) ;;
+  AC_DEFINE(USE_BINARY_FOPEN, 1, [Use b modifier when opening binary files?]) ;;
 esac])dnl
 
 dnl Get a default for CC_FOR_BUILD to put into Makefile.
@@ -24,15 +24,18 @@ if test "x$cross_compiling" = "xno"; then
   EXEEXT_FOR_BUILD='$(EXEEXT)'
 else
   AC_CACHE_CHECK([for build system executable suffix], bfd_cv_build_exeext,
-    [cat > ac_c_test.c << 'EOF'
-int main() {
-/* Nothing needed here */
-}
-EOF
-    ${CC_FOR_BUILD} -o ac_c_test am_c_test.c 1>&5 2>&5
-    bfd_cv_build_exeext=`echo ac_c_test.* | grep -v ac_c_test.c | sed -e s/ac_c_test//`
-    rm -f ac_c_test*
-    test x"${bfd_cv_build_exeext}" = x && bfd_cv_build_exeext=no])
+    [rm -f conftest*
+     echo 'int main () { return 0; }' > conftest.c
+     bfd_cv_build_exeext=
+     ${CC_FOR_BUILD} -o conftest conftest.c 1>&5 2>&5
+     for file in conftest.*; do
+       case $file in
+       *.c | *.o | *.obj | *.ilk | *.pdb) ;;
+       *) bfd_cv_build_exeext=`echo $file | sed -e s/conftest//` ;;
+       esac
+     done
+     rm -f conftest*
+     test x"${bfd_cv_build_exeext}" = x && bfd_cv_build_exeext=no])
   EXEEXT_FOR_BUILD=""
   test x"${bfd_cv_build_exeext}" != xno && EXEEXT_FOR_BUILD=${bfd_cv_build_exeext}
 fi
@@ -61,7 +64,44 @@ AC_CACHE_VAL(bfd_cv_decl_needed_$1,
 bfd_cv_decl_needed_$1=no, bfd_cv_decl_needed_$1=yes)])
 AC_MSG_RESULT($bfd_cv_decl_needed_$1)
 if test $bfd_cv_decl_needed_$1 = yes; then
-  bfd_tr_decl=NEED_DECLARATION_`echo $1 | tr 'abcdefghijklmnopqrstuvwxyz' 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'`
-  AC_DEFINE_UNQUOTED($bfd_tr_decl)
+  AC_DEFINE([NEED_DECLARATION_]translit($1, [a-z], [A-Z]), 1,
+	    [Define if $1 is not declared in system header files.])
 fi
 ])dnl
+
+dnl Check for existence of a type $1 in sys/procfs.h
+
+AC_DEFUN(BFD_HAVE_SYS_PROCFS_TYPE,
+[AC_MSG_CHECKING([for $1 in sys/procfs.h])
+ AC_CACHE_VAL(bfd_cv_have_sys_procfs_type_$1,
+   [AC_TRY_COMPILE([#include <sys/procfs.h>],
+      [$1 avar],
+      bfd_cv_have_sys_procfs_type_$1=yes,
+      bfd_cv_have_sys_procfs_type_$1=no
+   )])
+ if test $bfd_cv_have_sys_procfs_type_$1 = yes; then
+   AC_DEFINE([HAVE_]translit($1, [a-z], [A-Z]), 1,
+	     [Define if <sys/procfs.h> has $1.])
+ fi
+ AC_MSG_RESULT($bfd_cv_have_sys_procfs_type_$1)
+])
+
+
+dnl Check for existence of member $2 in type $1 in sys/procfs.h
+
+AC_DEFUN(BFD_HAVE_SYS_PROCFS_TYPE_MEMBER,
+[AC_MSG_CHECKING([for $1.$2 in sys/procfs.h])
+ AC_CACHE_VAL(bfd_cv_have_sys_procfs_type_member_$1_$2,
+   [AC_TRY_COMPILE([#include <sys/procfs.h>],
+      [$1 avar; void* aref = (void*) &avar.$2],
+      bfd_cv_have_sys_procfs_type_member_$1_$2=yes,
+      bfd_cv_have_sys_procfs_type_member_$1_$2=no
+   )])
+ if test $bfd_cv_have_sys_procfs_type_member_$1_$2 = yes; then
+   AC_DEFINE([HAVE_]translit($1, [a-z], [A-Z])[_]translit($2, [a-z], [A-Z]), 1,
+	     [Define if <sys/procfs.h> has $1.$2.])
+ fi
+ AC_MSG_RESULT($bfd_cv_have_sys_procfs_type_member_$1_$2)
+])
+
+

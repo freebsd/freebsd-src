@@ -66,4 +66,8 @@ extern void free ();
 extern char *getenv ();
 #endif
 
+#ifdef NEED_DECLARATION_ENVIRON
+extern char **environ;
+#endif
+
 #endif /* ! defined (LD_SYSDEP_H) */

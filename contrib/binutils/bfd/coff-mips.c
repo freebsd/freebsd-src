@@ -1,5 +1,5 @@
 /* BFD back-end for MIPS Extended-Coff files.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
    Free Software Foundation, Inc.
    Original version by Per Bothner.
    Full support added by Ian Lance Taylor, ian@cygnus.com.
@@ -273,10 +273,10 @@ static reloc_howto_type mips_howto_table[] =
 	 0xffff,		/* dst_mask */
 	 false),		/* pcrel_offset */
 
-  { 8 },
-  { 9 },
-  { 10 },
-  { 11 },
+  EMPTY_HOWTO (8),
+  EMPTY_HOWTO (9),
+  EMPTY_HOWTO (10),
+  EMPTY_HOWTO (11),
 
   /* This reloc is a Cygnus extension used when generating position
      independent code for embedded systems.  It represents a 16 bit PC
@@ -334,13 +334,13 @@ static reloc_howto_type mips_howto_table[] =
 	 0xffff,		/* dst_mask */
 	 true),			/* pcrel_offset */
 
-  { 15 },
-  { 16 },
-  { 17 },
-  { 18 },
-  { 19 },
-  { 20 },
-  { 21 },
+  EMPTY_HOWTO (15),
+  EMPTY_HOWTO (16),
+  EMPTY_HOWTO (17),
+  EMPTY_HOWTO (18),
+  EMPTY_HOWTO (19),
+  EMPTY_HOWTO (20),
+  EMPTY_HOWTO (21),
 
   /* This reloc is a Cygnus extension used when generating position
      independent code for embedded systems.  It represents an entry in
@@ -569,7 +569,7 @@ mips_adjust_reloc_in (abfd, intern, rptr)
 
 static void
 mips_adjust_reloc_out (abfd, rel, intern)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      const arelent *rel;
      struct internal_reloc *intern;
 {
@@ -604,13 +604,13 @@ mips_generic_reloc (abfd,
 		    input_section,
 		    output_bfd,
 		    error_message)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      arelent *reloc_entry;
      asymbol *symbol;
-     PTR data;
+     PTR data ATTRIBUTE_UNUSED;
      asection *input_section;
      bfd *output_bfd;
-     char **error_message;
+     char **error_message ATTRIBUTE_UNUSED;
 {
   if (output_bfd != (bfd *) NULL
       && (symbol->flags & BSF_SECTION_SYM) == 0
@@ -651,13 +651,13 @@ mips_refhi_reloc (abfd,
 		  input_section,
 		  output_bfd,
 		  error_message)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      arelent *reloc_entry;
      asymbol *symbol;
      PTR data;
      asection *input_section;
      bfd *output_bfd;
-     char **error_message;
+     char **error_message ATTRIBUTE_UNUSED;
 {
   bfd_reloc_status_type ret;
   bfd_vma relocation;
@@ -872,7 +872,7 @@ mips_gprel_reloc (abfd,
 	      gp = 4;
 	      _bfd_set_gp_value (output_bfd, gp);
 	      *error_message =
-		(char *) "GP relative relocation when _gp not defined";
+		(char *) _("GP relative relocation when _gp not defined");
 	      return bfd_reloc_dangerous;
 	    }
 	}
@@ -933,13 +933,13 @@ mips_relhi_reloc (abfd,
 		  input_section,
 		  output_bfd,
 		  error_message)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      arelent *reloc_entry;
      asymbol *symbol;
      PTR data;
      asection *input_section;
      bfd *output_bfd;
-     char **error_message;
+     char **error_message ATTRIBUTE_UNUSED;
 {
   bfd_reloc_status_type ret;
   bfd_vma relocation;
@@ -1109,13 +1109,13 @@ mips_switch_reloc (abfd,
 		   input_section,
 		   output_bfd,
 		   error_message)
-     bfd *abfd;
-     arelent *reloc_entry;
-     asymbol *symbol;
-     PTR data;
-     asection *input_section;
-     bfd *output_bfd;
-     char **error_message;
+     bfd *abfd ATTRIBUTE_UNUSED;
+     arelent *reloc_entry ATTRIBUTE_UNUSED;
+     asymbol *symbol ATTRIBUTE_UNUSED;
+     PTR data ATTRIBUTE_UNUSED;
+     asection *input_section ATTRIBUTE_UNUSED;
+     bfd *output_bfd ATTRIBUTE_UNUSED;
+     char **error_message ATTRIBUTE_UNUSED;
 {
   return bfd_reloc_ok;
 }
@@ -1124,7 +1124,7 @@ mips_switch_reloc (abfd,
 
 static reloc_howto_type *
 mips_bfd_reloc_type_lookup (abfd, code)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      bfd_reloc_code_real_type code;
 {
   int mips_type;
@@ -1193,11 +1193,18 @@ mips_relocate_hi (refhi, reflo, input_bfd, input_section, contents, adjust,
   unsigned long val;
   unsigned long vallo;
 
+  if (refhi == NULL)
+    return;
+  
   insn = bfd_get_32 (input_bfd,
 		     contents + adjust + refhi->r_vaddr - input_section->vma);
-  vallo = (bfd_get_32 (input_bfd,
-		       contents + adjust + reflo->r_vaddr - input_section->vma)
-	   & 0xffff);
+  if (reflo == NULL)
+    vallo = 0;
+  else
+    vallo = (bfd_get_32 (input_bfd,
+			 contents + adjust + reflo->r_vaddr - input_section->vma)
+	     & 0xffff);
+ 
   val = ((insn & 0xffff) << 16) + vallo;
   val += relocation;
 
@@ -1425,7 +1432,7 @@ mips_relocate_section (output_bfd, info, input_bfd, input_section,
 	  if (gp_undefined)
 	    {
 	      if (! ((*info->callbacks->reloc_dangerous)
-		     (info, "GP relative relocation when GP not defined",
+		     (info, _("GP relative relocation when GP not defined"),
 		      input_bfd, input_section,
 		      int_rel.r_vaddr - input_section->vma)))
 		return false;
@@ -1774,7 +1781,7 @@ mips_relocate_section (output_bfd, info, input_bfd, input_section,
 		  if (! ((*info->callbacks->undefined_symbol)
 			 (info, h->root.root.string, input_bfd,
 			  input_section,
-			  int_rel.r_vaddr - input_section->vma)))
+			  int_rel.r_vaddr - input_section->vma, true)))
 		    return false;
 		  relocation = 0;
 		}
@@ -2322,9 +2329,9 @@ mips_relax_section (abfd, sec, info, again)
 
 static boolean
 mips_relax_pcrel16 (info, input_bfd, input_section, h, location, address)
-     struct bfd_link_info *info;
+     struct bfd_link_info *info ATTRIBUTE_UNUSED;
      bfd *input_bfd;
-     asection *input_section;
+     asection *input_section ATTRIBUTE_UNUSED;
      struct ecoff_link_hash_entry *h;
      bfd_byte *location;
      bfd_vma address;
@@ -2423,7 +2430,7 @@ bfd_mips_ecoff_create_embedded_relocs (abfd, info, datasec, relsec, errmsg)
       /* We can only relocate REFWORD relocs at run time.  */
       if (int_rel.r_type != MIPS_R_REFWORD)
 	{
-	  *errmsg = "unsupported reloc type";
+	  *errmsg = _("unsupported reloc type");
 	  bfd_set_error (bfd_error_bad_value);
 	  return false;
 	}
@@ -2460,7 +2467,7 @@ bfd_mips_ecoff_create_embedded_relocs (abfd, info, datasec, relsec, errmsg)
 	    default:
 	      /* No other sections should appear in -membedded-pic
                  code.  */
-	      *errmsg = "reloc against unsupported section";
+	      *errmsg = _("reloc against unsupported section");
 	      bfd_set_error (bfd_error_bad_value);
 	      return false;
 	    }
@@ -2468,7 +2475,7 @@ bfd_mips_ecoff_create_embedded_relocs (abfd, info, datasec, relsec, errmsg)
 
       if ((int_rel.r_offset & 3) != 0)
 	{
-	  *errmsg = "reloc not properly aligned";
+	  *errmsg = _("reloc not properly aligned");
 	  bfd_set_error (bfd_error_bad_value);
 	  return false;
 	}
@@ -2498,13 +2505,14 @@ static const struct ecoff_backend_data mips_ecoff_backend_data =
     (unsigned (*) PARAMS ((bfd *,PTR,PTR))) bfd_void, /* reloc_out */
     mips_ecoff_swap_filehdr_out, mips_ecoff_swap_aouthdr_out,
     mips_ecoff_swap_scnhdr_out,
-    FILHSZ, AOUTSZ, SCNHSZ, 0, 0, 0, 0, true, false, 4,
+    FILHSZ, AOUTSZ, SCNHSZ, 0, 0, 0, 0, FILNMLEN, true, false, 4,
     mips_ecoff_swap_filehdr_in, mips_ecoff_swap_aouthdr_in,
     mips_ecoff_swap_scnhdr_in, NULL,
     mips_ecoff_bad_format_hook, _bfd_ecoff_set_arch_mach_hook,
     _bfd_ecoff_mkobject_hook, _bfd_ecoff_styp_to_sec_flags,
     _bfd_ecoff_set_alignment_hook, _bfd_ecoff_slurp_symbol_table,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL
   },
   /* Supported architecture.  */
   bfd_arch_mips,
@@ -2590,6 +2598,11 @@ static const struct ecoff_backend_data mips_ecoff_backend_data =
 /* Relaxing sections is MIPS specific.  */
 #define _bfd_ecoff_bfd_relax_section mips_relax_section
 
+/* GC of sections is not done.  */
+#define _bfd_ecoff_bfd_gc_sections bfd_generic_gc_sections
+
+extern const bfd_target ecoff_big_vec;
+
 const bfd_target ecoff_little_vec =
 {
   "ecoff-littlemips",		/* name */
@@ -2629,6 +2642,8 @@ const bfd_target ecoff_little_vec =
      BFD_JUMP_TABLE_LINK (_bfd_ecoff),
      BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
+  & ecoff_big_vec,
+  
   (PTR) &mips_ecoff_backend_data
 };
 
@@ -2670,6 +2685,8 @@ const bfd_target ecoff_big_vec =
      BFD_JUMP_TABLE_LINK (_bfd_ecoff),
      BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
+  & ecoff_little_vec,
+  
   (PTR) &mips_ecoff_backend_data
 };
 
@@ -2712,5 +2729,7 @@ const bfd_target ecoff_biglittle_vec =
      BFD_JUMP_TABLE_LINK (_bfd_ecoff),
      BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
+  NULL,
+  
   (PTR) &mips_ecoff_backend_data
 };

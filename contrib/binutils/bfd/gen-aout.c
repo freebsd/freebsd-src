@@ -1,5 +1,5 @@
 /* Generate parameters for an a.out system.
-   Copyright (C) 1990, 91, 92, 93, 94 Free Software Foundation, Inc.
+   Copyright (C) 1990, 91, 92, 93, 94, 98 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -82,8 +82,8 @@ main (argc, argv)
 #endif
   if (arch[0] == '1')
     {
-      fprintf (stderr, "warning: preprocessor substituted architecture name inside string;");
-      fprintf (stderr, "         fix DEFAULT_ARCH in the output file yourself\n");
+      fprintf (stderr, _("warning: preprocessor substituted architecture name inside string;"));
+      fprintf (stderr, _("         fix DEFAULT_ARCH in the output file yourself\n"));
       arch = "unknown";
     }
   printf("#define DEFAULT_ARCH bfd_arch_%s\n", arch);

@@ -1,5 +1,6 @@
 /* ldemul.c -- clearing house for ld emulation states
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 1999
+   Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
@@ -156,6 +157,17 @@ ldemul_unrecognized_file (entry)
   return false;
 }
 
+/* Let the emulation code handle a recognized file.  */
+
+boolean
+ldemul_recognized_file (entry)
+     lang_input_statement_type *entry;
+{
+  if (ld_emulation->recognized_file)
+    return (*ld_emulation->recognized_file) (entry);
+  return false;
+}
+
 char *
 ldemul_choose_target()
 {
@@ -207,17 +219,17 @@ set_output_arch_default()
 /*ARGSUSED*/
 void
 syslib_default(ignore)
-     char  *ignore;
+     char  *ignore ATTRIBUTE_UNUSED;
 {
-  info_msg ("%S SYSLIB ignored\n");
+  info_msg (_("%S SYSLIB ignored\n"));
 }
 
 /*ARGSUSED*/
 void
 hll_default(ignore)
-     char  *ignore;
+     char  *ignore ATTRIBUTE_UNUSED;
 {
-  info_msg ("%S HLL ignored\n");
+  info_msg (_("%S HLL ignored\n"));
 }
 
 ld_emulation_xfer_type *ld_emulations[] = { EMULATION_LIST };
@@ -238,8 +250,8 @@ ldemul_choose_mode(target)
 	    return;
 	  }
       }
-    einfo ("%P: unrecognised emulation mode: %s\n", target);
-    einfo ("Supported emulations: ");
+    einfo (_("%P: unrecognised emulation mode: %s\n"), target);
+    einfo (_("Supported emulations: "));
     ldemul_list_emulations (stderr);
     einfo ("%F\n");
 }
@@ -259,4 +271,40 @@ ldemul_list_emulations (f)
 	fprintf (f, " ");
       fprintf (f, "%s", (*eptr)->emulation_name);
     }
+}
+
+void
+ldemul_list_emulation_options (f)
+     FILE * f;
+{
+  ld_emulation_xfer_type ** eptr;
+  int options_found = 0;
+  
+  for (eptr = ld_emulations; * eptr; eptr ++)
+    {
+      ld_emulation_xfer_type * emul = * eptr;
+      
+      if (emul->list_options)
+	{
+	  fprintf (f, "%s: \n", emul->emulation_name);
+      
+	  emul->list_options (f);
+
+	  options_found = 1;
+	}
+    }
+  
+  if (! options_found)
+    fprintf (f, _("  no emulation specific options.\n"));
+}
+
+int
+ldemul_find_potential_libraries (name, entry)
+     char * name;
+     lang_input_statement_type * entry;
+{
+  if (ld_emulation->find_potential_libraries)
+    return ld_emulation->find_potential_libraries (name, entry);
+
+  return 0;
 }

@@ -32,6 +32,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* v850 code.  */
 #define E_V850_ARCH		0x00000000
 
+/* v850e code.  */
+#define E_V850E_ARCH		0x10000000
+
+/* v850ea code.  */
+#define E_V850EA_ARCH		0x20000000
 
 
 /* Flags for the st_other field */
@@ -42,27 +47,39 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define V850_OTHER_ERROR	0x80	/* symbol had an error reported */
 
 /* V850 relocations */
-enum v850_reloc_type
-{
-  R_V850_NONE = 0,
-  R_V850_9_PCREL,
-  R_V850_22_PCREL,
-  R_V850_HI16_S,
-  R_V850_HI16,
-  R_V850_LO16,
-  R_V850_32,
-  R_V850_16,
-  R_V850_8,
-  R_V850_SDA_16_16_OFFSET,		/* For ld.b, st.b, set1, clr1, not1, tst1, movea, movhi */
-  R_V850_SDA_15_16_OFFSET,		/* For ld.w, ld.h, ld.hu, st.w, st.h */
-  R_V850_ZDA_16_16_OFFSET,		/* For ld.b, st.b, set1, clr1, not1, tst1, movea, movhi */
-  R_V850_ZDA_15_16_OFFSET,		/* For ld.w, ld.h, ld.hu, st.w, st.h */
-  R_V850_TDA_6_8_OFFSET,		/* For sst.w, sld.w */
-  R_V850_TDA_7_8_OFFSET,		/* For sst.h, sld.h */
-  R_V850_TDA_7_7_OFFSET,		/* For sst.b, sld.b */
-  R_V850_TDA_16_16_OFFSET,		/* For set1, clr1, not1, tst1, movea, movhi */
-  R_V850_max
-};
+#include "elf/reloc-macros.h"
+
+START_RELOC_NUMBERS (v850_reloc_type)
+     RELOC_NUMBER (R_V850_NONE, 0)
+     RELOC_NUMBER (R_V850_9_PCREL, 1)
+     RELOC_NUMBER (R_V850_22_PCREL, 2)
+     RELOC_NUMBER (R_V850_HI16_S, 3)
+     RELOC_NUMBER (R_V850_HI16, 4)
+     RELOC_NUMBER (R_V850_LO16, 5)
+     RELOC_NUMBER (R_V850_32, 6)
+     RELOC_NUMBER (R_V850_16, 7)
+     RELOC_NUMBER (R_V850_8, 8)
+     RELOC_NUMBER( R_V850_SDA_16_16_OFFSET, 9)		/* For ld.b, st.b, set1, clr1, not1, tst1, movea, movhi */
+     RELOC_NUMBER( R_V850_SDA_15_16_OFFSET, 10)		/* For ld.w, ld.h, ld.hu, st.w, st.h */
+     RELOC_NUMBER( R_V850_ZDA_16_16_OFFSET, 11)		/* For ld.b, st.b, set1, clr1, not1, tst1, movea, movhi */
+     RELOC_NUMBER( R_V850_ZDA_15_16_OFFSET, 12)		/* For ld.w, ld.h, ld.hu, st.w, st.h */
+     RELOC_NUMBER( R_V850_TDA_6_8_OFFSET, 13)		/* For sst.w, sld.w */
+     RELOC_NUMBER( R_V850_TDA_7_8_OFFSET, 14)		/* For sst.h, sld.h */
+     RELOC_NUMBER( R_V850_TDA_7_7_OFFSET, 15)		/* For sst.b, sld.b */
+     RELOC_NUMBER( R_V850_TDA_16_16_OFFSET, 16)		/* For set1, clr1, not1, tst1, movea, movhi */
+/* CYGNUS LOCAL v850e */
+     RELOC_NUMBER( R_V850_TDA_4_5_OFFSET, 17)		/* For sld.hu */
+     RELOC_NUMBER( R_V850_TDA_4_4_OFFSET, 18)		/* For sld.bu */
+     RELOC_NUMBER( R_V850_SDA_16_16_SPLIT_OFFSET, 19)	/* For ld.bu */
+     RELOC_NUMBER( R_V850_ZDA_16_16_SPLIT_OFFSET, 20)	/* For ld.bu */
+     RELOC_NUMBER( R_V850_CALLT_6_7_OFFSET, 21)		/* For callt */
+     RELOC_NUMBER( R_V850_CALLT_16_16_OFFSET, 22)	/* For callt */
+/* END CYGNUS LOCAL */
+     RELOC_NUMBER (R_V850_GNU_VTINHERIT, 23)
+     RELOC_NUMBER (R_V850_GNU_VTENTRY, 24)
+
+     EMPTY_RELOC (R_V850_max)
+END_RELOC_NUMBERS
 
 
 /* Processor specific section indices.  These sections do not actually

@@ -1,7 +1,7 @@
 %{
 /* arparse.y - Stange script language parser */
 
-/*   Copyright (C) 1992, 93, 95, 1997 Free Software Foundation, Inc.
+/*   Copyright (C) 1992, 93, 95, 97, 98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "bucomm.h"
 #include "arsup.h"
 extern int verbose;
+extern int yylex PARAMS ((void));
 static int yyerror PARAMS ((const char *));
 %}
 
@@ -192,10 +193,10 @@ verbose_command:
 
 static int
 yyerror (x)
-     const char *x;
+     const char *x ATTRIBUTE_UNUSED;
 {
   extern int linenumber;
 
-  printf ("Syntax error in archive script, line %d\n", linenumber + 1);
+  printf (_("Syntax error in archive script, line %d\n"), linenumber + 1);
   return 0;
 }

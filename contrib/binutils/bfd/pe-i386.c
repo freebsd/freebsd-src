@@ -1,5 +1,5 @@
 /* BFD back-end for Intel 386 PECOFF files.
-   Copyright 1995 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1999 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -27,5 +27,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define PCRELOFFSET true
 #define TARGET_UNDERSCORE '_'
 #define COFF_LONG_SECTION_NAMES
+#define COFF_LONG_FILENAMES
+
+#define COFF_SECTION_ALIGNMENT_ENTRIES \
+{ COFF_SECTION_NAME_PARTIAL_MATCH (".idata"), \
+  COFF_ALIGNMENT_FIELD_EMPTY, COFF_ALIGNMENT_FIELD_EMPTY, 2 }, \
+{ COFF_SECTION_NAME_EXACT_MATCH (".pdata"), \
+  COFF_ALIGNMENT_FIELD_EMPTY, COFF_ALIGNMENT_FIELD_EMPTY, 2 }
 
 #include "coff-i386.c"

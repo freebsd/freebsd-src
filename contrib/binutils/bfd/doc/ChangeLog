@@ -1,3 +1,36 @@
+2000-04-30  Ben Elliston  <bje@redhat.com>
+
+	* bfdint.texi (BFD generated files): Fix another typo.
+
+2000-04-17  Ben Elliston  <bje@redhat.com>
+
+	* bfdint.texi (BFD_JUMP_TABLE macros): Fix typo.
+
+Thu Feb  4 23:21:36 1999  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in: Rebuild with current autoconf/automake.
+
+Thu Jul 23 09:36:44 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* bfdint.texi (BFD ELF processor required): Add paragraph
+	describing the necessity to create "include/elf/CPU.h".
+
+Thu May  7 14:45:43 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (chew.o): Add -I options for intl srcdir and
+	objdir.
+	* Makefile.in: Rebuild.
+
+Mon Apr 27 20:19:24 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* bfdint.texi: New file.
+	* Makefile.am (noinst_TEXINFOS): New variable.
+	* Makefile.in: Rebuild.
+
+Mon Apr 13 16:48:56 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in: Rebuild.
+
 Mon Apr  6 14:06:55 1998  Ian Lance Taylor  <ian@cygnus.com>
 
 	* Makefile.am (STAGESTUFF): Remove variable.

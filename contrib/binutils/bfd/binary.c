@@ -1,5 +1,5 @@
 /* BFD back-end for binary objects.
-   Copyright 1994, 95, 96, 97, 1998 Free Software Foundation, Inc.
+   Copyright 1994, 95, 96, 97, 98, 1999 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support, <ian@cygnus.com>
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -58,7 +58,7 @@ static int binary_sizeof_headers PARAMS ((bfd *, boolean));
 
 static boolean
 binary_mkobject (abfd)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
 {
   return true;
 }
@@ -112,7 +112,7 @@ binary_object_p (abfd)
 static boolean
 binary_get_section_contents (abfd, section, location, offset, count)
      bfd *abfd;
-     asection *section;
+     asection *section ATTRIBUTE_UNUSED;
      PTR location;
      file_ptr offset;
      bfd_size_type count;
@@ -127,7 +127,7 @@ binary_get_section_contents (abfd, section, location, offset, count)
 
 static long
 binary_get_symtab_upper_bound (abfd)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
 {
   return (BIN_SYMS + 1) * sizeof (asymbol *);
 }
@@ -222,7 +222,7 @@ binary_make_empty_symbol (abfd)
 
 static void
 binary_get_symbol_info (ignore_abfd, symbol, ret)
-     bfd *ignore_abfd;
+     bfd *ignore_abfd ATTRIBUTE_UNUSED;
      asymbol *symbol;
      symbol_info *ret;
 {
@@ -255,14 +255,6 @@ binary_set_section_contents (abfd, sec, data, offset, size)
      file_ptr offset;
      bfd_size_type size;
 {
-  /* We don't want to output anything for a section that is neither
-     loaded nor allocated.  The contents of such a section are not
-     meaningful in the binary format.  */
-  if ((sec->flags & (SEC_LOAD | SEC_ALLOC)) == 0)
-    return true;
-  if ((sec->flags & SEC_NEVER_LOAD) != 0)
-    return true;
-
   if (! abfd->output_has_begun)
     {
       boolean found_low;
@@ -275,7 +267,8 @@ binary_set_section_contents (abfd, sec, data, offset, size)
       found_low = false;
       low = 0;
       for (s = abfd->sections; s != NULL; s = s->next)
-	if (((s->flags & (SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC))
+	if (((s->flags
+	      & (SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC | SEC_NEVER_LOAD))
 	     == (SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC))
 	    && (! found_low || s->lma < low))
 	  {
@@ -284,10 +277,39 @@ binary_set_section_contents (abfd, sec, data, offset, size)
 	  }
 
       for (s = abfd->sections; s != NULL; s = s->next)
-	s->filepos = s->lma - low;
+	{
+	  s->filepos = s->lma - low;
+
+	  /* Skip following warning check for sections that will not
+	     occupy file space.  */ 
+	  if ((s->flags
+	       & (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_NEVER_LOAD))
+	      != (SEC_HAS_CONTENTS | SEC_ALLOC))
+	    continue;
+
+	  /* If attempting to generate a binary file from a bfd with
+	     LMA's all over the place, huge (sparse?) binary files may
+	     result.  This condition attempts to detect this situation
+	     and print a warning.  Better heuristics would be nice to
+	     have. */
+
+	  if (s->filepos < 0)
+	    (*_bfd_error_handler)
+	      (_("Warning: Writing section `%s' to huge (ie negative) file offset 0x%lx."),
+	       bfd_get_section_name (abfd, s),
+	       (unsigned long) s->filepos);
+	}
 
       abfd->output_has_begun = true;
     }
+
+  /* We don't want to output anything for a section that is neither
+     loaded nor allocated.  The contents of such a section are not
+     meaningful in the binary format.  */
+  if ((sec->flags & (SEC_LOAD | SEC_ALLOC)) == 0)
+    return true;
+  if ((sec->flags & SEC_NEVER_LOAD) != 0)
+    return true;
 
   return _bfd_generic_set_section_contents (abfd, sec, data, offset, size);
 }
@@ -296,8 +318,8 @@ binary_set_section_contents (abfd, sec, data, offset, size)
 
 static int
 binary_sizeof_headers (abfd, exec)
-     bfd *abfd;
-     boolean exec;
+     bfd *abfd ATTRIBUTE_UNUSED;
+     boolean exec ATTRIBUTE_UNUSED;
 {
   return 0;
 }
@@ -305,6 +327,7 @@ binary_sizeof_headers (abfd, exec)
 #define binary_bfd_get_relocated_section_contents \
   bfd_generic_get_relocated_section_contents
 #define binary_bfd_relax_section bfd_generic_relax_section
+#define binary_bfd_gc_sections bfd_generic_gc_sections
 #define binary_bfd_link_hash_table_create _bfd_generic_link_hash_table_create
 #define binary_bfd_link_add_symbols _bfd_generic_link_add_symbols
 #define binary_bfd_final_link _bfd_generic_final_link
@@ -359,5 +382,7 @@ const bfd_target binary_vec =
   BFD_JUMP_TABLE_LINK (binary),
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
+  NULL,
+  
   NULL
 };

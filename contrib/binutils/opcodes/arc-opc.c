@@ -1,5 +1,5 @@
 /* Opcode table for the ARC.
-   Copyright 1994, 1995, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (c) 1994, 1995, 1997, 1998 Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
    
    This program is free software; you can redistribute it and/or modify
@@ -17,8 +17,9 @@
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
-#include "ansidecl.h"
+#include "sysdep.h"
 #include "opcode/arc.h"
+#include "opintl.h"
 
 #ifndef NULL
 #define NULL 0
@@ -625,7 +626,7 @@ insert_reg (insn, operand, mods, reg, value, errmsg)
 	}
       else
 	{
-	  *errmsg = "unable to fit different valued constants into instruction";
+	  *errmsg = _("unable to fit different valued constants into instruction");
 	}
     }
   else
@@ -635,7 +636,7 @@ insert_reg (insn, operand, mods, reg, value, errmsg)
       if (reg->type == AUXREG)
 	{
 	  if (!(mods & ARC_MOD_AUXREG))
-	    *errmsg = "auxiliary register not allowed here";
+	    *errmsg = _("auxiliary register not allowed here");
 	  else
 	    {
 	      insn |= ARC_REG_SHIMM << operand->shift;
@@ -647,7 +648,8 @@ insert_reg (insn, operand, mods, reg, value, errmsg)
 	  /* We should never get an invalid register number here.  */
 	  if ((unsigned int) reg->value > 60)
 	    {
-	      sprintf (buf, "invalid register number `%d'", reg->value);
+	      /* xgettext:c-format */
+	      sprintf (buf, _("invalid register number `%d'"), reg->value);
 	      *errmsg = buf;
 	    }
 	  else
@@ -769,7 +771,8 @@ insert_shimmoffset (insn, operand, mods, reg, value, errmsg)
 	}
       if (value < minval || value > maxval)
 	{
-	  sprintf (buf, "value won't fit in range %ld - %ld",
+	  /* xgettext:c-format */
+	  sprintf (buf, _("value won't fit in range %ld - %ld"),
 		   minval, maxval);
 	  *errmsg = buf;
 	}
@@ -865,7 +868,7 @@ insert_reladdr (insn, operand, mods, reg, value, errmsg)
      const char **errmsg;
 {
   if (value & 3)
-    *errmsg = "branch address not on 4 byte boundary";
+    *errmsg = _("branch address not on 4 byte boundary");
   insn |= ((value >> 2) & ((1 << operand->bits) - 1)) << operand->shift;
   return insn;
 }

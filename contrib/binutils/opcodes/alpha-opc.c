@@ -1,6 +1,6 @@
 /* alpha-opc.c -- Alpha AXP opcode list
-   Copyright 1996 Free Software Foundation, Inc.
-   Contributed by Richard Henderson <rth@tamu.edu>,
+   Copyright (c) 1996, 1998, 1999 Free Software Foundation, Inc.
+   Contributed by Richard Henderson <rth@cygnus.com>,
    patterned after the PPC opcode handling written by Ian Lance Taylor.
 
    This file is part of GDB, GAS, and the GNU binutils.
@@ -21,9 +21,10 @@
    02111-1307, USA.  */
 
 #include <stdio.h>
-#include "ansidecl.h"
+#include "sysdep.h"
 #include "opcode/alpha.h"
 #include "bfd.h"
+#include "opintl.h"
 
 /* This file holds the Alpha AXP opcode table.  The opcode table includes
    almost all of the extended instruction mnemonics.  This permits the
@@ -61,6 +62,7 @@ static unsigned insert_zb PARAMS((unsigned, int, const char **));
 static unsigned insert_zc PARAMS((unsigned, int, const char **));
 static unsigned insert_bdisp PARAMS((unsigned, int, const char **));
 static unsigned insert_jhint PARAMS((unsigned, int, const char **));
+static unsigned insert_ev6hwjhint PARAMS((unsigned, int, const char **));
 
 static int extract_rba PARAMS((unsigned, int *));
 static int extract_rca PARAMS((unsigned, int *));
@@ -69,6 +71,7 @@ static int extract_zb PARAMS((unsigned, int *));
 static int extract_zc PARAMS((unsigned, int *));
 static int extract_bdisp PARAMS((unsigned, int *));
 static int extract_jhint PARAMS((unsigned, int *));
+static int extract_ev6hwjhint PARAMS((unsigned, int *));
 
 
 /* The operands table  */
@@ -78,7 +81,7 @@ const struct alpha_operand alpha_operands[] =
   /* The fields are bits, shift, insert, extract, flags */
   /* The zero index is used to indicate end-of-list */
 #define UNUSED		0
-  { 0, 0, 0, 0, 0 },
+  { 0, 0, 0, 0, 0, 0 },
 
   /* The plain integer register fields */
 #define RA		(UNUSED + 1)
@@ -170,8 +173,9 @@ const struct alpha_operand alpha_operands[] =
   { 14, 0, -RETHINT,
     AXP_OPERAND_UNSIGNED|AXP_OPERAND_DEFAULT_ZERO, 0, 0 },
 
-  /* The 12-bit displacement for the ev4 hw_{ld,st} (pal1b/pal1f) insns */
+  /* The 12-bit displacement for the ev[46] hw_{ld,st} (pal1b/pal1f) insns */
 #define EV4HWDISP	(RETHINT + 1)
+#define EV6HWDISP	(EV4HWDISP)
   { 12, 0, -EV4HWDISP, AXP_OPERAND_SIGNED, 0, 0 },
 
   /* The 5-bit index for the ev4 hw_m[ft]pr (pal19/pal1d) insns */
@@ -190,9 +194,20 @@ const struct alpha_operand alpha_operands[] =
   /* The 16-bit index for the ev5 hw_m[ft]pr (pal19/pal1d) insns */
 #define EV5HWINDEX	(EV5HWDISP + 1)
   { 16, 0, -EV5HWINDEX, AXP_OPERAND_UNSIGNED, 0, 0 },
+
+  /* The 16-bit combined index/scoreboard mask for the ev6
+     hw_m[ft]pr (pal19/pal1d) insns */
+#define EV6HWINDEX	(EV5HWINDEX + 1)
+  { 16, 0, -EV6HWINDEX, AXP_OPERAND_UNSIGNED, 0, 0 },
+
+  /* The 13-bit branch hint for the ev6 hw_jmp/jsr (pal1e) insn */
+#define EV6HWJMPHINT	(EV6HWINDEX+ 1)
+  { 8, 0, -EV6HWJMPHINT,
+    AXP_OPERAND_RELATIVE|AXP_OPERAND_DEFAULT_ZERO|AXP_OPERAND_NOOVERFLOW,
+    insert_ev6hwjhint, extract_ev6hwjhint }
 };
 
-const int alpha_num_operands = sizeof(alpha_operands)/sizeof(*alpha_operands);
+const unsigned alpha_num_operands = sizeof(alpha_operands)/sizeof(*alpha_operands);
 
 /* The RB field when it is the same as the RA field in the same insn.
    This operand is marked fake.  The insertion function just copies
@@ -203,8 +218,8 @@ const int alpha_num_operands = sizeof(alpha_operands)/sizeof(*alpha_operands);
 static unsigned
 insert_rba(insn, value, errmsg)
      unsigned insn;
-     int value;
-     const char **errmsg;
+     int value ATTRIBUTE_UNUSED;
+     const char **errmsg ATTRIBUTE_UNUSED;
 {
   return insn | (((insn >> 21) & 0x1f) << 16);
 }
@@ -227,8 +242,8 @@ extract_rba(insn, invalid)
 static unsigned
 insert_rca(insn, value, errmsg)
      unsigned insn;
-     int value;
-     const char **errmsg;
+     int value ATTRIBUTE_UNUSED;
+     const char **errmsg ATTRIBUTE_UNUSED;
 {
   return insn | ((insn >> 21) & 0x1f);
 }
@@ -251,8 +266,8 @@ extract_rca(insn, invalid)
 static unsigned
 insert_za(insn, value, errmsg)
      unsigned insn;
-     int value;
-     const char **errmsg;
+     int value ATTRIBUTE_UNUSED;
+     const char **errmsg ATTRIBUTE_UNUSED;
 {
   return insn | (31 << 21);
 }
@@ -271,8 +286,8 @@ extract_za(insn, invalid)
 static unsigned
 insert_zb(insn, value, errmsg)
      unsigned insn;
-     int value;
-     const char **errmsg;
+     int value ATTRIBUTE_UNUSED;
+     const char **errmsg ATTRIBUTE_UNUSED;
 {
   return insn | (31 << 16);
 }
@@ -291,8 +306,8 @@ extract_zb(insn, invalid)
 static unsigned
 insert_zc(insn, value, errmsg)
      unsigned insn;
-     int value;
-     const char **errmsg;
+     int value ATTRIBUTE_UNUSED;
+     const char **errmsg ATTRIBUTE_UNUSED;
 {
   return insn | 31;
 }
@@ -317,7 +332,7 @@ insert_bdisp(insn, value, errmsg)
      const char **errmsg;
 {
   if (errmsg != (const char **)NULL && (value & 3))
-    *errmsg = "branch operand unaligned";
+    *errmsg = _("branch operand unaligned");
   return insn | ((value / 4) & 0x1FFFFF);
 }
 
@@ -325,7 +340,7 @@ insert_bdisp(insn, value, errmsg)
 static int
 extract_bdisp(insn, invalid)
      unsigned insn;
-     int *invalid;
+     int *invalid ATTRIBUTE_UNUSED;
 {
   return 4 * (((insn & 0x1FFFFF) ^ 0x100000) - 0x100000);
 }
@@ -340,17 +355,39 @@ insert_jhint(insn, value, errmsg)
      const char **errmsg;
 {
   if (errmsg != (const char **)NULL && (value & 3))
-    *errmsg = "jump hint unaligned";
-  return insn | ((value / 4) & 0xFFFF);
+    *errmsg = _("jump hint unaligned");
+  return insn | ((value / 4) & 0x3FFF);
 }
 
 /*ARGSUSED*/
 static int
 extract_jhint(insn, invalid)
      unsigned insn;
-     int *invalid;
+     int *invalid ATTRIBUTE_UNUSED;
 {
   return 4 * (((insn & 0x3FFF) ^ 0x2000) - 0x2000);
+}
+
+/* The hint field of an EV6 HW_JMP/JSR insn.  */
+
+static unsigned
+insert_ev6hwjhint(insn, value, errmsg)
+     unsigned insn;
+     int value;
+     const char **errmsg;
+{
+  if (errmsg != (const char **)NULL && (value & 3))
+    *errmsg = _("jump hint unaligned");
+  return insn | ((value / 4) & 0x1FFF);
+}
+
+/*ARGSUSED*/
+static int
+extract_ev6hwjhint(insn, invalid)
+     unsigned insn;
+     int *invalid ATTRIBUTE_UNUSED;
+{
+  return 4 * (((insn & 0x1FFF) ^ 0x1000) - 0x1000);
 }
 
 
@@ -412,10 +449,19 @@ extract_jhint(insn, invalid)
 #define EV5HWMEM_MASK	(OP_MASK | 0xF800)
 #define EV5HWMEM(oo,f)	EV5HWMEM_(oo,f), EV5HWMEM_MASK
 
+#define EV6HWMEM_(oo,f)	(OP(oo) | (((f) & 0xF) << 12))
+#define EV6HWMEM_MASK	(OP_MASK | 0xF000)
+#define EV6HWMEM(oo,f)	EV6HWMEM_(oo,f), EV6HWMEM_MASK
+
+#define EV6HWMBR_(oo,h)	(OP(oo) | (((h) & 7) << 13))
+#define EV6HWMBR_MASK	(OP_MASK | 0xE000)
+#define EV6HWMBR(oo,h)	EV6HWMBR_(oo,h), EV6HWMBR_MASK
+
 /* Abbreviations for instruction subsets.  */
 #define BASE			AXP_OPCODE_BASE
 #define EV4			AXP_OPCODE_EV4
 #define EV5			AXP_OPCODE_EV5
+#define EV6			AXP_OPCODE_EV6
 #define BWX			AXP_OPCODE_BWX
 #define CIX			AXP_OPCODE_CIX
 #define MAX			AXP_OPCODE_MAX
@@ -436,7 +482,7 @@ extract_jhint(insn, invalid)
 #define ARG_EV4HWMEM		{ RA, EV4HWDISP, PRB }
 #define ARG_EV4HWMPR		{ RA, RBA, EV4HWINDEX }
 #define ARG_EV5HWMEM		{ RA, EV5HWDISP, PRB }
-
+#define ARG_EV6HWMEM		{ RA, EV6HWDISP, PRB }
 
 /* The opcode table.
 
@@ -560,7 +606,7 @@ const struct alpha_opcode alpha_opcodes[] = {
 
   { "and",		OPR(0x11,0x00), BASE, ARG_OPR },
   { "and",		OPRL(0x11,0x00), BASE, ARG_OPRL },
-  { "andnot",		OPR(0x11,0x08), BASE, ARG_OPR },		/* alias */
+  { "andnot",		OPR(0x11,0x08), BASE, ARG_OPR },	/* alias */
   { "andnot",		OPRL(0x11,0x08), BASE, ARG_OPRL },	/* alias */
   { "bic",		OPR(0x11,0x08), BASE, ARG_OPR },
   { "bic",		OPRL(0x11,0x08), BASE, ARG_OPRL },
@@ -573,7 +619,7 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "mov",		OPR(0x11,0x20), BASE, { ZA, RB, RC } }, /* pseudo */
   { "mov",		OPR(0x11,0x20), BASE, { RA, RBA, RC } }, /* pseudo */
   { "mov",		OPRL(0x11,0x20), BASE, { ZA, LIT, RC } }, /* pseudo */
-  { "or",		OPR(0x11,0x20), BASE, ARG_OPR },		/* alias */
+  { "or",		OPR(0x11,0x20), BASE, ARG_OPR },	/* alias */
   { "or",		OPRL(0x11,0x20), BASE, ARG_OPRL },	/* alias */
   { "bis",		OPR(0x11,0x20), BASE, ARG_OPR },
   { "bis",		OPRL(0x11,0x20), BASE, ARG_OPRL },
@@ -669,12 +715,56 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "mulq/v",		OPRL(0x13,0x60), BASE, ARG_OPRL },
 
   { "itofs",		FP(0x14,0x004), CIX, { RA, ZB, FC } },
+  { "sqrtf/c",		FP(0x14,0x00A), CIX, ARG_FPZ1 },
+  { "sqrts/c",		FP(0x14,0x00B), CIX, ARG_FPZ1 },
   { "itoff",		FP(0x14,0x014), CIX, { RA, ZB, FC } },
   { "itoft",		FP(0x14,0x024), CIX, { RA, ZB, FC } },
+  { "sqrtg/c",		FP(0x14,0x02A), CIX, ARG_FPZ1 },
+  { "sqrtt/c",		FP(0x14,0x02B), CIX, ARG_FPZ1 },
+  { "sqrts/m",		FP(0x14,0x04B), CIX, ARG_FPZ1 },
+  { "sqrtt/m",		FP(0x14,0x06B), CIX, ARG_FPZ1 },
   { "sqrtf",		FP(0x14,0x08A), CIX, ARG_FPZ1 },
-  { "sqrtg",		FP(0x14,0x0AA), CIX, ARG_FPZ1 },
   { "sqrts",		FP(0x14,0x08B), CIX, ARG_FPZ1 },
+  { "sqrtg",		FP(0x14,0x0AA), CIX, ARG_FPZ1 },
   { "sqrtt",		FP(0x14,0x0AB), CIX, ARG_FPZ1 },
+  { "sqrts/d",		FP(0x14,0x0CB), CIX, ARG_FPZ1 },
+  { "sqrtt/d",		FP(0x14,0x0EB), CIX, ARG_FPZ1 },
+  { "sqrtf/uc",		FP(0x14,0x10A), CIX, ARG_FPZ1 },
+  { "sqrts/uc",		FP(0x14,0x10B), CIX, ARG_FPZ1 },
+  { "sqrtg/uc",		FP(0x14,0x12A), CIX, ARG_FPZ1 },
+  { "sqrtt/uc",		FP(0x14,0x12B), CIX, ARG_FPZ1 },
+  { "sqrts/um",		FP(0x14,0x14B), CIX, ARG_FPZ1 },
+  { "sqrtt/um",		FP(0x14,0x16B), CIX, ARG_FPZ1 },
+  { "sqrtf/u",		FP(0x14,0x18A), CIX, ARG_FPZ1 },
+  { "sqrts/u",		FP(0x14,0x18B), CIX, ARG_FPZ1 },
+  { "sqrtg/u",		FP(0x14,0x1AA), CIX, ARG_FPZ1 },
+  { "sqrtt/u",		FP(0x14,0x1AB), CIX, ARG_FPZ1 },
+  { "sqrts/ud",		FP(0x14,0x1CB), CIX, ARG_FPZ1 },
+  { "sqrtt/ud",		FP(0x14,0x1EB), CIX, ARG_FPZ1 },
+  { "sqrtf/sc",		FP(0x14,0x40A), CIX, ARG_FPZ1 },
+  { "sqrtg/sc",		FP(0x14,0x42A), CIX, ARG_FPZ1 },
+  { "sqrtf/s",		FP(0x14,0x48A), CIX, ARG_FPZ1 },
+  { "sqrtg/s",		FP(0x14,0x4AA), CIX, ARG_FPZ1 },
+  { "sqrtf/suc",	FP(0x14,0x50A), CIX, ARG_FPZ1 },
+  { "sqrts/suc",	FP(0x14,0x50B), CIX, ARG_FPZ1 },
+  { "sqrtg/suc",	FP(0x14,0x52A), CIX, ARG_FPZ1 },
+  { "sqrtt/suc",	FP(0x14,0x52B), CIX, ARG_FPZ1 },
+  { "sqrts/sum",	FP(0x14,0x54B), CIX, ARG_FPZ1 },
+  { "sqrtt/sum",	FP(0x14,0x56B), CIX, ARG_FPZ1 },
+  { "sqrtf/su",		FP(0x14,0x58A), CIX, ARG_FPZ1 },
+  { "sqrts/su",		FP(0x14,0x58B), CIX, ARG_FPZ1 },
+  { "sqrtg/su",		FP(0x14,0x5AA), CIX, ARG_FPZ1 },
+  { "sqrtt/su",		FP(0x14,0x5AB), CIX, ARG_FPZ1 },
+  { "sqrts/sud",	FP(0x14,0x5CB), CIX, ARG_FPZ1 },
+  { "sqrtt/sud",	FP(0x14,0x5EB), CIX, ARG_FPZ1 },
+  { "sqrts/suic",	FP(0x14,0x70B), CIX, ARG_FPZ1 },
+  { "sqrtt/suic",	FP(0x14,0x72B), CIX, ARG_FPZ1 },
+  { "sqrts/suim",	FP(0x14,0x74B), CIX, ARG_FPZ1 },
+  { "sqrtt/suim",	FP(0x14,0x76B), CIX, ARG_FPZ1 },
+  { "sqrts/sui",	FP(0x14,0x78B), CIX, ARG_FPZ1 },
+  { "sqrtt/sui",	FP(0x14,0x7AB), CIX, ARG_FPZ1 },
+  { "sqrts/suid",	FP(0x14,0x7CB), CIX, ARG_FPZ1 },
+  { "sqrtt/suid",	FP(0x14,0x7EB), CIX, ARG_FPZ1 },
 
   { "addf/c",		FP(0x15,0x000), BASE, ARG_FP },
   { "subf/c",		FP(0x15,0x001), BASE, ARG_FP },
@@ -1006,16 +1096,17 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "excb",		MFC(0x18,0x0400), BASE, ARG_NONE },
   { "mb",		MFC(0x18,0x4000), BASE, ARG_NONE },
   { "wmb",		MFC(0x18,0x4400), BASE, ARG_NONE },
-  { "fetch",		MFC(0x18,0x8000), BASE, { PRB } },
-  { "fetch_m",		MFC(0x18,0xA000), BASE, { PRB } },
+  { "fetch",		MFC(0x18,0x8000), BASE, { ZA, PRB } },
+  { "fetch_m",		MFC(0x18,0xA000), BASE, { ZA, PRB } },
   { "rpcc",		MFC(0x18,0xC000), BASE, { RA } },
   { "rc",		MFC(0x18,0xE000), BASE, { RA } },
-  { "ecb",		MFC(0x18,0xE800), BASE, { PRB } },	/* ev56 una */
+  { "ecb",		MFC(0x18,0xE800), BASE, { ZA, PRB } },	/* ev56 una */
   { "rs",		MFC(0x18,0xF000), BASE, { RA } },
-  { "wh64",		MFC(0x18,0xF800), BASE, { PRB } },	/* ev56 una */
+  { "wh64",		MFC(0x18,0xF800), BASE, { ZA, PRB } },	/* ev56 una */
 
   { "hw_mfpr",		OPR(0x19,0x00), EV4, { RA, RBA, EV4EXTHWINDEX } },
   { "hw_mfpr",		OP(0x19), OP_MASK, EV5, { RA, RBA, EV5HWINDEX } },
+  { "hw_mfpr",		OP(0x19), OP_MASK, EV6, { RA, ZB, EV6HWINDEX } },
   { "hw_mfpr/i",	OPR(0x19,0x01), EV4, ARG_EV4HWMPR },
   { "hw_mfpr/a",	OPR(0x19,0x02), EV4, ARG_EV4HWMPR },
   { "hw_mfpr/ai",	OPR(0x19,0x03), EV4, ARG_EV4HWMPR },
@@ -1033,8 +1124,10 @@ const struct alpha_opcode alpha_opcodes[] = {
 
   { "hw_ldl",		EV4HWMEM(0x1B,0x0), EV4, ARG_EV4HWMEM },
   { "hw_ldl",		EV5HWMEM(0x1B,0x00), EV5, ARG_EV5HWMEM },
+  { "hw_ldl",		EV6HWMEM(0x1B,0x8), EV6, ARG_EV6HWMEM },
   { "hw_ldl/a",		EV4HWMEM(0x1B,0x4), EV4, ARG_EV4HWMEM },
   { "hw_ldl/a",		EV5HWMEM(0x1B,0x10), EV5, ARG_EV5HWMEM },
+  { "hw_ldl/a",		EV6HWMEM(0x1B,0xC), EV6, ARG_EV6HWMEM },
   { "hw_ldl/al",	EV5HWMEM(0x1B,0x11), EV5, ARG_EV5HWMEM },
   { "hw_ldl/ar",	EV4HWMEM(0x1B,0x6), EV4, ARG_EV4HWMEM },
   { "hw_ldl/av",	EV5HWMEM(0x1B,0x12), EV5, ARG_EV5HWMEM },
@@ -1046,6 +1139,7 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "hw_ldl/l",		EV5HWMEM(0x1B,0x01), EV5, ARG_EV5HWMEM },
   { "hw_ldl/p",		EV4HWMEM(0x1B,0x8), EV4, ARG_EV4HWMEM },
   { "hw_ldl/p",		EV5HWMEM(0x1B,0x20), EV5, ARG_EV5HWMEM },
+  { "hw_ldl/p",		EV6HWMEM(0x1B,0x0), EV6, ARG_EV6HWMEM },
   { "hw_ldl/pa",	EV4HWMEM(0x1B,0xC), EV4, ARG_EV4HWMEM },
   { "hw_ldl/pa",	EV5HWMEM(0x1B,0x30), EV5, ARG_EV5HWMEM },
   { "hw_ldl/pal",	EV5HWMEM(0x1B,0x31), EV5, ARG_EV5HWMEM },
@@ -1066,8 +1160,11 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "hw_ldl/pwvl",	EV5HWMEM(0x1B,0x2b), EV5, ARG_EV5HWMEM },
   { "hw_ldl/r",		EV4HWMEM(0x1B,0x2), EV4, ARG_EV4HWMEM },
   { "hw_ldl/v",		EV5HWMEM(0x1B,0x02), EV5, ARG_EV5HWMEM },
+  { "hw_ldl/v",		EV6HWMEM(0x1B,0x4), EV6, ARG_EV6HWMEM },
   { "hw_ldl/vl",	EV5HWMEM(0x1B,0x03), EV5, ARG_EV5HWMEM },
   { "hw_ldl/w",		EV5HWMEM(0x1B,0x08), EV5, ARG_EV5HWMEM },
+  { "hw_ldl/w",		EV6HWMEM(0x1B,0xA), EV6, ARG_EV6HWMEM },
+  { "hw_ldl/wa",	EV6HWMEM(0x1B,0xE), EV6, ARG_EV6HWMEM },
   { "hw_ldl/wl",	EV5HWMEM(0x1B,0x09), EV5, ARG_EV5HWMEM },
   { "hw_ldl/wv",	EV5HWMEM(0x1B,0x0a), EV5, ARG_EV5HWMEM },
   { "hw_ldl/wvl",	EV5HWMEM(0x1B,0x0b), EV5, ARG_EV5HWMEM },
@@ -1077,6 +1174,7 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "hw_ldl_l/aw",	EV5HWMEM(0x1B,0x19), EV5, ARG_EV5HWMEM },
   { "hw_ldl_l/awv",	EV5HWMEM(0x1B,0x1b), EV5, ARG_EV5HWMEM },
   { "hw_ldl_l/p",	EV5HWMEM(0x1B,0x21), EV5, ARG_EV5HWMEM },
+  { "hw_ldl_l/p",	EV6HWMEM(0x1B,0x2), EV6, ARG_EV6HWMEM },
   { "hw_ldl_l/pa",	EV5HWMEM(0x1B,0x31), EV5, ARG_EV5HWMEM },
   { "hw_ldl_l/pav",	EV5HWMEM(0x1B,0x33), EV5, ARG_EV5HWMEM },
   { "hw_ldl_l/paw",	EV5HWMEM(0x1B,0x39), EV5, ARG_EV5HWMEM },
@@ -1089,8 +1187,10 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "hw_ldl_l/wv",	EV5HWMEM(0x1B,0x0b), EV5, ARG_EV5HWMEM },
   { "hw_ldq",		EV4HWMEM(0x1B,0x1), EV4, ARG_EV4HWMEM },
   { "hw_ldq",		EV5HWMEM(0x1B,0x04), EV5, ARG_EV5HWMEM },
+  { "hw_ldq",		EV6HWMEM(0x1B,0x9), EV6, ARG_EV6HWMEM },
   { "hw_ldq/a",		EV4HWMEM(0x1B,0x5), EV4, ARG_EV4HWMEM },
   { "hw_ldq/a",		EV5HWMEM(0x1B,0x14), EV5, ARG_EV5HWMEM },
+  { "hw_ldq/a",		EV6HWMEM(0x1B,0xD), EV6, ARG_EV6HWMEM },
   { "hw_ldq/al",	EV5HWMEM(0x1B,0x15), EV5, ARG_EV5HWMEM },
   { "hw_ldq/ar",	EV4HWMEM(0x1B,0x7), EV4, ARG_EV4HWMEM },
   { "hw_ldq/av",	EV5HWMEM(0x1B,0x16), EV5, ARG_EV5HWMEM },
@@ -1102,6 +1202,7 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "hw_ldq/l",		EV5HWMEM(0x1B,0x05), EV5, ARG_EV5HWMEM },
   { "hw_ldq/p",		EV4HWMEM(0x1B,0x9), EV4, ARG_EV4HWMEM },
   { "hw_ldq/p",		EV5HWMEM(0x1B,0x24), EV5, ARG_EV5HWMEM },
+  { "hw_ldq/p",		EV6HWMEM(0x1B,0x1), EV6, ARG_EV6HWMEM },
   { "hw_ldq/pa",	EV4HWMEM(0x1B,0xD), EV4, ARG_EV4HWMEM },
   { "hw_ldq/pa",	EV5HWMEM(0x1B,0x34), EV5, ARG_EV5HWMEM },
   { "hw_ldq/pal",	EV5HWMEM(0x1B,0x35), EV5, ARG_EV5HWMEM },
@@ -1122,8 +1223,11 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "hw_ldq/pwvl",	EV5HWMEM(0x1B,0x2f), EV5, ARG_EV5HWMEM },
   { "hw_ldq/r",		EV4HWMEM(0x1B,0x3), EV4, ARG_EV4HWMEM },
   { "hw_ldq/v",		EV5HWMEM(0x1B,0x06), EV5, ARG_EV5HWMEM },
+  { "hw_ldq/v",		EV6HWMEM(0x1B,0x5), EV6, ARG_EV6HWMEM },
   { "hw_ldq/vl",	EV5HWMEM(0x1B,0x07), EV5, ARG_EV5HWMEM },
   { "hw_ldq/w",		EV5HWMEM(0x1B,0x0c), EV5, ARG_EV5HWMEM },
+  { "hw_ldq/w",		EV6HWMEM(0x1B,0xB), EV6, ARG_EV6HWMEM },
+  { "hw_ldq/wa",	EV6HWMEM(0x1B,0xF), EV6, ARG_EV6HWMEM },
   { "hw_ldq/wl",	EV5HWMEM(0x1B,0x0d), EV5, ARG_EV5HWMEM },
   { "hw_ldq/wv",	EV5HWMEM(0x1B,0x0e), EV5, ARG_EV5HWMEM },
   { "hw_ldq/wvl",	EV5HWMEM(0x1B,0x0f), EV5, ARG_EV5HWMEM },
@@ -1133,6 +1237,7 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "hw_ldq_l/aw",	EV5HWMEM(0x1B,0x1d), EV5, ARG_EV5HWMEM },
   { "hw_ldq_l/awv",	EV5HWMEM(0x1B,0x1f), EV5, ARG_EV5HWMEM },
   { "hw_ldq_l/p",	EV5HWMEM(0x1B,0x25), EV5, ARG_EV5HWMEM },
+  { "hw_ldq_l/p",	EV6HWMEM(0x1B,0x3), EV6, ARG_EV6HWMEM },
   { "hw_ldq_l/pa",	EV5HWMEM(0x1B,0x35), EV5, ARG_EV5HWMEM },
   { "hw_ldq_l/pav",	EV5HWMEM(0x1B,0x37), EV5, ARG_EV5HWMEM },
   { "hw_ldq_l/paw",	EV5HWMEM(0x1B,0x3d), EV5, ARG_EV5HWMEM },
@@ -1256,6 +1361,7 @@ const struct alpha_opcode alpha_opcodes[] = {
 
   { "hw_mtpr",		OPR(0x1D,0x00), EV4, { RA, RBA, EV4EXTHWINDEX } },
   { "hw_mtpr",		OP(0x1D), OP_MASK, EV5, { RA, RBA, EV5HWINDEX } },
+  { "hw_mtpr",		OP(0x1D), OP_MASK, EV6, { ZA, RB, EV6HWINDEX } },
   { "hw_mtpr/i", 	OPR(0x1D,0x01), EV4, ARG_EV4HWMPR },
   { "hw_mtpr/a", 	OPR(0x1D,0x02), EV4, ARG_EV4HWMPR },
   { "hw_mtpr/ai",	OPR(0x1D,0x03), EV4, ARG_EV4HWMPR },
@@ -1267,12 +1373,24 @@ const struct alpha_opcode alpha_opcodes[] = {
 
   { "hw_rei",		SPCD(0x1E,0x3FF8000), EV4|EV5, ARG_NONE },
   { "hw_rei_stall",	SPCD(0x1E,0x3FFC000), EV5, ARG_NONE },
+  { "hw_jmp", 		EV6HWMBR(0x1E,0x0), EV6, { ZA, PRB, EV6HWJMPHINT } },
+  { "hw_jsr", 		EV6HWMBR(0x1E,0x2), EV6, { ZA, PRB, EV6HWJMPHINT } },
+  { "hw_ret", 		EV6HWMBR(0x1E,0x4), EV6, { ZA, PRB } },
+  { "hw_jcr", 		EV6HWMBR(0x1E,0x6), EV6, { ZA, PRB } },
+  { "hw_coroutine",	EV6HWMBR(0x1E,0x6), EV6, { ZA, PRB } }, /* alias */
+  { "hw_jmp/stall",	EV6HWMBR(0x1E,0x1), EV6, { ZA, PRB, EV6HWJMPHINT } },
+  { "hw_jsr/stall", 	EV6HWMBR(0x1E,0x3), EV6, { ZA, PRB, EV6HWJMPHINT } },
+  { "hw_ret/stall",	EV6HWMBR(0x1E,0x5), EV6, { ZA, PRB } },
+  { "hw_jcr/stall", 	EV6HWMBR(0x1E,0x7), EV6, { ZA, PRB } },
+  { "hw_coroutine/stall", EV6HWMBR(0x1E,0x7), EV6, { ZA, PRB } }, /* alias */
   { "pal1e",		PCD(0x1E), BASE, ARG_PCD },
 
   { "hw_stl",		EV4HWMEM(0x1F,0x0), EV4, ARG_EV4HWMEM },
   { "hw_stl",		EV5HWMEM(0x1F,0x00), EV5, ARG_EV5HWMEM },
+  { "hw_stl",		EV6HWMEM(0x1F,0x4), EV6, ARG_EV6HWMEM }, /* ??? 8 */
   { "hw_stl/a",		EV4HWMEM(0x1F,0x4), EV4, ARG_EV4HWMEM },
   { "hw_stl/a",		EV5HWMEM(0x1F,0x10), EV5, ARG_EV5HWMEM },
+  { "hw_stl/a",		EV6HWMEM(0x1F,0xC), EV6, ARG_EV6HWMEM },
   { "hw_stl/ac",	EV5HWMEM(0x1F,0x11), EV5, ARG_EV5HWMEM },
   { "hw_stl/ar",	EV4HWMEM(0x1F,0x6), EV4, ARG_EV4HWMEM },
   { "hw_stl/av",	EV5HWMEM(0x1F,0x12), EV5, ARG_EV5HWMEM },
@@ -1280,6 +1398,7 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "hw_stl/c",		EV5HWMEM(0x1F,0x01), EV5, ARG_EV5HWMEM },
   { "hw_stl/p",		EV4HWMEM(0x1F,0x8), EV4, ARG_EV4HWMEM },
   { "hw_stl/p",		EV5HWMEM(0x1F,0x20), EV5, ARG_EV5HWMEM },
+  { "hw_stl/p",		EV6HWMEM(0x1F,0x0), EV6, ARG_EV6HWMEM },
   { "hw_stl/pa",	EV4HWMEM(0x1F,0xC), EV4, ARG_EV4HWMEM },
   { "hw_stl/pa",	EV5HWMEM(0x1F,0x30), EV5, ARG_EV5HWMEM },
   { "hw_stl/pac",	EV5HWMEM(0x1F,0x31), EV5, ARG_EV5HWMEM },
@@ -1296,14 +1415,17 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "hw_stl_c/a",	EV5HWMEM(0x1F,0x11), EV5, ARG_EV5HWMEM },
   { "hw_stl_c/av",	EV5HWMEM(0x1F,0x13), EV5, ARG_EV5HWMEM },
   { "hw_stl_c/p",	EV5HWMEM(0x1F,0x21), EV5, ARG_EV5HWMEM },
+  { "hw_stl_c/p",	EV6HWMEM(0x1F,0x2), EV6, ARG_EV6HWMEM },
   { "hw_stl_c/pa",	EV5HWMEM(0x1F,0x31), EV5, ARG_EV5HWMEM },
   { "hw_stl_c/pav",	EV5HWMEM(0x1F,0x33), EV5, ARG_EV5HWMEM },
   { "hw_stl_c/pv",	EV5HWMEM(0x1F,0x23), EV5, ARG_EV5HWMEM },
   { "hw_stl_c/v",	EV5HWMEM(0x1F,0x03), EV5, ARG_EV5HWMEM },
   { "hw_stq",		EV4HWMEM(0x1F,0x1), EV4, ARG_EV4HWMEM },
   { "hw_stq",		EV5HWMEM(0x1F,0x04), EV5, ARG_EV5HWMEM },
+  { "hw_stq",		EV6HWMEM(0x1F,0x5), EV6, ARG_EV6HWMEM }, /* ??? 9 */
   { "hw_stq/a",		EV4HWMEM(0x1F,0x5), EV4, ARG_EV4HWMEM },
   { "hw_stq/a",		EV5HWMEM(0x1F,0x14), EV5, ARG_EV5HWMEM },
+  { "hw_stq/a",		EV6HWMEM(0x1F,0xD), EV6, ARG_EV6HWMEM },
   { "hw_stq/ac",	EV5HWMEM(0x1F,0x15), EV5, ARG_EV5HWMEM },
   { "hw_stq/ar",	EV4HWMEM(0x1F,0x7), EV4, ARG_EV4HWMEM },
   { "hw_stq/av",	EV5HWMEM(0x1F,0x16), EV5, ARG_EV5HWMEM },
@@ -1311,6 +1433,7 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "hw_stq/c",		EV5HWMEM(0x1F,0x05), EV5, ARG_EV5HWMEM },
   { "hw_stq/p",		EV4HWMEM(0x1F,0x9), EV4, ARG_EV4HWMEM },
   { "hw_stq/p",		EV5HWMEM(0x1F,0x24), EV5, ARG_EV5HWMEM },
+  { "hw_stq/p",		EV6HWMEM(0x1F,0x1), EV6, ARG_EV6HWMEM },
   { "hw_stq/pa",	EV4HWMEM(0x1F,0xD), EV4, ARG_EV4HWMEM },
   { "hw_stq/pa",	EV5HWMEM(0x1F,0x34), EV5, ARG_EV5HWMEM },
   { "hw_stq/pac",	EV5HWMEM(0x1F,0x35), EV5, ARG_EV5HWMEM },
@@ -1329,6 +1452,7 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "hw_stq_c/a",	EV5HWMEM(0x1F,0x15), EV5, ARG_EV5HWMEM },
   { "hw_stq_c/av",	EV5HWMEM(0x1F,0x17), EV5, ARG_EV5HWMEM },
   { "hw_stq_c/p",	EV5HWMEM(0x1F,0x25), EV5, ARG_EV5HWMEM },
+  { "hw_stq_c/p",	EV6HWMEM(0x1F,0x3), EV6, ARG_EV6HWMEM },
   { "hw_stq_c/pa",	EV5HWMEM(0x1F,0x35), EV5, ARG_EV5HWMEM },
   { "hw_stq_c/pav",	EV5HWMEM(0x1F,0x37), EV5, ARG_EV5HWMEM },
   { "hw_stq_c/pv",	EV5HWMEM(0x1F,0x27), EV5, ARG_EV5HWMEM },
@@ -1419,4 +1543,4 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "bgt",		BRA(0x3F), BASE, ARG_BRA },
 };
 
-const int alpha_num_opcodes = sizeof(alpha_opcodes)/sizeof(*alpha_opcodes);
+const unsigned alpha_num_opcodes = sizeof(alpha_opcodes)/sizeof(*alpha_opcodes);

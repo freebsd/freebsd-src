@@ -1,5 +1,5 @@
 /* BFD back-end for TMS320C30 coff binaries.
-   Copyright (C) 1998 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999 Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -41,7 +41,7 @@ reloc_howto_type tic30_coff_howto_table[] =
 	 "32", false, 0xFFFFFFFF, 0xFFFFFFFF, false),
   HOWTO (R_TIC30_PC16, 2, 1, 16, true, 0, complain_overflow_signed, NULL,
 	 "PCREL", false, 0x0000FFFF, 0x0000FFFF, false),
-  {-1}
+  EMPTY_HOWTO (-1)
 };
 
 #ifndef coff_bfd_reloc_type_lookup
@@ -52,7 +52,7 @@ reloc_howto_type tic30_coff_howto_table[] =
    and coff implementations. */
 reloc_howto_type *
 tic30_coff_reloc_type_lookup (abfd, code)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      bfd_reloc_code_real_type code;
 {
   switch (code)
@@ -202,5 +202,7 @@ const bfd_target tic30_coff_vec =
   BFD_JUMP_TABLE_LINK (coff),
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
+  NULL,
+  
   COFF_SWAP_TABLE
 };

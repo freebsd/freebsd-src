@@ -1,5 +1,6 @@
 test -z "${BIG_OUTPUT_FORMAT}" && BIG_OUTPUT_FORMAT=${OUTPUT_FORMAT}
 test -z "${LITTLE_OUTPUT_FORMAT}" && LITTLE_OUTPUT_FORMAT=${OUTPUT_FORMAT}
+test -z "${ALIGNMENT}" && ALIGNMENT="4"
 
 cat <<EOF
 OUTPUT_FORMAT("${OUTPUT_FORMAT}", "${BIG_OUTPUT_FORMAT}",
@@ -48,8 +49,9 @@ SECTIONS
    ${RELOCATING+ __bss_start = .};
    *(.bss)
    *(COMMON)
-   ${RELOCATING+_end = ALIGN(4) };
-   ${RELOCATING+__end = ALIGN(4) };
+   ${RELOCATING+. = ALIGN(${ALIGNMENT});}
+   ${RELOCATING+_end = . };
+   ${RELOCATING+__end = . };
   }
 }
 EOF

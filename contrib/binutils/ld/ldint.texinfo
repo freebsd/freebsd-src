@@ -12,7 +12,7 @@ END-INFO-DIR-ENTRY
 @ifinfo
 This file documents the internals of the GNU linker ld.
 
-Copyright (C) 1992, 93, 94, 95, 1996 Free Software Foundation, Inc.
+Copyright (C) 1992, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 Contributed by Cygnus Support.
 
 Permission is granted to make and distribute verbatim copies of
@@ -37,13 +37,13 @@ regarded as a program in the language TeX).
 @settitle GNU Linker Internals
 @titlepage
 @title{A guide to the internals of the GNU linker}
-@author Per Bothner, Steve Chamberlain, Ian Lance Taylor
+@author Per Bothner, Steve Chamberlain, Ian Lance Taylor, DJ Delorie
 @author Cygnus Support
 @page
 
 @tex
 \def\$#1${{#1}}  % Kluge: collect RCS revision info without $...$
-\xdef\manvers{\$Revision: 1.10 $}  % For use in headers, footers too
+\xdef\manvers{\$Revision: 1.1.1.1 $}  % For use in headers, footers too
 {\parskip=0pt
 \hfill Cygnus Support\par
 \hfill \manvers\par
@@ -52,7 +52,8 @@ regarded as a program in the language TeX).
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1992, 93, 94, 95, 1996 Free Software Foundation, Inc.
+Copyright @copyright{} 1992, 93, 94, 95, 96, 97, 1998
+Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -72,6 +73,7 @@ GNU @code{ld} as you discover it (or as you design changes to @code{ld}).
 @menu
 * README::			The README File
 * Emulations::			How linker emulations are generated
+* Emulation Walkthrough::	A Walkthrough of a Typical Emulation
 @end menu
 
 @node README
@@ -209,6 +211,10 @@ The @file{genscripts.sh} script uses this to set the default value of
 @item TARGET_PAGE_SIZE
 If @code{SEGMENT_SIZE} is not defined, the @file{genscripts.sh} script
 uses this to define it.
+
+@item ALIGNMENT
+Some @file{scripttempl} scripts set this to a number to pass to
+@code{ALIGN} to set the required alignment for the @code{end} symbol.
 @end table
 
 @node linker scripts
@@ -407,6 +413,152 @@ the @code{get_scripts} entry point should just return a file name.  See
 @file{emultempl/generic.em} for an example of how this is done.
 
 At some point, the linker emulation entry points should be documented.
+
+@node Emulation Walkthrough
+@chapter A Walkthrough of a Typical Emulation
+
+This chapter is to help people who are new to the way emulations
+interact with the linker, or who are suddenly thrust into the position
+of having to work with existing emulations.  It will discuss the files
+you need to be aware of.  It will tell you when the given "hooks" in
+the emulation will be called.  It will, hopefully, give you enough
+information about when and how things happen that you'll be able to
+get by.  As always, the source is the definitive reference to this.
+
+The starting point for the linker is in @file{ldmain.c} where
+@code{main} is defined.  The bulk of the code that's emulation
+specific will initially be in @code{emultempl/@var{emulation}.em} but
+will end up in @code{e@var{emulation}.c} when the build is done.
+Most of the work to select and interface with emulations is in
+@code{ldemul.h} and @code{ldemul.c}.  Specifically, @code{ldemul.h}
+defines the @code{ld_emulation_xfer_struct} structure your emulation
+exports.
+
+Your emulation file exports a symbol
+@code{ld_@var{EMULATION_NAME}_emulation}.  If your emulation is
+selected (it usually is, since usually there's only one),
+@code{ldemul.c} sets the variable @var{ld_emulation} to point to it.
+@code{ldemul.c} also defines a number of API functions that interface
+to your emulation, like @code{ldemul_after_parse} which simply calls
+your @code{ld_@var{EMULATION}_emulation.after_parse} function.  For
+the rest of this section, the functions will be mentioned, but you
+should assume the indirect reference to your emulation also.
+
+We will also skip or gloss over parts of the link process that don't
+relate to emulations, like setting up internationalization.
+
+After initialization, @code{main} selects an emulation by pre-scanning
+the command line arguments.  It calls @code{ldemul_choose_target} to
+choose a target.  If you set @code{choose_target} to
+@code{ldemul_default_target}, it picks your @code{target_name} by
+default.
+
+@code{main} calls @code{ldemul_before_parse}, then @code{parse_args}.
+@code{parse_args} calls @code{ldemul_parse_args} for each arg, which
+must update the @code{getopt} globals if it recognizes the argument.
+If the emulation doesn't recognize it, then parse_args checks to see
+if it recognizes it.
+
+Now that the emulation has had access to all its command-line options,
+@code{main} calls @code{ldemul_set_symbols}.  This can be used for any
+initialization that may be affected by options.  It is also supposed
+to set up any variables needed by the emulation script.
+
+@code{main} now calls @code{ldemul_get_script} to get the emulation
+script to use (based on arguments, no doubt, @pxref{Emulations}) and
+runs it.  While parsing, @code{ldgram.y} may call @code{ldemul_hll} or
+@code{ldemul_syslib} to handle the @code{HLL} or @code{SYSLIB}
+commands.  It may call @code{ldemul_unrecognized_file} if you asked
+the linker to link a file it doesn't recognize.  It will call
+@code{ldemul_recognized_file} for each file it does recognize, in case
+the emulation wants to handle some files specially.  All the while,
+it's loading the files (possibly calling
+@code{ldemul_open_dynamic_archive}) and symbols and stuff.  After it's
+done reading the script, @code{main} calls @code{ldemul_after_parse}.
+Use the after-parse hook to set up anything that depends on stuff the
+script might have set up, like the entry point.
+
+@code{main} next calls @code{lang_process} in @code{ldlang.c}.  This
+appears to be the main core of the linking itself, as far as emulation
+hooks are concerned(*).  It first opens the output file's BFD, calling
+@code{ldemul_set_output_arch}, and calls
+@code{ldemul_create_output_section_statements} in case you need to use
+other means to find or create object files (i.e. shared libraries
+found on a path, or fake stub objects).  Despite the name, nobody
+creates output sections here.
+
+(*) In most cases, the BFD library does the bulk of the actual
+linking, handling symbol tables, symbol resolution, relocations, and
+building the final output file.  See the BFD reference for all the
+details.  Your emulation is usually concerned more with managing
+things at the file and section level, like "put this here, add this
+section", etc.
+
+Next, the objects to be linked are opened and BFDs created for them,
+and @code{ldemul_after_open} is called.  At this point, you have all
+the objects and symbols loaded, but none of the data has been placed
+yet.
+
+Next comes the Big Linking Thingy (except for the parts BFD does).
+All input sections are mapped to output sections according to the
+script.  If a section doesn't get mapped by default,
+@code{ldemul_place_orphan} will get called to figure out where it goes.
+Next it figures out the offsets for each section, calling
+@code{ldemul_before_allocation} before and
+@code{ldemul_after_allocation} after deciding where each input section
+ends up in the output sections.
+
+The last part of @code{lang_process} is to figure out all the symbols'
+values.  After assigning final values to the symbols,
+@code{ldemul_finish} is called, and after that, any undefined symbols
+are turned into fatal errors.
+
+OK, back to @code{main}, which calls @code{ldwrite} in
+@file{ldwrite.c}.  @code{ldwrite} calls BFD's final_link, which does
+all the relocation fixups and writes the output bfd to disk, and we're
+done.
+
+In summary,
+
+@itemize @bullet
+
+@item @code{main()} in @file{ldmain.c}
+@item @file{emultempl/@var{EMULATION}.em} has your code
+@item @code{ldemul_choose_target} (defaults to your @code{target_name})
+@item @code{ldemul_before_parse}
+@item Parse argv, calls @code{ldemul_parse_args} for each
+@item @code{ldemul_set_symbols}
+@item @code{ldemul_get_script}
+@item parse script
+
+@itemize @bullet
+@item may call @code{ldemul_hll} or @code{ldemul_syslib}
+@item may call @code{ldemul_open_dynamic_archive}
+@end itemize
+
+@item @code{ldemul_after_parse}
+@item @code{lang_process()} in @file{ldlang.c}
+
+@itemize @bullet
+@item create @code{output_bfd}
+@item @code{ldemul_set_output_arch}
+@item @code{ldemul_create_output_section_statements}
+@item read objects, create input bfds - all symbols exist, but have no values
+@item may call @code{ldemul_unrecognized_file}
+@item will call @code{ldemul_recognized_file}
+@item @code{ldemul_after_open}
+@item map input sections to output sections
+@item may call @code{ldemul_place_orphan} for remaining sections
+@item @code{ldemul_before_allocation}
+@item gives input sections offsets into output sections, places output sections
+@item @code{ldemul_after_allocation} - section addresses valid
+@item assigns values to symbols
+@item @code{ldemul_finish} - symbol values valid
+@end itemize
+
+@item output bfd is written to disk
+
+@end itemize
 
 @contents
 @bye

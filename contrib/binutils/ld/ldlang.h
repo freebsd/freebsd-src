@@ -1,5 +1,6 @@
 /* ldlang.h - linker command language support
-   Copyright 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Free Software Foundation, Inc.
    
    This file is part of GLD, the Gnu Linker.
    
@@ -135,6 +136,7 @@ typedef struct lang_output_section_statement_struct
   flagword flags;		/* Or together of all input sections */
   enum section_type sectype;
   struct memory_region_struct *region;
+  struct memory_region_struct *lma_region;
   size_t block_value;
   fill_type fill;
 
@@ -278,7 +280,11 @@ typedef struct lang_wild_statement_struct
 {
   lang_statement_header_type header;
   const char *section_name;
+  boolean sections_sorted;
   const char *filename;
+  boolean filenames_sorted;
+  boolean keep_sections;
+  struct name_list *exclude_filename_list;
   lang_statement_list_type children;
 } lang_wild_statement_type;
 
@@ -379,7 +385,8 @@ extern struct memory_region_struct *lang_memory_region_lookup
 extern struct memory_region_struct *lang_memory_region_default
   PARAMS ((asection *));
 extern void lang_map PARAMS ((void));
-extern void lang_set_flags PARAMS ((lang_memory_region_type *, const char *));
+extern void lang_set_flags PARAMS ((lang_memory_region_type *, const char *,
+				    int));
 extern void lang_add_output PARAMS ((const char *, int from_script));
 extern void lang_enter_output_section_statement
   PARAMS ((const char *output_section_statement_name,
@@ -394,15 +401,17 @@ extern void lang_process PARAMS ((void));
 extern void lang_section_start PARAMS ((const char *, union etree_union *));
 extern void lang_add_entry PARAMS ((const char *, boolean));
 extern void lang_add_target PARAMS ((const char *));
-extern void lang_add_wild PARAMS ((const char *const , const char *const));
+extern void lang_add_wild
+  PARAMS ((const char *, boolean, const char *, boolean, boolean, name_list *));
 extern void lang_add_map PARAMS ((const char *));
 extern void lang_add_fill PARAMS ((int));
-extern void lang_add_assignment PARAMS ((union etree_union *));
+extern lang_assignment_statement_type * lang_add_assignment PARAMS ((union etree_union *));
 extern void lang_add_attribute PARAMS ((enum statement_enum));
 extern void lang_startup PARAMS ((const char *));
 extern void lang_float PARAMS ((enum bfd_boolean));
 extern void lang_leave_output_section_statement
-  PARAMS ((bfd_vma, const char *, struct lang_output_section_phdr_list *));
+  PARAMS ((bfd_vma, const char *, struct lang_output_section_phdr_list *,
+           const char *));
 extern void lang_abs_symbol_at_end_of PARAMS ((const char *, const char *));
 extern void lang_abs_symbol_at_beginning_of PARAMS ((const char *,
 						     const char *));
@@ -468,12 +477,13 @@ extern void lang_enter_overlay_section PARAMS ((const char *));
 extern void lang_leave_overlay_section
   PARAMS ((bfd_vma, struct lang_output_section_phdr_list *));
 extern void lang_leave_overlay
-  PARAMS ((bfd_vma, const char *, struct lang_output_section_phdr_list *));
+  PARAMS ((bfd_vma, const char *, struct lang_output_section_phdr_list *,
+           const char *));
 
 extern struct bfd_elf_version_tree *lang_elf_version_info;
 
 extern struct bfd_elf_version_expr *lang_new_vers_regex
-  PARAMS ((struct bfd_elf_version_expr *, const char *));
+  PARAMS ((struct bfd_elf_version_expr *, const char *, const char *));
 extern struct bfd_elf_version_tree *lang_new_vers_node
   PARAMS ((struct bfd_elf_version_expr *, struct bfd_elf_version_expr *));
 extern struct bfd_elf_version_deps *lang_add_vers_depend

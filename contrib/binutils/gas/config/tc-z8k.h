@@ -1,5 +1,5 @@
 /* This file is tc-z8k.h
-   Copyright (C) 1987-1992, 93, 95, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1987-1992, 93, 95, 97, 1998 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -22,6 +22,12 @@
 #define TC_Z8K
 #define TARGET_BYTES_BIG_ENDIAN 1
 
+#if ANSI_PROTOTYPES
+struct internal_reloc;
+#endif
+
+#define WORKING_DOT_WORD
+
 #ifndef BFD_ASSEMBLER
 #define LOCAL_LABEL(x) 0
 #endif
@@ -35,6 +41,8 @@
 #define IGNORE_NONSTANDARD_ESCAPES
 
 #define TC_RELOC_MANGLE(s,a,b,c) tc_reloc_mangle(a,b,c)
+extern void tc_reloc_mangle
+  PARAMS ((struct fix *, struct internal_reloc *, bfd_vma));
 
 #define DO_NOT_STRIP 0
 #define LISTING_HEADER "Zilog Z8000 GAS "

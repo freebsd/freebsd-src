@@ -1,5 +1,5 @@
 /* obj-format for ieee-695 records.
-   Copyright (C) 1991, 92, 93, 94, 95, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 94, 95, 1997, 1998 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -66,7 +66,7 @@ DEFUN (size_section, (abfd, idx),
     {
       if (frag->fr_address != size)
 	{
-	  printf ("Out of step\n");
+	  printf (_("Out of step\n"));
 	  size = frag->fr_address;
 	}
       size += frag->fr_fix;
@@ -457,7 +457,7 @@ obj_ieee_section (ignore)
     }
   if (i == SEG_UNKNOWN)
     {
-      as_bad ("too many sections");
+      as_bad (_("too many sections"));
       return;
     }
 
@@ -519,7 +519,7 @@ DEFUN_VOID (write_object_file)
 
   if (abfd == 0)
     {
-      as_perror ("FATAL: Can't create %s", out_file_name);
+      as_perror (_("FATAL: Can't create %s"), out_file_name);
       exit (EXIT_FAILURE);
     }
   bfd_set_format (abfd, bfd_object);

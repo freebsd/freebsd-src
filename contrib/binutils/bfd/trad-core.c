@@ -1,5 +1,6 @@
 /* BFD back end for traditional Unix core files (U-area and raw sections)
-   Copyright 1988, 1989, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
+   Copyright 1988, 89, 91, 92, 93, 94, 95, 96, 98, 99, 2000
+   Free Software Foundation, Inc.
    Written by John Gilmore of Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -23,8 +24,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "libbfd.h"
 #include "libaout.h"           /* BFD a.out internal data structures */
 
-#include <stdio.h>
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/dir.h>
 #include <signal.h>
@@ -106,22 +105,24 @@ trad_unix_core_file_p (abfd)
 	bfd_set_error (bfd_error_system_call);
 	return 0;
       }
-    if (NBPG * (UPAGES + u.u_dsize
+    if ((unsigned long) (NBPG * (UPAGES + u.u_dsize
 #ifdef TRAD_CORE_DSIZE_INCLUDES_TSIZE
-		- u.u_tsize
+				 - u.u_tsize
 #endif
-		+ u.u_ssize) > statbuf.st_size)
+				 + u.u_ssize))
+	> (unsigned long) statbuf.st_size)
       {
-	bfd_set_error (bfd_error_file_truncated);
+	bfd_set_error (bfd_error_wrong_format);
 	return 0;
       }
 #ifndef TRAD_CORE_ALLOW_ANY_EXTRA_SIZE
-    if (NBPG * (UPAGES + u.u_dsize + u.u_ssize)
+    if ((unsigned long) (NBPG * (UPAGES + u.u_dsize + u.u_ssize)
 #ifdef TRAD_CORE_EXTRA_SIZE_ALLOWED
 	/* Some systems write the file too big.  */
-	+ TRAD_CORE_EXTRA_SIZE_ALLOWED
+			 + TRAD_CORE_EXTRA_SIZE_ALLOWED
 #endif
-	< statbuf.st_size)
+			 )
+	< (unsigned long) statbuf.st_size)
       {
 	/* The file is too big.  Maybe it's not a core file
 	   or we otherwise have bad values for u_dsize and u_ssize).  */
@@ -201,7 +202,7 @@ trad_unix_core_file_p (abfd)
      0 is at the place pointed to by u_ar0 (by setting the vma of the start
      of the section to -u_ar0).  GDB uses this info to locate the regs,
      using minor trickery to get around the offset-or-absolute-addr problem. */
-  core_regsec (abfd)->vma = 0 - (bfd_vma) u.u_ar0;
+  core_regsec (abfd)->vma = - (bfd_vma) u.u_ar0;
 
   core_datasec (abfd)->filepos = NBPG * UPAGES;
   core_stacksec (abfd)->filepos = (NBPG * UPAGES) + NBPG * u.u_dsize
@@ -240,7 +241,7 @@ trad_unix_core_file_failing_command (abfd)
 /* ARGSUSED */
 int
 trad_unix_core_file_failing_signal (ignore_abfd)
-     bfd *ignore_abfd;
+     bfd *ignore_abfd ATTRIBUTE_UNUSED;
 {
 #ifdef TRAD_UNIX_CORE_FILE_FAILING_SIGNAL
   return TRAD_UNIX_CORE_FILE_FAILING_SIGNAL(ignore_abfd);
@@ -252,7 +253,8 @@ trad_unix_core_file_failing_signal (ignore_abfd)
 /* ARGSUSED */
 boolean
 trad_unix_core_file_matches_executable_p  (core_bfd, exec_bfd)
-     bfd *core_bfd, *exec_bfd;
+     bfd *core_bfd ATTRIBUTE_UNUSED;
+     bfd *exec_bfd ATTRIBUTE_UNUSED;
 {
   return true;		/* FIXME, We have no way of telling at this point */
 }
@@ -313,5 +315,7 @@ const bfd_target trad_core_vec =
        BFD_JUMP_TABLE_LINK (_bfd_nolink),
        BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
+    NULL,
+    
     (PTR) 0			/* backend_data */
 };

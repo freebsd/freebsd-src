@@ -183,10 +183,12 @@ most of the above hosts, plus
 	i386-aix (ps/2)
 	i960-coff
 	mips ecoff (decstation-ultrix, iris, mips magnum, mips-idt-ecoff)
+	Mitsubishi d10v and d30v
 	nindy960
 	powerpc EABI
 	SH (Hitachi)
 	sco386
+	TI tic30 and tic80
 	vax bsd or ultrix?
 	vms
 	vxworks68k

@@ -1,10 +1,12 @@
-/* Copyright (C) 1991, 92, 93, 94, 95, 1998 Free Software Foundation, Inc.
+/* Linker file opening and searching.
+   Copyright (C) 1991, 92, 93, 94, 95, 98, 99, 2000
+   Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
 GLD is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GLD is distributed in the hope that it will be useful,
@@ -74,9 +76,6 @@ typedef struct search_arch
 static search_arch_type *search_arch_head;
 static search_arch_type **search_arch_tail_ptr = &search_arch_head;
  
-static boolean ldfile_open_file_search
-  PARAMS ((const char *arch, lang_input_statement_type *,
-	   const char *lib, const char *suffix));
 static FILE *try_open PARAMS ((const char *name, const char *exten));
 
 void
@@ -104,23 +103,56 @@ ldfile_try_open_bfd (attempt, entry)
   entry->the_bfd = bfd_openr (attempt, entry->target);
 
   if (trace_file_tries)
-    info_msg ("attempt to open %s %s\n", attempt,
-	      entry->the_bfd == NULL ? "failed" : "succeeded");
+    {
+      if (entry->the_bfd == NULL)
+	info_msg (_("attempt to open %s failed\n"), attempt);
+      else
+	info_msg (_("attempt to open %s succeeded\n"), attempt);
+    }
 
-  if (entry->the_bfd != NULL)
-    return true;
-  else
+  if (entry->the_bfd == NULL)
     {
       if (bfd_get_error () == bfd_error_invalid_target)
-	einfo ("%F%P: invalid BFD target `%s'\n", entry->target);
+	einfo (_("%F%P: invalid BFD target `%s'\n"), entry->target);
       return false;
     }
+
+  /* If we are searching for this file, see if the architecture is
+     compatible with the output file.  If it isn't, keep searching.
+     If we can't open the file as an object file, stop the search
+     here.  */
+
+  if (entry->search_dirs_flag)
+    {
+      bfd *check;
+
+      if (bfd_check_format (entry->the_bfd, bfd_archive))
+	check = bfd_openr_next_archived_file (entry->the_bfd, NULL);
+      else
+	check = entry->the_bfd;
+
+      if (check != NULL)
+	{
+	  if (! bfd_check_format (check, bfd_object))
+	    return true;
+	  if (bfd_arch_get_compatible (check, output_bfd) == NULL)
+	    {
+	      einfo (_("%P: skipping incompatible %s when searching for %s"),
+		     attempt, entry->local_sym_name);
+	      bfd_close (entry->the_bfd);
+	      entry->the_bfd = NULL;
+	      return false;
+	    }
+	}
+    }
+
+  return true;
 }
 
 /* Search for and open the file specified by ENTRY.  If it is an
    archive, use ARCH, LIB and SUFFIX to modify the file name.  */
 
-static boolean
+boolean
 ldfile_open_file_search (arch, entry, lib, suffix)
      const char *arch;
      lang_input_statement_type *entry;
@@ -196,6 +228,11 @@ ldfile_open_file (entry)
     {
       if (ldfile_try_open_bfd (entry->filename, entry))
 	return;
+      if (strcmp (entry->filename, entry->local_sym_name) != 0)
+	einfo (_("%F%P: cannot open %s for %s: %E\n"),
+	       entry->filename, entry->local_sym_name);
+      else
+	einfo(_("%F%P: cannot open %s: %E\n"), entry->local_sym_name);
     }
   else
     {
@@ -212,10 +249,11 @@ ldfile_open_file (entry)
 	  if (ldfile_open_file_search (arch->name, entry, ":lib", ".a"))
 	    return;
 #endif
+	  if (ldemul_find_potential_libraries (arch->name, entry))
+	    return;
 	}
+      einfo (_("%F%P: cannot find %s\n"), entry->local_sym_name);
     }
-
-  einfo("%F%P: cannot open %s: %E\n", entry->local_sym_name);
 }
 
 /* Try to open NAME; if that fails, try NAME with EXTEN appended to it.  */
@@ -232,10 +270,9 @@ try_open (name, exten)
   if (trace_file_tries)
     {
       if (result == NULL)
-	info_msg ("cannot find script file ");
+	info_msg (_("cannot find script file %s\n"), name);
       else
-	info_msg ("opened script file ");
-      info_msg ("%s\n",name);
+	info_msg (_("opened script file %s\n"), name);
     }
 
   if (result != NULL)
@@ -248,10 +285,9 @@ try_open (name, exten)
       if (trace_file_tries)
 	{
 	  if (result == NULL)
-	    info_msg ("cannot find script file ");
+	    info_msg (_("cannot find script file %s\n"), buff);
 	  else
-	    info_msg ("opened script file ");
-	  info_msg ("%s\n", buff);
+	    info_msg (_("opened script file %s\n"), buff);
 	}
     }
 
@@ -294,7 +330,7 @@ ldfile_open_command_file (name)
 
   if (ldlex_input_stack == (FILE *)NULL) {
     bfd_set_error (bfd_error_system_call);
-    einfo("%P%F: cannot open linker script file %s: %E\n",name);
+    einfo(_("%P%F: cannot open linker script file %s: %E\n"),name);
   }
   lex_push_file(ldlex_input_stack, name);
   
@@ -335,7 +371,7 @@ char *name;
   }
 
   if ( tp->cmd_switch == NULL ){
-    einfo("%P%F: unknown architecture: %s\n",name);
+    einfo(_("%P%F: unknown architecture: %s\n"),name);
   }
   return tp->arch;
 }
@@ -352,7 +388,7 @@ char *name;
 
   if (*name != '\0') {
     if (ldfile_output_machine_name[0] != '\0') {
-      einfo("%P%F: target architecture respecified\n");
+      einfo(_("%P%F: target architecture respecified\n"));
       return;
     }
     ldfile_output_machine_name = name;
@@ -405,6 +441,6 @@ ldfile_set_output_arch (string)
     ldfile_output_machine_name = arch->printable_name;
   }
   else {
-    einfo("%P%F: cannot represent machine `%s'\n", string);
+    einfo(_("%P%F: cannot represent machine `%s'\n"), string);
   }
 }

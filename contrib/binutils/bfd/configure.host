@@ -23,6 +23,7 @@ alpha*-*-*)		host64=true; HOST_64BIT_TYPE=long ;;
 
 hppa*-*-hpux*)		HDEFINES=-DHOST_HPPAHPUX ;;
 hppa*-*-hiux*)		HDEFINES=-DHOST_HPPAHPUX ;;
+hppa*-*-mpeix*)		HDEFINES=-DHOST_HPPAMPEIX ;;
 hppa*-*-bsd*)		HDEFINES=-DHOST_HPPABSD ;;
 hppa*-*-osf*)		HDEFINES=-DHOST_HPPAOSF ;;
 
@@ -62,6 +63,8 @@ m68*-hp-hpux*)		HDEFINES=-DHOST_HP300HPUX ;;
 			ac_cv_func_getpagesize=no
 			ac_cv_func_madvise=no
 			ac_cv_func_mprotect=no
+			ac_cv_func_getuid=no
+			ac_cv_func_getgid=no
 			ac_cv_header_sys_file_h=no
 			ac_cv_header_sys_time_h=no
 			ac_cv_header_unistd_h=no

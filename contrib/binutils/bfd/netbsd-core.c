@@ -23,13 +23,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "libbfd.h"
 #include "libaout.h"           /* BFD a.out internal data structures */
 
-#include <stdio.h>
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/dir.h>
 #include <signal.h>
 #include <sys/core.h>
-#include <errno.h>
 
 /*
  * FIXME: On NetBSD/sparc CORE_FPU_OFFSET should be (sizeof(struct trapframe))
@@ -250,5 +247,7 @@ const bfd_target netbsd_core_vec =
        BFD_JUMP_TABLE_LINK (_bfd_nolink),
        BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
+    NULL,
+    
     (PTR) 0			/* backend_data */
 };

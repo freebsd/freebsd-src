@@ -56,6 +56,9 @@ struct v850_opcode
 /* Values for the processors field in the v850_opcode structure.  */
 #define PROCESSOR_V850		(1 << 0)		/* Just the V850.  */
 #define PROCESSOR_ALL		-1			/* Any processor.  */
+#define PROCESSOR_V850E		(1 << 1)		/* Just the V850E. */
+#define PROCESSOR_NOT_V850	(~ PROCESSOR_V850)	/* Any processor except the V850.  */
+#define PROCESSOR_V850EA	(1 << 2)		/* Just the V850EA. */
 
 /* The table itself is sorted by major opcode number, and is otherwise
    in the order in which the disassembler should consider
@@ -150,5 +153,14 @@ extern const struct v850_operand v850_operands[];
 /* The register specified must not be r0 */
 #define V850_NOT_R0	        0x80
 
+/* CYGNUS LOCAL v850e */
+/* push/pop type instruction, V850E specific.  */
+#define V850E_PUSH_POP		0x100
+
+/* 16 bit immediate follows instruction, V850E specific.  */
+#define V850E_IMMEDIATE16	0x200
+
+/* 32 bit immediate follows instruction, V850E specific.  */
+#define V850E_IMMEDIATE32	0x400
 
 #endif /* V850_H */

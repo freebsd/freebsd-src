@@ -1,5 +1,5 @@
 /* frags.c - manage frags -
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 1998
+   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -67,25 +67,22 @@ frag_grow (nchars)
 {
   if (obstack_room (&frchain_now->frch_obstack) < nchars)
     {
-      unsigned int n, oldn;
+      unsigned int n;
       long oldc;
 
       frag_wane (frag_now);
       frag_new (0);
-      oldn = (unsigned) -1;
       oldc = frchain_now->frch_obstack.chunk_size;
-      frchain_now->frch_obstack.chunk_size = 2 * nchars;
-      while ((n = obstack_room (&frchain_now->frch_obstack)) < nchars
-	     && n < oldn)
+      frchain_now->frch_obstack.chunk_size = 2 * nchars + SIZEOF_STRUCT_FRAG;
+      while ((n = obstack_room (&frchain_now->frch_obstack)) < nchars)
 	{
 	  frag_wane (frag_now);
 	  frag_new (0);
-	  oldn = n;
 	}
       frchain_now->frch_obstack.chunk_size = oldc;
     }
   if (obstack_room (&frchain_now->frch_obstack) < nchars)
-    as_fatal ("Can't extend frag %d. chars", nchars);
+    as_fatal (_("Can't extend frag %d. chars"), nchars);
 }
 
 /*
@@ -96,11 +93,14 @@ frag_grow (nchars)
  * [frchain_now remains the same but frag_now is updated.]
  * Because this calculates the correct value of fr_fix by
  * looking at the obstack 'frags', it needs to know how many
- * characters at the end of the old frag belong to (the maximal)
- * fr_var: the rest must belong to fr_fix.
- * It doesn't actually set up the old frag's fr_var: you may have
- * set fr_var == 1, but allocated 10 chars to the end of the frag:
- * in this case you pass old_frags_var_max_size == 10.
+ * characters at the end of the old frag belong to the maximal
+ * variable part;  The rest must belong to fr_fix.
+ * It doesn't actually set up the old frag's fr_var.  You may have
+ * set fr_var == 1, but allocated 10 chars to the end of the frag;
+ * In this case you pass old_frags_var_max_size == 10.
+ * In fact, you may use fr_var for something totally unrelated to the
+ * size of the variable part of the frag;  None of the generic frag
+ * handling code makes use of fr_var.
  *
  * Make a new frag, initialising some components. Link new frag at end
  * of frchain_now.
@@ -117,7 +117,7 @@ frag_new (old_frags_var_max_size)
   assert (frchain_now->frch_last == frag_now);
 
   /* Fix up old frag's fr_fix.  */
-  frag_now->fr_fix = frag_now_fix () - old_frags_var_max_size;
+  frag_now->fr_fix = frag_now_fix_octets () - old_frags_var_max_size;
   /* Make sure its type is valid.  */
   assert (frag_now->fr_type != 0);
 
@@ -170,13 +170,13 @@ frag_more (nchars)
 
   if (now_seg == absolute_section)
     {
-      as_bad ("attempt to allocate data in absolute section");
+      as_bad (_("attempt to allocate data in absolute section"));
       subseg_set (text_section, 0);
     }
 
   if (mri_common_symbol != NULL)
     {
-      as_bad ("attempt to allocate data in common section");
+      as_bad (_("attempt to allocate data in common section"));
       mri_common_symbol = NULL;
     }
 
@@ -218,6 +218,11 @@ frag_var (type, max_chars, var, subtype, symbol, offset, opcode)
   frag_now->fr_symbol = symbol;
   frag_now->fr_offset = offset;
   frag_now->fr_opcode = opcode;
+#ifdef USING_CGEN
+  frag_now->fr_cgen.insn = 0;
+  frag_now->fr_cgen.opindex = 0;
+  frag_now->fr_cgen.opinfo = 0;
+#endif
 #ifdef TC_FRAG_INIT
   TC_FRAG_INIT (frag_now);
 #endif
@@ -253,6 +258,11 @@ frag_variant (type, max_chars, var, subtype, symbol, offset, opcode)
   frag_now->fr_symbol = symbol;
   frag_now->fr_offset = offset;
   frag_now->fr_opcode = opcode;
+#ifdef USING_CGEN
+  frag_now->fr_cgen.insn = 0;
+  frag_now->fr_cgen.opindex = 0;
+  frag_now->fr_cgen.opinfo = 0;
+#endif
 #ifdef TC_FRAG_INIT
   TC_FRAG_INIT (frag_now);
 #endif
@@ -329,12 +339,19 @@ frag_align_pattern (alignment, fill_pattern, n_fill, max)
 }
 
 addressT
-frag_now_fix ()
+frag_now_fix_octets ()
 {
   if (now_seg == absolute_section)
     return abs_section_offset;
-  return (addressT) ((char*) obstack_next_free (&frchain_now->frch_obstack)
-		     - frag_now->fr_literal);
+
+  return ((char*) obstack_next_free (&frchain_now->frch_obstack)
+          - frag_now->fr_literal);
+}
+
+addressT
+frag_now_fix ()
+{
+  return frag_now_fix_octets() / OCTETS_PER_BYTE;
 }
 
 void

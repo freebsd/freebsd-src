@@ -1,11 +1,11 @@
 /* mri.c -- handle MRI style linker scripts
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 94, 95, 96, 1997, 1998 Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
 GLD is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GLD is distributed in the hope that it will be useful,
@@ -256,17 +256,18 @@ mri_draw_tree ()
 					   1, align, subalign,
 					   (etree_type *) NULL);
       base = 0;
-      lang_add_wild(p->name, (char *)NULL);
+      lang_add_wild (p->name, false, (char *)NULL, false, false, NULL);
       /* If there is an alias for this section, add it too */
       for (aptr = alias; aptr; aptr = aptr->next) {
 
 	if (strcmp(aptr->alias, p->name)== 0) {
-	  lang_add_wild(aptr->name, (char *)NULL);
+	  lang_add_wild (aptr->name, false, (char *)NULL, false, false, NULL);
 	}
       }
 
       lang_leave_output_section_statement
-	(0, "*default*", (struct lang_output_section_phdr_list *) NULL);
+	(0, "*default*", (struct lang_output_section_phdr_list *) NULL, 
+         "*default*");
 
       p = p->next;
     }
@@ -339,7 +340,7 @@ mri_format (name)
     lang_add_output_format("coff-m68k", (char *) NULL, (char *) NULL, 1);
   }
   else {
-    einfo("%P%F: unknown format type %s\n", name);
+    einfo(_("%P%F: unknown format type %s\n"), name);
   }
 }
 

@@ -150,6 +150,11 @@ sunos_set_arch_mach (abfd, machtype)
       machine = bfd_mach_sparc_sparclet;
       break;
 
+    case M_SPARCLITE_LE:
+      arch = bfd_arch_sparc;
+      machine = bfd_mach_sparc_sparclite_le;
+      break;
+
     case M_386:
     case M_386_DYNIX:
       arch = bfd_arch_i386;
@@ -231,6 +236,9 @@ sunos_write_object_contents (abfd)
 	{
 	case bfd_mach_sparc_sparclet:
 	  N_SET_MACHTYPE (*execp, M_SPARCLET);
+	  break;
+	case bfd_mach_sparc_sparclite_le:
+	  N_SET_MACHTYPE (*execp, M_SPARCLITE_LE);
 	  break;
 	default:
 	  N_SET_MACHTYPE (*execp, M_SPARC);

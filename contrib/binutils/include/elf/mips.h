@@ -1,5 +1,5 @@
 /* MIPS ELF support for BFD.
-   Copyright (C) 1993, 1994, 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994, 1995, 1996, 1998 Free Software Foundation, Inc.
 
    By Ian Lance Taylor, Cygnus Support, <ian@cygnus.com>, from
    information in the System V Application Binary Interface, MIPS
@@ -27,6 +27,65 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifndef _ELF_MIPS_H
 #define _ELF_MIPS_H
 
+#include "elf/reloc-macros.h"
+
+/* Relocation types.  */
+START_RELOC_NUMBERS (elf_mips_reloc_type)
+  RELOC_NUMBER (R_MIPS_NONE, 0)
+  RELOC_NUMBER (R_MIPS_16, 1)
+  RELOC_NUMBER (R_MIPS_32, 2)
+  RELOC_NUMBER (R_MIPS_REL32, 3)
+  RELOC_NUMBER (R_MIPS_26, 4)
+  RELOC_NUMBER (R_MIPS_HI16, 5)
+  RELOC_NUMBER (R_MIPS_LO16, 6)
+  RELOC_NUMBER (R_MIPS_GPREL16, 7)
+  RELOC_NUMBER (R_MIPS_LITERAL, 8)
+  RELOC_NUMBER (R_MIPS_GOT16, 9)
+  RELOC_NUMBER (R_MIPS_PC16, 10)
+  RELOC_NUMBER (R_MIPS_CALL16, 11)
+  RELOC_NUMBER (R_MIPS_GPREL32, 12)
+  /* The remaining relocs are defined on Irix, although they are not
+     in the MIPS ELF ABI.  */
+  RELOC_NUMBER (R_MIPS_UNUSED1, 13)
+  RELOC_NUMBER (R_MIPS_UNUSED2, 14)
+  RELOC_NUMBER (R_MIPS_UNUSED3, 15)
+  RELOC_NUMBER (R_MIPS_SHIFT5, 16)
+  RELOC_NUMBER (R_MIPS_SHIFT6, 17)
+  RELOC_NUMBER (R_MIPS_64, 18)
+  RELOC_NUMBER (R_MIPS_GOT_DISP, 19)
+  RELOC_NUMBER (R_MIPS_GOT_PAGE, 20)
+  RELOC_NUMBER (R_MIPS_GOT_OFST, 21)
+  RELOC_NUMBER (R_MIPS_GOT_HI16, 22)
+  RELOC_NUMBER (R_MIPS_GOT_LO16, 23)
+  RELOC_NUMBER (R_MIPS_SUB, 24)
+  RELOC_NUMBER (R_MIPS_INSERT_A, 25)
+  RELOC_NUMBER (R_MIPS_INSERT_B, 26)
+  RELOC_NUMBER (R_MIPS_DELETE, 27)
+  RELOC_NUMBER (R_MIPS_HIGHER, 28)
+  RELOC_NUMBER (R_MIPS_HIGHEST, 29)
+  RELOC_NUMBER (R_MIPS_CALL_HI16, 30)
+  RELOC_NUMBER (R_MIPS_CALL_LO16, 31)
+  RELOC_NUMBER (R_MIPS_SCN_DISP, 32)
+  RELOC_NUMBER (R_MIPS_REL16, 33)
+  RELOC_NUMBER (R_MIPS_ADD_IMMEDIATE, 34)
+  RELOC_NUMBER (R_MIPS_PJUMP, 35)
+  RELOC_NUMBER (R_MIPS_RELGOT, 36)
+  RELOC_NUMBER (R_MIPS_JALR, 37)
+  RELOC_NUMBER (R_MIPS_max, 38)
+  /* These relocs are used for the mips16.  */
+  RELOC_NUMBER (R_MIPS16_26, 100)
+  RELOC_NUMBER (R_MIPS16_GPREL, 101)
+  /* These are GNU extensions to handle embedded-pic.  */
+  RELOC_NUMBER (R_MIPS_PC32, 248)
+  RELOC_NUMBER (R_MIPS_PC64, 249)
+  RELOC_NUMBER (R_MIPS_GNU_REL16_S2, 250)
+  RELOC_NUMBER (R_MIPS_GNU_REL_LO16, 251)
+  RELOC_NUMBER (R_MIPS_GNU_REL_HI16, 252)
+  /* These are GNU extensions to enable C++ vtable garbage collection.  */
+  RELOC_NUMBER (R_MIPS_GNU_VTINHERIT, 253)
+  RELOC_NUMBER (R_MIPS_GNU_VTENTRY, 254)
+END_RELOC_NUMBERS
+
 /* Processor specific flags for the ELF header e_flags field.  */
 
 /* At least one .noreorder directive appears in the source.  */
@@ -42,6 +101,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* Code in file uses new ABI (-n32 on Irix 6).  */
 #define EF_MIPS_ABI2		0x00000020
 
+/* Indicates code compiled for a 64-bit machine in 32-bit mode. 
+   (regs are 32-bits wide.) */
+#define EF_MIPS_32BITMODE       0x00000100
+
 /* Four bit MIPS architecture field.  */
 #define EF_MIPS_ARCH		0xf0000000
 
@@ -56,6 +119,40 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* -mips4 code.  */
 #define E_MIPS_ARCH_4		0x30000000
+
+/* The ABI of the file.  Also see EF_MIPS_ABI2 above. */
+#define EF_MIPS_ABI		0x0000F000
+
+/* The original o32 abi. */
+#define E_MIPS_ABI_O32          0x00001000
+
+/* O32 extended to work on 64 bit architectures */
+#define E_MIPS_ABI_O64          0x00002000
+
+/* EABI in 32 bit mode */
+#define E_MIPS_ABI_EABI32       0x00003000
+
+/* EABI in 64 bit mode */
+#define E_MIPS_ABI_EABI64       0x00004000
+
+
+/* Machine variant if we know it.  This field was invented at Cygnus,
+   but it is hoped that other vendors will adopt it.  If some standard
+   is developed, this code should be changed to follow it. */
+
+#define EF_MIPS_MACH		0x00FF0000
+
+/* Cygnus is choosing values between 80 and 9F;
+   00 - 7F should be left for a future standard;
+   the rest are open. */
+
+#define E_MIPS_MACH_3900	0x00810000
+
+#define E_MIPS_MACH_4010	0x00820000
+#define E_MIPS_MACH_4100	0x00830000
+#define E_MIPS_MACH_4650	0x00850000
+#define E_MIPS_MACH_4111	0x00880000
+
 
 /* Processor specific section indices.  These sections do not actually
    exist.  Symbols with a st_shndx field corresponding to one of these
@@ -106,6 +203,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* Section contains register usage information.  */
 #define SHT_MIPS_REGINFO	0x70000006
 
+/* ??? */
+#define SHT_MIPS_PACKAGE	0x70000007
+
+/* ??? */
+#define SHT_MIPS_PACKSYM	0x70000008
+
+/* ??? */
+#define SHT_MIPS_RELD		0x70000009
+
 /* Section contains interface information.  */
 #define SHT_MIPS_IFACE		0x7000000b
 
@@ -115,14 +221,85 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* Section contains miscellaneous options.  */
 #define SHT_MIPS_OPTIONS	0x7000000d
 
+/* ??? */
+#define SHT_MIPS_SHDR		0x70000010
+
+/* ??? */
+#define SHT_MIPS_FDESC		0x70000011
+
+/* ??? */
+#define SHT_MIPS_EXTSYM		0x70000012
+
+/* ??? */
+#define SHT_MIPS_DENSE		0x70000013
+
+/* ??? */
+#define SHT_MIPS_PDESC		0x70000014
+
+/* ??? */
+#define SHT_MIPS_LOCSYM		0x70000015
+
+/* ??? */
+#define SHT_MIPS_AUXSYM		0x70000016
+
+/* ??? */
+#define SHT_MIPS_OPTSYM		0x70000017
+
+/* ??? */
+#define SHT_MIPS_LOCSTR		0x70000018
+
+/* ??? */
+#define SHT_MIPS_LINE		0x70000019
+
+/* ??? */
+#define SHT_MIPS_RFDESC		0x7000001a
+
+/* ??? */
+#define SHT_MIPS_DELTASYM	0x7000001b
+
+/* ??? */
+#define SHT_MIPS_DELTAINST	0x7000001c
+
+/* ??? */
+#define SHT_MIPS_DELTACLASS	0x7000001d
+
 /* DWARF debugging section.  */
 #define SHT_MIPS_DWARF		0x7000001e
 
-/* I'm not sure what this is, but it appears on Irix 6.  */
+/* ??? */
+#define SHT_MIPS_DELTADECL	0x7000001f
+
+/* List of libraries the binary depends on.  Includes a time stamp, version
+   number.  */
 #define SHT_MIPS_SYMBOL_LIB	0x70000020
 
 /* Events section.  */
 #define SHT_MIPS_EVENTS		0x70000021
+
+/* ??? */
+#define SHT_MIPS_TRANSLATE	0x70000022
+
+/* ??? */
+#define SHT_MIPS_PIXIE		0x70000023
+
+/* ??? */
+#define SHT_MIPS_XLATE		0x70000024
+
+/* ??? */
+#define SHT_MIPS_XLATE_DEBUG	0x70000025
+
+/* ??? */
+#define SHT_MIPS_WHIRL		0x70000026
+
+/* ??? */
+#define SHT_MIPS_EH_REGION	0x70000027
+
+/* ??? */
+#define SHT_MIPS_XLATE_OLD	0x70000028
+
+/* ??? */
+#define SHT_MIPS_PDR_EXCEPTION	0x70000029
+
 
 /* A section of type SHT_MIPS_LIBLIST contains an array of the
    following structure.  The sh_link field is the section index of the
@@ -142,6 +319,16 @@ typedef struct
   unsigned long l_flags;
 } Elf32_Lib;
 
+/* The external version of Elf32_Lib.  */
+typedef struct
+{
+  unsigned char l_name[4];
+  unsigned char l_time_stamp[4];
+  unsigned char l_checksum[4];
+  unsigned char l_version[4];
+  unsigned char l_flags[4];
+} Elf32_External_Lib;
+
 /* The l_flags field of an Elf32_Lib structure may contain the
    following flags.  */
 
@@ -151,9 +338,26 @@ typedef struct
 /* Ignore version incompatibilities at runtime.  */
 #define LL_IGNORE_INT_VER	0x00000002
 
+/* Require matching minor version number.  */
+#define LL_REQUIRE_MINOR	0x00000004
+
+/* ??? */
+#define LL_EXPORTS		0x00000008
+
+/* Delay loading of this library until really needed.  */
+#define LL_DELAY_LOAD		0x00000010
+
+/* ??? Delta C++ stuff ??? */
+#define LL_DELTA		0x00000020
+
+
 /* A section of type SHT_MIPS_CONFLICT is an array of indices into the
    .dynsym section.  Each element has the following type.  */
 typedef unsigned long Elf32_Conflict;
+typedef unsigned char Elf32_External_Conflict[4];
+
+typedef unsigned long Elf64_Conflict;
+typedef unsigned char Elf64_External_Conflict[8];
 
 /* A section of type SHT_MIPS_GPTAB contains information about how
    much GP space would be required for different -G arguments.  This
@@ -253,6 +457,9 @@ extern void bfd_mips_elf32_swap_reginfo_out
 
 /* Runtime procedure table.  */
 #define PT_MIPS_RTPROC		0x70000001
+
+/* Options (for what ???).  */
+#define PT_MIPS_OPTIONS		0x70000002
 
 /* Processor specific dynamic array tags.  */
 
@@ -273,6 +480,9 @@ extern void bfd_mips_elf32_swap_reginfo_out
 
 /* Base address of the segment.  */
 #define DT_MIPS_BASE_ADDRESS	0x70000006
+
+/* ??? */
+#define DT_MIPS_MSYM		0x70000007
 
 /* Address of .conflict section.  */
 #define DT_MIPS_CONFLICT	0x70000008
@@ -303,6 +513,84 @@ extern void bfd_mips_elf32_swap_reginfo_out
 
 /* Address of run time loader map, used for debugging.  */
 #define DT_MIPS_RLD_MAP		0x70000016
+
+/* Delta C++ class definition.  */
+#define DT_MIPS_DELTA_CLASS	0x70000017
+
+/* Number of entries in DT_MIPS_DELTA_CLASS.  */
+#define DT_MIPS_DELTA_CLASS_NO	0x70000018
+
+/* Delta C++ class instances.  */
+#define DT_MIPS_DELTA_INSTANCE	0x70000019
+
+/* Number of entries in DT_MIPS_DELTA_INSTANCE.  */
+#define DT_MIPS_DELTA_INSTANCE_NO	0x7000001a
+
+/* Delta relocations.  */
+#define DT_MIPS_DELTA_RELOC	0x7000001b
+
+/* Number of entries in DT_MIPS_DELTA_RELOC.  */
+#define DT_MIPS_DELTA_RELOC_NO	0x7000001c
+
+/* Delta symbols that Delta relocations refer to.  */
+#define DT_MIPS_DELTA_SYM	0x7000001d
+
+/* Number of entries in DT_MIPS_DELTA_SYM.  */
+#define DT_MIPS_DELTA_SYM_NO	0x7000001e
+
+/* Delta symbols that hold class declarations.  */
+#define DT_MIPS_DELTA_CLASSSYM	0x70000020
+
+/* Number of entries in DT_MIPS_DELTA_CLASSSYM.  */
+#define DT_MIPS_DELTA_CLASSSYM_NO	0x70000021
+
+/* Flags indicating information about C++ flavor.  */
+#define DT_MIPS_CXX_FLAGS	0x70000022
+
+/* Pixie information (???).  */
+#define DT_MIPS_PIXIE_INIT	0x70000023
+
+/* ??? */
+#define DT_MIPS_SYMBOL_LIB	0x70000024
+
+/* ??? */
+#define DT_MIPS_LOCALPAGE_GOTIDX	0x70000025
+
+/* ??? */
+#define DT_MIPS_LOCAL_GOTIDX	0x70000026
+
+/* ??? */
+#define DT_MIPS_HIDDEN_GOTIDX	0x70000027
+
+/* ??? */
+#define DT_MIPS_PROTECTED_GOTIDX	0x70000028
+
+/* Address of `.MIPS.options'.  */
+#define DT_MIPS_OPTIONS		0x70000029
+
+/* Address of `.interface'.  */
+#define DT_MIPS_INTERFACE	0x7000002a
+
+/* ??? */
+#define DT_MIPS_DYNSTR_ALIGN	0x7000002b
+
+/* Size of the .interface section.  */
+#define DT_MIPS_INTERFACE_SIZE	0x7000002c
+
+/* Size of rld_text_resolve function stored in the GOT.  */
+#define DT_MIPS_RLD_TEXT_RESOLVE_ADDR	0x7000002d
+
+/* Default suffix of DSO to be added by rld on dlopen() calls.  */
+#define DT_MIPS_PERF_SUFFIX	0x7000002e
+
+/* Size of compact relocation section (O32).  */
+#define DT_MIPS_COMPACT_SIZE	0x7000002f
+
+/* GP value for auxiliary GOTs.  */
+#define DT_MIPS_GP_VALUE	0x70000030
+
+/* Address of auxiliary .dynamic.  */
+#define DT_MIPS_AUX_DYNAMIC	0x70000031
 
 /* Flags which may appear in a DT_MIPS_FLAGS entry.  */
 
@@ -318,14 +606,27 @@ extern void bfd_mips_elf32_swap_reginfo_out
 /* Ignore LD_LIBRARY_PATH.  */
 #define RHS_NO_LIBRARY_REPLACEMENT \
 				0x00000004
+
+#define RHF_NO_MOVE		   0x00000008
+#define RHF_SGI_ONLY		   0x00000010
+#define RHF_GUARANTEE_INIT	   0x00000020
+#define RHF_DELTA_C_PLUS_PLUS	   0x00000040
+#define RHF_GUARANTEE_START_INIT   0x00000080
+#define RHF_PIXIE		   0x00000100
+#define RHF_DEFAULT_DELAY_LOAD	   0x00000200
+#define RHF_REQUICKSTART	   0x00000400
+#define RHF_REQUICKSTARTED	   0x00000800
+#define RHF_CORD		   0x00001000
+#define RHF_NO_UNRES_UNDEF	   0x00002000
+#define RHF_RLD_ORDER_SAFE	   0x00004000
 
 /* Special values for the st_other field in the symbol table.  These
    are used in an Irix 5 dynamic symbol table.  */
 
-#define STO_DEFAULT		0x00
-#define STO_INTERNAL		0x01
-#define STO_HIDDEN		0x02
-#define STO_PROTECTED		0x03
+#define STO_DEFAULT		STV_DEFAULT
+#define STO_INTERNAL		STV_INTERNAL
+#define STO_HIDDEN		STV_HIDDEN
+#define STO_PROTECTED		STV_PROTECTED
 
 /* This value is used for a mips16 .text symbol.  */
 #define STO_MIPS16		0xf0
@@ -472,7 +773,28 @@ extern void bfd_mips_elf_swap_options_out
 /* Section padding information.  */
 #define ODK_PAD		3
 
-/* In the 32 bit ABI, an ODK_REGINFO option is just a Elf32_Reginfo
+/* Hardware workarounds performed.  */
+#define ODK_HWPATCH	4
+
+/* Fill value used by the linker.  */
+#define ODK_FILL	5
+
+/* Reserved space for desktop tools.  */
+#define ODK_TAGS	6
+
+/* Hardware workarounds, AND bits when merging.  */
+#define ODK_HWAND	7
+
+/* Hardware workarounds, OR bits when merging.  */
+#define ODK_HWOR	8
+
+/* GP group to use for text/data sections.  */
+#define ODK_GP_GROUP	9
+
+/* ID information.  */
+#define ODK_IDENT	10
+
+/* In the 32 bit ABI, an ODK_REGINFO option is just a Elf32_RegInfo
    structure.  In the 64 bit ABI, it is the following structure.  The
    info field of the options header is not used.  */
 
@@ -500,10 +822,79 @@ typedef struct
   bfd_vma ri_gp_value;
 } Elf64_Internal_RegInfo;
 
+typedef struct
+{
+  /* The hash value computed from the name of the corresponding
+     dynamic symbol.  */
+  unsigned char ms_hash_value[4];
+  /* Contains both the dynamic relocation index and the symbol flags
+     field.  The macros ELF32_MS_REL_INDEX and ELF32_MS_FLAGS are used
+     to access the individual values.  The dynamic relocation index
+     identifies the first entry in the .rel.dyn section that
+     references the dynamic symbol corresponding to this msym entry.
+     If the index is 0, no dynamic relocations are associated with the
+     symbol.  The symbol flags field is reserved for future use.  */
+  unsigned char ms_info[4];
+} Elf32_External_Msym;
+
+typedef struct
+{
+  /* The hash value computed from the name of the corresponding
+     dynamic symbol.  */
+  unsigned long ms_hash_value;
+  /* Contains both the dynamic relocation index and the symbol flags
+     field.  The macros ELF32_MS_REL_INDEX and ELF32_MS_FLAGS are used
+     to access the individual values.  The dynamic relocation index
+     identifies the first entry in the .rel.dyn section that
+     references the dynamic symbol corresponding to this msym entry.
+     If the index is 0, no dynamic relocations are associated with the
+     symbol.  The symbol flags field is reserved for future use.  */
+  unsigned long ms_info;
+} Elf32_Internal_Msym;
+
+#define ELF32_MS_REL_INDEX(i) ((i) >> 8)
+#define ELF32_MS_FLAGS(i)     (i) & 0xff)
+#define ELF32_MS_INFO(r, f)   (((r) << 8) + ((f) & 0xff))
+
 /* MIPS ELF reginfo swapping routines.  */
 extern void bfd_mips_elf64_swap_reginfo_in
   PARAMS ((bfd *, const Elf64_External_RegInfo *, Elf64_Internal_RegInfo *));
 extern void bfd_mips_elf64_swap_reginfo_out
   PARAMS ((bfd *, const Elf64_Internal_RegInfo *, Elf64_External_RegInfo *));
+
+/* Masks for the info work of an ODK_EXCEPTIONS descriptor.  */
+#define OEX_FPU_MIN	0x1f	/* FPEs which must be enabled.  */
+#define OEX_FPU_MAX	0x1f00	/* FPEs which may be enabled.  */
+#define OEX_PAGE0	0x10000	/* Page zero must be mapped.  */
+#define OEX_SMM		0x20000	/* Force sequential memory mode.  */
+#define OEX_FPDBUG	0x40000	/* Force floating-point debug mode.  */
+#define OEX_DISMISS	0x80000	/* Dismiss invalid address faults.  */
+
+/* Masks of the FP exceptions for OEX_FPU_MIN and OEX_FPU_MAX.  */
+#define OEX_FPU_INVAL	0x10	/* Invalid operation exception.  */
+#define OEX_FPU_DIV0	0x08	/* Division by zero exception.  */
+#define OEX_FPU_OFLO	0x04	/* Overflow exception.  */
+#define OEX_FPU_UFLO	0x02	/* Underflow exception.  */
+#define OEX_FPU_INEX	0x01	/* Inexact exception.  */
+
+/* Masks for the info word of an ODK_PAD descriptor.  */
+#define OPAD_PREFIX	0x01
+#define OPAD_POSTFIX	0x02
+#define OPAD_SYMBOL	0x04
+
+/* Masks for the info word of an ODK_HWPATCH descriptor.  */
+#define OHW_R4KEOP	0x01	/* R4000 end-of-page patch.  */
+#define OHW_R8KPFETCH	0x02	/* May need R8000 prefetch patch.  */
+#define OHW_R5KEOP	0x04	/* R5000 end-of-page patch.  */
+#define OHW_R5KCVTL	0x08	/* R5000 cvt.[ds].l bug (clean == 1).  */
+
+/* Masks for the info word of an ODK_IDENT/ODK_GP_GROUP descriptor.  */
+#define OGP_GROUP	0x0000ffff	/* GP group number.  */
+#define OGP_SELF	0xffff0000	/* Self-contained GP groups.  */
+
+/* Masks for the info word of an ODK_HWAND/ODK_HWOR descriptor.  */
+#define OHWA0_R4KEOP_CHECKED	0x00000001
+#define OHWA0_R4KEOP_CLEAN	0x00000002
+
 
 #endif /* _ELF_MIPS_H */

@@ -1,5 +1,5 @@
 /* Generic BFD support for file formats.
-   Copyright (C) 1990, 91, 92, 93, 94 Free Software Foundation, Inc.
+   Copyright (C) 1990, 91, 92, 93, 94, 95, 1999 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -118,6 +118,7 @@ bfd_check_format_matches (abfd, format, matching)
      bfd_format format;
      char ***matching;
 {
+  extern const bfd_target binary_vec;
   const bfd_target * const *target, *save_targ, *right_targ;
   char **matching_vector = NULL;
   int match_count;
@@ -166,10 +167,32 @@ bfd_check_format_matches (abfd, format, matching)
 	free (matching_vector);
       return true;			/* File position has moved, BTW */
     }
+
+    /* For a long time the code has dropped through to check all
+       targets if the specified target was wrong.  I don't know why,
+       and I'm reluctant to change it.  However, in the case of an
+       archive, it can cause problems.  If the specified target does
+       not permit archives (e.g., the binary target), then we should
+       not allow some other target to recognize it as an archive, but
+       should instead allow the specified target to recognize it as an
+       object.  When I first made this change, it broke the PE target,
+       because the specified pei-i386 target did not recognize the
+       actual pe-i386 archive.  Since there may be other problems of
+       this sort, I changed this test to check only for the binary
+       target.  */
+
+    if (format == bfd_archive && save_targ == &binary_vec)
+      {
+	abfd->xvec = save_targ;
+	abfd->format = bfd_unknown;
+	if (matching)
+	  free (matching_vector);
+	bfd_set_error (bfd_error_file_not_recognized);
+	return false;
+      }
   }
 
   for (target = bfd_target_vector; *target != NULL; target++) {
-    extern const bfd_target binary_vec;
     const bfd_target *temp;
 
     if (*target == &binary_vec)

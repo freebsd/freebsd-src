@@ -1,6 +1,7 @@
 /* libbfd.h -- Declarations used by bfd library *implementation*.
    (This include file is not for users of the library.)
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 ** NOTE: libbfd.h is a GENERATED file.  Don't change it; instead,
@@ -317,6 +318,10 @@ extern boolean _bfd_generic_set_section_contents
   ((boolean (*) \
     PARAMS ((bfd *, asection *, struct bfd_link_info *, boolean *))) \
    bfd_false)
+#define _bfd_nolink_bfd_gc_sections \
+  ((boolean (*) \
+    PARAMS ((bfd *, struct bfd_link_info *))) \
+   bfd_false)
 #define _bfd_nolink_bfd_link_hash_table_create \
   ((struct bfd_link_hash_table *(*) PARAMS ((bfd *))) bfd_nullvoidptr)
 #define _bfd_nolink_bfd_link_add_symbols \
@@ -352,10 +357,15 @@ extern boolean _bfd_stab_section_find_nearest_line
   PARAMS ((bfd *, asymbol **, asection *, bfd_vma, boolean *, const char **,
 	   const char **, unsigned int *, PTR *));
 
+/* Find the neaderst line using DWARF 1 debugging information.  */
+extern boolean _bfd_dwarf1_find_nearest_line
+  PARAMS ((bfd *, asection *, asymbol **, bfd_vma, const char **,
+	   const char **, unsigned int *));
+
 /* Find the nearest line using DWARF 2 debugging information.  */
 extern boolean _bfd_dwarf2_find_nearest_line
   PARAMS ((bfd *, asection *, asymbol **, bfd_vma, const char **,
-	   const char **, unsigned int *));
+	   const char **, unsigned int *, unsigned int));
 
 /* A routine to create entries for a bfd_link_hash_table.  */
 extern struct bfd_hash_entry *_bfd_link_hash_newfunc
@@ -469,6 +479,9 @@ extern bfd_size_type _bfd_stringtab_add
 
 /* Write out a string table.  */
 extern boolean _bfd_stringtab_emit PARAMS ((bfd *, struct bfd_strtab_hash *));
+
+/* Check that endianness of input and output file match.  */
+extern boolean _bfd_generic_verify_endian_match PARAMS ((bfd *, bfd *));
 
 /* Macros to tell if bfds are read or write enabled.
 
@@ -489,6 +502,17 @@ void	bfd_assert PARAMS ((const char*,int));
 
 #define BFD_FAIL() \
 { bfd_assert(__FILE__,__LINE__); }
+
+extern void _bfd_abort PARAMS ((const char *, int, const char *))
+     ATTRIBUTE_NORETURN;
+
+/* if gcc >= 2.6, we can give a function name, too */
+#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 6)
+#define __PRETTY_FUNCTION__  ((char *) NULL)
+#endif
+
+#undef abort
+#define abort() _bfd_abort (__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 FILE *	bfd_cache_lookup_worker PARAMS ((bfd *));
 
@@ -645,12 +669,20 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_SPARC_M44",
   "BFD_RELOC_SPARC_L44",
   "BFD_RELOC_SPARC_REGISTER",
+  "BFD_RELOC_SPARC_REV32",
   "BFD_RELOC_ALPHA_GPDISP_HI16",
   "BFD_RELOC_ALPHA_GPDISP_LO16",
   "BFD_RELOC_ALPHA_GPDISP",
   "BFD_RELOC_ALPHA_LITERAL",
   "BFD_RELOC_ALPHA_ELF_LITERAL",
   "BFD_RELOC_ALPHA_LITUSE",
+  "BFD_RELOC_ALPHA_USER_LITERAL",
+  "BFD_RELOC_ALPHA_USER_LITUSE_BASE",
+  "BFD_RELOC_ALPHA_USER_LITUSE_BYTOFF",
+  "BFD_RELOC_ALPHA_USER_LITUSE_JSR",
+  "BFD_RELOC_ALPHA_USER_GPDISP",
+  "BFD_RELOC_ALPHA_USER_GPRELHIGH",
+  "BFD_RELOC_ALPHA_USER_GPRELLOW",
   "BFD_RELOC_ALPHA_HINT",
   "BFD_RELOC_ALPHA_LINKAGE",
   "BFD_RELOC_ALPHA_CODEADDR",
@@ -669,6 +701,10 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_MIPS_GOT_LO16",
   "BFD_RELOC_MIPS_CALL_HI16",
   "BFD_RELOC_MIPS_CALL_LO16",
+  "BFD_RELOC_MIPS_SUB",
+  "BFD_RELOC_MIPS_GOT_PAGE",
+  "BFD_RELOC_MIPS_GOT_OFST",
+  "BFD_RELOC_MIPS_GOT_DISP",
 
   "BFD_RELOC_386_GOT32",
   "BFD_RELOC_386_PLT32",
@@ -690,6 +726,12 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_NS32K_DISP_8_PCREL",
   "BFD_RELOC_NS32K_DISP_16_PCREL",
   "BFD_RELOC_NS32K_DISP_32_PCREL",
+  "BFD_RELOC_PJ_CODE_HI16",
+  "BFD_RELOC_PJ_CODE_LO16",
+  "BFD_RELOC_PJ_CODE_DIR16",
+  "BFD_RELOC_PJ_CODE_DIR32",
+  "BFD_RELOC_PJ_CODE_REL16",
+  "BFD_RELOC_PJ_CODE_REL32",
   "BFD_RELOC_PPC_B26",
   "BFD_RELOC_PPC_BA26",
   "BFD_RELOC_PPC_TOC16",
@@ -720,9 +762,11 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_PPC_EMB_RELST_HA",
   "BFD_RELOC_PPC_EMB_BIT_FLD",
   "BFD_RELOC_PPC_EMB_RELSDA",
+  "BFD_RELOC_I370_D12",
   "BFD_RELOC_CTOR",
   "BFD_RELOC_ARM_PCREL_BRANCH",
   "BFD_RELOC_ARM_IMMEDIATE",
+  "BFD_RELOC_ARM_ADRL_IMMEDIATE",
   "BFD_RELOC_ARM_OFFSET_IMM",
   "BFD_RELOC_ARM_SHIFT_IMM",
   "BFD_RELOC_ARM_SWI",
@@ -738,6 +782,15 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_ARM_THUMB_IMM",
   "BFD_RELOC_ARM_THUMB_SHIFT",
   "BFD_RELOC_ARM_THUMB_OFFSET",
+  "BFD_RELOC_ARM_GOT12",
+  "BFD_RELOC_ARM_GOT32",
+  "BFD_RELOC_ARM_JUMP_SLOT",
+  "BFD_RELOC_ARM_COPY",
+  "BFD_RELOC_ARM_GLOB_DAT",
+  "BFD_RELOC_ARM_PLT32",
+  "BFD_RELOC_ARM_RELATIVE",
+  "BFD_RELOC_ARM_GOTOFF",
+  "BFD_RELOC_ARM_GOTPC",
   "BFD_RELOC_SH_PCDISP8BY2",
   "BFD_RELOC_SH_PCDISP12BY2",
   "BFD_RELOC_SH_IMM4",
@@ -765,8 +818,17 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_D10V_10_PCREL_L",
   "BFD_RELOC_D10V_18",
   "BFD_RELOC_D10V_18_PCREL",
-
-
+  "BFD_RELOC_D30V_6",
+  "BFD_RELOC_D30V_9_PCREL",
+  "BFD_RELOC_D30V_9_PCREL_R",
+  "BFD_RELOC_D30V_15",
+  "BFD_RELOC_D30V_15_PCREL",
+  "BFD_RELOC_D30V_15_PCREL_R",
+  "BFD_RELOC_D30V_21",
+  "BFD_RELOC_D30V_21_PCREL",
+  "BFD_RELOC_D30V_21_PCREL_R",
+  "BFD_RELOC_D30V_32",
+  "BFD_RELOC_D30V_32_PCREL",
   "BFD_RELOC_M32R_24",
   "BFD_RELOC_M32R_10_PCREL",
   "BFD_RELOC_M32R_18_PCREL",
@@ -785,10 +847,48 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_V850_TDA_7_8_OFFSET",
   "BFD_RELOC_V850_TDA_7_7_OFFSET",
   "BFD_RELOC_V850_TDA_16_16_OFFSET",
+  "BFD_RELOC_V850_TDA_4_5_OFFSET",
+  "BFD_RELOC_V850_TDA_4_4_OFFSET",
+  "BFD_RELOC_V850_SDA_16_16_SPLIT_OFFSET",
+  "BFD_RELOC_V850_ZDA_16_16_SPLIT_OFFSET",
+  "BFD_RELOC_V850_CALLT_6_7_OFFSET",
+  "BFD_RELOC_V850_CALLT_16_16_OFFSET",
 
   "BFD_RELOC_MN10300_32_PCREL",
   "BFD_RELOC_MN10300_16_PCREL",
   "BFD_RELOC_TIC30_LDP",
+  "BFD_RELOC_FR30_48",
+  "BFD_RELOC_FR30_20",
+  "BFD_RELOC_FR30_6_IN_4",
+  "BFD_RELOC_FR30_8_IN_8",
+  "BFD_RELOC_FR30_9_IN_8",
+  "BFD_RELOC_FR30_10_IN_8",
+  "BFD_RELOC_FR30_9_PCREL",
+  "BFD_RELOC_FR30_12_PCREL",
+  "BFD_RELOC_MCORE_PCREL_IMM8BY4",
+  "BFD_RELOC_MCORE_PCREL_IMM11BY2",
+  "BFD_RELOC_MCORE_PCREL_IMM4BY2",
+  "BFD_RELOC_MCORE_PCREL_32",
+  "BFD_RELOC_MCORE_PCREL_JSR_IMM11BY2",
+  "BFD_RELOC_MCORE_RVA",
+  "BFD_RELOC_AVR_7_PCREL",
+  "BFD_RELOC_AVR_13_PCREL",
+  "BFD_RELOC_AVR_16_PM",
+  "BFD_RELOC_AVR_LO8_LDI",
+  "BFD_RELOC_AVR_HI8_LDI",
+  "BFD_RELOC_AVR_HH8_LDI",
+  "BFD_RELOC_AVR_LO8_LDI_NEG",
+  "BFD_RELOC_AVR_HI8_LDI_NEG",
+  "BFD_RELOC_AVR_HH8_LDI_NEG",
+  "BFD_RELOC_AVR_LO8_LDI_PM",
+  "BFD_RELOC_AVR_HI8_LDI_PM",
+  "BFD_RELOC_AVR_HH8_LDI_PM",
+  "BFD_RELOC_AVR_LO8_LDI_PM_NEG",
+  "BFD_RELOC_AVR_HI8_LDI_PM_NEG",
+  "BFD_RELOC_AVR_HH8_LDI_PM_NEG",
+  "BFD_RELOC_AVR_CALL",
+  "BFD_RELOC_VTABLE_INHERIT",
+  "BFD_RELOC_VTABLE_ENTRY",
  "@@overflow: BFD_RELOC_UNUSED@@",
 };
 #endif
@@ -803,6 +903,10 @@ bfd_generic_relax_section
     asection *section,
     struct bfd_link_info *,
     boolean *));
+
+boolean 
+bfd_generic_gc_sections
+ PARAMS ((bfd *, struct bfd_link_info *));
 
 bfd_byte *
 

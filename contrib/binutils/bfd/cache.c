@@ -1,5 +1,6 @@
 /* BFD library -- caching of file descriptors.
-   Copyright 1990, 91, 92, 93, 94, 95, 1996 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 1996, 2000
+   Free Software Foundation, Inc.
    Hacked by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -285,10 +286,32 @@ bfd_open_file (abfd)
 	}
       else
 	{
-	  /* Create the file.  Unlink it first, for the convenience of
-             operating systems which worry about overwriting running
-             binaries.  */
-	  unlink (abfd->filename);
+	  /* Create the file.
+
+	     Some operating systems won't let us overwrite a running
+	     binary.  For them, we want to unlink the file first.
+
+	     However, gcc 2.95 will create temporary files using
+	     O_EXCL and tight permissions to prevent other users from
+	     substituting other .o files during the compilation.  gcc
+	     will then tell the assembler to use the newly created
+	     file as an output file.  If we unlink the file here, we
+	     open a brief window when another user could still
+	     substitute a file.
+
+	     So we unlink the output file if and only if it has
+	     non-zero size.  */
+#ifndef __MSDOS__
+	  /* Don't do this for MSDOS: it doesn't care about overwriting
+	     a running binary, but if this file is already open by
+	     another BFD, we will be in deep trouble if we delete an
+	     open file.  In fact, objdump does just that if invoked with
+	     the --info option.  */
+	  struct stat s;
+
+	  if (stat (abfd->filename, &s) == 0 && s.st_size != 0)
+	    unlink (abfd->filename);
+#endif
 	  abfd->iostream = (PTR) fopen (abfd->filename, FOPEN_WB);
 	  abfd->opened_once = true;
 	}

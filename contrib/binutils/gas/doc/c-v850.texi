@@ -45,7 +45,22 @@ Specifies that the assembled code should be marked as being targeted at
 the V850 processor.  This allows the linker to detect attempts to link
 such code with code assembled for other processors.
 
+@cindex @code{-mv850e} command line option, V850
+@item -mv850e
+Specifies that the assembled code should be marked as being targeted at
+the V850E processor.  This allows the linker to detect attempts to link
+such code with code assembled for other processors.
 
+@cindex @code{-mv850any} command line option, V850
+@item -mv850any
+Specifies that the assembled code should be marked as being targeted at
+the V850 processor but support instructions that are specific to the
+extended variants of the process.  This allows the production of
+binaries that contain target specific code, but which are also intended
+to be used in a generic fashion.  For example libgcc.a contains generic
+routines used by the code produced by GCC for all versions of the v850
+architecture, together with support routines only used by the V850E
+architecture.
 
 @end table
 
@@ -158,6 +173,21 @@ ecr
 @cindex @code{psw} register, V850
 @item system register 5
 psw
+@cindex @code{ctpc} register, V850
+@item system register 16
+ctpc
+@cindex @code{ctpsw} register, V850
+@item system register 17
+ctpsw
+@cindex @code{dbpc} register, V850
+@item system register 18
+dbpc
+@cindex @code{dbpsw} register, V850
+@item system register 19
+dbpsw
+@cindex @code{ctbp} register, V850
+@item system register 20
+ctbp
 @end table
 
 @node V850 Floating Point
@@ -189,7 +219,11 @@ Specifies that the assembled code should be marked as being targeted at
 the V850 processor.  This allows the linker to detect attempts to link
 such code with code assembled for other processors.
 
-
+@cindex @code{.v850e} directive, V850
+@item .v850e
+Specifies that the assembled code should be marked as being targeted at
+the V850E processor.  This allows the linker to detect attempts to link
+such code with code assembled for other processors.
 
 @end table
 
@@ -249,6 +283,16 @@ in the top bit of the lo() pseudo op, the movhi instruction actually
 stores 0 into r6 (0xFFFF + 1 = 0x0000), so that the movea instruction
 stores 0xFFFFFFFF into r6 - the right value.
 
+@cindex @code{hilo} pseudo-op, V850
+@item hilo()
+Computes the 32 bit value of the given expression and stores it into
+the immediate operand field of the given instruction (which must be a
+mov instruction).  For example:
+
+    @samp{mov hilo(here), r6}
+
+computes the absolute address of label 'here' and puts the result into
+register 6.  
 
 @cindex @code{sdaoff} pseudo-op, V850
 @item sdaoff()
@@ -271,8 +315,7 @@ command line option].
 @item tdaoff()
 Computes the offset of the named variable from the start of the Tiny
 Data Area (whoes address is held in register 30, the EP register) and
-stores the result as a
-7 or 8 bit unsigned value in the immediate
+stores the result as a 4,5, 7 or 8 bit unsigned value in the immediate
 operand field of the given instruction.  For example:
 
       @samp{sld.w tdaoff(_a_variable)[ep],r6}
@@ -298,6 +341,18 @@ that the label is somewhere within the first 32K of memory.  (Strictly
 speaking it also possible to access the last 32K of memory as well, as
 the offsets are signed).
 
+@cindex @code{ctoff} pseudo-op, V850
+@item ctoff()
+Computes the offset of the named variable from the start of the Call
+Table Area (whoes address is helg in system register 20, the CTBP
+register) and stores the result a 6 or 16 bit unsigned value in the
+immediate field of then given instruction or piece of data.  For
+example:
+
+     @samp{callt ctoff(table_func1)}
+
+will put the call the function whoes address is held in the call table
+at the location labeled 'table_func1'.
 
 @end table
 

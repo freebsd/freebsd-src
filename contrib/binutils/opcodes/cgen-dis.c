@@ -1,6 +1,6 @@
 /* CGEN generic disassembler support code.
 
-   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils and GDB, the GNU debugger.
 
@@ -26,82 +26,57 @@
 #include "symcat.h"
 #include "opcode/cgen.h"
 
-/* This is not published as part of the public interface so we don't
-   declare this in cgen.h.  */
-extern CGEN_OPCODE_DATA * cgen_current_opcode_data;
+/* Subroutine of build_dis_hash_table to add INSNS to the hash table.
 
-/* Disassembler instruction hash table.  */
-static CGEN_INSN_LIST ** dis_hash_table;
+   COUNT is the number of elements in INSNS.
+   ENTSIZE is sizeof (CGEN_IBASE) for the target.
+   ??? No longer used but leave in for now.
+   HTABLE points to the hash table.
+   HENTBUF is a pointer to sufficiently large buffer of hash entries.
+   The result is a pointer to the next entry to use.
 
-void
-cgen_dis_init ()
+   The table is scanned backwards as additions are made to the front of the
+   list and we want earlier ones to be prefered.  */
+
+static CGEN_INSN_LIST *
+hash_insn_array (cd, insns, count, entsize, htable, hentbuf)
+     CGEN_CPU_DESC cd;
+     const CGEN_INSN * insns;
+     int count;
+     int entsize;
+     CGEN_INSN_LIST ** htable;
+     CGEN_INSN_LIST * hentbuf;
 {
-  if (dis_hash_table)
+  int big_p = CGEN_CPU_ENDIAN (cd) == CGEN_ENDIAN_BIG;
+  int i;
+
+  for (i = count - 1; i >= 0; --i, ++hentbuf)
     {
-      free (dis_hash_table);
-      dis_hash_table = NULL;
-    }
-}
+      unsigned int hash;
+      char buf [4];
+      unsigned long value;
+      const CGEN_INSN *insn = &insns[i];
 
-/* Build the disassembler instruction hash table.  */
+      if (! (* cd->dis_hash_p) (insn))
+	continue;
 
-static void
-build_dis_hash_table ()
-{
-  int bigend = cgen_current_endian == CGEN_ENDIAN_BIG;
-  unsigned int hash;
-  char buf [4];
-  unsigned long value;
-  int count = cgen_insn_count ();
-  CGEN_OPCODE_DATA * data = cgen_current_opcode_data;
-  CGEN_INSN_TABLE * insn_table = data->insn_table;
-  unsigned int entry_size = insn_table->entry_size;
-  unsigned int hash_size = insn_table->dis_hash_table_size;
-  const CGEN_INSN * insn;
-  CGEN_INSN_LIST * insn_lists;
-  CGEN_INSN_LIST * new_insns;
-
-  /* The space allocated for the hash table consists of two parts:
-     the hash table and the hash lists.  */
-
-  dis_hash_table = (CGEN_INSN_LIST **)
-    xmalloc (hash_size * sizeof (CGEN_INSN_LIST *)
-	     + count * sizeof (CGEN_INSN_LIST));
-  memset (dis_hash_table, 0,
-	  hash_size * sizeof (CGEN_INSN_LIST *)
-	  + count * sizeof (CGEN_INSN_LIST));
-  insn_lists = (CGEN_INSN_LIST *) (dis_hash_table + hash_size);
-
-  /* Add compiled in insns.
-     The table is scanned backwards as later additions are inserted in
-     front of earlier ones and we want earlier ones to be prefered.
-     We stop at the first one as it is a reserved entry.
-     This is a bit tricky as the attribute member of CGEN_INSN is variable
-     among architectures.  This code could be moved to cgen-asm.in, but
-     I prefer to keep it here for now.  */
-
-  for (insn = (CGEN_INSN *)
-       ((char *) insn_table->init_entries
-	+ entry_size * (insn_table->num_init_entries - 1));
-       insn > insn_table->init_entries;
-       insn = (CGEN_INSN *) ((char *) insn - entry_size), ++ insn_lists)
-    {
       /* We don't know whether the target uses the buffer or the base insn
 	 to hash on, so set both up.  */
-      value = CGEN_INSN_VALUE (insn);
+
+      value = CGEN_INSN_BASE_VALUE (insn);
       switch (CGEN_INSN_MASK_BITSIZE (insn))
 	{
 	case 8:
 	  buf[0] = value;
 	  break;
 	case 16:
-	  if (bigend)
+	  if (big_p)
 	    bfd_putb16 ((bfd_vma) value, buf);
 	  else
 	    bfd_putl16 ((bfd_vma) value, buf);
 	  break;
 	case 32:
-	  if (bigend)
+	  if (big_p)
 	    bfd_putb32 ((bfd_vma) value, buf);
 	  else
 	    bfd_putl32 ((bfd_vma) value, buf);
@@ -110,37 +85,55 @@ build_dis_hash_table ()
 	  abort ();
 	}
 
-      hash = insn_table->dis_hash (buf, value);
-
-      insn_lists->next = dis_hash_table [hash];
-      insn_lists->insn = insn;
-
-      dis_hash_table [hash] = insn_lists;
+      hash = (* cd->dis_hash) (buf, value);
+      hentbuf->next = htable[hash];
+      hentbuf->insn = insn;
+      htable[hash] = hentbuf;
     }
 
-  /* Add runtime added insns.
-     ??? Currently later added insns will be prefered over earlier ones.
-     Not sure this is a bug or not.  */
-  for (new_insns = insn_table->new_entries;
-       new_insns != NULL;
-       new_insns = new_insns->next, ++ insn_lists)
+  return hentbuf;
+}
+
+/* Subroutine of build_dis_hash_table to add INSNS to the hash table.
+   This function is identical to hash_insn_array except the insns are
+   in a list.  */
+
+static CGEN_INSN_LIST *
+hash_insn_list (cd, insns, htable, hentbuf)
+     CGEN_CPU_DESC cd;
+     const CGEN_INSN_LIST *insns;
+     CGEN_INSN_LIST **htable;
+     CGEN_INSN_LIST *hentbuf;
+{
+  int big_p = CGEN_CPU_ENDIAN (cd) == CGEN_ENDIAN_BIG;
+  const CGEN_INSN_LIST *ilist;
+
+  for (ilist = insns; ilist != NULL; ilist = ilist->next, ++ hentbuf)
     {
+      unsigned int hash;
+      char buf[4];
+      unsigned long value;
+
+      if (! (* cd->dis_hash_p) (ilist->insn))
+	continue;
+
       /* We don't know whether the target uses the buffer or the base insn
 	 to hash on, so set both up.  */
-      value = CGEN_INSN_VALUE (new_insns->insn);
-      switch (CGEN_INSN_MASK_BITSIZE (new_insns->insn))
+
+      value = CGEN_INSN_BASE_VALUE (ilist->insn);
+      switch (CGEN_INSN_MASK_BITSIZE (ilist->insn))
 	{
 	case 8:
 	  buf[0] = value;
 	  break;
 	case 16:
-	  if (bigend)
+	  if (big_p)
 	    bfd_putb16 ((bfd_vma) value, buf);
 	  else
 	    bfd_putl16 ((bfd_vma) value, buf);
 	  break;
 	case 32:
-	  if (bigend)
+	  if (big_p)
 	    bfd_putb32 ((bfd_vma) value, buf);
 	  else
 	    bfd_putl32 ((bfd_vma) value, buf);
@@ -149,28 +142,85 @@ build_dis_hash_table ()
 	  abort ();
 	}
 
-      hash = insn_table->dis_hash (buf, value);
-
-      insn_lists->next = dis_hash_table [hash];
-      insn_lists->insn = new_insns->insn;
-
-      dis_hash_table [hash] = insn_lists;
+      hash = (* cd->dis_hash) (buf, value);
+      hentbuf->next = htable [hash];
+      hentbuf->insn = ilist->insn;
+      htable [hash] = hentbuf;
     }
+
+  return hentbuf;
+}
+
+/* Build the disassembler instruction hash table.  */
+
+static void
+build_dis_hash_table (cd)
+     CGEN_CPU_DESC cd;
+{
+  int count = cgen_insn_count (cd) + cgen_macro_insn_count (cd);
+  CGEN_INSN_TABLE *insn_table = & cd->insn_table;
+  CGEN_INSN_TABLE *macro_insn_table = & cd->macro_insn_table;
+  unsigned int hash_size = cd->dis_hash_size;
+  CGEN_INSN_LIST *hash_entry_buf;
+  CGEN_INSN_LIST **dis_hash_table;
+  CGEN_INSN_LIST *dis_hash_table_entries;
+
+  /* The space allocated for the hash table consists of two parts:
+     the hash table and the hash lists.  */
+
+  dis_hash_table = (CGEN_INSN_LIST **)
+    xmalloc (hash_size * sizeof (CGEN_INSN_LIST *));
+  memset (dis_hash_table, 0, hash_size * sizeof (CGEN_INSN_LIST *));
+  dis_hash_table_entries = hash_entry_buf = (CGEN_INSN_LIST *)
+    xmalloc (count * sizeof (CGEN_INSN_LIST));
+
+  /* Add compiled in insns.
+     Don't include the first one as it is a reserved entry.  */
+  /* ??? It was the end of all hash chains, and also the special
+     "invalid insn" marker.  May be able to do it differently now.  */
+
+  hash_entry_buf = hash_insn_array (cd,
+				    insn_table->init_entries + 1,
+				    insn_table->num_init_entries - 1,
+				    insn_table->entry_size,
+				    dis_hash_table, hash_entry_buf);
+
+  /* Add compiled in macro-insns.  */
+
+  hash_entry_buf = hash_insn_array (cd, macro_insn_table->init_entries,
+				    macro_insn_table->num_init_entries,
+				    macro_insn_table->entry_size,
+				    dis_hash_table, hash_entry_buf);
+
+  /* Add runtime added insns.
+     Later added insns will be prefered over earlier ones.  */
+
+  hash_entry_buf = hash_insn_list (cd, insn_table->new_entries,
+				   dis_hash_table, hash_entry_buf);
+
+  /* Add runtime added macro-insns.  */
+
+  hash_insn_list (cd, macro_insn_table->new_entries,
+		  dis_hash_table, hash_entry_buf);
+
+  cd->dis_hash_table = dis_hash_table;
+  cd->dis_hash_table_entries = dis_hash_table_entries;
 }
 
 /* Return the first entry in the hash list for INSN.  */
 
 CGEN_INSN_LIST *
-cgen_dis_lookup_insn (buf, value)
+cgen_dis_lookup_insn (cd, buf, value)
+     CGEN_CPU_DESC cd;
      const char * buf;
-     unsigned long value;
+     CGEN_INSN_INT value;
 {
   unsigned int hash;
 
-  if (dis_hash_table == NULL)
-    build_dis_hash_table ();
+  if (cd->dis_hash_table == NULL)
+    build_dis_hash_table (cd);
 
-  hash = cgen_current_opcode_data->insn_table->dis_hash (buf, value);
+  hash = (* cd->dis_hash) (buf, value);
 
-  return dis_hash_table [hash];
+  return cd->dis_hash_table[hash];
 }

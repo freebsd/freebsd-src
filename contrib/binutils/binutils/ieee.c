@@ -1,5 +1,5 @@
 /* ieee.c -- Read and write IEEE-695 debugging information.
-   Copyright (C) 1996 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1998, 1999, 2000 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -30,6 +30,7 @@
 #include "libiberty.h"
 #include "debug.h"
 #include "budbg.h"
+#include "filenames.h"
 
 /* This structure holds an entry on the block stack.  */
 
@@ -313,7 +314,7 @@ ieee_eof (info)
      struct ieee_info *info;
 {
   ieee_error (info, (const bfd_byte *) NULL,
-	      "unexpected end of debugging information");
+	      _("unexpected end of debugging information"));
 }
 
 /* Save a string in memory.  */
@@ -408,7 +409,7 @@ ieee_read_optional_number (info, pp, pv, ppresent)
       return true;
     }
 
-  ieee_error (info, *pp - 1, "invalid number");
+  ieee_error (info, *pp - 1, _("invalid number"));
   return false;  
 }
 
@@ -467,7 +468,7 @@ ieee_read_optional_id (info, pp, pname, pnamlen, ppresent)
 	  *ppresent = false;
 	  return true;
 	}
-      ieee_error (info, *pp - 1, "invalid string length");
+      ieee_error (info, *pp - 1, _("invalid string length"));
       return false;
     }
 
@@ -524,7 +525,7 @@ ieee_read_expression (info, pp, pv)
 	{
 	  if (esp - expr_stack >= EXPR_STACK_SIZE)
 	    {
-	      ieee_error (info, start, "expression stack overflow");
+	      ieee_error (info, start, _("expression stack overflow"));
 	      return false;
 	    }
 	  *esp++ = val;
@@ -544,7 +545,7 @@ ieee_read_expression (info, pp, pv)
       switch (c)
 	{
 	default:
-	  ieee_error (info, start, "unsupported IEEE expression operator");
+	  ieee_error (info, start, _("unsupported IEEE expression operator"));
 	  break;
 
 	case ieee_variable_R_enum:
@@ -559,13 +560,13 @@ ieee_read_expression (info, pp, pv)
 		break;
 	    if (s == NULL)
 	      {
-		ieee_error (info, start, "unknown section");
+		ieee_error (info, start, _("unknown section"));
 		return false;
 	      }
 	    
 	    if (esp - expr_stack >= EXPR_STACK_SIZE)
 	      {
-		ieee_error (info, start, "expression stack overflow");
+		ieee_error (info, start, _("expression stack overflow"));
 		return false;
 	      }
 
@@ -580,7 +581,7 @@ ieee_read_expression (info, pp, pv)
 
 	    if (esp - expr_stack < 2)
 	      {
-		ieee_error (info, start, "expression stack underflow");
+		ieee_error (info, start, _("expression stack underflow"));
 		return false;
 	      }
 
@@ -594,7 +595,7 @@ ieee_read_expression (info, pp, pv)
 
   if (esp - 1 != expr_stack)
     {
-      ieee_error (info, expr_start, "expression stack mismatch");
+      ieee_error (info, expr_start, _("expression stack mismatch"));
       return false;
     }
 
@@ -633,7 +634,7 @@ ieee_builtin_type (info, p, indx)
   switch ((enum builtin_types) indx)
     {
     default:
-      ieee_error (info, p, "unknown builtin type");
+      ieee_error (info, p, _("unknown builtin type"));
       return NULL;
 
     case builtin_unknown:
@@ -778,8 +779,8 @@ ieee_builtin_type (info, p, indx)
       break;
 
     case builtin_bcd_float:
-      ieee_error (info, p, "BCD float type not supported");
-      return false;
+      ieee_error (info, p, _("BCD float type not supported"));
+      return DEBUG_TYPE_NULL;
     }
 
   if (name != NULL)
@@ -900,8 +901,10 @@ parse_ieee (dhandle, abfd, bytes, len)
   info.saw_filename = false;
   info.vars.alloc = 0;
   info.vars.vars = NULL;
+  info.global_vars = NULL;
   info.types.alloc = 0;
   info.types.types = NULL;
+  info.global_types = NULL;
   info.tags = NULL;
   for (i = 0; i < BUILTIN_TYPE_COUNT; i++)
     info.types.builtins[i] = DEBUG_TYPE_NULL;
@@ -922,14 +925,14 @@ parse_ieee (dhandle, abfd, bytes, len)
 
       if (c <= ieee_number_repeat_end_enum)
 	{
-	  ieee_error (&info, record_start, "unexpected number");
+	  ieee_error (&info, record_start, _("unexpected number"));
 	  return false;
 	}
 
       switch (c)
 	{
 	default:
-	  ieee_error (&info, record_start, "unexpected record type");
+	  ieee_error (&info, record_start, _("unexpected record type"));
 	  return false;
 
 	case ieee_bb_record_enum:
@@ -962,7 +965,7 @@ parse_ieee (dhandle, abfd, bytes, len)
   if (info.blockstack.bsp != info.blockstack.stack)
     {
       ieee_error (&info, (const bfd_byte *) NULL,
-		  "blocks left on stack at end");
+		  _("blocks left on stack at end"));
       return false;
     }
 
@@ -1227,7 +1230,7 @@ parse_ieee_bb (info, pp)
       break;
 
     default:
-      ieee_error (info, block_start, "unknown BB type");
+      ieee_error (info, block_start, _("unknown BB type"));
       return false;
     }
 
@@ -1236,7 +1239,7 @@ parse_ieee_bb (info, pp)
 
   if (info->blockstack.bsp >= info->blockstack.stack + BLOCKSTACK_SIZE)
     {
-      ieee_error (info, (const bfd_byte *) NULL, "stack overflow");
+      ieee_error (info, (const bfd_byte *) NULL, _("stack overflow"));
       return false;
     }
 
@@ -1261,7 +1264,7 @@ parse_ieee_be (info, pp)
 
   if (info->blockstack.bsp <= info->blockstack.stack)
     {
-      ieee_error (info, *pp, "stack underflow");
+      ieee_error (info, *pp, _("stack underflow"));
       return false;
     }
   --info->blockstack.bsp;
@@ -1375,7 +1378,7 @@ parse_ieee_nn (info, pp)
 
   if (varindx < 32)
     {
-      ieee_error (info, nn_start, "illegal variable index");
+      ieee_error (info, nn_start, _("illegal variable index"));
       return false;
     }
   varindx -= 32;
@@ -1425,7 +1428,7 @@ parse_ieee_ty (info, pp)
 
   if (typeindx < 256)
     {
-      ieee_error (info, ty_start, "illegal type index");
+      ieee_error (info, ty_start, _("illegal type index"));
       return false;
     }
 
@@ -1435,7 +1438,7 @@ parse_ieee_ty (info, pp)
 
   if (**pp != 0xce)
     {
-      ieee_error (info, *pp, "unknown TY code");
+      ieee_error (info, *pp, _("unknown TY code"));
       return false;
     }
   ++*pp;
@@ -1447,14 +1450,14 @@ parse_ieee_ty (info, pp)
 
   if (varindx < 32)
     {
-      ieee_error (info, ty_var_start, "illegal variable index");
+      ieee_error (info, ty_var_start, _("illegal variable index"));
       return false;
     }
   varindx -= 32;
 
   if (varindx >= info->vars.alloc || info->vars.vars[varindx].name == NULL)
     {
-      ieee_error (info, ty_var_start, "undefined variable in TY");
+      ieee_error (info, ty_var_start, _("undefined variable in TY"));
       return false;
     }
 
@@ -1472,7 +1475,7 @@ parse_ieee_ty (info, pp)
   switch (tc)
     {
     default:
-      ieee_error (info, ty_code_start, "unknown TY code");
+      ieee_error (info, ty_code_start, _("unknown TY code"));
       return false;
 
     case '!':
@@ -1865,7 +1868,7 @@ parse_ieee_ty (info, pp)
 
     case 'f':
       /* Pascal file name.  FIXME.  */
-      ieee_error (info, ty_code_start, "Pascal file name not supported");
+      ieee_error (info, ty_code_start, _("Pascal file name not supported"));
       return false;
 
     case 'g':
@@ -1913,7 +1916,7 @@ parse_ieee_ty (info, pp)
 	switch (kind)
 	  {
 	  default:
-	    ieee_error (info, ty_start, "unsupported qualifer");
+	    ieee_error (info, ty_start, _("unsupported qualifer"));
 	    return false;
 
 	  case 1:
@@ -2141,7 +2144,12 @@ parse_ieee_atn (info, pp)
     }
   else if (varindx < 32)
     {
-      ieee_error (info, atn_start, "illegal variable index");
+      /* The MRI compiler reportedly sometimes emits variable lifetime
+         information for a register.  We just ignore it.  */
+      if (atn_code == 9)
+	return ieee_read_number (info, pp, &v);
+
+      ieee_error (info, atn_start, _("illegal variable index"));
       return false;
     }
   else
@@ -2179,7 +2187,7 @@ parse_ieee_atn (info, pp)
 	    }
 	  else
 	    {
-	      ieee_error (info, atn_start, "undefined variable in ATN");
+	      ieee_error (info, atn_start, _("undefined variable in ATN"));
 	      return false;
 	    }
 	}
@@ -2222,7 +2230,7 @@ parse_ieee_atn (info, pp)
   switch (atn_code)
     {
     default:
-      ieee_error (info, atn_code_start, "unknown ATN type");
+      ieee_error (info, atn_code_start, _("unknown ATN type"));
       return false;
 
     case 1:
@@ -2344,7 +2352,7 @@ parse_ieee_atn (info, pp)
 
     case 11:
       /* Reserved for FORTRAN common.  */
-      ieee_error (info, atn_code_start, "unsupported ATN11");
+      ieee_error (info, atn_code_start, _("unsupported ATN11"));
 
       /* Return true to keep going.  */
       return true;
@@ -2371,7 +2379,7 @@ parse_ieee_atn (info, pp)
 
       /* We have no way to record this information.  FIXME.  */
 
-      ieee_error (info, atn_code_start, "unsupported ATN12");
+      ieee_error (info, atn_code_start, _("unsupported ATN12"));
 
       /* Return true to keep going.  */
       return true;
@@ -2431,7 +2439,7 @@ parse_ieee_atn (info, pp)
 	  if (present)
 	    {
 	      ieee_error (info, atn_code_start,
-			  "unexpected string in C++ misc");
+			  _("unexpected string in C++ misc"));
 	      return false;
 	    }
 	  return ieee_read_cxx_misc (info, pp, v2);
@@ -2444,7 +2452,7 @@ parse_ieee_atn (info, pp)
 	  switch ((ieee_record_enum_type) **pp)
 	    {
 	    default:
-	      ieee_error (info, *pp, "bad misc record");
+	      ieee_error (info, *pp, _("bad misc record"));
 	      return false;
 
 	    case ieee_at_record_enum:
@@ -2487,7 +2495,7 @@ ieee_read_cxx_misc (info, pp, count)
   switch (category)
     {
     default:
-      ieee_error (info, start, "unrecognized C++ misc record");
+      ieee_error (info, start, _("unrecognized C++ misc record"));
       return false;
 
     case 'T':
@@ -2604,7 +2612,7 @@ ieee_read_cxx_class (info, pp, count)
       break;
   if (it == NULL)
     {
-      ieee_error (info, start, "undefined C++ object");
+      ieee_error (info, start, _("undefined C++ object"));
       return false;
     }
 
@@ -2638,7 +2646,7 @@ ieee_read_cxx_class (info, pp, count)
       switch (id)
 	{
 	default:
-	  ieee_error (info, spec_start, "unrecognized C++ object spec");
+	  ieee_error (info, spec_start, _("unrecognized C++ object spec"));
 	  return false;
 
 	case 'b':
@@ -2674,7 +2682,7 @@ ieee_read_cxx_class (info, pp, count)
 
 	    if ((fieldlen == 0) == (cinline == 0))
 	      {
-		ieee_error (info, start, "unsupported C++ object type");
+		ieee_error (info, start, _("unsupported C++ object type"));
 		return false;
 	      }
 
@@ -2684,7 +2692,7 @@ ieee_read_cxx_class (info, pp, count)
 	    free (basecopy);
 	    if (basetype == DEBUG_TYPE_NULL)
 	      {
-		ieee_error (info, start, "C++ base class not defined");
+		ieee_error (info, start, _("C++ base class not defined"));
 		return false;
 	      }
 
@@ -2696,7 +2704,7 @@ ieee_read_cxx_class (info, pp, count)
 
 		if (structfields == NULL)
 		  {
-		    ieee_error (info, start, "C++ object has no fields");
+		    ieee_error (info, start, _("C++ object has no fields"));
 		    return false;
 		  }
 
@@ -2715,7 +2723,7 @@ ieee_read_cxx_class (info, pp, count)
 		if (*pf == DEBUG_FIELD_NULL)
 		  {
 		    ieee_error (info, start,
-				"C++ base class not found in container");
+				_("C++ base class not found in container"));
 		    return false;
 		  }
 
@@ -2801,7 +2809,7 @@ ieee_read_cxx_class (info, pp, count)
 
 		if (structfields == NULL)
 		  {
-		    ieee_error (info, start, "C++ object has no fields");
+		    ieee_error (info, start, _("C++ object has no fields"));
 		    return false;
 		  }
 
@@ -2822,7 +2830,7 @@ ieee_read_cxx_class (info, pp, count)
 		if (*pf == DEBUG_FIELD_NULL)
 		  {
 		    ieee_error (info, start,
-				"C++ data member not found in container");
+				_("C++ data member not found in container"));
 		    return false;
 		  }
 
@@ -2863,7 +2871,7 @@ ieee_read_cxx_class (info, pp, count)
 	    switch (flags & CXXFLAGS_VISIBILITY)
 	      {
 	      default:
-		ieee_error (info, start, "unknown C++ visibility");
+		ieee_error (info, start, _("unknown C++ visibility"));
 		return false;
 
 	      case CXXFLAGS_VISIBILITY_PUBLIC:
@@ -2897,7 +2905,7 @@ ieee_read_cxx_class (info, pp, count)
 		bitsize = debug_get_field_bitsize (dhandle, *pf);
 		if (bitpos == (bfd_vma) -1 || bitsize == (bfd_vma) -1)
 		  {
-		    ieee_error (info, start, "bad C++ field bit pos or size");
+		    ieee_error (info, start, _("bad C++ field bit pos or size"));
 		    return false;
 		  }
 		field = debug_make_field (dhandle, fieldcopy, ftype, bitpos,
@@ -2989,7 +2997,7 @@ ieee_read_cxx_class (info, pp, count)
 		    != DEBUG_KIND_FUNCTION)
 		  {
 		    ieee_error (info, start,
-				"bad type for C++ method function");
+				_("bad type for C++ method function"));
 		    return false;
 		  }
 
@@ -2999,7 +3007,7 @@ ieee_read_cxx_class (info, pp, count)
 		if (return_type == DEBUG_TYPE_NULL || arg_types == NULL)
 		  {
 		    ieee_error (info, start,
-				"no type information for C++ method function");
+				_("no type information for C++ method function"));
 		    return false;
 		  }
 
@@ -3013,7 +3021,7 @@ ieee_read_cxx_class (info, pp, count)
 	    switch (flags & CXXFLAGS_VISIBILITY)
 	      {
 	      default:
-		ieee_error (info, start, "unknown C++ visibility");
+		ieee_error (info, start, _("unknown C++ visibility"));
 		return false;
 
 	      case CXXFLAGS_VISIBILITY_PUBLIC:
@@ -3038,7 +3046,7 @@ ieee_read_cxx_class (info, pp, count)
 	      {
 		if (id == 'v')
 		  {
-		    ieee_error (info, start, "C++ static virtual method");
+		    ieee_error (info, start, _("C++ static virtual method"));
 		    return false;
 		  }
 		mv = debug_make_static_method_variant (dhandle, mangledcopy,
@@ -3133,7 +3141,7 @@ ieee_read_cxx_class (info, pp, count)
 	    else
 	      {
 		ieee_error (info, start,
-			    "unrecognized C++ object overhead spec");
+			    _("unrecognized C++ object overhead spec"));
 		return false;
 	      }
 	  }
@@ -3172,7 +3180,7 @@ ieee_read_cxx_class (info, pp, count)
 		free (basecopy);
 		if (vptrbase == DEBUG_TYPE_NULL)
 		  {
-		    ieee_error (info, start, "undefined C++ vtable");
+		    ieee_error (info, start, _("undefined C++ vtable"));
 		    return false;
 		  }
 	      }
@@ -3243,7 +3251,7 @@ ieee_read_cxx_defaults (info, pp, count)
   if (info->blockstack.bsp <= info->blockstack.stack
       || info->blockstack.bsp[-1].fnindx == (unsigned int) -1)
     {
-      ieee_error (info, start, "C++ default values not in a function");
+      ieee_error (info, start, _("C++ default values not in a function"));
       return false;
     }
 
@@ -3283,7 +3291,7 @@ ieee_read_cxx_defaults (info, pp, count)
 	  break;
 
 	default:
-	  ieee_error (info, start, "unrecognized C++ default type");
+	  ieee_error (info, start, _("unrecognized C++ default type"));
 	  return false;
 	}
 
@@ -3314,7 +3322,7 @@ ieee_read_cxx_defaults (info, pp, count)
 	      || (debug_get_type_kind (dhandle, arg_slots[indx])
 		  != DEBUG_KIND_POINTER))
 	    {
-	      ieee_error (info, start, "reference parameter is not a pointer");
+	      ieee_error (info, start, _("reference parameter is not a pointer"));
 	      return false;
 	    }
 
@@ -3399,7 +3407,7 @@ ieee_read_reference (info, pp)
 		{
 		default:
 		  ieee_error (info, start,
-			      "unrecognized C++ reference type");
+			      _("unrecognized C++ reference type"));
 		  return false;
 
 		case 0:
@@ -3481,7 +3489,7 @@ ieee_read_reference (info, pp)
 
   if (pslot == NULL)
     {
-      ieee_error (info, start, "C++ reference not found");
+      ieee_error (info, start, _("C++ reference not found"));
       return false;
     }
 
@@ -3489,7 +3497,7 @@ ieee_read_reference (info, pp)
      to *pslot, which we can now update to be a reference type.  */
   if (debug_get_type_kind (info->dhandle, *pslot) != DEBUG_KIND_POINTER)
     {
-      ieee_error (info, start, "C++ reference is not pointer");
+      ieee_error (info, start, _("C++ reference is not pointer"));
       return false;
     }
 
@@ -3518,7 +3526,7 @@ ieee_require_asn (info, pp, pv)
   c = (ieee_record_enum_type) **pp;
   if (c != ieee_e2_first_byte_enum)
     {
-      ieee_error (info, start, "missing required ASN");
+      ieee_error (info, start, _("missing required ASN"));
       return false;
     }
   ++*pp;
@@ -3526,7 +3534,7 @@ ieee_require_asn (info, pp, pv)
   c = (ieee_record_enum_type) (((unsigned int) c << 8) | **pp);
   if (c != ieee_asn_record_enum)
     {
-      ieee_error (info, start, "missing required ASN");
+      ieee_error (info, start, _("missing required ASN"));
       return false;
     }
   ++*pp;
@@ -3556,7 +3564,7 @@ ieee_require_atn65 (info, pp, pname, pnamlen)
   c = (ieee_record_enum_type) **pp;
   if (c != ieee_at_record_enum)
     {
-      ieee_error (info, start, "missing required ATN65");
+      ieee_error (info, start, _("missing required ATN65"));
       return false;
     }
   ++*pp;
@@ -3564,7 +3572,7 @@ ieee_require_atn65 (info, pp, pname, pnamlen)
   c = (ieee_record_enum_type) (((unsigned int) c << 8) | **pp);
   if (c != ieee_atn_record_enum)
     {
-      ieee_error (info, start, "missing required ATN65");
+      ieee_error (info, start, _("missing required ATN65"));
       return false;
     }
   ++*pp;
@@ -3578,7 +3586,7 @@ ieee_require_atn65 (info, pp, pname, pnamlen)
 
   if (type_indx != 0 || atn_code != 65)
     {
-      ieee_error (info, start, "bad ATN65 record");
+      ieee_error (info, start, _("bad ATN65 record"));
       return false;
     }
 
@@ -4097,7 +4105,7 @@ static const struct debug_write_fns ieee_fns =
 /*ARGSUSED*/
 static boolean
 ieee_init_buffer (info, buflist)
-     struct ieee_handle *info;
+     struct ieee_handle *info ATTRIBUTE_UNUSED;
      struct ieee_buflist *buflist;
 {
   buflist->head = NULL;
@@ -4138,7 +4146,7 @@ ieee_change_buffer (info, buflist)
 /*ARGSUSED*/
 static boolean
 ieee_append_buffer (info, mainbuf, newbuf)
-     struct ieee_handle *info;
+     struct ieee_handle *info ATTRIBUTE_UNUSED;
      struct ieee_buflist *mainbuf;
      struct ieee_buflist *newbuf;
 {
@@ -4225,7 +4233,7 @@ ieee_write_number (info, v)
   if (c > (unsigned int) (ieee_number_repeat_end_enum
 			  - ieee_number_repeat_start_enum))
     {
-      fprintf (stderr, "IEEE numeric overflow: 0x");
+      fprintf (stderr, _("IEEE numeric overflow: 0x"));
       fprintf_vma (stderr, v);
       fprintf (stderr, "\n");
       return false;
@@ -4271,7 +4279,7 @@ ieee_write_id (info, s)
     }
   else
     {
-      fprintf (stderr, "IEEE string length overflow: %u\n", len);
+      fprintf (stderr, _("IEEE string length overflow: %u\n"), len);
       return false;
     }
 
@@ -4919,6 +4927,7 @@ ieee_start_compilation_unit (p, filename)
 {
   struct ieee_handle *info = (struct ieee_handle *) p;
   const char *modname;
+  const char *backslash;
   char *c, *s;
   unsigned int nindx;
 
@@ -4930,16 +4939,20 @@ ieee_start_compilation_unit (p, filename)
 
   info->filename = filename;
   modname = strrchr (filename, '/');
+  /* We could have a mixed forward/back slash case.  */
+  backslash = strrchr (modname, '\\');
+  if (backslash > modname)
+    modname = backslash;
+
   if (modname != NULL)
     ++modname;
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+  else if (filename[0] && filename[1] == ':')
+    modname = filename + 2;
+#endif
   else
-    {
-      modname = strrchr (filename, '\\');
-      if (modname != NULL)
-	++modname;
-      else
-	modname = filename;
-    }
+    modname = filename;
+
   c = xstrdup (modname);
   s = strrchr (c, '.');
   if (s != NULL)
@@ -5128,7 +5141,7 @@ ieee_finish_compilation_unit (info)
 
 static void
 ieee_add_bb11_blocks (abfd, sec, data)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      asection *sec;
      PTR data;
 {
@@ -5187,22 +5200,25 @@ ieee_add_bb11 (info, sec, low, high)
     }
   else
     {
-      const char *filename, *modname;
+      const char *filename, *modname, *backslash;
       char *c, *s;
 
       /* Start the enclosing BB10 block.  */
       filename = bfd_get_filename (info->abfd);
       modname = strrchr (filename, '/');
+      backslash = strrchr (modname, '\\');
+      if (backslash > modname)
+	modname = backslash;
+
       if (modname != NULL)
 	++modname;
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+      else if (filename[0] && filename[1] == ':')
+	modname = filename + 2;
+#endif
       else
-	{
-	  modname = strrchr (filename, '\\');
-	  if (modname != NULL)
-	    ++modname;
-	  else
-	    modname = filename;
-	}
+	modname = filename;
+
       c = xstrdup (modname);
       s = strrchr (c, '.');
       if (s != NULL)
@@ -5251,8 +5267,8 @@ ieee_add_bb11 (info, sec, low, high)
 /*ARGSUSED*/
 static boolean
 ieee_start_source (p, filename)
-     PTR p;
-     const char *filename;
+     PTR p ATTRIBUTE_UNUSED;
+     const char *filename ATTRIBUTE_UNUSED;
 {
   return true;
 }
@@ -5305,7 +5321,7 @@ ieee_int_type (p, size, unsignedp)
       indx = (int) builtin_signed_long_long;
       break;
     default:
-      fprintf (stderr, "IEEE unsupported integer type size %u\n", size);
+      fprintf (stderr, _("IEEE unsupported integer type size %u\n"), size);
       return false;
     }
 
@@ -5341,7 +5357,7 @@ ieee_float_type (p, size)
       indx = (int) builtin_long_long_double;
       break;
     default:
-      fprintf (stderr, "IEEE unsupported float type size %u\n", size);
+      fprintf (stderr, _("IEEE unsupported float type size %u\n"), size);
       return false;
     }
 
@@ -5377,7 +5393,7 @@ ieee_complex_type (p, size)
       code = 'd';
       break;
     default:
-      fprintf (stderr, "IEEE unsupported complex type size %u\n", size);
+      fprintf (stderr, _("IEEE unsupported complex type size %u\n"), size);
       return false;
     }
 
@@ -5718,7 +5734,7 @@ ieee_array_type (p, low, high, stringp)
      PTR p;
      bfd_signed_vma low;
      bfd_signed_vma high;
-     boolean stringp;
+     boolean stringp ATTRIBUTE_UNUSED;
 {
   struct ieee_handle *info = (struct ieee_handle *) p;
   unsigned int eleindx;
@@ -5785,7 +5801,7 @@ ieee_array_type (p, low, high, stringp)
 static boolean
 ieee_set_type (p, bitstringp)
      PTR p;
-     boolean bitstringp;
+     boolean bitstringp ATTRIBUTE_UNUSED;
 {
   struct ieee_handle *info = (struct ieee_handle *) p;
   boolean localp;
@@ -7005,7 +7021,7 @@ ieee_typdef (p, name)
 static boolean
 ieee_tag (p, name)
      PTR p;
-     const char *name;
+     const char *name ATTRIBUTE_UNUSED;
 {
   struct ieee_handle *info = (struct ieee_handle *) p;
 
@@ -7019,9 +7035,9 @@ ieee_tag (p, name)
 
 static boolean
 ieee_int_constant (p, name, val)
-     PTR p;
-     const char *name;
-     bfd_vma val;
+     PTR p ATTRIBUTE_UNUSED;
+     const char *name ATTRIBUTE_UNUSED;
+     bfd_vma val ATTRIBUTE_UNUSED;
 {
   /* FIXME.  */
   return true;
@@ -7031,9 +7047,9 @@ ieee_int_constant (p, name, val)
 
 static boolean
 ieee_float_constant (p, name, val)
-     PTR p;
-     const char *name;
-     double val;
+     PTR p ATTRIBUTE_UNUSED;
+     const char *name ATTRIBUTE_UNUSED;
+     double val ATTRIBUTE_UNUSED;
 {
   /* FIXME.  */
   return true;
@@ -7044,8 +7060,8 @@ ieee_float_constant (p, name, val)
 static boolean
 ieee_typed_constant (p, name, val)
      PTR p;
-     const char *name;
-     bfd_vma val;
+     const char *name ATTRIBUTE_UNUSED;
+     bfd_vma val ATTRIBUTE_UNUSED;
 {
   struct ieee_handle *info = (struct ieee_handle *) p;
 

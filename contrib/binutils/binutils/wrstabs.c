@@ -1,5 +1,5 @@
 /* wrstabs.c -- Output stabs debugging information
-   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1996, 97, 98, 99, 2000 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -363,8 +363,8 @@ stab_write_symbol (info, type, desc, value, string)
       h = string_hash_lookup (&info->strhash, string, true, true);
       if (h == NULL)
 	{
-	  fprintf (stderr, "string_hash_lookup failed: %s\n",
-		   bfd_errmsg (bfd_get_error ()));
+	  non_fatal (_("string_hash_lookup failed: %s"),
+		     bfd_errmsg (bfd_get_error ()));
 	  return false;
 	}
       if (h->index != -1)
@@ -505,8 +505,8 @@ write_stabs_in_sections_debugging_info (abfd, dhandle, psyms, psymsize,
   if (! bfd_hash_table_init (&info.strhash.table, string_hash_newfunc)
       || ! bfd_hash_table_init (&info.typedef_hash.table, string_hash_newfunc))
     {
-      fprintf (stderr, "bfd_hash_table_init_failed: %s\n",
-	       bfd_errmsg (bfd_get_error ()));
+      non_fatal ("bfd_hash_table_init_failed: %s",
+		 bfd_errmsg (bfd_get_error ()));
       return false;
     }
 
@@ -663,7 +663,7 @@ stab_int_type (p, size, unsignedp)
 
   if (size <= 0 || (size > sizeof (long) && size != 8))
     {
-      fprintf (stderr, "stab_int_type: bad size %u\n", size);
+      non_fatal (_("stab_int_type: bad size %u"), size);
       return false;
     }
 
@@ -984,7 +984,7 @@ static boolean
 stab_function_type (p, argcount, varargs)
      PTR p;
      int argcount;
-     boolean varargs;
+     boolean varargs ATTRIBUTE_UNUSED;
 {
   struct stab_write_handle *info = (struct stab_write_handle *) p;
   int i;
@@ -1464,9 +1464,8 @@ stab_struct_field (p, name, bitpos, bitsize, visibility)
     {
       bitsize = size * 8;
       if (bitsize == 0)
-	fprintf (stderr,
-		 "%s: warning: unknown size for field `%s' in struct\n",
-		 bfd_get_filename (info->abfd), name);
+	non_fatal (_("%s: warning: unknown size for field `%s' in struct"),
+		   bfd_get_filename (info->abfd), name);
     }
 
   sprintf (n, "%s%s:%s%s,%ld,%ld;", info->type_stack->fields, name, vis, s,
@@ -2025,8 +2024,8 @@ stab_typdef (p, name)
   h = string_hash_lookup (&info->typedef_hash, name, true, false);
   if (h == NULL)
     {
-      fprintf (stderr, "string_hash_lookup failed: %s\n",
-	       bfd_errmsg (bfd_get_error ()));
+      non_fatal (_("string_hash_lookup failed: %s"),
+		 bfd_errmsg (bfd_get_error ()));
       return false;
     }
 
@@ -2383,7 +2382,7 @@ stab_end_block (p, addr)
 /*ARGSUSED*/
 static boolean
 stab_end_function (p)
-     PTR p;
+     PTR p ATTRIBUTE_UNUSED;
 {
   return true;
 }

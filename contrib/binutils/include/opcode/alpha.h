@@ -1,5 +1,5 @@
 /* alpha.h -- Header file for Alpha opcode table
-   Copyright 1996 Free Software Foundation, Inc.
+   Copyright 1996, 1999 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@tamu.edu>,
    patterned after the PPC opcode table written by Ian Lance Taylor.
 
@@ -54,7 +54,7 @@ struct alpha_opcode
    in the order in which the disassembler should consider
    instructions.  */
 extern const struct alpha_opcode alpha_opcodes[];
-extern const int alpha_num_opcodes;
+extern const unsigned alpha_num_opcodes;
 
 /* Values defined for the flags field of a struct alpha_opcode.  */
 
@@ -62,11 +62,12 @@ extern const int alpha_num_opcodes;
 #define AXP_OPCODE_BASE  0x0001  /* Base architecture -- all cpus.  */
 #define AXP_OPCODE_EV4   0x0002  /* EV4 specific PALcode insns.  */
 #define AXP_OPCODE_EV5   0x0004  /* EV5 specific PALcode insns.  */
+#define AXP_OPCODE_EV6   0x0008  /* EV6 specific PALcode insns.  */
 #define AXP_OPCODE_BWX   0x0100  /* Byte/word extension (amask bit 0).  */
 #define AXP_OPCODE_CIX   0x0200  /* "Count" extension (amask bit 1).  */
 #define AXP_OPCODE_MAX   0x0400  /* Multimedia extension (amask bit 8).  */
 
-#define AXP_OPCODE_NOPAL (~(AXP_OPCODE_EV4|AXP_OPCODE_EV5))
+#define AXP_OPCODE_NOPAL (~(AXP_OPCODE_EV4|AXP_OPCODE_EV5|AXP_OPCODE_EV6))
 
 /* A macro to extract the major opcode from an instruction.  */
 #define AXP_OP(i)	(((i) >> 26) & 0x3F)
@@ -134,7 +135,7 @@ struct alpha_operand
    the operands field of the alpha_opcodes table.  */
 
 extern const struct alpha_operand alpha_operands[];
-extern const int alpha_num_operands;
+extern const unsigned alpha_num_operands;
 
 /* Values defined for the flags field of a struct alpha_operand.  */
 

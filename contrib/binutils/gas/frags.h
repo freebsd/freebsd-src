@@ -1,5 +1,5 @@
 /* frags.h - Header file for the frag concept.
-   Copyright (C) 1987, 92, 93, 94, 95, 97, 1998
+   Copyright (C) 1987, 92, 93, 94, 95, 97, 98, 99, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -44,17 +44,18 @@ struct obstack;
 
 struct frag
 {
-  /* Object file address. */
+  /* Object file address (as an octet offset). */
   addressT fr_address;
   /* Chain forward; ascending address order.  Rooted in frch_root. */
   struct frag *fr_next;
 
-  /* (Fixed) number of chars we know we have.  May be 0. */
+  /* (Fixed) number of octets we know we have.  May be 0. */
   offsetT fr_fix;
-  /* (Variable) number of chars after above.  May be 0. */
+  /* May be used for (Variable) number of octets after above.
+     The generic frag handling code no longer makes any use of fr_var.  */
   offsetT fr_var;
   /* For variable-length tail. */
-  struct symbol *fr_symbol;
+  symbolS *fr_symbol;
   /* For variable-length tail. */
   offsetT fr_offset;
   /* Points to opcode low addr byte, for relaxation.  */
@@ -71,8 +72,12 @@ struct frag
 #ifdef USING_CGEN
   /* Don't include this unless using CGEN to keep frag size down.  */
   struct {
+    /* CGEN_INSN entry for this instruction.  */
     const struct cgen_insn *insn;
-    unsigned char opindex, opinfo;
+    /* Index into operand table.  */
+    int opindex;
+    /* Target specific data, usually reloc number.  */
+    int opinfo;
   } fr_cgen;
 #endif
 
@@ -97,6 +102,7 @@ struct frag
    instead, use frag_now_fix ().  */
 COMMON fragS *frag_now;
 extern addressT frag_now_fix PARAMS ((void));
+extern addressT frag_now_fix_octets PARAMS ((void));
 
 /* For foreign-segment symbol fixups. */
 COMMON fragS zero_address_frag;

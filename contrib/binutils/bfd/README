@@ -8,6 +8,9 @@ The documentation on using BFD is scanty and may be occasionally
 incorrect.  Pointers to documentation problems, or an entirely
 rewritten manual, would be appreciated.
 
+There is some BFD internals documentation in doc/bfdint.texi which may
+help programmers who want to modify BFD.
+
 BFD is normally built as part of another package.  See the build
 instructions for that package, probably in a README file in the
 appropriate directory.

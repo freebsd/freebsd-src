@@ -1,3 +1,12 @@
+1999-07-12  Ian Lance Taylor  <ian@zembu.com>
+
+	* aout64.h (N_SHARED_LIB): Define as 0 if TEXT_START_ADDR is
+	defined as 0.
+
+Sun Jun 28 11:33:48 1998  Peter Schauer  <pes@regent.e-technik.tu-muenchen.de>
+
+	* stab.def:  Add N_ALIAS from SunPro F77.
+
 Mon Mar 11 12:15:52 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 	* stab.def: Use __define_stab_duplicate rather than __define_stab

@@ -1,6 +1,8 @@
 /* MIPS-specific support for 64-bit ELF
-   Copyright 1996, 1997 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
    Ian Lance Taylor, Cygnus Support
+   Linker support added by Mark Mitchell, CodeSourcery, LLC.
+   <mark@codesourcery.com>
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -52,14 +54,20 @@ static void mips_elf64_swap_reloc_in
 static void mips_elf64_swap_reloca_in
   PARAMS ((bfd *, const Elf64_Mips_External_Rela *,
 	   Elf64_Mips_Internal_Rela *));
-#if 0
 static void mips_elf64_swap_reloc_out
   PARAMS ((bfd *, const Elf64_Mips_Internal_Rel *,
 	   Elf64_Mips_External_Rel *));
-#endif
 static void mips_elf64_swap_reloca_out
   PARAMS ((bfd *, const Elf64_Mips_Internal_Rela *,
 	   Elf64_Mips_External_Rela *));
+static void mips_elf64_be_swap_reloc_in
+  PARAMS ((bfd *, const bfd_byte *, Elf_Internal_Rel *));
+static void mips_elf64_be_swap_reloc_out
+  PARAMS ((bfd *, const Elf_Internal_Rel *, bfd_byte *));
+static void mips_elf64_be_swap_reloca_in
+  PARAMS ((bfd *, const bfd_byte *, Elf_Internal_Rela *));
+static void mips_elf64_be_swap_reloca_out
+  PARAMS ((bfd *, const Elf_Internal_Rela *, bfd_byte *));
 static reloc_howto_type *mips_elf64_reloc_type_lookup
   PARAMS ((bfd *, bfd_reloc_code_real_type));
 static long mips_elf64_get_reloc_upper_bound PARAMS ((bfd *, asection *));
@@ -68,62 +76,16 @@ static boolean mips_elf64_slurp_one_reloc_table
 static boolean mips_elf64_slurp_reloc_table
   PARAMS ((bfd *, asection *, asymbol **, boolean));
 static void mips_elf64_write_relocs PARAMS ((bfd *, asection *, PTR));
-static boolean mips_elf64_section_from_shdr
-  PARAMS ((bfd *, Elf_Internal_Shdr *, char *));
-static boolean mips_elf64_section_processing
-  PARAMS ((bfd *, Elf_Internal_Shdr *));
 static boolean mips_elf64_slurp_armap PARAMS ((bfd *));
 static boolean mips_elf64_write_armap
   PARAMS ((bfd *, unsigned int, struct orl *, unsigned int, int));
 
-/* The relocation types.  */
-
-enum mips_elf64_reloc_type
-{
-  R_MIPS_NONE = 0,
-  R_MIPS_16 = 1,
-  R_MIPS_32 = 2,
-  R_MIPS_ADD = 2,
-  R_MIPS_REL32 = 3,
-  R_MIPS_REL = 3,
-  R_MIPS_26 = 4,
-  R_MIPS_HI16 = 5,
-  R_MIPS_LO16 = 6,
-  R_MIPS_GPREL16 = 7,
-  R_MIPS_GPREL = 7,
-  R_MIPS_LITERAL = 8,
-  R_MIPS_GOT16 = 9,
-  R_MIPS_GOT = 9,
-  R_MIPS_PC16 = 10,
-  R_MIPS_CALL16 = 11,
-  R_MIPS_CALL = 11,
-  R_MIPS_GPREL32 = 12,
-  R_MIPS_SHIFT5 = 16,
-  R_MIPS_SHIFT6 = 17,
-  R_MIPS_64 = 18,
-  R_MIPS_GOT_DISP = 19,
-  R_MIPS_GOT_PAGE = 20,
-  R_MIPS_GOT_OFST = 21,
-  R_MIPS_GOT_HI16 = 22,
-  R_MIPS_GOT_LO16 = 23,
-  R_MIPS_SUB = 24,
-  R_MIPS_INSERT_A = 25,
-  R_MIPS_INSERT_B = 26,
-  R_MIPS_DELETE = 27,
-  R_MIPS_HIGHER = 28,
-  R_MIPS_HIGHEST = 29,
-  R_MIPS_CALL_HI16 = 30,
-  R_MIPS_CALL_LO16 = 31,
-  R_MIPS_SCN_DISP = 32,
-  R_MIPS_REL16 = 33,
-  R_MIPS_ADD_IMMEDIATE = 34,
-  R_MIPS_PJUMP = 35,
-  R_MIPS_RELGOT = 36
-};
-
 /* In case we're on a 32-bit machine, construct a 64-bit "-1" value
    from smaller values.  Start with zero, widen, *then* decrement.  */
 #define MINUS_ONE	(((bfd_vma)0) - 1)
+
+/* The number of local .got entries we reserve.  */
+#define MIPS_RESERVED_GOTNO (2)
 
 /* The relocation table used for SHT_REL sections.  */
 
@@ -659,7 +621,23 @@ static reloc_howto_type mips_elf64_howto_table_rel[] =
 	 false,			/* partial_inplace */
 	 0,			/* src_mask */
 	 0,			/* dst_mask */
-	 false)			/* pcrel_offset */
+	 false),		/* pcrel_offset */
+
+  /* Protected jump conversion.  This is an optimization hint.  No 
+     relocation is required for correctness.  */
+  HOWTO (R_MIPS_JALR,	        /* type */
+	 0,			/* rightshift */
+	 0,			/* size (0 = byte, 1 = short, 2 = long) */
+	 0,			/* bitsize */
+	 false,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 bfd_elf_generic_reloc,	/* special_function */
+	 "R_MIPS_JALR",	        /* name */
+	 false,			/* partial_inplace */
+	 0x00000000,		/* src_mask */
+	 0x00000000,		/* dst_mask */
+	 false),		/* pcrel_offset */
 };
 
 /* The relocation table used for SHT_RELA sections.  */
@@ -1197,7 +1175,23 @@ static reloc_howto_type mips_elf64_howto_table_rela[] =
 	 false,			/* partial_inplace */
 	 0,			/* src_mask */
 	 0,			/* dst_mask */
-	 false)			/* pcrel_offset */
+	 false),		/* pcrel_offset */
+
+  /* Protected jump conversion.  This is an optimization hint.  No 
+     relocation is required for correctness.  */
+  HOWTO (R_MIPS_JALR,	        /* type */
+	 0,			/* rightshift */
+	 0,			/* size (0 = byte, 1 = short, 2 = long) */
+	 0,			/* bitsize */
+	 false,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 bfd_elf_generic_reloc,	/* special_function */
+	 "R_MIPS_JALR",	        /* name */
+	 false,			/* partial_inplace */
+	 0x00000000,		/* src_mask */
+	 0x00000000,		/* dst_mask */
+	 false),		/* pcrel_offset */
 };
 
 /* Swap in a MIPS 64-bit Rel reloc.  */
@@ -1233,10 +1227,6 @@ mips_elf64_swap_reloca_in (abfd, src, dst)
   dst->r_addend = bfd_h_get_signed_64 (abfd, (bfd_byte *) src->r_addend);
 }
 
-#if 0
-
-/* This is not currently used.  */
-
 /* Swap out a MIPS 64-bit Rel reloc.  */
 
 static void
@@ -1252,8 +1242,6 @@ mips_elf64_swap_reloc_out (abfd, src, dst)
   bfd_h_put_8 (abfd, src->r_type2, (bfd_byte *) dst->r_type2);
   bfd_h_put_8 (abfd, src->r_type, (bfd_byte *) dst->r_type);
 }
-
-#endif /* 0 */
 
 /* Swap out a MIPS 64-bit Rela reloc.  */
 
@@ -1272,12 +1260,102 @@ mips_elf64_swap_reloca_out (abfd, src, dst)
   bfd_h_put_64 (abfd, src->r_addend, (bfd_byte *) dst->r_addend);
 }
 
+/* Swap in a MIPS 64-bit Rel reloc.  */
+
+static void
+mips_elf64_be_swap_reloc_in (abfd, src, dst)
+     bfd *abfd;
+     const bfd_byte *src;
+     Elf_Internal_Rel *dst;
+{
+  Elf64_Mips_Internal_Rel mirel;
+
+  mips_elf64_swap_reloc_in (abfd, 
+			    (const Elf64_Mips_External_Rel *) src,
+			    &mirel);
+
+  dst[0].r_offset = mirel.r_offset;
+  dst[0].r_info = ELF32_R_INFO (mirel.r_sym, mirel.r_type);
+  dst[1].r_offset = mirel.r_offset;
+  dst[1].r_info = ELF32_R_INFO (mirel.r_ssym, mirel.r_type2);
+  dst[2].r_offset = mirel.r_offset;
+  dst[2].r_info = ELF32_R_INFO (STN_UNDEF, mirel.r_type3);
+}
+
+/* Swap in a MIPS 64-bit Rela reloc.  */
+
+static void
+mips_elf64_be_swap_reloca_in (abfd, src, dst)
+     bfd *abfd;
+     const bfd_byte *src;
+     Elf_Internal_Rela *dst;
+{
+  Elf64_Mips_Internal_Rela mirela;
+
+  mips_elf64_swap_reloca_in (abfd, 
+			     (const Elf64_Mips_External_Rela *) src,
+			     &mirela);
+
+  dst[0].r_offset = mirela.r_offset;
+  dst[0].r_info = ELF32_R_INFO (mirela.r_sym, mirela.r_type);
+  dst[0].r_addend = mirela.r_addend;
+  dst[1].r_offset = mirela.r_offset;
+  dst[1].r_info = ELF32_R_INFO (mirela.r_ssym, mirela.r_type2);
+  dst[1].r_addend = 0;
+  dst[2].r_offset = mirela.r_offset;
+  dst[2].r_info = ELF32_R_INFO (STN_UNDEF, mirela.r_type3);
+  dst[2].r_addend = 0;
+}
+
+/* Swap out a MIPS 64-bit Rel reloc.  */
+
+static void
+mips_elf64_be_swap_reloc_out (abfd, src, dst)
+     bfd *abfd;
+     const Elf_Internal_Rel *src;
+     bfd_byte *dst;
+{
+  Elf64_Mips_Internal_Rel mirel;
+
+  mirel.r_offset = src->r_offset;
+  mirel.r_type = ELF32_R_TYPE (src->r_info);
+  mirel.r_sym = ELF32_R_SYM (src->r_info);
+  mirel.r_type2 = R_MIPS_NONE;
+  mirel.r_ssym = STN_UNDEF;
+  mirel.r_type3 = R_MIPS_NONE;
+
+  mips_elf64_swap_reloc_out (abfd, &mirel, 
+			     (Elf64_Mips_External_Rel *) dst);
+}
+
+/* Swap out a MIPS 64-bit Rela reloc.  */
+
+static void
+mips_elf64_be_swap_reloca_out (abfd, src, dst)
+     bfd *abfd;
+     const Elf_Internal_Rela *src;
+     bfd_byte *dst;
+{
+  Elf64_Mips_Internal_Rela mirela;
+
+  mirela.r_offset = src->r_offset;
+  mirela.r_type = ELF32_R_TYPE (src->r_info);
+  mirela.r_addend = src->r_addend;
+  mirela.r_sym = ELF32_R_SYM (src->r_info);
+  mirela.r_type2 = R_MIPS_NONE;
+  mirela.r_ssym = STN_UNDEF;
+  mirela.r_type3 = R_MIPS_NONE;
+
+  mips_elf64_swap_reloca_out (abfd, &mirela, 
+			      (Elf64_Mips_External_Rela *) dst);
+}
+
 /* A mapping from BFD reloc types to MIPS ELF reloc types.  */
 
 struct elf_reloc_map
 {
   bfd_reloc_code_real_type bfd_reloc_val;
-  enum mips_elf64_reloc_type elf_reloc_val;
+  enum elf_mips_reloc_type elf_reloc_val;
 };
 
 static CONST struct elf_reloc_map mips_reloc_map[] =
@@ -1300,7 +1378,11 @@ static CONST struct elf_reloc_map mips_reloc_map[] =
   { BFD_RELOC_MIPS_GOT_HI16, R_MIPS_GOT_HI16 },
   { BFD_RELOC_MIPS_GOT_LO16, R_MIPS_GOT_LO16 },
   { BFD_RELOC_MIPS_CALL_HI16, R_MIPS_CALL_HI16 },
-  { BFD_RELOC_MIPS_CALL_LO16, R_MIPS_CALL_LO16 }
+  { BFD_RELOC_MIPS_CALL_LO16, R_MIPS_CALL_LO16 },
+  { BFD_RELOC_MIPS_SUB, R_MIPS_SUB },
+  { BFD_RELOC_MIPS_GOT_PAGE, R_MIPS_GOT_PAGE },
+  { BFD_RELOC_MIPS_GOT_OFST, R_MIPS_GOT_OFST },
+  { BFD_RELOC_MIPS_GOT_DISP, R_MIPS_GOT_DISP }
 };
 
 /* Given a BFD reloc type, return a howto structure.  */
@@ -1411,20 +1493,20 @@ mips_elf64_slurp_one_reloc_table (abfd, asect, symbols, rel_hdr)
       used_ssym = false;
       for (ir = 0; ir < 3; ir++)
 	{
-	  enum mips_elf64_reloc_type type;
+	  enum elf_mips_reloc_type type;
 
 	  switch (ir)
 	    {
 	    default:
 	      abort ();
 	    case 0:
-	      type = (enum mips_elf64_reloc_type) rela.r_type;
+	      type = (enum elf_mips_reloc_type) rela.r_type;
 	      break;
 	    case 1:
-	      type = (enum mips_elf64_reloc_type) rela.r_type2;
+	      type = (enum elf_mips_reloc_type) rela.r_type2;
 	      break;
 	    case 2:
-	      type = (enum mips_elf64_reloc_type) rela.r_type3;
+	      type = (enum elf_mips_reloc_type) rela.r_type3;
 	      break;
 	    }
 
@@ -1733,115 +1815,6 @@ mips_elf64_write_relocs (abfd, sec, data)
 	      == count);
 }
 
-/* Handle a 64-bit MIPS ELF specific section.  */
-
-static boolean
-mips_elf64_section_from_shdr (abfd, hdr, name)
-     bfd *abfd;
-     Elf_Internal_Shdr *hdr;
-     char *name;
-{
-  if (! _bfd_mips_elf_section_from_shdr (abfd, hdr, name))
-    return false;
-
-  /* For a SHT_MIPS_OPTIONS section, look for a ODK_REGINFO entry, and
-     set the gp value based on what we find.  We may see both
-     SHT_MIPS_REGINFO and SHT_MIPS_OPTIONS/ODK_REGINFO; in that case,
-     they should agree.  */
-  if (hdr->sh_type == SHT_MIPS_OPTIONS)
-    {
-      bfd_byte *contents, *l, *lend;
-
-      contents = (bfd_byte *) bfd_malloc (hdr->sh_size);
-      if (contents == NULL)
-	return false;
-      if (! bfd_get_section_contents (abfd, hdr->bfd_section, contents,
-				      (file_ptr) 0, hdr->sh_size))
-	{
-	  free (contents);
-	  return false;
-	}
-      l = contents;
-      lend = contents + hdr->sh_size;
-      while (l + sizeof (Elf_External_Options) <= lend)
-	{
-	  Elf_Internal_Options intopt;
-
-	  bfd_mips_elf_swap_options_in (abfd, (Elf_External_Options *) l,
-					&intopt);
-	  if (intopt.kind == ODK_REGINFO)
-	    {
-	      Elf64_Internal_RegInfo intreg;
-
-	      bfd_mips_elf64_swap_reginfo_in
-		(abfd,
-		 ((Elf64_External_RegInfo *)
-		  (l + sizeof (Elf_External_Options))),
-		 &intreg);
-	      elf_gp (abfd) = intreg.ri_gp_value;
-	    }
-	  l += intopt.size;
-	}
-      free (contents);
-    }
-
-  return true;
-}
-
-/* Work over a section just before writing it out.  We update the GP
-   value in the SHT_MIPS_OPTIONS section based on the value we are
-   using.  */
-
-static boolean
-mips_elf64_section_processing (abfd, hdr)
-     bfd *abfd;
-     Elf_Internal_Shdr *hdr;
-{
-  if (hdr->sh_type == SHT_MIPS_OPTIONS
-      && hdr->bfd_section != NULL
-      && elf_section_data (hdr->bfd_section) != NULL
-      && elf_section_data (hdr->bfd_section)->tdata != NULL)
-    {
-      bfd_byte *contents, *l, *lend;
-
-      /* We stored the section contents in the elf_section_data tdata
-	 field in the set_section_contents routine.  We save the
-	 section contents so that we don't have to read them again.
-	 At this point we know that elf_gp is set, so we can look
-	 through the section contents to see if there is an
-	 ODK_REGINFO structure.  */
-
-      contents = (bfd_byte *) elf_section_data (hdr->bfd_section)->tdata;
-      l = contents;
-      lend = contents + hdr->sh_size;
-      while (l + sizeof (Elf_External_Options) <= lend)
-	{
-	  Elf_Internal_Options intopt;
-
-	  bfd_mips_elf_swap_options_in (abfd, (Elf_External_Options *) l,
-					&intopt);
-	  if (intopt.kind == ODK_REGINFO)
-	    {
-	      bfd_byte buf[8];
-
-	      if (bfd_seek (abfd,
-			    (hdr->sh_offset
-			     + (l - contents)
-			     + sizeof (Elf_External_Options)
-			     + (sizeof (Elf64_External_RegInfo) - 8)),
-			     SEEK_SET) == -1)
-		return false;
-	      bfd_h_put_64 (abfd, elf_gp (abfd), buf);
-	      if (bfd_write (buf, 1, 8, abfd) != 8)
-		return false;
-	    }
-	  l += intopt.size;
-	}
-    }
-
-  return _bfd_mips_elf_section_processing (abfd, hdr);
-}
-
 /* Irix 6 defines a brand new archive map format, so that they can
    have archives more than 4 GB in size.  */
 
@@ -2108,6 +2081,8 @@ const struct elf_size_info mips_elf64_size_info =
   sizeof (Elf64_External_Sym),
   sizeof (Elf64_External_Dyn),
   sizeof (Elf_External_Note),
+  4,            /* hash-table entry size */
+  3,            /* internal relocations per external relocations */
   64,		/* arch_size */
   8,		/* file_align */
   ELFCLASS64,
@@ -2118,7 +2093,12 @@ const struct elf_size_info mips_elf64_size_info =
   bfd_elf64_swap_symbol_out,
   mips_elf64_slurp_reloc_table,
   bfd_elf64_slurp_symbol_table,
-  bfd_elf64_swap_dyn_in
+  bfd_elf64_swap_dyn_in,
+  bfd_elf64_swap_dyn_out,
+  mips_elf64_be_swap_reloc_in,
+  mips_elf64_be_swap_reloc_out,
+  mips_elf64_be_swap_reloca_in,
+  mips_elf64_be_swap_reloca_out
 };
 
 #define TARGET_LITTLE_SYM		bfd_elf64_littlemips_vec
@@ -2127,29 +2107,67 @@ const struct elf_size_info mips_elf64_size_info =
 #define TARGET_BIG_NAME			"elf64-bigmips"
 #define ELF_ARCH			bfd_arch_mips
 #define ELF_MACHINE_CODE		EM_MIPS
+
 #define ELF_MAXPAGESIZE			0x1000
+
+#define elf_backend_collect		true
+#define elf_backend_type_change_ok	true
+#define elf_backend_can_gc_sections	true
 #define elf_backend_size_info		mips_elf64_size_info
 #define elf_backend_object_p		_bfd_mips_elf_object_p
-#define elf_backend_section_from_shdr	mips_elf64_section_from_shdr
+#define elf_backend_section_from_shdr	_bfd_mips_elf_section_from_shdr
 #define elf_backend_fake_sections	_bfd_mips_elf_fake_sections
 #define elf_backend_section_from_bfd_section \
 					_bfd_mips_elf_section_from_bfd_section
-#define elf_backend_section_processing	mips_elf64_section_processing
+#define elf_backend_section_processing	_bfd_mips_elf_section_processing
 #define elf_backend_symbol_processing	_bfd_mips_elf_symbol_processing
+#define elf_backend_additional_program_headers \
+					_bfd_mips_elf_additional_program_headers
+#define elf_backend_modify_segment_map	_bfd_mips_elf_modify_segment_map
 #define elf_backend_final_write_processing \
 					_bfd_mips_elf_final_write_processing
 #define elf_backend_ecoff_debug_swap	&mips_elf64_ecoff_debug_swap
+#define elf_backend_add_symbol_hook	_bfd_mips_elf_add_symbol_hook
+#define elf_backend_create_dynamic_sections \
+					_bfd_mips_elf_create_dynamic_sections
+#define elf_backend_check_relocs	_bfd_mips_elf_check_relocs
+#define elf_backend_adjust_dynamic_symbol \
+					_bfd_mips_elf_adjust_dynamic_symbol
+#define elf_backend_always_size_sections \
+					_bfd_mips_elf_always_size_sections
+#define elf_backend_size_dynamic_sections \
+					_bfd_mips_elf_size_dynamic_sections
+#define elf_backend_relocate_section    _bfd_mips_elf_relocate_section
+#define elf_backend_link_output_symbol_hook \
+					_bfd_mips_elf_link_output_symbol_hook
+#define elf_backend_finish_dynamic_symbol \
+					_bfd_mips_elf_finish_dynamic_symbol
+#define elf_backend_finish_dynamic_sections \
+					_bfd_mips_elf_finish_dynamic_sections
+#define elf_backend_gc_mark_hook	_bfd_mips_elf_gc_mark_hook
+#define elf_backend_gc_sweep_hook	_bfd_mips_elf_gc_sweep_hook
+#define elf_backend_got_header_size	(4*MIPS_RESERVED_GOTNO)
+#define elf_backend_plt_header_size	0
+#define elf_backend_may_use_rel_p       1
 
+/* We don't set bfd_elf64_bfd_is_local_label_name because the 32-bit 
+   MIPS-specific function only applies to IRIX5, which had no 64-bit
+   ABI.  */
 #define bfd_elf64_find_nearest_line	_bfd_mips_elf_find_nearest_line
-#define bfd_elf64_get_reloc_upper_bound mips_elf64_get_reloc_upper_bound
-#define bfd_elf64_bfd_reloc_type_lookup	mips_elf64_reloc_type_lookup
 #define bfd_elf64_set_section_contents	_bfd_mips_elf_set_section_contents
+#define bfd_elf64_bfd_link_hash_table_create \
+					_bfd_mips_elf_link_hash_table_create
+#define bfd_elf64_bfd_final_link	_bfd_mips_elf_final_link
 #define bfd_elf64_bfd_copy_private_bfd_data \
 					_bfd_mips_elf_copy_private_bfd_data
 #define bfd_elf64_bfd_merge_private_bfd_data \
 					_bfd_mips_elf_merge_private_bfd_data
 #define bfd_elf64_bfd_set_private_flags	_bfd_mips_elf_set_private_flags
+#define bfd_elf64_bfd_print_private_bfd_data \
+					_bfd_mips_elf_print_private_bfd_data
 
+#define bfd_elf64_get_reloc_upper_bound mips_elf64_get_reloc_upper_bound
+#define bfd_elf64_bfd_reloc_type_lookup	mips_elf64_reloc_type_lookup
 #define bfd_elf64_archive_functions
 #define bfd_elf64_archive_slurp_armap	mips_elf64_slurp_armap
 #define bfd_elf64_archive_slurp_extended_name_table \

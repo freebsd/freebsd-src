@@ -1,5 +1,5 @@
 /* atof_ieee.c - turn a Flonum into an IEEE floating point number
-   Copyright (C) 1987, 92, 93, 94, 95, 96, 97, 1998
+   Copyright (C) 1987, 92, 93, 94, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -136,7 +136,7 @@ static void
 make_invalid_floating_point_number (words)
      LITTLENUM_TYPE *words;
 {
-  as_bad ("cannot create floating-point number");
+  as_bad (_("cannot create floating-point number"));
   words[0] = (LITTLENUM_TYPE) ((unsigned) -1) >> 1; /* Zero the leftmost bit */
   words[1] = (LITTLENUM_TYPE) -1;
   words[2] = (LITTLENUM_TYPE) -1;
@@ -160,7 +160,7 @@ make_invalid_floating_point_number (words)
 char *
 atof_ieee (str, what_kind, words)
      char *str;			/* Text to convert to binary. */
-     char what_kind;		/* 'd', 'f', 'g', 'h' */
+     int what_kind;		/* 'd', 'f', 'g', 'h' */
      LITTLENUM_TYPE *words;	/* Build the binary here. */
 {
   /* Extra bits for zeroed low-order bits.  The 1st MAX_PRECISION are
@@ -460,7 +460,7 @@ gen_to_words (words, precision, exponent_bits)
 	  /* Bigger than one littlenum */
 	  num_bits -= (LITTLENUM_NUMBER_OF_BITS - 1) - exponent_bits;
 	  *lp++ = word1;
-	  if (num_bits + exponent_bits + 1 >= precision * LITTLENUM_NUMBER_OF_BITS)
+	  if (num_bits + exponent_bits + 1 > precision * LITTLENUM_NUMBER_OF_BITS)
 	    {
 	      /* Exponent overflow */
 	      make_invalid_floating_point_number (words);
@@ -501,7 +501,7 @@ gen_to_words (words, precision, exponent_bits)
       if (next_bits (1))
 	{
 	  --lp;
-	  if (prec_bits > LITTLENUM_NUMBER_OF_BITS)
+	  if (prec_bits >= LITTLENUM_NUMBER_OF_BITS)
 	    {
 	      int n = 0;
 	      int tmp_bits;
@@ -515,7 +515,19 @@ gen_to_words (words, precision, exponent_bits)
 		  --n;
 		  tmp_bits -= LITTLENUM_NUMBER_OF_BITS;
 		}
-	      if (tmp_bits > LITTLENUM_NUMBER_OF_BITS || (lp[n] & mask[tmp_bits]) != mask[tmp_bits])
+	      if (tmp_bits > LITTLENUM_NUMBER_OF_BITS
+		  || (lp[n] & mask[tmp_bits]) != mask[tmp_bits]
+		  || (prec_bits != (precision * LITTLENUM_NUMBER_OF_BITS
+				    - exponent_bits - 1)
+#ifdef TC_I386
+		      /* An extended precision float with only the integer
+			 bit set would be invalid.  That must be converted
+			 to the smallest normalized number.  */
+		      && !(precision == X_PRECISION
+			   && prec_bits == (precision * LITTLENUM_NUMBER_OF_BITS
+					    - exponent_bits - 2))
+#endif
+		      ))
 		{
 		  unsigned long carry;
 
@@ -539,11 +551,18 @@ gen_to_words (words, precision, exponent_bits)
 			    << ((LITTLENUM_NUMBER_OF_BITS - 1)
 				- exponent_bits));
 		  *lp++ = word1;
+#ifdef TC_I386
+		  /* Set the integer bit in the extended precision format.
+		     This cannot happen on the m68k where the mantissa
+		     just overflows into the integer bit above.  */
+		  if (precision == X_PRECISION)
+		    *lp++ = 1 << (LITTLENUM_NUMBER_OF_BITS - 1);
+#endif
 		  while (lp < words_end)
 		    *lp++ = 0;
 		}
 	    }
-	  else if ((*lp & mask[prec_bits]) != mask[prec_bits])
+	  else
 	    *lp += 1;
 	}
 
@@ -605,11 +624,13 @@ gen_to_words (words, precision, exponent_bits)
 	 don't get a sticky sign bit after shifting right, and that
 	 permits us to propagate the carry without any masking of bits.
 	 #endif */
-      for (carry = 1, lp--; carry && (lp >= words); lp--)
+      for (carry = 1, lp--; carry; lp--)
 	{
 	  carry = *lp + carry;
 	  *lp = carry;
 	  carry >>= LITTLENUM_NUMBER_OF_BITS;
+	  if (lp == words)
+	    break;
 	}
       if (precision == X_PRECISION && exponent_bits == 15)
 	{
@@ -656,7 +677,7 @@ int_to_gen (x)
   sprintf (buf, "%ld", x);
   bufp = &buf[0];
   if (atof_generic (&bufp, ".", EXP_CHARS, &generic_floating_point_number))
-    as_bad ("Error converting number to floating point (Exponent overflow?)");
+    as_bad (_("Error converting number to floating point (Exponent overflow?)"));
 }
 #endif
 

@@ -1,5 +1,6 @@
 /* size.c -- report size of various sections of an executable file.
-   Copyright 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
+   Copyright 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -75,17 +76,17 @@ usage (stream, status)
      FILE *stream;
      int status;
 {
-  fprintf (stream, "\
+  fprintf (stream, _("\
 Usage: %s [-ABdoxV] [--format=berkeley|sysv] [--radix=8|10|16]\n\
-       [--target=bfdname] [--version] [--help] [file...]\n", program_name);
+       [--target=bfdname] [--version] [--help] [file...]\n"), program_name);
 #if BSD_DEFAULT
-  fputs ("default is --format=berkeley\n", stream);
+  fputs (_("default is --format=berkeley\n"), stream);
 #else
-  fputs ("default is --format=sysv\n", stream);
+  fputs (_("default is --format=sysv\n"), stream);
 #endif
   list_supported_targets (program_name, stream);
   if (status == 0)
-    fprintf (stream, "Report bugs to bug-gnu-utils@gnu.org\n");
+    fprintf (stream, _("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }
 
@@ -106,6 +107,12 @@ main (argc, argv)
 {
   int temp;
   int c;
+
+#if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
+  setlocale (LC_MESSAGES, "");
+#endif
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
 
   program_name = *argv;
   xmalloc_set_program_name (program_name);
@@ -129,7 +136,7 @@ main (argc, argv)
 	    berkeley_format = 0;
 	    break;
 	  default:
-	    fprintf (stderr, "invalid argument to --format: %s\n", optarg);
+	    non_fatal (_("invalid argument to --format: %s"), optarg);
 	    usage (stderr, 1);
 	  }
 	break;
@@ -156,7 +163,7 @@ main (argc, argv)
 	    radix = hex;
 	    break;
 	  default:
-	    printf ("Invalid radix: %s\n", optarg);
+	    non_fatal (_("Invalid radix: %s\n"), optarg);
 	    usage (stderr, 1);
 	  }
 	break;
@@ -359,9 +366,9 @@ static bfd_size_type textsize;
 
 static void
 berkeley_sum (abfd, sec, ignore)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      sec_ptr sec;
-     PTR ignore;
+     PTR ignore ATTRIBUTE_UNUSED;
 {
   flagword flags;
   bfd_size_type size;
@@ -426,9 +433,9 @@ int svi_sizelen = 0;
 
 static void
 sysv_internal_sizer (file, sec, ignore)
-     bfd *file;
+     bfd *file ATTRIBUTE_UNUSED;
      sec_ptr sec;
-     PTR ignore;
+     PTR ignore ATTRIBUTE_UNUSED;
 {
   bfd_size_type size = bfd_section_size (file, sec);
   if (!bfd_is_abs_section (sec)
@@ -447,9 +454,9 @@ sysv_internal_sizer (file, sec, ignore)
 
 static void
 sysv_internal_printer (file, sec, ignore)
-     bfd *file;
+     bfd *file ATTRIBUTE_UNUSED;
      sec_ptr sec;
-     PTR ignore;
+     PTR ignore ATTRIBUTE_UNUSED;
 {
   bfd_size_type size = bfd_section_size (file, sec);
   if (!bfd_is_abs_section (sec)

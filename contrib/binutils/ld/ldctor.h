@@ -1,5 +1,5 @@
 /* ldctor.h - linker constructor support
-   Copyright 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright 1991, 92, 93, 94, 95, 1998 Free Software Foundation, Inc.
    
 This file is part of GLD, the Gnu Linker.
 
@@ -14,14 +14,20 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GLD; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+along with GLD; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 #ifndef LDCTOR_H
 #define LDCTOR_H
 
 /* List of statements needed to handle constructors */
 extern lang_statement_list_type constructor_list;
+
+/* Whether the constructors should be sorted.  Note that this is
+   global for the entire link; we assume that there is only a single
+   CONSTRUCTORS command in the linker script.  */
+extern boolean constructors_sorted;
 
 /* We keep a list of these structures for each set we build.  */
 

@@ -1,5 +1,5 @@
 /* ELF linking support for BFD.
-   Copyright 1995, 1996, 1997 Free Software Foundation, Inc.
+   Copyright 1995, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -83,9 +83,8 @@ _bfd_elf_create_got_section (abfd, info)
 
   elf_hash_table (info)->hgot = h;
 
-  /* The first three global offset table entries after
-     '_GLOBAL_OFFSET_TABLE_' are reserved.  */
-  s->_raw_size += (3 << ptralign) + bed->got_symbol_offset;
+  /* The first bit of the global offset table is the header.  */
+  s->_raw_size += bed->got_header_size + bed->got_symbol_offset;
 
   return true;
 }
@@ -101,7 +100,7 @@ _bfd_elf_create_dynamic_sections (abfd, info)
   flagword flags, pltflags;
   register asection *s;
   struct elf_backend_data *bed = get_elf_backend_data (abfd);
-  int ptralign;
+  int ptralign = 0;
 
   switch (bed->s->arch_size)
     {
@@ -148,7 +147,8 @@ _bfd_elf_create_dynamic_sections (abfd, info)
 	return false;
     }
 
-  s = bfd_make_section (abfd, bed->use_rela_p ? ".rela.plt" : ".rel.plt");
+  s = bfd_make_section (abfd, 
+			bed->default_use_rela_p ? ".rela.plt" : ".rel.plt");
   if (s == NULL
       || ! bfd_set_section_flags (abfd, s, flags | SEC_READONLY)
       || ! bfd_set_section_alignment (abfd, s, ptralign))
@@ -157,18 +157,20 @@ _bfd_elf_create_dynamic_sections (abfd, info)
   if (! _bfd_elf_create_got_section (abfd, info))
     return false;
 
-  /* The .dynbss section is a place to put symbols which are defined
-     by dynamic objects, are referenced by regular objects, and are
-     not functions.  We must allocate space for them in the process
-     image and use a R_*_COPY reloc to tell the dynamic linker to
-     initialize them at run time.  The linker script puts the .dynbss
-     section into the .bss section of the final image.  */
-  s = bfd_make_section (abfd, ".dynbss");
-  if (s == NULL
-      || ! bfd_set_section_flags (abfd, s, SEC_ALLOC))
-    return false;
+  if (bed->want_dynbss)
+    {
+      /* The .dynbss section is a place to put symbols which are defined
+	 by dynamic objects, are referenced by regular objects, and are
+	 not functions.  We must allocate space for them in the process
+	 image and use a R_*_COPY reloc to tell the dynamic linker to
+	 initialize them at run time.  The linker script puts the .dynbss
+	 section into the .bss section of the final image.  */
+      s = bfd_make_section (abfd, ".dynbss");
+      if (s == NULL
+	  || ! bfd_set_section_flags (abfd, s, SEC_ALLOC))
+	return false;
 
-  /* The .rel[a].bss section holds copy relocs.  This section is not
+      /* The .rel[a].bss section holds copy relocs.  This section is not
      normally needed.  We need to create it here, though, so that the
      linker will map it to an output section.  We can't just create it
      only if we need it, because we will not know whether we need it
@@ -179,13 +181,16 @@ _bfd_elf_create_dynamic_sections (abfd, info)
      be needed, we can discard it later.  We will never need this
      section when generating a shared object, since they do not use
      copy relocs.  */
-  if (! info->shared)
-    {
-      s = bfd_make_section (abfd, bed->use_rela_p ? ".rela.bss" : ".rel.bss");
-      if (s == NULL
-	  || ! bfd_set_section_flags (abfd, s, flags | SEC_READONLY)
-	  || ! bfd_set_section_alignment (abfd, s, ptralign))
-	return false;
+      if (! info->shared)
+	{
+	  s = bfd_make_section (abfd, 
+				(bed->default_use_rela_p 
+				 ? ".rela.bss" : ".rel.bss")); 
+	  if (s == NULL
+	      || ! bfd_set_section_flags (abfd, s, flags | SEC_READONLY)
+	      || ! bfd_set_section_alignment (abfd, s, ptralign))
+	    return false;
+	}
     }
 
   return true;
@@ -212,6 +217,32 @@ _bfd_elf_link_record_dynamic_symbol (info, h)
       const char *name;
       boolean copy;
       bfd_size_type indx;
+
+      /* XXX: The ABI draft says the linker must turn hidden and
+	 internal symbols into STB_LOCAL symbols when producing the
+	 DSO. However, if ld.so honors st_other in the dynamic table,
+	 this would not be necessary.  */
+      switch (ELF_ST_VISIBILITY (h->other))
+	{
+	case STV_INTERNAL:
+	case STV_HIDDEN:
+	  /* This symbol must be defined in the shared object or
+	     executable.  */
+	  if (h->root.type == bfd_link_hash_undefined)
+	    {
+	      bfd * abfd = h->root.u.undef.abfd;
+	      const char * name = h->root.root.string;
+	      
+	      (*info->callbacks->undefined_symbol)
+		(info, name, abfd, bfd_und_section_ptr, 0, true);
+	    }
+	  
+	  h->elf_link_hash_flags |= ELF_LINK_FORCED_LOCAL;
+	  break;
+	  
+	default:
+	  break;
+	}
 
       h->dynindx = elf_hash_table (info)->dynsymcount;
       ++elf_hash_table (info)->dynsymcount;
@@ -257,8 +288,84 @@ _bfd_elf_link_record_dynamic_symbol (info, h)
 
   return true;
 }
+
+/* Return the dynindex of a local dynamic symbol.  */
+
+long
+_bfd_elf_link_lookup_local_dynindx (info, input_bfd, input_indx)
+     struct bfd_link_info *info;
+     bfd *input_bfd;
+     long input_indx;
+{
+  struct elf_link_local_dynamic_entry *e;
+
+  for (e = elf_hash_table (info)->dynlocal; e ; e = e->next)
+    if (e->input_bfd == input_bfd && e->input_indx == input_indx)
+      return e->dynindx;
+  return -1;
+}
+
+/* This function is used to renumber the dynamic symbols, if some of
+   them are removed because they are marked as local.  This is called
+   via elf_link_hash_traverse.  */
+
+static boolean elf_link_renumber_hash_table_dynsyms
+  PARAMS ((struct elf_link_hash_entry *, PTR));
+
+static boolean
+elf_link_renumber_hash_table_dynsyms (h, data)
+     struct elf_link_hash_entry *h;
+     PTR data;
+{
+  size_t *count = (size_t *) data;
+
+  if (h->dynindx != -1)
+    h->dynindx = ++(*count);
+
+  return true;
+}
+
+/* Assign dynsym indicies.  In a shared library we generate a section
+   symbol for each output section, which come first.  Next come all of
+   the back-end allocated local dynamic syms, followed by the rest of
+   the global symbols.  */
+
+unsigned long
+_bfd_elf_link_renumber_dynsyms (output_bfd, info)
+     bfd *output_bfd;
+     struct bfd_link_info *info;
+{
+  unsigned long dynsymcount = 0;
+
+  if (info->shared)
+    {
+      asection *p;
+      for (p = output_bfd->sections; p ; p = p->next)
+	elf_section_data (p)->dynindx = ++dynsymcount;
+    }
+
+  if (elf_hash_table (info)->dynlocal)
+    {
+      struct elf_link_local_dynamic_entry *p;
+      for (p = elf_hash_table (info)->dynlocal; p ; p = p->next)
+	p->dynindx = ++dynsymcount;
+    }
+
+  elf_link_hash_traverse (elf_hash_table (info),
+			  elf_link_renumber_hash_table_dynsyms,
+			  &dynsymcount);
+
+  /* There is an unused NULL entry at the head of the table which
+     we must account for in our count.  Unless there weren't any
+     symbols, which means we'll have no table at all.  */
+  if (dynsymcount != 0)
+    ++dynsymcount;
+
+  return elf_hash_table (info)->dynsymcount = dynsymcount;
+}
 
-/* Create a special linker section, or return a pointer to a linker section already created  */
+/* Create a special linker section, or return a pointer to a linker
+   section already created */
 
 elf_linker_section_t *
 _bfd_elf_create_linker_section (abfd, info, which, defaults)
@@ -313,7 +420,7 @@ _bfd_elf_create_linker_section (abfd, info, which, defaults)
 	  s->_raw_size += lsect->hole_size;
 	  if (lsect->hole_offset > lsect->max_hole_offset)
 	    {
-	      (*_bfd_error_handler) ("%s: Section %s is already to large to put hole of %ld bytes in",
+	      (*_bfd_error_handler) (_("%s: Section %s is already to large to put hole of %ld bytes in"),
 				     bfd_get_filename (abfd),
 				     lsect->name,
 				     (long)lsect->hole_size);
