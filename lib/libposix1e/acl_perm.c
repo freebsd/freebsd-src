@@ -51,11 +51,11 @@ acl_add_perm(acl_permset_t permset_d, acl_perm_t perm)
 }
 
 /*
- * acl_clear_perm() clears all permisions from the permission
+ * acl_clear_perms() clears all permisions from the permission
  * set permset_d
  */
 int
-acl_clear_perm(acl_permset_t permset_d)
+acl_clear_perms(acl_permset_t permset_d)
 {
 
 	if (!permset_d) {
