@@ -14,14 +14,14 @@ read resp
 echo Copying to disk.
 case $resp in
 	y*)
-		tarverbose=v
+		cpioverbose=v
 		;;
 	*)
-		tarverbose=
+		cpioverbose=
 		;;
 esac
 
-tar cfp - . | (cd / ; tar xfp${tarverbose} -)
+cat inst2.cpio.gz | usr/bin/gunzip | cpio -idalmu${cpioverbose}
 
 sync
 
