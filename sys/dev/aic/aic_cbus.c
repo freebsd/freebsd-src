@@ -110,8 +110,10 @@ aic_isa_alloc_resources(device_t dev)
 	sc->sc_port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 					0ul, ~0ul, AIC_ISA_PORTSIZE, RF_ACTIVE);
 #endif
-	if (!sc->sc_port)
+	if (!sc->sc_port) {
+		device_printf(dev, "I/O port allocation failed\n");
 		return (ENOMEM);
+	}
 #ifdef PC98
 	isa_load_resourcev(sc->sc_port, bs_iat, AIC_ISA_PORTSIZE);
 #endif
@@ -121,6 +123,7 @@ aic_isa_alloc_resources(device_t dev)
 		sc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
 						0ul, ~0ul, 1, RF_ACTIVE);
 		if (!sc->sc_irq) {
+			device_printf(dev, "IRQ allocation failed\n");
 			aic_isa_release_resources(dev);
 			return (ENOMEM);
 		}
@@ -131,6 +134,7 @@ aic_isa_alloc_resources(device_t dev)
 		sc->sc_drq = bus_alloc_resource(dev, SYS_RES_DRQ, &rid,
 						0ul, ~0ul, 1, RF_ACTIVE);
 		if (!sc->sc_drq) {
+			device_printf(dev, "DRQ allocation failed\n");
 			aic_isa_release_resources(dev);
 			return (ENOMEM);
 		}
