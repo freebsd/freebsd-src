@@ -136,55 +136,55 @@ ast(framep)
 #endif
 	mtx_assert(&Giant, MA_NOTOWNED);
 	prticks = 0;		/* XXX: Quiet warning. */
-		td->td_frame = framep;
-		/*
-		 * This updates the p_sflag's for the checks below in one
-		 * "atomic" operation with turning off the astpending flag.
-		 * If another AST is triggered while we are handling the
-		 * AST's saved in sflag, the astpending flag will be set and
-		 * ast() will be called again.
-		 */
-		mtx_lock_spin(&sched_lock);
-		sticks = ke->ke_sticks;
-		sflag = p->p_sflag;
-		flags = ke->ke_flags;
-		p->p_sflag &= ~(PS_PROFPEND | PS_ALRMPEND);
-		ke->ke_flags &= ~(KEF_OWEUPC | KEF_ASTPENDING);
-		cnt.v_soft++;
-		if (flags & KEF_OWEUPC && sflag & PS_PROFIL) {
-			prticks = p->p_stats->p_prof.pr_ticks;
-			p->p_stats->p_prof.pr_ticks = 0;
-		}
-		mtx_unlock_spin(&sched_lock);
+	td->td_frame = framep;
+	/*
+	 * This updates the p_sflag's for the checks below in one
+	 * "atomic" operation with turning off the astpending flag.
+	 * If another AST is triggered while we are handling the
+	 * AST's saved in sflag, the astpending flag will be set and
+	 * ast() will be called again.
+	 */
+	mtx_lock_spin(&sched_lock);
+	sticks = ke->ke_sticks;
+	sflag = p->p_sflag;
+	flags = ke->ke_flags;
+	p->p_sflag &= ~(PS_PROFPEND | PS_ALRMPEND);
+	ke->ke_flags &= ~(KEF_OWEUPC | KEF_ASTPENDING);
+	cnt.v_soft++;
+	if (flags & KEF_OWEUPC && sflag & PS_PROFIL) {
+		prticks = p->p_stats->p_prof.pr_ticks;
+		p->p_stats->p_prof.pr_ticks = 0;
+	}
+	mtx_unlock_spin(&sched_lock);
 
-		if (td->td_ucred != p->p_ucred) 
-			cred_update_thread(td);
-		if (flags & KEF_OWEUPC && sflag & PS_PROFIL)
-			addupc_task(ke, p->p_stats->p_prof.pr_addr, prticks);
-		if (sflag & PS_ALRMPEND) {
-			PROC_LOCK(p);
-			psignal(p, SIGVTALRM);
-			PROC_UNLOCK(p);
-		}
+	if (td->td_ucred != p->p_ucred) 
+		cred_update_thread(td);
+	if (flags & KEF_OWEUPC && sflag & PS_PROFIL)
+		addupc_task(ke, p->p_stats->p_prof.pr_addr, prticks);
+	if (sflag & PS_ALRMPEND) {
+		PROC_LOCK(p);
+		psignal(p, SIGVTALRM);
+		PROC_UNLOCK(p);
+	}
 #if defined(DEV_NPX) && !defined(SMP)
-		if (PCPU_GET(curpcb)->pcb_flags & PCB_NPXTRAP) {
-			atomic_clear_int(&PCPU_GET(curpcb)->pcb_flags,
-			    PCB_NPXTRAP);
-			ucode = npxtrap();
-			if (ucode != -1) {
-				trapsignal(p, SIGFPE, ucode);
-			}
+	if (PCPU_GET(curpcb)->pcb_flags & PCB_NPXTRAP) {
+		atomic_clear_int(&PCPU_GET(curpcb)->pcb_flags,
+		    PCB_NPXTRAP);
+		ucode = npxtrap();
+		if (ucode != -1) {
+			trapsignal(p, SIGFPE, ucode);
 		}
+	}
 #endif
-		if (sflag & PS_PROFPEND) {
-			PROC_LOCK(p);
-			psignal(p, SIGPROF);
-			PROC_UNLOCK(p);
-		}
+	if (sflag & PS_PROFPEND) {
+		PROC_LOCK(p);
+		psignal(p, SIGPROF);
+		PROC_UNLOCK(p);
+	}
 
-		userret(td, framep, sticks);
+	userret(td, framep, sticks);
 #ifdef DIAGNOSTIC
-		cred_free_thread(td);
+	cred_free_thread(td);
 #endif
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
