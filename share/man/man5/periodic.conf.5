@@ -216,13 +216,24 @@ if you want to run
 .Dq YES
 if you want to run
 .Pa /etc/uuclean.daily .
-.it Ar daily_status_disks_enable
+.It Ar daily_status_disks_enable
 (bool) Set to
 .Dq YES
 if you want to run
-.Ic df -k -t nonfs
+.Xr df 1
+.Po
+with the arguments supplied in
+.Ar daily_status_disks_df_flags
+.Pc
 and
 .Ic dump W .
+.It Ar daily_status_disks_df_flags
+(str) Set to the arguments for the
+.Xr df 1
+utility when
+.Ar daily_status_disks_enable
+is set to
+.Dq YES .
 .It Ar daily_status_uucp_enable
 (bool) Set to
 .Dq YES
