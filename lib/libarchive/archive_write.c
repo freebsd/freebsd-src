@@ -189,7 +189,7 @@ archive_write_header(struct archive *a, struct archive_entry *entry)
 
 	if (archive_entry_dev(entry) == a->skip_file_dev &&
 	    archive_entry_ino(entry) == a->skip_file_ino) {
-		archive_set_error(a, 0, "Can't add archive to itself.");
+		archive_set_error(a, 0, "Can't add archive to itself");
 		return (ARCHIVE_WARN);
 	}
 
