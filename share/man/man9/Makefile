@@ -48,7 +48,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	jumbo.9 \
 	kernacc.9 kobj.9 kthread.9 ktr.9 \
 	lock.9 \
-	mac_bsdextended.9 \
+	mac.9 mac_bsdextended.9 \
 	make_dev.9 malloc.9 mbchain.9 mbuf.9 mdchain.9 \
 	mi_switch.9 microseq.9 microtime.9 microuptime.9 \
 	module.9 mtx_pool.9 mutex.9 \
