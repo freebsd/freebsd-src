@@ -1,5 +1,5 @@
-<!-- $Id: glossary.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
+<!-- $Id: glossary.sgml,v 1.2 1995/06/14 18:38:51 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<chapt><heading>* Glossary</heading>
+<chapt><heading>* Glossary<label id="glossary"></heading>
 

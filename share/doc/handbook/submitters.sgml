@@ -1,7 +1,7 @@
-<!-- $Id: submitters.sgml,v 1.2 1995/05/18 03:05:22 jfieber Exp $ -->
+<!-- $Id: submitters.sgml,v 1.3 1995/06/20 16:29:55 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<chapt><heading>Contributing to FreeBSD</heading>
+<chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
 
 <p><em>Contributed by &a.jkh;.</em>
 
@@ -66,7 +66,7 @@ are each, in their own way, quite significant to the project.
    state of the core FreeBSD development.  There is a special on-going release
    of FreeBSD known as ``FreeBSD-current'' and made available in a variety of
    ways for the convenience of developers who wish to actively work on the 
-   system.  See <ref id="current:" name="Staying current with
+   system.  See <ref id="current" name="Staying current with
    FreeBSD"> for more information about getting and using FreeBSD-current.
 
    Working from older sources unfortunately means that your changes may
@@ -203,7 +203,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.2 1995/05/18 03:05:22 jfieber Exp $
+	$Id: submitters.sgml,v 1.3 1995/06/20 16:29:55 jfieber Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
@@ -220,9 +220,9 @@ collection''.  This collection enables a new user to get a
 complete overview of what's available in a short time, and with a
 logical framework.  The ports collection also saves
 considerable space by not actually containing the the majority of
-the sources being ported.  See <ref id="ports:" name="The ports
+the sources being ported.  See <ref id="ports" name="The ports
 collection"> for more information on using the ports collection
-and <ref id="porting:" name="Porting applications"> for
+and <ref id="porting" name="Porting applications"> for
 guidelines on creating new ports.  You may also send mail to
 <tt>&lt;ports@freebsd.org&gt;</tt>.
 

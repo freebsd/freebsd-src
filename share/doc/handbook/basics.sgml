@@ -1,10 +1,10 @@
-<!-- $Id: basics.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
+<!-- $Id: basics.sgml,v 1.2 1995/06/14 18:38:49 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<chapt><heading>Unix Basics</heading>
+<chapt><heading>Unix Basics<label id="basics"></heading>
 
       <sect>
-	<heading>The online manual</heading>
+	<heading>The online manual<label id="basics:man"></heading>
 
 	<p>The most comprehensive documentation on FreeBSD is in
 	  the form of <em>man pages</em>.  Nearly every program
@@ -60,7 +60,7 @@
 	  descriptions.
 
       <sect>
-	<heading>GNU Info files</heading>
+	<heading>GNU Info files<label id="basics:info"></heading>
 
 	<p>FreeBSD includes many applications and utilities
 	  produced by the Free Software Foundation (FSF).  In
