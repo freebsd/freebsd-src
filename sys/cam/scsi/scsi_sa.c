@@ -78,15 +78,9 @@
 #ifndef SA_ERASE_TIMEOUT
 #define SA_ERASE_TIMEOUT	4 * 60
 #endif
-
 /*
- * Default to old FreeBSD behaviour of 2 filemarks
- * at EOD for all (except QIC) devices.
+ * Additional options that can be set for config: SA_1FM_AT_EOT
  */
-#ifndef	SA_2FM_AT_EOD
-#define	SA_2FM_AT_EOD	1
-#endif
-
 #ifndef	UNUSED_PARAMETER
 #define	UNUSED_PARAMETER(x)	x = x
 #endif
@@ -248,6 +242,10 @@ static struct sa_quirk_entry sa_quirk_table[] =
 	{	/* jreynold@primenet.com */
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "Seagate",
 		"STT8000N*", "*"}, SA_QUIRK_1FM, 0
+	},
+	{	/* mike@sentex.net */
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "Seagate",
+		"STT20000*", "*"}, SA_QUIRK_1FM, 0
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
@@ -1973,12 +1971,12 @@ exit:
 			softc->fileno = softc->blkno = 0;
 			softc->dsreg = MTIO_DSREG_REST;
 		}
-#if	SA_2FM_AT_EOD == 1
-		if ((softc->quirks & SA_QUIRK_1FM) == 0)
-			softc->quirks |= SA_QUIRK_2FM;
-#else
+#ifdef	SA_1FM_AT_EOD
 		if ((softc->quirks & SA_QUIRK_2FM) == 0)
 			softc->quirks |= SA_QUIRK_1FM;
+#else
+		if ((softc->quirks & SA_QUIRK_1FM) == 0)
+			softc->quirks |= SA_QUIRK_2FM;
 #endif
 	} else
 		xpt_release_ccb(ccb);
