@@ -1314,7 +1314,6 @@ vm_object_split(vm_map_entry_t entry)
 			VM_OBJECT_LOCK(orig_object);
 			goto retry;
 		}
-		vm_page_busy(m);
 		vm_page_rename(m, new_object, idx);
 		/* page automatically made dirty by rename and cache handled */
 		vm_page_busy(m);
