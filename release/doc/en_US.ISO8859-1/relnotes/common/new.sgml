@@ -3605,7 +3605,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The &man.csh.1; shell has been replaced by &man.tcsh.1;,
 	although it can still be run as <command>csh</command>.
 	<application>tcsh</application> has been updated to version
-	6.12.</para>
+	6.12. &merged;</para>
 
       <para>The contributed version of
 	<application>tcp_wrappers</application> now includes the
@@ -3619,7 +3619,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	4.2. &merged;</para>
 
       <para><application>top</application> has been updated to version
-	3.5b12.</para>
+	3.5b12. &merged;</para>
 
       <para><application>traceroute</application> has been updated to
         LBL version 1.4a12.</para>
@@ -3818,7 +3818,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<title>OpenSSL</title>
 
 	<para><application>OpenSSL</application> has been updated to
-	  0.9.6g.</para>
+	  0.9.6g. &merged;</para>
 
 	<para role="historic"><application>OpenSSL</application> now has support for
 	  machine-dependent ASM optimizations, activated by the new
