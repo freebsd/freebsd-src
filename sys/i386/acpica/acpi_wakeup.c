@@ -39,6 +39,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
@@ -165,16 +166,28 @@ acpi_printcpu(void)
 		r_cs, r_ds, r_es, r_fs, r_gs, r_ss);
 }
 
+#define WAKECODE_FIXUP(offset, type, val) do	{		\
+	void	**addr;						\
+	addr = (void **)(sc->acpi_wakeaddr + offset);		\
+	(type *)*addr = val;					\
+} while (0)
+
+#define WAKECODE_BCOPY(offset, type, val) do	{		\
+	void	**addr;						\
+	addr = (void **)(sc->acpi_wakeaddr + offset);		\
+	bcopy(&(val), addr, sizeof(type));			\
+} while (0)
+
 int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
 	ACPI_STATUS		status;
-	void			**addr;
 	vm_offset_t		oldphys;
 	struct pmap		*pm;
 	vm_page_t		page;
 	static vm_page_t	opage = NULL;
 	int			ret = 0;
+	int			pteobj_allocated = 0;
 	u_long			ef;
 
 	if (sc->acpi_wakeaddr == NULL) {
@@ -187,7 +200,12 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	disable_intr();
 
 	/* Create Identity Mapping */
-	pm = &CURPROC->p_vmspace->vm_pmap;
+	pm = vmspace_pmap(CURPROC->p_vmspace);
+	if (pm->pm_pteobj == NULL) {
+		pm->pm_pteobj = vm_object_allocate(OBJT_DEFAULT, PTDPTDI + 1);
+		pteobj_allocated = 1;
+	}
+
 	oldphys = pmap_extract(pm, sc->acpi_wakephys);
 	if (oldphys) {
 		opage = PHYS_TO_VM_PAGE(oldphys);
@@ -202,37 +220,25 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		p_gdt = (struct region_descriptor *)(sc->acpi_wakeaddr + physical_gdt);
 		p_gdt->rd_limit = r_gdt.rd_limit;
 		p_gdt->rd_base = vtophys(r_gdt.rd_base);
-		addr = (void **)(sc->acpi_wakeaddr + physical_esp);
-		(u_int32_t *)*addr = vtophys(r_esp);
-		addr = (void **)(sc->acpi_wakeaddr + previous_cr0);
-		(u_int32_t *)*addr = r_cr0;
-		addr = (void **)(sc->acpi_wakeaddr + previous_cr2);
-		(u_int32_t *)*addr = r_cr2;
-		addr = (void **)(sc->acpi_wakeaddr + previous_cr3);
-		(u_int32_t *)*addr = r_cr3;
-		addr = (void **)(sc->acpi_wakeaddr + previous_cr4);
-		(u_int32_t *)*addr = r_cr4;
 
-		addr = (void **)(sc->acpi_wakeaddr + previous_tr);
-		(u_int16_t *)*addr = r_tr;
-		addr = (void **)(sc->acpi_wakeaddr + previous_gdt);
-		bcopy(&r_gdt, addr, sizeof(r_gdt));
-		addr = (void **)(sc->acpi_wakeaddr + previous_ldt);
-		(u_int16_t *)*addr = r_ldt;
-		addr = (void **)(sc->acpi_wakeaddr + previous_idt);
-		bcopy(&r_idt, addr, sizeof(r_idt));
-		addr = (void **)(sc->acpi_wakeaddr + where_to_recover);
-		*addr = acpi_restorecpu;
-		addr = (void **)(sc->acpi_wakeaddr + previous_ds);
-		(u_int16_t *)*addr = r_ds;
-		addr = (void **)(sc->acpi_wakeaddr + previous_es);
-		(u_int16_t *)*addr = r_es;
-		addr = (void **)(sc->acpi_wakeaddr + previous_fs);
-		(u_int16_t *)*addr = r_fs;
-		addr = (void **)(sc->acpi_wakeaddr + previous_gs);
-		(u_int16_t *)*addr = r_gs;
-		addr = (void **)(sc->acpi_wakeaddr + previous_ss);
-		(u_int16_t *)*addr = r_ss;
+		WAKECODE_FIXUP(physical_esp, u_int32_t, vtophys(r_esp));
+		WAKECODE_FIXUP(previous_cr0, u_int32_t, r_cr0);
+		WAKECODE_FIXUP(previous_cr2, u_int32_t, r_cr2);
+		WAKECODE_FIXUP(previous_cr3, u_int32_t, r_cr3);
+		WAKECODE_FIXUP(previous_cr4, u_int32_t, r_cr4);
+
+		WAKECODE_FIXUP(previous_tr,  u_int16_t, r_tr);
+		WAKECODE_BCOPY(previous_gdt, struct region_descriptor, r_gdt);
+		WAKECODE_FIXUP(previous_ldt, u_int16_t, r_ldt);
+		WAKECODE_BCOPY(previous_idt, struct region_descriptor, r_idt);
+
+		WAKECODE_FIXUP(where_to_recover, void, acpi_restorecpu);
+
+		WAKECODE_FIXUP(previous_ds,  u_int16_t, r_ds);
+		WAKECODE_FIXUP(previous_es,  u_int16_t, r_es);
+		WAKECODE_FIXUP(previous_fs,  u_int16_t, r_fs);
+		WAKECODE_FIXUP(previous_gs,  u_int16_t, r_gs);
+		WAKECODE_FIXUP(previous_ss,  u_int16_t, r_ss);
 
 		if (debug_wakeup) {
 			acpi_printcpu();
@@ -272,6 +278,11 @@ out:
 	if (opage) {
 		pmap_enter(pm, sc->acpi_wakephys, page,
 			   VM_PROT_READ | VM_PROT_WRITE, 0);
+	}
+
+	if (pteobj_allocated) {
+		vm_object_deallocate(pm->pm_pteobj);
+		pm->pm_pteobj = NULL;
 	}
 
 	write_eflags(ef);
