@@ -59,7 +59,9 @@ printstatus(struct fdc_status *fdcsp, int terse)
 			fdcsp->status[5] & 0xff,
 			fdcsp->status[6] & 0xff);
 
-	if ((fdcsp->status[0] & NE7_ST0_IC_RC) != NE7_ST0_IC_AT) {
+	if ((fdcsp->status[0] & NE7_ST0_IC_RC) == 0) {
+		sprintf(msgbuf, "timeout");
+	} else if ((fdcsp->status[0] & NE7_ST0_IC_RC) != NE7_ST0_IC_AT) {
 		sprintf(msgbuf, "unexcpted interrupt code %#x",
 			fdcsp->status[0] & NE7_ST0_IC_RC);
 	} else {
@@ -85,98 +87,60 @@ printstatus(struct fdc_status *fdcsp, int terse)
 	fputs(msgbuf, stderr);
 }
 
-static struct fd_type fd_types_auto[1];
+static struct fd_type fd_types_auto[1] =
+    { { 0,0,0,0,0,0,0,0,0,0,0,FL_AUTO } };
 
-#ifdef PC98
 
-static struct fd_type fd_types_12m[] = {
-{ 15,2,0xFF,0x1B,80,2400,0,2,0x54,1,0,FL_MFM },	/* 1.2M */
+static struct fd_type fd_types_288m[] = {
 #if 0
-{ 10,2,0xFF,0x10,82,1640,1,2,0x30,1,0,FL_MFM },	/* 820K */
-{ 10,2,0xFF,0x10,80,1600,1,2,0x30,1,0,FL_MFM },	/* 800K */
+	{ FDF_3_2880 },
 #endif
-{  9,2,0xFF,0x20,80,1440,1,2,0x50,1,0,FL_MFM },	/* 720K */
-{  9,2,0xFF,0x20,40, 720,1,2,0x50,1,0,FL_MFM|FL_2STEP },/* 360K */
-{  8,2,0xFF,0x2A,80,1280,1,2,0x50,1,0,FL_MFM },	/* 640K */
-{  8,3,0xFF,0x35,77,1232,0,2,0x74,1,0,FL_MFM },	/* 1.23M 1024/sec */
-#if 0
-{  8,3,0xFF,0x35,80,1280,0,2,0x74,1,0,FL_MFM },	/* 1.28M 1024/sec */
-#endif
+	{ FDF_3_1722 },
+	{ FDF_3_1476 },
+	{ FDF_3_1440 },
+	{ FDF_3_1200 },
+	{ FDF_3_820 },
+	{ FDF_3_800 },
+	{ FDF_3_720 },
+	{ 0 }
 };
 
 static struct fd_type fd_types_144m[] = {
-#if 0
-{ 21,2,0xFF,0x04,82,3444,2,2,0x0C,2,0,FL_MFM },	/* 1.72M in 3mode */
-{ 18,2,0xFF,0x1B,82,2952,2,2,0x54,1,0,FL_MFM },	/* 1.48M in 3mode */
-#endif
-{ 18,2,0xFF,0x1B,80,2880,2,2,0x54,1,0,FL_MFM },	/* 1.44M in 3mode */
-{ 15,2,0xFF,0x1B,80,2400,0,2,0x54,1,0,FL_MFM },	/* 1.2M */
-#if 0
-{ 10,2,0xFF,0x10,82,1640,1,2,0x30,1,0,FL_MFM },	/* 820K */
-{ 10,2,0xFF,0x10,80,1600,1,2,0x30,1,0,FL_MFM },	/* 800K */
-#endif
-{  9,2,0xFF,0x20,80,1440,1,2,0x50,1,0,FL_MFM },	/* 720K */
-{  9,2,0xFF,0x20,40, 720,1,2,0x50,1,0,FL_MFM|FL_2STEP },/* 360K */
-{  8,2,0xFF,0x2A,80,1280,1,2,0x50,1,0,FL_MFM },	/* 640K */
-{  8,3,0xFF,0x35,77,1232,0,2,0x74,1,0,FL_MFM },	/* 1.23M 1024/sec */
-#if 0
-{  8,3,0xFF,0x35,80,1280,0,2,0x74,1,0,FL_MFM },	/* 1.28M 1024/sec */
-{  9,3,0xFF,0x35,82,1476,0,2,0x47,1,0,FL_MFM },	/* 1.48M 1024/sec 9sec */
-{ 10,3,0xFF,0x1B,82,1640,2,2,0x54,1,0,FL_MFM },	/* 1.64M in 3mode - Reserve */
-#endif
+	{ FDF_3_1722 },
+	{ FDF_3_1476 },
+	{ FDF_3_1440 },
+	{ FDF_3_1200 },
+	{ FDF_3_820 },
+	{ FDF_3_800 },
+	{ FDF_3_720 },
+	{ 0 }
 };
 
-#else /* PC98 */
-
-static struct fd_type fd_types_288m[] =
-{
-#if 0
-{ 36,2,0xFF,0x1B,80,5760,FDC_1MBPS,  2,0x4C,1,1,FL_MFM|FL_PERPND } /*2.88M*/
-#endif
-{ 21,2,0xFF,0x04,82,3444,FDC_500KBPS,2,0x0C,2,0,FL_MFM }, /* 1.72M */
-{ 18,2,0xFF,0x1B,82,2952,FDC_500KBPS,2,0x6C,1,0,FL_MFM }, /* 1.48M */
-{ 18,2,0xFF,0x1B,80,2880,FDC_500KBPS,2,0x6C,1,0,FL_MFM }, /* 1.44M */
-{ 15,2,0xFF,0x1B,80,2400,FDC_500KBPS,2,0x54,1,0,FL_MFM }, /*  1.2M */
-{ 10,2,0xFF,0x10,82,1640,FDC_250KBPS,2,0x2E,1,0,FL_MFM }, /*  820K */
-{ 10,2,0xFF,0x10,80,1600,FDC_250KBPS,2,0x2E,1,0,FL_MFM }, /*  800K */
-{  9,2,0xFF,0x20,80,1440,FDC_250KBPS,2,0x50,1,0,FL_MFM }, /*  720K */
-};
-
-static struct fd_type fd_types_144m[] =
-{
-{ 21,2,0xFF,0x04,82,3444,FDC_500KBPS,2,0x0C,2,0,FL_MFM }, /* 1.72M */
-{ 18,2,0xFF,0x1B,82,2952,FDC_500KBPS,2,0x6C,1,0,FL_MFM }, /* 1.48M */
-{ 18,2,0xFF,0x1B,80,2880,FDC_500KBPS,2,0x6C,1,0,FL_MFM }, /* 1.44M */
-{ 15,2,0xFF,0x1B,80,2400,FDC_500KBPS,2,0x54,1,0,FL_MFM }, /*  1.2M */
-{ 10,2,0xFF,0x10,82,1640,FDC_250KBPS,2,0x2E,1,0,FL_MFM }, /*  820K */
-{ 10,2,0xFF,0x10,80,1600,FDC_250KBPS,2,0x2E,1,0,FL_MFM }, /*  800K */
-{  9,2,0xFF,0x20,80,1440,FDC_250KBPS,2,0x50,1,0,FL_MFM }, /*  720K */
-};
-
-static struct fd_type fd_types_12m[] =
-{
-{ 15,2,0xFF,0x1B,80,2400,FDC_500KBPS,2,0x54,1,0,FL_MFM }, /*  1.2M */
-{  8,3,0xFF,0x35,77,1232,FDC_500KBPS,2,0x74,1,0,FL_MFM }, /* 1.23M */
-{ 18,2,0xFF,0x02,82,2952,FDC_500KBPS,2,0x02,2,0,FL_MFM }, /* 1.48M */
-{ 18,2,0xFF,0x02,80,2880,FDC_500KBPS,2,0x02,2,0,FL_MFM }, /* 1.44M */
-{ 10,2,0xFF,0x10,82,1640,FDC_300KBPS,2,0x2E,1,0,FL_MFM }, /*  820K */
-{ 10,2,0xFF,0x10,80,1600,FDC_300KBPS,2,0x2E,1,0,FL_MFM }, /*  800K */
-{  9,2,0xFF,0x20,80,1440,FDC_300KBPS,2,0x50,1,0,FL_MFM }, /*  720K */
-{  9,2,0xFF,0x23,40, 720,FDC_300KBPS,2,0x50,1,0,FL_MFM|FL_2STEP }, /* 360K */
-{  8,2,0xFF,0x2A,80,1280,FDC_300KBPS,2,0x50,1,0,FL_MFM }, /*  640K */
+static struct fd_type fd_types_12m[] = {
+	{ FDF_5_1200 },
+	{ FDF_5_1230 },
+	{ FDF_5_1480 },
+	{ FDF_5_1440 },
+	{ FDF_5_820 },
+	{ FDF_5_800 },
+	{ FDF_5_720 },
+	{ FDF_5_360 | FL_2STEP },
+	{ FDF_5_640 },
+	{ 0 }
 };
 
 static struct fd_type fd_types_720k[] =
 {
-{  9,2,0xFF,0x20,80,1440,FDC_250KBPS,2,0x50,1,0,FL_MFM }, /*  720K */
+	{ FDF_3_720 },
+	{ 0 }
 };
 
 static struct fd_type fd_types_360k[] =
 {
-{  9,2,0xFF,0x2A,40, 720,FDC_250KBPS,2,0x50,1,0,FL_MFM }, /*  360K */
+	{ FDF_5_360 },
+	{ 0 }
 };
 
-#endif /* PC98 */
 
 /*
  * Parse a format string, and fill in the parameter pointed to by `out'.
@@ -284,7 +248,6 @@ parse_fmt(const char *s, enum fd_drivetype type,
 			default:
 				abort(); /* paranoia */
 
-#ifndef PC98
 			case FDT_360K:
 			case FDT_720K:
 				if (j == 250)
@@ -292,23 +255,22 @@ parse_fmt(const char *s, enum fd_drivetype type,
 				else
 					errx(EX_USAGE, "bad speed %d", j);
 				break;
-#endif
 
 			case FDT_12M:
 				if (j == 300)
 					out->trans = FDC_300KBPS;
+				else if (j == 250)
+					out->trans = FDC_250KBPS;
 				else if (j == 500)
 					out->trans = FDC_500KBPS;
 				else
 					errx(EX_USAGE, "bad speed %d", j);
 				break;
 
-#ifndef PC98
 			case FDT_288M:
 				if (j == 1000)
 					out->trans = FDC_1MBPS;
 				/* FALLTHROUGH */
-#endif
 			case FDT_144M:
 				if (j == 250)
 					out->trans = FDC_250KBPS;
@@ -353,6 +315,10 @@ parse_fmt(const char *s, enum fd_drivetype type,
 				out->flags |= FL_MFM;
 			else if (strcmp(s1, "-mfm") == 0)
 				out->flags &= ~FL_MFM;
+			else if (strcmp(s1, "+auto") == 0)
+				out->flags |= FL_AUTO;
+			else if (strcmp(s1, "-auto") == 0)
+				out->flags &= ~FL_AUTO;
 			else if (strcmp(s1, "+2step") == 0)
 				out->flags |= FL_2STEP;
 			else if (strcmp(s1, "-2step") == 0)
@@ -399,6 +365,8 @@ print_fmt(struct fd_type in)
 		printf(",+2step");
 	if (in.flags & FL_PERPND)
 		printf(",+perpnd");
+	if (in.flags & FL_AUTO)
+		printf(",+auto");
 	putc('\n', stdout);
 }
 
@@ -418,7 +386,6 @@ get_fmt(int size, enum fd_drivetype type)
 	default:
 		return (0);
 
-#ifndef PC98
 	case FDT_360K:
 		fdtp = fd_types_360k;
 		n = sizeof fd_types_360k / sizeof(struct fd_type);
@@ -428,7 +395,6 @@ get_fmt(int size, enum fd_drivetype type)
 		fdtp = fd_types_720k;
 		n = sizeof fd_types_720k / sizeof(struct fd_type);
 		break;
-#endif
 
 	case FDT_12M:
 		fdtp = fd_types_12m;
@@ -440,21 +406,20 @@ get_fmt(int size, enum fd_drivetype type)
 		n = sizeof fd_types_144m / sizeof(struct fd_type);
 		break;
 
-#ifndef PC98
 	case FDT_288M:
 		fdtp = fd_types_288m;
 		n = sizeof fd_types_288m / sizeof(struct fd_type);
 		break;
-#endif
 	}
 
 	if (size == -1)
 		return fd_types_auto;
 
-	for (i = 0; i < n; i++, fdtp++)
+	for (i = 0; i < n; i++, fdtp++) {
+		fdtp->size = fdtp->sectrac * fdtp->heads * fdtp->tracks;
 		if (((128 << fdtp->secsize) * fdtp->size / 1024) == size)
 			return (fdtp);
-
+	}
 	return (0);
 }
 
@@ -491,35 +456,29 @@ getname(enum fd_drivetype t, const char **name, const char **descr)
 		*descr = "unknown drive type";
 		break;
 
-#ifndef PC98
 	case FDT_360K:
 		*name = "360K";
 		*descr = "5.25\" double-density";
 		break;
-#endif
 
 	case FDT_12M:
 		*name = "1.2M";
 		*descr = "5.25\" high-density";
 		break;
 
-#ifndef PC98
 	case FDT_720K:
 		*name = "720K";
 		*descr = "3.5\" double-density";
 		break;
-#endif
 
 	case FDT_144M:
 		*name = "1.44M";
 		*descr = "3.5\" high-density";
 		break;
 
-#ifndef PC98
 	case FDT_288M:
 		*name = "2.88M";
 		*descr = "3.5\" extra-density";
 		break;
-#endif
 	}
 }
