@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.17 1995/12/14 08:31:48 phk Exp $
+ * $Id: sys_generic.c,v 1.18 1996/01/03 21:42:17 wollman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -61,7 +61,7 @@
 #endif
 #include <vm/vm.h>
 
-static int	selscan __P((struct proc *, fd_set *, fd_set *, int, int *));
+static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int, int *));
 
 /*
  * Read system call.
@@ -516,7 +516,7 @@ int	selwait;
  */
 #ifndef _SYS_SYSPROTO_H_
 struct select_args {
-	u_int	nd;
+	int	nd;
 	fd_set	*in, *ou, *ex;
 	struct	timeval *tv;
 };
@@ -527,22 +527,49 @@ select(p, uap, retval)
 	register struct select_args *uap;
 	int *retval;
 {
-	fd_set ibits[3], obits[3];
+	fd_mask *ibits[3], *obits[3];
 	struct timeval atv;
-	int s, ncoll, error = 0, timo;
+	int s, ncoll, error = 0, timo, i;
 	u_int ni;
 
-	bzero((caddr_t)ibits, sizeof(ibits));
-	bzero((caddr_t)obits, sizeof(obits));
-	if (uap->nd > FD_SETSIZE)
-		return (EINVAL);
+	if (uap->nd < 0)
+		return EINVAL;
+
 	if (uap->nd > p->p_fd->fd_nfiles)
-		uap->nd = p->p_fd->fd_nfiles;	/* forgiving; slightly wrong */
+		uap->nd = p->p_fd->fd_nfiles;   /* forgiving; slightly wrong */
+
+	/* The amount of space we need to allocate */
+	ni = howmany(roundup2 (uap->nd, FD_SETSIZE), NFDBITS) *
+		sizeof(fd_mask);
+
+	if (ni > p->p_selbits_size) {
+		if (p->p_selbits_size)
+			free (p->p_selbits, M_SELECT);
+
+		while (p->p_selbits_size < ni)
+			p->p_selbits_size += 32; /* Increase by 256 bits */
+
+		p->p_selbits = malloc(p->p_selbits_size * 6, M_SELECT,
+			M_WAITOK);
+	}
+	for (i = 0; i < 3; i++) {
+		ibits[i] = (fd_mask *)(p->p_selbits + i * p->p_selbits_size);
+		obits[i] = (fd_mask *)(p->p_selbits + (i + 3) *
+			p->p_selbits_size);
+	}
+
+	/*
+	 * This buffer is usually very small therefore it's probably faster
+	 * to just zero it, rather than calculate what needs to be zeroed.
+	 */
+	bzero (p->p_selbits, p->p_selbits_size * 6);
+
+	/* The amount of space we need to copyin/copyout */
 	ni = howmany(uap->nd, NFDBITS) * sizeof(fd_mask);
 
 #define	getbits(name, x) \
 	if (uap->name && \
-	    (error = copyin((caddr_t)uap->name, (caddr_t)&ibits[x], ni))) \
+	    (error = copyin((caddr_t)uap->name, (caddr_t)ibits[x], ni))) \
 		goto done;
 	getbits(in, 0);
 	getbits(ou, 1);
@@ -600,7 +627,7 @@ done:
 		error = 0;
 #define	putbits(name, x) \
 	if (uap->name && \
-	    (error2 = copyout((caddr_t)&obits[x], (caddr_t)uap->name, ni))) \
+	    (error2 = copyout((caddr_t)obits[x], (caddr_t)uap->name, ni))) \
 		error = error2;
 	if (error == 0) {
 		int error2;
@@ -616,7 +643,7 @@ done:
 static int
 selscan(p, ibits, obits, nfd, retval)
 	struct proc *p;
-	fd_set *ibits, *obits;
+	fd_mask **ibits, **obits;
 	int nfd, *retval;
 {
 	register struct filedesc *fdp = p->p_fd;
@@ -628,14 +655,15 @@ selscan(p, ibits, obits, nfd, retval)
 
 	for (msk = 0; msk < 3; msk++) {
 		for (i = 0; i < nfd; i += NFDBITS) {
-			bits = ibits[msk].fds_bits[i/NFDBITS];
+			bits = ibits[msk][i/NFDBITS];
 			while ((j = ffs(bits)) && (fd = i + --j) < nfd) {
 				bits &= ~(1 << j);
 				fp = fdp->fd_ofiles[fd];
 				if (fp == NULL)
 					return (EBADF);
 				if ((*fp->f_ops->fo_select)(fp, flag[msk], p)) {
-					FD_SET(fd, &obits[msk]);
+					obits[msk][(fd)/NFDBITS] |= 
+						(1 << ((fd) % NFDBITS));
 					n++;
 				}
 			}

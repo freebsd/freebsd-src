@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.25 1996/06/09 15:00:11 alex Exp $
+ * $Id: proc.h,v 1.26 1996/07/31 09:26:54 davidg Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -137,6 +137,9 @@ struct	proc {
 
 	char	p_lock;			/* Process lock (prevent swap) count. */
 	char	p_pad2[3];		/* alignment */
+
+	char    *p_selbits;             /* For select(), bits */
+	u_int   p_selbits_size;         /* For select(), fd_set size (bytes) */
 
 	short	p_locks;		/* DEBUG: lockmgr count of held locks */
 	short	p_simple_locks;		/* DEBUG: count of held simple locks */
