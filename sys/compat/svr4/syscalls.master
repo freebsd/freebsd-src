@@ -100,7 +100,7 @@
 59	STD	{ int svr4_sys_execve(char *path, char **argp, char **envp); }
 60	MNOPROTO { int umask(int newmask); }
 61	NOPROTO	{ int chroot(char *path); }
-62	STD	{ int svr4_sys_fcntl(int fd, int cmd, char *arg); }
+62	MSTD	{ int svr4_sys_fcntl(int fd, int cmd, char *arg); }
 63	MSTD	{ int svr4_sys_ulimit(int cmd, long newlimit); }
 64	UNIMPL	reserved
 65	UNIMPL	reserved
