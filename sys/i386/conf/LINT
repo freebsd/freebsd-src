@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.34 1997/11/22 22:11:43 alex Exp $
+#	$Id: LINT,v 1.286.2.35 1997/12/05 07:26:15 jmg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -900,9 +900,6 @@ device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 #
 # pca: PCM audio through your PC speaker
 #
-# If you don't have a lpt0 device at IRQ 7, you can remove the
-# ``conflicts'' specification in the appropriate device entries below.
-#
 # If you have a GUS-MAX card and want to use the CS4231 codec on the
 # card the drqs for the gus max must be 8 bit (1, 2, or 3).
 # 
@@ -921,7 +918,7 @@ device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 # Controls all sound devices
 controller	snd0
 device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
-device sb0      at isa? port 0x220 irq 7 conflicts drq 1 vector sbintr
+device sb0      at isa? port 0x220 irq 5 drq 1 vector sbintr
 device sbxvi0   at isa? drq 5
 device sbmidi0  at isa? port 0x330
 #device awe0     at isa? port 0x620 
