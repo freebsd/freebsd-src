@@ -162,7 +162,6 @@ struct label	*mac_cred_label_alloc(void);
 void		 mac_cred_label_free(struct label *label);
 struct label	*mac_vnode_label_alloc(void);
 void		 mac_vnode_label_free(struct label *label);
-void		 mac_destroy_vnode_label(struct label *);
 
 /*
  * Labeling event operations: file system objects, and things that
