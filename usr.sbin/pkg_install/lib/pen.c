@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.11 1995/04/21 06:30:41 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.12 1995/04/22 13:58:44 jkh Exp $";
 #endif
 
 /*
@@ -23,6 +23,7 @@ static const char *rcsid = "$Id: pen.c,v 1.11 1995/04/21 06:30:41 jkh Exp $";
  */
 
 #include "lib.h"
+#include <sys/signal.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 
@@ -72,6 +73,10 @@ make_playpen(char *pen, size_t sz)
 void
 leave_playpen(void)
 {
+    void (*oldsig)(int);
+
+    /* Don't interrupt while we're cleaning up */
+    oldsig = signal(SIGINT, SIG_IGN);
     if (Cwd[0]) {
 	if (chdir(Cwd) == FAIL)
 	    barf("Can't chdir back to '%s'.", Cwd);
@@ -79,6 +84,7 @@ leave_playpen(void)
 	    fprintf(stderr, "Couldn't remove temporary dir '%s'\n", Pen);
 	Cwd[0] = '\0';
     }
+    signal(SIGINT, oldsig);
 }
 
 /* Accessor function for telling us where the pen is */
