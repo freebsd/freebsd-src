@@ -112,6 +112,8 @@ will fail if:
 is not an active descriptor.
 .It Bq Er EINTR
 An interrupt was received.
+.It Bq Er ENOSPC
+The underlying object did not fit, cached data was lost.
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,
