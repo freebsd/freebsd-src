@@ -1923,7 +1923,6 @@ restart:
 		bp->b_npages = 0;
 		bp->b_dirtyoff = bp->b_dirtyend = 0;
 		bp->b_magic = B_MAGIC_BIO;
-		bp->b_object = NULL;
 		bp->b_bufobj = NULL;
 
 		LIST_INIT(&bp->b_dep);
@@ -2407,6 +2406,7 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo,
 	int s;
 	int error;
 	ASSERT_VOP_LOCKED(vp, "getblk");
+	struct vm_object *vmo;
 
 	if (size > MAXBSIZE)
 		panic("getblk: size(%d) > MAXBSIZE(%d)\n", size, MAXBSIZE);
@@ -2638,10 +2638,13 @@ loop:
 				printf("getblk: VMIO on vnode type %d\n",
 					vp->v_type);
 #endif
-			VOP_GETVOBJECT(vp, &bp->b_object);
+			VOP_GETVOBJECT(vp, &vmo);
+			KASSERT(vmo == bp->b_object,
+			    ("ARGH! different b_object %p %p %p\n", bp, vmo, bp->b_object));
 		} else {
 			bp->b_flags &= ~B_VMIO;
-			bp->b_object = NULL;
+			KASSERT(bp->b_object == NULL,
+			    ("ARGH! has b_object %p %p\n", bp, bp->b_object));
 		}
 
 		allocbuf(bp, size);

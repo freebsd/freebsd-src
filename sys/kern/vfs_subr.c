@@ -1410,8 +1410,6 @@ brelvp(struct buf *bp)
 	vdropl(vp);
 	bp->b_vp = NULL;
 	bp->b_bufobj = NULL;
-	if (bp->b_object)
-		bp->b_object = NULL;
 	VI_UNLOCK(vp);
 }
 
@@ -1694,7 +1692,6 @@ pbgetvp(vp, bp)
 	KASSERT(bp->b_vp == NULL, ("pbgetvp: not free"));
 
 	bp->b_vp = vp;
-	bp->b_object = vp->v_object;
 	bp->b_flags |= B_PAGING;
 	bp->b_dev = vn_todev(vp);
 	bp->b_bufobj = &vp->v_bufobj;
@@ -1722,7 +1719,6 @@ pbrelvp(bp)
 	}
 	BO_UNLOCK(bp->b_bufobj);
 	bp->b_vp = NULL;
-	bp->b_object = NULL;
 	bp->b_bufobj = NULL;
 	bp->b_flags &= ~B_PAGING;
 }
