@@ -104,6 +104,13 @@ uses the
 .Xr system 3
 subroutine to execute the command line.
 .Pp
+.Xr pccardd 8
+will use syslog to annonce the insertion and removal of cards.
+It uses either the string set by the
+.Em logstr
+command, or the manufacturer and card version strings if none has
+been set.
+.Pp
 Numeric values may be expressed as octal, hex or decimal.
 If a decimal number has
 .Em k
@@ -146,6 +153,7 @@ The syntax for card identifiers is:
 .Dl ether Ar offset
 .Dl insert Ar command
 .Dl remove Ar command
+.Dl logstr Ar string
 .Pp
 The first line is mandatory;
 the latter statements are optional and can appear in
@@ -201,6 +209,15 @@ and
 .Em remove
 commands are allowed, and they are executed in the order they
 are listed.
+.Pp
+The
+.Em logstr
+command allows the user to set the string to be logged when this card is
+inserted or removed.
+If
+.Em logstr
+isn't specified, then the manufacturer and
+card version strings from the CIS are used to synthesize the string issued.
 .Ss "Wildcard entries"
 Following two wildcard entries of card identifiers are available
 for generic type of the cards:
