@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.4.2.7 1998/03/08 08:57:19 jkh Exp $
+ *	$Id: http.c,v 1.4.2.8 1998/07/16 23:51:49 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -929,7 +929,20 @@ spewerror:
 			free(base64ofmd5);
 		return EX_PROTOCOL;
 	}
-		
+
+ 	if (total_length > 0 && fs->fs_expectedsize != -1 
+	    && total_length != fs->fs_expectedsize) {
+		warnx("%s: size mismatch, expected=%lu / actual=%lu",
+		      fs->fs_outputfile, 
+		      (unsigned long)fs->fs_expectedsize, 
+		      (unsigned long)total_length);
+		fclose(remote);
+		if (base64ofmd5)
+			free(base64ofmd5);
+		unsetup_sigalrm();
+		return EX_DATAERR;
+	}
+
 	fs->fs_status = "retrieving file from HTTP/1.x server";
 
 	/*
