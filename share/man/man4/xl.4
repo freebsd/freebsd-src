@@ -28,7 +28,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: xl.4,v 1.1 1998/08/16 17:19:58 wpaul Exp $
+.\"	$Id: xl.4,v 1.2 1998/12/05 09:31:25 rnordier Exp $
 .\"
 .Dd August 16, 1998
 .Dt XL 4 i386
@@ -47,7 +47,7 @@ controllers based on the 3Com "boomerang" and "cyclone" bus-master
 Etherlink XL chips. This includes the 3c900-TP, 3c900-COMBO, 3c905-TX,
 3c905-T4, 3c905B-TP, 3c905B-T4 and 3c905B-TX, and embedded 3c905-TX
 and 3c905B-TX ethernet hardware in certain Dell Optiplex and Dell
-Precision dexktop machines, and certain Dell Latitude laptop docking
+Precision desktop machines, and certain Dell Latitude laptop docking
 stations.
 .Pp
 The Etherlink XL chips support built-in 10baseT, 10base2 and 10base5
@@ -124,7 +124,7 @@ The driver failed to allocate an mbuf for the receiver ring.
 The driver failed to allocate an mbuf for the transmitter ring when
 allocating a pad buffer or collapsing an mbuf chain into a cluster.
 .It "xl%d: command never completed!"
-Some commands issued ot the 3c90x ASIC take time to complete: the
+Some commands issued to the 3c90x ASIC take time to complete: the
 driver is supposed to wait until the 'command in progress' bit in
 the status register clears before continuing. In rare instances, this
 bit may not clear. To avoid getting caught in an infinite wait loop,
