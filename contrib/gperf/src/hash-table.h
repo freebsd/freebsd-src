@@ -2,7 +2,7 @@
 
 /* Hash table used to check for duplicate keyword entries.
 
-   Copyright (C) 1989-1998 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -32,11 +32,12 @@ private:
   List_Node     **table;      /* Vector of pointers to linked lists of List_Node's. */
   int             size;       /* Size of the vector. */
   int             collisions; /* Find out how well our double hashing is working! */
+  int             ignore_length;
 
 public:
-                  Hash_Table (List_Node **t, int s);
+                  Hash_Table (List_Node **t, int s, int ignore_len);
                  ~Hash_Table (void);
-  List_Node      *operator () (List_Node *item, int ignore_length);
+  List_Node      *insert (List_Node *item);
 };
 
 #endif

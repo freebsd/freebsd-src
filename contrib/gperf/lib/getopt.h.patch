@@ -4,7 +4,37 @@ maintainer has been informed of these patches.
 
 diff -c3 getopt.h.orig getopt.h
 *** getopt.h.orig	Sat Jun 21 03:01:53 1997
---- getopt.h	Thu Apr 16 00:17:42 1998
+--- getopt.h	Mon Aug 28 12:36:27 2000
+***************
+*** 1,5 ****
+  /* Declarations for getopt.
+!    Copyright (C) 1989,90,91,92,93,94,96,97 Free Software Foundation, Inc.
+     This file is part of the GNU C Library.
+  
+     The GNU C Library is free software; you can redistribute it and/or
+--- 1,5 ----
+  /* Declarations for getopt.
+!    Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
+     This file is part of the GNU C Library.
+  
+     The GNU C Library is free software; you can redistribute it and/or
+***************
+*** 78,84 ****
+  
+  struct option
+  {
+! #if defined (__STDC__) && __STDC__
+    const char *name;
+  #else
+    char *name;
+--- 78,84 ----
+  
+  struct option
+  {
+! #if (defined (__STDC__) && __STDC__) || defined (__cplusplus)
+    const char *name;
+  #else
+    char *name;
 ***************
 *** 96,102 ****
   #define required_argument	1

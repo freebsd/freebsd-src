@@ -2,7 +2,7 @@
 
 /* Handles parsing the Options provided to the user.
 
-   Copyright (C) 1989-1998 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -98,6 +98,7 @@ public:
   static int          get_total_switches (void);
   static const char  *get_function_name (void);
   static const char  *get_key_name (void);
+  static const char  *get_initializer_suffix (void);
   static const char  *get_class_name (void);
   static const char  *get_hash_name (void);
   static const char  *get_wordlist_name (void);
@@ -116,6 +117,7 @@ private:
   static char       **argument_vector;                    /* Stores a pointer to command-line vector. */
   static const char  *function_name;                      /* Names used for generated lookup function. */
   static const char  *key_name;                           /* Name used for keyword key. */
+  static const char  *initializer_suffix;                 /* Suffix for empty struct initializers. */
   static const char  *class_name;                         /* Name used for generated C++ class. */
   static const char  *hash_name;                          /* Name used for generated hash function. */
   static const char  *wordlist_name;                      /* Name used for hash table array. */

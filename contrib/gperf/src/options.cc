@@ -1,5 +1,5 @@
 /* Handles parsing the Options provided to the user.
-   Copyright (C) 1989-1998 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -43,6 +43,9 @@ static const char *const DEFAULT_NAME = "in_word_set";
 /* Default name for the key component. */
 static const char *const DEFAULT_KEY = "name";
 
+/* Default struct initializer suffix. */
+static const char *const DEFAULT_INITIALIZER_SUFFIX = "";
+
 /* Default name for the generated class. */
 static const char *const DEFAULT_CLASS_NAME = "Perfect_Hash";
 
@@ -67,6 +70,7 @@ int Options::iterations;
 char **Options::argument_vector;
 const char *Options::function_name;
 const char *Options::key_name;
+const char *Options::initializer_suffix;
 const char *Options::class_name;
 const char *Options::hash_name;
 const char *Options::wordlist_name;
@@ -79,7 +83,7 @@ void
 Options::short_usage (FILE * strm)
 {
   T (Trace t ("Options::short_usage");)
-  fprintf (strm, "Usage: %s [-cCdDef[num]GhH<hashname>i<init>Ijk<keys>K<keyname>lL<language>nN<function name>ors<size>S<switches>tTvW<wordlistname>Z<class name>7] [input-file]\n"
+  fprintf (strm, "Usage: %s [-cCdDef[num]F<initializers>GhH<hashname>i<init>Ijk<keys>K<keyname>lL<language>nN<function name>ors<size>S<switches>tTvW<wordlistname>Z<class name>7] [input-file]\n"
                  "Try `%s --help' for more information.\n",
                  program_name, program_name);
 }
@@ -115,6 +119,9 @@ Options::long_usage (FILE * strm)
            "\n"
            "Details in the output code:\n"
            "  -K, --slot-name=NAME   Select name of the keyword component in the keyword\n"
+           "                         structure.\n"
+           "  -F, --initializer-suffix=INITIALIZERS\n"
+           "                         Initializers for additional components in the keyword\n"
            "                         structure.\n"
            "  -H, --hash-fn-name=NAME\n"
            "                         Specify name of generated hash function. Default is\n"
@@ -222,7 +229,50 @@ Options::print_options (void)
   printf ("/* Command-line: ");
 
   for (i = 0; i < argument_count; i++)
-    printf ("%s ", argument_vector[i]);
+    {
+      const char *arg = argument_vector[i];
+
+      /* Escape arg if it contains shell metacharacters. */
+      if (*arg == '-')
+        {
+          putchar (*arg);
+          arg++;
+          if (*arg >= 'A' && *arg <= 'Z' || *arg >= 'a' && *arg <= 'z')
+            {
+              putchar (*arg);
+              arg++;
+            }
+        }
+      if (strpbrk (arg, "\t\n !\"#$&'()*;<>?[\\]`{|}~") != NULL)
+        {
+          if (strchr (arg, '\'') != NULL)
+            {
+              putchar ('"');
+              for (; *arg; arg++)
+                {
+                  if (*arg == '\"' || *arg == '\\' || *arg == '$')
+                    putchar ('\\');
+                  putchar (*arg);
+                }
+              putchar ('"');
+            }
+          else
+            {
+              putchar ('\'');
+              for (; *arg; arg++)
+                {
+                  if (*arg == '\\')
+                    putchar ('\\');
+                  putchar (*arg);
+                }
+              putchar ('\'');
+            }
+        }
+      else
+        printf ("%s", arg);
+
+      printf (" ");
+    }
 
   printf (" */");
 }
@@ -266,6 +316,7 @@ Options::Options (void)
   option_word         = DEFAULTCHARS | C;
   function_name       = DEFAULT_NAME;
   key_name            = DEFAULT_KEY;
+  initializer_suffix  = DEFAULT_INITIALIZER_SUFFIX;
   hash_name           = DEFAULT_HASH_NAME;
   wordlist_name       = DEFAULT_WORDLIST_NAME;
   class_name          = DEFAULT_CLASS_NAME;
@@ -309,6 +360,7 @@ Options::~Options (void)
                "\nhash function name = %s"
                "\nword list name = %s"
                "\nkey name = %s"
+               "\ninitializer suffix = %s"
                "\njump value = %d"
                "\nmax associated value = %d"
                "\ninitial associated value = %d"
@@ -337,7 +389,8 @@ Options::~Options (void)
                option_word & SEVENBIT ? "enabled" : "disabled",
                iterations,
                function_name, hash_name, wordlist_name, key_name,
-               jump, size - 1, initial_asso_value, delimiters, total_switches);
+               initializer_suffix, jump, size - 1, initial_asso_value,
+               delimiters, total_switches);
       if (option_word & ALLCHARS)
         fprintf (stderr, "all characters are used in the hash function\n");
 
@@ -363,6 +416,7 @@ static const struct option long_options[] =
   { "struct-type", no_argument, 0, 't' },
   { "language", required_argument, 0, 'L' },
   { "slot-name", required_argument, 0, 'K' },
+  { "initializer-suffix", required_argument, 0, 'F' },
   { "hash-fn-name", required_argument, 0, 'H' },
   { "lookup-fn-name", required_argument, 0, 'N' },
   { "class-name", required_argument, 0, 'Z' },
@@ -403,7 +457,7 @@ Options::operator() (int argc, char *argv[])
 
   while ((option_char =
             getopt_long (argument_count, argument_vector,
-                         "adcCDe:Ef:gGhH:i:Ij:k:K:lL:nN:oprs:S:tTvW:Z:7",
+                         "adcCDe:Ef:F:gGhH:i:Ij:k:K:lL:nN:oprs:S:tTvW:Z:7",
                          long_options, (int *)0))
          != -1)
     {
@@ -453,11 +507,16 @@ Options::operator() (int argc, char *argv[])
               }
             break;
           }
+        case 'F':
+          {
+            initializer_suffix = /*getopt*/optarg;
+            break;
+          }
         case 'g':               /* Use the ``inline'' keyword for generated sub-routines, ifdef __GNUC__. */
           break;                /* This is now the default. */
         case 'G':               /* Make the keyword table a global variable. */
           {
-                                                option_word |= GLOBAL;
+            option_word |= GLOBAL;
             break;
           }
         case 'h':               /* Displays a list of helpful Options to the user. */
