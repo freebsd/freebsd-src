@@ -163,7 +163,7 @@ fwmem_write_quad(
 	fp->mode.wreqq.dest_hi = htons(dst_hi);
 	fp->mode.wreqq.dest_lo = htonl(dst_lo);
 
-	fp->mode.wreqq.data = htonl(data);
+	fp->mode.wreqq.data = data;
 
 	if (fwmem_debug)
 		printf("fwmem_write_quad: %d %04x:%08x %08x\n", fwdev->dst,
