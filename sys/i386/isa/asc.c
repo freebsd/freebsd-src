@@ -880,5 +880,5 @@ ascpoll(dev_t dev, int events, struct proc *p)
 	}
     }
     splx(sps);
-    return 0;
+    return (revents);
 }
