@@ -8,6 +8,11 @@ Some of the planned features include:
   library, but this would degrade performance. In the meantime, you can
   look at the sample program zread.c.
 
+  The library should have one mode in which compressed data is sent
+  as soon as input is available, instead of waiting for complete
+  blocks. This can be useful for sending compressed data to/from interactive
+  programs.
+
 - Make it convenient to define alternative user interfaces (in
   particular for windowing environments).
 

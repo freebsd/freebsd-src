@@ -92,7 +92,7 @@ for i do
 skip=18
 if tail +$skip $0 | gzip -cd > /tmp/gztmp$$; then
   chmod 700 /tmp/gztmp$$
-  prog="`echo $0 | sed 's|^.*/||`"
+  prog="`echo $0 | sed 's|^.*/||'`"
   if /bin/ln /tmp/gztmp$$ "/tmp/$prog" 2>/dev/null; then
     trap '/bin/rm -f /tmp/gztmp$$ "/tmp/$prog"; exit $res' 0
     (/bin/sleep 5; /bin/rm -f /tmp/gztmp$$ "/tmp/$prog") 2>/dev/null &

@@ -2,7 +2,7 @@
  * This is a dummy version avoiding patent problems.
  */
 
-#ifndef lint
+#ifdef RCSID
 static char rcsid[] = "$Id: lzw.c,v 0.9 1993/06/10 13:27:31 jloup Exp $";
 #endif
 
@@ -19,7 +19,8 @@ int lzw(in, out)
     if (msg_done) return ERROR;
     msg_done = 1;
     fprintf(stderr,"output in compress .Z format not supported\n");
-    in++, out++; /* avoid warnings on unused variables */
-    exit_code = ERROR;
+    if (in != out) { /* avoid warnings on unused variables */
+        exit_code = ERROR;
+    }
     return ERROR;
 }
