@@ -6,6 +6,16 @@ SRCS=	bsdlabel.c geom_bsd_enc.c
 #MAN+=	bsdlabel.5
 MAN+=	bsdlabel.8
 
+.if ${MACHINE_ARCH} == "i386"
+LINKS=	${BINDIR}/bsdlabel ${BINDIR}/disklabel
+MLINKS+= bsdlabel.8 disklabel.8
+.endif
+
+.if ${MACHINE_ARCH} == "alpha"
+LINKS=	${BINDIR}/bsdlabel ${BINDIR}/disklabel
+MLINKS+= bsdlabel.8 disklabel.8
+.endif
+
 DDADD=  ${LIBGEOM}
 LDADD=  -lgeom -lbsdxml -lsbuf
 
