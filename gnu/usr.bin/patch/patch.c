@@ -1,5 +1,5 @@
 char rcsid[] =
-	"$Header: /home/cvs/386BSD/src/gnu/usr.bin/patch/patch.c,v 1.2 1994/02/17 22:16:03 jkh Exp $";
+	"$Header: /home/cvs/386BSD/src/gnu/usr.bin/patch/patch.c,v 1.3 1994/02/17 22:20:34 jkh Exp $";
 
 /* patch - a program to apply diffs to original files
  *
@@ -9,6 +9,10 @@ char rcsid[] =
  * money off of it, or pretend that you wrote it.
  *
  * $Log: patch.c,v $
+ * Revision 1.3  1994/02/17  22:20:34  jkh
+ * Put this back - I was somehow under the erroneous impression that patch was in
+ * ports, until I saw the the commit messages, that is! :-)  All changed backed out.
+ *
  * Revision 1.2  1994/02/17  22:16:03  jkh
  * From Poul-Henning Kamp -  Implement a -C option to verify the integrity of
  * a patch before actually applying it.
@@ -129,6 +133,9 @@ static int remove_empty_files = FALSE;
 
 /* TRUE if -R was specified on command line.  */
 static int reverse_flag_specified = FALSE;
+
+/* TRUE if -C was specified on command line.  */
+static int check_patch = FALSE;
 
 /* Apply a set of diffs as appropriate. */
 
@@ -359,7 +366,9 @@ char **argv;
 	    struct stat statbuf;
 	    char *realout = outname;
 
-	    if (move_file(TMPOUTNAME, outname) < 0) {
+	    if (check_patch) {
+		;
+	    } else if (move_file(TMPOUTNAME, outname) < 0) {
 		toutkeep = TRUE;
 		realout = TMPOUTNAME;
 		chmod(TMPOUTNAME, filemode);
@@ -390,7 +399,9 @@ char **argv;
 		say4("%d out of %d hunks failed--saving rejects to %s\n",
 		    failed, hunk, rejname);
 	    }
-	    if (move_file(TMPREJNAME, rejname) < 0)
+	    if (check_patch) {
+		;
+	    } else if (move_file(TMPREJNAME, rejname) < 0)
 		trejkeep = TRUE;
 	}
 	set_signals(1);
@@ -438,11 +449,12 @@ reinitialize_almost_everything()
 	fatal1("you may not change to a different patch file\n");
 }
 
-static char *shortopts = "-b:B:cd:D:eEfF:lnNo:p::r:RsStuvV:x:";
+static char *shortopts = "-b:B:cCd:D:eEfF:lnNo:p::r:RsStuvV:x:";
 static struct option longopts[] =
 {
   {"suffix", 1, NULL, 'b'},
   {"prefix", 1, NULL, 'B'},
+  {"check", 0, NULL, 'C'},
   {"context", 0, NULL, 'c'},
   {"directory", 1, NULL, 'd'},
   {"ifdef", 1, NULL, 'D'},
@@ -498,6 +510,9 @@ get_some_switches()
 		break;
 	    case 'c':
 		diff_type = CONTEXT_DIFF;
+		break;
+	    case 'C':
+		check_patch = TRUE;
 		break;
 	    case 'd':
 		if (chdir(optarg) < 0)
@@ -579,9 +594,9 @@ Usage: %s [options] [origfile [patchfile]] [+ [options] [origfile]]...\n",
 			Argv[0]);
 		fprintf(stderr, "\
 Options:\n\
-       [-ceEflnNRsStuv] [-b backup-ext] [-B backup-prefix] [-d directory]\n\
+       [-cCeEflnNRsStuv] [-b backup-ext] [-B backup-prefix] [-d directory]\n\
        [-D symbol] [-F max-fuzz] [-o out-file] [-p[strip-count]]\n\
-       [-r rej-name] [-V {numbered,existing,simple}] [--context]\n\
+       [-r rej-name] [-V {numbered,existing,simple}] [--check] [--context]\n\
        [--prefix=backup-prefix] [--suffix=backup-ext] [--ifdef=symbol]\n\
        [--directory=directory] [--ed] [--fuzz=max-fuzz] [--force] [--batch]\n\
        [--ignore-whitespace] [--forward] [--reverse] [--output=out-file]\n");
