@@ -173,7 +173,7 @@ sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_physmem, "I", "");
+	0, 0, sysctl_hw_physmem, "IU", "");
 
 static int
 sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
@@ -184,7 +184,7 @@ sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_usermem, "I", "");
+	0, 0, sysctl_hw_usermem, "IU", "");
 
 static int
 sysctl_hw_availpages(SYSCTL_HANDLER_ARGS)
@@ -337,7 +337,9 @@ again:
 	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.
 	 * For the first 64MB of ram nominally allocate sufficient buffers to
 	 * cover 1/4 of our ram.  Beyond the first 64MB allocate additional
-	 * buffers to cover 1/20 of our ram over 64MB.
+	 * buffers to cover 1/20 of our ram over 64MB.  When auto-sizing
+	 * the buffer cache we limit the eventual kva reservation to
+	 * maxbcache bytes.
 	 *
 	 * factor represents the 1/4 x ram conversion.
 	 */
@@ -349,6 +351,8 @@ again:
 			nbuf += min((physmem - 1024) / factor, 16384 / factor);
 		if (physmem > 16384)
 			nbuf += (physmem - 16384) * 2 / (factor * 5);
+		if (maxbcache && nbuf > maxbcache / BKVASIZE)
+			nbuf = maxbcache / BKVASIZE;
 	}
 
 	/*
