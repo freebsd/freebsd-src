@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.12 1996/01/27 04:18:00 bde Exp $
+ *	$Id: od.c,v 1.13 1996/03/02 18:24:12 peter Exp $
  */
 
 /*
@@ -67,7 +67,7 @@
 #include <sys/dkstat.h>
 #include <machine/md_var.h>
 
-static u_int32 odstrats, odqueues;
+static u_int32_t odstrats, odqueues;
 
 #define SECSIZE 512
 #define	ODOUTSTANDING	4
@@ -82,14 +82,14 @@ static u_int32 odstrats, odqueues;
  makedev(major(DEV), dkmakeminor((U), dkslice(DEV), dkpart(DEV)))
 
 struct scsi_data {
-	u_int32 flags;
+	u_int32_t flags;
 #define	ODINIT		0x04	/* device has been init'd */
 	struct disk_parms {
-		u_char  heads;	/* Number of heads */
-		u_int16 cyls;	/* Number of cylinders */
-		u_char  sectors; /* dubious *//* Number of sectors/track */
-		u_int16 secsiz;	/* Number of bytes/sector */
-		u_int32 disksize;	/* total number sectors */
+		u_char    heads;	/* Number of heads */
+		u_int16_t cyls;	/* Number of cylinders */
+		u_char    sectors; /* dubious *//* Number of sectors/track */
+		u_int16_t secsiz;	/* Number of bytes/sector */
+		u_int32_t disksize;	/* total number sectors */
 	} params;
 	struct diskslices *dk_slices;	/* virtual drives */
 	struct buf_queue_head buf_queue;
@@ -102,9 +102,9 @@ struct scsi_data {
 
 static errval	od_get_parms __P((int unit, int flags));
 static errval	od_reassign_blocks __P((int unit, int block));
-static u_int32	od_size __P((int unit, int flags));
+static u_int32_t	od_size __P((int unit, int flags));
 static int	od_sense_handler __P((struct scsi_xfer *));
-static void	odstart __P((u_int32, u_int32));
+static void	odstart __P((u_int32_t, u_int32_t));
 static void	odstrategy1 __P((struct buf *));
 
 static dev_t odsetunit(dev_t dev, int unit) { return ODSETUNIT(dev, unit); }
@@ -207,7 +207,7 @@ od_registerdev(int unit)
 static errval
 odattach(struct scsi_link *sc_link)
 {
-	u_int32 unit;
+	u_int32_t unit;
 	struct disk_parms *dp;
 #ifdef DEVFS
 	char	name[32];
@@ -281,7 +281,7 @@ od_open(dev, mode, fmt, p, sc_link)
 	struct scsi_link *sc_link;
 {
 	errval  errcode = 0;
-	u_int32 unit;
+	u_int32_t unit;
 	struct disklabel label;
 	struct scsi_data *od;
 
@@ -423,9 +423,9 @@ od_close(dev, fflag, fmt, p, sc_link)
 static void
 od_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
-	u_int32 opri;
+	u_int32_t opri;
 	struct scsi_data *od;
-	u_int32 unit;
+	u_int32_t unit;
 
 	odstrats++;
 	unit = ODUNIT((bp->b_dev));
@@ -514,13 +514,13 @@ odstrategy1(struct buf *bp)
  * odstart() is called at SPLOD  from odstrategy and scsi_done
  */
 static void
-odstart(u_int32 unit, u_int32 flags)
+odstart(u_int32_t unit, u_int32_t flags)
 {
 	register struct	scsi_link *sc_link = SCSI_LINK(&od_switch, unit);
 	register struct scsi_data *od = sc_link->sd;
 	struct buf *bp = 0;
 	struct scsi_rw_big cmd;
-	u_int32 blkno, nblk;
+	u_int32_t blkno, nblk;
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("odstart "));
 	/*
@@ -651,13 +651,13 @@ od_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 /*
  * Find out from the device what it's capacity is
  */
-static u_int32
+static u_int32_t
 od_size(unit, flags)
 	int	unit, flags;
 {
 	struct scsi_read_cap_data rdcap;
 	struct scsi_read_capacity scsi_cmd;
-	u_int32 size;
+	u_int32_t size;
 	struct scsi_link *sc_link = SCSI_LINK(&od_switch, unit);
 
 	/*
@@ -738,7 +738,7 @@ od_get_parms(unit, flags)
 	struct scsi_link *sc_link = SCSI_LINK(&od_switch, unit);
 	struct scsi_data *od = sc_link->sd;
 	struct disk_parms *disk_parms = &od->params;
-	u_int32 sectors;
+	u_int32_t sectors;
 	errval retval;
 
 	/*

@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.12 1995/12/14 19:51:13 bde Exp $
+ *      $Id: pt.c,v 1.13 1996/01/05 20:12:43 wollman Exp $
  */
 
 /*
@@ -77,7 +77,7 @@ static struct cdevsw pt_cdevsw =
 
 SCSI_DEVICE_ENTRIES(pt)
 
-static void	ptstart(u_int32 unit, u_int32 flags);
+static void	ptstart(u_int32_t unit, u_int32_t flags);
 static void	pt_strategy(struct buf *bp, struct scsi_link *sc_link);
 static int	pt_sense(struct scsi_xfer *scsi_xfer);
 
@@ -120,8 +120,8 @@ static struct scsi_device pt_switch =
  */
 static void
 ptstart(unit, flags)
-	u_int32	unit;
-	u_int32 flags;
+	u_int32_t	unit;
+	u_int32_t flags;
 {
 	struct scsi_link *sc_link = SCSI_LINK(&pt_switch, unit);
 	struct scsi_data *pt = sc_link->sd;
@@ -195,7 +195,7 @@ static void
 pt_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	unsigned char unit;
-	u_int32 opri;
+	u_int32_t opri;
 	struct scsi_data *pt;
 
 	unit = minor((bp->b_dev));

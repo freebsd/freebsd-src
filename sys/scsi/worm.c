@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.23 1996/01/29 19:46:26 joerg Exp $
+ *      $Id: worm.c,v 1.24 1996/02/02 22:59:48 joerg Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -99,8 +99,8 @@ struct worm_quirks
 struct scsi_data
 {
 	struct buf_queue_head buf_queue;
-	u_int32 n_blks;		/* Number of blocks (0 for bogus) */
-	u_int32 blk_size;	/* Size of each blocks */
+	u_int32_t n_blks;		/* Number of blocks (0 for bogus) */
+	u_int32_t blk_size;	/* Size of each blocks */
 #ifdef	DEVFS
 	void	*devfs_token;	/* more elaborate later */
 #endif
@@ -112,13 +112,13 @@ struct scsi_data
 	u_int8 audio;		/* write audio data */
 	u_int8 preemp;		/* audio only: use preemphasis */
 
-	u_int32 worm_flags;	/* driver-internal flags */
+	u_int32_t worm_flags;	/* driver-internal flags */
 #define WORMFL_DISK_PREPED	0x01 /* disk parameters have been spec'ed */
 #define WORMFL_TRACK_PREPED	0x02 /* track parameters have been spec'ed */
 #define WORMFL_WRITTEN		0x04 /* track has been written */
 };
 
-static void wormstart(u_int32 unit, u_int32 flags);
+static void wormstart(u_int32_t unit, u_int32_t flags);
 
 static errval worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 			struct scsi_link *sc_link);
@@ -128,7 +128,7 @@ static errval worm_close(dev_t dev, int flag, int fmt, struct proc *p,
 			 struct scsi_link *sc_link);
 static void worm_strategy(struct buf *bp, struct scsi_link *sc_link);
 
-static errval worm_quirk_select(struct scsi_link *sc_link, u_int32 unit,
+static errval worm_quirk_select(struct scsi_link *sc_link, u_int32_t unit,
 				struct wormio_quirk_select *);
 static errval worm_rezero_unit(struct scsi_link *sc_link);
 
@@ -283,16 +283,16 @@ wormattach(struct scsi_link *sc_link)
  */
 static void
 wormstart(unit, flags)
-	u_int32	unit;
-	u_int32 flags;
+	u_int32_t	unit;
+	u_int32_t flags;
 {
 	struct scsi_link *sc_link = SCSI_LINK(&worm_switch, unit);
 	struct scsi_data *worm = sc_link->sd;
 	register struct buf *bp = 0;
 	struct scsi_rw_big cmd;
 
-	u_int32 lba;	/* Logical block address */
-	u_int32 tl;		/* Transfer length */
+	u_int32_t lba;	/* Logical block address */
+	u_int32_t tl;		/* Transfer length */
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("wormstart "));
 
@@ -371,7 +371,7 @@ static void
 worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	unsigned char unit;
-	u_int32 opri;
+	u_int32_t opri;
 	struct scsi_data *worm;
 
 	unit = wormunit(bp->b_dev);
@@ -650,7 +650,7 @@ worm_rezero_unit(struct scsi_link *sc_link)
 }
 
 static errval
-worm_quirk_select(struct scsi_link *sc_link, u_int32 unit,
+worm_quirk_select(struct scsi_link *sc_link, u_int32_t unit,
 		  struct wormio_quirk_select *qs)
 {
 	struct worm_quirks *qp;
@@ -764,7 +764,7 @@ rf4100_prepare_disk(struct scsi_link *sc_link, int dummy, int speed)
 		struct scsi_mode_header header;
 		struct plasmon_rf4100_pages page;
 	} dat;
-	u_int32 pagelen, dat_len;
+	u_int32_t pagelen, dat_len;
 
 	pagelen = sizeof(dat.page.pages.page_0x23) + PAGE_HEADERLEN;
 	dat_len = sizeof(struct scsi_mode_header) + pagelen;
@@ -810,7 +810,7 @@ rf4100_prepare_track(struct scsi_link *sc_link, int audio, int preemp)
 		struct blk_desc blk_desc;
 		struct plasmon_rf4100_pages page;
 	} dat;
-	u_int32 pagelen, dat_len, blk_len;
+	u_int32_t pagelen, dat_len, blk_len;
 
 	pagelen = sizeof(dat.page.pages.page_0x21) + PAGE_HEADERLEN;
 	dat_len = sizeof(struct scsi_mode_header)
@@ -996,7 +996,7 @@ hp4020i_prepare_disk(struct scsi_link *sc_link, int dummy, int speed)
 		struct scsi_mode_header header;
 		struct hp_4020i_pages page;
 	} dat;
-	u_int32 pagelen, dat_len;
+	u_int32_t pagelen, dat_len;
 
 	pagelen = sizeof(dat.page.pages.page_0x23) + PAGE_HEADERLEN;
 	dat_len = sizeof(struct scsi_mode_header) + pagelen;
@@ -1043,7 +1043,7 @@ hp4020i_prepare_track(struct scsi_link *sc_link, int audio, int preemp)
 		struct blk_desc blk_desc;
 		struct hp_4020i_pages page;
 	} dat;
-	u_int32 pagelen, dat_len, blk_len;
+	u_int32_t pagelen, dat_len, blk_len;
 
 	pagelen = sizeof(dat.page.pages.page_0x21) + PAGE_HEADERLEN;
 	dat_len = sizeof(struct scsi_mode_header)
