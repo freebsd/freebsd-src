@@ -133,7 +133,9 @@
     <sect3>
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>A &man.gre.4; driver, which can encapsulate IP packets
+        using GRE (RFC 1701) or minimal IP encapsulation for Mobile IP
+        (RFC 2004), has been added.</para>
 
     </sect3>
 
@@ -239,6 +241,9 @@
 
       <para><application>cvs</application> has been updated to
 	1.11.2.</para>
+
+      <para><application>Heimdal Kerberos</application> has been updated to
+	0.5.1.</para>
 
       <para>The timezone database has been updated to the
 	<filename>tzdata2002d</filename> release.</para>
