@@ -88,6 +88,7 @@ static struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
 	{ &vop_cachedlookup_desc,	(vop_t *) ext2_lookup },
 	{ &vop_fsync_desc,		(vop_t *) ext2_fsync },
 	{ &vop_inactive_desc,		(vop_t *) ext2_inactive },
+	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
 	{ &vop_read_desc,		(vop_t *) ext2_read },
 	{ &vop_readdir_desc,		(vop_t *) ext2_readdir },
 	{ &vop_reallocblks_desc,	(vop_t *) ext2_reallocblks },
