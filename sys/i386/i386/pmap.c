@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.159 1997/08/25 21:53:01 bde Exp $
+ *	$Id: pmap.c,v 1.160 1997/08/26 18:10:32 peter Exp $
  */
 
 /*
@@ -1464,7 +1464,7 @@ pmap_growkernel(vm_offset_t addr)
 		pdir_pde(PTD, kernel_vm_end) = (pd_entry_t) (VM_PAGE_TO_PHYS(nkpg) | PG_V | PG_RW | pgeflag);
 
 #ifdef SMP
-		for (i = 0; i < mp_naps; i++) {
+		for (i = 0; i < mp_ncpus; i++) {
 			if (IdlePTDS[i])
 				pdir_pde(IdlePTDS[i], kernel_vm_end) = (pd_entry_t) (VM_PAGE_TO_PHYS(nkpg) | PG_V | PG_RW | pgeflag);
 		}
