@@ -160,7 +160,7 @@ g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec)
 }
 
 static void
-g_pc98_ioctl(void *arg)
+g_pc98_ioctl(void *arg, int flag __unused)
 {
 	struct bio *bp;
 	struct g_geom *gp;
@@ -234,7 +234,7 @@ g_pc98_start(struct bio *bp)
 		 * some I/O requests.  Ask the event-handler to schedule
 		 * us in a less restricted environment.
 		 */
-		error = g_call_me(g_pc98_ioctl, bp);
+		error = g_call_me(g_pc98_ioctl, bp, gp, NULL);
 		if (error)
 			g_io_deliver(bp, error);
 		/*

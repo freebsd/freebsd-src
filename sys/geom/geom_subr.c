@@ -83,7 +83,7 @@ g_add_class(struct g_class *mp)
 	LIST_INIT(&mp->geom);
 	LIST_INSERT_HEAD(&g_classes, mp, class);
 	if (g_nproviders > 0)
-		g_post_event(EV_NEW_CLASS, mp, NULL, NULL, NULL);
+		g_post_event(EV_NEW_CLASS, mp, NULL);
 	g_topology_unlock();
 }
 
@@ -126,7 +126,7 @@ g_destroy_geom(struct g_geom *gp)
 	KASSERT(LIST_EMPTY(&gp->provider),
 	    ("g_destroy_geom(%s) with provider(s) [%p]",
 	    gp->name, LIST_FIRST(&gp->consumer)));
-	g_cancel_event(NULL, gp, NULL, NULL);
+	g_cancel_event(gp);
 	LIST_REMOVE(gp, geom);
 	TAILQ_REMOVE(&geoms, gp, geoms);
 	g_free(gp->name);
@@ -163,7 +163,7 @@ g_destroy_consumer(struct g_consumer *cp)
 	KASSERT (cp->acr == 0, ("g_destroy_consumer with acr"));
 	KASSERT (cp->acw == 0, ("g_destroy_consumer with acw"));
 	KASSERT (cp->ace == 0, ("g_destroy_consumer with ace"));
-	g_cancel_event(NULL, NULL, NULL, cp);
+	g_cancel_event(cp);
 	LIST_REMOVE(cp, consumer);
 	devstat_remove_entry(cp->stat);
 	g_free(cp);
@@ -193,7 +193,7 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
 	g_nproviders++;
-	g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
+	g_post_event(EV_NEW_PROVIDER, pp, NULL);
 	return (pp);
 }
 
@@ -218,7 +218,7 @@ g_destroy_provider(struct g_provider *pp)
 	KASSERT (pp->acr == 0, ("g_destroy_provider with acr"));
 	KASSERT (pp->acw == 0, ("g_destroy_provider with acw"));
 	KASSERT (pp->acw == 0, ("g_destroy_provider with ace"));
-	g_cancel_event(NULL, NULL, pp, NULL);
+	g_cancel_event(pp);
 	g_nproviders--;
 	LIST_REMOVE(pp, provider);
 	gp = pp->geom;
@@ -447,7 +447,7 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 			g_spoil(pp, cp);
 		else if (pp->acw != 0 && pp->acw == -dcw && 
 		    !(pp->geom->flags & G_GEOM_WITHER))
-			g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
+			g_post_event(EV_NEW_PROVIDER, pp, NULL);
 
 		pp->acr += dcr;
 		pp->acw += dcw;
@@ -567,7 +567,7 @@ g_spoil(struct g_provider *pp, struct g_consumer *cp)
 		KASSERT(cp2->ace == 0, ("spoiling cp->ace = %d", cp2->ace));
 		cp2->spoiled++;
 	}
-	g_post_event(EV_SPOILED, NULL, NULL, pp, cp);
+	g_post_event(EV_SPOILED, pp, cp, NULL);
 }
 
 int

@@ -66,15 +66,14 @@ enum g_events {
 	EV_LAST
 };
 
+#define G_N_EVENTREFS		20
+
 struct g_event {
 	enum g_events 		event;
 	TAILQ_ENTRY(g_event)	events;
-	struct g_class		*class;
-	struct g_geom		*geom;
-	struct g_provider	*provider;
-	struct g_consumer	*consumer;
 	void			*arg;
 	g_call_me_t		*func;
+	void			*ref[G_N_EVENTREFS];
 };
 
 /*
@@ -86,15 +85,15 @@ struct g_event {
 #define GEOM_MINOR_PROVIDERS	10
 
 /* geom_dump.c */
-void g_confxml(void *);
+void g_confxml(void *, int flag);
 void g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
-void g_confdot(void *);
-void g_conftxt(void *);
+void g_confdot(void *, int flag);
+void g_conftxt(void *, int flag);
 
 /* geom_event.c */
 void g_event_init(void);
-void g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
-void g_cancel_event(struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
+void g_post_event(enum g_events ev, ...);
+void g_cancel_event(void *ref);
 void g_run_events(void);
 void g_stall_events(void);
 void g_release_events(void);
