@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: rules.c,v 1.7 1995/05/05 07:07:45 phk Exp $
+ * $Id: rules.c,v 1.8 1995/05/06 03:28:31 phk Exp $
  *
  */
 
@@ -195,8 +195,12 @@ Rule_004(struct disk *d, struct chunk *c, char *msg)
 			continue;
 		if (c1->subtype == FS_SWAP)
 			j++;
-		if (c1->flags & CHUNK_IS_ROOT)
+		if (c1->flags & CHUNK_IS_ROOT) {
 			k++;
+			if (c1->flags & CHUNK_PAST_1024)
+				sprintf(msg+strlen(msg),
+	    "Root filesystem extends past cylinder 1024, and cannot be booted from\n");
+		}
 		i++;
 	}
 	if (i > 7) {
