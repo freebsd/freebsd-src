@@ -1,0 +1,18 @@
+#!/bin/sh -
+#
+# $Id$
+#
+locdb=/var/db/locate.database
+
+if [ -x /usr/libexec/locate.updatedb -a -f $locdb ] ; then
+
+    echo ""
+    echo "Rebuilding locate database:"
+
+    touch ${locdb}; chown nobody ${locdb}; chmod 644 ${locdb}
+
+    echo /usr/libexec/locate.updatedb | nice -5 su -fm nobody 2>&1 |\
+	fgrep -v 'Permission denied'
+
+    chmod 444 ${locdb}
+fi

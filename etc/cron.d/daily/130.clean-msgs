@@ -1,0 +1,11 @@
+#!/bin/sh
+#
+# $Id$
+#
+# remove system	messages older than 21 days
+#
+if [ -d /var/msgs ] ; then
+    echo
+    echo "Cleaning out old system announcements:"
+    msgs -c
+fi
