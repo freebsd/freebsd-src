@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.60 1997/03/23 03:36:35 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.61 1997/03/23 20:08:11 guido Exp $
  */
 
 /*
@@ -1473,48 +1473,23 @@ olstat(p, uap, retval)
 	} */ *uap;
 	register_t *retval;
 {
-	struct vnode *vp, *dvp;
-	struct stat sb, sb1;
+	struct vnode *vp;
+	struct stat sb;
 	struct ostat osb;
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKPARENT, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	if (error = namei(&nd))
 		return (error);
-	/*
-	 * For symbolic links, always return the attributes of its
-	 * containing directory, except for mode, size, and links.
-	 */
 	vp = nd.ni_vp;
-	dvp = nd.ni_dvp;
-	if (vp->v_type != VLNK) {
-		if (dvp == vp)
-			vrele(dvp);
-		else
-			vput(dvp);
-		error = vn_stat(vp, &sb, p);
-		vput(vp);
-		if (error)
-			return (error);
-	} else {
-		error = vn_stat(dvp, &sb, p);
-		vput(dvp);
-		if (error) {
-			vput(vp);
-			return (error);
-		}
-		error = vn_stat(vp, &sb1, p);
-		vput(vp);
-		if (error)
-			return (error);
-		sb.st_mode &= ~S_IFDIR;
-		sb.st_mode |= S_IFLNK;
-		sb.st_nlink = sb1.st_nlink;
-		sb.st_size = sb1.st_size;
-		sb.st_blocks = sb1.st_blocks;
-	}
+	error = vn_stat(vp, &sb, p);
+	if (vp->v_type == VLNK)
+		sb.st_mode |= S_IFLNK | ACCESSPERMS;	/* 0777 */
+	vput(vp);
+	if (error)
+		return (error);
 	cvtstat(&sb, &osb);
 	error = copyout((caddr_t)&osb, (caddr_t)SCARG(uap, ub), sizeof (osb));
 	return (error);
@@ -1605,47 +1580,21 @@ lstat(p, uap, retval)
 	register_t *retval;
 {
 	int error;
-	struct vnode *vp, *dvp;
-	struct stat sb, sb1;
+	struct vnode *vp;
+	struct stat sb;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKPARENT, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	if (error = namei(&nd))
 		return (error);
-	/*
-	 * For symbolic links, always return the attributes of its containing
-	 * directory, except for mode, size, inode number, and links.
-	 */
 	vp = nd.ni_vp;
-	dvp = nd.ni_dvp;
-	if (vp->v_type != VLNK) {
-		if (dvp == vp)
-			vrele(dvp);
-		else
-			vput(dvp);
-		error = vn_stat(vp, &sb, p);
-		vput(vp);
-		if (error)
-			return (error);
-	} else {
-		error = vn_stat(dvp, &sb, p);
-		vput(dvp);
-		if (error) {
-			vput(vp);
-			return (error);
-		}
-		error = vn_stat(vp, &sb1, p);
-		vput(vp);
-		if (error)
-			return (error);
-		sb.st_mode &= ~S_IFDIR;
-		sb.st_mode |= S_IFLNK;
-		sb.st_nlink = sb1.st_nlink;
-		sb.st_size = sb1.st_size;
-		sb.st_blocks = sb1.st_blocks;
-		sb.st_ino = sb1.st_ino;
-	}
+	error = vn_stat(vp, &sb, p);
+	if (vp->v_type == VLNK)
+		sb.st_mode |= S_IFLNK | ACCESSPERMS;	/* 0777 */
+	vput(vp);
+	if (error)
+		return (error);
 	error = copyout((caddr_t)&sb, (caddr_t)SCARG(uap, ub), sizeof (sb));
 	return (error);
 }

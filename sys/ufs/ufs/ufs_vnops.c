@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.47 1997/03/09 06:10:36 mpp Exp $
+ * $Id: ufs_vnops.c,v 1.48 1997/03/22 06:53:45 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -2128,10 +2128,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	}
 	ip = VTOI(tvp);
 	ip->i_gid = pdir->i_gid;
-	if ((mode & IFMT) == IFLNK)
-		ip->i_uid = pdir->i_uid;
-	else
-		ip->i_uid = cnp->cn_cred->cr_uid;
+	ip->i_uid = cnp->cn_cred->cr_uid;
 #ifdef QUOTA
 	if ((error = getinoquota(ip)) ||
 	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
