@@ -231,7 +231,7 @@ cmd_attach(const struct g_bde_softc *sc, const char *dest, const char *lfile)
 	gcg.class.len = strlen(gcg.class.u.name);
 	gcg.provider.u.name = dest;
 	gcg.provider.len = strlen(gcg.provider.u.name);
-	gcg.flag = 0;
+	gcg.flag = GCFG_CREATE;
 	gcg.len = sizeof buf;
 	gcg.ptr = buf;
 	
@@ -266,7 +266,7 @@ cmd_detach(const char *dest)
 	gcg.class.len = strlen(gcg.class.u.name);
 	gcg.provider.u.name = dest;
 	gcg.provider.len = strlen(gcg.provider.u.name);
-	gcg.flag = 1;
+	gcg.flag = GCFG_DISMANTLE;
 	
 	i = ioctl(gfd, GEOMCONFIGGEOM, &gcg);
 	if (i != 0)
@@ -721,8 +721,7 @@ main(int argc, char **argv)
 			if (!*optarg || *q)
 				usage("-n argument not numeric\n");
 			if (n_opt < -1 || n_opt > G_BDE_MAXKEYS)
-				usage("-n argument out of range\n");
-			break;
+				usage("-n argument out of range\n"); break;
 		default:
 			usage("Invalid option\n");
 		}
@@ -743,7 +742,7 @@ main(int argc, char **argv)
 	}
 
 	memset(&sc, 0, sizeof sc);
-	sc.consumer = (struct g_consumer *)&dfd;
+	sc.consumer = (void *)&dfd;
 	gl = &sc.key;
 	switch(action) {
 	case ACT_ATTACH:
