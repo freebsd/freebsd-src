@@ -1427,8 +1427,6 @@ fwohci_itxbuf_enable(struct firewire_comm *fc, int dmach)
 	int err = 0;
 	unsigned short tag, ich;
 	struct fwohci_dbch *dbch;
-	struct fw_pkt *fp;
-	struct fwohcidb_tr *db_tr;
 	int cycle_now, sec, cycle, cycle_match;
 	u_int32_t stat;
 
@@ -1495,12 +1493,17 @@ fwohci_itxbuf_enable(struct firewire_comm *fc, int dmach)
 			(dbch->xferq.stdma->start))->db) | dbch->ndesc);
 #define CYCLE_OFFSET	1
 	if ((stat & OHCI_CNTL_DMA_RUN) == 0) {
+#ifdef FWXFERQ_DV
 		if(dbch->xferq.flag & FWXFERQ_DV){
+			struct fw_pkt *fp;
+			struct fwohcidb_tr *db_tr;
+
 			db_tr = (struct fwohcidb_tr *)dbch->xferq.stdma->start;
 			fp = (struct fw_pkt *)db_tr->buf;
 			dbch->xferq.dvoffset = CYCLE_OFFSET;
 			fp->mode.ld[2] |= htonl(dbch->xferq.dvoffset << 12);
 		}
+#endif
 		/* 2bit second + 13bit cycle */
 		cycle_now = (fc->cyctimer(fc) >> 12) & 0x7fff;
 		cycle = cycle_now & 0x1fff;
@@ -1963,7 +1966,6 @@ fwohci_tbuf_update(struct fwohci_softc *sc, int dmach)
 {
 	int stat;
 	struct firewire_comm *fc = &sc->fc;
-	struct fw_pkt *fp;
 	struct fwohci_dbch *dbch;
 	struct fwohcidb_tr *db_tr;
 
@@ -1994,11 +1996,12 @@ fwohci_tbuf_update(struct fwohci_softc *sc, int dmach)
 	stat = OREAD(sc, OHCI_ITCTL(dmach)) & 0x1f;
 	switch(stat){
 	case FWOHCIEV_ACKCOMPL:
-#if 1
+#ifdef FWXFERQ_DV
 	if (dbch->xferq.flag & FWXFERQ_DV) {
 		struct ciphdr *ciph;
 		int timer, timestamp, cycl, diff;
 		static int last_timer=0;
+		struct fw_pkt *fp;
 
 		timer = (fc->cyctimer(fc) >> 12) & 0xffff;
 		db_tr = (struct fwohcidb_tr *)dbch->xferq.stdma->start;

@@ -127,11 +127,8 @@ static driver_t firewire_driver = {
 int
 fw_tbuf_update(struct firewire_comm *fc, int sub, int flag){
 	struct fw_bulkxfer *bulkxfer, *bulkxfer2 = NULL;
-	struct fw_dvbuf *dvbuf = NULL;
 	struct fw_xferq *it;
-	int s, err = 0, i, j, chtag;
-	struct fw_pkt *fp;
-	u_int64_t cycle, dvsync;
+	int s, err = 0;
 
 	it = fc->it[sub];
 	
@@ -144,7 +141,9 @@ fw_tbuf_update(struct firewire_comm *fc, int sub, int flag){
 			STAILQ_REMOVE_HEAD(&it->stvalid, link);
 			it->stdma->flag = 0;
 			STAILQ_INSERT_TAIL(&it->stfree, it->stdma, link);
+#ifdef FWXFERQ_DV
 			if(!(it->flag & FWXFERQ_DV))
+#endif
 				wakeup(it);
 		}
 		bulkxfer = STAILQ_FIRST(&it->stvalid);
@@ -166,7 +165,13 @@ fw_tbuf_update(struct firewire_comm *fc, int sub, int flag){
 	it->stdma = bulkxfer;
 	it->stdma2 = bulkxfer2;
 
+#ifdef FWXFERQ_DV
 	if(it->flag & FWXFERQ_DV){
+		struct fw_dvbuf *dvbuf = NULL;
+		int i, j, chtag;
+		struct fw_pkt *fp;
+		u_int64_t cycle, dvsync;
+
 		chtag = it->flag & 0xff;
 dvloop:
 		if(it->dvdma == NULL){
@@ -245,6 +250,7 @@ dvloop:
 		}
 	}
 out:
+#endif
 	splx(s);
 	return err;
 }
