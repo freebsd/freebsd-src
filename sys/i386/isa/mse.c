@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.21 1995/12/08 23:20:35 phk Exp $
+ * $Id: mse.c,v 1.22 1995/12/10 13:39:00 phk Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -55,7 +55,6 @@
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <sys/devconf.h>
-#include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
