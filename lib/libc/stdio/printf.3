@@ -36,7 +36,7 @@
 .\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 18, 2004
+.Dd October 16, 2004
 .Dt PRINTF 3
 .Os
 .Sh NAME
@@ -365,6 +365,8 @@ or
 conversion:
 .Bl -column ".Sy Modifier" ".Cm a , A , e , E , f , F , g , G"
 .It Sy Modifier Ta Cm a , A , e , E , f , F , g , G
+.It Cm l No (ell) Ta Vt double
+(ignored, same behavior as without it)
 .It Cm L Ta Vt "long double"
 .El
 .Pp
