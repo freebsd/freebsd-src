@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/mii/miidevs,v 1.10 2001/03/12 02:27:10 jlemon Exp 
+ *	FreeBSD: src/sys/dev/mii/miidevs,v 1.12 2001/05/11 19:56:36 wpaul Exp 
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -143,6 +143,10 @@
 #define	MII_STR_NATSEMI_DP83840	"DP83840 10/100 media interface"
 #define	MII_MODEL_NATSEMI_DP83843	0x0001
 #define	MII_STR_NATSEMI_DP83843	"DP83843 10/100 media interface"
+#define	MII_MODEL_NATSEMI_DP83891	0x0005
+#define	MII_STR_NATSEMI_DP83891	"DP83891 10/100/1000 media interface"
+#define	MII_MODEL_NATSEMI_DP83861	0x0006
+#define	MII_STR_NATSEMI_DP83861	"DP83861 10/100/1000 media interface"
 
 /* Quality Semiconductor PHYs */
 #define	MII_MODEL_QUALSEMI_QS6612	0x0000
