@@ -247,19 +247,6 @@ static dpt_sig_S ASR_sig = {
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
-#define	STATIC static
-#define	INLINE
-
-#if (defined(DEBUG_ASR) && (DEBUG_ASR > 0))
-#undef STATIC
-#define STATIC
-#undef INLINE
-#define INLINE
-#endif
-#define	IN
-#define	OUT
-#define	INOUT
-
 #define	osdSwap4(x) ((u_long)ntohl((u_long)(x)))
 #define	KVTOPHYS(x) vtophys(x)
 #include	"dev/asr/dptalign.h"
@@ -377,114 +364,95 @@ typedef struct Asr_softc {
 	struct Asr_softc      * ha_next;       /* HBA list */
 } Asr_softc_t;
 
-STATIC Asr_softc_t * Asr_softc;
+static Asr_softc_t * Asr_softc;
 
 /*
  *	Prototypes of the routines we have in this object.
  */
 
 /* Externally callable routines */
-#define	PROBE_ARGS  IN device_t tag
+#define	PROBE_ARGS  device_t tag
 #define	PROBE_RET   int
 #define	PROBE_SET() u_int32_t id = (pci_get_device(tag)<<16)|pci_get_vendor(tag)
 #define	PROBE_RETURN(retval) if(retval){device_set_desc(tag,retval);return(0);}else{return(ENXIO);}
-#define	ATTACH_ARGS IN device_t tag
+#define	ATTACH_ARGS device_t tag
 #define	ATTACH_RET  int
 #define	ATTACH_SET() int unit = device_get_unit(tag)
 #define	ATTACH_RETURN(retval) return(retval)
 /* I2O HDM interface */
-STATIC PROBE_RET      asr_probe(PROBE_ARGS);
-STATIC ATTACH_RET     asr_attach(ATTACH_ARGS);
+static PROBE_RET      asr_probe(PROBE_ARGS);
+static ATTACH_RET     asr_attach(ATTACH_ARGS);
 /* DOMINO placeholder */
-STATIC PROBE_RET      domino_probe(PROBE_ARGS);
-STATIC ATTACH_RET     domino_attach(ATTACH_ARGS);
+static PROBE_RET      domino_probe(PROBE_ARGS);
+static ATTACH_RET     domino_attach(ATTACH_ARGS);
 /* MODE0 adapter placeholder */
-STATIC PROBE_RET      mode0_probe(PROBE_ARGS);
-STATIC ATTACH_RET     mode0_attach(ATTACH_ARGS);
+static PROBE_RET      mode0_probe(PROBE_ARGS);
+static ATTACH_RET     mode0_attach(ATTACH_ARGS);
 
-STATIC Asr_softc_t  * ASR_get_sc(
-			IN dev_t dev);
-STATIC int	      asr_ioctl(
-			IN dev_t      dev,
-			IN u_long     cmd,
-			INOUT caddr_t data,
-			int	      flag,
-			struct thread * td);
-STATIC int	      asr_open(
-			IN dev_t	 dev,
-			int32_t		 flags,
-			int32_t		 ifmt,
-			IN struct thread * td);
-STATIC int	      asr_close(
-			dev_t	      dev,
-			int	      flags,
-			int	      ifmt,
-			struct thread * td);
-STATIC int	      asr_intr(
-			IN Asr_softc_t * sc);
-STATIC void	      asr_timeout(
-			INOUT void * arg);
-STATIC int	      ASR_init(
-			IN Asr_softc_t * sc);
-STATIC INLINE int     ASR_acquireLct(
-			INOUT Asr_softc_t * sc);
-STATIC INLINE int     ASR_acquireHrt(
-			INOUT Asr_softc_t * sc);
-STATIC void	      asr_action(
-			IN struct cam_sim * sim,
-			IN union ccb	  * ccb);
-STATIC void	      asr_poll(
-			IN struct cam_sim * sim);
+static Asr_softc_t *ASR_get_sc(dev_t dev);
+static int	asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag,
+			  struct thread *td);
+static int	asr_open(dev_t dev, int32_t flags, int32_t ifmt,
+			 struct thread *td);
+static int	asr_close(dev_t dev, int flags, int ifmt, struct thread *td);
+static int	asr_intr(Asr_softc_t *sc);
+static void	asr_timeout(void *arg);
+static int	ASR_init(Asr_softc_t *sc);
+static int	ASR_acquireLct(Asr_softc_t *sc);
+static int	ASR_acquireHrt(Asr_softc_t *sc);
+static void	asr_action(struct cam_sim *sim, union ccb *ccb);
+static void	asr_poll(struct cam_sim *sim);
+static int	ASR_queue(Asr_softc_t *sc, PI2O_MESSAGE_FRAME Message);
 
 /*
  *	Here is the auto-probe structure used to nest our tests appropriately
  *	during the startup phase of the operating system.
  */
-STATIC device_method_t asr_methods[] = {
+static device_method_t asr_methods[] = {
 	DEVMETHOD(device_probe,	 asr_probe),
 	DEVMETHOD(device_attach, asr_attach),
 	{ 0, 0 }
 };
 
-STATIC driver_t asr_driver = {
+static driver_t asr_driver = {
 	"asr",
 	asr_methods,
 	sizeof(Asr_softc_t)
 };
 
-STATIC devclass_t asr_devclass;
+static devclass_t asr_devclass;
 
 DRIVER_MODULE(asr, pci, asr_driver, asr_devclass, 0, 0);
 
-STATIC device_method_t domino_methods[] = {
+static device_method_t domino_methods[] = {
 	DEVMETHOD(device_probe,	 domino_probe),
 	DEVMETHOD(device_attach, domino_attach),
 	{ 0, 0 }
 };
 
-STATIC driver_t domino_driver = {
+static driver_t domino_driver = {
 	"domino",
 	domino_methods,
 	0
 };
 
-STATIC devclass_t domino_devclass;
+static devclass_t domino_devclass;
 
 DRIVER_MODULE(domino, pci, domino_driver, domino_devclass, 0, 0);
 
-STATIC device_method_t mode0_methods[] = {
+static device_method_t mode0_methods[] = {
 	DEVMETHOD(device_probe,	 mode0_probe),
 	DEVMETHOD(device_attach, mode0_attach),
 	{ 0, 0 }
 };
 
-STATIC driver_t mode0_driver = {
+static driver_t mode0_driver = {
 	"mode0",
 	mode0_methods,
 	0
 };
 
-STATIC devclass_t mode0_devclass;
+static devclass_t mode0_devclass;
 
 DRIVER_MODULE(mode0, pci, mode0_driver, mode0_devclass, 0, 0);
 
@@ -494,7 +462,7 @@ DRIVER_MODULE(mode0, pci, mode0_driver, mode0_devclass, 0, 0);
  * only ioctl is used. the sd driver provides all other access.
  */
 #define	CDEV_MAJOR 154	 /* preferred default character major */
-STATIC struct cdevsw asr_cdevsw = {
+static struct cdevsw asr_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
 	.d_open =	asr_open,
@@ -511,12 +479,10 @@ STATIC struct cdevsw asr_cdevsw = {
 /*
  *	Fill message with default.
  */
-STATIC PI2O_MESSAGE_FRAME
-ASR_fillMessage (
-	IN char		     * Message,
-	IN u_int16_t	       size)
+static PI2O_MESSAGE_FRAME
+ASR_fillMessage(char *Message, u_int16_t size)
 {
-	OUT PI2O_MESSAGE_FRAME Message_Ptr;
+	PI2O_MESSAGE_FRAME Message_Ptr;
 
 	Message_Ptr = getAlignLong(I2O_MESSAGE_FRAME, Message);
 	bzero ((void *)Message_Ptr, size);
@@ -529,11 +495,10 @@ ASR_fillMessage (
 
 #define	EMPTY_QUEUE ((U32)-1L)
 
-STATIC INLINE U32
-ASR_getMessage(
-	IN i2oRegs_t * virt)
+static __inline U32
+ASR_getMessage(i2oRegs_t *virt)
 {
-	OUT U32	       MessageOffset;
+	U32	MessageOffset;
 
 	if ((MessageOffset = virt->ToFIFO) == EMPTY_QUEUE) {
 		MessageOffset = virt->ToFIFO;
@@ -542,15 +507,12 @@ ASR_getMessage(
 } /* ASR_getMessage */
 
 /* Issue a polled command */
-STATIC U32
-ASR_initiateCp (
-	INOUT i2oRegs_t	    * virt,
-	INOUT U8	    * fvirt,
-	IN PI2O_MESSAGE_FRAME Message)
+static U32
+ASR_initiateCp(i2oRegs_t *virt, U8 *fvirt, PI2O_MESSAGE_FRAME Message)
 {
-	OUT U32		      Mask = -1L;
-	U32		      MessageOffset;
-	u_int		      Delay = 1500;
+	U32	Mask = -1L;
+	U32	MessageOffset;
+	u_int	Delay = 1500;
 
 	/*
 	 * ASR_initiateCp is only used for synchronous commands and will
@@ -576,10 +538,8 @@ ASR_initiateCp (
 /*
  *	Reset the adapter.
  */
-STATIC U32
-ASR_resetIOP (
-	INOUT i2oRegs_t		       * virt,
-	INOUT U8		       * fvirt)
+static U32
+ASR_resetIOP(i2oRegs_t *virt, U8 *fvirt)
 {
 	struct resetMessage {
 		I2O_EXEC_IOP_RESET_MESSAGE M;
@@ -587,7 +547,7 @@ ASR_resetIOP (
 	};
 	defAlignLong(struct resetMessage,Message);
 	PI2O_EXEC_IOP_RESET_MESSAGE	 Message_Ptr;
-	OUT U32		      * volatile Reply_Ptr;
+	U32		      * volatile Reply_Ptr;
 	U32				 Old;
 
 	/*
@@ -630,11 +590,8 @@ ASR_resetIOP (
 /*
  *	Get the curent state of the adapter
  */
-STATIC INLINE PI2O_EXEC_STATUS_GET_REPLY
-ASR_getStatus (
-	INOUT i2oRegs_t *			 virt,
-	INOUT U8 *				 fvirt,
-	OUT PI2O_EXEC_STATUS_GET_REPLY		 buffer)
+static PI2O_EXEC_STATUS_GET_REPLY
+ASR_getStatus(i2oRegs_t *virt, U8 *fvirt, PI2O_EXEC_STATUS_GET_REPLY buffer)
 {
 	defAlignLong(I2O_EXEC_STATUS_GET_MESSAGE,Message);
 	PI2O_EXEC_STATUS_GET_MESSAGE		 Message_Ptr;
@@ -690,7 +647,7 @@ ASR_getStatus (
  * Probe for ASR controller.  If we find it, we will use it.
  * virtual adapters.
  */
-STATIC PROBE_RET
+static PROBE_RET
 asr_probe(PROBE_ARGS)
 {
 	PROBE_SET();
@@ -703,7 +660,7 @@ asr_probe(PROBE_ARGS)
 /*
  * Probe/Attach for DOMINO chipset.
  */
-STATIC PROBE_RET
+static PROBE_RET
 domino_probe(PROBE_ARGS)
 {
 	PROBE_SET();
@@ -713,7 +670,7 @@ domino_probe(PROBE_ARGS)
 	PROBE_RETURN (NULL);
 } /* domino_probe */
 
-STATIC ATTACH_RET
+static ATTACH_RET
 domino_attach (ATTACH_ARGS)
 {
 	ATTACH_RETURN (0);
@@ -722,7 +679,7 @@ domino_attach (ATTACH_ARGS)
 /*
  * Probe/Attach for MODE0 adapters.
  */
-STATIC PROBE_RET
+static PROBE_RET
 mode0_probe(PROBE_ARGS)
 {
 	PROBE_SET();
@@ -757,17 +714,16 @@ mode0_probe(PROBE_ARGS)
 	PROBE_RETURN (NULL);
 } /* mode0_probe */
 
-STATIC ATTACH_RET
-mode0_attach (ATTACH_ARGS)
+static ATTACH_RET
+mode0_attach(ATTACH_ARGS)
 {
 	ATTACH_RETURN (0);
 } /* mode0_attach */
 
-STATIC INLINE union asr_ccb *
-asr_alloc_ccb (
-	IN Asr_softc_t	  * sc)
+static __inline union asr_ccb *
+asr_alloc_ccb(Asr_softc_t *sc)
 {
-	OUT union asr_ccb * new_ccb;
+	union asr_ccb *new_ccb;
 
 	if ((new_ccb = (union asr_ccb *)malloc(sizeof(*new_ccb),
 	  M_DEVBUF, M_WAITOK | M_ZERO)) != NULL) {
@@ -778,9 +734,8 @@ asr_alloc_ccb (
 	return (new_ccb);
 } /* asr_alloc_ccb */
 
-STATIC INLINE void
-asr_free_ccb (
-	IN union asr_ccb * free_ccb)
+static __inline void
+asr_free_ccb(union asr_ccb *free_ccb)
 {
 	free(free_ccb, M_DEVBUF);
 } /* asr_free_ccb */
@@ -788,10 +743,8 @@ asr_free_ccb (
 /*
  *	Print inquiry data `carefully'
  */
-STATIC void
-ASR_prstring (
-	u_int8_t * s,
-	int	   len)
+static void
+ASR_prstring(u_int8_t *s, int len)
 {
 	while ((--len >= 0) && (*s) && (*s != ' ') && (*s != '-')) {
 		printf ("%c", *(s++));
@@ -799,22 +752,14 @@ ASR_prstring (
 } /* ASR_prstring */
 
 /*
- * Prototypes
- */
-STATIC INLINE int ASR_queue(
-	IN Asr_softc_t		   * sc,
-	IN PI2O_MESSAGE_FRAME Message);
-/*
  *	Send a message synchronously and without Interrupt to a ccb.
  */
-STATIC int
-ASR_queue_s (
-	INOUT union asr_ccb * ccb,
-	IN PI2O_MESSAGE_FRAME Message)
+static int
+ASR_queue_s(union asr_ccb *ccb, PI2O_MESSAGE_FRAME Message)
 {
-	int		      s;
-	U32		      Mask;
-	Asr_softc_t	    * sc = (Asr_softc_t *)(ccb->ccb_h.spriv_ptr0);
+	int		s;
+	U32		Mask;
+	Asr_softc_t	*sc = (Asr_softc_t *)(ccb->ccb_h.spriv_ptr0);
 
 	/*
 	 * We do not need any (optional byteswapping) method access to
@@ -849,13 +794,11 @@ ASR_queue_s (
 /*
  *	Send a message synchronously to an Asr_softc_t.
  */
-STATIC int
-ASR_queue_c (
-	IN Asr_softc_t	    * sc,
-	IN PI2O_MESSAGE_FRAME Message)
+static int
+ASR_queue_c(Asr_softc_t *sc, PI2O_MESSAGE_FRAME Message)
 {
-	union asr_ccb	    * ccb;
-	OUT int		      status;
+	union asr_ccb	*ccb;
+	int		status;
 
 	if ((ccb = asr_alloc_ccb (sc)) == NULL) {
 		return (CAM_REQUEUE_REQ);
@@ -871,10 +814,8 @@ ASR_queue_c (
 /*
  *	Add the specified ccb to the active queue
  */
-STATIC INLINE void
-ASR_ccbAdd (
-	IN Asr_softc_t	    * sc,
-	INOUT union asr_ccb * ccb)
+static __inline void
+ASR_ccbAdd(Asr_softc_t *sc, union asr_ccb *ccb)
 {
 	int s;
 
@@ -898,10 +839,8 @@ ASR_ccbAdd (
 /*
  *	Remove the specified ccb from the active queue.
  */
-STATIC INLINE void
-ASR_ccbRemove (
-	IN Asr_softc_t	    * sc,
-	INOUT union asr_ccb * ccb)
+static __inline void
+ASR_ccbRemove(Asr_softc_t *sc, union asr_ccb *ccb)
 {
 	int s;
 
@@ -915,12 +854,11 @@ ASR_ccbRemove (
  *	Fail all the active commands, so they get re-issued by the operating
  *	system.
  */
-STATIC INLINE void
-ASR_failActiveCommands (
-	IN Asr_softc_t			       * sc)
+static void
+ASR_failActiveCommands(Asr_softc_t *sc)
 {
-	struct ccb_hdr			       * ccb;
-	int					 s;
+	struct ccb_hdr	*ccb;
+	int		s;
 
 	s = splcam();
 	/*
@@ -954,10 +892,8 @@ ASR_failActiveCommands (
 /*
  *	The following command causes the HBA to reset the specific bus
  */
-STATIC INLINE void
-ASR_resetBus(
-	IN Asr_softc_t			     * sc,
-	IN int				       bus)
+static void
+ASR_resetBus(Asr_softc_t *sc, int bus)
 {
 	defAlignLong(I2O_HBA_BUS_RESET_MESSAGE,Message);
 	I2O_HBA_BUS_RESET_MESSAGE	     * Message_Ptr;
@@ -982,9 +918,8 @@ ASR_resetBus(
 	}
 } /* ASR_resetBus */
 
-STATIC INLINE int
-ASR_getBlinkLedCode (
-	IN Asr_softc_t * sc)
+static __inline int
+ASR_getBlinkLedCode(Asr_softc_t *sc)
 {
 	if ((sc != NULL)
 	 && (sc->ha_blinkLED != NULL)
@@ -1003,17 +938,12 @@ ASR_getBlinkLedCode (
  *
  *	All addressible entries are to be guaranteed zero if never initialized.
  */
-STATIC INLINE tid_t *
-ASR_getTidAddress(
-	INOUT Asr_softc_t * sc,
-	IN int		    bus,
-	IN int		    target,
-	IN int		    lun,
-	IN int		    new_entry)
+static tid_t *
+ASR_getTidAddress(Asr_softc_t *sc, int bus, int target, int lun, int new_entry)
 {
-	target2lun_t	  * bus_ptr;
-	lun2tid_t	  * target_ptr;
-	unsigned	    new_size;
+	target2lun_t	*bus_ptr;
+	lun2tid_t	*target_ptr;
+	unsigned	new_size;
 
 	/*
 	 *	Validity checking of incoming parameters. More of a bound
@@ -1146,16 +1076,12 @@ ASR_getTidAddress(
  *
  *	should use mutex rather than spl.
  */
-STATIC INLINE tid_t
-ASR_getTid (
-	IN Asr_softc_t * sc,
-	IN int		 bus,
-	IN int		 target,
-	IN int		 lun)
+static __inline tid_t
+ASR_getTid(Asr_softc_t *sc, int bus, int target, int lun)
 {
-	tid_t	       * tid_ptr;
-	int		 s;
-	OUT tid_t	 retval;
+	tid_t	*tid_ptr;
+	int	s;
+	tid_t	retval;
 
 	s = splcam();
 	if (((tid_ptr = ASR_getTidAddress(sc, bus, target, lun, FALSE)) == NULL)
@@ -1176,23 +1102,18 @@ ASR_getTid (
  *
  *	should use mutex rather than spl.
  */
-STATIC INLINE tid_t
-ASR_setTid (
-	INOUT Asr_softc_t * sc,
-	IN int		    bus,
-	IN int		    target,
-	IN int		    lun,
-	INOUT tid_t	    TID)
+static __inline tid_t
+ASR_setTid(Asr_softc_t *sc, int bus, int target, int lun, tid_t	TID)
 {
-	tid_t		  * tid_ptr;
-	int		    s;
+	tid_t	*tid_ptr;
+	int	s;
 
 	if (TID != (tid_t)-1) {
 		if (TID == 0) {
 			return ((tid_t)-1);
 		}
 		s = splcam();
-		if ((tid_ptr = ASR_getTidAddress (sc, bus, target, lun, TRUE))
+		if ((tid_ptr = ASR_getTidAddress(sc, bus, target, lun, TRUE))
 		 == NULL) {
 			splx(s);
 			return ((tid_t)-1);
@@ -1214,12 +1135,11 @@ ASR_setTid (
 /* Return : 0 For OK, Error Code Otherwise				   */
 /*-------------------------------------------------------------------------*/
 
-STATIC INLINE int
-ASR_rescan(
-	IN Asr_softc_t * sc)
+static int
+ASR_rescan(Asr_softc_t *sc)
 {
-	int		 bus;
-	OUT int		 error;
+	int bus;
+	int error;
 
 	/*
 	 * Re-acquire the LCT table and synchronize us to the adapter.
@@ -1356,11 +1276,10 @@ ASR_rescan(
 /* Return : None							   */
 /*-------------------------------------------------------------------------*/
 
-STATIC INLINE int
-ASR_reset(
-	IN Asr_softc_t * sc)
+static int
+ASR_reset(Asr_softc_t *sc)
 {
-	int		 s, retVal;
+	int s, retVal;
 
 	s = splcam();
 	if ((sc->ha_in_reset == HA_IN_RESET)
@@ -1411,12 +1330,11 @@ ASR_reset(
 /*
  *	Device timeout handler.
  */
-STATIC void
-asr_timeout(
-	INOUT void  * arg)
+static void
+asr_timeout(void *arg)
 {
-	union asr_ccb * ccb = (union asr_ccb *)arg;
-	Asr_softc_t   * sc = (Asr_softc_t *)(ccb->ccb_h.spriv_ptr0);
+	union asr_ccb	*ccb = (union asr_ccb *)arg;
+	Asr_softc_t	*sc = (Asr_softc_t *)(ccb->ccb_h.spriv_ptr0);
 	int		s;
 
 	debug_asr_print_path(ccb);
@@ -1468,13 +1386,11 @@ asr_timeout(
 /*
  * send a message asynchronously
  */
-STATIC INLINE int
-ASR_queue(
-	IN Asr_softc_t	    * sc,
-	IN PI2O_MESSAGE_FRAME Message)
+static int
+ASR_queue(Asr_softc_t *sc, PI2O_MESSAGE_FRAME Message)
 {
-	OUT U32		      MessageOffset;
-	union asr_ccb	    * ccb;
+	U32		MessageOffset;
+	union asr_ccb	*ccb;
 
 	debug_asr_printf ("Host Command Dump:\n");
 	debug_asr_dump_message (Message);
@@ -1496,7 +1412,7 @@ ASR_queue(
 			 *	Unlikely we can do anything if we can't grab a
 			 * message frame :-(, but lets give it a try.
 			 */
-			(void)ASR_reset (sc);
+			(void)ASR_reset(sc);
 		}
 	}
 	return (MessageOffset);
@@ -1519,18 +1435,14 @@ ASR_queue(
  *	Retrieve Parameter Group.
  *		Buffer must be allocated using defAlignLong macro.
  */
-STATIC void *
-ASR_getParams(
-	IN Asr_softc_t			   * sc,
-	IN tid_t			     TID,
-	IN int				     Group,
-	OUT void			   * Buffer,
-	IN unsigned			     BufferSize)
+static void *
+ASR_getParams(Asr_softc_t *sc, tid_t TID, int Group, void *Buffer,
+	      unsigned BufferSize)
 {
 	struct paramGetMessage {
 		I2O_UTIL_PARAMS_GET_MESSAGE M;
-		char			     F[
-		  sizeof(I2O_SGE_SIMPLE_ELEMENT)*2 - sizeof(I2O_SG_ELEMENT)];
+		char
+		   F[sizeof(I2O_SGE_SIMPLE_ELEMENT)*2 - sizeof(I2O_SG_ELEMENT)];
 		struct Operations {
 			I2O_PARAM_OPERATIONS_LIST_HEADER Header;
 			I2O_PARAM_OPERATION_ALL_TEMPLATE Template[1];
@@ -1591,17 +1503,16 @@ ASR_getParams(
 /*
  *	Acquire the LCT information.
  */
-STATIC INLINE int
-ASR_acquireLct (
-	INOUT Asr_softc_t	   * sc)
+static int
+ASR_acquireLct(Asr_softc_t *sc)
 {
-	PI2O_EXEC_LCT_NOTIFY_MESSAGE Message_Ptr;
-	PI2O_SGE_SIMPLE_ELEMENT	     sg;
-	int			     MessageSizeInBytes;
-	caddr_t			     v;
-	int			     len;
-	I2O_LCT			     Table;
-	PI2O_LCT_ENTRY		     Entry;
+	PI2O_EXEC_LCT_NOTIFY_MESSAGE	Message_Ptr;
+	PI2O_SGE_SIMPLE_ELEMENT		sg;
+	int				MessageSizeInBytes;
+	caddr_t				v;
+	int				len;
+	I2O_LCT				Table;
+	PI2O_LCT_ENTRY			Entry;
 
 	/*
 	 *	sc value assumed valid
@@ -1845,56 +1756,52 @@ ASR_acquireLct (
  * We assume that the CDB has already been set up, so all we do here is
  * generate the Scatter Gather list.
  */
-STATIC INLINE PI2O_MESSAGE_FRAME
-ASR_init_message(
-	IN union asr_ccb      * ccb,
-	OUT PI2O_MESSAGE_FRAME	Message)
+static PI2O_MESSAGE_FRAME
+ASR_init_message(union asr_ccb *ccb, PI2O_MESSAGE_FRAME	Message)
 {
-	int			next, span, base, rw;
-	OUT PI2O_MESSAGE_FRAME	Message_Ptr;
-	Asr_softc_t	      * sc = (Asr_softc_t *)(ccb->ccb_h.spriv_ptr0);
+	PI2O_MESSAGE_FRAME	Message_Ptr;
 	PI2O_SGE_SIMPLE_ELEMENT sg;
-	caddr_t			v;
+	Asr_softc_t		*sc = (Asr_softc_t *)(ccb->ccb_h.spriv_ptr0);
 	vm_size_t		size, len;
+	caddr_t			v;
 	U32			MessageSize;
+	int			next, span, base, rw;
+	int			target = ccb->ccb_h.target_id;
+	int			lun = ccb->ccb_h.target_lun;
+	int			bus =cam_sim_bus(xpt_path_sim(ccb->ccb_h.path));
+	tid_t			TID;
 
 	/* We only need to zero out the PRIVATE_SCSI_SCB_EXECUTE_MESSAGE */
-	bzero (Message_Ptr = getAlignLong(I2O_MESSAGE_FRAME, Message),
-	  (sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE) - sizeof(I2O_SG_ELEMENT)));
+	Message_Ptr = getAlignLong(I2O_MESSAGE_FRAME, Message);
+	bzero(Message_Ptr, (sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE) -
+	      sizeof(I2O_SG_ELEMENT)));
 
-	{
-		int   target = ccb->ccb_h.target_id;
-		int   lun = ccb->ccb_h.target_lun;
-		int   bus = cam_sim_bus(xpt_path_sim(ccb->ccb_h.path));
-		tid_t TID;
+	if ((TID = ASR_getTid (sc, bus, target, lun)) == (tid_t)-1) {
+		PI2O_LCT_ENTRY Device;
 
-		if ((TID = ASR_getTid (sc, bus, target, lun)) == (tid_t)-1) {
-			PI2O_LCT_ENTRY Device;
-
-			TID = (tid_t)0;
-			for (Device = sc->ha_LCT->LCTEntry; Device < (PI2O_LCT_ENTRY)
-			  (((U32 *)sc->ha_LCT)+I2O_LCT_getTableSize(sc->ha_LCT));
-			  ++Device) {
-				if ((Device->le_type != I2O_UNKNOWN)
-				 && (Device->le_bus == bus)
-				 && (Device->le_target == target)
-				 && (Device->le_lun == lun)
-				 && (I2O_LCT_ENTRY_getUserTID(Device) == 0xFFF)) {
-					TID = I2O_LCT_ENTRY_getLocalTID(Device);
-					ASR_setTid (sc, Device->le_bus,
-					  Device->le_target, Device->le_lun,
-					  TID);
-					break;
-				}
+		TID = 0;
+		for (Device = sc->ha_LCT->LCTEntry; Device < (PI2O_LCT_ENTRY)
+		    (((U32 *)sc->ha_LCT) + I2O_LCT_getTableSize(sc->ha_LCT));
+		    ++Device) {
+			if ((Device->le_type != I2O_UNKNOWN)
+			 && (Device->le_bus == bus)
+			 && (Device->le_target == target)
+			 && (Device->le_lun == lun)
+			 && (I2O_LCT_ENTRY_getUserTID(Device) == 0xFFF)) {
+				TID = I2O_LCT_ENTRY_getLocalTID(Device);
+				ASR_setTid(sc, Device->le_bus,
+					   Device->le_target, Device->le_lun,
+					   TID);
+				break;
 			}
 		}
-		if (TID == (tid_t)0) {
-			return (NULL);
-		}
-		I2O_MESSAGE_FRAME_setTargetAddress(Message_Ptr, TID);
-		PRIVATE_SCSI_SCB_EXECUTE_MESSAGE_setTID(
-		  (PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE)Message_Ptr, TID);
 	}
+	if (TID == (tid_t)0) {
+		return (NULL);
+	}
+	I2O_MESSAGE_FRAME_setTargetAddress(Message_Ptr, TID);
+	PRIVATE_SCSI_SCB_EXECUTE_MESSAGE_setTID(
+	    (PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE)Message_Ptr, TID);
 	I2O_MESSAGE_FRAME_setVersionOffset(Message_Ptr, I2O_VERSION_11 |
 	  (((sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE) - sizeof(I2O_SG_ELEMENT))
 		/ sizeof(U32)) << 4));
@@ -2001,9 +1908,8 @@ ASR_init_message(
 /*
  *	Reset the adapter.
  */
-STATIC INLINE U32
-ASR_initOutBound (
-	INOUT Asr_softc_t		      * sc)
+static U32
+ASR_initOutBound(Asr_softc_t *sc)
 {
 	struct initOutBoundMessage {
 		I2O_EXEC_OUTBOUND_INIT_MESSAGE M;
@@ -2011,7 +1917,7 @@ ASR_initOutBound (
 	};
 	defAlignLong(struct initOutBoundMessage,Message);
 	PI2O_EXEC_OUTBOUND_INIT_MESSAGE		Message_Ptr;
-	OUT U32			     * volatile Reply_Ptr;
+	U32			     * volatile Reply_Ptr;
 	U32					Old;
 
 	/*
@@ -2081,9 +1987,8 @@ ASR_initOutBound (
 /*
  *	Set the system table
  */
-STATIC INLINE int
-ASR_setSysTab(
-	IN Asr_softc_t		    * sc)
+static int
+ASR_setSysTab(Asr_softc_t *sc)
 {
 	PI2O_EXEC_SYS_TAB_SET_MESSAGE Message_Ptr;
 	PI2O_SET_SYSTAB_HEADER	      SystemTable;
@@ -2143,9 +2048,8 @@ ASR_setSysTab(
 	return (retVal);
 } /* ASR_setSysTab */
 
-STATIC INLINE int
-ASR_acquireHrt (
-	INOUT Asr_softc_t		    * sc)
+static int
+ASR_acquireHrt(Asr_softc_t *sc)
 {
 	defAlignLong(I2O_EXEC_HRT_GET_MESSAGE,Message);
 	I2O_EXEC_HRT_GET_MESSAGE *	      Message_Ptr;
@@ -2205,9 +2109,8 @@ ASR_acquireHrt (
 /*
  *	Enable the adapter.
  */
-STATIC INLINE int
-ASR_enableSys (
-	IN Asr_softc_t			       * sc)
+static int
+ASR_enableSys(Asr_softc_t *sc)
 {
 	defAlignLong(I2O_EXEC_SYS_ENABLE_MESSAGE,Message);
 	PI2O_EXEC_SYS_ENABLE_MESSAGE		 Message_Ptr;
@@ -2222,9 +2125,8 @@ ASR_enableSys (
 /*
  *	Perform the stages necessary to initialize the adapter
  */
-STATIC int
-ASR_init(
-	IN Asr_softc_t * sc)
+static int
+ASR_init(Asr_softc_t *sc)
 {
 	return ((ASR_initOutBound(sc) == 0)
 	 || (ASR_setSysTab(sc) != CAM_REQ_CMP)
@@ -2234,14 +2136,10 @@ ASR_init(
 /*
  *	Send a Synchronize Cache command to the target device.
  */
-STATIC INLINE void
-ASR_sync (
-	IN Asr_softc_t * sc,
-	IN int		 bus,
-	IN int		 target,
-	IN int		 lun)
+static void
+ASR_sync(Asr_softc_t *sc, int bus, int target, int lun)
 {
-	tid_t		 TID;
+	tid_t TID;
 
 	/*
 	 * We will not synchronize the device when there are outstanding
@@ -2304,11 +2202,10 @@ ASR_sync (
 	}
 }
 
-STATIC INLINE void
-ASR_synchronize (
-	IN Asr_softc_t * sc)
+static void
+ASR_synchronize(Asr_softc_t *sc)
 {
-	int		 bus, target, lun;
+	int bus, target, lun;
 
 	for (bus = 0; bus <= sc->ha_MaxBus; ++bus) {
 		for (target = 0; target <= sc->ha_MaxId; ++target) {
@@ -2323,25 +2220,22 @@ ASR_synchronize (
  *	Reset the HBA, targets and BUS.
  *		Currently this resets *all* the SCSI busses.
  */
-STATIC INLINE void
-asr_hbareset(
-	IN Asr_softc_t * sc)
+static __inline void
+asr_hbareset(Asr_softc_t *sc)
 {
-	ASR_synchronize (sc);
-	(void)ASR_reset (sc);
+	ASR_synchronize(sc);
+	(void)ASR_reset(sc);
 } /* asr_hbareset */
 
 /*
  *	A reduced copy of the real pci_map_mem, incorporating the MAX_MAP
  * limit and a reduction in error checking (in the pre 4.0 case).
  */
-STATIC int
-asr_pci_map_mem (
-	IN device_t	 tag,
-	IN Asr_softc_t * sc)
+static int
+asr_pci_map_mem(device_t tag, Asr_softc_t *sc)
 {
-	int		 rid;
-	u_int32_t	 p, l, s;
+	int		rid;
+	u_int32_t	p, l, s;
 
 	/*
 	 * I2O specification says we must find first *memory* mapped BAR
@@ -2425,12 +2319,10 @@ asr_pci_map_mem (
  *	A simplified copy of the real pci_map_int with additional
  * registration requirements.
  */
-STATIC int
-asr_pci_map_int (
-	IN device_t	 tag,
-	IN Asr_softc_t * sc)
+static int
+asr_pci_map_int(device_t tag, Asr_softc_t *sc)
 {
-	int		 rid = 0;
+	int rid = 0;
 
 	sc->ha_irq_res = bus_alloc_resource_any(tag, SYS_RES_IRQ, &rid,
 	  RF_ACTIVE | RF_SHAREABLE);
@@ -2448,11 +2340,11 @@ asr_pci_map_int (
 /*
  *	Attach the devices, and virtual devices to the driver list.
  */
-STATIC ATTACH_RET
-asr_attach (ATTACH_ARGS)
+static ATTACH_RET
+asr_attach(ATTACH_ARGS)
 {
-	Asr_softc_t		 * sc;
-	struct scsi_inquiry_data * iq;
+	Asr_softc_t		 *sc;
+	struct scsi_inquiry_data *iq;
 	ATTACH_SET();
 
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
@@ -2769,21 +2661,18 @@ asr_attach (ATTACH_ARGS)
 	ATTACH_RETURN(0);
 } /* asr_attach */
 
-STATIC void
-asr_poll(
-	IN struct cam_sim *sim)
+static void
+asr_poll(struct cam_sim *sim)
 {
 	asr_intr(cam_sim_softc(sim));
 } /* asr_poll */
 
-STATIC void
-asr_action(
-	IN struct cam_sim * sim,
-	IN union ccb	  * ccb)
+static void
+asr_action(struct cam_sim *sim, union ccb  *ccb)
 {
-	struct Asr_softc  * sc;
+	struct Asr_softc *sc;
 
-	debug_asr_printf ("asr_action(%lx,%lx{%x})\n",
+	debug_asr_printf("asr_action(%lx,%lx{%x})\n",
 	  (u_long)sim, (u_long)ccb, ccb->ccb_h.func_code);
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("asr_action\n"));
@@ -2984,16 +2873,14 @@ asr_action(
 /*
  * Handle processing of current CCB as pointed to by the Status.
  */
-STATIC int
-asr_intr (
-	IN Asr_softc_t * sc)
+static int
+asr_intr(Asr_softc_t *sc)
 {
-	OUT int		 processed;
+	int processed;
 
-	for (processed = 0;
-	  sc->ha_Virt->Status & Mask_InterruptsDisabled;
-	  processed = 1) {
-		union asr_ccb			  * ccb;
+	for(processed = 0; sc->ha_Virt->Status & Mask_InterruptsDisabled;
+	    processed = 1) {
+		union asr_ccb			   *ccb;
 		U32				    ReplyOffset;
 		PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME Reply;
 
@@ -3198,12 +3085,11 @@ typedef U32   DPT_RTN_T;
 
 #define	asr_unit(dev)	  minor(dev)
 
-STATIC INLINE Asr_softc_t *
-ASR_get_sc (
-	IN dev_t	  dev)
+static __inline Asr_softc_t *
+ASR_get_sc(dev_t dev)
 {
-	int		  unit = asr_unit(dev);
-	OUT Asr_softc_t * sc = Asr_softc;
+	int		unit = asr_unit(dev);
+	Asr_softc_t	*sc = Asr_softc;
 
 	while (sc && sc->ha_sim[0] && (cam_sim_unit(sc->ha_sim[0]) != unit)) {
 		sc = sc->ha_next;
@@ -3211,22 +3097,13 @@ ASR_get_sc (
 	return (sc);
 } /* ASR_get_sc */
 
-STATIC u_int8_t ASR_ctlr_held;
-#if (!defined(UNREFERENCED_PARAMETER))
-#define UNREFERENCED_PARAMETER(x) (void)(x)
-#endif
+static u_int8_t ASR_ctlr_held;
 
-STATIC int
-asr_open(
-	IN dev_t	 dev,
-	int32_t		 flags,
-	int32_t		 ifmt,
-	IN struct thread * td)
+static int
+asr_open(dev_t dev, int32_t flags, int32_t ifmt, struct thread *td)
 {
 	int		 s;
-	OUT int		 error;
-	UNREFERENCED_PARAMETER(flags);
-	UNREFERENCED_PARAMETER(ifmt);
+	int		 error;
 
 	if (ASR_get_sc (dev) == NULL) {
 		return (ENODEV);
@@ -3241,17 +3118,9 @@ asr_open(
 	return (error);
 } /* asr_open */
 
-STATIC int
-asr_close(
-	dev_t	      dev,
-	int	      flags,
-	int	      ifmt,
-	struct thread * td)
+static int
+asr_close(dev_t dev, int flags, int ifmt, struct thread *td)
 {
-	UNREFERENCED_PARAMETER(dev);
-	UNREFERENCED_PARAMETER(flags);
-	UNREFERENCED_PARAMETER(ifmt);
-	UNREFERENCED_PARAMETER(td);
 
 	ASR_ctlr_held = 0;
 	return (0);
@@ -3271,10 +3140,8 @@ asr_close(
 /*									   */
 /* Return : 0 For OK, Error Code Otherwise				   */
 /*-------------------------------------------------------------------------*/
-STATIC INLINE int
-ASR_queue_i(
-	IN Asr_softc_t				   * sc,
-	INOUT PI2O_MESSAGE_FRAME		     Packet)
+static int
+ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 {
 	union asr_ccb				   * ccb;
 	PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME	     Reply;
@@ -3730,26 +3597,19 @@ ASR_queue_i(
 /* Return : zero if OK, error code if not				*/
 /*----------------------------------------------------------------------*/
 
-STATIC int
-asr_ioctl(
-	IN dev_t      dev,
-	IN u_long     cmd,
-	INOUT caddr_t data,
-	int	      flag,
-	struct thread * td)
+static int
+asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
-	int	      i, j;
-	OUT int	      error = 0;
-	Asr_softc_t * sc = ASR_get_sc (dev);
-	UNREFERENCED_PARAMETER(flag);
-	UNREFERENCED_PARAMETER(td);
+	Asr_softc_t	*sc = ASR_get_sc(dev);
+	int		i, j;
+	int		error = 0;
 
 	if (sc != NULL)
 	switch(cmd) {
 
 	case DPT_SIGNATURE:
 #if (dsDescription_size != 50)
-	    case DPT_SIGNATURE + ((50 - dsDescription_size) << 16):
+	case DPT_SIGNATURE + ((50 - dsDescription_size) << 16):
 #endif
 		if (cmd & 0xFFFF0000) {
 			(void)bcopy ((caddr_t)(&ASR_sig), data,
