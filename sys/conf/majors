@@ -117,6 +117,7 @@ chrdev	name		comments
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
 99	ct		Cronyx/Tau serial adaptor
 100	xrpu		Xilinx Reprogrammable Processing Unit
+101	was:dgm		was: Digiboard PC/Xem in <= RELENG_4
 102	fla		M-Systems DiskOnChip(r)
 103	streams		SVR4 Streams emulation <newton@atdot.dotat.org>
 104	xpt		CAM Transport Layer Services
@@ -184,8 +185,9 @@ chrdev	name		comments
 166	ciss		Compaq SmartArray 5* adapter <msmith>
 167	ufm		USB Fm Radio
 168	sab		Siemens SAB82532 serial chip <jake>
+168	XXX		used by pst in RELENG_4
 169	ofwd		OpenFirmware disk <benno>
-170	pst		Promise SuperTrak
+170	pst		Promise SuperTrak (uses 168 in RELENG_4)
 171	mide		LSI MegaRAID IDE (control device)
 172	mided		LSI MegaRAID IDE (disk device)
 173	devctl		Devd control device <imp>
@@ -200,5 +202,6 @@ chrdev	name		comments
 182	mdsio		RS-485 driver for 8250-family UARTs <doconnor@gsoft.com.au>
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
+253	was:MFS		was: used by MFS in <= RELENG_4
 254	internal	Used internally by the kernel
 255	bad choice	-1 is 255 which has magic meanings internally
