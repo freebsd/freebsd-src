@@ -11,7 +11,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.1, Wed Oct 26 16:08:09 MSK 1994
+ * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
  * Usage:
  *      cxconfig [-a]
@@ -24,15 +24,18 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <sys/cronyx.h>
+#include <machine/cronyx.h>
 #include <net/if.h>
 #include <stdio.h>
 
+#define NBRD    3
 #define CXDEV   "/dev/cronyx"
 #define atoi(a) strtol((a), (char**)0, 0)
 
 cx_options_t o;
+cx_stat_t st;
 int aflag;
+int sflag;
 
 char *symbol (unsigned char sym)
 {
@@ -119,6 +122,40 @@ void getchan (int channel)
 			o.channel);
 		exit (1);
 	}
+}
+
+int printstats (int channel, int hflag)
+{
+	int s, res;
+
+	s = open (CXDEV, 0);
+	if (s < 0) {
+		perror (CXDEV);
+		exit (1);
+	}
+	st.board = channel/NCHAN;
+	st.channel = channel%NCHAN;
+	res = ioctl (s, CXIOCGETSTAT, (caddr_t)&st);
+	close (s);
+	if (res < 0)
+		return (-1);
+
+	if (hflag)
+		printf ("Chan   Rintr   Tintr   Mintr   Ibytes   Ipkts   Ierrs   Obytes   Opkts   Oerrs\n");
+	printf ("cx%-2d %7ld %7ld %7ld %8ld %7ld %7ld %8ld %7ld %7ld\n",
+		channel, st.rintr, st.tintr, st.mintr, st.ibytes, st.ipkts,
+		st.ierrs, st.obytes, st.opkts, st.oerrs);
+	return (0);
+}
+
+void printallstats ()
+{
+	int b, c;
+
+	printf ("Chan   Rintr   Tintr   Mintr   Ibytes   Ipkts   Ierrs   Obytes   Opkts   Oerrs\n");
+	for (b=0; b<NBRD; ++b)
+		for (c=0; c<NCHAN; ++c)
+			printstats (b*NCHAN + c, 0);
 }
 
 void setchan (int channel)
@@ -362,6 +399,8 @@ void printchan (int channel)
 	printf (o.sopt.ext ? " ext" : o.sopt.cisco ? " cisco" : " ppp");
 	printf (" %ckeepalive", o.sopt.keepalive ? '+' : '-');
 	printf (" %cautorts", o.sopt.norts ? '-' : '+');
+	if (*o.master)
+		printf (" master=%s", o.master);
 	printf ("\n");
 	if (aflag)
 		printopt ();
@@ -427,6 +466,15 @@ void set_interface_type (char *type)
 		o.iftype = 0;
 	else
 		o.iftype = 1;
+}
+
+void set_master (char *ifname)
+{
+	if (o.type == T_ASYNC) {
+		printf ("master option is not applicable for async channels\n");
+		exit (1);
+	}
+	strcpy (o.master, ifname);
 }
 
 void set_async_opt (char *opt)
@@ -571,11 +619,16 @@ int main (int argc, char **argv)
 	for (--argc, ++argv; argc>0 && **argv=='-'; --argc, ++argv)
 		if (! strcasecmp (*argv, "-a"))
 			++aflag;
+		else if (! strcasecmp (*argv, "-s"))
+			++sflag;
 		else
 			usage ();
 
 	if (argc <= 0) {
-		printall ();
+		if (sflag)
+			printallstats ();
+		else
+			printall ();
 		return (0);
 	}
 
@@ -585,6 +638,13 @@ int main (int argc, char **argv)
 		usage ();
 	channel = atoi (*argv);
 	--argc, ++argv;
+
+	if (sflag) {
+		if (printstats (channel, 1) < 0)
+			printf ("channel cx%d not available\n", channel);
+		return (0);
+	}
+
 	getchan (channel);
 
 	if (argc <= 0) {
@@ -631,6 +691,8 @@ int main (int argc, char **argv)
 		    ! strcasecmp (*argv, "port=rs449") ||
 		    ! strcasecmp (*argv, "port=v35"))
 			set_interface_type (*argv);
+		else if (! strncasecmp (*argv, "master=",7))
+			set_master (*argv+7);
 
 		/*
 		 * Common channel options

@@ -13,7 +13,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.2, Tue Nov 22 18:57:27 MSK 1994
+ * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  */
 #undef DEBUG
 
@@ -39,6 +39,7 @@
 #      include <machine/pio.h>
 #      define RB_GETC(q) getc(q)
 #   else /* BSD 4.4 Lite */
+#      include <machine/cpufunc.h>
 #      include <sys/devconf.h>
 #   endif
 #   define oproc_func_t void(*)(struct tty*)
@@ -55,10 +56,8 @@
 #      define t_out t_outq
 #      define RB_LEN(q) ((q).c_cc)
 #      define RB_GETC(q) getc(&q)
-#ifndef TSA_CARR_ON /* FreeBSD 2.x before not long after 2.0.5 */
 #      define TSA_CARR_ON(tp) tp
 #      define TSA_OLOWAT(q) ((caddr_t)&(q)->t_out)
-#endif
 #endif
 
 #include <machine/cronyx.h>
@@ -67,7 +66,7 @@
 #ifdef DEBUG
 #   define print(s)     printf s
 #else
-#   define print(s)     /*void*/
+#   define print(s)     {/*void*/}
 #endif
 
 #define DMABUFSZ        (6*256)         /* buffer size */
@@ -107,8 +106,12 @@ int cxopen (dev_t dev, int flag, int mode, struct proc *p)
 	if (c->mode != M_ASYNC)
 		return (EBUSY);
 	if (! c->ttyp) {
+#ifdef __FreeBSD__
 #if __FreeBSD__ >= 2
 		c->ttyp = &cx_tty[unit];
+#else
+		c->ttyp = cx_tty[unit] = ttymalloc (cx_tty[unit]);
+#endif
 #else
 		MALLOC (cx_tty[unit], struct tty*, sizeof (struct tty), M_DEVBUF, M_WAITOK);
 		bzero (cx_tty[unit], sizeof (*cx_tty[unit]));
@@ -194,7 +197,7 @@ int cxopen (dev_t dev, int flag, int mode, struct proc *p)
 		cx_chan_rts (c, 1);
 	}
 	if (cx_chan_cd (c))
-		(*linesw[tp->t_line].l_modem)(tp, 1);
+		tp->t_state |= TS_CARR_ON;
 	if (! (flag & O_NONBLOCK)) {
 		/* Lock the channel against cxconfig while we are
 		 * waiting for carrier. */
@@ -283,10 +286,12 @@ int cxwrite (dev_t dev, struct uio *uio, int flag)
 int cxioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 	int unit = UNIT (dev);
-	cx_chan_t *c;
+	cx_chan_t *c, *m;
+	cx_stat_t *st;
 	struct tty *tp;
 	int error, s;
 	unsigned char msv;
+	struct ifnet *master;
 
 	if (unit == UNIT_CTL) {
 		/* Process an ioctl request on /dev/cronyx */
@@ -324,6 +329,32 @@ int cxioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			/* Network interface is up? */
 			if (c->mode != M_ASYNC && (c->ifp->if_flags & IFF_UP))
 				return (EBUSY);
+
+			/* Find the master interface. */
+			master = *o->master ? ifunit (o->master) : c->ifp;
+			if (! master)
+				return (EINVAL);
+			m = cxchan[master->if_unit];
+
+			/* Leave the previous master queue. */
+			if (c->master != c->ifp) {
+				cx_chan_t *p = cxchan[c->master->if_unit];
+
+				for (; p; p=p->slaveq)
+					if (p->slaveq == c)
+						p->slaveq = c->slaveq;
+			}
+
+			/* Set up new master. */
+			c->master = master;
+			c->slaveq = 0;
+
+			/* Join the new master queue. */
+			if (c->master != c->ifp) {
+				c->slaveq = m->slaveq;
+				m->slaveq = c;
+			}
+
 			c->mode   = o->mode;
 			c->rxbaud = o->rxbaud;
 			c->txbaud = o->txbaud;
@@ -336,11 +367,24 @@ int cxioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			case 0: c->board->if0type = o->iftype; break;
 			case 8: c->board->if8type = o->iftype; break;
 			}
-			cxswitch (c, o->sopt);
 			s = spltty ();
+			cxswitch (c, o->sopt);
 			cx_setup_chan (c);
 			outb (IER(c->chip->port), 0);
 			splx (s);
+			break;
+
+		case CXIOCGETSTAT:
+			st = (cx_stat_t*) data;
+			st->rintr  = c->stat->rintr;
+			st->tintr  = c->stat->tintr;
+			st->mintr  = c->stat->mintr;
+			st->ibytes = c->stat->ibytes;
+			st->ipkts  = c->stat->ipkts;
+			st->ierrs  = c->stat->ierrs;
+			st->obytes = c->stat->obytes;
+			st->opkts  = c->stat->opkts;
+			st->oerrs  = c->stat->oerrs;
 			break;
 
 		case CXIOCGETMODE:
@@ -359,6 +403,11 @@ int cxioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			case 0: o->iftype = c->board->if0type; break;
 			case 8: o->iftype = c->board->if8type; break;
 			}
+			if (c->master != c->ifp)
+				sprintf (o->master, "%s%d", c->master->if_name,
+					c->master->if_unit);
+			else
+				*o->master = 0;
 			break;
 		}
 		return (0);
@@ -476,9 +525,9 @@ void cxout (cx_chan_t *c, char b)
 		c->brk = BRK_IDLE;
 		break;
 	case BRK_IDLE:
-		len = RB_LEN (tp->t_out);
+		p = buf;
 		if (tp->t_iflag & IXOFF)
-			for (i=0, p=buf; i<len && p<buf+DMABUFSZ-1; ++i) {
+			while (RB_LEN (tp->t_out) && p<buf+DMABUFSZ-1) {
 				sym = RB_GETC (tp->t_out);
 				/* Send XON/XOFF out of band. */
 				if (sym == tp->t_cc[VSTOP]) {
@@ -495,7 +544,7 @@ void cxout (cx_chan_t *c, char b)
 				*p++ = sym;
 			}
 		else
-			for (i=0, p=buf; i<len && p<buf+DMABUFSZ-1; ++i) {
+			while (RB_LEN (tp->t_out) && p<buf+DMABUFSZ-1) {
 				sym = RB_GETC (tp->t_out);
 				/* Duplicate NULLs in ETC mode. */
 				if (! sym)
@@ -510,6 +559,7 @@ void cxout (cx_chan_t *c, char b)
 	if (len) {
 		outw (cnt_port, len);
 		outb (sts_port, BSTS_INTR | BSTS_OWN24);
+		c->stat->obytes += len;
 		tp->t_state |= TS_BUSY;
 		print (("cx%d.%d: out %d bytes to %c\n",
 			c->board->num, c->num, len, b));
@@ -544,9 +594,6 @@ void cxoproc (struct tty *tp)
 	if (tp->t_state & (TS_SO_OCOMPLETE | TS_SO_OLOWAT) || tp->t_wsel)
 		ttwwakeup (tp);
 #else /* FreeBSD 2.x and BSDI */
-#ifndef TS_ASLEEP /* FreeBSD some time after 2.0.5 */
-	ttwwakeup(tp);
-#else
 	if (RB_LEN (tp->t_out) <= tp->t_lowat) {
 		if (tp->t_state & TS_ASLEEP) {
 			tp->t_state &= ~TS_ASLEEP;
@@ -555,16 +602,6 @@ void cxoproc (struct tty *tp)
 		selwakeup(&tp->t_wsel);
 	}
 #endif
-#endif
-	/*
-	 * Enable TXMPTY interrupt,
-	 * to catch the case when the second buffer is empty.
-	 */
-	if ((inb (ATBSTS(port)) & BSTS_OWN24) &&
-	    (inb (BTBSTS(port)) & BSTS_OWN24)) {
-		outb (IER(port), IER_RXD|IER_RET|IER_TXD|IER_TXMPTY|IER_MDM);
-	} else
-		outb (IER(port), IER_RXD|IER_RET|IER_TXD|IER_MDM);
 	splx (s);
 }
 
@@ -682,12 +719,8 @@ struct tty *cxdevtotty (dev_t dev)
 {
 	int unit = UNIT(dev);
 
-	if (unit == UNIT_CTL)
-		return (NULL);
-
-	if (unit > NCX*NCHAN)
-		return (NULL);
-
+	if (unit == UNIT_CTL || unit >= NCX*NCHAN)
+		return (0);
 	return (cxchan[unit]->ttyp);
 }
 
@@ -695,13 +728,13 @@ int cxselect (dev_t dev, int flag, struct proc *p)
 {
 	int unit = UNIT (dev);
 
-	if (unit == UNIT_CTL)
+	if (unit == UNIT_CTL || unit >= NCX*NCHAN)
 		return (0);
-
-	if (unit > NCX*NCHAN)
-		return (ENXIO);
-
-	return (ttyselect(cxchan[unit]->ttyp, flag, p));
+#if defined (__FreeBSD__) && __FreeBSD__ < 2
+	return (ttselect (dev, flag, p));
+#else /* FreeBSD 2.x and BSDI */
+	return (ttyselect (cxchan[unit]->ttyp, flag, p));
+#endif
 }
 
 /*
@@ -765,6 +798,7 @@ int cxrinta (cx_chan_t *c)
 			print (("cx%d.%d: async receive timeout (%d bytes), risr=%b, arbsts=%b, brbsts=%b\n",
 				c->board->num, c->num, len, risr, RISA_BITS,
 				inb (ARBSTS(port)), BSTS_BITS, inb (BRBSTS(port)), BSTS_BITS));
+			c->stat->ibytes += len;
 			if (tp && (tp->t_state & TS_ISOPEN)) {
 				int i;
 				void (*rint)() = (void(*)())
@@ -785,23 +819,29 @@ int cxrinta (cx_chan_t *c)
 		c->board->num, c->num, risr, RISA_BITS,
 		inb (ARBSTS(port)), BSTS_BITS, inb (BRBSTS(port)), BSTS_BITS));
 
-	if (risr & RIS_BUSERR)
+	if (risr & RIS_BUSERR) {
 		printf ("cx%d.%d: receive bus error\n", c->board->num, c->num);
-
+		++c->stat->ierrs;
+	}
 	if (risr & (RIS_OVERRUN | RISA_PARERR | RISA_FRERR | RISA_BREAK)) {
 		int err = 0;
 
-		if (risr & RIS_OVERRUN)
-			err |= TTY_OE;
 		if (risr & RISA_PARERR)
 			err |= TTY_PE;
 		if (risr & RISA_FRERR)
 			err |= TTY_FE;
+#ifdef TTY_OE
+		if (risr & RIS_OVERRUN)
+			err |= TTY_OE;
+#endif
+#ifdef TTY_BI
 		if (risr & RISA_BREAK)
 			err |= TTY_BI;
+#endif
 		print (("cx%d.%d: receive error %x\n", c->board->num, c->num, err));
 		if (tp && (tp->t_state & TS_ISOPEN))
 			(*linesw[tp->t_line].l_rint) (err, tp);
+		++c->stat->ierrs;
 	}
 
 	/* Discard exception characters. */
@@ -818,6 +858,7 @@ int cxrinta (cx_chan_t *c)
 
 		print (("cx%d.%d: async: %d bytes received\n",
 			c->board->num, c->num, len));
+		c->stat->ibytes += len;
 
 		buf = (risr & RIS_BB) ? c->brbuf : c->arbuf;
 		for (i=0; i<len; ++i)
@@ -849,13 +890,15 @@ void cxtinta (cx_chan_t *c)
 		c->board->num, c->num, tisr, TIS_BITS,
 		inb (ATBSTS(port)), BSTS_BITS, inb (BTBSTS(port)), BSTS_BITS));
 
-	if (tisr & TIS_BUSERR)
+	if (tisr & TIS_BUSERR) {
 		printf ("cx%d.%d: transmit bus error\n",
 			c->board->num, c->num);
-	else if (tisr & TIS_UNDERRUN)
+		++c->stat->oerrs;
+	} else if (tisr & TIS_UNDERRUN) {
 		printf ("cx%d.%d: transmit underrun error\n",
 			c->board->num, c->num);
-
+		++c->stat->oerrs;
+	}
 	if (tp) {
 		tp->t_state &= ~(TS_BUSY | TS_FLUSH);
 		if (tp->t_line)
