@@ -1126,7 +1126,7 @@ DMenu MenuDiskDevices = {
     "systems on your machine, you will have the option to install a boot\n"
     "manager later.  To select a drive, use the arrow keys to move to it\n"
     "and press [SPACE] or [ENTER].  To de-select it, press it again.\n\n"
-    "Select OK or Cancel to leave this menu.",
+    "Use [TAB] to get to the buttons and leave this menu.",
     "Press F1 for important information regarding disk geometry!",
     "drives",
     { { NULL } },
