@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.47 1996/08/31 15:05:58 asami Exp $
+ * $Id: init_main.c,v 1.48 1996/09/03 10:22:58 asami Exp $
  */
 
 #include "opt_rlimit.h"
@@ -418,6 +418,8 @@ static void
 proc0_post(dummy)
 	void *dummy;
 {
+	struct timeval tv;
+
 	/*
 	 * Now can look at time, having had a chance to verify the time
 	 * from the file system.  Reset p->p_rtime as it may have been
@@ -425,6 +427,12 @@ proc0_post(dummy)
 	 */
 	proc0.p_stats->p_start = runtime = mono_time = boottime = time;
 	proc0.p_rtime.tv_sec = proc0.p_rtime.tv_usec = 0;
+
+	/*
+	 * Give the ``random'' number generator a thump.
+	 */
+	microtime(&tv);
+	srandom(tv.tv_sec ^ tv.tv_usec);
 
 	/* Initialize signal state for process 0. */
 	siginit(&proc0);
