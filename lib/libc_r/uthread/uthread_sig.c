@@ -522,7 +522,7 @@ _dispatch_signals()
 			 */
 			if (_thread_sigact[i - 1].sa_handler != SIG_DFL &&
 			    _thread_sigact[i - 1].sa_handler != SIG_IGN &&
-			    sigismember(&sigset,i)) {
+			    sigismember(&sigset, i)) {
 				if (sigismember(&_thread_run->sigpend,i))
 					/* Clear the thread pending signal: */
 					sigdelset(&_thread_run->sigpend,i);

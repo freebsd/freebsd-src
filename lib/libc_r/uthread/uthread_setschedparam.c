@@ -63,9 +63,9 @@ pthread_setschedparam(pthread_t pthread, int policy,
 			 * queue before any adjustments are made to its
 			 * active priority:
 			 */
+			old_prio = pthread->active_priority;
 			if ((pthread->flags & PTHREAD_FLAGS_IN_PRIOQ) != 0) {
 				in_readyq = 1;
-				old_prio = pthread->active_priority;
 				PTHREAD_PRIOQ_REMOVE(pthread);
 			}
 

@@ -48,7 +48,7 @@ poll(struct pollfd *fds, unsigned int nfds, int timeout)
 {
 	struct timespec	ts;
 	int		numfds = nfds;
-	int             i, ret = 0, found = 0;
+	int             i, ret = 0;
 	struct pthread_poll_data data;
 
 	if (numfds > _thread_dtablesize) {
