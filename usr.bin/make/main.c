@@ -355,9 +355,14 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 	 * on the end of the "create" list.
 	 */
 	for (argv += optind, argc -= optind; *argv; ++argv, --argc)
-		if (Parse_IsVar(*argv))
+		if (Parse_IsVar(*argv)) {
+			char *ptr = Var_Quote(*argv);
+
+			Var_Append(MAKEFLAGS, ptr, VAR_GLOBAL);
+			free(ptr);
+
 			Parse_DoVar(*argv, VAR_CMD);
-		else {
+		} else {
 			if (!**argv)
 				Punt("illegal (null) argument.");
 			if (**argv == '-') {
@@ -644,10 +649,6 @@ main(int argc, char **argv)
 #endif
 
 	MainParseArgs(argc, argv);
-
-#ifdef POSIX
-	Var_AddCmdLine(MAKEFLAGS);
-#endif
 
 	/*
 	 * Find where we are...
