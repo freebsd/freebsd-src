@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.177 1995/08/29 11:57:40 asami Exp $
+# $Id: bsd.port.mk,v 1.178 1995/09/13 10:14:31 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -100,10 +100,23 @@
 #				  during a build.  User can then decide to skip this port by
 #				  setting ${BATCH}, or compiling only the interactive ports
 #				  by setting ${INTERACTIVE}.
-# EXEC_DEPENDS	- A list of "prog:dir" pairs of other ports this
-#				  package depends on.  "prog" is the name of an
-#				  executable.  make will search your $PATH for it and go
-#				  into "dir" to do a "make all install" if it's not found.
+# FETCH_DEPENDS - A list of "prog:dir" pairs of other ports this
+#				  package depends in the "fetch" stage.  "prog" is the
+#				  name of an executable.  make will search your $PATH
+#				  for it and go into "dir" to do a "make all install"
+#				  if it's not found.
+# BUILD_DEPENDS - A list of "prog:dir" pairs of other ports this
+#				  package depends to build (somewhere between the
+#				  "extract" to "build" stage).  "prog" is the name
+#				  of an executable.  make will search your $PATH for
+#				  it and go into "dir" to do a "make all install" if
+#				  it's not found.
+# RUN_DEPENDS	- A list of "prog:dir" pairs of other ports this package
+#				  depends to run.  "prog" is the name of an
+#				  executable.  make will search your $PATH for it and
+#				  go into "dir" to do a "make all install" if it's not
+#				  found.  This will be build during the "install" stage
+#				  and its name will be put into the package as well.
 # LIB_DEPENDS	- A list of "lib:dir" pairs of other ports this package
 #				  depends on.  "lib" is the name of a shared library.
 #				  make will use "ldconfig -r" to search for the
@@ -201,8 +214,13 @@ PREFIX?=		${X11BASE}
 .else
 PREFIX?=		/usr/local
 .endif
+# The following 4 lines should go away as soon as the ports are all updated
+.if defined(EXEC_DEPENDS)
+BUILD_DEPENDS+=	${EXEC_DEPENDS}
+RUN_DEPENDS+=	${EXEC_DEPENDS}
+.endif
 .if defined(USE_GMAKE)
-EXEC_DEPENDS+=               gmake:${PORTSDIR}/devel/gmake
+BUILD_DEPENDS+=               gmake:${PORTSDIR}/devel/gmake
 .endif
 
 .if exists(${PORTSDIR}/../Makefile.inc)
@@ -674,6 +692,15 @@ delete-package:
 ################################################################
 
 _PORT_USE: .USE
+.if make(real-fetch)
+	@${MAKE} ${.MAKEFLAGS} fetch-depends
+.endif
+.if make(real-extract)
+	@${MAKE} ${.MAKEFLAGS} build-depends lib-depends misc-depends
+.endif
+.if make(real-install)
+	@${MAKE} ${.MAKEFLAGS} run-depends
+.endif
 .if make(real-install)
 .if !defined(NO_MTREE)
 	@if [ `id -u` = 0 ]; then \
@@ -720,7 +747,7 @@ _PORT_USE: .USE
 ################################################################
 
 .if !target(fetch)
-fetch: depends
+fetch:
 	@${MAKE} ${.MAKEFLAGS} real-fetch
 .endif
 
@@ -921,7 +948,7 @@ package-name:
 
 .if !target(package-depends)
 package-depends:
-	@for i in ${EXEC_DEPENDS} ${LIB_DEPENDS} ${DEPENDS}; do \
+	@for i in ${RUN_DEPENDS} ${LIB_DEPENDS} ${DEPENDS}; do \
 		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
 		(cd $$dir ; ${MAKE} package-name package-depends); \
 	done
@@ -949,19 +976,34 @@ package-noinstall:
 ################################################################
 
 .if !target(depends)
-depends: exec_depends lib_depends misc_depends
+depends: lib-depends misc-depends
+	@${MAKE} ${.MAKEFLAGS} fetch-depends
+	@${MAKE} ${.MAKEFLAGS} build-depends
+	@${MAKE} ${.MAKEFLAGS} run-depends
 
-exec_depends:
-.if defined(EXEC_DEPENDS)
+.if make(fetch-depends)
+DEPENDS_TMP+=	${FETCH_DEPENDS}
+.endif
+
+.if make(build-depends)
+DEPENDS_TMP+=	${BUILD_DEPENDS}
+.endif
+
+.if make(run-depends)
+DEPENDS_TMP+=	${RUN_DEPENDS}
+.endif
+
+_DEPENDS_USE:	.USE
+.if defined(DEPENDS_TMP)
 .if defined(NO_DEPENDS)
 # Just print out messages
-	@for i in ${EXEC_DEPENDS}; do \
+	@for i in ${DEPENDS_TMP}; do \
 		prog=`/bin/echo $$i | /usr/bin/sed -e 's/:.*//'`; \
 		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
 		${ECHO_MSG} "===>  ${PKGNAME} depends on executable:  $$prog ($$dir)"; \
 	done
 .else
-	@for i in ${EXEC_DEPENDS}; do \
+	@for i in ${DEPENDS_TMP}; do \
 		prog=`/bin/echo $$i | /usr/bin/sed -e 's/:.*//'`; \
 		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
 		if which -s "$$prog"; then \
@@ -982,7 +1024,11 @@ exec_depends:
 	@${DO_NADA}
 .endif
 
-lib_depends:
+fetch-depends:	_DEPENDS_USE
+build-depends:	_DEPENDS_USE
+run-depends:	_DEPENDS_USE
+
+lib-depends:
 .if defined(LIB_DEPENDS)
 .if defined(NO_DEPENDS)
 # Just print out messages
@@ -1013,7 +1059,7 @@ lib_depends:
 	@${DO_NADA}
 .endif
 
-misc_depends:
+misc-depends:
 .if defined(DEPENDS)
 	@${ECHO_MSG} "===>  ${PKGNAME} depends on:  ${DEPENDS}"
 .if !defined(NO_DEPENDS)
