@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.33 1995/12/21 21:12:22 wollman Exp $
+ * $Id: ip_input.c,v 1.34 1996/01/05 20:46:53 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -163,25 +163,14 @@ static struct	route ipforward_rt;
  * Ip input routine.  Checksum and byte swap header.  If fragmented
  * try to reassemble.  Process options.  Pass to next level.
  */
-static void
-ipintr(void)
+void
+ip_input(struct mbuf *m)
 {
 	register struct ip *ip;
-	register struct mbuf *m;
 	register struct ipq *fp;
 	register struct in_ifaddr *ia;
 	int hlen, s;
 
-next:
-	/*
-	 * Get next datagram off input queue and get IP header
-	 * in first mbuf.
-	 */
-	s = splimp();
-	IF_DEQUEUE(&ipintrq, m);
-	splx(s);
-	if (m == 0)
-		return;
 #ifdef	DIAGNOSTIC
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("ipintr no HDR");
@@ -196,7 +185,7 @@ next:
 	if (m->m_len < sizeof (struct ip) &&
 	    (m = m_pullup(m, sizeof (struct ip))) == 0) {
 		ipstat.ips_toosmall++;
-		goto next;
+		return;
 	}
 	ip = mtod(m, struct ip *);
 	if (ip->ip_v != IPVERSION) {
@@ -211,7 +200,7 @@ next:
 	if (hlen > m->m_len) {
 		if ((m = m_pullup(m, hlen)) == 0) {
 			ipstat.ips_badhlen++;
-			goto next;
+			return;
 		}
 		ip = mtod(m, struct ip *);
 	}
@@ -261,7 +250,7 @@ next:
 
         if (ip_fw_chk_ptr!=NULL)
                if (!(*ip_fw_chk_ptr)(m,ip,m->m_pkthdr.rcvif,ip_fw_chain) ) {
-                       goto next;
+		       return;
                }
 
 	/*
@@ -272,7 +261,7 @@ next:
 	 */
 	ip_nhops = 0;		/* for source routed packets */
 	if (hlen > sizeof (struct ip) && ip_dooptions(m))
-		goto next;
+		return;
 
         /* greedy RSVP, snatches any PATH packet of the RSVP protocol and no
          * matter if it is destined to another node, or whether it is 
@@ -333,7 +322,7 @@ next:
 			if (ip_mforward(ip, m->m_pkthdr.rcvif, m, 0) != 0) {
 				ipstat.ips_cantforward++;
 				m_freem(m);
-				goto next;
+				return;
 			}
 			ip->ip_id = ntohs(ip->ip_id);
 
@@ -354,7 +343,7 @@ next:
 		if (inm == NULL) {
 			ipstat.ips_cantforward++;
 			m_freem(m);
-			goto next;
+			return;
 		}
 		goto ours;
 	}
@@ -371,7 +360,7 @@ next:
 		m_freem(m);
 	} else
 		ip_forward(m, 0);
-	goto next;
+	return;
 
 ours:
 
@@ -396,7 +385,7 @@ ours:
 		if (m->m_flags & M_EXT) {		/* XXX */
 			if ((m = m_pullup(m, sizeof (struct ip))) == 0) {
 				ipstat.ips_toosmall++;
-				goto next;
+				return;
 			}
 			ip = mtod(m, struct ip *);
 		}
@@ -433,7 +422,7 @@ found:
 			ipstat.ips_fragments++;
 			ip = ip_reass((struct ipasfrag *)ip, fp);
 			if (ip == 0)
-				goto next;
+				return;
 			ipstat.ips_reassembled++;
 			m = dtom(ip);
 		} else
@@ -447,10 +436,28 @@ found:
 	 */
 	ipstat.ips_delivered++;
 	(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, hlen);
-	goto next;
+	return;
 bad:
 	m_freem(m);
-	goto next;
+}
+
+/*
+ * IP software interrupt routine - to go away sometime soon
+ */
+static void
+ipintr(void)
+{
+	int s;
+	struct mbuf *m;
+
+	while(1) {
+		s = splimp();
+		IF_DEQUEUE(&ipintrq, m);
+		splx(s);
+		if (m == 0)
+			return;
+		ip_input(m);
+	}
 }
 
 NETISR_SET(NETISR_IP, ipintr);
