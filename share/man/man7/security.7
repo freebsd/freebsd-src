@@ -32,7 +32,7 @@ security becomes an ever bigger issue.
 Security is best implemented through a layered onion approach.  In a nutshell,
 what you want to do is to create as many layers of security as are convenient
 and then carefully monitor the system for intrusions.  You do not want to
-overbuild your security or you will interefere with the detection side, and
+overbuild your security or you will interfere with the detection side, and
 detection is one of the single most important aspects of any security
 mechanism.  For example, it makes little sense to set the
 .Pa schg
@@ -70,8 +70,8 @@ only be fixed by applying a bug fix to the kernel.  Attacks on servers can
 often be fixed by properly specifying options to limit the load the servers
 incur on the system under adverse conditions.  Brute-force network
 attacks are harder to deal with.  A spoofed-packet attack, for example, is
-nearly impossible to stop short of cutting your system off from the internet.
-It may not be able to take your machine down, but it can fill up internet
+nearly impossible to stop short of cutting your system off from the Internet.
+It may not be able to take your machine down, but it can fill up Internet
 pipe.
 .Pp
 A user account compromise is even more common then a D.O.S. attack.  Many
@@ -92,7 +92,7 @@ attacker access to root.  The distinction is important because without access
 to root the attacker cannot generally hide his tracks and may, at best, be
 able to do nothing more than mess with the user's files or crash the machine.
 User account compromises are very common because users tend not to take the
-precautions that sysads take.
+precautions that sysadmins take.
 .Pp
 System administrators must keep in mind that there are potentially many ways
 to break root on a machine.  The attacker may know the root password,
@@ -104,7 +104,7 @@ user's account.  If an attacker has found a way to break root on a machine,
 the attacker may not have a need to install a backdoor.
 Many of the root holes found and closed to date involve a considerable amount
 of work by the hacker to cleanup after himself, so most hackers do install
-backdoors.  This gives you a convienient way to detect the hacker.  Making
+backdoors.  This gives you a convenient way to detect the hacker.  Making
 it impossible for a hacker to install a backdoor may actually be detrimental
 to your security because it will not close off the hole the hacker found to
 break in the first place.
@@ -647,7 +647,7 @@ key-forwarding in the ssh configuration, or that you make use of the
 .Pa "from=IP/DOMAIN"
 option that ssh allows in its
 .Pa authorized_keys
-file to make the key only useable to entities logging in from specific
+file to make the key only usable to entities logging in from specific
 machines.
 .Sh SEE ALSO
 .Xr chflags 1 ,
