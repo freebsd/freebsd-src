@@ -499,7 +499,7 @@ doesyscmd(const char *cmd)
 		(void) close(p[0]);
 		(void) dup2(p[1], 1);
 		(void) close(p[1]);
-		execl(_PATH_BSHELL, "sh", "-c", cmd, NULL);
+		execl(_PATH_BSHELL, "sh", "-c", cmd, (char *)NULL);
 		exit(1);
 	default:
 		/* Read result in two stages, since m4's buffer is
