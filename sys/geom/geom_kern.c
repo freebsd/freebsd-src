@@ -162,39 +162,47 @@ g_init(void)
 }
 
 static int
-sysctl_kern_geom_dotconf(SYSCTL_HANDLER_ARGS)
+sysctl_kern_geom_confdot(SYSCTL_HANDLER_ARGS)
 {
-	int i, error;
+	int error;
 	struct sbuf *sb;
 
-	i = 0;
-	sb = g_confdot();
-	error = sysctl_handle_opaque(oidp, sbuf_data(sb), sbuf_len(sb), req);
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sbuf_clear(sb);
+	g_call_me(g_confdot, sb);
+	do {
+		tsleep(sb, PZERO, "g_dot", hz);
+	} while(!sbuf_done(sb));
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb));
 	sbuf_delete(sb);
-	return (error);
+	return error;
 }
-
+ 
 static int
-sysctl_kern_geom_xmlconf(SYSCTL_HANDLER_ARGS)
+sysctl_kern_geom_confxml(SYSCTL_HANDLER_ARGS)
 {
-	int i, error;
+	int error;
 	struct sbuf *sb;
 
-	i = 0;
-	sb = g_conf();
-	error = sysctl_handle_opaque(oidp, sbuf_data(sb), sbuf_len(sb), req);
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sbuf_clear(sb);
+	g_call_me(g_confxml, sb);
+	do {
+		tsleep(sb, PZERO, "g_xml", hz);
+	} while(!sbuf_done(sb));
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb));
 	sbuf_delete(sb);
-	return (error);
+	return error;
 }
 
 SYSCTL_NODE(_kern, OID_AUTO, geom, CTLFLAG_RW, 0, "GEOMetry management");
 
-SYSCTL_PROC(_kern_geom, OID_AUTO, xmlconf, CTLTYPE_STRING|CTLFLAG_RD,
-	0, 0, sysctl_kern_geom_xmlconf, "A",
+SYSCTL_PROC(_kern_geom, OID_AUTO, confxml, CTLTYPE_STRING|CTLFLAG_RD,
+	0, 0, sysctl_kern_geom_confxml, "A",
 	"Dump the GEOM config");
 
-SYSCTL_PROC(_kern_geom, OID_AUTO, dotconf, CTLTYPE_STRING|CTLFLAG_RD,
-	0, 0, sysctl_kern_geom_dotconf, "A",
+SYSCTL_PROC(_kern_geom, OID_AUTO, confdot, CTLTYPE_STRING|CTLFLAG_RD,
+	0, 0, sysctl_kern_geom_confdot, "A",
 	"Dump the GEOM config");
 
 SYSCTL_INT(_kern_geom, OID_AUTO, debugflags, CTLTYPE_INT|CTLFLAG_RW,

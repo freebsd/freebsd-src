@@ -231,7 +231,9 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	int i, error;
 	u_int u;
 	struct g_ioctl *gio;
+#if 0
 	struct sbuf *usb, *sb;
+#endif
 
 	gp = dev->si_drv1;
 	cp = dev->si_drv2;
@@ -272,6 +274,7 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		if (!error)
 			dev->si_flags |= SI_DUMPDEV;
 		break;
+#if 0
 	case GEOMGETCONF:
 		/* we bogusly pass cp to avoid getting any consumers listed */
 		sb = g_conf_specific(gp2->class, gp2, pp2, cp);
@@ -283,6 +286,7 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		if (!error)
 			usb->s_len = sbuf_len(sb);
 		break;
+#endif
 	default:
 		gio = g_malloc(sizeof *gio, M_WAITOK);
 		gio->cmd = cmd;
