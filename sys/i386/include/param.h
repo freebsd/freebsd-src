@@ -127,14 +127,14 @@
  */
 #define trunc_page(x)		((x) & ~PAGE_MASK)
 #define round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
-#define trunc_4mpage(x)		((unsigned)(x) & ~PDRMASK)
-#define round_4mpage(x)		((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
+#define trunc_4mpage(x)		((x) & ~PDRMASK)
+#define round_4mpage(x)		((((x)) + PDRMASK) & ~PDRMASK)
 
-#define atop(x)			((unsigned)(x) >> PAGE_SHIFT)
-#define ptoa(x)			((unsigned)(x) << PAGE_SHIFT)
+#define atop(x)			((x) >> PAGE_SHIFT)
+#define ptoa(x)			((x) << PAGE_SHIFT)
 
-#define i386_btop(x)		((unsigned)(x) >> PAGE_SHIFT)
-#define i386_ptob(x)		((unsigned)(x) << PAGE_SHIFT)
+#define i386_btop(x)		((x) >> PAGE_SHIFT)
+#define i386_ptob(x)		((x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
 

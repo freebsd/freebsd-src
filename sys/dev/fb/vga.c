@@ -2449,7 +2449,7 @@ vga_blank_display(video_adapter_t *adp, int mode)
  * all adapters
  */
 static int
-vga_mmap_buf(video_adapter_t *adp, vm_offset_t offset, vm_offset_t *paddr,
+vga_mmap_buf(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
    	     int prot)
 {
     if (adp->va_info.vi_flags & V_INFO_LINEAR)

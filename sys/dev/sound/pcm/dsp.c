@@ -986,7 +986,7 @@ dsp_poll(dev_t i_dev, int events, struct thread *td)
 }
 
 static int
-dsp_mmap(dev_t i_dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
+dsp_mmap(dev_t i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	struct pcm_channel *wrch = NULL, *rdch = NULL, *c;
 	intrmask_t s;

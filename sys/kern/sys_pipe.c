@@ -620,7 +620,8 @@ pipe_build_write_buffer(wpipe, uio)
 {
 	u_int size;
 	int i;
-	vm_offset_t addr, endaddr, paddr;
+	vm_offset_t addr, endaddr;
+	vm_paddr_t paddr;
 
 	GIANT_REQUIRED;
 	PIPE_LOCK_ASSERT(wpipe, MA_NOTOWNED);

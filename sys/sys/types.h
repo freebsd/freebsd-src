@@ -243,6 +243,7 @@ typedef	__useconds_t	useconds_t;	/* microseconds (unsigned) */
 
 typedef	__vm_offset_t	vm_offset_t;
 typedef	__vm_ooffset_t	vm_ooffset_t;
+typedef	__vm_paddr_t	vm_paddr_t;
 typedef	__vm_pindex_t	vm_pindex_t;
 typedef	__vm_size_t	vm_size_t;
 

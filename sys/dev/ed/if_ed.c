@@ -568,7 +568,7 @@ ed_probe_WD80x3_generic(dev, flags, intr_vals)
 
 	for (i = 0; i < memsize; ++i) {
 		if (sc->mem_start[i]) {
-			device_printf(dev, "failed to clear shared memory at %lx - check configuration\n",
+			device_printf(dev, "failed to clear shared memory at %x - check configuration\n",
 				      kvtop(sc->mem_start + i));
 
 			/*
@@ -903,7 +903,7 @@ ed_probe_3Com(dev, port_rid, flags)
 
 	for (i = 0; i < memsize; ++i)
 		if (sc->mem_start[i]) {
-			device_printf(dev, "failed to clear shared memory at %lx - check configuration\n",
+			device_printf(dev, "failed to clear shared memory at %x - check configuration\n",
 				      kvtop(sc->mem_start + i));
 			return (ENXIO);
 		}

@@ -749,7 +749,7 @@ bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct thread *td
  * 
  */
 static int
-bktr_mmap( dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot )
+bktr_mmap( dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot )
 {
 	int		unit;
 	bktr_ptr_t	bktr;

@@ -190,7 +190,7 @@ long Maxmem = 0;
 int Maxmem_under16M = 0;
 #endif
 
-vm_offset_t phys_avail[10];
+vm_paddr_t phys_avail[10];
 
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
@@ -217,8 +217,8 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("real memory  = %u (%u MB)\n", ptoa(Maxmem),
-	    ptoa(Maxmem) / 1048576);
+	printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)Maxmem),
+	    ptoa((uintmax_t)Maxmem) / 1048576);
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
@@ -227,19 +227,22 @@ cpu_startup(dummy)
 
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			unsigned int size1;
+			vm_paddr_t size;
 
-			size1 = phys_avail[indx + 1] - phys_avail[indx];
-			printf("0x%08x - 0x%08x, %u bytes (%u pages)\n",
-			    phys_avail[indx], phys_avail[indx + 1] - 1, size1,
-			    size1 / PAGE_SIZE);
+			size = phys_avail[indx + 1] - phys_avail[indx];
+			printf(
+			    "0x%016jx - 0x%016jx, %ju bytes (%ju pages)\n",
+			    (uintmax_t)phys_avail[indx],
+			    (uintmax_t)phys_avail[indx + 1] - 1,
+			    (uintmax_t)size, (uintmax_t)size / PAGE_SIZE);
 		}
 	}
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %u (%u MB)\n", ptoa(cnt.v_free_count),
-	    ptoa(cnt.v_free_count) / 1048576);
+	printf("avail memory = %ju (%ju MB)\n",
+	    ptoa((uintmax_t)cnt.v_free_count),
+	    ptoa((uintmax_t)cnt.v_free_count) / 1048576);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -1483,6 +1486,8 @@ sdtossd(sd, ssd)
  *
  * Total memory size may be set by the kernel environment variable
  * hw.physmem or the compile-time define MAXMEM.
+ *
+ * XXX first should be vm_paddr_t.
  */
 static void
 getmemsize(int first)
@@ -1498,7 +1503,7 @@ getmemsize(int first)
 	u_int basemem, extmem;
 	struct vm86frame vmf;
 	struct vm86context vmc;
-	vm_offset_t pa, physmap[PHYSMAP_SIZE];
+	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
 	char *cp;
 	struct bios_smap *smap;
@@ -1592,12 +1597,8 @@ getmemsize(int first)
 		if (i || vmf.vmf_eax != SMAP_SIG)
 			break;
 		if (boothowto & RB_VERBOSE)
-			printf("SMAP type=%02x base=%08x %08x len=%08x %08x\n",
-				smap->type,
-				*(u_int32_t *)((char *)&smap->base + 4),
-				(u_int32_t)smap->base,
-				*(u_int32_t *)((char *)&smap->length + 4),
-				(u_int32_t)smap->length);
+			printf("SMAP type=%02x base=%016llx len=%016llx\n",
+			    smap->type, smap->base, smap->length);
 
 		if (smap->type != 0x01)
 			goto next_run;
@@ -1810,7 +1811,7 @@ physmap_done:
 	 * extend the last memory segment to the new limit.
 	 */ 
 	if (atop(physmap[physmap_idx + 1]) < Maxmem)
-		physmap[physmap_idx + 1] = ptoa(Maxmem);
+		physmap[physmap_idx + 1] = ptoa((vm_paddr_t)Maxmem);
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap(first, 0);
@@ -1829,9 +1830,9 @@ physmap_done:
 	 * round up the start address and round down the end address.
 	 */
 	for (i = 0; i <= physmap_idx; i += 2) {
-		vm_offset_t end;
+		vm_paddr_t end;
 
-		end = ptoa(Maxmem);
+		end = ptoa((vm_paddr_t)Maxmem);
 		if (physmap[i + 1] < end)
 			end = trunc_page(physmap[i + 1]);
 		for (pa = round_page(physmap[i]); pa < end; pa += PAGE_SIZE) {

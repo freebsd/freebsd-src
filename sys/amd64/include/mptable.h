@@ -2576,7 +2576,7 @@ ap_init(void)
 	if (PCPU_GET(cpuid) != apic_id) {
 		printf("SMP: cpuid = %d\n", PCPU_GET(cpuid));
 		printf("SMP: apic_id = %d\n", apic_id);
-		printf("PTD[MPPTDI] = %p\n", (void *)PTD[MPPTDI]);
+		printf("PTD[MPPTDI] = %#jx\n", (uintmax_t)PTD[MPPTDI]);
 		panic("cpuid mismatch! boom!!");
 	}
 

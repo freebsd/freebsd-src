@@ -132,14 +132,15 @@ contigmalloc1(
 	unsigned long size,	/* should be size_t here and for malloc() */
 	struct malloc_type *type,
 	int flags,
-	unsigned long low,
-	unsigned long high,
+	vm_paddr_t low,
+	vm_paddr_t high,
 	unsigned long alignment,
 	unsigned long boundary,
 	vm_map_t map)
 {
 	int i, s, start;
-	vm_offset_t addr, phys, tmp_addr;
+	vm_paddr_t phys;
+	vm_offset_t addr, tmp_addr;
 	int pass;
 	vm_page_t pga = vm_page_array;
 
@@ -264,8 +265,8 @@ contigmalloc(
 	unsigned long size,	/* should be size_t here and for malloc() */
 	struct malloc_type *type,
 	int flags,
-	unsigned long low,
-	unsigned long high,
+	vm_paddr_t low,
+	vm_paddr_t high,
 	unsigned long alignment,
 	unsigned long boundary)
 {
@@ -288,8 +289,8 @@ contigfree(void *addr, unsigned long size, struct malloc_type *type)
 vm_offset_t
 vm_page_alloc_contig(
 	vm_offset_t size,
-	vm_offset_t low,
-	vm_offset_t high,
+	vm_paddr_t low,
+	vm_paddr_t high,
 	vm_offset_t alignment)
 {
 	vm_offset_t ret;

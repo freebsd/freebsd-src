@@ -154,8 +154,8 @@ LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps;
 static struct mtx allpmaps_lock;
 
-vm_offset_t avail_start;	/* PA of first available physical page */
-vm_offset_t avail_end;		/* PA of last available physical page */
+vm_paddr_t avail_start;	/* PA of first available physical page */
+vm_paddr_t avail_end;	/* PA of last available physical page */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
@@ -288,8 +288,8 @@ pmap_kmem_choose(vm_offset_t addr)
  */
 void
 pmap_bootstrap(firstaddr, loadaddr)
-	vm_offset_t firstaddr;
-	vm_offset_t loadaddr;
+	vm_paddr_t firstaddr;
+	vm_paddr_t loadaddr;
 {
 	vm_offset_t va;
 	pt_entry_t *pte;
@@ -515,7 +515,7 @@ pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
  */
 void
 pmap_init(phys_start, phys_end)
-	vm_offset_t phys_start, phys_end;
+	vm_paddr_t phys_start, phys_end;
 {
 	int i;
 	int initial_pvs;
@@ -842,12 +842,12 @@ pmap_pte_quick(pmap, va)
  *		Extract the physical page address associated
  *		with the given map/virtual_address pair.
  */
-vm_offset_t 
+vm_paddr_t 
 pmap_extract(pmap, va)
 	register pmap_t pmap;
 	vm_offset_t va;
 {
-	vm_offset_t rtval;	/* XXX FIXME */
+	vm_paddr_t rtval;
 	vm_offset_t pdirindex;
 
 	if (pmap == 0)
@@ -878,7 +878,7 @@ pmap_extract(pmap, va)
  * Note: not SMP coherent.
  */
 PMAP_INLINE void 
-pmap_kenter(vm_offset_t va, vm_offset_t pa)
+pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
 	pt_entry_t *pte;
 
@@ -912,7 +912,7 @@ pmap_kremove(vm_offset_t va)
  *	region.
  */
 vm_offset_t
-pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
+pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 {
 	vm_offset_t va, sva;
 
@@ -1295,7 +1295,7 @@ pmap_pinit(pmap)
 	register struct pmap *pmap;
 {
 	vm_page_t ptdpg[NPGPTD];
-	vm_offset_t pa;
+	vm_paddr_t pa;
 	int i;
 
 	/*
@@ -1376,7 +1376,8 @@ _pmap_allocpte(pmap, ptepindex)
 	pmap_t	pmap;
 	unsigned ptepindex;
 {
-	vm_offset_t pteva, ptepa;	/* XXXPA */
+	vm_paddr_t ptepa;
+	vm_offset_t pteva;
 	vm_page_t m;
 
 	/*
@@ -1559,7 +1560,7 @@ pmap_growkernel(vm_offset_t addr)
 {
 	struct pmap *pmap;
 	int s;
-	vm_offset_t ptppaddr;
+	vm_paddr_t ptppaddr;
 	vm_page_t nkpg;
 	pd_entry_t newpdir;
 
@@ -2044,9 +2045,9 @@ void
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	   boolean_t wired)
 {
-	vm_offset_t pa;
+	vm_paddr_t pa;
 	register pt_entry_t *pte;
-	vm_offset_t opa;
+	vm_paddr_t opa;
 	pt_entry_t origpte, newpte;
 	vm_page_t mpte;
 
@@ -2086,8 +2087,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * Page Directory table entry not valid, we need a new PT page
 	 */
 	if (pte == NULL) {
-		panic("pmap_enter: invalid page directory, pdir=%p, va=0x%x\n",
-			(void *)pmap->pm_pdir[PTDPTDI], va);
+		panic("pmap_enter: invalid page directory pdir=%#jx, va=%#x\n",
+			(uintmax_t)pmap->pm_pdir[PTDPTDI], va);
 	}
 
 	pa = VM_PAGE_TO_PHYS(m) & PG_FRAME;
@@ -2219,7 +2220,7 @@ static vm_page_t
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 {
 	pt_entry_t *pte;
-	vm_offset_t pa;
+	vm_paddr_t pa;
 
 	/*
 	 * In the case that a page table page is not
@@ -2960,11 +2961,11 @@ pmap_remove_pages(pmap, sva, eva)
 
 		m = PHYS_TO_VM_PAGE(tpte);
 		KASSERT(m->phys_addr == (tpte & PG_FRAME),
-		    ("vm_page_t %p phys_addr mismatch %08x %08x",
-		    m, m->phys_addr, tpte));
+		    ("vm_page_t %p phys_addr mismatch %016jx %016jx",
+		    m, (uintmax_t)m->phys_addr, (uintmax_t)tpte));
 
 		KASSERT(m < &vm_page_array[vm_page_array_size],
-			("pmap_remove_pages: bad tpte %x", tpte));
+			("pmap_remove_pages: bad tpte %#jx", (uintmax_t)tpte));
 
 		pv->pv_pmap->pm_stats.resident_count--;
 
@@ -3231,7 +3232,7 @@ i386_protection_init()
  */
 void *
 pmap_mapdev(pa, size)
-	vm_offset_t pa;
+	vm_paddr_t pa;
 	vm_size_t size;
 {
 	vm_offset_t va, tmpva, offset;
@@ -3293,7 +3294,7 @@ pmap_mincore(pmap, addr)
 	}
 
 	if ((pte = *ptep) != 0) {
-		vm_offset_t pa;
+		vm_paddr_t pa;
 
 		val = MINCORE_INCORE;
 		if ((pte & PG_MANAGED) == 0)
@@ -3455,7 +3456,7 @@ pads(pm)
 	pmap_t pm;
 {
 	int i, j;
-	vm_offset_t va;
+	vm_paddr_t va;
 	pt_entry_t *ptep;
 
 	if (pm == kernel_pmap)
@@ -3477,7 +3478,7 @@ pads(pm)
 
 void
 pmap_pvdump(pa)
-	vm_offset_t pa;
+	vm_paddr_t pa;
 {
 	pv_entry_t pv;
 	vm_page_t m;

@@ -181,7 +181,7 @@ isic_probe_s08(device_t dev)
 	if((kvtop(sc->sc_vmem_addr) < 0xa0000) ||
 	   (kvtop(sc->sc_vmem_addr) > 0xdf000))
 	{
-		printf("isic%d: Error, mem addr 0x%lx outside 0xA0000-0xDF000 for Teles S0/8!\n",
+		printf("isic%d: Error, mem addr 0x%x outside 0xA0000-0xDF000 for Teles S0/8!\n",
 				unit, kvtop(sc->sc_vmem_addr));
 		bus_release_resource(dev,SYS_RES_MEMORY,
 				     sc->sc_resources.mem_rid,
