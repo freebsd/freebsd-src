@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.57 1997/09/02 20:05:30 bde Exp $
+ *	$Id: support.s,v 1.58 1997/12/14 02:11:09 dyson Exp $
  */
 
 #include "npx.h"
@@ -334,6 +334,56 @@ intreg_i586_bzero:
 	popl	%edi
 	ret
 #endif /* I586_CPU && NNPX > 0 */
+
+ENTRY(i686_pagezero)
+	pushl	%edi
+	pushl	%ebx
+
+	movl	12(%esp), %edi
+	movl	$1024, %ecx
+	cld
+
+	ALIGN_TEXT
+1:
+	xorl	%eax, %eax
+	repe
+	scasl	
+	jnz	2f
+
+	popl	%ebx
+	popl	%edi
+	ret
+
+	ALIGN_TEXT
+
+2:
+	incl	%ecx
+	subl	$4, %edi
+
+	movl	%ecx, %edx
+	cmpl	$16, %ecx
+
+	jge	3f
+
+	movl	%edi, %ebx
+	andl	$0x3f, %ebx
+	shrl	%ebx
+	shrl	%ebx
+	movl	$16, %ecx
+	subl	%ebx, %ecx
+
+3:
+	subl	%ecx, %edx
+	rep
+	stosl
+
+	movl	%edx, %ecx
+	testl	%edx, %edx
+	jnz	1b
+
+	popl	%ebx
+	popl	%edi
+	ret
 
 /* fillw(pat, base, cnt) */
 ENTRY(fillw)
