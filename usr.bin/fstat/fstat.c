@@ -61,6 +61,7 @@ static const char rcsid[] =
 #include <sys/filedesc.h>
 #include <sys/queue.h>
 #include <sys/pipe.h>
+#include <sys/conf.h>
 #define	KERNEL
 #include <sys/file.h>
 #include <ufs/ufs/quota.h>
@@ -157,6 +158,7 @@ void pipetrans __P((struct pipe *pi, int i, int flag));
 void socktrans __P((struct socket *sock, int i));
 void getinetproto __P((int number));
 int  getfname __P((char *filename));
+udev_t dev2udev __P((dev_t dev));
 void usage __P((void));
 
 
@@ -487,7 +489,12 @@ ufs_filestat(vp, fsp)
 		    (void *)VTOI(vp), Pid);
 		return 0;
 	}
-	fsp->fsid = inode.i_dev & 0xffff;
+	/*
+	 * The st_dev from stat(2) is a udev_t. These kernel structures
+	 * contain dev_t structures. We need to convert to udev to make
+	 * comparisons
+	 */
+	fsp->fsid = dev2udev(inode.i_dev) & 0xffff;
 	fsp->fileid = (long)inode.i_number;
 	fsp->mode = (mode_t)inode.i_mode;
 	fsp->size = (u_long)inode.i_size;
@@ -727,6 +734,26 @@ socktrans(sock, i)
 	return;
 bad:
 	printf("* error\n");
+}
+
+
+/*
+ * Read the specinfo structure in the kernel (as pointed to by a dev_t)
+ * in order to work out the associated udev_t
+ */
+udev_t
+dev2udev(dev)
+	dev_t dev;
+{
+	struct specinfo si;
+
+	if (KVM_READ(dev, &si, sizeof si)) {
+		return si.si_udev;
+	} else {
+		dprintf(stderr, "can't convert dev_t %p to a udev_t\n",
+		    (void *)dev);
+		return -1;
+	}
 }
 
 /*
