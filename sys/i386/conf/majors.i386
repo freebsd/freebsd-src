@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.45 1998/08/10 09:06:21 phk Exp $
+$Id: majors.i386,v 1.46 1998/08/24 22:42:17 msmith Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -148,3 +148,4 @@ chrdev	name		comments
 101	dgm		Digiboard PC/Xem
 102	fla		M-Systems DiskOnChip(r)
 103	streams		SVR4 Streams emulation <newton@atdot.dotat.org>
+104	xpt		CAM Transport Layer Services
