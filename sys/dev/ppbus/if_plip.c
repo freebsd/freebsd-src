@@ -93,10 +93,7 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 
-#include "bpf.h"
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <dev/ppbus/ppbconf.h>
 
@@ -256,9 +253,7 @@ lpattach (struct ppb_device *dev)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(ifp);
 
-#if NBPF > 0
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
-#endif
 
 	return (1);
 }
@@ -446,7 +441,6 @@ clpinbyte (int spin, struct ppb_device *dev)
 	return (ctrecvl[cl] | ctrecvh[c]);
 }
 
-#if NBPF > 0
 static void
 lptap(struct ifnet *ifp, struct mbuf *m)
 {
@@ -464,7 +458,6 @@ lptap(struct ifnet *ifp, struct mbuf *m)
 	m0.m_data = (char *)&af;
 	bpf_mtap(ifp, &m0);
 }
-#endif
 
 static void
 lpintr (int unit)
@@ -525,10 +518,8 @@ lpintr (int unit)
 	    sc->sc_if.if_ibytes += len;
 	    top = m_devget(sc->sc_ifbuf + CLPIPHDRLEN, len, 0, &sc->sc_if, 0);
 	    if (top) {
-#if NBPF > 0
 		if (sc->sc_if.if_bpf)
 		    lptap(&sc->sc_if, top);
-#endif
 	        IF_ENQUEUE(&ipintrq, top);
 	        schednetisr(NETISR_IP);
 	    }
@@ -578,10 +569,8 @@ lpintr (int unit)
 	    sc->sc_if.if_ibytes += len;
 	    top = m_devget(sc->sc_ifbuf + LPIPHDRLEN, len, 0, &sc->sc_if, 0);
 	    if (top) {
-#if NBPF > 0
 		if (sc->sc_if.if_bpf)
 		    lptap(&sc->sc_if, top);
-#endif
 		IF_ENQUEUE(&ipintrq, top);
 		schednetisr(NETISR_IP);
 	    }
@@ -715,10 +704,8 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 	} else {
 		ifp->if_opackets++;
 		ifp->if_obytes += m->m_pkthdr.len;
-#if NBPF > 0
 		if (ifp->if_bpf)
 		    lptap(ifp, m);
-#endif
 	}
 
 	m_freem(m);
@@ -762,10 +749,8 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     } else {
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
-#if NBPF > 0
 	if (ifp->if_bpf)
 	    lptap(ifp, m);
-#endif
     }
 
     m_freem(m);

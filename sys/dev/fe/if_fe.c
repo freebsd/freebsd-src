@@ -70,7 +70,6 @@
  */
 
 #include "fe.h"
-#include "bpf.h"
 #include "opt_fe.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
@@ -91,9 +90,7 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #ifdef BRIDGE
 #include <net/bridge.h>
@@ -2773,10 +2770,8 @@ fe_attach ( struct isa_device * dev )
 		       sc->sc_unit);
 	}
 
-#if NBPF > 0
 	/* If BPF is in the kernel, call the attach for it.  */
  	bpfattach(&sc->sc_if, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 	return 1;
 }
 
@@ -3142,12 +3137,10 @@ fe_start ( struct ifnet *ifp )
 		 * and only if it is in "receive everything"
 		 * mode.)
 		 */
-#if NBPF > 0
 		if ( sc->sc_if.if_bpf
 		  && !( sc->sc_if.if_flags & IFF_PROMISC ) ) {
 			bpf_mtap( &sc->sc_if, m );
 		}
-#endif
 
 		m_freem( m );
 	}
@@ -3774,7 +3767,6 @@ fe_get_packet ( struct fe_softc * sc, u_short len )
 
 #define ETHER_ADDR_IS_MULTICAST(A) (*(char *)(A) & 1)
 
-#if NBPF > 0
 	/*
 	 * Check if there's a BPF listener on this interface.
 	 * If it is, hand off the raw packet to bpf.
@@ -3782,7 +3774,6 @@ fe_get_packet ( struct fe_softc * sc, u_short len )
 	if ( sc->sc_if.if_bpf ) {
 		bpf_mtap( &sc->sc_if, m );
 	}
-#endif
 
 #ifdef BRIDGE
 	if (do_bridge) {

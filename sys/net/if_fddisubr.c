@@ -105,8 +105,6 @@ extern u_char	aarp_org_code[ 3 ];
 extern struct ifqueue pkintrq;
 #endif
 
-#include "bpf.h"
-
 #define senderr(e) { error = (e); goto bad;}
 
 /*
@@ -309,7 +307,6 @@ fddi_output(ifp, m0, dst, rt0)
 		break;
 	}
 
-#if NBPF > 0
 	case AF_IMPLINK:
 	{
 		fh = mtod(m, struct fddi_header *);
@@ -343,7 +340,6 @@ fddi_output(ifp, m0, dst, rt0)
 			m->m_flags |= (M_BCAST|M_MCAST);
 		goto queue_it;
 	}
-#endif
 	default:
 		printf("%s%d: can't handle af%d\n", ifp->if_name, ifp->if_unit,
 			dst->sa_family);

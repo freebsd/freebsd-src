@@ -113,9 +113,7 @@
 #endif
 
 #include "bpf.h"
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #if defined(PPP_FILTER) && NBPF == 0
 #error "PPP_FILTER requires bpf"
@@ -221,9 +219,7 @@ pppattach(dummy)
 	sc->sc_fastq.ifq_maxlen = IFQ_MAXLEN;
 	sc->sc_rawq.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(&sc->sc_if);
-#if NBPF > 0
 	bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
-#endif
     }
     register_netisr(NETISR_PPP, pppintr);
     /*
@@ -828,13 +824,11 @@ pppoutput(ifp, m0, dst, rtp)
 #endif /* PPP_FILTER */
     }
 
-#if NBPF > 0
     /*
      * See if bpf wants to look at the packet.
      */
     if (ifp->if_bpf)
 	bpf_mtap(ifp, m0);
-#endif
 
     /*
      * Put the packet on the appropriate queue.
@@ -1463,11 +1457,9 @@ ppp_inproc(sc, m)
 #endif /* PPP_FILTER */
     }
 
-#if NBPF > 0
     /* See if bpf wants to look at the packet. */
     if (sc->sc_if.if_bpf)
 	bpf_mtap(&sc->sc_if, m);
-#endif
 
     rv = 0;
     switch (proto) {

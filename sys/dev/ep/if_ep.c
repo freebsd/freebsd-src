@@ -59,7 +59,6 @@
 #include "ep.h"
 #if NEP > 0
 
-#include "bpf.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
@@ -82,9 +81,7 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #if defined(__FreeBSD__)
 #include <machine/clock.h>
@@ -686,11 +683,9 @@ ep_attach(sc)
     ep_fset(F_RX_FIRST);
     sc->top = sc->mcur = 0;
 
-#if NBPF > 0
     if (!attached) {
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
     }
-#endif
     return 0;
 }
 
@@ -923,11 +918,9 @@ startagain:
     while (pad--)
 	outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
 
-#if NBPF > 0
     if (ifp->if_bpf) {
 	bpf_mtap(ifp, top);
     }
-#endif
 
     ifp->if_timer = 2;
     ifp->if_opackets++;
@@ -1189,7 +1182,6 @@ read_again:
     top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
     top->m_pkthdr.len = sc->cur_len;
 
-#if NBPF > 0
     if (ifp->if_bpf) {
 	bpf_mtap(ifp, top);
 
@@ -1218,7 +1210,6 @@ read_again:
 	    return;
 	}
     }
-#endif
 
     eh = mtod(top, struct ether_header *);
     m_adj(top, sizeof(struct ether_header));

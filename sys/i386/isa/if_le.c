@@ -56,7 +56,6 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#include "bpf.h"
 
 #include <machine/clock.h>
 
@@ -66,9 +65,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 /* Forward declarations */
 typedef struct le_softc le_softc_t;
@@ -359,9 +356,7 @@ le_attach(
     ifp->if_addrlen = 6;
     ifp->if_hdrlen = 14;
 
-#if NBPF > 0
     bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
     if_attach(ifp);
     ether_ifattach(ifp);
@@ -401,7 +396,6 @@ le_input(
     }
     MEMCPY(&eh, seg1, sizeof(eh));
 
-#if NBPF > 0
     if (sc->le_if.if_bpf != NULL && seg2 == NULL) {
 	bpf_tap(&sc->le_if, seg1, total_len);
 	/*
@@ -423,7 +417,6 @@ le_input(
 	    }
 	}
     }
-#endif
     seg1 += sizeof(eh); total_len -= sizeof(eh); len1 -= sizeof(eh);
 
     MGETHDR(m, M_DONTWAIT, MT_DATA);
@@ -458,7 +451,6 @@ le_input(
     MEMCPY(mtod(m, caddr_t), seg1, len1);
     if (seg2 != NULL)
 	MEMCPY(mtod(m, caddr_t) + len1, seg2, total_len - len1);
-#if NBPF > 0
     if (sc->le_if.if_bpf != NULL && seg2 != NULL) {
 	bpf_mtap(&sc->le_if, m);
 	/*
@@ -483,7 +475,6 @@ le_input(
 	    }
 	}
     }
-#endif
     ether_input(&sc->le_if, &eh, m);
 }
 
@@ -1077,10 +1068,8 @@ lemac_start(
 
 	LE_OUTB(sc, LEMAC_REG_TQ, tx_pg);	/* tell chip to transmit this packet */
 
-#if NBPF > 0
 	if (sc->le_if.if_bpf)
 		bpf_mtap(&sc->le_if, m);
-#endif
 
 	m_freem(m);			/* free the mbuf */
     }

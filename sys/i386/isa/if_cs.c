@@ -35,7 +35,6 @@
 
 /* #define	 CS_DEBUG */
 #include "cs.h"
-#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,9 +51,7 @@
 #include <net/if_media.h>
 #include <net/ethernet.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <machine/clock.h>
 
@@ -621,9 +618,7 @@ cs_attach(struct cs_softc *sc, int unit, int flags)
 		printf(CS_NAME"%d: ethernet address %6D\n",
 		       ifp->if_unit, sc->arpcom.ac_enaddr, ":");
 
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof (struct ether_header));
-#endif
 	return 1;
 }
 
@@ -778,10 +773,8 @@ cs_get_packet(struct cs_softc *sc)
 
 	eh = mtod(m, struct ether_header *);
 
-#if NBPF > 0
 	if (ifp->if_bpf)
 		bpf_mtap(ifp, m);
-#endif
 
 #ifdef CS_DEBUG
 	for (i=0;i<length;i++)
@@ -951,11 +944,9 @@ cs_start(struct ifnet *ifp)
 
 			cs_write_mbufs(sc, m);
 
-#if NBPF > 0
 			if (ifp->if_bpf) {
 				bpf_mtap(ifp, m);
 			}
-#endif
 
 			m_freem(m);
 		}

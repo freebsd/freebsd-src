@@ -60,10 +60,7 @@
 #include <net/netisr.h>
 #endif
 
-#include "bpf.h"
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #ifdef INET
 #include <netinet/in.h>
@@ -3473,14 +3470,12 @@ tulip_rx_intr(
 #endif /* TULIP_BUS_DMA */
 
 	    eh = *mtod(ms, struct ether_header *);
-#if NBPF > 0
 	    if (sc->tulip_if.if_bpf != NULL) {
 		if (me == ms)
 		    bpf_tap(&sc->tulip_if, mtod(ms, caddr_t), total_len);
 		else
 		    bpf_mtap(&sc->tulip_if, ms);
 	    }
-#endif
 	    sc->tulip_flags |= TULIP_RXACT;
 
 #ifdef BRIDGE /* see code in if_ed.c */
@@ -3737,10 +3732,8 @@ tulip_tx_intr(
 		    TULIP_TXMAP_POSTSYNC(sc, map);
 		    sc->tulip_txmaps[sc->tulip_txmaps_free++] = map;
 #endif /* TULIP_BUS_DMA */
-#if NBPF > 0
 		    if (sc->tulip_if.if_bpf != NULL)
 			bpf_mtap(&sc->tulip_if, m);
-#endif
 		    m_freem(m);
 #if defined(TULIP_DEBUG)
 		} else {
@@ -4901,9 +4894,7 @@ tulip_attach(
     ifp->if_snd.ifq_maxlen = ifqmaxlen;
     ether_ifattach(&(sc)->tulip_if);
 
-#if NBPF > 0
     bpfattach(&sc->tulip_if, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 }
 
 #if defined(TULIP_BUS_DMA)
