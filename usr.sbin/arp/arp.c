@@ -451,7 +451,7 @@ search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
 		sin = (struct sockaddr_inarp *)(rtm + 1);
-		sdl = (struct sockaddr_dl *)(sin + 1);
+		(char *)sdl = (char *)sin + ROUNDUP(sin->sin_len);
 		if (addr) {
 			if (addr != sin->sin_addr.s_addr)
 				continue;
