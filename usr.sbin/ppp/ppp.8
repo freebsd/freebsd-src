@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.19 1998/04/19 02:23:21 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.20 1998/04/23 03:23:03 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2234,9 +2234,12 @@ This option allows the setting of any of the following variables:
 .Bl -tag -width 20
 .It set accmap Ar hex-value
 ACCMap stands for Asyncronous Control Character Map.  This is always
-negotiated with the peer, and defaults to a value of 0x00000000.
+negotiated with the peer, and defaults to a value of 00000000 in hex.
 This protocol is required to defeat hardware that depends on passing
 certain characters from end to end (such as XON/XOFF etc).
+.Pp
+For the XON/XOFF scenario, use
+.Dq set accmap 000a0000 .
 .It set authkey|key Ar value
 This sets the authentication key (or password) used in client mode
 PAP or CHAP negotiation to the given value.  It can also be used to
