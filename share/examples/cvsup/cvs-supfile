@@ -74,6 +74,7 @@ src-all
 #src-games
 #src-gnu
 #src-include
+#src-kerberos5
 #src-kerberosIV
 #src-lib
 #src-libexec
@@ -84,19 +85,9 @@ src-all
 #src-tools
 #src-usrbin
 #src-usrsbin
-
-## Export-restricted collections.
-#
-# Only people in the USA and Canada may fetch these collections.  If
-# you are not in the USA or Canada, please use the collections in the
-# "secure-cvs-supfile" instead.
-#
-# The easiest way to get the export-restricted code is to use the
-# "cvs-crypto" mega-collection.
-#cvs-crypto
-#
-# These are the individual collections that make up "cvs-crypto".  If
-# you use these, be sure to comment out "cvs-crypto" above.
+# These are the individual collections that make up FreeBSD's crypto
+# collection. They are no longer export-restricted and are a part of
+# src-all
 #src-crypto
 #src-eBones
 #src-secure
