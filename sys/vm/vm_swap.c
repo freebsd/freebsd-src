@@ -68,36 +68,45 @@ static int nswap;		/* first block after the interleaved devs */
 static int nswdev = NSWAPDEV;
 int vm_swap_size;
 
+static int swapdev_strategy __P((struct vop_strategy_args *ap));
+struct vnode *swapdev_vp;
+
 /*
- *	swstrategy:
+ *	swapdev_strategy:
  *
- *	Perform swap strategy interleave device selection
+ *	VOP_STRATEGY() for swapdev_vp.
+ *	Perform swap strategy interleave device selection.
  *
  *	The bp is expected to be locked and *not* B_DONE on call.
  */
 
-void
-swstrategy(bp)
-	register struct buf *bp;
+static int
+swapdev_strategy(ap)
+	struct vop_strategy_args /* {
+		struct vnode *a_vp;
+		struct buf *a_bp;
+	} */ *ap;
 {
 	int s, sz, off, seg, index;
 	register struct swdevt *sp;
 	struct vnode *vp;
+	struct buf *bp;
 
+	bp = ap->a_bp;
 	sz = howmany(bp->b_bcount, PAGE_SIZE);
+
 	/*
 	 * Convert interleaved swap into per-device swap.  Note that
 	 * the block size is left in PAGE_SIZE'd chunks (for the newswap)
 	 * here.
 	 */
-
 	if (nswdev > 1) {
 		off = bp->b_blkno % dmmax;
 		if (off + sz > dmmax) {
 			bp->b_error = EINVAL;
 			bp->b_flags |= B_ERROR;
 			biodone(bp);
-			return;
+			return 0;
 		}
 		seg = bp->b_blkno / dmmax;
 		index = seg % nswdev;
@@ -111,14 +120,14 @@ swstrategy(bp)
 		bp->b_error = EINVAL;
 		bp->b_flags |= B_ERROR;
 		biodone(bp);
-		return;
+		return 0;
 	}
 	bp->b_dev = sp->sw_device;
 	if (sp->sw_vp == NULL) {
 		bp->b_error = ENODEV;
 		bp->b_flags |= B_ERROR;
 		biodone(bp);
-		return;
+		return 0;
 	}
 
 	/*
@@ -142,7 +151,23 @@ swstrategy(bp)
 	pbreassignbuf(bp, sp->sw_vp);
 	splx(s);
 	VOP_STRATEGY(bp->b_vp, bp);
+	return 0;
 }
+
+/*
+ * Create a special vnode op vector for swapdev_vp - we only use
+ * VOP_STRATEGY(), everything else returns an error.
+ */
+vop_t **swapdev_vnodeop_p;
+static struct vnodeopv_entry_desc swapdev_vnodeop_entries[] = {  
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
+	{ &vop_strategy_desc,		(vop_t *) swapdev_strategy },
+	{ NULL, NULL }
+};
+static struct vnodeopv_desc swapdev_vnodeop_opv_desc =
+	{ &swapdev_vnodeop_p, swapdev_vnodeop_entries };
+
+VNODEOP_SET(swapdev_vnodeop_opv_desc);
 
 /*
  * System call swapon(name) enables swapping on device name,
@@ -185,6 +210,14 @@ swapon(p, uap)
 
 	if (error)
 		vrele(vp);
+
+	if (!swapdev_vp) {
+		error = getnewvnode(VT_NON, NULL, swapdev_vnodeop_p,
+		    &swapdev_vp);
+		if (error)
+			panic("Cannot get vnode for swapdev");
+		swapdev_vp->v_type = VNON;	/* Untyped */
+	}
 
 	return (error);
 }
