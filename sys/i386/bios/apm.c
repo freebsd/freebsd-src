@@ -1,4 +1,4 @@
-/*
+/*-
  * APM (Advanced Power Management) BIOS Device Driver
  *
  * Copyright (c) 1994 UKAI, Fumitoshi.
