@@ -1,13 +1,13 @@
 #	from: @(#)Makefile	6.1 (Berkeley) 3/3/91
-#	$Id: Makefile,v 1.13 1998/03/06 13:13:15 bde Exp $
+#	$Id: Makefile,v 1.14 1998/05/25 17:34:36 sos Exp $
 
-.include "config/Makefile.$(MACHINE)"
+.include "config/Makefile.$(MACHINE_ARCH)"
 
 .if !defined (gas_hosttype)
-gas_hosttype=$(MACHINE)
+gas_hosttype=$(MACHINE_ARCH)
 .endif
 .if !defined (gas_target)
-gas_target=$(MACHINE)
+gas_target=$(MACHINE_ARCH)
 .endif
 .if !defined (gas_objformat)
 gas_objformat=aout
@@ -33,12 +33,12 @@ CONF_HEADERS=	targ-cpu.h obj-format.h host.h targ-env.h
 
 SUBDIR+= doc
 
-targ-cpu.h: Makefile config/Makefile.$(MACHINE) $(.CURDIR)/config/tc-$(gas_target).h
+targ-cpu.h: Makefile config/Makefile.$(MACHINE_ARCH) $(.CURDIR)/config/tc-$(gas_target).h
 	@cmp -s $(.CURDIR)/config/tc-$(gas_target).h targ-cpu.h || \
 	    ( ${ECHO} "updating ${.TARGET}..." ; /bin/rm -f targ-cpu.h ; \
 	    cp $(.CURDIR)/config/tc-$(gas_target).h targ-cpu.h )
 
-obj-format.h: Makefile config/Makefile.$(MACHINE) $(.CURDIR)/config/obj-$(gas_objformat).h
+obj-format.h: Makefile config/Makefile.$(MACHINE_ARCH) $(.CURDIR)/config/obj-$(gas_objformat).h
 	@cmp -s $(.CURDIR)/config/obj-$(gas_objformat).h obj-format.h || \
 	    ( ${ECHO} "updating ${.TARGET}..." ; /bin/rm -f obj-format.h ; \
 	    cp $(.CURDIR)/config/obj-$(gas_objformat).h obj-format.h )
@@ -49,18 +49,18 @@ config_hostfile=	$(.CURDIR)/config/ho-$(gas_hosttype).h
 config_hostfile=	$(.CURDIR)/config/ho-generic.h
 .endif
 
-host.h: Makefile config/Makefile.$(MACHINE) $(config_hostfile)
+host.h: Makefile config/Makefile.$(MACHINE_ARCH) $(config_hostfile)
 	@cmp -s $(config_hostfile) host.h || \
 	    ( ${ECHO} "updating ${.TARGET}..." ; /bin/rm -f host.h ; \
 	    cp $(config_hostfile) host.h )
 
-.if exists ($(.CURDIR)/config/te-$(MACHINE).h)
-config_targenvfile=	$(.CURDIR)/config/te-$(MACHINE).h
+.if exists ($(.CURDIR)/config/te-$(MACHINE_ARCH).h)
+config_targenvfile=	$(.CURDIR)/config/te-$(MACHINE_ARCH).h
 .else
 config_targenvfile=	$(.CURDIR)/config/te-generic.h
 .endif
 
-targ-env.h: Makefile config/Makefile.$(MACHINE) $(config_targenvfile)
+targ-env.h: Makefile config/Makefile.$(MACHINE_ARCH) $(config_targenvfile)
 	@cmp -s $(config_targenvfile) targ-env.h || \
 	    ( ${ECHO} "updating ${.TARGET}..." ; /bin/rm -f targ-env.h ; \
 	    cp $(config_targenvfile) targ-env.h )
