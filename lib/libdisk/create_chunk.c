@@ -33,38 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include "libdisk.h"
 
-static void msgDebug(char *, ...) __printflike(1, 2);
-
-/* Clone these two from sysinstall because we need our own copies
- * due to link order problems with `crunch'.  Feh!
- */
 static int
-isDebug()
-{
-	static int debug = 0;	/* Allow debugger to tweak it */
-
-	return debug;
-}
-
-/* Write something to the debugging port */
-static void
-msgDebug(char *fmt, ...)
-{
-	va_list args;
-	char *dbg;
-	static int DebugFD = -1;
-
-	if (DebugFD == -1)
-		DebugFD = open(_PATH_DEV"ttyv1", O_RDWR);
-	dbg = (char *)alloca(FILENAME_MAX);
-	strcpy(dbg, "DEBUG: ");
-	va_start(args, fmt);
-	vsnprintf((char *)(dbg + strlen(dbg)), FILENAME_MAX, fmt, args);
-	va_end(args);
-	write(DebugFD, dbg, strlen(dbg));
-}
-
-int
 Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 {
 	struct chunk *c1, *c3;
@@ -132,7 +101,7 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 	return 0;
 }
 
-int
+static int
 Fixup_Extended_Names(struct disk *d, struct chunk *c)
 {
 	struct chunk *c1;
@@ -155,14 +124,13 @@ int
 Fixup_Names(struct disk *d)
     {
 	struct chunk *c1, *c2;
-	int i;
 	#ifdef __i386__
 	struct chunk *c3;
 	int j;
 	#endif
 
 	c1 = d->chunks;
-	for(i=1,c2 = c1->part; c2 ; c2 = c2->next) {
+	for(c2 = c1->part; c2 ; c2 = c2->next) {
 		c2->flags &= ~CHUNK_BSD_COMPAT;
 		if (c2->type == unused)
 			continue;
@@ -247,7 +215,7 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subty
 }
 
 struct chunk *
-Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e type, int subtype, u_long flags)
+Create_Chunk_DWIM(struct disk *d, const struct chunk *parent , u_long size, chunk_e type, int subtype, u_long flags)
 {
 	int i;
 	struct chunk *c1;
@@ -279,182 +247,14 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 }
 
 int
-MakeDev(struct chunk *c1, const char *path)
+MakeDevChunk(const struct chunk *c1, const char *path)
 {
-#if 0
-	char *p = c1->name;
-	u_long cmaj, min, unit, part, slice;
-	char buf[BUFSIZ], buf2[BUFSIZ];
-	struct group *grp;
-	struct passwd *pwd;
-	struct statfs fs;
-	uid_t owner;
-	gid_t group;
 
-	*buf2 = '\0';
-	if (isDebug())
-		msgDebug("MakeDev: Called with %s on path %s\n", p, path);
-	if (!strcmp(p, "X"))
-		return 0;
-	if (statfs(path, &fs) != 0) {
-#ifdef DEBUG
-		warn("statfs(%s) failed\n", path);
-#endif
-		return 0;
-	}
-	if (strcmp(fs.f_fstypename, "devfs") == 0) {
-		if (isDebug())
-			msgDebug("MakeDev: No need to mknod(2) with DEVFS.\n");
-		return 1;
-	}
-
-	if (!strncmp(p, "ad", 2))
-		cmaj = 116, p += 2;
-#ifdef PC98
-	else if (!strncmp(p, "wd", 2))
-		cmaj = 3, p += 2;
-#endif
-	else if (!strncmp(p, "wfd", 3))
-		cmaj = 87, p += 3;
-	else if (!strncmp(p, "afd", 3))
-		cmaj = 118, p += 3;
-	else if (!strncmp(p, "fla", 3))
-		cmaj = 102, p += 3;
-	else if (!strncmp(p, "idad", 4))
-		cmaj = 109, p += 4;
-	else if (!strncmp(p, "mlxd", 4))
-		cmaj = 131, p += 4;
-	else if (!strncmp(p, "amrd", 4))
-		cmaj = 133, p += 4;
-	else if (!strncmp(p, "twed", 4))
-		cmaj = 147, p += 4;
-	else if (!strncmp(p, "aacd", 4))
-		cmaj = 151, p += 4;
-	else if (!strncmp(p, "ar", 2))	/* ATA RAID */
-		cmaj = 157, p += 2;
-	else if (!strncmp(p, "da", 2))	/* CAM support */
-		cmaj = 13, p += 2;
-	else {
-		msgDebug("MakeDev: Unknown major/minor for devtype %s\n", p);
-		return 0;
-	}
-	if (!isdigit(*p)) {
-		msgDebug("MakeDev: Invalid disk unit passed: %s\n", p);
-		return 0;
-	}
-	unit = *p - '0';
-	p++;
-	if (!*p) {
-		slice = 1;
-		part = 2;
-		goto done;
-	}
-	else if (isdigit(*p)) {
-		unit *= 10;
-		unit += (*p - '0');
-		p++;
-	}
-#ifndef __alpha__
-	if (*p != 's') {
-		msgDebug("MakeDev: `%s' is not a valid slice delimiter\n", p);
-		return 0;
-	}
-	p++;
-	if (!isdigit(*p)) {
-		msgDebug("MakeDev: `%s' is an invalid slice number\n", p);
-		return 0;
-	}
-	slice = *p - '0';
-	p++;
-	if (isdigit(*p)) {
-		slice *= 10;
-		slice += (*p - '0');
-		p++;
-	}
-	slice = slice + 1;
-#else
-	slice = 0;
-#endif
-	if (!*p) {
-		part = 2;
-		if(c1->type == freebsd)
-			sprintf(buf2, "%sc", c1->name);
-		goto done;
-	}
-	if (*p < 'a' || *p > 'h') {
-		msgDebug("MakeDev: `%s' is not a valid partition name.\n", p);
-		return 0;
-	}
-	part = *p - 'a';
-     done:
-	if (isDebug())
-		msgDebug("MakeDev: Unit %lu, Slice %lu, Part %lu\n", unit, slice, part);
-	if (unit > 32)
-		return 0;
-	if (slice > 32)
-		return 0;
-	if ((pwd = getpwnam("root")) == NULL) {
-		if (isDebug())
-			msgDebug("MakeDev: Unable to lookup user \"root\", using 0.\n");
-		owner = 0;
-	} else {
-		owner = pwd->pw_uid;
-	}
-	if ((grp = getgrnam("operator")) == NULL) {
-		if (isDebug())
-			msgDebug("MakeDev: Unable to lookup group \"operator\", using 5.\n");
-		group = 5;
-	} else {
-		group = grp->gr_gid;
-	}
-	min = unit * 8 + 65536 * slice + part;
-	sprintf(buf, "%s/r%s", path, c1->name);
-	unlink(buf);
-	if (mknod(buf, S_IFCHR|0640, makedev(cmaj,min)) == -1) {
-		msgDebug("mknod of %s returned failure status!\n", buf);
-		return 0;
-	}
-	if (chown(buf, owner, group) == -1) {
-		msgDebug("chown of %s returned failure status!\n", buf);
-		return 0;
-	}
-	if (*buf2) {
-		sprintf(buf, "%s/r%s", path, buf2);
-		unlink(buf);
-		if (mknod(buf, S_IFCHR|0640, makedev(cmaj,min)) == -1) {
-			msgDebug("mknod of %s returned failure status!\n", buf);
-			return 0;
-		}
-		if (chown(buf, owner, group) == -1) {
-			msgDebug("chown of %s returned failure status!\n", buf);
-			return 0;
-		}
-	}
-	sprintf(buf, "%s/%s", path, c1->name);
-	unlink(buf);
-	if (mknod(buf, S_IFCHR|0640, makedev(cmaj,min)) == -1) {
-		msgDebug("mknod of %s returned failure status!\n", buf);
-		return 0;
-	}
-	if (chown(buf, owner, group) == -1) {
-		msgDebug("chown of %s returned failure status!\n", buf);
-		return 0;
-	}
-#endif
-	return 1;
-}
-
-int
-MakeDevChunk(struct chunk *c1, const char *path)
-{
-	int i;
-
-	i = MakeDev(c1, path);
 	if (c1->next)
 		MakeDevChunk(c1->next, path);
 	if (c1->part)
 		MakeDevChunk(c1->part, path);
-	return i;
+	return 1;
 }
 
 int
