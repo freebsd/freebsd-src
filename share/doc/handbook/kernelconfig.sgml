@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.11 1996/05/15 15:17:26 jfieber Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.12 1996/05/16 23:18:03 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -160,7 +160,7 @@
 	be dependant upon an option gets this option out of an
 	<tt>opt_<em>foo</em>.h</tt> declaration file created in the
 	compile directory by <tt>config</tt>.  The list of valid options
-	for <tt>config</tt> lives in two files: options that do nott
+	for <tt>config</tt> lives in two files: options that do not
 	depend on the architecture are listed in
 	<tt>/sys/conf/options</tt>, architecture-dependant ones
 	in <tt>/sys/<em>arch</em>/conf/options.<em>arch</em></tt>,
