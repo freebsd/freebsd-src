@@ -448,7 +448,6 @@ kern/kern_linker.c	standard
 kern/link_aout.c	standard
 kern/link_elf.c		standard
 kern/kern_acct.c	standard
-kern/kern_accf.c	standard
 kern/kern_acl.c		standard
 kern/kern_clock.c	standard
 kern/kern_conf.c	standard
@@ -513,6 +512,7 @@ kern/tty_pty.c		optional pty
 kern/tty_snoop.c	optional snp
 kern/tty_subr.c		standard
 kern/tty_tty.c		standard
+kern/uipc_accf.c	standard
 kern/uipc_domain.c	standard
 kern/uipc_mbuf.c	standard
 kern/uipc_mbuf2.c	standard
