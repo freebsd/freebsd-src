@@ -19,7 +19,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF  
  * SUCH DAMAGE.    
  *
- * $Id: _atomic_lock.S,v 1.1 1998/04/29 09:36:03 jb Exp $
+ * $Id: _atomic_lock.S,v 1.1 1998/06/09 08:21:55 jb Exp $
  *
  */
 
@@ -35,23 +35,11 @@
 LEAF(_atomic_lock,0)
 	LDGP(pv)
 
-	/* Get the existing lock value and lock memory: */
-	ldq_l	v0, 0(a0)
-
-	/* Branch if already locked: */
-	bne	v0, already_locked
-
-	/* Not locked, so store 1: */
-	mov	1, t0
-	stq_c	t0, 0(a0)
-
-	/* Obtained the lock: */
-	br	done
-
-already_locked:
-	/* Already locked so put the value back and unlock memory: */
-	stq_c	v0, 0(a0)
-	
-done:
-	RET
+0:	ldq_l	v0, 0(a0)	/* read existing lock value */
+	mov	1, t0		/* locked value to store */
+	stq_c	t0, 0(a0)	/* attempt to store, status in t0 */
+	beq	t0, 1f		/* branch foward to optimise prediction */
+	mb			/* sync with other processors */
+	RET			/* return with v0==0 if lock obtained */
+1:	br	0b		/* loop to try again */
 END(_atomic_lock)
