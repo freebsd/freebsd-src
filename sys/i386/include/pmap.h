@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.17 1994/10/08 22:21:34 phk Exp $
+ * 	$Id: pmap.h,v 1.18 1994/11/14 14:12:24 bde Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -62,7 +62,7 @@ typedef unsigned int *pt_entry_t;
  * given to the user (NUPDE)
  */
 #ifndef NKPT
-#define	NKPT			24	/* actual number of kernel page tables */
+#define	NKPT			26	/* actual number of kernel page tables */
 #endif
 #ifndef NKPDE
 #define NKPDE			63	/* addressable number of page tables/pde's */
