@@ -110,14 +110,18 @@ struct disklabel {
 	 */
 	union {
 		char	un_d_packname[16];	/* pack identifier */
+#ifndef _KERNEL
 		struct {
 			char *un_d_boot0;	/* primary bootstrap name */
 			char *un_d_boot1;	/* secondary bootstrap name */
 		} un_b;
+#endif
 	} d_un;
 #define d_packname	d_un.un_d_packname
+#ifndef _KERNEL
 #define d_boot0		d_un.un_b.un_d_boot0
 #define d_boot1		d_un.un_b.un_d_boot1
+#endif
 
 			/* disk geometry: */
 	u_int32_t d_secsize;		/* # of bytes per sector */
