@@ -46,19 +46,11 @@
 #define DEF_ADVPREFERREDLIFETIME 604800
 
 /*XXX int-to-double comparison for INTERVAL items */
-#ifndef MIP6
-#define mobileip6 0
-#endif
-
 #define MAXROUTERLIFETIME 9000
-#define MIN_MAXINTERVAL (mobileip6 ? 1.5 : 4.0)
+#define MIN_MAXINTERVAL 4.0
 #define MAX_MAXINTERVAL 1800
-#define MIN_MININTERVAL	(mobileip6 ? 0.5 : 3)
+#define MIN_MININTERVAL 3
 #define MAXREACHABLETIME 3600000
-
-#ifndef MIP6
-#undef miobileip6
-#endif
 
 #define MAX_INITIAL_RTR_ADVERT_INTERVAL  16
 #define MAX_INITIAL_RTR_ADVERTISEMENTS    3
@@ -86,9 +78,6 @@ struct prefix {
 	long	pltimeexpire;	/* expiration of pltime; decrement case only */
 	u_int onlinkflg;	/* bool: AdvOnLinkFlag */
 	u_int autoconfflg;	/* bool: AdvAutonomousFlag */
-#ifdef MIP6
-	u_int routeraddr;	/* bool: RouterAddress */
-#endif
 	int prefixlen;
 	int origin;		/* from kernel or config */
 	struct in6_addr prefix;
@@ -132,9 +121,6 @@ struct	rainfo {
 	u_int	mininterval;	/* MinRtrAdvInterval */
 	int 	managedflg;	/* AdvManagedFlag */
 	int	otherflg;	/* AdvOtherConfigFlag */
-#ifdef MIP6
-	int	haflg;		/* HAFlag */
-#endif
 
 	int	rtpref;		/* router preference */
 	u_int32_t linkmtu;	/* AdvLinkMTU */
@@ -145,10 +131,6 @@ struct	rainfo {
 	int	pfxs;		/* number of prefixes */
 	long	clockskew;	/* used for consisitency check of lifetimes */
 
-#ifdef MIP6
-	u_short	hapref;		/* Home Agent Preference */
-	u_short	hatime;		/* Home Agent Lifetime */
-#endif
 	struct rtinfo route;	/* route information option (link head) */
 	int	routes;		/* number of route information options */
 
@@ -174,6 +156,3 @@ struct rainfo *if_indextorainfo __P((int));
 struct prefix *find_prefix __P((struct rainfo *, struct in6_addr *, int));
 
 extern struct in6_addr in6a_site_allrouters;
-#ifdef MIP6
-extern int mobileip6;
-#endif
