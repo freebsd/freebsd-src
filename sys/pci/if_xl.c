@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.11 1998/09/08 23:42:10 wpaul Exp $
+ *	$Id: if_xl.c,v 1.54 1998/09/25 17:43:57 wpaul Exp wpaul $
  */
 
 /*
@@ -147,7 +147,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.11 1998/09/08 23:42:10 wpaul Exp $";
+	"$Id: if_xl.c,v 1.54 1998/09/25 17:43:57 wpaul Exp wpaul $";
 #endif
 
 /*
@@ -170,6 +170,8 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c905B Fast Etherlink XL 10/100BaseTX" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT4,
 		"3Com 3c905B Fast Etherlink XL 10/100BaseT4" },
+	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100FX,
+		"3Com 3c905B Fast Etherlink XL 10/100BaseFX/SC" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT_SERV,
 		"3Com 3c980 Fast Etherlink XL 10/100BaseTX" },
 	{ 0, 0, NULL }
