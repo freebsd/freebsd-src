@@ -294,8 +294,8 @@ get_current_thread ()
   if (!in_thread_list (ptid))
     {
       add_thread (ptid);
-      inferior_ptid = ptid;
     }
+  inferior_ptid = ptid;
 }
 
 static void
@@ -602,7 +602,8 @@ fbsd_lwp_fetch_registers (int regno)
       return;
     }
 
-  lwp = GET_LWP (inferior_ptid);
+  /* XXX: We've replaced the pid with the lwpid for GDB's benefit. */
+  lwp = GET_PID (inferior_ptid);
 
   if (ptrace (PT_GETREGS, lwp, (caddr_t) &gregs, 0) == -1)
     error ("Cannot get lwp %d registers: %s\n", lwp, safe_strerror (errno));
@@ -1271,7 +1272,10 @@ ps_lgetregs (struct ps_prochandle *ph, lwpid_t lwpid, prgregset_t gregset)
   struct cleanup *old_chain;
 
   old_chain = save_inferior_ptid ();
-  inferior_ptid = BUILD_LWP (lwpid, PIDGET (inferior_ptid));
+
+  /* XXX: Target operation isn't lwp aware: replace pid with lwp */
+  inferior_ptid = BUILD_LWP (0, lwpid);
+
   target_fetch_registers (-1);
   fill_gregset (gregset, -1);
   do_cleanups (old_chain);
