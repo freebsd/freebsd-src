@@ -733,7 +733,7 @@ _yacc=		usr.bin/yacc
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
-.if ${BOOTSTRAPPING} < 501114
+.if ${BOOTSTRAPPING} < 502128
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
