@@ -12,8 +12,7 @@
 
 #include "cvs.h"
 
-/* NOTE: remember to remove `Halibut' when patching this code. */
-char *version_string = "\nConcurrent Versions System (CVS) 1.10 `Halibut'";
+char *version_string = "\nConcurrent Versions System (CVS) 1.10.7";
 
 #ifdef CLIENT_SUPPORT
 #ifdef SERVER_SUPPORT

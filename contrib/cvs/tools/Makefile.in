@@ -54,7 +54,7 @@ clean:
 .PHONY: clean
 
 distclean: clean
-	rm -f Makefile pcl-cvs/Makefile
+	rm -f Makefile
 .PHONY: distclean
 
 realclean: distclean
@@ -65,7 +65,6 @@ dist-dir:
 	for i in ${DISTFILES}; do \
 	  ln $(srcdir)/$${i} ${DISTDIR}; \
 	done
-	cd pcl-cvs; ${MAKE} dist-dir DISTDIR="../${DISTDIR}/pcl-cvs"
 .PHONY: dist-dir
 
 subdir = tools

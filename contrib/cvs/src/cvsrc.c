@@ -65,6 +65,11 @@ read_cvsrc (argc, argv, cmdname)
     /* determine filename for ~/.cvsrc */
 
     homedir = get_homedir ();
+    /* If we can't find a home directory, ignore ~/.cvsrc.  This may
+       make tracking down problems a bit of a pain, but on the other
+       hand it might be obnoxious to complain when CVS will function
+       just fine without .cvsrc (and many users won't even know what
+       .cvsrc is).  */
     if (!homedir)
 	return;
 
@@ -96,7 +101,7 @@ read_cvsrc (argc, argv, cmdname)
 
 	/* stop if we match the current command */
 	if (!strncmp (line, cmdname, command_len)
-	    && isspace (*(line + command_len)))
+	    && isspace ((unsigned char) *(line + command_len)))
 	{
 	    found = 1;
 	    break;

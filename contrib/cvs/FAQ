@@ -126,11 +126,9 @@ molli@loria.fr
           CVS uses the word "branch" in a number of ways. The two most
           important are:
           
-          
           - The vendor branch holds releases from (normally) an outside
           software vendor. It is implemented using a specific RCS branch
           (i.e. 1.1.1).
-          
           
           - The "Main Branch", which normally holds your "Main Line
           Development", but is defined as the collection of revisions you
@@ -142,7 +140,6 @@ molli@loria.fr
           Branches, files you have never changed are on three branches at
           the same time:
           
-          
           - The RCS 1.1.1 branch.
           - The CVS Vendor branch.
           - The CVS "Main Branch".
@@ -151,12 +148,10 @@ molli@loria.fr
           
           In referring to CVS, "branch" can be used in four other ways:
           
-          
           - A CVS working directory satisfies the definition of "branch"
           for a single developer -- you are on a private "virtual branch"
           that does not appear in any of the RCS files or the CVS control
           files.
-          
           
           - The CVS "default branch" is the Repository source for the
           collection of files in your working directory. It is *not* the
@@ -166,25 +161,21 @@ molli@loria.fr
           a "sticky" tag that changes your default branch to the one you
           checked out.
           
-          
           - A "magic" branch can be a branch that hasn't happened yet. It
           is implemented by a special tag you can check out that is not
           attached to a real RCS branch. When you commit a file to a
           magic branch, the branch becomes real (i.e. a physical RCS
           branch).
           
-          
           - And, of course, CVS uses "branch" to indicate a
           human-oriented "branch in development".
           
      How RCS uses the word "branch":
           
-          
           - The RCS "Main Branch" (Synonym: "The Trunk") contains a
           series of two-part revision numbers separated by a single '.'
           (e.g. 1.2). It is treated specially and is the initial default
           branch. (The default default?)
-          
           
           - The RCS "Default" branch starts out attached to the RCS "Main
           Branch". For RCS purposes, it can be changed to point to any
@@ -358,10 +349,8 @@ molli@loria.fr
    directory (in ./CVS/Tag) and the checked-out files (on each line of
    ./CVS/Entries).
    
-   
    - A "sticky" <tag> (including a <branch_tag>) causes most CVS commands
    to act as if "-r <tag>" were on the command line.
-   
    
    - A "sticky" <branch_tag> indicates that the working directory (and
    working files) are "on the branch".
@@ -377,16 +366,12 @@ molli@loria.fr
    
    Specifically, you must:
    
-   
    - Remember that the branch exists. (This is non-trivial if you create
    a lot of them.)
    
-   
    - Plan when to merge it back into the main line of development.
    
-   
    - Schedule the order that multiple branch merges are to be done.
-   
    
    - If you ever intend to merge branches into each other, instead of
    limiting merges of branch work back into the "main line", you must
@@ -1445,12 +1430,10 @@ You can branch a branch.
    So, here's an un-reviewed suggestion originally from Graydon Dodson
    <grdodson@lexmark.com>, which I've altered and edited heavily.
    
-   
    - Keep a directory where the whole tree is checked out. (It might be
    built and tested once in a while to make sure it is worth linking to,
    but that doesn't affect the source control aspect of this procedure).
    Let's call it /master/build.
-   
    
    - Write a tool that creates a tree of directories (like the X11
    "lndir" command) filled with links to the checked out files in the
@@ -1459,13 +1442,11 @@ You can branch a branch.
    This tool should also provide real copies of, not symlinks to, all the
    files within the CVS administrative directories.
    
-   
    - You could also provide a way for the tool to take a list of whole
    directories that you will never change, for which it would create a
    single symlink to the directory and not a subtree of symlinks to
    files. Or you could rm -r pieces of the resulting working directory
    yourself and replace it with links.
-   
    
    - If you want to edit a file, you have to grab a real copy and keep it
    until your revision shows up in the /master/build tree. I'd create a
@@ -1487,11 +1468,9 @@ You can branch a branch.
    You'll have to run "update" before "commit" anyway if there are newer
    revisions.
    
-   
    - Presumably there would also be a tool to traverse the link tree and
    revert it to links if there are no modified files and/or if all the
    real files match the revision of the /master/build tree.
-   
    
    - To avoid confusing CVS when the /master/build revisions are updated
    but your CVS/Entries files is not, CVS would have to change to handle
@@ -1627,7 +1606,6 @@ You can branch a branch.
    RCS versions earlier than 5.5 print the above error when a file does
    not end in a newline character. It can be caused by:
    
-   
    - Editing with Emacs and not using "require-final-newline".
    - Committing a binary file.
    - Filesystem failures (NFS!) that put nulls in your file.
@@ -1738,10 +1716,8 @@ You can branch a branch.
    Recovery:
    - If only the ,<file>, exists, rename it to <file>,v.
    
-   
    - If both ,<file>, and <file>,v exist and are linked, remove the
    ,<file>, file.
-   
    
    - If both ,<file>, and <file>,v exist and are separate files, look at
    the dates, "diff" them and make your best guess. This sounds like the
@@ -1952,7 +1928,6 @@ You can branch a branch.
    CAVEMAN is a front end to CVS written in PERL providing a collection
    of features desired by the site where it was developed.
    
-   
    - The ability to spread a "project" over multiple Repositories.
    - Optional automatic tagging after each commit.
    - Additional locking of files.
@@ -1980,21 +1955,13 @@ You can branch a branch.
     
    First, install all the programs. (See Section 4A.)
    
-   Then create a Repository by executing "cvsinit", which works only from
-   within the head of the CVS source directory. (It needs files from the
-   distribution to work.)
+   Then create a Repository by executing "cvs -d init". (This works with
+   CVS 1.9.)
    
-   If you want a very primitive Repository and don't want to save a
-   history log, refer to modules, or use any of the "info" files for
-   logging, pre-commit checks, or editing templates, you can dispense
-   with "cvsinit" entirely. I would advise executing it.
-   
-   The cvsinit program will create a short modules file containing the
-   module named "CVSROOT". Change to your work directory and type:
-   
-                cvs checkout CVSROOT
-
-   Then read the files that are checked out.
+   Now you can configure your repository by checking out CVSROOT: "cvs -d
+   checkout CVSROOT". Change into the created directory CVSROOT. Edit the
+   files you want to edit, and afterwards, commit the changes by typing
+   "cvs commit".
    
    You will certainly want to add modules of your own. Edit the "modules"
    file and add lines to describe the items you want to "checkout" by
@@ -2014,15 +1981,9 @@ You can branch a branch.
                 test    test
                 junk    test/junk
 
-   When you are done editing, "commit" the modules file. If you
-   configured CVS to use "dbm", you might have to edit and commit the
-   modules file twice to change the pathname of the mkmodules program in
-   the modules file.
+   Andreas Kostyrka
    
-   Try using the "import" command to insert the "junk" module and play
-   around until you are comfortable.
-   
-   Last modified: _11/7/1997_
+   Last modified: _4/21/1998_
    
     2. What are those files in $CVSROOT/CVSROOT? 
     
@@ -2115,19 +2076,18 @@ You can branch a branch.
    
     5. What file permissions should I use on (and in) the Repository? 
     
+   If you are using pserver (password-authenticated access), see below.
+   
    If you run a completely open environment (which usually means that you
    don't have, or don't want to waste, the time to deal with it):
    
-   
    - Set all directory permissions to 777.
-   
    
    - Have everyone set their umasks to 0.
    
    (BTW, I don't suggest this. I am merely reporting it.)
    
    If you are a normal Unix shop and want to use groups effectively:
-   
    
    - Set all the directory permissions in the Repository to 775.
    
@@ -2136,24 +2096,19 @@ You can branch a branch.
    
    If you are using one of the many recent versions of Unix that don't
    allow you to use the full octal mode, then you'll have to type: chmod
-   u=rwx,g=rwx,o=rx,g+s <dir>
-   
+   u=rwx,g=rwx,o=rx,g+s dir&gt;
    
    - Change all the groups on the directories to match the groups you
    want to write to various directories.
    
-   
    - Make sure every user is in the appropriate groups.
-   
    
    - Have everyone set their umask to 002, including root.
    
    If you don't want non-group members to even read the files, do the
    above, but change:
    
-   
    - Repository directory permissions to 770. (or 2770)
-   
    
    - umasks to 007.
    
@@ -2168,7 +2123,21 @@ You can branch a branch.
                 exec /usr/local/bin/cvs.real ${1+"$@"}
                 ^D
 
-   Last modified: _6/13/1997_
+   Pserver (Password-Authenticated Access) &lt;blome@de.ibm.com&gt;
+   
+   The above suggestions are not valid when you use the pserver facility.
+   Be sure to read and understand the manual section about this (should
+   be 4.6.something). Above all: do /not/ make the repository and CVSROOT
+   group writeable. In CVSROOT, make `history´ group or world writeable
+   instead.
+   
+   I suggest creating one unix group per project group. In the
+   repository, you would then create one directory for each group, group
+   writeable. New projects must then be created in these group
+   directories. If you don't want to say &lt;group&gt;/&lt;project&gt; on
+   checkout, create a &lt;project&gt; module and point it there.
+   
+   Last modified: _9/24/1998_
    
     6. How do I structure my Repository? 
     
@@ -2188,7 +2157,6 @@ You can branch a branch.
    In other words, you should structure your Repository to match your
    needs, usually tied in with the other tools you use to build, install
    and distribute your work. Common needs include the ability to:
-   
    
    - mount (or automount) directories from many places in your
    organization.
@@ -2242,9 +2210,7 @@ You can branch a branch.
    
    - "update -r <tag>" produces the correct files.
    
-   
    - The duplicated revision history can be slightly misleading.
-   
    
    - A plain (i.e. without the "-r <tag>") "checkout" or "update -d" will
    create directories "renamed" this way, but you can delete it and a
@@ -2252,9 +2218,7 @@ You can branch a branch.
    
      Move the files and directories in the Repository to the new names.
    
-   
    - You save the revision history under a different file name.
-   
    
    - You save a little space.
    
@@ -2270,7 +2234,6 @@ You can branch a branch.
    sophisticated, revision of the Makefile. (Yes, this changes the
    "released" file if <tag> indicates a release. But it is an option.)
    
-   
    - Important Note: If you rename a directory, you must rename the
    corresponding directory in every checked-out working directory. At the
    same time, you must edit the pathname stored in the ./CVS/Repository
@@ -2279,7 +2242,6 @@ You can branch a branch.
    The easiest way to move a lot of directories around is to tell
    everyone to remove their working directories and check them out again
    from scratch.
-   
    
    - The file exists in the working directory and in the ./CVS/Entries
    file, but not in the Repository. For the old file, "update" prints:
@@ -2302,10 +2264,8 @@ You can branch a branch.
    "cvs add" to add the new one. Since there is no way for CVS to remove
    a directory, this only works for files.
    
-   
    - This is what most people think of first. Without a "rename" command,
    the remove/add technique seems obvious.
-   
    
    - You lose the connection of your new working file to its past
    revision history.
@@ -2445,7 +2405,6 @@ You can branch a branch.
      Training, management and good backups.
    
    The best form of Repository control is a combination of:
-   
    
    - A reliable backup scheme (verify it!)
    - Enough training to ensure your developers are competent and
@@ -2658,7 +2617,6 @@ kingdon@cyclic.com
    Though no one actively encourages the editing of RCS files, many
    people have succumbed to the urge to do so when pressed for time. The
    reasons given, usually with evident contrition, include:
-   
    
    - Editing mistakes in, or adding text to, log entries. (If you have
    RCS 5.6 or later, you should use `cvs admin -m'.)
@@ -2940,7 +2898,36 @@ kingdon@cyclic.com
    
    Last modified: _6/13/1997_
    
-    9. While in the middle of a large "commit", how do I run other commands,
+    9. Why do timestamps sometimes get set to the date of the revision,
+    sometimes not? The inconsistency causes unnecessary recompiles. 
+    
+   The "checkout" command normally sets the timestamp of a working file
+   to match the timestamp stored on the revision in the Repository's RCS
+   file.
+   
+   The "commit" command retains the timestamp of the file, if the act of
+   checking it in didn't change it (by expanding keywords).
+   
+   The "update" command sets the time to the revision time the first time
+   it sees the file. After that, it sets the time of the file to the
+   current time. See 4D.8 for a reason why.
+   
+   Here's a two-line PERL program to set timestamps on files based on
+   other timestamps. I've found this program useful. When you are certain
+   you don't want a source file to be recompiled, you can set its
+   timestamp to the stamp on the object file.
+   
+        #!/usr/local/bin/perl
+        #
+        # Set timestamp of args 2nd-Last to that of the first arg.
+        #
+        ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime)
+                = stat(shift);
+        utime($atime,$mtime,@ARGV);
+
+   Last modified: _6/13/1997_
+   
+    10. While in the middle of a large "commit", how do I run other commands,
     like "diff" or "stat" without seeing lock errors? 
     
    Type:
@@ -2977,7 +2964,7 @@ kingdon@cyclic.com
    
    Last modified: _6/13/1997_
    
-    10. Where did the ./CVS/Entries.Static file come from? What is it for? 
+    11. Where did the ./CVS/Entries.Static file come from? What is it for? 
     
    Each CVS working directory contains a ./CVS/Entries file listing the
    files managed by CVS in that working directory. Normally, if the
@@ -3014,7 +3001,7 @@ kingdon@cyclic.com
    
    Last modified: _6/13/1997_
    
-    11. Why did I get the wrong Repository in the loginfo message? 
+    12. Why did I get the wrong Repository in the loginfo message? 
     
    You probably:
    
@@ -3038,7 +3025,7 @@ kingdon@cyclic.com
    
    Last modified: _6/13/1997_
    
-    12. How do I run CVS setuid so I can only allow access through the CVS
+    13. How do I run CVS setuid so I can only allow access through the CVS
     program itself? 
     
    Setuid to root is not a great idea. Any program that modifies files
@@ -3067,7 +3054,7 @@ kingdon@cyclic.com
    
    Last modified: _6/13/1997_
    
-    13. How about using groups and setgid() then? 
+    14. How about using groups and setgid() then? 
     
    Here is a way to run CVS setgid in some environments:
    
@@ -3122,7 +3109,7 @@ kingdon@cyclic.com
    
    Last modified: _6/13/1997_
    
-    14. How do I use the "commitinfo" file? 
+    15. How do I use the "commitinfo" file? 
     
    Go read 4B.2 first.
    
@@ -3133,14 +3120,12 @@ kingdon@cyclic.com
    To fill out a "commitinfo" file, ask yourself (and those sharing your
    Repository) these questions:
    
-   
    - Is there anything you want to check or change before someone is
    allowed to commit a file? If not, forget commitinfo.
    
    If you want to serialize binary files, you might consider something
    like the rcslock.pl program in the contrib directory of the CVS
    sources.
-   
    
    - Do you want to execute the same exact thing before committing to
    every file in the Repository? (This is useful if you want to program
@@ -3156,7 +3141,6 @@ kingdon@cyclic.com
    Write your program accordingly. Some examples exist in the contrib
    directory.
    
-   
    - Do you want a different kind of sanity check performed for different
    directories? If so, you'll have to decide what to do for all
    directories and enter lines like this:
@@ -3165,7 +3149,6 @@ kingdon@cyclic.com
                 regexp2         /absolute/path/to/program-for-regexp2
                 DEFAULT         /absolute/path/to/program-for-all-else
 
-   
    - Is there anything you want to happen before *all* commits, in
    addition to other pattern matches? If so, include a line like this:
    
@@ -3176,7 +3159,7 @@ kingdon@cyclic.com
    
    Last modified: _6/13/1997_
    
-    15. How do I use the "loginfo" files? 
+    16. How do I use the "loginfo" files? 
     
    See 4B.2 and the "commitinfo" question above.
    
@@ -3196,7 +3179,7 @@ kingdon@cyclic.com
    
    Last modified: _6/13/1997_
    
-    16. How can I keep people with restrictive umask values from blocking
+    17. How can I keep people with restrictive umask values from blocking
     access to the Repository? 
     
    If a user creates a new file with restricted permissions (e.g. 0600),
@@ -3219,35 +3202,6 @@ kingdon@cyclic.com
    *loosening* security. It would be better for you all to talk about the
    issue and decide how to work together.
    
-   Last modified: _6/13/1997_
-   
-    17. Why do timestamps sometimes get set to the date of the revision,
-    sometimes not? The inconsistency causes unnecessary recompiles. 
-    
-   The "checkout" command normally sets the timestamp of a working file
-   to match the timestamp stored on the revision in the Repository's RCS
-   file.
-   
-   The "commit" command retains the timestamp of the file, if the act of
-   checking it in didn't change it (by expanding keywords).
-   
-   The "update" command sets the time to the revision time the first time
-   it sees the file. After that, it sets the time of the file to the
-   current time. See 4D.8 for a reason why.
-   
-   Here's a two-line PERL program to set timestamps on files based on
-   other timestamps. I've found this program useful. When you are certain
-   you don't want a source file to be recompiled, you can set its
-   timestamp to the stamp on the object file.
-   
-        #!/usr/local/bin/perl
-        #
-        # Set timestamp of args 2nd-Last to that of the first arg.
-        #
-        ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime)
-                = stat(shift);
-        utime($atime,$mtime,@ARGV);
-
    Last modified: _6/13/1997_
    
   Category: /Commands_/
@@ -4245,13 +4199,11 @@ kingdon@cyclic.com
    
      Providing a list of files changed since
    
-   
    - A tagged release.
    - Yesterday, last Thursday, or a specific date.
    - Someone changed a specific file.
    
      Providing a list of special events:
-   
    
    - Files added or removed since one of the above events.
    - Merge failures since one of the above events. (Where did the
@@ -4375,7 +4327,6 @@ kingdon@cyclic.com
    user" options or the '-a' option to select *all* users.
    
    To list (for the selected users): Type "cvs history" and:
-   
    
    * Checked out modules: -o (the default)
    * Files added since creation: -x A
@@ -5939,14 +5890,11 @@ kingdon@cyclic.com
    working file to contain conflict markers surrounding the overlapping
    code segments. For example, say that
    
-   
    - Two developers acquire revision 1.2 of <file> via "checkout" or
    "update".
    
-   
    - Developer A changes line 1 from "9999" to "5555", then commits the
    file, creating revision 1.3.
-   
    
    - Developer B changes line 1 from "9999" to "7777", then tries to
    commit the file, but is blocked because the file is not up to date.
@@ -7464,23 +7412,44 @@ kingdon@cyclic.com
    If you decide to split the file, here's a suggestion. In many ways, it
    is similar to multiple "renamings" as described in 2C.4 above.
    
-   Say you want to split <fileA>, which already in the Repository, into
-   three pieces, <fileA>, <fileB> and <fileC>.
+   Say you want to split , which already in the Repository, into three
+   pieces, , and .
    
      Copy the RCS (",v") files directly in the Repository, creating the
    new files, then bring readable copies of the new files into the
    working directory via "update".
    
-   cp $CVSROOT/<path>/<fileA>,v $CVSROOT/<path>/<fileB>,v cp
-   $CVSROOT/<path>/<fileA>,v $CVSROOT/<path>/<fileC>,v
-                cvs update <fileB> <fileC>
+   cp $CVSROOT//,v $CVSROOT//,v cp $CVSROOT//,v $CVSROOT//,v
+                cvs update
 
-     Then remove all the <tags> from the new files by using:
+     Then remove all the from the new files, either using:
    
-                cvs log <fileB> <fileC>       # Save the list of <tag?>
-                cvs tag -d <tag1> <fileB> <fileC>
-                cvs tag -d <tag2> <fileB> <fileC>
+                cvs log               # Save the list of
+                cvs tag -d
+                cvs tag -d
                 . . .
+
+   (eivind@freebsd.org) or using the following little script to
+   autmatically remove the tags directly from the repository files:
+
+#!/bin/sh
+for file in $*
+do
+        TAGS=`rlog $file | awk '/^symbolic names:/,/^keyword subst/' | awk 'BEG
+IN {FS=":"} /^\t/ {print $1}'`
+        echo The tags in $file are
+        echo $TAGS
+        echo Is it OK to remove these?
+        read confirm
+        if [ "$confirm" = "y" -o "$confirm" = "yes" ]
+        then
+                for tag in $TAGS
+                do
+                        echo Removing $file:$tag
+                        rcs -n$tag $file
+                done
+        fi
+done
 
      Edit each file until it has the data you want in it. This is a
    hand-editing job, not something CVS can handle. Then commit all the
@@ -7491,8 +7460,8 @@ kingdon@cyclic.com
    statements, which must be duplicated. And make sure the code
    compiles.]
    
-   emacs <fileA> <fileB> <fileC>
-                cvs commit <fileA> <fileB> <fileC>
+   emacs
+                cvs commit
 
    As in the "rename" case, by duplicating the files, you'll preserve the
    change history and the ability to retrieve earlier revisions.
@@ -7500,7 +7469,7 @@ kingdon@cyclic.com
    Of course, you have to alter your build system (e.g. Makefiles) to
    take the new names and the change in contents into account.
    
-   Last modified: _6/13/1997_
+   Last modified: _3/11/1998_
    
   Category: /What_is_CVS_/
   
@@ -7772,7 +7741,7 @@ kingdon@cyclic.com
 
    Last modified: _6/13/1997_
    
-    10. How does CVS differ from Sublime? 
+    10. How does CVS differ from SABLIME? 
     
    Produced by AT&T. Sablime uses SCCS as the underlying source code
    control system. It uses some other control system (called sbcs I
@@ -7790,7 +7759,7 @@ kingdon@cyclic.com
    weight though, and the interface is not too polished and does not work
    on windows (though that may have changed). rama@savera.com
    
-   Last modified: _12/12/1997_
+   Last modified: _7/30/1998_
    
     11. How does CVS differ from PVCS? 
     
@@ -8457,7 +8426,7 @@ kingdon@cyclic.com
    
                 ftp ftp.delos.com
                 >>> User:       anonymous
-                >>> Passwd:     <Your Internet address>
+                >>> Passwd:
                 cd /pub/cvs
                 get README
                 get Index
@@ -8467,7 +8436,9 @@ kingdon@cyclic.com
    
    A WWW home page is also available at http://www.delos.com/cvs.
    
-   Last modified: _6/13/1997_
+                          This Didn't Exist 6/23/1998
+                                       
+   Last modified: _6/24/1998_
    
     3. How do I get files out of the archive if I don't have FTP? 
     
@@ -8569,17 +8540,17 @@ kingdon@cyclic.com
 
    Last modified: _9/6/1997_
      _________________________________________________________________
-                                      
+   
    [Add an answer to this category]
    
    [Category /]
      _________________________________________________________________
-                                      
-   _Search the FAQ-O-Matic:_ ____________________ ______
+   
+   _Search the FAQ-O-Matic:_ ____________________ Search
    [matching all words]
-   Or look for questions modified in the last: [7.] ____
+   Or look for questions modified in the last: [7.] Days
      _________________________________________________________________
-                                      
+   
    The FAQ-O-Matic lives at http://gille.loria.fr:7000/cgi-bin/faqomatic.
    The code was written by Jon Howell, and the content by folks from all
    over the web.

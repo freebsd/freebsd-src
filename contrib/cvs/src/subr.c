@@ -16,7 +16,7 @@ extern char *getlogin ();
 /*
  * malloc some data and die if it fails
  */
-char *
+void *
 xmalloc (bytes)
     size_t bytes;
 {
@@ -30,8 +30,12 @@ xmalloc (bytes)
 
     cp = malloc (bytes);
     if (cp == NULL)
-	error (1, 0, "out of memory; can not allocate %lu bytes",
-	       (unsigned long) bytes);
+    {
+	char buf[80];
+	sprintf (buf, "out of memory; can not allocate %lu bytes",
+		 (unsigned long) bytes);
+	error (1, 0, buf);
+    }
     return (cp);
 }
 
@@ -53,7 +57,12 @@ xrealloc (ptr, bytes)
 	cp = realloc (ptr, bytes);
 
     if (cp == NULL)
-	error (1, 0, "can not reallocate %lu bytes", (unsigned long) bytes);
+    {
+	char buf[80];
+	sprintf (buf, "out of memory; can not reallocate %lu bytes",
+		 (unsigned long) bytes);
+	error (1, 0, buf);
+    }
     return (cp);
 }
 
@@ -64,7 +73,11 @@ xrealloc (ptr, bytes)
    memory which is likely to get as big as MAX_INCR shouldn't be doing
    it in one block which must be contiguous, but since getrcskey does
    so, we might as well limit the wasted memory to MAX_INCR or so
-   bytes.  */
+   bytes.
+
+   MIN_INCR and MAX_INCR should both be powers of two and we generally
+   try to keep our allocations to powers of two for the most part.
+   Most malloc implementations these days tend to like that.  */
 
 #define MIN_INCR 1024
 #define MAX_INCR (2*1024*1024)
@@ -84,11 +97,15 @@ expand_string (strptr, n, newsize)
 	while (*n < newsize)
 	{
 	    if (*n < MIN_INCR)
-		*n += MIN_INCR;
-	    else if (*n > MAX_INCR)
+		*n = MIN_INCR;
+	    else if (*n >= MAX_INCR)
 		*n += MAX_INCR;
 	    else
+	    {
 		*n *= 2;
+		if (*n > MAX_INCR)
+		    *n = MAX_INCR;
+	    }
 	}
 	*strptr = xrealloc (*strptr, *n);
     }
@@ -487,7 +504,7 @@ check_numeric (rev, argc, argv)
     int argc;
     char **argv;
 {
-    if (rev == NULL || !isdigit (*rev))
+    if (rev == NULL || !isdigit ((unsigned char) *rev))
 	return;
 
     /* Note that the check for whether we are processing more than one
@@ -534,7 +551,7 @@ make_message_rcslegal (message)
     }
 
     /* Backtrack to last non-space at end of string, and truncate. */
-    while (dp > dst && isspace (dp[-1]))
+    while (dp > dst && isspace ((unsigned char) dp[-1]))
 	--dp;
     *dp = '\0';
 
@@ -615,15 +632,14 @@ get_file (name, fullname, mode, buf, bufsize, len)
     }
     else
     {
-	if (CVS_LSTAT (name, &s) < 0)
-	    error (1, errno, "can't stat %s", fullname);
+	/* Although it would be cleaner in some ways to just read
+	   until end of file, reallocating the buffer, this function
+	   does get called on files in the working directory which can
+	   be of arbitrary size, so I think we better do all that
+	   extra allocation.  */
 
-	/* Don't attempt to read special files or symlinks. */
-	if (!S_ISREG (s.st_mode))
-	{
-	    *len = 0;
-	    return;
-	}
+	if (CVS_STAT (name, &s) < 0)
+	    error (1, errno, "can't stat %s", fullname);
 
 	/* Convert from signed to unsigned.  */
 	filesize = s.st_size;
@@ -652,9 +668,7 @@ get_file (name, fullname, mode, buf, bufsize, len)
 	if (feof (e))
 	    break;
 
-	/* It's probably paranoid to think S.ST_SIZE might be
-	   too small to hold the entire file contents, but we
-	   handle it just in case.  */
+	/* Allocate more space if needed.  */
 	if (tobuf == *buf + *bufsize)
 	{
 	    int c;
@@ -682,5 +696,51 @@ get_file (name, fullname, mode, buf, bufsize, len)
 	if (nread == *bufsize)
 	    expand_string (buf, bufsize, *bufsize + 1);
 	(*buf)[nread] = '\0';
+    }
+}
+
+
+/* Follow a chain of symbolic links to its destination.  FILENAME
+   should be a handle to a malloc'd block of memory which contains the
+   beginning of the chain.  This routine will replace the contents of
+   FILENAME with the destination (a real file).  */
+
+void
+resolve_symlink (filename)
+     char **filename;
+{
+    if ((! filename) || (! *filename))
+	return;
+
+    while (islink (*filename))
+    {
+	char *newname;
+#ifdef HAVE_READLINK
+	/* The clean thing to do is probably to have each filesubr.c
+	   implement this (with an error if not supported by the
+	   platform, in which case islink would presumably return 0).
+	   But that would require editing each filesubr.c and so the
+	   expedient hack seems to be looking at HAVE_READLINK.  */
+	newname = xreadlink (*filename);
+#else
+	error (1, 0, "internal error: islink doesn't like readlink");
+#endif
+	
+	if (isabsolute (newname))
+	{
+	    free (*filename);
+	    *filename = newname;
+	}
+	else
+	{
+	    char *oldname = last_component (*filename);
+	    int dirlen = oldname - *filename;
+	    char *fullnewname = xmalloc (dirlen + strlen (newname) + 1);
+	    strncpy (fullnewname, *filename, dirlen);
+	    strcpy (fullnewname + dirlen, newname);
+	    free (newname);
+	    free (*filename);
+	    *filename = fullnewname;
+	}
     }
 }

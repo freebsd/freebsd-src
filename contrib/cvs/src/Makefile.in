@@ -97,14 +97,10 @@ installdirs:
 .PHONY: install installdirs
 
 installcheck:
-	RCSBIN=$(bindir) ; export RCSBIN ; $(SHELL) $(srcdir)/sanity.sh $(bindir)/cvs
+	$(SHELL) $(srcdir)/sanity.sh $(bindir)/cvs
 .PHONY: installcheck
 
 check: all
-	if [ -x ../../rcs/src/rcs ] ; then \
-		RCSBIN=`pwd`/../../rcs/src ; \
-		export RCSBIN ; \
-	fi ; \
 	$(SHELL) $(srcdir)/sanity.sh `pwd`/cvs
 .PHONY: check
 

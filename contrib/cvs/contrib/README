@@ -64,9 +64,6 @@ An attempt at a table of Contents for this directory:
 			currently locked by someone else, as might be the
 			case for a binary file.
 			Contributed by John Rouillard <rouilj@cs.umb.edu>.
-	ccvs-rsh	A Perl script which allows "rsh pipelines" to
-			be built in order to use Cyclic CVS from
-			behind some varieties of firewall.
 	cvs_acls	A perl script that implements Access Control Lists
 			by using the "commitinfo" hook provided with the
 			"cvs commit" command.
@@ -86,10 +83,6 @@ An attempt at a table of Contents for this directory:
 			into RCS files, retaining the info contained in the
 			SCCS file (like dates, author, and log message).
 			Contributed by Ken Cox <kenstir@viewlogic.com>.
-        pvcs_to_rcs     A perl script that can convert (some) PVCS histories
-			into RCS files, retaining the info contained in the
-			PVCS history.  See the comments at the start of the
-			file for more details.
 	intro.doc	A user's view of what you need to know to get
 			started with CVS.
 			Contributed by <Steven.Pemberton@cwi.nl>.
@@ -105,10 +98,6 @@ An attempt at a table of Contents for this directory:
  	clmerge		A perl script to handle merge conflicts in GNU
 			style ChangeLog files .
 			Contributed by Tom Tromey <tromey@busco.lanl.gov>.
-	listener	A program which listens to a TCP port, authenticates
-			by hostname, then runs a subprocess whose input/output
-			is redirected through the port.
-			Contributed by Benjamin J. Lee <benjamin@cyclic.com>
 	cvs2vendor	A shell script to move changes from a repository
 			that was started without a vendor branch to one
 			that has a vendor branch.

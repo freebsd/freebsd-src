@@ -25,7 +25,7 @@ MANFILES = $(MAN1FILES) $(MAN5FILES) $(MAN8FILES)
 
 DISTFILES = .cvsignore ChangeLog Makefile.in $(MANFILES)
 INSTALL = @INSTALL@
-INSTALL_DATA = $(INSTALL)
+INSTALL_DATA = @INSTALL_DATA@
 prefix = @prefix@
 mandir = $(prefix)/man
 man1dir = $(mandir)/man1

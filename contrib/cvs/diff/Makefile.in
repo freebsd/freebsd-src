@@ -12,10 +12,6 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with GNU DIFF; see the file COPYING.  If not, write to
-# the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 #### Start of system configuration section. ####
 
@@ -47,7 +43,8 @@ SOURCES = diff.c diff3.c analyze.c cmpbuf.c cmpbuf.h io.c context.c ed.c \
 	diffrun.h
 OBJECTS = diff.o diff3.o analyze.o cmpbuf.o dir.o io.o util.o \
 	context.o ed.o ifdef.o normal.o side.o version.o
-DISTFILES = $(SOURCES) ChangeLog build_diff.com Makefile.in
+DISTFILES = $(SOURCES) ChangeLog build_diff.com Makefile.in diagmeet.note \
+	libdiff.dsp .cvsignore
 
 all: libdiff.a
 

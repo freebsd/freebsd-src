@@ -1,3 +1,9 @@
+1998-09-09  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Update now that pcl-cvs is no longer here.
+	* pcl-cvs: Remove this subdirectory and all its contents.
+	* Makefile.in: Remove references to pcl-cvs directory.
+
 Sat Feb 21 22:02:12 1998  Ian Lance Taylor  <ian@cygnus.com>
 
 	* Makefile.in (clean): Change "/bin/rm" to "rm".
