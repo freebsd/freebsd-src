@@ -14,6 +14,11 @@ o Add support for 3Com 3c905B ethernet adapters
 Userland features:
 ------------------
 
+/bin/sh signal and trap handling reworked. Among other things, this
+makes tty-mode emacs work when called from system(2), i.e. by a mail
+agent.
+
+
 Security issues:
 ----------------
 
