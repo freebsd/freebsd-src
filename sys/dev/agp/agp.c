@@ -278,18 +278,83 @@ agp_generic_detach(device_t dev)
 	return 0;
 }
 
-int
-agp_generic_enable(device_t dev, u_int32_t mode)
+/*
+ * This does the enable logic for v3, with the same topology
+ * restrictions as in place for v2 -- one bus, one device on the bus.
+ */
+static int
+agp_v3_enable(device_t dev, device_t mdev, u_int32_t mode)
 {
-	device_t mdev = agp_find_display();
 	u_int32_t tstatus, mstatus;
 	u_int32_t command;
-	int rq, sba, fw, rate;;
+	int rq, sba, fw, rate, arqsz, cal;
 
-	if (!mdev) {
-		AGP_DPF("can't find display\n");
-		return ENXIO;
-	}
+	tstatus = pci_read_config(dev, agp_find_caps(dev) + AGP_STATUS, 4);
+	mstatus = pci_read_config(mdev, agp_find_caps(mdev) + AGP_STATUS, 4);
+
+	/* Set RQ to the min of mode, tstatus and mstatus */
+	rq = AGP_MODE_GET_RQ(mode);
+	if (AGP_MODE_GET_RQ(tstatus) < rq)
+		rq = AGP_MODE_GET_RQ(tstatus);
+	if (AGP_MODE_GET_RQ(mstatus) < rq)
+		rq = AGP_MODE_GET_RQ(mstatus);
+
+	/*
+	 * ARQSZ - Set the value to the maximum one.
+	 * Don't allow the mode register to override values.
+	 */
+	arqsz = AGP_MODE_GET_ARQSZ(mode);
+	if (AGP_MODE_GET_ARQSZ(tstatus) > rq)
+		rq = AGP_MODE_GET_ARQSZ(tstatus);
+	if (AGP_MODE_GET_ARQSZ(mstatus) > rq)
+		rq = AGP_MODE_GET_ARQSZ(mstatus);
+
+	/* Calibration cycle - don't allow override by mode register */
+	cal = AGP_MODE_GET_CAL(tstatus);
+	if (AGP_MODE_GET_CAL(mstatus) < cal)
+		cal = AGP_MODE_GET_CAL(mstatus);
+
+	/* SBA must be supported for AGP v3. */
+	sba = 1;
+
+	/* Set FW if all three support it. */
+	fw = (AGP_MODE_GET_FW(tstatus)
+	       & AGP_MODE_GET_FW(mstatus)
+	       & AGP_MODE_GET_FW(mode));
+	
+	/* Figure out the max rate */
+	rate = (AGP_MODE_GET_RATE(tstatus)
+		& AGP_MODE_GET_RATE(mstatus)
+		& AGP_MODE_GET_RATE(mode));
+	if (rate & AGP_MODE_V3_RATE_8x)
+		rate = AGP_MODE_V3_RATE_8x;
+	else
+		rate = AGP_MODE_V3_RATE_4x;
+	if (bootverbose)
+		device_printf(dev, "Setting AGP v3 mode %d\n", rate * 4);
+
+	pci_write_config(dev, agp_find_caps(dev) + AGP_COMMAND, 0, 4);
+
+	/* Construct the new mode word and tell the hardware */
+	command = AGP_MODE_SET_RQ(0, rq);
+	command = AGP_MODE_SET_ARQSZ(command, arqsz);
+	command = AGP_MODE_SET_CAL(command, cal);
+	command = AGP_MODE_SET_SBA(command, sba);
+	command = AGP_MODE_SET_FW(command, fw);
+	command = AGP_MODE_SET_RATE(command, rate);
+	command = AGP_MODE_SET_AGP(command, 1);
+	pci_write_config(dev, agp_find_caps(dev) + AGP_COMMAND, command, 4);
+	pci_write_config(mdev, agp_find_caps(mdev) + AGP_COMMAND, command, 4);
+
+	return 0;
+}
+
+static int
+agp_v2_enable(device_t dev, device_t mdev, u_int32_t mode)
+{
+	u_int32_t tstatus, mstatus;
+	u_int32_t command;
+	int rq, sba, fw, rate;
 
 	tstatus = pci_read_config(dev, agp_find_caps(dev) + AGP_STATUS, 4);
 	mstatus = pci_read_config(mdev, agp_find_caps(mdev) + AGP_STATUS, 4);
@@ -315,12 +380,14 @@ agp_generic_enable(device_t dev, u_int32_t mode)
 	rate = (AGP_MODE_GET_RATE(tstatus)
 		& AGP_MODE_GET_RATE(mstatus)
 		& AGP_MODE_GET_RATE(mode));
-	if (rate & AGP_MODE_RATE_4x)
-		rate = AGP_MODE_RATE_4x;
-	else if (rate & AGP_MODE_RATE_2x)
-		rate = AGP_MODE_RATE_2x;
+	if (rate & AGP_MODE_V2_RATE_4x)
+		rate = AGP_MODE_V2_RATE_4x;
+	else if (rate & AGP_MODE_V2_RATE_2x)
+		rate = AGP_MODE_V2_RATE_2x;
 	else
-		rate = AGP_MODE_RATE_1x;
+		rate = AGP_MODE_V2_RATE_1x;
+	if (bootverbose)
+		device_printf(dev, "Setting AGP v2 mode %d\n", rate);
 
 	/* Construct the new mode word and tell the hardware */
 	command = AGP_MODE_SET_RQ(0, rq);
@@ -332,6 +399,34 @@ agp_generic_enable(device_t dev, u_int32_t mode)
 	pci_write_config(mdev, agp_find_caps(mdev) + AGP_COMMAND, command, 4);
 
 	return 0;
+}
+
+int
+agp_generic_enable(device_t dev, u_int32_t mode)
+{
+	device_t mdev = agp_find_display();
+	u_int32_t tstatus, mstatus;
+
+	if (!mdev) {
+		AGP_DPF("can't find display\n");
+		return ENXIO;
+	}
+
+	tstatus = pci_read_config(dev, agp_find_caps(dev) + AGP_STATUS, 4);
+	mstatus = pci_read_config(mdev, agp_find_caps(mdev) + AGP_STATUS, 4);
+
+	/*
+	 * Check display and bridge for AGP v3 support.  AGP v3 allows
+	 * more variety in topology than v2, e.g. multiple AGP devices
+	 * attached to one bridge, or multiple AGP bridges in one
+	 * system.  This doesn't attempt to address those situations,
+	 * but should work fine for a classic single AGP slot system
+	 * with AGP v3.
+	 */
+	if (AGP_MODE_GET_MODE_3(tstatus) && AGP_MODE_GET_MODE_3(mstatus))
+		return (agp_v3_enable(dev, mdev, mode));
+	else
+		return (agp_v2_enable(dev, mdev, mode));	    
 }
 
 struct agp_memory *

@@ -42,20 +42,38 @@
  * FW  = Fast Writes
  */
 #define AGP_MODE_GET_RQ(x)		(((x) & 0xff000000U) >> 24)
+#define AGP_MODE_GET_ARQSZ(x)		(((x) & 0x0000e000U) >> 13)
+#define AGP_MODE_GET_CAL(x)		(((x) & 0x00001c00U) >> 10)
 #define AGP_MODE_GET_SBA(x)		(((x) & 0x00000200U) >> 9)
 #define AGP_MODE_GET_AGP(x)		(((x) & 0x00000100U) >> 8)
-#define AGP_MODE_GET_4G(x)		(((x) & 0x00000020U) >> 5)
+#define AGP_MODE_GET_GART_64(x)		(((x) & 0x00000080U) >> 7)
+#define AGP_MODE_GET_OVER_4G(x)		(((x) & 0x00000020U) >> 5)
 #define AGP_MODE_GET_FW(x)		(((x) & 0x00000010U) >> 4)
+#define AGP_MODE_GET_MODE_3(x)		(((x) & 0x00000008U) >> 3)
 #define AGP_MODE_GET_RATE(x)		((x) & 0x00000007U)
 #define AGP_MODE_SET_RQ(x,v)		(((x) & ~0xff000000U) | ((v) << 24))
+#define AGP_MODE_SET_ARQSZ(x,v)		(((x) & ~0x0000e000U) | ((v) << 13))
+#define AGP_MODE_SET_CAL(x,v)		(((x) & ~0x00001c00U) | ((v) << 10))
 #define AGP_MODE_SET_SBA(x,v)		(((x) & ~0x00000200U) | ((v) << 9))
 #define AGP_MODE_SET_AGP(x,v)		(((x) & ~0x00000100U) | ((v) << 8))
-#define AGP_MODE_SET_4G(x,v)		(((x) & ~0x00000020U) | ((v) << 5))
+#define AGP_MODE_SET_GART_64(x,v)	(((x) & ~0x00000080U) | ((v) << 7))
+#define AGP_MODE_SET_OVER_4G(x,v)	(((x) & ~0x00000020U) | ((v) << 5))
 #define AGP_MODE_SET_FW(x,v)		(((x) & ~0x00000010U) | ((v) << 4))
+#define AGP_MODE_SET_MODE_3(x,v)	(((x) & ~0x00000008U) | ((v) << 3))
 #define AGP_MODE_SET_RATE(x,v)		(((x) & ~0x00000007U) | (v))
-#define AGP_MODE_RATE_1x		0x00000001
-#define AGP_MODE_RATE_2x		0x00000002
-#define AGP_MODE_RATE_4x		0x00000004
+#define AGP_MODE_V2_RATE_1x		0x00000001
+#define AGP_MODE_V2_RATE_2x		0x00000002
+#define AGP_MODE_V2_RATE_4x		0x00000004
+#define AGP_MODE_V3_RATE_4x		0x00000001
+#define AGP_MODE_V3_RATE_8x		0x00000002
+#define AGP_MODE_V3_RATE_RSVD		0x00000004
+
+/* XXX: Compat */
+#define AGP_MODE_GET_4G(x)		AGP_MODE_GET_OVER_4G(x)
+#define AGP_MODE_SET_4G(x)		AGP_MODE_SET_OVER_4G(x)
+#define AGP_MODE_RATE_1x		AGP_MODE_V2_RATE_1x
+#define AGP_MODE_RATE_2x		AGP_MODE_V2_RATE_2x
+#define AGP_MODE_RATE_4x		AGP_MODE_V2_RATE_4x
 
 #define AGPIOC_BASE       'A'
 #define AGPIOC_INFO       _IOR (AGPIOC_BASE, 0, agp_info)
