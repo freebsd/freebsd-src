@@ -668,7 +668,7 @@ dev/sound/midi/midisynth.c	optional midi
 dev/sound/midi/sequencer.c	optional seq midi
 dev/sound/midi/timer.c	optional seq midi
 dev/sound/pci/als4000.c	optional pcm pci
-dev/sound/pci/au88x0.c	optional pcm pci
+#dev/sound/pci/au88x0.c	optional pcm pci
 dev/sound/pci/cmi.c	optional pcm pci
 dev/sound/pci/cs4281.c	optional pcm pci
 dev/sound/pci/csa.c	optional csa pci
