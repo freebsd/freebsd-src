@@ -31,7 +31,7 @@
 .Sh NAME
 .Nm ex
 .Nd
-ethernet device driver
+Ethernet device driver for the Intel EtherExpress Pro/10
 .Sh SYNOPSIS
 .Cd "device ex0 at isa? port? net irq? vector exintr"
 .Sh DESCRIPTION
@@ -40,7 +40,7 @@ The
 driver provides support for the 16-bit PCI Intel EtherExpress Pro/10 Ethernet
 card based on the Intel i82595 chip.
 .Pp
-If the port start address isn't found, the card will be search for in the
+If the port start address isn't found, the card will be searched for in the
 I/O address range 0x200 - 0x3a0.  If the IRQ isn't specified, it will be
 read from the EEPROM on the card.
 .Pp
@@ -61,12 +61,13 @@ Currently the driver does not support multicast.
 .Pp
 .Sh SEE ALSO
 .Xr arp 4 ,
-.Xr ifconfig 8 ,
-.Xr netintro 4
+.Xr netintro 4 ,
+.Xr ifconfig 8
 .Sh HISTORY
 The
 .Nm
-device driver first appeared in FreeBSD 2.2.
+device driver first appeared in
+.Fx 2.2 .
 .Sh AUTHORS
 The
 .Nm
