@@ -599,8 +599,6 @@ do_dup(td, type, old, new, retval)
 	if (type == DUP_FIXED) {
 		if (new >= fdp->fd_nfiles)
 			fdgrowtable(fdp, new + 1);
-		KASSERT(new < fdp->fd_nfiles,
-		    ("fdgrowtable() failed to grow table"));
 		if (fdp->fd_ofiles[new] == NULL)
 			fdused(fdp, new);
 	} else {
@@ -1436,8 +1434,6 @@ fdcopy(fdp)
 		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
 		FILEDESC_LOCK(fdp);
 	}
-	KASSERT(newfdp->fd_nfiles > fdp->fd_lastfile,
-	    ("fdgrowtable() failed to grow table"));
 	/* copy everything except kqueue descriptors */
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
