@@ -610,7 +610,9 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		ncpus = virtual_cpu;
 
 	/* Easier to just set it than to test and set */
+	PROC_LOCK(p);
 	p->p_flag |= P_THREADED;
+	PROC_UNLOCK(p);
 	kg = td->td_ksegrp;
 	if (uap->newgroup) {
 		/* Have race condition but it is cheap */ 
