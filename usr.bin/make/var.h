@@ -50,9 +50,9 @@ struct GNode;
 struct Buffer;
 
 typedef struct Var {
-    char		*name;	/* the variable's name */
-    struct Buffer	*val;	/* its value */
-    int			flags;	/* miscellaneous status flags */
+	char		*name;	/* the variable's name */
+	struct Buffer	*val;	/* its value */
+	int		flags;	/* miscellaneous status flags */
 
 #define	VAR_IN_USE	1	/* Variable's value currently being used.
 				 * Used to avoid recursion */
@@ -73,19 +73,19 @@ typedef struct Var {
 #define	VAR_MATCH_END	0x10	/* Match at end of word */
 
 typedef struct {
-    char	*lhs;		/* String to match */
-    size_t	leftLen;	/* Length of string */
-    char	*rhs;		/* Replacement string (w/ &'s removed) */
-    size_t	rightLen;	/* Length of replacement */
-    int		flags;
+	char	*lhs;		/* String to match */
+	size_t	leftLen;	/* Length of string */
+	char	*rhs;		/* Replacement string (w/ &'s removed) */
+	size_t	rightLen;	/* Length of replacement */
+	int	flags;
 } VarPattern;
 
 typedef struct {
-    regex_t	re;
-    int		nsub;
-    regmatch_t	*matches;
-    char	*replace;
-    int		flags;
+	regex_t		re;
+	int		nsub;
+	regmatch_t	*matches;
+	char		*replace;
+	int		flags;
 } VarREPattern;
 
 typedef Boolean VarModifyProc(const char *, Boolean, struct Buffer *, void *);
