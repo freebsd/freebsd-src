@@ -63,7 +63,7 @@ const struct puc_device_description rscom_devices = {
 static int
 puc_pccard_probe(device_t dev)
 {
-	char *vendor, *product;
+	const char *vendor, *product;
 	int error;
 
 	error = pccard_get_vendor_str(dev, &vendor);
