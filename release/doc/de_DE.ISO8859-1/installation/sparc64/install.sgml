@@ -1,3 +1,9 @@
+<!--
+  $FreeBSD$
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/sparc64/install.sgml,v 1.4 2002/04/03 05:33:33 ue Exp $
+  basiert auf: 1.8
+  This file contains sparc64-specific installation instructions.
+-->
 <sect1>
   <title>Installation von &os;</title>
 
@@ -154,8 +160,27 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
         oder &man.cu.1;).  Danach sollten Sie die Eingabeaufforderung
         von OpenBoot sehen, die wie folgt aussieht:</para>
 
-      <screen><prompt>ok </prompt>      # Systeme mit nur einer CPU
-<prompt>ok {0} </prompt>      # SMP-Systeme</screen>
+      <screenco>
+	<areaspec>
+	  <area id="prompt-single" coords="1 5">
+	  <area id="prompt-smp" coords="2 5">
+	</areaspec>
+
+	<screen><prompt>ok     </prompt>
+<prompt>ok {0} </prompt>        </screen>
+
+	<calloutlist>
+	  <callout arearefs="prompt-single">
+	    <para>Diese Variante wird auf Systemen mit nur einer CPU
+	      benutzt.</para>
+	  </callout>
+
+	  <callout arearefs="prompt-smp">
+	    <para>Diese Varianten wird von SMP Systemen benutzt, die
+	      Zahl ist die Nummer der aktiven CPU.</para>
+	  </callout>
+	</calloutlist>
+      </screenco>
     </sect3>
   </sect2>
 
@@ -266,7 +291,7 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
   :rp="<replaceable>tftp-server-ip-address</replaceable>:<replaceable>nfs-root-directory</replaceable>":\
   :sm=<replaceable>ip-netmask</replaceable>
 
-&lt;Name des Eintrags>:\
+<replaceable>Name-des-Eintrags</replaceable>:\
   ha=<replaceable>sparc64-ethernet-address</replaceable>:ip=<replaceable>sparc64-ip-address</replaceable>:tc=.default</programlisting>
 
         <para>Die Ethernet-Adresse mu&szlig; mit der Adresse
@@ -483,13 +508,11 @@ drivedata: 0
           <literal>*</literal> angeben.  Weitere Informationen finden
           Sie in der Onlinehilfe zu &man.disklabel.8;.</para>
 
-        <para>Damit die oben genannte Einschr&auml;nkung eingehalten
-          wird, mu&szlig; die Gr&ouml;&szlig;e jeder Partition ein
-          ganzzahliges Vielfaches des Produktes aus der Anzahl der
-          Bytes pro Sektors (<literal>bytes/sector</literal>) und der
-          Anzahl der Sektoren pro Zylinder
-          (<literal>sectors/cylinder</literal>) sein.  In diesem
-          Beispiel w&auml;ren das 516096 (512*1008) Byte.</para>
+	<para>Damit die oben genannte Einschr&auml;nkung eingehalten
+	  wird, mu&szlig; die Gr&ouml;&szlig;e jeder Partition ein
+	  ganzzahliges Vielfaches der Anzahl der Sektoren pro Zylinder
+	  (<literal>sectors/cylinder</literal>) sein.  In diesem
+	  Beispiel w&auml;ren das 1008 Sektoren pro Zylinder.</para>
 
         <para>Wenn Sie alle Partitionen definiert haben, m&uuml;ssen
           Sie die &Auml;nderungen speichern und den Editor verlassen,
@@ -611,9 +634,3 @@ drivedata: 0
       funktionieren.</para>
   </sect2>
 </sect1>
-<!--
-  $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/sparc64/install.sgml,v 1.2 2002/03/17 10:26:36 ue Exp $
-  basiert auf: 1.7
-  This file contains sparc64-specific installation instructions.
--->
