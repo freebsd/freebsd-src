@@ -270,6 +270,8 @@ faithrtrequest(cmd, rt, info)
 	struct rtentry *rt;
 	struct rt_addrinfo *info;
 {
+	RT_LOCK_ASSERT(rt);
+
 	if (rt) {
 		rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu; /* for ISO */
 		/*
@@ -371,7 +373,7 @@ faithprefix(in6)
 	else
 		ret = 0;
 	if (rt)
-		RTFREE(rt);
+		RTFREE_LOCKED(rt);
 	return ret;
 }
 #endif

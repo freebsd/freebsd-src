@@ -113,7 +113,10 @@ struct rtentry {
 		    struct rtentry *);
 					/* output routine for this (rt,if) */
 	struct	rtentry *rt_parent; 	/* cloning parent of this route */
-	struct	mtx *rt_mtx;		/* mutex for routing entry */
+#ifdef _KERNEL
+	/* XXX ugly, user apps use this definition but don't have a mtx def */
+	struct	mtx rt_mtx;		/* mutex for routing entry */
+#endif
 };
 
 /*
@@ -256,18 +259,26 @@ struct rt_addrinfo {
 
 #ifdef _KERNEL
 
-#define	RT_LOCK_INIT(rt) \
-    mtx_init((rt)->rt_mtx, "rtentry", NULL, MTX_DEF | MTX_DUPOK)
-#define	RT_LOCK(rt)		mtx_lock((rt)->rt_mtx)
-#define	RT_UNLOCK(rt)		mtx_unlock((rt)->rt_mtx)
-#define	RT_LOCK_DESTROY(rt)	mtx_destroy((rt)->rt_mtx)
+#define	RT_LOCK_INIT(_rt) \
+	mtx_init(&(_rt)->rt_mtx, "rtentry", NULL, MTX_DEF | MTX_DUPOK)
+#define	RT_LOCK(_rt)		mtx_lock(&(_rt)->rt_mtx)
+#define	RT_UNLOCK(_rt)		mtx_unlock(&(_rt)->rt_mtx)
+#define	RT_LOCK_DESTROY(_rt)	mtx_destroy(&(_rt)->rt_mtx)
+#define	RT_LOCK_ASSERT(_rt)	mtx_assert(&(_rt)->rt_mtx, MA_OWNED)
 
-#define	RTFREE(rt) \
-	do { \
-		if ((rt)->rt_refcnt <= 1) \
-			rtfree(rt); \
-		else \
-			(rt)->rt_refcnt--; \
+#define	RTFREE_LOCKED(_rt) do {				\
+		if ((_rt)->rt_refcnt <= 1)		\
+			rtfree(_rt);			\
+		else {					\
+			(_rt)->rt_refcnt--;		\
+			RT_UNLOCK(_rt);			\
+		}					\
+		/* guard against invalid refs */	\
+		_rt = 0;				\
+	} while (0)
+#define	RTFREE(_rt) do {				\
+		RT_LOCK(_rt);				\
+		RTFREE_LOCKED(_rt);			\
 	} while (0)
 
 extern struct radix_node_head *rt_tables[AF_MAX+1];
@@ -281,16 +292,16 @@ void	 rt_ifmsg(struct ifnet *);
 void	 rt_missmsg(int, struct rt_addrinfo *, int, int);
 void	 rt_newaddrmsg(int, struct ifaddr *, int, struct rtentry *);
 void	 rt_newmaddrmsg(int, struct ifmultiaddr *);
-int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 void	 rtalloc(struct route *);
+int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 void	 rtalloc_ign(struct route *, u_long);
-struct rtentry *
-	 rtalloc1(struct sockaddr *, int, u_long);
+/* NB: the rtentry is returned locked */
+struct rtentry *rtalloc1(struct sockaddr *, int, u_long);
 void	 rtfree(struct rtentry *);
 int	 rtinit(struct ifaddr *, int, int);
 int	 rtioctl(u_long, caddr_t);
 void	 rtredirect(struct sockaddr *, struct sockaddr *,
-	    struct sockaddr *, int, struct sockaddr *, struct rtentry **);
+	    struct sockaddr *, int, struct sockaddr *);
 int	 rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **);
 int	 rtrequest1(int, struct rt_addrinfo *, struct rtentry **);

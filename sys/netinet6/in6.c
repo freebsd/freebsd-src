@@ -175,32 +175,35 @@ in6_ifloop_request(int cmd, struct ifaddr *ifa)
 		    e);
 	}
 
-	/*
-	 * Make sure rt_ifa be equal to IFA, the second argument of the
-	 * function.
-	 * We need this because when we refer to rt_ifa->ia6_flags in
-	 * ip6_input, we assume that the rt_ifa points to the address instead
-	 * of the loopback address.
-	 */
-	if (cmd == RTM_ADD && nrt && ifa != nrt->rt_ifa) {
-		IFAFREE(nrt->rt_ifa);
-		IFAREF(ifa);
-		nrt->rt_ifa = ifa;
-	}
-
-	/*
-	 * Report the addition/removal of the address to the routing socket.
-	 * XXX: since we called rtinit for a p2p interface with a destination,
-	 *      we end up reporting twice in such a case.  Should we rather
-	 *      omit the second report?
-	 */
 	if (nrt) {
+		RT_LOCK(nrt);
+		/*
+		 * Make sure rt_ifa be equal to IFA, the second argument of
+		 * the function.  We need this because when we refer to
+		 * rt_ifa->ia6_flags in ip6_input, we assume that the rt_ifa
+		 * points to the address instead of the loopback address.
+		 */
+		if (cmd == RTM_ADD && ifa != nrt->rt_ifa) {
+			IFAFREE(nrt->rt_ifa);
+			IFAREF(ifa);
+			nrt->rt_ifa = ifa;
+		}
+
+		/*
+		 * Report the addition/removal of the address to the routing
+		 * socket.
+		 *
+		 * XXX: since we called rtinit for a p2p interface with a
+		 *      destination, we end up reporting twice in such a case.
+		 *      Should we rather omit the second report?
+		 */
 		rt_newaddrmsg(cmd, ifa, e, nrt);
 		if (cmd == RTM_DELETE) {
-			RTFREE(nrt);
+			rtfree(nrt);
 		} else {
 			/* the cmd must be RTM_ADD here */
 			nrt->rt_refcnt--;
+			RT_UNLOCK(nrt);
 		}
 	}
 }
@@ -223,7 +226,7 @@ in6_ifaddloop(struct ifaddr *ifa)
 	    (rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0)
 		in6_ifloop_request(RTM_ADD, ifa);
 	if (rt)
-		rt->rt_refcnt--;
+		rtfree(rt);
 }
 
 /*
@@ -271,10 +274,13 @@ in6_ifremloop(struct ifaddr *ifa)
 		 * to a shared medium.
 		 */
 		rt = rtalloc1(ifa->ifa_addr, 0, 0);
-		if (rt != NULL && (rt->rt_flags & RTF_HOST) != 0 &&
-		    (rt->rt_ifp->if_flags & IFF_LOOPBACK) != 0) {
-			rt->rt_refcnt--;
-			in6_ifloop_request(RTM_DELETE, ifa);
+		if (rt != NULL) {
+			if ((rt->rt_flags & RTF_HOST) != 0 &&
+			    (rt->rt_ifp->if_flags & IFF_LOOPBACK) != 0) {
+				rtfree(rt);
+				in6_ifloop_request(RTM_DELETE, ifa);
+			} else
+				RT_UNLOCK(rt);
 		}
 	}
 }
