@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.525 1999/01/01 04:16:32 peter Exp $
+#	$Id: LINT,v 1.526 1999/01/01 08:09:57 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -531,14 +531,15 @@ options		NFS_ROOT		#NFS usable as root device
 # Also, 'options MFS' is currently incompatible with DEVFS.
 options		DEVFS			#devices filesystem
 
-# Allow the FFS to use Softupdates technology.
-# To do this you need to copy the two files
-# /sys/ufs/ffs/softdep.h and /sys/ufs/ffs/ffs_softdep.c
-# from /usr/src/contrib/sys/softupdates
-# and understand the licensing restrictions.
-# You should also check on the FreeBSD website for newer versions.
+# Soft updates is technique for improving file system speed and
+# making abrupt shutdown less risky.  It is not enabled by default due
+# to copyright restraints on the code that implement it.
+#
+# Read .../../ufs/ffs/README.softupdates to learn what you need to
+# do to enable this.  ../../../contrib/sys/softupdates/README gives
+# more details on how they actually work.
+#
 #options		SOFTUPDATES
-# (we can't actually enable it because the files may not be present)
 
 # Make space in the kernel for a MFS root filesystem.  Define to the number
 # of kilobytes to reserve for the filesystem.
