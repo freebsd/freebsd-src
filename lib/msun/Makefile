@@ -50,7 +50,8 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_log1p.c s_log1pf.c s_logb.c s_logbf.c s_lrint.c s_lrintf.c \
 	s_lround.c s_lroundf.c s_modff.c \
 	s_nearbyint.c s_nextafter.c s_nextafterf.c \
-	s_nexttowardf.c s_rint.c s_rintf.c s_round.c s_roundf.c \
+	s_nexttowardf.c s_remquo.c s_remquof.c \
+	s_rint.c s_rintf.c s_round.c s_roundf.c \
 	s_scalbln.c s_scalbn.c s_scalbnf.c s_signbit.c \
 	s_signgam.c s_significand.c s_significandf.c s_sin.c s_sinf.c s_tan.c \
 	s_tanf.c s_tanh.c s_tanhf.c s_trunc.c s_truncf.c \
@@ -140,6 +141,7 @@ MLINKS+=nextafter.3 nextafterf.3 nextafter.3 nextafterl.3
 MLINKS+=nextafter.3 nexttoward.3 nextafter.3 nexttowardf.3
 MLINKS+=nextafter.3 nexttowardl.3
 MLINKS+=remainder.3 remainderf.3
+MLINKS+=remainder.3 remquo.3 remainder.3 remquof.3
 MLINKS+=rint.3 rintf.3 rint.3 nearbyint.3 rint.3 nearbyintf.3
 MLINKS+=round.3 roundf.3
 MLINKS+=scalbn.3 scalbln.3 scalbn.3 scalblnf.3 scalbn.3 scalblnl.3
