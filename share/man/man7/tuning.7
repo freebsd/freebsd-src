@@ -61,10 +61,12 @@ to underestimate log file storage requirements.
 Sizing
 .Em /var/tmp
 depends on the kind of temporary file usage you think you will need.  128M is
-the minimum we recommend.  Also note that you usually want to make
+the minimum we recommend.  Also note that sysinstall will create a /tmp
+directory, but it is usually a good idea to make
 .Em /tmp
 a softlink to
-.Em /var/tmp .
+.Em /var/tmp 
+after the fact.
 Dedicating a partition for temporary file storage is important for
 two reasons:  First, it reduces the possibility of filesystem corruption
 in a crash, and second it reduces the chance of a runaway process that
@@ -73,10 +75,10 @@ logging, etc).  Filling up [/var]/tmp is a very common problem to have.
 .Pp
 In the old days there were differences between /tmp and /var/tmp,
 but the introduction of /var (and /var/tmp) led to massive confusion
-by program writers so today programs halfhazardly use one or the
+by program writers so today programs haphazardly use one or the
 other and thus no real distinction can be made between the two.  So
-it makes sense to have just one temporary directory.  You can do the 
-softlink either way.  The one thing you do not want to do is leave /tmp
+it makes sense to have just one temporary directory.   However you handle
+/tmp, the one thing you do not want to do is leave it sitting
 on the root partition where it might cause root to fill up or possibly
 corrupt root in a crash/reboot situation.
 .Pp
@@ -109,7 +111,7 @@ each partition has different operational characteristics and separating them
 allows the filesystem to tune itself to those characteristics.  For example,
 the root and /usr partitions are read-mostly, with very little writing, while
 a lot of reading and writing could occur in /var and /var/tmp.  By properly
-partitioning your system, fragmentation introduced in the smaller more
+partitioning your system fragmentation introduced in the smaller more
 heavily write-loaded partitions will not bleed over into the mostly-read
 partitions.  Additionally, keeping the write-loaded partitions closer to
 the edge of the disk (i.e. before the really big partitions instead of after
@@ -195,6 +197,25 @@ blocks.  If you have a filesystem (such as the root filesystem) which is
 close to full, doing a major update of it, e.g.
 .Em make installworld,
 can run it out of space and cause the update to fail.
+.Pp
+A number of run-time mount options exist that can help you tune the system.
+The most obvious and most dangerous one is
+.Em async .
+Don't ever use it, it is far too dangerous.  A less dangerous and more
+useful mount option is called
+.Em noatime .
+UNIX filesytems normally update the last-accessed time of a file or
+directory whenever it is accessed.  This operation is handled in FreeBSD
+with a delayed write and normally does not create a burden on the system.
+However, if your system is accessing a huge number of files on a continuing
+basis the buffer cache can wind up getting polluted with atime updates,
+creating a burden on the system.  For example, if you are running a heavily
+loaded web site, or a news server with lots of readers, you might want to
+consider turning off atime updates on your larger partitions with this
+mount option.  Do not gratuitously turn off atime updates everywhere.. for
+example, you might as well leave them turned on for mostly read-only 
+partitions such as / and /usr (especially for / since some system utilities
+use the atime field for reporting).
 .Sh STRIPING DISKS
 In larger systems you can stripe partitions from several drives together
 to create a much larger overall partition.  Striping can also improve
@@ -326,6 +347,31 @@ may itself limit the listen queue size (e.g. sendmail, apache) but will
 often have a directive in its configuration file to adjust the queue size up.
 Larger listen queue also do a better job of fending of denial of service
 attacks.
+.Pp
+The
+.Em kern.maxfiles
+sysctl determines how many open files the system supports.  The default is
+typically a few thousand but you may need to bump this up to ten or twenty
+thousand if you are running databases or large descriptor-heavy daemons.
+.Pp
+The
+.Em vm.swap_idle_enabled
+sysctl is useful in large multi-user systems where you have lots of users
+entering and leaving the system and lots of idle processes.  Such systems
+tend to generate a great deal of continuous pressure on free memory reserves.
+Turning this feature on and adjusting the swapout hysteresis (in idle
+seconds) via
+.Em vm.swap_idle_threshold1
+and
+.Em vm.swap_idle_threshold2
+allows you to depress the priority of pages associated with idle processes
+more quickly then the normal pageout algorithm.  This gives a helping hand
+to the pageout daemon.  Do not turn this option on unless you need it,
+because the tradeoff you are making is to essentially pre-page memory sooner
+rather then later, eating more swap and disk bandwidth.  In a small system
+this option will have a detrimental effect but in a large system that is
+already doing moderate paging this option allows the VM system to stage
+whole processes into and out of memory more easily.
 .Sh KERNEL CONFIG TUNING
 .Pp
 There are a number of kernel options that you may have to fiddle with in
