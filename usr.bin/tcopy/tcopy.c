@@ -55,6 +55,7 @@ static const char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
 #include <fcntl.h>
 #include <paths.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
