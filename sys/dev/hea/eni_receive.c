@@ -585,7 +585,7 @@ send_dma:
 		        /*
 		         * Place buffer on receive queue waiting for RX_DMA
 		         */
-		        if ( IF_QFULL ( &eup->eu_rxqueue ) ) {
+		        if ( _IF_QFULL ( &eup->eu_rxqueue ) ) {
 			    /*
 			     * We haven't done anything we can't back out
 			     * of. Drop request and service it next time.
@@ -605,7 +605,7 @@ send_dma:
 			    vct->vci_control &= ~VCI_IN_SERVICE;
 			    return;
 		        } else { 
-		            IF_ENQUEUE ( &eup->eu_rxqueue, m );
+		            _IF_ENQUEUE ( &eup->eu_rxqueue, m );
 			    /*
 			     * Advance the RX_WR pointer to cause
 			     * the adapter to work on this DMA list.
@@ -685,7 +685,7 @@ eni_recv_drain ( eup )
 
 	s = splimp();
 	/* Pop first buffer */
-	IF_DEQUEUE ( &eup->eu_rxqueue, m );
+	_IF_DEQUEUE ( &eup->eu_rxqueue, m );
 	while ( m ) {
 		u_long	*up;
 		u_long	pdulen;
@@ -712,12 +712,12 @@ eni_recv_drain ( eup )
 		 */
 		if ( start > stop ) {		/* We wrapped */
 			if ( !(DMA_Rdptr >= stop && DMA_Rdptr < start) ) {
-				IF_PREPEND ( &eup->eu_rxqueue, m );
+				_IF_PREPEND ( &eup->eu_rxqueue, m );
 				goto finish;
 			}
 		} else {
 			if ( DMA_Rdptr < stop && DMA_Rdptr >= start ) {
-				IF_PREPEND ( &eup->eu_rxqueue, m );
+				_IF_PREPEND ( &eup->eu_rxqueue, m );
 				goto finish;
 			}
 		}
@@ -802,9 +802,8 @@ eni_recv_drain ( eup )
 			/*
 			 * Schedule callback
 			 */
-			if ( !IF_QFULL ( &atm_intrq ) ) {
+			if (IF_HANDOFF(&atm_intrq, m, NULL)) {
 				que++;
-				IF_ENQUEUE ( &atm_intrq, m );
 			} else {
 				eup->eu_stats.eni_st_drv.drv_rv_intrq++;
 				eup->eu_pif.pif_ierrors++;
@@ -812,7 +811,6 @@ eni_recv_drain ( eup )
 				log ( LOG_ERR,
 "eni_receive_drain: ATM_INTRQ is full. Unable to pass up stack.\n" );
 #endif
-				KB_FREEALL ( m );
 			}
 		} else {
 			/*
@@ -825,7 +823,7 @@ next_buffer:
 		/*
 		 * Look for next buffer
 		 */
-		IF_DEQUEUE ( &eup->eu_rxqueue, m );
+		_IF_DEQUEUE ( &eup->eu_rxqueue, m );
 	}
 finish:
 	(void) splx(s);

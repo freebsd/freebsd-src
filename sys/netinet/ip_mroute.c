@@ -1622,8 +1622,6 @@ ipip_input(m, off, proto)
     struct ifnet *ifp = m->m_pkthdr.rcvif;
     register struct ip *ip = mtod(m, struct ip *);
     register int hlen = ip->ip_hl << 2;
-    register int s;
-    register struct ifqueue *ifq;
     register struct vif *vifp;
 
     if (!have_encap_tunnel) {
@@ -1675,13 +1673,7 @@ ipip_input(m, off, proto)
     m->m_pkthdr.len -= IP_HDR_LEN;
     m->m_pkthdr.rcvif = ifp;
 
-    ifq = &ipintrq;
-    s = splimp();
-    if (IF_QFULL(ifq)) {
-	IF_DROP(ifq);
-	m_freem(m);
-    } else {
-	IF_ENQUEUE(ifq, m);
+    (void) IF_HANDOFF(&ipintrq, m, NULL);
 	/*
 	 * normally we would need a "schednetisr(NETISR_IP)"
 	 * here but we were called by ip_input and it is going
@@ -1689,8 +1681,6 @@ ipip_input(m, off, proto)
 	 * queued as soon as we return so we avoid the
 	 * unnecessary software interrrupt.
 	 */
-    }
-    splx(s);
 }
 
 /*

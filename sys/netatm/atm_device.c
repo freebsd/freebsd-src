@@ -314,6 +314,7 @@ atm_dev_lower(cmd, tok, arg1, arg2)
 		 * Free any buffers from this VCC on the ATM interrupt queue
 		 */
 		prev = NULL;
+		IF_LOCK(&atm_intrq);
 		for (m = atm_intrq.ifq_head; m; m = next) {
 			next = KB_QNEXT(m);
 
@@ -344,6 +345,7 @@ atm_dev_lower(cmd, tok, arg1, arg2)
 				prev = m;
 			}
 		}
+		IF_UNLOCK(&atm_intrq);
 		(void) splx(s);
 
 		/*

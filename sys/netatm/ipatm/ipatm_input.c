@@ -127,7 +127,6 @@ ipatm_ipinput(inp, m)
 	struct ip_nif	*inp;
 	KBuffer		*m;
 {
-	int		s;
 #if	BSD < 199103
 	int		space;
 #endif
@@ -207,16 +206,8 @@ ipatm_ipinput(inp, m)
 	 * just call IP directly to avoid the extra unnecessary 
 	 * kernel scheduling.
 	 */
-	s = splimp();
-	if (IF_QFULL(&ipintrq)) {
-		IF_DROP(&ipintrq);
-		(void) splx(s);
-		KB_FREEALL(m);
+	if (! IF_HANDOFF(&ipintrq, m, NULL))
 		return (1);
-	}
-
-	IF_ENQUEUE(&ipintrq, m);
-	(void) splx(s);
 #if	BSD < 199506
 	ipintr();
 #else

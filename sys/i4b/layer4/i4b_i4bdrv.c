@@ -262,6 +262,7 @@ i4battach()
 	printf("i4b: ISDN call control device attached\n");
 #endif
 	i4b_rdqueue.ifq_maxlen = IFQ_MAXLEN;
+	mtx_init(&i4b_rdqueue.ifq_mtx, "i4b_rdqueue", MTX_DEF);
 
 #if defined(__FreeBSD__)
 #if __FreeBSD__ == 3
@@ -328,17 +329,21 @@ i4bread(dev_t dev, struct uio *uio, int ioflag)
 		return(ENODEV);
 
 	x = splimp();
+	IF_LOCK(&i4b_rdqueue);
 	while(IF_QEMPTY(&i4b_rdqueue))
 	{
 		readflag = 1;
-		error = tsleep((caddr_t) &i4b_rdqueue, (PZERO + 1) | PCATCH, "bird", 0);
+		error = msleep((caddr_t) &i4b_rdqueue, &i4b_rdqueue.ifq_mtx,
+		    (PZERO + 1) | PCATCH, "bird", 0);
 		if (error != 0) {
-		splx(x);
+			IF_UNLOCK(&i4b_rdqueue);
+			splx(x);
 			return error;
 		}
 	}
 
-	IF_DEQUEUE(&i4b_rdqueue, m);
+	_IF_DEQUEUE(&i4b_rdqueue, m);
+	IF_UNLOCK(&i4b_rdqueue);
 
 	splx(x);
 		
@@ -978,15 +983,17 @@ i4bputqueue(struct mbuf *m)
 
 	x = splimp();
 	
-	if(IF_QFULL(&i4b_rdqueue))
+	IF_LOCK(&i4b_rdqueue);
+	if(_IF_QFULL(&i4b_rdqueue))
 	{
 		struct mbuf *m1;
-		IF_DEQUEUE(&i4b_rdqueue, m1);
+		_IF_DEQUEUE(&i4b_rdqueue, m1);
 		i4b_Dfreembuf(m1);
 		NDBGL4(L4_ERR, "ERROR, queue full, removing entry!");
 	}
 
-	IF_ENQUEUE(&i4b_rdqueue, m);
+	_IF_ENQUEUE(&i4b_rdqueue, m);
+	IF_UNLOCK(&i4b_rdqueue);
 
 	splx(x);	
 
@@ -1019,15 +1026,17 @@ i4bputqueue_hipri(struct mbuf *m)
 
 	x = splimp();
 	
-	if(IF_QFULL(&i4b_rdqueue))
+	IF_LOCK(&i4b_rdqueue);
+	if(_IF_QFULL(&i4b_rdqueue))
 	{
 		struct mbuf *m1;
-		IF_DEQUEUE(&i4b_rdqueue, m1);
+		_IF_DEQUEUE(&i4b_rdqueue, m1);
 		i4b_Dfreembuf(m1);
 		NDBGL4(L4_ERR, "ERROR, queue full, removing entry!");
 	}
 
-	IF_PREPEND(&i4b_rdqueue, m);
+	_IF_PREPEND(&i4b_rdqueue, m);
+	IF_UNLOCK(&i4b_rdqueue);
 
 	splx(x);	
 

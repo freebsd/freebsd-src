@@ -830,23 +830,11 @@ forward:
 	    if (m == NULL)
 		    return ENOBUFS;
 	    bcopy(eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
-	    s = splimp();
-	    if (IF_QFULL(&last->if_snd)) {
-		IF_DROP(&last->if_snd);
+	    if (! IF_HANDOFF(&last->if_snd, m, last)) {
 #if 0
 		MUTE(last); /* should I also mute ? */
 #endif
-		splx(s);
-		m_freem(m); /* consume the pkt anyways */
 		error = ENOBUFS ;
-	    } else {
-		last->if_obytes += m->m_pkthdr.len ;
-		if (m->m_flags & M_MCAST)
-		    last->if_omcasts++;
-		IF_ENQUEUE(&last->if_snd, m);
-		if ((last->if_flags & IFF_OACTIVE) == 0)
-		    (*last->if_start)(last);
-		splx(s);
 	    }
 	    BDG_STAT(last, BDG_OUT);
 	    last = NULL ;
@@ -857,7 +845,7 @@ forward:
 	    break ;
 	if (ifp != src &&       /* do not send to self */
 		USED(ifp) &&	/* if used for bridging */
-		! IF_QFULL(&ifp->if_snd) &&
+		! _IF_QFULL(&ifp->if_snd) &&
 		(ifp->if_flags & (IFF_UP|IFF_RUNNING)) ==
 			 (IFF_UP|IFF_RUNNING) &&
 		SAMECLUSTER(ifp, src) && !MUTED(ifp) )

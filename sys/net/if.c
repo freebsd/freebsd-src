@@ -110,12 +110,18 @@ ifinit(dummy)
 	int s;
 
 	s = splimp();
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
 		if (ifp->if_snd.ifq_maxlen == 0) {
 			printf("%s%d XXX: driver didn't set ifq_maxlen\n",
 			    ifp->if_name, ifp->if_unit);
 			ifp->if_snd.ifq_maxlen = ifqmaxlen;
 		}
+		if (ifp->if_snd.ifq_mtx.mtx_description == NULL) {
+			printf("%s%d XXX: driver didn't initialize queue mtx\n",
+			    ifp->if_name, ifp->if_unit);
+			mtx_init(&ifp->if_snd.ifq_mtx, "unknown", MTX_DEF);
+		}
+	}
 	splx(s);
 	if_slowtimo(0);
 }
@@ -181,6 +187,8 @@ if_attach(ifp)
 	}
 
 	ifindex2ifnet[if_index] = ifp;
+
+	mtx_init(&ifp->if_snd.ifq_mtx, ifp->if_name, MTX_DEF);
 
 	/*
 	 * create a Link Level name for this device
@@ -290,6 +298,7 @@ if_detach(ifp)
 #endif
 
 	TAILQ_REMOVE(&ifnet, ifp, if_link);
+	mtx_destroy(&ifp->if_snd.ifq_mtx);
 	splx(s);
 }
 

@@ -239,14 +239,7 @@ iwic_bchan_xirq(struct iwic_softc *sc, int chan_no)
 				if(!(i4b_l1_bchan_tel_silence(chan->in_mbuf->m_data, chan->in_mbuf->m_len)))
 					activity = ACT_RX;
 
-				if(!(IF_QFULL(&chan->rx_queue)))
-				{
-					IF_ENQUEUE(&chan->rx_queue, chan->in_mbuf);
-				}
-				else
-				{
-					i4b_Bfreembuf(chan->in_mbuf);
-				}
+				(void) IF_HANDOFF(&chan->rx_queue, chan->in_mbuf, NULL);
 
 				/* signal upper driver that data is available */
 
@@ -416,9 +409,10 @@ iwic_bchannel_setup(int unit, int chan_no, int bprot, int activate)
 		
 	/* receiver part */
 
-	i4b_Bcleanifq(&chan->rx_queue);	/* clean rx queue */
-
 	chan->rx_queue.ifq_maxlen = IFQ_MAXLEN;
+	mtx_init(&chan->rx_queue.ifq_mtx, "i4b_iwic_rx", MTX_DEF);
+
+	i4b_Bcleanifq(&chan->rx_queue);	/* clean rx queue */
 
 	chan->rxcount = 0;		/* reset rx counter */
 	
@@ -430,9 +424,10 @@ iwic_bchannel_setup(int unit, int chan_no, int bprot, int activate)
 	
 	/* transmitter part */
 
-	i4b_Bcleanifq(&chan->tx_queue);	/* clean tx queue */
-
 	chan->tx_queue.ifq_maxlen = IFQ_MAXLEN;
+	mtx_init(&chan->tx_queue.ifq_mtx, "i4b_iwic_tx", MTX_DEF);
+
+	i4b_Bcleanifq(&chan->tx_queue);	/* clean tx queue */
 	
 	chan->txcount = 0;		/* reset tx counter */
 	

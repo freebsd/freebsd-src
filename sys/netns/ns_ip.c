@@ -220,17 +220,8 @@ idpip_input(m, ifp)
 	/*
 	 * Deliver to NS
 	 */
-	s = splimp();
-	if (IF_QFULL(ifq)) {
-		IF_DROP(ifq);
-bad:
-		m_freem(m);
-		splx(s);
-		return;
-	}
-	IF_ENQUEUE(ifq, m);
-	schednetisr(NETISR_NS);
-	splx(s);
+	if (IF_HANDOFF(ifq, m, NULL))
+		schednetisr(NETISR_NS);
 	return;
 }
 

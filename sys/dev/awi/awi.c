@@ -876,17 +876,12 @@ awi_stop(sc)
 	ifp->if_timer = 0;
 	sc->sc_tx_timer = sc->sc_rx_timer = sc->sc_mgt_timer = 0;
 	for (;;) {
-		IF_DEQUEUE(&sc->sc_mgtq, m);
+		_IF_DEQUEUE(&sc->sc_mgtq, m);
 		if (m == NULL)
 			break;
 		m_freem(m);
 	}
-	for (;;) {
-		IF_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
-			break;
-		m_freem(m);
-	}
+	IF_DRAIN(&ifp->if_snd);
 	while ((bp = TAILQ_FIRST(&sc->sc_scan)) != NULL) {
 		TAILQ_REMOVE(&sc->sc_scan, bp, list);
 		free(bp, M_DEVBUF);
@@ -955,10 +950,10 @@ awi_start(ifp)
 
 	for (;;) {
 		txd = sc->sc_txnext;
-		IF_DEQUEUE(&sc->sc_mgtq, m0);
+		_IF_DEQUEUE(&sc->sc_mgtq, m0);
 		if (m0 != NULL) {
 			if (awi_next_txd(sc, m0->m_pkthdr.len, &frame, &ntxd)) {
-				IF_PREPEND(&sc->sc_mgtq, m0);
+				_IF_PREPEND(&sc->sc_mgtq, m0);
 				ifp->if_flags |= IFF_OACTIVE;
 				break;
 			}
@@ -2096,7 +2091,7 @@ awi_send_deauth(sc)
 	deauth += 2;
 
 	m->m_pkthdr.len = m->m_len = deauth - mtod(m, u_int8_t *);
-	IF_ENQUEUE(&sc->sc_mgtq, m);
+	_IF_ENQUEUE(&sc->sc_mgtq, m);
 	awi_start(ifp);
 	awi_drvstate(sc, AWI_DRV_INFTOSS);
 }
@@ -2141,7 +2136,7 @@ awi_send_auth(sc, seq)
 	auth += 2;
 
 	m->m_pkthdr.len = m->m_len = auth - mtod(m, u_int8_t *);
-	IF_ENQUEUE(&sc->sc_mgtq, m);
+	_IF_ENQUEUE(&sc->sc_mgtq, m);
 	awi_start(ifp);
 
 	sc->sc_mgt_timer = AWI_TRANS_TIMEOUT / 1000;
@@ -2261,7 +2256,7 @@ awi_send_asreq(sc, reassoc)
 	asreq += 2 + asreq[1];
 
 	m->m_pkthdr.len = m->m_len = asreq - mtod(m, u_int8_t *);
-	IF_ENQUEUE(&sc->sc_mgtq, m);
+	_IF_ENQUEUE(&sc->sc_mgtq, m);
 	awi_start(ifp);
 
 	sc->sc_mgt_timer = AWI_TRANS_TIMEOUT / 1000;

@@ -573,6 +573,7 @@ i4btelread(dev_t dev, struct uio *uio, int ioflag)
 	if(func == FUNCTEL)
 	{
 		s = splimp();
+		IF_LOCK(sc->isdn_linktab->rx_queue);
 		while(IF_QEMPTY(sc->isdn_linktab->rx_queue) &&
 			(sc->devstate & ST_ISOPEN)          &&
 			(sc->devstate & ST_CONNECTED))		
@@ -581,11 +582,13 @@ i4btelread(dev_t dev, struct uio *uio, int ioflag)
 
 			NDBGL4(L4_TELDBG, "i4btel%d, queue empty!", unit);
 			
-			if((error = tsleep((caddr_t) &sc->isdn_linktab->rx_queue,
+			if((error = msleep((caddr_t) &sc->isdn_linktab->rx_queue,
+						&sc->isdn_linktab->rx_queue->ifq_mtx,
 						TTIPRI | PCATCH,
 						"rtel", 0 )) != 0)
 			{
 				sc->devstate &= ~ST_RDWAITDATA;
+				IF_UNLOCK(sc->isdn_linktab->rx_queue);
 				splx(s);
 				return(error);
 			}
@@ -593,18 +596,21 @@ i4btelread(dev_t dev, struct uio *uio, int ioflag)
 	
 		if(!(sc->devstate & ST_ISOPEN))
 		{
+			IF_UNLOCK(sc->isdn_linktab->rx_queue);
 			splx(s);
 			return(EIO);
 		}
 	
 		if(!(sc->devstate & ST_CONNECTED))
 		{
+			IF_UNLOCK(sc->isdn_linktab->rx_queue);
 			splx(s);
 			return(EIO);
 		}
 		
 	
-		IF_DEQUEUE(sc->isdn_linktab->rx_queue, m);
+		_IF_DEQUEUE(sc->isdn_linktab->rx_queue, m);
+		IF_UNLOCK(sc->isdn_linktab->rx_queue);
 		
 		if(m && m->m_len > 0)
 		{
@@ -700,19 +706,23 @@ i4btelwrite(dev_t dev, struct uio * uio, int ioflag)
 		}
 			
 		sc->devstate &= ~ST_TONE;		
-		while((IF_QFULL(sc->isdn_linktab->tx_queue)) &&
+		IF_LOCK(sc->isdn_linktab->tx_queue);
+		while((_IF_QFULL(sc->isdn_linktab->tx_queue)) &&
 		      (sc->devstate & ST_ISOPEN))
 		{
 			sc->devstate |= ST_WRWAITEMPTY;
 	
-			if((error = tsleep((caddr_t) &sc->isdn_linktab->tx_queue,
+			if((error = msleep((caddr_t) &sc->isdn_linktab->tx_queue,
+					&sc->isdn_linktab->tx_queue->ifq_mtx,
 					TTIPRI | PCATCH, "wtel", 0)) != 0)
 			{
 				sc->devstate &= ~ST_WRWAITEMPTY;			
+				IF_UNLOCK(sc->isdn_linktab->tx_queue);
 				splx(s);
 				return(error);
 			}
 		}
+		IF_UNLOCK(sc->isdn_linktab->tx_queue);
 	
 		if(!(sc->devstate & ST_ISOPEN))
 		{
@@ -744,15 +754,7 @@ i4btelwrite(dev_t dev, struct uio * uio, int ioflag)
 				mtod(m,u_char *)[i] = bitreverse[mtod(m,u_char *)[i]];
 			}
 			
-			if(IF_QFULL(sc->isdn_linktab->tx_queue))
-			{
-				m_freem(m);			
-			}
-			else
-			{
-				IF_ENQUEUE(sc->isdn_linktab->tx_queue, m);
-			}
-	
+			(void) IF_HANDOFF(sc->isdn_linktab->tx_queue, m, NULL);
 			(*sc->isdn_linktab->bch_tx_start)(sc->isdn_linktab->unit, sc->isdn_linktab->channel);
 		}
 	
@@ -867,7 +869,7 @@ i4btelpoll(dev_t dev, int events, struct proc *p)
 		if((events & (POLLOUT|POLLWRNORM))	&&
 			(sc->devstate & ST_CONNECTED)	&&
 			(sc->isdn_linktab != NULL)	&&
-			(!IF_QFULL(sc->isdn_linktab->tx_queue)))
+			(!_IF_QFULL(sc->isdn_linktab->tx_queue)))
 		{
 			NDBGL4(L4_TELDBG, "i4btel%d, POLLOUT", unit);
 			revents |= (events & (POLLOUT|POLLWRNORM));
@@ -958,7 +960,7 @@ i4btelsel(dev_t dev, int rw, struct proc *p)
 		}
 		else if (rw == FWRITE)
 		{
-			if (!IF_QFULL(sc->isdn_linktab->tx_queue))
+			if (!_IF_QFULL(sc->isdn_linktab->tx_queue))
 			{
 				NDBGL4(L4_TELDBG, "i4btel%d, FWRITE", unit);
 				splx(s);

@@ -131,13 +131,7 @@ pdq_ifwatchdog(
 
     ifp->if_flags &= ~IFF_OACTIVE;
     ifp->if_timer = 0;
-    for (;;) {
-	struct mbuf *m;
-	IF_DEQUEUE(&ifp->if_snd, m);
-	if (m == NULL)
-	    return;
-	m_freem(m);
-    }
+    IF_DRAIN(&ifp->if_snd);
 }
 
 ifnet_ret_t

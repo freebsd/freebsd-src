@@ -234,17 +234,11 @@ ef_start(struct ifnet *ifp)
 			break;
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m);
-		if (IF_QFULL(&p->if_snd)) {
-			IF_DROP(&p->if_snd);
+		if (! IF_HANDOFF(&p->if_snd, m, NULL)) {
 			ifp->if_oerrors++;
-			m_freem(m);
 			continue;
 		}
-		IF_ENQUEUE(&p->if_snd, m);
-		if ((p->if_flags & IFF_OACTIVE) == 0) {
-			p->if_start(p);
-			ifp->if_opackets++;
-		}
+		ifp->if_opackets++;
 	}
 	ifp->if_flags &= ~IFF_OACTIVE;
 	return;
@@ -419,13 +413,7 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 			ft, ether_type);
 		return EPROTONOSUPPORT;
 	}
-	s = splimp();
-	if (IF_QFULL(inq)) {
-		IF_DROP(inq);
-		m_freem(m);
-	} else
-		IF_ENQUEUE(inq, m);
-	splx(s);
+	(void) IF_HANDOFF(inq, m, NULL);
 	return 0;
 }
 

@@ -245,6 +245,7 @@ i4btrcattach()
 #endif
 #endif
 		trace_queue[i].ifq_maxlen = IFQ_MAXLEN;
+		mtx_init(&trace_queue[i].ifq_mtx, "i4b_trace", MTX_DEF);
 		device_state[i] = ST_IDLE;
 	}
 }
@@ -317,12 +318,13 @@ get_trace_data_from_l1(i4b_trace_hdr_t *hdr, int len, char *buf)
 		unit = outunit;			
 	}
 
-	if(IF_QFULL(&trace_queue[unit]))
+	IF_LOCK(&trace_queue[unit]);
+	if(_IF_QFULL(&trace_queue[unit]))
 	{
 		struct mbuf *m1;
 
 		x = SPLI4B();
-		IF_DEQUEUE(&trace_queue[unit], m1);
+		_IF_DEQUEUE(&trace_queue[unit], m1);
 		splx(x);		
 
 		i4b_Bfreembuf(m1);
@@ -339,7 +341,8 @@ get_trace_data_from_l1(i4b_trace_hdr_t *hdr, int len, char *buf)
 
 	x = SPLI4B();
 	
-	IF_ENQUEUE(&trace_queue[unit], m);
+	_IF_ENQUEUE(&trace_queue[unit], m);
+	IF_UNLOCK(&trace_queue[unit]);
 	
 	if(device_state[unit] & ST_WAITDATA)
 	{
@@ -441,21 +444,25 @@ i4btrcread(dev_t dev, struct uio * uio, int ioflag)
 
 	x = SPLI4B();
 	
+	IF_LOCK(&trace_queue[unit]);
 	while(IF_QEMPTY(&trace_queue[unit]) && (device_state[unit] & ST_ISOPEN))
 	{
 		device_state[unit] |= ST_WAITDATA;
 		
-		if((error = tsleep((caddr_t) &trace_queue[unit],
+		if((error = msleep((caddr_t) &trace_queue[unit],
+					&trace_queue[unit].ifq_mtx,
 					TTIPRI | PCATCH,
 					"bitrc", 0 )) != 0)
 		{
 			device_state[unit] &= ~ST_WAITDATA;
+			IF_UNLOCK(&trace_queue[unit]);
 			splx(x);
 			return(error);
 		}
 	}
 
-	IF_DEQUEUE(&trace_queue[unit], m);
+	_IF_DEQUEUE(&trace_queue[unit], m);
+	IF_UNLOCK(&trace_queue[unit]);
 
 	if(m && m->m_len)
 		error = uiomove(m->m_data, m->m_len, uio);

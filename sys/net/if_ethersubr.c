@@ -264,15 +264,9 @@ ether_output(ifp, m, dst, rt0)
 		 */
 		if (!bcmp((caddr_t)edst, (caddr_t)&ns_thishost, sizeof(edst))){
 			m->m_pkthdr.rcvif = ifp;
-			schednetisr(NETISR_NS);
 			inq = &nsintrq;
-			s = splimp();
-			if (IF_QFULL(inq)) {
-				IF_DROP(inq);
-				m_freem(m);
-			} else
-				IF_ENQUEUE(inq, m);
-			splx(s);
+			if (IF_HANDOFF(inq, m, NULL))
+				schednetisr(NETISR_NS);
 			return (error);
 		}
 		if (!bcmp((caddr_t)edst, (caddr_t)&ns_broadhost, sizeof(edst))){
@@ -365,7 +359,7 @@ ether_output_frame(ifp, m)
 	struct ifnet *ifp;
 	struct mbuf *m;
 {
-	int s, error = 0;
+	int error = 0;
 
 #ifdef BRIDGE
 	if (do_bridge) {
@@ -382,24 +376,12 @@ ether_output_frame(ifp, m)
 	}
 #endif
 
-	s = splimp();
 	/*
-	 * Queue message on interface, and start output if interface
-	 * not yet active.
+	 * Queue message on interface, update output statistics if
+	 * successful, and start output if interface not yet active.
 	 */
-	if (IF_QFULL(&ifp->if_snd)) {
-		IF_DROP(&ifp->if_snd);
-		splx(s);
-		m_freem(m);
+	if (! IF_HANDOFF(&ifp->if_snd, m, ifp))
 		return (ENOBUFS);
-	}
-	ifp->if_obytes += m->m_pkthdr.len;
-	if (m->m_flags & M_MCAST)
-		ifp->if_omcasts++;
-	IF_ENQUEUE(&ifp->if_snd, m);
-	if ((ifp->if_flags & IFF_OACTIVE) == 0)
-		(*ifp->if_start)(ifp);
-	splx(s);
 	return (error);
 }
 
@@ -641,13 +623,7 @@ ether_demux(ifp, eh, m)
 #endif /* NETATALK */
 	}
 
-	s = splimp();
-	if (IF_QFULL(inq)) {
-		IF_DROP(inq);
-		m_freem(m);
-	} else
-		IF_ENQUEUE(inq, m);
-	splx(s);
+	(void) IF_HANDOFF(inq, m, NULL);
 }
 
 /*

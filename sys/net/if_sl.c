@@ -291,6 +291,7 @@ slcreate()
 	sc->sc_fastq.ifq_maxlen = 32;
 	sc->sc_if.if_linkmib = sc;
 	sc->sc_if.if_linkmiblen = sizeof *sc;
+	mtx_init(&sc->sc_fastq.ifq_mtx, "sl_fastq", MTX_DEF);
 
 	/*
 	 * Find a suitable unit number.
@@ -372,6 +373,7 @@ sldestroy(struct sl_softc *sc) {
 	if_detach(&sc->sc_if);
 	LIST_REMOVE(sc, sl_next);
 	m_free(sc->sc_mbuf);
+	mtx_destroy(&sc->sc_fastq.ifq_mtx);
 	FREE(sc, M_SL);
 }
 
@@ -560,15 +562,11 @@ sloutput(ifp, m, dst, rtp)
 	}
 	if (ip->ip_tos & IPTOS_LOWDELAY)
 		ifq = &sc->sc_fastq;
-	s = splimp();
-	if (IF_QFULL(ifq)) {
-		IF_DROP(ifq);
-		m_freem(m);
-		splx(s);
+	if (! IF_HANDOFF(ifq, m, NULL)) {
 		sc->sc_if.if_oerrors++;
 		return (ENOBUFS);
 	}
-	IF_ENQUEUE(ifq, m);
+	s = splimp();
 	if (sc->sc_ttyp->t_outq.c_cc == 0)
 		slstart(sc->sc_ttyp);
 	splx(s);
@@ -824,7 +822,6 @@ slinput(c, tp)
 	register struct sl_softc *sc;
 	register struct mbuf *m;
 	register int len;
-	int s;
 	u_char chdr[CHDR_LEN];
 
 	tk_nin++;
@@ -955,17 +952,12 @@ slinput(c, tp)
 			goto newpack;
 		}
 
-		s = splimp();
-		if (IF_QFULL(&ipintrq)) {
-			IF_DROP(&ipintrq);
+		if (! IF_HANDOFF(&ipintrq, m, NULL)) {
 			sc->sc_if.if_ierrors++;
 			sc->sc_if.if_iqdrops++;
-			m_freem(m);
 		} else {
-			IF_ENQUEUE(&ipintrq, m);
 			schednetisr(NETISR_IP);
 		}
-		splx(s);
 		goto newpack;
 	}
 	if (sc->sc_mp < sc->sc_ep) {

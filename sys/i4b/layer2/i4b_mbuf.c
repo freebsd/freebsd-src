@@ -140,15 +140,9 @@ i4b_Dfreembuf(struct mbuf *m)
 void
 i4b_Dcleanifq(struct ifqueue *ifq)
 {
-	struct mbuf *m;
 	int x = splimp();
 	
-	while(!IF_QEMPTY(ifq))
-	{
-		IF_DEQUEUE(ifq, m);
-		i4b_Dfreembuf(m);
-	}
-
+	IF_DRAIN(ifq);
 	splx(x);
 }
 
@@ -222,15 +216,9 @@ i4b_Bfreembuf(struct mbuf *m)
 void
 i4b_Bcleanifq(struct ifqueue *ifq)
 {
-	struct mbuf *m;
 	int x = splimp();
 	
-	while(!IF_QEMPTY(ifq))
-	{
-		IF_DEQUEUE(ifq, m);
-		i4b_Bfreembuf(m);
-	}
-
+	IF_DRAIN(ifq);
 	splx(x);
 }
 
