@@ -1,26 +1,25 @@
-# Makefile for eqn
+#	$Id$
 
 PROG=		eqn
-MAN1=		eqn.1 neqn.1
-SRCS=		main.cc lex.cc  box.cc limit.cc list.cc over.cc text.cc\
+SRCS=		eqn.cc eqn.tab.h main.cc lex.cc \
+		box.cc limit.cc list.cc over.cc text.cc \
 		script.cc mark.cc other.cc delim.cc sqrt.cc pile.cc special.cc
-OBJS=		eqn.o
-#CFLAGS+=	-I. -I${.CURDIR}/../include
-LDADD+=		${LIBGROFF}
-DPADD+=		${LIBGROFF}
+CFLAGS+=	-I.
+DPADD=		${LIBGROFF}
+LDADD=		${LIBGROFF}
+MAN1=		eqn.1 neqn.1
+CLEANFILES=	eqn.cc eqn.tab.h ${MAN1} neqn y.tab.c y.tab.h
 
-MANDEPEND=	neqn.1 eqn.1
-CLEANFILES+=	eqn.cc eqn.tab.h neqn ${MANDEPEND}
+all: neqn
 
-afterinstall:	neqn
+beforeinstall: neqn
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} neqn \
-		${DESTDIR}${BINDIR}
+	    ${DESTDIR}${BINDIR}
 
-beforedepend: eqn.cc
+eqn.tab.h: eqn.cc
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
 
-neqn:   ${DIST_DIR}/neqn.sh
-	sed -e 's/@g@/${g}/g' ${DIST_DIR}/neqn.sh > neqn
-
+neqn: ${DIST_DIR}/neqn.sh
+	sed -e 's/@g@/${g}/g' ${.ALLSRC} > ${.TARGET}
