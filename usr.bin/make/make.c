@@ -96,18 +96,13 @@ static int  	numNodes;   	/* Number of nodes to be processed. If this
 				 * is non-zero when Job_Empty() returns
 				 * TRUE, there's a cycle in the graph */
 
-static int MakeAddChild(void *, void *);
-static int MakeAddAllSrc(void *, void *);
-static int MakeTimeStamp(void *, void *);
-static int MakeHandleUse(void *, void *);
 static Boolean MakeStartJobs(void);
-static int MakePrintStatus(void *, void *);
 
 /*-
  *-----------------------------------------------------------------------
  * Make_TimeStamp --
  *	Set the cmtime field of a parent node based on the mtime stamp in its
- *	child. Called from MakeOODate via Lst_ForEach.
+ *	child. Called from MakeOODate via LST_FOREACH.
  *
  * Results:
  *	Always returns 0.
@@ -125,13 +120,6 @@ Make_TimeStamp(GNode *pgn, GNode *cgn)
 	pgn->cmtime = cgn->mtime;
     }
     return (0);
-}
-
-static int
-MakeTimeStamp(void *pgn, void *cgn)
-{
-
-    return (Make_TimeStamp(pgn, cgn));
 }
 
 /*-
@@ -156,6 +144,7 @@ Boolean
 Make_OODate(GNode *gn)
 {
     Boolean         oodate;
+    LstNode	    *ln;
 
     /*
      * Certain types of targets needn't even be sought as their datedness
@@ -250,7 +239,9 @@ Make_OODate(GNode *gn)
      * thinking they're out-of-date.
      */
     if (!oodate) {
-	Lst_ForEach(&gn->parents, MakeTimeStamp, gn);
+	LST_FOREACH(ln, &gn->parents)
+	    if (Make_TimeStamp(Lst_Datum(ln), gn))
+		break;
     }
 
     return (oodate);
@@ -258,38 +249,13 @@ Make_OODate(GNode *gn)
 
 /*-
  *-----------------------------------------------------------------------
- * MakeAddChild  --
- *	Function used by Make_Run to add a child to the list l.
- *	It will only add the child if its make field is FALSE.
- *
- * Results:
- *	Always returns 0
- *
- * Side Effects:
- *	The given list is extended
- *-----------------------------------------------------------------------
- */
-static int
-MakeAddChild(void *gnp, void *lp)
-{
-    GNode *gn = gnp;
-    Lst *l = lp;
-
-    if (!gn->make && !(gn->type & OP_USE)) {
-	Lst_EnQueue(l, gn);
-    }
-    return (0);
-}
-
-/*-
- *-----------------------------------------------------------------------
  * Make_HandleUse --
  *	Function called by Make_Run and SuffApplyTransform on the downward
  *	pass to handle .USE and transformation nodes. A callback function
- *	for Lst_ForEach, it implements the .USE and transformation
+ *	for LST_FOREACH, it implements the .USE and transformation
  *	functionality by copying the node's commands, type flags
  *	and children to the parent node. Should be called before the
- *	children are enqueued to be looked at by MakeAddChild.
+ *	children are enqueued to be looked at.
  *
  *	A .USE node is much like an explicit transformation rule, except
  *	its commands are always added to the target node, even if the
@@ -343,13 +309,6 @@ Make_HandleUse(GNode *cgn, GNode *pgn)
 	}
     }
     return (0);
-}
-
-static int
-MakeHandleUse(void *pgn, void *cgn)
-{
-
-    return (Make_HandleUse(pgn, cgn));
 }
 
 /*-
@@ -515,75 +474,6 @@ Make_Update(GNode *cgn)
 
 /*-
  *-----------------------------------------------------------------------
- * MakeAddAllSrc --
- *	Add a child's name to the ALLSRC and OODATE variables of the given
- *	node. Called from Make_DoAllVar via Lst_ForEach. A child is added only
- *	if it has not been given the .EXEC, .USE or .INVISIBLE attributes.
- *	.EXEC and .USE children are very rarely going to be files, so...
- *	A child is added to the OODATE variable if its modification time is
- *	later than that of its parent, as defined by Make, except if the
- *	parent is a .JOIN node. In that case, it is only added to the OODATE
- *	variable if it was actually made (since .JOIN nodes don't have
- *	modification times, the comparison is rather unfair...)..
- *
- * Results:
- *	Always returns 0
- *
- * Side Effects:
- *	The ALLSRC variable for the given node is extended.
- *-----------------------------------------------------------------------
- */
-static int
-MakeAddAllSrc(void *cgnp, void *pgnp)
-{
-    GNode	*cgn = (GNode *) cgnp;
-    GNode	*pgn = (GNode *) pgnp;
-
-    if ((cgn->type & (OP_EXEC | OP_USE | OP_INVISIBLE)) == 0) {
-	char *child;
-	char *p1 = NULL;
-
-	if (OP_NOP(cgn->type)) {
-	    /*
-	     * this node is only source; use the specific pathname for it
-	     */
-	    child = cgn->path ? cgn->path : cgn->name;
-	}
-	else
-	    child = Var_Value(TARGET, cgn, &p1);
-	Var_Append(ALLSRC, child, pgn);
-	if (pgn->type & OP_JOIN) {
-	    if (cgn->made == MADE) {
-		Var_Append(OODATE, child, pgn);
-	    }
-	} else if ((pgn->mtime < cgn->mtime) ||
-		   (cgn->mtime >= now && cgn->made == MADE))
-	{
-	    /*
-	     * It goes in the OODATE variable if the parent is younger than the
-	     * child or if the child has been modified more recently than
-	     * the start of the make. This is to keep pmake from getting
-	     * confused if something else updates the parent after the
-	     * make starts (shouldn't happen, I know, but sometimes it
-	     * does). In such a case, if we've updated the kid, the parent
-	     * is likely to have a modification time later than that of
-	     * the kid and anything that relies on the OODATE variable will
-	     * be hosed.
-	     *
-	     * XXX: This will cause all made children to go in the OODATE
-	     * variable, even if they're not touched, if RECHECK isn't defined,
-	     * since cgn->mtime is set to now in Make_Update. According to
-	     * some people, this is good...
-	     */
-	    Var_Append(OODATE, child, pgn);
-	}
-	free(p1);
-    }
-    return (0);
-}
-
-/*-
- *-----------------------------------------------------------------------
  * Make_DoAllVar --
  *	Set up the ALLSRC and OODATE variables. Sad to say, it must be
  *	done separately, rather than while traversing the graph. This is
@@ -607,22 +497,80 @@ MakeAddAllSrc(void *cgnp, void *pgnp)
 void
 Make_DoAllVar(GNode *gn)
 {
+	LstNode	*ln;
+	GNode	*cgn;
+	char	*child;
+	char	*p1;
 
-    Lst_ForEach(&gn->children, MakeAddAllSrc, gn);
+	LST_FOREACH(ln, &gn->children) {
+		/*
+		 * Add the child's name to the ALLSRC and OODATE variables of
+		 * the given node. The child is added only if it has not been
+		 * given the .EXEC, .USE or .INVISIBLE attributes. .EXEC and
+		 * .USE children are very rarely going to be files, so...
+		 *
+		 * A child is added to the OODATE variable if its modification
+		 * time is later than that of its parent, as defined by Make,
+		 * except if the parent is a .JOIN node. In that case, it is
+		 * only added to the OODATE variable if it was actually made
+		 * (since .JOIN nodes don't have modification times, the
+		 * comparison is rather unfair...).
+		 */
+		cgn = Lst_Datum(ln);
 
-    if (!Var_Exists (OODATE, gn)) {
-	Var_Set(OODATE, "", gn);
-    }
-    if (!Var_Exists (ALLSRC, gn)) {
-	Var_Set(ALLSRC, "", gn);
-    }
+		if ((cgn->type & (OP_EXEC | OP_USE | OP_INVISIBLE)) == 0) {
+			p1 = NULL;
+			if (OP_NOP(cgn->type)) {
+				/*
+				 * this node is only source; use the specific
+				 * pathname for it
+				 */
+				child = cgn->path ? cgn->path : cgn->name;
+			} else
+				child = Var_Value(TARGET, cgn, &p1);
+			Var_Append(ALLSRC, child, gn);
+			if (gn->type & OP_JOIN) {
+				if (cgn->made == MADE) {
+					Var_Append(OODATE, child, gn);
+				}
+			} else if (gn->mtime < cgn->mtime ||
+			    (cgn->mtime >= now && cgn->made == MADE)) {
+				/*
+				 * It goes in the OODATE variable if the parent
+				 * is younger than the child or if the child has
+				 * been modified more recently than the start of
+				 * the make. This is to keep pmake from getting
+				 * confused if something else updates the parent
+				 * after the make starts (shouldn't happen, I
+				 * know, but sometimes it does). In such a case,
+				 * if we've updated the kid, the parent is
+				 * likely to have a modification time later than
+				 * that of the kid and anything that relies on
+				 * the OODATE variable will be hosed.
+				 *
+				 * XXX: This will cause all made children to
+				 * go in the OODATE variable, even if they're
+				 * not touched, if RECHECK isn't defined, since
+				 * cgn->mtime is set to now in Make_Update.
+				 * According to some people, this is good...
+				 */
+				Var_Append(OODATE, child, gn);
+			}
+			free(p1);
+		}
+	}
 
-    if (gn->type & OP_JOIN) {
-	char *p1;
+	if (!Var_Exists (OODATE, gn)) {
+		Var_Set(OODATE, "", gn);
+	}
+	if (!Var_Exists (ALLSRC, gn)) {
+		Var_Set(ALLSRC, "", gn);
+	}
 
-	Var_Set(TARGET, Var_Value(ALLSRC, gn, &p1), gn);
-	free(p1);
-    }
+	if (gn->type & OP_JOIN) {
+		Var_Set(TARGET, Var_Value(ALLSRC, gn, &p1), gn);
+		free(p1);
+	}
 }
 
 /*-
@@ -707,29 +655,24 @@ MakeStartJobs(void)
  * MakePrintStatus --
  *	Print the status of a top-level node, viz. it being up-to-date
  *	already or not created due to an error in a lower level.
- *	Callback function for Make_Run via Lst_ForEach.  If gn->unmade is
+ *	Callback function for Make_Run via LST_FOREACH.  If gn->unmade is
  *	nonzero and that is meant to imply a cycle in the graph, then
  *	cycle is TRUE.
- *
- * Results:
- *	Always returns 0.
  *
  * Side Effects:
  *	A message may be printed.
  *
  *-----------------------------------------------------------------------
  */
-static int
-MakePrintStatus(void *gnp, void *cyclep)
+static void
+MakePrintStatus(GNode *gn, Boolean cycle)
 {
-    GNode *gn = gnp;
-    Boolean cycle = *(Boolean *)cyclep;
+    LstNode *ln;
 
     if (gn->made == UPTODATE) {
 	printf("`%s' is up to date.\n", gn->name);
     } else if (gn->unmade != 0) {
 	if (cycle) {
-	    Boolean t = TRUE;
 	    /*
 	     * If printing cycles and came to one that has unmade children,
 	     * print out the cycle by recursing on its children. Note a
@@ -743,17 +686,18 @@ MakePrintStatus(void *gnp, void *cyclep)
 	    if (gn->made == CYCLE) {
 		Error("Graph cycles through `%s'", gn->name);
 		gn->made = ENDCYCLE;
-		Lst_ForEach(&gn->children, MakePrintStatus, &t);
+		LST_FOREACH(ln, &gn->children)
+		    MakePrintStatus(Lst_Datum(ln), TRUE);
 		gn->made = UNMADE;
 	    } else if (gn->made != ENDCYCLE) {
 		gn->made = CYCLE;
-		Lst_ForEach(&gn->children, MakePrintStatus, &t);
+		LST_FOREACH(ln, &gn->children)
+		    MakePrintStatus(Lst_Datum(ln), TRUE);
 	    }
 	} else {
 	    printf("`%s' not remade because of errors.\n", gn->name);
 	}
     }
-    return (0);
 }
 
 /*-
@@ -781,8 +725,10 @@ Boolean
 Make_Run(Lst *targs)
 {
     GNode	    *gn;	/* a temporary pointer */
+    GNode	    *cgn;
     Lst	    	    examine; 	/* List of targets to examine */
     int	    	    errors; 	/* Number of errors the Job module reports */
+    LstNode	    *ln;
 
     Lst_Init(&examine);
     Lst_Duplicate(&examine, targs, NOCOPY);
@@ -807,11 +753,18 @@ Make_Run(Lst *targs)
 	     * Apply any .USE rules before looking for implicit dependencies
 	     * to make sure everything has commands that should...
 	     */
-	    Lst_ForEach(&gn->children, MakeHandleUse, gn);
+	    LST_FOREACH(ln, &gn->children)
+		if (Make_HandleUse(Lst_Datum(ln), gn))
+		    break;
+
 	    Suff_FindDeps(gn);
 
 	    if (gn->unmade != 0) {
-		Lst_ForEach(&gn->children, MakeAddChild, &examine);
+		LST_FOREACH(ln, &gn->children) {
+		    cgn = Lst_Datum(ln);
+		    if (!cgn->make && !(cgn->type & OP_USE))
+			Lst_EnQueue(&examine, cgn);
+		}
 	    } else {
 		Lst_EnQueue(&toBeMade, gn);
 	    }
@@ -859,7 +812,8 @@ Make_Run(Lst *targs)
      * because some inferior reported an error.
      */
     errors = ((errors == 0) && (numNodes != 0));
-    Lst_ForEach(targs, MakePrintStatus, &errors);
+    LST_FOREACH(ln, targs)
+	MakePrintStatus(Lst_Datum(ln), errors);
 
     return (TRUE);
 }
