@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.48 1996/11/27 01:06:40 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.49 1996/11/30 23:51:49 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -22,9 +22,9 @@
     department, we depend on you, the user, for much of the
     information contained in this catalog.  If you have direct
     experience of hardware that does or does not work with
-    FreeBSD, please let us know by sending e-mail to
-    <tt>doc@freebsd.org</tt>.  Questions about supported hardware
-    should be directed to <tt>questions@freebsd.org</tt> (see
+    FreeBSD, please let us know by sending e-mail to the &a.doc;.
+    Questions about supported hardware
+    should be directed to the &a.questions (see
     <ref id="eresources:mail" name="Mailing Lists"> for more
     information).  When submitting information or asking a
     question, please remember to specify exactly what version of
