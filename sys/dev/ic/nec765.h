@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)nec765.h	7.1 (Berkeley) 5/9/91
- *	$Id: nec765.h,v 1.2 1993/10/16 13:48:50 rgrimes Exp $
+ *	$Id: nec765.h,v 1.3 1994/09/17 16:56:10 davidg Exp $
  */
 
 /*
@@ -120,6 +120,11 @@
 #define NE7CMD_SCNEQU	0xf1	/*  scan equal */
 #define NE7CMD_SCNLE	0xf9	/*  scan less or equal */
 #define NE7CMD_SCNGE	0xfd	/*  scan greater or equal */
+
+/*
+ * Enhanced controller commands:
+ */
+#define NE7CMD_VERSION	0x10	/*  version (ok for all controllers) */
 
 
 /*
