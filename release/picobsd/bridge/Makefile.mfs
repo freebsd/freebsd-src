@@ -1,8 +1,0 @@
-#
-# $FreeBSD$
-#
-
-MY_DEVS= std tun2 vty10 fd0 ad0 pty0 cuaa0 cuaa1 bpf0 bpf1 bpf2
-
-.include "../build/Makefile.mfs"
-
