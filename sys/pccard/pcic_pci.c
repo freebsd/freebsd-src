@@ -37,6 +37,7 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #include <pci/pcic_p.h>
+#include <pccard/i82365.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
@@ -134,6 +135,19 @@ pd6832_legacy_init(pcici_t tag, int unit)
 {
 	u_long bcr; 		/* to set interrupts */
 	u_short io_port;	/* the io_port to map this slot on */
+	static int num6832 = 0; /* The number of 6832s initialized */
+
+	/*
+	 * Some BIOS leave the legacy address uninitialized.  This
+	 * insures that the PD6832 puts itself where the driver will
+	 * look.  We assume that multiple 6832's should be laid out
+	 * sequentially.  We only initialize the first socket's legacy port,
+	 * the other is a dummy.
+	 */
+	io_port = PCIC_INDEX_0 + num6832 * CLPD6832_NUM_REGS;
+	if (unit == 0)
+	    pci_conf_write(tag, CLPD6832_LEGACY_16BIT_IOADDR,
+		           io_port & ~PCI_MAP_IO);
 
 	/*
 	 * I think this should be a call to pci_map_port, but that
@@ -152,7 +166,7 @@ pd6832_legacy_init(pcici_t tag, int unit)
 	pci_conf_write(tag, CLPD6832_IO_LIMIT0,
 		       (io_port + CLPD6832_NUM_REGS) | 1);
 
-	pci_conf_write(tag, CLPD6832_IO_BASE1, (io_port +0x20) | 1);
+	pci_conf_write(tag, CLPD6832_IO_BASE1, (io_port + 0x20) | 1);
 	pci_conf_write(tag, CLPD6832_IO_LIMIT1, io_port | 1 );
 
 	/*
@@ -170,8 +184,12 @@ pd6832_legacy_init(pcici_t tag, int unit)
 	bcr |= (CLPD6832_BCR_ISA_IRQ|CLPD6832_BCR_MGMT_IRQ_ENA);
 	pci_conf_write(tag, CLPD6832_BRIDGE_CONTROL, bcr);
 
+	/* After initializing 2 sockets, the chip is fully configured */
+	if (unit == 1)
+		num6832++;
+
 	if (bootverbose)
 		printf("CardBus: Legacy PC-card 16bit I/O address [0x%x]\n",
-		   io_port);
+		       io_port);
 }
 #endif /* NPCI > 0 */
