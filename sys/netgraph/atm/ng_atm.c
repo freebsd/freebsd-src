@@ -991,7 +991,7 @@ ng_atm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 		  case NGM_ATM_GET_VCC:
 		    {
-			char hook[NG_HOOKLEN + 1];
+			char hook[NG_HOOKSIZ];
 			struct atmio_vcctable *vccs;
 			struct ngvcc *vcc;
 			u_int i;
@@ -1000,12 +1000,12 @@ ng_atm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENXIO;
 				break;
 			}
-			if (msg->header.arglen != NG_HOOKLEN + 1) {
+			if (msg->header.arglen != NG_HOOKSIZ) {
 				error = EINVAL;
 				break;
 			}
-			strncpy(hook, msg->data, NG_HOOKLEN + 1);
-			hook[NG_HOOKLEN] = '\0';
+			strncpy(hook, msg->data, NG_HOOKSIZ);
+			hook[NG_HOOKSIZ - 1] = '\0';
 			LIST_FOREACH(vcc, &priv->vccs, link)
 				if (strcmp(NG_HOOK_NAME(vcc->hook), hook) == 0)
 					break;
