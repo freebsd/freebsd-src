@@ -34,6 +34,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)pwcache.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -57,8 +59,8 @@ user_from_uid(uid, nouser)
 		char	name[UT_NAMESIZE + 1];
 	} c_uid[NCACHE];
 	static int pwopen;
-	register struct passwd *pw;
-	register struct ncache *cp;
+	struct passwd *pw;
+	struct ncache *cp;
 
 	cp = c_uid + (uid & MASK);
 	if (cp->uid != uid || !*cp->name) {
