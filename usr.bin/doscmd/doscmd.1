@@ -188,6 +188,18 @@ to
 .\"
 .\"
 .\"
+.It Fl p Ar port Ns Xo
+.Op : Ns Ar cnt
+.Xc
+Map the requested io
+.Ar port
+(with optional range up to to
+.Ar port+cnt Ns No -1 )
+to the real hardware I/O port(s).
+This will likely require root privs to access them.
+.\"
+.\"
+.\"
 .It Fl P
 Enable tracing of io port calls (such as
 .Li inb ,
@@ -431,6 +443,19 @@ It's base address will be emulated at
 at interrupt specified by
 .Ar irq .
 This code is lightly tested and may not suit all needs.
+.\"
+.\"
+.\"
+.It Cm portmap Xo
+.Ar port
+.Op Ar count
+.Xc
+Map the requested io
+.Ar port
+(with optional range up to to
+.Ar port+count Ns No -1 )
+to the real hardware I/O port(s).
+This will likely require root privs to access them.
 .\"
 .\"
 .\"

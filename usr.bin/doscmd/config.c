@@ -238,6 +238,21 @@ init_hard:
 	    	fprintf(stderr, "Boot drive must be either A: or C:\n");
 		quit(1);
 	    }
+	} else if (!strcasecmp(av[0], "portmap")) {
+	    int p, c;
+	    if (ac < 2 || ac > 3 || !isdigit(av[1][0]) ||
+		    (ac == 3 && !isdigit(av[2][0]))) {
+		fprintf(stderr, "Usage: portmap port [count]\n");
+		quit(1);
+	    }
+	    p = strtol(av[1], 0, 0);
+	    c = (ac == 3) ? strtol(av[2], 0, 0) : 1;
+	    iomap_port(p, c);
+
+	    while (c-- > 0) {
+		define_input_port_handler(p++, inb_port);
+		define_output_port_handler(p++, outb_port);
+	    }
     	} else if (!strcasecmp(av[0], "setver")) {
 	    int v;
 	    if (ac != 3 || !(v = strtol(av[2], 0, 0))) {

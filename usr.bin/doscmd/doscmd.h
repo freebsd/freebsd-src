@@ -150,7 +150,8 @@ extern int		open_prog(char *name);
 extern void		done(regcontext_t *REGS, int val);
 extern void 		quit(int);
 extern void		call_on_quit(void (*)(void *), void *);
-
+extern void		iomap_port(int port, int count);
+ 
 /* signal.c */
 extern struct sigframe	*saved_sigframe;
 extern regcontext_t	*saved_regcontext;
@@ -288,4 +289,6 @@ void video_setborder(int);
 
 void outb_traceport(int, unsigned char);
 unsigned char inb_traceport(int);
+void outb_port(int, unsigned char);
+unsigned char inb_port(int);
 
