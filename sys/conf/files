@@ -60,7 +60,6 @@ cam/scsi/scsi_sa.c	optional sa
 cam/scsi/scsi_cd.c	optional cd
 cam/scsi/scsi_ch.c	optional ch
 cam/scsi/scsi_pass.c	optional pass
-cam/scsi/scsi_scan.c	optional scan
 cam/scsi/scsi_ses.c	optional ses
 cam/scsi/scsi_target.c	optional targ
 cam/scsi/scsi_targ_bh.c	optional targbh
