@@ -239,12 +239,13 @@ randomize(master)
 #endif
 #ifdef KEYSERV_RANDOM
 #ifdef __FreeBSD__
-	srandomdev();
+	master->key.low = arc4random();
+	master->key.high = arc4random();
 #else
 	srandom(seed);
-#endif
 	master->key.low = random();
 	master->key.high = random();
+#endif
 #else
 	/* use stupid dangerous bad rand() */
 #ifdef __FreeBSD__
