@@ -1318,12 +1318,13 @@ witness_save(struct lock_object *lock, const char **filep, int *linep)
 	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
 		return;
 
-	KASSERT(lock->lo_class->lc_flags & LC_SLEEPLOCK,
-	    ("%s: lock (%s) %s is not a sleep lock", __func__,
-	    lock->lo_class->lc_name, lock->lo_name));
+	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) == 0)
+		panic("%s: lock (%s) %s is not a sleep lock", __func__,
+		    lock->lo_class->lc_name, lock->lo_name);
 	instance = find_instance(curproc->p_sleeplocks, lock);
-	KASSERT(instance != NULL, ("%s: lock (%s) %s not locked", __func__,
-	    lock->lo_class->lc_name, lock->lo_name));
+	if (instance == NULL)
+		panic("%s: lock (%s) %s not locked", __func__,
+		    lock->lo_class->lc_name, lock->lo_name);
 	    
 	*filep = instance->li_file;
 	*linep = instance->li_line;
@@ -1338,12 +1339,13 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
 		return;
 
-	KASSERT(lock->lo_class->lc_flags & LC_SLEEPLOCK,
-	    ("%s: lock (%s) %s is not a sleep lock", __func__,
-	    lock->lo_class->lc_name, lock->lo_name));
+	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) == 0)
+		panic("%s: lock (%s) %s is not a sleep lock", __func__,
+		    lock->lo_class->lc_name, lock->lo_name);
 	instance = find_instance(curproc->p_sleeplocks, lock);
-	KASSERT(instance != NULL, ("%s: lock (%s) %s not locked", __func__,
-	    lock->lo_class->lc_name, lock->lo_name));
+	if (instance == NULL)
+		panic("%s: lock (%s) %s not locked", __func__,
+		    lock->lo_class->lc_name, lock->lo_name);
 
 	lock->lo_witness->w_file = file;
 	lock->lo_witness->w_line = line;
