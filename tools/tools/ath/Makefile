@@ -26,7 +26,7 @@
 #
 BINDIR=	/usr/local/bin
 
-ALL=	athstats 80211stats
+ALL=	athstats 80211stats 80211watch
 
 all:	${ALL}
 
@@ -34,9 +34,12 @@ athstats: athstats.c
 	${CC} -o athstats athstats.c -lkvm
 80211stats: 80211stats.c
 	${CC} -o 80211stats 80211stats.c
+80211watch: 80211watch.c
+	${CC} -o 80211watch 80211watch.c
 install: ${ALL}
 	install -g kmem -m 2755 athstats ${DESTDIR}${BINDIR}
 	install 80211stats ${DESTDIR}${BINDIR}
+	install 80211watch ${DESTDIR}${BINDIR}
 
 clean:
 	rm -f ${ALL} core a.out
