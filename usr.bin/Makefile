@@ -150,6 +150,7 @@ SUBDIR=	alias \
 	sockstat \
 	soelim \
 	split \
+	stat \
 	su \
 	symorder \
 	systat \
