@@ -189,7 +189,7 @@ main(argc, argv)
 
 	memf = nlistf = NULL;
 	interval = reps = todo = 0;
-	maxshowdevs = 3;
+	maxshowdevs = 2;
 	while ((c = getopt(argc, argv, "c:fiM:mN:n:p:stw:")) != -1) {
 		switch (c) {
 		case 'c':
@@ -539,18 +539,15 @@ dovmstat(interval, reps)
 void
 printhdr()
 {
-	register int i;
+	int i, num_shown;
 
+	num_shown = (num_selected < maxshowdevs) ? num_selected : maxshowdevs;
 	(void)printf(" procs      memory     page%*s", 19, "");
-	if (num_selected > 1)
-		(void)printf("disks %*s  faults      cpu\n",
-		   ((num_selected < maxshowdevs) ? num_selected :
-		    maxshowdevs ) * 4 - 7, "");
-	else if (num_selected == 1)
-		(void)printf("disk faults      cpu\n");
-	else
-		(void)printf("%*s  faults      cpu\n", num_selected * 4, "");
-
+	if (num_shown > 1)
+		(void)printf(" disks %*s", num_shown * 4 - 7, "");
+	else if (num_shown == 1)
+		(void)printf("disk");
+	(void)printf("   faults      cpu\n");
 	(void)printf(" r b w     avm   fre  flt  re  pi  po  fr  sr ");
 	for (i = 0; i < num_devices; i++)
 		if ((dev_select[i].selected)
