@@ -8,8 +8,13 @@ failures or crashes should also be reported ASAP by sending mail to
 bugs@freebsd.org or using the send-pr command (those preferring a WEB based
 interface can also see http://www.freebsd.org/send-pr.html).
 
+For information about the layout of the 2.2-BETA release directory,
+see ABOUT.TXT.  For general information about FreeBSD, see README.TXT.
+For installation instructions, see the INSTALL.TXT and HARDWARE.TXT
+files.
 
-0. What's new since 2.1.5-RELEASE
+
+0. What's new since 2.1.X-RELEASE
 ------------------------------------
 
 Support for the SDL RISCom N2pci sync serial card.
@@ -70,7 +75,7 @@ easily understood installation process.  Your feedback on this
 (constantly evolving) process is especially welcome!
 
 In addition to the base distributions, FreeBSD offers a ported
-software collection with over 600 commonly sought-after programs.  The
+software collection with over 700 commonly sought-after programs.  The
 list of ports ranges from http (WWW) servers, to games, languages,
 editors and almost everything in between.  The entire ports collection
 requires only 6MB of storage, all ports being expressed as "deltas"
@@ -535,4 +540,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.17.2.3 1996/11/28 08:17:44 phk Exp $
+$Id: relnotes.hlp,v 1.27 1996/11/29 04:55:47 jkh Exp $
