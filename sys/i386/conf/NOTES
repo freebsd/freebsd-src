@@ -1192,12 +1192,6 @@ controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
 # gotta turn it actually on by setting the variable fd_debug with DDB,
 # however.
 options 	FDC_DEBUG
-# FDC_YE enables support for the floppies used on the Libretto.  This is a
-# pcmcia floppy.  You will also need to add
-#card "Y-E DATA" "External FDD"
-#        config 0x4 "fdc0" 10
-# to your pccard.conf file.
-options 	FDC_YE		#XXX newbus broken
 #
 # Activate this line instead of the fdc0 line above if you happen to
 # have an Insight floppy tape.  Probing them proved to be dangerous
