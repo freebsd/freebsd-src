@@ -1,4 +1,4 @@
-/*	$OpenBSD: ssh-agent.c,v 1.25 2000/01/02 21:51:03 markus Exp $	*/
+/*	$OpenBSD: ssh-agent.c,v 1.26 2000/03/16 20:56:14 markus Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -9,7 +9,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-agent.c,v 1.25 2000/01/02 21:51:03 markus Exp $");
+RCSID("$OpenBSD: ssh-agent.c,v 1.26 2000/03/16 20:56:14 markus Exp $");
 
 #include "ssh.h"
 #include "rsa.h"
@@ -408,6 +408,7 @@ after_select(fd_set *readset, fd_set *writeset)
 {
 	unsigned int i;
 	int len, sock;
+	socklen_t slen;
 	char buf[1024];
 	struct sockaddr_un sunaddr;
 
@@ -417,8 +418,8 @@ after_select(fd_set *readset, fd_set *writeset)
 			break;
 		case AUTH_SOCKET:
 			if (FD_ISSET(sockets[i].fd, readset)) {
-				len = sizeof(sunaddr);
-				sock = accept(sockets[i].fd, (struct sockaddr *) & sunaddr, &len);
+				slen = sizeof(sunaddr);
+				sock = accept(sockets[i].fd, (struct sockaddr *) & sunaddr, &slen);
 				if (sock < 0) {
 					perror("accept from AUTH_SOCKET");
 					break;
