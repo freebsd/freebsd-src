@@ -222,6 +222,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "smp rendezvous", &lock_class_mtx_spin },
 #endif
 	{ "clk", &lock_class_mtx_spin },
+	{ "mutex profiling lock", &lock_class_mtx_spin },
 	{ NULL, NULL },
 	{ NULL, NULL }
 };
