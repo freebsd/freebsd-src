@@ -394,8 +394,12 @@ acpi_cpu_throttle_probe(struct acpi_cpu_softc *sc)
 
     /* If _PTC not present or other failure, try the P_BLK. */
     if (sc->cpu_p_cnt == NULL) {
-	/* The spec says P_BLK must be at least 6 bytes long. */
-	if (sc->cpu_p_blk == 0 || sc->cpu_p_blk_len != 6)
+	/* 
+	 * The spec says P_BLK must be 6 bytes long.  However, some
+	 * systems use it to indicate a fractional set of features
+	 * present so we take anything >= 4.
+	 */
+	if (sc->cpu_p_blk_len < 4)
 	    return (ENXIO);
 	gas.Address = sc->cpu_p_blk;
 	gas.AddressSpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
@@ -447,7 +451,14 @@ acpi_cpu_cx_probe(struct acpi_cpu_softc *sc)
 	cx_ptr++;
 	sc->cpu_cx_count++;
 
-	if (sc->cpu_p_blk_len != 6)
+	/* 
+	 * The spec says P_BLK must be 6 bytes long.  However, some systems
+	 * use it to indicate a fractional set of features present so we
+	 * take 5 as C2.  Some may also have a value of 7 to indicate
+	 * another C3 but most use _CST for this (as required) and having
+	 * "only" C1-C3 is not a hardship.
+	 */
+	if (sc->cpu_p_blk_len < 5)
 	    goto done;
 
 	/* Validate and allocate resources for C2 (P_LVL2). */
@@ -465,6 +476,8 @@ acpi_cpu_cx_probe(struct acpi_cpu_softc *sc)
 		sc->cpu_cx_count++;
 	    }
 	}
+	if (sc->cpu_p_blk_len < 6)
+	    goto done;
 
 	/* Validate and allocate resources for C3 (P_LVL3). */
 	if (AcpiGbl_FADT->Plvl3Lat < 1000 &&
