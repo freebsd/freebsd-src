@@ -44,9 +44,11 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
+#if 0
 #ifndef lint
 static const char sccsid[] = "From: @(#)rsh.c	8.3 (Berkeley) 4/6/94";
 #endif /* not lint */
+#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -71,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <err.h>
 
 /*
  * rsh - remote shell
@@ -304,7 +305,7 @@ done:
 			continue;
 		}
 		if (srval == 0)
-			errx(1, "timeout reached (%d seconds)\n", timeout);
+			errx(1, "timeout reached (%d seconds)", timeout);
 		if (FD_ISSET(rfd2, &ready)) {
 			errno = 0;
 			cc = read(rfd2, buf, sizeof buf);
