@@ -56,10 +56,16 @@
 void
 async_Init(struct async *async)
 {
+  async_Setup(async);
+  memset(async->cfg.EscMap, '\0', sizeof async->cfg.EscMap);
+}
+
+void
+async_Setup(struct async *async)
+{
   async->mode = MODE_HUNT;
   async->length = 0;
   async->my_accmap = async->his_accmap = 0xffffffff;
-  memset(async->cfg.EscMap, '\0', sizeof async->cfg.EscMap);
 }
 
 void
