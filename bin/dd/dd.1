@@ -99,17 +99,12 @@ instead of the standard input.
 .It Cm iseek= Ns Ar n
 Seek on the input file
 .Va n
-blocks.  This is a synonym for
+blocks. This is synonymous with
 .Cm skip= Ns Ar n .
 .It Cm obs= Ns Ar n
 Set the output block size to
 .Va n
 bytes instead of the default 512.
-.It Cm oseek= Ns Ar n
-Seek on the output file
-.Va n
-blocks.  This is a synonym for
-.Cm seek= Ns Ar n .
 .It Cm of= Ns Ar file
 Write output to
 .Ar file
@@ -118,9 +113,14 @@ Any regular output file is truncated unless the
 .Cm notrunc
 conversion value is specified.
 If an initial portion of the output file is seeked past (see the
-.Cm seek
+.Cm oseek
 operand),
 the output file is truncated at that point.
+.It Cm oseek= Ns Ar n
+Seek on the output file
+.Va n
+blocks. This is synonymous with
+.Cm seek= Ns Ar n .
 .It Cm seek= Ns Ar n
 Seek
 .Va n
