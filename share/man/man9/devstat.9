@@ -190,10 +190,14 @@ eliminate the counter wrap that would come very quickly on some systems if
 32 bit integers were used.
 .It bytes_read
 This is the number of bytes that have been read from the device.
+.It bytes_freed
+This is the number of bytes that have been freed/erased on the device.
 .It num_reads
 This is the number of reads from the device.
 .It num_writes
 This is the number of writes to the device.
+.It num_frees
+This is the number of free/erase operations on the device.
 .It num_other
 This is the number of transactions to the device which are neither reads or
 writes.  For instance,
@@ -337,7 +341,8 @@ The transaction types are as follows:
 typedef enum { 
 	DEVSTAT_NO_DATA	= 0x00,
 	DEVSTAT_READ	= 0x01,
-	DEVSTAT_WRITE	= 0x02
+	DEVSTAT_WRITE	= 0x02,
+	DEVSTAT_FREE	= 0x03
 } devstat_trans_flags;
 .Ed
 .Pp
