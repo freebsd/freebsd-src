@@ -1,7 +1,7 @@
 /* Mapper for connections between MRouteD multicast routers.
  * Written by Pavel Curtis <Pavel@PARC.Xerox.Com>
  *
- * $Id: mapper.c,v 3.8 1995/11/29 22:36:57 fenner Rel $
+ * mapper.c,v 3.8.4.3 1998/01/06 01:57:47 fenner Exp
  */
 
 /*
@@ -30,6 +30,11 @@
 #include <stdarg.h>
 #else
 #include <varargs.h>
+#endif
+
+#ifndef lint
+static char rcsid[] = "@(#) $Id: \
+mapper.c,v 3.8.4.3 1998/01/06 01:57:47 fenner Exp $";
 #endif
 
 #define DEFAULT_TIMEOUT	2	/* How long to wait before retrying requests */
@@ -844,12 +849,15 @@ int main(argc, argv)
 {
     int flood = FALSE, graph = FALSE;
     
-    setlinebuf(stderr);
-
     if (geteuid() != 0) {
-	fprintf(stderr, "must be root\n");
+	fprintf(stderr, "map-mbone: must be root\n");
 	exit(1);
     }
+
+    init_igmp();
+    setuid(getuid());
+
+    setlinebuf(stderr);
 
     argv++, argc--;
     while (argc > 0 && argv[0][0] == '-') {
@@ -899,15 +907,13 @@ int main(argc, argv)
     if (debug)
 	fprintf(stderr, "Debug level %u\n", debug);
 
-    init_igmp();
-
     {				/* Find a good local address for us. */
 	int udp;
 	struct sockaddr_in addr;
 	int addrlen = sizeof(addr);
 
 	addr.sin_family = AF_INET;
-#if (defined(BSD) && (BSD >= 199103))
+#ifdef HAVE_SA_LEN
 	addr.sin_len = sizeof addr;
 #endif
 	addr.sin_addr.s_addr = dvmrp_group;
