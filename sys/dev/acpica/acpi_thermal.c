@@ -31,8 +31,6 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
@@ -145,6 +143,7 @@ static int
 acpi_tz_probe(device_t dev)
 {
     int		result;
+    ACPI_LOCK_DECL;
     
     ACPI_LOCK;
     
@@ -171,6 +170,7 @@ acpi_tz_attach(device_t dev)
     struct acpi_softc		*acpi_sc;
     int				error;
     char			oidname[8];
+    ACPI_LOCK_DECL;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -665,6 +665,7 @@ acpi_tz_active_sysctl(SYSCTL_HANDLER_ARGS)
     struct acpi_tz_softc	*sc;
     int				active;
     int		 		error;
+    ACPI_LOCK_DECL;
 
     ACPI_LOCK;
 
@@ -757,6 +758,7 @@ acpi_tz_power_profile(void *arg)
     ACPI_STATUS			status;
     struct acpi_tz_softc	*sc = (struct acpi_tz_softc *)arg;
     int				state;
+    ACPI_LOCK_DECL;
 
     state = power_profile_get_state();
     if (state != POWER_PROFILE_PERFORMANCE &&
@@ -796,6 +798,7 @@ acpi_tz_thread(void *arg)
 {
     device_t	*devs;
     int		devcount, i;
+    ACPI_LOCK_DECL;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -806,7 +809,9 @@ acpi_tz_thread(void *arg)
     for (;;) {
 	tsleep(&acpi_tz_proc, PZERO, "nothing", hz * acpi_tz_polling_rate);
 
+#if __FreeBSD_version >= 500000
 	mtx_lock(&Giant);
+#endif
 
 	if (devcount == 0)
 	    devclass_get_devices(acpi_tz_devclass, &devs, &devcount);
@@ -816,6 +821,8 @@ acpi_tz_thread(void *arg)
 	    acpi_tz_timeout(device_get_softc(devs[i]));
 	ACPI_UNLOCK;
 
+#if __FreeBSD_version >= 500000
 	mtx_unlock(&Giant);
+#endif
     }
 }
