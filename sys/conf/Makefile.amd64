@@ -1,4 +1,4 @@
-# Makefile.x86_64 -- with config changes.
+# Makefile.amd64 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
 #	from FreeBSD: src/sys/conf/Makefile.i386,v 1.255 2002/02/20 23:35:49
@@ -9,11 +9,11 @@
 # This makefile is constructed from a machine description:
 #	config machineid
 # Most changes should be made in the machine description
-#	/sys/x86_64/conf/``machineid''
+#	/sys/amd64/conf/``machineid''
 # after which you should do
 #	 config machineid
 # Generic makefile changes should be made in
-#	/sys/conf/Makefile.x86_64
+#	/sys/conf/Makefile.amd64
 # after which config should be rerun for all machines.
 #
 
