@@ -691,12 +691,14 @@ m_adj(struct mbuf *mp, int req_len)
 		for (; m; m = m->m_next) {
 			if (m->m_len >= count) {
 				m->m_len = count;
+				if (m->m_next != NULL) {
+					m_freem(m->m_next);
+					m->m_next = NULL;
+				}
 				break;
 			}
 			count -= m->m_len;
 		}
-		while (m->m_next)
-			(m = m->m_next) ->m_len = 0;
 	}
 }
 
