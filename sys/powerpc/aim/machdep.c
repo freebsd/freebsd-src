@@ -292,10 +292,10 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 #ifdef DDB
 	kdb_init();
 #endif
-
 	/*
 	 * XXX: Initialize the interrupt tables.
 	 */
+	bcopy(&trapcode, (void *)EXC_MCHK, (size_t)&trapsize);
 	bcopy(&dsitrap,  (void *)EXC_DSI,  (size_t)&dsisize);
 	bcopy(&isitrap,  (void *)EXC_ISI,  (size_t)&isisize);
 	bcopy(&trapcode, (void *)EXC_EXI,  (size_t)&trapsize);
