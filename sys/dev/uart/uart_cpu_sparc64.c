@@ -75,7 +75,7 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
-	char buf[32], dev[32];
+	char buf[32], dev[32], compat[32];
 	phandle_t input, options, output;
 	bus_addr_t addr;
 	int baud, bits, ch, error, space, stop;
@@ -124,6 +124,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/* Get the device class. */
 	if (OF_getprop(input, "name", buf, sizeof(buf)) == -1)
 		return (ENXIO);
+	if (OF_getprop(input, "compatible", compat, sizeof(compat)) == -1)
+		compat[0] = '\0';
 	di->bas.regshft = 0;
 	di->bas.rclk = 0;
 	if (!strcmp(buf, "se")) {
@@ -134,7 +136,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		di->bas.regshft = 1;
 		ch = uart_cpu_channel(dev);
 		addr += 4 - 4 * ch;
-	} else if (!strcmp(buf, "su") || !strcmp(buf, "su_pnp"))
+	} else if (!strcmp(buf, "su") || !strcmp(buf, "su_pnp") ||
+	    !strcmp(compat, "su") || !strcmp(compat, "su16550"))
 		di->ops = uart_ns8250_ops;
 	else
 		return (ENXIO);
