@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.23 1995/10/30 17:16:55 bde Exp $
+ * $Id: tty_pty.c,v 1.24 1995/11/04 13:24:55 bde Exp $
  */
 
 /*
@@ -51,6 +51,10 @@
 #include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
+
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 void ptyattach __P((int n));
 void ptsstart __P((struct tty *tp));
@@ -733,3 +737,61 @@ ptyioctl(dev, cmd, data, flag, p)
 	}
 	return (error);
 }
+
+#define CDEV_MAJOR_S 5
+#define CDEV_MAJOR_C 6
+#ifdef JREMOD
+struct cdevsw pts_cdevsw = 
+	{ ptsopen,	ptsclose,	ptsread,	ptswrite,	/*5*/
+	  ptyioctl,	ptsstop,	nullreset,	ptydevtotty,/* ttyp */
+	  ttselect,	nommap,		NULL };
+
+struct cdevsw ptc_cdevsw = 
+	{ ptcopen,	ptcclose,	ptcread,	ptcwrite,	/*6*/
+	  ptyioctl,	nullstop,	nullreset,	ptydevtotty,/* ptyp */
+	  ptcselect,	nommap,		NULL };
+
+static ptc_devsw_installed = 0;
+
+static void 	ptc_drvinit(void *unused)
+{
+#ifdef DEVFS
+	int i
+	char jnames[] = "pqrstu"
+	char knames[] = "0123456789abcdef"
+	char devname[16];
+#define MAXUNITS (6 * 16)
+#endif
+	dev_t dev;
+	dev_t dev_c;
+
+	if( ! ptc_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR_S,0);
+		cdevsw_add(&dev,&pts_cdevsw,NULL);
+		pts_devsw_installed = 1;
+		dev_c = makedev(CDEV_MAJOR_C,0);
+		cdevsw_add(&dev_c,&ptc_cdevsw,NULL);
+		ptc_devsw_installed = 1;
+#ifdef DEVFS
+/*XXX*/
+#if NPTY > MAXUNITS
+#undef NPTY
+#define NPTY MAXUNITS
+#endif
+	for ( i = 0 ; i<NPTY ; i++ ) {
+		int x;
+
+		j = i / 16;
+		k = i % 16;
+		sprintf(devname,"pty%c%c",jnames[j],knames[k]);
+		x=devfs_add_devsw("/",devname,major(dev_c),0,DV_CHR,0,0,0600);
+		sprintf(devname,"tty%c%c",jnames[j],knames[k]);
+		x=devfs_add_devsw("/",devname,major(dev),0,DV_CHR,0,0,0600);
+    	}
+#endif
+}
+
+SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR_C,ptc_drvinit,NULL)
+
+#endif /* JREMOD */
+

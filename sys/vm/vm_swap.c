@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.24 1995/11/12 06:43:26 bde Exp $
+ * $Id: vm_swap.c,v 1.25 1995/11/20 12:19:14 phk Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,15 @@
 #include <vm/vm.h>
 
 #include <miscfs/specfs/specdev.h>
+
+#ifdef JREMOD
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 4
+#define BDEV_MAJOR 1
+#endif /*JREMOD */
 
 /*
  * Indirect driver for multi-controller paging.
@@ -252,3 +261,46 @@ swaponvp(p, vp, dev, nblks)
 
 	return (0);
 }
+
+#ifdef JREMOD
+struct bdevsw sw_bdevsw = 
+	{ noopen,	noclose,	swstrategy,	noioc,		/*1*/
+	  nodump,	zerosize,	0 };
+
+struct cdevsw sw_cdevsw = 
+	{ nullopen,	nullclose,	rawread,	rawwrite,	/*4*/
+	  noioc,	nostop,		noreset,	nodevtotty,/* swap */
+	  noselect,	nommap,		swstrategy };
+
+static sw_devsw_installed = 0;
+
+static void 	sw_drvinit(void *unused)
+{
+	dev_t dev;
+	dev_t dev_chr;
+
+	if( ! sw_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&sw_cdevsw,NULL);
+		dev_chr = dev;
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&sw_bdevsw,NULL);
+		sw_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"rsw",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+			x=devfs_add_devsw(
+	"/",	"sw",	major(dev),	0,	DV_BLK,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(swdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sw_drvinit,NULL)
+
+#endif /* JREMOD */
+

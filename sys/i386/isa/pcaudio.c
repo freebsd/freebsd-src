@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.17 1995/11/16 09:56:02 bde Exp $
+ *	$Id: pcaudio.c,v 1.18 1995/11/28 09:41:27 julian Exp $
  */
 
 #include "pca.h"
@@ -50,8 +50,12 @@
 #include <i386/isa/sound/ulaw.h>
 
 #ifdef JREMOD
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 24
-static void 	pca_devsw_install();
 #endif /*JREMOD*/
 
 #define BUF_SIZE 	8192
@@ -247,14 +251,13 @@ pca_registerdev(struct isa_device *id)
 }
 
 #ifdef	DEVFS
-#include <sys/devfsext.h>
 
-void pcadev_init(caddr_t data) /* data not used */
+void pcadevfs_init(caddr_t data) /* data not used */
 {
   void * x;
 /*            path	name		devsw   minor	type   uid gid perm*/
-   x=dev_add("/misc",	"pcaudio",	pcaopen, 0,	DV_CHR, 0,  0, 0666);
-   x=dev_add("/misc",	"pcaudioctl",	pcaopen, 128,	DV_CHR, 0,  0, 0666);
+   x=devfs_add_devsw("/",	"pcaudio",	CDEV_MAJOR, 0,	DV_CHR, 0,  0, 0666);
+   x=devfs_add_devsw("/",	"pcaudioctl",	CDEV_MAJOR, 128,	DV_CHR, 0,  0, 0666);
 }
 #endif /*DEVFS*/
 
@@ -265,11 +268,8 @@ pcaattach(struct isa_device *dvp)
 	printf("pca%d: PC speaker audio driver\n", dvp->id_unit);
 	pca_init();
 	pca_registerdev(dvp);
-#ifdef JREMOD
-        pca_devsw_install();
-#endif /*JREMOD*/
 #ifdef DEVFS
-	pcadev_init(NULL);
+	pcadevfs_init(NULL);
 #endif /*DEVFS*/
 
 	return 1;
@@ -495,18 +495,19 @@ struct cdevsw pca_cdevsw =
 
 static pca_devsw_installed = 0;
 
-static void 	pca_devsw_install()
+static void 	pca_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! pca_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&pca_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&pca_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&pca_cdevsw,NULL);
 		pca_devsw_installed = 1;
-	}
+    	}
 }
+
+SYSINIT(pcadev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,pca_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif

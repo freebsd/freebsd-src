@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.7 1995/09/08 11:07:34 bde Exp $
+ *	$Id: ctx.c,v 1.8 1995/11/28 09:40:48 julian Exp $
  */
 
 /*
@@ -128,9 +128,13 @@
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 40
-static void 	ctx_devsw_install();
 #endif /*JREMOD*/
+
 int     waitvb(short);
 
 /* state flags */
@@ -191,9 +195,6 @@ ctxprobe(struct isa_device * devp)
 		status = 0;
 	else {
 		status = 1; /*XXX uses only one port? */
-#ifdef JREMOD
-        	ctx_devsw_install();
-#endif /*JREMOD*/
 	}
 	return (status);
 }
@@ -448,6 +449,8 @@ waitvb(short port)
 	return (0);
 }
 
+
+
 #ifdef JREMOD
 struct cdevsw ctx_cdevsw = 
 	{ ctxopen,	ctxclose,	ctxread,	ctxwrite,	/*40*/
@@ -456,19 +459,28 @@ struct cdevsw ctx_cdevsw =
 
 static ctx_devsw_installed = 0;
 
-static void 	ctx_devsw_install()
+static void 	ctx_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! ctx_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&ctx_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&ctx_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&ctx_cdevsw,NULL);
 		ctx_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"ctx",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(ctxdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ctx_drvinit,NULL)
+
 #endif /* JREMOD */
 
 #endif				/* NCTX > 0 */

@@ -493,9 +493,12 @@ static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 46
 #define BDEV_MAJOR 17
-static void 	matcd_devsw_install();
 #endif /*JREMOD */
 
 #endif /*FREE2*/
@@ -1472,9 +1475,6 @@ int matcd_attach(struct isa_device *dev)
 	}
 	nextcontroller++;		/*Bump ctlr assign to next number*/
 	printf("\n");			/*End line of drive reports*/
-#ifdef JREMOD
-        matcd_devsw_install();
-#endif /*JREMOD*/
 
 	return(1);
 }
@@ -2761,19 +2761,35 @@ struct cdevsw matcd_cdevsw =
 
 static matcd_devsw_installed = 0;
 
-static void 	matcd_devsw_install()
+static void 	matcd_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+	dev_t dev_chr;
+
 	if( ! matcd_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&matcd_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&matcd_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&matcd_cdevsw,NULL);
+		dev_chr = dev;
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&matcd_bdevsw,NULL);
 		matcd_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"rmatcd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+			x=devfs_add_devsw(
+	"/",	"matcd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(matcddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,matcd_drvinit,NULL)
+
 #endif /* JREMOD */
+
 /*End of matcd.c*/
 

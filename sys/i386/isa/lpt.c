@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.39 1995/11/28 09:41:18 julian Exp $
+ *	$Id: lpt.c,v 1.40 1995/11/29 10:17:03 phk Exp $
  */
 
 /*
@@ -140,8 +140,11 @@
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 16
-static void 	lpt_devsw_install();
 #endif /*JREMOD*/
 
 #define	LPINITRDY	4	/* wait up to 4 seconds for a ready */
@@ -442,9 +445,6 @@ lptattach(struct isa_device *isdp)
 	lprintf("irq %x\n", sc->sc_irq);
 
 	kdc_lpt[isdp->id_unit].kdc_state = DC_IDLE;
-#ifdef JREMOD
-        lpt_devsw_install();
-#endif /*JREMOD*/
 
 	return (1);
 }
@@ -1160,17 +1160,27 @@ struct cdevsw lpt_cdevsw =
 
 static lpt_devsw_installed = 0;
 
-static void 	lpt_devsw_install()
+static void 	lpt_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! lpt_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&lpt_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&lpt_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&lpt_cdevsw,NULL);
 		lpt_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"lpt",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(lptdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lpt_drvinit,NULL)
+
 #endif /* JREMOD */
+

@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.17 1995/09/09 18:09:55 davidg Exp $
+ *    $Id: spkr.c,v 1.18 1995/11/28 09:41:55 julian Exp $
  */
 
 #include "speaker.h"
@@ -26,31 +26,13 @@
 #ifdef JREMOD
 #include <sys/conf.h>
 #define CDEV_MAJOR 26
-static void 	spkr_devsw_install();
 #endif /*JREMOD*/
 
-#if defined(DEVFS) || defined(JREMOD)
-#include "sys/kernel.h"
 
 #ifdef	DEVFS
 #include <sys/devfsext.h>
-int spkropen();
 #endif
 
-void spkrdev_init(void *data) /* data not used */
-{
-  void * x;
-#ifdef JREMOD
-	spkr_devsw_install();
-#endif /*JREMOD*/
-#ifdef DEVFS
-/*            path	name		devsw   minor	type   uid gid perm*/
-   x=dev_add("/misc",	"speaker",	spkropen, 0,	DV_CHR, 0,  0, 0600);
-#endif
-
-}
-SYSINIT(spkrdev,SI_SUB_DEVFS, SI_ORDER_ANY, spkrdev_init, NULL)
-#endif /*DEVFS*/ /* JREMOD */
 
 /**************** MACHINE DEPENDENT PART STARTS HERE *************************
  *
@@ -595,19 +577,29 @@ struct cdevsw spkr_cdevsw =
 
 static spkr_devsw_installed = 0;
 
-static void 	spkr_devsw_install()
+static void 	spkr_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! spkr_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&spkr_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&spkr_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&spkr_cdevsw,NULL);
 		spkr_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"spkr",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(spkrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,spkr_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif  /* NSPEAKER > 0 */
 /* spkr.c ends here */

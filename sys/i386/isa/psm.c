@@ -68,8 +68,11 @@
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 21
-static void 	psm_devsw_install();
 #endif /*JREMOD*/
 
 #define DATA	0       /* Offset for data port, read-write */
@@ -203,10 +206,6 @@ int psmattach(struct isa_device *dvp)
 	/* Setup initial state */
 
 	sc->state = 0;
-
-#ifdef JREMOD
-	psm_devsw_install();
-#endif /*JREMOD*/
 
 	/* Done */
 
@@ -476,19 +475,28 @@ struct cdevsw psm_cdevsw =
 
 static psm_devsw_installed = 0;
 
-static void 	psm_devsw_install()
+static void 	psm_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! psm_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&psm_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&psm_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&psm_cdevsw,NULL);
 		psm_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"psm",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(psmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,psm_drvinit,NULL)
+
 #endif /* JREMOD */
 
 #endif

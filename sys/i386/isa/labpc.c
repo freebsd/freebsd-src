@@ -61,8 +61,11 @@
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 66
-static void 	labpc_devsw_install();
 #endif /*JREMOD*/
 
 
@@ -501,10 +504,6 @@ int labpcattach(struct isa_device *dev)
 	ctlr->dcr_val = 0x80;
 	ctlr->dcr_is = 0x80;
 	loutb(DCR(ctlr), ctlr->dcr_val);
-#ifdef JREMOD
-        labpc_devsw_install();
-#endif /*JREMOD*/
-
 
 	return 1;
 }
@@ -1116,17 +1115,27 @@ struct cdevsw labpc_cdevsw =
 
 static labpc_devsw_installed = 0;
 
-static void 	labpc_devsw_install()
+static void 	labpc_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! labpc_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&labpc_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&labpc_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&labpc_cdevsw,NULL);
 		labpc_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"labpc",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(labpcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,labpc_drvinit,NULL)
+
 #endif /* JREMOD */
+

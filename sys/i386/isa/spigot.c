@@ -72,8 +72,10 @@ error "Can only have 1 spigot configured."
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 11
-static void 	spigot_devsw_install();
 #endif /*JREMOD*/
 
 struct spigot_softc {
@@ -157,10 +159,6 @@ struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
 
 	ss->maddr = kvtop(devp->id_maddr);
 	ss->irq = devp->id_irq;
-
-#ifdef JREMOD
-	spigot_devsw_install();
-#endif /*JREMOD*/
 
 	return 1;
 }
@@ -285,6 +283,7 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[0];
 	return i386_btop(ss->maddr);
 }
 
+
 #ifdef JREMOD
 struct cdevsw spigot_cdevsw = 
 	{ spigot_open,	spigot_close,	spigot_read,	spigot_write,	/*11*/
@@ -293,19 +292,28 @@ struct cdevsw spigot_cdevsw =
 
 static spigot_devsw_installed = 0;
 
-static void 	spigot_devsw_install()
+static void 	spigot_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! spigot_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&spigot_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&spigot_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&spigot_cdevsw,NULL);
 		spigot_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"spigot",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(spigotdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,spigot_drvinit,NULL)
+
 #endif /* JREMOD */
 
 #endif /* NSPIGOT */

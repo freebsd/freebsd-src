@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.19 1995/11/26 17:13:23 bde Exp $
+ *	$Id: cy.c,v 1.20 1995/11/28 09:40:56 julian Exp $
  */
 
 #include "cy.h"
@@ -398,8 +398,10 @@ static	int	cy_nr_cd1400s[NCY];
 static	int	volatile RxFifoThreshold = (CD1400_RX_FIFO_SIZE / 2);
 
 #ifdef JREMOD
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 48
-static void 	cy_devsw_install();
 #endif /*JREMOD*/
 
 static struct kern_devconf kdc_sio[NCY] = { {
@@ -442,9 +444,6 @@ sioprobe(dev)
 		return (0);
 	cy_nr_cd1400s[unit] = 0;
 	sioregisterdev(dev);
-#ifdef JREMOD
-        cy_devsw_install();
-#endif /*JREMOD*/
 
 
 	/* Cyclom-16Y hardware reset (Cyclom-8Ys don't care) */
@@ -2521,6 +2520,7 @@ cystatus(unit)
 #endif /* CyDebug */
 
 
+
 #ifdef JREMOD
 struct cdevsw cy_cdevsw = 
 	{ cyopen,	cyclose,	cyread,		cywrite,	/*48*/
@@ -2529,18 +2529,28 @@ struct cdevsw cy_cdevsw =
 
 static cy_devsw_installed = 0;
 
-static void 	cy_devsw_install()
+static void 	cy_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! cy_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&cy_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&cy_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&cy_cdevsw,NULL);
 		cy_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"cy",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(cydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cy_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif /* NCY > 0 */

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.71 1995/11/20 02:12:34 davidg Exp $
+ *      $Id: sd.c,v 1.72 1995/11/20 12:42:32 phk Exp $
  */
 
 #define SPLSD splbio
@@ -38,6 +38,16 @@
 #include <vm/vm.h>
 #include <machine/md_var.h>
 #include <i386/i386/cons.h>		/* XXX */
+
+#ifdef JREMOD
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 13
+#define BDEV_MAJOR 4
+#endif /*JREMOD */
 
 u_int32 sdstrats, sdqueues;
 
@@ -236,7 +246,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 	 * "unit attention" errors should occur here if the
 	 * drive has been restarted or the pack changed.
 	 * just ingnore the result, it's a decoy instruction
-	 * The error code will act on the error though
+	 * The error handlers will act on the error though
 	 * and invalidate any media information we had.
 	 */
 	scsi_test_unit_ready(sc_link, 0);
@@ -950,3 +960,46 @@ sddump(dev_t dev)
 	}
 	return (0);
 }
+
+#ifdef JREMOD
+struct bdevsw sd_bdevsw = 
+	{ sdopen,	sdclose,	sdstrategy,	sdioctl,	/*4*/
+	  sddump,	sdsize,		0 };
+
+struct cdevsw sd_cdevsw = 
+	{ sdopen,	sdclose,	rawread,	rawwrite,	/*13*/
+	  sdioctl,	nostop,		nullreset,	nodevtotty,/* sd */
+	  seltrue,	nommap,		sdstrategy };
+
+static sd_devsw_installed = 0;
+
+static void 	sd_drvinit(void *unused)
+{
+	dev_t dev;
+	dev_t dev_chr;
+
+	if( ! sd_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&sd_cdevsw,NULL);
+		dev_chr = dev;
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&sd_bdevsw,NULL);
+		sd_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"rsd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+			x=devfs_add_devsw(
+	"/",	"sd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(sddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sd_drvinit,NULL)
+
+#endif /* JREMOD */
+

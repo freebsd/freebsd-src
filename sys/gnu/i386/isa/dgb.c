@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.4 1995/10/12 23:28:31 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.5 1995/11/04 13:22:59 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -50,6 +50,13 @@
 #include <gnu/i386/isa/dgbios.h>
 #include <gnu/i386/isa/dgfep.h>
 #include <gnu/i386/isa/dgreg.h>
+
+#ifdef JREMOD
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 58
+#endif /*JREMOD*/
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60
@@ -1978,5 +1985,37 @@ fepcmd(port, cmd, op1, op2, ncmds, bytecmd)
 	printf("dgb%d(%d): timeout on FEP command\n",
 			port->unit, port->pnum);
 }
+
+#ifdef JREMOD
+struct cdevsw dgb_cdevsw = 
+	{ dgbopen,	dgbclose,	dgbread,	dgbwrite,	/*58*/
+	  dgbioctl,	dgbstop,	nxreset,	dgbdevtotty, /* dgb */
+	  ttselect,	nommap,		NULL };
+
+static dgb_devsw_installed = 0;
+
+static void 	dgb_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! dgb_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&dgb_cdevsw,NULL);
+		dgb_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	major		minor	type   uid gid perm*/
+	"/",	"dgb",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(dgbdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,dgb_drvinit,NULL)
+
+#endif /* JREMOD */
 
 #endif /* NDGB > 0 */

@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.5 1995/11/19 22:22:25 dyson Exp $
+ *      $Id: sctarg.c,v 1.6 1995/11/21 08:35:49 bde Exp $
  */
 
 /*
@@ -52,6 +52,15 @@
 #include <sys/proc.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+
+#ifdef JREMOD
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 65
+#endif /*JREMOD*/
 
 #define OPEN 0x01
 
@@ -266,3 +275,36 @@ sctarg_strategy(struct buf *bp, struct scsi_link *sc_link)
 	splx(opri);
 	return;
 }
+
+#ifdef JREMOD
+struct cdevsw sctarg_cdevsw = 
+	{ sctargopen,	sctargclose,	rawread,	rawwrite,	/*65*/
+	  sctargioctl,	nostop,		nullreset,	nodevtotty,/* sctarg */
+	  seltrue,	nommap,		sctargstrategy };
+
+static sctarg_devsw_installed = 0;
+
+static void 	sctarg_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! sctarg_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&sctarg_cdevsw,NULL);
+		sctarg_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"sctarg",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(sctargdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sctarg_drvinit,NULL)
+
+#endif /* JREMOD */
+

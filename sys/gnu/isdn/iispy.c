@@ -1,6 +1,6 @@
-static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.3 1995/03/28 07:54:40 bde Exp $";
+static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.4 1995/09/08 11:06:56 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,10 @@ static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.3 1995/03/28 07:54:40 bde Exp 
  *
  *******************************************************************************
  * $Log: iispy.c,v $
+ * Revision 1.4  1995/09/08  11:06:56  bde
+ * Fix benign type mismatches in devsw functions.  82 out of 299 devsw
+ * functions were wrong.
+ *
  * Revision 1.3  1995/03/28  07:54:40  bde
  * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
  * (except in netccitt, netiso and netns) that I didn't notice when I fixed
@@ -41,10 +45,18 @@ static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.3 1995/03/28 07:54:40 bde Exp 
 #include "proc.h"
 #include "user.h"
 #include "uio.h"
-#include "kernel.h"
+#include <sys/kernel.h>
 /*#include "malloc.h"*/
 
 #include "gnu/isdn/isdn_ioctl.h"
+
+#ifdef JREMOD
+#include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 59
+#endif /*JREMOD*/
 
 int     nispy = NISPY;
 int	ispy_applnr;
@@ -179,5 +191,37 @@ ispyread(dev_t dev, struct uio * uio, int ioflag)
 	splx(x);
 	return error;
 }
+
+#ifdef JREMOD
+struct cdevsw ispy_cdevsw = 
+	{ ispyopen,	ispyclose,	ispyread,	nowrite,	/*59*/
+	  ispyioctl,	nostop,		nullreset,	nodevtotty,/* ispy */
+	  seltrue,	nommap,         NULL };
+
+static ispy_devsw_installed = 0;
+
+static void 	ispy_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! ispy_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&ispy_cdevsw,NULL);
+		ispy_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"ispy",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(ispydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ispy_drvinit,NULL)
+
+#endif /* JREMOD */
 
 #endif

@@ -149,9 +149,13 @@
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 19
-static void 	tw_devsw_install();
 #endif /*JREMOD*/
+
 
 /*
  * Transmission is done by calling write() to send three byte packets of data.
@@ -348,9 +352,6 @@ int twattach(idp)
   sc = &tw_sc[idp->id_unit];
   sc->sc_port = idp->id_iobase;
   sc->sc_state = 0;
-#ifdef JREMOD
-  tw_devsw_install();
-#endif /*JREMOD*/
 
   return (1);
 }
@@ -999,19 +1000,28 @@ struct cdevsw tw_cdevsw =
 
 static tw_devsw_installed = 0;
 
-static void 	tw_devsw_install()
+static void 	tw_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! tw_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&tw_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&tw_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&tw_cdevsw,NULL);
 		tw_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"tw",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(twdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,tw_drvinit,NULL)
+
 #endif /* JREMOD */
 
 #endif NTW

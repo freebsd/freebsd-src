@@ -1,6 +1,6 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.8 1995/09/19 18:54:42 bde Exp $";
+static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.9 1995/11/21 14:56:02 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.8 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.9 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,10 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.8 1995/09/19 18:54:42 bde E
  *
  *******************************************************************************
  * $Log: nic3009.c,v $
+ * Revision 1.9  1995/11/21  14:56:02  bde
+ * Completed function declarations, added prototypes and removed redundant
+ * declarations.
+ *
  * Revision 1.8  1995/09/19  18:54:42  bde
  * Fix benign type mismatches in isa interrupt handlers.  Many returned int
  * instead of void.
@@ -58,17 +62,24 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.8 1995/09/19 18:54:42 bde E
 #include "nnic.h"
 #if NNNIC > 0
 
-#include "param.h"
-#include "ioctl.h"
-#include "kernel.h"
-#include "systm.h"
-#include "conf.h"
-#include "proc.h"
+#include <sys/param.h>
+#include <sys/ioctl.h>
+#include <sys/kernel.h>
+#include <sys/systm.h>
+#include <sys/conf.h>
+#include <sys/proc.h>
 
 #include "i386/isa/isa_device.h"
 #include "gnu/i386/isa/nic3009.h"
 #include "gnu/i386/isa/niccyreg.h"
 #include "gnu/isdn/isdn_ioctl.h"
+
+#ifdef JREMOD
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 60
+#endif /*JREMOD*/
 
 #define OPEN		1
 #define LOAD_HEAD	3
@@ -1269,5 +1280,38 @@ nnicintr(int unit)
 {
         timeout(nnnicintr, (void *)unit,1);
 }
+
+
+#ifdef JREMOD
+struct cdevsw nnic_cdevsw = 
+	{ nnicopen,	nnicclose,	noread,		nowrite,	/*60*/
+	  nnicioctl,	nostop,		nullreset,	nodevtotty,/* nnic */
+	  seltrue,	nommap,		NULL };
+
+static nnic_devsw_installed = 0;
+
+static void 	nnic_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! nnic_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&nnic_cdevsw,NULL);
+		nnic_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"nnic",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(nnicdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,nnic_drvinit,NULL)
+
+#endif /* JREMOD */
 
 #endif				/* NNNIC > 0 */
