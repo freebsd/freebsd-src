@@ -1,5 +1,5 @@
 /*
- * rarpd support routines
+ * ethernet address conversion and lookup routines
  *
  * Written by Bill Paul <wpaul@ctr.columbia.edu>
  * Center for Telecommunications Research
@@ -13,7 +13,11 @@
  *	$Id: ether_addr.c,v 1.2 1995/03/03 22:20:15 wpaul Exp $
  */
 
+
 #include <stdio.h>
+#include <sys/types.h>
+#include <string.h>
+#include <sys/param.h>
 
 #ifndef _PATH_ETHERS
 #define _PATH_ETHERS "/etc/ethers"
@@ -25,6 +29,10 @@
 struct ether_addr {
 	unsigned char octet[6];
 };
+
+extern int yp_get_default_domain();
+extern int yp_match();
+char *yp_domain;
 
 /*
  * Parse a string of text containing an ethernet address and hostname
@@ -41,11 +49,45 @@ int ether_line(l, e, hostname)
                                               &o[3], &o[4], &o[5],
 					      hostname);
 	if (i != 7)
-                return (-1);
+                return (i);
 
         for (i=0; i<6; i++)
                 e->octet[i] = o[i];
         return (0);
+}
+
+/*
+ * Convert an ASCII representation of an ethernet address to
+ * binary form.
+ */
+struct ether_addr *ether_aton(a)
+        char *a;
+{
+        int i;
+	static struct ether_addr o;
+
+        i = sscanf(a, "%x:%x:%x:%x:%x:%x", o.octet[0], o.octet[1], o.octet[2],
+                                           o.octet[3], o.octet[4], o.octet[5]);
+        if (i != 6)
+                return (NULL);
+        return ((struct ether_addr *)&o);
+}
+
+/*
+ * Convert a binary representation of an ethernet address to
+ * an ASCII string.
+ */
+char *ether_ntoa(n)
+        struct ether_addr *n;
+{
+        int i;
+	static char a[18];
+
+        i = sprintf(a,"%x:%x:%x:%x:%x:%x",n->octet[0],n->octet[1],n->octet[2],
+                                          n->octet[3],n->octet[4],n->octet[5]);
+        if (i < 11)
+                return (NULL);
+        return ((char *)&a);
 }
 
 /*
@@ -58,72 +100,92 @@ int ether_ntohost(hostname, e)
 	struct ether_addr *e;
 {
 	FILE *fp;
-	static char buf[BUFSIZ];
-	static struct ether_addr local_ether;
-	static char *local_host;
-	static char *result;
-	int resultlen, i;
-	extern int yp_get_default_domain();
-	extern int yp_match();
-	static char *yp_domain;
-	static char ether_a[BUFSIZ];
+	char buf[BUFSIZ];
+	struct ether_addr local_ether;
+	char local_host[MAXHOSTNAMELEN];
+	char *result;
+	int resultlen;
+	char *ether_a;
 
-	if ((fp = fopen(_PATH_ETHERS, "r")) == NULL) {
-                        perror(_PATH_ETHERS);
-                        return (-1);
-	}
+	if ((fp = fopen(_PATH_ETHERS, "r")) == NULL)
+		return (1);
 
 	while (fgets(buf,BUFSIZ,fp)) {
+		if (buf[0] == '#')
+			continue;
 		if (buf[0] == '+') {
+			fclose(fp);  /* Can ignore /etc/ethers from here on. */
 			if (yp_get_default_domain(&yp_domain))
-				return(-1);
-			sprintf(ether_a,"%x:%x:%x:%x:%x:%x",
-						e->octet[0], e->octet[1],
-						e->octet[2], e->octet[3],
-						e->octet[4], e->octet[5]);
+				return(1);
+			ether_a = ether_ntoa(e);
 			if (yp_match(yp_domain, "ethers.byaddr", ether_a,
-				strlen(ether_a),&result, &resultlen))
-				return(-1);
-			if (ether_line(result, &local_ether,
-					&local_host) == 0) {
+				strlen(ether_a), &result, &resultlen))
+				return(1);
+			if (!ether_line(result, &local_ether, &local_host)) {
 				strcpy(hostname, (char *)&local_host);
 				return(0);
 			} else
-				return(-1);
+				return(1);
 		}
-		if (ether_line(&buf, &local_ether, &local_host) == 0) {
-			for (i = 0; i < 6; i++)
-				if (local_ether.octet[i] != e->octet[i])
-					goto nomatch;
+		if (!ether_line(&buf, &local_ether, &local_host)) {
+			if (!bcmp((char *)&local_ether.octet[0],
+				(char *)&e->octet[0], 6)) {
 			/* We have a match */
-			strcpy(hostname, (char *)&local_host);
-			fclose(fp);
-			return(0);
+				strcpy(hostname, (char *)&local_host);
+				fclose(fp);
+				return(0);
+			}
 		}
-nomatch:
 	}
-
-return (-1);
+fclose(fp);
+return (1);
 }
 
-int ether_print(cp)
-        unsigned char *cp;
+/*
+ * Map a hostname to an ethernet address using /etc/ethers or
+ * NIS/YP.
+ */
+int ether_hostton(hostname, e)
+	char *hostname;
+	struct ether_addr *e;
 {
-        printf("%x:%x:%x:%x:%x:%x", cp[0], cp[1], cp[2], cp[3], cp[4], cp[5]);
-}
+	FILE *fp;
+	char buf[BUFSIZ];
+	struct ether_addr local_ether;
+	char local_host[MAXHOSTNAMELEN];
+	char *result;
+	int resultlen;
 
-int ether_aton(a, n)
-        char *a;
-        unsigned char *n;
-{
-        int i, o[6];
+	if ((fp = fopen(_PATH_ETHERS, "r")) == NULL)
+		return (1);
 
-        i = sscanf(a, "%x:%x:%x:%x:%x:%x", &o[0], &o[1], &o[2],
-                                           &o[3], &o[4], &o[5]);
-        if (i != 6) {
-                return (i);
-        }
-        for (i=0; i<6; i++)
-                n[i] = o[i];
-        return (0);
+	while (fgets(buf,BUFSIZ,fp)) {
+		if (buf[0] == '#')
+			continue;
+		if (buf[0] == '+') {
+			fclose(fp);  /* Can ignore /etc/ethers from here on. */
+			if (yp_get_default_domain(&yp_domain))
+				return(1);
+			if (yp_match(yp_domain, "ethers.byname", hostname,
+				strlen(hostname), &result, &resultlen))
+				return(1);
+			if (!ether_line(result, &local_ether, &local_host)) {
+				bcopy((char *)&local_ether.octet[0],
+					(char *)&e->octet[0], 6);
+				return(0);
+			} else
+				return(1);
+		}
+		if (!ether_line(&buf, &local_ether, &local_host)) {
+			if (!strcmp(hostname, (char *)&local_host)) {
+				/* We have a match */
+				bcopy((char *)&local_ether.octet[0],
+					(char *)&e->octet[0], 6);
+				fclose(fp);
+				return(0);
+			}
+		}
+	}
+fclose(fp);
+return (1);
 }
