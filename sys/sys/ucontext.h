@@ -31,6 +31,7 @@
 #ifndef _SYS_UCONTEXT_H_
 #define	_SYS_UCONTEXT_H_
 
+#include <sys/signal.h>
 #include <machine/ucontext.h>
 
 typedef struct __ucontext {
@@ -47,7 +48,9 @@ typedef struct __ucontext {
 
 	struct __ucontext *uc_link;
 	stack_t		uc_stack;
-	int		__spare__[8];
+	int		uc_flags;
+#define	UCF_SWAPPED	0x00000001	/* Used by swapcontext(3). */
+	int		__spare__[4];
 } ucontext_t;
 
 #ifndef _KERNEL
@@ -57,6 +60,7 @@ __BEGIN_DECLS
 int	getcontext(ucontext_t *);
 int	setcontext(const ucontext_t *);
 void	makecontext(ucontext_t *, void (*)(void), int, ...);
+int	signalcontext(ucontext_t *, int, __sighandler_t *);
 int	swapcontext(ucontext_t *, const ucontext_t *);
 
 __END_DECLS
