@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Søren Schmidt
+ * Copyright (c) 2000,2001 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,24 +40,27 @@
 #include <sys/stat.h>
 #include <sys/cdio.h>
 #include <sys/cdrio.h>
+#include <sys/param.h>
 
 #define BLOCKS	16
 
-static int fd, saved_block_size;
 void cleanup(int);
+void write_file(const char *, int);
+void usage(const char *);
+
+static int fd, quiet, saved_block_size;
+static struct cdr_track track;
 
 int
 main(int argc, char **argv)
 {
-	int ch, speed = 1, preemp = 0, test_write = 0, eject = 0, quiet = 0;
-	char *devname = "/dev/acd0c";
-	char buf[2352*BLOCKS];
-	int arg, file, addr, count, filesize;
-	int block_size = 0, cdopen = 0, size, tot_size = 0;
-	struct cdr_track track;
-	struct stat stat;
+	int ch, arg, addr;
+	int eject=0, list=0, multi=0, preemp=0, speed=1, test_write=0;
+	char *devname = "/dev/acd0c", *prog_name;
+	int block_size = 0;
 
-	while ((ch = getopt(argc, argv, "ef:pqs:t")) != -1) {
+	prog_name = argv[0];
+	while ((ch = getopt(argc, argv, "ef:lmpqs:t")) != -1) {
 		switch (ch) {
 		case 'e':
 			eject = 1;
@@ -65,6 +68,14 @@ main(int argc, char **argv)
 
 		case 'f':
 			devname = optarg;
+			break;
+
+		case 'l':
+			list = 1;
+			break;
+
+		case 'm':
+			multi = 1;
 			break;
 
 		case 'p':
@@ -77,6 +88,8 @@ main(int argc, char **argv)
 
 		case 's':
 			speed = atoi(optarg);
+			if (speed <= 0)
+				errx(EX_USAGE, "Invalid speed: %s", optarg);
 			break;
 
 		case 't':
@@ -84,11 +97,14 @@ main(int argc, char **argv)
 			break;
 
 		default: 
-			exit(EX_USAGE);
+			usage(prog_name);
 		}
 	}
 	argc -= optind;
 	argv += optind;
+
+	if (argc == 0)
+		usage(prog_name);
 
 	if ((fd = open(devname, O_RDWR, 0)) < 0)
 		err(EX_NOINPUT, "open(%s)", devname);
@@ -105,7 +121,7 @@ main(int argc, char **argv)
 		if (!strcmp(argv[arg], "fixate")) {
 			if (!quiet)
 				fprintf(stderr, "fixating CD, please wait..\n");
-			if (ioctl(fd, CDRIOCCLOSEDISK) < 0)
+			if (ioctl(fd, CDRIOCCLOSEDISK, &multi) < 0)
         			err(EX_IOERR, "ioctl(CDRIOCCLOSEDISK)");
 			break;
 		}
@@ -118,23 +134,31 @@ main(int argc, char **argv)
 				err(EX_IOERR, "ioctl(CDIOREADTOCENTRY)");
 			if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
 				err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
-			fprintf(stderr, "%d, %d\n", entry.entry.addr.lba, addr);
+			fprintf(stderr, "%d, %d\n", 
+				ntohl(entry.entry.addr.lba), addr);
+
 			break;
 		}
-		if (!strcmp(argv[arg], "blank")) {
-		    	int error, percent;
+		if (!strcmp(argv[arg], "erase") || !strcmp(argv[arg], "blank")){
+		    	int error, blank, percent;
 			if (!quiet)
-				fprintf(stderr, "blanking CD, please wait..\r");
-			if (ioctl(fd, CDRIOCBLANK) < 0)
+				fprintf(stderr, "%sing CD, please wait..\r",
+					argv[arg]);
+			if (!strcmp(argv[arg], "erase"))
+				blank = CDR_B_ALL;
+			else
+				blank = CDR_B_MIN;
+
+			if (ioctl(fd, CDRIOCBLANK, &blank) < 0)
         			err(EX_IOERR, "ioctl(CDRIOCBLANK)");
 			while (1) {
 				sleep(1);
 				error = ioctl(fd, CDRIOCGETPROGRESS, &percent);
 				if (percent > 0 && !quiet)
 					fprintf(stderr, 
-						"blanking CD - %d %% done"
+						"%sing CD - %d %% done"
 						"     \r",
-						percent);
+						argv[arg], percent);
 				if (error || percent == 100)
 					break;
 			}
@@ -144,104 +168,164 @@ main(int argc, char **argv)
 		}
 		if (!strcmp(argv[arg], "audio") || !strcmp(argv[arg], "raw")) {
 			track.test_write = test_write;
-			track.track_type = CDR_DB_RAW;
+			track.datablock_type = CDR_DB_RAW;
 			track.preemp = preemp;
 			block_size = 2352;
 			continue;
 		}
 		if (!strcmp(argv[arg], "data") || !strcmp(argv[arg], "mode1")) {
 			track.test_write = test_write;
-			track.track_type = CDR_DB_ROM_MODE1;
+			track.datablock_type = CDR_DB_ROM_MODE1;
 			track.preemp = 0;
 			block_size = 2048;
 			continue;
 		}
 		if (!strcmp(argv[arg], "mode2")) {
 			track.test_write = test_write;
-			track.track_type = CDR_DB_ROM_MODE2;
+			track.datablock_type = CDR_DB_ROM_MODE2;
 			track.preemp = 0;
 			block_size = 2336;
 			continue;
 		}
 		if (!strcmp(argv[arg], "XAmode1")) {
 			track.test_write = test_write;
-			track.track_type = CDR_DB_XA_MODE1;
+			track.datablock_type = CDR_DB_XA_MODE1;
 			track.preemp = 0;
 			block_size = 2048;
 			continue;
 		}
 		if (!block_size)
 			err(EX_NOINPUT, "no data format selected");
+		if (list) {
+			char file_buf[MAXPATHLEN + 1], *eol;
+			FILE *fp;
 
-		if ((file = open(argv[arg], O_RDONLY, 0)) < 0)
-			err(EX_NOINPUT, "open(%s)", argv[arg]);
+			if ((fp = fopen(argv[arg], "r")) == NULL)
+	 			err(EX_NOINPUT, "fopen(%s)", argv[arg]);
 
-		if (!cdopen) {
-			if (ioctl(fd, CDRIOCOPENDISK) < 0)
-        			err(EX_IOERR, "ioctl(CDRIOCOPENDISK)");
-			cdopen = 1;
-		}
-		if (ioctl(fd, CDRIOCOPENTRACK, &track) < 0)
-        		err(EX_IOERR, "ioctl(CDRIOCOPENTRACK)");
-
-		if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
-        		err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
-
-		if (fstat(file, &stat) < 0)
-			err(EX_IOERR, "fstat(%s)", argv[arg]);
-		filesize = stat.st_size / 1024;
-		if (!quiet) {
-			fprintf(stderr, "next writeable LBA %d\n", addr);
-			fprintf(stderr, "writing from file %s size %d KB\n",
-				argv[arg], filesize);
-		}
-		lseek(fd, addr * block_size, SEEK_SET);
-		size = 0;
-		if (filesize == 0)
-			filesize++;	/* cheat, avoid divide by zero */
-
-		while ((count = read(file, buf, block_size * BLOCKS)) > 0) {	
-			int res;
-			if (count % block_size) {
-				/* pad file to % block_size */
-				bzero(&buf[count], block_size * BLOCKS - count);
-				count = ((count / block_size) + 1) * block_size;
+			while (fgets(file_buf, sizeof(file_buf), fp) != NULL) {
+				if (*file_buf == '#' || *file_buf == '\n')
+					continue;
+				if (eol = strchr(file_buf, '\n'))
+					*eol = NULL;
+				write_file(file_buf, block_size);
 			}
-			if ((res = write(fd, buf, count)) != count) {
-
-				fprintf(stderr, "\nonly wrote %d of %d bytes\n",
-					res, count);
-				break;
-			}
-			size += count;
-			tot_size += count;
-			if (!quiet) {
-				int pct;
-
-				pct = (size / 1024) * 100 / filesize;
-				fprintf(stderr, "written this track %d KB"
-						" (%d%%) total %d KB\r",
-						size/1024, pct, tot_size/1024);
-			}
+			if (feof(fp))
+				fclose(fp);
+			else
+				err(EX_IOERR, "fgets(%s)", file_buf);
 		}
-		if (!quiet)
-			fprintf(stderr, "\n");
-		close(file);
-		if (ioctl(fd, CDRIOCCLOSETRACK) < 0)
-        		err(EX_IOERR, "ioctl(CDRIOCCLOSETRACK)");
+		else
+			write_file(argv[arg], block_size);
 	}
 
-	if (ioctl(fd, CDRIOCSETBLOCKSIZE, &saved_block_size) < 0) 
-       		err(EX_IOERR, "ioctl(CDRIOCSETBLOCKSIZE)");
+	if (ioctl(fd, CDRIOCSETBLOCKSIZE, &saved_block_size) < 0) {
+		err_set_exit(NULL);
+		err(EX_IOERR, "ioctl(CDRIOCSETBLOCKSIZE)");
+	}
 
 	if (eject)
 		if (ioctl(fd, CDIOCEJECT) < 0)
 			err(EX_IOERR, "ioctl(CDIOCEJECT)");
 	close(fd);
+	exit(EX_OK);
 }
 
-void cleanup(int dummy)
+void
+cleanup(int dummy)
 {
 	if (ioctl(fd, CDRIOCSETBLOCKSIZE, &saved_block_size) < 0) 
-       		err(EX_IOERR, "ioctl(CDRIOCSETBLOCKSIZE)");
+		err(EX_IOERR, "ioctl(CDRIOCSETBLOCKSIZE)");
+}
+
+void
+usage(const char *prog_name)
+{
+	fprintf(stderr, "Usage: %s [-f device] [-s speed] [-e] [-l] [-m] [-p]\n"
+		"\t[-q] [command] [command filename...]\n", prog_name);
+	exit(EX_USAGE);
+}
+
+void
+write_file(const char *name, int block_size)
+{
+	int addr, count, file, filesize, size;
+	char buf[2352*BLOCKS];
+	struct stat stat;
+	static int cdopen, done_stdin, tot_size = 0;
+
+	if (!strcmp(name, "-")) {
+		if (done_stdin) {
+			warn("skipping multiple usages of stdin");
+			return;
+		}
+		file = STDIN_FILENO;
+		done_stdin = 1;
+	}
+	else if ((file = open(name, O_RDONLY, 0)) < 0)
+		err(EX_NOINPUT, "open(%s)", name);
+
+	if (!cdopen) {
+		if (ioctl(fd, CDRIOCOPENDISK) < 0)
+			err(EX_IOERR, "ioctl(CDRIOCOPENDISK)");
+		cdopen = 1;
+	}
+
+	if (ioctl(fd, CDRIOCOPENTRACK, &track) < 0)
+       		err(EX_IOERR, "ioctl(CDRIOCOPENTRACK)");
+
+	if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
+       		err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
+
+	if (fstat(file, &stat) < 0)
+		err(EX_IOERR, "fstat(%s)", name);
+	filesize = stat.st_size / 1024;
+
+	if (!quiet) {
+		fprintf(stderr, "next writeable LBA %d\n", addr);
+		if (file == STDIN_FILENO)
+			fprintf(stderr, "writing from stdin\n");
+		else
+			fprintf(stderr, 
+				"writing from file %s size %d KB\n",
+				name, filesize);
+	}
+
+	lseek(fd, addr * block_size, SEEK_SET);
+	size = 0;
+	if (filesize == 0)
+		filesize++;	/* cheat, avoid divide by zero */
+
+	while ((count = read(file, buf, block_size * BLOCKS)) > 0) {	
+		int res;
+		if (count % block_size) {
+			/* pad file to % block_size */
+			bzero(&buf[count], block_size * BLOCKS - count);
+			count = ((count / block_size) + 1) * block_size;
+		}
+		if ((res = write(fd, buf, count)) != count) {
+			fprintf(stderr, "\nonly wrote %d of %d bytes\n",
+				res, count);
+			break;
+		}
+		size += count;
+		tot_size += count;
+		if (!quiet) {
+			int pct;
+
+			fprintf(stderr, "written this track %d KB", size/1024);
+			if (file != STDIN_FILENO) {
+				pct = (size / 1024) * 100 / filesize;
+				fprintf(stderr, " (%d%%)", pct);
+			}
+			fprintf(stderr, " total %d KB\r", tot_size/1024);
+		}
+	}
+
+	if (!quiet)
+		fprintf(stderr, "\n");
+
+	close(file);
+	if (ioctl(fd, CDRIOCCLOSETRACK) < 0)
+		err(EX_IOERR, "ioctl(CDRIOCCLOSETRACK)");
 }
