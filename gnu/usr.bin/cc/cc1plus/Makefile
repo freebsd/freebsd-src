@@ -1,10 +1,12 @@
 #
-# $Id: Makefile,v 1.15 1999/07/28 07:19:38 obrien Exp $
+# $Id: Makefile,v 1.16 1999/07/28 07:22:05 obrien Exp $
 #
 
 .include "../Makefile.inc"
 
 .PATH: ${GCCDIR}/cp
+
+YACC=		bison
 
 PROG =	cc1plus
 SRCS =	parse.c parse.h
