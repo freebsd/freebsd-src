@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ypserv.8,v 1.8.2.1 1997/02/04 07:08:44 tg Exp $
+.\"	$Id: ypserv.8,v 1.8.2.2 1997/04/15 08:12:11 jmg Exp $
 .\"
 .Dd February 4, 1995
 .Dt YPSERV 8
@@ -51,16 +51,21 @@ such as
 .Pa /etc/passwd
 and
 .Pa /etc/group ,
-which tend to require frequent changes in most environments, NIS
+which tend to require frequent changes in most environments,
+.Tn NIS
 allows groups of computers to share one set of data which can be
 updated from a single location.
 .Pp
 The
 .Nm
-program is the server that distributes NIS databases
-to client systems within an NIS
+program is the server that distributes
+.Tn NIS
+databases to client systems within an
+.Tn NIS
 .Em domain .
-Each client in an NIS domain must have its domainname set to
+Each client in an
+.Tn NIS
+domain must have its domainname set to
 one of the domains served by
 .Nm
 using the
@@ -68,7 +73,9 @@ using the
 command. The clients must also run
 .Xr ypbind 8
 in order to attach to a particular server, since it is possible to
-have several servers within a single NIS domain.
+have several servers within a single
+.Tn NIS
+domain.
 .Pp
 The databases distributed by
 .Nm
@@ -89,8 +96,9 @@ are created by
 using several system files as source. The database files are in
 .Xr db 3
 format to help speed retrieval when there are many records involved.
-In FreeBSD, the
-maps are always readable and writable only by root for security
+In
+.Bx Free ,
+the maps are always readable and writable only by root for security
 reasons. Technically this is only necessary for the password
 maps, but since the data in the other maps can be found in
 other world-readable files anyway, it doesn't hurt and it's considered
@@ -99,18 +107,25 @@ good general practice.
 The
 .Nm
 program is started by
-.Pa /etc/rc
+.Pa /etc/rc.network
 if it has been enabled in
-.Pa /etc/sysconfig .
+.Pa /etc/rc.conf .
 .Sh SPECIAL FEATURES
 There are some problems associated with distributing FreeBSD's password
-database via NIS: FreeBSD normally only stores encrypted passwords
+database via
+.Tn NIS Ns :
+.Bx Free
+normally only stores encrypted passwords
 in
 .Pa /etc/master.passwd ,
 which is readable and writable only by root. By turning this file
-into an NIS map, this security feature would be completely defeated.
+into an
+.Tn NIS
+map, this security feature would be completely defeated.
 .Pp
-To make up for this, the FreeBSD version of
+To make up for this, the
+.Bx Free
+version of
 .Nm
 handles the
 .Pa master.passwd.byname
@@ -126,7 +141,9 @@ Any requests made by non-privileged users are therefore rejected.
 .Pp
 Furthermore, the
 .Xr getpwent 3
-routines in FreeBSD's standard C libarary will only attempt to retrieve
+routines in
+.Bx Free Ns 's
+standard C library will only attempt to retrieve
 data from the
 .Pa master.passwd.byname
 and
@@ -144,11 +161,13 @@ file and stripping out the password fields, and are therefore
 safe to pass on to unprivileged users. In this way, the shadow password
 aspect of the protected
 .Pa master.passwd
-database is maintained through NIS.
+database is maintained through
+.Tn NIS .
 .Pp
 .Sh NOTES
 .Ss Limitations
-There are two problems inherent with password shadowing in NIS
+There are two problems inherent with password shadowing in
+.Tn NIS
 that users should
 be aware of:
 .Bl -enum -offset indent
@@ -159,7 +178,11 @@ test is trivial to defeat for users with
 unrestricted access to machines on your network (even those machines
 which do not run UNIX-based operating systems).
 .It
-If you plan to use a FreeBSD system to serve non-FreeBSD clients that
+If you plan to use a
+.Bx Free
+system to serve
+.Bx non-Free
+clients that
 have no support for password shadowing (which is most of them), you
 will have to disable the password shadowing entirely by uncommenting the
 .Em UNSECURE=True
@@ -170,14 +193,19 @@ This will cause the standard
 and
 .Pa passwd.byuid
 maps to be generated with valid encrypted password fields, which is
-neccesary in order for non-FreeBSD clients to perform user
-authentication through NIS.
+necessary in order for
+.Bx non-Free
+clients to perform user
+authentication through
+.Tn NIS .
 .El
 .Pp
 .Ss Security
 In general, any remote user can issue an RPC to
 .Nm
-and retrieve the contents of your NIS maps, provided the remote user
+and retrieve the contents of your
+.Tn NIS
+maps, provided the remote user
 knows your domain name. To prevent such unauthorized transactions,
 .Nm
 supports a feature called
@@ -202,7 +230,7 @@ sample securenets file might look like this:
 # allow connections from local host -- mandatory
 127.0.0.1     255.255.255.255
 # allow connections from any host
-# on the 129.168.128.0 network
+# on the 192.168.128.0 network
 192.168.128.0 255.255.255.0
 # allow connections from any host
 # between 10.0.0.0 to 10.0.15.255
@@ -227,7 +255,9 @@ program also has support for Wietse Venema's
 package, though it is not compiled in by default since
 the
 .Em tcpwrapper
-package is not distributed with FreeBSD. However, if you have
+package is not distributed with
+.Bx Free .
+However, if you have
 .Pa libwrap.a
 and
 .Pa tcpd.h ,
@@ -250,27 +280,37 @@ attacks.
 .Ss NIS v1 compatibility
 This version of
 .Nm
-has some support for serving NIS v1 clients. FreeBSD's NIS
-implementation only uses the NIS v2 protocol, however other implementations
+has some support for serving
+.Tn NIS
+v1 clients.
+.Bx Free Ns 's
+.Tn NIS
+implementation only uses the
+.Tn NIS
+v2 protocol, however other implementations
 include support for the v1 protocol for backwards compatibility
 with older systems. The
 .Xr ypbind 8
 daemons supplied with these systems will try to establish a binding
-to an NIS v1
-server even though they may never actually need it (and they may
+to an
+.Tn NIS
+v1 server even though they may never actually need it (and they may
 persist in broadcasting in search of one even after they receive a
 response from a v2 server). Note that while
 support for normal client calls is provided, this version of
 .Nm
 does not handle v1 map transfer requests; consequently, it can not
-be used as a master or slave in conjunction with older NIS servers that
+be used as a master or slave in conjunction with older
+.Tn NIS
+servers that
 only support the v1 protocol. Fortunately, there probably aren't any
 such servers still in use today.
 .Ss NIS servers that are also NIS clients
 Care must be taken when running
 .Nm
 in a multi-server domain where the server machines are also
-NIS clients. It is generally a good idea to force the servers to
+.Tn NIS
+clients. It is generally a good idea to force the servers to
 bind to themselves rather than allowing them to broadcast bind
 requests and possibly become bound to each other: strange failure
 modes can result if one server goes down and
@@ -311,12 +351,18 @@ succeeded.
 .Pp
 This feature is provided for compatiblity with SunOS 4.1.x,
 which has brain-damaged resolver functions in its standard C
-library that depend on NIS for hostname and address resolution.
-FreeBSD's resolver can be configured to do DNS
+library that depend on
+.Tn NIS
+for hostname and address resolution.
+.Bx Free Ns 's
+resolver can be configured to do DNS
 queries directly, therefore it is not necessary to enable this
-option when serving only FreeBSD NIS clients.
+option when serving only
+.Bx Free
+.Tn NIS
+clients.
 .It Fl d
-Causes the server to run in debugging mode. Normally,
+Cause the server to run in debugging mode. Normally,
 .Nm
 reports only unusual errors (access violations, file access failures)
 using the
@@ -334,22 +380,28 @@ a debugging tool.
 .It Fl p Ar path
 Normally,
 .Nm
-assumes that all NIS maps are stored under
+assumes that all
+.Tn NIS
+maps are stored under
 .Pa /var/yp .
 The
 .Fl p
-flag may be used to specify an alternate NIS root path, allowing
+flag may be used to specify an alternate
+.Tn NIS
+root path, allowing
 the system administrator to move the map files to a different place
 within the filesystem.
 .El
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /var/yp/[domainname]/[maps]
-The NIS maps.
+the
+.Tn NIS
+maps
 .It Pa /etc/host.conf
-Resolver configuration file.
+resolver configuration file
 .It Pa /var/yp/securenets
-Host access control file
+host access control file
 .El
 .Sh SEE ALSO
 .Xr ypcat 1 ,
@@ -360,7 +412,7 @@ Host access control file
 .Xr yppush 8 ,
 .Xr ypxfr 8
 .Sh AUTHOR
-Bill Paul <wpaul@ctr.columbia.edu>
+.An Bill Paul Aq wpaul@ctr.columbia.edu
 .Sh HISTORY
 This version of
 .Nm

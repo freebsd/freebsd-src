@@ -31,22 +31,23 @@
  *
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include "yp.h"
 #include "yp_extern.h"
-#include <stdlib.h>
+#include <errno.h>
 #include <dirent.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/param.h>
-#include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <rpc/rpc.h>
-
-#ifndef lint
-static const char rcsid[] = "$Id: yp_server.c,v 1.12.2.3 1997/04/10 14:16:19 wpaul Exp $";
-#endif /* not lint */
 
 int forked = 0;
 int children = 0;
@@ -166,7 +167,7 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 		nbuf[argp->key.keydat_len] = '\0';
 
 		if (debug)
-			yp_error("Doing DNS lookup of %s", nbuf);
+			yp_error("doing DNS lookup of %s", nbuf);
 
 		if (!strcmp(argp->map, "hosts.byname"))
 			result.stat = yp_async_lookup_name(rqstp, nbuf);
@@ -679,7 +680,7 @@ static struct ypmaplist *yp_maplist_create(domain)
 				continue;
 			if ((cur = (struct ypmaplist *)
 				malloc(sizeof(struct ypmaplist))) == NULL) {
-				yp_error("malloc() failed: %s",strerror(errno));
+				yp_error("malloc() failed");
 				closedir(dird);
 				yp_maplist_free(yp_maplist);
 				return(NULL);

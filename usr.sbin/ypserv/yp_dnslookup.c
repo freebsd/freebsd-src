@@ -28,9 +28,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: yp_dnslookup.c,v 1.3.2.2 1997/07/27 03:42:53 wpaul Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * Do standard and reverse DNS lookups using the resolver library.
@@ -51,22 +54,18 @@
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 
-#include <stdio.h>
 #include <ctype.h>
-#include <resolv.h>
+#include <err.h>
+#include <errno.h>
 #include <netdb.h>
-#include <unistd.h>
+#include <resolv.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <err.h>
+#include <unistd.h>
 
 #include <rpcsvc/yp.h>
 #include "yp_extern.h"
-
-#ifndef lint
-static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.3.2.2 1997/07/27 03:42:53 wpaul Exp $";
-#endif
 
 static char *parse(hp)
 	struct hostent *hp;
@@ -147,8 +146,7 @@ static struct circleq_dnsentry *yp_malloc_dnsent()
 	q = (struct circleq_dnsentry *)malloc(sizeof(struct circleq_dnsentry));
 
 	if (q == NULL) {
-		yp_error("failed to malloc() circleq dns entry: %s",
-							strerror(errno));
+		yp_error("failed to malloc() circleq dns entry");
 		return(NULL);
 	}
 
@@ -266,13 +264,13 @@ static void yp_send_dns_reply(q, buf)
 		xdrfunc = (xdrproc_t)xdr_ypresponse;
 		break;
 	default:
-		yp_error("Bad YP program version (%lu)!",q->ypvers);
+		yp_error("bad YP program version (%lu)!", q->ypvers);
 			return;
 		break;
 	}
 
 	if (debug)
-		yp_error("Sending dns reply to %s (%lu)",
+		yp_error("sending dns reply to %s (%lu)",
 			inet_ntoa(q->client_addr.sin_addr), q->id);
 	/*
 	 * XXX This is disgusting. There's basically one transport
@@ -352,7 +350,7 @@ void yp_run_dnsq()
 	struct hostent *hent;
 
 	if (debug)
-		yp_error("Running dns queue");
+		yp_error("running dns queue");
 
 	bzero(buf, sizeof(buf));
 
@@ -380,7 +378,7 @@ void yp_run_dnsq()
 	}
 
 	if (debug)
-		yp_error("Got dns reply from %s", inet_ntoa(sin.sin_addr));
+		yp_error("got dns reply from %s", inet_ntoa(sin.sin_addr));
 
 	hent = __dns_getanswer(buf, rval, q->name, q->type);
 
@@ -395,7 +393,7 @@ void yp_run_dnsq()
 			snprintf(retrybuf, sizeof(retrybuf), "%s.%s",
 						q->name, *q->domain);
 			if (debug)
-				yp_error("Retrying with: %s", retrybuf);
+				yp_error("retrying with: %s", retrybuf);
 			q->id = yp_send_dns_query(retrybuf, q->type);
 			q->ttl = DEF_TTL;
 			q->domain++;
@@ -472,7 +470,7 @@ ypstat yp_async_lookup_name(rqstp, name)
 	pending++;
 
 	if (debug)
-		yp_error("Queueing async DNS name lookup (%d)", q->id);
+		yp_error("queueing async DNS name lookup (%d)", q->id);
 
 	yp_prune_dnsq();
 	return(YP_TRUE);
@@ -537,7 +535,7 @@ ypstat yp_async_lookup_addr(rqstp, addr)
 	pending++;
 
 	if (debug)
-		yp_error("Queueing async DNS address lookup (%d)", q->id);
+		yp_error("queueing async DNS address lookup (%d)", q->id);
 
 	yp_prune_dnsq();
 	return(YP_TRUE);
