@@ -731,7 +731,7 @@ esp_cbc_decrypt(m, off, sav, algo, ivlen)
 
 	/* skip bodyoff */
 	while (soff < bodyoff) {
-		if (soff + s->m_len > bodyoff) {
+		if (soff + s->m_len >= bodyoff) {
 			sn = bodyoff - soff;
 			break;
 		}
@@ -941,7 +941,7 @@ esp_cbc_encrypt(m, off, plen, sav, algo, ivlen)
 
 	/* skip bodyoff */
 	while (soff < bodyoff) {
-		if (soff + s->m_len > bodyoff) {
+		if (soff + s->m_len >= bodyoff) {
 			sn = bodyoff - soff;
 			break;
 		}
