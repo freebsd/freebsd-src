@@ -68,11 +68,13 @@ The shell is a command that reads lines from
 either a file or the terminal, interprets them, and
 generally executes other commands. It is the program that is running
 when a user logs into the system (although a user can select
-a different shell with the chsh(1) command).
+a different shell with the
+.Xr chsh 1
+command).
 The shell
 implements a language that has flow control constructs,
 a macro facility that provides a variety of features in
-addition to data storage, along with built in history and line
+addition to data storage, along with builtin history and line
 editing capabilities.  It incorporates many features to
 aid interactive use and has the advantage that the interpretative
 language is common to both interactive and non-interactive
@@ -135,8 +137,8 @@ scripts.
 All of the single letter options to
 .Nm
 have a corresponding name that can be used as an argument to the
-.Xr set 1
-builtin (described later).  These names are provided next to the
+.Ic set
+builtin command (described later).  These names are provided next to the
 single letter option in the descriptions below.  Specifying a dash
 .Dq -
 enables the option, while using a plus
@@ -155,11 +157,11 @@ Enable asynchronous notification of background job
 completion.
 .Pq UNIMPLEMENTED
 .It Fl C Li noclobber
-Don't overwrite existing files with
+Do not overwrite existing files with
 .Dq > .
 .Pq UNIMPLEMENTED
 .It Fl E Li emacs
-Enable the built-in
+Enable the builtin
 .Xr emacs 1
 command line editor (disables
 .Fl V
@@ -206,7 +208,7 @@ Read commands from standard input (set automatically
 if no file arguments are present).  This option has
 no effect when set after the shell has already started
 running (i.e. when set with the
-.Xr set 1
+.Ic set
 command).
 .It Fl T Li asynctraps
 When waiting for a child, execute traps immediately. If this option is
@@ -226,7 +228,7 @@ to expand a variable that is not set, and if the
 shell is not interactive, exit immediately.
 .Pq UNIMPLEMENTED
 .It Fl V Li vi
-Enable the built-in
+Enable the builtin
 .Xr vi 1
 command line editor (disables
 .Fl E
@@ -297,7 +299,7 @@ for     if      then    until   while
 .Ed
 .Ss Aliases
 An alias is a name and corresponding value set using the
-.Xr alias 1
+.Ic alias
 builtin command.  Whenever a reserved word may occur (see above),
 and after checking for reserved words, the shell
 checks the word to see if it matches an alias. If it does,
@@ -427,11 +429,11 @@ definition is executed.   The positional parameters are
 restored to their original values when the command completes.
 This all occurs within the current shell.
 .Pp
-Shell builtins are executed internally to the shell, without
+Shell builtin commands are executed internally to the shell, without
 spawning a new process.
 .Pp
-Otherwise, if the command name doesn't match a function
-or builtin, the command is searched for as a normal
+Otherwise, if the command name does not match a function
+or builtin command, the command is searched for as a normal
 program in the filesystem (as described in the next section).
 When a normal program is executed, the shell runs the program,
 passing the arguments and the environment to the
@@ -553,7 +555,7 @@ asynchronous execution of the preceding AND-OR-list.
 .Pp
 Note that unlike some other shells, each process in the
 pipeline is a child of the invoking shell (unless it
-is a shell builtin, in which case it executes in the
+is a shell builtin command, in which case it executes in the
 current shell -- but any effect it has on the
 environment is wiped).
 .Ss Background Commands -- &
@@ -740,8 +742,8 @@ or a special character as explained below.
 A positional parameter is a parameter denoted by a number (n > 0).
 The shell sets these initially to the values of its command line
 arguments that follow the name of the shell script.  The
-.Xr set 1
-builtin can also be used to set or reset them.
+.Ic set
+builtin command can also be used to set or reset them.
 .Ss Special Parameters
 A special parameter is a parameter denoted by one of the following
 special characters.  The value of the parameter is listed
@@ -991,7 +993,7 @@ a pattern cannot match a string starting with a period
 unless the first character of the pattern is a period.
 The next section describes the patterns used for both
 Pathname Expansion and the
-.Xr case 1
+.Ic case
 command.
 .Ss Shell Patterns
 A pattern consists of normal characters, which match themselves,
@@ -1037,16 +1039,15 @@ character listed (after the
 .Dq ! ,
 if any).  To include a
 minus sign, make it the first or last character listed.
-.Ss Builtins
-This section lists the builtin commands which
+.Ss Builtin Commands
+This section lists the commands which
 are builtin because they need to perform some operation
-that can't be performed by a separate process.  In addition to
-these, there are several other commands that may be
-builtin for efficiency (e.g.
-.Xr printf 1 ,
-.Xr echo 1 ,
-.Xr test 1 ,
-etc).
+that can not be performed by a separate process.  In addition to
+these, builtin versions of the
+.Xr printf 1
+and
+.Xr echo 1
+commands are provided for efficiency.
 .Bl -tag -width Ds
 .It :
 A null command that returns a 0 (true) exit value.
@@ -1072,7 +1073,7 @@ If just
 is specified, the value of the alias
 .Dq name
 is printed.
-With no arguments, the alias builtin prints the
+With no arguments, the alias builtin command prints the
 names and values of all defined aliases (see unalias).
 .It bg [ job ] ...
 Continue the specified jobs (or the current job if no
@@ -1085,7 +1086,8 @@ as a builtin command.)
 Switch to the specified directory (default $HOME).
 If an entry for CDPATH appears in the environment
 of the cd command or the shell variable CDPATH is set
-and the directory name does not begin with a slash,
+and the directory name does not begin with a slash (/),
+dot (.) or dot-dot (..),
 then the directories listed in CDPATH will be
 searched for the specified directory.  The format of
 CDPATH is the same as that of PATH. In an interactive shell,
@@ -1101,7 +1103,7 @@ command.
 .It exec [ command arg ...  ]
 Unless command is omitted, the shell process is
 replaced with the specified program (which must be a
-real program, not a shell builtin or function).  Any
+real program, not a shell builtin command or function).  Any
 redirections on the exec command are marked as permanent,
 so that they are not undone when the exec command finishes.
 .It exit [ exitstatus ]
@@ -1123,7 +1125,7 @@ of all exported variables.
 .It fc [-e editor] [first [last]]
 .It fc -l [-nr] [first [last]]
 .It fc -s [old=new] [first]
-The fc builtin lists, or edits and re-executes, commands
+The fc builtin command lists, or edits and re-executes, commands
 previously entered to an interactive shell.
 .Bl -tag -width Ds
 .It -e editor
@@ -1297,7 +1299,7 @@ Shift the positional parameters n times.  A shift
 sets the value of $1 to the value of $2, the value of
 $2 to the value of $3, and so on, decreasing the
 value of $# by one.  If there are zero positional
-parameters, shifting doesn't do anything.
+parameters, shifting does not do anything.
 .It trap [ action ] signal ...
 Cause the shell to parse and execute action when any
 of the specified signals are received.  The signals
@@ -1311,7 +1313,7 @@ signals that were ignored on entry to the shell.
 .It type [name] ...
 Interpret each name as a command and print the
 resolution of the command search. Possible resolutions are:
-shell keyword, alias, shell builtin, command, tracked alias
+shell keyword, alias, shell builtin command, command, tracked alias
 and not found.  For aliases the alias expansion is printed;
 for commands and tracked aliases the complete pathname of
 the command is printed.
@@ -1396,7 +1398,9 @@ and the return an exit status of zero.
 When
 .Nm
 is being used interactively from a terminal, the current command
-and the command history (see fc in Builtins) can be edited using vi-mode
+and the command history (see fc in
+.Sx Builtin Commands )
+can be edited using vi-mode
 command line editing.  This mode uses commands similar
 to a subset of those described in the vi man page.
 The command 'set -o vi' enables vi-mode editing and places
@@ -1409,7 +1413,11 @@ Hitting <return> while in command mode will pass the line to the shell.
 Similarly, the 'set -o emacs' command can be used to enable a subset of
 emacs-style command line editing features.
 .Sh SEE ALSO
+.Xr builtin 1 ,
+.Xr echo 1 ,
 .Xr expr 1 ,
+.Xr pwd 1 ,
+.Xr printf 1 ,
 .Xr test 1
 .Sh HISTORY
 A

@@ -52,12 +52,21 @@ of each).
 .It Fl s
 No output, just return 0 if any of the executables are found, or 1 if
 none are found.
+.Pp
+Some shells may provide a builtin
+.Nm
+command which is similar or identical to this utility.  Consult
+the
+.Xr builtin 1
+manual page. 
 .Sh HISTORY
 The
 .Nm
 command first appeared in
 .Fx 2.1 .
 .Sh SEE ALSO
+.Xr builtin 1 ,
+.Xr csh 1 ,
 .Xr find 1 ,
 .Xr locate 1 ,
 .Xr perl 1 ,
