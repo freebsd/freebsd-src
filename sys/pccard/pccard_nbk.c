@@ -305,10 +305,10 @@ pccard_get_res_flags(device_t bus, device_t child, int restype, int rid,
 
 static int
 pccard_set_memory_offset(device_t bus, device_t child, int rid, 
-    u_int32_t offset)
+    u_int32_t offset, u_int32_t *deltap)
 {
 	return CARD_SET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
-	    offset);
+	    offset, deltap);
 }
 
 static int
