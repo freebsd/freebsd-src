@@ -21,7 +21,7 @@
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_tape.h,v 1.8 93/08/31 21:40:16 julian Exp Locker: julian $
+ *	$Id: scsi_tape.h,v 1.8 1993/11/18 05:02:57 rgrimes Exp $
  */
 #ifndef	SCSI_SCSI_TAPE_H
 #define SCSI_SCSI_TAPE_H 1
@@ -140,6 +140,7 @@ struct	blk_desc_cipher
 
 
 
+#ifndef NEW_SCSICONF
 /**********************************************************************
 			from the scsi2 spec
                 Value Tracks Density(bpi) Code Type  Reference     Note
@@ -200,5 +201,6 @@ struct	blk_desc_cipher
 #define QIC_1320	0x12
 #define DDS		0x13
 #define DAT_1		0x13
+#endif /* NEW_SCSICONF */
 
 #endif /*SCSI_SCSI_TAPE_H*/
