@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1998/03/12 05:14:16 jdp Exp $
+# $Id: Makefile,v 1.4 1998/05/04 21:21:17 jb Exp $
 #
 
 .include "../Makefile.inc0"
@@ -17,16 +17,5 @@ NOPROFILE=	true
 NOPIC=		true
 INTERNALLIB=	true
 INTERNALSTATICLIB=true
-CLEANFILES+=	arlex.c arparse.c arparse.h
-
-beforedepend: arlex.c arparse.c arparse.h
-
-arlex.o: arparse.h
-
-arparse.c arparse.h: arparse.y
-	${YACC} -d -o arparse.c ${.IMPSRC}
-
-# This rule is an attempt to cause "make -j" to work.
-arparse.h: arparse.c
 
 .include <bsd.lib.mk>
