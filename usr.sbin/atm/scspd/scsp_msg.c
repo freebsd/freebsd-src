@@ -105,7 +105,7 @@ scsp_ca_csas_setup(dcsp, cap)
 		LINK2TAIL(csap, Scsp_csa, cap->ca_csa_rec, next);
 		len += csas_len;
 		UNLINK(csep, Scsp_cse, dcsp->sd_ca_csas, sc_next);
-		UM_FREE(csep);
+		free(csep);
 		cap->ca_mcp.rec_cnt++;
 	}
 }
@@ -213,16 +213,12 @@ scsp_send_ca(dcsp)
 	/*
 	 * Get memory for a CA message
 	 */
-	ca_msg = (Scsp_msg *)UM_ALLOC(sizeof(Scsp_msg));
-	if (!ca_msg) {
+	ca_msg = calloc(1, sizeof(Scsp_msg));
+	if (ca_msg == NULL)
 		scsp_mem_err("scsp_send_ca: sizeof(Scsp_msg)");
-	}
-	cap = (Scsp_ca *)UM_ALLOC(sizeof(Scsp_ca));
-	if (!cap) {
+	cap = calloc(1, sizeof(Scsp_ca));
+	if (cap == NULL)
 		scsp_mem_err("scsp_send_ca: sizeof(Scsp_ca)");
-	}
-	UM_ZERO(ca_msg, sizeof(Scsp_msg));
-	UM_ZERO(cap, sizeof(Scsp_ca));
 
 	/*
 	 * Fill out constant fields
@@ -308,16 +304,12 @@ scsp_send_csus(dcsp)
 		/*
 		 * Get memory for a CSUS message
 		 */
-		csus_msg = (Scsp_msg *)UM_ALLOC(sizeof(Scsp_msg));
-		if (!csus_msg) {
+		csus_msg = calloc(1, sizeof(Scsp_msg));
+		if (csus_msg == NULL)
 			scsp_mem_err("scsp_send_csus: sizeof(Scsp_msg)");
-		}
-		csusp = (Scsp_csu_msg *)UM_ALLOC(sizeof(Scsp_csu_msg));
-		if (!csusp) {
+		csusp = calloc(1, sizeof(Scsp_csu_msg));
+		if (csusp == NULL)
 			scsp_mem_err("scsp_send_csus: sizeof(Scsp_csu_msg)");
-		}
-		UM_ZERO(csus_msg, sizeof(Scsp_msg));
-		UM_ZERO(csusp, sizeof(Scsp_csu_msg));
 
 		/*
 		 * Fill out constant fields
@@ -407,25 +399,19 @@ scsp_send_csu_req(dcsp, csap)
 	/*
 	 * Get memory for a CSU Req message
 	 */
-	csu_msg = (Scsp_msg *)UM_ALLOC(sizeof(Scsp_msg));
-	if (!csu_msg) {
+	csu_msg = calloc(1, sizeof(Scsp_msg));
+	if (csu_msg == NULL)
 		scsp_mem_err("scsp_send_csu_req: sizeof(Scsp_msg)");
-	}
-	csup = (Scsp_csu_msg *)UM_ALLOC(sizeof(Scsp_csu_msg));
-	if (!csup) {
+	csup = calloc(1, sizeof(Scsp_csu_msg));
+	if (csup == NULL)
 		scsp_mem_err("scsp_send_csu_req: sizeof(Scsp_csu_msg)");
-	}
-	UM_ZERO(csu_msg, sizeof(Scsp_msg));
-	UM_ZERO(csup, sizeof(Scsp_csu_msg));
 
 	/*
 	 * Get memory for a CSU Req retransmission queue entry
 	 */
-	rxp = (Scsp_csu_rexmt *)UM_ALLOC(sizeof(Scsp_csu_rexmt));
-	if (!rxp) {
+	rxp = calloc(1, sizeof(Scsp_csu_rexmt));
+	if (rxp == NULL)
 		scsp_mem_err("scsp_send_csu_req: sizeof(Scsp_csu_rexmt)");
-	}
-	UM_ZERO(rxp, sizeof(Scsp_csu_rexmt));
 
 	/*
 	 * Fill out constant fields
@@ -453,8 +439,8 @@ scsp_send_csu_req(dcsp, csap)
 		scsp_free_msg(csu_msg);
 		return(rc);
 	}
-	UM_FREE(csu_msg);
-	UM_FREE(csup);
+	free(csu_msg);
+	free(csup);
 
 	/*
 	 * Save the CSA entries on the CSU Request retransmission
@@ -502,16 +488,12 @@ scsp_send_csu_reply(dcsp, csap)
 	/*
 	 * Get memory for a CSU Reply message
 	 */
-	csu_msg = (Scsp_msg *)UM_ALLOC(sizeof(Scsp_msg));
-	if (!csu_msg) {
+	csu_msg = calloc(1, sizeof(Scsp_msg));
+	if (csu_msg == NULL)
 		scsp_mem_err("scsp_send_csu_reply: sizeof(Scsp_msg)");
-	}
-	csup = (Scsp_csu_msg *)UM_ALLOC(sizeof(Scsp_csu_msg));
-	if (!csup) {
+	csup = calloc(1, sizeof(Scsp_csu_msg));
+	if (csup == NULL)
 		scsp_mem_err("scsp_send_csu_reply: sizeof(Scsp_csu_msg)");
-	}
-	UM_ZERO(csu_msg, sizeof(Scsp_msg));
-	UM_ZERO(csup, sizeof(Scsp_csu_msg));
 
 	/*
 	 * Fill out constant fields
@@ -535,7 +517,7 @@ scsp_send_csu_reply(dcsp, csap)
 		 */
 		case SCSP_PROTO_ATMARP:
 			if (csap1->atmarp_data) {
-				UM_FREE(csap1->atmarp_data);
+				free(csap1->atmarp_data);
 				csap1->atmarp_data =
 						(Scsp_atmarp_csa *)0;
 			}
@@ -576,16 +558,12 @@ scsp_send_hello(dcsp)
 	/*
 	 * Get memory for a Hello message
 	 */
-	hello = (Scsp_msg *)UM_ALLOC(sizeof(Scsp_msg));
-	if (!hello) {
+	hello = calloc(1, sizeof(Scsp_msg));
+	if (hello == NULL)
 		scsp_mem_err("scsp_send_hello: sizeof(Scsp_msg)");
-	}
-	UM_ZERO(hello, sizeof(Scsp_msg));
-	hp = (Scsp_hello *)UM_ALLOC(sizeof(Scsp_hello));
-	if (!hp) {
+	hp = calloc(1, sizeof(Scsp_hello));
+	if (hp == NULL)
 		scsp_mem_err("scsp_send_hello: sizeof(Scsp_hello)");
-	}
-	UM_ZERO(hp, sizeof(Scsp_hello));
 
 	/*
 	 * Set up the Hello message

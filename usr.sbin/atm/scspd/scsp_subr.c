@@ -213,7 +213,7 @@ scsp_is_atmarp_server(netif)
 	rc = (asrv_info->asp_addr.address_format == T_ATM_ABSENT) &&
 			(asrv_info->asp_subaddr.address_format ==
 				T_ATM_ABSENT);
-	UM_FREE(asrv_info);
+	free(asrv_info);
 	return(rc);
 }
 
@@ -238,17 +238,15 @@ scsp_dup_cse(csep)
 	/*
 	 * Allocate memory for the duplicate
 	 */
-	dupp = (Scsp_cse *)UM_ALLOC(sizeof(Scsp_cse));
-	if (!dupp) {
+	dupp = malloc(sizeof(Scsp_cse));
+	if (dupp == NULL)
 		scsp_mem_err("scsp_dup_cse: sizeof(Scsp_cse)");
-	}
 
 	/*
 	 * Copy data to the duplicate
 	 */
-	UM_COPY(csep, dupp, sizeof(Scsp_cse));
+	bcopy(csep, dupp, sizeof(Scsp_cse));
 	dupp->sc_next = (Scsp_cse *)0;
-
 	return(dupp);
 }
 
@@ -274,29 +272,26 @@ scsp_dup_csa(csap)
 	/*
 	 * Allocate memory for the duplicate
 	 */
-	dupp = (Scsp_csa *)UM_ALLOC(sizeof(Scsp_csa));
-	if (!dupp) {
+	dupp = malloc(sizeof(Scsp_csa));
+	if (dupp == NULL)
 		scsp_mem_err("scsp_dup_csa: sizeof(Scsp_csa)");
-	}
 
 	/*
 	 * Copy data to the duplicate
 	 */
-	UM_COPY(csap, dupp, sizeof(Scsp_csa));
+	bcopy(csap, dupp, sizeof(Scsp_csa));
 	dupp->next = (Scsp_csa *)0;
 
 	/*
 	 * Copy protocol-specific data, if it's present
 	 */
 	if (csap->atmarp_data) {
-		adp = (Scsp_atmarp_csa *)UM_ALLOC(sizeof(Scsp_atmarp_csa));
-		if (!adp) {
+		adp = malloc(sizeof(Scsp_atmarp_csa));
+		if (adp == NULL)
 			scsp_mem_err("scsp_dup_csa: sizeof(Scsp_atmarp_csa)");
-		}
-		UM_COPY(csap->atmarp_data, adp, sizeof(Scsp_atmarp_csa));
+		bcopy(csap->atmarp_data, adp, sizeof(Scsp_atmarp_csa));
 		dupp->atmarp_data  = adp;
 	}
-
 	return(dupp);
 }
 
@@ -321,11 +316,9 @@ scsp_cse2csas(csep)
 	/*
 	 * Allocate memory for the duplicate
 	 */
-	csap = (Scsp_csa *)UM_ALLOC(sizeof(Scsp_csa));
-	if (!csap) {
+	csap = calloc(1, sizeof(Scsp_csa));
+	if (csap == NULL)
 		scsp_mem_err("scsp_cse2csas: sizeof(Scsp_csa)");
-	}
-	UM_ZERO(csap, sizeof(Scsp_csa));
 
 	/*
 	 * Copy data to the CSAS entry
@@ -358,11 +351,9 @@ scsp_atmarp2cse(aap)
 	/*
 	 * Allocate memory for the duplicate
 	 */
-	csep = (Scsp_cse *)UM_ALLOC(sizeof(Scsp_cse));
-	if (!csep) {
+	csep = calloc(1, sizeof(Scsp_cse));
+	if (csep == NULL)
 		scsp_mem_err("scsp_atmarp2cse: sizeof(Scsp_cse)");
-	}
-	UM_ZERO(csep, sizeof(Scsp_cse));
 
 	/*
 	 * Copy data to the CSE entry
@@ -401,7 +392,7 @@ scsp_dcs_cleanup(dcsp)
 	for (csep = dcsp->sd_ca_csas; csep; csep = ncsep) {
 		ncsep = csep->sc_next;
 		UNLINK(csep, Scsp_cse, dcsp->sd_ca_csas, sc_next);
-		UM_FREE(csep);
+		free(csep);
 	}
 
 	/*
@@ -445,7 +436,7 @@ scsp_dcs_cleanup(dcsp)
 		}
 		UNLINK(rxp, Scsp_csu_rexmt, dcsp->sd_csu_rexmt,
 				sr_next);
-		UM_FREE(rxp);
+		free(rxp);
 	}
 }
 
@@ -501,7 +492,7 @@ scsp_dcs_delete(dcsp)
 	 */
 	for (csep = dcsp->sd_ca_csas; csep; csep = next_cse) {
 		next_cse = csep->sc_next;
-		UM_FREE(csep);
+		free(csep);
 	}
 
 	/*
@@ -540,13 +531,13 @@ scsp_dcs_delete(dcsp)
 		 * Free the CSU Req retransmission control block
 		 */
 		next_rxp = rxp->sr_next;
-		UM_FREE(rxp);
+		free(rxp);
 	}
 
 	/*
 	 * Free the DCS block
 	 */
-	UM_FREE(dcsp);
+	free(dcsp);
 }
 
 
@@ -617,7 +608,7 @@ scsp_server_shutdown(ssp)
 			csep = ssp->ss_cache[i];
 			UNLINK(csep, Scsp_cse, ssp->ss_cache[i],
 					sc_next);
-			UM_FREE(csep);
+			free(csep);
 		}
 	}
 }
@@ -660,15 +651,15 @@ scsp_server_delete(ssp)
 	for (i = 0; i < SCSP_HASHSZ; i++) {
 		for (csep = ssp->ss_cache[i]; csep; csep = next_cse) {
 			next_cse = csep->sc_next;
-			UM_FREE(csep);
+			free(csep);
 		}
 	}
 
 	/*
 	 * Free the server block
 	 */
-	UM_FREE(ssp->ss_name);
-	UM_FREE(ssp);
+	free(ssp->ss_name);
+	free(ssp);
 }
 
 
@@ -707,7 +698,7 @@ scsp_get_server_info(ssp)
 	 * Get the IP address and physical interface name
 	 * associated with the network interface
 	 */
-	UM_ZERO(&air, sizeof(struct atminfreq));
+	bzero(&air, sizeof(struct atminfreq));
 	air.air_opcode = AIOCS_INF_NIF;
 	strcpy(air.air_netif_intf, ssp->ss_intf);
 	len = do_info_ioctl(&air, sizeof(struct air_netif_rsp));
@@ -737,7 +728,7 @@ scsp_get_server_info(ssp)
 	 * Get the ATM address associated with the
 	 * physical interface
 	 */
-	UM_ZERO(&air, sizeof(struct atminfreq));
+	bzero(&air, sizeof(struct atminfreq));
 	air.air_opcode = AIOCS_INF_INT;
 	strcpy(air.air_int_intf, netif_rsp->anp_phy_intf);
 	len = do_info_ioctl(&air, sizeof(struct air_int_rsp));
@@ -791,7 +782,7 @@ scsp_get_server_info(ssp)
 	 * Get configuration information associated with the
 	 * physical interface
 	 */
-	UM_ZERO(&air, sizeof(struct atminfreq));
+	bzero(&air, sizeof(struct atminfreq));
 	air.air_opcode = AIOCS_INF_CFG;
 	strcpy(air.air_int_intf, netif_rsp->anp_phy_intf);
 	len = do_info_ioctl(&air, sizeof(struct air_cfg_rsp));
@@ -804,7 +795,7 @@ scsp_get_server_info(ssp)
 	/*
 	 * Update the server entry
 	 */
-	UM_COPY(&ip_addr->sin_addr, ssp->ss_lsid.id, ssp->ss_id_len);
+	bcopy(&ip_addr->sin_addr, ssp->ss_lsid.id, ssp->ss_id_len);
 	ssp->ss_lsid.id_len = ssp->ss_id_len;
 	ssp->ss_mtu = mtu + 8;
 	ATM_ADDR_COPY(&intf_rsp->anp_addr, &ssp->ss_addr);
@@ -826,11 +817,11 @@ scsp_get_server_info(ssp)
 	 */
 server_info_done:
 	if (netif_rsp)
-		UM_FREE(netif_rsp);
+		free(netif_rsp);
 	if (intf_rsp)
-		UM_FREE(intf_rsp);
+		free(intf_rsp);
 	if (cfg_rsp)
-		UM_FREE(cfg_rsp);
+		free(cfg_rsp);
 
 	return(rc);
 }
@@ -912,7 +903,7 @@ scsp_process_cache_rsp(ssp, smp)
 			SCSP_LOOKUP(ssp, &aap->sa_key, csep);
 			if (csep) {
 				SCSP_DELETE(ssp, csep);
-				UM_FREE(csep);
+				free(csep);
 			}
 
 			/*
@@ -1037,11 +1028,9 @@ scsp_update_cache(dcsp, csap)
 		/*
 		 * Get memory for a new entry
 		 */
-		csep = (Scsp_cse *)UM_ALLOC(sizeof(Scsp_cse));
-		if (!csep) {
+		csep = calloc(1, sizeof(Scsp_cse));
+		if (csep == NULL)
 			scsp_mem_err("scsp_update_cache: sizeof(Scsp_cse)");
-		}
-		UM_ZERO(csep, sizeof(Scsp_cse));
 
 		/*
 		 * Fill out the new cache summary entry
@@ -1065,7 +1054,7 @@ scsp_update_cache(dcsp, csap)
 		 */
 		if (csep) {
 			SCSP_DELETE(dcsp->sd_server, csep);
-			UM_FREE(csep);
+			free(csep);
 		}
 	} else {
 		/*

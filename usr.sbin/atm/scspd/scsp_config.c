@@ -172,11 +172,9 @@ start_dcs()
 	/*
 	 * Allocate a DCS block
 	 */
-	dcsp = (Scsp_dcs *)UM_ALLOC(sizeof(Scsp_dcs));
-	if (!dcsp) {
+	dcsp = calloc(1, sizeof(Scsp_dcs));
+	if (dcsp == NULL)
 		scsp_mem_err("start_dcs: sizeof(Scsp_dcs)");
-	}
-	UM_ZERO(dcsp, sizeof(Scsp_dcs));
 
 	/*
 	 * Fill out DCS links and default values
@@ -293,9 +291,9 @@ set_dcs_addr(ap, sap)
 	/*
 	 * Initialize
 	 */
-	UM_ZERO(&addr, sizeof(addr));
+	bzero(&addr, sizeof(addr));
 	addr.address_format = T_ATM_ABSENT;
-	UM_ZERO(&subaddr, sizeof(subaddr));
+	bzero(&subaddr, sizeof(subaddr));
 	subaddr.address_format = T_ATM_ABSENT;
 
 	/*
@@ -782,7 +780,7 @@ set_dcs_id(name)
 	 * Set the ID in the DCS block
 	 */
 	dcsp->sd_dcsid.id_len = ssp->ss_id_len;
-	UM_COPY(&ip_addr->sin_addr, dcsp->sd_dcsid.id, ssp->ss_id_len);
+	bcopy(&ip_addr->sin_addr, dcsp->sd_dcsid.id, ssp->ss_id_len);
 
 	return(0);
 }
@@ -994,7 +992,7 @@ start_server(name)
 				next_cse = csep->sc_next;
 				UNLINK(csep, Scsp_cse, ssp->ss_cache[i],
 						sc_next);
-				UM_FREE(csep);
+				free(csep);
 			}
 		}
 
@@ -1009,12 +1007,11 @@ start_server(name)
 		/*
 		 * Get a new server entry
 		 */
-		ssp = (Scsp_server *)UM_ALLOC(sizeof(Scsp_server));
-		if (!ssp) {
+		ssp = calloc(1, sizeof(Scsp_server));
+		if (ssp == NULL) {
 			scsp_log(LOG_ERR, "unable to allocate server entry");
 			exit(1);
 		}
-		UM_ZERO(ssp, sizeof(Scsp_server));
 		ssp->ss_sock = -1;
 		ssp->ss_dcs_lsock = -1;
 

@@ -139,7 +139,7 @@ server_stmt: TOK_SERVER TOK_NAME
 		int	rc;
 
 		rc = start_server($2);
-		UM_FREE($2);
+		free($2);
 		if (rc)
 			return(rc);
 	}
@@ -167,7 +167,7 @@ server_spec: /* Nothing */
 		 * Configure the network interface
 		 */
 		rc = set_intf($2);
-		UM_FREE($2);
+		free($2);
 		if (rc)
 			return(rc);
 	}
@@ -234,7 +234,7 @@ dcs_spec: /* Nothing */
 		 * Set DCS address
 		 */
 		rc = set_dcs_addr($2, (char *)0);
-		UM_FREE($2);
+		free($2);
 		if (rc)
 			return(rc);
 	}
@@ -246,8 +246,8 @@ dcs_spec: /* Nothing */
 		 * Set DCS address and subaddress
 		 */
 		rc = set_dcs_addr($2, $3);
-		UM_FREE($2);
-		UM_FREE($3);
+		free($2);
+		free($3);
 		if (rc)
 			return(rc);
 	}
@@ -336,7 +336,7 @@ dcs_spec: /* Nothing */
 		 * Configure the DCS ID
 		 */
 		rc = set_dcs_id($2);
-		UM_FREE($2);
+		free($2);
 		if (rc)
 			return(rc);
 	}
@@ -359,7 +359,7 @@ log_spec: /* Nothing */
 		int	rc;
 
 		rc = set_log_file($2);
-		UM_FREE($2);
+		free($2);
 		if (rc)
 			return(rc);
 	}

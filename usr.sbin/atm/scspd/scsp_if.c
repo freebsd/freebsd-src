@@ -419,16 +419,12 @@ scsp_client_act_07(dcsp, msg, cmsg)
 	/*
 	 * Allocate memory for a CSA record
 	 */
-	csap = (Scsp_csa *)UM_ALLOC(sizeof(Scsp_csa));
-	if (!csap) {
+	csap = calloc(1, sizeof(Scsp_csa));
+	if (csap == NULL)
 		scsp_mem_err("scsp_client_act_07: sizeof(Scsp_csa)");
-	}
-	acp = (Scsp_atmarp_csa *)UM_ALLOC(sizeof(Scsp_atmarp_csa));
-	if (!acp) {
+	acp = calloc(1, sizeof(Scsp_atmarp_csa));
+	if (acp == NULL)
 		scsp_mem_err("scsp_client_act_07: sizeof(Scsp_atmarp_csa)");
-	}
-	UM_ZERO(csap, sizeof(Scsp_csa));
-	UM_ZERO(acp, sizeof(Scsp_atmarp_csa));
 
 	/*
 	 * Build a CSA record from the server's message
@@ -522,10 +518,9 @@ scsp_client_act_09(dcsp, msg, cmsg)
 	/*
 	 * Get memory for a Solicit Ind
 	 */
-	csip = (Scsp_if_msg *)UM_ALLOC(sizeof(Scsp_if_msg));
-	if (!csip) {
+	csip = calloc(1, sizeof(Scsp_if_msg));
+	if (csip == NULL)
 		scsp_mem_err("scsp_client_act_09: sizeof(Scsp_if_msg)");
-	}
 
 	/*
 	 * Loop through list of CSAs
@@ -535,7 +530,7 @@ scsp_client_act_09(dcsp, msg, cmsg)
 		/*
 		 * Fill out the Solicit Indication
 		 */
-		UM_ZERO(csip, sizeof(Scsp_if_msg));
+		bzero(csip, sizeof(Scsp_if_msg));
 		csip->si_type = SCSP_SOLICIT_IND;
 		csip->si_proto = dcsp->sd_server->ss_pid;
 		csip->si_tok = (u_long)dcsp;
@@ -555,8 +550,7 @@ scsp_client_act_09(dcsp, msg, cmsg)
 			rrc = rc;
 		}
 	}
-
-	UM_FREE(csip);
+	free(csip);
 	return(rrc);
 }
 
@@ -591,10 +585,9 @@ scsp_client_act_10(dcsp, msg, cmsg)
 	/*
 	 * Get memory for a Cache Update Ind
 	 */
-	cuip = (Scsp_if_msg *)UM_ALLOC(sizeof(Scsp_if_msg));
-	if (!cuip) {
+	cuip = malloc(sizeof(Scsp_if_msg));
+	if (cuip == NULL)
 		scsp_mem_err("scsp_client_act_10: sizeof(Scsp_if_msg)");
-	}
 
 	/*
 	 * Loop through CSAs in message
@@ -608,7 +601,7 @@ scsp_client_act_10(dcsp, msg, cmsg)
 		/*
 		 * Fill out the Cache Update Ind
 		 */
-		UM_ZERO(cuip, sizeof(Scsp_if_msg));
+		bzero(cuip, sizeof(Scsp_if_msg));
 		cuip->si_type = SCSP_UPDATE_IND;
 		cuip->si_proto = dcsp->sd_server->ss_pid;
 		cuip->si_tok = (u_long)dcsp;
@@ -639,7 +632,6 @@ scsp_client_act_10(dcsp, msg, cmsg)
 			rrc = rc;
 		}
 	}
-
-	UM_FREE(cuip);
+	free(cuip);
 	return(rrc);
 }
