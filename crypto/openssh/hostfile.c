@@ -1,21 +1,21 @@
 /*
- * 
+ *
  * hostfile.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Thu Jun 29 07:10:56 1995 ylo
- * 
+ *
  * Functions for manipulating the known hosts files.
- * 
+ *
  * $FreeBSD$
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: hostfile.c,v 1.14 2000/03/23 22:15:33 markus Exp $");
+RCSID("$OpenBSD: hostfile.c,v 1.18 2000/04/29 18:11:52 markus Exp $");
 
 #include "packet.h"
 #include "match.h"
@@ -40,13 +40,8 @@ hostfile_read_key(char **cpp, unsigned int *bitsp, Key *ret)
 	for (cp = *cpp; *cp == ' ' || *cp == '\t'; cp++)
 		;
 
-	/* Get number of bits. */
-	if (*cp < '0' || *cp > '9')
-		return 0;	/* Bad bit count... */
-	for (bits = 0; *cp >= '0' && *cp <= '9'; cp++)
-		bits = 10 * bits + *cp - '0';
-
-	if (!key_read(ret, bits, &cp))
+	bits = key_read(ret, &cp);
+	if (bits == 0)
 		return 0;
 
 	/* Skip trailing whitespace. */
@@ -76,10 +71,10 @@ hostfile_check_key(int bits, Key *key, const char *host, const char *filename, i
 	if (key == NULL || key->type != KEY_RSA || key->rsa == NULL)
 		return 1;
 	if (bits != BN_num_bits(key->rsa->n)) {
-		error("Warning: %s, line %d: keysize mismatch for host %s: "
+		log("Warning: %s, line %d: keysize mismatch for host %s: "
 		    "actual %d vs. announced %d.",
 		    filename, linenum, host, BN_num_bits(key->rsa->n), bits);
-		error("Warning: replace %d with %d in %s, line %d.",
+		log("Warning: replace %d with %d in %s, line %d.",
 		    bits, BN_num_bits(key->rsa->n), filename, linenum);
 	}
 	return 1;
@@ -183,24 +178,18 @@ add_host_to_hostfile(const char *filename, const char *host, Key *key)
 {
 	FILE *f;
 	int success = 0;
-
 	if (key == NULL)
-		return 1;
-
-	/* Open the file for appending. */
+		return 1;	/* XXX ? */
 	f = fopen(filename, "a");
 	if (!f)
 		return 0;
-
 	fprintf(f, "%s ", host);
 	if (key_write(key, f)) {
-		fprintf(f, "\n");
 		success = 1;
 	} else {
-		error("add_host_to_hostfile: saving key failed");
+		error("add_host_to_hostfile: saving key in %s failed", filename);
 	}
-
-	/* Close the file. */
+	fprintf(f, "\n");
 	fclose(f);
 	return success;
 }

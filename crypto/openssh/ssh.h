@@ -1,20 +1,20 @@
 /*
- * 
+ *
  * ssh.h
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Fri Mar 17 17:09:37 1995 ylo
- * 
+ *
  * Generic header file for ssh.
- * 
+ *
  * $FreeBSD$
  */
 
-/* RCSID("$Id: ssh.h,v 1.34 2000/03/23 22:15:33 markus Exp $"); */
+/* RCSID("$Id: ssh.h,v 1.45 2000/05/08 17:12:16 markus Exp $"); */
 
 #ifndef SSH_H
 #define SSH_H
@@ -23,6 +23,7 @@
 #include "cipher.h"
 
 /*
+ * XXX
  * The default cipher used if IDEA is not supported by the remote host. It is
  * recommended that this be one of the mandatory ciphers (DES, 3DES), though
  * that is not required.
@@ -47,14 +48,16 @@
 /*
  * Major protocol version.  Different version indicates major incompatiblity
  * that prevents communication.
- */
-#define PROTOCOL_MAJOR		1
-
-/*
+ *
  * Minor protocol version.  Different version indicates minor incompatibility
  * that does not prevent interoperation.
  */
-#define PROTOCOL_MINOR		5
+#define PROTOCOL_MAJOR_1	1
+#define PROTOCOL_MINOR_1	5
+
+/* We support both SSH1 and SSH2 */
+#define PROTOCOL_MAJOR_2	2
+#define PROTOCOL_MINOR_2	0
 
 /*
  * Name for the service.  The port named by this service overrides the
@@ -70,6 +73,7 @@
  * world-readable.
  */
 #define SSH_SYSTEM_HOSTFILE	ETCDIR "/ssh_known_hosts"
+#define SSH_SYSTEM_HOSTFILE2	ETCDIR "/ssh_known_hosts2"
 
 /*
  * Of these, ssh_host_key must be readable only by root, whereas ssh_config
@@ -78,6 +82,7 @@
 #define HOST_KEY_FILE		ETCDIR "/ssh_host_key"
 #define SERVER_CONFIG_FILE	ETCDIR "/sshd_config"
 #define HOST_CONFIG_FILE	ETCDIR "/ssh_config"
+#define HOST_DSA_KEY_FILE	ETCDIR "/ssh_host_dsa_key"
 
 #define SSH_PROGRAM		"/usr/bin/ssh"
 
@@ -99,12 +104,14 @@
  * contain anything particularly secret.
  */
 #define SSH_USER_HOSTFILE	"~/.ssh/known_hosts"
+#define SSH_USER_HOSTFILE2	"~/.ssh/known_hosts2"
 
 /*
  * Name of the default file containing client-side authentication key. This
  * file should only be readable by the user him/herself.
  */
 #define SSH_CLIENT_IDENTITY	".ssh/identity"
+#define SSH_CLIENT_ID_DSA	".ssh/id_dsa"
 
 /*
  * Configuration file in user\'s home directory.  This file need not be
@@ -123,6 +130,7 @@
  * running as root.)
  */
 #define SSH_USER_PERMITTED_KEYS	".ssh/authorized_keys"
+#define SSH_USER_PERMITTED_KEYS2	".ssh/authorized_keys2"
 
 /*
  * Per-user and system-wide ssh "rc" files.  These files are executed with
@@ -259,7 +267,7 @@
  * information is not available.  This must be called before record_login.
  * The host from which the user logged in is stored in buf.
  */
-unsigned long 
+unsigned long
 get_last_login_time(uid_t uid, const char *logname,
     char *buf, unsigned int bufsize);
 
@@ -267,15 +275,15 @@ get_last_login_time(uid_t uid, const char *logname,
  * Records that the user has logged in.  This does many things normally done
  * by login(1).
  */
-void 
-record_login(int pid, const char *ttyname, const char *user, uid_t uid,
+void
+record_login(pid_t pid, const char *ttyname, const char *user, uid_t uid,
     const char *host, struct sockaddr *addr);
 
 /*
  * Records that the user has logged out.  This does many thigs normally done
  * by login(1) or init.
  */
-void    record_logout(int pid, const char *ttyname);
+void    record_logout(pid_t pid, const char *ttyname);
 
 /*------------ definitions for sshconnect.c ----------*/
 
@@ -288,7 +296,7 @@ void    record_logout(int pid, const char *ttyname);
  * and zero on failure.  If the connection is successful, this calls
  * packet_set_connection for the connection.
  */
-int 
+int
 ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
     u_short port, int connection_attempts,
     int anonymous, uid_t original_real_uid,
@@ -303,7 +311,7 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
  * references from the packet module).
  */
 
-void 
+void
 ssh_login(int host_key_valid, RSA * host_key, const char *host,
     struct sockaddr * hostaddr, uid_t original_real_uid);
 
@@ -320,7 +328,7 @@ int     auth_rhosts(struct passwd * pw, const char *client_user);
  * Tries to authenticate the user using the .rhosts file and the host using
  * its host key.  Returns true if authentication succeeds.
  */
-int 
+int
 auth_rhosts_rsa(struct passwd * pw, const char *client_user, RSA* client_host_key);
 
 /*
@@ -383,36 +391,6 @@ int     auth_rsa_challenge_dialog(RSA *pk);
  */
 char   *read_passphrase(const char *prompt, int from_stdin);
 
-/*
- * Saves the authentication (private) key in a file, encrypting it with
- * passphrase.  The identification of the file (lowest 64 bits of n) will
- * precede the key to provide identification of the key without needing a
- * passphrase.
- */
-int 
-save_private_key(const char *filename, const char *passphrase,
-    RSA * private_key, const char *comment);
-
-/*
- * Loads the public part of the key file (public key and comment). Returns 0
- * if an error occurred; zero if the public key was successfully read.  The
- * comment of the key is returned in comment_return if it is non-NULL; the
- * caller must free the value with xfree.
- */
-int 
-load_public_key(const char *filename, RSA * pub,
-    char **comment_return);
-
-/*
- * Loads the private key from the file.  Returns 0 if an error is encountered
- * (file does not exist or is not readable, or passphrase is bad). This
- * initializes the private key.  The comment of the key is returned in
- * comment_return if it is non-NULL; the caller must free the value with
- * xfree.
- */
-int 
-load_private_key(const char *filename, const char *passphrase,
-    RSA * private_key, char **comment_return);
 
 /*------------ Definitions for logging. -----------------------*/
 
@@ -469,174 +447,7 @@ void    fatal_add_cleanup(void (*proc) (void *context), void *context);
 /* Removes a cleanup function to be called at fatal(). */
 void    fatal_remove_cleanup(void (*proc) (void *context), void *context);
 
-/*---------------- definitions for channels ------------------*/
-
-/* Sets specific protocol options. */
-void    channel_set_options(int hostname_in_open);
-
-/*
- * Allocate a new channel object and set its type and socket.  Remote_name
- * must have been allocated with xmalloc; this will free it when the channel
- * is freed.
- */
-int     channel_allocate(int type, int sock, char *remote_name);
-
-/* Free the channel and close its socket. */
-void    channel_free(int channel);
-
-/* Add any bits relevant to channels in select bitmasks. */
-void    channel_prepare_select(fd_set * readset, fd_set * writeset);
-
-/*
- * After select, perform any appropriate operations for channels which have
- * events pending.
- */
-void    channel_after_select(fd_set * readset, fd_set * writeset);
-
-/* If there is data to send to the connection, send some of it now. */
-void    channel_output_poll(void);
-
-/*
- * This is called when a packet of type CHANNEL_DATA has just been received.
- * The message type has already been consumed, but channel number and data is
- * still there.
- */
-void    channel_input_data(int payload_len);
-
-/* Returns true if no channel has too much buffered data. */
-int     channel_not_very_much_buffered_data(void);
-
-/* This is called after receiving CHANNEL_CLOSE. */
-void    channel_input_close(void);
-
-/* This is called after receiving CHANNEL_CLOSE_CONFIRMATION. */
-void    channel_input_close_confirmation(void);
-
-/* This is called after receiving CHANNEL_OPEN_CONFIRMATION. */
-void    channel_input_open_confirmation(void);
-
-/* This is called after receiving CHANNEL_OPEN_FAILURE from the other side. */
-void    channel_input_open_failure(void);
-
-/* This closes any sockets that are listening for connections; this removes
-   any unix domain sockets. */
-void    channel_stop_listening(void);
-
-/*
- * Closes the sockets of all channels.  This is used to close extra file
- * descriptors after a fork.
- */
-void    channel_close_all(void);
-
-/* Returns the maximum file descriptor number used by the channels. */
-int     channel_max_fd(void);
-
-/* Returns true if there is still an open channel over the connection. */
-int     channel_still_open(void);
-
-/*
- * Returns a string containing a list of all open channels.  The list is
- * suitable for displaying to the user.  It uses crlf instead of newlines.
- * The caller should free the string with xfree.
- */
-char   *channel_open_message(void);
-
-/*
- * Initiate forwarding of connections to local port "port" through the secure
- * channel to host:port from remote side.  This never returns if there was an
- * error.
- */
-void 
-channel_request_local_forwarding(u_short port, const char *host,
-    u_short remote_port, int gateway_ports);
-
-/*
- * Initiate forwarding of connections to port "port" on remote host through
- * the secure channel to host:port from local side.  This never returns if
- * there was an error.  This registers that open requests for that port are
- * permitted.
- */
-void 
-channel_request_remote_forwarding(u_short port, const char *host,
-    u_short remote_port);
-
-/*
- * Permits opening to any host/port in SSH_MSG_PORT_OPEN.  This is usually
- * called by the server, because the user could connect to any port anyway,
- * and the server has no way to know but to trust the client anyway.
- */
-void    channel_permit_all_opens(void);
-
-/*
- * This is called after receiving CHANNEL_FORWARDING_REQUEST.  This initates
- * listening for the port, and sends back a success reply (or disconnect
- * message if there was an error).  This never returns if there was an error.
- */
-void    channel_input_port_forward_request(int is_root);
-
-/*
- * This is called after receiving PORT_OPEN message.  This attempts to
- * connect to the given host:port, and sends back CHANNEL_OPEN_CONFIRMATION
- * or CHANNEL_OPEN_FAILURE.
- */
-void    channel_input_port_open(int payload_len);
-
-/*
- * Creates a port for X11 connections, and starts listening for it. Returns
- * the display name, or NULL if an error was encountered.
- */
-char   *x11_create_display(int screen);
-
-/*
- * Creates an internet domain socket for listening for X11 connections.
- * Returns a suitable value for the DISPLAY variable, or NULL if an error
- * occurs.
- */
-char   *x11_create_display_inet(int screen, int x11_display_offset);
-
-/*
- * This is called when SSH_SMSG_X11_OPEN is received.  The packet contains
- * the remote channel number.  We should do whatever we want, and respond
- * with either SSH_MSG_OPEN_CONFIRMATION or SSH_MSG_OPEN_FAILURE.
- */
-void    x11_input_open(int payload_len);
-
-/*
- * Requests forwarding of X11 connections.  This should be called on the
- * client only.
- */
-void    x11_request_forwarding(void);
-
-/*
- * Requests forwarding for X11 connections, with authentication spoofing.
- * This should be called in the client only.
- */
-void    x11_request_forwarding_with_spoofing(const char *proto, const char *data);
-
-/* Sends a message to the server to request authentication fd forwarding. */
-void    auth_request_forwarding(void);
-
-/*
- * Returns the name of the forwarded authentication socket.  Returns NULL if
- * there is no forwarded authentication socket.  The returned value points to
- * a static buffer.
- */
-char   *auth_get_socket_name(void);
-
-/*
- * This if called to process SSH_CMSG_AGENT_REQUEST_FORWARDING on the server.
- * This starts forwarding authentication requests.
- */
-void    auth_input_request_forwarding(struct passwd * pw);
-
-/* This is called to process an SSH_SMSG_AGENT_OPEN message. */
-void    auth_input_open_request(void);
-
-/*
- * Returns true if the given string matches the pattern (which may contain ?
- * and * as wildcards), and zero if it does not match.
- */
-int     match_pattern(const char *s, const char *pattern);
+/* ---- misc */
 
 /*
  * Expands tildes in the file name.  Returns data allocated by xmalloc.
@@ -651,7 +462,8 @@ char   *tilde_expand_filename(const char *filename, uid_t my_uid);
  * (of the child program), and reads from stdout and stderr (of the child
  * program).
  */
-void    server_loop(int pid, int fdin, int fdout, int fderr);
+void    server_loop(pid_t pid, int fdin, int fdout, int fderr);
+void    server_loop2(void);
 
 /* Client side main loop for the interactive session. */
 int     client_loop(int have_pty, int escape_char);
@@ -695,14 +507,14 @@ int	auth_krb4_password(struct passwd * pw, const char *password);
 int     auth_krb4_tgt(struct passwd * pw, const char *string);
 int     auth_afs_token(struct passwd * pw, const char *token_string);
 
-int     creds_to_radix(CREDENTIALS * creds, unsigned char *buf);
+int     creds_to_radix(CREDENTIALS * creds, unsigned char *buf, size_t buflen);
 int     radix_to_creds(const char *buf, CREDENTIALS * creds);
 #endif				/* AFS */
 
 #endif				/* KRB4 */
 
 #ifdef SKEY
-#include <skey.h>
+#include <opie.h>
 char   *skey_fake_keyinfo(char *username);
 int	auth_skey_password(struct passwd * pw, const char *password);
 #endif				/* SKEY */

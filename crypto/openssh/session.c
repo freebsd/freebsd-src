@@ -5,6 +5,8 @@
 /*
  * SSH2 support by Markus Friedl.
  * Copyright (c) 2000 Markus Friedl. All rights reserved.
+ *
+ * $FreeBSD$
  */
 
 #include "includes.h"
@@ -26,6 +28,15 @@ RCSID("$OpenBSD: session.c,v 1.12 2000/05/03 18:03:07 markus Exp $");
 #include "bufaux.h"
 #include "ssh2.h"
 #include "auth.h"
+
+#ifdef __FreeBSD__
+#define	LOGIN_CAP
+#define _PATH_CHPASS "/usr/bin/passwd"
+#endif /* __FreeBSD__ */
+
+#ifdef LOGIN_CAP
+#include <login_cap.h>
+#endif /* LOGIN_CAP */
 
 /* types */
 
@@ -504,6 +515,15 @@ do_exec_pty(Session *s, const char *command, struct passwd * pw)
 	struct sockaddr_storage from;
 	struct stat st;
 	time_t last_login_time;
+#ifdef LOGIN_CAP
+	login_cap_t *lc;
+	char *fname;
+#endif /* LOGIN_CAP */
+#ifdef __FreeBSD__
+#define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
+	struct timeval tv;
+	time_t warntime = DEFAULT_WARN;
+#endif /* __FreeBSD__ */
 
 	if (s == NULL)
 		fatal("do_exec_pty: no session");
@@ -574,6 +594,66 @@ do_exec_pty(Session *s, const char *command, struct passwd * pw)
 		snprintf(line, sizeof line, "%.200s/.hushlogin", pw->pw_dir);
 		quiet_login = stat(line, &st) >= 0;
 
+#ifdef LOGIN_CAP
+		lc = login_getpwclass(pw);
+		if (lc == NULL)
+			lc = login_getclassbyname(NULL, pw);
+		quiet_login = login_getcapbool(lc, "hushlogin", quiet_login);
+#endif /* LOGIN_CAP */
+
+#ifdef __FreeBSD__
+		if (pw->pw_change || pw->pw_expire)
+			(void)gettimeofday(&tv, NULL);
+#ifdef LOGIN_CAP
+		warntime = login_getcaptime(lc, "warnpassword",
+					    DEFAULT_WARN, DEFAULT_WARN);
+#endif /* LOGIN_CAP */
+		/*
+		 * If the password change time is set and has passed, give the
+		 * user a password expiry notice and chance to change it.
+		 */
+		if (pw->pw_change != 0) {
+			if (tv.tv_sec >= pw->pw_change) {
+				(void)printf(
+				    "Sorry -- your password has expired.\n");
+				log("%s Password expired - forcing change",
+				    pw->pw_name);
+				command = _PATH_CHPASS;
+			} else if (pw->pw_change - tv.tv_sec < warntime &&
+				   !quiet_login)
+				(void)printf(
+				    "Warning: your password expires on %s",
+				     ctime(&pw->pw_change));
+		}
+#ifdef LOGIN_CAP
+		warntime = login_getcaptime(lc, "warnexpire",
+					    DEFAULT_WARN, DEFAULT_WARN);
+#endif /* LOGIN_CAP */
+		if (pw->pw_expire) {
+			if (tv.tv_sec >= pw->pw_expire) {
+				(void)printf(
+				    "Sorry -- your account has expired.\n");
+				log(
+		   "LOGIN %.200s REFUSED (EXPIRED) FROM %.200s ON TTY %.200s",
+					pw->pw_name, hostname, ttyname);
+				exit(254);
+			} else if (pw->pw_expire - tv.tv_sec < warntime &&
+				   !quiet_login)
+				(void)printf(
+				    "Warning: your account expires on %s",
+				     ctime(&pw->pw_expire));
+		}
+#endif /* __FreeBSD__ */
+#ifdef LOGIN_CAP
+		if (!auth_ttyok(lc, ttyname)) {
+			(void)printf("Permission denied.\n");
+			log(
+		       "LOGIN %.200s REFUSED (TTY) FROM %.200s ON TTY %.200s",
+			    pw->pw_name, hostname, ttyname);
+			exit(254);
+		}
+#endif /* LOGIN_CAP */
+
 		/*
 		 * If the user has logged in before, display the time of last
 		 * login. However, don't display anything extra if a command
@@ -596,6 +676,22 @@ do_exec_pty(Session *s, const char *command, struct passwd * pw)
 			else
 				printf("Last login: %s from %s\r\n", time_string, buf);
 		}
+
+#ifdef LOGIN_CAP
+		if (command == NULL && !quiet_login && !options.use_login) {
+			fname = login_getcapstr(lc, "copyright", NULL, NULL);
+			if (fname != NULL && (f = fopen(fname, "r")) != NULL) {
+				while (fgets(line, sizeof(line), f) != NULL)
+					fputs(line, stdout);
+				fclose(f);
+			} else
+				(void)printf("%s\n\t%s %s\n",
+		"Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994",
+		    "The Regents of the University of California. ",
+		    "All rights reserved.");
+		}
+#endif /* LOGIN_CAP */
+
 		/*
 		 * Print /etc/motd unless a command was specified or printing
 		 * it was disabled in server options or login(1) will be
@@ -604,14 +700,24 @@ do_exec_pty(Session *s, const char *command, struct passwd * pw)
 		 */
 		if (command == NULL && options.print_motd && !quiet_login &&
 		    !options.use_login) {
-			/* Print /etc/motd if it exists. */
+#ifdef LOGIN_CAP
+			fname = login_getcapstr(lc, "welcome", NULL, NULL);
+			if (fname == NULL || (f = fopen(fname, "r")) == NULL)
+				f = fopen("/etc/motd", "r");
+#else /* !LOGIN_CAP */
 			f = fopen("/etc/motd", "r");
+#endif /* LOGIN_CAP */
+			/* Print /etc/motd if it exists. */
 			if (f) {
 				while (fgets(line, sizeof(line), f))
 					fputs(line, stdout);
 				fclose(f);
 			}
 		}
+#ifdef LOGIN_CAP
+		login_close(lc);
+#endif /* LOGIN_CAP */
+
 		/* Do common processing for the child, such as execing the command. */
 		do_child(command, pw, s->term, s->display, s->auth_proto, s->auth_data, s->tty);
 		/* NOTREACHED */
@@ -735,15 +841,25 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	 const char *display, const char *auth_proto,
 	 const char *auth_data, const char *ttyname)
 {
-	const char *shell, *cp = NULL;
+	char *shell;
+	const char *cp = NULL;
 	char buf[256];
 	FILE *f;
 	unsigned int envsize, i;
-	char **env;
+	char **env = NULL;
 	extern char **environ;
 	struct stat st;
 	char *argv[10];
 
+#ifdef LOGIN_CAP
+	login_cap_t *lc;
+
+	lc = login_getpwclass(pw);
+	if (lc == NULL)
+		lc = login_getclassbyname(NULL, pw);
+	if (pw->pw_uid != 0)
+		auth_checknologin(lc);
+#else /* !LOGIN_CAP */
 	f = fopen("/etc/nologin", "r");
 	if (f) {
 		/* /etc/nologin exists.  Print its contents and exit. */
@@ -753,6 +869,11 @@ do_child(const char *command, struct passwd * pw, const char *term,
 		if (pw->pw_uid != 0)
 			exit(254);
 	}
+#endif /* LOGIN_CAP */
+
+#ifdef LOGIN_CAP
+	if (options.use_login)
+#endif /* LOGIN_CAP */
 	/* Set login name in the kernel. */
 	if (setlogin(pw->pw_name) < 0)
 		error("setlogin failed: %s", strerror(errno));
@@ -761,6 +882,42 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	/* Login(1) does this as well, and it needs uid 0 for the "-h"
 	   switch, so we let login(1) to this for us. */
 	if (!options.use_login) {
+#ifdef LOGIN_CAP
+		char **tmpenv;
+
+		/* Initialize temp environment */
+		envsize = 64;
+		env = xmalloc(envsize * sizeof(char *));
+		env[0] = NULL;
+
+		child_set_env(&env, &envsize, "PATH",
+			      (pw->pw_uid == 0) ?
+			      _PATH_STDPATH : _PATH_DEFPATH);
+
+		snprintf(buf, sizeof buf, "%.200s/%.50s",
+			 _PATH_MAILDIR, pw->pw_name);
+		child_set_env(&env, &envsize, "MAIL", buf);
+
+		if (getenv("TZ"))
+			child_set_env(&env, &envsize, "TZ", getenv("TZ"));
+
+		/* Save parent environment */
+		tmpenv = environ;
+		environ = env;
+
+		if (setusercontext(lc, pw, pw->pw_uid, LOGIN_SETALL) < 0)
+			fatal("setusercontext failed: %s", strerror(errno));
+
+		/* Restore parent environment */
+		env = environ;
+		environ = tmpenv;
+
+		for (envsize = 0; env[envsize] != NULL; ++envsize)
+			;
+		envsize = (envsize < 100) ? 100 : envsize + 16;
+		env = xrealloc(env, envsize * sizeof(char *));
+
+#else /* !LOGIN_CAP */
 		if (getuid() == 0 || geteuid() == 0) {
 			if (setgid(pw->pw_gid) < 0) {
 				perror("setgid");
@@ -778,12 +935,16 @@ do_child(const char *command, struct passwd * pw, const char *term,
 		}
 		if (getuid() != pw->pw_uid || geteuid() != pw->pw_uid)
 			fatal("Failed to set uids to %d.", (int) pw->pw_uid);
+#endif /* LOGIN_CAP */
 	}
 	/*
 	 * Get the shell from the password data.  An empty shell field is
 	 * legal, and means /bin/sh.
 	 */
 	shell = (pw->pw_shell[0] == '\0') ? _PATH_BSHELL : pw->pw_shell;
+#ifdef LOGIN_CAP
+	shell = login_getcapstr(lc, "shell", shell, shell);
+#endif /* LOGIN_CAP */
 
 #ifdef AFS
 	/* Try to get AFS tokens for the local cell. */
@@ -798,24 +959,31 @@ do_child(const char *command, struct passwd * pw, const char *term,
 #endif /* AFS */
 
 	/* Initialize the environment. */
-	envsize = 100;
-	env = xmalloc(envsize * sizeof(char *));
-	env[0] = NULL;
+	if (env == NULL) {
+		envsize = 100;
+		env = xmalloc(envsize * sizeof(char *));
+		env[0] = NULL;
+	}
 
 	if (!options.use_login) {
 		/* Set basic environment. */
 		child_set_env(&env, &envsize, "USER", pw->pw_name);
 		child_set_env(&env, &envsize, "LOGNAME", pw->pw_name);
 		child_set_env(&env, &envsize, "HOME", pw->pw_dir);
+#ifndef LOGIN_CAP
 		child_set_env(&env, &envsize, "PATH", _PATH_STDPATH);
 
 		snprintf(buf, sizeof buf, "%.200s/%.50s",
 			 _PATH_MAILDIR, pw->pw_name);
 		child_set_env(&env, &envsize, "MAIL", buf);
+#endif /* !LOGIN_CAP */
 
 		/* Normal systems set SHELL by default. */
 		child_set_env(&env, &envsize, "SHELL", shell);
 	}
+#ifdef LOGIN_CAP
+	if (options.use_login)
+#endif /* LOGIN_CAP */
 	if (getenv("TZ"))
 		child_set_env(&env, &envsize, "TZ", getenv("TZ"));
 
@@ -853,6 +1021,31 @@ do_child(const char *command, struct passwd * pw, const char *term,
 			child_set_env(&env, &envsize, "KRBTKFILE", ticket);
 	}
 #endif /* KRB4 */
+#ifdef KRB5
+{
+	  extern krb5_ccache mem_ccache;
+
+	   if (mem_ccache) {
+	     krb5_error_code problem;
+	      krb5_ccache ccache;
+#ifdef AFS
+	      if (k_hasafs())
+		krb5_afslog(ssh_context, mem_ccache, NULL, NULL);
+#endif /* AFS */
+
+	      problem = krb5_cc_default(ssh_context, &ccache);
+	      if (problem) {}
+	      else {
+		problem = krb5_cc_copy_cache(ssh_context, mem_ccache, ccache);
+		 if (problem) {}
+	      }
+
+	      krb5_cc_close(ssh_context, ccache);
+	   }
+
+	   krb5_cleanup_proc(NULL);
+	}
+#endif /* KRB5 */
 
 	if (xauthfile)
 		child_set_env(&env, &envsize, "XAUTHORITY", xauthfile);
@@ -903,13 +1096,50 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	 * initgroups, because at least on Solaris 2.3 it leaves file
 	 * descriptors open.
 	 */
-	for (i = 3; i < 64; i++)
+	for (i = 3; i < getdtablesize(); i++)
 		close(i);
 
 	/* Change current directory to the user\'s home directory. */
-	if (chdir(pw->pw_dir) < 0)
+	if (
+#ifdef __FreeBSD__
+		!*pw->pw_dir ||
+#endif /* __FreeBSD__ */
+		chdir(pw->pw_dir) < 0
+	   ) {
+#ifdef __FreeBSD__
+		int quiet_login = 0;
+#endif /* __FreeBSD__ */
+#ifdef LOGIN_CAP
+		if (login_getcapbool(lc, "requirehome", 0)) {
+			(void)printf("Home directory not available\n");
+			log("LOGIN %.200s REFUSED (HOMEDIR) ON TTY %.200s",
+				pw->pw_name, ttyname);
+			exit(254);
+		}
+#endif /* LOGIN_CAP */
+#ifdef __FreeBSD__
+		if (chdir("/") < 0) {
+			(void)printf("Cannot find root directory\n");
+			log("LOGIN %.200s REFUSED (ROOTDIR) ON TTY %.200s",
+				pw->pw_name, ttyname);
+			exit(254);
+		}
+#ifdef LOGIN_CAP
+		quiet_login = login_getcapbool(lc, "hushlogin", 0);
+#endif /* LOGIN_CAP */
+		if (!quiet_login || *pw->pw_dir)
+			(void)printf(
+		       "No home directory.\nLogging in with home = \"/\".\n");
+
+#else /* !__FreeBSD__ */
+
 		fprintf(stderr, "Could not chdir to home directory %s: %s\n",
 			pw->pw_dir, strerror(errno));
+#endif /* __FreeBSD__ */
+	}
+#ifdef LOGIN_CAP
+	login_close(lc);
+#endif /* LOGIN_CAP */
 
 	/*
 	 * Must take new environment into use so that .ssh/rc, /etc/sshrc and
@@ -989,7 +1219,11 @@ do_child(const char *command, struct passwd * pw, const char *term,
 				mailbox = getenv("MAIL");
 				if (mailbox != NULL) {
 					if (stat(mailbox, &mailstat) != 0 || mailstat.st_size == 0)
+#ifdef __FreeBSD__
+						;
+#else /* !__FreeBSD__ */
 						printf("No mail.\n");
+#endif /* __FreeBSD__ */
 					else if (mailstat.st_mtime < mailstat.st_atime)
 						printf("You have mail.\n");
 					else

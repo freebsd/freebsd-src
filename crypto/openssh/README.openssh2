@@ -1,10 +1,11 @@
+$FreeBSD$
 $Id: README.openssh2,v 1.8 2000/05/07 18:30:03 markus Exp $
 
 howto:
 	1) generate server key:
-		$ ssh-keygen -d -f /etc/ssh_host_dsa_key -N ''
+		$ ssh-keygen -d -f /etc/ssh/ssh_host_dsa_key -N ''
 	2) enable ssh2:
-		server: add 'Protocol 2,1' to /etc/sshd_config
+		server: add 'Protocol 2,1' to /etc/ssh/sshd_config
 		client: ssh -o 'Protocol 2,1', or add to .ssh/config
 	3) DSA authentication similar to RSA (add keys to ~/.ssh/authorized_keys2)
 	   interop w/ ssh.com dsa-keys:
