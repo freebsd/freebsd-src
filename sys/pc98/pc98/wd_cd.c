@@ -105,6 +105,7 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
 	     struct devstat *device_stats)
 {
     struct acd *ptr;
+    dev_t pdev;
 
     if (!(ptr = malloc(sizeof(struct acd), M_TEMP, M_NOWAIT | M_ZERO)))
         return NULL;
@@ -126,14 +127,17 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
     }
     else
 	ptr->device_stats = device_stats;
-    make_dev(&acd_cdevsw, dkmakeminor(lun, 0, 0),
-        UID_ROOT, GID_OPERATOR, 0640, "rwcd%da", lun);
-    make_dev(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
-        UID_ROOT, GID_OPERATOR, 0640, "rwcd%dc", lun);
+
     make_dev(&acd_cdevsw, dkmakeminor(lun, 0, 0),
         UID_ROOT, GID_OPERATOR, 0640, "wcd%da", lun);
+    pdev = makedev(acd_cdevsw.d_maj, dkmakeminor(lun, 0, 0));
+    make_dev_alias(pdev, "rwcd%da", lun);
+
     make_dev(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
         UID_ROOT, GID_OPERATOR, 0640, "wcd%dc", lun);
+    pdev = makedev(acd_cdevsw.d_maj, dkmakeminor(lun, 0, RAW_PART));
+    make_dev_alias(pdev, "rwcd%dc", lun);
+
     return ptr;
 }
 
