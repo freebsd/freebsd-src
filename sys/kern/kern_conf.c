@@ -426,18 +426,12 @@ prep_cdevsw(struct cdevsw *devsw)
 
 	devsw->d_flags |= D_INIT;
 
-	if (devsw->d_maj == MAJOR_AUTO) {
-		find_major(devsw);
-	} else {
-		KASSERT(devsw->d_maj >= 0 && devsw->d_maj < 256,
-		    ("Invalid major (%d) in make_dev", devsw->d_maj));
-		if (reserved_majors[devsw->d_maj] != devsw->d_maj) {
-			printf("WARNING: driver \"%s\" used %s %d\n",
-			    devsw->d_name, "unreserved major device number",
-			    devsw->d_maj);
-			reserved_majors[devsw->d_maj] = devsw->d_maj;
-		}
+	if (devsw->d_maj != MAJOR_AUTO) {
+		printf("NOTICE: Ignoring d_maj hint from driver \"%s\", %s",
+		    devsw->d_name, "driver should be updated/fixed\n");
+		devsw->d_maj = MAJOR_AUTO;
 	}
+	find_major(devsw);
 	dev_unlock();
 }
 
