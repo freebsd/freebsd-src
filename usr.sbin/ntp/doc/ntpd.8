@@ -210,7 +210,7 @@ program operates by exchanging messages with
 one or more configured servers at designated poll intervals.
 When
 started, whether for the first or subsequent times, the program
-requires several exahanges from the majority of these servers so
+requires several exchanges from the majority of these servers so
 the signal processing and mitigation algorithms can accumulate and
 groom the data and set the clock.
 In order to protect the network
@@ -255,7 +255,7 @@ clock has been set, an error greater than 1000s will cause
 .Nm
 to exit anyway.
 .Pp
-Under ordinariy conditions,
+Under ordinary conditions,
 .Nm
 adjusts the clock in
 small steps so that the timescale is effectively continuous and
@@ -465,7 +465,7 @@ There are a number of ways to tailor the operation in order enhance
 accuracy by reducing the interval or to reduce network overhead by
 increasing it.
 However, the user is advised to carefully consider
-the consequenses of changing the poll adjustment range from the
+the consequences of changing the poll adjustment range from the
 default minimum of 64 s to the default maximum of 1,024 s.
 The
 default minimum can be changed with the
@@ -473,20 +473,20 @@ default minimum can be changed with the
 .Cm minpoll
 command to a value not less than 16 s.
 This value is used for all
-configured associations, unless overriden by the
+configured associations, unless overridden by the
 .Cm minpoll
 option on the configuration command.
 Note that most device drivers
 will not operate properly if the poll interval is less than 64 s
 and that the broadcast server and manycast client associations will
-also use the default, unless overriden.
+also use the default, unless overridden.
 .Pp
 In some cases involving dial up or toll services, it may be
 useful to increase the minimum interval to a few tens of minutes
 and maximum interval to a day or so.
 Under normal operation
 conditions, once the clock discipline loop has stabilized the
-interval will be increased in steps from the minumum to the
+interval will be increased in steps from the minimum to the
 maximum.
 However, this assumes the intrinsic clock frequency error
 is small enough for the discipline loop correct it.
