@@ -73,7 +73,7 @@ _MANPAGES+= ${MAN${sect}}
 .endif
 .endfor
 
-# XXX MANDEPEND is only used for groff, man/man, man/manpath, at and atrun.
+# XXX MANDEPEND is only used for man/man, man/manpath, at and atrun.
 # It should be named more generally.
 all-man: ${MANDEPEND}
 
