@@ -54,12 +54,12 @@
 
 /*** Defines ***/
 
-#if defined(__i386__) || defined(__alpha__) || defined(__ia64__) || defined(__amd64__)
+#if defined(__i386__) || defined(__alpha__) || defined(__amd64__)
 #define	WITH_SYSCONS
 #define	WITH_MICE
 #endif
 
-#if defined(__i386__) || defined(__ia64__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__)
 #define	WITH_SLICES
 #endif
 
