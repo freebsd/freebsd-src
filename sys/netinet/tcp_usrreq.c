@@ -116,7 +116,6 @@ static struct tcpcb *
 static int
 tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 {
-	int s = splnet();
 	int error;
 	struct inpcb *inp;
 	struct tcpcb *tp = 0;
@@ -142,7 +141,6 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 out:
 	TCPDEBUG2(PRU_ATTACH);
 	INP_INFO_WUNLOCK(&tcbinfo);
-	splx(s);
 	return error;
 }
 
@@ -156,7 +154,6 @@ out:
 static int
 tcp_usr_detach(struct socket *so)
 {
-	int s = splnet();
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -166,7 +163,6 @@ tcp_usr_detach(struct socket *so)
 	inp = sotoinpcb(so);
 	if (inp == 0) {
 		INP_INFO_WUNLOCK(&tcbinfo);
-		splx(s);
 		return EINVAL;	/* XXX */
 	}
 	INP_LOCK(inp);
@@ -178,7 +174,6 @@ tcp_usr_detach(struct socket *so)
 	if (tp)
 		INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
-	splx(s);
 	return error;
 }
 
@@ -199,7 +194,6 @@ tcp_usr_detach(struct socket *so)
 				INP_INFO_RUNLOCK(&tcbinfo);	\
 			else if (inirw == INI_WRITE)		\
 				INP_INFO_WUNLOCK(&tcbinfo);	\
-			splx(s);				\
 			return EINVAL;				\
 		}						\
 		INP_LOCK(inp);					\
@@ -216,7 +210,6 @@ out:	TCPDEBUG2(req);						\
 			INP_UNLOCK(inp);			\
 		if (inirw == INI_WRITE)				\
 			INP_INFO_WUNLOCK(&tcbinfo);		\
-		splx(s);					\
 		return error;					\
 		goto out;					\
 } while(0)
@@ -227,7 +220,6 @@ out:	TCPDEBUG2(req);						\
 static int
 tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	int s = splnet();
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -256,7 +248,6 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	int s = splnet();
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -304,7 +295,6 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 tcp_usr_listen(struct socket *so, struct thread *td)
 {
-	int s = splnet();
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -322,7 +312,6 @@ tcp_usr_listen(struct socket *so, struct thread *td)
 static int
 tcp6_usr_listen(struct socket *so, struct thread *td)
 {
-	int s = splnet();
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -351,7 +340,6 @@ tcp6_usr_listen(struct socket *so, struct thread *td)
 static int
 tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	int s = splnet();
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -381,7 +369,6 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	int s = splnet();
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -439,7 +426,6 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 tcp_usr_disconnect(struct socket *so)
 {
-	int s = splnet();
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -458,7 +444,6 @@ tcp_usr_disconnect(struct socket *so)
 static int
 tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 {
-	int s;
 	int error = 0;
 	struct inpcb *inp = NULL;
 	struct tcpcb *tp = NULL;
@@ -471,12 +456,10 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 		goto out;
 	}
 
-	s = splnet();
 	INP_INFO_RLOCK(&tcbinfo);
 	inp = sotoinpcb(so);
 	if (!inp) {
 		INP_INFO_RUNLOCK(&tcbinfo);
-		splx(s);
 		return (EINVAL);
 	}
 	INP_LOCK(inp);
@@ -495,7 +478,6 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 out:	TCPDEBUG2(PRU_ACCEPT);
 	if (tp)
 		INP_UNLOCK(inp);
-	splx(s);
 	if (error == 0)
 		*nam = in_sockaddr(port, &addr);
 	return error;
@@ -505,7 +487,6 @@ out:	TCPDEBUG2(PRU_ACCEPT);
 static int
 tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 {
-	int s;
 	struct inpcb *inp = NULL;
 	int error = 0;
 	struct tcpcb *tp = NULL;
@@ -520,12 +501,10 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 		goto out;
 	}
 
-	s = splnet();
 	INP_INFO_RLOCK(&tcbinfo);
 	inp = sotoinpcb(so);
 	if (inp == 0) {
 		INP_INFO_RUNLOCK(&tcbinfo);
-		splx(s);
 		return (EINVAL);
 	}
 	INP_LOCK(inp);
@@ -549,7 +528,6 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 out:	TCPDEBUG2(PRU_ACCEPT);
 	if (tp)
 		INP_UNLOCK(inp);
-	splx(s);
 	if (error == 0) {
 		if (v4)
 			*nam = in6_v4mapsin6_sockaddr(port, &addr);
@@ -587,7 +565,6 @@ tcp_peeraddr(struct socket *so, struct sockaddr **nam)
 static int
 tcp_usr_shutdown(struct socket *so)
 {
-	int s = splnet();
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -607,7 +584,6 @@ tcp_usr_shutdown(struct socket *so)
 static int
 tcp_usr_rcvd(struct socket *so, int flags)
 {
-	int s = splnet();
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -629,7 +605,6 @@ static int
 tcp_usr_send(struct socket *so, int flags, struct mbuf *m, 
 	     struct sockaddr *nam, struct mbuf *control, struct thread *td)
 {
-	int s = splnet();
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -763,7 +738,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 static int
 tcp_usr_abort(struct socket *so)
 {
-	int s = splnet();
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -780,7 +754,6 @@ tcp_usr_abort(struct socket *so)
 static int
 tcp_usr_rcvoob(struct socket *so, struct mbuf *m, int flags)
 {
-	int s = splnet();
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -1021,17 +994,15 @@ tcp_ctloutput(so, sopt)
 	struct socket *so;
 	struct sockopt *sopt;
 {
-	int	error, opt, optval, s;
+	int	error, opt, optval;
 	struct	inpcb *inp;
 	struct	tcpcb *tp;
 
 	error = 0;
-	s = splnet();		/* XXX */
 	INP_INFO_RLOCK(&tcbinfo);
 	inp = sotoinpcb(so);
 	if (inp == NULL) {
 		INP_INFO_RUNLOCK(&tcbinfo);
-		splx(s);
 		return (ECONNRESET);
 	}
 	INP_LOCK(inp);
@@ -1044,7 +1015,6 @@ tcp_ctloutput(so, sopt)
 		else
 #endif /* INET6 */
 		error = ip_ctloutput(so, sopt);
-		splx(s);
 		return (error);
 	}
 	tp = intotcpcb(inp);
@@ -1151,7 +1121,6 @@ tcp_ctloutput(so, sopt)
 		break;
 	}
 	INP_UNLOCK(inp);
-	splx(s);
 	return (error);
 }
 
