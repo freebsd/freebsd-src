@@ -57,6 +57,8 @@ static const char sccsid[] = "@(#)process.c	8.6 (Berkeley) 4/20/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #include "defs.h"
 #include "extern.h"
@@ -70,7 +72,7 @@ static SPACE HS, PS, SS;
 
 static __inline int	 applies(struct s_command *);
 static void		 flush_appends(void);
-static void		 lputs(char *);
+static void		 lputs(char *, size_t);
 static __inline int	 regexec_e(regex_t *, const char *, int, int, size_t);
 static void		 regsub(SPACE *, char *, char *);
 static int		 substitute(struct s_command *);
@@ -165,7 +167,7 @@ redirect:
 				(void)fprintf(outfile, "%s", cp->t);
 				break;
 			case 'l':
-				lputs(ps);
+				lputs(ps, psl);
 				break;
 			case 'n':
 				if (!nflag && !pd)
@@ -462,13 +464,16 @@ flush_appends(void)
 }
 
 static void
-lputs(char *s)
+lputs(char *s, size_t len)
 {
-	int count;
-	const char *escapes;
+	static const char escapes[] = "\\\a\b\f\r\t\v";
+	int c, col, width;
 	char *p;
 	struct winsize win;
 	static int termwidth = -1;
+	size_t clen, i;
+	wchar_t wc;
+	mbstate_t mbs;
 
 	if (outfile != stdout)
 		termwidth = 60;
@@ -482,30 +487,54 @@ lputs(char *s)
 			termwidth = 60;
 	}
 
-	for (count = 0; *s; ++s) {
-		if (count + 5 >= termwidth) {
-			(void)fprintf(outfile, "\\\n");
-			count = 0;
+	memset(&mbs, 0, sizeof(mbs));
+	col = 0;
+	while (len != 0) {
+		clen = mbrtowc(&wc, s, len, &mbs);
+		if (clen == 0)
+			clen = 1;
+		if (clen == (size_t)-1 || clen == (size_t)-2) {
+			wc = (unsigned char)*s;
+			clen = 1;
+			memset(&mbs, 0, sizeof(mbs));
 		}
-		if (isprint((unsigned char)*s) && *s != '\\') {
-			(void)fputc(*s, outfile);
-			count++;
-		} else if (*s == '\n') {
-			(void)fputc('$', outfile);
-			(void)fputc('\n', outfile);
-			count = 0;
-		} else {
-			escapes = "\\\a\b\f\r\t\v";
-			(void)fputc('\\', outfile);
-			if ((p = strchr(escapes, *s))) {
-				(void)fputc("\\abfrtv"[p - escapes], outfile);
-				count += 2;
-			} else {
-				(void)fprintf(outfile, "%03o", *(u_char *)s);
-				count += 4;
+		if (wc == '\n') {
+			if (col + 1 >= termwidth)
+				fprintf(outfile, "\\\n");
+			fputc('$', outfile);
+			fputc('\n', outfile);
+			col = 0;
+		} else if (iswprint(wc)) {
+			width = wcwidth(wc);
+			if (col + width >= termwidth) {
+				fprintf(outfile, "\\\n");
+				col = 0;
 			}
+			fwrite(s, 1, clen, outfile);
+			col += width;
+		} else if (wc != L'\0' && (c = wctob(wc)) != EOF &&
+		    (p = strchr(escapes, c)) != NULL) {
+			if (col + 2 >= termwidth) {
+				fprintf(outfile, "\\\n");
+				col = 0;
+			}
+			fprintf(outfile, "\\%c", "\\abfrtv"[p - escapes]);
+			col += 2;
+		} else {
+			if (col + 4 * clen >= termwidth) {
+				fprintf(outfile, "\\\n");
+				col = 0;
+			}
+			for (i = 0; i < clen; i++)
+				fprintf(outfile, "\\%03o",
+				    (int)(unsigned char)s[i]);
+			col += 4 * clen;
 		}
+		s += clen;
+		len -= clen;
 	}
+	if (col + 1 >= termwidth)
+		fprintf(outfile, "\\\n");
 	(void)fputc('$', outfile);
 	(void)fputc('\n', outfile);
 	if (ferror(outfile))
