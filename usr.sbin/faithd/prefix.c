@@ -55,11 +55,7 @@ static void config_show __P((void));
 #endif
 
 struct config *config_list = NULL;
-#ifdef NI_WITHSCOPEID
-const int niflags = NI_NUMERICHOST | NI_WITHSCOPEID;
-#else
 const int niflags = NI_NUMERICHOST;
-#endif
 
 static int
 prefix_set(s, prefix, slash)

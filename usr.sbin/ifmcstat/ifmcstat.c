@@ -87,11 +87,7 @@ const char *inet6_n2a(p)
 	static char buf[NI_MAXHOST];
 	struct sockaddr_in6 sin6;
 	u_int32_t scopeid;
-#ifdef NI_WITHSCOPEID
-	const int niflags = NI_NUMERICHOST | NI_WITHSCOPEID;
-#else
 	const int niflags = NI_NUMERICHOST;
-#endif
 
 	memset(&sin6, 0, sizeof(sin6));
 	sin6.sin6_family = AF_INET6;
