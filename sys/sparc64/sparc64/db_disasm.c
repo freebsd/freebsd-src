@@ -38,17 +38,8 @@
 #include <ddb/db_sym.h>
 
 #include <machine/db_machdep.h>
+#include <machine/instr.h>
 
-#ifndef V9
-#define V9
-#endif
-
-/* Sign extend values */
-#ifdef	V9
-#define	SIGNEX(v,width)		((((long long)(v))<<(64-width))>>(64-width))
-#else
-#define	SIGNEX(v,width)		((((int)(v))<<(32-width))>>(32-width))
-#endif
 #define SIGN(v)			(((v)<0)?"-":"")
 
 /*
@@ -68,40 +59,12 @@
  * 0000 0000 0000 0000 0001 0000 0000 0000 X bit, format 3 only
  */
 
-#define OP(x)	(((x) & 0x3) << 30)
-#define OP2(x)	(((x) & 0x7) << 22)
-#define OP3(x)	(((x) & 0x3f) << 19)
-#define OPF(x)	(((x) & 0x1ff) << 5)
-#define F3I(x)	(((x) & 0x1) << 13)
-
-/* various other fields */
-
-#define A(x)		(((x) & 0x1) << 29)
-#define P(x)		(((x) & 0x1) << 19)
-#define X(x)		(((x) & 0x1) << 12)
-#define FCN(x)		(((x) & 0x1f) << 25)
-#define RCOND2(x)	(((x) & 0x7) << 25)
-#define RCOND34(x)	(((x) & 0x7) << 10)
-#define COND(x)		(((x) & 0xf) << 25)
-#define SW_TRAP(x)	((x) & 0x7f)
-#define SHCNT32(x)	((x) & 0x1f)
-#define SHCNT64(x)	((x) & 0x3f)
-#define IMM11(x)	((x) & 0x7ff)
-#define IMM22(x)	((x) & 0x3fffff)
-#define DISP19(x)	((x) & 0x7ffff)
-#define DISP22(x)	((x) & 0x3fffff)
-#define DISP30(x)	((x) & 0x3fffffffL)
-
-/* Register Operand Fields */
-#define RS1(x)		(((x) & 0x1f) << 14)
-#define RS2(x)		((x) & 0x1f)
-#define RD(x)		(((x) & 0x1f) << 25)
-
 /* FORMAT macros used in sparc_i table to decode each opcode */
-#define FORMAT1(a)	(OP(a))
-#define FORMAT2(a,b)	(OP(a) | OP2(b))
-#define FORMAT3(a,b,c)	(OP(a) | OP3(b) | F3I(c))
-#define FORMAT3F(a,b,c)	(OP(a) | OP3(b) | OPF(c))
+#define FORMAT1(a)	(EIF_OP(a))
+#define FORMAT2(a,b)	(EIF_OP(a) | EIF_F2_OP2(b))
+/* For formats 3 and 4 */
+#define FORMAT3(a,b,c)	(EIF_OP(a) | EIF_F3_OP3(b) | EIF_F3_I(c))
+#define FORMAT3F(a,b,c)	(EIF_OP(a) | EIF_F3_OP3(b) | EIF_F3_OPF(c))
 
 /* Helper macros to construct OP3 & OPF */
 #define OP3_X(x,y)	((((x) & 3) << 4) | ((y) & 0xf))
@@ -215,84 +178,85 @@ struct sparc_insn sparc_i[] = {
 	{(FORMAT2(0, 0x4)), "sethi", "Cd"},
 
 	/* Branch on Integer Co`ndition Codes "Bicc" */
-	{(FORMAT2(0, 2) | COND(8)), "ba", "a,m"},
-	{(FORMAT2(0, 2) | COND(0)), "bn", "a,m"},
-	{(FORMAT2(0, 2) | COND(9)), "bne", "a,m"},
-	{(FORMAT2(0, 2) | COND(1)), "be", "a,m"},
-	{(FORMAT2(0, 2) | COND(10)), "bg", "a,m"},
-	{(FORMAT2(0, 2) | COND(2)), "ble", "a,m"},
-	{(FORMAT2(0, 2) | COND(11)), "bge", "a,m"},
-	{(FORMAT2(0, 2) | COND(3)), "bl", "a,m"},
-	{(FORMAT2(0, 2) | COND(12)), "bgu", "a,m"},
-	{(FORMAT2(0, 2) | COND(4)), "bleu", "a,m"},
-	{(FORMAT2(0, 2) | COND(13)), "bcc", "a,m"},
-	{(FORMAT2(0, 2) | COND(5)), "bcs", "a,m"},
-	{(FORMAT2(0, 2) | COND(14)), "bpos", "a,m"},
-	{(FORMAT2(0, 2) | COND(6)), "bneg", "a,m"},
-	{(FORMAT2(0, 2) | COND(15)), "bvc", "a,m"},
-	{(FORMAT2(0, 2) | COND(7)), "bvs", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(8)), "ba", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(0)), "bn", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(9)), "bne", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(1)), "be", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(10)), "bg", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(2)), "ble", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(11)), "bge", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(3)), "bl", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(12)), "bgu", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(4)), "bleu", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(13)), "bcc", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(5)), "bcs", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(14)), "bpos", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(6)), "bneg", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(15)), "bvc", "a,m"},
+	{(FORMAT2(0, 2) | EIF_F2_COND(7)), "bvs", "a,m"},
 
 	/* Branch on Integer Condition Codes with Prediction "BPcc" */
-	{(FORMAT2(0, 1) | COND(8)), "ba", "ap,u"},
-	{(FORMAT2(0, 1) | COND(0)), "bn", "ap,u"},
-	{(FORMAT2(0, 1) | COND(9)), "bne", "ap,u"},
-	{(FORMAT2(0, 1) | COND(1)), "be", "ap,u"},
-	{(FORMAT2(0, 1) | COND(10)), "bg", "ap,u"},
-	{(FORMAT2(0, 1) | COND(2)), "ble", "ap,u"},
-	{(FORMAT2(0, 1) | COND(11)), "bge", "ap,u"},
-	{(FORMAT2(0, 1) | COND(3)), "bl", "ap,u"},
-	{(FORMAT2(0, 1) | COND(12)), "bgu", "ap,u"},
-	{(FORMAT2(0, 1) | COND(4)), "bleu", "ap,u"},
-	{(FORMAT2(0, 1) | COND(13)), "bcc", "ap,u"},
-	{(FORMAT2(0, 1) | COND(5)), "bcs", "ap,u"},
-	{(FORMAT2(0, 1) | COND(14)), "bpos", "ap,u"},
-	{(FORMAT2(0, 1) | COND(6)), "bneg", "ap,u"},
-	{(FORMAT2(0, 1) | COND(15)), "bvc", "ap,u"},
-	{(FORMAT2(0, 1) | COND(7)), "bvs", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(8)), "ba", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(0)), "bn", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(9)), "bne", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(1)), "be", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(10)), "bg", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(2)), "ble", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(11)), "bge", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(3)), "bl", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(12)), "bgu", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(4)), "bleu", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(13)), "bcc", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(5)), "bcs", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(14)), "bpos", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(6)), "bneg", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(15)), "bvc", "ap,u"},
+	{(FORMAT2(0, 1) | EIF_F2_COND(7)), "bvs", "ap,u"},
 
 	/* Branch on Integer Register with Prediction "BPr" */
-	{(FORMAT2(0, 3) | RCOND2(1)), "brz", "ap,1l"},
-	{(FORMAT2(0, 3) | A(1) | P(1) | RCOND2(2)), "brlex", "ap,1l"},
-	{(FORMAT2(0, 3) | RCOND2(3)), "brlz", "ap,1l"},
-	{(FORMAT2(0, 3) | RCOND2(5)), "brnz", "ap,1l"},
-	{(FORMAT2(0, 3) | RCOND2(6)), "brgz", "ap,1l"},
-	{(FORMAT2(0, 3) | RCOND2(7)), "brgez", "ap,1l"},
+	{(FORMAT2(0, 3) | EIF_F2_RCOND(1)), "brz", "ap,1l"},
+	{(FORMAT2(0, 3) | EIF_F2_A(1) | EIF_F2_P(1) |
+	    EIF_F2_RCOND(2)), "brlex", "ap,1l"},
+	{(FORMAT2(0, 3) | EIF_F2_RCOND(3)), "brlz", "ap,1l"},
+	{(FORMAT2(0, 3) | EIF_F2_RCOND(5)), "brnz", "ap,1l"},
+	{(FORMAT2(0, 3) | EIF_F2_RCOND(6)), "brgz", "ap,1l"},
+	{(FORMAT2(0, 3) | EIF_F2_RCOND(7)), "brgez", "ap,1l"},
 
 	/* Branch on Floating-Point Condition Codes with Prediction "FBPfcc" */
-	{(FORMAT2(0, 5) | COND(8)), "fba", "ap,m"},
-	{(FORMAT2(0, 5) | COND(0)), "fbn", "ap,m"},
-	{(FORMAT2(0, 5) | COND(7)), "fbu", "ap,m"},
-	{(FORMAT2(0, 5) | COND(6)), "fbg", "ap,m"},
-	{(FORMAT2(0, 5) | COND(5)), "fbug", "ap,m"},
-	{(FORMAT2(0, 5) | COND(4)), "fbl", "ap,m"},
-	{(FORMAT2(0, 5) | COND(3)), "fbul", "ap,m"},
-	{(FORMAT2(0, 5) | COND(2)), "fblg", "ap,m"},
-	{(FORMAT2(0, 5) | COND(1)), "fbne", "ap,m"},
-	{(FORMAT2(0, 5) | COND(9)), "fbe", "ap,m"},
-	{(FORMAT2(0, 5) | COND(10)), "fbue", "ap,m"},
-	{(FORMAT2(0, 5) | COND(11)), "fbge", "ap,m"},
-	{(FORMAT2(0, 5) | COND(12)), "fbuge", "ap,m"},
-	{(FORMAT2(0, 5) | COND(13)), "fble", "ap,m"},
-	{(FORMAT2(0, 5) | COND(14)), "fbule", "ap,m"},
-	{(FORMAT2(0, 5) | COND(15)), "fbo", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(8)), "fba", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(0)), "fbn", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(7)), "fbu", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(6)), "fbg", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(5)), "fbug", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(4)), "fbl", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(3)), "fbul", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(2)), "fblg", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(1)), "fbne", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(9)), "fbe", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(10)), "fbue", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(11)), "fbge", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(12)), "fbuge", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(13)), "fble", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(14)), "fbule", "ap,m"},
+	{(FORMAT2(0, 5) | EIF_F2_COND(15)), "fbo", "ap,m"},
 
 	/* Branch on Floating-Point Condition Codes "FBfcc" */
-	{(FORMAT2(0, 6) | COND(8)), "fba", "a,m"},
-	{(FORMAT2(0, 6) | COND(0)), "fbn", "a,m"},
-	{(FORMAT2(0, 6) | COND(7)), "fbu", "a,m"},
-	{(FORMAT2(0, 6) | COND(6)), "fbg", "a,m"},
-	{(FORMAT2(0, 6) | COND(5)), "fbug", "a,m"},
-	{(FORMAT2(0, 6) | COND(4)), "fbl", "a,m"},
-	{(FORMAT2(0, 6) | COND(3)), "fbul", "a,m"},
-	{(FORMAT2(0, 6) | COND(2)), "fblg", "a,m"},
-	{(FORMAT2(0, 6) | COND(1)), "fbne", "a,m"},
-	{(FORMAT2(0, 6) | COND(9)), "fbe", "a,m"},
-	{(FORMAT2(0, 6) | COND(10)), "fbue", "a,m"},
-	{(FORMAT2(0, 6) | COND(11)), "fbge", "a,m"},
-	{(FORMAT2(0, 6) | COND(12)), "fbuge", "a,m"},
-	{(FORMAT2(0, 6) | COND(13)), "fble", "a,m"},
-	{(FORMAT2(0, 6) | COND(14)), "fbule", "a,m"},
-	{(FORMAT2(0, 6) | COND(15)), "fbo", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(8)), "fba", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(0)), "fbn", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(7)), "fbu", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(6)), "fbg", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(5)), "fbug", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(4)), "fbl", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(3)), "fbul", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(2)), "fblg", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(1)), "fbne", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(9)), "fbe", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(10)), "fbue", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(11)), "fbge", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(12)), "fbuge", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(13)), "fble", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(14)), "fbule", "a,m"},
+	{(FORMAT2(0, 6) | EIF_F2_COND(15)), "fbo", "a,m"},
 
 
 
@@ -305,14 +269,9 @@ struct sparc_insn sparc_i[] = {
 	{FORMAT3(2, OP3_X(1,0), 1), "addcc", "1id"},
 	{FORMAT3(2, OP3_X(2,0), 0), "taddcc", "12d"},
 	{FORMAT3(2, OP3_X(2,0), 1), "taddcc", "1id"},
-#ifdef V9
-	{(FORMAT3(2, 0x30, 1) | RD(0xf)), "sir", "i"},
+	{(FORMAT3(2, 0x30, 1) | EIF_F3_RD(0xf)), "sir", "i"},
 	{FORMAT3(2, OP3_X(3,0), 0), "wr", "12H"},
 	{FORMAT3(2, OP3_X(3,0), 1), "wr", "1iH"},
-#else
-	{FORMAT3(2, OP3_X(3,0), 0), "wr", "12Y"}, /* wr 1, 2, %y  */
-	{FORMAT3(2, OP3_X(3,0), 1), "wr", "1iY"}, /* wr 1, i, %y */
-#endif
 
 	{FORMAT3(2, OP3_X(0,1), 0), "and", "12d"},
 	{FORMAT3(2, OP3_X(0,1), 1), "and", "1id"},
@@ -320,13 +279,8 @@ struct sparc_insn sparc_i[] = {
 	{FORMAT3(2, OP3_X(1,1), 1), "andcc", "1id"},
 	{FORMAT3(2, OP3_X(2,1), 0), "tsubcc", "12d"},
 	{FORMAT3(2, OP3_X(2,1), 1), "tsubcc", "1id"},
-#ifdef V9
 	{FORMAT3(2, OP3_X(3,1), 0), "saved", ""},
-	{FORMAT3(2, OP3_X(3,1), 0)|FCN(1), "restored", ""},
-#else
-	{FORMAT3(2, OP3_X(3,1), 0), "wr", "12P"}, /* wr 1, 2, %psr  */
-	{FORMAT3(2, OP3_X(3,1), 1), "wr", "1iP"}, /* wr 1, i, %psr */
-#endif
+	{FORMAT3(2, OP3_X(3,1), 0) | EIF_F3_FCN(1), "restored", ""},
 
 	{FORMAT3(2, OP3_X(0,2), 0), "or", "12d"},
 	{FORMAT3(2, OP3_X(0,2), 1), "or", "1id"},
@@ -334,13 +288,8 @@ struct sparc_insn sparc_i[] = {
 	{FORMAT3(2, OP3_X(1,2), 1), "orcc", "1id"},
 	{FORMAT3(2, OP3_X(2,2), 0), "taddcctv", "12d"},
 	{FORMAT3(2, OP3_X(2,2), 1), "taddcctv", "1id"},
-#ifdef V9
 	{FORMAT3(2, OP3_X(3,2), 0), "wrpr", "12G"},
 	{FORMAT3(2, OP3_X(3,2), 1), "wrpr", "1iG"},
-#else
-	{FORMAT3(2, OP3_X(3,2), 0), "wr", "12W"}, /* wr 1, 2, %wim */
-	{FORMAT3(2, OP3_X(3,2), 1), "wr", "1iW"}, /* wr 1, i, %wim */
-#endif
 
 	{FORMAT3(2, OP3_X(0,3), 0), "xor", "12d"},
 	{FORMAT3(2, OP3_X(0,3), 1), "xor", "1id"},
@@ -348,12 +297,7 @@ struct sparc_insn sparc_i[] = {
 	{FORMAT3(2, OP3_X(1,3), 1), "xorcc", "1id"},
 	{FORMAT3(2, OP3_X(2,3), 0), "tsubcctv", "12d"},
 	{FORMAT3(2, OP3_X(2,3), 1), "tsubcctv", "1id"},
-#ifdef V9
 	{FORMAT3(2, OP3_X(3,3), 0), "UNDEFINED", ""},
-#else
-	{FORMAT3(2, OP3_X(3,3), 0), "wr", "12T"}, /* wr 1, 2, %tbr */
-	{FORMAT3(2, OP3_X(3,3), 1), "wr", "1iT"}, /* wr 1, i, %tbr */
-#endif
 
 	{FORMAT3(2, OP3_X(0,4), 0), "sub", "12d"},
 	{FORMAT3(2, OP3_X(0,4), 1), "sub", "1id"},
@@ -369,8 +313,8 @@ struct sparc_insn sparc_i[] = {
 	{FORMAT3(2, OP3_X(1,5), 1), "andncc", "1id"},
 	{FORMAT3(2, OP3_X(2,5), 0), "sll", "12d"},
 	{FORMAT3(2, OP3_X(2,5), 1), "sll", "1Dd"},
-	{FORMAT3(2, OP3_X(2,5), 0)|X(1), "sllx", "12d"},
-	{FORMAT3(2, OP3_X(2,5), 1)|X(1), "sllx", "1Ed"},
+	{FORMAT3(2, OP3_X(2,5), 0) | EIF_F3_X(1), "sllx", "12d"},
+	{FORMAT3(2, OP3_X(2,5), 1) | EIF_F3_X(1), "sllx", "1Ed"},
 	{FORMAT3(2, OP3_X(3,5), 1), "FPop2", ""},	/* see below */
 
 	{FORMAT3(2, OP3_X(0,6), 0), "orn", "12d"},
@@ -379,8 +323,8 @@ struct sparc_insn sparc_i[] = {
 	{FORMAT3(2, OP3_X(1,6), 1), "orncc", "1id"},
 	{FORMAT3(2, OP3_X(2,6), 0), "srl", "12d"},
 	{FORMAT3(2, OP3_X(2,6), 1), "srl", "1Dd"},
-	{FORMAT3(2, OP3_X(2,6), 0)|X(1), "srlx", "12d"},
-	{FORMAT3(2, OP3_X(2,6), 1)|X(1), "srlx", "1Ed"},
+	{FORMAT3(2, OP3_X(2,6), 0) | EIF_F3_X(1), "srlx", "12d"},
+	{FORMAT3(2, OP3_X(2,6), 1) | EIF_F3_X(1), "srlx", "1Ed"},
 	{FORMAT3(2, OP3_X(3,6), 1), "impdep1", ""},
 
 	{FORMAT3(2, OP3_X(0,7), 0), "xorn", "12d"},
@@ -389,21 +333,17 @@ struct sparc_insn sparc_i[] = {
 	{FORMAT3(2, OP3_X(1,7), 1), "xorncc", "1id"},
 	{FORMAT3(2, OP3_X(2,7), 0), "sra", "12d"},
 	{FORMAT3(2, OP3_X(2,7), 1), "sra", "1Dd"},
-	{FORMAT3(2, OP3_X(2,7), 0)|X(1), "srax", "12d"},
-	{FORMAT3(2, OP3_X(2,7), 1)|X(1), "srax", "1Ed"},
+	{FORMAT3(2, OP3_X(2,7), 0) | EIF_F3_X(1), "srax", "12d"},
+	{FORMAT3(2, OP3_X(2,7), 1) | EIF_F3_X(1), "srax", "1Ed"},
 	{FORMAT3(2, OP3_X(3,7), 1), "impdep2", ""},
 
 	{FORMAT3(2, OP3_X(0,8), 0), "addc", "12d"},
 	{FORMAT3(2, OP3_X(0,8), 1), "addc", "1id"},
 	{FORMAT3(2, OP3_X(1,8), 0), "addccc", "12d"},
 	{FORMAT3(2, OP3_X(1,8), 1), "addccc", "1id"},
-#ifdef V9
-	{(FORMAT3(2, 0x28, 1) | RS1(15)), "membar", "9"},
-	{(FORMAT3(2, 0x28, 0) | RS1(15)), "stbar", ""},
+	{(FORMAT3(2, 0x28, 1) | EIF_F3_RS1(15)), "membar", "9"},
+	{(FORMAT3(2, 0x28, 0) | EIF_F3_RS1(15)), "stbar", ""},
 	{FORMAT3(2, OP3_X(2,8), 0), "rd", "Bd"},
-#else
-	{FORMAT3(2, OP3_X(2,8), 0), "rd", "Yd"},
-#endif
 
 	{FORMAT3(2, OP3_X(3,8), 0), "jmpl", "pd"},
 	{FORMAT3(2, OP3_X(3,8), 1), "jmpl", "qd"},
@@ -411,11 +351,7 @@ struct sparc_insn sparc_i[] = {
 	{FORMAT3(2, OP3_X(0,9), 0), "mulx", "12d"},
 	{FORMAT3(2, OP3_X(0,9), 1), "mulx", "1id"},
 	{FORMAT3(2, OP3_X(1,9), 0), "UNDEFINED", ""},
-#ifdef V9
 	{FORMAT3(2, OP3_X(2,9), 0), "UNDEFINED", ""},
-#else
-	{FORMAT3(2, OP3_X(2,9), 0), "rd", "Pd"},
-#endif
 	{FORMAT3(2, OP3_X(3,9), 0), "return", "p"},
 	{FORMAT3(2, OP3_X(3,9), 1), "return", "q"},
 
@@ -423,56 +359,48 @@ struct sparc_insn sparc_i[] = {
 	{FORMAT3(2, OP3_X(0,10), 1), "umul", "1id"},
 	{FORMAT3(2, OP3_X(1,10), 0), "umulcc", "12d"},
 	{FORMAT3(2, OP3_X(1,10), 1), "umulcc", "1id"},
-#ifdef V9
 	{FORMAT3(2, OP3_X(2,10), 0), "rdpr", "Ad"},
-#else
-	{FORMAT3(2, OP3_X(2,10), 0), "rd", "Wd"},
-#endif
 		/*
 		 * OP3 = (3,10): TCC: Trap on Integer Condition Codes
 		 */
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0x8)), "ta", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0x8)), "ta", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0x0)), "tn", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0x0)), "tn", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0x9)), "tne", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0x9)), "tne", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0x1)), "te", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0x1)), "te", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0xa)), "tg", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0xa)), "tg", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0x2)), "tle", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0x2)), "tle", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0xb)), "tge", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0xb)), "tge", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0x3)), "tl", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0x3)), "tl", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0xc)), "tgu", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0xc)), "tgu", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0x4)), "tleu", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0x4)), "tleu", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0xd)), "tcc", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0xd)), "tcc", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0x5)), "tcs", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0x5)), "tcs", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0xe)), "tpos", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0xe)), "tpos", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0x6)), "tneg", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0x6)), "tneg", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0xf)), "tvc", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0xf)), "tvc", "0F"},
-		{(FORMAT3(2, OP3_X(3,10), 0) | COND(0x7)), "tvs", "12F"},
-		{(FORMAT3(2, OP3_X(3,10), 1) | COND(0x7)), "tvs", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0x8)), "ta", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0x8)), "ta", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0x0)), "tn", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0x0)), "tn", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0x9)), "tne", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0x9)), "tne", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0x1)), "te", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0x1)), "te", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0xa)), "tg", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0xa)), "tg", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0x2)), "tle", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0x2)), "tle", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0xb)), "tge", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0xb)), "tge", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0x3)), "tl", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0x3)), "tl", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0xc)), "tgu", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0xc)), "tgu", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0x4)), "tleu", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0x4)), "tleu", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0xd)), "tcc", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0xd)), "tcc", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0x5)), "tcs", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0x5)), "tcs", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0xe)), "tpos", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0xe)), "tpos", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0x6)), "tneg", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0x6)), "tneg", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0xf)), "tvc", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0xf)), "tvc", "0F"},
+		{(FORMAT3(2, OP3_X(3,10), 0) | EIF_F4_TCOND(0x7)), "tvs", "12F"},
+		{(FORMAT3(2, OP3_X(3,10), 1) | EIF_F4_TCOND(0x7)), "tvs", "0F"},
 
 	{FORMAT3(2, OP3_X(0,11), 0), "smul", "12d"},
 	{FORMAT3(2, OP3_X(0,11), 1), "smul", "1id"},
 	{FORMAT3(2, OP3_X(1,11), 0), "smulcc", "12d"},
 	{FORMAT3(2, OP3_X(1,11), 1), "smulcc", "1id"},
-#ifdef V9
 	{FORMAT3(2, OP3_X(2,11), 0), "flushw", ""},
-#else
-	{FORMAT3(2, OP3_X(2,11), 0), "rd", "Td"},
-#endif
 	{FORMAT3(2, OP3_X(3,11), 0), "flush", "p"},
 	{FORMAT3(2, OP3_X(3,11), 1), "flush", "q"},
 
@@ -570,7 +498,7 @@ struct sparc_insn sparc_i[] = {
 	{FORMAT3(2, OP3_X(2,14), 1), "popc", "id"},
 
 	{FORMAT3(2, OP3_X(3,14), 0), "done", ""},
-	{FORMAT3(2, OP3_X(3,14)|FCN(1), 1), "retry", ""},
+	{FORMAT3(2, OP3_X(3,14) | EIF_F3_FCN(1), 1), "retry", ""},
 
 	{FORMAT3(2, OP3_X(0,15), 0), "sdiv", "12d"},
 	{FORMAT3(2, OP3_X(0,15), 1), "sdiv", "1id"},
@@ -580,18 +508,18 @@ struct sparc_insn sparc_i[] = {
 		 * OP3 = (2,15): MOVr:
 		 * 	Move Integer Register on Register Condition
 		 */
-		{(FORMAT3(2, OP3_X(2,15), 1) | RCOND34(1)), "movrz", "1jd"},
-		{(FORMAT3(2, OP3_X(2,15), 0) | RCOND34(1)), "movrz", "12d"},
-		{(FORMAT3(2, OP3_X(2,15), 1) | RCOND34(2)), "movrlez", "1jd"},
-		{(FORMAT3(2, OP3_X(2,15), 0) | RCOND34(2)), "movrlez", "12d"},
-		{(FORMAT3(2, OP3_X(2,15), 1) | RCOND34(3)), "movrlz", "1jd"},
-		{(FORMAT3(2, OP3_X(2,15), 0) | RCOND34(3)), "movrlz", "12d"},
-		{(FORMAT3(2, OP3_X(2,15), 1) | RCOND34(5)), "movrnz", "1jd"},
-		{(FORMAT3(2, OP3_X(2,15), 0) | RCOND34(5)), "movrnz", "12d"},
-		{(FORMAT3(2, OP3_X(2,15), 1) | RCOND34(6)), "movrgz", "1jd"},
-		{(FORMAT3(2, OP3_X(2,15), 0) | RCOND34(6)), "movrgz", "12d"},
-		{(FORMAT3(2, OP3_X(2,15), 1) | RCOND34(7)), "movrgez", "1jd"},
-		{(FORMAT3(2, OP3_X(2,15), 0) | RCOND34(7)), "movrgez", "12d"},
+		{(FORMAT3(2, OP3_X(2,15), 1) | EIF_F3_RCOND(1)), "movrz", "1jd"},
+		{(FORMAT3(2, OP3_X(2,15), 0) | EIF_F3_RCOND(1)), "movrz", "12d"},
+		{(FORMAT3(2, OP3_X(2,15), 1) | EIF_F3_RCOND(2)), "movrlez", "1jd"},
+		{(FORMAT3(2, OP3_X(2,15), 0) | EIF_F3_RCOND(2)), "movrlez", "12d"},
+		{(FORMAT3(2, OP3_X(2,15), 1) | EIF_F3_RCOND(3)), "movrlz", "1jd"},
+		{(FORMAT3(2, OP3_X(2,15), 0) | EIF_F3_RCOND(3)), "movrlz", "12d"},
+		{(FORMAT3(2, OP3_X(2,15), 1) | EIF_F3_RCOND(5)), "movrnz", "1jd"},
+		{(FORMAT3(2, OP3_X(2,15), 0) | EIF_F3_RCOND(5)), "movrnz", "12d"},
+		{(FORMAT3(2, OP3_X(2,15), 1) | EIF_F3_RCOND(6)), "movrgz", "1jd"},
+		{(FORMAT3(2, OP3_X(2,15), 0) | EIF_F3_RCOND(6)), "movrgz", "12d"},
+		{(FORMAT3(2, OP3_X(2,15), 1) | EIF_F3_RCOND(7)), "movrgez", "1jd"},
+		{(FORMAT3(2, OP3_X(2,15), 0) | EIF_F3_RCOND(7)), "movrgez", "12d"},
 
 	{FORMAT3(2, OP3_X(3,15), 0), "UNDEFINED", ""},
 
@@ -614,10 +542,10 @@ struct sparc_insn sparc_i[] = {
 	{(FORMAT3(3, OP3_X(0,1), 1)), "ldub", "qd"},
 	{(FORMAT3(3, OP3_X(1,1), 0)), "lduba", "7d"},
 	{(FORMAT3(3, OP3_X(1,1), 1)), "lduba", "8d"},
-	{(FORMAT3(3, OP3_X(2,1), 0) | RD(0)), "ld", "p5"},
-	{(FORMAT3(3, OP3_X(2,1), 1) | RD(0)), "ld", "q5"},
-	{(FORMAT3(3, OP3_X(2,1), 0) | RD(1)), "ldx", "p6"},
-	{(FORMAT3(3, OP3_X(2,1), 1) | RD(1)), "ldx", "q6"},
+	{(FORMAT3(3, OP3_X(2,1), 0) | EIF_F3_RD(0)), "ld", "p5"},
+	{(FORMAT3(3, OP3_X(2,1), 1) | EIF_F3_RD(0)), "ld", "q5"},
+	{(FORMAT3(3, OP3_X(2,1), 0) | EIF_F3_RD(1)), "ldx", "p6"},
+	{(FORMAT3(3, OP3_X(2,1), 1) | EIF_F3_RD(1)), "ldx", "q6"},
 
 	{(FORMAT3(3, OP3_X(0,2), 0)), "lduh", "pd"},
 	{(FORMAT3(3, OP3_X(0,2), 1)), "lduh", "qd"},
@@ -652,8 +580,8 @@ struct sparc_insn sparc_i[] = {
 	{(FORMAT3(3, OP3_X(1,5), 1)), "stba", "d8"},
 	{(FORMAT3(3, OP3_X(2,5), 0)), "st", "5p"},
 	{(FORMAT3(3, OP3_X(2,5), 1)), "st", "5q"},
-	{(FORMAT3(3, OP3_X(2,5), 0)|RD(1)), "stx", "6p"},
-	{(FORMAT3(3, OP3_X(2,5), 1)|RD(1)), "stx", "6q"},
+	{(FORMAT3(3, OP3_X(2,5), 0) | EIF_F3_RD(1)), "stx", "6p"},
+	{(FORMAT3(3, OP3_X(2,5), 1) | EIF_F3_RD(1)), "stx", "6q"},
 
 	{(FORMAT3(3, OP3_X(0,6), 0)), "sth", "dp"},
 	{(FORMAT3(3, OP3_X(0,6), 1)), "sth", "dq"},
@@ -825,12 +753,12 @@ struct sparc_insn sparc_i[] = {
 
 	/* Move F-P Register on Integer Register Condition "FMOVr" */
 	/* FIXME: check for short, double, and quad's */
-	{(FORMAT3(2, OP3_X(3,5), 0) | RCOND34(1)), "fmovre", "14e"},
-	{(FORMAT3(2, OP3_X(3,5), 0) | RCOND34(2)), "fmovrlez", "14e"},
-	{(FORMAT3(2, OP3_X(3,5), 0) | RCOND34(3)), "fmovrlz", "14e"},
-	{(FORMAT3(2, OP3_X(3,5), 0) | RCOND34(5)), "fmovrne", "14e"},
-	{(FORMAT3(2, OP3_X(3,5), 0) | RCOND34(6)), "fmovrgz", "14e"},
-	{(FORMAT3(2, OP3_X(3,5), 0) | RCOND34(7)), "fmovrgez", "14e"},
+	{(FORMAT3(2, OP3_X(3,5), 0) | EIF_F3_RCOND(1)), "fmovre", "14e"},
+	{(FORMAT3(2, OP3_X(3,5), 0) | EIF_F3_RCOND(2)), "fmovrlez", "14e"},
+	{(FORMAT3(2, OP3_X(3,5), 0) | EIF_F3_RCOND(3)), "fmovrlz", "14e"},
+	{(FORMAT3(2, OP3_X(3,5), 0) | EIF_F3_RCOND(5)), "fmovrne", "14e"},
+	{(FORMAT3(2, OP3_X(3,5), 0) | EIF_F3_RCOND(6)), "fmovrgz", "14e"},
+	{(FORMAT3(2, OP3_X(3,5), 0) | EIF_F3_RCOND(7)), "fmovrgez", "14e"},
 #endif
 	/* FP logical insns -- UltraSPARC extens */
 	{(FORMAT3F(2, OP3_X(3,6), OPF_X(6,0))), "fzero", "e"},
@@ -905,21 +833,23 @@ db_disasm(loc, altfmt)
 				you_lose &= (FORMAT2(0x3,0x7));
 			} else {
 				/* Branches */
-				you_lose &= (FORMAT2(0x3,0x7)|COND(0xf));
+				you_lose &= (FORMAT2(0x3,0x7) |
+				    EIF_F2_COND(0xf));
 			}
 		} else if (((bitmask>>30) & 0x3) == 0x2 &&
 			   ((bitmask>>19) & 0x3f) == 0x34) /* XXX */ {
 			/* FPop1 */
-			you_lose &= (FORMAT3(0x3,0x3f,0x1) | OPF(0x1ff));
+			you_lose &= (FORMAT3(0x3,0x3f,0x1) |
+			    EIF_F3_OPF(0x1ff));
 		} else if (((bitmask>>30) & 0x3) == 0x2 &&
 			   ((bitmask>>19) & 0x3f) == 0x3a) /* XXX */ {
 			/* Tcc */
-			you_lose &= (FORMAT3(0x3,0x3f,0x1) | COND(0xf));
+			you_lose &= (FORMAT3(0x3,0x3f,0x1) | EIF_F4_TCOND(0xf));
 		} else if (((bitmask>>30) & 0x3) == 0x2 &&
 			   ((bitmask>>21) & 0xf) == 0x9 &&
 			   ((bitmask>>19) & 0x3) != 0) /* XXX */ {
 			/* shifts */
-			you_lose &= (FORMAT3(0x3,0x3f,0x1))|X(1);
+			you_lose &= (FORMAT3(0x3,0x3f,0x1)) | EIF_F3_X(1);
 		} else if (((bitmask>>30) & 0x3) == 0x2 &&
 			   ((bitmask>>19) & 0x3f) == 0x2c) /* XXX */ {
 			/* cmov */
@@ -953,11 +883,11 @@ db_disasm(loc, altfmt)
 			for (;f_ptr < cp; f_ptr++)
 				switch (*f_ptr) {
 				case 'a':
-					if (insn & A(1))
+					if (insn & EIF_F2_A(1))
 						db_printf(",a");
 					break;
 				case 'p':
-					if (insn & P(1))
+					if (insn & EIF_F2_P(1))
 						db_printf(",pt");
 					else
 						db_printf(",pn");
@@ -992,29 +922,29 @@ db_disasm(loc, altfmt)
 			break;
 		case 'i':
 			/* simm13 -- signed */
-			val = SIGNEX(insn, 13);
+			val = IF_SIMM(insn, 13);
 			db_printf("%s0x%x", SIGN(val), (int)abs(val));
 			break;
 		case 'j':
 			/* simm11 -- signed */
-			val = SIGNEX(insn, 11);
+			val = IF_SIMM(insn, 11);
 			db_printf("%s0x%x", SIGN(val), (int)abs(val));
 			break;
 		case 'l':
 			val = (((insn>>20)&0x3)<<13)|(insn & 0x1fff);
-			val = SIGNEX(val, 16);
+			val = IF_SIMM(val, 16);
 			db_printsym((db_addr_t)(loc + (4 * val)), DB_STGY_ANY);
 			break;
 		case 'm':
-			db_printsym((db_addr_t)(loc + (4 * SIGNEX(insn, 22))),
+			db_printsym((db_addr_t)(loc + (4 * IF_SIMM(insn, 22))),
 				DB_STGY_ANY);
 			break;
 		case 'u':
-			db_printsym((db_addr_t)(loc + (4 * SIGNEX(insn, 19))),
+			db_printsym((db_addr_t)(loc + (4 * IF_SIMM(insn, 19))),
 			    DB_STGY_ANY);
 			break;
 		case 'n':
-			db_printsym((db_addr_t)(loc + (4 * SIGNEX(insn, 30))),
+			db_printsym((db_addr_t)(loc + (4 * IF_SIMM(insn, 30))),
 			    DB_STGY_PROC);
 			break;
 		case 's':
@@ -1036,7 +966,7 @@ db_disasm(loc, altfmt)
 			break;
 		case 'q':
 		case '8':
-			val = SIGNEX(insn, 13);
+			val = IF_SIMM(insn, 13);
 			db_printf("[%%%s %c 0x%x]",
 				regs[((insn >> 14) & 0x1f)],
 				(int)((val<0)?'-':'+'),
@@ -1087,20 +1017,6 @@ db_disasm(loc, altfmt)
 		case 'H':
 			db_printf("%%%s", state_regs[((insn >> 25) & 0x1f)]);
 			break;
-#ifndef V9
-		case 'P':
-			db_printf("%%psr");
-			break;
-		case 'T':
-			db_printf("%%tbr");
-			break;
-		case 'W':
-			db_printf("%%wim");
-			break;
-		case 'Y':
-			db_printf("%%y");
-			break;
-#endif
 		default:
 			db_printf("(UNKNOWN)");
 			break;
