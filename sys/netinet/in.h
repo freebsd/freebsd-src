@@ -312,46 +312,6 @@ __END_DECLS
 
 #define	IPPORT_MAX		65535
 
-#ifndef _UINT8_T_DECLARED
-typedef	__uint8_t		uint8_t;
-#define	_UINT8_T_DECLARED
-#endif
-
-#ifndef _UINT16_T_DECLARED
-typedef	__uint16_t		uint16_t;
-#define	_UINT16_T_DECLARED
-#endif
-
-#ifndef _UINT32_T_DECLARED
-typedef	__uint32_t		uint32_t;
-#define	_UINT32_T_DECLARED
-#endif
-
-#ifndef _IN_ADDR_T_DECLARED
-typedef	uint32_t		in_addr_t;
-#define	_IN_ADDR_T_DECLARED
-#endif
-
-#ifndef _IN_PORT_T_DECLARED
-typedef	uint16_t		in_port_t;
-#define	_IN_PORT_T_DECLARED
-#endif
-
-#ifdef _BSD_SA_FAMILY_T_
-typedef	_BSD_SA_FAMILY_T_	sa_family_t;
-#undef _BSD_SA_FAMILY_T_
-#endif
-
-/*
- * Internet address (a structure for historical reasons)
- */
-#ifndef	_STRUCT_IN_ADDR_DECLARED
-struct in_addr {
-	in_addr_t s_addr;
-};
-#define	_STRUCT_IN_ADDR_DECLARED
-#endif
-
 /*
  * Definitions of bits in internet address integers.
  * On subnets, the decomposition of addresses to host and net parts
