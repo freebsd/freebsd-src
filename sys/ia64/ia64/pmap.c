@@ -2213,6 +2213,8 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 	if ((prot & VM_PROT_WRITE) != 0)
 		return;
 	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
+		if ((m->flags & PG_WRITEABLE) == 0)
+			return;
 		TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 			int newprot = pte_prot(pv->pv_pmap, prot);
 			pmap_t oldpmap = pmap_install(pv->pv_pmap);
@@ -2223,6 +2225,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 			pmap_install(oldpmap);
 		}
+		vm_page_flag_clear(m, PG_WRITEABLE);
 	} else {
 		pmap_remove_all(m);
 	}
