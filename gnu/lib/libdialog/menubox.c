@@ -188,8 +188,10 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
     /* Shortcut to OK? */
     if (toupper(key) == okButton) {
       if (ditems && result && ditems[OK_BUTTON].fire) {
-	if (ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]) == DITEM_FAILURE)
+	if (ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]) == DITEM_FAILURE) {
+	  wrefresh(dialog);
 	  continue;
+	}
 	else
 	  delwin(dialog);
       }
@@ -202,8 +204,10 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
     /* Shortcut to cancel? */
     else if (toupper(key) == cancelButton) {
       if (ditems && result && ditems[CANCEL_BUTTON].fire) {
-	if (ditems[CANCEL_BUTTON].fire(&ditems[CANCEL_BUTTON]) == DITEM_FAILURE)
+	if (ditems[CANCEL_BUTTON].fire(&ditems[CANCEL_BUTTON]) == DITEM_FAILURE) {
+	  wrefresh(dialog);
 	  continue;
+	}
       }
       delwin(dialog);
       return 1;
@@ -359,8 +363,10 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
     case '\n':
       if (!button) {
 	if (ditems && ditems[scroll + choice].fire) {
-	  if (ditems[scroll + choice].fire(&ditems[scroll + choice]) == DITEM_FAILURE)
+	  if (ditems[scroll + choice].fire(&ditems[scroll + choice]) == DITEM_FAILURE) {
+	    wrefresh(dialog);
 	    continue;
+	  }
 	}
 	else if (result)
 	  strcpy(result, items[(scroll+choice)*2]);
