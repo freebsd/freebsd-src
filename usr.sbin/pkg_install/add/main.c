@@ -194,9 +194,9 @@ getpackagesite(void)
     uname(&u);
     strcpy(sitepath, u.machine);
 
-    if (reldate == 330000)
-  	strcat(sitepath, "/packages-3.3-release/Latest/");
-    else if (330000 < reldate && reldate < 400000)
+    if (reldate == 340000)
+  	strcat(sitepath, "/packages-3.4-release/Latest/");
+    else if (340000 < reldate && reldate < 400000)
 	strcat(sitepath, "/packages-3-stable/Latest/");
     else
 	strcat(sitepath, "/packages-current/Latest/");
