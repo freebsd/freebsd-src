@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.146 1999/01/18 13:58:47 hm Exp $
+#	$Id: BSD.usr.dist,v 1.147 1999/01/21 19:41:37 imp Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -313,6 +313,16 @@
             ..
             cvsup
             ..
+	    diskless
+		209.157.86.12
+		..
+		HT.DISKLESS  
+		..
+		archive.backplane.com  
+		..
+		HT.STD  
+		..
+	    ..
             drivers
             ..
             etc
