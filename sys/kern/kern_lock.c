@@ -103,23 +103,25 @@ shareunlock(struct lock *lkp, int decr) {
  * optimization troubles.
  */
 static int
-apause(struct lock *lkp, int flags) {
-	int lock_wait;
-	lock_wait = LOCK_WAIT_TIME;
-	for (; lock_wait > 0; lock_wait--) {
-		int i;
+apause(struct lock *lkp, int flags)
+{
+#ifdef SMP
+	int i, lock_wait;
+#endif
+
+	if ((lkp->lk_flags & flags) == 0)
+		return 0;
+#ifdef SMP
+	for (lock_wait = LOCK_WAIT_TIME; lock_wait > 0; lock_wait--) {
+		simple_unlock(&lkp->lk_interlock);
+		for (i = LOCK_SAMPLE_WAIT; i > 0; i--)
+			if ((lkp->lk_flags & flags) == 0)
+				break;
+		simple_lock(&lkp->lk_interlock);
 		if ((lkp->lk_flags & flags) == 0)
 			return 0;
-		simple_unlock(&lkp->lk_interlock);
-		for (i = LOCK_SAMPLE_WAIT; i > 0; i--) {
-			if ((lkp->lk_flags & flags) == 0) {
-				simple_lock(&lkp->lk_interlock);
-				if ((lkp->lk_flags & flags) == 0)
-					return 0;
-				break;
-			}
-		}
 	}
+#endif
 	return 1;
 }
 
