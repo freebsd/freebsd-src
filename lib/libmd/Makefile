@@ -35,7 +35,7 @@ md4.3: ${.CURDIR}/mdX.3
 md5.3: ${.CURDIR}/mdX.3
 	sed -e 's/mdX/md5/g' -e 's/MDX/MD5/g' $> > $@
 	cat ${.CURDIR}/md5.copyright >> $@
-	
+
 md2.ref:
 	echo 'MD2 test suite:' > $@
 	@echo 'MD2 ("") = 8350e5a3e24c153df2275c9f80692773' >> $@
