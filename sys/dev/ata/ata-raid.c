@@ -106,6 +106,7 @@ ata_raid_probe(struct ad_softc *adp) {
 	return (ar_promise_read_conf(adp, ar_table));
 
     case 0x00041103:
+    case 0x00051103:
     case 0x00081103:
 	return (ar_highpoint_read_conf(adp, ar_table));
     }
