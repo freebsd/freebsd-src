@@ -268,13 +268,8 @@ main(int argc, char **argv)
 		parse_fmt(fmtstring, type, fdt, &newft);
 		fdt = newft;
 	}
-	if (fdopts & FDOPT_AUTOSEL) {
-		if (ioctl(fd, FD_STYPE, &fdt) < 0)
-			err(EX_OSERR, "ioctl(FD_STYPE)");
-	} else if (fmtstring || format) {
-		errx(EX_USAGE,
-	     "-f fmt or -s fmtstr is only allowed for autoselecting devices");
-	}
+	if (ioctl(fd, FD_STYPE, &fdt) < 0)
+		err(EX_OSERR, "ioctl(FD_STYPE)");
 	if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
 		err(EX_OSERR, "fcntl(F_GETFL)");
 	flags &= ~O_NONBLOCK;

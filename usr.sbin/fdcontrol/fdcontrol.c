@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "fdutil.h"
 
 
-static	int debug = -1, format, verbose, show = 1, showfmt;
+static	int format, verbose, show = 1, showfmt;
 static	char *fmtstring;
 
 static void showdev(enum fd_drivetype, const char *);
@@ -72,20 +72,14 @@ main(int argc, char **argv)
 	enum fd_drivetype type;
 	struct fd_type ft, newft, *fdtp;
 	const char *name, *descr;
-	int fd, i, mode;
+	int fd, i, mode, autofmt;
 
-	while((i = getopt(argc, argv, "d:Ff:s:v")) != -1)
+	autofmt = 0;
+	while((i = getopt(argc, argv, "aFf:s:v")) != -1)
 		switch(i) {
-		case 'd':
-			if (strcmp(optarg, "0") == 0)
-				debug = 0;
-			else if (strcmp(optarg, "1") == 0)
-				debug = 1;
-			else
-				usage();
-			show = 0;
-			break;
 
+		case 'a':
+			autofmt = 1;
 		case 'F':
 			showfmt = 1;
 			show = 0;
@@ -139,6 +133,11 @@ mode = O_RDONLY | O_NONBLOCK;
 	if (show) {
 		showdev(type, argv[0]);
 		return (0);
+	}
+
+	if (autofmt) {
+		memset(&newft, 0, sizeof newft);
+		ft = newft;
 	}
 
 	if (format) {
@@ -195,6 +194,10 @@ mode = O_RDONLY | O_NONBLOCK;
 				printf("%sPERPENDICULAR", s);
 				s = ",";
 			}
+			if (ft.flags & FL_AUTO) {
+				printf("%sAUTO", s);
+				s = ",";
+			}
 			printf(">\n");
 		} else {
 			print_fmt(ft);
@@ -205,12 +208,6 @@ mode = O_RDONLY | O_NONBLOCK;
 	if (format || fmtstring) {
 		if (ioctl(fd, FD_STYPE, &ft) == -1)
 			err(EX_OSERR, "ioctl(FD_STYPE)");
-		return (0);
-	}
-
-	if (debug != -1) {
-		if (ioctl(fd, FD_DEBUG, &debug) == -1)
-			err(EX_OSERR, "ioctl(FD_DEBUG)");
 		return (0);
 	}
 

@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2004 Poul-Henning Kamp
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -46,6 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
+ *
  */
 
 #include <sys/cdefs.h>
@@ -62,13 +64,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/fdcio.h>
 #include <sys/filio.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
+
+#include <geom/geom.h>
 
 #include <machine/bus.h>
 #include <machine/clock.h>
@@ -76,22 +82,38 @@ __FBSDID("$FreeBSD$");
 
 #include <isa/isavar.h>
 #include <isa/isareg.h>
-#include <dev/fdc/fdcreg.h>
 #include <dev/fdc/fdcvar.h>
 #include <isa/rtc.h>
 
-#define FDBIO_FORMAT	BIO_CMD2
-
-/* configuration flags for fdc */
-#define FDC_NO_FIFO	(1 << 2)	/* do not enable FIFO  */
+#include <dev/ic/nec765.h>
 
 /*
- * Stop retrying after this many DMA overruns.  Since each retry takes
- * one revolution, with 300 rpm., 25 retries take approximately 5
- * seconds which the read attempt will block in case the DMA overrun
- * is persistent.
+ * Runtime configuration hints/flags
  */
-#define FDC_DMAOV_MAX	25
+
+/* configuration flags for fd */
+#define FD_TYPEMASK	0x0f	/* drive type, matches enum
+				 * fd_drivetype; on i386 machines, if
+				 * given as 0, use RTC type for fd0
+				 * and fd1 */
+#define FD_NO_CHLINE	0x10	/* drive does not support changeline
+				 * aka. unit attention */
+#define FD_NO_PROBE	0x20	/* don't probe drive (seek test), just
+				 * assume it is there */
+
+/*
+ * Things that could conceiveably considered parameters or tweakables
+ */
+
+/*
+ * Maximal number of bytes in a cylinder.
+ * This is used for ISADMA bouncebuffer allocation and sets the max
+ * xfersize we support.
+ *
+ * 2.88M format has 2 x 36 x 512.
+ */
+
+#define MAX_BYTES_PER_CYL	(2 * 40 * 512)
 
 /*
  * Timeout value for the PIO loops to wait until the FDC main status
@@ -105,230 +127,216 @@ __FBSDID("$FreeBSD$");
 #define	FDSTS_TIMEOUT	100000
 
 /*
- * Number of subdevices that can be used for different density types.
+ * After this many errors, stop whining.  Close will reset this count.
  */
-#define NUMDENS		16
-
-#define FDBIO_RDSECTID	BIO_CMD1
+#define FDC_ERRMAX	100	/* do not log more */
 
 /*
- * List of native drive densities.  Order must match enum fd_drivetype
- * in <sys/fdcio.h>.  Upon attaching the drive, each of the
- * programmable subdevices is initialized with the native density
- * definition.
+ * AutoDensity search lists for each drive type.
  */
-static struct fd_type fd_native_types[] =
-{
-{ 0 },				/* FDT_NONE */
-{  9,2,0xFF,0x2A,40, 720,FDC_250KBPS,2,0x50,1,0,FL_MFM }, /* FDT_360K */
-{ 15,2,0xFF,0x1B,80,2400,FDC_500KBPS,2,0x54,1,0,FL_MFM }, /* FDT_12M  */
-{  9,2,0xFF,0x20,80,1440,FDC_250KBPS,2,0x50,1,0,FL_MFM }, /* FDT_720K */
-{ 18,2,0xFF,0x1B,80,2880,FDC_500KBPS,2,0x6C,1,0,FL_MFM }, /* FDT_144M */
-#if 0				/* we currently don't handle 2.88 MB */
-{ 36,2,0xFF,0x1B,80,5760,FDC_1MBPS,  2,0x4C,1,1,FL_MFM|FL_PERPND } /*FDT_288M*/
-#else
-{ 18,2,0xFF,0x1B,80,2880,FDC_500KBPS,2,0x6C,1,0,FL_MFM }, /* FDT_144M */
-#endif
+
+static struct fd_type fd_searchlist_360k[] = {
+	{ FDF_5_360 },
+	{ 0 }
 };
 
-/*
- * 360 KB 5.25" and 720 KB 3.5" drives don't have automatic density
- * selection, they just start out with their native density (or lose).
- * So 1.2 MB 5.25", 1.44 MB 3.5", and 2.88 MB 3.5" drives have their
- * respective lists of densities to search for.
- */
 static struct fd_type fd_searchlist_12m[] = {
-{ 15,2,0xFF,0x1B,80,2400,FDC_500KBPS,2,0x54,1,0,FL_MFM }, /* 1.2M */
-{  9,2,0xFF,0x23,40, 720,FDC_300KBPS,2,0x50,1,0,FL_MFM|FL_2STEP }, /* 360K */
-{  9,2,0xFF,0x20,80,1440,FDC_300KBPS,2,0x50,1,0,FL_MFM }, /* 720K */
+	{ FDF_5_1200 | FL_AUTO },
+	{ FDF_5_360 | FL_2STEP | FL_AUTO},
+	{ 0 }
+};
+
+static struct fd_type fd_searchlist_720k[] = {
+	{ FDF_3_720 },
+	{ 0 }
 };
 
 static struct fd_type fd_searchlist_144m[] = {
-{ 18,2,0xFF,0x1B,80,2880,FDC_500KBPS,2,0x6C,1,0,FL_MFM }, /* 1.44M */
-{  9,2,0xFF,0x20,80,1440,FDC_250KBPS,2,0x50,1,0,FL_MFM }, /* 720K */
+	{ FDF_3_1440 | FL_AUTO},
+	{ FDF_3_720 | FL_AUTO},
+	{ 0 }
 };
 
-/* We search for 1.44M first since this is the most common case. */
 static struct fd_type fd_searchlist_288m[] = {
-{ 18,2,0xFF,0x1B,80,2880,FDC_500KBPS,2,0x6C,1,0,FL_MFM }, /* 1.44M */
+	{ FDF_3_1440 | FL_AUTO },
 #if 0
-{ 36,2,0xFF,0x1B,80,5760,FDC_1MBPS,  2,0x4C,1,1,FL_MFM|FL_PERPND } /* 2.88M */
+	{ FDF_3_2880 | FL_AUTO }, /* XXX: probably doesn't work */
 #endif
-{  9,2,0xFF,0x20,80,1440,FDC_250KBPS,2,0x50,1,0,FL_MFM }, /* 720K */
+	{ FDF_3_720 | FL_AUTO},
+	{ 0 }
 };
 
-#define MAX_SEC_SIZE	(128 << 3)
-#define MAX_CYLINDER	85	/* some people really stress their drives
-				 * up to cyl 82 */
-#define MAX_HEAD	1
+/*
+ * Order must match enum fd_drivetype in <sys/fdcio.h>.
+ */
+static struct fd_type *fd_native_types[] = {
+	NULL,				/* FDT_NONE */
+	fd_searchlist_360k, 		/* FDT_360K */
+	fd_searchlist_12m, 		/* FDT_12M */
+	fd_searchlist_720k, 		/* FDT_720K */
+	fd_searchlist_144m, 		/* FDT_144M */
+	fd_searchlist_288m, 		/* FDT_288M */
+};
 
-devclass_t fdc_devclass;
+/*
+ * Internals start here
+ */
+
+/* registers */
+#define	FDOUT	2	/* Digital Output Register (W) */
+#define	FDO_FDSEL	0x03	/*  floppy device select */
+#define	FDO_FRST	0x04	/*  floppy controller reset */
+#define	FDO_FDMAEN	0x08	/*  enable floppy DMA and Interrupt */
+#define	FDO_MOEN0	0x10	/*  motor enable drive 0 */
+#define	FDO_MOEN1	0x20	/*  motor enable drive 1 */
+#define	FDO_MOEN2	0x40	/*  motor enable drive 2 */
+#define	FDO_MOEN3	0x80	/*  motor enable drive 3 */
+
+#define	FDSTS	4	/* NEC 765 Main Status Register (R) */
+#define	FDDATA	5	/* NEC 765 Data Register (R/W) */
+#define	FDCTL	7	/* Control Register (W) */
+
+/*
+ * this is the secret PIO data port (offset from base)
+ */
+#define FDC_YE_DATAPORT 6
+
+#define	FDI_DCHG	0x80	/* diskette has been changed */
+				/* requires drive and motor being selected */
+				/* is cleared by any step pulse to drive */
+
+/*
+ * We have two private BIO commands for formatting and sector-id reading
+ */
+#define BIO_PROBE	BIO_CMD0
+#define BIO_RDID	BIO_CMD1
+#define BIO_FMT		BIO_CMD2
 
 /*
  * Per drive structure (softc).
  */
 struct fd_data {
+	u_char 	*fd_ioptr;	/* IO pointer */
+	u_int	fd_iosize;	/* Size of IO chunks */
+	u_int	fd_iocount;	/* Outstanding requests */
 	struct	fdc_data *fdc;	/* pointer to controller structure */
 	int	fdsu;		/* this units number on this controller */
 	enum	fd_drivetype type; /* drive type */
 	struct	fd_type *ft;	/* pointer to current type descriptor */
-	struct	fd_type fts[NUMDENS]; /* type descriptors */
+	struct	fd_type fts;	/* type descriptors */
+	int	sectorsize;
 	int	flags;
-#define	FD_OPEN		0x01	/* it's open		*/
-#define	FD_NONBLOCK	0x02	/* O_NONBLOCK set	*/
-#define	FD_ACTIVE	0x04	/* it's active		*/
-#define	FD_MOTOR	0x08	/* motor should be on	*/
-#define	FD_MOTOR_WAIT	0x10	/* motor coming up	*/
-#define	FD_UA		0x20	/* force unit attention */
-	int	skip;
-	int	hddrv;
-#define FD_NO_TRACK -2
+#define	FD_WP		(1<<0)	/* Write protected	*/
+#define	FD_MOTOR	(1<<1)	/* motor should be on	*/
+#define	FD_MOTORWAIT	(1<<2)	/* motor should be on	*/
+#define	FD_EMPTY	(1<<3)	/* no media		*/
+#define	FD_NEWDISK	(1<<4)	/* media changed	*/
+#define	FD_ISADMA	(1<<5)	/* isa dma started 	*/
 	int	track;		/* where we think the head is */
-	int	options;	/* user configurable options, see fdcio.h */
-	struct	callout_handle toffhandle;
-	struct	callout_handle tohandle;
-	struct	devstat *device_stats;
-	struct cdev *masterdev;
+#define FD_NO_TRACK	 -2
+	int	options;	/* FDOPT_* */
+	struct	callout toffhandle;
+	struct	callout tohandle;
+	struct g_geom *fd_geom;
+	struct g_provider *fd_provider;
 	device_t dev;
-	fdu_t	fdu;
+	struct bio_queue_head fd_bq;
 };
 
-struct fdc_ivars {
-	int	fdunit;
-	int	fdtype;
-};
+#define FD_NOT_VALID -2
 
-static devclass_t fd_devclass;
-
-/* configuration flags for fd */
-#define FD_TYPEMASK	0x0f	/* drive type, matches enum
-				 * fd_drivetype; on i386 machines, if
-				 * given as 0, use RTC type for fd0
-				 * and fd1 */
-#define FD_DTYPE(flags)	((flags) & FD_TYPEMASK)
-#define FD_NO_CHLINE	0x10	/* drive does not support changeline
-				 * aka. unit attention */
-#define FD_NO_PROBE	0x20	/* don't probe drive (seek test), just
-				 * assume it is there */
-
-/*
- * Throughout this file the following conventions will be used:
- *
- * fd is a pointer to the fd_data struct for the drive in question
- * fdc is a pointer to the fdc_data struct for the controller
- * fdu is the floppy drive unit number
- * fdcu is the floppy controller unit number
- * fdsu is the floppy drive unit number on that controller. (sub-unit)
- */
-
-/*
- * Function declarations, same (chaotic) order as they appear in the
- * file.  Re-ordering is too late now, it would only obfuscate the
- * diffs against old and offspring versions (like the PC98 one).
- *
- * Anyone adding functions here, please keep this sequence the same
- * as below -- makes locating a particular function in the body much
- * easier.
- */
-static u_int8_t fdsts_rd(fdc_p);
-static void fddata_wr(fdc_p, u_int8_t);
-static u_int8_t fddata_rd(fdc_p);
-#if 0
-static u_int8_t fdin_rd(fdc_p);
-#endif
-static int fdc_err(struct fdc_data *, const char *);
-static int enable_fifo(fdc_p fdc);
-static int fd_sense_drive_status(fdc_p, int *);
-static int fd_sense_int(fdc_p, int *, int *);
-static int fd_read_status(fdc_p);
-static int fd_probe(device_t);
-static int fd_attach(device_t);
-static int fd_detach(device_t);
-static void set_motor(struct fdc_data *, int, int);
-#  define TURNON 1
-#  define TURNOFF 0
-static timeout_t fd_turnoff;
-static timeout_t fd_motor_on;
-static void fd_turnon(struct fd_data *);
-static void fdc_reset(fdc_p);
-static int fd_in(struct fdc_data *, int *);
-static int out_fdc(struct fdc_data *, int);
-static	d_open_t	fdopen;
-static	d_close_t	fdclose;
-static	d_strategy_t	fdstrategy;
-static void fdstart(struct fdc_data *);
-static timeout_t fd_iotimeout;
-static timeout_t fd_pseudointr;
 static driver_intr_t fdc_intr;
-static int fdcpio(fdc_p, long, caddr_t, u_int);
-static int fdautoselect(struct cdev *);
-static int fdstate(struct fdc_data *);
-static int retrier(struct fdc_data *);
-static void fdbiodone(struct bio *);
-static int fdmisccmd(struct cdev *, u_int, void *);
-static	d_ioctl_t	fdioctl;
+static void fdc_reset(struct fdc_data *);
 
-static int fifo_threshold = 8;	/* XXX: should be accessible via sysctl */
+SYSCTL_NODE(_debug, OID_AUTO, fdc, CTLFLAG_RW, 0, "fdc driver");
 
-#ifdef	FDC_DEBUG
-/* CAUTION: fd_debug causes huge amounts of logging output */
-static int volatile fd_debug = 0;
-#define TRACE0(arg) do { if (fd_debug) printf(arg); } while (0)
-#define TRACE1(arg1, arg2) do { if (fd_debug) printf(arg1, arg2); } while (0)
-#else /* FDC_DEBUG */
-#define TRACE0(arg) do { } while (0)
-#define TRACE1(arg1, arg2) do { } while (0)
-#endif /* FDC_DEBUG */
+static int fifo_threshold = 8;
+SYSCTL_INT(_debug_fdc, OID_AUTO, fifo, CTLFLAG_RW, &fifo_threshold, 0, 
+	"FIFO threshold setting");
+
+static int debugflags = 0;
+SYSCTL_INT(_debug_fdc, OID_AUTO, debugflags, CTLFLAG_RW, &debugflags, 0,
+	"Debug flags");
+
+static int retries = 10;
+SYSCTL_INT(_debug_fdc, OID_AUTO, retries, CTLFLAG_RW, &retries, 0,
+	"Number of retries to attempt");
+
+static int spec1 = 0xaf;
+SYSCTL_INT(_debug_fdc, OID_AUTO, spec1, CTLFLAG_RW, &spec1, 0,
+	"Specification byte one (step-rate + head unload)");
+
+static int spec2 = 0x10;
+SYSCTL_INT(_debug_fdc, OID_AUTO, spec2, CTLFLAG_RW, &spec2, 0,
+	"Specification byte two (head load time + no-dma)");
+
+static int settle;
+SYSCTL_INT(_debug_fdc, OID_AUTO, settle, CTLFLAG_RW, &settle, 0,
+	"Head settling time in sec/hz");
+
+static void
+fdprinttype(struct fd_type *ft)
+{
+
+	printf("(%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,0x%x)",
+	    ft->sectrac, ft->secsize, ft->datalen, ft->gap, ft->tracks,
+	    ft->size, ft->trans, ft->heads, ft->f_gap, ft->f_inter,
+	    ft->offset_side2, ft->flags);
+}
+
+static void
+fdsettype(struct fd_data *fd, struct fd_type *ft)
+{
+	fd->ft = ft;
+	ft->size = ft->sectrac * ft->heads * ft->tracks;
+	fd->sectorsize = 128 << fd->ft->secsize;
+}
 
 /*
  * Bus space handling (access to low-level IO).
  */
-void
-fdout_wr(fdc_p fdc, u_int8_t v)
+static void
+fdctl_wr(struct fdc_data *fdc, u_int8_t v)
 {
+
+	bus_space_write_1(fdc->ctlt, fdc->ctlh, fdc->ctl_off, v);
+}
+
+static void
+fdout_wr(struct fdc_data *fdc, u_int8_t v)
+{
+
 	bus_space_write_1(fdc->portt, fdc->porth, FDOUT+fdc->port_off, v);
 }
 
 static u_int8_t
-fdsts_rd(fdc_p fdc)
+fdsts_rd(struct fdc_data *fdc)
 {
+
 	return bus_space_read_1(fdc->portt, fdc->porth, FDSTS+fdc->port_off);
 }
 
 static void
-fddata_wr(fdc_p fdc, u_int8_t v)
+fddata_wr(struct fdc_data *fdc, u_int8_t v)
 {
+
 	bus_space_write_1(fdc->portt, fdc->porth, FDDATA+fdc->port_off, v);
 }
 
 static u_int8_t
-fddata_rd(fdc_p fdc)
+fddata_rd(struct fdc_data *fdc)
 {
+
 	return bus_space_read_1(fdc->portt, fdc->porth, FDDATA+fdc->port_off);
 }
 
 static u_int8_t
-fdin_rd(fdc_p fdc)
+fdin_rd(struct fdc_data *fdc)
 {
-	return bus_space_read_1(fdc->portt, fdc->porth, FDIN);
+
+	return bus_space_read_1(fdc->ctlt, fdc->ctlh, fdc->ctl_off);
 }
 
-static struct cdevsw fd_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	fdopen,
-	.d_close =	fdclose,
-	.d_read =	physread,
-	.d_write =	physwrite,
-	.d_ioctl =	fdioctl,
-	.d_strategy =	fdstrategy,
-	.d_name =	"fd",
-	.d_flags =	D_DISK | D_NEEDGIANT,
-};
-
-/*
- * Auxiliary functions.  Well, some only.  Others are scattered
- * throughout the entire file.
- */
 static int
 fdc_err(struct fdc_data *fdc, const char *s)
 {
@@ -341,121 +349,167 @@ fdc_err(struct fdc_data *fdc, const char *s)
 						    "logging any more\n");
 	}
 
-	return FD_FAILED;
+	return (1);
 }
 
 /*
- * fd_cmd: Send a command to the chip.  Takes a varargs with this structure:
- * Unit number,
- * # of output bytes, output bytes as ints ...,
- * # of input bytes, input bytes as ints ...
+ * FDC IO functions, take care of the main status register, timeout
+ * in case the desired status bits are never set.
+ *
+ * These PIO loops initially start out with short delays between
+ * each iteration in the expectation that the required condition
+ * is usually met quickly, so it can be handled immediately.
  */
-int
-fd_cmd(struct fdc_data *fdc, int n_out, ...)
+static int
+fdc_in(struct fdc_data *fdc, int *ptr)
 {
-	u_char cmd;
+	int i, j, step;
+
+	step = 1;
+	for (j = 0; j < FDSTS_TIMEOUT; j += step) {
+	        i = fdsts_rd(fdc) & (NE7_DIO | NE7_RQM);
+	        if (i == (NE7_DIO|NE7_RQM)) {
+			i = fddata_rd(fdc);
+			if (ptr)
+				*ptr = i;
+			return (0);
+		}
+		if (i == NE7_RQM)
+			return (fdc_err(fdc, "ready for output in input\n"));
+		step += step;
+		DELAY(step);
+	}
+	return (fdc_err(fdc, bootverbose? "input ready timeout\n": 0));
+}
+
+static int
+fdc_out(struct fdc_data *fdc, int x)
+{
+	int i, j, step;
+
+	step = 1;
+	for (j = 0; j < FDSTS_TIMEOUT; j += step) {
+	        i = fdsts_rd(fdc) & (NE7_DIO | NE7_RQM);
+	        if (i == NE7_RQM) {
+			fddata_wr(fdc, x);
+			return (0);
+		}
+		if (i == (NE7_DIO|NE7_RQM))
+			return (fdc_err(fdc, "ready for input in output\n"));
+		step += step;
+		DELAY(step);
+	}
+	return (fdc_err(fdc, bootverbose? "output ready timeout\n": 0));
+}
+
+/*
+ * fdc_cmd: Send a command to the chip.
+ * Takes a varargs with this structure:
+ *	# of output bytes
+ *	output bytes as int [...]
+ *	# of input bytes
+ *	input bytes as int* [...]
+ */
+static int
+fdc_cmd(struct fdc_data *fdc, int n_out, ...)
+{
+	u_char cmd = 0;
 	int n_in;
-	int n;
+	int n, i;
 	va_list ap;
 
 	va_start(ap, n_out);
-	cmd = (u_char)(va_arg(ap, int));
-	va_end(ap);
-	va_start(ap, n_out);
-	for (n = 0; n < n_out; n++)
-	{
-		if (out_fdc(fdc, va_arg(ap, int)) < 0)
-		{
+	for (n = 0; n < n_out; n++) {
+		i = va_arg(ap, int);
+		if (n == 0)
+			cmd = i;
+		if (fdc_out(fdc, i) < 0) {
 			char msg[50];
 			snprintf(msg, sizeof(msg),
 				"cmd %x failed at out byte %d of %d\n",
 				cmd, n + 1, n_out);
+			fdc->flags |= FDC_NEEDS_RESET;
 			return fdc_err(fdc, msg);
 		}
 	}
 	n_in = va_arg(ap, int);
-	for (n = 0; n < n_in; n++)
-	{
+	for (n = 0; n < n_in; n++) {
 		int *ptr = va_arg(ap, int *);
-		if (fd_in(fdc, ptr) < 0)
-		{
+		if (fdc_in(fdc, ptr) < 0) {
 			char msg[50];
 			snprintf(msg, sizeof(msg),
 				"cmd %02x failed at in byte %d of %d\n",
 				cmd, n + 1, n_in);
+			fdc->flags |= FDC_NEEDS_RESET;
 			return fdc_err(fdc, msg);
 		}
 	}
-
-	return 0;
+	return (0);
 }
 
-static int 
-enable_fifo(fdc_p fdc)
+static void
+fdc_reset(struct fdc_data *fdc)
 {
-	int i, j;
+	int i, r[10];
 
-	if ((fdc->flags & FDC_HAS_FIFO) == 0) {
-		
-		/*
-		 * Cannot use fd_cmd the normal way here, since
-		 * this might be an invalid command. Thus we send the
-		 * first byte, and check for an early turn of data directon.
-		 */
-		
-		if (out_fdc(fdc, I8207X_CONFIGURE) < 0)
-			return fdc_err(fdc, "Enable FIFO failed\n");
-		
-		/* If command is invalid, return */
-		j = FDSTS_TIMEOUT;
-		while ((i = fdsts_rd(fdc) & (NE7_DIO | NE7_RQM))
-		       != NE7_RQM && j-- > 0) {
-			if (i == (NE7_DIO | NE7_RQM)) {
-				fdc_reset(fdc);
-				return FD_FAILED;
-			}
-			DELAY(1);
+	/* Try a reset, keep motor on */
+	fdout_wr(fdc, fdc->fdout & ~(FDO_FRST|FDO_FDMAEN));
+	DELAY(100);
+	/* enable FDC, but defer interrupts a moment */
+	fdout_wr(fdc, fdc->fdout & ~FDO_FDMAEN);
+	DELAY(100);
+	fdout_wr(fdc, fdc->fdout);
+
+	/* XXX after a reset, silently believe the FDC will accept commands */
+	if (fdc_cmd(fdc, 3, NE7CMD_SPECIFY, spec1, spec2, 0))
+		device_printf(fdc->fdc_dev, " SPECIFY failed in reset\n");
+
+	if (fdc->fdct == FDC_ENHANCED) {
+		if (fdc_cmd(fdc, 4,
+		    I8207X_CONFIGURE,
+		    0,
+		    0x40 |			/* Enable Implied Seek */
+		    0x10 |			/* Polling disabled */
+		    (fifo_threshold - 1),	/* Fifo threshold */
+		    0x00,			/* Precomp track */
+		    0))
+			device_printf(fdc->fdc_dev,
+			    " CONFIGURE failed in reset\n");
+		if (debugflags & 1) {
+			if (fdc_cmd(fdc, 1,
+			    0x0e,			/* DUMPREG */
+			    10, &r[0], &r[1], &r[2], &r[3], &r[4],
+			    &r[5], &r[6], &r[7], &r[8], &r[9]))
+				device_printf(fdc->fdc_dev,
+				    " DUMPREG failed in reset\n");
+			for (i = 0; i < 10; i++)
+				printf(" %02x", r[i]);
+			printf("\n");
 		}
-		if (j<0 || 
-		    fd_cmd(fdc, 3,
-			   0, (fifo_threshold - 1) & 0xf, 0, 0) < 0) {
-			fdc_reset(fdc);
-			return fdc_err(fdc, "Enable FIFO failed\n");
-		}
-		fdc->flags |= FDC_HAS_FIFO;
-		return 0;
 	}
-	if (fd_cmd(fdc, 4,
-		   I8207X_CONFIGURE, 0, (fifo_threshold - 1) & 0xf, 0, 0) < 0)
-		return fdc_err(fdc, "Re-enable FIFO failed\n");
-	return 0;
 }
 
 static int
-fd_sense_drive_status(fdc_p fdc, int *st3p)
+fdc_sense_drive(struct fdc_data *fdc, int *st3p)
 {
 	int st3;
 
-	if (fd_cmd(fdc, 2, NE7CMD_SENSED, fdc->fdu, 1, &st3))
-	{
-		return fdc_err(fdc, "Sense Drive Status failed\n");
-	}
+	if (fdc_cmd(fdc, 2, NE7CMD_SENSED, fdc->fd->fdsu, 1, &st3))
+		return (fdc_err(fdc, "Sense Drive Status failed\n"));
 	if (st3p)
 		*st3p = st3;
-
-	return 0;
+	return (0);
 }
 
 static int
-fd_sense_int(fdc_p fdc, int *st0p, int *cylp)
+fdc_sense_int(struct fdc_data *fdc, int *st0p, int *cylp)
 {
 	int cyl, st0, ret;
 
-	ret = fd_cmd(fdc, 1, NE7CMD_SENSEI, 1, &st0);
+	ret = fdc_cmd(fdc, 1, NE7CMD_SENSEI, 1, &st0);
 	if (ret) {
-		(void)fdc_err(fdc,
-			      "sense intr err reading stat reg 0\n");
-		return ret;
+		(void)fdc_err(fdc, "sense intr err reading stat reg 0\n");
+		return (ret);
 	}
 
 	if (st0p)
@@ -465,34 +519,25 @@ fd_sense_int(fdc_p fdc, int *st0p, int *cylp)
 		/*
 		 * There doesn't seem to have been an interrupt.
 		 */
-		return FD_NOT_VALID;
+		return (FD_NOT_VALID);
 	}
 
-	if (fd_in(fdc, &cyl) < 0) {
+	if (fdc_in(fdc, &cyl) < 0)
 		return fdc_err(fdc, "can't get cyl num\n");
-	}
 
 	if (cylp)
 		*cylp = cyl;
 
-	return 0;
+	return (0);
 }
 
-
 static int
-fd_read_status(fdc_p fdc)
+fdc_read_status(struct fdc_data *fdc)
 {
-	int i, ret;
+	int i, ret, status;
 
 	for (i = ret = 0; i < 7; i++) {
-		/*
-		 * XXX types are poorly chosen.  Only bytes can be read
-		 * from the hardware, but fdc->status[] wants u_ints and
-		 * fd_in() gives ints.
-		 */
-		int status;
-
-		ret = fd_in(fdc, &status);
+		ret = fdc_in(fdc, &status);
 		fdc->status[i] = status;
 		if (ret != 0)
 			break;
@@ -505,6 +550,933 @@ fd_read_status(fdc_p fdc)
 
 	return ret;
 }
+
+/*
+ * Select this drive
+ */
+static void
+fd_select(struct fd_data *fd)
+{
+	struct fdc_data *fdc;
+
+	/* XXX: lock controller */
+	fdc = fd->fdc;
+	fdc->fdout &= ~FDO_FDSEL;
+	fdc->fdout |= FDO_FDMAEN | FDO_FRST | fd->fdsu;
+	fdout_wr(fdc, fdc->fdout);
+}
+
+static void
+fd_turnon(void *arg)
+{
+	struct fd_data *fd;
+	struct bio *bp;
+	int once;
+
+	fd = arg;
+	mtx_lock(&fd->fdc->fdc_mtx);
+	fd->flags &= ~FD_MOTORWAIT;
+	fd->flags |= FD_MOTOR;
+	once = 0;
+	for (;;) {
+		bp = bioq_takefirst(&fd->fd_bq);
+		if (bp == NULL)
+			break;
+		bioq_disksort(&fd->fdc->head, bp);
+		once = 1;
+	}
+	mtx_unlock(&fd->fdc->fdc_mtx);
+	if (once)
+		wakeup(&fd->fdc->head);
+}
+
+static void
+fd_motor(struct fd_data *fd, int turnon)
+{
+	struct fdc_data *fdc;
+
+	fdc = fd->fdc;
+/*
+	mtx_assert(&fdc->fdc_mtx, MA_OWNED);
+*/
+	if (turnon) {
+		fd->flags |= FD_MOTORWAIT;
+		fdc->fdout |= (FDO_MOEN0 << fd->fdsu);
+		callout_reset(&fd->toffhandle, hz, fd_turnon, fd);
+	} else {
+		callout_drain(&fd->toffhandle);
+		fd->flags &= ~(FD_MOTOR|FD_MOTORWAIT);
+		fdc->fdout &= ~(FDO_MOEN0 << fd->fdsu);
+	}
+	fdout_wr(fdc, fdc->fdout);
+}
+
+static void
+fd_turnoff(void *xfd)
+{
+	struct fd_data *fd = xfd;
+
+	mtx_lock(&fd->fdc->fdc_mtx);
+	fd_motor(fd, 0);
+	mtx_unlock(&fd->fdc->fdc_mtx);
+}
+
+/*
+ * fdc_intr
+ *
+ * Keep calling the state machine until it returns a 0.
+ */
+static void
+fdc_intr(void *arg)
+{
+
+	wakeup(arg);
+}
+
+/*
+ * Magic pseudo-DMA initialization for YE FDC. Sets count and
+ * direction.
+ */
+#define SET_BCDR(fdc,wr,cnt,port) \
+	do { \
+	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + port,	 \
+	    ((cnt)-1) & 0xff);						 \
+	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + port + 1, \
+	    ((wr ? 0x80 : 0) | ((((cnt)-1) >> 8) & 0x7f))); \
+	} while (0)
+
+/*
+ * fdc_pio(): perform programmed IO read/write for YE PCMCIA floppy.
+ */
+static void
+fdc_pio(struct fdc_data *fdc)
+{
+	u_char *cptr;
+	struct bio *bp;
+	u_int count;
+
+	bp = fdc->bp;
+	cptr = fdc->fd->fd_ioptr;
+	count = fdc->fd->fd_iosize;
+
+	if (bp->bio_cmd == BIO_READ) {
+		SET_BCDR(fdc, 0, count, 0);
+		bus_space_read_multi_1(fdc->portt, fdc->porth, fdc->port_off +
+		    FDC_YE_DATAPORT, cptr, count);
+	} else {
+		bus_space_write_multi_1(fdc->portt, fdc->porth, fdc->port_off +
+		    FDC_YE_DATAPORT, cptr, count);
+		SET_BCDR(fdc, 0, count, 0);
+	}
+}
+
+static int
+fdc_biodone(struct fdc_data *fdc, int error)
+{
+	struct fd_data *fd;
+	struct bio *bp;
+
+	fd = fdc->fd;
+	bp = fdc->bp;
+
+	mtx_lock(&fdc->fdc_mtx);
+	if (--fd->fd_iocount == 0)
+		callout_reset(&fd->toffhandle, 4 * hz, fd_turnoff, fd);
+	fdc->bp = NULL;
+	fdc->fd = NULL;
+	mtx_unlock(&fdc->fdc_mtx);
+	if (bp->bio_to != NULL) {
+		if ((debugflags & 2) && fd->fdc->retry > 0)
+			printf("retries: %d\n", fd->fdc->retry);
+		g_io_deliver(bp, error);
+		return (0);
+	}
+	bp->bio_error = error;
+	bp->bio_flags |= BIO_DONE;
+	wakeup(bp);
+	return (0);
+}
+
+static int retry_line;
+
+static int
+fdc_worker(struct fdc_data *fdc)
+{
+	struct fd_data *fd;
+	struct bio *bp;
+	int i, nsect;
+	int st0, st3, cyl, mfm, steptrac, cylinder, descyl, sec;
+	int head;
+	static int need_recal;
+	struct fdc_readid *idp;
+	struct fd_formb *finfo;
+
+	/* Have we exhausted our retries ? */
+	bp = fdc->bp;
+	fd = fdc->fd;
+	if (bp != NULL &&
+		(fdc->retry >= retries || (fd->flags & FDOPT_NORETRY))) {
+		if ((debugflags & 4))
+			printf("Too many retries (EIO)\n");
+		return (fdc_biodone(fdc, EIO));
+	}
+
+	/* Disable ISADMA if we bailed while it was active */
+	if (fd != NULL && (fd->flags & FD_ISADMA)) {
+		mtx_lock(&Giant);
+		isa_dmadone(
+		    bp->bio_cmd & BIO_READ ? ISADMA_READ : ISADMA_WRITE,
+		    fd->fd_ioptr, fd->fd_iosize, fdc->dmachan);
+		mtx_unlock(&Giant);
+		fd->flags &= ~FD_ISADMA;
+	}
+		
+	/* Unwedge the controller ? */
+	if (fdc->flags & FDC_NEEDS_RESET) {
+		fdc->flags &= ~FDC_NEEDS_RESET;
+		fdc_reset(fdc);
+		msleep(fdc, NULL, PRIBIO, "fdcrst", hz);
+		/* Discard results */
+		for (i = 0; i < 4; i++)
+			fdc_sense_int(fdc, &st0, &cyl);
+		/* All drives must recal */
+		need_recal = 0xf;
+	}
+
+	/* Pick up a request, if need be wait for it */
+	if (fdc->bp == NULL) {
+		mtx_lock(&fdc->fdc_mtx);
+		do {
+			fdc->bp = bioq_takefirst(&fdc->head);
+			if (fdc->bp == NULL)
+				msleep(&fdc->head, &fdc->fdc_mtx,
+				    PRIBIO, "-", hz);
+		} while (fdc->bp == NULL);
+		mtx_unlock(&fdc->fdc_mtx);
+		bp = fdc->bp;
+		fd = fdc->fd = bp->bio_driver1;
+		fdc->retry = 0;
+		fd->fd_ioptr = bp->bio_data;
+		if (bp->bio_cmd & BIO_FMT) {
+			i = offsetof(struct fd_formb, fd_formb_cylno(0));
+			fd->fd_ioptr += i;
+			fd->fd_iosize = bp->bio_length - i;
+		}
+	}
+
+	/* Select drive, setup params */
+	fd_select(fd);
+	fdctl_wr(fdc, fd->ft->trans);
+
+	if (bp->bio_cmd & BIO_PROBE) {
+
+		if (!(fdin_rd(fdc) & FDI_DCHG) && !(fd->flags & FD_EMPTY))
+			return (fdc_biodone(fdc, 0));
+
+		/*
+		 * Try to find out if we have a disk in the drive
+		 *
+		 * First recal, then seek to cyl#1, this clears the
+		 * old condition on the disk change line so we can
+		 * examine it for current status
+		 */
+		if (debugflags & 0x40)
+			printf("New disk in probe\n");
+		fd->flags |= FD_NEWDISK;
+		retry_line = __LINE__;
+		if (fdc_cmd(fdc, 2, NE7CMD_RECAL, fd->fdsu, 0))
+			return (1);
+		msleep(fdc, NULL, PRIBIO, "fdrecal", hz);
+		retry_line = __LINE__;
+		if (fdc_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
+			return (1); /* XXX */
+		retry_line = __LINE__;
+		if ((st0 & 0xc0) || cyl != 0)
+			return (1);
+
+		/* Seek to track 1 */
+		retry_line = __LINE__;
+		if (fdc_cmd(fdc, 3, NE7CMD_SEEK, fd->fdsu, 1, 0))
+			return (1);
+		msleep(fdc, NULL, PRIBIO, "fdseek", hz);
+		retry_line = __LINE__;
+		if (fdc_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
+			return (1); /* XXX */
+		need_recal |= (1 << fd->fdsu);
+		if (fdin_rd(fdc) & FDI_DCHG) {
+			if (debugflags & 0x40)
+				printf("Empty in probe\n");
+			fd->flags |= FD_EMPTY;
+		} else {
+			if (debugflags & 0x40)
+				printf("Got disk in probe\n");
+			fd->flags &= ~FD_EMPTY;
+			retry_line = __LINE__;
+			if(fdc_sense_drive(fdc, &st3) != 0)
+				return (1);
+			if(st3 & NE7_ST3_WP)
+				fd->flags |= FD_WP;
+			else
+				fd->flags &= ~FD_WP;
+		}
+		return (fdc_biodone(fdc, 0));
+	}
+
+	/*
+	 * If we are dead just flush the requests
+	 */
+	if (fd->flags & FD_EMPTY)
+		return (fdc_biodone(fdc, ENXIO));
+
+	/* Check if we lost our media */
+	if (fdin_rd(fdc) & FDI_DCHG) {
+		if (debugflags & 0x40)
+			printf("Lost disk\n");
+		fd->flags |= FD_EMPTY;
+		fd->flags |= FD_NEWDISK;
+		g_topology_lock();
+		g_orphan_provider(fd->fd_provider, EXDEV);
+		fd->fd_provider->flags |= G_PF_WITHER;
+		fd->fd_provider =
+		    g_new_providerf(fd->fd_geom, fd->fd_geom->name);
+		g_error_provider(fd->fd_provider, 0);
+		g_topology_unlock();
+		return (fdc_biodone(fdc, ENXIO));
+	}
+
+	/* Check if the floppy is write-protected */
+	if(bp->bio_cmd & (BIO_FMT | BIO_WRITE)) {
+		retry_line = __LINE__;
+		if(fdc_sense_drive(fdc, &st3) != 0)
+			return (1);
+		if(st3 & NE7_ST3_WP)
+			return (fdc_biodone(fdc, EROFS));
+	}
+
+	mfm = (fd->ft->flags & FL_MFM)? NE7CMD_MFM: 0;
+	steptrac = (fd->ft->flags & FL_2STEP)? 2: 1;
+	i = fd->ft->sectrac * fd->ft->heads;
+	cylinder = bp->bio_pblkno / i;
+	descyl = cylinder * steptrac;
+	sec = bp->bio_pblkno % i;
+	nsect = i - sec;
+	head = sec / fd->ft->sectrac;
+	sec = sec % fd->ft->sectrac + 1;
+
+	/* If everything is going swimmingly, use multisector xfer */
+	if (fdc->retry == 0 && bp->bio_cmd & (BIO_READ|BIO_WRITE)) {
+		fd->fd_iosize = imin(nsect * fd->sectorsize, bp->bio_resid);
+		nsect = fd->fd_iosize / fd->sectorsize;
+	} else if (bp->bio_cmd & (BIO_READ|BIO_WRITE)) {
+		fd->fd_iosize = fd->sectorsize;
+		nsect = 1;
+	}
+
+	/* Do RECAL if we need to or are going to track zero anyway */
+	if ((need_recal & (1 << fd->fdsu)) ||
+	    (cylinder == 0 && fd->track != 0) ||
+	    fdc->retry > 2) {
+		retry_line = __LINE__;
+		if (fdc_cmd(fdc, 2, NE7CMD_RECAL, fd->fdsu, 0))
+			return (1);
+		msleep(fdc, NULL, PRIBIO, "fdrecal", hz);
+		retry_line = __LINE__;
+		if (fdc_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
+			return (1); /* XXX */
+		retry_line = __LINE__;
+		if ((st0 & 0xc0) || cyl != 0)
+			return (1);
+		need_recal &= ~(1 << fd->fdsu);
+		fd->track = 0;
+		/* let the heads settle */
+		if (settle)
+			msleep(fdc->fd, NULL, PRIBIO, "fdhdstl", settle);
+	}
+
+	/* 
+	 * SEEK to where we want to be
+	 *
+	 * Enhanced controllers do implied seeks for read&write as long as
+	 * we do not need multiple steps per track.
+	 */
+	if (cylinder != fd->track && (
+	    fdc->fdct != FDC_ENHANCED ||
+	    descyl != cylinder ||
+	    (bp->bio_cmd & (BIO_RDID|BIO_FMT)))) {
+		retry_line = __LINE__;
+		if (fdc_cmd(fdc, 3, NE7CMD_SEEK, fd->fdsu, descyl, 0))
+			return (1);
+		msleep(fdc, NULL, PRIBIO, "fdseek", hz);
+		retry_line = __LINE__;
+		if (fdc_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
+			return (1); /* XXX */
+		retry_line = __LINE__;
+		if ((st0 & 0xc0) || cyl != descyl) {
+			need_recal |= (1 << fd->fdsu);
+			return (1);
+		}
+		/* let the heads settle */
+		if (settle)
+			msleep(fdc->fd, NULL, PRIBIO, "fdhdstl", settle);
+	}
+	fd->track = cylinder;
+
+	if (debugflags & 8) 
+		printf("op %x bn %ju siz %u ptr %p retry %d\n",
+		    bp->bio_cmd, bp->bio_pblkno, fd->fd_iosize,
+		    fd->fd_ioptr, fdc->retry);
+
+	/* Setup ISADMA if we need it and have it */
+	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_FMT))
+	     && !(fdc->flags & FDC_NODMA)) {
+		mtx_lock(&Giant);
+		isa_dmastart(
+		    bp->bio_cmd & BIO_READ ? ISADMA_READ : ISADMA_WRITE,
+		    fd->fd_ioptr, fd->fd_iosize, fdc->dmachan);
+		mtx_unlock(&Giant);
+		fd->flags |= FD_ISADMA;
+	}
+
+	/* Do PIO if we have to */
+	if (fdc->flags & FDC_NODMA) {
+		if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_FMT))
+			SET_BCDR(fdc, 1, fd->fd_iosize, 0);
+		if (bp->bio_cmd & (BIO_WRITE|BIO_FMT))
+			fdc_pio(fdc);
+	}
+
+	switch(bp->bio_cmd) {
+	case BIO_FMT:
+		/* formatting */
+		finfo = (struct fd_formb *)bp->bio_data;
+		retry_line = __LINE__;
+		if (fdc_cmd(fdc, 6,
+		    NE7CMD_FORMAT | mfm,
+		    head << 2 | fd->fdsu,
+		    finfo->fd_formb_secshift,
+		    finfo->fd_formb_nsecs,
+		    finfo->fd_formb_gaplen,
+		    finfo->fd_formb_fillbyte, 0))
+			return (1);
+		break;
+	case BIO_RDID:
+		retry_line = __LINE__;
+		if (fdc_cmd(fdc, 2,
+		    NE7CMD_READID | mfm,
+		    head << 2 | fd->fdsu, 0))
+			return (1);
+		break;
+	case BIO_READ:
+		retry_line = __LINE__;
+		if (fdc_cmd(fdc, 9,
+		    NE7CMD_READ | NE7CMD_SK | mfm | NE7CMD_MT,
+		    head << 2 | fd->fdsu,	/* head & unit */
+		    fd->track,			/* track */
+		    head,			/* head */
+		    sec,			/* sector + 1 */
+		    fd->ft->secsize,		/* sector size */
+		    fd->ft->sectrac,		/* sectors/track */
+		    fd->ft->gap,		/* gap size */
+		    fd->ft->datalen,		/* data length */
+		    0))
+			return (1);
+		break;
+	case BIO_WRITE:
+		retry_line = __LINE__;
+		if (fdc_cmd(fdc, 9,
+		    NE7CMD_WRITE | mfm | NE7CMD_MT,
+		    head << 2 | fd->fdsu,	/* head & unit */
+		    fd->track,			/* track */
+		    head,			/* head */
+		    sec,			/* sector + 1 */
+		    fd->ft->secsize,		/* sector size */
+		    fd->ft->sectrac,		/* sectors/track */
+		    fd->ft->gap,		/* gap size */
+		    fd->ft->datalen,		/* data length */
+		    0))
+			return (1);
+		break;
+	default:
+		KASSERT(0 == 1, ("Wrong bio_cmd %x\n", bp->bio_cmd));
+	}
+
+	/* Wait for interrupt */
+	i = msleep(fdc, NULL, PRIBIO, "fddata", hz);
+
+	/* PIO if the read looks good */
+	if (i == 0 && (fdc->flags & FDC_NODMA) && (bp->bio_cmd & BIO_READ))
+		fdc_pio(fdc);
+
+	/* Finish DMA */
+	if (fd->flags & FD_ISADMA) {
+		mtx_lock(&Giant);
+		isa_dmadone(
+		    bp->bio_cmd & BIO_READ ? ISADMA_READ : ISADMA_WRITE,
+		    fd->fd_ioptr, fd->fd_iosize, fdc->dmachan);
+		mtx_unlock(&Giant);
+		fd->flags &= ~FD_ISADMA;
+	}
+
+	if (i != 0) {
+		/*
+		 * Timeout.
+		 *
+		 * Due to IBM's brain-dead design, the FDC has a faked ready
+		 * signal, hardwired to ready == true. Thus, any command
+		 * issued if there's no diskette in the drive will _never_
+		 * complete, and must be aborted by resetting the FDC.
+		 * Many thanks, Big Blue!
+		 */
+		retry_line = __LINE__;
+		fdc->flags |= FDC_NEEDS_RESET;
+		return (1);
+	}
+
+	retry_line = __LINE__;
+	if (fdc_read_status(fdc))
+		return (1);
+
+	if (debugflags & 0x10)
+		printf("  -> %x %x %x %x\n",
+		    fdc->status[0], fdc->status[1],
+		    fdc->status[2], fdc->status[3]);
+
+	st0 = fdc->status[0] & NE7_ST0_IC;
+	if (st0 != 0) {
+		retry_line = __LINE__;
+		if (st0 == NE7_ST0_IC_AT && fdc->status[1] & NE7_ST1_OR) {
+			/*
+			 * DMA overrun. Someone hogged the bus and
+			 * didn't release it in time for the next
+			 * FDC transfer.
+			 */
+			return (1);
+		}
+		retry_line = __LINE__;
+		if(st0 == NE7_ST0_IC_IV) {
+			fdc->flags |= FDC_NEEDS_RESET;
+			return (1);
+		}
+		retry_line = __LINE__;
+		if(st0 == NE7_ST0_IC_AT && fdc->status[2] & NE7_ST2_WC) {
+			need_recal |= (1 << fd->fdsu);
+			return (1);
+		}
+		if (debugflags & 0x20) {
+			printf("status %02x %02x %02x %02x %02x %02x\n",
+			    fdc->status[0], fdc->status[1], fdc->status[2],
+			    fdc->status[3], fdc->status[4], fdc->status[5]);
+		}
+		retry_line = __LINE__;
+		return (1);
+	}
+	/* All OK */
+	switch(bp->bio_cmd) {
+	case BIO_RDID:
+		/* copy out ID field contents */
+		idp = (struct fdc_readid *)bp->bio_data;
+		idp->cyl = fdc->status[3];
+		idp->head = fdc->status[4];
+		idp->sec = fdc->status[5];
+		idp->secshift = fdc->status[6];
+		if (debugflags & 0x40)
+			printf("c %d h %d s %d z %d\n",
+			    idp->cyl, idp->head, idp->sec, idp->secshift);
+		break;
+	case BIO_READ:
+	case BIO_WRITE:
+		bp->bio_pblkno += nsect;
+		bp->bio_resid -= fd->fd_iosize;
+		bp->bio_completed += fd->fd_iosize;
+		fd->fd_ioptr += fd->fd_iosize;
+		/* Since we managed to get something done, reset the retry */
+		fdc->retry = 0;
+		if (bp->bio_resid > 0)
+			return (0);
+		break;
+	case BIO_FMT:
+		break;
+	}
+	return (fdc_biodone(fdc, 0));
+}
+
+static void
+fdc_thread(void *arg)
+{
+	struct fdc_data *fdc;
+
+	fdc = arg;
+	int i;
+
+	for (;;) {
+		i = fdc_worker(fdc);
+		if (i && debugflags & 0x20) {
+			if (fdc->bp != NULL) {
+				g_print_bio(fdc->bp);
+				printf("\n");
+			}
+			printf("Retry line %d\n", retry_line);
+		}
+		fdc->retry += i;
+	}
+}
+
+/*
+ * Enqueue a requst.
+ */
+static void
+fd_enqueue(struct fd_data *fd, struct bio *bp)
+{
+	struct fdc_data *fdc;
+	int call;
+
+	call = 0;
+	fdc = fd->fdc;
+	mtx_lock(&fdc->fdc_mtx);
+	/* If we go from idle, cancel motor turnoff */
+	if (fd->fd_iocount++ == 0)
+		callout_drain(&fd->toffhandle);
+	if (fd->flags & FD_MOTOR) {
+		/* The motor is on, send it directly to the controller */
+		bioq_disksort(&fdc->head, bp);
+		wakeup(&fdc->head);
+	} else {
+		/* Queue it on the drive until the motor has started */
+		bioq_insert_tail(&fd->fd_bq, bp);
+		if (!(fd->flags & FD_MOTORWAIT))
+			fd_motor(fd, 1);
+	}
+	mtx_unlock(&fdc->fdc_mtx);
+}
+
+static int
+fdmisccmd(struct fd_data *fd, u_int cmd, void *data)
+{
+	struct bio *bp;
+	struct fd_formb *finfo;
+	struct fdc_readid *idfield;
+	int error;
+
+	bp = malloc(sizeof(struct bio), M_TEMP, M_WAITOK | M_ZERO);
+
+	/*
+	 * Set up a bio request for fdstrategy().  bio_offset is faked
+	 * so that fdstrategy() will seek to the the requested
+	 * cylinder, and use the desired head.
+	 */
+	bp->bio_cmd = cmd;
+	if (cmd == BIO_FMT) {
+		finfo = (struct fd_formb *)data;
+		bp->bio_pblkno =
+		    (finfo->cyl * fd->ft->heads + finfo->head) *
+		    fd->ft->sectrac;
+		bp->bio_length = sizeof *finfo;
+	} else if (cmd == BIO_RDID) {
+		idfield = (struct fdc_readid *)data;
+		bp->bio_pblkno =
+		    (idfield->cyl * fd->ft->heads + idfield->head) *
+		    fd->ft->sectrac;
+		bp->bio_length = sizeof(struct fdc_readid);
+	} else if (cmd == BIO_PROBE) {
+		/* nothing */
+	} else
+		panic("wrong cmd in fdmisccmd()");
+	bp->bio_offset = bp->bio_pblkno * fd->sectorsize;
+	bp->bio_data = data;
+	bp->bio_driver1 = fd;
+	bp->bio_flags = 0;
+
+	fd_enqueue(fd, bp);
+
+	do {
+		msleep(bp, NULL, PRIBIO, "fdwait", hz);
+	} while (!(bp->bio_flags & BIO_DONE));
+	error = bp->bio_error;
+
+	free(bp, M_TEMP);
+	return (error);
+}
+
+/*
+ * Try figuring out the density of the media present in our device.
+ */
+static int
+fdautoselect(struct fd_data *fd)
+{
+	struct fd_type *fdtp;
+	struct fdc_readid id;
+	int oopts, rv;
+
+	if (!(fd->ft->flags & FL_AUTO))
+		return (0);
+
+	fdtp = fd_native_types[fd->type];
+	fdsettype(fd, fdtp);
+	if (!(fd->ft->flags & FL_AUTO))
+		return (0);
+
+	/*
+	 * Try reading sector ID fields, first at cylinder 0, head 0,
+	 * then at cylinder 2, head N.  We don't probe cylinder 1,
+	 * since for 5.25in DD media in a HD drive, there are no data
+	 * to read (2 step pulses per media cylinder required).  For
+	 * two-sided media, the second probe always goes to head 1, so
+	 * we can tell them apart from single-sided media.  As a
+	 * side-effect this means that single-sided media should be
+	 * mentioned in the search list after two-sided media of an
+	 * otherwise identical density.  Media with a different number
+	 * of sectors per track but otherwise identical parameters
+	 * cannot be distinguished at all.
+	 *
+	 * If we successfully read an ID field on both cylinders where
+	 * the recorded values match our expectation, we are done.
+	 * Otherwise, we try the next density entry from the table.
+	 *
+	 * Stepping to cylinder 2 has the side-effect of clearing the
+	 * unit attention bit.
+	 */
+	oopts = fd->options;
+	fd->options |= FDOPT_NOERRLOG | FDOPT_NORETRY;
+	for (; fdtp->heads; fdtp++) {
+		fdsettype(fd, fdtp);
+
+		id.cyl = id.head = 0;
+		rv = fdmisccmd(fd, BIO_RDID, &id);
+		if (rv != 0)
+			continue;
+		if (id.cyl != 0 || id.head != 0 || id.secshift != fdtp->secsize)
+			continue;
+		id.cyl = 2;
+		id.head = fd->ft->heads - 1;
+		rv = fdmisccmd(fd, BIO_RDID, &id);
+		if (id.cyl != 2 || id.head != fdtp->heads - 1 ||
+		    id.secshift != fdtp->secsize)
+			continue;
+		if (rv == 0)
+			break;
+	}
+
+	fd->options = oopts;
+	if (fdtp->heads == 0) {
+		if (debugflags & 0x40)
+			device_printf(fd->dev, "autoselection failed\n");
+		fdsettype(fd, fd_native_types[fd->type]);
+		return (0);
+	} else {
+		if (debugflags & 0x40) {
+			device_printf(fd->dev,
+			    "autoselected %d KB medium\n", fd->ft->size / 2);
+			fdprinttype(fd->ft);
+		}
+		return (0);
+	}
+}
+
+/*
+ * GEOM class implementation
+ */
+
+static g_access_t	fd_access;
+static g_start_t	fd_start;
+static g_ioctl_t	fd_ioctl;
+
+struct g_class g_fd_class = {
+	.name =		"FD",
+	.version =	G_VERSION,
+	.start =	fd_start,
+	.access =	fd_access,
+	.ioctl =	fd_ioctl,
+};
+
+DECLARE_GEOM_CLASS(g_fd_class, g_fd);
+
+static int
+fd_access(struct g_provider *pp, int r, int w, int e)
+{
+	struct fd_data *fd;
+	struct fdc_data *fdc;
+	int ar, aw, ae;
+
+	fd = pp->geom->softc;
+	fdc = fd->fdc;
+
+	/*
+	 * If our provider is withering, we can only get negative requests
+	 * and we don't want to even see them
+	 */
+	if (pp->flags & G_PF_WITHER)
+		return (0);
+
+	ar = r + pp->acr;
+	aw = w + pp->acw;
+	ae = e + pp->ace;
+
+	if (ar == 0 && aw == 0 && ae == 0) {
+		device_unbusy(fd->dev);
+		if (!(fdc->flags & FDC_NODMA) && --fdc->dmacnt == 0) {
+			mtx_lock(&Giant);
+			isa_dma_release(fdc->dmachan);
+			mtx_unlock(&Giant);
+		}
+		return (0);
+	}
+
+	if (pp->acr == 0 && pp->acw == 0 && pp->ace == 0) {
+		if (fdmisccmd(fd, BIO_PROBE, NULL))
+			return (ENXIO);
+		if (fd->flags & FD_EMPTY)
+			return (ENXIO);
+		if (fd->flags & FD_NEWDISK) {
+			fdautoselect(fd);
+			fd->flags &= ~FD_NEWDISK;
+		}
+		device_busy(fd->dev);
+		if (!(fdc->flags & FDC_NODMA) && fdc->dmacnt++ == 0) {
+			mtx_lock(&Giant);
+			isa_dma_acquire(fdc->dmachan);
+			isa_dmainit(fdc->dmachan, MAX_BYTES_PER_CYL);
+			mtx_unlock(&Giant);
+		}
+	}
+
+#ifdef notyet
+	if (w > 0 && (fd->flags & FD_WP))
+		return (EROFS);
+#endif
+
+	pp->sectorsize = fd->sectorsize;
+	pp->stripesize = fd->ft->heads * fd->ft->sectrac * fd->sectorsize;
+	pp->mediasize = pp->stripesize * fd->ft->tracks;
+	return (0);
+}
+
+static void
+fd_start(struct bio *bp)
+{
+ 	struct fdc_data *	fdc;
+ 	struct fd_data *	fd;
+
+	fd = bp->bio_to->geom->softc;
+	fdc = fd->fdc;
+	bp->bio_driver1 = fd;
+	if (bp->bio_cmd & BIO_GETATTR) {
+		if (g_handleattr_int(bp, "GEOM::fwsectors", fd->ft->sectrac))
+			return;
+		if (g_handleattr_int(bp, "GEOM::fwheads", fd->ft->heads))
+			return;
+		g_io_deliver(bp, ENOIOCTL);
+		return;
+	}
+	if (!(bp->bio_cmd & (BIO_READ|BIO_WRITE))) {
+		g_io_deliver(bp, EOPNOTSUPP);
+		return;
+	}
+	bp->bio_pblkno = bp->bio_offset / fd->sectorsize;
+	bp->bio_resid = bp->bio_length;
+	fd_enqueue(fd, bp);
+	return;
+}
+
+static int
+fd_ioctl(struct g_provider *pp, u_long cmd, void *data, struct thread *td)
+{
+	struct fd_data *fd;
+	struct fdc_status *fsp;
+	struct fdc_readid *rid;
+	int error;
+
+	fd = pp->geom->softc;
+
+	switch (cmd) {
+	case FD_GTYPE:                  /* get drive type */
+		*(struct fd_type *)data = *fd->ft;
+		return (0);
+
+	case FD_STYPE:                  /* set drive type */
+		/*
+		 * Allow setting drive type temporarily iff
+		 * currently unset.  Used for fdformat so any
+		 * user can set it, and then start formatting.
+		 */
+		fd->fts = *(struct fd_type *)data;
+		if (fd->fts.sectrac) {
+			/* XXX: check for rubbish */
+			fdsettype(fd, &fd->fts);
+		} else {
+			fdsettype(fd, fd_native_types[fd->type]);
+		}
+		if (debugflags & 0x40)
+			fdprinttype(fd->ft);
+		return (0);
+
+	case FD_GOPTS:			/* get drive options */
+		*(int *)data = fd->options;
+		return (0);
+
+	case FD_SOPTS:			/* set drive options */
+		fd->options = *(int *)data;
+		return (0);
+
+	case FD_CLRERR:
+		if (suser(td) != 0)
+			return (EPERM);
+		fd->fdc->fdc_errs = 0;
+		return (0);
+
+	case FD_GSTAT:
+		fsp = (struct fdc_status *)data;
+		if ((fd->fdc->flags & FDC_STAT_VALID) == 0)
+			return (EINVAL);
+		memcpy(fsp->status, fd->fdc->status, 7 * sizeof(u_int));
+		return (0);
+
+	case FD_GDTYPE:
+		*(enum fd_drivetype *)data = fd->type;
+		return (0);
+
+	case FD_FORM:
+		if (((struct fd_formb *)data)->format_version !=
+		    FD_FORMAT_VERSION)
+			return (EINVAL); /* wrong version of formatting prog */
+		error = fdmisccmd(fd, BIO_FMT, data);
+		fd->flags |= FD_NEWDISK;
+		break;
+
+	case FD_READID:
+		rid = (struct fdc_readid *)data;
+		if (rid->cyl > 85 || rid->head > 1)
+			return (EINVAL);
+		error = fdmisccmd(fd, BIO_RDID, data);
+		break;
+
+	case FIONBIO:
+	case FIOASYNC:
+		/* For backwards compat with old fd*(8) tools */
+		error = 0;
+		break;
+
+	default:
+		if (debugflags & 0x80)
+			printf("Unknown ioctl %lx\n", cmd);
+		error = ENOIOCTL;
+		break;
+	}
+	return (error);
+};
+
+
+
+/*
+ * Configuration/initialization stuff, per controller.
+ */
+
+devclass_t fdc_devclass;
+static devclass_t fd_devclass;
+
+struct fdc_ivars {
+	int	fdunit;
+	int	fdtype;
+};
 
 void
 fdc_release_resources(struct fdc_data *fdc)
@@ -547,10 +1519,6 @@ fdc_release_resources(struct fdc_data *fdc)
 	}
 }
 
-/*
- * Configuration/initialization stuff, per controller.
- */
-
 int
 fdc_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
@@ -588,17 +1556,49 @@ fdc_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 }
 
 int
-fdc_initial_reset(struct fdc_data *fdc)
+fdc_initial_reset(device_t dev, struct fdc_data *fdc)
 {
+	int ic_type, part_id;
+
 	/* First, reset the floppy controller. */
 	fdout_wr(fdc, 0);
 	DELAY(100);
 	fdout_wr(fdc, FDO_FRST);
 
 	/* Then, see if it can handle a command. */
-	if (fd_cmd(fdc, 3, NE7CMD_SPECIFY, NE7_SPEC_1(3, 240), 
-	    NE7_SPEC_2(2, 0), 0))
+	if (fdc_cmd(fdc, 3, NE7CMD_SPECIFY, 0xaf, 0x1e, 0))
 		return (ENXIO);
+
+	/*
+	 * Try to identify the chip.
+	 *
+	 * The i8272 datasheet documents that unknown commands
+	 * will return ST0 as 0x80.  The i8272 is supposedly identical
+	 * to the NEC765.
+	 * The i82077SL datasheet says 0x90 for the VERSION command,
+	 * and several "superio" chips emulate this.
+	 */
+	if (fdc_cmd(fdc, 1, NE7CMD_VERSION, 1, &ic_type))
+		return (ENXIO);
+	if (fdc_cmd(fdc, 1, 0x18, 1, &part_id))
+		return (ENXIO);
+	printf("ic_type %02x part_id %02x\n", ic_type, part_id);
+	switch (ic_type & 0xff) {
+	case 0x80:
+		device_set_desc(dev, "NEC 765 or clone");
+		fdc->fdct = FDC_NE765;
+		break;
+	case 0x81:
+	case 0x90:
+		device_set_desc(dev,
+		    "Enhanced floppy controller");
+		fdc->fdct = FDC_ENHANCED;
+		break;
+	default:
+		device_set_desc(dev, "Generic floppy controller");
+		fdc->fdct = FDC_UNKNOWN;
+		break;
+	}
 	return (0);
 }
 
@@ -614,10 +1614,12 @@ fdc_detach(device_t dev)
 	if ((error = bus_generic_detach(dev)))
 		return (error);
 
+	/* XXX: kill thread */
 	/* reset controller, turn motor off */
 	fdout_wr(fdc, 0);
 
 	fdc_release_resources(fdc);
+	mtx_destroy(&fdc->fdc_mtx);
 	return (0);
 }
 
@@ -657,21 +1659,31 @@ fdc_attach(device_t dev)
 
 	fdc = device_get_softc(dev);
 	fdc->fdc_dev = dev;
+	error = fdc_initial_reset(dev, fdc);
+	if (error) {
+		device_printf(dev, "does not respond\n");
+		return (error);
+	}
 	error = BUS_SETUP_INTR(device_get_parent(dev), dev, fdc->res_irq,
-			       INTR_TYPE_BIO | INTR_ENTROPY, fdc_intr, fdc,
-			       &fdc->fdc_intr);
+           INTR_TYPE_BIO | INTR_ENTROPY | INTR_FAST | INTR_MPSAFE,
+	   fdc_intr, fdc, &fdc->fdc_intr);
 	if (error) {
 		device_printf(dev, "cannot setup interrupt\n");
-		return error;
+		return (error);
 	}
 	fdc->fdcu = device_get_unit(dev);
 	fdc->flags |= FDC_NEEDS_RESET;
 
-	fdc->state = DEVIDLE;
+	mtx_init(&fdc->fdc_mtx, "fdc lock", NULL, MTX_DEF);
 
 	/* reset controller, turn motor off, clear fdout mirror reg */
 	fdout_wr(fdc, fdc->fdout = 0);
 	bioq_init(&fdc->head);
+
+	kthread_create(fdc_thread, fdc, &fdc->fdc_thread, 0, 0,
+	    "fdc%d", device_get_unit(dev));
+
+	settle = hz / 8;
 
 	return (0);
 }
@@ -709,7 +1721,7 @@ fdc_print_child(device_t me, device_t child)
 	if ((flags = device_get_flags(me)) != 0)
 		retval += printf(" flags %#x", flags);
 	retval += printf("\n");
-	
+
 	return (retval);
 }
 
@@ -719,11 +1731,11 @@ fdc_print_child(device_t me, device_t child)
 static int
 fd_probe(device_t dev)
 {
-	int	i;
+	int	i, unit;
 	u_int	st0, st3;
 	struct	fd_data *fd;
 	struct	fdc_data *fdc;
-	fdsu_t	fdsu;
+	int	fdsu;
 	int	flags, type;
 
 	fdsu = fdc_get_fdunit(dev);
@@ -734,16 +1746,16 @@ fd_probe(device_t dev)
 	fd->dev = dev;
 	fd->fdc = fdc;
 	fd->fdsu = fdsu;
-	fd->fdu = device_get_unit(dev);
+	unit = device_get_unit(dev);
 
 	/* Auto-probe if fdinfo is present, but always allow override. */
-	type = FD_DTYPE(flags);
+	type = flags & FD_TYPEMASK;
 	if (type == FDT_NONE && (type = fdc_get_fdtype(dev)) != FDT_NONE) {
 		fd->type = type;
 		goto done;
 	} else {
 		/* make sure fdautoselect() will be called */
-		fd->flags = FD_UA;
+		fd->flags = FD_EMPTY;
 		fd->type = type;
 	}
 
@@ -754,9 +1766,9 @@ fd_probe(device_t dev)
  * == i386 breaks the test on FreeBSD/Alpha.
  */
 #if defined(__i386__) || defined(__amd64__)
-	if (fd->type == FDT_NONE && (fd->fdu == 0 || fd->fdu == 1)) {
+	if (fd->type == FDT_NONE && (unit == 0 || unit == 1)) {
 		/* Look up what the BIOS thinks we have. */
-		if (fd->fdu == 0) {
+		if (unit == 0) {
 			if ((fdc->flags & FDC_ISPCMCIA))
 				/*
 				 * Somewhat special.  No need to force the
@@ -778,21 +1790,26 @@ fd_probe(device_t dev)
 	if (fd->type == FDT_NONE)
 		return (ENXIO);
 
+/*
+	mtx_lock(&fdc->fdc_mtx);
+*/
 	/* select it */
-	set_motor(fdc, fdsu, TURNON);
+	fd_select(fd);
+	fd_motor(fd, 1);
+	fdc->fd = fd;
 	fdc_reset(fdc);		/* XXX reset, then unreset, etc. */
 	DELAY(1000000);	/* 1 sec */
 
 	if ((flags & FD_NO_PROBE) == 0) {
 		/* If we're at track 0 first seek inwards. */
-		if ((fd_sense_drive_status(fdc, &st3) == 0) &&
+		if ((fdc_sense_drive(fdc, &st3) == 0) &&
 		    (st3 & NE7_ST3_T0)) {
 			/* Seek some steps... */
-			if (fd_cmd(fdc, 3, NE7CMD_SEEK, fdsu, 10, 0) == 0) {
+			if (fdc_cmd(fdc, 3, NE7CMD_SEEK, fdsu, 10, 0) == 0) {
 				/* ...wait a moment... */
 				DELAY(300000);
 				/* make ctrlr happy: */
-				fd_sense_int(fdc, 0, 0);
+				fdc_sense_int(fdc, 0, 0);
 			}
 		}
 
@@ -804,33 +1821,29 @@ fd_probe(device_t dev)
 			 * recalibrate more than 77 steps
 			 */
 			/* go back to 0: */
-			if (fd_cmd(fdc, 2, NE7CMD_RECAL, fdsu, 0) == 0) {
+			if (fdc_cmd(fdc, 2, NE7CMD_RECAL, fdsu, 0) == 0) {
 				/* a second being enough for full stroke seek*/
 				DELAY(i == 0 ? 1000000 : 300000);
 
 				/* anything responding? */
-				if (fd_sense_int(fdc, &st0, 0) == 0 &&
+				if (fdc_sense_int(fdc, &st0, 0) == 0 &&
 				    (st0 & NE7_ST0_EC) == 0)
 					break; /* already probed succesfully */
 			}
 		}
 	}
 
-	set_motor(fdc, fdsu, TURNOFF);
+	fd_motor(fd, 0);
+	fdc->fd = NULL;
+/*
+	mtx_unlock(&fdc->fdc_mtx);
+*/
 
 	if ((flags & FD_NO_PROBE) == 0 &&
 	    (st0 & NE7_ST0_EC) != 0) /* no track 0 -> no drive present */
 		return (ENXIO);
 
 done:
-	/* This doesn't work before the first reset. */
-	if ((fdc->flags & FDC_HAS_FIFO) == 0 &&
-	    fdc->fdct == FDC_ENHANCED &&
-	    (device_get_flags(fdc->fdc_dev) & FDC_NO_FIFO) == 0 &&
-	    enable_fifo(fdc) == 0) {
-		device_printf(device_get_parent(dev),
-		    "FIFO enabled, %d bytes threshold\n", fifo_threshold);
-	}
 
 	switch (fd->type) {
 	case FDT_12M:
@@ -855,14 +1868,31 @@ done:
 	fd->fdc = fdc;
 	fd->fdsu = fdsu;
 	fd->options = 0;
-	callout_handle_init(&fd->toffhandle);
-	callout_handle_init(&fd->tohandle);
+	callout_init(&fd->toffhandle, 1);
+	callout_init(&fd->tohandle, 1);
 
 	/* initialize densities for subdevices */
-	for (i = 0; i < NUMDENS; i++)
-		memcpy(fd->fts + i, fd_native_types + fd->type,
-		       sizeof(struct fd_type));
+	fdsettype(fd, fd_native_types[fd->type]);
 	return (0);
+}
+
+/*
+ * We have to do this in a geom event because GEOM is not running
+ * when fd_attach() is.
+ * XXX: move fd_attach after geom like ata/scsi disks
+ */
+static void
+fd_attach2(void *arg, int flag)
+{
+	struct	fd_data *fd;
+
+	fd = arg;
+	
+	fd->fd_geom = g_new_geomf(&g_fd_class,
+	    "fd%d", device_get_unit(fd->fdc->fdc_dev));
+	fd->fd_provider = g_new_providerf(fd->fd_geom, fd->fd_geom->name);
+	fd->fd_geom->softc = fd;
+	g_error_provider(fd->fd_provider, 0);
 }
 
 static int
@@ -871,13 +1901,11 @@ fd_attach(device_t dev)
 	struct	fd_data *fd;
 
 	fd = device_get_softc(dev);
-	fd->masterdev = make_dev(&fd_cdevsw, fd->fdu,
-				 UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
-	fd->masterdev->si_drv1 = fd;
-	fd->device_stats = devstat_new_entry(device_get_name(dev), 
-			  device_get_unit(dev), 0, DEVSTAT_NO_ORDERED_TAGS,
-			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER,
-			  DEVSTAT_PRIORITY_FD);
+	g_post_event(fd_attach2, fd, M_WAITOK, NULL);
+	fd->flags |= FD_EMPTY;
+	bioq_init(&fd->fd_bq);
+	return (0);
+
 	return (0);
 }
 
@@ -887,9 +1915,7 @@ fd_detach(device_t dev)
 	struct	fd_data *fd;
 
 	fd = device_get_softc(dev);
-	untimeout(fd_turnoff, fd, fd->toffhandle);
-	devstat_remove_entry(fd->device_stats);
-	destroy_dev(fd->masterdev);
+	callout_drain(&fd->toffhandle);
 
 	return (0);
 }
@@ -902,7 +1928,6 @@ static device_method_t fd_methods[] = {
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend), /* XXX */
 	DEVMETHOD(device_resume,	bus_generic_resume), /* XXX */
-
 	{ 0, 0 }
 };
 
@@ -913,1414 +1938,3 @@ static driver_t fd_driver = {
 };
 
 DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, 0, 0);
-
-/*
- * More auxiliary functions.
- */
-/*
- * Motor control stuff.
- * Remember to not deselect the drive we're working on.
- */
-static void
-set_motor(struct fdc_data *fdc, int fdsu, int turnon)
-{
-	int fdout;
-
-	fdout = fdc->fdout;
-	if (turnon) {
-		fdout &= ~FDO_FDSEL;
-		fdout |= (FDO_MOEN0 << fdsu) | FDO_FDMAEN | FDO_FRST | fdsu;
-	} else
-		fdout &= ~(FDO_MOEN0 << fdsu);
-	fdc->fdout = fdout;
-	fdout_wr(fdc, fdout);
-	TRACE1("[0x%x->FDOUT]", fdout);
-}
-
-static void
-fd_turnoff(void *xfd)
-{
-	int	s;
-	fd_p fd = xfd;
-
-	TRACE1("[fd%d: turnoff]", fd->fdu);
-
-	s = splbio();
-	/*
-	 * Don't turn off the motor yet if the drive is active.
-	 *
-	 * If we got here, this could only mean we missed an interrupt.
-	 * This can e. g. happen on the Y-E Date PCMCIA floppy controller
-	 * after a controller reset.  Just schedule a pseudo-interrupt
-	 * so the state machine gets re-entered.
-	 */
-	if (fd->fdc->state != DEVIDLE && fd->fdc->fdu == fd->fdu) {
-		fdc_intr(fd->fdc);
-		splx(s);
-		return;
-	}
-
-	fd->flags &= ~FD_MOTOR;
-	set_motor(fd->fdc, fd->fdsu, TURNOFF);
-	splx(s);
-}
-
-static void
-fd_motor_on(void *xfd)
-{
-	int	s;
-	fd_p fd = xfd;
-
-	s = splbio();
-	fd->flags &= ~FD_MOTOR_WAIT;
-	if((fd->fdc->fd == fd) && (fd->fdc->state == MOTORWAIT))
-	{
-		fdc_intr(fd->fdc);
-	}
-	splx(s);
-}
-
-static void
-fd_turnon(fd_p fd)
-{
-	if(!(fd->flags & FD_MOTOR))
-	{
-		fd->flags |= (FD_MOTOR + FD_MOTOR_WAIT);
-		set_motor(fd->fdc, fd->fdsu, TURNON);
-		timeout(fd_motor_on, fd, hz); /* in 1 sec its ok */
-	}
-}
-
-static void
-fdc_reset(fdc_p fdc)
-{
-	/* Try a reset, keep motor on */
-	fdout_wr(fdc, fdc->fdout & ~(FDO_FRST|FDO_FDMAEN));
-	TRACE1("[0x%x->FDOUT]", fdc->fdout & ~(FDO_FRST|FDO_FDMAEN));
-	DELAY(100);
-	/* enable FDC, but defer interrupts a moment */
-	fdout_wr(fdc, fdc->fdout & ~FDO_FDMAEN);
-	TRACE1("[0x%x->FDOUT]", fdc->fdout & ~FDO_FDMAEN);
-	DELAY(100);
-	fdout_wr(fdc, fdc->fdout);
-	TRACE1("[0x%x->FDOUT]", fdc->fdout);
-
-	/* XXX after a reset, silently believe the FDC will accept commands */
-	(void)fd_cmd(fdc, 3, NE7CMD_SPECIFY,
-		     NE7_SPEC_1(3, 240), NE7_SPEC_2(2, 0),
-		     0);
-	if (fdc->flags & FDC_HAS_FIFO)
-		(void) enable_fifo(fdc);
-}
-
-/*
- * FDC IO functions, take care of the main status register, timeout
- * in case the desired status bits are never set.
- *
- * These PIO loops initially start out with short delays between
- * each iteration in the expectation that the required condition
- * is usually met quickly, so it can be handled immediately.  After
- * about 1 ms, stepping is increased to achieve a better timing
- * accuracy in the calls to DELAY().
- */
-static int
-fd_in(struct fdc_data *fdc, int *ptr)
-{
-	int i, j, step;
-
-	for (j = 0, step = 1;
-	    (i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM)) != (NE7_DIO|NE7_RQM) &&
-	    j < FDSTS_TIMEOUT;
-	    j += step) {
-		if (i == NE7_RQM)
-			return (fdc_err(fdc, "ready for output in input\n"));
-		if (j == 1000)
-			step = 1000;
-		DELAY(step);
-	}
-	if (j >= FDSTS_TIMEOUT)
-		return (fdc_err(fdc, bootverbose? "input ready timeout\n": 0));
-#ifdef	FDC_DEBUG
-	i = fddata_rd(fdc);
-	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
-	*ptr = i;
-	return (0);
-#else	/* !FDC_DEBUG */
-	i = fddata_rd(fdc);
-	if (ptr)
-		*ptr = i;
-	return (0);
-#endif	/* FDC_DEBUG */
-}
-
-static int
-out_fdc(struct fdc_data *fdc, int x)
-{
-	int i, j, step;
-
-	for (j = 0, step = 1;
-	    (i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM)) != NE7_RQM &&
-	    j < FDSTS_TIMEOUT;
-	    j += step) {
-		if (i == (NE7_DIO|NE7_RQM))
-			return (fdc_err(fdc, "ready for input in output\n"));
-		if (j == 1000)
-			step = 1000;
-		DELAY(step);
-	}
-	if (j >= FDSTS_TIMEOUT)
-		return (fdc_err(fdc, bootverbose? "output ready timeout\n": 0));
-
-	/* Send the command and return */
-	fddata_wr(fdc, x);
-	TRACE1("[0x%x->FDDATA]", x);
-	return (0);
-}
-
-/*
- * Block device driver interface functions (interspersed with even more
- * auxiliary functions).
- */
-static int
-fdopen(struct cdev *dev, int flags, int mode, struct thread *td)
-{
-	fd_p	fd;
-	fdc_p	fdc;
- 	int rv, unitattn, dflags;
-
-	fd = dev->si_drv1;
-	if (fd == NULL)
-		return (ENXIO);
-	fdc = fd->fdc;
-	if ((fdc == NULL) || (fd->type == FDT_NONE))
-		return (ENXIO);
-	dflags = device_get_flags(fd->dev);
-	/*
-	 * This is a bit bogus.  It's still possible that e. g. a
-	 * descriptor gets inherited to a child, but then it's at
-	 * least for the same subdevice.  By checking FD_OPEN here, we
-	 * can ensure that a device isn't attempted to be opened with
-	 * different densities at the same time where the second open
-	 * could clobber the settings from the first one.
-	 */
-	if (fd->flags & FD_OPEN)
-		return (EBUSY);
-
-	if (flags & FNONBLOCK) {
-		/*
-		 * Unfortunately, physio(9) discards its ioflag
-		 * argument, thus preventing us from seeing the
-		 * IO_NDELAY bit.  So we need to keep track
-		 * ourselves.
-		 */
-		fd->flags |= FD_NONBLOCK;
-		fd->ft = 0;
-	} else {
-		/*
-		 * Figure out a unit attention condition.
-		 *
-		 * If UA has been forced, proceed.
-		 *
-		 * If the drive has no changeline support,
-		 * or if the drive parameters have been lost
-		 * due to previous non-blocking access,
-		 * assume a forced UA condition.
-		 *
-		 * If motor is off, turn it on for a moment
-		 * and select our drive, in order to read the
-		 * UA hardware signal.
-		 *
-		 * If motor is on, and our drive is currently
-		 * selected, just read the hardware bit.
-		 *
-		 * If motor is on, but active for another
-		 * drive on that controller, we are lost.  We
-		 * cannot risk to deselect the other drive, so
-		 * we just assume a forced UA condition to be
-		 * on the safe side.
-		 */
-		unitattn = 0;
-		if ((dflags & FD_NO_CHLINE) != 0 ||
-		    (fd->flags & FD_UA) != 0 ||
-		    fd->ft == 0) {
-			unitattn = 1;
-			fd->flags &= ~FD_UA;
-		} else if (fdc->fdout & (FDO_MOEN0 | FDO_MOEN1 |
-					 FDO_MOEN2 | FDO_MOEN3)) {
-			if ((fdc->fdout & FDO_FDSEL) == fd->fdsu)
-				unitattn = fdin_rd(fdc) & FDI_DCHG;
-			else
-				unitattn = 1;
-		} else {
-			set_motor(fdc, fd->fdsu, TURNON);
-			unitattn = fdin_rd(fdc) & FDI_DCHG;
-			set_motor(fdc, fd->fdsu, TURNOFF);
-		}
-		if (unitattn && (rv = fdautoselect(dev)) != 0)
-			return (rv);
-	}
-	fd->flags |= FD_OPEN;
-
-	if ((fdc->flags & FDC_NODMA) == 0) {
-		if (fdc->dmacnt++ == 0) {
-			isa_dma_acquire(fdc->dmachan);
-			isa_dmainit(fdc->dmachan, MAX_SEC_SIZE);
-		}
-	}
-
-	/*
-	 * Clearing the DMA overrun counter at open time is a bit messy.
-	 * Since we're only managing one counter per controller, opening
-	 * the second drive could mess it up.  Anyway, if the DMA overrun
-	 * condition is really persistent, it will eventually time out
-	 * still.  OTOH, clearing it here will ensure we'll at least start
-	 * trying again after a previous (maybe even long ago) failure.
-	 * Also, this is merely a stop-gap measure only that should not
-	 * happen during normal operation, so we can tolerate it to be a
-	 * bit sloppy about this.
-	 */
-	fdc->dma_overruns = 0;
-
-	return 0;
-}
-
-static int
-fdclose(struct cdev *dev, int flags, int mode, struct thread *td)
-{
-	struct fd_data *fd;
- 	fdc_p	fdc;
-
-	fd = dev->si_drv1;
-	fdc = fd->fdc;
-	fd->flags &= ~(FD_OPEN | FD_NONBLOCK);
-	fd->options &= ~(FDOPT_NORETRY | FDOPT_NOERRLOG | FDOPT_NOERROR);
-
-	if ((fdc->flags & FDC_NODMA) == 0)
-		if (--fdc->dmacnt == 0)
-			isa_dma_release(fdc->dmachan);
-
-	return (0);
-}
-
-static void
-fdstrategy(struct bio *bp)
-{
-	long blknum, nblocks;
- 	int	s;
- 	fdu_t	fdu;
- 	fdc_p	fdc;
- 	fd_p	fd;
-	size_t	fdblk;
-
-	fd = bp->bio_dev->si_drv1;
- 	fdu = fd->fdu;
-	fdc = fd->fdc;
-	bp->bio_resid = bp->bio_bcount;
-	if (fd->type == FDT_NONE || fd->ft == 0) {
-		if (fd->type != FDT_NONE && (fd->flags & FD_NONBLOCK))
-			bp->bio_error = EAGAIN;
-		else
-			bp->bio_error = ENXIO;
-		bp->bio_flags |= BIO_ERROR;
-		goto bad;
-	}
-	fdblk = 128 << (fd->ft->secsize);
-	if (bp->bio_cmd != FDBIO_FORMAT && bp->bio_cmd != FDBIO_RDSECTID) {
-		if (fd->flags & FD_NONBLOCK) {
-			bp->bio_error = EAGAIN;
-			bp->bio_flags |= BIO_ERROR;
-			goto bad;
-		}
-		if (bp->bio_offset < 0) {
-			printf(
-		"fd%d: fdstrat: bad request offset = %ju, bcount = %ld\n",
-			       fdu, (intmax_t)bp->bio_offset, bp->bio_bcount);
-			bp->bio_error = EINVAL;
-			bp->bio_flags |= BIO_ERROR;
-			goto bad;
-		}
-		if ((bp->bio_bcount % fdblk) != 0) {
-			bp->bio_error = EINVAL;
-			bp->bio_flags |= BIO_ERROR;
-			goto bad;
-		}
-	}
-
-	/*
-	 * Set up block calculations.
-	 */
-	if (bp->bio_offset >= ((off_t)128 << fd->ft->secsize) * fd->ft->size) {
-		bp->bio_error = EINVAL;
-		bp->bio_flags |= BIO_ERROR;
-		goto bad;
-	}
-	blknum = bp->bio_offset / fdblk;
- 	nblocks = fd->ft->size;
-	if (blknum + bp->bio_bcount / fdblk > nblocks) {
-		if (blknum >= nblocks) {
-			if (bp->bio_cmd != BIO_READ) {
-				bp->bio_error = ENOSPC;
-				bp->bio_flags |= BIO_ERROR;
-			}
-			goto bad;	/* not always bad, but EOF */
-		}
-		bp->bio_bcount = (nblocks - blknum) * fdblk;
-	}
- 	bp->bio_pblkno = blknum;
-	s = splbio();
-	bioq_disksort(&fdc->head, bp);
-	untimeout(fd_turnoff, fd, fd->toffhandle); /* a good idea */
-	devstat_start_transaction_bio(fd->device_stats, bp);
-	device_busy(fd->dev);
-	fdstart(fdc);
-	splx(s);
-	return;
-
-bad:
-	biodone(bp);
-}
-
-/*
- * fdstart
- *
- * We have just queued something.  If the controller is not busy
- * then simulate the case where it has just finished a command
- * So that it (the interrupt routine) looks on the queue for more
- * work to do and picks up what we just added.
- *
- * If the controller is already busy, we need do nothing, as it
- * will pick up our work when the present work completes.
- */
-static void
-fdstart(struct fdc_data *fdc)
-{
-	int s;
-
-	s = splbio();
-	if(fdc->state == DEVIDLE)
-	{
-		fdc_intr(fdc);
-	}
-	splx(s);
-}
-
-static void
-fd_iotimeout(void *xfdc)
-{
- 	fdc_p fdc;
-	int s;
-
-	fdc = xfdc;
-	TRACE1("fd%d[fd_iotimeout()]", fdc->fdu);
-
-	/*
-	 * Due to IBM's brain-dead design, the FDC has a faked ready
-	 * signal, hardwired to ready == true. Thus, any command
-	 * issued if there's no diskette in the drive will _never_
-	 * complete, and must be aborted by resetting the FDC.
-	 * Many thanks, Big Blue!
-	 * The FDC must not be reset directly, since that would
-	 * interfere with the state machine.  Instead, pretend that
-	 * the command completed but was invalid.  The state machine
-	 * will reset the FDC and retry once.
-	 */
-	s = splbio();
-	fdc->status[0] = NE7_ST0_IC_IV;
-	fdc->flags &= ~FDC_STAT_VALID;
-	fdc->state = IOTIMEDOUT;
-	fdc_intr(fdc);
-	splx(s);
-}
-
-/* Just ensure it has the right spl. */
-static void
-fd_pseudointr(void *xfdc)
-{
-	int	s;
-
-	s = splbio();
-	fdc_intr(xfdc);
-	splx(s);
-}
-
-/*
- * fdc_intr
- *
- * Keep calling the state machine until it returns a 0.
- * Always called at splbio.
- */
-static void
-fdc_intr(void *xfdc)
-{
-	fdc_p fdc = xfdc;
-	while(fdstate(fdc))
-		;
-}
-
-/*
- * Magic pseudo-DMA initialization for YE FDC. Sets count and
- * direction.
- */
-#define SET_BCDR(fdc,wr,cnt,port) \
-	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + port,	 \
-	    ((cnt)-1) & 0xff);						 \
-	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + port + 1, \
-	    ((wr ? 0x80 : 0) | ((((cnt)-1) >> 8) & 0x7f)));
-
-/*
- * fdcpio(): perform programmed IO read/write for YE PCMCIA floppy.
- */
-static int
-fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
-{
-	u_char *cptr = (u_char *)addr;
-
-	if (flags == BIO_READ) {
-		if (fdc->state != PIOREAD) {
-			fdc->state = PIOREAD;
-			return(0);
-		}
-		SET_BCDR(fdc, 0, count, 0);
-		bus_space_read_multi_1(fdc->portt, fdc->porth, fdc->port_off +
-		    FDC_YE_DATAPORT, cptr, count);
-	} else {
-		bus_space_write_multi_1(fdc->portt, fdc->porth, fdc->port_off +
-		    FDC_YE_DATAPORT, cptr, count);
-		SET_BCDR(fdc, 0, count, 0);
-	}
-	return(1);
-}
-
-/*
- * Try figuring out the density of the media present in our device.
- */
-static int
-fdautoselect(struct cdev *dev)
-{
- 	fd_p fd;
-	struct fd_type *fdtp;
-	struct fdc_readid id;
-	int i, n, oopts, rv;
-
-	fd = dev->si_drv1;
-
-	switch (fd->type) {
-	default:
-		return (ENXIO);
-
-	case FDT_360K:
-	case FDT_720K:
-		/* no autoselection on those drives */
-		fd->ft = fd_native_types + fd->type;
-		return (0);
-
-	case FDT_12M:
-		fdtp = fd_searchlist_12m;
-		n = sizeof fd_searchlist_12m / sizeof(struct fd_type);
-		break;
-
-	case FDT_144M:
-		fdtp = fd_searchlist_144m;
-		n = sizeof fd_searchlist_144m / sizeof(struct fd_type);
-		break;
-
-	case FDT_288M:
-		fdtp = fd_searchlist_288m;
-		n = sizeof fd_searchlist_288m / sizeof(struct fd_type);
-		break;
-	}
-
-	/*
-	 * Try reading sector ID fields, first at cylinder 0, head 0,
-	 * then at cylinder 2, head N.  We don't probe cylinder 1,
-	 * since for 5.25in DD media in a HD drive, there are no data
-	 * to read (2 step pulses per media cylinder required).  For
-	 * two-sided media, the second probe always goes to head 1, so
-	 * we can tell them apart from single-sided media.  As a
-	 * side-effect this means that single-sided media should be
-	 * mentioned in the search list after two-sided media of an
-	 * otherwise identical density.  Media with a different number
-	 * of sectors per track but otherwise identical parameters
-	 * cannot be distinguished at all.
-	 *
-	 * If we successfully read an ID field on both cylinders where
-	 * the recorded values match our expectation, we are done.
-	 * Otherwise, we try the next density entry from the table.
-	 *
-	 * Stepping to cylinder 2 has the side-effect of clearing the
-	 * unit attention bit.
-	 */
-	oopts = fd->options;
-	fd->options |= FDOPT_NOERRLOG | FDOPT_NORETRY;
-	for (i = 0; i < n; i++, fdtp++) {
-		fd->ft = fdtp;
-
-		id.cyl = id.head = 0;
-		rv = fdmisccmd(dev, FDBIO_RDSECTID, &id);
-		if (rv != 0)
-			continue;
-		if (id.cyl != 0 || id.head != 0 ||
-		    id.secshift != fdtp->secsize)
-			continue;
-		id.cyl = 2;
-		id.head = fd->ft->heads - 1;
-		rv = fdmisccmd(dev, FDBIO_RDSECTID, &id);
-		if (id.cyl != 2 || id.head != fdtp->heads - 1 ||
-		    id.secshift != fdtp->secsize)
-			continue;
-		if (rv == 0)
-			break;
-	}
-
-	fd->options = oopts;
-	if (i == n) {
-		if (bootverbose)
-			device_printf(fd->dev, "autoselection failed\n");
-		fd->ft = 0;
-		return (EIO);
-	} else {
-		if (bootverbose)
-			device_printf(fd->dev, "autoselected %d KB medium\n",
-				      fd->ft->size / 2);
-		return (0);
-	}
-}
-
-
-/*
- * The controller state machine.
- *
- * If it returns a non zero value, it should be called again immediately.
- */
-static int
-fdstate(fdc_p fdc)
-{
-	struct fdc_readid *idp;
-	int read, format, rdsectid, cylinder, head, i, sec = 0, sectrac;
-	int st0, cyl, st3, idf, ne7cmd, mfm, steptrac;
-	unsigned long blknum;
-	fdu_t fdu = fdc->fdu;
-	fd_p fd;
-	register struct bio *bp;
-	struct fd_formb *finfo = NULL;
-	size_t fdblk;
-
-	bp = fdc->bp;
-	if (bp == NULL) {
-		bp = bioq_first(&fdc->head);
-		if (bp != NULL) {
-			bioq_remove(&fdc->head, bp);
-			fdc->bp = bp;
-		}
-	}
-	if (bp == NULL) {
-		/*
-		 * Nothing left for this controller to do,
-		 * force into the IDLE state.
-		 */
-		fdc->state = DEVIDLE;
-		if (fdc->fd) {
-			device_printf(fdc->fdc_dev,
-			    "unexpected valid fd pointer\n");
-			fdc->fd = (fd_p) 0;
-			fdc->fdu = -1;
-		}
-		TRACE1("[fdc%d IDLE]", fdc->fdcu);
- 		return (0);
-	}
-	fd = bp->bio_dev->si_drv1;
-	fdu = fd->fdu;
-	fdblk = 128 << fd->ft->secsize;
-	if (fdc->fd && (fd != fdc->fd))
-		device_printf(fd->dev, "confused fd pointers\n");
-	read = bp->bio_cmd == BIO_READ;
-	mfm = (fd->ft->flags & FL_MFM)? NE7CMD_MFM: 0;
-	steptrac = (fd->ft->flags & FL_2STEP)? 2: 1;
-	if (read)
-		idf = ISADMA_READ;
-	else
-		idf = ISADMA_WRITE;
-	format = bp->bio_cmd == FDBIO_FORMAT;
-	rdsectid = bp->bio_cmd == FDBIO_RDSECTID;
-	if (format)
-		finfo = (struct fd_formb *)bp->bio_data;
-	TRACE1("fd%d", fdu);
-	TRACE1("[%s]", fdstates[fdc->state]);
-	TRACE1("(0x%x)", fd->flags);
-	untimeout(fd_turnoff, fd, fd->toffhandle);
-	fd->toffhandle = timeout(fd_turnoff, fd, 4 * hz);
-	switch (fdc->state)
-	{
-	case DEVIDLE:
-	case FINDWORK:	/* we have found new work */
-		fdc->retry = 0;
-		fd->skip = 0;
-		fdc->fd = fd;
-		fdc->fdu = fdu;
-		fdc->fdctl_wr(fdc, fd->ft->trans);
-		TRACE1("[0x%x->FDCTL]", fd->ft->trans);
-		/*
-		 * If the next drive has a motor startup pending, then
-		 * it will start up in its own good time.
-		 */
-		if(fd->flags & FD_MOTOR_WAIT) {
-			fdc->state = MOTORWAIT;
-			return (0); /* will return later */
-		}
-		/*
-		 * Maybe if it's not starting, it SHOULD be starting.
-		 */
-		if (!(fd->flags & FD_MOTOR))
-		{
-			fdc->state = MOTORWAIT;
-			fd_turnon(fd);
-			return (0); /* will return later */
-		}
-		else	/* at least make sure we are selected */
-		{
-			set_motor(fdc, fd->fdsu, TURNON);
-		}
-		if (fdc->flags & FDC_NEEDS_RESET) {
-			fdc->state = RESETCTLR;
-			fdc->flags &= ~FDC_NEEDS_RESET;
-		} else
-			fdc->state = DOSEEK;
-		return (1);	/* will return immediately */
-
-	case DOSEEK:
-		blknum = bp->bio_pblkno + fd->skip / fdblk;
-		cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
-		if (cylinder == fd->track)
-		{
-			fdc->state = SEEKCOMPLETE;
-			return (1); /* will return immediately */
-		}
-		if (fd_cmd(fdc, 3, NE7CMD_SEEK,
-			   fd->fdsu, cylinder * steptrac, 0))
-		{
-			/*
-			 * Seek command not accepted, looks like
-			 * the FDC went off to the Saints...
-			 */
-			fdc->retry = 6;	/* try a reset */
-			return(retrier(fdc));
-		}
-		fd->track = FD_NO_TRACK;
-		fdc->state = SEEKWAIT;
-		return(0);	/* will return later */
-
-	case SEEKWAIT:
-		/* allow heads to settle */
-		timeout(fd_pseudointr, fdc, hz / 16);
-		fdc->state = SEEKCOMPLETE;
-		return(0);	/* will return later */
-
-	case SEEKCOMPLETE : /* seek done, start DMA */
-		blknum = bp->bio_pblkno + fd->skip / fdblk;
-		cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
-
-		/* Make sure seek really happened. */
-		if(fd->track == FD_NO_TRACK) {
-			int descyl = cylinder * steptrac;
-			do {
-				/*
-				 * This might be a "ready changed" interrupt,
-				 * which cannot really happen since the
-				 * RDY pin is hardwired to + 5 volts.  This
-				 * generally indicates a "bouncing" intr
-				 * line, so do one of the following:
-				 *
-				 * When running on an enhanced FDC that is
-				 * known to not go stuck after responding
-				 * with INVALID, fetch all interrupt states
-				 * until seeing either an INVALID or a
-				 * real interrupt condition.
-				 *
-				 * When running on a dumb old NE765, give
-				 * up immediately.  The controller will
-				 * provide up to four dummy RC interrupt
-				 * conditions right after reset (for the
-				 * corresponding four drives), so this is
-				 * our only chance to get notice that it
-				 * was not the FDC that caused the interrupt.
-				 */
-				if (fd_sense_int(fdc, &st0, &cyl)
-				    == FD_NOT_VALID)
-					return (0); /* will return later */
-				if(fdc->fdct == FDC_NE765
-				   && (st0 & NE7_ST0_IC) == NE7_ST0_IC_RC)
-					return (0); /* hope for a real intr */
-			} while ((st0 & NE7_ST0_IC) == NE7_ST0_IC_RC);
-
-			if (0 == descyl) {
-				int failed = 0;
-				/*
-				 * seek to cyl 0 requested; make sure we are
-				 * really there
-				 */
-				if (fd_sense_drive_status(fdc, &st3))
-					failed = 1;
-				if ((st3 & NE7_ST3_T0) == 0) {
-					printf(
-		"fd%d: Seek to cyl 0, but not really there (ST3 = %b)\n",
-					       fdu, st3, NE7_ST3BITS);
-					failed = 1;
-				}
-
-				if (failed) {
-					if(fdc->retry < 3)
-						fdc->retry = 3;
-					return (retrier(fdc));
-				}
-			}
-
-			if (cyl != descyl) {
-				printf(
-		"fd%d: Seek to cyl %d failed; am at cyl %d (ST0 = 0x%x)\n",
-				       fdu, descyl, cyl, st0);
-				if (fdc->retry < 3)
-					fdc->retry = 3;
-				return (retrier(fdc));
-			}
-		}
-
-		fd->track = cylinder;
-		if (format)
-			fd->skip = (char *)&(finfo->fd_formb_cylno(0))
-			    - (char *)finfo;
-		if (!rdsectid && !(fdc->flags & FDC_NODMA))
-			isa_dmastart(idf, bp->bio_data+fd->skip,
-				format ? bp->bio_bcount : fdblk, fdc->dmachan);
-		blknum = bp->bio_pblkno + fd->skip / fdblk;
-		sectrac = fd->ft->sectrac;
-		sec = blknum %  (sectrac * fd->ft->heads);
-		head = sec / sectrac;
-		sec = sec % sectrac + 1;
-		if (head != 0 && fd->ft->offset_side2 != 0)
-			sec += fd->ft->offset_side2;
-		fd->hddrv = ((head&1)<<2)+fdu;
-
-		if(format || !(read || rdsectid))
-		{
-			/* make sure the drive is writable */
-			if(fd_sense_drive_status(fdc, &st3) != 0)
-			{
-				/* stuck controller? */
-				if (!(fdc->flags & FDC_NODMA))
-					isa_dmadone(idf,
-						    bp->bio_data + fd->skip,
-						    format ? bp->bio_bcount : fdblk,
-						    fdc->dmachan);
-				fdc->retry = 6;	/* reset the beast */
-				return (retrier(fdc));
-			}
-			if(st3 & NE7_ST3_WP)
-			{
-				/*
-				 * XXX YES! this is ugly.
-				 * in order to force the current operation
-				 * to fail, we will have to fake an FDC
-				 * error - all error handling is done
-				 * by the retrier()
-				 */
-				fdc->status[0] = NE7_ST0_IC_AT;
-				fdc->status[1] = NE7_ST1_NW;
-				fdc->status[2] = 0;
-				fdc->status[3] = fd->track;
-				fdc->status[4] = head;
-				fdc->status[5] = sec;
-				fdc->retry = 8;	/* break out immediately */
-				fdc->state = IOTIMEDOUT; /* not really... */
-				return (1); /* will return immediately */
-			}
-		}
-
-		if (format) {
-			ne7cmd = NE7CMD_FORMAT | mfm;
-			if (fdc->flags & FDC_NODMA) {
-				/*
-				 * This seems to be necessary for
-				 * whatever obscure reason; if we omit
-				 * it, we end up filling the sector ID
-				 * fields of the newly formatted track
-				 * entirely with garbage, causing
-				 * `wrong cylinder' errors all over
-				 * the place when trying to read them
-				 * back.
-				 *
-				 * Umpf.
-				 */
-				SET_BCDR(fdc, 1, bp->bio_bcount, 0);
-
-				(void)fdcpio(fdc,bp->bio_cmd,
-					bp->bio_data+fd->skip,
-					bp->bio_bcount);
-
-			}
-			/* formatting */
-			if(fd_cmd(fdc, 6,  ne7cmd, head << 2 | fdu,
-				  finfo->fd_formb_secshift,
-				  finfo->fd_formb_nsecs,
-				  finfo->fd_formb_gaplen,
-				  finfo->fd_formb_fillbyte, 0)) {
-				/* controller fell over */
-				if (!(fdc->flags & FDC_NODMA))
-					isa_dmadone(idf,
-						    bp->bio_data + fd->skip,
-						    format ? bp->bio_bcount : fdblk,
-						    fdc->dmachan);
-				fdc->retry = 6;
-				return (retrier(fdc));
-			}
-		} else if (rdsectid) {
-			ne7cmd = NE7CMD_READID | mfm;
-			if (fd_cmd(fdc, 2, ne7cmd, head << 2 | fdu, 0)) {
-				/* controller jamming */
-				fdc->retry = 6;
-				return (retrier(fdc));
-			}
-		} else {
-			/* read or write operation */
-			ne7cmd = (read ? NE7CMD_READ | NE7CMD_SK : NE7CMD_WRITE) | mfm;
-			if (fdc->flags & FDC_NODMA) {
-				/*
-				 * This seems to be necessary even when
-				 * reading data.
-				 */
-				SET_BCDR(fdc, 1, fdblk, 0);
-
-				/*
-				 * Perform the write pseudo-DMA before
-				 * the WRITE command is sent.
-				 */
-				if (!read)
-					(void)fdcpio(fdc,bp->bio_cmd,
-					    bp->bio_data+fd->skip,
-					    fdblk);
-			}
-			if (fd_cmd(fdc, 9,
-				   ne7cmd,
-				   head << 2 | fdu,  /* head & unit */
-				   fd->track,        /* track */
-				   head,
-				   sec,              /* sector + 1 */
-				   fd->ft->secsize,  /* sector size */
-				   sectrac,          /* sectors/track */
-				   fd->ft->gap,      /* gap size */
-				   fd->ft->datalen,  /* data length */
-				   0)) {
-				/* the beast is sleeping again */
-				if (!(fdc->flags & FDC_NODMA))
-					isa_dmadone(idf,
-						    bp->bio_data + fd->skip,
-						    format ? bp->bio_bcount : fdblk,
-						    fdc->dmachan);
-				fdc->retry = 6;
-				return (retrier(fdc));
-			}
-		}
-		if (!rdsectid && (fdc->flags & FDC_NODMA))
-			/*
-			 * If this is a read, then simply await interrupt
-			 * before performing PIO.
-			 */
-			if (read && !fdcpio(fdc,bp->bio_cmd,
-			    bp->bio_data+fd->skip,fdblk)) {
-				fd->tohandle = timeout(fd_iotimeout, fdc, hz);
-				return(0);      /* will return later */
-			}
-
-		/*
-		 * Write (or format) operation will fall through and
-		 * await completion interrupt.
-		 */
-		fdc->state = IOCOMPLETE;
-		fd->tohandle = timeout(fd_iotimeout, fdc, hz);
-		return (0);	/* will return later */
-
-	case PIOREAD:
-		/* 
-		 * Actually perform the PIO read.  The IOCOMPLETE case
-		 * removes the timeout for us.
-		 */
-		(void)fdcpio(fdc,bp->bio_cmd,bp->bio_data+fd->skip,fdblk);
-		fdc->state = IOCOMPLETE;
-		/* FALLTHROUGH */
-	case IOCOMPLETE: /* IO done, post-analyze */
-		untimeout(fd_iotimeout, fdc, fd->tohandle);
-
-		if (fd_read_status(fdc)) {
-			if (!rdsectid && !(fdc->flags & FDC_NODMA))
-				isa_dmadone(idf, bp->bio_data + fd->skip,
-					    format ? bp->bio_bcount : fdblk,
-					    fdc->dmachan);
-			if (fdc->retry < 6)
-				fdc->retry = 6;	/* force a reset */
-			return (retrier(fdc));
-  		}
-
-		fdc->state = IOTIMEDOUT;
-
-		/* FALLTHROUGH */
-	case IOTIMEDOUT:
-		if (!rdsectid && !(fdc->flags & FDC_NODMA))
-			isa_dmadone(idf, bp->bio_data + fd->skip,
-				format ? bp->bio_bcount : fdblk, fdc->dmachan);
-		if (fdc->status[0] & NE7_ST0_IC) {
-                        if ((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_AT
-			    && fdc->status[1] & NE7_ST1_OR) {
-                                /*
-				 * DMA overrun. Someone hogged the bus and
-				 * didn't release it in time for the next
-				 * FDC transfer.
-				 *
-				 * We normally restart this without bumping
-				 * the retry counter.  However, in case
-				 * something is seriously messed up (like
-				 * broken hardware), we rather limit the
-				 * number of retries so the IO operation
-				 * doesn't block indefinately.
-				 */
-				if (fdc->dma_overruns++ < FDC_DMAOV_MAX) {
-					fdc->state = SEEKCOMPLETE;
-					return (1);/* will return immediately */
-				} /* else fall through */
-                        }
-			if((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_IV
-				&& fdc->retry < 6)
-				fdc->retry = 6;	/* force a reset */
-			else if((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_AT
-				&& fdc->status[2] & NE7_ST2_WC
-				&& fdc->retry < 3)
-				fdc->retry = 3;	/* force recalibrate */
-			return (retrier(fdc));
-		}
-		/* All OK */
-		if (rdsectid) {
-			/* copy out ID field contents */
-			idp = (struct fdc_readid *)bp->bio_data;
-			idp->cyl = fdc->status[3];
-			idp->head = fdc->status[4];
-			idp->sec = fdc->status[5];
-			idp->secshift = fdc->status[6];
-		}
-		/* Operation successful, retry DMA overruns again next time. */
-		fdc->dma_overruns = 0;
-		fd->skip += fdblk;
-		if (!rdsectid && !format && fd->skip < bp->bio_bcount) {
-			/* set up next transfer */
-			fdc->state = DOSEEK;
-		} else {
-			/* ALL DONE */
-			fd->skip = 0;
-			bp->bio_resid = 0;
-			fdc->bp = NULL;
-			device_unbusy(fd->dev);
-			biofinish(bp, fd->device_stats, 0);
-			fdc->fd = (fd_p) 0;
-			fdc->fdu = -1;
-			fdc->state = FINDWORK;
-		}
-		return (1);	/* will return immediately */
-
-	case RESETCTLR:
-		fdc_reset(fdc);
-		fdc->retry++;
-		fdc->state = RESETCOMPLETE;
-		return (0);	/* will return later */
-
-	case RESETCOMPLETE:
-		/*
-		 * Discard all the results from the reset so that they
-		 * can't cause an unexpected interrupt later.
-		 */
-		for (i = 0; i < 4; i++)
-			(void)fd_sense_int(fdc, &st0, &cyl);
-		fdc->state = STARTRECAL;
-		/* FALLTHROUGH */
-	case STARTRECAL:
-		if(fd_cmd(fdc, 2, NE7CMD_RECAL, fdu, 0)) {
-			/* arrgl */
-			fdc->retry = 6;
-			return (retrier(fdc));
-		}
-		fdc->state = RECALWAIT;
-		return (0);	/* will return later */
-
-	case RECALWAIT:
-		/* allow heads to settle */
-		timeout(fd_pseudointr, fdc, hz / 8);
-		fdc->state = RECALCOMPLETE;
-		return (0);	/* will return later */
-
-	case RECALCOMPLETE:
-		do {
-			/*
-			 * See SEEKCOMPLETE for a comment on this:
-			 */
-			if (fd_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
-				return (0); /* will return later */
-			if(fdc->fdct == FDC_NE765
-			   && (st0 & NE7_ST0_IC) == NE7_ST0_IC_RC)
-				return (0); /* hope for a real intr */
-		} while ((st0 & NE7_ST0_IC) == NE7_ST0_IC_RC);
-		if ((st0 & NE7_ST0_IC) != NE7_ST0_IC_NT || cyl != 0)
-		{
-			if(fdc->retry > 3)
-				/*
-				 * A recalibrate from beyond cylinder 77
-				 * will "fail" due to the FDC limitations;
-				 * since people used to complain much about
-				 * the failure message, try not logging
-				 * this one if it seems to be the first
-				 * time in a line.
-				 */
-				printf("fd%d: recal failed ST0 %b cyl %d\n",
-				       fdu, st0, NE7_ST0BITS, cyl);
-			if(fdc->retry < 3) fdc->retry = 3;
-			return (retrier(fdc));
-		}
-		fd->track = 0;
-		/* Seek (probably) necessary */
-		fdc->state = DOSEEK;
-		return (1);	/* will return immediately */
-
-	case MOTORWAIT:
-		if(fd->flags & FD_MOTOR_WAIT)
-		{
-			return (0); /* time's not up yet */
-		}
-		if (fdc->flags & FDC_NEEDS_RESET) {
-			fdc->state = RESETCTLR;
-			fdc->flags &= ~FDC_NEEDS_RESET;
-		} else
-			fdc->state = DOSEEK;
-		return (1);	/* will return immediately */
-
-	default:
-		device_printf(fdc->fdc_dev, "unexpected FD int->");
-		if (fd_read_status(fdc) == 0)
-			printf("FDC status :%x %x %x %x %x %x %x   ",
-			       fdc->status[0],
-			       fdc->status[1],
-			       fdc->status[2],
-			       fdc->status[3],
-			       fdc->status[4],
-			       fdc->status[5],
-			       fdc->status[6] );
-		else
-			printf("No status available   ");
-		if (fd_sense_int(fdc, &st0, &cyl) != 0)
-		{
-			printf("[controller is dead now]\n");
-			return (0); /* will return later */
-		}
-		printf("ST0 = %x, PCN = %x\n", st0, cyl);
-		return (0);	/* will return later */
-	}
-	/* noone should ever get here */
-}
-
-static int
-retrier(struct fdc_data *fdc)
-{
-	struct bio *bp;
-	struct fd_data *fd;
-	int fdu;
-
-	bp = fdc->bp;
-
-	/* XXX shouldn't this be cached somewhere?  */
-	fd = bp->bio_dev->si_drv1;
-	fdu = fd->fdu;
-	if (fd->options & FDOPT_NORETRY)
-		goto fail;
-
-	switch (fdc->retry) {
-	case 0: case 1: case 2:
-		fdc->state = SEEKCOMPLETE;
-		break;
-	case 3: case 4: case 5:
-		fdc->state = STARTRECAL;
-		break;
-	case 6:
-		fdc->state = RESETCTLR;
-		break;
-	case 7:
-		break;
-	default:
-	fail:
-		if ((fd->options & FDOPT_NOERRLOG) == 0) {
-			disk_err(bp, "hard error",
-			    fdc->fd->skip / DEV_BSIZE, 0);
-			if (fdc->flags & FDC_STAT_VALID) {
-				printf(
-				" (ST0 %b ST1 %b ST2 %b cyl %u hd %u sec %u)\n",
-				       fdc->status[0], NE7_ST0BITS,
-				       fdc->status[1], NE7_ST1BITS,
-				       fdc->status[2], NE7_ST2BITS,
-				       fdc->status[3], fdc->status[4],
-				       fdc->status[5]);
-			}
-			else
-				printf(" (No status)\n");
-		}
-		if ((fd->options & FDOPT_NOERROR) == 0) {
-			bp->bio_flags |= BIO_ERROR;
-			bp->bio_error = EIO;
-			bp->bio_resid = bp->bio_bcount - fdc->fd->skip;
-		} else
-			bp->bio_resid = 0;
-		fdc->bp = NULL;
-		fdc->fd->skip = 0;
-		device_unbusy(fd->dev);
-		biofinish(bp, fdc->fd->device_stats, 0);
-		fdc->state = FINDWORK;
-		fdc->flags |= FDC_NEEDS_RESET;
-		fdc->fd = (fd_p) 0;
-		fdc->fdu = -1;
-		return (1);
-	}
-	fdc->retry++;
-	return (1);
-}
-
-static void
-fdbiodone(struct bio *bp)
-{
-	wakeup(bp);
-}
-
-static int
-fdmisccmd(struct cdev *dev, u_int cmd, void *data)
-{
- 	fdu_t fdu;
- 	fd_p fd;
-	struct bio *bp;
-	struct fd_formb *finfo;
-	struct fdc_readid *idfield;
-	size_t fdblk;
-	int error;
-
-	fd = dev->si_drv1;
- 	fdu = fd->fdu;
-	fdblk = 128 << fd->ft->secsize;
-	finfo = (struct fd_formb *)data;
-	idfield = (struct fdc_readid *)data;
-
-	bp = malloc(sizeof(struct bio), M_TEMP, M_WAITOK | M_ZERO);
-
-	/*
-	 * Set up a bio request for fdstrategy().  bio_offset is faked
-	 * so that fdstrategy() will seek to the the requested
-	 * cylinder, and use the desired head.
-	 */
-	bp->bio_cmd = cmd;
-	if (cmd == FDBIO_FORMAT) {
-		bp->bio_offset =
-		    (finfo->cyl * (fd->ft->sectrac * fd->ft->heads) +
-		     finfo->head * fd->ft->sectrac) * fdblk;
-		bp->bio_bcount = sizeof(struct fd_idfield_data) *
-		    finfo->fd_formb_nsecs;
-	} else if (cmd == FDBIO_RDSECTID) {
-		bp->bio_offset =
-		    (idfield->cyl * (fd->ft->sectrac * fd->ft->heads) +
-		     idfield->head * fd->ft->sectrac) * fdblk;
-		bp->bio_bcount = sizeof(struct fdc_readid);
-	} else
-		panic("wrong cmd in fdmisccmd()");
-	bp->bio_data = data;
-	bp->bio_dev = dev;
-	bp->bio_done = fdbiodone;
-	bp->bio_flags = 0;
-
-	/* Now run the command. */
-	fdstrategy(bp);
-	error = biowait(bp, "fdcmd");
-
-	free(bp, M_TEMP);
-	return (error);
-}
-
-static int
-fdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
-{
- 	fdu_t fdu;
- 	fd_p fd;
-	struct fdc_status *fsp;
-	struct fdc_readid *rid;
-	int error;
-
- 	fd = dev->si_drv1;
- 	fdu = fd->fdu;
-
-	/*
-	 * First, handle everything that could be done with
-	 * FD_NONBLOCK still being set.
-	 */
-	switch (cmd) {
-
-	case DIOCGMEDIASIZE:
-		if (fd->ft == 0)
-			return ((fd->flags & FD_NONBLOCK) ? EAGAIN : ENXIO);
-		*(off_t *)addr = (128 << (fd->ft->secsize)) * fd->ft->size;
-		return (0);
-
-	case DIOCGSECTORSIZE:
-		if (fd->ft == 0)
-			return ((fd->flags & FD_NONBLOCK) ? EAGAIN : ENXIO);
-		*(u_int *)addr = 128 << (fd->ft->secsize);
-		return (0);
-
-	case FIONBIO:
-		if (*(int *)addr != 0)
-			fd->flags |= FD_NONBLOCK;
-		else {
-			if (fd->ft == 0) {
-				/*
-				 * No drive type has been selected yet,
-				 * cannot turn FNONBLOCK off.
-				 */
-				return (EINVAL);
-			}
-			fd->flags &= ~FD_NONBLOCK;
-		}
-		return (0);
-
-	case FIOASYNC:
-		/* keep the generic fcntl() code happy */
-		return (0);
-
-	case FD_GTYPE:                  /* get drive type */
-		if (fd->ft == 0)
-			/* no type known yet, return the native type */
-			*(struct fd_type *)addr = fd_native_types[fd->type];
-		else
-			*(struct fd_type *)addr = *fd->ft;
-		return (0);
-
-	case FD_STYPE:                  /* set drive type */
-		/*
-		 * Allow setting drive type temporarily iff
-		 * currently unset.  Used for fdformat so any
-		 * user can set it, and then start formatting.
-		 */
-		if (fd->ft)
-			return (EINVAL); /* already set */
-		fd->fts[0] = *(struct fd_type *)addr;
-		fd->ft = &fd->fts[0];
-		fd->flags |= FD_UA;
-		return (0);
-
-	case FD_GOPTS:			/* get drive options */
-		*(int *)addr = fd->options + FDOPT_AUTOSEL;
-		return (0);
-
-	case FD_SOPTS:			/* set drive options */
-		fd->options = *(int *)addr & ~FDOPT_AUTOSEL;
-		return (0);
-
-#ifdef FDC_DEBUG
-	case FD_DEBUG:
-		if ((fd_debug != 0) != (*(int *)addr != 0)) {
-			fd_debug = (*(int *)addr != 0);
-			printf("fd%d: debugging turned %s\n",
-			    fd->fdu, fd_debug ? "on" : "off");
-		}
-		return (0);
-#endif
-
-	case FD_CLRERR:
-		if (suser(td) != 0)
-			return (EPERM);
-		fd->fdc->fdc_errs = 0;
-		return (0);
-
-	case FD_GSTAT:
-		fsp = (struct fdc_status *)addr;
-		if ((fd->fdc->flags & FDC_STAT_VALID) == 0)
-			return (EINVAL);
-		memcpy(fsp->status, fd->fdc->status, 7 * sizeof(u_int));
-		return (0);
-
-	case FD_GDTYPE:
-		*(enum fd_drivetype *)addr = fd->type;
-		return (0);
-	}
-
-	/*
-	 * Now handle everything else.  Make sure we have a valid
-	 * drive type.
-	 */
-	if (fd->flags & FD_NONBLOCK)
-		return (EAGAIN);
-	if (fd->ft == 0)
-		return (ENXIO);
-	error = 0;
-
-	switch (cmd) {
-
-	case FD_FORM:
-		if ((flag & FWRITE) == 0)
-			return (EBADF);	/* must be opened for writing */
-		if (((struct fd_formb *)addr)->format_version !=
-		    FD_FORMAT_VERSION)
-			return (EINVAL); /* wrong version of formatting prog */
-		error = fdmisccmd(dev, FDBIO_FORMAT, addr);
-		break;
-
-	case FD_GTYPE:                  /* get drive type */
-		*(struct fd_type *)addr = *fd->ft;
-		break;
-
-	case FD_STYPE:                  /* set drive type */
-		/* this is considered harmful; only allow for superuser */
-		if (suser(td) != 0)
-			return (EPERM);
-		*fd->ft = *(struct fd_type *)addr;
-		break;
-
-	case FD_GOPTS:			/* get drive options */
-		*(int *)addr = fd->options;
-		break;
-
-	case FD_SOPTS:			/* set drive options */
-		fd->options = *(int *)addr;
-		break;
-
-#ifdef FDC_DEBUG
-	case FD_DEBUG:
-		if ((fd_debug != 0) != (*(int *)addr != 0)) {
-			fd_debug = (*(int *)addr != 0);
-			printf("fd%d: debugging turned %s\n",
-			    fd->fdu, fd_debug ? "on" : "off");
-		}
-		break;
-#endif
-
-	case FD_CLRERR:
-		if (suser(td) != 0)
-			return (EPERM);
-		fd->fdc->fdc_errs = 0;
-		break;
-
-	case FD_GSTAT:
-		fsp = (struct fdc_status *)addr;
-		if ((fd->fdc->flags & FDC_STAT_VALID) == 0)
-			return (EINVAL);
-		memcpy(fsp->status, fd->fdc->status, 7 * sizeof(u_int));
-		break;
-
-	case FD_READID:
-		rid = (struct fdc_readid *)addr;
-		if (rid->cyl > MAX_CYLINDER || rid->head > MAX_HEAD)
-			return (EINVAL);
-		error = fdmisccmd(dev, FDBIO_RDSECTID, addr);
-		break;
-
-	default:
-		error = ENOTTY;
-		break;
-	}
-	return (error);
-}
