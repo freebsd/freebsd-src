@@ -124,6 +124,9 @@
 #
 # INCLUDEDIR	Base path for standard C include files [/usr/include]
 
+.if !target(__<bsd.own.mk>__)
+__<bsd.own.mk>__:
+
 # Binaries
 BINOWN?=	root
 BINGRP?=	wheel
@@ -190,3 +193,5 @@ STRIP?=		-s
 COPY?=		-c
 COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
+
+.endif !target(__<bsd.own.mk>__)
