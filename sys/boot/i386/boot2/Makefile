@@ -49,7 +49,8 @@ boot1.out: boot1.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
 
 boot1.o: boot1.s
-	${AS} ${AFLAGS} --defsym FLAGS=${B1FLAGS} ${.IMPSRC} -o ${.TARGET}
+	${CPP} ${CFLAGS} ${.IMPSRC} | \
+	    ${AS} ${AFLAGS} --defsym FLAGS=${B1FLAGS} -o ${.TARGET}
 
 boot2.o: boot2.c ${.CURDIR}/../../common/ufsread.c
 	${CC} ${CFLAGS} -S -o boot2.s.tmp ${.IMPSRC}
