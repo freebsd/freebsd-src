@@ -48,7 +48,6 @@
  */
 
 static int	fixup_pci_probe(device_t dev);
-static void	fixbushigh_i1225(device_t dev);
 static void	fixwsc_natoma(device_t dev);
 
 static device_method_t fixup_pci_methods[] = {
@@ -72,26 +71,11 @@ static int
 fixup_pci_probe(device_t dev)
 {
     switch (pci_get_devid(dev)) {
-    case 0x12258086:		/* Intel 82454KX/GX (Orion) */
-	fixbushigh_i1225(dev);
-	break;
     case 0x12378086:		/* Intel 82440FX (Natoma) */
 	fixwsc_natoma(dev);
 	break;
     }
     return(ENXIO);
-}
-
-static void
-fixbushigh_i1225(device_t dev)
-{
-    int		supbus;
-
-    supbus = pci_read_config(dev, 0x41, 1);
-    if (supbus != 0xff) {
-	pci_set_secondarybus(dev, supbus + 1);
-	pci_set_subordinatebus(dev, supbus + 1);
-    }
 }
 
 static void
