@@ -129,6 +129,7 @@ struct usb_softc {
 	USBBASEDEVICE	sc_dev;		/* base device */
 #ifdef __FreeBSD__
 	struct cdev	*sc_usbdev;	/* /dev/usbN device */
+	TAILQ_ENTRY(usb_softc) sc_coldexplist; /* cold needs-explore list */
 #endif
 	usbd_bus_handle sc_bus;		/* USB controller */
 	struct usbd_port sc_port;	/* dummy port for root hub */
@@ -177,6 +178,9 @@ Static struct proc *usb_task_thread_proc = NULL;
 Static struct cdev *usb_dev;		/* The /dev/usb device. */
 Static int usb_ndevs;			/* Number of /dev/usbN devices. */
 Static int usb_taskcreated;		/* USB task thread exists. */
+/* Busses to explore at the end of boot-time device configuration. */
+Static TAILQ_HEAD(, usb_softc) usb_coldexplist =
+    TAILQ_HEAD_INITIALIZER(usb_coldexplist);
 #endif
 
 #define USB_MAX_EVENTS 100
@@ -297,10 +301,11 @@ USB_ATTACH(usb)
 		 */
 #if defined(__FreeBSD__)
 		if (cold)
+			TAILQ_INSERT_TAIL(&usb_coldexplist, sc, sc_coldexplist);
 #else
 		if (cold && (sc->sc_dev.dv_cfdata->cf_flags & 1))
-#endif
 			dev->hub->explore(sc->sc_bus->root_hub);
+#endif
 #endif
 	} else {
 		printf("%s: root hub problem, error=%d\n",
@@ -946,7 +951,27 @@ usb_child_detached(device_t self, device_t child)
 	sc->sc_port.device = NULL;
 }
 
+/* Explore all USB busses at the end of device configuration. */
+Static void
+usb_cold_explore(void *arg)
+{
+	struct usb_softc *sc;
+
+	KASSERT(cold || TAILQ_EMPTY(&usb_coldexplist),
+	    ("usb_cold_explore: busses to explore when !cold"));
+	while (!TAILQ_EMPTY(&usb_coldexplist)) {
+		sc = TAILQ_FIRST(&usb_coldexplist);
+		TAILQ_REMOVE(&usb_coldexplist, sc, sc_coldexplist);
+
+		sc->sc_bus->use_polling++;
+		sc->sc_port.device->hub->explore(sc->sc_bus->root_hub);
+		sc->sc_bus->use_polling--;
+	}
+}
+
 DRIVER_MODULE(usb, ohci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usb, uhci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usb, ehci, usb_driver, usb_devclass, 0, 0);
+SYSINIT(usb_cold_explore, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE,
+    usb_cold_explore, NULL);
 #endif
