@@ -109,10 +109,6 @@ CFLAGS+=	-I${.OBJDIR} -I${.OBJDIR}/@
 CFLAGS+=	-I${DESTDIR}/usr/include
 .endif
 
-.if defined(VFS_KLD)
-SRCS+=		vnode_if.h
-.endif
-
 .if ${OBJFORMAT} == elf
 CLEANFILES+=	setdef0.c setdef1.c setdefs.h
 CLEANFILES+=	setdef0.o setdef1.o
@@ -285,14 +281,16 @@ ${_src}: @/kern/makedevops.pl @/${_srcsrc}
 .endfor # _ext
 .endfor # _srcsrc
 
-.if ${SRCS:Mvnode_if.[ch]} != ""
-CLEANFILES+=	vnode_if.c vnode_if.h
-vnode_if.c vnode_if.h: @
+.for _ext in c h
+.if ${SRCS:Mvnode_if.${_ext}} != ""
+CLEANFILES+=	vnode_if.${_ext}
+vnode_if.${_ext}: @
 .if exists(@)
-vnode_if.c vnode_if.h: @/kern/vnode_if.sh @/kern/vnode_if.src
+vnode_if.${_ext}: @/kern/vnode_if.sh @/kern/vnode_if.src
 .endif
-	sh @/kern/vnode_if.sh @/kern/vnode_if.src
+	perl @/kern/vnode_if.sh -${_ext} @/kern/vnode_if.src
 .endif
+.endfor
 
 regress:
 
