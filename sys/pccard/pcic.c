@@ -81,6 +81,13 @@ static struct slot_ctrl pcic_cinfo = {
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, pcic, CTLFLAG_RD, 0, "PCIC parameters");
 
+int pcic_override_irq = 0;
+TUNABLE_INT("machdep.pccard.pcic_irq", &pcic_override_irq);
+TUNABLE_INT("hw.pcic.irq", &pcic_override_irq);
+SYSCTL_INT(_hw_pcic, OID_AUTO, override_irq, CTLFLAG_RD,
+    &pcic_override_irq, 0,
+    "Override the IRQ configured by the config system for all pcic devices");
+
 /*
  * Read a register from the PCIC.
  */
@@ -301,13 +308,34 @@ pcic_do_mgt_irq(struct pcic_slot *sp, int irq)
 	u_int32_t	reg;
 
 	if (sp->sc->csc_route == pci_parallel) {
+		/* Do the PCI side of things: Enable the Card Change int */
 		reg = CB_SM_CD;
 		bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_MASK, reg);
+		/*
+		 * TI Chips need us to set the following.  We tell the
+		 * controller to route things via PCI interrupts.  Also
+		 * we clear the interrupt number in the STAT_INT register
+		 * as well.  The TI-12xx and newer chips require one or the
+		 * other of these to happen, depending on what is set in the
+		 * diagnostic register.  I do both on the theory that other
+		 * chips might need one or the other and that no harm will
+		 * come from it.  If there is harm, then I'll make it a bit
+		 * in the tables.
+		 */
+		pcic_setb(sp, PCIC_INT_GEN, PCIC_INTR_ENA);
+		pcic_clrb(sp, PCIC_STAT_INT, PCIC_CSCSELECT);
 	} else {
 		/* Management IRQ changes */
+		/*
+		 * The PCIC_INTR_ENA bit means either "tie the function
+		 * and csc interrupts together" or "Route csc interrupts
+		 * via PCI" or "Reserved".  In any case, we want to clear
+		 * it since we're using ISA interrupts.
+		 */
 		pcic_clrb(sp, PCIC_INT_GEN, PCIC_INTR_ENA);
 		irq = host_irq_to_pcic(irq);
-		sp->putb(sp, PCIC_STAT_INT, (irq << 4) | 0x8);
+		sp->putb(sp, PCIC_STAT_INT, (irq << PCIC_SI_IRQ_SHIFT) | 
+		    PCIC_CDEN);
 	}
 }
 
@@ -361,6 +389,41 @@ pcic_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
+
+static int
+pcic_sresource(struct slot *slt, caddr_t data)
+{
+	struct pccard_resource *pr;
+	struct resource *r;
+	int flags;
+	int rid = 0;
+	device_t bridgedev = slt->dev;
+	struct pcic_slot *sp = slt->cdata;
+
+	pr = (struct pccard_resource *)data;
+	pr->resource_addr = ~0ul;
+	if (pr->type == SYS_RES_IRQ && sp->sc->func_route == pci_parallel) {
+		pr->resource_addr = sp->sc->irq;
+		return (0);
+	}
+	switch(pr->type) {
+	default:
+		return (EINVAL);
+	case SYS_RES_MEMORY:
+	case SYS_RES_IRQ:
+	case SYS_RES_IOPORT:
+		break;
+	}
+	flags = rman_make_alignment_flags(pr->size);
+	r = bus_alloc_resource(bridgedev, pr->type, &rid, pr->min, pr->max,
+	   pr->size, flags);
+	if (r != NULL) {
+		pr->resource_addr = (u_long)rman_get_start(r);
+		bus_release_resource(bridgedev, pr->type, rid, r);
+	}
+	return (0);
+}
+
 /*
  *	ioctl calls - Controller specific ioctls
  */
@@ -372,16 +435,16 @@ pcic_ioctl(struct slot *slt, int cmd, caddr_t data)
 	switch(cmd) {
 	default:
 		return (ENOTTY);
-	/*
-	 * Get/set PCIC registers
-	 */
-	case PIOCGREG:
+	case PIOCGREG:			/* Get pcic register */
 		((struct pcic_reg *)data)->value =
 			sp->getb(sp, ((struct pcic_reg *)data)->reg);
-		break;
+		break;			/* Set pcic register */
 	case PIOCSREG:
 		sp->putb(sp, ((struct pcic_reg *)data)->reg,
 			((struct pcic_reg *)data)->value);
+		break;
+	case PIOCSRESOURCE:		/* Can I use this resource? */
+		pcic_sresource(slt, data);
 		break;
 	}
 	return (0);
@@ -587,7 +650,7 @@ pcic_disable(struct slot *slt)
 	struct pcic_slot *sp = slt->cdata;
 
 	sp->putb(sp, PCIC_INT_GEN, 0);
-	sp->putb(sp, PCIC_POWER, 0);
+/*	sp->putb(sp, PCIC_POWER, 0); */
 }
 
 /*
@@ -802,20 +865,15 @@ pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
 }
 
 int
-pcic_set_memory_offset(device_t bus, device_t child, int rid, u_int32_t offset
-#if __FreeBSD_version >= 500000
-    , u_int32_t *deltap
-#endif
-)
+pcic_set_memory_offset(device_t bus, device_t child, int rid, u_int32_t offset,
+    u_int32_t *deltap)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
 	struct mem_desc *mp = &devi->slt->mem[rid];
 
 	mp->card = offset;
-#if __FreeBSD_version >= 500000
 	if (deltap)
 		*deltap = 0;			/* XXX BAD XXX */
-#endif
 	return (pcic_memory(devi->slt, rid));
 }
 

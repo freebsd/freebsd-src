@@ -64,8 +64,6 @@ struct pcic_softc
 	void			*ih;	/* Our interrupt handler. */
 	int			irq;
 	device_t		dev;	/* Our device */
-	bus_space_tag_t		bst;	/* Bus tag for our regs */
-	bus_space_handle_t	bsh;	/* Bus handle for our regs */
 	void (*slot_poll)(void *);
 	struct callout_handle	timeout_ch;
 	struct pcic_slot	slots[PCIC_MAX_SLOTS];
@@ -73,6 +71,7 @@ struct pcic_softc
 };
 
 extern devclass_t	pcic_devclass;
+extern int		pcic_override_irq;
 
 int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r);
@@ -91,11 +90,7 @@ int pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
 unsigned char pcic_getb_io(struct pcic_slot *sp, int reg);
 void pcic_putb_io(struct pcic_slot *sp, int reg, unsigned char val);
 int pcic_set_memory_offset(device_t bus, device_t child, int rid,
-    u_int32_t offset
-#if __FreeBSD_version >= 500000
-    , u_int32_t *deltap
-#endif
-    );
+    u_int32_t offset, u_int32_t *deltap);
 int pcic_set_res_flags(device_t bus, device_t child, int restype, int rid,
     u_long value);
 void pcic_setb(struct pcic_slot *sp, int reg, unsigned char mask);
