@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.15 1995/11/11 06:53:08 bde Exp $
+ * $Id: kern_prot.c,v 1.16 1995/11/12 06:42:58 bde Exp $
  */
 
 /*
@@ -277,7 +277,7 @@ setpgid(curp, uap, retval)
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
 		if ((targp = pfind(uap->pid)) == 0 || !inferior(targp))
 			return (ESRCH);
-		if (targp->p_session != curp->p_session)
+		if (targp->p_pgrp == NULL ||  targp->p_session != curp->p_session)
 			return (EPERM);
 		if (targp->p_flag & P_EXEC)
 			return (EACCES);
