@@ -387,13 +387,11 @@ ffs_read(ap)
 		panic("ffs_read: type %d",  vp->v_type);
 #endif
 	orig_resid = uio->uio_resid;
+	KASSERT(orig_resid >= 0, ("ffs_read: uio->uio_resid < 0"));
 	if (orig_resid == 0)
 		return (0);
+	KASSERT(uio->uio_offset >= 0, ("ffs_read: uio->uio_offset < 0"));
 	fs = ip->i_fs;
-	/*
-	 * The caller is supposed to check if
-	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
-	 */
 	if (uio->uio_offset < ip->i_size &&
 	    uio->uio_offset >= fs->fs_maxfilesize)
 		return (EOVERFLOW);
@@ -643,11 +641,9 @@ ffs_write(ap)
 		);
 	}
 
+	KASSERT(uio->uio_resid >= 0, ("ffs_write: uio->uio_resid < 0"));
+	KASSERT(uio->uio_offset >= 0, ("ffs_write: uio->uio_offset < 0"));
 	fs = ip->i_fs;
-	/*
-	 * The caller is supposed to check if
-	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
-	 */
 	if ((uoff_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize) {
 		if (object) {
 			VM_OBJECT_LOCK(object);
@@ -975,12 +971,10 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 
 #endif
 	orig_resid = uio->uio_resid;
+	KASSERT(orig_resid >= 0, ("ffs_extread: uio->uio_resid < 0"));
 	if (orig_resid == 0)
 		return (0);
-	/*
-	 * The caller is supposed to check if
-	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
-	 */
+	KASSERT(uio->uio_offset >= 0, ("ffs_extread: uio->uio_offset < 0"));
 
 	bytesinfile = dp->di_extsize - uio->uio_offset;
 	if (bytesinfile <= 0) {
@@ -1144,10 +1138,8 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 
 	if (ioflag & IO_APPEND)
 		uio->uio_offset = dp->di_extsize;
-	/*
-	 * The caller is supposed to check if
-	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
-	 */
+	KASSERT(uio->uio_offset >= 0, ("ffs_extwrite: uio->uio_offset < 0"));
+	KASSERT(uio->uio_resid >= 0, ("ffs_extwrite: uio->uio_resid < 0"));
 	if ((uoff_t)uio->uio_offset + uio->uio_resid > NXADDR * fs->fs_bsize)
 		return (EFBIG);
 
