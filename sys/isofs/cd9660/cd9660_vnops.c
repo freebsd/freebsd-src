@@ -51,6 +51,7 @@
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <sys/unistd.h>
+#include <sys/filio.h>
 
 #include <vm/vm.h>
 #include <vm/vm_zone.h>
@@ -63,6 +64,7 @@
 static int cd9660_setattr __P((struct vop_setattr_args *));
 static int cd9660_access __P((struct vop_access_args *));
 static int cd9660_getattr __P((struct vop_getattr_args *));
+static int cd9660_ioctl __P((struct vop_ioctl_args *));
 static int cd9660_pathconf __P((struct vop_pathconf_args *));
 static int cd9660_read __P((struct vop_read_args *));
 struct isoreaddir;
@@ -252,6 +254,33 @@ cd9660_getattr(ap)
 	vap->va_type	= vp->v_type;
 	vap->va_filerev	= 0;
 	return (0);
+}
+
+/*
+ * Vnode op for ioctl.
+ */
+static int
+cd9660_ioctl(ap)
+	struct vop_ioctl_args /* {
+		struct vnode *a_vp;
+		int  a_command;
+		caddr_t  a_data;
+		int  a_fflag;
+		struct ucred *a_cred;
+		struct proc *a_p;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct iso_node *ip = VTOI(vp);
+
+        switch (ap->a_command) {
+
+        case FIOGETLBA:
+		*(int *)(ap->a_data) = ip->iso_start;
+		return 0;
+        default:
+                return (ENOTTY);
+        }
 }
 
 /*
@@ -857,6 +886,7 @@ static struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_cachedlookup_desc,	(vop_t *) cd9660_lookup },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
+	{ &vop_ioctl_desc,		(vop_t *) cd9660_ioctl },
 	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },

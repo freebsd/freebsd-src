@@ -53,5 +53,6 @@
 #define	FIOSETOWN	_IOW('f', 124, int)	/* set owner */
 #define	FIOGETOWN	_IOR('f', 123, int)	/* get owner */
 #define	FIODTYPE	_IOR('f', 122, int)	/* get d_flags type part */
+#define	FIOGETLBA	_IOR('f', 121, int)	/* get start blk # */
 
 #endif /* !_SYS_FILIO_H_ */
