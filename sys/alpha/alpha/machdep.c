@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.5 1998/07/05 12:24:17 dfr Exp $
+ *	$Id: machdep.c,v 1.6 1998/07/12 16:10:52 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -108,6 +108,7 @@
 #include <sys/msgbuf.h>
 #include <sys/exec.h>
 #include <sys/sysctl.h>
+#include <sys/uio.h>
 #include <net/netisr.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -131,6 +132,9 @@
 #include <machine/vmparam.h>
 #include <machine/elf.h>
 #include <ddb/ddb.h>
+#include <alpha/alpha/db_instruction.h>
+#include <sys/vnode.h>
+#include <miscfs/procfs/procfs.h>
 
 #ifdef SYSVSHM
 #include <sys/shm.h>
@@ -1434,10 +1438,183 @@ ptrace_set_pc(struct proc *p, unsigned long addr)
 	return 0;
 }
 
+static int
+ptrace_read_int(struct proc *p, vm_offset_t addr, u_int32_t *v)
+{
+	struct iovec iov;
+	struct uio uio;
+	iov.iov_base = (caddr_t) v;
+	iov.iov_len = sizeof(u_int32_t);
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = (off_t)addr;
+	uio.uio_resid = sizeof(u_int32_t);
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_procp = p;
+	return procfs_domem(curproc, p, NULL, &uio);
+}
+
+static int
+ptrace_write_int(struct proc *p, vm_offset_t addr, u_int32_t v)
+{
+	struct iovec iov;
+	struct uio uio;
+	iov.iov_base = (caddr_t) &v;
+	iov.iov_len = sizeof(u_int32_t);
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = (off_t)addr;
+	uio.uio_resid = sizeof(u_int32_t);
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_WRITE;
+	uio.uio_procp = p;
+	return procfs_domem(curproc, p, NULL, &uio);
+}
+
+static u_int64_t
+ptrace_read_register(struct proc *p, int regno)
+{
+	static int reg_to_frame[32] = {
+		FRAME_V0,
+		FRAME_T0,
+		FRAME_T1,
+		FRAME_T2,
+		FRAME_T3,
+		FRAME_T4,
+		FRAME_T5,
+		FRAME_T6,
+		FRAME_T7,
+
+		FRAME_S0,
+		FRAME_S1,
+		FRAME_S2,
+		FRAME_S3,
+		FRAME_S4,
+		FRAME_S5,
+		FRAME_S6,
+
+		FRAME_A0,
+		FRAME_A1,
+		FRAME_A2,
+		FRAME_A3,
+		FRAME_A4,
+		FRAME_A5,
+
+		FRAME_T8,
+		FRAME_T9,
+		FRAME_T10,
+		FRAME_T11,
+		FRAME_RA,
+		FRAME_T12,
+		FRAME_AT,
+		FRAME_GP,
+		FRAME_SP,
+		-1,		/* zero */
+	};
+
+	if (regno == R_ZERO)
+		return 0;
+
+	return p->p_md.md_tf->tf_regs[reg_to_frame[regno]];
+}
+
+
+static int
+ptrace_clear_bpt(struct proc *p, struct mdbpt *bpt)
+{
+	return ptrace_write_int(p, bpt->addr, bpt->contents);
+}
+
+static int
+ptrace_set_bpt(struct proc *p, struct mdbpt *bpt)
+{
+	int error;
+	u_int32_t bpins = 0x00000080;
+	error = ptrace_read_int(p, bpt->addr, &bpt->contents);
+	if (error)
+		return error;
+	return ptrace_write_int(p, bpt->addr, bpins);
+}
+
+int
+ptrace_clear_single_step(struct proc *p)
+{
+	if (p->p_md.md_flags & MDP_STEP2) {
+		ptrace_clear_bpt(p, &p->p_md.md_sstep[1]);
+		ptrace_clear_bpt(p, &p->p_md.md_sstep[0]);
+		p->p_md.md_flags &= ~MDP_STEP2;
+	} else if (p->p_md.md_flags & MDP_STEP1) {
+		ptrace_clear_bpt(p, &p->p_md.md_sstep[0]);
+		p->p_md.md_flags &= ~MDP_STEP1;
+	}
+	return 0;
+}
+
 int
 ptrace_single_step(struct proc *p)
 {
-	return EINVAL;
+	int error;
+	vm_offset_t pc = p->p_md.md_tf->tf_regs[FRAME_PC];
+	alpha_instruction ins;
+	vm_offset_t addr[2];	/* places to set breakpoints */
+	int count = 0;		/* count of breakpoints */
+
+	if (p->p_md.md_flags & (MDP_STEP1|MDP_STEP2))
+		panic("ptrace_single_step: step breakpoints not removed");
+
+	error = ptrace_read_int(p, pc, &ins.bits);
+	if (error)
+		return error;
+
+	switch (ins.branch_format.opcode) {
+
+	case op_j:
+		/* Jump: target is register value */
+		addr[0] = ptrace_read_register(p, ins.jump_format.rs) & ~3;
+		count = 1;
+		break;
+
+	case op_br:
+	case op_fbeq:
+	case op_fblt:
+	case op_fble:
+	case op_bsr:
+	case op_fbne:
+	case op_fbge:
+	case op_fbgt:
+	case op_blbc:
+	case op_beq:
+	case op_blt:
+	case op_ble:
+	case op_blbs:
+	case op_bne:
+	case op_bge:
+	case op_bgt:
+		/* Branch: target is pc+4+4*displacement */
+		addr[0] = pc + 4;
+		addr[1] = pc + 4 + 4 * ins.branch_format.displacement;
+		count = 2;
+
+	default:
+		addr[0] = pc + 4;
+		count = 1;
+	}
+
+	p->p_md.md_sstep[0].addr = addr[0];
+	if (error = ptrace_set_bpt(p, &p->p_md.md_sstep[0]))
+		return error;
+	if (count == 2) {
+		p->p_md.md_sstep[1].addr = addr[1];
+		if (error = ptrace_set_bpt(p, &p->p_md.md_sstep[1])) {
+			ptrace_clear_bpt(p, &p->p_md.md_sstep[0]);
+			return error;
+		}
+		p->p_md.md_flags |= MDP_STEP2;
+	} else
+		p->p_md.md_flags |= MDP_STEP1;
+
+	return 0;
 }
 
 int ptrace_read_u_check(p, addr, len)
@@ -1445,7 +1622,6 @@ int ptrace_read_u_check(p, addr, len)
 	vm_offset_t addr;
 	size_t len;
 {
-#if 0
 	vm_offset_t gap;
 
 	if ((vm_offset_t) (addr + len) < addr)
@@ -1453,21 +1629,19 @@ int ptrace_read_u_check(p, addr, len)
 	if ((vm_offset_t) (addr + len) <= sizeof(struct user))
 		return 0;
 
-	gap = (char *) p->p_md.md_regs - (char *) p->p_addr;
+	gap = (char *) p->p_md.md_tf - (char *) p->p_addr;
 	
 	if ((vm_offset_t) addr < gap)
 		return EPERM;
 	if ((vm_offset_t) (addr + len) <= 
 	    (vm_offset_t) (gap + sizeof(struct trapframe)))
 		return 0;
-#endif
 	return EPERM;
 }
 
 int
 ptrace_write_u(struct proc *p, vm_offset_t off, long data)
 {
-#if 0
 	struct trapframe frame_copy;
 	vm_offset_t min;
 	struct trapframe *tp;
@@ -1476,23 +1650,24 @@ ptrace_write_u(struct proc *p, vm_offset_t off, long data)
 	 * Privileged kernel state is scattered all over the user area.
 	 * Only allow write access to parts of regs and to fpregs.
 	 */
-	min = (char *)p->p_md.md_regs - (char *)p->p_addr;
+	min = (char *)p->p_md.md_tf - (char *)p->p_addr;
 	if (off >= min && off <= min + sizeof(struct trapframe) - sizeof(int)) {
-		tp = p->p_md.md_regs;
+		tp = p->p_md.md_tf;
+#if 0
 		frame_copy = *tp;
 		*(int *)((char *)&frame_copy + (off - min)) = data;
 		if (!EFLAGS_SECURE(frame_copy.tf_eflags, tp->tf_eflags) ||
 		    !CS_SECURE(frame_copy.tf_cs))
 			return (EINVAL);
-		*(int*)((char *)p->p_addr + off) = data;
-		return (0);
-	}
-	min = offsetof(struct user, u_pcb) + offsetof(struct pcb, pcb_savefpu);
-	if (off >= min && off <= min + sizeof(struct save87) - sizeof(int)) {
-		*(int*)((char *)p->p_addr + off) = data;
-		return (0);
-	}
 #endif
+		*(int*)((char *)p->p_addr + off) = data;
+		return (0);
+	}
+	min = offsetof(struct user, u_pcb) + offsetof(struct pcb, pcb_fp);
+	if (off >= min && off <= min + sizeof(struct fpreg) - sizeof(int)) {
+		*(int*)((char *)p->p_addr + off) = data;
+		return (0);
+	}
 	return (EFAULT);
 }
 

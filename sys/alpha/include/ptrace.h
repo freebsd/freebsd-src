@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ptrace.h	8.1 (Berkeley) 6/11/93
- * $Id: ptrace.h,v 1.6 1998/05/19 00:00:12 tegge Exp $
+ * $Id: ptrace.h,v 1.1 1998/06/10 10:55:24 dfr Exp $
  */
 
 #ifndef _MACHINE_PTRACE_H_
@@ -45,7 +45,10 @@
 #define PT_GETFPREGS    (PT_FIRSTMACH + 3)
 #define PT_SETFPREGS    (PT_FIRSTMACH + 4)
 
+#define FIX_SSTEP(p)	ptrace_clear_single_step(p)
+
 #ifdef KERNEL
+int	ptrace_clear_single_step __P((struct proc *p));
 int	ptrace_read_u_check __P((struct proc *p, vm_offset_t off, size_t len));
 #endif /* !KERNEL */
 
