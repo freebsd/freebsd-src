@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.22 1998/01/19 02:59:32 brian Exp $
+ * $Id: arp.c,v 1.23 1998/01/19 22:34:20 brian Exp $
  *
  */
 
@@ -314,7 +314,7 @@ get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
         sa_gw = (struct sockaddr *)wp;
         if (sa_gw->sa_family == AF_LINK) {
           dl = (struct sockaddr_dl *)wp;
-          if (dl->sdl_alen && dl->sdl_type == IFT_ETHER) {
+          if (!dl->sdl_nlen && !dl->sdl_alen && !dl->sdl_slen) {
             memcpy(hwaddr, dl, dl->sdl_len);
             free(sp);
             return 1;
