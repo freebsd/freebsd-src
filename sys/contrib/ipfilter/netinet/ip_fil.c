@@ -168,7 +168,7 @@ static	int	ipfr_fastroute6 __P((struct mbuf *, struct mbuf **,
 # endif
 # ifdef	__sgi
 extern	int		tcp_mtudisc;
-extern  kmutex_t        ipf_rw;
+extern	kmutex_t        ipf_rw;
 extern	KRWLOCK_T	ipf_mutex;
 # endif
 #else
@@ -206,8 +206,6 @@ toid_t ipfr_slowtimer_ch;
     defined(_KERNEL)
 # include <sys/conf.h>
 const struct cdevsw ipl_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	iplopen, iplclose, iplread, nowrite, iplioctl,
 	nostop, notty, nopoll, nommap,
 };
@@ -229,8 +227,9 @@ struct devsw iplsw = {
 };
 #endif /* _BSDI_VERSION >= 199510  && _KERNEL */
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)  || \
-    (_BSDI_VERSION >= 199701) || (__FreeBSD_version >= 500011)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || \
+    (_BSDI_VERSION >= 199701) || \
+    ((__FreeBSD_version >= 500011) && defined(_KERNEL))
 # include <sys/conf.h>
 # if defined(NETBSD_PF)
 #  include <net/pfil.h>
@@ -328,7 +327,7 @@ static int
 fr_check_wrapper6(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
 {
 	return (fr_check(mtod(*mp, struct ip *), sizeof(struct ip6_hdr),
-	    ifp, (dir == PFIL_OUT), mp));
+		ifp, (dir == PFIL_OUT), mp));
 }
 # endif
 #endif /* __FreeBSD_version >= 501108 */
@@ -535,7 +534,7 @@ int ipldetach()
     ((__NetBSD_Version__ >= 104200000) || (__FreeBSD_version >= 500011))
 	int error = 0;
 # if (__NetBSD_Version__ >= 105150000) || (__FreeBSD_version >= 501108)
-        struct pfil_head *ph_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
+	struct pfil_head *ph_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
 #  ifdef USE_INET6
 	struct pfil_head *ph_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
 #  endif
@@ -2232,8 +2231,8 @@ void init_ifp()
 	int fd;
 
 # if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
-	(defined(OpenBSD) && (OpenBSD >= 199603)) || \
-	(defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
+     (defined(OpenBSD) && (OpenBSD >= 199603)) || \
+     (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
 	for (ifa = ifneta; ifa && (ifp = *ifa); ifa++) {
 		ifp->if_output = write_output;
 		sprintf(fname, "/tmp/%s", ifp->if_xname);
