@@ -70,3 +70,164 @@ ENTRY(disable_intr)
 ENTRY(enable_intr)
 	IRQenableALL
 
+/*
+ * memset: Sets a block of memory to the specified value
+ *
+ * On entry:
+ *   r0 - dest address
+ *   r1 - byte to write
+ *   r2 - number of bytes to write
+ *
+ * On exit:
+ *   r0 - dest address
+ */
+/* LINTSTUB: Func: void bzero(void *, size_t) */
+ENTRY(bzero)
+	mov	r3, #0x00
+	b	do_memset
+
+/* LINTSTUB: Func: void *memset(void *, int, size_t) */
+ENTRY(memset)
+	and	r3, r1, #0xff		/* We deal with bytes */
+	mov	r1, r2
+do_memset:
+	cmp	r1, #0x04		/* Do we have less than 4 bytes */
+	mov	ip, r0
+	blt	.Lmemset_lessthanfour
+
+	/* Ok first we will word align the address */
+	ands	r2, ip, #0x03		/* Get the bottom two bits */
+	bne	.Lmemset_wordunaligned	/* The address is not word aligned */
+
+	/* We are now word aligned */
+.Lmemset_wordaligned:
+	orr	r3, r3, r3, lsl #8	/* Extend value to 16-bits */
+#ifdef __XSCALE__
+	tst	ip, #0x04		/* Quad-align for Xscale */
+#else
+	cmp	r1, #0x10
+#endif
+	orr	r3, r3, r3, lsl #16	/* Extend value to 32-bits */
+#ifdef __XSCALE__
+	subne	r1, r1, #0x04		/* Quad-align if necessary */
+	strne	r3, [ip], #0x04
+	cmp	r1, #0x10
+#endif
+	blt	.Lmemset_loop4		/* If less than 16 then use words */
+	mov	r2, r3			/* Duplicate data */
+	cmp	r1, #0x80		/* If < 128 then skip the big loop */
+	blt	.Lmemset_loop32
+
+	/* Do 128 bytes at a time */
+.Lmemset_loop128:
+	subs	r1, r1, #0x80
+#ifdef __XSCALE__
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+#else
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+#endif
+	bgt	.Lmemset_loop128
+	moveq	pc, lr			/* Zero length so just exit */
+
+	add	r1, r1, #0x80		/* Adjust for extra sub */
+
+	/* Do 32 bytes at a time */
+.Lmemset_loop32:
+	subs	r1, r1, #0x20
+#ifdef __XSCALE__
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+#else
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+#endif
+	bgt	.Lmemset_loop32
+	moveq	pc, lr			/* Zero length so just exit */
+
+	adds	r1, r1, #0x10		/* Partially adjust for extra sub */
+
+	/* Deal with 16 bytes or more */
+#ifdef __XSCALE__
+	strged	r2, [ip], #0x08
+	strged	r2, [ip], #0x08
+#else
+	stmgeia	ip!, {r2-r3}
+	stmgeia	ip!, {r2-r3}
+#endif
+	moveq	pc, lr			/* Zero length so just exit */
+
+	addlt	r1, r1, #0x10		/* Possibly adjust for extra sub */
+
+	/* We have at least 4 bytes so copy as words */
+.Lmemset_loop4:
+	subs	r1, r1, #0x04
+	strge	r3, [ip], #0x04
+	bgt	.Lmemset_loop4
+	moveq	pc, lr			/* Zero length so just exit */
+
+#ifdef __XSCALE__
+	/* Compensate for 64-bit alignment check */
+	adds	r1, r1, #0x04
+	moveq	pc, lr
+	cmp	r1, #2
+#else
+	cmp	r1, #-2
+#endif
+
+	strb	r3, [ip], #0x01		/* Set 1 byte */
+	strgeb	r3, [ip], #0x01		/* Set another byte */
+	strgtb	r3, [ip]		/* and a third */
+	mov	pc, lr			/* Exit */
+
+.Lmemset_wordunaligned:
+	rsb	r2, r2, #0x004
+	strb	r3, [ip], #0x01		/* Set 1 byte */
+	cmp	r2, #0x02
+	strgeb	r3, [ip], #0x01		/* Set another byte */
+	sub	r1, r1, r2
+	strgtb	r3, [ip], #0x01		/* and a third */
+	cmp	r1, #0x04		/* More than 4 bytes left? */
+	bge	.Lmemset_wordaligned	/* Yup */
+
+.Lmemset_lessthanfour:
+	cmp	r1, #0x00
+	moveq	pc, lr			/* Zero length so exit */
+	strb	r3, [ip], #0x01		/* Set 1 byte */
+	cmp	r1, #0x02
+	strgeb	r3, [ip], #0x01		/* Set another byte */
+	strgtb	r3, [ip]		/* and a third */
+	mov	pc, lr			/* Exit */
