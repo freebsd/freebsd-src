@@ -79,8 +79,11 @@ output) for confirmation.
 If prompting is not possible or confirmation is not received, the files
 are not overwritten.
 .Pp
-If no files are specified, the standard input is compressed or uncompressed
-to the standard output.
+If no files are specified or a
+.Ar file
+argument is a single dash
+.Pq Ql - ,
+the standard input is compressed or uncompressed to the standard output.
 If either the input and output files are not regular files, the checks for
 reduction in size and file overwriting are not performed, the input file is
 not removed, and the attributes of the input file are not retained.
