@@ -2367,12 +2367,16 @@ test_char:
 static void
 ParseFinishLine(void)
 {
+	const LstNode	*ln;
 
-    if (inLine) {
-	Lst_ForEach(&targets, Suff_EndTransform, NULL);
-	Lst_Destroy(&targets, ParseHasCommands);
-	inLine = FALSE;
-    }
+	if (inLine) {
+		LST_FOREACH(ln, &targets) {
+			if (((const GNode *)Lst_Datum(ln))->type & OP_TRANSFORM)
+				Suff_EndTransform(Lst_Datum(ln));
+		}
+		Lst_Destroy(&targets, ParseHasCommands);
+		inLine = FALSE;
+	}
 }
 
 
