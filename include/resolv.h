@@ -53,7 +53,7 @@
  *
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
  *	From Id: resolv.h,v 4.9.1.2 1993/05/17 09:59:01 vixie Exp
- *	$Id: resolv.h,v 1.4 1995/08/20 19:59:15 peter Exp $
+ *	$Id: resolv.h,v 1.5 1996/01/07 05:01:50 peter Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -126,7 +126,7 @@ struct __res_state {
 #define RES_AAONLY	0x00000004	/* authoritative answers only (!IMPL)*/
 #define RES_USEVC	0x00000008	/* use virtual circuit */
 #define RES_PRIMARY	0x00000010	/* query primary server only (!IMPL) */
-#define RES_IGNTC	0x00000020	/* ignore trucation errors */
+#define RES_IGNTC	0x00000020	/* ignore truncation errors */
 #define RES_RECURSE	0x00000040	/* recursion desired */
 #define RES_DEFNAMES	0x00000080	/* use default domain name */
 #define RES_STAYOPEN	0x00000100	/* Keep TCP socket open */

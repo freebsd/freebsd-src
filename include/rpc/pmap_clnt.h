@@ -7,7 +7,7 @@
  * program developed by the user.
  *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
+ * WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
  *
  * Sun RPC is provided with no support and without any obligation on the
@@ -28,7 +28,7 @@
  *
  *	from: @(#)pmap_clnt.h 1.11 88/02/08 SMI
  *	from: @(#)pmap_clnt.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: pmap_clnt.h,v 1.2 1994/08/07 18:40:56 wollman Exp $
+ *	$Id: pmap_clnt.h,v 1.3 1995/05/30 04:55:16 rgrimes Exp $
  */
 
 /*
