@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.56 1997/05/20 02:04:34 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.57 1997/05/20 14:25:19 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.247 -->
+<!-- Original revision: 1.249 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -209,6 +209,7 @@
 	  <item>Boyd Faulkner &lt;faulkner@mpd.tandem.com&gt;
 	  <item>Brent J. Nordquist &lt;bjn@visi.com&gt;
 	  <item>Brian Clapper &lt;bmc@willscreek.com&gt;
+	  <item>Brian Handy &lt;handy@lambic.space.lockheed.com&gt;
 	  <item>Brian Tao &lt;taob@risc.org&gt;
 	  <item>Carey Jones &lt;mcj@acquiesce.org&gt;
 	  <item>Charles Hannum &lt;mycroft@ai.mit.edu&gt;
@@ -385,6 +386,7 @@
 	  <item>Tom Samplonius &lt;tom@misery.sdf.com&gt;
 	  <item>Torbjorn Granlund &lt;tege@matematik.su.se&gt;
 	  <item>Toshihiro Kanda &lt;candy@fct.kgc.co.jp&gt;
+	  <item>Vanill Ice &lt;vanilla@Minje.Com.TW&gt;
 	  <item>Ville Eerola &lt;ve@sci.fi&gt;
 	  <item>Werner Griessl &lt;werner@btp1da.phy.uni-bayreuth.de&gt;
 	  <item>Wes Santee &lt;wsantee@wsantee.oz.net&gt;
