@@ -1403,7 +1403,7 @@ getmemsize(int first)
 		}
 		physmap[physmap_idx] = smap->base;
 		physmap[physmap_idx + 1] = smap->base + smap->length;
-next_run:
+next_run: ;
 	} while (vmf.vmf_ebx != 0);
 
 	if (physmap[1] != 0)
