@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
+MAINTAINER=	dwmalone
+
 PROG=	inetd
 SRCS=	inetd.c builtins.c
 MAN8=	inetd.8
