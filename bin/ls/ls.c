@@ -448,7 +448,8 @@ traverse(int argc, char *argv[], int options)
 	 * If not recursing down this tree and don't need stat info, just get
 	 * the names.
 	 */
-	ch_options = !f_recursive && options & FTS_NOSTAT ? FTS_NAMEONLY : 0;
+	ch_options = !f_recursive && !f_label &&
+	    options & FTS_NOSTAT ? FTS_NAMEONLY : 0;
 
 	while ((p = fts_read(ftsp)) != NULL)
 		switch (p->fts_info) {
@@ -691,7 +692,9 @@ display(FTSENT *p, FTSENT *list, int options)
 
 					error = mac_prepare_file_label(&label);
 					if (error == -1) {
-						warn("%s", cur->fts_name);
+						warn("MAC label for %s/%s",
+						    cur->fts_parent->fts_path,
+						    cur->fts_name);
 						goto label_out;
 					}
 
@@ -700,8 +703,8 @@ display(FTSENT *p, FTSENT *list, int options)
 						    "%s", cur->fts_name);
 					else
 						snprintf(name, sizeof(name),
-						    "%s/%s", cur->fts_parent->fts_accpath,
-						    cur->fts_name);
+						    "%s/%s", cur->fts_parent->
+						    fts_accpath, cur->fts_name);
 
 					if (options & FTS_LOGICAL)
 						error = mac_get_file(name,
@@ -710,7 +713,9 @@ display(FTSENT *p, FTSENT *list, int options)
 						error = mac_get_link(name,
 						    label);
 					if (error == -1) {
-						warn("%s", cur->fts_name);
+						warn("MAC label for %s/%s",
+						    cur->fts_parent->fts_path,
+						    cur->fts_name);
 						mac_free(label);
 						goto label_out;
 					}
@@ -718,7 +723,9 @@ display(FTSENT *p, FTSENT *list, int options)
 					error = mac_to_text(label,
 					    &labelstr);
 					if (error == -1) {
-						warn("%s", cur->fts_name);
+						warn("MAC label for %s/%s",
+						    cur->fts_parent->fts_path,
+						    cur->fts_name);
 						mac_free(label);
 						goto label_out;
 					}
