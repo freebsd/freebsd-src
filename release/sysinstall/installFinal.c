@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.26 1996/04/13 13:31:42 jkh Exp $
+ * $Id: installFinal.c,v 1.27 1996/04/23 01:29:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -178,7 +178,7 @@ configSamba(dialogMenuItem *self)
 	    msgConfirm("Unable to open temporary smb.conf file.\n"
 		       "Samba will have to be configured by hand.");
     }
-    return i;
+    return i | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 int

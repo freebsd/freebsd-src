@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.20 1996/04/13 13:31:43 jkh Exp $
+ * $Id: installUpgrade.c,v 1.21 1996/04/23 01:29:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -198,7 +198,7 @@ installUpgrade(dialogMenuItem *self)
 		   "to select those portions of 2.1 you wish to install on top of your 2.0.5\n"
 		   "system.");
 	if (!dmenuOpenSimple(&MenuDistributions))
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
     /* No bin selected?  Not much of an upgrade.. */
@@ -218,7 +218,7 @@ installUpgrade(dialogMenuItem *self)
     if (!mediaDevice) {
 	msgConfirm("Now you must specify an installation medium for the upgrade.");
 	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
     msgConfirm("OK.  First, we're going to go to the disk label editor.  In this editor\n"
@@ -233,7 +233,7 @@ installUpgrade(dialogMenuItem *self)
     if (diskLabelEditor(self) == DITEM_FAILURE) {
 	msgConfirm("The disk label editor failed to work properly!  Upgrade operation\n"
 		   "aborted.");
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
     /* Don't write out MBR info */
@@ -242,20 +242,20 @@ installUpgrade(dialogMenuItem *self)
 	msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		   "aborted.");
 	variable_unset(DISK_PARTITIONED);
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
     if (!copySelf()) {
 	msgConfirm("Couldn't clone the boot floppy onto the root file system.\n"
 		   "Aborting.");
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
     if (chroot("/mnt") == DITEM_FAILURE) {
 	msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
 		   "root partition or the way it's mounted if this doesn't work.");
 	variable_unset(DISK_PARTITIONED);
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
     chdir("/");

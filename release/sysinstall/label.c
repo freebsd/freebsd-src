@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.42 1996/04/13 13:31:45 jkh Exp $
+ * $Id: label.c,v 1.43 1996/04/23 01:29:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -834,11 +834,10 @@ diskLabel(char *str)
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("Are you SURE that you wish to make and mount all filesystems\n"
-			  "at this time?  You also have the option of doing it later in\n"
-			  "one final 'commit' operation, and if you're at all unsure as\n"
-			  "to which option to chose, then PLEASE CHOSE NO!  This option\n"
-			  "is DANGEROUS if you're not EXACTLY sure what you are doing!")) {
+	    if (!msgYesNo("You also have the option of doing this later in one final 'commit'\n"
+			  "operation, and it should also be noted that this option is NOT for\n"
+			  "use during new installations but rather for modifying existing ones.\n\n"
+			  "Are you absolutely SURE you want to do this now?")) {
 		variable_set2(DISK_LABELLED, "yes");
 		clear();
 		diskLabelCommit(NULL);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.50 1996/04/13 13:31:58 jkh Exp $
+ * $Id: menus.c,v 1.51 1996/04/23 01:29:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -36,6 +36,76 @@
 
 #include "sysinstall.h"
 
+/* Miscellaneous work routines for menus */
+static int
+setSrc(dialogMenuItem *self)
+{
+    Dists |= DIST_SRC;
+    SrcDists = DIST_SRC_ALL | DIST_SRC_SMAILCF;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
+clearSrc(dialogMenuItem *self)
+{
+    Dists &= ~DIST_SRC;
+    SrcDists = 0;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
+setX11All(dialogMenuItem *self)
+{
+    XF86Dists = DIST_XF86_ALL;
+    XF86ServerDists = DIST_XF86_SERVER_ALL;
+    XF86FontDists = DIST_XF86_FONTS_ALL;
+    Dists |= DIST_XF86;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
+clearX11All(dialogMenuItem *self)
+{
+    XF86Dists = 0;
+    XF86ServerDists = 0;
+    XF86FontDists = 0;
+    Dists &= ~DIST_XF86;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
+setX11Misc(dialogMenuItem *self)
+{
+    XF86Dists |= DIST_XF86_MISC_ALL;
+    Dists |= DIST_XF86;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
+clearX11Misc(dialogMenuItem *self)
+{
+    XF86Dists &= ~DIST_XF86_MISC_ALL;
+    if (!XF86ServerDists && !XF86FontDists)
+	Dists &= ~DIST_XF86;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
+setX11Servers(dialogMenuItem *self)
+{
+    XF86Dists |= DIST_XF86_SERVER;
+    XF86ServerDists = DIST_XF86_SERVER_ALL;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
+clearX11Servers(dialogMenuItem *self)
+{
+    XF86Dists &= ~DIST_XF86_SERVER;
+    XF86ServerDists = 0;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
 /* All the system menus go here.
  *
  * Hardcoded things like version number strings will disappear from
@@ -62,7 +132,7 @@ option by pressing [ENTER].",				/* prompt */
   { "7 Fixit",	"Go into repair mode with CDROM or floppy",		NULL, dmenuSubmenu, NULL, &MenuFixit },
   { "8 Upgrade","Upgrade an existing 2.0.5 system",			NULL, installUpgrade },
   { "9 Configure","Do post-install configuration of FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuConfigure },
-  { "0 Exit",	"Exit this menu (and the installation)",		NULL },
+  { "0 Exit",	"Exit this menu (and the installation)",		NULL, dmenuCancel },
   { NULL } },
 };
 
@@ -130,7 +200,7 @@ whichMouse(dialogMenuItem *self)
 }
 
 DMenu MenuMouse = {
-    DMENU_RADIO_TYPE,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "Please select your mouse type from the following menu",
     "There are many different types of mice currently on the market,\n\
 but this configuration menu should at least narrow down the choices\n\
@@ -195,7 +265,7 @@ distribution files.",
 };
 
 DMenu MenuMediaFTP = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "Please select a FreeBSD FTP distribution site",
     "Please select the site closest to you or \"other\" if you'd like to\n\
 specify a different choice.  Also note that not every site listed here\n\
@@ -375,7 +445,7 @@ whichMedia(dialogMenuItem *self)
 
 /* The media selection menu */
 DMenu MenuMedia = {
-    DMENU_RADIO_TYPE,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "Choose Installation Media",
     "FreeBSD can be installed from a variety of different installation\n\
 media, ranging from floppies to an Internet FTP server.  If you're\n\
@@ -427,11 +497,11 @@ When you are finished, select Cancel or chose Exit.",
     NULL, distSetXUser },
   { "6 Minimal",	"The smallest configuration possible [44MB]",
     NULL, distSetMinimum },
-  { "7 Everything",	"All sources, binaries and XFree86 binaries [700MB]",
-    NULL, distSetEverything	},
-  { "8 Custom",		"Specify your own distribution set [?]",
+  { "7 Custom",		"Specify your own distribution set [?]",
     NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
-  { "9 Clear",		"Reset selected distribution list to None",
+  { "8 All",		"All sources, binaries and XFree86 binaries [700MB]",
+    NULL, distSetEverything	},
+  { "9 Clear",		"Reset selected distribution list to nothing [0MB]",
     NULL, distReset },
   { "0 Exit",		"Exit this menu (returning to previous)",
     NULL, dmenuCancel },
@@ -441,23 +511,23 @@ When you are finished, select Cancel or chose Exit.",
 static int
 DESFlagCheck(dialogMenuItem *item)
 {
-    return Dists & DIST_DES;
+    return DESDists;
 }
 
 static int
 srcFlagCheck(dialogMenuItem *item)
 {
-    return Dists & DIST_SRC;
+    return SrcDists;
 }
 
 static int
 x11FlagCheck(dialogMenuItem *item)
 {
-    return Dists & DIST_XF86;
+    return XF86Dists;
 }
 
 DMenu MenuSubDistributions = {
-    DMENU_CHECKLIST_TYPE,
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "Select the distributions you wish to install.",
     "Please check off the distributions you wish to install.  At the\n\
 very minimum, this should be \"bin\".  WARNING:  Do not export the\n\
@@ -494,7 +564,9 @@ DES distribution out of the U.S.!  It is for U.S. customers only.",
     x11FlagCheck, distSetXF86 },
   { "xperimnt",		"Experimental work in progress!",
     dmenuFlagCheck, dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_EXPERIMENTAL },
-  { "Clear",		"Reset selected distribution list to None",
+  { "All",		"All sources, binaries and XFree86 binaries [700MB]",
+    NULL, distSetEverything	},
+  { "Clear",		"Reset all of the above [0MB]",
     NULL, distReset, NULL, NULL, ' ', ' ', ' ' },
   { "Exit",	"Exit this menu (returning to previous)",
     NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
@@ -502,7 +574,7 @@ DES distribution out of the U.S.!  It is for U.S. customers only.",
 };
 
 DMenu MenuDESDistributions = {
-    DMENU_CHECKLIST_TYPE,
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "Select the encryption facilities you wish to install.",
     "Please check off any special DES-based encryption distributions\n\
 you would like to install.  Please note that these services are NOT FOR\n\
@@ -525,7 +597,7 @@ software, please consult the release notes.",
 };
 
 DMenu MenuSrcDistributions = {
-    DMENU_CHECKLIST_TYPE,
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS ,
     "Select the sub-components of src you wish to install.",
     "Please check off those portions of the FreeBSD source tree\n\
 you wish to install.",
@@ -563,52 +635,17 @@ you wish to install.",
     dmenuFlagCheck, dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_USBIN },
   { "smailcf",	"/usr/src/usr.sbin (sendmail config macros) [341K]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SMAILCF },
-  { "Clear",	"Reset selected source distribution list to None",
-    NULL, distSrcReset, NULL, NULL, ' ', ' ', ' ' },
+  { "All",	"Select all of the above [120MB]",
+    NULL, setSrc, NULL, NULL, ' ', ' ', ' ' },
+  { "Clear",	"Reset all of the above [0MB]",
+    NULL, clearSrc, NULL, NULL, ' ', ' ', ' ' },
   { "Exit",	"Exit this menu (returning to previous)",
     NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
   { NULL } },
 };
 
-static int
-clearx11(dialogMenuItem *self)
-{
-    XF86Dists = 0;
-    XF86ServerDists = 0;
-    XF86FontDists = 0;
-    Dists &= ~DIST_XF86;
-    return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-static int
-clearx11Servers(dialogMenuItem *self)
-{
-    XF86Dists &= ~DIST_XF86_SERVER;
-    XF86ServerDists = 0;
-    return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-static int
-checkx11Basic(dialogMenuItem *self)
-{
-    return XF86Dists;
-}
-
-static int
-checkx11Servers(dialogMenuItem *self)
-{
-    return XF86ServerDists;
-}
-
-static int
-checkx11Fonts(dialogMenuItem *self)
-{
-    return XF86FontDists;
-}
-
-
 DMenu MenuXF86Select = {
-    DMENU_CHECKLIST_TYPE,
+    DMENU_NORMAL_TYPE,
     "XFree86 3.1.2-S Distribution",
     "Please select the components you need from the XFree86 3.1.2-S\n\
 distribution.  We recommend that you select what you need from the basic\n\
@@ -616,20 +653,22 @@ component set and at least one entry from the Server and Font set menus.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
 { { "Basic",	"Basic component menu (required)",
-    checkx11Basic, dmenuSubmenu, NULL, &MenuXF86SelectCore },
+    NULL, dmenuSubmenu, NULL, &MenuXF86SelectCore },
   { "Server",	"X server menu",
-    checkx11Servers, dmenuSubmenu, NULL, &MenuXF86SelectServer },
+    NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
   { "Fonts",	"Font set menu",
-    checkx11Fonts, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
+    NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
+  { "All",	"Select the entire XFree86 distribution",
+    NULL, setX11All },
   { "Clear",	"Reset XFree86 distribution list",
-    NULL, clearx11, NULL, NULL, ' ', ' ', ' ' },
+    NULL, clearX11All },
   { "Exit",	"Exit this menu (returning to previous)",
     NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
   { NULL } },
 };
 
 DMenu MenuXF86SelectCore = {
-    DMENU_CHECKLIST_TYPE,
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "XFree86 3.1.2-S base distribution types",
     "Please check off the basic XFree86 components you wish to install.\n\
 Bin, lib, xicf, and xdcf are recommended for a minimum installaion.",
@@ -661,15 +700,17 @@ Bin, lib, xicf, and xdcf are recommended for a minimum installaion.",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PEX },
   { "sources",	"XFree86 3.1.2-S standard + contrib sources [200MB]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
-  { "Clear",	"Reset XFree86 distribution list",
-    NULL, clearx11, NULL, NULL, ' ', ' ', ' ' },
+  { "All",	"Select all of the above [20MB]",
+    NULL, setX11Misc, NULL, NULL, ' ', ' ', ' ' },
+  { "Clear",	"Reset all of the above [0MB]",
+    NULL, clearX11Misc, NULL, NULL, ' ', ' ', ' ' },
   { "Exit",	"Exit this menu (returning to previous)",
     NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
   { NULL } },
 };
 
 DMenu MenuXF86SelectFonts = {
-    DMENU_CHECKLIST_TYPE,
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS ,
     "Font distribution selection.",
     "Please check off the individual font distributions you wish to\n\
 install.  At the minimum, you should install the standard\n\
@@ -695,7 +736,7 @@ install.  At the minimum, you should install the standard\n\
 };
 
 DMenu MenuXF86SelectServer = {
-    DMENU_CHECKLIST_TYPE,
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "X Server selection.",
     "Please check off the types of X servers you wish to install.\n\
 If you are unsure as to which server will work for your graphics card,\n\
@@ -727,23 +768,25 @@ Mono servers are particularly well-suited to most LCD displays).",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_W32 },
   { "nest",	"A nested server for testing purposes [1.8MB]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_NEST },
-  { "Clear",	"Reset XFree86 server list",
-    NULL, clearx11Servers, NULL, NULL, ' ', ' ', ' ' },
+  { "All",	"Select all of the above [25MB]",
+    NULL, setX11Servers, NULL, NULL, ' ', ' ', ' ' },
+  { "Clear",	"Reset all of the above [0MB]",
+    NULL, clearX11Servers, NULL, NULL, ' ', ' ', ' ' },
   { "Exit",	"Exit this menu (returning to previous)",
     NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
   { NULL } },
 };
 
 DMenu MenuDiskDevices = {
-    DMENU_CHECKLIST_TYPE,
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "Select Drive(s)",
     "Please select the drive, or drives, on which you wish to perform\n\
 this operation.  If you are attempting to install a boot partition\n\
 on a drive other than the first one or have multiple operating\n\
 systems on your machine, you will have the option to install a boot\n\
 manager later.  To select a drive, use the arrow keys to move to it\n\
-and press [SPACE].  When you're finished, select Cancel to go on to\n\
-the next step.",
+and press [SPACE].\n\n\
+When you're finished, select Cancel to go on to the next step.",
     "Press F1 for important information regarding disk geometry!",
     "drives",
     { { NULL } },
@@ -786,7 +829,7 @@ to install it from and how you wish to allocate disk storage to FreeBSD.",
 
 /* MBR type menu */
 DMenu MenuMBRType = {
-    DMENU_RADIO_TYPE,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "overwrite me",		/* will be disk specific label */
     "FreeBSD comes with a boot selector that allows you to easily\n"
     "select between FreeBSD and any other operating systems on your machine\n"
@@ -795,8 +838,8 @@ DMenu MenuMBRType = {
 "to do so (limitations in the PC BIOS usually prevent this otherwise).\n"
 "If you do not want a boot selector, or wish to replace an existing\n"
 "one, select \"standard\".  If you would prefer your Master Boot\n"
-"Record to remain untouched then select \"none\".  NOTE:  PC-DOS users\n"
-"will almost certainly NOT want to select one!",
+"Record to remain untouched then select \"None\".\n\n"
+"  NOTE:  PC-DOS users will almost certainly require \"None\"!",
     "Press F1 to read the installation guide",
     "install",
 { { "BootMgr",	"Install the FreeBSD Boot Manager (\"Booteasy\")",
@@ -886,7 +929,7 @@ aspects of your system's network configuration.",
 };
 
 DMenu MenuNTP = {
-    DMENU_RADIO_TYPE,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "NTPDATE Server Selection",
     "There are a number of time syncronization servers available\n\
 for public use around the Internet.  Please select one reasonably\n\
@@ -953,7 +996,7 @@ When you are done setting configuration options, select Cancel.",
 };
 
 DMenu MenuSysconsKeymap = {
-    DMENU_RADIO_TYPE,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keymap",
     "The default system console driver for FreeBSD (syscons) defaults\n\
 to a standard \"American\" keyboard map.  Users in other countries\n\
@@ -980,7 +1023,7 @@ the other keymaps below.",
 };
 
 DMenu MenuSysconsKeyrate = {
-    DMENU_RADIO_TYPE,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keyboard Repeat Rate",
     "This menu allows you to set the speed at which keys repeat\n\
 when held down.",
@@ -994,7 +1037,7 @@ when held down.",
 };
 
 DMenu MenuSysconsSaver = {
-    DMENU_RADIO_TYPE,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Screen Saver",
     "By default, the console driver will not attempt to do anything\n\
 special with your screen when it's idle.  If you expect to leave your\n\
