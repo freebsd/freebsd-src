@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)newfs.c	8.13 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id: newfs.c,v 1.26 1998/10/17 04:19:29 jkh Exp $";
+	"$Id: newfs.c,v 1.27 1998/10/17 08:03:52 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -168,6 +168,8 @@ void	fatal();
 #define NSECTORS	4096	/* number of sectors */
 
 int	mfs;			/* run as the memory based filesystem */
+char	*mfs_mtpt;		/* mount point for mfs		*/
+struct stat mfs_mtstat;		/* stat prior to mount		*/
 int	Nflag;			/* run without writing file system */
 int	Oflag;			/* format as an 4.3BSD file system */
 int	fssize;			/* file system size */
@@ -593,6 +595,15 @@ havelabel:
 		pp->p_size *= secperblk;
 	}
 #endif
+	if (mfs) {
+		mfs_mtpt = argv[1];
+		if (
+		    stat(mfs_mtpt, &mfs_mtstat) < 0 ||
+		    !S_ISDIR(mfs_mtstat.st_mode)
+		) {
+			fatal("mount point not dir: %s", mfs_mtpt);
+		}
+	}
 	mkfs(pp, special, fsi, fso);
 #ifdef tahoe
 	if (realsectorsize != DEV_BSIZE)
