@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.8 1995/10/07 04:31:26 jfieber Exp $ -->
+<!-- $Id: hw.sgml,v 1.9 1995/11/25 20:00:48 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -48,12 +48,24 @@ Slippery when wet.  Beware of dog.
     cannot obviously guarantee that it will be at any given time.
 
   <sect2><heading>Motherboards</heading>
-    <p>The <htmlurl url="http://asustek.asus.com.tw/" name="ASUS"> P55TP4XE
+    <p>The <htmlurl url="http://asustek.asus.com.tw/" name="ASUS">
+    <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pi-p55tp4xe.txt"
+     name="P55TP4XE">
     motherboard appears to be a good choice for mid-to-high range Pentium
     server and workstation systems.  If you're really looking for performance,
-    be also sure to get the <htmlurl url="http://asustek.asus.com.tw/Products/TB/mem-0002.html" name="pipelined burst cache module">.  It's worth the extra
-    cost, I feel.  If you're looking for a 486 class motherboard, you might
-    also investigate ASUS's 486SP3G offering.
+    be also sure to get the <htmlurl url="http://asustek.asus.com.tw/Products/TB/mem-0002.html" name="pipelined burst cache module">.  I feel that it's worth
+    the extra cost.  If you're looking for a 486 class motherboard, you might
+    also investigate ASUS's <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pvi-486sp3.txt" name="486SP3G"> offering.
+
+    NOTE:  The Intel <htmlurl url="http://asustek.asus.com.tw/Products/TB/triton-intro.html" name="Triton"> chipset based motherboards do not offer memory
+    parity logic, making it almost impossible to detect when a memory error
+    has occurred.  Those wishing to build highly fault-tolerant systems may
+    therefore want to wait for Intel's newest generation of motherboards
+    based on the Orion chipset or investigate ASUS's SiS chipset based
+    motherboard, the <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pi-p55sp4.txt" name="P55SP4">.  I have no personal experience with this
+    motherboard, but have heard good things about it and will note that it
+    has the advantage of being available <em>now</em>.
+
 
   <sect2><heading>Disk Controllers</heading>
     <p>This one is a bit trickier, and while I used to recommend the
