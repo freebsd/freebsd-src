@@ -2,7 +2,7 @@
 
 PROG=	tzsetup
 MAN=	tzsetup.8
-CFLAGS+=	-I${.CURDIR}
+CFLAGS+= -Wall -I${.CURDIR}
 LDADD+=	-ldialog -lncurses
 DPADD+=	${LIBDIALOG} ${LIBNCURSES}
 
