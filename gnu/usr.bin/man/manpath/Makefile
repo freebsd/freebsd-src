@@ -17,6 +17,7 @@ DPADD+=  ${MAN1}
 CFLAGS+= -DMAIN -DSTDC_HEADERS -DPOSIX -DHAS_TROFF -DDO_UNCOMPRESS
 CFLAGS+= -DALT_SYSTEMS -I${.CURDIR}/../lib -I${.CURDIR}/../lib/obj
 CLEANFILES+=	${MAN1}
+MANDEPEND+=	${MAN1}
 
 ${MAN1}: ${.CURDIR}/manpath.man
 	sed -e 's,%libdir%,${libdir},' -e 's,%bindir%,${bindir},' \
