@@ -22,6 +22,10 @@ BINGRP=	network
 CFLAGS+=-DRELEASE_CRUNCH
 .endif
 
+.if defined(PPP_CONFDIR) && !empty(PPP_CONFDIR)
+CFLAGS+=-DPPP_CONFDIR=${PPP_CONFDIR}
+.endif
+
 .if defined(NOKLDLOAD)
 CFLAGS+=-DNOKLDLOAD
 .endif
