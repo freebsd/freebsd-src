@@ -34,10 +34,11 @@
  * SUCH DAMAGE.
  *
  */
-
+#if 0
 #ifndef lint
 static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
 #endif /* not lint */
+#endif
 
 #include <sys/types.h>
 #include <sys/wait.h>

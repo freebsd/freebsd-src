@@ -30,18 +30,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.20 1996/08/06 08:43:43 phk Exp $
+ *	$Id$
  */
 
+#if 0
 #ifndef lint
 static char copyright[] =
 "@(#) Copyright (c) 1985, 1988, 1990, 1992, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
+#endif
 
+#if 0
 #ifndef lint
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif /* not lint */
+#endif
 
 /*
  * FTP server.
@@ -144,8 +148,13 @@ char	*ident = NULL;
 static char ttyline[20];
 char	*tty = ttyline;		/* for klogin */
 
+#ifdef KERBEROS
+int	 klogin __P((struct passwd *, char *, char *, char *));
+#endif
+
 #if defined(KERBEROS)
 int	notickets = 1;
+int	noticketsdontcomplain = 1;
 char	*krbtkfile_env = NULL;
 #endif
 
@@ -562,7 +571,7 @@ user(name)
 			    "ANONYMOUS FTP LOGIN REFUSED FROM %s", remotehost);
 		return;
 	}
-	if (pw = sgetpwnam(name)) {
+	if ((pw = sgetpwnam(name))) {
 		if ((shell = pw->pw_shell) == NULL || *shell == 0)
 			shell = _PATH_BSHELL;
 		while ((cp = getusershell()) != NULL)
@@ -1453,7 +1462,7 @@ yyerror(s)
 {
 	char *cp;
 
-	if (cp = strchr(cbuf,'\n'))
+	if ((cp = strchr(cbuf,'\n')))
 		*cp = '\0';
 	reply(500, "'%s': command not understood.", cbuf);
 }
@@ -1783,7 +1792,7 @@ send_file_list(whichf)
 		transflag = 0;
 		goto out;
 	}
-	while (dirname = *dirlist++) {
+	while ((dirname = *dirlist++)) {
 		if (stat(dirname, &st) < 0) {
 			/*
 			 * If user typed "ls -l", etc, and the client
