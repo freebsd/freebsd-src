@@ -89,7 +89,7 @@
   083   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
   084   nop    nop    nop    nop    nop    nop    nop    nop     O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
-  086   '<'    '>'    fs     fs     '\'    '\'    fs     fs      O
+  086   '<'    '>'    fs     fs     '\'    '\'    '\'    fs      O
   087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
   088   fkey12 fkey24 fkey36 fkey48 scr12  scr12  scr12  scr12   O
   089   cr     cr     nl     nl     cr     cr     nl     nl      O
