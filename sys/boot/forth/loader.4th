@@ -58,32 +58,6 @@ only forth definitions also support-functions
 
 also support-functions definitions
 
-: bootpath s" /boot/" ;
-: modulepath s" module_path" ;
-
-: saveenv ( addr len | 0 -1 -- addr' len | 0 -1 )
-  dup -1 = if exit then
-  dup allocate abort" Out of memory"
-  swap 2dup 2>r
-  move
-  2r>
-;
-
-: freeenv ( addr len | 0 -1 )
-  -1 = if drop else free abort" Freeing error" then
-;
-
-: restoreenv  ( addr len | 0 -1 -- )
-  dup -1 = if ( it wasn't set )
-    2drop
-    modulepath unsetenv
-  else
-    over >r
-    modulepath setenv
-    r> free abort" Freeing error"
-  then
-;
-
 : set-tempoptions  ( addrN lenN ... addr1 len1 N -- addr len 1 | 0 )
   \ No options, set the default ones
   dup 0= if
@@ -166,105 +140,33 @@ also support-functions definitions
 
 also builtins
 
-: load-kernel ( addr len -- addr len error? )
-  s" temp_options" getenv dup -1 = if
-    drop 2dup 1
-  else
-    2over 2
-  then
-
-  1 load
-;
-
 : load-conf  ( args 1 | 0 "args" -- flag )
-  0 1 unload drop
-
   0= if ( interpreted ) get-arguments then
   set-tempoptions
-
-  if ( there are arguments )
-    load-kernel if ( load command failed )
-      \ Set the environment variable module_path, and try loading
-      \ the kernel again.
-
-      \ First, save module_path value
-      modulepath getenv saveenv dup -1 = if 0 swap then 2>r
-
-      \ Sets the new value
-      2dup modulepath setenv
-
-      \ Try to load the kernel
-      s" load ${kernel} ${temp_options}" ['] evaluate catch
-      if ( load failed yet again )
-	\ Remove garbage from the stack
-	2drop
-
-	\ Try prepending /boot/
-	bootpath 2over nip over + allocate
-	if ( out of memory )
-	  2drop 2drop
-	  2r> restoreenv
-	  100 exit
-	then
-
-	0 2swap strcat 2swap strcat
-	2dup modulepath setenv
-
-	drop free if ( freeing memory error )
-	  2drop
-	  2r> restoreenv
-	  100 exit
-	then
- 
-	\ Now, once more, try to load the kernel
-	s" load ${kernel} ${temp_options}" ['] evaluate catch
-	if ( failed once more )
-	  2drop
-	  2r> restoreenv
-	  100 exit
-	then
-
-      else ( we found the kernel on the path passed )
-
-	2drop ( discard command line arguments )
-
-      then ( could not load kernel from directory passed )
-
-      \ Load the remaining modules, if the kernel was loaded at all
-      ['] load_modules catch if 2r> restoreenv 100 exit then
-
-      \ Return 0 to indicate success
-      0
-
-      \ Keep new module_path
-      2r> freeenv
-
-      exit
-    then ( could not load kernel with name passed )
-
-    2drop ( discard command line arguments )
-
-  else ( try just a straight-forward kernel load )
-    s" load ${kernel} ${temp_options}" ['] evaluate catch
-    if ( kernel load failed ) 2drop 100 exit then
-
-  then ( there are command line arguments )
-
-  \ Load the remaining modules, if the kernel was loaded at all
-  ['] load_modules catch if 100 exit then
-
-  \ Return 0 to indicate success
-  0
+  s" temp_options" getenv -1 <> if 2swap 2 else 1 then
+  load_kernel_and_modules
 ;
 
 only forth also support-functions also builtins definitions
 
 : boot
+  \ Unload only if a path was passed
+  >in @ parse-word rot >in !
+  if
+    c@ [char] - <> if
+      0 1 unload drop
+    else
+      get-arguments 1 boot exit
+    then
+  else
+    0 1 boot exit
+  then
   load-conf
   ?dup 0= if 0 1 boot then
 ;
 
 : boot-conf
+  0 1 unload drop
   load-conf
   ?dup 0= if 0 1 autoboot then
 ;
