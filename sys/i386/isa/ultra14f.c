@@ -16,13 +16,15 @@
  * functioning of this software in any circumstances.
  *
  *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
+ */
+
+/*
+ * HISTORY
+ * $Log:	ultra14f.c,v $
  *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
- * commenced: Sun Sep 27 18:14:01 PDT 1992
+ * Revision 1.1  93/05/07  11:37:24  julian
+ * fix SLEEPTIME calculation.
+ *
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  */
  
@@ -1195,7 +1197,7 @@ struct  mscp     *mscp;
 
 extern int      hz;
 #define ONETICK 500 /* milliseconds */
-#define SLEEPTIME ((hz * 1000) / ONETICK)
+#define SLEEPTIME ((hz * ONETICK) / 1000)
 uha_timeout(arg)
 int     arg;
 {
