@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.36 1996/04/23 01:29:35 jkh Exp $
+ * $Id: tcpip.c,v 1.37 1996/04/28 00:37:38 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -235,6 +235,7 @@ tcpOpenDialog(Device *devp)
     char		title[80];
 
     save = savescr();
+    dialog_clear();
     /* We need a curses window */
     ds_win = newwin(LINES, COLS, 0, 0);
     if (ds_win == 0)
