@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_disasm.c,v 1.11 1995/10/30 17:13:25 bde Exp $
+ *	$Id: db_disasm.c,v 1.12 1995/12/07 12:45:29 davidg Exp $
  */
 
 /*
@@ -1310,7 +1310,7 @@ db_disasm(loc, altfmt)
 		case Is:
 		    len = db_lengths[size];
 		    get_value_inc(imm, loc, len, TRUE);	/* signed */
-		    db_printf("$%#r", imm);
+		    db_printf("$%+#n", imm);
 		    break;
 
 		case Ib:
@@ -1320,7 +1320,7 @@ db_disasm(loc, altfmt)
 
 		case Ibs:
 		    get_value_inc(imm, loc, 1, TRUE);	/* signed */
-		    db_printf("$%#r", imm);
+		    db_printf("$%+#n", imm);
 		    break;
 
 		case Iw:
@@ -1341,7 +1341,7 @@ db_disasm(loc, altfmt)
 			get_value_inc(displ, loc, 4, TRUE);
 		    }
 		    if (seg)
-			db_printf("%s:%#r",seg, displ);
+			db_printf("%s:%+#n",seg, displ);
 		    else
 			db_printsym((db_addr_t)displ, DB_STGY_ANY);
 		    break;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.30 1996/01/13 18:02:41 phk Exp $
+ * $Id: systm.h,v 1.31 1996/01/15 10:28:44 phk Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -116,12 +116,13 @@ __dead void	panic __P((const char *, ...)) __dead2;
 __dead void	boot __P((int)) __dead2;
 void	tablefull __P((const char *));
 void	addlog __P((const char *, ...));
+int	kvprintf __P((char const *, void (*)(int, void*), void *, int, va_list));
 void	log __P((int, const char *, ...));
 void	printf __P((const char *, ...));
-void	uprintf __P((const char *, ...));
 int	sprintf __P((char *buf, const char *, ...));
+void	uprintf __P((const char *, ...));
+void	vprintf __P((const char *, va_list));
 void	ttyprintf __P((struct tty *, const char *, ...));
-void	kprintf __P((const char *fmt, int flags, struct tty *tp, va_list ap));
 
 void	bcopy __P((const void *from, void *to, size_t len));
 void	ovbcopy __P((const void *from, void *to, size_t len));

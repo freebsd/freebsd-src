@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.11 1995/12/07 12:44:49 davidg Exp $
+ *	$Id: db_examine.c,v 1.12 1995/12/10 19:07:55 bde Exp $
  */
 
 /*
@@ -127,7 +127,7 @@ db_examine(addr, fmt, count)
 			    case 'z':	/* signed hex */
 				value = db_get_value(addr, size, TRUE);
 				addr += size;
-				db_printf("%-*z", width, value);
+				db_printf("%+-*x", width, value);
 				break;
 			    case 'd':	/* signed decimal */
 				value = db_get_value(addr, size, TRUE);
@@ -205,13 +205,13 @@ db_print_cmd(addr, have_addr, count, modif)
 		db_printsym((db_addr_t)addr, DB_STGY_ANY);
 		break;
 	    case 'r':
-		db_printf("%11r", addr);
+		db_printf("%+11n", addr);
 		break;
 	    case 'x':
 		db_printf("%8x", addr);
 		break;
 	    case 'z':
-		db_printf("%8z", addr);
+		db_printf("%+8x", addr);
 		break;
 	    case 'd':
 		db_printf("%11d", addr);
