@@ -136,6 +136,10 @@ SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_defaultauthage, CTLFLAG_RW,
 	   &fr_defaultauthage, 0, "");
 #endif
 
+#ifdef DEVFS
+void *ipf_devfs[IPL_LOGMAX + 1];
+#endif
+
 #if !defined(__FreeBSD_version) || (__FreeBSD_version < 220000)
 int	ipl_major = 0;
 
@@ -157,6 +161,7 @@ static struct cdevsw ipl_cdevsw = {
 
 
 static int iplaction __P((struct lkm_table *, int));
+static void ipl_drvinit __P((void *));
 
 
 static int iplaction(lkmtp, cmd)
@@ -189,13 +194,27 @@ int cmd;
 		args->lkm_offset = i;   /* slot in cdevsw[] */
 #endif
 		printf("IP Filter: loaded into slot %d\n", ipl_major);
-		return if_ipl_load(lkmtp, cmd);
+		err = if_ipl_load(lkmtp, cmd);
+		if (!err)
+			ipl_drvinit((void *)NULL);
+		return err;
 		break;
 	case LKM_E_UNLOAD :
 		err = if_ipl_unload(lkmtp, cmd);
-		if (!err)
+		if (!err) {
 			printf("IP Filter: unloaded from slot %d\n",
 				ipl_major);
+#  ifdef	DEVFS
+			if (ipf_devfs[IPL_LOGIPF])
+				devfs_remove_dev(ipf_devfs[IPL_LOGIPF]);
+			if (ipf_devfs[IPL_LOGNAT])
+				devfs_remove_dev(ipf_devfs[IPL_LOGNAT]);
+			if (ipf_devfs[IPL_LOGSTATE])
+				devfs_remove_dev(ipf_devfs[IPL_LOGSTATE]);
+			if (ipf_devfs[IPL_LOGAUTH])
+				devfs_remove_dev(ipf_devfs[IPL_LOGAUTH]);
+#  endif
+		}
 		return err;
 	case LKM_E_STAT :
 		break;
@@ -327,42 +346,37 @@ int cmd, ver;
 {
 	DISPATCH(lkmtp, cmd, ver, iplaction, iplaction, iplaction);
 }
-# else
-
-#ifdef DEVFS
-static  void *ipf_devfs_token[IPL_LOGMAX + 1];
-#endif
+# endif
 static ipl_devsw_installed = 0;
 
 static void ipl_drvinit __P((void *unused))
 {
 	dev_t dev;
-#ifdef	DEVFS
-	void **tp = ipf_devfs_token;
-#endif
+# ifdef	DEVFS
+	void **tp = ipf_devfs;
+# endif
 
 	if (!ipl_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR, 0);
 		cdevsw_add(&dev, &ipl_cdevsw, NULL);
 		ipl_devsw_installed = 1;
 
-#ifdef	DEVFS
+# ifdef	DEVFS
 		tp[IPL_LOGIPF] = devfs_add_devswf(&ipl_cdevsw, IPL_LOGIPF,
-						  DV_CHR, 0, 0, 0600,
-						  "ipf", IPL_LOGIPF);
+						  DV_CHR, 0, 0, 0600, "ipf");
 		tp[IPL_LOGNAT] = devfs_add_devswf(&ipl_cdevsw, IPL_LOGNAT,
-						  DV_CHR, 0, 0, 0600,
-						  "ipnat", IPL_LOGNAT);
+						  DV_CHR, 0, 0, 0600, "ipnat");
 		tp[IPL_LOGSTATE] = devfs_add_devswf(&ipl_cdevsw, IPL_LOGSTATE,
 					            DV_CHR, 0, 0, 0600,
-						    "ipstate", IPL_LOGSTATE);
+						    "ipstate");
 		tp[IPL_LOGAUTH] = devfs_add_devswf(&ipl_cdevsw, IPL_LOGAUTH,
-					            DV_CHR, 0, 0, 0600,
-						    "ipstate", IPL_LOGAUTH);
-#endif
+					           DV_CHR, 0, 0, 0600,
+						   "ipauth");
+# endif
 	}
 }
 
+# ifdef	IPFILTER_LKM
 SYSINIT(ipldev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ipl_drvinit,NULL)
 # endif /* IPFILTER_LKM */
 #endif /* _FreeBSD_version */
