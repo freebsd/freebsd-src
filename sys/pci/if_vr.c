@@ -1071,8 +1071,8 @@ static void vr_txeof(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	/* Clear the timeout timer. */
-	ifp->if_timer = 0;
+	/* Reset the timeout timer; if_txeoc will clear it. */
+	ifp->if_timer = 5;
 
 	/* Sanity check. */
 	if (sc->vr_cdata.vr_tx_head == NULL)
@@ -1129,11 +1129,10 @@ static void vr_txeoc(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	ifp->if_timer = 0;
-
 	if (sc->vr_cdata.vr_tx_head == NULL) {
 		ifp->if_flags &= ~IFF_OACTIVE;
 		sc->vr_cdata.vr_tx_tail = NULL;
+		ifp->if_timer = 0;
 	}
 
 	return;
