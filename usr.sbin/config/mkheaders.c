@@ -79,6 +79,13 @@ headers()
 			else
 				dp->d_type &= TYPEMASK;
 		}
+		if ((dp->d_type & TYPEMASK) == CONTROLLER) {
+			if (!(dp->d_type & DEVDONE))
+				printf("Warning: controller \"%s\" is unknown\n",
+				       dp->d_name);
+			else
+				dp->d_type &= TYPEMASK;
+		}
 	}
 }
 
@@ -99,16 +106,21 @@ do_count(dev, hname, search)
 	 * and "hicount" will be the highest unit declared.  do_header()
 	 * must use this higher of these values.
 	 */
-	for (hicount = count = 0, dp = dtab; dp != 0; dp = dp->d_next)
+	for (hicount = count = 0, dp = dtab; dp != 0; dp = dp->d_next) {
+		if (eq(dp->d_name, dev)) {
+			if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE)
+				dp->d_type |= DEVDONE;
+			else if ((dp->d_type & TYPEMASK) == DEVICE)
+				dp->d_type |= DEVDONE;
+			else if ((dp->d_type & TYPEMASK) == CONTROLLER)
+				dp->d_type |= DEVDONE;
+		}
 		if (dp->d_unit != -1 && eq(dp->d_name, dev)) {
 			if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE) {
 				count =
 				    dp->d_count != UNKNOWN ? dp->d_count : 1;
-				dp->d_type |= DEVDONE;
 				break;
 			}
-			if ((dp->d_type & TYPEMASK) == DEVICE)
-				dp->d_type |= DEVDONE;
 			count++;
 			/*
 			 * Allow holes in unit numbering,
@@ -126,6 +138,7 @@ do_count(dev, hname, search)
 				}
 			}
 		}
+	}
 	do_header(dev, hname, count > hicount ? count : hicount);
 }
 
