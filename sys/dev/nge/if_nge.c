@@ -1088,7 +1088,7 @@ static int nge_newbuf(sc, c, m)
 		m_new->m_data = (void *)buf;
 		m_new->m_len = m_new->m_pkthdr.len = NGE_MCLBYTES;
 		MEXTADD(m_new, buf, NGE_MCLBYTES, nge_jfree,
-		    (struct ti_softc *)sc, 0, EXT_NET_DRV);
+		    (struct nge_softc *)sc, 0, EXT_NET_DRV);
 	} else {
 		m_new = m;
 		m_new->m_len = m_new->m_pkthdr.len = NGE_MCLBYTES;
