@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: policy_token.l,v 1.9 2000/05/07 05:25:03 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 %{
@@ -46,8 +47,14 @@
 #include <unistd.h>
 #include <errno.h>
 
+#ifndef __NetBSD__
 #include "y.tab.h"
-#define	yylval __libyylval	/* XXX */
+#else
+#include "policy_parse.h"
+#endif
+#define yylval __libipsecyylval	/* XXX */
+
+int yylex __P((void));
 %}
 
 %option noyywrap
@@ -56,7 +63,6 @@
 nl		\n
 ws		[ \t]+
 digit		[0-9]
-letter		[0-9A-Za-z]
 hexdigit	[0-9A-Fa-f]
 special		[()+\|\?\*,]
 dot		\.
@@ -79,9 +85,7 @@ decstring	{digit}+
 hexpair		{hexdigit}{hexdigit}
 hexstring	0[xX]{hexdigit}+
 octetstring	{octet}({dot}{octet})+
-ipaddress	[a-zA-Z0-9:\._][a-zA-Z0-9:\._]*(%{letter}{letter}+)?
-name		{letter}(({letter}|{digit}|{hyphen})*({letter}|{digit}))*
-hostname	{name}(({dot}{name})+{dot}?)?
+ipaddress	[a-zA-Z0-9:\._][a-zA-Z0-9:\._]*(%[a-zA-Z0-9]+)?
 
 %%
 
@@ -107,12 +111,17 @@ any		{ return(ANY); }
 default		{ yylval.num = IPSEC_LEVEL_DEFAULT; return(LEVEL); }
 use		{ yylval.num = IPSEC_LEVEL_USE; return(LEVEL); }
 require		{ yylval.num = IPSEC_LEVEL_REQUIRE; return(LEVEL); }
+unique{colon}{decstring} {
+			yylval.val.len = strlen(yytext + 7);
+			yylval.val.buf = yytext + 7;
+			return(LEVEL_SPECIFY);
+		}
 unique		{ yylval.num = IPSEC_LEVEL_UNIQUE; return(LEVEL); }
 {slash}		{ return(SLASH); }
 
 {ipaddress}	{
 			yylval.val.len = strlen(yytext);
-			yylval.val.buf = strdup(yytext);
+			yylval.val.buf = yytext;
 			return(IPADDRESS);
 		}
 
@@ -122,6 +131,8 @@ unique		{ yylval.num = IPSEC_LEVEL_UNIQUE; return(LEVEL); }
 {nl}		{ ; }
 
 %%
+
+void __policy__strbuffer__init__ __P((char *));
 
 void
 __policy__strbuffer__init__(msg)
