@@ -37,7 +37,7 @@
  *
  *	@(#)fsinfo.h	8.1 (Berkeley) 6/6/93
  *
- * $Id$
+ * $Id: fsinfo.h,v 1.5 1997/02/22 16:03:21 peter Exp $
  *
  */
 
@@ -126,7 +126,6 @@ extern char *fsmount_strings[];
 extern char *host_strings[];
 extern char *ether_if_strings[];
 extern char *autodir;
-extern char *progname;
 extern char hostname[];
 extern char *username;
 extern char **g_argv;

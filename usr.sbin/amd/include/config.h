@@ -37,7 +37,7 @@
  *
  *	@(#)config.h	8.1 (Berkeley) 6/6/93
  *
- * $Id$
+ * $Id: config.h,v 1.3 1997/02/22 16:03:52 peter Exp $
  *
  */
 
@@ -82,7 +82,6 @@ extern int errno;
 extern time_t time P((time_t *));
 extern time_t clock_valid;	/* Clock needs recalculating */
 
-extern char *progname;		/* "amd"|"mmd" */
 extern char hostname[];		/* "kiska" */
 extern int mypid;		/* Current process id */
 
