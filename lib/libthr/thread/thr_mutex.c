@@ -324,7 +324,6 @@ mutex_lock_common(pthread_mutex_t * mutex, int nonblock,
 	PTHREAD_ASSERT(((*mutex)->m_protocol >= PTHREAD_PRIO_NONE &&
 	    (*mutex)->m_protocol <= PTHREAD_PRIO_PROTECT),
 	    "Invalid mutex protocol"); 
-	pthread_testcancel();
 	_SPINLOCK(&(*mutex)->lock);
 
 	/*
@@ -418,7 +417,6 @@ retry:
 	_thread_critical_exit(curthread);
 out:
 	_SPINUNLOCK(&(*mutex)->lock);
-	pthread_testcancel();
 	return (error);
 }
 
@@ -771,7 +769,10 @@ mutex_queue_deq(pthread_mutex_t mutex)
 		 * Only exit the loop if the thread hasn't been
 		 * cancelled.
 		 */
-		if ((pthread->cancelflags & PTHREAD_CANCELLING) == 0 &&
+		if (((pthread->cancelflags & PTHREAD_CANCELLING) == 0 ||
+		    (pthread->cancelflags & PTHREAD_CANCEL_DISABLE) != 0 ||
+		    ((pthread->cancelflags & PTHREAD_CANCELLING) != 0 &&
+		    (pthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) == 0)) &&
 		    pthread->state == PS_MUTEX_WAIT)
 			break;
 		else
@@ -887,6 +888,14 @@ get_mcontested(pthread_mutex_t mutexp, const struct timespec *abstime)
 	_thread_critical_enter(curthread);
 	mutex_queue_enq(mutexp, curthread);
 	do {
+		if ((curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0 &&
+		    (curthread->cancelflags & PTHREAD_CANCEL_DISABLE) == 0 &&
+		    (curthread->cancelflags & PTHREAD_CANCELLING) != 0) {
+			mutex_queue_remove(mutexp, curthread);
+			_thread_critical_exit(curthread);
+			_SPINUNLOCK(&mutexp->lock);
+			pthread_testcancel();
+		}
 		PTHREAD_SET_STATE(curthread, PS_MUTEX_WAIT);
 		curthread->data.mutex = mutexp;
 		_thread_critical_exit(curthread);
