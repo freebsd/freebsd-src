@@ -32,13 +32,16 @@
  * SUCH DAMAGE.
  *
  * $Id: lomac.c,v 1.3 2001/11/26 21:04:04 bfeldman Exp $
- * $FreeBSD$
  */
 
 /*
  * This file encapsulates ls's use of LOMAC's ioctl interface.  ls uses
  * this interface to determine the LOMAC attributes of files.
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/lomacio.h>
@@ -66,7 +69,7 @@ static int devlomac = -1;		/* file descriptor for LOMAC_DEVICE */
  * Makes `devlomac' a fd to LOMAC_DEVICE
  */
 
-void 
+static void 
 lomac_start(void)
 {
 	if ((devlomac = open(LOMAC_DEVICE, O_RDWR)) == -1)

@@ -31,42 +31,39 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-static char const copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
 
 #include <sys/param.h>
 #include <sys/user.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
 
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
 #include <locale.h>
-#include <nlist.h>
 #include <paths.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <pwd.h>
 #include <utmp.h>
 
 #include "lomac.h"
@@ -74,8 +71,8 @@ static const char rcsid[] =
 
 #define SEP ", \t"		/* username separators */
 
-KINFO *kinfo;
-struct varent *vhead, *vtail;
+static KINFO *kinfo;
+struct varent *vhead;
 
 int	eval;			/* exit value */
 int	cflag;			/* -c */
@@ -91,9 +88,9 @@ static int forceuread=0;
 static int forceuread=1;
 #endif
 
-enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
+static enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
 
-static char	*fmt(char **(*)(kvm_t *, const struct kinfo_proc *, int),
+static const	 char *fmt(char **(*)(kvm_t *, const struct kinfo_proc *, int),
 		    KINFO *, char *, int);
 static char	*kludge_oldps_options(char *);
 static int	 pscomp(const void *, const void *);
@@ -104,16 +101,16 @@ static void	 sizevars(void);
 static void	 usage(void);
 static uid_t	*getuids(const char *, int *);
 
-char dfmt[] = "pid tt state time command";
-char jfmt[] = "user pid ppid pgid jobc state tt time command";
-char lfmt[] = "uid pid ppid cpu pri nice vsz rss wchan state tt time command";
-char   o1[] = "pid";
-char   o2[] = "tt state time command";
-char ufmt[] = "user pid %cpu %mem vsz rss tt state start time command";
-char vfmt[] = "pid state time sl re pagein vsz rss lim tsiz %cpu %mem command";
-char Zfmt[] = "lvl";
+static char dfmt[] = "pid tt state time command";
+static char jfmt[] = "user pid ppid pgid jobc state tt time command";
+static char lfmt[] = "uid pid ppid cpu pri nice vsz rss wchan state tt time command";
+static char   o1[] = "pid";
+static char   o2[] = "tt state time command";
+static char ufmt[] = "user pid %cpu %mem vsz rss tt state start time command";
+static char vfmt[] = "pid state time sl re pagein vsz rss lim tsiz %cpu %mem command";
+static char Zfmt[] = "lvl";
 
-kvm_t *kd;
+static kvm_t *kd;
 
 int
 main(int argc, char *argv[])
@@ -124,9 +121,10 @@ main(int argc, char *argv[])
 	dev_t ttydev;
 	pid_t pid;
 	uid_t *uids;
-	int all, ch, flag, i, fmt, lineno, nentries, dropgid;
+	int all, ch, flag, i, _fmt, lineno, nentries, dropgid;
 	int prtheader, wflag, what, xflg, uid, nuids;
-	char *nlistf, *memf, errbuf[_POSIX2_LINE_MAX];
+	char errbuf[_POSIX2_LINE_MAX];
+	const char *nlistf, *memf;
 
 	(void) setlocale(LC_ALL, "");
 
@@ -141,7 +139,7 @@ main(int argc, char *argv[])
 	if (argc > 1)
 		argv[1] = kludge_oldps_options(argv[1]);
 
-	all = fmt = prtheader = wflag = xflg = 0;
+	all = _fmt = prtheader = wflag = xflg = 0;
 	pid = -1;
 	nuids = 0;
 	uids = NULL;
@@ -174,7 +172,7 @@ main(int argc, char *argv[])
 			break;
 		case 'j':
 			parsefmt(jfmt);
-			fmt = 1;
+			_fmt = 1;
 			jfmt[0] = '\0';
 			break;
 		case 'L':
@@ -182,7 +180,7 @@ main(int argc, char *argv[])
 			exit(0);
 		case 'l':
 			parsefmt(lfmt);
-			fmt = 1;
+			_fmt = 1;
 			lfmt[0] = '\0';
 			break;
 		case 'M':
@@ -201,11 +199,11 @@ main(int argc, char *argv[])
 			parsefmt(optarg);
 			parsefmt(o2);
 			o1[0] = o2[0] = '\0';
-			fmt = 1;
+			_fmt = 1;
 			break;
 		case 'o':
 			parsefmt(optarg);
-			fmt = 1;
+			_fmt = 1;
 			break;
 #if defined(LAZY_PS)
 		case 'f':
@@ -232,7 +230,7 @@ main(int argc, char *argv[])
 			char *ttypath, pathbuf[PATH_MAX];
 
 			if (strcmp(optarg, "co") == 0)
-				ttypath = _PATH_CONSOLE;
+				ttypath = strdup(_PATH_CONSOLE);
 			else if (*optarg != '/')
 				(void)snprintf(ttypath = pathbuf,
 				    sizeof(pathbuf), "%s%s", _PATH_TTY, optarg);
@@ -252,13 +250,13 @@ main(int argc, char *argv[])
 		case 'u':
 			parsefmt(ufmt);
 			sortby = SORTCPU;
-			fmt = 1;
+			_fmt = 1;
 			ufmt[0] = '\0';
 			break;
 		case 'v':
 			parsefmt(vfmt);
 			sortby = SORTMEM;
-			fmt = 1;
+			_fmt = 1;
 			vfmt[0] = '\0';
 			break;
 		case 'w':
@@ -304,7 +302,7 @@ main(int argc, char *argv[])
 	if (kd == 0)
 		errx(1, "%s", errbuf);
 
-	if (!fmt)
+	if (!_fmt)
 		parsefmt(dfmt);
 
 	/* XXX - should be cleaner */
@@ -400,7 +398,8 @@ getuids(const char *arg, int *nuids)
 	char name[UT_NAMESIZE + 1];
 	struct passwd *pwd;
 	uid_t *uids, *moreuids;
-	int l, alloc;
+	int alloc;
+	size_t l;
 
 
 	alloc = 0;
@@ -408,7 +407,7 @@ getuids(const char *arg, int *nuids)
 	uids = NULL;
 	for (; (l = strcspn(arg, SEP)) > 0; arg += l + strspn(arg + l, SEP)) {
 		if (l >= sizeof name) {
-			warnx("%.*s: name too long", l, arg);
+			warnx("%.*s: name too long", (int)l, arg);
 			continue;
 		}
 		strncpy(name, arg, l);
@@ -491,14 +490,14 @@ sizevars(void)
 	totwidth--;
 }
 
-static char *
+static const char *
 fmt(char **(*fn)(kvm_t *, const struct kinfo_proc *, int), KINFO *ki,
   char *comm, int maxlen)
 {
-	char *s;
+	const char *s;
 
-	if ((s =
-	    fmt_argv((*fn)(kd, ki->ki_p, termwidth), comm, maxlen)) == NULL)
+	s = fmt_argv((*fn)(kd, ki->ki_p, termwidth), comm, maxlen);
+	if (s == NULL)
 		err(1, NULL);
 	return (s);
 }
@@ -523,16 +522,15 @@ saveuser(KINFO *ki)
 	 * save arguments if needed
 	 */
 	if (needcomm && (UREADOK(ki) || (ki->ki_p->ki_args != NULL))) {
-		ki->ki_args = fmt(kvm_getargv, ki, ki->ki_p->ki_comm,
-		    MAXCOMLEN);
+		ki->ki_args = strdup(fmt(kvm_getargv, ki, ki->ki_p->ki_comm,
+		    MAXCOMLEN));
 	} else if (needcomm) {
-		ki->ki_args = malloc(strlen(ki->ki_p->ki_comm) + 3);
-		sprintf(ki->ki_args, "(%s)", ki->ki_p->ki_comm);
+		asprintf(&ki->ki_args, "(%s)", ki->ki_p->ki_comm);
 	} else {
 		ki->ki_args = NULL;
 	}
 	if (needenv && UREADOK(ki)) {
-		ki->ki_env = fmt(kvm_getenvv, ki, (char *)NULL, 0);
+		ki->ki_env = strdup(fmt(kvm_getenvv, ki, (char *)NULL, 0));
 	} else if (needenv) {
 		ki->ki_env = malloc(3);
 		strcpy(ki->ki_env, "()");
@@ -549,12 +547,12 @@ pscomp(const void *a, const void *b)
 		  (k)->ki_p->ki_tsize)
 
 	if (sortby == SORTCPU)
-		return (getpcpu((KINFO *)b) - getpcpu((KINFO *)a));
+		return (getpcpu((const KINFO *)b) - getpcpu((const KINFO *)a));
 	if (sortby == SORTMEM)
-		return (VSIZE((KINFO *)b) - VSIZE((KINFO *)a));
-	i =  ((KINFO *)a)->ki_p->ki_tdev - ((KINFO *)b)->ki_p->ki_tdev;
+		return (VSIZE((const KINFO *)b) - VSIZE((const KINFO *)a));
+	i =  (int)((const KINFO *)a)->ki_p->ki_tdev - (int)((const KINFO *)b)->ki_p->ki_tdev;
 	if (i == 0)
-		i = ((KINFO *)a)->ki_p->ki_pid - ((KINFO *)b)->ki_p->ki_pid;
+		i = ((const KINFO *)a)->ki_p->ki_pid - ((const KINFO *)b)->ki_p->ki_pid;
 	return (i);
 }
 

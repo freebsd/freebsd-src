@@ -31,18 +31,22 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)nlist.c	8.4 (Berkeley) 4/2/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
 #include <stddef.h>
+
+#include "ps.h"
 
 fixpt_t	ccpu;				/* kernel _ccpu variable */
 int	nlistread;			/* if nlist already read. */
