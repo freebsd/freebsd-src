@@ -31,14 +31,14 @@ maxusers	32
 
 # Platforms supported
 options		API_UP1000		# UP1000 (Nautilus)
-options 	DEC_AXPPCI_33		# UDB, Multia, AXPpci33, Noname
+options 	DEC_AXPPCI_33		# UDB, Multia, AXPpci33, NoName
 options 	DEC_EB164		# EB164, PC164, PC164LX, PC164SX
-options 	DEC_EB64PLUS		# EB64+, Aspen Alpine, etc
+options 	DEC_EB64PLUS		# EB64+, AlphaPC64, Aspen Alpine, etc
 options 	DEC_2100_A50		# AlphaStation 200, 250, 255, 400
 options 	DEC_2100_A500		# AlphaServer 2000, 2100, 2100A
 options 	DEC_KN20AA		# AlphaStation 500, 600
 options 	DEC_ST550		# Personal Workstation 433, 500, 600
-options 	DEC_ST6600		# xp1000, dp264, ds20, ds10, family
+options 	DEC_ST6600		# XP1000, DP264, DS20, DS10, family
 options 	DEC_3000_300		# DEC3000/300* Pelic* family
 options 	DEC_3000_500		# DEC3000/[4-9]00 Flamingo/Sandpiper family
 options 	DEC_1000A		# AlphaServer 1000, 1000A, 800
