@@ -65,6 +65,17 @@
 
 #include "b004.h"
 
+static struct kern_devconf kdc_bqu[NBQU] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"bqu", 0, { MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNCONFIGURED,	/* always start here */
+	"B004-compatible Transputer board",
+	DC_CLS_MISC
+} };
+
 #define IOCTL_OUT(arg, ret)             *(int*)arg = ret 
 
 #define	B004PRI	(PZERO+8)
@@ -433,6 +444,7 @@ bquopen(dev_t dev, int flag)
 	return EBUSY;
     }
     B004_F(dev_min) |= B004_BUSY;
+    kdc_bqu[dev_min].kdc_state = DC_BUSY;
     B004_TIMEOUT(dev_min) = 0;
     DEB(printf( "B004 opened, minor = %d.\n", dev_min );)
     return 0;
@@ -453,6 +465,7 @@ bquclose(dev_t dev, int flag)
 	return ENXIO;
     }
     B004_F(dev_min) &= ~B004_BUSY;
+    kdc_bqu[dev_min].kdc_state = DC_IDLE;
     DEB(printf("B004(%d) released.\n", dev_min );)
     return 0;
 }
@@ -518,16 +531,6 @@ bquioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 } /* bquioctl() */
 
 
-static struct kern_devconf kdc_bqu[NBQU] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"bqu", 0, { MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNKNOWN,		/* we don't support this yet */
-	"B004-compatible Transputer board"
-} };
-
 static inline void
 bqu_registerdev(struct isa_device *id)
 {
@@ -541,7 +544,7 @@ bqu_registerdev(struct isa_device *id)
 int
 bquattach(struct isa_device *idp)
 {
-	bqu_registerdev(idp);
+	kdc_bqu[idp->id_unit].kdc_state = DC_IDLE;
 	return 1;
 }
 
@@ -573,6 +576,10 @@ printf("bquprobe::\nIOBASE 0x%x\nIRQ %d\nDRQ %d\nMSIZE %d\nUNIT %d\nFLAGS x0%x\n
     if(dev_min >= NBQU) return (0);	/* No more descriptors */
     if ((idp->id_iobase < 0x100) || (idp->id_iobase >= 0x1000))
 	idp->id_iobase=0;		/* Dangerous isa addres ) */
+#ifndef DEV_LKM
+    bqu_registerdev(idp);
+#endif /* not DEV_LKM */
+
     for (test = 0; (test < B004_CHANCE); test++) {
 	if((idp->id_iobase==0)&&((!b004_base_addresses[test])||
 	   detected(b004_base_addresses[test])))

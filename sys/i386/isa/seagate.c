@@ -46,7 +46,7 @@
  *               delays, device flags, polling mode, generic cleanup
  * vak    950115 Added request-sense ops
  *
- * $Id: seagate.c,v 1.5 1995/01/10 11:41:28 jkh Exp $
+ * $Id: seagate.c,v 1.6 1995/03/28 07:55:50 bde Exp $
  */
 
 /*
@@ -340,6 +340,14 @@ static struct scsi_adapter sea_switch = {
 static struct scsi_device sea_dev = { NULL, NULL, NULL, NULL, "sea", 0, {0} };
 struct isa_driver seadriver = { sea_probe, sea_attach, "sea" };
 
+static char sea_description [80]; /* XXX BOGUS!!! */
+static struct kern_devconf sea_kdc[NSEA] = {{
+	0, 0, 0, "sea", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN, &kdc_isa0, 0,
+	DC_UNCONFIGURED, sea_description,
+	DC_CLS_MISC		/* host adapters aren't special */
+} };
+
 /*
  * Check if the device can be found at the port given and if so,
  * detect the type of board. Set it up ready for further work.
@@ -353,6 +361,12 @@ int sea_probe (struct isa_device *dev)
 		0xc8000, 0xca000, 0xcc000, 0xce000, 0xdc000, 0xde000, 0,
 	};
 	int i;
+
+	if (dev->id_unit)
+		sea_kdc[dev->id_unit] = sea_kdc[0];
+	sea_kdc[dev->id_unit].kdc_unit = dev->id_unit;
+	sea_kdc[dev->id_unit].kdc_isa = dev;
+	dev_attach (&sea_kdc[dev->id_unit]);
 
 	/* Init fields used by our routines */
 	z->parity = (dev->id_flags & FLAG_NOPARITY) ? 0 : CMD_EN_PARITY;
@@ -498,13 +512,6 @@ int sea_init (adapter_t *z)
 	return (0);
 }
 
-static char sea_description [80];
-static struct kern_devconf sea_kdc[NSEA] = {{
-	0, 0, 0, "sea", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN, &kdc_isa0, 0,
-	DC_BUSY, sea_description,
-}};
-
 /*
  * Attach all sub-devices we can find.
  */
@@ -513,6 +520,7 @@ int sea_attach (struct isa_device *dev)
 	int unit = dev->id_unit;
 	adapter_t *z = &seadata[unit];
 
+	sea_kdc[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
 	sprintf (sea_description, "%s SCSI controller", z->name);
 	printf ("\nsea%d: type %s%s\n", unit, z->name,
 		(dev->id_flags & FLAG_NOPARITY) ? ", no parity" : "");
@@ -522,15 +530,10 @@ int sea_attach (struct isa_device *dev)
 	z->sc_link.adapter_targ = z->scsi_addr;
 	z->sc_link.adapter = &sea_switch;
 	z->sc_link.device = &sea_dev;
-
+	
 	/* ask the adapter what subunits are present */
 	scsi_attachdevs (&(z->sc_link));
 
-	if (dev->id_unit)
-		sea_kdc[dev->id_unit] = sea_kdc[0];
-	sea_kdc[dev->id_unit].kdc_unit = dev->id_unit;
-	sea_kdc[dev->id_unit].kdc_isa = dev;
-	dev_attach (&sea_kdc[dev->id_unit]);
 	return (1);
 }
 

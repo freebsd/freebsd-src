@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  * 
- * $Id: if_el.c,v 1.10 1994/12/22 21:56:06 wollman Exp $
+ * $Id: if_el.c,v 1.11 1995/03/28 07:55:29 bde Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -106,8 +106,9 @@ static struct kern_devconf kdc_el[NEL] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_BUSY,		/* network interfaces are always busy */
-	"3Com 3C501 Ethernet adapter"
+	DC_UNCONFIGURED,	/* state */
+	"Ethernet adapter: 3Com 3C501",
+	DC_CLS_NETIF		/* class */
 } };
 
 static inline void
@@ -132,6 +133,10 @@ int el_probe(struct isa_device *idev)
 	sc = &el_softc[idev->id_unit];
 	sc->el_base = idev->id_iobase;
 	base = sc->el_base;
+
+#ifndef DEV_LKM
+	el_registerdev(idev);
+#endif
 
 	/* First check the base */
 	if((base < 0x280) || (base > 0x3f0)) {
@@ -212,7 +217,7 @@ int el_attach(struct isa_device *idev)
 	/* Now we can attach the interface */
 	dprintf(("Attaching interface...\n"));
 	if_attach(ifp);
-	el_registerdev(idev);
+	kdc_el[idev->id_unit].kdc_state = DC_BUSY;
 
 	/* Put the station address in the ifa address list's AF_LINK
 	 * entry, if any.

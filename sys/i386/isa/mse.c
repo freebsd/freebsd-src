@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.9 1994/11/08 05:41:34 jkh Exp $
+ * $Id: mse.c,v 1.10 1995/03/28 07:55:44 bde Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -181,6 +181,27 @@ struct mse_types {
 	{ 0, },
 };
 
+static struct kern_devconf kdc_mse[NMSE] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"mse", 0, { MDDT_ISA, 0, "tty" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNCONFIGURED,	/* state */
+	"ATI or Logitech bus mouse adapter",
+	DC_CLS_MISC		/* class */
+} };
+
+static inline void
+mse_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_mse[id->id_unit] = kdc_mse[0];
+	kdc_mse[id->id_unit].kdc_unit = id->id_unit;
+	kdc_mse[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_mse[id->id_unit]);
+}
+
 int
 mseprobe(idp)
 	register struct isa_device *idp;
@@ -188,6 +209,7 @@ mseprobe(idp)
 	register struct mse_softc *sc = &mse_sc[idp->id_unit];
 	register int i;
 
+	mse_registerdev(idp);
 	/*
 	 * Check for each mouse type in the table.
 	 */
@@ -205,26 +227,6 @@ mseprobe(idp)
 	return (0);
 }
 
-static struct kern_devconf kdc_mse[NMSE] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"mse", 0, { MDDT_ISA, 0, "tty" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNKNOWN,		/* not supported */
-	"ATI or Logitech bus mouse adapter"
-} };
-
-static inline void
-mse_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_mse[id->id_unit] = kdc_mse[0];
-	kdc_mse[id->id_unit].kdc_unit = id->id_unit;
-	kdc_mse[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_mse[id->id_unit]);
-}
-
 int
 mseattach(idp)
 	struct isa_device *idp;
@@ -232,7 +234,7 @@ mseattach(idp)
 	struct mse_softc *sc = &mse_sc[idp->id_unit];
 
 	sc->sc_port = idp->id_iobase;
-	mse_registerdev(idp);
+	kdc_mse[idp->id_unit].kdc_state = DC_IDLE;
 	return (1);
 }
 
@@ -253,6 +255,7 @@ mseopen(dev, flag)
 	if (sc->sc_flags & MSESC_OPEN)
 		return (EBUSY);
 	sc->sc_flags |= MSESC_OPEN;
+	kdc_mse[MSE_UNIT(dev)].kdc_state = DC_BUSY;
 	sc->sc_obuttons = sc->sc_buttons = 0x7;
 	sc->sc_deltax = sc->sc_deltay = 0;
 	sc->sc_bytesread = PROTOBYTES;
@@ -280,6 +283,7 @@ mseclose(dev, flag)
 	s = spltty();
 	(*sc->sc_disablemouse)(sc->sc_port);
 	sc->sc_flags &= ~MSESC_OPEN;
+	kdc_mse[MSE_UNIT(dev)].kdc_state = DC_IDLE;
 	splx(s);
 	return(0);
 }

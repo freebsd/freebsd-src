@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.70 1995/03/22 05:22:59 davidg Exp $
+ *	$Id: wd.c,v 1.71 1995/04/09 06:09:31 davidg Exp $
  */
 
 /* TODO:
@@ -121,8 +121,9 @@ static struct kern_devconf kdc_wd[NWD] = { {
 	wd_externalize, 0, wd_goaway, DISK_EXTERNALLEN,
 	0,			/* parent */
 	0,			/* parentdata */
-	DC_UNKNOWN,		/* don't support state yet */
-	"ST506/ESDI/IDE disk"
+	DC_UNKNOWN,		/* state */
+	"ST506/ESDI/IDE disk",	/* description */
+	DC_CLS_DISK		/* class */
 } };
 
 static struct kern_devconf kdc_wdc[NWDC] = { {
@@ -131,8 +132,9 @@ static struct kern_devconf kdc_wdc[NWDC] = { {
 	isa_generic_externalize, 0, wdc_goaway, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_UNKNOWN,		/* state */
-	"ST506/ESDI/IDE disk controller"
+	DC_UNCONFIGURED,	/* state */
+	"ST506/ESDI/IDE disk controller",
+	DC_CLS_MISC		/* just an ordinary device */
 } };
 
 static inline void
@@ -296,6 +298,8 @@ wdprobe(struct isa_device *dvp)
 	du->dk_ctrlr = dvp->id_unit;
 	du->dk_port = dvp->id_iobase;
 
+	wdc_registerdev(dvp);
+
 	/* check if we have registers that work */
 	outb(du->dk_port + wd_cyl_lo, 0xa5);	/* wd_cyl_lo is read/write */
 	if (inb(du->dk_port + wd_cyl_lo) == 0xff)
@@ -367,7 +371,7 @@ wdattach(struct isa_device *dvp)
 	if (dvp->id_unit >= NWDC)
 		return (0);
 
-	wdc_registerdev(dvp);
+	kdc_wdc[dvp->id_unit].kdc_state = DC_UNKNOWN; /* XXX */
 
 	for (wdup = isa_biotab_wdc; wdup->id_driver != 0; wdup++) {
 		if (wdup->id_iobase != dvp->id_iobase)

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.1 1995/04/08 09:39:34 phk Exp $
+ * $Id: if_eg.c,v 1.2 1995/04/12 07:50:44 phk Exp $
  */
 
 /* To do:
@@ -125,7 +125,8 @@ static struct kern_devconf kdc_eg_template = {
         &kdc_isa0,              /* parent */
         0,                      /* parentdata */
         DC_UNCONFIGURED,
-        ""                      /* description */
+        "",			/* description */
+	DC_CLS_NETIF		/* class */
 };
 
 static inline void
@@ -306,7 +307,9 @@ egprobe(struct isa_device * id)
 	struct eg_softc *sc = &eg_softc[id->id_unit];
 	int i;
 
+#ifndef DEV_LKM
 	eg_registerdev(id, "Ethernet adapter");
+#endif /* not DEV_LKM */
 
 	if (id->id_iobase & ~0x07f0 != 0) {
 		dprintf(("eg#: Weird iobase %x\n", id->id_iobase));
@@ -389,6 +392,8 @@ egattach (struct isa_device *id)
 	    id->id_unit,
 	    ether_sprintf(sc->sc_arpcom.ac_enaddr),
 	    sc->eg_rom_major, sc->eg_rom_minor, sc->eg_ram);
+
+	sc->kdc.kdc_description = "Ethernet adapter: 3Com 3C505";
 
 	sc->eg_pcb[0] = EG_CMD_SETEADDR; /* Set station address */
 	if (egwritePCB(sc) != 0) {

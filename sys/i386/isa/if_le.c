@@ -21,50 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.12 1994/12/22 21:56:11 wollman Exp $
- *
- * $Log: if_le.c,v $
- * Revision 1.12  1994/12/22  21:56:11  wollman
- * Move ARP interface initialization into if_ether.c:arp_ifinit().
- *
- * Revision 1.10  1994/11/24  14:29:24  davidg
- * Moved conversion of ether_type to host byte order out of ethernet drivers
- * and into ether_input(). It was silly to have bpf want this one way and
- * ether_input want it another way. Ripped out trailer support from the few
- * remaining drivers that still had it.
- *
- * Revision 1.9  1994/10/23  21:27:22  wollman
- * Finished device configuration database work for all ISA devices (except `ze')
- * and all SCSI devices (except that it's not done quite the way I want).  New
- * information added includes:
- *
- * -	A text description of the device
- * -	A ``state''---unknown, unconfigured, idle, or busy
- * -	A generic parent device (with support in the m.i. code)
- * -	An interrupt mask type field (which will hopefully go away) so that
- * .	  ``doconfig'' can be written
- *
- * This requires a new version of the `lsdev' program as well (next commit).
- *
- * Revision 1.8  1994/10/19  01:59:03  wollman
- * Add support for devconf to a large number of device drivers, and do
- * the right thing in dev_goawayall() when kdc_goaway is null.
- *
- * Revision 1.7  1994/10/12  11:39:37  se
- * Submitted by:	Matt Thomas <thomas@lkg.dec.com>
- * #ifdef MULTICAST removed.
- *
- * Revision 1.9  1994/08/16  20:40:56  thomas
- * New README files (one per driver)
- * Minor updates to drivers (DEPCA support and add pass to attach
- * output)
- *
- * Revision 1.8  1994/08/05  20:20:54  thomas
- * Enable change log
- *
- * Revision 1.7  1994/08/05  20:20:14  thomas
- * *** empty log message ***
- *
+ * $Id: if_le.c,v 1.13 1995/03/28 07:55:32 bde Exp $
  */
 
 /*
@@ -369,8 +326,9 @@ static struct kern_devconf kdc_le[NLE] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_BUSY,		/* network interfaces are always busy */
-	"DEC EtherWorks II or EtherWorks III Ethernet adapter"
+	DC_UNCONFIGURED,	/* state */
+	"Ethernet adapter: DEC EtherWorks II or EtherWorks III",
+	DC_CLS_NETIF		/* class */
 } };
 
 static inline void
@@ -396,6 +354,8 @@ le_probe(
 	       ledriver.name, dvp->id_unit);
 	return 0;
     }
+
+    le_registerdev(dvp);
 
     sc->le_iobase = dvp->id_iobase;
     sc->le_membase = (u_char *) dvp->id_maddr;
@@ -434,10 +394,7 @@ le_attach(
 	   ether_sprintf(sc->le_ac.ac_enaddr));
 
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
-#ifdef MULTICAST
     ifp->if_flags  |= IFF_MULTICAST;
-#endif /* MULTICAST */
-
     ifp->if_output = ether_output;
     ifp->if_ioctl = le_ioctl;
     ifp->if_type = IFT_ETHER;
@@ -449,7 +406,7 @@ le_attach(
 #endif
 
     if_attach(ifp);
-    le_registerdev(dvp);
+    kdc_le[dvp->id_unit].kdc_state = DC_IDLE;
 
     while (ifa && ifa->ifa_addr && ifa->ifa_addr->sa_family != AF_LINK)
 	ifa = ifa->ifa_next;
@@ -649,7 +606,6 @@ le_ioctl(
 	    break;
 	}
 
-#ifdef MULTICAST
 	case SIOCADDMULTI:
 	case SIOCDELMULTI: {
 	    /*
@@ -668,14 +624,14 @@ le_ioctl(
 	    break;
 	}
 
-#endif /* MULTICAST */
-
 	default: {
 	    error = EINVAL;
 	}
     }
 
     splx(s);
+    kdc_le[ifp->if_unit].kdc_state = (ifp->if_flags & IFF_UP) 
+      ? DC_BUSY : DC_IDLE;
     return error;
 }
 
@@ -745,10 +701,8 @@ static void
 le_multi_filter(
     le_softc_t *sc)
 {
-#ifdef MULTICAST
     struct ether_multistep step;
     struct ether_multi *enm;
-#endif
 #ifdef ISO
     extern char all_es_snpa[];
 #endif
@@ -768,7 +722,6 @@ le_multi_filter(
     le_multi_op(sc, all_es_snpa, TRUE);
 #endif
 
-#ifdef MULTICAST
     ETHER_FIRST_MULTI(step, &sc->le_ac, enm);
     if (enm != NULL)
 	sc->le_flags |= IFF_MULTICAST;
@@ -782,7 +735,6 @@ le_multi_filter(
 	sc->le_flags &= ~LE_BRDCSTONLY;
     }
     sc->le_flags &= ~IFF_ALLMULTI;
-#endif
 }
 
 static void

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.41 1995/01/31 11:41:36 dufault Exp $
+ *      $Id: aha1542.c,v 1.42 1995/03/28 07:55:22 bde Exp $
  */
 
 /*
@@ -361,8 +361,9 @@ static struct kern_devconf kdc_aha[NAHA] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_BUSY,		/* host adapters are always busy */
-	"Adaptec 154x-series SCSI host adapter"
+	DC_UNCONFIGURED,	/* always start out here */
+	"Adaptec 154x-series SCSI host adapter",
+	DC_CLS_MISC		/* SCSI host adapters aren't special */
 } };
 
 static inline void
@@ -573,6 +574,11 @@ ahaprobe(dev)
 	bzero(aha, sizeof(struct aha_data));
 	ahadata[unit] = aha;
 	aha->aha_base = dev->id_iobase;
+
+#ifndef DEV_LKM
+	aha_registerdev(dev);
+#endif
+
 	/*
 	 * Try initialise a unit at this location
 	 * sets up dma and bus speed, loads aha->aha_int
@@ -628,7 +634,7 @@ ahaattach(dev)
 	/*
 	 * ask the adapter what subunits are present
 	 */
-	aha_registerdev(dev);
+	kdc_aha[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
 	scsi_attachdevs(&(aha->sc_link));
 
 	return 1;
