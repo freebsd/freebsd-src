@@ -145,7 +145,7 @@ static const char rcsid[] =
 
 #define MAXPACKETLEN	131072
 #define	IP6LEN		40
-#define ICMP6ECHOLEN	8	/* icmp echo header len excluding time */
+#define ICMP6ECHOLEN	8	/* icmp echo header length excluding time */
 #define ICMP6ECHOTMLEN sizeof(struct timeval)
 #define ICMP6_NIQLEN	(ICMP6ECHOLEN + 8)
 /* FQDN case, 64 bits of nonce + 32 bits ttl */
@@ -380,7 +380,7 @@ main(argc, argv)
 #if defined(SO_SNDBUF) && defined(SO_RCVBUF)
 			sockbufsize = atoi(optarg);
 #else
-			err(1,
+			errx(1,
 "-b option ignored: SO_SNDBUF/SO_RCVBUF socket options not supported");
 #endif
 			break;
@@ -394,10 +394,8 @@ main(argc, argv)
 			options |= F_SO_DEBUG;
 			break;
 		case 'f':
-			if (getuid()) {
-				errno = EPERM;
-				errx(1, "Must be superuser to flood ping");
-			}
+			if (getuid())
+				errx(1, "must be superuser to flood ping");
 			options |= F_FLOOD;
 			setbuf(stdout, (char *)NULL);
 			break;
@@ -438,10 +436,8 @@ main(argc, argv)
 			options |= F_INTERVAL;
 			break;
 		case 'l':
-			if (getuid()) {
-				errno = EPERM;
-				errx(1, "Must be superuser to preload");
-			}
+			if (getuid())
+				errx(1, "must be superuser to preload");
 			preload = strtol(optarg, &e, 10);
 			if (preload < 0 || *optarg == '\0' || *e != '\0')
 				errx(1, "illegal preload value -- %s", optarg);
@@ -572,10 +568,8 @@ main(argc, argv)
 	hints.ai_protocol = IPPROTO_ICMPV6;
 
 	ret_ga = getaddrinfo(target, NULL, &hints, &res);
-	if (ret_ga) {
-		fprintf(stderr, "ping6: %s\n", gai_strerror(ret_ga));
-		exit(1);
-	}
+	if (ret_ga)
+		errx(1, "%s", gai_strerror(ret_ga));
 	if (res->ai_canonname)
 		hostname = res->ai_canonname;
 	else
@@ -648,7 +642,7 @@ main(argc, argv)
 	}
 
 	if (!(packet = (u_char *)malloc((u_int)packlen)))
-		err(1, "Unable to allocate packet");
+		errx(1, "unable to allocate packet");
 	if (!(options & F_PINGFILLED))
 		for (i = ICMP6ECHOLEN; i < packlen; ++i)
 			*datap++ = i;
@@ -1412,7 +1406,7 @@ pr_pack(buf, cc, mhdr)
 	fromlen = mhdr->msg_namelen;
 	if (cc < sizeof(struct icmp6_hdr)) {
 		if (options & F_VERBOSE)
-			warnx("packet too short (%d bytes) from %s\n", cc,
+			warnx("packet too short (%d bytes) from %s", cc,
 			    pr_addr(from, fromlen));
 		return;
 	}
@@ -1425,7 +1419,7 @@ pr_pack(buf, cc, mhdr)
 		return;
 	}
 	if ((pktinfo = get_rcvpktinfo(mhdr)) == NULL) {
-		warnx("failed to get receiving pakcet information");
+		warnx("failed to get receiving packet information");
 		return;
 	}
 
@@ -1583,7 +1577,7 @@ pr_pack(buf, cc, mhdr)
 					comma++;
 					break;
 				case ICMP6_NI_UNKNOWN:
-					(void)printf("unknwon qtype");
+					(void)printf("unknown qtype");
 					comma++;
 					break;
 				}
@@ -2635,7 +2629,7 @@ setpolicy(so, policy)
 		errx(1, "%s", ipsec_strerror());
 	if (setsockopt(s, IPPROTO_IPV6, IPV6_IPSEC_POLICY, buf,
 	    ipsec_get_policylen(buf)) < 0)
-		warnx("Unable to set IPSec policy");
+		warnx("unable to set IPSec policy");
 	free(buf);
 
 	return 0;
@@ -2707,7 +2701,7 @@ usage()
 	    "AE"
 #endif
 #endif
-	    "] [-a [aAclsg]] [-b sockbufsiz] [-c count] \n"
+	    "] [-a [aAclsg]] [-b sockbufsiz] [-c count]\n"
             "\t[-I interface] [-i wait] [-l preload] [-p pattern] "
 	    "[-S sourceaddr]\n"
             "\t[-s packetsize] [-h hoplimit] [hops...] host\n");
