@@ -48,13 +48,6 @@
 The
 .Nm
 utility creates device special files.
-Normally the shell script
-.Pa /dev/MAKEDEV
-is used to create special files for commonly known devices; it executes
-.Nm
-with the appropriate arguments and can make all the files required for the
-device.
-.Pp
 To make nodes manually, the four required arguments are:
 .Pp
 .Bl -tag -width indent
@@ -78,8 +71,6 @@ and pseudo devices, and are type
 The major device number is an integer number which tells the kernel
 which device driver entry point to use.  To learn what
 major device number to use for a particular device, check
-.Pa /dev/MAKEDEV
-or
 .Pa /usr/src/sys/conf/majors .
 .It Ar minor
 The minor device number tells the kernel which subunit
@@ -116,17 +107,11 @@ will cause the number to be interpreted as octal.
 The
 .Xr chown 8 Ns - Ns
 like functionality is specific to
-.Fx
-and was added so that
-.Pa /dev/MAKEDEV
-would not depend on
-.Pa /usr
-being mounted.
+.Fx .
 .Sh SEE ALSO
 .Xr mkfifo 1 ,
 .Xr mknod 2 ,
-.Xr chown 8 ,
-.Xr MAKEDEV 8
+.Xr chown 8
 .Sh HISTORY
 A
 .Nm
