@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)wall.c	8.2 (Berkeley) 11/16/93";
 #endif
 static const char rcsid[] =
-	"$Id: wall.c,v 1.3.2.1 1997/08/26 06:50:36 charnier Exp $";
+	"$Id: wall.c,v 1.9 1997/09/15 01:03:16 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -52,16 +52,17 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <sys/uio.h>
 
 #include <ctype.h>
 #include <err.h>
+#include <locale.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <utmp.h>
 
@@ -87,7 +88,9 @@ main(argc, argv)
 	char *p, *ttymsg();
 	char line[sizeof(utmp.ut_line) + 1];
 
-	while ((ch = getopt(argc, argv, "n")) !=  -1)
+	(void)setlocale(LC_CTYPE, "");
+
+	while ((ch = getopt(argc, argv, "n")) != -1)
 		switch (ch) {
 		case 'n':
 			/* undoc option for shutdown: suppress banner */
@@ -133,15 +136,15 @@ void
 makemsg(fname)
 	char *fname;
 {
-	register int ch, cnt;
+	register int cnt;
+	register unsigned char ch;
 	struct tm *lt;
 	struct passwd *pw;
 	struct stat sbuf;
-	time_t now, time();
+	time_t now;
 	FILE *fp;
 	int fd;
 	char *p, *whom, hostname[MAXHOSTNAMELEN], lbuf[100], tmpname[15];
-	char *getlogin(), *strcpy(), *ttyname();
 
 	(void)strcpy(tmpname, _PATH_TMP);
 	(void)strcat(tmpname, "/wall.XXXXXX");
@@ -183,11 +186,37 @@ makemsg(fname)
 				putc('\r', fp);
 				putc('\n', fp);
 				cnt = 0;
-			} else if (!isprint(ch) && !isspace(ch) && ch != '\007') {
-				putc('^', fp);
-				putc(ch^0x40, fp);	/* DEL to ?, others to alpha */
-			} else
-				putc(ch, fp);
+			} else if (((ch & 0x80) && ch < 0xA0) ||
+				   /* disable upper controls */
+				   (!isprint(ch) && !isspace(ch) &&
+				    ch != '\a' && ch != '\b')
+				  ) {
+				if (ch & 0x80) {
+					ch &= 0x7F;
+					putc('M', fp);
+					if (++cnt == 79) {
+						putc('\r', fp);
+						putc('\n', fp);
+						cnt = 0;
+					}
+					putc('-', fp);
+					if (++cnt == 79) {
+						putc('\r', fp);
+						putc('\n', fp);
+						cnt = 0;
+					}
+				}
+				if (iscntrl(ch)) {
+					ch ^= 040;
+					putc('^', fp);
+					if (++cnt == 79) {
+						putc('\r', fp);
+						putc('\n', fp);
+						cnt = 0;
+					}
+				}
+			}
+			putc(ch, fp);
 		}
 	(void)fprintf(fp, "%79s\r\n", " ");
 	rewind(fp);
