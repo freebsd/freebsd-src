@@ -82,7 +82,7 @@ union_mount(mp, ndp, td)
 	struct union_mount *um = 0;
 	struct ucred *cred = 0;
 	char *cp = 0, *target;
-	int *flags;
+	int op;
 	int len;
 	u_int size;
 
@@ -112,9 +112,20 @@ union_mount(mp, ndp, td)
 	if (error || target[len - 1] != '\0')
 		return (EINVAL);
 
-	error = vfs_getopt(opts, "unionflags", (void **)&flags, &len);
-	if (error || len != sizeof(int))
-		return (EINVAL);
+	op = 0;
+	if (vfs_getopt(opts, "below", NULL, NULL) == 0)
+		op = UNMNT_BELOW;
+	if (vfs_getopt(opts, "replace", NULL, NULL) == 0) {
+		/* These options are mutually exclusive. */
+		if (op)
+			return (EINVAL);
+		op = UNMNT_REPLACE;
+	}
+	/*
+	 * UNMNT_ABOVE is the default.
+	 */
+	if (op == 0)
+		op = UNMNT_ABOVE;
 
 	/*
 	 * Obtain lower vnode.  Vnode is stored in mp->mnt_vnodecovered.
@@ -184,7 +195,7 @@ union_mount(mp, ndp, td)
 	um = (struct union_mount *) malloc(sizeof(struct union_mount),
 				M_UNIONFSMNT, M_WAITOK | M_ZERO);
 
-	um->um_op = *flags & UNMNT_OPMASK;
+	um->um_op = op;
 
 	switch (um->um_op) {
 	case UNMNT_ABOVE:

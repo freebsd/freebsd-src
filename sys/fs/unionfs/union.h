@@ -41,7 +41,6 @@
 #define UNMNT_ABOVE	0x0001		/* Target appears above mount point */
 #define UNMNT_BELOW	0x0002		/* Target appears below mount point */
 #define UNMNT_REPLACE	0x0003		/* Target replaces mount point */
-#define UNMNT_OPMASK	0x0003
 
 struct union_mount {
 	struct vnode	*um_uppervp;	/* UN_ULOCK holds locking state */
