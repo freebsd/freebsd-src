@@ -113,15 +113,6 @@ semsys(p, uap)
 };
 
 int
-semconfig(p, uap)
-	struct proc *p;
-	struct semconfig_args *uap;
-{
-	sysv_nosys(p, "SYSVSEM");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-int
 __semctl(p, uap)
 	struct proc *p;
 	register struct __semctl_args *uap;
