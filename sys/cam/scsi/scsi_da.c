@@ -29,7 +29,6 @@
  */
 
 #ifdef _KERNEL
-#include "opt_da.h"
 #include "opt_hw_wdog.h"
 #endif /* _KERNEL */
 
