@@ -190,52 +190,6 @@ static void ccdunlock(struct ccd_s *);
 static void printiinfo(struct ccdiinfo *);
 #endif
 
-/* Non-private for the benefit of libkvm. */
-
-/*
- * getccdbuf() -	Allocate and zero a ccd buffer.
- *
- *	This routine is called at splbio().
- */
-
-static __inline
-struct ccdbuf *
-getccdbuf(struct ccdbuf *cpy)
-{
-	struct ccdbuf *cbp;
-
-	cbp = malloc(sizeof(struct ccdbuf), M_CCD, M_WAITOK);
-
-	/*
-	 * Used by mirroring code
-	 */
-	if (cpy)
-		bcopy(cpy, cbp, sizeof(struct ccdbuf));
-	else
-		bzero(cbp, sizeof(struct ccdbuf));
-
-	/*
-	 * independant struct bio initialization
-	 */
-
-	return(cbp);
-}
-
-/*
- * putccdbuf() -	Free a ccd buffer.
- *
- *	This routine is called at splbio().
- */
-
-static __inline
-void
-putccdbuf(struct ccdbuf *cbp)
-{
-
-	free((caddr_t)cbp, M_CCD);
-}
-
-
 /*
  * Number of blocks to untouched in front of a component partition.
  * This is to avoid violating its disklabel area when it starts at the
@@ -634,6 +588,7 @@ ccdinterleave(struct ccd_s *cs, int unit)
 		 */
 		if (smallci == NULL) {
 			ii->ii_ndisk = 0;
+			free(ii->ii_index, M_CCD);
 			break;
 		}
 
@@ -1019,7 +974,7 @@ ccdbuffer(struct ccdbuf **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, cadd
 	/*
 	 * Fill in the component buf structure.
 	 */
-	cbp = getccdbuf(NULL);
+	cbp = malloc(sizeof(struct ccdbuf), M_CCD, M_WAITOK | M_ZERO);
 	cbp->cb_buf.bio_cmd = bp->bio_cmd;
 	cbp->cb_buf.bio_done = ccdiodone;
 	cbp->cb_buf.bio_dev = ci->ci_dev;		/* XXX */
@@ -1055,7 +1010,8 @@ ccdbuffer(struct ccdbuf **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, cadd
 	 */
 	if (cs->sc_cflags & CCDF_MIRROR) {
 		/* mirror, setup second I/O */
-		cbp = getccdbuf(cb[0]);
+		cbp = malloc(sizeof(struct ccdbuf), M_CCD, M_WAITOK);
+		bcopy(cb[0], cbp, sizeof(struct ccdbuf));
 		cbp->cb_buf.bio_dev = ci2->ci_dev;
 		cbp->cb_comp = ci2 - cs->sc_cinfo;
 		cb[1] = cbp;
@@ -1147,7 +1103,7 @@ ccdiodone(struct bio *ibp)
 			 */
 			if ((cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
 				cbp->cb_mirror->cb_pflags |= CCDPF_MIRROR_DONE;
-				putccdbuf(cbp);
+				free(cbp, M_CCD);
 				splx(s);
 				return;
 			}
@@ -1162,12 +1118,11 @@ ccdiodone(struct bio *ibp)
 					cbp->cb_mirror->cb_pflags |= 
 					    CCDPF_MIRROR_DONE;
 					BIO_STRATEGY(&cbp->cb_mirror->cb_buf);
-					putccdbuf(cbp);
+					free(cbp, M_CCD);
 					splx(s);
 					return;
 				} else {
-					putccdbuf(cbp->cb_mirror);
-					/* fall through */
+					free(cbp->cb_mirror, M_CCD);
 				}
 			}
 		}
@@ -1183,7 +1138,7 @@ ccdiodone(struct bio *ibp)
 	 * sequentially, but will not effect filesystems.
 	 */
 	count = (long)cbp->cb_buf.bio_caller1;
-	putccdbuf(cbp);
+	free(cbp, M_CCD);
 
 	/*
 	 * If all done, "interrupt".
