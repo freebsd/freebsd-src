@@ -61,6 +61,7 @@ struct globaldata {
 
 	u_int		gd_astpending;
 	SLIST_ENTRY(globaldata) gd_allcpu;
+	int		gd_witness_spin_check;
 #ifdef KTR_PERCPU
 	volatile int	gd_ktr_idx;		/* Index into trace table */
 	char		*gd_ktr_buf;

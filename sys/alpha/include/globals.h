@@ -58,6 +58,7 @@ register struct globaldata *globalp __asm__("$8");
 #define	switchtime	PCPU_GET(switchtime)
 #define	switchticks	PCPU_GET(switchticks)
 #define cpuid		PCPU_GET(cpuno)
+#define	witness_spin_check	PCPU_GET(witness_spin_check)
 
 #endif	/* _KERNEL */
 
