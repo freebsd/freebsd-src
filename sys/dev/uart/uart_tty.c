@@ -85,7 +85,6 @@ static void
 uart_cnprobe(struct consdev *cp)
 {
 
-	cp->cn_dev = NULL;
 	cp->cn_pri = CN_DEAD;
 
 	KASSERT(uart_console.cookie == NULL, ("foo"));
@@ -343,8 +342,8 @@ uart_tty_attach(struct uart_softc *sc)
 	tp->t_stop = uart_tty_stop;
 
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
-		((struct consdev *)sc->sc_sysdev->cookie)->cn_dev =
-		    makedev(uart_cdevsw.d_maj, device_get_unit(sc->sc_dev));
+		sprintf(((struct consdev *)sc->sc_sysdev->cookie)->cn_name,
+		    "ttyu%r", device_get_unit(sc->sc_dev));
 	}
 
 	swi_add(&tty_ithd, uart_driver_name, uart_tty_intr, sc, SWI_TTY,
