@@ -686,6 +686,16 @@ If set to
 the system will attempt to run
 .Xr fsck 8
 in the background where possible.
+.It Va networkfs_types
+.Pq Vt str
+A whitespace-separated list of network filesystem descriptor pairs,
+each consisting of a filesystem type as passed to
+.Xr mount 8
+and a human-readable, one-word description,
+joined with a colon
+.Pq Sq \&: .
+This list can be extended as required to accommodate
+third-party filesystem support.
 .It Va syslogd_enable
 .Pq Vt bool
 If set to
