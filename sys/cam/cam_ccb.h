@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: cam_ccb.h,v 1.1 1998/09/15 06:33:23 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_CCB_H
@@ -474,6 +474,12 @@ struct ccb_scsiio {
 	u_int8_t   *msg_ptr;		/* Pointer to the message buffer */
 	u_int16_t  msg_len;		/* Number of bytes for the Message */
 	u_int8_t   tag_action;		/* What to do for tag queueing */
+	/*
+	 * The tag action should be either the define below (to send a
+	 * non-tagged transaction) or one of the defined scsi tag messages
+	 * from scsi_message.h.
+	 */
+#define		CAM_TAG_ACTION_NONE	0x00
 	u_int8_t   tag_id;		/* tag id from initator (target mode) */
 	u_int8_t   init_id;		/* initiator id of who selected */
 };
