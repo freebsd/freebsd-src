@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: gloadavg.c,v 1.1.2.1 1997/12/12 07:15:37 charnier Exp $";
 #endif /* not lint */
 
 #ifndef __FreeBSD__
@@ -44,7 +44,7 @@ static const char rcsid[] =
 
 /* Global functions */
 
-void perr(const char *);
+void perr(const char *a);
 
 double
 gloadavg(void)
