@@ -630,7 +630,8 @@ ciss_init_pci(struct ciss_softc *sc)
 	ciss_printf(sc, "can't allocate interrupt\n");
 	return(ENXIO);
     }
-    if (bus_setup_intr(sc->ciss_dev, sc->ciss_irq_resource, INTR_TYPE_CAM, ciss_intr, sc,
+    if (bus_setup_intr(sc->ciss_dev, sc->ciss_irq_resource,
+		       INTR_TYPE_CAM|INTR_ENTROPY, ciss_intr, sc,
 		       &sc->ciss_intr)) {
 	ciss_printf(sc, "can't set up interrupt\n");
 	return(ENXIO);
