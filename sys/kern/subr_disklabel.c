@@ -281,3 +281,19 @@ bad:
         return(-1);
 }
 
+#ifdef __alpha__
+void
+alpha_fix_srm_checksum(bp)
+	struct buf *bp;
+{
+	u_int64_t *p;
+	u_int64_t sum;
+	int i;
+
+	p = (u_int64_t *) bp->b_data;
+	sum = 0;
+	for (i = 0; i < 63; i++)
+		sum += p[i];
+	p[63] = sum;
+}
+#endif
