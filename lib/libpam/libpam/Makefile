@@ -46,12 +46,15 @@ NOPROFILE	 = YES
 WARNS		?= 4
 
 SRCS		 =
+SRCS		+= openpam_borrow_cred.c
 SRCS		+= openpam_dispatch.c
 SRCS		+= openpam_dynamic.c
 SRCS		+= openpam_findenv.c
+SRCS		+= openpam_free_data.c
 SRCS		+= openpam_get_option.c
 SRCS		+= openpam_load.c
 SRCS		+= openpam_log.c
+SRCS		+= openpam_restore_cred.c
 SRCS		+= openpam_set_option.c
 SRCS		+= openpam_ttyconv.c
 SRCS		+= pam_acct_mgmt.c
@@ -81,8 +84,11 @@ SRCS		+= pam_vinfo.c
 SRCS		+= pam_vprompt.c
 
 MAN		 =
+MAN		+= openpam_borrow_cred.3
+MAN		+= openpam_free_data.3
 MAN		+= openpam_get_option.3
 MAN		+= openpam_log.3
+MAN		+= openpam_restore_cred.3
 MAN		+= openpam_set_option.3
 MAN		+= openpam_ttyconv.3
 MAN		+= pam.3
