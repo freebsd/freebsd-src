@@ -12,7 +12,7 @@
 .\" no representations about the suitability of this software for any
 .\" purpose.  It is provided "as is" without express or implied
 .\" warranty.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
 .\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
 .\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -39,7 +39,14 @@
 .Sh SYNOPSIS
 .In sys/select.h
 .Ft int
-.Fn pselect "int nfds" "fd_set * restrict readfds" "fd_set * restrict writefds" "fd_set * restrict exceptfds" "const struct timespec * restrict timeout" "const sigset_t * restrict newsigmask"
+.Fo pselect
+.Fa "int nfds"
+.Fa "fd_set * restrict readfds"
+.Fa "fd_set * restrict writefds"
+.Fa "fd_set * restrict exceptfds"
+.Fa "const struct timespec * restrict timeout"
+.Fa "const sigset_t * restrict newsigmask"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn pselect
@@ -48,9 +55,7 @@ function was introduced by
 as a slightly stronger version of
 .Xr select 2 .
 The
-.Fa nfds ,
-.Fa readfds ,
-.Fa writefds ,
+.Fa nfds , readfds , writefds ,
 and
 .Fa exceptfds
 arguments are all identical to the analogous arguments of

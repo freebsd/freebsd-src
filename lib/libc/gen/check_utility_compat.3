@@ -12,7 +12,7 @@
 .\" no representations about the suitability of this software for any
 .\" purpose.  It is provided "as is" without express or implied
 .\" warranty.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
 .\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
 .\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -29,9 +29,9 @@
 .\" $FreeBSD$
 .\"
 .Dd October 27, 2002
-.Dt CHECK_UTILITY_COMPAT 3
 .Os
-.Sh MAME
+.Dt CHECK_UTILITY_COMPAT 3
+.Sh NAME
 .Nm check_utility_compat
 .Nd "determine whether a utility should be compatible"
 .Sh LIBRARY
@@ -42,28 +42,28 @@
 .Fn check_utility_compat "const char *utility"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn check_utility_compat
 function checks whether
 .Fa utility
 should behave in a traditional
-.Pq Fx 4.7 -compatible
+.Pq Fx 4.7 Ns -compatible
 manner, or in accordance with
 .St -p1003.1-2001 .
 The configuration is given as a comma-separated list of utility names;
 if the list is present but empty, all supported utilities assume their
 most compatible mode.
 The
-.Nm
+.Fn check_utility_compat
 function first checks for an environment variable named
 .Ev _COMPAT_FreeBSD_4 .
 If that environment variable does not exist, then
-.Nm
+.Fn check_utility_compat
 will attempt to read the contents of a symbolic link named
 .Pa /etc/compat-FreeBSD-4-util .
 If no configuration is found, compatibility mode is disabled.
 .Sh RETURN VALUES
 The
-.Nm
+.Fn check_utility_compat
 function returns zero if
 .Fa utility
 should implement strict
@@ -72,18 +72,18 @@ behavior, and nonzero otherwise.
 .Sh ERRORS
 No errors are detected.
 .Sh FILES
-.Bl -tag -offset indent -width Pa
+.Bl -tag -width ".Pa /etc/compat-FreeBSD-4-util"
 .It Pa /etc/compat-FreeBSD-4-util
 If present, a symbolic link whose expansion gives system-wide default settings
 for the
-.Nm
+.Fn check_utility_compat
 function.
 .El
 .Sh HISTORY
 The
-.Nm
+.Fn check_utility_compat
 function first appeared in
 .Fx 5.0 .
-.Sh AUTHOR
+.Sh AUTHORS
 This manual page was written by
 .An Garrett Wollman Aq wollman@FreeBSD.org .
