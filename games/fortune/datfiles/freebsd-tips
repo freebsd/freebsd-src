@@ -306,162 +306,162 @@ install it by doing
 
 as root.  This will install a collection of packages that is appropriate for
 running a "generic" server.
-% 
+%
 You can make a log of your terminal session with script(1). 
-% 
+%
 "man ports" gives many useful hints about installing FreeBSD ports. 
-% 
+%
 ports/net/netcat port is useful not only for redirecting input/output 
 to TCP or UDP connections, but also for proxying them. See inetd(8) for 
 details. 
-% 
+%
 If other operating systems have damaged your Master Boot Record, you can 
 reinstall it either with /stand/sysinstall or with boot0cfg(8). See 
 "man boot0cfg" for details.
-% 
+%
 Need to see the calendar for this month? Simply type "cal".  To see the 
 whole year, type "cal 2001". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 Need to quickly return to your home directory? Type "cd". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 To see the last time that you logged in, use lastlogin(8). 
 		-- Dru <genesis@istar.ca>
-% 
+%
 To clear the screen, use "clear". To re-display your screen buffer, press 
 the scroll lock key and use your page up button. When you're finished, 
 press the scroll lock key again to get your prompt back. 
 		-- Dru <genesis@istar.ca>
-% 
+%
 To save disk space in your home directory, can compress files you 
 rarely use with "gzip filename". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 To read a compressed file without having to first uncompress it, use 
 "zcat" or "zmore" to view it. 
 		-- Dru <genesis@istar.ca>
-% 
+%
 To see how much disk space is left on your partitions, use 
 
 	df -h
 		-- Dru <genesis@istar.ca>
-% 
+%
 To see the 10 largest files on a directory or partition, use 
 
 	du /partition_or_directory_name | sort -rn | head
 		-- Dru <genesis@istar.ca>
-% 
+%
 To determine whether a file is a text file, executable, or some other type 
 of file, use 
 
 	file filename
 		-- Dru <genesis@istar.ca>
-% 
+%
 Time to change your password? Type "passwd" and follow the prompts. 
 		-- Dru <genesis@istar.ca>
-% 
+%
 Want to know how many words, lines, or bytes are contained in a file? Type 
 "wc filename". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 Need to print a manpage? Use 
 
 	man name_of_manpage | col -bx | lpr
 		-- Dru <genesis@istar.ca>
-% 
+%
 Need to remove all those ^M characters from a DOS file? Try 
 
 	col -bx < dosfile > newfile
 		-- Dru <genesis@istar.ca>
-% 
+%
 Forget what directory you are in? Type "pwd". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 If you are in the C shell and have just installed a new program, you won't 
 be able to run it unless you first type "rehash". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 Need to leave your terminal for a few minutes and don't want to logout? 
 Use "lock -p". When you return, use your password as the key to unlock the 
 terminal. 
 		-- Dru <genesis@istar.ca>
-% 
+%
 Need to find the location of a program? Use "locate program_name". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 Forget how to spell a word or a variation of a word? Use 
 
 	look portion_of_word_you_know
 		-- Dru <genesis@istar.ca>
-% 
+%
 To see the last 10 lines of a long file, use "tail filename". To see the 
 first 10 lines, use "head filename". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 To see how long it takes a command to run, type the word "time" before the 
 command name. 
 		-- Dru <genesis@istar.ca>
-% 
+%
 To quickly create an empty file, use "touch filename". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 To find out the hostname associated with an IP address, use 
 
 	dig -x IP_address
 		-- Dru <genesis@istar.ca>
-% 
+%
 If you use the C shell, add the following line to the .cshrc file in your 
 home directory to prevent core files from being written to disk: 
 
 	limit coredumpsize 0
 		-- Dru <genesis@istar.ca>
-% 
+%
 If you need a reminder to leave your terminal, type "leave hhmm" where 
 "hhmm" represents in how many hours and minutes you need to leave. 
 		-- Dru <genesis@istar.ca>
-% 
+%
 Need to do a search in a manpage or in a file you've sent to a pager? Use 
 "/search_word". To repeat the same search, type "n" for next. 
 		-- Dru <genesis@istar.ca>
-% 
+%
 Forget when Easter is? Try "ncal -e". If you need the date for Orthodox 
 Easter, use "ncal -o" instead. 
 		-- Dru <genesis@istar.ca>
-% 
+%
 Need to see your routing table? Type "netstat -rn". The entry with the G 
 flag is your gateway. 
 		-- Dru <genesis@istar.ca>
-% 
+%
 Need to see which daemons are listening for connection requests? Use 
 "sockstat -4l" for IPv4, and "sockstat -l" for IPv4 and IPv6. 
 		-- Dru <genesis@istar.ca>
-% 
+%
 Can't remember is you've installed a certain port or not? Try "pkg_info | 
 grep port_name". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 Got some time to kill? Try typing "hangman". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 To erase a line you've written at the command prompt, use "Ctrl u". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 To repeat the last command in the C shell, type "!!". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 Need to quickly empty a file? Use "echo > filename". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 To see all of the directories on your FreeBSD system, type 
 
 	ls -R / | more
 		-- Dru <genesis@istar.ca>
-% 
+%
 To see the IP addresses currently set on your active interfaces, type 
 "ifconfig -u". 
 		-- Dru <genesis@istar.ca>
-% 
+%
 To see the MAC addresses of the NICs on your system, type 
 
 	ifconfig -a
