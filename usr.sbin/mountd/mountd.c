@@ -381,11 +381,6 @@ skip_v6:
 			exit(1);
 		}
 	}
-	if ((udptransp = svcudp_create(RPC_ANYSOCK)) == NULL ||
-	    (tcptransp = svctcp_create(RPC_ANYSOCK, 0, 0)) == NULL) {
-		syslog(LOG_ERR, "can't create socket");
-		exit(1);
-	}
 	if (udpsock != -1 && udpconf != NULL) {
 		bindresvport(udpsock, NULL);
 		udptransp = svc_dg_create(udpsock, 0, 0);
