@@ -51,6 +51,7 @@ MAN+=	acl.3				\
 	acl_valid.3			\
 	extattr.3			\
 	mac.3				\
+	mac.conf.5			\
 	mac_free.3			\
 	mac_is_present_np.3		\
 	mac_get.3			\
