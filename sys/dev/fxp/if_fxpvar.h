@@ -157,6 +157,7 @@ struct fxp_softc {
 #define FXP_FLAG_ALL_MCAST	0x0040	/* accept all multicast frames */
 #define FXP_FLAG_CU_RESUME_BUG	0x0080	/* requires workaround for CU_RESUME */
 #define FXP_FLAG_UCODE		0x0100	/* ucode is loaded */
+#define FXP_FLAG_DEFERRED_RNR	0x0200	/* DEVICE_POLLING deferred RNR */
 
 /* Macros to ease CSR access. */
 #define	CSR_READ_1(sc, reg)						\
