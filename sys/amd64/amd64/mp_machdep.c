@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.6 1997/05/01 19:27:58 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.7 1997/05/03 17:42:01 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -889,8 +889,8 @@ get_isa_apic_irq(int isaIRQ)
 /*
  * 
  */
-int
-get_isa_apic_mask(int isaMASK)
+u_int
+get_isa_apic_mask(u_int isaMASK)
 {
 	int apicpin, isairq;
 
@@ -966,17 +966,44 @@ get_pci_apic_irq(int pciBus, int pciDevice, int pciInt)
 #undef INTTYPE
 
 
+/*
+ * Reprogram the MB chipset to NOT redirect a PCI INTerrupt
+ */
 int
 undirect_pci_irq(int rirq)
 {
 #if defined(READY)
-	printf("Freeing irq %d for ISA cards.\n", rirq);
+	printf("Freeing redirected PCI irq %d.\n", rirq);
 	/** FIXME: tickle the MB redirector chip */
 	return ???;
 #else
-	printf("Freeing (NOT implemented) irq %d for ISA cards.\n", rirq);
+	printf("Freeing (NOT implemented) redirected PCI irq %d.\n", rirq);
 	return 0;
-#endif				/* READY */
+#endif  /* READY */
+}
+
+
+/*
+ * Reprogram the MB chipset to NOT redirect an ISA INTerrupt.
+ *
+ * XXX FIXME:
+ *  Exactly what this means is unclear at this point.  It is a solution
+ *  for motherboards that redirect the MBIRQ0 pin.  Generically a motherboard
+ *  could route any of the ISA INTs to upper (>15) IRQ values.  But most would
+ *  NOT be redirected via MBIRQ0, thus "undirect()ing" them would NOT be an
+ *  option.
+ */
+int
+undirect_isa_irq(int rirq)
+{
+#if defined(READY)
+	printf("Freeing redirected ISA irq %d.\n", rirq);
+	/** FIXME: tickle the MB redirector chip */
+	return ???;
+#else
+	printf("Freeing (NOT implemented) redirected ISA irq %d.\n", rirq);
+	return 0;
+#endif  /* READY */
 }
 
 
