@@ -1,6 +1,6 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.3 1995/03/19 14:28:35 davidg Exp $";
+static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.4 1995/03/28 07:54:31 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,11 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.3 1995/03/19 14:28:35 david
  *
  *******************************************************************************
  * $Log: nic3008.c,v $
+ * Revision 1.4  1995/03/28  07:54:31  bde
+ * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
+ * (except in netccitt, netiso and netns) that I didn't notice when I fixed
+ * "all" such warnings before.
+ *
  * Revision 1.3  1995/03/19  14:28:35  davidg
  * Removed redundant newlines that were in some panic strings.
  *
@@ -133,7 +138,7 @@ nicprobe(struct isa_device * is)
 
 	if (cstrcmp(dpr->niccy_ver, "NICCY V ") == 0)
 	{
-		printf("NICCY NICCY-Card %d not found at %x\n"
+		printf("NICCY NICCY-Card %d not found at %p\n"
 		       ,is->id_unit, is->id_maddr);
 		return (0);
 	}

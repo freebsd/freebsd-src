@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.11 1995/03/19 14:29:11 davidg Exp $
+ * $Id: ffs_alloc.c,v 1.12 1995/03/26 23:29:09 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -176,8 +176,10 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	if ((u_int)osize > fs->fs_bsize || fragoff(fs, osize) != 0 ||
 	    (u_int)nsize > fs->fs_bsize || fragoff(fs, nsize) != 0) {
 		printf(
-		    "dev = 0x%lx, bsize = %d, osize = %d, nsize = %d, fs = %s\n",
-		    (u_long)ip->i_dev, fs->fs_bsize, osize, nsize, fs->fs_fsmnt);
+		    "dev = 0x%lx, bsize = %ld, osize = %d, "
+		    "nsize = %d, fs = %s\n",
+		    (u_long)ip->i_dev, fs->fs_bsize, osize,
+		    nsize, fs->fs_fsmnt);
 		panic("ffs_realloccg: bad size");
 	}
 	if (cred == NOCRED)

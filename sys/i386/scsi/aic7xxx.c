@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.24 1995/05/01 09:49:45 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.25 1995/05/01 18:43:14 gibbs Exp $
  */
 /*
  * TODO:
@@ -1747,7 +1747,7 @@ ahc_scsi_cmd(xs)
                 xs->error = XS_DRIVER_STUFFUP;
                 return (TRY_AGAIN_LATER);
         }
-        SC_DEBUG(xs->sc_link, SDEV_DB3, ("start scb(%x)\n", scb));
+        SC_DEBUG(xs->sc_link, SDEV_DB3, ("start scb(%p)\n", scb));
         scb->xs = xs;
         if (flags & SCSI_RESET) {
 		/* XXX: Needs Implementation */
@@ -1784,7 +1784,7 @@ ahc_scsi_cmd(xs)
                          * Set up the scatter gather block
                          */     
                         SC_DEBUG(xs->sc_link, SDEV_DB4,
-                            ("%d @0x%x:- ", xs->datalen, xs->data));
+                            ("%ld @%p:- ", xs->datalen, xs->data));
                         datalen = xs->datalen;
                         thiskv = (int) xs->data;
                         thisphys = KVTOPHYS(thiskv);
@@ -1795,7 +1795,8 @@ ahc_scsi_cmd(xs)
                                 /* put in the base address */
                                 sg->addr = thisphys;
 
-                                SC_DEBUGN(xs->sc_link, SDEV_DB4, ("0x%x", thisphys));   
+                                SC_DEBUGN(xs->sc_link, SDEV_DB4, ("0x%lx",
+					thisphys));   
         
                                 /* do it at least once */
                                 nextphys = thisphys;

@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.41 1995/04/12 20:47:58 wollman Exp $
+ *	$Id: mcd.c,v 1.42 1995/05/09 11:39:40 rgrimes Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -1075,7 +1075,7 @@ nextblock:
 		blknum 	= (bp->b_blkno / (mbx->sz/DEV_BSIZE))
 			+ mbx->p_offset + mbx->skip/mbx->sz;
 
-		MCD_TRACE("mcd_doread: read blknum=%d for bp=0x%x\n",
+		MCD_TRACE("mcd_doread: read blknum=%d for bp=%p\n",
 			blknum, bp);
 
 		/* build parameter block */

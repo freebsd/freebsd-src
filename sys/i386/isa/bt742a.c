@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.33 1995/04/23 09:13:05 julian Exp $
+ *      $Id: bt742a.c,v 1.34 1995/04/23 21:58:35 gibbs Exp $
  */
 
 /*
@@ -1446,7 +1446,7 @@ bt_scsi_cmd(xs)
 		return (TRY_AGAIN_LATER);
 	}
 	SC_DEBUG(xs->sc_link, SDEV_DB3,
-	    ("start ccb(%x)\n", ccb));
+	    ("start ccb(%p)\n", ccb));
 	/*
 	 * Put all the arguments for the xfer in the ccb
 	 */
@@ -1494,7 +1494,7 @@ bt_scsi_cmd(xs)
 			 */
 
 			SC_DEBUG(xs->sc_link, SDEV_DB4,
-			    ("%d @0x%x:- ", xs->datalen, xs->data));
+			    ("%ld @%p:- ", xs->datalen, xs->data));
 			datalen = xs->datalen;
 			thiskv = (int) xs->data;
 			thisphys = KVTOPHYS(thiskv);
@@ -1506,7 +1506,7 @@ bt_scsi_cmd(xs)
 				sg->seg_addr = thisphys;
 
 				SC_DEBUGN(xs->sc_link, SDEV_DB4,
-				    ("0x%x", thisphys));
+				    ("0x%lx", thisphys));
 
 				/* do it at least once */
 				nextphys = thisphys;

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.42 1995/04/16 12:02:42 davidg Exp $
+ * $Id: vfs_bio.c,v 1.43 1995/04/30 05:09:13 davidg Exp $
  */
 
 /*
@@ -1132,10 +1132,13 @@ biodone(register struct buf * bp)
 			 * have not set the page busy flag correctly!!!
 			 */
 			if (m->busy == 0) {
-				printf("biodone: page busy < 0, off: %d, foff: %d, resid: %d, index: %d\n",
+				printf("biodone: page busy < 0, "
+				    "off: %ld, foff: %ld, "
+				    "resid: %d, index: %d\n",
 				    m->offset, foff, resid, i);
-				printf(" iosize: %d, lblkno: %d\n",
-				    bp->b_vp->v_mount->mnt_stat.f_iosize, bp->b_lblkno);
+				printf(" iosize: %ld, lblkno: %ld\n",
+				    bp->b_vp->v_mount->mnt_stat.f_iosize,
+				    bp->b_lblkno);
 				printf(" valid: 0x%x, dirty: 0x%x, mapped: %d\n",
 				    m->valid, m->dirty, m->bmapped);
 				panic("biodone: page busy < 0\n");
