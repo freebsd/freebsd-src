@@ -1899,7 +1899,7 @@ retry_lookup:
 		pg = vm_page_lookup(obj, pindex);
 
 		if (pg == NULL) {
-			pg = vm_page_alloc(obj, pindex,
+			pg = vm_page_alloc(obj, pindex, VM_ALLOC_NOBUSY |
 			    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
 			if (pg == NULL) {
 				VM_OBJECT_UNLOCK(obj);
@@ -1908,7 +1908,6 @@ retry_lookup:
 				goto retry_lookup;
 			}
 			vm_page_lock_queues();
-			vm_page_wakeup(pg);
 		} else {
 			vm_page_lock_queues();
 			if (vm_page_sleep_if_busy(pg, TRUE, "sfpbsy"))
@@ -1954,10 +1953,11 @@ retry_lookup:
 			    IO_VMIO | ((MAXBSIZE / bsize) << IO_SEQSHIFT),
 			    td->td_ucred, NOCRED, &resid, td);
 			VOP_UNLOCK(vp, 0, td);
-			if (error)
-				VM_OBJECT_LOCK(obj);
+			VM_OBJECT_LOCK(obj);
 			vm_page_lock_queues();
 			vm_page_io_finish(pg);
+			if (!error)
+				VM_OBJECT_UNLOCK(obj);
 			mbstat.sf_iocnt++;
 		}
 	
@@ -1970,7 +1970,6 @@ retry_lookup:
 			if (pg->wire_count == 0 && pg->valid == 0 &&
 			    pg->busy == 0 && !(pg->flags & PG_BUSY) &&
 			    pg->hold_count == 0) {
-				vm_page_busy(pg);
 				vm_page_free(pg);
 			}
 			vm_page_unlock_queues();
