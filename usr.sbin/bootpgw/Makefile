@@ -1,12 +1,12 @@
 # bootpgw/Makefile
-# $Id: Makefile,v 1.1.1.1 1994/06/27 21:29:46 gwr Exp $
+# $Id: Makefile,v 1.1.1.1 1994/09/10 14:44:56 csgr Exp $
 
 PROG=	bootpgw
 SRCDIR= ${.CURDIR}/../bootpd
 CFLAGS+= -DSYSLOG -DDEBUG -I${SRCDIR}
 .PATH: ${SRCDIR}
 
-SRCS=	bootpgw.c getif.c hwaddr.c report.c
+SRCS=	bootpgw.c getif.c hwaddr.c report.c rtmsg.c
 
 MAN8=
 
