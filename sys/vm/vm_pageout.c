@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.51.4.8 1996/06/26 08:19:48 davidg Exp $
+ * $Id: vm_pageout.c,v 1.51.4.9 1996/06/27 05:46:44 davidg Exp $
  */
 
 /*
@@ -597,8 +597,17 @@ rescan1:
 					m = next;
 					continue;
 				}
-				if ((m->flags & PG_INACTIVE) == 0) {
-					goto rescan1;
+				/*
+				 * We might have blocked above, so make sure
+				 * the page didn't move on us.
+				 */
+				if ((m->flags & PG_INACTIVE) == 0 || m->dirty == 0) {
+					vput(vp);
+					vm_object_unlock(object);
+					if (object->flags & OBJ_WRITEABLE)
+						++vnodes_skipped;
+					m = next;
+					continue;
 				}
 			}
 
