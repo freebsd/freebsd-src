@@ -272,7 +272,7 @@ vlan_start(struct ifnet *ifp)
 	return;
 }
 
-void
+int
 vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 {
 	int i;
@@ -509,7 +509,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (vlr.vlr_parent[0] == '\0') {
 			vlan_unconfig(ifp);
 			if_down(ifp);
-			ifp->if_flags = 0;
+			ifp->if_flags &= ~(IFF_UP|IFF_RUNNING);
 			break;
 		}
 		p = ifunit(vlr.vlr_parent);
@@ -521,6 +521,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (error)
 			break;
 		ifv->ifv_tag = vlr.vlr_tag;
+		ifp->if_flags |= IFF_RUNNING;
 		break;
 		
 	case SIOCGETVLAN:
