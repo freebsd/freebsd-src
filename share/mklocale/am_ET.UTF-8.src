@@ -14,7 +14,7 @@ ALPHA		'A' - 'Z' 'a' - 'z' 0xe18880 - 0xe18d9a
 CONTROL		0x00 - 0x1f 0x7f - 0x9f
 
 /* DIGIT	'0' - '9' '፩' - '፱' */
-DIGIT		'0' - '9' 0xe18da9 - 0xe18db1
+DIGIT           '0' - '9'
 GRAPH		0x21 - 0x7e 0xa1 - 0xfa
 LOWER		'a' - 'z'
 
