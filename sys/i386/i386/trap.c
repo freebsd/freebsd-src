@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.31 1994/08/27 16:14:13 davidg Exp $
+ *	$Id: trap.c,v 1.32 1994/08/28 16:16:33 bde Exp $
  */
 
 /*
@@ -62,7 +62,6 @@
 #include <machine/cpu.h>
 #include <machine/psl.h>
 #include <machine/reg.h>
-#include <machine/eflags.h>
 #include <machine/trap.h>
 
 #include "isa.h"
@@ -470,17 +469,17 @@ trap_fatal(frame)
 	}
 	printf("instruction pointer	= 0x%x\n", frame->tf_eip);
 	printf("processor eflags	= ");
-	if (frame->tf_eflags & EFL_TF)
+	if (frame->tf_eflags & PSL_T)
 		printf("trace/trap, ");
-	if (frame->tf_eflags & EFL_IF)
+	if (frame->tf_eflags & PSL_I)
 		printf("interrupt enabled, ");
-	if (frame->tf_eflags & EFL_NT)
+	if (frame->tf_eflags & PSL_NT)
 		printf("nested task, ");
-	if (frame->tf_eflags & EFL_RF)
+	if (frame->tf_eflags & PSL_RF)
 		printf("resume, ");
-	if (frame->tf_eflags & EFL_VM)
+	if (frame->tf_eflags & PSL_VM)
 		printf("vm86, ");
-	printf("IOPL = %d\n", (frame->tf_eflags & EFL_IOPL) >> 12);
+	printf("IOPL = %d\n", (frame->tf_eflags & PSL_IOPL) >> 12);
 	printf("current process		= ");
 	if (curproc) {
 		printf("%d (%s)\n",
