@@ -3507,7 +3507,7 @@ ipfw_init(void)
 #ifdef IPDIVERT
 		"enabled",
 #else
-		"disabled",
+		"loadable",
 #endif
 		default_rule.cmd[0].opcode == O_ACCEPT ? "accept" : "deny");
 
