@@ -63,8 +63,6 @@
 #ifdef SMP
 #include <machine/smp.h>
 #endif
-#include <machine/pcb_ext.h>
-#include <machine/vm86.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
