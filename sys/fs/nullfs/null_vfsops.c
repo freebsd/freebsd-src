@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.19 1997/08/16 19:15:16 wollman Exp $
+ * $Id: null_vfsops.c,v 1.20 1997/10/12 20:24:50 phk Exp $
  */
 
 /*
@@ -198,6 +198,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	(void) copyinstr(args.target, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
 	    &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+	(void)nullfs_statfs(mp, &mp->mnt_stat, p);
 #ifdef NULLFS_DIAGNOSTIC
 	printf("nullfs_mount: lower %s, alias at %s\n",
 		mp->mnt_stat.f_mntfromname, mp->mnt_stat.f_mntonname);

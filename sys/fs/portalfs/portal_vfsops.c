@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.11 (Berkeley) 5/14/95
  *
- * $Id: portal_vfsops.c,v 1.17 1997/08/16 19:15:17 wollman Exp $
+ * $Id: portal_vfsops.c,v 1.18 1997/10/12 20:24:53 phk Exp $
  */
 
 /*
@@ -151,6 +151,7 @@ portal_mount(mp, path, data, ndp, p)
 	bcopy("portal", mp->mnt_stat.f_mntfromname, sizeof("portal"));
 #endif
 
+	(void)portal_statfs(mp, &mp->mnt_stat, p);
 	return (0);
 }
 
