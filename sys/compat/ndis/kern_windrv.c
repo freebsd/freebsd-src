@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/ndis_var.h>
 #include <compat/ndis/hal_var.h>
+#include <compat/ndis/usbd_var.h>
 
 struct windrv_type {
 	uint16_t		windrv_vid;	/* for PCI or USB */
@@ -130,19 +131,35 @@ windrv_libfini(void)
  */
 
 driver_object *
-windrv_lookup(img)
+windrv_lookup(img, name)
 	vm_offset_t		img;
+	char			*name;
 {
 	struct drvdb_ent	*d;
+	unicode_string		us;
+
+	/* Damn unicode. */
+
+	if (name != NULL) {
+	 	us.us_len = strlen(name) * 2;
+		us.us_maxlen = strlen(name) * 2;
+		us.us_buf = NULL;
+		ndis_ascii_to_unicode(name, &us.us_buf);
+	}
 
 	mtx_lock(&drvdb_mtx); 
 	STAILQ_FOREACH(d, &drvdb_head, link) {
-		if (d->windrv_object->dro_driverstart == (void *)img) {
+		if (d->windrv_object->dro_driverstart == (void *)img ||
+		    bcmp((char *)d->windrv_object->dro_drivername.us_buf,
+		    (char *)us.us_buf, us.us_len) == 0) {
 			mtx_unlock(&drvdb_mtx);
 			return(d->windrv_object);
 		}
 	}
 	mtx_unlock(&drvdb_mtx);
+
+	if (name != NULL)
+		ExFreePool(us.us_buf);
 
 	return(NULL);
 }
@@ -244,12 +261,10 @@ windrv_load(mod, img, len)
 	}
 
 	/* Dynamically link USBD.SYS -- optional */
-#ifdef notyet
 	if (pe_get_import_descriptor(img, &imp_desc, "USBD") == 0) {
-		if (pe_patch_imports(img, "USBD", ntoskrnl_functbl))
+		if (pe_patch_imports(img, "USBD", usbd_functbl))
 			return(ENOEXEC);
 	}
-#endif
 
 	/* Next step: find the driver entry point. */
 
