@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.12 1998/09/23 03:03:19 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.13 1998/09/24 22:43:54 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -600,6 +600,7 @@ static void	 probedone(struct cam_periph *periph, union ccb *done_ccb);
 static void	 probecleanup(struct cam_periph *periph);
 static void	 xpt_find_quirk(struct cam_ed *device);
 static void	 xpt_set_transfer_settings(struct ccb_trans_settings *cts,
+					   struct cam_ed *device,
 					   int async_update);
 static void	 xpt_toggle_tags(struct cam_path *path);
 static void	 xpt_start_tags(struct cam_path *path);
@@ -2567,6 +2568,7 @@ xpt_action(union ccb *start_ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		xpt_set_transfer_settings(&start_ccb->cts,
+					  start_ccb->ccb_h.path->device,
 					  /*async_update*/FALSE);
 		break;
 	}
@@ -3872,14 +3874,6 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 		 && path->target != NULL)
 			continue;
 
-		if (async_code == AC_TRANSFER_NEG) {
-			struct ccb_trans_settings *settings;
-
-			settings = (struct ccb_trans_settings *)async_arg;
-			xpt_set_transfer_settings(settings,
-						  /*async_update*/TRUE);
-		}
-
 		for (device = TAILQ_FIRST(&target->ed_entries);
 		     device != NULL;
 		     device = next_device) {
@@ -3960,8 +3954,17 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 						     NULL);
 				}
 				xpt_release_path(&newpath);
-			} else if (async_code == AC_LOST_DEVICE)
+			} else if (async_code == AC_LOST_DEVICE) {
 				device->flags |= CAM_DEV_UNCONFIGURED;
+			} else if (async_code == AC_TRANSFER_NEG) {
+				struct ccb_trans_settings *settings;
+
+				settings =
+				    (struct ccb_trans_settings *)async_arg;
+				xpt_set_transfer_settings(settings, device,
+							  /*async_update*/TRUE);
+			}
+
 
 			xpt_async_bcast(&device->asyncs,
 					async_code,
@@ -5240,18 +5243,22 @@ xpt_find_quirk(struct cam_ed *device)
 }
 
 static void
-xpt_set_transfer_settings(struct ccb_trans_settings *cts, int async_update)
+xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
+			  int async_update)
 {
-	struct	cam_ed *device;
 	struct	cam_sim *sim;
 	int	qfrozen;
-	int	device_tagenb;
 
-	device = cts->ccb_h.path->device;
 	sim = cts->ccb_h.path->bus->sim;
 	if (async_update == FALSE) {
 		struct	scsi_inquiry_data *inq_data;
 		struct	ccb_pathinq cpi;
+
+		if (device == NULL) {
+			cts->ccb_h.status = CAM_PATH_INVALID;
+			xpt_done((union ccb *)cts);
+			return;
+		}
 
 		/*
 		 * Perform sanity checking against what the
@@ -5308,50 +5315,53 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, int async_update)
 		}
 	}
 
-	/*
-	 * If we are transitioning from tags to no-tags or
-	 * vice-versa, we need to carefully freeze and restart
-	 * the queue so that we don't overlap tagged and non-tagged
-	 * commands.  We also temporarily stop tags if there is
-	 * a change in transfer negotiation settings to allow
-	 * "tag-less" negotiation.
-	 */
 	qfrozen = FALSE;
-	if ((device->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
-	 || (device->inq_flags & SID_CmdQue) != 0)
-		device_tagenb = TRUE;
-	else
-		device_tagenb = FALSE;
+	if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
+		int device_tagenb;
 
-	if ((cts->valid & CCB_TRANS_TQ_VALID) != 0
-	 && (((cts->flags & CCB_TRANS_TAG_ENB) != 0
-	   && device_tagenb == FALSE)
-	  || ((cts->flags & CCB_TRANS_TAG_ENB) == 0
-	   && device_tagenb == TRUE))) {
+		/*
+		 * If we are transitioning from tags to no-tags or
+		 * vice-versa, we need to carefully freeze and restart
+		 * the queue so that we don't overlap tagged and non-tagged
+		 * commands.  We also temporarily stop tags if there is
+		 * a change in transfer negotiation settings to allow
+		 * "tag-less" negotiation.
+		 */
+		if ((device->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
+		 || (device->inq_flags & SID_CmdQue) != 0)
+			device_tagenb = TRUE;
+		else
+			device_tagenb = FALSE;
 
-		if ((cts->flags & CCB_TRANS_TAG_ENB) != 0) {
-			/*
-			 * Delay change to use tags until after a
-			 * few commands have gone to this device so
-			 * the controller has time to perform transfer
-			 * negotiations without tagged messages getting
-			 * in the way.
-			 */
-			device->tag_delay_count = CAM_TAG_DELAY_COUNT;
-			device->flags |= CAM_DEV_TAG_AFTER_COUNT;
-		} else {
-			xpt_freeze_devq(cts->ccb_h.path, /*count*/1);
-			qfrozen = TRUE;
-	  		device->inq_flags &= ~SID_CmdQue;
-			xpt_dev_ccbq_resize(cts->ccb_h.path,
-					    sim->max_dev_openings);
-			device->flags &= ~CAM_DEV_TAG_AFTER_COUNT;
-			device->tag_delay_count = 0;
+		if (((cts->flags & CCB_TRANS_TAG_ENB) != 0
+		  && device_tagenb == FALSE)
+		 || ((cts->flags & CCB_TRANS_TAG_ENB) == 0
+		  && device_tagenb == TRUE)) {
+
+			if ((cts->flags & CCB_TRANS_TAG_ENB) != 0) {
+				/*
+				 * Delay change to use tags until after a
+				 * few commands have gone to this device so
+				 * the controller has time to perform transfer
+				 * negotiations without tagged messages getting
+				 * in the way.
+				 */
+				device->tag_delay_count = CAM_TAG_DELAY_COUNT;
+				device->flags |= CAM_DEV_TAG_AFTER_COUNT;
+			} else {
+				xpt_freeze_devq(cts->ccb_h.path, /*count*/1);
+				qfrozen = TRUE;
+		  		device->inq_flags &= ~SID_CmdQue;
+				xpt_dev_ccbq_resize(cts->ccb_h.path,
+						    sim->max_dev_openings);
+				device->flags &= ~CAM_DEV_TAG_AFTER_COUNT;
+				device->tag_delay_count = 0;
+			}
+		} else if ((cts->flags & (CCB_TRANS_SYNC_RATE_VALID|
+					  CCB_TRANS_SYNC_OFFSET_VALID|
+					  CCB_TRANS_BUS_WIDTH_VALID)) != 0) {
+			xpt_toggle_tags(cts->ccb_h.path);
 		}
-	} else if ((cts->flags & (CCB_TRANS_SYNC_RATE_VALID|
-				  CCB_TRANS_SYNC_OFFSET_VALID|
-				  CCB_TRANS_BUS_WIDTH_VALID)) != 0) {
-		xpt_toggle_tags(cts->ccb_h.path);
 	}
 
 	if (async_update == FALSE)
@@ -5389,9 +5399,11 @@ xpt_toggle_tags(struct cam_path *path)
 		xpt_setup_ccb(&cts.ccb_h, path, 1);
 		cts.flags = 0;
 		cts.valid = CCB_TRANS_TQ_VALID;
-		xpt_set_transfer_settings(&cts, /*async_update*/TRUE);
+		xpt_set_transfer_settings(&cts, path->device,
+					  /*async_update*/TRUE);
 		cts.flags = CCB_TRANS_TAG_ENB;
-		xpt_set_transfer_settings(&cts, /*async_update*/TRUE);
+		xpt_set_transfer_settings(&cts, path->device,
+					  /*async_update*/TRUE);
 	}
 }
 
