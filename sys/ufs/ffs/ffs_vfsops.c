@@ -417,7 +417,6 @@ ffs_reload(struct mount *mp, struct thread *td)
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vinvalbuf(devvp, 0, td, 0, 0) != 0)
 		panic("ffs_reload: dirty1");
-	VOP_CREATEVOBJECT(devvp, td->td_ucred, td);
 	VOP_UNLOCK(devvp, 0, td);
 
 	/*
@@ -562,7 +561,6 @@ ffs_mountfs(devvp, mp, td)
 	dev = devvp->v_rdev;
 	cred = td ? td->td_ucred : NOCRED;
 
-	VOP_CREATEVOBJECT(devvp, td->td_ucred, td);
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	DROP_GIANT();
 	g_topology_lock();
