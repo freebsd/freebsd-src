@@ -796,10 +796,9 @@ _ftp_connect(struct url *url, struct url *purl, const char *flags)
 	}
 
 	/* check connection */
-	if (conn == NULL) {
-		_fetch_syserr();
+	if (conn == NULL)
+		/* _fetch_connect() has already set an error code */
 		return (NULL);
-	}
 
 	/* expect welcome message */
 	if ((e = _ftp_chkerr(conn)) != FTP_SERVICE_READY)
