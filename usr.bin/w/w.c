@@ -432,11 +432,9 @@ pr_header(time_t *nowp, int nusers)
 	/*
 	 * Print time of day.
 	 */
-	(void)strftime(buf, sizeof(buf)	- 1,
-		       use_ampm	? "%l:%M%p" : "%k:%M", localtime(nowp));
-	buf[sizeof(buf) - 1] = '\0';
-	(void)printf("%s ", buf);
-
+	if (strftime(buf, sizeof(buf),
+	    use_ampm ? "%l:%M%p" : "%k:%M", localtime(nowp)) != 0)
+		(void)printf("%s ", buf);
 	/*
 	 * Print how long system has been up.
 	 * (Found by looking getting "boottime" from the kernel)
