@@ -78,6 +78,7 @@ libc		nectar	Opportuntity for pre-commit review appreciated for
 			nsdispatch(3) and its consumers.
 unifdef(1)	fanf	Pre-commit review requested.
 ntp         roberto	Pre-commit review requested.
+inetd		dwmalone	Recommends pre-commit review.
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.
@@ -137,7 +138,6 @@ sys/modules/usb/Makefile:MAINTAINER=	n_hibma@freebsd.org
 sys/modules/uscanner/Makefile:MAINTAINER=	n_hibma@freebsd.org
 usr.bin/chat/Makefile:MAINTAINER=	peter@freebsd.org
 usr.bin/locate/Makefile:MAINTAINER=	wosch@FreeBSD.org
-usr.sbin/inetd/Makefile:MAINTAINER=	dwmalone@FreeBSD.org
 usr.sbin/ipftest/Makefile:MAINTAINER=	darrenr@freebsd.org
 usr.sbin/ipresend/Makefile:MAINTAINER=	darrenr@freebsd.org
 usr.sbin/ipsend/Makefile:MAINTAINER=	darrenr@freebsd.org
