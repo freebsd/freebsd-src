@@ -2921,6 +2921,9 @@
         <listitem>
 	  <para>Microsoft keyboard</para>
 	</listitem>
+	<listitem>
+	  <para>Sun Microsystems Type 6 USB keyboard</para>
+	</listitem>
       </itemizedlist>
     </para>
     <para arch="i386,pc98">Miscellaneous
@@ -2980,6 +2983,9 @@
 	</listitem>
         <listitem>
 	  <para>Microsoft IntelliMouse (3 buttons)</para>
+	</listitem>
+        <listitem>
+	  <para>Sun Microsystems Type 6 USB Mouse</para>
 	</listitem>
         <listitem>
 	  <para>Trust Ami Mouse (3 buttons)</para>
