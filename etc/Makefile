@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.61 1994/06/01 00:58:05 phk Exp $
+#	$Id: Makefile,v 1.62 1994/06/03 05:18:18 jkh Exp $
 
 NOOBJ=	noobj
 
@@ -93,13 +93,13 @@ CPIO_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/cpio usr/bin/ex usr/bin/ftp
 CPIO_CPIO+=	usr/bin/gunzip usr/bin/gzcat usr/bin/gzip
 CPIO_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip
 CPIO_CPIO+=	usr/bin/vi usr/bin/view usr/bin/zcat
-CPIO_CPIO+=	usr/lib/libc.so.1.0
-CPIO_CPIO+=	usr/lib/libcurses.so.1.0
-CPIO_CPIO+=	usr/lib/libgcc.so.1.0
-CPIO_CPIO+=	usr/lib/libm.so.1.0
-CPIO_CPIO+=	usr/lib/libtermlib.so.1.0
-CPIO_CPIO+=	usr/lib/libtermcap.so.1.0
-CPIO_CPIO+=	usr/lib/libutil.so.1.0
+CPIO_CPIO+=	usr/lib/libc.so.1.1
+CPIO_CPIO+=	usr/lib/libcurses.so.1.1
+CPIO_CPIO+=	usr/lib/libgcc.so.1.1
+CPIO_CPIO+=	usr/lib/libm.so.1.1
+CPIO_CPIO+=	usr/lib/libtermlib.so.1.1
+CPIO_CPIO+=	usr/lib/libtermcap.so.1.1
+CPIO_CPIO+=	usr/lib/libutil.so.1.1
 CPIO_CPIO+=	usr/libexec/ld.so
 CPIO_CPIO+=	usr/sbin/bad144 usr/sbin/chown
 CPIO_CPIO+=	usr/share/misc/termcap
