@@ -1142,7 +1142,8 @@ create_termcap(void)
 
     const char *caps[] = {
 	termcap_vt100, termcap_cons25, termcap_cons25_m, termcap_cons25r,
-	termcap_cons25r_m, termcap_cons25l1, termcap_cons25l1_m, NULL,
+	termcap_cons25r_m, termcap_cons25l1, termcap_cons25l1_m,
+	termcap_xterm, NULL,
     };
     const char **cp;
 

@@ -59,6 +59,9 @@ makedevs.c:	Makefile rtermcap keymap.h
 	./rtermcap vt100 | \
 		file2c 'const char termcap_vt100[] = {' ',0};' \
 		>> makedevs.tmp
+	./rtermcap xterm | \
+		file2c 'const char termcap_xterm[] = {' ',0};' \
+		>> makedevs.tmp
 .if ${MACHINE} == "i386"
 	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.tmp
 	echo "size_t boot0_size = sizeof(boot0);" >> makedevs.tmp
