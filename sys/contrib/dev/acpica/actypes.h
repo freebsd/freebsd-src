@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 237 $
+ *       $Revision: 238 $
  *
  *****************************************************************************/
 
@@ -300,8 +300,18 @@ typedef struct AcpiPointer
 
 /* PointerTypes for above */
 
-#define ACPI_LOGICAL_POINTER            0x01
-#define ACPI_PHYSICAL_POINTER           0x02
+#define ACPI_PHYSICAL_POINTER           0x01
+#define ACPI_LOGICAL_POINTER            0x02
+
+/* Processor mode */
+
+#define ACPI_PHYSICAL_ADDRESSING        0x04
+#define ACPI_LOGICAL_ADDRESSING         0x08
+#define ACPI_MEMORY_MODE                0x0C
+
+#define ACPI_PHYSMODE_PHYSPTR           ACPI_PHYSICAL_ADDRESSING | ACPI_PHYSICAL_POINTER
+#define ACPI_LOGMODE_PHYSPTR            ACPI_LOGICAL_ADDRESSING  | ACPI_PHYSICAL_POINTER
+#define ACPI_LOGMODE_LOGPTR             ACPI_LOGICAL_ADDRESSING  | ACPI_LOGICAL_POINTER
 
 
 /*

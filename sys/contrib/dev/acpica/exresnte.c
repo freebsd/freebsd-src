@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresnte - AML Interpreter object resolution
- *              $Revision: 56 $
+ *              $Revision: 57 $
  *
  *****************************************************************************/
 
@@ -320,7 +320,7 @@ AcpiExResolveNodeToValue (
 
         /* No named references are allowed here */
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unsupported reference opcode %X\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unsupported Reference opcode %X\n",
             SourceDesc->Reference.Opcode));
 
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);

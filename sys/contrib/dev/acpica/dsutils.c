@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsutils - Dispatcher utilities
- *              $Revision: 93 $
+ *              $Revision: 94 $
  *
  ******************************************************************************/
 
@@ -127,6 +127,7 @@
 #define _COMPONENT          ACPI_DISPATCHER
         ACPI_MODULE_NAME    ("dsutils")
 
+#ifndef ACPI_NO_METHOD_EXECUTION
 
 /*******************************************************************************
  *
@@ -336,6 +337,49 @@ AcpiDsDeleteResultIfNotUsed (
 
     return_VOID;
 }
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDsResolveOperands
+ *
+ * PARAMETERS:  WalkState           - Current walk state with operands on stack
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Resolve all operands to their values.  Used to prepare
+ *              arguments to a control method invocation (a call from one
+ *              method to another.)
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiDsResolveOperands (
+    ACPI_WALK_STATE         *WalkState)
+{
+    UINT32                  i;
+    ACPI_STATUS             Status = AE_OK;
+
+
+    ACPI_FUNCTION_TRACE_PTR ("DsResolveOperands", WalkState);
+
+
+    /*
+     * Attempt to resolve each of the valid operands
+     * Method arguments are passed by value, not by reference
+     */
+    for (i = 0; i < WalkState->NumOperands; i++)
+    {
+        Status = AcpiExResolveToValue (&WalkState->Operands[i], WalkState);
+        if (ACPI_FAILURE (Status))
+        {
+            break;
+        }
+    }
+
+    return_ACPI_STATUS (Status);
+}
+#endif
 
 
 /*******************************************************************************
@@ -639,45 +683,4 @@ Cleanup:
     return_ACPI_STATUS (Status);
 }
 
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDsResolveOperands
- *
- * PARAMETERS:  WalkState           - Current walk state with operands on stack
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Resolve all operands to their values.  Used to prepare
- *              arguments to a control method invocation (a call from one
- *              method to another.)
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiDsResolveOperands (
-    ACPI_WALK_STATE         *WalkState)
-{
-    UINT32                  i;
-    ACPI_STATUS             Status = AE_OK;
-
-
-    ACPI_FUNCTION_TRACE_PTR ("DsResolveOperands", WalkState);
-
-
-    /*
-     * Attempt to resolve each of the valid operands
-     * Method arguments are passed by value, not by reference
-     */
-    for (i = 0; i < WalkState->NumOperands; i++)
-    {
-        Status = AcpiExResolveToValue (&WalkState->Operands[i], WalkState);
-        if (ACPI_FAILURE (Status))
-        {
-            break;
-        }
-    }
-
-    return_ACPI_STATUS (Status);
-}
 

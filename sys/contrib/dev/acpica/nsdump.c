@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 136 $
+ *              $Revision: 137 $
  *
  *****************************************************************************/
 
@@ -755,97 +755,6 @@ AcpiNsDumpObjects (
                 (void *) &Info, NULL);
 }
 
-
-#ifndef _ACPI_ASL_COMPILER
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsDumpOneDevice
- *
- * PARAMETERS:  Handle              - Node to be dumped
- *              Level               - Nesting level of the handle
- *              Context             - Passed into WalkNamespace
- *
- * DESCRIPTION: Dump a single Node that represents a device
- *              This procedure is a UserFunction called by AcpiNsWalkNamespace.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiNsDumpOneDevice (
-    ACPI_HANDLE             ObjHandle,
-    UINT32                  Level,
-    void                    *Context,
-    void                    **ReturnValue)
-{
-    ACPI_DEVICE_INFO        Info;
-    ACPI_STATUS             Status;
-    UINT32                  i;
-
-
-    ACPI_FUNCTION_NAME ("NsDumpOneDevice");
-
-
-    Status = AcpiNsDumpOneObject (ObjHandle, Level, Context, ReturnValue);
-
-    Status = AcpiGetObjectInfo (ObjHandle, &Info);
-    if (ACPI_SUCCESS (Status))
-    {
-        for (i = 0; i < Level; i++)
-        {
-            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " "));
-        }
-
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "    HID: %s, ADR: %8.8X%8.8X, Status: %X\n",
-                        Info.HardwareId,
-                        ACPI_HIDWORD (Info.Address), ACPI_LODWORD (Info.Address),
-                        Info.CurrentStatus));
-    }
-
-    return (Status);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsDumpRootDevices
- *
- * PARAMETERS:  None
- *
- * DESCRIPTION: Dump all objects of type "device"
- *
- ******************************************************************************/
-
-void
-AcpiNsDumpRootDevices (void)
-{
-    ACPI_HANDLE             SysBusHandle;
-    ACPI_STATUS             Status;
-
-
-    ACPI_FUNCTION_NAME ("NsDumpRootDevices");
-
-
-    /* Only dump the table if tracing is enabled */
-
-    if (!(ACPI_LV_TABLES & AcpiDbgLevel))
-    {
-        return;
-    }
-
-    Status = AcpiGetHandle (0, ACPI_NS_SYSTEM_BUS, &SysBusHandle);
-    if (ACPI_FAILURE (Status))
-    {
-        return;
-    }
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_TABLES, "Display of all devices in the namespace:\n"));
-
-    Status = AcpiNsWalkNamespace (ACPI_TYPE_DEVICE, SysBusHandle, 
-                ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
-                AcpiNsDumpOneDevice, NULL, NULL);
-}
-
-#endif
 
 /*******************************************************************************
  *

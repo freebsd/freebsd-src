@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psxface - Parser external interfaces
- *              $Revision: 64 $
+ *              $Revision: 65 $
  *
  *****************************************************************************/
 
@@ -205,7 +205,7 @@ AcpiPsxExecute (
 
     /* Create and init a Root Node */
 
-    Op = AcpiPsAllocOp (AML_SCOPE_OP);
+    Op = AcpiPsCreateScopeOp ();
     if (!Op)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -249,7 +249,7 @@ AcpiPsxExecute (
 
     /* Create and init a Root Node */
 
-    Op = AcpiPsAllocOp (AML_SCOPE_OP);
+    Op = AcpiPsCreateScopeOp ();
     if (!Op)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);

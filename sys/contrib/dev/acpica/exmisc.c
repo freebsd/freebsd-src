@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 106 $
+ *              $Revision: 107 $
  *
  *****************************************************************************/
 
@@ -132,8 +132,9 @@
  *
  * FUNCTION:    AcpiExGetObjectReference
  *
- * PARAMETERS:  ObjDesc         - Create a reference to this object
- *              ReturnDesc         - Where to store the reference
+ * PARAMETERS:  ObjDesc             - Create a reference to this object
+ *              ReturnDesc          - Where to store the reference
+ *              WalkState           - Current state
  *
  * RETURN:      Status
  *
@@ -148,11 +149,14 @@ AcpiExGetObjectReference (
     ACPI_OPERAND_OBJECT     **ReturnDesc,
     ACPI_WALK_STATE         *WalkState)
 {
-    ACPI_STATUS             Status = AE_OK;
+    ACPI_OPERAND_OBJECT     *ReferenceObj;
+    ACPI_OPERAND_OBJECT     *ReferencedObj;
 
 
     ACPI_FUNCTION_TRACE_PTR ("ExGetObjectReference", ObjDesc);
 
+
+    *ReturnDesc = NULL;
 
     switch (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc))
     {
@@ -160,56 +164,64 @@ AcpiExGetObjectReference (
 
         if (ACPI_GET_OBJECT_TYPE (ObjDesc) != INTERNAL_TYPE_REFERENCE)
         {
-            *ReturnDesc = NULL;
-            Status = AE_TYPE;
-            goto Cleanup;
+            return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
 
         /*
-         * Not a Name -- an indirect name pointer would have
-         * been converted to a direct name pointer in AcpiExResolveOperands
+         * Must be a reference to a Local or Arg
          */
         switch (ObjDesc->Reference.Opcode)
         {
         case AML_LOCAL_OP:
         case AML_ARG_OP:
 
-            Status = AcpiDsMethodDataGetNode (ObjDesc->Reference.Opcode,
-                            ObjDesc->Reference.Offset, WalkState,
-                            ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE, ReturnDesc));
+            /* The referenced object is the pseudo-node for the local/arg */
+
+            ReferencedObj = ObjDesc->Reference.Object;
             break;
 
         default:
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "(Internal) Unknown Ref subtype %02x\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown Reference subtype %X\n",
                 ObjDesc->Reference.Opcode));
-            *ReturnDesc = NULL;
-            Status = AE_AML_INTERNAL;
-            goto Cleanup;
+            return_ACPI_STATUS (AE_AML_INTERNAL);
         }
         break;
 
 
     case ACPI_DESC_TYPE_NAMED:
 
-        /* Must be a named object;  Just return the Node */
-
-        *ReturnDesc = ObjDesc;
+        /* 
+         * A named reference that has already been resolved to a Node
+         */
+        ReferencedObj = ObjDesc;
         break;
 
 
     default:
 
-        *ReturnDesc = NULL;
-        Status = AE_TYPE;
-        break;
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Invalid descriptor type %X in %p\n",
+            ACPI_GET_DESCRIPTOR_TYPE (ObjDesc), ObjDesc));
+        return_ACPI_STATUS (AE_TYPE);
     }
 
 
-Cleanup:
+    /* Create a new reference object */
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p Ref=%p\n", ObjDesc, *ReturnDesc));
-    return_ACPI_STATUS (Status);
+    ReferenceObj = AcpiUtCreateInternalObject (INTERNAL_TYPE_REFERENCE);
+    if (!ReferenceObj)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    ReferenceObj->Reference.Opcode = AML_REF_OF_OP;
+    ReferenceObj->Reference.Object = ReferencedObj;
+    *ReturnDesc = ReferenceObj;
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Object %p Type [%s], returning Reference %p\n",
+        ObjDesc, AcpiUtGetObjectTypeName (ObjDesc), *ReturnDesc));
+
+    return_ACPI_STATUS (AE_OK);
 }
 
 

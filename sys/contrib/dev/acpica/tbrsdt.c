@@ -1,9 +1,9 @@
-/*******************************************************************************
+/******************************************************************************
  *
- * Module Name: nsnames - Name manipulation and search
- *              $Revision: 78 $
+ * Module Name: tbrsdt - ACPI RSDT table utilities
+ *              $Revision: 2 $
  *
- ******************************************************************************/
+ *****************************************************************************/
 
 /******************************************************************************
  *
@@ -114,228 +114,294 @@
  *
  *****************************************************************************/
 
-#define __NSNAMES_C__
+#define __TBRSDT_C__
 
 #include "acpi.h"
-#include "amlcode.h"
-#include "acnamesp.h"
+#include "actables.h"
 
 
-#define _COMPONENT          ACPI_NAMESPACE
-        ACPI_MODULE_NAME    ("nsnames")
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsBuildExternalPath
- *
- * PARAMETERS:  Node            - NS node whose pathname is needed
- *              Size            - Size of the pathname
- *              *NameBuffer     - Where to return the pathname
- *
- * RETURN:      Places the pathname into the NameBuffer, in external format
- *              (name segments separated by path separators)
- *
- * DESCRIPTION: Generate a full pathaname
- *
- ******************************************************************************/
-
-void
-AcpiNsBuildExternalPath (
-    ACPI_NAMESPACE_NODE     *Node,
-    ACPI_SIZE               Size,
-    NATIVE_CHAR             *NameBuffer)
-{
-    ACPI_SIZE               Index;
-    ACPI_NAMESPACE_NODE     *ParentNode;
-
-
-    ACPI_FUNCTION_NAME ("NsBuildExternalPath");
-
-
-    /* Special case for root */
-
-    Index = Size - 1;
-    if (Index < ACPI_NAME_SIZE)
-    {
-        NameBuffer[0] = AML_ROOT_PREFIX;
-        NameBuffer[1] = 0;
-        return;
-    }
-
-    /* Store terminator byte, then build name backwards */
-
-    ParentNode = Node;
-    NameBuffer[Index] = 0;
-
-    while ((Index > ACPI_NAME_SIZE) && (ParentNode != AcpiGbl_RootNode))
-    {
-        Index -= ACPI_NAME_SIZE;
-
-        /* Put the name into the buffer */
-
-        ACPI_MOVE_UNALIGNED32_TO_32 ((NameBuffer + Index), &ParentNode->Name);
-        ParentNode = AcpiNsGetParentNode (ParentNode);
-
-        /* Prefix name with the path separator */
-
-        Index--;
-        NameBuffer[Index] = PATH_SEPARATOR;
-    }
-
-    /* Overwrite final separator with the root prefix character */
-
-    NameBuffer[Index] = AML_ROOT_PREFIX;
-
-    if (Index != 0)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Could not construct pathname; index=%X, size=%X, Path=%s\n",
-            (UINT32) Index, (UINT32) Size, &NameBuffer[Size]));
-    }
-
-    return;
-}
-
-
-#ifdef ACPI_DEBUG
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsGetExternalPathname
- *
- * PARAMETERS:  Node            - NS node whose pathname is needed
- *
- * RETURN:      Pointer to storage containing the fully qualified name of
- *              the node, In external format (name segments separated by path
- *              separators.)
- *
- * DESCRIPTION: Used for debug printing in AcpiNsSearchTable().
- *
- ******************************************************************************/
-
-NATIVE_CHAR *
-AcpiNsGetExternalPathname (
-    ACPI_NAMESPACE_NODE     *Node)
-{
-    NATIVE_CHAR             *NameBuffer;
-    ACPI_SIZE               Size;
-
-
-    ACPI_FUNCTION_TRACE_PTR ("NsGetExternalPathname", Node);
-
-
-    /* Calculate required buffer size based on depth below root */
-
-    Size = AcpiNsGetPathnameLength (Node);
-
-    /* Allocate a buffer to be returned to caller */
-
-    NameBuffer = ACPI_MEM_CALLOCATE (Size);
-    if (!NameBuffer)
-    {
-        ACPI_REPORT_ERROR (("NsGetTablePathname: allocation failure\n"));
-        return_PTR (NULL);
-    }
-
-    /* Build the path in the allocated buffer */
-
-    AcpiNsBuildExternalPath (Node, Size, NameBuffer);
-    return_PTR (NameBuffer);
-}
-#endif
+#define _COMPONENT          ACPI_TABLES
+        ACPI_MODULE_NAME    ("tbrsdt")
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiNsGetPathnameLength
+ * FUNCTION:    AcpiTbVerifyRsdp
  *
- * PARAMETERS:  Node        - Namespace node
+ * PARAMETERS:  Address         - RSDP (Pointer to RSDT)
  *
- * RETURN:      Length of path, including prefix
+ * RETURN:      Status
  *
- * DESCRIPTION: Get the length of the pathname string for this node
- *
- ******************************************************************************/
-
-ACPI_SIZE
-AcpiNsGetPathnameLength (
-    ACPI_NAMESPACE_NODE     *Node)
-{
-    ACPI_SIZE               Size;
-    ACPI_NAMESPACE_NODE     *NextNode;
-
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    /*
-     * Compute length of pathname as 5 * number of name segments.
-     * Go back up the parent tree to the root
-     */
-    Size = 0;
-    NextNode = Node;
-
-    while (NextNode && (NextNode != AcpiGbl_RootNode))
-    {
-        Size += PATH_SEGMENT_LENGTH;
-        NextNode = AcpiNsGetParentNode (NextNode);
-    }
-
-    return (Size + 1);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsHandleToPathname
- *
- * PARAMETERS:  TargetHandle            - Handle of named object whose name is
- *                                        to be found
- *              Buffer                  - Where the pathname is returned
- *
- * RETURN:      Status, Buffer is filled with pathname if status is AE_OK
- *
- * DESCRIPTION: Build and return a full namespace pathname
+ * DESCRIPTION: Load and validate the RSDP (ptr) and RSDT (table)
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiNsHandleToPathname (
-    ACPI_HANDLE             TargetHandle,
-    ACPI_BUFFER             *Buffer)
+AcpiTbVerifyRsdp (
+    ACPI_POINTER            *Address)
 {
+    ACPI_TABLE_DESC         TableInfo;
     ACPI_STATUS             Status;
-    ACPI_NAMESPACE_NODE     *Node;
-    ACPI_SIZE               RequiredSize;
+    RSDP_DESCRIPTOR         *Rsdp;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("NsHandleToPathname", TargetHandle);
+    ACPI_FUNCTION_TRACE ("TbVerifyRsdp");
 
 
-    Node = AcpiNsMapHandleToNode (TargetHandle);
-    if (!Node)
+    switch (Address->PointerType)
     {
+    case ACPI_LOGICAL_POINTER:
+
+        Rsdp = Address->Pointer.Logical;
+        break;
+
+    case ACPI_PHYSICAL_POINTER:
+        /*
+         * Obtain access to the RSDP structure
+         */
+        Status = AcpiOsMapMemory (Address->Pointer.Physical, sizeof (RSDP_DESCRIPTOR),
+                                    (void **) &Rsdp);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+        break;
+    
+    default:
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    /* Determine size required for the caller buffer */
+    /*
+     *  The signature and checksum must both be correct
+     */
+    if (ACPI_STRNCMP ((NATIVE_CHAR *) Rsdp, RSDP_SIG, sizeof (RSDP_SIG)-1) != 0)
+    {
+        /* Nope, BAD Signature */
 
-    RequiredSize = AcpiNsGetPathnameLength (Node);
+        Status = AE_BAD_SIGNATURE;
+        goto Cleanup;
+    }
 
-    /* Validate/Allocate/Clear caller buffer */
+    /* Check the standard checksum */
 
-    Status = AcpiUtInitializeBuffer (Buffer, RequiredSize);
+    if (AcpiTbChecksum (Rsdp, ACPI_RSDP_CHECKSUM_LENGTH) != 0)
+    {
+        Status = AE_BAD_CHECKSUM;
+        goto Cleanup;
+    }
+
+    /* Check extended checksum if table version >= 2 */
+
+    if (Rsdp->Revision >= 2)
+    {
+        if (AcpiTbChecksum (Rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) != 0)
+        {
+            Status = AE_BAD_CHECKSUM;
+            goto Cleanup;
+        }
+    }
+
+    /* The RSDP supplied is OK */
+
+    TableInfo.Pointer      = ACPI_CAST_PTR (ACPI_TABLE_HEADER, Rsdp);
+    TableInfo.Length       = sizeof (RSDP_DESCRIPTOR);
+    TableInfo.Allocation   = ACPI_MEM_MAPPED;
+    TableInfo.BasePointer  = Rsdp;
+
+    /* Save the table pointers and allocation info */
+
+    Status = AcpiTbInitTableDescriptor (ACPI_TABLE_RSDP, &TableInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        goto Cleanup;
+    }
+
+    /* Save the RSDP in a global for easy access */
+
+    AcpiGbl_RSDP = ACPI_CAST_PTR (RSDP_DESCRIPTOR, TableInfo.Pointer);
+    return_ACPI_STATUS (Status);
+
+
+    /* Error exit */
+Cleanup:
+
+    if (AcpiGbl_TableFlags & ACPI_PHYSICAL_POINTER)
+    {
+        AcpiOsUnmapMemory (Rsdp, sizeof (RSDP_DESCRIPTOR));
+    }
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbGetRsdtAddress
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      RSDT physical address
+ *
+ * DESCRIPTION: Extract the address of the RSDT or XSDT, depending on the
+ *              version of the RSDP
+ *
+ ******************************************************************************/
+
+void
+AcpiTbGetRsdtAddress (
+    ACPI_POINTER            *OutAddress)
+{
+
+    ACPI_FUNCTION_ENTRY ();
+
+
+    OutAddress->PointerType = AcpiGbl_TableFlags | ACPI_LOGICAL_ADDRESSING;
+
+    /*
+     * For RSDP revision 0 or 1, we use the RSDT.
+     * For RSDP revision 2 (and above), we use the XSDT
+     */
+    if (AcpiGbl_RSDP->Revision < 2)
+    {
+        OutAddress->Pointer.Value = AcpiGbl_RSDP->RsdtPhysicalAddress;
+    }
+    else
+    {
+        OutAddress->Pointer.Value = ACPI_GET_ADDRESS (AcpiGbl_RSDP->XsdtPhysicalAddress);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbValidateRsdt
+ *
+ * PARAMETERS:  TablePtr        - Addressable pointer to the RSDT.
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Validate signature for the RSDT or XSDT
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbValidateRsdt (
+    ACPI_TABLE_HEADER       *TablePtr)
+{
+    int                     NoMatch;
+
+
+    ACPI_FUNCTION_NAME ("TbValidateRsdt");
+
+
+    /*
+     * For RSDP revision 0 or 1, we use the RSDT.
+     * For RSDP revision 2 and above, we use the XSDT
+     */
+    if (AcpiGbl_RSDP->Revision < 2)
+    {
+        NoMatch = ACPI_STRNCMP ((char *) TablePtr, RSDT_SIG,
+                        sizeof (RSDT_SIG) -1);
+    }
+    else
+    {
+        NoMatch = ACPI_STRNCMP ((char *) TablePtr, XSDT_SIG,
+                        sizeof (XSDT_SIG) -1);
+    }
+
+    if (NoMatch)
+    {
+        /* Invalid RSDT or XSDT signature */
+
+        ACPI_REPORT_ERROR (("Invalid signature where RSDP indicates RSDT/XSDT should be located\n"));
+
+        ACPI_DUMP_BUFFER (AcpiGbl_RSDP, 20);
+
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_ERROR,
+            "RSDT/XSDT signature at %X (%p) is invalid\n",
+            AcpiGbl_RSDP->RsdtPhysicalAddress,
+            (void *) (NATIVE_UINT) AcpiGbl_RSDP->RsdtPhysicalAddress));
+
+        return (AE_BAD_SIGNATURE);
+    }
+
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbGetTableRsdt
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Load and validate the RSDP (ptr) and RSDT (table)
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbGetTableRsdt (
+    void)
+{
+    ACPI_TABLE_DESC         TableInfo;
+    ACPI_STATUS             Status;
+    ACPI_POINTER            Address; 
+
+
+    ACPI_FUNCTION_TRACE ("TbGetTableRsdt");
+
+
+    /* Get the RSDT/XSDT via the RSDP */
+
+    AcpiTbGetRsdtAddress (&Address);
+
+    Status = AcpiTbGetTable (&Address, &TableInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not get the RSDT/XSDT, %s\n",
+            AcpiFormatException (Status)));
+        return_ACPI_STATUS (Status);
+    }
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        "RSDP located at %p, points to RSDT physical=%8.8X%8.8X \n",
+        AcpiGbl_RSDP,
+        ACPI_HIDWORD (Address.Pointer.Value),
+        ACPI_LODWORD (Address.Pointer.Value)));
+
+    /* Check the RSDT or XSDT signature */
+
+    Status = AcpiTbValidateRsdt (TableInfo.Pointer);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
-    /* Build the path in the caller buffer */
+    /* Get the number of tables defined in the RSDT or XSDT */
 
-    AcpiNsBuildExternalPath (Node, RequiredSize, Buffer->Pointer);
+    AcpiGbl_RsdtTableCount = AcpiTbGetTableCount (AcpiGbl_RSDP, TableInfo.Pointer);
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%s [%X] \n", (char *) Buffer->Pointer, (UINT32) RequiredSize));
-    return_ACPI_STATUS (AE_OK);
+    /* Convert and/or copy to an XSDT structure */
+
+    Status = AcpiTbConvertToXsdt (&TableInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Save the table pointers and allocation info */
+
+    Status = AcpiTbInitTableDescriptor (ACPI_TABLE_XSDT, &TableInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    AcpiGbl_XSDT = (XSDT_DESCRIPTOR *) TableInfo.Pointer;
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "XSDT located at %p\n", AcpiGbl_XSDT));
+    return_ACPI_STATUS (Status);
 }
 
 
