@@ -60,9 +60,10 @@ The directory,
 is locked on entry and should remain locked on return.
 The file
 .Fa vp
-is not locked on entry and should be left unlocked on return.
-If the VOP routine locks the file, it must remember to unlock it
-prior to returning.
+is not locked on entry and should remain that way on return.
+If your VOP code locks
+.Fa vp ,
+it must be sure to unlock prior to returning.
 .Sh RETURN VALUES
 Zero is returned if the file was linked successfully, otherwise an
 error is returned.
@@ -126,7 +127,8 @@ out2:
 the file is immutable
 .El
 .Sh SEE ALSO
-.Xr vnode 9
+.Xr vnode 9 ,
+.Xr vn_lock 9
 .Sh AUTHORS
-This man page was written by
+This man page was originally written by
 .An Doug Rabson .
