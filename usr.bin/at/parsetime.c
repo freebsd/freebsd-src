@@ -185,7 +185,8 @@ init_scanner(int argc, char **argv)
     while (argc-- > 0)
 	sc_len += strlen(*argv++);
 
-    sc_token = (char *) mymalloc(sc_len);
+    if ((sc_token = malloc(sc_len)) == NULL)
+	errx(EXIT_FAILURE, "virtual memory exhausted");
 } /* init_scanner */
 
 /*
