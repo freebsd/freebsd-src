@@ -331,6 +331,8 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	else
 		idesc->id_type = ADDR;
 	(void)ckinode(dp, idesc);
+	if (sblock.fs_magic == FS_UFS2_MAGIC)
+		eascan(idesc, &dp->dp2);
 	idesc->id_entryno *= btodb(sblock.fs_fsize);
 	if (DIP(dp, di_blocks) != idesc->id_entryno) {
 		pwarn("INCORRECT BLOCK COUNT I=%lu (%ju should be %ju)",
