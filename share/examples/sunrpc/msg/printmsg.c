@@ -20,7 +20,7 @@ main(argc, argv)
 		fprintf(stderr, "%s: sorry, couldn't print your message\n",
 			argv[0]);
 		exit(1);
-	} 
+	}
 	printf("Message delivered!\n");
 }
 

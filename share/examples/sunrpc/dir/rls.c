@@ -17,7 +17,7 @@ main(argc, argv)
 	char *dir;
 	readdir_res *result;
 	namelist nl;
-	
+
 
 	if (argc != 3) {
 		fprintf(stderr, "usage: %s host directory\n", argv[0]);
@@ -44,14 +44,14 @@ main(argc, argv)
 		clnt_pcreateerror(server);
 		exit(1);
 	}
-	
+
 	/*
 	 * Call the remote procedure "readdir" on the server
 	 */
 	result = readdir_1(&dir, cl);
 	if (result == NULL) {
 		/*
-		 * An error occurred while calling the server. 
+		 * An error occurred while calling the server.
 	 	 * Print error message and die.
 		 */
 		clnt_perror(cl, server);

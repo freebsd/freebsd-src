@@ -41,7 +41,7 @@
 /*
  * This program connects to the socket named in the command line and sends a
  * one line message to that socket. The form of the command line is
- * ustreamwrite pathname 
+ * ustreamwrite pathname
  */
 main(argc, argv)
 	int argc;

@@ -39,11 +39,11 @@
 #define NAME "socket"
 
 /*
- * This program creates a socket in the UNIX domain and binds a name to it. 
+ * This program creates a socket in the UNIX domain and binds a name to it.
  * After printing the socket's name it begins a loop. Each time through the
  * loop it accepts a connection and prints out messages from it.  When the
  * connection breaks, or a termination message comes through, the program
- * accepts a new connection. 
+ * accepts a new connection.
  */
 main()
 {
@@ -89,7 +89,7 @@ main()
 	 * system that one is through using NAME.  In most programs one uses
 	 * the call unlink() as below. Since the user will have to kill this
 	 * program, it will be necessary to remove the name by a command from
-	 * the shell. 
+	 * the shell.
 	 */
 	close(sock);
 	unlink(NAME);

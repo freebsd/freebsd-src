@@ -1,9 +1,9 @@
 #	From: @(#)Makefile	8.16 (Berkeley) 8/15/94
-#	$Id$
+#	$Id: Makefile,v 1.1 1995/01/11 03:24:15 wollman Exp $
 
 VOLUME=	usd/13.viref
 SRCS=	vi.ref ${.OBJDIR}/index.so
-FILES=	${SRCS} ex.cmd.roff set.opt.roff vi.cmd.roff 
+FILES=	${SRCS} ex.cmd.roff set.opt.roff vi.cmd.roff
 MACROS=	-me
 CLEANFILES+=vi.ref.txt index index.so
 USE_SOELIM=	yes
