@@ -224,7 +224,7 @@ purgedir() {
 				[ ."$file" = .. -o ."$file" = ... ] && continue
 				[ -d "$file" -a ! -L "$file" ] &&
 					purgedir "$file"
-				[ -f "$file" ] && rm -f -- "$file"
+				[ -f "$file" -o -S "$file" ] && rm -f -- "$file"
 			done
 		)
 		done
