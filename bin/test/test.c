@@ -161,7 +161,7 @@ main(argc, argv)
 		}
 		break;
 	case 4:				/* % test ! arg1 op arg2 */
-		if (IS_BANG(argv[1])) {
+		if (IS_BANG(argv[1]) && lookup_op(argv[3], andor_op) < 0 ) {
 			ret_val = posix_binary_op(&argv[2]);
 			if (ret_val >= 0)
 				return (!ret_val);
@@ -528,7 +528,8 @@ get_int(v, lp)
 	char *ep;
 
 	for (; *v && isspace(*v); ++v);
-	if (isdigit(*v)) {
+
+	if (isdigit(*v) || ((*v == '-' || *v == '+') && isdigit(*(v+1)))) {
 		errno = 0;
 		val = strtol(v, &ep, 10);
 		if (*ep != '\0')

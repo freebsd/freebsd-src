@@ -81,6 +81,16 @@ const char *const binary_op[] = {
       NULL
 };
 
+const char *const andor_op[] = {
+	"-o",
+	"|",
+	"-a",
+	"&",
+	NULL
+};
+
+
+
 const char op_priority[] = {
       3,
       12,
