@@ -180,6 +180,7 @@ sub parse_dir {
 	    if ($subdir =~ /^man\w+$/) {
 		$subdir = "$dir/$subdir";
 		&parse_subdir($subdir);
+		&parse_subdir($subdir) if -d ($subdir .= "/${machine}");
 	    }
 	}
 	closedir DIR
@@ -439,6 +440,7 @@ sub variables {
     $whatis_name = "whatis";	# Default name for DB
     $append = 0;		# Don't delete old entries
     $locale = 0;		# Build DB only for localized man directories
+    chomp($machine = $ENV{'MACHINE'} || `uname -m`);
 
     # choose localized man directories suffix.
     $local_suffix = $ENV{'LC_ALL'} || $ENV{'LC_CTYPE'} || $ENV{'LANG'};
