@@ -50,7 +50,7 @@ The
 .Fn popen
 function
 .Dq opens
-a process by creating an IPC connection,
+a process by creating a bidirectional pipe
 forking,
 and invoking the shell.
 Historically,
@@ -63,9 +63,9 @@ only allow the
 argument to specify reading or writing, not both.
 Since
 .Nm popen
-is now implemented using sockets, the
+is now implemented using a bidirectional pipe, the
 .Fa type
-may request a bidirectional data flow.
+argument may request a bidirectional data flow.
 The
 .Fa type
 argument is a pointer to a null-terminated string
@@ -123,10 +123,9 @@ The
 function returns
 .Dv NULL
 if the
-.Xr fork 2 ,
-.Xr pipe 2 ,
+.Xr fork 2
 or
-.Xr socketpair 2
+.Xr pipe 2
 calls fail,
 or if it cannot allocate memory.
 .Pp
@@ -153,7 +152,6 @@ function does not reliably set
 .Xr sh 1 ,
 .Xr fork 2 ,
 .Xr pipe 2 ,
-.Xr socketpair 2 ,
 .Xr wait4 2 ,
 .Xr fclose 3 ,
 .Xr fflush 3 ,
