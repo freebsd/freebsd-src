@@ -160,7 +160,10 @@ m_prepend(struct mbuf *m, int len, int how)
 {
 	struct mbuf *mn;
 
-	MGET(mn, how, m->m_type);
+	if (m->m_flags & M_PKTHDR)
+		MGETHDR(mn, how, m->m_type);
+	else
+		MGET(mn, how, m->m_type);
 	if (mn == NULL) {
 		m_freem(m);
 		return (NULL);
@@ -209,7 +212,10 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 			    ("m_copym, length > size of mbuf chain"));
 			break;
 		}
-		MGET(n, wait, m->m_type);
+		if (copyhdr)
+			MGETHDR(n, wait, m->m_type);
+		else
+			MGET(n, wait, m->m_type);
 		*np = n;
 		if (n == NULL)
 			goto nospace;
@@ -811,6 +817,8 @@ m_defrag(struct mbuf *m0, int how)
 
 	if (!(m0->m_flags & M_PKTHDR))
 		return (m0);
+
+	m_fixhdr(m0); /* Needed sanity check */
 
 #ifdef MBUF_STRESS_TEST
 	if (m_defragrandomfailures) {
