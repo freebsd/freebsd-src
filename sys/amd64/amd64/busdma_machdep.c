@@ -65,6 +65,7 @@ struct bus_dma_tag {
 	int		  map_count;
 	bus_dma_lock_t	 *lockfunc;
 	void		 *lockfuncarg;
+	bus_dma_segment_t *segments;
 };
 
 struct bounce_page {
@@ -219,7 +220,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		newtag->lockfunc = dflt_lock;
 		newtag->lockfuncarg = NULL;
 	}
-	
+	newtag->segments = NULL;
+
 	/* Take into account any restrictions imposed by our parent tag */
 	if (parent != NULL) {
 		newtag->lowaddr = MIN(parent->lowaddr, newtag->lowaddr);
@@ -289,6 +291,8 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 			parent = dmat->parent;
 			atomic_subtract_int(&dmat->ref_count, 1);
 			if (dmat->ref_count == 0) {
+				if (dmat->segments != NULL)
+					free(dmat->segments, M_DEVBUF);
 				free(dmat, M_DEVBUF);
 				/*
 				 * Last reference count, so
@@ -313,6 +317,14 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	int error;
 
 	error = 0;
+
+	if (dmat->segments == NULL) {
+		dmat->segments = (bus_dma_segment_t *)malloc(
+		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_DEVBUF,
+		    M_NOWAIT);
+		if (dmat->segments == NULL)
+			return (ENOMEM);
+	}
 
 	if (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem)) {
 		/* Must bounce */
@@ -402,6 +414,14 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	/* If we succeed, no mapping/bouncing will be required */
 	*mapp = NULL;
 
+	if (dmat->segments == NULL) {
+		dmat->segments = (bus_dma_segment_t *)malloc(
+		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_DEVBUF,
+		    M_NOWAIT);
+		if (dmat->segments == NULL)
+			return (ENOMEM);
+	}
+
 	if ((dmat->maxsize <= PAGE_SIZE) &&
 	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem)) {
 		*vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
@@ -452,7 +472,6 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 static int
 _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
     			bus_dmamap_t map,
-			bus_dma_segment_t segs[],
 			void *buf, bus_size_t buflen,
 			struct thread *td,
 			int flags,
@@ -460,6 +479,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			int *segp,
 			int first)
 {
+	bus_dma_segment_t *segs;
 	bus_size_t sgsize;
 	bus_addr_t curaddr, lastaddr, baddr, bmask;
 	vm_offset_t vaddr;
@@ -467,6 +487,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	int needbounce = 0;
 	int seg;
 	pmap_t pmap;
+
+	segs = dmat->segments;
 
 	if (map == NULL)
 		map = &nobounce_dmamap;
@@ -597,11 +619,6 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		bus_size_t buflen, bus_dmamap_callback_t *callback,
 		void *callback_arg, int flags)
 {
-#ifdef __GNUC__
-	bus_dma_segment_t	dm_segments[dmat->nsegments];
-#else
-	bus_dma_segment_t	dm_segments[BUS_DMAMAP_NSEGS];
-#endif
 	bus_addr_t		lastaddr = 0;
 	int			error, nsegs = 0;
 
@@ -611,16 +628,16 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		map->callback_arg = callback_arg;
 	}
 
-	error = _bus_dmamap_load_buffer(dmat, map, dm_segments, buf, buflen,
-	    NULL, flags, &lastaddr, &nsegs, 1);
+	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, NULL, flags,
+	     &lastaddr, &nsegs, 1);
 
 	if (error == EINPROGRESS)
 		return (error);
 
 	if (error)
-		(*callback)(callback_arg, dm_segments, 0, error);
+		(*callback)(callback_arg, dmat->segments, 0, error);
 	else
-		(*callback)(callback_arg, dm_segments, nsegs + 1, 0);
+		(*callback)(callback_arg, dmat->segments, nsegs + 1, 0);
 
 	return (0);
 }
@@ -635,11 +652,6 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 		     bus_dmamap_callback2_t *callback, void *callback_arg,
 		     int flags)
 {
-#ifdef __GNUC__
-	bus_dma_segment_t dm_segments[dmat->nsegments];
-#else
-	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
-#endif
 	int nsegs, error;
 
 	M_ASSERTPKTHDR(m0);
@@ -655,7 +667,6 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
 				error = _bus_dmamap_load_buffer(dmat, map,
-						dm_segments,
 						m->m_data, m->m_len,
 						NULL, flags, &lastaddr,
 						&nsegs, first);
@@ -668,9 +679,9 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 	if (error) {
 		/* force "no valid mappings" in callback */
-		(*callback)(callback_arg, dm_segments, 0, 0, error);
+		(*callback)(callback_arg, dmat->segments, 0, 0, error);
 	} else {
-		(*callback)(callback_arg, dm_segments,
+		(*callback)(callback_arg, dmat->segments,
 			    nsegs+1, m0->m_pkthdr.len, error);
 	}
 	return (error);
@@ -686,11 +697,6 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 		    int flags)
 {
 	bus_addr_t lastaddr;
-#ifdef __GNUC__
-	bus_dma_segment_t dm_segments[dmat->nsegments];
-#else
-	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
-#endif
 	int nsegs, error, first, i;
 	bus_size_t resid;
 	struct iovec *iov;
@@ -720,7 +726,6 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 		if (minlen > 0) {
 			error = _bus_dmamap_load_buffer(dmat, map,
-					dm_segments,
 					addr, minlen,
 					td, flags, &lastaddr, &nsegs, first);
 			first = 0;
@@ -731,9 +736,9 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 	if (error) {
 		/* force "no valid mappings" in callback */
-		(*callback)(callback_arg, dm_segments, 0, 0, error);
+		(*callback)(callback_arg, dmat->segments, 0, 0, error);
 	} else {
-		(*callback)(callback_arg, dm_segments,
+		(*callback)(callback_arg, dmat->segments,
 			    nsegs+1, uio->uio_resid, error);
 	}
 	return (error);
