@@ -56,16 +56,14 @@ sparc64/fhc/fhc_central.c	optional	fhc central
 sparc64/fhc/fhc_nexus.c		optional	fhc
 sparc64/isa/isa.c		optional	isa
 sparc64/isa/isa_dma.c		optional	isa
-#sparc64/isa/ofw_isa.c		optional	ebus
-#sparc64/isa/ofw_isa.c		optional	isa
-sparc64/isa/ofw_isa.c		standard
+sparc64/isa/ofw_isa.c		optional	ebus
+sparc64/isa/ofw_isa.c		optional	isa
 sparc64/pci/apb.c		optional	pci
 sparc64/pci/ofw_pci.c		optional	pci
 sparc64/pci/ofw_pcib.c		optional	pci
 sparc64/pci/ofw_pcib_subr.c	optional	pci
 sparc64/pci/ofw_pcibus.c	optional	pci
-#sparc64/pci/ofw_pci_if.m	optional	pci
-sparc64/pci/ofw_pci_if.m	standard
+sparc64/pci/ofw_pci_if.m	optional	pci
 sparc64/pci/psycho.c		optional	pci
 sparc64/sbus/sbus.c		optional	sbus
 sparc64/sparc64/autoconf.c	standard
