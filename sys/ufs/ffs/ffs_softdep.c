@@ -5528,18 +5528,21 @@ request_cleanup(resource)
 	/*
 	 * We never hold up the filesystem syncer process.
 	 */
-	if (td == filesys_syncer)
+	if (td == filesys_syncer || (td->td_pflags & TDP_SOFTDEP))
 		return (0);
 	/*
 	 * First check to see if the work list has gotten backlogged.
 	 * If it has, co-opt this process to help clean up two entries.
 	 * Because this process may hold inodes locked, we cannot
 	 * handle any remove requests that might block on a locked
-	 * inode as that could lead to deadlock.
+	 * inode as that could lead to deadlock.  We set TDP_SOFTDEP
+	 * to avoid recursively processing the worklist.
 	 */
 	if (num_on_worklist > max_softdeps / 10) {
+		td->td_pflags |= TDP_SOFTDEP;
 		process_worklist_item(NULL, LK_NOWAIT);
 		process_worklist_item(NULL, LK_NOWAIT);
+		td->td_pflags &= ~TDP_SOFTDEP;
 		stat_worklist_push += 2;
 		return(1);
 	}
