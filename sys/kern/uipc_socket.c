@@ -644,10 +644,8 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 		flags = 0;
 	if (flags & MSG_OOB) {
 		m = m_get(M_WAIT, MT_DATA);
-		if (m == NULL) {
-			error = ENOBUFS;
-			goto release;
-		}
+		if (m == NULL)
+			return (ENOBUFS);
 		error = (*pr->pr_usrreqs->pru_rcvoob)(so, m, flags & MSG_PEEK);
 		if (error)
 			goto bad;
