@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1998/10/17 14:20:25 rnordier Exp $
+#	$Id: Makefile,v 1.6 1998/10/19 19:13:52 rnordier Exp $
 
 PROG=		boot0
 NOMAN=
@@ -8,7 +8,7 @@ BINMODE=	444
 
 M4?=	m4
 
-B0FLAGS=0x0
+B0FLAGS=0xf
 B0TICKS=0xb6
 
 ORG=	0x600
