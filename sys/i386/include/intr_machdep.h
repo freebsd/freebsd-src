@@ -100,6 +100,7 @@ int	intr_register_source(struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
 void	intr_resume(void);
 void	intr_suspend(void);
+void	intrcnt_add(const char *name, u_long **countp);
 
 #endif	/* !LOCORE */
 #endif	/* _KERNEL */
