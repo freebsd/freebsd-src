@@ -29,11 +29,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.38 1996/10/06 16:38:45 gibbs Exp $
+ *	$Id: aic7870.c,v 1.11.2.18 1996/10/06 16:42:35 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
-#include "pci.h"
+#include <pci.h>
 #endif
 #if NPCI > 0 || defined(__NetBSD__)
 #include <sys/param.h>
@@ -62,7 +62,8 @@
 
 #include <dev/aic7xxx/aic7xxx_reg.h>
 
-#define PCI_BASEADR0	PCI_MAP_REG_START
+#define PCI_BASEADR0	PCI_MAP_REG_START	/* I/O Address */
+#define PCI_BASEADR1	PCI_MAP_REG_START + 4	/* Mem I/O Address */
 
 #elif defined(__NetBSD__)
 
@@ -74,7 +75,8 @@
 #include <dev/ic/smc93cx6var.h>
 
 #define bootverbose	1
-#define PCI_BASEADR0	PCI_MAPREG_START
+#define PCI_BASEADR0	PCI_MAPREG_START	/* I/O Address */
+#define PCI_BASEADR1	PCI_MAPREG_START + 4	/* Mem I/O Address */
 
 #endif /* defined(__NetBSD__) */
 
@@ -198,45 +200,45 @@ DATA_SET (pcidevice_set, ahc_pci_driver);
 static  char*
 aic7870_probe (pcici_t tag, pcidi_t type)
 {
-	switch(type) {
-		case PCI_DEVICE_ID_ADAPTEC_3940U:
-			return ("Adaptec 3940 Ultra SCSI host adapter");
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_3940:
-			return ("Adaptec 3940 SCSI host adapter");
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_2944U:
-			return ("Adaptec 2944 Ultra SCSI host adapter");
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_2940U:
-			return ("Adaptec 2940 Ultra SCSI host adapter");
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_2944:
-			return ("Adaptec 2944 SCSI host adapter");
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_2940:
-			return ("Adaptec 2940 SCSI host adapter");
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_2940AU:
-			return ("Adaptec 2940A Ultra SCSI host adapter");
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_AIC7880:
-			return ("Adaptec aic7880 Ultra SCSI host adapter");
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_AIC7870:
-			return ("Adaptec aic7870 SCSI host adapter");
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_AIC7860:
-			return ("Adaptec aic7860 SCSI host adapter");
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_AIC7855:
-			return ("Adaptec aic7855 SCSI host adapter");
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_AIC7850:
-			return ("Adaptec aic7850 SCSI host adapter");
-			break;
-		default:
-			break;
+	switch (type) {
+	case PCI_DEVICE_ID_ADAPTEC_3940U:
+		return ("Adaptec 3940 Ultra SCSI host adapter");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_3940:
+		return ("Adaptec 3940 SCSI host adapter");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_2944U:
+		return ("Adaptec 2944 Ultra SCSI host adapter");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_2940U:
+		return ("Adaptec 2940 Ultra SCSI host adapter");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_2944:
+		return ("Adaptec 2944 SCSI host adapter");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_2940:
+		return ("Adaptec 2940 SCSI host adapter");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_2940AU:
+		return ("Adaptec 2940A Ultra SCSI host adapter");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_AIC7880:
+		return ("Adaptec aic7880 Ultra SCSI host adapter");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_AIC7870:
+		return ("Adaptec aic7870 SCSI host adapter");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_AIC7860:
+		return ("Adaptec aic7860 SCSI host adapter");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_AIC7855:
+		return ("Adaptec aic7855 SCSI host adapter");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_AIC7850:
+		return ("Adaptec aic7850 SCSI host adapter");
+		break;
+	default:
+		break;
 	}
 	return (0);
 
@@ -290,7 +292,8 @@ ahc_pci_attach(parent, self, aux)
 #endif
 {
 #if defined(__FreeBSD__)
-	u_long io_port;
+	u_int16_t io_port;
+	struct	  ahc_data *ahc;
 #elif defined(__NetBSD__)
 	struct pci_attach_args *pa = aux;
 	struct ahc_data *ahc = (void *)self;
@@ -301,24 +304,21 @@ ahc_pci_attach(parent, self, aux)
 	pci_intr_handle_t ih;
 	const char *intrstr;
 #endif
-	u_long id;
-	unsigned opri = 0;
-	ahc_type ahc_t = AHC_NONE;
-	ahc_flag ahc_f = AHC_FNONE;
-#if defined(__FreeBSD__)
-	struct ahc_data *ahc;
-#endif
-	u_char ultra_enb = 0;
-	u_char our_id = 0;
+	u_int32_t id;
+	int opri = 0;
+	ahc_type  ahc_t = AHC_NONE;
+	ahc_flag  ahc_f = AHC_FNONE;
+	vm_offset_t vaddr;
+	vm_offset_t paddr;
+	u_int8_t    ultra_enb = 0;
+	u_int8_t    our_id = 0;
 
 #if defined(__FreeBSD__)
-        if(!(io_port = pci_conf_read(config_id, PCI_BASEADR0)))
+	if (pci_map_port(config_id, PCI_BASEADR0, &io_port) == 0)
 		return;
-	/*
-	 * The first bit of PCI_BASEADR0 is always
-	 * set hence we mask it off.
-	 */
-	io_port &= 0xfffffffe;
+
+	if (pci_map_mem(config_id, PCI_BASEADR1, &vaddr, &paddr) == 0)
+		return;
 #elif defined(__NetBSD__)
 	if (pci_io_find(pa->pa_pc, pa->pa_tag, PCI_BASEADR0, &iobase, &iosize))
 		return;
@@ -331,43 +331,43 @@ ahc_pci_attach(parent, self, aux)
 #elif defined(__NetBSD__)
 	switch (id = pa->pa_id) {
 #endif
-		case PCI_DEVICE_ID_ADAPTEC_3940U:
-		case PCI_DEVICE_ID_ADAPTEC_3940:
-			if (id == PCI_DEVICE_ID_ADAPTEC_3940U)
-				ahc_t = AHC_394U;
-			else
-				ahc_t = AHC_394;
-			aic3940_count++;
-			if(!(aic3940_count & 0x01))
-				/* Even count implies second channel */
-				ahc_f |= AHC_CHNLB;
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_2944U:
-		case PCI_DEVICE_ID_ADAPTEC_2940U:
-			ahc_t = AHC_294U;
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_2944:
-		case PCI_DEVICE_ID_ADAPTEC_2940:
-			ahc_t = AHC_294;
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_2940AU:
-			ahc_t = AHC_294AU;
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_AIC7880:
-			ahc_t = AHC_AIC7880;
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_AIC7870:
-			ahc_t = AHC_AIC7870;
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_AIC7860:
-			ahc_t = AHC_AIC7860;
-			break;
-		case PCI_DEVICE_ID_ADAPTEC_AIC7855:
-		case PCI_DEVICE_ID_ADAPTEC_AIC7850:
-			ahc_t = AHC_AIC7850;
-			break;
-		default:
-			break;
+	case PCI_DEVICE_ID_ADAPTEC_3940U:
+	case PCI_DEVICE_ID_ADAPTEC_3940:
+		if (id == PCI_DEVICE_ID_ADAPTEC_3940U)
+			ahc_t = AHC_394U;
+		else
+			ahc_t = AHC_394;
+		aic3940_count++;
+		if ((aic3940_count & 0x01) == 0)
+			/* Even count implies second channel */
+			ahc_f |= AHC_CHNLB;
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_2944U:
+	case PCI_DEVICE_ID_ADAPTEC_2940U:
+		ahc_t = AHC_294U;
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_2944:
+	case PCI_DEVICE_ID_ADAPTEC_2940:
+		ahc_t = AHC_294;
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_2940AU:
+		ahc_t = AHC_294AU;
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_AIC7880:
+		ahc_t = AHC_AIC7880;
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_AIC7870:
+		ahc_t = AHC_AIC7870;
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_AIC7860:
+		ahc_t = AHC_AIC7860;
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_AIC7855:
+	case PCI_DEVICE_ID_ADAPTEC_AIC7850:
+		ahc_t = AHC_AIC7850;
+		break;
+	default:
+		break;
 	}
 
 	/* On all PCI adapters, we allow SCB paging */
@@ -376,11 +376,11 @@ ahc_pci_attach(parent, self, aux)
 	/* Remeber how the card was setup in case there is no SEEPROM */
 #if defined(__FreeBSD__)
 	our_id = inb(SCSIID + io_port) & OID;
-	if(ahc_t & AHC_ULTRA)
+	if (ahc_t & AHC_ULTRA)
 		ultra_enb = inb(SXFRCTL0 + io_port) & ULTRAEN;
 #else
 	our_id = bus_io_read_1(pa->pa_bc, ioh, SCSIID) & OID;
-	if(ahc_t & AHC_ULTRA)
+	if (ahc_t & AHC_ULTRA)
 		ultra_enb = bus_io_read_1(pa->pa_bc, ioh, SXFRCTL0) & ULTRAEN;
 #endif
 
@@ -391,35 +391,20 @@ ahc_pci_attach(parent, self, aux)
 	ahc_reset(ahc->sc_dev.dv_xname, pa->pa_bc, ioh);
 #endif
 
-	if(ahc_t & AHC_AIC7870){
+	if (ahc_t & AHC_AIC7870) {
 #if defined(__FreeBSD__)
-		u_long devconfig = pci_conf_read(config_id, DEVCONFIG);
+		u_int32_t devconfig = pci_conf_read(config_id, DEVCONFIG);
 #elif defined(__NetBSD__)
-		u_long devconfig =
+		u_int32_t devconfig =
 			pci_conf_read(pa->pa_pc, pa->pa_tag, DEVCONFIG);
 #endif
 
-		if(devconfig & (RAMPSM)) {
+		if (devconfig & (RAMPSM)) {
 			/*
-			 * External SRAM present.  Have the probe walk
-			 * the SCBs to see how much SRAM we have and set
-			 * the number of SCBs accordingly.  We have to
-			 * turn off SCBRAMSEL to access the external
-			 * SCB SRAM.
-			 *
-			 * It seems that early versions of the aic7870
-			 * didn't use these bits, hence the hack for the
-			 * 3940 above.  I would guess that recent 3940s
-			 * using later aic7870 or aic7880 chips do
-			 * actually set RAMPSM.
-			 *
-			 * The documentation isn't clear, but it sounds
-			 * like the value written to devconfig must not
-			 * have RAMPSM set.  The second sixteen bits of
-			 * the register are R/O anyway, so it shouldn't
-			 * affect RAMPSM either way.
+			 * XXX What about EXTSCBTIME and EXTSCBPEN???
+			 * They are probably card dependant.
 			 */
-			devconfig &= ~(RAMPSM|SCBRAMSEL);
+			devconfig &= ~SCBRAMSEL;
 #if defined(__FreeBSD__)
 			pci_conf_write(config_id, DEVCONFIG, devconfig);
 #elif defined(__NetBSD__)
@@ -430,10 +415,10 @@ ahc_pci_attach(parent, self, aux)
 	}
 
 #if defined(__FreeBSD__)
-	if(!(ahc = ahc_alloc(unit, io_port, ahc_t, ahc_f)))
+	if ((ahc = ahc_alloc(unit, io_port, vaddr, ahc_t, ahc_f)) == NULL)
 		return;  /* XXX PCI code should take return status */
 
-	if(!(pci_map_int(config_id, ahc_intr, (void *)ahc, &bio_imask))) {
+	if (!(pci_map_int(config_id, ahc_intr, (void *)ahc, &bio_imask))) {
 		ahc_free(ahc);
 		return;
 	}
@@ -473,38 +458,31 @@ ahc_pci_attach(parent, self, aux)
 	opri = splbio();
 
 	/*
-	 * Do aic7870/aic7880/aic7850 specific initialization
+	 * Do aic7880/aic7870/aic7860/aic7850 specific initialization
 	 */
 	{
-		u_char	sblkctl;
-		char	*id_string;
+		u_int8_t sblkctl;
+		char	 *id_string;
 
 		switch(ahc->type) {
-		   case AHC_394U:
-		   case AHC_294U:
-		   case AHC_AIC7880:
-		   {
+		case AHC_394U:
+		case AHC_294U:
+		case AHC_AIC7880:
 			id_string = "aic7880 ";
 			load_seeprom(ahc);
 			break;
-		   }
-		   case AHC_394:
-		   case AHC_294:
-		   case AHC_AIC7870:
-		   {
+		case AHC_394:
+		case AHC_294:
+		case AHC_AIC7870:
 			id_string = "aic7870 ";
 			load_seeprom(ahc);
 			break;
-		   }
-		   case AHC_294AU:
-		   case AHC_AIC7860:
-		   {
+		case AHC_294AU:
+		case AHC_AIC7860:
 			id_string = "aic7860 ";
 			load_seeprom(ahc);
 			break;
-		   }
-		   case AHC_AIC7850:
-		   {
+		case AHC_AIC7850:
 			id_string = "aic7850 ";
 			/*
 			 * Use defaults, if the chip wasn't initialized by
@@ -512,14 +490,11 @@ ahc_pci_attach(parent, self, aux)
 			 */
 			ahc->flags |= AHC_USEDEFAULTS;
 			break;
-		   }
-		   default:
-		   {
+		default:
 			printf("ahc: Unknown controller type.  Ignoring.\n");
 			ahc_free(ahc);
 			splx(opri);
 			return;
-		   }
 		}
 
 		/*
@@ -534,41 +509,40 @@ ahc_pci_attach(parent, self, aux)
 		 */
 		AHC_OUTB(ahc, DSPCISTATUS, DFTHRSH_100);
 
-		if(ahc->flags & AHC_USEDEFAULTS) {
+		if (ahc->flags & AHC_USEDEFAULTS) {
 			/*
 			 * PCI Adapter default setup
 			 * Should only be used if the adapter does not have
 			 * an SEEPROM.
 			 */
 			/* See if someone else set us up already */
-			u_long i;
-		        for(i = TARG_SCRATCH; i < 0x60; i++) {
-                        	if(AHC_INB(ahc, i) != 0x00)
+			u_int32_t i;
+		        for (i = TARG_SCRATCH; i < 0x60; i++) {
+                        	if (AHC_INB(ahc, i) != 0x00)
 					break;
 			}
-			if(i == TARG_SCRATCH) {
+			if (i == TARG_SCRATCH) {
 				/*
 				 * Try looking for all ones.  You can get
 				 * either.
 				 */
-		        	for (i = TARG_SCRATCH; i < 0x60; i++) {
-                        		if(AHC_INB(ahc, i) != 0xff)
+				for (i = TARG_SCRATCH; i < 0x60; i++) {
+                        		if (AHC_INB(ahc, i) != 0xff)
 						break;
 				}
 			}
-			if((i != 0x60) && (our_id != 0)) {
+			if ((i != 0x60) && (our_id != 0)) {
 				printf("%s: Using left over BIOS settings\n",
 					ahc_name(ahc));
 				ahc->flags &= ~AHC_USEDEFAULTS;
-			}
-			else
+			} else
 				our_id = 0x07;
 			AHC_OUTB(ahc, SCSICONF,
 				 (our_id & 0x07)|ENSPCHK|RESET_SCSI);
 			/* In case we are a wide card */
 			AHC_OUTB(ahc, SCSICONF + 1, our_id);
 
-			if(!ultra_enb || (ahc->flags & AHC_USEDEFAULTS)) {
+			if (!ultra_enb || (ahc->flags & AHC_USEDEFAULTS)) {
 				/*
 				 * If there wasn't a BIOS or the board
 				 * wasn't in this mode to begin with, 
@@ -581,7 +555,7 @@ ahc_pci_attach(parent, self, aux)
 		printf("%s: %s", ahc_name(ahc), id_string);
 	}
 
-	if(ahc_init(ahc)){
+	if (ahc_init(ahc)){
 		ahc_free(ahc);
 		splx(opri);
 		return; /* XXX PCI code should take return status */
@@ -607,7 +581,7 @@ load_seeprom(ahc)
 	int	have_seeprom;
                  
 #if defined(__FreeBSD__)
-	sd.sd_iobase = ahc->baseport + SEECTL;
+	sd.sd_maddr = ahc->maddr + SEECTL;
 #elif defined(__NetBSD__)
 	sd.sd_bc = ahc->sc_bc;
 	sd.sd_ioh = ahc->sc_ioh;
@@ -620,7 +594,7 @@ load_seeprom(ahc)
 	sd.sd_DO = SEEDO;
 	sd.sd_DI = SEEDI;
 
-	if(bootverbose) 
+	if (bootverbose) 
 		printf("%s: Reading SEEPROM...", ahc_name(ahc));
 	have_seeprom = acquire_seeprom(&sd);
 	if (have_seeprom) {
@@ -632,24 +606,23 @@ load_seeprom(ahc)
 		if (have_seeprom) {
 			/* Check checksum */
 			int i;
+			int maxaddr = (sizeof(sc)/2) - 1;
 
-			for (i = 0;i < (sizeof(sc)/2 - 1);i = i + 1)
+			for (i = 0; i < maxaddr; i++)
 				checksum = checksum + scarray[i];
 			if (checksum != sc.checksum) {
 				if(bootverbose)
 					printf ("checksum error");
 				have_seeprom = 0;
-			}
-			else if(bootverbose)
+			} else if (bootverbose)
 				printf("done.\n");
 		}
 	}
 	if (!have_seeprom) {
-		if(bootverbose)
+		if (bootverbose)
 			printf("\n%s: No SEEPROM availible\n", ahc_name(ahc));
 		ahc->flags |= AHC_USEDEFAULTS;
-	}
-	else {
+	} else {
 		/*
 		 * Put the data we've collected down into SRAM
 		 * where ahc_init will find it.
@@ -657,7 +630,7 @@ load_seeprom(ahc)
 		int i;
 		int max_targ = sc.max_targets & CFMAXTARG;
 
-	        for(i = 0; i < max_targ; i++){
+		for (i = 0; i < max_targ; i++){
 	                u_char target_settings;
 			target_settings = (sc.device_flags[i] & CFXFER) << 4;
 			if (sc.device_flags[i] & CFSYNCH)
@@ -674,14 +647,14 @@ load_seeprom(ahc)
 		host_id = sc.brtime_id & CFSCSIID;
 
 		scsi_conf = (host_id & 0x7);
-		if(sc.adapter_control & CFSPARITY)
+		if (sc.adapter_control & CFSPARITY)
 			scsi_conf |= ENSPCHK;
-		if(sc.adapter_control & CFRESETB)
+		if (sc.adapter_control & CFRESETB)
 			scsi_conf |= RESET_SCSI;
 
-		if(ahc->type & AHC_ULTRA) {
+		if (ahc->type & AHC_ULTRA) {
 			/* Should we enable Ultra mode? */
-			if(!(sc.adapter_control & CFULTRAEN))
+			if (!(sc.adapter_control & CFULTRAEN))
 				/* Treat us as a non-ultra card */
 				ahc->type &= ~AHC_ULTRA;
 		}
