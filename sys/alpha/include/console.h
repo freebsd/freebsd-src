@@ -105,20 +105,35 @@ struct vt_mode {
 	short	frsig;			/* not implemented yet	SOS	*/
 };
 
+#define	RIGHT_BUTTON		0x01
+#define	MIDDLE_BUTTON		0x02
+#define	LEFT_BUTTON		0x04
+
+struct mouse_data {
+	int	x;
+	int 	y;
+	int 	buttons;
+};
+
+struct mouse_mode {
+	int	mode;
+	int	signal;
+};
+
 #define MOUSE_SHOW		0x01
 #define MOUSE_HIDE		0x02
 #define MOUSE_MOVEABS		0x03
 #define MOUSE_MOVEREL		0x04
-#define MOUSE_GETPOS		0x05
-#define MOUSE_CUT_START		0x06
-#define MOUSE_CUT_END		0x07
-#define MOUSE_CUT_RESET		0x08
-#define MOUSE_RETURN_CUTBUFFER	0x09
+#define MOUSE_GETINFO		0x05
+#define MOUSE_MODE		0x06
+#define MOUSE_ACTION		0x07
 
 struct mouse_info {
 	int	operation;
-	int	x;
-	int 	y;
+	union {
+		struct mouse_data data;
+		struct mouse_mode mode;
+	}u;
 };
 
 #define KD_MONO		1		/* monochrome adapter        	*/
