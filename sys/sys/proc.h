@@ -233,7 +233,6 @@ struct	proc {
 	void	*p_aioinfo;	/* (c) ASYNC I/O info. */
 	struct	ithd *p_ithd;	/* (b) For interrupt threads only. */
 	int	p_intr_nesting_level;	/* (k) Interrupt recursion. */
-	int	p_giant_optional;	/* (i) Giant Lock Sanity */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy
