@@ -123,10 +123,11 @@ ia64_ap_startup(void)
 
 	mtx_lock_spin(&sched_lock);
 
-	/* kick off the clock on this AP */
-	ia64_set_itm(ia64_get_itc() + itm_reload);
-	ia64_set_itv(CLOCK_VECTOR);
 	ia64_set_tpr(0);
+
+	/* kick off the clock on this AP */
+	pcpu_initclock();
+
 	cpu_throw(NULL, choosethread());
 	/* NOTREACHED */
 }
