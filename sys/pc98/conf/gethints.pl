@@ -8,7 +8,7 @@
 #
 # $FreeBSD$
 
-while (<STDIN>) {
+while (<>) {
 	chop;
 	s/#.*//;
 	next unless /^device/;
