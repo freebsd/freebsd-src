@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
-#	$Id: Makefile,v 1.11 1995/10/11 00:03:59 gibbs Exp $
+#	$Id: Makefile,v 1.12 1996/03/09 13:36:34 ache Exp $
 
 LIB=	telnet
 SRCS=   encrypt.c genget.c getent.c misc.c
@@ -18,7 +18,7 @@ CFLAGS+= -DKRB4 -I/usr/include/kerberosIV
 SRCS+=  auth.c kerberos.c enc_des.c
 # KRB4_ENCPWD not yet defined
 #SRCS+=   krb4encpwd.c read_password.c
-LDADD+= -des -lkrb
+LDADD+= -ldes -lkrb
 DPADD+= ${LIBDES} ${LIBKRB}
 .endif
 
