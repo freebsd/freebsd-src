@@ -90,8 +90,6 @@
 #define NFSSTA_GOTFSINFO	0x00100000  /* Got the V3 fsinfo */
 #define	NFSSTA_SNDLOCK		0x01000000  /* Send socket lock */
 #define	NFSSTA_WANTSND		0x02000000  /* Want above */
-#define	NFSSTA_RCVLOCK		0x04000000  /* Rcv socket lock */
-#define	NFSSTA_WANTRCV		0x08000000  /* Want above */
 #define	NFSSTA_TIMEO		0x10000000  /* Experiencing a timeout */
 
 
@@ -149,19 +147,6 @@ struct uio;
 struct buf;
 struct vattr;
 struct nameidata;
-
-/*
- * The set of signals that interrupt an I/O in progress for NFSMNT_INT mounts.
- * What should be in this set is open to debate, but I believe that since
- * I/O system calls on ufs are never interrupted by signals the set should
- * be minimal. My reasoning is that many current programs that use signals
- * such as SIGALRM will not expect file I/O system calls to be interrupted
- * by them and break.
- */
-#define	NFSINT_SIGMASK(set) 						\
-	(SIGISMEMBER(set, SIGINT) || SIGISMEMBER(set, SIGTERM) ||	\
-	 SIGISMEMBER(set, SIGHUP) || SIGISMEMBER(set, SIGKILL) ||	\
-	 SIGISMEMBER(set, SIGQUIT))
 
 /*
  * Socket errors ignored for connectionless sockets??
@@ -320,6 +305,13 @@ int	nfs_fsinfo(struct nfsmount *, struct vnode *, struct ucred *,
 	    struct thread *);
 int	nfs_meta_setsize (struct vnode *, struct ucred *,
 	    struct thread *, u_quad_t);
+
+void    nfs_set_sigmask __P((struct thread *td, sigset_t *oldset));
+void    nfs_restore_sigmask __P((struct thread *td, sigset_t *set));
+int     nfs_tsleep __P((struct thread *td, void *ident, int priority, char *wmesg, 
+			int timo));
+int     nfs_msleep __P((struct thread *td, void *ident, struct mtx *mtx, int priority, 
+			char *wmesg, int timo));
 
 #endif	/* _KERNEL */
 

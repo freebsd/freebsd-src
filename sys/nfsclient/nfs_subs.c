@@ -94,6 +94,8 @@ int		nfs_ticks;
 int		nfs_pbuf_freecnt = -1;	/* start out unlimited */
 
 struct nfs_reqq	nfs_reqq;
+struct mtx nfs_reqq_mtx;
+struct mtx nfs_reply_mtx;
 struct nfs_bufq	nfs_bufq;
 
 /*
@@ -412,6 +414,8 @@ nfs_init(struct vfsconf *vfsp)
 	 */
 	TAILQ_INIT(&nfs_reqq);
 	callout_init(&nfs_callout, 0);
+	mtx_init(&nfs_reqq_mtx, "NFS reqq lock", NULL, MTX_DEF);
+	mtx_init(&nfs_reply_mtx, "Synch NFS reply posting", NULL, MTX_DEF);
 
 	nfs_pbuf_freecnt = nswbuf / 2 + 1;
 

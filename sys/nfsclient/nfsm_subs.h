@@ -134,7 +134,10 @@ do { \
 
 #define	nfsm_request(v, t, p, c) \
 do { \
+	sigset_t oldset; \
+	nfs_set_sigmask(p, &oldset); \
 	error = nfs_request((v), mreq, (t), (p), (c), &mrep, &md, &dpos); \
+	nfs_restore_sigmask(p, &oldset); \
 	if (error != 0) { \
 		if (error & NFSERR_RETERR) \
 			error &= ~NFSERR_RETERR; \
