@@ -42,5 +42,19 @@ __FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 
-SYSCALL(reboot)
+	.weak	_reboot
+	.set	_reboot,__sys_reboot
+	.weak	reboot
+	.set	reboot,__sys_reboot
+ENTRY(__sys_reboot)
+	mov	$SYS_reboot,%rax
+	KERNCALL
+	jb	1f
 	iretq
+1:
+#ifdef PIC
+	movq	PIC_GOT(HIDENAME(cerror)),%rdx
+	jmp	*%rdx
+#else
+	jmp	HIDENAME(cerror)
+#endif
