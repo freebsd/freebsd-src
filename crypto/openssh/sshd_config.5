@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.28 2004/02/17 19:35:21 jmc Exp $
 .\" $FreeBSD$
+.\" $OpenBSD: sshd_config.5,v 1.28 2004/02/17 19:35:21 jmc Exp $
 .Dd September 25, 1999
 .Dt SSHD_CONFIG 5
 .Os
@@ -306,6 +306,11 @@ To use this option, the server needs a
 Kerberos servtab which allows the verification of the KDC's identity.
 Default is
 .Dq no .
+.It Cm KerberosGetAFSToken
+If AFS is active and the user has a Kerberos 5 TGT, attempt to aquire
+an AFS token before accessing the user's home directory.
+Default is
+.Dq no .
 .It Cm KerberosOrLocalPasswd
 If set then if password authentication through Kerberos fails then
 the password will be validated via any additional local mechanism
@@ -457,7 +462,9 @@ the root user may be allowed in with its password even if
 .Pp
 If this option is set to
 .Dq without-password
-password authentication is disabled for root.
+password authentication is disabled for root.  Note that other authentication
+methods (e.g., keyboard-interactive/PAM) may still allow root to login using
+a password.
 .Pp
 If this option is set to
 .Dq forced-commands-only

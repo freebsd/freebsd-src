@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.28 2003/12/16 15:49:51 markus Exp $
 .\" $FreeBSD$
+.\" $OpenBSD: ssh_config.5,v 1.28 2003/12/16 15:49:51 markus Exp $
 .Dd September 25, 1999
 .Dt SSH_CONFIG 5
 .Os
@@ -407,6 +407,24 @@ syntax to refer to a user's home directory.
 It is possible to have
 multiple identity files specified in configuration files; all these
 identities will be tried in sequence.
+.It Cm IdentitiesOnly
+Specifies that
+.Nm ssh
+should only use the authentication identity files configured in the
+.Nm 
+files,
+even if the
+.Nm ssh-agent
+offers more identities.
+The argument to this keyword must be
+.Dq yes
+or
+.Dq no .
+This option is intented for situations where
+.Nm ssh-agent
+offers many different identities.
+The default is
+.Dq no .
 .It Cm LocalForward
 Specifies that a TCP/IP port on the local machine be forwarded over
 the secure channel to the specified host and port from the remote machine.

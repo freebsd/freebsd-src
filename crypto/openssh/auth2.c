@@ -159,24 +159,24 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 	if (authctxt->attempt++ == 0) {
 		/* setup auth context */
 		authctxt->pw = PRIVSEP(getpwnamallow(user));
+		authctxt->user = xstrdup(user);
 		if (authctxt->pw && strcmp(service, "ssh-connection")==0) {
 			authctxt->valid = 1;
 			debug2("input_userauth_request: setting up authctxt for %s", user);
 #ifdef USE_PAM
 			if (options.use_pam)
-				PRIVSEP(start_pam(authctxt->pw->pw_name));
+				PRIVSEP(start_pam(authctxt));
 #endif
 		} else {
 			logit("input_userauth_request: illegal user %s", user);
 			authctxt->pw = fakepw();
 #ifdef USE_PAM
 			if (options.use_pam)
-				PRIVSEP(start_pam(user));
+				PRIVSEP(start_pam(authctxt));
 #endif
 		}
 		setproctitle("%s%s", authctxt->pw ? user : "unknown",
 		    use_privsep ? " [net]" : "");
-		authctxt->user = xstrdup(user);
 		authctxt->service = xstrdup(service);
 		authctxt->style = style ? xstrdup(style) : NULL;
 		if (use_privsep)
