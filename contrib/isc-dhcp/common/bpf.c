@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: bpf.c,v 1.19.2.9 1999/03/29 22:07:12 mellon Exp $ Copyright (c) 1995, 1996, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: bpf.c,v 1.19.2.10 1999/05/27 17:44:51 mellon Exp $ Copyright (c) 1995, 1996, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -186,6 +186,20 @@ struct bpf_insn dhcp_bpf_filter [] = {
 };
 
 int dhcp_bpf_filter_len = sizeof dhcp_bpf_filter / sizeof (struct bpf_insn);
+
+struct bpf_insn dhcp_bpf_tr_filter [] = {
+        /* accept all token ring packets due to variable length header */
+        /* if we want to get clever, insert the program here */
+
+	/* If we passed all the tests, ask for the whole packet. */
+	BPF_STMT(BPF_RET+BPF_K, (u_int)-1),
+
+	/* Otherwise, drop it. */
+	BPF_STMT(BPF_RET+BPF_K, 0),
+};
+
+int dhcp_bpf_tr_filter_len = (sizeof dhcp_bpf_tr_filter /
+			      sizeof (struct bpf_insn));
 #endif
 
 #if defined (USE_BPF_RECEIVE)

@@ -3,7 +3,7 @@
    Packet assembly code, originally contributed by Archie Cobbs. */
 
 /*
- * Copyright (c) 1995, 1996 The Internet Software Consortium.
+ * Copyright (c) 1995, 1996, 1999 The Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: packet.c,v 1.18.2.4 1999/04/24 15:31:47 mellon Exp $ Copyright (c) 1996 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: packet.c,v 1.18.2.6 1999/06/10 00:58:16 mellon Exp $ Copyright (c) 1996 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -50,7 +50,6 @@ static char copyright[] =
 #if defined (PACKET_ASSEMBLY) || defined (PACKET_DECODING)
 #include "includes/netinet/ip.h"
 #include "includes/netinet/udp.h"
-#include "includes/netinet/if_ether.h"
 #endif /* PACKET_ASSEMBLY || PACKET_DECODING */
 
 /* Compute the easy part of the checksum on a range of bytes. */
@@ -122,26 +121,13 @@ void assemble_hw_header (interface, buf, bufix, to)
 	int *bufix;
 	struct hardware *to;
 {
-	struct ether_header eh;
-
-	if (to && to -> hlen == 6) /* XXX */
-		memcpy (eh.ether_dhost, to -> haddr, sizeof eh.ether_dhost);
+#if defined (HAVE_TR_SUPPORT)
+	if (interface -> hw_address.htype == HTYPE_IEEE802)
+		assemble_tr_header (interface, buf, bufix, to);
 	else
-		memset (eh.ether_dhost, 0xff, sizeof (eh.ether_dhost));
-	if (interface -> hw_address.hlen == sizeof (eh.ether_shost))
-		memcpy (eh.ether_shost, interface -> hw_address.haddr,
-			sizeof (eh.ether_shost));
-	else
-		memset (eh.ether_shost, 0x00, sizeof (eh.ether_shost));
-
-#ifdef BROKEN_FREEBSD_BPF /* Fixed in FreeBSD 2.2 */
-	eh.ether_type = ETHERTYPE_IP;
-#else
-	eh.ether_type = htons (ETHERTYPE_IP);
 #endif
+		assemble_ethernet_header (interface, buf, bufix, to);
 
-	memcpy (&buf [*bufix], &eh, sizeof eh);
-	*bufix += sizeof eh;
 }
 
 /* UDP header and IP header assembled together for convenience. */
@@ -207,7 +193,6 @@ void assemble_udp_ip_header (interface, buf, bufix,
 
 #ifdef PACKET_DECODING
 /* Decode a hardware header... */
-/* XXX currently only supports ethernet; doesn't check for other types. */
 
 ssize_t decode_hw_header (interface, buf, bufix, from)
      struct interface_info *interface;
@@ -215,19 +200,12 @@ ssize_t decode_hw_header (interface, buf, bufix, from)
      int bufix;
      struct hardware *from;
 {
-  struct ether_header eh;
-
-  memcpy (&eh, buf + bufix, sizeof eh);
-
-#ifdef USERLAND_FILTER
-  if (ntohs (eh.ether_type) != ETHERTYPE_IP)
-	  return -1;
+#if defined (HAVE_TR_SUPPORT)
+	if (interface -> hw_address.htype == HTYPE_IEEE802)
+		return decode_tr_header (interface, buf, bufix, from);
+	else
 #endif
-  memcpy (from -> haddr, eh.ether_shost, sizeof (eh.ether_shost));
-  from -> htype = ARPHRD_ETHER;
-  from -> hlen = sizeof eh.ether_shost;
-
-  return sizeof eh;
+		return decode_ethernet_header (interface, buf, bufix, from);
 }
 
 /* UDP header and IP header decoded together for convenience. */

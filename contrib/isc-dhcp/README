@@ -1,7 +1,38 @@
 		     Internet Software Consortium
 	   Dynamic Host Configuration Protocol Distribution
-		   Version 2, Beta 1, Patchlevel 27
-			    April 23, 1999
+			      Version 2
+			    June 22, 1999
+
+			     README FILE
+
+You should read this file carefully before trying to install or use
+the ISC DHCP Distribution.
+
+			  TABLE OF CONTENTS
+
+	1	WHERE TO FIND DOCUMENTATION
+	2	RELEASE STATUS
+	3	BUILDING THE DHCP DISTRIBUTION
+	4	INSTALLING THE DHCP DISTRIBUTION
+	5	USING THE DHCP DISTRIBUTION
+	 5.1	LINUX
+	  5.1.1	SO_ATTACH_FILTER UNDECLARED
+	  5.1.2	PROTOCOL NOT CONFIGURED
+	  5.1.3	BROADCAST
+	  5.1.4	FIREWALL RULES
+	  5.1.5	IP BOOTP AGENT
+	  5.1.6	MULTIPLE INTERFACES
+	 5.2	SCO
+	 5.3	HP-UX
+	 5.4	ULTRIX
+	 5.5	FreeBSD
+	 5.6	NeXTSTEP
+	 5.7	SOLARIS
+	6	SUPPORT
+	 6.1	HOW TO REPORT BUGS
+	7	KNOWN BUGS
+
+		      WHERE TO FIND DOCUMENTATION
 
 Documentation for this software includes this README file, the
 RELNOTES file, and the manual pages, which are in the server, common,
@@ -15,25 +46,37 @@ DHCP server documentation is in the dhcpd man page.  Information about
 the DHCP server lease database is in the dhcpd.leases man page.
 Server configuration documentation is in the dhcpd.conf man page as
 well as the dhcp-options man page.   A sample DHCP server
-configuration is in the file server/dhcpd.conf.
+configuration is in the file server/dhcpd.conf.   The source for the
+dhcpd, dhcpd.leases and dhcpd.conf man pages is in the server/ sub-
+directory in the distribution.   The source for the dhcp-options.5
+man page is in the common/ subdirectory.
 
 DHCP Client documentation is in the dhclient man page.  DHCP client
 configuration documentation is in the dhclient.conf man page and the
 dhcp-options man page.  The DHCP client configuration script is
 documented in the dhclient-script man page.   The format of the DHCP
 client lease database is documented in the dhclient.leases man page.
+The source for all these man pages is in the client/ subdirectory in
+the distribution.   In addition, the dhcp-options man page should be
+referred to for information about DHCP options.
 
-DHCP relay agent documentation is in the dhcrelay man page.
+DHCP relay agent documentation is in the dhcrelay man page, the source
+for which is distributed in the relay/ subdirectory.
 
 To read installed manual pages, use the man command.  Type "man page"
-where page is the name of the manual page.
+where page is the name of the manual page.   This will only work if
+you have installed the ISC DHCP distribution using the ``make install''
+command (described later).
 
 If you want to read manual pages that aren't installed, you can type
 ``nroff -man page |more'' where page is the filename of the
 unformatted manual page.  The filename of an unformatted manual page
 is the name of the manual page, followed by '.', followed by some
 number - 5 for documentation about files, and 8 for documentation
-about programs.
+about programs.   For example, to read the dhcp-options man page,
+you would type ``nroff -man common/dhcp-options.5 |more'', assuming
+your current working directory is the top level directory of the ISC
+DHCP Distribution.
 
 If you do not have the nroff command, you can type ``more catpage''
 where catpage is the filename of the catted man page.  Catted man
@@ -44,21 +87,20 @@ Please note that until you install the manual pages, the pathnames of
 files to which they refer will not be correct for your operating
 system.
 
-This is the first Beta release of Version 2 of the Internet Software
+			    RELEASE STATUS
+
+This is the final release of Version 2 of the Internet Software
 Consortium DHCP Distribution.  In version 2.0, this distribution
 includes a DHCP server, a DHCP client, and a BOOTP/DHCP relay agent.
-This beta is believed to be fairly stable.  However, DHCP server users
-running a production environment should probably still use version
-1.0, which is more stable, having been in a feature freeze since
-November of 1996.
+This release is stable.
 
 In this release, the server and relay agent currently work well on
 NetBSD, Linux after kernel version 2.0.30, FreeBSD, BSD/OS, Ultrix,
-Digital Alpha OSF/1, Solaris and SunOS 4.1.4.  They run on AIX, HPUX,
-IRIX and Linux 2.0.30 and earlier kernels but support only a single
-broadcast network interface.  They also runs on QNX as long as only
-one broadcast network interface is configured and a host route is
-added from that interface to the 255.255.255.255 broadcast address.
+Digital Alpha OSF/1, Solaris and SunOS 4.1.4.  On AIX, HPUX, IRIX and
+Linux 2.0.30, only a single broadcast network interface is supported.
+They also runs on QNX as long as only one broadcast network interface
+is configured and a host route is added from that interface to the
+255.255.255.255 broadcast address.
 
 The DHCP client currently only knows how to configure the network on
 NetBSD, FreeBSD, BSD/os, Linux, Solaris and NextStep.  The client
@@ -86,12 +128,12 @@ information.   On Digital Unix, type ``man pfilt''.
 To build the DHCP Distribution, unpack the compressed tar file using
 the tar utility and the gzip command - type something like:
 
-	zcat dhcp-2.0b1pl27.tar.gz |tar xvf -
+	zcat dhcp-2.0b1pl29.tar.gz |tar xvf -
 
 On BSD/OS, you have to type gzcat, not zcat, and you may run into
 similar problems on other operating systems.
 
-Now, cd to the dhcp-2.0b1pl27 subdirectory that you've just created and
+Now, cd to the dhcp-2.0b1pl29 subdirectory that you've just created and
 configure the source tree by typing:
 
 		./configure
@@ -112,10 +154,14 @@ If you get errors on a system not mentioned above, you will need
 to do some programming or debugging on your own to get the DHCP
 Distribution working.
 
+		   INSTALLING THE DHCP DISTRIBUTION
+
 Once you have successfully gotten the DHCP Distribution to build, you
 can install it by typing ``make install''.   If you already have an old
 version of the DHCP Distribution installed, you may want to save it
 before typing ``make install''.
+
+		     USING THE DHCP DISTRIBUTION
 
 				LINUX
 
@@ -196,6 +242,21 @@ Another route that has worked for some users is:
 If you are not using eth0 as your network interface, you should
 specify the network interface you *are* using in your route command.
 
+			LINUX: FIREWALL RULES
+
+If you are running the DHCP server or client on a Linux system that's
+also acting as a firewall, you must be sure to allow DHCP packets
+through the firewall - Linux firewalls make filtering decisions before
+they make the forwarding decision, so they will filter packets that
+are intended for the firewall itself, as well as packets intended to
+be forwarded.   In particular, your firewall rules _must_ allow
+packets from IP address 0.0.0.0 to IP address 255.255.255.255 from UDP
+port 68 to UDP port 67 through.   They must also allow packets from
+your local firewall's IP address and UDP port 67 through to any
+address your DHCP server might serve on UDP port 68.   Finally,
+packets from relay agents on port 67 to the DHCP server on port 67,
+and vice versa, must be permitted.
+
 			LINUX: IP BOOTP AGENT
 
 Some versions of the Linux 2.1 kernel apparently prevent dhcpd from
@@ -206,12 +267,12 @@ working unless you enable it by doing the following:
 
 		      LINUX: MULTIPLE INTERFACES
 
-Most older versions of the Linux kernel do not provide a networking
-API that allows dhcpd to operate correctly if the system has more than
-one broadcast network interface.  However, Linux 2.0 kernels with
-version numbers greater than or equal to 2.0.31 add an API feature:
-the SO_BINDTODEVICE socket option.  If SO_BINDTODEVICE is present, it
-is possible for dhcpd to operate on Linux with more than one network
+Very old versions of the Linux kernel do not provide a networking API
+that allows dhcpd to operate correctly if the system has more than one
+broadcast network interface.  However, Linux 2.0 kernels with version
+numbers greater than or equal to 2.0.31 add an API feature: the
+SO_BINDTODEVICE socket option.  If SO_BINDTODEVICE is present, it is
+possible for dhcpd to operate on Linux with more than one network
 interface.  In order to take advantage of this, you must be running a
 2.0.31 or greater kernel, and you must have 2.0.31 or later system
 headers installed *before* you build the DHCP Distribution.
@@ -220,6 +281,10 @@ We have heard reports that you must still add routes to 255.255.255.255
 in order for the all-ones broadcast to work, even on 2.0.31 kernels.
 In fact, you now need to add a route for each interface.   Hopefully
 the Linux kernel gurus will get this straight eventually.
+
+Linux 2.1 and later kernels do not use SO_BINDTODEVICE or require the
+broadcast address hack, but do support multiple interfaces, using the
+Linux Packet Filter.
 
 				 SCO
 
@@ -335,6 +400,8 @@ before you can report bugs.
 
 PLEASE READ THIS README FILE CAREFULLY BEFORE REPORTING BUGS!
 
+			  HOW TO REPORT BUGS
+
 When you report bugs, please provide us complete information.   A list
 of information we need follows.   Please read it carefully, and put
 all the information you can into your initial bug report, so that we
@@ -409,14 +476,9 @@ do call me on the phone, I will tell you to send email to the mailing
 list, and I won't answer your question, so there's no point in doing
 it.
 
-				 BUGS
+			      KNOWN BUGS
 
 This release of the DHCP Distribution does not yet contain support for
-DHCPINFORM.  Support for DHCPINFORM will be present in the release at
-a later time.  DHCPINFORM is somewhat tangential to the main purpose
-of the DHCP protocol, so this probably won't be a major problem for
-most users.
-
-Vendor tags and User tags are not currently supported.
-
-These two omissions are fixed in the 3.0 release.
+DHCPINFORM.  The Vendor Specific Data option is not supported.   Site-
+specific options are not supported.   All of these are supported in the
+3.0 release of the DHCP distribution, which is now in beta testing.
