@@ -2,6 +2,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <machine/vmparam.h>
+#include <i386/isa/isa_device.h>
+#include <i386/eisa/eisaconf.h>
+#include <scsi/scsiconf.h>
+#include <pci/pcivar.h>
+#include <pci/pcireg.h>
+
 
 static void print_isa(struct devconf *);
 static void print_eisa(struct devconf *);
