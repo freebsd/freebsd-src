@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.c,v 1.80 2001/04/13 11:19:58 augustss Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.87 2001/11/21 15:37:41 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -555,7 +555,7 @@ usbd_clear_endpoint_stall(usbd_pipe_handle pipe)
 	DPRINTFN(8, ("usbd_clear_endpoint_stall\n"));
 
 	/* 
-	 * Clearing en endpoint stall resets the enpoint toggle, so
+	 * Clearing en endpoint stall resets the endpoint toggle, so
 	 * do the same to the HC toggle.
 	 */
 	pipe->methods->cleartoggle(pipe);
