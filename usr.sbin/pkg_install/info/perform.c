@@ -179,6 +179,8 @@ pkg_do(char *pkg)
 	    printf("%sInformation for %s:\n\n", InfoPrefix, pkg);
 	if (Flags & SHOW_COMMENT)
 	    show_file("Comment:\n", COMMENT_FNAME);
+	if (Flags & SHOW_REQUIRE)
+	    show_plist("Depends on:\n", &plist, PLIST_PKGDEP);
 	if ((Flags & SHOW_REQBY) && !isemptyfile(REQUIRED_BY_FNAME))
 	    show_file("Required by:\n", REQUIRED_BY_FNAME);
 	if (Flags & SHOW_DESC)
