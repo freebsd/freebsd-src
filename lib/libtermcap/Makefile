@@ -7,13 +7,13 @@ SRCS=	termcap.c tgoto.c tputs.c
 MAN3=	termcap.3
 MLINKS=	termcap.3 tgetent.3 termcap.3 tgetflag.3 termcap.3 tgetnum.3 \
 	termcap.3 tgetstr.3 termcap.3 tgoto.3 termcap.3 tputs.3
-LINKS=	${DESTDIR}${LIBDIR}/libtermcap.a ${DESTDIR}${LIBDIR}/libtermlib.a
+LINKS=	${LIBDIR}/libtermcap.a ${LIBDIR}/libtermlib.a
 .if !defined(NOPIC)
-LINKS+= ${DESTDIR}${SHLIBDIR}/libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	${DESTDIR}${SHLIBDIR}/libtermlib.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+LINKS+= ${SHLIBDIR}/libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+	${SHLIBDIR}/libtermlib.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 .endif
 .if !defined(NOPROFILE)
-LINKS+=	${DESTDIR}${LIBDIR}/libtermcap_p.a ${DESTDIR}${LIBDIR}/libtermlib_p.a
+LINKS+=	${LIBDIR}/libtermcap_p.a ${LIBDIR}/libtermlib_p.a
 .endif
 
 .include <bsd.lib.mk>
