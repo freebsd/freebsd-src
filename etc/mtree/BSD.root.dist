@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.30 1998/09/19 18:50:27 obrien Exp $
+#	$Id: BSD.root.dist,v 1.31 1998/09/30 22:27:27 jkh Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -42,6 +42,8 @@
     lkm
     ..
     mnt
+    ..
+    modules
     ..
     proc            mode=0555
     ..
