@@ -226,7 +226,7 @@ witness_destroy(mtx_t *m)
 }
 
 void
-witness_enter(mtx_t *m, int flags,  char *file, int line)
+witness_enter(mtx_t *m, int flags, const char *file, int line)
 {
 	witness_t *w, *w1;
 	mtx_t *m1;
@@ -361,7 +361,7 @@ out:
 }
 
 void
-witness_exit(mtx_t *m, int flags, char *file, int line)
+witness_exit(mtx_t *m, int flags, const char *file, int line)
 {
 	witness_t *w;
 
@@ -458,7 +458,7 @@ witness_display(void(*prnt)(const char *fmt, ...))
 }
 
 int
-witness_sleep(int check_only, mtx_t *mtx, char *file, int line)
+witness_sleep(int check_only, mtx_t *mtx, const char *file, int line)
 {
 	mtx_t *m;
 	struct proc *p;
