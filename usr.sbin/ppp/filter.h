@@ -43,6 +43,8 @@
 #define T_ADDR		0
 #define T_MYADDR	1
 #define T_HISADDR	2
+#define T_DNS0		3
+#define T_DNS1		4
 
 /*
  * There's a struct filterent for each possible filter rule.  The
@@ -107,4 +109,4 @@ extern const char *filter_Proto2Nam(int);
 extern const char *filter_Op2Nam(int);
 extern struct in_addr bits2mask(int);
 extern void filter_AdjustAddr(struct filter *, struct in_addr *,
-                              struct in_addr *);
+                              struct in_addr *, struct in_addr [2]);
