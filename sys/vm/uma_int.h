@@ -199,7 +199,6 @@ typedef struct uma_bucket * uma_bucket_t;
 
 struct uma_cache {
 	struct mtx	uc_lock;	/* Spin lock on this cpu's bucket */
-	int		uc_count;	/* Highest value ub_ptr can have */
 	uma_bucket_t	uc_freebucket;	/* Bucket we're freeing to */
 	uma_bucket_t	uc_allocbucket;	/* Bucket to allocate from */
 	u_int64_t	uc_allocs;	/* Count of allocations */
@@ -257,6 +256,8 @@ struct uma_zone {
 	u_int64_t	uz_oallocs;	/* old allocs count */
 	u_int64_t	uz_wssize;	/* Working set size */
 	int		uz_recurse;	/* Allocation recursion count */
+	uint16_t	uz_fills;	/* Outstanding bucket fills */
+	uint16_t	uz_count;	/* Highest value ub_ptr can have */
 	/*
 	 * This HAS to be the last item because we adjust the zone size
 	 * based on NCPU and then allocate the space for the zones.
