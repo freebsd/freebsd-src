@@ -27,8 +27,6 @@
 # $FreeBSD$
 #
 
-		.set SIO_PRT,SIOPRT		# Base port
-
 		.globl sio_putchr
 
 # void sio_putchr(int c)
