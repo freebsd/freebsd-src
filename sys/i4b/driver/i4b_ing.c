@@ -96,7 +96,7 @@ struct ing_softc {
 	struct ifqueue  xmitq;	  /* transmit queue */
 		
 	node_p		node;		/* back pointer to node */
-	char		nodename[NG_NODELEN + 1]; /* store our node name */
+	char		nodename[NG_NODESIZ]; /* store our node name */
 	hook_p  	debughook;
 	hook_p  	hook;	
 
