@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.59 1998/10/17 09:46:42 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.60 1998/12/04 22:54:51 archie Exp $
  */
 
 #include "opt_devfs.h"
@@ -1158,10 +1158,10 @@ set_ds_labeldevs_unaliased(dname, dev, ssp)
 		sname = dsname(dname, dkunit(dev), slice, part, partname);
 		if (part == RAW_PART && sp->ds_bdev != NULL) {
 			sp->ds_bdevs[part] =
-				devfs_link(sp->ds_bdev,
+				devfs_makelink(sp->ds_bdev,
 					   "%s%s", sname, partname);
 			sp->ds_cdevs[part] =
-				devfs_link(sp->ds_cdev,
+				devfs_makelink(sp->ds_cdev,
 					   "r%s%s", sname, partname);
 		} else {
 			mynor = minor(dkmodpart(dev, part));

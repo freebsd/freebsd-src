@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $Id: devfsext.h,v 1.20 1998/04/28 00:10:52 julian Exp $
+ * $Id: devfsext.h,v 1.21 1998/07/13 06:45:16 bde Exp $
  */
 
 #ifndef _SYS_DEVFSEXT_H_
@@ -43,7 +43,7 @@ void	*devfs_add_devswf __P((void *devsw, int minor, int chrblk, uid_t uid,
  * at the moment there is nothing you can do with it that you couldn't do
  * with the original cookie. ( XXX this might be something I should change )
  */
-void	*devfs_link __P((void *original, char *fmt, ...)) __printflike(2, 3);
+void	*devfs_makelink __P((void *original, char *fmt, ...)) __printflike(2, 3);
 
 /*
  * Remove all instances of a device you have made. INCLUDING LINKS.

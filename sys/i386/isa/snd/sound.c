@@ -314,32 +314,32 @@ pcmattach(struct isa_device * dev)
      */
     cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP,
 	DV_CHR, UID_SND, GID_SND, PERM_SND, "dsp%r", dev->id_unit);
-    if (cookie) devfs_link(cookie, "dsp");
+    if (cookie) devfs_makelink(cookie, "dsp");
 
     cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP16,
 	DV_CHR, UID_SND, GID_SND, PERM_SND, "dspW%r", dev->id_unit);
-    if (cookie) devfs_link(cookie, "dspW");
+    if (cookie) devfs_makelink(cookie, "dspW");
 
     cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_AUDIO,
 	DV_CHR, UID_SND, GID_SND, PERM_SND, "audio%r", dev->id_unit);
-    if (cookie) devfs_link(cookie, "audio");
+    if (cookie) devfs_makelink(cookie, "audio");
 
     cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_CTL,
 	DV_CHR, UID_SND, GID_SND, PERM_SND, "mixer%r", dev->id_unit);
-    if (cookie) devfs_link(cookie, "mixer");
+    if (cookie) devfs_makelink(cookie, "mixer");
 
     cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_STATUS,
 	DV_CHR, UID_SND, GID_SND, PERM_SND, "sndstat%r", dev->id_unit);
-    if (cookie) devfs_link(cookie, "sndstat");
+    if (cookie) devfs_makelink(cookie, "sndstat");
 
 #if 0 /* these two are still unsupported... */
     cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_MIDIN,
 	DV_CHR, UID_SND, GID_SND, PERM_SND, "midi%r", dev->id_unit);
-    if (cookie) devfs_link(cookie, "midi");
+    if (cookie) devfs_makelink(cookie, "midi");
 
     cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_SYNTH,
 	DV_CHR, UID_SND, GID_SND, PERM_SND, "sequencer%r", dev->id_unit);
-    if (cookie) devfs_link(cookie, "sequencer");
+    if (cookie) devfs_makelink(cookie, "sequencer");
 #endif
 #endif /* DEVFS */
 
