@@ -340,5 +340,13 @@
       name for the old resolver configuration file.  It should have
       been listed as <filename>/etc/host.conf</filename>.</para>
 
+    <bridgehead reneras="sect3">Mailman</bridgehead>
+
+    <para>Recently the mailing lists were changed from majordomo
+      to the currently used Mailman list server.  More information
+      about using the new mailing lists can be found by visiting the
+      <a href="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD
+      Mailman Info Page</a>.</para>
+
   </sect1>
 </article>
