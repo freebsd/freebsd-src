@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000 Jason Evans <jasone@canonware.com>.
+ * Copyright (C) 2000 Jason Evans <jasone@freebsd.org>.
  * All rights reserved.
  * Copyright (C) 2000 Daniel M. Eischen <eischen@vigrid.com>.
  * All rights reserved.
