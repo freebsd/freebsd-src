@@ -164,8 +164,12 @@ main(argc, argv)
 			inet_flag++;
 			break;
 		case '6':
+#ifdef INET6
 			family = PF_INET6;
 			inet6_flag++;
+#else
+			errx(EX_USAGE, "lpd compiled sans INET6 (IPv6 support)");
+#endif
 			break;
 		default:
 			errs++;
@@ -698,13 +702,6 @@ again:
 	/*NOTREACHED*/
 }
 
-static void
-usage()
-{
-	fprintf(stderr, "usage: lpd [-dlp] [port#]\n");
-	exit(EX_USAGE);
-}
-
 /* setup server socket for specified address family */
 /* if af is PF_UNSPEC more than one socket may be returned */
 /* the returned list is dynamically allocated, so caller needs to free it */
@@ -786,4 +783,15 @@ socksetup(af, options)
 		mcleanup(0);
 	}
 	return(socks);
+}
+
+static void
+usage()
+{
+#ifdef INET6
+	fprintf(stderr, "usage: lpd [-dlp46] [port#]\n");
+#else
+	fprintf(stderr, "usage: lpd [-dlp] [port#]\n");
+#endif
+	exit(EX_USAGE);
 }
