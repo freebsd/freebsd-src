@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vfscanf.c,v 1.7 1997/02/22 15:02:41 peter Exp $";
+		"$Id: vfscanf.c,v 1.8 1997/03/03 17:53:02 bde Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -729,17 +729,26 @@ doswitch:
 			 * we just stored in the table (c).
 			 */
 			n = *fmt;
-			if (n == ']' || __collate_range_cmp (n, c) < 0) {
+			if (n == ']'
+			    || (__collate_load_error && n < c)
+			    || __collate_range_cmp (n, c) < 0
+			   ) {
 				c = '-';
 				break;	/* resume the for(;;) */
 			}
 			fmt++;
 			/* fill in the range */
-			for (i = 0; i < 256; i ++)
-				if (   __collate_range_cmp (c, i) < 0
-				    && __collate_range_cmp (i, n) <= 0
-				   )
-				tab[i] = v;
+			if (__collate_load_error) {
+				do {
+					tab[++c] = v;
+				} while (c < n);
+			} else {
+				for (i = 0; i < 256; i ++)
+					if (   __collate_range_cmp (c, i) < 0
+					    && __collate_range_cmp (i, n) <= 0
+					   )
+						tab[i] = v;
+			}
 #if 1	/* XXX another disgusting compatibility hack */
 			c = n;
 			/*
