@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.19 1997/12/15 02:18:35 tegge Exp $
+ *	$Id: ipl.s,v 1.20 1998/03/03 22:56:29 tegge Exp $
  */
 
 
@@ -159,6 +159,8 @@ doreti_exit:
 	/* XXX CPL_AND_CML needs work */
 #error not ready for vm86
 #endif
+	cmpl	$1,_in_vm86call
+	je	1f			/* want cpl == SWI_AST_PENDING */
 	/*
 	 * XXX
 	 * Sometimes when attempting to return to vm86 mode, cpl is not
@@ -342,6 +344,10 @@ doreti_swi:
 	ALIGN_TEXT
 swi_ast:
 	addl	$8,%esp			/* discard raddr & cpl to get trap frame */
+#ifdef VM86
+	cmpl	$1,_in_vm86call
+	je	1f			/* stay in kernel mode */
+#endif
 	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
 	je	swi_ast_phantom
 swi_ast_user:
@@ -364,6 +370,7 @@ swi_ast_phantom:
 	 */
 	testl	$PSL_VM,TF_EFLAGS(%esp)
 	jne	swi_ast_user
+1:
 #endif /* VM86 */
 	/*
 	 * These happen when there is an interrupt in a trap handler before

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.291 1998/03/05 19:37:03 tegge Exp $
+ *	$Id: machdep.c,v 1.292 1998/03/07 20:16:47 tegge Exp $
  */
 
 #include "apm.h"
@@ -645,8 +645,6 @@ sigreturn(p, uap)
 		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
 			trapsignal(p, SIGBUS, 0);
 
-#define VM_USERCHANGE	(PSL_USERCHANGE | PSL_RF)
-#define VME_USERCHANGE	(VM_USERCHANGE | PSL_VIP | PSL_VIF)
 		if (vm86->vm86_has_vme) {
 			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
 			    (eflags & VME_USERCHANGE) | PSL_VM;
@@ -1239,11 +1237,43 @@ init386(first)
 	setidt(13, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	initializecpu();	/* Initialize CPU registers */
 
+	/* make an initial tss so cpu can get interrupt stack on syscall! */
+#ifdef VM86
+	common_tss.tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE - 16;
+#else
+	common_tss.tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE;
+#endif /* VM86 */
+	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
+	common_tss.tss_ioopt = (sizeof common_tss) << 16;
+	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
+	ltr(gsel_tss);
+#ifdef VM86
+	private_tss = 0;
+	my_tr = GPROC0_SEL;
+#endif
+
+	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
+	    dblfault_tss.tss_esp2 = (int) &dblfault_stack[sizeof(dblfault_stack)];
+	dblfault_tss.tss_ss = dblfault_tss.tss_ss0 = dblfault_tss.tss_ss1 =
+	    dblfault_tss.tss_ss2 = GSEL(GDATA_SEL, SEL_KPL);
+	dblfault_tss.tss_cr3 = (int)IdlePTD;
+	dblfault_tss.tss_eip = (int) dblfault_handler;
+	dblfault_tss.tss_eflags = PSL_KERNEL;
+	dblfault_tss.tss_ds = dblfault_tss.tss_es = dblfault_tss.tss_fs = 
+	    dblfault_tss.tss_gs = GSEL(GDATA_SEL, SEL_KPL);
+	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
+	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
+
+#ifdef VM86
+	initial_bioscalls(&biosbasemem, &biosextmem);
+#else
+
 	/* Use BIOS values stored in RTC CMOS RAM, since probing
 	 * breaks certain 386 AT relics.
 	 */
 	biosbasemem = rtcin(RTC_BASELO)+ (rtcin(RTC_BASEHI)<<8);
 	biosextmem = rtcin(RTC_EXTLO)+ (rtcin(RTC_EXTHI)<<8);
+#endif
 
 	/*
 	 * If BIOS tells us that it has more than 640k in the basemem,
@@ -1290,7 +1320,7 @@ init386(first)
 			 * remain read-only and are unused by the kernel.
 			 * The base memory area is below the physical end of
 			 * the kernel and right now forms a read-only hole.
-			 * The part of it from 0 to
+			 * The part of it from PAGE_SIZE to
 			 * (trunc_page(biosbasemem * 1024) - 1) will be
 			 * remapped and used by the kernel later.)
 			 *
@@ -1504,33 +1534,6 @@ init386(first)
 		pmap_enter(kernel_pmap, (vm_offset_t)msgbufp + off,
 			   avail_end + off, VM_PROT_ALL, TRUE);
 	msgbufmapped = 1;
-
-	/* make an initial tss so cpu can get interrupt stack on syscall! */
-#ifdef VM86
-	common_tss.tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE - 16;
-#else
-	common_tss.tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE;
-#endif /* VM86 */
-	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
-	common_tss.tss_ioopt = (sizeof common_tss) << 16;
-	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
-	ltr(gsel_tss);
-#ifdef VM86
-	private_tss = 0;
-	my_tr = GPROC0_SEL;
-#endif
-
-	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
-	    dblfault_tss.tss_esp2 = (int) &dblfault_stack[sizeof(dblfault_stack)];
-	dblfault_tss.tss_ss = dblfault_tss.tss_ss0 = dblfault_tss.tss_ss1 =
-	    dblfault_tss.tss_ss2 = GSEL(GDATA_SEL, SEL_KPL);
-	dblfault_tss.tss_cr3 = (int)IdlePTD;
-	dblfault_tss.tss_eip = (int) dblfault_handler;
-	dblfault_tss.tss_eflags = PSL_KERNEL;
-	dblfault_tss.tss_ds = dblfault_tss.tss_es = dblfault_tss.tss_fs = 
-	    dblfault_tss.tss_gs = GSEL(GDATA_SEL, SEL_KPL);
-	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
-	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
 
 	/* make a call gate to reenter kernel with */
 	gdp = &ldt[LSYS5CALLS_SEL].gd;

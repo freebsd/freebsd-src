@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.121 1998/02/04 22:32:12 eivind Exp $
+ *	$Id: trap.c,v 1.122 1998/02/06 12:13:10 eivind Exp $
  */
 
 /*
@@ -225,6 +225,35 @@ restart:
 	type = frame.tf_trapno;
 	code = frame.tf_err;
 
+#ifdef VM86
+	if (in_vm86call) {
+		if (frame.tf_eflags & PSL_VM &&
+		    (type == T_PROTFLT || type == T_STKFLT)) {
+			i = vm86_emulate((struct vm86frame *)&frame);
+			if (i != 0)
+				/*
+				 * returns to original process
+				 */
+				vm86_trap((struct vm86frame *)&frame);
+			return;
+		}
+		switch (type) {
+			/*
+			 * these traps want either a process context, or
+			 * assume a normal userspace trap.
+			 */
+		case T_PROTFLT:
+		case T_SEGNPFLT:
+			trap_fatal(&frame);
+			return;
+		case T_TRCTRAP:
+			type = T_BPTFLT;	/* kernel breakpoint */
+			/* FALL THROUGH */
+		}
+		goto kernel_trap;	/* normal kernel trap handling */
+	}
+#endif
+
         if ((ISPL(frame.tf_cs) == SEL_UPL) || (frame.tf_eflags & PSL_VM)) {
 		/* user trap */
 
@@ -356,6 +385,9 @@ restart:
 			break;
 		}
 	} else {
+#ifdef VM86
+kernel_trap:
+#endif
 		/* kernel trap */
 
 		switch (type) {
