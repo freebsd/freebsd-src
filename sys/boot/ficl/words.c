@@ -4744,7 +4744,6 @@ void ficlCompileCore(FICL_DICT *dp)
     ** Ficl extras
     */
     dictAppendWord(dp, ".env",      listEnv,        FW_DEFAULT);
-    dictAppendWord(dp, ".hash",     dictHashSummary,FW_DEFAULT);
     dictAppendWord(dp, ".ver",      ficlVersion,    FW_DEFAULT);
     dictAppendWord(dp, "-roll",     minusRoll,      FW_DEFAULT);
     dictAppendWord(dp, "2constant", twoConstant,    FW_IMMEDIATE); /* DOUBLE */
