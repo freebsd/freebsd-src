@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.46 1997/04/07 04:09:47 hanai Exp $ -->
+<!-- $Id: contrib.sgml,v 1.47 1997/04/10 04:41:55 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.232 -->
+<!-- Original revision: 1.233 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -130,7 +130,7 @@
         <tag/ドキュメント構築環境の技術責任者/ &a.paul; <p><em>副責任者</em> &a.dave
         <tag/Mirror 担当/ &a.ulf; <p><em>副担当</em>&a.john
         <tag/ニュースフラッシュ編集担当/ &a.nsj; <p><em>副担当</em>&a.john;
-        <tag/FreeBSD ギャラリーおよび商用ベンダ情報ページ担当/ &a.ricardag; <p><em>副担当</em>&a.cawimm
+        <tag/FreeBSD ギャラリーおよび商用ベンダ情報ページ担当/ &a.nsj; <p><em>副担当</em>&a.cawimm
         <tag/WEB ページデザイン等の美術担当/ &a.dave; <p><em>副担当</em>&a.opsys
         <tag/データベース技術担当/ &a.mayo; <p><em>副担当</em>&a.cracauer
         <tag/CGI 技術担当/ &a.cracauer
