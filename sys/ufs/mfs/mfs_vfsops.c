@@ -366,8 +366,11 @@ mfs_start(mp, flags, p)
 			gotsig = 0;
 			if (dounmount(mp, 0, p) != 0) {
 				sig = CURSIG(p);
-				if (sig)
+				if (sig) {
+					PROC_LOCK(p);
 					SIGDELSET(p->p_siglist, sig);
+					PROC_UNLOCK(p);
+				}
 			}
 		}
 		else if (tsleep((caddr_t)vp, mfs_pri, "mfsidl", 0))
