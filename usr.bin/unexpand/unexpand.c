@@ -56,6 +56,8 @@ static const char sccsid[] = "@(#)unexpand.c	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 int	all;
 int	nstops;
@@ -63,7 +65,7 @@ int	tabstops[100];
 
 static void getstops(const char *);
 static void usage(void);
-static void tabify(void);
+static int tabify(const char *);
 
 int
 main(int argc, char *argv[])
@@ -94,14 +96,14 @@ main(int argc, char *argv[])
 
 	failed = 0;
 	if (argc == 0)
-		tabify();
+		failed |= tabify("stdin");
 	else {
 		while ((filename = *argv++) != NULL) {
 			if (freopen(filename, "r", stdin) == NULL) {
 				warn("%s", filename);
-				failed++;
+				failed = 1;
 			} else
-				tabify();
+				failed |= tabify(filename);
 		}
 	}
 	exit(failed != 0);
@@ -114,15 +116,16 @@ usage(void)
 	exit(1);
 }
 
-static void
-tabify(void)
+static int
+tabify(const char *curfile)
 {
-	int ch, dcol, doneline, limit, n, ocol;
+	int dcol, doneline, limit, n, ocol, width;
+	wint_t ch;
 
 	limit = nstops == 1 ? INT_MAX : tabstops[nstops - 1] - 1;
 
 	doneline = ocol = dcol = 0;
-	while ((ch = getchar()) != EOF) {
+	while ((ch = getwchar()) != WEOF) {
 		if (ch == ' ' && !doneline) {
 			if (++dcol >= limit)
 				doneline = 1;
@@ -150,7 +153,7 @@ tabify(void)
 			    <= (dcol / tabstops[0])) {
 				if (dcol - ocol < 2)
 					break;
-				putchar('\t');
+				putwchar('\t');
 				ocol = (1 + ocol / tabstops[0]) *
 				    tabstops[0];
 			}
@@ -158,29 +161,29 @@ tabify(void)
 			for (n = 0; tabstops[n] - 1 < ocol && n < nstops; n++)
 				;
 			while (ocol < dcol && n < nstops && ocol < limit) {
-				putchar('\t');
+				putwchar('\t');
 				ocol = tabstops[n++];
 			}
 		}
 
 		/* Then spaces. */
 		while (ocol < dcol && ocol < limit) {
-			putchar(' ');
+			putwchar(' ');
 			ocol++;
 		}
 
 		if (ch == '\b') {
-			putchar('\b');
+			putwchar('\b');
 			if (ocol > 0)
 				ocol--, dcol--;
 		} else if (ch == '\n') {
-			putchar('\n');
+			putwchar('\n');
 			doneline = ocol = dcol = 0;
 			continue;
 		} else if (ch != ' ' || dcol > limit) {
-			putchar(ch);
-			if (isprint(ch))
-				ocol++, dcol++;
+			putwchar(ch);
+			if ((width = wcwidth(ch)) > 0)
+				ocol += width, dcol += width;
 		}
 
 		/*
@@ -188,13 +191,18 @@ tabify(void)
 		 * last tab stop. Emit remainder of this line unchanged.
 		 */
 		if (!all || dcol >= limit) {
-			while ((ch = getchar()) != '\n' && ch != EOF)
-				putchar(ch);
+			while ((ch = getwchar()) != '\n' && ch != WEOF)
+				putwchar(ch);
 			if (ch == '\n')
-				putchar('\n');
+				putwchar('\n');
 			doneline = ocol = dcol = 0;
 		}
 	}
+	if (ferror(stdin)) {
+		warn("%s", curfile);
+		return (1);
+	}
+	return (0);
 }
 
 static void
