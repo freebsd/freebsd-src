@@ -23,14 +23,14 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: lkm.4,v 1.2 1994/11/19 18:13:59 nate Exp $
+.\"	$Id: lkm.4,v 1.3 1995/04/05 01:06:00 jkh Exp $
 .\"
-.Dd September 4, 1993
+.Dd January 17, 1996
 .Dt LKM 4
 .Os FreeBSD 2.0
 .Sh NAME
 .Nm LKM
-.Nd Loadable Kernel Modules interface
+.Nd loadable kernel module facility
 .Sh DESCRIPTION
 Loadable kernel modules allow the system administrator to
 dynamically add and remove functionality from a running system.
@@ -43,6 +43,19 @@ There are several defined module types, listed below, which can
 be added to the system in a predefined way.  In addition, there
 is a generic type, for which the module itself handles loading and
 unloading.
+.Pp
+The
+.Tn FreeBSD
+system makes extensive use of loadable kernel modules, and provides
+loadable versions of most filesystems, the 
+.Tn NFS
+client and server, all the screen-savers, and the
+.Tn iBCS2
+and
+.Tn Linux
+emulators.  Modules distributed with the system are found in the
+.Pa /lkm
+directory.
 .Pp
 The
 .Nm
@@ -60,8 +73,8 @@ programs.  Users should never have to interact with
 .Pa /dev/lkm
 directly.
 .Sh "MODULE TYPES"
-.Bl -tag -width indent
-.It System Call modules
+.Bl -ohang
+.It Em "System Call modules"
 System calls may be replaced by loading
 new ones via the
 .Nm
@@ -77,17 +90,12 @@ the system call which
 was replaced by the loadable module
 is returned to its rightful place
 in the system call table.
-.It Virtual File System modules
+.It Em "Virtual File System modules"
 Virtual file systems may be added
 via the
 .Nm
-interface.  At this time, only
-file systems which are already
-known to the system can be added,
-because of the way the
-.Xr mount 2
-system call is implemented.
-.It Device Driver modules
+interface.
+.It Em "Device Driver modules"
 New block and character device
 drivers may be loaded into the system with
 .Nm LKM .
@@ -99,46 +107,55 @@ created by instructing
 .Xr modload 8
 to run an appropriate program when
 the driver has been successfully loaded.
-.It Execution Interpreters
-Execution interpreters allow
-the loading and execution of
-binaries which are normally not
-usable by the operating system.
-.It Miscellaneous modules
+.It Em "Execution classes"
+Also known as image activators, execution classes are the mechanisms
+by which the
+.Xr execve 2
+system call is able to recognize an executable file's format and load it
+into memory.
+.It Em "Miscellaneous modules"
 Miscellaneous modules are modules
 for which there are not currently
 well-defined or well-used interfaces
-for extension.  The user is expected
-to write their own loader to manipulate
+for extension.  Users are expected
+to write their own loaders to manipulate
 whatever kernel data structures necessary
 to enable and disable the new module
 when it is loaded and unloaded.
 .El
 .Sh FILES
-.Bl -tag -width /usr/include/sys/lkm.h -compact
+.Bl -tag -width /usr/share/examples/lkm -compact
 .It Pa /dev/lkm
 .Nm
 interface device
+.It Pa /lkm
+directory containing module binaries shipped with the system
 .It Pa /usr/include/sys/lkm.h
-file containing defitions of module types
-.It Pa /usr/share/lkm
-example source code implementing several of the modules types
+file containing definitions of module types
+.It Pa /usr/share/examples/lkm
+example source code implementing two of the module types
 .Sh SEE ALSO
 .Xr modload 8 ,
 .Xr modunload 8 ,
 .Xr modstat 8
+.Sh BUGS
+If a module fails to initialize itself correctly, and the system is
+able to detect this failure, it will panic immediately.
+.Pp
+When system internal interfaces change, old modules often cannot
+detect this, and such modules when loaded will often cause crashes or
+mysterious failures.
+.Sh AUTHOR
+The
+.Nm
+facility was originally implemented by Terrence R. Lambert.  Loadable
+filesystems were implemented by Garrett Wollman, and loadable
+execution classes were implemented by David Greenman, Soren Schmidt,
+and Garrett Wollman.
 .Sh HISTORY
 The
 .Nm
 facility was designed to be similar in functionality
 to the loadable kernel modules facility provided by
-.Tn "SunOS 4.1.3" .
-.Sh AUTHOR
-.Bl -tag
-Terrence R. Lambert, terry@cs.weber.edu
-.El
-.Sh BUGS
-Loading a bogus module is likely to kill your machine.
-.Pp
-Loadable streams modules should and will be implemented
-when a streams implementation is written.
+.Tn SunOS
+4.1.3.
