@@ -46,14 +46,17 @@
 
 SYSCTL_DECL(_kern_random);
 
+MALLOC_DECLARE(M_ENTROPY);
+
 /* These are used to queue harvested packets of entropy. The entropy
  * buffer size is pretty arbitrary.
  */
 struct harvest {
-	u_int64_t somecounter;		/* fast counter for clock jitter */
+	uintmax_t somecounter;		/* fast counter for clock jitter */
 	u_char entropy[HARVESTSIZE];	/* the harvested entropy */
 	u_int size, bits, frac;		/* stats about the entropy */
 	enum esource source;		/* stats about the entropy */
+	STAILQ_ENTRY(harvest) next;	/* next item on the list */
 };
 
 void random_init(void);
