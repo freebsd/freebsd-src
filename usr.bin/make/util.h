@@ -42,8 +42,14 @@
 #define	util_h_b7020fdb
 
 #include <sys/types.h>
+#include <stdio.h>
 
 #define	CONCAT(a,b)	a##b
+
+struct flag2str {
+	u_int		flag;
+	const char	*str;
+};
 
 /*
  * debug control:
@@ -90,5 +96,6 @@ char *estrdup(const char *);
 void *emalloc(size_t);
 void *erealloc(void *, size_t);
 int eunlink(const char *);
+void print_flags(FILE *, const struct flag2str *, u_int);
 
 #endif /* util_h_b7020fdb */
