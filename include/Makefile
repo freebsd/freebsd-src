@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.11 1994/08/28 17:43:52 bde Exp $
+#	$Id: Makefile,v 1.12 1994/09/08 10:36:30 bde Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -50,6 +50,8 @@ beforeinstall: ${SHARED}
 	@echo \#'undef __FreeBSD_version' > ${DESTDIR}/usr/include/osreldate.h
 	@echo \#'define __FreeBSD_version '`sysctl -n kern.osreldate` \
 		>> ${DESTDIR}/usr/include/osreldate.h
+	@chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/osreldate.h
+	@chmod 444 ${DESTDIR}/usr/include/osreldate.h
 	@${ECHO} installing ${DIRS}
 	@-for i in ${DIRS}; do \
 		if [ ! -d ${DESTDIR}/usr/include/$$i ]; \
