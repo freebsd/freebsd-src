@@ -108,9 +108,9 @@ ppsattach(device_t dev)
 {
 	struct pps_data *sc = DEVTOSOFTC(dev);
 	device_t ppbus = device_get_parent(dev);
-	int irq, zero = 0;
 	dev_t d;
-	int unit, i;
+	intptr_t irq;
+	int i, unit, zero = 0;
 
 	bzero(sc, sizeof(struct pps_data)); /* XXX doesn't newbus do this? */
 
@@ -182,7 +182,7 @@ ppsattach(device_t dev)
 			sc->devs[i] = d;
 			sc->pps[i].ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
 			d->si_drv1 = sc;
-			d->si_drv2 = (void*)i;
+			d->si_drv2 = (void *)(intptr_t)i;
 			pps_init(&sc->pps[i]);
 		}
 	} while (0);
@@ -196,7 +196,7 @@ static	int
 ppsopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct pps_data *sc = dev->si_drv1;
-	int subdev = (int)dev->si_drv2;
+	int subdev = (intptr_t)dev->si_drv2;
 	int error, i;
 
 	if (!sc->busy) {
@@ -232,7 +232,7 @@ static	int
 ppsclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct pps_data *sc = dev->si_drv1;
-	int subdev = (int)dev->si_drv2;
+	int subdev = (intptr_t)dev->si_drv2;
 
 	sc->pps[subdev].ppsparam.mode = 0;	/* PHK ??? */
 	sc->busy &= ~(1 << subdev);
@@ -298,7 +298,7 @@ static int
 ppsioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	struct pps_data *sc = dev->si_drv1;
-	int subdev = (int)dev->si_drv2;
+	int subdev = (intptr_t)dev->si_drv2;
 
 	return (pps_ioctl(cmd, data, &sc->pps[subdev]));
 }
