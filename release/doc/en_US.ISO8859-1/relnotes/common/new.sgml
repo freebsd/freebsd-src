@@ -203,7 +203,11 @@
         <title>isdn4bsd</title>
 
 	<para><application>isdn4bsd</application> has been updated to
-	version 1.0.1.</para>
+	version 1.0.1.  As a result of this update, users of the
+	&man.i4bisppp.4; (kernel PPP over ISDN) driver
+	<emphasis>must</emphasis> now use &man.ispppcontrol.8; instead
+	of &man.spppcontrol.8; to configure and control these
+	network interfaces.</para>
 
 	<para>The &man.ihfc.4; driver for supporting Cologne Chip
         Designs HFC devices under <application>isdn4bsd</application>
@@ -360,7 +364,7 @@
     <para><filename>libcrypt</filename> now has support for Blowfish
     password hashing.</para>
 
-    <para>Ukranian language support has been added to the &os;
+    <para>Ukrainian language support has been added to the &os;
     console.</para>
 
     <para>&man.savecore.8; now works correctly on machines with 2 GB
@@ -477,6 +481,22 @@
     <para>The <literal>tcpmssfixup</literal> &man.ppp.8; option now
     adjusts the maximum receive segment size of incoming TCP SYN
     segments as well as outgoing TCP SYN segments.</para>
+
+    <para>&man.sysctl.8; now supports a <option>-N</option> option to
+    print out variable names only.</para>
+
+    <para>&man.sysctl.8; has replaced the <option>-A</option> and
+    <option>-X</option> options with <option>-ao</option> and
+    <option>-ax</option> respectively; the former options are now
+    deprecated.  The <option>-w</option> is deprecated as well; it is
+    not needed to determine the user's intentions.</para>
+
+    <para>&man.cdcontrol.1; now supports <literal>next</literal> and
+    <literal>prev</literal> commands to skip forwards or backwards a
+    specified number of tracks while playing an audio CD.</para>
+
+    <para>&man.col.1; now takes a <option>-p</option> to force unknown
+    control sequences to be passed through unchanged.</para>
 
     <sect3>
       <title>Contributed Software</title>
