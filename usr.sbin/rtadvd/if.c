@@ -36,23 +36,12 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <net/if_types.h>
-#ifdef __FreeBSD__
-# include <net/ethernet.h>
-#endif
+#include <net/ethernet.h>
 #include <ifaddrs.h>
-#ifdef __NetBSD__
-#include <net/if_ether.h>
-#endif
 #include <net/route.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <netinet/icmp6.h>
-#ifdef __bsdi__
-# include <netinet/if_ether.h>
-#endif
-#ifdef __OpenBSD__
-#include <netinet/if_ether.h>
-#endif
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>

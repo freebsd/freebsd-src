@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: if.h,v 1.6 2001/01/21 15:37:14 itojun Exp $	*/
+/*	$KAME: if.h,v 1.10 2003/02/24 11:29:10 ono Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
