@@ -1,10 +1,10 @@
-#ifndef _SYS_DATAACQ_H_
-#define _SYS_DATAACQ_H_
-
-#include <sys/ioccom.h>
-
 /* Header for general data acquisition definitions.
  */
+
+#ifndef	_SYS_DATAACQ_H_
+#define	_SYS_DATAACQ_H_
+
+#include <sys/ioccom.h>
 
 /* Period in microseconds between analog I/O samples.
  */
@@ -31,4 +31,4 @@
 #define AD_GAINS_SET       _IO('A', 6)
 #define AD_GAINS_GET       _IO('A', 7)
 
-#endif /* _SYS_DATAACQ_H_ */
+#endif /* !_SYS_DATAACQ_H_ */

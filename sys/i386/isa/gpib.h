@@ -1,10 +1,14 @@
+#ifndef	_I386_ISA_GPIB_H_
+#define	_I386_ISA_GPIB_H_
+
+#include <sys/ioccom.h>
+
 /* gpib data structures */
 struct gpibdata {
           char *data;  /* data string for ins and outs	*/
           unsigned char address; /* gpib address */
           int *count;
            } ;
-
 
 /* IOCTL commands */
 #define GPIBWRITE _IOW('g',1,struct gpibdata)
@@ -17,3 +21,5 @@ struct gpibdata {
 #define GPIBMREMOTE _IOW('g',8,struct gpibdata)
 #define GPIBMLOCAL _IOW('g',9,struct gpibdata)
 #define GPIBSPOLL _IOW('g',10,struct gpibdata)
+
+#endif /* !_I386_ISA_GPIB_H_ */

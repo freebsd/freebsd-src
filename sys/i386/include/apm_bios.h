@@ -12,11 +12,16 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.10 1996/04/23 16:02:53 nate Exp $
+ *	$Id: apm_bios.h,v 1.11 1996/09/12 11:08:04 asami Exp $
  */
 
-#ifndef _MACHINE_APM_BIOS_H_
-#define _MACHINE_APM_BIOS_H_	1
+#ifndef	_MACHINE_APM_BIOS_H_
+#define	_MACHINE_APM_BIOS_H_
+
+#ifndef KERNEL
+#include <sys/types.h>
+#endif
+#include <sys/ioccom.h>
 
 #ifdef KERNEL
 
@@ -192,4 +197,4 @@ typedef struct apm_info {
 
 #endif /* !ASSEMBLER && !INITIALIZER */
 
-#endif /* _MACHINE_APM_BIOS_H_ */
+#endif /* !_MACHINE_APM_BIOS_H_ */

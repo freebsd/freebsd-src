@@ -31,16 +31,20 @@
  * SUCH DAMAGE.
  *
  *	@(#)tablet.h	8.4 (Berkeley) 7/10/94
- * $Id: tablet.h,v 1.3 1996/03/11 02:15:32 hsu Exp $
+ * $Id: tablet.h,v 1.4 1996/05/01 01:46:00 bde Exp $
  */
 
-#ifndef _SYS_TABLET_H_
+#ifndef	_SYS_TABLET_H_
 #define	_SYS_TABLET_H_
 
 /*
  * Tablet line discipline.
  */
-#include <sys/ioctl.h>
+
+#ifndef KERNEL
+#include <sys/types.h>
+#endif
+#include <sys/ioccom.h>
 
 /*
  * Reads on the tablet return one of the following structures, depending on

@@ -24,14 +24,16 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $Id: ioctl_fd.h,v 1.7 1994/10/30 19:17:39 joerg Exp $
+ * $Id: ioctl_fd.h,v 1.8 1996/01/30 22:54:34 mpp Exp $
  */
 
-#ifndef _IOCTL_FD_H
-#define _IOCTL_FD_H
+#ifndef	_MACHINE_IOCTL_FD_H_
+#define	_MACHINE_IOCTL_FD_H_
 
+#ifndef KERNEL
 #include <sys/types.h>
-#include <sys/ioctl.h>
+#endif
+#include <sys/ioccom.h>
 
 #define FD_FORMAT_VERSION 110	/* used to validate before formatting */
 #define FD_MAX_NSEC 36		/* highest known number of spt - allow for */
@@ -120,4 +122,4 @@ struct fd_type {
 				/* for some controllers 1MPBS instead */
 #endif /* FDC_500KBPS */
 
-#endif  /* !def _IOCTL_FD_H */
+#endif /* !_MACHINE_IOCTL_FD_H_ */

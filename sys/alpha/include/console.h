@@ -25,13 +25,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.21 1996/06/14 11:00:57 asami Exp $
+ *	$Id: console.h,v 1.23 1996/06/25 08:54:34 sos Exp $
  */
 
-#ifndef	_CONSOLE_H_
-#define	_CONSOLE_H_
+#ifndef	_MACHINE_CONSOLE_H_
+#define	_MACHINE_CONSOLE_H_
 
+#ifndef KERNEL
 #include <sys/types.h>
+#endif
 #include <sys/ioccom.h>
 
 #define KDGKBMODE 	_IOR('K',  6, int)
@@ -80,7 +82,7 @@
 
 #ifdef PC98
 #define ADJUST_CLOCK		_IO('t',100)		/* for 98note resume */
-#endif  /* for PC98 */
+#endif
 
 #define VT_OPENQRY	_IOR('v', 1, int)
 #define VT_SETMODE	_IOW('v', 2, vtmode_t)
@@ -336,7 +338,7 @@ typedef struct ssaver ssaver_t;
 #define M_HGC_P0	0xe0	/* hercules graphics - page 0 @ B0000 */
 #define M_HGC_P1	0xe1	/* hercules graphics - page 1 @ B8000 */
 #define M_MCA_MODE	0xff	/* monochrome adapter mode */
-#endif
+#endif /* PC98 */
 
 #ifdef PC98
 #define SW_PC98_80x25	_IO('S', M_PC98_80x25)
@@ -378,6 +380,6 @@ typedef struct ssaver ssaver_t;
 #define SW_CG640x480	_IO('S', M_VGA12)
 #define SW_VGA13	_IO('S', M_VGA13)
 #define SW_VGA_CG320	_IO('S', M_VGA13)
-#endif
+#endif /* PC98 */
 
-#endif
+#endif /* !_MACHINE_CONSOLE_H_ */

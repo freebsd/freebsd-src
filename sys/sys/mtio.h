@@ -31,11 +31,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id: mtio.h,v 1.6 1996/01/08 12:26:15 joerg Exp $
+ * $Id: mtio.h,v 1.7 1996/01/30 23:00:58 mpp Exp $
  */
 
-#ifndef _SYS_MTIO_H_
-#define _SYS_MTIO_H_ 1
+#ifndef	_SYS_MTIO_H_
+#define	_SYS_MTIO_H_
+
+#ifndef KERNEL
+#include <sys/types.h>
+#endif
+#include <sys/ioccom.h>
 
 /*
  * Structures and definitions for mag tape io control commands
@@ -160,4 +165,5 @@ struct mtget {
 #define	T_6250BPI	020		/* select 6250 bpi */
 #define	T_BADBPI	030		/* undefined selection */
 #endif
-#endif /* _SYS_MTIO_H_ */
+
+#endif /* !_SYS_MTIO_H_ */
