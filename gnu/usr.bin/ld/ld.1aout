@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ld.1,v 1.5 1994/02/13 20:41:22 jkh Exp $
+.\"	$Id: ld.1,v 1.6 1994/03/09 14:28:02 davidg Exp $
 .\"
 .Dd October 14, 1993
 .Dt LD 8
@@ -103,6 +103,11 @@ Force all members of archives to be loaded, whether or not such members
 contribute a definition to any plain object files. Useful for making a
 shared library from an archive of PIC objects without having to unpack
 the archive.
+.It Fl B Ar silly
+Search for
+.Em \.sa
+silly archive companions of shared objects. Useful for compatibility with
+version 3 shared objects.
 .It Fl D Ar data-size
 Set the size of the data segment. For sanity's sake, this should be larger
 than the cumulative data sizes of the input files.

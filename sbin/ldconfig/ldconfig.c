@@ -27,26 +27,27 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.5 1994/02/13 20:42:30 jkh Exp $
+ *	$Id: ldconfig.c,v 1.6 1994/06/05 19:04:11 ats Exp $
  */
 
 #include <sys/param.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/time.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
-#include <fcntl.h>
+#include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <ar.h>
 #include <ranlib.h>
 #include <a.out.h>
 #include <stab.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <dirent.h>
+#include <unistd.h>
 
 #include "ld.h"
 
@@ -74,6 +75,7 @@ static struct shlib_list	*shlib_head = NULL, **shlib_tail = &shlib_head;
 static void	enter __P((char *, char *, char *, int *, int));
 static int	dodir __P((char *, int));
 static int	build_hints __P((void));
+static int	listhints __P((void));
 
 int
 main(argc, argv)
@@ -111,7 +113,7 @@ char	*argv[];
 		return listhints();
 
 	if (!nostd)
-		std_search_dirs(NULL);
+		std_search_path();
 
 	for (i = 0; i < n_search_dirs; i++)
 		rval |= dodir(search_dirs[i], 1);
@@ -349,7 +351,7 @@ build_hints()
 	return 0;
 }
 
-int
+static int
 listhints()
 {
 	int			fd;
@@ -375,7 +377,8 @@ listhints()
 
 	hdr = (struct hints_header *)addr;
 	if (HH_BADMAG(*hdr)) {
-		fprintf(stderr, "%s: Bad magic: %d\n");
+		fprintf(stderr, "%s: Bad magic: %o\n",
+			_PATH_LD_HINTS, hdr->hh_magic);
 		return -1;
 	}
 
