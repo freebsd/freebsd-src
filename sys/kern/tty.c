@@ -3172,10 +3172,10 @@ ttyclose(struct cdev *dev, int flag, int mode, struct thread *td)
 	ttyldoptim(tp);
 	if (tp->t_close != NULL)
 		tp->t_close(tp);
-	tty_close(tp);
 	tp->t_do_timestamp = 0;
 	if (tp->t_pps != NULL)
 		tp->t_pps->ppsparam.mode = 0;
+	tty_close(tp);
 	return (0);
 }
 
