@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ldconfig.8,v 1.8 1996/04/08 04:17:33 mpp Exp $
+.\"	$Id: ldconfig.8,v 1.9 1996/10/10 23:14:22 jdp Exp $
 .\"
 .Dd October 3, 1993
 .Dt LDCONFIG 8
@@ -92,9 +92,12 @@ Instead of replacing the contents of the hints file
 with those found in the directories specified,
 .Dq merge
 in new entries.
+Directories recorded in the hints file by previous runs of
+.Nm
+are also rescanned for new shared libraries.
 .It Fl r
-Lists the current contents of the hints file
-on the standard output. The hints file will not be modified.
+List the current contents of the hints file
+on the standard output. The hints file is not modified.
 .It Fl s
 Do not scan the built-in system directory
 .Pq Dq /usr/lib
