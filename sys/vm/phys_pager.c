@@ -78,6 +78,7 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			phys_pager_alloc_lock = -1;
 			msleep(&phys_pager_alloc_lock, &vm_mtx, PVM, "swpalc", 0);
 		}
+		phys_pager_alloc_lock = 1;
 
 		/*
 		 * Look up pager, creating as necessary.
@@ -102,7 +103,7 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			if (OFF_TO_IDX(foff + size) > object->size)
 				object->size = OFF_TO_IDX(foff + size);
 		}
-		if (phys_pager_alloc_lock)
+		if (phys_pager_alloc_lock == -1)
 			wakeup(&phys_pager_alloc_lock);
 		phys_pager_alloc_lock = 0;
 
