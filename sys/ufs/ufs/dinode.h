@@ -74,7 +74,6 @@ struct dinode {
 	int16_t		di_nlink;	/*   2: File link count. */
 	union {
 		u_int16_t oldids[2];	/*   4: Ffs: old user and group ids. */
-		int32_t	  inumber;	/*   4: Lfs: inode number. */
 	} di_u;
 	u_int64_t	di_size;	/*   8: File byte count. */
 	int32_t		di_atime;	/*  16: Last access time. */
@@ -100,7 +99,6 @@ struct dinode {
  * dev_t value. Short symbolic links place their path in the
  * di_db area.
  */
-#define	di_inumber	di_u.inumber
 #define	di_ogid		di_u.oldids[1]
 #define	di_ouid		di_u.oldids[0]
 #define	di_rdev		di_db[0]
