@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.13 1995/10/22 17:39:28 jkh Exp $
+ * $Id: package.c,v 1.15 1995/10/22 21:38:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -87,27 +87,10 @@ package_extract(Device *dev, char *name)
     msgNotify("pkg_extract: Attempting to fetch %s\nfrom %s", path, dev->name);
     fd = dev->get(dev, path, TRUE);
     if (fd >= 0) {
-	pid_t tpid;
-
 	pen[0] = '\0';
 	if ((where = make_playpen(pen, 0)) != NULL) {
-	    if (isDebug())
-		msgDebug("Working in temporary directory %s, will return to %s\n", pen, where);
-	    tpid = fork();
-	    if (!tpid) {
-		dup2(fd, 0); close(fd);
-		dup2(DebugFD, 1);
-		dup2(DebugFD, 2);
-		i = vsystem("tar %s-xpzf -", !strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v " : "");
-		if (i)
-		    msgDebug("tar command returns %d status (errno: %d)\n", i, errno);
-		exit(i);
-	    }
-	    else {
-		int pstat;
-		
-		tpid = waitpid(tpid, &pstat, 0);
-		if (!pstat && file_readable("+CONTENTS")) {
+	    if (mediaExtractDist(pen, fd)) {
+		if (file_readable("+CONTENTS")) {
 		    if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S",
 				!strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v " : "")) {
 			dialog_clear();
@@ -119,12 +102,19 @@ package_extract(Device *dev, char *name)
 		}
 		else {
 		    dialog_clear();
-		    msgConfirm("The package fetch and extraction phase failed for %s\n"
-			       "and it will not be pkg_add'd.  There was either a media\n"
-			       "error of some sort or the package file itself is corrupted.\n"
-			       "You may wish to look into this and try again.");
+		    msgConfirm("The package specified (%s) has no CONTENTS file.  This means\n"
+			       "that there was either a media error of some sort or the package\n"
+			       "file itself is corrupted.\n"
+			       "You may wish to look into this and try again.", name);
 		}
-		close(fd);
+		dev->close(dev, fd);
+	    }
+	    else {
+		ret = RET_FAIL;
+		msgConfirm("Unable to extract the contents of package %s.  This means\n"
+			   "that there was either a media error of some sort or the package\n"
+			   "file itself is corrupted.\n"
+			   "You may wish to look into this and try again.", name);
 	    }
 	    if (chdir(where) == -1)
 		msgFatal("Unable to get back to where I was before, Jojo! (That was: %s)", where);
