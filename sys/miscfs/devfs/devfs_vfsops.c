@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.7 1995/12/14 09:52:55 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.8 1995/12/14 19:04:08 bde Exp $
  *
  *
  */
@@ -25,6 +25,15 @@ static int mountdevfs( struct mount *mp, struct proc *p);
 static int
 devfs_init(void)
 {
+	/*
+	 * fill in the missing members on the "hidden" mount
+	 */
+	dev_root->dnp->dvm->mount->mnt_op  = vfssw[MOUNT_DEVFS]; 
+	dev_root->dnp->dvm->mount->mnt_vfc = vfsconf[MOUNT_DEVFS];
+
+	/* Mark a reference for the "invisible" blueprint mount */
+	dev_root->dnp->dvm->mount->mnt_vfc->vfc_refcount++;
+
 	printf("devfs ready to run\n");
 	return 0; /*XXX*/
 }
