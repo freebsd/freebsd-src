@@ -631,14 +631,12 @@ dadump(dev_t dev)
 	blkcnt = howmany(PAGE_SIZE, secsize);
 
 	while (num > 0) {
-		vm_offset_t va;
+		void *va;
 
 		if (is_physical_memory(addr)) {
-			va = pmap_enter_temporary(trunc_page(addr),
-						  VM_PROT_READ);
+			va = pmap_kenter_temporary(trunc_page(addr));
 		} else {
-			va = pmap_enter_temporary(trunc_page(0),
-						  VM_PROT_READ);
+			va = pmap_kenter_temporary(trunc_page(0));
 		}
 
 		xpt_setup_ccb(&csio.ccb_h, periph->path, /*priority*/1);
