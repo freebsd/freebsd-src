@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.39.2.4 1999/04/12 15:29:11 brian Exp $
+#	$Id: rc.network,v 1.39.2.5 1999/06/09 08:56:11 brian Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -51,14 +51,20 @@ network_pass1() {
     done
 
     # Set up all the network interfaces, calling startup scripts if needed
+    if [ "x${network_interfaces}" = "xauto" ]; then
+	    network_interfaces="`ifconfig -l`"
+    fi
     for ifn in ${network_interfaces}; do
+	    showstat=false
 	    if [ -e /etc/start_if.${ifn} ]; then
 		    . /etc/start_if.${ifn}
+		    showstat=true
 	    fi
 	    # Do the primary ifconfig if specified
 	    eval ifconfig_args=\$ifconfig_${ifn}
 	    if [ -n "${ifconfig_args}" ] ; then
 		    ifconfig ${ifn} ${ifconfig_args}
+		    showstat=true
 	    fi
 	    # Check to see if aliases need to be added
 	    alias=0
@@ -67,6 +73,7 @@ network_pass1() {
 		    eval ifconfig_args=\$ifconfig_${ifn}_alias${alias}
 		    if [ -n "${ifconfig_args}" ]; then
 			    ifconfig ${ifn} ${ifconfig_args} alias
+			    showstat=true
 			    alias=`expr ${alias} + 1`
 		    else
 			    break;
@@ -76,8 +83,12 @@ network_pass1() {
 	    eval ifconfig_args=\$ifconfig_${ifn}_ipx
 	    if [ -n "${ifconfig_args}" ]; then
 		    ifconfig ${ifn} ${ifconfig_args}
+		    showstat=true
 	    fi
-	    ifconfig ${ifn}
+	    if [ "${showstat}" = "true" ]
+	    then
+		    ifconfig ${ifn}
+	    fi
     done
 
     # Initialize IP filtering using ipfw
@@ -154,6 +165,12 @@ network_pass1() {
 	    sysctl -w net.inet.tcp.rfc1323=0 >/dev/null 2>&1
     fi
 
+    if [ -n "$log_in_vain" -a "x$log_in_vain" != "xNO" ] ; then
+	    echo -n ' log_in_vain=YES'
+	    sysctl -w net.inet.tcp.log_in_vain=1 >/dev/null
+	    sysctl -w net.inet.udp.log_in_vain=1 >/dev/null
+    fi
+
     if [ X"$icmp_bmcastecho" = X"YES" ]; then
 	    echo -n ' broadcast ping responses=YES'
 	    sysctl -w net.inet.icmp.bmcastecho=1 >/dev/null 2>&1
@@ -174,13 +191,18 @@ network_pass1() {
 	    sysctl -w net.inet.ip.accept_sourceroute=1 >/dev/null 2>&1
     fi
 
+    if [ "X$tcp_keepalive" = X"YES" ]; then
+	    echo -n ' TCP keepalive=YES'
+	    sysctl -w net.inet.tcp.always_keepalive=1 >/dev/null
+    fi
+
     if [ "X$ipxgateway_enable" = X"YES" ]; then
 	    echo -n ' IPX gateway=YES'
 	    sysctl -w net.ipx.ipx.ipxforwarding=1 >/dev/null 2>&1
     fi
     
     if [ "X$arpproxy_all" = X"YES" ]; then
-	    echo -n ' enabling ARP_PROXY_ALL: '
+	    echo -n ' ARP proxyall=YES'
 	    sysctl -w net.link.ether.inet.proxyall=1 2>&1
     fi
     echo '.'
@@ -278,6 +300,7 @@ network_pass3() {
 	    fi
 	    mountd ${mountd_flags}
 	    if [ "X${nfs_reserved_port_only}" = X"YES" ]; then
+		    echo -n ' NFS on reserved port only=YES'
 		    sysctl -w vfs.nfs.nfs_privport=1 >/dev/null 2>&1
 	    fi
 	    echo -n ' nfsd';		nfsd ${nfs_server_flags}
