@@ -26,11 +26,12 @@ __FBSDID("$FreeBSD$");
 #include "info.h"
 #include <err.h>
 
-static char Options[] = "acdDe:fgGhiIkl:LmoO:pPqrRst:vVW:x";
+static char Options[] = "acdDe:fgGhiIkl:LmoO:pPqQrRst:vVW:x";
 
 int	Flags		= 0;
 match_t	MatchType	= MATCH_GLOB;
 Boolean Quiet		= FALSE;
+Boolean QUIET		= FALSE;
 char *InfoPrefix	= (char *)(uintptr_t)"";
 char PlayPen[FILENAME_MAX];
 char *CheckPkg		= NULL;
@@ -149,6 +150,11 @@ main(int argc, char **argv)
 
 	case 'q':
 	    Quiet = TRUE;
+	    break;
+
+	case 'Q':
+	    Quiet = TRUE;
+	    QUIET = TRUE;
 	    break;
 
 	case 't':

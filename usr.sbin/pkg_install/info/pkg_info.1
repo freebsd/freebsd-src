@@ -25,16 +25,18 @@
 .Nd a utility for displaying information on software packages
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdDfgGiIkLmopPqrRsvVx
+.Op Fl cdDfgGiIkLmopPqQrRsvVx
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Op Fl t Ar template
 .Op Ar pkg-name ...
 .Nm
 .Op Fl q
+.Op Fl Q
 .Fl W Ar filename
 .Nm
 .Op Fl q
+.Op Fl Q
 .Fl O Ar origin
 .Nm
 .Fl a
@@ -67,6 +69,10 @@ Be
 .Dq quiet
 in emitting report headers and such, just dump the
 raw info (basically, assume a non-human reading).
+.It Fl Q
+Be
+.Dq quiet
+as above but print preface output with the package name.
 .It Fl c
 Show the (one line) comment field for each package.
 .It Fl d
