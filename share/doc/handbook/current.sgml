@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.14 1996/07/27 22:25:18 jkh Exp $ -->
+<!-- $Id: current.sgml,v 1.15 1996/08/15 01:21:57 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1996/07/27 22:25:18 $
+Last updated: $Date: 1996/08/15 01:21:57 $
 
 This document attempts to explain the rationale behind
 FreeBSD-current, what you should expect should you decide to run it,
@@ -98,8 +98,8 @@ ask!  It takes far too much time to do this as a general task.
 
         To join these lists, send mail to &a.majordomo and specify:
 <verb>
-            subscribe current
-            subscribe cvs-all
+subscribe freebsd-current
+subscribe cvs-all
 </verb>
         In the body of your message.  Optionally, you can also say `help'
         and Majordomo will send you full help on how to subscribe and
