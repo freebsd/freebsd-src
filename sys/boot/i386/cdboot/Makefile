@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=	${BOOT}.out
+PROG=	${BOOT}
 INTERNALPROG=
 FILES=	${BOOT}
 NOMAN=
@@ -10,9 +10,6 @@ CLEANFILES= ${BOOT}
 BOOT=	cdboot
 ORG=	0x7c00
 
-${BOOT}: ${BOOT}.out
-	objcopy -S -O binary ${BOOT}.out ${.TARGET}
-
-LDFLAGS=-N -e start -Ttext ${ORG}
+LDFLAGS=-N -e start -Ttext ${ORG} -Wl,-S -Wl,--oformat -Wl,binary
 
 .include <bsd.prog.mk>

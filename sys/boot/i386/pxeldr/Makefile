@@ -3,7 +3,7 @@
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
 
-PROG=	${LDR}.out
+PROG=	${LDR}
 INTERNALPROG=
 FILES=	${BOOT}
 MAN=	${BOOT}.8
@@ -34,10 +34,7 @@ ${BOOT}: ${LDR} ${LOADER}
 
 CLEANFILES+= ${LDR}
 
-${LDR}: ${LDR}.out
-	objcopy -S -O binary ${LDR}.out ${.TARGET}
-
-LDFLAGS+= -N -e start -Ttext ${ORG}
+LDFLAGS+= -N -e start -Ttext ${ORG} -Wl,-S -Wl,--oformat -Wl,binary
 
 CLEANFILES+= ${LOADER}
 

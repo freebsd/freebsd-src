@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=	btx.out
+PROG=	btx
 INTERNALPROG=
 NOMAN=
 SRCS=	btx.S
@@ -29,11 +29,6 @@ CFLAGS+=-DBTX_SERIAL -DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 
 ORG=	0x9000
 
-all: btx
-
-LDFLAGS=-N -e start -Ttext ${ORG}
-
-btx: btx.out
-	objcopy -S -O binary btx.out ${.TARGET}
+LDFLAGS=-N -e start -Ttext ${ORG} -Wl,-S -Wl,--oformat -Wl,binary
 
 .include <bsd.prog.mk>
