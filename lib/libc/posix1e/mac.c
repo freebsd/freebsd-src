@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Robert N. M. Watson
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002, 2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -49,28 +49,29 @@
 
 static int	internal_initialized;
 
-/* Default sets of labels for various query operations. */
-static char	*default_file_labels;
-static char	*default_ifnet_labels;
-static char	*default_process_labels;
+/*
+ * Maintain a list of default label preparations for various object
+ * types.  Each name will appear only once in the list.
+ *
+ * XXXMAC: Not thread-safe.
+ */
+LIST_HEAD(, label_default) label_default_head;
+struct label_default {
+	char				*ld_name;
+	char				*ld_labels;
+	LIST_ENTRY(label_default)	 ld_entries;
+};
 
 static void
 mac_destroy_labels(void)
 {
+	struct label_default *ld;
 
-	if (default_file_labels != NULL) {
-		free(default_file_labels);
-		default_file_labels = NULL;
-	}
-
-	if (default_ifnet_labels != NULL) {
-		free(default_ifnet_labels);
-		default_ifnet_labels = NULL;
-	}
-
-	if (default_process_labels != NULL) {
-		free(default_process_labels);
-		default_process_labels = NULL;
+	while ((ld = LIST_FIRST(&label_default_head))) {
+		free(ld->ld_name);
+		free(ld->ld_labels);
+		LIST_REMOVE(ld, ld_entries);
+		free(ld);
 	}
 }
 
@@ -84,88 +85,175 @@ mac_destroy_internal(void)
 }
 
 static int
-mac_init_internal(void)
+mac_add_type(const char *name, const char *labels)
 {
-	FILE *file;
+	struct label_default *ld, *ld_new;
+	char *name_dup, *labels_dup;
+
+	/*
+	 * Speculatively allocate all the memory now to avoid allocating
+	 * later when we will someday hold a mutex.
+	 */
+	name_dup = strdup(name);
+	if (name_dup == NULL) {
+		errno = ENOMEM;
+		return (-1);
+	}
+	labels_dup = strdup(labels);
+	if (labels_dup == NULL) {
+		free(name_dup);
+		errno = ENOMEM;
+		return (-1);
+	}
+	ld_new = malloc(sizeof(*ld));
+	if (ld_new == NULL) {
+		free(name_dup);
+		free(labels_dup);
+		errno = ENOMEM;
+		return (-1);
+	}
+
+	/*
+	 * If the type is already present, replace the current entry
+	 * rather than add a new instance.
+	 */
+	for (ld = LIST_FIRST(&label_default_head); ld != NULL;
+	    ld = LIST_NEXT(ld, ld_entries)) {
+		if (strcmp(name, ld->ld_name) == 0)
+			break;
+	}
+
+	if (ld != NULL) {
+		free(ld->ld_labels);
+		ld->ld_labels = labels_dup;
+		labels_dup = NULL;
+	} else {
+		ld = ld_new;
+		ld->ld_name = name_dup;
+		ld->ld_labels = labels_dup;
+
+		ld_new = NULL;
+		name_dup = NULL;
+		labels_dup = NULL;
+
+		LIST_INSERT_HEAD(&label_default_head, ld, ld_entries);
+	}
+
+	if (name_dup != NULL)
+		free(name_dup);
+	if (labels_dup != NULL)
+		free(labels_dup);
+	if (ld_new != NULL)
+		free(ld_new);
+
+	return (0);
+}
+
+static char *
+next_token(char **string)
+{
+	char *token;
+
+	token = strsep(string, " \t");
+	while (token != NULL && *token == '\0')
+		token = strsep(string, " \t");
+
+	return (token);
+}
+
+static int
+mac_init_internal(int ignore_errors)
+{
+	const char *filename;
 	char line[LINE_MAX];
+	FILE *file;
 	int error;
 
 	error = 0;
 
-	file = fopen(MAC_CONFFILE, "r");
+	LIST_INIT(&label_default_head);
+
+	if (!issetugid() && getenv("MAC_CONFFILE") != NULL)
+		filename = getenv("MAC_CONFFILE");
+	else
+		filename = MAC_CONFFILE;
+	file = fopen(filename, "r");
 	if (file == NULL)
 		return (0);
 
 	while (fgets(line, LINE_MAX, file)) {
-		char *arg, *parse, *statement;
+		char *arg, *comment, *parse, *statement;
 
 		if (line[strlen(line)-1] == '\n')
 			line[strlen(line)-1] = '\0';
 		else {
+			if (ignore_errors)
+				continue;
 			fclose(file);
 			error = EINVAL;
 			goto just_return;
 		}
 
-		parse = line;
-		statement = "";
-		while (parse && statement[0] == '\0')
-			statement = strsep(&parse, " \t");
+		/* Remove any comment. */
+		comment = line;
+		parse = strsep(&comment, "#");
 
-		/* Blank lines ok. */
-		if (strlen(statement) == 0)
+		/* Blank lines OK. */
+		statement = next_token(&parse);
+		if (statement == NULL)
 			continue;
 
-		/* Lines that consist only of comments ok. */
-		if (statement[0] == '#')
-			continue;
+		if (strcmp(statement, "default_labels") == 0) {
+			char *name, *labels;
 
-		if (strcmp(statement, "default_file_labels") == 0) {
-			if (default_file_labels != NULL) {
-				free(default_file_labels);
-				default_file_labels = NULL;
-			}
-
-			arg = strsep(&parse, "# \t");
-			if (arg != NULL && arg[0] != '\0') {
-				default_file_labels = strdup(arg);
-				if (default_file_labels == NULL) {
-					error = ENOMEM;
-					fclose(file);
-					goto just_return;
-				}
-			}
-		} else if (strcmp(statement, "default_ifnet_labels") == 0) {
-			if (default_ifnet_labels != NULL) {
-				free(default_ifnet_labels);
-				default_ifnet_labels = NULL;
+			name = next_token(&parse);
+			labels = next_token(&parse);
+			if (name == NULL || labels == NULL ||
+			    next_token(&parse) != NULL) {
+				if (ignore_errors)
+					continue;
+				error = EINVAL;
+				fclose(file);
+				goto just_return;
 			}
 
-			arg = strsep(&parse, "# \t");
-			if (arg != NULL && arg[0] != '\0') {
-				default_ifnet_labels = strdup(arg);
-				if (default_ifnet_labels == NULL) {
-					error = ENOMEM;
-					fclose(file);
-					goto just_return;
-				}
+			if (mac_add_type(name, labels) == -1) {
+				if (ignore_errors)
+					continue;
+				fclose(file);
+				goto just_return;
 			}
-		} else if (strcmp(statement, "default_process_labels") == 0) {
-			if (default_process_labels != NULL) {
-				free(default_process_labels);
-				default_process_labels = NULL;
+		} else if (strcmp(statement, "default_ifnet_labels") == 0 ||
+		    strcmp(statement, "default_file_labels") == 0 ||
+		    strcmp(statement, "default_process_labels") == 0) {
+			char *labels, *type;
+
+			if (strcmp(statement, "default_ifnet_labels") == 0)
+				type = "ifnet";
+			else if (strcmp(statement, "default_file_labels") == 0)
+				type = "file";
+			else if (strcmp(statement, "default_process_labels") ==
+			    0)
+				type = "process";
+
+			labels = next_token(&parse);
+			if (labels == NULL || next_token(&parse) != NULL) {
+				if (ignore_errors)
+					continue;
+				error = EINVAL;
+				fclose(file);
+				goto just_return;
 			}
 
-			arg = strsep(&parse, "# \t");
-			if (arg != NULL && arg[0] != '\0') {
-				default_process_labels = strdup(arg);
-				if (default_process_labels == NULL) {
-					error = ENOMEM;
-					fclose(file);
-					goto just_return;
-				}
+			if (mac_add_type(type, labels) == -1) {
+				if (ignore_errors)
+					continue;
+				fclose(file);
+				goto just_return;
 			}
 		} else {
+			if (ignore_errors)
+				continue;
 			fclose(file);
 			error = EINVAL;
 			goto just_return;
@@ -187,7 +275,7 @@ mac_maybe_init_internal(void)
 {
 
 	if (!internal_initialized)
-		return (mac_init_internal());
+		return (mac_init_internal(1));
 	else
 		return (0);
 }
@@ -198,7 +286,7 @@ mac_reload(void)
 
 	if (internal_initialized)
 		mac_destroy_internal();
-	return (mac_init_internal());
+	return (mac_init_internal(0));
 }
 
 int
@@ -267,18 +355,17 @@ mac_prepare(struct mac **mac, char *elements)
 }
 
 int
-mac_prepare_file_label(struct mac **mac)
+mac_prepare_type(struct mac **mac, const char *name)
 {
-	int error;
+	struct label_default *ld;
 
-	error = mac_maybe_init_internal();
-	if (error != 0)
-		return (error);
+	for (ld = LIST_FIRST(&label_default_head); ld != NULL;
+	    ld = LIST_NEXT(ld, ld_entries)) {
+		if (strcmp(name, ld->ld_name) == 0)
+			return (mac_prepare(mac, ld->ld_labels));
+	}
 
-	if (default_file_labels == NULL)
-		return (mac_prepare(mac, ""));
-
-	return (mac_prepare(mac, default_file_labels));
+	return (ENOENT);		/* XXXMAC: ENOLABEL */
 }
 
 int
@@ -290,11 +377,33 @@ mac_prepare_ifnet_label(struct mac **mac)
 	if (error != 0)
 		return (error);
 
-	if (default_ifnet_labels == NULL)
-		return (mac_prepare(mac, ""));
-
-	return (mac_prepare(mac, default_ifnet_labels));
+	return (mac_prepare_type(mac, "ifnet"));
 }
+
+int
+mac_prepare_file_label(struct mac **mac)
+{
+	int error;
+
+	error = mac_maybe_init_internal();
+	if (error != 0)
+		return (error);
+
+	return (mac_prepare_type(mac, "file"));
+}
+
+int
+mac_prepare_packet_label(struct mac **mac)
+{
+	int error;
+
+	error = mac_maybe_init_internal();
+	if (error != 0)
+		return (error);
+
+	return (mac_prepare_type(mac, "packet"));
+}
+
 int
 mac_prepare_process_label(struct mac **mac)
 {
@@ -304,10 +413,7 @@ mac_prepare_process_label(struct mac **mac)
 	if (error != 0)
 		return (error);
 
-	if (default_process_labels == NULL)
-		return (mac_prepare(mac, ""));
-
-	return (mac_prepare(mac, default_process_labels));
+	return (mac_prepare_type(mac, "process"));
 }
 
 /*
