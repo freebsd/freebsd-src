@@ -763,6 +763,7 @@ u_char	keyboard_is_initialized = 0;		/* for ddb sanity */
 u_char	kbd_polling		= 0;		/* keyboard is being polled */
 u_char	reset_keyboard		= 0;		/* OK to reset keyboard */
 keyboard_t *kbd			= NULL;
+struct consdev *pcvt_consptr    = NULL;
 
 #if PCVT_SHOWKEYS
 u_char	keyboard_show		= 0;		/* normal display */
@@ -899,6 +900,7 @@ extern u_char		keyboard_is_initialized;
 extern u_char		kbd_polling;
 extern u_char		reset_keyboard;
 extern keyboard_t	*kbd;
+extern struct consdev	*pcvt_consptr;
 
 #if PCVT_SHOWKEYS
 extern u_char		keyboard_show;
