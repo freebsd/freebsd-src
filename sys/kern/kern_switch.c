@@ -473,8 +473,10 @@ critical_exit(void)
 int
 maybe_preempt(struct thread *td)
 {
+#ifdef PREEMPTION
 	struct thread *ctd;
 	int cpri, pri;
+#endif
 
 	mtx_assert(&sched_lock, MA_OWNED);
 #ifdef PREEMPTION
