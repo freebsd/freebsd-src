@@ -1,6 +1,6 @@
-#	$Id: bsd.obj.mk,v 1.14 1996/09/24 04:17:14 ache Exp $
+#	$Id: bsd.obj.mk,v 1.15 1996/09/28 19:39:18 nate Exp $
 #
-# The include file <bsd.obj.mk> handles creating 'obj' directory
+# The include file <bsd.obj.mk> handles creating the 'obj' directory
 # and cleaning up object files, log files etc.
 #
 #
@@ -8,17 +8,26 @@
 #
 # CLEANFILES	Additional files to remove for the clean and cleandir targets.
 #
-# MAKEOBJDIRPREFIX  Specify somewhere other than /usr/obj to root the object
-#		tree. Note: MAKEOBJDIRPREFIX is an *enviroment* variable
-#		and does work proper only if set as enviroment variable,
-#		not as global or command line variable! [obj]
+# MAKEOBJDIR 	A pathname for the directory where the targets 
+#		are built.  Note: MAKEOBJDIR is an *enviroment* variable
+#		and works properly only if set as an enviroment variable,
+#		not as a global or command line variable!
+#
+#		E.g. use `env MAKEOBJDIR=temp-obj make'
+#
+# MAKEOBJDIRPREFIX  Specifies somewhere other than /usr/obj to root the object
+#		tree.  Note: MAKEOBJDIRPREFIX is an *enviroment* variable
+#		and works properly only if set as an enviroment variable,
+#		not as a global or command line variable!
 #
 #		E.g. use `env MAKEOBJDIRPREFIX=/somewhere/obj make'
 #
-# NOOBJ		Do not create build directory in object tree.
+# NOOBJ		Do not create object directories.  This should not be set
+#		if anything is built.
 #
-# OBJLINK	Create a symbolic link from ${CANONICALOBJDIR} to ${.CURDIR}/obj
-#		Note:  This BREAKS the read-only src tree rule!
+# OBJLINK	Create a symbolic link from ${.CURDIR}/obj to
+#		${CANONICALOBJDIR}.  Note: this BREAKS the read-only source
+#		tree rule!
 #
 # +++ targets +++
 #
@@ -42,18 +51,14 @@ CANONICALOBJDIR:=/usr/obj${.CURDIR}
 # Warn of unorthodox object directory
 #
 objwarn:
-.if !defined(NOOBJ)
+.if !defined(NOOBJ) && ${.OBJDIR} != ${CANONICALOBJDIR}
 .if ${.OBJDIR} == ${.CURDIR}
 	@${ECHO} "Warning: Object directory not changed from original ${.CURDIR}"
-.elif !defined(MAKEOBJDIRPREFIX) && ${.OBJDIR} != ${CANONICALOBJDIR}
-.if !defined(OBJLINK)
+.elif !defined(MAKEOBJDIR) && !defined(MAKEOBJDIRPREFIX) && !defined(OBJLINK)
 	@${ECHO} "Warning: Using ${.OBJDIR} as object directory instead of\
 		canonical ${CANONICALOBJDIR}"
 .endif
 .endif
-.endif
-
-
 
 .if !target(obj)
 .if defined(NOOBJ)
