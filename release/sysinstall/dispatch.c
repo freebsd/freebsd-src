@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.5.2.17 1997/09/16 18:58:53 jkh Exp $
+ * $Id: dispatch.c,v 1.5.2.18 1997/09/17 16:35:34 pst Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,6 +44,7 @@
 
 static int dispatch_shutdown(dialogMenuItem *unused);
 static int dispatch_systemExecute(dialogMenuItem *unused);
+static int dispatch_msgConfirm(dialogMenuItem *unused);
 
 static struct _word {
     char *name;
@@ -88,6 +89,7 @@ static struct _word {
     { "installFilesystems",	installFilesystems	},
     { "installVarDefaults",	installVarDefaults	},
     { "loadConfig",		dispatch_load_file	},
+    { "loadFloppyConfig",	dispatch_load_floppy	},
     { "mediaSetCDROM",		mediaSetCDROM		},
     { "mediaSetFloppy",		mediaSetFloppy		},
     { "mediaSetDOS",		mediaSetDOS		},
@@ -100,6 +102,7 @@ static struct _word {
     { "mediaSetFTPUserPass",	mediaSetFTPUserPass	},
     { "mediaSetCPIOVerbosity",	mediaSetCPIOVerbosity	},
     { "mediaGetType",		mediaGetType		},
+    { "msgConfirm",		dispatch_msgConfirm	},
     { "optionsEditor",		optionsEditor		},
     { "register",		configRegister		},	/* Alias */
     { "packageAdd",		packageAdd		},
@@ -107,6 +110,8 @@ static struct _word {
     { "addUser",		userAddUser		},
     { "shutdown",		dispatch_shutdown 	},
     { "system",			dispatch_systemExecute	},
+    { "dumpVariables",		dump_variables		},
+    { "tcpMenuSelect",		tcpMenuSelect		},
     { NULL, NULL },
 };
 
@@ -179,6 +184,20 @@ dispatch_systemExecute(dialogMenuItem *unused)
 	return systemExecute(cmd) ? DITEM_FAILURE : DITEM_SUCCESS;
     else
 	msgDebug("_systemExecute: No command passed in `command' variable.\n");
+    return DITEM_FAILURE;
+}
+
+static int
+dispatch_msgConfirm(dialogMenuItem *unused)
+{
+    char *msg = variable_get(VAR_COMMAND);
+
+    if (msg) {
+	msgConfirm(msg);
+	return DITEM_SUCCESS;
+    }
+
+    msgDebug("_msgConfirm: No message passed in `command' variable.\n");
     return DITEM_FAILURE;
 }
 
@@ -272,12 +291,17 @@ dispatch_execute(qelement *head)
 {
     int result = DITEM_SUCCESS;
     command_buffer *item;
+    char *old_interactive;
 
     if (!head)
 	return result | DITEM_FAILURE;
 
+    old_interactive = variable_get(VAR_NONINTERACTIVE);
+    if (old_interactive)
+	 old_interactive = strdup(old_interactive);	/* save copy */
+
     /* Hint to others that we're running from a script, should they care */
-    variable_set2(VAR_NONINTERACTIVE, "YES");
+    variable_set2(VAR_NONINTERACTIVE, "yes");
 
     while (!EMPTYQUE(*head)) {
 	item = (command_buffer *) head->q_forw;
@@ -301,7 +325,12 @@ dispatch_execute(qelement *head)
 
     dispatch_free_all(head);
 
-    variable_unset(VAR_NONINTERACTIVE);
+    if (!old_interactive)
+	variable_unset(VAR_NONINTERACTIVE);
+    else {
+	variable_set2(VAR_NONINTERACTIVE, old_interactive);
+	free(old_interactive);
+    }
 
     return result;
 }
@@ -394,7 +423,8 @@ dispatch_load_floppy(dialogMenuItem *self)
 	what |= dispatch_execute(list);
     }
     else {
-	msgConfirm("Configuration file '%s' not found.", cp);
+	if (!variable_get(VAR_NO_ERROR))
+	    msgConfirm("Configuration file '%s' not found.", cp);
 	variable_unset(VAR_INSTALL_CFG);
 	what |= DITEM_FAILURE;
 	mediaClose();
