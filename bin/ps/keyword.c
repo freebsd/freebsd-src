@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)keyword.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: keyword.c,v 1.17 1997/08/11 02:35:16 steve Exp $";
+	"$Id: keyword.c,v 1.18 1997/08/11 02:41:02 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -151,7 +151,7 @@ VAR var[] = {
 	{"rss", "RSS", NULL, 0, p_rssize, NULL, 4},
 	{"rssize", "", "rsz"},
 	{"rsz", "RSZ", NULL, 0, rssize, NULL, 4},
-	{"rtprio", "RTPRIO", NULL, 0, pvar, NULL, 7, POFF(p_rtprio), LONG, "d"},
+	{"rtprio", "RTPRIO", NULL, 0, rtprior, NULL, 7, POFF(p_rtprio)},
 	{"ruid", "RUID", NULL, 0, evar, NULL, UIDLEN, EOFF(e_pcred.p_ruid),
 		ULONG, UIDFMT},
 	{"ruser", "RUSER", NULL, LJUST|DSIZ, runame, s_runame, USERLEN},
