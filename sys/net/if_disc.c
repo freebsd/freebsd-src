@@ -61,19 +61,18 @@
 #define DSMTU	65532
 #endif
 
-static void discattach __P((void));
+static void discattach(void);
 
-static struct	ifnet discif;
-static int discoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-		    struct rtentry *);
-static void discrtrequest(int cmd, struct rtentry *rt, struct sockaddr *sa);
-static int discioctl(struct ifnet *, u_long, caddr_t);
+static struct ifnet	discif;
+static int		discoutput(struct ifnet *, struct mbuf *,
+			    struct sockaddr *, struct rtentry *);
+static void		discrtrequest(int, struct rtentry *, struct sockaddr *);
+static int		discioctl(struct ifnet *, u_long, caddr_t);
 
-/* ARGSUSED */
 static void
-discattach()
+discattach(void)
 {
-	register struct ifnet *ifp = &discif;
+	struct ifnet *ifp = &discif;
 
 	ifp->if_name = "ds";
 	ifp->if_mtu = DSMTU;
@@ -111,11 +110,8 @@ static moduledata_t disc_mod = {
 DECLARE_MODULE(if_disc, disc_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static int
-discoutput(ifp, m, dst, rt)
-	struct ifnet *ifp;
-	register struct mbuf *m;
-	struct sockaddr *dst;
-	register struct rtentry *rt;
+discoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+    struct rtentry *rt)
 {
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("discoutput no HDR");
@@ -155,10 +151,7 @@ discoutput(ifp, m, dst, rt)
 
 /* ARGSUSED */
 static void
-discrtrequest(cmd, rt, sa)
-	int cmd;
-	struct rtentry *rt;
-	struct sockaddr *sa;
+discrtrequest(int cmd, struct rtentry *rt, struct sockaddr *sa)
 {
 	if (rt)
 		rt->rt_rmx.rmx_mtu = DSMTU;
@@ -167,16 +160,12 @@ discrtrequest(cmd, rt, sa)
 /*
  * Process an ioctl request.
  */
-/* ARGSUSED */
 static int
-discioctl(ifp, cmd, data)
-	register struct ifnet *ifp;
-	u_long cmd;
-	caddr_t data;
+discioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	register struct ifaddr *ifa;
-	register struct ifreq *ifr = (struct ifreq *)data;
-	register int error = 0;
+	struct ifaddr *ifa;
+	struct ifreq *ifr = (struct ifreq *)data;
+	int error = 0;
 
 	switch (cmd) {
 
@@ -220,5 +209,5 @@ discioctl(ifp, cmd, data)
 	default:
 		error = EINVAL;
 	}
-	return (error);
+	return error;
 }
