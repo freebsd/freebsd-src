@@ -92,10 +92,21 @@ P1B_SYSCTL(CTL_P1003_1B_TIMER_MAX, timer_max);
 
 /* p31b_setcfg: Set the configuration
  */
-void p31b_setcfg(int num, int value)
+void
+p31b_setcfg(int num, int value)
 {
+
 	if (num >= 1 && num < CTL_P1003_1B_MAXID)
 		facility[num - 1] = value;
+}
+
+int
+p31b_getcfg(int num)
+{
+
+	if (num >= 1 && num < CTL_P1003_1B_MAXID)
+		return (facility[num - 1]);
+	return (0);
 }
 
 /*
