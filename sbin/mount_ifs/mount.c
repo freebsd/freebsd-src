@@ -352,9 +352,9 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 		return (0);
 	}
 
-	switch (pid = vfork()) {
+	switch (pid = fork()) {
 	case -1:				/* Error. */
-		warn("vfork");
+		warn("fork");
 		free(optbuf);
 		return (1);
 	case 0:					/* Child. */
