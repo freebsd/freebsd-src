@@ -45,10 +45,11 @@ char copyright[] =
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/param.h>
+#include <machine/cpu.h>
+#include <sys/sysctl.h>
 
 #include "pathnames.h"
-
-char storage[] = _PATH_OFFSET;
 
 int main(argc, argv)
 	int argc;
@@ -57,11 +58,13 @@ int main(argc, argv)
 	struct tm local, utc;
 	struct timeval tv, *stv;
 	struct timezone tz, *stz;
+	int kern_offset;
+	size_t len;
+	int mib[2];
 	/* Avoid time_t here, can be unsigned long or worse */
-	long offset, oldoffset, utcsec, localsec, diff;
+	long offset, utcsec, localsec, diff;
 	time_t initial_sec, final_sec;
 	int ch, init = -1, verbose = 0;
-	FILE *f;
 
 	while ((ch = getopt(argc, argv, "aiv")) != EOF)
 		switch((char)ch) {
@@ -93,20 +96,13 @@ int main(argc, argv)
 
 	/* Restore saved offset */
 
-	if (!init) {
-		if ((f = fopen(storage, "r")) == NULL) {
-			perror(storage);
+	mib[0] = CTL_MACHDEP;
+	mib[1] = CPU_ADJKERNTZ;
+	len = sizeof(kern_offset);
+	if (sysctl(mib, 2, &kern_offset, &len, NULL, 0) == -1) {
+		perror("sysctl(get_offset)");
 			return 1;
 		}
-		if (fscanf(f, "%ld", &oldoffset) != 1) {
-			fprintf(stderr, "Misformatted offset in %s\n",
-				storage);
-			return 1;
-		}
-		(void) fclose(f);
-	}
-	else
-		oldoffset = 0;
 
 /****** Critical section, do all things as fast as possible ******/
 
@@ -142,7 +138,7 @@ int main(argc, argv)
 	/* correct the kerneltime for this diffs */
 	/* subtract kernel offset, if present, old offset too */
 
-	diff = offset - tz.tz_minuteswest * 60 - oldoffset;
+	diff = offset - tz.tz_minuteswest * 60 - kern_offset;
 
 	if (diff != 0) {
 
@@ -172,7 +168,7 @@ int main(argc, argv)
 		/* correct the kerneltime for this diffs */
 		/* subtract kernel offset, if present, old offset too */
 
-		diff = offset - tz.tz_minuteswest * 60 - oldoffset;
+		diff = offset - tz.tz_minuteswest * 60 - kern_offset;
 
 		if (diff != 0) {
 			tv.tv_sec += diff;
@@ -184,6 +180,17 @@ int main(argc, argv)
 	}
 	else
 		stv = NULL;
+
+	if (kern_offset != offset) {
+		kern_offset = offset;
+		mib[0] = CTL_MACHDEP;
+		mib[1] = CPU_ADJKERNTZ;
+		len = sizeof(kern_offset);
+		if (sysctl(mib, 2, NULL, NULL, &kern_offset, len) == -1) {
+			perror("sysctl(update_offset)");
+			return 1;
+		}
+	}
 
 	if (tz.tz_dsttime != 0 || tz.tz_minuteswest != 0) {
 		tz.tz_dsttime = tz.tz_minuteswest = 0;  /* zone info is garbage */
@@ -204,20 +211,6 @@ int main(argc, argv)
 	if (verbose)
 		printf("Calculated zone offset difference: %ld seconds\n",
 		       diff);
-
-	if (offset != oldoffset) {
-		(void) umask(022);
-		/* Save offset for next calls from crontab */
-		if ((f = fopen(storage, "w")) == NULL) {
-			perror(storage);
-			return 1;
-		}
-		fprintf(f, "%ld\n", offset);
-		if (fclose(f)) {
-			perror(storage);
-			return 1;
-		}
-	}
 
 	return 0;
 }
