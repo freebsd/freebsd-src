@@ -778,7 +778,7 @@ fork_exit(callout, arg, frame)
 	 * non-nested critical section with sched_lock held but not recursed.
 	 */
 	sched_lock.mtx_lock = (uintptr_t)td;
-	sched_lock.mtx_recurse = 0;
+	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	cpu_critical_fork_exit();
 	CTR3(KTR_PROC, "fork_exit: new thread %p (pid %d, %s)", td, p->p_pid,
 	    p->p_comm);
