@@ -343,7 +343,7 @@ bd_print(int verbose)
 			    line, verbose);
 			break;
 		    default:
-			beak;
+			break;
 		    }
 		}
 #else
