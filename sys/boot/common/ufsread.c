@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -22,9 +22,8 @@
  * purpose.
  */
 
-/*
- * $FreeBSD$
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
