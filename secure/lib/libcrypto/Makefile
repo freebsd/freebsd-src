@@ -1,4 +1,4 @@
-# $FreeBSD$
+.# $FreeBSD$
 
 .include "Makefile.inc"
 
@@ -45,7 +45,7 @@ SRCS+=	a_bitstr.c a_bmp.c a_bool.c a_bytes.c a_d2i_fp.c a_digest.c \
 	p7_signi.c p8_pkey.c t_bitst.c t_crl.c t_pkey.c t_req.c \
 	t_spki.c t_x509.c t_x509a.c x_algor.c x_attrib.c x_cinf.c \
 	x_crl.c x_exten.c x_info.c x_name.c x_pkey.c x_pubkey.c \
-	x_req.c x_sig.c x_spki.c x_val.c x_x509.c x_x509a.o
+	x_req.c x_sig.c x_spki.c x_val.c x_x509.c x_x509a.c
 
 # blowfish
 SRCS+=	bf_cfb64.c bf_ecb.c bf_enc.c bf_ofb64.c bf_skey.c
@@ -53,14 +53,14 @@ SRCS+=	bf_cfb64.c bf_ecb.c bf_enc.c bf_ofb64.c bf_skey.c
 # bio
 SRCS+=	b_dump.c b_print.c b_sock.c bf_buff.c bf_nbio.c bf_null.c \
 	bio_cb.c bio_err.c bio_lib.c bss_acpt.c bss_bio.c bss_conn.c \
-	bss_fd.c bss_file.c bss_log.c bss_mem.c bss_null.c bss_sock.o
+	bss_fd.c bss_file.c bss_log.c bss_mem.c bss_null.c bss_sock.c
 
 # bn
 
 SRCS+=	bn_add.c bn_asm.c bn_blind.c bn_ctx.c bn_div.c bn_err.c \
 	bn_exp.c bn_exp2.c bn_gcd.c bn_lib.c bn_mont.c bn_mpi.c \
 	bn_mul.c bn_prime.c bn_print.c bn_rand.c bn_recp.c bn_shift.c \
-	bn_sqr.c bn_word.o
+	bn_sqr.c bn_word.c
 
 # buffer
 SRCS+=	buf_err.c buffer.c 
