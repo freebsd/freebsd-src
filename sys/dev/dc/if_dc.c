@@ -2060,7 +2060,6 @@ static int dc_attach(dev)
 	ifp->if_init = dc_init;
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = DC_TX_LIST_CNT - 1;
-	ifp->if_mpsafe = IS_MPSAFE; 
 
 	/*
 	 * Do MII setup. If this is a 21143, check for a PHY on the
