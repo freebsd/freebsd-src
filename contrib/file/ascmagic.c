@@ -45,7 +45,7 @@
 #include "names.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: ascmagic.c,v 1.32 2002/07/03 18:26:37 christos Exp $")
+FILE_RCSID("@(#)$Id: ascmagic.c,v 1.33 2003/02/08 18:33:53 christos Exp $")
 #endif	/* lint */
 
 typedef unsigned long unichar;
@@ -67,7 +67,7 @@ int
 ascmagic(unsigned char *buf, int nbytes)
 {
 	int i;
-	char nbuf[HOWMANY+1];		/* one extra for terminating '\0' */
+	unsigned char nbuf[HOWMANY+1];	/* one extra for terminating '\0' */
 	unichar ubuf[HOWMANY+1];	/* one extra for terminating '\0' */
 	int ulen;
 	struct names *p;
@@ -211,7 +211,8 @@ ascmagic(unsigned char *buf, int nbytes)
 		 * compare the word thus isolated against the token list
 		 */
 		for (p = names; p < names + NNAMES; p++) {
-			if (ascmatch(p->name, ubuf + i, end - i)) {
+			if (ascmatch((unsigned char *)p->name, ubuf + i,
+			    end - i)) {
 				subtype = types[p->type].human;
 				subtype_mime = types[p->type].mime;
 				goto subtype_identified;
@@ -565,7 +566,7 @@ looks_unicode(const unsigned char *buf, int nbytes, unichar *ubuf, int *ulen)
 			return 0;
 	}
 
-	return 1;
+	return 1 + bigend;
 }
 
 #undef F

@@ -1,11 +1,18 @@
 #define	FILE_VERSION_MAJOR	3
-#define	patchlevel		39
+#define	patchlevel		40
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.39 2002/07/03 18:57:52 christos Exp $
+ * $Id: patchlevel.h,v 1.40 2003/02/08 18:33:53 christos Exp $
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.40  2003/02/08 18:33:53  christos
+ * - detect inttypes.h too (Dave Love <d.love@dl.ac.uk>)
+ * - eliminate unsigned char warnings (Petter Reinholdtsen <pere@hungry.com>)
+ * - better elf PT_NOTE handling (Nalin Dahyabhai <nalin@redhat.com>)
+ * - add options to format the output differently
+ * - much more magic.
+ *
  * Revision 1.39  2002/07/03 18:57:52  christos
  * - ansify/c99ize
  * - more magic

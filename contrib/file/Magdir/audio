@@ -157,7 +157,90 @@
 # Impuse tracker module (audio/x-it)
 0	string		IMPM		Impulse Tracker module sound data -
 >4	string		>\0		"%s"
+>40	leshort		!0		compatible w/ITv%x
+>42	leshort		!0		created w/ITv%x
 
 # Imago Orpheus module (audio/x-imf)
 60	string		IM10		Imago Orpheus module sound data -
 >0	string		>\0		"%s"
+
+# From <collver1@attbi.com>
+# These are the /etc/magic entries to decode modules, instruments, and
+# samples in Impulse Tracker's native format.
+
+0	string		IMPS		Impulse Tracker Sample
+>18	byte		&2		16 bit
+>18	byte		^2		8 bit
+>18	byte		&4		stereo
+>18	byte		^4		mono
+0	string		IMPI		Impulse Tracker Instrument
+>28	leshort		!0		ITv%x
+>30	byte		!0		%d samples
+
+# Yamaha TX Wave:  file(1) magic for Yamaha TX Wave audio files
+# From <collver1@attbi.com>
+0	string		LM8953		Yamaha TX Wave
+>22	byte		0x49		looped
+>22	byte		0xC9		non-looped
+>23	byte		1		33kHz
+>23	byte		2		50kHz
+>23	byte		3		16kHz
+
+# scream tracker:  file(1) magic for Scream Tracker sample files
+#
+# From <collver1@attbi.com>
+76	string		SCRS		Scream Tracker Sample
+>0	byte		1		sample
+>0	byte		2		adlib melody
+>0	byte		>2		adlib drum
+>31	byte		&2		stereo
+>31	byte		^2		mono
+>31	byte		&4		16bit little endian
+>31	byte		^4		8bit
+>30	byte		0		unpacked
+>30	byte		1		packed
+
+# audio
+# From: Cory Dikkers <cdikkers@swbell.net>
+0	string		MMD0		MED music file, version 0
+0	string		MMD1		OctaMED Pro music file, version 1
+0	string		MMD3		OctaMED Soundstudio music file, version 3
+0	string		OctaMEDCmpr	OctaMED Soundstudio compressed file
+0	string		MED		MED_Song
+0	string		SymM		Symphonie SymMOD music file
+#
+0	string		THX		AHX version
+>3	byte		=0		1 module data
+>3	byte		=1		2 module data
+#
+0	string		OKTASONG	Oktalyzer module data
+#
+0	string		DIGI\ Booster\ module\0	%s
+>20	byte		>0		%c
+>>21	byte		>0		\b%c
+>>>22	byte		>0		\b%c
+>>>>23	byte		>0		\b%c
+>610	string		>\0		\b, "%s"
+#
+0	string		DBM0	   	DIGI Booster Pro Module
+>4	byte		>0		V%X.
+>>5	byte		x		\b%02X
+>16	string		>\0		\b, "%s"
+#
+0	string		FTMN		FaceTheMusic module
+>16	string		>\0d		\b, "%s"
+
+# From: Takeshi Hamasaki <hma@syd.odn.ne.jp>
+# NOA Nancy Codec file
+0	string		\210NOA\015\012\032	NOA Nancy Codec Movie file
+# Yamaha SMAF format
+0	string		MMMD		Yamaha SMAF file
+# Sharp Jisaku Melody format for PDC
+0	string		\001Sharp\040JisakuMelody	SHARP Cell-Phone ringing Melody
+>20	string		Ver01.00	Ver. 1.00
+>>32	byte		x		, %d tracks
+
+# FLAC audio stream <URL:http://flac.sourceforge.net/>
+# From: Dan Fandrich <dan@coneharvesters.com>
+0	string		fLaC		FLAC audio stream data
+

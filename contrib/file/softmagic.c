@@ -34,7 +34,7 @@
 
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: softmagic.c,v 1.51 2002/07/03 18:26:38 christos Exp $")
+FILE_RCSID("@(#)$Id: softmagic.c,v 1.52 2003/02/08 18:33:53 christos Exp $")
 #endif	/* lint */
 
 static int match(struct magic *, uint32_t, unsigned char *, int);
@@ -564,9 +564,10 @@ mget(union VALUETYPE *p, unsigned char *s, struct magic *m, int nbytes)
 	       * offset is interpreted as last line to search,
 	       * (starting at 1), not as bytes-from start-of-file
 	       */
-	      char *last = NULL;
-	      p->buf = s;
-	      for (; offset && (s = strchr(s, '\n')) != NULL; offset--, s++)
+	      unsigned char *last = NULL;
+	      p->buf = (char *)s;
+	      for (; offset && (s = (unsigned char *)strchr(s, '\n')) != NULL;
+		  offset--, s++)
 		    last = s;
 	      if (last != NULL)
 		*last = '\0';
