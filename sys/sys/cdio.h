@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id: cdio.h,v 1.7 1995/04/09 15:50:48 jkh Exp $
+ *	$Id: cdio.h,v 1.8 1995/05/30 08:14:11 rgrimes Exp $
  */
 /*
 <1>	Fixed a conflict with ioctl usage.  There were two different
@@ -244,7 +244,7 @@ struct ioc_capability {			/*<2>*/
 #define	CDSETLEFT	0x00000400	/*<2>Output can be set to left only*/
 #define	CDSETRIGHT	0x00000800	/*<2>Output can be set to right only*/
 #define	CDSETMUTE	0x00001000	/*<2>Output can be muted*/
-#define CDSETPATCH	0x00008000	/*<2>Direct routing countrol allowed*/
+#define CDSETPATCH	0x00008000	/*<2>Direct routing control allowed*/
 
 	u_long	special_function;	/*<2>*/
 #define	CDDOEJECT	0x00000001	/*<2>The tray can be opened*/
