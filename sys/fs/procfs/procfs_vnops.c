@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.29 1997/02/24 16:44:11 bde Exp $
+ *	$Id: procfs_vnops.c,v 1.30 1997/08/02 14:32:20 bde Exp $
  */
 
 /*
@@ -127,15 +127,20 @@ procfs_open(ap)
 	} */ *ap;
 {
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
+	struct proc *p1 = ap->a_p, *p2 = PFIND(pfs->pfs_pid);
+
+	if (p2 == NULL)
+		return ENOENT;
 
 	switch (pfs->pfs_type) {
 	case Pmem:
-		if (PFIND(pfs->pfs_pid) == 0)
-			return (ENOENT);	/* was ESRCH, jsp */
-
 		if ((pfs->pfs_flags & FWRITE) && (ap->a_mode & O_EXCL) ||
 		    (pfs->pfs_flags & O_EXCL) && (ap->a_mode & FWRITE))
 			return (EBUSY);
+
+		if (!CHECKIO(p1, p2) &&
+		    (p1->p_cred->pc_ucred->cr_gid != KMEM_GROUP))
+			return EPERM;
 
 		if (ap->a_mode & FWRITE)
 			pfs->pfs_flags = ap->a_mode & (FWRITE|O_EXCL);
@@ -194,7 +199,6 @@ procfs_ioctl(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-
 	return (ENOTTY);
 }
 
