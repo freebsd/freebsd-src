@@ -1,7 +1,11 @@
 # Host: Intel 386 running the GNU Hurd
-NATDEPFILES= i386gnu-nat.o i387-nat.o gnu-nat.o fork-child.o solib.o solib-svr4.o solib-legacy.o corelow.o notify_S.o process_reply_S.o msg_reply_S.o msg_U.o exc_request_U.o exc_request_S.o
-XM_FILE= xm-i386gnu.h
-NAT_FILE= nm-gnu.h
+NATDEPFILES= i386gnu-nat.o gnu-nat.o corelow.o core-regset.o \
+	     fork-child.o solib.o solib-svr4.o solib-legacy.o \
+	     notify_S.o process_reply_S.o msg_reply_S.o \
+	     msg_U.o exc_request_U.o exc_request_S.o
+
+XM_FILE= xm-i386.h
+NAT_FILE= nm-i386gnu.h
 MH_CFLAGS = -D_GNU_SOURCE
 
 XM_CLIBS = -lshouldbeinlibc

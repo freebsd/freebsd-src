@@ -22,6 +22,8 @@
 #ifndef REMOTE_UTILS_H
 #define REMOTE_UTILS_H
 
+struct target_ops;
+
 #include "target.h"
 struct serial;
 

@@ -32,7 +32,8 @@
    Since these numbers have actually made it out into other software
    (stubs, etc.), you mustn't disturb the assigned numbering.  If you
    need to add new signals here, add them to the end of the explicitly
-   numbered signals.
+   numbered signals, at the comment marker.  Add them unconditionally,
+   not within any #if or #ifdef.
 
    This is based strongly on Unix/POSIX signals for several reasons:
    (1) This set of signals represents a widely-accepted attempt to
@@ -208,15 +209,6 @@ enum target_signal
     TARGET_SIGNAL_REALTIME_126,
     TARGET_SIGNAL_REALTIME_127,
 
-#if defined(MACH) || defined(__MACH__)
-    /* Mach exceptions */
-    TARGET_EXC_BAD_ACCESS,
-    TARGET_EXC_BAD_INSTRUCTION,
-    TARGET_EXC_ARITHMETIC,
-    TARGET_EXC_EMULATION,
-    TARGET_EXC_SOFTWARE,
-    TARGET_EXC_BREAKPOINT,
-#endif
     TARGET_SIGNAL_INFO,
 
     /* Some signal we don't know about.  */
@@ -225,6 +217,18 @@ enum target_signal
     /* Use whatever signal we use when one is not specifically specified
        (for passing to proceed and so on).  */
     TARGET_SIGNAL_DEFAULT,
+
+    /* Mach exceptions.  In versions of GDB before 5.2, these were just before
+       TARGET_SIGNAL_INFO if you were compiling on a Mach host (and missing
+       otherwise).  */
+    TARGET_EXC_BAD_ACCESS,
+    TARGET_EXC_BAD_INSTRUCTION,
+    TARGET_EXC_ARITHMETIC,
+    TARGET_EXC_EMULATION,
+    TARGET_EXC_SOFTWARE,
+    TARGET_EXC_BREAKPOINT,
+
+    /* If you are adding a new signal, add it just above this comment.  */
 
     /* Last and unused enum value, for sizing arrays, etc.  */
     TARGET_SIGNAL_LAST

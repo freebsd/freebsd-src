@@ -1,5 +1,6 @@
-/* Host-dependent definitions for i386.
-   Copyright 2001 Free Software Foundation, Inc.
+/* Host-dependent definitions for the i386.
+
+   Copyright 2001, 2004 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -27,4 +28,4 @@
 #define HOST_DOUBLE_FORMAT &floatformat_ieee_double_little
 #define HOST_LONG_DOUBLE_FORMAT &floatformat_i387_ext
 
-#endif /* XM_386_H */
+#endif /* xm-i386.h */

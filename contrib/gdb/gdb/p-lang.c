@@ -1,5 +1,5 @@
 /* Pascal language support routines for GDB, the GNU debugger.
-   Copyright 2000, 2002 Free Software Foundation, Inc.
+   Copyright 2000, 2002, 2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -20,6 +20,7 @@
 /* This file is derived from c-lang.c */
 
 #include "defs.h"
+#include "gdb_string.h"
 #include "symtab.h"
 #include "gdbtypes.h"
 #include "expression.h"
@@ -27,6 +28,7 @@
 #include "language.h"
 #include "p-lang.h"
 #include "valprint.h"
+#include "value.h"
 #include <ctype.h>
  
 extern void _initialize_pascal_language (void);
@@ -44,7 +46,8 @@ extern void _initialize_pascal_language (void);
    but this does not happen for Free Pascal nor for GPC.  */
 int
 is_pascal_string_type (struct type *type,int *length_pos,
-                       int * length_size, int *string_pos, int *char_size)
+                       int *length_size, int *string_pos, int *char_size,
+		       char **arrayname)
 {
   if (TYPE_CODE (type) == TYPE_CODE_STRUCT)
     {
@@ -54,11 +57,17 @@ is_pascal_string_type (struct type *type,int *length_pos,
           && strcmp (TYPE_FIELDS (type)[0].name, "length") == 0 
           && strcmp (TYPE_FIELDS (type)[1].name, "st") == 0)
         {
-          *length_pos = TYPE_FIELD_BITPOS (type, 0) / TARGET_CHAR_BIT;
-          *length_size = TYPE_FIELD_TYPE (type, 0)->length;
-          *string_pos = TYPE_FIELD_BITPOS (type, 1) / TARGET_CHAR_BIT;
-          *char_size = 1;
-          return 1;
+          if (length_pos)
+	    *length_pos = TYPE_FIELD_BITPOS (type, 0) / TARGET_CHAR_BIT;
+          if (length_size)
+	    *length_size = TYPE_LENGTH (TYPE_FIELD_TYPE (type, 0));
+          if (string_pos)
+	    *string_pos = TYPE_FIELD_BITPOS (type, 1) / TARGET_CHAR_BIT;
+          if (char_size)
+	    *char_size = 1;
+ 	  if (arrayname)
+	    *arrayname = TYPE_FIELDS (type)[1].name;
+         return 2;
         };
       /* GNU pascal strings.  */
       /* Three fields: Capacity, length and schema$ or _p_schema.  */
@@ -66,12 +75,18 @@ is_pascal_string_type (struct type *type,int *length_pos,
           && strcmp (TYPE_FIELDS (type)[0].name, "Capacity") == 0
           && strcmp (TYPE_FIELDS (type)[1].name, "length") == 0)
         {
-          *length_pos = TYPE_FIELD_BITPOS (type, 1) / TARGET_CHAR_BIT;
-          *length_size = TYPE_FIELD_TYPE (type, 1)->length;
-          *string_pos = TYPE_FIELD_BITPOS (type, 2) / TARGET_CHAR_BIT;
+          if (length_pos)
+	    *length_pos = TYPE_FIELD_BITPOS (type, 1) / TARGET_CHAR_BIT;
+          if (length_size)
+	    *length_size = TYPE_LENGTH (TYPE_FIELD_TYPE (type, 1));
+          if (string_pos)
+	    *string_pos = TYPE_FIELD_BITPOS (type, 2) / TARGET_CHAR_BIT;
           /* FIXME: how can I detect wide chars in GPC ?? */
-          *char_size = 1;
-          return 1;
+          if (char_size)
+	    *char_size = 1;
+ 	  if (arrayname)
+	    *arrayname = TYPE_FIELDS (type)[2].name;
+         return 3;
         };
     }
   return 0;
@@ -84,7 +99,7 @@ static void pascal_one_char (int, struct ui_file *, int *);
    In_quotes is reset to 0 if a char is written with #4 notation */
 
 static void
-pascal_one_char (register int c, struct ui_file *stream, int *in_quotes)
+pascal_one_char (int c, struct ui_file *stream, int *in_quotes)
 {
 
   c &= 0xFF;			/* Avoid sign bit follies */
@@ -117,7 +132,7 @@ static void pascal_emit_char (int c, struct ui_file *stream, int quoter);
    characters and strings is language specific. */
 
 static void
-pascal_emit_char (register int c, struct ui_file *stream, int quoter)
+pascal_emit_char (int c, struct ui_file *stream, int quoter)
 {
   int in_quotes = 0;
   pascal_one_char (c, stream, &in_quotes);
@@ -143,11 +158,10 @@ void
 pascal_printstr (struct ui_file *stream, char *string, unsigned int length,
 		 int width, int force_ellipses)
 {
-  register unsigned int i;
+  unsigned int i;
   unsigned int things_printed = 0;
   int in_quotes = 0;
   int need_comma = 0;
-  extern int inspect_it;
 
   /* If the string was not truncated due to `set print elements', and
      the last byte of it is a null, we don't print that, in traditional C
@@ -260,7 +274,7 @@ pascal_printstr (struct ui_file *stream, char *string, unsigned int length,
 struct type *
 pascal_create_fundamental_type (struct objfile *objfile, int typeid)
 {
-  register struct type *type = NULL;
+  struct type *type = NULL;
 
   switch (typeid)
     {
@@ -280,7 +294,7 @@ pascal_create_fundamental_type (struct objfile *objfile, int typeid)
 			0, "void", objfile);
       break;
     case FT_CHAR:
-      type = init_type (TYPE_CODE_INT,
+      type = init_type (TYPE_CODE_CHAR,
 			TARGET_CHAR_BIT / TARGET_CHAR_BIT,
 			0, "char", objfile);
       break;
@@ -437,9 +451,9 @@ const struct language_defn pascal_language_defn =
   range_check_on,
   type_check_on,
   case_sensitive_on,
+  &exp_descriptor_standard,
   pascal_parse,
   pascal_error,
-  evaluate_subexp_standard,
   pascal_printchar,		/* Print a character constant */
   pascal_printstr,		/* Function to print string constant */
   pascal_emit_char,		/* Print a single char */
@@ -447,6 +461,11 @@ const struct language_defn pascal_language_defn =
   pascal_print_type,		/* Print a type using appropriate syntax */
   pascal_val_print,		/* Print a value using appropriate syntax */
   pascal_value_print,		/* Print a top-level value */
+  NULL,				/* Language specific skip_trampoline */
+  value_of_this,		/* value_of_this */
+  basic_lookup_symbol_nonlocal,	/* lookup_symbol_nonlocal */
+  basic_lookup_transparent_type,/* lookup_transparent_type */
+  NULL,				/* Language specific symbol demangler */
   {"", "%", "b", ""},		/* Binary format info */
   {"0%lo", "0", "o", ""},	/* Octal format info */
   {"%ld", "", "d", ""},		/* Decimal format info */
@@ -455,6 +474,7 @@ const struct language_defn pascal_language_defn =
   1,				/* c-style arrays */
   0,				/* String lower bound */
   &builtin_type_char,		/* Type of string elements */
+  default_word_break_characters,
   LANG_MAGIC
 };
 

@@ -19,4 +19,4 @@
    Boston, MA 02111-1307, USA.  */
 
 /* Get generic NetBSD host definitions. */
-#include "xm-nbsd.h"
+#include "config/xm-nbsd.h"

@@ -1,5 +1,5 @@
-/* Portable <dirent.h>
-   Copyright 2000 Free Software Foundation, Inc.
+/* Portable <dirent.h>.
+   Copyright 2000, 2002 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -18,14 +18,16 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#if !defined(GDB_DIRENT_H)
-#define GDB_DIRENT_H
+#ifndef GDB_DIRENT_H
+#define GDB_DIRENT_H 1
 
-/* From bfd/hpux-core.c. */
-
+/* See description of `AC_HEADER_DIRENT' in the Autoconf manual.  */
 #ifdef HAVE_DIRENT_H
-# include <dirent.h>
+# include <dirent.h>		/* OK: dirent.h */
+# define NAMELEN(dirent) strlen ((dirent)->d_name)	/* OK: strlen d_name */
 #else
+# define dirent direct
+# define NAMELEN(dirent) (dirent)->d_namelen	/* OK: d_namelen */
 # ifdef HAVE_SYS_NDIR_H
 #  include <sys/ndir.h>
 # endif
@@ -37,4 +39,4 @@
 # endif
 #endif
 
-#endif /* !defined(GDB_DIRENT_H) */
+#endif /* not GDB_DIRENT_H */

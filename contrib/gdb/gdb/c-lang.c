@@ -1,5 +1,5 @@
 /* C language support routines for GDB, the GNU debugger.
-   Copyright 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2002
+   Copyright 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2002, 2003, 2004
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -27,6 +27,12 @@
 #include "language.h"
 #include "c-lang.h"
 #include "valprint.h"
+#include "macroscope.h"
+#include "gdb_assert.h"
+#include "charset.h"
+#include "gdb_string.h"
+#include "demangle.h"
+#include "cp-support.h"
 
 extern void _initialize_c_language (void);
 static void c_emit_char (int c, struct ui_file * stream, int quoter);
@@ -36,54 +42,32 @@ static void c_emit_char (int c, struct ui_file * stream, int quoter);
    characters and strings is language specific. */
 
 static void
-c_emit_char (register int c, struct ui_file *stream, int quoter)
+c_emit_char (int c, struct ui_file *stream, int quoter)
 {
+  const char *escape;
+  int host_char;
+
   c &= 0xFF;			/* Avoid sign bit follies */
 
-  if (PRINT_LITERAL_FORM (c))
+  escape = c_target_char_has_backslash_escape (c);
+  if (escape)
     {
-      if (c == '\\' || c == quoter)
-	{
-	  fputs_filtered ("\\", stream);
-	}
-      fprintf_filtered (stream, "%c", c);
+      if (quoter == '"' && strcmp (escape, "0") == 0)
+	/* Print nulls embedded in double quoted strings as \000 to
+	   prevent ambiguity.  */
+	fprintf_filtered (stream, "\\000");
+      else
+	fprintf_filtered (stream, "\\%s", escape);
+    }
+  else if (target_char_to_host (c, &host_char)
+           && host_char_print_literally (host_char))
+    {
+      if (host_char == '\\' || host_char == quoter)
+        fputs_filtered ("\\", stream);
+      fprintf_filtered (stream, "%c", host_char);
     }
   else
-    {
-      switch (c)
-	{
-	case '\n':
-	  fputs_filtered ("\\n", stream);
-	  break;
-	case '\b':
-	  fputs_filtered ("\\b", stream);
-	  break;
-	case '\t':
-	  fputs_filtered ("\\t", stream);
-	  break;
-	case '\f':
-	  fputs_filtered ("\\f", stream);
-	  break;
-	case '\r':
-	  fputs_filtered ("\\r", stream);
-	  break;
-        case '\013':
-          fputs_filtered ("\\v", stream);
-          break;
-	case '\033':
-	  fputs_filtered ("\\e", stream);
-	  break;
-	case '\007':
-	  fputs_filtered ("\\a", stream);
-	  break;
-        case '\0':
-          fputs_filtered ("\\0", stream);
-          break;
-	default:
-	  fprintf_filtered (stream, "\\%.3o", (unsigned int) c);
-	  break;
-	}
-    }
+    fprintf_filtered (stream, "\\%.3o", (unsigned int) c);
 }
 
 void
@@ -104,11 +88,10 @@ void
 c_printstr (struct ui_file *stream, char *string, unsigned int length,
 	    int width, int force_ellipses)
 {
-  register unsigned int i;
+  unsigned int i;
   unsigned int things_printed = 0;
   int in_quotes = 0;
   int need_comma = 0;
-  extern int inspect_it;
 
   /* If the string was not truncated due to `set print elements', and
      the last byte of it is a null, we don't print that, in traditional C
@@ -224,7 +207,7 @@ c_printstr (struct ui_file *stream, char *string, unsigned int length,
 struct type *
 c_create_fundamental_type (struct objfile *objfile, int typeid)
 {
-  register struct type *type = NULL;
+  struct type *type = NULL;
 
   switch (typeid)
     {
@@ -338,6 +321,30 @@ c_create_fundamental_type (struct objfile *objfile, int typeid)
 			TARGET_LONG_DOUBLE_BIT / TARGET_CHAR_BIT,
 			0, "long double", objfile);
       break;
+    case FT_COMPLEX:
+      type = init_type (TYPE_CODE_FLT,
+			2 * TARGET_FLOAT_BIT / TARGET_CHAR_BIT,
+			0, "complex float", objfile);
+      TYPE_TARGET_TYPE (type)
+	= init_type (TYPE_CODE_FLT, TARGET_FLOAT_BIT / TARGET_CHAR_BIT,
+		     0, "float", objfile);
+      break;
+    case FT_DBL_PREC_COMPLEX:
+      type = init_type (TYPE_CODE_FLT,
+			2 * TARGET_DOUBLE_BIT / TARGET_CHAR_BIT,
+			0, "complex double", objfile);
+      TYPE_TARGET_TYPE (type)
+	= init_type (TYPE_CODE_FLT, TARGET_DOUBLE_BIT / TARGET_CHAR_BIT,
+		     0, "double", objfile);
+      break;
+    case FT_EXT_PREC_COMPLEX:
+      type = init_type (TYPE_CODE_FLT,
+			2 * TARGET_LONG_DOUBLE_BIT / TARGET_CHAR_BIT,
+			0, "complex long double", objfile);
+      TYPE_TARGET_TYPE (type)
+	= init_type (TYPE_CODE_FLT, TARGET_LONG_DOUBLE_BIT / TARGET_CHAR_BIT,
+		     0, "long double", objfile);
+      break;
     case FT_TEMPLATE_ARG:
       type = init_type (TYPE_CODE_TEMPLATE_ARG,
 			0,
@@ -347,7 +354,128 @@ c_create_fundamental_type (struct objfile *objfile, int typeid)
   return (type);
 }
 
+/* Preprocessing and parsing C and C++ expressions.  */
 
+
+/* When we find that lexptr (the global var defined in parse.c) is
+   pointing at a macro invocation, we expand the invocation, and call
+   scan_macro_expansion to save the old lexptr here and point lexptr
+   into the expanded text.  When we reach the end of that, we call
+   end_macro_expansion to pop back to the value we saved here.  The
+   macro expansion code promises to return only fully-expanded text,
+   so we don't need to "push" more than one level.
+
+   This is disgusting, of course.  It would be cleaner to do all macro
+   expansion beforehand, and then hand that to lexptr.  But we don't
+   really know where the expression ends.  Remember, in a command like
+
+     (gdb) break *ADDRESS if CONDITION
+
+   we evaluate ADDRESS in the scope of the current frame, but we
+   evaluate CONDITION in the scope of the breakpoint's location.  So
+   it's simply wrong to try to macro-expand the whole thing at once.  */
+static char *macro_original_text;
+static char *macro_expanded_text;
+
+
+void
+scan_macro_expansion (char *expansion)
+{
+  /* We'd better not be trying to push the stack twice.  */
+  gdb_assert (! macro_original_text);
+  gdb_assert (! macro_expanded_text);
+
+  /* Save the old lexptr value, so we can return to it when we're done
+     parsing the expanded text.  */
+  macro_original_text = lexptr;
+  lexptr = expansion;
+
+  /* Save the expanded text, so we can free it when we're finished.  */
+  macro_expanded_text = expansion;
+}
+
+
+int
+scanning_macro_expansion (void)
+{
+  return macro_original_text != 0;
+}
+
+
+void 
+finished_macro_expansion (void)
+{
+  /* There'd better be something to pop back to, and we better have
+     saved a pointer to the start of the expanded text.  */
+  gdb_assert (macro_original_text);
+  gdb_assert (macro_expanded_text);
+
+  /* Pop back to the original text.  */
+  lexptr = macro_original_text;
+  macro_original_text = 0;
+
+  /* Free the expanded text.  */
+  xfree (macro_expanded_text);
+  macro_expanded_text = 0;
+}
+
+
+static void
+scan_macro_cleanup (void *dummy)
+{
+  if (macro_original_text)
+    finished_macro_expansion ();
+}
+
+
+/* We set these global variables before calling c_parse, to tell it
+   how it to find macro definitions for the expression at hand.  */
+macro_lookup_ftype *expression_macro_lookup_func;
+void *expression_macro_lookup_baton;
+
+
+static struct macro_definition *
+null_macro_lookup (const char *name, void *baton)
+{
+  return 0;
+}
+
+
+static int
+c_preprocess_and_parse (void)
+{
+  /* Set up a lookup function for the macro expander.  */
+  struct macro_scope *scope = 0;
+  struct cleanup *back_to = make_cleanup (free_current_contents, &scope);
+
+  if (expression_context_block)
+    scope = sal_macro_scope (find_pc_line (expression_context_pc, 0));
+  else
+    scope = default_macro_scope ();
+
+  if (scope)
+    {
+      expression_macro_lookup_func = standard_macro_lookup;
+      expression_macro_lookup_baton = (void *) scope;
+    }
+  else
+    {
+      expression_macro_lookup_func = null_macro_lookup;
+      expression_macro_lookup_baton = 0;      
+    }
+
+  gdb_assert (! macro_original_text);
+  make_cleanup (scan_macro_cleanup, 0);
+
+  {
+    int result = c_parse ();
+    do_cleanups (back_to);
+    return result;
+  }
+}
+
+
+
 /* Table mapping opcodes into strings for printing operators
    and precedences of the operators.  */
 
@@ -415,9 +543,9 @@ const struct language_defn c_language_defn =
   range_check_off,
   type_check_off,
   case_sensitive_on,
-  c_parse,
+  &exp_descriptor_standard,
+  c_preprocess_and_parse,
   c_error,
-  evaluate_subexp_standard,
   c_printchar,			/* Print a character constant */
   c_printstr,			/* Function to print string constant */
   c_emit_char,			/* Print a single char */
@@ -425,6 +553,11 @@ const struct language_defn c_language_defn =
   c_print_type,			/* Print a type using appropriate syntax */
   c_val_print,			/* Print a value using appropriate syntax */
   c_value_print,		/* Print a top-level value */
+  NULL,				/* Language specific skip_trampoline */
+  NULL,				/* value_of_this */
+  basic_lookup_symbol_nonlocal,	/* lookup_symbol_nonlocal */
+  basic_lookup_transparent_type,/* lookup_transparent_type */
+  NULL,				/* Language specific symbol demangler */
   {"", "", "", ""},		/* Binary format info */
   {"0%lo", "0", "o", ""},	/* Octal format info */
   {"%ld", "", "d", ""},		/* Decimal format info */
@@ -433,6 +566,7 @@ const struct language_defn c_language_defn =
   1,				/* c-style arrays */
   0,				/* String lower bound */
   &builtin_type_char,		/* Type of string elements */
+  default_word_break_characters,
   LANG_MAGIC
 };
 
@@ -467,9 +601,9 @@ const struct language_defn cplus_language_defn =
   range_check_off,
   type_check_off,
   case_sensitive_on,
-  c_parse,
+  &exp_descriptor_standard,
+  c_preprocess_and_parse,
   c_error,
-  evaluate_subexp_standard,
   c_printchar,			/* Print a character constant */
   c_printstr,			/* Function to print string constant */
   c_emit_char,			/* Print a single char */
@@ -477,6 +611,11 @@ const struct language_defn cplus_language_defn =
   c_print_type,			/* Print a type using appropriate syntax */
   c_val_print,			/* Print a value using appropriate syntax */
   c_value_print,		/* Print a top-level value */
+  NULL,				/* Language specific skip_trampoline */
+  value_of_this,		/* value_of_this */
+  cp_lookup_symbol_nonlocal,	/* lookup_symbol_nonlocal */
+  cp_lookup_transparent_type,   /* lookup_transparent_type */
+  cplus_demangle,		/* Language specific symbol demangler */
   {"", "", "", ""},		/* Binary format info */
   {"0%lo", "0", "o", ""},	/* Octal format info */
   {"%ld", "", "d", ""},		/* Decimal format info */
@@ -485,6 +624,7 @@ const struct language_defn cplus_language_defn =
   1,				/* c-style arrays */
   0,				/* String lower bound */
   &builtin_type_char,		/* Type of string elements */
+  default_word_break_characters,
   LANG_MAGIC
 };
 
@@ -496,9 +636,9 @@ const struct language_defn asm_language_defn =
   range_check_off,
   type_check_off,
   case_sensitive_on,
-  c_parse,
+  &exp_descriptor_standard,
+  c_preprocess_and_parse,
   c_error,
-  evaluate_subexp_standard,
   c_printchar,			/* Print a character constant */
   c_printstr,			/* Function to print string constant */
   c_emit_char,			/* Print a single char */
@@ -506,6 +646,11 @@ const struct language_defn asm_language_defn =
   c_print_type,			/* Print a type using appropriate syntax */
   c_val_print,			/* Print a value using appropriate syntax */
   c_value_print,		/* Print a top-level value */
+  NULL,				/* Language specific skip_trampoline */
+  NULL,				/* value_of_this */
+  basic_lookup_symbol_nonlocal,	/* lookup_symbol_nonlocal */
+  basic_lookup_transparent_type,/* lookup_transparent_type */
+  NULL,				/* Language specific symbol demangler */
   {"", "", "", ""},		/* Binary format info */
   {"0%lo", "0", "o", ""},	/* Octal format info */
   {"%ld", "", "d", ""},		/* Decimal format info */
@@ -514,6 +659,47 @@ const struct language_defn asm_language_defn =
   1,				/* c-style arrays */
   0,				/* String lower bound */
   &builtin_type_char,		/* Type of string elements */
+  default_word_break_characters,
+  LANG_MAGIC
+};
+
+/* The following language_defn does not represent a real language.
+   It just provides a minimal support a-la-C that should allow users
+   to do some simple operations when debugging applications that use
+   a language currently not supported by GDB.  */
+
+const struct language_defn minimal_language_defn =
+{
+  "minimal",			/* Language name */
+  language_minimal,
+  c_builtin_types,
+  range_check_off,
+  type_check_off,
+  case_sensitive_on,
+  &exp_descriptor_standard,
+  c_preprocess_and_parse,
+  c_error,
+  c_printchar,			/* Print a character constant */
+  c_printstr,			/* Function to print string constant */
+  c_emit_char,			/* Print a single char */
+  c_create_fundamental_type,	/* Create fundamental type in this language */
+  c_print_type,			/* Print a type using appropriate syntax */
+  c_val_print,			/* Print a value using appropriate syntax */
+  c_value_print,		/* Print a top-level value */
+  NULL,				/* Language specific skip_trampoline */
+  NULL,				/* value_of_this */
+  basic_lookup_symbol_nonlocal,	/* lookup_symbol_nonlocal */
+  basic_lookup_transparent_type,/* lookup_transparent_type */
+  NULL,				/* Language specific symbol demangler */
+  {"", "", "", ""},		/* Binary format info */
+  {"0%lo", "0", "o", ""},	/* Octal format info */
+  {"%ld", "", "d", ""},		/* Decimal format info */
+  {"0x%lx", "0x", "x", ""},	/* Hex format info */
+  c_op_print_tab,		/* expression operators for printing */
+  1,				/* c-style arrays */
+  0,				/* String lower bound */
+  &builtin_type_char,		/* Type of string elements */
+  default_word_break_characters,
   LANG_MAGIC
 };
 
@@ -523,4 +709,5 @@ _initialize_c_language (void)
   add_language (&c_language_defn);
   add_language (&cplus_language_defn);
   add_language (&asm_language_defn);
+  add_language (&minimal_language_defn);
 }

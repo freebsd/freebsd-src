@@ -114,12 +114,6 @@ The following cleanups have been identified as part of GDB 5.2.
 
 --
 
-Remove old code that does not use ui_out functions and all the related
-"ifdef"s.  This also allows the elimination of -DUI_OUT from
-Makefile.in and configure.in.
-
---
-
 Compiler warnings.
 
 Eliminate warnings for all targets on at least one host for one of the
@@ -176,14 +170,6 @@ Deprecate, if not delete, the following:
 		If nothing else rename this so that
 		how it relates to rawreg and the
 		regnum is clear.
-
-	REGISTER_BYTES
-		The size of the cache can be computed
-		on the fly.
-
-	IS_TRAPPED_INTERNALVAR
-		The pseudo registers should eventually make
-		this redundant.
 
 --
 
@@ -246,10 +232,6 @@ New languages come onto the scene all the time.
 --
 
 Re: Various C++ things
-
-value_headof/value_from_vtable_info are worthless, and should be
-removed.  The one place in printcmd.c that uses it should use the RTTI
-functions.
 
 RTTI for g++ should be using the typeinfo functions rather than the
 vtables.  The typeinfo functions are always at offset 4 from the

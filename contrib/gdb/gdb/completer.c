@@ -23,14 +23,17 @@
 #include "gdbtypes.h"
 #include "expression.h"
 #include "filenames.h"		/* for DOSish file names */
+#include "language.h"
+
+#include "cli/cli-decode.h"
 
 /* FIXME: This is needed because of lookup_cmd_1().
    We should be calling a hook instead so we eliminate the CLI dependency. */
 #include "gdbcmd.h"
 
 /* Needed for rl_completer_word_break_characters() and for
-   filename_completion_function.  */
-#include <readline/readline.h>
+   rl_filename_completion_function.  */
+#include "readline/readline.h"
 
 /* readline defines this.  */
 #undef savestring
@@ -38,7 +41,8 @@
 #include "completer.h"
 
 /* Prototypes for local functions */
-char *line_completion_function (char *text, int matches, char *line_buffer,
+static
+char *line_completion_function (const char *text, int matches, char *line_buffer,
 				int point);
 
 /* readline uses the word breaks for two things:
@@ -48,13 +52,11 @@ char *line_completion_function (char *text, int matches, char *line_buffer,
    it does affect how much stuff M-? lists.
    (2) If one of the matches contains a word break character, readline
    will quote it.  That's why we switch between
-   gdb_completer_word_break_characters and
+   current_language->la_word_break_characters() and
    gdb_completer_command_word_break_characters.  I'm not sure when
    we need this behavior (perhaps for funky characters in C++ symbols?).  */
 
 /* Variables which are necessary for fancy command line editing.  */
-static char *gdb_completer_word_break_characters =
-" \t\n!@#$%^&*()+=|~`}{[]\"';:?/>.<,-";
 
 /* When completing on command names, we remove '-' from the list of
    word break characters, since we use it in command names.  If the
@@ -88,12 +90,6 @@ static char *gdb_completer_quote_characters = "'";
 /* Accessor for some completer data that may interest other files. */
 
 char *
-get_gdb_completer_word_break_characters (void)
-{
-  return gdb_completer_word_break_characters;
-}
-
-char *
 get_gdb_completer_quote_characters (void)
 {
   return gdb_completer_quote_characters;
@@ -102,7 +98,7 @@ get_gdb_completer_quote_characters (void)
 /* Line completion interface function for readline.  */
 
 char *
-readline_line_completion_function (char *text, int matches)
+readline_line_completion_function (const char *text, int matches)
 {
   return line_completion_function (text, matches, rl_line_buffer, rl_point);
 }
@@ -133,7 +129,7 @@ filename_completer (char *text, char *word)
   while (1)
     {
       char *p;
-      p = filename_completion_function (text, subsequent_name);
+      p = rl_filename_completion_function (text, subsequent_name);
       if (return_val_used >= return_val_alloced)
 	{
 	  return_val_alloced *= 2;
@@ -248,7 +244,7 @@ location_completer (char *text, char *word)
 	  colon = p;
 	  symbol_start = p + 1;
 	}
-      else if (strchr (gdb_completer_word_break_characters, *p))
+      else if (strchr (current_language->la_word_break_characters(), *p))
 	symbol_start = p + 1;
     }
 
@@ -380,7 +376,7 @@ command_completer (char *text, char *word)
    should pretend that the line ends at POINT.  */
 
 char **
-complete_line (char *text, char *line_buffer, int point)
+complete_line (const char *text, char *line_buffer, int point)
 {
   char **list = NULL;
   char *tmp_command, *p;
@@ -396,7 +392,7 @@ complete_line (char *text, char *line_buffer, int point)
      '-' character used in some commands.  */
 
   rl_completer_word_break_characters =
-    gdb_completer_word_break_characters;
+    current_language->la_word_break_characters();
 
       /* Decide whether to complete on a list of gdb commands or on symbols. */
   tmp_command = (char *) alloca (point + 1);
@@ -626,8 +622,8 @@ complete_line (char *text, char *line_buffer, int point)
    which is a possible completion, it is the caller's responsibility to
    free the string.  */
 
-char *
-line_completion_function (char *text, int matches, char *line_buffer, int point)
+static char *
+line_completion_function (const char *text, int matches, char *line_buffer, int point)
 {
   static char **list = (char **) NULL;	/* Cache of completions */
   static int index;		/* Next cached completion */
@@ -671,20 +667,29 @@ line_completion_function (char *text, int matches, char *line_buffer, int point)
     /* Make sure the word break characters are set back to normal for the
        next time that readline tries to complete something.  */
     rl_completer_word_break_characters =
-      gdb_completer_word_break_characters;
+      current_language->la_word_break_characters();
 #endif
 
   return (output);
 }
-/* Skip over a possibly quoted word (as defined by the quote characters
-   and word break characters the completer uses).  Returns pointer to the
-   location after the "word". */
+
+/* Skip over the possibly quoted word STR (as defined by the quote
+   characters QUOTECHARS and the the word break characters
+   BREAKCHARS).  Returns pointer to the location after the "word".  If
+   either QUOTECHARS or BREAKCHARS is NULL, use the same values used
+   by the completer.  */
 
 char *
-skip_quoted (char *str)
+skip_quoted_chars (char *str, char *quotechars, char *breakchars)
 {
   char quote_char = '\0';
   char *scan;
+
+  if (quotechars == NULL)
+    quotechars = gdb_completer_quote_characters;
+
+  if (breakchars == NULL)
+    breakchars = current_language->la_word_break_characters();
 
   for (scan = str; *scan != '\0'; scan++)
     {
@@ -698,16 +703,26 @@ skip_quoted (char *str)
 	      break;
 	    }
 	}
-      else if (strchr (gdb_completer_quote_characters, *scan))
+      else if (strchr (quotechars, *scan))
 	{
 	  /* Found start of a quoted string. */
 	  quote_char = *scan;
 	}
-      else if (strchr (gdb_completer_word_break_characters, *scan))
+      else if (strchr (breakchars, *scan))
 	{
 	  break;
 	}
     }
+
   return (scan);
 }
 
+/* Skip over the possibly quoted word STR (as defined by the quote
+   characters and word break characters used by the completer).
+   Returns pointer to the location after the "word". */
+
+char *
+skip_quoted (char *str)
+{
+  return skip_quoted_chars (str, NULL, NULL);
+}

@@ -22,6 +22,8 @@
 #ifndef MI_CONSOLE_H
 #define MI_CONSOLE_H
 
-extern struct ui_file *mi_console_file_new (struct ui_file *raw, const char *prefix);
+extern struct ui_file *mi_console_file_new (struct ui_file *raw,
+					    const char *prefix,
+					    char quote);
 
 #endif

@@ -24,6 +24,8 @@
 #if !defined (GDBCORE_H)
 #define GDBCORE_H 1
 
+struct type;
+
 #include "bfd.h"
 
 /* Return the name of the executable file as a string.
@@ -64,7 +66,13 @@ extern ULONGEST read_memory_unsigned_integer (CORE_ADDR memaddr, int len);
 
 /* Read a null-terminated string from the debuggee's memory, given address,
  * a buffer into which to place the string, and the maximum available space */
+
 extern void read_memory_string (CORE_ADDR, char *, int);
+
+/* Read the pointer of type TYPE at ADDR, and return the address it
+   represents. */
+
+CORE_ADDR read_memory_typed_address (CORE_ADDR addr, struct type *type);
 
 /* This takes a char *, not void *.  This is probably right, because
    passing in an int * or whatever is wrong with respect to

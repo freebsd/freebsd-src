@@ -56,7 +56,6 @@ extern char *get_prompt (void);
 extern void set_prompt (char *);
 
 /* From random places.  */
-extern int mapped_symbol_files;
 extern int readnow_symbol_files;
 
 /* Perform _initialize initialization */
@@ -70,5 +69,16 @@ extern char *source_error;
 extern char *source_pre_error;
 extern int history_expansion_p;
 extern int server_command;
+extern char *lim_at_start;
+
+extern void show_commands (char *args, int from_tty);
+
+extern void set_history (char *, int);
+
+extern void show_history (char *, int);
+
+extern void set_verbose (char *, int, struct cmd_list_element *);
+
+extern void do_restore_instream_cleanup (void *stream);
 
 #endif

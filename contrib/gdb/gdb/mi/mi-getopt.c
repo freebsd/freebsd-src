@@ -74,3 +74,19 @@ mi_getopt (const char *prefix,
     }
   error ("%s: Unknown option ``%s''", prefix, arg + 1);
 }
+
+int 
+mi_valid_noargs (const char *prefix, int argc, char **argv) 
+{
+  int optind = 0;
+  char *optarg;
+  static struct mi_opt opts[] =
+  {
+    0
+  };
+
+  if (mi_getopt (prefix, argc, argv, opts, &optind, &optarg) == -1)
+    return 1;
+  else
+    return 0;
+}

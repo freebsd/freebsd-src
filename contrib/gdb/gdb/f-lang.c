@@ -1,5 +1,5 @@
 /* Fortran language support routines for GDB, the GNU debugger.
-   Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2002
+   Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
    Contributed by Motorola.  Adapted from the C parser by Farooq Butt
    (fmbutt@engage.sps.mot.com).
@@ -30,6 +30,7 @@
 #include "language.h"
 #include "f-lang.h"
 #include "valprint.h"
+#include "value.h"
 
 /* The built-in types of F77.  FIXME: integer*4 is missing, plain
    logical is missing (builtin_type_logical is logical*4).  */
@@ -99,7 +100,7 @@ static void f_emit_char (int c, struct ui_file * stream, int quoter);
    be replaced with a true F77 version.  */
 
 static void
-f_emit_char (register int c, struct ui_file *stream, int quoter)
+f_emit_char (int c, struct ui_file *stream, int quoter)
 {
   c &= 0xFF;			/* Avoid sign bit follies */
 
@@ -163,11 +164,10 @@ static void
 f_printstr (struct ui_file *stream, char *string, unsigned int length,
 	    int width, int force_ellipses)
 {
-  register unsigned int i;
+  unsigned int i;
   unsigned int things_printed = 0;
   int in_quotes = 0;
   int need_comma = 0;
-  extern int inspect_it;
 
   if (length == 0)
     {
@@ -250,7 +250,7 @@ f_printstr (struct ui_file *stream, char *string, unsigned int length,
 static struct type *
 f_create_fundamental_type (struct objfile *objfile, int typeid)
 {
-  register struct type *type = NULL;
+  struct type *type = NULL;
 
   switch (typeid)
     {
@@ -462,9 +462,9 @@ const struct language_defn f_language_defn =
   range_check_on,
   type_check_on,
   case_sensitive_off,
+  &exp_descriptor_standard,
   f_parse,			/* parser */
   f_error,			/* parser error function */
-  evaluate_subexp_standard,
   f_printchar,			/* Print character constant */
   f_printstr,			/* function to print string constant */
   f_emit_char,			/* Function to print a single character */
@@ -472,6 +472,11 @@ const struct language_defn f_language_defn =
   f_print_type,			/* Print a type using appropriate syntax */
   f_val_print,			/* Print a value using appropriate syntax */
   c_value_print,		/* FIXME */
+  NULL,				/* Language specific skip_trampoline */
+  value_of_this,		/* value_of_this */
+  basic_lookup_symbol_nonlocal,	/* lookup_symbol_nonlocal */
+  basic_lookup_transparent_type,/* lookup_transparent_type */
+  NULL,				/* Language specific symbol demangler */
   {"", "", "", ""},		/* Binary format info */
   {"0%o", "0", "o", ""},	/* Octal format info */
   {"%d", "", "d", ""},		/* Decimal format info */
@@ -480,11 +485,12 @@ const struct language_defn f_language_defn =
   0,				/* arrays are first-class (not c-style) */
   1,				/* String lower bound */
   &builtin_type_f_character,	/* Type of string elements */
+  default_word_break_characters,
   LANG_MAGIC
 };
 
-void
-_initialize_f_language (void)
+static void
+build_fortran_types (void)
 {
   builtin_type_f_void =
     init_type (TYPE_CODE_VOID, 1,
@@ -556,6 +562,28 @@ _initialize_f_language (void)
 	       0,
 	       "complex*32", (struct objfile *) NULL);
   TYPE_TARGET_TYPE (builtin_type_f_complex_s32) = builtin_type_f_real_s16;
+}
+
+void
+_initialize_f_language (void)
+{
+  build_fortran_types ();
+
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_f_character);
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_f_logical); 
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_f_logical_s1); 
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_f_logical_s2); 
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_f_integer); 
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_f_integer_s2); 
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_f_real); 
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_f_real_s8); 
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_f_real_s16); 
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_f_complex_s8); 
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_f_complex_s16); 
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_f_complex_s32); 
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_f_void); 
+  DEPRECATED_REGISTER_GDBARCH_SWAP (builtin_type_string); 
+  deprecated_register_gdbarch_swap (NULL, 0, build_fortran_types);
 
   builtin_type_string =
     init_type (TYPE_CODE_STRING, TARGET_CHAR_BIT / TARGET_CHAR_BIT,
@@ -632,8 +660,8 @@ add_common_block (char *name, CORE_ADDR offset, int secnum, char *func_stab)
      parser have fits. */
 
 
-  if (STREQ (name, BLANK_COMMON_NAME_ORIGINAL) ||
-      STREQ (name, BLANK_COMMON_NAME_MF77))
+  if (strcmp (name, BLANK_COMMON_NAME_ORIGINAL) == 0
+      || strcmp (name, BLANK_COMMON_NAME_MF77) == 0)
     {
 
       xfree (name);
@@ -736,7 +764,7 @@ find_first_common_named (char *name)
 
   while (tmp != NULL)
     {
-      if (STREQ (tmp->name, name))
+      if (strcmp (tmp->name, name) == 0)
 	return (tmp);
       else
 	tmp = tmp->next;
@@ -758,7 +786,8 @@ find_common_for_function (char *name, char *funcname)
 
   while (tmp != NULL)
     {
-      if (STREQ (tmp->name, name) && STREQ (tmp->owning_function, funcname))
+      if (DEPRECATED_STREQ (tmp->name, name)
+	  && DEPRECATED_STREQ (tmp->owning_function, funcname))
 	return (tmp);
       else
 	tmp = tmp->next;
@@ -807,8 +836,8 @@ patch_all_commons_by_name (char *name, CORE_ADDR offset, int secnum)
   /* For blank common blocks, change the canonical reprsentation 
      of a blank name */
 
-  if ((STREQ (name, BLANK_COMMON_NAME_ORIGINAL)) ||
-      (STREQ (name, BLANK_COMMON_NAME_MF77)))
+  if (strcmp (name, BLANK_COMMON_NAME_ORIGINAL) == 0
+      || strcmp (name, BLANK_COMMON_NAME_MF77) == 0)
     {
       xfree (name);
       name = alloca (strlen (BLANK_COMMON_NAME_LOCAL) + 1);
@@ -820,7 +849,7 @@ patch_all_commons_by_name (char *name, CORE_ADDR offset, int secnum)
   while (tmp != NULL)
     {
       if (COMMON_NEEDS_PATCHING (tmp))
-	if (STREQ (tmp->name, name))
+	if (strcmp (tmp->name, name) == 0)
 	  patch_common_entries (tmp, offset, secnum);
 
       tmp = tmp->next;
@@ -904,7 +933,7 @@ get_bf_for_fcn (long the_function)
     if (current_head_bf_list->symnum_fcn == the_function)
       {
 	if (global_remote_debug)
-	  fprintf (stderr, "*");
+	  fprintf_unfiltered (gdb_stderr, "*");
 
 	tmp = current_head_bf_list;
 	current_head_bf_list = current_head_bf_list->next;
@@ -916,7 +945,7 @@ get_bf_for_fcn (long the_function)
      the ugly linear scan */
 
   if (global_remote_debug)
-    fprintf (stderr, "\ndefaulting to linear scan\n");
+    fprintf_unfiltered (gdb_stderr, "\ndefaulting to linear scan\n");
 
   nprobes = 0;
   tmp = saved_bf_list;
@@ -926,7 +955,7 @@ get_bf_for_fcn (long the_function)
       if (tmp->symnum_fcn == the_function)
 	{
 	  if (global_remote_debug)
-	    fprintf (stderr, "Found in %d probes\n", nprobes);
+	    fprintf_unfiltered (gdb_stderr, "Found in %d probes\n", nprobes);
 	  current_head_bf_list = tmp->next;
 	  return (tmp->symnum_bf);
 	}

@@ -1,5 +1,5 @@
 /* Java language support routines for GDB, the GNU debugger.
-   Copyright 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2000, 2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -33,6 +33,9 @@
 #include "c-lang.h"
 #include "jv-lang.h"
 #include "gdbcore.h"
+#include "block.h"
+#include "demangle.h"
+#include "dictionary.h"
 #include <ctype.h>
 
 struct type *java_int_type;
@@ -55,7 +58,6 @@ static void java_demangled_signature_copy (char *, char *);
 static struct symtab *get_java_class_symtab (void);
 static char *get_java_utf8_name (struct obstack *obstack, struct value *name);
 static int java_class_is_primitive (struct value *clas);
-static struct type *java_lookup_type (char *signature);
 static struct value *java_value_string (char *ptr, int len);
 
 static void java_emit_char (int c, struct ui_file * stream, int quoter);
@@ -67,6 +69,12 @@ static void java_emit_char (int c, struct ui_file * stream, int quoter);
 static struct objfile *dynamics_objfile = NULL;
 
 static struct type *java_link_class_type (struct type *, struct value *);
+
+/* FIXME: carlton/2003-02-04: This is the main or only caller of
+   allocate_objfile with first argument NULL; as a result, this code
+   breaks every so often.  Somebody should write a test case that
+   exercises GDB in various ways (e.g. something involving loading a
+   dynamic library) after this code has been called.  */
 
 static struct objfile *
 get_dynamics_objfile (void)
@@ -83,9 +91,7 @@ get_dynamics_objfile (void)
 
 static struct symtab *class_symtab = NULL;
 
-/* Maximum number of class in class_symtab before relocation is needed. */
-
-static int class_symtab_space;
+static void free_class_block (struct symtab *symtab);
 
 static struct symtab *
 get_java_class_symtab (void)
@@ -98,29 +104,22 @@ get_java_class_symtab (void)
       class_symtab = allocate_symtab ("<java-classes>", objfile);
       class_symtab->language = language_java;
       bv = (struct blockvector *)
-	obstack_alloc (&objfile->symbol_obstack, sizeof (struct blockvector));
+	obstack_alloc (&objfile->objfile_obstack,
+		       sizeof (struct blockvector) + sizeof (struct block *));
       BLOCKVECTOR_NBLOCKS (bv) = 1;
       BLOCKVECTOR (class_symtab) = bv;
 
       /* Allocate dummy STATIC_BLOCK. */
-      bl = (struct block *)
-	obstack_alloc (&objfile->symbol_obstack, sizeof (struct block));
-      BLOCK_NSYMS (bl) = 0;
-      BLOCK_START (bl) = 0;
-      BLOCK_END (bl) = 0;
-      BLOCK_FUNCTION (bl) = NULL;
-      BLOCK_SUPERBLOCK (bl) = NULL;
-      BLOCK_GCC_COMPILED (bl) = 0;
+      bl = allocate_block (&objfile->objfile_obstack);
+      BLOCK_DICT (bl) = dict_create_linear (&objfile->objfile_obstack,
+					    NULL);
       BLOCKVECTOR_BLOCK (bv, STATIC_BLOCK) = bl;
 
-      /* Allocate GLOBAL_BLOCK.  This has to be relocatable. */
-      class_symtab_space = 128;
-      bl = xmmalloc (objfile->md,
-		     sizeof (struct block)
-		     + ((class_symtab_space - 1) * sizeof (struct symbol *)));
-      *bl = *BLOCKVECTOR_BLOCK (bv, STATIC_BLOCK);
+      /* Allocate GLOBAL_BLOCK.  */
+      bl = allocate_block (&objfile->objfile_obstack);
+      BLOCK_DICT (bl) = dict_create_hashed_expandable ();
       BLOCKVECTOR_BLOCK (bv, GLOBAL_BLOCK) = bl;
-      class_symtab->free_ptr = (char *) bl;
+      class_symtab->free_func = free_class_block;
     }
   return class_symtab;
 }
@@ -130,20 +129,7 @@ add_class_symtab_symbol (struct symbol *sym)
 {
   struct symtab *symtab = get_java_class_symtab ();
   struct blockvector *bv = BLOCKVECTOR (symtab);
-  struct block *bl = BLOCKVECTOR_BLOCK (bv, GLOBAL_BLOCK);
-  if (BLOCK_NSYMS (bl) >= class_symtab_space)
-    {
-      /* Need to re-allocate. */
-      class_symtab_space *= 2;
-      bl = xmrealloc (symtab->objfile->md, bl,
-		      sizeof (struct block)
-		      + ((class_symtab_space - 1) * sizeof (struct symbol *)));
-      class_symtab->free_ptr = (char *) bl;
-      BLOCKVECTOR_BLOCK (bv, GLOBAL_BLOCK) = bl;
-    }
-
-  BLOCK_SYM (bl, BLOCK_NSYMS (bl)) = sym;
-  BLOCK_NSYMS (bl) = BLOCK_NSYMS (bl) + 1;
+  dict_add_symbol (BLOCK_DICT (BLOCKVECTOR_BLOCK (bv, GLOBAL_BLOCK)), sym);
 }
 
 static struct symbol *add_class_symbol (struct type *type, CORE_ADDR addr);
@@ -153,16 +139,26 @@ add_class_symbol (struct type *type, CORE_ADDR addr)
 {
   struct symbol *sym;
   sym = (struct symbol *)
-    obstack_alloc (&dynamics_objfile->symbol_obstack, sizeof (struct symbol));
+    obstack_alloc (&dynamics_objfile->objfile_obstack, sizeof (struct symbol));
   memset (sym, 0, sizeof (struct symbol));
   SYMBOL_LANGUAGE (sym) = language_java;
-  SYMBOL_NAME (sym) = TYPE_TAG_NAME (type);
+  DEPRECATED_SYMBOL_NAME (sym) = TYPE_TAG_NAME (type);
   SYMBOL_CLASS (sym) = LOC_TYPEDEF;
   /*  SYMBOL_VALUE (sym) = valu; */
   SYMBOL_TYPE (sym) = type;
-  SYMBOL_NAMESPACE (sym) = STRUCT_NAMESPACE;
+  SYMBOL_DOMAIN (sym) = STRUCT_DOMAIN;
   SYMBOL_VALUE_ADDRESS (sym) = addr;
   return sym;
+}
+
+/* Free the dynamic symbols block.  */
+static void
+free_class_block (struct symtab *symtab)
+{
+  struct blockvector *bv = BLOCKVECTOR (symtab);
+  struct block *bl = BLOCKVECTOR_BLOCK (bv, GLOBAL_BLOCK);
+
+  dict_free (BLOCK_DICT (bl));
 }
 #endif
 
@@ -170,7 +166,7 @@ struct type *
 java_lookup_class (char *name)
 {
   struct symbol *sym;
-  sym = lookup_symbol (name, expression_context_block, STRUCT_NAMESPACE,
+  sym = lookup_symbol (name, expression_context_block, STRUCT_DOMAIN,
 		       (int *) 0, (struct symtab **) NULL);
   if (sym != NULL)
     return SYMBOL_TYPE (sym);
@@ -190,7 +186,7 @@ java_lookup_class (char *name)
   type = alloc_type (objfile);
   TYPE_CODE (type) = TYPE_CODE_STRUCT;
   INIT_CPLUS_SPECIFIC (type);
-  TYPE_TAG_NAME (type) = obsavestring (name, strlen (name), &objfile->type_obstack);
+  TYPE_TAG_NAME (type) = obsavestring (name, strlen (name), &objfile->objfile_obstack);
   TYPE_FLAGS (type) |= TYPE_FLAG_STUB;
   TYPE ? = addr;
   return type;
@@ -258,7 +254,7 @@ type_from_class (struct value *clas)
   char *nptr;
   CORE_ADDR addr;
   struct block *bl;
-  int i;
+  struct dict_iterator iter;
   int is_array = 0;
 
   type = check_typedef (VALUE_TYPE (clas));
@@ -273,9 +269,8 @@ type_from_class (struct value *clas)
 #if 0
   get_java_class_symtab ();
   bl = BLOCKVECTOR_BLOCK (BLOCKVECTOR (class_symtab), GLOBAL_BLOCK);
-  for (i = BLOCK_NSYMS (bl); --i >= 0;)
+  ALL_BLOCK_SYMBOLS (block, iter, sym)
     {
-      struct symbol *sym = BLOCK_SYM (bl, i);
       if (SYMBOL_VALUE_ADDRESS (sym) == addr)
 	return SYMBOL_TYPE (sym);
     }
@@ -294,7 +289,7 @@ type_from_class (struct value *clas)
   /* if clasloader non-null, prepend loader address. FIXME */
   temp = clas;
   utf8_name = value_struct_elt (&temp, NULL, "name", NULL, "structure");
-  name = get_java_utf8_name (&objfile->type_obstack, utf8_name);
+  name = get_java_utf8_name (&objfile->objfile_obstack, utf8_name);
   for (nptr = name; *nptr != 0; nptr++)
     {
       if (*nptr == '/')
@@ -314,7 +309,7 @@ type_from_class (struct value *clas)
       char *signature = name;
       int namelen = java_demangled_signature_length (signature);
       if (namelen > strlen (name))
-	name = obstack_alloc (&objfile->type_obstack, namelen + 1);
+	name = obstack_alloc (&objfile->objfile_obstack, namelen + 1);
       java_demangled_signature_copy (name, signature);
       name[namelen] = '\0';
       is_array = 1;
@@ -447,7 +442,7 @@ java_link_class_type (struct type *type, struct value *clas)
       temp = field;
       temp = value_struct_elt (&temp, NULL, "name", NULL, "structure");
       TYPE_FIELD_NAME (type, i) =
-	get_java_utf8_name (&objfile->type_obstack, temp);
+	get_java_utf8_name (&objfile->objfile_obstack, temp);
       temp = field;
       accflags = value_as_long (value_struct_elt (&temp, NULL, "accflags",
 						  NULL, "structure"));
@@ -493,7 +488,7 @@ java_link_class_type (struct type *type, struct value *clas)
   TYPE_NFN_FIELDS_TOTAL (type) = nmethods;
   j = nmethods * sizeof (struct fn_field);
   fn_fields = (struct fn_field *)
-    obstack_alloc (&dynamics_objfile->symbol_obstack, j);
+    obstack_alloc (&dynamics_objfile->objfile_obstack, j);
   memset (fn_fields, 0, j);
   fn_fieldlists = (struct fn_fieldlist *)
     alloca (nmethods * sizeof (struct fn_fieldlist));
@@ -518,7 +513,7 @@ java_link_class_type (struct type *type, struct value *clas)
       /* Get method name. */
       temp = method;
       temp = value_struct_elt (&temp, NULL, "name", NULL, "structure");
-      mname = get_java_utf8_name (&objfile->type_obstack, temp);
+      mname = get_java_utf8_name (&objfile->objfile_obstack, temp);
       if (strcmp (mname, "<init>") == 0)
 	mname = unqualified_name;
 
@@ -543,7 +538,7 @@ java_link_class_type (struct type *type, struct value *clas)
 	    {			/* Found an existing method with the same name. */
 	      int l;
 	      if (mname != unqualified_name)
-		obstack_free (&objfile->type_obstack, mname);
+		obstack_free (&objfile->objfile_obstack, mname);
 	      mname = fn_fieldlists[j].name;
 	      fn_fieldlists[j].length++;
 	      k = i - k;	/* Index of new slot. */
@@ -564,7 +559,7 @@ java_link_class_type (struct type *type, struct value *clas)
 
   j = TYPE_NFN_FIELDS (type) * sizeof (struct fn_fieldlist);
   TYPE_FN_FIELDLISTS (type) = (struct fn_fieldlist *)
-    obstack_alloc (&dynamics_objfile->symbol_obstack, j);
+    obstack_alloc (&dynamics_objfile->objfile_obstack, j);
   memcpy (TYPE_FN_FIELDLISTS (type), fn_fieldlists, j);
 
   return type;
@@ -578,7 +573,7 @@ get_java_object_type (void)
   if (java_object_type == NULL)
     {
       struct symbol *sym;
-      sym = lookup_symbol ("java.lang.Object", NULL, STRUCT_NAMESPACE,
+      sym = lookup_symbol ("java.lang.Object", NULL, STRUCT_DOMAIN,
 			   (int *) 0, (struct symtab **) NULL);
       if (sym == NULL)
 	error ("cannot find java.lang.Object");
@@ -768,19 +763,6 @@ java_demangle_type_signature (char *signature)
   return result;
 }
 
-struct type *
-java_lookup_type (char *signature)
-{
-  switch (signature[0])
-    {
-    case 'L':
-    case '[':
-      error ("java_lookup_type not fully implemented");
-    default:
-      return java_primitive_type (signature[0]);
-    }
-}
-
 /* Return the type of TYPE followed by DIMS pairs of [ ].
    If DIMS == 0, TYPE is returned. */
 
@@ -845,8 +827,8 @@ java_emit_char (int c, struct ui_file *stream, int quoter)
 }
 
 static struct value *
-evaluate_subexp_java (struct type *expect_type, register struct expression *exp,
-		      register int *pos, enum noside noside)
+evaluate_subexp_java (struct type *expect_type, struct expression *exp,
+		      int *pos, enum noside noside)
 {
   int pc = *pos;
   int i;
@@ -988,6 +970,12 @@ java_create_fundamental_type (struct objfile *objfile, int typeid)
   return c_create_fundamental_type (objfile, typeid);
 }
 
+static char *java_demangle (const char *mangled, int options)
+{
+  return cplus_demangle (mangled, options | DMGL_JAVA);
+}
+
+
 /* Table mapping opcodes into strings for printing operators
    and precedences of the operators.  */
 
@@ -1028,6 +1016,15 @@ const struct op_print java_op_print_tab[] =
   {NULL, 0, 0, 0}
 };
 
+const struct exp_descriptor exp_descriptor_java = 
+{
+  print_subexp_standard,
+  operator_length_standard,
+  op_name_standard,
+  dump_subexp_body_standard,
+  evaluate_subexp_java
+};
+
 const struct language_defn java_language_defn =
 {
   "java",			/* Language name */
@@ -1036,9 +1033,9 @@ const struct language_defn java_language_defn =
   range_check_off,
   type_check_off,
   case_sensitive_on,
+  &exp_descriptor_java,
   java_parse,
   java_error,
-  evaluate_subexp_java,
   c_printchar,			/* Print a character constant */
   c_printstr,			/* Function to print string constant */
   java_emit_char,		/* Function to print a single character */
@@ -1046,6 +1043,11 @@ const struct language_defn java_language_defn =
   java_print_type,		/* Print a type using appropriate syntax */
   java_val_print,		/* Print a value using appropriate syntax */
   java_value_print,		/* Print a top-level value */
+  NULL,				/* Language specific skip_trampoline */
+  value_of_this,		/* value_of_this */
+  basic_lookup_symbol_nonlocal,	/* lookup_symbol_nonlocal */
+  basic_lookup_transparent_type,/* lookup_transparent_type */
+  java_demangle,		/* Language specific symbol demangler */
   {"", "", "", ""},		/* Binary format info */
   {"0%lo", "0", "o", ""},	/* Octal format info */
   {"%ld", "", "d", ""},		/* Decimal format info */
@@ -1054,6 +1056,7 @@ const struct language_defn java_language_defn =
   0,				/* not c-style arrays */
   0,				/* String lower bound */
   &builtin_type_char,		/* Type of string elements */
+  default_word_break_characters,
   LANG_MAGIC
 };
 

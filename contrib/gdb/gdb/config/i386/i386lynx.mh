@@ -4,6 +4,3 @@ XM_CLIBS= -lbsd
 
 NAT_FILE= nm-i386lynx.h
 NATDEPFILES= fork-child.o infptrace.o inftarg.o corelow.o lynx-nat.o
-
-## OBSOLETE ## GDBSERVER_LIBS= -lbsd
-## OBSOLETE ## GDBSERVER_DEPFILES= low-lynx.o

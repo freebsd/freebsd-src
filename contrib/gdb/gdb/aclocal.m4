@@ -271,6 +271,7 @@ dnl not used, don't export to save symbols
     AC_SUBST(TCL_LD_FLAGS)
 dnl don't export, not used outside of configure
     AC_SUBST(TCL_LD_SEARCH_FLAGS)
+    AC_SUBST(TCL_CC_SEARCH_FLAGS)
     AC_SUBST(TCL_COMPAT_OBJS)
     AC_SUBST(TCL_RANLIB)
     AC_SUBST(TCL_BUILD_LIB_SPEC)
@@ -745,132 +746,6 @@ AC_SUBST(ITKHDIR)
 #AC_SUBST(ITKLIB)
 ])
 
-# check for Tix headers. 
-
-AC_DEFUN(CY_AC_PATH_TIXH, [
-AC_MSG_CHECKING(for Tix private headers. srcdir=${srcdir})
-if test x"${ac_cv_c_tixh}" = x ; then
-  for i in ${srcdir}/../tix ${srcdir}/../../tix ${srcdir}/../../../tix ; do
-    if test -f $i/generic/tix.h ; then
-      ac_cv_c_tixh=`(cd $i/generic; pwd)`
-      break
-    fi
-  done
-fi
-if test x"${ac_cv_c_tixh}" = x ; then
-  TIXHDIR="# no Tix private headers found"
-  AC_MSG_ERROR([Can't find Tix private headers])
-fi
-if test x"${ac_cv_c_tixh}" != x ; then
-     TIXHDIR="-I${ac_cv_c_tixh}"
-fi
-AC_SUBST(TIXHDIR)
-])
-
-AC_DEFUN(CY_AC_PATH_TIXCONFIG, [
-#
-# Ok, lets find the tix configuration
-# First, look for one uninstalled.  
-# the alternative search directory is invoked by --with-itkconfig
-#
-
-if test x"${no_tix}" = x ; then
-  # we reset no_tix in case something fails here
-  no_tix=true
-  AC_ARG_WITH(tixconfig, [  --with-tixconfig        Directory containing tix configuration (tixConfig.sh)],
-         with_tixconfig=${withval})
-  AC_MSG_CHECKING([for Tix configuration])
-  AC_CACHE_VAL(ac_cv_c_tixconfig,[
-
-  # First check to see if --with-tixconfig was specified.
-  if test x"${with_tixconfig}" != x ; then
-    if test -f "${with_tixconfig}/tixConfig.sh" ; then
-      ac_cv_c_tixconfig=`(cd ${with_tixconfig}; pwd)`
-    else
-      AC_MSG_ERROR([${with_tixconfig} directory doesn't contain tixConfig.sh])
-    fi
-  fi
-
-  # then check for a private Tix library
-  if test x"${ac_cv_c_tixconfig}" = x ; then
-    for i in \
-		../tix \
-		`ls -dr ../tix 2>/dev/null` \
-		../../tix \
-		`ls -dr ../../tix 2>/dev/null` \
-		../../../tix \
-		`ls -dr ../../../tix 2>/dev/null` ; do
-      echo "**** Looking at $i - with ${configdir}"
-      if test -f "$i/tixConfig.sh" ; then
-        ac_cv_c_tixconfig=`(cd $i; pwd)`
-	break
-      fi
-    done
-  fi
-  # check in a few common install locations
-  if test x"${ac_cv_c_tixconfig}" = x ; then
-    for i in `ls -d ${prefix}/lib /usr/local/lib 2>/dev/null` ; do
-      echo "**** Looking at $i"
-      if test -f "$i/tixConfig.sh" ; then
-        ac_cv_c_tixconfig=`(cd $i; pwd)`
-	break
-      fi
-    done
-  fi
-  # check in a few other private locations
-  echo "**** Other private locations"
-  if test x"${ac_cv_c_tixconfig}" = x ; then
-    for i in \
-		${srcdir}/../tix \
-		`ls -dr ${srcdir}/../tix 2>/dev/null` ; do
-      echo "**** Looking at $i - with ${configdir}"
-      if test -f "$i/${configdir}/tixConfig.sh" ; then
-        ac_cv_c_tixconfig=`(cd $i/${configdir}; pwd)`
-	break
-      fi
-    done
-  fi
-  ])
-  if test x"${ac_cv_c_tixconfig}" = x ; then
-    TIXCONFIG="# no Tix configs found"
-    AC_MSG_WARN(Can't find Tix configuration definitions)
-  else
-    no_tix=
-    TIXCONFIG=${ac_cv_c_tixconfig}/tixConfig.sh
-    AC_MSG_RESULT(found $TIXCONFIG)
-  fi
-fi
-
-])
-
-# Defined as a separate macro so we don't have to cache the values
-# from PATH_TIXCONFIG (because this can also be cached).
-AC_DEFUN(CY_AC_LOAD_TIXCONFIG, [
-    if test -f "$TIXCONFIG" ; then
-      . $TIXCONFIG
-    fi
-
-    AC_SUBST(TIX_VERSION)
-dnl not actually used, don't export to save symbols
-dnl    AC_SUBST(TIX_MAJOR_VERSION)
-dnl    AC_SUBST(TIX_MINOR_VERSION)
-dnl    AC_SUBST(TIX_DEFS)
-
-dnl not used, don't export to save symbols
-dnl    dnl AC_SUBST(TIX_LIB_FILE)
-
-dnl not used outside of configure
-dnl    AC_SUBST(TIX_LIBS)
-dnl not used, don't export to save symbols
-dnl    AC_SUBST(TIX_PREFIX)
-
-dnl not used, don't export to save symbols
-dnl    AC_SUBST(TIX_EXEC_PREFIX)
-
-dnl    AC_SUBST(TIX_BUILD_INCLUDES)
-    AC_SUBST(TIX_BUILD_LIB_SPEC)
-dnl    AC_SUBST(TIX_LIB_SPEC)
-])
 
 dnl sinclude(../gettext.m4) already included by bfd/acinclude.m4
 dnl The lines below arrange for aclocal not to bring gettext.m4's
@@ -984,6 +859,151 @@ case "x$am_cv_prog_cc_stdc" in
   *) CC="$CC $am_cv_prog_cc_stdc" ;;
 esac
 ])
+
+dnl From Bruno Haible.
+
+AC_DEFUN([AM_ICONV],
+[
+  dnl Some systems have iconv in libc, some have it in libiconv (OSF/1 and
+  dnl those with the standalone portable GNU libiconv installed).
+
+  AC_ARG_WITH([libiconv-prefix],
+[  --with-libiconv-prefix=DIR  search for libiconv in DIR/include and DIR/lib], [
+    for dir in `echo "$withval" | tr : ' '`; do
+      if test -d $dir/include; then CPPFLAGS="$CPPFLAGS -I$dir/include"; fi
+      if test -d $dir/lib; then LDFLAGS="$LDFLAGS -L$dir/lib"; fi
+    done
+   ])
+
+  AC_CACHE_CHECK(for iconv, am_cv_func_iconv, [
+    am_cv_func_iconv="no, consider installing GNU libiconv"
+    am_cv_lib_iconv=no
+    AC_TRY_LINK([#include <stdlib.h>
+#include <iconv.h>],
+      [iconv_t cd = iconv_open("","");
+       iconv(cd,NULL,NULL,NULL,NULL);
+       iconv_close(cd);],
+      am_cv_func_iconv=yes)
+    if test "$am_cv_func_iconv" != yes; then
+      am_save_LIBS="$LIBS"
+      LIBS="$LIBS -liconv"
+      AC_TRY_LINK([#include <stdlib.h>
+#include <iconv.h>],
+        [iconv_t cd = iconv_open("","");
+         iconv(cd,NULL,NULL,NULL,NULL);
+         iconv_close(cd);],
+        am_cv_lib_iconv=yes
+        am_cv_func_iconv=yes)
+      LIBS="$am_save_LIBS"
+    fi
+  ])
+  if test "$am_cv_func_iconv" = yes; then
+    AC_DEFINE(HAVE_ICONV, 1, [Define if you have the iconv() function.])
+    AC_MSG_CHECKING([for iconv declaration])
+    AC_CACHE_VAL(am_cv_proto_iconv, [
+      AC_TRY_COMPILE([
+#include <stdlib.h>
+#include <iconv.h>
+extern
+#ifdef __cplusplus
+"C"
+#endif
+#if defined(__STDC__) || defined(__cplusplus)
+size_t iconv (iconv_t cd, char * *inbuf, size_t *inbytesleft, char * *outbuf, size_t *outbytesleft);
+#else
+size_t iconv();
+#endif
+], [], am_cv_proto_iconv_arg1="", am_cv_proto_iconv_arg1="const")
+      am_cv_proto_iconv="extern size_t iconv (iconv_t cd, $am_cv_proto_iconv_arg1 char * *inbuf, size_t *inbytesleft, char * *outbuf, size_t *outbytesleft);"])
+    am_cv_proto_iconv=`echo "[$]am_cv_proto_iconv" | tr -s ' ' | sed -e 's/( /(/'`
+    AC_MSG_RESULT([$]{ac_t:-
+         }[$]am_cv_proto_iconv)
+    AC_DEFINE_UNQUOTED(ICONV_CONST, $am_cv_proto_iconv_arg1,
+      [Define as const if the declaration of iconv() needs const.])
+  fi
+  LIBICONV=
+  if test "$am_cv_lib_iconv" = yes; then
+    LIBICONV="-liconv"
+  fi
+  AC_SUBST(LIBICONV)
+])
+
+# AC_GNU_SOURCE
+# -------------
+# FIXME: Remove thise once we start using Autoconf 2.5x (x>=4).
+AC_DEFUN([AC_GNU_SOURCE],
+[AC_BEFORE([$0], [AC_TRY_COMPILE])dnl
+AC_BEFORE([$0], [AC_TRY_RUN])dnl
+AC_DEFINE([_GNU_SOURCE])
+])
+
+dnl written by Guido Draheim <guidod@gmx.de>, original by Alexandre Oliva 
+dnl Version 1.3 (2001/03/02)
+dnl source http://www.gnu.org/software/ac-archive/Miscellaneous/ac_define_dir.html
+
+AC_DEFUN([AC_DEFINE_DIR], [
+  test "x$prefix" = xNONE && prefix="$ac_default_prefix"
+  test "x$exec_prefix" = xNONE && exec_prefix='${prefix}'
+  ac_define_dir=`eval echo [$]$2`
+  ac_define_dir=`eval echo [$]ac_define_dir`
+  ifelse($3, ,
+    AC_DEFINE_UNQUOTED($1, "$ac_define_dir"),
+    AC_DEFINE_UNQUOTED($1, "$ac_define_dir", $3))
+])
+
+dnl See whether we need a declaration for a function.
+dnl The result is highly dependent on the INCLUDES passed in, so make sure
+dnl to use a different cache variable name in this macro if it is invoked
+dnl in a different context somewhere else.
+dnl gcc_AC_CHECK_DECL(SYMBOL,
+dnl 	[ACTION-IF-FOUND [, ACTION-IF-NOT-FOUND [, INCLUDES]]])
+AC_DEFUN(gcc_AC_CHECK_DECL,
+[AC_MSG_CHECKING([whether $1 is declared])
+AC_CACHE_VAL(gcc_cv_have_decl_$1,
+[AC_TRY_COMPILE([$4],
+[#ifndef $1
+char *(*pfn) = (char *(*)) $1 ;
+#endif], eval "gcc_cv_have_decl_$1=yes", eval "gcc_cv_have_decl_$1=no")])
+if eval "test \"`echo '$gcc_cv_have_decl_'$1`\" = yes"; then
+  AC_MSG_RESULT(yes) ; ifelse([$2], , :, [$2])
+else
+  AC_MSG_RESULT(no) ; ifelse([$3], , :, [$3])
+fi
+])dnl
+
+dnl Check multiple functions to see whether each needs a declaration.
+dnl Arrange to define HAVE_DECL_<FUNCTION> to 0 or 1 as appropriate.
+dnl gcc_AC_CHECK_DECLS(SYMBOLS,
+dnl 	[ACTION-IF-NEEDED [, ACTION-IF-NOT-NEEDED [, INCLUDES]]])
+AC_DEFUN(gcc_AC_CHECK_DECLS,
+[for ac_func in $1
+do
+changequote(, )dnl
+  ac_tr_decl=HAVE_DECL_`echo $ac_func | tr 'abcdefghijklmnopqrstuvwxyz' 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'`
+changequote([, ])dnl
+gcc_AC_CHECK_DECL($ac_func,
+  [AC_DEFINE_UNQUOTED($ac_tr_decl, 1) $2],
+  [AC_DEFINE_UNQUOTED($ac_tr_decl, 0) $3],
+dnl It is possible that the include files passed in here are local headers
+dnl which supply a backup declaration for the relevant prototype based on
+dnl the definition of (or lack of) the HAVE_DECL_ macro.  If so, this test
+dnl will always return success.  E.g. see libiberty.h's handling of
+dnl `basename'.  To avoid this, we define the relevant HAVE_DECL_ macro to
+dnl 1 so that any local headers used do not provide their own prototype
+dnl during this test.
+#undef $ac_tr_decl
+#define $ac_tr_decl 1
+  $4
+)
+done
+dnl Automatically generate config.h entries via autoheader.
+if test x = y ; then
+  patsubst(translit([$1], [a-z], [A-Z]), [\w+],
+    [AC_DEFINE([HAVE_DECL_\&], 1,
+      [Define to 1 if we found this declaration otherwise define to 0.])])dnl
+fi
+])
+
 
 # Add --enable-maintainer-mode option to configure.
 # From Jim Meyering

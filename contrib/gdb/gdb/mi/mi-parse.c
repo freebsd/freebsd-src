@@ -1,5 +1,7 @@
 /* MI Command Set - MI parser.
-   Copyright 2000, 2001 Free Software Foundation, Inc.
+
+   Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+
    Contributed by Cygnus Solutions (a Red Hat company).
 
    This file is part of GDB.
@@ -25,9 +27,6 @@
 
 #include <ctype.h>
 #include "gdb_string.h"
-
-#undef XMALLOC
-#define XMALLOC(TYPE) ((TYPE*) xmalloc (sizeof (TYPE)))
 
 static void
 mi_parse_argv (char *args, struct mi_parse *parse)
@@ -223,7 +222,7 @@ mi_parse (char *cmd)
   /* For CLI and old ARGS commands, also return the remainder of the
      command line as a single string. */
   if (parse->cmd->args_func != NULL
-      || parse->cmd->cli != NULL)
+      || parse->cmd->cli.cmd != NULL)
     {
       parse->args = xstrdup (chp);
     }
@@ -231,9 +230,4 @@ mi_parse (char *cmd)
   /* Fully parsed. */
   parse->op = MI_COMMAND;
   return parse;
-}
-
-void
-_initialize_mi_parse (void)
-{
 }

@@ -22,44 +22,37 @@ Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
  * Pretty-print functions for /proc data 
  */
 
-extern void 
-proc_prettyprint_why (unsigned long why, unsigned long what, int verbose);
+extern void proc_prettyprint_why (unsigned long why, unsigned long what,
+				  int verbose);
 
-extern void 
-proc_prettyprint_syscalls (sysset_t *sysset, int verbose);
+extern void proc_prettyprint_syscalls (sysset_t *sysset, int verbose);
 
-extern void 
-proc_prettyprint_syscall (int num, int verbose);
+extern void proc_prettyprint_syscall (int num, int verbose);
 
 extern void proc_prettyprint_flags (unsigned long flags, int verbose);
 
-extern void
-proc_prettyfprint_signalset (FILE *file, sigset_t *sigset, int verbose);
+extern void proc_prettyfprint_signalset (FILE *file, sigset_t *sigset,
+					 int verbose);
 
-extern void
-proc_prettyfprint_faultset (FILE *file, fltset_t *fltset, int verbose);
+extern void proc_prettyfprint_faultset (FILE *file, fltset_t *fltset,
+					int verbose);
 
-extern void
-proc_prettyfprint_syscall (FILE *file, int num, int verbose);
+extern void proc_prettyfprint_syscall (FILE *file, int num, int verbose);
 
-extern void
-proc_prettyfprint_signal (FILE *file, int signo, int verbose);
+extern void proc_prettyfprint_signal (FILE *file, int signo, int verbose);
 
-extern void
-proc_prettyfprint_flags (FILE *file, unsigned long flags, int verbose);
+extern void proc_prettyfprint_flags (FILE *file, unsigned long flags,
+				     int verbose);
 
-extern void
-proc_prettyfprint_why (FILE *file, unsigned long why, 
-		       unsigned long what, int verbose);
+extern void proc_prettyfprint_why (FILE *file, unsigned long why, 
+				   unsigned long what, int verbose);
 
-extern void
-proc_prettyfprint_fault (FILE *file, int faultno, int verbose);
+extern void proc_prettyfprint_fault (FILE *file, int faultno, int verbose);
 
-extern void
-proc_prettyfprint_syscalls (FILE *file, sysset_t *sysset, int verbose);
+extern void proc_prettyfprint_syscalls (FILE *file, sysset_t *sysset,
+					int verbose);
 
-extern void
-proc_prettyfprint_status (long, int, int, int);
+extern void proc_prettyfprint_status (long, int, int, int);
 
 /*
  * Trace functions for /proc api.

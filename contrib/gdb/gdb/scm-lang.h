@@ -1,5 +1,7 @@
 /* Scheme/Guile language support routines for GDB, the GNU debugger.
-   Copyright 1995, 1996, 1998, 1999, 2000 Free Software Foundation, Inc.
+
+   Copyright 1995, 1996, 1998, 1999, 2000, 2003 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -67,4 +69,4 @@ extern struct type *builtin_type_scm;
 
 extern int scm_parse (void);
 
-extern LONGEST scm_unpack (struct type *, char *, enum type_code);
+extern LONGEST scm_unpack (struct type *, const char *, enum type_code);

@@ -1,7 +1,7 @@
 /* Core dump and executable file functions above target vector, for GDB.
-   Copyright 1986, 1987, 1989, 1991, 1992, 1993, 1994, 1996, 1997, 1998,
-   1999, 2000, 2001
-   Free Software Foundation, Inc.
+
+   Copyright 1986, 1987, 1989, 1991, 1992, 1993, 1994, 1996, 1997,
+   1998, 1999, 2000, 2001, 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -238,29 +238,10 @@ read_memory (CORE_ADDR memaddr, char *myaddr, int len)
     memory_error (status, memaddr);
 }
 
-/* Like target_read_memory, but slightly different parameters.  */
-int
-dis_asm_read_memory (bfd_vma memaddr, bfd_byte *myaddr, unsigned int len,
-		     disassemble_info *info)
-{
-  return target_read_memory (memaddr, (char *) myaddr, len);
-}
-
-/* Like memory_error with slightly different parameters.  */
-void
-dis_asm_memory_error (int status, bfd_vma memaddr, disassemble_info *info)
-{
-  memory_error (status, memaddr);
-}
-
-/* Like print_address with slightly different parameters.  */
-void
-dis_asm_print_address (bfd_vma addr, struct disassemble_info *info)
-{
-  print_address (addr, info->stream);
-}
-
-/* Read an integer from debugged memory, given address and number of bytes.  */
+/* Argument / return result struct for use with
+   do_captured_read_memory_integer().  MEMADDR and LEN are filled in
+   by gdb_read_memory_integer().  RESULT is the contents that were
+   successfully read from MEMADDR of length LEN.  */
 
 struct captured_read_memory_integer_arguments
 {
@@ -268,6 +249,13 @@ struct captured_read_memory_integer_arguments
   int len;
   LONGEST result;
 };
+
+/* Helper function for gdb_read_memory_integer().  DATA must be a
+   pointer to a captured_read_memory_integer_arguments struct. 
+   Return 1 if successful.  Note that the catch_errors() interface
+   will return 0 if an error occurred while reading memory.  This
+   choice of return code is so that we can distinguish between
+   success and failure.  */
 
 static int
 do_captured_read_memory_integer (void *data)
@@ -278,8 +266,12 @@ do_captured_read_memory_integer (void *data)
 
   args->result = read_memory_integer (memaddr, len);
 
-  return 0;
+  return 1;
 }
+
+/* Read memory at MEMADDR of length LEN and put the contents in
+   RETURN_VALUE.  Return 0 if MEMADDR couldn't be read and non-zero
+   if successful.  */
 
 int
 safe_read_memory_integer (CORE_ADDR memaddr, int len, LONGEST *return_value)
@@ -291,7 +283,7 @@ safe_read_memory_integer (CORE_ADDR memaddr, int len, LONGEST *return_value)
 
   status = catch_errors (do_captured_read_memory_integer, &args,
                         "", RETURN_MASK_ALL);
-  if (!status)
+  if (status)
     *return_value = args.result;
 
   return status;
@@ -318,8 +310,8 @@ read_memory_unsigned_integer (CORE_ADDR memaddr, int len)
 void
 read_memory_string (CORE_ADDR memaddr, char *buffer, int max_len)
 {
-  register char *cp;
-  register int i;
+  char *cp;
+  int i;
   int cnt;
 
   cp = buffer;
@@ -340,6 +332,14 @@ read_memory_string (CORE_ADDR memaddr, char *buffer, int max_len)
       if (i < cnt && !*cp)
 	break;
     }
+}
+
+CORE_ADDR
+read_memory_typed_address (CORE_ADDR addr, struct type *type)
+{
+  char *buf = alloca (TYPE_LENGTH (type));
+  read_memory (addr, buf, TYPE_LENGTH (type));
+  return extract_typed_address (buf, type);
 }
 
 /* Same as target_write_memory, but report an error if can't write.  */
@@ -417,7 +417,7 @@ static void set_gnutarget_command (char *, int, struct cmd_list_element *);
 static void
 set_gnutarget_command (char *ignore, int from_tty, struct cmd_list_element *c)
 {
-  if (STREQ (gnutarget_string, "auto"))
+  if (strcmp (gnutarget_string, "auto") == 0)
     gnutarget = NULL;
   else
     gnutarget = gnutarget_string;
@@ -441,7 +441,7 @@ _initialize_core (void)
 	       "Use FILE as core dump for examining memory and registers.\n\
 No arg means have no core file.  This command has been superseded by the\n\
 `target core' and `detach' commands.", &cmdlist);
-  c->completer = filename_completer;
+  set_cmd_completer (c, filename_completer);
 
   c = add_set_cmd ("gnutarget", class_files, var_string_noescape,
 		   (char *) &gnutarget_string,

@@ -21,6 +21,9 @@
 #ifndef OCD_H
 #define OCD_H
 
+struct mem_attrib;
+struct target_ops;
+
 /* Wiggler serial protocol definitions */
 
 #define DLE 020			/* Quote char */

@@ -21,6 +21,6 @@
 #ifndef NM_I386LYNX_H
 #define NM_I386LYNX_H
 
-#include "nm-lynx.h"
+#include "config/nm-lynx.h"
 
 #endif /* NM_I386LYNX_H */
