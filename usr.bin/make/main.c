@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.23 1997/09/29 03:53:51 imp Exp $";
+	"$Id: main.c,v 1.24 1998/06/13 11:55:57 peter Exp $";
 #endif /* not lint */
 
 /*-
@@ -186,9 +186,11 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			break;
 		case 'V':
 			printVars = TRUE;
-			(void)asprintf(&p, "${%s}", optarg);
+			p = malloc(strlen(optarg) + 1 + 3);
 			if (!p)
 				Punt("make: cannot allocate memory.");
+                        /* This sprintf is safe, because of the malloc above */
+			(void)sprintf(p, "${%s}", optarg);
 			(void)Lst_AtEnd(variables, (ClientData)p);
 			Var_Append(MAKEFLAGS, "-V", VAR_GLOBAL);
 			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
