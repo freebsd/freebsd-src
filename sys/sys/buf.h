@@ -455,10 +455,16 @@ bufq_first(struct buf_queue_head *head)
 	(bp)->b_resid = 0;						\
 }
 
-/* Flags to low-level allocation routines. */
-#define B_SEQMASK	0x7FFF0000	/* sequential heuristic mask */
-#define B_SEQSHIFT	16		/* sequential heuristic shift */
-#define B_CLRBUF	0x01		/* cleared invalid areas of buffer */
+/*
+ * Flags to low-level bitmap allocation routines (balloc).
+ *
+ * Note: sequential_heuristic() in kern/vfs_vnops.c limits the count
+ * to 127.
+ */
+#define B_SEQMASK	0x7F000000	/* Sequential heuristic mask. */
+#define B_SEQSHIFT	24		/* Sequential heuristic shift. */
+#define B_SEQMAX	0x7F
+#define B_CLRBUF	0x01		/* Cleared invalid areas of buffer. */
 #define B_SYNC		0x02		/* Do all allocations synchronously. */
 
 #ifdef _KERNEL
