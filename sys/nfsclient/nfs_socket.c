@@ -140,7 +140,7 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0, "");
 #define	NFS_MAXCWND	(NFS_CWNDSCALE * 32)
 #define	NFS_NBACKOFF	8
 static int nfs_backoff[NFS_NBACKOFF] = { 2, 4, 8, 16, 32, 64, 128, 256, };
-struct callout_handle	nfs_timer_handle;
+struct callout	nfs_callout;
 
 static int	nfs_msg(struct thread *, char *, char *);
 static int	nfs_rcvlock(struct nfsreq *);
@@ -938,6 +938,8 @@ tryagain:
 	 * to put it LAST so timer finds oldest requests first.
 	 */
 	s = splsoftclock();
+	if (TAILQ_EMPTY(&nfs_reqq))
+		callout_reset(&nfs_callout, nfs_ticks, nfs_timer, NULL);
 	TAILQ_INSERT_TAIL(&nfs_reqq, rep, r_chain);
 
 	/*
@@ -977,6 +979,8 @@ tryagain:
 	 */
 	s = splsoftclock();
 	TAILQ_REMOVE(&nfs_reqq, rep, r_chain);
+	if (TAILQ_EMPTY(&nfs_reqq))
+		callout_stop(&nfs_callout);
 	splx(s);
 
 	/*
@@ -1184,7 +1188,6 @@ nfs_timer(void *arg)
 		}
 	}
 	splx(s);
-	nfs_timer_handle = timeout(nfs_timer, NULL, nfs_ticks);
 }
 
 /*

@@ -418,8 +418,7 @@ nfs_init(struct vfsconf *vfsp)
 	 * Initialize reply list and start timer
 	 */
 	TAILQ_INIT(&nfs_reqq);
-
-	nfs_timer(0);
+	callout_init(&nfs_callout, 0);
 
 	nfs_prev_nfsclnt_sy_narg = sysent[SYS_nfsclnt].sy_narg;
 	sysent[SYS_nfsclnt].sy_narg = 2;
@@ -435,7 +434,7 @@ int
 nfs_uninit(struct vfsconf *vfsp)
 {
 
-	untimeout(nfs_timer, (void *)NULL, nfs_timer_handle);
+	callout_stop(&nfs_callout);
 	sysent[SYS_nfsclnt].sy_narg = nfs_prev_nfsclnt_sy_narg;
 	sysent[SYS_nfsclnt].sy_call = nfs_prev_nfsclnt_sy_call;
 	return (0);

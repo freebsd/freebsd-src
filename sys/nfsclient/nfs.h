@@ -136,7 +136,7 @@ MALLOC_DECLARE(M_NFSHASH);
 
 extern struct uma_zone *nfsmount_zone;
 
-extern struct callout_handle nfs_timer_handle;
+extern struct callout nfs_callout;
 extern struct nfsstats nfsstats;
 
 extern int nfs_numasync;

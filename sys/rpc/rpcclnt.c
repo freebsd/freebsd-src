@@ -284,7 +284,6 @@ rpcclnt_init(void)
 	rpcclnt_timer(&rpcclnt_timer_to);
 #else /* !__OpenBSD__ */
 	callout_init(&rpcclnt_callout, 0);
-	rpcclnt_timer(NULL);
 #endif /* !__OpenBSD__ */
 
 	RPCDEBUG("rpc initialed");
@@ -296,9 +295,8 @@ void
 rpcclnt_uninit(void)
 {
   	RPCDEBUG("uninit");
-	callout_stop(&rpcclnt_callout);
-
 	/* XXX delete sysctl variables? */
+	callout_stop(&rpcclnt_callout);
 }
 
 int
@@ -1197,6 +1195,9 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 	 * LAST so timer finds oldest requests first.
 	 */
 	s = splsoftclock();
+	if (TAILQ_EMPTY(&rpctask_q))
+		callout_reset(&rpcclnt_callout, rpcclnt_ticks, rpcclnt_timer,
+		    NULL);
 	TAILQ_INSERT_TAIL(&rpctask_q, task, r_chain);
 
 	/*
@@ -1238,6 +1239,8 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 	 */
 	s = splsoftclock();
 	TAILQ_REMOVE(&rpctask_q, task, r_chain);
+	if (TAILQ_EMPTY(&rpctask_q))
+		callout_stop(&rpcclnt_callout);
 	splx(s);
 
 	/*
@@ -1475,8 +1478,6 @@ rpcclnt_timer(arg)
 
 #ifdef __OpenBSD__
 	timeout_add(rpcclnt_timer, to, rpcclnt_ticks);
-#else
-	callout_reset(&rpcclnt_callout, rpcclnt_ticks, rpcclnt_timer, NULL);
 #endif
 }
 
