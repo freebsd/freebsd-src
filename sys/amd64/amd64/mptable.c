@@ -45,7 +45,7 @@
 #include <machine/mpapic.h>
 #include <machine/cpufunc.h>
 #include <machine/segments.h>
-#include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG */
+#include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, TEST_CPUSTOP */
 #include <machine/tss.h>
 #include <machine/specialreg.h>
 
@@ -57,22 +57,23 @@
 #include <i386/isa/intr_machdep.h>	/* Xinvltlb() */
 #endif	/* APIC_IO */
 
-#define WARMBOOT_TARGET	0
-#define WARMBOOT_OFF	(KERNBASE + 0x0467)
-#define WARMBOOT_SEG	(KERNBASE + 0x0469)
+#define WARMBOOT_TARGET		0
+#define WARMBOOT_OFF		(KERNBASE + 0x0467)
+#define WARMBOOT_SEG		(KERNBASE + 0x0469)
 
-#define BIOS_BASE	(0xf0000)
-#define BIOS_SIZE	(0x10000)
-#define BIOS_COUNT	(BIOS_SIZE/4)
+#define BIOS_BASE		(0xf0000)
+#define BIOS_SIZE		(0x10000)
+#define BIOS_COUNT		(BIOS_SIZE/4)
 
-#define CMOS_REG	(0x70)
-#define CMOS_DATA	(0x71)
-#define BIOS_RESET	(0x0f)
-#define BIOS_WARM	(0x0a)
+#define CMOS_REG		(0x70)
+#define CMOS_DATA		(0x71)
+#define BIOS_RESET		(0x0f)
+#define BIOS_WARM		(0x0a)
 
 #define PROCENTRY_FLAG_EN	0x01
 #define PROCENTRY_FLAG_BP	0x02
 #define IOAPICENTRY_FLAG_EN	0x01
+
 
 /* MP Floating Pointer Structure */
 typedef struct MPFPS {
@@ -185,6 +186,23 @@ typedef struct BASETABLE_ENTRY {
 
 #endif				/* CHECK_POINTS */
 
+/*
+ * Values to send to the POST hardware.
+ */
+#ifndef POSTCODE
+#define POSTCODE(X)
+#endif
+
+#define MP_BOOTADDRESS_POST	0x10
+#define MP_PROBE_POST		0x11
+#define MP_START_POST		0x12
+#define MP_ANNOUNCE_POST	0x13
+#define MPTABLE_PASS1_POST	0x14
+#define MPTABLE_PASS2_POST	0x15
+#define MP_ENABLE_POST		0x16
+#define START_ALL_APS_POST	0x17
+#define INSTALL_AP_TRAMP_POST	0x18
+#define START_AP_POST		0x19
 
 /** FIXME: what system files declare these??? */
 extern struct region_descriptor r_gdt, r_idt;
@@ -207,6 +225,9 @@ u_int32_t io_apic_versions[NAPIC];
 int     cpu_num_to_apic_id[NAPICID];
 int     io_num_to_apic_id[NAPICID];
 int     apic_id_to_logical[NAPICID];
+
+/* Bitmap of all available CPUs */
+u_int	all_cpus;
 
 /* Boot of AP uses this PTD */
 u_int *bootPTD;
@@ -244,6 +265,8 @@ static int	start_ap(int logicalCpu, u_int boot_addr);
 u_int
 mp_bootaddress(u_int basemem)
 {
+	POSTCODE(MP_BOOTADDRESS_POST);
+
 	base_memory = basemem * 1024;	/* convert to bytes */
 
 	boot_address = base_memory & ~0xfff;	/* round down to 4k boundary */
@@ -260,6 +283,8 @@ mp_probe(void)
 	int     x;
 	u_long  segment;
 	u_int32_t target;
+
+	POSTCODE(MP_PROBE_POST);
 
 	/* see if EBDA exists */
 	if (segment = (u_long) * (u_short *) (KERNBASE + 0x40e)) {
@@ -302,6 +327,8 @@ found:				/* please forgive the 'goto'! */
 void
 mp_start(void)
 {
+	POSTCODE(MP_START_POST);
+
 	/* look for MP capable motherboard */
 	if (mp_capable)
 		mp_enable(boot_address);
@@ -317,6 +344,8 @@ void
 mp_announce(void)
 {
 	int     x;
+
+	POSTCODE(MP_ANNOUNCE_POST);
 
 	printf("FreeBSD/SMP: Multiprocessor motherboard\n");
 	printf(" cpu0 (BSP): apic id: %d", CPU_TO_ID(0));
@@ -389,13 +418,13 @@ configure_local_apic(void)
 
         /* setup lint1 to handle NMI */
 #if 1
-        /** XXX FIXME:
-         *	should we arrange for ALL CPUs to catch NMI???
-         *	it would probably crash, so for now only the BSP
-         *	will catch it
+        /** XXX FIXME: 
+         *      should we arrange for ALL CPUs to catch NMI???
+         *      it would probably crash, so for now only the BSP
+         *      will catch it
          */
         if (cpuid != 0)
-        	return;
+                return;
 #endif /* 0/1 */
 
         temp = lapic.lvt_lint1;
@@ -408,7 +437,7 @@ configure_local_apic(void)
 
         lapic.lvt_lint1 = temp;
 }
-#endif	/* APIC_IO */
+#endif  /* APIC_IO */
 
 
 /*******************************************************************
@@ -426,6 +455,8 @@ mp_enable(u_int boot_addr)
 	int     apic;
 	u_int   ux;
 #endif	/* APIC_IO */
+
+	POSTCODE(MP_ENABLE_POST);
 
 	/* Turn on 4MB of V == P addressing so we can get to MP table */
 	*(int *)PTD = PG_V | PG_RW | ((u_long)KPTphys & PG_FRAME);
@@ -454,8 +485,14 @@ mp_enable(u_int boot_addr)
 			panic("IO APIC setup failure");
 
 	/* install an inter-CPU IPI for TLB invalidation */
-	setidt(ICU_OFFSET + XINVLTLB_OFFSET, Xinvltlb,
+	setidt(XINVLTLB_OFFSET, Xinvltlb,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+
+#if defined(TEST_CPUSTOP)
+	/* install an inter-CPU IPI for CPU stop/restart */
+	setidt(XCPUSTOP_OFFSET, Xcpustop,
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#endif  /* TEST_CPUSTOP */
 #endif	/* APIC_IO */
 
 	/* start each Application Processor */
@@ -597,6 +634,8 @@ mptable_pass1(void)
 	int	type;
 	int	mustpanic;
 
+	POSTCODE(MPTABLE_PASS1_POST);
+
 	mustpanic = 0;
 
 	/* clear various tables */
@@ -721,6 +760,8 @@ mptable_pass2(void)
 	int     count;
 	int     type;
 	int     apic, bus, cpu, intr;
+
+	POSTCODE(MPTABLE_PASS2_POST);
 
 	/* clear various tables */
 	for (x = 0; x < NAPICID; ++x) {
@@ -1370,6 +1411,8 @@ start_all_aps(u_int boot_addr)
 	pt_entry_t newpt;
 	int *newpp;
 
+	POSTCODE(START_ALL_APS_POST);
+
 	/**
          * NOTE: this needs further thought:
          *        where does it get released?
@@ -1390,6 +1433,9 @@ start_all_aps(u_int boot_addr)
 	mpbioswarmvec = *((u_long *) WARMBOOT_OFF);
 	outb(CMOS_REG, BIOS_RESET);
 	mpbiosreason = inb(CMOS_DATA);
+
+	/* record BSP in CPU map */
+	all_cpus = 1;
 
 	/* start each AP */
 	for (x = 1; x <= mp_naps; ++x) {
@@ -1462,11 +1508,16 @@ start_all_aps(u_int boot_addr)
 			if (cngetc() != 'n')
 				panic("bye-bye");
 		}
-		CHECK_PRINT("trace");	/* show checkpoints */
+		CHECK_PRINT("trace");		/* show checkpoints */
 
 		/* record its version info */
 		cpu_apic_versions[x] = cpu_apic_versions[0];
+
+		all_cpus |= (1 << x);		/* record AP in CPU map */
 	}
+
+	/* build our map of 'other' CPUs */
+	other_cpus = all_cpus & ~(1 << cpuid);
 
 	/* fill in our (BSP) APIC version */
 	cpu_apic_versions[0] = lapic.version;
@@ -1504,6 +1555,8 @@ install_ap_tramp(u_int boot_addr)
 	u_int8_t *dst8;
 	u_int16_t *dst16;
 	u_int32_t *dst32;
+
+	POSTCODE(INSTALL_AP_TRAMP_POST);
 
 	for (x = 0; x < size; ++x)
 		*dst++ = *src++;
@@ -1553,6 +1606,8 @@ start_ap(int logical_cpu, u_int boot_addr)
 	int     vector;
 	int     cpus;
 	u_long  icr_lo, icr_hi;
+
+	POSTCODE(START_AP_POST);
 
 	/* get the PHYSICAL APIC ID# */
 	physical_cpu = CPU_TO_ID(logical_cpu);
@@ -1638,7 +1693,7 @@ smp_invltlb(void)
 {
 #if defined(APIC_IO)
 	if (smp_active && invltlb_ok)
-		all_but_self_ipi(ICU_OFFSET + XINVLTLB_OFFSET);
+		all_but_self_ipi(XINVLTLB_OFFSET);
 #endif  /* APIC_IO */
 }
 
@@ -1665,3 +1720,101 @@ invltlb(void)
 	/* send a message to the other CPUs */
 	smp_invltlb();
 }
+
+
+#if defined(TEST_CPUSTOP)
+
+/*
+ * When called the executing CPU will send an IPI to all other CPUs
+ *  requesting that they halt execution.
+ *
+ * Usually (but not necessarily) called with 'other_cpus' as its arg.
+ *
+ *  - Signals all CPUs in map to stop.
+ *  - Waits for each to stop.
+ *
+ * Returns:
+ *  -1: error
+ *   0: NA
+ *   1: ok
+ *
+ * XXX FIXME: this is not MP-safe, needs a lock to prevent multiple CPUs
+ *            from executing at same time.
+
+ */
+int
+stop_cpus( u_int map )
+{
+	if (!smp_active)
+		return 0;
+
+	stopped_cpus = 0;
+
+	/* send IPI to all CPUs in map */
+#if defined(DEBUG_CPUSTOP)
+	db_printf("\nCPU%d stopping CPUs: 0x%08x\n", cpuid, map);
+#endif /* DEBUG_CPUSTOP */
+#if 0
+	selected_apic_ipi(map, XCPUSTOP_OFFSET, APIC_DELMODE_FIXED);
+#else
+	all_but_self_ipi(XCPUSTOP_OFFSET);
+#endif
+
+#if defined(DEBUG_CPUSTOP)
+	db_printf(" stopped_cpus: 0x%08x, map: 0x%08x, spin\n",
+	    	  stopped_cpus, map);
+#endif /* DEBUG_CPUSTOP */
+
+	while (stopped_cpus != map) {
+#if 0
+		/* spin */ ;
+#else
+		POSTCODE(stopped_cpus & 0xff);
+#endif
+	}
+
+#if defined(DEBUG_CPUSTOP)
+	db_printf("  spun\nstopped\n");
+#endif /* DEBUG_CPUSTOP */
+
+	return 1;
+}
+
+
+/*
+ * Called by a CPU to restart stopped CPUs. 
+ *
+ * Usually (but not necessarily) called with 'stopped_cpus' as its arg.
+ *
+ *  - Signals all CPUs in map to restart.
+ *  - Waits for each to restart.
+ *
+ * Returns:
+ *  -1: error
+ *   0: NA
+ *   1: ok
+ */
+int
+restart_cpus( u_int map )
+{
+	if (!smp_active)
+		return 0;
+
+	started_cpus = map;		/* signal other cpus to restart */
+
+#if defined(DEBUG_CPUSTOP)
+	db_printf("\nCPU%d restarting CPUs: 0x%08x (0x%08x)\n",
+	       cpuid, started_cpus, stopped_cpus);
+#endif /* DEBUG_CPUSTOP */
+
+	while (started_cpus)		/* wait for each to clear its bit */
+		/* spin */ ;
+
+#if defined(DEBUG_CPUSTOP)
+	db_printf(" restarted\n");
+#endif /* DEBUG_CPUSTOP */
+
+	return 1;
+}
+
+#endif  /* TEST_CPUSTOP */
