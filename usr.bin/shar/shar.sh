@@ -35,9 +35,17 @@
 #
 
 if [ $# -eq 0 ]; then
-	echo 'usage: shar file ...'
-	exit 1
+	echo 'usage: shar file ...' 1>&2
+	exit 64			# EX_USAGE
 fi
+
+for i
+do
+	if [ ! -e $i ]; then
+		echo "$i does not exist" 1>&2
+		exit 66		# EX_NOINPUT
+	fi
+done
 
 cat << EOF
 # This is a shell archive.  Save it in a file, remove anything before
