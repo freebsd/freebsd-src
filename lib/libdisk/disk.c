@@ -153,7 +153,7 @@ Int_Open_Disk(const char *name)
 	d->name = strdup(name);
 
 	a = strsep(&p, " ");	/* length in bytes */
-	o = strtoimax(a, &r, 0);
+	len = strtoimax(a, &r, 0);
 	if (*r) { printf("BARF %d <%d>\n", __LINE__, *r); exit (0); }
 
 	a = strsep(&p, " ");	/* sectorsize */
@@ -161,11 +161,10 @@ Int_Open_Disk(const char *name)
 	if (*r) { printf("BARF %d <%d>\n", __LINE__, *r); exit (0); }
 
 	d->sector_size = s;
+	len /= s;	/* media size in number of sectors. */
 
-	if (Add_Chunk(d, 0, o / s, name, whole, 0, 0, "-"))
+	if (Add_Chunk(d, 0, len, name, whole, 0, 0, "-"))
 		DPRINT(("Failed to add 'whole' chunk"));
-
-	len = o / s;
 
 	for (;;) {
 		a = strsep(&p, " ");
@@ -181,6 +180,13 @@ Int_Open_Disk(const char *name)
 		else
 			printf("HUH ? <%s> <%s>\n", a, b);
 	}
+
+	/*
+	 * Calculate the number of cylinders this disk must have. If we have
+	 * an obvious insanity, we set the number of cyclinders to zero.
+	 */
+	o = d->bios_hd * d->bios_sect;
+	d->bios_cyl = (o != 0 && (len % o) == 0) ? len / o : 0;
 
 	p = q;
 	lo[0] = 0;
