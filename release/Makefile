@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.346 1998/03/22 18:39:42 jhay Exp $
+#	$Id: Makefile,v 1.347 1998/03/30 08:29:28 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -24,6 +24,13 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 #CHROOTDIR=/junk/release
 # If this is a RELEASE, then set
 #RELEASETAG=RELENG_2_2
+
+# If you are using a local CVS repository with components stored in 
+# non-standard modules, override these on the make commandline or
+# in the environment.
+RELEASESRCMODULE?=	src
+RELEASEDOCMODULE?=	doc
+RELEASEPORTSMODULE?=	ports
 
 # Uncomment this to disable the doc.1 target.  It is also an ERROR
 # to set NOPORTS and not set NODOC since docs depend on ports.
@@ -131,19 +138,19 @@ rerelease release:
 	done
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr && rm -rf src && \
-		cvs -d ${CVSROOT} co -P src
+		cvs -d ${CVSROOT} co -P ${RELEASESRCMODULE}
 .else
 	cd ${CHROOTDIR}/usr && rm -rf src && \
-		cvs -d ${CVSROOT} co -P -r ${RELEASETAG} src
+		cvs -d ${CVSROOT} co -P -r ${RELEASETAG} ${RELEASESRCMODULE}
 .endif
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
 	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
 .endif
 .if !defined(NOPORTS)
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -d ${CVSROOT} co -P ports && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
 .endif
 .if !defined(NODOC)
-	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -d ${CVSROOT} co -P doc
+	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -d ${CVSROOT} co -P ${RELEASEDOCMODULE}
 	cd ${CHROOTDIR}/usr/ports && for i in ${DOCPORTS}; do \
 	  (cd $$i; make fetch MASTER_SITE_OVERRIDE=file:/usr/ports/distfiles/ \
 	    DISTDIR=${CHROOTDIR}/usr/ports/distfiles ); \
