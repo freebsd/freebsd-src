@@ -242,13 +242,31 @@ extern int nfs_debug;
 
 #endif
 
+/*
+ * File context information for nfsv4.	Currently, there is only one
+ * lockowner for the whole machine "0."
+ */
+struct nfs4_fctx {
+	TAILQ_ENTRY(nfs4_fstate) next;
+
+	pid_t		pid;
+	uint32_t	refcnt;
+	struct nfs4_lowner *lop;
+	struct nfsnode *np;
+	char		stateid[NFSX_V4STATEID];
+};
+
 vfs_init_t nfs_init;
 vfs_uninit_t nfs_uninit;
 int	nfs_mountroot(struct mount *mp, struct thread *td);
+
+#ifndef NFS4_USE_RPCCLNT
 int	nfs_send(struct socket *, struct sockaddr *, struct mbuf *,
 	    struct nfsreq *);
 int	nfs_sndlock(struct nfsreq *);
 void	nfs_sndunlock(struct nfsreq *);
+#endif /* ! NFS4_USE_RPCCLNT */
+
 int	nfs_vinvalbuf(struct vnode *, int, struct ucred *, struct thread *,
 	    int);
 int	nfs_readrpc(struct vnode *, struct uio *, struct ucred *);
@@ -271,6 +289,7 @@ int	nfsm_mbuftouio(struct mbuf **, struct uio *, int, caddr_t *);
 void	nfs_nhinit(void);
 int	nfs_nmcancelreqs(struct nfsmount *);
 void	nfs_timer(void*);
+
 int	nfs_connect(struct nfsmount *, struct nfsreq *);
 void	nfs_disconnect(struct nfsmount *);
 void	nfs_safedisconnect(struct nfsmount *);
