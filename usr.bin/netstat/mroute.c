@@ -37,11 +37,17 @@
  *	@(#)mroute.c	8.2 (Berkeley) 4/28/95
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 /*
  * Print DVMRP multicast routing structures and statistics.
  *
  * MROUTING 1.0
  */
+
 
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -65,7 +71,6 @@ void
 mroutepr(mfcaddr, vifaddr)
 	u_long mfcaddr, vifaddr;
 {
-	u_int mrtproto;
 	struct mfc *mfctable[MFCTBLSIZ];
 	struct vif viftable[MAXVIFS];
 	struct mfc mfc, *m;
