@@ -782,7 +782,7 @@ ffs_reallocblks_ufs2(ap)
 #endif
 #ifdef DEBUG
 		if (prtrealloc)
-			printf(" %d,", blkno);
+			printf(" %jd,", (intmax_t)blkno);
 #endif
 	}
 #ifdef DEBUG
@@ -2190,9 +2190,9 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	case FFS_ADJ_REFCNT:
 #ifdef DEBUG
 		if (fsckcmds) {
-			printf("%s: adjust inode %d count by %ld\n",
-			    mp->mnt_stat.f_mntonname, (ino_t)cmd.value,
-			    cmd.size);
+			printf("%s: adjust inode %jd count by %jd\n",
+			    mp->mnt_stat.f_mntonname, (intmax_t)cmd.value,
+			    (intmax_t)cmd.size);
 		}
 #endif /* DEBUG */
 		if ((error = VFS_VGET(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
@@ -2210,9 +2210,9 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	case FFS_ADJ_BLKCNT:
 #ifdef DEBUG
 		if (fsckcmds) {
-			printf("%s: adjust inode %d block count by %ld\n",
-			    mp->mnt_stat.f_mntonname, (ino_t)cmd.value,
-			    cmd.size);
+			printf("%s: adjust inode %jd block count by %jd\n",
+			    mp->mnt_stat.f_mntonname, (intmax_t)cmd.value,
+			    (intmax_t)cmd.size);
 		}
 #endif /* DEBUG */
 		if ((error = VFS_VGET(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
