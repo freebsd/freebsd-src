@@ -23,31 +23,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.c,v 1.3 1997/08/16 14:16:58 msmith Exp $
+ *	$Id: ppi.c,v 1.4 1997/08/28 10:15:16 msmith Exp $
  *
  */
 #include "ppi.h"
 
 #if NPPI > 0
 
-#include <sys/types.h>
-
-#ifdef KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/proc.h>
-#include <sys/buf.h>
 #include <sys/kernel.h>
-#include <sys/uio.h>
-#include <sys/syslog.h>
 #include <sys/malloc.h>
-
-#include <machine/stdarg.h>
-#include <machine/clock.h>
-
-#include <sys/kernel.h>
-#endif /*KERNEL */
 
 #include <dev/ppbus/ppbconf.h>
 
@@ -168,10 +155,6 @@ ppiioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 }
 
 #ifdef PPI_MODULE
-
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
 
 MOD_DEV(ppi, LM_DT_CHAR, CDEV_MAJOR, &ppi_cdevsw);
 

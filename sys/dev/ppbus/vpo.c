@@ -23,25 +23,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.c,v 1.2 1997/08/16 14:05:37 msmith Exp $
+ *	$Id: vpo.c,v 1.3 1997/08/28 10:15:20 msmith Exp $
  *
  */
-#include <sys/types.h>
 
 #ifdef KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
-#include <sys/syslog.h>
 
-#include <machine/stdarg.h>
 #include <machine/clock.h>
 
 #endif	/* KERNEL */
-#include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
 
