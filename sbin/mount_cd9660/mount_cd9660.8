@@ -44,7 +44,7 @@
 .Nd mount an ISO-9660 filesystem
 .Sh SYNOPSIS
 .Nm
-.Op Fl egjrv
+.Op Fl begjrv
 .Op Fl o Ar options
 .Op Fl s Ar startsector
 .Ar special | node
@@ -61,6 +61,9 @@ at boot time.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl b
+Relax checking for Supplementary Volume Descriptor Flags field
+which is set to a wrong value on some Joliet formatted disks.
 .It Fl e
 Enable the use of extended attributes.
 .It Fl g
@@ -92,6 +95,9 @@ Same as
 .It rrip
 Same as
 .Fl r .
+.It strictjoliet
+Same as
+.Fl b .
 .El
 .It Fl r
 Do not use any Rockridge extensions included in the filesystem.
