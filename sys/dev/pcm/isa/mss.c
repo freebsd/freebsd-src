@@ -1300,7 +1300,7 @@ mss_detect(struct isa_device *dev)
 	}
     }
     BVDDB(printf("mss_detect() - Detected %s\n", name));
-    strcpy(d->name, name);
+    snprintf(d->name, sizeof(d->name), "%s", name);
     dev->id_flags &= ~DV_F_DEV_MASK ;
     dev->id_flags |= (d->bd_id << DV_F_DEV_SHIFT) & DV_F_DEV_MASK ;
     return 1;
@@ -1500,7 +1500,7 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
 	    tmp_d.bd_id = MD_CS4232 ; /* to short-circuit the detect routine */
 	    break;
 	}
-	strcpy(tmp_d.name, name);
+	snprintf(tmp_d.name, sizeof(tmp_d.name), "%s", name);
 	tmp_d.audio_fmt |= AFMT_FULLDUPLEX ;
     }
     write_pnp_parms( &d, ldn );
@@ -1574,7 +1574,7 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     snddev_last_probed = &tmp_d;
     tmp_d =  d.flags & DV_PNP_SBCODEC ? sb_op_desc : mss_op_desc ;
 
-    strcpy(tmp_d.name, name);
+    snprintf(tmp_d.name, sizeof(tmp_d.name), "%s", name);
 
     /*
      * My MED3931 v.1.0 allocates 3 bytes for the config space,
@@ -1780,7 +1780,7 @@ guspnp_attach(u_long csn, u_long vend_id, char *name,
     gus_write(tmp_d.conf_base, 0x5b , tmp | 1 );
     BVDDB(printf("GUS: silicon rev %c\n", 'A' + ( ( tmp & 0xf ) >> 4) );)
 
-    strcpy(tmp_d.name, name);
+    snprintf(tmp_d.name, sizeof(tmp_d.name), "%s", name);
 
     pcmattach(dev);
 }

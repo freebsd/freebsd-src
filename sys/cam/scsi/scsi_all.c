@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi_all.c,v 1.5 1998/10/02 21:00:54 ken Exp $
+ *	$Id: scsi_all.c,v 1.6 1998/10/15 19:08:58 ken Exp $
  */
 
 #include <sys/param.h>
@@ -1563,7 +1563,6 @@ char *
 scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 {
 	u_int8_t cdb_len;
-	char holdstr[8];
 	int i;
 
 	if (cdb_ptr == NULL)
@@ -1608,17 +1607,9 @@ scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 			break;
 	}
 	*cdb_string = '\0';
-	for (i = 0; i < cdb_len; i++) {
-		sprintf(holdstr, "%x ", cdb_ptr[i]);
-		/*
-		 * If we're about to exceed the length of the string,
-		 * just return what we've already printed.
-		 */
-		if (strlen(holdstr) + strlen(cdb_string) > len)
-			break;
-
-		strcat(cdb_string, holdstr);
-	}
+	for (i = 0; i < cdb_len; i++)
+		snprintf(cdb_string + strlen(cdb_string),
+		    len - strlen(cdb_string), "%x ", cdb_ptr[i]);
 
 	return(cdb_string);
 }

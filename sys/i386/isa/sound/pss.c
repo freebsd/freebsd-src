@@ -348,7 +348,7 @@ attach_pss(struct address_info * hw_config)
 #endif
 
 	pss_initialized = 1;
-	sprintf(tmp, "ECHO-PSS  Rev. %d", id);
+	snprintf(tmp, sizeof(tmp), "ECHO-PSS  Rev. %d", id);
 	conf_printf(tmp, hw_config);
 
 	return;

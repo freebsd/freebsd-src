@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_devstat.c,v 1.5 1998/11/14 21:58:51 wollman Exp $
+ *	$Id: subr_devstat.c,v 1.6 1998/11/15 23:57:22 ken Exp $
  */
 
 #include <sys/param.h>
@@ -73,6 +73,7 @@ devstat_add_entry(struct devstat *ds, const char *dev_name,
 	ds->device_number = devstat_current_devnumber++;
 	ds->unit_number = unit_number;
 	strncpy(ds->device_name, dev_name, DEVSTAT_NAME_LEN);
+	ds->device_name[DEVSTAT_NAME_LEN - 1] = 0;
 	ds->block_size = block_size;
 	ds->flags = flags;
 	ds->device_type = device_type;

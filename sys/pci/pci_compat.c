@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.12 1998/10/06 14:18:40 dfr Exp $
+ * $Id: pci_compat.c,v 1.13 1998/11/09 08:03:01 peter Exp $
  *
  */
 
@@ -427,6 +427,7 @@ pci_drvattach(struct pci_devinfo *dinfo)
 		else
 			strncpy(dinfo->conf.pd_name, "????",
 				sizeof(dinfo->conf.pd_name));
+		dinfo->conf.pd_name[sizeof(dinfo->conf.pd_name) - 1] = 0;
 
 		dinfo->conf.pd_unit = unit;
 

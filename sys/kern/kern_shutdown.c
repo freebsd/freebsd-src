@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.41 1998/10/30 05:41:15 msmith Exp $
+ * $Id: kern_shutdown.c,v 1.42 1998/11/13 22:40:37 msmith Exp $
  */
 
 #include "opt_ddb.h"
@@ -427,7 +427,7 @@ panic(const char *fmt, ...)
 		panicstr = fmt;
 
 	va_start(ap, fmt);
-	(void)vsprintf(buf, fmt, ap);
+	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
 	if (panicstr == fmt)
 		panicstr = buf;
 	va_end(ap);

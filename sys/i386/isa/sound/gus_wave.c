@@ -4517,9 +4517,11 @@ gus_wave_init(struct address_info * hw_config)
     }
 
     if (gus_pnp_seen) {
-	sprintf(gus_info.name, "Gravis %s (%dk)", model_num, (int) gus_mem_size / 1024);
+	snprintf(gus_info.name, sizeof(gus_info.name),
+	    "Gravis %s (%dk)", model_num, (int) gus_mem_size / 1024);
     } else {
-	sprintf(gus_info.name, "Gravis UltraSound %s (%dk)", model_num, (int) gus_mem_size / 1024);
+	snprintf(gus_info.name, sizeof(gus_info.name),
+	    "Gravis UltraSound %s (%dk)", model_num, (int) gus_mem_size / 1024);
     }
     conf_printf(gus_info.name, hw_config);
 

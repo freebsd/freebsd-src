@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.30 1998/07/25 16:35:06 bde Exp $
+ *	$Id: diskslice_machdep.c,v 1.31 1998/08/10 07:22:14 phk Exp $
  */
 
 #include <sys/param.h>
@@ -405,7 +405,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 
 			sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE,
 				       RAW_PART, partname);
-			strcpy(buf, sname);
+			snprintf(buf, sizeof(buf), "%s", sname);
 			if (strlen(buf) < sizeof buf - 11)
 				strcat(buf, "<extended>");
 			check_part(buf, dp, base_ext_offset, nsectors,

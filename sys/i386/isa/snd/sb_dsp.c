@@ -739,7 +739,8 @@ sb_dsp_init(snddev_info *d, struct isa_device *dev)
 
     }
 
-    sprintf(d->name, fmt, (d->bd_id >> 8) &0xff, d->bd_id & 0xff);
+    snprintf(d->name, sizeof(d->name),
+	fmt, (d->bd_id >> 8) &0xff, d->bd_id & 0xff);
 
     sb_mix_init(d);
 }

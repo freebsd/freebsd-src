@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vfsops.c,v 1.8 1998/11/03 08:55:06 peter Exp $
+ *  $Id: coda_vfsops.c,v 1.9 1998/11/16 19:48:26 rvb Exp $
  * 
  */
 
@@ -47,6 +47,9 @@
 /*
  * HISTORY
  * $Log: coda_vfsops.c,v $
+ * Revision 1.9  1998/11/16 19:48:26  rvb
+ * A few bug fixes for Robert Watson
+ *
  * Revision 1.8  1998/11/03 08:55:06  peter
  * Support KLD.  We register and unregister two modules. "coda" (the vfs)
  * via VFS_SET(), and "codadev" for the cdevsw entry.  From kldstat -v:
@@ -592,8 +595,8 @@ coda_nb_statfs(vfsp, sbp, p)
     sbp->f_files = NB_SFS_SIZ;
     sbp->f_ffree = NB_SFS_SIZ;
     bcopy((caddr_t)&(vfsp->mnt_stat.f_fsid), (caddr_t)&(sbp->f_fsid), sizeof (fsid_t));
-    strcpy(sbp->f_mntonname, "/coda");
-    strcpy(sbp->f_mntfromname, "CODA");
+    snprintf(sbp->f_mntonname, sizeof(sbp->f_mntonname), "/coda");
+    snprintf(sbp->f_mntfromname, sizeof(sbp->f_mntfromname), "CODA");
 /*  MARK_INT_SAT(CODA_STATFS_STATS); */
     return(0);
 }

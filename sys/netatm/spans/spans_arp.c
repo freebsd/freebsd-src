@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_arp.c,v 1.1 1998/09/15 08:23:02 phk Exp $
+ *	@(#) $Id: spans_arp.c,v 1.2 1998/10/31 20:06:56 phk Exp $
  *
  */
 
@@ -44,7 +44,7 @@
 #include <netatm/spans/spans_cls.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: spans_arp.c,v 1.1 1998/09/15 08:23:02 phk Exp $");
+__RCSID("@(#) $Id: spans_arp.c,v 1.2 1998/10/31 20:06:56 phk Exp $");
 #endif
 
 
@@ -1089,7 +1089,8 @@ spansarp_ioctl(code, data, arg1)
 					AF_INET;
 				SATOSIN(&aar.aap_arp_addr)->sin_addr.s_addr =
 					sap->sa_dstip.s_addr;
-				(void) sprintf(aar.aap_intf, "%s%d",
+				(void) snprintf(aar.aap_intf,
+				    sizeof(aar.aap_intf), "%s%d",
 					clp->cls_ipnif->inf_nif->nif_if.if_name,
 					clp->cls_ipnif->inf_nif->nif_if.if_unit
 					);

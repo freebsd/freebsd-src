@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_cls.c,v 1.1 1998/09/15 08:23:03 phk Exp $
+ *	@(#) $Id: spans_cls.c,v 1.2 1998/10/31 20:06:56 phk Exp $
  *
  */
 
@@ -44,7 +44,7 @@
 #include <netatm/spans/spans_cls.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: spans_cls.c,v 1.1 1998/09/15 08:23:03 phk Exp $");
+__RCSID("@(#) $Id: spans_cls.c,v 1.2 1998/10/31 20:06:56 phk Exp $");
 #endif
 
 
@@ -842,7 +842,7 @@ spanscls_pdu_print(clp, m, msg)
 {
 	char		buf[128];
 
-	sprintf(buf, "spanscls %s:\n", msg);
+	snprintf(buf, sizeof(buf), "spanscls %s:\n", msg);
 	atm_pdu_print(m, buf);
 }
 

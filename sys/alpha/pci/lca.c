@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lca.c,v 1.3 1998/10/06 14:18:40 dfr Exp $
+ *	$Id: lca.c,v 1.4 1998/11/15 18:25:16 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -397,7 +397,7 @@ lca_attach(device_t dev)
 
 	set_iointr(alpha_dispatch_intr);
 
-	strcpy(chipset_type, "lca");
+	snprintf(chipset_type, sizeof(chipset_type), "lca");
 	chipset_bwx = 0;
 	chipset_ports = LCA_PCI_SIO;
 	chipset_memory = LCA_PCI_SPARSE;

@@ -1440,11 +1440,13 @@ ad1848_init(char *name, int io_base, int irq,
     outb(io_Status(devc), 0);	/* Clear pending interrupts */
 
     if (name != NULL && name[0] != 0)
-	sprintf(ad1848_pcm_operations[nr_ad1848_devs].name,
-	    "%s (%s)", name, devc->chip_name);
+	snprintf(ad1848_pcm_operations[nr_ad1848_devs].name,
+	    sizeof(ad1848_pcm_operations[nr_ad1848_devs].name),
+		"%s (%s)", name, devc->chip_name);
     else
-	sprintf(ad1848_pcm_operations[nr_ad1848_devs].name,
-	    "Generic audio codec (%s)", devc->chip_name);
+	snprintf(ad1848_pcm_operations[nr_ad1848_devs].name,
+	    sizeof(ad1848_pcm_operations[nr_ad1848_devs].name),
+		"Generic audio codec (%s)", devc->chip_name);
 
     conf_printf2(ad1848_pcm_operations[nr_ad1848_devs].name,
 	     devc->base, devc->irq, dma_playback, dma_capture);

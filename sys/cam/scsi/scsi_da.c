@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.12 1998/10/22 22:16:56 ken Exp $
+ *      $Id: scsi_da.c,v 1.13 1998/12/02 17:35:28 ken Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -1286,7 +1286,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 			dasetgeom(periph, rdcap);
 			dp = &softc->params;
-			sprintf(announce_buf,
+			snprintf(announce_buf, sizeof(announce_buf),
 				"%ldMB (%d %d byte sectors: %dH %dS/T %dC)",
 				dp->sectors / ((1024L * 1024L) / dp->secsize),
 				dp->sectors, dp->secsize, dp->heads,
@@ -1350,7 +1350,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				 */
 				if ((have_sense) && (asc == 0x3a)
 				 && (error_code == SSD_CURRENT_ERROR))
-					sprintf(announce_buf, 
+					snprintf(announce_buf,
+					    sizeof(announce_buf),
 						"Attempt to query device "
 						"size failed: %s, %s",
 						scsi_sense_key_text[sense_key],

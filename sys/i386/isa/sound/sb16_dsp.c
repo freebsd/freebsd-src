@@ -450,8 +450,8 @@ sb16_dsp_init(struct address_info * hw_config)
     if (sbc_major < 4)
 	return;		/* Not a SB16 */
 
-    sprintf(sb16_dsp_operations.name, "SoundBlaster 16 %d.%d",
-		sbc_major, sbc_minor);
+    snprintf(sb16_dsp_operations.name, sizeof(sb16_dsp_operations.name),
+	"SoundBlaster 16 %d.%d", sbc_major, sbc_minor);
 
     conf_printf(sb16_dsp_operations.name, hw_config);
 
