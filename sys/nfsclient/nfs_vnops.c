@@ -643,7 +643,18 @@ nfs_setattr(struct vop_setattr_args *ap)
 			 */
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
-			vnode_pager_setsize(vp, vap->va_size);
+
+			/*
+			 *  We run vnode_pager_setsize() early (why?),
+			 * we must set np->n_size now to avoid vinvalbuf
+			 * V_SAVE races that might setsize a lower
+			 * value.
+			 */
+
+			tsize = np->n_size;
+			error = nfs_meta_setsize(vp, ap->a_cred, 
+						ap->a_td, vap->va_size);
+
  			if (np->n_flag & NMODIFIED) {
  			    if (vap->va_size == 0)
  				error = nfs_vinvalbuf(vp, 0,
@@ -656,8 +667,7 @@ nfs_setattr(struct vop_setattr_args *ap)
  				return (error);
 			    }
  			}
- 			tsize = np->n_size;
- 			np->n_size = np->n_vattr.va_size = vap->va_size;
+ 			np->n_vattr.va_size = vap->va_size;
   		};
   	} else if ((vap->va_mtime.tv_sec != VNOVAL ||
 		vap->va_atime.tv_sec != VNOVAL) && (np->n_flag & NMODIFIED) &&
@@ -1049,10 +1059,12 @@ nfs_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		m_freem(mrep);
 		tsiz -= retlen;
 		if (v3) {
-			if (eof || retlen == 0)
+			if (eof || retlen == 0) {
 				tsiz = 0;
-		} else if (retlen < len)
+			}
+		} else if (retlen < len) {
 			tsiz = 0;
+		}
 	}
 nfsmout:
 	return (error);
@@ -3114,3 +3126,4 @@ nfsfifo_close(struct vop_close_args *ap)
 	}
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
 }
+
