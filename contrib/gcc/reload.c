@@ -1,5 +1,6 @@
 /* Search an insn for pseudo regs that must be in hard regs and are not.
-   Copyright (C) 1987, 88, 89, 92-98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997,
+   1998, 1999, 2000 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -324,7 +325,6 @@ static int find_reusable_reload	PROTO((rtx *, rtx, enum reg_class,
 static rtx find_dummy_reload	PROTO((rtx, rtx, rtx *, rtx *,
 				       enum machine_mode, enum machine_mode,
 				       enum reg_class, int, int));
-static int earlyclobber_operand_p PROTO((rtx));
 static int hard_reg_set_here_p	PROTO((int, int, rtx));
 static struct decomposition decompose PROTO((rtx));
 static int immune_p		PROTO((rtx, rtx, struct decomposition));
@@ -593,7 +593,13 @@ push_secondary_reload (in_p, x, opnum, optional, reload_class, reload_mode,
 
       if (in_p && icode == CODE_FOR_nothing
 	  && SECONDARY_MEMORY_NEEDED (class, reload_class, mode))
-	get_secondary_mem (x, reload_mode, opnum, type);
+	{
+	  get_secondary_mem (x, reload_mode, opnum, type);
+
+	  /* We may have just added new reloads.  Make sure we add
+	     the new reload at the end.  */
+	  s_reload = n_reloads;
+	}
 #endif
 
       /* We need to make a new secondary reload for this register class.  */
@@ -1531,12 +1537,23 @@ push_reload (in, out, inloc, outloc, class,
 	    && GET_MODE_SIZE (inmode) <= GET_MODE_SIZE (GET_MODE (XEXP (note, 0)))
 	    && HARD_REGNO_MODE_OK (regno, inmode)
 	    && GET_MODE_SIZE (outmode) <= GET_MODE_SIZE (GET_MODE (XEXP (note, 0)))
-	    && HARD_REGNO_MODE_OK (regno, outmode)
-	    && TEST_HARD_REG_BIT (reg_class_contents[(int) class], regno)
-	    && !fixed_regs[regno])
+	    && HARD_REGNO_MODE_OK (regno, outmode))
 	  {
-	    reload_reg_rtx[i] = gen_rtx_REG (inmode, regno);
-	    break;
+	    unsigned int offs;
+	    unsigned int nregs = MAX (HARD_REGNO_NREGS (regno, inmode),
+				      HARD_REGNO_NREGS (regno, outmode));
+
+	    for (offs = 0; offs < nregs; offs++)
+	      if (fixed_regs[regno + offs]
+		  || ! TEST_HARD_REG_BIT (reg_class_contents[(int) class],
+					  regno + offs))
+		break;
+
+	    if (offs == nregs)
+	      {
+		reload_reg_rtx[i] = gen_rtx_REG (inmode, regno);
+		break;
+	      }
 	  }
     }
 
@@ -1991,7 +2008,7 @@ find_dummy_reload (real_in, real_out, inloc, outloc,
 
 /* Return 1 if X is an operand of an insn that is being earlyclobbered.  */
 
-static int
+int
 earlyclobber_operand_p (x)
      rtx x;
 {
@@ -4668,7 +4685,7 @@ find_reloads_address (mode, memrefloc, ad, loc, opnum, type, ind_levels, insn)
 
       else if (regno < FIRST_PSEUDO_REGISTER
 	       && REGNO_MODE_OK_FOR_BASE_P (regno, mode)
-	       && ! regno_clobbered_p (regno, this_insn))
+	       && ! regno_clobbered_p (regno, this_insn, GET_MODE (ad), 0))
 	return 0;
 
       /* If we do not have one of the cases above, we must do the reload.  */
@@ -5348,20 +5365,18 @@ find_reloads_address_1 (mode, x, context, loc, opnum, type, ind_levels, insn)
 			&& (*insn_operand_predicate[icode][0]) (equiv, Pmode)
 			&& (*insn_operand_predicate[icode][1]) (equiv, Pmode)))
 		{
-		  loc = &XEXP (x, 0);
+		  /* We use the original pseudo for loc, so that
+		     emit_reload_insns() knows which pseudo this
+		     reload refers to and updates the pseudo rtx, not
+		     its equivalent memory location, as well as the
+		     corresponding entry in reg_last_reload_reg.  */
+		  loc = &XEXP (x_orig, 0);
 		  x = XEXP (x, 0);
 		  reloadnum
 		    = push_reload (x, x, loc, loc,
 				   (context ? INDEX_REG_CLASS : BASE_REG_CLASS),
 				    GET_MODE (x), GET_MODE (x), 0, 0,
 				    opnum, RELOAD_OTHER);
-
-		  /* If we created a new MEM based on reg_equiv_mem[REGNO], then
-		     LOC above is part of the new MEM, not the MEM in INSN.
-
-		     We must also replace the address of the MEM in INSN.  */
-		  if (&XEXP (x_orig, 0) != loc)
-		    push_replacement (&XEXP (x_orig, 0), reloadnum, VOIDmode);
 
 		}
 	      else
@@ -5502,7 +5517,7 @@ find_reloads_address_1 (mode, x, context, loc, opnum, type, ind_levels, insn)
 	   in this insn, reload it into some other register to be safe.
 	   The CLOBBER is supposed to make the register unavailable
 	   from before this insn to after it.  */
-	if (regno_clobbered_p (regno, this_insn))
+	if (regno_clobbered_p (regno, this_insn, GET_MODE (x), 0))
 	  {
 	    push_reload (x, NULL_RTX, loc, NULL_PTR,
 			 (context ? INDEX_REG_CLASS : BASE_REG_CLASS),
@@ -6262,16 +6277,29 @@ find_equiv_reg (goal, insn, class, other, reload_reg_p, goalreg, mode)
 		      && (valtry
 			  = operand_subword (SET_DEST (pat), 1, 0, VOIDmode))
 		      && (valueno = true_regnum (valtry)) >= 0)))
-	    if (other >= 0
-		? valueno == other
-		: ((unsigned) valueno < FIRST_PSEUDO_REGISTER
-		   && TEST_HARD_REG_BIT (reg_class_contents[(int) class],
-					 valueno)))
-	      {
-		value = valtry;
-		where = p;
-		break;
-	      }
+	    {
+	      if (other >= 0)
+		{
+		  if (valueno != other)
+		    continue;
+		}
+	      else if ((unsigned) valueno >= FIRST_PSEUDO_REGISTER)
+		continue;
+	      else
+		{
+		  int i;
+
+		  for (i = HARD_REGNO_NREGS (valueno, mode) - 1; i >= 0; i--)
+		    if (! TEST_HARD_REG_BIT (reg_class_contents[(int) class],
+					     valueno + i))
+		      break;
+		  if (i >= 0)
+		    continue;
+		}
+	      value = valtry;
+	      where = p;
+	      break;
+	    }
 	}
     }
 
@@ -6314,15 +6342,22 @@ find_equiv_reg (goal, insn, class, other, reload_reg_p, goalreg, mode)
       && regno < valueno + HARD_REGNO_NREGS (valueno, mode))
     return 0;
 
+  nregs = HARD_REGNO_NREGS (regno, mode);
+  valuenregs = HARD_REGNO_NREGS (valueno, mode);
+
   /* Reject VALUE if it is one of the regs reserved for reloads.
      Reload1 knows how to reuse them anyway, and it would get
      confused if we allocated one without its knowledge.
      (Now that insns introduced by reload are ignored above,
      this case shouldn't happen, but I'm not positive.)  */
 
-  if (reload_reg_p != 0 && reload_reg_p != (short *) (HOST_WIDE_INT) 1
-      && reload_reg_p[valueno] >= 0)
-    return 0;
+  if (reload_reg_p != 0 && reload_reg_p != (short *) (HOST_WIDE_INT) 1)
+    {
+      int i;
+      for (i = 0; i < valuenregs; ++i)
+	if (reload_reg_p[valueno + i] >= 0)
+	  return 0;
+    }
 
   /* On some machines, certain regs must always be rejected
      because they don't behave the way ordinary registers do.  */
@@ -6331,9 +6366,6 @@ find_equiv_reg (goal, insn, class, other, reload_reg_p, goalreg, mode)
   if (OVERLAPPING_REGNO_P (valueno))
     return 0;
 #endif      
-
-  nregs = HARD_REGNO_NREGS (regno, mode);
-  valuenregs = HARD_REGNO_NREGS (valueno, mode);
 
   /* Reject VALUE if it is a register being used for an input reload
      even if it is not one of those reserved.  */
@@ -6370,16 +6402,23 @@ find_equiv_reg (goal, insn, class, other, reload_reg_p, goalreg, mode)
 
       /* Don't trust the conversion past a function call
 	 if either of the two is in a call-clobbered register, or memory.  */
-      if (GET_CODE (p) == CALL_INSN
-	  && ((regno >= 0 && regno < FIRST_PSEUDO_REGISTER
-	       && call_used_regs[regno])
-	      ||
-	      (valueno >= 0 && valueno < FIRST_PSEUDO_REGISTER
-	       && call_used_regs[valueno])
-	      ||
-	      goal_mem
-	      || need_stable_sp))
-	return 0;
+      if (GET_CODE (p) == CALL_INSN)
+	{
+	  int i;
+
+	  if (goal_mem || need_stable_sp)
+	    return 0;
+
+	  if (regno >= 0 && regno < FIRST_PSEUDO_REGISTER)
+	    for (i = 0; i < nregs; ++i)
+	      if (call_used_regs[regno + i])
+		return 0;
+
+	  if (valueno >= 0 && valueno < FIRST_PSEUDO_REGISTER)
+	    for (i = 0; i < valuenregs; ++i)
+	      if (call_used_regs[valueno + i])
+		return 0;
+	}
 
 #ifdef NON_SAVING_SETJMP 
       if (NON_SAVING_SETJMP && GET_CODE (p) == NOTE
@@ -6615,13 +6654,23 @@ find_inc_amount (x, inced)
 /* Return 1 if register REGNO is the subject of a clobber in insn INSN.  */
 
 int
-regno_clobbered_p (regno, insn)
+regno_clobbered_p (regno, insn, mode, sets)
      int regno;
      rtx insn;
+     enum machine_mode mode;
+     int sets;
 {
-  if (GET_CODE (PATTERN (insn)) == CLOBBER
+  int nregs = HARD_REGNO_NREGS (regno, mode);
+  int endregno = regno + nregs;
+
+  if ((GET_CODE (PATTERN (insn)) == CLOBBER
+       || (sets && GET_CODE (PATTERN (insn)) == SET))
       && GET_CODE (XEXP (PATTERN (insn), 0)) == REG)
-    return REGNO (XEXP (PATTERN (insn), 0)) == regno;
+    {
+      int test = REGNO (XEXP (PATTERN (insn), 0));
+
+      return test >= regno && test < endregno;
+    }
 
   if (GET_CODE (PATTERN (insn)) == PARALLEL)
     {
@@ -6630,9 +6679,15 @@ regno_clobbered_p (regno, insn)
       for (; i >= 0; i--)
 	{
 	  rtx elt = XVECEXP (PATTERN (insn), 0, i);
-	  if (GET_CODE (elt) == CLOBBER && GET_CODE (XEXP (elt, 0)) == REG
-	      && REGNO (XEXP (elt, 0)) == regno)
-	    return 1;
+	  if ((GET_CODE (elt) == CLOBBER
+	       || (sets && GET_CODE (PATTERN (insn)) == SET))
+	      && GET_CODE (XEXP (elt, 0)) == REG)
+	    {
+	      int test = REGNO (XEXP (elt, 0));
+	      
+	      if (test >= regno && test < endregno)
+		return 1;
+	    }
 	}
     }
 

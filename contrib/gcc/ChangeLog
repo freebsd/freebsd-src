@@ -1,3 +1,444 @@
+Fri Mar 16 12:46:19 GMT 2001 Bernd Schmidt  (bernds@redhat.com)
+
+	* gcc-2.95.3 Released.
+
+2001-03-12  Kazu Hirata  <kazu@hxi.com>
+
+	* config/h8300/h8300.md (movsi_h8300hs): Split the 2nd alternative
+	into two parts.
+
+2001-03-12  Bernd Schmidt  <bernds@redhat.co.uk>
+
+	* version.c: Bump.
+
+	* final.c (alter_subreg): Use plus_constant_for_output to match
+	what offsettable_address_p does.
+
+2001-02-19  Bernd Schmidt  <bernds@redhat.co.uk>
+
+	* version.c: Bump.
+
+	Back out sjlj eh fixes.
+	* varasm.c (force_const_mem): Revert previous change.
+	* except.c (receive_exception_label, start_dynamic_handler):
+	Likewise.
+	* expr.c (expand_builtin_setjmp, expand_builtin_setjmp_setup,
+	expand_builtin_setjmp_receiver, expand_builtin): Likewise.
+	* expr.h (expand_builtin_setjmp, expand_builtin_setjmp_receiver):
+	Likewise.
+
+2001-01-25  Bernd Schmidt  <bernds@redhat.co.uk>
+
+	* version.c: Bump.
+
+	* varasm.c (force_const_mem): When putting a LABEL_REF into the
+	constant pool, also put it on forced_labels list so that it won't
+	be deleted.
+
+	2000-05-25  Alexandre Oliva  <aoliva@cygnus.com>
+	* emit-rtl.c (reset_used_decls): New function.
+	(unshare_all_rtl_again): Call it.
+
+	2000-05-24  Alexandre Oliva  <oliva@lsd.ic.unicamp.br>
+	* emit-rtl.c (unshare_all_decls): New function.
+	(unshare_all_rtl): Call it.
+
+	2000-05-20  Alexandre Oliva  <aoliva@cygnus.com>
+	* emit-rtl.c (unshare_all_rtl): Store the copied rtx.
+
+	2000-04-15  Richard Earnshaw (rearnsah@arm.com)
+	* emit-rtl.c (unshare_all_rtl_again): Unmark everything, then
+	call unshare_all_rtl.
+
+	2000-01-27  Geoffrey Keating  <geoffk@cygnus.com>
+	* emit-rtl.c (unshare_all_rtl): Unshare virtual parameters too.
+	Use unshare_all_rtl_1.
+	(unshare_all_rtl_again): New function.
+	(unshare_all_rtl_1): New function split out of unshare_all_rtl.
+	* function.c (purge_addressof_1): Use unshare_all_rtl_again
+	rather than resetting the 'used' flags ourself.
+	* toplev.c (rest_of_compilation): Add current_function_decl
+	to the unshare_all_rtl call.
+	* tree.h: Prototype unshare_all_rtl.
+	* rtl.h: Prototype unshare_all_rtl_again here.
+
+2001-01-12  Bernd Schmidt  <bernds@redhat.co.uk>
+
+	* version.c: Bump.
+
+	* expr.c (expand_builtin_setjmp_receiver): Emit a scheduling barrier
+	as last insn.
+
+2001-01-11  Bernd Schmidt  <bernds@redhat.co.uk>
+
+	* version.c: Bump.
+
+	2001-01-09  Mark Mitchell  <mark@codesourcery.com>
+	Remove support for using UWIN as a host machine.
+	* configure.in: Issue an error message.
+	* configure: Regenerated.
+	* config.gcc: Remove xm_* UWIN configury.
+	* config/i386/xm-uwin.h: Remove.
+
+	* config/mips/vxworks.h: Don't terminate comment before its end.
+
+	* invoke.texi: Update -fvtable-thunks documentation.
+
+	* loop.c (scan_loop): Disable copy propagation if we find a REG_LABEL
+	note.
+
+	Revert this patch:
+	2000-12-18  David Edelsohn  <edelsohn@gnu.org>
+	* rs6000.c (and64_operand): Use logical_u_operand.
+
+	Mon Oct  4 16:56:11 1999  Richard Henderson  <rth@cygnus.com>
+	* tree.c (build1): Set TREE_SIDE_EFFECTS for expressions that
+	always have side-effects.
+
+	Mon Oct  4 02:12:41 1999  Mark Mitchell  <mark@codesourcery.com>
+	* tree.c (make_node): Set TREE_SIDE_EFFECTS for expressions that
+	always have side-effects.
+
+2001-01-01  Bernd Schmidt  <bernds@redhat.co.uk>
+
+	* version.c: Bump.
+
+	* loop.c (instrument_loop_bct): Set JUMP_LABEL on new jump.
+
+	2000-12-27  Geoffrey Keating  <geoffk@redhat.com>
+	* config/rs6000/rs6000.md (define_attr "length"): Correct
+	calculation.
+
+2001-01-01  Philipp Thomas <pthomas@suse.de>
+
+	* configure.in: Make the help for --enable-nls make it
+	clear that this is an experimental feature.
+	* configure: Regenerate.
+	* ABOUT-GCC-NLS: Explain why NLS support is buggy.
+
+2000-12-29  Bernd Schmidt  <bernds@redhat.co.uk>
+
+	* version.c: Bump.
+
+	* combine.c (cant_combine_insn_p): Only restrict hard register
+	combinations for SMALL_REGISTER_CLASSES machines.
+
+	* config/sparc/sparc.c (pic_address_needs_scratch): LABEL_REFs are
+	not valid pic operands.
+
+	2000-12-26  Kazu Hirata  <kazu@hxi.com>
+	* config/h8300/h8300.c (get_shift_alg): Fix a typo in the
+	assembly code for 12-bit ASHIFTRT in HImode.
+
+	2000-07-17  Kazu Hirata  <kazu@hxi.com>
+	* h8300.md: Fix the format of mac.
+	(movsi_h8300hs): Output a tab after stmac instead of a space.
+
+	2000-10-07  Will Cohen  <wcohen@redhat.com>, Kazu Hirata  <kazu@hxi.com>
+	* config/h8300/h8300.md: Remove the memory alternative and correct
+	the insn lengths in the templates for sign extention and zero
+	extention.
+
+	2000-12-23  Philip Blundell  <philb@gnu.org>
+	* config/arm/linux-elf.h (CPP_PREDEFINES): Don't define `arm' or
+	`arm_elf'; do define `__arm__'.
+
+	2000-08-22  Richard Henderson  <rth@cygnus.com>
+	* alias.c (init_alias_analysis): Do not register
+	struct_value_incoming_rtx or static_chain_rtx as pointing
+	to stack memory.
+
+	Tue Dec  5 20:09:14 2000  Jeffrey A Law  (law@cygnus.com)
+	* builtins.c (expand_builtin_setjmp_setup): Set
+	current_function_has_nonlocal_label.
+
+	2000-12-03  Richard Henderson  <rth@redhat.com>
+	* builtins.c (expand_builtin_setjmp_setup): New.
+	(expand_builtin_setjmp_receiver): New.
+	(expand_builtin_setjmp): Split out _setup and _receiver functions.
+	Move argument parsing in from ...
+	(expand_builtin): ... here.
+	* except.c (receive_exception_label): Branch around receiver
+	unless new-style exceptions.  Call expand_builtin_setjmp_receiver.
+	(start_dynamic_handler): Call expand_builtin_setjmp_setup.
+	* expr.h: Update builtin setjmp decls.
+
+2000-12-22  Bernd Schmidt  <bernds@redhat.co.uk>
+
+	* calls.c (emit_call_1): Fall back to call_pop/call_value_pop if no
+	non-popping calls are available.
+
+	* flow.c (propagate_block): Use flow_delete_insn instead of
+	NOTEifying a dead ADDR_VEC.
+
+	Fri Sep 10 11:43:07 1999  Philip Blundell <pb@futuretv.com>
+	* configure.in, config/arm/linux-oldld.h,
+	config/arm/linux-elf26.h, config/arm/linux-elf.h: Backport latest
+	ARM GNU/Linux config from mainline.
+	* configure: Regenerate.
+
+	2000-02-08  Geoff Keating  <geoffk@cygnus.com>
+	* dwarf2.h (DW_CFA_GNU_negative_offset_extended): New constant.
+	* dwarf2out.c (dwarf_cfi_name): Print name of new constant.
+	(reg_save): Use DW_CFA_GNU_negative_offset_extended when needed.
+	(output_cfi): Handle output of DW_CFA_GNU_negative_offset_extended.
+	* frame.c (execute_cfa_insn): Handle
+	DW_CFA_GNU_negative_offset_extended.
+
+	2000-03-06  Mark Mitchell  <mark@codesourcery.com>
+	* function.c (free_temps_for_rtl_expr): Don't free slots
+	that have been pushed into a higher level.
+
+	1999-12-16  David S. Miller  <davem@redhat.com>
+	* expr.c (emit_move_insn_1): Only emit clobbers if one of
+	the outputs is a SUBREG.
+
+	Wed Sep 22 17:35:55 1999  Michael Meissner  <meissner@cygnus.com>
+	* expr.c (emit_move_insn_1): If we are copying a complex that fits
+	in one word or less (complex char, complex short, or on 64 bit
+	systems complex float) to/from a hard register, copy it through
+	memory instead of dying in gen_{real,imag}part.  If we have a
+	short complex type, prevent inlining since it allocates stack
+	memory.
+
+	Fri Dec 15 15:32:16 MET 2000  Jan Hubicka  <jh@suse.cz>
+	* combine.c (cant_combine_insn_p): Get around SUBREGs when determining
+	hardreg<->reg moves.
+
+	2000-12-01  Bernd Schmidt  <bernds@redhat.co.uk>
+	* combine.c (cant_combine_insn_p): Only disallow insns involving
+	hard regs if they are reg-reg moves.
+
+	2000-11-24  Bernd Schmidt  <bernds@redhat.co.uk>
+	* combine.c (cant_combine_insn_p): New function.
+	(try_combine): Use it.
+
+2000-12-20  Bernd Schmidt  <bernds@redhat.co.uk>
+
+	* version.c: Bump.
+
+	* reload1.c (free_for_value_p): Fix error in last change.
+
+	2000-03-22  Richard Henderson  <rth@cygnus.com>
+	* stmt.c (expand_asm_operands): Don't promote the temporary.
+
+	Sun Sep 19 09:03:40 1999  Mark Mitchell  <mark@codesourcery.com>
+	* rtl.h (insns_safe_to_move_p): New function.
+	* loop.c (find_and_verify_loops): Use it.
+	* rtlanal.c (insns_safe_to_move_p): Define it.
+
+	Thu Nov  2 19:20:12 2000  J"orn Rennecke <amylaar@redhat.com>
+	* reload.c (find_equiv_reg): Test all hard registers for membership
+	in the requested class.
+
+	Sun Apr 23 16:24:35 2000  Denis Chertykov  <denisc@overta.ru>
+	* reload.c (find_equiv_reg): Checks all valueno regs
+	as a reload_reg_p regs.
+
+	Fri Apr 21 14:58:29 2000  Denis Chertykov  <denisc@overta.ru>
+	* reload.c (find_equiv_reg): Checks all valueno and regno regs
+	as a call-clobbered regs.
+
+2000-12-18  Bernd Schmidt  <bernds@redhat.co.uk>
+
+	2000-09-15  Bernd Schmidt  <bernds@redhat.co.uk>
+	* optabs.c (emit_libcall_block): If target is a user variable,
+	copy to a temporary first.
+
+	2000-04-28  Kazu Hirata  <kazu@hxi.com>
+	* h8300.c (function_epilogue): Clean up flags when the last insn
+	in a function is a barrier.
+
+	Mon Aug 30 01:02:09 1999  Jeffrey A Law  (law@cygnus.com)
+	* emit-rtl.c (copy_rtx_if_shared): A MEM which references
+	virtual_stack_vars_rtx or virtual_incoming_args_rtx can not
+	be shared.
+
+	2000-03-24  Geoff Keating  <geoffk@cygnus.com>
+	* flow.c (propagate_block): When we delete an ADDR_VEC,
+	also delete the BARRIER following it if there is one.
+
+	Wed Oct 27 14:10:27 1999  Geoffrey Keating  <geoffk@cygnus.com>
+	* flow.c (propagate_block): When the last reference to a label
+	before an ADDR_VEC is deleted because the reference is a dead
+	store, delete the ADDR_VEC.
+
+	2000-03-19  Richard Henderson  <rth@cygnus.com>
+	* flow.c (delete_block): Delete the addr_vec along with the block.
+	(flow_delete_insn): Decrement LABEL_NUSES when deleting insns that
+	reference labels.
+
+	2000-12-02  Bernd Schmidt  <bernds@redhat.co.uk>
+	* reload1.c (free_for_value_p): New function, frontend to
+	reload_reg_free_for_value_p.  All callers of the latter now call
+	this function with an additional mode argument.
+
+	2000-11-10  Bernd Schmidt  <bernds@redhat.co.uk>
+	(regno_clobbered_p): New arg SETS.  Examine SETs if it's nonzero.  All
+	callers changed.
+	* reload1.c (choose_reload_regs): Registers set in the insn can't be
+	used for RELOAD_OTHER reloads.
+
+	2000-10-28  Bernd Schmidt  <bernds@redhat.co.uk>
+	* reload1.c (choose_reload_regs): Never set reload_override_in for an
+	optional reload.
+
+	2000-09-07  Bernd Schmidt  <bernds@redhat.co.uk>
+	* reload.c (regno_clobbered_p): Accept new arg, MODE, and use it
+	to handle multiword modes correctly.  All callers and the declaration
+	changed.
+
+2000-12-18  David Edelsohn  <edelsohn@gnu.org>
+
+	* rs6000.c (and64_operand): Use logical_u_operand.
+	(first_reg_to_save): Don't save fixed or call-used registers
+	except PIC_OFFSET_TABLE_REGNUM when -fpic even though it is fixed.
+	* rs6000.md (anddi3): Prefer rldic? over andis instruction.
+
+2000-12-18  Zack Weinberg <zackw@Stanford.EDU>:
+
+	* Makefile.in: Rename cpp to cpp0, tradcpp to tradcpp0, and
+        xcpp to cpp throughout.
+        (native): Remove unnecessary dependency on cpp.
+	* gcc.c (C specs): Call cpp0 to do preprocessing, not cpp.
+	* ch/lang-specs.h, cp/lang-specs.h, f/lang-specs.h,
+	objc/lang-specs.h: Call cpp0 to do preprocessing, not cpp.
+
+2000-12-18  Christian Groessler <cpg@aladdin.de>
+
+	* toplev.c (check_lang_option): Use NUM_ELEM only on arrays, not on
+	pointers.
+
+2000-12-18  Franz Sirl  <Franz.Sirl-kernel@lauterbach.com>
+
+	* linux.h (DEFAULT_VTABLE_THUNKS): Switch back to version 1.
+	* alpha/linux-elf.h (DEFAULT_VTABLE_THUNKS): Likewise.
+	* arm/linux-elf (DEFAULT_VTABLE_THUNKS): Likewise.
+	* i386/freebsd-elf.h (DEFAULT_VTABLE_THUNKS): Likewise.
+	* rs6000/linux.h (DEFAULT_VTABLE_THUNKS): Likewise.
+	* sparc/linux.h (DEFAULT_VTABLE_THUNKS): Likewise.
+
+2000-12-05  Bernd Schmidt  <bernds@redhat.co.uk>
+
+	* version.c: Bump.
+
+	2000-07-03  Nick Clifton  <nickc@cygnus.com>
+	* config/arm/arm.md: Fix post increment and pre increment
+	peepholes so that they do not generate UNPREDICATBLE opcodes.
+	(ie ones where the increment clobbers the source/destination).
+
+	Mon Oct 25 00:42:35 1999  Jeffrey A Law  (law@cygnus.com)
+	* arm.c (arm_override_options): Correct initialization of
+	arm_fast_multiply, arm_arch4, arm_arch5, arm_ld_sched,
+	arm_is_strong, and arm_is_6_or_7.
+
+	Thu Jul 29 19:01:58 1999  Bernd Schmidt  <bernds@cygnus.co.uk>
+	* arm.h (Hint): Delete macro.
+	Substitute HOST_WIDE_INT for Hint in some prototypes.
+	* arm.c: Substitute HOST_WIDE_INT for Hint in one prototype.
+
+2000-11-30  Bernd Schmidt  <bernds@redhat.co.uk>
+
+	* version.c: Bump.
+
+	Based on a patch from Geoff Keating <geoffk@redhat.com>:
+	* loop.c (basic_induction_var): If a REG is set from something
+	that is not a biv, then the REG is not a biv.  Even if it is
+	earlier set from something that is a biv.
+
+	2000-09-01  Jim Wilson  <wilson@cygnus.com>
+	* loop.c (check_final_value): Check for biv use before checking for
+	giv use.  Check for both biv and giv uses.  Always set last_giv_use
+	if there is a giv use.
+
+	2000-09-29  Franz Sirl  <Franz.Sirl-kernel@lauterbach.com>
+	* loop.c (check_final_value): A GIV is not replaceable if used
+	before set.
+
+	Sun Oct 10 13:28:48 1999  Bernd Schmidt  <bernds@redhat.co.uk>
+	* loop.c (find_and_verify_loops): When looking for a BARRIER, don't
+	use one before a jump table.
+
+	Fri Jul  9 10:48:28 1999  Bernd Schmidt  <bernds@redhat.co.uk>
+	* loop.c (check_dbra_loop): When reversing a loop, delete all
+	REG_EQUAL notes referencing the reversed biv except those which are
+	for a giv based on it.
+
+	2000-11-24  Bernd Schmidt  <bernds@redhat.co.uk>
+	* reload1.c (conflicts_with_override): New function.
+	(emit_input_reload_insns): Use it to tighten test for validity
+	of substituting into output of previous insn.
+
+	Wed Oct 27 03:09:23 1999  J"orn Rennecke  <amylaar@redhat.co.uk>
+	* reload.h (earlyclobber_operand_p): Declare.
+	* reload.c (earlyclobber_operand_p): Don't declare.  No longer static.
+	* reload1.c (reload_reg_free_for_value_p):  RELOAD_OTHER reloads with
+	an earlyclobbered output conflict with RELOAD_INPUT reloads - handle
+	case where the RELOAD_OTHER reload is new.  Use
+	earlyclobber_operand_p.
+
+	2000-01-12  Bernd Schmidt  <bernds@redhat.co.uk>
+	* reload1.c (reload_reg_unavailable): New static variable.
+	(reload_reg_free_p): Test it.
+	(reload_reg_free_for_value_p): Test it instead of reload_reg_used.
+	(choose_reload_regs_init): Compute it.
+
+	Thu Jul  6 18:30:36 2000  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+	* reload.c (push_reload): When seeing if can reuse a register,
+	check extra registers against widest of INMODE and OUTMODE.
+
+	1999-11-29  Bernd Schmidt  <bernds@redhat.co.uk>
+	* reload.c (push_reload): When looking for a register to put into
+	reg_rtx, make sure all hard regs in a multi-reg register are in the
+	right class and nonfixed.
+
+	1999-11-29  Joern Rennecke  <amylaar@redhat.co.uk>
+	* reload1.c (reloads_conflict): Reverse test comparing operand
+	numbers when testing for conflict between output/outaddr reloads.
+
+	2000-07-12  Richard Henderson  <rth@redhat.com>
+	* reload.c (push_secondary_reload): Make sure to add the new
+	reload at the end, after acquiring secondary memory.
+
+	2000-09-14  Alexandre Oliva  <aoliva@redhat.com>, Bernd Schmidt  <bernds@redhat.co.uk>
+	* reload.c (find_reloads_address_1): Generate reloads for auto_inc
+	pseudos that refer to the original pseudos, not only to their
+	equivalent memory locations.
+
+	2000-09-18  Bernd Schmidt  <bernds@redhat.co.uk>
+	* reload1.c (forget_old_reloads_1): If a hard reg is stored, clear
+	its entry in spill_reg_store.
+
+	Tue Oct 26 00:41:54 1999  Bernd Schmidt  <bernds@cygnus.co.uk>
+	* reload1.c (reload_reg_free_for_value_p): Show
+	RELOAD_FOR_OTHER_ADDRESS reloads can conflict with RELOAD_OTHER
+	reloads.
+
+	2000-02-26  Geoff Keating  <geoffk@cygnus.com>
+	* reload1.c (do_output_reload): Check reg_reloaded_valid before
+	looking at reg_reloaded_contents.
+
+	Thu Apr 13 19:39:56 2000  Clinton Popetz  <cpopetz@cygnus.com>
+	* emit-rtl.c (try_split): Avoid infinite loop if the split
+	results in a sequence that contains the original insn.
+
+	1999-12-14  Bernd Schmidt  <bernds@cygnus.co.uk>
+	* combine.c (combine_simplify_rtx): Don't make shared rtl.
+	(simplify_logical): Likewise.
+
+	Sat May 20 07:27:35 2000  Alexandre Oliva  <aoliva@cygnus.com>
+	* fold-const.c (make_range): Handle degenerated intervals.
+	Fixes c-torture/execute/991221-1.c
+
+	2000-07-15  Michael Meissner  <meissner@redhat.com>
+	* fold-const.c (fold): When optimizing FOO++ == CONST into ++FOO
+	== CONST + INCREMENT, don't overwrite the tree node for FOO++,
+	create a new node instead.
+
+	2000-01-01  Bernd Schmidt  <bernds@cygnus.co.uk>
+	* expmed.c (emit_store_flag): Prevent losing a pending stack
+	adjust the same way we prevent losing queued increments.
+
 2000-10-27  Bernd Schmidt  <bernds@redhat.co.uk>
 
 	* expr.c (expand_expr, case INDIRECT_REF): If the address is a

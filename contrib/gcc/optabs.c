@@ -1,5 +1,6 @@
 /* Expand the basic unary and binary arithmetic operations, for GNU compiler.
-   Copyright (C) 1987, 88, 92-98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -2887,7 +2888,13 @@ emit_libcall_block (insns, target, result, equiv)
      rtx result;
      rtx equiv;
 {
+  rtx final_dest = target;
   rtx prev, next, first, last, insn;
+
+  /* If this is a reg with REG_USERVAR_P set, then it could possibly turn
+     into a MEM later.  Protect the libcall block from this change.  */
+  if (! REG_P (target) || REG_USERVAR_P (target))
+    target = gen_reg_rtx (GET_MODE (target));
 
   /* look for any CALL_INSNs in this sequence, and attach a REG_EH_REGION
      reg note to indicate that this call cannot throw. (Unless there is
@@ -2951,6 +2958,9 @@ emit_libcall_block (insns, target, result, equiv)
   if (mov_optab->handlers[(int) GET_MODE (target)].insn_code
       != CODE_FOR_nothing)
     set_unique_reg_note (last, REG_EQUAL, copy_rtx (equiv));
+
+  if (final_dest != target)
+    emit_move_insn (final_dest, target);
 
   if (prev == 0)
     first = get_insns ();

@@ -1,4 +1,5 @@
-@c Copyright (C) 1988, 89, 92-98, 1999 Free Software Foundation, Inc.
+@c Copyright (C) 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+@c 2000, 2001 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -1215,10 +1216,10 @@ version 1 and version 2 are also incompatible (for classes with virtual
 bases defining virtual functions), all code must also be compiled with
 the same version.
 
-On some targets (e.g. Linux/GNU), version 2 thunks are the default. On these
-targets, no option or -fvtable-thunks will produce version 2 thunks. On
-all other targets, not giving the option will use the traditional
-implementation, and -fvtable-thunks will produce version 2 thunks.
+In this version of gcc, there are no targets for which version 2 thunks
+are the default.  On all targets, not giving the option will use the
+traditional implementation, and -fvtable-thunks will produce version 2
+thunks.
 
 @item -nostdinc++
 Do not search for header files in the standard directories specific to

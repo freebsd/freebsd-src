@@ -1,5 +1,6 @@
 /* Register Transfer Language (RTL) definitions for GNU C-Compiler
-   Copyright (C) 1987, 91-98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -1084,6 +1085,7 @@ extern int for_each_rtx                 PROTO((rtx *, rtx_function, void *));
 extern rtx regno_use_in			PROTO((int, rtx));
 extern int auto_inc_p			PROTO((rtx));
 extern void remove_node_from_expr_list	PROTO((rtx, rtx *));
+extern int insns_safe_to_move_p         PROTO((rtx, rtx, rtx *));
 
 /* flow.c */
 
@@ -1390,7 +1392,7 @@ extern int subreg_realpart_p			PROTO ((rtx));
 extern void reverse_comparison			PROTO ((rtx));
 extern void set_new_first_and_last_insn		PROTO ((rtx, rtx));
 extern void set_new_first_and_last_label_num	PROTO ((int, int));
-extern void unshare_all_rtl			PROTO ((rtx));
+extern void unshare_all_rtl_again		PROTO ((rtx));
 extern void set_last_insn			PROTO ((rtx));
 extern void link_cc0_insns			PROTO ((rtx));
 extern void add_insn				PROTO ((rtx));

@@ -1,6 +1,6 @@
 /* Subroutines needed for unwinding stack frames for exception handling.  */
 /* Compile this one with gcc.  */
-/* Copyright (C) 1997, 1998 Free Software Foundation, Inc.
+/* Copyright (C) 1997, 1998, 2000 Free Software Foundation, Inc.
    Contributed by Jason Merrill <jason@cygnus.com>.
 
 This file is part of GNU CC.
@@ -712,6 +712,14 @@ execute_cfa_insn (void *p, struct frame_state_internal *state,
     case DW_CFA_GNU_args_size:
       p = decode_uleb128 (p, &offset);
       state->s.args_size = offset;
+      break;
+
+    case DW_CFA_GNU_negative_offset_extended:
+      p = decode_uleb128 (p, &reg);
+      p = decode_uleb128 (p, &offset);
+      offset *= info->data_align;
+      state->s.saved[reg] = REG_SAVED_OFFSET;
+      state->s.reg_or_offset[reg] = -offset;
       break;
 
     default:
