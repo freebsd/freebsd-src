@@ -100,7 +100,7 @@ db_addr_t	db_branch_taken __P((int inst, db_addr_t pc, db_regs_t *regs));
 #define	next_instr_address(v, b) ((db_addr_t) ((b) ? (v) : ((v) + 4)))
 
 u_long	db_register_value __P((db_regs_t *, int));
-int	ddb_trap __P((unsigned long, unsigned long, unsigned long,
+int	kdb_trap __P((unsigned long, unsigned long, unsigned long,
 	    unsigned long, struct trapframe *));
 
 /*
