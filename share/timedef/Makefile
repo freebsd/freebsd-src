@@ -99,7 +99,6 @@ LOCALEDIR=      /usr/share/locale
 
 FILES=		${LOCALES:S/$/.out/}
 FILESNAME=	LC_TIME
-FILESMODE=	644			# XXX
 
 .for locale in ${LOCALES}
 FILESDIR_${locale}.out= ${LOCALEDIR}/${locale}
