@@ -256,6 +256,9 @@ init.8: 	xorl %ecx,%ecx			# Zero
 		movb $0x7,%cl			# Set remaining
 init.9:		push $0x0			#  general
 		loop init.9			#  registers
+ifdef(`BTX_SERIAL',`
+		call sio_init			# setup the serial console
+')
 		popa				#  and initialize
 		popl %es			# Initialize
 		popl %ds			#  user
@@ -490,7 +493,11 @@ wait.2:
 		popl %ds			#  saved
 		cmpb $0x3,(%esp,1)		# Breakpoint?
 		je except.3			# Yes
-		jmp exit			# Exit
+		cmpb $0x1,(%esp,1)		# Debug?
+		jne except.2a			# No
+		testl $0x100,0x10(%esp,1)	# Trap flag set?
+		jnz except.3			# Yes
+except.2a:	jmp exit			# Exit
 except.3:	leal 0x8(%esp,1),%esp		# Discard err, int no
 		iret				# From interrupt
 #
@@ -1009,17 +1016,28 @@ dump.3: 	lodsl				# Set offset
 		shll $0x4,%eax			#  * 0x10
 		addl %edx,%eax			#  + offset
 		xchgl %eax,%esi 		# Set pointer
-dump.4: 	movb $0x10,%cl			# Bytes to dump
+dump.4: 	movb $2,%dl			# Num lines
+dump.4a:	movb $0x10,%cl			# Bytes to dump
 dump.5: 	lodsb				# Get byte and
 		call hex8			#  dump it
 		decb %cl			# Keep count
-		jz dump.7			# If done
+		jz dump.6a			# If done
 		movb $'-',%al			# Separator
 		cmpb $0x8,%cl			# Half way?
 		je dump.6			# Yes
 		movb $' ',%al			# Use space
 dump.6: 	stosb				# Save separator
 		jmp dump.5			# Continue
+dump.6a:	decb %dl			# Keep count
+		jz dump.7			# If done
+		movb $0xa,%al			# Line feed
+		stosb				# Save one
+		movb $7,%cl			# Leading
+		movb $' ',%al			#  spaces
+dump.6b:	stosb				# Dump
+		decb %cl			#  spaces
+		jnz dump.6b
+		jmp dump.4a			# Next line
 dump.7: 	popl %ds			# Restore
 dump.8: 	popl %esi			# Restore
 		movb $0xa,%al			# Line feed
@@ -1058,6 +1076,80 @@ putstr: 	lodsb				# Load char
 		testb %al,%al			# End of string?
 		jnz putstr.0			# No
 		ret				# To caller
+ifdef(`BTX_SERIAL',`
+		.set SIO_PRT,SIOPRT		# Base port
+		.set SIO_FMT,SIOFMT		# 8N1
+		.set SIO_DIV,(115200/SIOSPD)	# 115200 / SPD
+
+# void sio_init(void)
+
+sio_init:	movw $SIO_PRT+0x3,%dx		# Data format reg
+		movb $SIO_FMT|0x80,%al		# Set format
+		outb %al,(%dx)			#  and DLAB
+		pushl %edx			# Save
+		subb $0x3,%dl			# Divisor latch reg
+		movw $SIO_DIV,%ax		# Set
+		outw %ax,(%dx)			#  BPS
+		popl %edx			# Restore
+		movb $SIO_FMT,%al		# Clear
+		outb %al,(%dx)			#  DLAB
+		incl %edx			# Modem control reg
+		movb $0x3,%al			# Set RTS,
+		outb %al,(%dx)			#  DTR
+		incl %edx			# Line status reg
+
+# void sio_flush(void)
+
+sio_flush.0:	call sio_getc.1 		# Get character
+sio_flush:	call sio_ischar 		# Check for character
+		jnz sio_flush.0 		# Till none
+		ret				# To caller
+
+# void sio_putc(int c)
+
+sio_putc:	movw $SIO_PRT+0x5,%dx		# Line status reg
+		xor %ecx,%ecx			# Timeout
+		movb $0x40,%ch			#  counter
+sio_putc.1:	inb (%dx),%al			# Transmitter
+		testb $0x20,%al 		#  buffer empty?
+		loopz sio_putc.1		# No
+		jz sio_putc.2			# If timeout
+		movb 0x4(%esp,1),%al		# Get character
+		subb $0x5,%dl			# Transmitter hold reg
+		outb %al,(%dx)			# Write character
+sio_putc.2:	ret $0x4			# To caller
+
+# int sio_getc(void)
+
+sio_getc:	call sio_ischar 		# Character available?
+		jz sio_getc			# No
+sio_getc.1:	subb $0x5,%dl			# Receiver buffer reg
+		inb (%dx),%al			# Read character
+		ret				# To caller
+
+# int sio_ischar(void)
+
+sio_ischar:	movw $SIO_PRT+0x5,%dx		# Line status register
+		xorl %eax,%eax			# Zero
+		inb (%dx),%al			# Received data
+		andb $0x1,%al			#  ready?
+		ret				# To caller
+
+#
+# Output character AL to the serial console.
+#
+putchr: 	pusha				# Save
+		cmpb $10, %al			# is it a newline?
+		jne putchr.1			#  no?, then leave
+		push $13			# output a carriage
+		call sio_putc			#  return first
+		movb $10, %al			# restore %al
+putchr.1:	pushl %eax			# Push the character
+						#  onto the stack
+		call sio_putc			# Output the character
+		popa				# Restore
+		ret				# To caller
+',`
 #
 # Output character AL to the console.
 #
@@ -1111,7 +1203,7 @@ putchr.3:	cmpb $SCR_ROW,%dh		# Beyond screen?
 		movw $(SCR_ROW-1)*SCR_COL/2,%cx # Words to move
 		rep				# Scroll
 		movsl				#  screen
-		movb $' ',%al			# Space
+		movb $0x20,%al			# Space
 .`ifdef' PC98
 		xorb %ah,%ah
 .endif
@@ -1126,6 +1218,7 @@ putchr.3:	cmpb $SCR_ROW,%dh		# Beyond screen?
 putchr.4:	movw %dx,(%ebx) 		# Update position
 		popa				# Restore
 		ret				# To caller
+')
 
 		.p2align 4
 #
@@ -1205,7 +1298,7 @@ dmpfmt: 	.byte '\n'			# "\n"
 		.byte 0x80|DMP_MEM|DMP_EOL,0x48 # "00 00 ... 00 00\n"
 		.ascii "ss:esp" 		# "ss:esp="
 		.byte 0x80|DMP_MEM|DMP_EOL,0x0	# "00 00 ... 00 00\n"
-		.asciz "BTX halted"		# End
+		.asciz "BTX halted\n"		# End
 #
 # End of BTX memory.
 #
