@@ -399,7 +399,7 @@ with the same UID - continuing");
 			if (!strstr(data.data, pwbuf)) {
 				yp_error("warning: found entry for user %s \
 in map %s@%s with wrong UID", pw->pw_name, maps[i], domain);
-				yp_error("there may ne more than one user
+				yp_error("there may be more than one user
 with the same name - continuing");
 				continue;
 			}
