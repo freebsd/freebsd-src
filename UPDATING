@@ -10,13 +10,18 @@ Release.
 
 This is for the 4.4 release branch.  All entries since 4.4 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.4.0p7.
+By this count, we're at 4.4.0p8.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
 minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
+
+20020223:	p8
+	zlib inflate error handling.
+	bzip2 updated to fix insecure permissions during symlink dereferencing
+	and a race condition while creating new files.
 
 20020127:	p7
 	sdiff temp file handling.
