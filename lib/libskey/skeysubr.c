@@ -11,10 +11,12 @@
 #include <skey.h>
 #include "md4.h"
 
+#ifndef LITTLE_ENDIAN
 #if (defined(__MSDOS__) || defined(MPU8086) || defined(MPU8080) \
  || defined(vax) || defined (MIPSEL))
 #define	LITTLE_ENDIAN	/* Low order bytes are first in memory */
 #endif			/* Almost all other machines are big-endian */
+#endif
 
 /* Crunch a key:
  * concatenate the seed and the password, run through MD4 and
