@@ -1833,7 +1833,7 @@ STATIC int en_makeexclusive(sc, mm, prev)
 	    return (0);
 	}
 	
-	if (mclrefcnt[mtocl(m->m_ext.ext_buf)] > 1) {
+	if (MEXT_IS_REF(m)) {
 	    /* make a real copy of the M_EXT mbuf since it is shared */
 	    MGET(new, M_DONTWAIT, MT_DATA);
 	    if (!new) {

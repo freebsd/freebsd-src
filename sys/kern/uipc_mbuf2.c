@@ -182,7 +182,7 @@ m_pulldown(m, off, len, offp)
 	else {
 		if (n->m_ext.ext_free)
 			sharedcluster = 1;
-		else if (mclrefcnt[mtocl(n->m_ext.ext_buf)] > 1)
+		else if (MEXT_IS_REF(n))
 			sharedcluster = 1;
 		else
 			sharedcluster = 0;

@@ -72,8 +72,7 @@
 static void sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
 static struct sf_buf *sf_buf_alloc(void);
-static void sf_buf_ref(caddr_t addr, u_int size);
-static void sf_buf_free(caddr_t addr, u_int size);
+static void sf_buf_free(caddr_t addr, void *args);
 
 static int sendit __P((struct proc *p, int s, struct msghdr *mp, int flags));
 static int recvit __P((struct proc *p, int s, struct msghdr *mp,
@@ -1354,58 +1353,42 @@ sf_buf_alloc()
 	}
 	SLIST_REMOVE_HEAD(&sf_freelist, free_list);
 	splx(s);
-	sf->refcnt = 1;
 	return (sf);
 }
 
 #define dtosf(x)	(&sf_bufs[((uintptr_t)(x) - (uintptr_t)sf_base) >> PAGE_SHIFT])
-static void
-sf_buf_ref(caddr_t addr, u_int size)
-{
-	struct sf_buf *sf;
-
-	sf = dtosf(addr);
-	if (sf->refcnt == 0)
-		panic("sf_buf_ref: referencing a free sf_buf");
-	sf->refcnt++;
-}
 
 /*
- * Lose a reference to an sf_buf. When none left, detach mapped page
- * and release resources back to the system.
+ *
+ * Detatch mapped page and release resources back to the system.
  *
  * Must be called at splimp.
  */
 static void
-sf_buf_free(caddr_t addr, u_int size)
+sf_buf_free(caddr_t addr, void *args)
 {
 	struct sf_buf *sf;
 	struct vm_page *m;
 	int s;
 
 	sf = dtosf(addr);
-	if (sf->refcnt == 0)
-		panic("sf_buf_free: freeing free sf_buf");
-	sf->refcnt--;
-	if (sf->refcnt == 0) {
-		pmap_qremove((vm_offset_t)addr, 1);
-		m = sf->m;
-		s = splvm();
-		vm_page_unwire(m, 0);
-		/*
-		 * Check for the object going away on us. This can
-		 * happen since we don't hold a reference to it.
-		 * If so, we're responsible for freeing the page.
-		 */
-		if (m->wire_count == 0 && m->object == NULL)
-			vm_page_free(m);
-		splx(s);
-		sf->m = NULL;
-		SLIST_INSERT_HEAD(&sf_freelist, sf, free_list);
-		if (sf_buf_alloc_want) {
-			sf_buf_alloc_want = 0;
-			wakeup(&sf_freelist);
-		}
+	pmap_qremove((vm_offset_t)addr, 1);
+	m = sf->m;
+	s = splvm();
+	vm_page_unwire(m, 0);
+	/*
+	 * Check for the object going away on us. This can
+	 * happen since we don't hold a reference to it.
+	 * If so, we're responsible for freeing the page.
+	 */
+	if (m->wire_count == 0 && m->object == NULL)
+		vm_page_free(m);
+	splx(s);
+	sf->m = NULL;
+	SLIST_INSERT_HEAD(&sf_freelist, sf, free_list);
+	if (sf_buf_alloc_want) {
+		sf_buf_alloc_want = 0;
+		wakeup(&sf_freelist);
 	}
 }
 
@@ -1630,12 +1613,11 @@ retry_lookup:
 			error = ENOBUFS;
 			goto done;
 		}
-		m->m_ext.ext_free = sf_buf_free;
-		m->m_ext.ext_ref = sf_buf_ref;
-		m->m_ext.ext_buf = (void *)sf->kva;
-		m->m_ext.ext_size = PAGE_SIZE;
+		/*
+		 * Setup external storage for mbuf.
+		 */
+		MEXTADD(m, sf->kva, PAGE_SIZE, sf_buf_free, NULL);
 		m->m_data = (char *) sf->kva + pgoff;
-		m->m_flags |= M_EXT;
 		m->m_pkthdr.len = m->m_len = xfsize;
 		/*
 		 * Add the buffer to the socket buffer chain.

@@ -1124,7 +1124,6 @@ struct sk_tx_desc {
 
 struct sk_jslot {
 	caddr_t			sk_buf;
-	int			sk_inuse;
 };
 
 struct sk_jpool_entry {
