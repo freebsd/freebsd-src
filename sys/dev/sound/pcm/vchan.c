@@ -312,7 +312,7 @@ gotch:
 	if (last)
 		parent->flags &= ~CHN_F_BUSY;
 
-	/* remove us from our grantparent's channel list */
+	/* remove us from our grandparent's channel list */
 	err = pcm_chn_remove(d, c, !last);
 	if (err)
 		return err;
