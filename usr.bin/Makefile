@@ -230,6 +230,10 @@ SUBDIR+=ar \
 SUBDIR+=uac
 .endif
 
+.if ${MACHINE_ARCH} == "sparc64"
+SUBDIR+=elf2aout
+.endif
+
 # Things which don't compile on new platforms yet:
 .if ${MACHINE_ARCH} != "sparc64" && ${MACHINE_ARCH} != "ia64"
 SUBDIR+=xlint
