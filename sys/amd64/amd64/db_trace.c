@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.10 1995/03/16 18:11:26 bde Exp $
+ *	$Id: db_trace.c,v 1.11 1995/05/30 07:59:23 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -83,12 +83,17 @@ struct i386_frame {
 #define	INTERRUPT	2
 #define	SYSCALL		3
 
-db_addr_t	db_trap_symbol_value = 0;
-db_addr_t	db_syscall_symbol_value = 0;
-db_addr_t	db_kdintr_symbol_value = 0;
-boolean_t	db_trace_symbols_found = FALSE;
+static db_addr_t	db_trap_symbol_value;
+static db_addr_t	db_syscall_symbol_value;
+static db_addr_t	db_kdintr_symbol_value;
+static boolean_t	db_trace_symbols_found;
 
-void
+static void	db_find_trace_symbols __P((void));
+static void	db_nextframe __P((struct i386_frame **fp, db_addr_t *ip,
+				  int *argp, int is_trap));
+static int	db_numargs __P((struct i386_frame *fp));
+
+static void
 db_find_trace_symbols()
 {
 	db_expr_t	value;
@@ -104,7 +109,7 @@ db_find_trace_symbols()
 /*
  * Figure out how many arguments were passed into the frame at "fp".
  */
-int
+static int
 db_numargs(fp)
 	struct i386_frame *fp;
 {
@@ -137,7 +142,7 @@ db_numargs(fp)
  *   It might be possible to dig out from the next frame up the name
  *   of the function that faulted, but that could get hairy.
  */
-void
+static void
 db_nextframe(fp, ip, argp, is_trap)
 	struct i386_frame **fp;		/* in/out */
 	db_addr_t	*ip;		/* out */
