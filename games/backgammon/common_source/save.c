@@ -150,6 +150,7 @@ char	*s;
 	register int	i;
 	int		fdesc;
 
+	setreuid(geteuid(), getuid());
 	if ((fdesc = open (s,0)) == -1)
 		norec (s);
 	read (fdesc,board,sizeof board);
@@ -164,6 +165,7 @@ char	*s;
 	read (fdesc,&gvalue,sizeof gvalue);
 	read (fdesc,&raflag,sizeof raflag);
 	close (fdesc);
+	setreuid(geteuid(), getuid());
 	rflag = 1;
 }
 
