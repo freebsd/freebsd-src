@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: extract.sh,v 1.11 1994/11/17 11:53:12 jkh Exp $
+# $Id: extract.sh,v 1.12 1994/11/18 10:05:36 jkh Exp $
 PATH=/stand:$PATH
 DDIR=/
 
@@ -8,12 +8,18 @@ if [ -f bin_tgz.aa ] ; then
 	if [ -f $DDIR/etc/myname ]; then
 		cp $DDIR/etc/hosts $DDIR/etc/myname $DDIR/stand/etc
 	fi
+	if [ -f $DDIR/etc/defaultrouter ]; then
+		cp $DDIR/etc/defaultrouter $DDIR/stand/etc
+	fi
 	echo; echo "Extracting bindist, please wait." 
 	cat bin_tgz.?? | gzip -c -d | ( cd $DDIR; cpio -H tar -imdu )
 	if [ -f $DDIR/stand/etc/myname ]; then
 		# Add back what the bindist nuked.
 		cp $DDIR/stand/etc/myname $DDIR/etc
 		cat $DDIR/stand/etc/hosts >> $DDIR/etc/hosts
+	fi
+	if [ -f $DDIR/stand/etc/defaultrouter ]; then
+		cp $DDIR/stand/etc/defaultrouter $DDIR/etc
 	fi
 fi
 
