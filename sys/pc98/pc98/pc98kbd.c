@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98kbd.c,v 1.4 1999/01/19 14:08:04 kato Exp $
+ *	$Id: pc98kbd.c,v 1.5 1999/03/10 14:51:53 kato Exp $
  */
 
 #include "pckbd.h"
@@ -39,10 +39,13 @@
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
+#include <sys/module.h>
 #include <sys/tty.h>
 #include <sys/fcntl.h>
-#include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
 
 #include <machine/resource.h>
 
@@ -50,6 +53,9 @@
 
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_machdep.h>
+
+#include <isa/isavar.h>
+#include <machine/lock.h>
 
 #ifdef __i386__
 #include <i386/isa/isa_device.h>
@@ -76,22 +82,29 @@ typedef struct pckbd_softc {
 } pckbd_softc_t;
 
 #define PC98KBD_SOFTC(unit)		\
-	(((unit) >= NPCKBD) ? NULL : pckbd_softc[(unit)])
+	((pckbd_softc_t)devclass_get_softc(pckbd_devclass, unit))
 
-static pckbd_softc_t	*pckbd_softc[NPCKBD];
+static devclass_t	pckbd_devclass;
 
-static int		pckbdprobe(struct isa_device *dev);
-static int		pckbdattach(struct isa_device *dev);
+static int		pckbdprobe(device_t dev);
+static int		pckbdattach(device_t dev);
+static void		pckbd_isa_intr(void *arg);
 
-static ointhand2_t	pckbd_isa_intr;
-
-/* driver declaration for isa_devtab_tty[] */
-struct isa_driver pckbddriver = {
-	pckbdprobe,
-	pckbdattach,
-	DRIVER_NAME,
-	0,
+static device_method_t pckbd_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		pckbdprobe),
+	DEVMETHOD(device_attach,	pckbdattach),
+	{ 0, 0 }
 };
+
+static driver_t pckbd_driver = {
+	DRIVER_NAME,
+	pckbd_methods,
+	DRIVER_TYPE_TTY,
+	sizeof(pckbd_softc_t),
+};
+
+DRIVER_MODULE(pckbd, isa, pckbd_driver, pckbd_devclass, 0, 0);
 
 static int		pckbd_probe_unit(int unit, int port, int irq,
 					 int flags);
@@ -117,36 +130,41 @@ static struct  cdevsw pckbd_cdevsw = {
 #endif /* KBD_INSTALL_CDEV */
 
 static int
-pckbdprobe(struct isa_device *dev)
+pckbdprobe(device_t dev)
 {
-	return ((pckbd_probe_unit(dev->id_unit, dev->id_iobase, dev->id_irq,
-				  dev->id_flags)) ? 0 : IO_KBDSIZE);
+	device_set_desc(dev, "PC-98 Keyboard");
+
+	return pckbd_probe_unit(device_get_unit(dev), isa_get_port(dev),
+				(1 << isa_get_irq(dev)), isa_get_flags(dev));
 }
 
 static int
-pckbdattach(struct isa_device *dev)
+pckbdattach(device_t dev)
 {
-	pckbd_softc_t *sc;
+	void		*ih;
+	struct resource	*res;
+	int		zero = 0;
 
-	if (dev->id_unit >= sizeof(pckbd_softc)/sizeof(pckbd_softc[0]))
-		return 0;
-	sc = pckbd_softc[dev->id_unit]
-	   = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL)
-		return 0;
+	pckbd_softc_t	*sc = device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
 
-	dev->id_ointr = pckbd_isa_intr;
-	return ((pckbd_attach_unit(dev->id_unit, sc, dev->id_iobase,
-				   dev->id_irq, dev->id_flags)) ? 0 : 1);
+	pckbd_attach_unit(device_get_unit(dev), sc, isa_get_port(dev),
+			  (1 << isa_get_irq(dev)), isa_get_flags(dev));
+
+	res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, 0ul, ~0ul, 1,
+				 RF_SHAREABLE | RF_ACTIVE);
+	BUS_SETUP_INTR(device_get_parent(dev), dev, res, pckbd_isa_intr,
+		       sc, &ih);
+
+	return (0);
 }
 
 static void
-pckbd_isa_intr(int unit)
+pckbd_isa_intr(void *arg)
 {
-	keyboard_t *kbd;
+        pckbd_softc_t	*sc = arg;
+	keyboard_t	*kbd = sc->kbd;
 
-	kbd = pckbd_softc[unit]->kbd;
 	(*kbdsw[kbd->kb_index]->intr)(kbd, NULL);
 }
 
@@ -414,15 +432,14 @@ pckbd_configure(int flags)
 {
 	keyboard_t *kbd;
 	int arg[2];
-	struct isa_device *dev;
 	int i;
 
 	/* XXX: a kludge to obtain the device configuration flags */
-	dev = find_isadev(isa_devtab_tty, &pckbddriver, 0);
-	if (dev != NULL) {
-		flags |= dev->id_flags;
+	if (resource_int_value(DRIVER_NAME, 0, "flags", &i) == 0) {
+		flags |= i;
 		/* if the driver is disabled, unregister the keyboard if any */
-		if (!dev->id_enabled) {
+		if (resource_int_value(DRIVER_NAME, 0, "disabled", &i) == 0
+		    && i != 0) {
 			i = kbd_find_keyboard(DRIVER_NAME, PC98KBD_DEFAULT);
 			if (i >= 0) {
 				kbd = kbd_get_keyboard(i);

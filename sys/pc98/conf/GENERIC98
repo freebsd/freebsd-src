@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.69 1999/03/17 08:56:28 kato Exp $
+#	$Id: GENERIC98,v 1.70 1999/04/01 13:39:27 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -22,6 +22,8 @@ cpu		"I586_CPU"
 cpu		"I686_CPU"
 ident		"GENERIC98"
 maxusers	32
+
+#makeoptions	DEBUG="-g"		#Build kernel with gdb(1) debug symbols
 
 options		"PC98"			#PC98
 options		MATH_EMULATE		#Support for x87 emulation
@@ -46,10 +48,6 @@ options		FAILSAFE		#Be conservative
 options		USERCONFIG		#boot -c editor
 options		VISUAL_USERCONFIG	#visual boot -c editor
 
-options		SYSVSHM			
-options		SYSVSEM
-options		SYSVMSG
-
 options		COM_MULTIPORT
 
 #
@@ -67,9 +65,9 @@ config		kernel	root on wd0
 #options	NAPIC=1			# number of IO APICs
 #options	NINTR=24		# number of INTs
 
-controller	isa0
-controller	pnp0			# PnP support for ISA
-controller	pci0
+controller	isa0	at nexus?
+#controller	pnp0			# PnP support for ISA
+controller	pci0	at nexus?
 
 controller	fdc0	at isa? port "IO_FD1" bio irq 11 drq 2
 disk		fd0	at fdc0 drive 0
@@ -84,9 +82,8 @@ disk		wd0	at wdc0 drive 0
 #disk		wd2	at wdc0 drive 2
 #disk		wd3	at wdc0 drive 3
 
-options		ATAPI		#Enable ATAPI support for IDE bus
-options		ATAPI_STATIC	#Don't do it as an LKM
 device		wcd0		#IDE CD-ROM
+#device		wfd0		#IDE Floppy (e.g. LS-120)
 
 # A single entry for any of these controllers (ncr, ahb, ahc) is
 # sufficient for any number of installed devices.
@@ -132,16 +129,17 @@ device		pckbd0	at isa? port IO_KBD tty irq 1
 
 device		gdc0	at isa?
 
-#pseudo-device	splash
+# splash screen/screen saver
+pseudo-device	splash
 
 device		sc0	at isa? tty
 
-device		npx0	at isa? port IO_NPX irq 8
+device		npx0	at nexus? port IO_NPX irq 8
 
 #
 # Laptop support (see LINT for more options)
 #
-device		apm0    at isa?	disable	flags 0x31 # Advanced Power Management
+device		apm0    at nexus? disable flags 0x31 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
 #controller	card0
@@ -179,22 +177,21 @@ device		sio1	at isa? port 0x238 tty irq 5 flags 0x12000000
 #device		lpt0	at isa? port IO_LPT  tty
 device		mse0	at isa? port IO_MSE tty irq 13
 
-# Order is important here due to intrusive probes, do *not* alphabetize
-# this list of network interfaces until the probes have been fixed.
-# Right now it appears that the ie0 must be probed before ep0. See
-# revision 1.20 of this file.
-device ax0
-device de0
-device fxp0
-device mx0
-device pn0
-device rl0
-device tl0
-device tx0
-device vr0
-device vx0
-device wb0
-device xl0
+#
+# The following Ethernet NICs are all PCI devices.
+#
+device ax0		# ASIX AX88140A
+device de0		# DEC/Intel DC21x4x (``Tulip'')
+device fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
+device mx0		# Macronix 98713/98715/98725 (``PMAC'')
+device pn0		# Lite-On 82c168/82c169 (``PNIC'')
+device rl0		# RealTek 8129/8139
+device tl0		# Texas Instruments ThunderLAN
+device tx0		# SMC 9432TX (83c170 ``EPIC'')
+device vr0		# VIA Rhine, Rhine II
+device vx0		# 3Com 3c590, 3c595 (``Vortex'')
+device wb0		# Winbond W89C840F
+device xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 #
 # DP8390 NIC
@@ -228,7 +225,7 @@ device ep0 at isa? port 0x40d0 net irq 3
 device fe0 at isa? port 0x00d0 net irq 3
 device fe1 at isa? port 0x73d0 net irq 5
 device lnc0 at isa? port 0x03d0 net irq 6
-device zp0 at isa? port 0x00d0 net irq 10 iomem 0xe0000
+#device zp0 at isa? port 0x00d0 net irq 10 iomem 0xe0000
 
 options "FE_8BIT_SUPPORT"	# LAC-98 support
 
@@ -252,6 +249,13 @@ pseudo-device	gzip		# Exec gzipped a.out's
 # This adds 4 KB bloat to your kernel, and slightly increases
 # the costs of each syscall.
 options		KTRACE		#kernel tracing
+
+# This provides support for System V shared memory and message queues.
+#
+options         SYSVSHM
+options         SYSVMSG
+options         SYSVSEM
+
 
 #  The `bpfilter' pseudo-device enables the Berkeley Packet Filter.  Be
 #  aware of the legal and administrative consequences of enabling this

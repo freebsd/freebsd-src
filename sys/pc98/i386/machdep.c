@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.110 1999/03/06 09:43:01 kato Exp $
+ *	$Id: machdep.c,v 1.111 1999/04/03 22:20:02 jdp Exp $
  */
 
 #include "apm.h"
@@ -71,6 +71,7 @@
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
+#include <sys/bus.h>
 
 #ifdef SYSVSHM
 #include <sys/shm.h>
@@ -125,7 +126,9 @@
 #include <machine/perfmon.h>
 #endif
 
+#ifdef OLD_BUS_ARCH
 #include <i386/isa/isa_device.h>
+#endif
 #include <i386/isa/intr_machdep.h>
 #ifdef PC98
 #include <pc98/pc98/pc98_machdep.h>
@@ -153,7 +156,7 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 static MALLOC_DEFINE(M_MBUF, "mbuf", "mbuf");
 
 #ifdef PC98
-int	need_pre_dma_flush;		/* If 1, use wbinvd befor DMA transfer. */
+int	need_pre_dma_flush;	/* If 1, use wbinvd befor DMA transfer. */
 int	need_post_dma_flush;	/* If 1, use invd after DMA transfer. */
 #endif
 
@@ -169,9 +172,9 @@ SYSCTL_INT(_debug, OID_AUTO, tlb_flush_count,
 #endif
 
 #ifdef PC98
-int	ispc98 = 1;
+static int	ispc98 = 1;
 #else
-int	ispc98 = 0;
+static int	ispc98 = 0;
 #endif
 SYSCTL_INT(_machdep, OID_AUTO, ispc98, CTLFLAG_RD, &ispc98, 0, "");
 
@@ -850,6 +853,9 @@ setregs(p, entry, stack, ps_strings)
 	regs->tf_es = _udatasel;
 	regs->tf_cs = _ucodesel;
 
+	/* PS_STRINGS value for BSD/OS binaries.  It is 0 for non-BSD/OS. */
+	regs->tf_ebx = ps_strings;
+
 	/* reset %fs and %gs as well */
 	pcb->pcb_fs = _udatasel;
 	pcb->pcb_gs = _udatasel;
@@ -1174,8 +1180,10 @@ init386(first)
 	unsigned biosbasemem, biosextmem;
 	struct gate_descriptor *gdp;
 	int gsel_tss;
+#if NNPX > 0
+	int msize;
+#endif
 
-	struct isa_device *idp;
 #ifndef SMP
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
@@ -1478,10 +1486,11 @@ init386(first)
 #endif
 
 #if NNPX > 0
-	idp = find_isadev(isa_devtab_null, &npxdriver, 0);
-	if (idp != NULL && idp->id_msize != 0) {
-		Maxmem = idp->id_msize / 4;
-		speculative_mprobe = FALSE;
+	if (resource_int_value("npx", 0, "msize", &msize) == 0) {
+		if (msize != 0) {
+			Maxmem = msize / 4;
+			speculative_mprobe = FALSE;
+		}
 	}
 #endif
 
