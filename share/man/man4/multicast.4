@@ -661,7 +661,8 @@ If the bandwidth of a data flow satisfies some pre-defined filter,
 the kernel delivers an upcall on the multicast routing socket
 to the multicast routing process that has installed that filter.
 .It
-The bandwidth-upcall filters are installed per (S,G). There can be
+The bandwidth-upcall filters are installed per (S,G).
+There can be
 more than one filter per (S,G).
 .It
 Instead of supporting all possible comparison operations
@@ -903,15 +904,31 @@ after the previous upcall.
 .\"
 .Pp
 .Sh AUTHORS
-The original multicast code was written by David Waitzman (BBN Labs),
+.An -nosplit
+The original multicast code was written by
+.An David Waitzman
+(BBN Labs),
 and later modified by the following individuals:
-Steve Deering (Stanford), Mark J. Steiglitz (Stanford),
-Van Jacobson (LBL), Ajit Thyagarajan (PARC),
-Bill Fenner (PARC).
+.An Steve Deering
+(Stanford),
+.An Mark J. Steiglitz
+(Stanford),
+.An Van Jacobson
+(LBL),
+.An Ajit Thyagarajan
+(PARC),
+.An Bill Fenner
+(PARC).
 The IPv6 multicast support was implemented by the KAME project
 (http://www.kame.net), and was based on the IPv4 multicast code.
 The advanced multicast API and the multicast bandwidth
-monitoring were implemented by Pavlin Radoslavov (ICSI)
-in collaboration with Chris Brown (NextHop).
+monitoring were implemented by
+.An Pavlin Radoslavov
+(ICSI)
+in collaboration with
+.An Chris Brown
+(NextHop).
 .Pp
-This manual page was written by Pavlin Radoslavov (ICSI).
+This manual page was written by
+.An Pavlin Radoslavov
+(ICSI).

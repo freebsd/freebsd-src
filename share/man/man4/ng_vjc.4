@@ -49,7 +49,8 @@ The
 .Nm vjc
 node type performs Van Jacobson compression, which is used
 over PPP, SLIP, and other point-to-point IP connections to
-compress TCP packet headers.  The
+compress TCP packet headers.
+The
 .Dv ip
 hook represents the uncompressed side of the node, while the
 .Dv vjcomp ,
@@ -116,7 +117,8 @@ This node type supports the generic control messages, plus the following:
 This command resets the compression state and configures it according
 to the supplied
 .Dv "struct ngm_vjc_config"
-argument.  This structure contains the following fields:
+argument.
+This structure contains the following fields:
 .Bd -literal -offset 4n
 struct ngm_vjc_config {
   u_char   enableComp;    /* Enable compression */
@@ -132,7 +134,8 @@ is set to zero, all packets received on the
 .Dv ip
 hook are forwarded unchanged out the
 .Dv vjip
-hook.  Similarly, when
+hook.
+Similarly, when
 .Dv enableDecomp
 is set to zero, all packets received on the
 .Dv vjip

@@ -53,7 +53,8 @@ and
 Packets received on
 .Dv downstream
 must have 0x03 (indicating unnumbered information) as their first byte;
-if not the packet is dropped. This byte is then stripped and the
+if not the packet is dropped.
+This byte is then stripped and the
 remainder of the packet sent out on
 .Dv upstream .
 .Pp
@@ -67,10 +68,12 @@ This node type supports the following hooks:
 .Pp
 .Bl -tag -width foobar
 .It Dv downstream
-Downstream connection. Packets on this side of the node have a 0x03 as
+Downstream connection.
+Packets on this side of the node have a 0x03 as
 their first byte.
 .It Dv upstream
-Upstream connection. Packets on this side of the node have the
+Upstream connection.
+Packets on this side of the node have the
 initial 0x03 byte stripped off.
 .El
 .Sh CONTROL MESSAGES

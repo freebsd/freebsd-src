@@ -203,15 +203,18 @@ A file system consists of a number of cylinder groups.
 Each cylinder group has inodes and data.
 .Pp
 A file system is described by its super-block, which in turn
-describes the cylinder groups.  The super-block is critical
+describes the cylinder groups.
+The super-block is critical
 data and is replicated in each cylinder group to protect against
-catastrophic loss.  This is done at file system creation
+catastrophic loss.
+This is done at file system creation
 time and the critical
 super-block data does not change, so the copies need not be
 referenced further unless disaster strikes.
 .Pp
 Addresses stored in inodes are capable of addressing fragments
-of `blocks'. File system blocks of at most size
+of `blocks'.
+File system blocks of at most size
 .Dv MAXBSIZE
 can
 be optionally broken into 2, 4, or 8 pieces, each of which is
@@ -222,12 +225,15 @@ a
 .Dv DEV_BSIZE
 unit.
 .Pp
-Large files consist of exclusively large data blocks.  To avoid
+Large files consist of exclusively large data blocks.
+To avoid
 undue wasted disk space, the last data block of a small file is
 allocated as only as many fragments of a large block as are
-necessary.  The file system format retains only a single pointer
+necessary.
+The file system format retains only a single pointer
 to such a fragment, which is a piece of a single large block that
-has been divided.  The size of such a fragment is determinable from
+has been divided.
+The size of such a fragment is determinable from
 information in the inode, using the
 .Fn blksize fs ip lbn
 macro.

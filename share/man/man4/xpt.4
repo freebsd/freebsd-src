@@ -44,22 +44,27 @@ to the kernel.
 Since the
 .Nm
 driver allows direct access to the CAM subsystem, system administrators
-should exercise caution when granting access to this driver.  If used
+should exercise caution when granting access to this driver.
+If used
 improperly, this driver can allow userland applications to crash a machine
 or cause data loss.
 .Sh KERNEL CONFIGURATION
 There is no kernel configuration required for the
 .Nm
-driver.  It is enabled when
+driver.
+It is enabled when
 .Tn SCSI
-support is enabled in the kernel.  There is one instance of the xpt driver
-per CAM transport layer instance.  Since there is currently only one CAM
+support is enabled in the kernel.
+There is one instance of the xpt driver
+per CAM transport layer instance.
+Since there is currently only one CAM
 transport layer, there will only be one instance of this driver.
 .Sh IOCTLS
 .Bl -tag -width 01234567890123
 .It CAMIOCOMMAND
 This ioctl takes certain kinds of CAM CCBs and passes them through to the
-CAM transport layer for action.  Only the following CCB types are
+CAM transport layer for action.
+Only the following CCB types are
 supported:
 .Pp
 .Bl -tag -width XPT_DEV_MATCH -compact

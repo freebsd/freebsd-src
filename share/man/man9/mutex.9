@@ -192,7 +192,7 @@ on behalf of the currently running kernel thread.
 If another kernel thread is holding the mutex,
 the caller will be disconnected from the CPU
 until the mutex is available
-(i.e. it will sleep).
+(i.e., it will sleep).
 .Pp
 The
 .Fn mtx_lock_spin
@@ -402,7 +402,7 @@ for this reason spin locks will disable all interrupts
 Spin locks are fairly specialized locks
 that are intended to be held for very short periods of time;
 their primary purpose is to protect portions of the code
-that implement default (i.e. sleep) locks.
+that implement default (i.e., sleep) locks.
 .Ss Initialization Options
 The options passed in the
 .Fa opts

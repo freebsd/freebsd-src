@@ -48,10 +48,13 @@
 The
 .Nm cisco
 node type performs encapsulation and de-encapsulation of packets
-using the Cisco HDLC protocol. This is a fairly simple
+using the Cisco HDLC protocol.
+This is a fairly simple
 protocol for the transmission of packets across
-high speed synchronous lines. Each packet is prepended with
-an Ethertype, indicating the protocol. There is also a
+high speed synchronous lines.
+Each packet is prepended with
+an Ethertype, indicating the protocol.
+There is also a
 .Dq keep alive
 and an
 .Dq inquire
@@ -59,7 +62,8 @@ capability.
 .Pp
 The
 .Dv downstream
-hook should connect to the synchronous line. On the other side
+hook should connect to the synchronous line.
+On the other side
 of the node are the
 .Dv inet ,
 .Dv inet6 ,
@@ -67,13 +71,15 @@ of the node are the
 and
 .Dv ipx
 hooks, which transmit and receive raw IP, IPv6, AppleTalk, and IPX packets,
-respectively.  Typically these hooks would connect to the corresponding
+respectively.
+Typically these hooks would connect to the corresponding
 hooks on an
 .Xr ng_iface 4
 type node.
 .Sh IP Configuration
 In order to function properly for IP traffic, the node must be informed
-of the local IP address and netmask setting.  This is because the protocol
+of the local IP address and netmask setting.
+This is because the protocol
 includes an
 .Dq inquire
 packet which we must be prepared to answer.
@@ -84,10 +90,12 @@ Whenever such an inquire packet is received, the node sends a
 control message to the peer node connected to the
 .Dv inet
 hook (if any).
-If the peer responds, then that response is used. This is the automatic method.
+If the peer responds, then that response is used.
+This is the automatic method.
 .Pp
 If the peer does not respond, the node falls back on its cached value
-for the IP address and netmask. This cached value can be set at any time
+for the IP address and netmask.
+This cached value can be set at any time
 with a
 .Dv NGM_CISCO_SET_IPADDR
 message, and this is the manual method.
@@ -124,7 +132,8 @@ This node type supports the generic control messages, plus the following:
 .It Dv NGM_CISCO_SET_IPADDR
 This command takes an array of two
 .Dv "struct in_addr"
-arguments. The first is the IP address of the corresponding interface
+arguments.
+The first is the IP address of the corresponding interface
 and the second is the netmask.
 .It Dv NGM_CISCO_GET_IPADDR
 This command returns the IP configuration in the same format used by
@@ -149,7 +158,8 @@ This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message, or when all hooks have been disconnected.
 .Sh BUGS
-Not all of the functionality has been implemented. For example,
+Not all of the functionality has been implemented.
+For example,
 the node does not support querying the remote end for its IP address
 and netmask.
 .Sh SEE ALSO

@@ -104,7 +104,8 @@ low disk space or low memory space environments.
 In most cases, though,
 this should be enabled, since it speeds the interpretation of
 .Tn SCSI
-error messages.  Don't let the "kernel bloat" zealots get to you -- leave
+error messages.
+Don't let the "kernel bloat" zealots get to you -- leave
 the sense descriptions in your kernel!
 .It Dv SCSI_NO_OP_STRINGS
 This disables text descriptions of each
@@ -160,20 +161,27 @@ so they appear as a particular device unit or
 so that they appear as the next available unused unit.
 .Pp
 Units are wired down by setting kernel environment hints.
-This is usually done either interactively from the loader, or automatically via the
+This is usually done either interactively from the
+.Xr loader 8 ,
+or automatically via the
 .Pa /boot/device.hints
-file.  The basic syntax is:
+file.
+The basic syntax is:
 .Bd -literal -offset indent
 hint.device.unit.property="value"
 .Ed
 .Pp
-Individual scsi bus numbers can be wired down to specific controllers with
+Individual
+.Nm
+bus numbers can be wired down to specific controllers with
 a config line similar to the following:
 .Bd -literal -offset indent
 hint.scbus.0.at="ahd1"
 .Ed
 .Pp
-This assigns scsi bus number 0 to the
+This assigns
+.Nm
+bus number 0 to the
 .Em ahd1
 driver instance.
 For controllers supporting more than one bus, a particular bus can be assigned
@@ -183,7 +191,9 @@ hint.scbus.0.at="ahc1"
 hint.scbus.0.bus="1"
 .Ed
 .Pp
-This assigns scsi bus 0 to the bus 1 instance on
+This assigns
+.Nm
+bus 0 to the bus 1 instance on
 .Em ahc0 .
 Peripheral drivers can be wired to a specific bus, target, and lun as so:
 .Bd -literal -offset indent
@@ -228,7 +238,9 @@ some adapters, but is not yet complete for this version of the CAM
 .Tn SCSI
 subsystem.
 .Sh FILES
-see other scsi device entries.
+see other
+.Nm
+device entries.
 .Sh DIAGNOSTICS
 When the kernel is compiled with options CAMDEBUG, an XPT_DEBUG CCB can be
 used to enable various amounts of tracing information on any
@@ -240,7 +252,8 @@ There are currently four debugging flags that may be turned on:
 This debugging flag enables general informational printfs for the device
 or devices in question.
 .It Dv CAM_DEBUG_TRACE
-This debugging flag enables function-level command flow tracing.  i.e.\&
+This debugging flag enables function-level command flow tracing.
+i.e.\&
 kernel printfs will happen at the entrance and exit of various functions.
 .It Dv CAM_DEBUG_SUBTRACE
 This debugging flag enables debugging output internal to various functions.
@@ -261,7 +274,8 @@ There aren't many things logged at the
 level, so it isn't especially useful.
 The most useful debugging flag is the
 .Dv CAM_DEBUG_CDB
-flag.  Users can enable debugging from their kernel config file, by using
+flag.
+Users can enable debugging from their kernel config file, by using
 the following kernel config options:
 .Bl -tag -width CAM_DEBUG_TARGET
 .It Dv CAMDEBUG
@@ -295,7 +309,8 @@ Users may also enable debugging printfs on the fly, if the
 .Dv CAMDEBUG
 option is their config file, by using the
 .Xr camcontrol 8
-utility.  See
+utility.
+See
 .Xr camcontrol 8
 for details.
 .Sh SEE ALSO

@@ -49,33 +49,41 @@ network drivers to be used with
 The
 .Nm
 driver is provided in source code form and must be combined with
-the Windows(r) driver supplied with your network adapter. The
+the Windows(r) driver supplied with your network adapter.
+The
 .Nm
 driver uses the
 .Xr ndisapi 9
 kernel subsystem to relocate and link the Windows(r) binary so
-that it can be used in conjunction with native code. The
+that it can be used in conjunction with native code.
+The
 .Xr ndisapi 9
 subsystem provides an interface between the NDIS API and the
 .Fx
-networking infrastructure. The Windows(r) driver is essentially
-fooled into thinking it's running on Windows(r). Note that this
+networking infrastructure.
+The Windows(r) driver is essentially
+fooled into thinking it's running on Windows(r).
+Note that this
 means the
 .Nm
 driver is only useful on x86 machines.
 .Pp
 To build a functional driver, the user must have a copy of the
-driver distribution media for his or her card. From this distribution,
+driver distribution media for his or her card.
+From this distribution,
 the user must extract two files: the .SYS file containing the driver
 binary code, and its companion .INF file, which contains the
 definitions for driver-specific registry keys and other installation
-data such as device identifiers. These two files can be converted
+data such as device identifiers.
+These two files can be converted
 into a
 .Pa ndis_driver_data.h
 file using the
 .Xr ndiscvt 8
-utility. This file contains a binary image of the driver plus
-registry key data. When the
+utility.
+This file contains a binary image of the driver plus
+registry key data.
+When the
 .Nm
 driver loads, it will create
 .Xr sysctl 9
@@ -84,13 +92,17 @@ nodes for each registry key extracted from the .INF file.
 The
 .Nm
 driver is designed to support mainly ethernet and wireless
-network devices with PCI and PCMCIA bus attachments. (Cardbus
-devices are also supported as a subset of PCI.) It there can
-support many different media types and speeds. One limitation
+network devices with PCI and PCMCIA bus attachments.
+(Cardbus
+devices are also supported as a subset of PCI.)
+It there can
+support many different media types and speeds.
+One limitation
 however, is that there is no consistent way to learn if an
 ethernet device is operating in full or half duplex mode.
 The NDIS API allows for a generic means for determining link
-state and speed, but not the duplex setting. There may be
+state and speed, but not the duplex setting.
+There may be
 driver-specific registry keys to control the media setting
 which can be configured via the
 .Xr sysctl 8

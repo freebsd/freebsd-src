@@ -17,7 +17,7 @@ For ISA host cards put the following lines in
 The Specialix SI/XIO and SX hardware makes up an 8 to 32 port RS-232 serial
 multiplexor.
 .Pp
-The system uses two components:  A "Host adapter", which is plugged into
+The system uses two components: a "Host adapter", which is plugged into
 an ISA, EISA or PCI slot and provides intelligence and buffering/processing
 capabilities, as well as an external bus in the form of a 37 pin cable.
 .Pp
@@ -65,7 +65,8 @@ utility for configuring drain-on-close timeouts.
 The driver also defines 3 sysctl variables that can be manipulated:
 machdep.si_debug sets the debug level for the whole driver.
 It depends
-on the driver being compiled with SI_DEBUG. machdep.si_pollrate
+on the driver being compiled with SI_DEBUG.
+machdep.si_pollrate
 sets how often per second the driver polls for lost interrupts.
 machdep.si_realpoll sets whether or not the card will treat the
 poll intervals as if they were interrupts.
@@ -78,7 +79,8 @@ It fully supports the usual semantics of the cua ports, and the
 "initial termios" and "locked termios" settings.
 In summary, an open on a
 tty port will block until DCD is raised, unless O_NONBLOCK is specified.
-CLOCAL is honored.  An open on a cua port will always succeed, but DCD
+CLOCAL is honored.
+An open on a cua port will always succeed, but DCD
 transitions will be honored after DCD rises for the first time.
 .Pp
 Up to four SI/XIO host cards may be controlled by the si driver.
@@ -88,7 +90,8 @@ used at once.
 The lowest 5 bits of the minor device number are used to select the port
 number on the module cluster.
 The next 2 bits select which of 4 host adapter
-cards.  This allows a maximum of 128 ports on this driver.
+cards.
+This allows a maximum of 128 ports on this driver.
 .Pp
 Bit 7 is used to differentiate a tty/dialin port (bit 7=0) and a
 cua/callout port (bit 7=1).

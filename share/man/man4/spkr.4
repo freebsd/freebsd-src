@@ -68,7 +68,8 @@ a zero duration.
 .Pp
 The play-string language is modeled on the PLAY statement conventions of
 .Tn IBM
-Advanced BASIC 2.0.  The
+Advanced BASIC 2.0.
+The
 .Li MB ,
 .Li MF ,
 and
@@ -80,7 +81,8 @@ feature and the slur mark are new.
 .Pp
 There are 84 accessible notes numbered 1-84 in 7 octaves, each running from
 C to B, numbered 0-6; the scale is equal-tempered A440 and octave 3 starts
-with middle C.  By default, the play function emits half-second notes with the
+with middle C.
+By default, the play function emits half-second notes with the
 last 1/16th second being `rest time'.
 .Pp
 Play strings are interpreted left to right as a series of play command groups;
@@ -89,12 +91,15 @@ Play command groups are as follows:
 .Bl -tag -width CDEFGABxx
 .It Li CDEFGAB
 Letters A through G cause the corresponding note to be played in the
-current octave.  A note letter may optionally be followed by an
+current octave.
+A note letter may optionally be followed by an
 .Dq Em "accidental sign" ,
 one of # + or -; the first two of these cause it to be sharped one
-half-tone, the last causes it to be flatted one half-tone.  It may
+half-tone, the last causes it to be flatted one half-tone.
+It may
 also be followed by a time value number and by sustain dots (see
-below).  Time values are interpreted as for the L command below.
+below).
+Time values are interpreted as for the L command below.
 .It Ns Li O Sy n
 If
 .Sy n
@@ -109,8 +114,10 @@ When octave-tracking is on, interpretation of a pair of letter notes
 will change octaves if necessary in order to make the smallest
 possible jump between notes.
 Thus ``olbc'' will be played as
-``olb>c'', and ``olcb'' as ``olc<b''.  Octave locking is disabled for
-one letter note following >, < and O[0123456].  (The octave-locking
+``olb>c'', and ``olcb'' as ``olc<b''.
+Octave locking is disabled for
+one letter note following >, < and O[0123456].
+(The octave-locking
 feature is not supported in
 .Tn IBM
 BASIC.)
@@ -125,7 +132,8 @@ Play note
 being 1 to 84 or 0 for a rest of current time value.
 May be followed by sustain dots.
 .It Ns Li L Sy n
-Sets the current time value for notes.  The default is
+Sets the current time value for notes.
+The default is
 .Li L4 ,
 quarter or crotchet notes.
 The lowest possible value is 1; values up
@@ -142,10 +150,12 @@ Pause (rest), with
 interpreted as for
 .Li L Sy n .
 May be followed by
-sustain dots.  May also be written
+sustain dots.
+May also be written
 .Li ~ .
 .It Ns Li T Sy n
-Sets the number of quarter notes per minute; default is 120.  Musical
+Sets the number of quarter notes per minute; default is 120.
+Musical
 names for common tempi are:
 .Bd -literal -offset indent
         	Tempo    	Beats Per Minute
@@ -192,7 +202,8 @@ dotted twice, it is held 9/4, and three times would give 27/8.
 .Pp
 A note and its sustain dots may also be followed by a slur mark (underscore).
 This causes the normal micro-rest after the note to be filled in, slurring it
-to the next one.  (The slur feature is not supported in
+to the next one.
+(The slur feature is not supported in
 .Tn IBM
 BASIC.)
 .Pp
@@ -206,9 +217,11 @@ There is no volume control.
 .Pp
 The action of two or more sustain dots does not reflect standard musical
 notation, in which each dot adds half the value of the previous dot
-modifier, not half the value of the note as modified.  Thus, a note dotted
+modifier, not half the value of the note as modified.
+Thus, a note dotted
 once is held for 3/2 of its undotted value; dotted twice, it is held 7/4,
-and three times would give 15/8.  The multiply-by-3/2 interpretation,
+and three times would give 15/8.
+The multiply-by-3/2 interpretation,
 however, is specified in the
 .Tn IBM
 BASIC manual and has been retained for

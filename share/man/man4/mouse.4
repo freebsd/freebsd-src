@@ -98,11 +98,13 @@ The first half of vertical movement count in two's complement;
 -128 through 127.
 .It Byte 4
 The second half of the horizontal movement count in two's complement;
--128 through 127. To obtain the full horizontal movement count, add
+-128 through 127.
+To obtain the full horizontal movement count, add
 the byte 2 and 4.
 .It Byte 5
 The second half of the vertical movement count in two's complement;
--128 through 127. To obtain the full vertical movement count, add
+-128 through 127.
+To obtain the full vertical movement count, add
 the byte 3 and 5.
 .It Byte 6
 The bit 7 is always zero.
@@ -234,7 +236,8 @@ constants.
 The
 .Dv rate
 field is the status report rate (reports/sec) at which the device will send
-movement reports to the host computer. -1 if unknown or not applicable.
+movement reports to the host computer.
+-1 if unknown or not applicable.
 .Pp
 The
 .Dv resolution

@@ -65,31 +65,45 @@ The possible modes are:
 .It Dv UTP_LOOP_NONE (0x00)
 No loopback, normal operation.
 .It Dv UTP_LOOP_TIME (0x01)
-Timing source loopback. When this is set the transmitter's clock is
+Timing source loopback.
+When this is set the transmitter's clock is
 derived from the receiver's clock.
 .It Dv UTP_LOOP_DIAG (0x02)
-Diagnostic loopback. In this mode the receiver's input is connected to the
-transmitter's output. The receiver gets back everything that is sent. The
+Diagnostic loopback.
+In this mode the receiver's input is connected to the
+transmitter's output.
+The receiver gets back everything that is sent.
+The
 transmitter operates normally.
 .It Dv UTP_LOOP_LINE (0x04)
-Serial line loopback. This connects the line receiver to the line transmitter.
-The chip transmits all cells back that it receives. The receiver operates
+Serial line loopback.
+This connects the line receiver to the line transmitter.
+The chip transmits all cells back that it receives.
+The receiver operates
 normally.
 .It Dv UTP_LOOP_PARAL (0x08)
-Parallel diagnostic loopback. This feeds back all transmitted cells into the
-receiver between the parallel/serial converters. The transmitter
+Parallel diagnostic loopback.
+This feeds back all transmitted cells into the
+receiver between the parallel/serial converters.
+The transmitter
 operates normally.
 .It Dv UTP_LOOP_TWIST (0x10)
-Twisted pair diagnostic loopback. Connects the high speed receive data to the
-high speed transmit data. All received data is sent back. The receiver
+Twisted pair diagnostic loopback.
+Connects the high speed receive data to the
+high speed transmit data.
+All received data is sent back.
+The receiver
 operates normally.
 .It Dv UTP_LOOP_PATH (0x20)
-Diagnostic path loopback. This connects the receiver input to the transmitter
-output just between the path overhead processor and the byte mux. The
+Diagnostic path loopback.
+This connects the receiver input to the transmitter
+output just between the path overhead processor and the byte mux.
+The
 transmitter operates normally.
 .El
 .It Cm phy_type
-This is the detected type of the phy chip. Currently the following chips are
+This is the detected type of the phy chip.
+Currently the following chips are
 supported:
 .Bl -tag -width XXX
 .It Dv UTP_TYPE_UNKNOWN (0)
@@ -108,8 +122,10 @@ IDT77155 (155MBit interface)
 .It Cm phy_name
 This is a string describing the type of the PHY chip.
 .It Cm phy_stats
-Physical and some ATM layer statistics. These are the statistics usually
-provided by the chip. The data is a returned in the following structure:
+Physical and some ATM layer statistics.
+These are the statistics usually
+provided by the chip.
+The data is a returned in the following structure:
 .Bd -literal
 struct utopia_stats1 {
 	uint32_t version;	/* version of this struct */
@@ -127,9 +143,13 @@ struct utopia_stats1 {
 };
 .Ed
 .Pp
-The current version is 1. The statistics are updated from the chip once
-a second. On overflow the counters wrap to zero. Note that not all counters
-are meaningful for all PHY chips. The statistics are cleared by writing an
+The current version is 1.
+The statistics are updated from the chip once
+a second.
+On overflow the counters wrap to zero.
+Note that not all counters
+are meaningful for all PHY chips.
+The statistics are cleared by writing an
 arbitrary new value (the value is ignored).
 .El
 .Pp
@@ -148,7 +168,9 @@ If the PHY is a Sonet/SDH chip disable scrambling.
 This may be useful for debugging purposes.
 .It Cm unassigned
 Normally the interface emits idle cells when there are no other cells to
-transmit. This changes the default cell type to unassigned cells. This
+transmit.
+This changes the default cell type to unassigned cells.
+This
 may be needed for interworking with public networks.
 .El
 .Sh SEE ALSO

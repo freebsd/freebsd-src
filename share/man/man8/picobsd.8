@@ -270,7 +270,7 @@ The string
 .Dq Li @__CWD__@
 is replaced with the full pathname of the directory where the
 .Nm
-configuration resides (i.e. the one where we find
+configuration resides (i.e., the one where we find
 .Pa PICOBSD , crunch.conf ,
 and so on).
 This can be useful to refer source code that resides within a
@@ -303,7 +303,7 @@ By default,
 is set to 1440
 which produces an image suitable for a standard floppy.
 .Pp
-If you plan to store the image on a CDROM (e.g. using
+If you plan to store the image on a CDROM (e.g.\& using
 the
 .Dq "El Torito"
 floppy emulation), you can set
@@ -380,7 +380,7 @@ a new image can be produced by simply running
 .Dl "picobsd --src FOO/src -n -v bridge"
 .Pp
 whereas if the change affects include files or libraries
-you first need to update them, e.g. by running first
+you first need to update them, e.g.\& by running first
 .Pp
 .Dl "picobsd --src FOO/src --init  # this is needed only once"
 .Pp
@@ -648,7 +648,7 @@ If one of the arguments is
 (the directory name alone),
 then the command saves to disk (without editing)
 all the files in the directory for which a copy
-already exists on disk (e.g. as a result of a previous update).
+already exists on disk (e.g.\& as a result of a previous update).
 .Sh SEE ALSO
 .Xr crunchgen 1 ,
 .Xr mdconfig 8 ,

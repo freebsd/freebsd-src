@@ -191,7 +191,8 @@ docking stations with built-in 3c905-TX adapters.
 For whatever the
 reason, the 'MII available' bit in the media options register on
 this particular equipment is not set, even though it should be (the
-3c905-TX always uses an external PHY transceiver). The driver will
+3c905-TX always uses an external PHY transceiver).
+The driver will
 attempt to guess the proper media type based on the PCI device ID
 word.
 The driver makes a lot of noise about this condition because

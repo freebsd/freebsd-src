@@ -148,7 +148,8 @@ or the maximum, whichever is less.
 .Pp
 The
 .Dv MEMRANGE_SET
-ioctl is used to add, alter and remove memory range attributes.  A range
+ioctl is used to add, alter and remove memory range attributes.
+A range
 with the
 .Dv MDF_FIXACTIVE
 flag may not be removed; a range with the
@@ -166,7 +167,7 @@ to remove a range.
 .It Bq Er EOPNOTSUPP
 Memory range operations are not supported on this architecture.
 .It Bq Er ENXIO
-No memory range descriptors are available (eg. firmware has not enabled
+No memory range descriptors are available (e.g.\& firmware has not enabled
 any).
 .It Bq Er EINVAL
 The memory range supplied as an argument is invalid or overlaps another
@@ -175,7 +176,7 @@ range in a fashion not supported by this architecture.
 An attempt to remove or update a range failed because the range is busy.
 .It Bq Er ENOSPC
 An attempt to create a new range failed due to a shortage of hardware
-resources (eg. descriptor slots).
+resources (e.g.\& descriptor slots).
 .It Bq Er ENOENT
 An attempt to remove a range failed because no range matches the descriptor
 base/length supplied.
