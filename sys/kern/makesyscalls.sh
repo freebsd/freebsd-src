@@ -199,7 +199,7 @@ s/\$//g
 		exit 1
 	}
 	function parseline() {
-		f=4			# toss number and type
+		f=3			# toss number and type
 		argc= 0;
 		argssize = "0"
 		if ($NF != "}") {
@@ -214,8 +214,8 @@ s/\$//g
 			end=NF
 		}
 		if ($2 == "NODEF") {
-			funcname=$4
-			argssize = "AS(" $6 ")"
+			funcname=$3
+			argssize = "AS(" $5 ")"
 			return
 		}
 		if ($f != "{")
@@ -274,9 +274,9 @@ s/\$//g
 		if (argc != 0)
 			argssize = "AS(" argalias ")"
 	}
-	{	comment = $4
-		if (NF < 7)
-			for (i = 5; i <= NF; i++)
+	{	comment = $3
+		if (NF < 6)
+			for (i = 4; i <= NF; i++)
 				comment = comment " " $i
 	}
 
@@ -432,7 +432,7 @@ s/\$//g
 		align_sysent_comment(34)
 		printf("/* %d = obsolete %s */\n", syscall, comment) > sysent
 		printf("\t\"obs_%s\",\t\t\t/* %d = obsolete %s */\n",
-		    $4, syscall, comment) > sysnames
+		    $3, syscall, comment) > sysnames
 		printf("\t\t\t\t/* %d is obsolete %s */\n",
 		    syscall, comment) > syshdr
 		syscall++
